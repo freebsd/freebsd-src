@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_emit.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_emit.c,v 1.2 1994/08/02 07:51:02 davidg Exp $
+ * $Id: tp_emit.c,v 1.3 1995/05/30 08:11:07 rgrimes Exp $
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_emit.c,v 1.2 1994/08/02 07:51:02 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_emit.c,v 1.3 1995/05/30 08:11:07 rgrimes Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_emit.c,v $
  *
  * This file contains tp_emit() and tp_error_emit(), which

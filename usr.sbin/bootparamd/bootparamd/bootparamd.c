@@ -5,7 +5,7 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id: bootparamd.c,v 1.2 1995/05/30 03:46:27 rgrimes Exp $
+	$Id: bootparamd.c,v 1.2.4.1 1995/08/26 11:32:30 davidg Exp $
 
 */
 

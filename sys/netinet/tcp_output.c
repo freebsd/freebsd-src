@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.12 1995/09/13 17:36:31 wollman Exp $
+ * $Id: tcp_output.c,v 1.11.4.1 1995/09/15 08:58:07 davidg Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: dot.login,v 1.6 1994/09/16 04:20:13 rgrimes Exp $
+#	$Id: dot.login,v 1.6.6.1 1995/08/25 03:42:24 davidg Exp $
 #
 tset -Q \?$TERM
 stty crt erase ^H

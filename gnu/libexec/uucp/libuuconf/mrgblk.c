@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_mrgblk_rcsid[] = "$Id: mrgblk.c,v 1.3 1995/08/19 21:27:44 ache Exp $";
+const char _uuconf_mrgblk_rcsid[] = "$Id: mrgblk.c,v 1.2.6.1 1995/09/01 06:04:07 davidg Exp $";
 #endif
 
 #include "alloc.h"

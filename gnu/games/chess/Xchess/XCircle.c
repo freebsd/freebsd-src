@@ -20,7 +20,7 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.3 $ on $Date: 1995/07/08 21:39:58 $
+/* RCS Info: $Revision: 1.2.4.1 $ on $Date: 1995/08/30 06:42:41 $
  *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/XCircle.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: dvmrp.h,v 1.4 1995/06/28 17:58:31 wollman Exp $
+ * $Id: dvmrp.h,v 1.2.6.1 1995/09/06 10:33:45 davidg Exp $
  */
 
 /*

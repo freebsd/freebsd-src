@@ -1,4 +1,4 @@
-char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.3 $$Date: 1995/05/28 19:21:54 $\nPatch level: ###\n";
+char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.4 $$Date: 1995/05/30 05:03:10 $\nPatch level: ###\n";
 /*
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@ char rcsid[] = "$RCSfile: perl.c,v $$Revision: 1.3 $$Date: 1995/05/28 19:21:54 $
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: perl.c,v $
+ * Revision 1.4  1995/05/30  05:03:10  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.3  1995/05/28  19:21:54  ache
  * Fix $] variable value (version number), close PR 449
  * Submitted by: Bill Fenner <fenner@parc.xerox.com>

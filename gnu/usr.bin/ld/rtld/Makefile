@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1995/03/04 17:46:23 nate Exp $
+#	$Id: Makefile,v 1.14.4.1 1995/08/30 07:05:48 davidg Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c

@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.3.4.1 1995/09/14 07:08:53 davidg Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3.4.1 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,13 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.5 1995/09/08 11:06:57 bde Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.3.4.1  1995/09/14  07:08:53  davidg
+ * Brought in changes from main branch:
+ * 1) Bruce and Andrey's tty fixes
+ * 2) many of Bruce's prototype and function argument fixes/corrections
+ * 3) Bruce's version of the Cyclades driver
+ * 4) Improvements to the RISCom/8 driver
+ *
  * Revision 1.5  1995/09/08  11:06:57  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.

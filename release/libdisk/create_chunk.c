@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.21.2.5 1995/11/17 23:04:04 jkh Exp $
+ * $Id: create_chunk.c,v 1.21.2.4 1995/10/20 07:00:40 jkh Exp $
  *
  */
 
@@ -31,7 +31,7 @@
 static int
 isDebug()
 {
-    static int debug = 0;	/* Allow debugger to tweak it */
+    static int debug = 1;	/* Allow debugger to tweak it */
 
     return debug;
 }
@@ -261,6 +261,7 @@ MakeDev(struct chunk *c1, char *path)
     else if (!strncmp(p, "sd", 2))
 	bmaj = 4, cmaj = 13;
     else {
+	msgDebug("MakeDev: %s is an unknown device type!\n", p);
 	return 0;
     }
     p += 2;

@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.36 1995/08/25 20:39:01 bde Exp $
+ *      $Id: ultra14f.c,v 1.33.4.3 1995/09/14 07:09:37 davidg Exp $
  */
 
 #include <sys/types.h>

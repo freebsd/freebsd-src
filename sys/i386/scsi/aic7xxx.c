@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.29.2.5 1995/09/21 02:11:16 davidg Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.6 1995/10/29 09:45:51 davidg Exp $
  */
 /*
  * TODO:

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.11.2.4 1995/10/09 06:27:50 davidg Exp $
+ *	$Id: aic7870.c,v 1.11.2.5 1995/10/29 09:46:11 davidg Exp $
  */
 
 #include <pci.h>

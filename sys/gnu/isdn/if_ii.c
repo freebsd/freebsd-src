@@ -1,6 +1,6 @@
-static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp $";
+static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.3 1995/05/30 07:58:00 rgrimes Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,9 @@ static char     _if_iiid[] = "@(#)$Id: if_ii.c,v 1.2 1995/02/15 06:28:26 jkh Exp
  *
  *******************************************************************************
  * $Log: if_ii.c,v $
+ * Revision 1.3  1995/05/30  07:58:00  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1995/02/15  06:28:26  jkh
  * Fix up include paths, nuke some warnings.
  *

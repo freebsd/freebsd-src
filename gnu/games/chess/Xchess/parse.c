@@ -19,7 +19,7 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:06 $
+/* RCS Info: $Revision: 1.2 $ on $Date: 1995/05/30 04:41:26 $
  *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/parse.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it

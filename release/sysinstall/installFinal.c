@@ -73,21 +73,11 @@ static DMenu MenuSamba = {
 #define SMB_CONF "./smb.conf"
 
 
-/* Load gated package */
+/* Load gated package and maybe even seek to configure or explain it a little */
 int
 configGated(char *unused)
 {
-    if (package_add("gated-3.5a11") == RET_SUCCESS)
-	variable_set2("gated", "YES");
-    return RET_SUCCESS;
-}
-
-/* Load pcnfsd package */
-int
-configPCNFSD(char *unused)
-{
-    if (package_add("pcnfsd-93.02.16") == RET_SUCCESS)
-	variable_set2("pcnfsd", "YES");
+    variable_set2("gated", "YES");
     return RET_SUCCESS;
 }
 
@@ -97,8 +87,6 @@ configSamba(char *unused)
     int i = RET_SUCCESS;
 
     if (!dmenuOpenSimple(&MenuSamba))
-	i = RET_FAIL;
-    else if (package_add("samba-1.9.14") != RET_SUCCESS)
 	i = RET_FAIL;
     else {
 	FILE *fptr;
@@ -221,3 +209,4 @@ configNFSServer(char *unused)
     variable_set2("nfs_server", "YES");
     return RET_SUCCESS;
 }
+

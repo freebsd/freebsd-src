@@ -36,6 +36,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcskeep.c,v $
+ * Revision 1.2  1995/05/30  05:04:13  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -96,7 +99,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$Id: rcskeep.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(keepId, "$Id: rcskeep.c,v 1.2 1995/05/30 05:04:13 rgrimes Exp $")
 
 static int checknum P((char const*,int));
 static int getval P((RILE*,struct buf*,int));

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1995/09/28 18:23:34 bde Exp $
+# $Id: Makefile,v 1.2.4.2 1995/10/06 01:07:02 davidg Exp $
 
 PROG = colldef
 LFLAGS = -8 -i

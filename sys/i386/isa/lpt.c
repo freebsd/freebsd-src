@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.30.4.2 1995/09/14 07:09:17 davidg Exp $
+ *	$Id: lpt.c,v 1.30.4.3 1995/09/30 14:22:17 davidg Exp $
  */
 
 /*

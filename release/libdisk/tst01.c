@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.15 1995/06/11 19:29:37 rgrimes Exp $
+ * $Id: tst01.c,v 1.15.2.1 1995/09/20 10:43:04 jkh Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.66.4.6 1995/10/19 08:07:09 jkh Exp $
+#	$Id: rc,v 1.66.4.7 1995/10/30 08:30:31 davidg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot

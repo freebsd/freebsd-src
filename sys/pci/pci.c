@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.32 1995/10/02 13:43:11 davidg Exp $
+**  $Id: pci.c,v 1.23.4.4 1995/10/09 06:35:59 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()

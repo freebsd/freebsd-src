@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.30.4.3 1995/08/31 06:36:25 davidg Exp $
+ *      $Id: scsiconf.c,v 1.30.4.4 1995/10/10 00:42:02 davidg Exp $
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-<!-- $Id: ppp.sgml,v 1.5 1995/09/27 00:46:27 jmz Exp $ -->
+<!-- $Id: ppp.sgml,v 1.1.1.1.4.2 1995/10/12 03:16:29 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Setting up kernel PPP<label id="ppp"></heading>

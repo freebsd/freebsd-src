@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq_os.h,v 1.3 1995/07/16 10:07:20 bde Exp $
+ * $Id: pdq_os.h,v 1.2.4.1 1995/09/12 09:19:23 davidg Exp $
  *
  * $Log: pdq_os.h,v $
+ * Revision 1.2.4.1  1995/09/12  09:19:23  davidg
+ * Brought in change from rev 1.3: include systm.h.
+ *
  * Revision 1.3  1995/07/16  10:07:20  bde
  * Fix compiler warnings (systm.h wasn't included).
  *

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ **      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
  **/
 
 /**
@@ -2143,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.35 1995/10/06 05:36:51 jkh Exp $
+ *      $Id: userconfig.c,v 1.28.4.3 1995/10/06 05:43:44 jkh Exp $
  */
 
 

@@ -85,7 +85,7 @@ extern void panic __P((int, const char *));
  *	All rights reserved.
  */
 #ifndef lint
-static char RCSid[] = "$Id: storage.c,v 1.3 1995/05/30 03:49:05 rgrimes Exp $";
+static char RCSid[] = "$Id: storage.c,v 1.3.4.1 1995/08/30 04:08:42 davidg Exp $";
 #endif
 
 #undef malloc

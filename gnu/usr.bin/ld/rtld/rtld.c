@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.24.4.1 1995/08/25 07:08:26 davidg Exp $
+ *	$Id: rtld.c,v 1.24.4.2 1995/09/28 13:26:25 davidg Exp $
  */
 
 #include <sys/param.h>

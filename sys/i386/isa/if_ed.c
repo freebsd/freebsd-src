@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.73.4.2 1995/09/12 06:12:23 davidg Exp $
+ * $Id: if_ed.c,v 1.73.4.3 1995/11/15 07:46:35 davidg Exp $
  */
 
 #include "ed.h"

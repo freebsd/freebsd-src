@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id:$
+ * $Id: ascreg.h,v 1.2 1995/09/08 18:30:34 julian Exp $
  */
 
     /***    Registers (base=3EB): ************/

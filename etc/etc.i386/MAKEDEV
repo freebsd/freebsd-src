@@ -96,7 +96,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.7 1995/11/09 15:53:38 jkh Exp $
+#	$Id: MAKEDEV,v 1.95.4.8 1995/11/10 04:42:37 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:

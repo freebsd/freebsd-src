@@ -41,7 +41,7 @@
 #
 ##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.3 1995/10/29 09:45:26 davidg Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.16.4.4 1995/11/07 07:01:50 davidg Exp $"
 
 SCBMASK		= 0xff
 

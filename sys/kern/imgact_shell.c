@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.6 1994/09/25 19:33:32 phk Exp $
+ *	$Id: imgact_shell.c,v 1.6.8.1 1995/09/08 13:25:46 davidg Exp $
  */
 
 #include <sys/param.h>

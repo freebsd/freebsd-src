@@ -13,7 +13,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: eisadevs.c,v 1.2 1995/08/09 13:00:25 peter Exp $
+ * $Id: eisadevs.c,v 1.1.4.1 1995/09/26 05:22:13 davidg Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.16 1995/11/06 07:27:31 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.17 1995/11/06 07:28:51 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.

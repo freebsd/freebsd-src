@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.5 (Berkeley) 5/11/90
-#	$Id: Makefile,v 1.3 1995/08/06 00:58:52 bde Exp $
+#	$Id: Makefile,v 1.2.6.1 1995/09/18 03:21:17 davidg Exp $
 
 BINDIR=/usr/sbin
 PROG=	rtprio

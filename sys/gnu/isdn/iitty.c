@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.5.4.1 1995/09/14 07:08:54 davidg Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5.4.1 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,13 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.11 1995/07/31 21:28:42 bde Exp
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.5.4.1  1995/09/14  07:08:54  davidg
+ * Brought in changes from main branch:
+ * 1) Bruce and Andrey's tty fixes
+ * 2) many of Bruce's prototype and function argument fixes/corrections
+ * 3) Bruce's version of the Cyclades driver
+ * 4) Improvements to the RISCom/8 driver
+ *
  * Revision 1.11  1995/07/31  21:28:42  bde
  * Use tsleep() instead of ttysleep() to wait for carrier since a generation
  * change isn't an error.

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.9 1995/09/02 17:20:50 amurai Exp $
+ * $Id: command.c,v 1.5.4.2 1995/10/06 11:24:32 davidg Exp $
  *
  */
 #include <ctype.h>

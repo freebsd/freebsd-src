@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.15 1995/09/08 11:08:34 bde Exp $
+ * $Id: kern_lkm.c,v 1.13.4.1 1995/09/14 07:09:57 davidg Exp $
  */
 
 /*

@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.10.2.3 1995/09/21 02:11:20 davidg Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.4 1995/10/29 09:45:56 davidg Exp $
  */
 
 #ifndef _AIC7XXX_H_

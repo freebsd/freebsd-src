@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.4 1995/05/30 00:06:50 rgrimes Exp $
+ *	$Id: print.c,v 1.4.4.1 1995/08/28 10:30:27 davidg Exp $
  */
 
 #ifndef lint

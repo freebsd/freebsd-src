@@ -1,0 +1,56 @@
+# TODO File for:		Joerg Wunsch
+# Revision: $Id: joerg,v 1.5.4.1 1995/09/18 08:56:17 davidg Exp $
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	mid april
+Prio:	high
+Task:	Silence floppy error messages
+
+The floppy error messages require a cleanup.
+-*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	end april
+Prio:	medium
+Task:	Repair EOF handling in floppy driver
+
+>> The floppy device driver returns 0 for attempted reads from and writes
+>> to precisely the end of the disk.  It returns -1 and sets errno to
+>> ENOSPC for reads and writes that would cross the end of the disk or are
+>> strictly beyond the end.
+-*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	ongoing work
+Prio:	medium
+Task:	keep pcvt in -current up to date
+
+Merge Hellmuth Michaelis' betas and the expected release of pcvt-3.20
+into the -current sources.
+-*-
+
+Update: Wed Jun 14 08:27:44 MET DST 1995
+Due:	2.1
+Prio:	low
+Task:	QFA changes to st(4)/mt(1)
+
+Date: Mon, 22 May 1995 20:23:07 +0100
+From: Philippe Causse <caussep@osiris.cpc.wmin.ac.uk>
+Message-Id: <199505221923.UAA09024@osiris.cpc.wmin.ac.uk>
+To: hackers@FreeBSD.org
+CC: caussep@osiris.cpc.wmin.ac.uk
+Subject: Patches...
+
+        -> in /usr/src/sys/scsi/(st.c,scsi_tape.h) 
+        -> and /usr/src/usr.bin/mt.*
+I added QFA (quick file access) commands which can be used on the
+Archive Viper 150 (SCSI-1, 250Mb, QIC-150). You can do
+"mt tell" and "mt seek blk_no", see the updated manpage.
+-*-
+

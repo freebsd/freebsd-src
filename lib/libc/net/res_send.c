@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 1.4 1995/05/30 05:40:58 rgrimes Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.4.4.1 1995/08/30 04:06:59 davidg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"

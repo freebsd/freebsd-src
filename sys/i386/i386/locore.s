@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52.4.1 1995/08/19 00:51:53 davidg Exp $
+ *	$Id: locore.s,v 1.52.4.2 1995/09/30 13:42:32 davidg Exp $
  */
 
 /*

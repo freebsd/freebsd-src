@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ufs.c,v 1.5.2.3 1995/10/18 00:12:47 jkh Exp $
+ * $Id: ufs.c,v 1.5.2.4 1995/10/22 01:33:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

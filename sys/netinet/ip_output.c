@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.23 1995/07/26 18:05:13 wollman Exp $
+ * $Id: ip_output.c,v 1.19.4.2 1995/09/06 10:31:40 davidg Exp $
  */
 
 #include <sys/param.h>

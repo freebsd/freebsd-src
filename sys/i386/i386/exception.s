@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.9 1995/06/11 19:31:13 rgrimes Exp $
+ *	$Id: exception.s,v 1.9.2.1 1995/08/23 05:22:34 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */

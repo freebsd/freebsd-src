@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/06/21 18:30:16 wollman Exp $
+#	$Id: Makefile,v 1.1.6.1 1995/09/06 10:34:19 davidg Exp $
 
 PROG=	mtrace
 

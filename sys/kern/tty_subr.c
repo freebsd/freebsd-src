@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.10.4.2 1995/10/26 08:38:08 davidg Exp $
+ * $Id: tty_subr.c,v 1.10.4.3 1995/11/03 08:05:05 davidg Exp $
  */
 
 /*

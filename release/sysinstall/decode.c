@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.6.2.4 1995/10/19 15:54:54 jkh Exp $
+ * $Id: decode.c,v 1.6.2.5 1995/11/03 12:02:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.11.4.4 1995/11/04 11:42:25 jkh Exp $
+ * $Id: command.c,v 1.11.4.5 1995/11/04 15:45:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

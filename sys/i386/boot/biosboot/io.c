@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.14 1995/05/30 07:58:33 rgrimes Exp $
+ *	$Id: io.c,v 1.14.4.1 1995/08/23 04:35:52 davidg Exp $
  */
 
 #include "boot.h"

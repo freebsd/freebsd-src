@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.c,v 1.5 1995/06/28 17:58:44 wollman Exp $
+ * $Id: route.c,v 1.3.4.1 1995/09/06 10:34:02 davidg Exp $
  */
 
 

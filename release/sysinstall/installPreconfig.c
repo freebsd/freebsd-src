@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.16 1995/10/27 17:00:23 jkh Exp $
+ * $Id: installPreconfig.c,v 1.17 1995/11/03 12:02:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

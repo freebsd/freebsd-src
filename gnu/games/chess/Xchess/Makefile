@@ -1,4 +1,4 @@
-# RCS Info: $Revision: 1.3 $ on $Date: 1995/05/30 04:41:16 $
+# RCS Info: $Revision: 1.3.4.1 $ on $Date: 1995/08/30 06:42:39 $
 #           $Source: /home/ncvs/src/gnu/games/chess/Xchess/Makefile,v $
 # Copyright (c) 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
 #

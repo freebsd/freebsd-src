@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.4 1995/09/27 00:46:22 jmz Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.3.2.2 1995/10/22 00:50:30 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.6 1995/10/22 01:32:54 jkh Exp $
+ * $Id: msg.c,v 1.29.2.8 1995/10/22 21:38:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

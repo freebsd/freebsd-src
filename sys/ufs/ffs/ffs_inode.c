@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.13 1995/03/26 23:29:10 davidg Exp $
+ * $Id: ffs_inode.c,v 1.13.4.1 1995/08/24 06:03:02 davidg Exp $
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.6 1995/10/16 09:01:52 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.2.4.3 1995/10/18 04:36:25 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1995/10/16 09:01:52 $
+Last updated: $Date: 1995/10/18 04:36:25 $
 
 This document attempts to explain the rationale behind FreeBSD-current,
 what you should expect should you decide to run it, and states some

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp $
+ * $Id: in_rmx.c,v 1.13.4.1 1995/07/23 05:19:01 davidg Exp $
  */
 
 /*

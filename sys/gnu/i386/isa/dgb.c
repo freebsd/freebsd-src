@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.4 1995/10/12 23:28:31 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.2.2.2 1995/10/13 03:41:22 davidg Exp $
  *
  *  Digiboard driver.
  *

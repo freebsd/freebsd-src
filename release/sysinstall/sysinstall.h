@@ -489,7 +489,6 @@ extern Boolean	rootExtract(void);
 /* installFinal.c */
 extern int	configGated(char *unused);
 extern int	configSamba(char *unused);
-extern int	configPCNFSD(char *unused);
 extern int	configNFSServer(char *unused);
 
 /* label.c */

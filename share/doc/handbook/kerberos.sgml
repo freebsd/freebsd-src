@@ -1,4 +1,4 @@
-<!-- $Id: kerberos.sgml,v 1.5 1995/09/27 00:46:21 jmz Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.2.4.2 1995/10/12 03:16:05 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_paramc_rcsid[] = "$Id: paramc.c,v 1.3 1995/08/19 21:27:45 ache Exp $";
+const char _uuconf_paramc_rcsid[] = "$Id: paramc.c,v 1.2.6.1 1995/09/01 06:04:08 davidg Exp $";
 #endif
 
 #include <errno.h>

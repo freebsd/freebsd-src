@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.14 1995/05/30 08:09:26 rgrimes Exp $
+ * $Id: in.c,v 1.14.4.1 1995/07/23 03:38:11 davidg Exp $
  */
 
 #include <sys/param.h>

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.48 1995/10/01 15:09:51 dufault Exp $
+ *      $Id: aha1542.c,v 1.45.4.2 1995/10/07 11:54:53 davidg Exp $
  */
 
 /*

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.3 1995/05/30 03:50:56 rgrimes Exp $
+ * $Id: route.c,v 1.3.4.1 1995/08/26 12:11:49 davidg Exp $
  *
  */
 #include <sys/types.h>

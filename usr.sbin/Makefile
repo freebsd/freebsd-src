@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.62.4.1 1995/09/18 06:23:49 davidg Exp $
+#	$Id: Makefile,v 1.62.4.2 1995/09/30 13:35:08 davidg Exp $
 
 # XXX MISSING:		mkproto
 # XXX MISSING SOURCES:	quot

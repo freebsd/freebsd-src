@@ -1,0 +1,65 @@
+# TODO File for core-team member:		Justin Gibbs
+# Revision: $Id: gibbs,v 1.1 1995/07/03 22:04:37 gibbs Exp $
+#
+# This list contains my medium term goals (three month time frames).  Feel
+# free to contact me on any of these issues.
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Mon Jul 3, 1995
+Due:	Mid Jul
+Prio:	High
+Task:	Adaptec 27/28/29/3940 driver house cleaning.
+
+The current aic7xxx driver, although quite stable, still has many weak
+points.
+
+1) The abort code is incomplete and insufficient to handle most errors.
+The code should first perform a bus device reset and resort to a full 
+bus reset only if that fails.  The clean up after a bus reset currently
+doesn't account for commands other than the command that was the cause
+of the abort, so they are not reported properly to the upper level 
+SCSI code.
+
+2) The scatter gather sequencer code was an abomination.  I've rewritten
+it, but in making it faster, I've exposed some race conditions in the 
+Twin channel support that I'm in the process of diagnosing.
+
+3) I'd like to be able to have active selections on both busses of a twin
+channeled adapter at a time.  This may come about while I fix #2.
+
+4) Add support for the 3940 controller.  I've already got this in my "alpha"
+driver I'm working on, but I need to test being able to handle 255 commands.
+
+Update: Mon Jul 3, 1995
+Due:	2.1
+Prio:	High
+Task:	Implement proper tagged queuing functionality and better error
+	handling in the SCSI subsystem.
+
+A major week point in the SCSI system is how it handles tape devices.  It
+doesn't allow any retries irregardless of the type of error encountered.
+For example, a "device busy" statis is not a failure (many devices give
+this statis when they are repositioning the tape), but will abort the I/O.
+Whenever this type of abort occurs (this is the "Oops, not queued" error), 
+the VM system for some reason believes that buffer is already run down even
+though is hasn't been touched at all.  Other weak points are parity errors,
+and sense keys that signal command aborts.
+
+Update: Mon Jul 3, 1995
+Due:	2.1
+Prio:	High
+Task:	Better support for removable r/w SCSI devices.
+
+Chuck Robey has sent me a Zip drive to work on this with, but I haven't
+had a chance to look at how difficult this task will be.
+
+Update: Mon Jul 3, 1995
+Due:	2.2 possibly 2.1
+Prio:	Medium
+Task:	Get LFS to work
+
+Subject says it all.  This entailes updating LFS to the new VM system and
+killing many places in the code where it "doesn't play by the rules."  How
+soon I get to start working on this task will depend on how well the other
+tasks go on my list.

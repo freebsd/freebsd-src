@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.2 1995/10/04 21:51:26 jkh Exp $
+ *  dgreg.h $Id: dgreg.h,v 1.1.2.1 1995/10/07 04:28:06 davidg Exp $
  *
  *  Digiboard driver.
  *
