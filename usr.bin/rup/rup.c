@@ -133,6 +133,8 @@ rstat_reply(caddr_t replyp, struct sockaddr_in *raddrp)
 	else
 		if (host_uptime.tm_min != 0)
 			sprintf(hours_buf, "%2d mins, ", host_uptime.tm_min);
+		else if (host_stat->curtime.tv_sec < 60)
+			sprintf(hours_buf, "%2d secs, ", host_uptime.tm_sec);
 		else
 			hours_buf[0] = '\0';
 
