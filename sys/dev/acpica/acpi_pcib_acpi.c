@@ -285,7 +285,6 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     ACPI_BUFFER			crsbuf, prsbuf;
     ACPI_RESOURCE		*crsres, *prsres;
     ACPI_DEVICE_INFO		devinfo;
-    ACPI_OBJECT_LIST		objectlist;
     ACPI_STATUS			status;
     u_int8_t			*prtp;
     device_t			*devlist;
@@ -476,9 +475,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     printf("\n");
     crsres->Data.Irq.Interrupts[0] = prsres->Data.Irq.Interrupts[0];
     crsres->Data.Irq.NumberOfInterrupts = 1;
-    objectlist.Count = 1;
-    objectlist.Pointer = (ACPI_OBJECT *)crsres;
-    if (ACPI_FAILURE(status = AcpiEvaluateObject(lnkdev, "_SRS", &objectlist, NULL))) {
+    if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
 	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s - %s\n",
 		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), acpi_strerror(status));
 	goto out;
