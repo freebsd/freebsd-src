@@ -101,6 +101,7 @@ struct tcpcb {
 #define	TF_MORETOCOME	0x10000		/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x20000		/* listen queue overflow */
 #define	TF_LASTIDLE	0x40000		/* connection was previously idle */
+#define TF_RXWIN0SENT	0x80000		/* sent a receiver win 0 in response */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
