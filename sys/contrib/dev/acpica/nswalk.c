@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nswalk - Functions for walking the ACPI namespace
- *              $Revision: 26 $
+ *              $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -123,7 +123,7 @@
 
 
 #define _COMPONENT          ACPI_NAMESPACE
-        MODULE_NAME         ("nswalk")
+        ACPI_MODULE_NAME    ("nswalk")
 
 
 /*******************************************************************************
@@ -147,14 +147,14 @@
 
 ACPI_NAMESPACE_NODE *
 AcpiNsGetNextNode (
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_OBJECT_TYPE        Type,
     ACPI_NAMESPACE_NODE     *ParentNode,
     ACPI_NAMESPACE_NODE     *ChildNode)
 {
     ACPI_NAMESPACE_NODE     *NextNode = NULL;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     if (!ChildNode)
@@ -237,7 +237,7 @@ AcpiNsGetNextNode (
 
 ACPI_STATUS
 AcpiNsWalkNamespace (
-    ACPI_OBJECT_TYPE8       Type,
+    ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartNode,
     UINT32                  MaxDepth,
     BOOLEAN                 UnlockBeforeCallback,
@@ -248,11 +248,11 @@ AcpiNsWalkNamespace (
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *ChildNode;
     ACPI_NAMESPACE_NODE     *ParentNode;
-    ACPI_OBJECT_TYPE8        ChildType;
+    ACPI_OBJECT_TYPE        ChildType;
     UINT32                  Level;
 
 
-    FUNCTION_TRACE ("NsWalkNamespace");
+    ACPI_FUNCTION_TRACE ("NsWalkNamespace");
 
 
     /* Special case for the namespace Root Node */
@@ -299,7 +299,11 @@ AcpiNsWalkNamespace (
                  */
                 if (UnlockBeforeCallback)
                 {
-                    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+                    Status = AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return_ACPI_STATUS (Status);
+                    }
                 }
 
                 Status = UserFunction (ChildNode, Level,
@@ -307,7 +311,11 @@ AcpiNsWalkNamespace (
 
                 if (UnlockBeforeCallback)
                 {
-                    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+                    Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        return_ACPI_STATUS (Status);
+                    }
                 }
 
                 switch (Status)
@@ -323,14 +331,12 @@ AcpiNsWalkNamespace (
                     /* Exit now, with OK status */
 
                     return_ACPI_STATUS (AE_OK);
-                    break;
 
                 default:
 
                     /* All others are valid exceptions */
 
                     return_ACPI_STATUS (Status);
-                    break;
                 }
             }
 
@@ -356,7 +362,6 @@ AcpiNsWalkNamespace (
                 }
             }
         }
-
         else
         {
             /*
@@ -366,7 +371,7 @@ AcpiNsWalkNamespace (
              */
             Level--;
             ChildNode = ParentNode;
-            ParentNode = AcpiNsGetParentObject (ParentNode);
+            ParentNode = AcpiNsGetParentNode (ParentNode);
         }
     }
 

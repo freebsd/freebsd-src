@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 49 $
+ *              $Revision: 55 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,7 +124,7 @@
 #ifdef ENABLE_DEBUGGER
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbstats")
+        ACPI_MODULE_NAME    ("dbstats")
 
 /*
  * Statistics subcommands
@@ -159,9 +159,8 @@ ARGUMENT_INFO               AcpiDbStatTypes [] =
  * RETURN:      None
  *
  * DESCRIPTION: Add this object to the global counts, by object type.
- *              Recursively handles subobjects and packages.
- *
- *              [TBD] Restructure - remove recursion.
+ *              Limited recursion handles subobjects and packages, and this
+ *              is probably acceptable within the AML debugger only.
  *
  ******************************************************************************/
 
@@ -169,8 +168,6 @@ void
 AcpiDbEnumerateObject (
     ACPI_OPERAND_OBJECT     *ObjDesc)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc2;
-    UINT32                  Type;
     UINT32                  i;
 
 
@@ -184,22 +181,21 @@ AcpiDbEnumerateObject (
 
     AcpiGbl_NumObjects++;
 
-    Type = ObjDesc->Common.Type;
-    if (Type > INTERNAL_TYPE_NODE_MAX)
+    if (ObjDesc->Common.Type > INTERNAL_TYPE_NODE_MAX)
     {
         AcpiGbl_ObjTypeCountMisc++;
     }
     else
     {
-        AcpiGbl_ObjTypeCount [Type]++;
+        AcpiGbl_ObjTypeCount [ObjDesc->Common.Type]++;
     }
 
     /* Count the sub-objects */
 
-    switch (Type)
+    switch (ObjDesc->Common.Type)
     {
     case ACPI_TYPE_PACKAGE:
-        for (i = 0; i< ObjDesc->Package.Count; i++)
+        for (i = 0; i < ObjDesc->Package.Count; i++)
         {
             AcpiDbEnumerateObject (ObjDesc->Package.Elements[i]);
         }
@@ -212,15 +208,14 @@ AcpiDbEnumerateObject (
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
-        ObjDesc2 = AcpiNsGetSecondaryObject (ObjDesc);
-        if (ObjDesc2)
+        if (AcpiNsGetSecondaryObject (ObjDesc))
         {
-            AcpiGbl_ObjTypeCount [INTERNAL_TYPE_EXTRA]++;
+            AcpiGbl_ObjTypeCount [ACPI_TYPE_BUFFER_FIELD]++;
         }
         break;
 
     case ACPI_TYPE_REGION:
-        AcpiGbl_ObjTypeCount [INTERNAL_TYPE_EXTRA]++;
+        AcpiGbl_ObjTypeCount [INTERNAL_TYPE_REGION_FIELD ]++;
         AcpiDbEnumerateObject (ObjDesc->Region.AddrHandler);
         break;
 
@@ -373,8 +368,10 @@ AcpiDbDisplayStatistics (
 {
     UINT32                  i;
     UINT32                  Type;
-    UINT32                  Outstanding;
     UINT32                  Size;
+#ifdef ACPI_DBG_TRACK_ALLOCATIONS
+    UINT32                  Outstanding;
+#endif
 
 
     if (!AcpiGbl_DSDT)
@@ -388,7 +385,7 @@ AcpiDbDisplayStatistics (
         return (AE_OK);
     }
 
-    STRUPR (TypeArg);
+    ACPI_STRUPR (TypeArg);
     Type = AcpiDbMatchArgument (TypeArg, AcpiDbStatTypes);
     if (Type == (UINT32) -1)
     {
@@ -470,11 +467,11 @@ AcpiDbDisplayStatistics (
 
             if (AcpiGbl_MemoryLists[i].ObjectSize)
             {
-                Size = ROUND_UP_TO_1K (Outstanding * AcpiGbl_MemoryLists[i].ObjectSize);
+                Size = ACPI_ROUND_UP_TO_1K (Outstanding * AcpiGbl_MemoryLists[i].ObjectSize);
             }
             else
             {
-                Size = ROUND_UP_TO_1K (AcpiGbl_MemoryLists[i].CurrentTotalSize);
+                Size = ACPI_ROUND_UP_TO_1K (AcpiGbl_MemoryLists[i].CurrentTotalSize);
             }
 
             AcpiOsPrintf ("    Mem:   [Alloc Free Outstanding Size]  % 7d % 7d % 7d % 7d Kb\n",

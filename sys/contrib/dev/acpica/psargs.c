@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 54 $
+ *              $Revision: 58 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,7 +122,7 @@
 #include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psargs")
+        ACPI_MODULE_NAME    ("psargs")
 
 
 /*******************************************************************************
@@ -146,10 +146,10 @@ AcpiPsGetNextPackageLength (
     UINT32                  Length = 0;
 
 
-    FUNCTION_TRACE ("PsGetNextPackageLength");
+    ACPI_FUNCTION_TRACE ("PsGetNextPackageLength");
 
 
-    EncodedLength = (UINT32) GET8 (ParserState->Aml);
+    EncodedLength = (UINT32) ACPI_GET8 (ParserState->Aml);
     ParserState->Aml++;
 
 
@@ -163,7 +163,7 @@ AcpiPsGetNextPackageLength (
 
     case 1: /* 2-byte encoding (next byte + bits 0-3) */
 
-        Length = ((GET8 (ParserState->Aml) << 04) |
+        Length = ((ACPI_GET8 (ParserState->Aml) << 04) |
                  (EncodedLength & 0x0F));
         ParserState->Aml++;
         break;
@@ -171,8 +171,8 @@ AcpiPsGetNextPackageLength (
 
     case 2: /* 3-byte encoding (next 2 bytes + bits 0-3) */
 
-        Length = ((GET8 (ParserState->Aml + 1) << 12) |
-                  (GET8 (ParserState->Aml)     << 04) |
+        Length = ((ACPI_GET8 (ParserState->Aml + 1) << 12) |
+                  (ACPI_GET8 (ParserState->Aml)     << 04) |
                   (EncodedLength & 0x0F));
         ParserState->Aml += 2;
         break;
@@ -180,9 +180,9 @@ AcpiPsGetNextPackageLength (
 
     case 3: /* 4-byte encoding (next 3 bytes + bits 0-3) */
 
-        Length = ((GET8 (ParserState->Aml + 2) << 20) |
-                  (GET8 (ParserState->Aml + 1) << 12) |
-                  (GET8 (ParserState->Aml)     << 04) |
+        Length = ((ACPI_GET8 (ParserState->Aml + 2) << 20) |
+                  (ACPI_GET8 (ParserState->Aml + 1) << 12) |
+                  (ACPI_GET8 (ParserState->Aml)     << 04) |
                   (EncodedLength & 0x0F));
         ParserState->Aml += 3;
         break;
@@ -213,7 +213,7 @@ AcpiPsGetNextPackageEnd (
     NATIVE_UINT             Length;
 
 
-    FUNCTION_TRACE ("PsGetNextPackageEnd");
+    ACPI_FUNCTION_TRACE ("PsGetNextPackageEnd");
 
 
     Length = (NATIVE_UINT) AcpiPsGetNextPackageLength (ParserState);
@@ -246,12 +246,12 @@ AcpiPsGetNextNamestring (
     UINT32                  Length;
 
 
-    FUNCTION_TRACE ("PsGetNextNamestring");
+    ACPI_FUNCTION_TRACE ("PsGetNextNamestring");
 
 
     /* Handle multiple prefix characters */
 
-    while (AcpiPsIsPrefixChar (GET8 (End)))
+    while (AcpiPsIsPrefixChar (ACPI_GET8 (End)))
     {
         /* include prefix '\\' or '^' */
 
@@ -260,7 +260,7 @@ AcpiPsGetNextNamestring (
 
     /* Decode the path */
 
-    switch (GET8 (End))
+    switch (ACPI_GET8 (End))
     {
     case 0:
 
@@ -286,7 +286,7 @@ AcpiPsGetNextNamestring (
 
         /* multiple name segments */
 
-        Length = (UINT32) GET8 (End + 1) * 4;
+        Length = (UINT32) ACPI_GET8 (End + 1) * 4;
         End += 2 + Length;
         break;
 
@@ -343,7 +343,7 @@ AcpiPsGetNextNamepath (
     ACPI_PARSE_OBJECT       *Count;
 
 
-    FUNCTION_TRACE ("PsGetNextNamepath");
+    ACPI_FUNCTION_TRACE ("PsGetNextNamepath");
 
 
     Path = AcpiPsGetNextNamestring (ParserState);
@@ -443,7 +443,7 @@ AcpiPsGetNextNamepath (
     ACPI_GENERIC_STATE      ScopeInfo;
 
 
-    FUNCTION_TRACE ("PsGetNextNamepath");
+    ACPI_FUNCTION_TRACE ("PsGetNextNamepath");
 
 
     Path = AcpiPsGetNextNamestring (ParserState);
@@ -475,8 +475,8 @@ AcpiPsGetNextNamepath (
          * parent tree, but don't open a new scope -- we just want to lookup the
          * object  (MUST BE mode EXECUTE to perform upsearch)
          */
-        Status = AcpiNsLookup (&ScopeInfo, Path, ACPI_TYPE_ANY, IMODE_EXECUTE,
-                                NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE, NULL,
+        Status = AcpiNsLookup (&ScopeInfo, Path, ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
+                                ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE, NULL,
                                 &Node);
         if (ACPI_SUCCESS (Status))
         {
@@ -554,7 +554,7 @@ AcpiPsGetNextSimpleArg (
     ACPI_PARSE_OBJECT       *Arg)
 {
 
-    FUNCTION_TRACE_U32 ("PsGetNextSimpleArg", ArgType);
+    ACPI_FUNCTION_TRACE_U32 ("PsGetNextSimpleArg", ArgType);
 
 
     switch (ArgType)
@@ -563,7 +563,7 @@ AcpiPsGetNextSimpleArg (
     case ARGP_BYTEDATA:
 
         AcpiPsInitOp (Arg, AML_BYTE_OP);
-        Arg->Value.Integer = (UINT32) GET8 (ParserState->Aml);
+        Arg->Value.Integer = (UINT32) ACPI_GET8 (ParserState->Aml);
         ParserState->Aml++;
         break;
 
@@ -574,7 +574,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 2 bytes from the AML stream */
 
-        MOVE_UNALIGNED16_TO_32 (&Arg->Value.Integer, ParserState->Aml);
+        ACPI_MOVE_UNALIGNED16_TO_32 (&Arg->Value.Integer, ParserState->Aml);
         ParserState->Aml += 2;
         break;
 
@@ -585,7 +585,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 4 bytes from the AML stream */
 
-        MOVE_UNALIGNED32_TO_32 (&Arg->Value.Integer, ParserState->Aml);
+        ACPI_MOVE_UNALIGNED32_TO_32 (&Arg->Value.Integer, ParserState->Aml);
         ParserState->Aml += 4;
         break;
 
@@ -596,7 +596,7 @@ AcpiPsGetNextSimpleArg (
 
         /* Get 8 bytes from the AML stream */
 
-        MOVE_UNALIGNED64_TO_64 (&Arg->Value.Integer, ParserState->Aml);
+        ACPI_MOVE_UNALIGNED64_TO_64 (&Arg->Value.Integer, ParserState->Aml);
         ParserState->Aml += 8;
         break;
 
@@ -604,9 +604,9 @@ AcpiPsGetNextSimpleArg (
     case ARGP_CHARLIST:
 
         AcpiPsInitOp (Arg, AML_STRING_OP);
-        Arg->Value.String = (char*) ParserState->Aml;
+        Arg->Value.String = (char *) ParserState->Aml;
 
-        while (GET8 (ParserState->Aml) != '\0')
+        while (ACPI_GET8 (ParserState->Aml) != '\0')
         {
             ParserState->Aml++;
         }
@@ -649,12 +649,12 @@ AcpiPsGetNextField (
     UINT32                  Name;
 
 
-    FUNCTION_TRACE ("PsGetNextField");
+    ACPI_FUNCTION_TRACE ("PsGetNextField");
 
 
     /* determine field type */
 
-    switch (GET8 (ParserState->Aml))
+    switch (ACPI_GET8 (ParserState->Aml))
     {
 
     default:
@@ -693,7 +693,7 @@ AcpiPsGetNextField (
 
             /* Get the 4-character name */
 
-            MOVE_UNALIGNED32_TO_32 (&Name, ParserState->Aml);
+            ACPI_MOVE_UNALIGNED32_TO_32 (&Name, ParserState->Aml);
             AcpiPsSetName (Field, Name);
             ParserState->Aml += 4;
 
@@ -713,13 +713,13 @@ AcpiPsGetNextField (
 
         case AML_INT_ACCESSFIELD_OP:
 
-            /* 
+            /*
              * Get AccessType and AccessAttrib and merge into the field Op
              * AccessType is first operand, AccessAttribute is second
              */
-            Field->Value.Integer32 = (GET8 (ParserState->Aml) << 8);
+            Field->Value.Integer32 = (ACPI_GET8 (ParserState->Aml) << 8);
             ParserState->Aml++;
-            Field->Value.Integer32 |= GET8 (ParserState->Aml);
+            Field->Value.Integer32 |= ACPI_GET8 (ParserState->Aml);
             ParserState->Aml++;
             break;
         }
@@ -757,7 +757,7 @@ AcpiPsGetNextArg (
     UINT32                  Subop;
 
 
-    FUNCTION_TRACE_PTR ("PsGetNextArg", ParserState);
+    ACPI_FUNCTION_TRACE_PTR ("PsGetNextArg", ParserState);
 
 
     switch (ArgType)
@@ -845,6 +845,7 @@ AcpiPsGetNextArg (
 
     case ARGP_TARGET:
     case ARGP_SUPERNAME:
+    case ARGP_SIMPLENAME:
         {
             Subop = AcpiPsPeekOpcode (ParserState);
             if (Subop == 0              ||

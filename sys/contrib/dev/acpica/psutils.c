@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 44 $
+ *              $Revision: 49 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -120,14 +120,7 @@
 #include "amlcode.h"
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psutils")
-
-
-#define PARSEOP_GENERIC     0x01
-#define PARSEOP_NAMED       0x02
-#define PARSEOP_DEFERRED    0x04
-#define PARSEOP_BYTELIST    0x08
-#define PARSEOP_IN_CACHE    0x80
+        ACPI_MODULE_NAME    ("psutils")
 
 
 /*******************************************************************************
@@ -149,19 +142,14 @@ AcpiPsInitOp (
     ACPI_PARSE_OBJECT       *Op,
     UINT16                  Opcode)
 {
-    const ACPI_OPCODE_INFO  *AmlOp;
-
-
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     Op->DataType = ACPI_DESC_TYPE_PARSER;
     Op->Opcode = Opcode;
 
-    AmlOp = AcpiPsGetOpcodeInfo (Opcode);
-
-    DEBUG_ONLY_MEMBERS (STRNCPY (Op->OpName, AmlOp->Name,
-                        sizeof (Op->OpName)));
+    ACPI_DEBUG_ONLY_MEMBERS (ACPI_STRNCPY (Op->OpName,
+            (AcpiPsGetOpcodeInfo (Opcode))->Name, sizeof (Op->OpName)));
 }
 
 
@@ -189,7 +177,7 @@ AcpiPsAllocOp (
     const ACPI_OPCODE_INFO  *OpInfo;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     OpInfo = AcpiPsGetOpcodeInfo (Opcode);
@@ -199,25 +187,25 @@ AcpiPsAllocOp (
     if (OpInfo->Flags & AML_DEFER)
     {
         Size = sizeof (ACPI_PARSE2_OBJECT);
-        Flags = PARSEOP_DEFERRED;
+        Flags = ACPI_PARSEOP_DEFERRED;
     }
 
     else if (OpInfo->Flags & AML_NAMED)
     {
         Size = sizeof (ACPI_PARSE2_OBJECT);
-        Flags = PARSEOP_NAMED;
+        Flags = ACPI_PARSEOP_NAMED;
     }
 
     else if (Opcode == AML_INT_BYTELIST_OP)
     {
         Size = sizeof (ACPI_PARSE2_OBJECT);
-        Flags = PARSEOP_BYTELIST;
+        Flags = ACPI_PARSEOP_BYTELIST;
     }
 
     else
     {
         Size = sizeof (ACPI_PARSE_OBJECT);
-        Flags = PARSEOP_GENERIC;
+        Flags = ACPI_PARSEOP_GENERIC;
     }
 
 
@@ -263,7 +251,7 @@ void
 AcpiPsFreeOp (
     ACPI_PARSE_OBJECT       *Op)
 {
-    PROC_NAME ("PsFreeOp");
+    ACPI_FUNCTION_NAME ("PsFreeOp");
 
 
     if (Op->Opcode == AML_INT_RETURN_VALUE_OP)
@@ -271,7 +259,7 @@ AcpiPsFreeOp (
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Free retval op: %p\n", Op));
     }
 
-    if (Op->Flags == PARSEOP_GENERIC)
+    if (Op->Flags == ACPI_PARSEOP_GENERIC)
     {
         AcpiUtReleaseToCache (ACPI_MEM_LIST_PSNODE, Op);
     }
@@ -299,7 +287,7 @@ void
 AcpiPsDeleteParseCache (
     void)
 {
-    FUNCTION_TRACE ("PsDeleteParseCache");
+    ACPI_FUNCTION_TRACE ("PsDeleteParseCache");
 
 
     AcpiUtDeleteGenericCache (ACPI_MEM_LIST_PSNODE);
@@ -350,7 +338,7 @@ AcpiPsGetName (
 
     /* The "generic" object has no name associated with it */
 
-    if (Op->Flags & PARSEOP_GENERIC)
+    if (Op->Flags & ACPI_PARSEOP_GENERIC)
     {
         return (0);
     }
@@ -372,7 +360,7 @@ AcpiPsSetName (
 
     /* The "generic" object has no name associated with it */
 
-    if (Op->Flags & PARSEOP_GENERIC)
+    if (Op->Flags & ACPI_PARSEOP_GENERIC)
     {
         return;
     }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 60 $
+ *              $Revision: 66 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -130,7 +130,7 @@
 
 
 #define _COMPONENT          ACPI_DEBUGGER
-        MODULE_NAME         ("dbdisply")
+        ACPI_MODULE_NAME    ("dbdisply")
 
 
 /******************************************************************************
@@ -167,7 +167,7 @@ AcpiDbGetPointer (
 
     /* Simple flat pointer */
 
-    ObjPtr = (void *) STRTOUL (Target, NULL, 16);
+    ObjPtr = ACPI_TO_POINTER (ACPI_STRTOUL (Target, NULL, 16));
 #endif
 
     return (ObjPtr);
@@ -198,7 +198,7 @@ AcpiDbDumpParserDescriptor (
     AcpiOsPrintf ("Parser Op Descriptor:\n");
     AcpiOsPrintf ("%20.20s : %4.4X\n", "Opcode", Op->Opcode);
 
-    DEBUG_ONLY_MEMBERS (AcpiOsPrintf ("%20.20s : %s\n", "Opcode Name", Info->Name));
+    ACPI_DEBUG_ONLY_MEMBERS (AcpiOsPrintf ("%20.20s : %s\n", "Opcode Name", Info->Name));
 
     AcpiOsPrintf ("%20.20s : %p\n", "Value/ArgList", Op->Value);
     AcpiOsPrintf ("%20.20s : %p\n", "Parent", Op->Parent);
@@ -244,7 +244,7 @@ AcpiDbDecodeAndDisplayObject (
 
     if (OutputType)
     {
-        STRUPR (OutputType);
+        ACPI_STRUPR (OutputType);
         if (OutputType[0] == 'W')
         {
             Display = DB_WORD_DISPLAY;
@@ -275,9 +275,11 @@ AcpiDbDecodeAndDisplayObject (
 
         /* Decode the object type */
 
-        if (VALID_DESCRIPTOR_TYPE ((ObjPtr), ACPI_DESC_TYPE_NAMED))
+        switch (ACPI_GET_DESCRIPTOR_TYPE (ObjPtr))
         {
-            /* This is a Node */
+        case ACPI_DESC_TYPE_NAMED:
+
+            /* This is a namespace Node */
 
             if (!AcpiOsReadable (ObjPtr, sizeof (ACPI_NAMESPACE_NODE)))
             {
@@ -287,11 +289,11 @@ AcpiDbDecodeAndDisplayObject (
 
             Node = ObjPtr;
             goto DumpNte;
-        }
 
-        else if (VALID_DESCRIPTOR_TYPE ((ObjPtr), ACPI_DESC_TYPE_INTERNAL))
-        {
-            /* This is an ACPI OBJECT */
+
+        case ACPI_DESC_TYPE_INTERNAL:
+
+            /* This is a ACPI OPERAND OBJECT */
 
             if (!AcpiOsReadable (ObjPtr, sizeof (ACPI_OPERAND_OBJECT)))
             {
@@ -301,11 +303,12 @@ AcpiDbDecodeAndDisplayObject (
 
             AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
             AcpiExDumpObjectDescriptor (ObjPtr, 1);
-        }
+            break;
 
-        else if (VALID_DESCRIPTOR_TYPE ((ObjPtr), ACPI_DESC_TYPE_PARSER))
-        {
-            /* This is an Parser Op object */
+
+        case ACPI_DESC_TYPE_PARSER:
+
+            /* This is a Parser Op object */
 
             if (!AcpiOsReadable (ObjPtr, sizeof (ACPI_PARSE_OBJECT)))
             {
@@ -315,10 +318,13 @@ AcpiDbDecodeAndDisplayObject (
 
             AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display, ACPI_UINT32_MAX);
             AcpiDbDumpParserDescriptor ((ACPI_PARSE_OBJECT *) ObjPtr);
-        }
+            break;
 
-        else
-        {
+
+        default:
+
+            /* Is not a recognizeable object */
+
             Size = 16;
             if (AcpiOsReadable (ObjPtr, 64))
             {
@@ -328,11 +334,11 @@ AcpiDbDecodeAndDisplayObject (
             /* Just dump some memory */
 
             AcpiUtDumpBuffer (ObjPtr, Size, Display, ACPI_UINT32_MAX);
+            break;
         }
 
         return;
     }
-
 
     /* The parameter is a name string that must be resolved to a Named obj */
 
@@ -412,8 +418,8 @@ AcpiDbDecodeInternalObject (
     {
     case ACPI_TYPE_INTEGER:
 
-        AcpiOsPrintf (" %.8X%.8X", HIDWORD (ObjDesc->Integer.Value),
-                                   LODWORD (ObjDesc->Integer.Value));
+        AcpiOsPrintf (" %.8X%.8X", ACPI_HIDWORD (ObjDesc->Integer.Value),
+                                   ACPI_LODWORD (ObjDesc->Integer.Value));
         break;
 
 
@@ -476,13 +482,16 @@ AcpiDbDisplayInternalObject (
 
     /* Decode the object type */
 
-    else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_PARSER))
+    switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc))
     {
-        AcpiOsPrintf ("<Parser>  ");
-    }
+    case ACPI_DESC_TYPE_PARSER:
 
-    else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_NAMED))
-    {
+        AcpiOsPrintf ("<Parser>  ");
+        break;
+
+
+    case ACPI_DESC_TYPE_NAMED:
+
         AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
                         &((ACPI_NAMESPACE_NODE *)ObjDesc)->Name,
                         AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
@@ -495,10 +504,11 @@ AcpiDbDisplayInternalObject (
         {
             AcpiOsPrintf (" [Method Local]");
         }
-    }
+        break;
 
-    else if (VALID_DESCRIPTOR_TYPE (ObjDesc, ACPI_DESC_TYPE_INTERNAL))
-    {
+
+    case ACPI_DESC_TYPE_INTERNAL:
+
         Type = ObjDesc->Common.Type;
         if (Type > INTERNAL_TYPE_MAX)
         {
@@ -554,7 +564,7 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_INDEX_OP:
-                AcpiOsPrintf ("[Index]     ");
+                AcpiOsPrintf ("[Index]           ");
                 AcpiDbDecodeInternalObject (ObjDesc->Reference.Object);
                 break;
 
@@ -570,12 +580,15 @@ AcpiDbDisplayInternalObject (
             AcpiDbDecodeInternalObject (ObjDesc);
             break;
         }
+        break;
+
+
+    default:
+
+        AcpiOsPrintf ("<Not a valid ACPI Object Descriptor> ");
+        break;
     }
 
-    else
-    {
-        AcpiOsPrintf ("<Not a valid ACPI Object Descriptor> ");
-    }
 
     AcpiOsPrintf ("\n");
 }
@@ -882,6 +895,10 @@ AcpiDbDisplayCallingTree (void)
  *
  * DESCRIPTION: Display the result of an AML opcode
  *
+ * Note: Curently only displays the result object if we are single stepping.
+ * However, this output may be useful in other contexts and could be enabled
+ * to do so if needed.
+ *
  ******************************************************************************/
 
 void
@@ -890,10 +907,8 @@ AcpiDbDisplayResultObject (
     ACPI_WALK_STATE         *WalkState)
 {
 
-    /* TBD: [Future] We don't always want to display the result.
-     * For now, only display if single stepping
-     * however, this output is very useful in other contexts also
-     */
+    /* Only display if single stepping */
+
     if (!AcpiGbl_CmSingleStep)
     {
         return;

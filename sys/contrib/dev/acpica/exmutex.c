@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions
- *              $Revision: 8 $
+ *              $Revision: 10 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -124,7 +124,7 @@
 #include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
-        MODULE_NAME         ("exmutex")
+        ACPI_MODULE_NAME    ("exmutex")
 
 
 /*******************************************************************************
@@ -230,7 +230,7 @@ AcpiExAcquireMutex (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("ExAcquireMutex", ObjDesc);
+    ACPI_FUNCTION_TRACE_PTR ("ExAcquireMutex", ObjDesc);
 
     if (!ObjDesc)
     {
@@ -304,7 +304,7 @@ AcpiExReleaseMutex (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("ExReleaseMutex");
+    ACPI_FUNCTION_TRACE ("ExReleaseMutex");
 
 
     if (!ObjDesc)
@@ -383,7 +383,7 @@ AcpiExReleaseAllMutexes (
     ACPI_OPERAND_OBJECT     *This;
 
 
-    FUNCTION_ENTRY ();
+    ACPI_FUNCTION_ENTRY ();
 
 
     /*

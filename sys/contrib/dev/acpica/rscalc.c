@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rscalc - Calculate stream and list lengths
- *              $Revision: 33 $
+ *              $Revision: 39 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -122,7 +122,7 @@
 #include "acnamesp.h"
 
 #define _COMPONENT          ACPI_RESOURCES
-        MODULE_NAME         ("rscalc")
+        ACPI_MODULE_NAME    ("rscalc")
 
 
 /*******************************************************************************
@@ -144,15 +144,15 @@
 ACPI_STATUS
 AcpiRsCalculateByteStreamLength (
     ACPI_RESOURCE           *LinkedList,
-    UINT32                  *SizeNeeded)
+    ACPI_SIZE               *SizeNeeded)
 {
-    UINT32                  ByteStreamSizeNeeded = 0;
-    UINT32                  SegmentSize;
+    ACPI_SIZE               ByteStreamSizeNeeded = 0;
+    ACPI_SIZE               SegmentSize;
     ACPI_RESOURCE_EXT_IRQ   *ExIrq = NULL;
     BOOLEAN                 Done = FALSE;
 
 
-    FUNCTION_TRACE ("RsCalculateByteStreamLength");
+    ACPI_FUNCTION_TRACE ("RsCalculateByteStreamLength");
 
 
     while (!Done)
@@ -343,7 +343,6 @@ AcpiRsCalculateByteStreamLength (
              * so exit with an error
              */
             return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
-            break;
 
         } /* switch (LinkedList->Id) */
 
@@ -355,7 +354,7 @@ AcpiRsCalculateByteStreamLength (
         /*
          * Point to the next object
          */
-        LinkedList = POINTER_ADD (ACPI_RESOURCE,
+        LinkedList = ACPI_PTR_ADD (ACPI_RESOURCE,
                         LinkedList, LinkedList->Length);
     }
 
@@ -389,7 +388,7 @@ ACPI_STATUS
 AcpiRsCalculateListLength (
     UINT8                   *ByteStreamBuffer,
     UINT32                  ByteStreamBufferLength,
-    UINT32                  *SizeNeeded)
+    ACPI_SIZE               *SizeNeeded)
 {
     UINT32                  BufferSize = 0;
     UINT32                  BytesParsed = 0;
@@ -405,7 +404,7 @@ AcpiRsCalculateListLength (
     UINT8                   AdditionalBytes;
 
 
-    FUNCTION_TRACE ("RsCalculateListLength");
+    ACPI_FUNCTION_TRACE ("RsCalculateListLength");
 
 
     while (BytesParsed < ByteStreamBufferLength)
@@ -417,65 +416,65 @@ AcpiRsCalculateListLength (
 
         switch (ResourceType)
         {
-        case RESOURCE_DESC_MEMORY_24:
+        case ACPI_RDESC_TYPE_MEMORY_24:
             /*
              * 24-Bit Memory Resource
              */
             BytesConsumed = 12;
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_MEM24);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_MEM24);
             break;
 
 
-        case RESOURCE_DESC_LARGE_VENDOR:
+        case ACPI_RDESC_TYPE_LARGE_VENDOR:
             /*
              * Vendor Defined Resource
              */
             Buffer = ByteStreamBuffer;
             ++Buffer;
 
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
             BytesConsumed = Temp16 + 3;
 
             /*
              * Ensure a 32-bit boundary for the structure
              */
-            Temp16 = (UINT16) ROUND_UP_TO_32BITS (Temp16);
+            Temp16 = (UINT16) ACPI_ROUND_UP_TO_32BITS (Temp16);
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_VENDOR) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_VENDOR) +
                                 (Temp16 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_MEMORY_32:
+        case ACPI_RDESC_TYPE_MEMORY_32:
             /*
              * 32-Bit Memory Range Resource
              */
 
             BytesConsumed = 20;
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_MEM32);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_MEM32);
             break;
 
 
-        case RESOURCE_DESC_FIXED_MEMORY_32:
+        case ACPI_RDESC_TYPE_FIXED_MEMORY_32:
             /*
              * 32-Bit Fixed Memory Resource
              */
             BytesConsumed = 12;
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_MEM32);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_MEM32);
             break;
 
 
-        case RESOURCE_DESC_QWORD_ADDRESS_SPACE:
+        case ACPI_RDESC_TYPE_QWORD_ADDRESS_SPACE:
             /*
              * 64-Bit Address Resource
              */
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -501,21 +500,21 @@ AcpiRsCalculateListLength (
             /*
              * Ensure a 64-bit boundary for the structure
              */
-            Temp8 = (UINT8) ROUND_UP_TO_64BITS (Temp8);
+            Temp8 = (UINT8) ACPI_ROUND_UP_TO_64BITS (Temp8);
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS64) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS64) +
                                 (Temp8 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_DWORD_ADDRESS_SPACE:
+        case ACPI_RDESC_TYPE_DWORD_ADDRESS_SPACE:
             /*
              * 32-Bit Address Resource
              */
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -541,21 +540,21 @@ AcpiRsCalculateListLength (
             /*
              * Ensure a 32-bit boundary for the structure
              */
-            Temp8 = (UINT8) ROUND_UP_TO_32BITS (Temp8);
+            Temp8 = (UINT8) ACPI_ROUND_UP_TO_32BITS (Temp8);
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS32) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS32) +
                                 (Temp8 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_WORD_ADDRESS_SPACE:
+        case ACPI_RDESC_TYPE_WORD_ADDRESS_SPACE:
             /*
              * 16-Bit Address Resource
              */
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -581,21 +580,21 @@ AcpiRsCalculateListLength (
             /*
              * Ensure a 32-bit boundary for the structure
              */
-            Temp8 = (UINT8) ROUND_UP_TO_32BITS (Temp8);
+            Temp8 = (UINT8) ACPI_ROUND_UP_TO_32BITS (Temp8);
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS16) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_ADDRESS16) +
                                 (Temp8 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_EXTENDED_XRUPT:
+        case ACPI_RDESC_TYPE_EXTENDED_XRUPT:
             /*
              * Extended IRQ
              */
             Buffer = ByteStreamBuffer;
 
             ++Buffer;
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             BytesConsumed = Temp16 + 3;
 
@@ -635,15 +634,15 @@ AcpiRsCalculateListLength (
             /*
              * Ensure a 32-bit boundary for the structure
              */
-            Temp8 = (UINT8) ROUND_UP_TO_32BITS (Temp8);
+            Temp8 = (UINT8) ACPI_ROUND_UP_TO_32BITS (Temp8);
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_EXT_IRQ) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_EXT_IRQ) +
                                 (AdditionalBytes * sizeof (UINT8)) +
                                 (Temp8 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_IRQ_FORMAT:
+        case ACPI_RDESC_TYPE_IRQ_FORMAT:
             /*
              * IRQ Resource.
              * Determine if it there are two or three trailing bytes
@@ -668,7 +667,7 @@ AcpiRsCalculateListLength (
             /*
              * Look at the number of bits set
              */
-            MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
+            ACPI_MOVE_UNALIGNED16_TO_16 (&Temp16, Buffer);
 
             for (Index = 0; Index < 16; Index++)
             {
@@ -680,12 +679,12 @@ AcpiRsCalculateListLength (
                 Temp16 >>= 1;
             }
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_IO) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_IO) +
                                 (NumberOfInterrupts * sizeof (UINT32));
             break;
 
 
-        case RESOURCE_DESC_DMA_FORMAT:
+        case ACPI_RDESC_TYPE_DMA_FORMAT:
             /*
              * DMA Resource
              */
@@ -712,12 +711,12 @@ AcpiRsCalculateListLength (
                 Temp8 >>= 1;
             }
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_DMA) +
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_DMA) +
                                 (NumberOfChannels * sizeof (UINT32));
             break;
 
 
-        case RESOURCE_DESC_START_DEPENDENT:
+        case ACPI_RDESC_TYPE_START_DEPENDENT:
             /*
              * Start Dependent Functions Resource
              * Determine if it there are two or three trailing bytes
@@ -734,11 +733,11 @@ AcpiRsCalculateListLength (
                 BytesConsumed = 1;
             }
 
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_START_DPF);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_START_DPF);
             break;
 
 
-        case RESOURCE_DESC_END_DEPENDENT:
+        case ACPI_RDESC_TYPE_END_DEPENDENT:
             /*
              * End Dependent Functions Resource
              */
@@ -747,25 +746,25 @@ AcpiRsCalculateListLength (
             break;
 
 
-        case RESOURCE_DESC_IO_PORT:
+        case ACPI_RDESC_TYPE_IO_PORT:
             /*
              * IO Port Resource
              */
             BytesConsumed = 8;
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_IO);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_IO);
             break;
 
 
-        case RESOURCE_DESC_FIXED_IO_PORT:
+        case ACPI_RDESC_TYPE_FIXED_IO_PORT:
             /*
              * Fixed IO Port Resource
              */
             BytesConsumed = 4;
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_IO);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_FIXED_IO);
             break;
 
 
-        case RESOURCE_DESC_SMALL_VENDOR:
+        case ACPI_RDESC_TYPE_SMALL_VENDOR:
             /*
              * Vendor Specific Resource
              */
@@ -778,13 +777,13 @@ AcpiRsCalculateListLength (
             /*
              * Ensure a 32-bit boundary for the structure
              */
-            Temp8 = (UINT8) ROUND_UP_TO_32BITS (Temp8);
-            StructureSize = SIZEOF_RESOURCE (ACPI_RESOURCE_VENDOR) +
+            Temp8 = (UINT8) ACPI_ROUND_UP_TO_32BITS (Temp8);
+            StructureSize = ACPI_SIZEOF_RESOURCE (ACPI_RESOURCE_VENDOR) +
                                 (Temp8 * sizeof (UINT8));
             break;
 
 
-        case RESOURCE_DESC_END_TAG:
+        case ACPI_RDESC_TYPE_END_TAG:
             /*
              * End Tag
              */
@@ -800,13 +799,12 @@ AcpiRsCalculateListLength (
              *  so exit with an error
              */
             return_ACPI_STATUS (AE_AML_INVALID_RESOURCE_TYPE);
-            break;
         }
 
         /*
          * Update the return value and counter
          */
-        BufferSize += StructureSize;
+        BufferSize += ACPI_ALIGN_RESOURCE_SIZE(StructureSize);
         BytesParsed += BytesConsumed;
 
         /*
@@ -843,7 +841,7 @@ AcpiRsCalculateListLength (
 ACPI_STATUS
 AcpiRsCalculatePciRoutingTableLength (
     ACPI_OPERAND_OBJECT     *PackageObject,
-    UINT32                  *BufferSizeNeeded)
+    ACPI_SIZE               *BufferSizeNeeded)
 {
     UINT32                  NumberOfElements;
     UINT32                  TempSizeNeeded = 0;
@@ -855,7 +853,7 @@ AcpiRsCalculatePciRoutingTableLength (
     UINT32                  TableIndex;
 
 
-    FUNCTION_TRACE ("RsCalculatePciRoutingTableLength");
+    ACPI_FUNCTION_TRACE ("RsCalculatePciRoutingTableLength");
 
 
     NumberOfElements = PackageObject->Package.Count;
@@ -907,7 +905,7 @@ AcpiRsCalculatePciRoutingTableLength (
             }
         }
 
-        TempSizeNeeded += (sizeof (PCI_ROUTING_TABLE) - 4);
+        TempSizeNeeded += (sizeof (ACPI_PCI_ROUTING_TABLE) - 4);
 
         /*
          * Was a String type found?
@@ -939,7 +937,7 @@ AcpiRsCalculatePciRoutingTableLength (
 
         /* Round up the size since each element must be aligned */
 
-        TempSizeNeeded = ROUND_UP_TO_64BITS (TempSizeNeeded);
+        TempSizeNeeded = ACPI_ROUND_UP_TO_64BITS (TempSizeNeeded);
 
         /*
          * Point to the next ACPI_OPERAND_OBJECT
@@ -950,6 +948,6 @@ AcpiRsCalculatePciRoutingTableLength (
     /*
      * Adding an extra element to the end of the list, essentially a NULL terminator
      */
-    *BufferSizeNeeded = TempSizeNeeded + sizeof (PCI_ROUTING_TABLE);
+    *BufferSizeNeeded = TempSizeNeeded + sizeof (ACPI_PCI_ROUTING_TABLE);
     return_ACPI_STATUS (AE_OK);
 }

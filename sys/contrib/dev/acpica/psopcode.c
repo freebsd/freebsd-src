@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psopcode - Parser/Interpreter opcode information table
- *              $Revision: 54 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -121,7 +121,7 @@
 
 
 #define _COMPONENT          ACPI_PARSER
-        MODULE_NAME         ("psopcode")
+        ACPI_MODULE_NAME    ("psopcode")
 
 
 #define _UNK                        0x6B
@@ -327,7 +327,7 @@
 #define ARGI_DATA_REGION_OP             ARGI_LIST3 (ARGI_STRING,     ARGI_STRING,       ARGI_STRING)
 #define ARGI_DEBUG_OP                   ARG_NONE
 #define ARGI_DECREMENT_OP               ARGI_LIST1 (ARGI_INTEGER_REF)
-#define ARGI_DEREF_OF_OP                ARGI_LIST1 (ARGI_REFERENCE)
+#define ARGI_DEREF_OF_OP                ARGI_LIST1 (ARGI_REF_OR_STRING)
 #define ARGI_DEVICE_OP                  ARGI_INVALID_OPCODE
 #define ARGI_DIVIDE_OP                  ARGI_LIST4 (ARGI_INTEGER,    ARGI_INTEGER,       ARGI_TARGETREF,    ARGI_TARGETREF)
 #define ARGI_DWORD_OP                   ARGI_INVALID_OPCODE
@@ -351,7 +351,7 @@
 #define ARGI_LNOT_OP                    ARGI_LIST1 (ARGI_INTEGER)
 #define ARGI_LNOTEQUAL_OP               ARGI_INVALID_OPCODE
 #define ARGI_LOAD_OP                    ARGI_LIST2 (ARGI_REGION,     ARGI_TARGETREF)
-#define ARGI_LOAD_TABLE_OP              ARGI_LIST6 (ARGI_STRING,     ARGI_STRING,        ARGI_STRING,       ARGI_STRING,    ARGI_STRING, ARGI_TARGETREF)
+#define ARGI_LOAD_TABLE_OP              ARGI_LIST6 (ARGI_STRING,     ARGI_STRING,        ARGI_STRING,       ARGI_STRING,    ARGI_STRING, ARGI_ANYTYPE)
 #define ARGI_LOCAL0                     ARG_NONE
 #define ARGI_LOCAL1                     ARG_NONE
 #define ARGI_LOCAL2                     ARG_NONE
@@ -540,7 +540,8 @@
 
 static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 {
-/* Index           Name                 Parser Args               Interpreter Args                 Class                      Type                  Flags */
+/*! [Begin] no source code translation */
+/* Index           Name                 Parser Args               Interpreter Args                ObjectType                Class                      Type                  Flags */
 
 /* 00 */ ACPI_OP ("Zero",               ARGP_ZERO_OP,              ARGI_ZERO_OP,               INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_CONSTANT,        0),
 /* 01 */ ACPI_OP ("One",                ARGP_ONE_OP,               ARGI_ONE_OP,                INTERNAL_TYPE_REFERENCE, AML_CLASS_ARGUMENT,        AML_TYPE_CONSTANT,        0),
@@ -639,8 +640,8 @@ static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 /* 5B */ ACPI_OP ("Processor",          ARGP_PROCESSOR_OP,         ARGI_PROCESSOR_OP,          ACPI_TYPE_PROCESSOR,     AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_SIMPLE,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
 /* 5C */ ACPI_OP ("PowerResource",      ARGP_POWER_RES_OP,         ARGI_POWER_RES_OP,          ACPI_TYPE_POWER,         AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_SIMPLE,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
 /* 5D */ ACPI_OP ("ThermalZone",        ARGP_THERMAL_ZONE_OP,      ARGI_THERMAL_ZONE_OP,       ACPI_TYPE_THERMAL,       AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_NO_OBJ,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
-/* 5E */ ACPI_OP ("IndexField",         ARGP_INDEX_FIELD_OP,       ARGI_INDEX_FIELD_OP,        INTERNAL_TYPE_INDEX_FIELD_DEFN,AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_FIELD,     AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
-/* 5F */ ACPI_OP ("BankField",          ARGP_BANK_FIELD_OP,        ARGI_BANK_FIELD_OP,         INTERNAL_TYPE_BANK_FIELD_DEFN,AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_FIELD,     AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
+/* 5E */ ACPI_OP ("IndexField",         ARGP_INDEX_FIELD_OP,       ARGI_INDEX_FIELD_OP,        INTERNAL_TYPE_INDEX_FIELD_DEFN,AML_CLASS_NAMED_OBJECT, AML_TYPE_NAMED_FIELD,  AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
+/* 5F */ ACPI_OP ("BankField",          ARGP_BANK_FIELD_OP,        ARGI_BANK_FIELD_OP,         INTERNAL_TYPE_BANK_FIELD_DEFN,AML_CLASS_NAMED_OBJECT,  AML_TYPE_NAMED_FIELD,  AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_FIELD),
 
 /* Internal opcodes that map to invalid AML opcodes */
 
@@ -676,8 +677,9 @@ static const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[] =
 /* 79 */ ACPI_OP ("Mid",                ARGP_MID_OP,               ARGI_MID_OP,                ACPI_TYPE_ANY,           AML_CLASS_EXECUTE,         AML_TYPE_EXEC_3A_1T_1R,   AML_FLAGS_EXEC_3A_1T_1R),
 /* 7A */ ACPI_OP ("Continue",           ARGP_CONTINUE_OP,          ARGI_CONTINUE_OP,           ACPI_TYPE_ANY,           AML_CLASS_CONTROL,         AML_TYPE_CONTROL,         0),
 /* 7B */ ACPI_OP ("LoadTable",          ARGP_LOAD_TABLE_OP,        ARGI_LOAD_TABLE_OP,         ACPI_TYPE_ANY,           AML_CLASS_EXECUTE,         AML_TYPE_EXEC_6A_0T_1R,   AML_FLAGS_EXEC_6A_0T_1R),
-/* 7C */ ACPI_OP ("DataTableRegion",    ARGP_DATA_REGION_OP,       ARGI_DATA_REGION_OP,        ACPI_TYPE_REGION,        AML_CLASS_EXECUTE,         AML_TYPE_EXEC_1A_1T_1R,   AML_FLAGS_EXEC_1A_1T_1R),
+/* 7C */ ACPI_OP ("DataTableRegion",    ARGP_DATA_REGION_OP,       ARGI_DATA_REGION_OP,        ACPI_TYPE_REGION,        AML_CLASS_NAMED_OBJECT,    AML_TYPE_NAMED_SIMPLE,    AML_HAS_ARGS | AML_NSOBJECT | AML_NSOPCODE | AML_NSNODE | AML_NAMED),
 
+/*! [End] no source code translation !*/
 };
 
 /*
@@ -767,7 +769,7 @@ const ACPI_OPCODE_INFO *
 AcpiPsGetOpcodeInfo (
     UINT16                  Opcode)
 {
-    PROC_NAME ("PsGetOpcodeInfo");
+    ACPI_FUNCTION_NAME ("PsGetOpcodeInfo");
 
 
     /*
@@ -780,8 +782,6 @@ AcpiPsGetOpcodeInfo (
         /* Simple (8-bit) opcode: 0-255, can't index beyond table  */
 
         return (&AcpiGbl_AmlOpInfo [AcpiGbl_ShortOpIndex [(UINT8) Opcode]]);
-        break;
-
 
     case AML_EXTOP:
 
@@ -790,8 +790,9 @@ AcpiPsGetOpcodeInfo (
         if (((UINT8) Opcode) <= MAX_EXTENDED_OPCODE)
         {
             return (&AcpiGbl_AmlOpInfo [AcpiGbl_LongOpIndex [(UINT8) Opcode]]);
-            break;
         }
+
+        /* Else fall through to error case below */
 
     default:
 
@@ -823,6 +824,8 @@ NATIVE_CHAR *
 AcpiPsGetOpcodeName (
     UINT16                  Opcode)
 {
+#ifdef ACPI_DEBUG
+
     const ACPI_OPCODE_INFO  *Op;
 
 
@@ -830,10 +833,11 @@ AcpiPsGetOpcodeName (
 
     /* Always guaranteed to return a valid pointer */
 
-#ifdef ACPI_DEBUG
     return (Op->Name);
+
 #else
     return ("AE_NOT_CONFIGURED");
+
 #endif
 }
 
