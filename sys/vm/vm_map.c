@@ -423,6 +423,29 @@ _vm_map_clear_recursive(vm_map_t map, const char *file, int line)
 {
 }
 
+/*
+ *	vm_map_unlock_and_wait:
+ */
+static __inline int
+vm_map_unlock_and_wait(vm_map_t map, boolean_t user_wait)
+{
+
+	GIANT_REQUIRED;
+	vm_map_unlock(map);
+
+	return (tsleep(&map->root, PVM, "vmmapw", 0));
+}
+
+/*
+ *	vm_map_wakeup:
+ */
+static __inline void
+vm_map_wakeup(vm_map_t map)
+{
+
+	wakeup(&map->root);
+}
+
 long
 vmspace_resident_count(struct vmspace *vmspace)
 {
@@ -958,7 +981,7 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 	vm_map_entry_t next, prev;
 	vm_size_t prevsize, esize;
 
-	if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
+	if (entry->eflags & (MAP_ENTRY_IN_TRANSITION | MAP_ENTRY_IS_SUB_MAP))
 		return;
 
 	prev = entry->prev;
@@ -1458,6 +1481,145 @@ vm_map_inherit(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	}
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
+}
+
+/*
+ *	vm_map_unwire:
+ *
+ *	Implements both kernel and user unwire.
+ */
+int
+vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
+	boolean_t user_unwire)
+{
+	vm_map_entry_t entry, first_entry, tmp_entry;
+	vm_offset_t saved_start;
+	unsigned int last_timestamp;
+	int rv;
+	boolean_t need_wakeup, result;
+
+	vm_map_lock(map);
+	VM_MAP_RANGE_CHECK(map, start, end);
+	if (!vm_map_lookup_entry(map, start, &first_entry)) {
+		vm_map_unlock(map);
+		return (KERN_INVALID_ADDRESS);
+	}
+	last_timestamp = map->timestamp;
+	need_wakeup = FALSE;
+	entry = first_entry;
+	while (entry != &map->header && entry->start < end) {
+		if (entry->eflags & MAP_ENTRY_IN_TRANSITION) {
+			/*
+			 * We have not yet clipped the entry.
+			 */
+			saved_start = (start >= entry->start) ? start :
+			    entry->start;
+			entry->eflags |= MAP_ENTRY_NEEDS_WAKEUP;
+			if (need_wakeup) {
+				vm_map_wakeup(map);
+				need_wakeup = FALSE;
+			}
+			if (vm_map_unlock_and_wait(map, user_unwire)) {
+				/*
+				 * Allow interruption of user unwiring?
+				 */
+			}
+			vm_map_lock(map);
+			if (last_timestamp+1 != map->timestamp) {
+				/*
+				 * Look again for the entry because the map was
+				 * modified while it was unlocked.
+				 * Specifically, the entry may have been
+				 * clipped, merged, or deleted.
+				 */
+				if (!vm_map_lookup_entry(map, saved_start,
+				    &tmp_entry)) {
+					if (saved_start == start) {
+						/*
+						 * First_entry has been deleted.
+						 */
+						vm_map_unlock(map);
+						return (KERN_INVALID_ADDRESS);
+					}
+					end = saved_start;
+					rv = KERN_INVALID_ADDRESS;
+					goto done;
+				}
+				if (entry == first_entry)
+					first_entry = tmp_entry;
+				else
+					first_entry = NULL;
+				entry = tmp_entry;
+			}
+			last_timestamp = map->timestamp;
+			continue;
+		}
+		vm_map_clip_start(map, entry, start);
+		vm_map_clip_end(map, entry, end);
+		/*
+		 * Mark the entry in case the map lock is released.  (See
+		 * above.)
+		 */
+		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
+		/*
+		 * Check the map for holes in the specified region.
+		 */
+		if (entry->end < end && (entry->next == &map->header ||
+		    entry->next->start > entry->end)) {
+			end = entry->end;
+			rv = KERN_INVALID_ADDRESS;
+			goto done;
+		}
+		/*
+		 * Require that the entry is wired.
+		 */
+		if (entry->wired_count == 0 || (user_unwire &&
+		    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)) {
+			end = entry->end;
+			rv = KERN_INVALID_ARGUMENT;
+			goto done;
+		}
+		entry = entry->next;
+	}
+	if (first_entry == NULL) {
+		result = vm_map_lookup_entry(map, start, &first_entry);
+		KASSERT(result, ("vm_map_unwire: lookup failed"));
+	}
+	entry = first_entry;
+	while (entry != &map->header && entry->start < end) {
+		if (user_unwire)
+			entry->eflags &= ~MAP_ENTRY_USER_WIRED;
+		entry->wired_count--;
+		if (entry->wired_count == 0) {
+			/*
+			 * Retain the map lock.
+			 */
+			vm_fault_unwire(map, entry->start, entry->end);
+		}
+		entry = entry->next;
+	}
+	rv = KERN_SUCCESS;
+done:
+	if (first_entry == NULL) {
+		result = vm_map_lookup_entry(map, start, &first_entry);
+		KASSERT(result, ("vm_map_unwire: lookup failed"));
+	}
+	entry = first_entry;
+	while (entry != &map->header && entry->start < end) {
+		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
+			("vm_map_unwire: in-transition flag missing"));
+		entry->eflags &= ~MAP_ENTRY_IN_TRANSITION;
+		if (entry->eflags & MAP_ENTRY_NEEDS_WAKEUP) {
+			entry->eflags &= ~MAP_ENTRY_NEEDS_WAKEUP;
+			need_wakeup = TRUE;
+		}
+		vm_map_simplify_entry(map, entry);
+		entry = entry->next;
+	}
+	vm_map_unlock(map);
+	if (need_wakeup)
+		vm_map_wakeup(map);
+	return (rv);
 }
 
 /*
