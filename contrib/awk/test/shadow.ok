@@ -1,7 +1,0 @@
-gawk: shadow.awk:22: warning: function `bar': parameter `A' shadows global variable
-gawk: shadow.awk:22: warning: function `bar': parameter `Z' shadows global variable
-gawk: shadow.awk:22: warning: function `baz': parameter `C' shadows global variable
-gawk: shadow.awk:22: warning: function `baz': parameter `D' shadows global variable
-foo
-bar
-baz
