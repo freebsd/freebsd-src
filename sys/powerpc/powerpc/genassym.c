@@ -62,12 +62,14 @@
 
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSECNT, offsetof(struct mtx, mtx_recurse));
 
 ASSYM(PM_KERNELSR, offsetof(struct pmap, pm_sr[KERNEL_SR]));
-ASSYM(PM_USERSR, offsetof(struct pmap, pm_sr[USER_SR]));
+ASSYM(PM_USRSR, offsetof(struct pmap, pm_sr[USER_SR]));
+ASSYM(PM_SR, offsetof(struct pmap, pm_sr));
 
 ASSYM(FRAMELEN, FRAMELEN);
 ASSYM(FRAME_0, offsetof(struct trapframe, fixreg[0]));
@@ -86,6 +88,43 @@ ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
 
 ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
 
+ASSYM(IFRAMELEN, IFRAMELEN);
+ASSYM(IFRAME_R1, offsetof(struct intrframe, r1));
+ASSYM(IFRAME_SRR1, offsetof(struct intrframe, srr1));
+ASSYM(IFRAME_SRR0, offsetof(struct intrframe, srr0));
+ASSYM(IFRAME_PRI, offsetof(struct intrframe, pri));
+ASSYM(IFRAME_INTR_DEPTH, offsetof(struct intrframe, intr_depth));
+ASSYM(IFRAME_VRSAVE, offsetof(struct intrframe, vrsave));
+ASSYM(IFRAME_CTR, offsetof(struct intrframe, ctr));
+ASSYM(IFRAME_XER, offsetof(struct intrframe, xer));
+ASSYM(IFRAME_CR, offsetof(struct intrframe, cr));
+ASSYM(IFRAME_LR, offsetof(struct intrframe, lr));
+ASSYM(IFRAME_R12, offsetof(struct intrframe, r12));
+ASSYM(IFRAME_R11, offsetof(struct intrframe, r11));
+ASSYM(IFRAME_R10, offsetof(struct intrframe, r10));
+ASSYM(IFRAME_R9, offsetof(struct intrframe, r9));
+ASSYM(IFRAME_R8, offsetof(struct intrframe, r8));
+ASSYM(IFRAME_R7, offsetof(struct intrframe, r7));
+ASSYM(IFRAME_R6, offsetof(struct intrframe, r6));
+ASSYM(IFRAME_R5, offsetof(struct intrframe, r5));
+ASSYM(IFRAME_R4, offsetof(struct intrframe, r4));
+ASSYM(IFRAME_R3, offsetof(struct intrframe, r3));
+ASSYM(IFRAME_R0, offsetof(struct intrframe, r0));
+
+ASSYM(SPFRAMELEN, SPFRAMELEN);
+ASSYM(SPFRAME_R1, offsetof(struct spillframe, r1));
+ASSYM(SPFRAME_R12, offsetof(struct spillframe, r12));
+ASSYM(SPFRAME_R11, offsetof(struct spillframe, r11));
+ASSYM(SPFRAME_R10, offsetof(struct spillframe, r10));
+ASSYM(SPFRAME_R9, offsetof(struct spillframe, r9));
+ASSYM(SPFRAME_R8, offsetof(struct spillframe, r8));
+ASSYM(SPFRAME_R7, offsetof(struct spillframe, r7));
+ASSYM(SPFRAME_R6, offsetof(struct spillframe, r6));
+ASSYM(SPFRAME_R5, offsetof(struct spillframe, r5));
+ASSYM(SPFRAME_R4, offsetof(struct spillframe, r4));
+ASSYM(SPFRAME_R3, offsetof(struct spillframe, r3));
+ASSYM(SPFRAME_R0, offsetof(struct spillframe, r0));
+
 ASSYM(CF_FUNC, offsetof(struct callframe, cf_func));
 ASSYM(CF_ARG0, offsetof(struct callframe, cf_arg0));
 ASSYM(CF_ARG1, offsetof(struct callframe, cf_arg1));
@@ -100,3 +139,7 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
+
+ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+
+ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
