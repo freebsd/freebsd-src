@@ -81,7 +81,7 @@ static struct _word {
     { "docShowDocument",	docShowDocument		},
     { "installCommit",		installCommit		},
     { "installExpress",		installExpress		},
-    { "installNovice",		installNovice		},
+    { "installStandard",	installStandard		},
     { "installUpgrade",		installUpgrade		},
     { "installFixupBin",	installFixupBin		},
     { "installFixupXFree",	installFixupXFree	},
