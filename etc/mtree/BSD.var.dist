@@ -7,42 +7,42 @@
 .
     account
     ..
-/set type=dir uname=daemon gname=wheel mode=0755
-    at              uname=root
+    at
+/set uname=daemon
         jobs
         ..
         spool
         ..
+/set uname=root
     ..
-    backups         uname=root mode=0750
+/set mode=0750
+    backups
     ..
-    crash           uname=root mode=0750
+    crash
     ..
-/set type=dir uname=root gname=wheel mode=0700
-    cron            mode=0750
-        tabs
+    cron
+        tabs            mode=0700
         ..
     ..
-    db              mode=0755
-/set type=dir uname=operator gname=operator mode=0700
-    entropy
-    ..
-/set type=dir uname=root gname=wheel
-        pkg         mode=0755
+/set mode=0755
+    db
+        entropy         uname=operator gname=operator mode=0700
+        ..
+        pkg
         ..
     ..
-/set type=dir uname=root gname=wheel mode=0755
-    games                gname=games mode=0775
-        hackdir          gname=games mode=0770
-            save         gname=games mode=0770
+/set gname=games mode=0775
+    games
+        hackdir         mode=0770
+            save            mode=0770
             ..
         ..
-        larn             gname=games mode=0775
+        larn
         ..
-        phantasia        gname=games mode=0775
+        phantasia
         ..
     ..
-/set type=dir uname=root gname=wheel mode=0755
+/set gname=wheel mode=0755
     log
     ..
     mail            gname=mail mode=0775
@@ -53,12 +53,12 @@
     ..
     run
     ..
-/set type=dir uname=root gname=daemon mode=0755
     rwho            gname=daemon mode=0775
     ..
-    spool           gname=wheel
+    spool
         lock            uname=uucp gname=dialer mode=0775
         ..
+/set gname=daemon
         lpd
         ..
         mqueue
@@ -69,7 +69,8 @@
             lpd
             ..
         ..
-/set type=dir uname=uucp gname=uucp mode=0775
+/set gname=wheel
+/set uname=uucp gname=uucp mode=0775
         uucp
             .Preserve
             ..
@@ -84,13 +85,12 @@
         ..
         uucppublic      mode=0777
         ..
+/set uname=root gname=wheel mode=0755
     ..
-/set type=dir uname=root gname=wheel mode=01777
-    tmp
-        vi.recover
+    tmp             mode=01777
+        vi.recover      mode=01777
         ..
     ..
-/set type=dir uname=root gname=wheel mode=0755
     yp
     ..
 ..

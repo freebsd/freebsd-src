@@ -4,19 +4,19 @@
 #
 
 /set type=dir uname=root gname=wheel mode=0755
-.              
-    filesys        
+.
+    filesys
     ..
-    floppies       
+    floppies
     ..
-    tarballs       
-        bindist        
+    tarballs
+        bindist
         ..
-        objdist        
+        objdist
         ..
-        secrdist       
+        secrdist
         ..
-        srcdist        
+        srcdist
         ..
     ..
 ..
