@@ -34,125 +34,137 @@
 .\"
 .\"	@(#)edquota.8	8.1 (Berkeley) 6/6/93
 .\"
-.TH EDQUOTA 8 "June 6, 1993"
-.UC 5
-.SH NAME
-edquota \- edit user quotas
-.SH SYNOPSIS
-.B edquota
-[
-.I \-u
-] [
-.I \-p
-proto-username
-]
-username ...
+.Dd "June 6, 1993"
+.Dt EDQUOTA 8
+.Os
+.Sh NAME
+.Nm edquota
+.Nd edit user quotas
+.Sh SYNOPSIS
+.Nm edquota
+.Op Fl u
+.Op Fl p Ar proto-username
+.Ar username ...
+.Nm edquota
+.Fl g
+.Op Fl p Ar proto-groupname
+.Ar groupname ...
+.Nm edquota
+.Fl t
+.Op Fl u
+.Nm edquota
+.Fl t
+.Fl g
 .br
-.B edquota
-.I \-g
-[
-.I \-p
-proto-groupname
-]
-groupname ...
-.br
-.B edquota
-.I -t
-[
-.I -u
-]
-.br
-.B edquota
-.I -t
-.I -g
-.br
-.SH DESCRIPTION
-.I Edquota
+.Sh DESCRIPTION
+.Nm Edquota
 is a quota editor.
-By default, or if the \fI-u\fP flag is specified,
+By default, or if the
+.Fl u
+flag is specified,
 one or more users may be specified on the command line.
 For each user a temporary file is created
 with an ASCII representation of the current
 disk quotas for that user.
 The list of filesystems with user quotas is determined from
-.IR /etc/fstab .
+.Pa /etc/fstab .
 An editor is invoked on the ASCII file.
-The editor invoked is 
-.IR vi (1)
-unless the environment variable EDITOR specifies otherwise.
-.PP
+The editor invoked is
+.Xr vi 1
+unless the environment variable
+.Ev EDITOR
+specifies otherwise.
+.Pp
 The quotas may then be modified, new quotas added, etc.
 Setting a quota to zero indicates that no quota should be imposed.
 Setting a hard limit to one indicates that no allocations should
 be permitted.
 Setting a soft limit to one with a hard limit of zero
-indicates that allocations should be permitted on
-only a temporary basis (see \fI-t\fP below).
+indicates that allocations should be permitted only on
+a temporary basis (see
+.Fl t
+below).
 The current usage information in the file is for informational purposes;
 only the hard and soft limits can be changed.
-.PP
+.Pp
 On leaving the editor,
-.I edquota
+.Nm
 reads the temporary file and modifies the binary
 quota files to reflect the changes made.
-.PP
-If the 
-.B \-p
+.Pp
+If the
+.Fl p
 option is specified,
-.I edquota
+.Nm
 will duplicate the quotas of the prototypical user
 specified for each user specified.
 This is the normal mechanism used to
 initialize quotas for groups of users.
 If the user given to assign quotas to is a numerical uid
-range (e.g. 1000-2000), then 
-.I edquota
+range (e.g. 1000-2000), then
+.Nm
 will duplicate the quotas of the prototypical user
 for each uid in the range specified.  This allows
 for easy setup of default quotas for a group of users.
 The uids in question do not have to be currently assigned in
-.IR /etc/passwd.
-.PP
-If the \fI-g\fP flag is specified,
-.I edquota
+.Pa /etc/passwd
+.Pp
+If the
+.Fl g
+flag is specified,
+.Nm
 is invoked to edit the quotas of
 one or more groups specified on the command line.
-The \fI-p\fP flag can be specified in conjunction with
-the \fI-g\fP flag to specify a prototypical group
+The
+.Fl p
+flag can be specified in conjunction with
+the
+.Fl g
+flag to specify a prototypical group
 to be duplicated among the listed set of groups.
-.PP
+.Pp
 Users are permitted to exceed their soft limits
 for a grace period that may be specified per filesystem.
 Once the grace period has expired,
 the soft limit is enforced as a hard limit.
 The default grace period for a filesystem is specified in
-.IR /usr/include/ufs/quota.h .
-The \fI-t\fP flag can be used to change the grace period.
-By default, or when invoked with the \fI-u\fP flag,
+.Pa /usr/include/ufs/ufs/quota.h .
+The
+.Fl t
+flag can be used to change the grace period.
+By default, or when invoked with the
+.Fl u
+flag,
 the grace period is set for all the filesystems with user
 quotas specified in
-.IR /etc/fstab .
-When invoked with the \fI-g\fP flag the grace period is
+.Pa /etc/fstab .
+When invoked with the
+.Fl g
+flag the grace period is
 set for all the filesystems with group quotas specified in
-.IR /etc/fstab .
+.Pa /etc/fstab .
 The grace period may be specified in days, hours, minutes, or seconds.
 Setting a grace period to zero indicates that the default
 grace period should be imposed.
 Setting a grace period to one second indicates that no
 grace period should be granted.
-.PP
+.Pp
 Only the super-user may edit quotas.
-.SH FILES
-.DT
-\fIquota.user\fP	at the filesystem root with user quotas
-.br
-\fIquota.group\fP	at the filesystem root with group quotas
-.br
-/etc/fstab	to find filesystem names and locations
-.SH SEE ALSO
-quota(1),
-quotactl(2),
-fstab(5),
-quotacheck(8), quotaon(8), repquota(8)
-.SH DIAGNOSTICS
+.Sh FILES
+.Bl -tag -width quota.group -compact
+.It Pa quota.user
+at the filesystem root with user quotas
+.It Pa quota.group
+at the filesystem root with group quotas
+.It Pa /etc/fstab
+to find filesystem names and locations
+.El
+.Sh SEE ALSO
+.Xr quota 1 ,
+.Xr quotactl 2 ,
+.Xr fstab 2 ,
+.Xr quotacheck 8 ,
+.Xr quotaon 8 ,
+.Xr repquota 8
+.Sh DIAGNOSTICS
 Various messages about inaccessible files; self-explanatory.
