@@ -154,7 +154,7 @@
       option causes the ID field of IP packets to be randomized.  This
       closes a minor information leak which allows a remote observer
       to determine the rate at which the machine is generating
-      packets, since the default behaviour is to increment a counter
+      packets, since the default behavior is to increment a counter
       for each packet sent.</para>
 
     </sect3>
@@ -165,7 +165,7 @@
       <para>The &man.ata.4; driver again has write-caching enabled by 
       default.</para>
 
-      <para>The &man.wd.4; compatability devices were removed from the
+      <para>The &man.wd.4; compatibility devices were removed from the
       &man.ata.4; driver.</para>
     </sect3>
 
@@ -270,7 +270,7 @@
 
     <para>The security fix mentioned in security advisory
     FreeBSD-SA-01:39, which governs initial sequence number generation
-    for TCP connections, has raised some possible compatability
+    for TCP connections, has raised some possible compatibility
     issues.  To mitigate this effect, the fix can now be enabled or
     disabled using the
     <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl
@@ -324,7 +324,7 @@
 
     <para>&man.ln.1; now takes a <option>-h</option> flag to avoid
     following a target that is a link, with a <option>-n</option> flag
-    for compatability with other implementations.</para>
+    for compatibility with other implementations.</para>
 
     <para>&man.find.1; now has the <option>-anewer</option>,
     <option>-cnewer</option>, <option>-mnewer</option>,
@@ -367,7 +367,7 @@
     or more of RAM.</para>
 
     <para>The syntax of &man.inetd.8;'s support for &man.faithd.8; is
-    now compatable with that of other BSDs.</para>
+    now compatible with that of other BSDs.</para>
 
     <para>The <literal>ident</literal> protocol support in &man.inetd.8; has
     been cleaned up and updated.</para>
@@ -549,7 +549,7 @@
 
 	<para>&man.ifconfig.8; can now perform the functions of
 	&man.prefix.8;.  &man.prefix.8; is now a shell script for
-	partial backwards compatability.</para>
+	partial backwards compatibility.</para>
 
 	<para>&man.ndp.8; now implements garbage collection for stale
 	NDP entries, as described in RFC 2461 (Neighbor Discovery for
