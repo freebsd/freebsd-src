@@ -115,7 +115,8 @@ inthand_t
 #define	ATPIC(io, base, eoi, imenptr)					\
      	{ { atpic_enable_source, atpic_disable_source, (eoi),		\
 	    atpic_enable_intr, atpic_vector, atpic_source_pending, NULL, \
-	    atpic_resume }, (io), (base), IDT_IO_INTS + (base), (imenptr) }
+	    atpic_resume, atpic_config_intr }, (io), (base),		\
+	    IDT_IO_INTS + (base), (imenptr) }
 
 #define	INTSRC(irq)							\
 	{ { &atpics[(irq) / 8].at_pic }, IDTVEC(atpic_intr ## irq ),	\
@@ -146,6 +147,8 @@ static void atpic_enable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
 static void atpic_resume(struct intsrc *isrc);
 static int atpic_source_pending(struct intsrc *isrc);
+static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol);
 static void i8259_init(struct atpic *pic, int slave);
 
 static struct atpic atpics[] = {
@@ -269,6 +272,62 @@ atpic_resume(struct intsrc *isrc)
 		if (ap == &atpics[SLAVE] && using_elcr)
 			elcr_resume();
 	}
+}
+
+static int
+atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
+	u_int vector;
+
+	/* Map conforming values to edge/hi and sanity check the values. */
+	if (trig == INTR_TRIGGER_CONFORM)
+		trig = INTR_TRIGGER_EDGE;
+	if (pol == INTR_POLARITY_CONFORM)
+		pol = INTR_POLARITY_HIGH;
+	vector = atpic_vector(isrc);
+	if ((trig == INTR_TRIGGER_EDGE && pol == INTR_POLARITY_LOW) ||
+	    (trig == INTR_TRIGGER_LEVEL && pol == INTR_POLARITY_HIGH)) {
+		printf(
+		"atpic: Mismatched config for IRQ%u: trigger %s, polarity %s\n",
+		    vector, trig == INTR_TRIGGER_EDGE ? "edge" : "level",
+		    pol == INTR_POLARITY_HIGH ? "high" : "low");
+		return (EINVAL);
+	}
+
+	/* If there is no change, just return. */
+	if (ai->at_trigger == trig)
+		return (0);
+
+	/*
+	 * Certain IRQs can never be level/lo, so don't try to set them
+	 * that way if asked.  At least some ELCR registers ignore setting
+	 * these bits as well.
+	 */
+	if ((vector == 0 || vector == 1 || vector == 2 || vector == 13) &&
+	    trig == INTR_TRIGGER_LEVEL) {
+		if (bootverbose)
+			printf(
+		"atpic: Ignoring invalid level/low configuration for IRQ%u\n",
+			    vector);
+		return (EINVAL);
+	}
+	if (!using_elcr) {
+		if (bootverbose)
+			printf("atpic: No ELCR to configure IRQ%u as %s\n",
+			    vector, trig == INTR_TRIGGER_EDGE ? "edge/high" :
+			    "level/low");
+		return (ENXIO);
+	}
+	if (bootverbose)
+		printf("atpic: Programming IRQ%u as %s\n", vector,
+		    trig == INTR_TRIGGER_EDGE ? "edge/high" : "level/low");
+	mtx_lock_spin(&icu_lock);
+	elcr_write_trigger(atpic_vector(isrc), trig);
+	ai->at_trigger = trig;
+	mtx_unlock_spin(&icu_lock);
+	return (0);
 }
 
 static void
