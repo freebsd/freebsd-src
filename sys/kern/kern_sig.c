@@ -1363,11 +1363,17 @@ coredump(p)
 		return (EFAULT);
 	
 	/*
-	 * Note that this layout means that limit checking is done
-	 * AFTER the corefile name is created.  This could happen
-	 * other ways as well, so I'm not too worried about it, but
-	 * it is potentially confusing.
+	 * Note that the bulk of limit checking is done after
+	 * the corefile is created.  The exception is if the limit
+	 * for corefiles is 0, in which case we don't bother
+	 * creating the corefile at all.  This layout means that
+	 * a corefile is truncated instead of not being created,
+	 * if it is larger than the limit.
 	 */
+	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
+	if (limit == 0)
+		return 0;
+
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, p);
 	error = vn_open(&nd, O_CREAT | FWRITE | O_NOFOLLOW, S_IRUSR | S_IWUSR);
@@ -1387,8 +1393,6 @@ coredump(p)
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, p);
 	p->p_acflag |= ACORE;
-
-	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
 
 	error = p->p_sysent->sv_coredump ?
 	  p->p_sysent->sv_coredump(p, vp, limit) :
