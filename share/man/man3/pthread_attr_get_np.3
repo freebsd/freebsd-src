@@ -68,6 +68,11 @@ The
 .Fn pthread_attr_get_np
 function will always return a pointer to the thread's real stack address,
 regardless of its value in the original attributes structure.
+.Sh RETURN VALUES
+If successful,
+.Fn pthread_attr_get_np
+function returns 0.
+Otherwise, an error number is returned to indicate the error.
 .Sh EXAMPLES
 .Bd -literal
 size_t
@@ -83,11 +88,6 @@ my_thread_stack_size(pthread_t pid)
     return(size);
 }
 .Ed
-.Sh RETURN VALUES
-If successful,
-.Fn pthread_attr_get_np
-function returns 0.
-Otherwise, an error number is returned to indicate the error.
 .Sh ERRORS
 The
 .Fn pthread_attr_get_np

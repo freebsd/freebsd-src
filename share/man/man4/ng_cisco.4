@@ -157,11 +157,6 @@ struct ngciscostat {
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
-.Sh BUGS
-Not all of the functionality has been implemented.
-For example,
-the node does not support querying the remote end for its IP address
-and netmask.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_iface 4 ,
@@ -182,3 +177,8 @@ node type was implemented in
 .Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org ,
 .An Archie Cobbs Aq archie@FreeBSD.org
+.Sh BUGS
+Not all of the functionality has been implemented.
+For example,
+the node does not support querying the remote end for its IP address
+and netmask.

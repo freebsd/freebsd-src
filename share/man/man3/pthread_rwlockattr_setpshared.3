@@ -64,15 +64,6 @@ If successful, the
 function will return zero.
 Otherwise an error number will be returned
 to indicate the error.
-.Sh SEE ALSO
-.Xr pthread_rwlockattr_getpshared 3 ,
-.Xr pthread_rwlockattr_init 3 ,
-.Xr pthread_rwlock_init 3
-.Sh STANDARDS
-The
-.Fn pthread_rwlockattr_setpshared
-function is expected to conform to
-.St -susv2 .
 .Sh ERRORS
 The
 .Fn pthread_rwlockattr_setpshared
@@ -85,6 +76,15 @@ or
 .Fa pshared
 is invalid.
 .El
+.Sh SEE ALSO
+.Xr pthread_rwlockattr_getpshared 3 ,
+.Xr pthread_rwlockattr_init 3 ,
+.Xr pthread_rwlock_init 3
+.Sh STANDARDS
+The
+.Fn pthread_rwlockattr_setpshared
+function is expected to conform to
+.St -susv2 .
 .Sh HISTORY
 The
 .Fn pthread_rwlockattr_setpshared

@@ -166,14 +166,6 @@ If the
 .Dv NGM_SOCK_CMD_NOLINGER
 message has been received, closure of the last hook will also initiate
 a shutdown of the node.
-.Sh BUGS
-It is not possible to reject the connection of a hook, though any
-data received on that hook can certainly be ignored.
-.Pp
-The controlling process is not notified of all events that an in-kernel node
-would be notified of, e.g.\& a new hook, or hook removal.
-Some node-initiated messages should be defined for this purpose (to be
-sent up the control socket).
 .Sh SEE ALSO
 .Xr socket 2 ,
 .Xr netgraph 3 ,
@@ -187,3 +179,11 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Julian Elischer Aq julian@FreeBSD.org
+.Sh BUGS
+It is not possible to reject the connection of a hook, though any
+data received on that hook can certainly be ignored.
+.Pp
+The controlling process is not notified of all events that an in-kernel node
+would be notified of, e.g.\& a new hook, or hook removal.
+Some node-initiated messages should be defined for this purpose (to be
+sent up the control socket).

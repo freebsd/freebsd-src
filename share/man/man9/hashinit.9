@@ -80,6 +80,10 @@ The argument
 should be the bit mask returned by the call to
 .Fn hashinit
 that allocated the hash table.
+.Sh IMPLEMENTATION NOTES
+The largest prime hash value chosen by
+.Fn phashinit
+is 32749.
 .Sh RETURN VALUES
 The
 .Fn hashinit
@@ -95,10 +99,6 @@ function returns a pointer to an allocated hash table and sets the
 location pointed to by
 .Fa nentries
 to the number of rows in the hash table.
-.Sh IMPLEMENTATION NOTES
-The largest prime hash value chosen by
-.Fn phashinit
-is 32749.
 .Sh EXAMPLES
 A typical example is shown below:
 .Bd -literal -offset indent
@@ -122,9 +122,6 @@ uses the value in
 \&...
 hashdestroy(footable, M_FOO, foomask);
 .Ed
-.Sh SEE ALSO
-.Xr LIST_HEAD 3 ,
-.Xr malloc 9
 .Sh DIAGNOSTICS
 The
 .Fn hashinit
@@ -140,6 +137,9 @@ function will panic if the hash table
 pointed to by
 .Fa hashtbl
 is not empty.
+.Sh SEE ALSO
+.Xr LIST_HEAD 3 ,
+.Xr malloc 9
 .Sh BUGS
 There is no
 .Fn phashdestroy

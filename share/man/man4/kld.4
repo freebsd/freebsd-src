@@ -131,6 +131,22 @@ example source code implementing a sample kld module
 .Xr kldstat 8 ,
 .Xr kldunload 8 ,
 .Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+facility appeared in
+.Fx 3.0
+and was designed as a replacement for the
+.Xr lkm 4
+facility, which was similar in functionality to the loadable kernel modules
+facility provided by
+.Tn SunOS
+4.1.3.
+.Sh AUTHORS
+The
+.Nm
+facility was originally implemented by
+.An Doug Rabson Aq dfr@FreeBSD.org .
 .Sh BUGS
 If a module B, is dependent on another module A, but is not compiled with
 module A as a dependency, then
@@ -157,19 +173,3 @@ for any error encountered while loading a module.
 When system internal interfaces change, old modules often cannot
 detect this, and such modules when loaded will often cause crashes or
 mysterious failures.
-.Sh HISTORY
-The
-.Nm
-facility appeared in
-.Fx 3.0
-and was designed as a replacement for the
-.Xr lkm 4
-facility, which was similar in functionality to the loadable kernel modules
-facility provided by
-.Tn SunOS
-4.1.3.
-.Sh AUTHORS
-The
-.Nm
-facility was originally implemented by
-.An Doug Rabson Aq dfr@FreeBSD.org .

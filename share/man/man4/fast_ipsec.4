@@ -80,19 +80,6 @@ To selectively enable/disable protocols, use
 .Xr sysctl 8 .
 .Sh DIAGNOSTICS
 To be added.
-.Sh BUGS
-There is presently no support for IPv6.
-.Pp
-The
-.Tn IPcomp
-protocol support does not work.
-.Pp
-Certain legacy authentication algorithms are not supported because of
-issues with the
-.Xr crypto 4
-subsystem.
-.Pp
-This documentation is incomplete.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
@@ -114,3 +101,16 @@ The
 .Nm
 protocols first appeared in
 .Fx 5.0 .
+.Sh BUGS
+There is presently no support for IPv6.
+.Pp
+The
+.Tn IPcomp
+protocol support does not work.
+.Pp
+Certain legacy authentication algorithms are not supported because of
+issues with the
+.Xr crypto 4
+subsystem.
+.Pp
+This documentation is incomplete.

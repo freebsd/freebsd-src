@@ -841,6 +841,24 @@ The drive is not accessible.
 .It Em up
 The drive is up and running.
 .El
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr loader.conf 5 ,
+.Xr disklabel 8 ,
+.Xr loader 8 ,
+.Xr newfs 8 ,
+.Xr vinum 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 3.0 .
+The RAID-5 component of
+.Nm
+was developed by Cybernet Inc.\&
+.Pq Pa http://www.cybernet.com/ ,
+for its NetMAX product.
+.Sh AUTHORS
+.An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
 .Nm
 is a new product.
@@ -1155,21 +1173,3 @@ at the beginning.
 .It
 If you have a panic, a stack trace as described above.
 .El
-.Sh AUTHORS
-.An Greg Lehey Aq grog@lemis.com .
-.Sh HISTORY
-.Nm
-first appeared in
-.Fx 3.0 .
-The RAID-5 component of
-.Nm
-was developed by Cybernet Inc.\&
-.Pq Pa http://www.cybernet.com/ ,
-for its NetMAX product.
-.Sh SEE ALSO
-.Xr disklabel 5 ,
-.Xr loader.conf 5 ,
-.Xr disklabel 8 ,
-.Xr loader 8 ,
-.Xr newfs 8 ,
-.Xr vinum 8

@@ -83,6 +83,9 @@ see
 .It Pa /compat/osf1
 minimal OSF1 run-time environment
 .El
+.Sh HISTORY
+OSF/1 ABI support first appeared in
+.Fx 4.0 .
 .Sh BUGS
 We cannot run OSF/1 applications which rely on the
 .Xr pthread 3
@@ -90,6 +93,3 @@ API, such as the JDK.
 OSF/1's pthreads library uses Mach system calls.
 Mach system calls would be very difficult to support in
 .Fx .
-.Sh HISTORY
-OSF/1 ABI support first appeared in
-.Fx 4.0 .

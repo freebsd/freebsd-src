@@ -186,12 +186,6 @@ base/length supplied.
 An attempt to remove a range failed because the range is permanently
 enabled.
 .El
-.Sh BUGS
-Busy range attributes are not yet managed correctly.
-.Pp
-This device is required for all users of
-.Xr kvm 3
-to operate.
 .Sh FILES
 .Bl -tag -width /dev/kmem -compact
 .It Pa /dev/mem
@@ -209,3 +203,9 @@ files appeared in
 .At v6 .
 The ioctl interface for memory range attributes was added in
 .Fx 3.2 .
+.Sh BUGS
+Busy range attributes are not yet managed correctly.
+.Pp
+This device is required for all users of
+.Xr kvm 3
+to operate.

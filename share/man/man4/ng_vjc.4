@@ -193,24 +193,6 @@ Failing to do this can result in corrupted TCP stream data.
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
-.Sh BUGS
-As the initialization routine in the kernel implementation of
-Van Jacobson compression initializes both compression and decompression
-at once, this node does not allow compression and decompression to
-be enabled in separate operations.
-In order to enable one when
-the other is already enabled, first both must be disabled, then
-both enabled.
-This of course resets the node state.
-This restriction may be lifted in a later version.
-.Pp
-When built as a loadable kernel module, this module includes the file
-.Pa net/slcompress.c .
-Although loading the module should fail if
-.Pa net/slcompress.c
-already exists in the kernel, currently it does not, and the duplicate
-copies of the file do not interfere.
-However, this may change in the future.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_iface 4 ,
@@ -233,3 +215,21 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org
+.Sh BUGS
+As the initialization routine in the kernel implementation of
+Van Jacobson compression initializes both compression and decompression
+at once, this node does not allow compression and decompression to
+be enabled in separate operations.
+In order to enable one when
+the other is already enabled, first both must be disabled, then
+both enabled.
+This of course resets the node state.
+This restriction may be lifted in a later version.
+.Pp
+When built as a loadable kernel module, this module includes the file
+.Pa net/slcompress.c .
+Although loading the module should fail if
+.Pa net/slcompress.c
+already exists in the kernel, currently it does not, and the duplicate
+copies of the file do not interfere.
+However, this may change in the future.

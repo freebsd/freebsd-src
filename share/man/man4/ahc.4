@@ -388,6 +388,26 @@ Since the
 local SCB space serves as a cache for disconnected transactions, the
 more SCB space available, the less host bus traffic consumed saving
 and restoring SCB data.
+.Sh SEE ALSO
+.Xr aha 4 ,
+.Xr ahb 4 ,
+.Xr cd 4 ,
+.Xr da 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh HISTORY
+The
+.Nm
+driver appeared in
+.Fx 2.0 .
+.Sh AUTHORS
+The
+.Nm
+driver, the
+.Tn AIC7xxx
+sequencer-code assembler,
+and the firmware running on the aic7xxx chips was written by
+.An Justin T. Gibbs .
 .Sh BUGS
 Some Quantum drives (at least the Empire 2100 and 1080s) will not run on an
 .Tn AIC7870
@@ -412,23 +432,3 @@ voltage differential boards as shipped by Adaptec.
 Information on
 how to modify HVD board to work correctly in target mode is available
 from Adaptec.
-.Sh SEE ALSO
-.Xr aha 4 ,
-.Xr ahb 4 ,
-.Xr cd 4 ,
-.Xr da 4 ,
-.Xr sa 4 ,
-.Xr scsi 4
-.Sh AUTHORS
-The
-.Nm
-driver, the
-.Tn AIC7xxx
-sequencer-code assembler,
-and the firmware running on the aic7xxx chips was written by
-.An Justin T. Gibbs .
-.Sh HISTORY
-The
-.Nm
-driver appeared in
-.Fx 2.0 .

@@ -145,6 +145,10 @@ becomes
 .El
 .Pp
 The sequence is repeated after a one second pause.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/led/*"
+.It Pa /dev/led/*
+.El
 .Sh EXAMPLES
 A
 .Sq Li d12
@@ -161,10 +165,6 @@ flashes
 .Bd -literal
 /usr/games/morse -l "Soekris rocks" > /dev/led/error
 .Ed
-.Sh FILES
-.Bl -tag -width ".Pa /dev/led/*"
-.It Pa /dev/led/*
-.El
 .Sh SEE ALSO
 .Xr morse 6
 .Sh HISTORY

@@ -179,6 +179,70 @@ This node shuts down upon receipt of a
 control message, or when the
 .Dv output
 hook has been disconnected.
+.Sh IMPLEMENTATION NOTES
+.No ( Fx 4.4
+version)
+.Pp
+The use of
+.Xr splimp 9
+around the
+.Dv NG_SEND_DATA
+loop is important.
+Without it,
+the time taken by a single invocation of
+.Fn ng_source_intr
+becomes too
+large and the packet rate drops.
+Probably due to the NIC starting to
+send the packets right away.
+.Pp
+Copying all the packets in one loop and sending them in another inside
+of
+.Fn ng_source_send
+is done to limit how long we are at
+.Xr splimp 9
+and gave
+minor packet rate increases (~5% at 256 byte packets).
+However note
+that if there are errors in the send loop, the remaining copied packets
+are simply freed and discarded; thus we skip those packets, and ordering
+of the input queue to the output is not maintained.
+.Pp
+Calling
+.Xr timeout 9
+at the end of
+.Fn ng_source_intr
+instead of near the
+beginning is done to help avoid CPU starvation if
+.Fn ng_source_intr
+takes a long time to run.
+.Pp
+The use of
+.Xr splnet 9
+may be sub-optimal.
+It is used for synchronization
+within the node (e.g., data received on the
+.Dv input
+hook while
+.Fn ng_source_send
+is active) but we do not want to hold it too long and risk
+starving the NIC.
+.Pp
+For clarity and simplicity, debugging messages and instrumentation code
+has been removed.
+On i386 one can include
+.In machine/cpufunc.h
+to have access to the
+.Fn rdtsc
+function to read the instruction counter at the
+start and end of
+.Fn ng_source_intr .
+Also useful is the packet count returned by
+.Fn ng_source_send .
+Do not try to report such things from within
+.Fn ng_source_intr ,
+instead include the values in
+.Va sc->stats .
 .Sh EXAMPLES
 Attach the node to an
 .Xr ng_ether 4
@@ -270,70 +334,6 @@ command:
 date -r 1035305880
 Tue Oct 22 12:58:00 EDT 2002
 .Ed
-.Sh IMPLEMENTATION NOTES
-.No ( Fx 4.4
-version)
-.Pp
-The use of
-.Xr splimp 9
-around the
-.Dv NG_SEND_DATA
-loop is important.
-Without it,
-the time taken by a single invocation of
-.Fn ng_source_intr
-becomes too
-large and the packet rate drops.
-Probably due to the NIC starting to
-send the packets right away.
-.Pp
-Copying all the packets in one loop and sending them in another inside
-of
-.Fn ng_source_send
-is done to limit how long we are at
-.Xr splimp 9
-and gave
-minor packet rate increases (~5% at 256 byte packets).
-However note
-that if there are errors in the send loop, the remaining copied packets
-are simply freed and discarded; thus we skip those packets, and ordering
-of the input queue to the output is not maintained.
-.Pp
-Calling
-.Xr timeout 9
-at the end of
-.Fn ng_source_intr
-instead of near the
-beginning is done to help avoid CPU starvation if
-.Fn ng_source_intr
-takes a long time to run.
-.Pp
-The use of
-.Xr splnet 9
-may be sub-optimal.
-It is used for synchronization
-within the node (e.g., data received on the
-.Dv input
-hook while
-.Fn ng_source_send
-is active) but we do not want to hold it too long and risk
-starving the NIC.
-.Pp
-For clarity and simplicity, debugging messages and instrumentation code
-has been removed.
-On i386 one can include
-.In machine/cpufunc.h
-to have access to the
-.Fn rdtsc
-function to read the instruction counter at the
-start and end of
-.Fn ng_source_intr .
-Also useful is the packet count returned by
-.Fn ng_source_send .
-Do not try to report such things from within
-.Fn ng_source_intr ,
-instead include the values in
-.Va sc->stats .
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_echo 4 ,

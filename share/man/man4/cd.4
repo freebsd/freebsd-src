@@ -481,6 +481,18 @@ None.
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
 .Xr cd 9
+.Sh HISTORY
+This
+.Nm
+driver is based upon the
+.Nm
+driver written by Julian Elischer, which appeared in
+.Bx 386 0.1 .
+The
+CAM version of the
+.Nm
+driver was written by Kenneth Merry and first appeared in
+.Fx 3.0 .
 .Sh BUGS
 The names of the structures used for the third argument to
 .Fn ioctl
@@ -506,15 +518,3 @@ require modification of
 to support the two timeouts when hardwiring
 .Nm
 devices.
-.Sh HISTORY
-This
-.Nm
-driver is based upon the
-.Nm
-driver written by Julian Elischer, which appeared in
-.Bx 386 0.1 .
-The
-CAM version of the
-.Nm
-driver was written by Kenneth Merry and first appeared in
-.Fx 3.0 .

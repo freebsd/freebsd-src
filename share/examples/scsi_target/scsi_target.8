@@ -119,6 +119,13 @@ All options default to the minimal functionality of SCSI-1.
 To be safe,
 .Nm
 checks the SIM for the requested capability before enabling target mode.
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/examples/scsi_target" -compact
+.It Pa /dev/targ*
+Control devices.
+.It Pa /usr/share/examples/scsi_target
+Source directory.
+.El
 .Sh EXAMPLES
 Create a 5 megabyte backing store file.
 .Pp
@@ -134,13 +141,6 @@ Debugging information will be output.
 16-bit wide transfers will be used if the SIM supports them.
 .Pp
 .Dl "scsi_target -d -s 1000 -W 16 0:1:0 vol"
-.Sh FILES
-.Bl -tag -width ".Pa /usr/share/examples/scsi_target" -compact
-.It Pa /dev/targ*
-Control devices.
-.It Pa /usr/share/examples/scsi_target
-Source directory.
-.El
 .Sh SEE ALSO
 .Xr scsi 4 ,
 .Xr targ 4

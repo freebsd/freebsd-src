@@ -140,6 +140,12 @@ do not support this functionality.
 Also, bridging is not compatible with interfaces which
 use hardware loopback, because there is no way to tell locally
 generated packets from externally generated ones.
+.Sh FILES
+.Bl -tag -width ".Pa /boot/kernel/bridge.ko" -compact
+.It Pa /boot/kernel/bridge.ko
+.Nm
+loadable module.
+.El
 .Sh EXAMPLES
 A simple
 .Nm
@@ -200,6 +206,18 @@ is performed by the
 devices.
 When using VLAN devices, care must be taken by not creating loops
 between these devices and their parent interfaces.
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ng_bridge 4 ,
+.Xr vlan 4 ,
+.Xr ipf 8 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+Bridging was introduced in
+.Fx 2.2.8
+by
+.An Luigi Rizzo Aq luigi@iet.unipi.it .
 .Sh BUGS
 Care must be taken not to construct loops in the
 .Nm
@@ -232,21 +250,3 @@ It might be useful to have a rule of the form
 .Pp
 near the beginning of your ruleset to implement specific rulesets
 for bridged packets.
-.Sh FILES
-.Bl -tag -width ".Pa /boot/kernel/bridge.ko" -compact
-.It Pa /boot/kernel/bridge.ko
-.Nm
-loadable module.
-.El
-.Sh SEE ALSO
-.Xr ip 4 ,
-.Xr ng_bridge 4 ,
-.Xr vlan 4 ,
-.Xr ipf 8 ,
-.Xr ipfw 8 ,
-.Xr sysctl 8
-.Sh HISTORY
-Bridging was introduced in
-.Fx 2.2.8
-by
-.An Luigi Rizzo Aq luigi@iet.unipi.it .

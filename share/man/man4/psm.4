@@ -833,15 +833,6 @@ by switching away to a virtual terminal and getting back to the X server,
 unless the X server is accessing the mouse via
 .Xr moused 8 .
 Clicking any button without moving the mouse may also work.
-.Sh BUGS
-The ioctl command
-.Dv MOUSEIOCREAD
-has been removed.
-It was never functional anyway.
-.Pp
-Enabling the extended support for Synaptics touchpads has been reported to
-cause problems with responsivity on some (newer) models of Synaptics
-hardware, particularly those with guest devices.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr syslog 3 ,
@@ -873,3 +864,12 @@ to name the few.
 .Pp
 This manual page was written by
 .An Kazutaka Yokota Aq yokota@FreeBSD.org .
+.Sh BUGS
+The ioctl command
+.Dv MOUSEIOCREAD
+has been removed.
+It was never functional anyway.
+.Pp
+Enabling the extended support for Synaptics touchpads has been reported to
+cause problems with responsivity on some (newer) models of Synaptics
+hardware, particularly those with guest devices.

@@ -129,11 +129,6 @@ and
 .Cm unassigned
 (see
 .Xr utopia 4 ) .
-.Sh DIAGNOSTICS
-.Bd -literal
-hatm0: <FORE HE> mem 0xd2600000-0xd26fffff irq 9 at device 15.0 on pci2
-hatm0: ForeRunnerHE 622, Rev. D, S/N 2949834, MAC=00:20:48:2d:02:ca
-.Ed
 .Sh ENVIRONMENT
 When attaching to a device the driver checks the kernel environment
 (see
@@ -272,6 +267,11 @@ and
 arguments the
 .Nx
 function has.
+.Sh DIAGNOSTICS
+.Bd -literal
+hatm0: <FORE HE> mem 0xd2600000-0xd26fffff irq 9 at device 15.0 on pci2
+hatm0: ForeRunnerHE 622, Rev. D, S/N 2949834, MAC=00:20:48:2d:02:ca
+.Ed
 .Sh SEE ALSO
 .Xr natm 4 ,
 .Xr natmip 4 ,

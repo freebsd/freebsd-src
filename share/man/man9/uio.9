@@ -111,6 +111,15 @@ for the associated thread; used if
 indicates that the transfer is to be made from/to a process's address
 space.
 .El
+.Sh RETURN VALUES
+.Fn uiomove
+can return
+.Er EFAULT
+from the invoked
+.Xr copyin 9
+or
+.Xr copyout 9
+in case the transfer was to/from a process's address space.
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
@@ -151,15 +160,6 @@ fooread(dev_t dev, struct uio *uio, int flag)
 	return (rv);
 }
 .Ed
-.Sh RETURN VALUES
-.Fn uiomove
-can return
-.Er EFAULT
-from the invoked
-.Xr copyin 9
-or
-.Xr copyout 9
-in case the transfer was to/from a process's address space.
 .Sh SEE ALSO
 .Xr read 2 ,
 .Xr readv 2 ,

@@ -52,6 +52,11 @@ for interaction.
 The buffer consists of 4 channels.
 There are 2 ports, one for the console TTY and another is GDB port,
 then each port has an input channel and an output channel.
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/dcons
+.It Pa /etc/ttys
+.El
 .Sh EXAMPLES
 If you want to run
 .Xr getty 8
@@ -80,11 +85,6 @@ application.
 See
 .Xr dconschat 8
 for more details.
-.Sh FILES
-.Bl -tag -width indent -compact
-.It Pa /dev/dcons
-.It Pa /etc/ttys
-.El
 .Sh SEE ALSO
 .Xr dcons_crom 4 ,
 .Xr ddb 4 ,

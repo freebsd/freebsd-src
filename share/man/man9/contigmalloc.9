@@ -109,8 +109,6 @@ p = contigmalloc(8192, M_DEVBUF, M_ZERO, 0, (1L << 22),
 Ask for 8192 bytes of zero-filled memory residing between physical
 address 0 and 4194303 inclusive, aligned to a 32K boundary and not
 crossing a 1M address boundary.
-.Sh SEE ALSO
-.Xr malloc 9
 .Sh DIAGNOSTICS
 The
 .Fn contigmalloc
@@ -121,3 +119,5 @@ is zero, or if
 or
 .Fa boundary
 is not a power of two.
+.Sh SEE ALSO
+.Xr malloc 9
