@@ -612,18 +612,18 @@ char *(*get_userid)();
 	    pp->ki_pid,
 	    namelength, namelength,
 	    (*get_userid)(pp->ki_ruid),
-	    pp->ki_priority - PZERO,
+	    pp->ki_pri.pri_level - PZERO,
 
 	    /*
 	     * normal time      -> nice value -20 - +20 
 	     * real time 0 - 31 -> nice value -52 - -21
 	     * idle time 0 - 31 -> nice value +21 - +52
 	     */
-	    (pp->ki_rtprio.type ==  RTP_PRIO_NORMAL ? 
+	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ? 
 	    	pp->ki_nice - NZERO : 
-	    	(RTP_PRIO_IS_REALTIME(pp->ki_rtprio.type) ?
-		    (PRIO_MIN - 1 - RTP_PRIO_MAX + pp->ki_rtprio.prio) : 
-		    (PRIO_MAX + 1 + pp->ki_rtprio.prio))), 
+	    	(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
+		    (PRIO_MIN - 1 - (PRI_MAX_REALTIME - pp->ki_pri.pri_level)) :
+		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))), 
 	    format_k2(PROCSIZE(pp)),
 	    format_k2(pagetok(pp->ki_rssize)),
 	    status,
@@ -749,7 +749,7 @@ static unsigned char sorted_state[] =
                 sorted_state[(unsigned char) p1->ki_stat]) == 0)
 
 #define ORDERKEY_PRIO \
-  if ((result = p2->ki_priority - p1->ki_priority) == 0)
+  if ((result = p2->ki_pri.pri_level - p1->ki_pri.pri_level) == 0)
 
 #define ORDERKEY_RSSIZE \
   if ((result = p2->ki_rssize - p1->ki_rssize) == 0) 
