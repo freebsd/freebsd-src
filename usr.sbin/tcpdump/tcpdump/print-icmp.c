@@ -21,7 +21,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-icmp.c,v 1.20 94/06/14 20:17:39 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-icmp.c,v 1.2 1995/03/08 12:52:32 olah Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -161,6 +161,13 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 		break;
 	case ICMP_ECHO:
 		str = "echo request";
+		break;
+	case ICMP_ROUTERADVERT:
+		(void)sprintf(buf, "router advert, %d rtrs, lifetime %d",
+			dp->icmp_num_addrs, ntohs(dp->icmp_lifetime));
+		break;
+	case ICMP_ROUTERSOLICIT:
+		str = "router solicitation";
 		break;
 	case ICMP_TIMXCEED:
 		TCHECK(dp->icmp_ip.ip_dst, sizeof(dp->icmp_ip.ip_dst));
