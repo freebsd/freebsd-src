@@ -1,4 +1,3 @@
-# $FreeBSD$
 # strip comments, spaces, etc. after a line containing `%beginstrip%'
 /%beginstrip%/,$ {
   s/^\.[	 ]*/./
