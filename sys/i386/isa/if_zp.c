@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.42 1997/12/15 20:30:56 eivind Exp $
+ *	$Id: if_zp.c,v 1.43 1998/01/08 23:41:08 eivind Exp $
  */
 /*-
  * TODO:
@@ -101,10 +101,12 @@
  */
 
 /* XXX - Don't mix different PCCARD support code */
+#include "opt_lint.h"
+
 #include "card.h"
 #include "pcic.h"
 #if NCARD > 0 || NPCIC > 0
-#ifndef LINT_PCCARD_HACK
+#ifndef COMPILING_LINT
 #error "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
 #else
 #warning "Dedicated PCMCIA drivers and generic PCMCIA support can't be mixed"
