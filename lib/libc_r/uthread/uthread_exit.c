@@ -87,13 +87,9 @@ _thread_exit(char *fname, int lineno, char *string)
 	char            s[256];
 
 	/* Prepare an error message string: */
-	strcpy(s, "Fatal error '");
-	strcat(s, string);
-	strcat(s, "' at line ? ");
-	strcat(s, "in file ");
-	strcat(s, fname);
-	strcat(s, " (errno = ?");
-	strcat(s, ")\n");
+	snprintf(s, sizeof(s),
+	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
+	    string, lineno, fname, errno);
 
 	/* Write the string to the standard error file descriptor: */
 	__sys_write(2, s, strlen(s));
@@ -126,9 +122,6 @@ _thread_exit_cleanup(void)
 	 */
 	/* Unlock all owned fd locks: */
 	_thread_fd_unlock_owned(curthread);
-
-	/* Unlock all owned file locks: */
-	_funlock_owned(curthread);
 
 	/* Unlock all private mutexes: */
 	_mutex_unlock_private(curthread);
