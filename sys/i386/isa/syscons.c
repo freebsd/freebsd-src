@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.92 1995/01/13 17:13:13 sos Exp $
+ *	$Id: syscons.c,v 1.93 1995/01/20 08:35:32 sos Exp $
  */
 
 #include "sc.h"
@@ -98,8 +98,8 @@
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
-#define BLINK_CURSOR	0x00002
-#define CHAR_CURSOR	0x00004
+#define	BLINK_CURSOR	0x00002
+#define	SOFT_CURSOR	0x00004
 
 /* video hardware memory addresses */
 #define VIDEOMEM	0x000A0000
@@ -205,6 +205,9 @@ static	scr_stat	*cur_console;
 static	scr_stat	*new_scp, *old_scp;
 static	term_stat	kernel_console; 
 static	default_attr	*current_default;
+static	char		hw_cursor_start	= -1;
+static	char		hw_cursor_end =	-1;
+static	int		force_hw_cursor_pos = 1;
 static	char		switch_in_progress = 0;
 static	char		blink_in_progress = 0;
 static	char 		write_in_progress = 0;
@@ -264,8 +267,10 @@ static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp();
 static void init_scp(scr_stat *scp);
 static int get_scr_num();
-static void cursor_shape(int start, int end);
-static void get_cursor_shape(int *start, int *end);
+static void cursor_shape(char start, char end);
+static void get_cursor_shape(char *start, char *end);
+static void set_hw_cursor_pos(u_short pos);
+static void update_hw_cursor_pos(void);
 static void scrn_timer();
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
@@ -453,6 +458,8 @@ scattach(struct isa_device *dev)
 #endif
 		console[0]->font = FONT_16;
 		save_palette();
+		if (!(configuration & SOFT_CURSOR))
+			get_cursor_shape(&hw_cursor_start, &hw_cursor_end);
 	}
 	/* get screensaver going */
 	scrn_timer();
@@ -1255,7 +1262,7 @@ scstart(struct tty *tp)
 	u_char buf[PCBURST];
 	scr_stat *scp = get_scr_stat(tp->t_dev);
 
-	if (scp->status & SLKED) 
+	if (blink_in_progress || (scp->status & SLKED))
 		return;
 	s = spltty();
 	if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
@@ -1263,7 +1270,8 @@ scstart(struct tty *tp)
 		splx(s);
 		rbp = &tp->t_outq;
 		scp->cursor_protect = 1;
-		undraw_cursor(scp);
+		if (configuration & SOFT_CURSOR)
+			undraw_cursor(scp);
 		while (rbp->c_cc) {
 #if 0
 			len = q_to_b(rbp, buf, PCBURST);
@@ -1274,7 +1282,8 @@ scstart(struct tty *tp)
 			ansi_put(scp, buf, len);
 #endif
 		}
-		draw_cursor(scp);
+		if (configuration & SOFT_CURSOR)
+			draw_cursor(scp);
 		scp->cursor_protect = 0;
 		s = spltty();
 		tp->t_state &= ~TS_BUSY;
@@ -1316,6 +1325,8 @@ pccnputc(dev_t dev, char c)
 	if (c == '\n')
 		scput('\r');
 	scput(c);
+	if (!(configuration & SOFT_CURSOR) && cur_console == console[0])
+		update_hw_cursor_pos();
 }
 
 int 
@@ -1346,6 +1357,7 @@ fade_saver(int test)
 
 	if (test) {
 		scrn_blanked = 1;
+		force_hw_cursor_pos = 1;
 		if (count < 64) {
   			outb(PIXMASK, 0xFF);		/* no pixelmask */
   			outb(PALWADR, 0x00);
@@ -1364,8 +1376,9 @@ fade_saver(int test)
 		}
 	}
 	else {
-		count = scrn_blanked = 0;
+		count = 0;
 		load_palette();
+		scrn_blanked = 0;
 	}
 }
 
@@ -1375,13 +1388,14 @@ blank_saver(int test)
 	u_char val;
 	if (test) {
 		scrn_blanked = 1;
+		force_hw_cursor_pos = 1;
   		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 	}
 	else {
-		scrn_blanked = 0;
   		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
+		scrn_blanked = 0;
 	}
 }
 
@@ -1391,17 +1405,18 @@ green_saver(int test)
 	u_char val;
 	if (test) {
 		scrn_blanked = 1;
+		force_hw_cursor_pos = 1;
   		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val | 0x20);
 		outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
 		outb(crtc_addr + 1, val & ~0x80);
 	}
 	else {
-		scrn_blanked = 0;
   		outb(TSIDX, 0x01); val = inb(TSREG); 
 		outb(TSIDX, 0x01); outb(TSREG, val & 0xDF);
                 outb(crtc_addr, 0x17); val = inb(crtc_addr + 1);
                 outb(crtc_addr + 1, val | 0x80);
+		scrn_blanked = 0;
 	}
 }
 
@@ -1423,17 +1438,13 @@ star_saver(int test)
  
 	if (test) {
 		if (!scrn_blanked) {
+			scrn_blanked = 1;
+			undraw_cursor(scp);
 			bcopyw(Crtat, scp->scr_buf, 
 			      scp->xsize * scp->ysize * 2);
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20], Crtat, 
 			      scp->xsize * scp->ysize);
 			set_border(0);
-			i = scp->ysize * scp->xsize + 5;
-			outb(crtc_addr, 14);
-			outb(crtc_addr+1, i >> 8);
-			outb(crtc_addr, 15);
-			outb(crtc_addr+1, i & 0xff);
-			scrn_blanked = 1;
  			for(i=0; i<NUM_STARS; i++) {
   				stars[i][0] = 
 					random() % (scp->xsize*scp->ysize);
@@ -1469,6 +1480,8 @@ snake_saver(int test)
 
 	if (test) {
 		if (!scrn_blanked) {
+			scrn_blanked = 1;
+			undraw_cursor(scp);
 			bcopyw(Crtat, scp->scr_buf,
 			      scp->xsize * scp->ysize * 2);
 			fillw((FG_LIGHTGREY|BG_BLACK)<<8 | scr_map[0x20],
@@ -1481,12 +1494,6 @@ snake_saver(int test)
 				savs[f] = (u_char *)Crtat + 2 *
 					  (scp->xpos+scp->ypos*scp->xsize);
 			*(savs[0]) = scr_map[*saves];
-			f = scp->ysize * scp->xsize + 5;
-			outb(crtc_addr, 14);
-			outb(crtc_addr+1, f >> 8);
-			outb(crtc_addr, 15);
-			outb(crtc_addr+1, f & 0xff);
-			scrn_blanked = 1;
 		}
 		if (scrn_blanked++ < 4) 
 			return;
@@ -1518,39 +1525,65 @@ snake_saver(int test)
 }
 
 static void 
-cursor_shape(int start, int end)
+cursor_shape(char start, char end)
 {
 	outb(crtc_addr, 10);
-	outb(crtc_addr+1, start & 0xFF);
+	outb(crtc_addr+1, start);
 	outb(crtc_addr, 11);
-	outb(crtc_addr+1, end & 0xFF);
+	outb(crtc_addr+1, end);
 }
 
-#if !defined(FAT_CURSOR)
 static void 
-get_cursor_shape(int *start, int *end)
+get_cursor_shape(char *start, char *end)
 {
 	outb(crtc_addr, 10);
 	*start = inb(crtc_addr+1) & 0x1F;
 	outb(crtc_addr, 11);
 	*end = inb(crtc_addr+1) & 0x1F;
 }
-#endif
+
+static void 
+set_hw_cursor_pos(u_short pos)
+{
+	outb(crtc_addr,	14);
+	outb(crtc_addr+1, pos >> 8);
+	outb(crtc_addr,	15);
+	outb(crtc_addr+1, pos &	0xff);
+}
+
+static void
+update_hw_cursor_pos(void)
+{
+	static int cur_hw_cursor_pos = -1;
+	int pos	= cur_console->cursor_pos - cur_console->crt_base;
+
+	if (force_hw_cursor_pos	|| pos != cur_hw_cursor_pos) {
+	    cur_hw_cursor_pos =	pos;
+	    force_hw_cursor_pos	= 0;
+	    set_hw_cursor_pos(pos);
+	}
+}
 
 static void 
 scrn_timer()
 {
-	timeout((timeout_func_t)scrn_timer, 0, hz/5);
 	if (cur_console->status & UNKNOWN_MODE) 
-		return;
-	if (!cur_console->cursor_protect && configuration & BLINK_CURSOR) {
-		if (cur_console->cursor_saveunder)
-			undraw_cursor(cur_console);
-		else
-			draw_cursor(cur_console);
+		goto set_timeout;
+	if (!cur_console->cursor_protect && !scrn_blanked && !blink_in_progress) {
+		if (!(configuration & SOFT_CURSOR))
+			update_hw_cursor_pos();
+		else if (configuration & BLINK_CURSOR) {
+			if (cur_console->cursor_saveunder)
+				undraw_cursor(cur_console);
+			else
+				draw_cursor(cur_console);
+		}
 	}
 	if (scrn_blank_time && (time.tv_sec > scrn_time_stamp+scrn_blank_time))
 		SCRN_SAVER(1);
+set_timeout:
+	timeout((timeout_func_t)scrn_timer, 0,
+			(configuration & SOFT_CURSOR) ? hz/5 : hz/20);
 }
 
 static void 
@@ -2061,15 +2094,16 @@ scan_esc(scr_stat *scp, u_char c)
 				else
 					configuration &= ~BLINK_CURSOR;
 			}
-#if 0
-			else if (scp->term.num_param == 2) {
+			else if	(crtc_vga &&
+				 !(configuration & SOFT_CURSOR)	&&
+				 scp->term.num_param ==	2
+				) {
 				scp->cursor_start = scp->term.param[0] & 0x1F; 
 				scp->cursor_end = scp->term.param[1] & 0x1F; 
 				if (scp == cur_console)
 					cursor_shape(scp->cursor_start,
 						     scp->cursor_end);
 			}
-#endif
 			break;
 
 		case 'F':	/* set ansi foreground */
@@ -2107,6 +2141,11 @@ scan_esc(scr_stat *scp, u_char c)
 static void 
 undraw_cursor(scr_stat *scp)
 {
+	if (!(configuration & SOFT_CURSOR) && scp == cur_console) {
+		force_hw_cursor_pos = 1;
+		set_hw_cursor_pos(0xffff);
+		return;
+	}
 	if (scp->cursor_saveunder) {
 		*scp->cursor_pos = scp->cursor_saveunder;
 		scp->cursor_saveunder = 0;
@@ -2116,6 +2155,10 @@ undraw_cursor(scr_stat *scp)
 static void 
 draw_cursor(scr_stat *scp)
 {
+	if (!(configuration & SOFT_CURSOR) && scp == cur_console) {
+		update_hw_cursor_pos();
+		return;
+	}
 	scp->cursor_saveunder = *scp->cursor_pos;
 	if ((scp->cursor_saveunder & 0x7000) == 0x7000) {
 		*scp->cursor_pos &= 0x8fff;
@@ -2148,6 +2191,8 @@ ansi_put(scr_stat *scp, u_char *buf, int len)
 	}
 	write_in_progress++;
 outloop:
+	while (blink_in_progress)  /* bell can come from keyboard handler */
+		;
 	if (scp->term.esc) {
 		scan_esc(scp, *ptr++);
 		len--;
@@ -2201,6 +2246,8 @@ outloop:
 		}
 		ptr++; len--;
 	}
+	while (blink_in_progress) /* wait for bell finished before scroll */
+		;
 	/* do we have to scroll ?? */
 	if (scp->cursor_pos >= scp->crt_base + scp->ysize * scp->xsize) {
 	    if (scp->history) {
@@ -2265,11 +2312,9 @@ static 	char 	init_done = 0;
 	outb(crtc_addr,15);
 	hw_cursor |= inb(crtc_addr+1);
 
-	/* move hardware cursor out of the way */
-	outb(crtc_addr,14);
-	outb(crtc_addr+1, 0xff);
-	outb(crtc_addr,15);
-	outb(crtc_addr+1, 0xff);
+	/* move	hardware cursor	out of the way */
+	if (configuration & SOFT_CURSOR)
+		set_hw_cursor_pos(0xffff);
 
 	/* is this a VGA or higher ? */
 	outb(crtc_addr, 7);
@@ -2342,8 +2387,13 @@ init_scp(scr_stat *scp)
 	scp->term.rev_attr = current_default->rev_attr;
 	scp->term.cur_attr = scp->term.std_attr;
 	scp->border = BG_BLACK;
-	scp->cursor_start = -1;
-	scp->cursor_end = -1;
+	if (!(configuration & SOFT_CURSOR)) {
+		scp->cursor_start = -1;
+		scp->cursor_end	= -1;
+	} else {
+		scp->cursor_start = hw_cursor_start;
+		scp->cursor_end	= hw_cursor_end;
+	}
 	scp->cursor_protect = 0;
 	scp->cursor_saveunder = 0;
 	scp->mouse_xpos = scp->mouse_ypos = 0;
@@ -2367,13 +2417,15 @@ scput(u_char c)
 	scp->term = kernel_console;
 	current_default = &kernel_default;
 	scp->cursor_protect = 1;
-	undraw_cursor(scp);
+	if (configuration & SOFT_CURSOR)
+		undraw_cursor(scp);
 #if 0
 	ansi_put(scp, c);
 #else
 	ansi_put(scp, &c, 1);
 #endif
-	draw_cursor(scp);
+	if (configuration & SOFT_CURSOR)
+		draw_cursor(scp);
 	scp->cursor_protect = 0;
 	kernel_console = scp->term;
 	current_default = &user_default;
@@ -3002,6 +3054,18 @@ setup_mode:
 		set_vgaregs(modetable);
 		font_size = *(modetable + 2);
 
+		if (!(configuration & SOFT_CURSOR)) {
+		    /* change cursor type if set */
+		    if (scp->cursor_start != -1	&& scp->cursor_end != -1)
+			    cursor_shape(
+			    (scp->cursor_start >= font_size)
+			    ? font_size	- 1
+			    : scp->cursor_start,
+			    (scp->cursor_end >=	font_size)
+			    ? font_size	- 1
+			    : scp->cursor_end);
+		}
+
 		/* set font type (size) */
  		switch (font_size) {
  		case 0x10:
@@ -3018,6 +3082,7 @@ setup_mode:
 			scp->font = FONT_8;
  			break;
  		}
+		force_hw_cursor_pos = 1;
 		break;
 
 	case M_BG320:      case M_CG320:      case M_BG640:
@@ -3286,14 +3351,14 @@ do_bell(scr_stat *scp, int pitch, int duration)
 {
 	if (scp == cur_console) {
 		if (configuration & VISUAL_BELL) {
-			if (blink_in_progress)
+			if (blink_in_progress || (scp->status & BUFFER_SAVED))
 				return;
+			blink_in_progress = 3;
 			undraw_cursor(scp);
 			bcopy(scp->crt_base, scp->scr_buf,
 			      scp->xsize * scp->ysize * sizeof(u_short)); 
-			blink_in_progress = 4;
 			timeout((timeout_func_t)blink_screen, scp, hz/10);
-		}	
+		}
 		else
 			sysbeep(pitch, duration);
 	}
@@ -3302,6 +3367,10 @@ do_bell(scr_stat *scp, int pitch, int duration)
 static void
 blink_screen(scr_stat *scp)
 {
+	if (scp != cur_console) {
+		blink_in_progress = 0;
+		return;
+	}
 	if (blink_in_progress > 1) {
 		if (blink_in_progress & 1)
 			fillw(kernel_default.std_attr | scr_map[0x20],
