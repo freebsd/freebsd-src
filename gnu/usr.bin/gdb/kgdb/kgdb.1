@@ -28,7 +28,7 @@
 .Dt KGDB 1
 .Sh NAME
 .Nm kgdb
-.Nd The kernel debugger
+.Nd "kernel debugger"
 .Sh SYNOPSIS
 .Nm
 .Op Fl a
@@ -83,8 +83,7 @@ to for a remote debugging session.
 .El
 .Pp
 The
-.Fl c ,
-.Fl n ,
+.Fl c , n ,
 and
 .Fl r
 options are mutually exclusive.
@@ -101,7 +100,7 @@ of the options or the last command-line argument,
 will be opened to allow debugging the currenlty running
 kernel.
 .Sh FILES
-.Bl -tag -width "Pa /var/crash"
+.Bl -tag -width ".Pa /var/crash"
 .It Pa /dev/mem
 Default memory image to open if no core dump file
 has been specified.
