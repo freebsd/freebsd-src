@@ -107,12 +107,12 @@ main(argc, argv)
 
 	args.target = target;
 
-	error = getvfsbyname("null", &vfc);
-	if (error && vfsisloadable("null")) {
-		if(vfsload("null"))
-			err(EX_OSERR, "vfsload(null)");
+	error = getvfsbyname("nullfs", &vfc);
+	if (error && vfsisloadable("nullfs")) {
+		if(vfsload("nullfs"))
+			err(EX_OSERR, "vfsload(nullfs)");
 		endvfsent();
-		error = getvfsbyname("null", &vfc);
+		error = getvfsbyname("nullfs", &vfc);
 	}
 	if (error)
 		errx(EX_OSERR, "null/loopback filesystem is not available");
