@@ -38,15 +38,16 @@
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "From: @(#)comm.c	8.4 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
@@ -59,12 +60,12 @@ static const char rcsid[] =
 
 #define	MAXLINELEN	(LINE_MAX + 1)
 
-char *tabs[] = { "", "\t", "\t\t" };
+const char *tabs[] = { "", "\t", "\t\t" };
 
-FILE   *file __P((char *));
-void	show __P((FILE *, char *, char *));
-int     stricoll __P((char *, char *));
-static void	usage __P((void));
+FILE   *file(char *);
+void	show(FILE *, const char *, char *);
+int     stricoll(char *, char *);
+static void	usage(void);
 
 int
 main(argc, argv)
@@ -74,19 +75,17 @@ main(argc, argv)
 	int comp, file1done = 0, file2done = 0, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
-	char *col1, *col2, *col3;
-	char **p, line1[MAXLINELEN], line2[MAXLINELEN];
+	const char *col1, *col2, *col3;
+	char line1[MAXLINELEN], line2[MAXLINELEN];
+	const char **p;
 
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "-123i")) != -1)
+	while ((ch = getopt(argc, argv, "123i")) != -1)
 		switch(ch) {
-		case '-':
-			--optind;
-			goto done;
 		case '1':
 			flag1 = 0;
 			break;
@@ -103,7 +102,7 @@ main(argc, argv)
 		default:
 			usage();
 		}
-done:	argc -= optind;
+	argc -= optind;
 	argv += optind;
 
 	if (argc != 2)
@@ -173,7 +172,8 @@ done:	argc -= optind;
 void
 show(fp, offset, buf)
 	FILE *fp;
-	char *offset, *buf;
+	const char *offset;
+	char *buf;
 {
 
 	do {
