@@ -197,6 +197,7 @@ extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *num
 extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj, 
 						  void (* func)(ACPI_OBJECT *comp, void *arg),
 						  void *arg);
+extern ACPI_STATUS	acpi_FindIndexedResource(ACPI_RESOURCE *resbuf, int index, ACPI_RESOURCE **resp);
 
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
