@@ -57,7 +57,6 @@ typedef	struct	{
 
 
 struct iso_node {
-	struct	iso_node *i_next, **i_prev;	/* hash chain */
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	u_long	i_flag;		/* see below */
 	ino_t	i_number;	/* the identity of the inode */
