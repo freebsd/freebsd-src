@@ -1,12 +1,12 @@
 #!/bin/sh
 #
-# $Id: 220.backup-distfile,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 220.backup-distfile,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
 #
 bak=/var/backups
 
 if [ -f /etc/Distfile ]; then
     echo ""
-    echo "Backing up /etc/Distfile"
+    echo "Backing up /etc/Distfile:"
 
     if cmp -s $bak/Distfile.bak /etc/Distfile; then :; else
 	mv $bak/Distfile.bak $bak/Distfile.bak2
