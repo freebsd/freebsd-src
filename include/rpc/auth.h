@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.11 1997/05/07 20:00:40 eivind Exp $
+ *	$Id: auth.h,v 1.6 1996/12/30 13:59:37 peter Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 #ifndef _RPC_AUTH_H
 #define _RPC_AUTH_H
 #include <sys/cdefs.h>
+#include <sys/socket.h>
 
 #define MAX_AUTH_BYTES	400
 #define MAXNETNAMELEN	255	/* maximum length of network user's name */
@@ -170,15 +171,91 @@ struct sockaddr_in;
 extern AUTH *authunix_create		__P((char *, int, int, int, int *));
 extern AUTH *authunix_create_default	__P((void));
 extern AUTH *authnone_create		__P((void));
-extern AUTH *authdes_create		__P((char *, u_int,
-					    struct sockaddr_in *, des_block *));
 __END_DECLS
+
+/* Forward compatibility with TI-RPC */
+#define authsys_create authunix_create
+#define authsys_create_default authunix_create_default
+
+/*
+ * DES style authentication
+ * AUTH *authdes_create(servername, window, timehost, ckey)
+ * 	char *servername;		- network name of server
+ *	u_int window;			- time to live
+ * 	struct sockaddr *timehost;	- optional hostname to sync with
+ * 	des_block *ckey;		- optional conversation key to use
+ */
+__BEGIN_DECLS
+extern AUTH *authdes_create __P(( char *, u_int, struct sockaddr *, des_block * ));
+#ifdef NOTYET
+/*
+ * TI-RPC supports this call, but it requires the inclusion of
+ * NIS+-specific headers which would require the inclusion of other
+ * headers which would result in a tangled mess. For now, the NIS+
+ * code prototypes this routine internally.
+ */
+extern AUTH *authdes_pk_create __P(( char *, netobj *, u_int,
+				     struct sockaddr *, des_block *,
+				     nis_server * ));
+#endif
+__END_DECLS
+
+/*
+ * Netname manipulation routines.
+ */
+__BEGIN_DECLS
+extern int netname2user __P(( char *, uid_t *, gid_t *, int *, gid_t *));
+extern int netname2host __P(( char *, char *, int ));
+extern int getnetname __P(( char * ));
+extern int user2netname __P(( char *, uid_t, char * ));
+extern int host2netname __P(( char *, char *, char * ));
+extern void passwd2des __P(( char *, char * ));
+__END_DECLS
+
+/*
+ * Keyserv interface routines.
+ * XXX Should not be here.
+ */
+#ifndef HEXKEYBYTES
+#define HEXKEYBYTES 48
+#endif
+typedef char kbuf[HEXKEYBYTES];
+typedef char *namestr;
+
+struct netstarg {
+	kbuf st_priv_key;
+	kbuf st_pub_key;
+	namestr st_netname;
+};
+
+__BEGIN_DECLS
+extern int key_decryptsession __P(( const char *, des_block * ));
+extern int key_decryptsession_pk __P(( char *, netobj *, des_block * ));
+extern int key_encryptsession __P(( const char *, des_block * ));
+extern int key_encryptsession_pk __P(( char *, netobj *, des_block * ));
+extern int key_gendes __P(( des_block * ));
+extern int key_setsecret __P(( const char * ));
+extern int key_secretkey_is_set __P(( void ));
+extern int key_setnet __P(( struct netstarg * ));
+extern int key_get_conv __P(( char *, des_block * ));
+__END_DECLS
+
+/*
+ * Publickey routines.
+ */
+__BEGIN_DECLS
+extern int getpublickey __P(( char *, char * ));
+extern int getpublicandprivatekey __P(( char *, char * ));
+extern int getsecretkey __P(( char *, char *, char * ));
+__END_DECLS
+
 
 #ifndef AUTH_NONE /* Protect against <login_cap.h> */
 #define AUTH_NONE	0		/* no authentication */
 #endif
 #define	AUTH_NULL	0		/* backward compatibility */
 #define	AUTH_UNIX	1		/* unix style (uid, gids) */
+#define	AUTH_SYS	1		/* forward compatibility */
 #define	AUTH_SHORT	2		/* short hand unix style */
 #define AUTH_DES	3		/* des style (encrypted timestamps) */
 

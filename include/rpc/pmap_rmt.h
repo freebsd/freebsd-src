@@ -28,7 +28,7 @@
  *
  *	from: @(#)pmap_rmt.h 1.2 88/02/08 SMI
  *	from: @(#)pmap_rmt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: pmap_rmt.h,v 1.7 1997/05/07 02:27:08 eivind Exp $
+ *	$Id: pmap_rmt.h,v 1.4 1996/01/30 23:32:12 mpp Exp $
  */
 
 /*

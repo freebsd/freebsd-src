@@ -28,7 +28,7 @@
  *
  *	from: @(#)xdr.h 1.19 87/04/22 SMI
  *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: xdr.h,v 1.8 1997/05/07 02:27:11 eivind Exp $
+ *	$Id: xdr.h,v 1.5 1996/12/30 13:59:41 peter Exp $
  */
 
 /*
@@ -252,6 +252,7 @@ extern bool_t	xdr_bytes	__P((XDR *, char **, u_int *, u_int));
 extern bool_t	xdr_opaque	__P((XDR *, caddr_t, u_int));
 extern bool_t	xdr_string	__P((XDR *, char **, u_int));
 extern bool_t	xdr_union	__P((XDR *, enum_t *, char *, struct xdr_discrim *, xdrproc_t));
+extern unsigned long	xdr_sizeof __P((xdrproc_t, void *));
 extern bool_t	xdr_char	__P((XDR *, char *));
 extern bool_t	xdr_u_char	__P((XDR *, u_char *));
 extern bool_t	xdr_vector	__P((XDR *, char *, u_int, u_int, xdrproc_t));
