@@ -697,7 +697,7 @@ ex_rx_intr(struct ex_softc *sc)
 				ipkt->m_len = MHLEN;
 
 				while (pkt_len > 0) {
-					if (pkt_len > MINCLSIZE) {
+					if (pkt_len >= MINCLSIZE) {
 						MCLGET(m, M_DONTWAIT);
 						if (m->m_flags & M_EXT) {
 							m->m_len = MCLBYTES;
