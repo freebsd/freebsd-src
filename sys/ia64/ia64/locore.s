@@ -311,7 +311,7 @@ STATIC_ENTRY(_reloc, 1)
 	;;
 	st8	[r15]=r16		// and store it back
 	br.cond.sptk.few 3b
-
+	
 5:
 	extr.u	r23=r16,32,32		// ELF64_R_SYM(r16)
 	;; 
@@ -320,18 +320,35 @@ STATIC_ENTRY(_reloc, 1)
 	xma.lu	f10=f10,f9,f8		// f10=symtab + r_sym*syment
 	;;
 	getf.sig r16=f10
-	mov	r8=1			// failure return value
-	;;
-	cmp.geu	p6,p0=r2,r3		// space left?
-(p6)	br.cond.dpnt.few 9f		// bail out
-
-	st8	[r15]=r2		// install fptr
+	;; 
 	add	r16=8,r16		// address of st_value
 	;;
 	ld8	r16=[r16]		// read symbol value
 	;;
 	add	r16=r16,in0		// relocate symbol value
 	;;
+	movl	r17=@gprel(fptr_storage)
+	;;
+	add	r17=r17,gp		// start of fptrs
+	;;
+6:	cmp.geu	p6,p0=r17,r2		// end of fptrs?
+(p6)	br.cond.dpnt.few 7f		// can't find existing fptr
+	ld8	r20=[r17]		// read function from fptr
+	;;
+	cmp.eq	p6,p0=r16,r20		// same function?
+	;; 
+(p6)	st8	[r15]=r17		// reuse fptr
+(p6)	br.cond.sptk.few 3b		// done
+	add	r17=16,r17		// next fptr
+	br.cond.sptk.few 6b
+	
+7:					// allocate new fptr
+	mov	r8=1			// failure return value
+	;;
+	cmp.geu	p6,p0=r2,r3		// space left?
+(p6)	br.cond.dpnt.few 9f		// bail out
+
+	st8	[r15]=r2		// install fptr
 	st8	[r2]=r16,8		// write fptr address
 	;;
 	st8	[r2]=gp,8		// write fptr gp
