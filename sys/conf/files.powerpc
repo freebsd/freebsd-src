@@ -74,6 +74,8 @@ powerpc/ofw/ofw_pcib_pci.c	optional	pci
 
 powerpc/powermac/uninorth.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/grackle.c	optional	powermac pci
+powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/ata_macio.c	optional	powermac ata
 powerpc/powermac/pswitch.c	optional	pswitch powermac
 
