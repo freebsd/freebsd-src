@@ -39,7 +39,8 @@ struct jail {
 .Ed
 .Pp
 .Dq Li version
-defines the version of the API in use.  It should be set to zero at this time.
+defines the version of the API in use.
+It should be set to zero at this time.
 .Pp
 The
 .Dq Li path
@@ -48,7 +49,8 @@ prison.
 .Pp
 The
 .Dq Li hostname
-pointer can be set to the hostname of the prison.  This can be changed
+pointer can be set to the hostname of the prison.
+This can be changed
 from the inside of the prison.
 .Pp
 The
@@ -73,9 +75,13 @@ to indicate the error.
 Once a process has been put in a prison, it and its decendants cannot escape
 the prison.
 .Pp
-Inside the prison, the concept of "superuser" is very diluted.  In general,
+Inside the prison, the concept of
+.Dq superuser
+is very diluted.
+In general,
 it can be assumed that nothing can be mangled from inside a prison which
-does not exist entirely inside that prison.  For instance the directory
+does not exist entirely inside that prison.
+For instance the directory
 tree below
 .Dq Li path
 can be manipulated all the ways a root can normally do it, including
