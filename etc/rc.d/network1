@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.42 1999/03/28 20:36:03 imp Exp $
+#	$Id: rc.network,v 1.43 1999/04/10 10:56:58 des Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -105,7 +105,7 @@ network_pass1() {
 	fi
 	if [ -f ${firewall_script} -a X"$firewall_enable" = X"YES" ]; then
 	    . ${firewall_script}
-	    echo -n 'Firewall rules loaded, starting divert daemons: '
+	    echo -n 'Firewall rules loaded, starting divert daemons:'
 
 	    # Network Address Translation daemon
 	    if [ X"${natd_enable}" = X"YES" -a -n "${natd_interface}" ]; then
