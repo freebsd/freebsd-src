@@ -767,15 +767,6 @@ DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_devclass, 0, 0);
 #endif
 
 static int
-ata_testregs(struct ata_softc *scp)
-{
-    outb(scp->ioaddr + ATA_ERROR, 0x58);
-    outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-    return (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5);
-}
-
-static int
 ata_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
@@ -839,11 +830,11 @@ ata_probe(device_t dev)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(1);	
     status1 = inb(scp->ioaddr + ATA_STATUS);
-    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5 && ata_testregs(scp))
+    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5)
 	mask |= 0x01;
-    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5 && ata_testregs(scp))
+    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5)
 	mask |= 0x02;
-    if (bootverbose)
+    /*if (bootverbose)*/
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   mask, status0, status1);
     if (!mask)
@@ -1246,50 +1237,63 @@ void
 ata_reset(struct ata_softc *scp, int *mask)
 {
     int timeout;  
+    u_int8_t a, b, ostat0, ostat1;
     u_int8_t status0 = ATA_S_BUSY, status1 = ATA_S_BUSY;
 
-    /* reset channel */
+    /* get the current status of the devices */
+    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+    DELAY(10);
+    ostat1 = inb(scp->ioaddr + ATA_STATUS);
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(1);
-    inb(scp->ioaddr + ATA_STATUS);
-    outb(scp->altioaddr, ATA_A_IDS | ATA_A_RESET);
-    DELAY(10000); 
-    outb(scp->altioaddr, ATA_A_IDS);
-    DELAY(100000);
-    inb(scp->ioaddr + ATA_ERROR);
-    DELAY(3000);
-    scp->devices = 0;
+    DELAY(10);
+    ostat0 = inb(scp->ioaddr + ATA_STATUS);
 
     /* in some setups we dont want to test for a slave */
     if (scp->flags & ATA_NO_SLAVE)
 	*mask &= ~0x02;
 
+    /*if (bootverbose)*/
+	ata_printf(scp, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
+		   *mask, ostat0, ostat1);
+
+    /* reset channel */
+    outb(scp->altioaddr, ATA_A_IDS | ATA_A_RESET);
+    DELAY(10000); 
+    outb(scp->altioaddr, ATA_A_IDS);
+    DELAY(100000);
+    inb(scp->ioaddr + ATA_ERROR);
+    scp->devices = 0;
+
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310000; timeout++) {
 	if (status0 & ATA_S_BUSY) {
-	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-	    DELAY(1);
-	    status0 = inb(scp->ioaddr + ATA_STATUS);
-	    if (!(status0 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
-		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
-		    scp->devices |= ATA_ATAPI_MASTER;
-	    }
-	}
-	if (status1 & ATA_S_BUSY) {
-	    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-	    DELAY(1);
-	    status1 = inb(scp->ioaddr + ATA_STATUS);
-	    if (!(status1 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
-		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
-		    scp->devices |= ATA_ATAPI_SLAVE;
-	    }
-	}
+            outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+            DELAY(10);
+            status0 = inb(scp->ioaddr + ATA_STATUS);
+            if (!(status0 & ATA_S_BUSY)) {
+                /* check for ATAPI signature while its still there */
+		a = inb(scp->ioaddr + ATA_CYL_LSB);
+		b = inb(scp->ioaddr + ATA_CYL_MSB);
+ata_printf(scp, ATA_MASTER, "ATAPI probe a=%02x b=%02x\n", a, b);
+		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
+                    scp->devices |= ATA_ATAPI_MASTER;
+            }
+        }
+        if (status1 & ATA_S_BUSY) {
+            outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+            DELAY(10);
+            status1 = inb(scp->ioaddr + ATA_STATUS);
+            if (!(status1 & ATA_S_BUSY)) {
+                /* check for ATAPI signature while its still there */
+		a = inb(scp->ioaddr + ATA_CYL_LSB);
+		b = inb(scp->ioaddr + ATA_CYL_MSB);
+ata_printf(scp, ATA_SLAVE, "ATAPI probe a=%02x b=%02x\n", a, b);
+		if (a == ATAPI_MAGIC_LSB && b == ATAPI_MAGIC_MSB)
+                    scp->devices |= ATA_ATAPI_SLAVE;
+            }
+        }
 	if (*mask == 0x01)      /* wait for master only */
-	    if (!(status0 & ATA_S_BUSY)) 
+	    if (!(status0 & ATA_S_BUSY))
 		break;
 	if (*mask == 0x02)      /* wait for slave only */
 	    if (!(status1 & ATA_S_BUSY))
@@ -1299,31 +1303,42 @@ ata_reset(struct ata_softc *scp, int *mask)
 		break;
 	DELAY(100);
     }	
-    DELAY(1);
+    DELAY(10);
     outb(scp->altioaddr, ATA_A_4BIT);
 
     if (status0 & ATA_S_BUSY)
 	*mask &= ~0x01;
     if (status1 & ATA_S_BUSY)
 	*mask &= ~0x02;
-    if (bootverbose)
+    /*if (bootverbose)*/
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
     if (!mask)
 	return;
 
-    if (status0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
-        outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
-        DELAY(1);
-        if (ata_testregs(scp))
+    if (*mask & 0x01 && ostat0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
+        outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
+        DELAY(10);
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	a = inb(scp->ioaddr + ATA_ERROR);
+	b = inb(scp->ioaddr + ATA_CYL_LSB);
+ata_printf(scp, ATA_MASTER, "ATA probe a=%02x b=%02x\n", a, b);
+        if (a != 0x58 && b == 0xa5)
             scp->devices |= ATA_ATA_MASTER;
     }
-    if (status1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
-        outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
-        DELAY(1);
-        if (ata_testregs(scp))
+    if (*mask & 0x02 && ostat1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
+        outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+        DELAY(10);
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	a = inb(scp->ioaddr + ATA_ERROR);
+	b = inb(scp->ioaddr + ATA_CYL_LSB);
+ata_printf(scp, ATA_SLAVE, "ATA probe a=%02x b=%02x\n", a, b);
+        if (a != 0x58 && b == 0xa5)
             scp->devices |= ATA_ATA_SLAVE;
     }
+ata_printf(scp, -1, "devices=%02x\n", scp->devices);
 }
 
 int
