@@ -433,8 +433,8 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 				return (EWOULDBLOCK);
 			mtx_lock(&priv->ngd_mtx);
 			priv->flags |= NGDF_RWAIT;
-			mtx_unlock(&priv->ngd_mtx);
-			if ((error = tsleep(priv, PCATCH | (PZERO + 1),
+			if ((error = msleep(priv, &priv->ngd_mtx,
+			    PDROP | PCATCH | (PZERO + 1),
 			    "ngdread", 0)) != 0)
 				return (error);
 		}
