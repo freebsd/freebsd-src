@@ -195,7 +195,6 @@ device		olpt0	at isa? port IO_LPT
 device		ax0		# ASIX AX88140A
 device		de0		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp0		# Intel EtherExpress PRO/100B (82557, 82558)
-device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
 device		tx0		# SMC 9432TX (83c170 ``EPIC'')
 device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
@@ -204,6 +203,7 @@ device		vx0		# 3Com 3c590, 3c595 (``Vortex'')
 controller	miibus0		# MII bus support
 device		al0		# ADMtek AL981/AN985 (``Comet''/``Centaur'')
 device		dm0		# Davicom DM9100/DM9102
+device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
 device		ste0		# Sundance ST201 (D-Link DFE-550TX)
