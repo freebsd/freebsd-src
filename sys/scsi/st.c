@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.40 1995/10/12 02:05:47 julian Exp $
+ * $Id: st.c,v 1.41 1995/10/21 23:13:10 phk Exp $
  */
 
 /*
@@ -166,7 +166,6 @@ static errval	st_load __P((u_int32 unit, u_int32 type, u_int32 flags));
 static errval	st_mode_select __P((u_int32 unit, u_int32 flags, \
 	struct tape_pages *page, u_int32 pagelen));
 static errval	st_comp __P((u_int32 unit, u_int32 mode));
-void    ststrategy();
 static int32   st_chkeod();
 static void	ststart(u_int32	unit, u_int32 flags);
 static void	st_unmount();

@@ -126,16 +126,10 @@ u_long	vn_options;
 /*
  * XXX these decls should be static (without __P(())) or elsewhere.
  */
-int	vnclose __P((dev_t dev, int flags, int mode, struct proc *p));
-int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
-void	vnstrategy __P((struct buf *bp));
-int	vnioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p));
 void	vniodone __P((struct buf *bp));
 int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
 void	vnshutdown __P((void));
 void	vnclear __P((struct vn_softc *vn));
-int	vnsize __P((dev_t dev));
-int	vndump __P((dev_t dev));
 
 int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)

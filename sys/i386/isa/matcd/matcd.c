@@ -523,18 +523,9 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 
 
 /*---------------------------------------------------------------------------
-	Entry points and other connections to/from kernel - see conf.c
+	Entry points and other connections to/from kernel - see also conf.h
 ---------------------------------------------------------------------------*/
 
-	int	matcdopen(dev_t dev, int flags,		/*<22>*/
-			  int fmt, struct proc *p);	/*<22>*/
-	int	matcdclose(dev_t dev, int flags,	/*<22>*/
-			   int fmt, struct proc *p);	/*<22>*/
-	void	matcdstrategy(struct buf *bp);
-	int	matcdioctl(dev_t dev, int command,	/*<22>*/
-			   caddr_t addr, int flags,	/*<22>*/
-			   struct proc *p);		/*<22>*/
-	int	matcdsize(dev_t dev);
 extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
 extern	int	matcd_attach(struct isa_device *dev);

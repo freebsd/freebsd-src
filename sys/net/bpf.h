@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf.h,v 1.5 1995/06/15 18:10:59 pst Exp $
+ * $Id: bpf.h,v 1.6 1995/09/08 11:08:55 bde Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -239,12 +239,6 @@ struct bpf_insn {
 
 #ifdef KERNEL
 int	 bpf_validate __P((struct bpf_insn *, int));
-int	 bpfopen __P((dev_t, int, int, struct proc *));
-int	 bpfclose __P((dev_t, int, int, struct proc *));
-int	 bpfread __P((dev_t, struct uio *, int));
-int	 bpfwrite __P((dev_t, struct uio *, int));
-int	 bpfioctl __P((dev_t, int, caddr_t, int, struct proc *));
-int	 bpf_select __P((dev_t, int, struct proc *));
 void	 bpf_tap __P((caddr_t, u_char *, u_int));
 void	 bpf_mtap __P((caddr_t, struct mbuf *));
 void	 bpfattach __P((caddr_t *, struct ifnet *, u_int, u_int));

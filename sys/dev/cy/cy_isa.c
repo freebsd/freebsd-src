@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.15 1995/10/11 02:41:13 davidg Exp $
+ *	$Id: cy.c,v 1.16 1995/10/22 15:38:08 bde Exp $
  */
 
 #include "cy.h"
@@ -330,17 +330,7 @@ void	siointrts	__P((int unit));
 void	siopoll		__P((void));
 
 /* Device switch entry points. */
-int	sioopen		__P((dev_t dev, int oflags, int devtype,
-			     struct proc *p));
-int	sioclose	__P((dev_t dev, int fflag, int devtype,
-			     struct proc *p));
-int	sioread		__P((dev_t dev, struct uio *uio, int ioflag));
-int	siowrite	__P((dev_t dev, struct uio *uio, int ioflag));
-int	sioioctl	__P((dev_t dev, int cmd, caddr_t data,
-			     int fflag, struct proc *p));
-void	siostop		__P((struct tty *tp, int rw));
 #define	sioreset	noreset
-struct tty *siodevtotty	__P((dev_t dev));
 #define	siommap		nommap
 #define	siostrategy	nostrategy
 
