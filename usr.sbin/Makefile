@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 # XXX MISSING:		mkproto
-SUBDIR=	IPXrouted \
-	ac \
+SUBDIR=	ac \
 	accton \
 	${_acpi} \
 	adduser \
@@ -58,6 +57,7 @@ SUBDIR=	IPXrouted \
 	${_ipresend} \
 	${_ipsend} \
 	${_iptest} \
+	IPXrouted \
 	jail \
 	jexec \
 	jls \
