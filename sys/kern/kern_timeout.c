@@ -45,7 +45,17 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
+static int avg_depth;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_depth, CTLFLAG_RD, &avg_depth, 0,
+    "Average number of items examined per softclock call. Units = 1/1000");
+static int avg_gcalls;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_gcalls, CTLFLAG_RD, &avg_gcalls, 0,
+    "Average number of Giant callouts made per softclock call. Units = 1/1000");
+static int avg_mpcalls;
+SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
+    "Average number of MP callouts made per softclock call. Units = 1/1000");
 /*
  * TODO:
  *	allocate more timeout table slots when table overflows.
@@ -133,6 +143,9 @@ softclock(void *dummy)
 	struct callout_tailq *bucket;
 	int curticks;
 	int steps;	/* #steps since we last allowed interrupts */
+	int depth;
+	int mpcalls;
+	int gcalls;
 #ifdef DIAGNOSTIC
 	struct bintime bt1, bt2;
 	struct timespec ts2;
@@ -143,6 +156,9 @@ softclock(void *dummy)
 #define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
 #endif /* MAX_SOFTCLOCK_STEPS */
 
+	mpcalls = 0;
+	gcalls = 0;
+	depth = 0;
 	steps = 0;
 	mtx_lock_spin(&callout_lock);
 	while (softticks != ticks) {
@@ -155,6 +171,7 @@ softclock(void *dummy)
 		bucket = &callwheel[curticks & callwheelmask];
 		c = TAILQ_FIRST(bucket);
 		while (c) {
+			depth++;
 			if (c->c_time != curticks) {
 				c = TAILQ_NEXT(c, c_links.tqe);
 				++steps;
@@ -187,8 +204,12 @@ softclock(void *dummy)
 					    (c->c_flags & ~CALLOUT_PENDING);
 				}
 				mtx_unlock_spin(&callout_lock);
-				if (!(c_flags & CALLOUT_MPSAFE))
+				if (!(c_flags & CALLOUT_MPSAFE)) {
 					mtx_lock(&Giant);
+					gcalls++;
+				} else {
+					mpcalls++;
+				}
 #ifdef DIAGNOSTIC
 				binuptime(&bt1);
 #endif
@@ -213,6 +234,9 @@ softclock(void *dummy)
 			}
 		}
 	}
+	avg_depth += (depth * 1000 - avg_depth) >> 8;
+	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
+	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 	nextsoftcheck = NULL;
 	mtx_unlock_spin(&callout_lock);
 }
