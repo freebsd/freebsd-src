@@ -60,7 +60,7 @@ void replaceobject(struct vinum_ioctl_msg *);
 jmp_buf command_fail;					    /* return on a failed command */
 
 /* ioctl routine */
-int 
+int
 vinumioctl(dev_t dev,
     u_long cmd,
     caddr_t data,
@@ -218,6 +218,14 @@ vinumioctl(dev_t dev,
 
 	case VINUM_SETSTATE:
 	    setstate((struct vinum_ioctl_msg *) data);	    /* set an object state */
+	    return 0;
+
+	    /*
+	     * Set state by force, without changing
+	     * anything else.
+	     */
+	case VINUM_SETSTATE_FORCE:
+	    setstate_by_force((struct vinum_ioctl_msg *) data);	/* set an object state */
 	    return 0;
 
 #ifdef VINUMDEBUG
@@ -463,7 +471,7 @@ validvol(int volno, struct _ioctl_reply *reply)
 }
 
 /* reset an object's stats */
-void 
+void
 resetstats(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -542,7 +550,7 @@ resetstats(struct vinum_ioctl_msg *msg)
 }
 
 /* attach an object to a superior object */
-void 
+void
 attachobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -623,7 +631,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 }
 
 /* detach an object from a superior object */
-void 
+void
 detachobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -751,7 +759,7 @@ detachobject(struct vinum_ioctl_msg *msg)
     }
 }
 
-void 
+void
 renameobject(struct vinum_rename_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
@@ -832,7 +840,7 @@ renameobject(struct vinum_rename_msg *msg)
  * message->index is the drive number of the old drive
  * message->otherobject is the drive number of the new drive
  */
-void 
+void
 replaceobject(struct vinum_ioctl_msg *msg)
 {
     struct _ioctl_reply *reply = (struct _ioctl_reply *) msg;
