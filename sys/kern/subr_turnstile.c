@@ -690,12 +690,18 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 			if (i < 60000000)
 				DELAY(1);
 #ifdef DDB
-			else if (!db_active)
+			else if (!db_active) {
 #else
-			else
+			else {
 #endif
-				panic("spin lock %s held by %p for > 5 seconds",
+				printf("spin lock %s held by %p for > 5 seconds\n",
 				    m->mtx_object.lo_name, (void *)m->mtx_lock);
+#ifdef WITNESS
+				witness_display_spinlock(&m->mtx_object,
+				    mtx_owner(m));
+#endif
+				panic("spin lock held too long");
+			}
 #ifdef __i386__
 			ia32_pause();
 #endif
