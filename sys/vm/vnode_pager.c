@@ -240,8 +240,11 @@ vnode_pager_haspage(object, pindex, before, after)
 			int numafter;
 			*after *= pagesperblock;
 			numafter = pagesperblock - (poff + 1);
-			if (IDX_TO_OFF(pindex + numafter) > object->un_pager.vnp.vnp_size) {
-				numafter = OFF_TO_IDX((object->un_pager.vnp.vnp_size - IDX_TO_OFF(pindex)));
+			if (IDX_TO_OFF(pindex + numafter) >
+			    object->un_pager.vnp.vnp_size) {
+				numafter =
+		    		    OFF_TO_IDX(object->un_pager.vnp.vnp_size) -
+				    pindex;
 			}
 			*after += numafter;
 		}
@@ -578,8 +581,8 @@ vnode_pager_input_old(object, m)
 
 /*
  * Local media VFS's that do not implement their own VOP_GETPAGES
- * should have their VOP_GETPAGES should call to
- * vnode_pager_generic_getpages() to implement the previous behaviour.
+ * should have their VOP_GETPAGES call to vnode_pager_generic_getpages()
+ * to implement the previous behaviour.
  *
  * All other FS's should use the bypass to get to the local media
  * backing vp's VOP_GETPAGES.
@@ -602,7 +605,6 @@ vnode_pager_getpages(object, m, count, reqpage)
 	    ("vnode_pager: FS getpages not implemented\n"));
 	return rtval;
 }
-
 
 /*
  * This is now called from local media FS's to operate against their
