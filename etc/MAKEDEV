@@ -93,6 +93,7 @@
 #	ums*	mouse
 #	ulpt*	printer
 #	ugen*	generic USB device
+#	urio*	Diamond Rio 500
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
@@ -249,6 +250,7 @@ all)
 	sh MAKEDEV iic0 iic1				# cdev, I2C device
 	sh MAKEDEV smb0 smb1				# cdev, SMBus device
 	sh MAKEDEV usb usb0 uhid0 ums0 ulpt0 ugen0	# cdev, USB devices
+	sh MAKEDEV urio0				# cdev, USB devices too
 	sh MAKEDEV bpf0 bpf1 bpf2 bpf3 			# cdev, network
 	sh MAKEDEV ipl tun0 tun1 tun2 tun3		# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
@@ -921,7 +923,7 @@ ums*)
 
 ulpt*)
 	unit=`expr $i : 'ulpt\(.*\)'`
-   minor=$unit
+	minor=$unit
 	mknod ulpt$unit c 113 $minor
 	minor=`expr $unit + 64`
 	mknod unlpt$unit c 113 $minor		# and the 'no prime' version
@@ -944,6 +946,11 @@ ugen*)
 		minor=$(($unit * 16 + $endpoint))
 		mknod ugen$unit.$endpoint c 114 $minor
 	fi
+	;;
+
+urio*)
+	unit=`expr $i : 'urio\(.*\)'`
+	mknod urio$unit c 143 $unit
 	;;
 
 lpt*)
