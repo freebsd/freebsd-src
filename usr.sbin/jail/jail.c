@@ -34,7 +34,7 @@ main(int argc, char **argv)
 	struct jail j;
 	struct passwd *pwd;
 	struct in_addr in;
-	int ch, groups[NGROUPS], i, ngroups;
+	int ch, groups[NGROUPS], ngroups;
 	char *username;
 
 	username = NULL;
@@ -56,44 +56,36 @@ main(int argc, char **argv)
 	if (username != NULL) {
 		pwd = getpwnam(username);
 		if (pwd == NULL)
-			err(1, "getpwnam %s", username);
+			err(1, "getpwnam: %s", username);
 		lcap = login_getpwclass(pwd);
 		if (lcap == NULL)
-			err(1, "getpwclass failed", username);
+			err(1, "getpwclass: %s", username);
 		ngroups = NGROUPS;
-		i = getgrouplist(username, pwd->pw_gid, groups, &ngroups);
-		if (i)
-			err(1, "getgrouplist %s", username);
+		if (getgrouplist(username, pwd->pw_gid, groups, &ngroups) != 0)
+			err(1, "getgrouplist: %s", username);
 	}
-	i = chdir(argv[0]);
-	if (i)
-		err(1, "chdir %s", argv[0]);
+	if (chdir(argv[0]) != 0)
+		err(1, "chdir: %s", argv[0]);
 	memset(&j, 0, sizeof(j));
 	j.version = 0;
 	j.path = argv[0];
 	j.hostname = argv[1];
-	i = inet_aton(argv[2], &in);
-	if (!i)
-		errx(1, "Couldn't make sense of ip-number\n");
+	if (inet_aton(argv[2], &in) == 0)
+		errx(1, "Could not make sense of ip-number: %s", argv[2]);
 	j.ip_number = ntohl(in.s_addr);
-	i = jail(&j);
-	if (i)
-		err(1, "Imprisonment failed");
+	if (jail(&j) != 0)
+		err(1, "jail");
 	if (username != NULL) {
-		i = setgroups(ngroups, groups);
-		if (i)
-			err(1, "setgroups failed");
-		i = setgid(pwd->pw_gid);
-		if (i)
-			err(1, "setgid failed");
-		i = setusercontext(lcap, pwd, pwd->pw_uid,
-		    LOGIN_SETALL & ~LOGIN_SETGROUP);
-		if (i)
-			err(1, "setusercontext failed");
+		if (setgroups(ngroups, groups) != 0)
+			err(1, "setgroups");
+		if (setgid(pwd->pw_gid) != 0)
+			err(1, "setgid");
+		if (setusercontext(lcap, pwd, pwd->pw_uid,
+		    LOGIN_SETALL & ~LOGIN_SETGROUP) != 0)
+			err(1, "setusercontext");
 	}
-	i = execv(argv[3], argv + 3);
-	if (i)
-		err(1, "execv(%s)", argv[3]);
+	if (execv(argv[3], argv + 3) != 0)
+		err(1, "execv: %s", argv[3]);
 	exit (0);
 }
 
@@ -101,6 +93,7 @@ static void
 usage(void)
 {
 
-	errx(1,
+	(void)fprintf(stderr, "%s\n",
 	    "Usage: jail [-u username] path hostname ip-number command ...");
+	exit(1);
 }
