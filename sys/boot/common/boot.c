@@ -61,7 +61,7 @@ command_boot(int argc, char *argv[])
 	
 	/* XXX maybe we should discard everything and start again? */
 	if (mod_findmodule(NULL, NULL) != NULL) {
-	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[0]);
+	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[1]);
 	    return(CMD_ERROR);
 	}
 	
@@ -166,7 +166,7 @@ int
 autoboot(int delay, char *prompt)
 {
     time_t	when, otime, ntime;
-    int		c, yes, cr;
+    int		c, yes;
     char	*argv[2], *cp, *ep;
 
     autoboot_tried = 1;
@@ -185,7 +185,6 @@ autoboot(int delay, char *prompt)
     otime = time(NULL);
     when = otime + delay;	/* when to boot */
     yes = 0;
-    cr = 0;
 
     /* XXX could try to work out what we might boot */
     printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
@@ -203,15 +202,15 @@ autoboot(int delay, char *prompt)
 	    break;
 	}
 	if (ntime != otime) {
-	    printf("\rBooting [%s] in %d seconds... ", getbootfile(0), (int)(when - ntime));
+	    printf("\rBooting [%s] in %d second%s... ",
+	    		getbootfile(0), (int)(when - ntime),
+			(when-ntime)==1?"":"s");
 	    otime = ntime;
-	    cr = 1;
 	}
     }
     if (yes)
 	printf("\rBooting [%s]...               ", getbootfile(0));
-    if (cr)
-	putchar('\n');
+    putchar('\n');
     if (yes) {
 	argv[0] = "boot";
 	argv[1] = NULL;
