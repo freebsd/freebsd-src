@@ -263,15 +263,15 @@
 167	UNIMPL	NOHIDE	nosys
 168	UNIMPL	NOHIDE	nosys
 ; 169 is initialized by the SYSVSEM code if present or loaded
-169	NOSTD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
+169	MNOSTD	BSD	{ int semsys(int which, int a2, int a3, int a4, \
 			    int a5); }
 ; 169 is initialized by the SYSVMSG code if present or loaded
 ; XXX should be		{ int semsys(int which, ...); }
-170	NOSTD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
+170	MNOSTD	BSD	{ int msgsys(int which, int a2, int a3, int a4, \
 			    int a5, int a6); }
 ; 169 is initialized by the SYSVSHM code if present or loaded
 ; XXX should be		{ int msgsys(int which, ...); }
-171	NOSTD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
+171	MNOSTD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
 ; XXX should be		{ int shmsys(int which, ...); }
 172	UNIMPL	NOHIDE	nosys
 173	STD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
@@ -345,24 +345,24 @@
 ;
 ; The following were introduced with NetBSD/4.4Lite-2
 ; They are initialized by thier respective modules/sysinits
-220	NOSTD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
+220	MNOSTD	BSD	{ int __semctl(int semid, int semnum, int cmd, \
 			    union semun *arg); }
-221	NOSTD	BSD	{ int semget(key_t key, int nsems, int semflg); }
-222	NOSTD	BSD	{ int semop(int semid, struct sembuf *sops, \
+221	MNOSTD	BSD	{ int semget(key_t key, int nsems, int semflg); }
+222	MNOSTD	BSD	{ int semop(int semid, struct sembuf *sops, \
 			    u_int nsops); }
 223	UNIMPL	NOHIDE	semconfig
-224	NOSTD	BSD	{ int msgctl(int msqid, int cmd, \
+224	MNOSTD	BSD	{ int msgctl(int msqid, int cmd, \
 			    struct msqid_ds *buf); }
-225	NOSTD	BSD	{ int msgget(key_t key, int msgflg); }
-226	NOSTD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
+225	MNOSTD	BSD	{ int msgget(key_t key, int msgflg); }
+226	MNOSTD	BSD	{ int msgsnd(int msqid, void *msgp, size_t msgsz, \
 			    int msgflg); }
-227	NOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
+227	MNOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
 			    long msgtyp, int msgflg); }
-228	NOSTD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
-229	NOSTD	BSD	{ int shmctl(int shmid, int cmd, \
+228	MNOSTD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
+229	MNOSTD	BSD	{ int shmctl(int shmid, int cmd, \
 			    struct shmid_ds *buf); }
-230	NOSTD	BSD	{ int shmdt(void *shmaddr); }
-231	NOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
+230	MNOSTD	BSD	{ int shmdt(void *shmaddr); }
+231	MNOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
 ;
 232	STD	POSIX	{ int clock_gettime(clockid_t clock_id, \
 			    struct timespec *tp); }
