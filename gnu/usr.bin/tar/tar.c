@@ -233,7 +233,7 @@ main (argc, argv)
     case CMD_CREATE:
       create_archive ();
       if (f_totals)
-	fprintf (stderr, "Total bytes written: %d\n", tot_written);
+	fprintf (stderr, "Total bytes written: %qu\n", tot_written);
       break;
     case CMD_EXTRACT:
       if (f_volhdr)
