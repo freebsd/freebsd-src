@@ -137,6 +137,7 @@ void
 vinum_ldi(int driveno, int recurse)
 {
     time_t t;						    /* because Bruce says so */
+    int sdno;						    /* for recursion */
 
     get_drive_info(&drive, driveno);
     if (drive.state != drive_unallocated) {
@@ -238,6 +239,15 @@ vinum_ldi(int driveno, int recurse)
 		if (drive.writes != 0)
 		    printf("%7lld",
 			(long long) (drive.bytes_written / drive.writes));
+	    }
+	}
+	if (recurse) {
+	    printf("\n");
+	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; sdno++) {
+		get_sd_info(&sd, sdno);
+		if ((sd.state != sd_unallocated)
+		    && (sd.driveno == drive.driveno))
+		    vinum_lsi(sd.sdno, 0);
 	    }
 	}
 	printf("\n");
@@ -363,8 +373,7 @@ vinum_lvi(int volno, int recurse)
 			}
 		    }
 		}
-		if (vflag == 0)				    /* not verbose, but recursive */
-		    printf("\n");			    /* leave a line at the end of each hierarchy */
+		printf("\n");
 	    }
 	}
     }
@@ -409,12 +418,11 @@ vinum_lpi(int plexno, int recurse)
 	    printf("\t\tState: %s\n\t\tOrganization: %s",
 		plex_state(plex.state),
 		plex_org(plex.organization));
-	    if ((plex.organization == plex_striped)
-		|| (plex.organization == plex_raid5))
+	    if (isstriped((&plex)))
 		printf("\tStripe size: %s\n", roughlength(plex.stripesize * DEV_BSIZE, 1));
 	    else
 		printf("\n");
-	    if (plex.organization == plex_raid5) {
+	    if (isparity((&plex))) {
 		if (plex.rebuildblock != 0)
 		    printf("\t\tRebuild block pointer:\t\t%s (%d%%)\n",
 			roughlength(plex.rebuildblock << DEV_BSHIFT, 0),
@@ -440,6 +448,9 @@ vinum_lpi(int plexno, int recurse)
 		break;
 	    case plex_striped:				    /* striped plex */
 		org = "S";
+		break;
+	    case plex_raid4:				    /* RAID4 plex */
+		org = "R4";
 		break;
 	    case plex_raid5:				    /* RAID5 plex */
 		org = "R5";
@@ -469,8 +480,7 @@ vinum_lpi(int plexno, int recurse)
 		    printf("\t\tAverage write:\t%16lld bytes\n",
 			(long long) (plex.bytes_written / plex.writes));
 		if (((plex.reads + plex.writes) > 0)
-		    && ((plex.organization == plex_striped)
-			|| (plex.organization == plex_raid5)))
+		    && isstriped((&plex)))
 		    printf("\t\tMultiblock:\t%16lld (%d%%)\n"
 			"\t\tMultistripe:\t%16lld (%d%%)\n",
 			(long long) plex.multiblock,
@@ -529,11 +539,13 @@ vinum_lpi(int plexno, int recurse)
 			    (long) sd.plexoffset);
 		}
 	    }
-	    if (recurse)
+	    if (recurse) {
+		printf("\n");
 		for (sdno = 0; sdno < plex.subdisks; sdno++) {
 		    get_plex_sd_info(&sd, plexno, sdno);
 		    vinum_lsi(sd.sdno, 0);
 		}
+	    }
 	}
 	printf("\n");
     }
@@ -568,6 +580,7 @@ void
 vinum_lsi(int sdno, int recurse)
 {
     long long revived;					    /* keep an eye on revive progress */
+    int times;
 
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
@@ -595,9 +608,20 @@ vinum_lsi(int sdno, int recurse)
 							    /* Don't report a problem that "can't happen" */
 		    } else {
 			revived = sd.revived;		    /* note how far we were */
-			sleep(1);
-			get_sd_info(&sd, sdno);
-			if (sd.revived == revived)	    /* no progress? */
+
+			/*
+			 * Wait for up to a second until we
+			 * see some progress with the revive.
+			 * Do it like this so we don't have
+			 * annoying delays in the listing.
+			 */
+			for (times = 0; times < 20; times++) {
+			    get_sd_info(&sd, sdno);
+			    if (sd.revived != revived)	    /* progress? */
+				break;
+			    usleep(50000);
+			}
+			if (times == 10)
 			    printf("\t\t*** Revive has stalled ***\n");
 		    }
 		}
@@ -623,16 +647,30 @@ vinum_lsi(int sdno, int recurse)
 		printf("\t\tDrive %s (%s), no offset\n",
 		    drive.label.name,
 		    drive.devicename);
-	    else
+	    else if (drive.devicename[0] != '\0')	    /* has a name */
 		printf("\t\tDrive %s (%s) at offset %lld (%s)\n",
 		    drive.label.name,
 		    drive.devicename,
 		    (long long) (sd.driveoffset * DEV_BSIZE),
 		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
+	    else
+		printf("\t\tDrive %s (*missing*) at offset %lld (%s)\n",
+		    drive.label.name,
+		    (long long) (sd.driveoffset * DEV_BSIZE),
+		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
 	} else if (!sflag) {				    /* brief listing, no stats */
-	    printf("S %-21s State: %s\t",
-		sd.name,
-		sd_state(sd.state));
+	    if (sd.state == sd_reviving)
+		printf("S %-21s State: R %d%%\t",
+		    sd.name,
+		    (int) (((u_int64_t) (sd.revived * 100)) / sd.sectors));
+	    else if (sd.state == sd_initializing)
+		printf("S %-21s State: I %d%%\t",
+		    sd.name,
+		    (int) (((u_int64_t) (sd.initialized * 100)) / sd.sectors));
+	    else
+		printf("S %-21s State: %s\t",
+		    sd.name,
+		    sd_state(sd.state));
 	    if (sd.plexno == -1)
 		printf("(detached)\t");
 	    else
@@ -651,9 +689,20 @@ vinum_lsi(int sdno, int recurse)
 							    /* Don't report a problem that "can't happen" */
 		} else {
 		    revived = sd.revived;		    /* note how far we were */
-		    sleep(1);
-		    get_sd_info(&sd, sdno);
-		    if (sd.revived == revived)		    /* no progress? */
+
+		    /*
+		     * Wait for up to a second until we
+		     * see some progress with the revive.
+		     * Do it like this so we don't have
+		     * annoying delays in the listing.
+		     */
+		    for (times = 0; times < 20; times++) {
+			get_sd_info(&sd, sdno);
+			if (sd.revived != revived)	    /* progress? */
+			    break;
+			usleep(50000);
+		    }
+		    if (times == 10)
 			printf("\t\t\t*** Revive of %s has stalled ***\n",
 			    sd.name);
 		}
@@ -696,7 +745,7 @@ vinum_lsi(int sdno, int recurse)
 	    }
 	}
 	if (recurse)
-	    vinum_ldi(sd.driveno, recurse);
+	    vinum_ldi(sd.driveno, 0);
 	if (vflag)
 	    printf("\n");				    /* make it more readable */
     }
@@ -1060,10 +1109,8 @@ printconfig(FILE * of, char *comment)
 		comment,
 		plex.name,
 		plex_org(plex.organization));
-	    if ((plex.organization == plex_striped)
-		|| (plex.organization == plex_raid5)) {
+	    if (isstriped((&plex)))
 		fprintf(of, "%ds ", (int) plex.stripesize);
-	    }
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
