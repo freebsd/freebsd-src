@@ -414,6 +414,7 @@ pcic_pci_attach(device_t dev)
 	int rid;
 	struct resource *r;
 	int error;
+	static int num6729;
 
 	/*
 	 * In sys/pci/pcireg.h, PCIR_COMMAND must be separated
@@ -430,7 +431,20 @@ pcic_pci_attach(device_t dev)
 	sockbase = pci_read_config(dev, 0x10, 4);
 	if (sockbase & 0x1) {
 		device_printf(dev, "I/O mapped device!\n");
-		return (EIO);
+		sc->iorid = CB_PCI_SOCKET_BASE;
+		sc->iores = bus_alloc_resource(dev, SYS_RES_IOPORT,
+		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
+		if (sc->iores == NULL)
+			return (ENOMEM);
+		sp->getb = pcic_getb_io;
+		sp->putb = pcic_putb_io;
+		sc->bst = sp->bst = rman_get_bustag(sc->iores);
+		sc->bsh = sp->bsh = rman_get_bushandle(sc->iores);
+		sp->offset = (num6729 % 2) * PCIC_SLOT_SIZE;
+		sp->controller = PCIC_PD672X;
+		sp->revision = 0;
+		sc->flags = PCIC_PD_POWER;
+		num6729++;
 	} else {
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
