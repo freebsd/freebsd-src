@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting, Atheros
+# Copyright (c) 2002-2004 Sam Leffler, Errno Consulting, Atheros
 # Communications, Inc.  All rights reserved.
 #
 # Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
 # OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGES.
 #
-# $Id: ah_if.m,v 1.4 2003/06/25 04:55:02 sam Exp $
+# $Id: ah_if.m,v 1.5 2004/01/07 23:09:30 sam Exp $
 #
 
 INTERFACE ath_hal;
