@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.6 1995/05/30 08:02:31 rgrimes Exp $
+ *	$Id: if_zp.c,v 1.7 1995/07/25 22:18:56 bde Exp $
  */
 /*-
  * TODO:
@@ -1071,8 +1071,12 @@ zpinit(unit)
 #ifdef ZP_DEBUG
 	printf("START TRANCEIVER");
 #endif	/* ZP_DEBUG */
-	outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-	DELAY(1000);
+        GO_WINDOW(0);
+        /* set the xcvr */
+        outw(BASE + EP_W0_ADDRESS_CFG, 3 << 14);
+        GO_WINDOW(2);
+        outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+        GO_WINDOW(1);
     }
 #if defined(__NetBSD__) || defined(__FreeBSD__)
     if ((ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & UTP)) {
