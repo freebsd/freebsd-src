@@ -285,7 +285,7 @@
 #define HAVE_FREXPF 1
 
 /* Define to 1 if you have the `frexpl' function. */
-/* #undef HAVE_FREXPL */
+#define HAVE_FREXPL 1
 
 /* Define to 1 if you have the `fwide' function. */
 #define HAVE_FWIDE 1
@@ -357,7 +357,7 @@
 #define HAVE_LDEXPF 1
 
 /* Define to 1 if you have the `ldexpl' function. */
-/* #undef HAVE_LDEXPL */
+#define HAVE_LDEXPL 1
 
 /* Define to 1 if you have the <libintl.h> header file. */
 /* #undef HAVE_LIBINTL_H */
