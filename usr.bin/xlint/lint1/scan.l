@@ -45,7 +45,7 @@ static char rcsid[] = "$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $";
 #include <err.h>
 
 #include "lint1.h"
-#include "y.tab.h"
+#include "cgram.tab.h"
 
 #define CHAR_MASK	(~(~0 << CHAR_BIT))
 
