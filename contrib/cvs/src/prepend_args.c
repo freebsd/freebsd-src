@@ -23,7 +23,6 @@
 # include <config.h>
 #endif
 #include "cvs.h"
-#include "../diff/system.h"
 #include "prepend_args.h"
 
 
@@ -44,7 +43,7 @@ prepend_args (options, buf, argv)
 
   for (;;)
     {
-      while (ISSPACE ((unsigned char) *o))
+      while (isspace ((unsigned char) *o))
 	o++;
       if (!*o)
 	return n;
@@ -55,7 +54,7 @@ prepend_args (options, buf, argv)
       do
 	if ((*b++ = *o++) == '\\' && *o)
 	  b[-1] = *o++;
-      while (*o && ! ISSPACE ((unsigned char) *o));
+      while (*o && ! isspace ((unsigned char) *o));
 
       *b++ = '\0';
     }
