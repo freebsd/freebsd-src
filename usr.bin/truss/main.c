@@ -120,10 +120,10 @@ set_etype(void) {
     if (!strcmp(funcs->type, progt))
       break;
 
-  if (funcs == NULL) {
-    warn("Execution type %s is not supported -- using FreeBSD a.out\n",
-      progt);
+  if (funcs->type == NULL) {
     funcs = &ex_types[0];
+    warn("Execution type %s is not supported -- using %s\n",
+      progt, funcs->type);
   }
   return funcs;
 }
