@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.71 1995/02/17 12:32:34 bde Exp $
+#	$Id: MAKEDEV,v 1.72 1995/02/22 23:52:58 jmz Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -581,7 +581,7 @@ cuaa?|cua?)
 	umask 77
 	;;
 
-ttyd?|tty?)
+tty0?|ttyd?|tty?)
 	unit=`expr $i : 'tty.*\(.\)$'`
 	rm -f tty*d$unit
 	m=`ttyminor $unit`
