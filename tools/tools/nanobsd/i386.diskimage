@@ -72,7 +72,7 @@ echo ${SECTS} ${SC} ${HD} ${DATASIZE} | awk '
 cat ${TMPFILE1}
 fdisk -i -f ${TMPFILE1} ${MD}
 fdisk ${MD}
-boot0cfg -B -b ${WD}/boot/boot0sio -s 1 -m 3 ${MD}
+boot0cfg -B -b ${WD}/boot/boot0sio -o packet -s 1 -m 3 ${MD}
 rm -f ${TMPFILE1}
 bsdlabel -w -B ${MD}s1
 
