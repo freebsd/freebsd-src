@@ -553,9 +553,8 @@ chap_Success(struct authinfo *authp)
     if (*bundle->radius.cfg.file && bundle->radius.msrepstr)
       msg = bundle->radius.msrepstr;
     else
-#else
-      msg = auth2chap(authp)->authresponse;
 #endif
+      msg = auth2chap(authp)->authresponse;
     MPPE_MasterKeyValid = 1;		/* XXX Global ! */
   } else
 #endif
