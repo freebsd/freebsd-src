@@ -240,6 +240,27 @@ uart_tty_param(struct tty *tp, struct termios *t)
 	return (0);
 }
 
+static int
+uart_tty_modem(struct tty *tp, int biton, int bitoff)
+{
+	struct uart_softc *sc;
+
+	sc = tp->t_dev->si_drv1;
+	if (biton != 0 || bitoff != 0)
+		UART_SETSIG(sc, SER_DELTA(bitoff|biton) | biton);
+	return (sc->sc_hwsig);
+}
+
+static int
+uart_tty_break(struct tty *tp, int state)
+{
+	struct uart_softc *sc;
+
+	sc = tp->t_dev->si_drv1;
+	UART_IOCTL(sc, UART_IOCTL_BREAK, state);
+	return (0);
+}
+
 static void
 uart_tty_stop(struct tty *tp, int rw)
 {
@@ -337,6 +358,8 @@ uart_tty_attach(struct uart_softc *sc)
 	tp->t_oproc = uart_tty_oproc;
 	tp->t_param = uart_tty_param;
 	tp->t_stop = uart_tty_stop;
+	tp->t_modem = uart_tty_modem;
+	tp->t_break = uart_tty_break;
 
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		sprintf(((struct consdev *)sc->sc_sysdev->cookie)->cn_name,
@@ -484,7 +507,7 @@ uart_tty_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 {
 	struct uart_softc *sc;
 	struct tty *tp;
-	int bits, error, sig;
+	int error;
 
 	sc = dev->si_drv1;
 	if (sc == NULL || sc->sc_leaving)
@@ -495,69 +518,8 @@ uart_tty_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	if (error != ENOTTY)
 		return (error);
 
-	error = 0;
-	switch (cmd) {
-	case TIOCSBRK:
-		UART_IOCTL(sc, UART_IOCTL_BREAK, 1);
-		break;
-	case TIOCCBRK:
-		UART_IOCTL(sc, UART_IOCTL_BREAK, 0);
-		break;
-	case TIOCSDTR:
-		UART_SETSIG(sc, SER_DDTR | SER_DTR);
-		break;
-	case TIOCCDTR:
-		UART_SETSIG(sc, SER_DDTR);
-		break;
-	case TIOCMSET:
-		bits = *(int*)data;
-		sig = SER_DDTR | SER_DRTS;
-		if (bits & TIOCM_DTR)
-			sig |= SER_DTR;
-		if (bits & TIOCM_RTS)
-			sig |= SER_RTS;
-		UART_SETSIG(sc, sig);
-		break;
-        case TIOCMBIS:
-		bits = *(int*)data;
-		sig = 0;
-		if (bits & TIOCM_DTR)
-			sig |= SER_DDTR | SER_DTR;
-		if (bits & TIOCM_RTS)
-			sig |= SER_DRTS | SER_RTS;
-		UART_SETSIG(sc, sig);
-		break;
-        case TIOCMBIC:
-		bits = *(int*)data;
-		sig = 0;
-		if (bits & TIOCM_DTR)
-			sig |= SER_DDTR;
-		if (bits & TIOCM_RTS)
-			sig |= SER_DRTS;
-		UART_SETSIG(sc, sig);
-		break;
-        case TIOCMGET:
-		sig = sc->sc_hwsig;
-		bits = TIOCM_LE;
-		if (sig & SER_DTR)
-			bits |= TIOCM_DTR;
-		if (sig & SER_RTS)
-			bits |= TIOCM_RTS;
-		if (sig & SER_DSR)
-			bits |= TIOCM_DSR;
-		if (sig & SER_CTS)
-			bits |= TIOCM_CTS;
-		if (sig & SER_DCD)
-			bits |= TIOCM_CD;
-		if (sig & (SER_DRI | SER_RI))
-			bits |= TIOCM_RI;
-		*(int*)data = bits;
-		break;
-	default:
-		error = pps_ioctl(cmd, data, &sc->sc_pps);
-		if (error == ENODEV)
-			error = ENOTTY;
-		break;
-	}
+	error = pps_ioctl(cmd, data, &sc->sc_pps);
+	if (error == ENODEV)
+		error = ENOTTY;
 	return (error);
 }
