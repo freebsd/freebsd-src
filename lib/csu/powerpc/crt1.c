@@ -67,7 +67,7 @@ extern int etext;
  * The last argument, ps_strings, is a BSD extension.
  */
 void _start __P((int, char **, char **, const struct Struct_Obj_Entry *,
-		void (*) __P((void)), struct ps_strings *));
+		void (*)(void)), struct ps_strings *);
 
 char **environ;
 char *__progname = "";
@@ -79,7 +79,7 @@ _start(argc, argv, envp, obj, cleanup, ps_strings)
 	int argc;
 	char **argv, **envp;
 	const struct Struct_Obj_Entry *obj;	/* from shared loader */
-	void (*cleanup) __P((void));		/* from shared loader */
+	void (*cleanup)(void);		/* from shared loader */
 	struct ps_strings *ps_strings;		/* BSD extension */
 {
 	char *namep;
