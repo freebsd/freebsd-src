@@ -55,9 +55,6 @@ int	unit;		/* unit number for above */
 
 int	af;		/* address family */
 
-char	*prog;		/* program name */
-
-
 int	kread __P((u_long addr, char *buf, int size));
 char	*plural __P((int));
 char	*plurales __P((int));
