@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.73 1995/04/14 22:31:58 phk Exp $
+ *	$Id: wd.c,v 1.74 1995/04/22 22:44:30 dyson Exp $
  */
 
 /* TODO:
@@ -90,9 +90,8 @@
 #define	MAXTRANSFER	255	/* max size of transfer in sectors */ 
 				/* correct max is 256 but some controllers */
 				/* can't handle that in all cases */
-#ifndef NSECS_MULTI
-#define NSECS_MULTI 1
-#endif
+#define WDOPT_32BIT	0x8000
+#define WDOPT_MULTIMASK	0x00ff
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
@@ -243,7 +242,7 @@ static int wdcommand(struct disk *du, u_int cylinder, u_int head,
 		     u_int sector, u_int count, u_int command);
 static int wdsetctlr(struct disk *du);
 static int wdwsetctlr(struct disk *du);
-static int wdgetctlr(struct disk *du);
+static int wdgetctlr(struct disk *du, int flags);
 static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
@@ -380,7 +379,12 @@ wdattach(struct isa_device *dvp)
 		du->dk_lunit = lunit;
 		du->dk_port = dvp->id_iobase;
 
-		if (wdgetctlr(du) == 0) {
+		/*
+		 * Use the individual device flags or the controller
+		 * flags.
+		 */
+		if (wdgetctlr(du, wdup->id_flags |
+			((dvp->id_flags) >> (16 * unit))) == 0) {
 			char buf[sizeof du->dk_params.wdp_model + 1];
 
 			/*
@@ -1325,7 +1329,7 @@ wdwsetctlr(struct disk *du)
  * issue READP to drive to ask it what it is.
  */
 static int
-wdgetctlr(struct disk *du)
+wdgetctlr(struct disk *du, int flags)
 {
 	int	i;
 	char    tb[DEV_BSIZE], tb2[DEV_BSIZE];
@@ -1427,18 +1431,20 @@ again:
 		insw(du->dk_port + wd_data, tb, sizeof(tb) / sizeof(short));
 
 	/* try 32-bit data path (VLB IDE controller) */
-	if (! (du->dk_flags & DKFL_32BIT)) {
-		bcopy(tb, tb2, sizeof(struct wdparams));
-		du->dk_flags |= DKFL_32BIT;
-		goto again;
-	}
+	if (flags & WDOPT_32BIT) {
+		if (! (du->dk_flags & DKFL_32BIT)) {
+			bcopy(tb, tb2, sizeof(struct wdparams));
+			du->dk_flags |= DKFL_32BIT;
+			goto again;
+		}
 
-	/* check that we really have 32-bit controller */
-	if (bcmp (tb, tb2, sizeof(struct wdparams)) != 0) {
+		/* check that we really have 32-bit controller */
+		if (bcmp (tb, tb2, sizeof(struct wdparams)) != 0) {
 failed:
-		/* test failed, use 16-bit i/o mode */
-		bcopy(tb2, tb, sizeof(struct wdparams));
-		du->dk_flags &= ~DKFL_32BIT;
+			/* test failed, use 16-bit i/o mode */
+			bcopy(tb2, tb, sizeof(struct wdparams));
+			du->dk_flags &= ~DKFL_32BIT;
+		}
 	}
 
 	bcopy(tb, wp, sizeof(struct wdparams));
@@ -1489,11 +1495,25 @@ failed:
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
 #endif
 
-	du->dk_multi = 1;
-	if( (NSECS_MULTI != 1) && ((wp->wdp_nsecperint & 0xff) >= NSECS_MULTI)){
-		if( !wdcommand(du, 0, 0, 0, NSECS_MULTI, WDCC_SET_MULTI)) {
-			du->dk_multi = NSECS_MULTI;
+	/*
+	 * find out the drives maximum multi-block transfer capability
+	 */
+	du->dk_multi = wp->wdp_nsecperint & 0xff;
+	
+	/*
+	 * The config option flags low 8 bits define the maximum multi-block
+	 * transfer size.  If the user wants the maximum that the drive
+	 * is capable of, just set the low bits of the config option to
+	 * 0x00ff.
+	 */
+	if ((flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
+		if (du->dk_multi > (flags & WDOPT_MULTIMASK))
+			du->dk_multi = flags & WDOPT_MULTIMASK;
+		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
+			du->dk_multi = 1;
 		}
+	} else {
+		du->dk_multi = 1;
 	}
 
 #ifdef NOTYET
@@ -1925,7 +1945,7 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 
 /*
  * This delay is really too long, but does not impact the performance
- * as much when using the NSECS_MULTI option.  Shorter delays have
+ * as much when using the multi-sector option.  Shorter delays have
  * caused I/O errors on some drives and system configs.  This should
  * probably be fixed if we develop a better short term delay mechanism.
  */
