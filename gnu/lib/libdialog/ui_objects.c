@@ -803,6 +803,7 @@ SelectButtonObj(ButtonObj *bo)
     case ctrl('b'):
 	return(SEL_BACKTAB);
     case '\n':
+    case '\r':
 	*(bo->pushed) = TRUE;
 	return(SEL_BUTTON);
 	break;

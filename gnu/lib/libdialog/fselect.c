@@ -171,11 +171,12 @@ dialog_dselect_old(void)
 		/* the directory was changed, cd into it */
 		if (chdir(o_dir)) {
 		    dialog_notify("Could not change into directory");
+		    strcpy(o_dir, old_dir);
 		} else {
 		    getcwd(o_dir, MAXPATHLEN);
 		    strcpy(old_dir, o_dir);
-		    RefreshStringObj(dir_obj);
 		}
+		RefreshStringObj(dir_obj);
 	    }
 	    get_dir(".", "*", &d, &n);
 	    FreeNames(names, nd);
@@ -344,11 +345,12 @@ dialog_dfselect(char *dir, char *fmask, int is_fselect)
 		if (strcmp(old_dir, o_dir)) { /* dir entry was changed */
 		    if (chdir(o_dir)) {
 			dialog_notify("Could not change into directory");
+			strcpy(o_dir, old_dir);
 		    } else {
 			getcwd(o_dir, MAXPATHLEN);
 			strcpy(old_dir, o_dir);
-			RefreshStringObj(dir_obj);
 		    }
+		    RefreshStringObj(dir_obj);
 		} else {		      /* fmask entry was changed */
 		    strcpy(old_fmask, o_fm);
 		}
