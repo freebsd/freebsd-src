@@ -21,6 +21,10 @@ MAN8=	ppp.8
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
+.if defined(NOKLDLOAD)
+CFLAGS+=-DNOKLDLOAD
+.endif
+
 .if defined(NOALIAS) || defined(NONAT)
 CFLAGS+=-DNONAT
 .else
