@@ -18,7 +18,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include "libdisk.h"
 
-static struct chunk *
+struct chunk *
 New_Chunk(void)
 {
 	struct chunk *c;
