@@ -328,8 +328,6 @@ firewire_input_fragment(struct fw_com *fc, struct mbuf *m, int src)
 	int fstart, fend, start, end, islast;
 	uint32_t id;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Find an existing reassembly buffer or create a new one.
 	 */
