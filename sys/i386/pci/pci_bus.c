@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/malloc.h>
 
 #include <dev/pci/pcivar.h>
@@ -42,10 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <machine/legacyvar.h>
 #include <machine/pci_cfgreg.h>
-#include <machine/segments.h>
-#include <machine/cputypes.h>
-#include <machine/pc/bios.h>
-#include <machine/md_var.h>
 
 #include "pcib_if.h"
 
@@ -426,9 +421,16 @@ legacy_pcib_probe(device_t dev)
 int
 legacy_pcib_attach(device_t dev)
 {
+	int bus;
 
-	device_add_child(dev, "pci", pcib_get_bus(dev));
-
+	/*
+	 * Look for a PCI BIOS interrupt routing table as that will be
+	 * our method of routing interrupts if we have one.
+	 */
+	bus = pcib_get_bus(dev);
+	if (pci_pir_probe(bus, 0))
+		pci_pir_parse();
+	device_add_child(dev, "pci", bus);
 	return bus_generic_attach(dev);
 }
 
@@ -662,7 +664,7 @@ pcibios_pcib_probe(device_t dev)
 	bus = pci_read_config(dev, PCIR_SECBUS_1, 1);
 	if (bus == 0)
 		return (ENXIO);
-	if (pci_probe_route_table(bus) == 0)
+	if (!pci_pir_probe(bus, 1))
 		return (ENXIO);
 	device_set_desc(dev, "PCIBIOS PCI-PCI bridge");
 	return (-2000);
@@ -671,6 +673,6 @@ pcibios_pcib_probe(device_t dev)
 static int
 pcibios_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
-	return(pci_cfgintr(pci_get_bus(dev), pci_get_slot(dev), pin,
-		   pci_get_irq(dev)));
+	return (pci_pir_route_interrupt(pci_get_bus(dev), pci_get_slot(dev),
+		pci_get_function(dev), pin));
 }
