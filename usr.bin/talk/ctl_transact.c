@@ -31,16 +31,17 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <errno.h>
 #include <string.h>
+
 #include "talk.h"
 #include "talk_ctl.h"
 
@@ -52,9 +53,9 @@ static const char rcsid[] =
  * of time
  */
 void
-ctl_transact(target, msg, type, rp)
+ctl_transact(target, lmsg, type, rp)
 	struct in_addr target;
-	CTL_MSG msg;
+	CTL_MSG lmsg;
 	int type;
 	CTL_RESPONSE *rp;
 {
@@ -62,7 +63,7 @@ ctl_transact(target, msg, type, rp)
 	int nready = 0, cc;
 	struct timeval wait;
 
-	msg.type = type;
+	lmsg.type = type;
 	daemon_addr.sin_addr = target;
 	daemon_addr.sin_port = daemon_port;
 	FD_ZERO(&ctl_mask);
@@ -77,10 +78,10 @@ ctl_transact(target, msg, type, rp)
 		wait.tv_usec = 0;
 		/* resend message until a response is obtained */
 		do {
-			cc = sendto(ctl_sockt, (char *)&msg, sizeof (msg), 0,
+			cc = sendto(ctl_sockt, (char *)&lmsg, sizeof (lmsg), 0,
 			    (struct sockaddr *)&daemon_addr,
 			    sizeof (daemon_addr));
-			if (cc != sizeof (msg)) {
+			if (cc != sizeof (lmsg)) {
 				if (errno == EINTR)
 					continue;
 				p_error("Error on write to talk daemon");
