@@ -63,9 +63,6 @@
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/condvar.h>
-#ifdef __alpha__
-#include <sys/disklabel.h>
-#endif
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
