@@ -78,14 +78,14 @@
   073   fkey51 '9'    '9'    '9'    185    185    185    185     N
   074   fkey52 '-'    '-'    '-'    173    173    173    173     N
   075   fkey53 '4'    '4'    '4'    180    180    180    180     N
-  076   fkey65 '5'    '5'    '5'    181    181    181    181     N
+  076   fkey54 '5'    '5'    '5'    181    181    181    181     N
   077   fkey55 '6'    '6'    '6'    182    182    182    182     N
   078   fkey56 '+'    '+'    '+'    171    171    171    171     N
   079   fkey57 '1'    '1'    '1'    177    177    177    177     N
   080   fkey58 '2'    '2'    '2'    178    178    178    178     N
   081   fkey59 '3'    '3'    '3'    179    179    179    179     N
   082   fkey60 '0'    '0'    '0'    176    176    176    176     N
-  083   fkey54 '.'    del    del    255    255    boot   boot    N
+  083   del    '.'    del    del    255    255    boot   boot    N
   084   alock  alock  alock  alock  alock  alock  alock  alock   O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -105,11 +105,11 @@
   100   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  103   fkey54 fkey54 del    del    255    255    boot   255     O
+  103   del    del    del    del    255    255    boot   255     O
   104   slock  slock  slock  slock  slock  slock  slock  slock   O
-  105   nop    nop    nop    nop    nop    nop    nop    nop     O
-  106   nop    nop    nop    nop    nop    nop    nop    nop     O
-  107   nop    nop    nop    nop    nop    nop    nop    nop     O
+  105	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61  O
+  106	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  107	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O
   108   nop    nop    nop    nop    nop    nop    nop    nop     O
   109   nop    nop    nop    nop    nop    nop    nop    nop     O
   110   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -206,14 +206,14 @@
   201   fkey51 '9'    '9'    '9'    185    185    185    185     N
   202   fkey52 '-'    '-'    '-'    173    173    173    173     N
   203   fkey53 '4'    '4'    '4'    180    180    180    180     N
-  204   fkey65 '5'    '5'    '5'    181    181    181    181     N
+  204   fkey54 '5'    '5'    '5'    181    181    181    181     N
   205   fkey55 '6'    '6'    '6'    182    182    182    182     N
   206   fkey56 '+'    '+'    '+'    171    171    171    171     N
   207   fkey57 '1'    '1'    '1'    177    177    177    177     N
   208   fkey58 '2'    '2'    '2'    178    178    178    178     N
   209   fkey59 '3'    '3'    '3'    179    179    179    179     N
   210   fkey60 '0'    '0'    '0'    176    176    176    176     N
-  211   fkey54 '.'    del    del    255    255    boot   boot    N
+  211   del    '.'    del    del    255    255    boot   boot    N
   212   alock  alock  alock  alock  alock  alock  alock  alock   O
   213   nop    nop    nop    nop    nop    nop    nop    nop     O
   214   nop    nop    nop    nop    nop    nop    nop    nop     O
@@ -233,5 +233,8 @@
   228   fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58 fkey58  O
   229   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   230   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
-  231   fkey54 fkey54 del    del    255    255    boot   255     O
+  231   del    del    del    del    255    255    boot   255     O
   232   slock  slock  slock  slock  slock  slock  slock  slock   O
+  233	fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 fkey61  O
+  234	fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62 fkey62  O
+  235	fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63 fkey63  O

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.16 1995/01/26 10:13:38 ache Exp $
+ *	$Id: console.h,v 1.15 1995/01/20 08:35:18 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -160,8 +160,7 @@ struct keymap {
 };
 
 #define MAXFK		16
-#define NUM_FKEYS       65
-#define NUM_SCRNS       16
+#define NUM_FKEYS	96
 
 struct fkeytab {
 	u_char	str[MAXFK];
@@ -223,24 +222,25 @@ typedef struct ssaver ssaver_t;
 #define LCTR		0x09		/* left control key		*/
 #define NEXT		0x0a		/* switch to next screen 	*/
 #define F_SCR		0x0b		/* switch to first screen 	*/
+#define L_SCR		0x1a		/* switch to last screen 	*/
 #define F_FN		0x1b		/* first function key 		*/
-#define RCTR		0x7b		/* right control key		*/
-#define RALT		0x7c		/* right alt (altgr) key	*/
-#define ALK		0x7d		/* alt lock key			*/
-#define ASH		0x7e		/* alt shift key		*/
-#define META		0x7f		/* meta key			*/
-#define RBT		0x80		/* boot machine			*/
-#define DBG		0x81		/* call debugger		*/
-#define SUSP		0x82		/* suspend power (APM BIOS)     */
+#define L_FN		0x7a		/* last function key 		*/
+/*			0x7b-0x7f	   reserved do not use !	*/
+#define RCTR		0x80		/* right control key		*/
+#define RALT		0x81		/* right alt (altgr) key	*/
+#define ALK		0x82		/* alt lock key			*/
+#define ASH		0x83		/* alt shift key		*/
+#define META		0x84		/* meta key			*/
+#define RBT		0x85		/* boot machine			*/
+#define DBG		0x86		/* call debugger		*/
+#define SUSP		0x87		/* suspend power (APM)		*/
 
 #define F(x)		((x)+F_FN-1)
-#define L_FN            F(NUM_FKEYS)    /* last function key            */
 #define	S(x)		((x)+F_SCR-1)
-#define L_SCR           S(NUM_SCRNS)    /* switch to last screen        */
-
 #define NOKEY		0x100		/* no key pressed marker 	*/
 #define FKEY		0x200		/* funtion key marker 		*/
 #define MKEY		0x400		/* meta key marker (prepend ESC)*/
+#define BKEY		0x800		/* backtab (ESC [ Z)		*/
 
 #define	KB_DATA		0x60		/* kbd data port 		*/
 #define	KB_STAT		0x64		/* kbd status port 		*/
