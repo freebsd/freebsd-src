@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.107 1998/09/04 08:06:57 dfr Exp $
+ *	$Id: vm_page.c,v 1.108 1998/10/21 11:43:04 dg Exp $
  */
 
 /*
@@ -378,10 +378,8 @@ vm_page_insert(m, object, pindex)
 {
 	register struct pglist *bucket;
 
-#if !defined(MAX_PERF)
-	if (m->flags & PG_TABLED)
+	if (m->object != NULL)
 		panic("vm_page_insert: already inserted");
-#endif
 
 	/*
 	 * Record the object/offset pair in this page
@@ -403,7 +401,6 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
-	vm_page_flag_set(m, PG_TABLED);
 	m->object->page_hint = m;
 	m->object->generation++;
 
@@ -437,7 +434,7 @@ vm_page_remove(m)
 	register struct pglist *bucket;
 	vm_object_t object;
 
-	if (!(m->flags & PG_TABLED))
+	if (m->object == NULL)
 		return;
 
 #if !defined(MAX_PERF)
@@ -482,9 +479,8 @@ vm_page_remove(m)
 
 	object->resident_page_count--;
 	object->generation++;
-	m->object = NULL;
 
-	vm_page_flag_clear(m, PG_TABLED);
+	m->object = NULL;
 }
 
 /*
