@@ -1,7 +1,7 @@
 /* readrec.c: The __opiereadrec() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
@@ -52,8 +52,14 @@ static int parserec FUNCTION((opie), struct opie *opie)
 
   *(c2++) = 0;
 
-  if (!(opie->opie_n = atoi(c)))
+  {
+  char *c3;
+
+  opie->opie_n = strtoul(c, &c3, 10);
+
+  if (*c3)
     return -1;
+  };
 
   if (!(c2 = strchr(opie->opie_seed = c2, ' ')))
     return -1;
@@ -112,7 +118,7 @@ int __opiereadrec FUNCTION((opie), struct opie *opie)
   }
 
   if (!opie->opie_principal)
-    return -1;
+    goto ret;
 
   {
     char *c, principal[OPIE_PRINCIPAL_MAX];
