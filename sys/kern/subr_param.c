@@ -72,6 +72,8 @@ int	maxfilesperproc;		/* per-proc open files limit */
 int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	nswbuf;
+int	maxswzone;			/* max swmeta KVA storage */
+int	maxbcache;			/* max buffer cache KVA storage */
 
 /*
  * These have to be allocated somewhere; allocating
@@ -114,6 +116,10 @@ init_param(void)
 	/* Cannot be changed after boot */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+	maxswzone = VM_SWZONE_SIZE_MAX;
+	TUNABLE_INT_FETCH("kern.maxswzone", &maxswzone);
+	maxbcache = VM_BCACHE_SIZE_MAX;
+	TUNABLE_INT_FETCH("kern.maxbcache", &maxbcache);
 	ncallout = 16 + maxproc + maxfiles;
 	TUNABLE_INT_FETCH("kern.ncallout", &ncallout);
 }
