@@ -645,13 +645,17 @@ ufs_chmod(vp, mode, cred, td)
 	/*
 	 * Privileged processes may set the sticky bit on non-directories,
 	 * as well as set the setgid bit on a file with a group that the
-	 * process is not a member of.
+	 * process is not a member of.  Both of these are allowed in
+	 * jail(8).
 	 */
-	if (suser_cred(cred, PRISON_ROOT)) {
-		if (vp->v_type != VDIR && (mode & S_ISTXT))
+	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
+		if (suser_cred(cred, PRISON_ROOT))
 			return (EFTYPE);
-		if (!groupmember(ip->i_gid, cred) && (mode & ISGID))
-			return (EPERM);
+	}
+	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
+		error = suser_cred(cred, PRISON_ROOT);
+		if (error)
+			return (error);
 	}
 	ip->i_mode &= ~ALLPERMS;
 	ip->i_mode |= (mode & ALLPERMS);
