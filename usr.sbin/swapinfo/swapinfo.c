@@ -8,16 +8,10 @@
  * Kevin Lahey, February 16, 1993
  */
 
-#include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/termios.h>
 #include <sys/stat.h>
-#include <sys/tty.h>
-#include <sys/uio.h>
-#include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/rlist.h>
 #include <nlist.h>
