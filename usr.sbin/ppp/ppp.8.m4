@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.64 1997/09/10 02:20:35 brian Exp $
+.\" $Id: ppp.8,v 1.65 1997/09/17 23:17:56 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2134,7 +2134,8 @@ Get port number if port number is using service name.
 .Xr uucplock 3 ,
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
-.Xr syslogd 8
+.Xr syslogd 8 ,
+.Xr pppctl 8
 
 .Sh HISTORY
 
