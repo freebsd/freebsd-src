@@ -35,6 +35,7 @@
 #define KB_CONF_FAIL_IF_NO_KBD	(1 << 0) /* don't install if no kbd is found */
 #define KB_CONF_NO_RESET	(1 << 1) /* don't reset the keyboard */
 #define KB_CONF_ALT_SCANCODESET	(1 << 2) /* assume the XT type keyboard */
+#define	KB_CONF_NO_PROBE_TEST	(1 << 3) /* don't test keyboard during probe */
 
 #ifdef _KERNEL
 

@@ -1117,7 +1117,8 @@ probe_keyboard(KBDC kbdc, int flags)
 	 * to set the command byte to particular values.
 	 */
 	test_controller(kbdc);
-	test_kbd_port(kbdc);
+	if (!(flags & KB_CONF_NO_PROBE_TEST))
+		test_kbd_port(kbdc);
 
 	err = get_kbd_echo(kbdc);
 
