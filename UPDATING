@@ -1,12 +1,19 @@
 Updating Information for FreeBSD current users
 
-This file is maintained by imp@village.org.  Please send new entries
-directly to him.  See end of file for further details.  For commonly
-done items, please see the end of the file.  Search for 'COMMON
-ITEMS:'
+This file is maintained and copyrighted by M. Warner Losh
+<imp@village.org>.  Please send new entries directly to him.  See end
+of file for further details.  For commonly done items, please see the
+COMMON ITEMS: section later in the file.
+
+20010625:
+	The pccard modem issue has been corrected.  OLDCARD support is
+	still a little weak in -current.  slot 1 is known not to work
+	on some TI based cardbus bridges.  Some cardbus bridges do not
+	properly detect insert/removal events.  IRQ configuration needs
+	more safety belts.
 
 20010617:
-	It appears that soft updates are working again.
+	Softupdates problems have been corrected.
 
 20010614:
 	Peter ripped out the linkerset support.  You must, as always,
@@ -14,15 +21,15 @@ ITEMS:'
 	kernel building methods.
 
 20010613:
-	Two items that have been biting people:
-
 	pccard modems may not work with current after 20010604 date.  Some
 	do, others result in panics.  *MAKE*SURE* that you update your
-	config ala the 20010604 entry, or you will have problems (this issue
-	will be fixed, it just hasn't been yet).
+	config and /etc/rc.conf ala the 20010604 entry, or you will have
+	problems (this issue will be fixed, it just hasn't been yet).
 
+20010613:
 	SOFTUPDATES seem to be broken since the middle of May or so.  Do not
-	use them in current.  Resolution unknown.
+	use them in current.  You can disable softupdates on all mounted
+	partitions, or remove SOFTUPDATES the kernel config file.
 
 20010612:
 	After Peter's commits to the hints code, people have been noticing
@@ -30,6 +37,10 @@ ITEMS:'
 	to having both static hints as well as a /boot/device.hints.  To
 	work around this issue, please use only one or the other mechanism
 	until this bug is fixed.
+
+	Please note that a feature of config is that if you have config
+	file FOO and FOO.hints, it automatically adds FOO.hints to the
+	hints.c file, wheather you want it to or not.
 
 20010610:
 	Locale names have changed to match other systems better.
@@ -712,5 +723,28 @@ previous releases if your system is older than this.
 
 Please filter your entries through Warner Losh (imp@village.org) so
 that the style, formatting, etc of this file can be maintained.
+
+Copyright information:
+
+Copyright 1998, 2001 M. Warner Losh.  All Rights Reserved.
+
+Redistribution, translation and use, with or without modification, in
+full or in part, are permitted provided that the above copyright
+notice is retained.
+
+THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL WARNER LOSH BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+If you find this document useful, and you want to, you may buy the
+author a beer.
 
 $FreeBSD$
