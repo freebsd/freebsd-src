@@ -1481,7 +1481,9 @@ sccndbctl(dev_t dev, int on)
 	    && sc_console->sc->cur_scp->smode.mode == VT_AUTO
 	    && sc_console->smode.mode == VT_AUTO) {
 	    sc_console->sc->cur_scp->status |= MOUSE_HIDDEN;
+	    ++debugger;		/* XXX */
 	    sc_switch_scr(sc_console->sc, sc_console->index);
+	    --debugger;		/* XXX */
 	}
     }
     if (on)
@@ -2026,7 +2028,8 @@ stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int))
     mark_all(sc->cur_scp);
     if (sc->delayed_next_scr)
 	sc_switch_scr(sc, sc->delayed_next_scr - 1);
-    wakeup((caddr_t)&scrn_blanked);
+    if (debugger == 0)
+	wakeup((caddr_t)&scrn_blanked);
 }
 
 static int
@@ -2223,7 +2226,16 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     sc->new_scp = SC_STAT(SC_DEV(sc, next_scr));
     if (sc->new_scp == sc->old_scp) {
 	sc->switch_in_progress = 0;
-	wakeup((caddr_t)&sc->new_scp->smode);
+	/*
+	 * XXX wakeup() calls mtx_lock(&sched_lock) which will hang if
+	 * sched_lock is in an in-between state, e.g., when we stop at
+	 * a breakpoint at fork_exit.  It has always been wrong to call
+	 * wakeup() when the debugger is active.  In RELENG_4, wakeup()
+	 * is supposed to be locked by splhigh(), but the debugger may
+	 * be invoked at splhigh().
+	 */
+	if (debugger == 0)
+	    wakeup((caddr_t)&sc->new_scp->smode);
 	splx(s);
 	DPRINTF(5, ("switch done (new == old)\n"));
 	return 0;
@@ -2245,7 +2257,8 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     s = spltty();
 
     /* wake up processes waiting for this vty */
-    wakeup((caddr_t)&sc->cur_scp->smode);
+    if (debugger == 0)
+	wakeup((caddr_t)&sc->cur_scp->smode);
 
     /* wait for the controlling process to acknowledge, if necessary */
     if (signal_vt_acq(sc->cur_scp)) {
