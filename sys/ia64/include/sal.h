@@ -113,6 +113,11 @@ struct sal_ap_wakeup_descriptor {
 #define SAL_FREQ_BASE		0x01000012
 #define SAL_UPDATE_PAL		0x01000020
 
+/* SAL_SET_VECTORS event handler types */
+#define	SAL_OS_MCA		0
+#define	SAL_OS_INIT		1
+#define	SAL_OS_BOOT_RENDEZ	2
+
 struct ia64_sal_result {
 	int64_t		sal_status;
 	u_int64_t	sal_result[3];

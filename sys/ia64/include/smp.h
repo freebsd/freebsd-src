@@ -7,26 +7,28 @@
 #ifdef _KERNEL
 
 /*
- * Interprocessor interrupts for SMP.
+ * Interprocessor interrupts for SMP. The following values are indices
+ * into the IPI vector table. The SAL gives us the vector used for AP
+ * wake-up. Keep the IPI_AP_WAKEUP at index 0.
  */
-#define	IPI_INVLTLB		0x0001
-#define	IPI_RENDEZVOUS		0x0002
-#define	IPI_AST			0x0004
-#define	IPI_CHECKSTATE		0x0008
-#define	IPI_STOP		0x0010
+#define	IPI_AP_WAKEUP		0
+#define	IPI_AST			1
+#define	IPI_CHECKSTATE		2
+#define	IPI_INVLTLB		3
+#define	IPI_RENDEZVOUS		4
+#define	IPI_STOP		5
+
+#define	IPI_COUNT		6
 
 #ifndef LOCORE
 
-/* global data in mp_machdep.c */
-extern volatile u_int		checkstate_probed_cpus;
-extern volatile u_int		checkstate_need_ast;
-extern volatile u_int		resched_cpus;
+extern int mp_hardware;
+extern int mp_ipi_vector[];
 
-void	ipi_all(u_int64_t ipi);
-void	ipi_all_but_self(u_int64_t ipi);
-void	ipi_selected(u_int cpus, u_int64_t ipi);
-void	ipi_self(u_int64_t ipi);
-void	smp_init_secondary(void);
+void	ipi_all(int ipi);
+void	ipi_all_but_self(int ipi);
+void	ipi_selected(u_int64_t cpus, int ipi);
+void	ipi_self(int ipi);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

@@ -54,6 +54,7 @@
 
 #include <sys/cdefs.h>
 #include <machine/asm.h>
+#include <machine/ia64_cpu.h>
 #include <machine/fpu.h>
 #include <sys/syscall.h>
 #include <assym.s>
@@ -74,7 +75,6 @@ kstack:	.space KSTACK_PAGES * PAGE_SIZE
  * Not really a leaf but we can't return.
  */
 ENTRY(__start, 1)
-
 	movl	r8=ia64_vector_table	// set up IVT early
 	movl	r9=ia64_vhpt+(1<<8)+(15<<2)+1 // and VHPT
 	;;
@@ -129,6 +129,56 @@ ENTRY(__start, 1)
 	/* NOTREACHED */	
 	
 END(__start)
+
+/*
+ * AP wake-up entry point. The handoff state is similar as for the BSP,
+ * as described on page 3-9 of the IPF SAL Specification. The difference
+ * lies in the contents of register b0. For APs this register holds the
+ * return address into the SAL rendezvous routine.
+ */
+	.align	32
+ENTRY(os_boot_rendez,0)
+1:	mov	r16 = ip
+	movl	r17 = (IA64_PSR_AC|IA64_PSR_DT|IA64_PSR_RT|IA64_PSR_IT|IA64_PSR_BN)
+	mov	r18 = 7
+	;;
+	add	r16 = 2f-1b, r16
+	mov	cr.ipsr = r17
+	;;
+	dep	r16 = r18, r16, 61, 3
+	;;
+	mov	cr.iip = r16
+	;;
+	rfi
+
+	.align	32
+2:	movl	r16 = ia64_vector_table			// set up IVT early
+	movl	r17 = ia64_vhpt+(1<<8)+(15<<2)+1		// and VHPT
+	;;
+	mov	cr.iva = r16
+	mov	cr.pta = r17
+	;;
+	srlz.i
+	;;
+	srlz.d
+	movl	gp = __gp
+	;;
+	br.call.sptk.many rp = ia64_ap_get_stack
+	;;
+	mov	r9 = KSTACK_PAGES*PAGE_SIZE-SIZEOF_PCB-SIZEOF_TRAPFRAME-16
+	;;
+	add	sp = r9, r8
+	mov	ar.bspstore = r8
+	;;
+	loadrs
+	;;
+	mov	ar.rsc = 3
+	;;
+	alloc	r16=ar.pfs,0,0,0,0
+	;;
+	br.call.sptk.many rp=ia64_ap_startup
+	/* NOT REACHED */
+END(os_boot_rendez)
 
 /**************************************************************************/
 
