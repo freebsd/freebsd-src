@@ -129,7 +129,7 @@ static void	ath_stoprecv(struct ath_softc *);
 static int	ath_startrecv(struct ath_softc *);
 static void	ath_next_scan(void *);
 static void	ath_calibrate(void *);
-static int	ath_newstate(void *, enum ieee80211_state);
+static int	ath_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static void	ath_newassoc(struct ieee80211com *,
 			struct ieee80211_node *, int);
 static int	ath_getchannels(struct ath_softc *, u_int cc, HAL_BOOL outdoor);
@@ -281,7 +281,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	ic->ic_softc = sc;
-	ic->ic_newstate = ath_newstate;
 	ic->ic_newassoc = ath_newassoc;
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
@@ -300,7 +299,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ic->ic_node_alloc = ath_node_alloc;
 	ic->ic_node_free = ath_node_free;
 	ic->ic_node_copy = ath_node_copy;
-
+	sc->sc_newstate = ic->ic_newstate;
+	ic->ic_newstate = ath_newstate;
+	/* complete initialization */
 	ieee80211_media_init(ifp, ath_media_change, ieee80211_media_status);
 
 	if_printf(ifp, "802.11 address: %s\n", ether_sprintf(ic->ic_myaddr));
@@ -453,13 +454,12 @@ ath_bmiss_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ifnet *ifp = &ic->ic_if;
 
 	DPRINTF(("ath_bmiss_proc: pending %u\n", pending));
 	KASSERT(ic->ic_opmode == IEEE80211_M_STA,
 		("unexpect operating mode %u", ic->ic_opmode));
 	if (ic->ic_state == IEEE80211_S_RUN)
-		ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 }
 
 static u_int
@@ -546,7 +546,7 @@ ath_init(void *arg)
 	mode = ieee80211_chan2mode(ic, ni->ni_chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
-	ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+	ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 done:
 	mtx_unlock(&sc->sc_mtx);
 }
@@ -554,6 +554,7 @@ done:
 static void
 ath_stop(struct ifnet *ifp)
 {
+	struct ieee80211com *ic = (struct ieee80211com *) ifp;
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 
@@ -587,7 +588,7 @@ ath_stop(struct ifnet *ifp)
 			sc->sc_rxlink = NULL;
 		IF_DRAIN(&ifp->if_snd);
 		ath_beacon_free(sc);
-		ieee80211_new_state(ifp, IEEE80211_S_INIT, -1);
+		ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
 		if (!sc->sc_invalid)
 			ath_hal_setpower(ah, HAL_PM_FULL_SLEEP, 0);
 	}
@@ -2156,21 +2157,15 @@ ath_calibrate(void *arg)
 }
 
 static int
-ath_newstate(void *arg, enum ieee80211_state nstate)
+ath_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 {
-	struct ath_softc *sc = arg;
-	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = &ic->ic_if;
+	struct ath_softc *sc = ifp->if_softc;
+	struct ath_hal *ah = sc->sc_ah;
 	struct ieee80211_node *ni;
 	int i, error;
 	u_int8_t *bssid;
 	u_int32_t rfilt;
-	enum ieee80211_state ostate;
-#ifdef AR_DEBUG
-	static const char *stname[] =
-	    { "INIT", "SCAN", "AUTH", "ASSOC", "RUN" };
-#endif /* AR_DEBUG */
 	static const HAL_LED_STATE leds[] = {
 	    HAL_LED_INIT,	/* IEEE80211_S_INIT */
 	    HAL_LED_SCAN,	/* IEEE80211_S_SCAN */
@@ -2179,17 +2174,18 @@ ath_newstate(void *arg, enum ieee80211_state nstate)
 	    HAL_LED_RUN, 	/* IEEE80211_S_RUN */
 	};
 
-	ostate = ic->ic_state;
-
-	DPRINTF(("%s: %s -> %s\n", __func__, stname[ostate], stname[nstate]));
+	DPRINTF(("%s: %s -> %s\n", __func__,
+		ieee80211_state_name[ic->ic_state],
+		ieee80211_state_name[nstate]));
 
 	ath_hal_setledstate(ah, leds[nstate]);	/* set LED */
 
 	if (nstate == IEEE80211_S_INIT) {
 		sc->sc_imask &= ~(HAL_INT_SWBA | HAL_INT_BMISS);
 		ath_hal_intrset(ah, sc->sc_imask);
-		error = 0;			/* cheat + use error return */
-		goto bad;
+		callout_stop(&sc->sc_scan_ch);
+		callout_stop(&sc->sc_cal_ch);
+		return (*sc->sc_newstate)(ic, nstate, arg);
 	}
 	ni = ic->ic_bss;
 	error = ath_chan_set(sc, ni->ni_chan);
@@ -2259,10 +2255,14 @@ ath_newstate(void *arg, enum ieee80211_state nstate)
 	 * Reset the rate control state.
 	 */
 	ath_rate_ctl_reset(sc, nstate);
-	return 0;
+	/*
+	 * Invoke the parent method to complete the work.
+	 */
+	return (*sc->sc_newstate)(ic, nstate, arg);
 bad:
 	callout_stop(&sc->sc_scan_ch);
 	callout_stop(&sc->sc_cal_ch);
+	/* NB: do not invoke the parent */
 	return error;
 }
 

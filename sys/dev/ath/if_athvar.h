@@ -78,6 +78,8 @@ struct ath_buf {
 
 struct ath_softc {
 	struct ieee80211com	sc_ic;		/* IEEE 802.11 common */
+	int			(*sc_newstate)(struct ieee80211com *,
+					enum ieee80211_state, int);
 	device_t		sc_dev;
 	bus_space_tag_t		sc_st;		/* bus space tag */
 	bus_space_handle_t	sc_sh;		/* bus space handle */
