@@ -72,9 +72,11 @@ void
 snd_mtxassert(void *m)
 {
 #ifdef USING_MUTEX
+#ifdef INVARIANTS
 	struct mtx *mtx = m;
 
 	mtx_assert(mtx, MA_OWNED);
+#endif
 #endif
 }
 
