@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.3 1994/02/25 23:34:08 alm Exp $
+#	$Id: cpio.magic,v 1.4 1994/03/18 03:09:49 rgrimes Exp $
 #
 set_tmp_dir()
 {
@@ -246,7 +246,18 @@ extract()
 	#from there... even uglier.. we CAN NOT LOAD libc.so.1.0 from the tar
 	#balls or it spams tar!!
 	cp -p /bin/cat /usr/bin/gunzip /usr/bin/tar /tmp
-	
+
+	#XXX more ugly hacks to get around busy text files/symlink problems.
+	if [ X"$1" = X"bin" ]; then
+		rm -f /bin/sh.$$ /sbin/init.$$ /etc/termcap.$$
+		mv /bin/sh /bin/sh.$$
+		mv /sbin/init /sbin/init.$$
+		mv /etc/termcap /etc/termcap.$$
+	fi
+	if [ X"$1" = X"des" ]; then
+		rm -f /sbin/init.$$
+		mv /sbin/init /sbin/init.$$
+	fi
 	for i in $*; do
 		/tmp/cat "$i"* | 
 		/tmp/gunzip |
