@@ -490,16 +490,16 @@ ioctl(td, uap)
 	fdp = td->td_proc->p_fd;
 	switch (com = uap->com) {
 	case FIONCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
 		mtx_unlock(&Giant);
 		return (0);
 	case FIOCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
 		mtx_unlock(&Giant);
 		return (0);
@@ -650,11 +650,11 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 * even if none of the file descriptors we poll requires Giant.
 	 */
 	mtx_lock(&Giant);
-	FILEDESC_LOCK(fdp);
+	FILEDESC_LOCK_FAST(fdp);
 
 	if (nd > td->td_proc->p_fd->fd_nfiles)
 		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the

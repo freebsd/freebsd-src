@@ -99,6 +99,9 @@ struct filedesc_to_leader {
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
 #define	FILEDESC_LOCK_DESC	"filedesc structure"
 
+#define	FILEDESC_LOCK_FAST(fd)		FILEDESC_LOCK(fd);
+#define	FILEDESC_UNLOCK_FAST(fd)	FILEDESC_UNLOCK(fd);
+
 struct thread;
 
 int	closef(struct file *fp, struct thread *td);
