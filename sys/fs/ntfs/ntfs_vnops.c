@@ -270,14 +270,12 @@ ntfs_strategy(ap)
 	} */ *ap;
 {
 	register struct buf *bp = ap->a_bp;
-	register struct vnode *vp = bp->b_vp;
+	register struct vnode *vp = ap->a_vp;
 	register struct fnode *fp = VTOF(vp);
 	register struct ntnode *ip = FTONT(fp);
 	struct ntfsmount *ntmp = ip->i_mp;
 	int error;
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	dprintf(("ntfs_strategy: offset: %d, blkno: %d, lblkno: %d\n",
 		(u_int32_t)bp->b_offset,(u_int32_t)bp->b_blkno,
 		(u_int32_t)bp->b_lblkno));

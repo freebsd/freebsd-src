@@ -1772,15 +1772,11 @@ msdosfs_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
-	struct denode *dep = VTODE(bp->b_vp);
 	struct vnode *vp;
+	struct denode *dep = VTODE(ap->a_vp);
 	int error = 0;
 	daddr_t blkno;
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
-	if (bp->b_vp->v_type == VBLK || bp->b_vp->v_type == VCHR)
-		panic("msdosfs_strategy: spec");
 	/*
 	 * If we don't already know the filesystem relative block number
 	 * then get it using pcbmap().  If pcbmap() returns the block

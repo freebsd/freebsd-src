@@ -103,8 +103,7 @@ ext2_checkoverlap(bp, ip)
 	start = bp->b_blkno;
 	last = start + btodb(bp->b_bcount) - 1;
 	for (ep = buf; ep < ebp; ep++) {
-		if (ep == bp || (ep->b_flags & B_INVAL) ||
-		    ep->b_vp == NULLVP)
+		if (ep == bp || (ep->b_flags & B_INVAL))
 			continue;
 		vp = ip->i_devvp;
 		/* look for overlap */
