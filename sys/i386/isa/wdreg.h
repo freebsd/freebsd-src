@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.25 1999/01/17 05:46:24 bde Exp $
+ *	$Id: wdreg.h,v 1.26 1999/04/13 20:22:32 peter Exp $
  */
 
 /*
@@ -130,7 +130,11 @@
 #define	WDCC_READP	0xEC		/* read parameters from controller */
 #define	WDCC_FEATURES	0xEF		/* features control */
 
+#define WDCC_DEFECT     0xF0            /* read defect list */
+
+#define	WDFEA_NORCACHE	0x55		/* read cache disable */
 #define	WDFEA_RCACHE	0xAA		/* read cache enable */
+#define WDFEA_NOWCACHE	0x82		/* write cache disable */
 #define WDFEA_WCACHE	0x02		/* write cache enable */
 #define WDFEA_SETXFER	0x03		/* set transfer mode */
 
@@ -147,78 +151,81 @@ struct wdparams {
 	/*
 	 * XXX partly based on DRAFT X3T13/1153D rev 14.  
 	 * by the time you read this it will have changed.
+	 * Offsets in words
+	 * (as that's how they are usually presented in tables
+	 * e.g. QUANTUM Product manuals)
 	 */
 	/* drive info */
-	short	wdp_config;		/* general configuration bits */
-	u_short	wdp_cylinders;		/* number of cylinders */
-	short	wdp_reserved2;
-	u_short	wdp_heads;		/* number of heads */
-	short	wdp_unfbytespertrk;	/* number of unformatted bytes/track */
-	short	wdp_unfbytes;		/* number of unformatted bytes/sector */
-	u_short	wdp_sectors;		/* number of sectors per track */
-	short	wdp_vendorunique[3];
+	short	wdp_config;		/*0 general configuration bits */
+	u_short	wdp_cylinders;		/*1 number of cylinders */
+	short	wdp_reserved2;		/*2*/
+	u_short	wdp_heads;		/*3 number of heads */
+	short	wdp_unfbytespertrk;	/*4 number of unformatted bytes/track */
+	short	wdp_unfbytes;		/*5 number of unformatted bytes/sec */
+	u_short	wdp_sectors;		/*6 number of sectors per track */
+	short	wdp_vendorunique[3];	/*7,8,9*/
 	/* controller info */
-	char	wdp_serial[20];		/* serial number */
-	short	wdp_buffertype;		/* buffer type */
+	char	wdp_serial[20];		/*10-19 serial number */
+	short	wdp_buffertype;		/*20 buffer type */
 #define	WDTYPE_SINGLEPORTSECTOR	1	 /* single port, single sector buffer */
 #define	WDTYPE_DUALPORTMULTI	2	 /* dual port, multiple sector buffer */
 #define	WDTYPE_DUALPORTMULTICACHE 3	 /* above plus track cache */
-	short	wdp_buffersize;		/* buffer size, in 512-byte units */
-	short	wdp_necc;		/* ecc bytes appended */
-	char	wdp_rev[8];		/* firmware revision */
-	char	wdp_model[40];		/* model name */
-	char	wdp_nsecperint;		/* sectors per interrupt */
-	char	wdp_vendorunique1;
-	short	wdp_usedmovsd;		/* can use double word read/write? */
-	char	wdp_vendorunique2;
-	char	wdp_capability;		/* various capability bits */
-	short	wdp_cap_validate;	/* validation for above */
-	char	wdp_vendorunique3;
-	char	wdp_opiomode;		/* PIO modes 0-2 */
-	char	wdp_vendorunique4;
-	char	wdp_odmamode;		/* old DMA modes, not in ATA-3 */
-	short	wdp_atavalid;		/* validation for newer fields */
-	short	wdp_currcyls;
-	short	wdp_currheads;
-	short	wdp_currsectors;
-	short	wdp_currsize0;
-	short	wdp_currsize1;
-	char	wdp_currmultsect;
-	char	wdp_multsectvalid;
-	int	wdp_lbasize;
-	short	wdp_dmasword;		/* obsolete in ATA-3 */
-	short	wdp_dmamword;		/* multiword DMA modes */
-	short	wdp_eidepiomodes;	/* advanced PIO modes */
-	short	wdp_eidedmamin;		/* fastest possible DMA timing */
-	short	wdp_eidedmanorm;	/* recommended DMA timing */
-	short	wdp_eidepioblind;	/* fastest possible blind PIO */
-	short	wdp_eidepioacked;	/* fastest possible IORDY PIO */
-	short	wdp_reserved69;
-	short	wdp_reserved70;
-	short	wdp_reserved71;
-	short	wdp_reserved72;
-	short	wdp_reserved73;
-	short	wdp_reserved74;
-	short	wdp_queuelen;
-	short	wdp_reserved76;
-	short	wdp_reserved77;
-	short	wdp_reserved78;
-	short	wdp_reserved79;
-	short	wdp_versmaj;
-	short	wdp_versmin;
-	short	wdp_featsupp1;
-	short	wdp_featsupp2;
-	short	wdp_featsupp3;
-	short	wdp_featenab1;
-	short	wdp_featenab2;
-	short	wdp_featenab3;
-	short	wdp_udmamode;		/* UltraDMA modes */
-	short	wdp_erasetime;
-	short	wdp_enherasetime;
-	short	wdp_apmlevel;
-	short	wdp_reserved92[34];
-	short	wdp_rmvcap;
-	short	wdp_securelevel;
+	short	wdp_buffersize;		/*21 buffer size, in 512-byte units */
+	short	wdp_necc;		/*22 ecc bytes appended */
+	char	wdp_rev[8];		/*23-26 firmware revision */
+	char	wdp_model[40];		/*27-46 model name */
+	char	wdp_nsecperint;		/*47L sectors per interrupt */
+	char	wdp_vendorunique1;	/*47H*/
+	short	wdp_usedmovsd;		/*48 can use double word read/write? */
+	char	wdp_vendorunique2;	/*49L*/
+	char	wdp_capability;		/*49H various capability bits */
+	short	wdp_cap_validate;	/*50 validation for above */
+	char	wdp_vendorunique3;	/*51L*/
+	char	wdp_opiomode;		/*51H PIO modes 0-2 */
+	char	wdp_vendorunique4;	/*52*/
+	char	wdp_odmamode;		/*52 old DMA modes, not in ATA-3 */
+	short	wdp_atavalid;		/*53 validation for newer fields */
+	short	wdp_currcyls;		/*54 */
+	short	wdp_currheads;		/*55 */
+	short	wdp_currsectors;	/*56 */
+	short	wdp_currsize0;		/*57 CHS size*/
+	short	wdp_currsize1;		/*58 CHS size*/
+	char	wdp_currmultsect;	/*59L */
+	char	wdp_multsectvalid;	/*59H */
+	int	wdp_lbasize;		/*60,61*/
+	short	wdp_dmasword;		/*62 obsolete in ATA-3 */
+	short	wdp_dmamword;		/*63 multiword DMA modes */
+	short	wdp_eidepiomodes;	/*64 advanced PIO modes */
+	short	wdp_eidedmamin;		/*65 fastest possible DMA timing */
+	short	wdp_eidedmanorm;	/*66 recommended DMA timing */
+	short	wdp_eidepioblind;	/*67 fastest possible blind PIO */
+	short	wdp_eidepioacked;	/*68 fastest possible IORDY PIO */
+	short	wdp_reserved69;		/*69*/
+	short	wdp_reserved70;		/*70*/
+	short	wdp_reserved71;		/*71*/
+	short	wdp_reserved72;		/*72*/
+	short	wdp_reserved73;		/*73*/
+	short	wdp_reserved74;		/*74*/
+	short	wdp_queuelen;		/*75*/
+	short	wdp_reserved76;		/*76*/
+	short	wdp_reserved77;		/*77*/
+	short	wdp_reserved78;		/*78*/
+	short	wdp_reserved79;		/*79*/
+	short	wdp_versmaj;		/*80*/
+	short	wdp_versmin;		/*81*/
+	short	wdp_featsupp1;		/*82*/
+	short	wdp_featsupp2;		/*83*/
+	short	wdp_featsupp3;		/*84*/
+	short	wdp_featenab1;		/*85*/
+	short	wdp_featenab2;		/*86*/
+	short	wdp_featenab3;		/*87*/
+	short	wdp_udmamode;		/*88 UltraDMA modes */
+	short	wdp_erasetime;		/*89*/
+	short	wdp_enherasetime;	/*90*/
+	short	wdp_apmlevel;		/*91*/
+	short	wdp_reserved92[34];	/*92*/
+	short	wdp_rmvcap;		/*93*/
+	short	wdp_securelevel;	/*94*/
 };
 
 /*
