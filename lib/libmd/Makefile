@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1997/02/22 15:07:10 peter Exp $
+#	$Id: Makefile,v 1.24 1997/09/05 11:49:43 peter Exp $
 
 LIB=	md
 .if ${BINFORMAT} != elf
@@ -81,8 +81,6 @@ test:	md2.ref md4.ref md5.ref
 	./mddriver | cmp md5.ref -
 	@${ECHO} MD5 passed test
 	-rm -f mddriver
-
-beforedepend:	md2hl.c md4hl.c md5hl.c
 
 beforeinstall:
 .for i in md2.h md4.h md5.h
