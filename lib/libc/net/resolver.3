@@ -42,7 +42,12 @@
 .Nm res_send ,
 .Nm res_init ,
 .Nm dn_comp ,
-.Nm dn_expand
+.Nm dn_expand ,
+.Nm dn_skipname ,
+.Nm ns_get16 ,
+.Nm ns_get32 ,
+.Nm ns_put16 ,
+.Nm ns_put32
 .Nd resolver routines
 .Sh LIBRARY
 .Lb libc
@@ -88,6 +93,7 @@
 .Fc
 .Ft int
 .Fn res_init 
+.Ft int
 .Fo dn_comp
 .Fa "const char *exp_dn"
 .Fa "u_char *comp_dn"
@@ -103,6 +109,16 @@
 .Fa "char *exp_dn"
 .Fa "int length"
 .Fc
+.Ft int
+.Fn dn_skipname "const u_char *comp_dn" "const u_char *eom"
+.Ft u_int
+.Fn ns_get16 "const u_char *src"
+.Ft u_long
+.Fn ns_get32 "const u_char *src"
+.Ft void
+.Fn ns_put16 "u_int src" "u_char *dst"
+.Ft void
+.Fn ns_put32 "u_long src" "u_char *dst"
 .Sh DESCRIPTION
 These routines are used for making, sending and interpreting
 query and reply messages with Internet domain name servers.
@@ -343,6 +359,41 @@ The uncompressed name is placed in the buffer indicated by
 which is of size
 .Fa length .
 The size of compressed name is returned or \-1 if there was an error.
+.Pp
+The
+.Fn dn_skipname
+function skips over a compressed domain name, which starts at a location
+pointed to by
+.Fa comp_dn .
+The compressed name is contained in a query or reply message;
+.Fa eom
+is a pointer to the end of the message.
+The size of compressed name is returned or \-1 if there was
+an error.
+.Pp
+The
+.Fn ns_get16
+function gets a 16-bit quantity from a buffer pointed to by
+.Fa src .
+.Pp
+The
+.Fn ns_get32
+function gets a 32-bit quantity from a buffer pointed to by
+.Fa src .
+.Pp
+The
+.Fn ns_put16
+function puts a 16-bit quantity
+.Fa src
+to a buffer pointed to by
+.Fa dst .
+.Pp
+The
+.Fn ns_put32
+function puts a 32-bit quantity
+.Fa src
+to a buffer pointed to by
+.Fa dst .
 .Sh FILES
 .Bl -tag -width /etc/resolv.conf
 .It Pa /etc/resolv.conf
