@@ -9,11 +9,12 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266.4.5 2003/03/12 22:42:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.7 2003/09/03 21:32:20 ca Exp $")
 
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
 static int	priencode __P((char *));
@@ -140,7 +141,10 @@ chompheader(line, pflag, hdrp, e)
 
 			mid = (unsigned char) macid(p);
 			if (bitset(0200, mid))
+			{
 				p += strlen(macname(mid)) + 2;
+				SM_ASSERT(p <= q);
+			}
 			else
 				p++;
 
@@ -315,6 +319,7 @@ hse:
 			qval[l++] = '"';
 
 			/* - 3 to avoid problems with " at the end */
+			/* should be sizeof(qval), not MAXNAME */
 			for (k = 0; fvalue[k] != '\0' && l < MAXNAME - 3; k++)
 			{
 				switch (fvalue[k])
@@ -1175,7 +1180,7 @@ crackaddr(addr, e)
 		else if (c == ')')
 		{
 			/* syntax error: unmatched ) */
-			if (copylev > 0 && SM_HAVE_ROOM)
+			if (copylev > 0 && SM_HAVE_ROOM && bp > bufhead)
 				bp--;
 		}
 
@@ -1349,7 +1354,7 @@ crackaddr(addr, e)
 			else if (SM_HAVE_ROOM)
 			{
 				/* syntax error: unmatched > */
-				if (copylev > 0)
+				if (copylev > 0 && bp > bufhead)
 					bp--;
 				quoteit = true;
 				continue;
@@ -1693,6 +1698,12 @@ put_vanilla_header(h, v, mci)
 		int l;
 
 		l = nlp - v;
+
+		/*
+		**  XXX This is broken for SPACELEFT()==0
+		**  However, SPACELEFT() is always > 0 unless MAXLINE==1.
+		*/
+
 		if (SPACELEFT(obuf, obp) - 1 < (size_t) l)
 			l = SPACELEFT(obuf, obp) - 1;
 
@@ -1703,6 +1714,8 @@ put_vanilla_header(h, v, mci)
 		if (*v != ' ' && *v != '\t')
 			*obp++ = ' ';
 	}
+
+	/* XXX This is broken for SPACELEFT()==0 */
 	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
 			   (int) (SPACELEFT(obuf, obp) - 1), v);
 	putxline(obuf, strlen(obuf), mci, putflags);
@@ -1737,6 +1750,7 @@ commaize(h, p, oldstyle, mci, e)
 	int omax;
 	bool firstone = true;
 	int putflags = PXLF_HEADER;
+	char **res;
 	char obuf[MAXLINE + 3];
 
 	/*
@@ -1753,6 +1767,8 @@ commaize(h, p, oldstyle, mci, e)
 	obp = obuf;
 	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
 			h->h_field);
+
+	/* opos = strlen(obp); */
 	opos = strlen(h->h_field) + 2;
 	if (opos > 202)
 		opos = 202;
@@ -1785,14 +1801,23 @@ commaize(h, p, oldstyle, mci, e)
 		while ((isascii(*p) && isspace(*p)) || *p == ',')
 			p++;
 		name = p;
+		res = NULL;
 		for (;;)
 		{
 			auto char *oldp;
 			char pvpbuf[PSBUFSIZE];
 
-			(void) prescan(p, oldstyle ? ' ' : ',', pvpbuf,
-				       sizeof pvpbuf, &oldp, NULL);
+			res = prescan(p, oldstyle ? ' ' : ',', pvpbuf,
+				      sizeof pvpbuf, &oldp, NULL);
 			p = oldp;
+#if _FFR_IGNORE_BOGUS_ADDR
+			/* ignore addresses that can't be parsed */
+			if (res == NULL)
+			{
+				name = p;
+				continue;
+			}
+#endif /* _FFR_IGNORE_BOGUS_ADDR */
 
 			/* look to see if we have an at sign */
 			while (*p != '\0' && isascii(*p) && isspace(*p))
@@ -1815,6 +1840,15 @@ commaize(h, p, oldstyle, mci, e)
 			p--;
 		if (++p == name)
 			continue;
+
+		/*
+		**  if prescan() failed go a bit backwards; this is a hack,
+		**  there should be some better error recovery.
+		*/
+
+		if (res == NULL && p > name &&
+		    !((isascii(*p) && isspace(*p)) || *p == ',' || *p == '\0'))
+			--p;
 		savechar = *p;
 		*p = '\0';
 
@@ -1858,7 +1892,7 @@ commaize(h, p, oldstyle, mci, e)
 			(void) sm_strlcpy(obp, ",\n", SPACELEFT(obuf, obp));
 			putxline(obuf, strlen(obuf), mci, putflags);
 			obp = obuf;
-			(void) sm_strlcpy(obp, "        ", sizeof obp);
+			(void) sm_strlcpy(obp, "        ", sizeof obuf);
 			opos = strlen(obp);
 			obp += opos;
 			opos += strlen(name);
@@ -1874,7 +1908,10 @@ commaize(h, p, oldstyle, mci, e)
 		firstone = false;
 		*p = savechar;
 	}
-	*obp = '\0';
+	if (obp < &obuf[sizeof obuf])
+		*obp = '\0';
+	else
+		obuf[sizeof obuf - 1] = '\0';
 	putxline(obuf, strlen(obuf), mci, putflags);
 }
 /*
@@ -1946,6 +1983,7 @@ fix_mime_header(h, e)
 		return 0;
 
 	/* Split on each ';' */
+	/* find_character() never returns NULL */
 	while ((end = find_character(begin, ';')) != NULL)
 	{
 		char save = *end;
