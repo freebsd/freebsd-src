@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_getmaps.c 1.10 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_getmaps.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_getmaps.c,v 1.3 1995/10/22 14:51:29 phk Exp $";
+static char *rcsid = "$Id: pmap_getmaps.c,v 1.4 1996/06/10 00:49:17 jraynard Exp $";
 #endif
 
 /*
@@ -79,7 +79,8 @@ pmap_getmaps(address)
 		}
 		CLNT_DESTROY(client);
 	}
-	(void)close(socket);
+	if (socket != -1)
+		(void)close(socket);
 	address->sin_port = 0;
 	return (head);
 }
