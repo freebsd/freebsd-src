@@ -165,28 +165,25 @@ int nfsrvv2_procid[NFS_NPROCS] = {
 
 /*
  * Maps errno values to nfs error numbers.
- * Use NFSERR_IO as the catch all for ones not specifically defined in
- * RFC 1094.
+ * Use 0 (which gets converted to NFSERR_IO) as the catch all for ones not
+ * specifically defined in RFC 1094.
  */
 static u_char nfsrv_v2errmap[ELAST] = {
-  NFSERR_PERM,	NFSERR_NOENT,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_NXIO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_ACCES,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_EXIST,	NFSERR_IO,	NFSERR_NODEV,	NFSERR_NOTDIR,
-  NFSERR_ISDIR,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_FBIG,	NFSERR_NOSPC,	NFSERR_IO,	NFSERR_ROFS,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_NAMETOL,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_NOTEMPTY, NFSERR_IO,	NFSERR_IO,	NFSERR_DQUOT,	NFSERR_STALE,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO /* << Last is 86 */
+  NFSERR_PERM,	NFSERR_NOENT,	0,		0,		0,	
+  NFSERR_NXIO,	0,		0,		0,		0,	
+  0,		0,		NFSERR_ACCES,	0,		0,	
+  0,		NFSERR_EXIST,	0,		NFSERR_NODEV,	NFSERR_NOTDIR,
+  NFSERR_ISDIR,	0,		0,		0,		0,	
+  0,		NFSERR_FBIG,	NFSERR_NOSPC,	0,		NFSERR_ROFS,
+  0,		0,		0,		0,		0,	
+  0,		0,		0,		0,		0,	
+  0,		0,		0,		0,		0,	
+  0,		0,		0,		0,		0,	
+  0,		0,		0,		0,		0,	
+  0,		0,		0,		0,		0,	
+  0,		0,		NFSERR_NAMETOL,	0,		0,	
+  NFSERR_NOTEMPTY, 0,		0,		NFSERR_DQUOT,	NFSERR_STALE,
+  0
 };
 
 /*
@@ -1150,6 +1147,7 @@ int
 nfsrv_errmap(struct nfsrv_descript *nd, int err)
 {
 	short *defaulterrp, *errp;
+	int e;
 
 	if (nd->nd_flag & ND_NFSV3) {
 	    if (nd->nd_procnum <= NFSPROC_COMMIT) {
@@ -1164,8 +1162,11 @@ nfsrv_errmap(struct nfsrv_descript *nd, int err)
 	    } else
 		return (err & 0xffff);
 	}
+	e = 0;
 	if (err <= ELAST)
-		return ((int)nfsrv_v2errmap[err - 1]);
+		e = nfsrv_v2errmap[err - 1];
+	if (e != 0)
+		return (e);
 	return (NFSERR_IO);
 }
 
