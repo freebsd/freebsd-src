@@ -268,10 +268,14 @@ notfound:
 		errno = save_errno ? save_errno : ENOENT;
 	/* FALLTHROUGH */
 err:
+	save_errno = errno;
+
 	if (ptsize)
 		free(pt);
 	if (dir)
 		(void) closedir(dir);
 	free(up);
+
+	errno = save_errno;
 	return (NULL);
 }
