@@ -1735,7 +1735,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		 * So we use pseudo random IV for now, though it is not the
 		 * right way.
 		 */
-		iv = arc4random();
+                iv = ic->ic_iv;
+		/*
+		 * Skip 'bad' IVs from Fluhrer/Mantin/Shamir:
+		 * (B, 255, N) with 3 <= B < 8
+		 */
+		if (iv >= 0x03ff00 && (iv & 0xf8ff00) == 0x00ff00)
+			iv += 0x000100;
+		ic->ic_iv = iv + 1;
 		for (i = 0; i < IEEE80211_WEP_IVLEN; i++) {
 			ivp[i] = iv;
 			iv >>= 8;
