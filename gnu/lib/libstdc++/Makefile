@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.20 1999/04/25 16:59:54 obrien Exp $
+#	$Id: Makefile,v 1.21 1999/04/25 16:59:54 obrien Exp $
 
-EGCSDIR=	${.CURDIR}/../../../contrib/egcs
+SRCDIR=	${.CURDIR}/../../../contrib/egcs/libstdc++
 
-.PATH: ${EGCSDIR}/libstdc++ ${EGCSDIR}/libstdc++/stl ${EGCSDIR}/libio
+.PATH: ${SRCDIR} ${SRCDIR}/stl ${SRCDIR}/../libio
 
 SUBDIR=	doc
 
@@ -10,9 +10,8 @@ LIB=		stdc++
 SHLIB_MAJOR=	3
 SHLIB_MINOR=	0
 
-CFLAGS+=	-I${.CURDIR} -I${EGCSDIR}/include -I${EGCSDIR}/libio -I.
-CXXFLAGS+=	-I${EGCSDIR}/libstdc++/stl -I${EGCSDIR}/libstdc++ \
-		-I${EGCSDIR}/gcc/cp/inc -I.
+CFLAGS+=	-I${.CURDIR} -I${SRCDIR}/include -I${SRCDIR}/../libio -I.
+CXXFLAGS+=	-I${SRCDIR}/stl -I${SRCDIR} -I${SRCDIR}/../gcc/cp/inc -I.
 CXXFLAGS+=	-nostdinc++ -fno-implicit-templates
 
 LDADD+=		-lm
@@ -71,12 +70,12 @@ SRCS+=	cleanup.c filedoalloc.c fileops.c floatconv.c genops.c iofclose.c \
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/_G_config.h \
-	    ${HDRS:S;^;${EGCSDIR}/libstdc++/;} \
-	    ${IHDRS:S;^;${EGCSDIR}/libio/;} \
-	    ${STLHDRS:S;^;${EGCSDIR}/libstdc++/stl/;} \
+	    ${HDRS:S;^;${SRCDIR}/;} \
+	    ${IHDRS:S;^;${SRCDIR}/../libio/;} \
+	    ${STLHDRS:S;^;${SRCDIR}/stl/;} \
 	    ${DESTDIR}/usr/include/g++
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${SHDRS:S;^;${EGCSDIR}/libstdc++/std/;} \
+	    ${SHDRS:S;^;${SRCDIR}/std/;} \
 	    ${DESTDIR}/usr/include/g++/std
 
 CLEANFILES+=	dummy.h dummy.c dummy.C
@@ -183,7 +182,7 @@ ldcomio.cc: cinst.cc
 make_G_config_h:
 	CC="${CC}" CXX="${CXX}" CONFIG_NM="nm" \
 	    CPP="${CC} -E -nostdinc -idirafter ${DESTDIR}/usr/include" \
-	    sh ${EGCSDIR}/libio/gen-params \
+	    sh ${SRCDIR}/../libio/gen-params \
 	    LIB_VERSION=${SHLIB_MAJOR}.${SHLIB_MINOR}.0 >${.TARGET}
 
 .include <bsd.lib.mk>
