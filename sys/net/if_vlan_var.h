@@ -98,7 +98,8 @@ struct	vlanreq {
 
 #define	VLAN_INPUT_TAG(_ifp, _m, _t, _errcase) do {		\
 	struct m_tag *mtag;					\
-	mtag = vlan_tag_alloc(M_NOWAIT);			\
+	mtag = m_tag_alloc(MTAG_VLAN, MTAG_VLAN_TAG,		\
+			   sizeof (u_int), M_NOWAIT);		\
 	if (mtag == NULL) {					\
 		(_ifp)->if_ierrors++;				\
 		m_freem(_m);					\
@@ -112,8 +113,6 @@ struct	vlanreq {
 	((_ifp)->if_nvlans != 0 ?				\
 		m_tag_locate((_m), MTAG_VLAN, MTAG_VLAN_TAG, NULL) : NULL)
 #define	VLAN_TAG_VALUE(_mt)	(*(u_int *)((_mt)+1))
-
-extern	struct m_tag *vlan_tag_alloc(int flags);
 #endif /* _KERNEL */
 
 #endif /* _NET_IF_VLAN_VAR_H_ */
