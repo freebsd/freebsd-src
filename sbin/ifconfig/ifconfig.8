@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd Nov 2, 2004
+.Dd November 2, 2004
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -330,7 +330,7 @@ Some drivers may not be able to enable these flags independently
 of each other, so setting one may also set the other.
 The driver will offload as much checksum work as it can reliably
 support, the exact level of offloading varies between drivers.
-.It Fl rxcsum , Fl txcsum
+.It Fl rxcsum , txcsum
 If the driver supports user-configurable checksum offloading,
 disable receive (or transmit) checksum offloading on the interface.
 These settings may not always be independent of each other.
@@ -461,7 +461,7 @@ Note that this must be issued on a physical interface associated with
 not on a
 .Xr vlan 4
 interface itself.
-.It Fl vlanmtu , Fl vlanhwtag
+.It Fl vlanmtu , vlanhwtag
 If the driver offers user-configurable VLAN support, disable
 reception of extended frames or tag processing in hardware,
 respectively.
@@ -603,11 +603,11 @@ the hardware will be re-initialized.
 The following parameters are specific to IEEE 802.11 wireless interfaces:
 .Bl -tag -width indent
 .It Cm apbridge
-When operating as an access point pass packets between
+When operating as an access point, pass packets between
 wireless clients directly (default).
 To instead let them pass up through the
-system and be forwarded using some other mechanism use
-.Dq Li -apbridge.
+system and be forwarded using some other mechanism, use
+.Fl apbridge .
 Disabling the internal bridging
 is useful when traffic is to be processed with
 packet filtering.
@@ -618,10 +618,13 @@ The set of
 valid modes is
 .Dq Li none ,
 .Dq Li open ,
-.Dq Li shared (shared key),
-.Dq Li 8021x (IEEE 802.1x),
+.Dq Li shared
+(shared key),
+.Dq Li 8021x
+(IEEE 802.1x),
 or
-.Dq Li wpa (IEEE WPA/WPA2/802.11i).
+.Dq Li wpa
+(IEEE WPA/WPA2/802.11i).
 The
 .Dq Li 8021x
 and
@@ -634,7 +637,7 @@ Modes are case insensitive.
 Specify the MAC address of the access point to use when operating
 as a station in a BSS network.
 This overrides any automatic selection done by the system.
-To disable a previously selected access point supply
+To disable a previously selected access point, supply
 .Dq Li any ,
 .Dq Li none ,
 or
@@ -650,7 +653,7 @@ Set the desired channels to use when scanning for access
 points, neighbors in an IBSS network, or looking for unoccupied
 channels when operating as an access point.
 The set of channels is specified as a comma-separated list with
-each element in the list either a single channel number of a range
+each element in the list representing either a single channel number or a range
 of the form
 .Dq Li a-b .
 Channel numbers must be in the range 1 to 255 and be permissible
@@ -671,18 +674,18 @@ adaptors ignore this setting unless you are in ad-hoc mode.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
 .It Cm hidessid
-When operating as an access point do not broadcast the SSID
+When operating as an access point, do not broadcast the SSID
 in beacon frames.
-By default the SSID is included in beacon frames.
-To re-enable the broadcast of the SSID use
+By default, the SSID is included in beacon frames.
+To re-enable the broadcast of the SSID, use
 .Fl hidessid .
 .It Cm powersave
 Enable powersave operation.
-When operating as a client the station will conserve power by
+When operating as a client, the station will conserve power by
 periodically turning off the radio and listening for
 messages from the access point telling it there are packets waiting.
 The station must then retrieve the packets.
-When operating as an access point the station must honor power
+When operating as an access point, the station must honor power
 save operation of associated clients.
 Not all devices support power save operation, either as a client
 or as an access point.
@@ -707,16 +710,17 @@ Technique names are case insensitive.
 When operating as a station, control how the system will
 behave when communication with the current access point
 is broken.
-.I Mode
-may be one of
+The
+.Ar mode
+argument may be one of
 .Dq Li device
 (leave it to the hardware device to decide),
 .Dq Li auto
-(handle either in the device or the operating system--as appropriate),
+(handle either in the device or the operating system\[em]as appropriate),
 .Dq Li manual
 (do nothing until explicitly instructed).
-By the default the device is left to handle this if it is
-capable; otherwise the operating system will automatically
+By default, the device is left to handle this if it is
+capable; otherwise, the operating system will automatically
 attempt to reestablish communication.
 Manual mode is mostly useful when an application wants to
 control the selection of an access point.
@@ -810,7 +814,7 @@ Enable Wireless Media Extensions (WME) support, if available,
 for the specified interface.
 WME is a subset of the IEEE 802.11e standard to support the
 efficient communication of realtime and multimedia data.
-To disable WME support use
+To disable WME support, use
 .Fl wme .
 .El
 .Pp
