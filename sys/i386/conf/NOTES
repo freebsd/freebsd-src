@@ -1205,7 +1205,7 @@ hint.npx.0.irq="13"
 # aha: Adaptec 154x/1535/1640
 # ahc: Adaptec 274x/284x/2910/293x/294x/394x/3950x/3960x/398X/4944/
 #      19160x/29160x, aic7770/aic78xx
-# aic: Adaptec 6260/6360
+# aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
 # amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
 #      such as the Tekram DC-390(T).
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
@@ -1276,14 +1276,23 @@ device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
 
 #
-# The 'ATA' driver supports all ATA and ATAPI devices.
-# You only need one "device ata" for it to find all
-# PCI ATA/ATAPI devices on modern machines.
+# The 'ATA' driver supports all ATA and ATAPI devices, including PC Card
+# devices. You only need one "device ata" for it to find all
+# PCI and PC Card ATA/ATAPI devices on modern machines.
 device		ata
 device		atadisk		# ATA disk drives
 device		atapicd		# ATAPI CDROM drives
 device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
+
+#
+# For older non-PCI, non-PnPBIOS systems, these are the hints lines to add:
+hint.ata.0.at="isa"
+hint.ata.0.port="0x1f0"
+hint.ata.0.irq="14"
+hint.ata.1.at="isa"
+hint.ata.1.port="0x170"
+hint.ata.1.irq="15"
 
 #
 # The following options are valid on the ATA driver:
@@ -1298,16 +1307,8 @@ options 	ATA_STATIC_ID
 options 	ATA_ENABLE_ATAPI_DMA
 
 #
-# For older non-PCI, non-PnPBIOS systems, these are the hints lines to add:
-hint.ata.0.at="isa"
-hint.ata.0.port="0x1f0"
-hint.ata.0.irq="14"
-hint.ata.1.at="isa"
-hint.ata.1.port="0x170"
-hint.ata.1.irq="15"
-
-#
-# Standard floppy disk controllers and floppy tapes:
+# Standard floppy disk controllers and floppy tapes, supports
+# the Y-E DATA External FDD (PC Card)
 #
 device		fdc
 hint.fdc.0.at="isa"
@@ -1339,7 +1340,8 @@ hint.fla.0.at="isa"
 # Other standard PC hardware:
 #
 # mse: Logitech and ATI InPort bus mouse ports
-# sio: serial ports (see sio(4))
+# sio: serial ports (see sio(4)), including support for various
+#      PC Card devices, such as Modem and NICs (see etc/defaults/pccard.conf)
 
 device		mse
 hint.mse.0.at="isa"
@@ -1406,6 +1408,8 @@ device		miibus
 #       PCI and ISA varieties.
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
+#       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
 # cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
@@ -1421,9 +1425,12 @@ device		miibus
 #       KNE110TX.
 # de:   Digital Equipment DC21040
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
+#       HP PC Lan+, various PC Card devices (refer to etc/defauls/pccard.conf)
 # el:   3Com 3C501 (slow!)
 # ep:   3Com 3C509, 3C529, 3C556, 3C562D, 3C563D, 3C572, 3C574X, 3C579, 3C589
-# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters
+#       and PC Card devices using these chipsets.
+# ex:   Intel EtherExpress Pro/10 and other i82595-based adapters,
+#       Olicom Ethernet PC Card devices.
 # fe:   Fujitsu MB86960A/MB86965A Ethernet
 # fea:  DEC DEFEA EISA FDDI adapter
 # fpa:  Support for the Digital DEFPA PCI FDDI. `device fddi' is also needed.
@@ -1460,6 +1467,8 @@ device		miibus
 #       (also single mode and multimode).
 #       The driver will autodetect the number of ports on the card and
 #       attach each one as a separate network interface.
+# sn:   Support for ISA and PC Card Ethernet devices using the
+#       SMC91C90/92/94/95 chips.
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ste:  Sundance Technologies ST201 PCI fast ethernet controller, includes
 #       the D-Link DFE-550TX.
@@ -1486,7 +1495,9 @@ device		miibus
 #       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #       bridge with a PCMCIA adapter plugged into it.
 # wx:   Intel Gigabit Ethernet PCI card (`Wiseman')
-# xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller.
+# xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller,
+#       Accton Fast EtherCard-16, Compaq Netelligent 10/100 PC Card,
+#       Toshiba 10/100 Ethernet PC Card, Xircom 16-bit Ethernet + Modem 56
 # xl:   Support for the 3Com 3c900, 3c905, 3c905B and 3c905C (Fast)
 #       Etherlink XL cards and integrated controllers.  This includes the
 #       integrated 3c905B-TX chips in certain Dell Optiplex and Dell
@@ -1722,10 +1733,10 @@ hint.pca.0.port="0x040"
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # dgm: Digiboard PC/Xem driver
-# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
+# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
-# joy: joystick
+# joy: joystick (including IO DATA PCJOY PC Card joystick)
 # labpc: National Instrument's Lab-PC and Lab-PC+
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA) - single card
@@ -1971,7 +1982,7 @@ device		meteor	1
 device		bktr	1
 
 #
-# PCCARD/PCMCIA
+# PC Card/PCMCIA
 #
 # card: pccard slots
 # pcic: isa/pccard bridge
