@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.34 1997/07/18 21:27:52 fsmp Exp $
+ *	$Id: db_interface.c,v 1.35 1997/07/20 08:37:17 bde Exp $
  */
 
 /*
@@ -254,14 +254,23 @@ db_write_bytes(addr, size, data)
 	    ptep0 = pmap_pte(kernel_pmap, addr);
 	    oldmap0 = *ptep0;
 	    *ptep0 |= PG_RW;
+	    if ((*ptep0 & PG_PS) == 0) {
 
-	    addr1 = trunc_page(addr + size - 1);
+	    	addr1 = trunc_page(addr + size - 1);
 
-	    /* Map another page if the data crosses a page boundary. */
-	    if (trunc_page(addr) != addr1) {
-		ptep1 = pmap_pte(kernel_pmap, addr1);
-		oldmap1 = *ptep1;
-		*ptep1 |= PG_RW;
+	    	/* Map another page if the data crosses a page boundary. */
+	    	if (trunc_page(addr) != addr1) {
+		    ptep1 = pmap_pte(kernel_pmap, addr1);
+		    oldmap1 = *ptep1;
+		    *ptep1 |= PG_RW;
+	    	}
+	    } else {
+		addr1 = trunc_4mpage(addr + size - 1);
+		if (trunc_4mpage(addr) != addr1) {
+		    ptep1 = pmap_pte(kernel_pmap, addr1);
+		    oldmap1 = *ptep1;
+		    *ptep1 |= PG_RW;
+		}
 	    }
 
 	    invltlb();
