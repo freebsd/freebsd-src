@@ -150,7 +150,8 @@ static struct kern_devconf kdc_lnc = {
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
 	DC_UNCONFIGURED,
-	""
+	"",
+	DC_CLS_NETIF
 };
 
 inline void

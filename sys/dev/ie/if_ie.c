@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.21 1995/03/19 14:28:45 davidg Exp $
+ *	$Id: if_ie.c,v 1.22 1995/03/28 07:55:31 bde Exp $
  */
 
 /*
@@ -314,18 +314,18 @@ static struct kern_devconf kdc_ie[NIE] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* network interfaces are always ``busy'' */
-	""
+	DC_UNCONFIGURED,	/* state */
+	"Ethernet adapter",	/* description */
+	DC_CLS_NETIF		/* class */
 } };
 
 static inline void
-ie_registerdev(struct isa_device *id, const char *descr)
+ie_registerdev(struct isa_device *id)
 {
 	if(id->id_unit)
 		kdc_ie[id->id_unit] = kdc_ie[0];
 	kdc_ie[id->id_unit].kdc_unit = id->id_unit;
 	kdc_ie[id->id_unit].kdc_isa = id;
-	kdc_ie[id->id_unit].kdc_description = descr;
 	dev_attach(&kdc_ie[id->id_unit]);
 }
 
@@ -334,6 +334,8 @@ int ieprobe(dvp)
      struct isa_device *dvp;
 {
   int ret;
+
+  ie_registerdev(dvp);
 
   ret = sl_probe(dvp);
   if(!ret) ret = el_probe(dvp);
@@ -591,7 +593,7 @@ ieattach(dvp)
 #endif
 
   if_attach(ifp);
-  ie_registerdev(dvp, ie_hardware_names[ie_softc[unit].hard_type]);
+  kdc_ie[unit].kdc_description = ie_hardware_names[ie_softc[unit].hard_type];
 
   {
     struct ifaddr *ifa = ifp->if_addrlist;

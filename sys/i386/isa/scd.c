@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.1 1995/03/24 18:33:00 jkh Exp $ */
+/* $Id: scd.c,v 1.2 1995/03/25 18:14:37 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -194,8 +194,9 @@ static struct kern_devconf kdc_scd[NSCD] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_IDLE,		/* status */
-	"Sony CD-ROM drive"     /* properly filled later */
+	DC_UNCONFIGURED,	/* status */
+	"Sony CD-ROM drive",	/* properly filled later */
+	DC_CLS_RDISK		/* class */
 } };
 
 static inline void
@@ -215,7 +216,7 @@ int scd_attach(struct isa_device *dev)
 	
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
-	scd_registerdev(dev);
+	kdc_scd[dev->id_unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
 	kdc_scd[dev->id_unit].kdc_description = scd_data[dev->id_unit].name;
 	printf("scd%d: <%s>\n", dev->id_unit, scd_data[dev->id_unit].name);
@@ -708,6 +709,8 @@ scd_probe(struct isa_device *dev)
 	scd_data[unit].iobase = dev->id_iobase;
 
 	bzero(&drive_config, sizeof(drive_config));
+
+	scd_registerdev(dev);
 
 again:
 	/* Reset drive */

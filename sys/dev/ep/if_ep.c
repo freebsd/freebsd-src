@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.13 1995/04/10 07:54:34 root Exp root $
+ *  $Id: if_ep.c,v 1.25 1995/04/10 21:24:58 jkh Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -132,13 +132,14 @@ struct isa_driver epdriver = {
 };
 
 static struct kern_devconf kdc_ep[NEP] = { {
-      0, 0, 0,                /* filled in by dev_attach */
+      0, 0, 0,			/* filled in by dev_attach */
       "ep", 0, { MDDT_ISA, 0, "net" },
       isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-      &kdc_isa0,              /* parent */
-      0,                      /* parentdata */
-      DC_BUSY,                /* network interfaces are always ``open'' */
-      "3Com 3C509 Ethernet adapter"
+      &kdc_isa0,		/* parent */
+      0,			/* parentdata */
+      DC_UNCONFIGURED,		/* state */
+      "3Com 3C509 Ethernet adapter",
+      DC_CLS_NETIF		/* class */
 } };
 
 static inline void
@@ -305,6 +306,8 @@ epprobe(is)
     u_short k;
     int i;
 
+    ep_registerdev(is);
+
     if (!ep_look_for_board_at(is))
 	return (0);
     /*
@@ -429,7 +432,7 @@ epattach(is)
 	ifp->if_timer=1;
 
     if_attach(ifp);
-    ep_registerdev(is);
+    kdc_ep[is->id_unit].kdc_state = DC_BUSY;
 
     /*
      * Fill the hardware address into ifa_addr if we find an AF_LINK entry.

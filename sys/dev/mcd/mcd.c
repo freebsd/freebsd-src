@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.39 1995/02/23 17:40:16 ache Exp $
+ *	$Id: mcd.c,v 1.40 1995/03/28 07:55:42 bde Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -223,8 +223,9 @@ static struct kern_devconf kdc_mcd[NMCD] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_IDLE,		/* status */
-	"Mitsumi CD-ROM controller"     /* properly filled later */
+	DC_UNCONFIGURED,	/* status */
+	"Mitsumi CD-ROM controller", /* properly filled later */
+	DC_CLS_RDISK
 } };
 
 static inline void
@@ -250,7 +251,7 @@ int mcd_attach(struct isa_device *dev)
 	/* wire controller for interrupts and dma */
 	mcd_configure(cd);
 #endif
-	mcd_registerdev(dev);
+	kdc_mcd[dev->id_unit].kdc_state = DC_IDLE;
 	/* name filled in probe */
 	kdc_mcd[dev->id_unit].kdc_description = mcd_data[dev->id_unit].name;
 
@@ -702,6 +703,7 @@ mcd_probe(struct isa_device *dev)
 	int status;
 	unsigned char stbytes[3];
 
+	mcd_registerdev(dev);
 	mcd_data[unit].flags = MCDPROBING;
 
 #ifdef NOTDEF

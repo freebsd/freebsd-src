@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.67 1995/02/26 20:03:53 davidg Exp $
+ * $Id: if_ed.c,v 1.68 1995/03/16 18:12:01 bde Exp $
  */
 
 #include "ed.h"
@@ -180,8 +180,9 @@ static struct kern_devconf kdc_ed_template = {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNCONFIGURED,
-	""			/* description */
+	DC_UNCONFIGURED,	/* state */
+	"",			/* description */
+	DC_CLS_NETIF		/* class */
 };
 
 static inline void
@@ -211,7 +212,9 @@ ed_probe(isa_dev)
 {
 	int     nports;
 
+#ifndef DEV_LKM
 	ed_registerdev(isa_dev, "Ethernet adapter");
+#endif /* not DEV_LKM */
 
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)

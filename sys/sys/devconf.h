@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.3 1994/10/23 21:28:03 wollman Exp $
+ *	$Id: devconf.h,v 1.4 1995/03/17 04:18:07 davidg Exp $
  */
 
 /*
@@ -46,6 +46,32 @@ enum dc_state {
 	DC_BUSY			/* driver supports state and is currently busy */
 };
 
+#define DC_STATENAMES \
+	{ \
+	    "unknown", "unconfigured", "idle", "busy" \
+	}
+
+enum dc_class {
+	DC_CLS_UNKNOWN = 0,	/* old drivers don't set class */
+	DC_CLS_CPU = 1,		/* CPU devices */
+	DC_CLS_BUS = 2,		/* busses */
+	DC_CLS_DISK = 4,	/* disks */
+	DC_CLS_TAPE = 8,	/* tapes */
+	DC_CLS_RDISK = 16,	/* read-only disks */
+	DC_CLS_DISPLAY = 32,	/* display devices */
+	DC_CLS_SERIAL = 64,	/* serial I/O devices */
+	DC_CLS_PARALLEL = 128,	/* parallel I/O devices */
+	DC_CLS_NETIF = 256,	/* network interfaces */
+	DC_CLS_MISC = 512	/* anything else */
+};
+
+#define DC_CLASSNAMES \
+	{ \
+	    "unknown", "CPU", "bus", "disk", "tape", "read-only disk", \
+	    "display", "serial", "parallel", "network interface", \
+	    "miscellaneous" \
+	}
+
 struct devconf {
 	char dc_name[MAXDEVNAME]; 	/* name */
 	char dc_descr[MAXDEVDESCR];	/* description */
@@ -56,6 +82,7 @@ struct devconf {
 	int dc_pnumber;			/* unique id of the parent */
 	struct machdep_devconf dc_md;	/* machine-dependent stuff */
 	enum dc_state dc_state;		/* state of the device (see above) */
+	enum dc_class dc_class;		/* type of device (see above) */
 	size_t dc_datalen;		/* length of data */
 	char dc_data[1];		/* variable-length data */
 };
@@ -100,6 +127,7 @@ struct kern_devconf {
 	void *kdc_parentdata;			/* filled in by driver */
 	enum dc_state kdc_state; 		/* filled in by driver dynamically */
 	const char *kdc_description; 		/* filled in by driver; maybe dyn. */
+	enum dc_class kdc_class; 		/* filled in by driver */
 };
 
 int dev_attach(struct kern_devconf *);

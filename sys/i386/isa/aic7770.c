@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.11 1995/03/07 08:58:22 gibbs Exp $
+ *	$Id: aic7770.c,v 1.12 1995/03/31 13:36:57 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -65,8 +65,9 @@ static struct kern_devconf kdc_aic7770[NAHC] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_BUSY,		/* host adapters are always ``in use'' */
-	"Adaptec aic7770 based SCSI host adapter"
+	DC_UNCONFIGURED,	/* always start out here */
+	"Adaptec aic7770 based SCSI host adapter",
+	DC_CLS_MISC		/* host adapters aren't special */
 } };
 
 static inline void
@@ -120,6 +121,9 @@ aic7770probe(struct isa_device *dev)
                         	if ( sig_id[3] == valid_ids[i].id ) {
 					int unit = dev->id_unit;
 		                        dev->id_iobase = port;
+#ifndef DEV_LKM
+					aic7770_registerdev(dev);
+#endif /* DEV_LKM */
                			        if(ahcprobe(unit, port, 
 						  valid_ids[i].type)){ 
 					        /*
@@ -144,7 +148,7 @@ aic7770_attach(dev)
         struct isa_device *dev;
 {
         int     unit = dev->id_unit;
-        aic7770_registerdev(dev);
+	kdc_aic7770[unit].kdc_state = DC_BUSY; /* host adapters always busy */
 	return ahc_attach(unit);
 }
 
