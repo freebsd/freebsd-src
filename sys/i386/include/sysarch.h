@@ -44,6 +44,12 @@
 				/* xxxxx */
 #define I386_VM86	6
 
+/* These four only exist when running an i386 binary on amd64 */
+#define	_AMD64_GET_FSBASE	128
+#define	_AMD64_SET_FSBASE	129
+#define	_AMD64_GET_GSBASE	130
+#define	_AMD64_SET_GSBASE	131
+
 struct i386_ldt_args {
 	unsigned int start;
 	union	descriptor *descs;
@@ -68,6 +74,11 @@ union descriptor;
 struct dbreg;
 
 __BEGIN_DECLS
+/* These four only exist when running an i386 binary on amd64 */
+int _amd64_get_fsbase(void **);
+int _amd64_get_gsbase(void **);
+int _amd64_set_fsbase(void *);
+int _amd64_set_gsbase(void *);
 int i386_get_ldt(int, union descriptor *, int);
 int i386_set_ldt(int, union descriptor *, int);
 int i386_get_ioperm(unsigned int, unsigned int *, int *);
