@@ -73,6 +73,7 @@ typedef struct _fs {			/* format strings */
 
 extern FS *fshead;			/* head of format strings list */
 extern int blocksize;			/* data block size */
+extern int odmode;			/* are we acting as od(1)? */
 enum _vflag { ALL, DUP, FIRST, WAIT };	/* -v values */
 
 void	 add(const char *);
