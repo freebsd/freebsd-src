@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.26 1997/06/22 17:54:27 phk Exp $
+ * $Id: malloc.c,v 1.27 1997/07/01 18:39:38 phk Exp $
  *
  */
 
@@ -458,9 +458,6 @@ malloc_init ()
 
     malloc_ninfo = malloc_pagesize / sizeof *page_dir;
 
-    /* Been here, done that */
-    malloc_started++;
-
     /* Recalculate the cache size in bytes, and make sure it's nonzero */
 
     if (!malloc_cache)
@@ -474,6 +471,8 @@ malloc_init ()
      */
     px = (struct pgfree *) imalloc (sizeof *px);
 
+    /* Been here, done that */
+    malloc_started++;
 }
 
 /*
@@ -696,9 +695,6 @@ imalloc(size_t size)
 {
     void *result;
 
-    if (!malloc_started)
-	malloc_init();
-
     if (suicide)
 	abort();
 
@@ -731,11 +727,6 @@ irealloc(void *ptr, size_t size)
 
     if (suicide)
 	abort();
-
-    if (!malloc_started) {
-	wrtwarning("malloc() has never been called.\n");
-	return 0;
-    }
 
     index = ptr2index(ptr);
 
@@ -1068,6 +1059,8 @@ malloc(size_t size)
         malloc_active--;
 	return (0);
     }
+    if (!malloc_started)
+	malloc_init();
     if (malloc_sysv && !size)
 	r = 0;
     else
@@ -1109,6 +1102,12 @@ realloc(void *ptr, size_t size)
         malloc_active--;
 	return (0);
     }
+    if (ptr && !malloc_started) {
+	wrtwarning("malloc() has never been called.\n");
+	ptr = 0;
+    }		
+    if (!malloc_started)
+	malloc_init();
     if (malloc_sysv && !size) {
 	ifree(ptr);
 	r = 0;
