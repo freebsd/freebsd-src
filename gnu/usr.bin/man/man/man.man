@@ -178,24 +178,26 @@ Don't actually display the man pages, but do print the location(s) of
 the files that would be formatted or displayed.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width MANROFFSEQ -compact
+.Bl -tag -width MANROFFSEQ
+.It Ev LC_CTYPE , LC_ALL , LANG
+These variables specify the preferred language for manual pages.
+(See the
+.Fl o
+option above.)
 .It Ev MANPATH
 If
 .Ev MANPATH
 is set, its value is used as the path to search for manual pages.
-.Pp
 .It Ev MANROFFSEQ
 If
 .Ev MANROFFSEQ
 is set, its value is used to determine the set of preprocessors run
 before running nroff or troff.  By default, pages are passed through
 the table preprocessor before nroff.
-.Pp
 .It Ev MANSECT
 If
 .Ev MANSECT
 is set, its value is used to determine which manual sections to search.
-.Pp
 .It Ev PAGER
 If
 .Ev PAGER
@@ -203,11 +205,6 @@ is set, its value is used as the name of the program to use to display
 the man page.  By default,
 .Nm %pager%
 is used.
-.Pp
-.It Ev LC_CTYPE
-.It Ev LC_ALL
-.It Ev LANG
-Preferred language for manual pages.
 .El
 .Sh EXAMPLES
 .Pp
