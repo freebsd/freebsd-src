@@ -335,8 +335,16 @@ main(argc, argv)
 	(void)setpriority(PRIO_PROCESS, 0, prio);
 
 #ifdef LOGIN_CAP
-	/* Set everything now except the environment & umask */
-	setwhat = LOGIN_SETUSER|LOGIN_SETGROUP|LOGIN_SETRESOURCES|LOGIN_SETPRIORITY;
+	/*
+	 * Set all user context except for:
+	 *   Environmental variables
+	 *   Umask
+	 *   Login records (wtmp, etc)
+	 *   Path
+	 */
+	setwhat =  LOGIN_SETALL & ~(LOGIN_SETENV | LOGIN_SETUMASK |
+	    LOGIN_SETLOGIN | LOGIN_SETPATH);
+
 	/*
 	 * Don't touch resource/priority settings if -m has been
 	 * used or -l and -c hasn't, and we're not su'ing to root.
