@@ -51,6 +51,10 @@ configurations, has been added.
 accept_filters, a kernel feature to reduce overheads when accepting
 and reading new connections on listening sockets, has been added.
 
+POSIX.1b Shared Memory Objects are now supported.  The implementation
+uses regular files, but automatically enables the MAP_NOSYNC flag
+when they are mmap(2)ed.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -80,6 +84,9 @@ The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
 and /etc/periodic.conf.
 
 logger(1) can now send messages directly to a remote syslog.
+
+OpenSSL has been upgraded to 0.9.5a, which includes numerous bugfixes
+and enhancements.
 
 
 2. Supported Configurations
