@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifdef YP

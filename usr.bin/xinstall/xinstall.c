@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif /* not lint */
 
 /*-

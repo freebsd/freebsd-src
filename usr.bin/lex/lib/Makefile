@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c

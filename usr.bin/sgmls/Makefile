@@ -1,6 +1,6 @@
 #
 # Bmake file for sgmls
-# $FreeBSD$
+# $Id$
 #
 
 SUBDIR= libsgmls sgmls instant

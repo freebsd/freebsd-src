@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
 

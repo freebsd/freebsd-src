@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <err.h>

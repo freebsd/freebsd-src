@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	gencat
 SRCS=	gencat.c genlib.c

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netcmds.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif /* not lint */
 
 /*

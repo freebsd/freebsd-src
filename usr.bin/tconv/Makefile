@@ -1,5 +1,5 @@
 # Makefile for tconv
-# $FreeBSD$
+# $Id$
 
 PROG=   tconv
 SRCS=   tconv.c quit.c
