@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.27.2.5 1999/08/15 13:51:02 mpp Exp $
+.\"     $Id$
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -93,6 +93,12 @@ for the default value.
 (str) List of ethernet devices (e.g.
 .Ar "ed0 ed1 ep0 ..." )
 which should be dynamically ifconfig'd on insertion or boot.
+.It Ar pccardd_flags
+(str) If 
+.Ar pccard_enable 
+is set to 
+.Ar YES , 
+these are the flags to pass to the pccardd(8) daemon.
 .It Ar local_startup
 (str) List of directories to search for startup script files.
 .It Ar local_periodic
