@@ -160,8 +160,8 @@ o EISA Shared interrupts are now supported, working with the framework
 o Support for the Comtrol Rocketport card.
 
 o New Plug and Play (PnP) support that allows you to (re)configure PnP
-  devcies.  Also support for modems being detected by the PnP part and
-  automaticly attached.
+  devices.  Also support modems being detected by the PnP part and
+  automatically attached.
 
 o Import of new sound code from Luigi Rizzo.  This code is still being
   developed, but has support for a number of different cards.
