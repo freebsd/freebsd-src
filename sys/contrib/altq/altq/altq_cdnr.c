@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: altq_cdnr.c,v 1.14 2003/09/05 22:40:36 itojun Exp $	*/
 
 /*
@@ -57,7 +58,9 @@
 #endif
 
 #include <altq/altq.h>
+#ifdef ALTQ3_COMPAT
 #include <altq/altq_conf.h>
+#endif
 #include <altq/altq_cdnr.h>
 
 #ifdef ALTQ3_COMPAT
