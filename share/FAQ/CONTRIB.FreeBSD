@@ -35,22 +35,24 @@ code.  They also keep a couple of FreeBSD hackers alive and busy.  Thanks!
 Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
 
-The FreeBSD Core Team [Board of Directors, The FreeBSD Project]
+
+The FreeBSD Core Team	[also the Board of Directors for The FreeBSD Project]
 (in alphabetical order):
 
-	Andreas Schulz <ats@freebsd.first.gmd.de>
-	Andrew A. Chernov <ache@astral.msk.su>
+	Andreas Schulz <ats@FreeBSD.org>
+	Andrew A. Chernov <ache@FreeBSD.org>
 	Bruce Evans <bde@FreeBSD.org>
-	David Greenman <davidg@Root.COM>
+	David Greenman <davidg@FreeBSD.org>
 	Garrett A. Wollman <wollman@FreeBSD.org>
 	Gary Palmer <gpalmer@FreeBSD.org>
-	Geoff Rehmet <csgr@cs.ru.ac.za>
+	Geoff Rehmet <csgr@FreeBSD.org>
 	Jack Vogel <jackv@FreeBSD.org>
-	John Dyson <dyson@implode.rain.com>
+	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
-	Paul Richards <paul@isl.cf.ac.uk>
+	Justin Gibbs <gibbs@FreeBSD.org>
+	Paul Richards <paul@FreeBSD.org>
 	Poul-Henning Kamp <phk@FreeBSD.org>
-	Rich Murphey <rich@lamprey.utmb.edu>
+	Rich Murphey <rich@FreeBSD.org>
 	Rodney W. Grimes <rgrimes@FreeBSD.org>
 	Søren Schmidt <sos@FreeBSD.org>
 
@@ -66,7 +68,7 @@ Directors, The FreeBSD Project:
 	Documentation:		John Fieber <jfieber@FreeBSD.org>
 	Internationalization:	Andrew A. Chernov <ache@FreeBSD.org>
 	Networking:		Garrett A. Wollman <wollman@FreeBSD.org>
-	Postmaster:		Jonathan M. Bresler <jmb@kryten.atinc.com>
+	Postmaster:		Jonathan M. Bresler <jmb@FreeBSD.org>
 	Release Coordinator:	Poul-Henning Kamp <phk@FreeBSD.org>
 	System Administration:	Gary Palmer <gpalmer@FreeBSD.org>
 	WEBMASTERS:		John Fieber <jfieber@FreeBSD.org> and
@@ -234,4 +236,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.14 1995/02/16 03:13:50 rgrimes Exp $
+$Id: CONTRIB.FreeBSD,v 1.15 1995/02/16 12:04:53 joerg Exp $
