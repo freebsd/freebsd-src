@@ -446,6 +446,7 @@ void
 backtrace(void)
 {
 #ifdef DDB
+	printf("Stack backtrace:\n");
 	db_print_backtrace();
 #else
 	printf("Sorry, need DDB option to print backtrace");
@@ -512,7 +513,7 @@ panic(const char *fmt, ...)
 
 #if defined(DDB)
 	if (newpanic && trace_on_panic)
-		db_print_backtrace();
+		backtrace();
 	if (debugger_on_panic)
 		Debugger ("panic");
 #ifdef RESTARTABLE_PANICS
