@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_simple.c 1.18 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_simple.c,v 1.3 1995/10/22 14:51:37 phk Exp $";
+static char *rcsid = "$Id: svc_simple.c,v 1.4 1996/06/10 20:13:08 jraynard Exp $";
 #endif
 
 /*
@@ -47,8 +47,6 @@ static char *rcsid = "$Id: svc_simple.c,v 1.3 1995/10/22 14:51:37 phk Exp $";
 #include <sys/socket.h>
 #include <netdb.h>
 
-bool_t pmap_unset(u_long, u_long);
-
 static struct proglst {
 	char *(*p_progname)();
 	int  p_prognum;
@@ -60,9 +58,10 @@ static void universal();
 static SVCXPRT *transp;
 struct proglst *pl;
 
-int registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
-	char *(*progname)();
+int
+registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
 	int prognum, versnum, procnum;
+	char *(*progname)();
 	xdrproc_t inproc, outproc;
 {
 
@@ -114,7 +113,7 @@ universal(rqstp, transp)
 	 * enforce "procnum 0 is echo" convention
 	 */
 	if (rqstp->rq_proc == NULLPROC) {
-		if (svc_sendreply(transp, xdr_void, (char *)NULL) == FALSE) {
+		if (svc_sendreply(transp, xdr_void, NULL) == FALSE) {
 			(void) fprintf(stderr, "xxx\n");
 			exit(1);
 		}
@@ -125,7 +124,7 @@ universal(rqstp, transp)
 	for (pl = proglst; pl != NULL; pl = pl->p_nxt)
 		if (pl->p_prognum == prog && pl->p_procnum == proc) {
 			/* decode arguments into a CLEAN buffer */
-			bzero(xdrbuf, sizeof(xdrbuf)); /* required ! */
+			memset(xdrbuf, 0, sizeof(xdrbuf)); /* required ! */
 			if (!svc_getargs(transp, pl->p_inproc, xdrbuf)) {
 				svcerr_decode(transp);
 				return;
