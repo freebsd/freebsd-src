@@ -42,8 +42,6 @@
 #include <paths.h>
 #include <sys/wait.h>
 
-extern char *fgetline(FILE *, int*);
-
 #ifdef RLIM_LONG
 # define STRTOV strtol
 #else
@@ -121,14 +119,17 @@ collect_info(int fd)
   char *line;
   FILE *fp;
   char *ptr;
-  int len;
+  size_t len;
   int line_count = 0;
 
   fp = fdopen(fd, "r");
 
-  while ((line = fgetline(fp, &len)) != NULL) {
+  while ((line = fgetln(fp, &len)) != NULL) {
     if (++line_count > AUTHMAXLINES)
       break;
+    if (len && line[len-1] == '\n')
+      --len;
+    line[len] = '\0'; /* Terminate */
     if (strncasecmp(line, BI_REJECT, STRSIZEOF(BI_REJECT)) == 0) {
       auth_info.reject = 1;
     } else if (strncasecmp(line, BI_AUTH, STRSIZEOF(BI_AUTH)) == 0) {
