@@ -80,8 +80,14 @@ devstat_new_entry(const void *dev_name,
 
 	ds = devstat_alloc();
 	mtx_lock(&devstat_mutex);
-	devstat_add_entry(ds, dev_name, unit_number, block_size,
-			  flags, device_type, priority);
+	if (unit_number == -1) {
+		ds->id = dev_name;
+		binuptime(&ds->creation_time);
+		devstat_generation++;
+	} else {
+		devstat_add_entry(ds, dev_name, unit_number, block_size,
+				  flags, device_type, priority);
+	}
 	mtx_unlock(&devstat_mutex);
 	return (ds);
 }
@@ -186,8 +192,10 @@ devstat_remove_entry(struct devstat *ds)
 
 	/* Remove this entry from the devstat queue */
 	atomic_add_acq_int(&ds->sequence1, 1);
-	devstat_num_devs--;
-	STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
+	if (ds->id == NULL) {
+		devstat_num_devs--;
+		STAILQ_REMOVE(devstat_head, ds, devstat, dev_links);
+	}
 	devstat_free(ds);
 	devstat_generation++;
 	mtx_unlock(&devstat_mutex);
