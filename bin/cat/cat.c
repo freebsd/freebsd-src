@@ -70,20 +70,16 @@ int bflag, eflag, nflag, sflag, tflag, vflag;
 int rval;
 const char *filename;
 
-int main __P((int argc, char *argv[]));
-
-static void scanfiles __P((char **argv, int cooked));
-static void cook_cat __P((FILE *));
-static void raw_cat __P((int));
+static void scanfiles(char **argv, int cooked);
+static void cook_cat(FILE *);
+static void raw_cat(int);
 
 #ifndef NO_UDOM_SUPPORT
-static int udom_open __P((const char *path, int flags));
+static int udom_open(const char *path, int flags);
 #endif
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 
@@ -129,9 +125,7 @@ main(argc, argv)
 }
 
 void
-scanfiles(argv, cooked)
-    char **argv;
-    int cooked;
+scanfiles(char **argv, int cooked)
 {
 	int i = 0;
 	char *path;
@@ -174,10 +168,9 @@ scanfiles(argv, cooked)
 }
 
 static void
-cook_cat(fp)
-	register FILE *fp;
+cook_cat(FILE *fp)
 {
-	register int ch, gobble, line, prev;
+	int ch, gobble, line, prev;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -242,10 +235,9 @@ cook_cat(fp)
 }
 
 static void
-raw_cat(rfd)
-	register int rfd;
+raw_cat(int rfd)
 {
-	register int off, wfd;
+	int off, wfd;
 	ssize_t nr, nw;
 	static size_t bsize;
 	static char *buf;
@@ -272,9 +264,7 @@ raw_cat(rfd)
 #ifndef NO_UDOM_SUPPORT
 
 static int
-udom_open(path, flags)
-    const char *path;
-    int flags;
+udom_open(const char *path, int flags)
 {
 	struct sockaddr_un sou;
 	int fd;
