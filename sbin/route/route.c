@@ -1040,7 +1040,7 @@ getaddr(which, s, hpp)
 	if ((which != RTA_DST || forcenet == 0) &&
 	    inet_aton(s, &su->sin.sin_addr)) {
 		val = su->sin.sin_addr.s_addr;
-		if (which != RTA_DST ||
+		if (which != RTA_DST || forcehost ||
 		    inet_lnaof(su->sin.sin_addr) != INADDR_ANY)
 			return (1);
 		else {
