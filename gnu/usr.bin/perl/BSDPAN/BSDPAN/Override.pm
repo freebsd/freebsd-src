@@ -13,9 +13,8 @@ package BSDPAN::Override;
 #
 use strict;
 use Carp;
+use BSDPAN;
 require Exporter;
-require SelfLoader;	# XXX 2nd-order magic over SelfLoader's magic  :-)
-# require AutoLoader;	# XXX do we need to do similar hoop-la with it?
 
 use vars qw(@ISA @EXPORT);
 @ISA = qw(Exporter);
@@ -77,8 +76,11 @@ sub override ($$) {
 
 	# do we need to protect against SelfLoader?
 	my $sl_autoload = eval "*$pkg\::AUTOLOAD{CODE}";
-	$sl_autoload = 0
-	    if $sl_autoload && $sl_autoload != \&SelfLoader::AUTOLOAD;
+	if ($sl_autoload) {
+	   	require SelfLoader;
+		$sl_autoload = 0
+		    if $sl_autoload != \&SelfLoader::AUTOLOAD;
+	}
 
 	# get the reference to the original sub
 	my $name_addr = eval "*$name\{CODE}";
