@@ -578,7 +578,7 @@ static void wi_rxeof(sc)
 			    (char *)&eh->ether_shost, ETHER_ADDR_LEN);
 		}
 		bcopy((char *)&rx_frame.wi_type,
-		    (char *)&eh->ether_type, sizeof(u_int16_t));
+		    (char *)&eh->ether_type, ETHER_TYPE_LEN);
 
 		if (wi_read_data(sc, id, WI_802_11_OFFSET,
 		    mtod(m, caddr_t) + sizeof(struct ether_header),
@@ -1832,7 +1832,7 @@ void wi_cache_store (struct wi_softc *sc, struct ether_header *eh,
 	 * keep multicast only.
 	 */
  
-	if ((ntohs(eh->ether_type) == 0x800)) {
+	if ((ntohs(eh->ether_type) == ETHERTYPE_IP)) {
 		sawip = 1;
 	}
 
