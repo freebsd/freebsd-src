@@ -42,11 +42,16 @@
  * Normally we shouldn't include stuff here, but we're trying to be
  * compatible with the long, dark hand of the past.
  */
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#if __FreeBSD_version >= 500000
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 
 /*
  *	Controller data - Specific to each slot controller.
@@ -120,7 +125,7 @@ struct slot {
 #define PCCARD_DEVICE2SOFTC(d)	((struct slot *) device_get_softc(d))
 #define PCCARD_DEV2SOFTC(d)	((struct slot *) (d)->si_drv1)
 
-enum card_event { card_removed, card_inserted };
+enum card_event { card_removed, card_inserted, card_deactivated };
 
 struct slot	*pccard_init_slot(device_t, struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
