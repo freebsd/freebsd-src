@@ -69,10 +69,9 @@
 #include <machine/psl.h>
 #include <machine/asm.h>
 
-/*
- * Some instructions gas doesn't understand (yet?)
- */
-#define	bdneq	bdnzf 2,
+/* Locate the per-CPU data structure */
+#define GET_CPUINFO(r)  \
+        mfsprg0  r
 
 /*
  * Globals
@@ -90,7 +89,6 @@ GLOBAL(powersave)
 	.long	0
 
 #define	INTSTK		8192		/* 8K interrupt stack */
-#define	SPILLSTK	4096		/* 4K spill stack */
 
 /*
  * Dummy interrupt table to keep sysctl happy until
@@ -103,7 +101,7 @@ GLOBAL(eintrnames)
 GLOBAL(intrcnt)
 	.long 0
 GLOBAL(eintrcnt)
-	
+
 /*
  * File-scope for locore.S
  */
