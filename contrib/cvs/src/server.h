@@ -7,6 +7,16 @@
 #define STDERR_FILENO 2
 #endif
 
+
+/*
+ * Expand to `S', ` ', or the empty string.  Used in `%s-> ...' trace printfs.
+ */
+#ifdef SERVER_SUPPORT
+# define CLIENT_SERVER_STR ((server_active) ? "S" : " ")
+#else
+# define CLIENT_SERVER_STR ""
+#endif
+
 #ifdef SERVER_SUPPORT
 
 /*
@@ -139,38 +149,30 @@ struct request
   void (*func) PROTO((char *args));
 #endif
 
-  /* Stuff for use by the client.  */
-  enum {
-      /*
-       * Failure to implement this request can imply a fatal
-       * error.  This should be set only for commands which were in the
-       * original version of the protocol; it should not be set for new
-       * commands.
-       */
-      rq_essential,
+  /* One or more of the RQ_* flags described below.  */
+  int flags;
 
-      /* Some servers might lack this request.  */
-      rq_optional,
+  /* If set, failure to implement this request can imply a fatal
+     error.  This should be set only for commands which were in the
+     original version of the protocol; it should not be set for new
+     commands.  */
+#define RQ_ESSENTIAL 1
 
-      /*
-       * Set by the client to one of the following based on what this
-       * server actually supports.
-       */
-      rq_supported,
-      rq_not_supported,
+  /* Set by the client if the server we are talking to supports it.  */
+#define RQ_SUPPORTED 2
 
-      /*
-       * If the server supports this request, and we do too, tell the
-       * server by making the request.
-       */
-      rq_enableme
-      } status;
+  /* If set, and client and server both support the request, the
+     client should tell the server by making the request.  */
+#define RQ_ENABLEME 4
+
+  /* The server may accept this request before "Root".  */
+#define RQ_ROOTLESS 8
 };
 
 /* Table of requests ending with an entry with a NULL name.  */
 extern struct request requests[];
 
 /* Gzip library, see zlib.c.  */
-extern void gunzip_and_write PROTO ((int, char *, unsigned char *, size_t));
-extern void read_and_gzip PROTO ((int, char *, unsigned char **, size_t *,
-				  size_t *, int));
+extern int gunzip_and_write PROTO ((int, char *, unsigned char *, size_t));
+extern int read_and_gzip PROTO ((int, char *, unsigned char **, size_t *,
+				 size_t *, int));

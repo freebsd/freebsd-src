@@ -23,13 +23,16 @@
    copyright in any changes I have made; this code remains in the
    public domain.  */
 
+/* Note regarding cvs_* namespace: this avoids potential conflicts
+   with libraries such as some versions of Kerberos.  No particular
+   need to worry about whether the system supplies an MD5 library, as
+   this file is only about 3k of object code.  */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#if HAVE_STRING_H || STDC_HEADERS
-#include <string.h>	/* for memcpy() */
-#endif
+#include <string.h>	/* for memcpy() and memset() */
 
 /* Add prototype support.  */
 #ifndef PROTO
@@ -43,12 +46,12 @@
 #include "md5.h"
 
 /* Little-endian byte-swapping routines.  Note that these do not
-   depend on the size of datatypes such as uint32, nor do they require
+   depend on the size of datatypes such as cvs_uint32, nor do they require
    us to detect the endianness of the machine we are running on.  It
    is possible they should be macros for speed, but I would be
    surprised if they were a performance bottleneck for MD5.  */
 
-static uint32
+static cvs_uint32
 getu32 (addr)
      const unsigned char *addr;
 {
@@ -58,7 +61,7 @@ getu32 (addr)
 
 static void
 putu32 (data, addr)
-     uint32 data;
+     cvs_uint32 data;
      unsigned char *addr;
 {
 	addr[0] = (unsigned char)data;
@@ -72,8 +75,8 @@ putu32 (data, addr)
  * initialization constants.
  */
 void
-MD5Init(ctx)
-     struct MD5Context *ctx;
+cvs_MD5Init (ctx)
+     struct cvs_MD5Context *ctx;
 {
 	ctx->buf[0] = 0x67452301;
 	ctx->buf[1] = 0xefcdab89;
@@ -89,17 +92,17 @@ MD5Init(ctx)
  * of bytes.
  */
 void
-MD5Update(ctx, buf, len)
-     struct MD5Context *ctx;
+cvs_MD5Update (ctx, buf, len)
+     struct cvs_MD5Context *ctx;
      unsigned char const *buf;
      unsigned len;
 {
-	uint32 t;
+	cvs_uint32 t;
 
 	/* Update bitcount */
 
 	t = ctx->bits[0];
-	if ((ctx->bits[0] = (t + ((uint32)len << 3)) & 0xffffffff) < t)
+	if ((ctx->bits[0] = (t + ((cvs_uint32)len << 3)) & 0xffffffff) < t)
 		ctx->bits[1]++;	/* Carry from low to high */
 	ctx->bits[1] += len >> 29;
 
@@ -116,7 +119,7 @@ MD5Update(ctx, buf, len)
 			return;
 		}
 		memcpy(p, buf, t);
-		MD5Transform(ctx->buf, ctx->in);
+		cvs_MD5Transform (ctx->buf, ctx->in);
 		buf += t;
 		len -= t;
 	}
@@ -125,7 +128,7 @@ MD5Update(ctx, buf, len)
 
 	while (len >= 64) {
 		memcpy(ctx->in, buf, 64);
-		MD5Transform(ctx->buf, ctx->in);
+		cvs_MD5Transform (ctx->buf, ctx->in);
 		buf += 64;
 		len -= 64;
 	}
@@ -140,9 +143,9 @@ MD5Update(ctx, buf, len)
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void
-MD5Final(digest, ctx)
+cvs_MD5Final (digest, ctx)
      unsigned char digest[16];
-     struct MD5Context *ctx;
+     struct cvs_MD5Context *ctx;
 {
 	unsigned count;
 	unsigned char *p;
@@ -162,7 +165,7 @@ MD5Final(digest, ctx)
 	if (count < 8) {
 		/* Two lots of padding:  Pad the first block to 64 bytes */
 		memset(p, 0, count);
-		MD5Transform(ctx->buf, ctx->in);
+		cvs_MD5Transform (ctx->buf, ctx->in);
 
 		/* Now fill the next block with 56 bytes */
 		memset(ctx->in, 0, 56);
@@ -175,7 +178,7 @@ MD5Final(digest, ctx)
 	putu32(ctx->bits[0], ctx->in + 56);
 	putu32(ctx->bits[1], ctx->in + 60);
 
-	MD5Transform(ctx->buf, ctx->in);
+	cvs_MD5Transform (ctx->buf, ctx->in);
 	putu32(ctx->buf[0], digest);
 	putu32(ctx->buf[1], digest + 4);
 	putu32(ctx->buf[2], digest + 8);
@@ -203,12 +206,12 @@ MD5Final(digest, ctx)
  * the data and converts bytes into longwords for this routine.
  */
 void
-MD5Transform(buf, inraw)
-     uint32 buf[4];
+cvs_MD5Transform (buf, inraw)
+     cvs_uint32 buf[4];
      const unsigned char inraw[64];
 {
-	register uint32 a, b, c, d;
-	uint32 in[16];
+	register cvs_uint32 a, b, c, d;
+	cvs_uint32 in[16];
 	int i;
 
 	for (i = 0; i < 16; ++i)
@@ -302,7 +305,7 @@ MD5Transform(buf, inraw)
 int
 main (int argc, char **argv)
 {
-	struct MD5Context context;
+	struct cvs_MD5Context context;
 	unsigned char checksum[16];
 	int i;
 	int j;
@@ -315,9 +318,9 @@ main (int argc, char **argv)
 	for (j = 1; j < argc; ++j)
 	{
 		printf ("MD5 (\"%s\") = ", argv[j]);
-		MD5Init (&context);
-		MD5Update (&context, argv[j], strlen (argv[j]));
-		MD5Final (checksum, &context);
+		cvs_MD5Init (&context);
+		cvs_MD5Update (&context, argv[j], strlen (argv[j]));
+		cvs_MD5Final (checksum, &context);
 		for (i = 0; i < 16; i++)
 		{
 			printf ("%02x", (unsigned int) checksum[i]);

@@ -1,5 +1,11 @@
-        This subdirectory contains tools that can be used with CVS.
-Note that they will not necessarily be installed when you "make
-install" from the top-level of the CVS source tree.
+This subdirectory formerly contained tools that can be used with CVS.
+In particular, it used to contain a copy of pcl-cvs version 1.x.
+Pcl-cvs is an Emacs interface to CVS.
 
-pcl-cvs ............................. an Emacs interface to CVS.
+If you are looking for pcl-cvs, we'd suggest pcl-cvs version 2.x, at:
+    ftp://ftp.weird.com/pub/local/
+
+Both of the following CVS sites have a page about pcl-cvs:
+    http://www.loria.fr/~molli/cvs-index.html
+    http://www.cyclic.com/
+They also have much information about CVS tools more generally.
