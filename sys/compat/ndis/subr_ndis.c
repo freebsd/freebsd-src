@@ -271,6 +271,7 @@ __stdcall static void NdisMIndicateStatusComplete(ndis_handle);
 __stdcall static void NdisMIndicateStatus(ndis_handle, ndis_status,
         void *, uint32_t);
 static void ndis_workfunc(void *);
+static funcptr ndis_findwrap(funcptr);
 __stdcall static ndis_status NdisScheduleWorkItem(ndis_work_item *);
 __stdcall static void NdisCopyFromPacketToPacket(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *);
@@ -325,6 +326,22 @@ ndis_libfini()
 	}
 
 	return(0);
+}
+
+static funcptr
+ndis_findwrap(func)
+	funcptr			func;
+{
+	image_patch_table	*patch;
+
+	patch = ntoskrnl_functbl;
+	while (patch->ipt_func != NULL) {
+		if ((funcptr)patch->ipt_func == func)
+			return((funcptr)patch->ipt_wrap);
+		patch++;
+	}
+
+	return(NULL);
 }
 
 /*
@@ -1188,10 +1205,15 @@ NdisMInitializeTimer(timer, handle, func, ctx)
 	timer->nmt_timerctx = ctx;
 	timer->nmt_block = handle;
 
-	/* Set up the timer so it will call our intermediate DPC. */
-
+	/*
+	 * Set up the timer so it will call our intermediate DPC.
+	 * Be sure to use the wrapped entry point, since
+	 * ntoskrnl_run_dpc() expects to invoke a function with
+	 * Microsoft calling conventions.
+	 */
 	KeInitializeTimer(&timer->nmt_ktimer);
-	KeInitializeDpc(&timer->nmt_kdpc, ndis_timercall, timer);
+	KeInitializeDpc(&timer->nmt_kdpc,
+	    ndis_findwrap((funcptr)ndis_timercall), timer);
 
 	return;
 }
@@ -3266,6 +3288,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_FUNC(NdisMDeregisterDevice),
 	IMPORT_FUNC(NdisMQueryAdapterInstanceName),
 	IMPORT_FUNC(NdisMRegisterUnloadHandler),
+	IMPORT_FUNC(ndis_timercall),
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
