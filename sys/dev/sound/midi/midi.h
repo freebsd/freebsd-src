@@ -217,7 +217,7 @@ struct _mididev_info {
  * then ioctls and other stuff
  */
 
-#define NMIDI_MAX	64	/* Number of supported devices */
+#define NMIDI_MAX	16	/* Number of supported devices */
 
 /*
  * many variables should be reduced to a range. Here define a macro
