@@ -691,7 +691,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) &ifr->ifr_data;
-			bcopy(((struct arpcom *)ifp->if_softc)->ac_enaddr,
+			bcopy(IFP2AC(ifp)->ac_enaddr,
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
