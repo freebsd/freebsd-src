@@ -244,17 +244,11 @@ static struct ai_errlist {
 	int code;
 } ai_errlist[] = {
 	{ "Success",					0, },
-#ifdef EAI_ADDRFAMILY
-	{ "Address family for hostname not supported",	EAI_ADDRFAMILY, },
-#endif
 	{ "Temporary failure in name resolution",	EAI_AGAIN, },
 	{ "Invalid value for ai_flags",		       	EAI_BADFLAGS, },
 	{ "Non-recoverable failure in name resolution", EAI_FAIL, },
 	{ "ai_family not supported",			EAI_FAMILY, },
 	{ "Memory allocation failure", 			EAI_MEMORY, },
-#ifdef EAI_NODATA
-	{ "No address associated with hostname", 	EAI_NODATA, },
-#endif
 	{ "hostname nor servname provided, or not known", EAI_NONAME, },
 	{ "servname not supported for ai_socktype",	EAI_SERVICE, },
 	{ "ai_socktype not supported", 			EAI_SOCKTYPE, },
@@ -524,10 +518,10 @@ getaddrinfo(hostname, servname, hints, res)
 	if (sentinel.ai_next)
 		goto good;
 
+	if (hostname == NULL)
+		ERR(EAI_NONAME);	/* used to be EAI_NODATA */
 	if (pai->ai_flags & AI_NUMERICHOST)
 		ERR(EAI_NONAME);
-	if (hostname == NULL)
-		ERR(EAI_NODATA);
 
 	if ((pai->ai_flags & AI_ADDRCONFIG) != 0 && !addrconfig(&ai0))
 		ERR(EAI_FAIL);
@@ -628,7 +622,7 @@ explore_fqdn(pai, hostname, servname, res)
 		error = EAI_FAIL;
 		goto free;
 	case NS_NOTFOUND:
-		error = EAI_NODATA;
+		error = EAI_NONAME;
 		goto free;
 	case NS_SUCCESS:
 		error = 0;
@@ -843,7 +837,7 @@ explore_numeric_scope(pai, hostname, servname, res)
 			sin6 = (struct sockaddr_in6 *)(void *)cur->ai_addr;
 			if (ip6_str2scopeid(scope, sin6, &scopeid) == -1) {
 				free(hostname2);
-				return(EAI_NODATA); /* XXX: is return OK? */
+				return(EAI_NONAME); /* XXX: is return OK? */
 			}
 			sin6->sin6_scope_id = scopeid;
 		}
