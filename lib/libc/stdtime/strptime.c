@@ -143,7 +143,8 @@ label:
 			break;
 
 		case 'c':
-			buf = _strptime(buf, Locale->c_fmt, tm);
+			/* NOTE: c_fmt is intentionally ignored */
+			buf = _strptime(buf, "%a %Ef %T %Y", tm);
 			if (buf == 0)
 				return 0;
 			break;
