@@ -2,11 +2,12 @@
 
 /*
  * $Id: pam_strerror.c,v 1.2 2000/12/04 19:02:34 baggins Exp $
+ * $FreeBSD$
  */
 
 #include "pam_private.h"
 
-const char *pam_strerror(pam_handle_t *pamh, int errnum)
+const char *pam_strerror(pam_handle_t *pamh __unused, int errnum)
 {
 #ifdef UGLY_HACK_FOR_PRIOR_BEHAVIOR_SUPPORT  /* will be removed from v 1.0 */
 
