@@ -1418,7 +1418,7 @@ static int ti_gibinit(sc)
 	rcb = &sc->ti_rdata->ti_info.ti_mini_rx_rcb;
 	TI_HOSTADDR(rcb->ti_hostaddr) =
 	    vtophys(&sc->ti_rdata->ti_rx_mini_ring);
-	rcb->ti_max_len = MHLEN;
+	rcb->ti_max_len = MHLEN - ETHER_ALIGN;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
 	else
