@@ -7,9 +7,13 @@ MAN1=	crontab.1
 MAN5=	crontab.5
 
 .if exists(${.CURDIR}/../lib/obj)
-LDADD+=	-L${.CURDIR}/../lib/obj -lcron
+LDDESTDIR+=	-L${.CURDIR}/../lib/obj
+DPADD+=	${.CURDIR}/../lib/obj/libcron.a
 .else
-LDADD+=	-L${.CURDIR}/../lib -lcron
+LDDESTDIR+=	-L${.CURDIR}/../lib
+DPADD+=	${.CURDIR}/../lib/libcron.a
 .endif
+
+LDADD+=	-lcron
 
 .include <bsd.prog.mk>
