@@ -1,5 +1,7 @@
-/*
- * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
+/*-
+ * Copyright (C) 2003 Jake Burkholder <jake@freebsd.org>
+ * Copyright (C) 2003 David Xu <davidxu@freebsd.org>
+ * Copyright (c) 2001,2003 Daniel Eischen <deischen@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -7,17 +9,11 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by John Birrell.
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 2. Neither the name of the author nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -31,23 +27,30 @@
  *
  * $FreeBSD$
  */
-#include <stdlib.h>
-#include <errno.h>
-#include <pthread.h>
-#include "thr_private.h"
 
-__weak_reference(_pthread_mutexattr_destroy, pthread_mutexattr_destroy);
+#include <sys/types.h>
+#include <rtld_tls.h>
 
-int
-_pthread_mutexattr_destroy(pthread_mutexattr_t *attr)
+#include "pthread_md.h"
+
+struct tcb *
+_tcb_ctor(struct pthread *thread, int initial)
 {
-	int	ret;
-	if (attr == NULL || *attr == NULL) {
-		ret = EINVAL;
-	} else {
-		free(*attr);
-		*attr = NULL;
-		ret = 0;
-	}
-	return(ret);
+	struct tcb *tcb;
+	void *oldtls;
+
+	if (initial)
+		oldtls = _tp;
+	else
+		oldtls = NULL;
+	tcb = _rtld_allocate_tls(oldtls, sizeof(struct tcb), 16);
+	if (tcb)
+		tcb->tcb_thread = thread;
+	return (tcb);
+}
+
+void
+_tcb_dtor(struct tcb *tcb)
+{
+	_rtld_free_tls(tcb, sizeof(struct tcb), 16);
 }

@@ -31,6 +31,7 @@
  *
  * $FreeBSD$
  */
+
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -47,7 +48,9 @@ _pthread_mutexattr_getprioceiling(pthread_mutexattr_t *mattr, int *prioceiling)
 {
 	int ret = 0;
 
-	if (*mattr == NULL)
+	if ((mattr == NULL) || (*mattr == NULL))
+		ret = EINVAL;
+	else if ((*mattr)->m_protocol != PTHREAD_PRIO_PROTECT)
 		ret = EINVAL;
 	else
 		*prioceiling = (*mattr)->m_ceiling;
@@ -60,26 +63,30 @@ _pthread_mutexattr_setprioceiling(pthread_mutexattr_t *mattr, int prioceiling)
 {
 	int ret = 0;
 
-	if (*mattr == NULL)
+	if ((mattr == NULL) || (*mattr == NULL))
 		ret = EINVAL;
-	else if (prioceiling <= PTHREAD_MAX_PRIORITY &&
-	    prioceiling >= PTHREAD_MIN_PRIORITY)
-		(*mattr)->m_ceiling = prioceiling;
+	else if ((*mattr)->m_protocol != PTHREAD_PRIO_PROTECT)
+		ret = EINVAL;
 	else
-		ret = EINVAL;
+		(*mattr)->m_ceiling = prioceiling;
 
-	return (ret);
+	return(ret);
 }
 
 int
 _pthread_mutex_getprioceiling(pthread_mutex_t *mutex,
 			      int *prioceiling)
 {
-	if (*mutex == NULL)
-		return (EINVAL);
+	int ret;
+
+	if ((mutex == NULL) || (*mutex == NULL))
+		ret = EINVAL;
+	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
+		ret = EINVAL;
 	else
-		*prioceiling = (*mutex)->m_prio;
-	return (0);
+		ret = (*mutex)->m_prio;
+
+	return(ret);
 }
 
 int
@@ -87,27 +94,23 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 			      int prioceiling, int *old_ceiling)
 {
 	int ret = 0;
+	int tmp;
 
-	if (*mutex == NULL)
-		return (EINVAL);
-	else if (prioceiling > PTHREAD_MAX_PRIORITY ||
-	    prioceiling < PTHREAD_MIN_PRIORITY)
-		return (EINVAL);
-
-	/*
-	 * Because of the use of pthread_mutex_unlock(), the
-	 * priority ceiling of a mutex cannot be changed
-	 * while the mutex is held by another thread. It also,
-	 * means that the the thread trying to change the
-	 * priority ceiling must adhere to prio protection rules.
-	 */
-	if ((ret = pthread_mutex_lock(mutex)) == 0) {
-		/* Return the old ceiling and set the new ceiling: */
-		*old_ceiling = (*mutex)->m_prio;
+	if ((mutex == NULL) || (*mutex == NULL))
+		ret = EINVAL;
+	else if ((*mutex)->m_protocol != PTHREAD_PRIO_PROTECT)
+		ret = EINVAL;
+	/* Lock the mutex: */
+	else if ((ret = pthread_mutex_lock(mutex)) == 0) {
+		tmp = (*mutex)->m_prio;
+		/* Set the new ceiling: */
 		(*mutex)->m_prio = prioceiling;
 
 		/* Unlock the mutex: */
 		ret = pthread_mutex_unlock(mutex);
+
+		/* Return the old ceiling: */
+		*old_ceiling = tmp;
 	}
 	return(ret);
 }

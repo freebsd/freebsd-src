@@ -31,9 +31,13 @@
  *
  * $FreeBSD$
  */
+
 #include <errno.h>
 #include <pthread.h>
+
 #include "thr_private.h"
+
+static void suspend_common(struct pthread *thread);
 
 __weak_reference(_pthread_suspend_np, pthread_suspend_np);
 __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
@@ -42,12 +46,54 @@ __weak_reference(_pthread_suspend_all_np, pthread_suspend_all_np);
 int
 _pthread_suspend_np(pthread_t thread)
 {
-	/* XXXTHR */
-	return (ENOTSUP);
+	struct pthread *curthread = _get_curthread();
+	int ret;
+
+	/* Suspending the current thread doesn't make sense. */
+	if (thread == _get_curthread())
+		ret = EDEADLK;
+
+	/* Add a reference to the thread: */
+	else if ((ret = _thr_ref_add(curthread, thread, /*include dead*/0))
+	    == 0) {
+		/* Lock the threads scheduling queue: */
+		THR_THREAD_LOCK(curthread, thread);
+		suspend_common(thread);
+		/* Unlock the threads scheduling queue: */
+		THR_THREAD_UNLOCK(curthread, thread);
+
+		/* Don't forget to remove the reference: */
+		_thr_ref_delete(curthread, thread);
+	}
+	return (ret);
 }
 
 void
 _pthread_suspend_all_np(void)
 {
-	/* XXXTHR */
+	struct pthread	*curthread = _get_curthread();
+	struct pthread	*thread;
+
+	/* Take the thread list lock: */
+	THREAD_LIST_LOCK(curthread);
+
+	TAILQ_FOREACH(thread, &_thread_list, tle) {
+		if (thread != curthread) {
+			THR_THREAD_LOCK(curthread, thread);
+			suspend_common(thread);
+			THR_THREAD_UNLOCK(curthread, thread);
+		}
+	}
+
+	/* Release the thread list lock: */
+	THREAD_LIST_UNLOCK(curthread);
+}
+
+static void
+suspend_common(struct pthread *thread)
+{
+	if (thread->state != PS_DEAD) {
+		thread->flags |= THR_FLAGS_NEED_SUSPEND;
+		_thr_send_sig(thread, SIGCANCEL);
+	}
 }

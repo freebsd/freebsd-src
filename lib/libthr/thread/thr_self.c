@@ -31,7 +31,9 @@
  *
  * $FreeBSD$
  */
+
 #include <pthread.h>
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_self, pthread_self);
@@ -39,6 +41,8 @@ __weak_reference(_pthread_self, pthread_self);
 pthread_t
 _pthread_self(void)
 {
+	_thr_check_init();
+
 	/* Return the running thread pointer: */
-	return (curthread);
+	return (_get_curthread());
 }

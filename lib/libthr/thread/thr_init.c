@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003 Daniel M. Eischen <deischen@freebsd.org>
  * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
@@ -38,6 +39,7 @@
 #include "namespace.h"
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/signalvar.h>
 #include <machine/reg.h>
 
 #include <sys/ioctl.h>
@@ -56,6 +58,7 @@
 #include <fcntl.h>
 #include <paths.h>
 #include <pthread.h>
+#include <pthread_np.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,19 +66,22 @@
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
 
-extern void _thread_init_hack(void);
+int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+int	__pthread_mutex_lock(pthread_mutex_t *);
+int	__pthread_mutex_trylock(pthread_mutex_t *);
+void	_thread_init_hack(void) __attribute__ ((constructor));
+
+static void init_private(void);
+static void init_main_thread(struct pthread *thread);
 
 /*
  * All weak references used within libc should be in this table.
- * This will is so that static libraries will work.
- *
- * XXXTHR - Check this list.
+ * This is so that static libraries will work.
  */
 static void *references[] = {
-	&_thread_init_hack,
-	&_thread_init,
 	&_accept,
 	&_bind,
 	&_close,
@@ -126,6 +132,7 @@ static void *references[] = {
 	&_sigsuspend,
 	&_socket,
 	&_socketpair,
+	&_thread_init_hack,
 	&_wait4,
 	&_write,
 	&_writev
@@ -138,8 +145,6 @@ static void *references[] = {
  * libraries, then the actual functions will not be loaded.
  */
 static void *libgcc_references[] = {
-	&_thread_init_hack,
-	&_thread_init,
 	&_pthread_once,
 	&_pthread_key_create,
 	&_pthread_key_delete,
@@ -149,122 +154,92 @@ static void *libgcc_references[] = {
 	&_pthread_mutex_destroy,
 	&_pthread_mutex_lock,
 	&_pthread_mutex_trylock,
-	&_pthread_mutex_unlock
+	&_pthread_mutex_unlock,
+	&_pthread_create
 };
 
-int _pthread_guard_default;
-int _pthread_page_size;
-int _pthread_stack_default;
-int _pthread_stack_initial;
+#define	DUAL_ENTRY(entry)	\
+	(pthread_func_t)entry, (pthread_func_t)entry
+
+static pthread_func_t jmp_table[][2] = {
+	{DUAL_ENTRY(_pthread_cond_broadcast)},	/* PJT_COND_BROADCAST */
+	{DUAL_ENTRY(_pthread_cond_destroy)},	/* PJT_COND_DESTROY */
+	{DUAL_ENTRY(_pthread_cond_init)},	/* PJT_COND_INIT */
+	{DUAL_ENTRY(_pthread_cond_signal)},	/* PJT_COND_SIGNAL */
+	{(pthread_func_t)__pthread_cond_wait,
+	 (pthread_func_t)_pthread_cond_wait},	/* PJT_COND_WAIT */
+	{DUAL_ENTRY(_pthread_getspecific)},	/* PJT_GETSPECIFIC */
+	{DUAL_ENTRY(_pthread_key_create)},	/* PJT_KEY_CREATE */
+	{DUAL_ENTRY(_pthread_key_delete)},	/* PJT_KEY_DELETE*/
+	{DUAL_ENTRY(_pthread_main_np)},		/* PJT_MAIN_NP */
+	{DUAL_ENTRY(_pthread_mutex_destroy)},	/* PJT_MUTEX_DESTROY */
+	{DUAL_ENTRY(_pthread_mutex_init)},	/* PJT_MUTEX_INIT */
+	{(pthread_func_t)__pthread_mutex_lock,
+	 (pthread_func_t)_pthread_mutex_lock},	/* PJT_MUTEX_LOCK */
+	{(pthread_func_t)__pthread_mutex_trylock,
+	 (pthread_func_t)_pthread_mutex_trylock},/* PJT_MUTEX_TRYLOCK */
+	{DUAL_ENTRY(_pthread_mutex_unlock)},	/* PJT_MUTEX_UNLOCK */
+	{DUAL_ENTRY(_pthread_mutexattr_destroy)}, /* PJT_MUTEXATTR_DESTROY */
+	{DUAL_ENTRY(_pthread_mutexattr_init)},	/* PJT_MUTEXATTR_INIT */
+	{DUAL_ENTRY(_pthread_mutexattr_settype)}, /* PJT_MUTEXATTR_SETTYPE */
+	{DUAL_ENTRY(_pthread_once)},		/* PJT_ONCE */
+	{DUAL_ENTRY(_pthread_rwlock_destroy)},	/* PJT_RWLOCK_DESTROY */
+	{DUAL_ENTRY(_pthread_rwlock_init)},	/* PJT_RWLOCK_INIT */
+	{DUAL_ENTRY(_pthread_rwlock_rdlock)},	/* PJT_RWLOCK_RDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_tryrdlock)},/* PJT_RWLOCK_TRYRDLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_trywrlock)},/* PJT_RWLOCK_TRYWRLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_unlock)},	/* PJT_RWLOCK_UNLOCK */
+	{DUAL_ENTRY(_pthread_rwlock_wrlock)},	/* PJT_RWLOCK_WRLOCK */
+	{DUAL_ENTRY(_pthread_self)},		/* PJT_SELF */
+	{DUAL_ENTRY(_pthread_setspecific)},	/* PJT_SETSPECIFIC */
+	{DUAL_ENTRY(_pthread_sigmask)}		/* PJT_SIGMASK */
+};
+
+extern int _thread_state_running;
+static int init_once = 0;
 
 /*
- * Initialize the current thread.
+ * For the shared version of the threads library, the above is sufficient.
+ * But for the archive version of the library, we need a little bit more.
+ * Namely, we must arrange for this particular module to be pulled in from
+ * the archive library at link time.  To accomplish that, we define and
+ * initialize a variable, "_thread_autoinit_dummy_decl".  This variable is
+ * referenced (as an extern) from libc/stdlib/exit.c. This will always
+ * create a need for this module, ensuring that it is present in the
+ * executable.
  */
+extern int _thread_autoinit_dummy_decl;
+int _thread_autoinit_dummy_decl = 0;
+
 void
-init_td_common(struct pthread *td, struct pthread_attr *attrp, int reinit)
+_thread_init_hack(void)
 {
-	/*
-	 * Some parts of a pthread are initialized only once.
-	 */
-	if (!reinit) {
-		memset(td, 0, sizeof(struct pthread));
-		td->cancelmode = M_DEFERRED;
-		td->cancelstate = M_DEFERRED;
-		td->cancellation = CS_NULL;
-		memcpy(&td->attr, attrp, sizeof(struct pthread_attr));
-		td->magic = PTHREAD_MAGIC;
-		TAILQ_INIT(&td->mutexq);
-		td->base_priority = PTHREAD_DEFAULT_PRIORITY;
-		td->active_priority = PTHREAD_DEFAULT_PRIORITY;
-		td->inherited_priority = PTHREAD_MIN_PRIORITY;
-	} else {
-		memset(&td->join_status, 0, sizeof(struct join_status));
-	}
-	td->joiner = NULL;
-	td->error = 0;
-	td->flags = 0;
+
+	_libpthread_init(NULL);
 }
 
-/*
- * Initialize the active and dead threads list. Any threads in the active
- * list will be removed and the thread td * will be marked as the
- * initial thread and inserted in the list as the only thread. Any threads
- * in the dead threads list will also be removed.
- */
-void
-init_tdlist(struct pthread *td, int reinit)
-{
-	struct pthread *tdTemp, *tdTemp2;
-
-	_thread_initial = td;
-	td->name = strdup("_thread_initial");
-
-	/*
-	 * If this is not the first initialization, remove any entries
-	 * that may be in the list and deallocate their memory. Also
-	 * destroy any global pthread primitives (they will be recreated).
-	 */
-	if (reinit) {
-		TAILQ_FOREACH_SAFE(tdTemp, &_thread_list, tle, tdTemp2) {
-			if (tdTemp != NULL && tdTemp != td) {
-				TAILQ_REMOVE(&_thread_list, tdTemp, tle);
-				free(tdTemp);
-			}
-		}
-		TAILQ_FOREACH_SAFE(tdTemp, &_dead_list, dle, tdTemp2) {
-			if (tdTemp != NULL) {
-				TAILQ_REMOVE(&_dead_list, tdTemp, dle);
-				free(tdTemp);
-			}
-		}
-		_pthread_mutex_destroy(&dead_list_lock);
-	} else {
-		TAILQ_INIT(&_thread_list);
-		TAILQ_INIT(&_dead_list);
-
-		/* Insert this thread as the first thread in the active list */
-		TAILQ_INSERT_HEAD(&_thread_list, td, tle);
-	}
-
-	/*
-	 * Initialize the active thread list lock and the
-	 * dead threads list lock.
-	 */
-	memset(&thread_list_lock, 0, sizeof(spinlock_t));
-	if (_pthread_mutex_init(&dead_list_lock,NULL) != 0)
-		PANIC("Failed to initialize garbage collector primitives");
-}
 
 /*
- * Threaded process initialization
+ * Threaded process initialization.
+ *
+ * This is only called under two conditions:
+ *
+ *   1) Some thread routines have detected that the library hasn't yet
+ *      been initialized (_thr_initial == NULL && curthread == NULL), or
+ *
+ *   2) An explicit call to reinitialize after a fork (indicated
+ *      by curthread != NULL)
  */
 void
-_thread_init(void)
+_libpthread_init(struct pthread *curthread)
 {
-	struct pthread	*pthread;
-	int		fd;
-	size_t		len;
-	int		mib[2];
-	int		error;
+	int fd, first = 0;
+	sigset_t sigset, oldset;
 
 	/* Check if this function has already been called: */
-	if (_thread_initial)
-		/* Only initialise the threaded application once. */
+	if ((_thr_initial != NULL) && (curthread == NULL))
+		/* Only initialize the threaded application once. */
 		return;
-
-	_pthread_page_size = getpagesize();
-	_pthread_guard_default = getpagesize();
-	if (sizeof(void *) == 8) {
-		_pthread_stack_default = PTHREAD_STACK64_DEFAULT;
-		_pthread_stack_initial = PTHREAD_STACK64_INITIAL;
-	}
-	else {
-		_pthread_stack_default = PTHREAD_STACK32_DEFAULT;
-		_pthread_stack_initial = PTHREAD_STACK32_INITIAL;
-	}
-
-	pthread_attr_default.guardsize_attr = _pthread_guard_default;
-	pthread_attr_default.stacksize_attr = _pthread_stack_default;
 
 	/*
 	 * Make gcc quiescent about {,libgcc_}references not being
@@ -273,11 +248,22 @@ _thread_init(void)
 	if ((references[0] == NULL) || (libgcc_references[0] == NULL))
 		PANIC("Failed loading mandatory references in _thread_init");
 
+	/* Pull debug symbols in for static binary */
+	_thread_state_running = PS_RUNNING;
+
+	/*
+	 * Check the size of the jump table to make sure it is preset
+	 * with the correct number of entries.
+	 */
+	if (sizeof(jmp_table) != (sizeof(pthread_func_t) * PJT_MAX * 2))
+		PANIC("Thread jump table not properly initialized");
+	memcpy(__thr_jtable, jmp_table, sizeof(jmp_table));
+
 	/*
 	 * Check for the special case of this process running as
 	 * or in place of init as pid = 1:
 	 */
-	if (getpid() == 1) {
+	if ((_thr_pid = getpid()) == 1) {
 		/*
 		 * Setup a new session for this process which is
 		 * assumed to be running as root.
@@ -292,74 +278,141 @@ _thread_init(void)
 			PANIC("Can't set login to root");
 		if (__sys_ioctl(fd, TIOCSCTTY, (char *) NULL) == -1)
 			PANIC("Can't set controlling terminal");
-		if (__sys_dup2(fd, 0) == -1 ||
-		    __sys_dup2(fd, 1) == -1 ||
-		    __sys_dup2(fd, 2) == -1)
-			PANIC("Can't dup2");
 	}
 
-	/* Allocate memory for the thread structure of the initial thread: */
-	if ((pthread = (pthread_t) malloc(sizeof(struct pthread))) == NULL) {
-		/*
-		 * Insufficient memory to initialise this application, so
-		 * abort:
-		 */
-		PANIC("Cannot allocate memory for initial thread");
+	/* Initialize pthread private data. */
+	init_private();
+
+	/* Set the initial thread. */
+	if (curthread == NULL) {
+		first = 1;
+		/* Create and initialize the initial thread. */
+		curthread = _thr_alloc(NULL);
+		if (curthread == NULL)
+			PANIC("Can't allocate initial thread");
+		init_main_thread(curthread);
 	}
-
-	init_tdlist(pthread, 0);
-	init_td_common(pthread, &pthread_attr_default, 0);
-	pthread->arch_id = _set_curthread(NULL, pthread, &error);
-
-	/* Get our thread id. */
-	thr_self(&pthread->thr_id);
-
-	/* Find the stack top */
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_USRSTACK;
-	len = sizeof (_usrstack);
-	if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
-		_usrstack = (void *)USRSTACK;
 	/*
-	 * Create a red zone below the main stack.  All other stacks are
-	 * constrained to a maximum size by the paramters passed to
-	 * mmap(), but this stack is only limited by resource limits, so
-	 * this stack needs an explicitly mapped red zone to protect the
-	 * thread stack that is just beyond.
+	 * Add the thread to the thread list queue.
 	 */
-	if (mmap(_usrstack - _pthread_stack_initial -
-	    _pthread_guard_default, _pthread_guard_default, 0,
-	    MAP_ANON, -1, 0) == MAP_FAILED)
-		PANIC("Cannot allocate red zone for initial thread");
+	THR_LIST_ADD(curthread);
+	_thread_active_threads = 1;
 
-	/* Set the main thread stack pointer. */
-	pthread->stack = _usrstack - _pthread_stack_initial;
+	/* Setup the thread specific data */
+	_tcb_set(curthread->tcb);
 
-	/* Set the stack attributes. */
-	pthread->attr.stackaddr_attr = pthread->stack;
-	pthread->attr.stacksize_attr = _pthread_stack_initial;
-
-	/* Setup the context for initial thread. */
-	getcontext(&pthread->ctx);
-	pthread->ctx.uc_stack.ss_sp = pthread->stack;
-	pthread->ctx.uc_stack.ss_size = _pthread_stack_initial;
-
-	/* Initialize the atfork list and mutex */
-	TAILQ_INIT(&_atfork_list);
-	_pthread_mutex_init(&_atfork_mutex, NULL);
+	if (first) {
+		SIGFILLSET(sigset);
+		SIGDELSET(sigset, SIGTRAP);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
+		_thr_signal_init();
+		_thr_initial = curthread;
+		SIGDELSET(oldset, SIGCANCEL);
+		__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+	}
 }
 
 /*
- * Special start up code for NetBSD/Alpha
+ * This function and pthread_create() do a lot of the same things.
+ * It'd be nice to consolidate the common stuff in one place.
  */
-#if	defined(__NetBSD__) && defined(__alpha__)
-int
-main(int argc, char *argv[], char *env);
-
-int
-_thread_main(int argc, char *argv[], char *env)
+static void
+init_main_thread(struct pthread *thread)
 {
-	_thread_init();
-	return (main(argc, argv, env));
+	/* Setup the thread attributes. */
+	thr_self(&thread->tid);
+	thread->attr = _pthread_attr_default;
+	/*
+	 * Set up the thread stack.
+	 *
+	 * Create a red zone below the main stack.  All other stacks
+	 * are constrained to a maximum size by the parameters
+	 * passed to mmap(), but this stack is only limited by
+	 * resource limits, so this stack needs an explicitly mapped
+	 * red zone to protect the thread stack that is just beyond.
+	 */
+	if (mmap((void *)_usrstack - _thr_stack_initial -
+	    _thr_guard_default, _thr_guard_default, 0, MAP_ANON,
+	    -1, 0) == MAP_FAILED)
+		PANIC("Cannot allocate red zone for initial thread");
+
+	/*
+	 * Mark the stack as an application supplied stack so that it
+	 * isn't deallocated.
+	 *
+	 * XXX - I'm not sure it would hurt anything to deallocate
+	 *       the main thread stack because deallocation doesn't
+	 *       actually free() it; it just puts it in the free
+	 *       stack queue for later reuse.
+	 */
+	thread->attr.stackaddr_attr = (void *)_usrstack - _thr_stack_initial;
+	thread->attr.stacksize_attr = _thr_stack_initial;
+	thread->attr.guardsize_attr = _thr_guard_default;
+	thread->attr.flags |= THR_STACK_USER;
+
+	/*
+	 * Write a magic value to the thread structure
+	 * to help identify valid ones:
+	 */
+	thread->magic = THR_MAGIC;
+
+	thread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
+	thread->name = strdup("initial thread");
+
+	/* Default the priority of the initial thread: */
+	thread->base_priority = THR_DEFAULT_PRIORITY;
+	thread->active_priority = THR_DEFAULT_PRIORITY;
+	thread->inherited_priority = 0;
+
+	/* Initialize the mutex queue: */
+	TAILQ_INIT(&thread->mutexq);
+	TAILQ_INIT(&thread->pri_mutexq);
+
+	thread->state = PS_RUNNING;
+	thread->uniqueid = 0;
+
+	/* Others cleared to zero by thr_alloc() */
 }
+
+static void
+init_private(void)
+{
+	size_t len;
+	int mib[2];
+
+	_thr_umtx_init(&_mutex_static_lock);
+	_thr_umtx_init(&_cond_static_lock);
+	_thr_umtx_init(&_rwlock_static_lock);
+	_thr_umtx_init(&_keytable_lock);
+	_thr_umtx_init(&_thr_atfork_lock);
+	_thr_spinlock_init();
+	_thr_list_init();
+
+	/*
+	 * Avoid reinitializing some things if they don't need to be,
+	 * e.g. after a fork().
+	 */
+	if (init_once == 0) {
+		/* Find the stack top */
+		mib[0] = CTL_KERN;
+		mib[1] = KERN_USRSTACK;
+		len = sizeof (_usrstack);
+		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
+			PANIC("Cannot get kern.usrstack from sysctl");
+		_thr_page_size = getpagesize();
+		_thr_guard_default = _thr_page_size;
+		_pthread_attr_default.guardsize_attr = _thr_guard_default;
+		_pthread_attr_default.stacksize_attr = _thr_stack_default;
+
+		TAILQ_INIT(&_thr_atfork_list);
+#ifdef SYSTEM_SCOPE_ONLY
+		_thr_scope_system = 1;
+#else
+		if (getenv("LIBPTHREAD_SYSTEM_SCOPE") != NULL)
+			_thr_scope_system = 1;
+		else if (getenv("LIBPTHREAD_PROCESS_SCOPE") != NULL)
+			_thr_scope_system = -1;
 #endif
+	}
+	init_once = 1;
+}

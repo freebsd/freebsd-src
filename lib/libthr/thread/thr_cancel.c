@@ -1,143 +1,163 @@
 /*
- * David Leonard <d@openbsd.org>, 1999. Public domain.
+ * Copyright (c) 2005, David Xu <davidxu@freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  * $FreeBSD$
+ *
  */
-#include <sys/errno.h>
-#include <pthread.h>
-#include <stdlib.h>
-#include "thr_private.h"
 
-/*
- * Static prototypes
- */
-static void	testcancel(void);
+#include <pthread.h>
+
+#include "thr_private.h"
 
 __weak_reference(_pthread_cancel, pthread_cancel);
 __weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
 __weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
 __weak_reference(_pthread_testcancel, pthread_testcancel);
 
-/*
- * Posix requires this function to be async-cancel-safe, so it
- * may not aquire any type of resource or call any functions
- * that might do so.
- */
+int _pthread_setcanceltype(int type, int *oldtype);
+
 int
 _pthread_cancel(pthread_t pthread)
 {
-	/* Don't continue if cancellation has already been set. */
-	if (atomic_cmpset_int(&pthread->cancellation, (int)CS_NULL,
-	    (int)CS_PENDING) != 1)
-		return (0);
+	struct pthread *curthread = _get_curthread();
+	int oldval, newval = 0;
+	int oldtype;
+	int ret;
 
 	/*
-	 * Only wakeup threads that are in cancellation points or
-	 * have set async cancel.
-	 * XXX - access to pthread->flags is not safe. We should just
-	 *	 unconditionally wake the thread and make sure that
-	 *	 the the library correctly handles spurious wakeups.
+	 * POSIX says _pthread_cancel should be async cancellation safe,
+	 * so we temporarily disable async cancellation.
 	 */
-	if ((pthread->cancellationpoint || pthread->cancelmode == M_ASYNC) &&
-	    (pthread->flags & PTHREAD_FLAGS_NOT_RUNNING) != 0)
-		PTHREAD_WAKE(pthread);
+	_pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
+	if ((ret = _thr_ref_add(curthread, pthread, 0)) != 0) {
+		_pthread_setcanceltype(oldtype, NULL);
+		return (ret);
+	}
+
+	do {
+		oldval = pthread->cancelflags;
+		if (oldval & THR_CANCEL_NEEDED)
+			break;
+		newval = oldval | THR_CANCEL_NEEDED;
+	} while (!atomic_cmpset_acq_int(&pthread->cancelflags, oldval, newval));
+
+	if (!(oldval & THR_CANCEL_NEEDED) && SHOULD_ASYNC_CANCEL(newval))
+		_thr_send_sig(pthread, SIGCANCEL);
+
+	_thr_ref_delete(curthread, pthread);
+	_pthread_setcanceltype(oldtype, NULL);
 	return (0);
 }
 
-/*
- * Posix requires this function to be async-cancel-safe, so it
- * may not aquire any type of resource or call any functions
- * that might do so.
- */
+static inline void
+testcancel(struct pthread *curthread)
+{
+	int newval;
+
+	newval = curthread->cancelflags;
+	if (SHOULD_CANCEL(newval))
+		pthread_exit(PTHREAD_CANCELED);
+}
+
 int
 _pthread_setcancelstate(int state, int *oldstate)
 {
-	int ostate;
+	struct pthread *curthread = _get_curthread();
+	int oldval, ret;
 
-	ostate = (curthread->cancelmode == M_OFF) ? PTHREAD_CANCEL_DISABLE :
-	    PTHREAD_CANCEL_ENABLE;
+	oldval = curthread->cancelflags;
+	if (oldstate != NULL)
+		*oldstate = ((oldval & THR_CANCEL_DISABLE) ?
+		    PTHREAD_CANCEL_DISABLE : PTHREAD_CANCEL_ENABLE);
 	switch (state) {
-	case PTHREAD_CANCEL_ENABLE:
-		curthread->cancelmode = curthread->cancelstate;
-		break;
 	case PTHREAD_CANCEL_DISABLE:
-		if (curthread->cancelmode != M_OFF) {
-			curthread->cancelstate = curthread->cancelmode;
-			curthread->cancelmode = M_OFF;
-		}
+		atomic_set_int(&curthread->cancelflags, THR_CANCEL_DISABLE);
+		ret = 0;
+		break;
+	case PTHREAD_CANCEL_ENABLE:
+		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_DISABLE);
+		testcancel(curthread);
+		ret = 0;
 		break;
 	default:
-		return (EINVAL);
+		ret = EINVAL;
 	}
-	if (oldstate != NULL)
-		*oldstate = ostate;
-	return (0);
+
+	return (ret);
 }
 
-/*
- * Posix requires this function to be async-cancel-safe, so it
- * may not aquire any type of resource or call any functions that
- * might do so.
- */
 int
 _pthread_setcanceltype(int type, int *oldtype)
 {
-	enum cancel_mode omode;
+	struct pthread	*curthread = _get_curthread();
+	int oldval, ret;
 
-	omode = curthread->cancelstate;
+	oldval = curthread->cancelflags;
+	if (oldtype != NULL)
+		*oldtype = ((oldval & THR_CANCEL_AT_POINT) ?
+				 PTHREAD_CANCEL_ASYNCHRONOUS :
+				 PTHREAD_CANCEL_DEFERRED);
 	switch (type) {
 	case PTHREAD_CANCEL_ASYNCHRONOUS:
-		if (curthread->cancelmode != M_OFF)
-			curthread->cancelmode = M_ASYNC;
-		curthread->cancelstate = M_ASYNC;
+		atomic_set_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
+		testcancel(curthread);
+		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DEFERRED:
-		if (curthread->cancelmode != M_OFF)
-			curthread->cancelmode = M_DEFERRED;
-		curthread->cancelstate = M_DEFERRED;
+		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
+		ret = 0;
 		break;
 	default:
-		return (EINVAL);
+		ret = EINVAL;
 	}
-	if (oldtype != NULL) {
-		if (omode == M_DEFERRED)
-			*oldtype = PTHREAD_CANCEL_DEFERRED;
-		else if (omode == M_ASYNC)
-			*oldtype = PTHREAD_CANCEL_ASYNCHRONOUS;
-	}
-	return (0);
+
+	return (ret);
 }
 
 void
 _pthread_testcancel(void)
 {
-	testcancel();
+	testcancel(_get_curthread());
 }
 
-static void
-testcancel()
+int
+_thr_cancel_enter(struct pthread *curthread)
 {
-	if (curthread->cancelmode != M_OFF) {
+	int oldval;
 
-		/* Cleanup a canceled thread only once. */
-		if (atomic_cmpset_int(&curthread->cancellation,
-		    (int)CS_PENDING, (int)CS_SET) == 1) {
-			_thread_exit_cleanup();
-			pthread_exit(PTHREAD_CANCELED);
-			PANIC("cancel");
-		}
+	oldval = curthread->cancelflags;
+	if (!(oldval & THR_CANCEL_AT_POINT)) {
+		atomic_set_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
+		testcancel(curthread);
 	}
+	return (oldval);
 }
 
 void
-_thread_enter_cancellation_point(void)
+_thr_cancel_leave(struct pthread *curthread, int previous)
 {
-	testcancel();
-	curthread->cancellationpoint = 1;
-}
-
-void
-_thread_leave_cancellation_point(void)
-{
-	curthread->cancellationpoint = 0;
-	testcancel();
+	if (!(previous & THR_CANCEL_AT_POINT))
+		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
 }

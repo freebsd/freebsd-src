@@ -31,17 +31,44 @@
  *
  * $FreeBSD$
  */
+
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <pthread.h>
+
 #include "thr_private.h"
 
+__weak_reference(_pthread_condattr_init, pthread_condattr_init);
 __weak_reference(_pthread_condattr_destroy, pthread_condattr_destroy);
+__weak_reference(_pthread_condattr_getclock, pthread_condattr_getclock);
+__weak_reference(_pthread_condattr_setclock, pthread_condattr_setclock);
+__weak_reference(_pthread_condattr_getpshared, pthread_condattr_getpshared);
+__weak_reference(_pthread_condattr_setpshared, pthread_condattr_setpshared);
+
+int
+_pthread_condattr_init(pthread_condattr_t *attr)
+{
+	pthread_condattr_t pattr;
+	int ret;
+
+	if ((pattr = (pthread_condattr_t)
+	    malloc(sizeof(struct pthread_cond_attr))) == NULL) {
+		ret = ENOMEM;
+	} else {
+		memcpy(pattr, &_pthread_condattr_default,
+		    sizeof(struct pthread_cond_attr));
+		*attr = pattr;
+		ret = 0;
+	}
+	return (ret);
+}
 
 int
 _pthread_condattr_destroy(pthread_condattr_t *attr)
 {
 	int	ret;
+
 	if (attr == NULL || *attr == NULL) {
 		ret = EINVAL;
 	} else {
@@ -50,4 +77,52 @@ _pthread_condattr_destroy(pthread_condattr_t *attr)
 		ret = 0;
 	}
 	return(ret);
+}
+
+int
+_pthread_condattr_getclock(const pthread_condattr_t *attr,
+       clockid_t *clock_id)
+{
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+	*clock_id = (*attr)->c_clockid;
+	return (0);
+}
+
+int
+_pthread_condattr_setclock(pthread_condattr_t *attr,
+       clockid_t clock_id)
+{
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+	if (clock_id != CLOCK_REALTIME &&
+	    clock_id != CLOCK_VIRTUAL &&
+	    clock_id != CLOCK_PROF &&
+	    clock_id != CLOCK_MONOTONIC) {
+		return  (EINVAL);
+	}
+	(*attr)->c_clockid = clock_id;
+	return (0);
+}
+
+int
+_pthread_condattr_getpshared(const pthread_condattr_t *attr,
+	int *pshared)
+{
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+
+	pshared = PTHREAD_PROCESS_PRIVATE;
+	return (0);
+}
+
+int
+_pthread_condattr_setpshared(pthread_condattr_t *attr, int pshared)
+{
+	if (attr == NULL || *attr == NULL)
+		return (EINVAL);
+
+	if  (pshared != PTHREAD_PROCESS_PRIVATE)
+		return (EINVAL);
+	return (0);
 }

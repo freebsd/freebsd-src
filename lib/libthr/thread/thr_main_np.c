@@ -24,11 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
 #include <pthread.h>
 #include <pthread_np.h>
+
 #include "thr_private.h"
 
 __weak_reference(_pthread_main_np, pthread_main_np);
@@ -40,8 +41,8 @@ int
 _pthread_main_np()
 {
 
-	if (!_thread_initial)
+	if (!_thr_initial)
 		return (-1);
 	else
-		return (pthread_equal(pthread_self(), _thread_initial) ? 1 : 0);
+		return (pthread_equal(pthread_self(), _thr_initial) ? 1 : 0);
 }

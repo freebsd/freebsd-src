@@ -1,5 +1,5 @@
-/*-
- * Copyright (c) 2002 Jake Burkholder.
+/*
+ * Copyright (c) 1997 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,8 +10,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by John Birrell.
+ * 4. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY JOHN BIRRELL AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -22,38 +28,40 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/types.h>
-#include <sys/ucontext.h>
-
+#include <errno.h>
+#include <signal.h>
 #include <pthread.h>
+
 #include "thr_private.h"
 
-register struct pthread *_curthread __asm("%g6");
+__weak_reference(_pthread_kill, pthread_kill);
 
-struct pthread *
-_get_curthread(void)
+int
+_pthread_kill(pthread_t pthread, int sig)
 {
+	struct pthread *curthread = _get_curthread();
+	int ret;
 
-	return (_curthread);
-}
+	/* Check for invalid signal numbers: */
+	if (sig < 0 || sig > _SIG_MAXSIG)
+		/* Invalid signal: */
+		ret = EINVAL;
+	/*
+	 * Ensure the thread is in the list of active threads, and the
+	 * signal is valid (signal 0 specifies error checking only) and
+	 * not being ignored:
+	 */
+	else if ((ret = _thr_ref_add(curthread, pthread, /*include dead*/0))
+	    == 0) {
+		if (sig > 0)
+			_thr_send_sig(pthread, sig);
+		_thr_ref_delete(curthread, pthread);
+	}
 
-void
-_retire_thread(void *v)
-{
-}
-
-void *
-_set_curthread(ucontext_t *uc, struct pthread *thread, int *err)
-{
-	*err = 0;
-	if (uc != NULL)
-		uc->uc_mcontext.mc_global[6] = (uint64_t)thread;
-	else
-		_curthread = thread;
-	return (NULL);
+	/* Return the completion status: */
+	return (ret);
 }

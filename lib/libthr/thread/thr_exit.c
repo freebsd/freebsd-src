@@ -31,39 +31,28 @@
  *
  * $FreeBSD$
  */
+
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <pthread.h>
+
 #include "thr_private.h"
+
+void	_pthread_exit(void *status);
 
 __weak_reference(_pthread_exit, pthread_exit);
 
-static void	deadlist_free_threads();
-
 void
-_thread_exit(char *fname, int lineno, char *string)
+_thread_exit(char *fname, int lineno, char *msg)
 {
-	char            s[256];
 
-	/* Prepare an error message string: */
-	snprintf(s, sizeof(s),
+	/* Write an error message to the standard error file descriptor: */
+	_thread_printf(2,
 	    "Fatal error '%s' at line %d in file %s (errno = %d)\n",
-	    string, lineno, fname, errno);
+	    msg, lineno, fname, errno);
 
-	/* Write the string to the standard error file descriptor: */
-	__sys_write(2, s, strlen(s));
-
-	/* Force this process to exit: */
-	/* XXX - Do we want abort to be conditional on _PTHREADS_INVARIANTS? */
-#if defined(_PTHREADS_INVARIANTS)
 	abort();
-#else
-	__sys_exit(1);
-#endif
 }
 
 /*
@@ -72,8 +61,10 @@ _thread_exit(char *fname, int lineno, char *string)
  * abnormal thread termination can be found.
  */
 void
-_thread_exit_cleanup(void)
+_thr_exit_cleanup(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * POSIX states that cancellation/termination of a thread should
 	 * not release any visible resources (such as mutexes) and that
@@ -93,27 +84,24 @@ _thread_exit_cleanup(void)
 void
 _pthread_exit(void *status)
 {
-	struct pthread *pthread;
-	int exitNow = 0;
-
-	/*
-	 * This thread will no longer handle any signals.
-	 */
-	_thread_sigblock();
+	struct pthread *curthread = _get_curthread();
 
 	/* Check if this thread is already in the process of exiting: */
-	if (curthread->exiting) {
+	if ((curthread->cancelflags & THR_CANCEL_EXITING) != 0) {
 		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",curthread);
+		snprintf(msg, sizeof(msg), "Thread %p has called "
+		    "pthread_exit() from a destructor. POSIX 1003.1 "
+		    "1996 s16.2.5.2 does not allow this!", curthread);
 		PANIC(msg);
 	}
 
-	/* Flag this thread as exiting: */
-	curthread->exiting = 1;
+	/* Flag this thread as exiting. */
+	atomic_set_int(&curthread->cancelflags, THR_CANCEL_EXITING);
+	
+	_thr_exit_cleanup();
 
 	/* Save the return value: */
 	curthread->ret = status;
-
 	while (curthread->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
@@ -126,93 +114,23 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
-	/*
-	 * Remove read-write lock list. It is allocated as-needed.
-	 * Therefore, it must be checked for validity before freeing.
-	 */
-	if (curthread->rwlockList != NULL)
-		free(curthread->rwlockList);
-
-	/* Lock the dead list first to maintain correct lock order */
-	DEAD_LIST_LOCK;
-	THREAD_LIST_LOCK;
-
-	/* Check if there is a thread joining this one: */
-	if (curthread->joiner != NULL) {
-		pthread = curthread->joiner;
-		curthread->joiner = NULL;
-
-		/* Set the return value for the joining thread: */
-		pthread->join_status.ret = curthread->ret;
-		pthread->join_status.error = 0;
-		pthread->join_status.thread = NULL;
-
-		/* Make the joining thread runnable: */
-		PTHREAD_WAKE(pthread);
-
-		curthread->attr.flags |= PTHREAD_DETACHED;
-	}
-
-	/*
-	 * Free any memory allocated for dead threads.
-	 * Add this thread to the list of dead threads, and
-	 * also remove it from the active threads list.
-	 */
-	deadlist_free_threads();
-	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
-	TAILQ_REMOVE(&_thread_list, curthread, tle);
-	
-	/* If we're the last thread, call it quits */
-	if (TAILQ_EMPTY(&_thread_list))
-		exitNow = 1;
-
-	THREAD_LIST_UNLOCK;
-	DEAD_LIST_UNLOCK;
-
-	if (exitNow)
+	if (!_thr_isthreaded())
 		exit(0);
 
-	/*
-	 * This function will not return unless we are the last
-	 * thread, which we can't be because we've already checked
-	 * for that.
-	 */
-	thr_exit((long *)&curthread->isdead);
-
-	/* This point should not be reached. */
-	PANIC("Dead thread has resumed");
-}
-
-/*
- * Note: this function must be called with the dead thread list
- *	 locked.
- */
-static void
-deadlist_free_threads()
-{
-	struct pthread *ptd, *ptdTemp;
-
-	TAILQ_FOREACH_SAFE(ptd, &_dead_list, dle, ptdTemp) {
-		/* Don't destroy the initial thread or non-detached threads. */
-		if (ptd == _thread_initial ||
-		    (ptd->attr.flags & PTHREAD_DETACHED) == 0 ||
-		    !ptd->isdead)
-			continue;
-		TAILQ_REMOVE(&_dead_list, ptd, dle);
-		deadlist_free_onethread(ptd);
+	THREAD_LIST_LOCK(curthread);
+	_thread_active_threads--;
+	if (_thread_active_threads == 0) {
+		THREAD_LIST_UNLOCK(curthread);
+		exit(0);
+		/* Never reach! */
 	}
-}
-
-void
-deadlist_free_onethread(struct pthread *ptd)
-{
-
-	if (ptd->attr.stackaddr_attr == NULL && ptd->stack != NULL) {
-		STACK_LOCK;
-		_thread_stack_free(ptd->stack, ptd->attr.stacksize_attr,
-		    ptd->attr.guardsize_attr);
-		STACK_UNLOCK;
-	}
-	_retire_thread(ptd->arch_id);
-	free(ptd);
+	if (curthread->tlflags & TLFLAGS_DETACHED)
+		THR_GCLIST_ADD(curthread);
+	curthread->state = PS_DEAD;
+	THREAD_LIST_UNLOCK(curthread);
+	if (curthread->joiner)
+		_thr_umtx_wake(&curthread->state, INT_MAX);
+	thr_exit(&curthread->terminated);
+	PANIC("thr_exit() returned");
+	/* Never reach! */
 }
