@@ -436,9 +436,6 @@ devclass_get_softc(devclass_t dc, int unit)
     if (!dev)
 	return (NULL);
 
-    if (device_get_state(dev) < DS_ATTACHED)
-	return (NULL);
-
     return (device_get_softc(dev));
 }
 
