@@ -1553,7 +1553,8 @@ cfline(line, f, prog, host)
 		if (f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
 		dl = strlen(LocalDomain) + 1;
-		if (hl > dl && f->f_host[hl-dl] == '.')
+		if (hl > dl && f->f_host[hl-dl] == '.' &&
+		    strcasecmp(f->f_host + hl - dl + 1, LocalDomain) == 0)
 			f->f_host[hl-dl] = '\0';
 	}
 
