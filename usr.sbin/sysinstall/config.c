@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.25 1996/04/23 01:29:11 jkh Exp $
+ * $Id: config.c,v 1.26 1996/04/28 01:07:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -459,9 +459,9 @@ configPackages(dialogMenuItem *self)
 	    /* Now show the packing list menu */
 	    pos = scroll = 0;
 	    ret = index_menu(&plist, NULL, &pos, &scroll);
-	    if (ret == DITEM_LEAVE_MENU)
+	    if (ret & DITEM_LEAVE_MENU)
 		break;
-	    else if (ret != DITEM_FAILURE) {
+	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
 		index_extract(mediaDevice, &top, &plist);
 		break;
 	    }
@@ -525,7 +525,7 @@ configPorts(dialogMenuItem *self)
 		}
 	    }
 	    msgNotify("Making a link tree from %s to %s.", dist, cp);
-	    if (lndir(dist, cp) != DITEM_SUCCESS) {
+	    if (DITEM_STATUS(lndir(dist, cp)) != DITEM_SUCCESS) {
 		msgConfirm("The lndir function returned an error status and may not have.\n"
 			   "successfully generated the link tree.  You may wish to inspect\n"
 			   "the /usr/ports directory carefully for any missing link files.");
@@ -548,18 +548,24 @@ configPorts(dialogMenuItem *self)
 int
 configGated(dialogMenuItem *self)
 {
-    if (package_add("gated-3.5a11") == DITEM_SUCCESS)
+    int ret;
+
+    ret = package_add("gated-3.5a11");
+    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
 	variable_set2("gated", "YES");
-    return DITEM_SUCCESS;
+    return ret;
 }
 
 /* Load pcnfsd package */
 int
 configPCNFSD(dialogMenuItem *self)
 {
-    if (package_add("pcnfsd-93.02.16") == DITEM_SUCCESS)
+    int ret;
+
+    ret = package_add("pcnfsd-93.02.16");
+    if (DITEM_STATUS(ret) == DITEM_SUCCESS)
 	variable_set2("pcnfsd", "YES");
-    return DITEM_SUCCESS;
+    return ret;
 }
 
 int

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.31 1996/04/13 13:32:07 jkh Exp $
+ * $Id: package.c,v 1.32 1996/04/23 01:29:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,7 +97,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	if (!pid) {
 	    dup2(pfd[0], 0); close(pfd[0]);
 	    dup2(DebugFD, 1);
-	    dup2(DebugFD, 2);
+	    close(2);
 	    close(pfd[1]);
 	    i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
 	    if (isDebug())
@@ -105,6 +105,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
 	else {
 	    char buf[BUFSIZ];
+	    WINDOW *w = savescr();
 
 	    tot = 0;
 	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
@@ -133,6 +134,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    }
 	    else
 		msgNotify("Package %s was added successfully", name);
+	    sleep(1);
+	    restorescr(w);
 	}
     }
     else {
@@ -146,5 +149,5 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
 	ret = DITEM_FAILURE;
     }
-    return ret | DITEM_RESTORE;
+    return ret;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: anonFTP.c,v 1.12 1996/04/23 01:29:07 jkh Exp $
+ * $Id: anonFTP.c,v 1.13 1996/04/28 01:07:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.
@@ -206,7 +206,6 @@ createFtpUser(void)
     fclose(fptr);
     msgNotify("Remaking password file: %s", _PATH_MASTERPASSWD);
     vsystem("pwd_mkdb -p %s", _PATH_MASTERPASSWD);
-    
     return (DITEM_SUCCESS);
 }
 
@@ -404,9 +403,9 @@ configAnonFTP(dialogMenuItem *self)
     
     dialog_clear();
     i = anonftpOpenDialog();
-    if (i != DITEM_SUCCESS) {
+    if (DITEM_STATUS(i) != DITEM_SUCCESS) {
 	msgConfirm("Configuration of Anonymous FTP cancelled per user request.");
-	return DITEM_SUCCESS | DITEM_RESTORE;
+	return i | DITEM_RESTORE;
     }
     
     /*** Use defaults for any invalid values ***/
@@ -421,8 +420,8 @@ configAnonFTP(dialogMenuItem *self)
     
     /*** If the user did not specify a directory, use default ***/
     
-    if (tconf.homedir[strlen(tconf.homedir)-1] == '/')
-	tconf.homedir[strlen(tconf.homedir)-1] = '\0';
+    if (tconf.homedir[strlen(tconf.homedir) - 1] == '/')
+	tconf.homedir[strlen(tconf.homedir) - 1] = '\0';
     
     if (!tconf.homedir[0])
 	strcpy(tconf.homedir, FTP_HOMEDIR);
@@ -443,7 +442,7 @@ configAnonFTP(dialogMenuItem *self)
 	vsystem("mkdir -p %s/%s", tconf.homedir, tconf.upload);
 	vsystem("chmod 1777 %s/%s", tconf.homedir, tconf.upload);
 	
-	if (createFtpUser() == DITEM_SUCCESS) {
+	if (DITEM_STATUS(createFtpUser()) == DITEM_SUCCESS) {
 	    msgNotify("Copying password information for anon FTP.");
 	    vsystem("cp /etc/pwd.db %s/etc && chmod 444 %s/etc/pwd.db", tconf.homedir, tconf.homedir);
 	    vsystem("cp /etc/passwd %s/etc && chmod 444 %s/etc/passwd", tconf.homedir, tconf.homedir);
@@ -471,5 +470,7 @@ configAnonFTP(dialogMenuItem *self)
 		   "Anonymous FTP will not be set up.", tconf.homedir);
 	i = DITEM_FAILURE;
     }
+    if (DITEM_STATUS(i) == DITEM_SUCCESS)
+	variable_set2("anon_ftp", "YES");
     return i | DITEM_RESTORE;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.43 1996/04/25 17:31:15 jkh Exp $
+ * $Id: dist.c,v 1.44 1996/04/28 00:37:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -354,7 +354,7 @@ distExtract(char *parent, Distribution *me)
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (attr_parse_file(dist_attr, buf) == DITEM_FAILURE)
+	    if (DITEM_STATUS(attr_parse_file(dist_attr, buf)) == DITEM_FAILURE)
 		msgConfirm("Cannot load information file for %s distribution!\n"
 			   "Please verify that your media is valid and try again.", dist);
 	    else {
@@ -472,12 +472,15 @@ distExtractAll(dialogMenuItem *self)
     char buf[512];
 
     /* First try to initialize the state of things */
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE;
     if (!Dists) {
 	msgConfirm("You haven't selected any distributions to extract.");
 	return DITEM_FAILURE;
     }
+    if (!mediaVerify())
+	return DITEM_FAILURE;
+
+    if (!mediaDevice->init(mediaDevice))
+	return DITEM_FAILURE;
     dialog_clear();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
