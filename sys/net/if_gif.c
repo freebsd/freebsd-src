@@ -96,8 +96,8 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-int	gif_clone_create(struct if_clone *, int);
-void	gif_clone_destroy(struct ifnet *);
+static int	gif_clone_create(struct if_clone *, int);
+static void	gif_clone_destroy(struct ifnet *);
 
 struct if_clone gif_cloner = IF_CLONE_INITIALIZER("gif",
     gif_clone_create, gif_clone_destroy, 0, IF_MAXUNIT);
@@ -135,7 +135,7 @@ static int parallel_tunnels = 0;
 SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
     &parallel_tunnels, 0, "Allow parallel tunnels?");
 
-int
+static int
 gif_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;
@@ -208,7 +208,7 @@ gif_destroy(struct gif_softc *sc)
 	free(sc, M_GIF);
 }
 
-void
+static void
 gif_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
