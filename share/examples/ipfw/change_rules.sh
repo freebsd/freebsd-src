@@ -57,6 +57,10 @@ elif [ -r /etc/rc.conf ]; then
 fi
 
 EDITOR=${EDITOR:-/usr/bin/vi}
+PAGER=${PAGER:-/usr/bin/more}
+
+tempfoo=`basename $0`
+TMPFILE=`mktemp -t ${tempfoo}` || exit 1
 
 get_yes_no() {
 	while true
@@ -78,24 +82,42 @@ get_yes_no() {
 }
 
 restore_rules() {
-	nohup sh ${firewall_script} >/dev/null 2>&1 
-	exit
+	nohup sh ${firewall_script} >/dev/null 2>&1
+	rm ${TMPFILE}
+	exit 1
 }
 
-if [ -f ${firewall_script}.new ]; then
+case "${firewall_type}" in
+[Cc][Ll][Ii][Ee][Nn][Tt]|\
+[Cc][Ll][Oo][Ss][Ee][Dd]|\
+[Oo][Pp][Ee][Nn]|\
+[Ss][Ii][Mm][Pp][Ll][Ee]|\
+[Uu][Nn][Kk][Nn][Oo][Ww][Nn])
+	edit_file="${firewall_script}"
+	rules_edit=no
+	;;
+*)
+	if [ -r "${firewall_type}" ]; then
+		edit_file="${firewall_type}"
+		rules_edit=yes
+	fi
+	;;
+esac
+
+if [ -f ${edit_file}.new ]; then
 	get_yes_no "A new rules file already exists, do you want to use it"
-	[ $a = 'No' ] && cp ${firewall_script} ${firewall_script}.new
+	[ $a = 'No' ] && cp ${edit_file} ${edit_file}.new
 else 
-	cp ${firewall_script} ${firewall_script}.new
+	cp ${edit_file} ${edit_file}.new
 fi
 
 trap restore_rules SIGHUP
 
-${EDITOR} ${firewall_script}.new
+${EDITOR} ${edit_file}.new
 
 get_yes_no "Do you want to install the new rules"
 
-[ $a = 'No' ] && exit
+[ $a = 'No' ] && exit 1
 
 cat <<!
 The rules will be changed now. If the message 'Type y to keep the new
@@ -105,19 +127,27 @@ The TCP/IP connections might be broken during the change. If so, restore
 the ssh/telnet connection being used.
 !
 
-nohup sh ${firewall_script}.new > /tmp/`basename ${firewall_script}`.out 2>&1;
+if [ ${rules_edit} = yes ]; then
+	nohup sh ${firewall_script} ${firewall_type}.new \
+	    > ${TMPFILE} 2>&1
+else
+	nohup sh ${firewall_script}.new \
+	    > ${TMPFILE} 2>&1
+fi
 sleep 2;
 get_yes_no "Would you like to see the resulting new rules"
-[ $a = 'Yes' ] && ${EDITOR} /tmp/`basename ${firewall_script}`.out
+[ $a = 'Yes' ] && ${PAGER} ${TMPFILE}
 get_yes_no "Type y to keep the new rules"
 [ $a != 'Yes' ] && restore_rules
 
 DATE=`date "+%Y%m%d%H%M"`
-cp ${firewall_script} ${firewall_script}.$DATE
-mv ${firewall_script}.new ${firewall_script} 
+cp ${edit_file} ${edit_file}.$DATE
+mv ${edit_file}.new ${edit_file} 
 cat <<!
 The new rules are now default. The previous rules have been preserved in
-the file ${firewall_script}.$DATE
+the file ${edit_file}.$DATE
 !
-diff -F "^# .*[A-Za-z]" -u ${firewall_script}.$DATE ${firewall_script} | mail -s "`hostname` Firewall rule change" root
-
+diff -F "^# .*[A-Za-z]" -u ${edit_file}.$DATE ${edit_file} \
+    | mail -s "`hostname` Firewall rule change" root
+rm ${TMPFILE}
+exit 0
