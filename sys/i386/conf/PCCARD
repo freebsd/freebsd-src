@@ -66,17 +66,17 @@ controller	pci0
 
 # Floppy drives
 controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
-disk		fd0	at fdc0 drive 0
-disk		fd1	at fdc0 drive 1
+device		fd0	at fdc0 drive 0
+device		fd1	at fdc0 drive 1
 
 # IDE controller and disks
 controller	wdc0	at isa? port IO_WD1 irq 14
-disk		wd0	at wdc0 drive 0
-disk		wd1	at wdc0 drive 1
+device		wd0	at wdc0 drive 0
+device		wd1	at wdc0 drive 1
 
 controller	wdc1	at isa? port IO_WD2 irq 15
-disk		wd2	at wdc1 drive 0
-disk		wd3	at wdc1 drive 1
+device		wd2	at wdc1 drive 0
+device		wd3	at wdc1 drive 1
 
 # ATAPI devices on wdc?
 device		wcd0		#IDE CD-ROM
