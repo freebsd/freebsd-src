@@ -1,4 +1,32 @@
-#	$Id: bsd.dep.mk,v 1.5 1996/03/31 20:04:08 wosch Exp $
+#	$Id: bsd.dep.mk,v 1.3 1996/04/01 18:58:28 wosch Exp $
+#
+# The include file <bsd.dep.mk> handles Makefile dependencies.
+#
+#
+# +++ variables +++
+#
+# DEPENDFILE	dependencies file [.depend]
+#
+# MKDEP		Options for ${MKDEPCMD} [not set]
+#
+# MKDEPCMD	Makefile dependency list program [mkdep]
+# 
+# SRCS          List of source files (c, c++, assembler)
+#
+#
+# +++ targets +++
+#
+#	cleandepend:
+#		Remove depend and tags file
+#
+#	depend:
+#		Make the dependencies for the source files, and store
+#		them in the file ${DEPENDFILE}.
+#
+#	tags:
+#		Create a tags file for the source files.
+#
+
 
 MKDEPCMD?=	mkdep
 DEPENDFILE?=	.depend
