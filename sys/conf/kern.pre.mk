@@ -82,3 +82,4 @@ SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
 	${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/conf/ldscript.$M
 
+all:	${KERNEL_KO}

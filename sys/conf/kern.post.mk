@@ -9,8 +9,6 @@
 
 .PHONY:	all modules
 
-all: ${KERNEL_KO}
-
 depend: kernel-depend
 clean:  kernel-clean
 cleandepend:  kernel-cleandepend
