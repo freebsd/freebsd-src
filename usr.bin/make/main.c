@@ -354,6 +354,34 @@ Main_ParseArgLine(line)
 	MainParseArgs(argc, argv);
 }
 
+char *
+chdir_verify_path(path, obpath)
+	char *path;
+	char *obpath;
+{
+	struct stat sb;
+
+	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
+		if (chdir(path)) {
+			(void)fprintf(stderr, "make warning: %s: %s.\n",
+				      path, strerror(errno));
+			return 0;
+		}
+		else {
+			if (path[0] != '/') {
+				(void) snprintf(obpath, MAXPATHLEN, "%s/%s",
+						curdir, path);
+				return obpath;
+			}
+			else
+				return path;
+		}
+	}
+
+	return 0;
+}
+
+
 /*-
  * main --
  *	The main function, for obvious reasons. Initializes variables
@@ -379,11 +407,10 @@ main(argc, argv)
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sb, sa;
-	char *p, *p1, *path, *pwd, *getenv(), *getwd();
+	char *p, *p1, *path, *pathp, *pwd, *getenv(), *getwd();
 	char mdpath[MAXPATHLEN + 1];
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
-	char *realobjdir;	/* Where we'd like to go */
 	struct utsname utsname;
     	char *machine = getenv("MACHINE");
 
@@ -419,43 +446,53 @@ main(argc, argv)
 	 * MACHINE_ARCH is always known at compile time.
 	 */
     	if (!machine) {
-	    if (uname(&utsname)) {
+#ifndef MACHINE
+	    if (uname(&utsname) == -1) {
 		    perror("make: uname");
 		    exit(2);
 	    }
 	    machine = utsname.machine;
+#else
+	    machine = MACHINE;
+#endif
 	}
 
 	/*
-	 * if the MAKEOBJDIR (or by default, the _PATH_OBJDIR) directory
-	 * exists, change into it and build there.  Once things are
-	 * initted, have to add the original directory to the search path,
+	 * If the MAKEOBJDIR (or by default, the _PATH_OBJDIR) directory
+	 * exists, change into it and build there.  (If a .${MACHINE} suffix
+	 * exists, use that directory instead).
+	 * Otherwise check MAKEOBJDIRPREFIX`cwd` (or by default,
+	 * _PATH_OBJDIRPREFIX`cwd`) and build there if it exists.
+	 * If all fails, use the current directory to build.
+	 *
+	 * Once things are initted,
+	 * have to add the original directory to the search path,
 	 * and modify the paths for the Makefiles apropriately.  The
 	 * current directory is also placed as a variable for make scripts.
 	 */
-	if (!(path = getenv("MAKEOBJDIR")))
-		path = _PATH_OBJDIR;
-	(void) snprintf(mdpath, MAXPATHLEN, "%s%s", path, curdir);
-	realobjdir = mdpath;	/* This is where we'd _like_ to be, anyway */
-
-	if (stat(mdpath, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-
-		if (chdir(mdpath)) {
-			(void)fprintf(stderr, "make warning: %s: %s.\n",
-				      mdpath, strerror(errno));
+	if (!(pathp = getenv("MAKEOBJDIRPREFIX"))) {
+		if (!(path = getenv("MAKEOBJDIR"))) {
+			path = _PATH_OBJDIR;
+			pathp = _PATH_OBJDIRPREFIX;
+			(void) snprintf(mdpath, MAXPATHLEN, "%s.%s",
+					path, machine);
+			if (!(objdir = chdir_verify_path(mdpath, obpath)))
+				if (!(objdir=chdir_verify_path(path, obpath))) {
+					(void) snprintf(mdpath, MAXPATHLEN,
+							"%s%s", pathp, curdir);
+					if (!(objdir=chdir_verify_path(mdpath,
+								       obpath)))
+						objdir = curdir;
+				}
+		}
+		else if (!(objdir = chdir_verify_path(path, obpath)))
 			objdir = curdir;
-		}
-		else {
-			if (mdpath[0] != '/') {
-				(void) sprintf(obpath, "%s/%s", curdir, mdpath);
-				objdir = obpath;
-			}
-			else
-				objdir = mdpath;
-		}
 	}
-	else
-		objdir = curdir;
+	else {
+		(void) snprintf(mdpath, MAXPATHLEN, "%s%s", pathp, curdir);
+		if (!(objdir = chdir_verify_path(mdpath, obpath)))
+			objdir = curdir;
+	}
 
 	setenv("PWD", objdir, 1);
 
@@ -499,7 +536,6 @@ main(argc, argv)
 	if (objdir != curdir)
 		Dir_AddDir(dirSearchPath, curdir);
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL);
-	Var_Set(".TARGETOBJDIR", realobjdir, VAR_GLOBAL);
 	Var_Set(".OBJDIR", objdir, VAR_GLOBAL);
 
 	/*
