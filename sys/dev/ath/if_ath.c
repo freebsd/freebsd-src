@@ -270,7 +270,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	TASK_INIT(&sc->sc_txtask, 0, ath_tx_proc, sc);
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
-	TASK_INIT(&sc->sc_swbatask, 0, ath_beacon_proc, sc);
 	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
 	TASK_INIT(&sc->sc_fataltask, 0, ath_fatal_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
@@ -480,8 +479,14 @@ ath_intr(void *arg)
 			taskqueue_enqueue(taskqueue_swi, &sc->sc_rxtask);
 		if (status & HAL_INT_TX)
 			taskqueue_enqueue(taskqueue_swi, &sc->sc_txtask);
-		if (status & HAL_INT_SWBA)
-			taskqueue_enqueue(taskqueue_swi, &sc->sc_swbatask);
+		if (status & HAL_INT_SWBA) {
+			/*
+			 * Handle beacon transmission directly; deferring
+			 * this is too slow to meet timing constraints
+			 * under load.
+			 */
+			ath_beacon_proc(sc, 0);
+		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
 			taskqueue_enqueue(taskqueue_swi, &sc->sc_bmisstask);

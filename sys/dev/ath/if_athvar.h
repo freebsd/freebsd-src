@@ -147,7 +147,6 @@ struct ath_softc {
 	u_int			sc_bhalq;	/* HAL q for outgoing beacons */
 	struct ath_buf		*sc_bcbuf;	/* beacon buffer */
 	struct ath_buf		*sc_bufptr;	/* allocated buffer ptr */
-	struct task		sc_swbatask;	/* swba int processing */
 	struct task		sc_bmisstask;	/* bmiss int processing */
 
 	struct callout		sc_cal_ch;	/* callout handle for cals */
