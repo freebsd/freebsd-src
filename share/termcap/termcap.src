@@ -2396,8 +2396,8 @@ vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:is=\E>\E[?1;3;4;5;7l\E[?8h\E[1;24r\E[24;1H:\
 	:rs=\E>\E[?1;3;4;5;7l\E[?8h:\
 	:tc=vt100-am:
-vt100-np|dec-vt100-np|vt100 with no padding (for psl games):\
-	:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
+vt100-np|dec-vt100-np|vt100 with no padding:\
+	:NP:do=\E[B:cl=\E[H\E[J:sf=\ED:as=\E(0:ae=\E(B:\
 	:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:nw=\EE:\
 	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
 	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:sr=\EM:\
