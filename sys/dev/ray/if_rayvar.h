@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_rayvar.h,v 1.4 2000/05/21 20:43:24 dmlb Exp $
+ * $FreeBSD$
  *
  */
 
