@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.72 2000/04/14 14:13:56 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.81 2000/10/24 15:01:26 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -600,18 +600,43 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 		/* May be self powered. */
 		if (cdp->bmAttributes & UC_BUS_POWERED) {
 			/* Must ask device. */
-			err = usbd_get_device_status(dev, &ds);
-			if (!err && (UGETW(ds.wStatus) & UDS_SELF_POWERED))
-				selfpowered = 1;
-			DPRINTF(("usbd_set_config_index: status=0x%04x, "
-				 "error=%s\n",
-				 UGETW(ds.wStatus), usbd_errstr(err)));
+			if (dev->quirks->uq_flags & UQ_POWER_CLAIM) {
+				/*
+				 * Hub claims to be self powered, but isn't.
+				 * It seems that the power status can be
+				 * determined by the hub characteristics.
+				 */
+				usb_hub_descriptor_t hd;
+				usb_device_request_t req;
+				req.bmRequestType = UT_READ_CLASS_DEVICE;
+				req.bRequest = UR_GET_DESCRIPTOR;
+				USETW(req.wValue, 0);
+				USETW(req.wIndex, 0);
+				USETW(req.wLength, USB_HUB_DESCRIPTOR_SIZE);
+				err = usbd_do_request(dev, &req, &hd);
+				if (!err &&
+				    (UGETW(hd.wHubCharacteristics) &
+				     UHD_PWR_INDIVIDUAL))
+					selfpowered = 1;
+				DPRINTF(("usbd_set_config_index: charac=0x%04x"
+				    ", error=%s\n",
+				    UGETW(hd.wHubCharacteristics),
+				    usbd_errstr(err)));
+			} else {
+				err = usbd_get_device_status(dev, &ds);
+				if (!err &&
+				    (UGETW(ds.wStatus) & UDS_SELF_POWERED))
+					selfpowered = 1;
+				DPRINTF(("usbd_set_config_index: status=0x%04x"
+				    ", error=%s\n",
+				    UGETW(ds.wStatus), usbd_errstr(err)));
+			}
 		} else
 			selfpowered = 1;
 	}
-	DPRINTF(("usbd_set_config_index: (addr %d) attr=0x%02x, "
-		 "selfpowered=%d, power=%d\n", 
-		 dev->address, cdp->bmAttributes, 
+	DPRINTF(("usbd_set_config_index: (addr %d) cno=%d attr=0x%02x, "
+		 "selfpowered=%d, power=%d\n",
+		 cdp->bConfigurationValue, dev->address, cdp->bmAttributes, 
 		 selfpowered, cdp->bMaxPower * 2));
 
 	/* Check if we have enough power. */
@@ -623,7 +648,6 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 #endif
 	power = cdp->bMaxPower * 2;
 	if (power > dev->powersrc->power) {
-		DPRINTF(("power exceeded %d %d\n", power,dev->powersrc->power));
 		/* XXX print nicer message. */
 		if (msg)
 			printf("%s: device addr %d (config %d) exceeds power "
@@ -904,7 +928,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
  */
 usbd_status
 usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
-		int lowspeed, int port, struct usbd_port *up)
+		int speed, int port, struct usbd_port *up)
 {
 	usbd_device_handle dev;
 	usb_device_descriptor_t *dd;
@@ -912,8 +936,8 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	int addr;
 	int i;
 
-	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d lowspeed=%d\n",
-		 bus, port, depth, lowspeed));
+	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d speed=%d\n",
+		 bus, port, depth, speed));
 	addr = usbd_getnewaddr(bus);
 	if (addr < 0) {
 		printf("%s: No free USB addresses, new device ignored.\n", 
