@@ -51,33 +51,37 @@ __FBSDID("$FreeBSD$");
  */
 
 ENTRY(_setjmp)
-	movl	4(%esp),%eax
-	movl	0(%esp),%edx
-	movl	%edx, 0(%eax)		/* rta */
-	movl	%ebx, 4(%eax)
-	movl	%esp, 8(%eax)
-	movl	%ebp,12(%eax)
-	movl	%esi,16(%eax)
-	movl	%edi,20(%eax)
-	fnstcw	24(%eax)
-	xorl	%eax,%eax
+	movq	%rdi,%rax
+	movq	0(%rsp),%rdx		/* retval */
+	movq	%rdx, 0(%rax)		/* retval */
+	movq	%rbx, 8(%rax)
+	movq	%rsp,16(%rax)
+	movq	%rbp,24(%rax)
+	movq	%r12,32(%rax)
+	movq	%r13,40(%rax)
+	movq	%r14,48(%rax)
+	movq	%r15,56(%rax)
+	fnstcw	64(%rax)
+	xorq	%rax,%rax
 	ret
 
 	.weak	CNAME(_longjmp)
 	.set	CNAME(_longjmp),CNAME(___longjmp)
 ENTRY(___longjmp)
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	movl	0(%edx),%ecx
-	movl	4(%edx),%ebx
-	movl	8(%edx),%esp
-	movl	12(%edx),%ebp
-	movl	16(%edx),%esi
-	movl	20(%edx),%edi
+	movq	%rdi,%rdx
+	movq	%rsi,%rax		/* retval */
+	movq	0(%rdx),%rcx
+	movq	8(%rdx),%rbx
+	movq	16(%rdx),%rsp
+	movq	24(%rdx),%rbp
+	movq	32(%rdx),%r12
+	movq	40(%rdx),%r13
+	movq	48(%rdx),%r14
+	movq	56(%rdx),%r15
 	fninit
-	fldcw	24(%edx)
-	testl	%eax,%eax
+	fldcw	64(%rdx)
+	testq	%rax,%rax
 	jnz	1f
-	incl	%eax
-1:	movl	%ecx,0(%esp)
+	incq	%rax
+1:	movq	%rcx,0(%rsp)
 	ret
