@@ -484,13 +484,25 @@ int
 amr_detach(device_t dev)
 {
     struct amr_softc	*sc = device_get_softc(dev);
-    int			error;
+    struct amrd_softc	*ad;
+    int			i, s, error;
 
     debug("called");
 
+    error = EBUSY;
+    s = splbio();
     if (sc->amr_state & AMR_STATE_OPEN)
-	return(EBUSY);
+	goto out;
 
+    for (i = 0; i < AMR_MAXLD; i++) {
+	if (sc->amr_drive[i].al_disk != 0) {
+	    ad = device_get_softc(sc->amr_drive[i].al_disk);
+	    if (ad->amrd_flags & AMRD_OPEN) {		/* drive is mounted, abort detach */
+		device_printf(sc->amr_drive[i].al_disk, "still open, can't detach\n");
+		goto out;
+	    }
+	}
+    }
     if ((error = amr_shutdown(dev)))
 	return(error);
 
@@ -502,7 +514,10 @@ amr_detach(device_t dev)
     if (--cdev_registered == 0)
 	cdevsw_remove(&amr_cdevsw);
 
-    return(0);
+    error = 0;
+ out:
+    splx(s);
+    return(error);
 }
 
 /********************************************************************************
@@ -519,7 +534,6 @@ int
 amr_shutdown(device_t dev)
 {
     struct amr_softc	*sc = device_get_softc(dev);
-    struct amrd_softc	*ad;
     int			i, s, error;
 
     debug("called");
@@ -529,17 +543,6 @@ amr_shutdown(device_t dev)
 
     /* assume we're going to shut down */
     sc->amr_state |= AMR_STATE_SHUTDOWN;
-    for (i = 0; i < AMR_MAXLD; i++) {
-	if (sc->amr_drive[i].al_disk != 0) {
-	    ad = device_get_softc(sc->amr_drive[i].al_disk);
-	    if (ad->amrd_flags & AMRD_OPEN) {		/* drive is mounted, abort shutdown */
-		sc->amr_state &= ~AMR_STATE_SHUTDOWN;
-		device_printf(sc->amr_drive[i].al_disk, "still open, can't shutdown\n");
-		error = EBUSY;
-		goto out;
-	    }
-	}
-    }
 
     /* flush controller */
     device_printf(sc->amr_dev, "flushing cache...");
