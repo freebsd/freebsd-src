@@ -836,7 +836,7 @@ nwfs_lookup(ap)
 	struct nw_entry_info fattr, *fap;
 	ncpfid fid;
 	int nameiop=cnp->cn_nameiop, islastcn;
-	int lockparent, wantparent, error = 0, notfound;
+	int wantparent, error = 0, notfound;
 	struct thread *td = cnp->cn_thread;
 	char _name[cnp->cn_namelen+1];
 	bcopy(cnp->cn_nameptr, _name, cnp->cn_namelen);
@@ -857,7 +857,6 @@ nwfs_lookup(ap)
 		return (EROFS);
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)))
 		return (error);
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONWFS(mp);
 	dnp = VTONW(dvp);
@@ -885,13 +884,10 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		} else if (flags & ISDOTDOT) {
 			VOP_UNLOCK(dvp, 0, td);	/* unlock parent */
 			error = vget(vp, LK_EXCLUSIVE, td);
-			if (!error && lockparent && islastcn)
-				error = vn_lock(dvp, LK_EXCLUSIVE, td);
-		} else {
+			if (error)
+				vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
+		} else
 			error = vget(vp, LK_EXCLUSIVE, td);
-			if (!lockparent || error || !islastcn)
-				VOP_UNLOCK(dvp, 0, td);
-		}
 		if (!error) {
 			if (!VOP_GETATTR(vp, &vattr, cnp->cn_cred, td)
 			 && vattr.va_ctime.tv_sec == VTONW(vp)->n_ctime) {
@@ -902,15 +898,15 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 			     return (0);
 			}
 			cache_purge(vp);
-			vput(vp);
-			if (lockparent && dvp != vp && islastcn)
-				VOP_UNLOCK(dvp, 0, td);
+			if (vp != dvp)
+				vput(vp);
+			else
+				vrele(vp);
+			if (flags & ISDOTDOT)
+				vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		}
 		vdrop(vp);
-		error = vn_lock(dvp, LK_EXCLUSIVE, td);
 		*vpp = NULLVP;
-		if (error)
-			return (error);
 	}
 	/* not in cache, so ...  */
 	error = 0;
@@ -949,8 +945,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		/* Handle RENAME or CREATE case... */
 		if ((nameiop == CREATE || nameiop == RENAME) && wantparent && islastcn) {
 			cnp->cn_flags |= SAVENAME;
-			if (!lockparent)
-				VOP_UNLOCK(dvp, 0, td);
 			return (EJUSTRETURN);
 		}
 		return ENOENT;
@@ -970,7 +964,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		if (error) return (error);
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;	/* I free it later */
-		if (!lockparent) VOP_UNLOCK(dvp, 0, td);
 		return (0);
 	}
 	if (nameiop == RENAME && islastcn && wantparent) {
@@ -981,8 +974,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		if (error) return (error);
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent)
-			VOP_UNLOCK(dvp, 0, td);
 		return (0);
 	}
 	if (flags & ISDOTDOT) {
@@ -990,11 +981,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		error = nwfs_nget(mp, fid, NULL, NULL, &vp);
 		if (error) {
 			vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
-			return (error);
-		}
-		if (lockparent && islastcn &&
-		    (error = vn_lock(dvp, LK_EXCLUSIVE, td))) {
-		    	vput(vp);
 			return (error);
 		}
 		*vpp = vp;
@@ -1006,8 +992,6 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		if (error) return (error);
 		*vpp = vp;
 		NCPVNDEBUG("lookup: getnewvp!\n");
-		if (!lockparent || !islastcn)
-			VOP_UNLOCK(dvp, 0, td);
 	}
 	if ((cnp->cn_flags & MAKEENTRY)/* && !islastcn*/) {
 		VTONW(*vpp)->n_ctime = VTONW(*vpp)->n_vattr.va_ctime.tv_sec;
