@@ -1,4 +1,4 @@
-/* $Id: info.h,v 1.4 1993/09/04 05:06:40 jkh Exp $ */
+/* $Id: info.h,v 1.5 1993/09/08 01:46:56 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -23,15 +23,18 @@
 #ifndef _INST_INFO_H_INCLUDE
 #define _INST_INFO_H_INCLUDE
 
-#define	SHOW_COMMENT	0x1
-#define SHOW_DESC	0x2
-#define SHOW_PLIST	0x4
-#define SHOW_INSTALL	0x8
-#define SHOW_DEINSTALL	0x10
-#define SHOW_REQUIRE	0x20
-#define SHOW_PREFIX	0x40
-#define SHOW_INDEX	0x80
-#define SHOW_FILES	0x100
+#define	SHOW_COMMENT	0x0001
+#define SHOW_DESC	0x0002
+#define SHOW_PLIST	0x0004
+#define SHOW_INSTALL	0x0008
+#define SHOW_DEINSTALL	0x0010
+#define SHOW_REQUIRE	0x0020
+#define SHOW_PREFIX	0x0040
+#define SHOW_INDEX	0x0080
+#define SHOW_FILES	0x0100
+#define SHOW_DISPLAY	0x0200
+#define SHOW_REQBY	0x0400
+#define SHOW_MTREE	0x0800
 
 extern int Flags;
 extern Boolean AllInstalled;

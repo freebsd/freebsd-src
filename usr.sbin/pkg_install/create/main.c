@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.6 1994/04/16 21:50:53 jkh Exp $";
+static const char *rcsid = "$Id: main.c,v 1.7 1994/05/19 18:27:40 alm Exp $";
 #endif
 
 /*
@@ -16,17 +16,19 @@ static const char *rcsid = "$Id: main.c,v 1.6 1994/04/16 21:50:53 jkh Exp $";
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNhvf:p:c:d:i:k:r:t:X:";
+static char Options[] = "YNhvf:p:c:d:i:k:r:t:X:D:m:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
 char	*Desc		= NULL;
+char	*Display	= NULL;
 char	*Install	= NULL;
 char	*DeInstall	= NULL;
 char	*Contents	= NULL;
 char	*Require	= NULL;
 char	*PlayPen	= NULL;
 char	*ExcludeFrom	= NULL;
+char	*Mtree		= NULL;
 int	Dereference	= 0;
 
 int
@@ -91,6 +93,14 @@ main(int argc, char **argv)
 	    Dereference = 1;
 	    break;
 
+	case 'D':
+	    Display = optarg;
+	    break;
+
+	case 'm':
+	    Mtree = optarg;
+	    break;
+
 	case '?':
 	default:
 	    usage(prog_name, NULL);
@@ -140,11 +150,15 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-f file    get list of files from file (- for stdin)\n");
     fprintf(stderr, "-h         follow symbolic links\n");
     fprintf(stderr, "-i script  install script\n");
-    fprintf(stderr, "-p arg     install prefix will be arg\n");
     fprintf(stderr, "-k script  de-install script\n");
+    fprintf(stderr, "-D file    install notice\n");
+    fprintf(stderr, "-m file    mtree spec for directories\n");
+    fprintf(stderr, "-p prefix  install prefix will be arg\n");
     fprintf(stderr, "-r script  pre/post requirements script\n");
     fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
     fprintf(stderr, "-X file    exclude files listed in file\n");
     fprintf(stderr, "-v         verbose\n");
+    fprintf(stderr, "-Y         assume `yes' answer to all questions\n");
+    fprintf(stderr, "-N         assume `no' answer to all questions\n");
     exit(1);
 }

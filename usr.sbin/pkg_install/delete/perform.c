@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.4 1994/05/25 18:00:02 asami Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.5 1994/09/29 13:19:39 jkh Exp $";
 #endif
 
 /*
@@ -27,6 +27,7 @@ static const char *rcsid = "$Id: perform.c,v 1.4 1994/05/25 18:00:02 asami Exp $
 
 static int pkg_do(char *);
 static void sanity_check(char *);
+static void undepend(PackingList, char *);
 static char LogDir[FILENAME_MAX];
 
 
@@ -65,6 +66,20 @@ pkg_do(char *pkg)
 	whinge("Unable to change directory to %s!  Deinstall failed.", LogDir);
 	return 1;
     }
+    if (!isemptyfile(REQUIRED_BY_FNAME)) {
+	char buf[512];
+	whinge("Package `%s' is required by these other packages", pkg);
+	whinge("and may not be deinstalled%s:", Force ? " (but I'll delete it anyway)" : "" );
+	cfile = fopen(REQUIRED_BY_FNAME, "r");
+	if (cfile) {
+	    while (fgets(buf, sizeof(buf), cfile))
+		fprintf(stderr, "%s", buf);
+	    fclose(cfile);
+	} else
+	    whinge("cannot open requirements file `%s'", REQUIRED_BY_FNAME);
+	if (!Force)
+	    return 1;
+    }
     sanity_check(LogDir);
     cfile = fopen(CONTENTS_FNAME, "r");
     if (!cfile) {
@@ -83,8 +98,10 @@ pkg_do(char *pkg)
 	    printf("Executing 'require' script.\n");
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (vsystem("./%s %s DEINSTALL", REQUIRE_FNAME, pkg)) {
-	    whinge("Package %s fails requirements - not deleted.", pkg);
-	    return 1;
+	    whinge("Package %s fails requirements %s", pkg,
+		   Force ? "." : "- not deleted.");
+	    if (!Force)
+		return 1;
 	}
     }
     if (!NoDeInstall && fexists(DEINSTALL_FNAME)) {
@@ -94,16 +111,26 @@ pkg_do(char *pkg)
 	    vsystem("chmod +x %s", DEINSTALL_FNAME);	/* make sure */
 	    if (vsystem("./%s %s DEINSTALL", DEINSTALL_FNAME, pkg)) {
 		whinge("De-Install script returned error status.");
-		return 1;
+		if (!Force)
+		    return 1;
 	    }
 	}
     }
     if (chdir(home) == FAIL)
 	barf("Toto!  This doesn't look like Kansas anymore!");
-    if (!Fake && delete_package(FALSE, &Plist) != FAIL &&
+    if (!Fake && delete_package(FALSE, CleanDirs, &Plist) != FAIL &&
       vsystem("%s -r %s", REMOVE_CMD, LogDir)) {
 	whinge("Couldn't remove log entry in %s, de-install failed.", LogDir);
 	return 1;
+    }
+    for (p = Plist.head; p ; p = p->next) {
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	if (Verbose)
+	    printf("Attempting to remove dependency on package `%s'\n",
+		   p->name);
+	if (!Fake)
+	    undepend(p, pkg);
     }
     return 0;
 }
@@ -119,4 +146,57 @@ void
 cleanup(int sig)
 {
     /* Nothing to do */
+}
+
+static void
+undepend(PackingList p, char *pkgname)
+{
+     char fname[FILENAME_MAX], ftmp[FILENAME_MAX];
+     char fbuf[FILENAME_MAX];
+     FILE *fp, *fpwr;
+     int s;
+
+     sprintf(fname, "%s/%s/%s", LOG_DIR, p->name, REQUIRED_BY_FNAME);
+     fp = fopen(fname, "r");
+     if (fp == NULL) {
+	 whinge("Couldn't open dependency file `%s'", fname);
+	 return;
+     }
+     sprintf(ftmp, "%s.XXXXXX", fname);
+     s = mkstemp(ftmp);
+     if (s == -1) {
+	 fclose(fp);
+	 whinge("Couldn't open temp file `%s'", ftmp);
+	 return;
+     }
+     fpwr = fdopen(s, "w");
+     if (fpwr == NULL) {
+	 close(s);
+	 fclose(fp);
+	 whinge("Couldn't fdopen temp file `%s'", ftmp);
+	 remove(ftmp);
+	 return;
+     }
+     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
+	 if (fbuf[strlen(fbuf)-1] == '\n')
+	     fbuf[strlen(fbuf)-1] = '\0';
+	 if (strcmp(fbuf, pkgname))		/* no match */
+	     fputs(fbuf, fpwr), putc('\n', fpwr);
+     }
+     (void) fclose(fp);
+     if (fchmod(s, 0644) == FAIL) {
+	 whinge("Error changing permission of temp file `%s'", ftmp);
+	 fclose(fpwr);
+	 remove(ftmp);
+	 return;
+     }
+     if (fclose(fpwr) == EOF) {
+	 whinge("Error closing temp file `%s'", ftmp);
+	 remove(ftmp);
+	 return;
+     }
+     if (rename(ftmp, fname) == -1)
+	 warn("Error renaming `%s' to `%s'", ftmp, fname);
+     remove(ftmp);			/* just in case */
+     return;
 }
