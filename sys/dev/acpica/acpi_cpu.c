@@ -464,7 +464,7 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	/* Validate and allocate resources for C2 (P_LVL2). */
 	gas.AddressSpaceId = ACPI_ADR_SPACE_SYSTEM_IO;
 	gas.RegisterBitWidth = 8;
-	if (AcpiGbl_FADT->Plvl2Lat < 100) {
+	if (AcpiGbl_FADT->Plvl2Lat <= 100) {
 	    gas.Address = sc->cpu_p_blk + 4;
 	    cx_ptr->p_lvlx = acpi_bus_alloc_gas(sc->cpu_dev, &cpu_rid, &gas);
 	    if (cx_ptr->p_lvlx != NULL) {
@@ -480,7 +480,7 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	    goto done;
 
 	/* Validate and allocate resources for C3 (P_LVL3). */
-	if (AcpiGbl_FADT->Plvl3Lat < 1000 &&
+	if (AcpiGbl_FADT->Plvl3Lat <= 1000 &&
 	    (cpu_quirks & CPU_QUIRK_NO_C3) == 0) {
 
 	    gas.Address = sc->cpu_p_blk + 5;
