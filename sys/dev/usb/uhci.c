@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.160 2002/05/28 12:42:39 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.161 2002/06/01 23:51:04 lukem Exp $	*/
 
 /*	Also already incorporated from NetBSD:
  *	$NetBSD: uhci.c,v 1.162 2002/07/11 21:14:28 augustss Exp $
@@ -599,7 +599,7 @@ uhci_detach(struct uhci_softc *sc, int flags)
 		xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
 		if (xfer == NULL)
 			break;
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, xfer, next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
 		free(xfer, M_USB);
 	}
 
@@ -629,7 +629,7 @@ uhci_allocx(struct usbd_bus *bus)
 
 	xfer = SIMPLEQ_FIRST(&sc->sc_free_xfers);
 	if (xfer != NULL) {
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, xfer, next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_free_xfers, next);
 #ifdef DIAGNOSTIC
 		if (xfer->busy_free != XFER_FREE) {
 			printf("uhci_allocx: xfer=%p not free, 0x%08x\n", xfer,
