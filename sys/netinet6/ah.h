@@ -74,7 +74,7 @@ struct ah_algorithm {
 	const char *name;
 	int (*init) __P((struct ah_algorithm_state *, struct secasvar *));
 	void (*update) __P((struct ah_algorithm_state *, caddr_t, size_t));
-	void (*result) __P((struct ah_algorithm_state *, caddr_t));
+	void (*result) __P((struct ah_algorithm_state *, caddr_t, size_t));
 };
 
 #define	AH_MAXSUMSIZE	16
