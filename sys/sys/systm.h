@@ -112,7 +112,8 @@ void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
 void	cpu_boot __P((int));
 void	cpu_rootconf __P((void));
-void	init_param __P((void));
+void	init_param1 __P((void));
+void	init_param2 __P((int physpages));
 void	tablefull __P((const char *));
 int	addlog __P((const char *, ...)) __printflike(1, 2);
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,

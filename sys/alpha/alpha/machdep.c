@@ -329,13 +329,14 @@ again:
 	 */
 
 	if (nbuf == 0) {
-		int factor = 4 * BKVASIZE / PAGE_SIZE;
+		int factor = 4 * BKVASIZE / 1024;
+		int kbytes = physmem * (PAGE_SIZE / 1024);
 
 		nbuf = 50;
-		if (physmem > 1024)
-			nbuf += min((physmem - 1024) / factor, 16384 / factor);
-		if (physmem > 16384)
-			nbuf += (physmem - 16384) * 2 / (factor * 5);
+		if (kbytes > 4096)
+			nbuf += min((kbytes - 4096) / factor, 65536 / factor);
+		if (kbytes > 65536)
+			nbuf += (kbytes - 65536) * 2 / (factor * 5);
 		if (maxbcache && nbuf > maxbcache / BKVASIZE)
 			nbuf = maxbcache / BKVASIZE;
 	}
@@ -698,7 +699,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	kern_envp = bootinfo.envp;
 
 	/* Do basic tuning, hz etc */
-	init_param();
+	init_param1();
 
 	/*
 	 * Initalize the (temporary) bootstrap console interface, so
@@ -1004,6 +1005,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			physmem -= (sz - nsz);
 		}
 	}
+	init_param2(physmem);
 
 	/*
 	 * Initialize error message buffer (at end of core).
