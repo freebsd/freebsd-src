@@ -41,7 +41,8 @@ PC architecture floppy disk controller driver
 This driver provides access to floppy disk drives and QIC40/80 tapedrives.
 In /dev for each floppy device a number of minor devices are present. The
 /dev/fd* devices with trailing alphabetic characters are used to indicate
-'partitions' on the floppy disk. The /dev/fd*.<number> are devices that
+.Sq partitions
+on the floppy disk. The /dev/fd*.<number> are devices that
 indicate the size of the floppy disk (so: 720kB, 1440kB etc). The latter
 are used for formatting disks using fdformat or for accessing different
 density disks in multidensity drive. Example: 720kB disk in a 1.44Mb drive.
