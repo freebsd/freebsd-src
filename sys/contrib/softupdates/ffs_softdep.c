@@ -3817,7 +3817,8 @@ softdep_fsync_mountdev(vp)
 		 * dependencies.
 		 */
 		if ((wk = LIST_FIRST(&bp->b_dep)) == NULL ||
-		    wk->wk_type != D_BMSAFEMAP) {
+		    wk->wk_type != D_BMSAFEMAP ||
+		    (bp->b_xflags & BX_BKGRDINPROG)) {
 			BUF_UNLOCK(bp);
 			continue;
 		}
