@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.15 1999/04/04 16:36:34 obrien Exp $
+# $Id: Makefile,v 1.16 1999/04/04 20:40:45 obrien Exp $
 #
 
 #
@@ -151,7 +151,9 @@ specs.h:
 
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"' > ${.TARGET}
+.if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/att.h"' >> ${.TARGET}
+.endif
 	echo '#include "${MACHINE_ARCH}/freebsd.h"' >> ${.TARGET}
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
