@@ -909,10 +909,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */
 
-			if (c < 0 && c != PEOF)
-				synentry = CWORD;
-			else
-				synentry = syntax[c];
+			synentry = syntax[c];
 
 			switch(synentry) {
 			case CNL:	/* '\n' */
