@@ -1001,7 +1001,7 @@ cpu_initclocks()
 	} else {
 		/* look for ExtInt on pin 0 */
 		if (apic_int_type(0, 0) == 3) {
-			apic_8254_intr = 0;
+			apic_8254_intr = apic_irq(0, 0);
 			setup_8254_mixed_mode();
 		} else 
 			panic("APIC_IO: Cannot route 8254 interrupt to CPU");
@@ -1062,21 +1062,39 @@ cpu_initclocks()
 			INTRDIS(1 << apic_8254_intr);
 			inthand_remove(clkdesc);
 			printf("APIC_IO: Broken MP table detected: "
-			       "8254 is not connected to IO APIC int pin %d\n",
-			       apic_8254_intr);
-			
-			apic_8254_intr = 0;
+			       "8254 is not connected to "
+			       "IOAPIC #%d intpin %d\n",
+			       int_to_apicintpin[apic_8254_intr].ioapic,
+			       int_to_apicintpin[apic_8254_intr].int_pin);
+			/* 
+			 * Revoke current ISA IRQ 0 assignment and 
+			 * configure a fallback interrupt routing from
+			 * the 8254 Timer via the 8259 PIC to the
+			 * an ExtInt interrupt line on IOAPIC #0 intpin 0.
+			 * We reuse the low level interrupt handler number.
+			 */
+			if (apic_irq(0, 0) < 0) {
+				revoke_apic_irq(apic_8254_intr);
+				assign_apic_irq(0, 0, apic_8254_intr);
+			}
+			apic_8254_intr = apic_irq(0, 0);
 			setup_8254_mixed_mode();
-			inthand_add("clk", apic_8254_intr,(inthand2_t *)clkintr,
+			inthand_add("clk", apic_8254_intr,
+				    (inthand2_t *)clkintr,
 				    NULL, &clk_imask, INTR_EXCL);
 			INTREN(1 << apic_8254_intr);
 		}
 		
 	}
-	if (apic_8254_intr)
-		printf("APIC_IO: routing 8254 via pin %d\n",apic_8254_intr);
+	if (apic_int_type(0, 0) != 3 ||
+	    int_to_apicintpin[apic_8254_intr].ioapic != 0 ||
+	    int_to_apicintpin[apic_8254_intr].int_pin != 0)
+		printf("APIC_IO: routing 8254 via IOAPIC #%d intpin %d\n",
+		       int_to_apicintpin[apic_8254_intr].ioapic,
+		       int_to_apicintpin[apic_8254_intr].int_pin);
 	else
-		printf("APIC_IO: routing 8254 via 8259 on pin 0\n");
+		printf("APIC_IO: "
+		       "routing 8254 via 8259 and IOAPIC #0 intpin 0\n");
 #endif
 	
 }
