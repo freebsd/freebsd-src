@@ -55,8 +55,8 @@ iop_pci_probe(device_t dev)
 	return 0;
     } 
 
-    /* this should work as well (not tested no hardware) */
-    if (pci_get_devid(dev) == 0x09628086 && pci_get_subvendor(dev) == 0x105a) {
+    /* support the older SuperTrak 100 as well */
+    if (pci_get_devid(dev) == 0x19608086 && pci_get_subvendor(dev) == 0x105a) {
 	device_set_desc(dev, "Promise SuperTrak 100 ATA RAID controller");
 	return 0;
     } 
