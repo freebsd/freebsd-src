@@ -94,7 +94,7 @@ __RCSID("$FreeBSD$");
  */
 void
 Buf_OvAddByte (bp, byte)
-    register Buffer bp;
+    Buffer bp;
     int    byte;
 {
     int nbytes = 1;
@@ -125,8 +125,8 @@ Buf_OvAddByte (bp, byte)
  */
 void
 Buf_AddBytes (bp, numBytes, bytesPtr)
-    register Buffer bp;
-    int	    numBytes;
+    Buffer bp;
+    int	     numBytes;
     const Byte *bytesPtr;
 {
 
@@ -157,7 +157,7 @@ Buf_AddBytes (bp, numBytes, bytesPtr)
  */
 void
 Buf_UngetByte (bp, byte)
-    register Buffer bp;
+    Buffer bp;
     int    byte;
 {
 
@@ -207,7 +207,7 @@ Buf_UngetByte (bp, byte)
  */
 void
 Buf_UngetBytes (bp, numBytes, bytesPtr)
-    register Buffer bp;
+    Buffer  bp;
     int	    numBytes;
     Byte    *bytesPtr;
 {
@@ -252,7 +252,7 @@ Buf_UngetBytes (bp, numBytes, bytesPtr)
  */
 int
 Buf_GetByte (bp)
-    register Buffer bp;
+    Buffer bp;
 {
     int	    res;
 
@@ -285,7 +285,7 @@ Buf_GetByte (bp)
  */
 int
 Buf_GetBytes (bp, numBytes, bytesPtr)
-    register Buffer bp;
+    Buffer  bp;
     int	    numBytes;
     Byte    *bytesPtr;
 {
@@ -319,7 +319,7 @@ Buf_GetBytes (bp, numBytes, bytesPtr)
  */
 Byte *
 Buf_GetAll (bp, numBytesPtr)
-    register Buffer bp;
+    Buffer  bp;
     int	    *numBytesPtr;
 {
 
@@ -345,7 +345,7 @@ Buf_GetAll (bp, numBytesPtr)
  */
 void
 Buf_Discard (bp, numBytes)
-    register Buffer bp;
+    Buffer  bp;
     int	    numBytes;
 {
 

@@ -182,7 +182,7 @@ CompatRunCommand (cmdp, gnp)
     void *    gnp;    	/* Node from which the command came */
 {
     char    	  *cmdStart;	/* Start of expanded command */
-    register char *cp;
+    char	  *cp;
     Boolean 	  silent,   	/* Don't print command */
 		  errCheck; 	/* Check errors */
     int 	  reason;   	/* Reason for child's death */

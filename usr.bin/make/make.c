@@ -148,7 +148,7 @@ MakeTimeStamp (pgn, cgn)
  */
 Boolean
 Make_OODate (gn)
-    register GNode *gn;	      /* the node to check */
+    GNode *gn;		      /* the node to check */
 {
     Boolean         oodate;
 
@@ -324,11 +324,11 @@ MakeAddChild (gnp, lp)
  */
 int
 Make_HandleUse (cgn, pgn)
-    register GNode	*cgn;	/* The .USE node */
-    register GNode   	*pgn;	/* The target of the .USE node */
+    GNode	*cgn;		/* The .USE node */
+    GNode   	*pgn;		/* The target of the .USE node */
 {
-    register GNode	*gn; 	/* A child of the .USE node */
-    register LstNode	ln; 	/* An element in the children list */
+    GNode	*gn;	 	/* A child of the .USE node */
+    LstNode	ln;	 	/* An element in the children list */
 
     if (cgn->type & (OP_USE|OP_TRANSFORM)) {
 	if ((cgn->type & OP_USE) || Lst_IsEmpty(pgn->commands)) {
@@ -402,12 +402,12 @@ MakeHandleUse (pgn, cgn)
  */
 void
 Make_Update (cgn)
-    register GNode *cgn;	/* the child node */
+    GNode *cgn;			/* the child node */
 {
-    register GNode 	*pgn;	/* the parent node */
-    register char  	*cname;	/* the child's name */
-    register LstNode	ln; 	/* Element in parents and iParents lists */
-    char *p1;
+    GNode 	*pgn;		/* the parent node */
+    char  	*cname;		/* the child's name */
+    LstNode	ln;	 	/* Element in parents and iParents lists */
+    char	*p1;
 
     cname = Var_Value (TARGET, cgn, &p1);
     efree(p1);
@@ -676,7 +676,7 @@ Make_DoAllVar (gn)
 static Boolean
 MakeStartJobs ()
 {
-    register GNode	*gn;
+    GNode	*gn;
 
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
@@ -822,8 +822,8 @@ Boolean
 Make_Run (targs)
     Lst             targs;	/* the initial list of targets */
 {
-    register GNode  *gn;	/* a temporary pointer */
-    register Lst    examine; 	/* List of targets to examine */
+    GNode	    *gn;	/* a temporary pointer */
+    Lst		    examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
 
     toBeMade = Lst_Init (FALSE);
