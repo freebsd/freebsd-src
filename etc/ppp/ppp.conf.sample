@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.31 1998/08/07 18:44:31 brian Exp $
+# $Id: ppp.conf.sample,v 1.32 1998/09/06 13:55:51 brian Exp $
 #
 #################################################################
 
@@ -353,6 +353,17 @@ loop-in:
  set timeout 0
  set log phase lcp ipcp command
  allow mode direct
+
+# If you're going to create a tunnel through a public network, your VPN
+# should be set up something like this:
+#
+# /etc/ppp/secure (which should be executable) says:
+#   #! /bin/sh
+#   exec ssh whatevermachine /usr/sbin/ppp -direct loop-in
+#
+sloop:
+ load loop
+ set device !/etc/ppp/secure
 
 # If you wish to connect to a server that will dial back *without* using
 # the ppp callback facility (rfc1570), take advantage of the fact that
