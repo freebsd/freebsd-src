@@ -39,10 +39,14 @@ fi
 type mkisofs 2>&1 | grep " is " >/dev/null
 if [ $? -ne 0 ]; then
 	echo The mkisofs port is not installed.  Trying to get it now.
-	if ! pkg_add -r mkisofs; then
-		echo "Could not get it via pkg_add - please go install this"
-		echo "from the ports collection and run this script again."
-		exit 2
+	if [ -f /usr/ports/sysutils/mkisofs/Makefile ]; then
+		cd /usr/ports/sysutils/mkisofs && make install && make clean
+	else
+		if ! pkg_add -r mkisofs; then
+			echo "Could not get it via pkg_add - please go install this"
+			echo "from the ports collection and run this script again."
+			exit 2
+		fi
 	fi
 fi
 
