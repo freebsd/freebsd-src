@@ -1601,6 +1601,10 @@ enum reg_class
 
 #define PUSH_ARGS (TARGET_PUSH_ARGS && !ACCUMULATE_OUTGOING_ARGS)
 
+/* We want the stack and args grow in opposite directions, even if
+   PUSH_ARGS is 0.  */
+#define PUSH_ARGS_REVERSED 1
+
 /* Offset of first parameter from the argument pointer register value.  */
 #define FIRST_PARM_OFFSET(FNDECL) 0
 
@@ -2073,13 +2077,9 @@ enum ix86_builtins
   IX86_BUILTIN_CMPEQSS,
   IX86_BUILTIN_CMPLTSS,
   IX86_BUILTIN_CMPLESS,
-  IX86_BUILTIN_CMPGTSS,
-  IX86_BUILTIN_CMPGESS,
   IX86_BUILTIN_CMPNEQSS,
   IX86_BUILTIN_CMPNLTSS,
   IX86_BUILTIN_CMPNLESS,
-  IX86_BUILTIN_CMPNGTSS,
-  IX86_BUILTIN_CMPNGESS,
   IX86_BUILTIN_CMPORDSS,
   IX86_BUILTIN_CMPUNORDSS,
   IX86_BUILTIN_CMPNESS,
@@ -2891,13 +2891,25 @@ extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
    It need not be very fast code.  */
 
 #define ASM_OUTPUT_REG_PUSH(FILE, REGNO)  \
-  asm_fprintf ((FILE), "\tpush{l}\t%%e%s\n", reg_names[(REGNO)])
+do {									\
+  if (TARGET_64BIT)							\
+    asm_fprintf ((FILE), "\tpush{q}\t%%r%s\n",				\
+		 reg_names[(REGNO)] + (REX_INT_REGNO_P (REGNO) != 0));	\
+  else									\
+    asm_fprintf ((FILE), "\tpush{l}\t%%e%s\n", reg_names[(REGNO)]);	\
+} while (0)
 
 /* This is how to output an insn to pop a register from the stack.
    It need not be very fast code.  */
 
 #define ASM_OUTPUT_REG_POP(FILE, REGNO)  \
-  asm_fprintf ((FILE), "\tpop{l}\t%%e%s\n", reg_names[(REGNO)])
+do {									\
+  if (TARGET_64BIT)							\
+    asm_fprintf ((FILE), "\tpop{q}\t%%r%s\n",				\
+		 reg_names[(REGNO)] + (REX_INT_REGNO_P (REGNO) != 0));	\
+  else									\
+    asm_fprintf ((FILE), "\tpop{l}\t%%e%s\n", reg_names[(REGNO)]);	\
+} while (0)
 
 /* This is how to output an element of a case-vector that is absolute.  */
 
