@@ -727,21 +727,21 @@ index_initialize(char *path)
 	}
 
 	/* Does it move when you kick it? */
-	if (!mediaDevice->init(mediaDevice)) {
+	if (!DEVICE_INIT(mediaDevice)) {
 	    restorescr(w);
 	    return DITEM_FAILURE;
 	}
 
 	dialog_clear_norefresh();
 	msgNotify("Attempting to fetch %s file from selected media.", path);
-	fp = mediaDevice->get(mediaDevice, path, TRUE);
+	fp = DEVICE_GET(mediaDevice, path, TRUE);
 	if (!fp) {
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n\n"
 		       "This may be because the packages collection is not available\n"
 		       "on the distribution media you've chosen, most likely an FTP site\n"
 		       "without the packages collection mirrored.  Please verify that\n"
 		       "your media, or your path to the media, is correct and try again.");
-	    mediaDevice->shutdown(mediaDevice);
+	    DEVICE_SHUTDOWN(mediaDevice);
 	    restorescr(w);
 	    return DITEM_FAILURE;
 	}

@@ -308,7 +308,7 @@ media:
     if (!mediaVerify())
 	return DITEM_FAILURE;
 
-    if (!mediaDevice->init(mediaDevice)) {
+    if (!DEVICE_INIT(mediaDevice)) {
 	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
 		   "to adjust your media selection and try again?")) {
 	    mediaDevice = NULL;
@@ -442,7 +442,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	systemCreateHoloshell();
     }
 
-    if (!mediaVerify() || !mediaDevice->init(mediaDevice)) {
+    if (!mediaVerify() || !DEVICE_INIT(mediaDevice)) {
 	msgNotify("Upgrade: Couldn't initialize media.");
 	return DITEM_FAILURE;
     }

@@ -406,14 +406,14 @@ dispatch_load_floppy(dialogMenuItem *self)
 	return what;
     }
 
-    if (!mediaDevice->init(mediaDevice)) {
+    if (!DEVICE_INIT(mediaDevice)) {
 	msgConfirm("Unable to mount floppy filesystem.");
 	what |= DITEM_FAILURE;
 	mediaClose();
 	return what;
     }
 
-    fp = mediaDevice->get(mediaDevice, cp, TRUE);
+    fp = DEVICE_GET(mediaDevice, cp, TRUE);
     if (fp) {
 	list = dispatch_load_fp(fp);
 	fclose(fp);
