@@ -96,6 +96,7 @@
 /* end of driver specific options */
 
 #define PSM_DRIVER_NAME		"psm"
+#define PSMCPNP_DRIVER_NAME	"psmcpnp"
 
 /* input queue */
 #define PSM_BUFSIZE		960
@@ -780,9 +781,35 @@ doopen(int unit, int command_byte)
 static void
 psmidentify(driver_t *driver, device_t parent)
 {
+    device_t psmc;
+    device_t psm;
+    u_long irq;
+    int unit;
+
+    unit = device_get_unit(parent);
 
     /* always add at least one child */
-    BUS_ADD_CHILD(parent, KBDC_RID_AUX, driver->name, device_get_unit(parent));
+    psm = BUS_ADD_CHILD(parent, KBDC_RID_AUX, driver->name, unit);
+    if (psm == NULL)
+	return;
+
+    irq = bus_get_resource_start(psm, SYS_RES_IRQ, KBDC_RID_AUX);
+    if (irq > 0)
+	return;
+
+    /*
+     * If the PS/2 mouse device has already been reported by ACPI or
+     * PnP BIOS, obtain the IRQ resource from it.
+     * (See psmcpnp_attach() below.)
+     */
+    psmc = device_find_child(device_get_parent(parent),
+			     PSMCPNP_DRIVER_NAME, unit);
+    if (psmc == NULL)
+	return;
+    irq = bus_get_resource_start(psmc, SYS_RES_IRQ, 0);
+    if (irq <= 0)
+	return;
+    bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
 }
 
 #define endprobe(v)	{   if (bootverbose) 				\
@@ -2777,7 +2804,15 @@ DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass, 0, 0);
  * This sucks up assignments from PNPBIOS and ACPI.
  */
 
-#define PSMCPNP_DRIVER_NAME		"psmcpnp"
+/*
+ * When the PS/2 mouse device is reported by ACPI or PnP BIOS, it may
+ * appear BEFORE the AT keyboard controller.  As the PS/2 mouse device
+ * can be probed and attached only after the AT keyboard controller is
+ * attached, we shall quietly reserve the IRQ resource for later use.
+ * If the PS/2 mouse device is reported to us AFTER the keyboard controller,
+ * copy the IRQ resource to the PS/2 mouse device instance hanging
+ * under the keyboard controller, then probe and attach it.
+ */
 
 static	devclass_t			psmcpnp_devclass;
 
@@ -2809,34 +2844,18 @@ create_a_copy(device_t atkbdc, device_t me)
 {
 	device_t psm;
 	u_long irq;
-	char *name;
-	int unit;
 
-	name = PSM_DRIVER_NAME;
-	unit = device_get_unit(atkbdc);
-
-	/*
-	 * The PnP BIOS and ACPI are supposed to assign an IRQ (12)
-	 * to the PS/2 mouse device node. But, some buggy PnP BIOS
-	 * declares the PS/2 mouse device node without the IRQ!
-	 * If this happens, we shall refer to device hints.
-	 * If we still don't find it there, use a hardcoded value... XXX
-	 */
-	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
-	if (irq <= 0) {
-		if (resource_long_value(name, unit, "irq", &irq) != 0)
-			irq = 12;	/* XXX */
-		device_printf(me, "irq resource info is missing; "
-			      "assuming irq %ld\n", irq);
-	}
-
-	psm = BUS_ADD_CHILD(atkbdc, KBDC_RID_AUX, name, unit);
+	/* find the PS/2 mouse device instance under the keyboard controller */
+	psm = device_find_child(atkbdc, PSM_DRIVER_NAME,
+				device_get_unit(atkbdc));
 	if (psm == NULL)
 		return ENXIO;
+	if (device_get_state(psm) != DS_NOTPRESENT)
+		return 0;
 
-	/* move our resource to the new copy */
+	/* move our resource to the found device */
+	irq = bus_get_resource_start(me, SYS_RES_IRQ, 0);
 	bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
-	bus_delete_resource(me, SYS_RES_IRQ, 0);
 
 	/* ...then probe and attach it */
 	return device_probe_and_attach(psm);
@@ -2845,36 +2864,62 @@ create_a_copy(device_t atkbdc, device_t me)
 static int
 psmcpnp_probe(device_t dev)
 {
-	device_t atkbdc;
+	struct resource *res;
+	u_long irq;
+	int rid;
 
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids))
 		return ENXIO;
 
-	/* If we don't find an atkbdc device on the same bus, quit. */
-	atkbdc = device_find_child(device_get_parent(dev), ATKBDC_DRIVER_NAME,
-				   device_get_unit(dev));
-	if (atkbdc == NULL)
-		return ENXIO;
+	/*
+	 * The PnP BIOS and ACPI are supposed to assign an IRQ (12)
+	 * to the PS/2 mouse device node. But, some buggy PnP BIOS
+	 * declares the PS/2 mouse device node without an IRQ resource!
+	 * If this happens, we shall refer to device hints.
+	 * If we still don't find it there, use a hardcoded value... XXX
+	 */
+	rid = 0;
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
+	if (irq <= 0) {
+		if (resource_long_value(PSM_DRIVER_NAME,
+					device_get_unit(dev), "irq", &irq) != 0)
+			irq = 12;	/* XXX */
+		device_printf(dev, "irq resource info is missing; "
+			      "assuming irq %ld\n", irq);
+		bus_set_resource(dev, SYS_RES_IRQ, rid, irq, 1);
+	}
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_SHAREABLE);
+	bus_release_resource(dev, SYS_RES_IRQ, rid, res);
 
 	/* keep quiet */
 	if (!bootverbose)
 		device_quiet(dev);
 
-	return 0;
+	return ((res == NULL) ? ENXIO : 0);
 }
 
 static int
 psmcpnp_attach(device_t dev)
 {
 	device_t atkbdc;
+	int rid;
 
-	 /* create our copy under the keyboard controller on the same bus. */
-	atkbdc = device_find_child(device_get_parent(dev), ATKBDC_DRIVER_NAME,
-				   device_get_unit(dev));
-	if (atkbdc == NULL)
-		return ENXIO;
-	if (device_get_state(atkbdc) == DS_ATTACHED)
+	/* find the keyboard controller, which may be on acpi* or isa* bus */
+	atkbdc = devclass_get_device(devclass_find(ATKBDC_DRIVER_NAME),
+				     device_get_unit(dev));
+	if ((atkbdc != NULL) && (device_get_state(atkbdc) == DS_ATTACHED)) {
 		create_a_copy(atkbdc, dev);
+	} else {
+		/*
+		 * If we don't have the AT keyboard controller yet,
+		 * just reserve the IRQ for later use...
+		 * (See psmidentify() above.)
+		 */
+		rid = 0;
+		bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				   RF_SHAREABLE);
+	}
 
 	return 0;
 }
