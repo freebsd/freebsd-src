@@ -74,6 +74,9 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #define MAX_CLICKTHRESHOLD	2000	/* 2 seconds */
+#define MAX_BUTTON2TIMEOUT	2000	/* 2 seconds */
+#define DFLT_CLICKTHRESHOLD	 500	/* 0.5 second */
+#define DFLT_BUTTON2TIMEOUT	 500	/* 0.5 second */
 
 #define TRUE		1
 #define FALSE		0
@@ -378,6 +381,7 @@ static struct rodentparam {
     int mremsfd;		/* mouse remote server file descriptor */
     int mremcfd;		/* mouse remote client file descriptor */
     long clickthreshold;	/* double click speed in msec */
+    long button2timeout;	/* 3 button emulation timeout */
     mousehw_t hw;		/* mouse device hardware information */
     mousemode_t mode;		/* protocol information */
 } rodent = { 
@@ -394,14 +398,63 @@ static struct rodentparam {
     cfd : -1,
     mremsfd : -1,
     mremcfd : -1,
-    clickthreshold : 500,	/* 0.5 sec */
+    clickthreshold : DFLT_CLICKTHRESHOLD,
+    button2timeout : DFLT_BUTTON2TIMEOUT,
 };
 
 /* button status */
-static struct {
+struct button_state {
     int count;		/* 0: up, 1: single click, 2: double click,... */
-    struct timeval tv;	/* timestamp on the last `up' event */
-} buttonstate[MOUSE_MAXBUTTON];
+    struct timeval tv;	/* timestamp on the last button event */
+};
+static struct button_state	bstate[MOUSE_MAXBUTTON]; /* button state */
+static struct button_state	*mstate[MOUSE_MAXBUTTON];/* mapped button st.*/
+static struct button_state	zstate[4];		 /* Z/W axis state */
+
+/* state machine for 3 button emulation */
+
+#define S0	0	/* start */
+#define S1	1	/* button 1 delayed down */
+#define S2	2	/* button 3 delayed down */
+#define S3	3	/* both buttons down -> button 2 down */
+#define S4	4	/* button 1 delayed up */
+#define S5	5	/* button 1 down */
+#define S6	6	/* button 3 down */
+#define S7	7	/* both buttons down */
+#define S8	8	/* button 3 delayed up */
+#define S9	9	/* button 1 or 3 up after S3 */
+
+#define A(b1, b3)	(((b1) ? 2 : 0) | ((b3) ? 1 : 0))
+#define A_TIMEOUT	4
+
+static struct {
+    int s[A_TIMEOUT + 1];
+    int buttons;
+    int mask;
+} states[10] = {
+    /* S0 */
+    { { S0, S2, S1, S3, S0 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN) },
+    /* S1 */
+    { { S4, S2, S1, S3, S5 }, 0, ~MOUSE_BUTTON1DOWN },
+    /* S2 */
+    { { S8, S2, S1, S3, S6 }, 0, ~MOUSE_BUTTON3DOWN },
+    /* S3 */
+    { { S0, S9, S9, S3, S3 }, MOUSE_BUTTON2DOWN, ~0 },
+    /* S4 */
+    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON1DOWN, ~0 },
+    /* S5 */
+    { { S0, S2, S5, S7, S5 }, MOUSE_BUTTON1DOWN, ~0 },
+    /* S6 */
+    { { S0, S6, S1, S7, S6 }, MOUSE_BUTTON3DOWN, ~0 },
+    /* S7 */
+    { { S0, S6, S5, S7, S7 }, MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, ~0 },
+    /* S8 */
+    { { S0, S2, S1, S3, S0 }, MOUSE_BUTTON3DOWN, ~0 },
+    /* S9 */
+    { { S0, S9, S9, S3, S9 }, 0, ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN) },
+};
+static int		mouse_button_state;
+static struct timeval	mouse_button_state_tv;
 
 static jmp_buf env;
 
@@ -418,8 +471,11 @@ static char	*r_name(int type);
 static char	*r_model(int model);
 static void	r_init(void);
 static int	r_protocol(u_char b, mousestatus_t *act);
+static int	r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans);
 static int	r_installmap(char *arg);
 static void	r_map(mousestatus_t *act1, mousestatus_t *act2);
+static void	r_timestamp(mousestatus_t *act);
+static int	r_timeout(void);
 static void	r_click(mousestatus_t *act);
 static void	setmousespeed(int old, int new, unsigned cflag);
 
@@ -444,11 +500,23 @@ main(int argc, char *argv[])
     int	i;
     int	j;
 
-    while((c = getopt(argc,argv,"3C:DF:I:PRS:cdfhi:l:m:p:r:st:w:z:")) != -1)
+    for (i = 0; i < MOUSE_MAXBUTTON; ++i)
+	mstate[i] = &bstate[i];
+
+    while((c = getopt(argc,argv,"3C:DE:F:I:PRS:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
 	    rodent.flags |= Emulate3Button;
+	    break;
+
+	case 'E':
+	    rodent.button2timeout = atoi(optarg);
+	    if ((rodent.button2timeout < 0) || 
+	        (rodent.button2timeout > MAX_BUTTON2TIMEOUT)) {
+	        warnx("invalid argument `%s'", optarg);
+	        usage();
+	    }
 	    break;
 
 	case 'c':
@@ -548,9 +616,11 @@ main(int argc, char *argv[])
 	            warnx("invalid argument `%s'", optarg);
 	            usage();
 		}
-		rodent.zmap[0] = 1 << (i - 1);
-		rodent.zmap[1] = 1 << i;
-		printf("optind: %d, optarg: '%s'\n", optind, optarg);
+		rodent.zmap[0] = i;
+		rodent.zmap[1] = i + 1;
+		mstate[i - 1] = &zstate[0];
+		mstate[i] = &zstate[1];
+		debug("optind: %d, optarg: '%s'", optind, optarg);
 		for (j = 1; j < 4; ++j) {
 		    if ((optind >= argc) || !isdigit(*argv[optind]))
 			break;
@@ -559,19 +629,18 @@ main(int argc, char *argv[])
 			warnx("invalid argument `%s'", argv[optind]);
 			usage();
 		    }
-		    rodent.zmap[j] = 1 << (i - 1);
+		    rodent.zmap[j] = i;
+		    mstate[i - 1] = &zstate[j];
 		    ++optind;
 		}
-		if (rodent.zmap[3] == 0)
-		    rodent.zmap[3] = rodent.zmap[2] << 1;
-		/*
-		 * If the second pair of mapping is not specified,
-		 * make it the same as the first pair.
-		 */
-		if (rodent.zmap[2] == 0)
-		    rodent.zmap[2] = rodent.zmap[0];
-		if (rodent.zmap[3] == 0)
-		    rodent.zmap[3] = rodent.zmap[1];
+		if ((rodent.zmap[2] != 0) && (rodent.zmap[3] == 0)) {
+		    rodent.zmap[3] = rodent.zmap[2] + 1;
+		    mstate[rodent.zmap[3] - 1] = &zstate[3];
+		}
+		for (i = 0; i < 4; ++i) {
+		    if (rodent.zmap[i] != 0)
+			rodent.zmap[i] = 1 << (rodent.zmap[i] - 1);
+		}
 	    }
 	    break;
 
@@ -732,11 +801,16 @@ static void
 moused(void)
 {
     struct mouse_info mouse;
-    mousestatus_t action;		/* original mouse action */
+    mousestatus_t action0;		/* original mouse action */
+    mousestatus_t action;		/* interrim buffer */
     mousestatus_t action2;		/* mapped action */
+    struct timeval timeout;
     fd_set fds;
     u_char b;
     FILE *fp;
+    int flags;
+    int c;
+    int i;
 
     if ((rodent.cfd = open("/dev/consolectl", O_RDWR, 0)) == -1)
 	logerr(1, "cannot open /dev/consolectl", 0);
@@ -754,42 +828,87 @@ moused(void)
 	}
 
     /* clear mouse data */
+    bzero(&action0, sizeof(action0));
     bzero(&action, sizeof(action));
     bzero(&action2, sizeof(action2));
-    bzero(&buttonstate, sizeof(buttonstate));
     bzero(&mouse, sizeof(mouse));
+    mouse_button_state = S0;
+    gettimeofday(&mouse_button_state_tv, NULL);
+    for (i = 0; i < MOUSE_MAXBUTTON; ++i) {
+	bstate[i].count = 0;
+	bstate[i].tv = mouse_button_state_tv;
+    }
+    for (i = 0; i < sizeof(zstate)/sizeof(zstate[0]); ++i) {
+	zstate[i].count = 0;
+	zstate[i].tv = mouse_button_state_tv;
+    }
 
     /* choose which ioctl command to use */
     mouse.operation = MOUSE_MOTION_EVENT;
     extioctl = (ioctl(rodent.cfd, CONS_MOUSECTL, &mouse) == 0);
 
     /* process mouse data */
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 20000;		/* 20 msec */
     for (;;) {
 
 	FD_ZERO(&fds);
 	FD_SET(rodent.mfd, &fds);
-	if (rodent.mremsfd >= 0)  FD_SET(rodent.mremsfd, &fds);
-	if (rodent.mremcfd >= 0)  FD_SET(rodent.mremcfd, &fds);
+	if (rodent.mremsfd >= 0)
+	    FD_SET(rodent.mremsfd, &fds);
+	if (rodent.mremcfd >= 0)
+	    FD_SET(rodent.mremcfd, &fds);
 
-	if (select(FD_SETSIZE, &fds, NULL, NULL, NULL) <= 0)
+	c = select(FD_SETSIZE, &fds, NULL, NULL,
+		   (rodent.flags & Emulate3Button) ? &timeout : NULL);
+	if (c < 0) {                    /* error */
 	    logwarn("failed to read from mouse", 0);
-
-	/*  MouseRemote client connect/disconnect  */
-	if ((rodent.mremsfd >= 0) && FD_ISSET(rodent.mremsfd, &fds)) {
-	    mremote_clientchg(TRUE);
 	    continue;
+	} else if (c == 0) {            /* timeout */
+	    /* assert(rodent.flags & Emulate3Button) */
+	    action0.button = action0.obutton;
+	    action0.dx = action0.dy = action0.dz = 0;
+	    action0.flags = flags = 0;
+	    if (r_timeout() && r_statetrans(&action0, &action, A_TIMEOUT)) {
+		if (debug > 2)
+		    debug("flags:%08x buttons:%08x obuttons:%08x",
+			  action.flags, action.button, action.obutton);
+	    } else {
+		action0.obutton = action0.button;
+		continue;
+	    }
+	} else {
+	    /*  MouseRemote client connect/disconnect  */
+	    if ((rodent.mremsfd >= 0) && FD_ISSET(rodent.mremsfd, &fds)) {
+		mremote_clientchg(TRUE);
+		continue;
+	    }
+	    if ((rodent.mremcfd >= 0) && FD_ISSET(rodent.mremcfd, &fds)) {
+		mremote_clientchg(FALSE);
+		continue;
+	    }
+	    /* mouse movement */
+	    if (read(rodent.mfd, &b, 1) == -1) {
+		if (errno == EWOULDBLOCK)
+		    continue;
+		else
+		    return;
+	    }
+	    if ((flags = r_protocol(b, &action0)) == 0)
+		continue;
+	    r_timestamp(&action0);
+	    r_statetrans(&action0, &action, 
+	    		 A(action0.button & MOUSE_BUTTON1DOWN,
+	    		   action0.button & MOUSE_BUTTON3DOWN));
+	    debug("flags:%08x buttons:%08x obuttons:%08x", action.flags,
+		  action.button, action.obutton);
 	}
-	
-	if ((rodent.mremcfd >= 0) && FD_ISSET(rodent.mremcfd, &fds)) {
-	    mremote_clientchg(FALSE);
-	    continue;
-	}
+	action0.obutton = action0.button;
+	flags &= MOUSE_POSCHANGED;
+	flags |= action.obutton ^ action.button;
+	action.flags = flags;
 
-	/*  mouse event  */
-	if (read(rodent.mfd, &b, 1) == -1)
-		return;		/* file seems to be closed on us */
-
-	if (r_protocol(b, &action)) {	/* handler detected action */
+	if (flags) {			/* handler detected action */
 	    r_map(&action, &action2);
 	    debug("activity : buttons 0x%08x  dx %d  dy %d  dz %d",
 		action2.button, action2.dx, action2.dy, action2.dz);
@@ -865,8 +984,9 @@ static void
 usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: moused [-3DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
-	"              [-C threshold] [-m N=M] [-w N] [-z N] [-t <mousetype>] -p <port>",
+	"usage: moused [-DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
+	"              [-C threshold] [-m N=M] [-w N] [-z N] [-t <mousetype>]",
+	"              [-3 [-E timeout]] -p <port>",
 	"       moused [-d] -i <info> -p <port>");
     exit(1);
 }
@@ -1811,24 +1931,46 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     act->flags = ((act->dx || act->dy || act->dz) ? MOUSE_POSCHANGED : 0)
 	| (act->obutton ^ act->button);
 
-    if (rodent.flags & Emulate3Button) {
-	if (((act->flags & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))
-	        == (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))
-	    && ((act->button & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))
-	        == (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))) {
-	    act->button &= ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN);
-	    act->button |= MOUSE_BUTTON2DOWN;
-	} else if ((act->obutton & MOUSE_BUTTON2DOWN)
-	    && ((act->button & (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))
-	        != (MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN))) {
-	    act->button &= ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN 
-			       | MOUSE_BUTTON3DOWN);
-	}
-	act->flags &= MOUSE_POSCHANGED;
-	act->flags |= act->obutton ^ act->button;
-    }
-
     return act->flags;
+}
+
+static int
+r_statetrans(mousestatus_t *a1, mousestatus_t *a2, int trans)
+{
+    int changed;
+    int flags;
+
+    a2->dx = a1->dx;
+    a2->dy = a1->dy;
+    a2->dz = a1->dz;
+    a2->obutton = a2->button;
+    a2->button = a1->button;
+    a2->flags = a1->flags;
+    changed = FALSE;
+
+    if (rodent.flags & Emulate3Button) {
+	if (debug > 2)
+	    debug("state:%d, trans:%d -> state:%d", 
+		  mouse_button_state, trans,
+		  states[mouse_button_state].s[trans]);
+	if (mouse_button_state != states[mouse_button_state].s[trans]) {
+	    gettimeofday(&mouse_button_state_tv, NULL);
+	    changed = TRUE;
+	}
+	mouse_button_state = states[mouse_button_state].s[trans];
+	a2->button &=
+	    ~(MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN);
+	a2->button &= states[mouse_button_state].mask;
+	a2->button |= states[mouse_button_state].buttons;
+	flags = a2->flags & MOUSE_POSCHANGED;
+	flags |= a2->obutton ^ a2->button;
+	if (flags & MOUSE_BUTTON2DOWN) {
+	    a2->flags = flags & MOUSE_BUTTON2DOWN;
+	    r_timestamp(a2);
+	}
+	a2->flags = flags;
+    }
+    return changed;
 }
 
 /* phisical to logical button mapping */
@@ -1881,6 +2023,7 @@ r_installmap(char *arg)
 	if ((pbutton <= 0) || (pbutton > MOUSE_MAXBUTTON))
 	    return FALSE;
 	p2l[pbutton - 1] = 1 << (lbutton - 1);
+	mstate[lbutton - 1] = &bstate[pbutton - 1];
     }
 
     return TRUE;
@@ -1925,14 +2068,19 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
     default:	/* buttons */
 	pbuttons &= ~(rodent.zmap[0] | rodent.zmap[1]
 		    | rodent.zmap[2] | rodent.zmap[3]);
-	if (act1->dz < -1)
+	if ((act1->dz < -1) && rodent.zmap[2]) {
 	    pbuttons |= rodent.zmap[2];
-	else if (act1->dz < 0)
+	    zstate[2].count = 1;
+	} else if (act1->dz < 0) {
 	    pbuttons |= rodent.zmap[0];
-	else if (act1->dz > 1)
+	    zstate[0].count = 1;
+	} else if ((act1->dz > 1) && rodent.zmap[3]) {
 	    pbuttons |= rodent.zmap[3];
-	else if (act1->dz > 0)
+	    zstate[3].count = 1;
+	} else if (act1->dz > 0) {
 	    pbuttons |= rodent.zmap[1];
+	    zstate[1].count = 1;
+	}
 	act2->dz = 0;
 	break;
     }
@@ -1948,13 +2096,88 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
 }
 
 static void
-r_click(mousestatus_t *act)
+r_timestamp(mousestatus_t *act)
 {
-    struct mouse_info mouse;
     struct timeval tv;
     struct timeval tv1;
     struct timeval tv2;
-    struct timezone tz;
+    struct timeval tv3;
+    int button;
+    int mask;
+    int i;
+
+    mask = act->flags & MOUSE_BUTTONS;
+#if 0
+    if (mask == 0)
+	return;
+#endif
+
+    gettimeofday(&tv1, NULL);
+
+    /* double click threshold */
+    tv2.tv_sec = rodent.clickthreshold/1000;
+    tv2.tv_usec = (rodent.clickthreshold%1000)*1000;
+    timersub(&tv1, &tv2, &tv); 
+    debug("tv:  %ld %ld", tv.tv_sec, tv.tv_usec);
+
+    /* 3 button emulation timeout */
+    tv2.tv_sec = rodent.button2timeout/1000;
+    tv2.tv_usec = (rodent.button2timeout%1000)*1000;
+    timersub(&tv1, &tv2, &tv3); 
+
+    button = MOUSE_BUTTON1DOWN;
+    for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
+        if (mask & 1) {
+            if (act->button & button) {
+                /* the button is down */
+    		debug("  :  %ld %ld", 
+		    bstate[i].tv.tv_sec, bstate[i].tv.tv_usec);
+		if (timercmp(&tv, &bstate[i].tv, >)) {
+                    bstate[i].count = 1;
+                } else {
+                    ++bstate[i].count;
+                }
+		bstate[i].tv = tv1;
+            } else {
+                /* the button is up */
+                bstate[i].tv = tv1;
+            }
+        } else {
+	    if (act->button & button) {
+		/* the button has been down */
+		if (timercmp(&tv3, &bstate[i].tv, >)) {
+		    bstate[i].count = 1;
+		    bstate[i].tv = tv1;
+		    act->flags |= button;
+		    debug("button %d timeout", i + 1);
+		}
+	    } else {
+		/* the button has been up */
+	    }
+	}
+	button <<= 1;
+	mask >>= 1;
+    }
+}
+
+static int
+r_timeout(void)
+{
+    struct timeval tv;
+    struct timeval tv1;
+    struct timeval tv2;
+
+    gettimeofday(&tv1, NULL);
+    tv2.tv_sec = rodent.button2timeout/1000;
+    tv2.tv_usec = (rodent.button2timeout%1000)*1000;
+    timersub(&tv1, &tv2, &tv); 
+    return timercmp(&tv, &mouse_button_state_tv, >);
+}
+
+static void
+r_click(mousestatus_t *act)
+{
+    struct mouse_info mouse;
     int button;
     int mask;
     int i;
@@ -1963,29 +2186,15 @@ r_click(mousestatus_t *act)
     if (mask == 0)
 	return;
 
-    gettimeofday(&tv1, &tz);
-    tv2.tv_sec = rodent.clickthreshold/1000;
-    tv2.tv_usec = (rodent.clickthreshold%1000)*1000;
-    timersub(&tv1, &tv2, &tv); 
-    debug("tv:  %ld %ld", tv.tv_sec, tv.tv_usec);
     button = MOUSE_BUTTON1DOWN;
     for (i = 0; (i < MOUSE_MAXBUTTON) && (mask != 0); ++i) {
         if (mask & 1) {
+	    debug("mstate[%d]->count:%d", i, mstate[i]->count);
             if (act->button & button) {
                 /* the button is down */
-    		debug("  :  %ld %ld", 
-		    buttonstate[i].tv.tv_sec, buttonstate[i].tv.tv_usec);
-		if (timercmp(&tv, &buttonstate[i].tv, >)) {
-                    buttonstate[i].tv.tv_sec = 0;
-                    buttonstate[i].tv.tv_usec = 0;
-                    buttonstate[i].count = 1;
-                } else {
-                    ++buttonstate[i].count;
-                }
-	        mouse.u.event.value = buttonstate[i].count;
+	        mouse.u.event.value = mstate[i]->count;
             } else {
                 /* the button is up */
-                buttonstate[i].tv = tv1;
 	        mouse.u.event.value = 0;
             }
 	    mouse.operation = MOUSE_BUTTON_EVENT;
