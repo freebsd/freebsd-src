@@ -128,6 +128,10 @@ that has an address matching the packet's destination address.
 
 The ata(4) driver has been updated.
 
+To provide more flexible configuration, the various options for the
+ata(4) driver are now boot loader tunables, rather than kernel
+configure-time options.
+
 kqueue(2) has been extended to the device layer, and has also received
 some bug fixes.
 
@@ -552,8 +556,16 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 Symbios boot support depends on your SRM / machine type. Check HARDWARE.TXT
 too.
 
-QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
-QLogic 2100 Fibre Channel Adapters (private loop only).
+Qlogic Controllers and variants:
+    Qlogic 1020, 1040 SCSI and Ultra SCSI host adapters
+    Qlogic 1240 dual Ultra SCSI controllers
+    Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD controllers
+    Qlogic 12160 Ultra3 LVD controllers
+    Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI controllers
+    Performance Technology SBS440 ISP1000 variants
+    Performance Technology SBS450 ISP1040 variants
+    Performance Technology SBS470 ISP2100 variants
+    Antares Microsystems P-0033 ISP2100 variants
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
