@@ -32,20 +32,29 @@
 #
 # The user-driven targets (as listed above) are implemented in Makefile.inc1.
 #
-# For novices wanting to build from current sources, the simple instructions
-# are:
+# If you want to build your system from source be sure that /usr/obj has
+# at least 400MB of diskspace available.
 #
-# 1.  Ensure that your /usr/obj directory has at least 260 Mb of free space.
-# 2.  `cd /usr/src'  (or to the directory containing your source tree).
-# 3.  `make world'
+# For individuals wanting to build from the sources currently on their
+# system, the simple instructions are:
 #
-# Be warned, this will update your installed system, except for configuration
-# files in the /etc directory and for the kernel. You have to do those manually.
+# 1.  `cd /usr/src'  (or to the directory containing your source tree).
+# 2.  `make world'
 #
-# If at first you're a little nervous about having a `make world' update
-# your system, a `make buildworld' will build everything in the /usr/obj
-# tree without touching your installed system. To be of any further use
-# though, a `make installworld' is required.
+# For individuals wanting to upgrade their sources (even if only a
+# delta of a few days):
+#
+# 1.  `cd /usr/src'       (or to the directory containing your source tree).
+# 2.  `make buildworld'
+# 3.  `make buildkernel KERNCONF=YOUR_KERNEL_HERE'     (default is GENERIC).
+# 4.  `make installkernel KERNCONF=YOUR_KERNEL_HERE'   (default is GENERIC).
+# 5.  `reboot'        (in single user mode: boot -s from the loader prompt).
+# 6.  `mergemaster -p'
+# 7.  `make installworld'
+# 8.  `mergemaster'
+# 9.  `reboot'
+#
+# See src/UPDATING `COMMON ITEMS' for more complete information.
 #
 # If -DWANT_AOUT is specified, a `make world' with OBJFORMAT=elf will
 # update the legacy support for aout. This includes all libraries, ld.so
