@@ -1,8 +1,5 @@
 #	@(#)Makefile	5.11 (Berkeley) 5/21/91
 
-LOCALTIME=	US/Pacific
-TZDIR=/usr/share/zoneinfo
-
 NOOBJ=	oobj
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
@@ -44,15 +41,18 @@ KC_FILES=	${COPYRIGHT}
 KC_FILES+=	bin/[ bin/cp bin/echo bin/sh bin/test
 KC_FILES+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
 #
-INST1_DIRS=	dev mnt
+INST1_DIRS=	bin dev etc mnt sbin usr usr/bin usr/mdec usr/sbin
+INST1_TREES=	dev
 INST1_FILES=	${COPYRIGHT}
-INST1_FILES+=	bin/[ bin/cat bin/df bin/expr bin/ls bin/mkdir
+INST1_FILES+=	bin/[ bin/cat bin/expr bin/ls bin/mkdir
+#INST1_FILES+=	bin/df
 INST1_FILES+=	bin/sh bin/sync bin/test
 INST1_FILES+=	dev/MAKEDEV dev/MAKEDEV.local
-INST1_FILES+=	etc/disktab etc/group etc/master.passwd etc/passwd
+#INST1_FILES+=	etc/disktab
+INST1_FILES+=	etc/group etc/master.passwd etc/passwd
 INST1_FILES+=	etc/pwd.db etc/spwd.db
 INST1_FILES+=	sbin/disklabel sbin/halt sbin/init sbin/mount sbin/umount
-INST1_FILES+=	sbin/newfs sbin/reboot
+INST1_FILES+=	sbin/mount_pcfs sbin/newfs sbin/reboot
 INST1_FILES+=	usr/bin/cpio
 INST1_FILES+=	${MDEC}
 INST1_FILES+=	usr/sbin/bad144
@@ -66,7 +66,7 @@ INST2_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod
 INST2_CPIO+=	sbin/route sbin/shutdown sbin/slattach
 INST2_CPIO+=	tmp
 INST2_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/ftp
-INST2_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip usr/bin/zcat
+INST2_CPIO+=	usr/bin/more usr/bin/tar usr/bin/tip
 INST2_CPIO+=	usr/bin/elvis usr/bin/ex usr/bin/vi usr/bin/view
 #INST2_CPIO+=	usr/local/bin/mread usr/local/bin/rz
 INST2_CPIO+=	usr/sbin/update usr/sbin/chown
@@ -109,8 +109,6 @@ distribution: distrib-dirs
 	    ${DESTDIR}/etc/mtree
 	cd namedb; install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${NAMEDB} \
 	    ${DESTDIR}/etc/namedb
-	/bin/rm -f ${DESTDIR}/etc/localtime
-	ln -s ${TZDIR}/${LOCALTIME} ${DESTDIR}/etc/localtime
 	install -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
@@ -129,19 +127,7 @@ distribution: distrib-dirs
 	    ${DESTDIR}/var/run/utmp
 	(cd etc.${MACHINE}; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    fstab.* ${DESTDIR}/etc)
-.if ${MACHINE} == "tahoe"
-	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS1} \
-	    ${DESTDIR}/)
-.endif
-.if ${MACHINE} == "vax"
-	(cd etc.vax; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PCS} \
-	    ${DESTDIR}/)
-.endif
-.if ${MACHINE} == "i386"
-	(cd ../sys/i386/boot; \
-	    make depend all install cleandir)
-	(cd /; \
-	    ls ${MDEC} | cpio -pdamuv ${DESTDIR}/)
+	(cd ..; make install)
 	(cd ../usr.sbin/sendmail/src; \
 	    make install; \
 	 cd ../cf/cf; \
@@ -150,13 +136,14 @@ distribution: distrib-dirs
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
-	(cd ..; make install)
-	# the above make install clobers the /etc/localtime link
-	/bin/rm -f ${DESTDIR}/etc/localtime
-	ln -s ${TZDIR}/${LOCALTIME} ${DESTDIR}/etc/localtime
-	/bin/rm -f ${DESTDIR}/etc/termcap
-	ln -s /usr/share/misc/termcap ${DESTDIR}/etc/termcap
-	(cd ../include; make copies)
+	(cd ..; make mdec; )
+.if ${MACHINE} == "tahoe"
+	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS1} \
+	    ${DESTDIR}/)
+.endif
+.if ${MACHINE} == "vax"
+	(cd etc.vax; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PCS} \
+	    ${DESTDIR}/)
 .endif
 
 hcx9-distribution:
@@ -177,12 +164,14 @@ kc-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
+	chown root.wheel ${MOUNT}/.
+	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${KC_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1)
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
@@ -206,12 +195,14 @@ inst1-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
+	chown root.wheel ${MOUNT}/.
+	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${INST1_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1)
 	(cd ${DESTDIR}/; \
 	    ls ${INST1_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
@@ -220,8 +211,10 @@ inst1-floppy:
 	    ${MOUNT}/install
 	(cd ${MOUNT}/; \
 	    ls ${INST1_FILES} >/tmp/filelist; \
-	    find ${INST1_DIRS} | sort >>/tmp/filelist; \
-	    sort -u /tmp/filelist >filelist)
+	    ls -d ${INST1_DIRS} >>/tmp/filelist; \
+	    find ${INST1_TREES} >>/tmp/filelist; \
+	    sort -u /tmp/filelist >filelist; \
+	    rm /tmp/filelist)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
 	fsck /dev/r${FLOPPY}a
@@ -230,10 +223,12 @@ inst2-floppy:
 	disklabel -w -r ${FLOPPY} floppy5 /usr/mdec/fdboot /usr/mdec/bootfd
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space r${FLOPPY}a floppy5
 	mount /dev/${FLOPPY}a ${MOUNT}
+	chown root.wheel ${MOUNT}/.
+	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls ${INST2_FILES} | cpio -pdamuv ${MOUNT})
 	(cd ${DESTDIR}/; \
-	    find ${INST2_CPIO} | cpio -odalmuv | gzip -9 >${MOUNT}/inst2.cpio.gz)
+	    find ${INST2_CPIO} | cpio -oav | gzip -9 >${MOUNT}/inst2.cpio.gz)
 	install -c -o root -g wheel -m 755 etc.i386/inst2.profile \
 	    ${MOUNT}/.profile
 	install -c -o root -g wheel -m 755 etc.i386/inst2.install \
