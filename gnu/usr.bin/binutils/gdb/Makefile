@@ -27,10 +27,12 @@ XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
 	remote-utils.c signals.c source.c stabsread.c stack.c symfile.c	\
 	symmisc.c symtab.c target.c thread.c top.c tracepoint.c		\
 	typeprint.c ui-file.c ui-out.c utils.c valarith.c valops.c	\
-	valprint.c values.c wrapper.c					\
+	varobj.c valprint.c values.c wrapper.c				\
 	cli-cmds.c cli-cmds.h cli-decode.c cli-decode.h	cli-out.c	\
 	cli-script.c cli-script.h cli-setshow.c cli-setshow.h		\
 	cli-utils.c cli-utils.h						\
+	mi-cmd-break.c mi-cmd-disas.c mi-cmd-stack.c mi-cmd-var.c	\
+	mi-cmds.c mi-console.c mi-getopt.c mi-main.c mi-out.c mi-parse.c\
 	serial.c ser-unix.c ser-tcp.c					\
 	c-exp.y c-lang.c c-typeprint.c c-valprint.c			\
 	ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c			\
