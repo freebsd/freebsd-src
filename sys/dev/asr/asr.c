@@ -2634,7 +2634,7 @@ asr_attach (ATTACH_ARGS)
 		sc->ha_SystemTable.InboundMessageFrameSize
 		  = status->InboundMFrameSize;
 		sc->ha_SystemTable.MessengerInfo.InboundMessagePortAddressLow
-		  = (U32)(sc->ha_Base) + (U32)(&(((i2oRegs_t *)NULL)->ToFIFO));
+		  = (U32)(sc->ha_Base) + (U32)offsetof(i2oRegs_t, ToFIFO);
 
 		if (!asr_pci_map_int(tag, (void *)sc)) {
 			printf ("asr%d: could not map interrupt\n", unit);
