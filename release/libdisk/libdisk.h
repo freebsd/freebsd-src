@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.10 1995/05/03 17:37:59 jkh Exp $
+ * $Id: libdisk.h,v 1.11 1995/05/03 22:36:52 phk Exp $
  *
  */
 
@@ -48,7 +48,9 @@ struct chunk {
 	int		subtype;
 	u_long		flags;
 #		define CHUNK_PAST_1024		1
-			/* this chunk cannot be booted from */
+			/* this chunk cannot be booted from because it 
+			 * extends past cylinder 1024
+			 */
 #		define CHUNK_BSD_COMPAT	2
 			/* this chunk is in the BSD-compatibility, and has a 
 			 * short name too, ie wd0s4f -> wd0f
@@ -56,8 +58,11 @@ struct chunk {
 #		define CHUNK_BAD144		4
 			/* this chunk has bad144 mapping */
 #		define CHUNK_ALIGN		8
+			/* This chunk should be aligned */
 #		define CHUNK_IS_ROOT		16
 			/* This 'part' is a rootfs, allocate 'a' */
+#		define CHUNK_ACTIVE		32
+			/* This is the active slice in the MBR */
 
 	void		(*private_free)(void*);
 	void		*(*private_clone)(void*);
@@ -211,8 +216,6 @@ void Fixup_Names(struct disk *);
  * 
  * Make sure only FreeBSD start at offset==0
  * 
- * Make sure all MBR+extended children are aligned at create.
- * 
  * Collapse must align.
  * 
  * Make Write_Disk(struct disk*)
@@ -225,7 +228,7 @@ void Fixup_Names(struct disk *);
  *
  * Make Is_Unchanged(struct disk *d1, struct chunk *c1)
  * 
- * Make Set_Active_Slice()
+ * don't rename slices unless we have to
  *
  *Sample output from tst01:
  *
