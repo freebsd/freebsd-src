@@ -38,7 +38,6 @@ static struct nlist nl[] = {{"_swapmap"},  /* list of free swap areas */
 
 char    *getbsize __P((int *, long *));
 void	 usage __P((void));
-int	 kflag;
 
 main (argc, argv)
 int	argc;
@@ -51,18 +50,16 @@ char	**argv;
 	static long blocksize;
         static int headerlen;
         static char *header;
-	char *oldbsize = NULL;
         char  **save;
 	kvm_t *kd;
 
 	/* We are trying to be simple here: */
 
 	save = argv;
-	kflag = 0;
 	while ((ch = getopt(argc, argv, "k")) != EOF)
 		switch(ch) {
 		case 'k':
-			kflag = 1;
+			putenv("BLOCKSIZE=1k");
 			break;
 		case '?':
 		default:
@@ -175,13 +172,7 @@ char	**argv;
 		swapmap = head.rl_next;
 	}
 
-	if (kflag) {
-		oldbsize = getenv("BLOCKSIZE");
-		putenv("BLOCKSIZE=1k");
-	}
 	header = getbsize(&headerlen, &blocksize);
-	if (oldbsize)
-		putenv(oldbsize);
 	printf ("%-10s %10s %10s %10s %10s\n",
 		"Device", header, "Used", "Available", "Capacity");
 	for (total_avail = total_partitions = i = 0; i < nswdev; i++) {
