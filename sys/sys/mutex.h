@@ -38,7 +38,6 @@
 #ifdef _KERNEL
 #include <sys/ktr.h>
 #include <machine/atomic.h>
-#include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/globals.h>
 #endif	/* _KERNEL_ */
