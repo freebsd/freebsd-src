@@ -679,7 +679,7 @@ display(f, lp)
 		fprintf(f, "%d ", lp->d_drivedata[j]);
 	fprintf(f, "\n\n%d partitions:\n", lp->d_npartitions);
 	fprintf(f,
-	    "#        size   offset    fstype   [fsize bsize   cpg]\n");
+	    "#        size   offset    fstype   [fsize bsize bps/cpg]\n");
 	pp = lp->d_partitions;
 	for (i = 0; i < lp->d_npartitions; i++, pp++) {
 		if (pp->p_size) {
@@ -699,6 +699,12 @@ display(f, lp)
 			case FS_BSDFFS:
 				fprintf(f, "    %5d %5d %5d ",
 				    pp->p_fsize, pp->p_fsize * pp->p_frag,
+				    pp->p_cpg);
+				break;
+
+			case FS_BSDLFS:
+				fprintf(f, "    %5d %5d %5d",
+				    pp->p_fsize, pp->p_fsize * pp->p_frag, 
 				    pp->p_cpg);
 				break;
 
@@ -1112,6 +1118,15 @@ getasciilabel(f, lp)
 				break;
 
 			case FS_BSDFFS:
+				NXTNUM(pp->p_fsize);
+				if (pp->p_fsize == 0)
+					break;
+				NXTNUM(v);
+				pp->p_frag = v / pp->p_fsize;
+				NXTNUM(pp->p_cpg);
+				break;
+
+			case FS_BSDLFS:
 				NXTNUM(pp->p_fsize);
 				if (pp->p_fsize == 0)
 					break;
