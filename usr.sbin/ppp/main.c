@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.92 1997/11/09 22:07:28 brian Exp $
+ * $Id: main.c,v 1.93 1997/11/11 22:58:11 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -417,13 +417,14 @@ main(int argc, char **argv)
 
   if (GetLabel()) {
     if (SelectSystem(GetLabel(), CONFFILE) < 0) {
-      LogPrintf(LogWARN, "Destination system not found in conf file.\n");
+      LogPrintf(LogWARN, "Destination system %s not found in conf file.\n",
+                GetLabel());
       Cleanup(EX_START);
     }
     if (mode & MODE_OUTGOING_DAEMON &&
 	DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      LogPrintf(LogWARN, "Must specify dstaddr with"
-		" auto, background or ddial mode.\n");
+      LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for"
+		" auto, background or ddial mode.\n", GetLabel());
       Cleanup(EX_START);
     }
   }
