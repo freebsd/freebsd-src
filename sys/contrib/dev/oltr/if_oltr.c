@@ -1497,7 +1497,7 @@ dropped:
 static void
 DriverOutByte(unsigned short IOAddress, unsigned char value)
 {
-	outb(IOAddress, value);
+	outbv(IOAddress, value);
 }
 
 static void
@@ -1533,7 +1533,7 @@ DriverRepOutDword(unsigned short IOAddress, unsigned long *DataPointer, int DWor
 static unsigned char
 DriverInByte(unsigned short IOAddress)
 {
-	return(inb(IOAddress));
+	return(inbv(IOAddress));
 }
 
 static unsigned short
