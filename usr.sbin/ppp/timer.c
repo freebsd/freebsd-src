@@ -32,6 +32,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __NetBSD__
+#include <sys/time.h>
+#endif
 #include <termios.h>
 
 #include "log.h"
