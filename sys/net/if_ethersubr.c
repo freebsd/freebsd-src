@@ -599,9 +599,7 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 			return;
 		}
 		if (bif != BDG_LOCAL) {
-			struct mbuf *oldm = m ;
-
-			save_eh = *eh ; /* because it might change */
+			save_eh = *eh; /* because it might change */
 			m = bdg_forward_ptr(m, eh, bif); /* needs forwarding */
 			/*
 			 * Do not continue if bdg_forward_ptr() processed our
@@ -787,7 +785,7 @@ post_stats:
 		    case LLC_UI:
 			if (l->llc_ssap != LLC_SNAP_LSAP)
 			    goto dropanyway;
-	
+
 			if (Bcmp(&(l->llc_snap_org_code)[0], at_org_code,
 				   sizeof(at_org_code)) == 0 &&
 			     ntohs(l->llc_snap_ether_type) == ETHERTYPE_AT) {
@@ -804,7 +802,7 @@ post_stats:
 			    aarpinput(IFP2AC(ifp), m); /* XXX */
 			    return;
 			}
-		
+
 		    default:
 			goto dropanyway;
 		    }
