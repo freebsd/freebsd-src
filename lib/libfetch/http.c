@@ -792,7 +792,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	conn_t *conn;
 	struct url *url, *new;
 	int chunked, direct, need_auth, noredirect, verbose;
-	int e, i, n;
+	int e, i, n, val;
 	off_t offset, clength, length, size;
 	time_t mtime;
 	const char *p;
@@ -913,7 +913,20 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		_http_cmd(conn, "Connection: close");
 		_http_cmd(conn, "");
-		shutdown(conn->sd, SHUT_WR);
+
+		/*
+		 * Force the queued request to be dispatched.  Normally, one
+		 * would do this with shutdown(2) but squid proxies can be
+		 * configured to disallow such half-closed connections.  To
+		 * be compatible with such configurations, fiddle with socket
+		 * options to force the pending data to be written.
+		 */
+		val = 0;
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NOPUSH, &val,
+			   sizeof(val));
+		val = 1;
+		setsockopt(conn->sd, IPPROTO_TCP, TCP_NODELAY, &val,
+			   sizeof(val));
 
 		/* get reply */
 		switch (_http_get_reply(conn)) {
