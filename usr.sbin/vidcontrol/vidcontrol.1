@@ -20,21 +20,29 @@
 .Nd a utility for manipulating the syscons video driver.
 .Sh SYNOPSIS
 .Nm
-.Ar options ...
+.Op Fl r Ar fg Ar bg
+.Op Fl b Ar color
+.Op Fl c Ar appearance
+.Op Fl d
+.Op Fl l Ar scrmap
+.Op Fl L
+.Op Fl m Ar on|off
+.Op Fl f Ar size Ar file
+.Op Fl t Ar N|off
+.Op Fl x
+.Op mode
+.Op fgcol Op bgcol
+.Op show
 .Sh DESCRIPTION
 The
-.Nm vidcontrol
+.Nm
 command is used to set various options for the syscons video driver,
 such as video mode, colors, cursors, scrnmaps, font and screensaver timeout.
 .Pp
-A new video mode is selected by specifying its name as an argument to
-.Nm vidcontrol .
-For example:
-.Bd -literal
-vidcontrol VGA_80x25
-.Ed
-.Pp
-The modes currently supported:
+The following command line options are supported:
+.Bl -tag -width indent
+.It mode
+Select a new video mode. The modes currently supported are:
 .Ar VGA_40x25 ,
 .Ar VGA_80x25 ,
 .Ar VGA_80x50 ,
@@ -48,20 +56,17 @@ can be used.
 The graphic mode
 .Ar VGA_320x200
 can also be chosen.
-.Pp
-The colors used when displaying text can be changed by specifying the 
-foreground color (e.g. "vidcontrol white"), or both a foreground & background
-color (e.g. "vidcontrol yellow blue").
-.Pp
-To see the supported colors on a given platform use "vidcontrol show".
-.Pp
-The following command line options are supported:
-.Bl -tag -width Fl
+.It fgcol Op bgcol
+Change colors when displaying text. Specify the foreground color
+(e.g. "vidcontrol white"), or both a foreground & background color
+(e.g. "vidcontrol yellow blue").
+.It show
+See the supported colors on a given platform.
 .It Fl r Ar foreground Ar background
 Change reverse mode colors to
 .Ar foreground 
 and 
-.Ar background 
+.Ar background .
 .It Fl b Ar color
 Set border color to 
 .Ar color 
@@ -78,7 +83,11 @@ Install screen output map file from
 .It Fl L
 Install default screen output map.
 .It Fl m Ar on|off
-Switches the mousepointer on or off. Used together with the moused
+Switch the mousepointer
+.Ar on
+or
+.Ar off .
+Used together with the moused
 daemon for textmode cut & paste functionality.
 .It Fl f Ar size Ar file
 Load font
@@ -86,9 +95,9 @@ Load font
 for
 .Ar size
 (currently, only 8x8, 8x14 or 8x16).
-The fontfile can be either uuencoded or in raw binary format.
+The font file can be either uuencoded or in raw binary format.
 .It Fl t Ar N|off
-Sets the screensaver timeout to
+Set the screensaver timeout to
 .Ar N
 seconds, or turns it
 .Ar off .
@@ -105,4 +114,4 @@ Use hexadecimal digits for output.
 .Xr keyboard 4 ,
 .Xr screen 4
 .Sh AUTHORS
-Søren Schmidt (sos@FreeBSD.org)
+.An Søren Schmidt Aq sos@FreeBSD.org
