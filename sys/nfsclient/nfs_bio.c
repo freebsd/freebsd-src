@@ -34,9 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$);
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -59,10 +60,9 @@
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsmount.h>
-#include <nfs/nqnfs.h>
-#include <nfs/nfsnode.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsmount.h>
+#include <nfsclient/nfsnode.h>
 
 /*
  * Just call nfs_writebp() with the force argument set to 1.
@@ -72,6 +72,7 @@
 static int
 nfs_bwrite(struct buf *bp)
 {
+
 	return (nfs_writebp(bp, 1, curthread));
 }
 
@@ -80,26 +81,14 @@ struct buf_ops buf_ops_nfs = {
 	nfs_bwrite
 };
 
-
-static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
-					struct thread *td));
-
-extern int nfs_numasync;
-extern int nfs_pbuf_freecnt;
-extern struct nfsstats nfsstats;
+static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
+		    struct thread *td);
 
 /*
  * Vnode op for VM getpages.
  */
 int
-nfs_getpages(ap)
-	struct vop_getpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_reqpage;
-		vm_ooffset_t a_offset;
-	} */ *ap;
+nfs_getpages(struct vop_getpages_args *ap)
 {
 	int i, error, nextoff, size, toff, count, npages;
 	struct uio uio;
@@ -218,7 +207,7 @@ nfs_getpages(ap)
 			/* handled by vm_fault now	  */
 			/* vm_page_zero_invalid(m, TRUE); */
 		}
-		
+
 		if (i != ap->a_reqpage) {
 			/*
 			 * Whether or not to leave the page activated is up in
@@ -250,15 +239,7 @@ nfs_getpages(ap)
  * Vnode op for VM putpages.
  */
 int
-nfs_putpages(ap)
-	struct vop_putpages_args /* {
-		struct vnode *a_vp;
-		vm_page_t *a_m;
-		int a_count;
-		int a_sync;
-		int *a_rtvals;
-		vm_ooffset_t a_offset;
-	} */ *ap;
+nfs_putpages(struct vop_putpages_args *ap)
 {
 	struct uio uio;
 	struct iovec iov;
@@ -287,16 +268,13 @@ nfs_putpages(ap)
 	npages = btoc(count);
 	offset = IDX_TO_OFF(pages[0]->pindex);
 
-	GIANT_REQUIRED;
-
 	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
 	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0) {
 		(void)nfs_fsinfo(nmp, vp, cred, td);
 	}
 
-	for (i = 0; i < npages; i++) {
+	for (i = 0; i < npages; i++)
 		rtvals[i] = VM_PAGER_AGAIN;
-	}
 
 	/*
 	 * When putting pages, do not extend file past EOF.
@@ -356,14 +334,10 @@ nfs_putpages(ap)
  * Vnode op for read using bio
  */
 int
-nfs_bioread(vp, uio, ioflag, cred)
-	register struct vnode *vp;
-	register struct uio *uio;
-	int ioflag;
-	struct ucred *cred;
+nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 {
-	register struct nfsnode *np = VTONFS(vp);
-	register int biosize, i;
+	struct nfsnode *np = VTONFS(vp);
+	int biosize, i;
 	struct buf *bp = 0, *rabp;
 	struct vattr vattr;
 	struct thread *td;
@@ -395,7 +369,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 	 * For nfs, cache consistency can only be maintained approximately.
 	 * Although RFC1094 does not specify the criteria, the following is
 	 * believed to be compatible with the reference port.
-	 * For nqnfs, full cache consistency is maintained within the loop.
 	 * For nfs:
 	 * If the file's modify time on the server has changed since the
 	 * last read rpc or you have written to the file,
@@ -408,77 +381,34 @@ nfs_bioread(vp, uio, ioflag, cred)
 	 * attributes this could be forced by setting n_attrstamp to 0 before
 	 * the VOP_GETATTR() call.
 	 */
-	if ((nmp->nm_flag & NFSMNT_NQNFS) == 0) {
-		if (np->n_flag & NMODIFIED) {
-			if (vp->v_type != VREG) {
-				if (vp->v_type != VDIR)
-					panic("nfs: bioread, not dir");
+	if (np->n_flag & NMODIFIED) {
+		if (vp->v_type != VREG) {
+			if (vp->v_type != VDIR)
+				panic("nfs: bioread, not dir");
+			nfs_invaldir(vp);
+			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+			if (error)
+				return (error);
+		}
+		np->n_attrstamp = 0;
+		error = VOP_GETATTR(vp, &vattr, cred, td);
+		if (error)
+			return (error);
+		np->n_mtime = vattr.va_mtime.tv_sec;
+	} else {
+		error = VOP_GETATTR(vp, &vattr, cred, td);
+		if (error)
+			return (error);
+		if (np->n_mtime != vattr.va_mtime.tv_sec) {
+			if (vp->v_type == VDIR)
 				nfs_invaldir(vp);
-				error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-				if (error)
-					return (error);
-			}
-			np->n_attrstamp = 0;
-			error = VOP_GETATTR(vp, &vattr, cred, td);
+			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
 			if (error)
 				return (error);
 			np->n_mtime = vattr.va_mtime.tv_sec;
-		} else {
-			error = VOP_GETATTR(vp, &vattr, cred, td);
-			if (error)
-				return (error);
-			if (np->n_mtime != vattr.va_mtime.tv_sec) {
-				if (vp->v_type == VDIR)
-					nfs_invaldir(vp);
-				error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-				if (error)
-					return (error);
-				np->n_mtime = vattr.va_mtime.tv_sec;
-			}
 		}
 	}
 	do {
-
-	    /*
-	     * Get a valid lease. If cached data is stale, flush it.
-	     */
-	    if (nmp->nm_flag & NFSMNT_NQNFS) {
-		if (NQNFS_CKINVALID(vp, np, ND_READ)) {
-		    do {
-			error = nqnfs_getlease(vp, ND_READ, cred, td);
-		    } while (error == NQNFS_EXPIRED);
-		    if (error)
-			return (error);
-		    if (np->n_lrev != np->n_brev ||
-			(np->n_flag & NQNFSNONCACHE) ||
-			((np->n_flag & NMODIFIED) && vp->v_type == VDIR)) {
-			if (vp->v_type == VDIR)
-			    nfs_invaldir(vp);
-			error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-			if (error)
-			    return (error);
-			np->n_brev = np->n_lrev;
-		    }
-		} else if (vp->v_type == VDIR && (np->n_flag & NMODIFIED)) {
-		    nfs_invaldir(vp);
-		    error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-		    if (error)
-			return (error);
-		}
-	    }
-	    if (np->n_flag & NQNFSNONCACHE) {
-		switch (vp->v_type) {
-		case VREG:
-			return (nfs_readrpc(vp, uio, cred));
-		case VLNK:
-			return (nfs_readlinkrpc(vp, uio, cred));
-		case VDIR:
-			break;
-		default:
-			printf(" NQNFSNONCACHE: type %x unexpected\n",	
-				vp->v_type);
-		};
-	    }
 	    switch (vp->v_type) {
 	    case VREG:
 		nfsstats.biocache_reads++;
@@ -517,7 +447,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 		/*
 		 * Obtain the buffer cache block.  Figure out the buffer size
 		 * when we are at EOF.  If we are modifying the size of the
-		 * buffer based on an EOF condition we need to hold 
+		 * buffer based on an EOF condition we need to hold
 		 * nfs_rslock() through obtaining the buffer to prevent
 		 * a potential writer-appender from messing with n_size.
 		 * Otherwise we may accidently truncate the buffer and
@@ -677,7 +607,6 @@ again:
 		    (bp->b_flags & B_INVAL) == 0 &&
 		    (np->n_direofoffset == 0 ||
 		    (lbn + 1) * NFS_DIRBLKSIZ < np->n_direofoffset) &&
-		    !(np->n_flag & NQNFSNONCACHE) &&
 		    !incore(vp, lbn + 1)) {
 			rabp = nfs_getcacheblk(vp, lbn + 1, NFS_DIRBLKSIZ, td);
 			if (rabp) {
@@ -705,7 +634,7 @@ again:
 		 * to EOF.  *BUT* this information is lost if the buffer goes
 		 * away and is reconstituted into a B_CACHE state ( due to
 		 * being VMIO ) later.  So we keep track of the directory eof
-		 * in np->n_direofoffset and chop it off as an extra step 
+		 * in np->n_direofoffset and chop it off as an extra step
 		 * right here.
 		 */
 		n = lmin(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid - on);
@@ -713,7 +642,7 @@ again:
 			n = np->n_direofoffset - uio->uio_offset;
 		break;
 	    default:
-		printf(" nfs_bioread: type %x unexpected\n",vp->v_type);
+		printf(" nfs_bioread: type %x unexpected\n", vp->v_type);
 		break;
 	    };
 
@@ -727,15 +656,9 @@ again:
 		n = 0;
 		break;
 	    case VDIR:
-		/*
-		 * Invalidate buffer if caching is disabled, forcing a
-		 * re-read from the remote later.
-		 */
-		if (np->n_flag & NQNFSNONCACHE)
-			bp->b_flags |= B_INVAL;
 		break;
 	    default:
-		printf(" nfs_bioread: type %x unexpected\n",vp->v_type);
+		printf(" nfs_bioread: type %x unexpected\n", vp->v_type);
 	    }
 	    brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
@@ -746,13 +669,7 @@ again:
  * Vnode op for write using bio
  */
 int
-nfs_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
+nfs_write(struct vop_write_args *ap)
 {
 	int biosize;
 	struct uio *uio = ap->a_uio;
@@ -766,7 +683,7 @@ nfs_write(ap)
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
 	int bcount;
-	int n, on, error = 0, iomode, must_commit;
+	int n, on, error = 0;
 	int haverslock = 0;
 	struct proc *p = td?td->td_proc:NULL;
 
@@ -868,31 +785,6 @@ restart:
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 
 	do {
-		/*
-		 * Check for a valid write lease.
-		 */
-		if ((nmp->nm_flag & NFSMNT_NQNFS) &&
-		    NQNFS_CKINVALID(vp, np, ND_WRITE)) {
-			do {
-				error = nqnfs_getlease(vp, ND_WRITE, cred, td);
-			} while (error == NQNFS_EXPIRED);
-			if (error)
-				break;
-			if (np->n_lrev != np->n_brev ||
-			    (np->n_flag & NQNFSNONCACHE)) {
-				error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-				if (error)
-					break;
-				np->n_brev = np->n_lrev;
-			}
-		}
-		if ((np->n_flag & NQNFSNONCACHE) && uio->uio_iovcnt == 1) {
-		    iomode = NFSV3WRITE_FILESYNC;
-		    error = nfs_writerpc(vp, uio, cred, &iomode, &must_commit);
-		    if (must_commit)
-			    nfs_clearcommit(vp->v_mount);
-		    break;
-		}
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize-1);
@@ -929,7 +821,7 @@ again:
 			}
 		} else {
 			/*
-			 * Obtain the locked cache block first, and then 
+			 * Obtain the locked cache block first, and then
 			 * adjust the file's size as appropriate.
 			 */
 			bcount = on + n;
@@ -960,7 +852,7 @@ again:
 		 * op and is typically set, avoiding the read.  If a read
 		 * is required in special append mode, the server will
 		 * probably send us a short-read since we extended the file
-		 * on our end, resulting in b_resid == 0 and, thusly, 
+		 * on our end, resulting in b_resid == 0 and, thusly,
 		 * B_CACHE getting set.
 		 *
 		 * We can also avoid issuing the read if the write covers
@@ -1001,15 +893,15 @@ again:
 		/*
 		 * If dirtyend exceeds file size, chop it down.  This should
 		 * not normally occur but there is an append race where it
-		 * might occur XXX, so we log it. 
+		 * might occur XXX, so we log it.
 		 *
 		 * If the chopping creates a reverse-indexed or degenerate
 		 * situation with dirtyoff/end, we 0 both of them.
 		 */
 
 		if (bp->b_dirtyend > bcount) {
-			printf("NFS append race @%lx:%d\n", 
-			    (long)bp->b_blkno * DEV_BSIZE, 
+			printf("NFS append race @%lx:%d\n",
+			    (long)bp->b_blkno * DEV_BSIZE,
 			    bp->b_dirtyend - bcount);
 			bp->b_dirtyend = bcount;
 		}
@@ -1022,9 +914,9 @@ again:
 		 * area, just update the b_dirtyoff and b_dirtyend,
 		 * otherwise force a write rpc of the old dirty area.
 		 *
-		 * While it is possible to merge discontiguous writes due to 
+		 * While it is possible to merge discontiguous writes due to
 		 * our having a B_CACHE buffer ( and thus valid read data
-		 * for the hole), we don't because it could lead to 
+		 * for the hole), we don't because it could lead to
 		 * significant cache coherency problems with multiple clients,
 		 * especially if locking is implemented later on.
 		 *
@@ -1039,30 +931,6 @@ again:
 			if (BUF_WRITE(bp) == EINTR)
 				return (EINTR);
 			goto again;
-		}
-
-		/*
-		 * Check for valid write lease and get one as required.
-		 * In case getblk() and/or bwrite() delayed us.
-		 */
-		if ((nmp->nm_flag & NFSMNT_NQNFS) &&
-		    NQNFS_CKINVALID(vp, np, ND_WRITE)) {
-			do {
-				error = nqnfs_getlease(vp, ND_WRITE, cred, td);
-			} while (error == NQNFS_EXPIRED);
-			if (error) {
-				brelse(bp);
-				break;
-			}
-			if (np->n_lrev != np->n_brev ||
-			    (np->n_flag & NQNFSNONCACHE)) {
-				brelse(bp);
-				error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-				if (error)
-					break;
-				np->n_brev = np->n_lrev;
-				goto again;
-			}
 		}
 
 		error = uiomove((char *)bp->b_data + on, n, uio);
@@ -1082,7 +950,7 @@ again:
 		}
 
 		/*
-		 * Only update dirtyoff/dirtyend if not a degenerate 
+		 * Only update dirtyoff/dirtyend if not a degenerate
 		 * condition.
 		 */
 		if (n) {
@@ -1097,24 +965,18 @@ again:
 		}
 
 		/*
-		 * If the lease is non-cachable or IO_SYNC do bwrite().
+		 * If IO_SYNC do bwrite().
 		 *
 		 * IO_INVAL appears to be unused.  The idea appears to be
 		 * to turn off caching in this case.  Very odd.  XXX
 		 */
-		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
+		if ((ioflag & IO_SYNC)) {
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
 			error = BUF_WRITE(bp);
 			if (error)
 				break;
-			if (np->n_flag & NQNFSNONCACHE) {
-				error = nfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
-				if (error)
-					break;
-			}
-		} else if ((n + on) == biosize &&
-			(nmp->nm_flag & NFSMNT_NQNFS) == 0) {
+		} else if ((n + on) == biosize) {
 			bp->b_flags |= B_ASYNC;
 			(void)nfs_writebp(bp, 0, 0);
 		} else {
@@ -1144,13 +1006,9 @@ again:
  * its EOF.
  */
 static struct buf *
-nfs_getcacheblk(vp, bn, size, td)
-	struct vnode *vp;
-	daddr_t bn;
-	int size;
-	struct thread *td;
+nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 {
-	register struct buf *bp;
+	struct buf *bp;
 	struct mount *mp;
 	struct nfsmount *nmp;
 
@@ -1182,14 +1040,10 @@ nfs_getcacheblk(vp, bn, size, td)
  * doing the flush, just wait for completion.
  */
 int
-nfs_vinvalbuf(vp, flags, cred, td, intrflg)
-	struct vnode *vp;
-	int flags;
-	struct ucred *cred;
-	struct thread *td;
-	int intrflg;
+nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
+    struct thread *td, int intrflg)
 {
-	register struct nfsnode *np = VTONFS(vp);
+	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int error = 0, slpflag, slptimeo;
 
@@ -1213,7 +1067,8 @@ nfs_vinvalbuf(vp, flags, cred, td, intrflg)
 		np->n_flag |= NFLUSHWANT;
 		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nfsvinval",
 			slptimeo);
-		if (error && intrflg && nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc))
+		if (error && intrflg &&
+		    nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc))
 			return (EINTR);
 	}
 
@@ -1223,7 +1078,8 @@ nfs_vinvalbuf(vp, flags, cred, td, intrflg)
 	np->n_flag |= NFLUSHINPROG;
 	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
 	while (error) {
-		if (intrflg && nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc)) {
+		if (intrflg &&
+		    nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc)) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
@@ -1250,10 +1106,7 @@ nfs_vinvalbuf(vp, flags, cred, td, intrflg)
  * is eventually dequeued by the async daemon, nfs_doio() *will*.
  */
 int
-nfs_asyncio(bp, cred, td)
-	register struct buf *bp;
-	struct ucred *cred;
-	struct thread *td;
+nfs_asyncio(struct buf *bp, struct ucred *cred, struct thread *td)
 {
 	struct nfsmount *nmp;
 	int i;
@@ -1272,7 +1125,7 @@ nfs_asyncio(bp, cred, td)
 	nmp = VFSTONFS(bp->b_vp->v_mount);
 
 	/*
-	 * Commits are usually short and sweet so lets save some cpu and 
+	 * Commits are usually short and sweet so lets save some cpu and
 	 * leave the async daemons for more important rpc's (such as reads
 	 * and writes).
 	 */
@@ -1385,10 +1238,7 @@ again:
  * synchronously or from an nfsiod.
  */
 int
-nfs_doio(bp, cr, td)
-	struct buf *bp;
-	struct ucred *cr;
-	struct thread *td;
+nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 {
 	struct uio *uiop;
 	struct vnode *vp;
@@ -1397,7 +1247,7 @@ nfs_doio(bp, cr, td)
 	int error = 0, iomode, must_commit = 0;
 	struct uio uio;
 	struct iovec io;
-	struct proc *p = td?td->td_proc:NULL;
+	struct proc *p = td ? td->td_proc : NULL;
 
 	vp = bp->b_vp;
 	np = VTONFS(vp);
@@ -1461,7 +1311,7 @@ nfs_doio(bp, cr, td)
 			 * hit a file hole.  We should zero-fill the remainder.
 			 * This can also occur if the server hits the file EOF.
 			 *
-			 * Holes used to be able to occur due to pending 
+			 * Holes used to be able to occur due to pending
 			 * writes, but that is not possible any longer.
 			 */
 			int nread = bp->b_bcount - uiop->uio_resid;
@@ -1473,11 +1323,7 @@ nfs_doio(bp, cr, td)
 		    }
 		}
 		if (p && (vp->v_flag & VTEXT) &&
-			(((nmp->nm_flag & NFSMNT_NQNFS) &&
-			  NQNFS_CKINVALID(vp, np, ND_READ) &&
-			  np->n_lrev != np->n_brev) ||
-			 (!(nmp->nm_flag & NFSMNT_NQNFS) &&
-			  np->n_mtime != np->n_vattr.va_mtime.tv_sec))) {
+			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
 			uprintf("Process killed due to text file modification\n");
 			PROC_LOCK(p);
 			psignal(p, SIGKILL);
@@ -1508,7 +1354,7 @@ nfs_doio(bp, cr, td)
 			bp->b_flags |= B_INVAL;
 		break;
 	    default:
-		printf("nfs_doio:  type %x unexpected\n",vp->v_type);
+		printf("nfs_doio:  type %x unexpected\n", vp->v_type);
 		break;
 	    };
 	    if (error) {
@@ -1516,7 +1362,7 @@ nfs_doio(bp, cr, td)
 		bp->b_error = error;
 	    }
 	} else {
-	    /* 
+	    /*
 	     * If we only need to commit, try to commit
 	     */
 	    if (bp->b_flags & B_NEEDCOMMIT) {
@@ -1569,7 +1415,7 @@ nfs_doio(bp, cr, td)
 		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
 		 * to cluster the buffers needing commit.  This will allow
 		 * the system to submit a single commit rpc for the whole
-		 * cluster.  We can do this even if the buffer is not 100% 
+		 * cluster.  We can do this even if the buffer is not 100%
 		 * dirty (relative to the NFS blocksize), so we optimize the
 		 * append-to-file-case.
 		 *

@@ -69,7 +69,7 @@ static void	configure_start __P((void));
 device_t isa_bus_device = 0;
 #endif
 
-extern int nfs_diskless_valid;
+extern int nfs_diskless_valid;		/* XXX use include file */
 
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;

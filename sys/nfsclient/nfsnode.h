@@ -37,11 +37,10 @@
  * $FreeBSD$
  */
 
+#ifndef _NFSCLIENT_NFSNODE_H_
+#define _NFSCLIENT_NFSNODE_H_
 
-#ifndef _NFS_NFSNODE_H_
-#define _NFS_NFSNODE_H_
-
-#if !defined(_NFS_NFS_H_) && !defined(_KERNEL)
+#if !defined(_NFSCLIENT_NFS_H_) && !defined(_KERNEL)
 #include <nfs/nfs.h>
 #endif
 
@@ -87,7 +86,6 @@ struct nfsdmap {
  */
 struct nfsnode {
 	LIST_ENTRY(nfsnode)	n_hash;		/* Hash chain */
-	TAILQ_ENTRY(nfsnode)	n_timer;	/* Nqnfs timer chain */
 	u_quad_t		n_size;		/* Current size of file */
 	u_quad_t		n_brev;		/* Modify rev when cached */
 	u_quad_t		n_lrev;		/* Modify rev for lease */
@@ -135,9 +133,7 @@ struct nfsnode {
 #define	NFLUSHINPROG	0x0002	/* Avoid multiple calls to vinvalbuf() */
 #define	NMODIFIED	0x0004	/* Might have a modified buffer in bio */
 #define	NWRITEERR	0x0008	/* Flag write errors so close will know */
-#define	NQNFSNONCACHE	0x0020	/* Non-cachable lease */
-#define	NQNFSWRITE	0x0040	/* Write lease */
-#define	NQNFSEVICTED	0x0080	/* Has been evicted */
+/* 0x20, 0x40, 0x80 free */
 #define	NACC		0x0100	/* Special file accessed */
 #define	NUPD		0x0200	/* Special file updated */
 #define	NCHG		0x0400	/* Special file times changed */
@@ -169,17 +165,18 @@ extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
  *	should not be obtained while other locks are being held.
  */
 
-static __inline
-int
+static __inline int
 nfs_rslock(struct nfsnode *np, struct thread *td)
 {
-        return(lockmgr(&np->n_rslock, LK_EXCLUSIVE | LK_CANRECURSE | LK_SLEEPFAIL, NULL, td));
+
+        return(lockmgr(&np->n_rslock,
+            LK_EXCLUSIVE | LK_CANRECURSE | LK_SLEEPFAIL, NULL, td));
 }
 
-static __inline
-void
+static __inline void
 nfs_rsunlock(struct nfsnode *np, struct thread *td)
 {
+
 	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, td);
 }
 
@@ -190,20 +187,17 @@ extern	vop_t	**spec_nfsv2nodeop_p;
 /*
  * Prototypes for NFS vnode operations
  */
-int	nfs_getpages __P((struct vop_getpages_args *));
-int	nfs_putpages __P((struct vop_putpages_args *));
-int	nfs_write __P((struct vop_write_args *));
-int	nqnfs_vop_lease_check __P((struct vop_lease_args *));
-int	nfs_inactive __P((struct vop_inactive_args *));
-int	nfs_reclaim __P((struct vop_reclaim_args *));
+int	nfs_getpages(struct vop_getpages_args *);
+int	nfs_putpages(struct vop_putpages_args *);
+int	nfs_write(struct vop_write_args *);
+int	nfs_inactive(struct vop_inactive_args *);
+int	nfs_reclaim(struct vop_reclaim_args *);
 
 /* other stuff */
-int	nfs_removeit __P((struct sillyrename *));
-int	nfs_nget __P((struct mount *,nfsfh_t *,int,struct nfsnode **));
-nfsuint64 *nfs_getcookie __P((struct nfsnode *, off_t, int));
-void nfs_invaldir __P((struct vnode *));
-
-#define nqnfs_lease_updatetime	nfs_lease_updatetime
+int	nfs_removeit(struct sillyrename *);
+int	nfs_nget(struct mount *, nfsfh_t *, int, struct nfsnode **);
+nfsuint64 *nfs_getcookie(struct nfsnode *, off_t, int);
+void	nfs_invaldir(struct vnode *);
 
 #endif /* _KERNEL */
 

@@ -169,14 +169,8 @@
 #define	NFSPROC_FSINFO		19
 #define	NFSPROC_PATHCONF	20
 #define	NFSPROC_COMMIT		21
-
-/* And leasing (nqnfs) procedure numbers (must be last) */
-#define	NQNFSPROC_GETLEASE	22
-#define	NQNFSPROC_VACATED	23
-#define	NQNFSPROC_EVICTED	24
-
-#define NFSPROC_NOOP		25
-#define	NFS_NPROCS		26
+#define NFSPROC_NOOP		22
+#define	NFS_NPROCS		23
 
 /* Actual Version 2 procedure numbers */
 #define	NFSV2PROC_NULL		0
@@ -225,17 +219,6 @@
 #define NFSV3FSINFO_SYMLINK		0x02
 #define NFSV3FSINFO_HOMOGENEOUS		0x08
 #define NFSV3FSINFO_CANSETTIME		0x10
-
-/* Conversion macros */
-#define	vtonfsv2_mode(t,m) \
-		txdr_unsigned(((t) == VFIFO) ? MAKEIMODE(VCHR, (m)) : \
-				MAKEIMODE((t), (m)))
-#define vtonfsv3_mode(m)	txdr_unsigned((m) & ALLPERMS)
-#define	nfstov_mode(a)		(fxdr_unsigned(u_int32_t, (a)) & ALLPERMS)
-#define	vtonfsv2_type(a)	txdr_unsigned(nfsv2_type[((int32_t)(a))])
-#define	vtonfsv3_type(a)	txdr_unsigned(nfsv3_type[((int32_t)(a))])
-#define	nfsv2tov_type(a)	nv2tov_type[fxdr_unsigned(u_int32_t,(a))&0x7]
-#define	nfsv3tov_type(a)	nv3tov_type[fxdr_unsigned(u_int32_t,(a))&0x7]
 
 /* File types */
 typedef enum { NFNON=0, NFREG=1, NFDIR=2, NFBLK=3, NFCHR=4, NFLNK=5,

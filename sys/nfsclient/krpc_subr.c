@@ -1,5 +1,4 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/* $FreeBSD$	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -43,6 +42,9 @@
  *               @(#) Header: rpc.c,v 1.12 93/09/28 08:31:56 leres Exp  (LBL)
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -55,7 +57,7 @@
 #include <netinet/in.h>
 
 #include <nfs/rpcv2.h>
-#include <nfs/krpc.h>
+#include <nfsclient/krpc.h>
 #include <nfs/xdr_subs.h>
 
 /*
@@ -124,11 +126,8 @@ struct rpc_reply {
  * Returns non-zero error on failure.
  */
 int
-krpc_portmap(sin,  prog, vers, portp, td)
-	struct sockaddr_in *sin;		/* server address */
-	u_int prog, vers;	/* host order */
-	u_int16_t *portp;	/* network order */
-	struct thread *td;
+krpc_portmap(struct sockaddr_in *sin, u_int prog, u_int vers, u_int16_t *portp,
+    struct thread *td)
 {
 	struct sdata {
 		u_int32_t prog;		/* call program */
@@ -164,7 +163,7 @@ krpc_portmap(sin,  prog, vers, portp, td)
 	sin->sin_port = htons(PMAPPORT);
 	error = krpc_call(sin, PMAPPROG, PMAPVERS,
 					  PMAPPROC_GETPORT, &m, NULL, td);
-	if (error) 
+	if (error)
 		return error;
 
 	if (m->m_len < sizeof(*rdata)) {
@@ -185,12 +184,8 @@ krpc_portmap(sin,  prog, vers, portp, td)
  * the address from whence the response came is saved there.
  */
 int
-krpc_call(sa, prog, vers, func, data, from_p, td)
-	struct sockaddr_in *sa;
-	u_int prog, vers, func;
-	struct mbuf **data;	/* input/output */
-	struct sockaddr **from_p;	/* output */
-	struct thread *td;
+krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
+    struct mbuf **data, struct sockaddr **from_p, struct thread *td)
 {
 	struct socket *so;
 	struct sockaddr_in *sin, ssin;
@@ -354,7 +349,7 @@ krpc_call(sa, prog, vers, func, data, from_p, td)
 				m_freem(m);
 				m = NULL;
 			}
-			bzero(&auio,sizeof(auio));
+			bzero(&auio, sizeof(auio));
 			auio.uio_resid = len = 1<<16;
 			rcvflg = 0;
 			error = soreceive(so, &from, &auio, &m, NULL, &rcvflg);
@@ -456,9 +451,7 @@ struct xdr_string {
 };
 
 struct mbuf *
-xdr_string_encode(str, len)
-	char *str;
-	int len;
+xdr_string_encode(char *str, int len)
 {
 	struct mbuf *m;
 	struct xdr_string *xs;
