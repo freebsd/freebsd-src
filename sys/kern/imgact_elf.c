@@ -81,20 +81,24 @@ static int __elfN(load_section)(struct proc *p,
     vm_prot_t prot, size_t pagesize);
 static int __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp);
 
+SYSCTL_NODE(_kern, OID_AUTO, __CONCAT(elf, __ELF_WORD_SIZE), CTLFLAG_RW, 0,
+    "");
+
+static int fallback_brand = -1;
+SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO, fallback_brand,
+    CTLFLAG_RW, &fallback_brand, 0,
+    __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) " brand of last resort");
+TUNABLE_INT("kern.elf" __XSTRING(__ELF_WORD_SIZE) ".fallback_brand",
+    &fallback_brand);
+
 static int elf_trace = 0;
+SYSCTL_INT(_debug, OID_AUTO, __elfN(trace), CTLFLAG_RW, &elf_trace, 0, "");
+
 static int elf_legacy_coredump = 0;
-#if __ELF_WORD_SIZE == 32
-SYSCTL_INT(_debug, OID_AUTO, elf32_trace, CTLFLAG_RW, &elf_trace, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, elf32_legacy_coredump, CTLFLAG_RW, 
+SYSCTL_INT(_debug, OID_AUTO, __elfN(legacy_coredump), CTLFLAG_RW, 
     &elf_legacy_coredump, 0, "");
-#else
-SYSCTL_INT(_debug, OID_AUTO, elf64_trace, CTLFLAG_RW, &elf_trace, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, elf64_legacy_coredump, CTLFLAG_RW, 
-    &elf_legacy_coredump, 0, "");
-#endif
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
-extern int fallback_elf_brand;
 
 int
 __elfN(insert_brand_entry)(Elf_Brandinfo *entry)
@@ -184,7 +188,7 @@ __elfN(get_brandinfo)(const Elf_Ehdr *hdr, const char *interp)
 	for (i = 0; i < MAX_BRANDS; i++) {
 		bi = elf_brand_list[i];
 		if (bi != NULL && hdr->e_machine == bi->machine &&
-		    fallback_elf_brand == bi->brand)
+		    fallback_brand == bi->brand)
 			return (bi);
 	}
 	return (NULL);
@@ -849,22 +853,16 @@ fail:
 	return (error);
 }
 
-#if __ELF_WORD_SIZE == 32
-#define suword	suword32
-#define stacktype u_int32_t
-#else
-#define suword	suword64
-#define stacktype u_int64_t
-#endif
+#define	suword __CONCAT(suword, __ELF_WORD_SIZE)
 
 int
 __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 {
 	Elf_Auxargs *args = (Elf_Auxargs *)imgp->auxargs;
-	stacktype *base;
-	stacktype *pos;
+	Elf_Addr *base;
+	Elf_Addr *pos;
 
-	base = (stacktype *)*stack_base;
+	base = (Elf_Addr *)*stack_base;
 	pos = base + (imgp->argc + imgp->envc + 2);
 
 	if (args->trace) {
@@ -1260,10 +1258,8 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
  */
-#if __ELF_WORD_SIZE == 32
-static struct execsw elf_execsw = {exec_elf32_imgact, "ELF32"};
-EXEC_SET(elf32, elf_execsw);
-#else
-static struct execsw elf_execsw = {exec_elf64_imgact, "ELF64"};
-EXEC_SET(elf64, elf_execsw);
-#endif
+static struct execsw __elfN(execsw) = {
+	__CONCAT(exec_, __elfN(imgact)),
+	__XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE))
+};
+EXEC_SET(__CONCAT(elf, __ELF_WORD_SIZE), __elfN(execsw));
