@@ -1,0 +1,105 @@
+.Dd May 6, 1995
+.Os FreeBSD 2.0.5
+.Dt SGMLFMT 1
+.Sh NAME
+.Nm sgmlfmt
+.Nd Formats SGML files tagged according to the linuxdoc DTD.
+.Sh SYNOPSIS
+.Nm
+.Fl Ar format Op Fl Ar format...
+.Ar 
+.Sh DESCRIPTION
+The
+.Nm
+command reads SGML files tagged according to the linuxdoc DTD,
+validates them using the
+.Xr sgmls 1
+parser and then converts them to the specified output format.
+The input file must include the following document type
+declaration before any uncommented text:
+.Bd -literal -offset indent
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+.Ed
+.Pp
+The 
+.Fl Ar format
+options for output include the following:
+.Bl -tag -width Ds
+.It Fl html
+Generates a set of linked HTML files suitable for use with an
+HTML browser.  A top level file,
+.Pa file.html ,
+contains the title, author, date, abstract and brief table of
+contents for the document.  A file
+.Pa file_toc.html
+contains a complete table of contents.  A series of files named
+.Pa file-1.html ,
+.Pa file-2.html ...
+.Pa file-n.html
+contain the actual text of the document.
+.It Fl latex
+Generates a single output file with the extension
+.Pa .tex
+suitable for processing with LaTeX.  Note that the LaTeX style
+file
+.Pa /usr/share/sgml/FreeBSD/lib/linuxdoc.sty
+must be accessible to LaTeX for correct processing.
+.It Fl ascii
+Generates a single output file with the extension 
+.Pa .txt
+suitable for viewing on an ASCII terminal. 
+.It Fl nroff
+Generates a single output file with the extension
+.Pa .nroff
+suitable processing with
+.Xr nroff 1
+or
+.Xr groff 1 .
+This is actually an intermediate conversion used by the
+.Fl ascii
+format option.
+.El
+.Pp
+If the input file name ends with
+.Pa .sgml ,
+the extension may be omitted on the command line.
+In all cases, the output files are created in the current working
+directory.
+.Sh FILES
+.Pa /usr/share/sgml/FreeBSD/dtd/linuxdoc
+- the linuxdoc DTD.
+.Pp
+.Pa /usr/share/sgml/FreeBSD/rep/
+- directory containing replacement files for
+.Xr sgmlsasp 1 .
+.Pp
+.Pa /usr/share/sgml/FreeBSD/lib/linuxdoc.sty
+- the LaTeX style used in documents produced with the
+.Fl latex
+format option.
+.Sh SEE ALSO
+.Xr sgmls 1 ,
+.Xr sgmlsasp 1 ,
+.Xr groff 1
+.Sh HISTORY
+The
+.Nm
+command appeared in Version 2.0.5 FreeBSD UNIX.
+.Sh AUTHORS
+The
+.Nm
+command was written by John Fieber
+.Aq jfieber@FreeBSD.org .
+The linuxdoc DTD was written by Matt Welsh
+.Aq mdw@cs.cornell.edu 
+and based on the Qwertz DTD written by Tom Gordon
+.Aq thomas.gordon@gmd.de .
+.Sh BUGS
+A line in the SGML source file beginning with a period (.) will
+confuse
+.Xr groff 1
+which is used to generate ASCII output.  In general, the ASCII
+output leaves much to be desired.
+.Pp
+The divison of the sources file into separate HTML files is
+currently fixed. 
