@@ -51,7 +51,7 @@ sub error ($) {
 sub get_version($) {
 	my ($pkg) = @_;
 
-	$pkg =~ /(.+)-([0-9\.]+)/;
+	$pkg =~ /(.+)-([0-9\._,]+)/;
 	if (! $2) {
 		return($pkg, "");
 	} else {
