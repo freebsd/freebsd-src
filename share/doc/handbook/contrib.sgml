@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.225 1997/03/06 08:48:05 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.226 1997/03/15 20:07:20 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -250,6 +250,7 @@ groups of people:
 	  <item>Christian Gusenbauer &lt;cg@fimp01.fim.uni-linz.ac.at&gt;
 	  <item>Christian Haury &lt;Christian.Haury@sagem.fr&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
+	  <item>Choi Jun Ho &lt;junker@jazz.snu.ac.kr&gt;
 	  <item>Chuck Hein &lt;chein@cisco.com&gt;
 	  <item>Conrad Sabatier &lt;conrads@neosoft.com&gt;
 	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
