@@ -28,8 +28,6 @@
  *	Per-slot data table.
  */
 struct pcic_slot {
-	int index;			/* Index register */
-	int data;			/* Data register */
 	int offset;			/* Offset value for index */
 	char controller;		/* Device type */
 	char revision;			/* Device Revision */
@@ -37,7 +35,8 @@ struct pcic_slot {
 	struct pcic_softc *sc;		/* Back pointer to softc */
 	u_char (*getb)(struct pcic_slot *, int);
 	void   (*putb)(struct pcic_slot *, int, u_char);
-	u_char	*regs;			/* Pointer to regs in mem */
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 };
 
 struct pcic_softc 

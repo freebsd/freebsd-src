@@ -64,7 +64,7 @@ pd6832_legacy_init(device_t dev)
 	 * sequentially.  We only initialize the first socket's legacy port,
 	 * the other is a dummy.
 	 */
-	io_port = PCIC_INDEX_0 + num6832 * CLPD6832_NUM_REGS;
+	io_port = PCIC_PORT_0 + num6832 * CLPD6832_NUM_REGS;
 	if (unit == 0)
 		pci_write_config(dev, CLPD6832_LEGACY_16BIT_IOADDR,
 		    io_port & ~CLPD6832_LEGACY_16BIT_IOENABLE, 4);
