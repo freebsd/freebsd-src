@@ -30,14 +30,15 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
-.\"	$Id: chown.2,v 1.4.2.3 1997/02/28 05:50:39 mpp Exp $
+.\"	$Id: chown.2,v 1.4.2.4 1997/04/01 19:19:04 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt CHOWN 2
 .Os BSD 4
 .Sh NAME
 .Nm chown ,
-.Nm fchown
+.Nm fchown ,
+.Nm lchown
 .Nd change owner and group of a file
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
@@ -45,6 +46,8 @@
 .Fn chown "const char *path" "uid_t owner" "gid_t group"
 .Ft int
 .Fn fchown "int fd" "uid_t owner" "gid_t group"
+.Ft int
+.Fn lchown "const char *path" "uid_t owner" "gid_t group"
 .Sh DESCRIPTION
 The owner ID and group ID of the file
 named by
@@ -69,11 +72,19 @@ on the file
 to prevent accidental or mischievous creation of
 set-user-id and set-group-id programs if not executed
 by the super-user.
+.Fn chown
+follows symbolic links to operate on the target of the link
+rather than the link itself.
 .Pp
 .Fn Fchown
 is particularly useful when used in conjunction
 with the file locking primitives (see
 .Xr flock 2 ) .
+.Pp
+.Fn Lchown
+is similar to
+.Fn chown
+but does not follow symbolic links.
 .Pp
 One of the owner or group id's
 may be left unchanged by specifying it as -1.
@@ -84,6 +95,8 @@ error code being placed in the global variable
 .Va errno .
 .Sh ERRORS
 .Fn Chown
+and
+.Fn lchown
 will fail and the file will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -149,3 +162,8 @@ The
 .Fn chown
 function was changed to follow symbolic links in
 .Bx 4.4 .
+The
+.Fn lchown
+function was added in
+.Fx 2.2
+to compensate for the loss of functionality.

@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.19 1996/05/28 16:24:53 phk Exp $
+#	$Id: Makefile.inc,v 1.20 1996/09/20 13:55:25 phk Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -20,7 +20,7 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
 	getpeername.o getpgrp.o getpid.o getppid.o getpriority.o \
 	getrlimit.o getrusage.o getsockname.o getsockopt.o gettimeofday.o \
-	getuid.o ioctl.o kill.o ktrace.o lfs_bmapv.o lfs_markv.o \
+	getuid.o ioctl.o kill.o ktrace.o lchown.o lfs_bmapv.o lfs_markv.o \
 	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
 	madvise.o mincore.o minherit.o mkdir.o mkfifo.o mknod.o mlock.o \
 	mount.o \
@@ -112,7 +112,7 @@ MLINKS+=dup.2 dup2.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2
 MLINKS+=chmod.2 fchmod.2
-MLINKS+=chown.2 fchown.2
+MLINKS+=chown.2 fchown.2 chown.2 lchown.2
 MLINKS+=getgid.2 getegid.2
 MLINKS+=getitimer.2 setitimer.2
 MLINKS+=getlogin.2 setlogin.2
