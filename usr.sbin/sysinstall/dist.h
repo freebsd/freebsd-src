@@ -43,6 +43,7 @@
 #define DIST_DES_KERBEROS	0x0008
 #endif
 #define DIST_DES_SKERBEROS	0x0010
+#define DIST_DES_ALL		0x001F
 
 /* Subtypes for SRC distribution */
 #define DIST_SRC_BASE		0x00001
@@ -61,7 +62,7 @@
 #define DIST_SRC_UBIN		0x02000
 #define DIST_SRC_USBIN		0x04000
 #define DIST_SRC_BIN		0x08000
-#define DIST_SRC_ALL		0xFFFF
+#define DIST_SRC_ALL		0x0FFFF
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001

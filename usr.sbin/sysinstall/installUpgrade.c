@@ -162,17 +162,15 @@ installUpgrade(dialogMenuItem *self)
     variable_set2(SYSTEM_STATE, "upgrade", 0);
     systemDisplayHelp("UPGRADE");
 
-    dialog_clear_norefresh();
     if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
 		 "risk it all and proceed with this upgrade?") != 0)
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
 
     if (!Dists) {
 	msgConfirm("First, you must select some distribution components.  The upgrade procedure\n"
 		   "will only upgrade the distributions you select in the next set of menus.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) || !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	dialog_clear_norefresh();
+	    return DITEM_FAILURE;
     }
     else if (!(Dists & DIST_BIN)) {	    /* No bin selected?  Not much of an upgrade.. */
 	if (msgYesNo("You didn't select the bin distribution as one of the distributons to load.\n"
@@ -180,8 +178,7 @@ installUpgrade(dialogMenuItem *self)
 		     "want to select the bin distribution?  Chose No to bring up the Distributions\n"
 		     "menu again.") != 0) {
 	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
-		return DITEM_FAILURE | DITEM_RESTORE;
-	    dialog_clear_norefresh();
+		return DITEM_FAILURE;
 	}
     }
 
@@ -221,7 +218,7 @@ installUpgrade(dialogMenuItem *self)
 	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
 		       "aborted.");
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 
 	/* Don't write out MBR info */
@@ -230,7 +227,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 
 	msgNotify("Updating /stand on root filesystem");
@@ -240,7 +237,7 @@ installUpgrade(dialogMenuItem *self)
 	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		       "root partition or the way it's mounted if this doesn't work.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 	chdir("/");
 	installEnvironment();
@@ -279,7 +276,7 @@ installUpgrade(dialogMenuItem *self)
 	    if (vsystem("tar -cBpf - -C /etc . | tar --unlink -xBpf - -C %s", saved_etc))
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
 			     "Do you want to continue anyway?", saved_etc) != 0)
-		    return DITEM_FAILURE | DITEM_RESTORE;
+		    return DITEM_FAILURE;
 	    msgNotify("Preserving /root directory..");
 	    vsystem("tar -cBpf - -C / root | tar --unlink -xBpf - -C %s", saved_etc);
 	}
@@ -305,7 +302,7 @@ installUpgrade(dialogMenuItem *self)
 media:
     /* We do this very late, but we unfortunately need to back up /etc first */
     if (!mediaVerify())
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
 
     if (!mediaDevice->init(mediaDevice)) {
 	if (!msgYesNo("Couldn't initialize the media.  Would you like\n"
@@ -412,7 +409,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
 	    msgConfirm("The disk label editor returned an error status.  Upgrade operation\n"
 		       "aborted.");
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 
 	/* Don't write out MBR info */
@@ -421,7 +418,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 
 	if (extractingBin) {
@@ -435,7 +432,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	    msgConfirm("Unable to chroot to /mnt - something is wrong with the\n"
 		       "root partition or the way it's mounted if this doesn't work.");
 	    variable_unset(DISK_PARTITIONED);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 	}
 	chdir("/");
 	systemCreateHoloshell();
@@ -443,7 +440,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 
     if (!mediaVerify() || !mediaDevice->init(mediaDevice)) {
 	msgNotify("Upgrade: Couldn't initialize media.");
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
     }
 
     saved_etc = "/usr/tmp/etc";
@@ -451,7 +448,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
     msgNotify("Preserving /etc directory..");
     if (vsystem("tar -cpBf - -C /etc . | tar -xpBf - -C %s", saved_etc)) {
 	msgNotify("Unable to backup your /etc into %s.", saved_etc);
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
     }
 
     if (file_readable("/kernel")) {
@@ -488,7 +485,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
     msgNotify("First stage of upgrade completed successfully.");
     if (vsystem("tar -cpBf - -C %s . | tar --unlink -xpBf - -C /etc", saved_etc)) {
 	msgNotify("Unable to resurrect your old /etc!");
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
     }
     return DITEM_SUCCESS | DITEM_REDRAW;
 }

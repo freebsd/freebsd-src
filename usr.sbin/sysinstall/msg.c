@@ -184,6 +184,7 @@ msgConfirm(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    WINDOW *w = savescr();
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -196,6 +197,7 @@ msgConfirm(char *fmt, ...)
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
+    restorescr(w);
 }
 
 /* Put up a message in a popup information box */
@@ -204,6 +206,7 @@ msgNotify(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    WINDOW *w = savescr();
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -213,8 +216,9 @@ msgNotify(char *fmt, ...)
     use_helpfile(NULL);
     if (isDebug())
 	msgDebug("Notify: %s\n", errstr);
-    dialog_clear_norefresh();
     dialog_msgbox(NULL, errstr, -1, -1, 0);
+    sleep(1);
+    restorescr(w);
 }
 
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
@@ -224,7 +228,8 @@ msgYesNo(char *fmt, ...)
     va_list args;
     char *errstr;
     int ret;
-
+    WINDOW *w = savescr();
+    
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
@@ -236,6 +241,7 @@ msgYesNo(char *fmt, ...)
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
+    restorescr(w);
     return ret;
 }
 
@@ -247,6 +253,7 @@ msgGetInput(char *buf, char *fmt, ...)
     char *errstr;
     static char input_buffer[256];
     int rval;
+    WINDOW *w = savescr();
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -263,6 +270,7 @@ msgGetInput(char *buf, char *fmt, ...)
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
+    restorescr(w);
     if (!rval)
 	return input_buffer;
     else
@@ -292,7 +300,8 @@ msgWeHaveOutput(char *fmt, ...)
 {
     va_list args;
     char *errstr;
-
+    WINDOW *w = savescr();
+    
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
@@ -302,6 +311,7 @@ msgWeHaveOutput(char *fmt, ...)
     msgDebug("Notify: %s\n", errstr);
     dialog_clear_norefresh();
     dialog_msgbox(NULL, errstr, -1, -1, 0);
+    restorescr(w);
 }
 
 /* Simple versions of msgConfirm() and msgNotify() for calling from scripts */

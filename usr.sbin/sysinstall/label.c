@@ -111,7 +111,7 @@ labelHook(dialogMenuItem *selected)
     }
     else
 	devs[0]->enabled = FALSE;
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 
 static int
@@ -171,7 +171,6 @@ diskLabelEditor(dialogMenuItem *self)
 		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
 		free(menu);
 	    }
-	    i |= DITEM_RESTORE;
 	}
     }
     if (DITEM_STATUS(i) != DITEM_FAILURE) {
@@ -384,13 +383,14 @@ get_partition_type(void)
 {
     char selection[20];
     int i;
-
     static unsigned char *fs_types[] = {
 	"FS",
 	"A file system",
 	"Swap",
 	"A swap partition.",
     };
+    WINDOW *w = savescr();
+
     DialogX = 7;
     DialogY = 8;
     i = dialog_menu("Please choose a partition type",
@@ -398,6 +398,7 @@ get_partition_type(void)
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
     DialogX = DialogY = 0;
+    restorescr(w);
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -693,6 +694,7 @@ diskLabel(Device *dev)
 #ifdef __alpha__
     int i;
 #endif
+    WINDOW *w = savescr();
 
     label_focus = 0;
     pslice_focus = 0;
@@ -701,6 +703,7 @@ diskLabel(Device *dev)
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
+	restorescr(w);
 	return DITEM_FAILURE;
     }
     labeling = TRUE;
@@ -1174,7 +1177,8 @@ diskLabel(Device *dev)
         else
             label_focus = here;
     }
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
 
 static int
@@ -1187,12 +1191,10 @@ diskLabelNonInteractive(Device *dev)
     int i, status;
     Device **devs;
     Disk *d;
-
+    
     status = DITEM_SUCCESS;
-
     cp = variable_get(VAR_DISK);
     if (!cp) {
-	dialog_clear();
 	msgConfirm("diskLabel:  No disk selected - can't label automatically.");
 	return DITEM_FAILURE;
     }
@@ -1277,7 +1279,6 @@ diskLabelNonInteractive(Device *dev)
 
 		do_newfs[0] = '\0';
 		if (sscanf(cp, "%s %s", mpoint, do_newfs) != 2) {
-		    dialog_clear();
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
 		    status = DITEM_FAILURE;
 		    continue;

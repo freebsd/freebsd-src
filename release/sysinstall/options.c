@@ -215,7 +215,8 @@ optionsEditor(dialogMenuItem *self)
 {
     int i, optcol, optrow, key;
     static int currOpt = 0;
-
+    WINDOW *w = savescr();
+    
     dialog_clear_norefresh();
     clear();
 
@@ -299,13 +300,14 @@ optionsEditor(dialogMenuItem *self)
 	case 'Q':
 	    clear();
 	    dialog_clear();
-	    return DITEM_SUCCESS | DITEM_RESTORE;
+	    restorescr(w);
+	    return DITEM_SUCCESS;
 
 	default:
 	    beep();
 	}
     }
     /* NOTREACHED */
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    return DITEM_SUCCESS;
 }
 

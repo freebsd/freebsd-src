@@ -205,7 +205,7 @@ installInitial(void)
 	     "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 	     "proceeding!\n\n"
 	     "We can take no responsibility for lost disk contents!") != 0)
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
@@ -440,6 +440,7 @@ installExpress(dialogMenuItem *self)
 {
     int i;
 
+    dialog_clear_norefresh();
     variable_set2(SYSTEM_STATE, "express", 0);
 #ifndef __alpha__
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
@@ -449,13 +450,12 @@ installExpress(dialogMenuItem *self)
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
 
-    dialog_clear_norefresh();
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Give user the option of one last configuration spree */
 	installConfigure();
     }
-    return i | DITEM_RESTORE;
+    return i;
 }
 
 /* Novice mode installation */
@@ -466,8 +466,8 @@ installNovice(dialogMenuItem *self)
     Device **devs;
 
     variable_set2(SYSTEM_STATE, "novice", 0);
-#ifndef __alpha__
     dialog_clear_norefresh();
+#ifndef __alpha__
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
 	       "to FreeBSD (overwriting anything else that might be on the disk(s) selected)\n"
@@ -487,7 +487,6 @@ nodisks:
     }
 #endif
 
-    dialog_clear_norefresh();
 #ifdef __alpha__
     msgConfirm("First, you need to create BSD partitions on the disk which you are\n"
 	       "installing to.  If you have a reasonable amount of disk space (200MB or more)\n"
@@ -507,15 +506,13 @@ nodisks:
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    dialog_clear_norefresh();
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
-	dialog_clear_norefresh();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
-	return i | DITEM_RESTORE;
+	return i;
 
     }
     else {
@@ -529,108 +526,72 @@ nodisks:
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
 	if (!msgYesNo("Would you like to configure any Ethernet or SLIP/PPP network devices?")) {
-	    Device *tmp;
+	    Device *tmp = tcpDeviceSelect();
 
-	    dialog_clear_norefresh();
-	    tmp = tcpDeviceSelect();
-	    dialog_clear_norefresh();
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 		if (!tmp->init(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	}
     }
 
-    dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
 	variable_set2("gateway_enable", "YES", 1);
 
-    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
 	configAnonFTP(self);
 
-    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
-    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client_enable", "YES", 1);
 
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to customize your system console settings?")) {
-	WINDOW *w = savescr();
-
+    if (!msgYesNo("Would you like to customize your system console settings?"))
 	dmenuOpenSimple(&MenuSyscons, FALSE);
-	restorescr(w);
-    }
 
-    dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to set this machine's time zone now?")) {
-	WINDOW *w = savescr();
-
-	dialog_clear();
+    if (!msgYesNo("Would you like to set this machine's time zone now?"))
 	systemExecute("tzsetup");
-	restorescr(w);
-    }
 
 #ifdef __i386__
-    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to enable Linux binary compatibility?"))
 	(void)configLinux(self);
 #endif
 
-    dialog_clear_norefresh();
-    if (!msgYesNo("Does this system have a mouse attached to it?")) {
-	WINDOW *w = savescr();
-
+    if (!msgYesNo("Does this system have a mouse attached to it?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
-	restorescr(w);
-    }
 
     /* Now would be a good time to checkpoint the configuration data */
     configRC_conf();
     sync();
 
     if (directory_exists("/usr/X11R6")) {
-	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    (void)configXSetup(self);
     }
 
-    dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of hundreds of ready-to-run\n"
 		  "applications, from text editors to games to WEB servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
-	dialog_clear();
 	(void)configPackages(self);
     }
 
-    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to add any initial user accounts to the system?\n"
 		  "Adding at least one account for yourself at this stage is suggested\n"
 		  "since working as the \"root\" user is dangerous (it is easy to do\n"
 		  "things which adversely affect the entire system)."))
 	(void)configUsers(self);
 
-    dialog_clear_norefresh();
     msgConfirm("Now you must set the system manager's password.\n"
 	       "This is the password you'll use to log in as \"root\".");
-    {
-	WINDOW *w = savescr();
-
-	if (!systemExecute("passwd root"))
-	    variable_set2("root_password", "YES", 0);
-	restorescr(w);
-    }
+    if (!systemExecute("passwd root"))
+	variable_set2("root_password", "YES", 0);
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
     /* Give user the option of one last configuration spree */
-    dialog_clear_norefresh();
     installConfigure();
-
-    return DITEM_LEAVE_MENU | DITEM_RESTORE;
+    return DITEM_LEAVE_MENU;
 }
 
 /* The version of commit we call from the Install Custom menu */
@@ -639,7 +600,6 @@ installCustomCommit(dialogMenuItem *self)
 {
     int i;
 
-    dialog_clear_norefresh();
     i = installCommit(self);
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
 	/* Give user the option of one last configuration spree */
@@ -667,15 +627,16 @@ installCommit(dialogMenuItem *self)
     int i;
     char *str;
 
+    dialog_clear_norefresh();
     if (!Dists)
 	distConfig(NULL);
 
     if (!Dists)
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
 
     if (!mediaVerify())
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_FAILURE;
 
     str = variable_get(SYSTEM_STATE);
     if (isDebug())
@@ -691,12 +652,12 @@ try_media:
 		      "adjust your media configuration and try again?")) {
 	    mediaDevice = NULL;
 	    if (!mediaVerify())
-		return DITEM_FAILURE | DITEM_RESTORE;
+		return DITEM_FAILURE;
 	    else
 		goto try_media;
 	}
 	else
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    return DITEM_FAILURE;
     }
 
     /* Now go get it all */
@@ -707,21 +668,16 @@ try_media:
 
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install", 0);
 
-    return i | DITEM_RESTORE;
+    return i;
 }
 
 static void
 installConfigure(void)
 {
     /* Final menu of last resort */
-    dialog_clear_norefresh();
     if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
-		  "any last options?")) {
-	WINDOW *w = savescr();
-
+		  "any last options?"))
 	dmenuOpenSimple(&MenuConfigure, FALSE);
-	restorescr(w);
-    }
     configRC_conf();
     sync();
 }

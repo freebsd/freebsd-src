@@ -480,8 +480,6 @@ pkg_fire(dialogMenuItem *self)
 		msgInfo("Added %s to selection list", kp->name);
 	    }
 	    else if (ie->depc == 0) {
-		WINDOW *save = savescr();
-
 		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name)) {
 		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name)) {
 			msgConfirm("Warning:  pkg_delete of %s failed.\n  Check debug output for details.", kp->name);
@@ -491,7 +489,6 @@ pkg_fire(dialogMenuItem *self)
 			index_recorddeps(FALSE, lists->root, ie);
 		    }
 		}
-		restorescr(save);
 	    }
 	    else
 		msgConfirm("Warning: Package %s is needed by\n  %d other installed package%s.",
@@ -537,16 +534,15 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
     dialogMenuItem *nitems;
     Boolean hasPackages;
     WINDOW *w;
-
+    
     lists.root = root;
     lists.top = top;
     lists.plist = plist;
 
     hasPackages = FALSE;
     nitems = NULL;
-
-    w = savescr();
     n = maxname = 0;
+
     /* Figure out if this menu is full of "leaves" or "branches" */
     for (kp = top->kids; kp && kp->name; kp = kp->next) {
 	int len;
@@ -560,10 +556,10 @@ index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scr
     }
     if (!n && plist) {
 	msgConfirm("The %s menu is empty.", top->name);
-	restorescr(w);
 	return DITEM_LEAVE_MENU;
     }
 
+    w = savescr();
     while (1) {
 	n = 0;
 	curr = max = 0;
@@ -707,20 +703,27 @@ int
 index_initialize(char *path)
 {
     FILE *fp;
+    WINDOW *w = NULL;
 
     if (!index_initted) {
+	w = savescr();
+	dialog_clear_norefresh();
+
 	/* Got any media? */
-	if (!mediaVerify())
+	if (!mediaVerify()) {
+	    restorescr(w);
 	    return DITEM_FAILURE;
+	}
 
 	/* Does it move when you kick it? */
-	if (!mediaDevice->init(mediaDevice))
+	if (!mediaDevice->init(mediaDevice)) {
+	    restorescr(w);
 	    return DITEM_FAILURE;
+	}
 
 	msgNotify("Attempting to fetch %s file from selected media.", path);
 	fp = mediaDevice->get(mediaDevice, path, TRUE);
 	if (!fp) {
-	    dialog_clear_norefresh();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
 		       "on the distribution media you've chosen (most likely an FTP site\n"
@@ -729,7 +732,8 @@ index_initialize(char *path)
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
 	    mediaDevice->shutdown(mediaDevice);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    restorescr(w);
+	    return DITEM_FAILURE;
 	}
 	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&Top, &Plist);
@@ -737,11 +741,13 @@ index_initialize(char *path)
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
 	    fclose(fp);
-	    return DITEM_FAILURE | DITEM_RESTORE;
+	    restorescr(w);
+	    return DITEM_FAILURE;
 	}
 	fclose(fp);
 	index_sort(&Top);
 	index_initted = TRUE;
     }
-    return DITEM_SUCCESS | DITEM_RESTORE;
+    restorescr(w);
+    return DITEM_SUCCESS;
 }
