@@ -50,7 +50,7 @@
 #include <sys/event.h>
 
 #define VN_KNOTE(vp, b) \
-	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (caddr_t)(b))
+	KNOTE((struct klist *)&vp->v_pollinfo.vpi_selinfo.si_note, (b))
 
 /*
  * Vnode op for reading.
