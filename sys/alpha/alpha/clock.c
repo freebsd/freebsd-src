@@ -495,12 +495,14 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-	pitch = TIMER_DIV(pitch);
+
+	if (pitch) pitch = TIMER_DIV(pitch);
+
 	outb(TIMER_CNTR2, pitch);
 	outb(TIMER_CNTR2, (pitch>>8));
 	if (!beeping) {
 		/* enable counter2 output to speaker */
-		outb(IO_PPI, inb(IO_PPI) | 3);
+		if (pitch) outb(IO_PPI, inb(IO_PPI) | 3);
 		beeping = period;
 		timeout(sysbeepstop, (void *)NULL, period);
 	}
