@@ -1,13 +1,13 @@
    -----------------------------------------
-       FreeBSD 3.0  ---  RELEASE Version               ,        ,
+       FreeBSD 3.0  ---  SNAPSHOT Version              ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is FreeBSD 3.0-RELEASE, the first official       /- _  `-/  '
-release on the 3.0-current branch. This release      (/\/ \ \   /\
-contains a lot of new technology as well as our      / /   | `    \
-first non-x86 architecture port (to the ALPHA)       O O   ) /    |
-and promises to be an exciting start to what will    `-^--'`<     '
-hopefully be many follow-on releases.               (_.)  _  )   /
+This is a binary snapshot of 3.0-current, the         /- _  `-/  '
+(HEAD) branch which is currently moving towards      (/\/ \ \   /\
+the follow-on release to 3.0.                        / /   | `    \
+                                                     O O   ) /    |
+                                                     `-^--'`<     '
+                                                    (_.)  _  )   /
                                                      `.___/`    /
                                                        `-----' /
 Feedback or offers to help with anything  <----.     __ / __   \
@@ -22,22 +22,17 @@ ABOUT.TXT file for more information.                    \       /       /\
 TARGET AUDIENCE:
 ----------------
 This release is aimed primarily at early-adopters and the various
-other folks who want to get on board with 3.0 and are willing to deal
-with the various down-sides of a "dot-zero" release.  We have naturally
-done our best to ensure that 3.0 performs as advertised but, as the
-first release on a branch which has seen some very radical changes
-from 2.2.x (SMP, ELF, new boot blocks, many kernel changes, etc), it's
-also very new technology and will require at least one more release
-along the 3.0 branch before it's ready for "production" purposes.
-This is one of the reasons why the 2.2.x branch will be continuing
-into November, with the scheduled release of 2.2.8, and possibly a bit
-beyond.
+other folks who want to get involved with the ongoing development
+of FreeBSD and are willing to deal with a few bumps in the road.
+We do our best to ensure that each snapshot works as advertised,
+but tracking -current is a process which frequently has its off
+days.
 
 If you're both technically proficient and know exactly what you're
-getting into here (e.g. you've been following -current) then 3.0 is
-probably for you.  If you're more interested in doing business with
-FreeBSD than in playing with the cutting edge of technology, however,
-then 2.2.x is almost certainly your best bet.
+getting into here (e.g. you've been following -current) then this
+snapshot is probably for you.  If you're more interested in doing
+business with FreeBSD than in playing with the cutting edge of
+technology, however, then 2.2.x is almost certainly your best bet.
 
 
 ROAD MAP:
