@@ -105,11 +105,8 @@ struct buf {
 	struct bio b_io;		/* "Builtin" I/O request. */
 #define	b_bcount	b_io.bio_bcount
 #define	b_caller1	b_io.bio_caller1
-#define	b_caller2	b_io.bio_caller2
 #define	b_data		b_io.bio_data
 #define	b_dev		b_io.bio_dev
-#define	b_driver1	b_io.bio_driver1
-#define	b_driver2	b_io.bio_driver2
 #define	b_error		b_io.bio_error
 #define	b_iocmd		b_io.bio_cmd
 #define	b_ioflags	b_io.bio_flags
@@ -214,7 +211,7 @@ struct buf {
 #define	B_00000100	0x00000100	/* Available flag. */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
-#define	B_00000800	0x00000800	/* Availabel flag. */
+#define	B_00000800	0x00000800	/* Available flag. */
 #define	B_00001000	0x00001000	/* Available flag. */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_00004000	0x00004000	/* Available flag. */
