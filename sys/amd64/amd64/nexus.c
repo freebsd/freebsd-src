@@ -342,7 +342,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rman_set_bustag(rv, AMD64_BUS_SPACE_MEM);
 	} else if (type == SYS_RES_IOPORT) {
 		rman_set_bustag(rv, AMD64_BUS_SPACE_IO);
-		rman_set_bushandle(rv, rv->r_start);
+		rman_set_bushandle(rv, rman_get_start(rv));
 	}
 
 	if (needactivate) {
@@ -359,6 +359,7 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
+
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
@@ -434,7 +435,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		panic("nexus_setup_intr: NULL irq resource!");
 
 	*cookiep = 0;
-	if ((irq->r_flags & RF_SHAREABLE) == 0)
+	if ((rman_get_flags(irq) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
 	/*
@@ -444,8 +445,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 	if (error)
 		return (error);
 
-	error = intr_add_handler(device_get_nameunit(child), irq->r_start,
-	    ihand, arg, flags, cookiep);
+	error = intr_add_handler(device_get_nameunit(child),
+	    rman_get_start(irq), ihand, arg, flags, cookiep);
 
 	return (error);
 }
