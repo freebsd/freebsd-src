@@ -18,7 +18,7 @@ wscons_start()
 	wscfg=/usr/sbin/wsconscfg
 	wsfld=/usr/sbin/wsfontload
 	config=/etc/wscons.conf
-	usage="Usage: wsconfig [-n] [-f configfile] [-font fontpgm] [-screen screenpgm]"
+	usage="usage: wsconfig [-n] [-f configfile] [-font fontpgm] [-screen screenpgm]"
 	DOIT=
 
 	while [ $# -gt 0 ]; do

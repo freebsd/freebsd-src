@@ -184,7 +184,7 @@ restart-mspq)
 	;;
 
 *)
-	echo "Usage: `basename $0` {start|stop|restart}" >&2
+	echo "usage: `basename $0` {start|stop|restart}" >&2
 	echo "       `basename $0` {start-mta|stop-mta|restart-mta}" >&2
 	echo "       `basename $0` {start-mspq|stop-mspq|restart-mspq}" >&2
 	exit 64

@@ -498,7 +498,7 @@ static void
 usage(void)
 {
         (void) fprintf(stderr,
-            "Usage: %s [-BFpfny] [-b block] [-c level] [-m mode] "
+            "usage: %s [-BFpfny] [-b block] [-c level] [-m mode] "
                         "filesystem ...\n",
             getprogname());
         exit(1);

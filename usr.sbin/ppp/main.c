@@ -186,7 +186,7 @@ RestartServer(int signo)
 static void
 Usage(void)
 {
-  fprintf(stderr, "Usage: ppp [-auto | -foreground | -background | -direct |"
+  fprintf(stderr, "usage: ppp [-auto | -foreground | -background | -direct |"
           " -dedicated | -ddial | -interactive]"
 #ifndef NOALIAS
           " [-nat]"

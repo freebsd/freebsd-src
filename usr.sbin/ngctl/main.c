@@ -406,7 +406,7 @@ HelpCmd(int ac, char **av)
 	default:
 		/* Show help on a specific command */
 		if ((cmd = FindCommand(av[1])) != NULL) {
-			printf("Usage:    %s\n", cmd->cmd);
+			printf("usage:    %s\n", cmd->cmd);
 			if (cmd->aliases[0] != NULL) {
 				int a = 0;
 

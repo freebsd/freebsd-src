@@ -208,7 +208,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "Usage: lint1 [-abcdeghmprstuvwyzF] [-X <id>[,<id>]... src dest\n");
+	    "usage: lint1 [-abcdeghmprstuvwyzF] [-X <id>[,<id>]... src dest\n");
 	exit(1);
 }
 

@@ -1092,7 +1092,7 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
               mkPrefix(argn+1, argv, prefix, sizeof prefix));
 
   if (val == -1)
-    log_Printf(LogWARN, "Usage: %s\n", cmd->syntax);
+    log_Printf(LogWARN, "usage: %s\n", cmd->syntax);
   else if (val)
     log_Printf(LogWARN, "%s: Failed %d\n",
               mkPrefix(argn+1, argv, prefix, sizeof prefix), val);
@@ -2606,7 +2606,7 @@ LinkCommand(struct cmdargs const *arg)
     return result;
   }
 
-  log_Printf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
+  log_Printf(LogWARN, "usage: %s\n", arg->cmd->syntax);
   return 2;
 }
 

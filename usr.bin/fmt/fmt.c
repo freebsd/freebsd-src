@@ -308,7 +308,7 @@ main(int argc, char *argv[]) {
       continue;
     case 'h': default:
       fprintf(stderr,
-"Usage:   fmt [-cmps] [-d chars] [-l num] [-t num]\n"
+"usage:   fmt [-cmps] [-d chars] [-l num] [-t num]\n"
 "             [-w width | -width | goal [maximum]] [file ...]\n"
 "Options: -c     center each line instead of formatting\n"
 "         -d <chars> double-space after <chars> at line end\n"

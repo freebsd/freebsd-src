@@ -550,7 +550,7 @@ load_rc_config()
 #
 rc_usage()
 {
-	echo -n 1>&2 "Usage: $0 [fast|force]("
+	echo -n 1>&2 "usage: $0 [fast|force]("
 
 	_sep=
 	for _elem in $*; do

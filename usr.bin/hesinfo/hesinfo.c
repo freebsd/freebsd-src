@@ -33,7 +33,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int	main(int, char **);
-extern char *__progname;
 
 int 
 main(argc, argv)
@@ -58,7 +57,7 @@ main(argc, argv)
 		}
 	}
 	if (argc - optind != 2 || errflg) {
-		fprintf(stderr, "Usage: %s [-bl] name type\n", __progname);
+		fprintf(stderr, "usage: hesinfo [-bl] name type\n");
 		fprintf(stderr, "\t-l selects long format\n");
 		fprintf(stderr, "\t-b also does hes_to_bind conversion\n");
 		exit(2);
