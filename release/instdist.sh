@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.32 1994/11/28 22:13:05 jkh Exp $
+# $Id: instdist.sh,v 1.35 1994/11/30 11:58:29 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -458,7 +458,6 @@ Options, if any, should be separated by commas."; then
 			fi
 		fi
 		MEDIA_TYPE=nfs
-		NFS_PATH=${ANSWER}
 		umount ${MNT} > /dev/null 2>&1
 		if ! mount_nfs ${NFS_OPTIONS} ${NFS_PATH} ${MNT} > /dev/ttyv1 2>&1; then
 			error "Unable to mount ${NFS_PATH}"
