@@ -252,6 +252,11 @@ long countdirs;			/* number of directories we actually found */
 #define MIBSIZE	3		/* size of fsck sysctl MIBs */
 int	adjrefcnt[MIBSIZE];	/* MIB command to adjust inode reference cnt */
 int	adjblkcnt[MIBSIZE];	/* MIB command to adjust inode block count */
+int	adjndir[MIBSIZE];	/* MIB command to adjust number of directories */
+int	adjnbfree[MIBSIZE];	/* MIB command to adjust number of free blocks */
+int	adjnifree[MIBSIZE];	/* MIB command to adjust number of free inodes */
+int	adjnffree[MIBSIZE];	/* MIB command to adjust number of free frags */
+int	adjnumclusters[MIBSIZE];	/* MIB command to adjust number of free clusters */
 int	freefiles[MIBSIZE];	/* MIB command to free a set of files */
 int	freedirs[MIBSIZE];	/* MIB command to free a set of directories */
 int	freeblks[MIBSIZE];	/* MIB command to free a set of data blocks */
