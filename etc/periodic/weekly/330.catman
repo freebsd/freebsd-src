@@ -42,8 +42,8 @@ case "$weekly_catman_enable" in
 		    then
 			for i in $man_locales
 			do
-			    LC_ALL=$i echo /usr/libexec/catman.local -L \
-				"$MANPATH" | su -fm man || rc=3
+			    echo /usr/libexec/catman.local -L "$MANPATH" |
+				LC_ALL=$i su -fm man || rc=3
 			done
 		    fi
 		fi
