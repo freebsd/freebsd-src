@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.25 1999/07/05 20:24:46 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.26 1999/07/05 22:01:48 mjacob Exp $ */
 /* release_6_5_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -136,7 +136,7 @@ static struct ispmdvec mdvec_2200 = {
 	ISP2200_RISC_CODE,
 	ISP2200_CODE_LENGTH,
 	ISP2100_CODE_ORG,
-	ISP2200_RISC_CODE,
+	ISP2200_CODE_VERSION,
 	0,
 	0
 };
