@@ -81,7 +81,7 @@ disk		fd2	at fdc0 drive 2
 disk		fd3	at fdc0 drive 3
 
 # IDE controller and disks
-#options		"CMD640"	# work around CMD640 chip deficiency
+#options 	"CMD640"	# work around CMD640 chip deficiency
 controller	wdc0	at isa? port "IO_WD1" bio irq 9
 disk		wd0	at wdc0 drive 0
 #disk		wd1	at wdc0 drive 1
@@ -89,8 +89,8 @@ disk		wd0	at wdc0 drive 0
 #disk		wd3	at wdc0 drive 3
 
 # ATAPI devices
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
+options 	ATAPI		#Enable ATAPI support for IDE bus
+options 	ATAPI_STATIC	#Don't do it as an LKM
 device		acd0		#IDE CD-ROM
 #device		wfd0		#IDE Floppy (e.g. LS-120)
 
@@ -108,7 +108,7 @@ controller	adv0
 # WD33C93 SCSI card (55/92 like board)
 #
 
-options	BS_TARG_SAFEMODE
+options 	BS_TARG_SAFEMODE
 
 # PC-9801-92
 controller bs0 at isa? port IO_SCSI cam irq 5 drq 3 flags 0
@@ -139,7 +139,7 @@ device		matcd0	at isa? port? bio
 
 # keyboard driver
 device		pckbd0	at isa? port IO_KBD tty irq 1
-#options	KBD_INSTALL_CDEV
+#options 	KBD_INSTALL_CDEV
 
 device		gdc0	at isa?
 
