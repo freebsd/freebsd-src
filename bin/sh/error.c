@@ -247,6 +247,7 @@ STATIC const struct errname errormsg[] = {
 #ifdef ELIBACC
 	{ ELIBACC,	E_EXEC,	"shared library missing" },
 #endif
+	{ EEXIST,	E_CREAT, "file exists" },
 	{ 0,		0,	NULL },
 };
 

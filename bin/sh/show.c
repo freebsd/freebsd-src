@@ -142,6 +142,7 @@ shcmd(union node *cmd, FILE *fp)
 			case NTO:	s = ">";  dftfd = 1; break;
 			case NAPPEND:	s = ">>"; dftfd = 1; break;
 			case NTOFD:	s = ">&"; dftfd = 1; break;
+			case NCLOBBER:	s = ">|"; dftfd = 1; break;
 			case NFROM:	s = "<";  dftfd = 0; break;
 			case NFROMTO:	s = "<>"; dftfd = 0; break;
 			case NFROMFD:	s = "<&"; dftfd = 0; break;
