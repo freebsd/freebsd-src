@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: kdump.c,v 1.11 1997/07/16 06:49:49 charnier Exp $";
+	"$Id: kdump.c,v 1.12 1999/05/21 01:09:45 jmz Exp $";
 #endif /* not lint */
 
 #define KERNEL
@@ -240,32 +240,32 @@ ktrsyscall(ktr)
 	register struct ktr_syscall *ktr;
 {
 	register narg = ktr->ktr_narg;
-	register int *ip;
+	register register_t *ip;
 	char *ioctlname();
 
 	if (ktr->ktr_code >= nsyscalls || ktr->ktr_code < 0)
 		(void)printf("[%d]", ktr->ktr_code);
 	else
 		(void)printf("%s", syscallnames[ktr->ktr_code]);
-	ip = (int *)((char *)ktr + sizeof(struct ktr_syscall));
+	ip = &ktr->ktr_args[0];
 	if (narg) {
 		char c = '(';
 		if (fancy) {
 			if (ktr->ktr_code == SYS_ioctl) {
 				char *cp;
 				if (decimal)
-					(void)printf("(%d", *ip);
+					(void)printf("(%ld", (long)*ip);
 				else
-					(void)printf("(%#x", *ip);
+					(void)printf("(%#lx", (long)*ip);
 				ip++;
 				narg--;
 				if ((cp = ioctlname(*ip)) != NULL)
 					(void)printf(",%s", cp);
 				else {
 					if (decimal)
-						(void)printf(",%d", *ip);
+						(void)printf(",%ld", (long)*ip);
 					else
-						(void)printf(",%#x ", *ip);
+						(void)printf(",%#lx ", (long)*ip);
 				}
 				c = ',';
 				ip++;
@@ -274,7 +274,7 @@ ktrsyscall(ktr)
 				if (*ip <= PT_STEP && *ip >= 0)
 					(void)printf("(%s", ptrace_ops[*ip]);
 				else
-					(void)printf("(%d", *ip);
+					(void)printf("(%ld", (long)*ip);
 				c = ',';
 				ip++;
 				narg--;
@@ -282,9 +282,9 @@ ktrsyscall(ktr)
 		}
 		while (narg) {
 			if (decimal)
-				(void)printf("%c%d", c, *ip);
+				(void)printf("%c%ld", c, (long)*ip);
 			else
-				(void)printf("%c%#x", c, *ip);
+				(void)printf("%c%#lx", c, (long)*ip);
 			c = ',';
 			ip++;
 			narg--;
@@ -297,7 +297,7 @@ ktrsyscall(ktr)
 ktrsysret(ktr)
 	struct ktr_sysret *ktr;
 {
-	register int ret = ktr->ktr_retval;
+	register register_t ret = ktr->ktr_retval;
 	register int error = ktr->ktr_error;
 	register int code = ktr->ktr_code;
 
@@ -310,12 +310,12 @@ ktrsysret(ktr)
 		if (fancy) {
 			(void)printf("%d", ret);
 			if (ret < 0 || ret > 9)
-				(void)printf("/%#x", ret);
+				(void)printf("/%#lx", (long)ret);
 		} else {
 			if (decimal)
-				(void)printf("%d", ret);
+				(void)printf("%ld", (long)ret);
 			else
-				(void)printf("%#x", ret);
+				(void)printf("%#lx", (long)ret);
 		}
 	} else if (error == ERESTART)
 		(void)printf("RESTART");
@@ -414,8 +414,8 @@ ktrpsig(psig)
 	if (psig->action == SIG_DFL)
 		(void)printf("SIG_DFL\n");
 	else
-		(void)printf("caught handler=0x%x mask=0x%x code=0x%x\n",
-		    (u_int)psig->action, psig->mask, psig->code);
+		(void)printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
+		    (u_long)psig->action, psig->mask, psig->code);
 }
 
 ktrcsw(cs)
