@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1999, Traakan Software
  * All rights reserved.
@@ -24,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 #define WX_VENDOR_INTEL		0x8086
