@@ -167,7 +167,7 @@ __curthread(void)
 	__asm __volatile("movq %%gs:0,%0" : "=r" (td));
 	return (td);
 }
-#define	Xurthread (__curthread())
+#define	curthread (__curthread())
 
 #else
 #error gcc or lint is required to use this file
