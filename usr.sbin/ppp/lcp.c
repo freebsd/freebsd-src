@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.15 1997/05/10 01:22:13 brian Exp $
+ * $Id: lcp.c,v 1.16 1997/05/11 00:16:00 ache Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -164,11 +164,15 @@ ReportLcpStatus()
 
   printf("%s [%s]\n", fp->name, StateNames[fp->state]);
   printf(
-    " his side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d MAGIC %08lx\n",
-    lcp->his_mru, lcp->his_accmap, lcp->his_protocomp, lcp->his_acfcomp, lcp->his_magic);
+    " his side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
+    "           REJECT: %04lx\n",
+    lcp->his_mru, lcp->his_accmap, lcp->his_protocomp, lcp->his_acfcomp,
+    lcp->his_magic, lcp->his_reject);
   printf(
-    " my  side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d MAGIC %08lx\n",
-    lcp->want_mru, lcp->want_accmap, lcp->want_protocomp, lcp->want_acfcomp, lcp->want_magic);
+    " my  side: MRU %ld, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d, MAGIC %08lx,\n"
+    "           REJECT: %04lx\n",
+    lcp->want_mru, lcp->want_accmap, lcp->want_protocomp, lcp->want_acfcomp,
+    lcp->want_magic, lcp->my_reject);
   printf("\nDefaults:   MRU = %ld, ACCMAP = %08x\t", VarMRU, VarAccmap);
   printf("Open Mode: %s\n", (VarOpenMode == OPEN_ACTIVE)? "active" : "passive");
   return(1);
