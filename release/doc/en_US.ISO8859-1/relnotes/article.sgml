@@ -1724,6 +1724,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     firewall rule, which limits the number of sessions between address
     pairs. &merged;</para>
 
+    <para>&man.ipfw.8; filter rules can now match on the value of the
+    IPv4 precedence field.</para>
+
     <para>&man.ip6fw.8; now has the ability to use a preprocessor
     and use the <option>-q</option> (quiet) flag when reading from a
     file. &merged;</para>
@@ -2404,7 +2407,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
 
-      <para arch="i386">Version 1.4.1 of the <application>smbfs</application>
+      <para arch="i386">Version 1.4.3 of the <application>smbfs</application>
       userland utilities have been imported. &merged;</para>
 
       <para><application>tcpdump</application> has been updated to
