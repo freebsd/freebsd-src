@@ -143,8 +143,7 @@ gif_clone_create(ifc, unit)
 {
 	struct gif_softc *sc;
 
-	sc = malloc (sizeof(struct gif_softc), M_GIF, M_WAITOK);
-	bzero(sc, sizeof(struct gif_softc));
+	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
 
 	sc->gif_if.if_softc = sc;
 	if_initname(&sc->gif_if, ifc->ifc_name, unit);
