@@ -33,8 +33,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
- *	$Id: stdio.h,v 1.10 1997/02/23 09:17:15 peter Exp $
+ *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
+ *	$Id: stdio.h,v 1.11 1997/03/02 13:41:23 ache Exp $
  */
 
 #ifndef	_STDIO_H_
