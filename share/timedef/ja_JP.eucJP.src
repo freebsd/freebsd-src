@@ -100,10 +100,11 @@ PM
 11·î
 12·î
 #
-# Ef_fmt
+# md_order
 #
-%b/%e
+md
 #
-# EF_fmt
+# ampm_fmt
 #
-%B%eÆü
+%I:%M:%S %p
+# EOF
