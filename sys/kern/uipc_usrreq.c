@@ -603,8 +603,8 @@ restart:
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error) {
-		return (error);
 		free(buf, M_TEMP);
+		return (error);
 	}
 	vp = nd.ni_vp;
 	if (vp != NULL || vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
