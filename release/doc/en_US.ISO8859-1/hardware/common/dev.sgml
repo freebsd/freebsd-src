@@ -3305,7 +3305,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Floppy drives (&man.fd.4; driver)</para>
+    <para arch="i386,pc98,alpha">Floppy drives (&man.fdc.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
     <para arch="i386,pc98,alpha,ia64">Keyboards including:
