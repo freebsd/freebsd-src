@@ -111,7 +111,8 @@ fmtpwentry(char *buf, struct passwd * pwd, int type)
 	int             l;
 	char           *pw;
 
-	pw = (pwd->pw_passwd == NULL || !*pwd->pw_passwd) ? "" : (type == PWF_MASTER) ? pwd->pw_passwd : "*";
+	pw = (type == PWF_MASTER) ?
+	    ((pwd->pw_passwd == NULL) ? "" : pwd->pw_passwd) : "*";
 
 	if (type == PWF_PASSWD)
 		l = sprintf(buf, "%s:*:%ld:%ld:%s:%s:%s\n",
