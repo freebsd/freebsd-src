@@ -80,18 +80,9 @@ static const char rcsid[] =
 #define UMASK		0755
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
 
-static union {
-	struct fs fs;
-	char pad[SBLOCKSIZE];
-} fsun;
-#define	sblock	fsun.fs
 static struct	csum *fscs;
-
-static union {
-	struct cg cg;
-	char pad[MAXBSIZE];
-} cgun;
-#define	acg	cgun.cg
+#define	sblock	disk.d_fs
+#define	acg	disk.d_cg
 
 union dinode {
 	struct ufs1_dinode dp1;
@@ -113,10 +104,8 @@ static void initcg(int, time_t);
 static int isblock(struct fs *, unsigned char *, int);
 static void iput(union dinode *, ino_t);
 static int makedir(struct direct *, int);
-static void rdfs(ufs2_daddr_t, int, char *);
 static void setblock(struct fs *, unsigned char *, int);
 static void wtfs(ufs2_daddr_t, int, char *);
-static void wtfsflush(void);
 
 void
 mkfs(struct partition *pp, char *fsys)
@@ -128,6 +117,12 @@ mkfs(struct partition *pp, char *fsys)
 	int width;
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
+	/*
+	 * Our blocks == sector size, and the version of UFS we are using is
+	 * specified by Oflag.
+	 */
+	disk.d_bsize = sectorsize;
+	disk.d_ufs = Oflag;
 	if (Rflag)
 		utime = 1000000000;
 	else 
@@ -489,13 +484,13 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_old_cstotal.cs_nifree = sblock.fs_cstotal.cs_nifree;
 		sblock.fs_old_cstotal.cs_nffree = sblock.fs_cstotal.cs_nffree;
 	}
-	wtfs(sblock.fs_sblockloc / sectorsize, SBLOCKSIZE, (char *)&sblock);
+	if (!Nflag)
+		sbwrite(&disk, 0);
 	for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize)
 		wtfs(fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)),
 			sblock.fs_cssize - i < sblock.fs_bsize ?
 			sblock.fs_cssize - i : sblock.fs_bsize,
 			((char *)fscs) + i);
-	wtfsflush();
 	/*
 	 * Update information about this partion in pack
 	 * label, to that it may be updated on disk.
@@ -771,8 +766,8 @@ alloc(int size, int mode)
 {
 	int i, d, blkno, frag;
 
-	rdfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
-	    (char *)&acg);
+	bread(&disk, fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
+	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {
 		printf("cg 0: bad magic number\n");
 		return (0);
@@ -808,6 +803,7 @@ goth:
 		for (i = frag; i < sblock.fs_frag; i++)
 			setbit(cg_blksfree(&acg), d + i);
 	}
+	/* XXX cgwrite(&disk, 0)??? */
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
 	    (char *)&acg);
 	return ((ufs2_daddr_t)d);
@@ -823,8 +819,8 @@ iput(union dinode *ip, ino_t ino)
 	int c;
 
 	c = ino_to_cg(&sblock, ino);
-	rdfs(fsbtodb(&sblock, cgtod(&sblock, 0)), sblock.fs_cgsize,
-	    (char *)&acg);
+	bread(&disk, fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
+	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {
 		printf("cg 0: bad magic number\n");
 		exit(31);
@@ -840,7 +836,7 @@ iput(union dinode *ip, ino_t ino)
 		exit(32);
 	}
 	d = fsbtodb(&sblock, ino_to_fsba(&sblock, ino));
-	rdfs(d, sblock.fs_bsize, (char *)iobuf);
+	bread(&disk, d, (char *)iobuf, sblock.fs_bsize);
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		((struct ufs1_dinode *)iobuf)[ino_to_fsbo(&sblock, ino)] =
 		    ip->dp1;
@@ -851,90 +847,14 @@ iput(union dinode *ip, ino_t ino)
 }
 
 /*
- * read a block from the file system
- */
-void
-rdfs(ufs2_daddr_t bno, int size, char *bf)
-{
-	int n;
-
-	wtfsflush();
-	if (lseek(fso, (off_t)bno * sectorsize, 0) < 0) {
-		printf("seek error: %ld\n", (long)bno);
-		err(33, "rdfs");
-	}
-	n = read(fso, bf, size);
-	if (n != size) {
-		printf("read error: %ld\n", (long)bno);
-		err(34, "rdfs");
-	}
-}
-
-#define WCSIZE (128 * 1024)
-ufs2_daddr_t wc_sect;		/* units of sectorsize */
-int wc_end;			/* bytes */
-static char wc[WCSIZE];		/* bytes */
-
-/*
- * Flush dirty write behind buffer.
- */
-static void
-wtfsflush()
-{
-	int n;
-	if (wc_end) {
-		if (lseek(fso, (off_t)wc_sect * sectorsize, SEEK_SET) < 0) {
-			printf("seek error: %ld\n", (long)wc_sect);
-			err(35, "wtfs - writecombine");
-		}
-		n = write(fso, wc, wc_end);
-		if (n != wc_end) {
-			printf("write error: %ld\n", (long)wc_sect);
-			err(36, "wtfs - writecombine");
-		}
-		wc_end = 0;
-	}
-}
-
-/*
- * write a block to the file system
+ * possibly write to disk
  */
 static void
 wtfs(ufs2_daddr_t bno, int size, char *bf)
 {
-	int done, n;
-
 	if (Nflag)
 		return;
-	done = 0;
-	if (wc_end == 0 && size <= WCSIZE) {
-		wc_sect = bno;
-		bcopy(bf, wc, size);
-		wc_end = size;
-		if (wc_end < WCSIZE)
-			return;
-		done = 1;
-	}
-	if ((off_t)wc_sect * sectorsize + wc_end == (off_t)bno * sectorsize &&
-	    wc_end + size <= WCSIZE) {
-		bcopy(bf, wc + wc_end, size);
-		wc_end += size;
-		if (wc_end < WCSIZE)
-			return;
-		done = 1;
-	}
-	wtfsflush();
-	if (done)
-		return;
-	if (lseek(fso, (off_t)bno * sectorsize, SEEK_SET) < 0) {
-		printf("seek error: %ld\n", (long)bno);
-		err(35, "wtfs");
-	}
-	n = write(fso, bf, size);
-	if (n != size) {
-		printf("write error: %ld\n", (long)bno);
-		err(36, "wtfs");
-	}
+	bwrite(&disk, bno, bf, size);
 }
 
 /*
