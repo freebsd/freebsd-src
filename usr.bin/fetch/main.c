@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.18 1996/08/22 23:25:24 jkh Exp $ */
+/* $Id: main.c,v 1.19 1996/08/23 06:21:17 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -55,6 +55,7 @@ char buffer[BUFFER_SIZE];
 char *progname;
 
 int verbose = 1;
+int ftp_verbose = 0;
 int linkfile = 0;
 char *outputfile = 0;
 char *change_to_dir = 0;
@@ -84,7 +85,7 @@ int match(char *, char *), http_open(void);
 void
 usage()
 {
-    fprintf(stderr, "usage: %s [-DHINPMTVLqlmnpr] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
+    fprintf(stderr, "usage: %s [-DHINPMTVLqlmnprv] [-o outputfile] <-f file -h host [-c dir]| URL>\n", progname);
     exit(1);
 }
 
@@ -135,7 +136,7 @@ main(int argc, char **argv)
     
     progname = s ? s+1 : argv[0];
     
-    while ((c = getopt (argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnr")) != EOF) {
+    while ((c = getopt (argc, argv, "D:HINPMT:V:Lqc:f:h:o:plmnrv")) != EOF) {
 	switch (c) {
 	case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 	    break;	/* ncftp compatibility */
@@ -179,6 +180,10 @@ main(int argc, char **argv)
 	    restart = 1;
 	    break;
 	    
+	case 'v':
+	    ftp_verbose = 1;
+	    break;
+
 	case 'T':
 	    timeout_ival = atoi(optarg);
 	    break;
@@ -210,7 +215,7 @@ main(int argc, char **argv)
     signal(SIGTERM, die);
     
     setup_http_proxy();
-    
+
     if (http)
 	httpget();
     else if (ftp)
@@ -285,11 +290,9 @@ ftpget()
     }
     if ((lp = getenv("FTP_LOGIN")) == NULL)
 	lp = "anonymous";
-    ftp = ftpLogin(host, lp, ftp_pw, 0, verbose);
+    ftp = ftpLogin(host, lp, ftp_pw, 0, ftp_verbose);
     if (!ftp) 
 	err(1, "couldn't open FTP connection or login to %s.", host);
-    
-    ftpVerbose (ftp, 0);
     
     /* Time to set our defaults */
     ftpBinary (ftp);
