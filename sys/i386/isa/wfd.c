@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.13 1998/07/13 09:53:03 bde Exp $
+ *      $Id: wfd.c,v 1.14 1998/07/30 15:16:05 bde Exp $
  */
 
 /*
@@ -375,8 +375,7 @@ int wfdopen (dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Initialize slice tables. */
 	errcode = dsopen("wfd", dev, fmt, 0, &t->dk_slices, &label,
-			 wfdstrategy1, (ds_setgeom_t *)NULL, &wfd_cdevsw,
-			 &wfd_cdevsw);
+			 wfdstrategy1, (ds_setgeom_t *)NULL, &wfd_cdevsw);
 	if (errcode != 0)
 		return errcode;
 
