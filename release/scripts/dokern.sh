@@ -1,6 +1,7 @@
 #!/bin/sh
-
+#
 # $FreeBSD$
+#
 
 if [ $# -lt 1 ]; then
 	FDSIZE=NORMAL
