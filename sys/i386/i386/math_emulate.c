@@ -52,7 +52,7 @@
 #define __ALIGNED_TEMP_REAL 1
 #include <i386/i386/math_emu.h>
 
-#define bswapw(x) __asm__("xchgb %%al,%%ah":"=a" (x):"0" ((short)x))
+#define bswapw(x) __asm__("xchgb %%al,%%ah":"+a" ((short)(x)))
 #define ST(x) (*__st((x)))
 #define PST(x) ((const temp_real *) __st((x)))
 #define	math_abort(tfp, signo) tfp->tf_eip = oldeip; return (signo);
