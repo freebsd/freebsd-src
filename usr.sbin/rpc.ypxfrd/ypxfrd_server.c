@@ -29,12 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfrd_server.c,v 1.4 1997/02/22 16:13:03 peter Exp $
+ *	$Id: ypxfrd_server.c,v 1.5 1997/04/10 13:48:59 wpaul Exp $
  */
 
 #include "ypxfrd.h"
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.4 1997/02/22 16:13:03 peter Exp $";
+static const char rcsid[] = "$Id: ypxfrd_server.c,v 1.5 1997/04/10 13:48:59 wpaul Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -89,19 +89,9 @@ ypxfrd_getmap_1_svc(ypxfr_mapname *argp, struct svc_req *rqstp)
 {
 	static struct xfr  result;
 	char buf[MAXPATHLEN];
-	struct sockaddr_in *rqhost;
 
 	result.ok = FALSE;
 	result.xfr_u.xfrstat = XFR_DENIED;
-
-	rqhost = svc_getcaller(rqstp->rq_xprt);
-
-	if (ntohs(rqhost->sin_port) >= IPPORT_RESERVED) {
-		yp_error("%s:%d didn't use reserved port -- rejecting",
-			inet_ntoa(rqhost->sin_addr),
-			ntohs(rqhost->sin_port));
-		return(&result);
-	}
 
 	if (yp_validdomain(argp->xfrdomain)) {
 		return(&result);
