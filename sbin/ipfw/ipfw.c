@@ -611,17 +611,17 @@ list(ac, av)
 	{
 		const int unit = do_pipe ? sizeof(*pipes) : sizeof(*rules);
 		const int ocmd = do_pipe ? IP_DUMMYNET_GET : IP_FW_GET;
-		int nalloc = 0;
+		int nalloc = unit;
+		nbytes = nalloc ;
 
-		while (num >= nalloc) {
+		while (nbytes >= nalloc) {
 			nalloc = nalloc * 2 + 200;
-			nbytes = nalloc * unit;
+			nbytes = nalloc ;
 			if ((data = realloc(data, nbytes)) == NULL)
 				err(EX_OSERR, "realloc");
 			if (getsockopt(s, IPPROTO_IP, ocmd, data, &nbytes) < 0)
 				err(EX_OSERR, "getsockopt(IP_%s_GET)",
 				    do_pipe ? "DUMMYNET" : "FW");
-			num = nbytes / unit;
 		}
 	}
 
@@ -643,7 +643,7 @@ list(ac, av)
 		char buf[30] ;
 		char prefix[80] ;
 
-		if ( (p->fs.flags_fs & DN_IS_PIPE) == 0)
+		if ( p->next != (struct dn_pipe *)DN_IS_PIPE )
 		    break ;
 		l = sizeof(*p) + p->fs.rq_elements * sizeof(*q) ;
 		next = (void *)p  + l ;
@@ -674,7 +674,7 @@ list(ac, av)
 	    for ( ; nbytes >= sizeof(*fs) ; fs = (struct dn_flow_set *)next ) {
 		char prefix[80] ;
 
-		if ( (fs->flags_fs & DN_IS_QUEUE) == 0)
+		if ( fs->next != (struct dn_flow_set *)DN_IS_QUEUE )
 		    break ;
 		l = sizeof(*fs) + fs->rq_elements * sizeof(*q) ;
 		next = (void *)fs  + l ;
