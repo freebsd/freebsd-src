@@ -55,36 +55,36 @@
 /*
  * return the contents of a FP register
  */
-static __inline__
-__fpgetreg(reg)
+static __inline__ int
+__fpgetreg(int _reg)
 {
-	unsigned short mem;
+	unsigned short _mem;
 
-	switch(reg) {
+	switch(_reg) {
 	default:
-		fnstcw(&mem);
+		fnstcw(&_mem);
 		break;
 	case FP_STKY_REG:
-		fnstsw(&mem);
+		fnstsw(&_mem);
 		break;
 	}
-	return mem;
+	return _mem;
 }
 
 /*
  * set a FP mode; return previous mode
  */
-static __inline__
-__fpsetreg(m, reg, fld, off)
+static __inline__ int
+__fpsetreg(int _m, int _reg, int _fld, int _off)
 {
-	unsigned env[7];
-	unsigned p;
+	unsigned _env[7];
+	unsigned _p;
 
-	fnstenv(env);
-	p =  (env[reg] & fld) >> off;
-	env[reg] = (env[reg] & ~fld) | (m << off & fld);
-	fldenv(env);
-	return p;
+	fnstenv(_env);
+	_p =  (_env[_reg] & _fld) >> _off;
+	_env[_reg] = (_env[_reg] & ~_fld) | (_m << _off & _fld);
+	fldenv(_env);
+	return _p;
 }
 
 #endif /* __i386__ */
