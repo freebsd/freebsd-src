@@ -182,7 +182,8 @@ inthand_t
 	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xforward_irq,	/* Forward irq to cpu holding ISR lock */
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
-	Xspuriousint;	/* handle APIC "spurious INTs" */
+	Xspuriousint,	/* handle APIC "spurious INTs" */
+	Xrendezvous;	/* handle CPU rendezvous */
 
 #ifdef TEST_TEST1
 inthand_t
