@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dnslookup.c,v 1.1 1995/01/31 08:58:52 wpaul Exp $
  */
 
 /*
@@ -41,6 +41,7 @@
 ** it disappeared up its own belly button.
 */
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
