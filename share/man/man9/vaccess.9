@@ -75,7 +75,7 @@ privilege information, or it may point to an integer that will be set to
 .Pp
 This call is intended to support implementations of
 .Xr VOP_ACCESS 9 ,
-which will use their own accessor methods to retrieve the vnode properties,
+which will use their own access methods to retrieve the vnode properties,
 and then invoke
 .Fn vaccess
 in order to perform the actual check.
