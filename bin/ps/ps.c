@@ -165,12 +165,12 @@ main(int argc, char *argv[])
 	struct kinfo_proc *kp;
 	struct varent *vent;
 	struct winsize ws;
+	const char *cp, *nlistf, *memf;
+	char *cols;
 	int all, ch, dropgid, elem, flag, _fmt, i, lineno;
 	int nentries, nocludge, nkept, nselectors;
 	int prtheader, showthreads, wflag, what, xkeep, xkeep_implied;
-	char *cols;
 	char errbuf[_POSIX2_LINE_MAX];
-	const char *cp, *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
 	/* Set the time to what it is right now. */
@@ -617,9 +617,9 @@ static int
 addelem_gid(struct listinfo *inf, const char *elem)
 {
 	struct group *grp;
-	intmax_t ltemp;
 	const char *nameorID;
 	char *endp;
+	intmax_t ltemp;
 
 	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
 		if (*elem == '\0')
@@ -665,8 +665,8 @@ addelem_gid(struct listinfo *inf, const char *elem)
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
-	long tempid;
 	char *endp;
+	long tempid;
 
 	if (*elem == '\0')
 		tempid = 0L;
@@ -696,9 +696,9 @@ addelem_pid(struct listinfo *inf, const char *elem)
 static int
 addelem_tty(struct listinfo *inf, const char *elem)
 {
-	char pathbuf[PATH_MAX];
-	struct stat sb;
 	const char *ttypath;
+	struct stat sb;
+	char pathbuf[PATH_MAX];
 
 	if (strcmp(elem, "co") == 0)
 		ttypath = strdup(_PATH_CONSOLE);
@@ -731,8 +731,8 @@ static int
 addelem_uid(struct listinfo *inf, const char *elem)
 {
 	struct passwd *pwd;
-	intmax_t ltemp;
 	char *endp;
+	intmax_t ltemp;
 
 	if (*elem == '\0' || strlen(elem) >= MAXLOGNAME) {
 		if (*elem == '\0')
@@ -777,10 +777,10 @@ addelem_uid(struct listinfo *inf, const char *elem)
 static void
 add_list(struct listinfo *inf, const char *argp)
 {
-	char elemcopy[PATH_MAX];
 	const char *savep;
 	char *cp, *endp;
 	int toolong;
+	char elemcopy[PATH_MAX];
 
 	while (*argp != '\0') {
 		while (*argp != '\0' && strchr(W_SEP, *argp) != NULL)
@@ -851,8 +851,8 @@ add_list(struct listinfo *inf, const char *argp)
 static void *
 expand_list(struct listinfo *inf)
 {
-	int newmax;
 	void *newlist;
+	int newmax;
 
 	newmax = (inf->maxcount + 1) << 1;
 	newlist = realloc(inf->ptr, newmax * inf->elemsize);
