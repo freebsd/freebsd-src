@@ -98,7 +98,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(keepId, "$Id$")
+libId(keepId, "$Id: rcskeep.c,v 1.6 1997/02/22 15:47:38 peter Exp $")
 
 static int badly_terminated P((void));
 static int checknum P((char const*));
@@ -191,6 +191,7 @@ getoldkeys(fp)
                 break;
             case Header:
             case Id:
+	    case LocalId:
 		if (!(
 		      getval(fp, (struct buf*)0, false) &&
 		      keeprev(fp) &&
