@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.2 1997/05/24 17:05:26 smp Exp smp $
+ *	$Id: apic_vector.s,v 1.1 1997/05/26 17:58:26 fsmp Exp $
  */
 
 
@@ -239,14 +239,16 @@ ihandlers:			/* addresses of interrupt handlers */
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	Xresume16, Xresume17, Xresume18, Xresume19
 	.long	Xresume20, Xresume21, Xresume22, Xresume23
-	.long	0,         0,         0,         0
-	.long	swi_tty,   swi_net,   _softclock, swi_ast
+	.long	swi_tty,   swi_net
+	.long	0, 0, 0, 0
+	.long	_softclock, swi_ast
 
 imasks:				/* masks for interrupt handlers */
 	.space	NHWI*4		/* padding; HWI masks are elsewhere */
 
+	.long	SWI_TTY_MASK, SWI_NET_MASK
 	.long	0, 0, 0, 0
-	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CLOCK_MASK, SWI_AST_MASK
+	.long	SWI_CLOCK_MASK, SWI_AST_MASK
 
 	.globl _ivectors
 _ivectors:
