@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -168,7 +170,6 @@ ip6_print(register const u_char *bp, register int length)
 			break;
 		    }
 		case IPPROTO_PIM:
-			(void)printf("PIM");
 			pim_print(cp, len);
 			goto end;
 #ifndef IPPROTO_OSPF
