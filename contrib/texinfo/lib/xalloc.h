@@ -18,6 +18,8 @@
 #ifndef XALLOC_H_
 # define XALLOC_H_
 
+# include <stddef.h>
+
 # ifndef PARAMS
 #  if defined PROTOTYPES || (defined __STDC__ && __STDC__)
 #   define PARAMS(Args) Args

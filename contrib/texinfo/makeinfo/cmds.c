@@ -1,5 +1,5 @@
 /* cmds.c -- Texinfo commands.
-   $Id: cmds.c,v 1.16 2003/01/12 15:18:24 karl Exp $
+   $Id: cmds.c,v 1.18 2003/04/21 01:02:39 karl Exp $
 
    Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003 Free Software
    Foundation, Inc.
@@ -56,7 +56,8 @@ void
   cm_anchor (), cm_node (), cm_menu (), cm_xref (), cm_ftable (),
   cm_vtable (), cm_pxref (), cm_inforef (), cm_uref (), cm_email (),
   cm_quotation (), cm_display (), cm_smalldisplay (), cm_itemize (),
-  cm_enumerate (), cm_tab (), cm_table (), cm_itemx (), cm_noindent (),
+  cm_enumerate (), cm_tab (), cm_table (), cm_itemx (), 
+  cm_noindent (), cm_indent (),
   cm_setfilename (), cm_br (), cm_sp (), cm_page (), cm_group (),
   cm_center (), cm_ref (), cm_include (), cm_bye (), cm_item (), cm_end (),
   cm_kindex (), cm_cindex (), cm_findex (), cm_pindex (), cm_vindex (),
@@ -66,7 +67,8 @@ void
   cm_defcodeindex (), cm_result (), cm_expansion (), cm_equiv (),
   cm_print (), cm_error (), cm_point (), cm_today (), cm_flushleft (),
   cm_flushright (), cm_finalout (), cm_cartouche (), cm_detailmenu (),
-  cm_multitable (), cm_settitle (), cm_titlefont (), cm_titlepage (), cm_tie (), cm_tt (),
+  cm_multitable (), cm_settitle (), cm_titlefont (), cm_titlepage (), 
+  cm_tie (), cm_tt (),
   cm_verbatim (), cm_verbatiminclude ();
 
 /* Conditionals. */
@@ -74,7 +76,10 @@ void cm_set (), cm_clear (), cm_ifset (), cm_ifclear ();
 void cm_value (), cm_ifeq ();
 
 /* Options. */
-static void cm_paragraphindent (), cm_exampleindent ();
+static void 
+  cm_exampleindent (),
+  cm_firstparagraphindent (),
+  cm_paragraphindent ();
 
 /* Internals. */
 static void cm_obsolete ();
@@ -94,6 +99,7 @@ COMMAND command_table[] = {
   { ",", cm_accent_cedilla, MAYBE_BRACE_ARGS },
   { "-", cm_no_op, NO_BRACE_ARGS },
   { ".", insert_self, NO_BRACE_ARGS },
+  { "/", cm_no_op, NO_BRACE_ARGS },
   { ":", cm_no_op, NO_BRACE_ARGS },
   { "=", cm_accent, MAYBE_BRACE_ARGS },
   { "?", insert_self, NO_BRACE_ARGS },
@@ -219,6 +225,7 @@ COMMAND command_table[] = {
   { "file", cm_code, BRACE_ARGS },
   { "finalout", cm_no_op, NO_BRACE_ARGS },
   { "findex", cm_findex, NO_BRACE_ARGS },
+  { "firstparagraphindent", cm_firstparagraphindent, NO_BRACE_ARGS },
   { "flushleft", cm_flushleft, NO_BRACE_ARGS },
   { "flushright", cm_flushright, NO_BRACE_ARGS },
   { "footnote", cm_footnote, NO_BRACE_ARGS}, /* self-arg eater */
@@ -247,6 +254,7 @@ COMMAND command_table[] = {
   { "ignore", command_name_condition, NO_BRACE_ARGS },
   { "image", cm_image, BRACE_ARGS },
   { "include", cm_include, NO_BRACE_ARGS },
+  { "indent", cm_indent, NO_BRACE_ARGS },
   { "inforef", cm_inforef, BRACE_ARGS },
   { "insertcopying", cm_insert_copying, NO_BRACE_ARGS },
   { "item", cm_item, NO_BRACE_ARGS },
@@ -268,7 +276,7 @@ COMMAND command_table[] = {
   { "need", cm_ignore_line, NO_BRACE_ARGS },
   { "node", cm_node, NO_BRACE_ARGS },
   { "noindent", cm_noindent, NO_BRACE_ARGS },
-  { "noindent", cm_novalidate, NO_BRACE_ARGS },
+  { "novalidate", cm_novalidate, NO_BRACE_ARGS },
   { "nwnode", cm_node, NO_BRACE_ARGS },
   { "o", cm_special_char, BRACE_ARGS },
   { "oddfooting", cm_ignore_line, NO_BRACE_ARGS },
@@ -985,8 +993,8 @@ cm_obsolete (arg, start, end)
 }
 
 
-/* This says to inhibit the indentation of the next paragraph, but
-   not of following paragraphs.  */
+/* Inhibit the indentation of the next paragraph, but not of following
+   paragraphs.  */
 void
 cm_noindent ()
 {
@@ -994,10 +1002,17 @@ cm_noindent ()
     inhibit_paragraph_indentation = -1;
 }
 
+/* Force indentation of the next paragraph. */
+void
+cm_indent ()
+{
+  inhibit_paragraph_indentation = 0;
+}
+
 /* I don't know exactly what to do with this.  Should I allow
    someone to switch filenames in the middle of output?  Since the
    file could be partially written, this doesn't seem to make sense.
-   Another option: ignore it, since they don't *really* want to
+   Another option: ignore it, since they don't really want to
    switch files.  Finally, complain, or at least warn.  It doesn't
    really matter, anyway, since this doesn't get executed.  */
 void
@@ -1402,6 +1417,7 @@ cm_paragraphindent ()
   free (arg);
 }
 
+
 /* @exampleindent: change indentation of example-like environments.   */
 static int
 set_default_indentation_increment (string)
@@ -1423,6 +1439,34 @@ cm_exampleindent ()
   
   get_rest_of_line (1, &arg);
   if (set_default_indentation_increment (arg) != 0)
+    line_error (_("Bad argument to %c%s"), COMMAND_PREFIX, command);
+
+  free (arg);
+}
+
+
+/* @firstparagraphindent: suppress indentation in first paragraphs after
+   headings. */
+static int
+set_firstparagraphindent (string)
+     char *string;
+{
+  if (STREQ (string, "insert") || STREQ (string, _("insert")))
+    do_first_par_indent = 1;
+  else if (STREQ (string, "none") || STREQ (string, _("none")))
+    do_first_par_indent = 0;
+  else
+    return -1;
+  return 0;
+}
+
+static void
+cm_firstparagraphindent ()
+{
+  char *arg;
+
+  get_rest_of_line (1, &arg);
+  if (set_firstparagraphindent (arg) != 0)
     line_error (_("Bad argument to %c%s"), COMMAND_PREFIX, command);
 
   free (arg);

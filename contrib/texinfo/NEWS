@@ -1,7 +1,7 @@
-$Id: NEWS,v 1.34 2003/02/05 00:54:07 karl Exp $
+$Id: NEWS,v 1.57 2003/06/10 20:50:03 karl Exp $
 This file records noteworthy changes.
 
-  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+  Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2003,
   2001, 2002, 2003 Free Software Foundation, Inc.
 
   Copying and distribution of this file, with or without modification,
@@ -22,6 +22,45 @@ convenience, here's a url to one of the relevant sections:
 
 -------------------------------------------------------------------------------
 
+4.6 (10 June 2003)
+* Language:
+  . new command @/ specifies an allowable breakpoint within a line.
+  . new command @dofirstparagraphindent to control whether the first
+    paragraph following a section heading is indented.  Default is to
+    omit this indentation, unlike the output up to now.
+  . new command @indent for explicitly indenting a paragraph.
+  . makeinfo writes a new construct for @image in Info output, so that
+    graphical Info browsers (such as Emacs Info under X) can display an
+    actual image.  (Standalone Info ignores this, since it runs in a tty.)
+* makeinfo:
+  . Common:
+    - search for image files in the include file search path.
+    - warns if @value is used on an undefined variable.
+  . Info output:
+    - default --split-size now 300,000 bytes, up from 50,000.
+    - with --enable-encoding and a given @documentencoding,
+      output a Local Variables section specifying that encoding, for use
+      with Emacs.
+  . HTML output:
+    - uses <h3> at the smallest.
+    - a few css <style> definitions are included to better
+      implement @format, @display, @small..., etc.
+    - new option --css-include=FILE includes FILE in the <style>.
+    - @cartouche now outputs a <table> with a border.
+* texinfo.tex:
+  . new Polish translation txi-pl.tex.
+* texi2dvi:
+  . --command=CMD replaces --texinfo=CMD; it inserts CMD at the first
+    line of LaTeX files now, or after the @setfilename for Texinfo files.
+* info:
+  . RET now goes to the nearest xref (rather like Emacs Info),
+    instead of the next xref starting on the current line.
+* Distribution:
+  . new Romanian (ro) translation.
+  . variables now declared const where appropriate.
+  . gettext 0.12.1, automake 1.7.5.
+
+
 4.5 (4 February 2003)
 * info:
   . a bug in 4.4 prevented compressed info files from being found.
@@ -38,6 +77,7 @@ convenience, here's a url to one of the relevant sections:
   . @value constructs are now expanded in the filename arguments to
     @include and @verbatiminclude.
 * makeinfo:
+  . @macro names may no longer include ^ or _, for the sake of math mode.
   . bug fix: @copying text is now reflected in tag table positions;
     before, nodes may not have been found with a long-enough @copying.
   . bug fix: html @verb arg is quoted properly, and does not imply
@@ -61,7 +101,7 @@ convenience, here's a url to one of the relevant sections:
   . getopt and other common library files updated from gnulib
     (http://savannah.gnu.org/projects/gnulib/).
   . autoconf 2.57, automake 1.7.2.
-  
+
 
 4.3 (14 November 2002)
 * Language:
@@ -122,11 +162,13 @@ convenience, here's a url to one of the relevant sections:
   . supports xml and docbook output.
   . supports HTML splitting by node, which is now the default.
   . new option --split-size to control maximum size of split info files.
+  . new option --enable-encoding to enable
 * info:
   . user-specified key bindings supported.
   . ANSI escape sequences (as produced by groff) removed from man output
     by default; use --raw-escapes to let them through if your terminal
     supports them.
+  . RET terminates incremental search normally.
 * texinfo.tex:
   . @math implies @tex, so all the usual plain TeX math is supported.
   . smaller fonts for @smallexample, in all page sizes.

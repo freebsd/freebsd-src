@@ -1,7 +1,7 @@
 /* xexit.c -- exit with attention to return values and closing stdout.
-   $Id: xexit.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: xexit.c,v 1.4 2003/05/19 13:10:59 karl Exp $
 
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,26 +41,28 @@
 #endif /* not EXIT_SUCCESS */
 
 
-/* Flush stdout first, exit if failure.  Otherwise, if EXIT_STATUS is
-   zero, exit successfully, else unsuccessfully.  */
-	
+/* Flush stdout first, exit if failure (therefore, xexit should be
+   called to exit every program, not just `return' from main).
+   Otherwise, if EXIT_STATUS is zero, exit successfully, else
+   unsuccessfully.  */
+
 void
 xexit (exit_status)
      int exit_status;
 {
   if (ferror (stdout))
     {
-      fprintf (stderr, "ferror on stdout");
+      fputs (_("ferror on stdout\n"), stderr);
       exit_status = 1;
     }
   else if (fflush (stdout) != 0)
     {
-      fprintf (stderr, "fflush error on stdout");
+      fputs (_("fflush error on stdout\n"), stderr);
       exit_status = 1;
     }
-  
+
   exit_status = exit_status == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
-  
+
   exit (exit_status);
 }
 
