@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: strxfrm.c,v 1.8 1997/02/22 15:03:31 peter Exp $
  */
 
 #include <stdlib.h>
@@ -60,8 +60,8 @@ strxfrm(dest, src, len)
 		return len - 1;
 	}
 
-	ss = s = __collate_substitute(src);
 	prim = sec = 0;
+	ss = s = __collate_substitute(src);
 	while (*s && len > 1) {
 		while (*s && !prim) {
 			__collate_lookup(s, &l, &prim, &sec);
@@ -70,23 +70,11 @@ strxfrm(dest, src, len)
 		if (prim) {
 			*d++ = (char)prim;
 			len--;
+			prim = 0;
 		}
 	}
-#if 0
-	s = ss;
-	while (*s && len > 1) {
-		while (*s && !prim) {
-			lookup(s, &l, &prim, &sec);
-			s += l;
-		}
-		if (prim && sec) {
-			*d++ = (char)sec;
-			len--;
-		}
-	}
-#endif /* 0 */
-	*d = '\0';
 	free(ss);
+	*d = '\0';
 
 	return d - dest;
 }
