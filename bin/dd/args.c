@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: args.c,v 1.3.8.1 1996/11/21 16:30:28 phk Exp $
+ *	$Id: args.c,v 1.3.8.2 1997/08/24 21:45:26 jkh Exp $
  */
 
 #ifndef lint
@@ -101,6 +101,8 @@ jcl(argv)
 	in.dbsz = out.dbsz = 512;
 
 	while ((oper = *++argv) != NULL) {
+		if ((oper = strdup(oper)) == NULL)
+			errx(1, "unable to allocate space for the argument \"%s\"", *argv);
 		if ((arg = strchr(oper, '=')) == NULL)
 			errx(1, "unknown operand %s", oper);
 		*arg++ = '\0';
@@ -282,6 +284,7 @@ static struct conv {
 	{ "oldebcdic",	C_EBCDIC,	C_ASCII,	a2e_32V },
 	{ "oldibm",	C_EBCDIC,	C_ASCII,	a2ibm_32V },
 	{ "osync",	C_OSYNC,	C_BS,		NULL },
+	{ "sparse",	C_SPARSE,	0,		NULL },
 	{ "swab",	C_SWAB,		0,		NULL },
 	{ "sync",	C_SYNC,		0,		NULL },
 	{ "ucase",	C_UCASE,	C_LCASE,	NULL },
