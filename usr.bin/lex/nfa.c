@@ -26,7 +26,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/* $Header: /home/daffy/u0/vern/flex/flex-2.4.7/RCS/nfa.c,v 1.2 94/08/03 11:13:29 vern Exp $ */
+/* $Header: /home/daffy/u0/vern/flex/RCS/nfa.c,v 2.17 95/03/04 16:11:42 vern Exp $ */
 
 #include "flexdef.h"
 
@@ -97,7 +97,7 @@ int state1;
 	int sym, tsp1, tsp2, anum, ns;
 
 	fprintf( stderr,
-		"\n\n********** beginning dump of nfa with start state %d\n",
+	_( "\n\n********** beginning dump of nfa with start state %d\n" ),
 		state1 );
 
 	/* We probably should loop starting at firstst[state1] and going to
@@ -109,7 +109,7 @@ int state1;
 	/* for ( ns = firstst[state1]; ns <= lastst[state1]; ++ns ) */
 	for ( ns = 1; ns <= lastnfa; ++ns )
 		{
-		fprintf( stderr, "state # %4d\t", ns );
+		fprintf( stderr, _( "state # %4d\t" ), ns );
 
 		sym = transchar[ns];
 		tsp1 = trans1[ns];
@@ -124,7 +124,7 @@ int state1;
 		fprintf( stderr, "\n" );
 		}
 
-	fprintf( stderr, "********** end of dump\n" );
+	fprintf( stderr, _( "********** end of dump\n" ) );
 	}
 
 
@@ -170,7 +170,7 @@ int mach;
 		}
 
 	if ( state == 0 )
-		flexfatal( "empty machine in dupmachine()" );
+		flexfatal( _( "empty machine in dupmachine()" ) );
 
 	state_offset = state - i + 1;
 
@@ -222,7 +222,7 @@ int mach, variable_trail_rule, headcnt, trailcnt;
 
 		if ( performance_report > 0 )
 			fprintf( stderr,
-				"Variable trailing context rule at line %d\n",
+			_( "Variable trailing context rule at line %d\n" ),
 				rule_linenum[num_rules] );
 
 		variable_trailing_context_rules = true;
@@ -265,12 +265,12 @@ int mach, variable_trail_rule, headcnt, trailcnt;
 	/* Okay, in the action code at this point yytext and yyleng have
 	 * their proper final values for this rule, so here's the point
 	 * to do any user action.  But don't do it for continued actions,
-	 * as that'll result in multiple YY_USER_ACTION's.
+	 * as that'll result in multiple YY_RULE_SETUP's.
 	 */
 	if ( ! continued_action )
-		add_action( "YY_USER_ACTION\n" );
+		add_action( "YY_RULE_SETUP\n" );
 
-	line_directive_out( (FILE *) 0 );
+	line_directive_out( (FILE *) 0, 1 );
 	}
 
 
@@ -344,7 +344,7 @@ register int mach;
 
 		default:
 			flexerror(
-				"bad state type in mark_beginning_as_normal()" );
+			_( "bad state type in mark_beginning_as_normal()" ) );
 			break;
 		}
 	}
@@ -597,7 +597,7 @@ int sym;
 		{
 		if ( (current_mns += MNS_INCREMENT) >= MAXIMUM_MNS )
 			lerrif(
-			"input rules are too complicated (>= %d NFA states)",
+		_( "input rules are too complicated (>= %d NFA states)" ),
 				current_mns );
 
 		++num_reallocs;
@@ -676,7 +676,7 @@ int statefrom, stateto;
 
 	else if ( (transchar[statefrom] != SYM_EPSILON) ||
 		  (trans2[statefrom] != NO_TRANSITION) )
-		flexfatal( "found too many transitions in mkxtion()" );
+		flexfatal( _( "found too many transitions in mkxtion()" ) );
 
 	else
 		{ /* second out-transition for an epsilon state */
@@ -702,7 +702,7 @@ void new_rule()
 		}
 
 	if ( num_rules > MAX_RULE )
-		lerrif( "too many rules (> %d)!", MAX_RULE );
+		lerrif( _( "too many rules (> %d)!" ), MAX_RULE );
 
 	rule_linenum[num_rules] = linenum;
 	rule_useful[num_rules] = false;
