@@ -113,8 +113,7 @@ main(int argc, char **argv)
 	if (argc > start_arg)
 	    systemShutdown(0);
     }
-
-    {
+    else {
 	FILE *fp;
 	char buf[BUFSIZ];
 
