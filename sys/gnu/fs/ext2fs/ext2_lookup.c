@@ -474,7 +474,6 @@ searchloop:
 				 */
 				dp->i_ino = ep->inode;
 				dp->i_reclen = ep->rec_len;
-				brelse(bp);
 				goto found;
 			}
 		}
@@ -569,6 +568,7 @@ found:
 		dp->i_size = entryoffsetinblock+EXT2_DIR_REC_LEN(ep->name_len);
 		dp->i_flag |= IN_CHANGE | IN_UPDATE;
 	}
+	brelse(bp);
 
 	/*
 	 * Found component in pathname.
