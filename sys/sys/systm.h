@@ -188,7 +188,7 @@ int	suser __P((struct proc *));
 int	suser_td __P((struct thread *));
 int	suser_xxx __P((struct ucred *cred, struct proc *proc, int flag));
 int	suser_xxx_td __P((struct ucred *cred, struct thread *thread, int flag));
-int	u_cansee __P((struct ucred *u1, struct ucred *u2));
+int	cr_cansee __P((struct ucred *u1, struct ucred *u2));
 
 char	*getenv __P((const char *name));
 int	getenv_int __P((const char *name, int *data));
