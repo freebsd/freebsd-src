@@ -32,7 +32,8 @@ SRCS+=	acl_calc_mask.c			\
 	cap_set_file.c			\
 	cap_set_flag.c			\
 	cap_set_proc.c			\
-	cap_text.c
+	cap_text.c			\
+	extattr.c
 
 .if ${LIB} == "c"
 
@@ -74,6 +75,7 @@ MAN+=	acl.3				\
 	cap_set_flag.3			\
 	cap_set_proc.3			\
 	cap_to_text.3			\
+	extattr.3			\
 	posix1e.3
 
 MLINKS+=acl_delete.3 acl_delete_def_file.3	\
@@ -87,6 +89,8 @@ MLINKS+=acl_delete.3 acl_delete_def_file.3	\
 	acl_set.3 acl_set_fd_np.3		\
 	acl_valid.3 acl_valid_file_np.3		\
 	acl_valid.3 acl_valid_fd_np.3		\
-	cap_copy_ext.3 cap_size.3
+	cap_copy_ext.3 cap_size.3		\
+	extattr.3 extattr_namespace_to_string.3	\
+	extattr.3 extattr_string_to_namespace.3
 
 .endif
