@@ -871,8 +871,10 @@ channel_handle_rfd(Channel *c, fd_set * readset, fd_set * writeset)
 		len = read(c->rfd, buf, sizeof(buf));
 		if (len < 0 && (errno == EINTR || errno == EAGAIN))
 			return 1;
-		if (len <= 0) {
-			debug("channel %d: read<=0 rfd %d len %d",
+		if (len == 0)
+			return 1;
+		if (len < 0) {
+			debug("channel %d: read<0 rfd %d len %d",
 			    c->self, c->rfd, len);
 			if (c->type != SSH_CHANNEL_OPEN) {
 				debug("channel %d: not open", c->self);
