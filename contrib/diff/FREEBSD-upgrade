@@ -1,3 +1,4 @@
+# $FreeBSD$
 Import of GNU diff 2.7
 
 Original source available as ftp://prep.ai.mit.edu/pub/gnu/diffutils-2.7.tar.gz
@@ -22,3 +23,4 @@ regex.c
 regex.h
 texinfo.tex
 waitpid.c
+getopt*
