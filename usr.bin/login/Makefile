@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id: Makefile,v 1.17 1997/09/05 12:00:01 peter Exp $
+# $Id$
 
 PROG=	login
 MAN1=	login.1
@@ -9,22 +9,16 @@ SRCS=	login.c login_access.c login_fbtab.c
 #Uncomment to activate login_auth
 #Warning: requires src/libexec/login_* auth modules
 #LC_AUTH=-DLOGIN_CAP_AUTH
-CFLAGS+=-DSKEY -DLOGIN_ACCESS -DLOGALL -DLOGIN_CAP $(LC_AUTH)
+CFLAGS+=-Wall -DSKEY -DLOGIN_ACCESS -DLOGALL -DLOGIN_CAP $(LC_AUTH)
 
 .if defined(KLOGIN_PARANOID)
 CFLAGS+=-DKLOGIN_PARANOID
 .endif
 
-DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBCRYPT}
-LDADD=	-lutil -lskey -lcrypt
+DPADD=	${LIBUTIL} ${LIBSKEY} ${LIBMD} ${LIBCRYPT}
+LDADD=	-lutil -lskey -lmd -lcrypt
 
-# have to provide libmd.a for libskey.so to use.
-.if ${BINFORMAT} != elf
-DPADD+=	${LIBMD}
-LDADD+=	-lmd
-.endif
-
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES) && !defined(LC_AUTH)
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4) && !defined(LC_AUTH)
 CFLAGS+=-DKERBEROS
 SRCS+=	klogin.c
 DPADD+=	${LIBKRB} ${LIBDES}
