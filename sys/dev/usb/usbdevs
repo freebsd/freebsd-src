@@ -103,6 +103,7 @@ vendor CYPRESS		0x04b4	Cypress Semiconductor
 vendor EPSON		0x04b8	Seiko Epson Corp.
 vendor RAINBOW		0x04b9	Rainbow Technologies
 vendor IODATA		0x04bb	I/O Data
+vendor TDK		0x04bf	TDK Corp.
 vendor 3COMUSR		0x04c1	U.S. Robotics
 vendor METHODE		0x04c2	Methode Electronics Far East PTE Ltd.
 vendor MAXISWITCH	0x04c3	Maxi Switch, Inc.
@@ -851,7 +852,13 @@ product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
 product DIAMOND2 SUPRA2890	0x0b4a	SupraMax 2890 56K Modem
 product DIAMOND2 RIO600USB	0x5001	Rio 600 USB
 product DIAMOND2 RIO800USB	0x5002	Rio 800 USB
- 
+
+/* TDK products */
+product TDK UPA9664		0x0115  TDK USB-PDC Adapter UPA9664
+product TDK UCA1464		0x0116  TDK USB-cdmaOne Adapter UCA1464
+product TDK UHA6400		0x0117  TDK USB-PHS Adapter UHA6400
+product TDK UPA6400		0x0118  TDK USB-PHS Adapter UPA6400
+
 /* TEAC products */
 product TEAC FD05PUB		0x0000	FD-05PUB floppy
 
