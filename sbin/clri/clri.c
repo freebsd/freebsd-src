@@ -84,29 +84,20 @@ main(argc, argv)
 		err(1, "%s", fs);
 	if (lseek(fd, (off_t)(SBLOCK * DEV_BSIZE), SEEK_SET) < 0)
 		err(1, "%s", fs);
-	if (read(fd, sblock, sizeof(sblock)) != sizeof(sblock)) {
-		(void)fprintf(stderr,
-		    "clri: %s: can't read the superblock.\n", fs);
-		exit(1);
-	}
+	if (read(fd, sblock, sizeof(sblock)) != sizeof(sblock))
+		errx(1, "%s: can't read superblock", fs);
 
 	sbp = (struct fs *)sblock;
-	if (sbp->fs_magic != FS_MAGIC) {
-		(void)fprintf(stderr,
-		    "clri: %s: superblock magic number 0x%x, not 0x%x.\n",
+	if (sbp->fs_magic != FS_MAGIC)
+		errx(1, "%s: superblock magic number 0x%x, not 0x%x.",
 		    fs, sbp->fs_magic, FS_MAGIC);
-		exit(1);
-	}
 	bsize = sbp->fs_bsize;
 
 	/* remaining arguments are inode numbers. */
 	while (*++argv) {
 		/* get the inode number. */
-		if ((inonum = atoi(*argv)) <= 0) {
-			(void)fprintf(stderr,
-			    "clri: %s is not a valid inode number.\n", *argv);
-			exit(1);
-		}
+		if ((inonum = atoi(*argv)) <= 0)
+			errx(1, "%s is not a valid inode number.", *argv);
 		(void)printf("clearing %d\n", inonum);
 
 		/* read in the appropriate block. */
