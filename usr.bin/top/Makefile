@@ -6,6 +6,8 @@ TOPDIR=	${.CURDIR}/../../contrib/top
 
 CFLAGS+= -DHAVE_GETOPT -I${.CURDIR} -I${TOPDIR} -I. -DORDER
 
+WARNS?=	0
+
 #
 # The table size should be a prime number approximately twice as
 # large as the number of lines in /etc/passwd.  The default number
