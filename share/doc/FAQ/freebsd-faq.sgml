@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.21 1995/11/20 22:51:01 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.22 1995/11/24 07:55:14 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -151,7 +151,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           The FreeBSD-commit list has been broken up into groups dealing
           with different areas of interest.  Please see the FreeBSD mailing
           list FAQ in:
-          <url url="http://www.freebsd.org/How/handbook/handbook212.html#eresources:mail" name="Handbook s section on mailing-lists">
+          <url url="http://www.freebsd.org/How/handbook/eresources:mail.html" name="Handbook s section on mailing-lists">
         <p>
           Example:
         <p>
@@ -1063,6 +1063,33 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           details on the care and feeding of the package software, so no
           explicit details will be given here.
 
+      <sect1>
+        <heading>I'm trying to get a SCO/iBCS2 application to run, it keeps bombing about <tt/socksys/. How do I set this up ?</heading>
+
+        <p>
+          You first need to edit the <tt>/etc/sysconfig</tt> in the last
+          section to change the following variable to <tt/YES/:
+          <code>
+            # Set to YES if you want ibcs2 (SCO) emulation loaded at startup
+            ibcs2=NO
+          </code>
+          It will load the <tt/ibcs2/ kernel module at startup.
+
+          You'll then need to set up /compat/ibcs2/dev to look like:
+
+          <code>
+lrwxr-xr-x  1 root  wheel         9 Oct 15 22:20 X0R@ -> /dev/null
+lrwxr-xr-x  1 root  wheel         7 Oct 15 22:20 nfsd@ -> socksys
+-rw-rw-r--  1 root  wheel         0 Oct 28 12:02 null
+lrwxr-xr-x  1 root  wheel         9 Oct 15 22:20 socksys@ -> /dev/null
+crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
+          </code>
+          You just need socksys to go to <tt>/dev/null</tt> to fake the
+          open &amp; close. The code in -current will handle the rest.
+          This is much cleaner than the way it was done before.  If you
+          want the <tt/spx/ driver for a local socket X connection, define
+          <tt/SPX&lowbar;HACK/ when you compile the system.
+
     <sect>
       <heading>Miscellaneous Questions</heading>
       <p>
@@ -1250,7 +1277,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 
         <p>
           Read this:
-          <url url="http://www.freebsd.org/How/handbook/handbook175.html"
+          <url url="http://www.freebsd.org/How/handbook/current.html"
             name="Handook's section of FreeBSD-CURRENT">
           it will tell you all you need to know.
           
@@ -1276,7 +1303,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
             name="The SUP package">
 
           Second, read the <url
-            url="http://www.freebsd.org/How/handbook/handbook188.html#333"
+            url="http://www.freebsd.org/How/handbook/sup.html"
             name="Handbook's section on SUP">
 
           This file describes how to setup sup on your machine.  You may
@@ -1366,7 +1393,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           Yes, you can use the <tt/CTM/ facility.  Check out the
 
             <url
-            url="http://www.freebsd.org/How/handbook/handbook/handbook180.html#325" name="Handbook's section on for CTM">
+            url="http://www.freebsd.org/How/handbook/handbook/ctm.html" name="Handbook's section on for CTM">
           for more information.
 
       <sect1>
@@ -1395,7 +1422,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
         <p>
           Please take a look at the FAQ for submiting code to FreeBSD at:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook/handbook199.html#344"
+          <url url="http://www.FreeBSD.ORG/How/handbook/submitters.html"
             name="Handbbook's section on how to submit code">.
 
           And thanks for the thought.
@@ -1471,6 +1498,14 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
           helpful in configuring the new one.
 
       <sect1>
+        <heading>I don't understand, I have removed <tt/npx0/ from my kernel configuration file as I don't have a mathematic coprocessor but it keeps bombing saying that <tt/&lowbar;hw&lowbar;float/ is missing.</heading>
+
+        <p>
+          The <tt/npx0/ is <bf/MANDATORY/. Even if you don't have a
+          mathematic coprocessor, you <bf/must/ include the <tt/npx0/
+          device.
+
+      <sect1>
 	<heading>When I compile a kernel with multi-port serial code, it tells me that only the first port is probed and the rest skipped due to interrupt conflicts.  How do I fix this?</heading>
 
         <p>
@@ -1542,6 +1577,28 @@ disk        fd1   at fdc0 drive 1
           Recompile and install.
 
       <sect1>
+
+      <sect1>
+        <heading>I have 128 MB of RAM but it seems that the system use only the first 64 MB. What's going on ?</heading>
+
+        <p>
+          Due to the manner in which FreeBSD gets the memory size from the
+          BIOS, it can only detect 16 bits worth of Kbytes in size (65535
+          Kbytes = 64MB). If you have more than 64MB, FreeBSD will only see
+          the first 64MB. To work around this problem, you need to use the
+          kernel option specified below. There is a way to get complete
+          memory information from the BIOS, but we don't have room in the
+          bootblocks to do it. Someday when lack of room in the bootblocks
+          is fixed, we'll use the extended BIOS functions to get the full
+          memory information...but for now we're stuck with the kernel
+          option.
+
+          <code>
+            options "MAXMEM=<n>"
+          </code>
+          Where <tt/n/ is your memory in Kilobytes. For a 128 MB machine,
+          you'd want to use <tt/131072/
+
 	<heading>Will FreeBSD ever support other architectures?</heading>
 
         <p>
@@ -1631,7 +1688,7 @@ disk        fd1   at fdc0 drive 1
           Please have a look at the section of the Handbook on printing. It
           should cover most of your problem. See
           <url
-            url="http://www.freebsd.org/How/handbook/handbook85.html#132"
+            url="http://www.freebsd.org/How/handbook/printing.html"
             name="Handbook's section on printing">
       </sect1>
 
@@ -1748,10 +1805,16 @@ disk        fd1   at fdc0 drive 1
 
           You can also have a look at the SLIP/PPP/Use PPP sections of the
           handbook in <tt>/usr/share/doc/handbook</tt> or use the following
-          link:
+          links:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook/handbook136.html#272"
-            name="Handbook's section on SLIP and PPP">
+          <url url="http://www.FreeBSD.ORG/How/handbook/slips.html"
+            name="Handbook's section on SLIP (server side)">
+          <url url="http://www.FreeBSD.ORG/How/handbook/slipc.html"
+            name="Handbook's section on SLIP (client side)">
+          <url url="http://www.FreeBSD.ORG/How/handbook/ppp.html"
+            name="Handbook's section on PPP (kernel version)">
+          <url url="http://www.FreeBSD.ORG/How/handbook/userppp.html"
+            name="Handbook's section on SLIP (user-mode version)">
 
       <sect1>
 	<heading>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!</heading>
@@ -1795,7 +1858,7 @@ disk        fd1   at fdc0 drive 1
 
           See 
 	  <url
-            url="http://www.freebsd.org/How/handbook/handbook167.html#312"
+            url="http://www.freebsd.org/How/handbook/nfs.html"
             name="Handbook's section NFS">
 
           for more information on
@@ -1859,6 +1922,30 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 </verb>
 
       </sect1>
+      <sect1>
+        <heading>The 2.1.0R release notes speaks of network card based on the DEC PCI chipset, what are they ?</heading>
+
+        <p>
+          Here is a list compiled by Glen Foster
+          <tt/&lt;gfoster@driver.nsta.org&gt;/:
+<code>
+Vendor          Model
+- --------------------------------------------------------
+ASUS            PCI-L101-TB
+Accton          ENI1203
+Cogent          EM960PCI
+Compex          ENET32-PCI
+D-Link          DE-530
+DEC             DE435
+Danpex          EN-9400P3
+JCIS            Condor JC1260
+Linksys         EtherPCI
+Mylex           LNP101
+SMC             EtherPower 10/100 (Model 9332)
+SMC             EtherPower (Model 8432)
+TopWare         TE-3500P
+Zynx            ZX342
+</code>
 
     <sect>
       <heading>Serial Communications</heading>
