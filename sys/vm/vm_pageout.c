@@ -219,7 +219,7 @@ vm_pageout_clean(m)
 	register vm_object_t object;
 	vm_page_t mc[2*vm_pageout_page_count];
 	int pageout_count;
-	int i, forward_okay, backward_okay, page_base;
+	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
 
 	object = m->object;
@@ -243,11 +243,9 @@ vm_pageout_clean(m)
 	mc[vm_pageout_page_count] = m;
 	pageout_count = 1;
 	page_base = vm_pageout_page_count;
-	forward_okay = TRUE;
-	if (pindex != 0)
-		backward_okay = TRUE;
-	else
-		backward_okay = FALSE;
+	ib = 1;
+	is = 1;
+
 	/*
 	 * Scan object for clusterable pages.
 	 *
@@ -258,80 +256,82 @@ vm_pageout_clean(m)
 	 *    active page.
 	 * -or-
 	 * 2) we force the issue.
+	 *
+	 * During heavy mmap/modification loads the pageout
+	 * daemon can really fragment the underlying file
+	 * due to flushing pages out of order and not trying
+	 * align the clusters (which leave sporatic out-of-order
+	 * holes).  To solve this problem we do the reverse scan
+	 * first and attempt to align our cluster, then do a 
+	 * forward scan if room remains.
 	 */
-	for (i = 1; (i < vm_pageout_page_count) && (forward_okay || backward_okay); i++) {
+
+more:
+	while (ib && pageout_count < vm_pageout_page_count) {
 		vm_page_t p;
 
-		/*
-		 * See if forward page is clusterable.
-		 */
-		if (forward_okay) {
-			/*
-			 * Stop forward scan at end of object.
-			 */
-			if ((pindex + i) > object->size) {
-				forward_okay = FALSE;
-				goto do_backward;
-			}
-			p = vm_page_lookup(object, pindex + i);
-			if (p) {
-				if (((p->queue - p->pc) == PQ_CACHE) ||
-					(p->flags & PG_BUSY) || p->busy) {
-					forward_okay = FALSE;
-					goto do_backward;
-				}
-				vm_page_test_dirty(p);
-				if ((p->dirty & p->valid) != 0 &&
-				    (p->queue == PQ_INACTIVE) &&
-				    (p->wire_count == 0) &&
-				    (p->hold_count == 0)) {
-					mc[vm_pageout_page_count + i] = p;
-					pageout_count++;
-					if (pageout_count == vm_pageout_page_count)
-						break;
-				} else {
-					forward_okay = FALSE;
-				}
-			} else {
-				forward_okay = FALSE;
-			}
+		if (ib > pindex) {
+			ib = 0;
+			break;
 		}
-do_backward:
-		/*
-		 * See if backward page is clusterable.
-		 */
-		if (backward_okay) {
-			/*
-			 * Stop backward scan at beginning of object.
-			 */
-			if ((pindex - i) == 0) {
-				backward_okay = FALSE;
-			}
-			p = vm_page_lookup(object, pindex - i);
-			if (p) {
-				if (((p->queue - p->pc) == PQ_CACHE) ||
-					(p->flags & PG_BUSY) || p->busy) {
-					backward_okay = FALSE;
-					continue;
-				}
-				vm_page_test_dirty(p);
-				if ((p->dirty & p->valid) != 0 &&
-				    (p->queue == PQ_INACTIVE) &&
-				    (p->wire_count == 0) &&
-				    (p->hold_count == 0)) {
-					mc[vm_pageout_page_count - i] = p;
-					pageout_count++;
-					page_base--;
-					if (pageout_count == vm_pageout_page_count)
-						break;
-				} else {
-					backward_okay = FALSE;
-				}
-			} else {
-				backward_okay = FALSE;
-			}
+
+		if ((p = vm_page_lookup(object, pindex - ib)) == NULL) {
+			ib = 0;
+			break;
 		}
+		if (((p->queue - p->pc) == PQ_CACHE) ||
+		    (p->flags & PG_BUSY) || p->busy) {
+			ib = 0;
+			break;
+		}
+		vm_page_test_dirty(p);
+		if ((p->dirty & p->valid) == 0 ||
+		    p->queue != PQ_INACTIVE ||
+		    p->wire_count != 0 ||
+		    p->hold_count != 0) {
+			ib = 0;
+			break;
+		}
+		mc[--page_base] = p;
+		++pageout_count;
+		++ib;
+		/*
+		 * alignment boundry, stop here and switch directions.  Do
+		 * not clear ib.
+		 */
+		if ((pindex - (ib - 1)) % vm_pageout_page_count == 0)
+			break;
 	}
+
+	while (pageout_count < vm_pageout_page_count && 
+	    pindex + is < object->size) {
+		vm_page_t p;
+
+		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
+			break;
+		if (((p->queue - p->pc) == PQ_CACHE) ||
+		    (p->flags & PG_BUSY) || p->busy) {
+			break;
+		}
+		vm_page_test_dirty(p);
+		if ((p->dirty & p->valid) == 0 ||
+		    p->queue != PQ_INACTIVE ||
+		    p->wire_count != 0 ||
+		    p->hold_count != 0) {
+			break;
+		}
+		mc[page_base + pageout_count] = p;
+		++pageout_count;
+		++is;
+	}
+
+	/*
+	 * If we exhausted our forward scan, continue with the reverse scan
+	 * when possible, even past a page boundry.  This catches boundry
+	 * conditions.
+	 */
+	if (ib && pageout_count < vm_pageout_page_count)
+		goto more;
 
 	/*
 	 * we allow reads during pageouts...
@@ -397,7 +397,7 @@ vm_pageout_flush(mc, count, flags)
 			 * worked.
 			 */
 			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
-			mt->dirty = 0;
+			vm_page_undirty(mt);
 			break;
 		case VM_PAGER_ERROR:
 		case VM_PAGER_FAIL:
@@ -646,9 +646,7 @@ vm_pageout_scan()
 	 * to the cache.
 	 */
 
-	page_shortage = (cnt.v_free_target + cnt.v_cache_min) -
-	    (cnt.v_free_count + cnt.v_cache_count);
-	page_shortage += addl_page_shortage_init;
+	page_shortage = vm_paging_target() + addl_page_shortage_init;
 
 	/*
 	 * Figure out what to do with dirty pages when they are encountered.
@@ -787,7 +785,7 @@ rescan0:
 			} else {
 				swap_pageouts_ok = !(defer_swap_pageouts || disable_swap_pageouts);
 				swap_pageouts_ok |= (!disable_swap_pageouts && defer_swap_pageouts &&
-					(cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min);
+				vm_page_count_min());
 										
 			}
 
@@ -1082,15 +1080,11 @@ rescan0:
 	 * in a writeable object, wakeup the sync daemon.  And kick swapout
 	 * if we did not get enough free pages.
 	 */
-	if ((cnt.v_cache_count + cnt.v_free_count) <
-		(cnt.v_free_target + cnt.v_cache_min) ) {
-		if (vnodes_skipped &&
-		    (cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_min) {
+	if (vm_paging_target() > 0) {
+		if (vnodes_skipped && vm_page_count_min())
 			(void) speedup_syncer();
-		}
 #if !defined(NO_SWAPPING)
-		if (vm_swap_enabled &&
-			(cnt.v_free_count + cnt.v_cache_count < cnt.v_free_target)) {
+		if (vm_swap_enabled && vm_page_count_target()) {
 			vm_req_vmdaemon();
 			vm_pageout_req_swapout |= VM_SWAP_NORMAL;
 		}
@@ -1101,8 +1095,7 @@ rescan0:
 	 * make sure that we have swap space -- if we are low on memory and
 	 * swap -- then kill the biggest process.
 	 */
-	if ((vm_swap_size == 0 || swap_pager_full) &&
-	    ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min)) {
+	if ((vm_swap_size == 0 || swap_pager_full) && vm_page_count_min()) {
 		bigproc = NULL;
 		bigsize = 0;
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
@@ -1160,8 +1153,10 @@ vm_pageout_page_stats()
 	static int fullintervalcount = 0;
 	int page_shortage;
 
-	page_shortage = (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
+	page_shortage = 
+	    (cnt.v_inactive_target + cnt.v_cache_max + cnt.v_free_min) -
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
+
 	if (page_shortage <= 0)
 		return;
 
@@ -1253,7 +1248,9 @@ vm_size_t count;
 		cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
 		cnt.v_pageout_free_min + (count / 768) + PQ_L2_SIZE;
+	cnt.v_free_severe = cnt.v_free_min / 2;
 	cnt.v_free_min += cnt.v_free_reserved;
+	cnt.v_free_severe += cnt.v_free_reserved;
 	return 1;
 }
 
@@ -1326,8 +1323,17 @@ vm_pageout()
 	while (TRUE) {
 		int error;
 		int s = splvm();
-		if (!vm_pages_needed ||
-			((cnt.v_free_count + cnt.v_cache_count) > cnt.v_free_min)) {
+
+		if (vm_pages_needed && vm_page_count_min()) {
+			/*
+			 * Still not done, sleep a bit and go again
+			 */
+			vm_pages_needed = 0;
+			tsleep(&vm_pages_needed, PVM, "psleep", hz/2);
+		} else {
+			/*
+			 * Good enough, sleep & handle stats
+			 */
 			vm_pages_needed = 0;
 			error = tsleep(&vm_pages_needed,
 				PVM, "psleep", vm_pageout_stats_interval * hz);
@@ -1336,9 +1342,6 @@ vm_pageout()
 				vm_pageout_page_stats();
 				continue;
 			}
-		} else if (vm_pages_needed) {
-			vm_pages_needed = 0;
-			tsleep(&vm_pages_needed, PVM, "psleep", hz/2);
 		}
 
 		if (vm_pages_needed)

@@ -615,8 +615,7 @@ vm_page_unqueue(m)
 		(*pq->cnt)--;
 		pq->lcnt--;
 		if ((queue - m->pc) == PQ_CACHE) {
-			if ((cnt.v_cache_count + cnt.v_free_count) <
-				(cnt.v_free_reserved + cnt.v_cache_min))
+			if (vm_paging_needed())
 				pagedaemon_wakeup();
 		}
 	}
@@ -871,9 +870,7 @@ loop:
 	 * Don't wakeup too often - wakeup the pageout daemon when
 	 * we would be nearly out of memory.
 	 */
-	if (((cnt.v_free_count + cnt.v_cache_count) <
-		(cnt.v_free_reserved + cnt.v_cache_min)) ||
-			(cnt.v_free_count < cnt.v_pageout_free_min))
+	if (vm_paging_needed() || cnt.v_free_count < cnt.v_pageout_free_min)
 		pagedaemon_wakeup();
 
 	splx(s);
@@ -991,6 +988,8 @@ vm_page_asleep(vm_page_t m, char *msg, char *busy) {
  *	vm_page_activate:
  *
  *	Put the specified page on the active list (if appropriate).
+ *	Ensure that act_count is at least ACT_INIT but do not otherwise
+ *	mess with it.
  *
  *	The page queues must be locked.
  *	This routine may not block.
@@ -1050,8 +1049,7 @@ vm_page_free_wakeup()
 	 * high water mark. And wakeup scheduler process if we have
 	 * lots of memory. this process will swapin processes.
 	 */
-	if (vm_pages_needed &&
-		((cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)) {
+	if (vm_pages_needed && vm_page_count_min()) {
 		wakeup(&cnt.v_free_count);
 		vm_pages_needed = 0;
 	}
@@ -1261,11 +1259,14 @@ vm_page_unwire(m, activate)
  * Move the specified page to the inactive queue.  If the page has
  * any associated swap, the swap is deallocated.
  *
+ * Normally athead is 0 resulting in LRU operation.  athead is set
+ * to 1 if we want this page to be 'as if it were placed in the cache',
+ * except without unmapping it from the process address space.
+ *
  * This routine may not block.
  */
-void
-vm_page_deactivate(m)
-	register vm_page_t m;
+static __inline void
+_vm_page_deactivate(vm_page_t m, int athead)
 {
 	int s;
 
@@ -1280,12 +1281,21 @@ vm_page_deactivate(m)
 		if ((m->queue - m->pc) == PQ_CACHE)
 			cnt.v_reactivated++;
 		vm_page_unqueue(m);
-		TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+		if (athead)
+			TAILQ_INSERT_HEAD(&vm_page_queue_inactive, m, pageq);
+		else
+			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 		m->queue = PQ_INACTIVE;
 		vm_page_queues[PQ_INACTIVE].lcnt++;
 		cnt.v_inactive_count++;
 	}
 	splx(s);
+}
+
+void
+vm_page_deactivate(vm_page_t m)
+{
+    _vm_page_deactivate(m, 0);
 }
 
 /*
@@ -1330,6 +1340,70 @@ vm_page_cache(m)
 	cnt.v_cache_count++;
 	vm_page_free_wakeup();
 	splx(s);
+}
+
+/*
+ * vm_page_dontneed
+ *
+ *	Cache, deactivate, or do nothing as appropriate.  This routine
+ *	is typically used by madvise() MADV_DONTNEED.
+ *
+ *	Generally speaking we want to move the page into the cache so
+ *	it gets reused quickly.  However, this can result in a silly syndrome
+ *	due to the page recycling too quickly.  Small objects will not be
+ *	fully cached.  On the otherhand, if we move the page to the inactive
+ *	queue we wind up with a problem whereby very large objects 
+ *	unnecessarily blow away our inactive and cache queues.
+ *
+ *	The solution is to move the pages based on a fixed weighting.  We
+ *	either leave them alone, deactivate them, or move them to the cache,
+ *	where moving them to the cache has the highest weighting.
+ *	By forcing some pages into other queues we eventually force the
+ *	system to balance the queues, potentially recovering other unrelated
+ *	space from active.  The idea is to not force this to happen too
+ *	often.
+ */
+
+void
+vm_page_dontneed(m)
+	vm_page_t m;
+{
+	static int dnweight;
+	int dnw;
+	int head;
+
+	dnw = ++dnweight;
+
+	/*
+	 * occassionally leave the page alone
+	 */
+
+	if ((dnw & 0x01F0) == 0 ||
+	    m->queue == PQ_INACTIVE || 
+	    m->queue - m->pc == PQ_CACHE
+	) {
+		if (m->act_count >= ACT_INIT)
+			--m->act_count;
+		return;
+	}
+
+	if (m->dirty == 0)
+		vm_page_test_dirty(m);
+
+	if (m->dirty || (dnw & 0x0070) == 0) {
+		/*
+		 * Deactivate the page 3 times out of 32.
+		 */
+		head = 0;
+	} else {
+		/*
+		 * Cache the page 28 times out of every 32.  Note that
+		 * the page is deactivated instead of cached, but placed
+		 * at the head of the queue instead of the tail.
+		 */
+		head = 1;
+	}
+	_vm_page_deactivate(m, head);
 }
 
 /*

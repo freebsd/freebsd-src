@@ -209,19 +209,9 @@ vm_fork(p1, p2, flags)
 		p1->p_vmspace->vm_refcnt++;
 	}
 
-	/*
-	 * Great, so we have a memory-heavy process and the 
-	 * entire machine comes to a screaching halt because
-	 * nobody can fork/exec anything.  What we really need
-	 * to do is fix the process swapper so it swaps out the right
-	 * processes.
-	 */
-#if 0
-	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
-		vm_pageout_deficit += (UPAGES + VM_INITIAL_PAGEIN);
+	while (vm_page_count_severe()) {
 		VM_WAIT;
 	}
-#endif
 
 	if ((flags & RFMEM) == 0) {
 		p2->p_vmspace = vmspace_fork(p1->p_vmspace);
@@ -339,8 +329,9 @@ scheduler(dummy)
 	int ppri;
 
 loop:
-	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
+	if (vm_page_count_min()) {
 		VM_WAIT;
+		goto loop;
 	}
 
 	pp = NULL;
