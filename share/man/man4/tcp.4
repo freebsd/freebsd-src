@@ -216,6 +216,11 @@ Maximum TCP receive window.
 .It tcp.log_in_vain
 Log any connection attempts to ports where there is not a socket
 accepting connections.
+The value of 1 limits the logging to SYN (connection establishment)
+packets only.
+That of 2 results in any TCP packets to closed ports being logged.
+Any value unlisted above disables the logging
+(default is 0, i.e., the logging is disabled).
 .It tcp.slowstart_flightsize
 The number of packets allowed to be in-flight during the
 .Tn TCP
