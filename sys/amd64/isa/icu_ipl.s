@@ -55,19 +55,33 @@ _imen:	.long	HWI_MASK
 
 ENTRY(INTREN)
 	movl	4(%esp), %eax
+	movl	%eax, %ecx
 	notl	%eax
 	andl	%eax, imen
 	movl	imen, %eax
+	testb	%cl, %cl
+	je	1f
 	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+1:
+	testb	%ch, %ch
+	je	2f
 	shrl	$8, %eax
 	outb	%al, $(IO_ICU2 + MASK_OFFSET)
+2:
 	ret
 
 ENTRY(INTRDIS)
 	movl	4(%esp), %eax
+	movl	%eax, %ecx
 	orl	%eax, imen
 	movl	imen, %eax
+	testb	%cl, %cl
+	je	1f
 	outb	%al, $(IO_ICU1 + MASK_OFFSET)
+1:
+	testb	%ch, %ch
+	je	2f
 	shrl	$8, %eax
 	outb	%al, $(IO_ICU2 + MASK_OFFSET)
+2:
 	ret
