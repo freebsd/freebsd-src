@@ -136,9 +136,6 @@ gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_trace(G_T_TOPOLOGY, "gv_taste(%s, %s)", mp->name, pp->name);
 	g_topology_assert();
 
-	if (pp->sectorsize == 0)
-		return (NULL);
-
 	/* Check if we already have a VINUM geom, or create a new one. */
 	if (LIST_EMPTY(&mp->geom)) { 
 		gp = g_new_geomf(mp, "VINUM");
