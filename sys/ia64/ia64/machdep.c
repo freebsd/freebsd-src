@@ -132,7 +132,7 @@ SYSCTL_INT(_machdep, CPU_UNALIGNED_FIX, unaligned_fix,
 SYSCTL_INT(_machdep, CPU_UNALIGNED_SIGBUS, unaligned_sigbus,
 	CTLFLAG_RW, &ia64_unaligned_sigbus, 0, "");
 
-static void cpu_startup __P((void *));
+static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 struct msgbuf *msgbufp=0;
@@ -172,7 +172,7 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
 
-static void identifycpu __P((void));
+static void identifycpu(void);
 
 struct kva_md_info kmi;
 
