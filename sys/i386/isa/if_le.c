@@ -195,7 +195,7 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
-    void (*if_init)(le_softc_t *);/* Interface init routine */
+    void (*if_init)(void *);/* Interface init routine */
     void (*if_reset)(le_softc_t *);/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
     unsigned le_iobase;			/* Starting I/O base address */
@@ -345,16 +345,15 @@ le_attach(
 
     dvp->id_ointr = le_intr;
     ifp->if_softc = sc;
-    ifp->if_mtu = ETHERMTU;
+    ifp->if_unit = dvp->id_unit;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+    ifp->if_ioctl = le_ioctl;
+    ifp->if_init = sc->if_init;
+    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+
     if_printf(ifp, "%s ethernet address %6D\n",
 	sc->le_prodname,
 	sc->le_ac.ac_enaddr, ":");
-
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-    ifp->if_ioctl = le_ioctl;
-    ifp->if_type = IFT_ETHER;
-    ifp->if_addrlen = 6;
-    ifp->if_hdrlen = 14;
 
     ether_ifattach(ifp, sc->le_ac.ac_enaddr);
 
@@ -605,7 +604,7 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static void lemac_init(le_softc_t *sc);
+static void lemac_init(void *);
 static void lemac_start(struct ifnet *ifp);
 static void lemac_reset(le_softc_t *sc);
 static void lemac_intr(le_softc_t *sc);
@@ -769,10 +768,12 @@ lemac_reset(
 }
 
 static void
-lemac_init(
-    le_softc_t *sc)
+lemac_init(void *xsc)
 {
+    le_softc_t *sc;
     int s;
+
+    sc = (le_softc_t *)xsc;
 
     if ((sc->le_flags & IFF_UP) == 0)
 	return;
@@ -1127,7 +1128,7 @@ static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
 			    unsigned ndescs, unsigned bufoffset,
 			    unsigned descoffset);
-static void lance_init(le_softc_t *sc);
+static void lance_init(void *);
 static void lance_reset(le_softc_t *sc);
 static void lance_intr(le_softc_t *sc);
 static int  lance_rx_intr(le_softc_t *sc);
@@ -1566,12 +1567,14 @@ lance_reset(
 }
 
 static void
-lance_init(
-    le_softc_t *sc)
+lance_init(void *xsc)
 {
+    le_softc_t *sc;
     lance_ring_t *ri;
     lance_descinfo_t *di;
     ln_desc_t desc;
+
+    sc = (le_softc_t *)xsc;
 
     LN_STAT(inits++);
     if (sc->le_if.if_flags & IFF_RUNNING) {
