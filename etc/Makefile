@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.113 1995/03/31 11:41:55 jkh Exp $
+#	$Id: Makefile,v 1.114 1995/05/09 00:15:30 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -435,7 +435,7 @@ des-tarball:
 	done
 	(cd ${RELEASEDIR}/tmpdes; \
 		tar cf - . | \
-			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/DES/des_tgz.)
+			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/des/des_tgz.)
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
