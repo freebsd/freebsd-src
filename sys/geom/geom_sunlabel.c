@@ -194,15 +194,13 @@ g_sunlabel_config(struct gctl_req *req, struct g_geom *gp, const char *verb)
 		error = g_access_rel(cp, 1, 1, 1);
 		if (error)
 			return (error);
-		error = g_call_me(g_sunlabel_callconfig, &h0h0, gp, NULL);
-		if (!error) {
-			g_topology_unlock();
-			do 
-				tsleep(&h0h0, PRIBIO, "g_sunlabel_config", hz);
-			while (h0h0.error == -1);
-			g_topology_lock();
-			error = h0h0.error;
-		}
+		g_post_event(g_sunlabel_callconfig, &h0h0, M_WAITOK, gp, NULL);
+		g_topology_unlock();
+		do 
+			tsleep(&h0h0, PRIBIO, "g_sunlabel_config", hz);
+		while (h0h0.error == -1);
+		g_topology_lock();
+		error = h0h0.error;
 		g_access_rel(cp, -1, -1, -1);
 		g_free(label);
 	} else if (!strcmp(verb, "write bootcode")) {
