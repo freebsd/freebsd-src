@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)newfs.c	8.13 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: newfs.c,v 1.20 1998/07/15 06:28:05 charnier Exp $";
+	"$Id: newfs.c,v 1.21 1998/07/16 12:04:52 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -595,6 +595,8 @@ havelabel:
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size /= realsectorsize /DEV_BSIZE;
 #endif
+	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
+		rewritelabel(special, fso, lp);
 	if (!Nflag)
 		close(fso);
 	close(fsi);
@@ -661,6 +663,23 @@ getdisklabel(s, fd)
 		fatal(lmsg, s);
 	}
 	return (&lab);
+}
+
+rewritelabel(s, fd, lp)
+	char *s;
+	int fd;
+	register struct disklabel *lp;
+{
+#ifdef COMPAT
+	if (unlabeled)
+		return;
+#endif
+	lp->d_checksum = 0;
+	lp->d_checksum = dkcksum(lp);
+	if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0) {
+		warn("ioctl (WDINFO)");
+		fatal("%s: can't rewrite disk label", s);
+	}
 }
 
 /*VARARGS*/
