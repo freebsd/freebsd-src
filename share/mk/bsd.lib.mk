@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.72 1998/05/15 09:34:48 bde Exp $
+#	$Id: bsd.lib.mk,v 1.73 1998/06/04 15:15:38 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -46,7 +46,7 @@ STRIP?=	-s
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .so used for PIC object files
 .SUFFIXES:
-.SUFFIXES: .out .o .po .so .s .S .c .cc .cxx .m .C .f .y .l
+.SUFFIXES: .out .o .po .so .s .S .c .cc .cpp .cxx .m .C .f .y .l
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -60,15 +60,15 @@ STRIP?=	-s
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-.cc.o .C.o .cxx.o:
+.cc.o .C.o .cpp.o .cxx.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
-.cc.po .C.po .cxx.po:
+.cc.po .C.po .cpp.po .cxx.po:
 	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
-.cc.so .C.so .cxx.so:
+.cc.so .C.so .cpp.so .cxx.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.73 1998/05/15 09:30:12 bde Exp $
+#	$Id: bsd.prog.mk,v 1.74 1998/05/15 09:34:48 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -8,7 +8,7 @@
 # Default executable format
 BINFORMAT?=	aout
 
-.SUFFIXES: .out .o .c .cc .cxx .C .m .y .l .s .S
+.SUFFIXES: .out .o .c .cc .cpp .cxx .C .m .y .l .s .S
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
 .if defined(DESTDIR)
