@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.19 1995/05/16 11:37:10 jkh Exp $
+ * $Id: disks.c,v 1.20 1995/05/17 14:39:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,7 +79,7 @@ print_chunks(Disk *d)
     int row;
     int i;
 
-    clear();
+    dialog_clear();
     attrset(A_NORMAL);
     mvaddstr(0, 0, "Disk name:\t");
     attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
@@ -244,12 +244,10 @@ diskPartition(Disk *d)
 
 	case 'W':
 	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
-		clear();
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
 		slice_wizard(d);
-		clear();
 		dialog_clear();
 		DialogActive = TRUE;
 		record_chunks(d);
@@ -273,7 +271,7 @@ diskPartition(Disk *d)
 	msgConfirm(p);
 	free(p);
     }
-    clear();
+    dialog_clear();
     refresh();
     variable_set2(DISK_PARTITIONED, "yes");
     return d;

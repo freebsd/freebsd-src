@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.18 1995/05/16 11:37:14 jkh Exp $
+ * $Id: install.c,v 1.19 1995/05/17 14:39:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,7 +135,6 @@ make_filesystems(void)
 			    continue;
 			sprintf(dname, "/dev/%sa", disk->name);
 			if (p->newfs) {
-			    msgDebug("newfs %s", dname);
 			    if (vsystem("newfs %s", dname)) {
 				msgConfirm("Unable to make new root filesystem!");
 				return;
