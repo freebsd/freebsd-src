@@ -291,6 +291,18 @@
 	{Reserved} *i4
 }
 
+# Removable devices
+0x1b "Removable Block Access Capacities Page" {
+	{System Floppy Type Device} t1
+	{Supports Reporting Format Progress} t1
+	{Reserved} *t6
+	{Non CD Optical Device} t1
+	{Single or Multiple LUN Supported} t1
+	{Reserved} *t3
+	{Total Logical Units Supported} t3
+	{Reserved} *i8
+}
+
 # CD-ROM (and CD-R[W]) devices
 0x2a "CD capabilities and mechanical status page" {
 	{Reserved} *t4
