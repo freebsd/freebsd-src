@@ -381,6 +381,8 @@ main(argc, argv)
 			else if (strcmp(optarg, "iso") == 0)
 				af = AF_ISO;
 #endif
+			else if (strcmp(optarg, "link") == 0)
+				af = AF_LINK;
 			else {
 				errx(1, "%s: unknown address family", optarg);
 			}
@@ -730,7 +732,8 @@ usage(void)
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLnW] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-abdnt] [-M core] [-N system]",
+"       netstat -i | -I interface [-abdnt] [-f address_family]\n"
+"               [-M core] [-N system]",
 "       netstat -w wait [-I interface] [-d] [-M core] [-N system]",
 "       netstat -s [-s] [-f protocol_family | -p protocol] [-M core]",
 "       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
