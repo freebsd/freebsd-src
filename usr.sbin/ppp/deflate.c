@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: deflate.c,v 1.4 1997/12/21 12:11:04 brian Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@
 /* Our state */
 struct deflate_state {
     u_short seqno;
+    int dodgy_seqno;
     z_stream cx;
 };
 
@@ -65,6 +66,7 @@ static void
 DeflateResetOutput(void)
 {
   OutputState.seqno = 0;
+  OutputState.dodgy_seqno = 0;
   deflateReset(&OutputState.cx);
   LogPrintf(LogCCP, "Deflate: Output channel reset\n");
 }
@@ -190,6 +192,7 @@ static void
 DeflateResetInput(void)
 {
   InputState.seqno = 0;
+  InputState.dodgy_seqno = 0;
   inflateReset(&InputState.cx);
   LogPrintf(LogCCP, "Deflate: Input channel reset\n");
 }
@@ -211,13 +214,18 @@ DeflateInput(u_short *proto, struct mbuf *mi)
   seq = (hdr[0] << 8) + hdr[1];
   LogPrintf(LogDEBUG, "DeflateInput: Seq %d\n", seq);
   if (seq != InputState.seqno) {
-    LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
-              seq, InputState.seqno);
-    pfree(mi_head);
-    CcpSendResetReq(&CcpFsm);
-    return NULL;
+    if (InputState.dodgy_seqno && seq < InputState.seqno)
+      InputState.seqno = seq;
+    else {
+      LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
+                seq, InputState.seqno);
+      pfree(mi_head);
+      CcpSendResetReq(&CcpFsm);
+      return NULL;
+    }
   }
   InputState.seqno++;
+  InputState.dodgy_seqno = 0;
 
   /* Allocate an output mbuf */
   mo_head = mo = mballoc(DEFLATE_CHUNK_LEN, MB_IPIN);
@@ -525,6 +533,13 @@ DeflateInitInput(void)
   if (inflateInit2(&InputState.cx, -iWindowSize) != Z_OK)
     return 0;
   DeflateResetInput();
+  /*
+   * When we begin, we may start adding to our dictionary before the
+   * peer does.  If `dodgy_seqno' is set, we'll allow the peer to send
+   * us a seqno that's too small and just adjust seqno accordingly -
+   * deflate is a sliding window compressor !
+   */
+  InputState.dodgy_seqno = 1;
   return 1;
 }
 
