@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.25 1998/04/19 18:32:01 phk Exp $";
+	"$Id: w.c,v 1.26 1998/05/14 10:13:24 jkoshy Exp $";
 #endif /* not lint */
 
 /*
@@ -246,9 +246,18 @@ main(argc, argv)
 		if (wcmd == 0)
 			exit (0);
 
-#define HEADER	"USER             TTY      FROM              LOGIN@  IDLE WHAT\n"
-#define WUSED	(sizeof (HEADER) - sizeof ("WHAT\n"))
-		(void)printf(HEADER);
+#define HEADER_USER		"USER"
+#define HEADER_TTY		"TTY"
+#define HEADER_FROM		"FROM"
+#define HEADER_LOGIN_IDLE	"LOGIN@  IDLE "
+#define HEADER_WHAT		"WHAT\n"
+#define WUSED  (UT_NAMESIZE + UT_LINESIZE + UT_HOSTSIZE + \
+		sizeof(HEADER_LOGIN_IDLE) + 3)	/* header width incl. spaces */ 
+		(void)printf("%-*.*s %-*.*s %-*.*s  %s", 
+				UT_NAMESIZE, UT_NAMESIZE, HEADER_USER,
+				UT_LINESIZE, UT_LINESIZE, HEADER_TTY,
+				UT_HOSTSIZE, UT_HOSTSIZE, HEADER_FROM,
+				HEADER_LOGIN_IDLE HEADER_WHAT);
 	}
 
 	if ((kp = kvm_getprocs(kd, KERN_PROC_ALL, 0, &nentries)) == NULL)
