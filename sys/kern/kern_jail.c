@@ -20,10 +20,19 @@
 #include <sys/proc.h>
 #include <sys/jail.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
+
+SYSCTL_NODE(, OID_AUTO, jail, CTLFLAG_RW, 0,
+    "Jail rules");
+
+int	jail_set_hostname_allowed = 1;
+SYSCTL_INT(_jail, OID_AUTO, set_hostname_allowed, CTLFLAG_RW,
+    &jail_set_hostname_allowed, 0,
+    "Processes in jail can set their hostnames");
 
 int
 jail(p, uap)
