@@ -926,7 +926,7 @@ int unit;
    * Ignore any interrupts that occur if the device is not open.
    */
   if(sc->sc_state == 0) return;
-  newphase = inb(port + tw_control) & TWC_SYNC;
+  newphase = inb(port + tw_zcport) & tw_zcmask;
   microtime(&tv);
 
   /*
