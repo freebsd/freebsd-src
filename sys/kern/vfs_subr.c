@@ -3148,6 +3148,7 @@ loop:
 			    curthread)) {
 				if (vp->v_vflag & VV_NOSYNC) {	/* unlinked */
 					vput(vp);
+					mtx_lock(&mntvnode_mtx);
 					continue;
 				}
 
