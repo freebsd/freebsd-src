@@ -35,7 +35,7 @@
 #define	IQ_SIZE		(NPIL * 2)
 #define	IQ_MASK		(IQ_SIZE - 1)
 
-#define	IH_SHIFT	3
+#define	IH_SHIFT	PTR_SHIFT
 #define	IQE_SHIFT	5
 #define	IV_SHIFT	5
 
@@ -46,10 +46,6 @@
 
 typedef	void ih_func_t(struct trapframe *);
 typedef	void iv_func_t(void *);
-
-struct intr_handler {
-	ih_func_t *ih_func;
-};
 
 struct iqe {
 	u_int	iqe_tag;
@@ -75,8 +71,7 @@ struct intr_vector {
 	u_int	iv_vec;
 };
 
-extern struct intr_handler intr_handlers[];
-extern struct intr_queue intr_queues[];
+extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
