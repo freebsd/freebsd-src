@@ -338,6 +338,18 @@ archive_entry_new(void)
  * Functions for reading fields from an archive_entry.
  */
 
+time_t
+archive_entry_atime(struct archive_entry *entry)
+{
+	return (entry->ae_stat.st_atime);
+}
+
+long
+archive_entry_atime_nsec(struct archive_entry *entry)
+{
+	return (ARCHIVE_STAT_ATIME_NANOS(&entry->ae_stat));
+}
+
 dev_t
 archive_entry_dev(struct archive_entry *entry)
 {
