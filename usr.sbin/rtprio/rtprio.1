@@ -28,14 +28,14 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rtprio.1,v 1.1 1994/09/01 12:05:13 davidg Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
 .Os 
 .Sh NAME
 .Nm rtprio
-.Nd execute, examine or modify a utilitys or process realtime scheduling priority
+.Nd execute, examine or modify a process's realtime scheduling priority
 .Sh SYNOPSIS
 
 .Nm rtprio
@@ -154,8 +154,8 @@ utility appeared in
 FreeBSD 2.0,
 but is similar to the HP-UX version.
 .Sh BUGS
-You can lock you're self out of the system, be placing at cpu-heavy
-process in a realtime priority.
+You can lock yourself out of the system by placing a cpu-intensive
+process into realtime priority.
 
 There is no way to set/view the realtime priority of process 0
 (swapper) (see ps(1)).
