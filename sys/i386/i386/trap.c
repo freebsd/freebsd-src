@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.83.2.8 1998/05/13 07:04:41 tg Exp $
+ *	$Id: trap.c,v 1.83.2.9 1998/07/07 05:22:49 gibbs Exp $
  */
 
 /*
@@ -546,7 +546,8 @@ trap_pfault(frame, usermode)
 		}
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, FALSE);
+		rv = vm_fault(map, va, ftype,
+			(ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY : 0);
 
 		--p->p_lock;
 	} else {
@@ -658,14 +659,13 @@ trap_pfault(frame, usermode)
 		}
 
 		/* Fault in the user page: */
-		rv = vm_fault(map, va, ftype, FALSE);
+		rv = vm_fault(map, va, ftype,
+			(ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY : 0);
 
 		--p->p_lock;
 	} else {
 		/*
-		 * Since we know that kernel virtual address addresses
-		 * always have pte pages mapped, we just have to fault
-		 * the page.
+		 * Don't have to worry about process locking or stacks in the kernel.
 		 */
 		rv = vm_fault(map, va, ftype, FALSE);
 	}
@@ -838,7 +838,7 @@ int trapwrite(addr)
 	/*
 	 * fault the data page
 	 */
-	rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+	rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, VM_FAULT_DIRTY);
 
 	--p->p_lock;
 
