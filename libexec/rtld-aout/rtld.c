@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.20 1995/01/12 19:12:29 joerg Exp $
+ *	$Id: rtld.c,v 1.21 1995/02/07 13:33:42 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -38,9 +38,8 @@
 #include <sys/resource.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
-#ifndef BSD
+#ifndef MAP_COPY
 #define MAP_COPY	MAP_PRIVATE
-#define MAP_ANON	0
 #endif
 #include <err.h>
 #include <fcntl.h>
@@ -58,8 +57,19 @@
 
 #include "ld.h"
 
-#ifndef BSD		/* Need do better than this */
-#define NEED_DEV_ZERO	1
+#ifndef MAP_ANON
+#define MAP_ANON	0
+#define anon_open() do {					\
+	if ((anon_fd = open("/dev/zero", O_RDWR, 0)) == -1)	\
+		err("open: %s", "/dev/zero");			\
+} while (0)
+#define anon_close() do {	\
+	(void)close(anon_fd);	\
+	anon_fd = -1;		\
+} while (0)
+#else
+#define anon_open()
+#define anon_close()
 #endif
 
 /*
@@ -135,6 +145,7 @@ static int		careful;
 static char		__main_progname[] = "main";
 static char		*main_progname = __main_progname;
 static char		us[] = "/usr/libexec/ld.so";
+static int		anon_fd = -1;
 
 struct so_map		*link_map_head, *main_map;
 struct so_map		**link_map_tail = &link_map_head;
@@ -166,13 +177,14 @@ static void		init_map __P((struct so_map *, char *));
 static char		*rtfindlib __P((char *, int, int, int *));
 void			binder_entry __P((void));
 long			binder __P((jmpslot_t *));
-static void		maphints __P((void));
-static void		unmaphints __P((void));
 static struct nzlist	*lookup __P((char *, struct so_map **, int));
 static inline struct rt_symbol	*lookup_rts __P((char *));
 static struct rt_symbol	*enter_rts __P((char *, long, int, caddr_t,
 						long, struct so_map *));
 static void		generror __P((char *, ...));
+
+static void		maphints __P((void));
+static void		unmaphints __P((void));
 
 static inline int
 strcmp (register const char *s1, register const char *s2)
@@ -251,6 +263,7 @@ struct _dynamic		*dp;
 	if (getenv("LD_NOSTD_PATH") == NULL)
 		std_search_path();
 
+	anon_open();
 	/* Load required objects into the process address space */
 	load_objects(crtp, dp);
 
@@ -301,11 +314,12 @@ struct _dynamic		*dp;
 			ddp->dd_sym_loaded = 1;
 	}
 
-	/* Forget hints so that hints file can go away if it is unlinked */
+	/* Close the hints file */
 	unmaphints();
 
 	/* Close our file descriptor */
 	(void)close(crtp->crt_ldfd);
+	anon_close();
 	return 0;
 }
 
@@ -511,9 +525,9 @@ again:
 		return NULL;
 	}
 
-	if ((addr = mmap(0, hdr.a_text + hdr.a_data,
-	     PROT_READ|PROT_EXEC,
-	     MAP_COPY, fd, 0)) == (caddr_t)-1) {
+	if ((addr = mmap(0, hdr.a_text + hdr.a_data + hdr.a_bss,
+	         PROT_READ|PROT_EXEC,
+	         MAP_COPY, fd, 0)) == (caddr_t)-1) {
  		generror ("mmap failed for \"%s\" : %s",
  			  path, strerror (errno));
 		(void)close(fd);
@@ -528,29 +542,17 @@ again:
 		return NULL;
 	}
 
-	(void)close(fd);
-
-	fd = -1;
-#ifdef NEED_DEV_ZERO
-	if ((fd = open("/dev/zero", O_RDWR, 0)) == -1) {
-		generror ("open failed for \"/dev/zero\" : %s",
-			  strerror (errno));
-		return NULL;
-        }
-#endif
-	if (hdr.a_bss && mmap(addr + hdr.a_text + hdr.a_data, hdr.a_bss,
-				PROT_READ|PROT_WRITE|PROT_EXEC,
-				MAP_ANON|MAP_FIXED|MAP_COPY,
-				fd, hdr.a_text + hdr.a_data) == (caddr_t)-1) {
+	if (mmap(addr + hdr.a_text + hdr.a_data, hdr.a_bss,
+		 PROT_READ|PROT_WRITE|PROT_EXEC,
+		 MAP_ANON|MAP_COPY|MAP_FIXED,
+		 anon_fd, 0) == (caddr_t)-1) {
 		generror ("mmap failed for \"%s\" : %s",
 			  path, strerror (errno));
 		(void)close(fd);
 		return NULL;
-        }
+	}
 
-#ifdef NEED_DEV_ZERO
-	close(fd);
-#endif
+	(void)close(fd);
 
 	/* Assume _DYNAMIC is the first data item */
 	dp = (struct _dynamic *)(addr+hdr.a_text);
@@ -634,7 +636,7 @@ caddr_t			addr;
 
 	if (getenv("LD_SUPPRESS_WARNINGS") == NULL &&
 	    getenv("LD_WARN_NON_PURE_CODE") != NULL)
-		warnx("ld.so: warning: non pure code in %s at %x (%s)\n",
+		warnx("warning: non pure code in %s at %x (%s)",
 				smp->som_path, r->r_address, sym);
 
 	if (smp->som_write == 0 &&
@@ -884,7 +886,7 @@ lookup(name, src_map, strong)
 	 * Search all maps for a definition of NAME
 	 */
 	for (smp = link_map_head; smp; smp = smp->som_next) {
-		int		buckets = LD_BUCKETS(smp->som_dynamic);
+		int		buckets;
 		long		hashval;
 		struct rrs_hash	*hp;
 		char		*cp;
@@ -896,10 +898,13 @@ lookup(name, src_map, strong)
 		char		*stringbase;
 		int		symsize;
 
-		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
+		if (*src_map && smp != *src_map)
 			continue;
 
-		if (*src_map && smp != *src_map)
+		if ((buckets = LD_BUCKETS(smp->som_dynamic)) == 0)
+			continue; 
+
+		if (LM_PRIVATE(smp)->spd_flags & RTLD_RTLD)
 			continue;
 
 restart:
@@ -1042,8 +1047,9 @@ binder(jsp)
 }
 
 
+static int			hfd;
+static long			hsize;
 static struct hints_header	*hheader;
-static long			hmsize;
 static struct hints_bucket	*hbuckets;
 static char			*hstrtab;
 
@@ -1053,52 +1059,47 @@ static char			*hstrtab;
 maphints __P((void))
 {
 	caddr_t		addr;
-	long		msize;
-	int		fd;
 
-	if ((fd = open(_PATH_LD_HINTS, O_RDONLY, 0)) == -1) {
+	if ((hfd = open(_PATH_LD_HINTS, O_RDONLY, 0)) == -1) {
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
-	msize = PAGSIZ;
-	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
+	hsize = PAGSIZ;
+	addr = mmap(0, hsize, PROT_READ, MAP_COPY, hfd, 0);
 
 	if (addr == (caddr_t)-1) {
-		close(fd);
+		close(hfd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
 	hheader = (struct hints_header *)addr;
 	if (HH_BADMAG(*hheader)) {
-		munmap(addr, msize);
-		close(fd);
+		munmap(addr, hsize);
+		close(hfd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
 	if (hheader->hh_version != LD_HINTS_VERSION_1) {
-		munmap(addr, msize);
-		close(fd);
+		munmap(addr, hsize);
+		close(hfd);
 		hheader = (struct hints_header *)-1;
 		return;
 	}
 
-	hmsize = msize;
-	if (hheader->hh_ehints > msize) {
-		hmsize = hheader->hh_ehints;
-		if (mmap(addr+msize, hheader->hh_ehints - msize,
+	if (hheader->hh_ehints > hsize) {
+		if (mmap(addr+hsize, hheader->hh_ehints - hsize,
 				PROT_READ, MAP_COPY|MAP_FIXED,
-				fd, msize) != (caddr_t)(addr+msize)) {
+				hfd, hsize) != (caddr_t)(addr+hsize)) {
 
-			munmap((caddr_t)hheader, msize);
-			close(fd);
+			munmap((caddr_t)hheader, hsize);
+			close(hfd);
 			hheader = (struct hints_header *)-1;
 			return;
 		}
 	}
-	close(fd);
 
 	hbuckets = (struct hints_bucket *)(addr + hheader->hh_hashtab);
 	hstrtab = (char *)(addr + hheader->hh_strtab);
@@ -1107,8 +1108,10 @@ maphints __P((void))
 	static void
 unmaphints()
 {
+
 	if (HINTS_VALID) {
-		munmap((caddr_t)hheader, hmsize);
+		munmap((caddr_t)hheader, hsize);
+		close(hfd);
 		hheader = NULL;
 	}
 }
@@ -1404,4 +1407,3 @@ char	*fmt;
 	(void)write(1, buf, strlen(buf));
 	va_end(ap);
 }
-
