@@ -923,14 +923,8 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	switch (oidp->oid_number) {
 	case KERN_PROC_ALL:
 	case KERN_PROC_PROC:
-		/*
-		 * XXX Temporarily disabled for compat with old userland
-		 * that passes an extra unused argument to KERN_PROC_PROC.
-		 */
-#if 0
 		if (namelen != 0)
 			return (EINVAL);
-#endif
 		break;
 	default:
 		if (namelen != 1)
