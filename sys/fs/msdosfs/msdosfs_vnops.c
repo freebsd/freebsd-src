@@ -77,6 +77,8 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
+#include "opt_msdosfs.h"
+
 #define	DOS_FILESIZE_MAX	0xffffffff
 
 /*
@@ -284,7 +286,7 @@ msdosfs_getattr(ap)
 	mode_t mode;
 	struct timespec ts;
 	u_long dirsperblk = pmp->pm_BytesPerSec / sizeof(struct direntry);
-	u_long fileid;
+	uint64_t fileid;
 
 	getnanotime(&ts);
 	DETIMES(dep, &ts, &ts, &ts);
@@ -295,16 +297,22 @@ msdosfs_getattr(ap)
 	 * doesn't work.
 	 */
 	if (dep->de_Attributes & ATTR_DIRECTORY) {
-		fileid = cntobn(pmp, dep->de_StartCluster) * dirsperblk;
+		fileid = (uint64_t)cntobn(pmp, dep->de_StartCluster) *
+		    dirsperblk;
 		if (dep->de_StartCluster == MSDOSFSROOT)
 			fileid = 1;
 	} else {
-		fileid = cntobn(pmp, dep->de_dirclust) * dirsperblk;
+		fileid = (uint64_t)cntobn(pmp, dep->de_dirclust) *
+		    dirsperblk;
 		if (dep->de_dirclust == MSDOSFSROOT)
-			fileid = roottobn(pmp, 0) * dirsperblk;
-		fileid += dep->de_diroffset / sizeof(struct direntry);
+			fileid = (uint64_t)roottobn(pmp, 0) * dirsperblk;
+		fileid += (uint64_t)dep->de_diroffset / sizeof(struct direntry);
 	}
-	vap->va_fileid = fileid;
+#ifdef MSDOSFS_LARGE
+	vap->va_fileid = msdosfs_fileno_map(pmp->pm_mountp, fileid);
+#else
+	vap->va_fileid = (long)fileid;
+#endif
 	if ((dep->de_Attributes & ATTR_READONLY) == 0)
 		mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	else
@@ -1453,7 +1461,7 @@ msdosfs_readdir(ap)
 	int blsize;
 	long on;
 	u_long cn;
-	u_long fileno;
+	uint64_t fileno;
 	u_long dirsperblk;
 	long bias = 0;
 	daddr_t bn, lbn;
@@ -1525,11 +1533,17 @@ msdosfs_readdir(ap)
 			for (n = (int)offset / sizeof(struct direntry);
 			     n < 2; n++) {
 				if (FAT32(pmp))
-					dirbuf.d_fileno = cntobn(pmp,
+					fileno = (uint64_t)cntobn(pmp,
 								 pmp->pm_rootdirblk)
 							  * dirsperblk;
 				else
-					dirbuf.d_fileno = 1;
+					fileno = 1;
+#ifdef MSDOSFS_LARGE
+				dirbuf.d_fileno = msdosfs_fileno_map(
+				    pmp->pm_mountp, fileno);
+#else
+				dirbuf.d_fileno = (uint32_t)fileno;
+#endif
 				dirbuf.d_type = DT_DIR;
 				switch (n) {
 				case 0:
@@ -1640,19 +1654,25 @@ msdosfs_readdir(ap)
 				/* if this is the root directory */
 				if (fileno == MSDOSFSROOT)
 					if (FAT32(pmp))
-						fileno = cntobn(pmp,
+						fileno = (uint64_t)cntobn(pmp,
 								pmp->pm_rootdirblk)
 							 * dirsperblk;
 					else
 						fileno = 1;
 				else
-					fileno = cntobn(pmp, fileno) * dirsperblk;
-				dirbuf.d_fileno = fileno;
+					fileno = (uint64_t)cntobn(pmp, fileno) *
+					    dirsperblk;
 				dirbuf.d_type = DT_DIR;
 			} else {
-				dirbuf.d_fileno = offset / sizeof(struct direntry);
+				fileno = (uint64_t)offset / sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
+#ifdef MSDOSFS_LARGE
+			dirbuf.d_fileno = msdosfs_fileno_map(pmp->pm_mountp,
+			    fileno);
+#else
+			dirbuf.d_fileno = (uint32_t)fileno;
+#endif
 			if (chksum != winChksum(dentp->deName)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
