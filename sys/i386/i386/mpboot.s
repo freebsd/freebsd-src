@@ -31,7 +31,7 @@
  * mpboot.s:	FreeBSD machine support for the Intel MP Spec
  *		multiprocessor systems.
  *
- *	$Id: mpboot.s,v 1.7 1998/09/06 22:41:40 tegge Exp $
+ *	$Id: mpboot.s,v 1.8 1998/10/10 10:36:12 kato Exp $
  */
 
 #include "opt_vm86.h"
@@ -132,6 +132,24 @@ mp_begin:	/* now running relocated at KERNBASE */
 	
 	/* let her rip! (loads new stack) */
 	jmp 	_cpu_switch
+
+NON_GPROF_ENTRY(wait_ap)
+	pushl	%ebp
+	movl	%esp, %ebp
+	call	_rel_mplock
+	movl	%eax, 8(%ebp)
+1:		
+	cmpl	$0, CNAME(smp_started)
+	jnz	2f
+	decl	%eax
+	cmpl	$0, %eax
+	jge	1b
+2:
+	call	_get_mplock
+	movl	%ebp, %esp
+	popl	%ebp
+	ret
+	
 
 /*
  * This is the embedded trampoline or bootstrap that is
