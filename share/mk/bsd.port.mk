@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.152 1995/04/30 12:28:43 asami Exp $
+# $Id: bsd.port.mk,v 1.153 1995/05/02 13:49:01 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -734,7 +734,7 @@ install: build ${INSTALL_COOKIE}
 ${INSTALL_COOKIE}:
 	@${ECHO_MSG} "===>  Installing for ${PKGNAME}"
 .if !defined(USE_X11) && !defined(USE_IMAKE) && defined(MTREE_LOCAL)
-	${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/;
+	@${MTREE_CMD} ${MTREE_ARGS} ${PREFIX}/;
 .endif
 .if target(pre-install)
 	@${MAKE} ${.MAKEFLAGS} pre-install
