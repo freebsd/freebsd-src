@@ -13,6 +13,9 @@
 #include "fileattr.h"
 #include "edit.h"
 
+#ifdef CLIENT_SUPPORT
+static int do_argument_proc PROTO((Node * p, void *closure));
+#endif
 static int do_dir_proc PROTO((Node * p, void *closure));
 static int do_file_proc PROTO((Node * p, void *closure));
 static void addlist PROTO((List ** listp, char *key));
@@ -57,6 +60,24 @@ struct frame_and_entries {
     struct recursion_frame *frame;
     List *entries;
 };
+
+#ifdef CLIENT_SUPPORT
+/* This is a callback to send "Argument" commands to the server in the
+   case we've done a "cvs update" or "cvs commit" in a top-level
+   directory where there is no CVSADM directory. */
+
+static int
+do_argument_proc (p, closure)
+    Node *p;
+    void *closure;
+{
+    char *dir = p->key;
+    send_to_server ("Argument ", 0);
+    send_to_server (dir, 0);
+    send_to_server ("\012", 1);
+    return 0;
+}
+#endif
 
 /* Start a recursive command.
 
@@ -175,6 +196,19 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		       "there is no version here; run '%s checkout' first",
 		       program_name);
 	    }
+#ifdef CLIENT_SUPPORT
+	    else if (client_active && server_started)
+	    {
+		/* In the the case "cvs update foo bar baz", a call to
+		   send_file_names in update.c will have sent the
+		   appropriate "Argument" commands to the server.  In
+		   this case, that won't have happened, so we need to
+		   do it here.  While this example uses "update", this
+		   generalizes to other commands. */
+
+		err += walklist (dirlist, do_argument_proc, NULL);
+	    }
+#endif
 	}
 	else
 	    addlist (&dirlist, ".");
@@ -586,7 +620,6 @@ do_dir_proc (p, closure)
     char *newrepos;
     List *sdirlist;
     char *srepository;
-    char *cp;
     Dtype dir_return = R_PROCESS;
     int stripped_dot = 0;
     int err = 0;
@@ -790,25 +823,8 @@ but CVS uses %s for its own purposes; skipping %s directory",
 	repository = srepository;
     }
 
-#if 0
-    /* Put back update_dir.  I think this is the same as just setting
-       update_dir back to saved_update_dir, but there are a few cases I'm
-       not sure about (in particular, if DIR is "." and update_dir is
-       not ""), so for conservatism I'm leaving this here.  */
-    cp = last_component (update_dir);
-    if (cp > update_dir)
-	cp[-1] = '\0';
-    else
-	update_dir[0] = '\0';
-    free (saved_update_dir);
-#else
-    /* The above code is cactus!!! - it doesn't handle descending
-       multiple directories at once!  ie: it recurses down several
-       dirs and then back up one. This breaks 'diff', 'update',
-       'commit', etc.  */
     free (update_dir);
     update_dir = saved_update_dir;
-#endif
 
     return (err);
 }
