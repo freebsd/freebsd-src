@@ -1,7 +1,6 @@
-/* $NetBSD: externs2.h,v 1.7 2001/05/28 12:40:38 lukem Exp $ */
+/*	$NetBSD: param.h,v 1.1 2002/01/18 20:39:24 thorpej Exp $	*/
 
 /*
- * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -33,61 +32,57 @@
  */
 
 /*
- * main.c
+ * Minimun size of string buffer. If this is not enough, the buffer
+ * is enlarged in steps of STRBLEN bytes.
  */
-extern	int	xflag;
-extern	int	uflag;
-extern	int	Cflag;
-extern	const	char *libname;
-extern	int	sflag;
-extern	int	tflag;
-extern	int	Hflag;
-extern	int	hflag;
-extern	int	Fflag;
-
+#define	STRBLEN		256
 
 /*
- * hash.c
+ * This defines the size of memory blocks which are used to allocate
+ * memory in larger chunks.
  */
-extern	void	_inithash(hte_t ***);
-extern	hte_t	*_hsearch(hte_t **, const char *, int);
-extern	void	_forall(hte_t **, void (*)(hte_t *));
-extern	void	_destroyhash(hte_t **);
-
-#define	inithash()	_inithash(NULL);
-#define	hsearch(a, b)	_hsearch(NULL, (a), (b))
-#define	forall(a)	_forall(NULL, (a))
+#define	MBLKSIZ		((size_t)0x4000)
 
 /*
- * read.c
+ * Sizes of hash tables
+ * Should be a prime. Possible primes are
+ * 307, 401, 503, 601, 701, 809, 907, 1009, 1103, 1201, 1301, 1409, 1511.
+ *
+ * HSHSIZ1	symbol table 1st pass
+ * HSHSIZ2	symbol table 2nd pass
+ * THSHSIZ2	type table 2nd pass
  */
-extern	const	char **fnames;
-extern	type_t	**tlst;
-
-extern	void	readfile(const char *);
-extern	void	mkstatic(hte_t *);
-
-/*
- * mem2.c
- */
-extern	void	initmem(void);
-extern	void	*xalloc(size_t);
+#define	HSHSIZ1		503
+#define HSHSIZ2		1009
+#define	THSHSIZ2	1009
 
 /*
- * chk.c
+ * Pull in target-specific parameters.
  */
-extern	void	inittyp(void);
-extern	void	mainused(void);
-extern	void	chkname(hte_t *);
+#include "targparam.h"
 
 /*
- * msg.c
+ * Make sure this matches wchar_t.
  */
-extern	void	msg(int, ...);
-extern	const	char *mkpos(pos_t *);
+#define WCHAR	INT
 
 /*
- * emit2.c
+ * long double only in ANSI C.
+ *
+ * And the sparc64 long double code generation is broken.
  */
-extern	void	outlib(const char *);
-extern	int	addoutfile(short);
+#if !defined(__sparc64__) && defined(__STDC__)
+typedef	long double ldbl_t;
+#else
+typedef	double	ldbl_t;
+#endif
+
+/*
+ * Some traditional compilers are not able to assign structures.
+ */
+#ifdef __STDC__
+#define STRUCT_ASSIGN(dest, src)	(dest) = (src)
+#else
+#define STRUCT_ASSIGN(dest, src)	(void)memcpy(&(dest), &(src), \
+						     sizeof (dest));
+#endif

@@ -1,4 +1,4 @@
-/*	$NetBSD: msg.c,v 1.2 1995/07/03 21:24:56 cgd Exp $	*/
+/*	$NetBSD: msg.c,v 1.6 2002/01/21 19:49:52 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,21 +31,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: msg.c,v 1.2 1995/07/03 21:24:56 cgd Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: msg.c,v 1.6 2002/01/21 19:49:52 tv Exp $");
 #endif
-
-#include <string.h>
 
 #include <stdio.h>
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
+#include <string.h>
 
 #include "lint2.h"
-
 
 static	const	char *msgs[] = {
 	"%s used( %s ), but not defined",			      /* 0 */
@@ -66,29 +61,17 @@ static	const	char *msgs[] = {
 	"%s: too few args for format  \t%s",			      /* 15 */
 	"%s: too many args for format  \t%s",			      /* 16 */
 	"%s function value must be declared before use  \t%s  ::  %s",/* 17 */
+	"%s renamed multiple times  \t%s  ::  %s",		      /* 18 */
 };
 
-static	const	char *basename __P((const char *));
+static	const	char *lbasename(const char *);
 
-#ifdef __STDC__
 void
 msg(int n, ...)
 {
-#else
-void
-msg(va_alist)
-	va_dcl
-	int	n;
-{
-#endif
 	va_list	ap;
 
-#ifdef __STDC__
 	va_start(ap, n);
-#else
-	va_start(ap);
-	n = va_arg(ap, int);
-#endif
 
 	(void)vprintf(msgs[n], ap);
 	(void)printf("\n");
@@ -100,8 +83,7 @@ msg(va_alist)
  * Return a pointer to the last component of a path.
  */
 static const char *
-basename(path)
-	const	char *path;
+lbasename(const char *path)
 {
 	const	char *cp, *cp1, *cp2;
 
@@ -122,8 +104,7 @@ basename(path)
  * Create a string which describes a position in a source file.
  */
 const char *
-mkpos(posp)
-	pos_t	*posp;
+mkpos(pos_t *posp)
 {
 	size_t	len;
 	const	char *fn;
@@ -140,7 +121,7 @@ mkpos(posp)
 	}
 	qm = !Hflag && posp->p_src != posp->p_isrc;
 
-	len = strlen(fn = basename(fnames[src]));
+	len = strlen(fn = lbasename(fnames[src]));
 	len += 3 * sizeof (u_short) + 4;
 
 	if (len > blen)
@@ -154,4 +135,3 @@ mkpos(posp)
 
 	return (buf);
 }
-

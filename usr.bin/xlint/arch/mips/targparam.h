@@ -1,10 +1,9 @@
-/* $NetBSD: externs2.h,v 1.7 2001/05/28 12:40:38 lukem Exp $ */
+/*	$NetBSD: targparam.h,v 1.1 2002/01/18 20:39:19 thorpej Exp $	*/
 
 /*
- * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -15,7 +14,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *      This product includes software developed by Jochen Pohl for
+ *	This product includes software developed by Jochen Pohl for
  *	The NetBSD Project.
  * 4. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
@@ -33,61 +32,22 @@
  */
 
 /*
- * main.c
+ * Machine-dependent target parameters for lint1.
  */
-extern	int	xflag;
-extern	int	uflag;
-extern	int	Cflag;
-extern	const	char *libname;
-extern	int	sflag;
-extern	int	tflag;
-extern	int	Hflag;
-extern	int	hflag;
-extern	int	Fflag;
 
+#include "ilp32.h"
 
-/*
- * hash.c
- */
-extern	void	_inithash(hte_t ***);
-extern	hte_t	*_hsearch(hte_t **, const char *, int);
-extern	void	_forall(hte_t **, void (*)(hte_t *));
-extern	void	_destroyhash(hte_t **);
+/*    
+ * Should be set to 1 if the difference of two pointers is of type long
+ * or the value of sizeof is of type unsigned long.  Note this MUST be
+ * kept in sync with the compiler!
+ */     
 
-#define	inithash()	_inithash(NULL);
-#define	hsearch(a, b)	_hsearch(NULL, (a), (b))
-#define	forall(a)	_forall(NULL, (a))
+#define	PTRDIFF_IS_LONG		0
+#define	SIZEOF_IS_ULONG		0
 
-/*
- * read.c
- */
-extern	const	char **fnames;
-extern	type_t	**tlst;
+#define	FLOAT_SIZE		(4 * CHAR_BIT)
+#define	DOUBLE_SIZE		(8 * CHAR_BIT)
+#define	LDOUBLE_SIZE		(8 * CHAR_BIT)
 
-extern	void	readfile(const char *);
-extern	void	mkstatic(hte_t *);
-
-/*
- * mem2.c
- */
-extern	void	initmem(void);
-extern	void	*xalloc(size_t);
-
-/*
- * chk.c
- */
-extern	void	inittyp(void);
-extern	void	mainused(void);
-extern	void	chkname(hte_t *);
-
-/*
- * msg.c
- */
-extern	void	msg(int, ...);
-extern	const	char *mkpos(pos_t *);
-
-/*
- * emit2.c
- */
-extern	void	outlib(const char *);
-extern	int	addoutfile(short);
+#define	ENUM_SIZE		(4 * CHAR_BIT)
