@@ -53,6 +53,7 @@ struct legacy_device {
 
 #define DEVTOAT(dev)	((struct legacy_device *)device_get_ivars(dev))
 
+static void legacy_identify(driver_t *driver, device_t parent);
 static	int legacy_probe(device_t);
 static	int legacy_attach(device_t);
 static	int legacy_print_child(device_t, device_t);
@@ -70,6 +71,7 @@ static void legacy_delete_resource(device_t, device_t, int, int);
 
 static device_method_t legacy_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_identify,	legacy_identify),
 	DEVMETHOD(device_probe,		legacy_probe),
 	DEVMETHOD(device_attach,	legacy_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
@@ -104,10 +106,29 @@ static devclass_t legacy_devclass;
 
 DRIVER_MODULE(legacy, nexus, legacy_driver, legacy_devclass, 0, 0);
 
+static void
+legacy_identify(driver_t *driver, device_t parent)
+{
+
+	/*
+	 * Add child device with order of 1 so it gets probed
+	 * after ACPI (which is at order 0.
+	 */
+	if (BUS_ADD_CHILD(parent, 1, "legacy", 0) == NULL)
+		panic("legacy: could not attach");
+}
+
 static int
 legacy_probe(device_t dev)
 {
+	device_t acpi;
 
+	/*
+	 * Fail to probe if ACPI is ok.
+	 */
+	acpi = devclass_get_device(devclass_find("acpi"), 0);
+	if (acpi != NULL && device_is_alive(acpi))
+		return (ENXIO);
 	device_set_desc(dev, "legacy system");
 	device_quiet(dev);
 	return (0);
