@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
+#if 0
 static char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1988, 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
  * login -f name	(for pre-authenticated login: datakit, xterm, etc.)
  */
 
+#include <sys/copyright.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -692,9 +693,7 @@ main(argc, argv)
 			motd(cw);
 		else
 #endif
-		(void)printf("Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994\n"
-			     "\tThe Regents of the University of California.  All rights reserved.\n");
-		(void)printf("\n");
+		(void)printf("%s\n", copyright);
 #ifdef LOGIN_CAP
 		cw = login_getcapstr(lc, "welcome", NULL, NULL);
 		if (cw == NULL || access(cw, F_OK) != 0)
