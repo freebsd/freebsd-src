@@ -35,25 +35,28 @@ The file that goes by the name of
 .Nm
 is a set of commands designed to manipulate
 .Xr loader.conf 5
-files. The default
+files.
+The default
 .Pa /boot/loader.rc
 includes
 .Nm
 and uses one of its commands to automatically read and process
 the standard
 .Xr loader.conf 5
-files. Other commands exists to help the user specify alternate
+files.
+Other commands exists to help the user specify alternate
 configurations.
 .Pp
 The commands of
 .Nm
-by themselves are not enough for most uses. Please refer to the
+by themselves are not enough for most uses.
+Please refer to the
 examples below for the most common situations, and to
 .Xr loader 8
 for additional commands.
 .Pp
 Before using any of the commands provided in
-.Nm Ns ,
+.Nm ,
 it must be included
 through the command:
 .Pp
@@ -91,7 +94,8 @@ Reads
 .Pa /boot/defaults/loader.conf ,
 all other
 .Xr loader.conf 5
-files specified in it, and then proceeds to boot as specified in them. This
+files specified in it, and then proceeds to boot as specified in them.
+This
 is the command used in the default
 .Pa /boot/loader.rc
 file, and it uses the
@@ -105,19 +109,22 @@ so it can be stopped for further interaction with
 Initialize the supporting library so commands can be used without
 executing
 .Ic start
-first. Like
+first.
+Like
 .Ic start ,
 reads
 .Pa /boot/defaults/loader.conf
 and all other
 .Xr loader.conf 5
-files specified in it. Returns a flag on the stack to indicate
+files specified in it.
+Returns a flag on the stack to indicate
 if any configuration file was successfully loaded.
 .Pp
 .It Ic read-conf Ar filename
 Reads and processes a
 .Xr loader.conf 5
-file. Does not proceed to boot.
+file.
+Does not proceed to boot.
 .Pp
 .It Ic enable-module Ar module
 Enables the loading of
