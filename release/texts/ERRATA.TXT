@@ -24,7 +24,26 @@ For the latest security incident information.
 
 ---- Security Advisories:
 
-Current active security advisories for 3.2:	None
+Current active security advisories for 3.2:
+
+	NOTE to users upgrading from an older version:
+
+	If you are currently running tcpd from /usr/local/libexec, please
+	note that the addition of the userland tcpd utilities tcpdmatch
+	and tcpdchk into /sbin may result in false rule checking.  These
+	utilities are necessary to support the wrapping-capable inetd.
+	The new inetd with wrapping expects hosts.allow and hosts.deny to
+	reside in /etc, NOT /usr/local/etc (which is where tcpd wants
+	them).  
+
+	If you wish to continue to use /usr/local/libexec/tcpd, please
+	ensure that you're using the userland tcpd utilities in
+	/usr/local/sbin.  If you wish to use the wrapping functionality
+	available via inetd -w, please ensure that your hosts.allow and
+	hosts.deny files are available in /etc.
+
 
 ---- System Update Information:
+
+
 
