@@ -134,6 +134,7 @@ extern struct nfsrvstats nfsrvstats;
 extern int	nfsrv_ticks;
 extern int	nfsrvw_procrastinate;
 extern int	nfsrvw_procrastinate_v3;
+extern int 	nfsrv_numnfsd;
 
 /* Various values converted to XDR form. */
 extern u_int32_t nfsrv_nfs_false, nfsrv_nfs_true, nfsrv_nfs_xdrneg1,

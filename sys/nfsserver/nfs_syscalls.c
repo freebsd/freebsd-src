@@ -86,7 +86,7 @@ MALLOC_DEFINE(M_NFSD, "NFS daemon", "Nfs server daemon structure");
 SYSCTL_DECL(_vfs_nfsrv);
 
 int		nfsd_waiting = 0;
-static int	nfs_numnfsd = 0;
+int		nfsrv_numnfsd = 0;
 static int	notstarted = 1;
 
 static int	nfs_privport = 0;
@@ -304,7 +304,7 @@ nfssvc_nfsd(struct thread *td)
 	s = splnet();
 	nfsd->nfsd_td = td;
 	TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
-	nfs_numnfsd++;
+	nfsrv_numnfsd++;
 
 	/*
 	 * Loop getting rpc requests until SIGKILL.
@@ -533,7 +533,7 @@ done:
 	TAILQ_REMOVE(&nfsd_head, nfsd, nfsd_chain);
 	splx(s);
 	free((caddr_t)nfsd, M_NFSD);
-	if (--nfs_numnfsd == 0)
+	if (--nfsrv_numnfsd == 0)
 		nfsrv_init(TRUE);	/* Reinitialize everything */
 	return (error);
 }
