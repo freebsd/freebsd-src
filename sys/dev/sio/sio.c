@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.236 1999/05/09 10:51:13 phk Exp $
+ *	$Id: sio.c,v 1.237 1999/05/09 13:00:44 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -39,7 +39,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-/* #include "opt_sio.h" */
+#include "opt_sio.h"
 #include "sio.h"
 /* #include "pnp.h" */
 #define NPNP 0
