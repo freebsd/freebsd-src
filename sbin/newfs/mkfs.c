@@ -708,7 +708,7 @@ fsinit(time_t utime)
 		node.dp2.di_atime = utime;
 		node.dp2.di_mtime = utime;
 		node.dp2.di_ctime = utime;
-		node.dp2.di_createtime = utime;
+		node.dp2.di_birthtime = utime;
 		/*
 		 * create the root directory
 		 */
