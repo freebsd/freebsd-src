@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.6 1999/04/24 07:04:51 peter Exp $
+ *	$Id: isa_compat.c,v 1.7 1999/04/26 12:49:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -153,7 +153,8 @@ isa_compat_probe(device_t dev)
 	dvp->id_msize = isa_get_msize(dev);
 	dvp->id_unit = device_get_unit(dev);
 	dvp->id_flags = isa_get_flags(dev);
-	dvp->id_enabled = device_is_enabled(dev);
+	dvp->id_enabled = device_is_enabled(dev);	/* XXX unused */
+	dvp->id_device = dev;
 
 	/*
 	 * Do the wrapped probe.
@@ -249,17 +250,30 @@ isa_wrap_old_drivers(void)
 		driver->type = op->type;
 		driver->softc = sizeof(struct isa_device);
 		driver->priv = op->driver;
+		if (op->driver->sensitive_hw)
+			resource_set_int(op->driver->name, -1, "sensitive", 1);
 		devclass_add_driver(isa_devclass, driver);
 	}
 }
 
 int
-haveseen_isadev(dvp, checkbits)
-	struct isa_device *dvp;
-	u_int   checkbits;
+haveseen_iobase(struct isa_device *dvp, int size)
 {
-	printf("haveseen_isadev() called - FIXME!\n");
-	return 0;
+	int rid;
+	struct resource *res;
+	device_t dev = dvp->id_device;
+	int base = dvp->id_iobase;
+
+	/*
+	 * Ask for resource 1 so that we don't hurt our hints.  In theory
+	 * this should work, but....
+	 */
+	rid = 1;
+	res = bus_alloc_resource(dev, SYS_RES_IOPORT,
+				 &rid, base, base + size, size, RF_ACTIVE);
+	if (res)
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
+	return res ? 0 : 1;
 }
 
 void
