@@ -66,9 +66,6 @@ __uint32_t	htonl __P((__uint32_t));
 __uint16_t	htons __P((__uint16_t));
 __uint32_t	ntohl __P((__uint32_t));
 __uint16_t	ntohs __P((__uint16_t));
-__uint16_t	bswap16 __P((__uint16_t));
-__uint32_t	bswap32 __P((__uint32_t));
-__uint64_t	bswap64 __P((__uint64_t));
 __END_DECLS
 
 /*
@@ -86,6 +83,39 @@ __END_DECLS
 #define	HTONS(x)	(x)
 
 #else
+
+#ifdef __GNUC__
+
+static __inline __uint64_t
+__uint8_swap_uint64(__uint64_t __x)
+{
+	__uint64_t __r;
+	__asm __volatile("mux1 %0=%1,@rev"
+			 : "=r" (__r) : "r"(__x));
+	return __r;
+}
+
+static __inline __uint32_t
+__uint8_swap_uint32(__uint32_t __x)
+{
+	return __uint8_swap_uint64(__x) >> 32;
+}
+
+static __inline __uint16_t
+__uint8_swap_uint16(__uint16_t __x)
+{
+	return __uint8_swap_uint64(__x) >> 48;
+}
+
+/*
+ * Macros for network/external number representation conversion.
+ */
+#define	ntohl	__uint8_swap_uint32
+#define	ntohs	__uint8_swap_uint16
+#define	htonl	__uint8_swap_uint32
+#define	htons	__uint8_swap_uint16
+
+#endif	/* __GNUC__ */
 
 #define	NTOHL(x)	(x) = ntohl((__uint32_t)x)
 #define	NTOHS(x)	(x) = ntohs((__uint16_t)x)
