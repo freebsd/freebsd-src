@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.10 1999/04/27 19:29:41 obrien Exp $ */
+/* $Id: freebsd.h,v 1.11 1999/04/28 18:48:06 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -76,10 +76,11 @@ Boston, MA 02111-1307, USA.  */
    libraries compiled with the native cc. */
 #undef NO_DOLLAR_IN_LABEL
 
-/* Wait until EGCS 1.2 to use more efficient ``thunks'' to implement
-   C++ vtables. */
+/* Use more efficient ``thunks'' to implement C++ vtables.  XXX note that 
+   this setting is claimed to have a few bugs by the EGCS maintainers.  They
+   believe the bugs will be worked out in EGCS 1.2. */
 #undef DEFAULT_VTABLE_THUNKS
-#define DEFAULT_VTABLE_THUNKS 0
+#define DEFAULT_VTABLE_THUNKS 1
 
 
 /* Miscellaneous parameters.  */
