@@ -261,7 +261,7 @@ Finally, establish connection:
 GNU gdb 5.2.1 (FreeBSD)
 .Em "(political statements omitted)"
 Ready to go.  Enter 'tr' to connect to the remote target
-with /dev/cuaa0, 'tr /dev/cuaa1' to connect to a different port
+with /dev/cuad0, 'tr /dev/cuad1' to connect to a different port
 or 'trf portno' to connect to the remote target with the firewire
 interface.  portno defaults to 5556.
 
@@ -379,10 +379,10 @@ instead.
 Debug a remote system via the specified serial or firewire interface.
 .It Ic tr0
 Debug a remote system via serial interface
-.Pa /dev/cuaa0 .
+.Pa /dev/cuad0 .
 .It Ic tr1
 Debug a remote system via serial interface
-.Pa /dev/cuaa1 .
+.Pa /dev/cuad1 .
 .It Ic trf
 Debug a remote system via firewire interface at default port 5556.
 .El
