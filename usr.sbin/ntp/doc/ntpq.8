@@ -189,7 +189,9 @@ Variables which
 thinks should have a decodeable value but didn't are marked with a
 trailing
 .Qq ? Ns .
-.It Ic debug Ar more | Ar less | Ar off
+.It Ic debug Xo
+.Ar more | Ar less | Ar off
+.Xc
 Turn internal query program debugging on and off.
 .It Ic delay Ar milliseconds
 Specify a time interval to be added to timestamps included in requests
@@ -226,7 +228,10 @@ This command allows the specification of a key number to be used to
 authenticate configuration requests.
 This must correspond to a key
 number the server has been configured to use for this purpose.
-.It Ic ntpversion Ar 1 | Ar 2 | Ar 3 | Ar 4
+.It Ic ntpversion Xo
+.Ar 1 | Ar 2 |
+.Ar 3 | Ar 4
+.Xc
 Set the NTP version number which
 .Nm
 claims in packets.
@@ -293,7 +298,7 @@ The first of these is an index numbering the associations from
 returned by the server and the third the status word for the peer.
 This is followed by a number of columns
 containing data decoded from the status word.
-Note that the data returned by the 
+Note that the data returned by the
 .Ic associations
 command is cached internally in
 .Nm Ns .
@@ -552,7 +557,7 @@ default display.
 .Pf [ Aq variable_name Ns
 .Op = Ns Aq value Ns
 .Op ,...]
-.Xc 
+.Xc
 Requests that the values of the specified variables be returned by the
 server by sending a read variables request.
 If the association ID is
