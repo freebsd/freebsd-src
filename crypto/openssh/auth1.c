@@ -280,7 +280,7 @@ do_authloop(Authctxt *authctxt)
 #ifdef USE_PAM
 		case SSH_CMSG_AUTH_TIS:
 			debug("rcvd SSH_CMSG_AUTH_TIS: Trying PAM");
-			pam_cookie = ipam_start_auth("csshd", pw->pw_name);
+			pam_cookie = ipam_start_auth("sshd", pw->pw_name);
 			/* We now have data available to send as a challenge */
 			if (pam_cookie->num_msg != 1 ||
 			    (pam_cookie->msg[0]->msg_style != PAM_PROMPT_ECHO_OFF &&
