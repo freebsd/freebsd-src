@@ -1,4 +1,4 @@
-/*	$NetBSD: hid.c,v 1.15 2000/04/27 15:26:46 augustss Exp $	*/
+/*	$NetBSD: hid.c,v 1.17 2001/11/13 06:24:53 lukem Exp $	*/
 /*	$FreeBSD$ */
 
 /*
@@ -76,9 +76,9 @@ struct hid_data {
 };
 
 Static void
-hid_clear_local(c)
-	struct hid_item *c;
+hid_clear_local(struct hid_item *c)
 {
+
 	c->usage = 0;
 	c->usage_minimum = 0;
 	c->usage_maximum = 0;
@@ -92,10 +92,7 @@ hid_clear_local(c)
 }
 
 struct hid_data *
-hid_start_parse(d, len, kindset)
-	void *d;
-	int len;
-	int kindset;
+hid_start_parse(void *d, int len, int kindset)
 {
 	struct hid_data *s;
 
@@ -108,9 +105,9 @@ hid_start_parse(d, len, kindset)
 }
 
 void
-hid_end_parse(s)
-	struct hid_data *s;
+hid_end_parse(struct hid_data *s)
 {
+
 	while (s->cur.next != NULL) {
 		struct hid_item *hi = s->cur.next->next;
 		free(s->cur.next, M_TEMP);
@@ -120,9 +117,7 @@ hid_end_parse(s)
 }
 
 int
-hid_get_item(s, h)
-	struct hid_data *s;
-	struct hid_item *h;
+hid_get_item(struct hid_data *s, struct hid_item *h)
 {
 	struct hid_item *c = &s->cur;
 	unsigned int bTag, bType, bSize;
@@ -370,12 +365,8 @@ hid_get_item(s, h)
 	}
 }
 
-int 
-hid_report_size(buf, len, k, idp)
-	void *buf;
-	int len;
-	enum hid_kind k;
-	u_int8_t *idp;
+int
+hid_report_size(void *buf, int len, enum hid_kind k, u_int8_t *idp)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -396,13 +387,8 @@ hid_report_size(buf, len, k, idp)
 }
 
 int
-hid_locate(desc, size, u, k, loc, flags)
-	void *desc;
-	int size;
-	u_int32_t u;
-	enum hid_kind k;
-	struct hid_location *loc;
-	u_int32_t *flags;
+hid_locate(void *desc, int size, u_int32_t u, enum hid_kind k,
+	   struct hid_location *loc, u_int32_t *flags)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -423,9 +409,7 @@ hid_locate(desc, size, u, k, loc, flags)
 }
 
 u_long
-hid_get_data(buf, loc)
-	u_char *buf;
-	struct hid_location *loc;
+hid_get_data(u_char *buf, struct hid_location *loc)
 {
 	u_int hpos = loc->pos;
 	u_int hsize = loc->size;
@@ -452,10 +436,7 @@ hid_get_data(buf, loc)
 }
 
 int
-hid_is_collection(desc, size, usage)
-	void *desc;
-	int size;
-	u_int32_t usage;
+hid_is_collection(void *desc, int size, u_int32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
