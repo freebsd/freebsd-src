@@ -19,7 +19,7 @@ SUBDIR=	ac \
 	${_boot0cfg} \
 	${_boot98cfg} \
 	bootparamd \
-	bsnmpd \
+	${_bsnmpd} \
 	${_btxld} \
 	burncd \
 	cdcontrol \
@@ -36,6 +36,8 @@ SUBDIR=	ac \
 	devinfo \
 	digictl \
 	diskinfo \
+	${_dnssec-keygen} \
+	${_dnssec-signzone} \
 	${_editmap} \
 	edquota \
 	${_eeprom} \
@@ -94,8 +96,8 @@ SUBDIR=	ac \
 	mtree \
 	${_named} \
 	${_named.reload} \
-	${_named.restart} \
-	${_ndc} \
+	${_named-checkconf} \
+	${_named-checkzone} \
 	${_ndiscvt} \
 	ndp \
 	newsyslog \
@@ -129,6 +131,8 @@ SUBDIR=	ac \
 	repquota \
 	${_rip6query} \
 	rmt \
+	${_rndc} \
+	${_rndc-confgen} \
 	${_route6d} \
 	rpcbind \
 	rpc.lockd \
@@ -188,15 +192,18 @@ _sysinstall=	sysinstall
 
 .if !defined(NOATM)
 _atm=		atm
+#_bsnmpd=	bsnmpd
 .endif
 
 .if !defined(NO_BIND)
-_named=		named
-_named.reload=	named.reload
-_named.restart=	named.restart
-_ndc=		ndc
-_nslookup=	nslookup
-_nsupdate=	nsupdate
+#_dnssec-keygen=		dnssec-keygen
+#_dnssec-signzone=	dnssec-signzone
+_named=			named
+_named.reload=		named.reload
+_named-checkconf=	named-checkconf
+_named-checkzone=	named-checkzone
+_rndc=			rndc
+_rndc-confgen=		rndc-confgen
 .endif
 
 .if !defined(NO_BLUETOOTH)

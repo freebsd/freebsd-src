@@ -6,16 +6,16 @@ SRCDIR=		${BIND_DIR}/bin/dig
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		dig
+PROG=		nslookup
 
 .PATH: ${SRCDIR}
-SRCS+=		dig.c dighost.c
+SRCS+=		dighost.c nslookup.c
 
 CFLAGS+=	-I${SRCDIR}/include
 
 DPADD+=		${BIND_DPADD}
 LDADD+=		${BIND_LDADD}
 
-MAN=		dig.1
+MAN=		nslookup.1
 
 .include <bsd.prog.mk>

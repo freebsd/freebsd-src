@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    bind
+    ..
+    bind9
+    ..
     bsnmp
     ..
     c++
@@ -52,6 +56,10 @@
         ..
         wi
         ..
+    ..
+    dns
+    ..
+    dst
     ..
     fs
         autofs
@@ -105,6 +113,10 @@
     ..
     isc
     ..
+    isccc
+    ..
+    isccfg
+    ..
     isofs
         cd9660
         ..
@@ -112,6 +124,8 @@
     kadm5
     ..
     libmilter
+    ..
+    lwres
     ..
     machine
         pc

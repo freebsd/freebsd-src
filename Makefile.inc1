@@ -900,6 +900,13 @@ _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
+.if !defined(NO_BIND)
+_prebuild_libs+= lib/libpthread
+_generic_libs+=	lib/bind
+
+lib/bind__L: lib/libpthread__L
+.endif
+
 _generic_libs+=	lib
 
 .if !defined(NOCRYPT)
