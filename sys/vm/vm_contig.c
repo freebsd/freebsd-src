@@ -90,7 +90,7 @@
  * works after initialization time, malloc()'s data structures are good
  * for statistics and for allocations of less than a page.
  */
-void *
+static void *
 contigmalloc1(
 	unsigned long size,	/* should be size_t here and for malloc() */
 	struct malloc_type *type,
