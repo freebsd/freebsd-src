@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.37 1998/01/07 08:40:32 yokota Exp $
+ *	$Id: kbdtables.h,v 1.38 1998/01/12 23:54:51 yokota Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
@@ -711,7 +711,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,  SET8|'*',  SET8|'*',  SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,    LALT,      LALT,      LALT,      LALT,    0xFF, 0x00,
-/* sc=39 */  ' ',   ' ',  0x00,   ' ',  SET8|' ',  SET8|' ',  SET8|' ',  SET8|' ',  0x00, 0x00,
+/* sc=39 */  ' ',   ' ',  0x00,   ' ',  SET8|' ',  SET8|' ',    SUSP,  SET8|' ',  0x00, 0x00,
 /* sc=3a */  ALK,   CLK,   CLK,   CLK,     CLK,       CLK,       CLK,       CLK,    0xFF, 0x00,
 /* sc=3b */ F( 1), F(13), F(25), F(37),   S( 1),     S(11),     S( 1),     S(11),   0xFF, 0x00,
 /* sc=3c */ F( 2), F(14), F(26), F(38),   S( 2),     S(12),     S( 2),     S(12),   0xFF, 0x00,
@@ -840,7 +840,7 @@ static keymap_t key_map = { 0xEC,        /* keys number */
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,     RSH,       RSH,       RSH,       RSH,    0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,  SET8|'*',  SET8|'*',  SET8|0x0A, SET8|0x0A, 0x00, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,    LALT,      LALT,      LALT,      LALT,    0xFF, 0x00,
-/* sc=39 */  ' ',   ' ',  0x00,   ' ',  SET8|' ',  SET8|' ',  SET8|' ',  SET8|' ',  0x00, 0x00,
+/* sc=39 */  ' ',   ' ',  0x00,   ' ',  SET8|' ',  SET8|' ',    SUSP,  SET8|' ',  0x00, 0x00,
 /* sc=3a */  ALK,   CLK,   CLK,   CLK,     CLK,       CLK,       CLK,       CLK,    0xFF, 0x00,
 /* sc=3b */ F( 1), F(13), F(25), F(37),   S( 1),     S(11),     S( 1),     S(11),   0xFF, 0x00,
 /* sc=3c */ F( 2), F(14), F(26), F(38),   S( 2),     S(12),     S( 2),     S(12),   0xFF, 0x00,
@@ -904,7 +904,7 @@ static keymap_t keymap = { 0x69,	/* spanish iso8859 keymap */
  * ---------------------------------------------------------------------------
  */
 /* sc=00 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
-/* sc=01 */ 0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x00, 0x00,
+/* sc=01 */ 0x1B,  0x1B,  0x1B,  0x1B,  0x1B,  0x1B,   DBG,  0x1B,  0x00, 0x00,
 /* sc=02 */  '1',   '!',   NOP,   NOP,   '|',   '|',   NOP,   NOP,  0x33, 0x00,
 /* sc=03 */  '2',   '"',  0x00,  0x00,   '@',   '@',  0x00,  0x00,  0x00, 0x00,
 /* sc=04 */  '3',  0xB7,   NOP,   NOP,   '#',   '#',   NOP,   NOP,  0x33, 0x00,
@@ -960,7 +960,7 @@ static keymap_t keymap = { 0x69,	/* spanish iso8859 keymap */
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
 /* sc=37 */  '*',   '*',  NEXT,  NEXT,   '*',   '*',  NEXT,  NEXT,  0x33, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
-/* sc=39 */  ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',  0x00, 0x00,
+/* sc=39 */  ' ',   ' ',  0x00,   ' ',   ' ',   ' ',  SUSP,   ' ',  0x00, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
 /* sc=3b */ F( 1), F(13), F(25), F(37), S( 1), S(11), S( 1), S(11), 0xFF, 0x00,
 /* sc=3c */ F( 2), F(14), F(26), F(38), S( 2), S(12), S( 2), S(12), 0xFF, 0x00,
