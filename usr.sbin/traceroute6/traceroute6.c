@@ -600,9 +600,9 @@ main(argc, argv)
 	 * turned off.
 	 */
 	if (setpolicy(rcvsock, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 	if (setpolicy(rcvsock, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #else
     {
 	int level = IPSEC_LEVEL_NONE;
@@ -674,9 +674,9 @@ main(argc, argv)
 	 * turned off.
 	 */
 	if (setpolicy(sndsock, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 	if (setpolicy(sndsock, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #else
     {
 	int level = IPSEC_LEVEL_BYPASS;
