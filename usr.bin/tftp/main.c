@@ -200,7 +200,7 @@ setpeer(argc, argv)
 		argc = margc;
 		argv = margv;
 	}
-	if (argc > 3) {
+	if ((argc < 2) || (argv > 3)) {
 		printf("usage: %s host-name [port]\n", argv[0]);
 		return;
 	}
