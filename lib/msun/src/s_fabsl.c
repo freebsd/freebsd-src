@@ -35,6 +35,9 @@
 long double
 fabsl(long double x)
 {
-	((union IEEEl2bits *)&x)->bits.sign = 0;
-	return (x);
+	union IEEEl2bits u;
+
+	u.e = x;
+	u.bits.sign = 0;
+	return (u.e);
 }
