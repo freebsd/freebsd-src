@@ -37,6 +37,8 @@
 #ifndef _NETINET_TCP_H_
 #define _NETINET_TCP_H_
 
+#if __BSD_VISIBLE
+
 typedef	u_int32_t tcp_seq;
 typedef u_int32_t tcp_cc;		/* connection count per rfc1644 */
 
@@ -125,13 +127,16 @@ struct tcphdr {
 #define TCP_MAXHLEN	(0xf<<2)	/* max length of header in bytes */
 #define TCP_MAXOLEN	(TCP_MAXHLEN - sizeof(struct tcphdr))
 					/* max space left for options */
+#endif /* __BSD_VISIBLE */
 
 /*
  * User-settable options (used with setsockopt).
  */
 #define	TCP_NODELAY	0x01	/* don't delay send to coalesce packets */
+#if __BSD_VISIBLE
 #define	TCP_MAXSEG	0x02	/* set maximum segment size */
 #define TCP_NOPUSH	0x04	/* don't push last block of write */
 #define TCP_NOOPT	0x08	/* don't use TCP options */
-
 #endif
+
+#endif /* !_NETINET_TCP_H_ */
