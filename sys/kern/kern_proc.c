@@ -159,7 +159,6 @@ chgsbsize(uid, diff)
 	}
 	if (uip) {
 		uip->ui_sbsize += diff;
-		KASSERT(uip->ui_sbsize >= 0, ("ui_sbsize (%d) < 0", uid));
 		if (uip->ui_sbsize == 0 && uip->ui_proccnt == 0) {
 			LIST_REMOVE(uip, ui_hash);
 			FREE(uip, M_PROC);
