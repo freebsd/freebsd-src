@@ -789,7 +789,6 @@ static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_ioctl_desc,		(vop_t *) cd9660_ioctl },
 	{ &vop_lookup_desc,		(vop_t *) vfs_cache_lookup },
 	{ &vop_pathconf_desc,		(vop_t *) cd9660_pathconf },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_read_desc,		(vop_t *) cd9660_read },
 	{ &vop_readdir_desc,		(vop_t *) cd9660_readdir },
 	{ &vop_readlink_desc,		(vop_t *) cd9660_readlink },
@@ -811,7 +810,6 @@ static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ NULL, NULL }
@@ -826,7 +824,6 @@ static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
 	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
 	{ NULL, NULL }

@@ -545,7 +545,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) fdesc_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
 	{ &vop_poll_desc,		(vop_t *) fdesc_poll },
-	{ &vop_print_desc,		(vop_t *) vop_null },
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
