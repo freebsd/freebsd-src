@@ -274,10 +274,7 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 		    THR_IS_EXITING(thread) || THR_IS_SUSPENDED(thread)) {
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
-		} else if ((thread->state == PS_SIGWAIT &&
-			    SIGISMEMBER(thread->oldsigmask, sig)) ||
-			   (thread->state != PS_SIGWAIT &&
-			    SIGISMEMBER(thread->sigmask, sig))) {
+		} else if (SIGISMEMBER(thread->sigmask, sig)) {
 			KSE_SCHED_UNLOCK(curkse, thread->kseg);
 			_thr_ref_delete(NULL, thread);
 		} else {
@@ -572,7 +569,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 		    THR_IS_SUSPENDED(pthread)) {
 			; /* Skip this thread. */
 		} else if (pthread->state == PS_SIGWAIT &&
-			   !SIGISMEMBER(pthread->sigmask, sig)) {
+			   SIGISMEMBER(*(pthread->data.sigwait->waitset), sig)) {
 			/*
 			 * retrieve signal from kernel, if it is job control
 			 * signal, and sigaction is SIG_DFL, then we will
@@ -584,8 +581,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 				DBG_MSG("Waking thread %p in sigwait"
 					" with signal %d\n", pthread, sig);
 				/*  where to put siginfo ? */
-				*(pthread->data.sigwaitinfo) = si;
-				pthread->sigmask = pthread->oldsigmask;
+				*(pthread->data.sigwait->siginfo) = si;
 				kmbx = _thr_setrunnable_unlocked(pthread);
 			}
 			KSE_SCHED_UNLOCK(curkse, pthread->kseg);
@@ -603,9 +599,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			if (kmbx != NULL)
 				kse_wakeup(kmbx);
 			return (NULL);
-		} else if (!SIGISMEMBER(pthread->sigmask, sig) ||
-			   (!SIGISMEMBER(pthread->oldsigmask, sig) &&
-			   pthread->state == PS_SIGWAIT)) {
+		} else if (!SIGISMEMBER(pthread->sigmask, sig)) {
 			sigfunc = _thread_sigact[sig - 1].sa_sigaction;
 			if ((__sighandler_t *)sigfunc == SIG_DFL) {
 				if (sigprop(sig) & SA_KILL) {
@@ -939,19 +933,17 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			 */
 			suppress_handler = 1;
 			/* Wake up the thread if the signal is not blocked. */
-			if (!SIGISMEMBER(pthread->sigmask, sig)) {
+			if (SIGISMEMBER(*(pthread->data.sigwait->waitset), sig)) {
 				/* Return the signal number: */
-				*(pthread->data.sigwaitinfo) = pthread->siginfo[sig-1];
-				pthread->sigmask = pthread->oldsigmask;
+				*(pthread->data.sigwait->siginfo) = pthread->siginfo[sig-1];
 				/* Make the thread runnable: */
 				kmbx = _thr_setrunnable_unlocked(pthread);
 			} else {
 				/* Increment the pending signal count. */
 				SIGADDSET(pthread->sigpend, sig);
-				if (!SIGISMEMBER(pthread->oldsigmask, sig)) {
+				if (!SIGISMEMBER(pthread->sigmask, sig)) {
 					pthread->check_pending = 1;
 					pthread->interrupted = 1;
-					pthread->sigmask = pthread->oldsigmask;
 					kmbx = _thr_setrunnable_unlocked(pthread);
 				}
 			}
