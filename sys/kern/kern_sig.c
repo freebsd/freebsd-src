@@ -2554,12 +2554,10 @@ coredump(struct thread *td)
 	 * a corefile is truncated instead of not being created,
 	 * if it is larger than the limit.
 	 */
-	limit = p->p_rlimit[RLIMIT_CORE].rlim_cur;
-	if (limit == 0) {
-		PROC_UNLOCK(p);
-		return EFBIG;
-	}
+	limit = (off_t)lim_cur(p, RLIMIT_CORE);
 	PROC_UNLOCK(p);
+	if (limit == 0)
+		return (EFBIG);
 
 restart:
 	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid);

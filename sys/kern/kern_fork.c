@@ -308,7 +308,7 @@ fork1(td, flags, pages, procp)
 	 */
 	PROC_LOCK(p1);
 	ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1,
-		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
+		(uid != 0) ? lim_cur(p1, RLIMIT_NPROC) : 0);
 	PROC_UNLOCK(p1);
 	if (!ok) {
 		error = EAGAIN;
@@ -528,14 +528,13 @@ again:
 		VREF(p2->p_textvp);
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
-	PROC_UNLOCK(p1);
-	PROC_UNLOCK(p2);
 
 	/*
 	 * p_limit is copy-on-write, bump refcnt,
 	 */
-	p2->p_limit = p1->p_limit;
-	p2->p_limit->p_refcnt++;
+	p2->p_limit = lim_hold(p1->p_limit);
+	PROC_UNLOCK(p1);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Setup linkage for kernel based threading

@@ -235,12 +235,15 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 		}
 	}
 	if (uiop->uio_resid == 0) return 0;
-	if (td && uiop->uio_offset + uiop->uio_resid
-	    > td->td_proc->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+	if (td != NULL) {
 		PROC_LOCK(td->td_proc);
-		psignal(td->td_proc, SIGXFSZ);
+		if  (uiop->uio_offset + uiop->uio_resid >
+		    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
+			psignal(td->td_proc, SIGXFSZ);
+			PROC_UNLOCK(td->td_proc);
+			return (EFBIG);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (EFBIG);
 	}
 	error = ncp_write(NWFSTOCONN(nmp), &np->n_fh, uiop, cred);
 	NCPVNDEBUG("after: ofs=%d,resid=%d\n",(int)uiop->uio_offset, uiop->uio_resid);

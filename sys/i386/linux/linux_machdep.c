@@ -500,9 +500,10 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			 * mmap'ed region, but some apps do not check
 			 * mmap's return value.
 			 */
-			mtx_assert(&Giant, MA_OWNED);
+			PROC_LOCK(p);
 			p->p_vmspace->vm_maxsaddr = (char *)USRSTACK -
-			    p->p_rlimit[RLIMIT_STACK].rlim_cur;
+			    lim_cur(p, RLIMIT_STACK);
+			PROC_UNLOCK(p);
 		}
 
 		/* This gives us our maximum stack size */

@@ -142,7 +142,7 @@ struct loadavg {
 extern struct loadavg averunnable;
 extern long cp_time[CPUSTATES];
 
-int	dosetrlimit(struct thread *, u_int, struct rlimit *);
+int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 
 #else
 #include <sys/cdefs.h>

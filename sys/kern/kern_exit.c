@@ -119,6 +119,7 @@ exit1(struct thread *td, int rv)
 	struct vnode *tracevp;
 	struct ucred *tracecred;
 #endif
+	struct plimit *plim;
 
 	GIANT_REQUIRED;
 
@@ -373,11 +374,11 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Release our limits structure.
 	 */
-	mtx_assert(&Giant, MA_OWNED);
-	if (--p->p_limit->p_refcnt == 0) {
-		FREE(p->p_limit, M_SUBPROC);
-		p->p_limit = NULL;
-	}
+	PROC_LOCK(p);
+	plim = p->p_limit;
+	p->p_limit = NULL;
+	PROC_UNLOCK(p);
+	lim_free(plim);
 
 	/*
 	 * Release this thread's reference to the ucred.  The actual proc

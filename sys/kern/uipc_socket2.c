@@ -411,6 +411,7 @@ sbreserve(sb, cc, so, td)
 	struct socket *so;
 	struct thread *td;
 {
+	rlim_t sbsize_limit;
 
 	/*
 	 * td will only be NULL when we're in an interrupt
@@ -418,10 +419,15 @@ sbreserve(sb, cc, so, td)
 	 */
 	if (cc > sb_max_adj)
 		return (0);
+	if (td != NULL) {
+		PROC_LOCK(td->td_proc);
+		sbsize_limit = lim_cur(td->td_proc, RLIMIT_SBSIZE);
+		PROC_UNLOCK(td->td_proc);
+	} else
+		sbsize_limit = RLIM_INFINITY;
 	if (!chgsbsize(so->so_cred->cr_uidinfo, &sb->sb_hiwat, cc,
-	    td ? td->td_proc->p_rlimit[RLIMIT_SBSIZE].rlim_cur : RLIM_INFINITY)) {
+	    sbsize_limit))
 		return (0);
-	}
 	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;

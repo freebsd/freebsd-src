@@ -75,10 +75,21 @@ struct pstats {
  */
 struct plimit {
 	struct	rlimit pl_rlimit[RLIM_NLIMITS];
-	int	p_refcnt;		/* number of references */
+	int	pl_refcnt;		/* number of references */
+	struct	mtx pl_mtx;
 };
 
 #ifdef _KERNEL
+
+/*
+ * Lock order for operations involving the plimit lock:
+ *      filedesc  <important to avoid deadlocks in the descriptor code>
+ *      proc
+ *      plimit
+ */
+#define LIM_LOCK(lim)		mtx_lock(&(lim)->pl_mtx)
+#define LIM_UNLOCK(lim)		mtx_unlock(&(lim)->pl_mtx)
+#define LIM_LOCK_ASSERT(lim, f)	mtx_assert(&(lim)->pl_mtx, (f))
 
 /*
  * Per uid resource consumption
@@ -107,8 +118,15 @@ int	 chgproccnt(struct uidinfo *uip, int diff, int max);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t max);
 int	 fuswintr(void *base);
+rlim_t	 lim_cur(struct proc *p, int which);
+rlim_t	 lim_max(struct proc *p, int which);
+void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
+void	 lim_copy(struct plimit *dst, struct plimit *src);
+void	 lim_free(struct plimit *limp);
 struct plimit
-	*limcopy(struct plimit *lim);
+	*lim_alloc(void);
+struct plimit
+	*lim_hold(struct plimit *limp);
 void	 ruadd(struct rusage *ru, struct rusage *ru2);
 int	 suswintr(void *base, int word);
 struct uidinfo

@@ -209,16 +209,18 @@ do_aout_hdr(struct imgact_gzip * gz)
 	/*
 	 * text/data/bss must not exceed limits
 	 */
-	mtx_assert(&Giant, MA_OWNED);
+	PROC_LOCK(gz->ip->proc);
 	if (			/* text can't exceed maximum text size */
 	    gz->a_out.a_text > maxtsiz ||
 
 	/* data + bss can't exceed rlimit */
 	    gz->a_out.a_data + gz->bss_size >
-	    gz->ip->proc->p_rlimit[RLIMIT_DATA].rlim_cur) {
+	    lim_cur(gz->ip->proc, RLIMIT_DATA)) {
+		PROC_UNLOCK(gz->ip->proc);
 		gz->where = __LINE__;
 		return (ENOMEM);
 	}
+	PROC_UNLOCK(gz->ip->proc);
 	/* Find out how far we should go */
 	gz->file_end = gz->file_offset + gz->a_out.a_text + gz->a_out.a_data;
 
