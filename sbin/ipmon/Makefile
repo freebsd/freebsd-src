@@ -3,6 +3,7 @@
 .PATH:	${.CURDIR}/../../contrib/ipfilter ${.CURDIR}/../../contrib/ipfilter/man
 
 PROG=	ipmon
+MAN4=	ipl.4
 MAN8=	ipmon.8
 SRCS=	ipmon.c
 
