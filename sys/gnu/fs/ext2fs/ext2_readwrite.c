@@ -217,6 +217,8 @@ WRITE(ap)
 	 * file servers have no limits, I don't think it matters.
 	 */
 	p = uio->uio_procp;
+	/* For p_rlimit. */
+	mtx_assert(&Giant, MA_OWNED);
 	if (vp->v_type == VREG && p &&
 	    uio->uio_offset + uio->uio_resid >
 	    p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
