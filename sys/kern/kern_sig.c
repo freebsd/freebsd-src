@@ -1251,8 +1251,8 @@ psignal(p, sig)
 		 * It will either never be noticed, or noticed very soon.
 		 */
 		if (p == curproc) {
-			mtx_unlock_spin(&sched_lock);
 			signotify(p);
+			mtx_unlock_spin(&sched_lock);
 		}
 #ifdef SMP
 		else if (p->p_stat == SRUN) {

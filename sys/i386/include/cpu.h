@@ -59,30 +59,15 @@
 #define	cpu_getstack(p)			((p)->p_md.md_regs->tf_esp)
 #define cpu_setstack(p, ap)		((p)->p_md.md_regs->tf_esp = (ap))
 
+#define	TRAPF_USERMODE(framep) \
+	((ISPL((framep)->tf_cs) == SEL_UPL) || ((framep)->tf_eflags & PSL_VM))
+#define	TRAPF_PC(framep)	((framep)->tf_eip)
+
 #define	CLKF_USERMODE(framep) \
-	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))
+	((ISPL((framep)->cf_cs) == SEL_UPL) || ((framep)->cf_eflags & PSL_VM))
 
 #define CLKF_INTR(framep)	(curproc->p_intr_nesting_level >= 2)
 #define	CLKF_PC(framep)		((framep)->cf_eip)
-
-/*
- * astpending bits
- */
-#define	AST_PENDING	0x00000001
-#define	AST_RESCHED	0x00000002
-
-/*
- * Preempt the current process if in interrupt from user mode,
- * or after the current trap/syscall if in system mode.
- *
- * XXX: if astpending is later changed to an |= here due to more flags being
- * added, we will have an atomicy problem.  The type of atomicy we need is
- * a non-locked orl.
- */
-#define	need_resched() do {						\
-	PCPU_SET(astpending, AST_RESCHED|AST_PENDING);			\
-} while (0)
-#define	resched_wanted()	(PCPU_GET(astpending) & AST_RESCHED)
 
 /*
  * Arrange to handle pending profiling ticks before returning to user mode.
@@ -92,26 +77,11 @@
  * counter in the proc table and flag isn't really necessary.
  */
 #define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);				\
+	mtx_lock_spin(&sched_lock);					\
 	(p)->p_sflag |= PS_OWEUPC;					\
-	mtx_unlock_spin(&sched_lock);				\
 	aston();							\
+	mtx_unlock_spin(&sched_lock);					\
 } while (0)
-
-/*
- * Notify the current process (p) that it has a signal pending,
- * process as soon as possible.
- *
- * XXX: aston() really needs to be an atomic (not locked, but an orl),
- * in case need_resched() is set by an interrupt.  But with astpending a
- * per-cpu variable this is not trivial to do efficiently.  For now we blow
- * it off (asynchronous need_resched() conflicts are not critical).
- */
-#define	signotify(p)	aston()
-#define	aston() do {							\
-	PCPU_SET(astpending, PCPU_GET(astpending) | AST_PENDING);	\
-} while (0)
-#define astoff()
 
 /*
  * CTL_MACHDEP definitions.

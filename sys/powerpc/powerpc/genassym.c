@@ -73,7 +73,6 @@ ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
 ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
 ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
 ASSYM(GD_IDLEPCBPHYS, offsetof(struct globaldata, gd_idlepcbphys));
-ASSYM(GD_ASTPENDING, offsetof(struct globaldata, gd_astpending));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
