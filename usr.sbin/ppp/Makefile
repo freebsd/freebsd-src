@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.59 1999/08/23 23:13:59 brian Exp $
+#	$Id: Makefile,v 1.60 1999/08/27 06:01:27 jkh Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -12,7 +12,7 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 CFLAGS+=-Wall
 LDADD+= -lcrypt -lmd -lutil -lz
 DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
-BINMODE=4755
+BINMODE=4554
 BINOWN=	root
 BINGRP=	network
 MAN8=	ppp.8
