@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: io.4,v 1.4 1997/02/22 13:25:31 peter Exp $
 .\"
 .Dd Jan 1, 1996
 .Dt IO 4 i386
@@ -35,12 +35,12 @@
 .Nd I/O privilege file
 .Sh DESCRIPTION
 The special file
-.Nm /dev/io
+.Pa /dev/io
 is a controlled security hole that allows a process to gain I/O
 privileges
 .Pq which are normally reserved for kernel-internal code .
 Any process that holds a file descriptor on
-.Nm /dev/io
+.Pa /dev/io
 open will get its
 .Em IOPL
 bits in the flag register set, thus allowing it to perform direct
@@ -49,7 +49,7 @@ programs that handle some hardware directly.
 .Pp
 The entire access control is handled by the file access permissions
 of
-.Nm /dev/io ,
+.Pa /dev/io ,
 so care should be taken in granting rights for this device.  Note
 that even read/only access will grant the full I/O privileges.
 .Sh FILES

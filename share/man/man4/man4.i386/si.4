@@ -1,4 +1,4 @@
-.\" $Id: si.4,v 1.6 1996/12/29 20:36:03 wosch Exp $
+.\" $Id: si.4,v 1.9 1997/02/22 13:25:41 peter Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
@@ -7,7 +7,7 @@
 .Nm si
 .Nd Driver for Specialix International SI/XIO 8-32 port intelligent serial card.
 .Sh SYNOPSIS
-.Nm "device si0 at isa? tty irq 12 iomem 0xd0000 vector siintr"
+.Cd "device si0 at isa? tty irq 12 iomem 0xd0000 vector siintr"
 .Sh DESCRIPTION
 The Specialix SI and XIO hardware makes up an 8 to 32 port RS-232 serial
 multiplexor.
@@ -136,16 +136,16 @@ locked termios state devices
 .Sh HISTORY
 This driver is loosely based on driver code originating at Specialix, which
 was ported to run on BSDI by
-.Nm Andy Rutter <andy@specialix.co.uk> .
+.Sy Andy Rutter <andy@specialix.co.uk> .
 The System V driver source is/was available by ftp from
-.Nm ftp.specialix.co.uk .
+.Sy ftp.specialix.co.uk .
 .Pp
 This driver is not supported by Specialix International. 
 .Sh AUTHORS
-.Nm Peter Wemm <peter@freebsd.org>
+.Sy Peter Wemm <peter@freebsd.org>
 obtained the code from Andy Rutter and ported it to FreeBSD, with a large
 amount of invalueable assistance from
-.Nm Bruce Evans <bde@zeta.org.au>
+.Sy Bruce Evans <bde@zeta.org.au>
 .Pp
 Man page by Peter Wemm.
 .Sh BUGS

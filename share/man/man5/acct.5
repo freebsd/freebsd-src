@@ -56,15 +56,16 @@ to the accounting file.
  */
 typedef u_short comp_t;
 
+#define AC_COMM_LEN 16
 struct acct {
-	char	ac_comm[10];	/* name of command */
+	char	ac_comm[AC_COMM_LEN];  /* command name */
 	comp_t	ac_utime;	/* user time */
 	comp_t	ac_stime;	/* system time */
 	comp_t	ac_etime;	/* elapsed time */
 	time_t	ac_btime;	/* starting time */
 	uid_t	ac_uid;		/* user id */
 	gid_t	ac_gid;		/* group id */
-	short	ac_mem;		/* memory usage average */
+	short	ac_mem;		/* average memory usage */
 	comp_t	ac_io;		/* count of IO blocks */
 	dev_t	ac_tty;		/* controlling tty */
 #define	AFORK	0x01		/* forked but not execed */
@@ -80,10 +81,6 @@ struct acct {
  * This is not necessarily equal to hz.
  */
 #define	AHZ	64
-
-#ifdef KERNEL
-struct vnode	*acctp;
-#endif
 .Ed
 .Pp
 If a terminated process was created by an

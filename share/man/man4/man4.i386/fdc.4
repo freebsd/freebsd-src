@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: fdc.4,v 1.5 1996/12/26 16:16:09 wosch Exp $
+.\"	$Id: fdc.4,v 1.8 1997/02/22 13:25:23 peter Exp $
 .\"
 .Dd August 31, 1994
 .Dt FDC 4 i386
@@ -34,11 +34,10 @@
 .Nd
 PC architecture floppy disk controller driver
 .Sh SYNOPSIS
-.sp
 .Cd "controller fdc0 at isa? port" \&"IO_FD1\&" bio irq 6 drq 2 vector fdintr
 .Cd "disk fd0 at fdc0 drive 0
 .Cd "disk fd1 at fdc0 drive 1
-.sp
+.Pp
 For QIC40 and QIC80 tapedrives controlled by the floppy controller:
 .Cd "tape ft0 at fdc0 drive 2
 .Sh DESCRIPTION

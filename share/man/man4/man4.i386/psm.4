@@ -1,4 +1,4 @@
-.\"	$Id: psm.4,v 1.1.2.1 1996/12/31 22:44:45 mpp Exp $
+.\"	$Id: psm.4,v 1.7 1997/02/22 13:25:39 peter Exp $
 .\"
 .Dd January 13, 1997
 .Dt PSM 4 i386
@@ -21,16 +21,16 @@ The
 .Nm
 driver provides support for the PS/2 mouse style pointing device.
 
-.Nm port \&"IO_KBD\&"
+.Em port \&"IO_KBD\&"
 and
-.Nm conflicts
+.Em conflicts
 are required, 
 as the PS/2 mouse port is located
 at the auxiliary port of the keyboard controller, thus, the 
 .Nm
 driver has to share the same I/O ports with the keyboard driver.
 Note also that there is currently no provision of changing the 
-.Nm irq
+.Em irq
 number.
 .Pp
 A series of data packets is read from the

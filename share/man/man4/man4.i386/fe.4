@@ -21,7 +21,7 @@
 .\" Contributed by M. Sekiguchi <seki@sysrap.cs.fujitsu.co.jp>.
 .\" for fe driver.
 .\"
-.\"	$Id: fe.4,v 1.6 1996/12/29 20:35:54 wosch Exp $
+.\"	$Id: fe.4,v 1.9 1997/02/22 13:25:26 peter Exp $
 .Dd March 3, 1996
 .Dt FE 4 i386
 .Sh NAME
@@ -187,14 +187,14 @@ works mostly fine for FMV-180 series.
 It works even if there are two or more FMV-180s in a system.
 However, some combination of other adapters may confuse the driver.
 It is recommended not to use
-.Nm port ?
+.Em "port ?"
 when you experience some difficulties with hardware probe.
 .Pp
 Automatic IRQ detection feature of
 .Nm fe
 works reliably for FMV-180 series.
 It is recommended to use
-.Nm irq ?
+.Em "irq ?"
 always for FMV-180.
 The hardware setting of IRQ is read
 from the configuration EEPROM on the adapter,
