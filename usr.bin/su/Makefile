@@ -14,10 +14,19 @@ COPTS+=	-DWHEELSU
 CFLAGS+= -Wall
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
-CFLAGS+=-DKERBEROS
+CFLAGS+=-DKERBEROS4
 DPADD+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
 LDADD+=	-lkrb -lcrypto -lcom_err
 DISTRIBUTION=	krb4
+.endif
+
+.if exists(${DESTDIR}${LIBDIR}/libkrb5.a) && defined(MAKE_KERBEROS5)
+CFLAGS+=-DKERBEROS5
+DPADD+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} \
+	${LIBROKEN}
+LDADD+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lcom_err \
+	-L${.OBJDIR}/../../../../kerberos5/lib/libroken -lroken
+DISTRIBUTION=	krb5
 .endif
 
 BINMODE=4555
