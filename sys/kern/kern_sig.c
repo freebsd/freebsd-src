@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.11 1995/05/30 08:05:40 rgrimes Exp $
+ * $Id: kern_sig.c,v 1.11.4.1 1996/01/31 13:12:27 davidg Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -1157,15 +1157,14 @@ coredump(p)
 	register struct proc *p;
 {
 	register struct vnode *vp;
-	register struct pcred *pcred = p->p_cred;
-	register struct ucred *cred = pcred->pc_ucred;
+	register struct ucred *cred = p->p_cred->pc_ucred;
 	register struct vmspace *vm = p->p_vmspace;
 	struct nameidata nd;
 	struct vattr vattr;
 	int error, error1;
 	char name[MAXCOMLEN+6];		/* progname.core */
 
-	if (pcred->p_svuid != pcred->p_ruid || pcred->p_svgid != pcred->p_rgid)
+	if (p->p_flag & P_SUGID)
 		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
 	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
