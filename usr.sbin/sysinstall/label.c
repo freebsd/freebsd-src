@@ -1155,7 +1155,7 @@ requested_part_size(char *varName, int nom, int def, int perc)
     char *cp;
     int sz;
 
-    if ((cp = variable_get(VAR_ROOT_SIZE)) != NULL)
+    if ((cp = variable_get(varName)) != NULL)
 	sz = atoi(cp);
     else
 	sz = nom + (def - nom) * perc / 100;
