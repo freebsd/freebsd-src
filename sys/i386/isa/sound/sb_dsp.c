@@ -633,6 +633,8 @@ sb_dsp_detect (struct address_info *hw_config)
   return 1;			/* Detected */
 }
 
+static char card_name[32] = "SoundBlaster";
+
 #ifndef EXCLUDE_AUDIO
 struct audio_operations sb_dsp_operations =
 {
@@ -694,20 +696,24 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
     }
 #endif
 
+#ifndef SCO
   if (major >= 3)
     {
-#ifndef SCO
+#ifndef EXCLUDE_AUDIO
       sprintf (sb_dsp_operations.name, "SoundBlaster Pro %d.%d", major, minor);
 #endif
+      sprintf (card_name, "SoundBlaster Pro %d.%d", major, minor);
     }
   else
     {
-#ifndef SCO
+#ifndef EXCLUDE_AUDIO
       sprintf (sb_dsp_operations.name, "SoundBlaster %d.%d", major, minor);
 #endif
+      sprintf (card_name, "SoundBlaster %d.%d", major, minor);
     }
+#endif
 
-  printk ("snd2: <%s>", sb_dsp_operations.name);
+  printk ("snd2: <%s>", card_name);
 
 #ifndef EXCLUDE_AUDIO
 #if !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
