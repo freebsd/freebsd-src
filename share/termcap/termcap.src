@@ -2310,7 +2310,7 @@ vt100|dec-vt100|vt100-am|vt100am|dec vt100:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:kb=^H:\
 	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=2*\EM:vt#3:xn:\
 	:sc=2\E7:rc=2\E8:cs=5\E[%i%d;%dr:UP=2\E[%dA:DO=2\E[%dB:RI=2\E[%dC:\
-	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:nl=^J:eo:it#8:
+	:LE=2\E[%dD:ct=2\E[3g:st=2\EH:ta=^I:ms:bl=^G:cr=^M:nl=^J:eo:it#8:ut:
 vt100-nam|dec-vt100-nam|vt100nam|vt100 w/no am:\
 	:am@:xn@:\
 	:is=\E>\E[?3l\E[?4l\E[?5l\E[?7l\E[?8h\E[1;24r\E[24;1H:\
