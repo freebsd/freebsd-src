@@ -131,6 +131,7 @@ SUBDIR+=aac \
 	fpu \
 	gnufpu \
 	ibcs2 \
+	iir \
 	linux \
 	ncv \
 	nsp \
