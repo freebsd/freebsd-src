@@ -1,5 +1,5 @@
 
-#	$Id: Makefile,v 1.1 1996/05/21 01:12:35 julian Exp $
+#	$Id: Makefile,v 1.2 1996/06/24 04:23:34 jkh Exp $
 # If this is a RELEASE, then set
 
 # Things which without too much trouble can be considered variables
@@ -55,9 +55,11 @@ all: ${FS_BIN}/write_mfs_in_kernel
 # We don't erase the sys/compile/${KERNEL} directory, since somebody
 # may want to reuse it (release.8 presently)
 #
+CONF=${TOP}/sys/i386/conf
+COMPILE=${TOP}/sys/compile
 doKERNEL:
-	cd ${TOP}/sys/i386/conf && config -n ${KERNEL}
-	cd ${OBJTOP}/sys/compile/${KERNEL} && \
+	cd ${CONF} && config -n ${KERNEL}
+	cd ${COMPILE}/${KERNEL} && \
 			make  depend && \
 			make  kernel && \
 
@@ -65,10 +67,8 @@ doKERNEL:
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 LABELDIR=${OBJTOP}/sys/i386/boot/biosboot
-CONF=${TOP}/sys/i386/conf
-COMPILE=${OBJTOP}/sys/compile
 doMFSKERN:
-	rm -f ${OBJTOP}/sys/compile/BOOTMFS/mfs_vfsops.o
+	rm -f ${COMPILE}/BOOTMFS/mfs_vfsops.o
 	cd ${CONF} && \
 		fgrep -v SYSV GENERIC | \
 		fgrep -v pty | \
