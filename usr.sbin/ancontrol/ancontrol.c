@@ -1342,9 +1342,14 @@ int main(argc, argv)
 	if (ch == 'i') {
 		iface = optarg;
 	} else {
-		iface = "an0";
+		if (argc > 1 && *argv[1] != '-') {
+			iface = argv[1];
+			optind = 2; 
+		} else {
+			iface = "an0";
+			optind = 1;
+		}
 		optreset = 1;
-		optind = 1;
 	}
 	opterr = 1;
 
