@@ -135,7 +135,8 @@ struct wi_softc	{
 #endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
-	int			wi_prism2;	/* set to 1 if it uses a Prism II chip */
+	int			wi_prism2;
+	int			wi_prism2_ver;
 };
 
 #define	WI_LOCK(_sc)
@@ -441,6 +442,26 @@ struct wi_ltv_memsz {
 	u_int16_t		wi_type;
 	u_int16_t		wi_mem_ram;
 	u_int16_t		wi_mem_nvram;
+};
+
+/*
+ * NIC Identification (0xFD0B)
+ */
+#define WI_RID_CARDID		0xFD0B
+#define WI_RID_IDENT		0xFD20
+struct wi_ltv_ver {
+	u_int16_t		wi_len;
+	u_int16_t		wi_type;
+	u_int16_t		wi_ver[4];
+#define WI_NIC_EVB2	0x8000
+#define WI_NIC_HWB3763	0x8001
+#define WI_NIC_HWB3163	0x8002
+#define WI_NIC_HWB3163B	0x8003
+#define WI_NIC_EVB3	0x8004
+#define WI_NIC_HWB1153	0x8007
+#define WI_NIC_P2_SST	0x8008	/* Prism2 with SST flush */
+#define WI_NIC_PRISM2_5	0x800C
+#define WI_NIC_3874A	0x8013	/* Prism2.5 Mini-PCI */
 };
 
 /*
