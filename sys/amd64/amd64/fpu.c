@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.16 1994/11/06 00:58:06 bde Exp $
+ *	$Id: npx.c,v 1.17 1994/11/14 14:59:06 bde Exp $
  */
 
 #include "npx.h"
@@ -64,15 +64,15 @@
 
 #ifdef	__GNUC__
 
-#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*addr))
+#define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
 #define	fninit()		__asm("fninit")
-#define	fnsave(addr)		__asm("fnsave %0" : "=m" (*addr) : "0" (*addr))
-#define	fnstcw(addr)		__asm("fnstcw %0" : "=m" (*addr) : "0" (*addr))
-#define	fnstsw(addr)		__asm("fnstsw %0" : "=m" (*addr) : "0" (*addr))
-#define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fwait")
-#define	frstor(addr)		__asm("frstor %0" : : "m" (*addr))
-#define	fwait()			__asm("fwait")
+#define	fnop()			__asm("fnop")
+#define	fnsave(addr)		__asm("fnsave %0" : "=m" (*(addr)))
+#define	fnstcw(addr)		__asm("fnstcw %0" : "=m" (*(addr)))
+#define	fnstsw(addr)		__asm("fnstsw %0" : "=m" (*(addr)))
+#define	fp_divide_by_0()	__asm("fldz; fld1; fdiv %st,%st(1); fnop")
+#define	frstor(addr)		__asm("frstor %0" : : "m" (*(addr)))
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
@@ -82,12 +82,12 @@
 void	fldcw		__P((caddr_t addr));
 void	fnclex		__P((void));
 void	fninit		__P((void));
+void	fnop		__P((void));
 void	fnsave		__P((caddr_t addr));
 void	fnstcw		__P((caddr_t addr));
 void	fnstsw		__P((caddr_t addr));
 void	fp_divide_by_0	__P((void));
 void	frstor		__P((caddr_t addr));
-void	fwait		__P((void));
 void	start_emulating	__P((void));
 void	stop_emulating	__P((void));
 
@@ -103,12 +103,12 @@ struct	isa_driver npxdriver = {
 	npxprobe, npxattach, "npx",
 };
 
+int	hw_float;		/* XXX currently just alias for npx_exists */
 u_int	npx0_imask = SWI_CLOCK_MASK;
 struct proc	*npxproc;
 
 static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
-int hw_float;
 static	struct gate_descriptor	npx_idt_probeintr;
 static	int			npx_intrno;
 static	volatile u_int		npx_intrs_while_probing;
@@ -118,7 +118,7 @@ static	volatile u_int		npx_traps_while_probing;
 /*
  * Special interrupt handlers.  Someday intr0-intr15 will be used to count
  * interrupts.  We'll still need a special exception 16 handler.  The busy
- * latch stuff in probintr() can be moved to npxprobe().
+ * latch stuff in probeintr() can be moved to npxprobe().
  */
 inthand_t probeintr;
 asm
@@ -130,7 +130,7 @@ _probeintr:
 	pushl	%eax
 	movb	$0x20,%al	# EOI (asm in strings loses cpp features)
 	outb	%al,$0xa0	# IO_ICU2
-	outb	%al,$0x20	#IO_ICU1
+	outb	%al,$0x20	# IO_ICU1
 	movb	$0,%al
 	outb	%al,$0xf0	# clear BUSY# latch
 	popl	%eax
@@ -198,11 +198,9 @@ static int
 npxprobe1(dvp)
 	struct isa_device *dvp;
 {
-	int control;
-	int status;
-#ifdef lint
-	npxintr();
-#endif
+	u_short control;
+	u_short status;
+
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
 	 * it after a warm boot.
@@ -235,7 +233,8 @@ npxprobe1(dvp)
 	 * IRQ13 and cleared the BUSY# latch early to handle them anyway.
 	 */
 	fninit();
-	DELAY(1000);		/* wait for any IRQ13 (fwait might hang) */
+	fnop();			/* wait for fninit (fwait might hang) */
+	DELAY(1000);		/* wait for any IRQ13 */
 #ifdef DIAGNOSTIC
 	if (npx_intrs_while_probing != 0)
 		printf("fninit caused %u bogus npx interrupt(s)\n",
@@ -282,7 +281,10 @@ npxprobe1(dvp)
 				 * Bad, we are stuck with IRQ13.
 				 */
 				npx_irq13 = 1;
-				npx0_imask = dvp->id_irq;	/* npxattach too late */
+				/*
+				 * npxattach would be too late to set npx0_imask.
+				 */
+				npx0_imask |= dvp->id_irq;
 				return (IO_NPXSIZE);
 			}
 			/*
@@ -309,18 +311,21 @@ static struct kern_devconf kdc_npx[NNPX] = { {
 	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
 	&kdc_isa0,		/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
+	DC_BUSY,
 	"Floating-point unit"
 } };
 
 static inline void
 npx_registerdev(struct isa_device *id)
 {
-	if(id->id_unit)
-		kdc_npx[id->id_unit] = kdc_npx[0];
-	kdc_npx[id->id_unit].kdc_unit = id->id_unit;
-	kdc_npx[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_npx[id->id_unit]);
+	int	unit;
+
+	unit = id->id_unit;
+	if (unit != 0)
+		kdc_npx[unit] = kdc_npx[0];
+	kdc_npx[unit].kdc_unit = unit;
+	kdc_npx[unit].kdc_isa = id;
+	dev_attach(&kdc_npx[unit]);
 }
 
 /*
@@ -330,16 +335,24 @@ int
 npxattach(dvp)
 	struct isa_device *dvp;
 {
-	if (!npx_ex16 && !npx_irq13) {
-		if (npx_exists) {
-			printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
-			hw_float = npx_exists = 0;
-		} else {
-			printf("npx%d: 387 Emulator\n",dvp->id_unit);
-		}
-	}
+	printf("npx%d: ", dvp->id_unit);
+	if (npx_ex16)
+		printf("INT 16 interface\n");
+	else if (npx_irq13)
+		printf("IRQ 13 interface\n");
+#if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
+	else if (npx_exists) {
+		printf("error reporting broken; using 387 emulator\n");
+		npx_exists = 0;
+	} else
+		printf("387 emulator\n");
+#else
+	else
+		printf("no 387 emulator in kernel!\n");
+#endif
 	npxinit(__INITIAL_NPXCW__);
-	npx_registerdev(dvp);
+	if (npx_exists)
+		npx_registerdev(dvp);
 	return (1);		/* XXX unused */
 }
 
@@ -348,7 +361,7 @@ npxattach(dvp)
  */
 void
 npxinit(control)
-	u_int control;
+	u_short control;
 {
 	struct save87 dummy;
 
@@ -356,7 +369,7 @@ npxinit(control)
 		return;
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
-	 * fnsave to throw away any junk in the fpu.  fnsave initializes
+	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
 	 * the fpu and sets npxproc = NULL as important side effects.
 	 */
 	npxsave(&dummy);
@@ -394,19 +407,25 @@ npxexit(p)
 }
 
 /*
- * Record the FPU state and reinitialize it all except for the control word.
- * Then generate a SIGFPE.
+ * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
  *
- * Reinitializing the state allows naive SIGFPE handlers to longjmp without
- * doing any fixups.
+ * Clearing exceptions is necessary mainly to avoid IRQ13 bugs.  We now
+ * depend on longjmp() restoring a usable state.  Restoring the state
+ * or examining it might fail if we didn't clear exceptions.
  *
- * XXX there is currently no way to pass the full error state to signal
- * handlers, and if this is a nested interrupt there is no way to pass even
- * a status code!  So there is no way to have a non-naive SIGFPE handler.  At
- * best a handler could do an fninit followed by an fldcw of a static value.
- * fnclex would be of little use because it would leave junk on the FPU stack.
- * Returning from the handler would be even less safe than usual because
- * IRQ13 exception handling makes exceptions even less precise than usual.
+ * XXX there is no standard way to tell SIGFPE handlers about the error
+ * state.  The old interface:
+ *
+ *	void handler(int sig, int code, struct sigcontext *scp);
+ *
+ * is broken because it is non-ANSI and because the FP state is not in
+ * struct sigcontext.
+ *
+ * XXX the FP state is not preserved across signal handlers.  So signal
+ * handlers cannot afford to do FP unless they preserve the state or
+ * longjmp() out.  Both preserving the state and longjmp()ing may be
+ * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
+ * solution for signals other than SIGFPE.
  */
 void
 npxintr(frame)
@@ -415,38 +434,19 @@ npxintr(frame)
 	int code;
 
 	if (npxproc == NULL || !npx_exists) {
-		/* XXX no %p in stand/printf.c.  Cast to quiet gcc -Wall. */
-		printf("npxintr: npxproc = %lx, curproc = %lx, npx_exists = %d\n",
-		       (u_long) npxproc, (u_long) curproc, npx_exists);
+		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
+		       npxproc, curproc, npx_exists);
 		panic("npxintr from nowhere");
 	}
 	if (npxproc != curproc) {
-		printf("npxintr: npxproc = %lx, curproc = %lx, npx_exists = %d\n",
-		       (u_long) npxproc, (u_long) curproc, npx_exists);
+		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
+		       npxproc, curproc, npx_exists);
 		panic("npxintr from non-current process");
 	}
-	/*
-	 * Save state.  This does an implied fninit.  It had better not halt
-	 * the cpu or we'll hang.
-	 */
+
+	fnstsw(&curpcb->pcb_savefpu.sv_ex_sw);
+	fnclex();
 	outb(0xf0, 0);
-	fnsave(&curpcb->pcb_savefpu);
-	fwait();
-	/*
-	 * Restore control word (was clobbered by fnsave).
-	 */
-	fldcw(&curpcb->pcb_savefpu.sv_env.en_cw);
-	fwait();
-	/*
-	 * Remember the exception status word and tag word.  The current
-	 * (almost fninit'ed) fpu state is in the fpu and the exception
-	 * state just saved will soon be junk.  However, the implied fninit
-	 * doesn't change the error pointers or register contents, and we
-	 * preserved the control word and will copy the status and tag
-	 * words, so the complete exception state can be recovered.
-	 */
-	curpcb->pcb_savefpu.sv_ex_sw = curpcb->pcb_savefpu.sv_env.en_sw;
-	curpcb->pcb_savefpu.sv_ex_tw = curpcb->pcb_savefpu.sv_env.en_tw;
 
 	/*
 	 * Pass exception to process.
@@ -489,15 +489,16 @@ npxintr(frame)
 		 *
 		 * Treat them like a true async interrupt.
 		 */
-		psignal(npxproc, SIGFPE);
+		psignal(curproc, SIGFPE);
 	}
 }
 
 /*
  * Implement device not available (DNA) exception
  *
- * It would be better to switch FP context here (only).  This would require
- * saving the state in the proc table instead of in the pcb.
+ * It would be better to switch FP context here (if curproc != npxproc)
+ * and not necessarily for every context switch, but it is too hard to
+ * access foreign pcb's.
  */
 int
 npxdna()
@@ -505,8 +506,8 @@ npxdna()
 	if (!npx_exists)
 		return (0);
 	if (npxproc != NULL) {
-		printf("npxdna: npxproc = %lx, curproc = %lx\n",
-		       (u_long) npxproc, (u_long) curproc);
+		printf("npxdna: npxproc = %p, curproc = %p\n",
+		       npxproc, curproc);
 		panic("npxdna");
 	}
 	stop_emulating();
@@ -514,6 +515,7 @@ npxdna()
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	npxproc = curproc;
+	curpcb->pcb_savefpu.sv_ex_sw = 0;
 	/*
 	 * The following frstor may cause an IRQ13 when the state being
 	 * restored has a pending error.  The error will appear to have been
@@ -559,7 +561,8 @@ npxsave(addr)
 	enable_intr();
 	stop_emulating();
 	fnsave(addr);
-	fwait();
+	fnop();
+	outb(0xf0, 0);
 	start_emulating();
 	npxproc = NULL;
 	disable_intr();
