@@ -699,7 +699,7 @@ ixgb_init(void *arg)
 	 * Only disable interrupts if we are polling, make sure they are on
 	 * otherwise.
 	 */
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		ixgb_disable_intr(adapter);
 	else
 #endif				/* DEVICE_POLLING */
@@ -759,7 +759,7 @@ ixgb_intr(void *arg)
 	ifp = &adapter->interface_data.ac_if;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_ipending & IFF_POLLING)
+	if (ifp->if_flags & IFF_POLLING)
 		return;
 
 	if (ether_poll_register(ixgb_poll, ifp)) {
