@@ -32,10 +32,8 @@ static const char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * CREDITS
