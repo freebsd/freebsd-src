@@ -275,7 +275,7 @@ static int hpt_set_info(int length)
         			piop->lpInBuffer,
         			piop->nInBufferSize,
         			piop->lpOutBuffer,
-	        		piop->nOutBufferSize));
+	        		(u_long)piop->nOutBufferSize));
 
 			/*
         	 	 * map buffer to kernel.

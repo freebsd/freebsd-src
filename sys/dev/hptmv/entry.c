@@ -251,7 +251,7 @@ hptmv_init_channel(IAL_ADAPTER_T *pAdapter, MV_U8 channelNum)
 	    (channelNum * MV_EDMA_REQUEST_QUEUE_SIZE);
 
 
-	KdPrint(("requestQueue addr is 0x%X", req_dma_addr));
+	KdPrint(("requestQueue addr is 0x%lX", (u_long)req_dma_addr));
 
 	/* check the 1K alignment of the request queue*/
 	if (req_dma_addr & 0x3ff)
@@ -1034,7 +1034,7 @@ AllocatePRDTable(IAL_ADAPTER_T *pAdapter)
 {
 	PVOID ret;
 	if (pAdapter->pFreePRDLink) {
-		KdPrint(("pAdapter->pFreePRDLink:%lx\n",
+		KdPrint(("pAdapter->pFreePRDLink:%p\n",
 		    pAdapter->pFreePRDLink));
 		ret = pAdapter->pFreePRDLink;
 		pAdapter->pFreePRDLink = *(void**)ret;
@@ -1313,7 +1313,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	_vbus_(pFreeCommands) = 0;
 	pAdapter->pCommandBlocks = malloc(sizeof(struct _Command) *
 	    MAX_COMMAND_BLOCKS_FOR_EACH_VBUS, M_DEVBUF, M_ZERO | M_WAITOK);
-	KdPrint(("pCommandBlocks:%x\n", pAdapter->pCommandBlocks));
+	KdPrint(("pCommandBlocks:%p\n", pAdapter->pCommandBlocks));
 
 	/*
 	 * Gotta cheat here.  The _Command struct only gives us a single
@@ -1361,7 +1361,7 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	    pAdapter->prdTableAddr, PRD_ENTRIES_SIZE * PRD_TABLES_FOR_VBUS,
 	    hptmv_map_req, &pAdapter->prdTableDmaAddr, 0);
 
-	KdPrint(("prdTableAddr:%x\n",pAdapter->prdTableAddr));
+	KdPrint(("prdTableAddr:%p\n",pAdapter->prdTableAddr));
 	if (!pAdapter->prdTableAddr) {
 		MV_ERROR("insufficient PRD Tables\n");
 		error = ENOMEM;
@@ -1593,7 +1593,7 @@ check_cmds:
 void
 fResetVBus(_VBUS_ARG0)
 {
-	KdPrint(("fMvResetBus(%x)", _vbus_p));
+	KdPrint(("fMvResetBus(%p)", _vbus_p));
 
 	/* some commands may already finished. */
 	CheckPendingCall(_VBUS_P0);
@@ -1822,7 +1822,7 @@ finish_cmd:
 		}
 		
 		pPRDTable = AllocatePRDTable(pAdapter);
-		KdPrint(("pPRDTable:%lx\n",pPRDTable));
+		KdPrint(("pPRDTable:%p\n",pPRDTable));
 		if (!pPRDTable) {
 			pCmd->Result = RETURN_DEVICE_BUSY;
 			CallAfterReturn(_VBUS_P (DPC_PROC)pCmd->pfnCompletion,
@@ -2194,7 +2194,7 @@ static void
 ccb_done(union ccb *ccb)
 {
 	IAL_ADAPTER_T * pAdapter = (IAL_ADAPTER_T *)ccb->ccb_adapter;
-	KdPrintI(("ccb_done: ccb %x status %x", ccb, ccb->ccb_h.status));
+	KdPrintI(("ccb_done: ccb %p status %x", ccb, ccb->ccb_h.status));
 
 	xpt_done(ccb);
 
@@ -2222,7 +2222,7 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 	
 	ccb->ccb_adapter = pAdapter;
 
-	CAM_DEBUG(ccb->ccb_h->path, CAM_DEBUG_TRACE, ("hpt_action\n"));
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("hpt_action\n"));
 	KdPrint(("hpt_action(%lx,%lx{%x})\n", (u_long)sim, (u_long)ccb,
 	    ccb->ccb_h.func_code));
 
@@ -2732,7 +2732,7 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 	csio = &ccb->csio;
 	pVDev = pAdapter->VBus.pVDevice[ccb_h->target_id];
 
-	KdPrintI(("OsSendCommand: ccb %x cdb %x-%x-%x\n",
+	KdPrintI(("OsSendCommand: ccb %p cdb %x-%x-%x\n",
 		ccb,
 		*(ULONG *)&ccb->csio.cdb_io.cdb_bytes[0],
 		*(ULONG *)&ccb->csio.cdb_io.cdb_bytes[4],
