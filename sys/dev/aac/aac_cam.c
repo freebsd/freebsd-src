@@ -339,9 +339,14 @@ aac_cam_action(struct cam_sim *sim, union ccb *ccb)
 			if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 				srb->data_len = csio->dxfer_len;
 				if (ccb->ccb_h.flags & CAM_DATA_PHYS) {
+					/*
+					 * XXX This isn't 64-bit clean.
+					 * However, this condition is not
+					 * normally used in CAM.
+					 */
 					srb->sg_map32.SgCount = 1;
 					srb->sg_map32.SgEntry[0].SgAddress =
-					    (u_int32_t)csio->data_ptr;
+					    (uint32_t)(uintptr_t)csio->data_ptr;
 					srb->sg_map32.SgEntry[0].SgByteCount =
 					    csio->dxfer_len;
 				} else {

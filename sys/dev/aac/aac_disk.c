@@ -272,7 +272,8 @@ aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size
 		size = fib->Header.Size + sizeof(struct aac_blockwrite);
 
 		if (aac_sync_fib(sc, ContainerCommand, 0, fib, size)) {
-			printf("Error dumping block 0x%x\n", physical);
+			printf("Error dumping block 0x%jx\n",
+			       (uintptr_t)physical);
 			return (EIO);
 		}
 
