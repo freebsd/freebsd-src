@@ -1,7 +1,7 @@
 /*
  * EISA bus probe and attach routines 
  *
- * Copyright (c) 1995 Justin T. Gibbs.
+ * Copyright (c) 1995, 1996 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -18,15 +18,15 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.11 1995/12/10 13:33:49 phk Exp $
+ *	$Id: eisaconf.c,v 1.12 1996/01/03 06:28:01 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/devconf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>
+#include <sys/conf.h>		/* For kdc_isa */
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 
 #include <i386/eisa/eisaconf.h>
 
@@ -77,6 +77,30 @@ static struct eisa_driver mainboard_drv = {
 DATA_SET (eisadriver_set, mainboard_drv);
 
 /*
+ * Local function declarations and static variables
+ */
+void eisa_reg_print __P((struct eisa_device *e_dev, char *string,
+			 char *separator));
+static int eisa_add_resvaddr __P((struct resvlist *head, u_long	base,
+				  u_long size, int flags));
+static int eisa_reg_resvaddr __P((struct eisa_device *e_dev, 
+				  struct resvlist *head, resvaddr_t *resvaddr,
+				  int *reg_count));
+
+/*
+ * Keep some state about what we've printed so far
+ * to make probe output pretty.
+ */
+static struct {
+	int	in_registration;/* reg_start has been called */
+	int	num_interrupts;	
+	int	num_ioaddrs;
+	int	num_maddrs;
+	int	column;		/* How much we have output so far. */
+#define	MAX_COL 80
+} reg_state;
+		
+/*
 ** probe for EISA devices
 */
 void
@@ -112,6 +136,7 @@ eisa_configure()
 		}
 		bzero(dev_node, sizeof(*dev_node));
 		e_dev = &(dev_node->dev);
+
 		e_dev->id = eisa_id;
 		/*
 		 * Add an EISA ID based descriptive name incase we don't
@@ -131,9 +156,13 @@ eisa_configure()
 			EISA_MFCTR_CHAR2(e_dev->id),
 			EISA_PRODUCT_ID(e_dev->id),
 			EISA_REVISION_ID(e_dev->id));
+
 		e_dev->ioconf.slot = slot; 
-		/* Is iobase defined in any EISA specs? */
-		e_dev->ioconf.iobase = eisaBase & 0xff00;
+
+		/* Initialize our lists of reserved addresses */
+		LIST_INIT(&(e_dev->ioconf.ioaddrs));
+		LIST_INIT(&(e_dev->ioconf.maddrs));
+
 		*eisa_dev_list_tail = dev_node;
 		eisa_dev_list_tail = &dev_node->next;
 	}
@@ -199,6 +228,7 @@ eisa_configure()
 	for (; dev_node; dev_node=dev_node->next) {
 		e_dev = &dev_node->dev;
 		e_drv = e_dev->driver;
+
 		if (e_drv) {
 			/*
 			 * Determine the proper unit number for this device.
@@ -213,20 +243,25 @@ eisa_configure()
 			 */
 			e_dev->unit = (*e_drv->unit)++;
 			if ((*e_drv->attach)(e_dev) < 0) {
-				printf("%s0:%d <%s> attach failed\n",
+				/* Ensure registration has ended */
+				reg_state.in_registration = 0;
+				printf("\n%s0:%d <%s> attach failed\n",
 					mainboard_drv.name, 
 					e_dev->ioconf.slot,
 					e_dev->full_name);
 				continue;
 			}
+			/* Ensure registration has ended */
+			reg_state.in_registration = 0;
 			e_dev->kdc->kdc_unit = e_dev->unit;
 		}
 		else {
 			/* Announce unattached device */
-			printf("%s0:%d <%s> unknown device\n",
+			printf("%s0:%d <%s=0x%x> unknown device\n",
 				mainboard_drv.name,
 				e_dev->ioconf.slot,
-				e_dev->full_name);
+				e_dev->full_name,
+				e_dev->id);
 		}
 	}
 }
@@ -267,10 +302,57 @@ eisa_reg_start(e_dev)
 	/*
 	 * Announce the device.
 	 */
-	printf("%s%ld: <%s>",
-		e_dev->driver->name,
-		e_dev->unit,
-		e_dev->full_name);
+	char *string;
+
+	reg_state.in_registration = 1;
+	reg_state.num_interrupts = 0;
+	reg_state.num_ioaddrs = 0;
+	reg_state.num_maddrs = 0;
+	reg_state.column = 0;
+
+	string = malloc(strlen(e_dev->full_name) + sizeof(" <>") + /*NULL*/1,
+			M_TEMP, M_NOWAIT);
+	if(!string) {
+		printf("eisa0: cannot malloc device description string\n");
+		return;
+	}
+	sprintf(string, " <%s>", e_dev->full_name);
+	eisa_reg_print(e_dev, string, /*separator=*/NULL);
+	free(string, M_TEMP);
+}
+
+/*
+ * Output registration information mindfull of screen wrap.
+ * Output an optional character separator before the string
+ * if the line does not wrap.
+ */
+void
+eisa_reg_print(e_dev, string, separator)
+	struct eisa_device *e_dev;
+	char *string;
+	char *separator;
+{
+	int len = strlen(string);
+
+	if( separator )
+		len++;
+
+	if(reg_state.column + len > MAX_COL) {
+		printf("\n");
+		reg_state.column = 0;
+	}
+	else if( separator ) {
+		printf("%c", *separator);
+		reg_state.column++;
+	}
+
+	if(reg_state.column == 0)
+		reg_state.column += printf("%s%ld:%s",
+					   e_dev->driver->name,
+					   e_dev->unit,
+					   string);
+	else
+		reg_state.column += printf("%s", string);
 }
 
 /* Interrupt and I/O space registration facitlities */
@@ -278,19 +360,30 @@ void
 eisa_reg_end(e_dev)
 	struct eisa_device *e_dev;
 {
-	/*
-	 * The device should have called eisa_registerdev()
-	 * during its probe.  So hopefully we can use the kdc
-	 * to weed out ISA/VL devices that use EISA id registers.
-	 */
-	if (e_dev->kdc && (e_dev->kdc->kdc_parent == &kdc_isa0)) {
-		printf(" on isa\n");
+	if( reg_state.in_registration )
+	{
+		/*
+		 * The device should have called eisa_registerdev()
+		 * during its probe.  So hopefully we can use the kdc
+		 * to weed out ISA/VL devices that use EISA id registers.
+		 */
+		char string[25];
+
+		if (e_dev->kdc && (e_dev->kdc->kdc_parent == &kdc_isa0)) {
+			sprintf(string, " on isa");
+		}
+		else {
+			sprintf(string, " on %s0 slot %d",
+				mainboard_drv.name,
+				e_dev->ioconf.slot);
+		}
+		eisa_reg_print(e_dev, string, NULL);
+		printf("\n");
+		reg_state.in_registration = 0;
 	}
-	else {
-		printf(" on %s0 slot %d\n",
-			mainboard_drv.name,
-			e_dev->ioconf.slot);
-	}
+	else
+		printf("eisa_reg_end called outside of a "
+		       "registration session\n");
 }
 
 int
@@ -313,6 +406,8 @@ eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
 {
 	int result;
 	int s;
+	char string[25];
+	char separator = ',';
 
 #if NOT_YET
 	/* 
@@ -324,28 +419,35 @@ eisa_reg_intr(e_dev, irq, func, arg, maskptr, shared)
 	if (haveseen_dev(dev, checkthese))
         	return 1;
 #endif
-	s = splhigh();
-	/*
-	 * This should really go to a routine that can optionally
-	 * handle shared interrupts.
-	 */
-	result = register_intr(irq,			/* isa irq	*/
-			       0,			/* deviced??	*/
-			       0,			/* flags?	*/
-			       (inthand2_t*) func,	/* handler      */
-			       maskptr,			/* mask pointer	*/
-			       (int)arg);		/* handler arg  */
+	if (reg_state.in_registration) {
+		s = splhigh();
+		/*
+		 * This should really go to a routine that can optionally
+		 * handle shared interrupts.
+		 */
+		result = register_intr(irq,		   /* isa irq	   */
+				       0,		   /* deviced??    */
+				       0,		   /* flags?       */
+				       (inthand2_t*) func, /* handler      */
+				       maskptr,		   /* mask pointer */
+				       (int)arg);	   /* handler arg  */
 
-	if (result) {
-		printf ("eisa_reg_int: result=%d\n", result);
+		if (result) {
+			printf ("\neisa_reg_int: result=%d\n", result);
+			splx(s);
+			return (result);
+		};
+		update_intr_masks();
 		splx(s);
-		return (result);
-	};
-	update_intr_masks();
-	splx(s);
+	}
+	else
+		return EPERM;
 
 	e_dev->ioconf.irq |= 1ul << irq;
-	printf(" irq %d", irq);
+	sprintf(string, " irq %d", irq);
+	eisa_reg_print(e_dev, string, reg_state.num_interrupts ? 
+				      &separator : NULL);
+	reg_state.num_interrupts++;
 	return (0);
 }
 
@@ -398,31 +500,146 @@ eisa_enable_intr(e_dev, irq)
 	return 0;
 }
 
-int
-eisa_add_iospace(e_dev, iobase, iosize)
-	struct eisa_device *e_dev;
-	u_long	iobase;
-	int	iosize;
+static int
+eisa_add_resvaddr(head, base, size, flags)
+	struct resvlist *head;
+	u_long	base;
+	u_long	size;
+	int	flags;
 {
-	/*
-	 * We should develop a scheme for storing the results of
-	 * multiple calls to this function.
-	 */
-	e_dev->ioconf.iobase = iobase;
-	e_dev->ioconf.iosize = iosize;
-	return 0;
+	resvaddr_t *reservation;
+
+	reservation = (resvaddr_t *)malloc(sizeof(resvaddr_t),
+					   M_DEVBUF, M_NOWAIT);
+	if(!reservation)
+		return (ENOMEM);
+
+	reservation->addr = base;
+	reservation->size = size;
+	reservation->flags = flags;
+
+	if (!head->lh_first) {
+		LIST_INSERT_HEAD(head, reservation, links);
+	}
+	else {
+		resvaddr_t *node;
+		for(node = head->lh_first; node; node = node->links.le_next) {
+			if (node->addr > reservation->addr) {
+				/*
+				 * List is sorted in increasing
+				 * address order.
+				 */
+				LIST_INSERT_BEFORE(node, reservation, links);
+				break;
+			}
+
+			if (node->addr == reservation->addr) {
+				/*
+				 * If the entry we want to add
+				 * matches any already in here,
+				 * fail.
+				 */
+				free(reservation, M_DEVBUF);
+				return (EEXIST);
+			}
+
+			if (!node->links.le_next) {
+				LIST_INSERT_AFTER(node, reservation, links);
+				break;
+			}
+		}
+	}
+	return (0);
 }
 
 int
-eisa_reg_iospace(e_dev, iobase, iosize)
+eisa_add_mspace(e_dev, mbase, msize, flags)
+	struct eisa_device *e_dev;
+	u_long	mbase;
+	u_long	msize;
+	int	flags;
+{
+	return	eisa_add_resvaddr(&(e_dev->ioconf.maddrs), mbase, msize, flags);
+}
+
+int
+eisa_add_iospace(e_dev, iobase, iosize, flags)
 	struct eisa_device *e_dev;
 	u_long	iobase;
-	int	iosize;
+	u_long	iosize;
+	int	flags;
 {
-	/*
-	 * We should develop a scheme for storing the results of
-	 * multiple calls to this function.
+	return	eisa_add_resvaddr(&(e_dev->ioconf.ioaddrs), iobase, iosize,
+				  flags);
+}
+
+static int
+eisa_reg_resvaddr(e_dev, head, resvaddr, reg_count)
+	struct eisa_device *e_dev;
+	struct resvlist *head;
+	resvaddr_t *resvaddr;
+	int *reg_count;
+{
+	if (reg_state.in_registration) {
+		resvaddr_t *node;
+		/*
+		 * Ensure that this resvaddr is actually in the devices'
+		 * reservation list.
+		 */
+		for(node = head->lh_first; node;
+		    node = node->links.le_next) {
+			if (node == resvaddr) {
+				char buf[35];
+				char separator = ',';
+				char *string = buf;
+
+				if (*reg_count == 0) {
+					/* First time */
+					string += sprintf(string, " at");
+				}
+
+				if (node->size == 1 
+				  || (node->flags & RESVADDR_BITMASK))
+					sprintf(string, " 0x%lx", node->addr);
+				else
+					sprintf(string, " 0x%lx-0x%lx",
+						node->addr,
+						node->addr + node->size - 1);
+				eisa_reg_print(e_dev, buf,
+						*reg_count ? &separator : NULL);
+				(*reg_count)++;
+				return (0);
+			}
+		}
+		return (ENOENT);
+	}
+	return EPERM;
+}
+
+int
+eisa_reg_mspace(e_dev, resvaddr)
+	struct eisa_device *e_dev;
+	resvaddr_t *resvaddr;
+{
+#ifdef NOT_YET
+	/* 
+	 * Punt on conflict detection for the moment.
+	 * I want to develop a generic routine to do
+	 * this for all device types.
 	 */
+	int checkthese = CC_MADDR;
+	if (haveseen_dev(dev, checkthese))
+		return -1;
+#endif
+	return (eisa_reg_resvaddr(e_dev, &(e_dev->ioconf.maddrs), resvaddr,
+				  &(reg_state.num_maddrs)));
+}
+	
+int
+eisa_reg_iospace(e_dev, resvaddr)
+	struct eisa_device *e_dev;
+	resvaddr_t *resvaddr;
+{
 #ifdef NOT_YET
 	/* 
 	 * Punt on conflict detection for the moment.
@@ -433,11 +650,8 @@ eisa_reg_iospace(e_dev, iobase, iosize)
 	if (haveseen_dev(dev, checkthese))
 		return -1;
 #endif
-	e_dev->ioconf.iobase = iobase;
-	e_dev->ioconf.iosize = iosize;
-
-	printf(" at 0x%lx-0x%lx", iobase, iobase + iosize - 1);
-	return (0);
+	return (eisa_reg_resvaddr(e_dev, &(e_dev->ioconf.ioaddrs), resvaddr,
+				  &(reg_state.num_ioaddrs)));
 }
 
 int
