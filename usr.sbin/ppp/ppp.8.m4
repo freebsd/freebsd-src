@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.48 1997/08/17 20:45:48 brian Exp $
+.\" $Id: ppp.8,v 1.49 1997/08/17 22:45:25 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1434,6 +1434,19 @@ is the next hop gateway to get to the given
 .Dq dest
 machine/network.
 
+.It [!]bg command
+The given command is executed in the background.
+Any of the pseudo arguments
+.Dv HISADDR ,
+.Dv INTERFACE
+and
+.Dv MYADDR
+will be replaced with the appropriate values.  If you wish to pause
+.Nm
+while the command executes, use the
+.Dv shell
+command instead.
+
 .It close
 Close the current connection (but don't quit).
 
@@ -1727,19 +1740,22 @@ This command gives a summary of available set commands.
 .El
 
 .It shell|! [command]
-Execute a shell according to the value of the
-.Dv SHELL
-environment variable.  If
+If
 .Dq command
-is specified, it is executed without a parent shell.  Note, it's possible
-to use the
+is not specified a shell is invoked according to the
+.Dv SHELL
+environment variable.  Otherwise, the given command is executed.
+Any of the pseudo arguments
 .Dv HISADDR ,
 .Dv INTERFACE
 and
 .Dv MYADDR
-symbols here.  Also note that if you use the ! character, you must have
-a space between it and
-.Dq command .
+will be replaced with the appropriate values.  Use of the ! character
+requires a following space as with any other commands.  You should note
+that this command is executed in the foreground - ppp will not continue
+running until this process has exited.  Use the
+.Dv bg
+command if you wish processing to happen in the background.
 
 .It show var
 This command allows the user to examine the following:
