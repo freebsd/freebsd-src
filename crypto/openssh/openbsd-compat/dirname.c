@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/gen/dirname.c */
+
 /*      $OpenBSD: dirname.c,v 1.10 2003/06/17 21:56:23 millert Exp $    */
 
 /*

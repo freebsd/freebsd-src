@@ -37,7 +37,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: fake-rfc2553.c,v 1.4.2.1 2003/09/22 02:09:18 dtucker Exp $");
+RCSID("$Id: fake-rfc2553.c,v 1.5 2003/09/22 02:08:23 dtucker Exp $");
 
 #ifndef HAVE_GETNAMEINFO
 int getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 

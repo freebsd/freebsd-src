@@ -2,10 +2,10 @@
 
 # Format is: "program-name args" path rate
 
-# The "rate" represents the number of bits of usuable entropy per 
+# The "rate" represents the number of bits of usuable entropy per
 # byte of command output. Be conservative.
 #
-# $Id: ssh_prng_cmds.in,v 1.8 2002/07/14 21:43:58 tim Exp $
+# $Id: ssh_prng_cmds.in,v 1.9 2003/11/21 12:48:56 djm Exp $
 
 "ls -alni /var/log"			@PROG_LS@	0.02
 "ls -alni /var/adm"			@PROG_LS@	0.02

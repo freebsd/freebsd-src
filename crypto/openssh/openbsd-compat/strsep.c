@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/string/strsep.c */
+
 /*	$OpenBSD: strsep.c,v 1.5 2003/06/11 21:08:16 deraadt Exp $	*/
 
 /*-

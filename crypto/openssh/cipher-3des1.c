@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher-3des1.c,v 1.1 2003/05/15 03:08:29 markus Exp $");
+RCSID("$OpenBSD: cipher-3des1.c,v 1.2 2003/12/22 20:29:55 markus Exp $");
 
 #include <openssl/evp.h>
 #include "xmalloc.h"
@@ -126,6 +126,9 @@ ssh1_3des_cleanup(EVP_CIPHER_CTX *ctx)
 	struct ssh1_3des_ctx *c;
 
 	if ((c = EVP_CIPHER_CTX_get_app_data(ctx)) != NULL) {
+		EVP_CIPHER_CTX_cleanup(&c->k1);
+		EVP_CIPHER_CTX_cleanup(&c->k2);
+		EVP_CIPHER_CTX_cleanup(&c->k3);
 		memset(c, 0, sizeof(*c));
 		xfree(c);
 		EVP_CIPHER_CTX_set_app_data(ctx, NULL);

@@ -5,7 +5,7 @@ tid="disallow agent ptrace attach"
 
 if have_prog uname ; then
 	case `uname` in
-	Linux|HP-UX|SunOS|NetBSD|AIX|CYGWIN*)
+	AIX|CYGWIN*)
 		echo "skipped (not supported on this platform)"
 		exit 0
 		;;
@@ -17,6 +17,15 @@ if have_prog gdb ; then
 else
 	echo "skipped (gdb not found)"
 	exit 0
+fi
+
+if test -z "$SUDO" ; then
+	echo "skipped (SUDO not set)"
+	exit 0
+else
+	$SUDO chown 0 ${SSHAGENT}
+	$SUDO chgrp 0 ${SSHAGENT}
+	$SUDO chmod 2755 ${SSHAGENT}
 fi
 
 trace "start agent"
@@ -32,7 +41,7 @@ EOF
 	if [ $? -ne 0 ]; then
 		fail "gdb failed: exit code $?"
 	fi
-	grep 'ptrace: Operation not permitted.' >/dev/null ${OBJ}/gdb.out
+	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace attach: Permission denied.' >/dev/null ${OBJ}/gdb.out
 	r=$?
 	rm -f ${OBJ}/gdb.out
 	if [ $r -ne 0 ]; then

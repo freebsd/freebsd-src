@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.103 2003/09/16 01:52:19 dtucker Exp $ */
+/* $Id: defines.h,v 1.110 2004/02/10 02:01:14 dtucker Exp $ */
 
 
 /* Constants */
@@ -84,7 +84,7 @@ enum
 # define S_ISDIR(mode)	(((mode) & (_S_IFMT)) == (_S_IFDIR))
 #endif /* S_ISDIR */
 
-#ifndef S_ISREG 
+#ifndef S_ISREG
 # define S_ISREG(mode)	(((mode) & (_S_IFMT)) == (_S_IFREG))
 #endif /* S_ISREG */
 
@@ -127,6 +127,10 @@ including rpc/rpc.h breaks Solaris 6
 */
 #ifndef INADDR_LOOPBACK
 #define INADDR_LOOPBACK ((u_long)0x7f000001)
+#endif
+
+#ifndef __unused
+#define __unused
 #endif
 
 /* Types */
@@ -240,6 +244,7 @@ typedef unsigned char u_char;
 #ifndef HAVE_SIZE_T
 typedef unsigned int size_t;
 # define HAVE_SIZE_T
+# define SIZE_T_MAX UINT_MAX
 #endif /* HAVE_SIZE_T */
 
 #ifndef HAVE_SSIZE_T
@@ -529,6 +534,14 @@ struct winsize {
 #  define krb5_get_err_text(context,code) error_message(code)
 #endif
 
+/* Maximum number of file descriptors available */
+#ifdef HAVE_SYSCONF
+# define SSH_SYSFDMAX sysconf(_SC_OPEN_MAX)
+#else
+# define SSH_SYSFDMAX 10000
+#endif
+
+
 /*
  * Define this to use pipes instead of socketpairs for communicating with the
  * client program.  Socketpairs do not seem to work on all systems.
@@ -572,6 +585,9 @@ struct winsize {
 #  endif
 #endif
 
+#if defined(HAVE_SHADOW_H) && !defined(DISABLE_SHADOW)
+# define USE_SHADOW
+#endif
 
 /* The login() library function in libutil is first choice */
 #if defined(HAVE_LOGIN) && !defined(DISABLE_LOGIN)

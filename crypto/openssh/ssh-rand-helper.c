@@ -39,7 +39,7 @@
 #include "pathnames.h"
 #include "log.h"
 
-RCSID("$Id: ssh-rand-helper.c,v 1.13 2003/08/21 23:34:41 djm Exp $");
+RCSID("$Id: ssh-rand-helper.c,v 1.16 2003/11/21 12:56:47 djm Exp $");
 
 /* Number of bytes we write out */
 #define OUTPUT_SEED_SIZE	48
@@ -115,19 +115,19 @@ double stir_gettimeofday(double entropy_estimate);
 double stir_clock(double entropy_estimate);
 double stir_rusage(int who, double entropy_estimate);
 double hash_command_output(entropy_cmd_t *src, unsigned char *hash);
-int get_random_bytes_prngd(unsigned char *buf, int len, 
+int get_random_bytes_prngd(unsigned char *buf, int len,
     unsigned short tcp_port, char *socket_path);
 
 /*
  * Collect 'len' bytes of entropy into 'buf' from PRNGD/EGD daemon
  * listening either on 'tcp_port', or via Unix domain socket at *
  * 'socket_path'.
- * Either a non-zero tcp_port or a non-null socket_path must be 
+ * Either a non-zero tcp_port or a non-null socket_path must be
  * supplied.
  * Returns 0 on success, -1 on error
  */
 int
-get_random_bytes_prngd(unsigned char *buf, int len, 
+get_random_bytes_prngd(unsigned char *buf, int len,
     unsigned short tcp_port, char *socket_path)
 {
 	int fd, addr_len, rval, errors;
@@ -289,7 +289,7 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 	if (devnull == -1) {
 		devnull = open("/dev/null", O_RDWR);
 		if (devnull == -1)
-			fatal("Couldn't open /dev/null: %s", 
+			fatal("Couldn't open /dev/null: %s",
 			    strerror(errno));
 	}
 
@@ -314,7 +314,7 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 
 			execv(src->path, (char**)(src->args));
 
-			debug("(child) Couldn't exec '%s': %s", 
+			debug("(child) Couldn't exec '%s': %s",
 			    src->cmdstring, strerror(errno));
 			_exit(-1);
 		default: /* Parent */
@@ -376,7 +376,7 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 		case -1:
 		default:
 			/* error */
-			debug("Command '%s': select() failed: %s", 
+			debug("Command '%s': select() failed: %s",
 			    src->cmdstring, strerror(errno));
 			error_abort = 1;
 			break;
@@ -400,8 +400,8 @@ hash_command_output(entropy_cmd_t *src, unsigned char *hash)
 	if (error_abort) {
 		/*
 		 * Closing p[0] on timeout causes the entropy command to
-		 * SIGPIPE. Take whatever output we got, and mark this 
-		 * command as slow 
+		 * SIGPIPE. Take whatever output we got, and mark this
+		 * command as slow
 		 */
 		debug2("Command '%s' timed out", src->cmdstring);
 		src->sticky_badness *= 2;
@@ -479,7 +479,7 @@ stir_from_programs(void)
 			/* Stir it in */
 			RAND_add(hash, sizeof(hash), entropy);
 
-			debug3("Got %0.2f bytes of entropy from '%s'", 
+			debug3("Got %0.2f bytes of entropy from '%s'",
 			    entropy, entropy_cmds[c].cmdstring);
 
 			total_entropy += entropy;
@@ -491,7 +491,7 @@ stir_from_programs(void)
 			total_entropy += stir_rusage(RUSAGE_CHILDREN, 0.1);
 		} else {
 			debug2("Command '%s' disabled (badness %d)",
-			    entropy_cmds[c].cmdstring, 
+			    entropy_cmds[c].cmdstring,
 			    entropy_cmds[c].badness);
 
 			if (entropy_cmds[c].badness > 0)
@@ -511,8 +511,8 @@ prng_check_seedfile(char *filename)
 	struct stat st;
 
 	/*
-	 * XXX raceable: eg replace seed between this stat and subsequent 
-	 * open. Not such a problem because we don't really trust the 
+	 * XXX raceable: eg replace seed between this stat and subsequent
+	 * open. Not such a problem because we don't really trust the
 	 * seed file anyway.
 	 * XXX: use secure path checking as elsewhere in OpenSSH
 	 */
@@ -563,7 +563,7 @@ prng_write_seedfile(void)
 	debug("writing PRNG seed to file %.100s", filename);
 
 	if (RAND_bytes(seed, sizeof(seed)) <= 0)
-		fatal("PRNG seed extration failed");
+		fatal("PRNG seed extraction failed");
 
 	/* Don't care if the seed doesn't exist */
 	prng_check_seedfile(filename);
@@ -651,7 +651,7 @@ prng_read_commands(char *cmdfilename)
 			continue; /* done with this line */
 
 		/*
-		 * The first non-whitespace char should be a double quote 
+		 * The first non-whitespace char should be a double quote
 		 * delimiting the commandline
 		 */
 		if (*cp != '"') {
@@ -726,7 +726,7 @@ prng_read_commands(char *cmdfilename)
 
 		/*
 		 * If we've filled the array, reallocate it twice the size
-		 * Do this now because even if this we're on the last 
+		 * Do this now because even if this we're on the last
 		 * command we need another slot to mark the last entry
 		 */
 		if (cur_cmd == num_cmds) {
@@ -761,7 +761,7 @@ usage(void)
 	    OUTPUT_SEED_SIZE);
 }
 
-int 
+int
 main(int argc, char **argv)
 {
 	unsigned char *buf;
@@ -779,7 +779,7 @@ main(int argc, char **argv)
 	/* Don't write binary data to a tty, unless we are forced to */
 	if (isatty(STDOUT_FILENO))
 		output_hex = 1;
-	
+
 	while ((ch = getopt(argc, argv, "vxXhb:")) != -1) {
 		switch (ch) {
 		case 'v':
@@ -806,7 +806,7 @@ main(int argc, char **argv)
 	}
 
 	log_init(argv[0], ll, SYSLOG_FACILITY_USER, 1);
-	
+
 #ifdef USE_SEED_FILES
 	prng_read_seedfile();
 #endif
@@ -816,11 +816,11 @@ main(int argc, char **argv)
 	/*
 	 * Seed the RNG from wherever we can
 	 */
-	 
+
 	/* Take whatever is on the stack, but don't credit it */
 	RAND_add(buf, bytes, 0);
 
-	debug("Seeded RNG with %i bytes from system calls", 
+	debug("Seeded RNG with %i bytes from system calls",
 	    (int)stir_from_system());
 
 #ifdef PRNGD_PORT
@@ -835,7 +835,7 @@ main(int argc, char **argv)
 	/* Read in collection commands */
 	if (prng_read_commands(SSH_PRNG_COMMAND_FILE) == -1)
 		fatal("PRNG initialisation failed -- exiting.");
-	debug("Seeded RNG with %i bytes from programs", 
+	debug("Seeded RNG with %i bytes from programs",
 	    (int)stir_from_programs());
 #endif
 
@@ -859,9 +859,9 @@ main(int argc, char **argv)
 		printf("\n");
 	} else
 		ret = atomicio(vwrite, STDOUT_FILENO, buf, bytes);
-		
+
 	memset(buf, '\0', bytes);
 	xfree(buf);
-	
+
 	return ret == bytes ? 0 : 1;
 }

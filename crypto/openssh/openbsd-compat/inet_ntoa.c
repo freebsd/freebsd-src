@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/net/inet_ntoa.c */
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.

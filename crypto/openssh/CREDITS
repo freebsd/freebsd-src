@@ -1,6 +1,6 @@
 Tatu Ylonen <ylo@cs.hut.fi> - Creator of SSH
 
-Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, 
+Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos,
 Theo de Raadt, and Dug Song - Creators of OpenSSH
 
 Alain St-Denis <Alain.St-Denis@ec.gc.ca> - Irix fix
@@ -88,11 +88,12 @@ Tom Bertelson's <tbert@abac.com> - AIX auth fixes
 Tor-Ake Fransson <torake@hotmail.com> - AIX support
 Tudor Bosman <tudorb@jm.nu> - MD5 password support
 Udo Schweigert <ust@cert.siemens.de> - ReliantUNIX support
+Wendy Palm <wendyp at cray.com> - Cray support.
 Zack Weinberg <zack@wolery.cumb.org> - GNOME askpass enhancement
 
 Apologies to anyone I have missed.
 
 Damien Miller <djm@mindrot.org>
 
-$Id: CREDITS,v 1.74 2003/09/07 02:34:54 dtucker Exp $
+$Id: CREDITS,v 1.77 2004/01/30 04:00:50 dtucker Exp $
 
