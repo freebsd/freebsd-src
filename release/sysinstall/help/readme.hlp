@@ -27,11 +27,11 @@ For the latest errata information (security hole & fix information,
 bugs fixes, documentation updates, etc.), should there be any for this
 release, please see:
 
-	http://www.freebsd.org/releases/[releaseversion]/addendum.html
+	http://www.freebsd.org/releases/[releaseversion]/errata.html
 
 Or the file:
 
-	ADDENDUM.TXT
+	ERRATA.TXT
 
 In the base directory of the distribution.
 
@@ -40,7 +40,7 @@ In the base directory of the distribution.
 
 ROAD MAP:
 
-  ADDENDUM.TXT          Errata information for this release (optional file).
+  ERRATA.TXT            Errata information for this release (optional file).
   README.TXT            This file.
   ABOUT.TXT             All about FreeBSD and the physical organization
                         of this distribution.
