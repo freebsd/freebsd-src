@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.9 1996/11/09 00:39:52 asami Exp $
+ *	$Id: fd.c,v 1.10 1996/12/04 04:20:43 asami Exp $
  *
  */
 
@@ -69,7 +69,9 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
+#ifdef notyet
 #include <sys/dkstat.h>
+#endif
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/epsonio.h>
@@ -202,7 +204,9 @@ static struct fd_data {
 #define FD_NO_TRACK -2
 	int	track;		/* where we think the head is */
 	int	options;	/* user configurable options, see ioctl_fd.h */
+#ifdef notyet
 	int	dkunit;		/* disk stats unit number */
+#endif
 #ifdef DEVFS
 	void	*bdevs[1 + NUMDENS + MAXPARTITIONS];
 	void	*cdevs[1 + NUMDENS + MAXPARTITIONS];
@@ -968,6 +972,7 @@ fdattach(struct isa_device *dev)
 					   "rfd%d%c", fdu, 'a' + i);
 		}
 #endif /* DEVFS */
+#ifdef notyet
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
 			fd->dkunit = dk_ndrive++;
@@ -978,6 +983,7 @@ fdattach(struct isa_device *dev)
 		} else {
 			fd->dkunit = -1;
 		}
+#endif
 	}
 
 	return (1);
