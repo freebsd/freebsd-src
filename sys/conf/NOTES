@@ -663,7 +663,6 @@ options 	SMBFS			#SMB/CIFS filesystem
 options 	UDF			#Universal Disk Format
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
-# options 	NODEVFS			#disable devices filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
 options 	NFS_ROOT		#NFS usable as root device
 
