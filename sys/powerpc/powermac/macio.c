@@ -31,6 +31,7 @@
  * Driver for KeyLargo/Pangea, the MacPPC south bridge ASIC.
  */
 
+#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -53,6 +54,16 @@
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+
+/*
+ * Macio softc
+ */
+struct macio_softc {
+	phandle_t    sc_node;
+	vm_offset_t  sc_base;
+	vm_offset_t  sc_size;
+	struct rman  sc_mem_rman;
+};
 
 static MALLOC_DEFINE(M_MACIO, "macio", "macio device information");
 
