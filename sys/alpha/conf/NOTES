@@ -54,6 +54,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
+#options	DEVFS			#Device Filesystem
 options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device
