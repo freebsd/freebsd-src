@@ -30,7 +30,7 @@ savecore_prestart()
 		return 1
 		;;
 	[Aa][Uu][Tt][Oo])
-		dumpdev=/dev/dumpdev
+		dumpdev=`/bin/realpath /dev/dumpdev`
 		;;
 	esac
 
@@ -44,8 +44,13 @@ savecore_prestart()
 		;;
 	esac
 
-	if [ ! -e "${dumpdev}" -o ! -d "${dumpdir}" ]; then
-		warn "Wrong dump device or directory. Savecore not run."
+	if [ ! -c "${dumpdev}" ]; then
+		warn "Dump device does not exist.  Savecore not run."
+		return 1
+	fi
+
+	if [ ! -d "${dumpdir}" ]; then
+		warn "Dump directory does not exist.  Savecore not run."
 		return 1
 	fi
 	return 0
