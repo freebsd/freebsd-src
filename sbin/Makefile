@@ -112,4 +112,8 @@ SUBDIR+=fdisk \
 SUBDIR+=sunlabel
 .endif
 
+.if ${MACHINE_ARCH} == "amd64"
+SUBDIR+=fdisk
+.endif
+
 .include <bsd.subdir.mk>
