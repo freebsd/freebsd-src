@@ -40,6 +40,7 @@ enum esource {
 	RANDOM_MOUSE,
 	RANDOM_NET,
 	RANDOM_INTERRUPT,
+	RANDOM_PURE,
 	ENTROPYSOURCE
 };
 void random_harvest(void *, u_int, u_int, u_int, enum esource);
