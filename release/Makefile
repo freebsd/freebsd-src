@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.122 1995/03/24 02:05:32 phk Exp $
+#	$Id: Makefile,v 1.123 1995/03/24 02:45:24 phk Exp $
 #
 # How to roll a release:
 #
@@ -285,8 +285,9 @@ release.9:
 	@for i in `cd /usr/src ; echo *` ; do \
 		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
 			cd ${.CURDIR} ; \
-				$(MAKE) doTARBALL SD=/usr/src \
-					TN=src$$i TD=src ARG="$$i" ; \
+			$(MAKE) doTARBALL SD=/usr/src \
+				TN=`echo src$$i | tr -d '.' | sed 's/usr/u/'` \
+				TD=src ARG="$$i" ; \
 		fi ; \
 	done
 	( cd ${RD}/dists/src; \
@@ -318,7 +319,8 @@ release.10:
 ftp.1:
 	rm -rf ${FD}
 	mkdir ${FD}
-	cd ${RD} && find floppies dists -print | cpio -dumpl ${FD}
+	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
 
 cdrom.1:
