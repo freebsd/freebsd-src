@@ -139,11 +139,11 @@ procfs_dostatus(curp, p, pfs, uio)
 		calcru(p, &ut, &st, (struct timeval *) NULL);
 		mtx_unlock_spin(&sched_lock);
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
-		    " %lld,%ld %lld,%ld %lld,%ld",
-		    (quad_t)p->p_stats->p_start.tv_sec,
+		    " %lld,%ld %ld,%ld %ld,%ld",
+		    (long long)p->p_stats->p_start.tv_sec,
 		    p->p_stats->p_start.tv_usec,
-		    (quad_t)ut.tv_sec, ut.tv_usec,
-		    (quad_t)st.tv_sec, st.tv_usec);
+		    (long)ut.tv_sec, ut.tv_usec,
+		    (long)st.tv_sec, st.tv_usec);
 	} else {
 		mtx_unlock_spin(&sched_lock);
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
