@@ -32,18 +32,22 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <errno.h>
+#include <ctype.h>
+#include <err.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
 #include "extern.h"
 
@@ -188,10 +192,10 @@ genclass(s)
 	tmp.name = s->str;
 	if ((cp = (CLASS *)bsearch(&tmp, classes, sizeof(classes) /
 	    sizeof(CLASS), sizeof(CLASS), c_class)) == NULL)
-		err("unknown class %s", s->str);
+		errx(1, "unknown class %s", s->str);
 
 	if ((cp->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
-		err("%s", strerror(errno));
+		errx(1, "malloc");
 	bzero(p, (NCHARS + 1) * sizeof(int));
 	for (cnt = 0, func = cp->func; cnt < NCHARS; ++cnt)
 		if ((func)(cnt))
@@ -221,11 +225,11 @@ genequiv(s)
 	if (*s->str == '\\') {
 		s->equiv[0] = backslash(s);
 		if (*s->str != '=')
-			err("misplaced equivalence equals sign");
+			errx(1, "misplaced equivalence equals sign");
 	} else {
 		s->equiv[0] = s->str[0];
 		if (s->str[1] != '=')
-			err("misplaced equivalence equals sign");
+			errx(1, "misplaced equivalence equals sign");
 	}
 	s->str += 2;
 	s->cnt = 0;
@@ -259,14 +263,14 @@ genseq(s)
 	char *ep;
 
 	if (s->which == STRING1)
-		err("sequences only valid in string2");
+		errx(1, "sequences only valid in string2");
 
 	if (*s->str == '\\')
 		s->lastch = backslash(s);
 	else
 		s->lastch = *s->str++;
 	if (*s->str != '*')
-		err("misplaced sequence asterisk");
+		errx(1, "misplaced sequence asterisk");
 
 	switch (*++s->str) {
 	case '\\':
@@ -284,7 +288,7 @@ genseq(s)
 				break;
 			}
 		}
-		err("illegal sequence count");
+		errx(1, "illegal sequence count");
 		/* NOTREACHED */
 	}
 
