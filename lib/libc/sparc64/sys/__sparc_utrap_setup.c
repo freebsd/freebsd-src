@@ -48,6 +48,8 @@ static const struct sparc_utrap_install_args uia[] = {
 	sizeof (ua) / sizeof (*ua), ua
 };
 
+void __sparc_utrap_setup(void) __attribute__((constructor));
+
 void
 __sparc_utrap_setup(void)
 {
