@@ -38,6 +38,7 @@
 #include <machine/apm_bios.h>
 #include <machine/clock.h>
 #include <machine/pc/bios.h>
+#include <machine/cpufunc.h>
 #include <machine/segments.h>
 #include <machine/stdarg.h>
 #include <machine/vm86.h>
@@ -647,7 +648,7 @@ apm_cpu_idle(void)
 	 * APM driver.
 	 */
 	if (!sc->active || sc->always_halt_cpu)
-		__asm("hlt");	/* wait for interrupt */
+		halt();	/* wait for interrupt */
 }
 
 /* inform APM BIOS that CPU is busy */
