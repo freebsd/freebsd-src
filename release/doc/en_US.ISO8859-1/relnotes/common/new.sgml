@@ -127,6 +127,9 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para arch="i386">The &man.cx.4; driver has been updated to version 4.4.0.
+    </para>
+
     <para>The &man.dcons.4; <quote>dumb console</quote> driver has
       been added to provide a local and remote console.  It can be
       accessed over FireWire using the &man.dcons.crom.4; driver.  A
@@ -256,6 +259,10 @@
     <para>&man.rtld.1; now has support for the dynamic mapping of
       shared object dependencies.  More information on using this
       feature can be found in &man.libmap.conf.5;.<para>
+
+    <para arch="i386">The &man.sconfig.8; utility was added as a part of
+      &man.cx.4; driver update. It replaces cxconfig utility for managing
+      &man.cx.4; devices. <para>
 
     <para>&man.stat.1; from <application>NetBSD</application>, as of 5
       June 2002 has, been imported.</para>
