@@ -49,7 +49,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <machine/tss.h>
 #include <machine/frame.h>
 #define _KERNEL
-#include <machine/globaldata.h>
+#include <sys/pcpu.h>
 #undef _KERNEL
 
 static void kcore_files_info PARAMS ((struct target_ops *));
@@ -118,7 +118,7 @@ static CORE_ADDR kernel_start;
 
 static CORE_ADDR pcpu;
 #define	PCPU_OFFSET(name)						\
-	offsetof(struct globaldata, gd_ ## name)
+	offsetof(struct pcpu, pc_ ## name)
 
 /*
  * Symbol names of kernel entry points.  Use special frames.
@@ -784,21 +784,21 @@ static CORE_ADDR
 kvm_getpcpu (cfd, cpuid)
 int cfd, cpuid;
 {
-  SLIST_HEAD(, globaldata) pcpu_head;
-  struct globaldata lgd;
-  struct globaldata *gd;
+  SLIST_HEAD(, pcpu) pcpu_head;
+  struct pcpu lpc;
+  struct pcpu *pc;
 
   physrd (cfd, ksym_lookup ("cpuhead") - KERNOFF, (char*)&pcpu_head,
     sizeof pcpu_head);
-  gd = SLIST_FIRST (&pcpu_head);
-  for (; gd != NULL; gd = SLIST_NEXT (&lgd, gd_allcpu))
+  pc = SLIST_FIRST (&pcpu_head);
+  for (; pc != NULL; pc = SLIST_NEXT (&lpc, pc_allcpu))
     {
-      kvm_read (cfd, (CORE_ADDR)gd, (char*)&lgd, sizeof lgd);
-      if (lgd.gd_cpuid == cpuid)
+      kvm_read (cfd, (CORE_ADDR)pc, (char*)&lpc, sizeof lpc);
+      if (lpc.pc_cpuid == cpuid)
         break;
     }
 
-  return ((CORE_ADDR)gd);
+  return ((CORE_ADDR)pc);
 }
 
 /*
