@@ -110,6 +110,7 @@ void usbd_get_xfer_status(usbd_xfer_handle, usbd_private_handle *,
 usb_endpoint_descriptor_t *usbd_interface2endpoint_descriptor
 			(usbd_interface_handle, u_int8_t);
 usbd_status usbd_abort_pipe(usbd_pipe_handle);
+usbd_status usbd_abort_default_pipe(usbd_device_handle);
 usbd_status usbd_clear_endpoint_stall(usbd_pipe_handle);
 usbd_status usbd_clear_endpoint_stall_async(usbd_pipe_handle);
 void usbd_clear_endpoint_toggle(usbd_pipe_handle);
@@ -140,6 +141,7 @@ usb_interface_descriptor_t *usbd_get_interface_descriptor
 				(usbd_interface_handle);
 usb_config_descriptor_t *usbd_get_config_descriptor(usbd_device_handle);
 usb_device_descriptor_t *usbd_get_device_descriptor(usbd_device_handle);
+int usbd_get_speed(usbd_device_handle);
 usbd_status usbd_set_interface(usbd_interface_handle, int);
 int usbd_get_no_alts(usb_config_descriptor_t *, int);
 usbd_status  usbd_get_interface(usbd_interface_handle, u_int8_t *);

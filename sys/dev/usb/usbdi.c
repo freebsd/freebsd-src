@@ -508,6 +508,12 @@ usbd_get_config_descriptor(usbd_device_handle dev)
 	return (dev->cdesc);
 }
 
+int
+usbd_get_speed(usbd_device_handle dev)
+{
+	return (dev->speed);
+}
+
 usb_interface_descriptor_t *
 usbd_get_interface_descriptor(usbd_interface_handle iface)
 {
@@ -550,6 +556,12 @@ usbd_abort_pipe(usbd_pipe_handle pipe)
 	err = usbd_ar_pipe(pipe);
 	splx(s);
 	return (err);
+}
+
+usbd_status
+usbd_abort_default_pipe(usbd_device_handle dev)
+{
+	return (usbd_abort_pipe(dev->default_pipe));
 }
 
 usbd_status
