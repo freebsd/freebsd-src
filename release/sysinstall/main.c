@@ -104,13 +104,16 @@ main(int argc, char **argv)
 	dup2(DebugFD, 2);
 
     /* Initialize driver modules */
-    moduleInitialize();
+    if (!Restarting)
+	    moduleInitialize();
 
     /* Initialize PC-card */
-    pccardInitialize();
+    if (!Restarting)
+	    pccardInitialize();
 
     /* Initialize USB */
-    usbInitialize();
+    if (!Restarting)
+	    usbInitialize();
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
