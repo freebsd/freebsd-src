@@ -270,6 +270,7 @@ g_trace(int level, const char *fmt, ...)
 		return;
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
+	va_end(ap);
 	printf("\n");
 }
 

@@ -203,9 +203,10 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	struct sbuf *sb;
 
 	g_topology_assert();
-	va_start(ap, fmt);
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
 	sbuf_finish(sb);
 	gp = g_malloc(sizeof *gp, M_WAITOK | M_ZERO);
 	gp->protect = 0x020016601;
@@ -354,9 +355,10 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	va_list ap;
 
 	g_topology_assert();
-	va_start(ap, fmt);
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
+	va_end(ap);
 	sbuf_finish(sb);
 	pp = g_malloc(sizeof *pp + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	pp->protect = 0x020016603;
