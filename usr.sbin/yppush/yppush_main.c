@@ -28,17 +28,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: yppush_main.c,v 1.7 1997/02/22 16:15:02 peter Exp $
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
-#include <errno.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
@@ -51,10 +54,6 @@ struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "ypxfr_extern.h"
 #include "yppush_extern.h"
-
-#ifndef lint
-static const char rcsid[] = "$Id: yppush_main.c,v 1.7 1997/02/22 16:15:02 peter Exp $";
-#endif
 
 char *progname = "yppush";
 int debug = 1;
@@ -123,10 +122,10 @@ static int yppush_show_status(status, tid)
 	}
 
 	if (verbose > 1)
-		yp_error("Checking return status: Transaction ID: %lu",
+		yp_error("checking return status: transaction ID: %lu",
 								job->tid);
 	if (status != YPPUSH_SUCC || verbose) {
-		yp_error("Transfer of map %s to server %s %s.",
+		yp_error("transfer of map %s to server %s %s",
 		 	job->map, job->server, status == YPPUSH_SUCC ?
 		 	"succeeded" : "failed");
 		yp_error("status returned by ypxfr: %s", status > YPPUSH_AGE ?
@@ -192,7 +191,7 @@ static void yppush_exit(now)
 	while(jptr) {
 		if (!jptr->polled)
 			yp_error("warning: exiting with transfer \
-to %s (transid = %lu) still pending.", jptr->server, jptr->tid);
+to %s (transid = %lu) still pending", jptr->server, jptr->tid);
 		svc_unregister(jptr->prognum, 1);
 		jptr = jptr->next;
 	}
@@ -408,7 +407,7 @@ int yp_push(server, map, tid)
 
 	/* Register the job in our linked list of jobs. */
 	if ((job = (struct jobs *)malloc(sizeof (struct jobs))) == NULL) {
-		yp_error("malloc failed: %s", strerror(errno));
+		yp_error("malloc failed");
 		yppush_exit(1);
 	}
 
@@ -521,14 +520,16 @@ int yppush_foreach(status, key, keylen, val, vallen, data)
 
 static void usage()
 {
-	fprintf (stderr, "%s: [-d domain] [-t timeout] [-j #parallel jobs] \
-[-h host] [-p path] mapname\n", progname);
+	fprintf (stderr, "%s\n%s\n",
+	"usage: yppush [-d domain] [-t timeout] [-j #parallel jobs] [-h host]",
+	"              [-p path] mapname");
 	exit(1);
 }
 
 /*
  * Entry point. (About time!)
  */
+int
 main(argc,argv)
 	int argc;
 	char *argv[];
@@ -559,7 +560,7 @@ main(argc,argv)
 			break;
 		case 'h': /* we can handle multiple hosts */
 			if ((tmp = (struct hostlist *)malloc(sizeof(struct hostlist))) == NULL) {
-				yp_error("malloc() failed: %s", strerror(errno));
+				yp_error("malloc failed");
 				yppush_exit(1);
 			}
 			tmp->name = strdup(optarg);
