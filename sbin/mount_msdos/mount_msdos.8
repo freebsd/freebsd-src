@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.7 1998/02/18 09:30:28 jkh Exp $
+.\"	$Id: mount_msdos.8,v 1.8 1998/02/22 15:28:00 ache Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -46,7 +46,8 @@
 .Op Fl l
 .Op Fl 9
 .\".Op Fl G
-.Op Fl w Ar table
+.Op Fl L Ar locale
+.Op Fl W Ar table
 .Pa special
 .Pa node
 .Sh DESCRIPTION
@@ -128,7 +129,10 @@ if deleting or renaming a file. This forces
 .\"filesystem. The differences to the msdos filesystem are minimal and
 .\"limited to the boot block. This option enforces
 .\".Fl s .
-.It Fl w Ar table
+.It Fl L Ar locale
+Specify locale name used for internal uppercase to lowercase conversion
+for DOS and Win'95 names.
+.It Fl W Ar table
 Specify file with
 local character set to Unicode conversion table for Win'95 long
 names. This table is text file contains 128 Unicode codes corresponding to
