@@ -2,7 +2,7 @@
  *
  * Module Name: nsobject - Utilities for objects attached to namespace
  *                         table entries
- *              $Revision: 65 $
+ *              $Revision: 67 $
  *
  ******************************************************************************/
 
@@ -156,7 +156,6 @@ AcpiNsAttachObject (
     ACPI_OPERAND_OBJECT     *PreviousObjDesc;
     ACPI_OBJECT_TYPE8       ObjType = ACPI_TYPE_ANY;
     UINT8                   Flags;
-    UINT16                  Opcode;
 
 
     FUNCTION_TRACE ("NsAttachObject");
@@ -261,90 +260,6 @@ AcpiNsAttachObject (
             ObjType = Type;
         }
 
-        /*
-         * Type is TYPE_Any, we must try to determinte the
-         * actual type of the object.
-         * Check if value points into the AML code
-         */
-        else if (AcpiTbSystemTablePointer (Object))
-        {
-            /*
-             * Object points into the AML stream.
-             * Set a flag bit in the Node to indicate this
-             */
-            Flags |= ANOBJ_AML_ATTACHMENT;
-
-            /*
-             * The next byte (perhaps the next two bytes)
-             * will be the AML opcode
-             */
-            MOVE_UNALIGNED16_TO_16 (&Opcode, Object);
-
-            /* Check for a recognized Opcode */
-
-            switch ((UINT8) Opcode)
-            {
-
-            case AML_OP_PREFIX:
-
-                if (Opcode != AML_REVISION_OP)
-                {
-                    /*
-                     * OpPrefix is unrecognized unless part
-                     * of RevisionOp
-                     */
-                    break;
-                }
-
-                /* case AML_REVISION_OP: fall through and set the type to Integer */
-
-            case AML_ZERO_OP:
-            case AML_ONES_OP:
-            case AML_ONE_OP:
-            case AML_BYTE_OP:
-            case AML_WORD_OP:
-            case AML_DWORD_OP:
-            case AML_QWORD_OP:
-
-                ObjType = ACPI_TYPE_INTEGER;
-                break;
-
-
-            case AML_STRING_OP:
-
-                ObjType = ACPI_TYPE_STRING;
-                break;
-
-
-            case AML_BUFFER_OP:
-
-                ObjType = ACPI_TYPE_BUFFER;
-                break;
-
-
-            case AML_MUTEX_OP:
-
-                ObjType = ACPI_TYPE_MUTEX;
-                break;
-
-
-            case AML_PACKAGE_OP:
-
-                ObjType = ACPI_TYPE_PACKAGE;
-                break;
-
-
-            default:
-
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-                    "AML Opcode/Type [%x] not supported in attach\n",
-                    (UINT8) Opcode));
-
-                return_ACPI_STATUS (AE_TYPE);
-                break;
-            }
-        }
-
         else
         {
             /*
@@ -357,13 +272,7 @@ AcpiNsAttachObject (
                     "NsAttachObject confused: setting bogus type for  ",
                     ACPI_LV_INFO, _COMPONENT);
 
-                if (AcpiTbSystemTablePointer (Object))
-                {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-                        "AML-stream code %02x\n", *(UINT8 *) Object));
-                }
-
-                else if (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED))
+                if (VALID_DESCRIPTOR_TYPE (Object, ACPI_DESC_TYPE_NAMED))
                 {
                     DUMP_PATHNAME (Object, "name ", ACPI_LV_INFO, _COMPONENT);
                 }
@@ -381,7 +290,7 @@ AcpiNsAttachObject (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Installing %p into Node %p [%4.4s]\n",
-        ObjDesc, Node, &Node->Name));
+        ObjDesc, Node, (char*)&Node->Name));
 
 
     /*
@@ -453,22 +362,12 @@ AcpiNsDetachObject (
 
     Node->Object = NULL;
 
-    /* Found a valid value */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object=%p Value=%p Name %4.4s\n",
-        Node, ObjDesc, &Node->Name));
+        Node, ObjDesc, (char*)&Node->Name));
 
-    /*
-     * Not every value is an object allocated via ACPI_MEM_CALLOCATE,
-     * - must check
-     */
-    if (!AcpiTbSystemTablePointer (ObjDesc))
-    {
-        /* Attempt to delete the object (and all subobjects) */
+    /* Remove one reference on the object (and all subobjects) */
 
-        AcpiUtRemoveReference (ObjDesc);
-    }
-
+    AcpiUtRemoveReference (ObjDesc);
     return_VOID;
 }
 

@@ -2,7 +2,7 @@
  *
  * Module Name: evmisc - ACPI device notification handler dispatch
  *                       and ACPI Global Lock support
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  *****************************************************************************/
 
@@ -180,7 +180,7 @@ AcpiEvQueueNotifyRequest (
         break;
 
     default:
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Unknown Notify Value: %lx \n", NotifyValue));
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Unknown Notify Value: %X \n", NotifyValue));
         break;
     }
 

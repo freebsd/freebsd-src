@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 52 $
+ *              $Revision: 57 $
  *
  ******************************************************************************/
 
@@ -356,7 +356,7 @@ DumpNte:
 
     else
     {
-        AcpiOsPrintf ("Object Pathname:  %s\n", RetBuf.Pointer);
+        AcpiOsPrintf ("Object (%p) Pathname:  %s\n", Node, RetBuf.Pointer);
     }
 
     if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
@@ -377,7 +377,7 @@ DumpNte:
             return;
         }
 
-        AcpiUtDumpBuffer (Node->Object, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
+        AcpiUtDumpBuffer ((void *) Node->Object, sizeof (ACPI_OPERAND_OBJECT), Display, ACPI_UINT32_MAX);
         AcpiExDumpObjectDescriptor (Node->Object, 1);
     }
 }
@@ -527,7 +527,7 @@ AcpiDbDisplayInternalObject (
                 break;
 
             case AML_REVISION_OP:
-                AcpiOsPrintf ("[Const]           Revision (%X)", ACPI_CA_VERSION);
+                AcpiOsPrintf ("[Const]           Revision (%X)", ACPI_CA_SUPPORT_LEVEL);
                 break;
 
             case AML_LOCAL_OP:
@@ -653,24 +653,12 @@ AcpiDbDisplayMethodInfo (
             NumRemainingOps++;
         }
 
-        OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
-        if (ACPI_GET_OP_TYPE (OpInfo) != ACPI_OP_TYPE_OPCODE)
-        {
-            /* Bad opcode or ASCII character */
-
-            continue;
-        }
-
-
         /* Decode the opcode */
 
-        switch (ACPI_GET_OP_CLASS (OpInfo))
+        OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
+        switch (OpInfo->Class)
         {
-        case OPTYPE_CONSTANT:           /* argument type only */
-        case OPTYPE_LITERAL:            /* argument type only */
-        case OPTYPE_DATA_TERM:          /* argument type only */
-        case OPTYPE_LOCAL_VARIABLE:     /* argument type only */
-        case OPTYPE_METHOD_ARGUMENT:    /* argument type only */
+        case AML_CLASS_ARGUMENT:
             if (CountRemaining)
             {
                 NumRemainingOperands++;
@@ -678,6 +666,11 @@ AcpiDbDisplayMethodInfo (
 
             NumOperands++;
             break;
+
+        case AML_CLASS_UNKNOWN:
+            /* Bad opcode or ASCII character */
+
+            continue;
 
         default:
             if (CountRemaining)

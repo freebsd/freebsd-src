@@ -2,7 +2,7 @@
  *
  * Module Name: evxfregn - External Interfaces, ACPI Operation Regions and
  *                         Address Spaces.
- *              $Revision: 38 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -176,7 +176,7 @@ AcpiInstallAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsConvertHandleToEntry (Device);
+    Node = AcpiNsMapHandleToNode (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -184,9 +184,9 @@ AcpiInstallAddressSpaceHandler (
     }
 
     /*
-     *  This registration is valid for only the types below
-     *  and the root.  This is where the default handlers
-     *  get placed.
+     * This registration is valid for only the types below
+     * and the root.  This is where the default handlers
+     * get placed.
      */
     if ((Node->Type != ACPI_TYPE_DEVICE)     &&
         (Node->Type != ACPI_TYPE_PROCESSOR)  &&
@@ -236,7 +236,7 @@ AcpiInstallAddressSpaceHandler (
     }
 
     /*
-     *  If the caller hasn't specified a setup routine, use the default
+     * If the caller hasn't specified a setup routine, use the default
      */
     if (!Setup)
     {
@@ -244,14 +244,14 @@ AcpiInstallAddressSpaceHandler (
     }
 
     /*
-     *  Check for an existing internal object
+     * Check for an existing internal object
      */
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (ObjDesc)
     {
         /*
-         *  The object exists.
-         *  Make sure the handler is not already installed.
+         * The object exists.
+         * Make sure the handler is not already installed.
          */
 
         /* check the address handler the user requested */
@@ -260,8 +260,8 @@ AcpiInstallAddressSpaceHandler (
         while (HandlerObj)
         {
             /*
-             *  We have an Address handler, see if user requested this
-             *  address space.
+             * We have an Address handler, see if user requested this
+             * address space.
              */
             if(HandlerObj->AddrHandler.SpaceId == SpaceId)
             {
@@ -270,7 +270,7 @@ AcpiInstallAddressSpaceHandler (
             }
 
             /*
-             *  Move through the linked list of handlers
+             * Move through the linked list of handlers
              */
             HandlerObj = HandlerObj->AddrHandler.Next;
         }
@@ -287,7 +287,6 @@ AcpiInstallAddressSpaceHandler (
         {
             Type = ACPI_TYPE_DEVICE;
         }
-
         else
         {
             Type = Node->Type;
@@ -319,11 +318,11 @@ AcpiInstallAddressSpaceHandler (
         AcpiUtGetRegionName (SpaceId), SpaceId, Node, ObjDesc));
 
     /*
-     *  Now we can install the handler
+     * Now we can install the handler
      *
-     *  At this point we know that there is no existing handler.
-     *  So, we just allocate the object for the handler and link it
-     *  into the list.
+     * At this point we know that there is no existing handler.
+     * So, we just allocate the object for the handler and link it
+     * into the list.
      */
     HandlerObj = AcpiUtCreateInternalObject (INTERNAL_TYPE_ADDRESS_HANDLER);
     if (!HandlerObj)
@@ -342,16 +341,16 @@ AcpiInstallAddressSpaceHandler (
     HandlerObj->AddrHandler.Setup       = Setup;
 
     /*
-     *  Now walk the namespace finding all of the regions this
-     *  handler will manage.
+     * Now walk the namespace finding all of the regions this
+     * handler will manage.
      *
-     *  We start at the device and search the branch toward
-     *  the leaf nodes until either the leaf is encountered or
-     *  a device is detected that has an address handler of the
-     *  same type.
+     * We start at the device and search the branch toward
+     * the leaf nodes until either the leaf is encountered or
+     * a device is detected that has an address handler of the
+     * same type.
      *
-     *  In either case we back up and search down the remainder
-     *  of the branch
+     * In either case we back up and search down the remainder
+     * of the branch
      */
     Status = AcpiNsWalkNamespace (ACPI_TYPE_ANY, Device,
                                   ACPI_UINT32_MAX, NS_WALK_UNLOCK,
@@ -359,7 +358,7 @@ AcpiInstallAddressSpaceHandler (
                                   HandlerObj, NULL);
 
     /*
-     *  Place this handler 1st on the list
+     * Place this handler 1st on the list
      */
     HandlerObj->Common.ReferenceCount =
                             (UINT16) (HandlerObj->Common.ReferenceCount +
@@ -416,7 +415,7 @@ AcpiRemoveAddressSpaceHandler (
 
     /* Convert and validate the device handle */
 
-    Node = AcpiNsConvertHandleToEntry (Device);
+    Node = AcpiNsMapHandleToNode (Device);
     if (!Node)
     {
         Status = AE_BAD_PARAMETER;
@@ -429,27 +428,24 @@ AcpiRemoveAddressSpaceHandler (
     ObjDesc = AcpiNsGetAttachedObject (Node);
     if (!ObjDesc)
     {
-        /*
-         *  The object DNE.
-         */
         Status = AE_NOT_EXIST;
         goto UnlockAndExit;
     }
 
     /*
-     *  find the address handler the user requested
+     * find the address handler the user requested
      */
     HandlerObj = ObjDesc->Device.AddrHandler;
     LastObjPtr = &ObjDesc->Device.AddrHandler;
     while (HandlerObj)
     {
         /*
-         *  We have a handler, see if user requested this one
+         * We have a handler, see if user requested this one
          */
-        if(HandlerObj->AddrHandler.SpaceId == SpaceId)
+        if (HandlerObj->AddrHandler.SpaceId == SpaceId)
         {
             /*
-             *  Got it, first dereference this in the Regions
+             * Got it, first dereference this in the Regions
              */
             ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
                 "Removing address handler %p(%p) for region %s on Device %p(%p)\n",
@@ -463,30 +459,30 @@ AcpiRemoveAddressSpaceHandler (
             while (RegionObj)
             {
                 /*
-                 *  First disassociate the handler from the region.
+                 * First disassociate the handler from the region.
                  *
-                 *  NOTE: this doesn't mean that the region goes away
-                 *  The region is just inaccessible as indicated to
-                 *  the _REG method
+                 * NOTE: this doesn't mean that the region goes away
+                 * The region is just inaccessible as indicated to
+                 * the _REG method
                  */
                 AcpiEvDisassociateRegionFromHandler(RegionObj, TRUE);
 
                 /*
-                 *  Walk the list, since we took the first region and it
-                 *  was removed from the list by the dissassociate call
-                 *  we just get the first item on the list again
+                 * Walk the list, since we took the first region and it
+                 * was removed from the list by the dissassociate call
+                 * we just get the first item on the list again
                  */
                 RegionObj = HandlerObj->AddrHandler.RegionList;
 
             }
 
             /*
-             *  Remove this Handler object from the list
+             * Remove this Handler object from the list
              */
             *LastObjPtr = HandlerObj->AddrHandler.Next;
 
             /*
-             *  Now we can delete the handler object
+             * Now we can delete the handler object
              */
             AcpiUtRemoveReference (HandlerObj);
             AcpiUtRemoveReference (HandlerObj);
@@ -495,7 +491,7 @@ AcpiRemoveAddressSpaceHandler (
         }
 
         /*
-         *  Move through the linked list of handlers
+         * Move through the linked list of handlers
          */
         LastObjPtr = &HandlerObj->AddrHandler.Next;
         HandlerObj = HandlerObj->AddrHandler.Next;
@@ -503,7 +499,7 @@ AcpiRemoveAddressSpaceHandler (
 
 
     /*
-     *  The handler does not exist
+     * The handler does not exist
      */
     ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
         "Unable to remove address handler %p for %s(%X), DevNode %p, obj %p\n",

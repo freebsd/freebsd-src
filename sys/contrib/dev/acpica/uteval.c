@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: uteval - Object evaluation
- *              $Revision: 30 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -163,12 +163,12 @@ AcpiUtEvaluateNumericObject (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "%s on %4.4s was not found\n",
-                ObjectName, &DeviceNode->Name));
+                ObjectName, (char*)&DeviceNode->Name));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "%s on %4.4s failed with status %s\n",
-                ObjectName, &DeviceNode->Name,
+                ObjectName, (char*)&DeviceNode->Name,
                 AcpiFormatException (Status)));
         }
 
@@ -248,13 +248,13 @@ AcpiUtExecute_HID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "_HID on %4.4s was not found\n",
-                &DeviceNode->Name));
+                (char*)&DeviceNode->Name));
         }
 
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_HID on %4.4s failed %s\n",
-                &DeviceNode->Name, AcpiFormatException (Status)));
+                (char*)&DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return_ACPI_STATUS (Status);
@@ -344,14 +344,14 @@ AcpiUtExecute_UID (
         if (Status == AE_NOT_FOUND)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "_UID on %4.4s was not found\n",
-                &DeviceNode->Name));
+                (char*)&DeviceNode->Name));
         }
 
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "_UID on %4.4s failed %s\n",
-                &DeviceNode->Name, AcpiFormatException (Status)));
+                (char*)&DeviceNode->Name, AcpiFormatException (Status)));
         }
 
         return (Status);
@@ -440,7 +440,7 @@ AcpiUtExecute_STA (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
             "_STA on %4.4s was not found, assuming present.\n",
-            &DeviceNode->Name));
+            (char*)&DeviceNode->Name));
 
         *Flags = 0x0F;
         Status = AE_OK;
@@ -449,7 +449,7 @@ AcpiUtExecute_STA (
     else if (ACPI_FAILURE (Status))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "_STA on %4.4s failed %s\n",
-            &DeviceNode->Name,
+            (char*)&DeviceNode->Name,
             AcpiFormatException (Status)));
     }
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 74 $
+ *              $Revision: 75 $
  *
  ******************************************************************************/
 
@@ -174,7 +174,7 @@ AcpiNsSearchNode (
         if (ScopeName)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching %s [%p] For %4.4s (type %X)\n",
-                ScopeName, Node, &TargetName, Type));
+                ScopeName, Node, (char*)&TargetName, Type));
 
             ACPI_MEM_FREE (ScopeName);
         }
@@ -222,7 +222,7 @@ AcpiNsSearchNode (
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Name %4.4s (actual type %X) found at %p\n",
-                &TargetName, NextNode->Type, NextNode));
+                (char*)&TargetName, NextNode->Type, NextNode));
 
             *ReturnNode = NextNode;
             return_ACPI_STATUS (AE_OK);
@@ -249,7 +249,7 @@ AcpiNsSearchNode (
     /* Searched entire table, not found */
 
     ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Name %4.4s (type %X) not found at %p\n",
-        &TargetName, Type, NextNode));
+        (char*)&TargetName, Type, NextNode));
 
     return_ACPI_STATUS (AE_NOT_FOUND);
 }
@@ -306,13 +306,13 @@ AcpiNsSearchParentTree (
         if (!ParentNode)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
-                &TargetName));
+                (char*)&TargetName));
         }
 
         if (AcpiNsLocal (Type))
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] type %X is local(no search)\n",
-                &TargetName, Type));
+                (char*)&TargetName, Type));
         }
 
         return_ACPI_STATUS (AE_NOT_FOUND);
@@ -321,7 +321,7 @@ AcpiNsSearchParentTree (
 
     /* Search the parent tree */
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching parent for %4.4s\n", &TargetName));
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Searching parent for %4.4s\n", (char*)&TargetName));
 
     /*
      * Search parents until found the target or we have backed up to
@@ -400,7 +400,7 @@ AcpiNsSearchAndEnter (
 
     if (!Node || !TargetName || !ReturnNode)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null param-  Table %p Name %p Return %p\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Null param-  Table %p Name %X Return %p\n",
             Node, TargetName, ReturnNode));
 
         REPORT_ERROR (("NsSearchAndEnter: bad (null) parameter\n"));
@@ -412,7 +412,7 @@ AcpiNsSearchAndEnter (
 
     if (!AcpiUtValidAcpiName (TargetName))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "*** Bad character in name: %08lx *** \n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "*** Bad character in name: %08x *** \n",
             TargetName));
 
         REPORT_ERROR (("NsSearchAndEnter: Bad character in ACPI Name\n"));
@@ -475,7 +475,7 @@ AcpiNsSearchAndEnter (
     if (InterpreterMode == IMODE_EXECUTE)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s Not found in %p [Not adding]\n",
-            &TargetName, Node));
+            (char*)&TargetName, Node));
 
         return_ACPI_STATUS (AE_NOT_FOUND);
     }

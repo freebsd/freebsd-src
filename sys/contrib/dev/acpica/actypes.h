@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actypes.h - Common data types for the entire ACPI subsystem
- *       $Revision: 192 $
+ *       $Revision: 193 $
  *
  *****************************************************************************/
 
@@ -874,7 +874,7 @@ typedef struct
 
 /*
  *  IO Attributes
- *  The ISA IO ranges are: n000-n0FFh,  n400-n4FFh, n800-n8FFh, nC00-nCFFh.
+ *  The ISA IO ranges are:     n000-n0FFh,  n400-n4FFh, n800-n8FFh, nC00-nCFFh.
  *  The non-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
  */
 #define NON_ISA_ONLY_RANGES             (UINT8) 0x01
