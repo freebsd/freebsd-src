@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.49 1998/11/11 10:03:55 truckman Exp $
+ * $Id: kern_sig.c,v 1.50 1998/12/02 01:53:48 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -135,9 +135,17 @@ sigaction(p, uap)
 			sa->sa_flags |= SA_RESETHAND;
 		if ((ps->ps_signodefer & bit) != 0)
 			sa->sa_flags |= SA_NODEFER;
+#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
+#else
+		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
+#endif /* COMPAT_LINUX_THREADS */
 			sa->sa_flags |= SA_NOCLDSTOP;
+#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDWAIT)
+#else
+		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDWAIT)
+#endif /* COMPAT_LINUX_THREADS */
 			sa->sa_flags |= SA_NOCLDWAIT;
 		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
 		    sizeof (vec))))
@@ -195,9 +203,15 @@ setsigvec(p, signum, sa)
 #endif
 	if (signum == SIGCHLD) {
 		if (sa->sa_flags & SA_NOCLDSTOP)
+#ifndef COMPAT_LINUX_THREADS
 			p->p_flag |= P_NOCLDSTOP;
 		else
 			p->p_flag &= ~P_NOCLDSTOP;
+#else
+			p->p_procsig->ps_flag |= P_NOCLDSTOP;
+		else
+			p->p_procsig->ps_flag &= ~P_NOCLDSTOP;
+#endif /* COMPAT_LINUX_THREADS */
 		if (sa->sa_flags & SA_NOCLDWAIT) {
 			/*
 			 * Paranoia: since SA_NOCLDWAIT is implemented by
@@ -206,11 +220,21 @@ setsigvec(p, signum, sa)
 			 * forbidden to set SA_NOCLDWAIT.
 			 */
 			if (p->p_pid == 1)
+#ifndef COMPAT_LINUX_THREADS
 				p->p_flag &= ~P_NOCLDWAIT;
 			else
 				p->p_flag |= P_NOCLDWAIT;
+#else
+				p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
+			else
+				p->p_procsig->ps_flag |= P_NOCLDWAIT;
+#endif /* COMPAT_LINUX_THREADS */
 		} else
+#ifndef COMPAT_LINUX_THREADS
 			p->p_flag &= ~P_NOCLDWAIT;
+#else
+			p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
+#endif /* COMPAT_LINUX_THREADS */
 	}
 	/*
 	 * Set bit in p_sigignore for signals that are set to SIG_IGN,
@@ -385,7 +409,11 @@ osigvec(p, uap)
 		if ((ps->ps_signodefer & bit) != 0)
 			sv->sv_flags |= SV_NODEFER;
 #ifndef COMPAT_SUNOS
+#ifndef COMPAT_LINUX_THREADS
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
+#else
+		if (signum == SIGCHLD && p->p_procsig->ps_flag & P_NOCLDSTOP)
+#endif /* COMPAT_LINUX_THREADS */
 			sv->sv_flags |= SV_NOCLDSTOP;
 #endif
 		if ((error = copyout((caddr_t)sv, (caddr_t)uap->osv,
@@ -470,8 +498,12 @@ sigsuspend(p, uap)
 	 * save it here and mark the sigacts structure
 	 * to indicate this.
 	 */
+#ifndef COMPAT_LINUX_THREADS
 	ps->ps_oldmask = p->p_sigmask;
 	ps->ps_flags |= SAS_OLDMASK;
+#else
+	p->p_oldsigmask = p->p_sigmask;
+#endif /* COMPAT_LINUX_THREADS */
 	p->p_sigmask = uap->mask &~ sigcantmask;
 	while (tsleep((caddr_t) ps, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
@@ -730,8 +762,13 @@ trapsignal(p, signum, code)
 			ps->ps_sigact[signum] = SIG_DFL;
 		}
 	} else {
+#ifndef COMPAT_LINUX_THREADS
 		ps->ps_code = code;	/* XXX for core dump/debugger */
 		ps->ps_sig = signum;	/* XXX to verify code */
+#else
+		p->p_code = code;	/* XXX for core dump/debugger */
+		p->p_sig = signum;	/* XXX to verify code */
+#endif /* COMPAT_LINUX_THREADS */
 		psignal(p, signum);
 	}
 }
@@ -780,7 +817,11 @@ psignal(p, signum)
 		 * and if it is set to SIG_IGN,
 		 * action will be SIG_DFL here.)
 		 */
+#ifndef COMPAT_LINUX_THREADS
 		if (p->p_sigignore & mask)
+#else
+		if ((p->p_sigignore & mask) || (p->p_flag & P_WEXIT))
+#endif /* COMPAT_LINUX_THREADS */
 			return;
 		if (p->p_sigmask & mask)
 			action = SIG_HOLD;
@@ -862,7 +903,11 @@ psignal(p, signum)
 				goto out;
 			p->p_siglist &= ~mask;
 			p->p_xstat = signum;
+#ifndef COMPAT_LINUX_THREADS
 			if ((p->p_pptr->p_flag & P_NOCLDSTOP) == 0)
+#else
+			if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
+#endif /* COMPAT_LINUX_THREADS */
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			goto out;
@@ -1069,7 +1114,11 @@ issignal(p)
 					break;	/* == ignore */
 				p->p_xstat = signum;
 				stop(p);
+#ifndef COMPAT_LINUX_THREADS
 				if ((p->p_pptr->p_flag & P_NOCLDSTOP) == 0)
+#else
+				if ((p->p_pptr->p_procsig->ps_flag & P_NOCLDSTOP) == 0)
+#endif /* COMPAT_LINUX_THREADS */
 					psignal(p->p_pptr, SIGCHLD);
 				mi_switch();
 				break;
@@ -1144,8 +1193,13 @@ postsig(signum)
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_PSIG))
 		ktrpsig(p->p_tracep,
+#ifndef COMPAT_LINUX_THREADS
 		    signum, action, ps->ps_flags & SAS_OLDMASK ?
 		    ps->ps_oldmask : p->p_sigmask, 0);
+#else
+		    signum, action, p->p_oldsigmask ?
+		    p->p_oldsigmask : p->p_sigmask, 0);
+#endif /* COMPAT_LINUX_THREADS */
 #endif
 	STOPEVENT(p, S_SIG, signum);
 
@@ -1174,9 +1228,15 @@ postsig(signum)
 		 * restored after the signal processing is completed.
 		 */
 		(void) splhigh();
+#ifndef COMPAT_LINUX_THREADS
 		if (ps->ps_flags & SAS_OLDMASK) {
 			returnmask = ps->ps_oldmask;
 			ps->ps_flags &= ~SAS_OLDMASK;
+#else
+		if (p->p_oldsigmask) {
+			returnmask = p->p_oldsigmask;
+			p->p_oldsigmask = 0;
+#endif /* COMPAT_LINUX_THREADS */
 		} else
 			returnmask = p->p_sigmask;
 		p->p_sigmask |= ps->ps_catchmask[signum] |
@@ -1192,12 +1252,22 @@ postsig(signum)
 		}
 		(void) spl0();
 		p->p_stats->p_ru.ru_nsignals++;
+#ifndef COMPAT_LINUX_THREADS
 		if (ps->ps_sig != signum) {
+#else
+		if (p->p_sig != signum) {
+#endif /* COMPAT_LINUX_THREADS */
 			code = 0;
 		} else {
+#ifndef COMPAT_LINUX_THREADS
 			code = ps->ps_code;
 			ps->ps_code = 0;
 			ps->ps_sig = 0;
+#else
+			code = p->p_code;
+			p->p_code = 0;
+			p->p_sig = 0;
+#endif /* COMPAT_LINUX_THREADS */
 		}
 		(*p->p_sysent->sv_sendsig)(action, signum, returnmask, code);
 	}
@@ -1232,7 +1302,11 @@ sigexit(p, signum)
 
 	p->p_acflag |= AXSIG;
 	if (sigprop[signum] & SA_CORE) {
+#ifndef COMPAT_LINUX_THREADS
 		p->p_sigacts->ps_sig = signum;
+#else
+		p->p_sig = signum;
+#endif /* COMPAT_LINUX_THREADS */
 		/*
 		 * Log signals which would cause core dumps
 		 * (Log as LOG_INFO to appease those who don't want

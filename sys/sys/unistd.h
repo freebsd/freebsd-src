@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.16 1998/03/08 17:25:38 dufault Exp $
+ * $Id: unistd.h,v 1.17 1998/03/28 11:51:01 dufault Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -186,6 +186,9 @@
 #define RFCENVG		(1<<11) /* UNIMPL zero plan9 `env space' */
 #define RFCFDG		(1<<12) /* zero fd table */
 #define RFTHREAD	(1<<13)	/* enable kernel thread support */
+#define RFSIGSHARE	(1<<14)	/* share signal handlers */
+#define RFPOSIXSIG      (1<<15) /* UNIMPL posix thread signal delivery */
+#define RFLINUXTHPN     (1<<16) /* do linux clone exit parent notification */
 #define RFPPWAIT	(1<<31) /* parent sleeps until child exits (vfork) */
 
 #endif /* !_POSIX_SOURCE */

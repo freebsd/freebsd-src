@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.51 1998/01/22 17:29:46 dyson Exp $
+ * $Id: kern_fork.c,v 1.52 1998/11/09 15:07:41 truckman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -62,6 +62,10 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
 
+#ifdef COMPAT_LINUX_THREADS
+#include <machine/frame.h>
+
+#endif /* COMPAT_LINUX_THREADS */
 #ifdef SMP
 static int	fast_vfork = 0;	/* Doesn't work on SMP yet. */
 #else
@@ -325,6 +329,24 @@ again:
 	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
 
+#ifdef COMPAT_LINUX_THREADS
+	if (flags & RFSIGSHARE) {
+		p2->p_procsig->ps_refcnt++;
+	} else {
+		p2->p_procsig = malloc(sizeof(struct procsig), M_TEMP, M_WAITOK);
+		p2->p_procsig->ps_refcnt = 1;
+		p2->p_procsig->ps_posix  = 0;
+		bcopy(&p1->p_procsig->ps_begincopy, &p2->p_procsig->ps_begincopy,
+			(unsigned)&p1->p_procsig->ps_endcopy -
+			(unsigned)&p1->p_procsig->ps_begincopy);
+	}
+	if (flags & RFLINUXTHPN) {
+	        p2->p_sigparent = SIGUSR1;
+	}
+	p2->p_sigacts = &p2->p_procsig->ps_sigacts;
+	if((flags & RFTHREAD) != 0 && (flags & RFPOSIXSIG) != 0)
+	        p2->p_procsig->ps_posix = 1;
+#endif /* COMPAT_LINUX_THREADS */
 	/* bump references to the text vnode (for procfs) */
 	p2->p_textvp = p1->p_textvp;
 	if (p2->p_textvp)
