@@ -1406,7 +1406,7 @@ Every now and then when your life gets complicated and the weasels
 start closing in, the only cure is to load up on heinous chemicals and
 then drive like a bastard from Hollywood to Las Vegas ... with the
 music at top volume and at least a pint of ether.
-		-- H.S. Thompson, "Fear and Loathing in Las Vegas"
+		-- Hunter S. Thompson, "Fear and Loathing in Las Vegas"
 %
    n = ((n >>  1) & 0x55555555) | ((n <<  1) & 0xaaaaaaaa);
    n = ((n >>  2) & 0x33333333) | ((n <<  2) & 0xcccccccc);
