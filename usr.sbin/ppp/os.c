@@ -272,7 +272,7 @@ int *ptun;
 {
   int s;
   char ifname[IFNAMSIZ];
-  char devname[14];  /* sufficient room for "/dev/tun65535" */
+  static char devname[14];  /* sufficient room for "/dev/tun65535" */
   unsigned unit, enoentcount=0;
 
   for( unit=0; unit <= MAX_TUN ; unit++ ) {
