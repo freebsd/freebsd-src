@@ -43,68 +43,13 @@
 
 __weak_reference(__poll, poll);
 
-int 
-_poll(struct pollfd *fds, unsigned int nfds, int timeout)
-{
-	struct pthread *curthread = _get_curthread();
-	struct timespec	ts;
-	int		numfds = nfds;
-	int             i, ret = 0;
-	struct pthread_poll_data data;
-
-	if (numfds > _thread_dtablesize) {
-		numfds = _thread_dtablesize;
-	}
-	/* Check if a timeout was specified: */
-	if (timeout == INFTIM) {
-		/* Wait for ever: */
-		_thread_kern_set_timeout(NULL);
-	} else if (timeout > 0) {
-		/* Convert the timeout in msec to a timespec: */
-		ts.tv_sec = timeout / 1000;
-		ts.tv_nsec = (timeout % 1000) * 1000000;
-
-		/* Set the wake up time: */
-		_thread_kern_set_timeout(&ts);
-	} else if (timeout < 0) {
-		/* a timeout less than zero but not == INFTIM is invalid */
-		errno = EINVAL;
-		return (-1);
-	}
-
-	if (((ret = __sys_poll(fds, numfds, 0)) == 0) && (timeout != 0)) {
-		data.nfds = numfds;
-		data.fds = fds;
-
-		/*
-		 * Clear revents in case of a timeout which leaves fds
-		 * unchanged:
-		 */
-		for (i = 0; i < numfds; i++) {
-			fds[i].revents = 0;
-		}
-
-		curthread->data.poll_data = &data;
-		curthread->interrupted = 0;
-		_thread_kern_sched_state(PS_POLL_WAIT, __FILE__, __LINE__);
-		if (curthread->interrupted) {
-			errno = EINTR;
-			ret = -1;
-		} else {
-			ret = data.nfds;
-		}
-	}
-
-	return (ret);
-}
-
 int
 __poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
 	int ret;
 
 	_thread_enter_cancellation_point();
-	ret = _poll(fds, nfds, timeout);
+	ret = __sys_poll(fds, nfds, timeout);
 	_thread_leave_cancellation_point();
 
 	return ret;

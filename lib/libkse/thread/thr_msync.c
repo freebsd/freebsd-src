@@ -14,16 +14,6 @@
 __weak_reference(__msync, msync);
 
 int
-_msync(void *addr, size_t len, int flags)
-{
-	int ret;
-
-	ret = __sys_msync(addr, len, flags);
-
-	return (ret);
-}
-
-int
 __msync(void *addr, size_t len, int flags)
 {
 	int	ret;
@@ -35,7 +25,7 @@ __msync(void *addr, size_t len, int flags)
 	 * a cancellation point, as per the standard. sigh.
 	 */
 	_thread_enter_cancellation_point();
-	ret = _msync(addr, len, flags);
+	ret = __sys_msync(addr, len, flags);
 	_thread_leave_cancellation_point();
 
 	return ret;

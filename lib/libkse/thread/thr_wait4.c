@@ -41,35 +41,6 @@
 __weak_reference(__wait4, wait4);
 
 pid_t
-_wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
-{
-	struct pthread	*curthread = _get_curthread();
-	pid_t	ret;
-
-	_thread_kern_sig_defer();
-
-	/* Perform a non-blocking wait4 syscall: */
-	while ((ret = __sys_wait4(pid, istat, options | WNOHANG, rusage)) == 0 && (options & WNOHANG) == 0) {
-		/* Reset the interrupted operation flag: */
-		curthread->interrupted = 0;
-
-		/* Schedule the next thread while this one waits: */
-		_thread_kern_sched_state(PS_WAIT_WAIT, __FILE__, __LINE__);
-
-		/* Check if this call was interrupted by a signal: */
-		if (curthread->interrupted) {
-			errno = EINTR;
-			ret = -1;
-			break;
-		}
-	}
-
-	_thread_kern_sig_undefer();
-
-	return (ret);
-}
-
-pid_t
 __wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 {
 	pid_t ret;

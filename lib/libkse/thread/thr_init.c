@@ -56,7 +56,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#include <poll.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -163,7 +162,6 @@ _thread_init(void)
 	int		sched_stack_size;	/* Size of scheduler stack. */
 
 	struct clockinfo clockinfo;
-	struct sigaction act;
 
 	_pthread_page_size = getpagesize();
 	_pthread_guard_default = getpagesize();
@@ -209,57 +207,9 @@ _thread_init(void)
 			PANIC("Can't dup2");
 	}
 
-	/* Get the standard I/O flags before messing with them : */
-	for (i = 0; i < 3; i++) {
-		if (((_pthread_stdio_flags[i] =
-		    __sys_fcntl(i, F_GETFL, NULL)) == -1) &&
-		    (errno != EBADF))
-			PANIC("Cannot get stdio flags");
-	}
-
-	/*
-	 * Create a pipe that is written to by the signal handler to prevent
-	 * signals being missed in calls to _select:
-	 */
-	if (__sys_pipe(_thread_kern_pipe) != 0) {
-		/* Cannot create pipe, so abort: */
-		PANIC("Cannot create kernel pipe");
-	}
-
-	/*
-	 * Make sure the pipe does not get in the way of stdio:
-	 */
-	for (i = 0; i < 2; i++) {
-		if (_thread_kern_pipe[i] < 3) {
-			fd = __sys_fcntl(_thread_kern_pipe[i], F_DUPFD, 3);
-			if (fd == -1)
-			    PANIC("Cannot create kernel pipe");
-			__sys_close(_thread_kern_pipe[i]);
-			_thread_kern_pipe[i] = fd;
-		}
-	}
-	/* Get the flags for the read pipe: */
-	if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
-		/* Abort this application: */
-		PANIC("Cannot get kernel read pipe flags");
-	}
-	/* Make the read pipe non-blocking: */
-	else if (__sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
-		/* Abort this application: */
-		PANIC("Cannot make kernel read pipe non-blocking");
-	}
-	/* Get the flags for the write pipe: */
-	else if ((flags = __sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
-		/* Abort this application: */
-		PANIC("Cannot get kernel write pipe flags");
-	}
-	/* Make the write pipe non-blocking: */
-	else if (__sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
-		/* Abort this application: */
-		PANIC("Cannot get kernel write pipe flags");
-	}
 	/* Allocate and initialize the ready queue: */
-	else if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_LAST_PRIORITY) != 0) {
+	if (_pq_alloc(&_readyq, PTHREAD_MIN_PRIORITY, PTHREAD_LAST_PRIORITY) !=
+	    0) {
 		/* Abort this application: */
 		PANIC("Cannot allocate priority ready queue.");
 	}
@@ -312,15 +262,19 @@ _thread_init(void)
 		/* Set the main thread stack pointer. */
 		_thread_initial->stack = _usrstack - PTHREAD_STACK_INITIAL;
 
-		/* Set the stack attributes: */
+		/* Set the stack attributes. */
 		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
 		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
 
 		/* Setup the context for the scheduler: */
-		_setjmp(_thread_kern_sched_jb);
-		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack +
-		    sched_stack_size - sizeof(double));
-		SET_RETURN_ADDR_JB(_thread_kern_sched_jb, _thread_kern_scheduler);
+		getcontext(&_thread_kern_sched_ctx);
+		_thread_kern_sched_ctx.uc_stack.ss_sp =
+		    _thread_kern_sched_stack;
+		_thread_kern_sched_ctx.uc_stack.ss_size = sched_stack_size;
+		makecontext(&_thread_kern_sched_ctx, _thread_kern_scheduler, 1);
+
+		/* Block all signals to the scheduler's context. */
+		sigfillset(&_thread_kern_sched_ctx.uc_sigmask);
 
 		/*
 		 * Write a magic value to the thread structure
@@ -331,6 +285,11 @@ _thread_init(void)
 		/* Set the initial cancel state */
 		_thread_initial->cancelflags = PTHREAD_CANCEL_ENABLE |
 		    PTHREAD_CANCEL_DEFERRED;
+
+		/* Setup the context for initial thread. */
+		getcontext(&_thread_initial->ctx);
+		_thread_kern_sched_ctx.uc_stack.ss_sp = _thread_initial->stack;
+		_thread_kern_sched_ctx.uc_stack.ss_size = PTHREAD_STACK_INITIAL;
 
 		/* Default the priority of the initial thread: */
 		_thread_initial->base_priority = PTHREAD_DEFAULT_PRIORITY;
@@ -357,14 +316,8 @@ _thread_init(void)
 		/* Initialize last active: */
 		_thread_initial->last_active = (long) _sched_ticks;
 
-		/* Initialize the initial context: */
-		_thread_initial->curframe = NULL;
-
 		/* Initialise the rest of the fields: */
-		_thread_initial->poll_data.nfds = 0;
-		_thread_initial->poll_data.fds = NULL;
 		_thread_initial->sig_defer_count = 0;
-		_thread_initial->yield_on_sig_undefer = 0;
 		_thread_initial->specific = NULL;
 		_thread_initial->cleanup = NULL;
 		_thread_initial->flags = 0;
@@ -372,57 +325,6 @@ _thread_init(void)
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
 		_set_curthread(_thread_initial);
-
-		/* Initialise the global signal action structure: */
-		sigfillset(&act.sa_mask);
-		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_SIGINFO | SA_ONSTACK;
-
-		/* Clear pending signals for the process: */
-		sigemptyset(&_process_sigpending);
-
-		/* Clear the signal queue: */
-		memset(_thread_sigq, 0, sizeof(_thread_sigq));
-
-		/* Enter a loop to get the existing signal status: */
-		for (i = 1; i < NSIG; i++) {
-			/* Check for signals which cannot be trapped: */
-			if (i == SIGKILL || i == SIGSTOP) {
-			}
-
-			/* Get the signal handler details: */
-			else if (__sys_sigaction(i, NULL,
-			    &_thread_sigact[i - 1]) != 0) {
-				/*
-				 * Abort this process if signal
-				 * initialisation fails:
-				 */
-				PANIC("Cannot read signal handler info");
-			}
-
-			/* Initialize the SIG_DFL dummy handler count. */
-			_thread_dfl_count[i] = 0;
-		}
-
-		/*
-		 * Install the signal handler for the most important
-		 * signals that the user-thread kernel needs. Actually
-		 * SIGINFO isn't really needed, but it is nice to have.
-		 */
-		if (__sys_sigaction(_SCHED_SIGNAL, &act, NULL) != 0 ||
-		    __sys_sigaction(SIGINFO,       &act, NULL) != 0 ||
-		    __sys_sigaction(SIGCHLD,       &act, NULL) != 0) {
-			/*
-			 * Abort this process if signal initialisation fails:
-			 */
-			PANIC("Cannot initialise signal handler");
-		}
-		_thread_sigact[_SCHED_SIGNAL - 1].sa_flags = SA_SIGINFO;
-		_thread_sigact[SIGINFO - 1].sa_flags = SA_SIGINFO;
-		_thread_sigact[SIGCHLD - 1].sa_flags = SA_SIGINFO;
-
-		/* Get the process signal mask: */
-		__sys_sigprocmask(SIG_SETMASK, NULL, &_process_sigmask);
 
 		/* Get the kernel clockrate: */
 		mib[0] = CTL_KERN;
@@ -432,50 +334,6 @@ _thread_init(void)
 			_clock_res_usec = clockinfo.tick > CLOCK_RES_USEC_MIN ?
 			    clockinfo.tick : CLOCK_RES_USEC_MIN;
 
-		/* Get the table size: */
-		if ((_thread_dtablesize = getdtablesize()) < 0) {
-			/*
-			 * Cannot get the system defined table size, so abort
-			 * this process.
-			 */
-			PANIC("Cannot get dtablesize");
-		}
-		/* Allocate memory for the file descriptor table: */
-		if ((_thread_fd_table = (struct fd_table_entry **) malloc(sizeof(struct fd_table_entry *) * _thread_dtablesize)) == NULL) {
-			/* Avoid accesses to file descriptor table on exit: */
-			_thread_dtablesize = 0;
-
-			/*
-			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process.
-			 */
-			PANIC("Cannot allocate memory for file descriptor table");
-		}
-		/* Allocate memory for the pollfd table: */
-		if ((_thread_pfd_table = (struct pollfd *) malloc(sizeof(struct pollfd) * _thread_dtablesize)) == NULL) {
-			/*
-			 * Cannot allocate memory for the file descriptor
-			 * table, so abort this process.
-			 */
-			PANIC("Cannot allocate memory for pollfd table");
-		} else {
-			/*
-			 * Enter a loop to initialise the file descriptor
-			 * table:
-			 */
-			for (i = 0; i < _thread_dtablesize; i++) {
-				/* Initialise the file descriptor table: */
-				_thread_fd_table[i] = NULL;
-			}
-
-			/* Initialize stdio file descriptor table entries: */
-			for (i = 0; i < 3; i++) {
-				if ((_thread_fd_table_init(i) != 0) &&
-				    (errno != EBADF))
-					PANIC("Cannot initialize stdio file "
-					    "descriptor table entry");
-			}
-		}
 	}
 
 	/* Initialise the garbage collector mutex and condition variable. */

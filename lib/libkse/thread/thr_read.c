@@ -43,68 +43,12 @@
 __weak_reference(__read, read);
 
 ssize_t
-_read(int fd, void *buf, size_t nbytes)
-{
-	struct pthread	*curthread = _get_curthread();
-	int	ret;
-	int	type;
-
-	/* POSIX says to do just this: */
-	if (nbytes == 0) {
-		return (0);
-	}
-
-	/* Lock the file descriptor for read: */
-	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
-		/* Get the read/write mode type: */
-		type = _thread_fd_getflags(fd) & O_ACCMODE;
-
-		/* Check if the file is not open for read: */
-		if (type != O_RDONLY && type != O_RDWR) {
-			/* File is not open for read: */
-			errno = EBADF;
-			_FD_UNLOCK(fd, FD_READ);
-			return (-1);
-		}
-
-		/* Perform a non-blocking read syscall: */
-		while ((ret = __sys_read(fd, buf, nbytes)) < 0) {
-			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0 &&
-			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				curthread->data.fd.fd = fd;
-				_thread_kern_set_timeout(NULL);
-
-				/* Reset the interrupted operation flag: */
-				curthread->interrupted = 0;
-
-				_thread_kern_sched_state(PS_FDR_WAIT,
-				    __FILE__, __LINE__);
-
-				/*
-				 * Check if the operation was
-				 * interrupted by a signal
-				 */
-				if (curthread->interrupted) {
-					errno = EINTR;
-					ret = -1;
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-		_FD_UNLOCK(fd, FD_READ);
-	}
-	return (ret);
-}
-
-ssize_t
 __read(int fd, void *buf, size_t nbytes)
 {
 	ssize_t	ret;
 
 	_thread_enter_cancellation_point();
-	ret = _read(fd, buf, nbytes);
+	ret = __sys_read(fd, buf, nbytes);
 	_thread_leave_cancellation_point();
 
 	return ret;

@@ -70,8 +70,8 @@ static int _pq_active = 0;
 } while (0)
 #define _PQ_ASSERT_PROTECTED(msg)			\
 	PTHREAD_ASSERT((_thread_kern_in_sched != 0) ||	\
-	    ((_get_curthread())->sig_defer_count > 0) ||\
-	    (_sig_in_handler != 0), msg);
+	    ((_get_curthread())->sig_defer_count > 0), \
+	    msg);
 
 #else
 
