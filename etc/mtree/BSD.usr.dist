@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.134 1998/10/07 02:55:59 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.135 1998/10/11 17:31:35 markm Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -314,6 +314,20 @@
 	    find_interface
             ..
             ibcs2
+            ..
+            kld
+                cdev
+                    module
+                    ..
+                    test
+                    ..
+                ..
+                misc
+                    module
+                    ..
+                    test
+                    ..
+                ..
             ..
             libvgl
             ..
