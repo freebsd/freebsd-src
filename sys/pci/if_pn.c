@@ -207,7 +207,7 @@ static driver_t pn_driver = {
 
 static devclass_t pn_devclass;
 
-DRIVER_MODULE(if_pn, pci, pn_driver, pn_devclass, 0, 0);
+DRIVER_MODULE(pn, pci, pn_driver, pn_devclass, 0, 0);
 
 #define PN_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
