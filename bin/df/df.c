@@ -560,7 +560,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: df [-b | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | filesystem ...]\n");
+	    "usage: df [-b | -g | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | filesystem ...]\n");
 	exit(EX_USAGE);
 }
 
