@@ -220,7 +220,7 @@ Static device_method_t uplcom_methods[] = {
 };
 
 Static driver_t uplcom_driver = {
-	"uplcom",
+	"ucom",
 	uplcom_methods,
 	sizeof (struct uplcom_softc)
 };
