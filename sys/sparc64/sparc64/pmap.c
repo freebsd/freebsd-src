@@ -1233,7 +1233,8 @@ pmap_release(pmap_t pm)
 	    pmap_resident_count(pm)));
 	while (!TAILQ_EMPTY(&obj->memq)) {
 		m = TAILQ_FIRST(&obj->memq);
-		if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
+		vm_page_lock_queues();
+		if (vm_page_sleep_if_busy(m, FALSE, "pmaprl"))
 			continue;
 		vm_page_busy(m);
 		KASSERT(m->hold_count == 0,
@@ -1241,6 +1242,7 @@ pmap_release(pmap_t pm)
 		m->wire_count--;
 		cnt.v_wire_count--;
 		vm_page_free_zero(m);
+		vm_page_unlock_queues();
 	}
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 }
