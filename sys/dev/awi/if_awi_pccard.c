@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
-#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_var.h>
 
 #include <dev/awi/am79c930reg.h>
 #include <dev/awi/am79c930var.h>
@@ -80,6 +80,14 @@ static const struct pccard_product awi_pccard_products[] = {
 	{ NULL }
 };
 
+static int awi_pccard_match(device_t);
+static int awi_pccard_probe(device_t);
+static int awi_pccard_attach(device_t);
+static int awi_pccard_detach(device_t);
+static void awi_pccard_shutdown(device_t);
+static int awi_pccard_enable(struct awi_softc *);
+static void awi_pccard_disable(struct awi_softc *);
+
 static int
 awi_pccard_match(device_t dev)
 {
@@ -106,14 +114,15 @@ awi_pccard_probe(device_t dev)
 
 	psc->sc_port_rid = 0;
 	psc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &psc->sc_port_rid, 0, ~0, 16, RF_ACTIVE);
+	    &psc->sc_port_rid, 0, ~0, AM79C930_IO_SIZE,
+	    rman_make_alignment_flags(AM79C930_IO_ALIGN) | RF_ACTIVE);
 	if (!psc->sc_port_res)
 		return ENOMEM;
 
 	sc->sc_chip.sc_iot = rman_get_bustag(psc->sc_port_res);
 	sc->sc_chip.sc_ioh = rman_get_bushandle(psc->sc_port_res);
 	am79c930_chip_init(&sc->sc_chip, 0);
-	DELAY(1000); 
+	tsleep(sc, PWAIT, "awiprb", 1);
 
 	awi_read_bytes(sc, AWI_BANNER, psc->sc_version, AWI_BANNER_LEN);
 	if (memcmp(psc->sc_version, "PCnetMobile:", 12) != 0)  {
@@ -124,6 +133,7 @@ awi_pccard_probe(device_t dev)
 		device_set_desc(dev, psc->sc_version);
 	bus_release_resource(dev, SYS_RES_IOPORT, psc->sc_port_rid,
 	    psc->sc_port_res);
+	psc->sc_port_res = 0;
 
 	return error;
 }
@@ -133,7 +143,6 @@ awi_pccard_attach(device_t dev)
 {
 	struct awi_pccard_softc *psc = device_get_softc(dev);
 	struct awi_softc *sc = &psc->sc_awi;
-	struct ifnet *ifp = &sc->sc_ec.ac_if;
 	int error = 0;
 
 	psc->sc_port_res = 0;
@@ -141,13 +150,10 @@ awi_pccard_attach(device_t dev)
 	psc->sc_mem_res = 0;
 	psc->sc_intrhand = 0;
 
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	strlcpy(sc->sc_dev.dv_xname, ifp->if_xname,
-	    sizeof(sc->sc_dev.dv_xname));
-
 	psc->sc_port_rid = 0;
 	psc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &psc->sc_port_rid, 0, ~0, 16, RF_ACTIVE);
+	    &psc->sc_port_rid, 0, ~0, 16,
+	    rman_make_alignment_flags(64) | RF_ACTIVE);
 	if (!psc->sc_port_res) {
 		device_printf(dev, "awi_pccard_attach: port alloc failed\n");
 		goto fail;
@@ -169,6 +175,7 @@ awi_pccard_attach(device_t dev)
 	 * XXX: awi needs to access memory with 8bit,
 	 * but pccardd apparently maps memory with MDF_16BITS flag.
 	 * So memory mapped access is disabled and use IO port instead.
+	 * Also, memory mapping is not yet supported on pccard.
 	 */
 	psc->sc_mem_res = 0;
 #else
@@ -182,43 +189,23 @@ awi_pccard_attach(device_t dev)
 	} else
 		am79c930_chip_init(&sc->sc_chip, 0);
 
-	error = bus_setup_intr(dev, psc->sc_irq_res, INTR_TYPE_NET,
-	    (void (*)(void *))awi_intr, sc, &psc->sc_intrhand);
-	if (error) {
-		device_printf(dev, "awi_pccard_attach: intr setup failed\n");
-		goto fail;
-	}
-
+	sc->sc_dev = dev;
 	sc->sc_cansleep = 1;
-	sc->sc_enabled = 1;
-	sc->sc_ifp = &sc->sc_ec.ac_if;
+	sc->sc_enable = awi_pccard_enable;
+	sc->sc_disable = awi_pccard_disable;
 
+	if (awi_pccard_enable(sc))
+		goto fail;
+	sc->sc_enabled = 1;
 	error = awi_attach(sc);
 	sc->sc_enabled = 0;	/*XXX*/
+	awi_pccard_disable(sc);
 	if (error == 0)
 		return 0;
 	device_printf(dev, "awi_pccard_attach: awi_attach failed\n");
 
   fail:
-	if (psc->sc_intrhand) {
-		bus_teardown_intr(dev, psc->sc_irq_res, psc->sc_intrhand);
-		psc->sc_intrhand = 0;
-	}
-	if (psc->sc_port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT, psc->sc_port_rid,
-		    psc->sc_port_res);
-		psc->sc_port_res = 0;
-	}
-	if (psc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ, psc->sc_irq_rid,
-		    psc->sc_irq_res);
-		psc->sc_irq_res = 0;
-	}
-	if (psc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, psc->sc_mem_rid,
-		    psc->sc_mem_res);
-		psc->sc_mem_res = 0;
-	}
+	awi_pccard_detach(dev);
 	if (error == 0)
 		error = ENXIO;
 	return error;
@@ -229,30 +216,64 @@ awi_pccard_detach(device_t dev)
 {
 	struct awi_pccard_softc *psc = device_get_softc(dev);
 	struct awi_softc *sc = &psc->sc_awi;
-	struct ifnet *ifp = &sc->sc_ec.ac_if;
 
-	ether_ifdetach(ifp);
-	ifp->if_flags &= ~IFF_RUNNING; 
-	if (psc->sc_intrhand) {
-		bus_teardown_intr(dev, psc->sc_irq_res, psc->sc_intrhand);
-		psc->sc_intrhand = 0;
-	}
-	if (psc->sc_port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT, psc->sc_port_rid,
-		    psc->sc_port_res);
-		psc->sc_port_res = 0;
+	awi_detach(sc);
+	if (psc->sc_mem_res) {
+		bus_release_resource(dev, SYS_RES_MEMORY, psc->sc_mem_rid,
+		    psc->sc_mem_res);
+		psc->sc_mem_res = 0;
 	}
 	if (psc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ, psc->sc_irq_rid,
 		    psc->sc_irq_res);
 		psc->sc_irq_res = 0;
 	}
-	if (psc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, psc->sc_mem_rid,
-		    psc->sc_mem_res);
-		psc->sc_mem_res = 0;
+	if (psc->sc_port_res) {
+		bus_release_resource(dev, SYS_RES_IOPORT, psc->sc_port_rid,
+		    psc->sc_port_res);
+		psc->sc_port_res = 0;
 	}
 	return 0;
+}
+
+static void
+awi_pccard_shutdown(device_t dev)
+{
+	struct awi_pccard_softc *psc = device_get_softc(dev);
+	struct awi_softc *sc = &psc->sc_awi;
+
+	awi_shutdown(sc);
+}
+
+static int
+awi_pccard_enable(struct awi_softc *sc)
+{
+	device_t dev = sc->sc_dev;
+	struct awi_pccard_softc *psc = device_get_softc(dev);
+	int error;
+
+	if (psc->sc_intrhand == 0) {
+		error = bus_setup_intr(dev, psc->sc_irq_res, INTR_TYPE_NET,
+		    (void (*)(void *))awi_intr, sc, &psc->sc_intrhand);
+		if (error) {
+			device_printf(dev,
+			    "couldn't establish interrupt error=%d\n", error);
+			return error;
+		}
+	}
+	return 0;
+}
+
+static void
+awi_pccard_disable(struct awi_softc *sc)
+{
+	device_t dev = sc->sc_dev;
+	struct awi_pccard_softc *psc = device_get_softc(dev);
+
+	if (psc->sc_intrhand) {
+		bus_teardown_intr(dev, psc->sc_irq_res, psc->sc_intrhand);
+		psc->sc_intrhand = 0;
+	}
 }
 
 static device_method_t awi_pccard_methods[] = {
@@ -260,6 +281,7 @@ static device_method_t awi_pccard_methods[] = {
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	awi_pccard_detach),
+	DEVMETHOD(device_shutdown,	awi_pccard_shutdown),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	awi_pccard_match),
@@ -278,4 +300,5 @@ static driver_t awi_pccard_driver = {
 extern devclass_t awi_devclass;
 
 DRIVER_MODULE(awi, pccard, awi_pccard_driver, awi_devclass, 0, 0);
-MODULE_DEPEND(awi, rc4, 1, 1, 1);
+MODULE_DEPEND(awi, wlan, 1, 1, 1);
+MODULE_DEPEND(awi, pccard, 1, 1, 1);

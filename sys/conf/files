@@ -324,8 +324,6 @@ dev/ath/if_ath_pci.c	optional ath pci
 dev/ath/if_ath_pci.c	optional ath card
 dev/awi/am79c930.c	optional awi
 dev/awi/awi.c		optional awi
-dev/awi/awi_wep.c	optional awi
-dev/awi/awi_wicfg.c	optional awi
 dev/awi/if_awi_pccard.c	optional awi card
 dev/awi/if_awi_pccard.c	optional awi pccard
 dev/bfe/if_bfe.c	optional bfe
@@ -1404,7 +1402,6 @@ netgraph/ng_lmi.c	optional netgraph_lmi
 netgraph/ng_l2tp.c	optional netgraph_l2tp
 netgraph/ng_mppc.c	optional netgraph_mppc_compression
 netgraph/ng_mppc.c	optional netgraph_mppc_encryption
-crypto/rc4/rc4.c	optional awi
 crypto/rc4/rc4.c	optional wlan
 crypto/rc4/rc4.c	optional netgraph_mppc_encryption
 crypto/sha1.c		optional netgraph_mppc_encryption
