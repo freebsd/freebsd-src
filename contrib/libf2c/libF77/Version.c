@@ -1,9 +1,9 @@
-static char junk[] = "\n@(#)LIBF77 VERSION 19970919\n";
+static char junk[] = "\n@(#)LIBF77 VERSION 19990503\n";
 
 /*
 */
 
-char __G77_LIBF77_VERSION__[] = "0.5.24";
+char __G77_LIBF77_VERSION__[] = "0.5.25 19990816 (release)";
 
 /*
 2.00	11 June 1980.  File version.c added to library.
@@ -55,6 +55,12 @@ char __G77_LIBF77_VERSION__[] = "0.5.24";
 			affect systems using gratuitous extra precision).
 	19 Sept. 1997: [de]time_.c (Unix systems only): change return
 			type to double.
+	2 May 1999:	getenv_.c: omit environ in favor of getenv().
+			c_cos.c, c_exp.c, c_sin.c, d_cnjg.c, r_cnjg.c,
+			z_cos.c, z_exp.c, z_log.c, z_sin.c: cope fully with
+			overlapping arguments caused by equivalence.
+	3 May 1999:	"invisible" tweaks to omit compiler warnings in
+			abort_.c, ef1asc_.c, s_rnge.c, s_stop.c.
 */
 
 #include <stdio.h>
