@@ -1,7 +1,8 @@
-#	$Id: Makefile,v 1.2 1995/07/25 00:31:51 bde Exp $
+#	$Id: Makefile,v 1.1 1995/12/10 22:59:06 peter Exp $
 
 SCRIPTS= ccvs-rsh rcs2log clmerge cln_hist commit_prep cvs_acls cvscheck \
-	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs
+	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \
+	 easy-import.pl
 
 FILES=	 README cvscheck.man cvshelp.man descend.man intro.doc
 

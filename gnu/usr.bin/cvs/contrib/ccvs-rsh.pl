@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! xPERL_PATHx
 
 # The version of the remote shell program on some Linuxes, at least,
 # misuses GNU getopt in such a way that it plucks arguments to rsh
