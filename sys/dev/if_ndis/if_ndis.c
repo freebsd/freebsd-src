@@ -566,6 +566,9 @@ fail:
 	if (error)
 		ndis_detach(dev);
 
+	/* We're done talking to the NIC for now; halt it. */
+	ndis_halt_nic(sc);
+
 	return(error);
 }
 
@@ -587,13 +590,13 @@ ndis_detach(dev)
 	KASSERT(mtx_initialized(&sc->ndis_mtx), ("ndis mutex not initialized"));
 	NDIS_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
+	ifp->if_flags &= ~IFF_UP;
 
 	if (device_is_attached(dev)) {
 		if (sc->ndis_80211) {
 			ifmedia_removeall(&sc->ic.ic_media);
 			ieee80211_node_detach(ifp);
 		}
-		ifp->if_flags &= ~IFF_UP;
 		NDIS_UNLOCK(sc);
 		ndis_stop(sc);
 		ether_ifdetach(ifp);
@@ -761,15 +764,11 @@ ndis_intr(arg)
 	int			call_isr = 0;
 
 	sc = arg;
-	/*NDIS_LOCK(sc);*/
 	ifp = &sc->arpcom.ac_if;
 
-/*
-	if (!(ifp->if_flags & IFF_UP)) {
-		NDIS_UNLOCK(sc);
+	if (!(ifp->if_flags & IFF_UP))
 		return;
-	}
-*/
+
 	ndis_isr(sc, &is_our_intr, &call_isr);
 
 	if (is_our_intr || call_isr)
@@ -777,8 +776,6 @@ ndis_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		ndis_start(ifp);
-
-	/*NDIS_UNLOCK(sc);*/
 
 	return;
 }
