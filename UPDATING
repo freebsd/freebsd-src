@@ -5,6 +5,11 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000620:
+	Binutils 2.10 have hit the tree, or will shortly.  As soon
+	as they do, the problem noted in 20000522 will be resolved and
+	that workaround will no longer be required.
+
 20000615:
 	phk removed the compatibility creation of wd devices in the
 	ad driver.  If you haven't done so already, you must update
@@ -18,8 +23,14 @@ ITEMS:'
 
 20000612:
 	Peter took an axe to config(8).  Besure that you read his mail
-	on the topic before even thinking about updating.  More details
-	to follow.
+	on the topic before even thinking about updating.  You will
+	need to create a /boot/devices.hints or add a hints directive
+	to your config file to compile them in statically.  The format
+	of the config file has changed as well.  Please see LINT,
+	GENERIC or NEWCARD for examples of the new format.
+
+	More details to follow.  A better howto would be warmly
+	accepted by the author of UPDATING.
 
 20000522:
 	A new set of binutils went into the tree today.  Anybody
