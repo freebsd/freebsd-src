@@ -1,4 +1,4 @@
-/* $Id: db_elf.c,v 1.2 1998/06/28 00:59:26 dfr Exp $ */
+/* $Id: db_elf.c,v 1.3 1998/08/17 08:06:31 dfr Exp $ */
 /*	$NetBSD: db_elf.c,v 1.4 1998/05/03 18:49:54 thorpej Exp $	*/
 
 /*-
@@ -38,6 +38,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if defined(__ELF__) && defined(__alpha__)
+
 #include "opt_ddb.h"
 
 #include <sys/types.h>
@@ -49,14 +51,6 @@
 
 #include <ddb/db_sym.h>
 #include <ddb/db_output.h>
-
-#ifdef DB_ELF_SYMBOLS
-
-#ifndef DB_ELFSIZE
-#error Must define DB_ELFSIZE!
-#endif
-
-#define	ELFSIZE		DB_ELFSIZE
 
 #include <machine/elf.h>
 
@@ -384,4 +378,4 @@ kdb_init(void)
 		X_db_sym_init(ksym_start, ksym_end, "kernel");
 }
 
-#endif /* DB_ELF_SYMBOLS */
+#endif
