@@ -88,10 +88,10 @@ NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c
-SYSTEM_CFILES= param.c vnode_if.c hints.c config.c
+SYSTEM_CFILES= vnode_if.c hints.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} param.o hints.o config.o hack.So
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o config.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-e locorestart \
 	-export-dynamic -dynamic-linker /red/herring \
@@ -150,7 +150,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks param.c \
+	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks \
 	      setdef[01].c setdefs.h tags \
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
@@ -159,9 +159,9 @@ kernel-clean:
 kernel-clobber:
 	find . -type f ! -name version -delete
 
-#lint: /tmp param.c
+#lint: /tmp
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} param.c | \
+#	  $S/$M/$M/Locore.c ${CFILES} | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
@@ -237,7 +237,7 @@ kernel-depend:
 	if [ -f .depend ]; then mv .depend .olddep; fi
 	${MAKE} _kernel-depend
 
-_kernel-depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
+_kernel-depend: assym.s vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	    ${SYSTEM_SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
@@ -347,13 +347,6 @@ modules-reinstall modules-reinstall.debug:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} install
 
 config.o:
-	${NORMAL_C}
-
-param.c: $S/conf/param.c
-	-rm -f param.c
-	cp $S/conf/param.c .
-
-param.o:
 	${NORMAL_C}
 
 vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
