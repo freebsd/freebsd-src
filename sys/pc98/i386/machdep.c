@@ -61,6 +61,7 @@
 #include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -99,7 +100,6 @@
 #include <machine/specialreg.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/globaldata.h>
@@ -261,8 +261,8 @@ static struct trapframe proc0_tf;
 
 struct cpuhead cpuhead;
 
-struct mtx	sched_lock;
-struct mtx	Giant;
+MUTEX_DECLARE(,sched_lock);
+MUTEX_DECLARE(,Giant);
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -442,7 +442,7 @@ again:
 	SLIST_INIT(&cpuhead);
 	SLIST_INSERT_HEAD(&cpuhead, GLOBALDATA, gd_allcpu);
 
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_COLD);
 
 #ifdef SMP
 	/*
@@ -995,7 +995,6 @@ cpu_halt(void)
  * the !SMP case, as there is no clean way to ensure that a CPU will be
  * woken when there is work available for it.
  */
-#ifndef SMP
 static int	cpu_idle_hlt = 1;
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
@@ -1006,9 +1005,10 @@ SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
  * the time between calling hlt and the next interrupt even though there
  * is a runnable process.
  */
-static void
-cpu_idle(void *junk, int count)
+void
+cpu_idle(void)
 {
+#ifndef SMP
 	if (cpu_idle_hlt) {
 		disable_intr();
   		if (procrunnable())
@@ -1018,15 +1018,8 @@ cpu_idle(void *junk, int count)
 			__asm __volatile("hlt");
 		}
 	}
+#endif
 }
-
-static void cpu_idle_register(void *junk)
-{
-	EVENTHANDLER_FAST_REGISTER(idle_event, cpu_idle, NULL, IDLE_PRI_LAST);
-}
-SYSINIT(cpu_idle_register, SI_SUB_SCHED_IDLE, SI_ORDER_SECOND,
-    cpu_idle_register, NULL)
-#endif /* !SMP */
 
 /*
  * Clear registers on exec
@@ -2245,7 +2238,7 @@ init386(first)
 	/*
 	 * We need this mutex before the console probe.
 	 */
-	mtx_init(&clock_lock, "clk interrupt lock", MTX_SPIN);
+	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_COLD);
 
 	/*
 	 * Initialize the console before we print anything out.
@@ -2260,7 +2253,7 @@ init386(first)
 	/*
 	 * Giant is used early for at least debugger traps and unexpected traps.
 	 */
-	mtx_init(&Giant, "Giant", MTX_DEF);
+	mtx_init(&Giant, "Giant", MTX_DEF | MTX_COLD);
 
 #ifdef DDB
 	kdb_init();
