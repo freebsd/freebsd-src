@@ -65,6 +65,10 @@ static int	acpi_pci_probe(device_t dev);
 static int	acpi_pci_attach(device_t dev);
 static int	acpi_pci_read_ivar(device_t dev, device_t child, int which,
     uintptr_t *result);
+static int	acpi_pci_child_location_str_method(device_t cbdev,
+    device_t child, char *buf, size_t buflen);
+
+
 #if 0
 static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
     int state);
@@ -99,7 +103,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
-	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
+	DEVMETHOD(bus_child_location_str, acpi_pci_child_location_str_method),
 
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
@@ -138,6 +142,21 @@ acpi_pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return(0);
     }
     return(pci_read_ivar(dev, child, which, result));
+}
+
+static int
+acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
+    size_t buflen)
+{
+    struct acpi_pci_devinfo *dinfo = device_get_ivars(child);
+    int status;
+    pci_child_location_str_method(cbdev, child, buf, buflen);
+    
+    if(dinfo->ap_handle){
+	strlcat(buf, " path=", buflen);
+	strlcat(buf, acpi_name(dinfo->ap_handle), buflen);
+    }
+    return (0);
 }
 
 #if 0
