@@ -189,6 +189,10 @@ extern const struct cam_status_entry cam_status_table[];
 extern const int num_cam_status_entries;
 union ccb;
 
+#ifdef SYSCTL_DECL	/* from sysctl.h */
+SYSCTL_DECL(_kern_cam);
+#endif
+
 __BEGIN_DECLS
 typedef int (cam_quirkmatch_t)(caddr_t, caddr_t);
 
