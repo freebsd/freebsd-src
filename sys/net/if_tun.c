@@ -155,8 +155,10 @@ tunclone(void *arg, char *name, int namelen, struct cdev **dev)
 		/* No preexisting struct cdev *, create one */
 		*dev = make_dev(&tun_cdevsw, unit2minor(u),
 		    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
-		if (*dev != NULL)
+		if (*dev != NULL) {
+			dev_ref(*dev);
 			(*dev)->si_flags |= SI_CHEAPCLONE;
+		}
 	}
 }
 

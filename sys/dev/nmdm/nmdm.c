@@ -147,6 +147,7 @@ nmdm_clone(void *arg, char *name, int nameen, struct cdev **dev)
 		*dev = d1->si_drv2;
 	else
 		*dev = d1;
+	dev_ref(*dev);
 }
 
 static void

@@ -643,8 +643,10 @@ snp_clone(arg, name, namelen, dev)
 	if (i)
 		*dev = make_dev(&snp_cdevsw, unit2minor(u),
 		     UID_ROOT, GID_WHEEL, 0600, "snp%d", u);
-	if (*dev != NULL)
+	if (*dev != NULL) {
+		dev_ref(*dev);
 		(*dev)->si_flags |= SI_CHEAPCLONE;
+	}
 }
 
 static int
