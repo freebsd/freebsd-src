@@ -24,7 +24,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/diskmbr.h>
 #include <sys/uuid.h>
 #include <sys/gpt.h>
 #include <paths.h>
@@ -35,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <uuid.h>
 
-#define DOSPTYP_EXTENDED        5
 #ifdef DEBUG
 #define	DPRINT(x)	warn x
 #define	DPRINTX(x)	warnx x
@@ -274,8 +272,10 @@ Int_Open_Disk(const char *name)
 			i = Add_Chunk(d, off, len, n, mbr, ty, 0, 0);
 		else if (!strcmp(t, "BSD"))
 			i = Add_Chunk(d, off, len, n, part, 0, 0, 0);
+		else if (!strcmp(t, "PC98") && ty == 0xc494)
+			i = Add_Chunk(d, off, len, n, freebsd, ty, 0, 0);
 		else if (!strcmp(t, "PC98"))
-			i = Add_Chunk(d, off, len, n, pc98, 0, 0, 0);
+			i = Add_Chunk(d, off, len, n, pc98, ty, 0, 0);
 		else if (!strcmp(t, "GPT"))
 			i = Add_Chunk(d, off, len, n, ty, 0, 0, 0);
 		else
