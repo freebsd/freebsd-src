@@ -146,8 +146,8 @@ dumpfs(name)
 	printf("minfree\t%d%%\toptim\t%s\tmaxcontig %d\tmaxbpg\t%d\n",
 	    afs.fs_minfree, afs.fs_optim == FS_OPTSPACE ? "space" : "time",
 	    afs.fs_maxcontig, afs.fs_maxbpg);
-	printf("rotdelay %dms\theadswitch %dus\ttrackseek %dus\trps\t%d\n",
-	    afs.fs_rotdelay, afs.fs_headswitch, afs.fs_trkseek, afs.fs_rps);
+	printf("rotdelay %dms\trps\t%d\n",
+	    afs.fs_rotdelay, afs.fs_rps);
 	printf("ntrak\t%d\tnsect\t%d\tnpsect\t%d\tspc\t%d\n",
 	    afs.fs_ntrak, afs.fs_nsect, afs.fs_npsect, afs.fs_spc);
 	printf("symlinklen %d\ttrackskew %d\tinterleave %d\tcontigsumsize %d\n",
