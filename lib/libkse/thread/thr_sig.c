@@ -299,6 +299,9 @@ sigprop(int sig)
         return (0);
 }
 
+typedef void (*ohandler)(int sig, int code,
+	struct sigcontext *scp, char *addr, __sighandler_t *catcher);
+
 void
 _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
@@ -366,9 +369,11 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	    (sigfunc != (__siginfohandler_t *)_thr_sig_handler)) {
 		if ((sa_flags & SA_SIGINFO) != 0 || info == NULL)
 			(*(sigfunc))(sig, info, ucp);
-		else
-			(*(sigfunc))(sig, (siginfo_t*)(intptr_t)info->si_code,
-				 ucp);
+		else {
+			((ohandler)(*sigfunc))(
+				sig, info->si_code, (struct sigcontext *)ucp,
+				info->si_addr, (__sighandler_t *)sigfunc);
+		}
 	} else {
 		if ((__sighandler_t *)sigfunc == SIG_DFL) {
 			if (sigprop(sig) & SA_KILL) {
@@ -444,9 +449,11 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
 		if ((sa_flags & SA_SIGINFO) != 0 || info == NULL)
 			(*(sigfunc))(sig, info, ucp);
-		else
-			(*(sigfunc))(sig, (siginfo_t*)(intptr_t)info->si_code,
-			    ucp);
+		else {
+			((ohandler)(*sigfunc))(
+				sig, info->si_code, (struct sigcontext *)ucp,
+				info->si_addr, (__sighandler_t *)sigfunc);
+		}
 	} else {
 		if ((__sighandler_t *)sigfunc == SIG_DFL) {
 			if (sigprop(sig) & SA_KILL) {
