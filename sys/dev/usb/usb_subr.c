@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.84 2001/01/18 20:28:22 jdolecek Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.86 2001/05/16 04:50:11 lukem Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -463,7 +463,6 @@ usbd_fill_iface_data(usbd_device_handle dev, int ifaceidx, int altidx)
 	for (endpt = 0; endpt < nendpt; endpt++) {
 		DPRINTFN(10,("usbd_fill_iface_data: endpt=%d\n", endpt));
 		for (; p < end; p += ed->bLength) {
-			ed = (usb_endpoint_descriptor_t *)p;
 			DPRINTFN(10,("usbd_fill_iface_data: p=%p end=%p "
 				     "len=%d type=%d\n",
 				 p, end, ed->bLength, ed->bDescriptorType));
