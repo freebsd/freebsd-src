@@ -74,7 +74,7 @@
  */
 
 static struct	icmpstat icmpstat;
-SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RD,
+SYSCTL_STRUCT(_net_inet_icmp, ICMPCTL_STATS, stats, CTLFLAG_RW,
 	&icmpstat, icmpstat, "");
 
 static int	icmpmaskrepl = 0;

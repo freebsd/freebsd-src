@@ -143,6 +143,7 @@ is also present, show the number of dropped packets.
 .Bk -words
 .Nm
 .Fl s Op Fl s
+.Op Fl z
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -156,6 +157,9 @@ or for a single
 If
 .Fl s
 is repeated, counters with a value of zero are suppressed.
+If
+.Fl z
+is also present, reset statistic counters after displaying them.
 .It Xo
 .Bk -words
 .Nm

@@ -161,7 +161,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
     &ipintrq.ifq_drops, 0, "Number of packets dropped from the IP input queue");
 
 struct ipstat ipstat;
-SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
+SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
     &ipstat, ipstat, "IP statistics (struct ipstat, netinet/ip_var.h)");
 
 /* Packet reassembly stuff */
