@@ -65,7 +65,7 @@ struct betinfo {
 
 int dbfd;
 
-void printuser __P((struct passwd *, int));
+void printuser(struct passwd *, int);
 
 int
 main(argc, argv)

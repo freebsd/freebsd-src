@@ -128,44 +128,44 @@ FILEDESC	*Fortfile;		/* Fortune file to use */
 
 STRFILE		Noprob_tbl;		/* sum of data for all no prob files */
 
-int	 add_dir __P((FILEDESC *));
+int	 add_dir(FILEDESC *);
 int	 add_file __P((int,
 	    char *, char *, FILEDESC **, FILEDESC **, FILEDESC *));
-void	 all_forts __P((FILEDESC *, char *));
-char	*copy __P((char *, u_int));
-void	 display __P((FILEDESC *));
-void	 do_free __P((void *));
-void	*do_malloc __P((u_int));
-int	 form_file_list __P((char **, int));
-int	 fortlen __P((void));
-void	 get_fort __P((void));
-void	 get_pos __P((FILEDESC *));
-void	 get_tbl __P((FILEDESC *));
-void	 getargs __P((int, char *[]));
-void	 init_prob __P((void));
-int	 is_dir __P((char *));
-int	 is_fortfile __P((char *, char **, char **, int));
-int	 is_off_name __P((char *));
-int	 max __P((int, int));
+void	 all_forts(FILEDESC *, char *);
+char	*copy(char *, u_int);
+void	 display(FILEDESC *);
+void	 do_free(void *);
+void	*do_malloc(u_int);
+int	 form_file_list(char **, int);
+int	 fortlen(void);
+void	 get_fort(void);
+void	 get_pos(FILEDESC *);
+void	 get_tbl(FILEDESC *);
+void	 getargs(int, char *[]);
+void	 init_prob(void);
+int	 is_dir(char *);
+int	 is_fortfile(char *, char **, char **, int);
+int	 is_off_name(char *);
+int	 max(int, int);
 FILEDESC *
-	 new_fp __P((void));
-char	*off_name __P((char *));
-void	 open_dat __P((FILEDESC *));
-void	 open_fp __P((FILEDESC *));
+	 new_fp(void);
+char	*off_name(char *);
+void	 open_dat(FILEDESC *);
+void	 open_fp(FILEDESC *);
 FILEDESC *
-	 pick_child __P((FILEDESC *));
-void	 print_file_list __P((void));
-void	 print_list __P((FILEDESC *, int));
-void	 sum_noprobs __P((FILEDESC *));
-void	 sum_tbl __P((STRFILE *, STRFILE *));
-void	 usage __P((void));
-void	 zero_tbl __P((STRFILE *));
+	 pick_child(FILEDESC *);
+void	 print_file_list(void);
+void	 print_list(FILEDESC *, int);
+void	 sum_noprobs(FILEDESC *);
+void	 sum_tbl(STRFILE *, STRFILE *);
+void	 usage(void);
+void	 zero_tbl(STRFILE *);
 
 #ifndef	NO_REGEX
-char	*conv_pat __P((char *));
-int	 find_matches __P((void));
-void	 matches_in_list __P((FILEDESC *));
-int	 maxlen_in_list __P((FILEDESC *));
+char	*conv_pat(char *);
+int	 find_matches(void);
+void	 matches_in_list(FILEDESC *);
+int	 maxlen_in_list(FILEDESC *);
 #endif
 
 #ifndef NO_REGEX

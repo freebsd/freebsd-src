@@ -130,13 +130,13 @@ STRFILE	Tbl;				/* statistics table */
 
 STR	*Firstch;			/* first chars of each string */
 
-void	add_offset __P((FILE *, long));
-int	cmp_str __P((const void *, const void *));
-static int	collate_range_cmp  __P((int, int));
-void	do_order __P((void));
-void	getargs __P((int, char **));
-void	randomize __P((void));
-void	usage __P((void));
+void	add_offset(FILE *, long);
+int	cmp_str(const void *, const void *);
+static int	collate_range_cmp(int, int);
+void	do_order(void);
+void	getargs(int, char **);
+void	randomize(void);
+void	usage(void);
 
 /*
  * main:
