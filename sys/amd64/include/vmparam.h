@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.24 1997/02/22 09:35:23 peter Exp $
+ *	$Id: vmparam.h,v 1.25 1997/04/07 09:30:22 peter Exp $
  */
 
 
@@ -116,6 +116,8 @@
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
 
 /* virtual sizes (bytes) for various kernel submaps */
+#ifndef VM_KMEM_SIZE
 #define VM_KMEM_SIZE		(32 * 1024 * 1024)
+#endif
 
 #endif /* _MACHINE_VMPARAM_H_ */
