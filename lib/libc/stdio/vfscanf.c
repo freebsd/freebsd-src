@@ -142,6 +142,8 @@ __svfscanf(FILE *fp, const char *fmt0, va_list ap)
 	wchar_t *wcp;		/* handy wide character pointer */
 	wchar_t *wcp0;		/* saves original value of wcp */
 	size_t nconv;		/* length of multibyte sequence converted */
+	static const mbstate_t initial;
+	mbstate_t mbs;
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
@@ -367,7 +369,8 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					nconv = mbrtowc(wcp, buf, n, NULL);
+					mbs = initial;
+					nconv = mbrtowc(wcp, buf, n, &mbs);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
@@ -446,7 +449,8 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					nconv = mbrtowc(wcp, buf, n, NULL);
+					mbs = initial;
+					nconv = mbrtowc(wcp, buf, n, &mbs);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
@@ -546,7 +550,8 @@ literal:
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
-					nconv = mbrtowc(wcp, buf, n, NULL);
+					mbs = initial;
+					nconv = mbrtowc(wcp, buf, n, &mbs);
 					if (nconv == (size_t)-1) {
 						fp->_flags |= __SERR;
 						goto input_failure;
