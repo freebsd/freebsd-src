@@ -252,6 +252,7 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	struct g_mirror_metadata md;
 	struct g_provider *pp;
 	struct g_consumer *cp;
+	intmax_t *priority;
 	const char *name;
 	char param[16];
 	u_char *sector;
@@ -270,6 +271,11 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	}
 	if (*nargs < 2) {
 		gctl_error(req, "Too few arguments.");
+		return;
+	}
+	priority = gctl_get_paraml(req, "priority", sizeof(*priority));
+	if (priority == NULL) {
+		gctl_error(req, "No '%s' argument.", "priority");
 		return;
 	}
 	inactive = gctl_get_paraml(req, "inactive", sizeof(*inactive));
@@ -346,6 +352,7 @@ again:
 		if (disks[i].consumer == NULL)
 			continue;
 		g_mirror_fill_metadata(sc, NULL, &md);
+		md.md_priority = *priority;
 		if (*inactive)
 			md.md_dflags |= G_MIRROR_DISK_FLAG_INACTIVE;
 		pp = disks[i].provider;
