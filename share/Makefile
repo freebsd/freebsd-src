@@ -10,7 +10,7 @@ SUBDIR= colldef dict examples man me misc mk monetdef \
 SUBDIR+= mklocale
 .endif
 
-.if !defined(NO_SHAREDOCS) && ${MACHINE_ARCH} != "ia64"
+.if !defined(NO_SHAREDOCS)
 SUBDIR+= doc
 .endif
 
