@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: ether_addr.c,v 1.4 1996/07/12 18:54:31 jkh Exp $
+ *	$Id: ether_addr.c,v 1.5 1996/12/05 18:46:19 jkh Exp $
  */
 
 
@@ -46,9 +46,7 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
