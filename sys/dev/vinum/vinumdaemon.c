@@ -114,7 +114,7 @@ vinum_daemon(void)
 			rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rq->bp->b_dev),
 			minor(rq->bp->b_dev),
-			rq->bp->b_blkno,
+			(long long)rq->bp->b_blkno,
 			rq->bp->b_bcount);
 		}
 		recover_io(request->info.rq);		    /* the failed request */
