@@ -1202,9 +1202,6 @@ int
 main(argc, argv)
 int argc;
 char **argv; {
-	extern char *optarg;
-	extern int optind;
-	extern int opterr;
 	char *term = NULL;
 	char *file = NULL;
 	int r;
