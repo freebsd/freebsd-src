@@ -81,11 +81,14 @@ char	*strstr(const char *, const char *);
 char	*strtok(char * __restrict, const char * __restrict);
 size_t	 strxfrm(char * __restrict, const char * __restrict, size_t);
 
-#if __POSIX_VISIBLE >= 200112
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE >= 500
 void	*memccpy(void * __restrict, const void * __restrict, int, size_t);
 char	*strdup(const char *);
-int	 strerror_r(int, char *, size_t);
 char	*strtok_r(char *, const char *, char **);
+#endif
+
+#if __POSIX_VISIBLE >= 200112
+int	 strerror_r(int, char *, size_t);
 #endif
 
 #if __BSD_VISIBLE
