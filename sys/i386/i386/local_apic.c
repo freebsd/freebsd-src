@@ -638,7 +638,6 @@ SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL)
  * private the sys/i386 code.  The public interface for the rest of the
  * kernel is defined in mp_machdep.c.
  */
-#define DETECT_DEADLOCK
 
 int
 lapic_ipi_wait(int delay)
