@@ -52,6 +52,7 @@ static char *rcsid = "$FreeBSD$";
 #include <paths.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -64,8 +65,6 @@ static char *rcsid = "$FreeBSD$";
 #ifndef BSD		/* Need do better than this */
 #define NEED_DEV_ZERO	1
 #endif
-
-#define	NULL 0
 
 static void morecore();
 static int findbucket();
