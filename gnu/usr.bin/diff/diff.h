@@ -20,7 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "system.h"
 #include <ctype.h>
 #include <stdio.h>
-#include "regex.h"
+#include "gnuregex.h"
 
 #ifndef PR_FILE_NAME
 #define PR_FILE_NAME "/bin/pr"
