@@ -59,14 +59,12 @@
 .Nm ChunkCanBeRoot ,
 .Nm chunk_n ,
 .Nm slice_type_name
-.Nd library interface to slice and partition labels
+.Nd library interface to slice and partition labels (libdisk)
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libdisk.h>
-.\"		What is the correct way to cause a single line break ???
-.Bd -literal
+
 .Dv extern const char *chunk_n[];
-.Ed
 .Ft const char *
 .Fn slice_type_name "int type" "int subtype"
 .Ft struct disk *
@@ -193,8 +191,9 @@ is a rootfs, allocate partition
 .It CHUNK_ACTIVE
 This is the active slice in the MBR.
 .It CHUNK_FORCE_ALL
-Force a dedicated disk for FreeBSD, bypassing all BIOS geometry
-considerations.
+Force a dedicated disk for 
+.Fx ,
+bypassing all BIOS geometry considerations.
 .El
 .Pp
 The
@@ -230,7 +229,7 @@ sets the geometry the bios uses.
 .Fn Delete_Chunk
 frees a chunk of disk_space.
 .Pp
-.Fn Collapse_Disk,
+.Fn Collapse_Disk
 and
 .Fn Collapse_Chunk
 are experimental, do not use.
@@ -270,8 +269,7 @@ writes all the MBRs, disklabels, bootblocks and boot managers.
 .Fn Cyl_Aligned
 checks if
 .Ql offset
-is aligned on a cylinder according to the BIOS.
-geometry.
+is aligned on a cylinder according to the BIOS geometry.
 .Pp
 .Fn Next_Cyl_Aligned
 rounds
