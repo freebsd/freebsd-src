@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id$
+ *  $Id: if_ep.c,v 1.57 1997/02/22 09:36:25 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -69,7 +69,7 @@
 #endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #if defined(__NetBSD__)

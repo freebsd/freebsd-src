@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id$
+ * $Id: if_ze.c,v 1.40 1997/02/22 09:36:37 peter Exp $
  */
 
 /* XXX - Don't mix different PCCARD support code */
@@ -69,7 +69,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>

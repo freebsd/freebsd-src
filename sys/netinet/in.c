@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id$
+ *	$Id: in.c,v 1.32 1997/02/22 09:41:27 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>

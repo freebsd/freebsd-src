@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_ed.c,v 1.115 1997/02/22 09:36:20 peter Exp $
  */
 
 /*
@@ -44,7 +44,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
