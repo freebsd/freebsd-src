@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.164 1995/04/08 09:36:02 phk Exp $
+#	$Id: LINT,v 1.165 1995/04/08 15:44:18 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -598,7 +598,7 @@ device mpu0     at isa? port 0x330 irq 6 drq 0
 # 6850 UART Midi
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
-device pca0 at isa? port IO_PPI tty
+device pca0 at isa? port IO_TIMER1 tty
 
 #
 # Miscellaneous hardware: `mcd', `wt', `ctx', `apm'
