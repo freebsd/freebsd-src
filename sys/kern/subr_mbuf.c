@@ -310,13 +310,13 @@ static u_int clust_lowm = 16;	/* Low wm on # of clusters per cache */
  * Objects exported by sysctl(8).
  */
 SYSCTL_DECL(_kern_ipc);
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RD, &nmbclusters, 0, 
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbclusters, CTLFLAG_RDTUN, &nmbclusters, 0, 
     "Maximum number of mbuf clusters available");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RDTUN, &nmbufs, 0,
     "Maximum number of mbufs available"); 
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RDTUN, &nmbcnt, 0,
     "Number used to scale kmem_map to ensure sufficient space for counters");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RD, &nsfbufs, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
     "Maximum number of sendfile(2) sf_bufs available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW, &mbuf_wait, 0,
     "Sleep time of mbuf subsystem wait allocations during exhaustion");
