@@ -123,6 +123,10 @@ static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits);
 static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps);
 static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits);
 
+SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD, &nchstats,
+        sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+
+
 
 static void cache_zap __P((struct namecache *ncp));
 
