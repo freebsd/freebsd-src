@@ -1,5 +1,73 @@
-HOME=/
-PATH=:/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:
+stty status '^T'
+
+# Set shell to ignore SIGINT (2), but not children;
+# shell catches SIGQUIT (3) and returns to single user after fsck.
+trap : 2
+trap : 3	# shouldn't be needed
+
+HOME=/; export HOME
+PATH=/sbin:/bin:/usr/sbin:/usr/bin; export PATH
+
+if [ -e /fastboot ]
+then
+	echo Fast boot ... skipping disk checks
+else
+	echo Automatic reboot in progress...
+	fsck -p
+	case $? in
+	0)
+		;;
+	2)
+		exit 1
+		;;
+	4)
+		echo "fsck changed the root file system..."
+		echo -n "halting, press return to reboot after the system has "
+		echo "halted"
+		halt
+		echo "reboot failed... help!"
+		exit 1
+		;;
+	8)
+		echo "Automatic file system check failed... help!"
+		exit 1
+		;;
+	12)
+		echo "Reboot interrupted"
+		exit 1
+		;;
+	130)
+		# interrupt before catcher installed
+		exit 1
+		;;
+	*)
+		echo "Unknown error in reboot"
+		exit 1
+		;;
+	esac
+fi
+
+trap "echo 'Reboot interrupted'; exit 1" 3
+
+swapon -a
+
+umount -a >/dev/null 2>&1
+mount -a -t nonfs
+rm -f /fastboot		# XXX (root now writeable)
+
+# clean up left-over files
+rm -f /etc/nologin
+rm -f /var/spool/uucp/LCK.*
+rm -f /var/spool/uucp/STST/*
+(cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
+
+echo clearing /tmp
+
+echo -n standard daemons:
+echo -n ' update';		update
+echo '.'
+echo ''
+
 TERM=pc3	# terminal emulator, for elvis
 TERMCAP="\
 pc3|ibmpc3:li#25:co#80:am:bs:bw:eo:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:\
@@ -7,23 +75,24 @@ do=\E[B:ho=\E[;H:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:\
 :ac=l\332q\304k\277x\263j\331m\300w\302u\264v\301t\303n\305:\
 :kb=^h:kh=\E[Y:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:"
 OPSYSTEM=FreeBSD
-RELEASE="1.0 BETA"
+RELEASE="1.0 GAMMA"
 export TERMCAP
-export PATH
 export TERM
-export HOME
 echo "${OPSYSTEM} Base System Release ${RELEASE}"
 echo ""
 echo "Congratulations, you've got ${OPSYSTEM} on the hard disk!"
 echo ""
+echo "Press the return key for more installation instructions"
+read junkit
+echo ""
 echo "To finish installation:"
-echo "Pick a temporary directory by running set_tmp_dir.  make sure it's"
+echo "Pick a temporary directory by running set_tmp_dir.  Make sure it's"
 echo "in a place with lots of space, probably under /usr."
 echo "Then, load the remaining distribution files into that temporary"
 echo "directory by issuing one of the following commands:"
-echo "       load_fd"
-echo "       load_qic_tape"
-echo "       load_scsi_tape"
+echo ""
+echo "       load_fd	load_qic_tape	load_scsi_tape"
+echo ""
 echo "or by fetching the files with ftp (see the installation notes for"
 echo "information on how to do that)."
 echo ""
@@ -34,13 +103,11 @@ echo ""
 echo "Once all of the filesets you wish to install have been extracted,"
 echo "enter the command 'configure' to finish setting up the system"
 echo " "
-echo "If you should wish to uninstall ${OPSYSTEM}, delete the partition by using the "
-echo " DOS 5 FDISK program. If installed on the entire drive, use the FDISK/MBR"
-echo " to remove the ${OPSYSTEM} bootstrap from the drive."
+echo "If you should wish to uninstall ${OPSYSTEM}, delete the partition by using the"
+echo "DOS 5 FDISK program. If installed on the entire drive, use the FDISK/MBR"
+echo "to remove the ${OPSYSTEM} bootstrap from the drive."
 echo 'erase ^?, werase ^H, kill ^U, intr ^C'
 stty newcrt werase  intr  kill  erase  9600
-mount -at ufs
-update
 umask 0
 set_tmp_dir()
 {
