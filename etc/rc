@@ -1,11 +1,15 @@
 #!/bin/sh
-#	$Id: rc,v 1.62 1995/04/11 01:22:21 rgrimes Exp $
+#	$Id: rc,v 1.63 1995/04/11 18:36:10 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
 # or after single-user.
 # Output and error are redirected to console by init,
 # and the console is the controlling terminal.
+
+# Note that almost all the user-configurable behavior is no longer in
+# this file, but rather in /etc/sysconfig.  Please check this file
+# first before contemplating any changes here.
 
 stty status '^T'
 
