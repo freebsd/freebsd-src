@@ -48,9 +48,9 @@ _retire_thread(void *v)
 }
 
 void *
-_set_curthread(ucontext_t *uc, struct pthread *thread)
+_set_curthread(ucontext_t *uc, struct pthread *thread, int *err)
 {
-
+	*err = 0;
 	if (uc != NULL)
 		uc->uc_mcontext.mc_special.tp = (uint64_t)thread;
 	else

@@ -87,12 +87,14 @@ _retire_thread(void *entry)
 }
 
 void *
-_set_curthread(ucontext_t *uc, struct pthread *thr)
+_set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 {
 	union descriptor desc;
 	void **ldt_entry;
 	int ldt_index;
 	int error;
+
+	*err = 0;
 
 	/*
 	 * If we are setting up the initial thread, the gs register
@@ -106,8 +108,11 @@ _set_curthread(ucontext_t *uc, struct pthread *thr)
 	if (ldt_inited == NULL)
 		ldt_init();
 
-	if (ldt_free == NULL)
-		abort();
+	if (ldt_free == NULL) {
+		/* Concurrent thread limit reached */
+		*err = curthread->error = EAGAIN;
+		return (NULL);
+	}
 
 	/*
 	 * Pull one off of the free list and update the free list pointer.
