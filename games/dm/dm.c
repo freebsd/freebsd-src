@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <nlist.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -62,11 +63,20 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-extern int errno;
 static time_t	now;			/* current time value */
 static int	priority = 0;		/* priority game runs at */
 static char	*game,			/* requested game */
 		*gametty;		/* from tty? */
+
+void c_day __P((char *, char *, char *));
+void c_tty __P((char *));
+void c_game __P((char *, char *, char *, char *));
+void hour __P((int));
+double load __P((void));
+void nogamefile __P((void));
+void play __P((char **));
+void read_config __P((void));
+int users __P((void));
 
 int
 main(argc, argv)
@@ -90,12 +100,14 @@ main(argc, argv)
 #endif
 	play(argv);
 	/*NOTREACHED*/
+	exit(EXIT_FAILURE);
 }
 
 /*
  * play --
  *	play the game
  */
+void
 play(args)
 	char **args;
 {
@@ -119,6 +131,7 @@ play(args)
  * read_config --
  *	read through config file, looking for key words.
  */
+void
 read_config()
 {
 	FILE *cfp;
@@ -153,10 +166,11 @@ read_config()
  * c_day --
  *	if day is today, see if okay to play
  */
+void
 c_day(s_day, s_start, s_stop)
 	char *s_day, *s_start, *s_stop;
 {
-	static char *days[] = {
+	static const char *days[] = {
 		"sunday", "monday", "tuesday", "wednesday",
 		"thursday", "friday", "saturday",
 	};
@@ -185,6 +199,7 @@ c_day(s_day, s_start, s_stop)
  * c_tty --
  *	decide if this tty can be used for games.
  */
+void
 c_tty(tty)
 	char *tty;
 {
@@ -196,7 +211,7 @@ c_tty(tty)
 		first = 0;
 	}
 
-	if (!strcmp(gametty, tty) || p_tty && !strcmp(p_tty, tty)) {
+	if (!strcmp(gametty, tty) || (p_tty && !strcmp(p_tty, tty))) {
 		(void)fprintf(stderr, "dm: Sorry, you may not play games on %s.\n", gametty);
 		exit(0);
 	}
@@ -206,11 +221,11 @@ c_tty(tty)
  * c_game --
  *	see if game can be played now.
  */
+void
 c_game(s_game, s_load, s_users, s_priority)
 	char *s_game, *s_load, *s_users, *s_priority;
 {
 	static int found;
-	double load();
 
 	if (found)
 		return;
@@ -251,6 +266,7 @@ load()
  *	todo: check idle time; if idle more than X minutes, don't
  *	count them.
  */
+int
 users()
 {
 
@@ -268,6 +284,7 @@ users()
 	return(nusers);
 }
 
+void
 nogamefile()
 {
 	int fd, n;
@@ -286,6 +303,7 @@ nogamefile()
  * hour --
  *	print out the hour in human form
  */
+void
 hour(h)
 	int h;
 {
