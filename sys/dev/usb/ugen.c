@@ -861,7 +861,8 @@ ugenintr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("ugenintr: status=%d\n", status));
-		usbd_clear_endpoint_stall_async(sce->pipeh);
+		if (status == USBD_STALLED)
+		    usbd_clear_endpoint_stall_async(sce->pipeh);
 		return;
 	}
 
