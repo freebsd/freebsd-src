@@ -124,7 +124,7 @@ struct fxp_rx {
 	struct fxp_rx *rx_next;
 	struct mbuf *rx_mbuf;
 	bus_dmamap_t rx_map;
-	u_int32_t rx_addr;
+	uint32_t rx_addr;
 };
 
 struct fxp_tx {
@@ -144,7 +144,7 @@ struct fxp_desc_list {
 	struct fxp_tx *tx_last;
 	struct fxp_rfa *rfa_list;
 	struct fxp_cb_tx *cbl_list;
-	u_int32_t cbl_addr;
+	uint32_t cbl_addr;
 	bus_dma_tag_t rx_tag;
 };
 
@@ -174,11 +174,11 @@ struct fxp_softc {
 	int tx_queued;			/* # of active TxCB's */
 	int need_mcsetup;		/* multicast filter needs programming */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
-	u_int32_t stats_addr;		/* DMA address of the stats structure */
+	uint32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout stat_ch;		/* stat callout */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
-	u_int32_t mcs_addr;		/* DMA address of the multicast cmd */
+	uint32_t mcs_addr;		/* DMA address of the multicast cmd */
 	struct ifmedia sc_media;	/* media information */
 	device_t miibus;
 	device_t dev;
@@ -191,13 +191,13 @@ struct fxp_softc {
 	int cu_resume_bug;
 	int revision;
 	int flags;
-	u_int32_t saved_maps[5];	/* pci data */
-	u_int32_t saved_biosaddr;
-	u_int8_t saved_intline;
-	u_int8_t saved_cachelnsz;
-	u_int8_t saved_lattimer;
-	u_int8_t rfa_size;
-        u_int32_t tx_cmd;
+	uint32_t saved_maps[5];	/* pci data */
+	uint32_t saved_biosaddr;
+	uint8_t saved_intline;
+	uint8_t saved_cachelnsz;
+	uint8_t saved_lattimer;
+	uint8_t rfa_size;
+	uint32_t tx_cmd;
 };
 
 #define FXP_FLAG_MWI_ENABLE	0x0001	/* MWI enable */
