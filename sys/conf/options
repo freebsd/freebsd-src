@@ -1,4 +1,4 @@
-#	$Id: options,v 1.35 1997/09/22 21:23:57 joerg Exp $
+#	$Id: options,v 1.36 1997/10/18 01:15:32 peter Exp $
 
 # Format:
 # Option name	filename
@@ -96,6 +96,7 @@ OPEN_MAX		opt_defunct.h
 ARP_PROXYALL		opt_defunct.h
 GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
+IPDIVERT
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
