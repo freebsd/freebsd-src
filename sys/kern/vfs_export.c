@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.162 1998/09/05 15:17:33 bde Exp $
+ * $Id: vfs_subr.c,v 1.163 1998/09/14 19:56:40 sos Exp $
  */
 
 /*
@@ -81,6 +81,7 @@ static void	printlockedvnodes __P((void));
 static void	vclean __P((struct vnode *vp, int flags, struct proc *p));
 static void	vfree __P((struct vnode *));
 static void	vgonel __P((struct vnode *vp, struct proc *p));
+static __inline void	vfs_object_destroy __P((struct vnode *));
 static unsigned long	numvnodes;
 SYSCTL_INT(_debug, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0, "");
 
@@ -1300,6 +1301,15 @@ vref(struct vnode *vp)
 	simple_unlock(&vp->v_interlock);
 }
 
+static __inline void
+vfs_object_destroy(vp)
+	struct vnode* vp;
+{
+	if (vp->v_type == VBLK && vp->v_object != NULL &&
+	    vp->v_object->ref_count == 0)
+		vm_object_terminate(vp->v_object);
+}
+
 /*
  * Vnode put/release.
  * If count drops to zero, call inactive routine and return to freelist.
@@ -1326,8 +1336,8 @@ vrele(vp)
 
 	if (vp->v_usecount == 1) {
 
+		vfs_object_destroy(vp);
 		vp->v_usecount--;
-
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 	/*
@@ -1371,6 +1381,7 @@ vput(vp)
 
 	if (vp->v_usecount == 1) {
 
+		vfs_object_destroy(vp);
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
