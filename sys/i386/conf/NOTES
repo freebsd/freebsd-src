@@ -678,6 +678,25 @@ options 	ATM_UNI			#UNI signalling manager
 device		hea			#Efficient ENI-155p ATM PCI
 device		hfa			#FORE PCA-200E ATM PCI
 
+#
+# DEVICE_POLLING adds support for mixed interrupt-polling handling
+# of network device drivers, which has significant benefits in terms
+# of robustness to overloads and responsivity, as well as permitting
+# accurate scheduling of the CPU time between kernel network processing
+# and other activities. The drawback is a moderate (up to 1/HZ seconds)
+# potential increase in response times.
+# It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
+# to achieve smoother behaviour.
+# Additionally, you can enable/disable polling at runtime with the
+# sysctl variable kern.polling.enable (defaults off), and select
+# the CPU fraction reserved to userland with the sysctl variable
+# kern.polling.user_frac (default 50, range 0..100).
+#
+# Only the "dc" "fxp" and "sis" devices support this mode of operation at
+# the time of this writing.
+
+options		DEVICE_POLLING
+
 
 #####################################################################
 # FILESYSTEM OPTIONS
