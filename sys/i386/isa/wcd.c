@@ -766,6 +766,41 @@ int wcdioctl (dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 		return copyout (toc->tab + starting_track -
 				toc->hdr.starting_track, te->data, len);
 	}
+	case CDIOREADTOCENTRY: {
+		struct ioc_read_toc_single_entry *te =
+			(struct ioc_read_toc_single_entry*) addr;
+		struct toc *toc = &t->toc;
+		struct toc buf;
+		u_char track = te->track;
+
+		if (! t->toc.hdr.ending_track)
+			return (EIO);
+
+		if (te->address_format != CD_MSF_FORMAT
+		    && te->address_format != CD_LBA_FORMAT)
+			return EINVAL;
+
+		if (track == 0)
+			track = toc->hdr.starting_track;
+		else if (track == 170) /* Handle leadout request */
+			track = toc->hdr.ending_track + 1;
+		else if (track < toc->hdr.starting_track ||
+			 track > toc->hdr.ending_track + 1)
+                        return (EINVAL);
+
+		/* Convert to MSF format, if needed. */
+		if (te->address_format == CD_MSF_FORMAT) {
+			struct cd_toc_entry *e;
+
+			buf = t->toc;
+			toc = &buf;
+			e = toc->tab + (track - toc->hdr.starting_track);
+			lba2msf (ntohl(e->addr.lba), &e->addr.msf.minute,
+				 &e->addr.msf.second, &e->addr.msf.frame);
+		}
+		bcopy(toc->tab + track - toc->hdr.starting_track,
+		      &te->entry, sizeof(struct cd_toc_entry));
+	}
 	case CDIOCREADSUBCHANNEL: {
 		struct ioc_read_subchannel *args =
 			(struct ioc_read_subchannel*) addr;

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.6 (Berkeley) 5/10/95
- * $Id$
+ * $Id: iso.h,v 1.13 1997/02/22 09:38:52 peter Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -215,7 +215,7 @@ int cd9660_init __P((struct vfsconf *));
 #define cd9660_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
                                     size_t, struct proc *)))eopnotsupp)
 
-int cd9660_mountroot __P((void)); 
+int cd9660_mountroot __P((int ssector)); 
 
 extern vop_t **cd9660_vnodeop_p;
 extern vop_t **cd9660_specop_p;

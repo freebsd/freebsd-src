@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.87 1997/03/24 11:23:55 bde Exp $
+ *	$Id: mcd.c,v 1.88 1997/04/20 17:26:54 bde Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -195,6 +195,7 @@ static	int	mcd_subchan(int unit, struct ioc_read_subchannel *sc);
 static	int	mcd_toc_header(int unit, struct ioc_toc_header *th);
 static	int	mcd_read_toc(int unit);
 static  int     mcd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
+static  int     mcd_toc_entry(int unit, struct ioc_read_toc_single_entry *te);
 static	int	mcd_stop(int unit);
 static  int     mcd_eject(int unit);
 static  int     mcd_inject(int unit);
@@ -1423,6 +1424,57 @@ mcd_read_toc(int unit)
 
 	cd->flags |= MCDTOC;
 
+	return 0;
+}
+
+static int
+mcd_toc_entry(int unit, struct ioc_read_toc_single_entry *te)
+{
+	struct mcd_data *cd = mcd_data + unit;
+	struct ioc_toc_header th;
+	int rc, trk;
+
+	if (te->address_format != CD_MSF_FORMAT
+	    && te->address_format != CD_LBA_FORMAT)
+		return EINVAL;
+
+	/* Copy the toc header */
+	if ((rc = mcd_toc_header(unit, &th)) != 0)
+		return rc;
+
+	/* verify starting track */
+	trk = te->track;
+	if (trk == 0)
+		trk = th.starting_track;
+	else if (trk == MCD_LASTPLUS1)
+		trk = th.ending_track + 1;
+	else if (trk < th.starting_track || trk > th.ending_track + 1)
+		return EINVAL;
+
+	/* Make sure we have a valid toc */
+	if ((rc=mcd_read_toc(unit)) != 0)
+		return rc;
+
+	/* Copy the TOC data. */
+	if (cd->toc[trk].idx_no == 0)
+		return EIO;
+
+	te->entry.control = cd->toc[trk].control;
+	te->entry.addr_type = cd->toc[trk].addr_type;
+	te->entry.track =
+		cd->toc[trk].idx_no > 0x99 ? cd->toc[trk].idx_no :
+		bcd2bin(cd->toc[trk].idx_no);
+	switch (te->address_format) {
+	case CD_MSF_FORMAT:
+		te->entry.addr.msf.unused = 0;
+		te->entry.addr.msf.minute = bcd2bin(cd->toc[trk].hd_pos_msf[0]);
+		te->entry.addr.msf.second = bcd2bin(cd->toc[trk].hd_pos_msf[1]);
+		te->entry.addr.msf.frame = bcd2bin(cd->toc[trk].hd_pos_msf[2]);
+		break;
+	case CD_LBA_FORMAT:
+		te->entry.addr.lba = htonl(msf2hsg(cd->toc[trk].hd_pos_msf, 0));
+		break;
+	}
 	return 0;
 }
 
