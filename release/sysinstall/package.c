@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.16 1995/10/22 23:20:45 jkh Exp $
+ * $Id: package.c,v 1.17 1995/10/23 13:19:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -109,7 +109,6 @@ package_extract(Device *dev, char *name)
 			       "file itself is corrupted.\n"
 			       "You may wish to look into this and try again.", name);
 		}
-		dev->close(dev, fd);
 	    }
 	    else {
 		ret = RET_FAIL;

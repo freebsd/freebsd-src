@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.7 1995/10/22 17:39:16 jkh Exp $
+ * $Id: installUpgrade.c,v 1.8 1995/10/23 13:19:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -174,8 +174,7 @@ installUpgrade(char *str)
 {
     char *saved_etc = NULL;
     Boolean extractingBin = TRUE;
-    int waitstatus;
-    pid_t child;
+    struct termios foo;
 
     if (!RunningAsInit) {
 	dialog_clear();
@@ -184,13 +183,19 @@ installUpgrade(char *str)
 	return RET_FAIL;
     }
 
+    systemDisplayHelp("upgrade");
+
+    if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
+		 "risk it all and proceed with this upgrade?"))
+	return RET_FAIL;
+
     if (!Dists) {
 	dialog_clear();
-	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure\n"
-		   "will only upgrade those portions of the system for which a distribution\n"
-		   "has been selected.  In the next screen, we'll go to the Distributions\n"
-		   "menu to select those portions of 2.1 you wish to install on top of your\n"
-		   "2.0.5 system.");
+	msgConfirm("You haven't specified any distributions yet.  The upgrade procedure will\n"
+		   "only upgrade those portions of the system for which a distribution has\n"
+		   "been selected.  In the next screen, we'll go to the Distributions menu\n"
+		   "to select those portions of 2.1 you wish to install on top of your 2.0.5\n"
+		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions))
 	    return RET_FAIL;
     }
@@ -210,11 +215,12 @@ installUpgrade(char *str)
     if (!(Dists & DIST_BIN))
 	extractingBin = FALSE;
 
-    systemDisplayHelp("upgrade");
-
-    if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
-		 "risk it all and proceed with this upgrade?"))
-	return RET_FAIL;
+    if (!mediaDevice) {
+	dialog_clear();
+	msgConfirm("Now you must specify an installation medium for the upgrade.");
+	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
+	    return RET_FAIL;
+    }
 
     /* Note that we're now upgrading */
     variable_set2(SYSTEM_STATE, "upgrade");
@@ -227,7 +233,7 @@ installUpgrade(char *str)
 	       "instance, you'll be using the label editor as little more than a fancy\n"
 	       "screen-oriented filesystem mounting utility, so think of it that way.\n\n"
 	       "Once you're done in the label editor, press Q to return here for the next\n"
-	       "step.\n");
+	       "step.");
 
     if (diskLabelEditor(NULL) == RET_FAIL) {
 	dialog_clear();
@@ -238,7 +244,7 @@ installUpgrade(char *str)
 
     /* Don't write out MBR info */
     variable_set2(DISK_PARTITIONED, "written");
-    if (diskLabelCommit(NULL) == RET_FAIL) {
+    if (diskLabelCommit("upgrade") == RET_FAIL) {
 	dialog_clear();
 	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		   "aborted.");
@@ -273,21 +279,26 @@ installUpgrade(char *str)
 	}
 	if (file_readable("/kernel")) {
 	    msgNotify("Moving old kernel to /kernel.205");
-	    if (system("chflags noschg /mnt/kernel && mv /mnt/kernel /mnt/kernel.205")) {
+	    if (system("chflags noschg /kernel && mv /kernel /kernel.205")) {
 		dialog_clear();
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
-			      "treat this as a big problem and abort the upgrade?"))
-		    return RET_FAIL;
+			      "treat this as a big problem and abort the upgrade?  Due to the\n"
+			      "way that this upgrade process works, you will have to reboot\n"
+			      "and start over from the beginning.  Select Yes to reboot now")) {
+		    reboot(0);
+		}
 	    }
 	}
     }
+
     msgNotify("Beginning extraction of distributions..");
-    if (distExtractAll(NULL) == RET_FAIL) {
+    if (distExtractAll("upgrade") == RET_FAIL) {
 	if (extractingBin && (Dists & DIST_BIN)) {
 	    dialog_clear();
 	    msgConfirm("Hmmmm.  We couldn't even extract the bin distribution.  This upgrade\n"
-		       "should be considered a failure and started from the beginning, sorry!\n");
-	    return RET_FAIL;
+		       "should be considered a failure and started from the beginning, sorry!\n"
+		       "The system will reboot now.");
+	    reboot(0);
 	}
 	dialog_clear();
 	msgConfirm("The extraction process seems to have had some problems, but we got most\n"
@@ -331,18 +342,18 @@ installUpgrade(char *str)
 		   "Something went seriously wrong!  It's quite possible that\n"
 		   "your former /etc is toast.  I hope you didn't have any\n"
 		   "important customizations you wanted to keep in there.. :(\n");
-	return RET_FAIL;
     }
-
-    /* Now try to resurrect the /etc files */
-    traverseHitlist(etc_files);
+    else {
+	/* Now try to resurrect the /etc files */
+	traverseHitlist(etc_files);
+    }
 
     dialog_clear();
     msgConfirm("OK!  At this stage, we've resurrected all the /etc files we could\n"
 	       "(and you may have been warned about some that you'll have to merge\n"
-	       "yourself, by hand) and we're going to drop you into a shell to do\n"
+	       "yourself by hand) and we're going to drop you into a shell to do\n"
 	       "the rest yourself (sorry about this!).  Once the system looks good\n"
-	       "to you, exit the shell and reboot the system.");
+	       "to you, exit the shell to reboot the system.");
 
     chdir("/");
     dialog_clear();
@@ -350,27 +361,19 @@ installUpgrade(char *str)
     end_dialog();
     DialogActive = FALSE;
 
-    if (!(child = fork())) {
-	struct termios foo;
-
-	signal(SIGTTOU, SIG_IGN);
-	if (tcgetattr(0, &foo) != -1) {
-	    foo.c_cc[VERASE] = '\010';
-	    if (tcsetattr(0, TCSANOW, &foo) == -1)
-		msgDebug("Unable to set the erase character.\n");
-	}
-	else
-	    msgDebug("Unable to get the terminal attributes!\n");
-	printf("Well, good luck!  When you're done, type exit to return.\n");
-	execlp("sh", "-sh", 0);
-	msgDebug("Was unable to execute sh for post-upgrade shell!\n");
-	exit(1);
+    signal(SIGTTOU, SIG_IGN);
+    if (tcgetattr(0, &foo) != -1) {
+	foo.c_cc[VERASE] = '\010';
+	if (tcsetattr(0, TCSANOW, &foo) == -1)
+	    msgDebug("Unable to set the erase character.\n");
     }
     else
-	(void)waitpid(child, &waitstatus, 0);
-    DialogActive = TRUE;
-    clear();
-    dialog_clear();
-    dialog_update();
-    return RET_SUCCESS;
+	msgDebug("Unable to get the terminal attributes!\n");
+    printf("Well, good luck!  When you're done, please type \"reboot\" to reboot\n"
+	   "the new system.\n");
+    execlp("sh", "-sh", 0);
+    msgDebug("Was unable to execute sh for post-upgrade shell!\n");
+    exit(1);
+    /* NOTREACHED */
+    return 0;
 }
