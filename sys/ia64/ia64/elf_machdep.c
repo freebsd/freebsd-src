@@ -76,7 +76,8 @@ struct sysentvec elf64_freebsd_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	exec_copyout_strings,
-	exec_setregs
+	exec_setregs,
+	NULL
 };
 
 static Elf64_Brandinfo freebsd_brand_info = {

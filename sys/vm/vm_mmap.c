@@ -277,8 +277,10 @@ mmap(td, uap)
 	 */
 	else if (addr == 0 ||
 	    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
-	     addr < round_page((vm_offset_t)vms->vm_daddr + maxdsiz)))
-		addr = round_page((vm_offset_t)vms->vm_daddr + maxdsiz);
+	     addr < round_page((vm_offset_t)vms->vm_daddr +
+	      td->td_proc->p_rlimit[RLIMIT_DATA].rlim_max)))
+		addr = round_page((vm_offset_t)vms->vm_daddr +
+		    td->td_proc->p_rlimit[RLIMIT_DATA].rlim_max);
 
 	mtx_lock(&Giant);	/* syscall marked mp-safe but isn't */
 	do {

@@ -284,6 +284,7 @@ struct sysentvec null_sysvec = {
 	PS_STRINGS,
 	VM_PROT_ALL,
 	NULL,
+	NULL,
 	NULL
 };
 

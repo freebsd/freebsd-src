@@ -115,7 +115,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	IA32_PS_STRINGS,
 	VM_PROT_ALL,
 	ia32_copyout_strings,
-	ia32_setregs
+	ia32_setregs,
+	NULL
 };
 
 static Elf32_Brandinfo ia32_brand_info = {
