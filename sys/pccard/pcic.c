@@ -33,39 +33,20 @@
  * by Noriyuki Hosobuchi <yj8n-hsbc@asahi-net.or.jp>
  */
 
-#ifdef	LKM
-#define	NPCIC 1
-#else
-#include "pcic.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/file.h>
-#include <sys/conf.h>
-#include <sys/proc.h>
-#include <sys/ioctl.h>
-#include <sys/mount.h>
-#include <sys/sysent.h>
-#include <sys/exec.h>
-#include <sys/lkm.h>
+#include <sys/select.h>
 
 #include <machine/clock.h>
-
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 
 #include <pccard/i82365.h>
 #ifdef	PC98
 #include <pccard/pcic98reg.h>
 #endif
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
+
 #include <pccard/card.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>

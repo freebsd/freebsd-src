@@ -29,7 +29,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/param.h>
-#include <sys/ioctl.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
@@ -37,7 +36,6 @@
 #include <sys/sysent.h>
 #include <sys/exec.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
 
 #include <pccard/card.h>
 #include <pccard/slot.h>
