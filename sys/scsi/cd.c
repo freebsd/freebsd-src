@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id$
+ *	$Id: cd.c,v 1.6 93/08/26 21:09:07 julian Exp Locker: julian $
  */
 
 #define SPLCD splbio
@@ -115,8 +115,6 @@ struct	scsi_switch *scsi_switch;
 	struct cd_parms *dp;
 
 	unit = next_cd_unit++;
-	cd = cd_data + unit;
-	dp  = &(cd->params);
 	if(scsi_debug & PRINTROUTINES) printf("cdattach: "); 
 	/*******************************************************\
 	* Check we have the resources for another drive		*
@@ -127,6 +125,8 @@ struct	scsi_switch *scsi_switch;
 			(unit + 1),NCD);
 		return(0);
 	}
+	cd = cd_data + unit;
+	dp  = &(cd->params);
 	/*******************************************************\
 	* Store information needed to contact our base driver	*
 	\*******************************************************/
@@ -713,6 +713,27 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 						));
 		}
 		break;
+	case CDIOCPLAYMSF:
+		{
+			struct	ioc_play_msf *args
+					= (struct  ioc_play_msf *)addr;
+			struct	cd_mode_data data;
+			if(error = cd_get_mode(unit,&data,AUDIO_PAGE))
+				break;
+			data.page.audio.flags &= ~CD_PA_SOTC;
+			data.page.audio.flags |= CD_PA_IMMED;
+			if(error = cd_set_mode(unit,&data))
+				break;
+			return(cd_play_msf(unit
+						,args->start_m
+						,args->start_s
+						,args->start_f
+						,args->end_m
+						,args->end_s
+						,args->end_f
+						));
+		}
+		break;
 	case CDIOCPLAYBLOCKS:
 		{
 			struct	ioc_play_blocks *args
@@ -1180,6 +1201,31 @@ int	unit,strack,sindex,etrack,eindex;
 			20000,	/* should be immed */
 			0);
 	return(retval);
+}
+/*******************************************************\
+* Get scsi driver to send a "play msf" command		*
+\*******************************************************/
+cd_play_msf(unit,startm,starts,startf,endm,ends,endf)
+int	unit,startm,starts,startf,endm,ends,endf;
+{
+	struct scsi_play_msf scsi_cmd;
+
+	bzero(&scsi_cmd, sizeof(scsi_cmd));
+	scsi_cmd.op_code = PLAY_MSF;
+	scsi_cmd.start_m=startm;
+	scsi_cmd.start_s=starts;
+	scsi_cmd.start_f=startf;
+	scsi_cmd.end_m=endm;
+	scsi_cmd.end_s=ends;
+	scsi_cmd.end_f=endf;
+
+	return (cd_scsi_cmd(unit,
+			&scsi_cmd,
+			sizeof(scsi_cmd),
+			0,
+			0,
+			2000,
+			0));
 }
 /*******************************************************\
 * Get scsi driver to send a "start up" command		*
