@@ -8,7 +8,7 @@
  *			ABP940UA, ABP950, ABP960, ABP960U, ABP960UA,
  *			ABP970, ABP970U
  *
- * Copyright (c) 1996-1998 Justin Gibbs.
+ * Copyright (c) 1996-2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,7 +88,9 @@ static __inline struct adv_ccb_info *
 		adv_get_ccb_info(struct adv_softc *adv);
 static __inline void adv_free_ccb_info(struct adv_softc *adv,
 				       struct adv_ccb_info *cinfo);
-
+static __inline void adv_set_state(struct adv_softc *adv, adv_state state);
+static __inline void adv_clear_state(struct adv_softc *adv, union ccb* ccb);
+static void adv_clear_state_really(struct adv_softc *adv, union ccb* ccb);
 
 struct adv_softc *advsoftcs[NADV];   /* XXX Config should handle this */
 
@@ -118,6 +120,62 @@ adv_free_ccb_info(struct adv_softc *adv, struct adv_ccb_info *cinfo)
 	cinfo->state = ACCB_FREE;
 	SLIST_INSERT_HEAD(&adv->free_ccb_infos, cinfo, links);
 	splx(opri);
+}
+
+static __inline void
+adv_set_state(struct adv_softc *adv, adv_state state)
+{
+	if (adv->state == 0)
+		xpt_freeze_simq(adv->sim, /*count*/1);
+	adv->state |= state;
+}
+
+static __inline void
+adv_clear_state(struct adv_softc *adv, union ccb* ccb)
+{
+	if (adv->state != 0)
+		adv_clear_state_really(adv, ccb);
+}
+
+static void
+adv_clear_state_really(struct adv_softc *adv, union ccb* ccb)
+{
+	if ((adv->state & ADV_BUSDMA_BLOCK_CLEARED) != 0)
+		adv->state &= ~(ADV_BUSDMA_BLOCK_CLEARED|ADV_BUSDMA_BLOCK);
+	if ((adv->state & ADV_RESOURCE_SHORTAGE) != 0) {
+		int openings;
+
+		openings = adv->max_openings - adv->cur_active - ADV_MIN_FREE_Q;
+		if (openings >= adv->openings_needed) {
+			adv->state &= ~ADV_RESOURCE_SHORTAGE;
+			adv->openings_needed = 0;
+		}
+	}
+		
+	if ((adv->state & ADV_IN_TIMEOUT) != 0) {
+		struct adv_ccb_info *cinfo;
+
+		cinfo = (struct adv_ccb_info *)ccb->ccb_h.ccb_cinfo_ptr;
+		if ((cinfo->state & ACCB_RECOVERY_CCB) != 0) {
+			struct ccb_hdr *ccb_h;
+
+			/*
+			 * We now traverse our list of pending CCBs
+			 * and reinstate their timeouts.
+			 */
+			ccb_h = LIST_FIRST(&adv->pending_ccbs);
+			while (ccb_h != NULL) {
+				ccb_h->timeout_ch =
+				    timeout(adv_timeout, (caddr_t)ccb_h,
+					    (ccb_h->timeout * hz) / 1000);
+				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
+			}
+			adv->state &= ~ADV_IN_TIMEOUT;
+			printf("%s: No longer in timeout\n", adv_name(adv));
+		}
+	}
+	if (adv->state == 0)
+		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 }
 
 void     
@@ -162,6 +220,7 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 			panic("XXX Handle CCB info error!!!");
 
 		ccb_h->ccb_cinfo_ptr = cinfo;
+		cinfo->ccb = ccb;
 
 		/* Only use S/G if there is a transfer */
 		if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -189,10 +248,8 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 						 * until our mapping is
 						 * returned.
 						 */
-						xpt_freeze_simq(adv->sim,
-								/*count*/1);
-						cinfo->state |=
-						    ACCB_RELEASE_SIMQ;
+						adv_set_state(adv,
+							      ADV_BUSDMA_BLOCK);
 					}
 					splx(s);
 				} else {
@@ -406,7 +463,7 @@ adv_action(struct cam_sim *sim, union ccb *ccb)
 
 		s = splcam();
 		adv_stop_execution(adv);
-		adv_reset_bus(adv);
+		adv_reset_bus(adv, /*initiate_reset*/TRUE);
 		adv_start_execution(adv);
 		splx(s);
 
@@ -473,6 +530,13 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 	adv = (struct adv_softc *)cam_sim_softc(sim);
 	cinfo = (struct adv_ccb_info *)csio->ccb_h.ccb_cinfo_ptr;
 
+	/*
+	 * Setup our done routine to release the simq on
+	 * the next ccb that completes.
+	 */
+	if ((adv->state & ADV_BUSDMA_BLOCK) != 0)
+		adv->state |= ADV_BUSDMA_BLOCK_CLEARED;
+
 	if ((ccb_h->flags & CAM_CDB_POINTER) != 0) {
 		if ((ccb_h->flags & CAM_CDB_PHYS) == 0) {
 			/* XXX Need phystovirt!!!! */
@@ -495,7 +559,7 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 	scsiq.q1.target_lun = ccb_h->target_lun;
 	scsiq.q1.sense_len = csio->sense_len;
 	scsiq.q1.extra_bytes = 0;
-	scsiq.q2.ccb_ptr = (u_int32_t)csio;
+	scsiq.q2.ccb_index = cinfo - adv->ccb_infos;
 	scsiq.q2.target_ix = ADV_TIDLUN_TO_IX(ccb_h->target_id,
 					      ccb_h->target_lun);
 	scsiq.q2.flag = 0;
@@ -540,12 +604,9 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 	 * be aborted.
 	 */             
 	if (ccb_h->status != CAM_REQ_INPROG) {
-		if (nsegments != 0) {
+		if (nsegments != 0)
 			bus_dmamap_unload(adv->buffer_dmat, cinfo->dmamap);
-		}
-		if ((cinfo->state & ACCB_RELEASE_SIMQ) != 0) {
-			ccb_h->status |= CAM_RELEASE_SIMQ;
-		}
+		adv_clear_state(adv, (union ccb *)csio);
 		adv_free_ccb_info(adv, cinfo);
 		xpt_done((union ccb *)csio);
 		splx(s);
@@ -554,16 +615,11 @@ adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 
 	if (adv_execute_scsi_queue(adv, &scsiq, csio->dxfer_len) != 0) {
 		/* Temporary resource shortage */
-		if (nsegments != 0) {
+		adv_set_state(adv, ADV_RESOURCE_SHORTAGE);
+		if (nsegments != 0)
 			bus_dmamap_unload(adv->buffer_dmat, cinfo->dmamap);
-		}
-		ccb_h->status = CAM_REQUEUE_REQ;
-		if ((cinfo->state & ACCB_RELEASE_SIMQ) != 0)
-			ccb_h->status |= CAM_RELEASE_SIMQ;
-
-		/* Unfreeze when resources are available */
-		xpt_freeze_simq(adv->sim, /*count*/1);
-
+		csio->ccb_h.status = CAM_REQUEUE_REQ;
+		adv_clear_state(adv, (union ccb *)csio);
 		adv_free_ccb_info(adv, cinfo);
 		xpt_done((union ccb *)csio);
 		splx(s);
@@ -584,20 +640,16 @@ adv_alloc_ccb_info(struct adv_softc *adv)
 	int error;
 	struct adv_ccb_info *cinfo;
 
-	cinfo = malloc(sizeof(*cinfo), M_DEVBUF, M_NOWAIT);
-	if (cinfo == NULL) {
-		printf("%s: Can't malloc CCB info\n", adv_name(adv));
-		return (NULL);
-	}
+	cinfo = &adv->ccb_infos[adv->ccb_infos_allocated];
 	cinfo->state = ACCB_FREE;
 	error = bus_dmamap_create(adv->buffer_dmat, /*flags*/0,
 				  &cinfo->dmamap);
 	if (error != 0) {
 		printf("%s: Unable to allocate CCB info "
 		       "dmamap - error %d\n", adv_name(adv), error);
-		free(cinfo, M_DEVBUF);
-		cinfo = NULL;
+		return (NULL);
 	}
+	adv->ccb_infos_allocated++;
 	return (cinfo);
 }
 
@@ -605,7 +657,6 @@ static void
 adv_destroy_ccb_info(struct adv_softc *adv, struct adv_ccb_info *cinfo)
 {
 	bus_dmamap_destroy(adv->buffer_dmat, cinfo->dmamap);
-	free(cinfo, M_DEVBUF);
 }
 
 void
@@ -645,10 +696,7 @@ adv_timeout(void *arg)
 		 * in attempting to handle errors in parrallel.  Timeouts will
 		 * be reinstated when the recovery process ends.
 		 */
-		if ((cinfo->state & ACCB_RELEASE_SIMQ) == 0) {
-			xpt_freeze_simq(adv->sim, /*count*/1);
-			cinfo->state |= ACCB_RELEASE_SIMQ;
-		}
+		adv_set_state(adv, ADV_IN_TIMEOUT);
 
 		/* This CCB is the CCB representing our recovery actions */
 		cinfo->state |= ACCB_RECOVERY_CCB|ACCB_ABORT_QUEUED;
@@ -674,7 +722,7 @@ adv_timeout(void *arg)
 		printf("Resetting bus\n");		
 		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
-		adv_reset_bus(adv);
+		adv_reset_bus(adv, /*initiate_reset*/TRUE);
 	}
 	adv_start_execution(adv);
 	splx(s);
@@ -718,7 +766,7 @@ void
 adv_free(struct adv_softc *adv)
 {
 	switch (adv->init_level) {
-	case 5:
+	case 6:
 	{
 		struct adv_ccb_info *cinfo;
 
@@ -729,15 +777,17 @@ adv_free(struct adv_softc *adv)
 		
 		bus_dmamap_unload(adv->sense_dmat, adv->sense_dmamap);
 	}
-	case 4:
+	case 5:
 		bus_dmamem_free(adv->sense_dmat, adv->sense_buffers,
                                 adv->sense_dmamap);
-	case 3:
+	case 4:
 		bus_dma_tag_destroy(adv->sense_dmat);
-	case 2:
+	case 3:
 		bus_dma_tag_destroy(adv->buffer_dmat);
-	case 1:
+	case 2:
 		bus_dma_tag_destroy(adv->parent_dmat);
+	case 1:
+		free(adv->ccb_infos, M_DEVBUF);
 	case 0:
 		break;
 	}
@@ -749,18 +799,18 @@ adv_init(struct adv_softc *adv)
 {
 	struct	  adv_eeprom_config eeprom_config;
 	int	  checksum, i;
+	int	  max_sync;
 	u_int16_t config_lsw;
 	u_int16_t config_msw;
 
-	adv_reset_chip_and_scsi_bus(adv);
 	adv_lib_init(adv);
 
-        /*
-         * Stop script execution.
-         */  
-        adv_write_lram_16(adv, ADV_HALTCODE_W, 0x00FE);
-        adv_stop_execution(adv);
-	if (adv_is_chip_halted(adv) == 0) {
+  	/*
+	 * Stop script execution.
+	 */  
+	adv_write_lram_16(adv, ADV_HALTCODE_W, 0x00FE);
+	adv_stop_execution(adv);
+	if (adv_stop_chip(adv) == 0 || adv_is_chip_halted(adv) == 0) {
 		printf("adv%d: Unable to halt adapter. Initialization"
 		       "failed\n", adv->unit);
 		return (1);
@@ -776,7 +826,7 @@ adv_init(struct adv_softc *adv)
 	config_lsw = ADV_INW(adv, ADV_CONFIG_LSW);
 
 	if ((config_msw & ADV_CFG_MSW_CLR_MASK) != 0) {
-		config_msw &= (~(ADV_CFG_MSW_CLR_MASK));
+		config_msw &= ~ADV_CFG_MSW_CLR_MASK;
 		/*
 		 * XXX The Linux code flags this as an error,
 		 * but what should we report to the user???
@@ -789,8 +839,6 @@ adv_init(struct adv_softc *adv)
 	/* Suck in the configuration from the EEProm */
 	checksum = adv_get_eeprom_config(adv, &eeprom_config);
 
-	eeprom_config.cfg_msw &= (~(ADV_CFG_MSW_CLR_MASK));
-
 	if (ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_AUTO_CONFIG) {
 		/*
 		 * XXX The Linux code sets a warning level for this
@@ -798,38 +846,15 @@ adv_init(struct adv_softc *adv)
 		 * the user.  What does this mean???
 		 */
 		if (adv->chip_version == 3) {
-			if (eeprom_config.cfg_lsw != config_lsw) {
-				eeprom_config.cfg_lsw =
-						ADV_INW(adv, ADV_CONFIG_LSW);
-			}
+			if (eeprom_config.cfg_lsw != config_lsw)
+				eeprom_config.cfg_lsw = config_lsw;
 			if (eeprom_config.cfg_msw != config_msw) {
-				eeprom_config.cfg_msw =
-						ADV_INW(adv, ADV_CONFIG_MSW);
+				eeprom_config.cfg_msw = config_msw;
 			}
 		}
-	}
-	eeprom_config.cfg_lsw |= ADV_CFG_LSW_HOST_INT_ON;
-	if (adv_test_external_lram(adv) == 0) {
-		/*
-		 * XXX What about non PCI cards with no
-		 *     external LRAM????
-		 */
-		if ((adv->type & (ADV_PCI|ADV_ULTRA)) == (ADV_PCI|ADV_ULTRA)) {
-			eeprom_config.max_total_qng =
-			    ADV_MAX_PCI_ULTRA_INRAM_TOTAL_QNG;
-			eeprom_config.max_tag_qng =
-			    ADV_MAX_PCI_ULTRA_INRAM_TAG_QNG;
-		} else {
-			eeprom_config.cfg_msw |= 0x0800;
-			config_msw |= 0x0800;
-			ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw);
-			eeprom_config.max_total_qng =
-			     ADV_MAX_PCI_INRAM_TOTAL_QNG;
-			eeprom_config.max_tag_qng = ADV_MAX_INRAM_TAG_QNG;
-		}
-		adv->max_openings = eeprom_config.max_total_qng;
 	}
 	if (checksum == eeprom_config.chksum) {
+
 		/* Range/Sanity checking */
 		if (eeprom_config.max_total_qng < ADV_MIN_TOTAL_QNG) {
 			eeprom_config.max_total_qng = ADV_MIN_TOTAL_QNG;
@@ -844,19 +869,27 @@ adv_init(struct adv_softc *adv)
 			eeprom_config.max_tag_qng = ADV_MIN_TAG_Q_PER_DVC;
 		}
 		adv->max_openings = eeprom_config.max_total_qng;
-
 		adv->user_disc_enable = eeprom_config.disc_enable;
 		adv->user_cmd_qng_enabled = eeprom_config.use_cmd_qng;
 		adv->isa_dma_speed = EEPROM_DMA_SPEED(eeprom_config);
 		adv->scsi_id = EEPROM_SCSIID(eeprom_config) & ADV_MAX_TID;
 		EEPROM_SET_SCSIID(eeprom_config, adv->scsi_id);
 		adv->control = eeprom_config.cntl;
-		for (i = 0; i <= ADV_MAX_TID; i++)
+		for (i = 0; i <= ADV_MAX_TID; i++) {
+			u_int8_t sync_data;
+
+			if ((eeprom_config.init_sdtr & (0x1 << i)) == 0)
+				sync_data = 0;
+			else
+				sync_data = eeprom_config.sdtr_data[i];
 			adv_sdtr_to_period_offset(adv,
-						  eeprom_config.sdtr_data[i],
+						  sync_data,
 						  &adv->tinfo[i].user.period,
 						  &adv->tinfo[i].user.offset,
 						  i);
+		}
+		config_lsw = eeprom_config.cfg_lsw;
+		eeprom_config.cfg_msw = config_msw;
 	} else {
 		u_int8_t sync_data;
 
@@ -871,18 +904,63 @@ adv_init(struct adv_softc *adv)
 		adv->cmd_qng_enabled = TARGET_BIT_VECTOR_SET;
 		adv->user_cmd_qng_enabled = TARGET_BIT_VECTOR_SET;
 		adv->scsi_id = 7;
+		adv->control = 0xFFFF;
 
+		if (adv->chip_version == ADV_CHIP_VER_PCI_ULTRA_3050)
+			/* Default to no Ultra to support the 3030 */
+			adv->control &= ~ADV_CNTL_SDTR_ENABLE_ULTRA;
 		sync_data = ADV_DEF_SDTR_OFFSET | (ADV_DEF_SDTR_INDEX << 4);
-		for (i = 0; i <= ADV_MAX_TID; i++)
+		for (i = 0; i <= ADV_MAX_TID; i++) {
 			adv_sdtr_to_period_offset(adv, sync_data,
 						  &adv->tinfo[i].user.period,
 						  &adv->tinfo[i].user.offset,
 						  i);
+		}
+		config_lsw |= ADV_CFG_LSW_SCSI_PARITY_ON;
+	}
+	config_msw &= ~ADV_CFG_MSW_CLR_MASK;
+	config_lsw |= ADV_CFG_LSW_HOST_INT_ON;
+	if ((adv->type & (ADV_PCI|ADV_ULTRA)) == (ADV_PCI|ADV_ULTRA)
+	 && (adv->control & ADV_CNTL_SDTR_ENABLE_ULTRA) == 0)
+		/* 25ns or 10MHz */
+		max_sync = 25;
+	else
+		/* Unlimited */
+		max_sync = 0;
+	for (i = 0; i <= ADV_MAX_TID; i++) {
+		if (adv->tinfo[i].user.period < max_sync)
+			adv->tinfo[i].user.period = max_sync;
 	}
 
+	if (adv_test_external_lram(adv) == 0) {
+		printf("No external RAM\n");
+		if ((adv->type & (ADV_PCI|ADV_ULTRA)) == (ADV_PCI|ADV_ULTRA)) {
+			eeprom_config.max_total_qng =
+			    ADV_MAX_PCI_ULTRA_INRAM_TOTAL_QNG;
+			eeprom_config.max_tag_qng =
+			    ADV_MAX_PCI_ULTRA_INRAM_TAG_QNG;
+		} else {
+			eeprom_config.cfg_msw |= 0x0800;
+			config_msw |= 0x0800;
+			eeprom_config.max_total_qng =
+			     ADV_MAX_PCI_INRAM_TOTAL_QNG;
+			eeprom_config.max_tag_qng = ADV_MAX_INRAM_TAG_QNG;
+		}
+		adv->max_openings = eeprom_config.max_total_qng;
+	}
+	ADV_OUTW(adv, ADV_CONFIG_MSW, config_msw);
+	ADV_OUTW(adv, ADV_CONFIG_LSW, config_lsw);
+#if 0
+	/*
+	 * Don't write the eeprom data back for now.
+	 * I'd rather not mess up the user's card.  We also don't
+	 * fully sanitize the eeprom settings above for the write-back
+	 * to be 100% correct.
+	 */
 	if (adv_set_eeprom_config(adv, &eeprom_config) != 0)
 		printf("%s: WARNING! Failure writing to EEPROM.\n",
 		       adv_name(adv));
+#endif
 
 	adv_set_chip_scsiid(adv, adv->scsi_id);
 	if (adv_init_lram_and_mcode(adv))
@@ -910,7 +988,8 @@ adv_init(struct adv_softc *adv)
 	adv_write_lram_8(adv, ADVV_USE_TAGGED_QNG_B, TARGET_BIT_VECTOR_SET);
 	adv_write_lram_8(adv, ADVV_CAN_TAGGED_QNG_B, TARGET_BIT_VECTOR_SET);
 	printf("adv%d: AdvanSys %s Host Adapter, SCSI ID %d, queue depth %d\n",
-	       adv->unit, (adv->type & ADV_ULTRA) ? "Ultra SCSI" : "SCSI",
+	       adv->unit, (adv->type & ADV_ULTRA) && (max_sync == 0)
+			  ? "Ultra SCSI" : "SCSI",
 	       adv->scsi_id, adv->max_openings);
 	return (0);
 }
@@ -927,13 +1006,24 @@ adv_intr(void *arg)
 
 	adv = (struct adv_softc *)arg;
 
+	chipstat = ADV_INW(adv, ADV_CHIP_STATUS);
+
+	/* Is it for us? */
+	if ((chipstat & (ADV_CSW_INT_PENDING|ADV_CSW_SCSI_RESET_LATCH)) == 0)
+		return;
+
 	ctrl_reg = ADV_INB(adv, ADV_CHIP_CTRL);
 	saved_ctrl_reg = ctrl_reg & (~(ADV_CC_SCSI_RESET | ADV_CC_CHIP_RESET |
 				       ADV_CC_SINGLE_STEP | ADV_CC_DIAG |
 				       ADV_CC_TEST));
 
+	if ((chipstat & (ADV_CSW_SCSI_RESET_LATCH|ADV_CSW_SCSI_RESET_ACTIVE))) {
+		printf("Detected Bus Reset\n");
+		adv_reset_bus(adv, /*initiate_reset*/FALSE);
+		return;
+	}
 
-	if ((chipstat = ADV_INW(adv, ADV_CHIP_STATUS)) & ADV_CSW_INT_PENDING) {
+	if ((chipstat & ADV_CSW_INT_PENDING) != 0) {
 		
 		saved_ram_addr = ADV_INW(adv, ADV_LRAM_ADDR);
 		host_flag = adv_read_lram_8(adv, ADVV_HOST_FLAG_B);
@@ -942,8 +1032,8 @@ adv_intr(void *arg)
 
 		adv_ack_interrupt(adv);
 		
-		if ((chipstat & ADV_CSW_HALTED)
-		    && (ctrl_reg & ADV_CC_SINGLE_STEP)) {
+		if ((chipstat & ADV_CSW_HALTED) != 0
+		 && (ctrl_reg & ADV_CC_SINGLE_STEP) != 0) {
 			adv_isr_chip_halted(adv);
 			saved_ctrl_reg &= ~ADV_CC_HALT;
 		} else {
@@ -972,6 +1062,7 @@ adv_run_doneq(struct adv_softc *adv)
 				   + ADV_SCSIQ_B_FWD);
 	while (done_qno != ADV_QLINK_END) {
 		union ccb* ccb;
+		struct adv_ccb_info *cinfo;
 		u_int done_qaddr;
 		u_int sg_queue_cnt;
 		int   aborted;
@@ -1035,9 +1126,10 @@ adv_run_doneq(struct adv_softc *adv)
 			}
 		}
 
-		ccb = (union ccb *)scsiq.d2.ccb_ptr;
+		cinfo = &adv->ccb_infos[scsiq.d2.ccb_index];
+		ccb = cinfo->ccb;
 		ccb->csio.resid = scsiq.remain_bytes;
-		adv_done(adv, (union ccb *)scsiq.d2.ccb_ptr,
+		adv_done(adv, ccb,
 			 scsiq.d3.done_stat, scsiq.d3.host_stat,
 			 scsiq.d3.scsi_stat, scsiq.q_no);
 
@@ -1055,12 +1147,6 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 	struct	   adv_ccb_info *cinfo;
 
 	cinfo = (struct adv_ccb_info *)ccb->ccb_h.ccb_cinfo_ptr;
-	/*
-	 * Null this out so that we catch driver bugs that cause a
-	 * ccb to be completed twice.
-	 */
-	ccb->ccb_h.ccb_cinfo_ptr = NULL;
-
 	LIST_REMOVE(&ccb->ccb_h, sim_links.le);
 	untimeout(adv_timeout, ccb, ccb->ccb_h.timeout_ch);
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -1156,7 +1242,7 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		case QHSTA_M_HUNG_REQ_SCSI_BUS_RESET:
 			/* The SCSI bus hung in a phase */
 			ccb->ccb_h.status = CAM_SEQUENCE_FAIL;
-			adv_reset_bus(adv);
+			adv_reset_bus(adv, /*initiate_reset*/TRUE);
 			break;
 		case QHSTA_M_AUTO_REQ_SENSE_FAIL:
 			ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
@@ -1189,39 +1275,18 @@ adv_done(struct adv_softc *adv, union ccb *ccb, u_int done_stat,
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}
-	if ((cinfo->state & ACCB_RELEASE_SIMQ) != 0)
-		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-	else if (adv->openings_needed > 0) {
-		int openings;
-
-		openings = adv->max_openings - adv->cur_active - ADV_MIN_FREE_Q;
-		if (openings >= adv->openings_needed) {
-			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-			adv->openings_needed = 0;
-		}
-	}
-	if ((cinfo->state & ACCB_RECOVERY_CCB) != 0) {
-		/*
-		 * We now traverse our list of pending CCBs and reinstate
-		 * their timeouts.
-		 */
-		struct ccb_hdr *ccb_h;
-
-		ccb_h = LIST_FIRST(&adv->pending_ccbs);
-		while (ccb_h != NULL) {
-			ccb_h->timeout_ch =
-			    timeout(adv_timeout, (caddr_t)ccb_h,
-					    (ccb_h->timeout * hz) / 1000);
-			ccb_h = LIST_NEXT(ccb_h, sim_links.le);
-		}
-		printf("%s: No longer in timeout\n", adv_name(adv));
-	}
+	adv_clear_state(adv, ccb);
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 && (ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 	}
 	adv_free_ccb_info(adv, cinfo);
+	/*
+	 * Null this out so that we catch driver bugs that cause a
+	 * ccb to be completed twice.
+	 */
+	ccb->ccb_h.ccb_cinfo_ptr = NULL;
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	xpt_done(ccb);
 }
@@ -1245,7 +1310,22 @@ adv_attach(adv)
 {
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
+	int max_sg;
 
+	/*
+	 * Allocate an array of ccb mapping structures.  We put the
+	 * index of the ccb_info structure into the queue representing
+	 * a transaction and use it for mapping the queue to the
+	 * upper level SCSI transaction it represents.
+	 */
+	adv->ccb_infos = malloc(sizeof(*adv->ccb_infos) * adv->max_openings,
+				M_DEVBUF, M_NOWAIT);
+
+	if (adv->ccb_infos == NULL)
+		goto error_exit;
+
+	adv->init_level++;
+		
 	/*
 	 * Create our DMA tags.  These tags define the kinds of device
 	 * accessable memory allocations and memory mappings we will 
@@ -1254,15 +1334,33 @@ adv_attach(adv)
 	 * Unless we need to further restrict the allocation, we rely
 	 * on the restrictions of the parent dmat, hence the common
 	 * use of MAXADDR and MAXSIZE.
+	 *
+	 * The ASC boards use chains of "queues" (the transactional
+	 * resources on the board) to represent long S/G lists.
+	 * The first queue represents the command and holds a
+	 * single address and data pair.  The queues that follow
+	 * can each hold ADV_SG_LIST_PER_Q entries.  Given the
+	 * total number of queues, we can express the largest
+	 * transaction we can map.  We reserve a few queues for
+	 * error recovery.  Take those into account as well.
+	 *
+	 * There is a way to take an interrupt to download the
+	 * next batch of S/G entries if there are more than 255
+	 * of them (the counter in the queue structure is a u_int8_t).
+	 * We don't use this feature, so limit the S/G list size
+	 * accordingly.
 	 */
+	max_sg = (adv->max_openings - ADV_MIN_FREE_Q - 1) * ADV_SG_LIST_PER_Q;
+	if (max_sg > 255)
+		max_sg = 255;
 
 	/* DMA tag for mapping buffers into device visible space. */
 	if (bus_dma_tag_create(adv->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE,
-			       /*nsegments*/ADV_MAX_SG_LIST,
+			       /*maxsize*/MAXPHYS,
+			       /*nsegments*/max_sg,
 			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &adv->buffer_dmat) != 0) {
