@@ -25,6 +25,7 @@ The following non-freebsd-specific directories were deleted:
 macintosh
 os2
 windows-NT
+vms
 contrib/elib	(this has a .tar.Z in it)
 zlib
 
