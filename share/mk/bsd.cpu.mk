@@ -7,8 +7,6 @@
 CPUTYPE ?= i386
 .elif ${MACHINE_ARCH} == "alpha"
 CPUTYPE ?= ev4
-.elif ${MACHINE_ARCH} == "ia64"
-CPUTYPE ?= itanium
 .endif
 
 # Handle aliases (not documented in make.conf to avoid user confusion
@@ -113,9 +111,5 @@ MACHINE_CPU = ev5 ev45 ev4
 MACHINE_CPU = ev45 ev4
 . elif ${CPUTYPE} == "ev4"
 MACHINE_CPU = ev4
-. endif
-.elif ${MACHINE_ARCH} == "ia64"
-. if ${CPUTYPE} == "itanium"
-MACHINE_CPU = itanium
 . endif
 .endif

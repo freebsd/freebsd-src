@@ -244,6 +244,8 @@ HTAGSFLAGS=
 .include </etc/make.conf>
 .endif
 
+.include <bsd.cpu.mk>
+
 .if exists(/etc/make.conf.local)
 .error Error, original /etc/make.conf should be moved to the /etc/defaults/ directory and /etc/make.conf.local should be renamed to /etc/make.conf.
 .include </etc/make.conf.local>
