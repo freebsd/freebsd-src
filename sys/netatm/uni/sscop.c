@@ -152,7 +152,6 @@ sscop_start()
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (sscop_zone == NULL)
 		panic("sscop_start: uma_zcreate");
-	uma_zone_set_max(sscop_zone, 100);
 
 	/*
 	 * Register stack service

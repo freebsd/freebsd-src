@@ -126,11 +126,13 @@ spans_start()
 
 	spans_vc_zone = uma_zcreate("spans vc", sizeof(struct spans_vccb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(spans_vc_zone, 50);
+	if (spans_vc_zone == NULL)
+		panic("spans_vc_zone");
 
 	spans_msg_zone = uma_zcreate("spans msg", sizeof(spans_msg), NULL,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(spans_msg_zone, 50);
+	if (spans_msg_zone == NULL)
+		panic("spans_msg_zone");
 
 	/*
 	 * Allocate protocol definition structure

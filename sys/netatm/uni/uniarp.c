@@ -126,7 +126,6 @@ uniarp_start()
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (uniarp_zone == NULL)
 		panic("uniarp_start: uma_zcreate");
-	uma_zone_set_max(uniarp_zone, 200);
 
 	/*
 	 * Register our endpoint
