@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.65 1997/11/12 04:12:43 jdp Exp $
+ *	$Id: apm.c,v 1.66 1997/12/04 02:40:00 imp Exp $
  */
 
 #include <sys/param.h>
@@ -365,8 +365,22 @@ apm_default_resume(void *arg)
 	tmp_time = time;		/* because 'time' is volatile */
 	timevaladd(&tmp_time, &diff_time);
 	time = tmp_time;
+#ifdef APM_FIXUP_CALLTODO
+	/* Calculate the delta time suspended */
+	timevalsub(&resume_time, &suspend_time);
+	/* Fixup the calltodo list with the delta time. */
+	adjust_timeout_calltodo(&resume_time);
+#endif /* APM_FIXUP_CALLTODOK */
 	splx(pl);
-	second = resume_time.tv_sec - suspend_time.tv_sec;
+#ifndef APM_FIXUP_CALLTODO
+	second = resume_time.tv_sec - suspend_time.tv_sec; 
+#else /* APM_FIXUP_CALLTODO */
+	/* 
+	 * We've already calculated resume_time to be the delta between 
+	 * the suspend and the resume. 
+	 */
+	second = resume_time.tv_sec; 
+#endif /* APM_FIXUP_CALLTODO */
 	hour = second / 3600;
 	second %= 3600;
 	minute = second / 60;
