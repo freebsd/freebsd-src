@@ -242,10 +242,16 @@ In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
 .It Fl P
-Preserve leading slashes.
-By default, absolute pathnames (those that begin with a / character)
-have the leading slash removed.
-This option suppresses that behavior.
+Preserve pathnames.
+By default, absolute pathnames (those that begin with a /
+character) have the leading slash removed both when creating archives
+and extracting from them.
+Also,
+.Nm
+will refuse to extract archive entries whose pathnames contain
+.Pa ..
+or whose target directory would be altered by a symlink.
+This option suppresses these behaviors.
 .It Fl p
 (x mode only)
 Preserve file permissions.
@@ -275,7 +281,8 @@ Unlink files before creating them.
 Without this option,
 .Nm
 overwrites existing files, which preserves existing hardlinks.
-With this option, existing hardlinks will be broken.
+With this option, existing hardlinks will be broken, as will any
+symlink that would affect the location of an extracted file.
 .It Fl v
 Produce verbose output.
 In create and extract modes,
@@ -403,11 +410,103 @@ flag.
 The mode options c, r, t, u, and x and the options
 b, f, l, m, o, v, and w comply with SUSv2.
 .Pp
+For maximum portability, scripts that invoke
+.Nm tar
+should use the bundled-argument format above, should limit
+themselves to the
+.Cm c ,
+.Cm t ,
+and
+.Cm x
+modes, and the
+.Cm b ,
+.Cm f ,
+.Cm m ,
+.Cm v ,
+and
+.Cm w
+options.
+.Pp
 On systems that support getopt_long(), additional long options
 are available to improve compatibility with other tar implementations.
+.Sh SECURITY
+Certain security issues are common to many archiving programs, including
+.Nm .
+In particular, carefully-crafted archives can request
+.Nm
+to extract files to locations outside of the target directory.
+This can potentially be used to cause unwitting users to overwrite
+files they did not intend to overwrite.
+If the archive is being extracted by the superuser, any file
+on the system can potentially be overwritten.
+There are three ways this can happen.
+Although
+.Nm
+has mechanisms to protect against each one,
+savvy users should be aware of the implications:
+.Bl -bullet -width indent
+.It
+Archive entries can have absolute pathnames.
+By default,
+.Nm
+removes the leading
+.Pa /
+character from filenames before restoring them to gaurd against this problem.
+.It
+Archive entries can have pathnames that include
+.Pa ..
+components.
+By default,
+.Nm
+will not extract files containing
+.Pa ..
+components in their pathname.
+.It
+Archive entries can exploit symbolic links to restore
+files to other directories.
+An archive can restore a symbolic link to another directory,
+then use that link to restore a file into that directory.
+To gaurd against this,
+.Nm
+checks each extracted path for symlinks.
+If the final path element is a symlink, it will be removed
+and replaced with the archive entry.
+If
+.Fl U
+is specified, any intermediate symlink will also be unconditionally removed.
+If neither
+.Fl U
+nor
+.Fl P
+is specified,
+.Nm
+will refuse to extract the entry.
+.El
+To protect yourself, you should be wary of any archives that
+come from untrusted sources.
+You should examine the contents of an archive with
+.Dl Nm Fl tf Pa filename
+before extraction.
+You should use the
+.Fl k
+option to ensure that
+.Nm
+will not overwrite any existing files or the
+.Fl U
+option to remove any pre-existing files.
+You should generally not extract archives while running with super-user
+privileges.
+Note that the
+.Fl P
+option to
+.Nm
+disables the security checks above and allows you to extract
+an archive while preserving any absolute pathnames,
+.Pa ..
+components, or symlinks to other directories.
 .Sh SEE ALSO
-.Xr ar 1 ,
 .Xr bzip2 1 ,
+.Xr cpio 1 ,
 .Xr gzip 1 ,
 .Xr mt 1 ,
 .Xr pax 1 ,
@@ -417,10 +516,13 @@ are available to improve compatibility with other tar implementations.
 .Xr tar 5 .
 .Sh STANDARDS
 There is no current POSIX standard for the tar command; it appeared
-in SUSv2 but was dropped from SUSv3.
+in
+.St -p 1003.1-1997
+but was dropped from
+.St -p 1003.1-2001 .
 The options used by this implementation were developed by surveying a
-number of existing tar implementations as well as the old SUSv2 specification
-for tar and the current SUSv3 specification for pax.
+number of existing tar implementations as well as the old POSIX specification
+for tar and the current POSIX specification for pax.
 .Pp
 The ustar and pax interchange file formats are defined by
 .St -p1003.1-2001
@@ -438,27 +540,16 @@ and
 options do not.
 (This is, of course, a bug in GNU tar and not bsdtar.)
 .Pp
-The distinction between the
+The
 .Fl C Pa dir
-option and the
-.Cm C= Ns Pa dir
-operation is prompted by the use of
-.Xr getopt_long 3
-for parsing the command line.
-Recall that
-.Xr getopt_long 3
-processes all options before all non-options.
-In particular,
-.Cm C= Ns Pa dir
-is not an option, and is therefore processed in the order it appears
-on the command line.
-In contrast,
+option differs from historic implementations.
+In order to provide the range of historic behaviors while
+retaining some consistency with POSIX option-processing
+conventions, this implementation uses
 .Fl C Pa dir
-is an option, and therefore, in accordance with POSIX
-conventions, is handled in a manner that does not
-depend on the order of command-line options.
-This behavior differs from that of implementations that do
-not follow standard getopt argument parsing conventions.
+and
+.Cm C= Ns Pa dir
+for the two distinct behaviors.
 .Pp
 All archive output is written in correctly-sized blocks, even
 if the output is being compressed.
@@ -529,6 +620,12 @@ There needs to be better support for file selection on both create
 and extract.
 .Pp
 There is not yet any support for multi-volume archives or sparse files.
+.Pp
+Converting between dissimilar archive formats (such as tar and cpio) using the
+.Cm @ Ns Pa -
+convention can cause hard link information to be lost.
+(This is a consequence of the incompatible ways that different archive
+formats store hardlink information.)
 .Pp
 All features should be available using only short options in order
 to enhance portability to platforms that lack
