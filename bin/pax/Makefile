@@ -34,4 +34,6 @@ WARNS=	0
 #MAN=	pax.1 tar.1 cpio.1
 #LINKS=	${BINDIR}/pax ${BINDIR}/tar ${BINDIR}/pax ${BINDIR}/cpio
 
+WFORMAT?=	0
+
 .include <bsd.prog.mk>
