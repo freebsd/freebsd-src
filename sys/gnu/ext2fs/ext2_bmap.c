@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.7 (Berkeley) 3/21/95
- * $Id: ufs_bmap.c,v 1.17 1997/11/24 16:33:03 bde Exp $
+ * $Id: ufs_bmap.c,v 1.18 1998/01/24 02:01:41 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

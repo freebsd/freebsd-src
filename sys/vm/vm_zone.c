@@ -11,8 +11,10 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.14 1997/12/22 11:48:13 dyson Exp $
+ * $Id: vm_zone.c,v 1.15 1998/01/22 17:30:44 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

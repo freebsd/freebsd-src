@@ -36,8 +36,10 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.13 1997/11/14 22:57:46 tegge Exp $
+ *	$Id: procfs_map.c,v 1.14 1998/01/06 05:19:54 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

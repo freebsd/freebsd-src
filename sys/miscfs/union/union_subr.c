@@ -35,8 +35,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.24 1998/01/20 10:02:52 kato Exp $
+ * $Id: union_subr.c,v 1.25 1998/01/25 09:44:33 kato Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

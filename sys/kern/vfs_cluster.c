@@ -33,10 +33,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.52 1998/01/31 07:23:11 eivind Exp $
+ * $Id: vfs_cluster.c,v 1.53 1998/01/31 11:56:01 dyson Exp $
  */
 
 #include "opt_debug_cluster.h"
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

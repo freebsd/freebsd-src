@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.40 1997/12/13 13:49:59 bde Exp $
+ * $Id: fifo_vnops.c,v 1.41 1997/12/19 18:58:14 bde Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

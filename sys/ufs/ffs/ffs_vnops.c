@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.39 1998/02/01 01:59:12 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.40 1998/02/01 08:24:00 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

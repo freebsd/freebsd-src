@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.31 1998/02/01 01:59:11 dyson Exp $
+ * $Id: ffs_inode.c,v 1.32 1998/02/01 08:23:55 dyson Exp $
  */
 
+#include "opt_diagnostic.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>

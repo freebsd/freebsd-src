@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/*	$Id: if_media.c,v 1.2 1997/05/03 20:58:10 peter Exp $ */
+/*	$Id: if_media.c,v 1.3 1997/08/02 14:32:38 bde Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -45,6 +45,8 @@
  * Many thanks to Matt Thomas for providing the information necessary
  * to implement this interface.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

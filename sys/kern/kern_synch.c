@@ -36,9 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.43 1997/12/29 00:22:26 dyson Exp $
+ * $Id: kern_synch.c,v 1.44 1997/12/29 08:54:52 bde Exp $
  */
 
+#include "opt_diagnostic.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
