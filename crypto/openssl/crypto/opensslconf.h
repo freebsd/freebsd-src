@@ -2,9 +2,6 @@
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */
 
 /* OpenSSL was configured with the following options: */
-#ifndef OPENSSL_SYSNAME_WIN16
-# define OPENSSL_SYSNAME_WIN16
-#endif
 #ifndef OPENSSL_DOING_MAKEDEPEND
 
 #ifndef OPENSSL_NO_KRB5
@@ -44,7 +41,7 @@
 #endif
 
 #if defined(HEADER_MD2_H) && !defined(MD2_INT)
-#define MD2_INT unsigned char
+#define MD2_INT unsigned int
 #endif
 
 #if defined(HEADER_RC2_H) && !defined(RC2_INT)
@@ -101,7 +98,7 @@
 #define CONFIG_HEADER_RC4_LOCL_H
 /* if this is defined data[i] is used instead of *data, this is a %20
  * speedup on x86 */
-#define RC4_INDEX
+#undef RC4_INDEX
 #endif
 
 #if defined(HEADER_BF_LOCL_H) && !defined(CONFIG_HEADER_BF_LOCL_H)
@@ -115,7 +112,7 @@
 /* the following is tweaked from a config script, that is why it is a
  * protected undef/define */
 #ifndef DES_PTR
-#define DES_PTR
+#undef DES_PTR
 #endif
 
 /* This helps C compiler generate the correct code for multiple functional
@@ -136,7 +133,7 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 /* Unroll the inner loop, this sometimes helps, sometimes hinders.
  * Very mucy CPU dependant */
 #ifndef DES_UNROLL
-#define DES_UNROLL
+#undef DES_UNROLL
 #endif
 
 /* These default values were supplied by
