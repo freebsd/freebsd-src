@@ -32,10 +32,52 @@
 #include <sys/cdefs.h>
 #include <machine/_types.h>
 
+/*
+ * Standard type definitions.
+ */
+typedef	__int32_t	__clockid_t;		/* clock_gettime()... */
+typedef	__uint32_t	__fflags_t;		/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
+typedef	__uint32_t	__intrmask_t;
 typedef	__uint32_t	__gid_t;
+typedef	__int64_t	__off_t;		/* file offset */
+typedef	__int32_t	__pid_t;		/* process [group] */
 typedef	__uint8_t	__sa_family_t;
+typedef	__uint32_t	__socklen_t;
+typedef	__int32_t	__timer_t;		/* timer_gettime()... */
 typedef	__uint32_t	__uid_t;
+
+/*
+ * Unusual type definitions.
+ */
+/*
+ * rune_t is declared to be an ``int'' instead of the more natural
+ * ``unsigned long'' or ``long''.  Two things are happening here.  It is not
+ * unsigned so that EOF (-1) can be naturally assigned to it and used.  Also,
+ * it looks like 10646 will be a 31 bit standard.  This means that if your
+ * ints cannot hold 32 bits, you will be in trouble.  The reason an int was
+ * chosen over a long is that the is*() and to*() routines take ints (says
+ * ANSI C), but they use __ct_rune_t instead of int.
+ *
+ * NOTE: rune_t is not covered by ANSI nor other standards, and should not
+ * be instantiated outside of lib/libc/locale.  Use wchar_t.  wchar_t and
+ * rune_t must be the same type.  Also, wint_t must be no narrower than
+ * wchar_t, and should be able to hold all members of the largest
+ * character set plus one extra value (WEOF), and must be at least 16 bits.
+ */
+typedef	int		__ct_rune_t;
+typedef	__ct_rune_t	__rune_t;
+typedef	__ct_rune_t	__wchar_t;
+typedef	__ct_rune_t	__wint_t;
+
+/*
+ * mbstate_t is an opaque object to keep conversion state during multibyte
+ * stream conversions.
+ */
+typedef union {
+	char		__mbstate8[128];
+	__int64_t	_mbstateL;		/* for alignment */
+} __mbstate_t;
 
 #endif /* !_SYS__TYPES_H_ */
