@@ -38,7 +38,7 @@
  */
 
 #ifndef lint
-static char *rcsid = "@(#)$Id: cbc.c,v 1.3 1993/12/14 18:01:10 alm Exp $";
+static char *rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
 #endif /* not lint */
 
 #include <sys/types.h>
