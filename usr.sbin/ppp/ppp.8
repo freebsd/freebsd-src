@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.179 1999/07/26 11:15:11 brian Exp $
+.\" $Id: ppp.8,v 1.180 1999/07/27 00:30:32 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3448,6 +3448,15 @@ the peers entry in
 Microsofts callback control protocol is used.  See
 .Dq set cbcp
 below.
+.Pp
+If you wish to negotiate
+.Ar cbcp
+in client mode but also wish to allow the server to request no callback at
+CBCP negotiation time, you must specify both
+.Ar cbcp
+and
+.Ar none
+as callback options.
 .It E.164 *| Ns Xo
 .Ar number Ns Op , Ns Ar number Ns
 .No ...
@@ -3474,7 +3483,8 @@ themselves.
 If the peer does not wish to do callback at all,
 .Nm
 will accept the fact and continue without callback rather than terminating
-the connection.  This is required if you wish callback to be optional.
+the connection.  This is required (in addition to one or more other callback
+options) if you wish callback to be optional.
 .El
 .Pp
 .It set cbcp Oo Xo
