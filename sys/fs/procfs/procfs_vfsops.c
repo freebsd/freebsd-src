@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.21 1998/05/06 05:29:36 msmith Exp $
+ *	$Id: procfs_vfsops.c,v 1.22 1998/06/07 17:11:58 dfr Exp $
  */
 
 /*
@@ -174,9 +174,7 @@ procfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 	int error;
-	/*
-	 * XXX - this should be rm_at_exit'd in an LKM unload function,
-	 */
+
 	if (error = at_exit(procfs_exit))
 		printf("procfs:  cannot register procfs_exit with at_exit -- error %d\n", error);
 
@@ -210,3 +208,20 @@ static struct vfsops procfs_vfsops = {
 };
 
 VFS_SET(procfs_vfsops, procfs, MOUNT_PROCFS, VFCF_SYNTHETIC);
+
+#ifdef VFS_LKM
+static int
+procfs_unload ()
+{
+	rm_at_exit(procfs_exit);
+	return(0);
+}
+
+int
+procfs_mod(struct lkm_table *lkmtp, int cmd, int ver)
+{
+	MOD_DISPATCH(procfs, lkmtp, cmd, ver, lkm_nullcmd,
+			procfs_unload, lkm_nullcmd);
+}
+#endif
+
