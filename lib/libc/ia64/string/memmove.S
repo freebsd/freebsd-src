@@ -28,10 +28,9 @@
 __FBSDID("$FreeBSD$");
 
 ENTRY(memmove,3)
-	
-	mov	r14=in0 ;;
-	mov	in0=in1 ;;
-	mov	in1=r14
-	br.cond.sptk.few bcopy
-	
-END(memcpy)
+	mov	r8 = in0
+	mov	in0 = in1
+	;;
+	mov	in1 = r8
+	br.sptk.few bcopy
+END(memmove)
