@@ -117,7 +117,7 @@ CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/ghostview"
 CDROM_SET_1="${CDROM_SET_1} print/gv"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
-CDROM_SET_1="${CDROM_SET_1} security/sudo
+CDROM_SET_1="${CDROM_SET_1} security/sudo"
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
 CDROM_SET_1="${CDROM_SET_1} shells/zsh"
@@ -140,9 +140,14 @@ CDROM_SET_1="${CDROM_SET_1} misc/compat4x"
 ## End of set for CDROM #1
 
 ## Start of set for CDROM #2
+## Live file system, CVS repositories, and commerical software demos
+## typically live on this disc.  Users do not expect to find packages
+## here.
 ## End of set for CDROM #2
 
 ## Start of set for CDROM #3
+CDROM_SET_3="${CDROM_SET_3} print/teTeX"
+
 ## End of set for CDROM #3
 
 ## Start of set for CDROM #4
