@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.24 1995/06/05 10:19:01 jkh Exp $
+ * $Id: dist.c,v 1.35.2.25 1995/06/05 12:03:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -310,7 +310,7 @@ distExtract(char *parent, Distribution *me)
 		msgDebug("Looking for attribute `pieces'\n");
 	    tmp = attr_match(dist_attr, "pieces");
 	    if (tmp)
-		numchunks = atoi(tmp);
+		numchunks = strtol(tmp, 0, 0);
 	    else
 		numchunks = 0;
 	}

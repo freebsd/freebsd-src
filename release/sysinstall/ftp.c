@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.7 1995/06/05 02:25:24 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.8 1995/06/05 02:28:58 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -30,6 +30,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+/* Handy global for us to stick the port # */
+int FtpPort;
 
 #ifndef STANDALONE_FTP
 #include "sysinstall.h"
@@ -98,12 +101,12 @@ get_a_number(FTP_t ftp, char **q)
 	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
 	    continue;
 	if (i == -1 && p[3] == '-') {
-	    i = atoi(p);
+	    i = strtol(p, 0, 0);
 	    continue;
 	}
 	if (p[3] != ' ' && p[3] != '\t')
 	    continue;
-	j = atoi(p);
+	j = strtol(p, 0, 0);
 	if (i == -1) {
 	    if (q) *q = p+4;
 	    return j;
@@ -215,7 +218,7 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
 	bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
     }
 
-    sin.sin_port = htons(21);
+    sin.sin_port = htons(FtpPort ? FtpPort : 21);
 
     if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
     {

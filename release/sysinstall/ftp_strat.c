@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.18 1995/06/05 12:03:57 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.19 1995/06/05 16:59:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -54,6 +54,7 @@
 
 Boolean ftpInitted;
 static FTP_t ftp;
+extern int FtpPort;
 
 #define FTP_USER	"_ftpUser"
 #define FTP_PASS	"_ftpPass"
@@ -128,11 +129,18 @@ mediaInitFTP(Device *dev)
     if (isDebug())
 	msgDebug("Using URL `%s'\n", url);
     hostname = url + 6;
-    if ((dir = index(hostname, '/')) != NULL)
+    if ((cp = index(hostname, ':')) != NULL) {
+	*(cp++) = '\0';
+	FtpPort = strtol(cp, 0, 0);
+    }
+    else
+	FtpPort = 21;
+    if ((dir = index(cp ? cp : hostname, '/')) != NULL)
 	*(dir++) = '\0';
     if (isDebug()) {
 	msgDebug("hostname = `%s'\n", hostname);
 	msgDebug("dir = `%s'\n", dir ? dir : "/");
+	msgDebug("port # = `%d'\n", FtpPort);
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
