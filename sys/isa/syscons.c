@@ -87,9 +87,9 @@
 #define SWITCH_WAIT_ACQ	0x00080
 
 /* virtual video memory addresses */
-#define	MONO_BUF	0xFE0B0000
-#define	CGA_BUF		0xFE0B8000
-#define	VGA_BUF		0xFE0A0000
+#define	MONO_BUF	(KERNBASE + 0xB0000)
+#define	CGA_BUF		(KERNBASE + 0xB8000)
+#define	VGA_BUF		(KERNBASE + 0xA0000)
 #define VIDEOMEM	0x000A0000
 #define MEMSIZE		0x00020000
 
