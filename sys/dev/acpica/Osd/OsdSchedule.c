@@ -40,9 +40,7 @@
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
@@ -74,6 +72,7 @@ struct acpi_task_queue {
     struct acpi_task		*at;
 };
 
+#if __FreeBSD_version >= 500000
 /*
  * Private task queue definition for ACPI
  */
@@ -157,6 +156,7 @@ acpi_task_thread_init(void)
     return (err);
 }
 #endif
+#endif
 
 ACPI_STATUS
 AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *Context)
@@ -195,7 +195,11 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     }
     TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
+#if __FreeBSD_version < 500000
+    taskqueue_enqueue(taskqueue_swi, (struct task *)at);
+#else
     taskqueue_enqueue(taskqueue_acpi, (struct task *)at);
+#endif
     return_ACPI_STATUS(AE_OK);
 }
 
@@ -269,8 +273,14 @@ AcpiOsStall (UINT32 Microseconds)
 UINT32
 AcpiOsGetThreadId (void)
 {
+    struct proc *p;
     /* XXX do not add FUNCTION_TRACE here, results in recursive call */
 
-    KASSERT(curproc != NULL, ("%s: curproc is NULL!", __func__));
-    return(curproc->p_pid + 1);	/* can't return 0 */
+    p = curproc;
+#if __FreeBSD_version < 500000
+    if (p == NULL)
+	p = &proc0;
+#endif
+    KASSERT(p != NULL, ("%s: curproc is NULL!", __func__));
+    return(p->p_pid + 1);	/* can't return 0 */
 }
