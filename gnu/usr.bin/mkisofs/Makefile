@@ -1,0 +1,50 @@
+CFLAGS=-g -Wall -c
+CC=gcc
+
+#
+# XCFLAGS is automatically set by Configure.
+#
+XCFLAGS=
+XCFLAGS= -DHASSYSMACROS -DHASMALLOC_H
+CFLAGS=-g -c $(XCFLAGS)
+LDFLAGS=
+OBJS=mkisofs.o tree.o write.o hash.o rock.o exclude.o
+
+World: mkisofs
+
+Makefile: Makefile.in Configure
+	./Configure
+	echo "Type make again to build mkisofs."
+
+mkisofs: Makefile $(OBJS) 
+	$(CC) $(LDFLAGS) -o mkisofs  $(OBJS)
+
+install: mkisofs mkisofs.8
+	strip mkisofs
+	cp mkisofs /usr/bin/
+	if [ -d /usr/man/man8 ]; then cp mkisofs.8 /usr/man/man8/; fi
+
+tree.o: tree.c mkisofs.h iso9660.h exclude.h
+	$(CC) $(CFLAGS) tree.c
+
+write.o: write.c mkisofs.h iso9660.h
+	$(CC) $(CFLAGS) write.c
+
+hash.o: hash.c mkisofs.h 
+	$(CC) $(CFLAGS) hash.c
+
+rock.o: rock.c mkisofs.h iso9660.h
+	$(CC) $(CFLAGS) rock.c
+
+exclude.o: exclude.c exclude.h
+	$(CC) $(CFLAGS) exclude.c
+
+mkisofs.o: mkisofs.c iso9660.h mkisofs.h exclude.h
+	$(CC) $(CFLAGS) mkisofs.c
+
+clean:
+	/bin/rm -f *.o core mkisofs *~ #*#
+
+dist:
+	tar -cvf - README Configure Makefile.in make.com TODO  COPYING  ChangeLog *.8 *.c *.h diag | gzip > mkisofs-1.02.tar.gz
+
