@@ -24,12 +24,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Copyright (c) 2002 Eric Moore
+ * Copyright (c) 2002 LSI Logic Corporation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  * 3. The party using or redistributing the source code and binary forms
- *    agrees to the above disclaimer and the terms and conditions set forth
+ *    agrees to the disclaimer below and the terms and conditions set forth
  *    herein.
  *
- * Additional Copyright (c) 2002 by Eric Moore under same license.
- * Additional Copyright (c) 2002 LSI Logic Corporation
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  *
  *	$FreeBSD$
  */
@@ -99,6 +121,7 @@ static int	amr_query_controller(struct amr_softc *sc);
 static void	*amr_enquiry(struct amr_softc *sc, size_t bufsize, 
 			     u_int8_t cmd, u_int8_t cmdsub, u_int8_t cmdqual);
 static void	amr_completeio(struct amr_command *ac);
+static int	amr_support_ext_cdb(struct amr_softc *sc);
 
 /*
  * Command buffer allocation.
@@ -547,6 +570,15 @@ amr_query_controller(struct amr_softc *sc)
     if (sc->amr_maxio == 0)
 	sc->amr_maxio = 2;
 
+    /*
+     * Greater than 10 byte cdb support
+     */
+    sc->support_ext_cdb = amr_support_ext_cdb(sc);
+
+    if(sc->support_ext_cdb) {
+	debug(2,"supports extended CDBs.");
+    }
+
     /* 
      * Try to issue an ENQUIRY3 command 
      */
@@ -696,6 +728,44 @@ amr_flush(struct amr_softc *sc)
     error = ac->ac_status;
     
  out:
+    if (ac != NULL)
+	amr_releasecmd(ac);
+    return(error);
+}
+
+/********************************************************************************
+ * Detect extented cdb >> greater than 10 byte cdb support
+ * returns '1' means this support exist
+ * returns '0' means this support doesn't exist
+ */
+static int
+amr_support_ext_cdb(struct amr_softc *sc)
+{
+    struct amr_command	*ac;
+    u_int8_t		*mbox;
+    int			error;
+
+    /* get ourselves a command buffer */
+    error = 0;
+    if ((ac = amr_alloccmd(sc)) == NULL)
+	goto out;
+    /* set command flags */
+    ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
+
+    /* build the command proper */
+    mbox = (u_int8_t *)&ac->ac_mailbox;		/* XXX want a real structure for this? */
+    mbox[0] = 0xA4;
+    mbox[2] = 0x16;
+
+
+    /* we have to poll, as the system may be going down or otherwise damaged */
+    if (amr_poll_command(ac))
+	goto out;
+    if( ac->ac_status == AMR_STATUS_SUCCESS ) {
+	    error = 1;
+    }
+
+out:
     if (ac != NULL)
 	amr_releasecmd(ac);
     return(error);
@@ -982,29 +1052,48 @@ amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     struct amr_softc            *sc = ac->ac_sc;
     struct amr_sgentry          *sg;
     struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
+    struct amr_ext_passthrough	*aep = (struct amr_passthrough *)ac->ac_data;
     int                         i;
 
     /* get base address of s/g table */
     sg = sc->amr_sgtable + (ac->ac_slot * AMR_NSEG);
 
     /* decide whether we need to populate the s/g table */
-    if (nsegments < 2) {
-	ap->ap_no_sg_elements = 0;
-	ap->ap_data_transfer_address =  segs[0].ds_addr;
-    } else {
-        /* save s/g table information in passthrough */
-	ap->ap_no_sg_elements = nsegments;
-	ap->ap_data_transfer_address = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
-        /* populate s/g table (overwrites previous call which mapped the passthrough) */
-	for (i = 0; i < nsegments; i++, sg++) {
+    if( ac->ac_mailbox.mb_command == AMR_CMD_EXTPASS ) {
+	if (nsegments < 2) {
+	    aep->ap_no_sg_elements = 0;
+	    aep->ap_data_transfer_address =  segs[0].ds_addr;
+	} else {
+	    /* save s/g table information in passthrough */
+	    aep->ap_no_sg_elements = nsegments;
+	    aep->ap_data_transfer_address = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
+	    /* populate s/g table (overwrites previous call which mapped the passthrough) */
+	    for (i = 0; i < nsegments; i++, sg++) {
 		sg->sg_addr = segs[i].ds_addr;
 		sg->sg_count = segs[i].ds_len;
 		debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	    }
 	}
+	debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
+	    aep->ap_no_sg_elements, aep->ap_data_transfer_address, ac->ac_dataphys);
+    } else {
+	if (nsegments < 2) {
+	    ap->ap_no_sg_elements = 0;
+	    ap->ap_data_transfer_address =  segs[0].ds_addr;
+	} else {
+	    /* save s/g table information in passthrough */
+	    ap->ap_no_sg_elements = nsegments;
+	    ap->ap_data_transfer_address = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
+	    /* populate s/g table (overwrites previous call which mapped the passthrough) */
+	    for (i = 0; i < nsegments; i++, sg++) {
+		sg->sg_addr = segs[i].ds_addr;
+		sg->sg_count = segs[i].ds_len;
+		debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	    }
+	}
+	debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
+	    ap->ap_no_sg_elements, ap->ap_data_transfer_address, ac->ac_dataphys);
     }
-
-    debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
-           ap->ap_no_sg_elements, ap->ap_data_transfer_address, ac->ac_dataphys);
 }
 
 static void
