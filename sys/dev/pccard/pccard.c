@@ -96,6 +96,7 @@ pccard_attach_card(device_t dev)
 	struct pccard_softc *sc = (struct pccard_softc *) 
 	    device_get_softc(dev);
 	struct pccard_function *pf;
+	device_t child;
 	int attached;
 
 	DEVPRINTF((dev, "pccard_card_attach\n"));
@@ -126,7 +127,7 @@ pccard_attach_card(device_t dev)
 	if (STAILQ_EMPTY(&sc->card.pf_head))
 		return (1);
 
-	if (pccard_verbose)
+	if (1)
 		pccard_print_cis(dev);
 
 	attached = 0;
@@ -136,6 +137,7 @@ pccard_attach_card(device_t dev)
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
 
+		printf ("pf %x sc %x\n", pf, sc);
 		pf->sc = sc;
 		pf->cfe = NULL;
 		pf->ih_fct = NULL;
@@ -145,13 +147,28 @@ pccard_attach_card(device_t dev)
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
-
-#if XXX
-		if (attach_child()) {
+		/* XXX */
+		/*
+		 * In NetBSD, the drivers are responsible for activating
+		 * each function of a card.  I think that in FreeBSD we
+		 * want to activate them enough for the usual bus_*_resource
+		 * routines will do the right thing.  This many mean a
+		 * departure from the current NetBSD model.
+		 *
+		 * This could get really ugly for multifunction cards.  But
+		 * it might also just fall out of the FreeBSD resource model.
+		 *
+		 */
+		device_printf(dev, "Starting to attach....\n");
+		child = device_add_child(dev, NULL, -1);
+		pccard_function_init(pf, STAILQ_FIRST(&pf->cfe_head));
+		pccard_function_enable(pf);
+		device_printf(dev, "pf %x pf->sc %x\n", pf, pf->sc);
+		if (device_probe_and_attach(child) == 0) {
 			attached++;
 
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
-			     "offset %lx: %x %x %x %x, %x %x %x %x, %x\n",
+			     "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
 			     pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
 			     pccard_ccr_read(pf, 0x00),
 			pccard_ccr_read(pf, 0x02), pccard_ccr_read(pf, 0x04),
@@ -159,10 +176,8 @@ pccard_attach_card(device_t dev)
 			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
 			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
 		}
-#endif
 	}
-
-	return (attached ? 0 : 1);
+	return 0;
 }
 
 static int
@@ -171,9 +186,6 @@ pccard_detach_card(device_t dev, int flags)
 	struct pccard_softc *sc = (struct pccard_softc *) 
 	    device_get_softc(dev);
 	struct pccard_function *pf;
-#if XXX
-	int error;
-#endif
 
 	/*
 	 * We are running on either the PCCARD socket's event thread
@@ -182,16 +194,9 @@ pccard_detach_card(device_t dev, int flags)
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_FIRST(&pf->cfe_head) == NULL)
 			continue;
-#if XXX
-		DEVPRINTF((sc->dev, "detaching %s (function %d)\n",
-		    device_get_name(pf->child), pf->number));
-		if ((error = config_detach(pf->child, flags)) != 0) {
-			device_printf(sc->dev, 
-			    "error %d detaching %s (function %d)\n",
-			    error, device_get_name(pf->child), pf->number);
-		} else
-			pf->child = NULL;
-#endif
+
+		pccard_function_disable(pf);
+		device_delete_child(device_get_parent(dev), dev);
 	}
 	return 0;
 }
@@ -291,9 +296,10 @@ pccard_function_enable(struct pccard_function *pf)
 		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &pf->ccr_rid, pf->ccr_base, pf->ccr_base + PCCARD_CCR_SIZE,
 		    PCCARD_CCR_SIZE, RF_ACTIVE);
-		/* XXX SET MEM_ATTR */
 		if (!pf->ccr_res)
 			goto bad;
+		CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
+		    pf->ccr_rid, PCCARD_A_MEM_ATTR);
 		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
 		pf->pf_ccrh = rman_get_bushandle(pf->ccr_res);
 		pf->pf_ccr_offset = rman_get_start(pf->ccr_res);
@@ -383,7 +389,7 @@ pccard_function_disable(struct pccard_function *pf)
 	device_t dev = pf->sc->dev;
 
 	if (pf->cfe == NULL)
-		panic("pccard_function_enable: function not initialized");
+		panic("pccard_function_disable: function not initialized");
 
 	if ((pf->pf_flags & PFF_ENABLED) == 0) {
 		/*
@@ -510,10 +516,10 @@ static int
 pccard_attach(device_t dev)
 {
 	struct pccard_softc *sc;
-	
+
 	sc = (struct pccard_softc *) device_get_softc(dev);
 	sc->dev = dev;
-
+	sc->sc_enabled_count = 0;
 	return bus_generic_attach(dev);
 }
 
@@ -647,6 +653,7 @@ static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
 	DEVMETHOD(device_attach,	pccard_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
