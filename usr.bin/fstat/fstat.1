@@ -51,8 +51,8 @@ The
 .Nm
 utility identifies open files.
 A file is considered open by a process if it was explicitly opened,
-is the working directory, root directory, active executable text, or kernel
-trace file for that process.
+is the working directory, root directory, jail root directory,
+active executable text, or kernel trace file for that process.
 If no options are specified,
 .Nm
 reports on all open files in the system.
@@ -121,11 +121,12 @@ The file number in the per-process open file table or one of the following
 special names:
 .Pp
 .Bd -literal -offset indent -compact
-text	- executable text inode
-wd 	- current working directory
-root	- root inode
-tr	- kernel trace file
+jail	- jail root directory
 mmap	- memory-mapped file
+root	- root inode
+text	- executable text inode
+tr	- kernel trace file
+wd 	- current working directory
 .Ed
 .Pp
 If the file number is followed by an asterisk (``*''), the file is
