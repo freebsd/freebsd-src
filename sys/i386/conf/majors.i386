@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.76 1999/06/06 10:41:35 phk Exp $
+$Id: majors.i386,v 1.77 1999/06/20 04:35:22 grog Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -176,5 +176,6 @@ chrdev	name		comments
 124	ucdc		USB Communication Class Driver <hibma@skylink.it>
 125	digio		Advantech PCI-1750 IO card jen@vulture.dmem.strath.ac.uk
 126	sync		Generic sync port support <phk>, <brian>
+127	fire		Firewire driver <ikob@koganei.wide.ad.jp>
 200	??		entries from 200-255 are reserved for local use
 255	??		entries from 200-255 are reserved for local use
