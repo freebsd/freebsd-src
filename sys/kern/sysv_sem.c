@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.11 1995/12/14 08:31:52 phk Exp $ */
+/*	$Id: sysv_sem.c,v 1.12 1995/12/15 05:00:30 peter Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -35,7 +35,6 @@ static struct sem_undo *semu_alloc __P((struct proc *p));
 static int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, 
 		int semid, int semnum, int adjval));
 static void semundo_clear __P((int semid, int semnum));
-static void semexit __P((struct proc *p));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
