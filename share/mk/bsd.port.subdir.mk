@@ -1,5 +1,5 @@
 #	from: @(#)bsd.subdir.mk	5.9 (Berkeley) 2/1/91
-#	$Id: bsd.port.subdir.mk,v 1.8 1995/01/03 11:52:01 jkh Exp $
+#	$Id: bsd.port.subdir.mk,v 1.9 1995/01/05 01:46:05 jkh Exp $
 
 .MAIN: all
 
@@ -13,16 +13,26 @@ BINMODE?=	555
 
 _SUBDIRUSE: .USE
 	@for entry in ${SUBDIR}; do \
-		(if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
-			echo "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
-			edir=$${entry}.${MACHINE}; \
-			cd ${.CURDIR}/$${edir}; \
-		else \
-			echo "===> ${DIRPRFX}$$entry"; \
-			edir=$${entry}; \
-			cd ${.CURDIR}/$${edir}; \
+		OK=""; \
+		for dud in $$DUDS; do \
+			if [ $${dud} = $${entry} ]; then \
+				OK="false"; \
+				echo "===> ${DIRPRFX}$${entry} skipped"; \
+			fi; \
+		done; \
+		if [ "$$OK" = "" ]; then \
+			if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+				echo "===> ${DIRPRFX}$${entry}.${MACHINE}"; \
+				edir=$${entry}.${MACHINE}; \
+				cd ${.CURDIR}/$${edir}; \
+			else \
+				echo "===> ${DIRPRFX}$$entry"; \
+				edir=$${entry}; \
+				cd ${.CURDIR}/$${edir}; \
+			fi; \
+			${MAKE} ${.TARGET:realinstall=install} \
+				DIRPRFX=${DIRPRFX}$$edir/; \
 		fi; \
-		${MAKE} ${.TARGET:realinstall=install} DIRPRFX=${DIRPRFX}$$edir/); \
 	done
 
 ${SUBDIR}::
