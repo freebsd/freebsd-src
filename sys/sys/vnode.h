@@ -214,6 +214,7 @@ struct xvnode {
 #define	VI_DOOMED	0x0080	/* This vnode is being recycled */
 #define	VI_FREE		0x0100	/* This vnode is on the freelist */
 #define	VI_OBJDIRTY	0x0400	/* object might be dirty */
+#define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
 /*
  * XXX VI_ONWORKLST could be replaced with a check for NULL list elements
  * in v_synclist.
@@ -376,14 +377,14 @@ extern void	(*lease_updatetime)(int deltat);
 
 /* Requires interlock */
 #define	VSHOULDFREE(vp)	\
-	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED)) && \
+	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_DOINGINACT)) && \
 	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
 	 (!(vp)->v_object || \
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 /* Requires interlock */
 #define VMIGHTFREE(vp) \
-	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_XLOCK)) &&	\
+	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_XLOCK|VI_DOINGINACT)) && \
 	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
 
 /* Requires interlock */
