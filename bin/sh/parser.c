@@ -429,7 +429,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		cpp = &n1->ncase.cases;
 		noaliases = 1;	/* turn off alias expansion */
 		checkkwd = 2, readtoken();
-		do {
+		while (lasttoken != TESAC) {
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
 			cp->type = NCLIST;
 			app = &cp->nclist.pattern;
@@ -456,7 +456,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 					checkkwd = 2, readtoken();
 			}
 			cpp = &cp->nclist.next;
-		} while(lasttoken != TESAC);
+		}
 		noaliases = 0;	/* reset alias expansion */
 		*cpp = NULL;
 		checkkwd = 1;
