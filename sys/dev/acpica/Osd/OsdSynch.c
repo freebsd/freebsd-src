@@ -182,7 +182,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 	"get %d units from semaphore %p (has %d), timeout %d\n",
 	Units, as, as->as_units, Timeout));
     for (;;) {
-	if (as->as_units == ACPI_NO_UNIT_LIMIT) {
+	if (as->as_maxunits == ACPI_NO_UNIT_LIMIT) {
 	    result = AE_OK;
 	    break;
 	}
@@ -297,7 +297,7 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
     ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
 	"return %d units to semaphore %p (has %d)\n",
 	Units, as, as->as_units));
-    if (as->as_units != ACPI_NO_UNIT_LIMIT) {
+    if (as->as_maxunits != ACPI_NO_UNIT_LIMIT) {
 	as->as_units += Units;
 	if (as->as_units > as->as_maxunits)
 	    as->as_units = as->as_maxunits;
