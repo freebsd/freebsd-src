@@ -305,7 +305,7 @@ extern char *authtype_names[];
 #define	ENCRYPT_START		3	/* Am starting to send encrypted */
 #define	ENCRYPT_END		4	/* Am ending encrypted */
 #define	ENCRYPT_REQSTART	5	/* Request you start encrypting */
-#define	ENCRYPT_REQEND		6	/* Request you send encrypting */
+#define	ENCRYPT_REQEND		6	/* Request you end encrypting */
 #define	ENCRYPT_ENC_KEYID	7
 #define	ENCRYPT_DEC_KEYID	8
 #define	ENCRYPT_CNT		9
