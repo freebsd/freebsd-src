@@ -1,14 +1,14 @@
 # Makefile for libdialog
-# $Id$
+# $Id: Makefile,v 1.21 1997/02/22 15:42:35 peter Exp $
 
 LIB=    dialog
 MAN3=	dialog.3
 
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MINOR= 1
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
-	fselect.c ui_objects.c dir.c notify.c help.c gauge.c
+	fselect.c ui_objects.c dir.c notify.c help.c gauge.c tree.c
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
