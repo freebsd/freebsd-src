@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.77 1997/03/02 17:53:37 bde Exp $
+ * $Id: vfs_subr.c,v 1.78 1997/03/03 12:58:20 bde Exp $
  */
 
 /*
@@ -1647,22 +1647,22 @@ printlockedvnodes()
 /*
  * Top level filesystem related information gathering.
  */
-extern int	vfs_sysctl __P(SYSCTL_HANDLER_ARGS);
 static int	sysctl_ovfs_conf __P(SYSCTL_HANDLER_ARGS);
 
-int
+static int
 vfs_sysctl SYSCTL_HANDLER_ARGS
 {
-	int *name = (int *)arg1;
-	u_int namelen = arg2;
+	int *name = (int *)arg1 - 1;	/* XXX */
+	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
 
 #ifndef NO_COMPAT_PRELITE2
 	/* Resolve ambiguity between VFS_VFSCONF and VFS_GENERIC. */
-	if (namelen == 1 && name[0] == VFS_VFSCONF)
+	if (namelen == 1)
 		return (sysctl_ovfs_conf(oidp, arg1, arg2, req));
 #endif
 
+#ifdef notyet
 	/* all sysctl names at this level are at least name and field */
 	if (namelen < 2)
 		return (ENOTDIR);		/* overloaded */
@@ -1672,13 +1672,10 @@ vfs_sysctl SYSCTL_HANDLER_ARGS
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
-#ifdef notyet
 		return ((*vfsp->vfc_vfsops->vfs_sysctl)(&name[1], namelen - 1,
 		    oldp, oldlenp, newp, newlen, p));
-#else
-		return (EOPNOTSUPP);
-#endif
 	}
+#endif
 	switch (name[1]) {
 	case VFS_MAXTYPENUM:
 		if (namelen != 2)
@@ -1696,6 +1693,9 @@ vfs_sysctl SYSCTL_HANDLER_ARGS
 	}
 	return (EOPNOTSUPP);
 }
+
+SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD, vfs_sysctl,
+	"Generic filesystem");
 
 #ifndef NO_COMPAT_PRELITE2
 
