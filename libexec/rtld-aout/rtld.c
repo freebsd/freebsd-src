@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.37 1996/10/01 16:09:18 nate Exp $
+ *	$Id: rtld.c,v 1.38 1996/10/10 04:10:32 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -1575,6 +1575,7 @@ static char			*hstrtab;
 maphints __P((void))
 {
 	static int		hints_bad;	/* TRUE if hints are unusable */
+	static int		paths_added;
 	int			hfd;
 	struct hints_header	hdr;
 	caddr_t			addr;
@@ -1616,8 +1617,10 @@ maphints __P((void))
 	hbuckets = (struct hints_bucket *)(addr + hheader->hh_hashtab);
 	hstrtab = (char *)(addr + hheader->hh_strtab);
 	/* pluck out the system ldconfig path */
-	if (hheader->hh_version >= LD_HINTS_VERSION_2)
+	if (hheader->hh_version >= LD_HINTS_VERSION_2 && !paths_added) {
 		add_search_path(hstrtab + hheader->hh_dirlist);
+		paths_added = 1;
+	}
 
 	return 0;
 }
