@@ -164,9 +164,9 @@ struct sbic_data {
 struct sbic_data *sbicdata[NSBIC];;
 
 static struct sbic_ccb *sbic_get_ccb(struct sbic_data *, int);
-static int	sbicprobe(struct pc98_device *);
+static int	sbicprobe(struct isa_device *);
 static void	sbic_done(struct sbic_data *, struct sbic_ccb *);
-static int	sbicattach(struct pc98_device *);
+static int	sbicattach(struct isa_device *);
 static int32_t	sbic_scsi_cmd(struct scsi_xfer *xs);
 static u_int32_t sbic_adapter_info(int);
 static void sbicminphys(struct buf *);
@@ -201,7 +201,7 @@ static struct scsi_device sbic_dev = {
 	{ 0, 0 }
 };
 
-struct pc98_driver sbicdriver = {
+struct isa_driver sbicdriver = {
 	sbicprobe,
 	sbicattach,
 	"sbic"
@@ -219,7 +219,7 @@ static struct kern_devconf kdc_sbic[NSBIC] = { {
 } };
 
 static inline void
-sbic_registerdev(struct pc98_device *id)
+sbic_registerdev(struct isa_device *id)
 {
 	if(id->id_unit)
 		kdc_sbic[id->id_unit] = kdc_sbic[0];
@@ -239,7 +239,7 @@ static int sbicunit = 0;
  * autoconf.c
  */
 static int
-sbicprobe(struct pc98_device *dev)
+sbicprobe(struct isa_device *dev)
 {
 	int unit = sbicunit;
 	struct sbic_data *sbic;
@@ -327,7 +327,7 @@ sbicprobe(struct pc98_device *dev)
  * Attach all the sub-devices we can find.
  */
 static int
-sbicattach(struct pc98_device *dev)
+sbicattach(struct isa_device *dev)
 {
 	int unit = dev->id_unit;
 	struct sbic_data *sbic = sbicdata[unit];

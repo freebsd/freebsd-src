@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
+ *	$Id: lpt.c,v 1.2 1996/07/23 07:46:24 asami Exp $
  */
 
 /*
@@ -272,13 +272,8 @@ static struct lpt_softc {
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 static void	lptout (struct lpt_softc * sc);
-#ifdef PC98
-static int	lptprobe (struct pc98_device *dvp);
-static int	lptattach (struct pc98_device *isdp);
-#else
 static int	lptprobe (struct isa_device *dvp);
 static int	lptattach (struct isa_device *isdp);
-#endif
 
 #ifdef INET
 
@@ -306,11 +301,9 @@ static void lpintr(int);
 #ifndef PC98_LPT_INTR
 void lptintr(int unit);
 #endif
-
-struct	pc98_driver lptdriver = {
-#else
-struct	isa_driver lptdriver = {
 #endif
+
+struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
 };
 
@@ -343,13 +336,8 @@ static struct kern_devconf kdc_lpt[NLPT] = { {
 	DC_CLS_PARALLEL | DC_CLS_NETIF /* class */
 } };
 
-#ifdef PC98
-static inline void
-lpt_registerdev(struct pc98_device *id)
-#else
 static inline void
 lpt_registerdev(struct isa_device *id)
-#endif
 {
 	if(id->id_unit)
 		kdc_lpt[id->id_unit] = kdc_lpt[0];
@@ -430,7 +418,7 @@ lpt_port_test (short port, u_char data, u_char mask)
 
 #ifdef PC98
 int
-lptprobe(struct pc98_device *dvp)
+lptprobe(struct isa_device *dvp)
 {
 	return 8;
 }
@@ -500,13 +488,8 @@ end_probe:
 #endif
 
 /* XXX Todo - try and detect if interrupt is working */
-#ifdef PC98
-int
-lptattach(struct pc98_device *isdp)
-#else
 int
 lptattach(struct isa_device *isdp)
-#endif
 {
 	struct	lpt_softc	*sc;
 	int	unit;

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
+ **      $Id: userconfig.c,v 1.2 1996/08/30 10:42:55 asami Exp $
  **/
 
 /**
@@ -127,10 +127,10 @@
 #include <pci/pcivar.h>
 
 #ifdef PC98
-static struct pc98_device *devtabs[] = { pc98_devtab_bio, pc98_devtab_tty, pc98_devtab_net,
+static struct isa_device *devtabs[] = { pc98_devtab_bio, pc98_devtab_tty, pc98_devtab_net,
 				     pc98_devtab_null, NULL };
 
-static struct pc98_device *isa_devlist;	/* list read by dset to extract changes */
+static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 #else
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
@@ -321,11 +321,7 @@ typedef struct _devlist_struct
     int		comment;		/* 0 = device, 1 = comment, 2 = collapsed comment */
     int		conflicts;		/* set/reset by findconflict, count of conflicts */
     int		changed;		/* nonzero if the device has been edited */
-#ifdef PC98
-    struct pc98_device	*device;
-#else
     struct isa_device	*device;
-#endif
     struct _devlist_struct *prev,*next;
 } DEV_LIST;
 
@@ -401,11 +397,7 @@ static void
 getdevs(void)
 {
     int 		i,j;
-#ifdef PC98
-    struct pc98_device	*ap;
-#else
     struct isa_device	*ap;
-#endif
 
     for (j = 0; devtabs[j]; j++)			/* ISA devices */
     {
@@ -680,11 +672,7 @@ initlist(DEV_LIST **list)
 static void
 savelist(DEV_LIST *list, int active)
 {
-#ifdef PC98
-    struct pc98_device	*id_p,*id_pn;
-#else
     struct isa_device	*id_p,*id_pn;
-#endif
 
     while (list)
     {
@@ -698,24 +686,15 @@ savelist(DEV_LIST *list, int active)
 		if (id_p->id_id == list->device->id_id) 
 		{
 		    id_pn = id_p->id_next;
-#ifdef PC98
-		    bcopy(list->device,id_p,sizeof(struct pc98_device));
-#else
 		    bcopy(list->device,id_p,sizeof(struct isa_device));
-#endif
 		    id_p->id_next = id_pn;
 		    break;
 		}
 	    }
 	    if (!id_pn)					/* not already on the list */
 	    {
-#ifdef PC98
-		id_pn = malloc(sizeof(struct pc98_device),M_DEVL,M_WAITOK);
-		bcopy(list->device,id_pn,sizeof(struct pc98_device));
-#else
 		id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 		bcopy(list->device,id_pn,sizeof(struct isa_device));
-#endif
 		id_pn->id_next = isa_devlist;
 		isa_devlist = id_pn;			/* park at top of list */
 	    }
@@ -2226,7 +2205,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.1.1.1 1996/06/14 10:04:41 asami Exp $
+ *      $Id: userconfig.c,v 1.2 1996/08/30 10:42:55 asami Exp $
  */
 
 #include "scbus.h"
@@ -2240,11 +2219,7 @@ visuserconfig(void)
 typedef struct _cmdparm {
     int type;
     union {
-#ifdef PC98
-	struct pc98_device *dparm;
-#else
 	struct isa_device *dparm;
-#endif
 	int iparm;
 	void *aparm;
     } parm;
@@ -2264,24 +2239,14 @@ static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
 
-#ifdef PC98
-static void lsdevtab(struct pc98_device *);
-static struct pc98_device *find_device(char *, int);
-static struct pc98_device *search_devtable(struct pc98_device *, char *, int);
-#else
 static void lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
-#endif
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
 static unsigned long strtoul(const char *, char **, int);
-#ifdef PC98
-static int save_dev(struct pc98_device *);
-#else
 static int save_dev(struct isa_device *);
-#endif
 
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
@@ -2589,11 +2554,7 @@ helpfunc(CmdParm *parms)
 }
 
 static void
-#ifdef PC98
-lsdevtab(struct pc98_device *dt)
-#else
 lsdevtab(struct isa_device *dt)
-#endif
 {
     for (; dt->id_id != 0; dt++) {
 	int i;
@@ -2639,10 +2600,10 @@ lsdevtab(struct isa_device *dt)
 }
 
 #ifdef PC98
-static struct pc98_device *
+static struct isa_device *
 find_device(char *devname, int unit)
 {
-    struct pc98_device *ret;
+    struct isa_device *ret;
 
     if ((ret = search_devtable(&pc98_devtab_bio[0], devname, unit)) != NULL)
         return ret;
@@ -2672,13 +2633,8 @@ find_device(char *devname, int unit)
 }
 #endif
 
-#ifdef PC98
-static struct pc98_device *
-search_devtable(struct pc98_device *dt, char *devname, int unit)
-#else
 static struct isa_device *
 search_devtable(struct isa_device *dt, char *devname, int unit)
-#endif
 {
     int i;
 
@@ -2882,39 +2838,22 @@ list_scsi(CmdParm *parms)
 
 static int
 save_dev(idev)
-#ifdef PC98
-struct pc98_device 	*idev;
-#else
 struct isa_device 	*idev;
-#endif
 {
-#ifdef PC98
-	struct pc98_device	*id_p,*id_pn;
-#else
 	struct isa_device	*id_p,*id_pn;
-#endif
 
 	for (id_p=isa_devlist;
 	id_p;
 	id_p=id_p->id_next) {
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
-#ifdef PC98
-			bcopy(idev,id_p,sizeof(struct pc98_device));
-#else
 			bcopy(idev,id_p,sizeof(struct isa_device));
-#endif
 			id_p->id_next = id_pn;
 			return 1;
 		}
 	}
-#ifdef PC98
-	id_pn = malloc(sizeof(struct pc98_device),M_DEVL,M_WAITOK);
-	bcopy(idev,id_pn,sizeof(struct pc98_device));
-#else
 	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
 	bcopy(idev,id_pn,sizeof(struct isa_device));
-#endif
 	id_pn->id_next = isa_devlist;
 	isa_devlist = id_pn;
 	return 0;
