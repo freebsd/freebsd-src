@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.132 1997/06/09 01:19:44 jkh Exp $
+ * $Id: sysinstall.h,v 1.133 1997/06/13 14:21:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -652,6 +652,7 @@ extern void	mediaShutdownNFS(Device *dev);
 extern int	optionsEditor(dialogMenuItem *self);
 
 /* package.c */
+extern int	packageAdd(dialogMenuItem *self);
 extern int	package_add(char *name);
 extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
