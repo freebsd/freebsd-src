@@ -21,7 +21,7 @@
 extern void (*cpustop_restartfunc)(void);
 extern int mp_ncpus;
 extern int smp_active;
-extern int smp_started;
+extern volatile int smp_started;
 extern int smp_cpus;
 extern u_int all_cpus;
 extern volatile u_int started_cpus;
