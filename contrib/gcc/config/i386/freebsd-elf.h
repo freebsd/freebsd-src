@@ -147,7 +147,7 @@ Boston, MA 02111-1307, USA.  */
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__ELF__ -D_BSD4_4 -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -Di386 -D__ELF__ -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 #undef CPP_SPEC
 #if TARGET_CPU_DEFAULT == 2
