@@ -36,5 +36,9 @@ DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD} ${LIBCRYPT}
 
 .include <bsd.prog.mk>
 
+.if defined(X11BASE)
+CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
+.endif
+
 LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypto -lutil -lz
 DPADD+=	${LIBCRYPTO} ${LIBUTIL} ${LIBZ}

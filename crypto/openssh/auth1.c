@@ -19,6 +19,7 @@ RCSID("$OpenBSD: auth1.c,v 1.2 2000/04/29 18:11:52 markus Exp $");
 #include "compat.h"
 #include "auth.h"
 #include "session.h"
+#include <login_cap.h>
 
 #ifdef KRB5
 extern krb5_context ssh_context;
@@ -223,6 +224,7 @@ do_authloop(struct passwd * pw)
 			if (!options.krb4_authentication) {
 				/* packet_get_all(); */
 				verbose("Kerberos v4 authentication disabled.");
+				break;
 			} else {
 				/* Try Kerberos v4 authentication. */
 				KTEXT_ST auth;
@@ -448,35 +450,35 @@ do_authloop(struct passwd * pw)
 				log("ROOT LOGIN REFUSED FROM %.200s",
 				    get_canonical_hostname());
 			}
+		}
 
 #ifdef LOGIN_CAP
-			lc = login_getpwclass(pw);
-			if (lc == NULL)
-			  lc = login_getclassbyname(NULL, pw);
-			if (!auth_hostok(lc, from_host, from_ip)) {
-			  log("Denied connection for %.200s from %.200s [%.200s].",
-			      pw->pw_name, from_host, from_ip);
-			  packet_disconnect("Sorry, you are not allowed to connect.");
-			}
-			if (!auth_timeok(lc, time(NULL))) {
-			  log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
-			      pw->pw_name, from_host);
-			  packet_disconnect("Logins not available right now.");
-			}
-			login_close(lc);
+		lc = login_getpwclass(pw);
+		if (lc == NULL)
+		  lc = login_getclassbyname(NULL, pw);
+		if (!auth_hostok(lc, from_host, from_ip)) {
+		  log("Denied connection for %.200s from %.200s [%.200s].",
+		      pw->pw_name, from_host, from_ip);
+		  packet_disconnect("Sorry, you are not allowed to connect.");
+		}
+		if (!auth_timeok(lc, time(NULL))) {
+		  log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
+		      pw->pw_name, from_host);
+		  packet_disconnect("Logins not available right now.");
+		}
+		login_close(lc);
 #endif  /* LOGIN_CAP */
 #ifdef LOGIN_ACCESS
-			if (!login_access(pw->pw_name, from_host)) {
-			  log("Denied connection for %.200s from %.200s [%.200s].",
-			      pw->pw_name, from_host, from_ip);
-			  packet_disconnect("Sorry, you are not allowed to connect.");
-			}
+		if (!login_access(pw->pw_name, from_host)) {
+		  log("Denied connection for %.200s from %.200s [%.200s].",
+		      pw->pw_name, from_host, from_ip);
+		  packet_disconnect("Sorry, you are not allowed to connect.");
+		}
 #endif /* LOGIN_ACCESS */
 
-			if (pw->pw_uid == 0)
-			  log("ROOT LOGIN as '%.100s' from %.100s",
-			      pw->pw_name, get_canonical_hostname());
-		}
+		if (pw->pw_uid == 0)
+		  log("ROOT LOGIN as '%.100s' from %.100s",
+		      pw->pw_name, get_canonical_hostname());
 
 		/* Raise logging level */
 		if (authenticated ||
