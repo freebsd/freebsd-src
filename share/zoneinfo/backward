@@ -1,4 +1,4 @@
-# @(#)backward	7.23
+# @(#)backward	7.24
 
 # This file provides links between current names for time zones
 # and their old names.  Many names changed in late 1993.
@@ -36,7 +36,7 @@ Link	America/Manaus		Brazil/West
 Link	America/Halifax		Canada/Atlantic
 Link	America/Winnipeg	Canada/Central
 Link	America/Regina		Canada/East-Saskatchewan
-Link	America/Montreal	Canada/Eastern
+Link	America/Toronto		Canada/Eastern
 Link	America/Edmonton	Canada/Mountain
 Link	America/St_Johns	Canada/Newfoundland
 Link	America/Vancouver	Canada/Pacific
