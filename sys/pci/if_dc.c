@@ -1699,7 +1699,7 @@ static int dc_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->dc_mtx, "dc", MTX_DEF);
+	mtx_init(&sc->dc_mtx, device_get_nameunit(dev), MTX_DEF);
 	DC_LOCK(sc);
 	/* Need this info to decide on a chip type. */
 	sc->dc_info = dc_devtype(dev);

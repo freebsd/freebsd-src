@@ -1277,7 +1277,7 @@ static int sk_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->sk_mtx, "skc", MTX_DEF);
+	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_DEF);
 	SK_LOCK(sc);
 	/* Reset the adapter. */
 	sk_reset(sc);

@@ -1348,7 +1348,7 @@ static int xl_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->xl_mtx, "xl", MTX_DEF);
+	mtx_init(&sc->xl_mtx, device_get_nameunit(dev), MTX_DEF);
 	XL_LOCK(sc);
 
 	/* Reset the adapter. */

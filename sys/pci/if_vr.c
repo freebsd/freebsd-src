@@ -729,7 +729,7 @@ static int vr_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->vr_mtx, "vr", MTX_DEF);
+	mtx_init(&sc->vr_mtx, device_get_nameunit(dev), MTX_DEF);
 	VR_LOCK(sc);
 	/* Reset the adapter. */
 	vr_reset(sc);
