@@ -35,7 +35,7 @@
  *
  *	from: @(#)pccons.c	5.11 (Berkeley) 5/21/91
  *	from: @(#)syscons.c	1.1 931021
- *	$Id: syscons.c,v 1.17 1993/10/31 00:09:02 jkh Exp $
+ *	$Id: syscons.c,v 1.18 1993/10/31 00:19:01 jkh Exp $
  *
  * Heavily modified by Søren Schmidt (sos@login.dkuug.dk) to provide:
  *
@@ -1303,7 +1303,7 @@ static switch_scr(u_int next_scr)
 		switch_in_progress = 0;
 	if (next_scr >= NCONS || switch_in_progress) {
 		sysbeep(BELL_PITCH, BELL_DURATION);
-		return -1;
+		return EINVAL;
 	}
 	switch_in_progress = 1;
 	old_scp = cur_console;
