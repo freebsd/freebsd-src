@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* $NetBSD: frame.h,v 1.2 1999/01/10 10:13:15 tsubai Exp $ */
-
 /*
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
@@ -30,7 +27,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $NetBSD: frame.h,v 1.2 1999/01/10 10:13:15 tsubai Exp $
+ * $FreeBSD$
  */
+
 #ifndef	_MACHINE_FRAME_H_
 #define	_MACHINE_FRAME_H_
 
@@ -54,7 +55,7 @@ struct trapframe {
 	register_t ctr;
 	register_t srr0;
 	register_t srr1;
-	register_t dar;			/* dar & dsisr are only filled on a DSI trap */
+	register_t dar;		/* dar & dsisr are only filled on a DSI trap */
 	int dsisr;
 	int exc;
 };
@@ -62,7 +63,8 @@ struct trapframe {
  * This is to ensure alignment of the stackpointer
  */
 #define	FRAMELEN	roundup(sizeof(struct trapframe) + 8, 16)
-#define	trapframe(p)	((struct trapframe *)((char *)(p)->p_addr + USPACE - FRAMELEN + 8))
+#define	trapframe(p)	((struct trapframe *)((char *)(p)->p_addr \
+			    + USPACE - FRAMELEN + 8))
 
 struct switchframe {
 	register_t sp;
