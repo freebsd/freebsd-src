@@ -42,7 +42,7 @@
 .Nm
 .Fl c
 .Nm
-.Op Fl fvz
+.Op Fl fkvz
 .Op Fl N Ar system
 .Ar directory
 .Sh DESCRIPTION
@@ -61,6 +61,8 @@ will ignore it.
 .It Fl f
 Force a dump to be taken even if the dump doesn't appear correct or there
 is insufficient disk space.
+.It Fl k
+Do not clear the dump after saving it.
 .It Fl N
 Use
 .Ar system
