@@ -63,11 +63,14 @@ sites, then this can be easily accomplished in one of two ways:
            CONFIGURE YOUR KERNEL, go to step 2:
 
 
+
         2. Build a FreeBSD boot floppy from the floppies/boot.flp
-           file in a FreeBSD distribution.  Read floppies/README.TXT
-           for information on how to "image copy" this image onto a
-           floppy then simply reboot directly from that floppy and
-           you should go into the installation.
+           file in a FreeBSD distribution.  If you have a CD distribution,
+           simply run the ``makeflp.bat'' script, otherwise read
+           floppies/README.TXT for information on how to "image copy"
+           this file onto a floppy.  Then simply boot directly from the
+           floppy and you should go into the installation after making a
+           stop at the kernel configuration menu.
 
            This approach also has a big advantage over the
            ``install.bat'' method if you need to configure your
@@ -85,14 +88,20 @@ the documentation in the first "About" menu choice, as well as the
 various docs in the Documentation submenu (though if you're reading
 this section, you're probably not about to do any of that :-).
 
-If you have a network connection (either ppp/slip or dedicated) the
+Remember: If you get stuck at a screen, hit F1 for the online
+documentation for that section.  It may not always be the best
+written doc around, but it's usually a lot better than nothing!
+
+If you have a network connection (either PPP/SLIP or dedicated) the
 installation will manage the outgoing connection for you in fetching
-any additional bits distribution bits you may need along the way.  If
+any additional distribution bits you may need along the way.  If
 you're using a CDROM, this is even more painless as no network
 connection is needed unless you require DES bits or other
-export-restricted software (all of which is available without
+export-restricted software (all of which are available without
 restriction as after-installation components from
-ftp.internat.freebsd.org).
+ftp.internat.freebsd.org).  If you're going to do a DOS install,
+you should simply run the ``setup.exe'' program now and follow
+its instructions.
 
 The FreeBSD installer supports the direct use of floppy, DOS, tape,
 CDROM, FTP, NFS and UFS partitions as installation media, and further
