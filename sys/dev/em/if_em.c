@@ -163,6 +163,7 @@ static void em_print_link_status(struct adapter *);
 static int  em_get_buf(int i, struct adapter *,
 		       struct mbuf *);
 static void em_enable_vlans(struct adapter *);
+static void em_disable_vlans(struct adapter *);
 static int  em_encap(struct adapter *, struct mbuf **);
 static void em_smartspeed(struct adapter *);
 static int  em_82547_fifo_workaround(struct adapter *, int);
@@ -1537,11 +1538,9 @@ em_set_promisc(struct adapter * adapter)
 {
 
 	u_int32_t       reg_rctl;
-	u_int32_t       ctrl;
 	struct ifnet   *ifp = &adapter->interface_data.ac_if;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
-	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
@@ -1550,8 +1549,8 @@ em_set_promisc(struct adapter * adapter)
 		 * This enables bridging of vlan tagged frames to occur 
 		 * and also allows vlan tags to be seen in tcpdump
 		 */
-		ctrl &= ~E1000_CTRL_VME; 
-		E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
+		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+			em_disable_vlans(adapter);
 		adapter->em_insert_vlan_header = 1;
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		reg_rctl |= E1000_RCTL_MPE;
@@ -1568,6 +1567,7 @@ static void
 em_disable_promisc(struct adapter * adapter)
 {
 	u_int32_t       reg_rctl;
+	struct ifnet   *ifp = &adapter->interface_data.ac_if;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
 
@@ -1575,7 +1575,8 @@ em_disable_promisc(struct adapter * adapter)
 	reg_rctl &=  (~E1000_RCTL_MPE);
 	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
 
-	em_enable_vlans(adapter);
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		em_enable_vlans(adapter);
 	adapter->em_insert_vlan_header = 0;
 
 	return;
@@ -1969,7 +1970,7 @@ em_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 #if __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 #endif
 
 #ifdef DEVICE_POLLING
@@ -2995,6 +2996,18 @@ em_enable_vlans(struct adapter *adapter)
 
 	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 	ctrl |= E1000_CTRL_VME; 
+	E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
+
+	return;
+}
+
+static void
+em_disable_vlans(struct adapter *adapter)
+{
+	uint32_t ctrl;
+
+	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
+	ctrl &= ~E1000_CTRL_VME;
 	E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
 
 	return;
