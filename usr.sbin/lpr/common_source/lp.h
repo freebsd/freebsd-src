@@ -128,6 +128,5 @@ void     rmjob __P((void));
 void     rmremote __P((void));
 void     show __P((char *, char *, int));
 int      startdaemon __P((char *));
-void     warn __P((void));
 void     delay __P((int));
 __END_DECLS
