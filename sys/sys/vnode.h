@@ -682,6 +682,7 @@ void	vput __P((struct vnode *vp));
 void	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));
 void	vbusy __P((struct vnode *vp));
+void 	v_addpollinfo(struct vnode *vp);
 
 extern	vop_t **default_vnodeop_p;
 extern	vop_t **spec_vnodeop_p;
