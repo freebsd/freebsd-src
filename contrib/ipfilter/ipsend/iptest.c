@@ -12,7 +12,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptest.c,v 2.0.2.8 1997/10/12 09:48:39 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptest.c,v 2.0.2.8.2.1 1997/11/28 03:36:18 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <netdb.h>
@@ -146,7 +146,7 @@ char **argv;
 			usage(name);
 		}
 
-	if (argc - optind < 2 && !tests)
+	if ((argc <= optind) || !argv[optind])
 		usage(name);
 	dst = argv[optind++];
 
@@ -209,6 +209,13 @@ char **argv;
 		ip_test7(dev, mtu, (ip_t *)ti, gwip, pointtest);
 		break;
 	default :
+		ip_test1(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test2(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test3(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test4(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test5(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test6(dev, mtu, (ip_t *)ti, gwip, pointtest);
+		ip_test7(dev, mtu, (ip_t *)ti, gwip, pointtest);
 		break;
 	}
 	return 0;

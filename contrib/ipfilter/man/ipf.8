@@ -10,7 +10,7 @@ ipf \- alters packet filtering lists for IP packet input and output
 <block|pass|nomatch>
 ] [
 .B \-F
-<i|o|a>
+<i|o|a|s|S>
 ]
 .B \-f
 <\fIfilename\fP>
@@ -43,12 +43,20 @@ Disable the filter (if enabled).  Not effective for loadable kernel versions.
 .B \-E
 Enable the filter (if disabled).  Not effective for loadable kernel versions.
 .TP
-.BR \-F \0<param>
+.BR \-F \0<i|o|a>
 This option specifies which filter list to flush.  The parameter should
 either be "i" (input), "o" (output) or "a" (remove all filter rules).
 Either a single letter or an entire word starting with the appropriate
 letter maybe used.  This option maybe before, or after, any other with
 the order on the command line being that used to execute options.
+.TP
+.BR \-F \0<s|S>
+To flush entries from the state table, the \fB-F\fP option is used in
+conjuction with either "s" (removes state information about any non-fully
+established connections) or "S" (deletes the entire state table).  Only
+one of the two options may be given.  A fully established connection
+will show up in \fBipfstat -s\fP output as 4/4, with deviations either
+way indicating it is not fully established any more.
 .TP
 .BR \-f \0<filename>
 This option specifies which files
@@ -99,7 +107,7 @@ Zero global statistics held in the kernel for filtering only (this doesn't
 affect fragment or state statistics).
 .DT
 .SH SEE ALSO
-ipfstat(1), ipftest(1), ipf(5), mkfilters(1)
+ipfstat(8), ipftest(1), ipf(5), mkfilters(1)
 .SH DIAGNOSTICS
 .PP
 Needs to be run as root for the packet filtering lists to actually

@@ -36,6 +36,11 @@ otherwise not have been (due to the ports not).  This behaviour has
 subsequently been fixed.
 
 
+3)
+
+If you have BOTH GNU make and the normal make shipped with your system,
+DO NOT use the GNU make to build this package.
+
 Darren
 darrenr@cyber.com.au
 		****************************************

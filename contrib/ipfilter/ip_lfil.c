@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.0.2.1 1997/11/12 10:36:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.0.2.1.2.5 1997/12/02 13:55:57 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -49,6 +49,9 @@ static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.0.2.1 1997/11/12 10:36:27 da
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
+#ifdef _KERNEL
+#include <net/ip_forward.h>
+#endif
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
@@ -143,7 +146,7 @@ int ipldetach()
 	}
 
 	fr_checkp = fr_savep;
-	frflush(IPL_LOGIPF, (caddr_t)&i);
+	frflush(IPL_LOGIPF, &i);
 	ipl_inited = 0;
 
 	ipfr_unload();
@@ -197,7 +200,7 @@ int iplioctl(struct inode *inode, struct file *file, u_int cmd, u_long arg)
 int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 {
 #endif
-	int error = 0, unit = 0;
+	int error = 0, unit = 0, tmp;
 
 #ifdef	_KERNEL
 	unit = GET_MINOR(inode->i_rdev);
@@ -305,8 +308,11 @@ int iplioctl(dev_t dev, int cmd, caddr_t data, int mode)
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			error = EPERM;
-		else
-			frflush(unit, data);
+		else {
+			IRCOPY(data, (caddr_t)&tmp, sizeof(tmp));
+			frflush(unit, &tmp);
+			IWCOPY((caddr_t)&tmp, data, sizeof(tmp));
+		}
 		break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFB :
@@ -577,54 +583,53 @@ int iplread(struct inode *inode, struct file *file, char *buf, int nbytes)
  * send_reset - this could conceivably be a call to tcp_respond(), but that
  * requires a large amount of setting up and isn't any more efficient.
  */
-int send_reset(ti)
+int send_reset(ti, ifp)
 struct tcpiphdr *ti;
+struct ifnet *ifp;
 {
-#if notyet
-	struct tcpiphdr *tp;
 	tcphdr_t *tcp;
-	seq_t seq;
 	int tlen = 0;
 	ip_t *ip;
 	mb_t *m;
 
 	if (ti->ti_flags & TH_RST)
 		return -1;		/* feedback loop */
-	m = alloc_skb(MAX_HEADER + sizeof(*ti), GFP_ATOMIC);
+
+	m = alloc_skb(sizeof(tcpiphdr_t), GFP_ATOMIC);
 	if (m == NULL)
 		return -1;
 
 	if (ti->ti_flags & TH_SYN)
 		tlen = 1;
-	m->m_len = sizeof (struct tcpiphdr);
-	bzero(mtod(m, char *), sizeof(struct tcpiphdr));
-	ip = mtod(m, ip_t *);
-	tp = mtod(m, struct tcpiphdr *);
-	tcp = (tcphdr_t *)((char *)ip + sizeof(struct ip));
 
+	m->dev = ifp;
+	m->csum = 0;
+	ip = mtod(m, ip_t *);
+	m->h.iph = ip;
+	m->ip_hdr = NULL;
+	m->m_len = sizeof(tcpiphdr_t);
+	tcp = (tcphdr_t *)((char *)ip + sizeof(ip_t));
+	bzero((char *)ip, sizeof(tcpiphdr_t));
+ 
+	ip->ip_v = IPVERSION;
+	ip->ip_hl = sizeof(ip_t) >> 2;
+	ip->ip_tos = ((ip_t *)ti)->ip_tos;
+	ip->ip_p = ((ip_t *)ti)->ip_p;
+	ip->ip_id = ((ip_t *)ti)->ip_id;
+	ip->ip_len = htons(sizeof(tcpiphdr_t));
+	ip->ip_ttl = 127;
 	ip->ip_src.s_addr = ti->ti_dst.s_addr;
 	ip->ip_dst.s_addr = ti->ti_src.s_addr;
 	tcp->th_dport = ti->ti_sport;
 	tcp->th_sport = ti->ti_dport;
-	seq = ntohl(ti->ti_seq);
-	tcp->th_ack = htonl(seq + tlen);
+	tcp->th_ack = htonl(ntohl(ti->ti_seq) + tlen);
 	tcp->th_off = sizeof(tcphdr_t) >> 2;
 	tcp->th_flags = TH_RST|TH_ACK;
-	tp->ti_pr = ((ip_t *)ti)->ip_p;
-	tp->ti_len = htons(sizeof(struct tcphdr));
-	tcp->th_sum = in_cksum(m, sizeof(struct tcpiphdr));
-
-	ip->ip_tos = ((ip_t *)ti)->ip_tos;
-	ip->ip_p = ((ip_t *)ti)->ip_p;
-	ip->ip_len = sizeof (struct tcpiphdr);
-	ip->ip_ttl = 255;
-
-	/*
-	 * extra 0 in case of multicast
-	 */
-	(void) ip_output(m, (mb_t *)0, 0, 0, 0);
-	return 0;
-#endif
+ 
+	ip->ip_sum = 0;
+	ip->ip_sum = ipf_cksum((u_short *)ip, sizeof(ip_t));
+	tcp->th_sum = fr_tcpsum(m, ip, tcp, sizeof(tcpiphdr_t));
+	return ip_forward(m, NULL, IPFWD_NOTTLDEC, ip->ip_dst.s_addr);
 }
 
 
