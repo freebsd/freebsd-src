@@ -52,8 +52,9 @@ extern	int	use_inet6;
 
 
 char	*proto = NULL;
-char	flagset[] = "FSRPAU";
-u_char	flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH, TH_ACK, TH_URG };
+char	flagset[] = "FSRPAUEC";
+u_char	flags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH, TH_ACK, TH_URG,
+		    TH_ECN, TH_CWR };
 
 #ifdef	USE_INET6
 void fill6bits __P((int, u_32_t *));
@@ -409,8 +410,12 @@ int    linenum;
 	if (s && *s == '0')
 		tcpfm = strtol(s, NULL, 0);
 
-	if (!tcpfm)
-		tcpfm = 0xff;
+	if (!tcpfm) {
+		if (tcpf == TH_SYN)
+			tcpfm = 0xff & ~(TH_ECN|TH_CWR);
+		else
+			tcpfm = 0xff & ~(TH_ECN);
+	}
 	*mask = tcpfm;
 	return tcpf;
 }

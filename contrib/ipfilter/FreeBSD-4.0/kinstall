@@ -10,8 +10,8 @@ set confdir="$archdir/conf"
 if ( $dir =~ */FreeBSD* ) cd ..
 echo -n "Installing "
 foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c \
-	   ip_proxy.[ch] ip_{ftp,rcmd,raudio}_pxy.c mlf_ipl.c ipl.h \
-	   ip_compat.h ip_auth.[ch] ip_log.c)
+	   ip_proxy.[ch] ip_{ftp,rcmd,raudio}_pxy.c mlf_ipl.c mlfk_ipl.c \
+	   ipl.h ip_compat.h ip_auth.[ch] ip_log.c)
 	echo -n "$i ";
 	cp $i /sys/netinet
 	chmod 644 /sys/netinet/$i

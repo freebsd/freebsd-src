@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.8 2000/10/19 15:42:10 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.9 2000/11/12 11:55:17 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -66,7 +66,7 @@ static	int	frzerostats __P((caddr_t));
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
 static	int	send_ip __P((fr_info_t *fin, mblk_t *m));
-kmutex_t	ipl_mutex, ipf_authmx, ipf_rw, ipf_hostmap;
+kmutex_t	ipl_mutex, ipf_authmx, ipf_rw;
 KRWLOCK_T	ipf_mutex, ipfs_mutex, ipf_solaris;
 KRWLOCK_T	ipf_frag, ipf_state, ipf_nat, ipf_natfrag, ipf_auth;
 kcondvar_t	iplwait, ipfauthwait;
@@ -90,7 +90,6 @@ int ipldetach()
 	ip_natunload();
 	cv_destroy(&iplwait);
 	cv_destroy(&ipfauthwait);
-	mutex_destroy(&ipf_hostmap);
 	mutex_destroy(&ipf_authmx);
 	mutex_destroy(&ipl_mutex);
 	mutex_destroy(&ipf_rw);
@@ -117,7 +116,6 @@ int iplattach __P((void))
 	mutex_init(&ipf_rw, "ipf rw mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_authmx, "ipf auth log mutex", MUTEX_DRIVER, NULL);
-	mutex_init(&ipf_hostmap, "ipf hostmap mutex", MUTEX_DRIVER, NULL);
 	RWLOCK_INIT(&ipf_solaris, "ipf filter load/unload mutex", NULL);
 	RWLOCK_INIT(&ipf_mutex, "ipf filter rwlock", NULL);
 	RWLOCK_INIT(&ipfs_mutex, "ipf solaris mutex", NULL);
