@@ -66,9 +66,9 @@
 #define	PCVT_REL "3.20-b24"	/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
-#if PCVT_FREEBSD >= 200
-
 #include "opt_pcvt.h"
+
+#if PCVT_FREEBSD >= 200
 
 #include <sys/param.h>
 #include <sys/conf.h>
