@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.24 1999/05/07 10:10:04 phk Exp $
+ * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -51,7 +51,6 @@ int
 open_drive(struct drive *drive, struct proc *p, int verbose)
 {
     struct nameidata nd;
-    struct vattr va;
     int error;
 
     if (drive->devicename[0] != '/')			    /* no device name */
@@ -77,21 +76,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		drive->devicename,
 		drive->vp->v_usecount);
     }
-    error = VOP_GETATTR(drive->vp, &va, NOCRED, drive->p);
-    if (error) {
-	VOP_UNLOCK(drive->vp, 0, drive->p);
-	close_drive(drive);
-	set_drive_state(drive->driveno, drive_down, setstate_force);
-	drive->lasterror = error;
-	if (verbose)
-	    log(LOG_WARNING,
-		"vinum open_drive %s: GETAATTR returns error %d\n",
-		drive->devicename, error);		    /* XXX */
-	return error;
-    }
-    drive->dev = va.va_rdev;				    /* device */
-
-    if (va.va_type != VBLK) {				    /* only consider block devices */
+    if (drive->vp->v_type != VBLK) {			    /* only consider block devices */
 	VOP_UNLOCK(drive->vp, 0, drive->p);
 	close_drive(drive);
 	set_drive_state(drive->driveno, drive_down, setstate_force); /* this also closes the drive */
@@ -285,12 +270,13 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_bcount = len;
 	bp->b_bufsize = len;
 
-	(*bdevsw(bp->b_dev)->d_strategy) (bp);	    /* initiate the transfer */
+	(*bdevsw(bp->b_dev)->d_strategy) (bp);		    /* initiate the transfer */
 
 	error = biowait(bp);
-	printf("driveio: %s dev 0x%x, block 0x%x, len 0x%lx, error %d\n", /* XXX */
+	printf("driveio: %s dev %d.%d, block 0x%x, len 0x%lx, error %d\n", /* XXX */
 	    flag ? "read" : "write",
-	    bp->b_dev,
+	    major(bp->b_dev),
+	    minor(bp->b_dev),
 	    bp->b_blkno,
 	    bp->b_bcount,
 	    error);
@@ -905,7 +891,7 @@ write_volume_label(int volno)
      * like reading the label and refusing to write
      * unless it's already there. */
     bp = geteblk((int) lp->d_secsize);			    /* get a buffer */
-    bp->b_dev = minor(vol->devno) | (CDEV_MAJOR << MAJORDEV_SHIFT); /* our own raw volume */
+    bp->b_dev = makedev(CDEV_MAJOR, vol->volno);	    /* our own raw volume */
     bp->b_blkno = LABELSECTOR * ((int) lp->d_secsize / DEV_BSIZE);
     bp->b_bcount = lp->d_secsize;
     bzero(bp->b_data, lp->d_secsize);

@@ -57,7 +57,9 @@
  */
 
 #include <sys/param.h>
-#ifndef KERNEL
+#ifdef KERNEL
+#include <sys/systm.h>
+#else
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>

@@ -238,8 +238,7 @@ sizespec(char *spec)
 int 
 Volno(dev_t dev)
 {
-    int x = (int) dev;
-    return (x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
+    return (minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
 }
 
 /*
@@ -250,8 +249,6 @@ Volno(dev_t dev)
 int 
 Plexno(dev_t dev)
 {
-    int x = (int) dev;
-
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
@@ -261,11 +258,11 @@ Plexno(dev_t dev)
 
     case VINUM_PLEX_TYPE:
     case VINUM_SD_TYPE:
-	return VOL[Volno(x)].plex[(x >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
+	return VOL[Volno(dev)].plex[(minor(dev) >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
 
     case VINUM_RAWPLEX_TYPE:
-	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((x >> VINUM_RAWPLEX_SHIFT)
+	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((minor(dev) >> VINUM_RAWPLEX_SHIFT)
 	    & (MASK(VINUM_RAWPLEX_WIDTH)
 		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
     }
@@ -280,8 +277,6 @@ Plexno(dev_t dev)
 int 
 Sdno(dev_t dev)
 {
-    int x = (int) dev;
-
     switch (DEVTYPE(dev)) {
     case VINUM_VOLUME_TYPE:
     case VINUM_DRIVE_TYPE:
@@ -291,11 +286,11 @@ Sdno(dev_t dev)
 	return -1;
 
     case VINUM_SD_TYPE:
-	return PLEX[Plexno(x)].sdnos[(x >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
+	return PLEX[Plexno(dev)].sdnos[(minor(dev) >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
 
     case VINUM_RAWSD_TYPE:
-	return ((x & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((x >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
+	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
+	|((minor(dev) >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
 		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
     }
     return -1;						    /* compiler paranoia */
