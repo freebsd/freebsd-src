@@ -556,7 +556,6 @@ dosum()
 	(void)printf("%9u pages examined by the page daemon\n", sum.v_pdpages);
 	(void)printf("%9u pages reactivated\n", sum.v_reactivated);
 	(void)printf("%9u intransit blocking page faults\n", sum.v_intrans);
-	(void)printf("%9u zero fill pages allocated\n", sum.v_nzfod);
 	(void)printf("%9u zero fill pages zeroed\n", sum.v_zfod);
 	(void)printf("%9u copy-on-write faults\n", sum.v_cow_faults);
 	(void)printf("%9u total VM faults taken\n", sum.v_vm_faults);
