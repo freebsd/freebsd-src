@@ -86,6 +86,7 @@ int ata_wc = 1;
 static struct intr_config_hook *ata_delayed_attach = NULL;
 static int ata_dma = 1;
 static int atapi_dma = 1;
+static int ata_resuming = 0;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
@@ -364,8 +365,10 @@ ata_resume(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
+    ata_resuming = 1;
     error = ata_reinit(ch);
     ata_start(ch);
+    ata_resuming = 0;
     return error;
 }
 
@@ -842,7 +845,7 @@ ata_boot_attach(void)
 void
 ata_udelay(int interval)
 {
-    if (interval < (1000000/hz) || ata_delayed_attach)
+    if (interval < (1000000/hz) || ata_delayed_attach || ata_resuming)
 	DELAY(interval);
     else
 	tsleep(&interval, PRIBIO, "ataslp", interval/(1000000/hz));
