@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.29 1996/05/24 06:08:52 jkh Exp $
+ * $Id: media.c,v 1.25.2.30 1996/06/08 07:15:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,13 +34,19 @@
  *
  */
 
+#include <unistd.h>
 #include <stdio.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include "sysinstall.h"
 
 static int
@@ -251,7 +257,8 @@ int
 mediaSetFTP(dialogMenuItem *self)
 {
     static Device ftpDevice;
-    char *cp;
+    char *cp, *hostname, *dir;
+    extern int FtpPort;
 
     if (!dmenuOpenSimple(&MenuMediaFTP))
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
@@ -281,6 +288,28 @@ mediaSetFTP(dialogMenuItem *self)
 
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    hostname = cp + 6;
+    if ((cp = index(hostname, ':')) != NULL) {
+	*(cp++) = '\0';
+	FtpPort = strtol(cp, 0, 0);
+    }
+    else
+	FtpPort = 21;
+    if ((dir = index(cp ? cp : hostname, '/')) != NULL)
+	*(dir++) = '\0';
+    if (isDebug()) {
+	msgDebug("hostname = `%s'\n", hostname);
+	msgDebug("dir = `%s'\n", dir ? dir : "/");
+	msgDebug("port # = `%d'\n", FtpPort);
+    }
+    msgNotify("Looking up host %s..", hostname);
+    if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
+	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		   "name server, gateway and network interface are correctly configured?", hostname);
+	return DITEM_FAILURE | DITEM_RESTORE | DITEM_RECREATE;
+    }
+    variable_set2(VAR_FTP_HOST, hostname);
+    variable_set2(VAR_FTP_DIR, dir ? dir : "/");
 
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
@@ -331,17 +360,30 @@ int
 mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
-    char *cp;
+    char *cp, *idx;
 
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
 			    "This should be in the format:  hostname:/some/freebsd/dir");
     if (!cp)
 	return DITEM_FAILURE;
+    if (!(idx = index(cp, ':'))) {
+	msgConfirm("Invalid NFS path specification.  Must be of the form:\n"
+		   "host:/full/pathname/to/FreeBSD/distdir");
+	return DITEM_FAILURE;
+    }
     strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
     /* str == NULL means we were just called to change NFS paths, not network interfaces */
     if (!tcpDeviceSelect())
 	return DITEM_FAILURE;
+    *idx = '\0';
+    msgNotify("Looking up host %s..", cp);
+    if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
+	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
+		   "name server, gateway and network interface are correctly configured?", cp);
+	return DITEM_FAILURE;
+    }
+    variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
