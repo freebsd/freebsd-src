@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.95 1999/05/14 10:03:48 kato Exp $
+#	$Id: files.pc98,v 1.96 1999/05/17 12:07:00 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -98,7 +98,7 @@ i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
 pc98/i386/userconfig.c		optional	userconfig
 i386/i386/vm_machdep.c		standard
-i386/i386/vm86.c		optional	vm86	
+i386/i386/vm86.c		standard
 i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stat.c		optional 	ibcs2
 i386/ibcs2/ibcs2_ipc.c		optional 	ibcs2
