@@ -156,6 +156,28 @@
 #define ATA_OP_CONTINUES		0
 #define ATA_OP_FINISHED			1
 
+/* ATAPI request sense structure */
+struct atapi_sense {
+    u_int8_t	error_code	:7;		/* current or deferred errors */
+    u_int8_t	valid		:1;		/* follows ATAPI spec */
+    u_int8_t	segment;			/* Segment number */
+    u_int8_t	sense_key	:4;		/* sense key */
+    u_int8_t	reserved2_4	:1;		/* reserved */
+    u_int8_t	ili		:1;		/* incorrect length indicator */
+    u_int8_t	eom		:1;		/* end of medium */
+    u_int8_t	filemark	:1;		/* filemark */
+    u_int32_t	cmd_info __packed;		/* cmd information */
+    u_int8_t	sense_length;			/* additional sense len (n-7) */
+    u_int32_t	cmd_specific_info __packed;	/* additional cmd spec info */
+    u_int8_t	asc;				/* additional sense code */
+    u_int8_t	ascq;				/* additional sense code qual */
+    u_int8_t	replaceable_unit_code;		/* replaceable unit code */
+    u_int8_t	sk_specific	:7;		/* sense key specific */
+    u_int8_t	sksv		:1;		/* sense key specific info OK */
+    u_int8_t	sk_specific1;			/* sense key specific */
+    u_int8_t	sk_specific2;			/* sense key specific */
+};
+
 struct ata_request {
     struct ata_device		*device;	/* ptr to device softc */
     void			*driver;	/* driver specific */
@@ -169,6 +191,8 @@ struct ata_request {
 	} ata;
 	struct {
 	    u_int8_t		ccb[16];	/* ATAPI command block */
+	    u_int8_t		sense_key;	/* ATAPI request sense key */
+	    struct atapi_sense	sense_data;	/* ATAPI request sense data */
 	} atapi;
     } u;
 
@@ -331,28 +355,6 @@ struct ata_channel {
     struct mtx			queue_mtx;	/* queue lock */
     TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
     void			*running;	/* currently running request */
-};
-
-/* ATAPI request sense structure */
-struct atapi_sense {
-    u_int8_t	error_code	:7;		/* current or deferred errors */
-    u_int8_t	valid		:1;		/* follows ATAPI spec */
-    u_int8_t	segment;			/* Segment number */
-    u_int8_t	sense_key	:4;		/* sense key */
-    u_int8_t	reserved2_4	:1;		/* reserved */
-    u_int8_t	ili		:1;		/* incorrect length indicator */
-    u_int8_t	eom		:1;		/* end of medium */
-    u_int8_t	filemark	:1;		/* filemark */
-    u_int32_t	cmd_info __packed;		/* cmd information */
-    u_int8_t	sense_length;			/* additional sense len (n-7) */
-    u_int32_t	cmd_specific_info __packed;	/* additional cmd spec info */
-    u_int8_t	asc;				/* additional sense code */
-    u_int8_t	ascq;				/* additional sense code qual */
-    u_int8_t	replaceable_unit_code;		/* replaceable unit code */
-    u_int8_t	sk_specific	:7;		/* sense key specific */
-    u_int8_t	sksv		:1;		/* sense key specific info OK */
-    u_int8_t	sk_specific1;			/* sense key specific */
-    u_int8_t	sk_specific2;			/* sense key specific */
 };
 
 /* disk bay/enclosure related */
