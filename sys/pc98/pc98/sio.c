@@ -4229,7 +4229,7 @@ siocnputc(struct consdev *cd, int c)
 	}
 	s = spltty();
 	need_unlock = 0;
-	if (sio_inited == 2 && !mtx_owned(&sio_lock)) {
+	if (!kdb_active && sio_inited == 2 && !mtx_owned(&sio_lock)) {
 		mtx_lock_spin(&sio_lock);
 		need_unlock = 1;
 	}
