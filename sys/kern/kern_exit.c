@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.8 1994/10/02 17:35:14 phk Exp $
+ * $Id: kern_exit.c,v 1.10 1994/10/09 21:53:49 sos Exp $
  */
 
 #include <sys/param.h>
@@ -359,10 +359,10 @@ loop:
 		nfound++;
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 		if (q->p_sysent->sv_sigtbl) {
-			if (p->p_xstat > q->p_sysent->sv_sigsize)
-				sig = q->p_sysent->sv_sigsize + 1;
+			if ((p->p_xstat & 0xff) < q->p_sysent->sv_sigsize)
+				sig = q->p_sysent->sv_sigtbl[p->p_xstat & 0xff];
 			else
-				sig = q->p_sysent->sv_sigtbl[p->p_xstat];
+				sig = q->p_sysent->sv_sigsize + 1;
 		} else
 			sig = p->p_xstat;
 #endif
