@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.35 1998/09/16 02:04:05 jdp Exp $
+ *	$Id: imgact_elf.c,v 1.36 1998/10/03 04:12:09 jdp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -425,7 +425,8 @@ exec_elf_imgact(struct image_params *imgp)
 	u_long addr, entry = 0, proghdr = 0;
 	int error, i, header_size = 0;
 	const char *interp = NULL;
-	char *brand = NULL;
+	Elf_Brandinfo *brand_info;
+	char *brand;
 	char path[MAXPATHLEN];
 
 	/*
@@ -553,75 +554,63 @@ exec_elf_imgact(struct image_params *imgp)
 
 	imgp->entry_addr = entry;
 
-	/* 
-	 * So which kind (brand) of ELF binary do we have at hand
-	 * FreeBSD, Linux, SVR4 or something else ??
-	 * If its has a interpreter section try that first
-	 */
-        if (interp) {
-                for (i=0; i<MAX_BRANDS; i++) {
-                        if (elf_brand_list[i] != NULL) {
-                                if (!strcmp(interp, elf_brand_list[i]->interp_path)) {
-                                        imgp->proc->p_sysent =
-                                                elf_brand_list[i]->sysvec;
-                                        strcpy(path, elf_brand_list[i]->emul_path);
-                                        strcat(path, interp);
-                                        UPRINTF("interpreter=<%s> %s\n",
-                                                interp, elf_brand_list[i]->emul_path);
-                                        break;
-                                }
-                        }
-                }
-        }
+	/* If the executable has a brand, search for it in the brand list. */
+	brand_info = NULL;
+	brand = (char *)&hdr->e_ident[EI_BRAND];
+	if (brand[0] != '\0') {
+		for (i = 0;  i < MAX_BRANDS;  i++) {
+			Elf_Brandinfo *bi = elf_brand_list[i];
 
-	/*
-	 * If there is no interpreter, or recognition of it
-	 * failed, se if the binary is branded.
-	 */
-	if (!interp || i == MAX_BRANDS) {
-		brand = (char *)&(hdr->e_ident[EI_BRAND]);
-		for (i=0; i<MAX_BRANDS; i++) {
-			if (elf_brand_list[i] != NULL) {
-				if (!strcmp(brand, elf_brand_list[i]->brand)) {
-					imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
-					if (interp) {
-						strcpy(path, elf_brand_list[i]->emul_path);
-						strcat(path, interp);
-						UPRINTF("interpreter=<%s> %s\n",
-							interp, elf_brand_list[i]->emul_path);
-					}
-					break;
-				}
+			if (bi != NULL && strcmp(brand, bi->brand) == 0) {
+				brand_info = bi;
+				break;
 			}
 		}
 	}
-	if (i == MAX_BRANDS) {
-#ifndef __alpha__
-		uprintf("ELF binary type not known\n");
+
+	/* Lacking a known brand, search for a recognized interpreter. */
+	if (brand_info == NULL && interp != NULL) {
+		for (i = 0;  i < MAX_BRANDS;  i++) {
+			Elf_Brandinfo *bi = elf_brand_list[i];
+
+			if (bi != NULL &&
+			    strcmp(interp, bi->interp_path) == 0) {
+				brand_info = bi;
+				break;
+			}
+		}
+	}
+
+#ifdef __alpha__
+	/* XXX - Assume FreeBSD on the alpha. */
+	if (brand_info == NULL)
+		brand_info = &freebsd_brand_info;
+#endif
+
+	if (brand_info == NULL) {
+		if (brand[0] == 0)
+			uprintf("ELF binary type not known."
+			    "  Use \"brandelf\" to brand it.\n");
+		else
+			uprintf("ELF binary type \"%.*s\" not known.\n",
+			    EI_NIDENT - EI_BRAND, brand);
 		error = ENOEXEC;
 		goto fail;
-#else
-		i = 0;		/* assume freebsd */
-		imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
-		if (interp) {
-			strcpy(path, elf_brand_list[i]->emul_path);
-			strcat(path, interp);
-			UPRINTF("interpreter=<%s> %s\n",
-				interp, elf_brand_list[i]->emul_path);
-		}
-#endif
 	}
-	if (interp) {
-                if (error = elf_load_file(imgp->proc,
-                                          path,
-                                          &addr,        /* XXX */
-                                          &imgp->entry_addr)) {
+
+	imgp->proc->p_sysent = brand_info->sysvec;
+	if (interp != NULL) {
+		strcpy(path, brand_info->emul_path);
+		strcat(path, interp);
+		UPRINTF("interpreter=<%s> %s\n", interp, brand_info->emul_path);
+                if ((error = elf_load_file(imgp->proc, path, &addr,
+		    &imgp->entry_addr)) != 0) {
                         uprintf("ELF interpreter %s not found\n", path);
                         goto fail;
                 }
 	}
 
-	UPRINTF("Executing %s binary\n", elf_brand_list[i]->brand);
+	UPRINTF("Executing %s binary\n", brand_info->brand);
 
 	/*
 	 * Construct auxargs table (used by the fixup routine)
