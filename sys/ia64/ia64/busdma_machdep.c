@@ -42,8 +42,6 @@
 #include <machine/bus.h>
 #include <machine/md_var.h>
 
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
 #define MAX_BPAGES 128
 
 struct bus_dma_tag {

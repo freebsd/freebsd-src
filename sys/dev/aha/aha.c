@@ -84,10 +84,6 @@
  */
 #define PROBABLY_NEW_BOARD(REV) (REV > 0x43 && REV < 0x56)
 
-#ifndef MAX
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
 /* MailBox Management functions */
 static __inline void	ahanextinbox(struct aha_softc *aha);
 static __inline void	ahanextoutbox(struct aha_softc *aha);

@@ -69,8 +69,6 @@ typedef enum {
 #define MAX_IMMEDIATE	16
 #define MAX_BUF_SIZE	256	/* Max inquiry/sense/mode page transfer */
 
-#define MIN(a, b) ((a > b) ? b : a)
-
 /* Offsets into our private CCB area for storing accept information */
 #define ccb_type	ppriv_field0
 #define ccb_descr	ppriv_ptr1

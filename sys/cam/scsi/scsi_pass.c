@@ -76,10 +76,6 @@ struct pass_softc {
 	dev_t			dev;
 };
 
-#ifndef MIN
-#define MIN(x,y) ((x<y) ? x : y)
-#endif
-
 #define PASS_CDEV_MAJOR 31
 
 static	d_open_t	passopen;

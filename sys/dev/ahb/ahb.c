@@ -55,8 +55,6 @@
 #define ccb_ecb_ptr spriv_ptr0
 #define ccb_ahb_ptr spriv_ptr1
 
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-
 #define ahb_inb(ahb, port)				\
 	bus_space_read_1((ahb)->tag, (ahb)->bsh, port)
 

@@ -35,8 +35,6 @@
 #error "The gpib device requires the old isa compatibility shims"
 #endif
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
 #define GPIBPRI  (PZERO + 8) | PCATCH
 #define SLEEP_MAX 1000
 #define SLEEP_MIN 4

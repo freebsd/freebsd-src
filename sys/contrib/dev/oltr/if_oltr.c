@@ -92,7 +92,6 @@
 
 #define PCI_VENDOR_OLICOM 0x108D
 
-#define MIN(A,B) (((A) < (B)) ? (A) : (B))
 #define MIN3(A,B,C) (MIN(A, (MIN(B, C))))
 
 char *AdapterName[] = {

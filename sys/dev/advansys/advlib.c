@@ -1170,8 +1170,6 @@ adv_period_offset_to_sdtr(struct adv_softc *adv, u_int *period,
 		period = &dummy_period;
 	}
 
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-
 	*offset = MIN(ADV_SYN_MAX_OFFSET, *offset);
 	if (*period != 0 && *offset != 0) {
 		for (i = 0; i < adv->sdtr_period_tbl_size; i++) {
