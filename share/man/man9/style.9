@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.21 1997/12/07 20:19:20 wollman Exp $
+.\"	$Id: style.9,v 1.23 1999/01/30 04:17:14 julian Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -256,13 +256,23 @@ have a NOTREACHED comment.
 .Ed
 .Pp
 Space after keywords (if, while, for, return, switch).  No braces are
-used for control statements with zero or only a single statement.
+used for control statements with zero or only a single statement unless that
+statement is more than a single line in which case they are permitted.
 Forever loops are done with for's, not while's.
 .Bd -literal -offset 0i
 	for (p = buf; *p != '\e0'; ++p)
 		;	/* nothing */
 	for (;;)
 		stmt;
+	for (;;) {
+		z = a + really + long + statement + that + needs +
+		    two lines + gets + indented + four + spaces +
+		    on + the + second + and + subsequent + lines;
+	}
+	for (;;) {
+		if (cond)
+			stmt;
+	}
 	if (val != NULL)
 		val = realloc(val, newsize);
 .Ed
@@ -290,7 +300,7 @@ to form the indentation.  Do not use more spaces than a tab will produce
 and do not use spaces in front of tabs.
 .Pp
 Closing and opening braces go on the same line as the else.
-Don't add braces that aren't necessary.
+Braces that aren't necessary may be left out.
 .Bd -literal -offset 0i
 	if (test)
 		stmt;
@@ -318,7 +328,8 @@ characters.
 .Pp
 Unary operators don't require spaces, binary operators do. Don't
 use parentheses unless they're required for precedence, or the
-statement is really confusing without them.
+statement is confusing without them. Remember that other people may
+confuse easier then you. Do YOU understand the following?
 .Bd -literal -offset 0i
 	a = b->c[0] + ~d == (e || f) || g && h ? i : j >> 1;
 	k = !(l & FLAGS);
@@ -481,6 +492,10 @@ Stylistic changes (including whitespace changes) are hard on the source
 repository and are to be avoided without good reason.  Code that is
 approximately KNF compliant in the repository must not diverge from
 compliance.
+.Pp
+Whenever possible, code should be run through a code checker
+(e.g., "gcc -Wall" or xlint(1)) and produce minimal warnings.
+
 .Sh SEE ALSO
 .Xr indent 1 ,
 .Xr err 3 ,
