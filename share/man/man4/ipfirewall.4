@@ -1,215 +1,199 @@
 .\"
-.\"	$Id: ipfirewall.4,v 1.8 1997/03/07 02:49:27 jmg Exp $
+.\"     $Id: ipfirewall.4,v 1.6.2.2 1997/03/07 03:07:41 mpp Exp $
 .\"
-.Dd November 16, 1994
+.Dd June 22, 1997
 .Dt IPFIREWALL 4
 .Os
 .Sh NAME
-.Nm ipfirewall ,
-.Nm ipfw ,
-.Nm ipaccounting ,
-.Nm ipacct
-.Nd IP packet filter and traffic accounting.
+.Nm ipfirewall
+.Nd IP packet filter and traffic accounting
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/queue.h>
 .Fd #include <netinet/in.h>
 .Fd #include <netinet/ip_fw.h>
 .Ft int
-.Fn setsockopt raw_socket IPPROTO_IP "ipfw/ipacct  option" "struct ip | struct ipfw" size
-
-Ipfw options:
-  IP_FW_ADD_BLK   - add entry to blocking chain. 
-  IP_FW_ADD_FWD   - add entry to forwarding chain. 
-  IP_FW_CHK_BLK   - check ip packet against blocking chain.
-  IP_FW_CHK_FWD   - check ip packet against forwarding chain.
-  IP_FW_DEL_BLK   - delete entry from blocking chain.
-  IP_FW_DEL_FWD   - delete entry from forwarding chain.
-  IP_FW_FLUSH     - flush all blocking & forwarding chain entries.
-  IP_FW_POLICY    - define default ipfw policy.
-
-Ipacct options:
-  IP_ACCT_ADD     - add entry to accounting chain.
-  IP_ACCT_DEL     - delete entry from accounting chain.
-  IP_ACCT_FLUSH   - flush all accounting chain entries.
-  IP_ACCT_ZERO    - zero all accounting chain entries.
-
-Ipfw/ipacct entry structure:
-  #define IP_FW_MAX_PORTS 10             
-
-struct ip_fw {
-  struct ip_fw *next;       
-  struct in_addr src, dst; 
-  struct in_addr src_mask, dst_mask;  
-  u_short flags;                     
-  u_short n_src_p, n_dst_p;  
-  u_short ports[IP_FW_MAX_PORTS];  
-  u_long p_cnt,b_cnt;  
-}
-
-Flags values for "flags" field:
-  IP_FW_F_ALL  	- The entry should match all IP packets. 
-  IP_FW_F_TCP     - The entry should match TCP packets.
-  IP_FW_F_UDP     - The entry should match UDP packets.
-  IP_FW_F_ICMP    - The entry should match ICMP packets.
-  IP_FW_F_KIND    - Mask value to separate protocol kind.
-  IP_FW_F_ACCEPT  - This entry is accepting ( see below )
-  IP_FW_F_SRNG    - Source ports are range ( see below )
-  IP_FW_F_DRNG    - Destination ports are range ( see below )
-  IP_FW_F_PRN     - Print this entry ( see below )
-  IP_FW_F_BIDIR   - This acct entry is bidirectional ( see below )
-  IP_FW_F_MASK    - Mask to match all valid flag bits.
-
-Kernel symbols to kvm_nlist():
-  struct ip_fw *ip_fw_blk_chain - chain of forwarding entries.
-  struct ip_fw *ip_fw_fwd_chain - chain of blocking entries.
-  int           ip_fw_policy    - default policy.
-  struct ip_fw *ip_acct_chain   - chain of accounting entries.
-
-Options in the kernel configuration file:
-  IPFIREWALL	   - enable ipfirewall.
-  IPFIREWALL_VERBOSE - enable firewall output ( see below )
-  DEBUG_IPFIREWALL   - enable extensive debugging output.
-  IPACCT		   - enable ipaccounting.
-
+.Fn setsockopt raw_socket IPPROTO_IP "ipfw option" "struct ipfw" size
 .Sh DESCRIPTION
-Ipfirewall (later ipfw) is a system facility,which allows filtering
-of incoming and/or forwarding packets on the protocol+source/destination
-address/ports base.
-Ipaccounting (later ipacct) is a system facility,which allows counting
-of incoming,outgoing and forwarding traffic by packet/byte count.
+Ipfirewall (alias ipfw) is a system facility which allows filtering,
+redirecting, and other operations on IP packets travelling through
+system interfaces. Packets are matched by applying an ordered list
+of pattern rules against each packet until a match is found, at
+which point the corresponding action is taken. Rules are numbered
+from 1 to 65534; multiple rules may share the same number.
 .Pp
-Basic idea is that every packet checked against number of entries
-in several chains.  There are 3 chains:
-  Blocking - this chain defines whenever packet should be accepted
-             ever for local delivery or for forwarding.
-  Forwarding - this chain defines whenever packet should be accepted
-               for forwarding only.
-  Accounting - this chain defines types of packets , which should be
-
+There is one rule that always exists, rule number 65535. This rule
+causes all packets to be dropped. Hence, any packet which does not
+match a lower numbered rule will be dropped.
 .Pp
-Options to add/remove specific entries or to flush all entries described
-above. Value passed to 
+The value passed to 
 .Fn setsockopt
-is a value of struct ip_fw for
-entry. If an entry is added, it checked by such rules that when we start 
-searching chain for matching entry the first matching is the best match,
-[ or at least one of them :^) ].
- That means:
-  * First in chain entries with specific protocol and small ranges
-    of src/dst addresses and ports. 
-  * Later go entries with wider ranges of ports and addresses.
-  * Later entries matching every port for some address range.
-  * Later universal entries matching any protocol.
+is a struct ip_fw describing the rule (see below). In some cases
+(such as IP_FW_DEL), only the rule number is significant.
+.Sh COMMANDS
+The following socket options are used to manage the rule list:
 .Pp
-While deleting entry, every entry which is equal to that passed to 
-.Fn setsockopt
-will be removed.  Flush removes all entries.
-Each entry has several fields by which packets are matched:
-
-
-   struct ip_fw *next - next entry in chain.(Set internally)
-
-   struct in_addr src - source address to be matched.
-   struct in_addr src_mask  - source address mask.
-           To match whole networks/subnets or address groups
-           mask bits should be zeroed here and also
-           in src_mask field. Valuable bits should be set
-           in src_mask field.
-   struct in_addr dst - destination address to be matched.
-   struct in_addr dst_mask - destination address mask. 
-
-   u_short flags  - flags field.See exact description of flags meaning
-                    in description later.
-
-   u_short n_src_p - number of source ports in "ports" array.
-   u_short n_dst_p - number of destination ports in "ports" array. 
-   u_short ports[] - ports array.Overall length currently defined
-                     to reasonable maximum - 10,and could be changed.
-                     The packet's src port can ever match one of
-                     ports[0] ... ports[--n_src_p] numbers,or if
-                     flag IP_FW_F_SRNG set take port[0] as bottom 
-                     range value and ports[1] as top one.n_src_p should
-                     be set to 2 then.If n_src_p equal to 0 , every port
-                     match. The same rules apply to packet's dst port,
-                     except that it matched against ports[n_src_p] ...
-                     ... ports[n_src_p+n_dst_p--],or if IP_FW_F_DRNG set,
-                     range is ports[n_src_p] to ports[n_srcp++].
-
-   u_long p_cnt - packets count for ipacct entries.
-   u_long b_cnt - bytes count for ipacct entries.
-
-Packet matching proceeds in the following manner:
-
-a) If packet entry protocol set to ALL, see c).
-
-b) If entry protocol set to TCP/UDP/ICMP and packet protocol 
-   different - no match, if packet protocol and entry protocol
-   same - continue.
-     
-c) If source address pattern does not equal to packets sources address
-   masked with src_mask, or destination pattern not equal to packets
-   destination address masked with dst_mask - no match.
-   If they does and protocol set to ALL/ICMP - got match.
-   If they does and protocol set to TCP/UDP - continue.
-
-d) If src port doesn't match or dst port doesn't match - all
-   packet don't match. If they do - got match.
+IP_FW_ADD inserts the rule into the rule list.
 .Pp
-In ipfw packet matched consequently against every chain entry.
-Search continues untill first matching entry found.If IP_FW_F_ACCEPT
-flag set - packet accepted.  If it is not set - packet denied.
-If no matching entry found, all unmatched packets ever accepted or
-denied depending on global policy value. It can be set with
-IP_FW_POLICY raw socket option. The value for deny is 0, 
-and 1 for accept.
+IP_FW_DEL deletes all rules having the matching rule number.
 .Pp
-Entries can be added with IP_FW_F_PRN flag set.If kernel compiled
-with IPFIREWALL_VERBOSE option,packets matching this entries will
-be printed by kernel printf's.
+IP_FW_GET returns the (first) rule having the matching rule number.
 .Pp
-If some chain is empty,every packet accepted by this chain no
-matter what default policy is.
+IP_FW_ZERO zeros the statistics associated with all rules having the
+matching rule number. If the rule number is zero, all rules are zeroed.
 .Pp
-To check whenever or not packet denied by some chain , checking
-options to setsockopt() can be issued. Then the argument is 
-a buffer representing ip packet,thus it has to be 
-struct ip + struct tcphdr .
-Then setsockopt() return value 0 on accept or another on deny.
+IP_FW_FLUSH removes all rules (except 65535).
 .Pp
-Ipaccounting entries added the same way as ipfw ones.Packet checked
-against all entries in chain and values of p_cnt and b_cnt in matching
-entries rised.p_cnt rises by 1 and b_cnt by ip_len value of ip packet.
-Thus all traffic size counted including IP headers.
+When the kernel security level is greater than 2, only IP_FW_GET
+is allowed.
+.Sh RULE STRUCTURE
+Rules are described by the following structure:
+.Bd -literal
+/* Specify an interface */
+union ip_fw_if {
+    struct in_addr fu_via_ip;   /* Specified by IP address */
+    struct {                    /* Specified by interface name */
+#define FW_IFNLEN       6       /* To keep structure on 2^x boundary */
+            char  name[FW_IFNLEN];
+            short unit;         /* -1 means match any unit */
+    } fu_via_if;
+};
+
+/* One ipfw rule */
+struct ip_fw {
+    u_long fw_pcnt,fw_bcnt;         /* Packet and byte counters */
+    struct in_addr fw_src, fw_dst;  /* Source and destination IP addr */
+    struct in_addr fw_smsk, fw_dmsk;/* Mask for src and dest IP addr */
+    u_short fw_number;              /* Rule number */
+    u_short fw_flg;                 /* Flags word */
+#define IP_FW_MAX_PORTS 10          /* A reasonable maximum */
+    u_short fw_pts[IP_FW_MAX_PORTS];/* Array of port numbers to match */
+    u_char fw_ipopt,fw_ipnopt;      /* IP options set/unset */
+    u_char fw_tcpf,fw_tcpnf;        /* TCP flags set/unset */
+#define IP_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
+    unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
+    long timestamp;                 /* timestamp (tv_sec) of last match */
+    union ip_fw_if fw_in_if, fw_out_if;/* Incoming / outgoing interfaces */
+    union {
+        u_short fu_divert_port;     /* Divert/tee port */
+        u_short fu_skipto_rule;     /* SKIPTO command rule number */
+        u_short fu_reject_code;     /* REJECT response code */
+    } fw_un;
+    u_char fw_prot;                 /* IP protocol */
+    u_char fw_nports;               /* N'of src ports and # of dst ports */
+                                    /* in ports array (dst ports follow */
+                                    /* src ports; max of 10 ports in all */
+                                    /* count of 0 means match all ports) */
+};
+
+/* Encoding of number of source/dest ports from "fw_nports" */
+
+#define IP_FW_GETNSRCP(rule)            ((rule)->fw_nports & 0x0f)
+#define IP_FW_SETNSRCP(rule, n)         do {                            \\
+                                          (rule)->fw_nports &= ~0x0f;   \\
+                                          (rule)->fw_nports |= (n);     \\
+                                        } while (0)
+#define IP_FW_GETNDSTP(rule)            ((rule)->fw_nports >> 4)
+#define IP_FW_SETNDSTP(rule, n)         do {                            \\
+                                          (rule)->fw_nports &= ~0xf0;   \\
+                                          (rule)->fw_nports |= (n) << 4;\\
+                                        } while (0)
+
+/* Flags values for "flags" field */
+
+#define IP_FW_F_IN      0x0001  /* Check inbound packets                */
+#define IP_FW_F_OUT     0x0002  /* Check outbound packets               */
+#define IP_FW_F_IIFACE  0x0004  /* Apply inbound interface test         */
+#define IP_FW_F_OIFACE  0x0008  /* Apply outbound interface test        */
+
+#define IP_FW_F_COMMAND 0x0070  /* Mask for type of chain entry:        */
+#define IP_FW_F_DENY    0x0000  /* This is a deny rule                  */
+#define IP_FW_F_REJECT  0x0010  /* Deny and send a response packet      */
+#define IP_FW_F_ACCEPT  0x0020  /* This is an accept rule               */
+#define IP_FW_F_COUNT   0x0030  /* This is a count rule                 */
+#define IP_FW_F_DIVERT  0x0040  /* This is a divert rule                */
+#define IP_FW_F_TEE     0x0050  /* This is a tee rule                   */
+#define IP_FW_F_SKIPTO  0x0060  /* This is a skipto rule                */
+
+#define IP_FW_F_PRN     0x0080  /* Print if this rule matches           */
+
+#define IP_FW_F_SRNG    0x0100  /* The first two src ports are a min    *
+                                 * and max range (stored in host byte   *
+                                 * order).                              */
+
+#define IP_FW_F_DRNG    0x0200  /* The first two dst ports are a min    *
+                                 * and max range (stored in host byte   *
+                                 * order).                              */
+
+#define IP_FW_F_IIFNAME 0x0400  /* In interface by name/unit (not IP)   */
+#define IP_FW_F_OIFNAME 0x0800  /* Out interface by name/unit (not IP)  */
+
+#define IP_FW_F_INVSRC  0x1000  /* Invert sense of src check            */
+#define IP_FW_F_INVDST  0x2000  /* Invert sense of dst check            */
+
+#define IP_FW_F_FRAG    0x4000  /* Fragment                             */
+
+#define IP_FW_F_ICMPBIT 0x8000  /* ICMP type bitmap is valid            */
+
+#define IP_FW_F_MASK    0xFFFF  /* All possible flag bits mask          */
+.Ed
+
+.Sh RULE ACTIONS
+Each rule has an action described by the IP_FW_F_COMMAND bits in the
+flags word:
+
+  IP_FW_F_DENY          - drop packet
+  IP_FW_F_REJECT        - drop packet; send rejection via ICMP or TCP
+  IP_FW_F_ACCEPT        - accept packet
+  IP_FW_F_COUNT         - increment counters; continue matching
+  IP_FW_F_DIVERT        - divert packet to a divert(4) socket
+  IP_FW_F_TEE           - copy packet to a divert(4) socket; continue
+  IP_FW_F_SKIPTO        - skip to rule number fu_skipto_rule
 .Pp
-If IP_FW_F_BIDIR flag is set in accounting entry,packets counted are
-those which match entry in standard way along with packets which match
-entry while their source and destination addr/port pairs swapped.
+In the case of IP_FW_F_REJECT, if the fu_reject_code is a number
+from 0 to 255, then an ICMP unreachable packet is sent back to the
+original packet's source IP address, with the corresponding code.
+Otherwise, the value must be 256 and the protocol IPPROTO_TCP,
+in which case a TCP reset packet is sent instead.
 .Pp
-Zero option allows all accounting to be cleared.
+With IP_FW_F_SKIPTO, all succeeding rules having rule number less
+than fu_skipto_rule are skipped.
+.Sh KERNEL OPTIONS
+Options in the kernel configuration file:
+  IPFIREWALL               - enable ipfirewall.
+  IPFIREWALL_VERBOSE       - enable firewall output
+  IPFIREWALL_VERBOSE_LIMIT - limit firewall output
+  DIVERT                   - enable divert(4) sockets.
+.Pp
+When packets match a rule with the IP_FW_F_PRN bit set, a message
+is logged to the console if IPFIREWALL_VERBOSE has been enabled;
+IPFIREWALL_VERBOSE_LIMIT limits the maximum number of times each
+rule can cause cause a log message. These variables are also
+available via the
+.Xr sysctl 3
+interface.
 .Sh DIAGNOSTICS
 
 [EINVAL]  The IP option field was improperly formed; an option
           field was shorter than the minimum value or longer than
-          the option buffer provided.An structural error in 
+          the option buffer provided. A structural error in 
           ip_fw structure occurred (n_src_p+n_dst_p too big,
-          ports set for ALL/ICMP protocols etc.)
+          ports set for ALL/ICMP protocols etc.). An invalid
+          rule number was used.
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
-.Xr kvm_nlist 3 ,
-.Xr kvm_read 3 ,
-.Xr ip 4
+.Xr ip 4 ,
+.Xr divert 4 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8 .
 .Sh BUGS
-The ipfw/ipacct facilities are new and, although serious bugs have
-been tracked, some less important ones are expected.
+The ``tee'' rule is not yet implemented (currently it has no effect).
 .Pp
-This man page is mostly out of date and should be rewritten. 
+This man page still needs work.
 .Sh HISTORY
- Ipfw facility has been initially written as package to BSDI
+The ipfw facility was initially written as package to BSDI
 by Daniel Boulet <danny@BouletFermat.ab.ca>.
- It has been heavily modified and ported to
-.Fx 2.0
-by Ugen J.S.Antsilevich <ugen@NetVision.net.il>
- Ipacct facility written for
-.Fx 2.0
-by Ugen J.S.Antsilevich <ugen@NetVision.net.il>
+It has been heavily modified and ported to FreeBSD
+by Ugen J.S.Antsilevich <ugen@NetVision.net.il>.
+.Pp
+Several enhancements added by Archie Cobbs <archie@whistle.com>.
