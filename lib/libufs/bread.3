@@ -14,7 +14,7 @@
 .Os
 .Sh NAME
 .Nm bread , bwrite
-.Nd read and write blocks of a UFS filesystem
+.Nd read and write blocks of a UFS file system
 .Sh LIBRARY
 .Lb libufs
 .Sh SYNOPSIS
@@ -27,7 +27,10 @@
 .Ft ssize_t
 .Fn bread "struct uufsd *disk" "ufs2_daddr_t blockno" "void *data" "size_t size"
 .Ft ssize_t
-.Fn bwrite "struct uufsd *disk" "ufs2_daddr_t blockno" "const void *data" "size_t size"
+.Fo bwrite
+.Fa "struct uufsd *disk" "ufs2_daddr_t blockno"
+.Fa "const void *data" "size_t size"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn bread
@@ -38,14 +41,14 @@ functions provide a block read and write API for
 consumers.
 They operate on a userland UFS disk structure, and perform the read
 and write at a given block address, which uses the current
-.Fa d_bsize
+.Va d_bsize
 value of the structure.
-.Pp
+.Sh RETURN VALUES
 The
 .Fn bread
 and
 .Fn bwrite
-functions return the amount read or written, or -1 in case of any error,
+functions return the amount read or written, or \-1 in case of any error,
 including short read.
 .Sh ERRORS
 The function
