@@ -27,29 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Configuration
- */
-/*#define	EPIC_DEBUG	1*/
-/*#define	EPIC_USEIOSPACE	1*/
-#define	EARLY_RX	1
-
-#ifndef ETHER_MAX_LEN
-#define ETHER_MAX_LEN		1518
-#endif
-#ifndef ETHER_MIN_LEN
-#define ETHER_MIN_LEN		64
-#endif
-#ifndef ETHER_CRC_LEN
-#define ETHER_CRC_LEN		4
-#endif
-#define TX_RING_SIZE		16		/* Leave this a power of 2 */
-#define RX_RING_SIZE		16		/* And this too, to do not */
-						/* confuse RX(TX)_RING_MASK */
-#define TX_RING_MASK		(TX_RING_SIZE - 1)
-#define RX_RING_MASK		(RX_RING_SIZE - 1)
-#define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
-
 #define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */
 
 /* PCI aux configuration registers */
@@ -198,16 +175,11 @@
 #define TXCON_DEFAULT		(TXCON_SLOT_TIME | TXCON_EARLY_TRANSMIT_ENABLE)
 #define TRANSMIT_THRESHOLD	0x300
 
-#if defined(EARLY_RX)
-#define RXCON_EARLY		(RXCON_EARLY_RECEIVE_ENABLE | \
-				 RXCON_SAVE_ERRORED_PACKETS)
-#else
-#define RXCON_EARLY		(0)
-#endif
-
-#define	RXCON_DEFAULT		(RXCON_EARLY | \
-				 RXCON_RECEIVE_MULTICAST_FRAMES | \
+#define	RXCON_DEFAULT		(RXCON_RECEIVE_MULTICAST_FRAMES | \
 				 RXCON_RECEIVE_BROADCAST_FRAMES)
+
+#define RXCON_EARLY_RX		(RXCON_EARLY_RECEIVE_ENABLE | \
+				 RXCON_SAVE_ERRORED_PACKETS)
 /*
  * EEPROM structure
  * SMC9432* eeprom is organized by words and only first 8 words
@@ -223,7 +195,7 @@
 #define	EEPROM_SSID		0x0006	/* Subsystem Id */
 
 /*
- * Structures definition and Functions prototypes
+ * Hardware structures
  */
 
 /* EPIC's hardware descriptors, must be aligned on dword in memory */
@@ -258,26 +230,10 @@ struct epic_frag_list {
 	volatile u_int32_t		pad;		/* align on 256 bytes */
 };
 
-/* This is driver's structure to define EPIC descriptors */
-struct epic_rx_buffer {
-	struct mbuf *		mbuf;		/* mbuf receiving packet */
-};
-
-struct epic_tx_buffer {
-	struct mbuf *		mbuf;		/* mbuf contained packet */
-};
-
 /*
  * NB: ALIGN OF ABOVE STRUCTURES
  * epic_rx_desc, epic_tx_desc, epic_frag_list - must be aligned on dword
  */
-
-/* PHY, known by tx driver */
-#define	EPIC_UNKN_PHY		0x0000
-#define	EPIC_QS6612_PHY		0x0001
-#define	EPIC_AC101_PHY		0x0002
-#define	EPIC_LXT970_PHY		0x0003
-#define	EPIC_SERIAL		0x0004
 
 #define	SMC9432DMT		0xA010
 #define	SMC9432TX		0xA011
@@ -291,103 +247,4 @@ struct epic_tx_buffer {
 #define	SMC9434TX_XG_ADHOC	0xA021
 #define	SMC9432FTX_ADHOC	0xA022
 #define	SMC9432BTX1		0xA024
-
-/* Driver status structure */
-typedef struct {
-	struct arpcom		arpcom;
-#if defined(__OpenBSD__)
-	mii_data_t		sc_mii;
-	struct device		dev;
-#else /* __FreeBSD__ */
-	struct resource		*res;
-	struct resource		*irq;
-
-	device_t		miibus;
-	device_t		dev;
-	struct callout_handle	stat_ch;
-
-	u_int32_t		unit;
-#endif
-	void			*sc_ih;
-	bus_space_tag_t		sc_st;
-	bus_space_handle_t	sc_sh;
-
-	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
-	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
-
-	/* Each element of array MUST be aligned on dword  */
-	/* and bounded on PAGE_SIZE 			   */
-	struct epic_rx_desc	*rx_desc;
-	struct epic_tx_desc	*tx_desc;
-	struct epic_frag_list	*tx_flist;
-	u_int32_t		flags;
-	u_int32_t		tx_threshold;
-	u_int32_t		txcon;
-	u_int32_t		miicfg;
-	u_int32_t		cur_tx;
-	u_int32_t		cur_rx;
-	u_int32_t		dirty_tx;
-	u_int32_t		pending_txs;
-	u_int16_t		cardvend;
-	u_int16_t		cardid;
-	struct mii_softc 	*physc;
-	u_int32_t		phyid;
-	int			serinst;
-	void 			*pool;
-} epic_softc_t;
-
-struct epic_type {
-	u_int16_t	ven_id;
-	u_int16_t	dev_id;
-	char		*name;
-};
-
-#if defined(EPIC_DEBUG)
-#define dprintf(a) printf a
-#else
-#define dprintf(a)
-#endif
-
-#if defined(__FreeBSD__)
-#define EPIC_FORMAT	"tx%d"
-#define EPIC_ARGS(sc)	(sc->unit)
-#define EPIC_BPFTAP_ARG(ifp)    ifp
-#else /* __OpenBSD__ */
-#define EPIC_FORMAT	"%s"
-#define EPIC_ARGS(sc)	(sc->sc_dev.dv_xname)
-#define EPIC_BPFTAP_ARG(ifp)	(ifp)->if_bpf
-#endif
-
-#define sc_if arpcom.ac_if
-#define sc_macaddr arpcom.ac_enaddr
-
-#define CSR_WRITE_4(sc,reg,val) 					\
-	bus_space_write_4( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_WRITE_2(sc,reg,val) 					\
-	bus_space_write_2( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_WRITE_1(sc,reg,val) 					\
-	bus_space_write_1( (sc)->sc_st, (sc)->sc_sh, (reg), (val) )
-#define CSR_READ_4(sc,reg) 						\
-	bus_space_read_4( (sc)->sc_st, (sc)->sc_sh, (reg) )
-#define CSR_READ_2(sc,reg) 						\
-	bus_space_read_2( (sc)->sc_st, (sc)->sc_sh, (reg) )
-#define CSR_READ_1(sc,reg) 						\
-	bus_space_read_1( (sc)->sc_st, (sc)->sc_sh, (reg) )
-
-#define	PHY_READ_2(sc,phy,reg)						\
-	epic_read_phy_reg((sc),(phy),(reg))
-#define	PHY_WRITE_2(sc,phy,reg,val)					\
-	epic_write_phy_reg((sc),(phy),(reg),(val))
-
-/* Macro to get either mbuf cluster or nothing */
-#define EPIC_MGETCLUSTER(m)						\
-	{ MGETHDR((m),M_DONTWAIT,MT_DATA);				\
-	  if (m) {							\
-	    MCLGET((m),M_DONTWAIT);					\
-	    if( 0 == ((m)->m_flags & M_EXT) ) {				\
-	      m_freem(m);						\
-	      (m) = NULL;						\
-	    }								\
-	  }								\
-	}
 

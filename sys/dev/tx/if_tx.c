@@ -38,10 +38,6 @@
  *	
  */
 
-/* We should define compile time options before if_txvar.h included */
-#define	EARLY_RX	1
-/*#define	EPIC_DEBUG	1*/
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -83,7 +79,8 @@
 
 #include "miibus_if.h"
 
-#include <pci/if_txvar.h>
+#include <dev/tx/if_txreg.h>
+#include <dev/tx/if_txvar.h>
 #else /* __OpenBSD__ */
 #include "bpfilter.h"
 
@@ -1505,6 +1502,10 @@ epic_set_rx_mode(sc)
 {
 	u_int32_t 		flags = sc->sc_if.if_flags;
         u_int32_t 		rxcon = RXCON_DEFAULT;
+
+#if defined(EPIC_EARLY_RX)
+	rxcon |= RXCON_EARLY_RX;
+#endif
 
 	rxcon |= (flags & IFF_PROMISC) ? RXCON_PROMISCUOUS_MODE : 0;
 
