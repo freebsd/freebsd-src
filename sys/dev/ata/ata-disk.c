@@ -124,6 +124,11 @@ ad_attach(struct ata_device *atadev)
     adp->sectors = atadev->param->sectors;
     adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
     adp->max_iosize = 256 * DEV_BSIZE;
+    if (adp->device->channel->flags & ATA_USE_PC98GEOM &&
+	adp->total_secs < 17 * 8 * 65536) {
+	adp->sectors = 17;
+	adp->heads = 8;
+    }
     bioq_init(&adp->queue);
 
     lbasize = (u_int32_t)atadev->param->lba_size_1 |

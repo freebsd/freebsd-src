@@ -239,7 +239,7 @@ ata_cbussub_probe(device_t dev)
 	    ch->unit = i;
     }
     free(children, M_TEMP);
-    ch->flags |= ATA_USE_16BIT;
+    ch->flags |= ATA_USE_16BIT | ATA_USE_PC98GEOM;
     ch->intr_func = ata_cbus_intr;
     ch->lock_func = ata_cbus_banking;
     return ata_probe(dev);
