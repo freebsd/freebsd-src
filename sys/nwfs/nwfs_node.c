@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,17 +76,20 @@ SYSCTL_PROC(_vfs_nwfs, OID_AUTO, vnprint, CTLFLAG_WR|CTLTYPE_OPAQUE,
 	    NULL, 0, nwfs_sysctl_vnprint, "S,vnlist", "vnode hash");
 
 void
-nwfs_hash_init(void) {
+nwfs_hash_init(void)
+{
 	nwhashtbl = hashinit(desiredvnodes, M_NWFSHASH, &nwnodehash);
 }
 
 void
-nwfs_hash_free(void) {
+nwfs_hash_free(void)
+{
 	free(nwhashtbl, M_NWFSHASH);
 }
 
 int
-nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
+nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS)
+{
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 	struct vnode *vp;
@@ -111,7 +114,8 @@ nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
  * Vnode referenced and not locked.
  */
 int
-nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp) {
+nwfs_allocvp(struct mount *mp, ncpfid fid, struct vnode **vpp)
+{
 	struct proc *p = curproc;	/* XXX */
 	struct nwnode *np, *np2;
 	struct nwnode_hash_head *nhpp;
@@ -181,7 +185,8 @@ loop:
 }
 
 int
-nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct nwnode **npp) {
+nwfs_lookupnp(struct nwmount *nmp, ncpfid fid, struct nwnode **npp)
+{
 	struct nwnode *np;
 	struct nwnode_hash_head *nhpp;
 
@@ -257,10 +262,11 @@ nwfs_inactive(ap)
  * nwfs_attr_cacheenter: unpack np.i to va structure
  */
 void
-nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi) {
+nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi)
+{
 	struct nwnode *np = VTONW(vp);
 	struct nwmount *nmp = VTONWFS(vp);
-	register struct vattr *va = &np->n_vattr;
+	struct vattr *va = &np->n_vattr;
 
 	va->va_type = vp->v_type;		/* vnode type (for create) */
 	if (vp->v_type == VREG) {
@@ -303,7 +309,8 @@ nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi) {
 }
 
 int
-nwfs_attr_cachelookup(struct vnode *vp, struct vattr *va) {
+nwfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
+{
 	struct nwnode *np = VTONW(vp);
 	int diff;
 
