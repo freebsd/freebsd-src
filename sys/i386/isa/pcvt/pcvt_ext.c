@@ -42,7 +42,7 @@
  *	pcvt_ext.c	VT220 Driver Extended Support Routines
  *	------------------------------------------------------
  *
- * 	Last Edit-Date: [Sun Mar 26 10:38:27 2000]
+ * 	Last Edit-Date: [Wed Apr  5 18:18:54 2000]
  *
  * $FreeBSD$
  *
@@ -2097,7 +2097,7 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 	/* update global screen pointers/variables */
 	current_video_screen = n;	/* current screen no */
 
-	pcconsp = &pccons[n];		/* current tty */
+	pcvt_ttyp = &pcvt_tty[n];		/* current tty */
 
 	vsp = &vs[n];			/* current video state ptr */
 
@@ -2223,30 +2223,20 @@ set_auto_mode (struct video_state *vsx)
 	vsx->proc = NULL;
 	vsx->pid = 0;
 	vsx->vt_status &= ~(VT_WAIT_REL|VT_WAIT_ACK);
-	if (ostatus & VT_WAIT_ACK) {
-#if 0
-		assert (!(ostatus&VT_WAIT_REL));
-		assert (vsp == vsx &&
-			vt_switch_pending == current_video_screen + 1);
-		vt_switch_pending = 0;
-#else
-		if (vsp == vsx &&
-		    vt_switch_pending == current_video_screen + 1)
+
+	if (ostatus & VT_WAIT_ACK)
+	{
+		if(vsp == vsx && vt_switch_pending == current_video_screen + 1)
 			vt_switch_pending = 0;
-#endif
 	}
-	if (ostatus&VT_WAIT_REL) {
+	if (ostatus & VT_WAIT_REL)
+	{
 		int new_screen = vt_switch_pending - 1;
-#if 0
-		assert(vsp == vsx && vt_switch_pending);
-		vt_switch_pending = 0;
-		vgapage (new_screen);
-#else
-		if (vsp == vsx && vt_switch_pending) {
+		if (vsp == vsx && vt_switch_pending)
+		{
 			vt_switch_pending = 0;
 			vgapage (new_screen);
 		}
-#endif
 	}
 }
 

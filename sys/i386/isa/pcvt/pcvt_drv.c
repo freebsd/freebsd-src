@@ -48,7 +48,7 @@
  *	pcvt_drv.c	VT220 Driver Main Module / OS - Interface
  *	---------------------------------------------------------
  *
- *	Last Edit-Date: [Sun Mar 26 10:38:24 2000]
+ *	Last Edit-Date: [Thu Apr  6 09:44:24 2000]
  *
  * $FreeBSD$
  *
@@ -61,41 +61,51 @@
 #include <i386/isa/pcvt/pcvt_hdr.h>
 #undef MAIN
 
-#include <sys/bus.h>	/* XXX */
 
-static kbd_callback_func_t pcevent;
+#include <sys/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+
+#include <machine/resource.h>
+#include <machine/bus.h>
+
+#include <isa/isareg.h>
+#include <isa/isavar.h>
+
+static kbd_callback_func_t pcvt_event;
 static int pcvt_kbd_wptr = 0;
 static u_char pcvt_timeout_scheduled = 0;
 
 static void vgapelinit(void);
 static void detect_kbd(void *arg);
-static void pcstart(register struct tty *tp);
-static int pcparam(struct tty *tp, struct termios *t);
+static void pcvt_start(register struct tty *tp);
+static int pcvt_param(struct tty *tp, struct termios *t);
 
-static cn_probe_t	pccnprobe;
-static cn_init_t	pccninit;
-static cn_term_t	pccnterm;
-static cn_getc_t	pccngetc;
-static cn_checkc_t	pccncheckc;
-static cn_putc_t	pccnputc;
+static cn_probe_t	pcvt_cn_probe;
+static cn_init_t	pcvt_cn_init;
+static cn_term_t	pcvt_cn_term;
+static cn_getc_t	pcvt_cn_getc;
+static cn_checkc_t	pcvt_cn_checkc;
+static cn_putc_t	pcvt_cn_putc;
 
-CONS_DRIVER(pc, pccnprobe, pccninit, pccnterm, pccngetc, pccncheckc, pccnputc,
-	    NULL);
+CONS_DRIVER(vt, pcvt_cn_probe, pcvt_cn_init, pcvt_cn_term, pcvt_cn_getc,
+		pcvt_cn_checkc, pcvt_cn_putc, NULL);
 
-static	d_open_t	pcopen;
-static	d_close_t	pcclose;
-static	d_ioctl_t	pcioctl;
-static	d_mmap_t	pcmmap;
+static	d_open_t	pcvt_open;
+static	d_close_t	pcvt_close;
+static	d_ioctl_t	pcvt_ioctl;
+static	d_mmap_t	pcvt_mmap;
 
 #define	CDEV_MAJOR	12
-static struct cdevsw pc_cdevsw = {
-	/* open */	pcopen,
-	/* close */	pcclose,
+
+static struct cdevsw vt_cdevsw = {
+	/* open */	pcvt_open,
+	/* close */	pcvt_close,
 	/* read */	ttyread,
 	/* write */	ttywrite,
-	/* ioctl */	pcioctl,
+	/* ioctl */	pcvt_ioctl,
 	/* poll */	ttypoll,
-	/* mmap */	pcmmap,
+	/* mmap */	pcvt_mmap,
 	/* strategy */	nostrategy,
 	/* name */	"vt",
 	/* maj */	CDEV_MAJOR,
@@ -105,71 +115,115 @@ static struct cdevsw pc_cdevsw = {
 	/* bmaj */	-1
 };
 
-static int pcprobe ( struct isa_device *dev );
-static int pcattach ( struct isa_device *dev );
+static int pcvt_probe(device_t dev);
+static int pcvt_attach(device_t dev);
 
-struct	isa_driver vtdriver = {		/* driver routines */
-	pcprobe, pcattach, "vt", 1,
+static device_method_t pcvt_methods[] = {
+	DEVMETHOD(device_probe,		pcvt_probe),
+	DEVMETHOD(device_attach,	pcvt_attach),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	{ 0, 0 }
 };
+
+static driver_t pcvt_driver = {
+	"vt",
+	pcvt_methods,
+	0
+};
+
+static devclass_t pcvt_devclass;
+
+DRIVER_MODULE(pcvt, isa, pcvt_driver, pcvt_devclass, 0, 0);
 
 /*---------------------------------------------------------------------------*
  *	driver probe
  *---------------------------------------------------------------------------*/
 static int
-pcprobe(struct isa_device *dev)
+pcvt_probe(device_t dev)
 {
 	int i;
+	device_t bus;
+	
+	int unit = device_get_unit(dev);
+
+	/* No pnp support */
+	if(isa_get_vendorid(dev))
+		return ENXIO;
+
+	if(unit != 0)
+		return ENXIO;	
+	
+	device_set_desc(dev, "pcvt VT220 console driver");
+	
+	bus = device_get_parent(dev);
+	bus_set_resource(dev, SYS_RES_IOPORT, 0, 0x3b0, 0x30);
+	bus_set_resource(dev, SYS_RES_MEMORY, 0, (u_long) Crtat, 0x8000);
 
 	if (kbd == NULL)
 	{
 		reset_keyboard = 0;
 		kbd_configure(KB_CONF_PROBE_ONLY);
-		i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)dev->id_unit);
+		i = kbd_allocate("*", -1, (void *)&kbd, pcvt_event, (void *)&vs[unit]);
 		if ((i < 0) || ((kbd = kbd_get_keyboard(i)) == NULL))
-			return (-1);
+			return 0;
 	}
 	reset_keyboard = 1;		/* it's now safe to do kbd reset */
 
 	kbd_code_init();
 
-	return (-1);
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*
  *	driver attach
  *---------------------------------------------------------------------------*/
 static int
-pcattach(struct isa_device *dev)
+pcvt_attach(device_t dev)
 {
 	int i;
+        struct resource *port;
+        struct resource *mem;
+                
+	int unit = device_get_unit(dev);
+	
+	if(unit != 0)
+		return ENXIO;	
+
+        i = 0;
+	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &i, 0, ~0, 0,
+					RF_ACTIVE | RF_SHAREABLE);
+
+	i = 0;
+	mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &i, 0, ~0, 0,
+					RF_ACTIVE | RF_SHAREABLE);
 
 	vt_coldmalloc();		/* allocate memory for screens */
 
 	if (kbd == NULL)
-		timeout(detect_kbd, (void *)dev->id_unit, hz*2);
+		timeout(detect_kbd, (void *)&vs[unit], hz*2);
 
-	printf("vt%d: ", dev->id_unit);
+	printf("vt%d: ", unit);
 
 	switch(adaptor_type)
 	{
 		case MDA_ADAPTOR:
-			printf("mda");
+			printf("MDA");
 			break;
 
 		case CGA_ADAPTOR:
-			printf("cga");
+			printf("CGA");
 			break;
 
 		case EGA_ADAPTOR:
-			printf("ega");
+			printf("EGA");
 			break;
 
 		case VGA_ADAPTOR:
 			printf("%s VGA, ", (char *)vga_string(vga_type));
 			if(can_do_132col)
-				printf("80/132 col");
+				printf("80/132 columns");
 			else
-				printf("80 col");
+				printf("80 columns");
 			vgapelinit();
 			break;
 
@@ -183,16 +237,16 @@ pcattach(struct isa_device *dev)
 	else
 		printf(", color");
 
-	printf(", %d scr, ", totalscreens);
+	printf(", %d screens, ", totalscreens);
 
 	switch(keyboard_type)
 	{
 		case KB_AT:
-			printf("at-");
+			printf("AT-");
 			break;
 
 		case KB_MFII:
-			printf("mf2-");
+			printf("MF2-");
 			break;
 
 		default:
@@ -200,27 +254,25 @@ pcattach(struct isa_device *dev)
 			break;
 	}
 
-	printf("kbd\n");
+	printf("keyboard\n");
 
 	for(i = 0; i < totalscreens; i++)
 	{
-		ttyregister(&pccons[i]);
-		vs[i].vs_tty = &pccons[i];
-		make_dev(&pc_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", i);
+		ttyregister(&pcvt_tty[i]);
+		vs[i].vs_tty = &pcvt_tty[i];
+		make_dev(&vt_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", i);
 	}
 
 	async_update(UPDATE_START);	/* start asynchronous updates */
 
-	dev->id_ointr = pcrint;
-
-	return 1;
+	return 0;
 }
 
 /*---------------------------------------------------------------------------*
  *	driver open
  *---------------------------------------------------------------------------*/
 static int
-pcopen(dev_t dev, int flag, int mode, struct proc *p)
+pcvt_open(dev_t dev, int flag, int mode, struct proc *p)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -233,14 +285,14 @@ pcopen(dev_t dev, int flag, int mode, struct proc *p)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pccons[i];
+	tp = &pcvt_tty[i];
 
 	dev->si_tty = tp;
 
 	vsx->openf++;
 
-	tp->t_oproc = pcstart;
-	tp->t_param = pcparam;
+	tp->t_oproc = pcvt_start;
+	tp->t_param = pcvt_param;
 	tp->t_stop = nottystop;
 	tp->t_dev = dev;
 
@@ -252,7 +304,7 @@ pcopen(dev_t dev, int flag, int mode, struct proc *p)
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		pcparam(tp, &tp->t_termios);
+		pcvt_param(tp, &tp->t_termios);
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}
@@ -288,7 +340,7 @@ pcopen(dev_t dev, int flag, int mode, struct proc *p)
  *	driver close
  *---------------------------------------------------------------------------*/
 static int
-pcclose(dev_t dev, int flag, int mode, struct proc *p)
+pcvt_close(dev_t dev, int flag, int mode, struct proc *p)
 {
 	register struct tty *tp;
 	register struct video_state *vsx;
@@ -299,7 +351,7 @@ pcclose(dev_t dev, int flag, int mode, struct proc *p)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pccons[i];
+	tp = &pcvt_tty[i];
 
 	(*linesw[tp->t_line].l_close)(tp, flag);
 
@@ -318,7 +370,7 @@ pcclose(dev_t dev, int flag, int mode, struct proc *p)
  *	driver ioctl
  *---------------------------------------------------------------------------*/
 static int
-pcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
+pcvt_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	register int error;
 	register struct tty *tp;
@@ -327,7 +379,7 @@ pcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	if(i >= PCVT_NSCREENS)
 		return ENXIO;
 
-	tp = &pccons[i];
+	tp = &pcvt_tty[i];
 
 	/* note that some ioctl's are global, e.g.  KBSTPMAT: There is
 	 * only one keyboard and different repeat rates for instance between
@@ -336,77 +388,8 @@ pcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	 */
 
 #ifdef XSERVER
-
 	if((error = usl_vt_ioctl(dev, cmd, data, flag, p)) >= 0)
 		return error;
-
-#if 0
-	/*
-	 * just for compatibility:
-	 * XFree86 < 2.0 and SuperProbe still might use it
-	 *
-	 * NB: THIS IS A HACK! Do not use it unless you explicitly need.
-	 * Especially, since the vty is not put into process-controlled
-	 * mode (this would require the application to co-operate), any
-	 * attempts to switch vtys while this kind of X mode is active
-	 * may cause serious trouble.
-	 */
-	switch(cmd)
-	{
-	  case CONSOLE_X_MODE_ON:
-	  {
-	    int i;
-
-	    if((error = usl_vt_ioctl(dev, KDENABIO, 0, flag, p)) > 0)
-	      return error;
-
-	    i = KD_GRAPHICS;
-	    if((error = usl_vt_ioctl(dev, KDSETMODE, (caddr_t)&i, flag, p))
-	       > 0)
-	      return error;
-
-	    i = K_RAW;
-	    error = usl_vt_ioctl(dev, KDSKBMODE, (caddr_t)&i, flag, p);
-	    return error;
-	  }
-
-	  case CONSOLE_X_MODE_OFF:
-	  {
-	    int i;
-
-	    (void)usl_vt_ioctl(dev, KDDISABIO, 0, flag, p);
-
-	    i = KD_TEXT;
-	    (void)usl_vt_ioctl(dev, KDSETMODE, (caddr_t)&i, flag, p);
-
-	    i = K_XLATE;
-	    (void)usl_vt_ioctl(dev, KDSKBMODE, (caddr_t)&i, flag, p);
-	    return 0;
-	  }
-
-	  case CONSOLE_X_BELL:
-
-		/*
-		 * If `data' is non-null, the first int value denotes
-		 * the pitch, the second a duration. Otherwise, behaves
-		 * like BEL.
-		 */
-
-		if (data)
-		{
-			sysbeep(PCVT_SYSBEEPF / ((int *)data)[0],
-				((int *)data)[1] * hz / 3000);
-		}
-		else
-		{
-			sysbeep(PCVT_SYSBEEPF / 1493, hz / 4);
-		}
-		return (0);
-
-	  default: /* fall through */ ;
-	}
-#endif /* 0 */
-
 #endif /* XSERVER */
 
 	if((error = kbdioctl(dev,cmd,data,flag)) >= 0)
@@ -429,7 +412,7 @@ pcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
  *	driver mmap
  *---------------------------------------------------------------------------*/
 static int
-pcmmap(dev_t dev, vm_offset_t offset, int nprot)
+pcvt_mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
 	if (offset > 0x20000 - PAGE_SIZE)
 		return -1;
@@ -464,13 +447,13 @@ pcvt_timeout(void *arg)
 			if(*cp == '\0')
 			{
 				/* pass a NULL character */
-				(*linesw[pcconsp->t_line].l_rint)('\0', pcconsp);
+				(*linesw[pcvt_ttyp->t_line].l_rint)('\0', pcvt_ttyp);
 			}
 /* XXX */		else
 #endif /* PCVT_NULLCHARS */
 
 			while (*cp)
-				(*linesw[pcconsp->t_line].l_rint)(*cp++ & 0xff, pcconsp);
+				(*linesw[pcvt_ttyp->t_line].l_rint)(*cp++ & 0xff, pcvt_ttyp);
 		}
 
 		PCVT_DISABLE_INTR ();
@@ -495,7 +478,7 @@ detect_kbd(void *arg)
 
 	if (kbd != NULL)
 		return;
-	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)unit);
+	i = kbd_allocate("*", -1, (void *)&kbd, pcvt_event, (void *)unit);
 	if (i >= 0)
 		kbd = kbd_get_keyboard(i);
 	if (kbd != NULL)
@@ -512,7 +495,7 @@ detect_kbd(void *arg)
  *	keyboard event handler
  *---------------------------------------------------------------------------*/
 static int
-pcevent(keyboard_t *thiskbd, int event, void *arg)
+pcvt_event(keyboard_t *thiskbd, int event, void *arg)
 {
 	int unit = (int)arg;
 
@@ -521,7 +504,7 @@ pcevent(keyboard_t *thiskbd, int event, void *arg)
 
 	switch (event) {
 	case KBDIO_KEYINPUT:
-		pcrint(unit);
+		pcvt_rint(unit);
 		return 0;
 	case KBDIO_UNLOADING:
 		reset_keyboard = 0;
@@ -538,7 +521,7 @@ pcevent(keyboard_t *thiskbd, int event, void *arg)
  *	(keyboard) interrupt handler
  *---------------------------------------------------------------------------*/
 void
-pcrint(int unit)
+pcvt_rint(int unit)
 {
 	u_char	dt;
 	u_char	ret = -1;
@@ -596,7 +579,7 @@ pcrint(int unit)
  *	start output
  *---------------------------------------------------------------------------*/
 static void
-pcstart(register struct tty *tp)
+pcvt_start(register struct tty *tp)
 {
 	register struct clist *rbp;
 	int s, len;
@@ -648,7 +631,7 @@ out:
  *	console probe
  *---------------------------------------------------------------------------*/
 static void
-pccnprobe(struct consdev *cp)
+pcvt_cn_probe(struct consdev *cp)
 {
 	int unit = 0;
 	int i;
@@ -672,14 +655,14 @@ pccnprobe(struct consdev *cp)
 
 	cp->cn_dev = makedev(CDEV_MAJOR, 0);
 	cp->cn_pri = CN_INTERNAL;
-	cp->cn_tp = &pccons[0];
+	cp->cn_tp = &pcvt_tty[0];
 }
 
 /*---------------------------------------------------------------------------*
  *	console init
  *---------------------------------------------------------------------------*/
 static void
-pccninit(struct consdev *cp)
+pcvt_cn_init(struct consdev *cp)
 {
 	int unit = 0;
 	int i;
@@ -698,7 +681,7 @@ pccninit(struct consdev *cp)
 		kbd = NULL;
 	}
 
-	i = kbd_allocate("*", -1, (void *)&kbd, pcevent, (void *)unit);
+	i = kbd_allocate("*", -1, (void *)&kbd, pcvt_event, (void *)unit);
 
 	if (i >= 0)
 		kbd = kbd_get_keyboard(i);
@@ -721,7 +704,7 @@ pccninit(struct consdev *cp)
  *	console finish
  *---------------------------------------------------------------------------*/
 static void
-pccnterm(struct consdev *cp)
+pcvt_cn_term(struct consdev *cp)
 {
 	if (kbd)
 	{
@@ -734,7 +717,7 @@ pccnterm(struct consdev *cp)
  *	console put char
  *---------------------------------------------------------------------------*/
 static void
-pccnputc(dev_t dev, int c)
+pcvt_cn_putc(dev_t dev, int c)
 {
 	if (c == '\n')
 		sput("\r", 1, 1, 0);
@@ -748,7 +731,7 @@ pccnputc(dev_t dev, int c)
  *	console get char
  *---------------------------------------------------------------------------*/
 static int
-pccngetc(dev_t dev)
+pcvt_cn_getc(dev_t dev)
 {
 	register int s;
 	static u_char *cp, cbuf[4]; /* Temp buf for multi-char key sequence. */
@@ -771,7 +754,7 @@ pccngetc(dev_t dev)
 	if (kbd == NULL)
 		return 0;
 
-	s = spltty();		/* block pcrint while we poll */
+	s = spltty();		/* block pcvt_rint while we poll */
 	kbd_polling = 1;
 	(*kbdsw[kbd->kb_index]->enable)(kbd);
 	cp = sgetc(0);
@@ -798,7 +781,7 @@ pccngetc(dev_t dev)
  *	console check for char
  *---------------------------------------------------------------------------*/
 static int
-pccncheckc(dev_t dev)
+pcvt_cn_checkc(dev_t dev)
 {
 	char *cp;
 	int x;
@@ -821,7 +804,7 @@ pccncheckc(dev_t dev)
  *	Set line parameters
  *---------------------------------------------------------------------------*/
 static int
-pcparam(struct tty *tp, struct termios *t)
+pcvt_param(struct tty *tp, struct termios *t)
 {
         tp->t_ispeed = t->c_ispeed;
         tp->t_ospeed = t->c_ospeed;
