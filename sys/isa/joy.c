@@ -49,14 +49,11 @@
  * wait until the corresponding bit returns to 0.
  */
 
-/* #defines below taken from clock.c */
-#ifndef TIMER_FREQ
-#define	TIMER_FREQ	1193182
-#endif
-#define usec2ticks(u) 	(u) * (TIMER_FREQ / 1000000) \
-                        + (u) * ((TIMER_FREQ % 1000000) / 1000) / 1000 \
-		        + (u) * (TIMER_FREQ % 1000) / 1000000
 
+/* the formulae below only work if u is  ``not too large''. See also 
+ * the discussion in microtime.s */
+#define usec2ticks(u) 	((u) * 19549)>>14
+#define ticks2usec(u) 	((u) * 3433)>>12
 
 
 #define joypart(d) minor(d)&1
@@ -72,7 +69,7 @@ static struct {
 } joy[NJOY];
 
 
-extern int hz;
+extern int timer0_max_count;
 
 int joyprobe (struct isa_device *), joyattach (struct isa_device *);
 
@@ -145,7 +142,7 @@ joyread (dev_t dev, struct uio *uio, int flag)
 	    state >>= 2;
 	t1 = get_tick ();
 	if (t1 > t0)
-	    t1 -= TIMER_FREQ/hz;
+	    t1 -= timer0_max_count;
 	if (!x && !(state & 0x01))
 	    x = t1;
 	if (!y && !(state & 0x02))
@@ -154,8 +151,8 @@ joyread (dev_t dev, struct uio *uio, int flag)
 	    break;
     }
     enable_intr ();
-    c[0] = x ? joy[unit].x_off[joypart(dev)] + (t0-x) : 0x80000000;
-    c[1] = y ? joy[unit].y_off[joypart(dev)] + (t0-y) : 0x80000000;
+    c[0] = x ? joy[unit].x_off[joypart(dev)] + ticks2usec(t0-x) : 0x80000000;
+    c[1] = y ? joy[unit].y_off[joypart(dev)] + ticks2usec(t0-y) : 0x80000000;
     state >>= 4;
     c[2] = ~state & 1;
     c[3] = ~(state >> 1) & 1;
