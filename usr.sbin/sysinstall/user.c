@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: user.c,v 1.13 1997/02/22 14:12:36 peter Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -381,6 +381,7 @@ reenter:
 	goto reenter;
 
     /* Clear this crap off the screen */
+    delwin(ds_win);
     dialog_clear_norefresh();
     use_helpfile(NULL);
 
@@ -710,6 +711,7 @@ reenter:
 	goto reenter;
 
     /* Clear this crap off the screen */
+    delwin(ds_win);
     dialog_clear_norefresh();
     use_helpfile(NULL);
 
