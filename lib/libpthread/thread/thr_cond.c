@@ -355,6 +355,8 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	return (rval);
 }
 
+__strong_reference(_pthread_cond_wait, _thr_cond_wait);
+
 int
 __pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
@@ -632,6 +634,8 @@ _pthread_cond_signal(pthread_cond_t * cond)
 	return (rval);
 }
 
+__strong_reference(_pthread_cond_signal, _thr_cond_signal);
+
 int
 _pthread_cond_broadcast(pthread_cond_t * cond)
 {
@@ -673,7 +677,7 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 			/* There are no more waiting threads: */
 			(*cond)->c_mutex = NULL;
 			break;
-	
+
 		/* Trap invalid condition variable types: */
 		default:
 			/* Return an invalid argument error: */
@@ -688,6 +692,8 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 	/* Return the completion status: */
 	return (rval);
 }
+
+__strong_reference(_pthread_cond_broadcast, _thr_cond_broadcast);
 
 void
 _cond_wait_backout(struct pthread *curthread)

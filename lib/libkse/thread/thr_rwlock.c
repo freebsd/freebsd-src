@@ -46,7 +46,6 @@ __weak_reference(_pthread_rwlock_trywrlock, pthread_rwlock_trywrlock);
 __weak_reference(_pthread_rwlock_unlock, pthread_rwlock_unlock);
 __weak_reference(_pthread_rwlock_wrlock, pthread_rwlock_wrlock);
 
-
 /*
  * Prototypes
  */
@@ -158,16 +157,16 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 	}
 
 	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
+	if ((ret = _thr_mutex_lock(&prwlock->lock)) != 0)
 		return (ret);
 
 	/* give writers priority over readers */
 	while (prwlock->blocked_writers || prwlock->state < 0) {
-		ret = _pthread_cond_wait(&prwlock->read_signal, &prwlock->lock);
+		ret = _thr_cond_wait(&prwlock->read_signal, &prwlock->lock);
 
 		if (ret != 0) {
 			/* can't do a whole lot if this fails */
-			_pthread_mutex_unlock(&prwlock->lock);
+			_thr_mutex_unlock(&prwlock->lock);
 			return (ret);
 		}
 	}
@@ -184,10 +183,12 @@ _pthread_rwlock_rdlock (pthread_rwlock_t *rwlock)
 	 * lock.  Decrementing 'state' is no good because we probably
 	 * don't have the monitor lock.
 	 */
-	_pthread_mutex_unlock(&prwlock->lock);
+	_thr_mutex_unlock(&prwlock->lock);
 
 	return (ret);
 }
+
+__strong_reference(_pthread_rwlock_rdlock, _thr_rwlock_rdlock);
 
 int
 _pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
@@ -276,27 +277,29 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 		return (EINVAL);
 
 	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
+	if ((ret = _thr_mutex_lock(&prwlock->lock)) != 0)
 		return (ret);
 
 	if (prwlock->state > 0) {
 		if (--prwlock->state == 0 && prwlock->blocked_writers)
-			ret = _pthread_cond_signal(&prwlock->write_signal);
+			ret = _thr_cond_signal(&prwlock->write_signal);
 	} else if (prwlock->state < 0) {
 		prwlock->state = 0;
 
 		if (prwlock->blocked_writers)
-			ret = _pthread_cond_signal(&prwlock->write_signal);
+			ret = _thr_cond_signal(&prwlock->write_signal);
 		else
-			ret = _pthread_cond_broadcast(&prwlock->read_signal);
+			ret = _thr_cond_broadcast(&prwlock->read_signal);
 	} else
 		ret = EINVAL;
 
 	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
+	_thr_mutex_unlock(&prwlock->lock);
 
 	return (ret);
 }
+
+__strong_reference(_pthread_rwlock_unlock, _thr_rwlock_unlock);
 
 int
 _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
@@ -318,17 +321,17 @@ _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 	}
 
 	/* grab the monitor lock */
-	if ((ret = _pthread_mutex_lock(&prwlock->lock)) != 0)
+	if ((ret = _thr_mutex_lock(&prwlock->lock)) != 0)
 		return (ret);
 
 	while (prwlock->state != 0) {
 		++prwlock->blocked_writers;
 
-		ret = _pthread_cond_wait(&prwlock->write_signal, &prwlock->lock);
+		ret = _thr_cond_wait(&prwlock->write_signal, &prwlock->lock);
 
 		if (ret != 0) {
 			--prwlock->blocked_writers;
-			_pthread_mutex_unlock(&prwlock->lock);
+			_thr_mutex_unlock(&prwlock->lock);
 			return (ret);
 		}
 
@@ -339,7 +342,9 @@ _pthread_rwlock_wrlock (pthread_rwlock_t *rwlock)
 	prwlock->state = -1;
 
 	/* see the comment on this in pthread_rwlock_rdlock */
-	_pthread_mutex_unlock(&prwlock->lock);
+	_thr_mutex_unlock(&prwlock->lock);
 
 	return (ret);
 }
+
+__strong_reference(_pthread_rwlock_wrlock, _thr_rwlock_wrlock);
