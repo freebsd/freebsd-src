@@ -214,10 +214,8 @@ typedef struct IOAPIC ioapic_t;
  * various code 'logical' values
  */
 
-/* default level for TPR */
-#define LOPRIO_LEVEL		0x00000010	/* TPR of CPU accepting INTs */
-
 #ifdef GRAB_LOPRIO
+#define LOPRIO_LEVEL		0x00000010	/* TPR of CPU accepting INTs */
 #define ALLHWI_LEVEL		0x00000000	/* TPR of CPU grabbing INTs */
 #endif /** GRAB_LOPRIO */
 
