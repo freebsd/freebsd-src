@@ -28,11 +28,7 @@
 #include "patchlevel.h"
 #include "bootpd.h"
 
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 #ifdef DEBUG
 static void dump_generic P((FILE *, struct shared_bindata *));
