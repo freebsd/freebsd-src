@@ -1,7 +1,7 @@
 %%%%%%%%%%%%%%%% gdb-refcard.tex %%%%%%%%%%%%%%%%
 
 %This file is TeX source for a reference card describing GDB, the GNU debugger.
-%Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+%Copyright (C) 1991, 1992, 1993, 1998 Free Software Foundation, Inc.
 %Permission is granted to make and distribute verbatim copies of
 %this reference provided the copyright notices and permission notices
 %are preserved on all copies.
@@ -11,7 +11,7 @@
 %
 %This program is free software; you can redistribute it and/or modify
 %it under the terms of the GNU General Public License as published by
-%the Free Software Foundation; either version 1, or (at your option)
+%the Free Software Foundation; either version 2, or (at your option)
 %any later version.
 %
 %This program is distributed in the hope that it will be useful, but
@@ -19,18 +19,18 @@
 %MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 %General Public License for more details.
 %
-%You can find a copy of the GNU General Public License in the GDB
-%manual; or write to the Free Software Foundation, Inc.,
-%59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+%You can find a copy of the GNU General Public License at the URL
+%http://www.gnu.org/copyleft/gpl.html; or write to the Free Software
+%Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 %
-%You can contact the author at:  doc@cygnus.com
+%You can contact the maintainer at:  doc@cygnus.com
 %
 %                                Documentation Department
-%                                Cygnus Support
-%                                1937 Landings Drive
-%                                Mountain View, CA 94043 USA
+%                                Cygnus Solutions
+%                                1325 Chesapeake Terrace
+%                                Sunnyvale, CA 94089  USA
 %
-%                                +1 415 903 1400
+%                                +1 800 CYGNUS-1
 %
 %
 %
@@ -304,7 +304,7 @@ shell {\it cmd}&execute arbitrary shell command string\cr
 \line{\smrm \opt{ } surround optional arguments \hfill $\ldots$ show
 one or more arguments}
 \vskip\baselineskip
-\centerline{\smrm \copyright 1991, 1992, 1993 Free Software Foundation, Inc.\qquad Permissions on back}
+\centerline{\smrm \copyright 1998 Free Software Foundation, Inc.\qquad Permissions on back}
 \eject
 \sec Breakpoints and Watchpoints;
 break \opt{\it file\tt:}{\it line}\par
@@ -322,7 +322,8 @@ cond {\it n} \opt{\it expr}&new conditional expression on breakpoint
 tbreak $\ldots$&temporary break; disable when reached\cr
 rbreak {\it regex}&break on all functions matching {\it regex}\cr
 watch {\it expr}&set a watchpoint for expression {\it expr}\cr
-catch {\it x}&break at C++ handler for exception {\it x}\cr
+catch {\it event}&break at {\it event}, which may be {\tt catch}, {\tt throw},
+{\tt exec}, {\tt fork}, {\tt vfork}, {\tt load}, or {\tt unload}.\cr
 \cr
 info break&show defined breakpoints\cr
 info watch&show defined watchpoints\cr
@@ -371,7 +372,6 @@ info locals&local variables of selected frame\cr
 info reg \opt{\it rn}$\ldots$\par
 info all-reg \opt{\it rn}&register values \opt{for regs {\it rn\/}} in
 selected frame; {\tt all-reg} includes floating point\cr
-info catch&exception handlers active in selected frame\cr
 \endsec
 
 \vfill\eject
@@ -628,15 +628,15 @@ statement.\cr
 
 \vfill
 {\smrm\parskip=6pt
-\centerline{Copyright \copyright 1991, 1992, 1993 Free Software Foundation, Inc.}
-\centerline{Cygnus Support (doc@cygnus.com)}
+\centerline{Copyright \copyright 1991, '92, '93, '98 Free Software Foundation, Inc.}
+\centerline{Roland H. Pesch}
 \centerline{The author assumes no responsibility for any errors on this card.}
 
 This card may be freely distributed under the terms of the GNU
 General Public License.
 
 \centerline{Please contribute to development of this card by
-annotating it.}
+annotating it.  Improvements can be sent to bug-gdb@gnu.org.}
 
 GDB itself is free software; you are welcome to distribute copies of
 it under the terms of the GNU General Public License.  There is

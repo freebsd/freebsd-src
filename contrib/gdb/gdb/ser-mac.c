@@ -328,7 +328,7 @@ mac_close (serial_t scb)
   if (output_refnum)
     {
       if (0 /* custom buffer */)
-	SetSetBuf (input_refnum, mac_output_buffer, 0);
+	SerSetBuf (input_refnum, mac_output_buffer, 0);
       CloseDriver (output_refnum);
       output_refnum = 0;
     }
@@ -352,6 +352,7 @@ static struct serial_ops mac_ops =
   mac_noflush_set_tty_state,
   mac_set_baud_rate,
   mac_set_stop_bits,
+  mac_noop,			/* wait for output to drain */
 };
 
 void

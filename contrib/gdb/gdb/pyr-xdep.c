@@ -50,13 +50,13 @@ fetch_inferior_registers (regno)
     
 #if defined(PYRAMID_CONTROL_FRAME_DEBUGGING)
     printf_unfiltered ("Fetching register %s, got %0x\n",
-	    reg_names[regno],
+	    REGISTER_NAME (regno),
 	    reg_buf[regno]);
 #endif /* PYRAMID_CONTROL_FRAME_DEBUGGING */
     
     if (reg_buf[regno] == -1 && errno == EIO) {
       printf_unfiltered("fetch_interior_registers: fetching register %s\n",
-	     reg_names[regno]);
+	     REGISTER_NAME (regno));
       errno = 0;
     }
     supply_register (regno, reg_buf+regno);
@@ -115,7 +115,7 @@ fetch_inferior_registers (regno)
   supply_register(CSP_REGNUM, reg_buf+CSP_REGNUM);
 #ifdef  PYRAMID_CONTROL_FRAME_DEBUGGING
   if (skipped_frames) {
-    fprintf_unfiltered (stderr,
+    fprintf_unfiltered (gdb_stderr,
 	     "skipped %d frames from %x to %x; cfp was %x, now %x\n",
 	     skipped_frames, reg_buf[CSP_REGNUM]);
   }
@@ -321,10 +321,10 @@ core_file_command (filename, from_tty)
 	      if (val < 0
 		  || (val = myread (corechan, buf, sizeof buf)) < 0)
 		{
-		  char * buffer = (char *) alloca (strlen (reg_names[regno])
+		  char * buffer = (char *) alloca (strlen (REGISTER_NAME (regno))
 						   + 30);
 		  strcpy (buffer, "Reading register ");
-		  strcat (buffer, reg_names[regno]);
+		  strcat (buffer, REGISTER_NAME (regno));
 						   
 		  perror_with_name (buffer);
 		}
@@ -333,7 +333,7 @@ core_file_command (filename, from_tty)
 		perror_with_name (filename);
 #ifdef PYRAMID_CONTROL_FRAME_DEBUGGING
       printf_unfiltered ("[reg %s(%d), offset in file %s=0x%0x, addr =0x%0x, =%0x]\n",
-	      reg_names[regno], regno, filename,
+	      REGISTER_NAME (regno), regno, filename,
 	      register_addr(regno, reg_offset),
 	      regno * 4 + last_frame_address,
 	      *((int *)buf));

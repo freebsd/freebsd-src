@@ -1,5 +1,5 @@
 /* Target-dependent code for the ALPHA architecture, for GDB, the GNU Debugger.
-   Copyright 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright 1993, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -31,11 +31,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* FIXME: Some of this code should perhaps be merged with mips-tdep.c.  */
 
-/* FIXME: Put this declaration in frame.h.  */
-extern struct obstack frame_cache_obstack;
-
+/* Prototypes for local functions. */
 
-/* Forward declarations.  */
+static alpha_extra_func_info_t push_sigtramp_desc PARAMS ((CORE_ADDR low_addr));
 
 static CORE_ADDR read_next_frame_reg PARAMS ((struct frame_info *, int));
 
@@ -132,6 +130,113 @@ struct linked_proc_info
 } *linked_proc_desc_table = NULL;
 
 
+/* Under GNU/Linux, signal handler invocations can be identified by the
+   designated code sequence that is used to return from a signal
+   handler.  In particular, the return address of a signal handler
+   points to the following sequence (the first instruction is quadword
+   aligned):
+
+	bis $30,$30,$16
+	addq $31,0x67,$0
+	call_pal callsys
+
+   Each instruction has a unique encoding, so we simply attempt to
+   match the instruction the pc is pointing to with any of the above
+   instructions.  If there is a hit, we know the offset to the start
+   of the designated sequence and can then check whether we really are
+   executing in a designated sequence.  If not, -1 is returned,
+   otherwise the offset from the start of the desingated sequence is
+   returned.
+
+   There is a slight chance of false hits: code could jump into the
+   middle of the designated sequence, in which case there is no
+   guarantee that we are in the middle of a sigreturn syscall.  Don't
+   think this will be a problem in praxis, though.
+*/
+
+long
+alpha_linux_sigtramp_offset (CORE_ADDR pc)
+{
+  unsigned int i[3], w;
+  long off;
+
+  if (read_memory_nobpt(pc, (char *) &w, 4) != 0)
+    return -1;
+
+  off = -1;
+  switch (w)
+    {
+    case 0x47de0410: off = 0; break;	/* bis $30,$30,$16 */
+    case 0x43ecf400: off = 4; break;	/* addq $31,0x67,$0 */
+    case 0x00000083: off = 8; break;	/* call_pal callsys */
+    default:	     return -1;
+    }
+  pc -= off;
+  if (pc & 0x7)
+    {
+      /* designated sequence is not quadword aligned */
+      return -1;
+    }
+
+  if (read_memory_nobpt(pc, (char *) i, sizeof(i)) != 0)
+    return -1;
+
+  if (i[0] == 0x47de0410 && i[1] == 0x43ecf400 && i[2] == 0x00000083)
+    return off;
+
+  return -1;
+}
+
+
+/* Under OSF/1, the __sigtramp routine is frameless and has a frame
+   size of zero, but we are able to backtrace through it.  */
+CORE_ADDR
+alpha_osf_skip_sigtramp_frame (frame, pc)
+     struct frame_info *frame;
+     CORE_ADDR pc;
+{
+  char *name;
+  find_pc_partial_function (pc, &name, (CORE_ADDR *)NULL, (CORE_ADDR *)NULL);
+  if (IN_SIGTRAMP (pc, name))
+    return frame->frame;
+  else
+    return 0;
+}
+
+
+/* Dynamically create a signal-handler caller procedure descriptor for
+   the signal-handler return code starting at address LOW_ADDR.  The
+   descriptor is added to the linked_proc_desc_table.  */
+
+static alpha_extra_func_info_t
+push_sigtramp_desc (low_addr)
+     CORE_ADDR low_addr;
+{
+  struct linked_proc_info *link;
+  alpha_extra_func_info_t proc_desc;
+
+  link = (struct linked_proc_info *)
+    xmalloc (sizeof (struct linked_proc_info));
+  link->next = linked_proc_desc_table;
+  linked_proc_desc_table = link;
+
+  proc_desc = &link->info;
+
+  proc_desc->numargs = 0;
+  PROC_LOW_ADDR (proc_desc)	= low_addr;
+  PROC_HIGH_ADDR (proc_desc)	= low_addr + 3 * 4;
+  PROC_DUMMY_FRAME (proc_desc)	= 0;
+  PROC_FRAME_OFFSET (proc_desc)	= 0x298; /* sizeof(struct sigcontext_struct) */
+  PROC_FRAME_REG (proc_desc)	= SP_REGNUM;
+  PROC_REG_MASK (proc_desc)	= 0xffff;
+  PROC_FREG_MASK (proc_desc)	= 0xffff;
+  PROC_PC_REG (proc_desc)	= 26;
+  PROC_LOCALOFF (proc_desc)	= 0;
+  SET_PROC_DESC_IS_DYN_SIGTRAMP (proc_desc);
+  return (proc_desc);
+}
+
+
 /* Guaranteed to set frame->saved_regs to some values (it never leaves it
    NULL).  */
 
@@ -145,9 +250,7 @@ alpha_find_saved_regs (frame)
   alpha_extra_func_info_t proc_desc;
   int returnreg;
 
-  frame->saved_regs = (struct frame_saved_regs *)
-    obstack_alloc (&frame_cache_obstack, sizeof(struct frame_saved_regs));
-  memset (frame->saved_regs, 0, sizeof (struct frame_saved_regs));
+  frame_saved_regs_zalloc (frame);
 
   /* If it is the frame for __sigtramp, the saved registers are located
      in a sigcontext structure somewhere on the stack. __sigtramp
@@ -161,25 +264,20 @@ alpha_find_saved_regs (frame)
 #endif
   if (frame->signal_handler_caller)
     {
-      CORE_ADDR sigcontext_pointer_addr;
       CORE_ADDR sigcontext_addr;
 
-      if (frame->next)
-	sigcontext_pointer_addr = frame->next->frame;
-      else
-	sigcontext_pointer_addr = frame->frame;
-      sigcontext_addr = read_memory_integer(sigcontext_pointer_addr, 8);
+      sigcontext_addr = SIGCONTEXT_ADDR (frame);
       for (ireg = 0; ireg < 32; ireg++)
 	{
  	  reg_position = sigcontext_addr + SIGFRAME_REGSAVE_OFF + ireg * 8;
- 	  frame->saved_regs->regs[ireg] = reg_position;
+ 	  frame->saved_regs[ireg] = reg_position;
 	}
       for (ireg = 0; ireg < 32; ireg++)
 	{
  	  reg_position = sigcontext_addr + SIGFRAME_FPREGSAVE_OFF + ireg * 8;
- 	  frame->saved_regs->regs[FP0_REGNUM + ireg] = reg_position;
+ 	  frame->saved_regs[FP0_REGNUM + ireg] = reg_position;
 	}
-      frame->saved_regs->regs[PC_REGNUM] = sigcontext_addr + SIGFRAME_PC_OFF;
+      frame->saved_regs[PC_REGNUM] = sigcontext_addr + SIGFRAME_PC_OFF;
       return;
     }
 
@@ -202,7 +300,7 @@ alpha_find_saved_regs (frame)
      register number.  */
   if (mask & (1 << returnreg))
     {
-      frame->saved_regs->regs[returnreg] = reg_position;
+      frame->saved_regs[returnreg] = reg_position;
       reg_position += 8;
       mask &= ~(1 << returnreg); /* Clear bit for RA so we
 				    don't save again later. */
@@ -211,7 +309,7 @@ alpha_find_saved_regs (frame)
   for (ireg = 0; ireg <= 31 ; ++ireg)
     if (mask & (1 << ireg))
       {
-	frame->saved_regs->regs[ireg] = reg_position;
+	frame->saved_regs[ireg] = reg_position;
 	reg_position += 8;
       }
 
@@ -224,11 +322,11 @@ alpha_find_saved_regs (frame)
   for (ireg = 0; ireg <= 31 ; ++ireg)
     if (mask & (1 << ireg))
       {
-	frame->saved_regs->regs[FP0_REGNUM+ireg] = reg_position;
+	frame->saved_regs[FP0_REGNUM+ireg] = reg_position;
 	reg_position += 8;
       }
 
-  frame->saved_regs->regs[PC_REGNUM] = frame->saved_regs->regs[returnreg];
+  frame->saved_regs[PC_REGNUM] = frame->saved_regs[returnreg];
 }
 
 static CORE_ADDR
@@ -246,8 +344,8 @@ read_next_frame_reg(fi, regno)
 	{
 	  if (fi->saved_regs == NULL)
 	    alpha_find_saved_regs (fi);
-	  if (fi->saved_regs->regs[regno])
-	    return read_memory_integer(fi->saved_regs->regs[regno], 8);
+	  if (fi->saved_regs[regno])
+	    return read_memory_integer(fi->saved_regs[regno], 8);
 	}
     }
   return read_register(regno);
@@ -285,12 +383,27 @@ alpha_saved_pc_after_call (frame)
   proc_desc = find_proc_desc (pc, frame->next);
   pcreg = proc_desc ? PROC_PC_REG (proc_desc) : RA_REGNUM;
 
-  return read_register (pcreg);
+  if (frame->signal_handler_caller)
+    return alpha_frame_saved_pc (frame);
+  else
+    return read_register (pcreg);
 }
 
 
 static struct alpha_extra_func_info temp_proc_desc;
 static struct frame_saved_regs temp_saved_regs;
+
+/* Nonzero if instruction at PC is a return instruction.  "ret
+   $zero,($ra),1" on alpha. */
+
+static int
+alpha_about_to_return (pc)
+     CORE_ADDR pc;
+{
+  return read_memory_integer (pc, 4) == 0x6bfa8001;
+}
+
+
 
 /* This fencepost looks highly suspicious to me.  Removing it also
    seems suspicious as it could affect remote debugging across serial
@@ -342,8 +455,8 @@ Otherwise, you told GDB there was a function where there isn't one, or\n\
 
 	    return 0; 
 	  }
-	else if (ABOUT_TO_RETURN(start_pc))
-	    break;
+	else if (alpha_about_to_return (start_pc))
+	  break;
 
     start_pc += 4; /* skip return */
     return start_pc;
@@ -382,7 +495,15 @@ heuristic_proc_desc(start_pc, limit_pc, next_frame)
 	word = extract_unsigned_integer (buf, 4);
 
 	if ((word & 0xffff0000) == 0x23de0000)		/* lda $sp,n($sp) */
-	  frame_size += (-word) & 0xffff;
+	  {
+	    if (word & 0x8000)
+	      frame_size += (-word) & 0xffff;
+	    else
+	      /* Exit loop if a positive stack adjustment is found, which
+		 usually means that the stack cleanup code in the function
+		 epilogue is reached.  */
+	      break;
+	  }
 	else if ((word & 0xfc1f0000) == 0xb41e0000	/* stq reg,n($sp) */
 		 && (word & 0xffff0000) != 0xb7fe0000)	/* reg != $zero */
 	  {
@@ -404,14 +525,18 @@ heuristic_proc_desc(start_pc, limit_pc, next_frame)
 	       rearrange the register saves.
 	       So we recognize only a few registers (t7, t9, ra) within
 	       the procedure prologue as valid return address registers.
+	       If we encounter a return instruction, we extract the
+	       the return address register from it.
 
 	       FIXME: Rewriting GDB to access the procedure descriptors,
 	       e.g. via the minimal symbol table, might obviate this hack.  */
 	    if (pcreg == -1
-		&& cur_pc < (start_pc + 20)
+		&& cur_pc < (start_pc + 80)
 		&& (reg == T7_REGNUM || reg == T9_REGNUM || reg == RA_REGNUM))
 	      pcreg = reg;
 	  }
+	else if ((word & 0xffe0ffff) == 0x6be08001)	/* ret zero,reg,1 */
+	  pcreg = (word >> 16) & 0x1f;
 	else if (word == 0x47de040f)			/* bis sp,sp fp */
 	  has_frame_reg = 1;
       }
@@ -419,15 +544,13 @@ heuristic_proc_desc(start_pc, limit_pc, next_frame)
       {
 	/* If we haven't found a valid return address register yet,
 	   keep searching in the procedure prologue.  */
-	while (cur_pc < (limit_pc + 20) && cur_pc < (start_pc + 20))
+	while (cur_pc < (limit_pc + 80) && cur_pc < (start_pc + 80))
 	  {
 	    char buf[4];
 	    unsigned long word;
-	    int status;
 
-	    status = read_memory_nobpt (cur_pc, buf, 4); 
-	    if (status)
-	      memory_error (status, cur_pc);
+	    if (read_memory_nobpt (cur_pc, buf, 4))
+	      break;
 	    cur_pc += 4;
 	    word = extract_unsigned_integer (buf, 4);
 
@@ -440,6 +563,11 @@ heuristic_proc_desc(start_pc, limit_pc, next_frame)
 		    pcreg = reg;
 		    break;
 		  }
+	      }
+	    else if ((word & 0xffe0ffff) == 0x6be08001)	/* ret zero,reg,1 */
+	      {
+		pcreg = (word >> 16) & 0x1f;
+		break;
 	      }
 	  }
       }
@@ -471,6 +599,9 @@ after_prologue (pc, proc_desc)
 
   if (proc_desc)
     {
+      if (PROC_DESC_IS_DYN_SIGTRAMP (proc_desc))
+	return PROC_LOW_ADDR (proc_desc);	/* "prologue" is in kernel */
+
       /* If function is frameless, then we need to do it the hard way.  I
 	 strongly suspect that frameless always means prologueless... */
       if (PROC_FRAME_REG (proc_desc) == SP_REGNUM
@@ -493,7 +624,7 @@ after_prologue (pc, proc_desc)
 }
 
 /* Return non-zero if we *might* be in a function prologue.  Return zero if we
-   are definatly *not* in a function prologue.  */
+   are definitively *not* in a function prologue.  */
 
 static int
 alpha_in_prologue (pc, proc_desc)
@@ -599,6 +730,8 @@ find_proc_desc (pc, next_frame)
     }
   else
     {
+      long offset;
+
       /* Is linked_proc_desc_table really necessary?  It only seems to be used
 	 by procedure call dummys.  However, the procedures being called ought
 	 to have their own proc_descs, and even if they don't,
@@ -610,7 +743,19 @@ find_proc_desc (pc, next_frame)
 	      && PROC_HIGH_ADDR(&link->info) > pc)
 	      return &link->info;
 
-      if (startaddr == 0)
+      /* If PC is inside a dynamically generated sigtramp handler,
+	 create and push a procedure descriptor for that code: */
+      offset = DYNAMIC_SIGTRAMP_OFFSET (pc);
+      if (offset >= 0)
+	return push_sigtramp_desc (pc - offset);
+
+      /* If heuristic_fence_post is non-zero, determine the procedure
+	 start address by examining the instructions.
+	 This allows us to find the start address of static functions which
+	 have no symbolic information, as startaddr would have been set to
+	 the preceding global function start address by the
+	 find_pc_partial_function call above.  */
+      if (startaddr == 0 || heuristic_fence_post != 0)
 	startaddr = heuristic_proc_start (pc);
 
       proc_desc =
@@ -650,17 +795,7 @@ alpha_frame_chain(frame)
 	/* The previous frame from a sigtramp frame might be frameless
 	   and have frame size zero.  */
 	&& !frame->signal_handler_caller)
-      {
-	/* The alpha __sigtramp routine is frameless and has a frame size
-	   of zero, but we are able to backtrace through it. */
-	char *name;
-	find_pc_partial_function (saved_pc, &name,
-				  (CORE_ADDR *)NULL, (CORE_ADDR *)NULL);
-	if (IN_SIGTRAMP (saved_pc, name))
-	  return frame->frame;
-	else
-	  return 0;
-      }
+      return FRAME_PAST_SIGTRAMP_FRAME (frame, saved_pc);
     else
       return read_next_frame_reg(frame, PROC_FRAME_REG(proc_desc))
 	     + PROC_FRAME_OFFSET(proc_desc);
@@ -696,7 +831,8 @@ init_extra_frame_info (frame)
       /* This may not be quite right, if proc has a real frame register.
 	 Get the value of the frame relative sp, procedure might have been
 	 interrupted by a signal at it's very start.  */
-      else if (frame->pc == PROC_LOW_ADDR (proc_desc) && !PROC_DESC_IS_DUMMY (proc_desc))
+      else if (frame->pc == PROC_LOW_ADDR (proc_desc)
+	       && !PROC_DESC_IS_DYN_SIGTRAMP (proc_desc))
 	frame->frame = read_next_frame_reg (frame->next, SP_REGNUM);
       else
 	frame->frame = read_next_frame_reg (frame->next, PROC_FRAME_REG (proc_desc))
@@ -713,12 +849,11 @@ init_extra_frame_info (frame)
 				    (CORE_ADDR *)NULL,(CORE_ADDR *)NULL);
 	  if (!IN_SIGTRAMP (frame->pc, name))
 	    {
-	      frame->saved_regs = (struct frame_saved_regs*)
-		obstack_alloc (&frame_cache_obstack,
-			       sizeof (struct frame_saved_regs));
-	      *frame->saved_regs = temp_saved_regs;
-	      frame->saved_regs->regs[PC_REGNUM]
-		= frame->saved_regs->regs[RA_REGNUM];
+	      frame->saved_regs = (CORE_ADDR*)
+		frame_obstack_alloc (SIZEOF_FRAME_SAVED_REGS);
+	      memcpy (frame->saved_regs, temp_saved_regs.regs, SIZEOF_FRAME_SAVED_REGS);
+	      frame->saved_regs[PC_REGNUM]
+		= frame->saved_regs[RA_REGNUM];
 	    }
 	}
     }
@@ -878,7 +1013,7 @@ alpha_push_dummy_frame()
    */
 
 /* MASK(i,j) == (1<<i) + (1<<(i+1)) + ... + (1<<j)). Assume i<=j<31. */
-#define MASK(i,j) (((1L << ((j)+1)) - 1) ^ ((1L << (i)) - 1))
+#define MASK(i,j) ((((LONGEST)1 << ((j)+1)) - 1) ^ (((LONGEST)1 << (i)) - 1))
 #define GEN_REG_SAVE_MASK (MASK(0,8) | MASK(16,29))
 #define GEN_REG_SAVE_COUNT 24
 #define FLOAT_REG_SAVE_MASK (MASK(0,1) | MASK(10,30))
@@ -974,17 +1109,18 @@ alpha_pop_frame()
       for (regnum = 32; --regnum >= 0; )
 	if (PROC_REG_MASK(proc_desc) & (1 << regnum))
 	  write_register (regnum,
-			  read_memory_integer (frame->saved_regs->regs[regnum],
+			  read_memory_integer (frame->saved_regs[regnum],
 					       8));
       for (regnum = 32; --regnum >= 0; )
 	if (PROC_FREG_MASK(proc_desc) & (1 << regnum))
 	  write_register (regnum + FP0_REGNUM,
-			  read_memory_integer (frame->saved_regs->regs[regnum + FP0_REGNUM], 8));
+			  read_memory_integer (frame->saved_regs[regnum + FP0_REGNUM], 8));
     }
   write_register (SP_REGNUM, new_sp);
   flush_cached_frames ();
 
-  if (proc_desc && PROC_DESC_IS_DUMMY(proc_desc))
+  if (proc_desc && (PROC_DESC_IS_DUMMY(proc_desc)
+		    || PROC_DESC_IS_DYN_SIGTRAMP (proc_desc)))
     {
       struct linked_proc_info *pi_ptr, *prev_ptr;
 
@@ -1129,7 +1265,7 @@ alpha_register_convert_to_virtual (regnum, valtype, raw_buffer, virtual_buffer)
     }
   else if (TYPE_CODE (valtype) == TYPE_CODE_INT && TYPE_LENGTH (valtype) <= 4)
     {
-      unsigned LONGEST l;
+      ULONGEST l;
       l = extract_unsigned_integer (raw_buffer, REGISTER_RAW_SIZE (regnum));
       l = ((l >> 32) & 0xc0000000) | ((l >> 29) & 0x3fffffff);
       store_unsigned_integer (virtual_buffer, TYPE_LENGTH (valtype), l);
@@ -1158,7 +1294,7 @@ alpha_register_convert_to_raw (valtype, regnum, virtual_buffer, raw_buffer)
     }
   else if (TYPE_CODE (valtype) == TYPE_CODE_INT && TYPE_LENGTH (valtype) <= 4)
     {
-      unsigned LONGEST l;
+      ULONGEST l;
       if (TYPE_UNSIGNED (valtype))
 	l = extract_unsigned_integer (virtual_buffer, TYPE_LENGTH (valtype));
       else

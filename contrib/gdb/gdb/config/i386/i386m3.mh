@@ -5,7 +5,3 @@ NATDEPFILES= i386m3-nat.o m3-nat.o fork-child.o
 NAT_CLIBS= -lmachid -lnetname -lmach
 XM_FILE= xm-i386m3.h
 NAT_FILE= nm-m3.h
-
-# Don't use the mmalloc library in Mach 3.
-MMALLOC = 
-MMALLOC_DISABLE = -DNO_MMALLOC

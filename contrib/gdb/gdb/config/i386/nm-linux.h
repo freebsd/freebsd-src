@@ -1,5 +1,5 @@
-/* Native support for linux, for GDB, the GNU debugger.
-   Copyright (C) 1986, 1987, 1989, 1992, 1996
+/* Native support for GNU/Linux, for GDB, the GNU debugger.
+   Copyright (C) 1986, 1987, 1989, 1992, 1996, 1998
    Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -33,11 +33,7 @@ extern int kernel_u_size PARAMS ((void));
 
 #define U_REGS_OFFSET 0
 
-/* Linux uses the SYSV i386v-nat.c support, but doesn't have <sys/reg.h> */
-
-#define NO_SYS_REG_H
- 
-/* Linux supports the 386 hardware debugging registers.  */
+/* GNU/Linux supports the 386 hardware debugging registers.  */
 
 #define TARGET_HAS_HARDWARE_WATCHPOINTS
 
@@ -54,7 +50,7 @@ extern int kernel_u_size PARAMS ((void));
 /* Use these macros for watchpoint insertion/removal.  */
 
 #define target_insert_watchpoint(addr, len, type)  \
-  i386_insert_watchpoint (inferior_pid, addr, len, 2)
+  i386_insert_watchpoint (inferior_pid, addr, len, type)
 
 #define target_remove_watchpoint(addr, len, type)  \
   i386_remove_watchpoint (inferior_pid, addr, len)
@@ -63,20 +59,15 @@ extern int kernel_u_size PARAMS ((void));
    shared libraries. */
 
 #ifdef HAVE_LINK_H
-#include "solib.h"		/* Support for shared libraries. */
 #define SVR4_SHARED_LIBS
+#include "solib.h"		/* Support for shared libraries. */
 #endif
 
-#if 0
-/* We need prototypes for these somewhere, and this file is the logical
-   spot, but they can't go here because CORE_ADDR is not defined at the
-   time this file is included in defs.h.  FIXME - fnf */
 extern CORE_ADDR
-i386_stopped_by_watchpoint PARAM ((int));
+i386_stopped_by_watchpoint PARAMS ((int));
 extern int
 i386_insert_watchpoint PARAMS ((int pid, CORE_ADDR addr, int len, int rw));
 extern int
 i386_remove_watchpoint PARAMS ((int pid, CORE_ADDR addr, int len));
-#endif
 
 #endif /* #ifndef NM_LINUX_H */

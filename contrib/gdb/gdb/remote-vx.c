@@ -1,5 +1,5 @@
 /* Memory-access and commands for remote VxWorks processes, for GDB.
-   Copyright 1990, 1991, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1990-95, 1997-98, 1999 Free Software Foundation, Inc.
    Contributed by Wind River Systems and Cygnus Support.
 
 This file is part of GDB.
@@ -68,7 +68,14 @@ extern int stop_soon_quietly;		/* for wait_for_inferior */
 static int net_step ();
 static int net_ptrace_clnt_call ();	/* Forward decl */
 static enum clnt_stat net_clnt_call ();	/* Forward decl */
-extern struct target_ops vx_ops, vx_run_ops;	/* Forward declaration */
+
+/* Target ops structure for accessing memory and such over the net */
+
+static struct target_ops vx_ops;
+
+/* Target ops structure for accessing VxWorks child processes over the net */
+
+static struct target_ops vx_run_ops;
 
 /* Saved name of target host and called function for "info files".
    Both malloc'd.  */
@@ -414,7 +421,7 @@ net_read_registers (reg_buf, len, procnum)
     error (rpcerr);
   if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       sprintf (message, "reading %s registers", (procnum == PTRACE_GETREGS)
 						 ? "general-purpose"
 						 : "floating-point");
@@ -460,7 +467,7 @@ net_write_registers (reg_buf, len, procnum)
     error (rpcerr);
   if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       sprintf (message, "writing %s registers", (procnum == PTRACE_SETREGS)
 						 ? "general-purpose"
 						 : "floating-point");
@@ -557,7 +564,7 @@ vx_xfer_memory (memaddr, myaddr, len, write, target)
              code chosen by the target so that a later perror () will
              say something meaningful.  */
 
-          errno = ptrace_out.errno;
+          errno = ptrace_out.errno_num;
         }
     }
 
@@ -629,7 +636,7 @@ vx_resume (pid, step, siggnal)
     error (rpcerr);
   if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       perror_with_name ("Resuming remote process");
     }
 }
@@ -691,7 +698,7 @@ vx_add_symbols (name, from_tty, text_addr, data_addr, bss_addr)
 
   /* It might be nice to suppress the breakpoint_re_set which happens here
      because we are going to do one again after the objfile_relocate.  */
-  objfile = symbol_file_add (name, from_tty, 0, 0, 0, 0);
+  objfile = symbol_file_add (name, from_tty, 0, 0, 0, 0, 0, 0);
 
   /* This is a (slightly cheesy) way of superceding the old symbols.  A less
      cheesy way would be to find the objfile with the same name and
@@ -715,9 +722,6 @@ vx_add_symbols (name, from_tty, text_addr, data_addr, bss_addr)
   ANOFFSET (offs, SECT_OFF_DATA) = data_addr - ss.data_start;
   ANOFFSET (offs, SECT_OFF_BSS) = bss_addr - ss.bss_start;
   objfile_relocate (objfile, offs);
-
-  /* Need to do this *after* things are relocated.  */
-  breakpoint_re_set ();
 }
 
 /* This function allows the addition of incrementally linked object files.  */
@@ -1247,42 +1251,19 @@ vx_attach (args, from_tty)
     error (rpcerr);
   if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       perror_with_name ("Attaching remote process");
     }
 
   /* It worked... */
-  push_target (&vx_run_ops);
-  /* The unsigned long pid will get turned into a signed int here,
-     but it doesn't seem to matter.  inferior_pid must be signed
-     in order for other parts of GDB to work correctly.  */
+
   inferior_pid = pid;
+  push_target (&vx_run_ops);
+
+  if (vx_running)
+    free (vx_running);
   vx_running = 0;
-#if defined (START_INFERIOR_HOOK)
-  START_INFERIOR_HOOK ();
-#endif
-
-  mark_breakpoints_out ();
-
-  /* Set up the "saved terminal modes" of the inferior
-     based on what modes we are starting it with.  */
-
-  target_terminal_init ();
-
-  /* Install inferior's terminal modes.  */
-
-  target_terminal_inferior ();
-
-  /* We will get a task spawn event immediately.  */
-
-  init_wait_for_inferior ();
-  clear_proceed_status ();
-  stop_soon_quietly = 1;
-  wait_for_inferior ();
-  stop_soon_quietly = 0;
-  normal_stop ();
 }
-
 
 /* detach_command --
    takes a program previously attached to and detaches it.
@@ -1322,7 +1303,7 @@ vx_detach (args, from_tty)
     error (rpcerr);
   if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       perror_with_name ("Detaching VxWorks process");
     }
 
@@ -1350,7 +1331,7 @@ vx_kill ()
     warning (rpcerr);
   else if (ptrace_out.status == -1)
     {
-      errno = ptrace_out.errno;
+      errno = ptrace_out.errno_num;
       perror_with_name ("Killing VxWorks process");
     }
 
@@ -1418,71 +1399,69 @@ vx_proc_open (name, from_tty)
   error ("Use the \"run\" command to start a VxWorks process.");
 }
 
-/* Target ops structure for accessing memory and such over the net */
-
-struct target_ops vx_ops = {
-  "vxworks", "VxWorks target memory via RPC over TCP/IP",
-  "Use VxWorks target memory.  \n\
-Specify the name of the machine to connect to.",
-  vx_open, vx_close, vx_attach, 0, /* vx_detach, */
-  0, 0, /* resume, wait */
-  0, 0, /* read_reg, write_reg */
-  0, /* prep_to_store, */
-  vx_xfer_memory, vx_files_info,
-  0, 0, /* insert_breakpoint, remove_breakpoint */
-  0, 0, 0, 0, 0,	/* terminal stuff */
-  0, /* vx_kill, */
-  vx_load_command,
-  vx_lookup_symbol,
-  vx_create_inferior, 0,  /* mourn_inferior */
-  0, /* can_run */
-  0, /* notice_signals */
-  0, /* thread_alive */
-  0,				/* to_stop */
-  core_stratum, 0, /* next */
-  1, 1, 0, 0, 0,	/* all mem, mem, stack, regs, exec */
-  0, 0,			/* Section pointers */
-  OPS_MAGIC,		/* Always the last thing */
+static void
+init_vx_ops ()
+{
+  vx_ops.to_shortname = "vxworks";
+  vx_ops.to_longname = "VxWorks target memory via RPC over TCP/IP";
+  vx_ops.to_doc = "Use VxWorks target memory.  \n\
+Specify the name of the machine to connect to.";
+  vx_ops.to_open = vx_open;
+  vx_ops.to_close = vx_close;
+  vx_ops.to_attach = vx_attach;
+  vx_ops.to_xfer_memory = vx_xfer_memory;
+  vx_ops.to_files_info = vx_files_info;
+  vx_ops.to_load = vx_load_command;
+  vx_ops.to_lookup_symbol = vx_lookup_symbol;
+  vx_ops.to_create_inferior = vx_create_inferior;
+  vx_ops.to_stratum = core_stratum;
+  vx_ops.to_has_all_memory = 1;
+  vx_ops.to_has_memory = 1;
+  vx_ops.to_magic = OPS_MAGIC;		/* Always the last thing */
 };
 
-/* Target ops structure for accessing VxWorks child processes over the net */
-
-struct target_ops vx_run_ops = {
-  "vxprocess", "VxWorks process",
-  "VxWorks process, started by the \"run\" command.",
-  vx_proc_open, vx_proc_close, 0, vx_detach, /* vx_attach */
-  vx_resume, vx_wait,
-  vx_read_register, vx_write_register,
-  vx_prepare_to_store,
-  vx_xfer_memory, vx_run_files_info,
-  vx_insert_breakpoint, vx_remove_breakpoint,
-  0, 0, 0, 0, 0,	/* terminal stuff */
-  vx_kill,
-  vx_load_command,
-  vx_lookup_symbol,
-  0, vx_mourn_inferior,
-  0, /* can_run */
-  0, /* notice_signals */
-  0, /* thread_alive */
-  0,				/* to_stop */
-  process_stratum, 0, /* next */
-  0, /* all_mem--off to avoid spurious msg in "i files" */
-  1, 1, 1, 1,	/* mem, stack, regs, exec */
-  0, 0,			/* Section pointers */
-  OPS_MAGIC,		/* Always the last thing */
-};
-/* ==> Remember when reading at end of file, there are two "ops" structs here. */
+static void
+init_vx_run_ops ()
+{
+  vx_run_ops.to_shortname = "vxprocess";
+  vx_run_ops.to_longname = "VxWorks process";
+  vx_run_ops.to_doc = "VxWorks process; started by the \"run\" command.";
+  vx_run_ops.to_open = vx_proc_open;
+  vx_run_ops.to_close = vx_proc_close;
+  vx_run_ops.to_detach = vx_detach;
+  vx_run_ops.to_resume = vx_resume;
+  vx_run_ops.to_wait = vx_wait;
+  vx_run_ops.to_fetch_registers = vx_read_register;
+  vx_run_ops.to_store_registers = vx_write_register;
+  vx_run_ops.to_prepare_to_store = vx_prepare_to_store;
+  vx_run_ops.to_xfer_memory = vx_xfer_memory;
+  vx_run_ops.to_files_info = vx_run_files_info;
+  vx_run_ops.to_insert_breakpoint = vx_insert_breakpoint;
+  vx_run_ops.to_remove_breakpoint = vx_remove_breakpoint;
+  vx_run_ops.to_kill = vx_kill;
+  vx_run_ops.to_load = vx_load_command;
+  vx_run_ops.to_lookup_symbol = vx_lookup_symbol;
+  vx_run_ops.to_mourn_inferior = vx_mourn_inferior ;
+  vx_run_ops.to_stratum = process_stratum;
+  vx_run_ops.to_has_memory = 1;
+  vx_run_ops.to_has_stack = 1;
+  vx_run_ops.to_has_registers = 1;
+  vx_run_ops.to_has_execution = 1;	
+  vx_run_ops.to_magic = OPS_MAGIC;	
+}
 
 void
 _initialize_vx ()
 {
+  init_vx_ops ();
+  add_target (&vx_ops);
+  init_vx_run_ops ();
+  add_target (&vx_run_ops);
+
   add_show_from_set
     (add_set_cmd ("vxworks-timeout", class_support, var_uinteger,
 		  (char *) &rpcTimeout.tv_sec,
 		  "Set seconds to wait for rpc calls to return.\n\
 Set the number of seconds to wait for rpc calls to return.", &setlist),
      &showlist);
-
-  add_target (&vx_ops);
-  add_target (&vx_run_ops);
 }

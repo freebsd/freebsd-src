@@ -16,7 +16,7 @@
 /^MMALLOC_DIR = /s/::mmalloc/mmalloc:/
 /^MMALLOC_SRC = /s/"{srcdir}"/"{topsrcdir}"/
 /^MMALLOC =/s/=.*$/=/
-/#MMALLOC_DISABLE/s/^#//
+/MMALLOC_CFLAGS =/s/=.*$/= -u USE_MMALLOC/
 
 /^BFD_DIR = /s/::bfd/bfd:/
 /^BFD = /s/{BFD_DIR}:libbfd/{BFD_DIR}libbfd/
@@ -32,16 +32,19 @@
 
 /^TERMCAP =/s/ =.*$/ =/
 
+# Whack out various autoconf vars that we don't need.
+/@CONFIG_LDFLAGS@/s/@CONFIG_LDFLAGS@//g
+/@HLDFLAGS@/s/@HLDFLAGS@//g
 /@DEFS@/s/@DEFS@//g
-
 /@YACC@/s/@YACC@/byacc/g
-
 /@ENABLE_OBS@/s/@ENABLE_OBS@//g
-
 /@ENABLE_CLIBS@/s/@ENABLE_CLIBS@//g
-
 /@LIBS@/s/@LIBS@//g
 
+# Whack out autoconf hook for thread debugging.
+/@THREAD_DB_OBS@/s/@THREAD_DB_OBS@//g
+
+# Fix up paths to include directories.
 /INCLUDE_DIR/s/"{s}"{INCLUDE_DIR}/{INCLUDE_DIR}/g
 /INCLUDE_DIR/s/{INCLUDE_DIR}:/{INCLUDE_DIR}/g
 /INCLUDE_DIR/s/"{INCLUDE_DIR}":/"{INCLUDE_DIR}"/g
@@ -59,8 +62,6 @@
 readline_headers =\
 
 
-/{MMALLOC_CHECK}/s/{MMALLOC_CHECK}//g
-
 # This isn't really useful, and seems to cause nonsensical complaints.
 /{ALLDEPFILES}/s/{ALLDEPFILES}//g
 
@@ -69,6 +70,7 @@ readline_headers =\
 # Fix the syntax of bits of C code that go into version.c.
 /char /s/'char .Option-x/'char */
 
+# Point at files in the obj dir rather than src dir.
 /version/s/"{s}"version\.c/"{o}"version.c/g
 /version/s/^version\.c/"{o}"version.c/
 /config/s/"{s}"config\.h/"{o}"config.h/g
@@ -91,6 +93,7 @@ readline_headers =\
 /init/s/"{s}"init\.c/"{o}"init.c/g
 /init/s/^init\.c/"{o}"init.c/
 
+# Fix up the generation of version.c.
 /"{o}"version.c \\Option-f Makefile/,/^$/c\
 "{o}"version.c \\Option-f Makefile\
 	echo -n 'char *version = "'	 >"{o}"version.c\
@@ -104,6 +107,8 @@ readline_headers =\
 	echo '";'			>>"{o}"version.c\
 
 
+/ansidecl/s/include "{s}""ansidecl.h"/include "ansidecl.h"/
+
 # Open-brace in a command causes much confusion; replace with the
 # result from a script.
 /initialize_all_files ()/c\
@@ -111,8 +116,9 @@ readline_headers =\
 	open-brace >> "{o}"init.c-tmp
 
 # Replace the whole sed bit for init.c; it's simpler that way...
-/filename=`echo $i | sed/,/esac/c\
-          set filename "`Echo {i} | sed \\Option-d\
+/echo {OBS} {TSOBS}/,/echo '}'/c\
+	For i in {OBS} {TSOBS}\
+          Set filename "`Echo {i} | sed \\Option-d\
             -e '/^Onindy.c.o/d' \\Option-d\
             -e '/^nindy.c.o/d' \\Option-d\
             -e '/ttyflush.c.o/d' \\Option-d\
@@ -129,7 +135,9 @@ readline_headers =\
           If "{filename}" != ""\
             sed <"{s}""{filename}" >>"{o}"init.c-tmp -n \\Option-d\
             -e '/^_initialize_[a-z_0-9A-Z]* *(/s/^\\([a-z_0-9A-Z]*\\).*/  {extern void \\1 (); \\1 ();}/p'\
-          End If
+          End If\
+	End For\
+	Echo '}' >>"{o}"init.c-tmp
 
 # Fix the main compile/link command.
 /{CC_LD} {INTERNAL_LDFLAGS} -o gdb/,/"{o}"init.c.o {OBS} {TSOBS} {ADD_FILES} {CLIBS} {LOADLIBES}/c\
@@ -137,10 +145,12 @@ readline_headers =\
 	{MAKEPEF} gdb{PROG_EXT} -o gdb {MAKEPEF_TOOL_FLAGS} {MAKEPEF_FLAGS}\
 	{REZ} "{s}"mac-gdb.r -o gdb -append -d PROG_NAME='"'gdb'"' -d VERSION_STRING='"'{version}'"'\
 
+# Replace the install actions with MPW-friendly script.
 /^install \\Option-f /,/^$/c\
 install \\Option-f all install-only\
 \
 install-only \\Option-f \
+	NewFolderRecursive "{bindir}"\
 	Duplicate -y gdb "{bindir}"gdb\
 	If "`Exists SiowGDB`" != ""\
 		Duplicate -y SiowGDB "{bindir}"SiowGDB\
@@ -154,6 +164,7 @@ install-only \\Option-f \
 /^config.status \\Option-f/,/^$/d
 /^Makefile \\Option-f/,/^$/d
 
+# Don't test config.h dependencies.
 /^"{o}"config.h \\Option-f/s/^/#/
 
 # Add an action to build SIOWgdb.

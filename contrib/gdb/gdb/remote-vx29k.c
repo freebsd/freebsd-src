@@ -176,7 +176,7 @@ vx_write_register (regno)
           contents when FRAME_CHAIN_VALID is invoked. */
 
 int
-get_fp_contents (chain, thisframe)
+vx29k_frame_chain_valid (chain, thisframe)
      CORE_ADDR chain;
      struct frame_info *thisframe;      /* not used here */
 {

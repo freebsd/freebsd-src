@@ -33,6 +33,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    of ROMBUG is not available yet.
 */
 
+/* FIXME This file needs to be rewritten if it's to work again, either
+   to self-contained or to use the new monitor interface.  */
+
 #include "defs.h"
 #include "gdbcore.h"
 #include "target.h"
@@ -54,7 +57,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "objfiles.h"
 #include "gdb-stabs.h"
 
-struct monitor_ops *current_monitor;
 struct cmd_list_element *showlist;
 extern struct target_ops rombug_ops;		/* Forward declaration */
 extern struct monitor_ops rombug_cmds;		/* Forward declaration */
@@ -299,7 +301,7 @@ rombug_create_inferior (execfile, args, env)
     error("Can't pass arguments to remote ROMBUG process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error("No exec file specified");
+    error("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -545,11 +547,11 @@ get_reg_name (regno)
   if (regno < 0)
     return ("");
 /*
-  for (p = reg_names[regno]; *p; p++)
+  for (p = REGISTER_NAME (regno); *p; p++)
     *b++ = toupper(*p);
   *b = '\000';
 */
-  p = (char *)reg_names[regno];
+  p = (char *)REGISTER_NAME (regno);
   return p;
 /*
   return buf;
@@ -884,7 +886,6 @@ rombug_mourn_inferior ()
 
 #define MAX_MONITOR_BREAKPOINTS 16
 
-extern int memory_breakpoint_size;
 static CORE_ADDR breakaddr[MAX_MONITOR_BREAKPOINTS] = {0};
 
 static int
@@ -893,9 +894,12 @@ rombug_insert_breakpoint (addr, shadow)
      char *shadow;
 {
   int i;
+  CORE_ADDR bp_addr = addr;
+  int bp_size = 0;
 
   if (monitor_log)
     fprintf (log_file, "\nIn Insert_breakpoint (addr=%x)\n", addr);
+  BREAKPOINT_FROM_PC (&bp_addr, &bp_size);
 
   for (i = 0; i <= MAX_MONITOR_BREAKPOINTS; i++)
     if (breakaddr[i] == 0)
@@ -903,7 +907,7 @@ rombug_insert_breakpoint (addr, shadow)
 	breakaddr[i] = addr;
 	if (sr_get_debug())
 	  printf ("Breakpoint at %x\n", addr);
-	rombug_read_inferior_memory(addr, shadow, memory_breakpoint_size);
+	rombug_read_inferior_memory (bp_addr, shadow, bp_size);
 	printf_monitor(SET_BREAK_CMD, addr);
 	is_trace_mode = 0;
 	expect_prompt(1);
@@ -1121,6 +1125,7 @@ connect_command (args, fromtty)
  * through to a printf style function, we need can include formatting
  * strings. We also need a CR or LF on the end.
  */
+#warning FIXME: monitor interface pattern strings, stale struct decl
 struct monitor_ops rombug_cmds = {
   "g \r",				/* execute or usually GO command */
   "g \r",				/* continue command */
@@ -1139,52 +1144,81 @@ struct monitor_ops rombug_cmds = {
   ".\r"					/* optional command terminator */
 };
 
-struct target_ops rombug_ops = {
-  "rombug",
-  "Microware's ROMBUG debug monitor",
-  "Use a remote computer running the ROMBUG debug monitor.\n\
+struct target_ops rombug_ops ;
+
+static void 
+init_rombug_ops(void)
+{
+  rombug_ops.to_shortname =   "rombug";
+  rombug_ops.to_longname =   "Microware's ROMBUG debug monitor";
+  rombug_ops.to_doc =   "Use a remote computer running the ROMBUG debug monitor.\n\
 Specify the serial device it is connected to (e.g. /dev/ttya).",
-  rombug_open,
-  rombug_close, 
-  0,
-  rombug_detach,
-  rombug_resume,
-  rombug_wait,
-  rombug_fetch_register,
-  rombug_store_register,
-  rombug_prepare_to_store,
-  rombug_xfer_inferior_memory,
-  rombug_files_info,
-  rombug_insert_breakpoint,
-  rombug_remove_breakpoint,	/* Breakpoints */
-  0,
-  0,
-  0,
-  0,
-  0,				/* Terminal handling */
-  rombug_kill,
-  rombug_load,			/* load */
-  rombug_link,				/* lookup_symbol */
-  rombug_create_inferior,
-  rombug_mourn_inferior,
-  0,				/* can_run */
-  0, 				/* notice_signals */
-  0,				/* to_stop */
-  process_stratum,
-  0,				/* next */
-  1,
-  1,
-  1,
-  1,
-  1,				/* has execution */
-  0,
-  0,				/* Section pointers */
-  OPS_MAGIC,			/* Always the last thing */
-};
+    rombug_ops.to_open =   rombug_open;
+  rombug_ops.to_close =   rombug_close;
+  rombug_ops.to_attach =   0;
+  rombug_ops.to_post_attach = NULL;
+  rombug_ops.to_require_attach = NULL;
+  rombug_ops.to_detach =   rombug_detach;
+  rombug_ops.to_require_detach = NULL;
+  rombug_ops.to_resume =   rombug_resume;
+  rombug_ops.to_wait  =   rombug_wait;
+  rombug_ops.to_post_wait = NULL;
+  rombug_ops.to_fetch_registers  =   rombug_fetch_register;
+  rombug_ops.to_store_registers  =   rombug_store_register;
+  rombug_ops.to_prepare_to_store =   rombug_prepare_to_store;
+  rombug_ops.to_xfer_memory  =   rombug_xfer_inferior_memory;
+  rombug_ops.to_files_info  =   rombug_files_info;
+  rombug_ops.to_insert_breakpoint =   rombug_insert_breakpoint;
+  rombug_ops.to_remove_breakpoint =   rombug_remove_breakpoint;	/* Breakpoints */
+  rombug_ops.to_terminal_init  =   0;
+  rombug_ops.to_terminal_inferior =   0;
+  rombug_ops.to_terminal_ours_for_output =   0;
+  rombug_ops.to_terminal_ours  =   0;
+  rombug_ops.to_terminal_info  =   0;				/* Terminal handling */
+  rombug_ops.to_kill  =   rombug_kill;
+  rombug_ops.to_load  =   rombug_load;			/* load */
+  rombug_ops.to_lookup_symbol =   rombug_link;				/* lookup_symbol */
+  rombug_ops.to_create_inferior =   rombug_create_inferior;
+  rombug_ops.to_post_startup_inferior = NULL;
+  rombug_ops.to_acknowledge_created_inferior = NULL;
+  rombug_ops.to_clone_and_follow_inferior = NULL;
+  rombug_ops.to_post_follow_inferior_by_clone = NULL;
+  rombug_ops.to_insert_fork_catchpoint = NULL;
+  rombug_ops.to_remove_fork_catchpoint = NULL;
+  rombug_ops.to_insert_vfork_catchpoint = NULL;
+  rombug_ops.to_remove_vfork_catchpoint = NULL;
+  rombug_ops.to_has_forked = NULL;
+  rombug_ops.to_has_vforked = NULL;
+  rombug_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  rombug_ops.to_post_follow_vfork = NULL;
+  rombug_ops.to_insert_exec_catchpoint = NULL;
+  rombug_ops.to_remove_exec_catchpoint = NULL;
+  rombug_ops.to_has_execd = NULL;
+  rombug_ops.to_reported_exec_events_per_exec_call = NULL;
+  rombug_ops.to_has_exited = NULL;
+  rombug_ops.to_mourn_inferior =   rombug_mourn_inferior;
+  rombug_ops.to_can_run  =   0;				/* can_run */
+  rombug_ops.to_notice_signals =   0; 				/* notice_signals */
+  rombug_ops.to_thread_alive  =   0;
+  rombug_ops.to_stop  =   0;				/* to_stop */
+  rombug_ops.to_pid_to_exec_file = NULL;
+  rombug_ops.to_core_file_to_sym_file = NULL;
+  rombug_ops.to_stratum =   process_stratum;
+  rombug_ops.DONT_USE =   0;				/* next */
+  rombug_ops.to_has_all_memory =   1;
+  rombug_ops.to_has_memory =   1;
+  rombug_ops.to_has_stack =   1;
+  rombug_ops.to_has_registers =   1;
+  rombug_ops.to_has_execution =   1;				/* has execution */
+  rombug_ops.to_sections =   0;
+  rombug_ops.to_sections_end =   0;				/* Section pointers */
+  rombug_ops.to_magic =   OPS_MAGIC;			/* Always the last thing */
+} 
 
 void
 _initialize_remote_os9k ()
 {
+  init_rombug_ops() ;
   add_target (&rombug_ops);
 
   add_show_from_set (

@@ -20,6 +20,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 #include "frame.h"
 #include "symtab.h"
+#include "gdbcore.h"
+#include "value.h"
+#include "gdb_string.h"
 
 
 /* Push an empty stack frame, to record the current PC, etc.  */
@@ -61,7 +64,6 @@ m68k_pop_frame ()
   register CORE_ADDR fp;
   register int regnum;
   struct frame_saved_regs fsr;
-  struct frame_info *fi;
   char raw_buffer[12];
 
   fp = FRAME_FP (frame);

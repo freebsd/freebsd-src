@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Stop backtracing when we wander into main.  */
 
-#define FRAME_CHAIN_VALID_ALTERNATE
+#define FRAME_CHAIN_VALID(fp,fi) alternate_frame_chain_valid (fp, fi)
 
 
 /* Offsets (in target ints) into jmp_buf.  Not defined in any system header

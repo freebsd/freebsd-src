@@ -45,8 +45,9 @@ char buf2[MAX_REGISTER_RAW_SIZE];
 /***************End MY defs*********************/
 
 #include <sys/ptrace.h>
-#if 0
-#include <machine/reg.h>
+
+#if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 1)
+#include <sys/reg.h>
 #endif
 
 extern char **environ;
@@ -165,6 +166,7 @@ myresume (step, signal)
     - KERNEL_U_ADDR
 #endif
 
+#ifndef TARGET_M68K
 /* this table must line up with REGISTER_NAMES in tm-i386v.h */
 /* symbols like 'EAX' come from <sys/reg.h> */
 static int regmap[] = 
@@ -198,13 +200,44 @@ i386_register_u_addr (blockend, regnum)
     return (blockend + 4 * regmap[regnum]);
   
 }
+#else /* TARGET_M68K */
+/* This table must line up with REGISTER_NAMES in tm-m68k.h */
+static int regmap[] = 
+{
+#ifdef PT_D0
+  PT_D0, PT_D1, PT_D2, PT_D3, PT_D4, PT_D5, PT_D6, PT_D7,
+  PT_A0, PT_A1, PT_A2, PT_A3, PT_A4, PT_A5, PT_A6, PT_USP,
+  PT_SR, PT_PC,
+#else
+  14, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15,
+  17, 18,
+#endif
+#ifdef PT_FP0
+  PT_FP0, PT_FP1, PT_FP2, PT_FP3, PT_FP4, PT_FP5, PT_FP6, PT_FP7,
+  PT_FPCR, PT_FPSR, PT_FPIAR
+#else
+  21, 24, 27, 30, 33, 36, 39, 42, 45, 46, 47
+#endif
+};
 
-unsigned int
+/* BLOCKEND is the value of u.u_ar0, and points to the place where GS
+   is stored.  */
+
+int
+m68k_linux_register_u_addr (blockend, regnum)
+     int blockend;
+     int regnum;
+{
+    return (blockend + 4 * regmap[regnum]);
+}
+#endif
+
+CORE_ADDR
 register_addr (regno, blockend)
      int regno;
-     int blockend;
+     CORE_ADDR blockend;
 {
-  int addr;
+  CORE_ADDR addr;
 
   if (regno < 0 || regno >= ARCH_NUM_REGS)
     error ("Invalid register number %d.", regno);
@@ -221,7 +254,6 @@ fetch_register (regno)
      int regno;
 {
   register unsigned int regaddr;
-  char buf[MAX_REGISTER_RAW_SIZE];
   register int i;
 
   /* Offset of registers within the u area.  */
@@ -272,10 +304,8 @@ store_inferior_registers (regno)
      int regno;
 {
   register unsigned int regaddr;
-  char buf[80];
   register int i;
   unsigned int offset = U_REGS_OFFSET;
-  int scratch;
 
   if (regno >= 0)
     {
@@ -334,6 +364,7 @@ store_inferior_registers (regno)
 /* Copy LEN bytes from inferior's memory starting at MEMADDR
    to debugger memory starting at MYADDR.  */
 
+void
 read_inferior_memory (memaddr, myaddr, len)
      CORE_ADDR memaddr;
      char *myaddr;

@@ -135,7 +135,7 @@ static struct block *modblock=0;
 %union
   {
     LONGEST lval;
-    unsigned LONGEST ulval;
+    ULONGEST ulval;
     DOUBLEST dval;
     struct symbol *sym;
     struct type *tval;

@@ -100,8 +100,8 @@
 typedef void (*ExceptionHook)(int);   /* pointer to function with int parm */
 typedef void (*Function)();           /* pointer to a function */
 
-extern putDebugChar();   /* write a single character      */
-extern getDebugChar();   /* read and return a single char */
+extern void putDebugChar();	/* write a single character      */
+extern int getDebugChar();	/* read and return a single char */
 
 extern Function exceptionHandler();  /* assign an exception handler */
 extern ExceptionHook exceptionHook;  /* hook variable for errors/exceptions */
@@ -120,8 +120,12 @@ void waitabit();
 
 static const char hexchars[]="0123456789abcdef";
 
+/* Number of registers.  */
+#define NUMREGS	16
+
 /* Number of bytes of registers.  */
-#define NUMREGBYTES 64
+#define NUMREGBYTES (NUMREGS * 4)
+
 enum regnames {EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI,
 	       PC /* also known as eip */,
 	       PS /* also known as eflags */,
@@ -130,7 +134,7 @@ enum regnames {EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI,
 /*
  * these should not be static cuz they can be used outside this module
  */
-int registers[NUMREGBYTES/4];
+int registers[NUMREGS];
 
 #define STACKSIZE 10000
 int remcomStack[STACKSIZE/sizeof(int)];
@@ -525,7 +529,7 @@ char * buffer;
   count    = 0;
 
   while (ch=buffer[count]) {
-    if (! putDebugChar(ch)) return;
+    putDebugChar(ch);
     checksum += ch;
     count += 1;
   }
@@ -736,6 +740,22 @@ void handle_exception(int exceptionVector)
                 hex2mem(&remcomInBuffer[1], (char*) registers, NUMREGBYTES, 0);
                 strcpy(remcomOutBuffer,"OK");
                 break;
+      case 'P' : /* set the value of a single CPU register - return OK */
+                {
+                  int regno;
+
+                  ptr = &remcomInBuffer[1];
+                  if (hexToInt (&ptr, &regno) && *ptr++ == '=') 
+                  if (regno >= 0 && regno < NUMREGS)
+                    {
+                      hex2mem (ptr, (char *)&registers[regno], 4, 0);
+                      strcpy(remcomOutBuffer,"OK");
+                      break;
+                    }
+
+                  strcpy (remcomOutBuffer, "E01");
+                  break;
+                }
 
       /* mAA..AA,LLLL  Read LLLL bytes at address AA..AA */
       case 'm' :
@@ -898,14 +918,6 @@ void breakpoint()
 }
 
 int waitlimit = 1000000;
-
-#if 0
-void
-bogon()
-{
-  waitabit();
-}
-#endif
 
 void
 waitabit()

@@ -27,5 +27,5 @@ extern void			/* Defined in m2-typeprint.c */
 m2_print_type PARAMS ((struct type *, char *, GDB_FILE *, int, int));
 
 extern int
-m2_val_print PARAMS ((struct type *, char *, CORE_ADDR, GDB_FILE *, int, int,
+m2_val_print PARAMS ((struct type *, char *, int, CORE_ADDR, GDB_FILE *, int, int,
 		      int, enum val_prettyprint));

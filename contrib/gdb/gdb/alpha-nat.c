@@ -1,5 +1,5 @@
 /* Low level Alpha interface, for GDB when running native.
-   Copyright 1993, 1995, 1996 Free Software Foundation, Inc.
+   Copyright 1993, 1995, 1996, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -22,8 +22,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "gdbcore.h"
 #include "target.h"
 #include <sys/ptrace.h>
-#include <machine/reg.h>
+#ifdef __linux__
+# include <asm/reg.h>
+# include <alpha/ptrace.h>
+#else
+# include <machine/reg.h>
+#endif
 #include <sys/user.h>
+
+/* Prototypes for local functions. */
+
+static void fetch_osf_core_registers PARAMS ((char *,
+					      unsigned, int, CORE_ADDR));
+static void fetch_elf_core_registers PARAMS ((char *,
+					      unsigned, int, CORE_ADDR));
 
 /* Size of elements in jmpbuf */
 
@@ -74,11 +86,11 @@ get_longjmp_target (pc)
  */
 
 static void
-fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
+fetch_osf_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned reg_addr;
+     CORE_ADDR reg_addr;
 {
   register int regno;
   register int addr;
@@ -121,9 +133,41 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
     }
   if (bad_reg >= 0)
     {
-      error ("Register %s not found in core file.", reg_names[bad_reg]);
+      error ("Register %s not found in core file.", REGISTER_NAME (bad_reg));
     }
 }
+
+static void
+fetch_elf_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
+     char *core_reg_sect;
+     unsigned core_reg_size;
+     int which;
+     CORE_ADDR reg_addr;
+{
+  if (core_reg_size < 32*8)
+    {
+      error ("Core file register section too small (%u bytes).", core_reg_size);
+      return;
+    }
+
+  if (which == 2)
+    {
+      /* The FPU Registers.  */
+      memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], core_reg_sect, 31*8);
+      memset (&registers[REGISTER_BYTE (FP0_REGNUM+31)], 0, 8);
+      memset (&register_valid[FP0_REGNUM], 1, 32);
+    }
+  else
+    {
+      /* The General Registers.  */
+      memcpy (&registers[REGISTER_BYTE (V0_REGNUM)], core_reg_sect, 31*8);
+      memcpy (&registers[REGISTER_BYTE (PC_REGNUM)], core_reg_sect+31*8, 8);
+      memset (&registers[REGISTER_BYTE (ZERO_REGNUM)], 0, 8);
+      memset (&register_valid[V0_REGNUM], 1, 32);
+      register_valid[PC_REGNUM] = 1;
+    }
+}
+
 
 /* Map gdb internal register number to a ptrace ``address''.
    These ``addresses'' are defined in <sys/ptrace.h> */
@@ -136,10 +180,10 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
 
 /* Return the ptrace ``address'' of register REGNO. */
 
-unsigned int
+CORE_ADDR
 register_addr (regno, blockend)
      int regno;
-     int blockend;
+     CORE_ADDR blockend;
 {
   return REGISTER_PTRACE_ADDR (regno);
 }
@@ -150,7 +194,7 @@ kernel_u_size ()
   return (sizeof (struct user));
 }
 
-#ifdef USE_PROC_FS
+#if defined(USE_PROC_FS) || defined(HAVE_GREGSET_T)
 #include <sys/procfs.h>
 
 /*
@@ -162,7 +206,7 @@ supply_gregset (gregsetp)
      gregset_t *gregsetp;
 {
   register int regi;
-  register long *regp = gregsetp->regs;
+  register long *regp = ALPHA_REGSET_BASE (gregsetp);
   static char zerobuf[MAX_REGISTER_RAW_SIZE] = {0};
 
   for (regi = 0; regi < 31; regi++)
@@ -181,7 +225,7 @@ fill_gregset (gregsetp, regno)
      int regno;
 {
   int regi;
-  register long *regp = gregsetp->regs;
+  register long *regp = ALPHA_REGSET_BASE (gregsetp);
 
   for (regi = 0; regi < 31; regi++)
     if ((regno == -1) || (regno == regi))
@@ -201,7 +245,7 @@ supply_fpregset (fpregsetp)
      fpregset_t *fpregsetp;
 {
   register int regi;
-  register long *regp = fpregsetp->regs;
+  register long *regp = ALPHA_REGSET_BASE (fpregsetp);
 
   for (regi = 0; regi < 32; regi++)
     supply_register (regi + FP0_REGNUM, (char *)(regp + regi));
@@ -213,7 +257,7 @@ fill_fpregset (fpregsetp, regno)
      int regno;
 {
   int regi;
-  register long *regp = fpregsetp->regs;
+  register long *regp = ALPHA_REGSET_BASE (fpregsetp);
 
   for (regi = FP0_REGNUM; regi < FP0_REGNUM + 32; regi++)
     {
@@ -229,15 +273,25 @@ fill_fpregset (fpregsetp, regno)
 
 /* Register that we are able to handle alpha core file formats. */
 
-static struct core_fns alpha_core_fns =
+static struct core_fns alpha_osf_core_fns =
 {
-  bfd_target_aout_flavour,
-  fetch_core_registers,
+  /* This really is bfd_target_unknown_flavour.  */
+
+  bfd_target_unknown_flavour,
+  fetch_osf_core_registers,
+  NULL
+};
+
+static struct core_fns alpha_elf_core_fns =
+{
+  bfd_target_elf_flavour,
+  fetch_elf_core_registers,
   NULL
 };
 
 void
 _initialize_core_alpha ()
 {
-  add_core_fns (&alpha_core_fns);
+  add_core_fns (&alpha_osf_core_fns);
+  add_core_fns (&alpha_elf_core_fns);
 }

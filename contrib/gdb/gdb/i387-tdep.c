@@ -1,5 +1,5 @@
 /* Intel 387 floating point stuff.
-   Copyright (C) 1988, 1989, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1991, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -23,6 +23,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "language.h"
 #include "gdbcore.h"
 #include "floatformat.h"
+
+void i387_to_double PARAMS ((char *, char *));
+
+void double_to_i387 PARAMS ((char *, char *));
 
 /* FIXME:  Eliminate these routines when we have the time to change all
    the callers.  */

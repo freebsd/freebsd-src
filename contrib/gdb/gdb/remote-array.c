@@ -1,5 +1,5 @@
 /* Remote debugging interface for Array Tech RAID controller..
-   Copyright 90, 91, 92, 93, 94, 1995  Free Software Foundation, Inc.
+   Copyright 90, 91, 92, 93, 94, 1995, 1998  Free Software Foundation, Inc.
    Contributed by Cygnus Support. Written by Rob Savoye for Cygnus.
 
    This module talks to a debug monitor called 'MONITOR', which
@@ -33,6 +33,7 @@
 #else
 #include <varargs.h>
 #endif
+#include <ctype.h>
 #include <signal.h>
 #include <sys/types.h>
 #include "gdb_string.h"
@@ -89,7 +90,7 @@ static int from_hex();
 static int array_send_packet();
 static int array_get_packet();
 static unsigned long ascii2hexword();
-static char *hexword2ascii();
+static void hexword2ascii();
 
 extern char *version;
 
@@ -121,50 +122,77 @@ serial_t array_desc = NULL;
 extern char *tmp_mips_processor_type;
 extern int mips_set_processor_type();
 
-static struct target_ops array_ops = {
-  "array",			/* to_shortname */
-				/* to_longname */
-  "Debug using the standard GDB remote protocol for the Array Tech target.",
-				/* to_doc */
-  "Debug using the standard GDB remote protocol for the Array Tech target.\n\
-Specify the serial device it is connected to (e.g. /dev/ttya).",
-  array_open,			/* to_open */
-  array_close,			/* to_close */
-  NULL,				/* to_attach */
-  array_detach,			/* to_detach */
-  array_resume,			/* to_resume */
-  array_wait,			/* to_wait */
-  array_fetch_registers,	/* to_fetch_registers */
-  array_store_registers,	/* to_store_registers */
-  array_prepare_to_store,	/* to_prepare_to_store */
-  array_xfer_memory,		/* to_xfer_memory */
-  array_files_info,		/* to_files_info */
-  array_insert_breakpoint,	/* to_insert_breakpoint */
-  array_remove_breakpoint,	/* to_remove_breakpoint */
-  0,				/* to_terminal_init */
-  0,				/* to_terminal_inferior */
-  0,				/* to_terminal_ours_for_output */
-  0,				/* to_terminal_ours */
-  0,				/* to_terminal_info */
-  array_kill,			/* to_kill */
-  0,				/* to_load */
-  0,				/* to_lookup_symbol */
-  array_create_inferior,	/* to_create_inferior */
-  array_mourn_inferior,		/* to_mourn_inferior */
-  0,				/* to_can_run */
-  0, 				/* to_notice_signals */
-  0,				/* to_thread_alive */
-  0,                            /* to_stop */
-  process_stratum,		/* to_stratum */
-  0,				/* to_next */
-  1,				/* to_has_all_memory */
-  1,				/* to_has_memory */
-  1,				/* to_has_stack */
-  1,				/* to_has_registers */
-  1,				/* to_has_execution */
-  0,				/* sections */
-  0,				/* sections_end */
-  OPS_MAGIC			/* to_magic */
+static struct target_ops array_ops ;
+
+static void 
+init_array_ops(void)
+{
+  array_ops.to_shortname =   "array";	
+  array_ops.to_longname = 		
+    "Debug using the standard GDB remote protocol for the Array Tech target.",
+    array_ops.to_doc = 			
+    "Debug using the standard GDB remote protocol for the Array Tech target.\n\
+Specify the serial device it is connected to (e.g. /dev/ttya)." ;
+  array_ops.to_open =   array_open;	
+  array_ops.to_close =   array_close;	
+  array_ops.to_attach =   NULL;
+  array_ops.to_post_attach = NULL;		
+  array_ops.to_require_attach = NULL;
+  array_ops.to_detach =   array_detach;	
+  array_ops.to_require_detach = NULL;
+  array_ops.to_resume =   array_resume;	
+  array_ops.to_wait  =   array_wait;	
+  array_ops.to_post_wait = NULL;
+  array_ops.to_fetch_registers  =   array_fetch_registers;
+  array_ops.to_store_registers  =   array_store_registers;
+  array_ops.to_prepare_to_store =   array_prepare_to_store;
+  array_ops.to_xfer_memory  =   array_xfer_memory;		
+  array_ops.to_files_info  =   array_files_info;		
+  array_ops.to_insert_breakpoint =   array_insert_breakpoint;	
+  array_ops.to_remove_breakpoint =   array_remove_breakpoint;	
+  array_ops.to_terminal_init  =   0;				
+  array_ops.to_terminal_inferior =   0;				
+  array_ops.to_terminal_ours_for_output =   0;			
+  array_ops.to_terminal_ours  =   0;				
+  array_ops.to_terminal_info  =   0;				
+  array_ops.to_kill  =   array_kill;		
+  array_ops.to_load  =   0;			
+  array_ops.to_lookup_symbol =   0;		
+  array_ops.to_create_inferior =   array_create_inferior;	
+  array_ops.to_post_startup_inferior = NULL;
+  array_ops.to_acknowledge_created_inferior = NULL;
+  array_ops.to_clone_and_follow_inferior = NULL;          
+  array_ops.to_post_follow_inferior_by_clone = NULL;  
+  array_ops.to_insert_fork_catchpoint = NULL;
+  array_ops.to_remove_fork_catchpoint = NULL;
+  array_ops.to_insert_vfork_catchpoint = NULL;
+  array_ops.to_remove_vfork_catchpoint = NULL;                      
+  array_ops.to_has_forked = NULL;
+  array_ops.to_has_vforked = NULL;            
+  array_ops.to_can_follow_vfork_prior_to_exec = NULL;            
+  array_ops.to_post_follow_vfork = NULL;
+  array_ops.to_insert_exec_catchpoint = NULL;
+  array_ops.to_remove_exec_catchpoint = NULL;
+  array_ops.to_has_execd = NULL;
+  array_ops.to_reported_exec_events_per_exec_call = NULL;
+  array_ops.to_has_exited = NULL;
+  array_ops.to_mourn_inferior =   array_mourn_inferior;		
+  array_ops.to_can_run  =   0;		
+  array_ops.to_notice_signals =   0; 	
+  array_ops.to_thread_alive  =   0;	
+  array_ops.to_stop  =   0;
+  array_ops.to_pid_to_exec_file = NULL;
+  array_ops.to_core_file_to_sym_file = NULL;         
+  array_ops.to_stratum =   process_stratum;	
+  array_ops.DONT_USE =   0;			
+  array_ops.to_has_all_memory =   1;		
+  array_ops.to_has_memory =   1;		
+  array_ops.to_has_stack =   1;			
+  array_ops.to_has_registers =   1;		
+  array_ops.to_has_execution =   1;		
+  array_ops.to_sections =   0;			
+  array_ops.to_sections_end =   0;		
+  array_ops.to_magic =   OPS_MAGIC;		
 };
 
 /*
@@ -527,7 +555,7 @@ array_create_inferior (execfile, args, env)
     error("Can't pass arguments to remote MONITOR process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error("No exec file specified");
+    error("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -599,9 +627,9 @@ array_open(args, name, from_tty)
   log_file = fopen (LOG_FILE, "w");
   if (log_file == NULL)
     perror_with_name (LOG_FILE);
-  fprintf_filtered (log_file, "GDB %s (%s", version);
-  fprintf_filtered (log_file, " --target %s)\n", array_ops.to_shortname);
-  fprintf_filtered (log_file, "Remote target %s connected to %s\n\n", array_ops.to_shortname, dev_name);
+  fprintf (log_file, "GDB %s (%s", version);
+  fprintf (log_file, " --target %s)\n", array_ops.to_shortname);
+  fprintf (log_file, "Remote target %s connected to %s\n\n", array_ops.to_shortname, dev_name);
 #endif
 
   /* see if the target is alive. For a ROM monitor, we can just try to force the
@@ -727,7 +755,7 @@ array_wait (pid, status)
 
   timeout = 0;		/* Don't time out -- user program is running. */
  
-#if !defined(__GO32__) && !defined(__MSDOS__) && !defined(__WIN32__)
+#if !defined(__GO32__) && !defined(__MSDOS__) && !defined(_WIN32)
   tty_desc = SERIAL_FDOPEN (0);
   ttystate = SERIAL_GET_TTY_STATE (tty_desc);
   SERIAL_RAW (tty_desc);
@@ -746,7 +774,7 @@ array_wait (pid, status)
 	i = 0;
       }
       fputc_unfiltered (c, gdb_stdout);
-      fflush (stdout);
+      gdb_flush (gdb_stdout);
     }
     c = SERIAL_READCHAR(tty_desc, timeout);
     if (c > 0) {
@@ -756,7 +784,7 @@ array_wait (pid, status)
 	break;
 #if 0
       fputc_unfiltered (c, gdb_stdout);
-      fflush (stdout);
+      gdb_flush (gdb_stdout);
 #endif
     }
   }
@@ -1047,7 +1075,6 @@ array_mourn_inferior ()
 
 #define MAX_ARRAY_BREAKPOINTS 16
 
-extern int memory_breakpoint_size;
 static CORE_ADDR breakaddr[MAX_ARRAY_BREAKPOINTS] = {0};
 
 /*
@@ -1059,15 +1086,18 @@ array_insert_breakpoint (addr, shadow)
      char *shadow;
 {
   int i;
+  int bp_size = 0;
+  CORE_ADDR bp_addr = addr;
 
   debuglogs (1, "array_insert_breakpoint() addr = 0x%x", addr);
+  BREAKPOINT_FROM_PC (&bp_addr, &bp_size);
 
   for (i = 0; i <= MAX_ARRAY_BREAKPOINTS; i++) {
     if (breakaddr[i] == 0) {
       breakaddr[i] = addr;
       if (sr_get_debug() > 4)
 	printf ("Breakpoint at %x\n", addr);
-      array_read_inferior_memory(addr, shadow, memory_breakpoint_size);
+      array_read_inferior_memory (bp_addr, shadow, bp_size);
       printf_monitor("b 0x%x\n", addr);
       expect_prompt(1);
       return 0;
@@ -1360,6 +1390,7 @@ array_get_packet (packet)
       }
     }
   }
+  return 0; /* exceeded retries */
 }
 
 /*
@@ -1393,7 +1424,7 @@ ascii2hexword (mem)
  * ascii2hexword -- convert a hex value to an ascii number represented by 8
  *	digits.
  */
-static char*
+static void
 hexword2ascii (mem, num)
      unsigned char *mem;
      unsigned long num;
@@ -1461,5 +1492,6 @@ _initialize_remote_monitors ()
 void
 _initialize_array ()
 {
+  init_array_ops() ;
   add_target (&array_ops);
 }

@@ -1,5 +1,5 @@
 /* Data structures for RS/6000 shared libraries, for GDB.
-   Copyright 1991, 1992, 1994 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1994, 1997 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -32,9 +32,11 @@ struct vmap {
   char *member;		/* ptr to member name			*/
   CORE_ADDR tstart;	/* virtual addr where member is mapped	*/
   CORE_ADDR tend;	/* virtual upper bound of member	*/
-  CORE_ADDR tadj;	/* heuristically derived adjustment	*/
+  CORE_ADDR tvma;	/* virtual addr of text section in object file */
+  CORE_ADDR toffs;	/* offset of text section in object file */
   CORE_ADDR dstart;	/* virtual address of data start	*/
-  CORE_ADDR dend;	/* vitrual address of data end		*/
+  CORE_ADDR dend;	/* virtual address of data end		*/
+  CORE_ADDR dvma;	/* virtual addr of data section in object file */
 
   /* This is NULL for the exec-file.  */
   struct objfile *objfile;
@@ -51,6 +53,6 @@ struct vmap_and_bfd {
 
 extern struct vmap *vmap;
 
-void
-add_text_to_loadinfo PARAMS ((CORE_ADDR textaddr, CORE_ADDR dataaddr));
+/* Hook for symbol table relocation at runtime. */
 
+extern void (*xcoff_relocate_symtab_hook) PARAMS ((unsigned int));

@@ -62,9 +62,12 @@ machine; for example, use @file{sparc-stub.c} to debug programs on
 These working remote stubs are distributed with @value{GDBN}:
 
 @table @code
-@item sparc-stub.c
-@kindex sparc-stub.c
-For @sc{sparc} architectures.
+
+@item i386-stub.c
+@kindex i386-stub.c
+@cindex Intel
+@cindex i386
+For Intel 386 and compatible architectures.
 
 @item m68k-stub.c
 @kindex m68k-stub.c
@@ -72,11 +75,23 @@ For @sc{sparc} architectures.
 @cindex m680x0
 For Motorola 680x0 architectures.
 
-@item i386-stub.c
-@kindex i386-stub.c
-@cindex Intel
-@cindex i386
-For Intel 386 and compatible architectures.
+@item sh-stub.c
+@kindex sh-stub.c
+@cindex Hitachi
+@cindex SH
+For Hitachi SH architectures.
+
+@item sparc-stub.c
+@kindex sparc-stub.c
+@cindex Sparc
+For @sc{sparc} architectures.
+
+@item sparcl-stub.c
+@kindex sparcl-stub.c
+@cindex Fujitsu
+@cindex SparcLite
+For Fujitsu @sc{sparclite} architectures.
+
 @end table
 
 The @file{README} file in the @value{GDBN} distribution may list other
@@ -430,9 +445,8 @@ to make a quick decision about single-stepping or conditional breakpoints.
 This eliminates the need to fetch the entire register set for each instruction
 being stepped through.
 
-The @value{GDBN} remote serial protocol now implements a write-through 
-cache for registers.  @value{GDBN} only re-reads the registers if the 
-target has run.
+@value{GDBN} now implements a write-through cache for registers and only
+re-reads the registers if the target has run.
 @end table
 
 @kindex set remotedebug
@@ -1129,6 +1143,157 @@ or suspended when you attach to it.  Running tasks are suspended at
 the time of attachment.
 @end ifset
 
+@ifset SPARCLET
+@node Sparclet Remote
+@subsection @value{GDBN} and Sparclet
+@cindex Sparclet
+
+@value{GDBN} enables developers to debug tasks running on 
+Sparclet targets from a Unix host.  
+@value{GDBN} uses code that runs on
+both the Unix host and on the Sparclet target.  The program
+@code{gdb} is installed and executed on the Unix host.  
+
+@table @code
+@item timeout @var{args}
+@kindex remotetimeout
+@value{GDBN} now supports the option @code{remotetimeout}.  
+This option is set by the user, and  @var{args} represents the number of 
+seconds @value{GDBN} waits for responses.  
+@end table
+
+@kindex Compiling
+When compiling for debugging, include the options "-g" to get debug 
+information and "-Ttext" to relocate the program to where you wish to
+load it on the target.  You may also want to add the options "-n" or 
+"-N" in order to reduce the size of the sections.
+
+@example
+sparclet-aout-gcc prog.c -Ttext 0x12010000 -g -o prog -N
+@end example
+
+You can use objdump to verify that the addresses are what you intended.
+
+@example
+sparclet-aout-objdump --headers --syms prog
+@end example
+
+@kindex Running
+Once you have set
+your Unix execution search path to find @value{GDBN}, you are ready to
+run @value{GDBN}.  From your Unix host, run @code{gdb} 
+(or @code{sparclet-aout-gdb}, depending on your installation).
+
+@value{GDBN} comes up showing the prompt:
+
+@example
+(gdbslet)
+@end example
+
+@menu
+* Sparclet File::                Setting the file to debug
+* Sparclet Connection::          Connecting to Sparclet
+* Sparclet Download::            Sparclet download
+* Sparclet Execution::           Running and debugging 
+@end menu
+
+@node Sparclet File
+@subsubsection Setting file to debug
+
+The @value{GDBN} command @code{file} lets you choose with program to debug.
+
+@example
+(gdbslet) file prog
+@end example
+
+@need 1000
+@value{GDBN} then attempts to read the symbol table of @file{prog}.
+@value{GDBN} locates
+the file by searching the directories listed in the command search
+path.
+If the file was compiled with debug information (option "-g"), source
+files will be searched as well.
+@value{GDBN} locates
+the source files by searching the directories listed in the directory search
+path (@pxref{Environment, ,Your program's environment}).
+If it fails
+to find a file, it displays a message such as:
+
+@example
+prog: No such file or directory.
+@end example
+
+When this happens, add the appropriate directories to the search paths with
+the @value{GDBN} commands @code{path} and @code{dir}, and execute the 
+@code{target} command again.
+
+@node Sparclet Connection
+@subsubsection Connecting to Sparclet
+
+The @value{GDBN} command @code{target} lets you connect to a Sparclet target.
+To connect to a target on serial port ``@code{ttya}'', type:
+
+@example
+(gdbslet) target sparclet /dev/ttya
+Remote target sparclet connected to /dev/ttya
+main () at ../prog.c:3 
+@end example
+
+@need 750
+@value{GDBN} displays messages like these:
+
+@smallexample
+Connected to ttya.
+@end smallexample
+
+@node Sparclet Download
+@subsubsection Sparclet download
+
+@cindex download to Sparclet
+Once connected to the Sparclet target, 
+you can use the @value{GDBN}
+@code{load} command to download the file from the host to the target.
+The file name and load offset should be given as arguments to the @code{load}
+command.
+Since the file format is aout, the program must be loaded to the starting 
+address.  You can use objdump to find out what this value is.  The load
+offset is an offset which is added to the VMA (virtual memory address)
+of each of the file's sections.
+For instance, if the program
+@file{prog} was linked to text address 0x1201000, with data at 0x12010160
+and bss at 0x12010170, in @value{GDBN}, type:
+
+@example
+(gdbslet) load prog 0x12010000
+Loading section .text, size 0xdb0 vma 0x12010000
+@end example
+
+If the code is loaded at a different address then what the program was linked 
+to, you may need to use the @code{section} and @code{add-symbol-file} commands 
+to tell @value{GDBN} where to map the symbol table.
+
+@node Sparclet Execution
+@subsubsection Running and debugging
+
+@cindex running and debugging Sparclet programs
+You can now begin debugging the task using @value{GDBN}'s execution control
+commands, @code{b}, @code{step}, @code{run}, etc.  See the @value{GDBN} 
+manual for the list of commands.
+
+@example
+(gdbslet) b main
+Breakpoint 1 at 0x12010000: file prog.c, line 3.
+(gdbslet) run 
+Starting program: prog
+Breakpoint 1, main (argc=1, argv=0xeffff21c) at prog.c:3
+3        char *symarg = 0;
+(gdbslet) step
+4        char *execarg = "hello!";
+(gdbslet)                           
+@end example
+
+@end ifset
+
 @ifset H8
 @node Hitachi Remote
 @subsection @value{GDBN} and Hitachi microprocessors
@@ -1363,7 +1528,18 @@ On some @value{GDBN} host configurations, you can specify a TCP
 connection (for instance, to a serial line managed by a terminal
 concentrator) instead of a serial port, using the syntax
 @samp{@var{hostname}:@var{portnumber}}.
+
+@item target pmon @var{port}
+@kindex target pmon @var{port}
+
+@item target ddb @var{port}
+@kindex target ddb @var{port}
+
+@item target lsi @var{port}
+@kindex target lsi @var{port}
+
 @end table
+
 
 @noindent
 @value{GDBN} also supports these special commands for MIPS targets:
@@ -1462,9 +1638,10 @@ to run before stopping.
 @cindex Hitachi SH simulator
 @cindex CPU simulator
 For some configurations, @value{GDBN} includes a CPU simulator that you
-can use instead of a hardware CPU to debug your programs.  Currently,
-a simulator is available when @value{GDBN} is configured to debug Zilog
-Z8000 or Hitachi microprocessor targets.
+can use instead of a hardware CPU to debug your programs.
+Currently, simulators are available for ARM, D10V, D30V, FR30, H8/300,
+H8/500, i960, M32R, MIPS, MN10200, MN10300, PowerPC, SH, Sparc, V850,
+W65, and Z8000.
 @end ifset
 
 @ifclear GENERIC
@@ -1494,13 +1671,11 @@ appropriate by inspecting the object code.
 @end ifset
 
 @table @code
-@item target sim
+@item target sim @var{args}
 @kindex sim
 @kindex target sim
-Debug programs on a simulated CPU 
-@ifset GENERIC
-(which CPU depends on the @value{GDBN} configuration)
-@end ifset
+Debug programs on a simulated CPU.  If the simulator supports setup
+options, specify them via @var{args}.
 @end table
 
 @noindent
@@ -1510,7 +1685,7 @@ CPU in the same style as programs for your host computer; use the
 to run your program, and so on.
 
 As well as making available all the usual machine registers (see
-@code{info reg}), this debugging target provides three additional items
+@code{info reg}), the Z8000 simulator provides three additional items
 of information as specially named registers:
 
 @table @code
@@ -1529,3 +1704,5 @@ conventions; for example, @w{@samp{b fputc if $cycles>5000}} sets a
 conditional breakpoint that suspends only after at least 5000
 simulated clock ticks.
 @end ifset
+
+@c need to add much more detail about sims!

@@ -57,7 +57,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, ignore)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned int ignore;
+     CORE_ADDR ignore;
 {
   struct md_core *core_reg = (struct md_core *)core_reg_sect;
 
@@ -125,6 +125,7 @@ i386_register_u_addr (blockend, regnum)
 #endif /* !FETCH_INFERIOR_REGISTERS */
 
 #ifdef FLOAT_INFO
+#include "expression.h"
 #include "language.h"			/* for local_hex_string */
 #include "floatformat.h"
 

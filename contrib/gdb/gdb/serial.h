@@ -50,7 +50,9 @@ struct serial_ops {
   void (*close) PARAMS ((serial_t));
   int (*readchar) PARAMS ((serial_t, int timeout));
   int (*write) PARAMS ((serial_t, const char *str, int len));
+  /* Discard pending output */
   int (*flush_output) PARAMS ((serial_t));
+  /* Discard pending input */
   int (*flush_input) PARAMS ((serial_t));
   int (*send_break) PARAMS ((serial_t));
   void (*go_raw) PARAMS ((serial_t));
@@ -61,6 +63,8 @@ struct serial_ops {
     PARAMS ((serial_t, serial_ttystate, serial_ttystate));
   int (*setbaudrate) PARAMS ((serial_t, int rate));
   int (*setstopbits) PARAMS ((serial_t, int num));
+  /* Wait for output to drain */
+  int (*drain_output) PARAMS ((serial_t));
 };
 
 /* Add a new serial interface to the interface list */
@@ -83,7 +87,12 @@ serial_t serial_fdopen PARAMS ((const int fd));
 
 #define SERIAL_FDOPEN(FD) serial_fdopen(FD)
 
-/* Flush pending output.  Might also flush input (if this system can't flush
+/* Allow pending output to drain. */
+
+#define SERIAL_DRAIN_OUTPUT(SERIAL_T) \
+  ((SERIAL_T)->ops->drain_output((SERIAL_T)))
+  
+/* Flush (discard) pending output.  Might also flush input (if this system can't flush
    only output).  */
 
 #define SERIAL_FLUSH_OUTPUT(SERIAL_T) \
@@ -97,8 +106,9 @@ serial_t serial_fdopen PARAMS ((const int fd));
 
 /* Send a break between 0.25 and 0.5 seconds long.  */
 
-#define SERIAL_SEND_BREAK(SERIAL_T) \
-  ((*(SERIAL_T)->ops->send_break) (SERIAL_T))
+extern int serial_send_break PARAMS ((serial_t scb));
+
+#define SERIAL_SEND_BREAK(SERIAL_T) serial_send_break (SERIAL_T)
 
 /* Turn the port into raw mode. */
 
@@ -176,7 +186,6 @@ extern void serial_printf PARAMS ((serial_t desc, const char *, ...))
 
 /* File in which to record the remote debugging session */
 
-extern char *serial_logfile;
-extern FILE *serial_logfp;
+extern void serial_log_command PARAMS ((const char *));
 
 #endif /* SERIAL_H */

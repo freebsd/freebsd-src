@@ -20,8 +20,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "bfd.h"
-#include "som.h"
-#include "libhppa.h"
 #include <syms.h>
 #include "symtab.h"
 #include "symfile.h"
@@ -32,7 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "complaints.h"
 #include "gdb_string.h"
 #include "demangle.h"
-#include <sys/file.h>
+#include "som.h"
+#include "libhppa.h"
 
 /* Various things we might complain about... */
 
@@ -55,21 +54,19 @@ som_symtab_read PARAMS ((bfd *, struct objfile *,
 static struct section_offsets *
 som_symfile_offsets PARAMS ((struct objfile *, CORE_ADDR));
 
-static void
-record_minimal_symbol PARAMS ((char *, CORE_ADDR,
-			       enum minimal_symbol_type,
-			       struct objfile *));
+/* FIXME: These should really be in a common header somewhere */
 
-static void
-record_minimal_symbol (name, address, ms_type, objfile)
-     char *name;
-     CORE_ADDR address;
-     enum minimal_symbol_type ms_type;
-     struct objfile *objfile;
-{
-  name = obsavestring (name, strlen (name), &objfile -> symbol_obstack);
-  prim_record_minimal_symbol (name, address, ms_type, objfile);
-}
+extern void
+hpread_build_psymtabs PARAMS ((struct objfile *, struct section_offsets *, int));
+
+extern void
+hpread_symfile_finish PARAMS ((struct objfile *));
+
+extern void
+hpread_symfile_init PARAMS ((struct objfile *));
+
+extern void
+do_pxdb PARAMS ((bfd *));
 
 /*
 
@@ -129,11 +126,19 @@ som_symtab_read (abfd, objfile, section_offsets)
      There's nothing in the header which easily allows us to do
      this.  The only reliable way I know of is to check for the
      existance of a $SHLIB_INFO$ section with a non-zero size.  */
-  shlib_info = bfd_get_section_by_name (objfile->obfd, "$SHLIB_INFO$");
-  if (shlib_info)
-    dynamic = (bfd_section_size (objfile->obfd, shlib_info) != 0);
-  else
-    dynamic = 0;
+  /* The code below is not a reliable way to check whether an
+   * executable is dynamic, so I commented it out - RT
+   * shlib_info = bfd_get_section_by_name (objfile->obfd, "$SHLIB_INFO$");
+   * if (shlib_info)
+   *   dynamic = (bfd_section_size (objfile->obfd, shlib_info) != 0);
+   * else
+   *   dynamic = 0;
+   */
+  /* I replaced the code with a simple check for text offset not being
+   * zero. Still not 100% reliable, but a more reliable way of asking
+   * "is this a dynamic executable?" than the above. RT
+   */
+  dynamic = (text_offset != 0);
 
   endbufp = buf + number_of_symbols;
   for (bufp = buf; bufp < endbufp; ++bufp)
@@ -288,11 +293,15 @@ som_symtab_read (abfd, objfile, section_offsets)
 
 	/* This can happen for common symbols when -E is passed to the
 	   final link.  No idea _why_ that would make the linker force
-	   common symbols to have an SS_UNSAT scope, but it does.  */
+	   common symbols to have an SS_UNSAT scope, but it does.
+
+	   This also happens for weak symbols, but their type is
+	   ST_DATA.  */
 	case SS_UNSAT:
 	  switch (bufp->symbol_type)
 	    {
 	      case ST_STORAGE:
+	      case ST_DATA:
 		symname = bufp->name.n_strx + stringtab;
 		bufp->symbol_value += data_offset;
 		ms_type = mst_data;
@@ -311,9 +320,8 @@ som_symtab_read (abfd, objfile, section_offsets)
 	error ("Invalid symbol data; bad HP string table offset: %d",
 	       bufp->name.n_strx);
 
-      record_minimal_symbol (symname,
-			     bufp->symbol_value, ms_type, 
-			     objfile);
+      prim_record_minimal_symbol (symname, bufp->symbol_value, ms_type, 
+				  objfile);
     }
 }
 
@@ -355,22 +363,48 @@ som_symfile_read (objfile, section_offsets, mainline)
   bfd *abfd = objfile->obfd;
   struct cleanup *back_to;
 
+  do_pxdb (symfile_bfd_open (objfile->name));
+
   init_minimal_symbol_collection ();
-  back_to = make_cleanup (discard_minimal_symbols, 0);
+  back_to = make_cleanup ((make_cleanup_func) discard_minimal_symbols, 0);
 
-  /* Process the normal SOM symbol table first. */
+  /* Read in the import list and the export list.  Currently
+     the export list isn't used; the import list is used in
+     hp-symtab-read.c to handle static vars declared in other
+     shared libraries. */
+  init_import_symbols (objfile);
+#if 0   /* Export symbols not used today 1997-08-05 */ 
+  init_export_symbols (objfile);
+#else
+  objfile->export_list = NULL;
+  objfile->export_list_size = 0;
+#endif
 
+  /* Process the normal SOM symbol table first. 
+     This reads in the DNTT and string table, but doesn't
+     actually scan the DNTT. It does scan the linker symbol
+     table and thus build up a "minimal symbol table". */
+ 
   som_symtab_read (abfd, objfile, section_offsets);
 
-  /* Now read information from the stabs debug sections.  */
+  /* Now read information from the stabs debug sections.
+     This is a no-op for SOM.
+     Perhaps it is intended for some kind of mixed STABS/SOM
+     situation? */    
   stabsect_build_psymtabs (objfile, section_offsets, mainline,
 			   "$GDB_SYMBOLS$", "$GDB_STRINGS$", "$TEXT$");
 
-  /* Now read the native debug information.  */
+  /* Now read the native debug information. 
+     This builds the psymtab. This used to be done via a scan of
+     the DNTT, but is now done via the PXDB-built quick-lookup tables
+     together with a scan of the GNTT. See hp-psymtab-read.c. */
   hpread_build_psymtabs (objfile, section_offsets, mainline);
 
   /* Install any minimal symbols that have been collected as the current
-     minimal symbols for this objfile.  */
+     minimal symbols for this objfile. 
+     Further symbol-reading is done incrementally, file-by-file,
+     in a step known as "psymtab-to-symtab" expansion. hp-symtab-read.c
+     contains the code to do the actual DNTT scanning and symtab building. */
   install_minimal_symbols (objfile);
 
   /* Force hppa-tdep.c to re-read the unwind descriptors.  */
@@ -435,9 +469,7 @@ som_symfile_offsets (objfile, addr)
 
   objfile->num_sections = SECT_OFF_MAX;
   section_offsets = (struct section_offsets *)
-    obstack_alloc (&objfile -> psymbol_obstack,
-		   sizeof (struct section_offsets)
-		   + sizeof (section_offsets->offsets) * (SECT_OFF_MAX-1));
+    obstack_alloc (&objfile -> psymbol_obstack, SIZEOF_SECTION_OFFSETS);
 
   /* First see if we're a shared library.  If so, get the section
      offsets from the library, else get them from addr.  */
@@ -449,6 +481,307 @@ som_symfile_offsets (objfile, addr)
 
   return section_offsets;
 }
+
+
+
+/* Check if a given symbol NAME is in the import list
+   of OBJFILE.
+   1 => true, 0 => false
+   This is used in hp_symtab_read.c to deal with static variables
+   that are defined in a different shared library than the one
+   whose symbols are being processed. */ 
+
+int is_in_import_list (name, objfile)
+  char * name;
+  struct objfile * objfile;
+{
+  register int i;
+
+  if (!objfile ||
+      !name ||
+      !*name)
+    return 0;
+
+  for (i=0; i < objfile->import_list_size; i++)
+    if (objfile->import_list[i] && STREQ (name, objfile->import_list[i]))
+        return 1;
+  return 0;
+}
+
+
+/* Read in and initialize the SOM import list which is present
+   for all executables and shared libraries.  The import list
+   consists of the symbols that are referenced in OBJFILE but
+   not defined there.  (Variables that are imported are dealt
+   with as "loc_indirect" vars.)
+   Return value = number of import symbols read in. */
+int
+init_import_symbols (objfile)
+  struct objfile * objfile;
+{
+  unsigned int import_list;
+  unsigned int import_list_size;
+  unsigned int string_table;
+  unsigned int string_table_size;
+  char * string_buffer;
+  register int i;
+  register int j;
+  register int k;
+  asection * text_section;      /* section handle */ 
+  unsigned int dl_header[12];   /* SOM executable header */ 
+
+  /* A struct for an entry in the SOM import list */
+  typedef struct {
+    int name;              /* index into the string table */ 
+    short dont_care1;      /* we don't use this */ 
+    unsigned char type;    /* 0 = NULL, 2 = Data, 3 = Code, 7 = Storage, 13 = Plabel */ 
+    unsigned int reserved2 : 8; /* not used */ 
+  } SomImportEntry;
+
+  /* We read 100 entries in at a time from the disk file. */ 
+# define SOM_READ_IMPORTS_NUM         100
+# define SOM_READ_IMPORTS_CHUNK_SIZE  (sizeof (SomImportEntry) * SOM_READ_IMPORTS_NUM)
+  SomImportEntry buffer[SOM_READ_IMPORTS_NUM];
+  
+  /* Initialize in case we error out */
+  objfile->import_list = NULL;
+  objfile->import_list_size = 0;
+
+#if 0  /* DEBUGGING */
+  printf ("Processing import list for %s\n", objfile->name);
+#endif
+
+  /* It doesn't work, for some reason, to read in space $TEXT$;
+     the subspace $SHLIB_INFO$ has to be used.  Some BFD quirk? pai/1997-08-05 */ 
+  text_section = bfd_get_section_by_name (objfile->obfd, "$SHLIB_INFO$");
+  if (!text_section)
+    return 0;
+  /* Get the SOM executable header */ 
+  bfd_get_section_contents (objfile->obfd, text_section, dl_header, 0, 12 * sizeof (int));
+
+  /* Check header version number for 10.x HP-UX */
+  /* Currently we deal only with 10.x systems; on 9.x the version # is 89060912.
+     FIXME: Change for future HP-UX releases and mods to the SOM executable format */ 
+  if (dl_header[0] != 93092112)
+    return 0;
+  
+  import_list = dl_header[4];     
+  import_list_size = dl_header[5];
+  if (!import_list_size)
+    return 0;
+  string_table = dl_header[10];     
+  string_table_size = dl_header[11];
+  if (!string_table_size)
+    return 0;
+
+  /* Suck in SOM string table */ 
+  string_buffer = (char *) xmalloc (string_table_size);
+  bfd_get_section_contents (objfile->obfd, text_section, string_buffer,
+                            string_table, string_table_size);
+
+  /* Allocate import list in the psymbol obstack; this has nothing
+     to do with psymbols, just a matter of convenience.  We want the
+     import list to be freed when the objfile is deallocated */ 
+  objfile->import_list
+    = (ImportEntry *) obstack_alloc (&objfile->psymbol_obstack,
+                                      import_list_size * sizeof (ImportEntry));
+
+  /* Read in the import entries, a bunch at a time */ 
+  for (j=0, k=0;
+       j < (import_list_size / SOM_READ_IMPORTS_NUM);
+       j++)
+    {
+      bfd_get_section_contents (objfile->obfd, text_section, buffer,
+                                import_list + j * SOM_READ_IMPORTS_CHUNK_SIZE,
+                                SOM_READ_IMPORTS_CHUNK_SIZE);
+      for (i=0; i < SOM_READ_IMPORTS_NUM; i++, k++)
+        {
+          if (buffer[i].type != (unsigned char) 0) 
+            {
+              objfile->import_list[k]
+                = (char *) obstack_alloc (&objfile->psymbol_obstack, strlen (string_buffer + buffer[i].name) + 1);
+              strcpy (objfile->import_list[k], string_buffer + buffer[i].name);
+              /* Some day we might want to record the type and other information too */ 
+            }
+          else /* null type */ 
+            objfile->import_list[k] = NULL;
+          
+#if 0 /* DEBUGGING */
+          printf ("Import String %d:%d (%d), type %d is %s\n", j, i, k,
+                  (int) buffer[i].type, objfile->import_list[k]);
+#endif
+        }
+    }
+
+  /* Get the leftovers */ 
+  if (k < import_list_size)
+    bfd_get_section_contents (objfile->obfd, text_section, buffer,
+                              import_list + k * sizeof (SomImportEntry),
+                              (import_list_size - k) * sizeof (SomImportEntry));
+  for (i=0; k < import_list_size; i++, k++)
+    {
+      if (buffer[i].type != (unsigned char) 0)
+        {
+          objfile->import_list[k]
+            = (char *) obstack_alloc (&objfile->psymbol_obstack, strlen (string_buffer + buffer[i].name) + 1);
+          strcpy (objfile->import_list[k], string_buffer + buffer[i].name);
+          /* Some day we might want to record the type and other information too */ 
+        }
+      else
+        objfile->import_list[k] = NULL;
+#if 0 /* DEBUGGING */ 
+      printf ("Import String F:%d (%d), type %d, is %s\n", i, k,
+              (int) buffer[i].type, objfile->import_list[k]);
+#endif
+    }
+
+  objfile->import_list_size = import_list_size;
+  free (string_buffer);
+  return import_list_size;
+}
+
+/* Read in and initialize the SOM export list which is present
+   for all executables and shared libraries.  The import list
+   consists of the symbols that are referenced in OBJFILE but
+   not defined there.  (Variables that are imported are dealt
+   with as "loc_indirect" vars.)
+   Return value = number of import symbols read in. */
+int
+init_export_symbols (objfile)
+  struct objfile * objfile;
+{
+  unsigned int export_list;
+  unsigned int export_list_size;
+  unsigned int string_table;
+  unsigned int string_table_size;
+  char * string_buffer;
+  register int i;
+  register int j;
+  register int k;
+  asection * text_section;    /* section handle */  
+  unsigned int dl_header[12]; /* SOM executable header */ 
+
+  /* A struct for an entry in the SOM export list */
+  typedef struct {
+    int next;    /* for hash table use -- we don't use this */ 
+    int name;    /* index into string table */ 
+    int value;   /* offset or plabel */
+    int dont_care1;     /* not used */ 
+    unsigned char type; /* 0 = NULL, 2 = Data, 3 = Code, 7 = Storage, 13 = Plabel */ 
+    char dont_care2;    /* not used */ 
+    short dont_care3;   /* not used */ 
+  } SomExportEntry;
+
+  /* We read 100 entries in at a time from the disk file. */ 
+# define SOM_READ_EXPORTS_NUM         100  
+# define SOM_READ_EXPORTS_CHUNK_SIZE  (sizeof (SomExportEntry) * SOM_READ_EXPORTS_NUM)
+  SomExportEntry buffer[SOM_READ_EXPORTS_NUM];
+
+  /* Initialize in case we error out */
+  objfile->export_list = NULL;
+  objfile->export_list_size = 0;
+
+#if 0  /* DEBUGGING */
+  printf ("Processing export list for %s\n", objfile->name);
+#endif
+
+  /* It doesn't work, for some reason, to read in space $TEXT$;
+     the subspace $SHLIB_INFO$ has to be used.  Some BFD quirk? pai/1997-08-05 */ 
+  text_section = bfd_get_section_by_name (objfile->obfd, "$SHLIB_INFO$");
+  if (!text_section)
+    return 0;
+  /* Get the SOM executable header */ 
+  bfd_get_section_contents (objfile->obfd, text_section, dl_header, 0, 12 * sizeof (int));
+
+  /* Check header version number for 10.x HP-UX */
+  /* Currently we deal only with 10.x systems; on 9.x the version # is 89060912.
+     FIXME: Change for future HP-UX releases and mods to the SOM executable format */ 
+  if (dl_header[0] != 93092112)
+    return 0;
+  
+  export_list = dl_header[8];      
+  export_list_size = dl_header[9]; 
+  if (!export_list_size)
+    return 0;
+  string_table = dl_header[10];     
+  string_table_size = dl_header[11];
+  if (!string_table_size)
+    return 0;
+
+  /* Suck in SOM string table */ 
+  string_buffer = (char *) xmalloc (string_table_size);
+  bfd_get_section_contents (objfile->obfd, text_section, string_buffer,
+                            string_table, string_table_size);
+
+  /* Allocate export list in the psymbol obstack; this has nothing
+     to do with psymbols, just a matter of convenience.  We want the
+     export list to be freed when the objfile is deallocated */ 
+  objfile->export_list
+    = (ExportEntry *)  obstack_alloc (&objfile->psymbol_obstack,
+                                      export_list_size * sizeof (ExportEntry));
+
+  /* Read in the export entries, a bunch at a time */ 
+  for (j=0, k=0;
+       j < (export_list_size / SOM_READ_EXPORTS_NUM);
+       j++)
+    {
+      bfd_get_section_contents (objfile->obfd, text_section, buffer,
+                                export_list + j * SOM_READ_EXPORTS_CHUNK_SIZE,
+                                SOM_READ_EXPORTS_CHUNK_SIZE);
+      for (i=0; i < SOM_READ_EXPORTS_NUM; i++, k++)
+        {
+          if (buffer[i].type != (unsigned char) 0)
+            {
+              objfile->export_list[k].name
+                = (char *) obstack_alloc (&objfile->psymbol_obstack, strlen (string_buffer + buffer[i].name) + 1);
+              strcpy (objfile->export_list[k].name, string_buffer + buffer[i].name);
+              objfile->export_list[k].address = buffer[i].value;
+              /* Some day we might want to record the type and other information too */ 
+            }
+          else /* null type */ 
+            { 
+              objfile->export_list[k].name = NULL;
+              objfile->export_list[k].address = 0;
+            }
+#if 0 /* DEBUGGING */
+          printf ("Export String %d:%d (%d), type %d is %s\n", j, i, k,
+                  (int) buffer[i].type, objfile->export_list[k].name);
+#endif
+        }
+    }
+
+  /* Get the leftovers */ 
+  if (k < export_list_size)
+    bfd_get_section_contents (objfile->obfd, text_section, buffer,
+                              export_list + k * sizeof (SomExportEntry),
+                              (export_list_size - k) * sizeof (SomExportEntry));
+  for (i=0; k < export_list_size; i++, k++)
+    {
+      if (buffer[i].type != (unsigned char) 0)
+        {
+          objfile->export_list[k].name
+            = (char *) obstack_alloc (&objfile->psymbol_obstack, strlen (string_buffer + buffer[i].name) + 1);
+          strcpy (objfile->export_list[k].name, string_buffer + buffer[i].name);
+          /* Some day we might want to record the type and other information too */ 
+          objfile->export_list[k].address = buffer[i].value;
+        }
+      else
+        {
+          objfile->export_list[k].name = NULL;
+          objfile->export_list[k].address = 0;
+        }
+#if 0 /* DEBUGGING */ 
+      printf ("Export String F:%d (%d), type %d, value %x is %s\n", i, k,
+              (int) buffer[i].type, buffer[i].value, objfile->export_list[k].name);
+#endif
+    }
+
+  objfile->export_list_size = export_list_size;
+  free (string_buffer);
+  return export_list_size;
+}
+
+
 
 /* Register that we are able to handle SOM object file formats.  */
 

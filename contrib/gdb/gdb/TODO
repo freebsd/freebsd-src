@@ -9,6 +9,9 @@ General To Do List
 This list is probably not up to date, and opinions vary about the
 importance or even desirability of some of the items.
 
+Add an "info bfd" command that displays supported object formats,
+similarly to objdump -i.
+
 START_INFERIOR_TRAPS_EXPECTED need never be defined to 2, since that
 is its default value.  Clean this up.
 

@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 #include "symtab.h"
 #include "frame.h"
+#include "gdbcore.h"
 
 /* 'start_frame' is a variable in the NINDY runtime startup routine
    that contains the frame pointer of the 'start' routine (the routine
@@ -33,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 int
 nindy_frame_chain_valid (chain, curframe)
-    unsigned int chain;
+    CORE_ADDR chain;
     struct frame_info *curframe;
 {
 	struct symbol *sym;

@@ -94,7 +94,10 @@ coff_solib_add (arg_string, from_tty, target)
 				     0, /* addr */
 				     0, /* not mainline */
 				     0, /* not mapped */
-				     0); /* Not readnow */
+				     0, /* Not readnow */
+                                     0, /* Not user loaded */
+                                     1); /* Is a solib */
+
 	  libsize -= len * 4;
 	  lib += len * 4;
 	}

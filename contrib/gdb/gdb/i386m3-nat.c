@@ -219,12 +219,12 @@ store_inferior_registers (regno)
  * Called by core-aout.c(fetch_core_registers)
  */
 
-unsigned int
+CORE_ADDR
 register_addr (regno, blockend)
      int regno;
-     int blockend;
+     CORE_ADDR blockend;
 {
-  unsigned int addr;
+  CORE_ADDR addr;
 
   if (regno < 0 || regno >= NUM_REGS)
     error ("Invalid register number %d.", regno);

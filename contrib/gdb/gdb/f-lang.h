@@ -23,9 +23,11 @@ extern int f_parse PARAMS ((void));
 
 extern void f_error PARAMS ((char *));	/* Defined in f-exp.y */
 
-extern void f_print_type PARAMS ((struct type *, char *, FILE *, int, int));
+extern void f_print_type PARAMS ((struct type *, char *,
+				  GDB_FILE *, int, int));
 
-extern int f_val_print PARAMS ((struct type *, char *, CORE_ADDR, FILE *,
+extern int f_val_print PARAMS ((struct type *, char *, int, 
+				CORE_ADDR, GDB_FILE *,
 				int, int, int, enum val_prettyprint));
 
 /* Language-specific data structures */ 

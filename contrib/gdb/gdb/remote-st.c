@@ -260,7 +260,7 @@ st2000_create_inferior (execfile, args, env)
     error("Can't pass arguments to remote STDEBUG process");
 
   if (execfile == 0 || exec_bfd == 0)
-    error("No exec file specified");
+    error("No executable file specified");
 
   entry_pt = (int) bfd_get_start_address (exec_bfd);
 
@@ -424,7 +424,7 @@ get_reg_name (regno)
 
   b = buf;
 
-  for (p = reg_names[regno]; *p; p++)
+  for (p = REGISTER_NAME (regno); *p; p++)
     *b++ = toupper(*p);
   *b = '\000';
 
@@ -627,7 +627,6 @@ st2000_mourn_inferior ()
 
 #define MAX_STDEBUG_BREAKPOINTS 16
 
-extern int memory_breakpoint_size;
 static CORE_ADDR breakaddr[MAX_STDEBUG_BREAKPOINTS] = {0};
 
 static int
@@ -636,13 +635,17 @@ st2000_insert_breakpoint (addr, shadow)
      char *shadow;
 {
   int i;
+  CORE_ADDR bp_addr = addr;
+  int bp_size = 0;
+
+  BREAKPOINT_FROM_PC (&bp_addr, &bp_size);
 
   for (i = 0; i <= MAX_STDEBUG_BREAKPOINTS; i++)
     if (breakaddr[i] == 0)
       {
 	breakaddr[i] = addr;
 
-	st2000_read_inferior_memory(addr, shadow, memory_breakpoint_size);
+	st2000_read_inferior_memory (bp_addr, shadow, bp_size);
 	printf_stdebug("BR %x H\r", addr);
 	expect_prompt(1);
 	return 0;
@@ -790,54 +793,83 @@ connect_command (args, fromtty)
 
 /* Define the target subroutine names */
 
-struct target_ops st2000_ops = {
-  "st2000",
-  "Remote serial Tandem ST2000 target",
-  "Use a remote computer running STDEBUG connected by a serial line,\n\
+struct target_ops st2000_ops ;
+
+static void 
+init_st2000_ops(void)
+{
+  st2000_ops.to_shortname =   "st2000";
+  st2000_ops.to_longname =   "Remote serial Tandem ST2000 target";
+  st2000_ops.to_doc =   "Use a remote computer running STDEBUG connected by a serial line;\n\
 or a network connection.\n\
 Arguments are the name of the device for the serial line,\n\
-the speed to connect at in bits per second.",
-  st2000_open,
-  st2000_close, 
-  0,
-  st2000_detach,
-  st2000_resume,
-  st2000_wait,
-  st2000_fetch_register,
-  st2000_store_register,
-  st2000_prepare_to_store,
-  st2000_xfer_inferior_memory,
-  st2000_files_info,
-  st2000_insert_breakpoint,
-  st2000_remove_breakpoint,	/* Breakpoints */
-  0,
-  0,
-  0,
-  0,
-  0,				/* Terminal handling */
-  st2000_kill,
-  0,				/* load */
-  0,				/* lookup_symbol */
-  st2000_create_inferior,
-  st2000_mourn_inferior,
-  0,				/* can_run */
-  0, 				/* notice_signals */
-  0,				/* to_stop */
-  process_stratum,
-  0,				/* next */
-  1,
-  1,
-  1,
-  1,
-  1,				/* all mem, mem, stack, regs, exec */
-  0,
-  0,				/* Section pointers */
-  OPS_MAGIC,			/* Always the last thing */
-};
+the speed to connect at in bits per second." ;
+  st2000_ops.to_open =   st2000_open;
+  st2000_ops.to_close =   st2000_close;
+  st2000_ops.to_attach =   0;
+  st2000_run_ops.to_post_attach = NULL;
+  st2000_ops.to_require_attach = NULL;
+  st2000_ops.to_detach =   st2000_detach;
+  st2000_ops.to_require_detach = NULL;
+  st2000_ops.to_resume =   st2000_resume;
+  st2000_ops.to_wait  =   st2000_wait;
+  st2000_ops.to_post_wait = NULL;
+  st2000_ops.to_fetch_registers  =   st2000_fetch_register;
+  st2000_ops.to_store_registers  =   st2000_store_register;
+  st2000_ops.to_prepare_to_store =   st2000_prepare_to_store;
+  st2000_ops.to_xfer_memory  =   st2000_xfer_inferior_memory;
+  st2000_ops.to_files_info  =   st2000_files_info;
+  st2000_ops.to_insert_breakpoint =   st2000_insert_breakpoint;
+  st2000_ops.to_remove_breakpoint =   st2000_remove_breakpoint;	/* Breakpoints */
+  st2000_ops.to_terminal_init  =   0;
+  st2000_ops.to_terminal_inferior =   0;
+  st2000_ops.to_terminal_ours_for_output =   0;
+  st2000_ops.to_terminal_ours  =   0;
+  st2000_ops.to_terminal_info  =   0;				/* Terminal handling */
+  st2000_ops.to_kill  =   st2000_kill;
+  st2000_ops.to_load  =   0;				/* load */
+  st2000_ops.to_lookup_symbol =   0;				/* lookup_symbol */
+  st2000_ops.to_create_inferior =   st2000_create_inferior;
+  st2000_ops.to_post_startup_inferior = NULL;
+  st2000_ops.to_acknowledge_created_inferior = NULL;
+  st2000_ops.to_clone_and_follow_inferior = NULL;
+  st2000_ops.to_post_follow_inferior_by_clone = NULL;
+  st2000_run_ops.to_insert_fork_catchpoint = NULL;
+  st2000_run_ops.to_remove_fork_catchpoint = NULL;
+  st2000_run_ops.to_insert_vfork_catchpoint = NULL;
+  st2000_run_ops.to_remove_vfork_catchpoint = NULL;
+  st2000_ops.to_has_forked = NULL;
+  st2000_ops.to_has_vforked = NULL;
+  st2000_run_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  st2000_ops.to_post_follow_vfork = NULL;
+  st2000_run_ops.to_insert_exec_catchpoint = NULL;
+  st2000_run_ops.to_remove_exec_catchpoint = NULL;
+  st2000_run_ops.to_has_execd = NULL;
+  st2000_run_ops.to_reported_exec_events_per_exec_call = NULL;
+  st2000_run_ops.to_has_exited = NULL;
+  st2000_ops.to_mourn_inferior =   st2000_mourn_inferior;
+  st2000_ops.to_can_run  =   0;				/* can_run */
+  st2000_ops.to_notice_signals =   0; 				/* notice_signals */
+  st2000_ops.to_thread_alive  =   0;                            /* thread alive */
+  st2000_ops.to_stop  =   0;				/* to_stop */
+  st2000_ops.to_pid_to_exec_file = NULL;
+  st2000_run_ops.to_core_file_to_sym_file = NULL;
+  st2000_ops.to_stratum =   process_stratum;
+  st2000_ops.DONT_USE =   0;				/* next */
+  st2000_ops.to_has_all_memory =   1;
+  st2000_ops.to_has_memory =   1;
+  st2000_ops.to_has_stack =   1;
+  st2000_ops.to_has_registers =   1;
+  st2000_ops.to_has_execution =   1;				/* all mem, mem, stack, regs, exec */
+  st2000_ops.to_sections =   0;
+  st2000_ops.to_sections_end =   0;				/* Section pointers */
+  st2000_ops.to_magic =   OPS_MAGIC;			/* Always the last thing */
+} ;
 
 void
 _initialize_remote_st2000 ()
 {
+  init_st2000_ops() ;
   add_target (&st2000_ops);
   add_com ("st2000 <command>", class_obscure, st2000_command,
 	   "Send a command to the STDBUG monitor.");

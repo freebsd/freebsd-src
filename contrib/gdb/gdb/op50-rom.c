@@ -55,73 +55,68 @@ static struct target_ops op50n_ops;
 
 static char *op50n_inits[] = {".\r", NULL};
 
-static struct monitor_ops op50n_cmds =
+static struct monitor_ops op50n_cmds ;
+
+static void 
+init_op50n_cmds(void)
 {
-  MO_CLR_BREAK_USES_ADDR /*| MO_GETMEM_READ_SINGLE*/, /* flags */
-  op50n_inits,			/* Init strings */
-  "g\r",			/* continue command */
-  "t\r",			/* single step */
-  "\003.\r",			/* Interrupt char */
-  "b %x\r",			/* set a breakpoint */
-  "b %x,0\r",			/* clear breakpoint at addr */
-  "bx\r",			/* clear all breakpoints */
-  "fx %x s%x %x\r",		/* memory fill cmd (addr, len, val) */
-  {
-    "sx %x %x\r",		/* setmem.cmdb (addr, value) */
-    "sh %x %x\r",		/* setmem.cmdw (addr, value) */
-    "s %x %x\r",		/* setmem.cmdl (addr, value) */
-    NULL,			/* setmem.cmdll (addr, value) */
-    NULL,			/* setmem.resp_delim */
-    NULL,			/* setmem.term */
-    NULL,			/* setmem.term_cmd */
-  },
+  op50n_cmds.flags =   MO_CLR_BREAK_USES_ADDR /*| MO_GETMEM_READ_SINGLE*/; /* flags */
+  op50n_cmds.init =   op50n_inits;			/* Init strings */
+  op50n_cmds.cont =   "g\r";			/* continue command */
+  op50n_cmds.step =   "t\r";			/* single step */
+  op50n_cmds.stop =   "\003.\r";			/* Interrupt char */
+  op50n_cmds.set_break =   "b %x\r";			/* set a breakpoint */
+  op50n_cmds.clr_break =   "b %x;0\r";			/* clear breakpoint at addr */
+  op50n_cmds.clr_all_break =   "bx\r";			/* clear all breakpoints */
+  op50n_cmds.fill =   "fx %x s%x %x\r";		/* memory fill cmd (addr, len, val) */
+  op50n_cmds.setmem.cmdb =     "sx %x %x\r";		/* setmem.cmdb (addr, value) */
+  op50n_cmds.setmem.cmdw =     "sh %x %x\r";		/* setmem.cmdw (addr, value) */
+  op50n_cmds.setmem.cmdl =     "s %x %x\r";		/* setmem.cmdl (addr, value) */
+  op50n_cmds.setmem.cmdll =     NULL;			/* setmem.cmdll (addr, value) */
+  op50n_cmds.setmem.resp_delim =     NULL;			/* setmem.resp_delim */
+  op50n_cmds.setmem.term =     NULL;			/* setmem.term */
+  op50n_cmds.setmem.term_cmd =     NULL;			/* setmem.term_cmd */
 #if 0
   {
     "sx %x\r",			/* getmem.cmdb (addr, len) */
-    "sh %x\r",			/* getmem.cmdw (addr, len) */
-    "s %x\r",			/* getmem.cmdl (addr, len) */
-    NULL,			/* getmem.cmdll (addr, len) */
-    " : ",			/* getmem.resp_delim */
-    " ",			/* getmem.term */
-    ".\r",			/* getmem.term_cmd */
-  },
+      "sh %x\r",			/* getmem.cmdw (addr, len) */
+      "s %x\r",			/* getmem.cmdl (addr, len) */
+      NULL,			/* getmem.cmdll (addr, len) */
+      " : ",			/* getmem.resp_delim */
+      " ",			/* getmem.term */
+      ".\r",			/* getmem.term_cmd */
+      } ;
 #else
-  {
-    "dx %x s%x\r",		/* getmem.cmdb (addr, len) */
-    NULL,			/* getmem.cmdw (addr, len) */
-    NULL,			/* getmem.cmdl (addr, len) */
-    NULL,			/* getmem.cmdll (addr, len) */
-    " : ",			/* getmem.resp_delim */
-    NULL,			/* getmem.term */
-    NULL,			/* getmem.term_cmd */
-  },
+  op50n_cmds.getmem.cmdb =     "dx %x s%x\r";		/* getmem.cmdb (addr, len) */
+  op50n_cmds.getmem.cmdw =     NULL;			/* getmem.cmdw (addr, len) */
+  op50n_cmds.getmem.cmdl =     NULL;			/* getmem.cmdl (addr, len) */
+  op50n_cmds.getmem.cmdll =     NULL;			/* getmem.cmdll (addr, len) */
+  op50n_cmds.getmem.resp_delim =     " : ";			/* getmem.resp_delim */
+  op50n_cmds.getmem.term =     NULL;			/* getmem.term */
+  op50n_cmds.getmem.term_cmd =     NULL;			/* getmem.term_cmd */
 #endif
-  {
-    "x %s %x\r",		/* setreg.cmd (name, value) */
-    NULL,			/* setreg.resp_delim */
-    NULL,			/* setreg.term */
-    NULL,			/* setreg.term_cmd */
-  },
-  {
-    "x %s\r",			/* getreg.cmd (name) */
-    "=",			/* getreg.resp_delim */
-    " ",			/* getreg.term */
-    ".\r",			/* getreg.term_cmd */
-  },
-  NULL,				/* dump_registers */
-  NULL,				/* register_pattern */
-  NULL,				/* supply_register */
-  NULL,				/* load routine */
-  "r 0\r",			/* download command */
-  NULL,				/* load response */
-  "\n#",			/* monitor command prompt */
-  "\r",				/* end-of-command delimitor */
-  NULL,				/* optional command terminator */
-  &op50n_ops,			/* target operations */
-  SERIAL_1_STOPBITS,		/* number of stop bits */
-  op50n_regnames,		/* register names */
-  MONITOR_OPS_MAGIC		/* magic */
-  };
+  op50n_cmds.setreg.cmd =     "x %s %x\r";		/* setreg.cmd (name, value) */
+  op50n_cmds.setreg.resp_delim =     NULL;			/* setreg.resp_delim */
+  op50n_cmds.setreg.term =     NULL;			/* setreg.term */
+  op50n_cmds.setreg.term_cmd =     NULL;			/* setreg.term_cmd */
+  op50n_cmds.getreg.cmd =     "x %s\r";			/* getreg.cmd (name) */
+  op50n_cmds.getreg.resp_delim =     "=";			/* getreg.resp_delim */
+  op50n_cmds.getreg.term =     " ";			/* getreg.term */
+  op50n_cmds.getreg.term_cmd =     ".\r";			/* getreg.term_cmd */
+  op50n_cmds.dump_registers =   NULL;				/* dump_registers */
+  op50n_cmds.register_pattern =   NULL;				/* register_pattern */
+  op50n_cmds.supply_register =   NULL;				/* supply_register */
+  op50n_cmds.load_routine =   NULL;				/* load routine */
+  op50n_cmds.load =   "r 0\r";			/* download command */
+  op50n_cmds.loadresp =   NULL;				/* load response */
+  op50n_cmds.prompt =   "\n#";			/* monitor command prompt */
+  op50n_cmds.line_term =   "\r";				/* end-of-command delimitor */
+  op50n_cmds.cmd_end =   NULL;				/* optional command terminator */
+  op50n_cmds.target =   &op50n_ops;			/* target operations */
+  op50n_cmds.stopbits =   SERIAL_1_STOPBITS;		/* number of stop bits */
+  op50n_cmds.regnames =   op50n_regnames;		/* register names */
+  op50n_cmds.magic =   MONITOR_OPS_MAGIC;		/* magic */
+};
 
 static void
 op50n_open (args, from_tty)
@@ -134,6 +129,7 @@ op50n_open (args, from_tty)
 void
 _initialize_op50n ()
 {
+  init_op50n_cmds() ;
   init_monitor_ops (&op50n_ops);
 
   op50n_ops.to_shortname = "op50n";

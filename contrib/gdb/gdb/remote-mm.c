@@ -162,7 +162,7 @@ mm_create_inferior (execfile, args, env)
     error ("Can't pass arguments to remote mm process (yet).");
 
   if (execfile == 0 /* || exec_bfd == 0 */ )
-    error ("No exec file specified");
+    error ("No executable file specified");
 
   if (!mm_stream) {
         printf("Minimon not open yet.\n");
@@ -345,7 +345,7 @@ erroid:
   printf_filtered("\twhen virtual addresses map 1:1 to physical addresses.\n")
 ;
   if (processor_type != a29k_freeze_mode) {
-        fprintf_filtered(stderr,
+        fprintf_filtered(gdb_stderr,
         "Freeze-mode debugging not available, and can only be done on an A29050.\n");
   }
 
@@ -542,7 +542,7 @@ mm_wait (status)
         i=in_msg_buf->channel1_msg.length;
         in_msg_buf->channel1_msg.data[i] = '\0';
         printf("%s", in_msg_buf->channel1_msg.data);
-	gdb_flush(stdout);
+	gdb_flush(gdb_stdout);
         /* Send CHANNEL1_ACK message */
         out_msg_buf->channel1_ack_msg.code = CHANNEL1_ACK;
         out_msg_buf->channel1_ack_msg.length = 0;
@@ -1015,7 +1015,7 @@ int	from_tty;
   /* You may need to do an init_target_mm() */
   /* init_target_mm(?,?,?,?,?,?,?,?); */
   immediate_quit--;
-  /* symbol_file_add (arg_string, from_tty, text_addr, 0, 0); */
+  /* symbol_file_add (arg_string, from_tty, text_addr, 0, 0, 0, 0); */
 #endif
 
 }
@@ -1585,36 +1585,82 @@ CORE_ADDR	*addr;
 
 /****************************************************************************/
 /* 
- *  Define the target subroutine names 
+ *  Define the target subroutine names
  */
-struct target_ops mm_ops = {
-        "minimon", "Remote AMD/Minimon target",
-	"Remote debug an AMD 290*0 using the MiniMon dbg core on the target",
-        mm_open, mm_close,
-        mm_attach, mm_detach, mm_resume, mm_wait,
-        mm_fetch_registers, mm_store_registers,
-        mm_prepare_to_store,
-        mm_xfer_inferior_memory,
-        mm_files_info,
-        mm_insert_breakpoint, mm_remove_breakpoint, /* Breakpoints */
-        0, 0, 0, 0, 0,          /* Terminal handling */
-        mm_kill,             	/* FIXME, kill */
-        mm_load, 
-        0,                      /* lookup_symbol */
-        mm_create_inferior,  /* create_inferior */
-        mm_mourn,            /* mourn_inferior FIXME */
-	0,			/* can_run */
-	0, /* notice_signals */
-	0,			/* to_stop */
-        process_stratum, 0, /* next */
-        1, 1, 1, 1, 1,  /* all mem, mem, stack, regs, exec */
-	0,0,		/* sections, sections_end */
-        OPS_MAGIC,              /* Always the last thing */
+struct target_ops mm_ops ;
+
+static void 
+init_mm_ops(void)
+{
+  mm_ops.to_shortname =   "minimon";
+  mm_ops.to_longname =   "Remote AMD/Minimon target";
+  mm_ops.to_doc =   "Remote debug an AMD 290*0 using the MiniMon dbg core on the target";
+  mm_ops.to_open =   mm_open;
+  mm_ops.to_close =   mm_close;
+  mm_ops.to_attach =   mm_attach;
+  mm_ops.to_post_attach = NULL;
+  mm_ops.to_require_attach = NULL;
+  mm_ops.to_detach =   mm_detach;
+  mm_ops.to_require_detach = NULL;
+  mm_ops.to_resume =   mm_resume;
+  mm_ops.to_wait  =   mm_wait;
+  mm_ops.to_post_wait = NULL;
+  mm_ops.to_fetch_registers  =   mm_fetch_registers;
+  mm_ops.to_store_registers  =   mm_store_registers;
+  mm_ops.to_prepare_to_store =   mm_prepare_to_store;
+  mm_ops.to_xfer_memory  =   mm_xfer_inferior_memory;
+  mm_ops.to_files_info  =   mm_files_info;
+  mm_ops.to_insert_breakpoint =   mm_insert_breakpoint;
+  mm_ops.to_remove_breakpoint =   mm_remove_breakpoint;
+  mm_ops.to_terminal_init  =   0;
+  mm_ops.to_terminal_inferior =   0;
+  mm_ops.to_terminal_ours_for_output =   0;
+  mm_ops.to_terminal_ours  =   0;
+  mm_ops.to_terminal_info  =   0;        
+  mm_ops.to_kill  =   mm_kill;           
+  mm_ops.to_load  =   mm_load;
+  mm_ops.to_lookup_symbol =   0;           
+  mm_ops.to_create_inferior =   mm_create_inferior;
+  mm_ops.to_post_startup_inferior = NULL;
+  mm_ops.to_acknowledge_created_inferior = NULL;
+  mm_ops.to_clone_and_follow_inferior = NULL;
+  mm_ops.to_post_follow_inferior_by_clone = NULL;
+  mm_ops.to_insert_fork_catchpoint = NULL;
+  mm_ops.to_remove_fork_catchpoint = NULL;
+  mm_ops.to_insert_vfork_catchpoint = NULL;
+  mm_ops.to_remove_vfork_catchpoint = NULL;
+  mm_ops.to_has_forked = NULL;
+  mm_ops.to_has_vforked = NULL;
+  mm_ops.to_can_follow_vfork_prior_to_exec = NULL;
+  mm_ops.to_post_follow_vfork = NULL; 
+  mm_ops.to_insert_exec_catchpoint = NULL;
+  mm_ops.to_remove_exec_catchpoint = NULL;
+  mm_ops.to_has_execd = NULL;
+  mm_ops.to_reported_exec_events_per_exec_call = NULL;
+  mm_ops.to_has_exited = NULL;
+  mm_ops.to_mourn_inferior =   mm_mourn; 
+  mm_ops.to_can_run  =   0;	
+  mm_ops.to_notice_signals =   0;
+  mm_ops.to_thread_alive  =   0;
+  mm_ops.to_stop  =   0;		
+  mm_ops.to_pid_to_exec_file = NULL;
+  mm_ops.to_core_file_to_sym_file = NULL;
+  mm_ops.to_stratum =   process_stratum;
+  mm_ops.DONT_USE =   0; 
+  mm_ops.to_has_all_memory =   1;
+  mm_ops.to_has_memory =   1;
+  mm_ops.to_has_stack =   1;
+  mm_ops.to_has_registers =   1;
+  mm_ops.to_has_execution =   1; 
+  mm_ops.to_sections =   0;
+  mm_ops.to_sections_end =   0;	
+  mm_ops.to_magic =   OPS_MAGIC;    
 };
 
 void
 _initialize_remote_mm()
 {
+  init_mm_ops() ;
   add_target (&mm_ops);
 }
 

@@ -1,4 +1,4 @@
-##Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+##Copyright (C) 1991, 1992, 1999 Free Software Foundation, Inc.
 
 # Makefile for GDB documentation.
 # This file is part of GDB.
@@ -17,17 +17,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-srcdir = .
+srcdir = @srcdir@
+VPATH = @srcdir@
 
-prefix = /usr/local
+prefix = @prefix@
 
-infodir = $(prefix)/info
+infodir = @infodir@
 
-SHELL = /bin/sh
+SHELL = @SHELL@
 
-INSTALL = install -c
-INSTALL_PROGRAM = $(INSTALL)
-INSTALL_DATA = $(INSTALL)
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
 
 # main GDB source directory
 gdbdir = $(srcdir)/..
@@ -74,6 +75,9 @@ TEX = tex
 # auxiliary program for sorting Texinfo indices
 TEXINDEX = texindex
 
+# Program to generate Postscript files from DVI files.
+DVIPS = dvips
+
 # Main GDB manual's source files
 SFILES_INCLUDED = gdb-cfg.texi $(srcdir)/remote.texi
 
@@ -88,15 +92,16 @@ SFILES_DOC = $(SFILES_LOCAL) \
 all install:
 
 info: gdb.info gdbint.info stabs.info
-dvi: gdb.dvi refcard.dvi gdbint.dvi
-all-doc: gdb.info gdb.dvi refcard.dvi gdb-internals gdbint.dvi
+dvi: gdb.dvi gdbint.dvi stabs.dvi refcard.dvi
+ps: gdb.ps gdbint.ps stabs.ps refcard.ps
+all-doc: info dvi ps
 
 install-info: info
 	for i in *.info* ; do \
 		$(INSTALL_DATA) $$i $(infodir)/$$i ; \
 	done
 
-STAGESTUFF = *.info* gdb-all.texi GDBvn.texi
+STAGESTUFF = *.info* gdb-all.texi GDBvn.texi *.ps *.dvi
 
 # Copy the object files from a particular stage into a subdirectory.
 stage1: force
@@ -128,17 +133,13 @@ de-stage3: force
 	-(cd stage3 ; mv -f * ..)
 	-rmdir stage3
 
-clean-info:
-	rm -f gdb.info* gdbint.info* stabs.info*
-
-clean-dvi:
-	rm -f gdb.dvi gdbint.dvi stabs.dvi sedref.dvi
-
-mostlyclean: clean-info clean-dvi
-	rm -f gdb.?? gdb.??? gdb.mm gdb.ms gdb.me
-	rm -f links2roff
-	rm -f refcard.ps lrefcard.ps refcard.log sedref.* *~
-	rm -f gdbint.?? gdbint.??? stabs.?? stabs.???
+# The "least clean" level of cleaning.  Get rid of files which are
+# automatically generated files that are just intermediate files,
+# 
+mostlyclean:
+	rm -f gdb.mm gdb.ms gdb.me links2roff
+	rm -f *.aux *.cp* *.fn* *.ky* *.log *.pg* *.toc *.tp* *.vr*
+	rm -f sedref.dvi sedref.tex tmp.sed
 
 clean: mostlyclean
 	rm -f rluser.texinfo inc-hist.texi gdb-cfg.texi
@@ -146,10 +147,12 @@ clean: mostlyclean
 distclean: clean
 	rm -f Makefile config.status
 
-# GDBvn.texi and refcard.dvi are distributed, so they should not be
-# removed by "clean" or "distclean".
-maintainer-clean realclean: distclean clean-dvi clean-info
-	rm -f GDBvn.texi refcard.dvi
+# GDBvn.texi, the dvi files, the info files, and the postscript files, 
+# are all part of the distribution, so it should not be removed by
+# "clean" or "distclean".  Use maintainer-clean to remove them.
+
+maintainer-clean realclean: distclean
+	rm -f GDBvn.texi *.info* *.dvi *.ps
 
 # GDB QUICK REFERENCE (dvi output)
 refcard.dvi : refcard.tex $(REFEDITS)
@@ -166,11 +169,11 @@ refcard.dvi : refcard.tex $(REFEDITS)
 	rm -f sedref.log sedref.tex tmp.sed
 
 refcard.ps : refcard.dvi
-	dvips -t landscape refcard.dvi -o
+	$(DVIPS) -t landscape -o $@ $?
 
 # File to record current GDB version number (copied from main dir Makefile.in)
 GDBvn.texi : ${gdbdir}/Makefile.in
-	echo "@set GDBVN `sed <$(srcdir)/../Makefile.in -n 's/VERSION = //p'`" > ./GDBvn.new
+	echo "@set GDBVN `sed <$(srcdir)/../Makefile.in -n 's/^VERSION *= *//p'`" > ./GDBvn.new
 	mv GDBvn.new GDBvn.texi
 
 # Updated atomically
@@ -204,7 +207,11 @@ gdb.dvi: ${SFILES_DOC}
 	$(SET_TEXINPUTS) $(TEX) gdb.texinfo
 	$(TEXINDEX) gdb.??
 	$(SET_TEXINPUTS) $(TEX) gdb.texinfo
-	rm -f gdb.?? gdb.log gdb.aux gdb.toc gdb.??s
+	rm -f gdb.aux gdb.cp* gdb.fn* gdb.ky* gdb.log gdb.pg* gdb.toc \
+		gdb.tp* gdb.vr*
+
+gdb.ps: gdb.dvi
+	$(DVIPS) -o $@ $?
 
 # GDB MANUAL: info file
 # We're using texinfo2, and older makeinfo's may not be able to
@@ -302,11 +309,13 @@ gdbint.dvi : gdbint.texinfo
 	$(SET_TEXINPUTS) $(TEX) gdbint.texinfo
 	$(TEXINDEX) gdbint.??
 	$(SET_TEXINPUTS) $(TEX) gdbint.texinfo
-	rm -f gdbint.?? gdbint.aux gdbint.cps gdbint.fns gdbint.kys \
-		gdbint.log gdbint.pgs gdbint.toc gdbint.tps gdbint.vrs
+	rm -f gdbint.aux gdbint.cp* gdbint.fn* gdbint.ky* \
+		gdbint.log gdbint.pg* gdbint.toc gdbint.tp* gdbint.vr*
+
+gdbint.ps : gdbint.dvi
+	$(DVIPS) -o $@ $?
 
 # GDB INTERNALS MANUAL: info file
-gdb-internals: gdbint.info
 
 gdbint.info: gdbint.texinfo
 	$(MAKEINFO) -o gdbint.info $(srcdir)/gdbint.texinfo
@@ -319,13 +328,13 @@ stabs.dvi : stabs.texinfo
 	$(SET_TEXINPUTS) $(TEX) stabs.texinfo
 	$(TEXINDEX) stabs.??
 	$(SET_TEXINPUTS) $(TEX) stabs.texinfo
-	rm -f stabs.?? stabs.aux stabs.cps stabs.fns stabs.kys \
-		stabs.log stabs.pgs stabs.toc stabs.tps stabs.vrs
+	rm -f stabs.aux stabs.cp* stabs.fn* stabs.ky* \
+		stabs.log stabs.pg* stabs.toc stabs.tp* stabs.vr*
 
 stabs.ps: stabs.dvi
-	dvips -o stabs.ps stabs
+	$(DVIPS) -o $@ $?
 
 force:
 
-Makefile: $(srcdir)/Makefile.in $(host_makefile_frag) $(target_makefile_frag)
+Makefile: Makefile.in $(host_makefile_frag) $(target_makefile_frag) config.status
 	$(SHELL) ./config.status

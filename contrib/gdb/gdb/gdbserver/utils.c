@@ -19,6 +19,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "server.h"
 #include <stdio.h>
+#include <string.h>
 
 /* Generally useful subroutines used throughout the program.  */
 
@@ -55,7 +56,7 @@ perror_with_name (string)
 
 #ifdef ANSI_PROTOTYPES
 NORETURN void
-error (char *string, ...)
+error (const char *string, ...)
 #else
 void
 error (va_alist)

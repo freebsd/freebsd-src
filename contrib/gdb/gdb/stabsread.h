@@ -106,11 +106,15 @@ struct header_file
 
 };
 
-EXTERN struct header_file *header_files;
+/* The table of header_files of this OBJFILE. */
+#define HEADER_FILES(OBJFILE) (DBX_SYMFILE_INFO (OBJFILE)->header_files)
 
-EXTERN int n_header_files;
+/* The actual length of HEADER_FILES. */
+#define N_HEADER_FILES(OBJFILE) (DBX_SYMFILE_INFO (OBJFILE)->n_header_files)
 
-EXTERN int n_allocated_header_files;
+/* The allocated lengh of HEADER_FILES. */
+#define N_ALLOCATED_HEADER_FILES(OBJFILE) \
+  (DBX_SYMFILE_INFO (OBJFILE)->n_allocated_header_files)
 
 /* Within each object file, various header files are assigned numbers.
    A type is defined or referred to with a pair of numbers
@@ -118,7 +122,7 @@ EXTERN int n_allocated_header_files;
    and TYPENUM is the number within that header file.
    TYPENUM is the index within the vector of types for that header file.
 
-   FILENUM == 1 is special; it refers to the main source of the object file,
+   FILENUM == 0 is special; it refers to the main source of the object file,
    and not to any header file.  FILENUM != 1 is interpreted by looking it up
    in the following table, which contains indices in header_files.  */
 
@@ -163,6 +167,7 @@ end_stabs PARAMS ((void));
 
 extern void
 finish_global_stabs PARAMS ((struct objfile *objfile));
+
 
 EXTERN int os9k_stabs;
 
@@ -187,8 +192,14 @@ start_psymtab PARAMS ((struct objfile *, struct section_offsets *, char *,
 		       struct partial_symbol **));
 
 extern struct partial_symtab *
-end_psymtab PARAMS ((struct partial_symtab *, char **, int, int, CORE_ADDR,
-		     struct partial_symtab **, int));
+end_psymtab PARAMS ((struct partial_symtab *pst,
+		     char **include_list,
+		     int num_includes,
+		     int capping_symbol_offset,
+		     CORE_ADDR capping_text,
+		     struct partial_symtab **dependency_list,
+		     int number_dependencies,
+		     int textlow_not_set));
 
 extern void
 process_one_symbol PARAMS ((int, int, CORE_ADDR, char *,
@@ -221,5 +232,18 @@ extern void stabsect_build_psymtabs
 
 extern void elfstab_offset_sections PARAMS ((struct objfile *,
 					     struct partial_symtab *));
+
+extern void process_later 
+  PARAMS ((struct symbol *, char *, 
+	   int (*f) PARAMS ((struct objfile *, struct symbol *, char *))));
+
+extern int symbol_reference_defined PARAMS ((char **));
+
+extern void ref_add PARAMS ((int, struct symbol *, char *, CORE_ADDR));
+
+extern struct symbol * ref_search PARAMS ((int));
+
+extern int resolve_cfront_continuation 
+  PARAMS ((struct objfile * objfile, struct symbol * sym, char * p));
 
 #undef EXTERN

@@ -46,13 +46,15 @@ static int reg_offset[] =
 {
   REG_N_OFFSET(r0),  REG_N_OFFSET(r1), REG_N_OFFSET(r2), REG_N_OFFSET(r3),
   REG_N_OFFSET(r4),  REG_N_OFFSET(r5), REG_N_OFFSET(r6), REG_N_OFFSET(r7),
-  REG_F_OFFSET(l0a), REG_F_OFFSET(l1a),REG_F_OFFSET(l2a),REG_F_OFFSET(l3a),
-  REG_F_OFFSET(l4a), REG_F_OFFSET(l5a),REG_F_OFFSET(l6a),REG_F_OFFSET(l7a),
+  REG_F_OFFSET(l0a), REG_F_OFFSET(l0b),REG_F_OFFSET(l2a),REG_F_OFFSET(l2b),
+  REG_F_OFFSET(l4a), REG_F_OFFSET(l4b),REG_F_OFFSET(l6a),REG_F_OFFSET(l6b),
   REG_N_OFFSET(sp),  REG_N_OFFSET(fp), REG_N_OFFSET(pc), REG_N_OFFSET(psr),
   REG_F_OFFSET(fsr),
-  REG_F_OFFSET(l0a), REG_F_OFFSET(l2a),REG_F_OFFSET(l4a),REG_F_OFFSET(l6a)
-  /* @@@ 532 has more double length floating point regs, not accessed currently */
+  REG_F_OFFSET(l0a), REG_F_OFFSET(l1a),REG_F_OFFSET(l2a),REG_F_OFFSET(l3a),
+  REG_F_OFFSET(l4a), REG_F_OFFSET(l5a),REG_F_OFFSET(l6a),REG_F_OFFSET(l7a),
 };
+
+#define REG_ADDRESS(state,regnum) ((char *)(state)+reg_offset[regnum])
 
 /* Fetch COUNT contiguous registers from thread STATE starting from REGNUM
  * Caller knows that the regs handled in one transaction are of same size.
@@ -94,7 +96,7 @@ fetch_inferior_registers (regno)
 			  &stateCnt);
 
   if (ret != KERN_SUCCESS)
-    message ("fetch_inferior_registers: %s ",
+    warning ("fetch_inferior_registers: %s ",
 	     mach_error_string (ret));
 #if 0
   /* It may be more effective to store validate all of them,
@@ -142,7 +144,7 @@ store_inferior_registers (regno)
 
    if (ret != KERN_SUCCESS) 
     {
-      message ("store_inferior_registers (get): %s",
+      warning ("store_inferior_registers (get): %s",
 	       mach_error_string (ret));
       if (must_suspend_thread)
 	setup_thread (current_thread, 0);
@@ -173,7 +175,7 @@ store_inferior_registers (regno)
 			  NS532_COMBINED_STATE_COUNT);
   
   if (ret != KERN_SUCCESS)
-    message ("store_inferior_registers (set): %s",
+    warning ("store_inferior_registers (set): %s",
 	     mach_error_string (ret));
 
   if (must_suspend_thread)

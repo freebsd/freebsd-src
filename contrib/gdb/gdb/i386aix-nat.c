@@ -43,13 +43,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Does AIX define this in <errno.h>?  */
 extern int errno;
 
-#ifndef NO_SYS_REG_H
+#ifdef HAVE_SYS_REG_H
 #include <sys/reg.h>
 #endif
 
 #include "floatformat.h"
 
 #include "target.h"
+
+static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR));
 
 
 /* this table must line up with REGISTER_NAMES in tm-i386v.h */
@@ -317,7 +319,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned int reg_addr;	/* ignored */
+     CORE_ADDR reg_addr;	/* ignored */
 {
 
   if (which == 0)
