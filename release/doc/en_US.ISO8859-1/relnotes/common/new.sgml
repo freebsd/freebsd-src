@@ -198,15 +198,36 @@
       compatibility), and also reduces the possibility of running out
       of device major numbers.</para>
 
+    <para arch="i386,pc98">A partial lazy switch mechanism for
+      in-kernel threads has been implemented; it is designed to reduce
+      the overhead of short context switches (such as for interrupt
+      handlers) that do not involve another process.  This feature can
+      be enabled with
+      <literal>options&nbsp;LAZY_SWITCH</literal>.</para>
+
     <sect3 id="proc">
       <title>Processor/Motherboard Support</title>
 
-      <para arch="i386">&os; now has rudimentary support for
-	HyperThreading (HTT).  SMP kernels with the
-	<literal>HTT</literal> kernel option will detect and start up
-	the logical processors on HTT-capable machines.  The logical
-	processors will be treated like additional physical processors
-	for the purposes of process scheduling. &merged;</para>
+      <para arch="i386"><literal>SMP</literal> kernels now have
+	rudimentary support for HyperThreading (HTT).  The scheduler
+	treats the logical CPUs as if they were additional physical
+	CPUs.  This can actually cause suboptimal performance in some
+	cases due to contention for resources.  Therefore, logical
+	CPUs are halted by default at startup.  They can be enabled
+	with the <varname>machdep.hlt_logical_cpus</varname> sysctl
+	variable.  It is also possible to halt any CPU in the idle
+	loop with the <varname>machdep.hlt_cpus</varname> sysctl
+	variable.  The &man.smp.4; manual page has more details.
+
+	<note>
+	  <para>Some other versions of &os;, including early
+	    5.0-STABLE snapshots and 4.8-RELEASE, used
+	    <literal>options&nbsp;HTT</literal> to enable
+	    HyperThreading support at kernel configuration time.  This
+	    option is no longer necessary.</para>
+	</note>
+
+	</para>
 
       <para arch="i386">Support for the Physical Address Extensions
 	(PAE) capability on Intel Pentium Pro and higher processors
@@ -262,7 +283,7 @@
       <para>The cm driver now supports IPX. &merged;</para>
 
       <para arch="i386">The &man.sbsh.4; driver for the Granch SBNI16
-        SHDSL modem has been added.</para>
+        SHDSL modem has been added. &merged;</para>
 
       <para>A new &man.wlan.4; module provides 802.11 link-layer support.  The
 	&man.wi.4; driver now uses this facility.</para>
@@ -433,8 +454,8 @@
       kernel configuration file directive that cancels the effect of a
       <literal>device</literal> directive.  The new
       <literal>nooption</literal> and <literal>nomakeoption</literal>
-      directives cancel prior <literal>option</literal> and
-      <literal>makeoption</literal> directives, respectively.</para>
+      directives cancel prior <literal>options</literal> and
+      <literal>makeoptions</literal> directives, respectively.</para>
 
     <para>The &man.diskinfo.8; utility has been added to show
       information about a disk device and optionally to run a naive
@@ -696,7 +717,7 @@
       3.2.2 (release version).</para>
 
     <para>The <application>gdtoa</application> library, for
-      conversions between strings and floating point.  These sources
+      conversions between strings and floating point, has been imported.  These sources
       were dated 24 March 2003.</para>
 
     <para><application>IPFilter</application> has been updated to
@@ -805,7 +826,13 @@
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para>The following new articles have been added to the
+      documentation set: <quote>FreeBSD From Scratch</quote>,
+      <quote>The Roadmap for 5-STABLE</quote>.
+
+    <para>A new Danish (<filename>da_DK.ISO8859-1</filename>)
+      translation project has been started.</para>
+
   </sect2>
 
 </sect1>
