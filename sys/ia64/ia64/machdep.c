@@ -109,7 +109,7 @@ FPSWA_INTERFACE *fpswa_interface;
 u_int64_t ia64_pal_base;
 u_int64_t ia64_port_base;
 
-char machine[] = "ia64";
+char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
 static char cpu_model[128];
@@ -139,9 +139,7 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 struct msgbuf *msgbufp=0;
 
 int Maxmem = 0;
-long dumplo;
-
-int	physmem;			/* Physical conventional memory. */
+int physmem;				/* Physical conventional memory. */
 
 vm_offset_t phys_avail[100];
 
