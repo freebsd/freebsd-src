@@ -835,8 +835,6 @@ exec_new_vmspace(imgp, sv)
 
 	GIANT_REQUIRED;
 
-	stack_addr = sv->sv_usrstack - maxssiz;
-
 	imgp->vmspace_destroyed = 1;
 
 	EVENTHANDLER_INVOKE(process_exec, p);
@@ -871,24 +869,20 @@ exec_new_vmspace(imgp, sv)
 	}
 
 	/* Allocate a new stack */
+	stack_addr = sv->sv_usrstack - maxssiz;
 	error = vm_map_stack(map, stack_addr, (vm_size_t)maxssiz,
-	    sv->sv_stackprot, VM_PROT_ALL, 0);
+	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_DOWN);
 	if (error)
 		return (error);
 
 #ifdef __ia64__
-	{
-		/*
-		 * Allocate backing store. We really need something
-		 * similar to vm_map_stack which can allow the backing 
-		 * store to grow upwards. This will do for now.
-		 */
-		vm_offset_t bsaddr;
-		bsaddr = p->p_sysent->sv_usrstack - 2 * maxssiz;
-		error = vm_map_find(map, 0, 0, &bsaddr,
-		    regstkpages * PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
-		FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = bsaddr;
-	}
+	/* Allocate a new register stack */
+	stack_addr = sv->sv_usrstack - 2 * maxssiz;
+	error = vm_map_stack(map, stack_addr, (vm_size_t)maxssiz,
+	    sv->sv_stackprot, VM_PROT_ALL, MAP_STACK_GROWS_UP);
+	if (error)
+		return (error);
+	FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = stack_addr;
 #endif
 
 	/* vm_ssize and vm_maxsaddr are somewhat antiquated concepts in the

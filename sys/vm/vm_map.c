@@ -2500,22 +2500,28 @@ vmspace_fork(struct vmspace *vm1)
 }
 
 int
-vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
-	      vm_prot_t prot, vm_prot_t max, int cow)
+vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
+    vm_prot_t prot, vm_prot_t max, int cow)
 {
-	vm_map_entry_t prev_entry;
-	vm_map_entry_t new_stack_entry;
-	vm_size_t      init_ssize;
-	int            rv;
+	vm_map_entry_t new_entry, prev_entry;
+	vm_offset_t bot, top;
+	vm_size_t init_ssize;
+	int orient, rv;
 
-	if (addrbos < vm_map_min(map))
+	/*
+	 * The stack orientation is piggybacked with the cow argument.
+	 * Extract it into orient and mask the cow argument so that we
+	 * don't pass it around further.
+	 * NOTE: We explicitly allow bi-directional stacks.
+	 */
+	orient = cow & (MAP_STACK_GROWS_DOWN|MAP_STACK_GROWS_UP);
+	cow &= ~orient;
+	KASSERT(orient != 0, ("No stack grow direction"));
+
+	if (addrbos < vm_map_min(map) || addrbos > map->max_offset)
 		return (KERN_NO_SPACE);
-	if (addrbos > map->max_offset)
-		return (KERN_NO_SPACE);
-	if (max_ssize < sgrowsiz)
-		init_ssize = max_ssize;
-	else
-		init_ssize = sgrowsiz;
+
+	init_ssize = (max_ssize < sgrowsiz) ? max_ssize : sgrowsiz;
 
 	vm_map_lock(map);
 
@@ -2532,13 +2538,14 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		return (KERN_NO_SPACE);
 	}
 
-	/* If we can't accomodate max_ssize in the current mapping,
-	 * no go.  However, we need to be aware that subsequent user
-	 * mappings might map into the space we have reserved for
-	 * stack, and currently this space is not protected.  
-	 * 
-	 * Hopefully we will at least detect this condition 
-	 * when we try to grow the stack.
+	/*
+	 * If we can't accomodate max_ssize in the current mapping, no go.
+	 * However, we need to be aware that subsequent user mappings might
+	 * map into the space we have reserved for stack, and currently this
+	 * space is not protected.  
+	 *
+	 * Hopefully we will at least detect this condition when we try to
+	 * grow the stack.
 	 */
 	if ((prev_entry->next != &map->header) &&
 	    (prev_entry->next->start < addrbos + max_ssize)) {
@@ -2546,29 +2553,38 @@ vm_map_stack (vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 		return (KERN_NO_SPACE);
 	}
 
-	/* We initially map a stack of only init_ssize.  We will
-	 * grow as needed later.  Since this is to be a grow 
-	 * down stack, we map at the top of the range.
+	/*
+	 * We initially map a stack of only init_ssize.  We will grow as
+	 * needed later.  Depending on the orientation of the stack (i.e.
+	 * the grow direction) we either map at the top of the range, the
+	 * bottom of the range or in the middle.
 	 *
-	 * Note: we would normally expect prot and max to be
-	 * VM_PROT_ALL, and cow to be 0.  Possibly we should
-	 * eliminate these as input parameters, and just
-	 * pass these values here in the insert call.
+	 * Note: we would normally expect prot and max to be VM_PROT_ALL,
+	 * and cow to be 0.  Possibly we should eliminate these as input
+	 * parameters, and just pass these values here in the insert call.
 	 */
-	rv = vm_map_insert(map, NULL, 0, addrbos + max_ssize - init_ssize,
-	                   addrbos + max_ssize, prot, max, cow);
+	if (orient == MAP_STACK_GROWS_DOWN)
+		bot = addrbos + max_ssize - init_ssize;
+	else if (orient == MAP_STACK_GROWS_UP)
+		bot = addrbos;
+	else
+		bot = round_page(addrbos + max_ssize/2 - init_ssize/2);
+	top = bot + init_ssize;
+	rv = vm_map_insert(map, NULL, 0, bot, top, prot, max, cow);
 
-	/* Now set the avail_ssize amount */
-	if (rv == KERN_SUCCESS){
+	/* Now set the avail_ssize amount. */
+	if (rv == KERN_SUCCESS) {
 		if (prev_entry != &map->header)
-			vm_map_clip_end(map, prev_entry, addrbos + max_ssize - init_ssize);
-		new_stack_entry = prev_entry->next;
-		if (new_stack_entry->end   != addrbos + max_ssize ||
-		    new_stack_entry->start != addrbos + max_ssize - init_ssize)
-			panic ("Bad entry start/end for new stack entry");
+			vm_map_clip_end(map, prev_entry, bot);
+		new_entry = prev_entry->next;
+		if (new_entry->end != top || new_entry->start != bot)
+			panic("Bad entry start/end for new stack entry");
 
-		new_stack_entry->avail_ssize = max_ssize - init_ssize;
-		new_stack_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
+		new_entry->avail_ssize = max_ssize - init_ssize;
+		if (orient & MAP_STACK_GROWS_DOWN)
+			new_entry->eflags |= MAP_ENTRY_GROWS_DOWN;
+		if (orient & MAP_STACK_GROWS_UP)
+			new_entry->eflags |= MAP_ENTRY_GROWS_UP;
 	}
 
 	vm_map_unlock(map);
@@ -2648,7 +2664,7 @@ Retry:
 		KASSERT(addr > stack_entry->end, ("foo"));
 		end = (next_entry != &map->header) ? next_entry->start :
 		    stack_entry->end + stack_entry->avail_ssize;
-		grow_amount = roundup(addr - stack_entry->end, PAGE_SIZE);
+		grow_amount = roundup(addr + 1 - stack_entry->end, PAGE_SIZE);
 		max_grow = end - stack_entry->end;
 	}
 
