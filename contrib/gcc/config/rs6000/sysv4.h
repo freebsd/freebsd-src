@@ -403,7 +403,6 @@ do {									\
          : MAX (COMPUTED, SPECIFIED))
 
 #undef  BIGGEST_FIELD_ALIGNMENT
-#undef  ADJUST_FIELD_ALIGN
 
 /* Use ELF style section commands.  */
 

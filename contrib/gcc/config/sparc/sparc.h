@@ -1414,6 +1414,8 @@ extern char leaf_reg_remap[];
 #define PREFERRED_RELOAD_CLASS(X,CLASS)			\
   (CONSTANT_P (X)					\
    ? ((FP_REG_CLASS_P (CLASS)				\
+       || (CLASS) == GENERAL_OR_FP_REGS			\
+       || (CLASS) == GENERAL_OR_EXTRA_FP_REGS		\
        || (GET_MODE_CLASS (GET_MODE (X)) == MODE_FLOAT	\
 	   && ! TARGET_FPU)				\
        || (GET_MODE (X) == TFmode			\
@@ -1958,7 +1960,8 @@ do {									\
    return an rtx for the address of the word in the frame
    that holds the dynamic chain--the previous frame's address.
    ??? -mflat support? */
-#define DYNAMIC_CHAIN_ADDRESS(frame) plus_constant (frame, 14 * UNITS_PER_WORD)
+#define DYNAMIC_CHAIN_ADDRESS(frame)	\
+  plus_constant (frame, 14 * UNITS_PER_WORD + SPARC_STACK_BIAS)
 
 /* The return address isn't on the stack, it is in a register, so we can't
    access it from the current frame pointer.  We can access it from the
@@ -2568,6 +2571,11 @@ do {                                                                    \
 #define LTTF2_LIBCALL "_Q_flt"
 #define LETF2_LIBCALL "_Q_fle"
 
+/* Assume by default that the _Qp_* 64-bit libcalls are implemented such
+   that the inputs are fully consumed before the output memory is clobbered.  */
+
+#define TARGET_BUGGY_QP_LIB	0
+
 /* We can define the TFmode sqrt optab only if TARGET_FPU.  This is because
    with soft-float, the SFmode and DFmode sqrt instructions will be absent,
    and the compiler will notice and try to use the TFmode sqrt instruction
@@ -2603,6 +2611,17 @@ do {                                                                    \
 	if (TARGET_FPU)							\
 	  sqrt_optab->handlers[(int) TFmode].libfunc			\
 	    = init_one_libfunc ("_Q_sqrt");				\
+      }									\
+    if (TARGET_ARCH64)							\
+      {									\
+        /* In the SPARC 64bit ABI, these libfuncs do not exist in the	\
+           library.  Make sure the compiler does not emit calls to them	\
+	   by accident.  */						\
+	sdiv_optab->handlers[(int) SImode].libfunc = NULL;		\
+	udiv_optab->handlers[(int) SImode].libfunc = NULL;		\
+	smod_optab->handlers[(int) SImode].libfunc = NULL;		\
+	umod_optab->handlers[(int) SImode].libfunc = NULL;		\
+        smul_optab->handlers[(int) SImode].libfunc = NULL;		\
       }									\
     INIT_SUBTARGET_OPTABS;						\
   } while (0)
@@ -2903,24 +2922,8 @@ do {									\
 
 /* Output code to add DELTA to the first argument, and then jump to FUNCTION.
    Used for C++ multiple inheritance.  */
-#define ASM_OUTPUT_MI_THUNK(FILE, THUNK_FNDECL, DELTA, FUNCTION)	\
-do {									\
-  int reg = 0;								\
-									\
-  if (TARGET_ARCH64							\
-      && aggregate_value_p (TREE_TYPE (TREE_TYPE (FUNCTION))))		\
-    reg = 1;								\
-  if ((DELTA) >= 4096 || (DELTA) < -4096)				\
-    fprintf (FILE, "\tset\t%d, %%g1\n\tadd\t%%o%d, %%g1, %%o%d\n",	\
-	     (int)(DELTA), reg, reg);					\
-  else									\
-    fprintf (FILE, "\tadd\t%%o%d, %d, %%o%d\n", reg, (int)(DELTA), reg);\
-  fprintf (FILE, "\tor\t%%o7, %%g0, %%g1\n");				\
-  fprintf (FILE, "\tcall\t");						\
-  assemble_name (FILE, XSTR (XEXP (DECL_RTL (FUNCTION), 0), 0));	\
-  fprintf (FILE, ", 0\n");						\
-  fprintf (FILE, "\t or\t%%g1, %%g0, %%o7\n");				\
-} while (0)
+#define ASM_OUTPUT_MI_THUNK(FILE, THUNK_FNDECL, DELTA, FUNCTION) \
+  sparc_output_mi_thunk (FILE, THUNK_FNDECL, DELTA, FUNCTION)
 
 #define PRINT_OPERAND_PUNCT_VALID_P(CHAR) \
   ((CHAR) == '#' || (CHAR) == '*' || (CHAR) == '^' || (CHAR) == '(' || (CHAR) == '_')
