@@ -172,7 +172,6 @@ cpu_exit(p)
 	 */
 	p->p_stat = SZOMB;
 
-	mp_fixme("assumption: p_pptr won't change at this time");
 	wakeup(p->p_pptr);
 	PROC_UNLOCK_NOSWITCH(p);
 
