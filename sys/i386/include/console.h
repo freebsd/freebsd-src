@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.36 1998/02/12 20:47:39 phk Exp $
+ *	$Id: console.h,v 1.37 1998/07/06 06:29:06 imp Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -73,6 +73,9 @@
 #define CONS_BELLTYPE	_IOW('c', 8, int)
 #define CONS_HISTORY	_IOW('c', 9, int)
 #define CONS_MOUSECTL	_IOWR('c', 10, mouse_info_t)
+#define CONS_IDLE	_IOR('c', 11, int)
+#define CONS_SAVERMODE	_IOW('c', 12, int)
+#define CONS_SAVERSTART	_IOW('c', 13, int)
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
@@ -81,6 +84,10 @@
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, int)
+
+/* CONS_SAVERMODE */
+#define CONS_LKM_SAVER	0
+#define CONS_USR_SAVER	1
 
 #ifdef PC98
 #define ADJUST_CLOCK		_IO('t',100)		/* for 98note resume */
@@ -157,7 +164,6 @@ struct mouse_info {
 #define KD_EGA		4		/* enhanced graphics adapter 	*/
 #define KD_VGA		5		/* video graphics adapter    	*/
 #define KD_PC98		6		/* PC-98 display            	*/
-#define KD_PIXEL	7		/* Pixel based display		*/
 
 #define KD_TEXT		0		/* set text mode restore fonts  */
 #define KD_TEXT0	0		/* ditto			*/
@@ -371,6 +377,8 @@ typedef struct ssaver ssaver_t;
 #define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
 #define M_HGC_P1	0xe1	/* hercules graphics - page 1 @ B8000 */
 #define M_MCA_MODE	0xff	/* monochrome adapter mode */
+
+#define M_VESA_BASE	0x100	/* VESA mode number base */
 
 #define SW_PC98_80x25	_IO('S', M_PC98_80x25)
 #define SW_PC98_80x30	_IO('S', M_PC98_80x30)
