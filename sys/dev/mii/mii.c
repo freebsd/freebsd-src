@@ -68,6 +68,7 @@ static const char rcsid[] =
 static int miibus_readreg	__P((device_t, int, int));
 static int miibus_writereg	__P((device_t, int, int, int));
 static void miibus_statchg	__P((device_t));
+static void miibus_linkchg	__P((device_t));
 static void miibus_mediainit	__P((device_t));
 
 static device_method_t miibus_methods[] = {
@@ -85,6 +86,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
 	DEVMETHOD(miibus_statchg,	miibus_statchg),    
+	DEVMETHOD(miibus_linkchg,	miibus_linkchg),    
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),    
 
 	{ 0, 0 }
@@ -216,6 +218,33 @@ static void miibus_statchg(dev)
 	parent = device_get_parent(dev);
 	MIIBUS_STATCHG(parent);
 	return;
+}
+
+static void
+miibus_linkchg(dev)
+	device_t dev;
+{
+	struct mii_data *mii;
+	struct ifnet *ifp;
+	device_t parent;
+	int link;
+
+	parent = device_get_parent(dev);
+	MIIBUS_LINKCHG(parent);
+
+	mii = device_get_softc(dev);
+	ifp = device_get_softc(parent);
+	
+	if (mii->mii_media_status & IFM_AVALID) {
+		if (mii->mii_media_status & IFM_ACTIVE)
+			link = NOTE_LINKUP;
+		else
+			link = NOTE_LINKDOWN;
+	} else {
+		link = NOTE_LINKINV;
+	}
+
+	KNOTE(&ifp->if_klist, link);
 }
 
 static void miibus_mediainit(dev)
