@@ -829,20 +829,6 @@ dev/usb/usb_subr.c	optional usb
 dev/usb/usbdi.c		optional usb
 dev/usb/usbdi_util.c	optional usb
 dev/utopia/utopia.c		optional utopia
-dev/vinum/vinum.c		optional vinum
-dev/vinum/vinumconfig.c		optional vinum
-dev/vinum/vinumdaemon.c		optional vinum
-dev/vinum/vinuminterrupt.c	optional vinum
-dev/vinum/vinumio.c		optional vinum
-dev/vinum/vinumioctl.c		optional vinum
-dev/vinum/vinumlock.c		optional vinum
-dev/vinum/vinummemory.c		optional vinum
-dev/vinum/vinumparser.c		optional vinum
-dev/vinum/vinumraid5.c		optional vinum
-dev/vinum/vinumrequest.c	optional vinum
-dev/vinum/vinumrevive.c		optional vinum
-dev/vinum/vinumstate.c		optional vinum
-dev/vinum/vinumutil.c		optional vinum
 dev/vge/if_vge.c		optional vge
 dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
