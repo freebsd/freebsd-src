@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.5 1995/10/31 21:20:45 peter Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.6 1996/03/01 19:29:35 phk Exp $";
 #endif
 
 #include <stdio.h>
@@ -372,14 +372,17 @@ check_passwd(unit, auser, userlen, apasswd, passwdlen, msg, msglen)
     char passwd[256], user[256];
     char secret[MAXWORDLEN];
     static int attempts = 0;
+    int len;
 
     /*
      * Make copies of apasswd and auser, then null-terminate them.
      */
-    BCOPY(apasswd, passwd, passwdlen);
-    passwd[passwdlen] = '\0';
-    BCOPY(auser, user, userlen);
-    user[userlen] = '\0';
+    len = MIN(passwdlen, sizeof(passwd) - 1);
+    BCOPY(apasswd, passwd, len);
+    passwd[len] = '\0';
+    len = MIN(userlen, sizeof(user) - 1);
+    BCOPY(auser, user, len);
+    user[len] = '\0';
 
     /*
      * Open the file of upap secrets and scan for a suitable secret
