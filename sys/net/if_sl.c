@@ -178,11 +178,12 @@ static timeout_t sl_outfill;
 static l_close_t	slclose;
 static l_rint_t		slinput;
 static l_ioctl_t	sltioctl;
+static l_start_t	sltstart;
 static int	slioctl(struct ifnet *, u_long, caddr_t);
 static int	slopen(struct cdev *, struct tty *);
 static int	sloutput(struct ifnet *,
 	    struct mbuf *, struct sockaddr *, struct rtentry *);
-static int	slstart(struct tty *);
+static void	slstart(struct ifnet *);
 
 static struct linesw slipdisc = {
 	.l_open =	slopen,
@@ -191,7 +192,7 @@ static struct linesw slipdisc = {
 	.l_write =	l_nowrite,
 	.l_ioctl =	sltioctl,
 	.l_rint =	slinput,
-	.l_start =	slstart,
+	.l_start =	sltstart,
 	.l_modem =	ttymodem
 };
 
@@ -312,6 +313,7 @@ slcreate(void)
 	sc->sc_if.if_type = IFT_SLIP;
 	sc->sc_if.if_ioctl = slioctl;
 	sc->sc_if.if_output = sloutput;
+	sc->sc_if.if_start = slstart;
 	sc->sc_if.if_snd.ifq_maxlen = 50;
 	sc->sc_fastq.ifq_maxlen = 32;
 	sc->sc_if.if_linkmib = sc;
@@ -539,7 +541,7 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
 {
 	register struct sl_softc *sc = ifp->if_softc;
 	register struct ip *ip;
-	int s, error;
+	int error;
 
 	/*
 	 * `Cannot happen' (see slioctl).  Someday we will extend
@@ -567,18 +569,27 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
 	}
 	if (ip->ip_tos & IPTOS_LOWDELAY &&
 	    !ALTQ_IS_ENABLED(&sc->sc_if.if_snd))
-		error = !(IF_HANDOFF(&sc->sc_fastq, m, NULL));
+		error = !(IF_HANDOFF(&sc->sc_fastq, m, &sc->sc_if));
 	else
 		IFQ_HANDOFF(&sc->sc_if, m, error);
 	if (error) {
 		sc->sc_if.if_oerrors++;
 		return (ENOBUFS);
 	}
+	return (0);
+}
+
+static void
+slstart(ifp)
+	struct ifnet *ifp;
+{
+	struct sl_softc *sc = ifp->if_softc;
+	int s;
+
 	s = splimp();
 	if (sc->sc_ttyp->t_outq.c_cc == 0)
-		slstart(sc->sc_ttyp);
+		sltstart(sc->sc_ttyp);
 	splx(s);
-	return (0);
 }
 
 /*
@@ -587,7 +598,7 @@ sloutput(struct ifnet *ifp, register struct mbuf *m, struct sockaddr *dst,
  * the interface before starting output.
  */
 static int
-slstart(struct tty *tp)
+sltstart(struct tty *tp)
 {
 	register struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
 	register struct mbuf *m;
