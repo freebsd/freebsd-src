@@ -89,7 +89,7 @@ This generic message returns is a human-readable version of the node status.
 .It Dv NGM_PPPOE_CONNECT
 Tell a nominated newly created hook that it's session should enter
 the state machine in a manner to become a client. It must be newly created and 
-a service name can be given as an agument. It is legal to specify a zero length
+a service name can be given as an argument. It is legal to specify a zero length
 service name. This is common on some DSL setups. A session request packet
 will be broadcast on the ethernet.
 This command uses the 
@@ -97,9 +97,9 @@ This command uses the
 structure shown below.
 .It Dv NGM_PPPOE_LISTEN
 Tell a nominated newly created hook that it's session should enter
-the state machine in a manner to become a server listenner. The argument
+the state machine in a manner to become a server listener. The argument
 given is the name of the service to listen on behalf of. A zero length service
-length will match all requests for service. A matching ervice request
+length will match all requests for service. A matching service request
 packet will be passed unmodified back to the process responsible
 for starting the service. It can then examine it and pass it on to 
 the session that is started to answer the request. 
@@ -143,14 +143,14 @@ This command is sent to the node that started this session with one of the
 above messages, and reports a state change. This message reports
 failed Session negotiation. It uses the structure shown below, and
 reports back the hook name corresponding to the failed session.
-The hook will probably have been removed immediatly after sending this message
+The hook will probably have been removed immediately after sending this message
 .It Dv NGM_NGM_PPPOE_CLOSE
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change. This message reports
 a request to close a session. It uses the structure shown below, and
 reports back the hook name corresponding to the closed session.
-The hook will probably have been removed immediatly after sending this
-message. At present this message is not yet used and a 'failed' mesage
+The hook will probably have been removed immediately after sending this
+message. At present this message is not yet used and a 'failed' message
 will be received at closure instead.
 .Pp
 The three commands above use a common data structure.
@@ -166,7 +166,7 @@ This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, when all session have been disconnected or when the
 .Dv ethernet
-hook is disconected.
+hook is disconnected.
 .Sh EXAMPLE USAGE
 The following code uses 
 .Dv libnetgraph
@@ -316,8 +316,8 @@ setup(char *ethername, char *service, char *sessname,
 			sprintf(pppoe_node_name, "[%08x]:", peer->id);
 		} else {
 			/*
-			 * There is already someon hogging the data,
-			 * return * an error. Some day we'll try
+			 * There is already someone hogging the data,
+			 * return an error. Some day we'll try
 			 * daisy-chaining..
 			 */
 			return (EBUSY);
@@ -391,4 +391,4 @@ setup(char *ethername, char *service, char *sessname,
 .%T "RFC 2516 - A Method of transmitting PPP over Ethernet (PPPoE)"
 .Re
 .Sh AUTHOR
-Julian Elisher <julian@whistle.com>
+Julian Elischer <julian@whistle.com>
