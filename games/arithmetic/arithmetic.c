@@ -82,6 +82,8 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 const char keylist[] = "+-x/";
 const char defaultkeys[] = "+-";
@@ -91,6 +93,14 @@ int rangemax = 10;
 int nright, nwrong;
 time_t qtime;
 #define	NQUESTS	20
+
+static void usage __P((void));
+int getrandom __P((int, int, int));
+void intr __P((int));
+int opnum __P((int));
+void penalise __P((int, int, int));
+int problem __P((void));
+void showstats __P((void));
 
 /*
  * Select keys from +-x/ to be asked addition, subtraction, multiplication,
@@ -104,10 +114,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind;
 	int ch, cnt;
-	void intr();
 
 	/* Revoke setgid privileges */
 	setgid(getgid());
@@ -157,13 +164,15 @@ main(argc, argv)
 
 /* Handle interrupt character.  Print score and exit. */
 void
-intr()
+intr(sig)
+	int sig;
 {
 	showstats();
 	exit(0);
 }
 
 /* Print score.  Original `arithmetic' had a delay after printing it. */
+void
 showstats()
 {
 	if (nright + nwrong > 0) {
@@ -184,6 +193,7 @@ showstats()
  * answer causes the numbers in the problem to be penalised, so that they are
  * more likely to appear in subsequent problems.
  */
+int
 problem()
 {
 	char *p;
@@ -191,6 +201,9 @@ problem()
 	int left, op, right, result;
 	char line[80];
 
+	left = 0;
+	right = 0;
+	result = 0;
 	op = keys[random() % nkeys];
 	if (op != '/')
 		right = getrandom(rangemax + 1, op, 1);
@@ -295,6 +308,7 @@ struct penalty {
  * operand number `operand' (0 or 1).  If we run out of memory, we just
  * forget about the penalty (how likely is this, anyway?).
  */
+void
 penalise(value, op, operand)
 	int value, op, operand;
 {
@@ -315,6 +329,7 @@ penalise(value, op, operand)
  * as a value, or represents a position in the penalty list.  If the latter,
  * we find the corresponding value and return that, decreasing its penalty.
  */
+int
 getrandom(maxval, op, operand)
 	int maxval, op, operand;
 {
@@ -360,6 +375,7 @@ getrandom(maxval, op, operand)
 }
 
 /* Return an index for the character op, which is one of [+-x/]. */
+int
 opnum(op)
 	int op;
 {
@@ -374,6 +390,7 @@ opnum(op)
 }
 
 /* Print usage message and quit. */
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: arithmetic [-o +-x/] [-r range]\n");
