@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.37 1996/10/04 22:54:05 wosch Exp $ -->
+<!-- $Id: install.sgml,v 1.39 1996/11/04 17:21:20 jhay Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -329,6 +329,8 @@ Boot:
 	    <item>STB 4 port card using shared IRQ.
 
 	    <item>SDL Communications Riscom/8 Serial Board.
+
+	    <item>SDL Communications RISCom/N2 and N2pci sync serial cards.
 
 	    <item>Digiboard Sync/570i high-speed sync serial card.
 
