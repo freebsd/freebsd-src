@@ -69,24 +69,18 @@ afterinstall:
 	for l in ${DE_LINKS}; do \
 		ln -fs ../de_DE.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${DE_LINKS}; do \
 		ln -fs ../de_DE.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
 	done
 	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${IT_LINKS}; do \
 		ln -fs ../it_IT.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
 	done
 	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${FR_LINKS}; do \
 		ln -fs ../fr_FR.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
 	done
@@ -97,28 +91,28 @@ afterinstall:
 	for l in ${NL_LINKS}; do \
 		ln -fs ../nl_NL.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${NL_LINKS}; do \
 		ln -fs ../nl_NL.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
 	done
 	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${US_LINKS}; do \
 		ln -fs ../en_US.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
+		ln -fs ../en_US.ISO8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.US-ASCII/LC_TIME; \
 	done
 	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-	done
-	for l in ${GB_LINKS}; do \
 		ln -fs ../en_GB.ISO8859-1/LC_TIME \
 		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
+		ln -fs ../en_GB.ISO8859-1/LC_TIME \
+		       ${LOCALEDIR}/$$l.US-ASCII/LC_TIME; \
 	done
-		ln -fs ../en_US.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/en_US.US-ASCII/LC_TIME
+	ln -fs ../en_GB.ISO8859-1/LC_TIME \
+	       ${LOCALEDIR}/en_GB.US-ASCII/LC_TIME
+	ln -fs ../en_US.ISO8859-1/LC_TIME \
+	       ${LOCALEDIR}/en_US.US-ASCII/LC_TIME
 
 .include <bsd.prog.mk>
