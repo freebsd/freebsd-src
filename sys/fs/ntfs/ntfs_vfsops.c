@@ -81,6 +81,19 @@ static vfs_statfs_t     ntfs_statfs;
 static vfs_unmount_t    ntfs_unmount;
 static vfs_vptofh_t     ntfs_vptofh;
 
+static b_strategy_t     ntfs_bufstrategy;
+
+/* 
+ * Buffer operations for NTFS vnodes.
+ * We punt on VOP_BMAP, so we need to do
+ * strategy on the file's vnode rather
+ * than the underlying device's
+ */
+static struct buf_ops ntfs_vnbufops = {
+	.bop_name     = "NTFS",
+	.bop_strategy = ntfs_bufstrategy,
+};
+
 static int
 ntfs_init (
 	struct vfsconf *vcp )
@@ -650,7 +663,7 @@ ntfs_vgetex(
 
 	dprintf(("ntfs_vgetex: ino: %d, attr: 0x%x:%s, lkf: 0x%lx, f: 0x%lx\n",
 		ino, attrtype, attrname?attrname:"", (u_long)lkflags,
-		(u_long)flags ));
+		(u_long)flags));
 
 	ntmp = VFSTONTFS(mp);
 	*vpp = NULL;
@@ -721,6 +734,9 @@ ntfs_vgetex(
 	vp->v_data = fp;
 	vp->v_type = f_type;
 
+	vp->v_bufobj.bo_ops = &ntfs_vnbufops;
+	vp->v_bufobj.bo_private = vp;
+
 	if (ino == NTFS_ROOTINO)
 		vp->v_vflag |= VV_ROOT;
 
@@ -748,6 +764,20 @@ ntfs_vget(
 {
 	return ntfs_vgetex(mp, ino, NTFS_A_DATA, NULL, lkflags, 0,
 	    curthread, vpp);
+}
+
+static void
+ntfs_bufstrategy(struct bufobj *bo, struct buf *bp)
+{
+	struct vnode *vp;
+	int rc;
+
+	vp = bo->bo_private;
+	KASSERT(bo == &vp->v_bufobj, ("BO/VP mismatch: vp %p bo %p != %p",
+	    vp, &vp->v_bufobj, bo));
+	rc = VOP_STRATEGY(vp, bp);
+	KASSERT(rc == 0, ("NTFS VOP_STRATEGY failed: bp=%p, "
+		"vp=%p, rc=%d", bp, vp, rc));
 }
 
 static struct vfsops ntfs_vfsops = {
