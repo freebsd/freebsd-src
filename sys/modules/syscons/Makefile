@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR =
+SUBDIR += apm
 SUBDIR += blank
 SUBDIR += daemon
 SUBDIR += fade
