@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.10 1995/03/10 22:11:50 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.11 1995/03/19 14:29:11 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -222,7 +222,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 			panic("bad blockno");
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		allocbuf(bp, nsize, 0);
+		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		bzero((char *)bp->b_data + osize, (u_int)nsize - osize);
 		*bpp = bp;
@@ -286,7 +286,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 			    (long)(request - nsize));
 		ip->i_blocks += btodb(nsize - osize);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		allocbuf(bp, nsize, 0);
+		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
 		bzero((char *)bp->b_data + osize, (u_int)nsize - osize);
 		*bpp = bp;

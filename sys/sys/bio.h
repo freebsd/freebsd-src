@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.13 1995/03/16 18:16:12 bde Exp $
+ * $Id: buf.h,v 1.14 1995/03/25 08:55:02 davidg Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -220,7 +220,7 @@ struct buf *incore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
 struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
 struct buf *geteblk __P((int));
-int allocbuf __P((struct buf *, int, int));
+int allocbuf __P((struct buf *, int));
 int	biowait __P((struct buf *));
 void	biodone __P((struct buf *));
 
