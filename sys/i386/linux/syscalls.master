@@ -93,7 +93,8 @@
 59	STD	LINUX	{ int linux_olduname(struct linux_oldold_utsname *up); }
 60	NOPROTO	LINUX	{ int umask(int newmask); }
 61	NOPROTO	LINUX	{ int chroot(char *path); }
-62	STD	LINUX	{ int linux_ustat(void); }
+62	STD	LINUX	{ int linux_ustat(linux_dev_t dev, \
+			    struct linux_ustat *ubuf); }
 63	NOPROTO	LINUX	{ int dup2(u_int from, u_int to); }
 64	NOPROTO	LINUX	{ int getppid(void); }
 65	NOPROTO	LINUX	{ int getpgrp(void); }
@@ -213,7 +214,7 @@
 ; Turn on getsid after checking that it matches.
 
 147	UNIMPL	LINUX	getsid
-148	UNIMPL	LINUX	fdatasync
+148	STD	LINUX	{ int linux_fdatasync(int fd); }
 149	UNIMPL	LINUX	_sysctl
 
 150	NOPROTO	BSD	{ int mlock(const void *addr, size_t len); }
@@ -243,7 +244,7 @@
 166	UNIMPL	LINUX	new_vm86
 167	UNIMPL	LINUX	query_module
 168	NOPROTO	LINUX	{ int poll(struct pollfd*, unsigned int nfds, \
-				   long timeout); }
+				long timeout); }
 169	UNIMPL	LINUX	nfsservctl
 170	UNIMPL	LINUX	setresgid
 171	UNIMPL	LINUX	getresgid
@@ -267,7 +268,8 @@
 183	STD	LINUX	{ int linux_getcwd(char *buf, unsigned long bufsize); }
 184	UNIMPL	LINUX	capget
 185	UNIMPL	LINUX	capset
-186	UNIMPL	LINUX	sigaltstack
+186	STD	LINUX	{ int linux_sigaltstack(const linux_stack_t *uss, \
+				linux_stack_t *uoss); }
 187	UNIMPL	LINUX	sendfile
 188	UNIMPL	LINUX	getpmsg
 189	UNIMPL	LINUX	putpmsg
