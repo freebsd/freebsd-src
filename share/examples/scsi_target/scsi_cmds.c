@@ -246,10 +246,8 @@ tcmd_sense(u_int init_id, struct ccb_scsiio *ctio, u_int8_t flags,
 
 	/* Fill out the supplied CTIO */
 	if (ctio != NULL) {
-		/* No autosense yet
 		bcopy(sense, &ctio->sense_data, sizeof(*sense));
-		ctio->sense_len = sizeof(*sense);  XXX
-		*/
+		ctio->sense_len = sizeof(*sense);  /* XXX */
 		ctio->ccb_h.flags &= ~CAM_DIR_MASK;
 		ctio->ccb_h.flags |= CAM_DIR_NONE | /* CAM_SEND_SENSE | */
 				     CAM_SEND_STATUS;
@@ -331,7 +329,11 @@ init_inquiry(u_int16_t req_flags, u_int16_t sim_flags)
 	inq = &inq_data;
 	bzero(inq, sizeof(*inq));
 	inq->device = T_DIRECT | (SID_QUAL_LU_CONNECTED << 5);
+#ifdef SCSI_REV_SPC
 	inq->version = SCSI_REV_SPC; /* was 2 */
+#else
+	inq->version = SCSI_REV_3; /* was 2 */
+#endif
 
 	/*
 	 * XXX cpi.hba_inquiry doesn't support Addr16 so we give the
