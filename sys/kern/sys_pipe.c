@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.10 1996/02/09 04:36:36 dyson Exp $
+ * $Id: sys_pipe.c,v 1.11 1996/02/11 22:09:50 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -129,6 +129,7 @@ static void pipebufferinit __P((struct pipe *cpipe));
 static void pipeinit __P((struct pipe *cpipe));
 static __inline int pipelock __P((struct pipe *cpipe, int catch));
 static __inline void pipeunlock __P((struct pipe *cpipe));
+static __inline void pipeselwakeup __P((struct pipe *cpipe));
 #ifndef PIPE_NODIRECT
 static int pipe_build_write_buffer __P((struct pipe *wpipe, struct uio *uio));
 static void pipe_destroy_write_buffer __P((struct pipe *wpipe));
