@@ -27,7 +27,7 @@
 
 #ifndef _IPFW2_H
 #define _IPFW2_H
-
+#define IPFW2  1
 /*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
