@@ -1,8 +1,13 @@
 /* for FreeBSD */
 /*
- * $Id$
+ * $Id: local.h,v 1.8 1994/08/02 07:40:06 davidg Exp $
  */
 #include "snd.h"
+
+#include <param.h>
+#include <systm.h>
+#include <machine/cpufunc.h>
+#include <vm/vm.h>
 
 #if NSND > 0
 #define KERNEL_SOUNDCARD

@@ -1,9 +1,11 @@
 /*
- * $Id$
+ * $Id: sound_calls.h,v 1.5 1994/08/02 07:40:51 davidg Exp $
  */
 /*
  *	DMA buffer calls
  */
+#ifndef _MACHINE_ISA_SOUND_H_
+#define _MACHINE_ISA_SOUND_H_
 
 int DMAbuf_open(int dev, int mode);
 int DMAbuf_release(int dev, int mode);
@@ -93,7 +95,6 @@ int pro_midi_write(int dev, snd_rw_buf *uio);
 int pro_midi_read(int dev, snd_rw_buf *uio);
 
 /*	From soundcard.c	*/
-long soundcard_init(long mem_start);
 void tenmicrosec(void);
 void request_sound_timer (int count);
 void sound_stop_timer(void);
@@ -209,3 +210,5 @@ int pmgr_inform(int dev, int event, unsigned long parm1, unsigned long parm2,
 
 /* 	From ics2101.c */
 long ics2101_mixer_init(long mem_start);
+
+#endif
