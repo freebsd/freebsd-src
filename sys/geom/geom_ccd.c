@@ -173,7 +173,7 @@ g_ccd_access(struct g_provider *pp, int dr, int dw, int de)
 			LIST_FOREACH(cp2, &gp->consumer, consumer) {
 				if (cp1 == cp2)
 					break;
-				g_access_rel(cp1, -dr, -dw, -de);
+				g_access_rel(cp2, -dr, -dw, -de);
 			}
 			break;
 		}
