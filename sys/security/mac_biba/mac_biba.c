@@ -1529,6 +1529,13 @@ mac_biba_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 		return (error);
 
 	/*
+	 * Relabling network interfaces requires Biba privilege.
+	 */
+	error = mac_biba_subject_privileged(subj);
+	if (error)
+		return (error);
+
+	/*
 	 * If the Biba label is to be changed, authorize as appropriate.
 	 */
 	if (new->mb_flags & MAC_BIBA_FLAGS_BOTH) {
