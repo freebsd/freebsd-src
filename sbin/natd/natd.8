@@ -61,7 +61,7 @@ and will possibly change these before re-injecting them back into the
 IP packet stream.
 .Pp
 It changes all packets destined for another host so that their source
-IP number is that of the current machine.
+IP address is that of the current machine.
 For each packet changed in this manner, an internal table entry is
 created to record this fact.
 The source port number is also changed to indicate the table entry
@@ -69,7 +69,7 @@ applying to the packet.
 Packets that are received with a target IP of the current host are
 checked against this internal table.
 If an entry is found, it is used to determine the correct target IP
-number and port to place in the packet.
+address and port to place in the packet.
 .Pp
 The following command line options are available:
 .Bl -tag -width Fl
@@ -142,7 +142,7 @@ is either
 or
 .Ar udp ,
 .Ar targetIP
-is the desired target IP number,
+is the desired target IP address,
 .Ar targetPORT
 is the desired target port number or range,
 .Ar aliasPORT
@@ -154,19 +154,29 @@ Arguments
 and
 .Ar remotePORT
 can be used to specify the connection more accurately if necessary.
-The
-.Ar targetPORT
-range and
-.Ar aliasPORT
-range need not be the same numerically, but must have the same size.
 If
 .Ar remotePORT
 is not specified, it is assumed to be all ports.
-If
+.Pp
+Arguments
+.Ar targetIP , aliasIP
+and
+.Ar remoteIP
+can be given as IP addresses or as hostnames.
+The
+.Ar targetPORT , aliasPORT
+and
 .Ar remotePORT
-is specified, it must match the size of
-.Ar targetPORT ,
-or be 0 (all ports).
+ranges need not be the same numerically, but must have the same size.
+When
+.Ar targetPORT , aliasPORT
+or
+.Ar remotePORT
+specifies a singular value (not a range), it can be given as a service
+name that is searched for in the
+.Xr services 5
+database.
+.Pp
 For example, the argument
 .Pp
 .Dl Ar tcp inside1:telnet 6666
@@ -276,7 +286,7 @@ option is used,
 will monitor the routing socket for alterations to the
 .Ar interface
 passed.
-If the interface's IP number is changed,
+If the interface's IP address is changed,
 .Nm
 will dynamically alter its concept of the alias address.
 .It Fl in_port | i Ar port
@@ -370,7 +380,7 @@ they can route packets to the machine in question.
 Use
 .Ar interface
 to determine the aliasing address.
-If there is a possibility that the IP number associated with
+If there is a possibility that the IP address associated with
 .Ar interface
 may change, the
 .Fl dynamic
