@@ -525,8 +525,17 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `vlan' device implements the VLAN tagging of Ethernet frames
 #  according to IEEE 802.1Q.  It requires `device miibus'.
 #  The `wlan' device provides generic code to support 802.11
-#  drivers, including host AP mode; it is MANDATORY for the wi
-#  driver and will eventually be required by all 802.11 drivers.
+#  drivers, including host AP mode; it is MANDATORY for the wi,
+#  ath, and awi drivers and will eventually be required by all 802.11 drivers.
+#  The `wlan_wep', `wlan_tkip', and `wlan_ccmp' devices provide
+#  support for WEP, TKIP, and AES-CCMP crypto protocols optionally
+#  used with 802.11 devices that depend on the `wlan' module.
+#  The `wlan_xauth' device provides support for external (i.e. user-mode)
+#  authenticators for use with 802.11 drivers that use the `wlan'
+#  module and supoprt 802.1x and/or WPA security protocols.
+#  The `wlan_acl' device provides a MAC-based access control mechanism
+#  for use with 802.11 drivers operating in ap mode and using the
+#  `wlan' module.
 #  The `fddi' device provides generic code to support FDDI.
 #  The `arcnet' device provides generic code to support Arcnet.
 #  The `sppp' device serves a similar role for certain types
@@ -570,6 +579,11 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 device		ether			#Generic Ethernet
 device		vlan			#VLAN support (needs miibus)
 device		wlan			#802.11 support
+device		wlan_wep		#802.11 WEP support
+device		wlan_ccmp		#802.11 CCMP support
+device		wlan_tkip		#802.11 TKIP support
+device		wlan_xauth		#802.11 external authenticator support
+device		wlan_acl		#802.11 MAC ACL support
 device		token			#Generic TokenRing
 device		fddi			#Generic FDDI
 device		arcnet			#Generic Arcnet
