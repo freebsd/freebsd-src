@@ -459,7 +459,7 @@ resume:
 		if (KTRPOINT(p, KTR_CSW))
 			ktrcsw(p->p_tracep, 0, 0);
 #endif
-		if (p->p_sigacts->ps_sigintr & sigmask(sig))
+		if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 			return (EINTR);
 		return (ERESTART);
 	}
@@ -599,7 +599,7 @@ resume:
 			if (KTRPOINT(p, KTR_CSW))
 				ktrcsw(p->p_tracep, 0, 0);
 #endif
-			if (p->p_sigacts->ps_sigintr & sigmask(sig))
+			if (SIGISMEMBER(p->p_sigacts->ps_sigintr, sig))
 				return (EINTR);
 			return (ERESTART);
 		}

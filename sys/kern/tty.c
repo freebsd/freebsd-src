@@ -739,10 +739,9 @@ ttioctl(tp, cmd, data, flag)
 	case  TIOCSETP:
 	case  TIOCSLTC:
 #endif
-		while (isbackground(p, tp) &&
-		    (p->p_flag & P_PPWAIT) == 0 &&
-		    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
-		    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+		while (isbackground(p, tp) && !(p->p_flag & P_PPWAIT) &&
+		    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
+		    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
 			if (p->p_pgrp->pg_jobc == 0)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTOU, 1);
@@ -1448,9 +1447,9 @@ loop:
 	 */
 	if (isbackground(p, tp)) {
 		splx(s);
-		if ((p->p_sigignore & sigmask(SIGTTIN)) ||
-		   (p->p_sigmask & sigmask(SIGTTIN)) ||
-		    p->p_flag & P_PPWAIT || p->p_pgrp->pg_jobc == 0)
+		if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
+		    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
+		    (p->p_flag & P_PPWAIT) || p->p_pgrp->pg_jobc == 0)
 			return (EIO);
 		pgsignal(p->p_pgrp, SIGTTIN, 1);
 		error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ttybg2", 0);
@@ -1699,17 +1698,20 @@ ttycheckoutq(tp, wait)
 	register struct tty *tp;
 	int wait;
 {
-	int hiwat, s, oldsig;
+	int hiwat, s;
+	sigset_t oldmask;
 
 	hiwat = tp->t_ohiwat;
+	SIGEMPTYSET(oldmask);
 	s = spltty();
-	oldsig = wait ? curproc->p_siglist : 0;
+	if (wait)
+		oldmask = curproc->p_siglist;
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
 			if (tp->t_outq.c_cc <= hiwat)
 				break;
-			if (wait == 0 || curproc->p_siglist != oldsig) {
+			if (!(wait && SIGSETEQ(curproc->p_siglist, oldmask))) {
 				splx(s);
 				return (0);
 			}
@@ -1766,9 +1768,9 @@ loop:
 	 */
 	p = curproc;
 	if (isbackground(p, tp) &&
-	    ISSET(tp->t_lflag, TOSTOP) && (p->p_flag & P_PPWAIT) == 0 &&
-	    (p->p_sigignore & sigmask(SIGTTOU)) == 0 &&
-	    (p->p_sigmask & sigmask(SIGTTOU)) == 0) {
+	    ISSET(tp->t_lflag, TOSTOP) && !(p->p_flag & P_PPWAIT) &&
+	    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
+	    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
 		if (p->p_pgrp->pg_jobc == 0) {
 			error = EIO;
 			goto out;

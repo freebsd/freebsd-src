@@ -410,7 +410,7 @@ mfs_start(mp, flags, p)
 	register struct vnode *vp = VFSTOUFS(mp)->um_devvp;
 	register struct mfsnode *mfsp = VTOMFS(vp);
 	register struct buf *bp;
-	register int gotsig = 0;
+	register int gotsig = 0, sig;
 
 	/*
 	 * We must prevent the system from trying to swap
@@ -449,8 +449,11 @@ mfs_start(mp, flags, p)
 		 */
 		if (gotsig) {
 			gotsig = 0;
-			if (dounmount(mp, 0, p) != 0)
-				CLRSIG(p, CURSIG(p));	/* try sleep again.. */
+			if (dounmount(mp, 0, p) != 0) {
+				sig = CURSIG(p);
+				if (sig)
+					SIGDELSET(p->p_siglist, sig);
+			}
 		}
 		else if (tsleep((caddr_t)vp, mfs_pri, "mfsidl", 0))
 			gotsig++;	/* try to unmount in next pass */

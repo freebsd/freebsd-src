@@ -36,6 +36,8 @@
 #ifndef _SYS_SYSENT_H_
 #define	_SYS_SYSENT_H_
 
+#include <sys/signal.h>
+
 struct proc;
 
 typedef	int	sy_call_t __P((struct proc *, void *));
@@ -63,7 +65,7 @@ struct sysentvec {
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup) __P((long **, struct image_params *));
 					/* stack fixup function */
-	void		(*sv_sendsig) __P((void (*)(int), int, int, u_long));
+	void		(*sv_sendsig) __P((void (*)(int), int, sigset_t *, u_long));
 					/* send signal */
 	char 		*sv_sigcode;	/* start of sigtramp code */
 	int 		*sv_szsigcode;	/* size of sigtramp code */
