@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.5 1995/04/26 18:10:50 pst Exp $
+ * $Id: if_x25subr.c,v 1.6 1995/05/30 08:08:46 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -601,7 +601,6 @@ register struct x25_ifaddr *ia;
 		 * First determine our IP addr for network
 		 */
 		register struct in_ifaddr *ina;
-		extern struct in_ifaddr *in_ifaddr;
 
 		for (ina = in_ifaddr; ina; ina = ina->ia_next)
 			if (ina->ia_ifp == ia->ia_ifp) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $Id: ns.h,v 1.2 1994/08/02 07:51:44 davidg Exp $
+ * $Id: ns.h,v 1.3 1994/08/21 06:22:07 paul Exp $
  */
 
 #ifndef _NETNS_NS_H_
@@ -137,11 +137,11 @@ struct sockaddr_ns {
 
 #ifdef KERNEL
 extern struct domain nsdomain;
-union ns_host ns_thishost;
-union ns_host ns_zerohost;
-union ns_host ns_broadhost;
-union ns_net ns_zeronet;
-union ns_net ns_broadnet;
+extern union ns_host ns_thishost;
+extern union ns_host ns_zerohost;
+extern union ns_host ns_broadhost;
+extern union ns_net ns_zeronet;
+extern union ns_net ns_broadnet;
 u_short ns_cksum();
 #else
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)ns_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: ns_proto.c,v 1.3 1995/05/11 00:13:23 wollman Exp $
+ *	$Id: ns_proto.c,v 1.4 1995/05/30 08:12:30 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -55,8 +55,6 @@ int	spp_input(), spp_ctlinput();
 int	spp_usrreq(), spp_usrreq_sp(), spp_ctloutput();
 int	spp_init(), spp_fasttimo(), spp_slowtimo();
 extern	int raw_usrreq();
-
-extern	struct domain nsdomain;
 
 struct protosw nssw[] = {
 { 0,		&nsdomain,	0,		0,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vmmeter.h	8.1 (Berkeley) 6/2/93
- * $Id: vmmeter.h,v 1.10 1995/03/25 08:42:04 davidg Exp $
+ * $Id: vmmeter.h,v 1.11 1995/07/29 10:47:05 bde Exp $
  */
 
 #ifndef _SYS_VMMETER_H_
@@ -90,7 +90,7 @@ struct vmmeter {
 	unsigned v_interrupt_free_min;	/* reserved number of pages for int code */
 };
 #ifdef KERNEL
-struct	vmmeter cnt;
+extern struct vmmeter cnt;
 #endif
 
 /* systemwide totals computed every five seconds */

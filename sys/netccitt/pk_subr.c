@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_subr.c,v 1.3 1994/12/13 22:32:17 wollman Exp $
+ * $Id: pk_subr.c,v 1.4 1995/05/30 08:09:07 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -1138,7 +1138,7 @@ register struct pklcd *lcp;
 	register struct mbuf *m = m0;
 	register struct x25_packet *xp;
 	register struct sockbuf *sb;
-	struct mbuf *head = 0, *next, **mp = &head, *m_split ();
+	struct mbuf *head = 0, *next, **mp = &head;
 	int totlen, psize = 1 << (lcp -> lcd_packetsize);
 
 	if (m == 0)

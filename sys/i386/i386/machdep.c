@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.133 1995/07/19 06:37:06 davidg Exp $
+ *	$Id: machdep.c,v 1.134 1995/07/28 11:21:03 davidg Exp $
  */
 
 #include "npx.h"
@@ -147,16 +147,6 @@ struct kern_devconf kdc_cpu0 = {
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
 #endif
 
-/*
- * Declare these as initialized data so we can patch them.
- */
-int	nswbuf = 0;
-#ifdef	NBUF
-int	nbuf = NBUF;
-#else
-int	nbuf = 0;
-#endif
-
 #ifdef BOUNCE_BUFFERS
 extern char *bouncememory;
 extern int maxbkva;
@@ -193,7 +183,6 @@ void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
 vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 vm_offset_t pager_sva, pager_eva;
-extern int pager_map_size;
 extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))

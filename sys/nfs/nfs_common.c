@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.20 1995/07/13 08:47:53 davidg Exp $
+ * $Id: nfs_subs.c,v 1.21 1995/07/20 09:43:12 davidg Exp $
  */
 
 /*
@@ -93,6 +93,16 @@ static u_long nfs_xid = 0;
 enum vtype nv2tov_type[8] = { VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON, VNON };
 enum vtype nv3tov_type[8]={ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO };
 int nfs_ticks;
+
+struct nfs_reqq nfs_reqq;
+struct nfssvc_sockhead nfssvc_sockhead;
+int nfssvc_sockhead_flag;
+struct nfsd_head nfsd_head;
+int nfsd_head_flag;
+struct nfs_bufq nfs_bufq;
+struct nqtimerhead nqtimerhead;
+struct nqfhhashhead *nqfhhashtbl;
+u_long nqfhhash;
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.

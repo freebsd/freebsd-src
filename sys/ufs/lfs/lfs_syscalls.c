@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.9 1995/05/11 19:26:52 rgrimes Exp $
+ * $Id: lfs_syscalls.c,v 1.10 1995/05/30 08:15:25 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -388,7 +388,6 @@ lfs_segwait(p, uap, retval)
 	struct lfs_segwait_args *uap;
 	int *retval;
 {
-	extern int lfs_allclean_wakeup;
 	struct mount *mntp;
 	struct timeval atv;
 	fsid_t fsid;

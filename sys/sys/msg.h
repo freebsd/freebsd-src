@@ -1,4 +1,4 @@
-/* $Id: msg.h,v 1.2 1994/09/17 13:24:27 davidg Exp $ */
+/* $Id: msg.h,v 1.3 1995/03/28 07:57:34 bde Exp $ */
 /*	$NetBSD: msg.h,v 1.4 1994/06/29 06:44:43 cgd Exp $	*/
 
 /*
@@ -135,10 +135,10 @@ struct msgmap {
     				/* 0..(MSGSEG-1) -> index of next segment */
 };
 
-char *msgpool;			/* MSGMAX byte long msg buffer pool */
-struct msgmap *msgmaps;		/* MSGSEG msgmap structures */
-struct msg *msghdrs;		/* MSGTQL msg headers */
-struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
+extern char *msgpool;		/* MSGMAX byte long msg buffer pool */
+extern struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
+extern struct msg *msghdrs;	/* MSGTQL msg headers */
+extern struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
 
 #define MSG_LOCKED	01000	/* Is this msqid_ds locked? */
 

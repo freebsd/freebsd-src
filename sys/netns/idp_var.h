@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)idp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: idp_var.h,v 1.2 1994/08/02 07:51:42 davidg Exp $
+ * $Id: idp_var.h,v 1.3 1994/08/21 06:22:06 paul Exp $
  */
 
 #ifndef _NETNS_IDP_VAR_H_
@@ -47,9 +47,5 @@ struct	idpstat {
 	int	idps_badhlen;		/* ip header length < data size */
 	int	idps_badlen;		/* ip length < ip header length */
 };
-
-#ifdef KERNEL
-struct	idpstat	idpstat;
-#endif
 
 #endif

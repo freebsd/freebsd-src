@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: uipc_mbuf.c,v 1.8 1995/02/23 19:10:21 davidg Exp $
+ * $Id: uipc_mbuf.c,v 1.9 1995/03/15 07:51:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,11 +46,16 @@
 #include <sys/protosw.h>
 
 #include <vm/vm.h>
+#include <vm/vm_kern.h>
 
-extern	vm_map_t mb_map;
-struct	mbuf *mbutl;
+struct mbuf *mbutl;
 char	*mclrefcnt;
-int	mb_map_full;
+struct mbstat mbstat;
+union mcluster *mclfree;
+int	max_linkhdr;
+int	max_protohdr;
+int	max_hdr;
+int	max_datalen;
 
 void
 mbinit()

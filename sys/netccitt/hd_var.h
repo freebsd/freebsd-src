@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_var.h	8.1 (Berkeley) 6/10/93
- * $Id: hd_var.h,v 1.2 1994/08/02 07:47:10 davidg Exp $
+ * $Id: hd_var.h,v 1.3 1994/08/21 05:44:06 paul Exp $
  */
 
 #ifndef _NETCCITT_HD_VAR_H_
@@ -101,13 +101,13 @@ struct	hdcb {
 };
 
 #ifdef KERNEL
-struct	hdcb *hdcbhead;		/* head of linked list of hdcb's */
-struct	Frmr_frame hd_frmr;	/* rejected frame diagnostic info */
-struct	ifqueue hdintrq;	/* hdlc packet input queue */
+extern struct	hdcb *hdcbhead;		/* head of linked list of hdcb's */
+extern struct	Frmr_frame hd_frmr;	/* rejected frame diagnostic info */
+extern struct	ifqueue hdintrq;	/* hdlc packet input queue */
 
-int	hd_t1;			/* timer T1 value */
-int	hd_t3;			/* RR send timer */
-int	hd_n2;			/* frame retransmission limit */
+extern int	hd_t1;			/* timer T1 value */
+extern int	hd_t3;			/* RR send timer */
+extern int	hd_n2;			/* frame retransmission limit */
 #endif
 
 #endif

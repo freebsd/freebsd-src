@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.14 1995/04/15 00:49:35 davidg Exp $
+ * $Id: vfs_cache.c,v 1.15 1995/05/30 08:06:28 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -73,9 +73,12 @@
 LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
 TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
 u_long	nchash;				/* size of hash table */
-struct	nchstats nchstats;		/* cache effectiveness statistics */
-struct vnode nchENOENT;		/* our own "novnode" */
+struct nchstats nchstats;		/* cache effectiveness statistics */
+struct vnode nchENOENT;			/* our own "novnode" */
 int doingcache = 1;			/* 1 => enable the cache */
+u_long	nextvnodeid;
+u_long	numcache;
+u_long	numvnodes;
 
 #ifdef NCH_STATISTICS
 u_long	nchnbr;

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_var.h	8.1 (Berkeley) 6/10/93
- * $Id: pk_var.h,v 1.4 1995/03/16 18:14:40 bde Exp $
+ * $Id: pk_var.h,v 1.5 1995/05/30 08:09:11 rgrimes Exp $
  */
 
 #ifndef _NETCCITT_PK_VAR_H_
@@ -227,12 +227,12 @@ struct mbuf_cache {
 
 #if defined(KERNEL) && defined(CCITT)
 extern struct pkcb_q pkcb_q;
-struct	pklcd *pk_listenhead;
+extern struct	pklcd *pk_listenhead;
 void	ccittintr __P((void));
 struct	pklcd *pk_attach();
 
 extern char	*pk_name[], *pk_state[];
-int	pk_t20, pk_t21, pk_t22, pk_t23;
+extern int	pk_t20, pk_t21, pk_t22, pk_t23;
 #endif
 
 #endif

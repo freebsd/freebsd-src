@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.54 1995/07/25 05:03:06 davidg Exp $
+ * $Id: vfs_bio.c,v 1.55 1995/07/25 05:41:57 davidg Exp $
  */
 
 /*
@@ -52,8 +52,6 @@
 #include <miscfs/specfs/specdev.h>
 
 struct buf *buf;		/* buffer header pool */
-int nbuf;			/* number of buffer headers calculated
-				 * elsewhere */
 struct swqueue bswlist;
 
 void vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to);
@@ -91,6 +89,9 @@ int bufspace, maxbufspace;
  * advisory minimum for size of LRU queue or VMIO queue
  */
 int minbuf;
+
+struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
+struct bqueues bufqueues[BUFFER_QUEUES];
 
 /*
  * Initialize buffer headers and related structures.

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nqnfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nqnfs.h,v 1.6 1994/10/17 17:47:45 phk Exp $
+ * $Id: nqnfs.h,v 1.7 1995/06/27 11:07:01 dfr Exp $
  */
 
 #ifndef _NFS_NQNFS_H_
@@ -181,15 +181,15 @@ struct nqm {
 /*
  * List head for timer queue.
  */
-CIRCLEQ_HEAD(, nqlease) nqtimerhead;
+extern CIRCLEQ_HEAD(nqtimerhead, nqlease) nqtimerhead;
 
 /*
  * List head for the file handle hash table.
  */
 #define	NQFHHASH(f) \
 	(&nqfhhashtbl[(*((u_long *)(f))) & nqfhhash])
-LIST_HEAD(nqfhhashhead, nqlease) *nqfhhashtbl;
-u_long nqfhhash;
+extern LIST_HEAD(nqfhhashhead, nqlease) *nqfhhashtbl;
+extern u_long nqfhhash;
 
 /*
  * Nqnfs return status numbers.

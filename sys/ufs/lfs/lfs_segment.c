@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.10 1995/05/11 19:26:51 rgrimes Exp $
+ * $Id: lfs_segment.c,v 1.11 1995/05/30 08:15:22 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -157,8 +157,6 @@ void	 lfs_supercallback __P((struct buf *));
 void	 lfs_writefile __P((struct lfs *, struct segment *, struct vnode *));
 void	 lfs_writevnodes __P((struct lfs *fs, struct mount *mp,
 	    struct segment *sp, int dirops));
-
-int	lfs_allclean_wakeup;		/* Cleaner wakeup address. */
 
 /* Statistics Counters */
 #define DOSTATS

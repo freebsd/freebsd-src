@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id$
+ * $Id: device.h,v 1.2 1994/08/02 07:52:45 davidg Exp $
  */
 
 #ifndef _SYS_DEVICE_H_
@@ -132,8 +132,8 @@ struct pdevinit {
 	int	pdev_count;
 };
 
-struct	device *alldevs;	/* head of list of all devices */
-struct	evcnt *allevents;	/* head of list of all events */
+extern struct	device *alldevs;	/* head of list of all devices */
+extern struct	evcnt *allevents;	/* head of list of all events */
 
 struct cfdata *config_search __P((cfmatch_t, struct device *, void *));
 struct cfdata *config_rootsearch __P((cfmatch_t, char *, void *));

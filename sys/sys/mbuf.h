@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.8 1994/11/04 00:28:38 davidg Exp $
+ * $Id: mbuf.h,v 1.9 1994/11/14 13:54:20 bde Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -358,16 +358,16 @@ struct mbstat {
 };
 
 #ifdef	KERNEL
-extern	struct mbuf *mbutl;		/* virtual address of mclusters */
-extern	char *mclrefcnt;		/* cluster reference counts */
-struct	mbstat mbstat;
-extern	int nmbclusters;
-union	mcluster *mclfree;
-int	max_linkhdr;			/* largest link-level header */
-int	max_protohdr;			/* largest protocol header */
-int	max_hdr;			/* largest link+protocol header */
-int	max_datalen;			/* MHLEN - max_hdr */
-extern	int mbtypes[];			/* XXX */
+extern struct mbuf *mbutl;		/* virtual address of mclusters */
+extern char	*mclrefcnt;		/* cluster reference counts */
+extern struct mbstat mbstat;
+extern int	nmbclusters;
+extern union mcluster *mclfree;
+extern int	max_linkhdr;		/* largest link-level header */
+extern int	max_protohdr;		/* largest protocol header */
+extern int	max_hdr;		/* largest link+protocol header */
+extern int	max_datalen;		/* MHLEN - max_hdr */
+extern int	mbtypes[];		/* XXX */
 
 int	m_clalloc __P((int, int));
 void	m_copyback __P((struct mbuf *, int, int, caddr_t));
