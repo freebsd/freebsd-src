@@ -100,7 +100,6 @@ struct isrstat {
 	int	isrs_count;			/* dispatch count */
 	int	isrs_directed;			/* ...successfully dispatched */
 	int	isrs_deferred;			/* ...queued instead */
-	int	isrs_bypassed;			/* bypassed queued packets */
 	int	isrs_queued;			/* intentionally queueued */
 	int	isrs_swi_count;			/* swi_net handlers called */
 };
@@ -119,12 +118,28 @@ SYSCTL_INT(_net_isr, OID_AUTO, directed, CTLFLAG_RD,
     &isrstat.isrs_directed, 0, "");
 SYSCTL_INT(_net_isr, OID_AUTO, deferred, CTLFLAG_RD, 
     &isrstat.isrs_deferred, 0, "");
-SYSCTL_INT(_net_isr, OID_AUTO, bypassed, CTLFLAG_RD, 
-    &isrstat.isrs_bypassed, 0, "");
 SYSCTL_INT(_net_isr, OID_AUTO, queued, CTLFLAG_RD, 
     &isrstat.isrs_queued, 0, "");
 SYSCTL_INT(_net_isr, OID_AUTO, swi_count, CTLFLAG_RD, 
     &isrstat.isrs_swi_count, 0, "");
+
+/*
+ * Process all packets currently present in a netisr queue.  Used to
+ * drain an existing set of packets waiting for processing when we
+ * begin direct dispatch, to avoid processing packets out of order.
+ */
+static void
+netisr_processqueue(struct netisr *ni)
+{
+	struct mbuf *m;
+
+	for (;;) {
+		IF_DEQUEUE(ni->ni_queue, m);
+		if (m == NULL)
+			break;
+		ni->ni_handler(m);
+	}
+}
 
 /*
  * Call the netisr directly instead of queueing the packet, if possible.
@@ -163,10 +178,9 @@ netisr_dispatch(int num, struct mbuf *m)
 		 *	b. fallback to queueing the packet,
 		 *	c. sweep the issue under the rug and ignore it.
 		 *
-		 * Currently, we do c), and keep a rough event counter.
+		 * Currently, we do a).  Previously, we did c).
 		 */
-		if (_IF_QLEN(ni->ni_queue) > 0)
-			isrstat.isrs_bypassed++;
+		netisr_processqueue(ni);
 		ni->ni_handler(m);
 		mtx_unlock(&netisr_mtx);
 	} else {
@@ -204,7 +218,6 @@ static void
 swi_net(void *dummy)
 {
 	struct netisr *ni;
-	struct mbuf *m;
 	u_int bits;
 	int i;
 #ifdef DEVICE_POLLING
@@ -230,12 +243,7 @@ swi_net(void *dummy)
 			if (ni->ni_queue == NULL)
 				ni->ni_handler(NULL);
 			else
-				for (;;) {
-					IF_DEQUEUE(ni->ni_queue, m);
-					if (m == NULL)
-						break;
-					ni->ni_handler(m);
-				}
+				netisr_processqueue(ni);
 		}
 	} while (polling);
 	mtx_unlock(&netisr_mtx);
