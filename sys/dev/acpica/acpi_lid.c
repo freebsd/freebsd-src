@@ -38,6 +38,12 @@
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Hooks for the ACPI CA debugging infrastructure
+ */
+#define _COMPONENT	SYSTEM_CONTROL
+MODULE_NAME("LID")
+
 struct acpi_lid_softc {
     device_t	lid_dev;
     ACPI_HANDLE	lid_handle;
@@ -70,6 +76,7 @@ static int
 acpi_lid_probe(device_t dev)
 {
     if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) && 
+	!acpi_disabled("lid") &&
 	acpi_MatchHid(dev, "PNP0C0D")) {
 	device_set_desc(dev, "Control Method Lid Switch");
 	return(0);
@@ -82,6 +89,8 @@ acpi_lid_attach(device_t dev)
 {
     struct acpi_lid_softc	*sc;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     sc = device_get_softc(dev);
     sc->lid_dev = dev;
     sc->lid_handle = acpi_get_handle(dev);
@@ -90,7 +99,7 @@ acpi_lid_attach(device_t dev)
      * Install notification handler
      */
     AcpiInstallNotifyHandler(sc->lid_handle, ACPI_DEVICE_NOTIFY, acpi_lid_notify_handler, sc);
-    return(0);
+    return_VALUE(0);
 }
 
 static void
@@ -100,6 +109,8 @@ acpi_lid_notify_status_changed(void *arg)
     struct acpi_softc		*acpi_sc;
     ACPI_BUFFER			Buffer;
     ACPI_OBJECT			Object;
+
+    FUNCTION_TRACE(__FUNCTION__);
 
     sc = (struct acpi_lid_softc *)arg;
 
@@ -111,9 +122,9 @@ acpi_lid_notify_status_changed(void *arg)
     Buffer.Length = sizeof(Object);
     Buffer.Pointer = &Object;
     if (AcpiEvaluateObject(sc->lid_handle, "_LID", NULL, &Buffer) != AE_OK)
-	return;
+	return_VOID;
     if (Object.Type != ACPI_TYPE_NUMBER) 
-	return;
+	return_VOID;
 
     /*
      * Update lid status
@@ -123,7 +134,7 @@ acpi_lid_notify_status_changed(void *arg)
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);
     if (acpi_sc == NULL) {
-        return;
+        return_VOID;
     }
 
     if (sc->lid_status == 0) {
@@ -131,6 +142,8 @@ acpi_lid_notify_status_changed(void *arg)
     } else {
 	EVENTHANDLER_INVOKE(acpi_wakeup_event, acpi_sc->acpi_lid_switch_sx);
     }
+
+    return_VOID;
 }
 
 /* XXX maybe not here */
@@ -141,12 +154,15 @@ acpi_lid_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_lid_softc	*sc = (struct acpi_lid_softc *)context;
 
+    FUNCTION_TRACE_U32(__FUNCTION__, notify);
+
     switch (notify) {
     case ACPI_NOTIFY_STATUS_CHANGED:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_lid_notify_status_changed, sc);
 	break;
     default:
-	return;		/* unknown notification value */
+	break;		/* unknown notification value */
     }
+    return_VOID;
 }
 
