@@ -1,0 +1,210 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<!--
+ - Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2001  Internet Software Consortium.
+ -
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: rndc.conf.docbook,v 1.4.206.2 2004/06/03 02:24:58 marka Exp $ -->
+
+<refentry>
+  <refentryinfo>
+    <date>June 30, 2000</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><filename>rndc.conf</filename></refentrytitle>
+    <manvolnum>5</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><filename>rndc.conf</filename></refname>
+    <refpurpose>rndc configuration file</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>rndc.conf</command>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para>
+        <filename>rndc.conf</filename> is the configuration file
+	for <command>rndc</command>, the BIND 9 name server control
+	utility.  This file has a similar structure and syntax to
+	<filename>named.conf</filename>.  Statements are enclosed
+	in braces and terminated with a semi-colon.  Clauses in
+	the statements are also semi-colon terminated.  The usual
+	comment styles are supported:
+    </para>
+    <para>
+        C style: /* */
+    </para>
+    <para>
+        C++ style: // to end of line
+    </para>
+    <para>
+        Unix style: # to end of line
+    </para>
+    <para>
+        <filename>rndc.conf</filename> is much simpler than
+	<filename>named.conf</filename>.  The file uses three
+	statements: an options statement, a server statement
+	and a key statement.
+    </para>
+    <para>
+        The <option>options</option> statement contains three clauses.
+	The <option>default-server</option> clause is followed by the
+	name or address of a name server.  This host will be used when
+	no name server is given as an argument to
+	<command>rndc</command>.  The <option>default-key</option>
+	clause is followed by the name of a key which is identified by
+	a <option>key</option> statement.  If no
+	<option>keyid</option> is provided on the rndc command line,
+	and no <option>key</option> clause is found in a matching
+	<option>server</option> statement, this default key will be
+	used to authenticate the server's commands and responses.  The
+	<option>default-port</option> clause is followed by the port
+	to connect to on the remote name server.  If no
+	<option>port</option> option is provided on the rndc command
+	line, and no <option>port</option> clause is found in a
+	matching <option>server</option> statement, this default port
+	will be used to connect.
+    </para>
+    <para>
+        After the <option>server</option> keyword, the server statement
+	includes a string which is the hostname or address for a name
+	server.  The statement has two possible clauses:
+	<option>key</option> and <option>port</option>. The key name must
+	match the name of a key statement in the file.  The port number
+	specifies the port to connect to.
+    </para>
+    <para>
+        The <option>key</option> statement begins with an identifying
+	string, the name of the key.  The statement has two clauses.
+	<option>algorithm</option> identifies the encryption algorithm
+	for <command>rndc</command> to use; currently only HMAC-MD5 is
+	supported.  This is followed by a secret clause which contains
+	the base-64 encoding of the algorithm's encryption key.  The
+	base-64 string is enclosed in double quotes.
+    </para>
+    <para>
+        There are two common ways to generate the base-64 string for the
+	secret.  The BIND 9 program <command>rndc-confgen</command> can
+	be used to generate a random key, or the
+	<command>mmencode</command> program, also known as
+	<command>mimencode</command>, can be used to generate a base-64
+	string from known input.  <command>mmencode</command> does not
+	ship with BIND 9 but is available on many systems.  See the
+	EXAMPLE section for sample command lines for each.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>EXAMPLE</title>
+
+    <programlisting>
+    options {
+        default-server  localhost;
+        default-key     samplekey;
+      };
+
+      server localhost {
+        key             samplekey;
+      };
+
+      key samplekey {
+        algorithm       hmac-md5;
+        secret          "c3Ryb25nIGVub3VnaCBmb3IgYSBtYW4gYnV0IG1hZGUgZm9yIGEgd29tYW4K";
+      };
+    </programlisting>
+
+    <para>
+        In the above example, <command>rndc</command> will by default use
+	the server at localhost (127.0.0.1) and the key called samplekey.
+	Commands to the localhost server will use the samplekey key, which
+	must also be defined in the server's configuration file with the
+	same name and secret.  The key statement indicates that samplekey
+	uses the HMAC-MD5 algorithm and its secret clause contains the
+	base-64 encoding of the HMAC-MD5 secret enclosed in double quotes.
+    </para>
+    <para>
+        To generate a random secret with <command>rndc-confgen</command>:
+    </para>
+    <para>
+        <userinput>rndc-confgen</userinput>
+    </para>
+    <para>
+        A complete <filename>rndc.conf</filename> file, including the
+        randomly generated key, will be written to the standard
+        output.  Commented out <option>key</option> and
+        <option>controls</option> statements for
+        <filename>named.conf</filename> are also printed.
+    </para>
+    <para>
+        To generate a base-64 secret with <command>mmencode</command>:
+    </para>
+    <para>
+        <userinput>echo "known plaintext for a secret" | mmencode</userinput>
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>NAME SERVER CONFIGURATION</title>
+    <para>
+        The name server must be configured to accept rndc connections and
+	to recognize the key specified in the <filename>rndc.conf</filename>
+	file, using the controls statement in <filename>named.conf</filename>.
+	See the sections on the <option>controls</option> statement in the
+	BIND 9 Administrator Reference Manual for details.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para>
+      <citerefentry>
+        <refentrytitle>rndc</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>rndc-confgen</refentrytitle>
+	<manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>mmencode</refentrytitle>
+	<manvolnum>1</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para>
+        <corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry>
+
+<!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->
+
