@@ -235,8 +235,6 @@
             ..
             mdoc
             ..
-            meteor
-            ..
             netgraph
                 bluetooth
                 ..
