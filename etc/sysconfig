@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.24 1995/09/19 08:33:43 jkh Exp $
+#	$Id: sysconfig,v 1.25 1995/09/19 10:19:44 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -135,7 +135,7 @@ nfs_server=NO
 # Set to appropriate flags if you want to start NIS for a client
 nis_clientflags="NO"
 
-# Set to host to ypset to if you need to do that
+# Name of host to ypset to, if no YP server on this wire
 nis_ypsetflags="NO"
 
 # Set to appropriate flags if you want to start NIS for a server
