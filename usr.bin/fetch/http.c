@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.14 1997/11/01 05:47:41 ache Exp $
+ *	$Id: http.c,v 1.15 1997/11/18 03:27:34 jdp Exp $
  */
 
 #include <sys/types.h>
@@ -671,6 +671,8 @@ got100reply:
 			return EX_OSERR;
 		} else if(ferror(remote)) {
 			warn("%s", https->http_hostname);
+			if (errno == ECONNRESET)
+				warnx("(maybe try -b or -t)");
 			fclose(local);
 			fclose(remote);
 			rm(fs);
@@ -967,6 +969,8 @@ spewerror:
 
 	if (ferror(remote)) {
 		warn("reading remote file from %s", https->http_hostname);
+		if (errno == ECONNRESET)
+			warnx("(maybe try -b or -t)");
 		status = EX_OSERR;
 	} else if(ferror(local)) {
 		warn("`%s': fwrite", fs->fs_outputfile);
