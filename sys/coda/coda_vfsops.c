@@ -82,7 +82,7 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 #define MRAK_INT_GEN(op) (coda_vfsopstats[op].gen_intrn++)
 
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
-extern int vc_nb_open __P((dev_t, int, int, struct thread *));
+extern int vc_nb_open(dev_t, int, int, struct thread *);
 
 int
 coda_vfsopstats_init(void)

@@ -174,9 +174,9 @@ printf("error = %d\n", error);
 
 
 /* for DEVFS, using bpf & tun drivers as examples*/
-static void coda_fbsd_drvinit __P((void *unused));
-static void coda_fbsd_drvuninit __P((void *unused));
-static void coda_fbsd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
+static void coda_fbsd_drvinit(void *unused);
+static void coda_fbsd_drvuninit(void *unused);
+static void coda_fbsd_clone(void *arg, char *name, int namelen, dev_t *dev);
 
 static void coda_fbsd_clone(arg, name, namelen, dev)
     void *arg;
