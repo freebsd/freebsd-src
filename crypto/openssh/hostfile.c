@@ -36,7 +36,8 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: hostfile.c,v 1.29 2001/12/18 10:04:21 jakob Exp $");
+RCSID("$OpenBSD: hostfile.c,v 1.30 2002/07/24 16:11:18 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "match.h"
@@ -91,11 +92,14 @@ hostfile_check_key(int bits, Key *key, const char *host, const char *filename, i
  * in the list of our known hosts. Returns HOST_OK if the host is known and
  * has the specified key, HOST_NEW if the host is not known, and HOST_CHANGED
  * if the host is known but used to have a different host key.
+ *
+ * If no 'key' has been specified and a key of type 'keytype' is known
+ * for the specified host, then HOST_FOUND is returned.
  */
 
-HostStatus
-check_host_in_hostfile(const char *filename, const char *host, Key *key,
-    Key *found, int *numret)
+static HostStatus
+check_host_in_hostfile_by_key_or_type(const char *filename,
+    const char *host, Key *key, int keytype, Key *found, int *numret)
 {
 	FILE *f;
 	char line[8192];
@@ -105,8 +109,7 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key,
 	HostStatus end_return;
 
 	debug3("check_host_in_hostfile: filename %s", filename);
-	if (key == NULL)
-		fatal("no key to look up");
+
 	/* Open the file containing the list of known hosts. */
 	f = fopen(filename, "r");
 	if (!f)
@@ -147,11 +150,19 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key,
 		 */
 		if (!hostfile_read_key(&cp, &kbits, found))
 			continue;
-		if (!hostfile_check_key(kbits, found, host, filename, linenum))
-			continue;
 
 		if (numret != NULL)
 			*numret = linenum;
+
+		if (key == NULL) {
+			/* we found a key of the requested type */
+			if (found->type == keytype)
+				return HOST_FOUND;
+			continue;
+		}
+
+		if (!hostfile_check_key(kbits, found, host, filename, linenum))
+			continue;
 
 		/* Check if the current key is the same as the given key. */
 		if (key_equal(key, found)) {
@@ -175,6 +186,24 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key,
 	 * saw a different key for the host.
 	 */
 	return end_return;
+}
+
+HostStatus
+check_host_in_hostfile(const char *filename, const char *host, Key *key,
+    Key *found, int *numret)
+{
+	if (key == NULL)
+		fatal("no key to look up");
+	return (check_host_in_hostfile_by_key_or_type(filename, host, key, 0,
+	    found, numret));
+}
+
+int
+lookup_key_in_hostfile_by_type(const char *filename, const char *host,
+    int keytype, Key *found, int *numret)
+{
+	return (check_host_in_hostfile_by_key_or_type(filename, host, NULL,
+	    keytype, found, numret) == HOST_FOUND);
 }
 
 /*

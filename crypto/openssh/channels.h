@@ -78,6 +78,7 @@ struct Channel {
 	int     efd;		/* extended fd */
 	int     sock;		/* sock fd */
 	int     isatty;		/* rfd is a tty */
+	int     wfd_isatty;	/* wfd is a tty */
 	int     force_drain;	/* force close on iEOF */
 	int     delayed;		/* fdset hack */
 	Buffer  input;		/* data read from socket, to be sent over
