@@ -63,6 +63,7 @@ int verbose = 0;
 #define	PAGENAME_END		'"'	/* Page name delimiter. */
 #define	PAGEENTRY_END		';'	/* Page entry terminator (optional). */
 #define	MAX_COMMAND_SIZE	255	/* Mode/Log sense data buffer size. */
+#define PAGE_CTRL_SHIFT		6	/* Bit offset to page control field. */
 
 
 /* Macros for working with mode pages. */
@@ -252,7 +253,7 @@ editentry_set(char *name, char *newvalue, int editonly)
  *     currently workaround it (even for int64's), so we have to kludge it.
  */
 #define	RESOLUTION_MAX(size) ((resolution * (size) == 32)? 		\
-	0xffffffff: 1 << (resolution * (size)) - 1)
+	0xffffffff: (1 << (resolution * (size))) - 1)
 
 	assert(newvalue != NULL);
 	if (*newvalue == '\0')
@@ -606,9 +607,10 @@ editlist_save(struct cam_device *device, int modepage, int page_control,
 	 * page 3 (saved values) then request the changes be permanently
 	 * recorded.
 	 */
-	mode_select(device, (page_control == SMS_PAGE_CTRL_SAVED), retries,
-	    timeout, (u_int8_t *)mh, sizeof(*mh) + mh->blk_desc_len +
-	    sizeof(*mph) + mph->page_length);
+	mode_select(device,
+	    (page_control << PAGE_CTRL_SHIFT == SMS_PAGE_CTRL_SAVED),
+	    retries, timeout, (u_int8_t *)mh,
+	    sizeof(*mh) + mh->blk_desc_len + sizeof(*mph) + mph->page_length);
 }
 
 static int
@@ -847,8 +849,8 @@ mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 	}
 
 	if (edit) {
-		if (page_control != SMS_PAGE_CTRL_CURRENT &&
-		    page_control != SMS_PAGE_CTRL_SAVED)
+		if (page_control << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_CURRENT &&
+		    page_control << PAGE_CTRL_SHIFT != SMS_PAGE_CTRL_SAVED)
 			errx(EX_USAGE, "it only makes sense to edit page 0 "
 			    "(current) or page 3 (saved values)");
 		modepage_edit();
