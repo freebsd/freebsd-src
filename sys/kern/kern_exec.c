@@ -412,16 +412,16 @@ interpret:
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;
 
-	/* Set values passed into the program in registers. */
-	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
-	    imgp->ps_strings);
-
 	/* Free any previous argument cache */
 	pa = p->p_args;
 	p->p_args = NULL;
 	PROC_UNLOCK(p);
 	if (pa != NULL && --pa->ar_ref == 0)
 		FREE(pa, M_PARGS);
+
+	/* Set values passed into the program in registers. */
+	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
+	    imgp->ps_strings);
 
 	/* Cache arguments if they fit inside our allowance */
 	i = imgp->endargs - imgp->stringbase;
