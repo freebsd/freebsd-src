@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.2 1997/11/20 20:07:59 bde Exp $
+ *	$Id: linker.h,v 1.3 1998/01/01 08:55:37 bde Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -41,6 +41,17 @@ MALLOC_DECLARE(M_LINKER);
 typedef struct linker_file* linker_file_t;
 typedef TAILQ_HEAD(, linker_file) linker_file_list_t;
 
+typedef caddr_t linker_sym_t;	/* opaque symbol */
+
+/*
+ * expanded out linker_sym_t
+ */
+typedef struct linker_symval {
+    const char*		name;
+    caddr_t		value;
+    size_t		size;
+} linker_symval_t;
+
 struct linker_file_ops {
     /*
      * Lookup a symbol in the file's symbol table.  If the symbol is
@@ -50,7 +61,13 @@ struct linker_file_ops {
      * set *address the value of the symbol.
      */
     int			(*lookup_symbol)(linker_file_t, const char* name,
-					 caddr_t* address, size_t* size);
+					 linker_sym_t* sym);
+
+    void		(*symbol_values)(linker_file_t, linker_sym_t,
+					 linker_symval_t*);
+
+    int			(*search_symbol)(linker_file_t, caddr_t value,
+					 linker_sym_t* sym, long* diffp);
 
     /*
      * Unload a file, releasing dependancies and freeing storage.

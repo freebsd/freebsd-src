@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.7 1998/07/07 04:31:27 bde Exp $
+ *	$Id: link_aout.c,v 1.8 1998/07/15 02:32:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,11 @@
 static int		link_aout_load_file(const char*, linker_file_t*);
 
 static int		link_aout_lookup_symbol(linker_file_t, const char*,
-						caddr_t*, size_t*);
+						linker_sym_t*);
+static void		link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
+						linker_symval_t* symval);
+static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
+						linker_sym_t* sym, long* diffp);
 static void		link_aout_unload(linker_file_t);
 
 /*
@@ -59,6 +63,8 @@ static struct linker_class_ops link_aout_class_ops = {
 
 static struct linker_file_ops link_aout_file_ops = {
     link_aout_lookup_symbol,
+    link_aout_symbol_values,
+    link_aout_search_symbol,
     link_aout_unload,
 };
 
@@ -374,7 +380,7 @@ symbol_hash_value(aout_file_t af, const char* name)
 
 int
 link_aout_lookup_symbol(linker_file_t file, const char* name,
-			caddr_t* address, size_t* size)
+			linker_sym_t* sym)
 {
     aout_file_t af = file->priv;
     long hashval;
@@ -437,14 +443,69 @@ restart:
 	if (np->nz_other == AUX_FUNC)
 	    /* weak function */
 	    return ENOENT;
-	*address = 0;
-	*size = np->nz_value;
-    } else {
-	*address = AOUT_RELOC(af, char, np->nz_value);
-	*size = np->nz_size;
     }
 
+    *sym = (linker_sym_t) np;
+
     return 0;
+}
+
+
+static void
+link_aout_symbol_values(linker_file_t file, linker_sym_t sym,
+			linker_symval_t* symval)
+{
+    aout_file_t af = file->priv;
+    struct nzlist* np = (struct nzlist*) sym;
+    char* stringbase;
+
+    stringbase = AOUT_RELOC(af, char, LD_STRINGS(af->dynamic));
+
+    symval->name = stringbase + np->nz_strx + 1; /* +1 for '_' */
+    if (np->nz_type == N_UNDF+N_EXT && np->nz_value != 0) {
+	symval->value = 0;
+	symval->size = np->nz_value;
+    } else {
+	symval->value = AOUT_RELOC(af, char, np->nz_value);
+	symval->size = np->nz_size;
+    }
+}
+
+static int
+link_aout_search_symbol(linker_file_t lf, caddr_t value,
+			linker_sym_t* sym, long* diffp)
+{
+	aout_file_t af = lf->priv;
+	u_long off = (u_long) value;
+	u_long diff = off;
+	struct nzlist* sp;
+	struct nzlist* ep;
+	struct nzlist* best = 0;
+	int i;
+
+	for (sp = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic)),
+		 ep = (struct nzlist *) ((caddr_t) sp + LD_STABSZ(af->dynamic));
+	     sp < ep; sp++) {
+		if (sp->nz_name == 0)
+			continue;
+		if (off >= sp->nz_value) {
+			if (off - sp->nz_value < diff) {
+				diff = off - sp->nz_value;
+				best = sp;
+				if (diff == 0)
+					break;
+			} else if (off - sp->nz_value == diff) {
+				best = sp;
+			}
+		}
+	}
+	if (best == 0)
+		*diffp = off;
+	else
+		*diffp = diff;
+	*sym = (linker_sym_t) best;
+
+	return 0;
 }
 
 #endif /* !__alpha__ */
