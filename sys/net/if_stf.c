@@ -172,14 +172,14 @@ static int stf_checkaddr6(struct stf_softc *, struct in6_addr *,
 static void stf_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int stf_ioctl(struct ifnet *, u_long, caddr_t);
 
-int	stf_clone_create(struct if_clone *, int);
-void	stf_clone_destroy(struct ifnet *);
+static int stf_clone_create(struct if_clone *, int);
+static void stf_clone_destroy(struct ifnet *);
 
 /* only one clone is currently allowed */
 struct if_clone stf_cloner =
     IF_CLONE_INITIALIZER(STFNAME, stf_clone_create, stf_clone_destroy, 0, 0);
 
-int
+static int
 stf_clone_create(ifc, unit)
 	struct if_clone *ifc;
 	int unit;
@@ -223,7 +223,7 @@ stf_destroy(struct stf_softc *sc)
 	free(sc, M_STF);
 }
 
-void
+static void
 stf_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
