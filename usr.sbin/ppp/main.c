@@ -295,10 +295,23 @@ main(int argc, char **argv)
 {
   char *name;
   const char *lastlabel;
-  int label, arg;
+  int arg, f, holdfd[3], label;
   struct bundle *bundle;
   struct prompt *prompt;
   struct switches sw;
+
+  /*
+   * We open 3 descriptors to ensure that STDIN_FILENO, STDOUT_FILENO and
+   * STDERR_FILENO are always open.  These are closed before DoLoop(),
+   * but *after* we've avoided the possibility of erroneously closing
+   * an important descriptor with close(STD{IN,OUT,ERR}_FILENO).
+   */
+  if ((holdfd[0] = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+    fprintf(stderr, "Cannot open %s !\n", _PATH_DEVNULL);
+    return 2;
+  }
+  for (f = 1; f < sizeof holdfd / sizeof *holdfd; f++)
+    dup2(holdfd[0], holdfd[f]);
 
   name = strrchr(argv[0], '/');
   log_Open(name ? name + 1 : argv[0]);
@@ -497,6 +510,10 @@ main(int argc, char **argv)
     prompt_TtyCommandMode(prompt);
     prompt_Required(prompt);
   }
+
+  /* We can get rid of these now */
+  for (f = 0; f < sizeof holdfd / sizeof *holdfd; f++)
+    close(holdfd[f]);
 
   log_Printf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(sw.mode));
   DoLoop(bundle);
