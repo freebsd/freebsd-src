@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997, 1998, 1999
+ * Copyright) 1997, 1998, 1999
  *  Nan Yang Computer Services Limited.  All rights reserved.
  *
  *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
@@ -117,9 +117,9 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 #endif
 
 void
-vinumstrategy(struct bio *bip)
+vinumstrategy(struct bio *biop)
 {
-    struct buf *bp = (struct buf *) bip;
+    struct buf *bp = (struct buf *) biop;
     int volno;
     struct volume *vol = NULL;
 
@@ -136,7 +136,7 @@ vinumstrategy(struct bio *bip)
     case VINUM_DRIVE_TYPE:
     default:
 	bp->b_error = EIO;				    /* I/O error */
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return;
 
@@ -145,12 +145,12 @@ vinumstrategy(struct bio *bip)
 	vol = &VOL[volno];
 	if (vol->state != volume_up) {			    /* can't access this volume */
 	    bp->b_error = EIO;				    /* I/O error */
-	    bp->b_ioflags |= BIO_ERROR;
+	    bp->b_io.bio_flags |= BIO_ERROR;
 	    bufdone(bp);
 	    return;
 	}
 	if (vinum_bounds_check(bp, vol) <= 0) {		    /* don't like them bounds */
-	    bufdone(bp);				    /* have nothing to do with this */
+	    bufdone(bp);
 	    return;
 	}
 	/* FALLTHROUGH */
@@ -193,14 +193,14 @@ vinumstart(struct buf *bp, int reviveok)
 
     if ((bp->b_bcount % DEV_BSIZE) != 0) {		    /* bad length */
 	bp->b_error = EINVAL;				    /* invalid size */
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return -1;
     }
     rq = (struct request *) Malloc(sizeof(struct request)); /* allocate a request struct */
     if (rq == NULL) {					    /* can't do it */
 	bp->b_error = ENOMEM;				    /* can't get memory */
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return -1;
     }
@@ -237,7 +237,6 @@ vinumstart(struct buf *bp, int reviveok)
 	 * effects, however.
 	 */
 	if (vol != NULL) {
-	    vol->reads++;
 	    plexno = vol->preferred_plex;		    /* get the plex to use */
 	    if (plexno < 0) {				    /* round robin */
 		plexno = vol->last_plex_read;
@@ -258,7 +257,7 @@ vinumstart(struct buf *bp, int reviveok)
 	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
-		bp->b_ioflags |= BIO_ERROR;
+		bp->b_io.bio_flags |= BIO_ERROR;
 	    }
 	    bufdone(bp);
 	    freerq(rq);
@@ -271,10 +270,9 @@ vinumstart(struct buf *bp, int reviveok)
 	 * a RAID-4 or RAID-5 plex, we must also update the parity stripe.
 	 */
     {
-	if (vol != NULL) {
-	    vol->writes++;
+	if (vol != NULL)
 	    status = build_write_request(rq);		    /* Not all the subdisks are up */
-	} else {					    /* plex I/O */
+	else {						    /* plex I/O */
 	    daddr_t diskstart;
 
 	    diskstart = bp->b_blkno;			    /* start offset of transfer */
@@ -287,7 +285,7 @@ vinumstart(struct buf *bp, int reviveok)
 	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
-		bp->b_ioflags |= BIO_ERROR;
+		bp->b_io.bio_flags |= BIO_ERROR;
 	    }
 	    if ((bp->b_flags & B_DONE) == 0)
 		bufdone(bp);
@@ -305,7 +303,6 @@ vinumstart(struct buf *bp, int reviveok)
 int
 launch_requests(struct request *rq, int reviveok)
 {
-    int s;
     struct rqgroup *rqg;
     int rqno;						    /* loop index */
     struct rqelement *rqe;				    /* current element */
@@ -318,6 +315,7 @@ launch_requests(struct request *rq, int reviveok)
      * the request off plex->waitlist of the first
      * plex we find which is reviving
      */
+
     if ((rq->flags & XFR_REVIVECONFLICT)		    /* possible revive conflict */
     &&(!reviveok)) {					    /* and we don't want to do it now, */
 	struct sd *sd;
@@ -364,11 +362,23 @@ launch_requests(struct request *rq, int reviveok)
 #endif
 
     /*
-     * With the division of labour below (first count the requests, then
-     * issue them), it's possible that we don't need this splbio()
-     * protection.  But I'll try that some other time.
+     * We used to have an splbio() here anyway, out
+     * of superstition.  With the division of labour
+     * below (first count the requests, then issue
+     * them), it looks as if we don't need this
+     * splbio() protection.  In fact, as dillon
+     * points out, there's a race condition
+     * incrementing and decrementing rq->active and
+     * rqg->active.  This splbio() didn't help
+     * there, because the device strategy routine
+     * can sleep.  Solve this by putting shorter
+     * duration locks on the code.
      */
-    s = splbio();
+    /*
+     * This loop happens without any participation
+     * of the bottom half, so it requires no
+     * protection.
+     */
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
@@ -380,7 +390,11 @@ launch_requests(struct request *rq, int reviveok)
 	    rq->active++;				    /* one more active request group */
     }
 
-    /* Now fire off the requests */
+    /*
+     * Now fire off the requests.  In this loop the
+     * bottom half could be completing requests
+     * before we finish, so we need splbio() protection.
+     */
     for (rqg = rq->rqg; rqg != NULL;) {			    /* through the whole request chain */
 	if (rqg->lockbase >= 0)				    /* this rqg needs a lock first */
 	    rqg->lock = lockrange(rqg->lockbase, rqg->rq->bp, &PLEX[rqg->plexno]);
@@ -403,7 +417,7 @@ launch_requests(struct request *rq, int reviveok)
 		if (vinum_conf.active >= vinum_conf.maxactive)
 		    vinum_conf.maxactive = vinum_conf.active;
 
-#if VINUMDEBUG
+#ifdef VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
 			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
@@ -417,14 +431,11 @@ launch_requests(struct request *rq, int reviveok)
 		if (debug & DEBUG_LASTREQS)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
-
-
 		/* fire off the request */
 		DEV_STRATEGY(&rqe->b, 0);
 	    }
 	}
     }
-    splx(s);
     return 0;
 }
 
@@ -481,7 +492,7 @@ bre(struct request *rq,
 	    if (*diskaddr < (sd->plexoffset + sd->sectors)) { /* the request starts in this subdisk */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_ioflags |= BIO_ERROR;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;
@@ -520,7 +531,7 @@ bre(struct request *rq,
 		*diskaddr += rqe->datalen;		    /* bump the address */
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_ioflags |= BIO_ERROR;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
@@ -565,7 +576,7 @@ bre(struct request *rq,
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_ioflags |= BIO_ERROR;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;
@@ -630,7 +641,7 @@ bre(struct request *rq,
 		}
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_ioflags |= BIO_ERROR;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
@@ -793,7 +804,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     /* Initialize the buf struct */
     /* copy these flags from user bp */
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_ASYNC);
-    bp->b_ioflags = ubp->b_ioflags & BIO_ORDERED;
+    bp->b_io.bio_flags = ubp->b_io.bio_flags & BIO_ORDERED;
     bp->b_iocmd = ubp->b_iocmd;
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
@@ -808,9 +819,8 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
      * obviously doesn't include drive information
      * when the drive is dead.
      */
-    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {		    /* subdisk is accessible, */
+    if ((rqe->flags & XFR_BAD_SUBDISK) == 0)		    /* subdisk is accessible, */
 	bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
-    }
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
@@ -855,7 +865,7 @@ abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
 
-    bp->b_ioflags |= BIO_ERROR;
+    bp->b_io.bio_flags |= BIO_ERROR;
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
     bufdone(bp);
@@ -893,12 +903,12 @@ sdio(struct buf *bp)
 
     if (drive->state != drive_up) {
 	if (sd->state >= sd_crashed) {
-	    if (bp->b_iocmd == BIO_READ)		    /* reading, */
-		set_sd_state(sd->sdno, sd_crashed, setstate_force);
-	    else if (bp->b_iocmd == BIO_WRITE)		    /* writing, */
+	    if (bp->b_iocmd == BIO_WRITE)		    /* writing, */
 		set_sd_state(sd->sdno, sd_stale, setstate_force);
+	    else
+		set_sd_state(sd->sdno, sd_crashed, setstate_force);
 	}
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = EIO;
 	bufdone(bp);
 	return;
@@ -908,7 +918,7 @@ sdio(struct buf *bp)
      * to get the I/O performed.
      */
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = EIO;
 	bufdone(bp);
 	return;
@@ -916,7 +926,7 @@ sdio(struct buf *bp)
     /* Get a buffer */
     sbp = (struct sdbuf *) Malloc(sizeof(struct sdbuf));
     if (sbp == NULL) {
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = ENOMEM;
 	bufdone(bp);
 	return;
@@ -998,7 +1008,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& (bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
 	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
-	bp->b_ioflags |= BIO_ERROR;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	return -1;
     }
     if (size == 0)					    /* no transfer specified, */
@@ -1015,7 +1025,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	size = maxsize - bp->b_blkno;
 	if (size <= 0) {				    /* nothing to transfer */
 	    bp->b_error = EINVAL;
-	    bp->b_ioflags |= BIO_ERROR;
+	    bp->b_io.bio_flags |= BIO_ERROR;
 	    return -1;
 	}
 	bp->b_bcount = size << DEV_BSHIFT;
@@ -1079,3 +1089,7 @@ deallocrqg(struct rqgroup *rqg)
     }
     Free(rqg);
 }
+
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
