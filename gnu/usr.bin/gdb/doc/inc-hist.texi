@@ -1,0 +1,155 @@
+@ignore
+This file is completely identical to hsuser.texinfo, except that it has the
+reference to the programming manual removed.  There are definately better ways
+to do this!
+
+This file documents the user interface to the GNU History library.
+
+Copyright (C) 1988, 1991 Free Software Foundation, Inc.
+Authored by Brian Fox.
+
+Permission is granted to make and distribute verbatim copies of this manual
+provided the copyright notice and this permission notice are preserved on
+all copies.
+
+Permission is granted to process this file through Tex and print the
+results, provided the printed document carries copying permission notice
+identical to this one except for the removal of this paragraph (this
+paragraph not being relevant to the printed manual).
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that the
+GNU Copyright statement is available to the distributee, and provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+@end ignore
+
+@node Using History Interactively
+@appendix Using History Interactively
+
+This chapter describes how to use the GNU History Library interactively,
+from a user's standpoint.
+
+@menu
+* History Interaction::		What it feels like using History as a user.
+@end menu
+
+@node History Interaction
+@section History Interaction
+@cindex expansion
+
+The History library provides a history expansion feature that is similar
+to the history expansion in Csh.  The following text describes the sytax
+that you use to manipulate the history information.
+
+History expansion takes place in two parts.  The first is to determine
+which line from the previous history should be used during substitution.
+The second is to select portions of that line for inclusion into the
+current one.  The line selected from the previous history is called the
+@dfn{event}, and the portions of that line that are acted upon are
+called @dfn{words}.  The line is broken into words in the same fashion
+that the Bash shell does, so that several English (or Unix) words
+surrounded by quotes are considered as one word.
+
+@menu
+* Event Designators::	How to specify which history line to use.
+* Word Designators::	Specifying which words are of interest.
+* Modifiers::		Modifying the results of susbstitution.
+@end menu
+
+@node Event Designators
+@subsection Event Designators
+@cindex event designators
+
+An event designator is a reference to a command line entry in the
+history list.
+
+@table @asis
+
+@item @code{!}
+Start a history subsititution, except when followed by a space, tab, or
+the end of the line... @key{=} or @key{(}.
+
+@item @code{!!}
+Refer to the previous command.  This is a synonym for @code{!-1}.
+
+@item @code{!n}
+Refer to command line @var{n}.
+
+@item @code{!-n}
+Refer to the command line @var{n} lines back.
+
+@item @code{!string}
+Refer to the most recent command starting with @var{string}.
+
+@item @code{!?string}[@code{?}]
+Refer to the most recent command containing @var{string}.
+
+@end table
+
+@node Word Designators
+@subsection Word Designators
+
+A @key{:} separates the event specification from the word designator.  It
+can be omitted if the word designator begins with a @key{^}, @key{$},
+@key{*} or @key{%}.  Words are numbered from the beginning of the line,
+with the first word being denoted by a 0 (zero).
+
+@table @code
+
+@item 0 (zero)
+The zero'th word.  For many applications, this is the command word.
+
+@item n
+The @var{n}'th word.
+
+@item ^
+The first argument.  that is, word 1.
+
+@item $
+The last argument.
+
+@item %
+The word matched by the most recent @code{?string?} search.
+
+@item x-y
+A range of words; @code{-@var{y}} Abbreviates @code{0-@var{y}}.
+
+@item *
+All of the words, excepting the zero'th.  This is a synonym for @code{1-$}.
+It is not an error to use @key{*} if there is just one word in the event.
+The empty string is returned in that case.
+
+@end table
+
+@node Modifiers
+@subsection Modifiers
+
+After the optional word designator, you can add a sequence of one or more
+of the following modifiers, each preceded by a @key{:}.
+
+@table @code
+
+@item #
+The entire command line typed so far.  This means the current command,
+not the previous command, so it really isn't a word designator, and doesn't
+belong in this section.
+
+@item h
+Remove a trailing pathname component, leaving only the head.
+
+@item r
+Remove a trailing suffix of the form @samp{.}@var{suffix}, leaving the basename.
+
+@item e
+Remove all but the suffix.
+
+@item t
+Remove all leading  pathname  components, leaving the tail.
+
+@item p
+Print the new command but do not execute it.
+@end table
