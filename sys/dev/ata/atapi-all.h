@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.h,v 1.5 1999/05/17 15:58:45 sos Exp $
+ *	$Id: atapi-all.h,v 1.6 1999/05/20 09:12:04 sos Exp $
  */
 
 /* ATAPI misc defines */
@@ -85,6 +85,22 @@
 #define ATAPI_PLAY_CD           	0xb4    /* universal play command */
 #define ATAPI_MECH_STATUS       	0xbd    /* get changer status */
 #define ATAPI_READ_CD           	0xbe    /* read data */
+
+/*  ATAPI tape commands not in std ATAPI command set */
+#define ATAPI_TAPE_REWIND               0x01	/* tape rewind */
+#define ATAPI_TAPE_READ_CMD             0x08	/* tape read data */
+#define ATAPI_TAPE_WRITE_CMD            0x0a	/* tape write data */
+#define ATAPI_TAPE_WEOF                 0x10	/* tape write EOF */
+#define     WEOF_WRITE_MASK                     0x01
+#define ATAPI_TAPE_SPACE_CMD            0x11	/* tape space command */
+#define     SP_FM                               0x01
+#define     SP_EOD                              0x03
+#define ATAPI_TAPE_ERASE                0x19	/* tape erase */
+#define ATAPI_TAPE_MODE_SENSE           0x1a	/* tape mode sense */
+#define ATAPI_TAPE_LOAD_UNLOAD          0x1b	/* tape load/unload */
+#define     LU_LOAD_MASK                        0x01
+#define     LU_RETENSION_MASK                   0x02
+#define     LU_EOT_MASK                         0x04
 
 /* ATAPI device parameter information */
 struct atapi_params {
@@ -185,32 +201,34 @@ struct atapi_params {
 };
 
 /* ATAPI REQUEST SENSE structure */   
-struct reqsense {
+struct atapi_reqsense {
     u_int8_t    error_code      :7;     /* current or deferred errors */
-    u_int8_t    valid           :1;     /* follows QIC-157C */ 
-    u_int8_t    reserved1;              /* Segment number - reserved */
+    u_int8_t    valid           :1;     /* follows ATAPI spec */
+    u_int8_t    segment;              	/* Segment number */
     u_int8_t    sense_key       :4;     /* sense key */
     u_int8_t    reserved2_4     :1;     /* reserved */
     u_int8_t    ili             :1;     /* incorrect length indicator */
     u_int8_t    eom             :1;     /* end of medium */
     u_int8_t    filemark        :1;     /* filemark */
-    u_int8_t    info __attribute__((packed)); /* cmd specific info */
-    u_int8_t    asl;                    /* additional sense length (n-7) */
-    u_int8_t    command_specific;       /* additional cmd specific info */
+					/* cmd information */
+    u_int32_t   cmd_info __attribute__((packed));
+    u_int8_t    sense_length;           /* additional sense length (n-7) */
+					/* additional cmd specific info */
+    u_int32_t   cmd_specific_info __attribute__((packed));
     u_int8_t    asc;                    /* additional sense code */
     u_int8_t    ascq;                   /* additional sense code qualifier */
     u_int8_t    replaceable_unit_code;  /* field replaceable unit code */
     u_int8_t    sk_specific1    :7;     /* sense key specific */
     u_int8_t    sksv            :1;     /* sense key specific info valid */
     u_int8_t    sk_specific2;           /* sense key specific */
-    u_int8_t    sk_specific3;           /* sense key Specific */
-    u_int8_t    pad[2];                 /* padding */
+    u_int8_t    sk_specific3;           /* sense key specific */
 };  
 
 struct atapi_softc {
     struct ata_softc            *controller;    /* ptr to parent ctrl */
     struct atapi_params         *atapi_parm;    /* ata device params */
     int32_t                     unit;           /* ATA_MASTER or ATA_SLAVE */
+    int8_t			last_cmd;	/* last cmd executed */
     u_int32_t                   flags;          /* drive flags */
 };
 
@@ -237,7 +255,7 @@ struct atapi_request {
 
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
-int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, atapi_callback_t, void *, struct buf *);
-void atapi_error(struct atapi_softc *, int32_t);
+int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, void *, struct buf *);
+int32_t atapi_error(struct atapi_softc *, int32_t);
 void atapi_dump(int8_t *, void *, int32_t);
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.5 1999/03/28 18:57:18 sos Exp $
+ *	$Id: ata-disk.h,v 1.6 1999/05/20 09:12:03 sos Exp $
  */
 
 /* ATA device parameter information */
@@ -130,16 +130,13 @@ struct ad_softc {
     u_int8_t			sectors;
     u_int32_t			total_secs;	/* total # of sectors (LBA) */
     u_int32_t			transfersize;	/* size of each transfer */
-    u_int32_t			currentsize;	/* size of current transfer */
-    u_int32_t			bytecount;	/* bytes to transfer */
-    u_int32_t			donecount;	/* bytes transferred */
-    u_int32_t			active;		/* active processing request */
+    u_int32_t			num_tags;	/* number of tags supported */
     u_int32_t			flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
-#define		AD_F_USE_LBA		0x0002
-#define		AD_F_USE_32BIT		0x0004
+#define		AD_F_LBA_ENABLED	0x0002
+#define		AD_F_32B_ENABLED	0x0004
 #define		AD_F_DMA_ENABLED	0x0008
-#define		AD_F_DMA_USED		0x0010
+#define		AD_F_TAG_ENABLED	0x0010
 
     struct buf_queue_head 	queue;		/* head of request queue */
     struct devstat 		stats;		/* devstat entry */
@@ -149,6 +146,24 @@ struct ad_softc {
 #endif
 };
 
-void ad_transfer(struct buf *);
-int32_t ad_interrupt(struct buf *);
+struct ad_request {
+    struct ad_softc		*device;	/* ptr to parent device */
+    u_int32_t			blockaddr;      /* block number */
+    u_int32_t                   bytecount;      /* bytes to transfer */
+    u_int32_t                   donecount;      /* bytes transferred */
+    u_int32_t			currentsize;	/* size of current transfer */
+    u_int32_t                   result;		/* result code */
+    int32_t			flags;
+#define		AR_F_READ		0x0001
+#define		AR_F_ERROR		0x0002
+#define		AR_F_DMA_USED		0x0004
+
+    int8_t			*data;		/* pointer to data buf */
+    struct buf			*bp;		/* associated buf ptr */
+    u_int8_t			tag;		/* tag ID of this request */
+    TAILQ_ENTRY(ad_request)	chain;		/* list management */
+};
+
+void ad_transfer(struct ad_request *);
+int32_t ad_interrupt(struct ad_request *);
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.8 1999/05/17 15:58:45 sos Exp $
+ *	$Id: atapi-all.c,v 1.9 1999/05/20 09:12:04 sos Exp $
  */
 
 #include "ata.h"
@@ -52,9 +52,8 @@
 static void atapi_attach(void *);
 static int32_t atapi_getparam(struct atapi_softc *);
 static int8_t *atapi_type(int32_t);
-#ifdef ATAPI_DEBUG
 static int8_t *atapi_cmd2str(u_int8_t);
-#endif
+static int8_t * atapi_skey2str(u_int8_t);
 static int32_t atapi_wait(struct atapi_softc *, u_int8_t);
 static void atapi_init(void);
 
@@ -163,13 +162,14 @@ atapi_getparam(struct atapi_softc *atp)
 
 int32_t   
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
-		int32_t count, int32_t flags, /*timeout,*/
+		int32_t count, int32_t flags, int32_t timeout,
 		atapi_callback_t callback, void *driver, struct buf *bp)
 {
     struct atapi_request *request;
     int32_t error = 0; 
     int32_t s;
  
+    atp->last_cmd = ccb[0];
     if (!(request = malloc(sizeof(struct atapi_request), M_DEVBUF, M_NOWAIT)))
         return -1;
     bzero(request, sizeof(struct atapi_request));
@@ -189,7 +189,10 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     s = splbio();
 
     /* link onto controller queue */
-    TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
+    if (ccb[0] == ATAPI_REQUEST_SENSE)
+	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
+    else
+	TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
 
     /* try to start controller */
     if (atp->controller->active == ATA_IDLE)
@@ -197,22 +200,31 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 
     splx(s);
 
+    /* wait for command to complete */
+    if (tsleep((caddr_t)request, PRIBIO, "atprq", timeout*100)) {
+        if (atp->controller->active != ATA_IDLE)
+            atp->controller->active = ATA_IDLE;
+
+	/* should we reset device here ? */
+	request->result |= 0xf0;
+    }
+
 #ifdef ATAPI_DEBUG
-    printf("atapi: queued %s cmd\n", atapi_cmd2str(ccb[0]));
+    printf("atapi: phew, got back from tsleep with %s\n"
+	   (request->result & 0xf0) == 0xf0 ? "timeout" : "wakeup"));
 #endif
 
-    if (!callback) {
-    	/* wait for command to complete */
-    	if (tsleep((caddr_t)request, PRIBIO, "atprq", 0/*timeout*/))
-	    error = 0xf0;
-	else
-    	    error = request->result;
-#ifdef ATAPI_DEBUG
-    printf("atapi: phew, got back from tsleep\n");
-#endif
+    if (callback) {
+	(request->callback)(request);
     	free(request, M_DEVBUF);
+	return 0;
     }
-    return error;
+    error = request->result;
+    free(request, M_DEVBUF);
+    if (ccb[0] == ATAPI_REQUEST_SENSE)
+	return 0;
+    else
+        return atapi_error(atp, error);
 }
     
 void
@@ -276,7 +288,8 @@ printf("atapi_interrupt: enter\n");
     /* get drive status */
     if (atapi_wait(atp, 0) < 0) {
         printf("atapi_interrupt: timeout waiting for status");
-	/* maybe check sense code ??  SOS */
+	request->result = inb(atp->controller->ioaddr + ATA_ERROR);
+        wakeup((caddr_t)request);	
 	return ATA_OP_FINISHED;
     }
     atp->controller->status = inb(atp->controller->ioaddr + ATA_STATUS); 
@@ -377,22 +390,57 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
     }
 
     TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
+
 #ifdef ATAPI_DEBUG
 printf("atapi_interrupt: error=0x%02x\n", request->result);
 #endif
-    if (request->callback) {
-	(request->callback)(request);
-	free(request, M_DEVBUF);
-    }
-    else
-	wakeup((caddr_t)request);	
+
+    wakeup((caddr_t)request);	
     return ATA_OP_FINISHED;
 }
 
-void 
+int32_t
 atapi_error(struct atapi_softc *atp, int32_t error)
 {
-    printf("atapi: error = 0x%02x\n", error);
+    struct atapi_reqsense sense;
+    int8_t cmd = atp->last_cmd;
+    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0, sizeof(sense),
+                       0, 0, 0 ,0 ,0, 0, 0, 0, 0, 0, 0 };
+
+    switch ((error & 0xf0)) {
+    case ATAPI_SK_RESERVED:
+        printf("atapi_error: %s - timeout error = %02x\n", 
+	       atapi_cmd2str(cmd), error & 0x0f);
+	return EIO;
+
+    case ATAPI_SK_NO_SENSE:
+	if (error & 0x0f) {
+            printf("atapi_error: %s - error = %02x\n",
+		   atapi_cmd2str(cmd), error & 0x0f);
+	    return EIO;
+	}
+	return 0;
+
+    case ATAPI_SK_RECOVERED_ERROR:
+        printf("atapi_error: %s - recovered error\n", atapi_cmd2str(cmd));
+	return 0;
+
+    case ATAPI_SK_NOT_READY:
+	if (error & 0x0f)
+	    break;
+	return EBUSY;
+
+    case ATAPI_SK_UNIT_ATTENTION:
+	return EAGAIN;	/* misused */
+    }
+
+    bzero(&sense, sizeof(struct atapi_reqsense));
+    atapi_queue_cmd(atp, ccb, &sense, sizeof(struct atapi_reqsense),
+		    A_READ, 10, NULL, NULL, NULL);
+    printf("atapi_error: %s - %s skey=%01x asc=%02x ascq=%02x error=%02x\n", 
+	   atapi_cmd2str(cmd), atapi_skey2str(sense.sense_key),
+	   sense.sense_key, sense.asc, sense.ascq, error & 0x0f);
+    return EIO;
 }
 
 void
@@ -423,17 +471,21 @@ atapi_type(int32_t type)
     }
 }
 
-#ifdef ATAPI_DEBUG
 static int8_t *
 atapi_cmd2str(u_int8_t cmd)
 {
     switch (cmd) {
     case 0x00: return ("TEST_UNIT_READY");
-    case 0x01: return ("REZERO_UNIT");
+    case 0x01: return ("REZERO_UNIT/TAPE_REWIND");
     case 0x03: return ("REQUEST_SENSE");
     case 0x04: return ("FORMAT_UNIT");
+    case 0x08: return ("TAPE_READ");
+    case 0x0a: return ("TAPE_WRITE");
+    case 0x10: return ("TAPE_WEOF");
+    case 0x11: return ("TAPE_SPACE");
+    case 0x19: return ("TAPE_ERASE");
     case 0x1a: return ("TAPE_MODE_SENSE");
-    case 0x1b: return ("START_STOP");
+    case 0x1b: return ("START_STOP/TAPE_LOAD");
     case 0x1e: return ("PREVENT_ALLOW");
     case 0x25: return ("READ_CAPACITY");
     case 0x28: return ("READ_BIG");
@@ -462,12 +514,35 @@ atapi_cmd2str(u_int8_t cmd)
     case 0xbe: return ("READ_CD");
     default: {
 	static int8_t buffer[16];
-	sprintf(buffer, "Unknown 0x%02x", cmd);
+	sprintf(buffer, "Unknown CMD (0x%02x)", cmd);
 	return buffer;
 	}
     }
 }
-#endif
+
+static int8_t *
+atapi_skey2str(u_int8_t skey)
+{
+    switch (skey) {
+    case 0x00: return ("NO SENSE");
+    case 0x01: return ("RECOVERED ERROR");
+    case 0x02: return ("NOT READY");
+    case 0x03: return ("MEDIUM ERROR");
+    case 0x04: return ("HARDWARE ERROR");
+    case 0x05: return ("ILLEGAL REQUEST");
+    case 0x06: return ("UNIT ATTENTION");
+    case 0x07: return ("DATA PROTECT");
+    case 0x08: return ("BLANK CHECK");
+    case 0x09: return ("VENDOR SPECIFIC");
+    case 0x0a: return ("COPY ABORTED");
+    case 0x0b: return ("ABORTED COMMAND");
+    case 0x0c: return ("EQUAL");
+    case 0x0d: return ("VOLUME OVERFLOW");
+    case 0x0e: return ("MISCOMPARE");
+    case 0x0f: return ("RESERVED");
+    default: return("UNKNOWN");
+    }
+}
 
 static int32_t
 atapi_wait(struct atapi_softc *atp, u_int8_t mask)
