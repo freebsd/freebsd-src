@@ -161,15 +161,15 @@ restart:
 	return(nr == -1 ? NULL : buf);
 }
 
-#if 0
 char *
 getpass(const char *prompt)
 {
 	static char buf[_PASSWORD_LEN + 1];
 
-	return(readpassphrase(prompt, buf, sizeof(buf), RPP_ECHO_OFF));
+	if (readpassphrase(prompt, buf, sizeof(buf), RPP_ECHO_OFF) == NULL)
+		buf[0] = '\0';
+	return(buf);
 }
-#endif
 
 static void handler(int s)
 {
