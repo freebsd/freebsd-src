@@ -130,7 +130,7 @@ const char	ctty[] = _PATH_CONSOLE;
 /*
  * Unix sockets.
  * We have two default sockets, one with 666 permissions,
- * and one for priveleged programs
+ * and one for privileged programs.
  */
 struct funix {
 	int			s;
