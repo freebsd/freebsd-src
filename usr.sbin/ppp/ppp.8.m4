@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.68 1997/09/25 00:52:36 brian Exp $
+.\" $Id: ppp.8,v 1.69 1997/10/05 10:29:32 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -478,19 +478,17 @@ and
 .Fl direct
 mode too):
 
-
 .Bd -literal -offset indent
-# telnet localhost 3000
-Trying 127.0.0.1...
-Connected to awfulhak.
-Escape character is '^]'.
-....
-PPP on awfulhak> pass xxxx
-PPP ON awfulhak> show ipcp
+# pppctl -v 3000 show ipcp
+Password:
 IPCP [OPEND]
   his side: xxxx
   ....
 .Ed
+
+Currently,
+.Xr telnet 1
+may also be used to talk interactively.
 
 .Pp
 Each
@@ -663,9 +661,12 @@ Direct mode (
 .Fl direct
 ) lets
 .Nm
-work with stdin and stdout.  You can also telnet to port 3000 plus
-the current tunnel device number to get command mode control in the
-same manner as client-side
+work with stdin and stdout.  You can also use
+.Nm pppctl
+or
+.Nm telnet
+to connect to port 3000 plus the current tunnel device number to get
+command mode control in the same manner as client-side
 .Nm.
 
 .It
@@ -1844,7 +1845,7 @@ state.
 Normally, when not in interactive mode,
 .Nm
 listens to a tcp socket for incoming command connections.  The
-socket number is calculated as 3000 plus the number of the
+default socket number is calculated as 3000 plus the number of the
 tunnel device that
 .Nm
 opened.  So, for example, if
@@ -1861,6 +1862,17 @@ set before creating the socket.  See also the use of
 the
 .Dv USR1
 signal.
+
+.Pp
+When using
+.Nm
+with a server socket, the
+.Xr pppctl 8
+command is the preferred mechanism of communications.  Currently,
+.Xr telnet 1
+can also be used, but link encryption may be implemented in the future, so
+.Nm telnet
+should not be relied upon.
 
 .It set speed value
 This sets the speed of the serial device.
@@ -2162,7 +2174,8 @@ Get port number if port number is using service name.
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
 .Xr syslogd 8 ,
-.Xr pppctl 8
+.Xr pppctl 8 ,
+.Xr telnet 1
 
 .Sh HISTORY
 
