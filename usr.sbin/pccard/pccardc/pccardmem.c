@@ -22,15 +22,27 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: pccardmem.c,v 1.4 1996/04/18 04:24:54 nate Exp $
  */
-#include <stdio.h>
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: pccardc pccardmem [memory-address]\n");
+	exit(1);
+}
 
 int
 pccardmem_main(argc, argv)
@@ -41,24 +53,18 @@ pccardmem_main(argc, argv)
 	int     addr = 0;
 	int     fd;
 
-	if (argc > 2) {
-		fprintf(stderr, "usage: %s [ memory-address ]\n", argv[0]);
-		exit(1);
-	}
+	if (argc > 2)
+		usage();
 	sprintf(name, CARD_DEVICE, 0);
 	fd = open(name, 0);
-	if (fd < 0) {
-		perror(name);
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "%s", name);
 	if (argc == 2) {
-		if (sscanf(argv[1], "%x", &addr) != 1) {
-			fprintf(stderr, "arg error\n");
-			exit(1);
-		}
+		if (sscanf(argv[1], "%x", &addr) != 1)
+			errx(1, "arg error");
 	}
 	if (ioctl(fd, PIOCRWMEM, &addr))
-		perror("ioctl");
+		warn("ioctl");
 	else
 		printf("PCCARD Memory address set to 0x%x\n", addr);
 	exit(0);

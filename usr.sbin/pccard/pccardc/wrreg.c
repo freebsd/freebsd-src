@@ -22,17 +22,29 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: wrreg.c,v 1.4 1996/04/18 04:24:58 nate Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: pccardc wrreg slot reg value\n");
+	exit(1);
+}
 
 int
 wrreg_main(argc, argv)
@@ -44,24 +56,18 @@ wrreg_main(argc, argv)
 	int     fd;
 	struct pcic_reg r;
 
-	if (argc != 4) {
-		fprintf(stderr, "usage: wrreg slot reg value\n");
-		exit(1);
-	}
+	if (argc != 4)
+		usage();
 	sprintf(name, CARD_DEVICE, atoi(argv[1]));
 	fd = open(name, 2);
-	if (fd < 0) {
-		perror(name);
-		exit(1);
-	}
+	if (fd < 0)
+		err(1, "%s", name);
 	if (sscanf(argv[2], "%x", &reg) != 1 ||
-	    sscanf(argv[3], "%x", &value) != 1) {
-		fprintf(stderr, "arg error\n");
-		exit(1);
-	}
+	    sscanf(argv[3], "%x", &value) != 1)
+		errx(1, "arg error");
 	r.reg = reg;
 	r.value = value;
 	if (ioctl(fd, PIOCSREG, &r))
-		perror("ioctl");
+		warn("ioctl");
 	return 0;
 }

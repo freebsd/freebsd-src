@@ -22,13 +22,18 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: rdreg.c,v 1.4 1996/04/18 04:24:56 nate Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
@@ -44,13 +49,13 @@ dumpslot(sl)
 	sprintf(name, CARD_DEVICE, sl);
 	fd = open(name, 2);
 	if (fd < 0) {
-		perror(name);
+		warn("%s", name);
 		return;
 	}
 	printf("Registers for slot %d\n", sl);
 	for (r.reg = 0; r.reg < 0x40; r.reg++) {
 		if (ioctl(fd, PIOCGREG, &r)) {
-			perror("ioctl");
+			warn("ioctl");
 			break;
 		}
 		if ((r.reg % 16) == 0)

@@ -22,14 +22,19 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: dumpcis.c,v 1.4 1996/04/18 04:24:52 nate Exp $
  */
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 
 #include <pccard/card.h>
@@ -91,10 +96,8 @@ xmalloc(int sz)
 	p = malloc(sz);
 	if (p)
 		bzero(p, sz);
-	else {
-		perror("malloc");
-		exit(1);
-	}
+	else
+		errx(1, "malloc");
 	return (p);
 }
 
