@@ -1053,23 +1053,21 @@ nge_newbuf(sc, c, m)
 	struct nge_desc		*c;
 	struct mbuf		*m;
 {
-	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (m_new == NULL)
+		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if (m == NULL)
 			return (ENOBUFS);
-		m = m_new;
 	} else
 		m->m_data = m->m_ext.ext_buf;
 
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
 
-	m_adj(m_new, sizeof(u_int64_t));
+	m_adj(m, sizeof(u_int64_t));
 
-	c->nge_mbuf = m_new;
-	c->nge_ptr = vtophys(mtod(m_new, caddr_t));
-	c->nge_ctl = m_new->m_len;
+	c->nge_mbuf = m;
+	c->nge_ptr = vtophys(mtod(m, caddr_t));
+	c->nge_ctl = m->m_len;
 	c->nge_extsts = 0;
 
 	return(0);
