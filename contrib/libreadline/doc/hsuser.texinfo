@@ -29,7 +29,7 @@ into another language, under the above conditions for modified versions.
 @ifset BashFeatures
 This chapter describes how to use the GNU History Library interactively,
 from a user's standpoint.  It should be considered a user's guide.  For
-information on using the GNU History Library in your own programs,
+information on using the GNU History Library in other programs,
 see the GNU Readline Library Manual.
 @end ifset
 @ifclear BashFeatures
@@ -43,6 +43,8 @@ information on using the GNU History Library in your own programs,
 @menu
 * Bash History Facilities::	How Bash lets you manipulate your command
 				history.
+* Bash History Builtins::	The Bash builtin commands that manipulate
+				the command history.
 * History Interaction::		What it feels like using History as a user.
 @end menu
 @end ifset
@@ -84,11 +86,10 @@ not saved.  After saving the history, the history file is truncated
 to contain no more than @code{$HISTFILESIZE}
 lines.  If @code{HISTFILESIZE} is not set, no truncation is performed.
 
-The builtin command @code{fc} (@pxref{Korn Shell Builtins})
-may be used to list or edit and re-execute a portion of
-the history list.  The @code{history} builtin (@pxref{C Shell Builtins})
-can be used to display or modify the history list and
-manipulate the history file.
+The builtin command @code{fc} may be used to list or edit and re-execute
+a portion of the history list.
+The @code{history} builtin can be used to display or modify the history
+list and manipulate the history file.
 When using the command-line editing, search commands
 are available in each editing mode that provide access to the
 history list.
@@ -104,11 +105,103 @@ semicolons where necessary to preserve syntactic correctness.
 The @code{lithist}
 shell option causes the shell to save the command with embedded newlines
 instead of semicolons.
-@xref{Bash Builtins} for a description of @code{shopt}.
+@xref{Bash Builtins}, for a description of @code{shopt}.
+
+@node Bash History Builtins
+@section Bash History Builtins
+@cindex history builtins
+
+Bash provides two builtin commands that allow you to manipulate the
+history list and history file.
+
+@table @code
+
+@item fc
+@btindex fc
+@example
+@code{fc [-e @var{ename}] [-nlr] [@var{first}] [@var{last}]}
+@code{fc -s [@var{pat}=@var{rep}] [@var{command}]}
+@end example
+
+Fix Command.  In the first form, a range of commands from @var{first} to
+@var{last} is selected from the history list.  Both @var{first} and
+@var{last} may be specified as a string (to locate the most recent
+command beginning with that string) or as a number (an index into the
+history list, where a negative number is used as an offset from the
+current command number).  If @var{last} is not specified it is set to
+@var{first}.  If @var{first} is not specified it is set to the previous
+command for editing and @minus{}16 for listing.  If the @samp{-l} flag is
+given, the commands are listed on standard output.  The @samp{-n} flag
+suppresses the command numbers when listing.  The @samp{-r} flag
+reverses the order of the listing.  Otherwise, the editor given by
+@var{ename} is invoked on a file containing those commands.  If
+@var{ename} is not given, the value of the following variable expansion
+is used: @code{$@{FCEDIT:-$@{EDITOR:-vi@}@}}.  This says to use the
+value of the @code{FCEDIT} variable if set, or the value of the
+@code{EDITOR} variable if that is set, or @code{vi} if neither is set.
+When editing is complete, the edited commands are echoed and executed.
+
+In the second form, @var{command} is re-executed after each instance
+of @var{pat} in the selected command is replaced by @var{rep}.
+
+A useful alias to use with the @code{fc} command is @code{r='fc -s'}, so
+that typing @samp{r cc} runs the last command beginning with @code{cc}
+and typing @samp{r} re-executes the last command (@pxref{Aliases}).
+
+@item history
+@btindex history
+@example
+history [-c] [@var{n}]
+history [-anrw] [@var{filename}]
+history -ps @var{arg}
+@end example
+
+Display the history list with line numbers.  Lines prefixed with
+with a @samp{*} have been modified.  An argument of @var{n} says
+to list only the last @var{n} lines.  Options, if supplied, have
+the following meanings:
+
+@table @code
+@item -w
+Write out the current history to the history file.
+
+@item -r
+Read the current history file and append its contents to
+the history list.
+
+@item -a
+Append the new
+history lines (history lines entered since the beginning of the
+current Bash session) to the history file.
+
+@item -n
+Append the history lines not already read from the history file
+to the current history list.  These are lines appended to the history
+file since the beginning of the current Bash session.
+
+@item -c
+Clear the history list.  This may be combined
+with the other options to replace the history list completely.
+
+@item -s
+The @var{arg}s are added to the end of
+the history list as a single entry.
+
+@item -p
+Perform history substitution on the @var{arg}s and display the result
+on the standard output, without storing the results in the history list.
+@end table
+
+When the @samp{-w}, @samp{-r}, @samp{-a}, or @samp{-n} option is
+used, if @var{filename}
+is given, then it is used as the history file.  If not, then
+the value of the @code{HISTFILE} variable is used.
+
+@end table
 @end ifset
 
 @node History Interaction
-@section Interactive History Expansion
+@section History Expansion
 @cindex history expansion
 
 The History library provides a history expansion feature that is similar
@@ -121,14 +214,14 @@ arguments to a previous command into the current input line, or
 fix errors in previous commands quickly.
 
 History expansion takes place in two parts.  The first is to determine
-which line from the previous history should be used during substitution.
+which line from the history list should be used during substitution.
 The second is to select portions of that line for inclusion into the
-current one.  The line selected from the previous history is called the
+current one.  The line selected from the history is called the
 @dfn{event}, and the portions of that line that are acted upon are
 called @dfn{words}.  Various @dfn{modifiers} are available to manipulate
 the selected words.  The line is broken into words in the same fashion
-that Bash does, so that several English (or Unix) words
-surrounded by quotes are considered as one word.
+that Bash does, so that several words
+surrounded by quotes are considered one word.
 History expansions are introduced by the appearance of the
 history expansion character, which is @samp{!} by default.
 @ifset BashFeatures
@@ -153,6 +246,7 @@ may be used to see what a history expansion will do before using it.
 The @samp{-s} option to the @code{history} builtin may be used to
 add commands to the end of the history list without actually executing
 them, so that they are available for subsequent recall.
+This is most useful in conjunction with Readline.
 
 The shell allows control of the various characters used by the
 history expansion mechanism with the @code{histchars} variable.
@@ -176,7 +270,7 @@ history list.
 
 @item @code{!}
 Start a history substitution, except when followed by a space, tab,
-the end of the line, @key{=} or @key{(}.
+the end of the line, @samp{=} or @samp{(}.
 
 @item @code{!@var{n}}
 Refer to command line @var{n}.
@@ -210,7 +304,7 @@ The entire command line typed so far.
 
 Word designators are used to select desired words from the event.
 A @samp{:} separates the event specification from the word designator.  It
-can be omitted if the word designator begins with a @samp{^}, @samp{$},
+may be omitted if the word designator begins with a @samp{^}, @samp{$},
 @samp{*}, @samp{-}, or @samp{%}.  Words are numbered from the beginning
 of the line, with the first word being denoted by 0 (zero).  Words are
 inserted into the current line separated by single spaces.

@@ -2,6 +2,7 @@
 # Emacs likes it that way.
 top_srcdir = @top_srcdir@
 srcdir = @srcdir@
+VPATH = .:@srcdir@
 
 prefix = @prefix@
 infodir = @infodir@
@@ -38,9 +39,10 @@ DVIOBJ = readline.dvi history.dvi
 INFOOBJ = readline.info history.info
 PSOBJ = readline.ps history.ps
 HTMLOBJ = readline.html history.html
+HTMLTOC = readline_toc.html history_toc.html
 TEXTOBJ = readline.0
 
-CREATED_DOCS = $(DVIOBJ) $(INFOOBJ) $(PSOBJ) $(HTMLOBJ) $(TEXTOBJ)
+CREATED_DOCS = $(DVIOBJ) $(INFOOBJ) $(PSOBJ) $(HTMLOBJ) $(HTMLTOC) $(TEXTOBJ)
 
 .SUFFIXES:      .0 .3 .ps .txt .dvi
 
@@ -91,7 +93,7 @@ ps:	$(PSOBJ)
 html:	$(HTMLOBJ)
 text:	$(TEXTOBJ)
 
-readline.0: $(srcdir)/readline.3
+readline.0: readline.3
 
 clean:
 	$(RM) *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.cps *.pgs \
@@ -99,11 +101,13 @@ clean:
 
 distclean: clean
 	$(RM) $(CREATED_DOCS)
+	$(RM) Makefile
 
 mostlyclean: clean
 
 maintainer-clean: clean
 	$(RM) $(CREATED_DOCS)
+	$(RM) Makefile
 
 installdirs:	$(top_srcdir)/support/mkdirs
 	-$(SHELL) $(top_srcdir)/support/mkdirs $(infodir) $(man3dir)

@@ -1,5 +1,8 @@
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
+/* Define if on MINIX.  */
+#undef _MINIX
+
 /* Define as the return type of signal handlers (int or void).  */
 #undef RETSIGTYPE
 
@@ -91,6 +94,10 @@
 #undef VOID_SIGHANDLER
 
 #undef GWINSZ_IN_SYS_IOCTL
+
+#undef STRUCT_WINSIZE_IN_SYS_IOCTL
+
+#undef STRUCT_WINSIZE_IN_TERMIOS
 
 #undef TIOCSTAT_IN_SYS_IOCTL
 

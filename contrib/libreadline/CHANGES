@@ -1,0 +1,66 @@
+This document details the changes between this version, readline-2.2,
+and the previous version, readline-2.1.
+
+1.  Changes to Readline
+
+a.  Added a missing `extern' to a declaration in readline.h that kept
+    readline from compiling cleanly on some systems.
+
+b.  The history file is now opened with mode 0600 when it is written for
+    better security.
+
+c.  Changes were made to the SIGWINCH handling code so that prompt redisplay
+    is done better.
+
+d.  ^G now interrupts incremental searches correctly.
+
+e.  A bug that caused a core dump when the set of characters to be quoted
+    when completing words was empty was fixed.
+
+f.  Fixed a problem in the readline test program rltest.c that caused a core
+    dump.
+
+g.  The code that handles parser directives in inputrc files now displays
+    more error messages.
+
+h.  The history expansion code was fixed so that the appearance of the
+    history comment character at the beginning of a word inhibits history
+    expansion for that word and the rest of the input line.
+
+i.  The code that prints completion listings now behaves better if one or
+    more of the filenames contains non-printable characters.
+
+j.  The time delay when showing matching parentheses is now 0.5 seconds.
+
+
+2.  New Features in Readline
+
+a.  There is now an option for `iterative' yank-last-arg handline, so a user
+    can keep entering `M-.', yanking the last argument of successive history
+    lines.
+
+b.  New variable, `print-completions-horizontally', which causes completion
+    matches to be displayed across the screen (like `ls -x') rather than up
+    and down the screen (like `ls').
+
+c.  New variable, `completion-ignore-case', which causes filename completion
+    and matching to be performed case-insensitively.
+
+d.  There is a new bindable command, `magic-space', which causes history
+    expansion to be performed on the current readline buffer and a space to
+    be inserted into the result.
+
+e.  There is a new bindable command, `menu-complete', which enables tcsh-like
+    menu completion (successive executions of menu-complete insert a single
+    completion match, cycling through the list of possible completions).
+
+f.  There is a new bindable command, `paste-from-clipboard', for use on Win32
+    systems, to insert the text from the Win32 clipboard into the editing
+    buffer.
+
+g.  The key sequence translation code now understands printf-style backslash
+    escape sequences, including \NNN octal escapes.  These escape sequences
+    may be used in key sequence definitions or macro values.
+
+h.  An `$include' inputrc file parser directive has been added.
+

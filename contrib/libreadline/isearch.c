@@ -262,7 +262,7 @@ rl_search_history (direction, invoking_key)
 	  break;
 	}
 
-      if (c >= 0 && (CTRL_CHAR (c) || META_CHAR (c) || c == RUBOUT) && c != CTRL ('g'))
+      if (c >= 0 && (CTRL_CHAR (c) || META_CHAR (c) || c == RUBOUT) && c != CTRL ('G'))
 	{
 	  rl_execute_next (c);
 	  break;
@@ -297,6 +297,21 @@ rl_search_history (direction, invoking_key)
 	    free (allocated_line);
 	  free (lines);
 	  return 0;
+
+#if 0
+	/* delete character from search string. */
+	case -3:
+	  if (search_string_index == 0)
+	    ding ();
+	  else
+	    {
+	      search_string[--search_string_index] = '\0';
+	      /* This is tricky.  To do this right, we need to keep a
+		 stack of search positions for the current search, with
+		 sentinels marking the beginning and end. */
+	    }
+	  break;
+#endif
 
 	default:
 	  /* Add character to search string and continue search. */

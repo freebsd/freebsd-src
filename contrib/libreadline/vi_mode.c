@@ -615,6 +615,13 @@ _rl_vi_save_insert (up)
 {
   int len, start, end;
 
+  if (up == 0)
+    {
+      if (vi_insert_buffer_size >= 1)
+	vi_insert_buffer[0] = '\0';
+      return;
+    }
+
   start = up->start;
   end = up->end;
   len = end - start + 1;

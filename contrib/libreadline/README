@@ -1,7 +1,7 @@
 Introduction
 ============
 
-This is the Gnu Readline library, version 2.1.
+This is the Gnu Readline library, version 2.2
 
 The Readline library provides a set of functions for use by applications
 that allow users to edit command lines as they are typed in.  Both
@@ -89,11 +89,11 @@ Reporting Bugs
 
 Bug reports for Readline should be sent to:
 
-        bug-readline@prep.ai.mit.edu
+        bug-readline@gnu.org
 
 When reporting a bug, please include the following information:
 
-        * the version number and release status of Readline (e.g., 2.1-release)
+        * the version number and release status of Readline (e.g., 2.2-release)
         * the machine and OS that it is running on
         * a list of the compilation flags or the contents of `config.h', if
           appropriate
@@ -102,11 +102,11 @@ When reporting a bug, please include the following information:
         * a fix for the bug if you have one!
 
 If you would like to contact the Readline maintainer directly, send mail
-to bash-maintainers@prep.ai.mit.edu.
+to bash-maintainers@gnu.org.
 
-Since Readline is developed along with bash, the bug-bash@prep.ai.mit.edu
-mailing list (mirrored to the Usenet newsgroup gnu.bash.bug) often contains
-Readline bug reports and fixes.
+Since Readline is developed along with bash, the bug-bash@gnu.org mailing
+list (mirrored to the Usenet newsgroup gnu.bash.bug) often contains
+Readline bug reports and fixes. 
 
 Chet Ramey
 chet@po.cwru.edu
