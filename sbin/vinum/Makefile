@@ -13,3 +13,5 @@ BINMODE=	555
 .PATH: ${.CURDIR}/../../sys/dev/vinum
 
 .include <bsd.prog.mk>
+
+CFLAGS += -I ${.CURDIR}/../../sys/dev/vinum

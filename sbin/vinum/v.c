@@ -57,8 +57,6 @@
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
-#include <sys/linker.h>
-#include <sys/module.h>
 #include <sys/resource.h>
 
 FILE *cf;						    /* config file handle */
@@ -117,20 +115,6 @@ int tokens;						    /* number of tokens */
 int 
 main(int argc, char *argv[])
 {
-#if RAID5
-#define VINUMMOD "Vinum"
-#else
-#define VINUMMOD "vinum"
-#endif
-
-    if (modfind(VINUMMOD) < 0) {
-	/* need to load the vinum module */
-	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
-	    perror("vinum kernel module not available");
-	    return 1;
-	}
-    }
-
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open it */
 
     if (superdev < 0) {					    /* no go */
