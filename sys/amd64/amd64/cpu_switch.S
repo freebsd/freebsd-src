@@ -103,7 +103,8 @@ ENTRY(cpu_switch)
 
 	movl	P_ADDR(%ecx),%edx
 
-	popl	PCB_EIP(%edx)			/* Hardware registers */
+	movl	(%esp),%eax			/* Hardware registers */
+	movl	%eax,PCB_EIP(%edx)
 	movl	%ebx,PCB_EBX(%edx)
 	movl	%esp,PCB_ESP(%edx)
 	movl	%ebp,PCB_EBP(%edx)
@@ -253,7 +254,8 @@ sw1b:
 	movl	PCB_EBP(%edx),%ebp
 	movl	PCB_ESI(%edx),%esi
 	movl	PCB_EDI(%edx),%edi
-	pushl	PCB_EIP(%edx)
+	movl	PCB_EIP(%edx),%eax
+	movl	%eax,(%esp)
 
 #ifdef SMP
 #ifdef GRAB_LOPRIO				/* hold LOPRIO for INTs */
