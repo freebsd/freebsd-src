@@ -288,9 +288,9 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 			hdrsize = roundup(hdrsize, sizeof(u_int32_t));
 		if (m->m_len < hdrsize &&
 		    (m = m_pullup(m, hdrsize)) == NULL) {
-			IEEE80211_DISCARD(ic, IEEE80211_MSG_ANY,
-			    wh, "data", "too short: len %u, expecting %u",
-			    m->m_pkthdr.len, hdrsize);
+			IEEE80211_DISCARD_MAC(ic, IEEE80211_MSG_ANY,
+			    ni->ni_macaddr, NULL,
+			    "data too short: expecting %u", hdrsize);
 			ic->ic_stats.is_rx_tooshort++;
 			goto out;		/* XXX */
 		}
