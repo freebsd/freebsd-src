@@ -279,7 +279,7 @@ void _pam_parse_control(int *control_array, char *tok)
 	}
 
 	/* observe action type */
-	for (act=0; act<=-_PAM_ACTION_UNDEF; ++act) {
+	for (act=0; act < (-(_PAM_ACTION_UNDEF)); ++act) {
 	    len = strlen(_pam_token_actions[act]);
 	    if (!strncmp(_pam_token_actions[act], tok, len)) {
 		act *= -1;
