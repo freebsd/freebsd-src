@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.35 1995/06/10 14:20:10 jkh Exp $
+ * $Id: dist.c,v 1.36 1995/06/11 19:29:50 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,6 +104,7 @@ static Distribution SrcDistTable[] = {
 { "slibexec",	"/usr/src",		&SrcDists,	DIST_SRC_LIBEXEC,	NULL		},
 { "slkm",	"/usr/src",		&SrcDists,	DIST_SRC_LKM,		NULL		},
 { "srelease",	"/usr/src",		&SrcDists,	DIST_SRC_RELEASE,	NULL		},
+{ "sbin",	"/usr/src",		&SrcDists,	DIST_SRC_BIN,		NULL		},
 { "ssbin",	"/usr/src",		&SrcDists,	DIST_SRC_SBIN,		NULL		},
 { "sshare",	"/usr/src",		&SrcDists,	DIST_SRC_SHARE,		NULL		},
 { "ssys",	"/usr/src",		&SrcDists,	DIST_SRC_SYS,		NULL		},
@@ -414,14 +415,14 @@ distExtract(char *parent, Distribution *me)
     return status;
 }
 
-void
-distExtractAll(void)
+int
+distExtractAll(char *unused)
 {
     int retries = 0;
 
     /* First try to initialize the state of things */
     if (!(*mediaDevice->init)(mediaDevice))
-	return;
+	return 0;
 
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
@@ -433,4 +434,5 @@ distExtractAll(void)
 
     /* Close up shop and go home */
     (*mediaDevice->shutdown)(mediaDevice);
+    return 0;
 }

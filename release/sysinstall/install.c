@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.41 1995/06/10 07:58:37 jkh Exp $
+ * $Id: install.c,v 1.71 1995/06/11 19:29:58 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,7 +51,6 @@
 
 Boolean SystemWasInstalled = FALSE;
 
-static Boolean	make_filesystems(void);
 static Boolean	copy_self(void);
 static Boolean	root_extract(void);
 
@@ -122,7 +121,7 @@ checkLabels(void)
 	return FALSE;
     }
     else if (rootdev->name[strlen(rootdev->name) - 1] != 'a') {
-	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot block code.  Please correct this and\ntry again.");
+	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot code.  Please correct this and\ntry again.");
 	return FALSE;
     }
     if (!swapdev) {
@@ -137,11 +136,6 @@ checkLabels(void)
 static Boolean
 installInitial(void)
 {
-    extern u_char boot1[], boot2[];
-    extern u_char mbr[], bteasy17[];
-    u_char *mbrContents;
-    Device **devs;
-    int i;
     static Boolean alreadyDone = FALSE;
 
     if (alreadyDone)
@@ -158,67 +152,22 @@ installInitial(void)
     if (!checkLabels())
 	return FALSE;
 
-    /* Figure out what kind of MBR the user wants */
-    if (!dmenuOpenSimple(&MenuMBRType))
-	return FALSE;
-
-    switch (BootMgr) {
-    case 0:
-	mbrContents = bteasy17;
-	break;
-
-    case 1:
-	mbrContents = mbr;
-	break;
-
-    case 2:
-    default:
-	mbrContents = NULL;
-    }
-
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return FALSE;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    for (i = 0; devs[i]; i++) {
-	Chunk *c1;
-	Disk *d = (Disk *)devs[i]->private;
+    (void)diskPartitionWrite(NULL);
 
-	if (!devs[i]->enabled)
-	    continue;
-
-	if (mbrContents) {
-	    Set_Boot_Mgr(d, mbrContents);
-	    mbrContents = NULL;
-	}
-	Set_Boot_Blocks(d, boot1, boot2);
-	msgNotify("Writing partition information to drive %s", d->name);
-	Write_Disk(d);
-
-	/* Now scan for bad blocks, if necessary */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->flags & CHUNK_BAD144) {
-		int ret;
-
-		msgNotify("Running bad block scan on partition %s", c1->name);
-		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
-	    }
-	}
-    }
-    if (!make_filesystems()) {
+    if (!installFilesystems()) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
-	return 0;
+	return FALSE;
     }
+
     if (!copy_self()) {
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\nAborting.");
-	return 0;
+	return FALSE;
     }
+
     dialog_clear();
     chroot("/mnt");
     chdir("/");
@@ -247,11 +196,53 @@ installInitial(void)
     return TRUE;
 }
 
+int
+installExpress(char *str)
+{
+    /* Warn the user what it is we're about to do */
+    msgConfirm("You have chosen the express installation option.  This option will\nlead you through all the steps necessary to install FreeBSD for the\nfirst time on your machine.  If you would prefer to do these steps\nmanually then chose the Custom installation method instead.  The\ncontents of your hard disk(s) will not be modified until the very end\nof this installation, and only after a final confirmation.");
+
+    /* Bring up the partition editor */
+    diskPartitionEditor(NULL);
+    if (!getenv(DISK_PARTITIONED)) {
+	msgConfirm("You need to partition your disk before you can proceed with\nthis installation.");
+	return 0;
+    }
+    
+    /* Bring up the label editor */
+    diskLabelEditor(NULL);
+    if (!getenv(DISK_LABELLED)) {
+	msgConfirm("You need to assign disk labels before you can proceed with\nthis installation.");
+	return 0;
+    }
+    if (!checkLabels())
+	return 0;
+
+    /* Ask for the media type */
+    if (!dmenuOpenSimple(&MenuMedia))
+	return 0;
+    if (!mediaVerify())
+	return 0;
+
+    /* Select the distribution set we want */
+    if (!dmenuOpenSimple(&MenuInstallType))
+	return 0;
+
+    /* Do it all */
+    (void)installCommit(NULL);
+
+    /* Do post-configuration */
+    dmenuOpenSimple(&MenuConfigure);
+    return 0;
+}
+
 /*
- * What happens when we select "Install".  This is broken into a 3 stage installation so that
- * the user can do a full installation but come back here again to load more distributions,
- * perhaps from a different media type.  This would allow, for example, the user to load the
- * majority of the system from CDROM and then use ftp to load just the DES dist.
+ * What happens when we select "Commit" in the custom installation menu.
+ *
+ * This is broken into multiple stages so that the user can do a full installation but come
+ * back here again to load more distributions, perhaps from a different media type.
+ * This would allow, for example, the user to load the majority of the system from CDROM
+ * and then use ftp to load just the DES dist.
  */
 int
 installCommit(char *str)
@@ -263,6 +254,7 @@ installCommit(char *str)
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
     }
+
     if (!mediaVerify())
 	return 0;
 
@@ -271,7 +263,7 @@ installCommit(char *str)
 	    return 0;
 	configFstab();
     }
-    if (!SystemWasInstalled && !root_extract()) {
+    if (RunningAsInit && !SystemWasInstalled && !root_extract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
 	return 0;
     }
@@ -280,7 +272,7 @@ installCommit(char *str)
     if (Dists & DIST_BIN)
 	SystemWasInstalled = FALSE;
 
-    distExtractAll();
+    (void)distExtractAll(NULL);
 
     if (!SystemWasInstalled && access("/kernel", R_OK)) {
 	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
@@ -290,7 +282,7 @@ installCommit(char *str)
     }
 
     /* Resurrect /dev after bin distribution screws it up */
-    if (!SystemWasInstalled) {
+    if (RunningAsInit && !SystemWasInstalled) {
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all"))
 	    msgConfirm("MAKEDEV returned non-zero status");
@@ -325,17 +317,20 @@ installCommit(char *str)
     (void)system("chmod 755 /etc");
 
     dialog_clear();
-    if (Dists)
-	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
-    else
-	msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
+    if (str) {
+	if (Dists)
+	    msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+	else
+	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    }
     SystemWasInstalled = TRUE;
     return 0;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-static Boolean
-make_filesystems(void)
+Boolean
+installFilesystems(void)
 {
     int i;
     Disk *disk;

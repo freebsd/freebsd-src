@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.6.2.3 1995/06/05 12:03:44 jkh Exp $
+ * $Id: cdrom.c,v 1.7 1995/06/11 19:29:41 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitCDROM(Device *dev)
     struct iso_args	args;
     struct stat		sb;
 
-    if (cdromMounted)
+    if (!RunningAsInit || cdromMounted)
 	return TRUE;
 
     if (Mkdir("/cdrom", NULL))
@@ -115,7 +115,7 @@ mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
 void
 mediaShutdownCDROM(Device *dev)
 {
-    if (!cdromMounted)
+    if (!RunningAsInit || !cdromMounted)
 	return;
     msgDebug("Unmounting /cdrom\n");
     if (unmount("/cdrom", MNT_FORCE) != 0)

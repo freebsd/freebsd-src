@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.20 1995/06/10 09:14:53 jkh Exp $
+ * $Id: sysinstall.h,v 1.42 1995/06/11 19:30:09 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -251,6 +251,7 @@ extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
 extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
+extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
@@ -266,7 +267,7 @@ extern DMenu		MenuSysconsKeymap;	/* System console keymap configuration menu	*/
 extern DMenu		MenuSysconsKeyrate;	/* System console keyrate configuration menu	*/
 extern DMenu		MenuSysconsSaver;	/* System console saver configuration menu	*/
 extern DMenu		MenuNetworking;		/* Network configuration menu			*/
-extern DMenu		MenuInstall;		/* Installation menu				*/
+extern DMenu		MenuInstallCustom;	/* Custom Installation menu			*/
 extern DMenu		MenuInstallType;	/* Installation type menu			*/
 extern DMenu		MenuDistributions;	/* Distribution menu				*/
 extern DMenu		MenuDESDistributions;	/* DES distribution menu			*/
@@ -332,6 +333,7 @@ extern void	dummyShutdown(Device *dev);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);
+extern int	diskPartitionWrite(char *unused);
 
 /* dist.c */
 extern int	distReset(char *str);
@@ -345,7 +347,7 @@ extern int	distSetEverything(char *str);
 extern int	distSetDES(char *str);
 extern int	distSetSrc(char *str);
 extern int	distSetXF86(char *str);
-extern void	distExtractAll(void);
+extern int	distExtractAll(char *str);
 
 /* dmenu.c */
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
@@ -377,6 +379,8 @@ extern void	globalsInit(void);
 
 /* install.c */
 extern int	installCommit(char *str);
+extern int	installExpress(char *str);
+extern Boolean	installFilesystems(void);
 
 /* lang.c */
 extern void	lang_set_Danish(char *str);
@@ -393,6 +397,7 @@ extern void	lang_set_Swedish(char *str);
 
 /* label.c */
 extern int	diskLabelEditor(char *str);
+extern int	diskLabelCommit(char *str);
 
 /* makedevs.c (auto-generated) */
 extern const char	termcap_vt100[];
@@ -414,6 +419,8 @@ extern int	mediaSetFloppy(char *str);
 extern int	mediaSetDOS(char *str);
 extern int	mediaSetTape(char *str);
 extern int	mediaSetFTP(char *str);
+extern int	mediaSetFTPActive(char *str);
+extern int	mediaSetFTPPassive(char *str);
 extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
 extern Boolean	mediaGetType(void);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.31.2.4 1995/06/07 06:38:11 jkh Exp $
+ * $Id: label.c,v 1.32 1995/06/11 19:29:59 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -678,5 +678,12 @@ diskLabelEditor(char *str)
     return 0;
 }
 
-
-
+int
+diskLabelCommit(char *str)
+{
+    if (!getenv(DISK_LABELLED))
+	msgConfirm("You must assign disk labels before this option can be used.");
+    else if (!installFilesystems())
+	msgConfirm("Failed to make/mount all filesystems.  Please correct\nwhatever went wrong and try again.");
+    return 0;
+}

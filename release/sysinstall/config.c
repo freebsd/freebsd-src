@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.28 1995/06/10 08:24:28 jkh Exp $
+ * $Id: config.c,v 1.16 1995/06/11 19:29:43 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -114,7 +114,7 @@ fstype_short(Chunk *c1)
 	    return "sw";
     }
     else if (c1->type == fat)
-	return "rw";
+	return "ro";
     return "bog";
 }
 
