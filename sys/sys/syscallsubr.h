@@ -30,6 +30,7 @@
 
 #include <sys/signal.h>
 #include <sys/uio.h>
+#include <sys/socket.h>
 
 struct sockaddr;
 struct msghdr;
@@ -49,6 +50,8 @@ int	kern_connect(struct thread *td, int fd, struct sockaddr *sa);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_getsockopt(struct thread *td, int s, int level, int name,
+	    void *optval, enum uio_seg valseg, socklen_t *valsize);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
 int	kern_link(struct thread *td, char *path, char *link,
@@ -74,6 +77,8 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control);
+int	kern_setsockopt(struct thread *td, int s, int level, int name,
+	    void *optval, enum uio_seg valseg, socklen_t valsize);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
