@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_setcred.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_setcred.c#11 $
  */
 
 #include <sys/param.h>
@@ -52,11 +52,12 @@ pam_setcred(pam_handle_t *pamh,
 	int flags)
 {
 
+	ENTER();
 	if (flags & ~(PAM_SILENT|PAM_ESTABLISH_CRED|PAM_DELETE_CRED|
 		PAM_REINITIALIZE_CRED|PAM_REFRESH_CRED))
-		return (PAM_SYMBOL_ERR);
+		RETURNC(PAM_SYMBOL_ERR);
 	/* XXX enforce exclusivity */
-	return (openpam_dispatch(pamh, PAM_SM_SETCRED, flags));
+	RETURNC(openpam_dispatch(pamh, PAM_SM_SETCRED, flags));
 }
 
 /*

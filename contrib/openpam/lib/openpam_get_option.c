@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_get_option.c#4 $
+ * $P4: //depot/projects/openpam/lib/openpam_get_option.c#5 $
  */
 
 #include <sys/param.h>
@@ -57,19 +57,20 @@ openpam_get_option(pam_handle_t *pamh,
 	size_t len;
 	int i;
 
+	ENTER();
 	if (pamh == NULL || pamh->current == NULL || option == NULL)
-		return (NULL);
+		RETURNS(NULL);
 	cur = pamh->current;
 	len = strlen(option);
 	for (i = 0; i < cur->optc; ++i) {
 		if (strncmp(cur->optv[i], option, len) == 0) {
 			if (cur->optv[i][len] == '\0')
-				return (&cur->optv[i][len]);
+				RETURNS(&cur->optv[i][len]);
 			else if (cur->optv[i][len] == '=')
-				return (&cur->optv[i][len + 1]);
+				RETURNS(&cur->optv[i][len + 1]);
 		}
 	}
-	return (NULL);
+	RETURNS(NULL);
 }
 
 /*

@@ -1,3 +1,18 @@
+OpenPAM Cyclamen						2002-12-12
+
+ - ENHANCE: Improve recursion detection in openpam_dispatch().
+
+ - ENHANCE: Add debugging messages at entry and exit points of most
+   functions.
+
+ - ENHANCE: Fix some minor style issues.
+
+ - BUGFIX: Add default cases to the switches in openpam_log.c.
+
+ - ENHANCE: Add /usr/local/etc/pam.conf to policy search path.
+
+ - BUGFIX: In openpam_ttyconv(3), print the prompt to stdout rather
+   than stderr.
 ============================================================================
 OpenPAM Citronella						2002-06-30
 
@@ -6,7 +21,7 @@ OpenPAM Citronella						2002-06-30
  - ENHANCE: Define struct pam_repository and PAM_REPOSITORY (from
    Solaris 9).
 
- - ENHANCE: Flesh out the pam(3) man page.  
+ - ENHANCE: Flesh out the pam(3) man page.
 
  - ENHANCE: Add an openpam(3) page with cross-references to all the
    documented OpenPAM API extensions.
@@ -19,7 +34,6 @@ OpenPAM Citronella						2002-06-30
  - ENHANCE: Added sample pam_unix module.
 
  - BUGFIX: Various documentation nits.
-
 ============================================================================
 OpenPAM Cinquefoil						2002-05-24
 
@@ -184,4 +198,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#13 $
+$P4: //depot/projects/openpam/HISTORY#16 $

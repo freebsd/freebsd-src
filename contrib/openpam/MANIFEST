@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/openpam/MANIFEST#12 $
+# $P4: //depot/projects/openpam/MANIFEST#13 $
 #
 CREDITS
 HISTORY
@@ -125,8 +125,6 @@ misc/gendoc.pl
 modules/Makefile
 modules/pam_deny/Makefile
 modules/pam_deny/pam_deny.c
-modules/pam_dummy/Makefile
-modules/pam_dummy/pam_dummy.c
 modules/pam_permit/Makefile
 modules/pam_permit/pam_permit.c
 modules/pam_unix/Makefile

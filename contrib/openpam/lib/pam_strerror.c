@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_strerror.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_strerror.c#11 $
  */
 
 #include <stdio.h>
@@ -39,6 +39,39 @@
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
+
+const char *_pam_err_name[PAM_NUM_ERRORS] = {
+	"PAM_SUCCESS",
+	"PAM_OPEN_ERR",
+	"PAM_SYMBOL_ERR",
+	"PAM_SERVICE_ERR",
+	"PAM_SYSTEM_ERR",
+	"PAM_BUF_ERR",
+	"PAM_CONV_ERR",
+	"PAM_PERM_DENIED",
+	"PAM_MAXTRIES",
+	"PAM_AUTH_ERR",
+	"PAM_NEW_AUTHTOK_REQD",
+	"PAM_CRED_INSUFFICIENT",
+	"PAM_AUTHINFO_UNAVAIL",
+	"PAM_USER_UNKNOWN",
+	"PAM_CRED_UNAVAIL",
+	"PAM_CRED_EXPIRED",
+	"PAM_CRED_ERR",
+	"PAM_ACCT_EXPIRED",
+	"PAM_AUTHTOK_EXPIRED",
+	"PAM_SESSION_ERR",
+	"PAM_AUTHTOK_ERR",
+	"PAM_AUTHTOK_RECOVERY_ERR",
+	"PAM_AUTHTOK_LOCK_BUSY",
+	"PAM_AUTHTOK_DISABLE_AGING",
+	"PAM_NO_MODULE_DATA",
+	"PAM_IGNORE",
+	"PAM_ABORT",
+	"PAM_TRY_AGAIN",
+	"PAM_MODULE_UNKNOWN",
+	"PAM_DOMAIN_UNKNOWN"
+};
 
 /*
  * XSSO 4.2.1
@@ -53,7 +86,7 @@ pam_strerror(pam_handle_t *pamh,
 {
 	static char unknown[16];
 
-	pamh = pamh;
+	(void)pamh;
 
 	switch (error_number) {
 	case PAM_SUCCESS:

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_free_data.c#2 $
+ * $P4: //depot/projects/openpam/lib/openpam_free_data.c#3 $
  */
 
 #include <stdlib.h>
@@ -50,10 +50,12 @@
 void
 openpam_free_data(pam_handle_t *pamh, void *data, int status)
 {
-	/* silence compiler warnings */
-	pamh = pamh;
-	status = status;
+
+	ENTER();
+	(void)pamh;
+	(void)status;
 	free(data);
+	RETURNV();
 }
 
 /*

@@ -31,13 +31,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_nullconv.c#3 $
+ * $P4: //depot/projects/openpam/lib/openpam_nullconv.c#4 $
  */
 
 #include <sys/types.h>
 
 #include <security/pam_appl.h>
-#include <security/openpam.h>
+
+#include "openpam_impl.h"
 
 /*
  * OpenPAM extension
@@ -52,11 +53,12 @@ openpam_nullconv(int n,
 	 void *data)
 {
 
+	ENTER();
 	(void)n;
 	(void)msg;
 	(void)resp;
 	(void)data;
-	return (PAM_CONV_ERR);
+	RETURNC(PAM_CONV_ERR);
 }
 
 /*
