@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: subr_xxx.c,v 1.8 1997/02/22 09:39:18 peter Exp $
  */
 
 /*
@@ -159,17 +159,6 @@ nodevtotty(dev)
 }
 
 int
-noselect(dev, rw, p)
-	dev_t dev;
-	int rw;
-	struct proc *p;
-{
-
-	/* XXX is this distinguished from 1 for data available? */
-	return (ENODEV);
-}
-
-int
 nommap(dev, offset, nprot)
 	dev_t dev;
 	int offset;
@@ -285,19 +274,6 @@ nxioctl(dev, cmd, data, flags, p)
 {
 
 	printf("nxioctl(0x%x) called\n", dev);
-	return (ENXIO);
-}
-
-int
-nxselect(dev, rw, p)
-	dev_t dev;
-	int rw;
-	struct proc *p;
-{
-
-	printf("nxselect(0x%x) called\n", dev);
-
-	/* XXX is this distinguished from 1 for data available? */
 	return (ENXIO);
 }
 
