@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.var.dist,v 1.28 1997/02/23 09:21:07 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -26,6 +26,8 @@
 /set type=dir uname=games gname=bin mode=0755
     games
         hackdir
+        ..
+        larn
         ..
         phantasia
         ..
