@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.237 1996/09/19 08:35:41 phk Exp $
+#	$Id: Makefile,v 1.238 1996/09/25 00:43:23 pst Exp $
 #
 # How to roll a release:
 #
@@ -100,9 +100,9 @@ rerelease release:
 .if make(rerelease)
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
-	cd ${CHROOTDIR}/usr && cvs -q update -P -d  src
+	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d
 .else
-	cd ${CHROOTDIR}/usr && cvs -q update -P -d  -r ${RELEASETAG} src
+	cd ${CHROOTDIR}/usr/src && cvs -q update -P -d -r ${RELEASETAG}
 .endif
 .endif
 .endif
@@ -112,6 +112,7 @@ rerelease release:
 	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && \
 	  mv version.h.new version.h )
+	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
 	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
@@ -374,6 +375,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
+	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
