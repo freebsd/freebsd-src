@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <tzfile.h>
 #include <unistd.h>
 
 #include "chpass.h"
@@ -64,7 +63,7 @@ ttoa(tval)
 	if (tval) {
 		tp = localtime(&tval);
 		(void)sprintf(tbuf, "%s %d, %d", months[tp->tm_mon],
-		    tp->tm_mday, tp->tm_year + TM_YEAR_BASE);
+		    tp->tm_mday, tp->tm_year + 1900);
 	}
 	else
 		*tbuf = '\0';
@@ -109,10 +108,10 @@ atot(p, store)
 	if (day < 1 || day > 31 || month < 1 || month > 12 || !year)
 		goto bad;
 	if (year < 100)
-		year += TM_YEAR_BASE;
-	if (year <= EPOCH_YEAR)
+		year += 1900;
+	if (year <= 1970)
 bad:		return (1);
-	lt->tm_year = year - TM_YEAR_BASE;
+	lt->tm_year = year - 1900;
 	lt->tm_mon = month - 1;
 	lt->tm_mday = day;
 	lt->tm_hour = 0;
