@@ -268,7 +268,7 @@ boot(int howto)
 		int subiter;
 
 		waittime = 0;
-		printf("\nsyncing disks... ");
+		printf("\nsyncing disks, buffers remaining... ");
 
 		sync(&thread0, NULL);
 
