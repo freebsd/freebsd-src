@@ -168,10 +168,16 @@ inthand_t
 	IDTVEC(fastintr16), IDTVEC(fastintr17),
 	IDTVEC(fastintr18), IDTVEC(fastintr19),
 	IDTVEC(fastintr20), IDTVEC(fastintr21),
-	IDTVEC(fastintr22), IDTVEC(fastintr23);
+	IDTVEC(fastintr22), IDTVEC(fastintr23),
+	IDTVEC(fastintr24), IDTVEC(fastintr25),
+	IDTVEC(fastintr26), IDTVEC(fastintr27),
+	IDTVEC(fastintr28), IDTVEC(fastintr29),
+	IDTVEC(fastintr30), IDTVEC(fastintr31);
 inthand_t
 	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
-	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
+	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23),
+	IDTVEC(intr24), IDTVEC(intr25), IDTVEC(intr26), IDTVEC(intr27),
+	IDTVEC(intr28), IDTVEC(intr29), IDTVEC(intr30), IDTVEC(intr31);
 
 inthand_t
 	Xinvltlb,	/* TLB shootdowns */

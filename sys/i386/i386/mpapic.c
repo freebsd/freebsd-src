@@ -37,6 +37,7 @@
 #include <machine/segments.h>
 
 #include <i386/isa/intr_machdep.h>	/* Xspuriousint() */
+#include <i386/isa/icu.h>		/* apic_imen */
 
 /* EISA Edge/Level trigger control registers */
 #define ELCR0	0x4d0			/* eisa irq 0-7 */
@@ -444,14 +445,13 @@ bad:
 /*
  * Print contents of apic_imen.
  */
-extern	u_int apic_imen;		/* keep apic_imen 'opaque' */
 void
 imen_dump(void)
 {
 	int x;
 
 	printf("SMP: enabled INTs: ");
-	for (x = 0; x < 24; ++x)
+	for (x = 0; x < APIC_IMEN_BITS; ++x)
 		if ((apic_imen & (1 << x)) == 0)
         		printf("%d, ", x);
 	printf("apic_imen: 0x%08x\n", apic_imen);
