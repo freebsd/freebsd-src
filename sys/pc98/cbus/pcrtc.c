@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.30 1997/07/23 11:28:39 kato Exp $
+ *	$Id: clock.c,v 1.31 1997/07/26 13:52:47 kato Exp $
  */
 
 /*
@@ -70,7 +70,6 @@
 #include <machine/ipl.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
-#include <machine/smptests.h>		/** NEW_STRATEGY (,SMP_TIMER_NC) */
 #endif /* APIC_IO */
 
 #include <i386/isa/icu.h>
@@ -83,6 +82,9 @@
 #include <i386/isa/rtc.h>
 #endif
 #include <i386/isa/timerreg.h>
+
+#include <i386/isa/intr_machdep.h>
+#include <sys/interrupt.h>
 
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
@@ -1163,11 +1165,6 @@ cpu_initclocks()
 	/* Finish initializing 8253 timer 0. */
 #ifdef APIC_IO
 
-#ifdef NEW_STRATEGY
-#ifdef SMP_TIMER_NC
-#error 'options SMP_TIMER_NC' no longer used, remove & reconfig.
-#endif	/** XXX SMP_TIMER_NC */
-
 	/* 1st look for ExtInt on pin 0 */
 	if (apic_int_type(0, 0) == 3) {
 		/*
@@ -1200,33 +1197,6 @@ cpu_initclocks()
 	/* better write that 8254 INT discover code... */
 	else 
 		panic("neither pin 0 or pin 2 works for 8254");
-
-#else /** NEW_STRATEGY */
-
-	/* 8254 is traditionally on ISA IRQ0 */
-#if defined(SMP_TIMER_NC)
-	x = -1;
-#else
-	x = isa_apic_pin(0);
-#endif	/** XXX SMP_TIMER_NC */
-
-	if (x < 0) {
-		/* bummer, attempt to redirect thru the 8259 */
-		if (bootverbose)
-			printf("APIC missing 8254 connection\n");
-
-		/* allow 8254 timer to INTerrupt 8259 */
-		x = inb(IO_ICU1 + 1);		/* current mask in 8259 */
-		x &= ~1;			/* clear 8254 timer mask */
-		outb(IO_ICU1 + 1, x);		/* write new mask */
-
-		/* program IO APIC for type 3 INT on INT0 */
-		if (ext_int_setup(0, 0) < 0)
-			panic("8254 redirect impossible!");
-		x = 0;				/* 8259 is on 0 */
-	}
-
-#endif /** NEW_STRATEGY */
 
 	/* setup the vectors */
 	vec[x] = (u_int)vec8254;
@@ -1271,9 +1241,11 @@ cpu_initclocks()
 	if (isa_apic_pin(8) != 8)
 		panic("APIC RTC != 8");
 #endif /* APIC_IO */
+
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
+
 #ifdef APIC_IO
 	INTREN(APIC_IRQ8);
 #else
