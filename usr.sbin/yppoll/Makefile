@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	yppoll
-MAN8=	yppoll.8
 
 .include <bsd.prog.mk>

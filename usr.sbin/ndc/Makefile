@@ -9,6 +9,5 @@ USE_LIBBIND=	true
 PROG=	ndc
 SRCS=	pathnames.h \
 	ndc.c 
-MAN8=	ndc.8
 
 .include <bsd.prog.mk>

@@ -6,7 +6,6 @@ CFLAGS+=-I. -I${.CURDIR}
 CFLAGS+=${BDECFLAGS}
 SRCS=	config.y main.c lang.l mkmakefile.c mkheaders.c \
 	mkoptions.c y.tab.h
-MAN8=	config.8
 DPADD=	${LIBL}
 LDADD=	-ll
 

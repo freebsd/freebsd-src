@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	sysinstall
-MAN8=	sysinstall.8
 
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
 CLEANFILES+=	keymap.tmp keymap.h
