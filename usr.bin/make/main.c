@@ -168,11 +168,7 @@ MainParseArgs(int argc, char **argv)
 	int c;
 
 	optind = 1;	/* since we're called more than once */
-#ifdef REMOTE
-# define OPTFLAGS "BC:D:E:I:L:PSV:Xd:ef:ij:km:nqrstv"
-#else
-# define OPTFLAGS "BC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
-#endif
+#define OPTFLAGS "BC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
 		case 'C':
@@ -198,20 +194,6 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			compatMake = TRUE;
 			MFLAGS_append("-B", NULL);
 			break;
-#ifdef REMOTE
-		case 'L': {
-			char *endptr;
-
-			maxLocal = strtol(optarg, &endptr, 10);
-			if (maxLocal < 0 || *endptr != '\0') {
-				warnx("illegal number, -L argument -- %s",
-				    optarg);
-				usage();
-			}
-			MFLAGS_append("-L", optarg);
-			break;
-		}
-#endif
 		case 'P':
 			usePipes = FALSE;
 			MFLAGS_append("-P", NULL);
@@ -302,9 +284,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 				    optarg);
 				usage();
 			}
-#ifndef REMOTE
 			maxLocal = maxJobs;
-#endif
 			MFLAGS_append("-j", optarg);
 			break;
 		}
@@ -599,11 +579,7 @@ main(int argc, char **argv)
 	jobsRunning = FALSE;
 
 	maxLocal = DEFMAXLOCAL;		/* Set default local max concurrency */
-#ifdef REMOTE
-	maxJobs = DEFMAXJOBS;		/* Set default max concurrency */
-#else
 	maxJobs = maxLocal;
-#endif
 	forceJobs = FALSE;              /* No -j flag */
 	compatMake = FALSE;		/* No compat mode */
 
