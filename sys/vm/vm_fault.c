@@ -801,7 +801,7 @@ readrest:
 
 		/*
 		 * To avoid trying to write_lock the map while another process
-		 * has it read_locked (in vm_map_pageable), we do not try for
+		 * has it read_locked (in vm_map_wire), we do not try for
 		 * write permission.  If the page is still writable, we will
 		 * get write permission.  If it is not, or has been marked
 		 * needs_copy, we enter the mapping without write permission,
