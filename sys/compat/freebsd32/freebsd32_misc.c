@@ -1203,25 +1203,21 @@ freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
-
- 	error = copyin(uap->name, &name, uap->namelen * sizeof(int));
+ 	error = copyin(uap->name, name, uap->namelen * sizeof(int));
  	if (error)
 		return (error);
-
 	mtx_lock(&Giant);
-
 	if (uap->oldlenp)
 		oldlen = fuword32(uap->oldlenp);
 	else
 		oldlen = 0;
 	error = userland_sysctl(td, name, uap->namelen,
 		uap->old, &oldlen, 1,
-		uap->new, uap->newlen, &j);
+		uap->new, uap->newlen, &j, SCTL_MASK32);
 	if (error && error != ENOMEM)
 		goto done2;
-	if (uap->oldlenp) {
+	if (uap->oldlenp)
 		suword32(uap->oldlenp, j);
-	}
 done2:
 	mtx_unlock(&Giant);
 	return (error);
