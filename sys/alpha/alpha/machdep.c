@@ -88,6 +88,7 @@
  * rights to redistribute these changes.
  */
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_simos.h"
 #include "opt_sysvipc.h"
