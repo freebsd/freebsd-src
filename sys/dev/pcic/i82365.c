@@ -199,8 +199,7 @@ pcic_vendor_to_string(int vendor)
 static int
 pcic_activate(device_t dev)
 {
-	struct pcic_softc *sc = (struct pcic_softc *)
-	    device_get_softc(dev);
+	struct pcic_softc *sc = PCIC_SOFTC(dev);
 	int err;
 
 	sc->port_rid = 0;
@@ -250,7 +249,7 @@ pcic_activate(device_t dev)
 void
 pcic_deactivate(device_t dev)
 {
-	struct pcic_softc *sc = device_get_softc(dev);
+	struct pcic_softc *sc = PCIC_SOFTC(dev);
 	
 	if (sc->intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->intrhand);
@@ -273,8 +272,7 @@ pcic_deactivate(device_t dev)
 int
 pcic_attach(device_t dev)
 {
-	struct pcic_softc *sc = (struct pcic_softc *)
-	    device_get_softc(dev);
+	struct pcic_softc *sc = PCIC_SOFTC(dev);
 	struct pcic_handle *h;
 	int vendor, count, i, reg, error;
 
@@ -713,28 +711,28 @@ pcic_queue_event(struct pcic_handle *h, int event)
 static void
 pcic_attach_card(struct pcic_handle *h)
 {
-	DPRINTF(("pcic_attach_card h %p h->dev %p %s %s\n", h, h->dev,
-	    device_get_name(h->dev), device_get_name(device_get_parent(h->dev))));
+	DPRINTF(("pcic_attach_card h %p h->dev %p\n", h, h->dev));
 	if (!(h->flags & PCIC_FLAG_CARDP)) {
+		DPRINTF(("Calling MI attach function\n"));
 		/* call the MI attach function */
 		CARD_ATTACH_CARD(h->dev);
 		h->flags |= PCIC_FLAG_CARDP;
 	} else {
-		DPRINTF(("pcic_attach_card: already attached"));
+		DPRINTF(("pcic_attach_card: already attached\n"));
 	}
 }
 
 static void
 pcic_detach_card(struct pcic_handle *h, int flags)
 {
-
+	DPRINTF(("pcic_detach_card h %p h->dev %p\n", h, h->dev));
 	if (h->flags & PCIC_FLAG_CARDP) {
 		h->flags &= ~PCIC_FLAG_CARDP;
 
 		/* call the MI detach function */
 		CARD_DETACH_CARD(h->dev, flags);
 	} else {
-		DPRINTF(("pcic_detach_card: already detached"));
+		DPRINTF(("pcic_detach_card: already detached\n"));
 	}
 }
 
@@ -1517,18 +1515,18 @@ pcic_start_threads(void *arg)
 int
 pcic_detach(device_t dev)
 {
-	device_t pccarddev;
 	device_t *kids;
 	int nkids;
 	int i;
 	int ret;
 
+	pcic_deactivate(dev);
 	ret = bus_generic_detach(dev);
 	if (ret != 0)
 		return (ret);
 	device_get_children(dev, &kids, &nkids);
 	for (i = 0; i < nkids; i++) {
-		if ((ret = device_delete_child(pccarddev, kids[i])) != 0)
+		if ((ret = device_delete_child(dev, kids[i])) != 0)
 			device_printf(dev, "delete of %s failed: %d\n",
 				device_get_nameunit(kids[i]), ret);
 	}
