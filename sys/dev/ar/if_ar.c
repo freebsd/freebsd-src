@@ -1890,12 +1890,12 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				TRC(int ind = sc->rxhind;)
 
 				ar_get_packets(sc);
-				TRC(
 #ifndef	NETGRAPH
-				if(tt == sc->ifsppp.pp_if.if_ipackets) {
+#define	IPACKETS sc->ifsppp.pp_if.if_ipackets
 #else	/* NETGRAPH */
-				if(tt == sc->ipackets) {
+#define	IPACKETS sc->ipackets
 #endif	/* NETGRAPH */
+				TRC(if(tt == IPACKETS) {
 					sca_descriptor *rxdesc;
 					int i;
 
