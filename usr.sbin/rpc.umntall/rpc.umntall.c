@@ -88,10 +88,6 @@ main(int argc, char **argv) {
 	argc -= optind;
 	argv += optind;
 
-	/* Ignore SIGINT and SIGQUIT during shutdown */
-	signal(SIGINT, SIG_IGN);
-	signal(SIGQUIT, SIG_IGN);
-
 	/* Default expiretime is one day */
 	if (expire == 0)
 		expire = 86400;
