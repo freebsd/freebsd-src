@@ -39,7 +39,8 @@
 .Nm rexecd
 .Nd remote execution server
 .Sh SYNOPSIS
-.Nm rexecd [-i]
+.Nm rexecd
+.Op Fl i
 .Sh DESCRIPTION
 .Nm Rexecd
 is the server for the 
@@ -99,9 +100,11 @@ by
 .El
 .Sh CAVEATS
 .Nm Rexecd
-will not allow root logins unless the -i option is given on
-the command line (typically in inetd.conf). It will also
-disallow access for users listed in
+will not allow root logins unless the
+.Fl i
+option is given on the command line (typically in
+.Pa /etc/inetd.conf ) .
+It will also disallow access for users listed in
 .Pa /etc/ftpusers ,
 or users with no passwords, which were all serious security holes.
 The entire concept of rexec/rexecd is a major security hole and an example
