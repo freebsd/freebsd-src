@@ -31,13 +31,14 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 struct snd_dbuf *
-sndbuf_create(device_t dev, char *drv, char *desc)
+sndbuf_create(device_t dev, char *drv, char *desc, struct pcm_channel *channel)
 {
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
 	b->dev = dev;
+	b->channel = channel;
 
 	return b;
 }
@@ -113,27 +114,38 @@ sndbuf_free(struct snd_dbuf *b)
 int
 sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
-	u_int8_t *tmpbuf;
+	u_int8_t *tmpbuf, *f2;
+
+	chn_lock(b->channel);
 	if (b->maxsize == 0)
-		return 0;
+		goto out;
 	if (blkcnt == 0)
 		blkcnt = b->blkcnt;
 	if (blksz == 0)
 		blksz = b->blksz;
-	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz > b->maxsize))
+	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz > b->maxsize)) {
+		chn_unlock(b->channel);
 		return EINVAL;
+	}
 	if (blkcnt == b->blkcnt && blksz == b->blksz)
-		return 0;
+		goto out;
+
+	chn_unlock(b->channel);
+	tmpbuf = malloc(blkcnt * blksz, M_DEVBUF, M_WAITOK);
+	if (tmpbuf == NULL)
+		return ENOMEM;
+	chn_lock(b->channel);
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
 	b->bufsize = blkcnt * blksz;
-
-	tmpbuf = malloc(b->bufsize, M_DEVBUF, M_NOWAIT);
-	if (tmpbuf == NULL)
-		return ENOMEM;
-	free(b->tmpbuf, M_DEVBUF);
+	f2 =  b->tmpbuf;
 	b->tmpbuf = tmpbuf;
 	sndbuf_reset(b);
+	chn_unlock(b->channel);
+	free(f2, M_DEVBUF);
+	return 0;
+out:
+	chn_unlock(b->channel);
 	return 0;
 }
 
@@ -142,21 +154,27 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
         u_int8_t *buf, *tmpbuf, *f1, *f2;
         unsigned int bufsize;
+	int ret;
 
 	if (blkcnt < 2 || blksz < 16)
 		return EINVAL;
 
 	bufsize = blksz * blkcnt;
 
-	buf = malloc(bufsize, M_DEVBUF, M_NOWAIT);
-	if (buf == NULL)
-		return ENOMEM;
+	chn_unlock(b->channel);
+	buf = malloc(bufsize, M_DEVBUF, M_WAITOK);
+	if (buf == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
 
-	tmpbuf = malloc(bufsize, M_DEVBUF, M_NOWAIT);
+	tmpbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
    	if (tmpbuf == NULL) {
 		free(buf, M_DEVBUF);
-		return ENOMEM;
+		ret = ENOMEM;
+		goto out;
 	}
+	chn_lock(b->channel);
 
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
@@ -167,13 +185,18 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 	b->buf = buf;
 	b->tmpbuf = tmpbuf;
 
+	sndbuf_reset(b);
+
+	chn_unlock(b->channel);
       	if (f1)
 		free(f1, M_DEVBUF);
       	if (f2)
 		free(f2, M_DEVBUF);
 
-	sndbuf_reset(b);
-	return 0;
+	ret = 0;
+out:
+	chn_lock(b->channel);
+	return ret;
 }
 
 void
