@@ -21,6 +21,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -143,21 +144,22 @@ struct t_op {
 struct t_op const *t_wp_op;
 char **t_wp;
 
-static void syntax __P((const char *, const char *));
-static enum token t_lex __P((char *));
-static int oexpr __P((enum token));
-static int aexpr __P((enum token));
-static int nexpr __P((enum token));
-static int primary __P((enum token));
-static int binop __P((void));
-static int filstat __P((char *, enum token));
-static int isoperand __P((void));
-static int getn __P((const char *));
-static quad_t getq __P((const char *));
-static int intcmp __P((const char *, const char *));
-static int newerf __P((const char *, const char *));
-static int olderf __P((const char *, const char *));
-static int equalf __P((const char *, const char *));
+static int	aexpr __P((enum token));
+static int	binop __P((void));
+static int	equalf __P((const char *, const char *));
+static int	filstat __P((char *, enum token));
+static int	getn __P((const char *));
+static quad_t	getq __P((const char *));
+static int	intcmp __P((const char *, const char *));
+static int	isoperand __P((void));
+int		main __P((int, char **));
+static int	newerf __P((const char *, const char *));
+static int	nexpr __P((enum token));
+static int	oexpr __P((enum token));
+static int	olderf __P((const char *, const char *));
+static int	primary __P((enum token));
+static void	syntax __P((const char *, const char *));
+static enum	token t_lex __P((char *));
 
 int
 main(argc, argv)
