@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.3 1998/07/22 08:32:17 dfr Exp $
+ *	$Id: apecs.c,v 1.1 1998/08/10 07:53:59 dfr Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -102,6 +102,7 @@ static alpha_chipset_cfgreadl_t	apecs_swiz_cfgreadl;
 static alpha_chipset_cfgwriteb_t  apecs_swiz_cfgwriteb;
 static alpha_chipset_cfgwritew_t  apecs_swiz_cfgwritew;
 static alpha_chipset_cfgwritel_t  apecs_swiz_cfgwritel;
+static alpha_chipset_addrcvt_t    apecs_cvt_dense;
 
 static alpha_chipset_t apecs_swiz_chipset = {
 	apecs_swiz_inb,
@@ -123,6 +124,8 @@ static alpha_chipset_t apecs_swiz_chipset = {
 	apecs_swiz_cfgwriteb,
 	apecs_swiz_cfgwritew,
 	apecs_swiz_cfgwritel,
+	apecs_cvt_dense,
+	NULL,
 };
 
 static int
@@ -406,6 +409,16 @@ apecs_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 	alpha_wmb();
 }
 #endif
+
+
+static vm_offset_t
+apecs_cvt_dense(vm_offset_t addr)
+{
+	addr &= 0xffffffffUL;
+	return (addr | APECS_PCI_DENSE);
+	
+}
+
 
 static int apecs_probe(device_t dev);
 static int apecs_attach(device_t dev);

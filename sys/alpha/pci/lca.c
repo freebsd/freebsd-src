@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lca.c,v 1.1 1998/08/10 07:53:59 dfr Exp $
+ *	$Id: lca.c,v 1.2 1998/09/23 21:23:51 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -69,6 +69,7 @@ static alpha_chipset_cfgreadl_t	lca_cfgreadl;
 static alpha_chipset_cfgwriteb_t lca_cfgwriteb;
 static alpha_chipset_cfgwritew_t lca_cfgwritew;
 static alpha_chipset_cfgwritel_t lca_cfgwritel;
+static alpha_chipset_addrcvt_t   lca_cvt_dense;
 
 static alpha_chipset_t lca_chipset = {
 	lca_inb,
@@ -90,6 +91,7 @@ static alpha_chipset_t lca_chipset = {
 	lca_cfgwriteb,
 	lca_cfgwritew,
 	lca_cfgwritel,
+	lca_cvt_dense,
 };
 
 static u_int8_t
@@ -301,6 +303,15 @@ lca_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	CFGWRITE(b, s, f, r, data, LONG, u_int16_t);
 }
+
+static vm_offset_t
+lca_cvt_dense(vm_offset_t addr)
+{
+	addr &= 0xffffffffUL;
+	return (addr | LCA_PCI_DENSE);
+	
+}
+
 
 static int lca_probe(device_t dev);
 static int lca_attach(device_t dev);

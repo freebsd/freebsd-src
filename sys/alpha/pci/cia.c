@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.8 1998/08/13 08:11:27 dfr Exp $
+ *	$Id: cia.c,v 1.9 1998/09/16 08:24:30 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -137,6 +137,7 @@ static alpha_chipset_cfgreadl_t	cia_bwx_cfgreadl, cia_swiz_cfgreadl;
 static alpha_chipset_cfgwriteb_t cia_bwx_cfgwriteb, cia_swiz_cfgwriteb;
 static alpha_chipset_cfgwritew_t cia_bwx_cfgwritew, cia_swiz_cfgwritew;
 static alpha_chipset_cfgwritel_t cia_bwx_cfgwritel, cia_swiz_cfgwritel;
+static alpha_chipset_addrcvt_t   cia_cvt_dense,  cia_cvt_bwx;
 
 static alpha_chipset_t cia_bwx_chipset = {
 	cia_bwx_inb,
@@ -158,6 +159,8 @@ static alpha_chipset_t cia_bwx_chipset = {
 	cia_bwx_cfgwriteb,
 	cia_bwx_cfgwritew,
 	cia_bwx_cfgwritel,
+	cia_cvt_dense,
+	cia_cvt_bwx,
 };
 static alpha_chipset_t cia_swiz_chipset = {
 	cia_swiz_inb,
@@ -179,6 +182,8 @@ static alpha_chipset_t cia_swiz_chipset = {
 	cia_swiz_cfgwriteb,
 	cia_swiz_cfgwritew,
 	cia_swiz_cfgwritel,
+	cia_cvt_dense,
+	NULL,
 };
 
 static u_int8_t
@@ -595,6 +600,23 @@ cia_swiz_cfgwritel(u_int b, u_int s, u_int f, u_int r, u_int32_t data)
 {
 	SWIZ_CFGWRITE(b, s, f, r, data, LONG, u_int32_t);
 }
+
+vm_offset_t
+cia_cvt_dense(vm_offset_t addr)
+{
+	addr &= 0xffffffffUL;
+	return (addr | CIA_PCI_DENSE);
+	
+}
+
+vm_offset_t
+cia_cvt_bwx(vm_offset_t addr)
+{
+	addr &= 0xffffffffUL;
+	return (addr |= CIA_EV56_BWMEM);
+}
+
+
 
 static int cia_probe(device_t dev);
 static int cia_attach(device_t dev);
