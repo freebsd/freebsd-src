@@ -792,7 +792,7 @@ done:
  */
 int
 getnewvnode(tag, mp, vops, vpp)
-	enum vtagtype tag;
+	const char *tag;
 	struct mount *mp;
 	vop_t **vops;
 	struct vnode **vpp;
@@ -1591,14 +1591,16 @@ sched_sync(void)
 			s = splbio();
 			if (LIST_FIRST(slp) == vp) {
 				/*
-				 * Note: v_tag VT_VFS vps can remain on the
+				 * Note: VFS vnodes can remain on the
 				 * worklist too with no dirty blocks, but
 				 * since sync_fsync() moves it to a different
 				 * slot we are safe.
 				 */
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
-				    !vn_isdisk(vp, NULL))
-					panic("sched_sync: fsync failed vp %p tag %d", vp, vp->v_tag);
+				    !vn_isdisk(vp, NULL)) {
+					panic("sched_sync: fsync failed "
+					      "vp %p tag %s", vp, vp->v_tag);
+				}
 				/*
 				 * Put us back on the worklist.  The worklist
 				 * routine will remove us from our current
@@ -1812,7 +1814,7 @@ bdevvp(dev, vpp)
 	}
 	if (vfinddev(dev, VCHR, vpp))
 		return (0);
-	error = getnewvnode(VT_NON, (struct mount *)0, spec_vnodeop_p, &nvp);
+	error = getnewvnode("none", (struct mount *)0, spec_vnodeop_p, &nvp);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);
@@ -2382,7 +2384,7 @@ vclean(vp, flags, td)
 	vp->v_op = dead_vnodeop_p;
 	if (vp->v_pollinfo != NULL)
 		vn_pollgone(vp);
-	vp->v_tag = VT_NON;
+	vp->v_tag = "none";
 	vp->v_iflag &= ~VI_XLOCK;
 	vp->v_vxproc = NULL;
 	if (vp->v_iflag & VI_XWANT) {
@@ -3190,7 +3192,7 @@ vfs_allocate_syncvnode(mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode(VT_VFS, mp, sync_vnodeop_p, &vp)) != 0) {
+	if ((error = getnewvnode("vfs", mp, sync_vnodeop_p, &vp)) != 0) {
 		mp->mnt_syncer = NULL;
 		return (error);
 	}

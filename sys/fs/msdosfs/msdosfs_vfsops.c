@@ -648,7 +648,7 @@ msdosfs_unmount(mp, mntflags, td)
 		    TAILQ_FIRST(&vp->v_cleanblkhd),
 		    TAILQ_FIRST(&vp->v_dirtyblkhd),
 		    vp->v_numoutput, vp->v_type);
-		printf("union %p, tag %d, data[0] %08x, data[1] %08x\n",
+		printf("union %p, tag %s, data[0] %08x, data[1] %08x\n",
 		    vp->v_socket, vp->v_tag,
 		    ((u_int *)vp->v_data)[0],
 		    ((u_int *)vp->v_data)[1]);

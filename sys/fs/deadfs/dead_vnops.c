@@ -248,7 +248,7 @@ dead_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_NON, dead vnode\n");
+	printf("tag %s, dead vnode\n", ap->a_vp->v_tag);
 	return (0);
 }
 

@@ -135,7 +135,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
-	error = getnewvnode(VT_PSEUDOFS, mp, pfs_vnodeop_p, vpp);
+	error = getnewvnode("pseudofs", mp, pfs_vnodeop_p, vpp);
 	if (error)
 		return (error);
 	pvd->pvd_pn = pn;
@@ -165,6 +165,12 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	default:
 		panic("%s has unexpected type: %d", pn->pn_name, pn->pn_type);
 	}
+	/*
+	 * Propagate flag through to vnode so users know it can change
+	 * if the process changes (i.e. execve)
+	 */
+	if ((pn->pn_flags & PFS_PROCDEP) != 0)
+		(*vpp)->v_vflag |= VV_PROCDEP;
 	pvd->pvd_vnode = *vpp;
 	mtx_lock(&pfs_vncache_mutex);
 	pvd->pvd_prev = NULL;

@@ -52,6 +52,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/mount.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
@@ -222,7 +223,8 @@ swapon(td, uap)
 
 	if (vn_isdisk(vp, &error))
 		error = swaponvp(td, vp, vp->v_rdev, 0);
-	else if (vp->v_type == VREG && vp->v_tag == VT_NFS &&
+	else if (vp->v_type == VREG &&
+	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 	    (error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) == 0) {
 		/*
 		 * Allow direct swapping to NFS regular files in the same
@@ -265,7 +267,7 @@ swaponvp(td, vp, dev, nblks)
 	u_long aligned_nblks;
 
 	if (!swapdev_vp) {
-		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
+		error = getnewvnode("none", NULL, swapdev_vnodeop_p,
 		    &swapdev_vp);
 		if (error)
 			panic("Cannot get vnode for swapdev");

@@ -135,7 +135,7 @@ portal_lookup(ap)
 	MALLOC(pt, struct portalnode *, sizeof(struct portalnode),
 		M_TEMP, M_WAITOK);
 
-	error = getnewvnode(VT_PORTAL, dvp->v_mount, portal_vnodeop_p, &fvp);
+	error = getnewvnode("portal", dvp->v_mount, portal_vnodeop_p, &fvp);
 	if (error) {
 		FREE(pt, M_TEMP);
 		goto bad;
@@ -558,7 +558,7 @@ portal_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_PORTAL, portal vnode\n");
+	printf("tag %s, portal vnode\n", ap->a_vp->v_tag);
 	return (0);
 }
 
