@@ -701,6 +701,10 @@ pcib_match(device_t dev)
 	/* VIA Technologies -- vendor 0x1106 */
 	case 0x85981106:
 		return ("VIA 82C598MVP/82C694X (Apollo MVP3/Pro133A) PCI-PCI (AGP) bridge");
+	case 0x83911106:
+		return ("VIA 8371 (KX133) PCI-PCI (AGP) bridge");
+	case 0x83051106:
+		return ("VIA 8363 (KT133) PCI-PCI (AGP) bridge");
 
 	/* AcerLabs -- vendor 0x10b9 */
 	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
@@ -908,7 +912,7 @@ isab_match(device_t dev)
 	case 0x05861106: /* south bridge section */
 		return ("VIA 82C586 PCI-ISA bridge");
 	case 0x05961106:
-		return ("VIA 82C596B PCI-ISA bridge");
+		return ("VIA 82C596 PCI-ISA bridge");
 	case 0x06861106:
 		return ("VIA 82C686 PCI-ISA bridge");
 
@@ -1217,7 +1221,7 @@ pci_chip_match(device_t dev)
 	case 0x71208086:
 		return ("Intel 82810 (i810 GMCH) Host To Hub bridge");
 	case 0x71228086:
-	return ("Intel 82810-DC100 (i810-DC100 GMCH) Host To Hub bridge");
+		return ("Intel 82810-DC100 (i810-DC100 GMCH) Host To Hub bridge");
 	case 0x71248086:
 	return ("Intel 82810E (i810E GMCH) Host To Hub bridge");
 	case 0x24158086:
@@ -1265,13 +1269,14 @@ pci_chip_match(device_t dev)
 		return ("VIA 82C595 (Apollo VP2) system controller");
 	case 0x05971106:
 		return ("VIA 82C597 (Apollo VP3) system controller");
-	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
-	/* totally. Please let me know if anything wrong.            -F */
-	/* XXX need info on the MVP3 -- any takers? */
 	case 0x05981106:
-		return ("VIA 82C598MVP (Apollo MVP3) host bridge");
+		return ("VIA 82C598 (Apollo MVP3) host bridge");
 	case 0x06911106:
-		return ("VIA 82C691/693A/694X (Apollo Pro133A) host bridge");
+		return ("VIA 82C691 (Apollo Pro) host bridge");
+	case 0x06931106:
+		return ("VIA 82C693 (Apollo Pro+) host bridge");
+	case 0x03911106:
+ 		return ("VIA 8371 (KX133) host to PCI bridge");
 	case 0x30401106:
 		return ("VIA 82C586B ACPI interface");
 	case 0x30501106:
