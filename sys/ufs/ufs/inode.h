@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id: inode.h,v 1.21 1998/03/08 09:59:21 julian Exp $
+ * $Id: inode.h,v 1.22 1998/03/26 20:53:58 phk Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -127,6 +127,7 @@ struct inode {
 #define	IN_SHLOCK	0x0020		/* File has shared lock. */
 #define	IN_EXLOCK	0x0040		/* File has exclusive lock. */
 #define	IN_HASHED	0x0080		/* Inode is on hash list */
+#define	IN_LAZYMOD	0x0100		/* Modified, but don't write yet. */
 
 #ifdef KERNEL
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.43 1998/06/14 19:31:28 julian Exp $
+ * $Id: ffs_inode.c,v 1.44 1998/07/03 18:46:47 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -62,12 +62,12 @@ static int ffs_indirtrunc __P((struct inode *, ufs_daddr_t, ufs_daddr_t,
 
 /*
  * Update the access, modified, and inode change times as specified by the
- * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively. The IN_MODIFIED
- * flag is used to specify that the inode needs to be updated even if none
- * of the times needs to be updated. The access and modified times are taken
- * from the second and third parameters; the inode change time is always
- * taken from the current time. If waitfor is set, then wait for the disk
- * write of the inode to complete.
+ * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively.  Write the inode
+ * to disk if the IN_MODIFIED flag is set (it may be set initially, or by
+ * the timestamp update).  The IN_LAZYMOD flag is set to force a write
+ * later if not now.  If we write now, then clear both IN_MODIFIED and
+ * IN_LAZYMOD to reflect the presumably successful write, and if waitfor is
+ * set, then wait for the write to complete.
  */
 int
 ffs_update(vp, access, modify, waitfor)
@@ -85,7 +85,7 @@ ffs_update(vp, access, modify, waitfor)
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor != MNT_WAIT)
 		return (0);
-	ip->i_flag &= ~IN_MODIFIED;
+	ip->i_flag &= ~(IN_LAZYMOD | IN_MODIFIED);
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
 	fs = ip->i_fs;
