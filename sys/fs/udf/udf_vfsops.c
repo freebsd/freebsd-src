@@ -598,8 +598,6 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 
 	unode->i_vnode = vp;
 	unode->hash_id = ino;
-	unode->i_devvp = udfmp->im_devvp;
-	unode->i_dev = udfmp->im_dev;
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
 
@@ -639,7 +637,6 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (ENOMEM);
 	}
 
-	VREF(udfmp->im_devvp);
 	bcopy(bp->b_data, unode->fentry, size);
 	
 	brelse(bp);
