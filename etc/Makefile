@@ -88,6 +88,13 @@ distribution: distrib-dirs
 	(cd etc.vax; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${PCS} \
 	    ${DESTDIR}/)
 .endif
+.if ${MACHINE} == "i386"
+	(cd ../sys.386bsd/i386/boot; make depend all install; \
+	 cd /usr/mdec; find . | cpio -pdalmuv ${DESTDIR}/usr/mdec)
+	(cd ..; make install)
+	(cd ../include; make copies)
+	(cd ../usr.sbin/sendmail; make install)
+.endif
 
 hcx9-distribution:
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
