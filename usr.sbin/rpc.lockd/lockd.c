@@ -253,7 +253,7 @@ init_nsm(void)
 	 */
 	do {
 		ret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON_ALL,
-		    xdr_my_id, &id, xdr_sm_stat, &stat);
+		    (xdrproc_t)xdr_my_id, &id, (xdrproc_t)xdr_sm_stat, &stat);
 		if (ret == RPC_PROGUNAVAIL) {
 			syslog(LOG_WARNING, "%lu %s", SM_PROG,
 			    clnt_sperrno(ret));

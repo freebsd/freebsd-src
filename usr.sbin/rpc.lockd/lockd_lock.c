@@ -160,7 +160,7 @@ void send_granted(struct file_lock *fl, int opcode);
 void siglock(void);
 void sigunlock(void);
 void monitor_lock_host(const char *hostname);
-void unmonitor_lock_host(const char *hostname);
+void unmonitor_lock_host(char *hostname);
 
 void	copy_nlm4_lock_to_nlm4_holder(const struct nlm4_lock *src,
     const bool_t exclusive, struct nlm4_holder *dest);
@@ -2027,8 +2027,9 @@ monitor_lock_host(const char *hostname)
 	smon.mon_id.my_id.my_vers = NLM_SM;
 	smon.mon_id.my_id.my_proc = NLM_SM_NOTIFY;
 			  
-	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_MON, xdr_mon,
-	    &smon, xdr_sm_stat_res, &sres);
+	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_MON,
+	    (xdrproc_t)xdr_mon, &smon,
+	    (xdrproc_t)xdr_sm_stat_res, &sres);
 			  
 	if (rpcret == 0) {
 		if (sres.res_stat == stat_fail) {
@@ -2055,7 +2056,7 @@ monitor_lock_host(const char *hostname)
  * unmonitor_lock_host: clear monitor ref counts and inform statd when gone
  */
 void
-unmonitor_lock_host(const char *hostname)
+unmonitor_lock_host(char *hostname)
 {
 	struct host *ihp;
 	struct mon_id smon_id;
@@ -2097,8 +2098,9 @@ unmonitor_lock_host(const char *hostname)
 	smon_id.my_id.my_vers = NLM_SM;
 	smon_id.my_id.my_proc = NLM_SM_NOTIFY;
 			  
-	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON, xdr_mon,
-	    &smon_id, xdr_sm_stat_res, &smstat);
+	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON,
+	    (xdrproc_t)xdr_mon, &smon_id,
+	    (xdrproc_t)xdr_sm_stat_res, &smstat);
 			  
 	if (rpcret != 0) {
 		debuglog("Rpc call to unmonitor statd failed with "
@@ -2183,11 +2185,12 @@ send_granted(fl, opcode)
 			 (fl->flags & LOCK_ASYNC) ? " (async)":"");
 		if (fl->flags & LOCK_ASYNC) {
 			success = clnt_call(cli, NLM4_GRANTED_MSG,
-			    xdr_nlm4_testargs, &res, xdr_void, &dummy, timeo);
+			    (xdrproc_t)xdr_nlm4_testargs, &res,
+			    (xdrproc_t)xdr_void, &dummy, timeo);
 		} else {
 			success = clnt_call(cli, NLM4_GRANTED,
-			    xdr_nlm4_testargs, &res, xdr_nlm4_res,
-			    &retval4, timeo);
+			    (xdrproc_t)xdr_nlm4_testargs, &res,
+			    (xdrproc_t)xdr_nlm4_res, &retval4, timeo);
 		}
 	} else {
 		static nlm_testargs res;
@@ -2205,11 +2208,12 @@ send_granted(fl, opcode)
 			 (fl->flags & LOCK_ASYNC) ? " (async)":"");
 		if (fl->flags & LOCK_ASYNC) {
 			success = clnt_call(cli, NLM_GRANTED_MSG,
-			    xdr_nlm_testargs, &res, xdr_void, &dummy, timeo);
+			    (xdrproc_t)xdr_nlm_testargs, &res,
+			    (xdrproc_t)xdr_void, &dummy, timeo);
 		} else {
 			success = clnt_call(cli, NLM_GRANTED,
-			    xdr_nlm_testargs, &res, xdr_nlm_res,
-			    &retval, timeo);
+			    (xdrproc_t)xdr_nlm_testargs, &res,
+			    (xdrproc_t)xdr_nlm_res, &retval, timeo);
 		}
 	}
 	if (debug_level > 2)
