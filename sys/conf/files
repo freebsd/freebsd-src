@@ -323,7 +323,7 @@ dev/ex/if_ex_pccard.c	optional ex card
 #dev/ex/if_ex_pccard.c	optional ex pccard
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
-#dev/fe/if_fe_pccard.c	optional fe pccard
+dev/fe/if_fe_pccard.c	optional fe pccard
 dev/fxp/if_fxp.c	optional fxp
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
