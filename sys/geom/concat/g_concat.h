@@ -63,9 +63,7 @@ struct g_concat_disk {
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
 	off_t			 d_end;
-	off_t			 d_length;
 	boolean_t		 d_valid;
-	LIST_ENTRY(g_concat_path) d_next;
 };
 
 struct g_concat_softc {
