@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .Dd June 29, 2004
 .Dt PKG_VERSION 1
 .Os
@@ -41,9 +41,9 @@
 .Oc
 .Op Ar index
 .Nm
-.Op Fl t Ar version1 version2
+.Fl t Ar version1 version2
 .Nm
-.Op Fl T Ar pkgname pattern
+.Fl T Ar pkgname pattern
 .Sh DESCRIPTION
 The
 .Nm
@@ -139,14 +139,14 @@ to the shell, it is best to quote
 with single quotes.
 .It Fl q
 Enable quiet output.
-Quiet output precludes printing the the
+Quiet output precludes printing the
 .Ar limchar
 when used with
 .Fl l
 or
 .Fl L .
 This is useful when used as the input to
-.Xr portupdate 8 .
+.Xr portupgrade 8 .
 .It Fl s
 Limit the output to those packages whose names match a given
 .Ar string .
@@ -205,7 +205,7 @@ option has been deprecated and is no longer supported.
 .Xr pkg_create 1 ,
 .Xr pkg_delete 1 ,
 .Xr pkg_info 1 ,
-.Xr portupdate 8
+.Xr portupgrade 8
 .Sh FILES
 .Bl -tag -width /usr/ports/INDEX-6 -compact
 .It Pa /usr/ports/INDEX-6
