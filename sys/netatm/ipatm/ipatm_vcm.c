@@ -349,7 +349,7 @@ ipatm_openpvc(pvp, sivp)
 	struct ipatmpvc	*pvp;
 	struct ipvcc	**sivp;
 {
-	struct ipvcc	*ivp;
+	struct ipvcc	*ivp = NULL;	/* XXX pacify gcc-3.1 */
 	Atm_attributes	*ap;
 	Atm_addr_pvc	*pvcp;
 	struct atm_nif	*nip;
@@ -524,7 +524,7 @@ ipatm_createsvc(ifp, daf, dst, sivp)
 {
 	struct atm_nif	*nip = (struct atm_nif *)ifp;
 	struct ip_nif	*inp;
-	struct ipvcc	*ivp;
+	struct ipvcc	*ivp = NULL;	/* XXX pacify gcc-3.1 */
 	struct in_addr	*ip;
 	Atm_addr	*atm;
 	int	s, err = 0;
