@@ -198,7 +198,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	phandle_t root;
 	struct pcpu *pc;
 	vm_offset_t end;
-	vm_offset_t va;
 	caddr_t kmdp;
 	u_int clock;
 	char *env;
@@ -339,10 +338,8 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	cpu_setregs(pc);
 
 	/*
-	 * Map and initialize the message buffer (after setting trap table).
+	 * Initialize the message buffer (after setting trap table).
 	 */
-	va = (vm_offset_t)msgbufp;
-	pmap_map(&va, msgbuf_phys, msgbuf_phys + MSGBUF_SIZE, 0);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	mutex_init();
