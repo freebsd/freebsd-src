@@ -228,7 +228,7 @@ gv_rm_plex(struct gv_softc *sc, struct gctl_req *req, struct gv_plex *p, int fla
 		p->vol_sc = NULL;
 	}
 
-	gv_kill_thread(p);
+	gv_kill_plex_thread(p);
 	g_free(p);
 
 	if (gp != NULL) {
