@@ -500,7 +500,8 @@ pipe_read(fp, uio, cred, flags, p)
 				error = EAGAIN;
 			} else {
 				rpipe->pipe_state |= PIPE_WANTR;
-				if ((error = tsleep(rpipe, PRIBIO|PCATCH, "piperd", 0)) == 0)
+				if ((error = tsleep(rpipe, PRIBIO | PCATCH,
+				    "piperd", 0)) == 0)
 					error = pipelock(rpipe, 1);
 			}
 			if (error)
