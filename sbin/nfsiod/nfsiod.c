@@ -165,7 +165,7 @@ void
 nonfs(signo)
 	int signo;
 {
-	syslog(LOG_ERR, "missing system call: NFS not available.");
+	syslog(LOG_ERR, "missing system call: NFS not available");
 }
 
 void
