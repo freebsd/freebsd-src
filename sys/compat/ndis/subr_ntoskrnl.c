@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -64,8 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #define FUNC void(*)(void)
 
-__stdcall static uint32_t ntoskrnl_unicode_equal(ndis_unicode_string *,
-	ndis_unicode_string *, uint32_t);
+__stdcall static uint8_t ntoskrnl_unicode_equal(ndis_unicode_string *,
+	ndis_unicode_string *, uint8_t);
 __stdcall static void ntoskrnl_unicode_copy(ndis_unicode_string *,
 	ndis_unicode_string *);
 __stdcall static uint32_t ntoskrnl_unicode_to_ansi(ndis_ansi_string *,
@@ -140,29 +141,29 @@ ntoskrnl_libfini()
 	return(0);
 }
 
-__stdcall static uint32_t 
-ntoskrnl_unicode_equal(str1, str2, casesensitive)
+__stdcall static uint8_t 
+ntoskrnl_unicode_equal(str1, str2, caseinsensitive)
 	ndis_unicode_string	*str1;
 	ndis_unicode_string	*str2;
-	uint32_t		casesensitive;
+	uint8_t			caseinsensitive;
 {
-	char			*astr1 = NULL, *astr2 = NULL;
-	int			rval = 1;
+	int			i;
 
-	ndis_unicode_to_ascii(str1->nus_buf, str2->nus_len, &astr1);
-	ndis_unicode_to_ascii(str2->nus_buf, str2->nus_len, &astr2);
+	if (str1->nus_len != str2->nus_len)
+		return(FALSE);
 
-	if (casesensitive)
-		rval = strcmp(astr1, astr2);
-#ifdef notdef
-	else
-		rval = strcasecmp(astr1, astr2);
-#endif
+	for (i = 0; i < str1->nus_len; i++) {
+		if (caseinsensitive == TRUE) {
+			if (toupper((char)(str1->nus_buf[i] & 0xFF)) !=
+			    toupper((char)(str2->nus_buf[i] & 0xFF)))
+				return(FALSE);
+		} else {
+			if (str1->nus_buf[i] != str2->nus_buf[i])
+				return(FALSE);
+		}
+	}
 
-	free(astr1, M_DEVBUF);
-	free(astr2, M_DEVBUF);
-
-	return(rval);
+	return(TRUE);
 }
 
 __stdcall static void
