@@ -99,6 +99,13 @@ find_formplan(argv)
 		if (plan == NULL)
 			tail = plan = new;
 		else {
+			new = c_openparen();
+			new->next = plan;
+			plan = new;
+			new = c_closeparen();
+			tail->next = new;
+			tail = new;
+			new = c_print();
 			tail->next = new;
 			tail = new;
 		}
