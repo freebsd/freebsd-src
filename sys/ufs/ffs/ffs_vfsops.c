@@ -1226,10 +1226,8 @@ ffs_vget(mp, ino, flags, vpp)
 #endif
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
-	if (error || *vpp != NULL) {
-		vput(vp);
+	if (error || *vpp != NULL)
 		return (error);
-	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
