@@ -837,7 +837,7 @@ restart:
 	    ((flags & MSG_WAITALL) && uio->uio_resid <= so->so_rcv.sb_hiwat)) &&
 	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0)) {
 		KASSERT(m != 0 || !so->so_rcv.sb_cc,
-		    ("receive: m == %p so->so_rcv.sb_cc == %lu",
+		    ("receive: m == %p so->so_rcv.sb_cc == %u",
 		    m, so->so_rcv.sb_cc));
 		if (so->so_error) {
 			if (m)
