@@ -1142,7 +1142,8 @@ unlink(td, uap)
 
 restart:
 	bwillwrite();
-	NDINIT(&nd, DELETE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), td);
+	NDINIT(&nd, DELETE, LOCKPARENT|LOCKLEAF, UIO_USERSPACE,
+	    SCARG(uap, path), td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1154,28 +1155,32 @@ restart:
 		 *
 		 * XXX: can this only be a VDIR case?
 		 */
-		mp_fixme("Accessing vflags w/o the vn lock.");
 		if (vp->v_vflag & VV_ROOT)
 			error = EBUSY;
 	}
-	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		vrele(vp);
-		vput(nd.ni_dvp);
-		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
-			return (error);
-		goto restart;
-	}
-	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (!error) {
+	if (error == 0) {
+		if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			if (vp == nd.ni_dvp)
+				vrele(vp);
+			else
+				vput(vp);
+			vput(nd.ni_dvp);
+			if ((error = vn_start_write(NULL, &mp,
+			    V_XSLEEP | PCATCH)) != 0)
+				return (error);
+			goto restart;
+		}
 		VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 		error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
+		vn_finished_write(mp);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if (vp == nd.ni_dvp)
+		vrele(vp);
+	else
+		vput(vp);
 	vput(nd.ni_dvp);
-	vput(vp);
-	vn_finished_write(mp);
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "unlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "unlink");
 	return (error);
