@@ -77,6 +77,7 @@ static char sccsid[] = "@(#)bcd.c	8.2 (Berkeley) 3/20/94";
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 
 u_short holes[256] = {
