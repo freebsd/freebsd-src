@@ -1,4 +1,4 @@
-.Dd August 28, 1995
+.Dd August 30, 1995
 .Os FreeBSD 2.0.5
 .Dt SGMLFMT 1
 .Sh NAME
@@ -6,9 +6,10 @@
 .Nd Formats SGML files tagged according to the linuxdoc DTD.
 .Sh SYNOPSIS
 .Nm
-.Fl Ar format Op Fl Ar format... 
-.Op Fl Ar links
-.Ar 
+.Fl f Ar format
+.Op Fl links
+.Op Fl i Ar name ...
+.Ar file
 .Sh DESCRIPTION
 The
 .Nm
@@ -21,12 +22,14 @@ declaration before any uncommented text:
 .Bd -literal -offset indent
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 .Ed
-.Pp
-The 
-.Fl Ar format
-options for output include the following:
+.Pp Options for
+.Nm
+include the following:
 .Bl -tag -width Ds
-.It Fl html
+.It Fl f Ar format
+Determines the output format which can be one of the following:
+.Bl -tag -width Ds
+.It Ar html
 Generates a set of linked HTML files suitable for use with an
 HTML browser.  A top level file,
 .Pa file.html ,
@@ -38,18 +41,18 @@ contains a complete table of contents.  A series of files named
 .Pa file2.html ...
 .Pa filen.html
 contain the actual text of the document.
-.It Fl latex
+.It Ar latex
 Generates a single output file with the extension
 .Pa .tex
 suitable for processing with LaTeX.  Note that the LaTeX style
 file
 .Pa /usr/share/sgml/FreeBSD/lib/linuxdoc.sty
 must be accessible to LaTeX for correct processing.
-.It Fl ascii
+.It Ar ascii
 Generates a single output file with the extension 
 .Pa .ascii
 suitable for viewing on an ASCII terminal. 
-.It Fl nroff
+.It Ar nroff
 Generates a single output file with the extension
 .Pa .nroff
 suitable processing with
@@ -57,12 +60,15 @@ suitable processing with
 or
 .Xr groff 1 .
 This is actually an intermediate conversion used by the
-.Fl ascii
+.Fl f Ar ascii
 format option.
+.El
 .It Fl links
 When used with the
-.Fl html
-option, for each <label id="foo"> in the document source 
+.Fl f Ar html
+option, for each 
+.Li <label id="foo">
+in the document source 
 .Nm
 generates a symbolic link
 .Pa foo.html
@@ -76,6 +82,25 @@ links becoming invalid when the target document is modified.
 When creating a symbolic link, any occurence of a slash (/) in label 
 is replaced with percent (%), while any occurence of a space is replaced
 with an underscore (_).
+.It Fl i Ar name
+Pretend that
+.Dl <!ENTITY % name "INCLUDE">
+occurs at the start of the document type declaration subset in
+the document entity.  Since repeated definitions of an entity are
+ignored, this definition will take precedence over any other
+definitions of this entity in the document type declaration.
+Multiple 
+.Fl i
+options are allowed.  If the declaration replaces the reserved
+name INCLUDE then the new reserved name will be the replacement
+text of the entity.  Typically the document type declaration will
+contain
+.Dl <!ENTITY % name "IGNORE">
+and will use 
+.Li %name; 
+in the status keyword specification of a
+marked section declaration.  In this case the effect of the
+option will be to cause the marked section not to be ignored.
 .El
 .Pp
 If the input file name ends with
@@ -126,6 +151,14 @@ The divison of the sources file into separate HTML files is
 currently fixed. 
 .Pp
 Although legal according to the DTD, it the ascii formatting gets botched if
-the <heading>...</heading> tags are omitted following a
-sectioning tag such as <sect>.  Furthermore, all text between
-<heading> and </heading> must be on one line.
+the 
+.Li <heading>
+.No ...
+.Li </heading>
+tags are omitted following a
+sectioning tag such as
+.Li <sect> .  Furthermore, all text between
+.Li <heading>
+and
+.Li </heading>
+must be on one line.
