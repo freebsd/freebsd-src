@@ -1,6 +1,5 @@
 This fortune brought to you by:
 $FreeBSD$
-
 %
 =======================================================================
 ||								     ||
@@ -5114,12 +5113,6 @@ yet we have not advanced one inch towards uniformity.
 		-- Thomas Jefferson, "Notes on Virginia"
 %
 <<<<< EVACUATION ROUTE <<<<<
-%
-<Daibashiw> Wasn't EMACS originally developed as a swap memory stresser,
-though?
-
-<``Erik> lispos emulator? gotta admit it's well featured, the only thing
-it lacks is a decent editor
 %
 ... "fire" does not matter, "earth" and "air" and "water" do not matter.
 "I" do not matter.  No word matters.  But man forgets reality and remembers
@@ -13860,6 +13853,12 @@ Dad always thought laughter was the best medicine, which I guess is why
 several of us died of tuberculosis.
 		-- Jack Handey
 %
+<Daibashiw> Wasn't EMACS originally developed as a swap memory stresser,
+though?
+
+<``Erik> lispos emulator? gotta admit it's well featured, the only thing
+it lacks is a decent editor
+%
 DALLAS:
 	The city that chose Astroturf to
 	keep the cheerleaders from grazing.
@@ -19402,13 +19401,6 @@ Hanson's Treatment of Time:
 %
 Happiness adds and multiplies as we divide it with others.
 %
-happiness, n:
-	An agreeable sensation arising
-	from contemplating the misery of another.
-%
-happiness, n:
-	Finding the owner of a lost bikini.
-%
 Happiness is a hard disk.
 %
 Happiness is a positive cash flow.
@@ -19431,6 +19423,13 @@ Happiness isn't something you experience; it's something you remember.
 		-- Oscar Levant
 %
 Happiness makes up in height what it lacks in length.
+%
+happiness, n:
+	An agreeable sensation arising
+	from contemplating the misery of another.
+%
+happiness, n:
+	Finding the owner of a lost bikini.
 %
 Happy feast of the pig!
 %
@@ -49310,6 +49309,15 @@ Unless it's blind screaming paroxysmally hedonistic...
 Under every stone lurks a politician.
 		-- Aristophanes
 %
+Under the wide and heavy VAX
+Dig my grave and let me relax
+Long have I lived, and many my hacks
+And I lay me down with a will.
+These be the words that tell the way:
+"Here he lies who piped 64K,
+Brought down the machine for nearly a day,
+And Rogue playing to an awful standstill."
+%
 Under the wide and starry sky,
 Dig my grave and let me lie,
 Glad did I live and gladly die,
@@ -49319,15 +49327,6 @@ Here he lies where he longed to be,
 Home is the sailor home from the sea,
 And the hunter home from the hill.
 		-- R. Kipling
-%
-Under the wide and heavy VAX
-Dig my grave and let me relax
-Long have I lived, and many my hacks
-And I lay me down with a will.
-These be the words that tell the way:
-"Here he lies who piped 64K,
-Brought down the machine for nearly a day,
-And Rogue playing to an awful standstill."
 %
 Underlying Principle of Socio-Genetics:
 	Superiority is recessive.
