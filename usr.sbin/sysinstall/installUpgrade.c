@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.62 1999/02/05 22:15:49 jkh Exp $
+ * $Id: installUpgrade.c,v 1.63 1999/02/13 05:18:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -326,6 +326,8 @@ media:
 	}
     }
 
+    if (extractingBin)
+	vsystem("disklabel -B `awk '$2~/\\/$/ {print substr($1, 6, 3)}' /etc/fstab`");
     msgNotify("First stage of upgrade completed successfully!\n\n"
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
