@@ -561,7 +561,7 @@ chat_Setup(struct chat *c, const char *data, const char *phone)
   } else {
     strncpy(c->script, data, sizeof c->script - 1);
     c->script[sizeof c->script - 1] = '\0';
-    c->argc = MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+    c->argc = MakeArgs(c->script, c->argv, VECSIZE(c->argv), 0);
   }
 
   c->arg = -1;
@@ -702,7 +702,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   int stat, nb, argc, i;
 
   log_Printf(LogCHAT, "Exec: %s\n", command);
-  if ((argc = MakeArgs(command, vector, VECSIZE(vector))) <= 0) {
+  if ((argc = MakeArgs(command, vector, VECSIZE(vector), 1)) <= 0) {
     if (argc < 0)
       log_Printf(LogWARN, "Syntax error in exec command\n");
     *out = '\0';
