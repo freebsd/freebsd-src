@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2005
+.Dd March 2, 2005
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -666,6 +666,15 @@ without support for RADIUS.
 Set to disable the installation of
 .Xr ppp 8
 as a set-user-ID root program.
+.It Va NO_RCMDS
+.Pq Vt bool
+Disable building of the
+.Tn BSD
+r-commands.
+This includes
+.Xr rlogin 1 ,
+.Xr rsh 1 ,
+etc.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default
