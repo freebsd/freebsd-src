@@ -245,6 +245,7 @@ void	ng_cutlinks(node_p node);
 int	ng_con_nodes(node_p node,
 	     const char *name, node_p node2, const char *name2);
 void	ng_destroy_hook(hook_p hook);
+hook_p	ng_findhook(node_p node, const char *name);
 node_p	ng_findname(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);
 int	ng_make_node(const char *type, node_p *nodepp);
