@@ -311,18 +311,9 @@ pfs_getextattr(struct vop_getextattr_args *va)
 
 /*
  * Look up a file or directory
- *
- * XXX NOTE!  pfs_lookup() has been hooked into vop_lookup_desc!  This
- * will result in a lookup operation for a vnode which may already be
- * cached, therefore we have to be careful to purge the VFS cache when
- * reusing a vnode.
- *
- * This code will work, but is not really correct.  Normally we would hook
- * vfs_cache_lookup() into vop_lookup_desc and hook pfs_lookup() into
- * vop_cachedlookup_desc.
  */
 static int
-pfs_lookup(struct vop_lookup_args *va)
+pfs_lookup(struct vop_cachedlookup_args *va)
 {
 	struct vnode *vn = va->a_dvp;
 	struct vnode **vpp = va->a_vpp;
@@ -343,12 +334,17 @@ pfs_lookup(struct vop_lookup_args *va)
 	if (vn->v_type != VDIR)
 		PFS_RETURN (ENOTDIR);
 
+	error = VOP_ACCESS(vn, VEXEC, cnp->cn_cred, cnp->cn_thread);
+	if (error)
+		PFS_RETURN (error);
+
 	/*
 	 * Don't support DELETE or RENAME.  CREATE is supported so
 	 * that O_CREAT will work, but the lookup will still fail if
 	 * the file does not exist.
 	 */
-	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+	if ((cnp->cn_flags & ISLASTCN) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		PFS_RETURN (EOPNOTSUPP);
 
 	/* shortcut: check if the name is too long */
@@ -362,11 +358,10 @@ pfs_lookup(struct vop_lookup_args *va)
 	lockparent = cnp->cn_flags & LOCKPARENT;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 
-
 	/* self */
 	namelen = cnp->cn_namelen;
 	pname = cnp->cn_nameptr;
-	if (namelen == 1 && *pname == '.') {
+	if (namelen == 1 && pname[0] == '.') {
 		pn = pd;
 		*vpp = vn;
 		VREF(vn);
@@ -400,8 +395,8 @@ pfs_lookup(struct vop_lookup_args *va)
 	for (pn = pd->pn_nodes; pn != NULL; pn = pn->pn_next)
 		if (pn->pn_type == pfstype_procdir)
 			pdn = pn;
-		else if (pn->pn_name[namelen] == '\0'
-		    && bcmp(pname, pn->pn_name, namelen) == 0)
+		else if (pn->pn_name[namelen] == '\0' &&
+		    bcmp(pname, pn->pn_name, namelen) == 0)
 			goto got_pnode;
 
 	/* process dependent node */
@@ -425,8 +420,8 @@ pfs_lookup(struct vop_lookup_args *va)
 	if (error)
 		PFS_RETURN (error);
 
-	if ((cnp->cn_flags & ISDOTDOT) && (cnp->cn_flags & ISLASTCN)
-	    && lockparent) {
+	if ((cnp->cn_flags & ISDOTDOT) && (cnp->cn_flags & ISLASTCN) &&
+	    lockparent) {
 		vn_lock(vn, LK_EXCLUSIVE|LK_RETRY, cnp->cn_thread);
 		cnp->cn_flags &= ~PDIRUNLOCK;
 	}
@@ -434,9 +429,6 @@ pfs_lookup(struct vop_lookup_args *va)
 	    (cnp->cn_flags & ISDOTDOT)))
 		VOP_UNLOCK(vn, 0, cnp->cn_thread);
 
-	/*
-	 * XXX See comment at top of the routine.
-	 */
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
@@ -839,13 +831,14 @@ struct vop_vector pfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
 	.vop_access =		pfs_access,
+	.vop_cachedlookup =	pfs_lookup,
 	.vop_close =		pfs_close,
 	.vop_create =		VOP_EOPNOTSUPP,
 	.vop_getattr =		pfs_getattr,
 	.vop_getextattr =	pfs_getextattr,
 	.vop_ioctl =		pfs_ioctl,
 	.vop_link =		VOP_EOPNOTSUPP,
-	.vop_lookup =		pfs_lookup,
+	.vop_lookup =		vfs_cache_lookup,
 	.vop_mkdir =		VOP_EOPNOTSUPP,
 	.vop_mknod =		VOP_EOPNOTSUPP,
 	.vop_open =		pfs_open,
