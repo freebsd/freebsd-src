@@ -103,10 +103,6 @@ tells dump to
 copy all files new or modified since the
 last dump of any lower level.
 The default level is 0.
-.It Fl B Ar records
-The number of 1 KB blocks per volume.
-This option overrides the calculation of tape size
-based on length and density.
 .It Fl a
 .Dq auto-size .
 Bypass all tape length considerations, and enforce writing
@@ -115,21 +111,15 @@ for most modern tape drives.  Use of this option is particularly
 recommended when appending to an existing tape, or using a tape
 drive with hardware compression (where you can never be sure about
 the compression ratio).
+.It Fl B Ar records
+The number of 1 KB blocks per volume.
+This option overrides the calculation of tape size
+based on length and density.
 .It Fl b Ar blocksize
 The number of kilobytes per dump record.
 .It Fl c
 Change the defaults for use with a cartridge tape drive, with a density
 of 8000 bpi, and a length of 1700 feet.
-.It Fl h Ar level
-Honor the user
-.Dq nodump
-flag
-.Pq Dv UF_NODUMP
-only for dumps at or above the given
-.Ar level .
-The default honor level is 1,
-so that incremental backups omit such files
-but full backups retain them.
 .It Fl D Ar dumpdates
 Specify an alternate path to the
 .Pa dumpdates
@@ -173,6 +163,16 @@ program is
 .Pa /etc/rmt ;
 this can be overridden by the environment variable
 .Ev RMT .
+.It Fl h Ar level
+Honor the user
+.Dq nodump
+flag
+.Pq Dv UF_NODUMP
+only for dumps at or above the given
+.Ar level .
+The default honor level is 1,
+so that incremental backups omit such files
+but full backups retain them.
 .It Fl k
 Use Kerberos authentication to talk to remote tape servers.  (Only
 available if this option was enabled when
