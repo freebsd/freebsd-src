@@ -146,37 +146,37 @@ MALLOC_DECLARE(M_DEVFS);
 #endif
 
 struct devfs_dirent {
-	int	de_inode;
-	int	de_flags;
+	int			de_inode;
+	int			de_flags;
 #define	DE_WHITEOUT	0x1
 #define	DE_DOT		0x2
 #define	DE_DOTDOT	0x4
-	struct dirent *de_dirent;
+	struct dirent 		*de_dirent;
 	TAILQ_ENTRY(devfs_dirent) de_list;
 	TAILQ_HEAD(, devfs_dirent) de_dlist;
-	struct devfs_dirent *de_dir;
-	int	de_links;
-	mode_t	de_mode;
-	uid_t	de_uid;
-	gid_t	de_gid;
-	struct label	*de_label;
-	struct timespec de_atime;
-	struct timespec de_mtime;
-	struct timespec de_ctime;
-	struct vnode *de_vnode;
-	char *	de_symlink;
+	struct devfs_dirent	*de_dir;
+	int			de_links;
+	mode_t			de_mode;
+	uid_t			de_uid;
+	gid_t			de_gid;
+	struct label		*de_label;
+	struct timespec 	de_atime;
+	struct timespec 	de_mtime;
+	struct timespec 	de_ctime;
+	struct vnode 		*de_vnode;
+	char 			*de_symlink;
 };
 
 struct devfs_mount {
-	struct mount	*dm_mount;
-	struct devfs_dirent *dm_rootdir;
-	struct devfs_dirent *dm_basedir;
-	unsigned	dm_generation;
-	struct devfs_dirent **dm_dirent;
-	struct devfs_dirent **dm_overflow;
-	int	dm_inode;
-	struct lock dm_lock;
-	devfs_rsnum dm_ruleset;
+	struct mount		*dm_mount;
+	struct devfs_dirent	*dm_rootdir;
+	struct devfs_dirent	*dm_basedir;
+	unsigned		dm_generation;
+	struct devfs_dirent	**dm_dirent;
+	struct devfs_dirent	**dm_overflow;
+	int			dm_inode;
+	struct lock		dm_lock;
+	devfs_rsnum		dm_ruleset;
 };
 
 /*
@@ -187,7 +187,6 @@ struct devfs_mount {
 #define VFSTODEVFS(mp)	((struct devfs_mount *)((mp)->mnt_data))
 
 void devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de);
-void devfs_rules_init(void);
 int devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td);
 void devfs_rules_newmount(struct devfs_mount *dm, struct thread *td);
 int devfs_allocv (struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct thread *td);
