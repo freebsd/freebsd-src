@@ -306,7 +306,7 @@ install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
 .endif
 
-MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${DESTDIR}${KODIR}
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
