@@ -1338,7 +1338,7 @@ DRIVER_MODULE(chip, pci, chip_driver, chip_devclass, 0, 0);
 **---------------------------------------------------------
 */
 
-static const char* vga_match(device_t dev)
+const char* pci_vga_match(device_t dev)
 {
 	u_int id = pci_get_devid(dev);
 	const char *vendor, *chip, *type;
@@ -1818,53 +1818,6 @@ static const char* vga_match(device_t dev)
 	}
 	return type;
 }
-
-static int vga_probe(device_t dev)
-{
-	const char *desc;
-
-	desc = vga_match(dev);
-	if (desc) {
-		device_set_desc(dev, desc);
-		return -10000;	/* Low match priority */
-	}
-
-	return ENXIO;
-}
-
-static int vga_attach(device_t dev)
-{
-/*
-**	If the assigned addresses are remapped,
-**	the console driver has to be informed about the new address.
-*/
-#if 0
-	vm_offset_t va;
-	vm_offset_t pa;
-	int reg;
-	for (reg = PCI_MAP_REG_START; reg < PCI_MAP_REG_END; reg += 4)
-		(void) pci_map_mem (tag, reg, &va, &pa);
-#endif
-	return 0;
-}
-
-static device_method_t vga_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		vga_probe),
-	DEVMETHOD(device_attach,	vga_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t vga_driver = {
-	"vga-pci",
-	vga_methods,
-	1,
-};
-
-static devclass_t vga_devclass;
-
-DRIVER_MODULE(vga, pci, vga_driver, vga_devclass, 0, 0);
 
 /*---------------------------------------------------------
 **
