@@ -127,6 +127,9 @@ SRCS+=	rmd_dgst.c rmd_one.c
 .if defined(WITH_RSA) && ${WITH_RSA} == YES
 SRCS+=	rsa_chk.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c rsa_oaep.c \
 	rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c
+.if !defined(RSAREF) || ${RSAREF} != YES
+SRCS+=	rsa_eay.c
+.endif
 .endif
 
 # sha
@@ -155,12 +158,12 @@ HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	err/err.h evp/evp.h hmac/hmac.h lhash/lhash.h md2/md2.h \
 	md5/md5.h mdc2/mdc2.h objects/objects.h opensslv.h pem/pem.h \
 	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
-	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h stack/safestack.h \
+	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
 	sha/sha.h stack/stack.h tmdiff.h txt_db/txt_db.h x509/x509.h \
 	x509/x509_vfy.h x509v3/x509v3.h
 
 .if defined(RSAREF) && ${RSAREF} == YES
-HDRS+=	rsa/rsa.h ../rsaref/rsaref.h 
+HDRS+=	../rsaref/rsaref.h 
 .endif
 
 beforedepend: ${.OBJDIR}/obj_dat.h ${.OBJDIR}/buildinf.h \
