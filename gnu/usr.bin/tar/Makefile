@@ -6,7 +6,7 @@ TARDIR=	${.CURDIR}/../../../contrib/tar
 PROG=	gtar
 
 .if !defined(WITH_BSDTAR)
-LINKS=  ${BINDIR}/gtar ${BINDIR}/tar
+SYMLINKS=  ${BINDIR}/gtar ${BINDIR}/tar
 MLINKS= gtar.1 tar.1
 .endif
 
