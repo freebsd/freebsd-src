@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.15 1998/06/14 20:05:26 ahasty Exp $
+.\"	$Id: moused.8,v 1.16 1998/09/17 09:51:15 dwhite Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -45,6 +45,7 @@
 .Op Fl S Ar baudrate
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
+.Op Fl w Ar N
 .Op Fl z Ar target
 .Op Fl t Ar mousetype
 .Fl p Ar port
@@ -275,6 +276,15 @@ For the PS/2 mouse:
 This is the only protocol type available for the PS/2 mouse
 and should be specified for any PS/2 mice, regardless of the brand.
 .El
+.It Fl w Ar N
+Make the physical button
+.Ar N
+act as the wheel mode button.
+While this button is pressed, X and Y axis movement is reported to be zero
+and the Y axis movement is mapped to Z axis.
+You may further map the Z axis movement to virtual buttons by the 
+.Fl z
+option below.
 .It Fl z Ar target
 Map Z axis (roller/wheel) movement to another axis or to virtual buttons.
 Valid
