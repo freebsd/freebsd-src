@@ -40,7 +40,7 @@
  * Layout of local APIC interrupt vectors:
  *
  *	0xff (255)  +-------------+
- *                  |             | 15 (Spurious / IPIs / Local Interrupts )
+ *                  |             | 15 (Spurious / IPIs / Local Interrupts)
  *	0xf0 (240)  +-------------+
  *                  |             | 14 (I/O Interrupts)
  *	0xe0 (224)  +-------------+
