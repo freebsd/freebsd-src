@@ -40,8 +40,9 @@
 .Op Fl w Ar N
 .Op Fl D Ar /path
 .Sh DESCRIPTION
+The
 .Nm
-is a Bourne shell script which is designed to aid you
+utility is a Bourne shell script which is designed to aid you
 in updating the various configuration and other files
 associated with
 .Fx .
@@ -90,8 +91,9 @@ You can
 also specify that the script ignore the $Id strings and
 compare every file.
 .Pp
+The
 .Nm
-checks your umask and issues a warning for anything
+utility checks your umask and issues a warning for anything
 other than 022. While it is not mandatory to grant
 world read permissions for most configuration files, you
 may run into problems without them.
@@ -118,8 +120,9 @@ and file permissions as specified by the umask.
 Unified diffs are used by default to display any
 differences unless you choose context diffs.
 .Pp
+The
 .Nm
-will source scripts that you specify right before
+utility will source scripts that you specify right before
 it starts the comparison, and after it's done running.
 The easiest way to handle this is to place the path
 to the script(s) in the appropriate variables in your
@@ -225,7 +228,7 @@ Specify the destination directory for the installed files.
 .Sh ENVIRONMENT
 The
 .Nm
-script uses the
+utility uses the
 .Ev PAGER
 environment variable if set.
 Otherwise it uses
@@ -277,8 +280,9 @@ comparison, use:
 .It Pa $HOME/.mergemasterrc
 .El
 .Pp
+The
 .Nm
-will . (source) these files if they exist.
+utility will . (source) these files if they exist.
 Command line options
 will override rc file options.
 .Pa $HOME/.mergemasterrc
@@ -343,7 +347,7 @@ with all values commented out:
 .Pp
 .Pa /usr/src/etc/Makefile
 .Rs
-.%O http://www.FreeBSD.org/handbook/makeworld.html
+.%O http://www.FreeBSD.org/doc/handbook/makeworld.html
 .%T The Cutting Edge (using make world)
 .%A Nik Clayton
 .Re
@@ -361,7 +365,7 @@ Failure to populate the temporary root
 .Sh HISTORY
 The
 .Nm
-script was first publicly available on one of my
+utility was first publicly available on one of my
 web pages in a much simpler form under the name
 .Pa comproot
 on 13 March 1998. The idea for creating the
