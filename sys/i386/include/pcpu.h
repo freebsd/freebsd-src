@@ -65,9 +65,7 @@ struct globaldata {
 	int		gd_intr_nesting_level;
 	struct segment_descriptor gd_common_tssd;
 	struct segment_descriptor *gd_tss_gdt;
-#ifdef USER_LDT
-	int		gd_currentldt;
-#endif
+	int		gd_currentldt;		/* only used for USER_LDT */
 #ifdef SMP
 	u_int		gd_cpuid;
 	u_int		gd_cpu_lockid;
