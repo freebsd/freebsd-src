@@ -1827,9 +1827,11 @@ psmtimeout(void *arg)
 {
     struct psm_softc *sc;
     int unit;
+    int s;
 
     unit = (int)arg;
     sc = devclass_get_softc(psm_devclass, unit);
+    s = spltty();
     if (sc->watchdog && kbdc_lock(sc->kbdc, TRUE)) {
 	if (verbose >= 4)
 	    log(LOG_DEBUG, "psm%d: lost interrupt?\n", unit);
@@ -1837,6 +1839,7 @@ psmtimeout(void *arg)
 	kbdc_lock(sc->kbdc, FALSE);
     }
     sc->watchdog = TRUE;
+    splx(s);
     sc->callout = timeout(psmtimeout, (void *)unit, hz);
 }
 
