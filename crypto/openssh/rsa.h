@@ -1,5 +1,4 @@
 /*	$OpenBSD: rsa.h,v 1.15 2002/03/04 17:27:39 stevesk Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

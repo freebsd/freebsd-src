@@ -1,5 +1,4 @@
 /*	$OpenBSD: cipher.h,v 1.33 2002/03/18 17:13:15 markus Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

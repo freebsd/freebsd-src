@@ -24,7 +24,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: compat.c,v 1.63 2002/04/10 08:21:47 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "buffer.h"
 #include "packet.h"

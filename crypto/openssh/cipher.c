@@ -36,13 +36,17 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: cipher.c,v 1.59 2002/06/19 18:01:00 markus Exp $");
-RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
 #include "log.h"
 #include "cipher.h"
 
 #include <openssl/md5.h>
+
+#if OPENSSL_VERSION_NUMBER < 0x00906000L
+#define SSH_OLD_EVP
+#define EVP_CIPHER_CTX_get_app_data(e)          ((e)->app_data)
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x00907000L
 #include "rijndael.h"
@@ -189,7 +193,11 @@ cipher_init(CipherContext *cc, Cipher *cipher,
     int encrypt)
 {
 	static int dowarn = 1;
+#ifdef SSH_OLD_EVP
+	EVP_CIPHER *type;
+#else
 	const EVP_CIPHER *type;
+#endif
 	int klen;
 
 	if (cipher->number == SSH_CIPHER_DES) {
@@ -214,6 +222,15 @@ cipher_init(CipherContext *cc, Cipher *cipher,
 	type = (*cipher->evptype)();
 
 	EVP_CIPHER_CTX_init(&cc->evp);
+#ifdef SSH_OLD_EVP
+	if (type->key_len > 0 && type->key_len != keylen) {
+		debug("cipher_init: set keylen (%d -> %d)",
+		    type->key_len, keylen);
+		type->key_len = keylen;
+	}
+	EVP_CipherInit(&cc->evp, type, (u_char *)key, (u_char *)iv,
+	    (encrypt == CIPHER_ENCRYPT));
+#else
 	if (EVP_CipherInit(&cc->evp, type, NULL, (u_char *)iv,
 	    (encrypt == CIPHER_ENCRYPT)) == 0)
 		fatal("cipher_init: EVP_CipherInit failed for %s",
@@ -228,6 +245,7 @@ cipher_init(CipherContext *cc, Cipher *cipher,
 	if (EVP_CipherInit(&cc->evp, NULL, (u_char *)key, NULL, -1) == 0)
 		fatal("cipher_init: EVP_CipherInit: set key failed for %s",
 		    cipher->name);
+#endif
 }
 
 void
@@ -235,15 +253,23 @@ cipher_crypt(CipherContext *cc, u_char *dest, const u_char *src, u_int len)
 {
 	if (len % cc->cipher->block_size)
 		fatal("cipher_encrypt: bad plaintext length %d", len);
+#ifdef SSH_OLD_EVP
+	EVP_Cipher(&cc->evp, dest, (u_char *)src, len);
+#else
 	if (EVP_Cipher(&cc->evp, dest, (u_char *)src, len) == 0)
 		fatal("evp_crypt: EVP_Cipher failed");
+#endif
 }
 
 void
 cipher_cleanup(CipherContext *cc)
 {
+#ifdef SSH_OLD_EVP
+	EVP_CIPHER_CTX_cleanup(&cc->evp);
+#else
 	if (EVP_CIPHER_CTX_cleanup(&cc->evp) == 0)
 		error("cipher_cleanup: EVP_CIPHER_CTX_cleanup failed");
+#endif
 }
 
 /*
@@ -314,6 +340,11 @@ ssh1_3des_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
 	EVP_CIPHER_CTX_init(&c->k1);
 	EVP_CIPHER_CTX_init(&c->k2);
 	EVP_CIPHER_CTX_init(&c->k3);
+#ifdef SSH_OLD_EVP
+	EVP_CipherInit(&c->k1, EVP_des_cbc(), k1, NULL, enc);
+	EVP_CipherInit(&c->k2, EVP_des_cbc(), k2, NULL, !enc);
+	EVP_CipherInit(&c->k3, EVP_des_cbc(), k3, NULL, enc);
+#else
 	if (EVP_CipherInit(&c->k1, EVP_des_cbc(), k1, NULL, enc) == 0 ||
 	    EVP_CipherInit(&c->k2, EVP_des_cbc(), k2, NULL, !enc) == 0 ||
 	    EVP_CipherInit(&c->k3, EVP_des_cbc(), k3, NULL, enc) == 0) {
@@ -322,6 +353,7 @@ ssh1_3des_init(EVP_CIPHER_CTX *ctx, const u_char *key, const u_char *iv,
 		EVP_CIPHER_CTX_set_app_data(ctx, NULL);
 		return (0);
 	}
+#endif
 	return (1);
 }
 static int
@@ -333,10 +365,16 @@ ssh1_3des_cbc(EVP_CIPHER_CTX *ctx, u_char *dest, const u_char *src, u_int len)
 		error("ssh1_3des_cbc: no context");
 		return (0);
 	}
+#ifdef SSH_OLD_EVP
+	EVP_Cipher(&c->k1, dest, (u_char *)src, len);
+	EVP_Cipher(&c->k2, dest, dest, len);
+	EVP_Cipher(&c->k3, dest, dest, len);
+#else
 	if (EVP_Cipher(&c->k1, dest, (u_char *)src, len) == 0 ||
 	    EVP_Cipher(&c->k2, dest, dest, len) == 0 ||
 	    EVP_Cipher(&c->k3, dest, dest, len) == 0)
 		return (0);
+#endif
 	return (1);
 }
 static int
@@ -364,7 +402,9 @@ evp_ssh1_3des(void)
 	ssh1_3des.init = ssh1_3des_init;
 	ssh1_3des.cleanup = ssh1_3des_cleanup;
 	ssh1_3des.do_cipher = ssh1_3des_cbc;
+#ifndef SSH_OLD_EVP
 	ssh1_3des.flags = EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH;
+#endif
 	return (&ssh1_3des);
 }
 
@@ -513,8 +553,10 @@ evp_rijndael(void)
 	rijndal_cbc.init = ssh_rijndael_init;
 	rijndal_cbc.cleanup = ssh_rijndael_cleanup;
 	rijndal_cbc.do_cipher = ssh_rijndael_cbc;
+#ifndef SSH_OLD_EVP
 	rijndal_cbc.flags = EVP_CIPH_CBC_MODE | EVP_CIPH_VARIABLE_LENGTH |
 	    EVP_CIPH_ALWAYS_CALL_INIT;
+#endif
 	return (&rijndal_cbc);
 }
 #endif

@@ -14,7 +14,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshconnect.c,v 1.125 2002/06/19 00:27:55 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
 
@@ -42,6 +41,10 @@ extern Options options;
 extern char *__progname;
 extern uid_t original_real_uid;
 extern uid_t original_effective_uid;
+
+#ifndef INET6_ADDRSTRLEN		/* for non IPv6 machines */
+#define INET6_ADDRSTRLEN 46
+#endif
 
 static const char *
 sockaddr_ntop(struct sockaddr *sa, socklen_t salen)
@@ -498,6 +501,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	HostStatus host_status;
 	HostStatus ip_status;
 	int local = 0, host_ip_differ = 0;
+	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
 	int len, host_line, ip_line;
@@ -516,13 +520,16 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	case AF_INET:
 		local = (ntohl(((struct sockaddr_in *)hostaddr)->
 		   sin_addr.s_addr) >> 24) == IN_LOOPBACKNET;
+		salen = sizeof(struct sockaddr_in);
 		break;
 	case AF_INET6:
 		local = IN6_IS_ADDR_LOOPBACK(
 		    &(((struct sockaddr_in6 *)hostaddr)->sin6_addr));
+		salen = sizeof(struct sockaddr_in6);
 		break;
 	default:
 		local = 0;
+		salen = sizeof(struct sockaddr_storage);
 		break;
 	}
 	if (options.no_host_authentication_for_localhost == 1 && local &&
@@ -537,7 +544,7 @@ check_host_key(char *host, struct sockaddr *hostaddr, Key *host_key,
 	 * using a proxy command
 	 */
 	if (options.proxy_command == NULL) {
-		if (getnameinfo(hostaddr, hostaddr->sa_len, ntop, sizeof(ntop),
+		if (getnameinfo(hostaddr, salen, ntop, sizeof(ntop),
 		    NULL, 0, NI_NUMERICHOST) != 0)
 			fatal("check_host_key: getnameinfo failed");
 		ip = xstrdup(ntop);

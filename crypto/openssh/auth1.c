@@ -11,7 +11,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth1.c,v 1.41 2002/06/19 00:27:55 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -25,13 +24,8 @@ RCSID("$FreeBSD$");
 #include "auth.h"
 #include "channels.h"
 #include "session.h"
-#include "canohost.h"
 #include "uidswap.h"
 #include "monitor_wrap.h"
-
-#include <login_cap.h>
-#include "auth-pam.h"
-#include <security/pam_appl.h>
 
 /* import */
 extern ServerOptions options;
@@ -81,16 +75,6 @@ do_authloop(Authctxt *authctxt)
 	u_int ulen;
 	int type = 0;
 	struct passwd *pw = authctxt->pw;
-#ifdef HAVE_LOGIN_CAP
-	login_cap_t *lc;
-#endif /* HAVE_LOGIN_CAP */
-#ifdef USE_PAM
-	struct inverted_pam_cookie *pam_cookie;
-#endif /* USE_PAM */
-	const char *from_host, *from_ip;
-
-	from_host = get_canonical_hostname(options.verify_reverse_mapping);
-	from_ip = get_remote_ipaddr();
 
 	debug("Attempting authentication for %s%.100s.",
 	    authctxt->valid ? "" : "illegal user ", authctxt->user);
@@ -100,11 +84,7 @@ do_authloop(Authctxt *authctxt)
 #if defined(KRB4) || defined(KRB5)
 	    (!options.kerberos_authentication || options.kerberos_or_local_passwd) &&
 #endif
-#ifdef USE_PAM
-	    /* XXX PRIVSEP */ auth_pam_password(authctxt, "")) {
-#else
 	    PRIVSEP(auth_password(authctxt, ""))) {
-#endif
 		auth_log(authctxt, 1, "without authentication", "");
 		return;
 	}
@@ -149,7 +129,6 @@ do_authloop(Authctxt *authctxt)
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
-						xfree(client_user);
 					}
 #endif /* KRB4 */
 				} else {
@@ -163,7 +142,6 @@ do_authloop(Authctxt *authctxt)
 						snprintf(info, sizeof(info),
 						    " tktuser %.100s",
 						    client_user);
-						xfree(client_user);
 					}
 #endif /* KRB5 */
 				}
@@ -262,49 +240,13 @@ do_authloop(Authctxt *authctxt)
 			password = packet_get_string(&dlen);
 			packet_check_eom();
 
-#ifdef USE_PAM
-			/* Do PAM auth with password */
-			authenticated = /* XXX PRIVSEP */ auth_pam_password(authctxt, password);
-#else /* !USE_PAM */
 			/* Try authentication with the password. */
 			authenticated = PRIVSEP(auth_password(authctxt, password));
-#endif /* USE_PAM */
 
 			memset(password, 0, strlen(password));
 			xfree(password);
 			break;
 
-#ifdef USE_PAM
-		case SSH_CMSG_AUTH_TIS:
-			debug("rcvd SSH_CMSG_AUTH_TIS: Trying PAM");
-			pam_cookie = ipam_start_auth("sshd", pw->pw_name);
-			/* We now have data available to send as a challenge */
-			if (pam_cookie->num_msg != 1 ||
-			    (pam_cookie->msg[0]->msg_style != PAM_PROMPT_ECHO_OFF &&
-			     pam_cookie->msg[0]->msg_style != PAM_PROMPT_ECHO_ON)) {
-			    /* We got several challenges or an unknown challenge type */
-			    ipam_free_cookie(pam_cookie);
-			    pam_cookie = NULL;
-			    break;
-			}
-			packet_start(SSH_SMSG_AUTH_TIS_CHALLENGE);
-			packet_put_string(pam_cookie->msg[0]->msg, strlen(pam_cookie->msg[0]->msg));
-			packet_send();
-			packet_write_wait();
-			continue;
-		case SSH_CMSG_AUTH_TIS_RESPONSE:
-			debug("rcvd SSH_CMSG_AUTH_TIS_RESPONSE");
-			if (pam_cookie != NULL) {
-			    char *response = packet_get_string(&dlen);
-			    
-			    pam_cookie->resp[0]->resp = strdup(response);
-			    xfree(response);
-			    authenticated = ipam_complete_auth(pam_cookie);
-			    ipam_free_cookie(pam_cookie);
-			    pam_cookie = NULL;
-			}
-			break;
-#elif defined(SKEY)
 		case SSH_CMSG_AUTH_TIS:
 			debug("rcvd SSH_CMSG_AUTH_TIS");
 			if (options.challenge_response_authentication == 1) {
@@ -331,12 +273,6 @@ do_authloop(Authctxt *authctxt)
 				xfree(response);
 			}
 			break;
-#else
-		case SSH_CMSG_AUTH_TIS:
-			/* TIS Authentication is unsupported */
-			log("TIS authentication unsupported.");
-			break;
-#endif
 
 		default:
 			/*
@@ -346,26 +282,6 @@ do_authloop(Authctxt *authctxt)
 			log("Unknown message during authentication: type %d", type);
 			break;
 		}
-
-#ifdef HAVE_LOGIN_CAP
-		if (pw != NULL) {
-		  lc = login_getpwclass(pw);
-		  if (lc == NULL)
-			lc = login_getclassbyname(NULL, pw);
-		  if (!auth_hostok(lc, from_host, from_ip)) {
-			log("Denied connection for %.200s from %.200s [%.200s].",
-		      pw->pw_name, from_host, from_ip);
-			packet_disconnect("Sorry, you are not allowed to connect.");
-		  }
-		  if (!auth_timeok(lc, time(NULL))) {
-			log("LOGIN %.200s REFUSED (TIME) FROM %.200s",
-		      pw->pw_name, from_host);
-			packet_disconnect("Logins not available right now.");
-		  }
-		  login_close(lc);
-		  lc = NULL;
-		}
-#endif  /* HAVE_LOGIN_CAP */
 #ifdef BSD_AUTH
 		if (authctxt->as) {
 			auth_close(authctxt->as);
@@ -376,22 +292,27 @@ do_authloop(Authctxt *authctxt)
 			fatal("INTERNAL ERROR: authenticated invalid user %s",
 			    authctxt->user);
 
+#ifdef HAVE_CYGWIN
+		if (authenticated &&
+		    !check_nt_auth(type == SSH_CMSG_AUTH_PASSWORD, pw)) {
+			packet_disconnect("Authentication rejected for uid %d.",
+			pw == NULL ? -1 : pw->pw_uid);
+			authenticated = 0;
+		}
+#else
 		/* Special handling for root */
 		if (authenticated && authctxt->pw->pw_uid == 0 &&
 		    !auth_root_allowed(get_authname(type)))
 			authenticated = 0;
-
-		if (pw != NULL && pw->pw_uid == 0)
-		  log("ROOT LOGIN as '%.100s' from %.100s",
-		      pw->pw_name, from_host );
+#endif
+#ifdef USE_PAM
+		if (!use_privsep && authenticated && 
+		    !do_pam_account(pw->pw_name, client_user))
+			authenticated = 0;
+#endif
 
 		/* Log before sending the reply */
 		auth_log(authctxt, authenticated, get_authname(type), info);
-
-#ifdef USE_PAM
-		if (authenticated && !do_pam_account(pw->pw_name, client_user))
-			authenticated = 0;
-#endif
 
 		if (client_user != NULL) {
 			xfree(client_user);
@@ -401,8 +322,15 @@ do_authloop(Authctxt *authctxt)
 		if (authenticated)
 			return;
 
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > AUTH_FAIL_MAX) {
+#ifdef WITH_AIXAUTHENTICATE
+			/* XXX: privsep */
+			loginfailed(authctxt->user,
+			    get_canonical_hostname(options.verify_reverse_mapping),
+			    "ssh");
+#endif /* WITH_AIXAUTHENTICATE */
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 
 		packet_start(SSH_SMSG_FAILURE);
 		packet_send();
@@ -451,20 +379,22 @@ do_authentication(void)
 	else
 		debug("do_authentication: illegal user %s", user);
 
-#ifdef USE_PAM
-	if (authctxt->pw != NULL)
-		start_pam(authctxt->pw);
-#endif
 	setproctitle("%s%s", authctxt->pw ? user : "unknown",
 	    use_privsep ? " [net]" : "");
 
+#ifdef USE_PAM
+	PRIVSEP(start_pam(authctxt->pw == NULL ? "NOUSER" : user));
+#endif
+
 	/*
 	 * If we are not running as root, the user must have the same uid as
-	 * the server.
+	 * the server. (Unless you are running Windows)
 	 */
+#ifndef HAVE_CYGWIN
 	if (!use_privsep && getuid() != 0 && authctxt->pw &&
 	    authctxt->pw->pw_uid != getuid())
 		packet_disconnect("Cannot change user when server not running as root.");
+#endif
 
 	/*
 	 * Loop until the user has been authenticated or the connection is
