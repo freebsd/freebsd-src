@@ -235,6 +235,8 @@ g_disk_create(void *arg)
 	pp->mediasize = dev->si_disk->d_mediasize;
 	pp->sectorsize = dev->si_disk->d_sectorsize;
 	g_error_provider(pp, 0);
+	if (bootverbose)
+		printf("GEOM: new disk %s\n", gp->name);
 }
 
 
