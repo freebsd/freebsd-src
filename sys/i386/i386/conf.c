@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.93 1995/08/19 15:59:32 joerg Exp $
+ *	$Id: conf.c,v 1.94 1995/09/03 19:53:11 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -963,7 +963,6 @@ d_ioctl_t		dgbioctl;
 d_select_t		dgbselect; 
 d_stop_t		dgbstop;     
 #define	dgbreset	nxreset
-#define	dgbdevtotty	nxdevtotty
 #else
 #define dgbopen		nxopen
 #define dgbclose	nxclose
@@ -973,7 +972,6 @@ d_stop_t		dgbstop;
 #define dgbstop		nxstop
 #define dgbreset	nxreset
 #define dgbselect	nxselect
-#define dgbdevtotty	nxdevtotty
 #endif
 
 /* Specialix serial driver */
@@ -1301,7 +1299,7 @@ struct cdevsw	cdevsw[] =
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
 	{ dgbopen,      dgbclose,       dgbread,        dgbwrite,       /*58*/
-	  dgbioctl,     dgbstop,        dgbreset,       dgb_tty, /* dgb */
+	  dgbioctl,     dgbstop,        dgbreset,       nodevtotty, /* dgb */
 	  dgbselect,    nommap,         NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
