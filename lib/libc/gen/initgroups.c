@@ -32,13 +32,20 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)initgroups.c	8.1 (Berkeley) 6/4/93";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
 
 #include <stdio.h>
+#include "namespace.h"
 #include <err.h>
+#include "un-namespace.h"
 #include <unistd.h>
 
 int
@@ -53,7 +60,7 @@ initgroups(uname, agroup)
 		warnx("%s is in too many groups, using first %d",
 		    uname, ngroups);
 	if (setgroups(ngroups, groups) < 0) {
-		warn("setgroups");
+		_warn("setgroups");
 		return (-1);
 	}
 	return (0);
