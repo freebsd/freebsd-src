@@ -102,7 +102,6 @@ VFS_SET(ext2fs_vfsops, ext2fs, MOUNT_EXT2FS, 0);
 #define bsd_malloc malloc
 #define bsd_free free
 
-extern u_long nextgennumber;
 static int ext2fs_inode_hash_lock;
 
 static int	compute_sb_data __P((struct vnode * devvp,
@@ -1005,9 +1004,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-		if (++nextgennumber < (u_long)time.tv_sec)
-			nextgennumber = time.tv_sec;
-		ip->i_gen = nextgennumber;
+		ip->i_gen = random() / 2 + 1;
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
 			ip->i_flag |= IN_MODIFIED;
 	}
