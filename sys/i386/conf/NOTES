@@ -448,6 +448,9 @@ device		acpi_asus
 # ACPI Panasonic Extras (LCD backlight/brightness, video output, etc.)
 device		acpi_panasonic
 
+# Support for ACPI CPU Performance states via cpufreq(4)
+device		acpi_perf
+
 # ACPI Sony extra (LCD brightness)
 device		acpi_sony
 
@@ -456,6 +459,9 @@ device		acpi_toshiba
 
 # ACPI Video Extensions (LCD backlight/brightness, video output, etc.)
 device		acpi_video
+
+# The cpufreq(4) driver provides support for non-ACPI CPU frequency control
+device		cpufreq
 
 # DRM options:
 # mgadrm:    AGP Matrox G200, G400, G450, G550
