@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.8 1996/08/31 16:52:23 bde Exp $
+ *	$Id: imgact_elf.c,v 1.9 1996/10/03 06:14:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -93,45 +93,46 @@ static struct sysentvec elf_freebsd_sysvec = {
 	"FreeBSD ELF"
 };
 
-static Elf32_Interp_info freebsd_interp = {
-						&elf_freebsd_sysvec,
+static Elf32_Brandinfo freebsd_brand_info = {
+						"FreeBSD",
+						"",
 						"/usr/libexec/ld-elf.so.1",
-						""
+						&elf_freebsd_sysvec
 					  };
-static Elf32_Interp_info *interp_list[MAX_INTERP] = {
-							&freebsd_interp,
+static Elf32_Brandinfo *elf_brand_list[MAX_BRANDS] = {
+							&freebsd_brand_info,
 							NULL, NULL, NULL,
 							NULL, NULL, NULL, NULL
 						    };
 
 int
-elf_insert_interp(Elf32_Interp_info *entry)
+elf_insert_brand_entry(Elf32_Brandinfo *entry)
 {
 	int i;
 
-	for (i=1; i<MAX_INTERP; i++) {
-		if (interp_list[i] == NULL) {
-			interp_list[i] = entry;
+	for (i=1; i<MAX_BRANDS; i++) {
+		if (elf_brand_list[i] == NULL) {
+			elf_brand_list[i] = entry;
 			break;
 		}
 	}
-	if (i == MAX_INTERP)
+	if (i == MAX_BRANDS)
 		return -1;
 	return 0;
 }
 
 int
-elf_remove_interp(Elf32_Interp_info *entry)
+elf_remove_brand_entry(Elf32_Brandinfo *entry)
 {
 	int i;
 
-	for (i=1; i<MAX_INTERP; i++) {
-		if (interp_list[i] == entry) {
-			interp_list[i] = NULL;
+	for (i=1; i<MAX_BRANDS; i++) {
+		if (elf_brand_list[i] == entry) {
+			elf_brand_list[i] = NULL;
 			break;
 		}
 	}
-	if (i == MAX_INTERP)
+	if (i == MAX_BRANDS)
 		return -1;
 	return 0;
 }
@@ -478,6 +479,8 @@ exec_elf_imgact(struct image_params *imgp)
 	u_long addr, entry = 0, proghdr = 0;
 	int error, i, header_size = 0, interp_len = 0;
 	char *interp = NULL;
+	char *brand = NULL;
+	char path[MAXPATHLEN];
 
 	/*
 	 * Do we have a valid ELF header ?
@@ -611,41 +614,67 @@ exec_elf_imgact(struct image_params *imgp)
 
 	addr = 2*MAXDSIZ; /* May depend on OS type XXX */
 
-	if (interp) {
-		char path[MAXPATHLEN];
-		/* 
-		 * So which kind of ELF binary do we have at hand
-		 * FreeBSD, SVR4 or Linux ??
-		 */
-		for (i=0; i<MAX_INTERP; i++) {
-			if (interp_list[i] != NULL) {
-				if (!strcmp(interp, interp_list[i]->path)) {
-					imgp->proc->p_sysent = 
-						interp_list[i]->sysvec;
-					strcpy(path, interp_list[i]->emul_path);
-					strcat(path, interp_list[i]->path);
-					UPRINTF("interpreter=<%s> %s\n",
-						interp_list[i]->path,
-						interp_list[i]->emul_path);
-					break;
+	imgp->entry_addr = entry;
+
+	/* 
+	 * So which kind (brand) of ELF binary do we have at hand
+	 * FreeBSD, Linux, SVR4 or something else ??
+	 * If its has a interpreter section try that first
+	 */
+        if (interp) {
+                for (i=0; i<MAX_BRANDS; i++) {
+                        if (elf_brand_list[i] != NULL) {
+                                if (!strcmp(interp, elf_brand_list[i]->interp_path)) {
+                                        imgp->proc->p_sysent =
+                                                elf_brand_list[i]->sysvec;
+                                        strcpy(path, elf_brand_list[i]->emul_path);
+                                        strcat(path, elf_brand_list[i]->interp_path);
+                                        UPRINTF("interpreter=<%s> %s\n",
+                                                elf_brand_list[i]->interp_path,
+                                                elf_brand_list[i]->emul_path);
+                                        break;
+                                }
+                        }
+                }
+        }
+
+	/*
+	 * If there is no interpreter, or recognition of it
+	 * failed, se if the binary is branded.
+	 */
+	if (!interp || i == MAX_BRANDS) {
+		brand = (char *)&(hdr->e_ident[EI_BRAND]);
+		for (i=0; i<MAX_BRANDS; i++) {
+			if (elf_brand_list[i] != NULL) {
+				if (!strcmp(brand, elf_brand_list[i]->brand)) {
+					imgp->proc->p_sysent = elf_brand_list[i]->sysvec;
+					if (interp) {
+						strcpy(path, elf_brand_list[i]->emul_path);
+						strcat(path, elf_brand_list[i]->interp_path);
+						UPRINTF("interpreter=<%s> %s\n",
+						elf_brand_list[i]->interp_path,
+						elf_brand_list[i]->emul_path);
+					}
 				}
 			}
 		}
-		if (i == MAX_INTERP) {
-			uprintf("ELF interpreter %s not known\n", interp);
-			error = ENOEXEC;
-			goto fail;
-		}
-		if (error = elf_load_file(imgp->proc,
-					  path,
-				          &addr, 	/* XXX */
-				          &imgp->entry_addr)) {
-			uprintf("ELF interpreter %s not found\n", path);
-			goto fail;
-		}
 	}
-	else
-		imgp->entry_addr = entry;
+	if (i == MAX_BRANDS) {
+		uprintf("ELF binary type not known\n");
+		error = ENOEXEC;
+		goto fail;
+	}
+	if (interp) {
+                if (error = elf_load_file(imgp->proc,
+                                          path,
+                                          &addr,        /* XXX */
+                                          &imgp->entry_addr)) {
+                        uprintf("ELF interpreter %s not found\n", path);
+                        goto fail;
+                }
+	}
+
+	uprintf("Executing %s binary\n", elf_brand_list[i]->brand);
 
 	/*
 	 * Construct auxargs table (used by the fixup routine)

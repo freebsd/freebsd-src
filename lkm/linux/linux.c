@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.6 1996/03/10 22:43:37 peter Exp $
+ *	$Id: linux.c,v 1.7 1996/09/03 22:52:07 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,12 +41,12 @@ extern const struct execsw linux_execsw;
 
 MOD_EXEC(linux, -1, &linux_execsw);
 
-extern Elf32_Interp_info linux_interp;
+extern Elf32_Brandinfo linux_brand;
 
 static int
 linux_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (elf_insert_interp(&linux_interp))
+	if (elf_insert_brand_entry(&linux_brand))
 		uprintf("Could not install ELF interpreter entry\n");
 	uprintf("Linux emulator installed\n");
 	return 0;
@@ -55,7 +55,7 @@ linux_load(struct lkm_table *lkmtp, int cmd)
 static int
 linux_unload(struct lkm_table *lkmtp, int cmd)
 {
-	if (elf_remove_interp(&linux_interp))
+	if (elf_remove_brand_entry(&linux_brand))
 		uprintf("Could not deinstall ELF interpreter entry\n");
 	uprintf("Linux emulator removed\n");
 	return 0;
