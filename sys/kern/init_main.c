@@ -81,7 +81,7 @@ struct	filedesc0 filedesc0;
 struct	plimit limit0;
 struct	vmspace vmspace0;
 struct	proc *curproc = &proc0;
-struct	proc *initproc, *pageproc, *pagescanproc, *updateproc;
+struct	proc *initproc, *pageproc, *updateproc;
 
 int	cmask = CMASK;
 extern	struct user *proc0paddr;
@@ -299,24 +299,9 @@ main(framep)
 		vm_pageout();
 		/* NOTREACHED */
 	}
-#if 1
-	/*
-	 * Start page scanner daemon (process 3).
-	 */
-	if (fork(p, (void *) NULL, rval))
-		panic("failed fork page scanner daemon");
-	if (rval[1]) {
-		p = curproc;
-		pagescanproc = p;
-		p->p_flag |= P_INMEM | P_SYSTEM;
-		bcopy("pagescan", p->p_comm, sizeof("pagescan"));
-		vm_pagescan();
-		/*NOTREACHED*/
-	}
-#endif
 
 	/*
-	 * Start update daemon (process 4).
+	 * Start update daemon (process 3).
 	 */
 #ifndef LAPTOP
 	if (fork(p, (void *) NULL, rval))

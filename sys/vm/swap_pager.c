@@ -1194,7 +1194,6 @@ swap_pager_input(swp, m, count, reqpage)
 					 * to deactivate the readahead pages.
 					 */
 					vm_page_deactivate(m[i]); 
-					m[i]->act_count = 2;
 	
 					/*
 					 * just in case someone was asking for this
