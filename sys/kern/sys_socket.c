@@ -142,7 +142,7 @@ soo_ioctl(fp, cmd, data, p)
 	if (IOCGROUP(cmd) == 'i')
 		return (ifioctl(so, cmd, data, p));
 	if (IOCGROUP(cmd) == 'r')
-		return (rtioctl(cmd, data, p));
+		return (rtioctl(cmd, data));
 	return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd, data, 0, p));
 }
 
