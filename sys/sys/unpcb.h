@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $Id: unpcb.h,v 1.5 1997/02/22 09:46:22 peter Exp $
+ * $Id: unpcb.h,v 1.6 1997/08/16 19:16:16 wollman Exp $
  */
 
 #ifndef _SYS_UNPCB_H_
 #define _SYS_UNPCB_H_
+
+#include <sys/queue.h>
 
 /*
  * Protocol control block for an active
@@ -62,18 +64,51 @@
  * so that changes in the sockbuf may be computed to modify
  * back pressure on the sender accordingly.
  */
+typedef	u_quad_t	unp_gen_t;
+LIST_HEAD(unp_head, unpcb);
+
 struct	unpcb {
+	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
 	struct	socket *unp_socket;	/* pointer back to socket */
 	struct	vnode *unp_vnode;	/* if associated with file */
 	ino_t	unp_ino;		/* fake inode number */
 	struct	unpcb *unp_conn;	/* control block of connected socket */
-	struct	unpcb *unp_refs;	/* referencing socket linked list */
-	struct 	unpcb *unp_nextref;	/* link in unp_refs list */
+	struct	unp_head unp_refs;	/* referencing socket linked list */
+	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
 	struct	sockaddr_un *unp_addr;	/* bound address of socket */
 	int	unp_cc;			/* copy of rcv.sb_cc */
 	int	unp_mbcnt;		/* copy of rcv.sb_mbcnt */
+	unp_gen_t unp_gencnt;		/* generation count of this instance */
 };
 
 #define	sotounpcb(so)	((struct unpcb *)((so)->so_pcb))
 
-#endif
+/* Hack alert -- this structure depends on <sys/socketvar.h>. */
+#ifdef	_SYS_SOCKETVAR_H_
+struct	xunpcb {
+	size_t	xu_len;			/* length of this structure */
+	struct	unpcb *xu_unpp;		/* to help netstat, fstat */
+	struct	unpcb xu_unp;		/* our information */
+	union {
+		struct	sockaddr_un xuu_addr;	/* our bound address */
+		char	xu_dummy1[256];
+	} xu_au;
+#define	xu_addr	xu_au.xuu_addr
+	union {
+		struct	sockaddr_un xuu_caddr; /* their bound address */
+		char	xu_dummy2[256];
+	} xu_cau;
+#define	xu_caddr xu_cau.xuu_caddr
+	struct	xsocket	xu_socket;
+	u_quad_t	xu_alignment_hack;
+};
+
+struct	xunpgen {
+	size_t	xug_len;
+	u_int	xug_count;
+	unp_gen_t xug_gen;
+	so_gen_t xug_sogen;
+};
+#endif /* _SYS_SOCKETVAR_H_ */
+
+#endif /* _SYS_UNPCB_H_ */
