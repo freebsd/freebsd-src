@@ -86,6 +86,8 @@ __RCSID("$FreeBSD$");
  */
 
 #include    <ctype.h>
+#include    <sys/types.h>
+#include    <regex.h>
 #include    <stdlib.h>
 #include    "make.h"
 #include    "buf.h"
@@ -144,8 +146,11 @@ typedef struct Var {
 
 /* Var*Pattern flags */
 #define VAR_SUB_GLOBAL	0x01	/* Apply substitution globally */
+#define VAR_SUB_ONE	0x02	/* Apply substitution to one word */
+#define VAR_SUB_MATCHED	0x04	/* There was a match */
 #define VAR_MATCH_START	0x08	/* Match at start of word */
 #define VAR_MATCH_END	0x10	/* Match at end of word */
+#define VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
 
 typedef struct {
     char    	  *lhs;	    /* String to match */
@@ -154,6 +159,14 @@ typedef struct {
     int	    	  rightLen; /* Length of replacement */
     int	    	  flags;
 } VarPattern;
+
+typedef struct { 
+    regex_t	   re; 
+    int		   nsub;
+    regmatch_t	  *matches;
+    char	  *replace;
+    int		   flags;
+} VarREPattern;
 
 static int VarCmp __P((ClientData, ClientData));
 static Var *VarFind __P((char *, GNode *, int));
@@ -168,7 +181,11 @@ static Boolean VarMatch __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSYSVMatch __P((char *, Boolean, Buffer, ClientData));
 #endif
 static Boolean VarNoMatch __P((char *, Boolean, Buffer, ClientData));
+static void VarREError __P((int, regex_t *, const char *));
+static Boolean VarRESubstitute __P((char *, Boolean, Buffer, ClientData));
 static Boolean VarSubstitute __P((char *, Boolean, Buffer, ClientData));
+static char *VarGetPattern __P((GNode *, int, char **, int, int *, int *,
+				VarPattern *));
 static char *VarQuote __P((char *));
 static char *VarModify __P((char *, Boolean (*)(char *, Boolean, Buffer,
 						ClientData),
@@ -1048,6 +1065,168 @@ VarSubstitute (word, addSpace, buf, patternp)
 
 /*-
  *-----------------------------------------------------------------------
+ * VarREError --
+ *	Print the error caused by a regcomp or regexec call.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	An error gets printed.
+ *
+ *-----------------------------------------------------------------------
+ */
+static void
+VarREError(err, pat, str)
+    int err;
+    regex_t *pat;
+    const char *str;
+{
+    char *errbuf;
+    int errlen;
+
+    errlen = regerror(err, pat, 0, 0);
+    errbuf = emalloc(errlen);
+    regerror(err, pat, errbuf, errlen);
+    Error("%s: %s", str, errbuf);
+    free(errbuf);
+}
+
+
+/*-
+ *-----------------------------------------------------------------------
+ * VarRESubstitute --
+ *	Perform a regex substitution on the given word, placing the
+ *	result in the passed buffer.
+ *
+ * Results:
+ *	TRUE if a space is needed before more characters are added.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *-----------------------------------------------------------------------
+ */
+static Boolean
+VarRESubstitute(word, addSpace, buf, patternp)
+    char *word;
+    Boolean addSpace;
+    Buffer buf;
+    ClientData patternp;
+{
+    VarREPattern *pat;
+    int xrv;
+    char *wp;
+    char *rp;
+    int added;
+    int flags = 0;
+
+#define MAYBE_ADD_SPACE()		\
+	if (addSpace && !added)		\
+	    Buf_AddByte(buf, ' ');	\
+	added = 1
+
+    added = 0;
+    wp = word;
+    pat = patternp;
+
+    if ((pat->flags & (VAR_SUB_ONE|VAR_SUB_MATCHED)) ==
+	(VAR_SUB_ONE|VAR_SUB_MATCHED))
+	xrv = REG_NOMATCH;
+    else {
+    tryagain:
+	xrv = regexec(&pat->re, wp, pat->nsub, pat->matches, flags);
+    }
+
+    switch (xrv) {
+    case 0:
+	pat->flags |= VAR_SUB_MATCHED;
+	if (pat->matches[0].rm_so > 0) {
+	    MAYBE_ADD_SPACE();
+	    Buf_AddBytes(buf, pat->matches[0].rm_so, wp);
+	}
+
+	for (rp = pat->replace; *rp; rp++) {
+	    if ((*rp == '\\') && ((rp[1] == '&') || (rp[1] == '\\'))) {
+		MAYBE_ADD_SPACE();
+		Buf_AddByte(buf,rp[1]);
+		rp++;
+	    }
+	    else if ((*rp == '&') ||
+		((*rp == '\\') && isdigit((unsigned char)rp[1]))) {
+		int n;
+		char *subbuf;
+		int sublen;
+		char errstr[3];
+
+		if (*rp == '&') {
+		    n = 0;
+		    errstr[0] = '&';
+		    errstr[1] = '\0';
+		} else {
+		    n = rp[1] - '0';
+		    errstr[0] = '\\';
+		    errstr[1] = rp[1];
+		    errstr[2] = '\0';
+		    rp++;
+		}
+
+		if (n > pat->nsub) {
+		    Error("No subexpression %s", &errstr[0]);
+		    subbuf = "";
+		    sublen = 0;
+		} else if ((pat->matches[n].rm_so == -1) &&
+			   (pat->matches[n].rm_eo == -1)) {
+		    Error("No match for subexpression %s", &errstr[0]);
+		    subbuf = "";
+		    sublen = 0;
+		} else {
+		    subbuf = wp + pat->matches[n].rm_so;
+		    sublen = pat->matches[n].rm_eo - pat->matches[n].rm_so;
+		}
+
+		if (sublen > 0) {
+		    MAYBE_ADD_SPACE();
+		    Buf_AddBytes(buf, sublen, subbuf);
+		}
+	    } else {
+		MAYBE_ADD_SPACE();
+		Buf_AddByte(buf, *rp);
+	    }
+	}
+	wp += pat->matches[0].rm_eo;
+	if (pat->flags & VAR_SUB_GLOBAL) {
+	    flags |= REG_NOTBOL;
+	    if (pat->matches[0].rm_so == 0 && pat->matches[0].rm_eo == 0) {
+		MAYBE_ADD_SPACE();
+		Buf_AddByte(buf, *wp);
+		wp++;
+
+	    }
+	    if (*wp)
+		goto tryagain;
+	}
+	if (*wp) {
+	    MAYBE_ADD_SPACE();
+	    Buf_AddBytes(buf, strlen(wp), wp);
+	}
+	break;
+    default:
+	VarREError(xrv, &pat->re, "Unexpected regex error");
+       /* fall through */
+    case REG_NOMATCH:
+	if (*wp) {
+	    MAYBE_ADD_SPACE();
+	    Buf_AddBytes(buf,strlen(wp),wp);
+	}
+	break;
+    }
+    return(addSpace||added);
+}
+
+
+/*-
+ *-----------------------------------------------------------------------
  * VarModify --
  *	Modify each of the words of the passed string using the given
  *	function. Used to implement all modifiers.
@@ -1087,6 +1266,135 @@ VarModify (str, modProc, datum)
     Buf_Destroy (buf, FALSE);
     return (str);
 }
+
+/*-
+ *-----------------------------------------------------------------------
+ * VarGetPattern --
+ *	Pass through the tstr looking for 1) escaped delimiters,
+ *	'$'s and backslashes (place the escaped character in
+ *	uninterpreted) and 2) unescaped $'s that aren't before
+ *	the delimiter (expand the variable substitution unless flags
+ *	has VAR_NOSUBST set).
+ *	Return the expanded string or NULL if the delimiter was missing
+ *	If pattern is specified, handle escaped ampersands, and replace
+ *	unescaped ampersands with the lhs of the pattern.
+ *
+ * Results:
+ *	A string of all the words modified appropriately.
+ *	If length is specified, return the string length of the buffer
+ *	If flags is specified and the last character of the pattern is a
+ *	$ set the VAR_MATCH_END bit of flags.
+ *
+ * Side Effects:
+ *	None.
+ *-----------------------------------------------------------------------
+ */
+static char *
+VarGetPattern(ctxt, err, tstr, delim, flags, length, pattern)
+    GNode *ctxt;
+    int err;
+    char **tstr;
+    int delim;
+    int *flags;
+    int *length;
+    VarPattern *pattern;
+{
+    char *cp;
+    Buffer buf = Buf_Init(0);
+    int junk;
+    if (length == NULL)
+	length = &junk;
+
+#define IS_A_MATCH(cp, delim) \
+    ((cp[0] == '\\') && ((cp[1] == delim) ||  \
+     (cp[1] == '\\') || (cp[1] == '$') || (pattern && (cp[1] == '&'))))
+
+    /*
+     * Skim through until the matching delimiter is found;
+     * pick up variable substitutions on the way. Also allow
+     * backslashes to quote the delimiter, $, and \, but don't
+     * touch other backslashes.
+     */
+    for (cp = *tstr; *cp && (*cp != delim); cp++) {
+	if (IS_A_MATCH(cp, delim)) {
+	    Buf_AddByte(buf, (Byte) cp[1]);
+	    cp++;
+	} else if (*cp == '$') {
+	    if (cp[1] == delim) {
+		if (flags == NULL)
+		    Buf_AddByte(buf, (Byte) *cp);
+		else
+		    /*
+		     * Unescaped $ at end of pattern => anchor
+		     * pattern at end.
+		     */
+		    *flags |= VAR_MATCH_END;
+	    } else {
+		if (flags == NULL || (*flags & VAR_NOSUBST) == 0) {
+		    char   *cp2;
+		    int	    len;
+		    Boolean freeIt;
+
+		    /*
+		     * If unescaped dollar sign not before the
+		     * delimiter, assume it's a variable
+		     * substitution and recurse.
+		     */
+		    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
+		    Buf_AddBytes(buf, strlen(cp2), (Byte *) cp2);
+		    if (freeIt)
+			free(cp2);
+		    cp += len - 1;
+		} else {
+		    char *cp2 = &cp[1];
+
+		    if (*cp2 == '(' || *cp2 == '{') {
+			/*
+			 * Find the end of this variable reference
+			 * and suck it in without further ado.
+			 * It will be interperated later.
+			 */
+			int have = *cp2;
+			int want = (*cp2 == '(') ? ')' : '}';
+			int depth = 1;
+
+			for (++cp2; *cp2 != '\0' && depth > 0; ++cp2) {
+			    if (cp2[-1] != '\\') {
+				if (*cp2 == have)
+				    ++depth;
+				if (*cp2 == want)
+				    --depth;
+			    }
+			}
+			Buf_AddBytes(buf, cp2 - cp, (Byte *)cp);
+			cp = --cp2;
+		    } else
+			Buf_AddByte(buf, (Byte) *cp);
+		}
+	    }
+	}
+	else if (pattern && *cp == '&')
+	    Buf_AddBytes(buf, pattern->leftLen, (Byte *)pattern->lhs);
+	else
+	    Buf_AddByte(buf, (Byte) *cp);
+    }
+
+    Buf_AddByte(buf, (Byte) '\0');
+
+    if (*cp != delim) {
+	*tstr = cp;
+	*length = 0;
+	return NULL;
+    }
+    else {
+	*tstr = ++cp;
+	cp = (char *) Buf_GetAll(buf, length);
+	*length -= 1;	/* Don't count the NULL */
+	Buf_Destroy(buf, FALSE);
+	return cp;
+    }
+}
+
 
 /*-
  *-----------------------------------------------------------------------
@@ -1162,6 +1470,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
     int             cnt;	/* Used to count brace pairs when variable in
 				 * in parens or braces */
     char    	    *start;
+    char	     delim;
     Boolean 	    dynamic;	/* TRUE if the variable is local and we're
 				 * expanding it in a non-local context. This
 				 * is done to support dynamic sources. The
@@ -1420,6 +1729,8 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
      *  	  	    	wildcarding form.
      *  	  :S<d><pat1><d><pat2><d>[g]
      *  	  	    	Substitute <pat2> for <pat1> in the value
+     *		  :C<d><pat1><d><pat2><d>[g]
+     *				Substitute <pat2> for regex <pat1> in the value
      *  	  :H	    	Substitute the head of each word
      *  	  :T	    	Substitute the tail of each word
      *  	  :E	    	Substitute the extension (minus '.') of
@@ -1665,6 +1976,81 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		     */
 		    free(pattern.lhs);
 		    free(pattern.rhs);
+		    break;
+		}
+		case 'C':
+		{
+		    VarREPattern    pattern;
+		    char	   *re;
+		    int		    error;
+
+		    pattern.flags = 0;
+		    delim = tstr[1];
+		    tstr += 2;
+
+		    cp = tstr;
+
+		    if ((re = VarGetPattern(ctxt, err, &cp, delim, NULL,
+			NULL, NULL)) == NULL) {
+			/* was: goto cleanup */
+			*lengthPtr = cp - start + 1;
+			if (*freePtr)
+			    free(str);
+			if (delim != '\0')
+			    Error("Unclosed substitution for %s (%c missing)",
+				  v->name, delim);
+			return (var_Error);
+		    }
+
+		    if ((pattern.replace = VarGetPattern(ctxt, err, &cp,
+			delim, NULL, NULL, NULL)) == NULL){
+			free(re);
+
+			/* was: goto cleanup */
+			*lengthPtr = cp - start + 1;
+			if (*freePtr)
+			    free(str);
+			if (delim != '\0')
+			    Error("Unclosed substitution for %s (%c missing)",
+				  v->name, delim);
+			return (var_Error);
+		    }
+
+		    for (;; cp++) {
+			switch (*cp) {
+			case 'g':
+			    pattern.flags |= VAR_SUB_GLOBAL;
+			    continue;
+			case '1':
+			    pattern.flags |= VAR_SUB_ONE;
+			    continue;
+			}
+			break;
+		    }
+
+		    termc = *cp;
+
+		    error = regcomp(&pattern.re, re, REG_EXTENDED);
+		    free(re);
+		    if (error)	{
+			*lengthPtr = cp - start + 1;
+			VarREError(error, &pattern.re, "RE substitution error");
+			free(pattern.replace);
+			return (var_Error);
+		    }
+
+		    pattern.nsub = pattern.re.re_nsub + 1;
+		    if (pattern.nsub < 1)
+			pattern.nsub = 1;
+		    if (pattern.nsub > 10)
+			pattern.nsub = 10;
+		    pattern.matches = emalloc(pattern.nsub *
+					      sizeof(regmatch_t));
+		    newStr = VarModify(str, VarRESubstitute,
+				       (ClientData) &pattern);
+		    regfree(&pattern.re);
+		    free(pattern.replace);
+		    free(pattern.matches);
 		    break;
 		}
 		case 'Q':
