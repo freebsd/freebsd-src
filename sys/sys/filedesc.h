@@ -40,7 +40,6 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <sys/queue.h>
-#include <sys/sx.h>
 
 /*
  * This structure is used for the management of descriptors.  It may be
