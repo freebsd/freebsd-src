@@ -14,6 +14,7 @@ SRCS=	bio_ssl.c s23_clnt.c s23_lib.c s23_meth.c s23_pkt.c s23_srvr.c \
 	ssl_err.c ssl_err2.c ssl_lib.c ssl_rsa.c ssl_sess.c ssl_stat.c \
 	ssl_txt.c t1_clnt.c t1_enc.c t1_lib.c t1_meth.c t1_srvr.c
 
+.if defined(WANT_OPENSSL_MANPAGES)
 MAN3=	SSL_CIPHER_get_name.3 SSL_COMP_add_compression_method.3 \
 	SSL_CTX_add_extra_chain_cert.3 SSL_CTX_add_session.3 SSL_CTX_ctrl.3 \
 	SSL_CTX_flush_sessions.3 SSL_CTX_free.3 SSL_CTX_get_ex_new_index.3 \
@@ -44,6 +45,7 @@ MAN3=	SSL_CIPHER_get_name.3 SSL_COMP_add_compression_method.3 \
 	SSL_set_fd.3 SSL_set_session.3 SSL_set_shutdown.3 \
 	SSL_set_verify_result.3 SSL_shutdown.3 SSL_state_string.3 \
 	SSL_want.3 SSL_write.3 d2i_SSL_SESSION.3 ssl.3
+.endif
 
 INCS=	kssl.h ssl.h ssl2.h ssl23.h ssl3.h tls1.h
 INCSDIR=${INCLUDEDIR}/openssl
