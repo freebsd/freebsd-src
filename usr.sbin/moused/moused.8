@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: moused.8,v 1.10 1998/01/05 12:38:13 yokota Exp $
+.\"	$Id: moused.8,v 1.1.2.3 1998/01/20 03:52:43 yokota Exp $
 .\"
 .Dd December 3, 1997
 .Dt MOUSED 8
@@ -113,7 +113,7 @@ If this option is given together with the
 .Fl i
 option, the
 .Nm
-command won't be able to print userful information for the serial mouse.
+command won't be able to print useful information for the serial mouse.
 .It Fl R
 Lower RTS on the serial port.
 This option is valid only if 
@@ -147,7 +147,7 @@ Port (device file) name, i.e.
 .Pa /dev/cuaa0 , 
 .Pa /dev/mse0
 and 
-.Pa /dev/psm0.
+.Pa /dev/psm0 .
 .It Ar if
 Interface type: serial, bus, inport or ps/2.
 .It Ar type
@@ -305,9 +305,9 @@ what matters.
 The next thing to decide is a port to use for the given interface.
 For the bus, InPort and PS/2 mice, there is little choice: 
 the bus and InPort mice always use
-.Pa /dev/mse0,
+.Pa /dev/mse0 ,
 and the PS/2 mouse is always at
-.Pa /dev/psm0.
+.Pa /dev/psm0 .
 There may be more than one serial port to which the serial
 mouse can be attached.  Many people often assign the first, built-in 
 serial port
@@ -403,7 +403,7 @@ start the mouse daemon in the foreground mode,
 .Dl moused -f -p Ar _selected_port_ -t Ar _selected_protocol_
 .Pp
 and see if the mouse pointer travels correctly
-according to the mouse movement. Then try cur & paste features by
+according to the mouse movement. Then try cut & paste features by
 clicking the left, right and middle buttons. Type ^C to stop
 the command.
 .Ss Multiple Mice
@@ -445,7 +445,7 @@ virtual consoles
 Let the
 .Nm
 command determine the protocol type of the mouse at the serial port
-.Pa /dev/cuaa0.
+.Pa /dev/cuaa0 .
 If successful, the command will print the type, otherwise it will say
 ``unknown''.
 .Pp
@@ -463,7 +463,7 @@ option and enable the mouse pointer in the text console as above.
 .Dl vidcontrol -m on
 .Pp
 Start the mouse daemon on the serial port 
-.Pa /dev/mouse.
+.Pa /dev/mouse .
 The protocol type
 .Ar microsoft
 is explicitly specified by the
