@@ -39,7 +39,6 @@
  */
 
 #include "ex.h"
-#if NEX > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -139,7 +138,7 @@ static u_char plus_ee2irqmap[] =
 /* Bus Front End Functions */
 static void	ex_isa_identify	__P((driver_t *, device_t));
 static int	ex_isa_probe	__P((device_t));
-static int	ex_attach	__P((device_t));
+static int	ex_isa_attach	__P((device_t));
 
 /* Network Interface Functions */
 static void	ex_init		__P((void *));
@@ -150,7 +149,7 @@ static void	ex_watchdog	__P((struct ifnet *));
 static void	ex_stop		__P((struct ex_softc *));
 static void	ex_reset	__P((struct ex_softc *));
 
-static driver_intr_t	exintr;
+static driver_intr_t	ex_intr;
 static void	ex_tx_intr	__P((struct ex_softc *));
 static void	ex_rx_intr	__P((struct ex_softc *));
 
@@ -160,7 +159,7 @@ static device_method_t ex_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	ex_isa_identify),
 	DEVMETHOD(device_probe,		ex_isa_probe),
-	DEVMETHOD(device_attach,	ex_attach),
+	DEVMETHOD(device_attach,	ex_isa_attach),
 
 	{ 0, 0 }
 };
@@ -181,7 +180,8 @@ static struct isa_pnp_id ex_ids[] = {
 	{ 0,		NULL },
 };
 
-static int look_for_card(u_int iobase)
+static int
+look_for_card (u_int iobase)
 {
 	int count1, count2;
 
@@ -369,8 +369,8 @@ ex_isa_probe(device_t dev)
 	return(0);
 }
 
-
-int ex_attach(device_t dev)
+static int
+ex_isa_attach(device_t dev)
 {
 	struct ex_softc *	sc = device_get_softc(dev);
 	struct ifnet *		ifp = &sc->arpcom.ac_if;
@@ -400,7 +400,7 @@ int ex_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       exintr, (void *)sc, &ih);
+			       ex_intr, (void *)sc, &ih);
 
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed!\n");
@@ -438,14 +438,14 @@ int ex_attach(device_t dev)
 	ifp->if_softc = sc;
 	ifp->if_unit = unit;
 	ifp->if_name = "ex";
-	ifp->if_init = ex_init;
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST /* XXX not done yet. | IFF_MULTICAST */;
 	ifp->if_output = ether_output;
 	ifp->if_start = ex_start;
 	ifp->if_ioctl = ex_ioctl;
 	ifp->if_watchdog = ex_watchdog;
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST
-					/* XXX not done yet. | IFF_MULTICAST */;
+	ifp->if_init = ex_init;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	/*
 	 * Attach the interface.
@@ -453,27 +453,16 @@ int ex_attach(device_t dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	if (ex_card_type(sc->arpcom.ac_enaddr) == CARD_TYPE_EX_10_PLUS) {
-		printf("ex%d: Intel EtherExpress Pro/10+, address %6D, connector ", unit, sc->arpcom.ac_enaddr, ":");
-	} else {
-		printf("ex%d: Intel EtherExpress Pro/10, address %6D, connector ", unit, sc->arpcom.ac_enaddr, ":");
-	}
-	switch(sc->connector) {
-		case Conn_TPE: printf("TPE\n"); break;
-		case Conn_BNC: printf("BNC\n"); break;
-		case Conn_AUI: printf("AUI\n"); break;
-		default: printf("???\n");
-	}
+	device_printf(sc->dev, "Ethernet address %6D\n",
+			sc->arpcom.ac_enaddr, ":");
 
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-	DODEBUG(Start_End, printf("ex_attach%d: finish\n", unit););
-	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
+	DODEBUG(Start_End, printf("ex_isa_attach%d: finish\n", unit););
 
 	return(0);
-
 bad:
 
 	if (sc->ioport)
@@ -485,7 +474,8 @@ bad:
 }
 
 
-void ex_init(void *xsc)
+static void
+ex_init(void *xsc)
 {
 	struct ex_softc *	sc = (struct ex_softc *) xsc;
 	struct ifnet *		ifp = &sc->arpcom.ac_if;
@@ -577,7 +567,7 @@ void ex_init(void *xsc)
 }
 
 
-void
+static void
 ex_start(struct ifnet *ifp)
 {
 	struct ex_softc *	sc = ifp->if_softc;
@@ -787,14 +777,14 @@ ex_stop(struct ex_softc *sc)
 
 
 static void
-exintr(void *arg)
+ex_intr(void *arg)
 {
 	struct ex_softc *	sc = (struct ex_softc *)arg;
 	struct ifnet *	ifp = &sc->arpcom.ac_if;
 	int			iobase = sc->iobase;
 	int			int_status, send_pkts;
 
-	DODEBUG(Start_End, printf("exintr%d: start\n", unit););
+	DODEBUG(Start_End, printf("ex_intr%d: start\n", unit););
 
 #ifdef EXDEBUG
 	if (++exintr_count != 1)
@@ -828,7 +818,7 @@ exintr(void *arg)
 	exintr_count--;
 #endif
 
-	DODEBUG(Start_End, printf("exintr%d: finish\n", unit););
+	DODEBUG(Start_End, printf("ex_intr%d: finish\n", unit););
 
 	return;
 }
@@ -1006,7 +996,8 @@ rx_another: ;
 }
 
 
-int ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
+static int
+ex_ioctl(register struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ex_softc *	sc = ifp->if_softc;
 	int			s;
@@ -1140,5 +1131,3 @@ eeprom_read(int iobase, int location)
 	outb(iobase + CMD_REG, Bank0_Sel);
 	return(data);
 }
-
-#endif /* NEX > 0 */
