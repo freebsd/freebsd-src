@@ -436,6 +436,7 @@ am7990_init(sc)
  * Routine to copy from mbuf chain to transmit buffer in
  * network buffer memory.
  */
+
 integrate int
 am7990_put(sc, boff, m)
 	struct am7990_softc *sc;
@@ -448,13 +449,15 @@ am7990_put(sc, boff, m)
 	for (; m; m = n) {
 		len = m->m_len;
 		if (len == 0) {
-			MFREE(m, n);
+			n = m_free(m);
+			m = NULL;
 			continue;
 		}
 		(*sc->sc_copytobuf)(sc, mtod(m, caddr_t), boff, len);
 		boff += len;
 		tlen += len;
-		MFREE(m, n);
+		n = m_free(m);
+		m = NULL;
 	}
 	if (tlen < LEMINSIZE) {
 		(*sc->sc_zerobuf)(sc, boff, LEMINSIZE - tlen);
@@ -969,7 +972,7 @@ am7990_ioctl(ifp, cmd, data)
 #ifdef INET
 		case AF_INET:
 			am7990_init(sc);
-			arp_ifinit((struct arpcom *)ifp, ifa);
+			arp_ifinit((void *)ifp, ifa);
 			break;
 #endif
 #ifdef NS
