@@ -35,6 +35,8 @@
 #include <sys/stat.h>
 #include <sys/errno.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
+#include <machine/cpu.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -45,6 +47,7 @@
 #include <stdlib.h>
 #include <err.h>
 #include <sysexits.h>
+#include <time.h>
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_rcfile.h>
@@ -69,15 +72,18 @@ parsercfile(struct ncp_conn_loginfo *li, struct nwfs_args *mdata) {
 
 int
 main(int argc, char *argv[]) {
-	int opt, error, mntflags, nlsopt;
-	char *p, *p1, tmp[1024];
-	u_char *pv;
 	NWCONN_HANDLE connHandle;
 	struct nwfs_args mdata;
 	struct ncp_conn_loginfo li;
 	struct stat st;
 	struct vfsconf vfc;
 	struct nw_entry_info einfo;
+	struct tm *tm;
+	time_t ltime;
+	int opt, error, mntflags, nlsopt, wall_clock, len;
+	int mib[2];
+	char *p, *p1, tmp[1024];
+	u_char *pv;
 
 	if (argc < 2)
 		usage();
@@ -312,6 +318,18 @@ main(int argc, char *argv[]) {
 		mdata.nls = ncp_nls;
 /*	}*/
 	mdata.nls.opt = nlsopt;
+
+	mib[0] = CTL_MACHDEP;
+	mib[1] = CPU_WALLCLOCK;
+	len = sizeof(wall_clock);
+	if (sysctl(mib, 2, &wall_clock, &len, NULL, 0) == -1)
+		err(EX_OSERR, "get wall_clock");
+	if (wall_clock == 0) {
+		time(&ltime);
+		tm = localtime(&ltime);
+		mdata.tz = -(tm->tm_gmtoff / 60);
+	}
+
 	error = ncp_li_check(&li);
 	if (error)
 		return 1;
