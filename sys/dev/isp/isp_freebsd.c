@@ -515,7 +515,9 @@ isp_intr_enable(void *arg)
 	struct ispsoftc *isp = arg;
 	if (isp->isp_role != ISP_ROLE_NONE) {
 		ENABLE_INTS(isp);
+#if	0
 		isp->isp_osinfo.intsok = 1;
+#endif
 	}
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
