@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.7 1997/05/06 21:29:57 fsmp Exp $
+ * $Id: smp.h,v 1.8 1997/05/07 19:53:20 peter Exp $
  *
  */
 
@@ -57,6 +57,7 @@ extern int			apic_id_to_logical[];
 
 /* functions in mp_machdep.c */
 u_int	mp_bootaddress		__P((u_int));
+int	mp_probe		__P((void));
 void	mp_start		__P((void));
 void	mp_announce		__P((void));
 int	get_isa_apic_irq	__P((int));
