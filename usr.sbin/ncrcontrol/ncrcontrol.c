@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.18 1997/07/28 21:33:45 se Exp $
+**  $Id: ncrcontrol.c,v 1.19 1997/10/02 11:46:53 charnier Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -963,9 +963,8 @@ void dump_link (const char* name, struct link * link)
 
 void dump_tstamp (const char* name, struct tstamp * p)
 #define P(id,fld)\
-	if (p->fld.tv_sec) \
-		printf ("%s: "id" at %s.%06d",\
-			name,ctime(&p->fld.tv_sec),p->fld.tv_usec);
+	if (p->fld) \
+		printf ("%s: "id" at %d hz", name,&p->fld);
 {
 	P ("started     ", start);
 	P ("ended       ", end  );
