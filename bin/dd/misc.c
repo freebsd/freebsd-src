@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: misc.c,v 1.7 1997/02/22 14:02:47 peter Exp $
  */
 
 #ifndef lint
@@ -91,8 +91,10 @@ void
 summaryx(notused)
 	int notused;
 {
+	int save_errno = errno;
 
 	summary();
+	errno = save_errno;
 }
 
 /* ARGSUSED */
