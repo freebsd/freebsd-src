@@ -119,8 +119,8 @@ distribution: distrib-dirs
 	    ${DESTDIR}/var/log/lpd-errs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/maillog
-	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
-	    ${DESTDIR}/var/log/lastlog
+#	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+#	    ${DESTDIR}/var/log/lastlog
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/log/messages
 	install -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
