@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.2 1997/07/28 18:32:05 wpaul Exp $
+ *	$Id: pw_yp.c,v 1.11 1997/07/29 15:45:36 wpaul Exp $
  */
 
 #ifdef YP
@@ -487,7 +487,7 @@ void yp_submit(pw)
 		if ((clnt = clnt_create(master, YPPASSWDPROG,
 					YPPASSWDVERS, "udp")) == NULL) {
 			warnx("failed to contact rpc.yppasswdd: %s",
-				master, clnt_spcreateerror(master));
+				clnt_spcreateerror(master));
 			pw_error(tempname, 0, 1);
 		}
 	}
