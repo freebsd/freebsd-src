@@ -112,38 +112,38 @@
 #define DDB(x) x
 #define DEB(x)
 
-/*
- * System initialization
- */
-
 static void bdginit(void *);
 static void flush_table(void);
-
-SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, bdginit, NULL)
 
 static int bdg_ipfw = 0 ;
 int do_bridge = 0;
 bdg_hash_table *bdg_table = NULL ;
 
 /*
+ * System initialization
+ */
+
+SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, bdginit, NULL)
+
+/*
  * we need additional info for the bridge. The bdg_ifp2sc[] array
  * provides a pointer to this struct using the if_index.
  * bdg_softc has a backpointer to the struct ifnet, the bridge
- * flags, and a group (bridging occurs only between port of the
- * same group).
+ * flags, and a cluster (bridging occurs only between port of the
+ * same cluster).
  */
 struct bdg_softc {
     struct ifnet *ifp ;
     /* ((struct arpcom *)ifp)->ac_enaddr is the eth. addr */
     int flags ;
-    int group ;
+    short cluster_id ; /* in network format */
 } ;
     
 static struct bdg_softc **ifp2sc = NULL ;
 
 #if 0 /* new code using ifp2sc */
 #define SAMEGROUP(ifp,src) (src == NULL || \
-    ifp2sc[ifp->if_index]->group == ifp2sc[src->if_index]->group )
+    ifp2sc[ifp->if_index]->cluster_id == ifp2sc[src->if_index]->cluster_id )
 #define MUTED(ifp) (ifp2sc[ifp->if_index]->flags & IFF_MUTE)
 #define MUTE(ifp) ifp2sc[ifp->if_index]->flags |= IFF_MUTE
 #define UNMUTE(ifp) ifp2sc[ifp->if_index]->flags &= ~IFF_MUTE
@@ -161,9 +161,9 @@ sysctl_bdg SYSCTL_HANDLER_ARGS
 
     error = sysctl_handle_int(oidp,
 	oidp->oid_arg1, oidp->oid_arg2, req);
-    printf("called sysctl for bridge name %s arg2 %d val %d->%d\n",
+    DEB( printf("called sysctl for bridge name %s arg2 %d val %d->%d\n",
 	oidp->oid_name, oidp->oid_arg2,
-	oldval, do_bridge);
+	oldval, do_bridge);)
     if (bdg_table == NULL)
 	do_bridge = 0 ;
     if (oldval != do_bridge) {
@@ -318,7 +318,7 @@ bdginit(dummy)
 		M_IFADDR, M_WAITOK );
 	ifp2sc[bdg_ports]->ifp = ifp ;
 	ifp2sc[bdg_ports]->flags = 0 ;
-	ifp2sc[bdg_ports]->group = 0 ;
+	ifp2sc[bdg_ports]->cluster_id = 0 ;
 	bdg_ports ++ ;
     }
     bdg_timeout(0);
@@ -482,11 +482,12 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
      * ethernet header.
      */
     if (ip_fw_chk_ptr) {
-	u_int16_t dummy ;
-	struct ip_fw_chain *rule;
+	u_int16_t dummy = 0 ;
+	struct ip_fw_chain *rule = NULL ;
 	int off;
 
 	m = *m0 ;
+#ifdef DUMMYNET
 	if (m->m_type == MT_DUMMYNET) {
 	    /*
 	     * the packet was already tagged, so part of the
@@ -501,20 +502,21 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	    eh = mtod(m, struct ether_header *); /* XXX */
 	    canfree = 1 ; /* for sure, a copy is not needed later. */
 	    goto forward; /* HACK! */
-	} else
-	    rule = NULL ;
+	}
+#endif
 	if (bdg_ipfw == 0)
 	    goto forward ;
 	if (src == NULL)
 	    goto forward ; /* do not apply to packets from ether_output */
+	/*
+	 * in this section, canfree=1 means m is the same as *m0.
+	 * canfree==0 means m is a copy.
+	 */
 	if (canfree == 0 ) /* need to make a copy */
 	    m = m_copypacket(*m0, M_DONTWAIT);
-	if (m == NULL) {
-	    /* fail... */
+	if (m == NULL) /* fail... */
 	    return 0 ;
-	}
-	
-	dummy = 0 ;
+
 	off=(*ip_fw_chk_ptr)(NULL, 0, src, &dummy, &m, &rule) ;
 	if (m == NULL) { /* pkt discarded by firewall */
 	    printf("-- bdg: firewall discarded pkt\n");
@@ -550,7 +552,7 @@ bdg_forward (struct mbuf **m0, struct ifnet *dst)
 	return 0 ;
     }
 forward:
-#endif /* COMPAT_IPFW */
+#endif /* IPFIREWALL */
     if (canfree && once)
 	m = *m0 ;
     else
@@ -575,12 +577,15 @@ forward:
 	     */
 	    s = splimp();
 	    /*
+	     * execute last part of ether_output:
 	     * Queue message on interface, and start output if interface
 	     * not yet active.
 	     */
 	    if (IF_QFULL(&ifp->if_snd)) {
 		IF_DROP(&ifp->if_snd);
-		MUTE(ifp); /* good measure... */
+#if 0
+		MUTE(ifp); /* should I also mute ? */
+#endif
 		splx(s);
 		error = ENOBUFS ;
 	    } else {
