@@ -37,6 +37,7 @@
 
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #ifndef _KERNEL
 #include <stdio.h>
 #include <string.h>
@@ -73,21 +74,21 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 	u_int u, v, csize;
 
 	/* The second last short is a magic number */
-	if (g_dec_be2(sec0 + 508) != 0xdabe)
+	if (be16dec(sec0 + 508) != 0xdabe)
 		return (EBUSY);
 
 	/* The shortword parity of the entire thing must be even */
 	u = 0;
 	for (i = 0; i < 512; i += 2)
-		u ^= g_dec_be2(sec0 + i);
+		u ^= be16dec(sec0 + i);
 	if (u != 0)
 		return(EBUSY);
 
-	csize = g_dec_be2(sec0 + 436) * g_dec_be2(sec0 + 438);
+	csize = be16dec(sec0 + 436) * be16dec(sec0 + 438);
 
 	for (i = 0; i < 8; i++) {
-		v = g_dec_be4(sec0 + 444 + i * 8);
-		u = g_dec_be4(sec0 + 448 + i * 8);
+		v = be32dec(sec0 + 444 + i * 8);
+		u = be32dec(sec0 + 448 + i * 8);
 		g_topology_lock();
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
 		    ((off_t)v * csize) << 9ULL,
@@ -99,8 +100,8 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 			return (error);
 	}
 	for (i = 0; i < 8; i++) {
-		v = g_dec_be4(sec0 + 444 + i * 8);
-		u = g_dec_be4(sec0 + 448 + i * 8);
+		v = be32dec(sec0 + 444 + i * 8);
+		u = be32dec(sec0 + 448 + i * 8);
 		g_topology_lock();
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 		    ((off_t)v * csize) << 9ULL,
@@ -109,9 +110,9 @@ g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
 		    "%s%c", gp->name, 'a' + i);
 		g_topology_unlock();
 	}
-	ms->nalt = g_dec_be2(sec0 + 434);
-	ms->nheads = g_dec_be2(sec0 + 436);
-	ms->nsects = g_dec_be2(sec0 + 438);
+	ms->nalt = be16dec(sec0 + 434);
+	ms->nheads = be16dec(sec0 + 436);
+	ms->nsects = be16dec(sec0 + 438);
 
 	return (0);
 }
@@ -183,24 +184,24 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			g_hexdump(buf, 128);
 			for (i = 0; i < 8; i++) {
 				printf("part %d %u %u\n", i,
-				    g_dec_be4(buf + 444 + i * 8),
-				    g_dec_be4(buf + 448 + i * 8));
+				    be32dec(buf + 444 + i * 8),
+				    be32dec(buf + 448 + i * 8));
 			}
-			printf("v_version = %d\n", g_dec_be4(buf + 128));
-			printf("v_nparts = %d\n", g_dec_be2(buf + 140));
+			printf("v_version = %d\n", be32dec(buf + 128));
+			printf("v_nparts = %d\n", be16dec(buf + 140));
 			for (i = 0; i < 8; i++) {
 				printf("v_part[%d] = %d %d\n",
-				    i, g_dec_be2(buf + 142 + i * 4),
-				    g_dec_be2(buf + 144 + i * 4));
+				    i, be16dec(buf + 142 + i * 4),
+				    be16dec(buf + 144 + i * 4));
 			}
-			printf("v_sanity %x\n", g_dec_be4(buf + 186));
-			printf("v_version = %d\n", g_dec_be4(buf + 128));
-			printf("v_rpm %d\n", g_dec_be2(buf + 420));
-			printf("v_totalcyl %d\n", g_dec_be2(buf + 422));
-			printf("v_cyl %d\n", g_dec_be2(buf + 432));
-			printf("v_alt %d\n", g_dec_be2(buf + 434));
-			printf("v_head %d\n", g_dec_be2(buf + 436));
-			printf("v_sec %d\n", g_dec_be2(buf + 438));
+			printf("v_sanity %x\n", be32dec(buf + 186));
+			printf("v_version = %d\n", be32dec(buf + 128));
+			printf("v_rpm %d\n", be16dec(buf + 420));
+			printf("v_totalcyl %d\n", be16dec(buf + 422));
+			printf("v_cyl %d\n", be16dec(buf + 432));
+			printf("v_alt %d\n", be16dec(buf + 434));
+			printf("v_head %d\n", be16dec(buf + 436));
+			printf("v_sec %d\n", be16dec(buf + 438));
 		}
 		
 		g_sunlabel_modify(gp, ms, buf);
