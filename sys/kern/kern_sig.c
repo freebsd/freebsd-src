@@ -257,11 +257,11 @@ do_sigaction(p, sig, act, oact, old)
 		ps->ps_catchmask[_SIG_IDX(sig)] = act->sa_mask;
 		SIG_CANTMASK(ps->ps_catchmask[_SIG_IDX(sig)]);
 		if (act->sa_flags & SA_SIGINFO) {
-			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
-			SIGADDSET(ps->ps_siginfo, sig);
-		} else {
 			ps->ps_sigact[_SIG_IDX(sig)] =
 			    (__sighandler_t *)act->sa_sigaction;
+			SIGADDSET(ps->ps_siginfo, sig);
+		} else {
+			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGDELSET(ps->ps_siginfo, sig);
 		}
 		if (!(act->sa_flags & SA_RESTART))
