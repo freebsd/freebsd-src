@@ -81,7 +81,7 @@ extern 	int paranoid;
 extern	int logging;
 extern	int type;
 extern	int form;
-extern	int debug;
+extern	int ftpdebug;
 extern	int timeout;
 extern	int maxtimeout;
 extern  int pdata;
@@ -232,10 +232,10 @@ cmd
 
 			memset(&data_dest, 0, sizeof(data_dest));
 			tmp = strdup($4);
-			if (debug)
+			if (ftpdebug)
 				syslog(LOG_DEBUG, "%s", tmp);
 			if (!tmp) {
-				fatal("not enough core");
+				fatalerror("not enough core");
 				/*NOTREACHED*/
 			}
 			p = tmp;
@@ -255,7 +255,7 @@ cmd
 				}
 				*q++ = '\0';
 				result[i] = p;
-				if (debug)
+				if (ftpdebug)
 					syslog(LOG_DEBUG, "%d: %s", i, p);
 				p = q;
 			}
@@ -1159,7 +1159,7 @@ getline(s, n, iop)
 		*cs++ = tmpline[c];
 		if (tmpline[c] == '\n') {
 			*cs++ = '\0';
-			if (debug)
+			if (ftpdebug)
 				syslog(LOG_DEBUG, "command: %s", s);
 			tmpline[0] = '\0';
 			return(s);
@@ -1199,7 +1199,7 @@ getline(s, n, iop)
 	if (c == EOF && cs == s)
 		return (NULL);
 	*cs++ = '\0';
-	if (debug) {
+	if (ftpdebug) {
 		if (!guest && strncasecmp("pass ", s, 5) == 0) {
 			/* Don't syslog passwords */
 			syslog(LOG_DEBUG, "command: %.5s ???", s);
@@ -1448,7 +1448,7 @@ yylex()
 			break;
 
 		default:
-			fatal("Unknown state in scanner.");
+			fatalerror("Unknown state in scanner.");
 		}
 		yyerror((char *) 0);
 		state = CMD;
@@ -1475,7 +1475,7 @@ copy(s)
 
 	p = malloc((unsigned) strlen(s) + 1);
 	if (p == NULL)
-		fatal("Ran out of memory.");
+		fatalerror("Ran out of memory.");
 	(void) strcpy(p, s);
 	return (p);
 }
