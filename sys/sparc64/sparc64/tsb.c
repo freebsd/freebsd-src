@@ -136,7 +136,7 @@ tsb_tte_lookup(pmap_t pm, vm_offset_t va)
 }
 
 struct tte *
-tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
+tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 {
 	struct tte *bucket;
 	struct tte *rtp;
@@ -149,14 +149,15 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 	if (pm == kernel_pmap) {
 		TSB_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
-		*tp = tte;
+		tp->tte_vpn = TV_VPN(va);
+		tp->tte_data = data;
 		return (tp);
 	}
 
 	TSB_STATS_INC(tsb_nenter_u);
 	bucket = tsb_vtobucket(pm, va);
 	CTR4(KTR_TSB, "tsb_tte_enter: ctx=%#lx va=%#lx data=%#lx bucket=%p",
-	    pm->pm_context[PCPU_GET(cpuid)], va, tte.tte_data, bucket);
+	    pm->pm_context[PCPU_GET(cpuid)], va, data, bucket);
 
 	tp = NULL;
 	rtp = NULL;
@@ -193,7 +194,8 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, struct tte tte)
 		tlb_tte_demap(tp, pm);
 	}
 
-	*tp = tte;
+	tp->tte_vpn = TV_VPN(va);
+	tp->tte_data = data;
 
 	CTR1(KTR_TSB, "tsb_tte_enter: return tp=%p", tp);
 	return (tp);

@@ -1232,6 +1232,8 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	vm_page_t m;
 
 	m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
+	if ((tp->tte_data & TD_WIRED) != 0)
+		pm->pm_stats.wired_count--;
 	if ((tp->tte_data & TD_PV) != 0) {
 		if ((tp->tte_data & TD_W) != 0 &&
 		    pmap_track_modified(pm, va))
@@ -1338,99 +1340,111 @@ void
 pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	   boolean_t wired)
 {
-	struct tte otte;
-	struct tte tte;
 	struct tte *tp;
 	vm_offset_t pa;
-	vm_page_t om;
+	u_long data;
 
 	pa = VM_PAGE_TO_PHYS(m);
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
 	    pm->pm_context[PCPU_GET(cpuid)], m, va, pa, prot, wired);
 
-	tte.tte_vpn = TV_VPN(va);
-	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_CP;
-
 	/*
 	 * If there is an existing mapping, and the physical address has not
 	 * changed, must be protection or wiring change.
 	 */
-	if ((tp = tsb_tte_lookup(pm, va)) != NULL) {
-		otte = *tp;
-		om = PHYS_TO_VM_PAGE(TTE_GET_PA(&otte));
+	if ((tp = tsb_tte_lookup(pm, va)) != NULL && TTE_GET_PA(tp) == pa) {
+		CTR0(KTR_PMAP, "pmap_enter: update");
+		PMAP_STATS_INC(pmap_enter_nupdate);
 
-		if (TTE_GET_PA(&otte) == pa) {
-			CTR0(KTR_PMAP, "pmap_enter: update");
-			PMAP_STATS_INC(pmap_enter_nupdate);
-
-			/*
-			 * Wiring change, just update stats.
-			 */
-			if (wired) {
-				if ((otte.tte_data & TD_WIRED) == 0)
-					pm->pm_stats.wired_count++;
-			} else {
-				if ((otte.tte_data & TD_WIRED) != 0)
-					pm->pm_stats.wired_count--;
-			}
-
-			if ((otte.tte_data & TD_CV) != 0)	
-				tte.tte_data |= TD_CV;
-			if ((otte.tte_data & TD_REF) != 0)
-				tte.tte_data |= TD_REF;
-			if ((otte.tte_data & TD_PV) != 0) {
-				KASSERT((m->flags &
-				    (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-				    ("pmap_enter: unmanaged pv page"));
-				tte.tte_data |= TD_PV;
-			}
-			/*
-			 * If we're turning off write protection, sense modify
-			 * status and remove the old mapping.
-			 */
-			if ((prot & VM_PROT_WRITE) == 0 &&
-			    (otte.tte_data & (TD_W | TD_SW)) != 0) {
-				if ((otte.tte_data & TD_PV) != 0) {
-					if (pmap_track_modified(pm, va))
-						vm_page_dirty(m);
-				}
-				tlb_tte_demap(&otte, pm);
+		/*
+		 * Wiring change, just update stats.
+		 */
+		if (wired) {
+			if ((tp->tte_data & TD_WIRED) == 0) {
+				tp->tte_data |= TD_WIRED;
+				pm->pm_stats.wired_count++;
 			}
 		} else {
+			if ((tp->tte_data & TD_WIRED) != 0) {
+				tp->tte_data &= ~TD_WIRED;
+				pm->pm_stats.wired_count--;
+			}
+		}
+
+		/*
+		 * Save the old bits and clear the ones we're interested in.
+		 */
+		data = tp->tte_data;
+		tp->tte_data &= ~(TD_EXEC | TD_SW | TD_W);
+
+		/*
+		 * If we're turning off write permissions, sense modify status.
+		 */
+		if ((prot & VM_PROT_WRITE) != 0) {
+			tp->tte_data |= TD_SW;
+			if (wired) {
+				tp->tte_data |= TD_W;
+			}
+		} else if ((data & TD_W) != 0 &&
+		    pmap_track_modified(pm, va)) {
+			vm_page_dirty(m);
+		}
+
+		/*
+		 * If we're turning on execute permissions, flush the icache.
+		 */
+		if ((prot & VM_PROT_EXECUTE) != 0) {
+			if ((data & TD_EXEC) == 0) {
+				PMAP_STATS_INC(pmap_niflush);
+				icache_page_inval(pa);
+			}
+			tp->tte_data |= TD_EXEC;
+		}
+
+		/*
+		 * Delete the old mapping.
+		 */
+		tlb_tte_demap(tp, pm);
+	} else {
+		/*
+		 * If there is an existing mapping, but its for a different
+		 * phsyical address, delete the old mapping.
+		 */
+		if (tp != NULL) {
 			CTR0(KTR_PMAP, "pmap_enter: replace");
 			PMAP_STATS_INC(pmap_enter_nreplace);
-
-			/*
-			 * Mapping has changed, invalidate old range.
-			 */
-			if (!wired && (otte.tte_data & TD_WIRED) != 0)
-				pm->pm_stats.wired_count--;
-
-			/*
-			 * Enter on the pv list if part of our managed memory.
-			 */
-			if ((otte.tte_data & TD_PV) != 0) {
-				KASSERT((m->flags &
-				    (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-				    ("pmap_enter: unmanaged pv page"));
-				if ((otte.tte_data & TD_REF) != 0)
-					vm_page_flag_set(om, PG_REFERENCED);
-				if ((otte.tte_data & TD_W) != 0 &&
-				    pmap_track_modified(pm, va))
-					vm_page_dirty(om);
-				pv_remove(pm, om, va);
-				pv_insert(pm, m, va);
-				tte.tte_data |= TD_PV;
-				pmap_cache_remove(om, va);
-				if (pmap_cache_enter(m, va) != 0)
-					tte.tte_data |= TD_CV;
-			}
-			tlb_tte_demap(&otte, pm);
+			pmap_remove_tte(pm, NULL, tp, va);
+			tlb_tte_demap(tp, pm);
+		} else {
+			CTR0(KTR_PMAP, "pmap_enter: new");
+			PMAP_STATS_INC(pmap_enter_nnew);
 		}
-	} else {
-		CTR0(KTR_PMAP, "pmap_enter: new");
-		PMAP_STATS_INC(pmap_enter_nnew);
+
+		/*
+		 * Now set up the data and install the new mapping.
+		 */
+		data = TD_V | TD_8K | TD_PA(pa) | TD_CP;
+		if (pm == kernel_pmap)
+			data |= TD_P;
+		if (prot & VM_PROT_WRITE)
+			data |= TD_SW;
+		if (prot & VM_PROT_EXECUTE) {
+			data |= TD_EXEC;
+			PMAP_STATS_INC(pmap_niflush);
+			icache_page_inval(pa);
+		}
+
+		/*
+		 * If its wired update stats.  We also don't need reference or
+		 * modify tracking for wired mappings, so set the bits now.
+		 */
+		if (wired) {
+			pm->pm_stats.wired_count++;
+			data |= TD_REF | TD_WIRED;
+			if ((prot & VM_PROT_WRITE) != 0)
+				data |= TD_W;
+		}
 
 		/*
 		 * Enter on the pv list if part of our managed memory.
@@ -1438,41 +1452,13 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if (pmap_initialized &&
 		    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
 			pv_insert(pm, m, va);
-			tte.tte_data |= TD_PV;
+			data |= TD_PV;
 			if (pmap_cache_enter(m, va) != 0)
-				tte.tte_data |= TD_CV;
+				data |= TD_CV;
 		}
 
-		/*
-		 * Increment counters.
-		 */
-		if (wired)
-			pm->pm_stats.wired_count++;
-
+		tsb_tte_enter(pm, m, va, data);
 	}
-
-	/*
-	 * Now validate mapping with desired protection/wiring.
-	 */
-	if (wired) {
-		tte.tte_data |= TD_REF | TD_WIRED;
-		if ((prot & VM_PROT_WRITE) != 0)
-			tte.tte_data |= TD_W;
-	}
-	if (pm->pm_context[PCPU_GET(cpuid)] == TLB_CTX_KERNEL)
-		tte.tte_data |= TD_P;
-	if (prot & VM_PROT_WRITE)
-		tte.tte_data |= TD_SW;
-	if (prot & VM_PROT_EXECUTE) {
-		tte.tte_data |= TD_EXEC;
-		PMAP_STATS_INC(pmap_niflush);
-		icache_page_inval(pa);
-	}
-
-	if (tp != NULL)
-		*tp = tte;
-	else
-		tsb_tte_enter(pm, m, va, tte);
 }
 
 void
@@ -1513,23 +1499,22 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 static int
 pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 {
-	struct tte tte;
 	vm_page_t m;
+	u_long data;
 
 	if (tsb_tte_lookup(dst_pmap, va) == NULL) {
-		tte.tte_data = tp->tte_data &
+		data = tp->tte_data &
 		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
-		tte.tte_vpn = TV_VPN(va);
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
 		if ((tp->tte_data & TD_PV) != 0) {
 			KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
 			    ("pmap_enter: unmanaged pv page"));
 			pv_insert(dst_pmap, m, va);
-			tte.tte_data |= TD_PV;
+			data |= TD_PV;
 			if (pmap_cache_enter(m, va) != 0)
-				tte.tte_data |= TD_CV;
+				data |= TD_CV;
 		}
-		tsb_tte_enter(dst_pmap, m, va, tte);
+		tsb_tte_enter(dst_pmap, m, va, data);
 	}
 	return (1);
 }
