@@ -141,6 +141,7 @@ i386/i386/initcpu.c		standard
 i386/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
+i386/i386/mp_clock.c		optional	smp
 i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
