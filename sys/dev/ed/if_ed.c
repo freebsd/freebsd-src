@@ -888,25 +888,38 @@ ed_probe_3Com(dev)
 	return (0);
 }
 
+/*
+ * Probe the Ethernet MAC addrees for PCMCIA Linksys EtherFast 10/100 
+ * and compatible cards (DL10019C Ethernet controller).
+ *
+ * Note: The PAO patches try to use more memory for the card, but that
+ * seems to fail for my card.  A future optimization would add this back
+ * conditionally.
+ */
 static u_short
 ed_get_Linksys(sc)
 	struct ed_softc *sc;
 {
-	u_char LinksysOUI[] = {0x00, 0xe0, 0x98};
+	u_char LinksysOUI1[] = {0x00, 0xe0, 0x98};
+	u_char LinksysOUI2[] = {0x00, 0x80, 0xc8};
 	u_char sum;
 	int i;
 
+	/*
+	 * 0x14-0x19 : Physical Address Register 0-5 (PAR0-PAR5)
+	 * 0x1A      : Card ID Register (CIR)
+	 * 0x1B      : Check Sum Register (SR)
+	 */
 	for (sum = 0, i = 0x14; i < 0x1c; i++)
-		sum += inb(sc->nic_addr +i);
+		sum += inb(sc->nic_addr + i);
 	if (sum != 0xff)
-		return (0);
+		return (0);		/* invalid DL10019C */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		sc->arpcom.ac_enaddr[i] = inb(sc->nic_addr + 0x14 + i);
 	}
-	for (i = 0; i < sizeof(LinksysOUI); i++) {
-		if ( sc->arpcom.ac_enaddr[i] != LinksysOUI[i] )
-			return (0);
-	}
+	if (bcmp(sc->arpcom.ac_enaddr, LinksysOUI1, sizeof(LinksysOUI1)) &&
+	    bcmp(sc->arpcom.ac_enaddr, LinksysOUI2, sizeof(LinksysOUI2)))
+		return (0);
 	return (1);
 }
 
