@@ -598,6 +598,7 @@ process_mdoc_line(char *line)
 		return;
 	if (line[0] != '.' || !isupper(line[1]) || !islower(line[2])) {
 		add_nroff(skip_spaces(line));
+		sbuf_append(whatis_proto, " ", 1);
 		return;
 	}
 	xref = strncmp(line, ".Xr", 3) == 0;
