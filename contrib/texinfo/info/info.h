@@ -1,10 +1,7 @@
 /* info.h -- Header file which includes all of the other headers.
-   $Id: info.h,v 1.7 1998/02/27 21:36:04 karl Exp $
+   $Id: info.h,v 1.14 1999/09/25 16:10:04 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +19,7 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#if !defined (INFO_H)
+#ifndef INFO_H
 #define INFO_H
 
 /* We always want these, so why clutter up the compile command?  */
@@ -119,6 +116,9 @@ extern int info_error_was_printed;
 /* Non-zero means ring terminal bell on errors. */
 extern int info_error_rings_bell_p;
 
+/* Non-zero means default keybindings are loosely modeled on vi(1).  */
+extern int vi_keys_p;
+
 /* Print FORMAT with ARG1 and ARG2.  If the window system was initialized,
    then the message is printed in the echo area.  Otherwise, a message is
    output to stderr. */
@@ -127,28 +127,23 @@ extern void info_error ();
 /* The version numbers of Info. */
 extern int info_major_version, info_minor_version;
 
-/* How to get the version string for this version of Info.  Returns
-   something similar to "2.11". */
-extern char *version_string ();
-
 /* Error message defines. */
-#define CANT_FIND_NODE  _("Cannot find the node \"%s\".")
-#define CANT_FILE_NODE  _("Cannot find the node \"(%s)%s\".")
-#define CANT_FIND_WIND  _("Cannot find a window!")
-#define CANT_FIND_POINT _("Point doesn't appear within this window's node!")
-#define CANT_KILL_LAST  _("Cannot delete the last window.")
-#define NO_MENU_NODE    _("No menu in this node.")
-#define NO_FOOT_NODE    _("No footnotes in this node.")
-#define NO_XREF_NODE    _("No cross references in this node.")
-#define NO_POINTER      _("No \"%s\" pointer for this node.")
-#define UNKNOWN_COMMAND _("Unknown Info command `%c'.  `?' for help.")
-#define TERM_TOO_DUMB   _("Terminal type \"%s\" is not smart enough to run Info.")
-#define AT_NODE_BOTTOM  _("You are already at the last page of this node.")
-#define AT_NODE_TOP     _("You are already at the first page of this node.")
-#define ONE_WINDOW      _("Only one window.")
-#define WIN_TOO_SMALL   _("Resulting window would be too small.")
-#define CANT_MAKE_HELP  \
-_("There isn't enough room to make a help window.  Please delete a window.")
+extern char *msg_cant_find_node;
+extern char *msg_cant_file_node;
+extern char *msg_cant_find_window;
+extern char *msg_cant_find_point;
+extern char *msg_cant_kill_last;
+extern char *msg_no_menu_node;
+extern char *msg_no_foot_node;
+extern char *msg_no_xref_node;
+extern char *msg_no_pointer;
+extern char *msg_unknown_command;
+extern char *msg_term_too_dumb;
+extern char *msg_at_node_bottom;
+extern char *msg_at_node_top;
+extern char *msg_one_window;
+extern char *msg_win_too_small;
+extern char *msg_cant_make_help;
 
 
 /* Found in info-utils.c. */

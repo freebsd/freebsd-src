@@ -1,7 +1,7 @@
 /* multi.c -- multitable stuff for makeinfo.
-   $Id: multi.c,v 1.9 1997/07/24 22:01:00 karl Exp $
+   $Id: multi.c,v 1.18 1999/08/17 21:06:56 karl Exp $
 
-   Copyright (C) 1996, 97 Free Software Foundation, Inc.
+   Copyright (C) 1996, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "system.h"
+#include "insertion.h"
 #include "makeinfo.h"
 
 #define MAXCOLS 100             /* remove this limit later @@ */
@@ -51,6 +52,7 @@ struct env
 {
   unsigned char *output_paragraph;
   int output_paragraph_offset;
+  int meta_char_pos;
   int output_column;
   int paragraph_is_open;
   int current_indent;
@@ -66,20 +68,33 @@ static int last_column;
 /* flags indicating whether horizontal and vertical separators need
    to be drawn, separating rows and columns in the current multitable. */
 static int hsep, vsep;
+
+/* whether this is the first row. */
+static int first_row;
+
+static void output_multitable_row ();
 
-/* Output a row.  Have to keep `output_position' up-to-date for each
-   character we output, or the tags table will be off, leading to
-   chopped-off output files and undefined nodes (because they're in the
-   wrong file, etc.).  Perhaps it would be better to accumulate this
-   value somewhere and add it once at the end of the table, or return it
-   as the value, but this seems simplest.  */
+/* Output a row.  Calls insert, but also flushes the buffered output
+   when we see a newline, since in multitable every line is a separate
+   paragraph.  */
 static void
 out_char (ch)
     int ch;
 {
-  extern int output_position;
-  putc (ch, output_stream);
-  output_position++;
+  if (html)
+    add_char (ch);
+  else
+    {
+      int env = select_output_environment (0);
+      insert (ch);
+      if (ch == '\n')
+	{
+	  uninhibit_output_flushing ();
+	  flush_output ();
+	  inhibit_output_flushing ();
+	}
+      select_output_environment (env);
+    }
 }
 
 
@@ -87,6 +102,12 @@ void
 draw_horizontal_separator ()
 {
   int i, j, s;
+
+  if (html)
+    {
+      add_word ("<hr>");
+      return;
+    }
 
   for (s = 0; s < envs[0].current_indent; s++)
     out_char (' ');
@@ -101,23 +122,28 @@ draw_horizontal_separator ()
   out_char ('\n');
 }
 
+
+/* multitable strategy:
+    for each item {
+       for each column in an item {
+        initialize a new paragraph
+        do ordinary formatting into the new paragraph
+        save the paragraph away
+        repeat if there are more paragraphs in the column
+      }
+      dump out the saved paragraphs and free the storage
+    }
+
+   For HTML we construct a simple HTML 3.2 table with <br>s inserted
+   to help non-tables browsers.  `@item' inserts a <tr> and `@tab'
+   inserts <td>; we also try to close <tr>.  The only real
+   alternative is to rely on the info formatting engine and present
+   preformatted text.  */
+
 void
 do_multitable ()
 {
   int ncolumns;
-
-  /*
-   *  multitable strategy:
-   *  for each item {
-   *     for each column in an item {
-   *      initialize a new paragraph
-   *      do ordinary formatting into the new paragraph
-   *      save the paragraph away
-   *      repeat if there are more paragraphs in the column
-   *    }
-   *    dump out the saved paragraphs and free the storage
-   *  }
-   */
 
   if (multitable_active)
     {
@@ -125,10 +151,19 @@ do_multitable ()
       return;
     }
 
+  close_single_paragraph ();
+
   /* scan the current item function to get the field widths
      and number of columns, and set up the output environment list
      accordingly. */
   ncolumns = setup_multitable_parameters ();
+  first_row = 1;
+
+  /* <p> for non-tables browsers.  @multitable implicitly ends the
+     current paragraph, so this is ok.  */
+  if (html)
+    add_word ("<p><table>");
+
   if (hsep)
     draw_horizontal_separator ();
 
@@ -141,6 +176,53 @@ do_multitable ()
   ++multitable_active;
 }
 
+/* Called to handle a {...} template on the @multitable line.
+   We're at the { and our first job is to find the matching }; as a side
+   effect, we change *PARAMS to point to after it.  Our other job is to
+   expand the template text and return the width of that string.  */
+static unsigned
+find_template_width (params)
+     char **params;
+{
+  char *template, *xtemplate;
+  unsigned len;
+  char *start = *params;
+  int brace_level = 0;
+
+  /* The first character should be a {.  */
+  if (!params || !*params || **params != '{')
+    {
+      line_error ("find_template width internal error: passed %s",
+                  params ? *params : "null");
+      return 0;
+    }
+
+  do
+    {
+      if (**params == '{' && (*params)[-1] != '@')
+        brace_level++;
+      else if (**params == '}' && (*params)[-1] != '@')
+        brace_level--;
+      else if (**params == 0)
+        {
+          line_error (_("Missing } in @multitable template"));
+          return 0;
+        }
+      (*params)++;
+    }
+  while (brace_level > 0);
+  
+  template = substring (start + 1, *params - 1); /* omit braces */
+  xtemplate = expansion (template, 0);
+  len = strlen (xtemplate);
+  
+  free (template);
+  free (xtemplate);
+  
+  return len;
+}
+
+
 /* Read the parameters for a multitable from the current command
    line, save the parameters away, and return the
    number of columns. */
@@ -150,7 +232,7 @@ setup_multitable_parameters ()
   char *params = insertion_stack->item_function;
   int nchars;
   float columnfrac;
-  char command[200]; /* naughty, should be no fixed limits */
+  char command[200]; /* xx no fixed limits */
   int i = 1;
 
   /* We implement @hsep and @vsep even though TeX doesn't.
@@ -176,12 +258,12 @@ setup_multitable_parameters ()
         for ( ; i <= MAXCOLS; i++) {
           if (sscanf (params, "%f", &columnfrac) < 1)
             goto done;
-          /* Unfortunately, can't use %n since some m68k-hp-bsd libc
+          /* Unfortunately, can't use %n since m68k-hp-bsd libc (at least)
              doesn't support it.  So skip whitespace (preceding the
              number) and then non-whitespace (the number).  */
           while (*params && (*params == ' ' || *params == '\t'))
             params++;
-          /* Hmm, but what what @columnfractions 3foo.  Well, I suppose
+          /* Hmm, but what about @columnfractions 3foo.  Well, I suppose
              it's invalid input anyway.  */
           while (*params && *params != ' ' && *params != '\t'
                  && *params != '\n' && *params != '@')
@@ -192,15 +274,11 @@ setup_multitable_parameters ()
       }
 
     } else if (*params == '{') {
-      char *start = params;
-      while ((*params != '}' || params[-1] == '@') && *params) {
-        params++;
-      }
+      unsigned template_width = find_template_width (&params);
+      
       /* This gives us two spaces between columns.  Seems reasonable.
-         Really should expand the text, though, so a template of
-         `@code{foo}' has a width of five, not ten.  Also have to match
-         braces, then.  How to take into account current_indent here?  */
-      setup_output_environment (i++, params++ - start);
+         How to take into account current_indent here?  */
+      setup_output_environment (i++, template_width + 2);
       
     } else {
       warning (_("ignoring stray text `%s' after @multitable"), params);
@@ -252,6 +330,7 @@ select_output_environment (n)
   /* stash current env info from global vars into the old environment */
   e->output_paragraph = output_paragraph;
   e->output_paragraph_offset = output_paragraph_offset;
+  e->meta_char_pos = meta_char_pos;
   e->output_column = output_column;
   e->paragraph_is_open = paragraph_is_open;
   e->current_indent = current_indent;
@@ -262,6 +341,7 @@ select_output_environment (n)
   e = &envs[current_env_no];
   output_paragraph = e->output_paragraph;
   output_paragraph_offset = e->output_paragraph_offset;
+  meta_char_pos = e->meta_char_pos;
   output_column = e->output_column;
   paragraph_is_open = e->paragraph_is_open;
   current_indent = e->current_indent;
@@ -281,8 +361,6 @@ nselect_next_environment ()
 }
 
 
-static void output_multitable_row ();
-
 /* do anything needed at the beginning of processing a
    multitable column. */
 void
@@ -300,10 +378,20 @@ int
 multitable_item ()
 {
   if (!multitable_active) {
-    /* impossible, I think. */
-    error (_("multitable item not in active multitable"));
-    exit (1);
+    line_error ("multitable_item internal error: no active multitable");
+    xexit (1);
   }
+
+  if (html)
+    {
+      if (!first_row)
+	add_word ("<br></tr>");	/* <br> for non-tables browsers. */
+      add_word ("<tr align=\"left\"><td>");
+      first_row = 0;
+      return;
+    }
+  first_row = 0;
+
   if (current_env_no > 0) {
     output_multitable_row ();
   }
@@ -311,7 +399,7 @@ multitable_item ()
   select_output_environment (1);
   if (!output_paragraph) {
     line_error (_("Cannot select column #%d in multitable"), current_env_no);
-    exit (FATAL);
+    exit (1);
   }
 
   init_column ();
@@ -322,11 +410,11 @@ multitable_item ()
 static void
 output_multitable_row ()
 {
-  int i, j, s, remaining;
-
   /* offset in the output paragraph of the next char needing
      to be output for that column. */
   int offset[MAXCOLS];
+  int i, j, s, remaining;
+  int had_newline = 0;
 
   for (i = 0; i <= last_column; i++)
     offset[i] = 0;
@@ -340,9 +428,12 @@ output_multitable_row ()
 
   /* remove trailing whitespace from each column */
   for (i = 1; i <= last_column; i++) {
-    while (cr_or_whitespace (CHAR_AT (envs[i].output_paragraph_offset - 1))) {
-      envs[i].output_paragraph_offset--;
-    }
+    if (envs[i].output_paragraph_offset)
+      while (cr_or_whitespace (CHAR_AT (envs[i].output_paragraph_offset - 1)))
+        envs[i].output_paragraph_offset--;
+
+    if (i == current_env_no)
+      output_paragraph_offset = envs[i].output_paragraph_offset;
   }
 
   /* read the current line from each column, outputting them all
@@ -367,7 +458,7 @@ output_multitable_row ()
       out_char ('|');
 
     for (i = 1; i <= last_column; i++) {
-      for (s = 0; i < envs[i].current_indent; s++)
+      for (s = 0; s < envs[i].current_indent; s++)
         out_char (' ');
       for (j = 0; CHAR_ADDR (j) < envs[i].output_paragraph_offset; j++) {
         if (CHAR_AT (j) == '\n')
@@ -375,13 +466,22 @@ output_multitable_row ()
         out_char (CHAR_AT (j));
       }
       offset[i] += j + 1;       /* skip last text plus skip the newline */
-      for (; j <= envs[i].fill_column; j++)
-        out_char (' ');
+      
+      /* Do not output trailing blanks if we're in the last column and
+         there will be no trailing |.  */
+      if (i < last_column && !vsep)
+        for (; j <= envs[i].fill_column; j++)
+          out_char (' ');
       if (vsep)
         out_char ('|'); /* draw column separator */
     }
     out_char ('\n');    /* end of line */
+    had_newline = 1;
   }
+  
+  /* If completely blank item, get blank line despite no other output.  */
+  if (!had_newline)
+    out_char ('\n');    /* end of line */
 
   if (hsep)
     draw_horizontal_separator ();
@@ -403,7 +503,11 @@ cm_tab ()
   if (!multitable_active)
     error (_("ignoring @tab outside of multitable"));
   
-  nselect_next_environment ();
+  if (html)
+    add_word ("<td>");
+  else
+    nselect_next_environment ();
+
   init_column ();
 }
 
@@ -412,17 +516,19 @@ cm_tab ()
 void
 end_multitable ()
 {
-  output_multitable_row ();
+  if (!html) 
+    output_multitable_row ();
 
   /* Multitables cannot be nested.  Otherwise, we'd have to save the
      previous output environment number on a stack somewhere, and then
      restore to that environment.  */
   select_output_environment (0);
-  close_paragraph ();
-  insert ('\n'); /* we swallow newlines, so insert one of our own */
-  
   multitable_active = 0;
   uninhibit_output_flushing ();
+  close_insertion_paragraph ();
+
+  if (html)
+    add_word ("<br></tr></table>\n");
 
 #if 0
   printf (_("** Multicolumn output from last row:\n"));

@@ -1,7 +1,7 @@
 /*  man.c: How to read and format man files.
-    $Id: man.c,v 1.6 1997/07/31 23:49:59 karl Exp $
+    $Id: man.c,v 1.13 1999/07/05 20:43:23 karl Exp $
 
-   Copyright (C) 1995, 97 Free Software Foundation, Inc.
+   Copyright (C) 1995, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,14 @@
 #  endif /* !hpux */
 #endif /* FD_SET */
 
+#if STRIP_DOT_EXE
+static char const * const exec_extensions[] = {
+  ".exe", ".com", ".bat", ".btm", ".sh", ".ksh", ".pl", ".sed", "", NULL
+};
+#else
+static char const * const exec_extensions[] = { "", NULL };
+#endif
+
 static char *read_from_fd ();
 static void clean_manpage ();
 static NODE *manpage_node_of_file_buffer ();
@@ -76,6 +84,7 @@ get_manpage_node (file_buffer, pagename)
           char header[1024];
           long oldsize, newsize;
           int hlen, plen;
+	  char *old_contents = file_buffer->contents;
 
           sprintf (header, "\n\n%c\n%s %s,  %s %s,  %s (dir)\n\n",
                    INFO_COOKIE,
@@ -89,13 +98,49 @@ get_manpage_node (file_buffer, pagename)
           file_buffer->contents =
             (char *)xrealloc (file_buffer->contents, 1 + newsize);
           memcpy (file_buffer->contents + oldsize, header, hlen);
-          oldsize += hlen;
-          memcpy (file_buffer->contents + oldsize, page, plen);
+          memcpy (file_buffer->contents + oldsize + hlen, page, plen);
           file_buffer->contents[newsize] = '\0';
           file_buffer->filesize = newsize;
           file_buffer->finfo.st_size = newsize;
           build_tags_and_nodes (file_buffer);
           free (page);
+	  /* We have just relocated file_buffer->contents from under
+	     the feet of info_windows[] array.  Therefore, all the
+	     nodes on that list which are showing man pages have their
+	     contents member pointing into the blue.  Undo that harm.  */
+	  if (old_contents && oldsize && old_contents != file_buffer->contents)
+	    {
+	      int iw;
+	      INFO_WINDOW *info_win;
+	      char *old_contents_end = old_contents + oldsize;
+
+	      for (iw = 0; (info_win = info_windows[iw]); iw++)
+		{
+		  int in;
+
+		  for (in = 0; in < info_win->nodes_index; in++)
+		    {
+		      NODE *node = info_win->nodes[in];
+
+		      /* It really only suffices to see that node->filename
+			 is "*manpages*".  But after several hours of
+			 debugging this, would you blame me for being a bit
+			 paranoid?  */
+		      if (node && node->filename && node->contents &&
+			  strcmp (node->filename,
+				  MANPAGE_FILE_BUFFER_NAME) == 0 &&
+			  node->contents >= old_contents &&
+			  node->contents + node->nodelen <= old_contents_end)
+			{
+			  info_win->nodes[in] =
+			    manpage_node_of_file_buffer (file_buffer,
+							 node->nodename);
+			  free (node->nodename);
+			  free (node);
+			}
+		    }
+		}
+	    }
         }
 
       node = manpage_node_of_file_buffer (file_buffer, pagename);
@@ -134,6 +179,8 @@ executable_file_in_path (filename, path)
   while ((temp_dirname = extract_colon_unit (path, &dirname_index)))
     {
       char *temp;
+      char *temp_end;
+      int i;
 
       /* Expand a leading tilde if one is present. */
       if (*temp_dirname == '~')
@@ -145,22 +192,30 @@ executable_file_in_path (filename, path)
           temp_dirname = expanded_dirname;
         }
 
-      temp = (char *)xmalloc (30 + strlen (temp_dirname) + strlen (filename));
+      temp = (char *)xmalloc (34 + strlen (temp_dirname) + strlen (filename));
       strcpy (temp, temp_dirname);
-      if (temp[(strlen (temp)) - 1] != '/')
+      if (!IS_SLASH (temp[(strlen (temp)) - 1]))
         strcat (temp, "/");
       strcat (temp, filename);
+      temp_end = temp + strlen (temp);
 
       free (temp_dirname);
 
-      statable = (stat (temp, &finfo) == 0);
+      /* Look for FILENAME, possibly with any of the extensions
+	 in EXEC_EXTENSIONS[].  */
+      for (i = 0; exec_extensions[i]; i++)
+	{
+	  if (exec_extensions[i][0])
+	    strcpy (temp_end, exec_extensions[i]);
+	  statable = (stat (temp, &finfo) == 0);
 
-      /* If we have found a regular executable file, then use it. */
-      if ((statable) && (S_ISREG (finfo.st_mode)) &&
-          (access (temp, X_OK) == 0))
-        return (temp);
-      else
-        free (temp);
+	  /* If we have found a regular executable file, then use it. */
+	  if ((statable) && (S_ISREG (finfo.st_mode)) &&
+	      (access (temp, X_OK) == 0))
+	    return (temp);
+	}
+
+      free (temp);
     }
   return ((char *)NULL);
 }
@@ -210,13 +265,14 @@ get_page_and_section (pagename)
     }
 }
 
+#if PIPE_USE_FORK
 static void
 reap_children (sig)
      int sig;
 {
-  int status;
-  wait (&status);
+  wait (NULL);
 }
+#endif
 
 static char *
 get_manpage_contents (pagename)
@@ -225,7 +281,8 @@ get_manpage_contents (pagename)
   static char *formatter_args[4] = { (char *)NULL };
   int pipes[2];
   pid_t child;
-  char *formatted_page = (char *)NULL;
+  RETSIGTYPE (*sigsave) ();
+  char *formatted_page = NULL;
   int arg_index = 1;
 
   if (formatter_args[0] == (char *)NULL)
@@ -245,12 +302,12 @@ get_manpage_contents (pagename)
   /* Open a pipe to this program, read the output, and save it away
      in FORMATTED_PAGE.  The reader end of the pipe is pipes[0]; the
      writer end is pipes[1]. */
+#if PIPE_USE_FORK
   pipe (pipes);
 
-  signal (SIGCHLD, reap_children);
+  sigsave = signal (SIGCHLD, reap_children);
 
   child = fork ();
-
   if (child == -1)
     return ((char *)NULL);
 
@@ -261,14 +318,14 @@ get_manpage_contents (pagename)
       close (pipes[1]);
       formatted_page = read_from_fd (pipes[0]);
       close (pipes[0]);
+      signal (SIGCHLD, sigsave);
     }
   else
-    {
-      /* In the child, close the read end of the pipe, make the write end
+    { /* In the child, close the read end of the pipe, make the write end
          of the pipe be stdout, and execute the man page formatter. */
       close (pipes[0]);
-      close (fileno (stderr));
-      close (fileno (stdin));   /* Don't print errors. */
+      freopen (NULL_DEVICE, "w", stderr);
+      freopen (NULL_DEVICE, "r", stdin);
       dup2 (pipes[1], fileno (stdout));
 
       execv (formatter_args[0], formatter_args);
@@ -276,8 +333,39 @@ get_manpage_contents (pagename)
       /* If we get here, we couldn't exec, so close out the pipe and
          exit. */
       close (pipes[1]);
-      exit (0);
+      xexit (0);
     }
+#else  /* !PIPE_USE_FORK */
+  /* Cannot fork/exec, but can popen/pclose.  */
+  {
+    FILE *fpipe;
+    char *cmdline = xmalloc (strlen (formatter_args[0])
+			     + strlen (manpage_pagename)
+			     + (arg_index > 2 ? strlen (manpage_section) : 0)
+ 			     + 3);
+    int save_stderr = dup (fileno (stderr));
+    int fd_err = open (NULL_DEVICE, O_WRONLY, 0666);
+
+    if (fd_err > 2)
+      dup2 (fd_err, fileno (stderr)); /* Don't print errors. */
+    sprintf (cmdline, "%s %s %s", formatter_args[0], manpage_pagename,
+				  arg_index > 2 ? manpage_section : "");
+    fpipe = popen (cmdline, "r");
+    free (cmdline);
+    if (fd_err > 2)
+      close (fd_err);
+    dup2 (save_stderr, fileno (stderr));
+    if (fpipe == 0)
+      return ((char *)NULL);
+    formatted_page = read_from_fd (fileno (fpipe));
+    if (pclose (fpipe) == -1)
+      {
+	if (formatted_page)
+	  free (formatted_page);
+	return ((char *)NULL);
+      }
+  }
+#endif /* !PIPE_USE_FORK */
 
   /* If we have the page, then clean it up. */
   if (formatted_page)
@@ -342,10 +430,11 @@ manpage_node_of_file_buffer (file_buffer, pagename)
     {
       node = (NODE *)xmalloc (sizeof (NODE));
       node->filename = file_buffer->filename;
-      node->nodename = tag->nodename;
+      node->nodename = xstrdup (tag->nodename);
       node->contents = file_buffer->contents + tag->nodestart;
       node->nodelen = tag->nodelen;
       node->flags    = 0;
+      node->display_pos = 0;
       node->parent   = (char *)NULL;
       node->flags = (N_HasTagsTable | N_IsManPage);
       node->contents += skip_node_separator (node->contents);
