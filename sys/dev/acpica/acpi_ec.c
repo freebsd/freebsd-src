@@ -345,7 +345,8 @@ acpi_ec_attach(device_t dev)
      */
     if ((Status = AcpiInstallGpeHandler(sc->ec_gpebit, ACPI_EVENT_LEVEL_TRIGGERED | ACPI_EVENT_EDGE_TRIGGERED, 
 					EcGpeHandler, sc)) != AE_OK) {
-	device_printf(dev, "can't install GPE handler - %s\n", acpi_strerror(Status));
+	device_printf(dev, "can't install GPE handler for %s - %s\n",
+		      acpi_name(sc->ec_handle), acpi_strerror(Status));
 	return_VALUE(ENXIO);
     }
 
@@ -355,7 +356,9 @@ acpi_ec_attach(device_t dev)
     DEBUG_PRINT(TRACE_RESOURCES, ("attaching address space handler\n"));
     if ((Status = AcpiInstallAddressSpaceHandler(sc->ec_handle, ACPI_ADR_SPACE_EC, 
 						 EcSpaceHandler, EcSpaceSetup, sc)) != AE_OK) {
-	device_printf(dev, "can't install address space handler - %s\n", acpi_strerror(Status));
+	device_printf(dev, "can't install address space handler for %s - %s\n",
+		      acpi_name(sc->ec_handle), acpi_strerror(Status));
+	panic("very suck");
 	return_VALUE(ENXIO);
     }
     DEBUG_PRINT(TRACE_RESOURCES, ("attach complete\n"));
