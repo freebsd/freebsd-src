@@ -27,7 +27,7 @@ CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast
 .  endif
 # BDECFLAGS
 .  if ${WARNS} > 5
-CWARNFLAGS	+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 .  endif
 .  if ${WARNS} > 1 && ${WARNS} < 5
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
