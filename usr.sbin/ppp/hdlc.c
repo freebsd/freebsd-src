@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.2 1995/02/26 12:17:30 amurai Exp $
+ * $Id: hdlc.c,v 1.3 1995/05/30 03:50:33 rgrimes Exp $
  *
  *	TODO:
  */
@@ -203,6 +203,8 @@ struct mbuf *bp;
 #ifdef DEBUG
   logprintf("proto = %04x\n", proto);
 #endif
+  u_char *cp;
+
   switch (proto) {
   case PROTO_LCP:
     LcpInput(bp);
@@ -237,10 +239,11 @@ struct mbuf *bp;
     Pred1Input(bp);
     break;
   default:
-    logprintf("Unknown protocol 0x%04x\n", proto);
-    /*
-     * XXX: Should send protocol reject.
-     */
+    LogPrintf(LOG_PHASE, "Unknown protocol 0x%04x\n", proto);
+    bp->offset -= 2;
+    bp->cnt += 2;
+    cp = MBUF_CTOP(bp);
+    LcpSendProtoRej(cp,  bp->cnt);
     HisLqrSave.SaveInDiscards++;
     HdlcStat.unknownproto++;
     pfree(bp);

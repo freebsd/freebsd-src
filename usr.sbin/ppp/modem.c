@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.6 1995/05/30 03:50:51 rgrimes Exp $
+ * $Id: modem.c,v 1.7 1995/06/30 19:53:04 dfr Exp $
  *
  *  TODO:
  */
@@ -645,16 +645,16 @@ struct mbuf *bp;
 int
 ModemQlen()
 {
-  struct mbuf *bp;
+  struct mqueue *queue;
   int len = 0;
   int i;
 
-  for (i = PRI_NORMAL; i <= PRI_URGENT; i++) {
-    for (bp = OutputQueues[i].top; bp; bp = bp->pnext)
-      len++;
+  for ( i = PRI_NORMAL; i <= PRI_URGENT; i ++ ) {
+        queue = &OutputQueues[i];
+	len += queue->qlen;
   }
-
   return(len);
+
 }
 
 void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.6 1995/06/16 07:07:56 phk Exp $
+ * $Id: command.c,v 1.7 1995/07/08 08:28:00 amurai Exp $
  *
  */
 #include <ctype.h>
@@ -244,8 +244,9 @@ static int ShowAuthKey()
 static int ShowVersion()
 {
   extern char *VarVersion[];
+  extern char *VarLocalVersion[];
 
-  printf("%s\n", VarVersion);
+  printf("%s - %s \n", VarVersion, VarLocalVersion);
   return(1);
 }
 
