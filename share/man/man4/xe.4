@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2003
+.Dd July 4, 2004
 .Dt XE 4
 .Os
 .Sh NAME
@@ -43,33 +43,6 @@ This includes devices made by Xircom along with
 various
 .Tn OEM
 manufacturers.
-The following cards are supported:
-.Pp
-.Bl -bullet -compact -offset -indent
-.It
-Xircom CreditCard Ethernet (PS-CE2-10)
-.It
-Xircom CreditCard Ethernet + Modem 28 (PS-CEM-28)
-.It
-Xircom CreditCard Ethernet + Modem 33 (CEM33)
-.It
-Xircom CreditCard 10/100 (CE3, CE3B)
-.It
-Xircom CreditCard Ethernet 10/100 + Modem 56 (CEM56)
-.It
-Xircom RealPort Ethernet 10 (RE10)
-.It
-Xircom RealPort Ethernet 10/100 (RE100)
-.It
-Xircom RealPort Ethernet 10/100 + Modem 56 (REM56, REM56G)
-.It
-Accton Fast EtherCard-16 (EN2226)
-.It
-Compaq Netelligent 10/100 PC Card (CPQ-10/100)
-.It
-Intel EtherExpress Pro/100 PC Card Mobile Adapter 16 (Pro/100 M16A)
-.El
-Other similar devices using the same hardware may also be supported.
 .Pp
 Please note that the
 .Nm
@@ -102,6 +75,37 @@ operation is currently not supported.
 For more information on configuring network interface devices,
 see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact -offset -indent
+.It
+Xircom CreditCard Ethernet (PS-CE2-10)
+.It
+Xircom CreditCard Ethernet + Modem 28 (PS-CEM-28)
+.It
+Xircom CreditCard Ethernet + Modem 33 (CEM33)
+.It
+Xircom CreditCard 10/100 (CE3, CE3B)
+.It
+Xircom CreditCard Ethernet 10/100 + Modem 56 (CEM56)
+.It
+Xircom RealPort Ethernet 10 (RE10)
+.It
+Xircom RealPort Ethernet 10/100 (RE100)
+.It
+Xircom RealPort Ethernet 10/100 + Modem 56 (REM56, REM56G)
+.It
+Accton Fast EtherCard-16 (EN2226)
+.It
+Compaq Netelligent 10/100 PC Card (CPQ-10/100)
+.It
+Intel EtherExpress Pro/100 PC Card Mobile Adapter 16 (Pro/100 M16A)
+.El
+.Pp
+Other similar devices using the same hardware may also be supported.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "xe%d: Cannot allocate ioport"

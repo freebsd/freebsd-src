@@ -30,7 +30,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 15, 2001
+.Dd July 4, 2004
 .Dt TXP 4
 .Os
 .Sh NAME
@@ -45,22 +45,6 @@ interface provides access to the 10Mb/s and 100Mb/s Ethernet networks via the
 .Tn 3Com
 .Tn Typhoon/Sidewinder
 chipset.
-This driver supports the following cards:
-.Pp
-.Bl -bullet -offset indent -compact
-.It
-3Com 3CR990-TX-95
-.It
-3Com 3CR990-TX-97
-.It
-3Com 3cR990B-TXM
-.It
-3Com 3CR990SVR95
-.It
-3Com 3CR990SVR97
-.It
-3Com 3cR990B-SRV
-.El
 .Pp
 Basic Ethernet functions are provided as well as support for
 .Xr vlan 4
@@ -125,6 +109,25 @@ Use 100baseTX, half duplex
 Use 10baseT, full duplex
 .It Cm media 10baseT Op Cm mediaopt half-duplex
 Use 10baseT, half duplex
+.El
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+3Com 3CR990-TX-95
+.It
+3Com 3CR990-TX-97
+.It
+3Com 3cR990B-TXM
+.It
+3Com 3CR990SVR95
+.It
+3Com 3CR990SVR97
+.It
+3Com 3cR990B-SRV
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
