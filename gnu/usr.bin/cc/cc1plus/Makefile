@@ -4,8 +4,6 @@
 
 .PATH: ${GCCDIR}/cp
 
-YACC=	bison --broken-undeftoken-init
-
 PROG=	cc1plus
 SRCS=	parse.c parse.h
 SRCS+=	call.c class.c cvt.c decl.c decl2.c errfn.c error.c except.c expr.c \
