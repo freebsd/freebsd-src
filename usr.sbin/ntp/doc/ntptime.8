@@ -28,15 +28,16 @@ provided in
 .Pa /usr/share/doc/ntp ) .
 It reads and displays time-related kernel variables
 using the
-.Xr ntp_gettime 2
+.Fn gettime
 and
-.Xr ntp_adjtime 2
+.Xr adjtime 2
 system calls if available.
 A similar display can be obtained using the
 .Xr ntpdc 8
 program's
 .Ic kerninfo
 command.
+.Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl c
@@ -48,12 +49,11 @@ Specify estimated error, in microseconds.
 .It Fl f Ar frequency
 Specify frequency offset, in parts per million.
 .It Fl h
-Display times in Unix timeval format.
-Default is NTP format.
+Display help information.
 .It Fl l
 Specify the leap bits as a code from 0 to 3.
 .It Fl m Ar max_error
-Display help information.
+Specify max possible errors, in microseconds.
 .It Fl o Ar offset
 Specify clock offset, in microseconds.
 .It Fl r
@@ -63,6 +63,5 @@ Display Unix and NTP times in raw format.
 Specify time constant, an integer in the range 0-4.
 .El
 .Sh SEE ALSO
-.Xr ntp_adjtime 2 ,
-.Xr ntp_gettime 2 ,
+.Xr adjtime 2 ,
 .Xr ntpdc 8
