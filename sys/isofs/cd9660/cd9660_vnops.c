@@ -714,11 +714,9 @@ cd9660_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
-	struct vnode *vp = bp->b_vp;
+	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip;
 
-	KASSERT(ap->a_vp == ap->a_bp->b_vp, ("%s(%p != %p)",
-	    __func__, ap->a_vp, ap->a_bp->b_vp));
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("cd9660_strategy: spec");
