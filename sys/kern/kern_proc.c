@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysent.h>
 #include <sys/kse.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
@@ -1127,6 +1128,31 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+static int
+sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+	char *sv_name;
+	int *name;
+	int namelen;
+
+	namelen = arg2;
+	if (namelen != 1) 
+		return (EINVAL);
+
+	name = (int *)arg1;
+	if ((p = pfind((pid_t)name[0])) == NULL)
+		return (0);
+	if (p_cansee(curthread, p)) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+	sv_name = p->p_sysent->sv_name;
+	PROC_UNLOCK(p);
+	return (sysctl_handle_string(oidp, sv_name, 0, req));
+}
+
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
@@ -1152,3 +1178,6 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD,
 
 SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
+	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");
