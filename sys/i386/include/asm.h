@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- *	$Id: asm.h,v 1.1 1997/03/09 10:39:15 bde Exp $
+ *	$Id: asm.h,v 1.2 1997/03/09 13:57:32 bde Exp $
  */
+
+#ifndef _MACHINE_ASM_H_
+#define _MACHINE_ASM_H_
 
 #include <sys/cdefs.h>
 
@@ -76,56 +79,29 @@
 
 
 /* XXX should use align 4,0x90 for -m486. */
-#define _START_ENTRY	.text; .align 2,0x90;
-#if 0
-/* Data is not used, except perhaps by non-g prof, which we don't support. */
-#define _MID_ENTRY	.data; .align 2; 8:; .long 0;		\
-			.text; lea 8b,%eax;
-#else
-#define _MID_ENTRY
-#endif
+#define _START_ENTRY	.text; .p2align 2,0x90
+
+#define _ENTRY(x)	_START_ENTRY; \
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):
 
 #ifdef PROF
-
-#define ALTENTRY(x)	_START_ENTRY	\
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
-			_MID_ENTRY	\
-			call HIDENAME(mcount); jmp 9f
-
-#define ENTRY(x)	_START_ENTRY	\
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):; \
-			_MID_ENTRY	\
-			call HIDENAME(mcount); 9:
-
-
-#define	ALTASENTRY(x)	_START_ENTRY	\
-			.globl x; .type x,@function; x:;	\
-			_MID_ENTRY	\
-			call HIDENAME(mcount); jmp 9f
-
-#define	ASENTRY(x)	_START_ENTRY	\
-			.globl x; .type x,@function; x:;	\
-			_MID_ENTRY	\
-			call HIDENAME(mcount); 9:
-
-#else	/* !PROF */
-
-#define	ENTRY(x)	_START_ENTRY .globl CNAME(x); .type CNAME(x),@function; \
-			CNAME(x):
-#define	ALTENTRY(x)	ENTRY(x)
-
-#define	ASENTRY(x)	_START_ENTRY .globl x; .type x,@function; x:
-#define	ALTASENTRY(x)	ASENTRY(x)
-
+#define	ENTRY(x)	_ENTRY(x); \
+			pushl %ebp; movl %esp,%ebp; \
+			call PIC_PLT(HIDENAME(mcount)); \
+			popl %ebp
+#else
+#define	ENTRY(x)	_ENTRY(x)
 #endif
 
+#define RCSID(x)	.text; .asciz x
+
+#ifdef _ARCH_INDIRECT
 /*
- * This header is currently only used in lib/msun/i387.
- * Use it to generate code to select between the generic math functions 
- * and the i387 ones.
+ * Generate code to select between the generic functions and _ARCH_INDIRECT
+ * specific ones.
+ * XXX nested __CONCATs don't work with non-ANSI cpp's.
  */
-#undef ENTRY
-#define	ANAME(x)	CNAME(__CONCAT(__i387_,x))
+#define	ANAME(x)	CNAME(__CONCAT(__CONCAT(__,_ARCH_INDIRECT),x))
 #define	ASELNAME(x)	CNAME(__CONCAT(__arch_select_,x))
 #define	AVECNAME(x)	CNAME(__CONCAT(__arch_,x))
 #define	GNAME(x)	CNAME(__CONCAT(__generic_,x))
@@ -179,23 +155,11 @@
 			.size AVECNAME(x),4; \
 			AVECNAME(x): .long ASELNAME(x)
 
-#ifdef PROF
-
-#define	ALTENTRY(x)	ENTRY(x); jmp 9f
-#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
-			_START_ENTRY; \
-			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):; \
-			call HIDENAME(mcount); 9:
-
-#else /* !PROF */
-
-#define	ALTENTRY(x)	ENTRY(x)
-#define	ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
+#undef _ENTRY
+#define	_ENTRY(x)	ARCH_VECTOR(x); ARCH_SELECT(x); ARCH_DISPATCH(x); \
 			_START_ENTRY; \
 			.globl ANAME(x); .type ANAME(x),@function; ANAME(x):
 
-#endif /* PROF */
+#endif /* _ARCH_INDIRECT */
 
-#ifndef RCSID
-#define RCSID(a)
-#endif
+#endif /* !_MACHINE_ASM_H_ */

@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.11.2.3 1997/02/23 11:02:55 joerg Exp $
+#  $Id: Makefile,v 1.11.2.4 1997/03/03 14:20:58 bde Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -42,6 +42,7 @@
 #
 
 ARCH=	i387
+ARCH_PREFIX= ${ARCH}_
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
 	    s_cos.S s_finite.S s_floor.S s_ilogb.S s_logb.S \
@@ -53,7 +54,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
-CFLAGS+= -D_IEEE_LIBM
+CFLAGS+= -D_IEEE_LIBM -D_ARCH_INDIRECT=${ARCH_PREFIX}
 
 LIB=	m
 COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
@@ -90,7 +91,7 @@ COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
 CLEANFILES+=	${RENAMED_ARCH_SRCS}
-RENAMED_ARCH_SRCS=	${ARCH_SRCS:S/^/${ARCH}_/g}
+RENAMED_ARCH_SRCS=	${ARCH_SRCS:S/^/${ARCH_PREFIX}/g}
 SRCS=	${COMMON_SRCS} ${RENAMED_ARCH_SRCS}
 
 # Generate rules to rename arch-specific sources to avoid conflicts.
@@ -99,7 +100,7 @@ SRCS=	${COMMON_SRCS} ${RENAMED_ARCH_SRCS}
 # use .S.o rules instead of .c.o rules for the conflicting prefixes
 # (except after `make depend' it uses the correct rules!).
 .for i in ${ARCH_SRCS}
-${ARCH}_${i}: ${.CURDIR}/i387/${i}
+${ARCH_PREFIX}${i}: ${.CURDIR}/${ARCH}/${i}
 	cp ${.ALLSRC} ${.TARGET}
 .endfor
 

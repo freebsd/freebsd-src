@@ -33,9 +33,9 @@
  *	J.T. Conklin (jtc@wimsey.com), Winning Strategies, Inc.
  */
 
-#include <machine/asmacros.h>
+#include <machine/asm.h>
 
-RCSID("$Id: e_atan2.S,v 1.2.8.1 1997/12/08 01:07:18 steve Exp $")
+RCSID("$Id: e_atan2.S,v 1.2.8.2 1997/12/09 14:42:54 steve Exp $")
 
 ENTRY(__ieee754_atan2)
 	fldl	 4(%esp)
