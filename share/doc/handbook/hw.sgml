@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.39 1996/08/27 03:55:55 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.40 1996/08/29 04:26:39 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -1352,13 +1352,14 @@ those parts that have been damaged.
 
 	<p>If your hardware is okay, check your floppies.  If you
 are using a custom boot floppy, boot single-user (type "-s" at
-the "boot:" prompt).  If you are using the boot.flp and fixit.flp
-floppies, keep reading.  insert the boot.flp floppy in the floppy
-drive and boot the computer.  The original install menu is
-displayed on the screen.  Select the "fixit XXX" option.  Insert
-the fixit.flp when prompted.  <tt>restore</tt> and the other
-programs that you need are located in <tt>/mnt2/stand</tt>. Skip
-the following paragraph.
+the "boot:" prompt).  Skip the following paragraph.
+
+	<p>If you are using the boot.flp and fixit.flp floppies,
+keep reading.  Insert the boot.flp floppy in the first floppy drive
+and boot the computer.  The original install menu will be displayed
+on the screen.  Select the "Fixit--Repair mode with CDROM or floppy."
+option.  Insert the fixit.flp when prompted.  <tt>restore</tt> and
+the other programs that you need are located in <tt>/mnt2/stand</tt>.
 
 	<p>Recover each filesystem separately.
 
