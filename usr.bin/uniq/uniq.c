@@ -67,19 +67,7 @@ void	 show __P((FILE *, char *));
 char	*skip __P((char *));
 void	 obsolete __P((char *[]));
 static void	 usage __P((void));
-
-int stricoll(char *s1, char *s2)
-{
-	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
-
-	for (p = line1; *s1; s1++)
-		*p++ = tolower((unsigned char)*s1);
-	*p = '\0';
-	for (p = line2; *s2; s2++)
-		*p++ = tolower((unsigned char)*s2);
-	*p = '\0';
-	return strcoll(s1, s2);
-}
+int      stricoll __P((char *, char*));
 
 int
 main (argc, argv)
@@ -273,4 +261,19 @@ usage()
 	(void)fprintf(stderr,
 	    "usage: uniq [-c | -du | -i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
+}
+
+int
+stricoll(s1, s2)
+	char *s1, *s2;
+{
+	char *p, line1[MAXLINELEN], line2[MAXLINELEN];
+
+	for (p = line1; *s1; s1++)
+		*p++ = toupper((unsigned char)*s1);
+	*p = '\0';
+	for (p = line2; *s2; s2++)
+		*p++ = toupper((unsigned char)*s2);
+	*p = '\0';
+	return strcoll(s1, s2);
 }
