@@ -447,7 +447,7 @@ vm_page_protect(vm_page_t mem, int prot)
 	if (prot == VM_PROT_NONE) {
 		if (pmap_page_is_mapped(mem) || (mem->flags & PG_WRITEABLE)) {
 			pmap_page_protect(mem, VM_PROT_NONE);
-			vm_page_flag_clear(mem, PG_WRITEABLE|PG_MAPPED);
+			vm_page_flag_clear(mem, PG_WRITEABLE);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
 		pmap_page_protect(mem, VM_PROT_READ);

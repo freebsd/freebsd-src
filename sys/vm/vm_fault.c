@@ -883,7 +883,7 @@ readrest:
 	}
 	vm_page_lock_queues();
 	vm_page_flag_clear(fs.m, PG_ZERO);
-	vm_page_flag_set(fs.m, PG_MAPPED|PG_REFERENCED);
+	vm_page_flag_set(fs.m, PG_REFERENCED);
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
@@ -1077,7 +1077,7 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		vm_page_flag_clear(dst_m, PG_ZERO);
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
 		vm_page_lock_queues();
-		vm_page_flag_set(dst_m, PG_WRITEABLE|PG_MAPPED);
+		vm_page_flag_set(dst_m, PG_WRITEABLE);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
