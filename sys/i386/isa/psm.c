@@ -54,9 +54,11 @@
  *  - 12 November 1996. IOCTLs and rearranging `psmread', `psmioctl'...
  *  - 14 November 1996. Uses `kbdio.c'.
  *  - 30 November 1996. More fixes.
+ *  - 13 December 1996. Uses queuing version of `kbdio.c'.
  */
 
 #include "psm.h"
+#include "opt_psm.h"
 
 #if NPSM > 0
 
@@ -102,10 +104,6 @@
 
 /* end of driver specific options */
 
-/* default values */
-#define PSMD_DEFAULT_RESOLUTION	200	/* resolution: 200 ppi */
-#define PSMD_DEFAULT_RATE	100	/* report rate: 100 Hz */
-
 /* some macros */
 #define PSM_UNIT(dev)		(minor(dev) >> 1)
 #define PSM_NBLOCKIO(dev)	(minor(dev) & 1)
@@ -134,13 +132,14 @@ typedef int (*packetfunc_t) __P((unsigned char *, int *, int, mousestatus_t *));
 static struct psm_softc {    /* Driver status information */
     struct selinfo rsel;	/* Process selecting for Input */
     unsigned char state;	/* Mouse driver state */
+    KBDC    kbdc;
     int     addr;		/* I/O port address */
-    int     command_byte;	/* controller command byte */
     mousehw_t hw;		/* hardware information */
     mousemode_t mode;		/* operation mode */
+    mousemode_t dflt_mode;	/* default operation mode */
     ringbuf_t queue;		/* mouse status queue */
     packetfunc_t mkpacket;	/* func. to turn queued data into output format */
-    char    ipacket[MOUSE_PS2_PACKETSIZE];	/* interim input buffer */
+    unsigned char ipacket[MOUSE_PS2_PACKETSIZE];/* interim input buffer */
     unsigned char opacket[PSM_BUFSIZE];		/* output buffer */
     int     inputbytes;		/* # of bytes in the input buffer */
     int     outputbytes;	/* # of bytes in the output buffer */
@@ -187,11 +186,11 @@ static int verbose = PSM_DEBUG;
 
 /* device I/O routines */
 static int
-enable_aux_dev(int port)
+enable_aux_dev(KBDC kbdc)
 {
     int res;
 
-    res = send_aux_command(port, PSMC_ENABLE_DEV);
+    res = send_aux_command(kbdc, PSMC_ENABLE_DEV);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: ENABLE_DEV return code:%04x\n", res);
 
@@ -199,11 +198,11 @@ enable_aux_dev(int port)
 }
 
 static int
-disable_aux_dev(int port)
+disable_aux_dev(KBDC kbdc)
 {
     int res;
 
-    res = send_aux_command(port, PSMC_DISABLE_DEV);
+    res = send_aux_command(kbdc, PSMC_DISABLE_DEV);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: DISABLE_DEV return code:%04x\n", res);
 
@@ -211,41 +210,41 @@ disable_aux_dev(int port)
 }
 
 static int
-get_mouse_status(int port, int *status)
+get_mouse_status(KBDC kbdc, int *status)
 {
     int res;
 
-    empty_both_buffers(port, 2);
-    res = send_aux_command(port, PSMC_SEND_DEV_STATUS);
+    empty_aux_buffer(kbdc, 5);
+    res = send_aux_command(kbdc, PSMC_SEND_DEV_STATUS);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: SEND_AUX_STATUS return code:%04x\n", res);
     if (res != PSM_ACK)
         return FALSE;
 
-    status[0] = read_aux_data(port);
-    status[1] = read_aux_data(port);
-    status[2] = read_aux_data(port);
+    status[0] = read_aux_data(kbdc);
+    status[1] = read_aux_data(kbdc);
+    status[2] = read_aux_data(kbdc);
 
     return TRUE;
 }
 
 static int
-get_aux_id(int port)
+get_aux_id(KBDC kbdc)
 {
     int res;
     int id;
 
-    empty_both_buffers(port, 2);
-    res = send_aux_command(port, PSMC_SEND_DEV_ID);
+    empty_aux_buffer(kbdc, 5);
+    res = send_aux_command(kbdc, PSMC_SEND_DEV_ID);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n", res);
     if (res != PSM_ACK)
 	return (-1);
 
-        /* 10ms delay */
-        DELAY(10000);
+    /* 10ms delay */
+    DELAY(10000);
 
-    id = read_aux_data(port);
+    id = read_aux_data(kbdc);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: device ID: %04x\n", id);
 
@@ -253,11 +252,11 @@ get_aux_id(int port)
 }
 
 static int
-set_mouse_sampling_rate(int port, int rate)
+set_mouse_sampling_rate(KBDC kbdc, int rate)
 {
     int res;
 
-    res = send_aux_command_and_data(port, PSMC_SET_SAMPLING_RATE, rate);
+    res = send_aux_command_and_data(kbdc, PSMC_SET_SAMPLING_RATE, rate);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: SET_SAMPLING_RATE (%d) %04x\n", rate, res);
 
@@ -265,54 +264,28 @@ set_mouse_sampling_rate(int port, int rate)
 }
 
 static int
-set_mouse_scaling(int port)
+set_mouse_scaling(KBDC kbdc)
 {
     int res;
 
-    res = send_aux_command(port, PSMC_SET_SCALING11);
+    res = send_aux_command(kbdc, PSMC_SET_SCALING11);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: SET_SCALING11 return code:%04x\n", res);
 
     return (res == PSM_ACK);
 }
 
-static struct {
-        int resolution;
-        int code;
-} rescode[] = {
-        { 25, PSMD_RESOLUTION_25 },
-        { 50, PSMD_RESOLUTION_50 },
-        { 100, PSMD_RESOLUTION_100 },
-        { 200, PSMD_RESOLUTION_200 },
-        { 400, PSMD_RESOLUTION_400 },        /* ?? */
-        { 800, PSMD_RESOLUTION_800 },        /* ?? */
-        { INT_MAX, PSMD_MAX_RESOLUTION },
-    { -1 },
-};
-
+/* `val' must be 0 through PSMD_MAX_RESOLUTION */
 static int
-set_mouse_resolution(int port, int res)
+set_mouse_resolution(KBDC kbdc, int val)
 {
-    int ret;
-    int i;
+    int res;
 
-    if (res <= 0)
-        return (-1);
-    for (i = 0; rescode[i].resolution > 0; ++i)
-        if (rescode[i].resolution >= res)
-            break;
+    res = send_aux_command_and_data(kbdc, PSMC_SET_RESOLUTION, val);
+    if (verbose >= 2)
+        log(LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n", val, res);
 
-    for (; i >= 0; --i) {
-        ret = send_aux_command_and_data(port,
-            PSMC_SET_RESOLUTION, rescode[i].code);
-        if (verbose >= 2)
-            log(LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n",
-                rescode[i].code, ret);
-        if (ret == PSM_ACK)
-            return rescode[i].resolution;
-    }
-
-    return (-1);
+    return ((res == PSM_ACK) ? val : -1);
 }
 
 /*
@@ -320,11 +293,11 @@ set_mouse_resolution(int port, int res)
  * re-enabled by calling `enable_aux_dev()'
  */
 static int
-set_mouse_mode(int port)
+set_mouse_mode(KBDC kbdc)
 {
     int res;
 
-    res = send_aux_command(port, PSMC_SET_STREAM_MODE);
+    res = send_aux_command(kbdc, PSMC_SET_STREAM_MODE);
     if (verbose >= 2)
         log(LOG_DEBUG, "psm: SET_STREAM_MODE return code:%04x\n", res);
 
@@ -332,7 +305,7 @@ set_mouse_mode(int port)
 }
 
 static int
-get_mouse_buttons(int port)
+get_mouse_buttons(KBDC kbdc)
 {
     int c = 2;		/* assume two buttons by default */
     int res;
@@ -344,16 +317,16 @@ get_mouse_buttons(int port)
      * scaling to 1:1, set scaling to 1:1. Then the second byte of the
      * mouse status bytes is the number of available buttons.
      */
-    if (set_mouse_resolution(port, 25) != 25)
+    if (set_mouse_resolution(kbdc, PSMD_RES_LOW) != PSMD_RES_LOW)
         return c;
-    if (set_mouse_scaling(port) && set_mouse_scaling(port)
-        && set_mouse_scaling(port) && get_mouse_status(port, status)) {
+    if (set_mouse_scaling(kbdc) && set_mouse_scaling(kbdc)
+        && set_mouse_scaling(kbdc) && get_mouse_status(kbdc, status)) {
         if (verbose) {
             log(LOG_DEBUG, "psm: status %02x %02x %02x (get_mouse_buttons)\n",
                 status[0], status[1], status[2]);
         }
-        if (status[1] == 3)
-            return 3;
+        if (status[1] != 0)
+            return status[1];
     }
     return c;
 }
@@ -372,38 +345,38 @@ is_a_mouse(int id)
         -1			/* end of table */
     };
 #if 0
-     int i;
+    int i;
 
-     for(i = 0; valid_ids[i] >= 0; ++i)
-         if (valid_ids[i] == id)
-             return TRUE;
-     return FALSE;
+    for (i = 0; valid_ids[i] >= 0; ++i)
+        if (valid_ids[i] == id)
+            return TRUE;
+    return FALSE;
 #else
     return TRUE;
 #endif
 }
 
 static void
-recover_from_error(int port)
+recover_from_error(KBDC kbdc)
 {
     /* discard anything left in the output buffer */
-    empty_both_buffers(port, 10);
+    empty_both_buffers(kbdc, 10);
 
 #if 0
     /*
      * NOTE: KBDC_RESET_KBD may not restore the communication between the
      * keyboard and the controller.
      */
-    reset_kbd(port);
+    reset_kbd(kbdc);
 #else
     /*
      * NOTE: somehow diagnostic and keyboard port test commands bring the
      * keyboard back.
      */
-    if (!test_controller(port)) 
+    if (!test_controller(kbdc)) 
         log(LOG_ERR, "psm: keyboard controller failed.\n");
     /* if there isn't a keyboard in the system, the following error is OK */
-    if (test_kbd_port(port) != 0) {
+    if (test_kbd_port(kbdc) != 0) {
 	if (verbose)
 	    log(LOG_ERR, "psm: keyboard port failed.\n");
     }
@@ -411,9 +384,9 @@ recover_from_error(int port)
 }
 
 static int
-restore_controller(int port, int command_byte)
+restore_controller(KBDC kbdc, int command_byte)
 {
-    if (!set_controller_command_byte(port, command_byte, 0)) {
+    if (!set_controller_command_byte(kbdc, 0xff, command_byte)) {
 	log(LOG_ERR, "psm: failed to restore the keyboard controller "
 		     "command byte.\n");
 	return FALSE;
@@ -426,20 +399,27 @@ restore_controller(int port, int command_byte)
  * Re-initialize the aux port and device. The aux port must be enabled
  * and its interrupt must be disabled before calling this routine. 
  * The aux device will be disabled before returning.
+ * The keyboard controller must be locked via `kbdc_lock()' before
+ * calling this routine.
  */
 static int
 reinitialize(dev_t dev, mousemode_t *mode)
 {
-    int port = psm_softc[PSM_UNIT(dev)]->addr;
+    KBDC kbdc = psm_softc[PSM_UNIT(dev)]->kbdc;
     int stat[3];
     int i;
 
-    switch((i = test_aux_port(port))) {
+    switch((i = test_aux_port(kbdc))) {
+    case 1:	/* ignore this error */
+	if (verbose)
+	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
+	        PSM_UNIT(dev), i);
+	/* fall though */
     case 0:	/* no error */
     	break;
     case -1: 	/* time out */
     default: 	/* error */
-    	recover_from_error(port);
+    	recover_from_error(kbdc);
     	log(LOG_ERR, "psm%d: the aux port is not functioning (%d).\n",
     	    PSM_UNIT(dev),i);
     	return FALSE;
@@ -449,8 +429,8 @@ reinitialize(dev_t dev, mousemode_t *mode)
      * NOTE: some controllers appears to hang the `keyboard' when
      * the aux port doesn't exist and `PSMC_RESET_DEV' is issued. 
      */
-    if (!reset_aux_dev(port)) {
-        recover_from_error(port);
+    if (!reset_aux_dev(kbdc)) {
+        recover_from_error(kbdc);
         log(LOG_ERR, "psm%d: failed to reset the aux device.\n",
     	    PSM_UNIT(dev));
         return FALSE;
@@ -460,27 +440,29 @@ reinitialize(dev_t dev, mousemode_t *mode)
      * both the aux port and the aux device is functioning, see
      * if the device can be enabled. 
      */
-    if (!enable_aux_dev(port) || !disable_aux_dev(port)) {
+    if (!enable_aux_dev(kbdc) || !disable_aux_dev(kbdc)) {
         log(LOG_ERR, "psm%d: failed to enable the aux device.\n",
     	    PSM_UNIT(dev));
         return FALSE;
     }
-    empty_both_buffers(port, 10);
+    empty_both_buffers(kbdc, 10);	/* remove stray data if any */
 
     /* set mouse parameters */
     if (mode != (mousemode_t *)NULL) {
 	if (mode->rate > 0)
-            mode->rate = set_mouse_sampling_rate(port, mode->rate);
-	if (mode->resolution > 0)
-            mode->resolution = set_mouse_resolution(port, mode->resolution);
-        set_mouse_scaling(port);
-        set_mouse_mode(port);	
+            mode->rate = set_mouse_sampling_rate(kbdc, mode->rate);
+	if (mode->resolution >= 0)
+            mode->resolution = set_mouse_resolution(kbdc, mode->resolution);
+        set_mouse_scaling(kbdc);
+        set_mouse_mode(kbdc);	
     }
 
     /* just check the status of the mouse */
-    if (verbose) {
-        get_mouse_status(port, stat);
-        log(LOG_DEBUG, "psm%d: status %02x %02x %02x (reinitialized)\n",
+    i = get_mouse_status(kbdc, stat);
+    if (!i) {
+        log(LOG_DEBUG, "psm%d: failed to get status.\n", PSM_UNIT(dev));
+    } else if (verbose) {
+        log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
             PSM_UNIT(dev), stat[0], stat[1], stat[2]);
     }
 
@@ -489,40 +471,41 @@ reinitialize(dev_t dev, mousemode_t *mode)
 
 /* psm driver entry points */
 
-#define endprobe(v)	{   if (bootverbose) \
-				--verbose;   \
-			    return (v);	     \
+#define endprobe(v)	{   if (bootverbose) 				\
+				--verbose;   				\
+                            kbdc_set_device_mask(sc->kbdc, mask);	\
+			    kbdc_lock(sc->kbdc, FALSE);			\
+			    return (v);	     				\
 			}
 
 static int
 psmprobe(struct isa_device *dvp)
 {
     int unit = dvp->id_unit;
-    int ioport = dvp->id_iobase;
     struct psm_softc *sc;
     int stat[3];
-    int setparams;
+    int command_byte;
+    int mask;
     int i;
 
     /* validate unit number */
     if (unit >= NPSM)
         return (0);
 
-    psm_softc[unit] = NULL; 
-
     sc =  malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
-
     bzero(sc, sizeof *sc);
 
-    sc->addr = ioport;
+    sc->addr = dvp->id_iobase;
+    sc->kbdc = kbdc_open(sc->addr);
     if (bootverbose)
         ++verbose;
 
-    /*
-     * FIXME:XXX
-     * the keyboard interrupt should be disabled while probing a
-     * mouse?
-     */
+    if (!kbdc_lock(sc->kbdc, TRUE)) {
+        printf("psm%d: unable to lock the controller.\n", unit);
+        if (bootverbose)
+            --verbose;
+	return (0);
+    }
 
     /*
      * NOTE: two bits in the command byte controls the operation of the
@@ -542,8 +525,7 @@ psmprobe(struct isa_device *dvp)
      * disabled. Case 2b: The aux port exists. A device and a driver may
      * exist, using the device in the polling(remote) mode. Case 2c: The
      * aux port exists. A device may exist, but someone who knows nothing
-     * about the aux port has set the command byte this way (this is the
-     * case with `syscons').
+     * about the aux port has set the command byte this way.
      * 
      * Case 3: aux port disabled (bit 5:1), aux int. enabled (bit 2:1) The
      * aux port exists, but someone is controlloing the device and
@@ -557,24 +539,19 @@ psmprobe(struct isa_device *dvp)
      * of the port and the mouse device.
      */
 
+    /* discard anything left after the keyboard initialization */
+    empty_both_buffers(sc->kbdc, 10);
+
     /* save the current command byte; it will be used later */
-    if (!write_controller_command(ioport,KBDC_GET_COMMAND_BYTE)) {
-        /* CONTROLLER ERROR */
-        printf("psm%d: failed to get the current command byte value.\n",
-            unit);
- 	free(sc, M_DEVBUF);
-        endprobe(0);
-    }
-    sc->command_byte = read_controller_data(ioport);
-    if (verbose) {
-        printf("psm%d: current command byte:%04x\n",
-            unit, sc->command_byte);
-    }
-    if (sc->command_byte == -1) {
+    mask = kbdc_get_device_mask(sc->kbdc) & ~KBD_AUX_CONTROL_BITS;
+    command_byte = get_controller_command_byte(sc->kbdc);
+    if (verbose) 
+        printf("psm%d: current command byte:%04x\n", unit, command_byte);
+    if (command_byte == -1) {
         /* CONTROLLER ERROR */
         printf("psm%d: unable to get the current command byte value.\n",
             unit);
-	free(sc, M_DEVBUF);
+ 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -582,15 +559,15 @@ psmprobe(struct isa_device *dvp)
      * disable the keyboard port while probing the aux port, which must be
      * enabled during this routine
      */
-    if (!set_controller_command_byte(ioport,
-  	    sc->command_byte & ~(KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS),
-        KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-            | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+    if (!set_controller_command_byte(sc->kbdc,
+	    KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS,
+  	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+                | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
         /* 
 	 * this is CONTROLLER ERROR; I don't know how to recover 
          * from this error... 
 	 */
-        restore_controller(ioport, sc->command_byte);
+        restore_controller(sc->kbdc, command_byte);
         printf("psm%d: unable to set the command byte.\n", unit);
  	free(sc, M_DEVBUF);
         endprobe(0);
@@ -606,18 +583,28 @@ psmprobe(struct isa_device *dvp)
      * supporsed to return with an error code or simply time out. In any
      * case, we have to continue probing the port even when the controller
      * passes this test.
+     *
+     * XXX: some controllers erroneously return the error code 1 when
+     * it has the perfectly functional aux port. We have to ignore this
+     * error code. Even if the controller HAS error with the aux port,
+     * it will be detected later...
      */
-    switch ((i = test_aux_port(ioport))) {
+    switch ((i = test_aux_port(sc->kbdc))) {
+    case 1:	   /* ignore this error */
+        if (verbose)
+	    printf("psm%d: strange result for test aux port (%d).\n",
+	        unit, i);
+	/* fall though */
     case 0:        /* no error */
         break;
     case -1:        /* time out */
     default:        /* error */
-        recover_from_error(ioport);
-        restore_controller(ioport, sc->command_byte);
+        recover_from_error(sc->kbdc);
+        restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: the aux port is not functioning (%d).\n",
                 unit, i);
-	free(sc, M_DEVBUF);
+ 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -625,12 +612,12 @@ psmprobe(struct isa_device *dvp)
      * NOTE: some controllers appears to hang the `keyboard' when the aux
      * port doesn't exist and `PSMC_RESET_DEV' is issued.
      */
-    if (!reset_aux_dev(ioport)) {
-        recover_from_error(ioport);
-        restore_controller(ioport, sc->command_byte);
+    if (!reset_aux_dev(sc->kbdc)) {
+        recover_from_error(sc->kbdc);
+        restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: failed to reset the aux device.\n", unit);
-	free(sc, M_DEVBUF);
+ 	free(sc, M_DEVBUF);
         endprobe(0);
     }
     /*
@@ -639,43 +626,37 @@ psmprobe(struct isa_device *dvp)
      * sending data; we shall immediately disable the device once we know
      * the device can be enabled.
      */
-    if (!enable_aux_dev(ioport) || !disable_aux_dev(ioport)) {
+    if (!enable_aux_dev(sc->kbdc) || !disable_aux_dev(sc->kbdc)) {
 	/* MOUSE ERROR */
-        restore_controller(ioport, sc->command_byte);
+        restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: failed to enable the aux device.\n", unit);
-	free(sc, M_DEVBUF);
+ 	free(sc, M_DEVBUF);
         endprobe(0);
     }
-    empty_both_buffers(ioport, 10);	/* remove stray data if any */
 
     /* save the default values after reset */
-    if (get_mouse_status(ioport, stat)) {
+    if (get_mouse_status(sc->kbdc, stat)) {
 	if (verbose)
             printf("psm%d: status after reset %02x %02x %02x\n",
                 unit, stat[0], stat[1], stat[2]);
-	sc->mode.rate = stat[2];
-	sc->mode.resolution = PSMD_DEFAULT_RESOLUTION;
-	for (i = 0; rescode[i].resolution > 0; ++i)
-	    if (rescode[i].code == stat[1])
-		sc->mode.resolution = rescode[i].resolution;
-	setparams = TRUE;
+	sc->dflt_mode.rate = sc->mode.rate = stat[2];
+	sc->dflt_mode.resolution = sc->mode.resolution = stat[1];
     } else {
-	sc->mode.rate = -1;
-	sc->mode.resolution = -1;
-	setparams = FALSE;
+	sc->dflt_mode.rate = sc->mode.rate = -1;
+	sc->dflt_mode.resolution = sc->mode.resolution = -1;
     }
 
     /* hardware information */
     sc->hw.iftype = MOUSE_IF_PS2;
 
     /* verify the device is a mouse */
-    sc->hw.hwid = get_aux_id(ioport);
+    sc->hw.hwid = get_aux_id(sc->kbdc);
     if (!is_a_mouse(sc->hw.hwid)) {
-        restore_controller(ioport, sc->command_byte);
+        restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: unknown device type (%d).\n", unit, sc->hw.hwid);
-	free(sc, M_DEVBUF);
+ 	free(sc, M_DEVBUF);
         endprobe(0);
     }
     switch (sc->hw.hwid) {
@@ -691,53 +672,53 @@ psmprobe(struct isa_device *dvp)
     }
 
     /* # of buttons */
-    sc->hw.buttons = (setparams) ? get_mouse_buttons(ioport) : 2;
+    sc->hw.buttons = get_mouse_buttons(sc->kbdc);
 
     /* set mouse parameters */
     /* FIXME:XXX should we set them in `psmattach()' rather than here? */
-    if (setparams) {
-        if (sc->mode.rate > 0)
-            sc->mode.rate = set_mouse_sampling_rate(ioport, sc->mode.rate);
-        if (sc->mode.resolution > 0)
-    sc->mode.resolution =
-                set_mouse_resolution(ioport, sc->mode.resolution);
-    }
     /* FIXME:XXX I don't know if these parameters are reasonable */
-    set_mouse_scaling(ioport);    /* 1:1 scaling */
-    set_mouse_mode(ioport);    /* stream mode */
+    i = send_aux_command(sc->kbdc, PSMC_SET_DEFAULTS);
+    if (verbose >= 2)
+	log(LOG_DEBUG, "psm%d: SET_DEFAULTS return code:%04x\n",
+	    unit, i);
+#if 0
+    set_mouse_scaling(sc->kbdc); 	/* 1:1 scaling */
+    set_mouse_mode(sc->kbdc);		/* stream mode */
+#endif
 
     /* just check the status of the mouse */
-    if (verbose) {
-        get_mouse_status(ioport, stat);
+    /* 
+     * NOTE: XXX there are some arcane controller/mouse combinations out 
+     * there, which hung the controller unless there is data transmission 
+     * after ACK from the mouse.
+     */
+    i = get_mouse_status(sc->kbdc, stat);
+    if (!i) {
+        log(LOG_DEBUG, "psm%d: failed to get status.\n", unit);
+    } else if (verbose) {
         log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
             unit, stat[0], stat[1], stat[2]);
     }
 
     /* disable the aux port for now... */
-
-    /*
-     * WARNING: we save the controller command byte and use it later
-     * during `psmopen()' and `psmclose()'. This will be OK, so long as
-     * the keyboard/console device driver won't change the command byte in
-     * the course of its operation (this is the case with `syscons'). If
-     * not,...
-     */
-    if (!set_controller_command_byte(ioport, 
-	    sc->command_byte & ~KBD_AUX_CONTROL_BITS,
-            KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+    if (!set_controller_command_byte(sc->kbdc, 
+	    KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS,
+            (command_byte & KBD_KBD_CONTROL_BITS)
+                | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
         /* 
 	 * this is CONTROLLER ERROR; I don't know the proper way to 
          * recover from this error... 
 	 */
-        restore_controller(ioport, sc->command_byte);
+        restore_controller(sc->kbdc, command_byte);
         printf("psm%d: unable to set the command byte.\n", unit);
  	free(sc, M_DEVBUF);
         endprobe(0);
     }
-    sc->command_byte &= ~KBD_AUX_CONTROL_BITS;
 
     /* done */
     psm_softc[unit] = sc;
+    kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
+    kbdc_lock(sc->kbdc, FALSE);
     return (IO_PSMSIZE);
 }
 
@@ -747,12 +728,9 @@ psmattach(struct isa_device *dvp)
     int unit = dvp->id_unit;
     struct psm_softc *sc = psm_softc[unit];
 
-    if (sc == NULL)    /* shouldn't happen */ 
-	return (0); 
-
     /* initial operation mode */
-    sc->mode.accelfactor = PSM_ACCEL;
-    sc->mode.protocol = MOUSE_PROTO_PS2;
+    sc->dflt_mode.accelfactor = sc->mode.accelfactor = PSM_ACCEL;
+    sc->dflt_mode.protocol = sc->mode.protocol = MOUSE_PROTO_PS2;
     sc->mkpacket = mkps2;
 
     /* Setup initial state */
@@ -768,8 +746,8 @@ psmattach(struct isa_device *dvp)
         DV_CHR, 0, 0, 0666, "npsm%d", unit);
 #endif
 
-    printf("psm%d: device ID %d, %d buttons?\n",
-        unit, sc->hw.hwid, sc->hw.buttons);
+    printf("psm%d: device ID %d, %d buttons\n",
+	unit, sc->hw.hwid, sc->hw.buttons);
 
     if (bootverbose)
         --verbose;
@@ -781,9 +759,11 @@ static int
 psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
     int unit = PSM_UNIT(dev);
-    int ioport;
     struct psm_softc *sc;
     int stat[3];
+    int command_byte;
+    int ret;
+    int s;
 
     /* Validate unit number */
     if (unit >= NPSM)
@@ -791,10 +771,9 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 
     /* Get device data */
     sc = psm_softc[unit];
-    if ((sc == NULL) || (sc->state & PSM_VALID) == 0)
+    if ((sc->state & PSM_VALID) == 0)
 	/* the device is no longer valid/functioning */
         return (ENXIO);
-    ioport = sc->addr;
 
     /* Disallow multiple opens */
     if (sc->state & PSM_OPEN)
@@ -815,58 +794,79 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
     sc->outputbytes = 0;
     sc->outputhead = 0;
 
+    /* don't let timeout routines in the keyboard driver to poll the kbdc */
+    if (!kbdc_lock(sc->kbdc, TRUE))
+	return (EIO);
+
+    /* save the current controller command byte */
+    s = spltty();
+    command_byte = get_controller_command_byte(sc->kbdc);
+
     /* enable the aux port and temporalily disable the keyboard */
-    if (!set_controller_command_byte(ioport,
-        sc->command_byte & ~KBD_KBD_CONTROL_BITS,
-        KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-	    | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+    if ((command_byte == -1) 
+        || !set_controller_command_byte(sc->kbdc,
+	    kbdc_get_device_mask(sc->kbdc),
+  	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+	        | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
         /* CONTROLLER ERROR; do you know how to get out of this? */
-        set_controller_command_byte(ioport, 
-	    sc->command_byte, KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT);
+        kbdc_lock(sc->kbdc, FALSE);
+	splx(s);
 	log(LOG_ERR, "psm%d: unable to set the command byte (psmopen).\n",
 	    unit);
 	return (EIO);
     }
-
+    /* 
+     * Now that the keyboard controller is told not to generate 
+     * the keyboard and mouse interrupts, call `splx()' to allow 
+     * the other tty interrupts. The clock interrupt may also occur, 
+     * but timeout routines will be blocked by the poll flag set 
+     * via `kbdc_lock()'
+     */
+    splx(s);
+  
     /* enable the mouse device */
-    if (!enable_aux_dev(ioport)) {
+    if (!enable_aux_dev(sc->kbdc)) {
 	/* MOUSE ERROR: failed to enable the mouse because:
 	 * 1) the mouse is faulty,
 	 * 2) the mouse has been removed(!?)
 	 * In the latter case, the keyboard may have hung, and need 
 	 * recovery procedure...
 	 */
-	recover_from_error(ioport);
+	recover_from_error(sc->kbdc);
 #if 0
 	/* FIXME: we could reset the mouse here and try to enable
 	 * it again. But it will take long time and it's not a good
 	 * idea to disable the keyboard that long...
 	 */
-	if (!reinitialize(dev, &sc->mode) || !enable_aux_dev(ioport)) 
-	    recover_from_error(ioport);
+	if (!reinitialize(dev, &sc->mode) || !enable_aux_dev(sc->kbdc)) 
+	    recover_from_error(sc->kbdc);
 #endif
-        set_controller_command_byte(ioport, 
-	    sc->command_byte, KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT);
+        restore_controller(sc->kbdc, command_byte);
 	/* mark this device is no longer available */
 	sc->state &= ~PSM_VALID;	
+        kbdc_lock(sc->kbdc, FALSE);
 	log(LOG_ERR, "psm%d: failed to enable the device (psmopen).\n",
 	    unit);
-        return (EIO);
+	return (EIO);
     }
 
-    if (verbose >= 2) {
-        get_mouse_status(ioport, stat);
-        log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
+    ret = get_mouse_status(sc->kbdc, stat);
+    if (!ret) {
+        log(LOG_DEBUG, "psm%d: failed to get status (psmopen).\n", unit);
+    } else if (verbose >= 2) {
+        log(LOG_DEBUG, "psm%d: status %02x %02x %02x (psmopen)\n",
             unit, stat[0], stat[1], stat[2]);
     }
 
     /* enable the aux port and interrupt */
-    if (!set_controller_command_byte(ioport, sc->command_byte,
-	KBD_ENABLE_AUX_PORT | KBD_ENABLE_AUX_INT)) {
+    if (!set_controller_command_byte(sc->kbdc, 
+	    kbdc_get_device_mask(sc->kbdc),
+	    (command_byte & KBD_KBD_CONTROL_BITS)
+		| KBD_ENABLE_AUX_PORT | KBD_ENABLE_AUX_INT)) {
 	/* CONTROLLER ERROR */
-	disable_aux_dev(ioport);
-    set_controller_command_byte(ioport, sc->command_byte,
-	    KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT);
+	disable_aux_dev(sc->kbdc);
+        restore_controller(sc->kbdc, command_byte);
+        kbdc_lock(sc->kbdc, FALSE);
 	log(LOG_ERR, "psm%d: failed to enable the aux interrupt (psmopen).\n",
 	    unit);
 	return (EIO);
@@ -874,6 +874,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 
     /* done */
     sc->state |= PSM_OPEN;
+    kbdc_lock(sc->kbdc, FALSE);
     return (0);
 }
 
@@ -881,11 +882,29 @@ static int
 psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
     struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
-    int ioport = sc->addr;
+    int stat[3];
+    int command_byte;
+    int ret;
+    int s;
 
-    /* disable the aux interrupt */
-    if (!set_controller_command_byte(ioport, sc->command_byte,
-	KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+    /* don't let timeout routines in the keyboard driver to poll the kbdc */
+    if (!kbdc_lock(sc->kbdc, TRUE))
+	return (EIO);
+
+    /* save the current controller command byte */
+    s = spltty();
+    command_byte = get_controller_command_byte(sc->kbdc);
+    if (command_byte == -1) {
+        kbdc_lock(sc->kbdc, FALSE);
+	splx(s);
+	return (EIO);
+    }
+
+    /* disable the aux interrupt and temporalily disable the keyboard */
+    if (!set_controller_command_byte(sc->kbdc, 
+	    kbdc_get_device_mask(sc->kbdc),
+  	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+	        | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	log(LOG_ERR, "psm%d: failed to disable the aux int (psmclose).\n",
 	    PSM_UNIT(dev));
 	/* CONTROLLER ERROR;
@@ -895,12 +914,13 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	 * so long as the mouse will accept the DISABLE command.
 	 */
     }
+    splx(s);
 
     /* remove anything left in the output buffer */
-    empty_aux_buffer(ioport, 20);
+    empty_aux_buffer(sc->kbdc, 10);
 
     /* disable the aux device, port and interrupt */
-    if (!disable_aux_dev(ioport)) {
+    if (!disable_aux_dev(sc->kbdc)) {
 	/* MOUSE ERROR; 
 	 * NOTE: we don't return error and continue, pretending 
 	 * we have successfully disabled the device. It's OK because 
@@ -910,8 +930,20 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 	log(LOG_ERR, "psm%d: failed to disable the device (psmclose).\n",
 	    PSM_UNIT(dev));
     }
-    if (!set_controller_command_byte(ioport, sc->command_byte,
-	KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+
+    ret = get_mouse_status(sc->kbdc, stat);
+    if (!ret) {
+        log(LOG_DEBUG, "psm%d: failed to get status (psmclose).\n", 
+	    PSM_UNIT(dev));
+    } else if (verbose >= 2) {
+        log(LOG_DEBUG, "psm%d: status %02x %02x %02x (psmclose)\n",
+            PSM_UNIT(dev), stat[0], stat[1], stat[2]);
+    }
+
+    if (!set_controller_command_byte(sc->kbdc, 
+	    kbdc_get_device_mask(sc->kbdc),
+	    (command_byte & KBD_KBD_CONTROL_BITS)
+	        | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR; 
 	 * we shall ignore this error; see the above comment.
 	 */
@@ -920,10 +952,11 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
     }
 
     /* remove anything left in the output buffer */
-    empty_aux_buffer(ioport, 10);
+    empty_aux_buffer(sc->kbdc, 10);
 
     /* close is almost always successful */
     sc->state &= ~PSM_OPEN;
+    kbdc_lock(sc->kbdc, FALSE);
     return (0);
 }
 
@@ -1120,22 +1153,22 @@ mkps2(unsigned char *buf, int *len, int maxlen, register mousestatus_t *status)
     if ((verbose >= 2) && ((buf[0] & MOUSE_PS2_BUTTON4UP) == 0))
 	log(LOG_DEBUG, "psm: button 4 down (%04x) (mkps2)\n", buf[0]);
 
-    if (status->dx < -128)
-        delta = -128;
+    if (status->dx < -256)
+        delta = -256;
     else
-        if (status->dx > 127)
-            delta = 127;
+        if (status->dx > 255)
+            delta = 255;
         else
             delta = status->dx;
     if (delta < 0)
         buf[0] |= MOUSE_PS2_XNEG;
     buf[1] = delta;
 
-    if (status->dy < -128)
-        delta = -128;
+    if (status->dy < -256)
+        delta = -256;
     else
-        if (status->dy > 127)
-            delta = 127;
+        if (status->dy > 255)
+            delta = 255;
         else
             delta = status->dy;
     if (delta < 0)
@@ -1166,6 +1199,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
             }
             sc->state |= PSM_ASLP;
             error = tsleep((caddr_t) sc, PZERO | PCATCH, "psmread", 0);
+            sc->state &= ~PSM_ASLP;
             if (error) {
                 splx(s);
                 return (error);
@@ -1211,6 +1245,7 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
     mousemode_t mode;
     mousestatus_t status;
     packetfunc_t func;
+    int command_byte;
     int error = 0;
     int s;
 
@@ -1223,24 +1258,26 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 
     case MOUSE_GETMODE:
         *(mousemode_t *) addr = sc->mode;
+	if (sc->mode.resolution >= 0)
+            ((mousemode_t *) addr)->resolution = sc->mode.resolution + 1;
         break;
 
     case MOUSE_SETMODE:
 	mode = *(mousemode_t *) addr;
         if (mode.rate == 0) {
-            mode.rate = PSMD_DEFAULT_RATE;
+            mode.rate = sc->dflt_mode.rate;
         } else if (mode.rate > 0) {
             mode.rate = min(mode.rate, PSMD_MAX_RATE);
 	} else { /* mode.rate < 0 */
 	    mode.rate = sc->mode.rate;
 	}
         if (mode.resolution == 0) {
-            mode.resolution = PSMD_DEFAULT_RESOLUTION;
+            mode.resolution = sc->dflt_mode.resolution;
         } else if (mode.resolution > 0) {
-            mode.resolution = mode.resolution;
+            mode.resolution = min(mode.resolution - 1, PSMD_MAX_RESOLUTION);
 	} else { /* mode.resolution < 0 */
 	    mode.resolution = sc->mode.resolution;
-        }
+	}
 #ifdef PSM_EMULATION
         switch (mode.protocol) {
         case MOUSE_PROTO_MS:
@@ -1273,41 +1310,69 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
             break;
         }
 
-        s = spltty();    /* disable interrupt while updating */
+	/* don't allow anybody to poll the keyboard controller */
+	if (!kbdc_lock(sc->kbdc, TRUE)) {
+	    error = EIO;
+	    break;
+	}
 
         /* temporalily disable the keyboard */
-	if (!set_controller_command_byte(sc->addr,
-            sc->command_byte & ~KBD_KBD_CONTROL_BITS,
-            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
-		| KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+        s = spltty();    
+	command_byte = get_controller_command_byte(sc->kbdc);
+	if ((command_byte == -1) 
+	    || !set_controller_command_byte(sc->kbdc,
+	        kbdc_get_device_mask(sc->kbdc),
+		KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+		    | KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	    /* this is CONTROLLER ERROR; I don't know how to recover 
-	     * from this error. The least we can do is to send
-	     * ENABLE_KBD_PORT... 
+	     * from this error. 
 	     */
-	    write_controller_command(sc->addr, KBDC_ENABLE_KBD_PORT);
+	    kbdc_lock(sc->kbdc, FALSE);
 	    splx(s);
 	    log(LOG_ERR, "psm%d: failed to set the command byte (psmioctl).\n",
 	        PSM_UNIT(dev));
 	    error = EIO;
 	    break;
 	}
+	/* 
+	 * The device may be in the middle of status data transmission.
+	 * The transmission will be interrupted, thus, incomplete status 
+	 * data must be discarded. Although the aux interrupt is disabled 
+	 * at the keyboard controller level, at most one aux interrupt 
+	 * may have already been pending and a data byte is in the 
+	 * output buffer; throw it away. Note that the second argument 
+	 * to `empty_aux_buffer()' is zero, so that the call will just 
+	 * flush the internal queue.
+	 * `psmintr()' will be invoked after `splx()' if an interrupt is
+	 * pending; it will see no data and returns immediately.
+	 */
+	empty_aux_buffer(sc->kbdc, 0);		/* flush the queue */
+	read_aux_data_no_wait(sc->kbdc);	/* throw away data if any */
+	sc->inputbytes = 0;
+	splx(s);
 
-        /* program the mouse */
 	if (mode.rate > 0)
-	    mode.rate = set_mouse_sampling_rate(sc->addr, mode.rate);
-	if (mode.resolution > 0)
-	    mode.resolution = set_mouse_resolution(sc->addr, mode.resolution);
+	    mode.rate = set_mouse_sampling_rate(sc->kbdc, mode.rate);
+	if (mode.resolution >= 0)
+	    mode.resolution = set_mouse_resolution(sc->kbdc, mode.resolution);
+  
+	/* 
+	 * We may have seen a part of status data, which is queued, 
+	 * during `set_mouse_XXX()'; flush it.
+	 */
+	empty_aux_buffer(sc->kbdc, 0);
 
-        /* enable the aux port and interrupt */
-	if (!set_controller_command_byte(sc->addr, sc->command_byte,
-	    KBD_ENABLE_AUX_PORT | KBD_ENABLE_AUX_INT)) {
+	/* restore ports and interrupt */
+	if (!set_controller_command_byte(sc->kbdc, 
+	        kbdc_get_device_mask(sc->kbdc),
+		command_byte & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) {
 	    /* CONTROLLER ERROR; this is serious, we may have
 	     * been left with the unaccessible keyboard and
 	     * the disabled mouse interrupt. 
 	     */
-	    splx(s);
-	    log(LOG_ERR, "psm%d: failed to re-enable the aux port and int (psmioctl).\n",
-		PSM_UNIT(dev));
+	    kbdc_lock(sc->kbdc, FALSE);
+	    log(LOG_ERR, "psm%d: failed to re-enable "
+			 "the aux port and int (psmioctl).\n", PSM_UNIT(dev));
 	    error = EIO;
 	    break;
     	}
@@ -1318,8 +1383,8 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
         sc->outputbytes = 0;
         sc->outputhead = 0;
 #endif    /* PSM_EMULATION */
+	kbdc_lock(sc->kbdc, FALSE);
 
-        splx(s);
         break;
 
     case MOUSEIOCREAD:    /* FIXME:XXX this should go... */
@@ -1335,7 +1400,7 @@ psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
         } else {
 	    status.button = status.obutton = sc->button;
 	    status.dx = status.dy = 0;
-        }
+	}
         splx(s);
 
         *(mousestatus_t *) addr = status;
@@ -1355,9 +1420,9 @@ psmintr(int unit)
 {
     /*
      * the table to turn PS/2 mouse button bits (MOUSE_PS2_BUTTON?DOWN)
-     * into `mousestatus' button bits (BUTTON?DOWN).
+     * into `mousestatus' button bits (MOUSE_BUTTON?DOWN).
      */
-    static  butmap[8] = {
+    static int butmap[8] = {
         0, 
 	MOUSE_BUTTON1DOWN, MOUSE_BUTTON3DOWN, 
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
@@ -1367,117 +1432,115 @@ psmintr(int unit)
         MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
     };
     register struct psm_softc *sc = psm_softc[unit];
-    int ioport = sc->addr;
     mousestatus_t *ms;
-    unsigned char c;
-    int     x, y;
+    int c;
+    int x, y;
 
-    /* is this really for us? */
-    if ((inb(ioport + KBD_STATUS_PORT) & KBDS_BUFFER_FULL)
-        != KBDS_AUX_BUFFER_FULL)
-        return;
-    DELAY(7);
-
-    /* read a byte */
-    c = inb(ioport + KBD_DATA_PORT);
-
-    /* discard the byte if the device is not open */
-    if ((sc->state & PSM_OPEN) == 0)
-        return;
-
-    /* interpret data bytes */
-    /*
-     * FIXME: there seems no way to reliably
-     * re-synchronize with the PS/2 mouse once we are out of sync. Sure,
-     * there is sync bits in the first data byte, but the second and the
-     * third bytes may have these bits on (they are not functioning as
-     * sync bits then!). There need to be two consequtive bytes with these
-     * bits off to re-sync. (This can be done if the user clicks buttons
-     * without moving the mouse?)
-     */
-    if (sc->inputbytes == 0) {
+    /* read until there is nothing to read */
+    while((c = read_aux_data_no_wait(sc->kbdc)) != -1) {
+    
+        /* discard the byte if the device is not open */
+        if ((sc->state & PSM_OPEN) == 0)
+            continue;
+    
+        /*
+         * FIXME: there seems no way to reliably
+         * re-synchronize with the PS/2 mouse once we are out of sync. Sure,
+         * there is a sync bit in the first data byte, but the second and the
+         * third bytes may have these bits on (oh, it's not functioning as
+         * sync bit then!). There need to be two consequtive bytes with this
+         * bit off to re-sync. (This can be done if the user clicks buttons
+         * without moving the mouse?)
+         */
+        if (sc->inputbytes == 0) {
 #ifdef PSM_CHECKSYNC
-        if ((c & MOUSE_PS2_SYNCMASK) == MOUSE_PS2_SYNC)
-            sc->ipacket[sc->inputbytes++] = c;
-	else
-            log(LOG_DEBUG, "psmintr: sync. bit is off.\n");
+            if ((c & MOUSE_PS2_SYNCMASK) == MOUSE_PS2_SYNC)
+                sc->ipacket[sc->inputbytes++] = c;
+    	    else
+                log(LOG_DEBUG, "psmintr: sync. bit is off (%04x).\n", c);
 #else
-        sc->ipacket[sc->inputbytes++] = c;
-#endif    /* PSM_CHECKSYNC */
-    } else {
-        sc->ipacket[sc->inputbytes++] = c;
-        if (sc->inputbytes >= MOUSE_PS2_PACKETSIZE) {
-            if (sc->queue.count >= PSM_BUFSIZE) {
-                /* no room in the queue */
-                sc->inputbytes = 0;
-                return;
-            }
-            if (sc->mode.accelfactor >= 1) {
-                x = (sc->ipacket[0] & MOUSE_PS2_XOVERFLOW) ?
-                    128 : sc->ipacket[1];
-                if (x != 0) {
-                    x = x * x / sc->mode.accelfactor;
-                    if (x == 0)
-                        x = 1;
-                    if (sc->ipacket[0] & MOUSE_PS2_XNEG)
-                        x = -x;
+            sc->ipacket[sc->inputbytes++] = c;
+#endif /* PSM_CHECKSYNC */
+        } else {
+            sc->ipacket[sc->inputbytes++] = c;
+            if (sc->inputbytes >= MOUSE_PS2_PACKETSIZE) {
+                if (sc->queue.count >= PSM_BUFSIZE) {
+                    /* no room in the queue */
+                    sc->inputbytes = 0;
+                    return;
                 }
-                y = (sc->ipacket[0] & MOUSE_PS2_YOVERFLOW) ?
-                    128 : sc->ipacket[2];
-                if (y != 0) {
-                    y = y * y / sc->mode.accelfactor;
-                    if (y == 0)
-                        y = 1;
-                    if (sc->ipacket[0] & MOUSE_PS2_YNEG)
-                        y = -y;
-                }
-            } else {/* sc->mode.accelfactor <= 0 */
-                x = (sc->ipacket[0] & MOUSE_PS2_XOVERFLOW) ?
-                    ((sc->ipacket[0] & MOUSE_PS2_XNEG) ?
-                    -128 : 127) : sc->ipacket[1];
-                y = (sc->ipacket[0] & MOUSE_PS2_YOVERFLOW) ?
-                    ((sc->ipacket[0] & MOUSE_PS2_YNEG) ?
-                    -128 : 127) : sc->ipacket[2];
-            }
-
-            /*
-             * FIXME:XXX
-             * we shouldn't store data if no movement and
-             * no button status change is detected?
-             */
-            ms = &sc->queue.buf[sc->queue.tail];
-            ms->dx = x;
-            ms->dy = y;
-            ms->obutton = sc->button;    /* previous button state */
-            sc->button = ms->button =    /* latest button state */
-                butmap[sc->ipacket[0] & MOUSE_PS2_BUTTONS]
-		| ((sc->ipacket[0] & MOUSE_PS2_BUTTON4UP) 
-		    ? 0 : MOUSE_BUTTON4DOWN);
 #if 0
-	    if ((verbose >= 2)
-		&& ((sc->ipacket[0] & MOUSE_PS2_BUTTON4UP) == 0))
-		log(LOG_DEBUG, "psm%d: button 4 down (%04x) (psmintr)\n",
-		    unit, sc->ipacket[0]);
+                x = (sc->ipacket[0] & MOUSE_PS2_XOVERFLOW) ?
+                    ((sc->ipacket[0] & MOUSE_PS2_XNEG) ? -256 : 255) :
+                    ((sc->ipacket[0] & MOUSE_PS2_XNEG) ?
+    		    sc->ipacket[1] - 256 : sc->ipacket[1]);
+                y = (sc->ipacket[0] & MOUSE_PS2_YOVERFLOW) ?
+                    ((sc->ipacket[0] & MOUSE_PS2_YNEG) ? -256 : 255) :
+                    ((sc->ipacket[0] & MOUSE_PS2_YNEG) ?
+    		    sc->ipacket[2] - 256 : sc->ipacket[2]);
+#else
+		/* it seems OK to ignore the OVERFLOW bits... */
+                x = (sc->ipacket[0] & MOUSE_PS2_XNEG) ?
+    		    sc->ipacket[1] - 256 : sc->ipacket[1];
+                y = (sc->ipacket[0] & MOUSE_PS2_YNEG) ?
+    		    sc->ipacket[2] - 256 : sc->ipacket[2];
 #endif
-            sc->queue.tail =
-                (sc->queue.tail + 1) % PSM_BUFSIZE;
-            ++sc->queue.count;
-            sc->inputbytes = 0;
+                if (sc->mode.accelfactor >= 1) {
+                    if (x != 0) {
+                        x = x * x / sc->mode.accelfactor;
+                        if (x == 0)
+                            x = 1;
+                        if (sc->ipacket[0] & MOUSE_PS2_XNEG)
+                            x = -x;
+                    }
+                    if (y != 0) {
+                        y = y * y / sc->mode.accelfactor;
+                        if (y == 0)
+                            y = 1;
+                        if (sc->ipacket[0] & MOUSE_PS2_YNEG)
+                            y = -y;
+                    }
+                }
+    
+                /*
+                 * FIXME:XXX
+                 * we shouldn't store data if no movement and
+                 * no button status change is detected?
+                 */
+                ms = &sc->queue.buf[sc->queue.tail];
+                ms->dx = x;
+                ms->dy = y;
+                ms->obutton = sc->button;    /* previous button state */
+                sc->button = ms->button =    /* latest button state */
+                    butmap[sc->ipacket[0] & MOUSE_PS2_BUTTONS]
+    		    | ((sc->ipacket[0] & MOUSE_PS2_BUTTON4UP) 
+    		        ? 0 : MOUSE_BUTTON4DOWN);
+#if 0
+    	        if ((verbose >= 2)
+    		    && ((sc->ipacket[0] & MOUSE_PS2_BUTTON4UP) == 0))
+    		    log(LOG_DEBUG, "psm%d: button 4 down (%04x) (psmintr)\n",
+    		        unit, sc->ipacket[0]);
+#endif
+                sc->queue.tail = (sc->queue.tail + 1) % PSM_BUFSIZE;
+                ++sc->queue.count;
+                sc->inputbytes = 0;
+    
+                if (sc->state & PSM_ASLP) {
+    		    sc->state &= ~PSM_ASLP;
+                    wakeup((caddr_t) sc);
+    	        }
+                selwakeup(&sc->rsel);
+            }
         }
     }
-
-    if (sc->state & PSM_ASLP) {
-        sc->state &= ~PSM_ASLP;
-        wakeup((caddr_t) sc);
-    }
-    selwakeup(&sc->rsel);
 }
 
 static int
 psmselect(dev_t dev, int rw, struct proc *p)
 {
     struct psm_softc *sc = psm_softc[PSM_UNIT(dev)];
-    int s, ret;
+    int ret;
+    int s;
 
     /* Silly to select for output */
     if (rw == FWRITE)
