@@ -2328,10 +2328,6 @@ c_common_get_alias_set (t)
 {
   tree u;
   
-  /* We know nothing about vector types */
-  if (TREE_CODE (t) == VECTOR_TYPE)
-    return 0;          
-  
   /* Permit type-punning when accessing a union, provided the access
      is directly through the union.  For example, this code does not
      permit taking the address of a union member and then storing
@@ -2345,17 +2341,17 @@ c_common_get_alias_set (t)
 	&& TREE_CODE (TREE_TYPE (TREE_OPERAND (u, 0))) == UNION_TYPE)
       return 0;
 
-  /* If this is a char *, the ANSI C standard says it can alias
-     anything.  Note that all references need do this.  */
-  if (TREE_CODE_CLASS (TREE_CODE (t)) == 'r'
-      && TREE_CODE (TREE_TYPE (t)) == INTEGER_TYPE
-      && TYPE_PRECISION (TREE_TYPE (t)) == TYPE_PRECISION (char_type_node))
-    return 0;
-
   /* That's all the expressions we handle specially.  */
   if (! TYPE_P (t))
     return -1;
 
+  /* The C standard guarantess that any object may be accessed via an
+     lvalue that has character type.  */
+  if (t == char_type_node
+      || t == signed_char_type_node
+      || t == unsigned_char_type_node)
+    return 0;
+  
   /* The C standard specifically allows aliasing between signed and
      unsigned variants of the same type.  We treat the signed
      variant as canonical.  */
@@ -3570,6 +3566,7 @@ c_expand_expr (exp, target, tmode, modifier)
 	tree rtl_expr;
 	rtx result;
 	bool preserve_result = false;
+	bool return_target = false;
 
 	/* Since expand_expr_stmt calls free_temp_slots after every
 	   expression statement, we must call push_temp_slots here.
@@ -3597,8 +3594,20 @@ c_expand_expr (exp, target, tmode, modifier)
 	    if (TREE_CODE (last) == SCOPE_STMT
 		&& TREE_CODE (expr) == EXPR_STMT)
 	      {
-	        TREE_ADDRESSABLE (expr) = 1;
-		preserve_result = true;
+		if (target && TREE_CODE (EXPR_STMT_EXPR (expr)) == VAR_DECL
+		    && DECL_RTL_IF_SET (EXPR_STMT_EXPR (expr)) == target)
+		  /* If the last expression is a variable whose RTL is the
+		     same as our target, just return the target; if it
+		     isn't valid expanding the decl would produce different
+		     RTL, and store_expr would try to do a copy.  */
+		  return_target = true;
+		else
+		  {
+		    /* Otherwise, note that we want the value from the last
+		       expression.  */
+		    TREE_ADDRESSABLE (expr) = 1;
+		    preserve_result = true;
+		  }
 	      }
 	  }
 
@@ -3606,7 +3615,9 @@ c_expand_expr (exp, target, tmode, modifier)
 	expand_end_stmt_expr (rtl_expr);
 
 	result = expand_expr (rtl_expr, target, tmode, modifier);
-	if (preserve_result && GET_CODE (result) == MEM)
+	if (return_target)
+	  result = target;
+	else if (preserve_result && GET_CODE (result) == MEM)
 	  {
 	    if (GET_MODE (result) != BLKmode)
 	      result = copy_to_reg (result);
@@ -4163,6 +4174,10 @@ c_common_post_options ()
     warning ("-Wformat-security ignored without -Wformat");
   if (warn_missing_format_attribute && !warn_format)
     warning ("-Wmissing-format-attribute ignored without -Wformat");
+
+  /* If an error has occurred in cpplib, note it so we fail
+     immediately.  */
+  errorcount += cpp_errors (parse_in);
 }
 
 /* Front end initialization common to C, ObjC and C++.  */
