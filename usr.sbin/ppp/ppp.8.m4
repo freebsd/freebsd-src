@@ -2914,7 +2914,6 @@ This command gives a summary of available nat commands.
 This option causes various NAT statistics and information to
 be logged to the file
 .Pa /var/log/alias.log .
-This file name is likely to change in the near future.
 .It nat port Ar proto Ar targetIP Ns Xo
 .No : Ns Ar targetPort Ns
 .Oo
