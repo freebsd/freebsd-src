@@ -2118,24 +2118,10 @@ done2:
 static void
 swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strategy, sw_close_t *close, udev_t udev)
 {
-	struct swdevt *sp;
+	struct swdevt *sp, *tsp;
 	swblk_t dvbase;
 	u_long mblocks;
 
-	dvbase = 0;
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (sp->sw_end >= dvbase) {
-			/*
-			 * We put one uncovered page between the devices
-			 * in order to definitively prevent any cross-device
-			 * I/O requests
-			 */
-			dvbase = sp->sw_end + 1;
-		}
-	}
-	mtx_unlock(&sw_dev_mtx);
-    
 	/*
 	 * If we go beyond this, we get overflows in the radix
 	 * tree bitmap code.
@@ -2162,8 +2148,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
-	sp->sw_first = dvbase;
-	sp->sw_end = dvbase + nblks;
 	sp->sw_strategy = strategy;
 	sp->sw_close = close;
 
@@ -2174,7 +2158,20 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	 */
 	blist_free(sp->sw_blist, 2, nblks - 2);
 
+	dvbase = 0;
 	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(tsp, &swtailq, sw_list) {
+		if (tsp->sw_end >= dvbase) {
+			/*
+			 * We put one uncovered page between the devices
+			 * in order to definitively prevent any cross-device
+			 * I/O requests
+			 */
+			dvbase = tsp->sw_end + 1;
+		}
+	}
+	sp->sw_first = dvbase;
+	sp->sw_end = dvbase + nblks;
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
 	mtx_unlock(&sw_dev_mtx);
 	nswapdev++;
