@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.19 1999/03/01 06:05:58 imp Exp $
+# $Id: Makefile,v 1.20 1999/03/20 11:49:23 foxfair Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -19,7 +19,9 @@ LOCALES=	de_DE.DIS_8859-15 \
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
 ASCIILINKS = \
-	ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC zh_TW.BIG5
+	ko_KR.EUC ja_JP.EUC ja_JP.SJIS zh_CN.EUC
+
+ZHLINKS =    zh_TW.BIG5
 
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
@@ -57,6 +59,10 @@ afterinstall:
 .endfor
 .for link in ${ASCIILINKS}
 	ln -fs ../lt_LN.ASCII/LC_COLLATE \
+	       ${LOCALEDIR}/${link}/LC_COLLATE
+.endfor
+.for link in ${ZHLINKS}
+	ln -fs ../is_IS.ISO_8859-1/LC_COLLATE \
 	       ${LOCALEDIR}/${link}/LC_COLLATE
 .endfor
 .for link in ${LATIN1LINKS}
