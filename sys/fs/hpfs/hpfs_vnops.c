@@ -674,7 +674,7 @@ hpfs_strategy(ap)
 		return (0);
 	}
 	bp->b_dev = hp->h_devvp->v_rdev;
-	bp->b_offset = dbtob(bp->b_blkno);
+	bp->b_iooffset = dbtob(bp->b_blkno);
 	VOP_SPECSTRATEGY(hp->h_devvp, bp);
 	return (0);
 }
