@@ -651,7 +651,7 @@ ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (ifp->if_snd.ifq_head != NULL)
 		ste_start(ifp);
 
-	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
+	if (sc->rxcycles > 0 && cmd == POLL_AND_CHECK_STATUS) {
 		u_int16_t status;
 
 		status = CSR_READ_2(sc, STE_ISR_ACK);
@@ -923,21 +923,15 @@ ste_txeof(sc)
 
 		m_freem(cur_tx->ste_mbuf);
 		cur_tx->ste_mbuf = NULL;
-
+		ifp->if_flags &= ~IFF_OACTIVE;
 		ifp->if_opackets++;
 
-		sc->ste_cdata.ste_tx_cnt--;
 		STE_INC(idx, STE_TX_LIST_CNT);
 	}
 
-	if (idx != sc->ste_cdata.ste_tx_cons) {
-		sc->ste_cdata.ste_tx_cons = idx;
-		ifp->if_flags &= ~IFF_OACTIVE;
-		if (idx == sc->ste_cdata.ste_tx_prod)
-			ifp->if_timer = 0;
-		else if (ifp->if_timer == 0)
-			ifp->if_timer = 5;
-	}
+	sc->ste_cdata.ste_tx_cons = idx;
+	if (idx == sc->ste_cdata.ste_tx_prod)
+		ifp->if_timer = 0;
 }
 
 static void
@@ -1302,7 +1296,6 @@ ste_init_tx_list(sc)
 
 	cd->ste_tx_prod = 0;
 	cd->ste_tx_cons = 0;
-	cd->ste_tx_cnt = 0;
 
 	return;
 }
@@ -1637,8 +1630,12 @@ ste_start(ifp)
 	idx = sc->ste_cdata.ste_tx_prod;
 
 	while(sc->ste_cdata.ste_tx_chain[idx].ste_mbuf == NULL) {
-
-		if ((STE_TX_LIST_CNT - sc->ste_cdata.ste_tx_cnt) < 3) {
+		/*
+		 * We cannot re-use the last (free) descriptor;
+		 * the chip may not have read its ste_next yet.
+		 */
+		if (STE_NEXT(idx, STE_TX_LIST_CNT) ==
+		    sc->ste_cdata.ste_tx_cons) {
 			ifp->if_flags |= IFF_OACTIVE;
 			break;
 		}
@@ -1683,7 +1680,6 @@ ste_start(ifp)
 		BPF_MTAP(ifp, cur_tx->ste_mbuf);
 
 		STE_INC(idx, STE_TX_LIST_CNT);
-		sc->ste_cdata.ste_tx_cnt++;
 		ifp->if_timer = 5;
 	}
 	sc->ste_cdata.ste_tx_prod = idx;

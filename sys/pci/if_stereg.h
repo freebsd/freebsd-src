@@ -501,7 +501,6 @@ struct ste_chain_data {
 
 	int			ste_tx_prod;
 	int			ste_tx_cons;
-	int			ste_tx_cnt;
 };
 
 struct ste_softc {
