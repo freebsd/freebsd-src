@@ -13,7 +13,7 @@
  * ---WARNING this work is not complete, it still doesn't work
  * ---WARNING
  *
- * Copyright (C) 1993-1994 James Miller
+ * Copyright (C) 1993-1994 Jim Lowe
  * Additional development by Amancio Hasty
  *
  * Permission to use, copy, modify, distribute, and sell this software
