@@ -1117,15 +1117,6 @@ key_freeso(so)
 #ifdef INET6
 	case PF_INET6:
 	    {
-#ifdef HAVE_NRL_INPCB
-		struct inpcb *pcb  = sotoinpcb(so);
-
-		/* Does it have a PCB ? */
-		if (pcb == NULL)
-			return;
-		key_freesp_so(&pcb->inp_sp->sp_in);
-		key_freesp_so(&pcb->inp_sp->sp_out);
-#else
 		struct in6pcb *pcb  = sotoin6pcb(so);
 
 		/* Does it have a PCB ? */
@@ -1133,7 +1124,6 @@ key_freeso(so)
 			return;
 		key_freesp_so(&pcb->in6p_sp->sp_in);
 		key_freesp_so(&pcb->in6p_sp->sp_out);
-#endif
 	    }
 		break;
 #endif /* INET6 */
