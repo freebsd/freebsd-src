@@ -39,8 +39,9 @@
 .Nm lgamma ,
 .Nm lgammaf ,
 .Nm gamma ,
-.Nm gammaf
-.Nd log gamma functions, gamma functions
+.Nm gammaf ,
+.Nm tgamma
+.Nd log gamma functions, gamma function
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -56,6 +57,8 @@
 .Fn gamma "double x"
 .Ft float
 .Fn gammaf "float x"
+.Ft double
+.Fn tgamma "double x"
 .Sh DESCRIPTION
 .Fn lgamma x
 and
@@ -83,6 +86,9 @@ are deprecated aliases for
 and
 .Fn lgammaf ,
 respectively.
+.Fn tgamma x
+returns \(*G(x), with no effect on
+.Fa signgam .
 .Sh IDIOSYNCRASIES
 Do not use the expression
 .Dq Li signgam\(**exp(lgamma(x))
@@ -97,14 +103,14 @@ Only after
 or
 .Fn lgammaf
 has returned can signgam be correct.
-.\".Pp
-.\"For arguments in its range,
-.\".Fn gamma
-.\"is preferred, as for positive arguments
-.\"it is accurate to within one unit in the last place.
-.\"Exponentiation of
-.\".Fn lgamma
-.\"will lose up to 10 significant bits.
+.Pp
+For arguments in its range,
+.Fn tgamma
+is preferred, as for positive arguments
+it is accurate to within one unit in the last place.
+Exponentiation of
+.Fn lgamma
+will lose up to 10 significant bits.
 .Sh RETURN VALUES
 .Fn gamma ,
 .Fn gammaf ,
@@ -121,11 +127,18 @@ and
 .Va errno
 is set to
 .Er ERANGE .
-\."For large non-integer negative values,
-\.".Fn gamma
-\."will underflow.
+For large non-integer negative values,
+.Fn tgamma
+will underflow.
 .Sh SEE ALSO
 .Xr math 3
+.Sh STANDARDS
+The
+.Fn lgamma
+and
+.Fn tgamma
+functions are expected to conform to
+.St -isoC-99 .
 .Sh HISTORY
 The
 .Fn lgamma
@@ -146,8 +159,6 @@ function,
 and that usage was restored by switching to Sun's fdlibm in
 .Fx 1.1.5 .
 The
-.St -isoC-99
-standard specifies a function
 .Fn tgamma
-for computing \(*G(x).
-This function is currently unimplemented in this library.
+function appeared in
+.Fx 5.0 .

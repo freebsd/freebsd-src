@@ -34,7 +34,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)gamma.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
-include <sys/cdefs.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 /*
@@ -138,7 +138,7 @@ static int endian;
 #endif
 
 double
-gamma(x)
+tgamma(x)
 	double x;
 {
 	struct Double u;
@@ -225,7 +225,7 @@ small_gam(x)
 		TRUNC(r.a);
 		r.b += (t - r.a);
 	}
-	/* Return r*gamma(y). */
+	/* Return r*tgamma(y). */
 	yy = ratfun_gam(y - x0, 0);
 	y = r.b*(yy.a + yy.b) + r.a*yy.b;
 	y += yy.a*r.a;
@@ -330,9 +330,9 @@ neg_gam(x)
 	}
 	y = one-x;
 	if (one-y == x)
-		y = gamma(y);
+		y = tgamma(y);
 	else		/* 1-x is inexact */
-		y = -x*gamma(-x);
+		y = -x*tgamma(-x);
 	if (sgn < 0) y = -y;
 	return (M_PI / (y*z));
 }
