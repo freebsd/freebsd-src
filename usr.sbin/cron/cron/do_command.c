@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: do_command.c,v 1.11 1997/03/14 13:48:04 peter Exp $";
+static const char rcsid[] =
+	"$Id: do_command.c,v 1.12 1997/03/14 14:45:30 peter Exp $";
 #endif
 
 
@@ -136,7 +137,7 @@ child_process(e, u)
 		register int ch;
 		register char *p;
 
-		for (input_data = p = e->cmd; ch = *input_data;
+		for (input_data = p = e->cmd; (ch = *input_data);
 		     input_data++, p++) {
 			if (p != input_data)
 			    *p = ch;
@@ -260,8 +261,7 @@ child_process(e, u)
 			}
 # endif /*DEBUGGING*/
 			execle(shell, shell, "-c", e->cmd, (char *)0, e->envp);
-			fprintf(stderr, "execl: couldn't exec `%s'\n", shell);
-			perror("execl");
+			warn("execl: couldn't exec `%s'", shell);
 			_exit(ERROR_EXIT);
 		}
 		break;
@@ -313,7 +313,7 @@ child_process(e, u)
 		 *	%  -> \n
 		 *	\x -> \x	for all x != %
 		 */
-		while (ch = *input_data++) {
+		while ((ch = *input_data++)) {
 			if (escaped) {
 				if (ch != '%')
 					putc('\\', out);
@@ -401,7 +401,7 @@ child_process(e, u)
 				(void) snprintf(mailcmd, sizeof(mailcmd),
 					       MAILARGS, MAILCMD);
 				if (!(mail = cron_popen(mailcmd, "w"))) {
-					perror(MAILCMD);
+					warn("%s", MAILCMD);
 					(void) _exit(ERROR_EXIT);
 				}
 				fprintf(mail, "From: root (Cron Daemon)\n");

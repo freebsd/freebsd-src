@@ -16,7 +16,8 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id: misc.c,v 1.5 1997/02/22 16:05:08 peter Exp $";
 #endif
 
 /* vix 26jan87 [RCS has the rest of the log]
@@ -32,6 +33,7 @@ static char rcsid[] = "$Id$";
 #endif
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <err.h>
 #include <errno.h>
 #include <string.h>
 #include <fcntl.h>
@@ -174,15 +176,11 @@ void
 set_cron_uid()
 {
 #if defined(BSD) || defined(POSIX)
-	if (seteuid(ROOT_UID) < OK) {
-		perror("seteuid");
-		exit(ERROR_EXIT);
-	}
+	if (seteuid(ROOT_UID) < OK)
+		err(ERROR_EXIT, "seteuid");
 #else
-	if (setuid(ROOT_UID) < OK) {
-		perror("setuid");
-		exit(ERROR_EXIT);
-	}
+	if (setuid(ROOT_UID) < OK)
+		err(ERROR_EXIT, "setuid");
 #endif
 }
 
@@ -195,45 +193,32 @@ set_cron_cwd()
 	/* first check for CRONDIR ("/var/cron" or some such)
 	 */
 	if (stat(CRONDIR, &sb) < OK && errno == ENOENT) {
-		perror(CRONDIR);
+		warn("%s", CRONDIR);
 		if (OK == mkdir(CRONDIR, 0700)) {
-			fprintf(stderr, "%s: created\n", CRONDIR);
+			warnx("%s: created", CRONDIR);
 			stat(CRONDIR, &sb);
 		} else {
-			fprintf(stderr, "%s: ", CRONDIR);
-			perror("mkdir");
-			exit(ERROR_EXIT);
+			err(ERROR_EXIT, "%s: mkdir", CRONDIR);
 		}
 	}
-	if (!(sb.st_mode & S_IFDIR)) {
-		fprintf(stderr, "'%s' is not a directory, bailing out.\n",
-			CRONDIR);
-		exit(ERROR_EXIT);
-	}
-	if (chdir(CRONDIR) < OK) {
-		fprintf(stderr, "cannot chdir(%s), bailing out.\n", CRONDIR);
-		perror(CRONDIR);
-		exit(ERROR_EXIT);
-	}
+	if (!(sb.st_mode & S_IFDIR))
+		err(ERROR_EXIT, "'%s' is not a directory, bailing out", CRONDIR);
+	if (chdir(CRONDIR) < OK)
+		err(ERROR_EXIT, "cannot chdir(%s), bailing out", CRONDIR);
 
 	/* CRONDIR okay (now==CWD), now look at SPOOL_DIR ("tabs" or some such)
 	 */
 	if (stat(SPOOL_DIR, &sb) < OK && errno == ENOENT) {
-		perror(SPOOL_DIR);
+		warn("%s", SPOOL_DIR);
 		if (OK == mkdir(SPOOL_DIR, 0700)) {
-			fprintf(stderr, "%s: created\n", SPOOL_DIR);
+			warnx("%s: created", SPOOL_DIR);
 			stat(SPOOL_DIR, &sb);
 		} else {
-			fprintf(stderr, "%s: ", SPOOL_DIR);
-			perror("mkdir");
-			exit(ERROR_EXIT);
+			err(ERROR_EXIT, "%s: mkdir", SPOOL_DIR);
 		}
 	}
-	if (!(sb.st_mode & S_IFDIR)) {
-		fprintf(stderr, "'%s' is not a directory, bailing out.\n",
-			SPOOL_DIR);
-		exit(ERROR_EXIT);
-	}
+	if (!(sb.st_mode & S_IFDIR))
+		err(ERROR_EXIT, "'%s' is not a directory, bailing out", SPOOL_DIR);
 }
 
 
@@ -269,9 +254,8 @@ acquire_daemonlock(closeflag)
 		    ) {
 			sprintf(buf, "can't open or create %s: %s",
 				pidfile, strerror(errno));
-			fprintf(stderr, "%s: %s\n", ProgramName, buf);
 			log_it("CRON", getpid(), "DEATH", buf);
-			exit(ERROR_EXIT);
+			errx(ERROR_EXIT, "%s", buf);
 		}
 
 		if (flock(fd, LOCK_EX|LOCK_NB) < OK) {
@@ -280,9 +264,8 @@ acquire_daemonlock(closeflag)
 			fscanf(fp, "%d", &otherpid);
 			sprintf(buf, "can't lock %s, otherpid may be %d: %s",
 				pidfile, otherpid, strerror(save_errno));
-			fprintf(stderr, "%s: %s\n", ProgramName, buf);
 			log_it("CRON", getpid(), "DEATH", buf);
-			exit(ERROR_EXIT);
+			errx(ERROR_EXIT, "%s", buf);
 		}
 
 		(void) fcntl(fd, F_SETFD, 1);
@@ -483,9 +466,7 @@ log_it(username, xpid, event, detail)
 	if (LogFD < OK) {
 		LogFD = open(LOG_FILE, O_WRONLY|O_APPEND|O_CREAT, 0600);
 		if (LogFD < OK) {
-			fprintf(stderr, "%s: can't open log file\n",
-				ProgramName);
-			perror(LOG_FILE);
+			warn("can't open log file %s", LOG_FILE);
 		} else {
 			(void) fcntl(LogFD, F_SETFD, 1);
 		}
@@ -504,8 +485,8 @@ log_it(username, xpid, event, detail)
 	 */
 	if (LogFD < OK || write(LogFD, msg, strlen(msg)) < OK) {
 		if (LogFD >= OK)
-			perror(LOG_FILE);
-		fprintf(stderr, "%s: can't write to log file\n", ProgramName);
+			warn("%s", LOG_FILE);
+		warnx("can't write to log file");
 		write(STDERR, msg, strlen(msg));
 	}
 

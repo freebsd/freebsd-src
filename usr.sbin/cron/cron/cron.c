@@ -16,9 +16,9 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: cron.c,v 1.4 1997/02/22 16:04:40 peter Exp $";
+static const char rcsid[] =
+	"$Id: cron.c,v 1.5 1997/03/31 05:09:54 imp Exp $";
 #endif
-
 
 #define	MAIN_PROGRAM
 
@@ -48,7 +48,7 @@ static void
 usage() {
     char **dflags;
 
-	fprintf(stderr, "usage:  %s [-x debugflag[,...]]\n", ProgramName);
+	fprintf(stderr, "usage: cron [-x debugflag[,...]]\n");
 	fprintf(stderr, "\ndebugflags: ");
 
         for(dflags = DebugFlagNames; *dflags; dflags++) {
