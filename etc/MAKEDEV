@@ -261,7 +261,7 @@ all)
 	sh $0 ata					# ATA control
 	sh $0 ad0 ad1 ad2 ad3 				# ATA disk
 	sh $0 ar0 ar1					# ATA RAID disk
-	sh $0 acd0 acd0t afd0 ast0			# ATAPI devices
+	sh $0 acd0 acd0t0 afd0 ast0			# ATAPI devices
 	sh $0 wd0 wd1 wd2 wd3				# OLD disk
 	sh $0 wcd0 wfd0 wst0				# OLD ATAPI devs
 	sh $0 cd0 matcd0 mcd0 scd0			# cdrom
