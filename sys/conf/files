@@ -1033,6 +1033,7 @@ netgraph/ng_gif.c	optional netgraph_gif
 netgraph/ng_gif_demux.c	optional netgraph_gif_demux
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
+netgraph/ng_ip_input.c	optional netgraph_ip_input
 netgraph/ng_ksocket.c	optional netgraph_ksocket
 netgraph/ng_lmi.c	optional netgraph_lmi
 netgraph/ng_mppc.c	optional netgraph_mppc_compression
