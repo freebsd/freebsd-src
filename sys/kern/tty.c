@@ -3374,7 +3374,7 @@ ttyconsolemode(struct tty *tp, int speed)
 	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
 	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
 	tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
-	tp->t_init_in.c_lflag = TTYDEF_LFLAG | ECHO | ECHOE | ECHOKE | ECHOCTL;
+	tp->t_init_in.c_lflag = TTYDEF_LFLAG_ECHO;
 	tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
 	if (speed == 0)
 		speed = TTYDEF_SPEED;
