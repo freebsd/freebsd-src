@@ -75,8 +75,10 @@ struct	ether_header;
 
 #include <sys/queue.h>		/* get TAILQ macros */
 
+#ifdef _KERNEL
 #include <sys/mbuf.h>
-#include <machine/mutex.h>
+#endif /* _KERNEL */
+#include <sys/mutex.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */
 TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
