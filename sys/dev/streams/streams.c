@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/socketvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/un.h>
 #include <sys/domain.h>
 #include <net/if.h>
@@ -289,7 +290,6 @@ static int
 svr4_ptm_alloc(td)
 	struct thread *td;
 {
-	struct proc *p = td->td_proc;
 	/*
 	 * XXX this is very, very ugly.  But I can't find a better
 	 * way that won't duplicate a big amount of code from
@@ -306,25 +306,20 @@ svr4_ptm_alloc(td)
 	static char ptyname[] = "/dev/ptyXX";
 	static char ttyletters[] = "pqrstuwxyzPQRST";
 	static char ttynumbers[] = "0123456789abcdef";
-	caddr_t sg = stackgap_init();
-	char *path = stackgap_alloc(&sg, sizeof(ptyname));
-	struct open_args oa;
-	int l = 0, n = 0;
-	register_t fd = -1;
-	int error;
+	struct proc *p;
+	register_t fd;
+	int error, l, n;
 
-	oa.path = path;
-	oa.flags = O_RDWR;
-	oa.mode = 0;
-
+	fd = -1;
+	n = 0;
+	l = 0;
+	p = td->td_proc;
 	while (fd == -1) {
 		ptyname[8] = ttyletters[l];
 		ptyname[9] = ttynumbers[n];
 
-		if ((error = copyout(ptyname, path, sizeof(ptyname))) != 0)
-			return error;
-
-		switch (error = open(td, &oa)) {
+		error = kern_open(td, ptyname, UIO_SYSSPACE, O_RDWR, 0);
+		switch (error) {
 		case ENOENT:
 		case ENXIO:
 			return error;
