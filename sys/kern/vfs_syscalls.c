@@ -1493,7 +1493,7 @@ restart:
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vput(nd.ni_dvp);
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
-			return (error);
+			goto out;
 		goto restart;
 	}
 	VATTR_NULL(&vattr);
