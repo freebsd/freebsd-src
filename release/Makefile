@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.62 1994/12/01 20:02:44 jkh Exp $
+#	$Id: Makefile,v 1.63 1994/12/17 12:38:09 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -206,6 +206,12 @@ beforetarballs:
 	rm -rf ${RELEASEDIR}/dict/usr/share/dict
 	mv ${RELEASEDIR}/bindist/usr/share/dict \
 		${RELEASEDIR}/dict/usr/share/dict
+	mv ${RELEASEDIR}/bindist/usr/share/misc/airport \
+	   ${RELEASEDIR}/bindist/usr/share/misc/birthtoken \
+	   ${RELEASEDIR}/bindist/usr/share/misc/flowers \
+	   ${RELEASEDIR}/bindist/usr/share/misc/na.phone \
+	   ${RELEASEDIR}/bindist/usr/share/misc/zipcodes \
+		${RELEASEDIR}/dict/usr/share/misc
 	mv ${RELEASEDIR}/bindist/usr/lib/*_p.a \
 		${RELEASEDIR}/proflibs/usr/lib
 	-cd ${RELEASEDIR} ; \
