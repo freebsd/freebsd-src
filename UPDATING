@@ -5,17 +5,21 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000417:
+	The method that we brand ELF binaries has changed to be more
+	acceptible to the binutils maintainers.  You will need to
+	rebrand your ELF binaries that aren't native.  One problem
+	binary is the Linux ldconfig.  After your make world, but
+	before you reboot, you'll neeed to issue:
+		brandelf -t Linux /compat/linux/sbin/ldconfig
+	if you have Linux compatibility enabled on your machine.
+
 20000320:
-			* * * W A R N I N G * * *
-	The ata driver has some issues with the Apollo MVP3 chipset.
-	Drives work only in pio mode and must be set to pio mode early
-	int the boot process.  Do not upgrade.  If you must upgrade
-	in the face of this, add
+	If you have really bad/marginal IDE drives, you may find they
+	don't work well.  Use pio mode instead.  The easiest way to
+	cope if you have a problem combination is to add:
 		/sbin/sysctl -w hw.atamodes=pio,pio,pio,pio
-	to the start of /etc/rc.conf.  Even if you do this, any and
-	all damage to your system is at your own risk.  You have been
-	warned.
-			* * * W A R N I N G * * *
+	to the start of /etc/rc.conf.
 
 20000319:
 	The ISA and PCI compatability shims have been connected to the
