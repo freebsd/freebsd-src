@@ -1,0 +1,174 @@
+The Unix system family tree / BSD history chart
+-----------------------------------------------
+
+First Edition (V1)
+     |
+Second Edition (V2)
+     |
+Third Edition (V3)
+     |
+Fourth Edition (V4)
+     |
+Fifth Edition (V5)
+     |
+Sixth Edition (V6) -----*
+     |                  |
+     |                  |
+     |                  |
+Seventh Edition (V7)    |
+     |      \           |
+     |       \        1BSD
+     |        \         |
+     |         \      2BSD---------------*
+Eight Edition   \    /                   |
+     |           \  /                    |
+     |            \/                     |
+     |           3BSD                    |
+     |            |                      |
+     |         4.0BSD                    |
+Ninth Edition     |                      |
+     |         4.1BSD --------------> 2.8BSD
+     |            |                      |
+     |        4.1aBSD ---------------\   |
+     |            |                    \ |
+     |        4.1cBSD --------------> 2.9BSD
+     |            |                      |
+     |         4.2BSD               2.9.1BSD
+     |            |                      |
+     |         4.3BSD -------------> 2.10BSD
+     |            |               /      |
+     |            |              / 2.10.1BSD
+     |         4.3BSD Tahoe-----+        |
+     |            |              \       |
+     |            |                \     |
+     |            |                  2.11BSD
+Tenth Edition     |
+                  |
+               4.3BSD NET/1
+                  |
+               4.3BSD Reno
+                  |
+   *---------- 4.3BSD NET/2 -------------------+-------------*
+   |                    |                      |             |
+386BSD 0.0              |                      |             |
+   |                    |                      |             |
+386BSD 0.1 ------------>+                      |           BSDI 1.0
+   |     \              |              4.4-Alpha BSD         |
+   |     386BSD 1.0     |                      |             |
+   |                    |                  4.4BSD            |
+FreeBSD 1.0          NetBSD 0.8                |             |
+   |                    |           ------ 4.4BSD Lite1 -> BSDI 2.0
+FreeBSD 1.1          NetBSD 0.9    /           |             |
+   |                    |         /        4.4BSD Lite2 -> BSDI 2.1
+FreeBSD 1.1.5           |        /             |             |
+   |                    |       /              /             |
+FreeBSD 1.1.5.1         |      /              /            BSDI 3.0
+   |                    |     /              /               |
+   |                    |    /              /                v
+FreeBSD 2.0 <---------------+              /
+   |                    |  /              /
+FreeBSD 2.0.5        NetBSD 1.0          /
+   |                    |               /
+   |                    |              /
+FreeBSD 2.1 <---------+-*----+--------*
+ |   |                | |    |
+ | FreeBSD 2.1.5      |   \  |
+ |     |              |    | |
+ | FreeBSD 2.1.6      |   NetBSD 1.1 ------*
+ |     |              |      |             |
+ | FreeBSD 2.1.6.1    |      |          OpenBSD
+ |     |              |   NetBSD 1.2       |
+ | FreeBSD 2.1.7      |      |          OpenBSD 2.0
+ |     |              |   NetBSD 1.2.1     |
+ | FreeBSD 2.1.7.1    |      |             v
+ |                    |      v
+ |                    |
+ *-FreeBSD 2.2        |
+    |   |             | 
+    |  FreeBSD 2.2.1  |
+    |                 |
+    |                 |
+    |                 |
+    |                 |
+    |                 |
+FreeBSD 3.0 <---------*
+    |
+    v
+
+
+
+
+Time
+----------------
+
+Time tolerance +/- 6 month, depend on which book/article
+you read.
+
+Multics                 1965
+Unix                    Summer 1969, DEC PDP-7
+First   Edition         1971/11/03, DEC PDP-11/20, Assembler
+Second  Edition         1972/06/12, 10 Unix installations
+Third   Edition         1973/02 Pipes, 16 installations
+Fourth  Edition         1973/11 rewriting in C effected,
+                                above 30 installations
+Fifth   Edition         1974/06 above 50 installations
+Sixth   Edition         1975/05 port to DEC Vax
+Seventh Edition         1979/01 first portable Unix
+Eight   Edition         1985/02
+Ninth   Edition         1986/09
+Tenth   Edition         1989/10
+
+1BSD                    late 1977, PDP-11, 30 free copies of 1BSD sent out
+2BSD                    mid 1978 75 2BSD tapes shipped
+2.8BSD
+2.9BSD
+2.9.1BSD                1983/11
+2.10BSD
+2.10.1BSD
+2.11BSD
+
+3BSD                    late 1979, virtual memory, page replacement,
+                        demand paging
+4.0BSD                  1980/10
+4.1BSD                  1981/06
+4.1aBSD                 1982/04
+4.1cBSD                 late 1982
+4.2BSD                  1983/09
+4.3BSD                  1986/06
+4.3BSD Tahoe            1988/06
+4.3BSD NET/1            1988/11
+4.3BSD Reno             1990/06
+4.3BSD NET/2            1991/06
+386BSD 0.0              1992/02
+386BSD 0.1
+4.4-ALPHA BSD           1992/06
+4.4BSD                  1993/06
+4.4BSD Lite1            1994/06
+
+
+Bibliography
+------------------------
+
+Leffler, Samuel J., Marshall Kirk McKusick, Michael J Karels and John
+Quarterman. The Design and Implementation of the 4.3BSD UNIX Operating
+System. Reading, Mass. Addison-Wesley, 1989. ISBN 0-201-06196-1
+
+Salus, Peter H. A quarter century of UNIX. Addison-Wesley Publishing
+Company, Inc., 1994. ISBN 0-201-54777-5
+
+McKusick, Marshall Kirk, Keith Bostic, Michael J Karels, and John
+Quarterman. The Design and Implementation of the 4.4BSD Operating
+System. Reading, Mass. Addison-Wesley, 1996. ISBN 0-201-54979-4
+
+Michael G. Brown. The Role of BSD in the Development of Unix.
+Presented to the Tasmanian Unix Special Interest Group of the
+Australian Computer Society, Hobart, August 1993.
+URL: http://www.dpac.tas.gov.au/~mgb/papers/bsdrole.html
+
+Peter H. Salus. Unix at 25. Byte Magazin, October 1994.
+URL: http://www.byte.com/art/9410/sec8/art3.htm
+
+--
+Copyright (c) 1997 Wolfram Schneider <wosch@FreeBSD.ORG>
+URL: http://www.de.freebsd.org/de/ftp/unix-stammbaum
+$Date: 1997/03/30 23:33:44 $ $Revision: 1.12 $
