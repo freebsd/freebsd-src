@@ -404,10 +404,10 @@ static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
 static int out_fdc(struct fdc_data *, int);
 /*
- * The open function is named Fdopen() to avoid confusion with fdopen()
+ * The open function is named fdopen() to avoid confusion with fdopen()
  * in fd(4).  The difference is now only meaningful for debuggers.
  */
-static	d_open_t	Fdopen;
+static	d_open_t	fdopen;
 static	d_close_t	fdclose;
 static	d_strategy_t	fdstrategy;
 static void fdstart(struct fdc_data *);
@@ -483,7 +483,7 @@ fdin_rd(fdc_p fdc)
 
 #define CDEV_MAJOR 9
 static struct cdevsw fd_cdevsw = {
-	.d_open =	Fdopen,
+	.d_open =	fdopen,
 	.d_close =	fdclose,
 	.d_read =	physread,
 	.d_write =	physwrite,
@@ -1560,7 +1560,7 @@ out_fdc(struct fdc_data *fdc, int x)
  * auxiliary functions).
  */
 static int
-Fdopen(dev_t dev, int flags, int mode, struct thread *td)
+fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
  	fdu_t fdu = FDUNIT(minor(dev));
 	int type = FDTYPE(minor(dev));
