@@ -50,3 +50,9 @@ dial1200|1200 Baud Hayes attributes:\
 # Hardwired line
 cuaa0b|cua0b:dv=/dev/cuaa0:br#2400:pa=none:
 cuaa0c|cua0c:dv=/dev/cuaa0:br#9600:pa=none:
+
+# Finger friendly shortcuts
+com1:dv=/dev/cuaa0:br#9600:pa=none:
+com2:dv=/dev/cuaa1:br#9600:pa=none:
+com3:dv=/dev/cuaa2:br#9600:pa=none:
+com4:dv=/dev/cuaa3:br#9600:pa=none:
