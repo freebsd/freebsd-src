@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.142 1998/12/27 16:44:24 phk Exp $
+#	$Id: BSD.usr.dist,v 1.143 1998/12/30 09:50:43 dt Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -647,6 +647,8 @@
         misc
             fonts
             ..
+            pcvtfonts
+            ..
             pkg_manage
             ..
         ..
@@ -728,6 +730,12 @@
 	    zh_CN.EUC
 	    ..
         ..
+	pcvt
+	    Doc
+	    ..
+	    Etc
+	    ..
+	..
 	perl
 	    man
 		cat3		uname=man

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.142 1998/12/28 16:37:28 gpalmer Exp $
+#	$Id: Makefile,v 1.143 1998/12/30 09:38:36 phk Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -122,6 +122,7 @@ SUBDIR+=apm \
 	lptcontrol \
 	mixer \
 	mptable \
+	pcvt \
 	pnpinfo \
 	rndcontrol \
 	sgsc \
