@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,19 +27,31 @@
  *	i4b daemon - curses fullscreen output
  *	-------------------------------------
  *
- *	$Id: curses.c,v 1.29 1999/12/13 21:25:24 hm Exp $ 
+ *	$Id: curses.c,v 1.10 1999/12/13 21:25:25 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:45:43 1999]
+ *      last edit-date: [Mon Dec 13 21:51:47 1999]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef USE_CURSES
+#include "monprivate.h"
 
-#include "isdnd.h"
+#ifndef WIN32
 
-#define CHPOS(cfgp) (((cfgp)->isdncontrollerused*2) + (cfgp)->isdnchannelused)
+static void display_bell(void);
+static void display_chans(void);
+
+/*---------------------------------------------------------------------------*
+ *	program exit
+ *---------------------------------------------------------------------------*/
+void
+do_exit(int exitval)
+{
+	if(curses_ready)
+		endwin();
+	exit(exitval);
+}
 
 /*---------------------------------------------------------------------------*
  *	init curses fullscreen display
@@ -50,43 +62,46 @@ init_screen(void)
 	char buffer[512];
 	int uheight, lheight;
 	int i, j;
-	cfg_entry_t *p;
 	
 	initscr();			/* curses init */
 	
 	if((COLS < 80) || (LINES < 24))
 	{
-		log(LL_ERR, "ERROR, minimal screensize must be 80x24, is %dx%d, terminating!",COLS, LINES);
-		do_exit(1);
+		endwin();
+		fprintf(stderr, "ERROR, minimal screensize must be 80x24, is %dx%d, terminating!",COLS, LINES);
+		exit(1);
 	}		
 
 	noecho();
 	raw();
 
-	uheight = ncontroller * 2; /* cards * b-channels */
+	uheight = nctrl * 2; /* cards * b-channels */
 	lheight = LINES - uheight - 6 + 1; /* rest of display */
 	
 	if((upper_w = newwin(uheight, COLS, UPPER_B, 0)) == NULL)
 	{
-		log(LL_ERR, "ERROR, curses init upper window, terminating!");
+		endwin();
+		fprintf(stderr, "ERROR, curses init upper window, terminating!");
 		exit(1);
 	}
 
 	if((mid_w = newwin(1, COLS, UPPER_B+uheight+1, 0)) == NULL)
 	{
-		log(LL_ERR, "ERROR, curses init mid window, terminating!");
+		endwin();
+		fprintf(stderr, "ERROR, curses init mid window, terminating!");
 		exit(1);
 	}
 
 	if((lower_w = newwin(lheight, COLS, UPPER_B+uheight+3, 0)) == NULL)
 	{
-		log(LL_ERR, "ERROR, curses init lower window, LINES = %d, lheight = %d, uheight = %d, terminating!", LINES, lheight, uheight);
+		endwin();
+		fprintf(stderr, "ERROR, curses init lower window, LINES = %d, lheight = %d, uheight = %d, terminating!", LINES, lheight, uheight);
 		exit(1);
 	}
 	
 	scrollok(lower_w, 1);
 
-	sprintf(buffer, "----- isdn controller channel state ------------- isdnd %02d.%02d.%d [pid %d] -", VERSION, REL, STEP, (int)getpid());	
+	sprintf(buffer, "----- isdn controller channel state ------------- isdnmonitor %02d.%02d.%d -", VERSION, REL, STEP);
 
 	while(strlen(buffer) < COLS)
 		strcat(buffer, "-");	
@@ -100,7 +115,11 @@ init_screen(void)
 	/*      01234567890123456789012345678901234567890123456789012345678901234567890123456789 */
 	addstr("c tei b remote                 iface  dir outbytes   obps inbytes    ibps  units");
 	
-	sprintf(buffer, "----- isdn userland interface state ------------------------------------------");	
+	if(hostname)
+		sprintf(buffer, "----- isdn userland interface state ------------- %s:%d -", hostname, portno);
+	else
+		sprintf(buffer, "----- isdn userland interface state ------------- %s -", sockpath);
+		
 	while(strlen(buffer) < COLS)
 		strcat(buffer, "-");	
 
@@ -118,21 +137,16 @@ init_screen(void)
 	addstr(buffer);
 	standend();
 	
-	move(uheight+5, 0);
-	addstr("Date     Time     Typ Information   Description");	
-
 	refresh();
 
-	for(i=0, j=0; i <= ncontroller; i++, j+=2)
+	for(i=0, j=0; i <= nctrl; i++, j+=2)
 	{
-		if(isdn_ctrl_tab[i].tei == -1)
-			mvwprintw(upper_w, j,   H_CNTL, "%d --- 1 ", i);
-		else
-			mvwprintw(upper_w, j,   H_CNTL, "%d %3d 1 ", i, isdn_ctrl_tab[i].tei);
+		mvwprintw(upper_w, j,   H_CNTL, "%d --- 1 ", i);  /*TEI*/
 		mvwprintw(upper_w, j+1, H_CNTL, "  L12 2 ");
 	}
 	wrefresh(upper_w);
 
+#ifdef NOTDEF
 	for(i=0, j=0; i < nentries; i++)	/* walk thru all entries */
 	{
 		p = &cfg_entry_tab[i];		/* get ptr to enry */
@@ -143,12 +157,143 @@ init_screen(void)
 
 		j += ((strlen(bdrivername(p->usrdevicename)) + (p->usrdeviceunit > 9 ? 2 : 1) + 1));
 	}
+#else
+	mvwprintw(mid_w, 0, 0, "%s", devbuf);
+#endif
 	wrefresh(mid_w);
 
 	wmove(lower_w, 0, 0);
 	wrefresh(lower_w);
 
 	curses_ready = 1;
+}
+
+/*---------------------------------------------------------------------------*
+ *	display the charge in units
+ *---------------------------------------------------------------------------*/
+void
+display_charge(int pos, int charge)
+{
+	mvwprintw(upper_w, pos, H_UNITS, "%d", charge);
+	wclrtoeol(upper_w);	
+	wrefresh(upper_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display the calculated charge in units
+ *---------------------------------------------------------------------------*/
+void
+display_ccharge(int pos, int units)
+{
+	mvwprintw(upper_w, pos, H_UNITS, "(%d)", units);
+	wclrtoeol(upper_w);	
+	wrefresh(upper_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display accounting information
+ *---------------------------------------------------------------------------*/
+void
+display_acct(int pos, int obyte, int obps, int ibyte, int ibps)
+{
+	mvwprintw(upper_w, pos, H_OUT,    "%-10d", obyte);
+	mvwprintw(upper_w, pos, H_OUTBPS, "%-4d",  obps);
+	mvwprintw(upper_w, pos, H_IN,     "%-10d", ibyte);
+	mvwprintw(upper_w, pos, H_INBPS,  "%-4d",  ibps);
+	wrefresh(upper_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	erase line at disconnect time
+ *---------------------------------------------------------------------------*/
+void
+display_disconnect(int pos)
+{
+	wmove(upper_w, pos, H_TELN);
+	wclrtoeol(upper_w);
+	wrefresh(upper_w);
+
+	if(do_bell)
+		display_bell();
+}
+
+/*---------------------------------------------------------------------------*
+ *	display interface up/down information
+ *---------------------------------------------------------------------------*/
+void
+display_updown(int pos, int updown, char *device)
+{
+	if(updown)
+		wstandend(mid_w);
+	else
+		wstandout(mid_w);
+
+	mvwprintw(mid_w, 0, pos, "%s ", device);
+
+	wstandend(mid_w);
+	wrefresh(mid_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display interface up/down information
+ *---------------------------------------------------------------------------*/
+void
+display_l12stat(int controller, int layer, int state)
+{
+	if(controller > nctrl)
+		return;
+		
+	if(!(layer == 1 || layer == 2))
+		return;
+
+	if(state)
+		wstandout(upper_w);
+	else
+		wstandend(upper_w);
+
+	if(layer == 1)
+	{
+		mvwprintw(upper_w, (controller*2)+1, H_TEI+1, "1");
+
+		if(!state)
+			mvwprintw(upper_w, (controller*2)+1, H_TEI+2, "2");
+	}
+	else if(layer == 2)
+	{
+		mvwprintw(upper_w, (controller*2)+1, H_TEI+2, "2");
+		if(state)
+			mvwprintw(upper_w, (controller*2)+1, H_TEI+1, "1");
+	}
+
+	wstandend(upper_w);
+	wrefresh(upper_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display TEI
+ *---------------------------------------------------------------------------*/
+void
+display_tei(int controller, int tei)
+{
+	if(controller > nctrl)
+		return;
+
+	if(tei == -1)
+		mvwprintw(upper_w, controller*2, H_TEI, "---");
+	else
+		mvwprintw(upper_w, controller*2, H_TEI, "%3d", tei);
+
+	wrefresh(upper_w);
+}
+
+/*---------------------------------------------------------------------------*
+ *	display bell :-)
+ *---------------------------------------------------------------------------*/
+static void
+display_bell(void)
+{
+	static char bell[1] = { 0x07 };
+	write(STDOUT_FILENO, &bell[0], 1);
 }
 
 /*---------------------------------------------------------------------------*
@@ -175,7 +320,6 @@ do_menu(void)
 	
 	if((menu_w = newwin(WMENU_HGT, WMENU_LEN, WMENU_POSLN, WMENU_POSCO )) == NULL)
 	{
-		log(LL_WRN, "ERROR, curses init menu window!");
 		return;
 	}
 
@@ -244,6 +388,7 @@ do_menu(void)
 				do_exit(0);
 				goto mexit;
 
+
 			case ('0'+WHANGUP+1):	/* hangup connection */
 			case 'H':
 			case 'h':
@@ -253,7 +398,7 @@ do_menu(void)
 			case ('0'+WREREAD+1):	/* reread config file */
 			case 'R':
 			case 'r':
-				rereadconfig(42);
+				reread();
 				goto mexit;
 
 			case '\n':
@@ -273,7 +418,7 @@ do_menu(void)
 						break;
 
 					case WREREAD:
-						rereadconfig(42);
+						reread();
 						break;
 				}
 				goto mexit;
@@ -297,186 +442,42 @@ mexit:
 }
 
 /*---------------------------------------------------------------------------*
- *	display the charge in units
- *---------------------------------------------------------------------------*/
-void
-display_charge(cfg_entry_t *cep)
-{
-	mvwprintw(upper_w, CHPOS(cep), H_UNITS, "%d", cep->charge);
-	wclrtoeol(upper_w);	
-	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	display the calculated charge in units
- *---------------------------------------------------------------------------*/
-void
-display_ccharge(cfg_entry_t *cep, int units)
-{
-	mvwprintw(upper_w, CHPOS(cep), H_UNITS, "(%d)", units);
-	wclrtoeol(upper_w);	
-	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	display accounting information
- *---------------------------------------------------------------------------*/
-void
-display_acct(cfg_entry_t *cep)
-{
-	mvwprintw(upper_w, CHPOS(cep), H_OUT,    "%-10d", cep->outbytes);
-	mvwprintw(upper_w, CHPOS(cep), H_OUTBPS, "%-4d", cep->outbps);
-	mvwprintw(upper_w, CHPOS(cep), H_IN,     "%-10d", cep->inbytes);
-	mvwprintw(upper_w, CHPOS(cep), H_INBPS,  "%-4d", cep->inbps);
-	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
  *	display connect information
  *---------------------------------------------------------------------------*/
 void
-display_connect(cfg_entry_t *cep)
+display_connect(int pos, int dir, char *name, char *remtel, char *dev)
 {
 	char buffer[256];
 
 	/* remote telephone number */
 
-	if(aliasing)
-	{
-		if(cep->direction == DIR_IN)
-			sprintf(buffer, "%s", get_alias(cep->real_phone_incoming));
-		else
-			sprintf(buffer, "%s", get_alias(cep->remote_phone_dialout));
-	}
-	else
-	{
-		if(cep->direction == DIR_IN)
-			sprintf(buffer, "%s/%s", cep->name, cep->real_phone_incoming);
-		else
-			sprintf(buffer, "%s/%s", cep->name, cep->remote_phone_dialout);	
-	}
+	sprintf(buffer, "%s/%s", name, remtel);
 		
 	buffer[H_IFN - H_TELN - 1] = '\0';
 
-	mvwprintw(upper_w, CHPOS(cep), H_TELN, "%s", buffer);
+	mvwprintw(upper_w, pos, H_TELN, "%s", buffer);
 
 	/* interface */
 	
-	mvwprintw(upper_w, CHPOS(cep), H_IFN, "%s%d ",
-			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
+	mvwprintw(upper_w, pos, H_IFN, "%s ", dev);
 	
-	mvwprintw(upper_w, CHPOS(cep), H_IO,
-		cep->direction == DIR_OUT ? "out" : "in");
+	mvwprintw(upper_w, pos, H_IO, dir ? "out" : "in");
 
-	mvwprintw(upper_w, CHPOS(cep), H_OUT,    "-");
-	mvwprintw(upper_w, CHPOS(cep), H_OUTBPS, "-");
-	mvwprintw(upper_w, CHPOS(cep), H_IN,     "-");
-	mvwprintw(upper_w, CHPOS(cep), H_INBPS,  "-");
+	mvwprintw(upper_w, pos, H_OUT,    "-");
+	mvwprintw(upper_w, pos, H_OUTBPS, "-");
+	mvwprintw(upper_w, pos, H_IN,     "-");
+	mvwprintw(upper_w, pos, H_INBPS,  "-");
 
 	if(do_bell)
 		display_bell();
 	
 	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	erase line at disconnect time
- *---------------------------------------------------------------------------*/
-void
-display_disconnect(cfg_entry_t *cep)
-{
-	wmove(upper_w, CHPOS(cep),
-		 H_TELN);
-	wclrtoeol(upper_w);
-	wrefresh(upper_w);
-
-	if(do_bell)
-		display_bell();
-	
-}
-
-/*---------------------------------------------------------------------------*
- *	display interface up/down information
- *---------------------------------------------------------------------------*/
-void
-display_updown(cfg_entry_t *cep, int updown)
-{
-	if(updown)
-		wstandend(mid_w);
-	else
-		wstandout(mid_w);
-
-	mvwprintw(mid_w, 0, cep->fs_position, "%s%d ",
-			bdrivername(cep->usrdevicename), cep->usrdeviceunit);
-
-	wstandend(mid_w);
-	wrefresh(mid_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	display interface up/down information
- *---------------------------------------------------------------------------*/
-void
-display_l12stat(int controller, int layer, int state)
-{
-	if(controller > ncontroller)
-		return;
-	if(!(layer == 1 || layer == 2))
-		return;
-
-	if(state)
-		wstandout(upper_w);
-	else
-		wstandend(upper_w);
-
-	if(layer == 1)
-	{
-		mvwprintw(upper_w, (controller*2)+1, H_TEI+1, "1");
-		if(!state)
-			mvwprintw(upper_w, (controller*2)+1, H_TEI+2, "2");
-	}
-	else if(layer == 2)
-	{
-		mvwprintw(upper_w, (controller*2)+1, H_TEI+2, "2");
-		if(state)
-			mvwprintw(upper_w, (controller*2)+1, H_TEI+1, "1");
-	}
-
-	wstandend(upper_w);
-	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	display TEI
- *---------------------------------------------------------------------------*/
-void
-display_tei(int controller, int tei)
-{
-	if(controller > ncontroller)
-		return;
-
-	if(tei == -1)
-		mvwprintw(upper_w, controller*2, H_TEI, "---");
-	else
-		mvwprintw(upper_w, controller*2, H_TEI, "%3d", tei);
-
-	wrefresh(upper_w);
-}
-
-/*---------------------------------------------------------------------------*
- *	display bell :-)
- *---------------------------------------------------------------------------*/
-void
-display_bell(void)
-{
-	static char bell[1] = { 0x07 };
-	write(STDOUT_FILENO, &bell[0], 1);
 }
 
 /*---------------------------------------------------------------------------*
  *	display channel information for shutdown
  *---------------------------------------------------------------------------*/
-void
+static void
 display_chans(void)
 {
 	char buffer[80];
@@ -486,7 +487,6 @@ display_chans(void)
 	int nlines, ncols, pos_x, pos_y;
 	fd_set set;
 	struct timeval timeout;
-	cfg_entry_t *cep = NULL;
 
 	/* need this later to close the connection */
 	struct ctlr_chan {
@@ -494,15 +494,13 @@ display_chans(void)
 		int chn;
 	} *cc = NULL;
 
-	for (i = 0; i < ncontroller; i++)
-	{
-		if((get_controller_state(i)) != CTRL_UP)
-			continue;
-		if((ret_channel_state(i, CHAN_B1)) == CHAN_RUN)
-			cnt++;
-		if((ret_channel_state(i, CHAN_B2)) == CHAN_RUN)
-			cnt++;
-	}
+        for(i = 0; i < nctrl; i++)
+        {
+		if(remstate[i].ch1state)
+	                cnt++;
+		if(remstate[i].ch2state)
+                        cnt++;
+        }
 
 	if(cnt > 0)
 	{
@@ -527,7 +525,6 @@ display_chans(void)
 	
 	if((chan_w = newwin(nlines, ncols, pos_y, pos_x )) == NULL)
 	{
-		log(LL_WRN, "ERROR, curses init channel window!");
 		if (cnt > 0)
 			free(cc);
 		return;
@@ -559,12 +556,9 @@ display_chans(void)
 	nlines = 2;
 	ncols = 1;
 
-	for (i = 0; i < ncontroller; i++)
+	for (i = 0; i < nctrl; i++)
 	{
-		if((get_controller_state(i)) != CTRL_UP)
-			continue;
-
-		if((ret_channel_state(i, CHAN_B1)) == CHAN_RUN)
+		if(remstate[i].ch1state)
 		{
 			sprintf(buffer, "%d - Controller %d channel %s", ncols, i, "B1");
 			mvwaddstr(chan_w, nlines, 2, buffer);
@@ -573,7 +567,7 @@ display_chans(void)
 			nlines++;
 			ncols++;
 		}
-		if((ret_channel_state(i, CHAN_B2)) == CHAN_RUN)
+		if(remstate[i].ch2state)		
 		{
 			sprintf(buffer, "%d - Controller %d channel %s", ncols, i, "B2");
 			mvwaddstr(chan_w, nlines, 2, buffer);
@@ -614,13 +608,8 @@ display_chans(void)
 			continue;
 		}
 
-		if((cep = get_cep_by_cc(cc[nlines-1].cntl, cc[nlines-1].chn))
-			!= NULL)
-		{
-			log(LL_CHD, "%05d %s manual disconnect (fullscreen menu)", cep->cdid, cep->name);
-			cep->hangup = 1;
-			break;
-		}
+		hangup(cc[nlines-1].cntl, cc[nlines-1].chn);
+		break;
 	}
 
 	free(cc);
@@ -630,6 +619,6 @@ display_chans(void)
 	delwin(chan_w);
 }
 
-#endif
+#endif /* !WIN32*/
 
 /* EOF */

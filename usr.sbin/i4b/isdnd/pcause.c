@@ -27,9 +27,11 @@
  *	printing cause values
  *	---------------------
  *
+ *	$Id: pcause.c,v 1.12 1999/12/13 21:25:25 hm Exp $
+ *
  * $FreeBSD$
  *
- *	last edit-date: [Sun Feb 14 10:11:49 1999]
+ *	last edit-date: [Mon Dec 13 21:48:07 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -78,6 +80,7 @@ static char *cause_i4b_tab[CAUSE_I4B_MAX+1] = {
 	"destination out of order",
 	"temporary failure",
 	"layer 1 error / persistent deactivation",
+	"dialing impossible on leased line",	
 	"ERROR, invalid I4B cause value!"
 };
 

@@ -27,9 +27,11 @@
  *	FSM for isdnd
  *	-------------
  *
- * $FreeBSD$ 
+ *	$Id: fsm.c,v 1.18 1999/12/13 21:25:24 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:10:41 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:46:07 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -385,24 +387,24 @@ next_state(cfg_entry_t *cep, int event)
 
 	if(event > N_EVENTS)
 	{
-		log(LL_ERR, "FSM: event > N_EVENTS");
-		do_exit(1);
+		log(LL_ERR, "next_state: event > N_EVENTS");
+		error_exit(1, "next_state: event > N_EVENTS");
 	}
 
 	currstate = cep->state;
 
 	if(currstate > N_STATES)
 	{
-		log(LL_ERR, "FSM: currstate > N_STATES");
-		do_exit(1);
+		log(LL_ERR, "next_state: currstate > N_STATES");
+		error_exit(1, "next_state: currstate > N_STATES");
 	}
 
 	newstate = state_tab[event][currstate].newstate;
 
 	if(newstate > N_STATES)
 	{
-		log(LL_ERR, "FSM: newstate > N_STATES");
-		do_exit(1);
+		log(LL_ERR, "next_state: newstate > N_STATES");
+		error_exit(1, "next_state: newstate > N_STATES");
 	}
 
 	if(newstate != ST_SUSE)

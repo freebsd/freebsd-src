@@ -3,15 +3,7 @@ $FreeBSD$
 Download sites for isdn4bsd
 ===========================
 
-        http://www.freebsd-support.de/i4b
-
-        ftp://isdn4bsd@ftp.consol.de/pub
-
-		On ftp.consol.de, you must log in as user "isdn4bsd" and
-		give your mail address as the password. Then change to the
-		"pub" directory. You will find the latest available isdn4bsd
-		package. Anonymous ftp as user "ftp" or "anonymous" will not
-		work.
+        ftp://i4b.consol.de/pub
 
 
 Bugfixes, improvements and patches for i4b
@@ -90,7 +82,6 @@ ISDN Chips
 	Cologne Chip Design
 	-------------------
 		http://www.colognechip.de
-
 
 	AMD
 	---

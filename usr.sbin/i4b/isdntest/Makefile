@@ -1,3 +1,4 @@
+# $FreeBSD$
 PROG	 =	isdntest
 SRCS	 =	main.c
 MAN8	 =	isdntest.8

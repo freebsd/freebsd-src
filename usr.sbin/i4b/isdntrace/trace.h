@@ -35,12 +35,11 @@
  *	trace.h - header file for isdn trace
  *	------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: trace.h,v 1.9 1999/12/13 21:25:26 hm Exp $ 
  *
- *      last edit-date: [Sun Feb 14 10:23:35 1999]
+ * $FreeBSD$
  *
- *	-hm	splitting
- *	-hm	new filenames
+ *      last edit-date: [Mon Dec 13 21:58:07 1999]
  *
  *---------------------------------------------------------------------------*/
 

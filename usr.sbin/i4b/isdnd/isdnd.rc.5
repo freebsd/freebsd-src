@@ -22,11 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$ 
+.\"	$Id: isdnd.rc.5,v 1.41 1999/12/13 22:11:55 hm Exp $ 
 .\"
-.\"     last edit-date: [Wed Jul 28 15:57:02 1999]
+.\" $FreeBSD$
 .\"
-.Dd May 20, 1999
+.\"     last edit-date: [Mon Dec 13 23:00:48 1999]
+.\"
+.Dd October 11, 1999
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -58,13 +60,18 @@ or
 .Pp
 The configuration file consists of one
 .Em system
-section and one or more
+section, one or more optional
+.Em controller
+sections and one or more
 .Em entry
 sections.
 In the
 .Em system
 section parameters regarding the daemon operation or parameters 
 not associated with a single remote connection can be set.
+In the
+.Em controller
+section parameters regarding a particular controller can be set.
 In the
 .Em entry
 section(s) parameters directly associated with a single remote
@@ -121,6 +128,25 @@ If this parameter is set to
 .Em on ,
 date/time information from the exchange (if provided) is written to the
 logfile. The default is off. (optional)
+
+.It Li mailer
+This keyword is used to specify the path/name of a mail program which
+which is able to use the "-s" flag to specify a subject on its 
+command line. In case of a fatal error exit of
+.Nm
+this program is used to send mail to an administrator specified by
+the keyword
+.Em mailto .
+(optional)
+
+.It Li mailto
+This keyword is used to specify the email address of someone to notify
+in case of a fatal error exit of
+.Nm .
+(See also keyword
+.Em mailer
+).
+(optional)
 
 .It Li monitor-allowed
 If this parameter is set to
@@ -234,6 +260,27 @@ If this parameter is set to
 charging (if available) and accounting information is written to the
 accounting file. (optional)
 
+.El
+
+.It Li controller
+This keyword starts the controller configuration section. It must not 
+have a parameter and may be used once for every controller. The keyword
+is optional. The following keywords are valid in a controller 
+configuration section:
+.Bl -tag -width useacctfile -compact
+
+.It Li protocol
+This keyword is used to set the D-channel protocol for the S0-bus a 
+controller is connected to. The following parameters are currently
+supported:
+.Pp
+.Bl -tag -width calledback -compact -offset
+.It Ar dss1
+The DSS1 or so-called "Euro-ISDN" D-channel protocol according to
+ITU Recommendations Q.921 and Q.931.
+.It Ar d64s
+An ISDN leased line with a single B-channel (called D64S in Germany).
+.El
 .El
 
 .It Li entry
@@ -712,6 +759,7 @@ network will cause a new call to be placed.
 .El
 
 .Pp
+
 .Sh FILES
 .Bl -tag -width /etc/isdn/isdnd.rc -compact
 .It Pa /etc/isdn/isdnd.rc
@@ -719,16 +767,18 @@ The default configuration file for the
 .Nm isdnd
 ISDN daemon.
 .El
+
 .Sh SEE ALSO
-.Xr regex 3 ,
-.Xr re_format 7 ,
-.Xr isdnd 8 ,
+.Xr isdnd 8
 .Xr isdnmonitor 8
-.Sh AUTHORS
+.Xr regex 3
+.Xr re_format 7
+
+.Sh AUTHOR
 The 
 .Xr isdnd 8
-daemon and this manual page were written by
+daemon and this manual page were written by 
 .An Hellmuth Michaelis Aq hm@kts.org .
 .Pp
-Additions to this manual page by
+Additions to this manual page by 
 .An Barry Scott Aq barry@scottb.demon.co.uk .

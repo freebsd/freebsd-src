@@ -27,9 +27,11 @@
  *	i4b daemon - main header file
  *	-----------------------------
  *
- * $FreeBSD$ 
+ *	$Id: isdnd.h,v 1.72 1999/12/13 21:25:24 hm Exp $ 
  *
- *      last edit-date: [Thu May 20 14:44:18 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:46:50 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -38,11 +40,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <strings.h>
+#include <string.h>
 #include <ctype.h>
 #include <syslog.h>
 #include <regex.h>
+#include <time.h>
+#include <errno.h>
 
 #ifdef USE_CURSES
 #include <curses.h>
@@ -52,6 +58,7 @@
 #include <errno.h>
 #include <signal.h>
 
+#include <sys/queue.h>	/* TAILQ_ macros */
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -162,7 +169,9 @@ enum logids
 	LL_WRN,	/* warning conditions - nonfatal abnormal conditions	*/
 	LL_DMN, /* normal but significant condition - status of daemon	*/
 	LL_CHD,	/* informational - everything regarding call handling	*/
-	LL_DBG	/* debug messages - everything which helps debugging	*/
+	LL_DBG,	/* debug messages - everything which helps debugging	*/
+	LL_MER,	/* monitor error messages - not sent to remote          */
+	LL_PKT	/* packet logging - log the first few packets		*/
 };
 
 /*---------------------------------------------------------------------------*
@@ -434,6 +443,7 @@ typedef struct cfg_entry {
 typedef struct isdn_ctrl_state {
 	int ctrl_type;			/* type: active/passive 	*/
 	int card_type;			/* manufacturer (CARD_XXXX) 	*/
+	int protocol;			/* ISDN D-channel protocol 	*/	
 	int state;			/* controller state		*/
 #define  CTRL_DOWN 	0		/* controller inoparable	*/
 #define  CTRL_UP	1		/* controller may be used	*/
@@ -444,6 +454,8 @@ typedef struct isdn_ctrl_state {
 	int freechans;			/* number of unused channels	*/
 #define  MAX_CHANCTRL	2		/* free channels per controller	*/
 	int tei;			/* tei or -1 if invalid		*/
+	int l1stat;			/* layer 1 state		*/
+	int l2stat;			/* layer 2 state		*/
 } isdn_ctrl_state_t;
 
 /*---------------------------------------------------------------------------*
@@ -459,6 +471,7 @@ struct rarr {
 #ifdef I4B_EXTERNAL_MONITOR
 /* for each rights entry we keep one of this structures around: */
 struct monitor_rights {
+	TAILQ_ENTRY(monitor_rights) list;	/* a list of this structures */
 	char name[FILENAME_MAX];	/* net/host spec or filename */
 	int rights;			/* bitmask of allowed acces rights */
 	u_int32_t net;			/* net/host address (host byte order!) */
@@ -473,6 +486,9 @@ struct monitor_rights {
 #ifdef MAIN
 
 int isdnfd;					/* file handle, /dev/i4b */
+
+char mailto[MAXPATHLEN] = "";			/* panic mail address */
+char mailer[MAXPATHLEN] = "";			/* panic mail address */
 
 char *configfile = CONFIG_FILE_DEF;		/* configuration filename */
 int config_error_flag = 0;			/* error counter */
@@ -555,6 +571,9 @@ char rotatesuffix[MAXPATHLEN] = "";
 #else /* !MAIN */
 
 int isdnfd;
+
+char mailto[MAXPATHLEN];
+char mailer[MAXPATHLEN];
 
 char *configfile;
 int config_error_flag;
@@ -647,7 +666,6 @@ void display_disconnect ( cfg_entry_t *cep );
 void display_l12stat(int controller, int layer, int state);
 void display_tei(int controller, int tei);
 void display_updown ( cfg_entry_t *cep, int updown );
-void hangup_channel ( int channel );
 void do_exit ( int exitval );
 void do_menu ( void );
 int exec_answer ( cfg_entry_t *cep );
@@ -669,6 +687,7 @@ void handle_recovery ( void );
 void if_up(cfg_entry_t *cep);
 void if_down(cfg_entry_t *cep);
 void init_controller ( void );
+void init_controller_protocol ( void );
 void init_log ( void );
 void init_screen ( void );
 void log ( int what, const char *fmt, ... );
@@ -689,6 +708,7 @@ void msg_idle_timeout_ind ( msg_idle_timeout_ind_t *mp );
 void msg_l12stat_ind(msg_l12stat_ind_t *ml);
 void msg_teiasg_ind(msg_teiasg_ind_t *mt);
 void msg_proceeding_ind ( msg_proceeding_ind_t *mp );
+void msg_packet_ind( msg_packet_ind_t *mp );
 const char * name_of_controller(int ctrl_type, int card_type);
 void next_state ( cfg_entry_t *cep, int event );
 char * print_i4b_cause( cause_t code );
@@ -713,6 +733,8 @@ void stop_timer ( cfg_entry_t *cep );
 void unitlen_chkupd( cfg_entry_t *cep );
 void write_pid ( void );
 void yyerror ( const char *msg );
+
+void error_exit(int exitval, const char *fmt, ...);
 
 /* montior server module */
 void monitor_init();
@@ -744,9 +766,12 @@ void monitor_evnt_disconnect(cfg_entry_t *cep);
 void monitor_evnt_updown(cfg_entry_t *cep, int up);
 void monitor_evnt_log(int prio, const char * what, const char * msg);
 
+void monitor_evnt_l12stat(int controller, int layer, int state);
+void monitor_evnt_tei(int controller, int tei);
+void monitor_evnt_acct(cfg_entry_t *cep);
+
 /* controller.c */
 
-int init_controller_state(int controller, int ctrl_type, int card_type, int tei);
 void init_active_controller(void);
 int set_controller_state(int controller, int state);
 int get_controller_state(int controller);

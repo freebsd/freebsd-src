@@ -27,18 +27,125 @@
  *	i4b daemon - controller state support routines
  *	----------------------------------------------
  *
+ *	$Id: controller.c,v 1.19 1999/12/13 21:25:24 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 10 21:35:55 1999]
+ *      last edit-date: [Mon Dec 13 21:45:34 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isdnd.h"
 
+static int
+init_controller_state(int controller, int ctrl_type, int card_type, int tei);
+
+/*---------------------------------------------------------------------------*
+ *	get name of a controller
+ *---------------------------------------------------------------------------*/
+const char *
+name_of_controller(int ctrl_type, int card_type)
+{
+	static char *passive_card[] = {
+		"Teles S0/8",
+		"Teles S0/16",
+		"Teles S0/16.3",
+		"AVM A1 or Fritz!Card",
+		"Teles S0/16.3 PnP",
+		"Creatix S0 PnP",
+		"USRobotics Sportster ISDN TA",
+		"Dr. Neuhaus NICCY Go@",
+		"Sedlbauer win speed",
+ 		"Dynalink IS64PH",
+		"ISDN Master, MasterII or Blaster",
+		"AVM PCMCIA Fritz!Card",
+		"ELSA QuickStep 1000pro/ISA",
+		"ELSA QuickStep 1000pro/PCI",
+		"Siemens I-Talk",
+		"ELSA MicroLink ISDN/MC",
+		"ELSA MicroLink MCall",
+ 		"ITK ix1 micro",
+		"AVM Fritz!Card PCI",
+		"ELSA PCC-16",
+		"AVM Fritz!Card PnP",		
+		"Siemens I-Surf 2.0 PnP",		
+ 		"Asuscom ISDNlink 128K PnP"
+	};
+
+	static char *daic_card[] = {
+		"EICON.Diehl S",
+		"EICON.Diehl SX/SXn",
+		"EICON.Diehl SCOM",
+		"EICON.Diehl QUADRO",
+	};
+
+	if(ctrl_type == CTRL_PASSIVE)
+	{
+		int index = card_type - CARD_TYPEP_8;
+		if (index >= 0 && index < (sizeof passive_card / sizeof passive_card[0]))
+			return passive_card[index];
+	}
+	else if(ctrl_type == CTRL_DAIC)
+	{
+		int index = card_type - CARD_TYPEA_DAIC_S;
+		if (index >= 0 && index < (sizeof daic_card / sizeof daic_card[0] ))
+			return daic_card[index];
+	}
+	else if(ctrl_type == CTRL_TINADD)
+	{
+		return "Stollmann tina-dd";
+	}
+
+	return "unknown card type";
+}
+ 
+/*---------------------------------------------------------------------------*
+ *	init controller state array
+ *---------------------------------------------------------------------------*/
+void
+init_controller(void)
+{
+	int i;
+	int max = 1;
+	msg_ctrl_info_req_t mcir;
+	
+	for(i=0; i < max; i++)
+	{
+		mcir.controller = i;
+		
+		if((ioctl(isdnfd, I4B_CTRL_INFO_REQ, &mcir)) < 0)
+		{
+			log(LL_ERR, "init_controller: ioctl I4B_CTRL_INFO_REQ failed: %s", strerror(errno));
+			do_exit(1);
+		}
+
+		if((ncontroller = max = mcir.ncontroller) == 0)
+		{
+			log(LL_ERR, "init_controller: no ISDN controller found!");
+			do_exit(1);
+		}
+
+		if(mcir.ctrl_type == -1 || mcir.card_type == -1)
+		{
+			log(LL_ERR, "init_controller: ctrl/card is invalid!");
+			do_exit(1);
+		}
+
+		/* init controller tab */
+
+		if((init_controller_state(i, mcir.ctrl_type, mcir.card_type, mcir.tei)) == ERROR)
+		{
+			log(LL_ERR, "init_controller: init_controller_state for controller %d failed", i);
+			do_exit(1);
+		}
+	}
+	DBGL(DL_RCCF, (log(LL_DBG, "init_controller: found %d ISDN controller(s)", max)));
+}
+
 /*--------------------------------------------------------------------------*
  *	init controller state table entry
  *--------------------------------------------------------------------------*/
-int
+static int
 init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 {
 	if((controller < 0) || (controller >= ncontroller))
@@ -61,6 +168,8 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 			isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
 			isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
 			isdn_ctrl_tab[controller].tei = tei;
+			isdn_ctrl_tab[controller].l1stat = LAYER_IDLE;
+			isdn_ctrl_tab[controller].l2stat = LAYER_IDLE;
 			DBGL(DL_RCCF, (log(LL_DBG, "init_controller_state: controller %d is %s",
 			  controller, 
 			  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
@@ -81,7 +190,10 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 		isdn_ctrl_tab[controller].stateb1 = CHAN_IDLE;
 		isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
 		isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
-		isdn_ctrl_tab[controller].tei = -1;	
+		isdn_ctrl_tab[controller].tei = tei;	
+		isdn_ctrl_tab[controller].l1stat = LAYER_IDLE;
+		isdn_ctrl_tab[controller].l2stat = LAYER_IDLE;
+
 		log(LL_DMN, "init_controller_state: controller %d is %s",
 		  controller,
 		  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
@@ -95,7 +207,10 @@ init_controller_state(int controller, int ctrl_type, int card_type, int tei)
 		isdn_ctrl_tab[controller].stateb1 = CHAN_IDLE;
 		isdn_ctrl_tab[controller].stateb2 = CHAN_IDLE;
 		isdn_ctrl_tab[controller].freechans = MAX_CHANCTRL;
-		isdn_ctrl_tab[controller].tei = -1;	
+		isdn_ctrl_tab[controller].tei = tei;	
+		isdn_ctrl_tab[controller].l1stat = LAYER_IDLE;
+		isdn_ctrl_tab[controller].l2stat = LAYER_IDLE;
+
 		log(LL_DMN, "init_controller_state: controller %d is %s",
 		  controller,
 		  name_of_controller(isdn_ctrl_tab[controller].ctrl_type,
@@ -137,6 +252,28 @@ init_active_controller(void)
 		}
 	}
 }	
+
+/*--------------------------------------------------------------------------*
+ *	init controller D-channel ISDN protocol
+ *--------------------------------------------------------------------------*/
+void
+init_controller_protocol(void)
+{
+	int controller;
+	msg_prot_ind_t mpi;
+
+	for(controller = 0; controller < ncontroller; controller++)
+	{
+		mpi.controller = controller;
+		mpi.protocol = isdn_ctrl_tab[controller].protocol;
+		
+		if((ioctl(isdnfd, I4B_PROT_IND, &mpi)) < 0)
+		{
+			log(LL_ERR, "init_controller_protocol: ioctl I4B_PROT_IND failed: %s", strerror(errno));
+			do_exit(1);
+		}
+	}
+}
 
 /*--------------------------------------------------------------------------*
  *	set controller state to UP/DOWN

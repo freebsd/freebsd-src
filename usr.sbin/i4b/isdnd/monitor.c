@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1998 Martin Husemann. All rights reserved.
+ *   Copyright (c) 1998,1999 Martin Husemann. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -33,32 +33,39 @@
  *	i4b daemon - network monitor server module
  *	------------------------------------------
  *
+ *	$Id: monitor.c,v 1.29 1999/12/13 21:25:25 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun May 30 10:33:05 1999]
- *
- *	-mh	created
+ *      last edit-date: [Mon Dec 13 21:47:44 1999]
  *
  *---------------------------------------------------------------------------*/
 
 #include "isdnd.h"
 
 #ifndef I4B_EXTERNAL_MONITOR
-/* dummy version of routines needed by config file parser
+
+/*
+ * dummy version of routines needed by config file parser
  * (config files should be valid with and without external montioring
- * support compiled into the daemon) */
+ * support compiled into the daemon)
+ */
+
 void monitor_clear_rights()
 { }
+
 int monitor_start_rights(const char *clientspec)
 { return I4BMAR_OK; }
+
 void monitor_add_rights(int rights_mask)
 { }
+
 void monitor_fixup_rights()
 { }
+
 #else
 
 #include "monitor.h"
-#include "vararray.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #ifndef I4B_NOTCPIP_MONITOR
@@ -67,32 +74,35 @@ void monitor_fixup_rights()
 #include <netdb.h>
 #endif
 
-VARA_DECL(struct monitor_rights) rights = VARA_INITIALIZER;
-#define	INITIAL_RIGHTS_ALLOC	10	/* most users will have one or two entries */
 
-static int local_rights = -1;	/* index of entry for local socket, -1 if none */
+static TAILQ_HEAD(rights_q, monitor_rights) rights = TAILQ_HEAD_INITIALIZER(rights);
+
+static struct monitor_rights * local_rights = NULL;	/* entry for local socket */
 
 /* for each active monitor connection we have one of this: */
+
 struct monitor_connection {
+	TAILQ_ENTRY(monitor_connection) connections;
 	int sock;			/* socket for this connection */
 	int rights;			/* active rights for this connection */
 	int events;			/* bitmask of events client is interested in */
+	char source[FILENAME_MAX];
 };
-static VARA_DECL(struct monitor_connection) connections = VARA_INITIALIZER;
-#define	INITIAL_CONNECTIONS_ALLOC	30	/* high guess */
 
-/* derive channel number from config pointer */
-#define CHNO(cfgp) (((cfgp)->isdncontrollerused*2) + (cfgp)->isdnchannelused)
+static TAILQ_HEAD(connections_tq, monitor_connection) connections = TAILQ_HEAD_INITIALIZER(connections);
 
 /* local prototypes */
-static int cmp_rights(const void *a, const void *b);
-static int monitor_command(int con_index, int fd, int rights);
-static void cmd_dump_rights(int fd, int rights, BYTE *cmd);
-static void cmd_dump_mcons(int fd, int rights, BYTE *cmd);
-static void cmd_reread_cfg(int fd, int rights, BYTE *cmd);
-static void cmd_hangup(int fd, int rights, BYTE *cmd);
-static void monitor_broadcast(int mask, const BYTE *pkt, size_t bytes);
+static int cmp_rights(const struct monitor_rights *pa, const struct monitor_rights *pb);
+static int monitor_command(struct monitor_connection *con, int fd, int rights);
+static void cmd_dump_rights(int fd, int rights, u_int8_t *cmd, const char * source);
+static void cmd_dump_mcons(int fd, int rights, u_int8_t *cmd, const char * source);
+static void cmd_reread_cfg(int fd, int rights, u_int8_t *cmd, const char * source);
+static void cmd_hangup(int fd, int rights, u_int8_t *cmd, const char * source);
+static void monitor_broadcast(int mask, u_int8_t *pkt, size_t bytes);
 static int anybody(int mask);
+static void hangup_channel(int controller, int channel, const char *source);
+static ssize_t sock_read(int fd, void *buf, size_t nbytes);
+static ssize_t sock_write(int fd, void *buf, size_t nbytes);
 
 /*
  * Due to the way we structure config files, the rights for an external
@@ -102,470 +112,716 @@ static int anybody(int mask);
  * entry. When closing the sys-file section of the config file, the
  * "current" entry becomes invalid.
  */
-static int cur_add_entry = -1;
+static struct monitor_rights * cur_add_entry = NULL;
 
-/*
+/*---------------------------------------------------------------------------
  * Initialize the monitor server module. This affects only active
  * connections, the access rights are not modified here!
- */
-void monitor_init()
+ *---------------------------------------------------------------------------*/
+void
+monitor_init(void)
 {
+	struct monitor_connection * con;
 	accepted = 0;
-	VARA_EMPTY(connections);
+	while ((con = TAILQ_FIRST(&connections)) != NULL)
+	{
+		TAILQ_REMOVE(&connections, con, connections);
+		free(con);
+	}
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Prepare for exit
- */
-void monitor_exit()
+ *---------------------------------------------------------------------------*/
+void
+monitor_exit(void)
 {
-	int i;
+	struct monitor_connection *c;
 
 	/* Close all open connections. */
-	VARA_FOREACH(connections, i)
-		close(VARA_AT(connections, i).sock);
-
-	/* Remove their descriptions */
-	VARA_EMPTY(connections);
+	while((c = TAILQ_FIRST(&connections)) != NULL) {
+		close(c->sock);
+		TAILQ_REMOVE(&connections, c, connections);
+		free(c);
+	}
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Initialize access rights. No active connections are affected!
- */
-void monitor_clear_rights()
+ *---------------------------------------------------------------------------*/
+void
+monitor_clear_rights(void)
 {
-	VARA_EMPTY(rights);
-	cur_add_entry = -1;
+	struct monitor_rights *r;
+	while ((r = TAILQ_FIRST(&rights)) != NULL) {
+		TAILQ_REMOVE(&rights, r, list);
+		free(r);
+	}
+	cur_add_entry = NULL;
+	local_rights = NULL;
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Add an entry to the access lists. The clientspec either is
  * the name of the local socket or a host- or networkname or
  * numeric ip/host-bit-len spec.
- */
-int monitor_start_rights(const char *clientspec)
+ *---------------------------------------------------------------------------*/
+int
+monitor_start_rights(const char *clientspec)
 {
-	int i;
 	struct monitor_rights r;
 
 	/* initialize the new rights entry */
+
 	memset(&r, 0, sizeof r);
 
 	/* check clientspec */
-	if (*clientspec == '/') {
+
+	if (*clientspec == '/')
+	{
 		struct sockaddr_un sa;
 
 		/* this is a local socket spec, check if we already have one */
-		if (VARA_VALID(rights, local_rights))
+
+		if (local_rights != NULL)
 			return I4BMAR_DUP;
+
 		/* does it fit in a local socket address? */
+
 		if (strlen(clientspec) > sizeof sa.sun_path)
 			return I4BMAR_LENGTH;
+
 		r.local = 1;
 		strcpy(r.name, clientspec);
+
 #ifndef I4B_NOTCPIP_MONITOR
-	} else {
+
+	}
+	else
+	{
 		/* remote entry, parse host/net and cidr */
+
+		struct monitor_rights * rp;
 		char hostname[FILENAME_MAX];
 		char *p;
+
 		p = strchr(clientspec, '/');
-		if (!p) {
+
+		if (!p)
+		{
 			struct hostent *host;
 			u_int32_t hn;
+
 			/* must be a host spec */
+
 			r.mask = ~0;
 			host = gethostbyname(clientspec);
+
 			if (!host)
 				return I4BMAR_NOIP;
+
 			memcpy(&hn, host->h_addr_list[0], sizeof hn);
 			r.net = (u_int32_t)ntohl(hn);
-		} else if (p[1]) {
+		}
+		else if(p[1])
+		{
 			/* must be net/cidr spec */
+
 			int l;
 			struct netent *net;
 			u_int32_t s = ~0U;
 			int num = strtol(p+1, NULL, 10);
+
 			if (num < 0 || num > 32)
 				return I4BMAR_CIDR;
+
 			s >>= num;
 			s ^= ~0U;
 			l = p - clientspec;
+
 			if (l >= sizeof hostname)
 				return I4BMAR_LENGTH;
+
 			strncpy(hostname, clientspec, l);
+
 			hostname[l] = '\0';
+
 			net = getnetbyname(hostname);
+
 			if (net == NULL)
 				r.net = (u_int32_t)inet_network(hostname);
 			else
 				r.net = (u_int32_t)net->n_net;
+
 			r.mask = s;
 			r.net &= s;
-		} else
+		}
+		else
+		{
 			return I4BMAR_CIDR;
+		}
 
 		/* check for duplicate entry */
-		VARA_FOREACH(rights, i)
-			if (VARA_AT(rights, i).mask == r.mask &&
-			    VARA_AT(rights, i).net == r.net &&
-			    VARA_AT(rights, i).local == r.local)
+
+		for (rp = TAILQ_FIRST(&rights); rp != NULL; rp = TAILQ_NEXT(rp, list))
+		{
+			if (rp->mask == r.mask &&
+			    rp->net == r.net &&
+			    rp->local == r.local)
+			{
 				return I4BMAR_DUP;
+			}
+		}
 #endif
 	}
+
 	r.rights = 0;
 
 	/* entry ok, add it to the collection */
-	cur_add_entry = i = VARA_NUM(rights);
-	VARA_ADD_AT(rights, i, struct monitor_rights, INITIAL_RIGHTS_ALLOC);
-	memcpy(&VARA_AT(rights, i), &r, sizeof r);
-	if (r.local)
-		local_rights = i;
+
+	cur_add_entry = malloc(sizeof(r));
+	memcpy(cur_add_entry, &r, sizeof(r));
+	TAILQ_INSERT_TAIL(&rights, cur_add_entry, list);
+
+	if(r.local)
+		local_rights = cur_add_entry;
 
 	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor = %s", clientspec)));
 	
 	return I4BMAR_OK;
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Add rights to the currently constructed entry - if any.
- */
-void monitor_add_rights(int rights_mask)
+ *---------------------------------------------------------------------------*/
+void
+monitor_add_rights(int rights_mask)
 {
-	if (cur_add_entry < 0) return;	/* noone under construction */
+	if(cur_add_entry == NULL)
+		return;		/* noone under construction */
 
-	VARA_AT(rights, cur_add_entry).rights |= rights_mask;
+	cur_add_entry->rights |= rights_mask;
 
 	DBGL(DL_RCCF, (log(LL_DBG, "system: monitor-access = 0x%x", rights_mask)));
 }
 
-/*
+/*---------------------------------------------------------------------------
  * All rights have been added now. Sort the to get most specific
  * host/net masks first, so we can travel the list and use the first
  * match for actual rights.
- */
-void monitor_fixup_rights()
+ *---------------------------------------------------------------------------*/
+void
+monitor_fixup_rights(void)
 {
-	int i;
+	struct monitor_rights * cur, * test, * next;
 
 	/* no more rights may be added to the current entry */
-	cur_add_entry = -1;
-	
-	/* sort the rights array */
-	qsort(VARA_PTR(rights), VARA_NUM(rights), sizeof(struct monitor_rights), cmp_rights);
 
-	/* now the local entry may have moved, update its index */
-	if (VARA_VALID(rights, local_rights)) {
-		local_rights = -1;
-		VARA_FOREACH(rights, i) {
-			if (VARA_AT(rights, i).local) {
-				local_rights = i;
+	cur_add_entry = NULL;
+	
+	/* sort the rights */
+	for (next = NULL, cur = TAILQ_FIRST(&rights); cur != NULL; cur = next)
+	{
+		next = TAILQ_NEXT(cur, list);
+		for (test = TAILQ_FIRST(&rights); test != NULL && test != cur; test = TAILQ_NEXT(test, list))
+		{
+			if (cmp_rights(cur, test) > 0) {
+				/* move cur up the list and insert before test */
+				TAILQ_REMOVE(&rights, cur, list);
+				if (test == TAILQ_FIRST(&rights))
+					TAILQ_INSERT_HEAD(&rights, cur, list);
+				else
+					TAILQ_INSERT_BEFORE(test, cur, list);
 				break;
 			}
 		}
-	}	
+	}
 }
 
-/* comparator for rights */
-static int cmp_rights(const void *a, const void *b)
+/*---------------------------------------------------------------------------
+ * comparator for rights
+ *---------------------------------------------------------------------------*/
+static int
+cmp_rights(const struct monitor_rights *pa, const struct monitor_rights *pb)
 {
 	u_int32_t mask;
-	struct monitor_rights const * pa = (struct monitor_rights const*)a;
-	struct monitor_rights const * pb = (struct monitor_rights const*)b;
 
 	/* local sorts first */
+
 	if (pa->local)
 		return -1;
 
 	/* which is the less specific netmask? */
+
 	mask = pa->mask;
+
 	if ((pb->mask & mask) == 0)
 		mask = pb->mask;
+
 	/* are the entries disjunct? */
-	if ((pa->net & mask) != (pb->net & mask)) {
+
+	if ((pa->net & mask) != (pb->net & mask))
+	{
 		/* simply compare net part of address */
 		return ((pa->net & mask) < (pb->net & mask)) ? -1 : 1;
 	}
+
 	/* One entry is part of the others net. We already now "mask" is
 	 * the netmask of the less specific (i.e. greater) one */
+
 	return (pa->mask == mask) ? 1 : -1;
 }
 
 #ifndef I4B_NOTCPIP_MONITOR
-/*
+/*---------------------------------------------------------------------------
  * Check if access rights for a remote socket are specified and
  * create this socket. Return -1 otherwise.
- */
-int monitor_create_remote_socket(int portno)
+ *---------------------------------------------------------------------------*/
+int
+monitor_create_remote_socket(int portno)
 {
 	struct sockaddr_in sa;
 	int val;
-	int remotesockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (remotesockfd == -1) {
-		log(LL_ERR, "could not create remote monitor socket, errno = %d", errno);
-		exit(1);
+	int remotesockfd;
+
+	remotesockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(remotesockfd == -1)
+	{
+		log(LL_MER, "could not create remote monitor socket: %s", strerror(errno));
+		return(-1);
 	}
+
 	val = 1;
-	if (setsockopt(remotesockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val)) {
-		log(LL_ERR, "could not setsockopt, errno = %d", errno);
-		exit(1);
+
+	if(setsockopt(remotesockfd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof val))
+	{
+		log(LL_MER, "could not setsockopt: %s", strerror(errno));
+		return(-1);
 	}
+
 	memset(&sa, 0, sizeof sa);
 	sa.sin_len = sizeof sa;
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(portno);
 	sa.sin_addr.s_addr = htonl(INADDR_ANY);
-	if (bind(remotesockfd, (struct sockaddr *)&sa, sizeof sa) == -1) {
-		log(LL_ERR, "could not bind remote monitor socket to port %d, errno = %d", portno, errno);
-		exit(1);
-	}
-	if (listen(remotesockfd, 0)) {
-		log(LL_ERR, "could not listen on monitor socket, errno = %d", errno);
-		exit(1);
+
+	if(bind(remotesockfd, (struct sockaddr *)&sa, sizeof sa) == -1)
+	{
+		log(LL_MER, "could not bind remote monitor socket to port %d: %s", portno, strerror(errno));
+		return(-1);
 	}
 
-	return remotesockfd;
+	if(listen(remotesockfd, 0))
+	{
+		log(LL_MER, "could not listen on monitor socket: %s", strerror(errno));
+		return(-1);
+	}
+
+	return(remotesockfd);
 }
 #endif
 
-/*
+/*---------------------------------------------------------------------------
  * Check if access rights for a local socket are specified and
  * create this socket. Return -1 otherwise.
- */
-int monitor_create_local_socket()
+ *---------------------------------------------------------------------------*/
+int
+monitor_create_local_socket(void)
 {
 	int s;
 	struct sockaddr_un sa;
 
 	/* check for a local entry */
-	if (!VARA_VALID(rights, local_rights))
-		return -1;
+
+	if (local_rights == NULL)
+		return(-1);
 
 	/* create and setup socket */
+
 	s = socket(AF_LOCAL, SOCK_STREAM, 0);
-	if (s == -1) {
-		log(LL_ERR, "could not create local monitor socket, errno = %d", errno);
-		exit(1);
+
+	if (s == -1)
+	{
+		log(LL_MER, "could not create local monitor socket, errno = %d", errno);
+		return(-1);
 	}
-	unlink(VARA_AT(rights, local_rights).name);
+
+	unlink(local_rights->name);
+
 	memset(&sa, 0, sizeof sa);
 	sa.sun_len = sizeof sa;
 	sa.sun_family = AF_LOCAL;
-	strcpy(sa.sun_path, VARA_AT(rights, local_rights).name);
-	if (bind(s, (struct sockaddr *)&sa, SUN_LEN(&sa))) {
-		log(LL_ERR, "could not bind local monitor socket [%s], errno = %d", VARA_AT(rights, local_rights).name, errno);
-		exit(1);
-	}
-	chmod(VARA_AT(rights, local_rights).name, 0500);
-	if (listen(s, 0)) {
-		log(LL_ERR, "could not listen on local monitor socket, errno = %d", errno);
-		exit(1);
+	strcpy(sa.sun_path, local_rights->name);
+
+	if (bind(s, (struct sockaddr *)&sa, SUN_LEN(&sa)))
+	{
+		log(LL_MER, "could not bind local monitor socket [%s], errno = %d", local_rights->name, errno);
+		return(-1);
 	}
 
-	return s;
+	chmod(local_rights->name, 0500);
+
+	if (listen(s, 0))
+	{
+		log(LL_MER, "could not listen on local monitor socket, errno = %d", errno);
+		return(-1);
+	}
+
+	return(s);
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Prepare a fd_set for a select call. Add all our local
  * filedescriptors to the set, increment max_fd if appropriate.
- */
-void monitor_prepselect(fd_set *selset, int *max_fd)
+ *---------------------------------------------------------------------------*/
+void
+monitor_prepselect(fd_set *selset, int *max_fd)
 {
-	int i;
+	struct monitor_connection * con;
 
-	VARA_FOREACH(connections, i) {
-		int fd = VARA_AT(connections, i).sock;
+	for (con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
+	{
+		int fd = con->sock;
+
 		if (fd > *max_fd)
 			*max_fd = fd;
+
 		FD_SET(fd, selset);
 	}
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Check if the result from a select call indicates something
  * to do for us.
- */
-void monitor_handle_input(fd_set *selset)
+ *---------------------------------------------------------------------------*/
+void
+monitor_handle_input(fd_set *selset)
 {
-	int i;
+	struct monitor_connection * con, * next;
 
-	VARA_FOREACH(connections, i) {
-		int fd = VARA_AT(connections, i).sock;
-		if (FD_ISSET(fd, selset)) {
+	for (next = NULL, con = TAILQ_FIRST(&connections); con != NULL; con = next)
+	{
+		int fd = con->sock;
+		next = TAILQ_NEXT(con, connections);
+
+		if (FD_ISSET(fd, selset))
+		{
 			/* handle command from this client */
-			if (monitor_command(i, fd, VARA_AT(connections, i).rights) != 0) {
+
+			if (monitor_command(con, fd, con->rights) != 0)
+			{
 				/* broken or closed connection */
-				log(LL_DBG, "monitor connection #%d closed", i);
-				VARA_REMOVEAT(connections, i);
-				i--;
+
+				char source[FILENAME_MAX];
+
+				strcpy(source, con->source);
+				TAILQ_REMOVE(&connections, con, connections);
+				free(con);
+				log(LL_DMN, "monitor closed from %s", source );
 			}
 		}
 	}
 
 	/* all connections gone? */
-	if (VARA_NUM(connections) == 0)
+
+	if (TAILQ_FIRST(&connections) == NULL)
 		accepted = 0;
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Try new incoming connection on the given socket.
  * Setup client descriptor and send initial data.
- */
-void monitor_handle_connect(int sockfd, int is_local)
+ *---------------------------------------------------------------------------*/
+void
+monitor_handle_connect(int sockfd, int is_local)
 {
 	struct monitor_connection *con;
+	struct monitor_rights *rp;
+
 #ifndef I4B_NOTCPIP_MONITOR
 	struct sockaddr_in ia;
 	u_int32_t ha = 0;
 #endif
+
 	struct sockaddr_un ua;
-	BYTE idata[I4B_MON_IDATA_SIZE];
-	int fd = -1, s, i, r_mask;
+	u_int8_t idata[I4B_MON_IDATA_SIZE];
+	int fd = -1, s, i, r_mask, t_events;
 	char source[FILENAME_MAX];
 
 	/* accept the connection */
-	if (is_local) {
+
+	if(is_local)
+	{
 		s = sizeof ua;
 		fd = accept(sockfd, (struct sockaddr *)&ua, &s);
-		strcpy(source, "local connection");
+		strcpy(source, "local");
+
 #ifndef I4B_NOTCPIP_MONITOR
-	} else {
+	}
+	else
+	{
+		struct hostent *hp;
+		
 		s = sizeof ia;
 		fd = accept(sockfd, (struct sockaddr *)&ia, &s);
-		snprintf(source, sizeof source, "tcp/ip connection from %s\n",
-			inet_ntoa(ia.sin_addr));
+
+		hp = gethostbyaddr((char *)&ia.sin_addr, 4, AF_INET);
+
+		if(hp == NULL)
+			snprintf(source, sizeof source, "%s (%s)", inet_ntoa(ia.sin_addr), inet_ntoa(ia.sin_addr));
+		else
+			snprintf(source, sizeof source, "%s (%s)", hp->h_name, inet_ntoa(ia.sin_addr));
+
 		memcpy(&ha, &ia.sin_addr.s_addr, sizeof ha);
+
 		ha = ntohl(ha);
 #endif
 	}
 
 	/* check the access rights of this connection */
+
 	r_mask = 0;
-	VARA_FOREACH(rights, i) {
-		struct monitor_rights *r = &VARA_AT(rights, i);
-		if (r->local) {
-			if (is_local) {
-				r_mask = r->rights;
+
+	for (rp = TAILQ_FIRST(&rights); rp != NULL; rp = TAILQ_NEXT(rp, list))
+	{
+		if(rp->local)
+		{
+			if(is_local)
+			{
+				r_mask = rp->rights;
 				break;
 			}
+
 #ifndef I4B_NOTCPIP_MONITOR
-		} else {
-			if ((ha & r->mask) == r->net) {
-				r_mask = r->rights;
+		}
+		else
+		{
+			if((ha & rp->mask) == rp->net)
+			{
+				r_mask = rp->rights;
 				break;
 			}
 #endif
 		}
 	}
 
-	if (r_mask == 0) {
+	if(r_mask == 0)
+	{
 		/* no rights - go away */
-		log(LL_DBG, "monitor access denied: %s", source);
+		log(LL_MER, "monitor access denied from %s", source);
 		close(fd);
 		return;
 	}
 
 	accepted = 1;
-	i = VARA_NUM(connections);
-	VARA_ADD_AT(connections, i, struct monitor_connection, INITIAL_CONNECTIONS_ALLOC);
-	con = &VARA_AT(connections, i);
+
+	con = malloc(sizeof(struct monitor_connection));
 	memset(con, 0, sizeof *con);
+	TAILQ_INSERT_TAIL(&connections, con, connections);
 	con->sock = fd;
 	con->rights = r_mask;
-	log(LL_DBG, "monitor access granted, rights = %x, #%d, %s",
-		r_mask, i, source);
+	strcpy(con->source, source);
+	
+	log(LL_DMN, "monitor opened from %s rights 0x%x", source, r_mask);
 
 	/* send initial data */
 	I4B_PREP_CMD(idata, I4B_MON_IDATA_CODE);
 	I4B_PUT_2B(idata, I4B_MON_IDATA_VERSMAJOR, MPROT_VERSION);
 	I4B_PUT_2B(idata, I4B_MON_IDATA_VERSMINOR, MPROT_REL);
 	I4B_PUT_2B(idata, I4B_MON_IDATA_NUMCTRL, ncontroller);
+	I4B_PUT_2B(idata, I4B_MON_IDATA_NUMENTR, nentries);	
 	I4B_PUT_4B(idata, I4B_MON_IDATA_CLACCESS, r_mask);
-	write(fd, idata, sizeof idata);
 
-	for (i = 0; i < ncontroller; i++) {
-		BYTE ictrl[I4B_MON_ICTRL_SIZE];
+	if((sock_write(fd, idata, sizeof idata)) == -1)
+	{
+		log(LL_MER, "monitor_handle_connect: sock_write 1 error - %s", strerror(errno));
+	}
+		
+	for (i = 0; i < ncontroller; i++)
+	{
+		u_int8_t ictrl[I4B_MON_ICTRL_SIZE];
+
 		I4B_PREP_CMD(ictrl, I4B_MON_ICTRL_CODE);
 		I4B_PUT_STR(ictrl, I4B_MON_ICTRL_NAME, name_of_controller(isdn_ctrl_tab[i].ctrl_type, isdn_ctrl_tab[i].card_type));
 		I4B_PUT_2B(ictrl, I4B_MON_ICTRL_BUSID, 0);
 		I4B_PUT_4B(ictrl, I4B_MON_ICTRL_FLAGS, 0);
 		I4B_PUT_4B(ictrl, I4B_MON_ICTRL_NCHAN, 2);
-		write(fd, ictrl, sizeof ictrl);
+
+		if((sock_write(fd, ictrl, sizeof ictrl)) == -1)
+		{
+			log(LL_MER, "monitor_handle_connect: sock_write 2 error - %s", strerror(errno));
+		}
+		
 	}
+
+	/* send device names from entries */
+	
+	for(i=0; i < nentries; i++)	/* walk thru all entries */
+	{
+		u_int8_t ictrl[I4B_MON_IDEV_SIZE];
+		cfg_entry_t *p;
+		char nbuf[64];		
+		p = &cfg_entry_tab[i];		/* get ptr to enry */
+
+		sprintf(nbuf, "%s%d ", bdrivername(p->usrdevicename), p->usrdeviceunit);
+
+		I4B_PREP_CMD(ictrl, I4B_MON_IDEV_CODE);
+/*XXX*/		I4B_PUT_2B(ictrl, I4B_MON_IDEV_STATE, 1);
+		I4B_PUT_STR(ictrl, I4B_MON_IDEV_NAME, nbuf);
+
+		if((sock_write(fd, ictrl, sizeof ictrl)) == -1)
+		{
+			log(LL_MER, "monitor_handle_connect: sock_write 3 error - %s", strerror(errno));
+		}
+	}
+
+/*XXX*/	t_events = con->events;
+/*XXX*/	con->events = -1;
+
+	/* current state of controller(s) */
+	
+	for(i=0; i < ncontroller; i++)
+	{
+		monitor_evnt_tei(i, isdn_ctrl_tab[i].tei);
+		monitor_evnt_l12stat(i, LAYER_ONE, isdn_ctrl_tab[i].l1stat);
+		monitor_evnt_l12stat(i, LAYER_TWO, isdn_ctrl_tab[i].l2stat);
+	}
+
+	/* current state of entries */
+	
+	for(i=0; i < nentries; i++)
+        {
+		cfg_entry_t *cep = &cfg_entry_tab[i];
+
+		if(cep->state == ST_CONNECTED)
+		{
+			monitor_evnt_connect(cep);
+			monitor_evnt_acct(cep);
+			monitor_evnt_charge(cep, cep->charge, 1);
+		}
+        }
+
+/*XXX*/	con->events = t_events;
+	
 }
 
-/* dump all monitor rights */
-static void cmd_dump_rights(int fd, int r_mask, BYTE *cmd)
+/*---------------------------------------------------------------------------
+ * dump all monitor rights
+ *---------------------------------------------------------------------------*/
+static void
+cmd_dump_rights(int fd, int r_mask, u_int8_t *cmd, const char *source)
 {
-	int i;
-	BYTE drini[I4B_MON_DRINI_SIZE];
-	BYTE dr[I4B_MON_DR_SIZE];
+	struct monitor_rights * r;
+	int num_rights;
+	u_int8_t drini[I4B_MON_DRINI_SIZE];
+	u_int8_t dr[I4B_MON_DR_SIZE];
+
+	for (num_rights = 0, r = TAILQ_FIRST(&rights); r != NULL; r = TAILQ_NEXT(r, list))
+		num_rights++;
 
 	I4B_PREP_EVNT(drini, I4B_MON_DRINI_CODE);
-	I4B_PUT_2B(drini, I4B_MON_DRINI_COUNT, VARA_NUM(rights));
-	write(fd, drini, sizeof drini);
+	I4B_PUT_2B(drini, I4B_MON_DRINI_COUNT, num_rights);
 
-	VARA_FOREACH(rights, i) {
+	if((sock_write(fd, drini, sizeof drini)) == -1)
+	{
+		log(LL_MER, "cmd_dump_rights: sock_write 1 error - %s", strerror(errno));
+	}
+
+	for (r = TAILQ_FIRST(&rights); r != NULL; r = TAILQ_NEXT(r, list))
+	{
 		I4B_PREP_EVNT(dr, I4B_MON_DR_CODE);
-		I4B_PUT_4B(dr, I4B_MON_DR_RIGHTS, VARA_AT(rights, i).rights);
-		I4B_PUT_4B(dr, I4B_MON_DR_NET, VARA_AT(rights, i).net);
-		I4B_PUT_4B(dr, I4B_MON_DR_MASK, VARA_AT(rights, i).mask);
-		I4B_PUT_1B(dr, I4B_MON_DR_LOCAL, VARA_AT(rights, i).local);
-		write(fd, dr, sizeof dr);
+		I4B_PUT_4B(dr, I4B_MON_DR_RIGHTS, r->rights);
+		I4B_PUT_4B(dr, I4B_MON_DR_NET, r->net);
+		I4B_PUT_4B(dr, I4B_MON_DR_MASK, r->mask);
+		I4B_PUT_1B(dr, I4B_MON_DR_LOCAL, r->local);
+		if((sock_write(fd, dr, sizeof dr)) == -1)
+		{
+			log(LL_MER, "cmd_dump_rights: sock_write 2 error - %s", strerror(errno));
+		}		
 	}
 }
 
-/* rescan config file */
-static void cmd_reread_cfg(int fd, int rights, BYTE *cmd)
+/*---------------------------------------------------------------------------
+ * rescan config file
+ *---------------------------------------------------------------------------*/
+static void
+cmd_reread_cfg(int fd, int rights, u_int8_t *cmd, const char * source)
 {
 	rereadconfig(42);
 }
 
-/* drop one connection */
-static void cmd_hangup(int fd, int rights, BYTE *cmd)
+/*---------------------------------------------------------------------------
+ * drop one connection
+ *---------------------------------------------------------------------------*/
+static void
+cmd_hangup(int fd, int rights, u_int8_t *cmd, const char * source)
 {
 	int channel = I4B_GET_4B(cmd, I4B_MON_HANGUP_CHANNEL);
-	hangup_channel(channel);
+	int ctrl = I4B_GET_4B(cmd, I4B_MON_HANGUP_CTRL);	
+
+	hangup_channel(ctrl, channel, source);
 }
 
-/* dump all active monitor connections */
-static void cmd_dump_mcons(int fd, int rights, BYTE *cmd)
+/*---------------------------------------------------------------------------
+ * dump all active monitor connections
+ *---------------------------------------------------------------------------*/
+static void
+cmd_dump_mcons(int fd, int rights, u_int8_t *cmd, const char * source)
 {
-	int i;
-	BYTE dcini[I4B_MON_DCINI_SIZE];
+	int num_connections;
+	struct monitor_connection *con;
+	u_int8_t dcini[I4B_MON_DCINI_SIZE];
+
+	for (num_connections = 0, con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
+		num_connections++;
 
 	I4B_PREP_EVNT(dcini, I4B_MON_DCINI_CODE);
-	I4B_PUT_2B(dcini, I4B_MON_DCINI_COUNT, VARA_NUM(connections));
-	write(fd, dcini, sizeof dcini);
+	I4B_PUT_2B(dcini, I4B_MON_DCINI_COUNT, num_connections);
 
-	VARA_FOREACH(connections, i) {
+	if((sock_write(fd, dcini, sizeof dcini)) == -1)
+	{
+		log(LL_MER, "cmd_dump_mcons: sock_write 1 error - %s", strerror(errno));
+	}		
+
+	for (con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
+	{
 #ifndef I4B_NOTCPIP_MONITOR
 		int namelen;
 		struct sockaddr_in name;
 #endif
-		BYTE dc[I4B_MON_DC_SIZE];
+		u_int8_t dc[I4B_MON_DC_SIZE];
 
 		I4B_PREP_EVNT(dc, I4B_MON_DC_CODE);
-		I4B_PUT_4B(dc, I4B_MON_DC_RIGHTS, VARA_AT(connections, i).rights);
+		I4B_PUT_4B(dc, I4B_MON_DC_RIGHTS, con->rights);
+
 #ifndef I4B_NOTCPIP_MONITOR
 		namelen = sizeof name;
-		if (getpeername(VARA_AT(connections, i).sock, (struct sockaddr*)&name, &namelen) == 0)
+
+		if (getpeername(con->sock, (struct sockaddr*)&name, &namelen) == 0)
 			memcpy(dc+I4B_MON_DC_WHO, &name.sin_addr, sizeof name.sin_addr);
 #endif
-		write(fd, dc, sizeof dc);
+		if((sock_write(fd, dc, sizeof dc)) == -1)
+		{
+			log(LL_MER, "cmd_dump_mcons: sock_write 2 error - %s", strerror(errno));
+		}
 	}
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Handle a command from the given socket. The client
  * has rights as specified in the rights parameter.
  * Return non-zero if connection is closed.
- */
-static int monitor_command(int con_index, int fd, int rights)
+ *---------------------------------------------------------------------------*/
+static int
+monitor_command(struct monitor_connection * con, int fd, int rights)
 {
 	char cmd[I4B_MAX_MON_CLIENT_CMD];
 	u_int code;
+
 	/* command dispatch table */
-	typedef void (*cmd_func_t)(int fd, int rights, BYTE *cmd);
+	typedef void (*cmd_func_t)(int fd, int rights, u_int8_t *cmd, const char *source);
+
 	static struct {
 		cmd_func_t call;	/* function to execute */
 		u_int rights;		/* necessary rights */
@@ -584,10 +840,14 @@ static int monitor_command(int con_index, int fd, int rights)
 
 	/* Network transfer may deliver two or more packets concatenated.
 	 * Peek at the header and read only one event at a time... */
+
 	ioctl(fd, FIONREAD, &u);
-	if (u < I4B_MON_CMD_HDR) {
-		if (u == 0) {
-			log(LL_ERR, "monitor #%d, read 0 bytes", con_index);
+
+	if (u < I4B_MON_CMD_HDR)
+	{
+		if (u == 0)
+		{
+			/* log(LL_MER, "monitor read 0 bytes"); */
 			/* socket closed by peer */
 			close(fd);
 			return 1;
@@ -599,7 +859,7 @@ static int monitor_command(int con_index, int fd, int rights)
 
 	if (bytes < I4B_MON_CMD_HDR)
 	{
-		log(LL_ERR, "monitor #%d, read only %d bytes", con_index, bytes);
+		log(LL_MER, "monitor read only %d bytes", bytes);
 		return 0;	/* errh? something must be wrong... */
 	}
 
@@ -608,14 +868,15 @@ static int monitor_command(int con_index, int fd, int rights)
 	if (bytes >= sizeof cmd)
 	{
 		close(fd);
-		log(LL_ERR, "monitor #%d, garbage on connection", con_index);
+		log(LL_MER, "monitor: garbage on connection");
 		return 1;
 	}
 
 	/* now we know the size, it fits, so lets read it! */
-	if (read(fd, cmd, bytes) <= 0)
+
+	if(sock_read(fd, cmd, bytes) <= 0)
 	{
-		log(LL_ERR, "monitor #%d, read <= 0", con_index);
+		log(LL_MER, "monitor: sock_read <= 0");
 		close(fd);
 		return 1;
 	}
@@ -625,72 +886,127 @@ static int monitor_command(int con_index, int fd, int rights)
 
 	/* special case: may modify our connection descriptor, is
 	 * beyound all rights checks */
-	if (code == I4B_MON_CCMD_SETMASK) {
+
+	if (code == I4B_MON_CCMD_SETMASK)
+	{
+/*XXX*/
 		/*
 		u_int major = I4B_GET_2B(cmd, I4B_MON_ICLIENT_VERMAJOR);
 		u_int minor = I4B_GET_2B(cmd, I4B_MON_ICLIENT_VERMINOR);
 		*/
+
 		int events = I4B_GET_4B(cmd, I4B_MON_ICLIENT_EVENTS);
-		VARA_AT(connections, con_index).events = events & rights;
+		con->events = events & rights;
 		return 0;
 	}
 
-	if (code < 0 || code >= NUMCMD) {
-		log(LL_ERR, "illegal command from client #%d: code = %d\n",
-			con_index, code);
+	if (code < 0 || code >= NUMCMD)
+	{
+		log(LL_MER, "illegal command from client, code = %d\n",
+			code);
 		return 0;
 	}
+
 	if (cmd_tab[code].call == NULL)
 		return 0;
+
 	if ((cmd_tab[code].rights & rights) == cmd_tab[code].rights)
-		cmd_tab[code].call(fd, rights, cmd);
+		cmd_tab[code].call(fd, rights, cmd, con->source);
 
 	return 0;
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Check if somebody would receive an event with this mask.
  * We are lazy and try to avoid assembling unneccesary packets.
  * Return 0 if no one interested, nonzero otherwise.
- */
-static int anybody(int mask)
+ *---------------------------------------------------------------------------*/
+static int
+anybody(int mask)
 {
-	int i;
+	struct monitor_connection * con;
 
-	VARA_FOREACH(connections, i)
-		if ((VARA_AT(connections, i).events & mask) == mask)
+	for (con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
+	{
+		if ((con->events & mask) == mask)
 			return 1;
-
+	}
 	return 0;
 }
 
-/*
+/*---------------------------------------------------------------------------
+ * exec hangup command
+ *---------------------------------------------------------------------------*/
+static void
+hangup_channel(int controller, int channel, const char *source)
+{
+	cfg_entry_t * cep = NULL;
+
+	if(controller < ncontroller)
+	{	
+		if(isdn_ctrl_tab[controller].state != CTRL_UP)
+			return;
+		if(isdn_ctrl_tab[controller].stateb1 != CHAN_IDLE)
+		{
+			cep = get_cep_by_cc(controller, 0);
+			if (cep != NULL && cep->isdnchannelused == channel &&
+				cep->isdncontrollerused == controller)
+				goto found;
+		}
+		if(isdn_ctrl_tab[controller].stateb2 != CHAN_IDLE)
+		{
+			cep = get_cep_by_cc(controller, 1);
+			if (cep != NULL && cep->isdnchannelused == channel &&
+				cep->isdncontrollerused == controller)
+				goto found;
+		}
+	}
+	/* not found */
+	return;
+
+found:
+	log(LL_CHD, "%05d %s manual disconnect (remote from %s)", cep->cdid, cep->name, source);
+	cep->hangup = 1;
+	return;
+}
+
+/*---------------------------------------------------------------------------
  * Send an event to every connection interested in this kind of
  * event
- */
-static void monitor_broadcast(int mask, const BYTE *pkt, size_t bytes)
+ *---------------------------------------------------------------------------*/
+static void
+monitor_broadcast(int mask, u_int8_t *pkt, size_t bytes)
 {
-	int i;
+	struct monitor_connection *con;
 
-	VARA_FOREACH(connections, i) {
-		if ((VARA_AT(connections, i).events & mask) == mask) {
-			int fd = VARA_AT(connections,  i).sock;
-			write(fd, pkt, bytes);
+	for (con = TAILQ_FIRST(&connections); con != NULL; con = TAILQ_NEXT(con, connections))
+	{
+		if ((con->events & mask) == mask)
+		{
+			int fd = con->sock;
+
+			if((sock_write(fd, pkt, bytes)) == -1)
+			{
+				log(LL_MER, "monitor_broadcast: sock_write error - %s", strerror(errno));
+			}
 		}
 	}
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Post a logfile event
- */
-void monitor_evnt_log(int prio, const char * what, const char * msg)
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_log(int prio, const char * what, const char * msg)
 {
-	BYTE evnt[I4B_MON_LOGEVNT_SIZE];
+	u_int8_t evnt[I4B_MON_LOGEVNT_SIZE];
 	time_t now;
 
-	if (!anybody(I4B_CA_EVNT_I4B)) return;
+	if (!anybody(I4B_CA_EVNT_I4B))
+		return;
 
 	time(&now);
+
 	I4B_PREP_EVNT(evnt, I4B_MON_LOGEVNT_CODE);
 	I4B_PUT_4B(evnt, I4B_MON_LOGEVNT_TSTAMP, (long)now);
 	I4B_PUT_4B(evnt, I4B_MON_LOGEVNT_PRIO, prio);
@@ -700,125 +1016,274 @@ void monitor_evnt_log(int prio, const char * what, const char * msg)
 	monitor_broadcast(I4B_CA_EVNT_I4B, evnt, sizeof evnt);
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Post a charging event on the connection described
  * by the given config entry.
- */
-void monitor_evnt_charge(cfg_entry_t *cep, int units, int estimate)
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_charge(cfg_entry_t *cep, int units, int estimate)
 {
-	int chno = CHNO(cep);
-	int mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
+	int mask;
 	time_t now;
-	BYTE evnt[I4B_MON_CHRG_SIZE];
+	u_int8_t evnt[I4B_MON_CHRG_SIZE];
+	
+	mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
 
-	if (!anybody(mask)) return;
+	if(!anybody(mask))
+		return;
 
 	time(&now);
+
 	I4B_PREP_EVNT(evnt, I4B_MON_CHRG_CODE);
 	I4B_PUT_4B(evnt, I4B_MON_CHRG_TSTAMP, (long)now);
-	I4B_PUT_4B(evnt, I4B_MON_CHRG_CHANNEL, chno);
+	I4B_PUT_4B(evnt, I4B_MON_CHRG_CTRL, cep->isdncontrollerused);
+	I4B_PUT_4B(evnt, I4B_MON_CHRG_CHANNEL, cep->isdnchannelused);
 	I4B_PUT_4B(evnt, I4B_MON_CHRG_UNITS, units);
 	I4B_PUT_4B(evnt, I4B_MON_CHRG_ESTIMATED, estimate ? 1 : 0);
 
 	monitor_broadcast(mask, evnt, sizeof evnt);
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Post a connection event
- */
-void monitor_evnt_connect(cfg_entry_t *cep)
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_connect(cfg_entry_t *cep)
 {
-	BYTE evnt[I4B_MON_CONNECT_SIZE];
+	u_int8_t evnt[I4B_MON_CONNECT_SIZE];
 	char devname[I4B_MAX_MON_STRING];
-	int chno = CHNO(cep);
-	int mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
+	int mask;
 	time_t now;
+	
+	mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
 
-	if (!anybody(mask)) return;
+	if (!anybody(mask))
+		return;
 
 	time(&now);
+
 	snprintf(devname, sizeof devname, "%s%d", bdrivername(cep->usrdevicename), cep->usrdeviceunit);
+
 	I4B_PREP_EVNT(evnt, I4B_MON_CONNECT_CODE);
 	I4B_PUT_4B(evnt, I4B_MON_CONNECT_TSTAMP, (long)now);
 	I4B_PUT_4B(evnt, I4B_MON_CONNECT_DIR, cep->direction == DIR_OUT ? 1 : 0);
-	I4B_PUT_4B(evnt, I4B_MON_CONNECT_CHANNEL, chno);
+	I4B_PUT_4B(evnt, I4B_MON_CONNECT_CTRL, cep->isdncontrollerused);
+	I4B_PUT_4B(evnt, I4B_MON_CONNECT_CHANNEL, cep->isdnchannelused);	
 	I4B_PUT_STR(evnt, I4B_MON_CONNECT_CFGNAME, cep->name);
 	I4B_PUT_STR(evnt, I4B_MON_CONNECT_DEVNAME, devname);
-	I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->real_phone_incoming);
-	I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->remote_phone_dialout);
 
+	if(cep->direction == DIR_OUT)
+	{
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->remote_phone_dialout);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_dialout);
+	}
+	else
+	{
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_REMPHONE, cep->real_phone_incoming);
+		I4B_PUT_STR(evnt, I4B_MON_CONNECT_LOCPHONE, cep->local_phone_incoming);
+	}
 	monitor_broadcast(mask, evnt, sizeof evnt);
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Post a disconnect event
- */
-void monitor_evnt_disconnect(cfg_entry_t *cep)
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_disconnect(cfg_entry_t *cep)
 {
-	BYTE evnt[I4B_MON_DISCONNECT_SIZE];
-	int chno = CHNO(cep);
-	int mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
+	u_int8_t evnt[I4B_MON_DISCONNECT_SIZE];
+	int mask;
 	time_t now;
+	
+	mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
 
-	if (!anybody(mask)) return;
+	if (!anybody(mask))
+		return;
 
 	time(&now);
+
 	I4B_PREP_EVNT(evnt, I4B_MON_DISCONNECT_CODE);
 	I4B_PUT_4B(evnt, I4B_MON_DISCONNECT_TSTAMP, (long)now);
-	I4B_PUT_4B(evnt, I4B_MON_DISCONNECT_CHANNEL, chno);
+	I4B_PUT_4B(evnt, I4B_MON_DISCONNECT_CTRL, cep->isdncontrollerused);
+	I4B_PUT_4B(evnt, I4B_MON_DISCONNECT_CHANNEL, cep->isdnchannelused);
 
 	monitor_broadcast(mask, evnt, sizeof evnt);
 }
 
-/*
+/*---------------------------------------------------------------------------
  * Post an up/down event
- */
-void monitor_evnt_updown(cfg_entry_t *cep, int up)
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_updown(cfg_entry_t *cep, int up)
 {
-	BYTE evnt[I4B_MON_UPDOWN_SIZE];
-	int chno = CHNO(cep);
-	int mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
+	u_int8_t evnt[I4B_MON_UPDOWN_SIZE];
+	int mask;
 	time_t now;
+	
+	mask = (cep->direction == DIR_IN) ? I4B_CA_EVNT_CALLIN : I4B_CA_EVNT_CALLOUT;
 
-	if (!anybody(mask)) return;
+	if (!anybody(mask))
+		return;
 
 	time(&now);
+
 	I4B_PREP_EVNT(evnt, I4B_MON_UPDOWN_CODE);
 	I4B_PUT_4B(evnt, I4B_MON_UPDOWN_TSTAMP, (long)now);
-	I4B_PUT_4B(evnt, I4B_MON_UPDOWN_CHANNEL, chno);
+	I4B_PUT_4B(evnt, I4B_MON_UPDOWN_CTRL, cep->isdncontrollerused);
+	I4B_PUT_4B(evnt, I4B_MON_UPDOWN_CHANNEL, cep->isdnchannelused);	
 	I4B_PUT_4B(evnt, I4B_MON_UPDOWN_ISUP, up);
 
 	monitor_broadcast(mask, evnt, sizeof evnt);
 }
 
-void hangup_channel(int channel)
+/*---------------------------------------------------------------------------
+ * Post a Layer1/2 status change event
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_l12stat(int controller, int layer, int state)
 {
-	int i;
-	cfg_entry_t * cep = NULL;
-	
-	for (i = 0; i < ncontroller; i++)
-	{	
-		if(isdn_ctrl_tab[i].state != CTRL_UP)
-			continue;
-		if(isdn_ctrl_tab[i].stateb1 != CHAN_IDLE)
-		{
-			cep = get_cep_by_cc(i, 0);
-			if (cep != NULL && CHNO(cep) == channel)
-				goto found;
-		}
-		if(isdn_ctrl_tab[i].stateb2 != CHAN_IDLE)
-		{
-			cep = get_cep_by_cc(i, 1);
-			if (cep != NULL && CHNO(cep) == channel)
-				goto found;
-		}
-	}
-	/* not found */
-	return;
+	u_int8_t evnt[I4B_MON_L12STAT_SIZE];
+	time_t now;
 
-found:
-	cep->hangup = 1;
-	return;
+	if(!anybody(I4B_CA_EVNT_I4B))
+		return;
+
+	time(&now);
+	
+	I4B_PREP_EVNT(evnt, I4B_MON_L12STAT_CODE);
+	I4B_PUT_4B(evnt, I4B_MON_L12STAT_TSTAMP, (long)now);
+	I4B_PUT_4B(evnt, I4B_MON_L12STAT_CTRL, controller);
+	I4B_PUT_4B(evnt, I4B_MON_L12STAT_LAYER, layer);
+	I4B_PUT_4B(evnt, I4B_MON_L12STAT_STATE, state);
+
+	monitor_broadcast(I4B_CA_EVNT_I4B, evnt, sizeof evnt);
+}
+
+/*---------------------------------------------------------------------------
+ * Post a TEI change event
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_tei(int controller, int tei)
+{
+	u_int8_t evnt[I4B_MON_TEI_SIZE];
+	time_t now;
+
+	if(!anybody(I4B_CA_EVNT_I4B))
+		return;
+
+	time(&now);
+	
+	I4B_PREP_EVNT(evnt, I4B_MON_TEI_CODE);
+	I4B_PUT_4B(evnt, I4B_MON_TEI_TSTAMP, (long)now);
+	I4B_PUT_4B(evnt, I4B_MON_TEI_CTRL, controller);
+	I4B_PUT_4B(evnt, I4B_MON_TEI_TEI, tei);
+
+	monitor_broadcast(I4B_CA_EVNT_I4B, evnt, sizeof evnt);
+}
+
+/*---------------------------------------------------------------------------
+ * Post an accounting event
+ *---------------------------------------------------------------------------*/
+void
+monitor_evnt_acct(cfg_entry_t *cep)
+{
+	u_int8_t evnt[I4B_MON_ACCT_SIZE];
+	time_t now;
+
+	if(!anybody(I4B_CA_EVNT_I4B))
+		return;
+
+	time(&now);
+	
+	I4B_PREP_EVNT(evnt, I4B_MON_ACCT_CODE);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_TSTAMP, (long)now);
+
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_CTRL,   cep->isdncontrollerused);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_CHAN,   cep->isdnchannelused);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_OBYTES, cep->outbytes);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_OBPS,   cep->outbps);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_IBYTES, cep->inbytes);
+	I4B_PUT_4B(evnt, I4B_MON_ACCT_IBPS,   cep->inbps);
+
+	monitor_broadcast(I4B_CA_EVNT_I4B, evnt, sizeof evnt);
+}
+
+/*---------------------------------------------------------------------------
+ * read from a socket
+ *---------------------------------------------------------------------------*/
+static ssize_t
+sock_read(int fd, void *buf, size_t nbytes)
+{
+	size_t nleft;
+	ssize_t nread;
+	unsigned char *ptr;
+
+	ptr = buf;
+	nleft = nbytes;
+
+	while(nleft > 0)
+	{
+		if((nread = read(fd, ptr, nleft)) < 0)
+		{
+			if(errno == EINTR)
+			{
+				nread = 0;
+			}
+			else
+			{
+				return(-1);
+			}
+		}
+		else if(nread == 0)
+		{
+			break; /* EOF */
+		}
+
+		nleft -= nread;
+		ptr += nread;
+	}
+	return(nbytes - nleft);
+}
+
+/*---------------------------------------------------------------------------
+ * write to a socket
+ *---------------------------------------------------------------------------*/
+static ssize_t
+sock_write(int fd, void *buf, size_t nbytes)
+{
+	size_t nleft;
+	ssize_t nwritten;
+	unsigned char *ptr;
+
+	ptr = buf;
+	nleft = nbytes;
+
+	while(nleft > 0)
+	{
+		if((nwritten = write(fd, ptr, nleft)) <= 0)
+		{
+			if(errno == EINTR)
+			{
+				nwritten = 0;
+			}
+			else
+			{
+				return(-1);
+			}
+		}
+
+		nleft -= nwritten;
+		ptr += nwritten;
+	}
+	return(nbytes);
+}
+
+struct monitor_rights * monitor_next_rights(const struct monitor_rights *r)
+{
+	if (r == NULL)
+		return TAILQ_FIRST(&rights);
+	else
+		return TAILQ_NEXT(r, list);
 }
 
 #endif	/* I4B_EXTERNAL_MONITOR */

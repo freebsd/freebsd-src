@@ -27,11 +27,15 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: main.c,v 1.49 1999/12/13 21:25:25 hm Exp $ 
  *
- *      last edit-date: [Fri Jul 30 08:14:10 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 21:47:35 1999]
  *
  *---------------------------------------------------------------------------*/
+
+#include <locale.h>
 
 #ifdef I4B_EXTERNAL_MONITOR
 #include "monitor.h"
@@ -97,7 +101,9 @@ usage(void)
 	fprintf(stderr, "    -s <facility> use facility instead of %d for syslog logging\n", LOG_LOCAL0 >> 3);
 	fprintf(stderr, "    -t <termtype> terminal type of redirected screen (for -f)\n");
 	fprintf(stderr, "    -u <time>     length of a charging unit in seconds\n");
-	fprintf(stderr, "    -m            inhibit network/local monitoring\n");
+#ifdef I4B_EXTERNAL_MONITOR
+	fprintf(stderr, "    -m            inhibit network/local monitoring (protocol %02d.%02d)\n", MPROT_VERSION, MPROT_REL);
+#endif	
 	fprintf(stderr, "\n");
 	exit(1);
 }
@@ -117,6 +123,8 @@ main(int argc, char **argv)
 	int remotesockfd = -1;		/* tcp/ip monitor socket */
 #endif
 #endif
+
+	setlocale (LC_ALL, "");
 	
 	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:")) != -1)
 	{
@@ -126,9 +134,11 @@ main(int argc, char **argv)
 				do_bell = 1;
 				break;
 				
+#ifdef I4B_EXTERNAL_MONITOR
 			case 'm':
 				inhibit_monitor = 1;
 				break;
+#endif
 				
 			case 'c':
 				configfile = optarg;
@@ -306,6 +316,10 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
+	/* set controller ISDN protocol */
+	
+	init_controller_protocol();
+	
 	/* init active controllers, if any */
 	
 	signal(SIGCHLD, SIG_IGN);		/*XXX*/
@@ -430,6 +444,57 @@ do_exit(int exitval)
 }
 
 /*---------------------------------------------------------------------------*
+ *	program exit
+ *---------------------------------------------------------------------------*/
+void
+error_exit(int exitval, const char *fmt, ...)
+{
+	close_allactive();
+
+	unlink(PIDFILE);
+
+	log(LL_DMN, "fatal error, daemon terminating, exitval = %d", exitval);
+	
+#ifdef USE_CURSES
+	if(do_fullscreen)
+		endwin();
+#endif
+
+#ifdef I4B_EXTERNAL_MONITOR
+	monitor_exit();
+#endif
+
+	if(mailto[0] && mailer[0])
+	{
+
+#define EXITBL 2048
+
+		char ebuffer[EXITBL];
+		char sbuffer[EXITBL];
+		va_list ap;
+
+		va_start(ap, fmt);
+		vsnprintf(ebuffer, EXITBL-1, fmt, ap);
+		va_end(ap);
+
+		signal(SIGCHLD, SIG_IGN);	/* remove handler */
+		
+		sprintf(sbuffer, "%s%s%s%s%s%s%s%s",
+			"cat << ENDOFDATA | ",
+			mailer,
+			" -s \"i4b isdnd: fatal error, terminating\" ",
+			mailto,
+			"\nThe isdnd terminated because of a fatal error:\n\n",
+			ebuffer,
+			"\n\nYours sincerely,\n   the isdnd\n",
+			"\nENDOFDATA\n");
+		system(sbuffer);
+	}
+
+	exit(exitval);
+}
+
+/*---------------------------------------------------------------------------*
  *	main loop
  *---------------------------------------------------------------------------*/
 static void
@@ -524,8 +589,8 @@ mloop(
 		{
 			if(errno != EINTR)
 			{
-				log(LL_ERR, "ERROR, select error on isdn device, errno = %d!", errno);
-				do_exit(1);
+				log(LL_ERR, "mloop: ERROR, select error on isdn device, errno = %d!", errno);
+				error_exit(1, "mloop: ERROR, select error on isdn device, errno = %d!", errno);
 			}
 		}			
 
@@ -637,6 +702,10 @@ isdnrdhdl(void)
 				msg_dialoutnumber((msg_dialoutnumber_ind_t *)msg_rd_buf);
 				break;
 
+			case MSG_PACKET_IND:
+				msg_packet_ind((msg_packet_ind_t *)msg_rd_buf);
+				break;
+
 			default:
 				log(LL_WRN, "ERROR, unknown message received from /dev/isdn (0x%x)", msg_rd_buf[0]);
 				break;
@@ -660,6 +729,10 @@ rereadconfig(int dummy)
 	
 	close_allactive();
 
+#if I4B_EXTERNAL_MONITOR
+	monitor_clear_rights();
+#endif
+
 	entrycount = -1;
 	nentries = 0;
 	
@@ -670,7 +743,7 @@ rereadconfig(int dummy)
 	if(config_error_flag)
 	{
 		log(LL_ERR, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
-		do_exit(1);
+		error_exit(1, "rereadconfig: there were %d error(s) in the configuration file, terminating!", config_error_flag);
 	}
 
 	if(aliasing)
@@ -705,14 +778,14 @@ reopenfiles(int dummy)
 			if((rename(acctfile, filename)) != 0)
 			{
 				log(LL_ERR, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
-				do_exit(1);
+				error_exit(1, "reopenfiles: acct rename failed, cause = %s", strerror(errno));
 			}
 		}
 
 		if((acctfp = fopen(acctfile, "a")) == NULL)
 		{
 			log(LL_ERR, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
-			do_exit(1);
+			error_exit(1, "ERROR, can't open acctfile %s for writing, terminating!", acctfile);
 		}
 		setvbuf(acctfp, (char *)NULL, _IONBF, 0);
 	}
@@ -732,7 +805,7 @@ reopenfiles(int dummy)
 			if((rename(logfile, filename)) != 0)
 			{
 				log(LL_ERR, "reopenfiles: log rename failed, cause = %s", strerror(errno));
-				do_exit(1);
+				error_exit(1, "reopenfiles: log rename failed, cause = %s", strerror(errno));
 			}
 		}
 
@@ -740,7 +813,8 @@ reopenfiles(int dummy)
 		{
 			fprintf(stderr, "ERROR, cannot open logfile %s: %s\n",
 				logfile, strerror(errno));
-			exit(1);
+			error_exit(1, "reopenfiles: ERROR, cannot open logfile %s: %s\n",
+				logfile, strerror(errno));
 		}
 
 		/* set unbuffered operation */

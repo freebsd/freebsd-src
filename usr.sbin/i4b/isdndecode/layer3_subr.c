@@ -27,9 +27,11 @@
  *	layer3_subr.c - subroutines for IE decoding
  *	-------------------------------------------
  *
+ *	$Id: layer3_subr.c,v 1.6 1999/12/13 21:25:25 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:16:58 1999]
+ *      last edit-date: [Mon Dec 13 21:51:00 1999]
  *
  *---------------------------------------------------------------------------*/
 
