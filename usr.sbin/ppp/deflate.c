@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.13 1998/04/25 00:09:10 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.14 1998/04/25 10:48:56 brian Exp $
  */
 
 #include <sys/types.h>
@@ -63,7 +63,7 @@ DeflateResetOutput(void *v)
   state->seqno = 0;
   state->uncomp_rec = 0;
   deflateReset(&state->cx);
-  LogPrintf(LogCCP, "Deflate: Output channel reset\n");
+  log_Printf(LogCCP, "Deflate: Output channel reset\n");
 }
 
 static int
@@ -75,12 +75,12 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   int olen, ilen, len, res, flush;
   struct mbuf *mo_head, *mo, *mi_head, *mi;
 
-  ilen = plength(mp);
-  LogPrintf(LogDEBUG, "DeflateOutput: Proto %02x (%d bytes)\n", proto, ilen);
-  LogDumpBp(LogDEBUG, "DeflateOutput: Compress packet:", mp);
+  ilen = mbuf_Length(mp);
+  log_Printf(LogDEBUG, "DeflateOutput: Proto %02x (%d bytes)\n", proto, ilen);
+  log_DumpBp(LogDEBUG, "DeflateOutput: Compress packet:", mp);
 
   /* Stuff the protocol in front of the input */
-  mi_head = mi = mballoc(2, MB_HDLCOUT);
+  mi_head = mi = mbuf_Alloc(2, MB_HDLCOUT);
   mi->next = mp;
   rp = MBUF_CTOP(mi);
   if (proto < 0x100) {			/* Compress the protocol */
@@ -93,12 +93,12 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   }
 
   /* Allocate the initial output mbuf */
-  mo_head = mo = mballoc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
+  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
   mo->cnt = 2;
   wp = MBUF_CTOP(mo);
   *wp++ = state->seqno >> 8;
   *wp++ = state->seqno & 0377;
-  LogPrintf(LogDEBUG, "DeflateOutput: Seq %d\n", state->seqno);
+  log_Printf(LogDEBUG, "DeflateOutput: Seq %d\n", state->seqno);
   state->seqno++;
 
   /* Set up the deflation context */
@@ -113,10 +113,10 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     if ((res = deflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
-      LogPrintf(LogERROR, "DeflateOutput: deflate returned %d (%s)\n",
+      log_Printf(LogERROR, "DeflateOutput: deflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
-      pfree(mo_head);
-      mbfree(mi_head);
+      mbuf_Free(mo_head);
+      mbuf_FreeSeg(mi_head);
       state->seqno--;
       return 1;			/* packet dropped */
     }
@@ -133,7 +133,7 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     }
 
     if (state->cx.avail_out == 0) {
-      mo->next = mballoc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
+      mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_HDLCOUT);
       olen += (mo->cnt = DEFLATE_CHUNK_LEN);
       mo = mo->next;
       mo->cnt = 0;
@@ -147,20 +147,20 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
 
   /*
    * If the output packet (including seqno and excluding the EMPTY_BLOCK)
-   * got bigger, send the original - returning 0 to HdlcOutput() will
+   * got bigger, send the original - returning 0 to hdlc_Output() will
    * continue to send ``mp''.
    */
   if (olen >= ilen) {
-    pfree(mo_head);
-    mbfree(mi_head);
-    LogPrintf(LogDEBUG, "DeflateOutput: %d => %d: Uncompressible (0x%04x)\n",
+    mbuf_Free(mo_head);
+    mbuf_FreeSeg(mi_head);
+    log_Printf(LogDEBUG, "DeflateOutput: %d => %d: Uncompressible (0x%04x)\n",
               ilen, olen, proto);
     ccp->uncompout += ilen;
     ccp->compout += ilen;	/* We measure this stuff too */
     return 0;
   }
 
-  pfree(mi_head);
+  mbuf_Free(mi_head);
 
   /*
    * Lose the last four bytes of our output.
@@ -171,17 +171,17 @@ DeflateOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
     ;
   mo->cnt -= len - olen;
   if (mo->next != NULL) {
-    pfree(mo->next);
+    mbuf_Free(mo->next);
     mo->next = NULL;
   }
 
   ccp->uncompout += ilen;
   ccp->compout += olen;
 
-  LogPrintf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
+  log_Printf(LogDEBUG, "DeflateOutput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, proto);
 
-  HdlcOutput(l, PRI_NORMAL, ccp_Proto(ccp), mo_head);
+  hdlc_Output(l, PRI_NORMAL, ccp_Proto(ccp), mo_head);
   return 1;
 }
 
@@ -193,7 +193,7 @@ DeflateResetInput(void *v)
   state->seqno = 0;
   state->uncomp_rec = 0;
   inflateReset(&state->cx);
-  LogPrintf(LogCCP, "Deflate: Input channel reset\n");
+  log_Printf(LogCCP, "Deflate: Input channel reset\n");
 }
 
 static struct mbuf *
@@ -206,13 +206,13 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
   int seq, flush, res, first;
   u_char hdr[2];
 
-  LogDumpBp(LogDEBUG, "DeflateInput: Decompress packet:", mi);
-  mi_head = mi = mbread(mi, hdr, 2);
+  log_DumpBp(LogDEBUG, "DeflateInput: Decompress packet:", mi);
+  mi_head = mi = mbuf_Read(mi, hdr, 2);
   ilen = 2;
 
   /* Check the sequence number. */
   seq = (hdr[0] << 8) + hdr[1];
-  LogPrintf(LogDEBUG, "DeflateInput: Seq %d\n", seq);
+  log_Printf(LogDEBUG, "DeflateInput: Seq %d\n", seq);
   if (seq != state->seqno) {
     if (seq <= state->uncomp_rec)
       /*
@@ -222,10 +222,10 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
        */
       state->seqno = seq;
     else {
-      LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
+      log_Printf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
                 seq, state->seqno);
-      pfree(mi_head);
-      CcpSendResetReq(&ccp->fsm);
+      mbuf_Free(mi_head);
+      ccp_SendResetReq(&ccp->fsm);
       return NULL;
     }
   }
@@ -233,7 +233,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
   state->uncomp_rec = 0;
 
   /* Allocate an output mbuf */
-  mo_head = mo = mballoc(DEFLATE_CHUNK_LEN, MB_IPIN);
+  mo_head = mo = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_IPIN);
 
   /* Our proto starts with 0 if it's compressed */
   wp = MBUF_CTOP(mo);
@@ -258,18 +258,18 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
     if ((res = inflate(&state->cx, flush)) != Z_OK) {
       if (res == Z_STREAM_END)
         break;			/* Done */
-      LogPrintf(LogERROR, "DeflateInput: inflate returned %d (%s)\n",
+      log_Printf(LogERROR, "DeflateInput: inflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
-      pfree(mo_head);
-      pfree(mi);
-      CcpSendResetReq(&ccp->fsm);
+      mbuf_Free(mo_head);
+      mbuf_Free(mi);
+      ccp_SendResetReq(&ccp->fsm);
       return NULL;
     }
 
     if (flush == Z_SYNC_FLUSH && state->cx.avail_out != 0)
       break;
 
-    if (state->cx.avail_in == 0 && mi && (mi = mbfree(mi)) != NULL) {
+    if (state->cx.avail_in == 0 && mi && (mi = mbuf_FreeSeg(mi)) != NULL) {
       /* underflow */
       state->cx.next_in = MBUF_CTOP(mi);
       ilen += (state->cx.avail_in = mi->cnt);
@@ -290,7 +290,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
         first = 0;
       } else {
         olen += (mo->cnt = DEFLATE_CHUNK_LEN);
-        mo->next = mballoc(DEFLATE_CHUNK_LEN, MB_IPIN);
+        mo->next = mbuf_Alloc(DEFLATE_CHUNK_LEN, MB_IPIN);
         mo = mo->next;
         state->cx.next_out = MBUF_CTOP(mo);
         state->cx.avail_out = DEFLATE_CHUNK_LEN;
@@ -299,12 +299,12 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
   }
 
   if (mi != NULL)
-    pfree(mi);
+    mbuf_Free(mi);
 
   if (first) {
-    LogPrintf(LogERROR, "DeflateInput: Length error\n");
-    pfree(mo_head);
-    CcpSendResetReq(&ccp->fsm);
+    log_Printf(LogERROR, "DeflateInput: Length error\n");
+    mbuf_Free(mo_head);
+    ccp_SendResetReq(&ccp->fsm);
     return NULL;
   }
 
@@ -318,7 +318,7 @@ DeflateInput(void *v, struct ccp *ccp, u_short *proto, struct mbuf *mi)
   ccp->compin += ilen;
   ccp->uncompin += olen;
 
-  LogPrintf(LogDEBUG, "DeflateInput: %d => %d bytes, proto 0x%04x\n",
+  log_Printf(LogDEBUG, "DeflateInput: %d => %d bytes, proto 0x%04x\n",
             ilen, olen, *proto);
 
   /*
@@ -343,15 +343,15 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
   struct mbuf *mi_head;
   short len;
 
-  LogPrintf(LogDEBUG, "DeflateDictSetup: Got seq %d\n", state->seqno);
+  log_Printf(LogDEBUG, "DeflateDictSetup: Got seq %d\n", state->seqno);
 
   /*
    * Stuff an ``uncompressed data'' block header followed by the
    * protocol in front of the input
    */
-  mi_head = mballoc(7, MB_HDLCOUT);
+  mi_head = mbuf_Alloc(7, MB_HDLCOUT);
   mi_head->next = mi;
-  len = plength(mi);
+  len = mbuf_Length(mi);
   mi = mi_head;
   rp = MBUF_CTOP(mi);
   if (proto < 0x100) {			/* Compress the protocol */
@@ -383,12 +383,12 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
         break;			/* Done */
       if (expect_error && res == Z_BUF_ERROR)
         break;
-      LogPrintf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
+      log_Printf(LogERROR, "DeflateDictSetup: inflate returned %d (%s)\n",
                 res, state->cx.msg ? state->cx.msg : "");
-      LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
+      log_Printf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
                 state->cx.avail_in, state->cx.avail_out);
-      CcpSendResetReq(&ccp->fsm);
-      mbfree(mi_head);		/* lose our allocated ``head'' buf */
+      ccp_SendResetReq(&ccp->fsm);
+      mbuf_FreeSeg(mi_head);		/* lose our allocated ``head'' buf */
       return;
     }
 
@@ -428,7 +428,7 @@ DeflateDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 
   state->seqno++;
   state->uncomp_rec++;
-  mbfree(mi_head);		/* lose our allocated ``head'' buf */
+  mbuf_FreeSeg(mi_head);		/* lose our allocated ``head'' buf */
 }
 
 static const char *

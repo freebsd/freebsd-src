@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.h,v 1.4.2.3 1998/04/07 00:54:18 brian Exp $
+ *	$Id: server.h,v 1.4.2.4 1998/04/10 13:19:20 brian Exp $
  */
 
 struct bundle;
@@ -39,12 +39,11 @@ struct server {
   u_short port;			/* tcp socket */
 };
 
-#define server2descriptor(s) (&(s)->desc)
 #define descriptor2server(d) \
   ((d)->type == SERVER_DESCRIPTOR ? (struct server *)(d) : NULL)
 
 extern struct server server;
 
-extern int ServerLocalOpen(struct bundle *, const char *, mode_t);
-extern int ServerTcpOpen(struct bundle *, int);
-extern int ServerClose(struct bundle *);
+extern int server_LocalOpen(struct bundle *, const char *, mode_t);
+extern int server_TcpOpen(struct bundle *, int);
+extern int server_Close(struct bundle *);

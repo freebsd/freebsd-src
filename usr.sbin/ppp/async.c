@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.12 1998/04/19 01:18:51 brian Exp $
+ * $Id: async.c,v 1.15.2.13 1998/04/21 01:02:08 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -89,8 +89,8 @@ async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
   struct mbuf *wp;
   int cnt;
 
-  if (plength(bp) > HDLCSIZE) {
-    pfree(bp);
+  if (mbuf_Length(bp) > HDLCSIZE) {
+    mbuf_Free(bp);
     return;
   }
   cp = physical->async.xbuff;
@@ -102,7 +102,7 @@ async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
     for (cnt = wp->cnt; cnt > 0; cnt--) {
       HdlcPutByte(&physical->async, &cp, *sp++, proto);
       if (cp >= ep) {
-	pfree(bp);
+	mbuf_Free(bp);
 	return;
       }
     }
@@ -111,10 +111,10 @@ async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
   *cp++ = HDLC_SYN;
 
   cnt = cp - physical->async.xbuff;
-  LogDumpBuff(LogASYNC, "WriteModem", physical->async.xbuff, cnt);
-  link_Write(physical2link(physical), pri, (char *)physical->async.xbuff, cnt);
-  link_AddOutOctets(physical2link(physical), cnt);
-  pfree(bp);
+  log_DumpBuff(LogASYNC, "WriteModem", physical->async.xbuff, cnt);
+  link_Write(&physical->link, pri, (char *)physical->async.xbuff, cnt);
+  link_AddOutOctets(&physical->link, cnt);
+  mbuf_Free(bp);
 }
 
 static struct mbuf *
@@ -129,8 +129,8 @@ async_Decode(struct async *async, u_char c)
   case HDLC_SYN:
     async->mode &= ~MODE_HUNT;
     if (async->length) {		/* packet is ready. */
-      bp = mballoc(async->length, MB_ASYNC);
-      mbwrite(bp, async->hbuff, async->length);
+      bp = mbuf_Alloc(async->length, MB_ASYNC);
+      mbuf_Write(bp, async->hbuff, async->length);
       async->length = 0;
       return bp;
     }
@@ -144,7 +144,7 @@ async_Decode(struct async *async, u_char c)
   default:
     if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */
-      LogPrintf(LogERROR, "Packet too large (%d), discarding.\n", async->length);
+      log_Printf(LogERROR, "Packet too large (%d), discarding.\n", async->length);
       async->length = 0;
       async->mode = MODE_HUNT;
       break;
@@ -165,18 +165,18 @@ async_Input(struct bundle *bundle, u_char *buff, int cnt,
 {
   struct mbuf *bp;
 
-  link_AddInOctets(physical2link(physical), cnt);
+  link_AddInOctets(&physical->link, cnt);
 
-  if (Physical_IsSync(physical)) {
-    bp = mballoc(cnt, MB_ASYNC);
+  if (physical_IsSync(physical)) {
+    bp = mbuf_Alloc(cnt, MB_ASYNC);
     memcpy(MBUF_CTOP(bp), buff, cnt);
     bp->cnt = cnt;
-    HdlcInput(bundle, bp, physical);
+    hdlc_Input(bundle, bp, physical);
   } else {
     while (cnt > 0) {
       bp = async_Decode(&physical->async, *buff++);
       if (bp)
-	HdlcInput(bundle, bp, physical);
+	hdlc_Input(bundle, bp, physical);
       cnt--;
     }
   }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.24 1998/04/24 19:15:55 brian Exp $
+ * $Id: auth.c,v 1.27.2.25 1998/04/28 01:25:03 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -87,7 +87,7 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
 }
 
 int
-AuthSelect(struct bundle *bundle, const char *name, struct physical *physical)
+auth_Select(struct bundle *bundle, const char *name, struct physical *physical)
 {
   FILE *fp;
   int n;
@@ -115,7 +115,7 @@ AuthSelect(struct bundle *bundle, const char *name, struct physical *physical)
 	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
                sizeof bundle->ncp.ipcp.cfg.peer_range);
 */
-	if (n > 2 && !UseHisaddr(bundle, vector[2], 1))
+	if (n > 2 && !ipcp_UseHisaddr(bundle, vector[2], 1))
 	  return 0;
 	ipcp_Setup(&bundle->ncp.ipcp);
 	if (n > 3)
@@ -136,7 +136,7 @@ AuthSelect(struct bundle *bundle, const char *name, struct physical *physical)
 }
 
 int
-AuthValidate(struct bundle *bundle, const char *system,
+auth_Validate(struct bundle *bundle, const char *system,
              const char *key, struct physical *physical)
 {
   /* Used by PAP routines */
@@ -173,7 +173,7 @@ AuthValidate(struct bundle *bundle, const char *system,
 }
 
 char *
-AuthGetSecret(struct bundle *bundle, const char *system, int len,
+auth_GetSecret(struct bundle *bundle, const char *system, int len,
               struct physical *physical)
 {
   /* Used by CHAP routines */
@@ -209,27 +209,27 @@ AuthTimeout(void *vauthp)
 {
   struct authinfo *authp = (struct authinfo *)vauthp;
 
-  StopTimer(&authp->authtimer);
+  timer_Stop(&authp->authtimer);
   if (--authp->retry > 0) {
-    StartTimer(&authp->authtimer);
+    timer_Start(&authp->authtimer);
     (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
   }
 }
 
 void
-authinfo_Init(struct authinfo *authinfo)
+auth_Init(struct authinfo *authinfo)
 {
   memset(authinfo, '\0', sizeof(struct authinfo));
   authinfo->cfg.fsmretry = DEF_FSMRETRY;
 }
 
 void
-StartAuthChallenge(struct authinfo *authp, struct physical *physical,
+auth_StartChallenge(struct authinfo *authp, struct physical *physical,
                    void (*fn)(struct authinfo *, int, struct physical *))
 {
   authp->ChallengeFunc = fn;
   authp->physical = physical;
-  StopTimer(&authp->authtimer);
+  timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
   authp->authtimer.name = "auth";
   authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
@@ -237,12 +237,12 @@ StartAuthChallenge(struct authinfo *authp, struct physical *physical,
   authp->retry = 3;
   authp->id = 1;
   (*authp->ChallengeFunc)(authp, authp->id, physical);
-  StartTimer(&authp->authtimer);
+  timer_Start(&authp->authtimer);
 }
 
 void
-StopAuthTimer(struct authinfo *authp)
+auth_StopTimer(struct authinfo *authp)
 {
-  StopTimer(&authp->authtimer);
+  timer_Stop(&authp->authtimer);
   authp->physical = NULL;
 }

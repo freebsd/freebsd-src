@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.26 1998/04/24 19:16:12 brian Exp $
+ * $Id: pap.c,v 1.20.2.27 1998/04/28 01:25:36 brian Exp $
  *
  *	TODO:
  */
@@ -60,7 +60,7 @@
 static const char *papcodes[] = { "???", "REQUEST", "ACK", "NAK" };
 
 void
-SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
+pap_SendChallenge(struct authinfo *auth, int papid, struct physical *physical)
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -70,13 +70,13 @@ SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
   namelen = strlen(physical->dl->bundle->cfg.auth.name);
   keylen = strlen(physical->dl->bundle->cfg.auth.key);
   plen = namelen + keylen + 2;
-  LogPrintf(LogDEBUG, "SendPapChallenge: namelen = %d, keylen = %d\n",
+  log_Printf(LogDEBUG, "pap_SendChallenge: namelen = %d, keylen = %d\n",
 	    namelen, keylen);
-  LogPrintf(LogPHASE, "PAP: %s\n", physical->dl->bundle->cfg.auth.name);
+  log_Printf(LogPHASE, "PAP: %s\n", physical->dl->bundle->cfg.auth.name);
   lh.code = PAP_REQUEST;
   lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mballoc(plen + sizeof(struct fsmheader), MB_FSM);
+  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_FSM);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = namelen;
@@ -84,9 +84,8 @@ SendPapChallenge(struct authinfo *auth, int papid, struct physical *physical)
   cp += namelen;
   *cp++ = keylen;
   memcpy(cp, physical->dl->bundle->cfg.auth.key, keylen);
-  
 
-  HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
+  hdlc_Output(&physical->link, PRI_LINK, PROTO_PAP, bp);
 }
 
 static void
@@ -102,13 +101,13 @@ SendPapCode(int id, int code, const char *message, struct physical *physical)
   mlen = strlen(message);
   plen = mlen + 1;
   lh.length = htons(plen + sizeof(struct fsmheader));
-  bp = mballoc(plen + sizeof(struct fsmheader), MB_FSM);
+  bp = mbuf_Alloc(plen + sizeof(struct fsmheader), MB_FSM);
   memcpy(MBUF_CTOP(bp), &lh, sizeof(struct fsmheader));
   cp = MBUF_CTOP(bp) + sizeof(struct fsmheader);
   *cp++ = mlen;
   memcpy(cp, message, mlen);
-  LogPrintf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
-  HdlcOutput(physical2link(physical), PRI_LINK, PROTO_PAP, bp);
+  log_Printf(LogPHASE, "PapOutput: %s\n", papcodes[code]);
+  hdlc_Output(&physical->link, PRI_LINK, PROTO_PAP, bp);
 }
 
 /*
@@ -124,16 +123,16 @@ PapValidate(struct bundle *bundle, u_char *name, u_char *key,
   klen = *key;
   *key++ = 0;
   key[klen] = 0;
-  LogPrintf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
+  log_Printf(LogDEBUG, "PapValidate: name %s (%d), key %s (%d)\n",
 	    name, nlen, key, klen);
 
-  return AuthValidate(bundle, name, key, physical);
+  return auth_Validate(bundle, name, key, physical);
 }
 
 void
-PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
+pap_Input(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 {
-  int len = plength(bp);
+  int len = mbuf_Length(bp);
   struct fsmheader *php;
   u_char *cp;
 
@@ -142,7 +141,7 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
     if (len >= ntohs(php->length)) {
       if (php->code < PAP_REQUEST || php->code > PAP_NAK)
 	php->code = 0;
-      LogPrintf(LogPHASE, "PapInput: %s\n", papcodes[php->code]);
+      log_Printf(LogPHASE, "pap_Input: %s\n", papcodes[php->code]);
 
       switch (php->code) {
       case PAP_REQUEST:
@@ -152,7 +151,7 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
 	  physical->link.lcp.auth_ineed = 0;
           if (Enabled(bundle, OPT_UTMP))
-            Physical_Login(physical, cp + 1);
+            physical_Login(physical, cp + 1);
 
           if (physical->link.lcp.auth_iwait == 0)
             /*
@@ -167,11 +166,11 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	}
 	break;
       case PAP_ACK:
-	StopAuthTimer(&physical->dl->pap);
+	auth_StopTimer(&physical->dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
+	log_Printf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
 	if (physical->link.lcp.auth_iwait == PROTO_PAP) {
 	  physical->link.lcp.auth_iwait = 0;
 	  if (physical->link.lcp.auth_ineed == 0)
@@ -184,15 +183,15 @@ PapInput(struct bundle *bundle, struct mbuf *bp, struct physical *physical)
 	}
 	break;
       case PAP_NAK:
-	StopAuthTimer(&physical->dl->pap);
+	auth_StopTimer(&physical->dl->pap);
 	cp = (u_char *) (php + 1);
 	len = *cp++;
 	cp[len] = 0;
-	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
+	log_Printf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
         datalink_AuthNotOk(physical->dl);
 	break;
       }
     }
   }
-  pfree(bp);
+  mbuf_Free(bp);
 }

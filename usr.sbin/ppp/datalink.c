@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.51 1998/04/30 23:53:32 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.52 1998/05/01 19:20:01 brian Exp $
  */
 
 #include <sys/types.h>
@@ -76,15 +76,15 @@ datalink_OpenTimeout(void *v)
 {
   struct datalink *dl = (struct datalink *)v;
 
-  StopTimer(&dl->dial_timer);
+  timer_Stop(&dl->dial_timer);
   if (dl->state == DATALINK_OPENING)
-    LogPrintf(LogPHASE, "%s: Redial timer expired.\n", dl->name);
+    log_Printf(LogPHASE, "%s: Redial timer expired.\n", dl->name);
 }
 
 static void
 datalink_StartDialTimer(struct datalink *dl, int Timeout)
 {
-  StopTimer(&dl->dial_timer);
+  timer_Stop(&dl->dial_timer);
  
   if (Timeout) { 
     if (Timeout > 0)
@@ -94,9 +94,9 @@ datalink_StartDialTimer(struct datalink *dl, int Timeout)
     dl->dial_timer.func = datalink_OpenTimeout;
     dl->dial_timer.name = "dial";
     dl->dial_timer.arg = dl;
-    StartTimer(&dl->dial_timer);
+    timer_Start(&dl->dial_timer);
     if (dl->state == DATALINK_OPENING)
-      LogPrintf(LogPHASE, "%s: Enter pause (%d) for redialing.\n",
+      log_Printf(LogPHASE, "%s: Enter pause (%d) for redialing.\n",
                 dl->name, Timeout);
   }
 }
@@ -105,7 +105,7 @@ static void
 datalink_HangupDone(struct datalink *dl)
 {
   if (dl->physical->type == PHYS_DEDICATED && !dl->bundle->CleaningUp &&
-      Physical_GetFD(dl->physical) != -1) {
+      physical_GetFD(dl->physical) != -1) {
     /* Don't close our modem if the link is dedicated */
     datalink_LoginDone(dl);
     return;
@@ -118,7 +118,7 @@ datalink_HangupDone(struct datalink *dl)
       (dl->physical->type == PHYS_DIRECT) ||
       ((!dl->dial_tries || (dl->dial_tries < 0 && !dl->reconnect_tries)) &&
        !(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)))) {
-    LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
+    log_Printf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
     dl->state = DATALINK_CLOSED;
     dl->dial_tries = -1;
     dl->reconnect_tries = 0;
@@ -126,7 +126,7 @@ datalink_HangupDone(struct datalink *dl)
     if (!dl->bundle->CleaningUp)
       datalink_StartDialTimer(dl, dl->cfg.dial.timeout);
   } else {
-    LogPrintf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
+    log_Printf(LogPHASE, "%s: Re-entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
     if (dl->dial_tries < 0) {
       datalink_StartDialTimer(dl, dl->cfg.reconnect.timeout);
@@ -157,7 +157,7 @@ datalink_ChoosePhoneNumber(struct datalink *dl)
   phone = strsep(&dl->phone.alt, "|");
   dl->phone.chosen = *phone ? phone : "[NONE]";
   if (*phone)
-    LogPrintf(LogPHASE, "Phone: %s\n", phone);
+    log_Printf(LogPHASE, "Phone: %s\n", phone);
   return phone;
 }
 
@@ -166,13 +166,13 @@ datalink_LoginDone(struct datalink *dl)
 {
   if (!dl->script.packetmode) { 
     dl->dial_tries = -1;
-    LogPrintf(LogPHASE, "%s: Entering READY state\n", dl->name);
+    log_Printf(LogPHASE, "%s: Entering READY state\n", dl->name);
     dl->state = DATALINK_READY;
   } else if (modem_Raw(dl->physical, dl->bundle) < 0) {
     dl->dial_tries = 0;
-    LogPrintf(LogWARN, "datalink_LoginDone: Not connected.\n");
+    log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
-      LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
+      log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
       modem_Offline(dl->physical);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
@@ -192,10 +192,10 @@ datalink_LoginDone(struct datalink *dl)
               0 : dl->physical->link.lcp.cfg.openmode);
     ccp_Setup(&dl->physical->link.ccp);
 
-    LogPrintf(LogPHASE, "%s: Entering LCP state\n", dl->name);
+    log_Printf(LogPHASE, "%s: Entering LCP state\n", dl->name);
     dl->state = DATALINK_LCP;
-    FsmUp(&dl->physical->link.lcp.fsm);
-    FsmOpen(&dl->physical->link.lcp.fsm);
+    fsm_Up(&dl->physical->link.lcp.fsm);
+    fsm_Open(&dl->physical->link.lcp.fsm);
   }
 }
 
@@ -227,13 +227,13 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           dl->dial_tries = 0;
         if (modem_Open(dl->physical, dl->bundle) >= 0) {
           if (dl->script.run) {
-            LogPrintf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
+            log_Printf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
             dl->state = DATALINK_DIAL;
             chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial, 1,
                       datalink_ChoosePhoneNumber(dl));
             if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
-              LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
+              log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
                         dl->name, dl->cfg.dial.max - dl->dial_tries,
                         dl->cfg.dial.max);
             return datalink_UpdateSet(d, r, w, e, n);
@@ -242,15 +242,15 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         } else {
           if (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
               dl->cfg.dial.max)
-            LogPrintf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
+            log_Printf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
                       dl->cfg.dial.max - dl->dial_tries, dl->cfg.dial.max);
           else
-            LogPrintf(LogCHAT, "Failed to open modem\n");
+            log_Printf(LogCHAT, "Failed to open modem\n");
 
           if (dl->bundle->CleaningUp ||
               (!(dl->physical->type & (PHYS_PERM|PHYS_DEDICATED)) &&
                dl->cfg.dial.max && dl->dial_tries == 0)) {
-            LogPrintf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
+            log_Printf(LogPHASE, "%s: Entering CLOSED state\n", dl->name);
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
@@ -275,7 +275,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               datalink_HangupDone(dl);
               break;
             case DATALINK_DIAL:
-              LogPrintf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
+              log_Printf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
               dl->state = DATALINK_LOGIN;
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, 0, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
@@ -286,7 +286,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           break;
         case CHAT_FAILED:
           /* Going down - script failed */
-          LogPrintf(LogWARN, "Chat script failed\n");
+          log_Printf(LogWARN, "Chat script failed\n");
           chat_Destroy(&dl->chat);
           switch(dl->state) {
             case DATALINK_HANGUP:
@@ -294,7 +294,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               break;
             case DATALINK_DIAL:
             case DATALINK_LOGIN:
-              LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
+              log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
               dl->state = DATALINK_HANGUP;
               modem_Offline(dl->physical);
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
@@ -399,7 +399,7 @@ datalink_ComeDown(struct datalink *dl, int stay)
   if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
     modem_Offline(dl->physical);
     if (dl->script.run && dl->state != DATALINK_OPENING) {
-      LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
+      log_Printf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
       dl->state = DATALINK_HANGUP;
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else
@@ -430,13 +430,13 @@ datalink_LayerUp(void *v, struct fsm *fp)
     if (dl->physical->link.lcp.his_auth || dl->physical->link.lcp.want_auth) {
       if (bundle_Phase(dl->bundle) == PHASE_ESTABLISH)
         bundle_NewPhase(dl->bundle, PHASE_AUTHENTICATE);
-      LogPrintf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
+      log_Printf(LogPHASE, "%s: his = %s, mine = %s\n", dl->name,
                 Auth2Nam(dl->physical->link.lcp.his_auth),
                 Auth2Nam(dl->physical->link.lcp.want_auth));
       if (dl->physical->link.lcp.his_auth == PROTO_PAP)
-        StartAuthChallenge(&dl->pap, dl->physical, SendPapChallenge);
+        auth_StartChallenge(&dl->pap, dl->physical, pap_SendChallenge);
       if (dl->physical->link.lcp.want_auth == PROTO_CHAP)
-        StartAuthChallenge(&dl->chap.auth, dl->physical, SendChapChallenge);
+        auth_StartChallenge(&dl->chap.auth, dl->physical, chap_SendChallenge);
     } else
       datalink_AuthOk(dl);
   }
@@ -461,7 +461,7 @@ datalink_AuthOk(struct datalink *dl)
         /* We've handed the link off to another ppp ! */
         return;
       case MP_UP:
-        AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
+        auth_Select(dl->bundle, dl->peer.authname, dl->physical);
         /* Fall through */
       case MP_ADDED:
         /* We're in multilink mode ! */
@@ -471,17 +471,17 @@ datalink_AuthOk(struct datalink *dl)
         return;
     }
   } else if (bundle_Phase(dl->bundle) == PHASE_NETWORK) {
-    LogPrintf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
+    log_Printf(LogPHASE, "%s: Already in NETWORK phase\n", dl->name);
     datalink_AuthNotOk(dl);
     return;
   } else {
     dl->bundle->ncp.mp.peer = dl->peer;
     ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
-    AuthSelect(dl->bundle, dl->peer.authname, dl->physical);
+    auth_Select(dl->bundle, dl->peer.authname, dl->physical);
   }
 
-  FsmUp(&dl->physical->link.ccp.fsm);
-  FsmOpen(&dl->physical->link.ccp.fsm);
+  fsm_Up(&dl->physical->link.ccp.fsm);
+  fsm_Open(&dl->physical->link.ccp.fsm);
   dl->state = DATALINK_OPEN;
   bundle_NewPhase(dl->bundle, PHASE_NETWORK);
   (*dl->parent->LayerUp)(dl->parent->object, &dl->physical->link.lcp.fsm);
@@ -491,7 +491,7 @@ void
 datalink_AuthNotOk(struct datalink *dl)
 {
   dl->state = DATALINK_LCP;
-  FsmClose(&dl->physical->link.lcp.fsm);
+  fsm_Close(&dl->physical->link.lcp.fsm);
 }
 
 static void
@@ -504,14 +504,14 @@ datalink_LayerDown(void *v, struct fsm *fp)
     switch (dl->state) {
       case DATALINK_OPEN:
         peerid_Init(&dl->peer);
-        FsmDown(&dl->physical->link.ccp.fsm);
-        FsmClose(&dl->physical->link.ccp.fsm);
+        fsm_Down(&dl->physical->link.ccp.fsm);
+        fsm_Close(&dl->physical->link.ccp.fsm);
         (*dl->parent->LayerDown)(dl->parent->object, fp);
         /* fall through */
 
       case DATALINK_AUTH:
-        StopTimer(&dl->pap.authtimer);
-        StopTimer(&dl->chap.auth.authtimer);
+        timer_Stop(&dl->pap.authtimer);
+        timer_Stop(&dl->chap.auth.authtimer);
     }
     dl->state = DATALINK_LCP;
   }
@@ -524,7 +524,7 @@ datalink_LayerFinish(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
-    FsmDown(fp);	/* Bring us to INITIAL or STARTING */
+    fsm_Down(fp);	/* Bring us to INITIAL or STARTING */
     (*dl->parent->LayerFinish)(dl->parent->object, fp);
     datalink_ComeDown(dl, 0);
   }
@@ -583,8 +583,8 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  authinfo_Init(&dl->pap);
-  authinfo_Init(&dl->chap.auth);
+  auth_Init(&dl->pap);
+  auth_Init(&dl->chap.auth);
 
   if ((dl->physical = modem_Create(dl, type)) == NULL) {
     free(dl->name);
@@ -593,7 +593,7 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   }
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
-  LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
+  log_Printf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
   return dl;
 }
@@ -632,10 +632,10 @@ datalink_Clone(struct datalink *odl, const char *name)
   dl->parent = odl->parent;
   memcpy(&dl->fsmp, &odl->fsmp, sizeof dl->fsmp);
   dl->fsmp.object = dl;
-  authinfo_Init(&dl->pap);
+  auth_Init(&dl->pap);
   dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
 
-  authinfo_Init(&dl->chap.auth);
+  auth_Init(&dl->chap.auth);
   dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
 
   if ((dl->physical = modem_Create(dl, PHYS_MANUAL)) == NULL) {
@@ -653,7 +653,7 @@ datalink_Clone(struct datalink *odl, const char *name)
 
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
-  LogPrintf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
+  log_Printf(LogPHASE, "%s: Created in CLOSED state\n", dl->name);
 
   return dl;
 }
@@ -664,7 +664,7 @@ datalink_Destroy(struct datalink *dl)
   struct datalink *result;
 
   if (dl->state != DATALINK_CLOSED) {
-    LogPrintf(LogERROR, "Oops, destroying a datalink in state %s\n",
+    log_Printf(LogERROR, "Oops, destroying a datalink in state %s\n",
               datalink_State(dl));
     switch (dl->state) {
       case DATALINK_HANGUP:
@@ -692,7 +692,7 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 
   switch (dl->state) {
     case DATALINK_CLOSED:
-      LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
+      log_Printf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
       if (bundle_Phase(dl->bundle) == PHASE_DEAD ||
           bundle_Phase(dl->bundle) == PHASE_TERMINATE)
         bundle_NewPhase(dl->bundle, PHASE_ESTABLISH);
@@ -728,13 +728,13 @@ datalink_Close(struct datalink *dl, int stay)
   switch (dl->state) {
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
-      FsmDown(&dl->physical->link.ccp.fsm);
-      FsmClose(&dl->physical->link.ccp.fsm);
+      fsm_Down(&dl->physical->link.ccp.fsm);
+      fsm_Close(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmClose(&dl->physical->link.lcp.fsm);
+      fsm_Close(&dl->physical->link.lcp.fsm);
       if (stay) {
         dl->dial_tries = -1;
         dl->reconnect_tries = 0;
@@ -753,17 +753,17 @@ datalink_Down(struct datalink *dl, int stay)
   switch (dl->state) {
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
-      FsmDown(&dl->physical->link.ccp.fsm);
-      FsmClose(&dl->physical->link.ccp.fsm);
+      fsm_Down(&dl->physical->link.ccp.fsm);
+      fsm_Close(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     case DATALINK_AUTH:
     case DATALINK_LCP:
-      FsmDown(&dl->physical->link.lcp.fsm);
+      fsm_Down(&dl->physical->link.lcp.fsm);
       if (stay)
-        FsmClose(&dl->physical->link.lcp.fsm);
+        fsm_Close(&dl->physical->link.lcp.fsm);
       else
-        FsmOpen(&dl->physical->link.ccp.fsm);
+        fsm_Open(&dl->physical->link.ccp.fsm);
       /* fall through */
 
     default:
@@ -857,7 +857,7 @@ datalink_SetRedial(struct cmdargs const *arg)
       if (timeout >= 0)
 	arg->cx->cfg.dial.timeout = timeout;
       else {
-	LogPrintf(LogWARN, "Invalid redial timeout\n");
+	log_Printf(LogWARN, "Invalid redial timeout\n");
 	return -1;
       }
     }
@@ -872,7 +872,7 @@ datalink_SetRedial(struct cmdargs const *arg)
 	if (timeout >= 0)
 	  arg->cx->cfg.dial.next_timeout = timeout;
 	else {
-	  LogPrintf(LogWARN, "Invalid next redial timeout\n");
+	  log_Printf(LogWARN, "Invalid next redial timeout\n");
 	  return -1;
 	}
       }
@@ -886,7 +886,7 @@ datalink_SetRedial(struct cmdargs const *arg)
       if (tries >= 0) {
 	arg->cx->cfg.dial.max = tries;
       } else {
-	LogPrintf(LogWARN, "Invalid retry value\n");
+	log_Printf(LogWARN, "Invalid retry value\n");
 	return 1;
       }
     }
@@ -932,7 +932,7 @@ datalink_FromBinary(struct bundle *bundle, int fd)
 
   got = fullread(fd, dl, sizeof *dl);
   if (got != sizeof *dl) {
-    LogPrintf(LogWARN, "Cannot receive datalink"
+    log_Printf(LogWARN, "Cannot receive datalink"
               " (got %d bytes, not %d)\n", got, sizeof *dl);
     close(fd);
     free(dl);
@@ -941,7 +941,7 @@ datalink_FromBinary(struct bundle *bundle, int fd)
 
   got = fullread(fd, &get, sizeof get);
   if (got != sizeof get) {
-    LogPrintf(LogWARN, "Cannot receive name length"
+    log_Printf(LogWARN, "Cannot receive name length"
               " (got %d bytes, not %d)\n", got, sizeof get);
     close(fd);
     free(dl);
@@ -951,7 +951,7 @@ datalink_FromBinary(struct bundle *bundle, int fd)
   dl->name = (char *)malloc(get + 1);
   got = fullread(fd, dl->name, get);
   if (got != get) {
-    LogPrintf(LogWARN, "Cannot receive name"
+    log_Printf(LogWARN, "Cannot receive name"
               " (got %d bytes, not %d)\n", got, get);
     close(fd);
     free(dl->name);
@@ -986,16 +986,16 @@ datalink_FromBinary(struct bundle *bundle, int fd)
   dl->fsmp.object = dl;
 
   retry = dl->pap.cfg.fsmretry;
-  authinfo_Init(&dl->pap);
+  auth_Init(&dl->pap);
   dl->pap.cfg.fsmretry = retry;
 
   retry = dl->chap.auth.cfg.fsmretry;
-  authinfo_Init(&dl->chap.auth);
+  auth_Init(&dl->chap.auth);
   dl->chap.auth.cfg.fsmretry = retry;
 
   got = fullread(fd, &get, sizeof get);
   if (got != sizeof get) {
-    LogPrintf(LogWARN, "Cannot receive physical length"
+    log_Printf(LogWARN, "Cannot receive physical length"
               " (got %d bytes, not %d)\n", got, sizeof get);
     close(fd);
     free(dl->name);
@@ -1023,9 +1023,9 @@ datalink_ToBinary(struct datalink *dl, int fd)
    *  `----------'----------'------'--------------'
    */
 
-  StopTimer(&dl->dial_timer);
-  StopTimer(&dl->pap.authtimer);
-  StopTimer(&dl->chap.auth.authtimer);
+  timer_Stop(&dl->dial_timer);
+  timer_Stop(&dl->pap.authtimer);
+  timer_Stop(&dl->chap.auth.authtimer);
 
   if (fd != -1) {
     int err;
@@ -1043,7 +1043,7 @@ datalink_ToBinary(struct datalink *dl, int fd)
       err++;
 
     if (err) {
-      LogPrintf(LogERROR, "Failed sending datalink\n");
+      log_Printf(LogERROR, "Failed sending datalink\n");
       close(fd);
       fd = -1;
     }
@@ -1070,7 +1070,7 @@ datalink_Rename(struct datalink *dl)
       break;
   n = sprintf(name, "%.*s-", dl->name[f] == '-' ? f : f + 1, dl->name);
   sprintf(name + n, "%d", atoi(dl->name + f + 1) + 1);
-  LogPrintf(LogPHASE, "Rename link %s to %s\n", dl->name, name);
+  log_Printf(LogPHASE, "Rename link %s to %s\n", dl->name, name);
   free(dl->name);
   dl->physical->link.name = dl->name = name;
 }

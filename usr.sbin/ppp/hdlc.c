@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.29 1998/04/24 19:16:03 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.30 1998/04/28 01:25:18 brian Exp $
  *
  *	TODO:
  */
@@ -109,7 +109,7 @@ hdlc_Init(struct hdlc *hdlc, struct lcp *lcp)
  *  2.27 for further details.
  */
 inline u_short
-HdlcFcs(u_short fcs, u_char * cp, int len)
+hdlc_Fcs(u_short fcs, u_char * cp, int len)
 {
   while (len--)
     fcs = (fcs >> 8) ^ fcstab[(fcs ^ *cp++) & 0xff];
@@ -122,7 +122,7 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
   int len;
   u_char *pos, *end;
 
-  len = plength(m);
+  len = mbuf_Length(m);
   pos = MBUF_CTOP(m);
   end = pos + m->cnt;
   while (len--) {
@@ -137,19 +137,19 @@ HdlcFcsBuf(u_short fcs, struct mbuf *m)
 }
 
 void
-HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
+hdlc_Output(struct link *l, int pri, u_short proto, struct mbuf *bp)
 {
   struct physical *p = link2physical(l);
   struct mbuf *mhp, *mfcs;
   u_char *cp;
   u_short fcs;
 
-  if (!p || Physical_IsSync(p))
+  if (!p || physical_IsSync(p))
     mfcs = NULL;
   else
-    mfcs = mballoc(2, MB_HDLCOUT);
+    mfcs = mbuf_Alloc(2, MB_HDLCOUT);
 
-  mhp = mballoc(4, MB_HDLCOUT);
+  mhp = mbuf_Alloc(4, MB_HDLCOUT);
   mhp->cnt = 0;
   cp = MBUF_CTOP(mhp);
   if (p && (proto == PROTO_LCP || l->lcp.his_acfcomp == 0)) {
@@ -190,7 +190,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   bp->next = mfcs;
   bp = mhp->next;
 
-  p->hdlc.lqm.OutOctets += plength(mhp) + 1;
+  p->hdlc.lqm.OutOctets += mbuf_Length(mhp) + 1;
   p->hdlc.lqm.OutPackets++;
 
   if (proto == PROTO_LQR) {
@@ -214,12 +214,12 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
        * from the last one
        */
       lqr.PeerOutLQRs = ++p->hdlc.lqm.lqr.OutLQRs;
-      LqrDump(l->name, "Output", &lqr);
+      lqr_Dump(l->name, "Output", &lqr);
     } else {
       lqr.PeerOutLQRs = p->hdlc.lqm.lqr.OutLQRs;
-      LqrDump(l->name, "Output (again)", &lqr);
+      lqr_Dump(l->name, "Output (again)", &lqr);
     }
-    LqrChangeOrder(&lqr, (struct lqrdata *)MBUF_CTOP(bp));
+    lqr_ChangeOrder(&lqr, (struct lqrdata *)MBUF_CTOP(bp));
   }
 
   if (mfcs) {
@@ -232,12 +232,12 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
     mfcs->cnt = 2;
   }
 
-  LogDumpBp(LogHDLC, "HdlcOutput", mhp);
+  log_DumpBp(LogHDLC, "hdlc_Output", mhp);
 
   link_ProtocolRecord(l, proto, PROTO_OUT);
-  LogPrintf(LogDEBUG, "HdlcOutput: proto = 0x%04x\n", proto);
+  log_Printf(LogDEBUG, "hdlc_Output: proto = 0x%04x\n", proto);
 
-  if (Physical_IsSync(p))
+  if (physical_IsSync(p))
     link_Output(l, pri, mhp);          /* Send it raw */
   else
     async_Output(pri, mhp, proto, p);
@@ -376,7 +376,7 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
   struct physical *p = link2physical(l);
   u_char *cp;
 
-  LogPrintf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
+  log_Printf(LogDEBUG, "DecodePacket: proto = 0x%04x\n", proto);
 
   /* decompress everything.  CCP needs uncompressed data too */
   if ((bp = ccp_Decompress(&l->ccp, &proto, bp)) == NULL)
@@ -384,61 +384,61 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
 
   switch (proto) {
   case PROTO_LCP:
-    LcpInput(&l->lcp, bp);
+    lcp_Input(&l->lcp, bp);
     break;
   case PROTO_PAP:
     if (p)
-      PapInput(bundle, bp, p);
+      pap_Input(bundle, bp, p);
     else {
-      LogPrintf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
-      pfree(bp);
+      log_Printf(LogERROR, "DecodePacket: PAP: Not a physical link !\n");
+      mbuf_Free(bp);
     }
     break;
   case PROTO_LQR:
     if (p) {
       p->hdlc.lqm.lqr.SaveInLQRs++;
-      LqrInput(p, bp);
+      lqr_Input(p, bp);
     } else {
-      LogPrintf(LogERROR, "DecodePacket: LQR: Not a physical link !\n");
-      pfree(bp);
+      log_Printf(LogERROR, "DecodePacket: LQR: Not a physical link !\n");
+      mbuf_Free(bp);
     }
     break;
   case PROTO_CHAP:
     if (p)
-      ChapInput(bundle, bp, p);
+      chap_Input(bundle, bp, p);
     else {
-      LogPrintf(LogERROR, "DecodePacket: CHAP: Not a physical link !\n");
-      pfree(bp);
+      log_Printf(LogERROR, "DecodePacket: CHAP: Not a physical link !\n");
+      mbuf_Free(bp);
     }
     break;
   case PROTO_VJUNCOMP:
   case PROTO_VJCOMP:
-    bp = VjCompInput(&bundle->ncp.ipcp, bp, proto);
+    bp = vj_Input(&bundle->ncp.ipcp, bp, proto);
     if (bp == NULL)
       break;
     /* fall down */
   case PROTO_IP:
-    IpInput(bundle, bp);
+    ip_Input(bundle, bp);
     break;
   case PROTO_IPCP:
-    IpcpInput(&bundle->ncp.ipcp, bp);
+    ipcp_Input(&bundle->ncp.ipcp, bp);
     break;
   case PROTO_CCP:
-    CcpInput(&l->ccp, bundle, bp);
+    ccp_Input(&l->ccp, bundle, bp);
     break;
   case PROTO_MP:
     if (bundle->ncp.mp.active) {
       if (p)
         mp_Input(&bundle->ncp.mp, bp, p);
       else {
-        LogPrintf(LogERROR, "DecodePacket: MP inside MP ?!\n");
-        pfree(bp);
+        log_Printf(LogERROR, "DecodePacket: MP inside MP ?!\n");
+        mbuf_Free(bp);
       }
       break;
     }
     /* Fall through */
   default:
-    LogPrintf(LogPHASE, "%s protocol 0x%04x (%s)\n",
+    log_Printf(LogPHASE, "%s protocol 0x%04x (%s)\n",
               proto == PROTO_MP ? "Unexpected" : "Unknown",
               proto, hdlc_Protocol2Nam(proto));
     bp->offset -= 2;
@@ -449,38 +449,38 @@ hdlc_DecodePacket(struct bundle *bundle, u_short proto, struct mbuf * bp,
       p->hdlc.lqm.SaveInDiscards++;
       p->hdlc.stats.unknownproto++;
     }
-    pfree(bp);
+    mbuf_Free(bp);
     break;
   }
 }
 
 void
-HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
+hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
 {
   u_short fcs, proto;
   u_char *cp, addr, ctrl;
 
-  LogDumpBp(LogHDLC, "HdlcInput:", bp);
-  if (Physical_IsSync(physical))
+  log_DumpBp(LogHDLC, "hdlc_Input:", bp);
+  if (physical_IsSync(physical))
     fcs = GOODFCS;
   else
-    fcs = HdlcFcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
+    fcs = hdlc_Fcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
   physical->hdlc.lqm.SaveInOctets += bp->cnt + 1;
 
-  LogPrintf(LogDEBUG, "HdlcInput: fcs = %04x (%s)\n",
+  log_Printf(LogDEBUG, "hdlc_Input: fcs = %04x (%s)\n",
 	    fcs, (fcs == GOODFCS) ? "good" : "bad");
   if (fcs != GOODFCS) {
     physical->hdlc.lqm.SaveInErrors++;
-    LogPrintf(LogDEBUG, "HdlcInput: Bad FCS\n");
+    log_Printf(LogDEBUG, "hdlc_Input: Bad FCS\n");
     physical->hdlc.stats.badfcs++;
-    pfree(bp);
+    mbuf_Free(bp);
     return;
   }
-  if (!Physical_IsSync(physical))
+  if (!physical_IsSync(physical))
     bp->cnt -= 2;		/* discard FCS part */
 
   if (bp->cnt < 2) {		/* XXX: raise this bar ? */
-    pfree(bp);
+    mbuf_Free(bp);
     return;
   }
   cp = MBUF_CTOP(bp);
@@ -493,16 +493,16 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     if (addr != HDLC_ADDR) {
       physical->hdlc.lqm.SaveInErrors++;
       physical->hdlc.stats.badaddr++;
-      LogPrintf(LogDEBUG, "HdlcInput: addr %02x\n", *cp);
-      pfree(bp);
+      log_Printf(LogDEBUG, "hdlc_Input: addr %02x\n", *cp);
+      mbuf_Free(bp);
       return;
     }
     ctrl = *cp++;
     if (ctrl != HDLC_UI) {
       physical->hdlc.lqm.SaveInErrors++;
       physical->hdlc.stats.badcommand++;
-      LogPrintf(LogDEBUG, "HdlcInput: %02x\n", *cp);
-      pfree(bp);
+      log_Printf(LogDEBUG, "hdlc_Input: %02x\n", *cp);
+      mbuf_Free(bp);
       return;
     }
     bp->offset += 2;
@@ -534,10 +534,10 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     bp->cnt -= 2;
   }
 
-  link_ProtocolRecord(physical2link(physical), proto, PROTO_IN);
+  link_ProtocolRecord(&physical->link, proto, PROTO_IN);
   physical->hdlc.lqm.SaveInPackets++;
 
-  hdlc_DecodePacket(bundle, proto, bp, physical2link(physical));
+  hdlc_DecodePacket(bundle, proto, bp, &physical->link);
 }
 
 /*
@@ -554,7 +554,7 @@ static const char *FrameHeaders[] = {
 };
 
 u_char *
-HdlcDetect(struct physical *physical, u_char *cp, int n)
+hdlc_Detect(struct physical *physical, u_char *cp, int n)
 {
   const char *fp, **hp;
   char *ptr;
@@ -563,7 +563,7 @@ HdlcDetect(struct physical *physical, u_char *cp, int n)
   ptr = NULL;
   for (hp = FrameHeaders; *hp; hp++) {
     fp = *hp;
-    if (Physical_IsSync(physical))
+    if (physical_IsSync(physical))
       fp++;
     ptr = strstr((char *) cp, fp);
     if (ptr)
@@ -595,10 +595,10 @@ hdlc_ReportTime(void *v)
   /* Moan about HDLC errors */
   struct hdlc *hdlc = (struct hdlc *)v;
 
-  StopTimer(&hdlc->ReportTimer);
+  timer_Stop(&hdlc->ReportTimer);
 
   if (memcmp(&hdlc->laststats, &hdlc->stats, sizeof hdlc->stats)) {
-    LogPrintf(LogPHASE,
+    log_Printf(LogPHASE,
               "HDLC errors -> FCS: %u, ADDR: %u, COMD: %u, PROTO: %u\n",
 	      hdlc->stats.badfcs - hdlc->laststats.badfcs,
               hdlc->stats.badaddr - hdlc->laststats.badaddr,
@@ -607,22 +607,22 @@ hdlc_ReportTime(void *v)
     hdlc->laststats = hdlc->stats;
   }
 
-  StartTimer(&hdlc->ReportTimer);
+  timer_Start(&hdlc->ReportTimer);
 }
 
 void
 hdlc_StartTimer(struct hdlc *hdlc)
 {
-  StopTimer(&hdlc->ReportTimer);
+  timer_Stop(&hdlc->ReportTimer);
   hdlc->ReportTimer.load = 60 * SECTICKS;
   hdlc->ReportTimer.arg = hdlc;
   hdlc->ReportTimer.func = hdlc_ReportTime;
   hdlc->ReportTimer.name = "hdlc";
-  StartTimer(&hdlc->ReportTimer);
+  timer_Start(&hdlc->ReportTimer);
 }
 
 void
 hdlc_StopTimer(struct hdlc *hdlc)
 {
-  StopTimer(&hdlc->ReportTimer);
+  timer_Stop(&hdlc->ReportTimer);
 }

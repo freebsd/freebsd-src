@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.10.2.3 1998/03/16 22:54:26 brian Exp $
+ * $Id: slcompress.h,v 1.10.2.4 1998/04/07 00:54:20 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -146,4 +146,4 @@ extern u_char sl_compress_tcp(struct mbuf *, struct ip *, struct slcompress *,
                               struct slstat *, int);
 extern int sl_uncompress_tcp(u_char **, int, u_int, struct slcompress *,
                              struct slstat *);
-extern int ReportCompress(struct cmdargs const *);
+extern int sl_Show(struct cmdargs const *);

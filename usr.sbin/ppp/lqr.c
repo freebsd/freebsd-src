@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.27 1998/04/24 19:16:06 brian Exp $
+ * $Id: lqr.c,v 1.22.2.28 1998/04/28 01:25:28 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -71,18 +71,18 @@ SendEchoReq(struct lcp *lcp)
   echo.magic = htonl(lcp->want_magic);
   echo.signature = htonl(SIGNATURE);
   echo.sequence = htonl(hdlc->lqm.echo.seq_sent);
-  FsmOutput(&lcp->fsm, CODE_ECHOREQ, hdlc->lqm.echo.seq_sent++,
+  fsm_Output(&lcp->fsm, CODE_ECHOREQ, hdlc->lqm.echo.seq_sent++,
             (u_char *)&echo, sizeof echo);
 }
 
 void
-RecvEchoLqr(struct fsm *fp, struct mbuf * bp)
+lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
 {
   struct hdlc *hdlc = &link2physical(fp->link)->hdlc;
   struct echolqr *lqr;
   u_int32_t seq;
 
-  if (plength(bp) == sizeof(struct echolqr)) {
+  if (mbuf_Length(bp) == sizeof(struct echolqr)) {
     lqr = (struct echolqr *) MBUF_CTOP(bp);
     if (ntohl(lqr->signature) == SIGNATURE) {
       seq = ntohl(lqr->sequence);
@@ -92,15 +92,15 @@ RecvEchoLqr(struct fsm *fp, struct mbuf * bp)
            seq > hdlc->lqm.echo.seq_recv))
         hdlc->lqm.echo.seq_recv = seq;
     } else
-      LogPrintf(LogERROR, "RecvEchoLqr: Got sig 0x%08x, expecting 0x%08x !\n",
+      log_Printf(LogERROR, "lqr_RecvEcho: Got sig 0x%08x, expecting 0x%08x !\n",
                 (unsigned)ntohl(lqr->signature), (unsigned)SIGNATURE);
   } else
-    LogPrintf(LogERROR, "RecvEchoLqr: Got packet size %d, expecting %d !\n",
-              plength(bp), sizeof(struct echolqr));
+    log_Printf(LogERROR, "lqr_RecvEcho: Got packet size %d, expecting %d !\n",
+              mbuf_Length(bp), sizeof(struct echolqr));
 }
 
 void
-LqrChangeOrder(struct lqrdata * src, struct lqrdata * dst)
+lqr_ChangeOrder(struct lqrdata * src, struct lqrdata * dst)
 {
   u_long *sp, *dp;
   int n;
@@ -116,8 +116,8 @@ SendLqrData(struct lcp *lcp)
 {
   struct mbuf *bp;
 
-  bp = mballoc(sizeof(struct lqrdata), MB_LQR);
-  HdlcOutput(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
+  bp = mbuf_Alloc(sizeof(struct lqrdata), MB_LQR);
+  hdlc_Output(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
 }
 
 static void
@@ -126,14 +126,14 @@ SendLqrReport(void *v)
   struct lcp *lcp = (struct lcp *)v;
   struct physical *p = link2physical(lcp->fsm.link);
 
-  StopTimer(&p->hdlc.lqm.timer);
+  timer_Stop(&p->hdlc.lqm.timer);
 
   if (p->hdlc.lqm.method & LQM_LQR) {
     if (p->hdlc.lqm.lqr.resent > 5) {
       /* XXX: Should implement LQM strategy */
-      LogPrintf(LogPHASE, "%s: ** Too many LQR packets lost **\n",
+      log_Printf(LogPHASE, "%s: ** Too many LQR packets lost **\n",
                 lcp->fsm.link->name);
-      LogPrintf(LogLQM, "%s: Too many LQR packets lost\n",
+      log_Printf(LogLQM, "%s: Too many LQR packets lost\n",
                 lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
       datalink_Down(p->dl, 0);
@@ -146,9 +146,9 @@ SendLqrReport(void *v)
          p->hdlc.lqm.echo.seq_sent - 5 > p->hdlc.lqm.echo.seq_recv) ||
         (p->hdlc.lqm.echo.seq_sent <= 5 &&
          p->hdlc.lqm.echo.seq_sent > p->hdlc.lqm.echo.seq_recv + 5)) {
-      LogPrintf(LogPHASE, "%s: ** Too many ECHO LQR packets lost **\n",
+      log_Printf(LogPHASE, "%s: ** Too many ECHO LQR packets lost **\n",
                 lcp->fsm.link->name);
-      LogPrintf(LogLQM, "%s: Too many ECHO LQR packets lost\n",
+      log_Printf(LogLQM, "%s: Too many ECHO LQR packets lost\n",
                 lcp->fsm.link->name);
       p->hdlc.lqm.method = 0;
       datalink_Down(p->dl, 0);
@@ -156,17 +156,17 @@ SendLqrReport(void *v)
       SendEchoReq(lcp);
   }
   if (p->hdlc.lqm.method && p->hdlc.lqm.timer.load)
-    StartTimer(&p->hdlc.lqm.timer);
+    timer_Start(&p->hdlc.lqm.timer);
 }
 
 void
-LqrInput(struct physical *physical, struct mbuf *bp)
+lqr_Input(struct physical *physical, struct mbuf *bp)
 {
   int len;
 
-  len = plength(bp);
+  len = mbuf_Length(bp);
   if (len != sizeof(struct lqrdata))
-    LogPrintf(LogERROR, "LqrInput: Got packet size %d, expecting %d !\n",
+    log_Printf(LogERROR, "lqr_Input: Got packet size %d, expecting %d !\n",
               len, sizeof(struct lqrdata));
   else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
            !(physical->hdlc.lqm.method & LQM_LQR)) {
@@ -181,7 +181,7 @@ LqrInput(struct physical *physical, struct mbuf *bp)
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
     lcp = physical->hdlc.lqm.owner;
     if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
-      LogPrintf(LogERROR, "LqrInput: magic %x != expecting %x\n",
+      log_Printf(LogERROR, "lqr_Input: magic %x != expecting %x\n",
 		(unsigned)ntohl(lqr->MagicNumber),
                 physical->hdlc.lqm.owner->his_magic);
     else {
@@ -190,8 +190,8 @@ LqrInput(struct physical *physical, struct mbuf *bp)
        */
       lastLQR = physical->hdlc.lqm.lqr.peer.PeerInLQRs;
 
-      LqrChangeOrder(lqr, &physical->hdlc.lqm.lqr.peer);
-      LqrDump(physical->link.name, "Input", &physical->hdlc.lqm.lqr.peer);
+      lqr_ChangeOrder(lqr, &physical->hdlc.lqm.lqr.peer);
+      lqr_Dump(physical->link.name, "Input", &physical->hdlc.lqm.lqr.peer);
       /* we have received an LQR from peer */
       physical->hdlc.lqm.lqr.resent = 0;
 
@@ -209,14 +209,14 @@ LqrInput(struct physical *physical, struct mbuf *bp)
         SendLqrData(physical->hdlc.lqm.owner);
     }
   }
-  pfree(bp);
+  mbuf_Free(bp);
 }
 
 /*
  *  When LCP is reached to opened state, We'll start LQM activity.
  */
 void
-StartLqm(struct lcp *lcp)
+lqr_Start(struct lcp *lcp)
 {
   struct physical *physical = link2physical(lcp->fsm.link);
 
@@ -229,15 +229,15 @@ StartLqm(struct lcp *lcp)
   physical->hdlc.lqm.method = LQM_ECHO;
   if (IsEnabled(physical->link.lcp.cfg.lqr) && !REJECTED(lcp, TY_QUALPROTO))
     physical->hdlc.lqm.method |= LQM_LQR;
-  StopTimer(&physical->hdlc.lqm.timer);
+  timer_Stop(&physical->hdlc.lqm.timer);
 
   physical->hdlc.lqm.lqr.peer_timeout = lcp->his_lqrperiod;
   if (lcp->his_lqrperiod)
-    LogPrintf(LogLQM, "Expecting LQR every %d.%02d secs\n",
+    log_Printf(LogLQM, "Expecting LQR every %d.%02d secs\n",
 	      lcp->his_lqrperiod / 100, lcp->his_lqrperiod % 100);
 
   if (lcp->want_lqrperiod) {
-    LogPrintf(LogLQM, "Will send %s every %d.%02d secs\n",
+    log_Printf(LogLQM, "Will send %s every %d.%02d secs\n",
               physical->hdlc.lqm.method & LQM_LQR ? "LQR" : "ECHO LQR",
               lcp->want_lqrperiod / 100, lcp->want_lqrperiod % 100);
     physical->hdlc.lqm.timer.load = lcp->want_lqrperiod * SECTICKS / 100;
@@ -248,48 +248,48 @@ StartLqm(struct lcp *lcp)
   } else {
     physical->hdlc.lqm.timer.load = 0;
     if (!lcp->his_lqrperiod)
-      LogPrintf(LogLQM, "LQR/ECHO LQR not negotiated\n");
+      log_Printf(LogLQM, "LQR/ECHO LQR not negotiated\n");
   }
 }
 
 void
-StopLqrTimer(struct physical *physical)
+lqr_StopTimer(struct physical *physical)
 {
-  StopTimer(&physical->hdlc.lqm.timer);
+  timer_Stop(&physical->hdlc.lqm.timer);
 }
 
 void
-StopLqr(struct physical *physical, int method)
+lqr_Stop(struct physical *physical, int method)
 {
-  LogPrintf(LogLQM, "StopLqr method = %x\n", method);
+  log_Printf(LogLQM, "lqr_Stop method = %x\n", method);
 
   if (method == LQM_LQR)
-    LogPrintf(LogLQM, "Stop sending LQR, Use LCP ECHO instead.\n");
+    log_Printf(LogLQM, "Stop sending LQR, Use LCP ECHO instead.\n");
   if (method == LQM_ECHO)
-    LogPrintf(LogLQM, "Stop sending LCP ECHO.\n");
+    log_Printf(LogLQM, "Stop sending LCP ECHO.\n");
   physical->hdlc.lqm.method &= ~method;
   if (physical->hdlc.lqm.method)
     SendLqrReport(physical->hdlc.lqm.owner);
   else
-    StopTimer(&physical->hdlc.lqm.timer);
+    timer_Stop(&physical->hdlc.lqm.timer);
 }
 
 void
-LqrDump(const char *link, const char *message, const struct lqrdata * lqr)
+lqr_Dump(const char *link, const char *message, const struct lqrdata * lqr)
 {
-  if (LogIsKept(LogLQM)) {
-    LogPrintf(LogLQM, "%s: %s:\n", link, message);
-    LogPrintf(LogLQM, "  Magic:          %08x   LastOutLQRs:    %08x\n",
+  if (log_IsKept(LogLQM)) {
+    log_Printf(LogLQM, "%s: %s:\n", link, message);
+    log_Printf(LogLQM, "  Magic:          %08x   LastOutLQRs:    %08x\n",
 	      lqr->MagicNumber, lqr->LastOutLQRs);
-    LogPrintf(LogLQM, "  LastOutPackets: %08x   LastOutOctets:  %08x\n",
+    log_Printf(LogLQM, "  LastOutPackets: %08x   LastOutOctets:  %08x\n",
 	      lqr->LastOutPackets, lqr->LastOutOctets);
-    LogPrintf(LogLQM, "  PeerInLQRs:     %08x   PeerInPackets:  %08x\n",
+    log_Printf(LogLQM, "  PeerInLQRs:     %08x   PeerInPackets:  %08x\n",
 	      lqr->PeerInLQRs, lqr->PeerInPackets);
-    LogPrintf(LogLQM, "  PeerInDiscards: %08x   PeerInErrors:   %08x\n",
+    log_Printf(LogLQM, "  PeerInDiscards: %08x   PeerInErrors:   %08x\n",
 	      lqr->PeerInDiscards, lqr->PeerInErrors);
-    LogPrintf(LogLQM, "  PeerInOctets:   %08x   PeerOutLQRs:    %08x\n",
+    log_Printf(LogLQM, "  PeerInOctets:   %08x   PeerOutLQRs:    %08x\n",
 	      lqr->PeerInOctets, lqr->PeerOutLQRs);
-    LogPrintf(LogLQM, "  PeerOutPackets: %08x   PeerOutOctets:  %08x\n",
+    log_Printf(LogLQM, "  PeerOutPackets: %08x   PeerOutOctets:  %08x\n",
 	      lqr->PeerOutPackets, lqr->PeerOutOctets);
   }
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.6.4.8 1998/04/28 01:25:19 brian Exp $
+ *	$Id: id.c,v 1.6.4.9 1998/04/30 23:53:39 brian Exp $
  */
 
 #include <sys/types.h>
@@ -62,7 +62,7 @@ static void
 ID0setuser(void)
 {
   if (seteuid(uid) == -1) {
-    LogPrintf(LogERROR, "ID0setuser: Unable to seteuid!\n");
+    log_Printf(LogERROR, "ID0setuser: Unable to seteuid!\n");
     AbortProgram(EX_NOPERM);
   }
 }
@@ -77,7 +77,7 @@ static void
 ID0set0(void)
 {
   if (seteuid(euid) == -1) {
-    LogPrintf(LogERROR, "ID0set0: Unable to seteuid!\n");
+    log_Printf(LogERROR, "ID0set0: Unable to seteuid!\n");
     AbortProgram(EX_NOPERM);
   }
 }
@@ -89,7 +89,7 @@ ID0ioctl(int fd, unsigned long req, void *arg)
 
   ID0set0();
   ret = ioctl(fd, req, arg);
-  LogPrintf(LogID0, "%d = ioctl(%d, %lu, %p)\n", ret, fd, req, arg);
+  log_Printf(LogID0, "%d = ioctl(%d, %lu, %p)\n", ret, fd, req, arg);
   ID0setuser();
   return ret;
 }
@@ -101,7 +101,7 @@ ID0unlink(const char *name)
 
   ID0set0();
   ret = unlink(name);
-  LogPrintf(LogID0, "%d = unlink(\"%s\")\n", ret, name);
+  log_Printf(LogID0, "%d = unlink(\"%s\")\n", ret, name);
   ID0setuser();
   return ret;
 }
@@ -113,7 +113,7 @@ ID0socket(int domain, int type, int protocol)
 
   ID0set0();
   ret = socket(domain, type, protocol);
-  LogPrintf(LogID0, "%d = socket(%d, %d, %d)\n", ret, domain, type, protocol);
+  log_Printf(LogID0, "%d = socket(%d, %d, %d)\n", ret, domain, type, protocol);
   ID0setuser();
   return ret;
 }
@@ -125,7 +125,7 @@ ID0fopen(const char *path, const char *mode)
 
   ID0set0();
   ret = fopen(path, mode);
-  LogPrintf(LogID0, "%p = fopen(\"%s\", \"%s\")\n", ret, path, mode);
+  log_Printf(LogID0, "%p = fopen(\"%s\", \"%s\")\n", ret, path, mode);
   ID0setuser();
   return ret;
 }
@@ -139,7 +139,7 @@ ID0open(const char *path, int flags, ...)
   va_start(ap, flags);
   ID0set0();
   ret = open(path, flags, va_arg(ap, int));
-  LogPrintf(LogID0, "%d = open(\"%s\", %d)\n", ret, path, flags);
+  log_Printf(LogID0, "%d = open(\"%s\", %d)\n", ret, path, flags);
   ID0setuser();
   va_end(ap);
   return ret;
@@ -152,7 +152,7 @@ ID0write(int fd, const void *data, size_t len)
 
   ID0set0();
   ret = write(fd, data, len);
-  LogPrintf(LogID0, "%d = write(%d, data, %d)\n", ret, fd, len);
+  log_Printf(LogID0, "%d = write(%d, data, %d)\n", ret, fd, len);
   ID0setuser();
   return ret;
 }
@@ -164,7 +164,7 @@ ID0uu_lock(const char *basettyname)
 
   ID0set0();
   ret = uu_lock(basettyname);
-  LogPrintf(LogID0, "%d = uu_lock(\"%s\")\n", ret, basettyname);
+  log_Printf(LogID0, "%d = uu_lock(\"%s\")\n", ret, basettyname);
   ID0setuser();
   return ret;
 }
@@ -176,7 +176,7 @@ ID0uu_unlock(const char *basettyname)
 
   ID0set0();
   ret = uu_unlock(basettyname);
-  LogPrintf(LogID0, "%d = uu_unlock(\"%s\")\n", ret, basettyname);
+  log_Printf(LogID0, "%d = uu_unlock(\"%s\")\n", ret, basettyname);
   ID0setuser();
   return ret;
 }
@@ -186,12 +186,12 @@ ID0login(struct utmp *ut)
 {
   ID0set0();
   if (logout(ut->ut_line)) {
-    LogPrintf(LogID0, "logout(\"%s\")\n", ut->ut_line);
+    log_Printf(LogID0, "logout(\"%s\")\n", ut->ut_line);
     logwtmp(ut->ut_line, "", "");
-    LogPrintf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut->ut_line);
+    log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut->ut_line);
   }
   login(ut);
-  LogPrintf(LogID0, "login(\"%s\", \"%.*s\")\n",
+  log_Printf(LogID0, "login(\"%s\", \"%.*s\")\n",
             ut->ut_line, (int)(sizeof ut->ut_name), ut->ut_name);
   ID0setuser();
 }
@@ -206,11 +206,11 @@ ID0logout(const char *device)
 
   ID0set0();
   if (logout(ut.ut_line)) {
-    LogPrintf(LogID0, "logout(\"%s\")\n", ut.ut_line);
+    log_Printf(LogID0, "logout(\"%s\")\n", ut.ut_line);
     logwtmp(ut.ut_line, "", ""); 
-    LogPrintf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut.ut_line);
+    log_Printf(LogID0, "logwtmp(\"%s\", \"\", \"\")\n", ut.ut_line);
   } else
-    LogPrintf(LogERROR, "ID0logout: No longer logged in on %s\n", ut.ut_line);
+    log_Printf(LogERROR, "ID0logout: No longer logged in on %s\n", ut.ut_line);
   ID0setuser();
 }
 
@@ -221,7 +221,7 @@ ID0bind_un(int s, const struct sockaddr_un *name)
 
   ID0set0();
   result = bind(s, (const struct sockaddr *)name, sizeof *name);
-  LogPrintf(LogID0, "%d = bind(%d, \"%s\", %d)\n",
+  log_Printf(LogID0, "%d = bind(%d, \"%s\", %d)\n",
             result, s, name->sun_path, sizeof *name);
   ID0setuser();
   return result;
@@ -234,7 +234,7 @@ ID0connect_un(int s, const struct sockaddr_un *name)
 
   ID0set0();
   result = connect(s, (const struct sockaddr *)name, sizeof *name);
-  LogPrintf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
+  log_Printf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
             result, s, name->sun_path, sizeof *name);
   ID0setuser();
   return result;

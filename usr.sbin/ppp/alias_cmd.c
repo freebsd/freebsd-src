@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.12.2.6 1998/04/07 23:45:39 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12.2.7 1998/04/14 23:17:00 brian Exp $
  */
 
 #include <sys/types.h>
@@ -29,9 +29,9 @@ static int StrToAddrAndPort(const char *, struct in_addr *, u_short *, const cha
 
 
 int
-AliasRedirectPort(struct cmdargs const *arg)
+alias_RedirectPort(struct cmdargs const *arg)
 {
-  if (!AliasEnabled()) {
+  if (!alias_IsEnabled()) {
     prompt_Printf(arg->prompt, "Alias not enabled\n");
     return 1;
   } else if (arg->argc == arg->argn+3) {
@@ -91,9 +91,9 @@ AliasRedirectPort(struct cmdargs const *arg)
 
 
 int
-AliasRedirectAddr(struct cmdargs const *arg)
+alias_RedirectAddr(struct cmdargs const *arg)
 {
-  if (!AliasEnabled()) {
+  if (!alias_IsEnabled()) {
     prompt_Printf(arg->prompt, "alias not enabled\n");
     return 1;
   } else if (arg->argc == arg->argn+2) {
@@ -138,7 +138,7 @@ StrToAddr(const char *str, struct in_addr *addr)
 
   hp = gethostbyname(str);
   if (!hp) {
-    LogPrintf(LogWARN, "StrToAddr: Unknown host %s.\n", str);
+    log_Printf(LogWARN, "StrToAddr: Unknown host %s.\n", str);
     return -1;
   }
   *addr = *((struct in_addr *) hp->h_addr);
@@ -160,7 +160,7 @@ StrToPort(const char *str, u_short *port, const char *proto)
   }
   sp = getservbyname(str, proto);
   if (!sp) {
-    LogPrintf(LogWARN, "StrToAddr: Unknown port or service %s/%s.\n",
+    log_Printf(LogWARN, "StrToAddr: Unknown port or service %s/%s.\n",
 	      str, proto);
     return -1;
   }
@@ -177,7 +177,7 @@ StrToAddrAndPort(const char *str, struct in_addr *addr, u_short *port, const cha
 
   colon = strchr(str, ':');
   if (!colon) {
-    LogPrintf(LogWARN, "StrToAddrAndPort: %s is missing port number.\n", str);
+    log_Printf(LogWARN, "StrToAddrAndPort: %s is missing port number.\n", str);
     return -1;
   }
 

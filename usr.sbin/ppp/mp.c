@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.17 1998/04/28 01:25:33 brian Exp $
+ *	$Id: mp.c,v 1.1.2.18 1998/04/30 23:53:51 brian Exp $
  */
 
 #include <sys/types.h>
@@ -111,7 +111,7 @@ mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
   if (mp->local_is12bit) {
     header->seq = ntohs(*(u_int16_t *)MBUF_CTOP(m));
     if (header->seq & 0x3000) {
-      LogPrintf(LogWARN, "Oops - MP header without required zero bits\n");
+      log_Printf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
     }
     header->begin = header->seq & 0x8000 ? 1 : 0;
@@ -121,7 +121,7 @@ mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
   } else {
     header->seq = ntohl(*(u_int32_t *)MBUF_CTOP(m));
     if (header->seq & 0x3f000000) {
-      LogPrintf(LogWARN, "Oops - MP header without required zero bits\n");
+      log_Printf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
     }
     header->begin = header->seq & 0x80000000 ? 1 : 0;
@@ -205,14 +205,14 @@ mp_Up(struct mp *mp, struct datalink *dl)
   if (mp->active) {
     /* We're adding a link - do a last validation on our parameters */
     if (!peerid_Equal(&dl->peer, &mp->peer)) {
-      LogPrintf(LogPHASE, "%s: Inappropriate peer !\n", dl->name);
+      log_Printf(LogPHASE, "%s: Inappropriate peer !\n", dl->name);
       return MP_FAILED;
     }
     if (mp->local_mrru != lcp->want_mrru ||
         mp->peer_mrru != lcp->his_mrru ||
         mp->local_is12bit != lcp->want_shortseq ||
         mp->peer_is12bit != lcp->his_shortseq) {
-      LogPrintf(LogPHASE, "%s: Invalid MRRU/SHORTSEQ MP parameters !\n",
+      log_Printf(LogPHASE, "%s: Invalid MRRU/SHORTSEQ MP parameters !\n",
                 dl->name);
       return MP_FAILED;
     }
@@ -241,7 +241,7 @@ mp_Up(struct mp *mp, struct datalink *dl)
      */
     fd = mpserver_Open(&mp->server, &mp->peer);
     if (fd >= 0) {
-      LogPrintf(LogPHASE, "mp: Transfer link on %s\n",
+      log_Printf(LogPHASE, "mp: Transfer link on %s\n",
                 mp->server.socket.sun_path);
       mp->server.send.dl = dl;
       mp->server.send.fd = fd;
@@ -249,15 +249,15 @@ mp_Up(struct mp *mp, struct datalink *dl)
     } else if (!mpserver_IsOpen(&mp->server))
       return MP_FAILED;
     else {
-      LogPrintf(LogPHASE, "mp: Listening on %s\n", mp->server.socket.sun_path);
-      LogPrintf(LogPHASE, "    First link: %s\n", dl->name);
+      log_Printf(LogPHASE, "mp: Listening on %s\n", mp->server.socket.sun_path);
+      log_Printf(LogPHASE, "    First link: %s\n", dl->name);
 
       /* Re-point our IPCP layer at our MP link */
       ipcp_SetLink(&mp->bundle->ncp.ipcp, &mp->link);
 
       /* Our lcp's already up 'cos of the NULL parent */
-      FsmUp(&mp->link.ccp.fsm);
-      FsmOpen(&mp->link.ccp.fsm);
+      fsm_Up(&mp->link.ccp.fsm);
+      fsm_Open(&mp->link.ccp.fsm);
 
       mp->active = 1;
     }
@@ -276,13 +276,13 @@ mp_Down(struct mp *mp)
     mpserver_Close(&mp->server);
 
     /* CCP goes down with a bang */
-    FsmDown(&mp->link.ccp.fsm);
-    FsmClose(&mp->link.ccp.fsm);
+    fsm_Down(&mp->link.ccp.fsm);
+    fsm_Close(&mp->link.ccp.fsm);
 
     /* Received fragments go in the bit-bucket */
     while (mp->inbufs) {
       next = mp->inbufs->pnext;
-      pfree(mp->inbufs);
+      mbuf_Free(mp->inbufs);
       mp->inbufs = next;
     }
 
@@ -306,7 +306,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
   int32_t seq;
 
   if (mp_ReadHeader(mp, m, &mh) == 0) {
-    pfree(m);
+    mbuf_Free(m);
     return;
   }
 
@@ -361,9 +361,9 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
 
         /* Zap all older fragments */
         while (mp->inbufs != q) {
-          LogPrintf(LogDEBUG, "Drop frag\n");
+          log_Printf(LogDEBUG, "Drop frag\n");
           next = mp->inbufs->pnext;
-          pfree(mp->inbufs);
+          mbuf_Free(mp->inbufs);
           mp->inbufs = next;
         }
 
@@ -380,8 +380,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
             break;
           }
           next = mp->inbufs->pnext;
-          LogPrintf(LogDEBUG, "Drop frag %u\n", h.seq);
-          pfree(mp->inbufs);
+          log_Printf(LogDEBUG, "Drop frag %u\n", h.seq);
+          mbuf_Free(mp->inbufs);
           mp->inbufs = next;
         } while (mp->inbufs && (h.seq >= mp->seq.min_in || h.end));
 
@@ -415,12 +415,12 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         (*frag)->cnt -= len;
         (*frag)->pnext = NULL;
         if (frag == &q && !h.begin) {
-          LogPrintf(LogWARN, "Oops - MP frag %lu should have a begin flag\n",
+          log_Printf(LogWARN, "Oops - MP frag %lu should have a begin flag\n",
                     (u_long)h.seq);
-          pfree(q);
+          mbuf_Free(q);
           q = NULL;
         } else if (frag != &q && h.begin) {
-          LogPrintf(LogWARN, "Oops - MP frag %lu should have an end flag\n",
+          log_Printf(LogWARN, "Oops - MP frag %lu should have an end flag\n",
                     (u_long)h.seq - 1);
           /*
            * Stuff our fragment back at the front of the queue and zap
@@ -429,7 +429,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
           (*frag)->pnext = mp->inbufs;
           mp->inbufs = *frag;
           *frag = NULL;
-          pfree(q);
+          mbuf_Free(q);
           q = NULL;
           frag = &q;
           h.end = 0;	/* just in case it's a whole packet */
@@ -443,16 +443,16 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         u_short proto;
         u_char ch;
 
-        q = mbread(q, &ch, 1);
+        q = mbuf_Read(q, &ch, 1);
         proto = ch;
         if (!(proto & 1)) {
-          q = mbread(q, &ch, 1);
+          q = mbuf_Read(q, &ch, 1);
           proto <<= 8;
           proto += ch;
         }
-        if (LogIsKept(LogDEBUG))
-          LogPrintf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
-                    first, (u_long)h.seq, plength(q));
+        if (log_IsKept(LogDEBUG))
+          log_Printf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
+                    first, (u_long)h.seq, mbuf_Length(q));
         hdlc_DecodePacket(mp->bundle, proto, q, &mp->link);
       }
 
@@ -491,7 +491,7 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
   struct mbuf *mo;
 
   /* Stuff an MP header on the front of our packet and send it */
-  mo = mballoc(4, MB_MP);
+  mo = mbuf_Alloc(4, MB_MP);
   mo->next = m;
   if (mp->peer_is12bit) {
     u_int16_t *seq16;
@@ -506,12 +506,12 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
     *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->seq.out);
     mo->cnt = 4;
   }
-  if (LogIsKept(LogDEBUG))
-    LogPrintf(LogDEBUG, "MP[frag %d]: Send %d bytes on %s\n",
-              mp->seq.out, plength(mo), l->name);
+  if (log_IsKept(LogDEBUG))
+    log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on %s\n",
+              mp->seq.out, mbuf_Length(mo), l->name);
   mp->seq.out = inc_seq(mp, mp->seq.out);
 
-  HdlcOutput(l, PRI_NORMAL, PROTO_MP, mo);
+  hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
 }
 
 int
@@ -541,12 +541,12 @@ mp_FillQueues(struct bundle *bundle)
     if (add)
       /* this link has got stuff already queued.  Let it continue */
       continue;
-    if (!link_QueueLen(&mp->link) && !IpFlushPacket(&mp->link, bundle))
+    if (!link_QueueLen(&mp->link) && !ip_FlushPacket(&mp->link, bundle))
       /* Nothing else to send */
       break;
 
     m = link_Dequeue(&mp->link);
-    len = plength(m);
+    len = mbuf_Length(m);
     add += len;
     begin = 1;
     end = 0;
@@ -564,10 +564,10 @@ mp_FillQueues(struct bundle *bundle)
         mo = m;
         end = 1;
       } else {
-        mo = mballoc(dl->mp.weight, MB_MP);
+        mo = mbuf_Alloc(dl->mp.weight, MB_MP);
         mo->cnt = dl->mp.weight;
         len -= mo->cnt;
-        m = mbread(m, MBUF_CTOP(mo), mo->cnt);
+        m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
       }
       mp_Output(mp, &dl->physical->link, mo, begin, end);
       begin = 0;
@@ -589,7 +589,7 @@ mp_SetDatalinkWeight(struct cmdargs const *arg)
   
   val = atoi(arg->argv[arg->argn]);
   if (val < LINK_MINWEIGHT) {
-    LogPrintf(LogWARN, "Link weights must not be less than %d\n",
+    log_Printf(LogWARN, "Link weights must not be less than %d\n",
               LINK_MINWEIGHT);
     return 1;
   }
@@ -706,7 +706,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
   struct in_addr addr;
 
   if (bundle_Phase(arg->bundle) != PHASE_DEAD) {
-    LogPrintf(LogWARN, "set enddisc: Only available at phase DEAD\n");
+    log_Printf(LogWARN, "set enddisc: Only available at phase DEAD\n");
     return 1;
   }
 
@@ -738,7 +738,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
 
       s = ID0socket(AF_INET, SOCK_DGRAM, 0);
       if (s < 0) {
-        LogPrintf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
+        log_Printf(LogERROR, "set enddisc: socket(): %s\n", strerror(errno));
         return 2;
       }
       if (get_ether_addr(s, addr, &hwaddr)) {
@@ -747,7 +747,7 @@ mp_SetEnddisc(struct cmdargs const *arg)
                hwaddr.sdl_alen);
         mp->cfg.enddisc.len = hwaddr.sdl_alen;
       } else {
-        LogPrintf(LogWARN, "set enddisc: Can't locate MAC address for %s\n",
+        log_Printf(LogWARN, "set enddisc: Can't locate MAC address for %s\n",
                   inet_ntoa(addr));
         close(s);
         return 4;
@@ -767,11 +767,11 @@ mp_SetEnddisc(struct cmdargs const *arg)
         strcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1]);
         mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
       } else {
-        LogPrintf(LogWARN, "PSN endpoint requires additional data\n");
+        log_Printf(LogWARN, "PSN endpoint requires additional data\n");
         return 5;
       }
     } else {
-      LogPrintf(LogWARN, "%s: Unrecognised endpoint type\n",
+      log_Printf(LogWARN, "%s: Unrecognised endpoint type\n",
                 arg->argv[arg->argn]);
       return 6;
     }
@@ -818,7 +818,7 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
   size = sizeof in;
   fd = accept(s->fd, &in, &size);
   if (fd < 0) {
-    LogPrintf(LogERROR, "mpserver_Read: accept(): %s\n", strerror(errno));
+    log_Printf(LogERROR, "mpserver_Read: accept(): %s\n", strerror(errno));
     return;
   }
 
@@ -832,7 +832,7 @@ static void
 mpserver_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  LogPrintf(LogERROR, "mpserver_Write: Internal error: Bad call !\n");
+  log_Printf(LogERROR, "mpserver_Write: Internal error: Bad call !\n");
 }
 
 void
@@ -857,7 +857,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   mode_t mask;
 
   if (s->fd != -1) {
-    LogPrintf(LogERROR, "Internal error !  mpserver already open\n");
+    log_Printf(LogERROR, "Internal error !  mpserver already open\n");
     mpserver_Close(s);
   }
 
@@ -874,7 +874,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   s->socket.sun_len = sizeof s->socket;
   s->fd = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s->fd < 0) {
-    LogPrintf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "mpserver: socket: %s\n", strerror(errno));
     return -1;
   }
 
@@ -883,7 +883,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
   mask = umask(0177);
   if (ID0bind_un(s->fd, &s->socket) < 0) {
     if (errno != EADDRINUSE) {
-      LogPrintf(LogPHASE, "mpserver: can't create bundle socket %s (%s)\n",
+      log_Printf(LogPHASE, "mpserver: can't create bundle socket %s (%s)\n",
                 s->socket.sun_path, strerror(errno));
       umask(mask);
       close(s->fd);
@@ -892,10 +892,10 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
     }
     umask(mask);
     if (ID0connect_un(s->fd, &s->socket) < 0) {
-      LogPrintf(LogPHASE, "mpserver: can't connect to bundle socket %s (%s)\n",
+      log_Printf(LogPHASE, "mpserver: can't connect to bundle socket %s (%s)\n",
                 s->socket.sun_path, strerror(errno));
       if (errno == ECONNREFUSED)
-        LogPrintf(LogPHASE, "          Has the previous server died badly ?\n");
+        log_Printf(LogPHASE, "          Has the previous server died badly ?\n");
       close(s->fd);
       s->fd = -1;
       return -1;
@@ -909,7 +909,7 @@ mpserver_Open(struct mpserver *s, struct peerid *peer)
 
   /* Listen for other ppp invocations that want to donate links */
   if (listen(s->fd, 5) != 0) {
-    LogPrintf(LogERROR, "mpserver: Unable to listen to socket"
+    log_Printf(LogERROR, "mpserver: Unable to listen to socket"
               " - BUNDLE overload?\n");
     mpserver_Close(s);
   }
@@ -929,7 +929,7 @@ mpserver_Close(struct mpserver *s)
   if (s->fd >= 0) {
     close(s->fd);
     if (ID0unlink(s->socket.sun_path) == -1)
-      LogPrintf(LogERROR, "%s: Failed to remove: %s\n", s->socket.sun_path,
+      log_Printf(LogERROR, "%s: Failed to remove: %s\n", s->socket.sun_path,
                 strerror(errno));
     memset(&s->socket, '\0', sizeof s->socket);
     s->fd = -1;

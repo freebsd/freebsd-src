@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.22 1998/04/20 00:20:41 brian Exp $
+ *  $Id: physical.h,v 1.1.2.23 1998/05/01 19:22:23 brian Exp $
  *
  */
 
@@ -25,7 +25,7 @@ struct bundle;
 struct physical {
   struct link link;
   struct descriptor desc;
-  int type;                    /* What sort of link are we ? */
+  int type;                    /* What sort of PHYS_* link are we ? */
   struct async async;          /* Our async state */
   struct hdlc hdlc;            /* Our hdlc state */
   int fd;                      /* File descriptor for this device */
@@ -64,39 +64,35 @@ struct physical {
 #define field2phys(fp, name) \
   ((struct physical *)((char *)fp - (int)(&((struct physical *)0)->name)))
 
-#define physical2link(p) (&(p)->link)
 #define link2physical(l) \
   ((l)->type == PHYSICAL_LINK ? field2phys(l, link) : NULL)
 
-#define physical2descriptor(p) (&(p)->desc)
 #define descriptor2physical(d) \
   ((d)->type == PHYSICAL_DESCRIPTOR ? field2phys(d, desc) : NULL)
 
-int Physical_GetFD(struct physical *);
-int Physical_IsATTY(struct physical *);
-int Physical_IsSync(struct physical *);
-const char *Physical_GetDevice(struct physical *);
+extern int physical_GetFD(struct physical *);
+extern int physical_IsATTY(struct physical *);
+extern int physical_IsSync(struct physical *);
+extern const char *physical_GetDevice(struct physical *);
+extern void physical_SetDeviceList(struct physical *, int, const char *const *);
+extern int physical_SetSpeed(struct physical *, int);
 
+/*
+ * XXX-ML I'm not certain this is the right way to handle this, but we
+ * can solve that later.
+ */
+extern void physical_SetSync(struct physical *);
 
-void Physical_SetDeviceList(struct physical *, int, const char *const *);
-int /* Was this speed OK? */
-Physical_SetSpeed(struct physical *, int);
+/*
+ * Can this be set?  (Might not be a relevant attribute for this
+ * device, for instance)
+ */
+extern int physical_SetRtsCts(struct physical *, int);
 
-/* XXX-ML I'm not certain this is the right way to handle this, but we
-   can solve that later. */
-void Physical_SetSync(struct physical *);
-
-int /* Can this be set?  (Might not be a relevant attribute for this
-       device, for instance) */
-Physical_SetRtsCts(struct physical *, int);
-
-ssize_t Physical_Read(struct physical *, void *, size_t);
-ssize_t Physical_Write(struct physical *, const void *, size_t);
-int Physical_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *,
-                       int *, int);
-int Physical_IsSet(struct descriptor *, const fd_set *);
-void Physical_DescriptorWrite(struct descriptor *, struct bundle *,
-                              const fd_set *);
-
-void Physical_Login(struct physical *, const char *);
-void Physical_Logout(struct physical *);
+extern ssize_t physical_Read(struct physical *, void *, size_t);
+extern ssize_t physical_Write(struct physical *, const void *, size_t);
+extern int physical_UpdateSet(struct descriptor *, fd_set *, fd_set *,
+                              fd_set *, int *, int);
+extern int physical_IsSet(struct descriptor *, const fd_set *);
+extern void physical_Login(struct physical *, const char *);
+extern void physical_Logout(struct physical *);

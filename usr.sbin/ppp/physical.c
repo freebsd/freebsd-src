@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.28 1998/04/30 23:53:53 brian Exp $
+ *  $Id: physical.c,v 1.1.2.29 1998/05/01 19:22:21 brian Exp $
  *
  */
 
@@ -51,27 +51,27 @@ extern int IntToSpeed(int);
 
 
 int
-Physical_GetFD(struct physical *phys) {
+physical_GetFD(struct physical *phys) {
    return phys->fd;
 }
 
 int
-Physical_IsATTY(struct physical *phys) {
+physical_IsATTY(struct physical *phys) {
    return isatty(phys->fd);
 }
 
 int
-Physical_IsSync(struct physical *phys) {
+physical_IsSync(struct physical *phys) {
    return phys->cfg.speed == 0;
 }
 
-const char *Physical_GetDevice(struct physical *phys)
+const char *physical_GetDevice(struct physical *phys)
 {
    return phys->name.full;
 }
 
 void
-Physical_SetDeviceList(struct physical *p, int argc, const char *const *argv)
+physical_SetDeviceList(struct physical *p, int argc, const char *const *argv)
 {
   int f, pos;
 
@@ -86,7 +86,7 @@ Physical_SetDeviceList(struct physical *p, int argc, const char *const *argv)
 
 
 int
-Physical_SetSpeed(struct physical *phys, int speed) {
+physical_SetSpeed(struct physical *phys, int speed) {
    if (IntToSpeed(speed) != B0) {
       phys->cfg.speed = speed;
       return 1;
@@ -96,13 +96,13 @@ Physical_SetSpeed(struct physical *phys, int speed) {
 }
 
 void
-Physical_SetSync(struct physical *phys) {
+physical_SetSync(struct physical *phys) {
    phys->cfg.speed = 0;
 }
 
 
 int
-Physical_SetRtsCts(struct physical *phys, int enable) {
+physical_SetRtsCts(struct physical *phys, int enable) {
    phys->cfg.rts_cts = enable ? 1 : 0;
    return 1;
 }
@@ -110,17 +110,17 @@ Physical_SetRtsCts(struct physical *phys, int enable) {
 /* Encapsulation for a read on the FD.  Avoids some exposure, and
    concentrates control. */
 ssize_t
-Physical_Read(struct physical *phys, void *buf, size_t nbytes) {
+physical_Read(struct physical *phys, void *buf, size_t nbytes) {
    return read(phys->fd, buf, nbytes);
 }
 
 ssize_t
-Physical_Write(struct physical *phys, const void *buf, size_t nbytes) {
+physical_Write(struct physical *phys, const void *buf, size_t nbytes) {
    return write(phys->fd, buf, nbytes);
 }
 
 int
-Physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
+physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                    int *n, int force)
 {
   struct physical *p = descriptor2physical(d);
@@ -148,18 +148,18 @@ Physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 }
 
 int
-Physical_IsSet(struct descriptor *d, const fd_set *fdset)
+physical_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
   return p->fd >= 0 && FD_ISSET(p->fd, fdset);
 }
 
 void
-Physical_Login(struct physical *phys, const char *name)
+physical_Login(struct physical *phys, const char *name)
 {
-  if (phys->type == PHYS_DIRECT && Physical_IsATTY(phys)) {
+  if (phys->type == PHYS_DIRECT && physical_IsATTY(phys)) {
     if (phys->Utmp)
-      LogPrintf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
+      log_Printf(LogERROR, "Oops, already logged in on %s\n", phys->name.base);
     else {
       struct utmp ut;
 
@@ -174,7 +174,7 @@ Physical_Login(struct physical *phys, const char *name)
 }
 
 void
-Physical_Logout(struct physical *phys)
+physical_Logout(struct physical *phys)
 {
   if (phys->Utmp) {
     ID0logout(phys->name.base);

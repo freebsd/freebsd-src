@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.75 1998/05/01 19:19:58 brian Exp $
+ * $Id: command.c,v 1.131.2.76 1998/05/01 19:22:16 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/01 19:19:58 $";
+const char VersionDate[] = "$Date: 1998/05/01 19:22:16 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -150,7 +150,7 @@ HelpCommand(struct cmdargs const *arg)
   int n, cmax, dmax, cols;
 
   if (!arg->prompt) {
-    LogPrintf(LogWARN, "help: Cannot help without a prompt\n");
+    log_Printf(LogWARN, "help: Cannot help without a prompt\n");
     return 0;
   }
 
@@ -198,7 +198,7 @@ CloneCommand(struct cmdargs const *arg)
     return -1;
 
   if (!arg->bundle->ncp.mp.cfg.mrru) {
-    LogPrintf(LogWARN, "clone: Only available in multilink mode\n");
+    log_Printf(LogWARN, "clone: Only available in multilink mode\n");
     return 1;
   }
 
@@ -214,7 +214,7 @@ RemoveCommand(struct cmdargs const *arg)
     return -1;
 
   if (arg->cx->state != DATALINK_CLOSED) {
-    LogPrintf(LogWARN, "remove: Cannot delete links that aren't closed\n");
+    log_Printf(LogWARN, "remove: Cannot delete links that aren't closed\n");
     return 2;
   }
 
@@ -232,8 +232,8 @@ LoadCommand(struct cmdargs const *arg)
   else
     name = "default";
 
-  if (!ValidSystem(name, arg->prompt, arg->bundle->phys_type)) {
-    LogPrintf(LogERROR, "%s: Label not allowed\n", name);
+  if (!system_IsValid(name, arg->prompt, arg->bundle->phys_type)) {
+    log_Printf(LogERROR, "%s: Label not allowed\n", name);
     return 1;
   } else {
     /*
@@ -241,9 +241,9 @@ LoadCommand(struct cmdargs const *arg)
      * we handle nested `load' commands.
      */
     bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
-    if (SelectSystem(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
+    if (system_Select(arg->bundle, name, CONFFILE, arg->prompt) < 0) {
       bundle_SetLabel(arg->bundle, NULL);
-      LogPrintf(LogWARN, "%s: label not found.\n", name);
+      log_Printf(LogWARN, "%s: label not found.\n", name);
       return -1;
     }
     bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
@@ -254,7 +254,7 @@ LoadCommand(struct cmdargs const *arg)
 int
 SaveCommand(struct cmdargs const *arg)
 {
-  LogPrintf(LogWARN, "save command is not implemented (yet).\n");
+  log_Printf(LogWARN, "save command is not implemented (yet).\n");
   return 1;
 }
 
@@ -265,7 +265,7 @@ DialCommand(struct cmdargs const *arg)
 
   if ((arg->cx && !(arg->cx->physical->type & (PHYS_MANUAL|PHYS_DEMAND)))
       || (!arg->cx && (arg->bundle->phys_type & ~(PHYS_MANUAL|PHYS_DEMAND)))) {
-    LogPrintf(LogWARN, "Manual dial is only available for auto and"
+    log_Printf(LogWARN, "Manual dial is only available for auto and"
               " interactive links\n");
     return 1;
   }
@@ -289,22 +289,22 @@ ShellCommand(struct cmdargs const *arg, int bg)
 #ifdef SHELL_ONLY_INTERACTIVELY
   /* we're only allowed to shell when we run ppp interactively */
   if (arg->prompt && arg->prompt->owner) {
-    LogPrintf(LogWARN, "Can't start a shell from a network connection\n");
+    log_Printf(LogWARN, "Can't start a shell from a network connection\n");
     return 1;
   }
 #endif
 
   if (arg->argc == arg->argn) {
     if (!arg->prompt) {
-      LogPrintf(LogWARN, "Can't start an interactive shell from"
+      log_Printf(LogWARN, "Can't start an interactive shell from"
                 " a config file\n");
       return 1;
     } else if (arg->prompt->owner) {
-      LogPrintf(LogWARN, "Can't start an interactive shell from"
+      log_Printf(LogWARN, "Can't start an interactive shell from"
                 " a socket connection\n");
       return 1;
     } else if (bg) {
-      LogPrintf(LogWARN, "Can only start an interactive shell in"
+      log_Printf(LogWARN, "Can only start an interactive shell in"
 		" the foreground mode\n");
       return 1;
     }
@@ -316,12 +316,12 @@ ShellCommand(struct cmdargs const *arg, int bg)
     if ((shell = getenv("SHELL")) == 0)
       shell = _PATH_BSHELL;
 
-    TermTimerService();
+    timer_TermService();
 
     if (arg->prompt)
       fd = arg->prompt->fd_out;
     else if ((fd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
-      LogPrintf(LogALERT, "Failed to open %s: %s\n",
+      log_Printf(LogALERT, "Failed to open %s: %s\n",
                 _PATH_DEVNULL, strerror(errno));
       exit(1);
     }
@@ -350,7 +350,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
 	p = getpid();
 	if (daemon(1, 1) == -1) {
-	  LogPrintf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
+	  log_Printf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
 	  exit(1);
 	}
       } else if (arg->prompt)
@@ -363,13 +363,13 @@ ShellCommand(struct cmdargs const *arg, int bg)
       execl(shell, shell, NULL);
     }
 
-    LogPrintf(LogWARN, "exec() of %s failed\n",
+    log_Printf(LogWARN, "exec() of %s failed\n",
               arg->argc > arg->argn ? arg->argv[arg->argn] : shell);
     exit(255);
   }
 
   if (shpid == (pid_t) - 1)
-    LogPrintf(LogERROR, "Fork failed: %s\n", strerror(errno));
+    log_Printf(LogERROR, "Fork failed: %s\n", strerror(errno));
   else {
     int status;
     waitpid(shpid, &status, 0);
@@ -477,7 +477,7 @@ ShowEscape(struct cmdargs const *arg)
 static int
 ShowTimerList(struct cmdargs const *arg)
 {
-  ShowTimers(0, arg->prompt);
+  timer_Show(0, arg->prompt);
   return 0;
 }
 
@@ -513,7 +513,7 @@ ShowVersion(struct cmdargs const *arg)
 static int
 ShowProtocolStats(struct cmdargs const *arg)
 {
-  struct link *l = ChooseLink(arg);
+  struct link *l = command_ChooseLink(arg);
 
   prompt_Printf(arg->prompt, "%s:\n", l->name);
   link_ReportProtocolStatus(l, arg->prompt);
@@ -525,15 +525,15 @@ static struct cmdtab const ShowCommands[] = {
   "Show bundle details", "show bundle"},
   {"ccp", NULL, ccp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show CCP status", "show cpp"},
-  {"compress", NULL, ReportCompress, LOCAL_AUTH,
+  {"compress", NULL, sl_Show, LOCAL_AUTH,
   "Show compression stats", "show compress"},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
   "Show escape characters", "show escape"},
-  {"filter", NULL, ShowFilter, LOCAL_AUTH,
+  {"filter", NULL, filter_Show, LOCAL_AUTH,
   "Show packet filters", "show filter [in|out|dial|alive]"},
   {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show HDLC errors", "show hdlc"},
-  {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
+  {"ipcp", NULL, ipcp_Show, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show LCP status", "show lcp"},
@@ -543,7 +543,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show available link names", "show links"},
   {"log", NULL, log_ShowLevel, LOCAL_AUTH,
   "Show log levels", "show log"},
-  {"mem", NULL, ShowMemMap, LOCAL_AUTH,
+  {"mem", NULL, mbuf_Show, LOCAL_AUTH,
   "Show memory map", "show mem"},
   {"modem", NULL, modem_ShowStatus, LOCAL_AUTH | LOCAL_CX,
   "Show (low-level) link info", "show modem"},
@@ -551,7 +551,7 @@ static struct cmdtab const ShowCommands[] = {
   "Show multilink setup", "show mp"},
   {"proto", NULL, ShowProtocolStats, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show protocol summary", "show proto"},
-  {"route", NULL, ShowRoute, LOCAL_AUTH,
+  {"route", NULL, route_Show, LOCAL_AUTH,
   "Show routing table", "show route"},
   {"stopped", NULL, ShowStopped, LOCAL_AUTH | LOCAL_CX,
   "Show STOPPED timeout", "show stopped"},
@@ -629,7 +629,7 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
 
   cmd = FindCommand(cmds, argv[argn], &nmatch);
   if (nmatch > 1)
-    LogPrintf(LogWARN, "%s: Ambiguous command\n",
+    log_Printf(LogWARN, "%s: Ambiguous command\n",
               mkPrefix(argn+1, argv, prefix, sizeof prefix));
   else if (cmd && (!prompt || (cmd->lauth & prompt->auth))) {
     if ((cmd->lauth & LOCAL_CX) && !cx)
@@ -637,11 +637,11 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
       cx = bundle2datalink(bundle, NULL);
 
     if ((cmd->lauth & LOCAL_CX) && !cx)
-      LogPrintf(LogWARN, "%s: No context (use the `link' command)\n",
+      log_Printf(LogWARN, "%s: No context (use the `link' command)\n",
                 mkPrefix(argn+1, argv, prefix, sizeof prefix));
     else {
       if (cx && !(cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
-        LogPrintf(LogWARN, "%s: Redundant context (%s) ignored\n",
+        log_Printf(LogWARN, "%s: Redundant context (%s) ignored\n",
                   mkPrefix(argn+1, argv, prefix, sizeof prefix), cx->name);
         cx = NULL;
       }
@@ -656,20 +656,20 @@ FindExec(struct bundle *bundle, struct cmdtab const *cmds, int argc, int argn,
       val = (*cmd->func) (&arg);
     }
   } else
-    LogPrintf(LogWARN, "%s: Invalid command\n",
+    log_Printf(LogWARN, "%s: Invalid command\n",
               mkPrefix(argn+1, argv, prefix, sizeof prefix));
 
   if (val == -1)
-    LogPrintf(LogWARN, "Usage: %s\n", cmd->syntax);
+    log_Printf(LogWARN, "Usage: %s\n", cmd->syntax);
   else if (val)
-    LogPrintf(LogWARN, "%s: Failed %d\n",
+    log_Printf(LogWARN, "%s: Failed %d\n",
               mkPrefix(argn+1, argv, prefix, sizeof prefix), val);
 
   return val;
 }
 
 void
-InterpretCommand(char *buff, int nb, int *argc, char ***argv)
+command_Interpret(char *buff, int nb, int *argc, char ***argv)
 {
   static char *vector[MAXARGS];
   char *cp;
@@ -703,11 +703,11 @@ arghidden(int argc, char const *const *argv, int n)
 }
 
 void
-RunCommand(struct bundle *bundle, int argc, char const *const *argv,
+command_Run(struct bundle *bundle, int argc, char const *const *argv,
            struct prompt *prompt, const char *label)
 {
   if (argc > 0) {
-    if (LogIsKept(LogCOMMAND)) {
+    if (log_IsKept(LogCOMMAND)) {
       static char buf[LINE_LEN];
       int f, n;
 
@@ -727,28 +727,28 @@ RunCommand(struct bundle *bundle, int argc, char const *const *argv,
           strncpy(buf+n, argv[f], sizeof buf - n - 1);
         n += strlen(buf+n);
       }
-      LogPrintf(LogCOMMAND, "%s\n", buf);
+      log_Printf(LogCOMMAND, "%s\n", buf);
     }
     FindExec(bundle, Commands, argc, 0, argv, prompt, NULL);
   }
 }
 
 void
-DecodeCommand(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
+command_Decode(struct bundle *bundle, char *buff, int nb, struct prompt *prompt,
               const char *label)
 {
   int argc;
   char **argv;
 
-  InterpretCommand(buff, nb, &argc, &argv);
-  RunCommand(bundle, argc, (char const *const *)argv, prompt, label);
+  command_Interpret(buff, nb, &argc, &argv);
+  command_Run(bundle, argc, (char const *const *)argv, prompt, label);
 }
 
 static int
 ShowCommand(struct cmdargs const *arg)
 {
   if (!arg->prompt)
-    LogPrintf(LogWARN, "show: Cannot show without a prompt\n");
+    log_Printf(LogWARN, "show: Cannot show without a prompt\n");
   else if (arg->argc > arg->argn)
     FindExec(arg->bundle, ShowCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
@@ -762,7 +762,7 @@ static int
 TerminalCommand(struct cmdargs const *arg)
 {
   if (!arg->prompt) {
-    LogPrintf(LogWARN, "term: Need a prompt\n");
+    log_Printf(LogWARN, "term: Need a prompt\n");
     return 1;
   }
 
@@ -798,13 +798,13 @@ OpenCommand(struct cmdargs const *arg)
     bundle_Open(arg->bundle, arg->cx ? arg->cx->name : NULL, PHYS_ALL);
   else if (arg->argc == arg->argn+1 &&
            !strcasecmp(arg->argv[arg->argn], "ccp")) {
-    struct fsm *fp = &ChooseLink(arg)->ccp.fsm;
+    struct fsm *fp = &command_ChooseLink(arg)->ccp.fsm;
 
     if (fp->link->lcp.fsm.state != ST_OPENED)
-      LogPrintf(LogWARN, "open: LCP must be open before opening CCP\n");
+      log_Printf(LogWARN, "open: LCP must be open before opening CCP\n");
     else if (fp->state != ST_OPENED) {
-      FsmUp(fp);
-      FsmOpen(fp);
+      fsm_Up(fp);
+      fsm_Open(fp);
     }
   } else
     return -1;
@@ -820,10 +820,10 @@ CloseCommand(struct cmdargs const *arg)
     bundle_Close(arg->bundle, arg->cx ? arg->cx->name : NULL, 1);
   else if (arg->argc == arg->argn+1 &&
            !strcasecmp(arg->argv[arg->argn], "ccp")) {
-    struct fsm *fp = &ChooseLink(arg)->ccp.fsm;
+    struct fsm *fp = &command_ChooseLink(arg)->ccp.fsm;
 
     if (fp->state == ST_OPENED)
-      FsmClose(fp);
+      fsm_Close(fp);
   } else
     return -1;
 
@@ -845,25 +845,25 @@ SetModemSpeed(struct cmdargs const *arg)
 
   if (arg->argc > arg->argn && *arg->argv[arg->argn]) {
     if (arg->argc > arg->argn+1) {
-      LogPrintf(LogWARN, "SetModemSpeed: Too many arguments");
+      log_Printf(LogWARN, "SetModemSpeed: Too many arguments");
       return -1;
     }
     if (strcasecmp(arg->argv[arg->argn], "sync") == 0) {
-      Physical_SetSync(arg->cx->physical);
+      physical_SetSync(arg->cx->physical);
       return 0;
     }
     end = NULL;
     speed = strtol(arg->argv[arg->argn], &end, 10);
     if (*end) {
-      LogPrintf(LogWARN, "SetModemSpeed: Bad argument \"%s\"",
+      log_Printf(LogWARN, "SetModemSpeed: Bad argument \"%s\"",
                 arg->argv[arg->argn]);
       return -1;
     }
-    if (Physical_SetSpeed(arg->cx->physical, speed))
+    if (physical_SetSpeed(arg->cx->physical, speed))
       return 0;
-    LogPrintf(LogWARN, "%s: Invalid speed\n", arg->argv[arg->argn]);
+    log_Printf(LogWARN, "%s: Invalid speed\n", arg->argv[arg->argn]);
   } else
-    LogPrintf(LogWARN, "SetModemSpeed: No speed specified\n");
+    log_Printf(LogWARN, "SetModemSpeed: No speed specified\n");
 
   return -1;
 }
@@ -908,8 +908,8 @@ SetServer(struct cmdargs const *arg)
       if (!ismask(mask))
         return -1;
     } else if (strcasecmp(port, "none") == 0) {
-      if (ServerClose(arg->bundle))
-        LogPrintf(LogPHASE, "Disabled server port.\n");
+      if (server_Close(arg->bundle))
+        log_Printf(LogPHASE, "Disabled server port.\n");
       return 0;
     } else
       return -1;
@@ -929,7 +929,7 @@ SetServer(struct cmdargs const *arg)
           return -1;
       } else
         imask = (mode_t)-1;
-      res = ServerLocalOpen(arg->bundle, port, imask);
+      res = server_LocalOpen(arg->bundle, port, imask);
     } else {
       int iport;
 
@@ -941,12 +941,12 @@ SetServer(struct cmdargs const *arg)
 
         if ((s = getservbyname(port, "tcp")) == NULL) {
 	  iport = 0;
-	  LogPrintf(LogWARN, "%s: Invalid port or service\n", port);
+	  log_Printf(LogWARN, "%s: Invalid port or service\n", port);
 	} else
 	  iport = ntohs(s->s_port);
       } else
         iport = atoi(port);
-      res = iport ? ServerTcpOpen(arg->bundle, iport) : -1;
+      res = iport ? server_TcpOpen(arg->bundle, iport) : -1;
     }
   }
 
@@ -1044,7 +1044,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
   }
 
   if (hisaddr &&
-      !UseHisaddr(arg->bundle, hisaddr, arg->bundle->phys_type & PHYS_DEMAND))
+      !ipcp_UseHisaddr(arg->bundle, hisaddr, arg->bundle->phys_type & PHYS_DEMAND))
     return 4;
 
   return 0;
@@ -1058,7 +1058,7 @@ SetVariable(struct cmdargs const *arg)
   int param = (int)arg->cmd->args;
   struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
   const char *err = NULL;
-  struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
+  struct link *l = command_ChooseLink(arg);	/* AUTH_CX_OPT uses this */
   int dummyint;
   struct in_addr dummyaddr, *addr;
 
@@ -1068,11 +1068,11 @@ SetVariable(struct cmdargs const *arg)
     argp = "";
 
   if ((arg->cmd->lauth & LOCAL_CX) && !cx) {
-    LogPrintf(LogWARN, "set %s: No context (use the `link' command)\n",
+    log_Printf(LogWARN, "set %s: No context (use the `link' command)\n",
               arg->cmd->name);
     return 1;
   } else if (cx && !(arg->cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
-    LogPrintf(LogWARN, "set %s: Redundant context (%s) ignored\n",
+    log_Printf(LogWARN, "set %s: Redundant context (%s) ignored\n",
               arg->cmd->name, cx->name);
     cx = NULL;
   }
@@ -1085,7 +1085,7 @@ SetVariable(struct cmdargs const *arg)
       arg->bundle->cfg.auth.key[sizeof arg->bundle->cfg.auth.key - 1] = '\0';
     } else {
       err = "set authkey: Only available at phase DEAD\n";
-      LogPrintf(LogWARN, err);
+      log_Printf(LogWARN, err);
     }
     break;
   case VAR_AUTHNAME:
@@ -1095,7 +1095,7 @@ SetVariable(struct cmdargs const *arg)
       arg->bundle->cfg.auth.name[sizeof arg->bundle->cfg.auth.name - 1] = '\0';
     } else {
       err = "set authname: Only available at phase DEAD\n";
-      LogPrintf(LogWARN, err);
+      log_Printf(LogWARN, err);
     }
     break;
   case VAR_DIAL:
@@ -1111,7 +1111,7 @@ SetVariable(struct cmdargs const *arg)
       l->ccp.cfg.deflate.out.winsize = atoi(arg->argv[arg->argn]);
       if (l->ccp.cfg.deflate.out.winsize < 8 ||
           l->ccp.cfg.deflate.out.winsize > 15) {
-          LogPrintf(LogWARN, "%d: Invalid outgoing window size\n",
+          log_Printf(LogWARN, "%d: Invalid outgoing window size\n",
                     l->ccp.cfg.deflate.out.winsize);
           l->ccp.cfg.deflate.out.winsize = 15;
       }
@@ -1119,7 +1119,7 @@ SetVariable(struct cmdargs const *arg)
         l->ccp.cfg.deflate.in.winsize = atoi(arg->argv[arg->argn+1]);
         if (l->ccp.cfg.deflate.in.winsize < 8 ||
             l->ccp.cfg.deflate.in.winsize > 15) {
-            LogPrintf(LogWARN, "%d: Invalid incoming window size\n",
+            log_Printf(LogWARN, "%d: Invalid incoming window size\n",
                       l->ccp.cfg.deflate.in.winsize);
             l->ccp.cfg.deflate.in.winsize = 15;
         }
@@ -1127,11 +1127,11 @@ SetVariable(struct cmdargs const *arg)
         l->ccp.cfg.deflate.in.winsize = 0;
     } else {
       err = "No window size specified\n";
-      LogPrintf(LogWARN, err);
+      log_Printf(LogWARN, err);
     }
     break;
   case VAR_DEVICE:
-    Physical_SetDeviceList(cx->physical, arg->argc - arg->argn,
+    physical_SetDeviceList(cx->physical, arg->argc - arg->argn,
                            arg->argv + arg->argn);
     break;
   case VAR_ACCMAP:
@@ -1140,12 +1140,12 @@ SetVariable(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.accmap = ulong_val;
     } else {
       err = "No accmap specified\n";
-      LogPrintf(LogWARN, err);
+      log_Printf(LogWARN, err);
     }
     break;
   case VAR_MRRU:
     if (bundle_Phase(arg->bundle) != PHASE_DEAD)
-      LogPrintf(LogWARN, "mrru: Only changable at phase DEAD\n");
+      log_Printf(LogWARN, "mrru: Only changable at phase DEAD\n");
     else {
       ulong_val = atol(argp);
       if (ulong_val < MIN_MRU)
@@ -1155,7 +1155,7 @@ SetVariable(struct cmdargs const *arg)
       else
         arg->bundle->ncp.mp.cfg.mrru = ulong_val;
       if (err)
-        LogPrintf(LogWARN, err, ulong_val);
+        log_Printf(LogWARN, err, ulong_val);
     }
     break;
   case VAR_MRU:
@@ -1167,7 +1167,7 @@ SetVariable(struct cmdargs const *arg)
     else
       l->lcp.cfg.mru = ulong_val;
     if (err)
-      LogPrintf(LogWARN, err, ulong_val);
+      log_Printf(LogWARN, err, ulong_val);
     break;
   case VAR_MTU:
     ulong_val = atol(argp);
@@ -1180,7 +1180,7 @@ SetVariable(struct cmdargs const *arg)
     else
       arg->bundle->cfg.mtu = ulong_val;
     if (err)
-      LogPrintf(LogWARN, err, ulong_val);
+      log_Printf(LogWARN, err, ulong_val);
     break;
   case VAR_OPENMODE:
     if (strcasecmp(argp, "active") == 0)
@@ -1190,7 +1190,7 @@ SetVariable(struct cmdargs const *arg)
       cx->physical->link.lcp.cfg.openmode = OPEN_PASSIVE;
     else {
       err = "%s: Invalid openmode\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     }
     break;
   case VAR_PHONE:
@@ -1207,13 +1207,13 @@ SetVariable(struct cmdargs const *arg)
     else if (arg->argc == arg->argn+1)
       bundle_SetIdleTimer(arg->bundle, atoi(argp));
     if (err)
-      LogPrintf(LogWARN, err);
+      log_Printf(LogWARN, err);
     break;
   case VAR_LQRPERIOD:
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid lqr period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       l->lcp.cfg.lqrperiod = ulong_val;
     break;
@@ -1221,7 +1221,7 @@ SetVariable(struct cmdargs const *arg)
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid LCP FSM retry period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       cx->physical->link.lcp.cfg.fsmretry = ulong_val;
     break;
@@ -1229,7 +1229,7 @@ SetVariable(struct cmdargs const *arg)
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid CHAP retry period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       cx->chap.auth.cfg.fsmretry = ulong_val;
     break;
@@ -1237,7 +1237,7 @@ SetVariable(struct cmdargs const *arg)
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid PAP retry period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       cx->pap.cfg.fsmretry = ulong_val;
     break;
@@ -1245,7 +1245,7 @@ SetVariable(struct cmdargs const *arg)
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid CCP FSM retry period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       l->ccp.cfg.fsmretry = ulong_val;
     break;
@@ -1253,7 +1253,7 @@ SetVariable(struct cmdargs const *arg)
     ulong_val = atol(argp);
     if (ulong_val <= 0) {
       err = "%s: Invalid IPCP FSM retry period\n";
-      LogPrintf(LogWARN, err, argp);
+      log_Printf(LogWARN, err, argp);
     } else
       arg->bundle->ncp.ipcp.cfg.fsmretry = ulong_val;
     break;
@@ -1289,9 +1289,9 @@ SetCtsRts(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcmp(arg->argv[arg->argn], "on") == 0)
-      Physical_SetRtsCts(arg->cx->physical, 1);
+      physical_SetRtsCts(arg->cx->physical, 1);
     else if (strcmp(arg->argv[arg->argn], "off") == 0)
-      Physical_SetRtsCts(arg->cx->physical, 0);
+      physical_SetRtsCts(arg->cx->physical, 0);
     else
       return -1;
     return 0;
@@ -1329,7 +1329,7 @@ static struct cmdtab const SetCommands[] = {
   "Set Endpoint Discriminator", "set enddisc [IP|magic|label|psn value]"},
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
-  {"filter", NULL, SetFilter, LOCAL_AUTH,
+  {"filter", NULL, filter_Set, LOCAL_AUTH,
   "Set packet filters", "set filter alive|dial|in|out rule-no permit|deny "
   "[src_addr[/width]] [dst_addr[/width]] [tcp|udp|icmp [src [lt|eq|gt port]] "
   "[dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
@@ -1375,7 +1375,7 @@ static struct cmdtab const SetCommands[] = {
   "Set STOPPED timeouts", "set stopped [LCPseconds [CCPseconds]]"},
   {"timeout", NULL, SetVariable, LOCAL_AUTH, "Set Idle timeout",
   "set timeout idletime", (const void *)VAR_IDLETIMEOUT},
-  {"vj", NULL, SetInitVJ, LOCAL_AUTH,
+  {"vj", NULL, ipcp_vjset, LOCAL_AUTH,
   "Set vj values", "set vj slots|slotcomp [value]"},
   {"weight", NULL, mp_SetDatalinkWeight, LOCAL_AUTH | LOCAL_CX,
   "Set datalink weighting", "set weight n"},
@@ -1394,7 +1394,7 @@ SetCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Use `set ?' to get a list or `set ? <var>' for"
 	    " syntax help.\n");
   else
-    LogPrintf(LogWARN, "set command must have arguments\n");
+    log_Printf(LogWARN, "set command must have arguments\n");
 
   return 0;
 }
@@ -1444,7 +1444,7 @@ DeleteCommand(struct cmdargs const *arg)
 
   if (arg->argc == arg->argn+1) {
     if(strcasecmp(arg->argv[arg->argn], "all") == 0)
-      DeleteIfRoutes(arg->bundle, 0);
+      route_IfDelete(arg->bundle, 0);
     else {
       if (strcasecmp(arg->argv[arg->argn], "MYADDR") == 0)
         dest = arg->bundle->ncp.ipcp.my_ip;
@@ -1465,7 +1465,7 @@ DeleteCommand(struct cmdargs const *arg)
 #ifndef NOALIAS
 static struct cmdtab const AliasCommands[] =
 {
-  {"addr", NULL, AliasRedirectAddr, LOCAL_AUTH,
+  {"addr", NULL, alias_RedirectAddr, LOCAL_AUTH,
    "static address translation", "alias addr [addr_local addr_alias]"},
   {"deny_incoming", NULL, AliasOption, LOCAL_AUTH,
    "stop incoming connections", "alias deny_incoming [yes|no]",
@@ -1475,7 +1475,7 @@ static struct cmdtab const AliasCommands[] =
   {"log", NULL, AliasOption, LOCAL_AUTH,
    "log aliasing link creation", "alias log [yes|no]",
    (const void *) PKT_ALIAS_LOG},
-  {"port", NULL, AliasRedirectPort, LOCAL_AUTH,
+  {"port", NULL, alias_RedirectPort, LOCAL_AUTH,
    "port redirection", "alias port [proto addr_local:port_local  port_alias]"},
   {"same_ports", NULL, AliasOption, LOCAL_AUTH,
    "try to leave port numbers unchanged", "alias same_ports [yes|no]",
@@ -1503,7 +1503,7 @@ AliasCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Use `alias help' to get a list or `alias help"
             " <option>' for syntax help.\n");
   else
-    LogPrintf(LogWARN, "alias command must have arguments\n");
+    log_Printf(LogWARN, "alias command must have arguments\n");
 
   return 0;
 }
@@ -1513,12 +1513,12 @@ AliasEnable(struct cmdargs const *arg)
 {
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (loadAliasHandlers() == 0)
+      if (alias_Load() == 0)
 	return 0;
-      LogPrintf(LogWARN, "Cannot load alias library\n");
+      log_Printf(LogWARN, "Cannot load alias library\n");
       return 1;
     } else if (strcasecmp(arg->argv[arg->argn], "no") == 0) {
-      unloadAliasHandlers();
+      alias_Unload();
       return 0;
     }
   }
@@ -1533,17 +1533,17 @@ AliasOption(struct cmdargs const *arg)
   unsigned param = (unsigned)arg->cmd->args;
   if (arg->argc == arg->argn+1) {
     if (strcasecmp(arg->argv[arg->argn], "yes") == 0) {
-      if (AliasEnabled()) {
+      if (alias_IsEnabled()) {
 	(*PacketAlias.SetMode)(param, param);
 	return 0;
       }
-      LogPrintf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "alias not enabled\n");
     } else if (strcmp(arg->argv[arg->argn], "no") == 0) {
-      if (AliasEnabled()) {
+      if (alias_IsEnabled()) {
 	(*PacketAlias.SetMode)(0, param);
 	return 0;
       }
-      LogPrintf(LogWARN, "alias not enabled\n");
+      log_Printf(LogWARN, "alias not enabled\n");
     }
   }
   return -1;
@@ -1563,7 +1563,7 @@ static struct cmdtab const AllowCommands[] = {
 static int
 AllowCommand(struct cmdargs const *arg)
 {
-  /* arg->bundle may be NULL (see ValidSystem()) ! */
+  /* arg->bundle may be NULL (see system_IsValid()) ! */
   if (arg->argc > arg->argn)
     FindExec(arg->bundle, AllowCommands, arg->argc, arg->argn, arg->argv,
              arg->prompt, arg->cx);
@@ -1571,7 +1571,7 @@ AllowCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Use `allow ?' to get a list or `allow ? <cmd>'"
                   " for syntax help.\n");
   else
-    LogPrintf(LogWARN, "allow command must have arguments\n");
+    log_Printf(LogWARN, "allow command must have arguments\n");
 
   return 0;
 }
@@ -1585,11 +1585,11 @@ LinkCommand(struct cmdargs const *arg)
       FindExec(arg->bundle, Commands, arg->argc, arg->argn+1, arg->argv,
                arg->prompt, cx);
     else {
-      LogPrintf(LogWARN, "link: %s: Invalid link name\n", arg->argv[arg->argn]);
+      log_Printf(LogWARN, "link: %s: Invalid link name\n", arg->argv[arg->argn]);
       return 1;
     }
   } else {
-    LogPrintf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
+    log_Printf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
     return 2;
   }
 
@@ -1597,7 +1597,7 @@ LinkCommand(struct cmdargs const *arg)
 }
 
 struct link *
-ChooseLink(struct cmdargs const *arg)
+command_ChooseLink(struct cmdargs const *arg)
 {
   if (arg->cx)
     return &arg->cx->physical->link;
@@ -1675,7 +1675,7 @@ static int
 NegotiateSet(struct cmdargs const *arg)
 {
   int param = (int)arg->cmd->args;
-  struct link *l = ChooseLink(arg);	/* AUTH_CX_OPT uses this */
+  struct link *l = command_ChooseLink(arg);	/* AUTH_CX_OPT uses this */
   struct datalink *cx = arg->cx;	/* AUTH_CX uses this */
   const char *cmd;
   unsigned keep;			/* Keep these bits */
@@ -1685,11 +1685,11 @@ NegotiateSet(struct cmdargs const *arg)
     return 1;
 
   if ((arg->cmd->lauth & LOCAL_CX) && !cx) {
-    LogPrintf(LogWARN, "%s %s: No context (use the `link' command)\n",
+    log_Printf(LogWARN, "%s %s: No context (use the `link' command)\n",
               cmd, arg->cmd->name);
     return 2;
   } else if (cx && !(arg->cmd->lauth & (LOCAL_CX|LOCAL_CX_OPT))) {
-    LogPrintf(LogWARN, "%s %s: Redundant context (%s) ignored\n",
+    log_Printf(LogWARN, "%s %s: Redundant context (%s) ignored\n",
               cmd, arg->cmd->name, cx->name);
     cx = NULL;
   }
@@ -1733,7 +1733,7 @@ NegotiateSet(struct cmdargs const *arg)
       break;
     case NEG_SHORTSEQ:
       if (bundle_Phase(arg->bundle) != PHASE_DEAD)
-        LogPrintf(LogWARN, "shortseq: Only changable at phase DEAD\n");
+        log_Printf(LogWARN, "shortseq: Only changable at phase DEAD\n");
       else {
         arg->bundle->ncp.mp.cfg.shortseq &= keep;
         arg->bundle->ncp.mp.cfg.shortseq |= add;
@@ -1823,7 +1823,7 @@ NegotiateCommand(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "Use `%s ?' to get a list.\n",
 	    arg->argv[arg->argn-1]);
   else
-    LogPrintf(LogWARN, "%s command must have arguments\n",
+    log_Printf(LogWARN, "%s command must have arguments\n",
               arg->argv[arg->argn] );
 
   return 0;

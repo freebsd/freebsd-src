@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.14 1998/04/07 00:53:42 brian Exp $
+ * $Id: fsm.h,v 1.16.2.15 1998/04/30 23:53:39 brian Exp $
  *
  *	TODO:
  */
@@ -146,12 +146,12 @@ struct fsmconfig {
 extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
                      struct fsm_callbacks *, const char *[3]);
-extern void FsmOutput(struct fsm *, u_int, u_int, u_char *, int);
-extern void FsmOpen(struct fsm *);
-extern void FsmUp(struct fsm *);
-extern void FsmDown(struct fsm *);
-extern void FsmInput(struct fsm *, struct mbuf *);
-extern void FsmClose(struct fsm *);
-extern void NullRecvResetReq(struct fsm *fp);
-extern void NullRecvResetAck(struct fsm *fp, u_char);
+extern void fsm_Output(struct fsm *, u_int, u_int, u_char *, int);
+extern void fsm_Open(struct fsm *);
+extern void fsm_Up(struct fsm *);
+extern void fsm_Down(struct fsm *);
+extern void fsm_Input(struct fsm *, struct mbuf *);
+extern void fsm_Close(struct fsm *);
+extern void fsm_NullRecvResetReq(struct fsm *fp);
+extern void fsm_NullRecvResetAck(struct fsm *fp, u_char);
 extern const char *State2Nam(u_int);

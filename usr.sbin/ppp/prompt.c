@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.27 1998/04/18 01:01:27 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.28 1998/04/19 15:24:49 brian Exp $
  */
 
 #include <sys/param.h>
@@ -178,12 +178,12 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         linebuff[--n] = '\0';
       else
         linebuff[n] = '\0';
-      p->nonewline = 1;		/* Maybe DecodeCommand does a prompt */
+      p->nonewline = 1;		/* Maybe command_Decode does a prompt */
       prompt_Required(p);
       if (n)
-        DecodeCommand(bundle, linebuff, n, p, p->src.from);
+        command_Decode(bundle, linebuff, n, p, p->src.from);
     } else if (n <= 0) {
-      LogPrintf(LogPHASE, "Client connection closed.\n");
+      log_Printf(LogPHASE, "Client connection closed.\n");
       prompt_Destroy(p, 0);
     }
     return;
@@ -216,7 +216,7 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
    * We are in terminal mode, decode special sequences
    */
   n = read(p->fd_in, &ch, 1);
-  LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
+  log_Printf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
 
   if (n > 0) {
     switch (ttystate) {
@@ -224,8 +224,8 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
       if (ch == '~')
 	ttystate++;
       else
-	if (Physical_Write(p->TermMode->physical, &ch, n) < 0) {
-	  LogPrintf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
+	  log_Printf(LogERROR, "error writing to modem: %s\n", strerror(errno));
           prompt_TtyCommandMode(p);
         }
       break;
@@ -245,14 +245,14 @@ prompt_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         prompt_Required(p);
 	break;
       case 't':
-	ShowTimers(0, p);
+	timer_Show(0, p);
 	break;
       case 'm':
-	ShowMemMap(NULL);
+	mbuf_Show(NULL);
 	break;
       default:
-	if (Physical_Write(p->TermMode->physical, &ch, n) < 0) {
-	  LogPrintf(LogERROR, "error writing to modem: %s\n", strerror(errno));
+	if (physical_Write(p->TermMode->physical, &ch, n) < 0) {
+	  log_Printf(LogERROR, "error writing to modem: %s\n", strerror(errno));
           prompt_TtyCommandMode(p);
         }
 	break;
@@ -267,7 +267,7 @@ static void
 prompt_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  LogPrintf(LogERROR, "prompt_Write: Internal error: Bad call !\n");
+  log_Printf(LogERROR, "prompt_Write: Internal error: Bad call !\n");
 }
 
 struct prompt *
@@ -309,7 +309,7 @@ prompt_Create(struct server *s, struct bundle *bundle, int fd)
     if (p->bundle)
       bundle_RegisterDescriptor(p->bundle, &p->desc);
     log_RegisterPrompt(p);
-    LogDiscardAllLocal(&p->logmask);
+    log_DiscardAllLocal(&p->logmask);
   }
 
   return p;
@@ -324,7 +324,7 @@ prompt_Destroy(struct prompt *p, int verbose)
     if (p->fd_out != p->fd_in)
       close(p->fd_out);
     if (verbose)
-      LogPrintf(LogPHASE, "Client connection dropped.\n");
+      log_Printf(LogPHASE, "Client connection dropped.\n");
   } else
     prompt_TtyOldMode(p);
 
@@ -460,12 +460,12 @@ PasswdCommand(struct cmdargs const *arg)
   const char *pass;
 
   if (!arg->prompt) {
-    LogPrintf(LogWARN, "passwd: Cannot specify without a prompt\n");
+    log_Printf(LogWARN, "passwd: Cannot specify without a prompt\n");
     return 0;
   }
 
   if (arg->prompt->owner == NULL) {
-    LogPrintf(LogWARN, "passwd: Not required\n");
+    log_Printf(LogWARN, "passwd: Not required\n");
     return 0;
   }
 
@@ -495,7 +495,7 @@ prompt_TimedContinue(void *v)
 void
 prompt_Continue(struct prompt *p)
 {
-  StopTimer(&bgtimer);
+  timer_Stop(&bgtimer);
   if (getpgrp() == prompt_pgrp(p)) {
     prompt_TtyCommandMode(p);
     p->nonewline = 1;
@@ -506,7 +506,7 @@ prompt_Continue(struct prompt *p)
     bgtimer.name = "prompt bg";
     bgtimer.load = SECTICKS;
     bgtimer.arg = p;
-    StartTimer(&bgtimer);
+    timer_Start(&bgtimer);
   }
 }
 

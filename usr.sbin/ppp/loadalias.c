@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.c,v 1.14.2.3 1998/04/18 01:01:23 brian Exp $
+ *	$Id: loadalias.c,v 1.14.2.4 1998/04/25 10:49:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ static struct {
 struct aliasHandlers PacketAlias;
 
 int 
-loadAliasHandlers()
+alias_Load()
 {
   const char *path;
   const char *env;
@@ -84,7 +84,7 @@ loadAliasHandlers()
     if (ID0realuid() == 0)
       path = env;
     else
-      LogPrintf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
+      log_Printf(LogALERT, "Ignoring environment _PATH_ALIAS_PREFIX"
                 " value (%s)\n", env);
   }
 
@@ -136,7 +136,7 @@ loadAliasHandlers()
       }
     }
     if (PacketAlias.dl == (void *) 0) {
-      LogPrintf(LogWARN, "_PATH_ALIAS_PREFIX (%s*): Invalid lib: %s\n",
+      log_Printf(LogWARN, "_PATH_ALIAS_PREFIX (%s*): Invalid lib: %s\n",
 	        path, dlerror());
       return -1;
     }
@@ -145,9 +145,9 @@ loadAliasHandlers()
     *(void **)((char *)&PacketAlias + map[i].offset) =
       dlsym(PacketAlias.dl, map[i].name);
     if (*(void **)((char *)&PacketAlias + map[i].offset) == (void *)0) {
-      LogPrintf(LogWARN, "_PATH_ALIAS (%s*): %s: %s\n", path,
+      log_Printf(LogWARN, "_PATH_ALIAS (%s*): %s: %s\n", path,
 		map[i].name, dlerror());
-      unloadAliasHandlers();
+      alias_Unload();
       return -1;
     }
   }
@@ -158,7 +158,7 @@ loadAliasHandlers()
 }
 
 void 
-unloadAliasHandlers()
+alias_Unload()
 {
   if (PacketAlias.dl) {
     dlclose(PacketAlias.dl);

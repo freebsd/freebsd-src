@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.h,v 1.9.2.6 1998/03/13 21:08:00 brian Exp $
+ *	$Id: chat.h,v 1.9.2.7 1998/04/07 00:53:29 brian Exp $
  */
 
 #define CHAT_EXPECT 0
@@ -72,14 +72,11 @@ struct chat {
   struct pppTimer timeout;		/* TimeoutSec timer */
 };
 
-#define chat2descriptor(c) (&(c)->desc)
 #define descriptor2chat(d) \
   ((d)->type == CHAT_DESCRIPTOR ? (struct chat *)(d) : NULL)
-
-void chat_Init(struct chat *, struct physical *, const char *, int,
-               const char *);
-void chat_Destroy(struct chat *);
-
 #define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 
+extern void chat_Init(struct chat *, struct physical *, const char *, int,
+                      const char *);
+extern void chat_Destroy(struct chat *);
 extern int MakeArgs(char *, char **, int);  /* Mangles the first arg ! */

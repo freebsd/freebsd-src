@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.52 1998/04/28 01:25:30 brian Exp $
+ * $Id: main.c,v 1.121.2.53 1998/04/30 23:53:48 brian Exp $
  *
  *	TODO:
  */
@@ -64,7 +64,6 @@
 #include "ip.h"
 #include "sig.h"
 #include "main.h"
-#include "pathnames.h"
 #include "tun.h"
 #include "server.h"
 #include "prompt.h"
@@ -98,12 +97,12 @@ Cleanup(int excode)
 void
 AbortProgram(int excode)
 {
-  ServerClose(SignalBundle);
+  server_Close(SignalBundle);
   ID0unlink(pid_filename);
-  LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
+  log_Printf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   bundle_Close(SignalBundle, NULL, 1);
   bundle_Destroy(SignalBundle);
-  LogClose();
+  log_Close();
   exit(excode);
 }
 
@@ -113,17 +112,17 @@ CloseConnection(int signo)
   /* NOTE, these are manual, we've done a setsid() */
   struct datalink *dl;
 
-  pending_signal(SIGINT, SIG_IGN);
-  LogPrintf(LogPHASE, "Caught signal %d, abort connection(s)\n", signo);
+  sig_signal(SIGINT, SIG_IGN);
+  log_Printf(LogPHASE, "Caught signal %d, abort connection(s)\n", signo);
   for (dl = SignalBundle->links; dl; dl = dl->next)
     datalink_Down(dl, 1);
-  pending_signal(SIGINT, CloseConnection);
+  sig_signal(SIGINT, CloseConnection);
 }
 
 static void
 CloseSession(int signo)
 {
-  LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
+  log_Printf(LogPHASE, "Signal %d, terminate.\n", signo);
   Cleanup(EX_TERM);
 }
 
@@ -132,7 +131,7 @@ static pid_t BGPid = 0;
 static void
 KillChild(int signo)
 {
-  LogPrintf(LogPHASE, "Parent: Signal %d\n", signo);
+  log_Printf(LogPHASE, "Parent: Signal %d\n", signo);
   kill(BGPid, SIGINT);
 }
 
@@ -160,7 +159,7 @@ SetUpServer(int signo)
   VarHaveLocalAuthKey = 0;
   LocalAuthInit();
   if ((res = ServerTcpOpen(SERVER_PORT + SignalBundle->unit)) != 0)
-    LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
+    log_Printf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
 	      res, SERVER_PORT + SignalBundle->unit);
 }
 #endif
@@ -169,7 +168,7 @@ static void
 BringDownServer(int signo)
 {
   /* Drops all child prompts too ! */
-  ServerClose(SignalBundle);
+  server_Close(SignalBundle);
 }
 
 static const char *
@@ -224,9 +223,9 @@ ProcessArgs(int argc, char **argv, int *mode)
       labelrequired = 1;
     } else if (strcmp(cp, "alias") == 0) {
 #ifndef NOALIAS
-      if (loadAliasHandlers() != 0)
+      if (alias_Load() != 0)
 #endif
-	LogPrintf(LogWARN, "Cannot load alias library\n");
+	log_Printf(LogWARN, "Cannot load alias library\n");
       optc--;			/* this option isn't exclusive */
     } else
       Usage();
@@ -273,7 +272,7 @@ main(int argc, char **argv)
       close(nfds);
 
   name = strrchr(argv[0], '/');
-  LogOpen(name ? name + 1 : argv[0]);
+  log_Open(name ? name + 1 : argv[0]);
 
   argc--;
   argv++;
@@ -327,7 +326,7 @@ main(int argc, char **argv)
     snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
     do {
       if (!access(conf, W_OK)) {
-        LogPrintf(LogALERT, "ppp: Access violation: Please protect %s\n", conf);
+        log_Printf(LogALERT, "ppp: Access violation: Please protect %s\n", conf);
         return -1;
       }
       ptr = conf + strlen(conf)-2;
@@ -336,50 +335,50 @@ main(int argc, char **argv)
     } while (ptr >= conf);
   }
 
-  if (!ValidSystem(label, prompt, mode)) {
+  if (!system_IsValid(label, prompt, mode)) {
     fprintf(stderr, "You may not use ppp in this mode with this label\n");
     if (mode == PHYS_DIRECT) {
       const char *l;
       l = label ? label : "default";
-      LogPrintf(LogWARN, "Label %s rejected -direct connection\n", l);
+      log_Printf(LogWARN, "Label %s rejected -direct connection\n", l);
     }
-    LogClose();
+    log_Close();
     return 1;
   }
 
   if ((bundle = bundle_Create(TUN_PREFIX, prompt, mode)) == NULL) {
-    LogPrintf(LogWARN, "bundle_Create: %s\n", strerror(errno));
+    log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
   SignalBundle = bundle;
 
-  if (SelectSystem(bundle, "default", CONFFILE, prompt) < 0)
+  if (system_Select(bundle, "default", CONFFILE, prompt) < 0)
     prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
 
-  pending_signal(SIGHUP, CloseSession);
-  pending_signal(SIGTERM, CloseSession);
-  pending_signal(SIGINT, CloseConnection);
-  pending_signal(SIGQUIT, CloseSession);
-  pending_signal(SIGALRM, SIG_IGN);
+  sig_signal(SIGHUP, CloseSession);
+  sig_signal(SIGTERM, CloseSession);
+  sig_signal(SIGINT, CloseConnection);
+  sig_signal(SIGQUIT, CloseSession);
+  sig_signal(SIGALRM, SIG_IGN);
   signal(SIGPIPE, SIG_IGN);
 
   if (mode == PHYS_MANUAL)
-    pending_signal(SIGTSTP, TerminalStop);
+    sig_signal(SIGTSTP, TerminalStop);
 
 #if 0 /* What's our passwd :-O */
-  pending_signal(SIGUSR1, SetUpServer);
+  sig_signal(SIGUSR1, SetUpServer);
 #endif
-  pending_signal(SIGUSR2, BringDownServer);
+  sig_signal(SIGUSR2, BringDownServer);
 
   if (label) {
     /*
-     * Set label both before and after SelectSystem !
-     * This way, "set enddisc label" works during SelectSystem, and we
+     * Set label both before and after system_Select !
+     * This way, "set enddisc label" works during system_Select, and we
      * also end up with the correct label if we have embedded load
      * commands.
      */
     bundle_SetLabel(bundle, label);
-    if (SelectSystem(bundle, label, CONFFILE, prompt) < 0) {
+    if (system_Select(bundle, label, CONFFILE, prompt) < 0) {
       prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
       AbortProgram(EX_START);
     }
@@ -398,13 +397,13 @@ main(int argc, char **argv)
       pid_t bgpid;
 
       if (mode == PHYS_1OFF && pipe(bgpipe)) {
-        LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
+        log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
 	AbortProgram(EX_SOCK);
       }
 
       bgpid = fork();
       if (bgpid == -1) {
-	LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
+	log_Printf(LogERROR, "fork: %s\n", strerror(errno));
 	AbortProgram(EX_SOCK);
       }
 
@@ -423,13 +422,13 @@ main(int argc, char **argv)
 	  /* Wait for our child to close its pipe before we exit */
 	  if (read(bgpipe[0], &c, 1) != 1) {
 	    prompt_Printf(prompt, "Child exit, no status.\n");
-	    LogPrintf(LogPHASE, "Parent: Child exit, no status.\n");
+	    log_Printf(LogPHASE, "Parent: Child exit, no status.\n");
 	  } else if (c == EX_NORMAL) {
 	    prompt_Printf(prompt, "PPP enabled.\n");
-	    LogPrintf(LogPHASE, "Parent: PPP enabled.\n");
+	    log_Printf(LogPHASE, "Parent: PPP enabled.\n");
 	  } else {
 	    prompt_Printf(prompt, "Child failed (%s).\n", ex_desc((int) c));
-	    LogPrintf(LogPHASE, "Parent: Child failed (%s).\n",
+	    log_Printf(LogPHASE, "Parent: Child failed (%s).\n",
 		      ex_desc((int) c));
 	  }
 	  close(bgpipe[0]);
@@ -469,11 +468,11 @@ main(int argc, char **argv)
   }
 #ifndef RELEASE_CRUNCH
   else
-    LogPrintf(LogALERT, "Warning: Can't create %s: %s\n",
+    log_Printf(LogALERT, "Warning: Can't create %s: %s\n",
               pid_filename, strerror(errno));
 #endif
 
-  LogPrintf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(mode));
+  log_Printf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(mode));
   DoLoop(bundle, prompt);
   AbortProgram(EX_NORMAL);
 
@@ -496,7 +495,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     qlen = bundle_FillQueues(bundle);
 
-    handle_signals();
+    sig_Handle();
 
     /* This one comes first 'cos it may nuke a datalink */
     descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
@@ -522,16 +521,16 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     if (i < 0) {
       if (errno == EINTR) {
-	handle_signals();
+	sig_Handle();
 	continue;
       }
-      LogPrintf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
+      log_Printf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       break;
     }
 
     for (i = 0; i <= nfds; i++)
       if (FD_ISSET(i, &efds)) {
-        LogPrintf(LogALERT, "Exception detected on descriptor %d\n", i);
+        log_Printf(LogALERT, "Exception detected on descriptor %d\n", i);
         break;
       }
 
@@ -551,12 +550,12 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       /* something to read from tun */
       n = read(bundle->tun_fd, &tun, sizeof tun);
       if (n < 0) {
-	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
+	log_Printf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
       }
       n -= sizeof tun - sizeof tun.data;
       if (n <= 0) {
-	LogPrintf(LogERROR, "read from tun: Only %d bytes read\n", n);
+	log_Printf(LogERROR, "read from tun: Only %d bytes read\n", n);
 	continue;
       }
       if (!tun_check_header(tun, AF_INET))
@@ -570,19 +569,19 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 	    struct mbuf *bp;
 
 #ifndef NOALIAS
-            if (AliasEnabled()) {
+            if (alias_IsEnabled()) {
 	      (*PacketAlias.In)(tun.data, sizeof tun.data);
 	      n = ntohs(((struct ip *)tun.data)->ip_len);
 	    }
 #endif
-	    bp = mballoc(n, MB_IPIN);
+	    bp = mbuf_Alloc(n, MB_IPIN);
 	    memcpy(MBUF_CTOP(bp), tun.data, n);
-	    IpInput(bundle, bp);
-	    LogPrintf(LogDEBUG, "Looped back packet addressed to myself\n");
+	    ip_Input(bundle, bp);
+	    log_Printf(LogDEBUG, "Looped back packet addressed to myself\n");
 	  }
 	  continue;
 	} else
-	  LogPrintf(LogDEBUG, "Oops - forwarding packet addressed to myself\n");
+	  log_Printf(LogDEBUG, "Oops - forwarding packet addressed to myself\n");
       }
 
       /*
@@ -610,15 +609,15 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
       pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
       if (pri >= 0) {
 #ifndef NOALIAS
-        if (AliasEnabled()) {
+        if (alias_IsEnabled()) {
 	  (*PacketAlias.Out)(tun.data, sizeof tun.data);
 	  n = ntohs(((struct ip *)tun.data)->ip_len);
 	}
 #endif
-	IpEnqueue(pri, tun.data, n);
+	ip_Enqueue(pri, tun.data, n);
       }
     }
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));
 
-  LogPrintf(LogDEBUG, "DoLoop done.\n");
+  log_Printf(LogDEBUG, "DoLoop done.\n");
 }

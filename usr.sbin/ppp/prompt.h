@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.h,v 1.1.2.7 1998/04/10 13:19:19 brian Exp $
+ *	$Id: prompt.h,v 1.1.2.8 1998/04/19 23:08:50 brian Exp $
  */
 
 #define LOCAL_AUTH	0x01
@@ -61,7 +61,6 @@ struct prompt {
   struct termios comtio;	/* Command level tty mode */
 };
 
-#define prompt2descriptor(p) (&(p)->desc)
 #define descriptor2prompt(d) \
   ((d)->type == PROMPT_DESCRIPTOR ? (struct prompt *)(d) : NULL)
 

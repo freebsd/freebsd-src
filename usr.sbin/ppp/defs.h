@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: defs.h,v 1.29.2.15 1998/04/30 23:53:36 brian Exp $
+ * $Id: defs.h,v 1.29.2.16 1998/05/01 19:20:03 brian Exp $
  *
  *	TODO:
  */
@@ -30,6 +30,8 @@
 #  define MODEM_LIST	"/dev/tty01, /dev/tty00"	/* name of tty device */
 # endif
 #endif
+
+#define _PATH_PPP	"/etc/ppp"
 
 #define TUN_PREFIX	"/dev/tun"	/* tunnel device prefix */
 #define CATPROG		"/bin/cat"	/* Multilink pipe program name */

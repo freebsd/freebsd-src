@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.40 1998/04/28 01:25:07 brian Exp $
+ * $Id: ccp.c,v 1.30.2.41 1998/04/30 23:53:23 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -132,7 +132,7 @@ static const struct ccp_algorithm *algorithm[] = {
 int
 ccp_ReportStatus(struct cmdargs const *arg)
 {
-  struct link *l = ChooseLink(arg);
+  struct link *l = command_ChooseLink(arg);
   struct ccp *ccp = &l->ccp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, ccp->fsm.name,
@@ -245,7 +245,7 @@ CcpSendConfigReq(struct fsm *fp)
       }
 
       if (cp + (*o)->val.len > buff + sizeof buff) {
-        LogPrintf(LogERROR, "%s: CCP REQ buffer overrun !\n", fp->link->name);
+        log_Printf(LogERROR, "%s: CCP REQ buffer overrun !\n", fp->link->name);
         break;
       }
       memcpy(cp, &(*o)->val, (*o)->val.len);
@@ -258,18 +258,18 @@ CcpSendConfigReq(struct fsm *fp)
         o = &(*o)->next;
     }
 
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, cp - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, cp - buff);
 }
 
 void
-CcpSendResetReq(struct fsm *fp)
+ccp_SendResetReq(struct fsm *fp)
 {
   /* We can't read our input - ask peer to reset */
   struct ccp *ccp = fsm2ccp(fp);
 
   ccp->reset_sent = fp->reqid;
   ccp->last_reset = -1;
-  FsmOutput(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
+  fsm_Output(fp, CODE_RESETREQ, fp->reqid, NULL, 0);
 }
 
 static void
@@ -282,7 +282,7 @@ static void
 CcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  FsmOutput(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void
@@ -298,7 +298,7 @@ static void
 CcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
-  LogPrintf(LogCCP, "%s: CcpLayerStart.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: CcpLayerStart.\n", fp->link->name);
 }
 
 static void
@@ -308,7 +308,7 @@ CcpLayerFinish(struct fsm *fp)
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt *next;
 
-  LogPrintf(LogCCP, "%s: CcpLayerFinish.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: CcpLayerFinish.\n", fp->link->name);
   if (ccp->in.state != NULL) {
     (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
     ccp->in.state = NULL;
@@ -332,7 +332,7 @@ static void
 CcpLayerDown(struct fsm *fp)
 {
   /* About to come down */
-  LogPrintf(LogCCP, "%s: CcpLayerDown.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: CcpLayerDown.\n", fp->link->name);
 }
 
 /*
@@ -343,15 +343,15 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
-  LogPrintf(LogCCP, "%s: CcpLayerUp.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: CcpLayerUp.\n", fp->link->name);
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
       ccp->in.algorithm < NALGORITHMS) {
     ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);
     if (ccp->in.state == NULL) {
-      LogPrintf(LogERROR, "%s: %s (in) initialisation failure\n",
+      log_Printf(LogERROR, "%s: %s (in) initialisation failure\n",
                 fp->link->name, protoname(ccp->his_proto));
       ccp->his_proto = ccp->my_proto = -1;
-      FsmClose(fp);
+      fsm_Close(fp);
     }
   }
 
@@ -360,14 +360,14 @@ CcpLayerUp(struct fsm *fp)
     ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
                        (&ccp->out.opt->val);
     if (ccp->out.state == NULL) {
-      LogPrintf(LogERROR, "%s: %s (out) initialisation failure\n",
+      log_Printf(LogERROR, "%s: %s (out) initialisation failure\n",
                 fp->link->name, protoname(ccp->my_proto));
       ccp->his_proto = ccp->my_proto = -1;
-      FsmClose(fp);
+      fsm_Close(fp);
     }
   }
 
-  LogPrintf(LogCCP, "%s: Out = %s[%d], In = %s[%d]\n",
+  log_Printf(LogCCP, "%s: Out = %s[%d], In = %s[%d]\n",
             fp->link->name, protoname(ccp->my_proto), ccp->my_proto,
             protoname(ccp->his_proto), ccp->his_proto);
   return 1;
@@ -388,13 +388,13 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     length = cp[1];
 
     if (length == 0) {
-      LogPrintf(LogCCP, "%s: CCP size zero\n", fp->link->name);
+      log_Printf(LogCCP, "%s: CCP size zero\n", fp->link->name);
       break;
     }
 
     if (length > sizeof(struct lcp_opt)) {
       length = sizeof(struct lcp_opt);
-      LogPrintf(LogCCP, "%s: Warning: Truncating length to %d\n",
+      log_Printf(LogCCP, "%s: Warning: Truncating length to %d\n",
                 fp->link->name, length);
     }
 
@@ -407,9 +407,9 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       end = "";
 
     if (type < NCFTYPES)
-      LogPrintf(LogCCP, " %s[%d] %s\n", cftypes[type], length, end);
+      log_Printf(LogCCP, " %s[%d] %s\n", cftypes[type], length, end);
     else
-      LogPrintf(LogCCP, " ???[%d] %s\n", length, end);
+      log_Printf(LogCCP, " ???[%d] %s\n", length, end);
 
     if (f == -1) {
       /* Don't understand that :-( */
@@ -452,7 +452,7 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (o->val.id == cp[0])
             break;
         if (o == NULL)
-          LogPrintf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent option\n",
+          log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent option\n",
                     fp->link->name);
         else {
 	  memcpy(&o->val, cp, length);
@@ -496,15 +496,15 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 }
 
 void
-CcpInput(struct ccp *ccp, struct bundle *bundle, struct mbuf *bp)
+ccp_Input(struct ccp *ccp, struct bundle *bundle, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
   if (bundle_Phase(bundle) == PHASE_NETWORK)
-    FsmInput(&ccp->fsm, bp);
+    fsm_Input(&ccp->fsm, bp);
   else if (bundle_Phase(bundle) < PHASE_NETWORK) {
-    LogPrintf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
+    log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
               ccp->fsm.link->name, bundle_PhaseName(bundle));
-    pfree(bp);
+    mbuf_Free(bp);
   }
 }
 
@@ -516,16 +516,16 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
 
   if (ccp->reset_sent != -1) {
     if (id != ccp->reset_sent) {
-      LogPrintf(LogWARN, "CCP: %s: Incorrect ResetAck (id %d, not %d)"
+      log_Printf(LogWARN, "CCP: %s: Incorrect ResetAck (id %d, not %d)"
                 " ignored\n", fp->link->name, id, ccp->reset_sent);
       return;
     }
     /* Whaddaya know - a correct reset ack */
   } else if (id == ccp->last_reset)
-    LogPrintf(LogCCP, "%s: Duplicate ResetAck (resetting again)\n",
+    log_Printf(LogCCP, "%s: Duplicate ResetAck (resetting again)\n",
               fp->link->name);
   else {
-    LogPrintf(LogWARN, "CCP: %s: Unexpected ResetAck (id %d) ignored\n",
+    log_Printf(LogWARN, "CCP: %s: Unexpected ResetAck (id %d) ignored\n",
               fp->link->name, id);
     return;
   }
@@ -560,11 +560,11 @@ ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
       /* Decompress incoming data */
       if (ccp->reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
-        FsmOutput(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
+        fsm_Output(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
       else if (ccp->in.state != NULL)
         return (*algorithm[ccp->in.algorithm]->i.Read)
                  (ccp->in.state, ccp, proto, bp);
-      pfree(bp);
+      mbuf_Free(bp);
       bp = NULL;
     } else if ((*proto & 0xfff1) == 0x21 && ccp->in.state != NULL)
       /* Add incoming Network Layer traffic to our dictionary */

@@ -19,7 +19,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap_ms.c,v 1.5.4.1 1998/03/16 22:53:08 brian Exp $
+ * $Id: chap_ms.c,v 1.5.4.2 1998/04/06 09:12:24 brian Exp $
  *
  */
 
@@ -97,7 +97,7 @@ static void MakeKey(u_char *key, u_char *des_key)
    challenge    8-bytes peer CHAP challenge
    since passwordHash is in a 24-byte buffer, response is written in there */
 void
-ChapMS(char *passwordHash, char *challenge, int challenge_len)
+chap_MS(char *passwordHash, char *challenge, int challenge_len)
 {
     u_char response[24];
 

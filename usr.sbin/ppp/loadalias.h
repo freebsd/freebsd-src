@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: loadalias.h,v 1.4.2.1 1998/04/07 00:53:59 brian Exp $
+ *	$Id: loadalias.h,v 1.4.2.2 1998/04/07 23:45:58 brian Exp $
  */
 
 struct aliasHandlers {
@@ -44,6 +44,6 @@ struct aliasHandlers {
 
 extern struct aliasHandlers PacketAlias;
 
-#define AliasEnabled() (PacketAlias.dl ? 1 : 0)
-extern int loadAliasHandlers(void);
-extern void unloadAliasHandlers(void);
+#define alias_IsEnabled() (PacketAlias.dl ? 1 : 0)
+extern int alias_Load(void);
+extern void alias_Unload(void);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.14 1998/04/25 10:49:52 brian Exp $
+ *	$Id: tun.c,v 1.6.4.15 1998/04/28 01:25:44 brian Exp $
  */
 
 #include <sys/types.h>
@@ -71,6 +71,6 @@ tun_configure(struct bundle *bundle, int mtu, int speed)
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
   if (ioctl(bundle->tun_fd, TUNSIFINFO, &info) < 0)
-    LogPrintf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
+    log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 }

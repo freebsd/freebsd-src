@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.16 1998/04/18 01:01:28 brian Exp $
+ *	$Id: server.c,v 1.16.2.17 1998/04/28 01:25:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -100,24 +100,24 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 
   wfd = accept(s->fd, sa, &ssize);
   if (wfd < 0) {
-    LogPrintf(LogERROR, "server_Read: accept(): %s\n", strerror(errno));
+    log_Printf(LogERROR, "server_Read: accept(): %s\n", strerror(errno));
     return;
   }
 
   switch (sa->sa_family) {
     case AF_LOCAL:
-      LogPrintf(LogPHASE, "Connected to local client.\n");
+      log_Printf(LogPHASE, "Connected to local client.\n");
       break;
 
     case AF_INET:
       if (ntohs(in->sin_port) < 1024) {
-        LogPrintf(LogALERT, "Rejected client connection from %s:%u"
+        log_Printf(LogALERT, "Rejected client connection from %s:%u"
                   "(invalid port number) !\n",
                   inet_ntoa(in->sin_addr), ntohs(in->sin_port));
         close(wfd);
         return;
       }
-      LogPrintf(LogPHASE, "Connected to client from %s:%u\n",
+      log_Printf(LogPHASE, "Connected to client from %s:%u\n",
                 inet_ntoa(in->sin_addr), in->sin_port);
       break;
 
@@ -152,7 +152,7 @@ static void
 server_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   /* We never want to write here ! */
-  LogPrintf(LogERROR, "server_Write: Internal error: Bad call !\n");
+  log_Printf(LogERROR, "server_Write: Internal error: Bad call !\n");
 }
 
 struct server server = {
@@ -168,20 +168,20 @@ struct server server = {
 };
 
 int
-ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
+server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 {
   int s;
 
   if (server.rm && !strcmp(server.rm, name)) {
     if (chmod(server.rm, mask))
-      LogPrintf(LogERROR, "Local: chmod: %s\n", strerror(errno));
+      log_Printf(LogERROR, "Local: chmod: %s\n", strerror(errno));
     return 0;
   }
 
   memset(&server.ifsun, '\0', sizeof server.ifsun);
   server.ifsun.sun_len = strlen(name);
   if (server.ifsun.sun_len > sizeof server.ifsun.sun_path - 1) {
-    LogPrintf(LogERROR, "Local: %s: Path too long\n", name);
+    log_Printf(LogERROR, "Local: %s: Path too long\n", name);
     return 2;
   }
   server.ifsun.sun_family = AF_LOCAL;
@@ -189,7 +189,7 @@ ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
 
   s = ID0socket(PF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "Local: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "Local: socket: %s\n", strerror(errno));
     return 3;
   }
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
@@ -198,27 +198,27 @@ ServerLocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   if (bind(s, (struct sockaddr *)&server.ifsun, sizeof server.ifsun) < 0) {
     if (mask != (mode_t)-1)
       umask(mask);
-    LogPrintf(LogWARN, "Local: bind: %s\n", strerror(errno));
+    log_Printf(LogWARN, "Local: bind: %s\n", strerror(errno));
     close(s);
     return 4;
   }
   if (mask != (mode_t)-1)
     umask(mask);
   if (listen(s, 5) != 0) {
-    LogPrintf(LogERROR, "Local: Unable to listen to socket - BUNDLE overload?\n");
+    log_Printf(LogERROR, "Local: Unable to listen to socket - BUNDLE overload?\n");
     close(s);
     ID0unlink(name);
     return 5;
   }
-  ServerClose(bundle);
+  server_Close(bundle);
   server.fd = s;
   server.rm = server.ifsun.sun_path;
-  LogPrintf(LogPHASE, "Listening at local socket %s.\n", name);
+  log_Printf(LogPHASE, "Listening at local socket %s.\n", name);
   return 0;
 }
 
 int
-ServerTcpOpen(struct bundle *bundle, int port)
+server_TcpOpen(struct bundle *bundle, int port)
 {
   struct sockaddr_in ifsin;
   int s;
@@ -228,7 +228,7 @@ ServerTcpOpen(struct bundle *bundle, int port)
 
   s = ID0socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
     return 7;
   }
   memset(&ifsin, '\0', sizeof ifsin);
@@ -237,24 +237,24 @@ ServerTcpOpen(struct bundle *bundle, int port)
   ifsin.sin_port = htons(port);
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
   if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
-    LogPrintf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
+    log_Printf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
     close(s);
     return 8;
   }
   if (listen(s, 5) != 0) {
-    LogPrintf(LogERROR, "Tcp: Unable to listen to socket - BUNDLE overload?\n");
+    log_Printf(LogERROR, "Tcp: Unable to listen to socket - BUNDLE overload?\n");
     close(s);
     return 9;
   }
-  ServerClose(bundle);
+  server_Close(bundle);
   server.fd = s;
   server.port = port;
-  LogPrintf(LogPHASE, "Listening at port %d.\n", port);
+  log_Printf(LogPHASE, "Listening at port %d.\n", port);
   return 0;
 }
 
 int
-ServerClose(struct bundle *bundle)
+server_Close(struct bundle *bundle)
 {
   if (server.fd >= 0) {
     close(server.fd);

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.10 1998/04/24 19:15:26 brian Exp $
+ *	$Id: pred.c,v 1.20.2.11 1998/04/25 00:09:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -132,7 +132,7 @@ Pred1ResetInput(void *v)
   struct pred1_state *state = (struct pred1_state *)v;
   state->hash = 0;
   memset(state->dict, '\0', sizeof state->dict);
-  LogPrintf(LogCCP, "Predictor1: Input channel reset\n");
+  log_Printf(LogCCP, "Predictor1: Input channel reset\n");
 }
 
 static void
@@ -141,7 +141,7 @@ Pred1ResetOutput(void *v)
   struct pred1_state *state = (struct pred1_state *)v;
   state->hash = 0;
   memset(state->dict, '\0', sizeof state->dict);
-  LogPrintf(LogCCP, "Predictor1: Output channel reset\n");
+  log_Printf(LogCCP, "Predictor1: Output channel reset\n");
 }
 
 static void *
@@ -175,20 +175,20 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   u_char bufp[MAX_MTU + 2];
   u_short fcs;
 
-  orglen = plength(bp) + 2;	/* add count of proto */
-  mwp = mballoc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
+  orglen = mbuf_Length(bp) + 2;	/* add count of proto */
+  mwp = mbuf_Alloc((orglen + 2) / 8 * 9 + 12, MB_HDLCOUT);
   hp = wp = MBUF_CTOP(mwp);
   cp = bufp;
   *wp++ = *cp++ = orglen >> 8;
   *wp++ = *cp++ = orglen & 0377;
   *cp++ = proto >> 8;
   *cp++ = proto & 0377;
-  mbread(bp, cp, orglen - 2);
-  fcs = HdlcFcs(INITFCS, bufp, 2 + orglen);
+  mbuf_Read(bp, cp, orglen - 2);
+  fcs = hdlc_Fcs(INITFCS, bufp, 2 + orglen);
   fcs = ~fcs;
 
   len = compress(state, bufp + 2, wp, orglen);
-  LogPrintf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
+  log_Printf(LogDEBUG, "Pred1Output: orglen (%d) --> len (%d)\n", orglen, len);
   ccp->uncompout += orglen;
   if (len < orglen) {
     *hp |= 0x80;
@@ -203,7 +203,7 @@ Pred1Output(void *v, struct ccp *ccp, struct link *l, int pri, u_short proto,
   *wp++ = fcs & 0377;
   *wp++ = fcs >> 8;
   mwp->cnt = wp - MBUF_CTOP(mwp);
-  HdlcOutput(l, PRI_NORMAL, ccp_Proto(ccp), mwp);
+  hdlc_Output(l, PRI_NORMAL, ccp_Proto(ccp), mwp);
   return 1;
 }
 
@@ -217,9 +217,9 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   u_char *bufp;
   u_short fcs;
 
-  wp = mballoc(MAX_MTU + 2, MB_IPIN);
+  wp = mbuf_Alloc(MAX_MTU + 2, MB_IPIN);
   cp = MBUF_CTOP(bp);
-  olen = plength(bp);
+  olen = mbuf_Length(bp);
   pp = bufp = MBUF_CTOP(wp);
   *pp++ = *cp & 0177;
   len = *cp++ << 8;
@@ -231,10 +231,10 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
     ccp->compin += olen;
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
-      LogPrintf(LogCCP, "Pred1: Length error\n");
-      CcpSendResetReq(&ccp->fsm);
-      pfree(bp);
-      pfree(wp);
+      log_Printf(LogCCP, "Pred1: Length error\n");
+      ccp_SendResetReq(&ccp->fsm);
+      mbuf_Free(bp);
+      mbuf_Free(wp);
       return NULL;
     }
     cp += olen - 4;
@@ -247,9 +247,9 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
   }
   *pp++ = *cp++;		/* CRC */
   *pp++ = *cp++;
-  fcs = HdlcFcs(INITFCS, bufp, wp->cnt = pp - bufp);
+  fcs = hdlc_Fcs(INITFCS, bufp, wp->cnt = pp - bufp);
   if (fcs != GOODFCS)
-    LogPrintf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
+    log_Printf(LogDEBUG, "Pred1Input: fcs = 0x%04x (%s), len = 0x%x,"
 	      " olen = 0x%x\n", fcs, (fcs == GOODFCS) ? "good" : "bad",
 	      len, olen);
   if (fcs == GOODFCS) {
@@ -265,14 +265,14 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
       wp->cnt -= 2;
       *proto = (*proto << 8) | *pp++;
     }
-    pfree(bp);
+    mbuf_Free(bp);
     return wp;
   } else {
-    LogDumpBp(LogHDLC, "Bad FCS", wp);
-    CcpSendResetReq(&ccp->fsm);
-    pfree(wp);
+    log_DumpBp(LogHDLC, "Bad FCS", wp);
+    ccp_SendResetReq(&ccp->fsm);
+    mbuf_Free(wp);
   }
-  pfree(bp);
+  mbuf_Free(bp);
   return NULL;
 }
 

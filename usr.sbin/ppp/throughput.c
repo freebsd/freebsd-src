@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.4.4.7 1998/04/16 00:26:18 brian Exp $
+ *	$Id: throughput.c,v 1.4.4.8 1998/04/19 15:24:50 brian Exp $
  */
 
 #include <sys/types.h>
@@ -86,18 +86,18 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
 
     secs_up = t->uptime ? time(NULL) - t->uptime : 0;
     if (title)
-      LogPrintf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
+      log_Printf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
     else
-      LogPrintf(level, "Connect time: %d secs: %ld octets in, %ld octets out\n",
+      log_Printf(level, "Connect time: %d secs: %ld octets in, %ld octets out\n",
                 secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
-      LogPrintf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
+      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond);
     else
-      LogPrintf(level, " total %ld bytes/sec\n",
+      log_Printf(level, " total %ld bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up);
   }
 }
@@ -108,7 +108,7 @@ throughput_sampler(void *v)
   struct pppThroughput *t = (struct pppThroughput *)v;
   u_long old;
 
-  StopTimer(&t->Timer);
+  timer_Stop(&t->Timer);
 
   old = t->SampleOctets[t->nSample];
   t->SampleOctets[t->nSample] = t->OctetsIn + t->OctetsOut;
@@ -118,13 +118,13 @@ throughput_sampler(void *v)
   if (++t->nSample == SAMPLE_PERIOD)
     t->nSample = 0;
 
-  StartTimer(&t->Timer);
+  timer_Start(&t->Timer);
 }
 
 void
 throughput_start(struct pppThroughput *t, const char *name, int rolling)
 {
-  StopTimer(&t->Timer);
+  timer_Stop(&t->Timer);
   throughput_init(t);
   t->rolling = rolling ? 1 : 0;
   time(&t->uptime);
@@ -133,14 +133,14 @@ throughput_start(struct pppThroughput *t, const char *name, int rolling)
     t->Timer.func = throughput_sampler;
     t->Timer.name = name;
     t->Timer.arg = t;
-    StartTimer(&t->Timer);
+    timer_Start(&t->Timer);
   }
 }
 
 void
 throughput_stop(struct pppThroughput *t)
 {
-  StopTimer(&t->Timer);
+  timer_Stop(&t->Timer);
 }
 
 void

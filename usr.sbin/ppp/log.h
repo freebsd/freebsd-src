@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: log.h,v 1.18.2.5 1998/04/24 19:15:44 brian Exp $
+ *	$Id: log.h,v 1.18.2.6 1998/04/30 23:53:47 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -53,28 +53,28 @@ struct cmdargs;
 struct prompt;
 
 /* The first int arg for all of the following is one of the above values */
-extern const char *LogName(int);
-extern void LogKeep(int);
-extern void LogKeepLocal(int, u_long *);
-extern void LogDiscard(int);
-extern void LogDiscardLocal(int, u_long *);
-extern void LogDiscardAll(void);
-extern void LogDiscardAllLocal(u_long *);
-#define LOG_KEPT_SYSLOG (1)	/* Results of LogIsKept() */
-#define LOG_KEPT_LOCAL  (2)	/* Results of LogIsKept() */
-extern int LogIsKept(int);
-extern int LogIsKeptLocal(int, u_long);
-extern void LogOpen(const char *);
-extern void LogSetTun(int);
-extern void LogClose(void);
+extern const char *log_Name(int);
+extern void log_Keep(int);
+extern void log_KeepLocal(int, u_long *);
+extern void log_Discard(int);
+extern void log_DiscardLocal(int, u_long *);
+extern void log_DiscardAll(void);
+extern void log_DiscardAllLocal(u_long *);
+#define LOG_KEPT_SYSLOG (1)	/* Results of log_IsKept() */
+#define LOG_KEPT_LOCAL  (2)	/* Results of log_IsKept() */
+extern int log_IsKept(int);
+extern int log_IsKeptLocal(int, u_long);
+extern void log_Open(const char *);
+extern void log_SetTun(int);
+extern void log_Close(void);
 #ifdef __GNUC__
-extern void LogPrintf(int, const char *,...)
+extern void log_Printf(int, const char *,...)
             __attribute__ ((format (printf, 2, 3)));
 #else
-extern void LogPrintf(int, const char *,...);
+extern void log_Printf(int, const char *,...);
 #endif
-extern void LogDumpBp(int, const char *, const struct mbuf *);
-extern void LogDumpBuff(int, const char *, const u_char *, int);
+extern void log_DumpBp(int, const char *, const struct mbuf *);
+extern void log_DumpBuff(int, const char *, const u_char *, int);
 extern void log_RegisterPrompt(struct prompt *);
 extern void log_UnRegisterPrompt(struct prompt *);
 extern int log_ShowLevel(struct cmdargs const *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.66 1998/05/01 19:19:54 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.67 1998/05/01 19:22:09 brian Exp $
  */
 
 #include <sys/types.h>
@@ -99,7 +99,7 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     return;
 
   if (new <= PHASE_TERMINATE)
-    LogPrintf(LogPHASE, "bundle: %s\n", PhaseNames[new]);
+    log_Printf(LogPHASE, "bundle: %s\n", PhaseNames[new]);
 
   switch (new) {
   case PHASE_DEAD:
@@ -117,8 +117,8 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
 
   case PHASE_NETWORK:
     ipcp_Setup(&bundle->ncp.ipcp);
-    FsmUp(&bundle->ncp.ipcp.fsm);
-    FsmOpen(&bundle->ncp.ipcp.fsm);
+    fsm_Up(&bundle->ncp.ipcp.fsm);
+    fsm_Open(&bundle->ncp.ipcp.fsm);
     bundle->phase = new;
     bundle_DisplayPrompt(bundle);
     break;
@@ -140,7 +140,7 @@ bundle_CleanInterface(const struct bundle *bundle)
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "bundle_CleanInterface: socket(): %s\n",
+    log_Printf(LogERROR, "bundle_CleanInterface: socket(): %s\n",
               strerror(errno));
     return (-1);
   }
@@ -153,7 +153,7 @@ bundle_CleanInterface(const struct bundle *bundle)
     ifra.ifra_addr = ifrq.ifr_addr;
     if (ID0ioctl(s, SIOCGIFDSTADDR, &ifrq) < 0) {
       if (ifra.ifra_addr.sa_family == AF_INET)
-        LogPrintf(LogERROR,
+        log_Printf(LogERROR,
                   "bundle_CleanInterface: Can't get dst for %s on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifname);
@@ -162,7 +162,7 @@ bundle_CleanInterface(const struct bundle *bundle)
     ifra.ifra_broadaddr = ifrq.ifr_dstaddr;
     if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       if (ifra.ifra_addr.sa_family == AF_INET)
-        LogPrintf(LogERROR,
+        log_Printf(LogERROR,
                   "bundle_CleanInterface: Can't delete %s address on %s !\n",
                   inet_ntoa(((struct sockaddr_in *)&ifra.ifra_addr)->sin_addr),
                   bundle->ifname);
@@ -185,9 +185,9 @@ bundle_Notify(struct bundle *bundle, char c)
 {
   if (bundle->notify.fd != -1) {
     if (write(bundle->notify.fd, &c, 1) == 1)
-      LogPrintf(LogPHASE, "Parent notified of success.\n");
+      log_Printf(LogPHASE, "Parent notified of success.\n");
     else
-      LogPrintf(LogPHASE, "Failed to notify parent of success.\n");
+      log_Printf(LogPHASE, "Failed to notify parent of success.\n");
     close(bundle->notify.fd);
     bundle->notify.fd = -1;
   }
@@ -261,8 +261,8 @@ bundle_LayerFinish(void *v, struct fsm *fp)
 {
   /* The given fsm is now down (fp cannot be NULL)
    *
-   * If it's the last LCP, FsmDown all NCPs
-   * If it's the last NCP, FsmClose all LCPs
+   * If it's the last LCP, fsm_Down all NCPs
+   * If it's the last NCP, fsm_Close all LCPs
    */
 
   struct bundle *bundle = (struct bundle *)v;
@@ -273,8 +273,8 @@ bundle_LayerFinish(void *v, struct fsm *fp)
       bundle_NewPhase(bundle, PHASE_TERMINATE);
     for (dl = bundle->links; dl; dl = dl->next)
       datalink_Close(dl, 0);
-    FsmDown(fp);
-    FsmClose(fp);
+    fsm_Down(fp);
+    fsm_Close(fp);
   } else if (fp->proto == PROTO_LCP) {
     int others_active;
 
@@ -285,8 +285,8 @@ bundle_LayerFinish(void *v, struct fsm *fp)
         others_active++;
 
     if (!others_active) {
-      FsmDown(&bundle->ncp.ipcp.fsm);
-      FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
+      fsm_Down(&bundle->ncp.ipcp.fsm);
+      fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
     }
   }
 }
@@ -302,7 +302,7 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
 {
   /*
    * Please close the given datalink.
-   * If name == NULL or name is the last datalink, FsmClose all NCPs
+   * If name == NULL or name is the last datalink, fsm_Close all NCPs
    * (except our MP)
    * If it isn't the last datalink, just Close that datalink.
    */
@@ -327,18 +327,18 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
   }
 
   if (name && this_dl == NULL) {
-    LogPrintf(LogWARN, "%s: Invalid datalink name\n", name);
+    log_Printf(LogWARN, "%s: Invalid datalink name\n", name);
     return;
   }
 
   if (!others_active) {
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING)
-      FsmClose(&bundle->ncp.ipcp.fsm);
+      fsm_Close(&bundle->ncp.ipcp.fsm);
     else {
       if (bundle->ncp.ipcp.fsm.state > ST_INITIAL) {
-        FsmClose(&bundle->ncp.ipcp.fsm);
-        FsmDown(&bundle->ncp.ipcp.fsm);
+        fsm_Close(&bundle->ncp.ipcp.fsm);
+        fsm_Down(&bundle->ncp.ipcp.fsm);
       }
       for (dl = bundle->links; dl; dl = dl->next)
         datalink_Close(dl, staydown);
@@ -425,7 +425,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   static struct bundle bundle;		/* there can be only one */
 
   if (bundle.ifname != NULL) {	/* Already allocated ! */
-    LogPrintf(LogERROR, "bundle_Create:  There's only one BUNDLE !\n");
+    log_Printf(LogERROR, "bundle_Create:  There's only one BUNDLE !\n");
     return NULL;
   }
 
@@ -447,16 +447,16 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   }
 
   if (bundle.tun_fd < 0) {
-    LogPrintf(LogWARN, "No available tunnel devices found (%s).\n",
+    log_Printf(LogWARN, "No available tunnel devices found (%s).\n",
               strerror(err));
     return NULL;
   }
 
-  LogSetTun(bundle.unit);
+  log_SetTun(bundle.unit);
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "bundle_Create: socket(): %s\n", strerror(errno));
+    log_Printf(LogERROR, "bundle_Create: socket(): %s\n", strerror(errno));
     close(bundle.tun_fd);
     return NULL;
   }
@@ -474,7 +474,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   strncpy(ifrq.ifr_name, bundle.ifname, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "OpenTunnel: ioctl(SIOCGIFFLAGS): %s\n",
+    log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCGIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
     close(bundle.tun_fd);
@@ -483,7 +483,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   }
   ifrq.ifr_flags |= IFF_UP;
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
+    log_Printf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
     close(bundle.tun_fd);
@@ -494,14 +494,14 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
   close(s);
 
   if ((bundle.ifIndex = GetIfIndex(bundle.ifname)) < 0) {
-    LogPrintf(LogERROR, "OpenTunnel: Can't find ifindex.\n");
+    log_Printf(LogERROR, "OpenTunnel: Can't find ifindex.\n");
     close(bundle.tun_fd);
     bundle.ifname = NULL;
     return NULL;
   }
 
   prompt_Printf(prompt, "Using interface: %s\n", bundle.ifname);
-  LogPrintf(LogPHASE, "Using interface: %s\n", bundle.ifname);
+  log_Printf(LogPHASE, "Using interface: %s\n", bundle.ifname);
 
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
@@ -523,7 +523,7 @@ bundle_Create(const char *prefix, struct prompt *prompt, int type)
 
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
-    LogPrintf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
+    log_Printf(LogERROR, "Cannot create data link: %s\n", strerror(errno));
     close(bundle.tun_fd);
     bundle.ifname = NULL;
     return NULL;
@@ -573,11 +573,11 @@ bundle_DownInterface(struct bundle *bundle)
   struct ifreq ifrq;
   int s;
 
-  DeleteIfRoutes(bundle, 1);
+  route_IfDelete(bundle, 1);
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "bundle_DownInterface: socket: %s\n", strerror(errno));
+    log_Printf(LogERROR, "bundle_DownInterface: socket: %s\n", strerror(errno));
     return;
   }
 
@@ -585,14 +585,14 @@ bundle_DownInterface(struct bundle *bundle)
   strncpy(ifrq.ifr_name, bundle->ifname, sizeof ifrq.ifr_name - 1);
   ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
   if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
+    log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
        strerror(errno));
     close(s);
     return;
   }
   ifrq.ifr_flags &= ~IFF_UP;
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    LogPrintf(LogERROR, "bundle_DownInterface: ioctl(SIOCSIFFLAGS): %s\n",
+    log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCSIFFLAGS): %s\n",
        strerror(errno));
     close(s);
     return;
@@ -607,7 +607,7 @@ bundle_Destroy(struct bundle *bundle)
   struct descriptor *desc, *ndesc;
 
   if (bundle->phys_type & PHYS_DEMAND) {
-    IpcpCleanInterface(&bundle->ncp.ipcp);
+    ipcp_CleanInterface(&bundle->ncp.ipcp);
     bundle_DownInterface(bundle);
   }
   
@@ -623,7 +623,7 @@ bundle_Destroy(struct bundle *bundle)
     if (desc->type == PROMPT_DESCRIPTOR)
       prompt_Destroy((struct prompt *)desc, 1);
     else
-      LogPrintf(LogERROR, "bundle_Destroy: Don't know how to delete descriptor"
+      log_Printf(LogERROR, "bundle_Destroy: Don't know how to delete descriptor"
                 " type %d\n", desc->type);
     desc = ndesc;
   }
@@ -652,7 +652,7 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
     cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
   s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
-    LogPrintf(LogERROR, "bundle_SetRoute: socket(): %s\n", strerror(errno));
+    log_Printf(LogERROR, "bundle_SetRoute: socket(): %s\n", strerror(errno));
     return;
   }
   memset(&rtmes, '\0', sizeof rtmes);
@@ -714,16 +714,16 @@ bundle_SetRoute(struct bundle *bundle, int cmd, struct in_addr dst,
   rtmes.m_rtm.rtm_msglen = nb;
   wb = ID0write(s, &rtmes, nb);
   if (wb < 0) {
-    LogPrintf(LogTCPIP, "bundle_SetRoute failure:\n");
-    LogPrintf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmdstr);
-    LogPrintf(LogTCPIP, "bundle_SetRoute:  Dst = %s\n", inet_ntoa(dst));
-    LogPrintf(LogTCPIP, "bundle_SetRoute:  Gateway = %s\n", inet_ntoa(gateway));
-    LogPrintf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
+    log_Printf(LogTCPIP, "bundle_SetRoute failure:\n");
+    log_Printf(LogTCPIP, "bundle_SetRoute:  Cmd = %s\n", cmdstr);
+    log_Printf(LogTCPIP, "bundle_SetRoute:  Dst = %s\n", inet_ntoa(dst));
+    log_Printf(LogTCPIP, "bundle_SetRoute:  Gateway = %s\n", inet_ntoa(gateway));
+    log_Printf(LogTCPIP, "bundle_SetRoute:  Mask = %s\n", inet_ntoa(mask));
 failed:
     if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
                            (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST))) {
       if (!bang)
-        LogPrintf(LogWARN, "Add route failed: %s already exists\n",
+        log_Printf(LogWARN, "Add route failed: %s already exists\n",
                   inet_ntoa(dst));
       else {
         rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
@@ -734,16 +734,16 @@ failed:
              (rtmes.m_rtm.rtm_errno == ESRCH ||
               (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
       if (!bang)
-        LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
+        log_Printf(LogWARN, "Del route failed: %s: Non-existent\n",
                   inet_ntoa(dst));
     } else if (rtmes.m_rtm.rtm_errno == 0)
-      LogPrintf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
+      log_Printf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
                 inet_ntoa(dst), strerror(errno));
     else
-      LogPrintf(LogWARN, "%s route failed: %s: %s\n",
+      log_Printf(LogWARN, "%s route failed: %s: %s\n",
 		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
   }
-  LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
+  log_Printf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, (unsigned)dst.s_addr, (unsigned)gateway.s_addr);
   close(s);
 }
@@ -770,8 +770,8 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
       bundle_DownInterface(bundle);
     if (bundle->ncp.ipcp.fsm.state > ST_CLOSED ||
         bundle->ncp.ipcp.fsm.state == ST_STARTING) {
-      FsmDown(&bundle->ncp.ipcp.fsm);
-      FsmClose(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
+      fsm_Down(&bundle->ncp.ipcp.fsm);
+      fsm_Close(&bundle->ncp.ipcp.fsm);		/* ST_INITIAL please */
     }
     bundle_NewPhase(bundle, PHASE_DEAD);
     bundle_DisplayPrompt(bundle);
@@ -820,7 +820,7 @@ bundle_FillQueues(struct bundle *bundle)
   } else {
     total = link_QueueLen(&bundle->links->physical->link);
     if (total == 0 && bundle->links->physical->out == NULL)
-      total = IpFlushPacket(&bundle->links->physical->link, bundle);
+      total = ip_FlushPacket(&bundle->links->physical->link, bundle);
   }
 
   return total + ip_QueueLen();
@@ -891,7 +891,7 @@ bundle_IdleTimeout(void *v)
   struct bundle *bundle = (struct bundle *)v;
 
   bundle->idle.done = 0;
-  LogPrintf(LogPHASE, "Idle timer expired.\n");
+  log_Printf(LogPHASE, "Idle timer expired.\n");
   bundle_Close(bundle, NULL, 1);
 }
 
@@ -903,13 +903,13 @@ void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
   if (!(bundle->phys_type & (PHYS_DEDICATED|PHYS_PERM))) {
-    StopTimer(&bundle->idle.timer);
+    timer_Stop(&bundle->idle.timer);
     if (bundle->cfg.idle_timeout) {
       bundle->idle.timer.func = bundle_IdleTimeout;
       bundle->idle.timer.name = "idle";
       bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
       bundle->idle.timer.arg = bundle;
-      StartTimer(&bundle->idle.timer);
+      timer_Start(&bundle->idle.timer);
       bundle->idle.done = time(NULL) + bundle->cfg.idle_timeout;
     }
   }
@@ -926,7 +926,7 @@ bundle_SetIdleTimer(struct bundle *bundle, int value)
 void
 bundle_StopIdleTimer(struct bundle *bundle)
 {
-  StopTimer(&bundle->idle.timer);
+  timer_Stop(&bundle->idle.timer);
   bundle->idle.done = 0;
 }
 
@@ -1101,14 +1101,14 @@ bundle_ReceiveDatalink(struct bundle *bundle, int fd)
    * We then pass the rest of the stream to datalink.
    */
 
-  LogPrintf(LogPHASE, "Receiving datalink\n");
+  log_Printf(LogPHASE, "Receiving datalink\n");
 
   vlen = strlen(Version);
   get = sizeof(int) * 2 + vlen;
   buf = (u_char *)malloc(get);
   got = fullread(fd, buf, get);
   if (got != get) {
-    LogPrintf(LogWARN, "Cannot receive datalink header"
+    log_Printf(LogWARN, "Cannot receive datalink header"
               " (got %d bytes, not %d)\n", got, get);
     close(fd);
     free(buf);
@@ -1116,7 +1116,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int fd)
   }
   if (*(int *)buf != vlen || *(int *)(buf + sizeof(int) + vlen) != sizeof *dl ||
       memcmp(buf + sizeof(int), Version, vlen)) {
-    LogPrintf(LogWARN, "Cannot receive datalink, incorrect version\n");
+    log_Printf(LogWARN, "Cannot receive datalink, incorrect version\n");
     close(fd);
     free(buf);
     return;
@@ -1137,7 +1137,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int fd)
     ndl->next = bundle->links;
     bundle->links = ndl;
     bundle_GenPhysType(bundle);
-    LogPrintf(LogPHASE, "%s: Created in %s state\n",
+    log_Printf(LogPHASE, "%s: Created in %s state\n",
               ndl->name, datalink_State(ndl));
     datalink_AuthOk(ndl);
   }
@@ -1159,7 +1159,7 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
    * We then pass the rest of the stream to datalink.
    */
 
-  LogPrintf(LogPHASE, "Transmitting datalink %s\n", dl->name);
+  log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
 
   /* First, un-hook the datalink */
   for (pdl = &bundle->links; *pdl; pdl = &(*pdl)->next)
@@ -1181,7 +1181,7 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
     err++;
 
   if (err) {
-    LogPrintf(LogERROR, "Failed sending version\n");
+    log_Printf(LogERROR, "Failed sending version\n");
     close(ppp_fd);
     ppp_fd = -1;
   }
@@ -1191,7 +1191,7 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
   if (link_fd != -1) {
     switch (fork()) {
       case 0:
-        TermTimerService();
+        timer_TermService();
 
         ppp_fd = fcntl(ppp_fd, F_DUPFD, 3);
         link_fd = fcntl(link_fd, F_DUPFD, 3);
@@ -1214,7 +1214,7 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
                      dl->name, *dl->physical->name.base ?
                      dl->physical->name.base : "network");
             execl(CATPROG, procname, NULL);
-            LogPrintf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
+            log_Printf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
             break;
           case -1:
             break;
@@ -1225,13 +1225,13 @@ bundle_SendDatalink(struct datalink *dl, int ppp_fd)
                      dl->name, *dl->physical->name.base ?
                      dl->physical->name.base : "network");
             execl(CATPROG, procname, NULL);
-            LogPrintf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
+            log_Printf(LogERROR, "exec: %s: %s\n", CATPROG, strerror(errno));
             break;
         }
         exit(1);
         break;
       case -1:
-        LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
+        log_Printf(LogERROR, "fork: %s\n", strerror(errno));
         break;
     }
   }

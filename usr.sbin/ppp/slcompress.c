@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.15.2.9 1998/04/25 10:49:48 brian Exp $
+ * $Id: slcompress.c,v 1.15.2.10 1998/04/28 01:25:43 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -150,15 +150,15 @@ sl_compress_tcp(struct mbuf * m,
    * the caller has already made sure the packet is IP proto TCP).
    */
   if ((ip->ip_off & htons(0x3fff)) || m->cnt < 40) {
-    LogPrintf(LogDEBUG, "??? 1 ip_off = %x, cnt = %d\n",
+    log_Printf(LogDEBUG, "??? 1 ip_off = %x, cnt = %d\n",
 	      ip->ip_off, m->cnt);
-    LogDumpBp(LogDEBUG, "", m);
+    log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
   th = (struct tcphdr *) & ((int *) ip)[hlen];
   if ((th->th_flags & (TH_SYN | TH_FIN | TH_RST | TH_ACK)) != TH_ACK) {
-    LogPrintf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
-    LogDumpBp(LogDEBUG, "", m);
+    log_Printf(LogDEBUG, "??? 2 th_flags = %x\n", th->th_flags);
+    log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
 
@@ -448,7 +448,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
   slstat->sls_compressedin++;
   cp = *bufp;
   changes = *cp++;
-  LogPrintf(LogDEBUG, "compressed: changes = %02x\n", changes);
+  log_Printf(LogDEBUG, "compressed: changes = %02x\n", changes);
   if (changes & NEW_C) {
 
     /*
@@ -508,7 +508,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
 	if (changes & NEW_A)
 	DECODEL(th->th_ack)
 	  if (changes & NEW_S) {
-	  LogPrintf(LogDEBUG, "NEW_S: %02x, %02x, %02x\n",
+	  log_Printf(LogDEBUG, "NEW_S: %02x, %02x, %02x\n",
 		    *cp, cp[1], cp[2]);
 	  DECODEL(th->th_seq)
 	}
@@ -519,7 +519,7 @@ sl_uncompress_tcp(u_char ** bufp, int len, u_int type,
   } else
     cs->cs_ip.ip_id = htons(ntohs(cs->cs_ip.ip_id) + 1);
 
-  LogPrintf(LogDEBUG, "Uncompress: id = %04x, seq = %08lx\n",
+  log_Printf(LogDEBUG, "Uncompress: id = %04x, seq = %08lx\n",
 	    cs->cs_ip.ip_id, (u_long)ntohl(th->th_seq));
 
   /*
@@ -571,7 +571,7 @@ bad:
 }
 
 int
-ReportCompress(struct cmdargs const *arg)
+sl_Show(struct cmdargs const *arg)
 {
   prompt_Printf(arg->prompt, "VJ compression statistics:\n");
   prompt_Printf(arg->prompt, "  Out:  %d (compress) / %d (total)",

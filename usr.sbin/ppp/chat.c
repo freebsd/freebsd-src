@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.27 1998/04/30 23:53:26 brian Exp $
+ *	$Id: chat.c,v 1.44.2.28 1998/05/01 19:22:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -78,39 +78,39 @@ static void
 chat_PauseTimer(void *v)
 {
   struct chat *c = (struct chat *)v;
-  StopTimer(&c->pause);
+  timer_Stop(&c->pause);
   c->pause.load = 0;
 }
 
 static void
 chat_Pause(struct chat *c, u_long load)
 {
-  StopTimer(&c->pause);
+  timer_Stop(&c->pause);
   c->pause.load += load;
   c->pause.func = chat_PauseTimer;
   c->pause.name = "chat pause";
   c->pause.arg = c;
-  StartTimer(&c->pause);
+  timer_Start(&c->pause);
 }
 
 static void
 chat_TimeoutTimer(void *v)
 {
   struct chat *c = (struct chat *)v;
-  StopTimer(&c->timeout);
+  timer_Stop(&c->timeout);
   c->TimedOut = 1;
 }
 
 static void
 chat_SetTimeout(struct chat *c)
 {
-  StopTimer(&c->timeout);
+  timer_Stop(&c->timeout);
   if (c->TimeoutSec > 0) {
     c->timeout.load = SECTICKS * c->TimeoutSec;
     c->timeout.func = chat_TimeoutTimer;
     c->timeout.name = "chat timeout";
     c->timeout.arg = c;
-    StartTimer(&c->timeout);
+    timer_Start(&c->timeout);
   }
 }
 
@@ -139,7 +139,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     return 0;
 
   if (TimedOut) {
-    LogPrintf(LogCHAT, "Expect timeout\n");
+    log_Printf(LogCHAT, "Expect timeout\n");
     if (c->nargptr == NULL)
       c->state = CHAT_FAILED;
     else {
@@ -189,7 +189,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
           }
 
           if (minus % 2)
-            LogPrintf(LogWARN, "chat_UpdateSet: \"%s\": Uneven number of"
+            log_Printf(LogWARN, "chat_UpdateSet: \"%s\": Uneven number of"
                       " '-' chars, all ignored\n", c->argptr);
           else if (minus) {
             c->nargptr = chat_NextChar(c->argptr, '-');
@@ -229,7 +229,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
           memcpy(c->abort.string[i].data, c->exp+2, len+1);
           c->abort.num++;
         } else
-          LogPrintf(LogERROR, "chat_UpdateSet: too many abort strings\n");
+          log_Printf(LogERROR, "chat_UpdateSet: too many abort strings\n");
         gotabort = 0;
       } else if (gottimeout) {
         c->TimeoutSec = atoi(c->exp + 2);
@@ -256,9 +256,9 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 
     if (special) {
       if (gottimeout)
-        LogPrintf(LogWARN, "chat_UpdateSet: TIMEOUT: Argument expected\n");
+        log_Printf(LogWARN, "chat_UpdateSet: TIMEOUT: Argument expected\n");
       else if (gotabort)
-        LogPrintf(LogWARN, "chat_UpdateSet: ABORT: Argument expected\n");
+        log_Printf(LogWARN, "chat_UpdateSet: ABORT: Argument expected\n");
 
       /* End of script - all ok */
       c->state = CHAT_DONE;
@@ -285,7 +285,7 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
           return chat_UpdateSet(d, r, w, e, n);
         }
 
-      LogPrintf(LogCHAT, "Expect(%d): %s\n", c->TimeoutSec, c->argptr);
+      log_Printf(LogCHAT, "Expect(%d): %s\n", c->TimeoutSec, c->argptr);
       chat_SetTimeout(c);
     }
   }
@@ -297,22 +297,22 @@ chat_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
    */
 
   if (c->state == CHAT_EXPECT)
-    return Physical_UpdateSet(&c->physical->desc, r, NULL, e, n, 1);
+    return physical_UpdateSet(&c->physical->desc, r, NULL, e, n, 1);
   else
-    return Physical_UpdateSet(&c->physical->desc, NULL, w, e, n, 1);
+    return physical_UpdateSet(&c->physical->desc, NULL, w, e, n, 1);
 }
 
 static int
 chat_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct chat *c = descriptor2chat(d);
-  return Physical_IsSet(&c->physical->desc, fdset);
+  return physical_IsSet(&c->physical->desc, fdset);
 }
 
 static void
 chat_UpdateLog(struct chat *c, int in)
 {
-  if (LogIsKept(LogCHAT) || LogIsKept(LogCONNECT)) {
+  if (log_IsKept(LogCHAT) || log_IsKept(LogCONNECT)) {
     /*
      * If a linefeed appears in the last `in' characters of `c's input
      * buffer, output from there, all the way back to the last linefeed.
@@ -321,7 +321,7 @@ chat_UpdateLog(struct chat *c, int in)
     char *ptr, *end, *stop, ch;
     int level;
 
-    level = LogIsKept(LogCHAT) ? LogCHAT : LogCONNECT;
+    level = log_IsKept(LogCHAT) ? LogCHAT : LogCONNECT;
     if (in == -1)
       end = ptr = c->bufend;
     else {
@@ -343,7 +343,7 @@ chat_UpdateLog(struct chat *c, int in)
         ch = *stop;
         *stop = '\0';
         if (level == LogCHAT || strstr(ptr, "CONNECT"))
-          LogPrintf(level, "Received: %s\n", ptr);
+          log_Printf(level, "Received: %s\n", ptr);
         *stop = ch;
         ptr = stop + 1;
       }
@@ -369,7 +369,7 @@ chat_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     if (in > sizeof c->buf / 2)
       in = sizeof c->buf / 2;
 
-    in = Physical_Read(c->physical, c->bufend, in);
+    in = physical_Read(c->physical, c->bufend, in);
     if (in <= 0)
       return;
 
@@ -473,32 +473,32 @@ chat_Write(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     int wrote;
 
     if (strstr(c->argv[c->arg], "\\P"))            /* Don't log the password */
-      LogPrintf(LogCHAT, "Send: %s\n", c->argv[c->arg]);
+      log_Printf(LogCHAT, "Send: %s\n", c->argv[c->arg]);
     else {
       int sz;
 
       sz = c->arglen - 1;
       while (sz >= 0 && c->argptr[sz] == '\n')
         sz--;
-      LogPrintf(LogCHAT, "Send: %.*s\n", sz + 1, c->argptr);
+      log_Printf(LogCHAT, "Send: %.*s\n", sz + 1, c->argptr);
     }
 
-    if (Physical_IsSync(c->physical)) {
+    if (physical_IsSync(c->physical)) {
       /* There's always room for the HDLC header */
       c->argptr -= 2;
       c->arglen += 2;
       memcpy(c->argptr, "\377\003", 2);	/* Prepend HDLC header */
     }
 
-    wrote = Physical_Write(c->physical, c->argptr, c->arglen);
+    wrote = physical_Write(c->physical, c->argptr, c->arglen);
     if (wrote == -1) {
       if (errno != EINTR)
-        LogPrintf(LogERROR, "chat_Write: %s\n", strerror(errno));
-      if (Physical_IsSync(c->physical)) {
+        log_Printf(LogERROR, "chat_Write: %s\n", strerror(errno));
+      if (physical_IsSync(c->physical)) {
         c->argptr += 2;
         c->arglen -= 2;
       }
-    } else if (wrote < 2 && Physical_IsSync(c->physical)) {
+    } else if (wrote < 2 && physical_IsSync(c->physical)) {
       /* Oops - didn't even write our HDLC header ! */
       c->argptr += 2;
       c->arglen -= 2;
@@ -551,8 +551,8 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf,
 void
 chat_Destroy(struct chat *c)
 {
-  StopTimer(&c->pause);
-  StopTimer(&c->timeout);
+  timer_Stop(&c->pause);
+  timer_Stop(&c->timeout);
   while (c->abort.num)
     free(c->abort.string[--c->abort.num].data);
   c->abort.num = 0;
@@ -718,20 +718,20 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
   char *vector[MAXARGS], *startout, *endout;
   int stat, nb;
 
-  LogPrintf(LogCHAT, "Exec: %s\n", command);
+  log_Printf(LogCHAT, "Exec: %s\n", command);
   MakeArgs(command, vector, VECSIZE(vector));
 
   if (pipe(fids) < 0) {
-    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
+    log_Printf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
 	      strerror(errno));
     *out = '\0';
     return;
   }
   if ((pid = fork()) == 0) {
-    TermTimerService();
+    timer_TermService();
 
     fids[1] = fcntl(fids[1], F_DUPFD, 4);
-    dup2(Physical_GetFD(physical), STDIN_FILENO);
+    dup2(physical_GetFD(physical), STDIN_FILENO);
     dup2(STDIN_FILENO, STDOUT_FILENO);
     dup2(fids[1], STDERR_FILENO);
     close(3);
@@ -760,7 +760,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
     close(fids[1]);
     waitpid(pid, &stat, WNOHANG);
     if (WIFSIGNALED(stat)) {
-      LogPrintf(LogWARN, "%s: signal %d\n", name, WTERMSIG(stat));
+      log_Printf(LogWARN, "%s: signal %d\n", name, WTERMSIG(stat));
       free(name);
       *out = '\0';
       return;
@@ -770,20 +770,20 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
           free(name);
           break;
         case 127:
-          LogPrintf(LogWARN, "%s: %s\n", name, startout);
+          log_Printf(LogWARN, "%s: %s\n", name, startout);
           free(name);
           *out = '\0';
           return;
           break;
         default:
-          LogPrintf(LogWARN, "%s: exit %d\n", name, WEXITSTATUS(stat));
+          log_Printf(LogWARN, "%s: exit %d\n", name, WEXITSTATUS(stat));
           free(name);
           *out = '\0';
           return;
           break;
       }
     } else {
-      LogPrintf(LogWARN, "%s: Unexpected exit result\n", name);
+      log_Printf(LogWARN, "%s: Unexpected exit result\n", name);
       free(name);
       *out = '\0';
       return;

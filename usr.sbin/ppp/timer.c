@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.27.2.8 1998/04/21 01:02:32 brian Exp $
+ * $Id: timer.c,v 1.27.2.9 1998/04/30 23:53:56 brian Exp $
  *
  *  TODO:
  */
@@ -51,7 +51,7 @@ tState2Nam(u_int state)
 }
 
 void
-StopTimer(struct pppTimer * tp)
+timer_Stop(struct pppTimer * tp)
 {
   int omask;
 
@@ -61,7 +61,7 @@ StopTimer(struct pppTimer * tp)
 }
 
 void
-StartTimer(struct pppTimer * tp)
+timer_Start(struct pppTimer * tp)
 {
   struct pppTimer *t, *pt;
   u_long ticks = 0;
@@ -73,7 +73,7 @@ StartTimer(struct pppTimer * tp)
     StopTimerNoBlock(tp);
 
   if (tp->load == 0) {
-    LogPrintf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
+    log_Printf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
     sigsetmask(omask);
     return;
   }
@@ -89,10 +89,10 @@ StartTimer(struct pppTimer * tp)
   tp->rest = tp->load - ticks;
 
   if (t)
-    LogPrintf(LogTIMER, "StartTimer: Inserting %s timer[%p] before %s "
+    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%p] before %s "
               "timer[%p], delta = %ld\n", tp->name, tp, t->name, t, tp->rest);
   else
-    LogPrintf(LogTIMER, "StartTimer: Inserting %s timer[%p]\n", tp->name, tp);
+    log_Printf(LogTIMER, "timer_Start: Inserting %s timer[%p]\n", tp->name, tp);
 
   /* Insert given *tp just before *t */
   tp->next = t;
@@ -132,12 +132,12 @@ StopTimerNoBlock(struct pppTimer * tp)
     } else {
       TimerList = t->next;
       if (TimerList == NULL)	/* Last one ? */
-	TermTimerService();	/* Terminate Timer Service */
+	timer_TermService();	/* Terminate Timer Service */
     }
     if (t->next)
       t->next->rest += tp->rest;
   } else
-    LogPrintf(LogERROR, "Oops, %s timer not found!!\n", tp->name);
+    log_Printf(LogERROR, "Oops, %s timer not found!!\n", tp->name);
 
   tp->next = NULL;
   tp->state = TIMER_STOPPED;
@@ -148,12 +148,12 @@ TimerService(void)
 {
   struct pppTimer *tp, *exp, *wt;
 
-  if (LogIsKept(LogTIMER)) {
+  if (log_IsKept(LogTIMER)) {
     static time_t t;
     time_t n = time(NULL);  /* Only show timers every second */
 
     if (n > t)
-      ShowTimers(LogTIMER, NULL);
+      timer_Show(LogTIMER, NULL);
     t = n;
   }
   tp = TimerList;
@@ -175,14 +175,14 @@ TimerService(void)
 
       TimerList = tp;
       if (TimerList == NULL)	/* No timers ? */
-	TermTimerService();	/* Terminate Timer Service */
+	timer_TermService();	/* Terminate Timer Service */
 
       /*
        * Process all expired timers.
        */
       while (exp) {
 #ifdef notdef
-	StopTimer(exp);
+	timer_Stop(exp);
 #endif
 	if (exp->func)
 	  (*exp->func) (exp->arg);
@@ -198,7 +198,7 @@ TimerService(void)
 }
 
 void
-ShowTimers(int LogLevel, struct prompt *prompt)
+timer_Show(int LogLevel, struct prompt *prompt)
 {
   struct pppTimer *pt;
   int rest = 0;
@@ -211,18 +211,18 @@ ShowTimers(int LogLevel, struct prompt *prompt)
   HSECS(rest), tState2Nam(pt->state)
 
   if (!prompt)
-    LogPrintf(LogLevel, "---- Begin of Timer Service List---\n");
+    log_Printf(LogLevel, "---- Begin of Timer Service List---\n");
 
   for (pt = TimerList; pt; pt = pt->next) {
     rest += pt->rest;
     if (prompt)
       prompt_Printf(prompt, DISP);
     else
-      LogPrintf(LogLevel, DISP);
+      log_Printf(LogLevel, DISP);
   }
 
   if (!prompt)
-    LogPrintf(LogLevel, "---- End of Timer Service List ---\n");
+    log_Printf(LogLevel, "---- End of Timer Service List ---\n");
 }
 
 static void
@@ -245,7 +245,7 @@ nointr_dosleep(u_int sec, u_int usec)
           (to.tv_sec == et.tv_sec + 1 && to.tv_usec > et.tv_usec) ||
           to.tv_sec < st.tv_sec ||
           (to.tv_sec == st.tv_sec && to.tv_usec < st.tv_usec)) {
-        LogPrintf(LogWARN, "Clock adjusted between %ld and %ld seconds "
+        log_Printf(LogWARN, "Clock adjusted between %ld and %ld seconds "
                   "during sleep !\n",
                   to.tv_sec - st.tv_sec, sec + to.tv_sec - st.tv_sec);
         st.tv_sec = to.tv_sec;
@@ -286,21 +286,21 @@ InitTimerService()
 {
   struct itimerval itimer;
 
-  pending_signal(SIGALRM, (void (*) (int)) TimerService);
+  sig_signal(SIGALRM, (void (*) (int)) TimerService);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
   if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-    LogPrintf(LogERROR, "Unable to set itimer.\n");
+    log_Printf(LogERROR, "Unable to set itimer.\n");
 }
 
 void 
-TermTimerService(void)
+timer_TermService(void)
 {
   struct itimerval itimer;
 
   itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-    LogPrintf(LogERROR, "Unable to set itimer.\n");
-  pending_signal(SIGALRM, SIG_IGN);
+    log_Printf(LogERROR, "Unable to set itimer.\n");
+  sig_signal(SIGALRM, SIG_IGN);
 }

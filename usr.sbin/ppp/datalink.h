@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.h,v 1.1.2.19 1998/04/24 19:16:02 brian Exp $
+ *	$Id: datalink.h,v 1.1.2.20 1998/04/30 23:53:33 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -100,7 +100,6 @@ struct datalink {
   struct datalink *next;	   /* Next in the list */
 };
 
-#define datalink2descriptor(dl) (&(dl)->desc)
 #define descriptor2datalink(d) \
   ((d)->type == DATALINK_DESCRIPTOR ? (struct datalink *)(d) : NULL)
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.50 1998/04/28 01:25:27 brian Exp $
+ * $Id: lcp.c,v 1.55.2.51 1998/04/30 23:53:42 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -92,8 +92,8 @@ static struct fsm_callbacks lcp_Callbacks = {
   LcpSentTerminateReq,
   LcpSendTerminateAck,
   LcpDecodeConfig,
-  NullRecvResetReq,
-  NullRecvResetAck
+  fsm_NullRecvResetReq,
+  fsm_NullRecvResetAck
 };
 
 static const char *lcp_TimerNames[] =
@@ -132,7 +132,7 @@ static const char *cftypes[] = {
 int
 lcp_ReportStatus(struct cmdargs const *arg)
 {
-  struct link *l = ChooseLink(arg);
+  struct link *l = command_ChooseLink(arg);
   struct lcp *lcp = &l->lcp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, lcp->fsm.name,
@@ -284,13 +284,13 @@ LcpSendConfigReq(struct fsm *fp)
   struct mp *mp;
 
   if (!p) {
-    LogPrintf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
+    log_Printf(LogERROR, "%s: LcpSendConfigReq: Not a physical link !\n",
               fp->link->name);
     return;
   }
 
   o = (struct lcp_opt *)buff;
-  if (!Physical_IsSync(p)) {
+  if (!physical_IsSync(p)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
       INC_LCP_OPT(TY_ACFCOMP, 2, o);
 
@@ -347,14 +347,14 @@ LcpSendConfigReq(struct fsm *fp)
     INC_LCP_OPT(TY_ENDDISC, mp->cfg.enddisc.len + 3, o);
   }
 
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
+  fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff);
 }
 
 void
 lcp_SendProtoRej(struct lcp *lcp, u_char *option, int count)
 {
   /* Don't understand `option' */
-  FsmOutput(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
+  fsm_Output(&lcp->fsm, CODE_PROTOREJ, lcp->fsm.reqid, option, count);
 }
 
 static void
@@ -367,7 +367,7 @@ static void
 LcpSendTerminateAck(struct fsm *fp, u_char id)
 {
   /* Send Term ACK please */
-  FsmOutput(fp, CODE_TERMACK, id, NULL, 0);
+  fsm_Output(fp, CODE_TERMACK, id, NULL, 0);
 }
 
 static void
@@ -376,7 +376,7 @@ LcpLayerStart(struct fsm *fp)
   /* We're about to start up ! */
   struct lcp *lcp = fsm2lcp(fp);
 
-  LogPrintf(LogLCP, "%s: LcpLayerStart\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LcpLayerStart\n", fp->link->name);
   lcp->LcpFailedMagic = 0;
 }
 
@@ -384,7 +384,7 @@ static void
 LcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  LogPrintf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LcpLayerFinish\n", fp->link->name);
 }
 
 static int
@@ -394,9 +394,9 @@ LcpLayerUp(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
 
-  LogPrintf(LogLCP, "%s: LcpLayerUp\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LcpLayerUp\n", fp->link->name);
   async_SetLinkParams(&p->async, lcp);
-  StartLqm(lcp);
+  lqr_Start(lcp);
   hdlc_StartTimer(&p->hdlc);
   return 1;
 }
@@ -407,9 +407,9 @@ LcpLayerDown(struct fsm *fp)
   /* About to come down */
   struct physical *p = link2physical(fp->link);
 
-  LogPrintf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
+  log_Printf(LogLCP, "%s: LcpLayerDown\n", fp->link->name);
   hdlc_StopTimer(&p->hdlc);
-  StopLqrTimer(p);
+  lqr_StopTimer(p);
 }
 
 static void
@@ -431,7 +431,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     length = cp[1];
 
     if (length == 0) {
-      LogPrintf(LogLCP, "%s: LCP size zero\n", fp->link->name);
+      log_Printf(LogLCP, "%s: LCP size zero\n", fp->link->name);
       break;
     }
 
@@ -445,7 +445,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       mp = &lcp->fsm.bundle->ncp.mp;
       sp = (u_short *)(cp + 2);
       mru = htons(*sp);
-      LogPrintf(LogLCP, "%s %u\n", request, mru);
+      log_Printf(LogLCP, "%s %u\n", request, mru);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -495,7 +495,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
     case TY_MRU:
       sp = (u_short *) (cp + 2);
       mru = htons(*sp);
-      LogPrintf(LogLCP, "%s %d\n", request, mru);
+      log_Printf(LogLCP, "%s %d\n", request, mru);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -528,7 +528,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_ACCMAP:
       accmap = htonl(*(u_int32_t *)(cp + 2));
-      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
+      log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)accmap);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -550,13 +550,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       proto = ntohs(*sp);
       switch (proto) {
       case PROTO_PAP:
-        LogPrintf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
+        log_Printf(LogLCP, "%s 0x%04x (PAP)\n", request, proto);
         break;
       case PROTO_CHAP:
-        LogPrintf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
+        log_Printf(LogLCP, "%s 0x%04x (CHAP 0x%02x)\n", request, proto, cp[4]);
         break;
       default:
-        LogPrintf(LogLCP, "%s 0x%04x\n", request, proto);
+        log_Printf(LogLCP, "%s 0x%04x\n", request, proto);
         break;
       }
 
@@ -565,7 +565,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	switch (proto) {
 	case PROTO_PAP:
 	  if (length != 4) {
-	    LogPrintf(LogLCP, " Bad length!\n");
+	    log_Printf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
 	  if (IsAccepted(lcp->cfg.pap)) {
@@ -584,7 +584,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
 	case PROTO_CHAP:
 	  if (length < 5) {
-	    LogPrintf(LogLCP, " Bad length!\n");
+	    log_Printf(LogLCP, " Bad length!\n");
 	    goto reqreject;
 	  }
 #ifdef HAVE_DES
@@ -609,7 +609,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  break;
 
 	default:
-          LogPrintf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
+          log_Printf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
                     request, proto);
 	  memcpy(dec->nakend, cp, length);
 	  dec->nakend += length;
@@ -622,7 +622,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (IsEnabled(lcp->cfg.pap))
             lcp->want_auth = PROTO_PAP;
           else {
-            LogPrintf(LogLCP, "Peer will only send PAP (not enabled)\n");
+            log_Printf(LogLCP, "Peer will only send PAP (not enabled)\n");
 	    lcp->his_reject |= (1 << type);
           }
           break;
@@ -630,7 +630,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           if (IsEnabled(lcp->cfg.chap))
             lcp->want_auth = PROTO_CHAP;
           else {
-            LogPrintf(LogLCP, "Peer will only send CHAP (not enabled)\n");
+            log_Printf(LogLCP, "Peer will only send CHAP (not enabled)\n");
 	    lcp->his_reject |= (1 << type);
           }
           break;
@@ -648,7 +648,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_QUALPROTO:
       req = (struct lqrreq *)cp;
-      LogPrintf(LogLCP, "%s proto %x, interval %ldms\n",
+      log_Printf(LogLCP, "%s proto %x, interval %ldms\n",
                 request, ntohs(req->proto), (long)ntohl(req->period) * 10);
       switch (mode_type) {
       case MODE_REQ:
@@ -673,14 +673,14 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_MAGICNUM:
       magic = ntohl(*(u_int32_t *)(cp + 2));
-      LogPrintf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
+      log_Printf(LogLCP, "%s 0x%08lx\n", request, (u_long)magic);
 
       switch (mode_type) {
       case MODE_REQ:
 	if (lcp->want_magic) {
 	  /* Validate magic number */
 	  if (magic == lcp->want_magic) {
-	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
+	    log_Printf(LogLCP, "Magic is same (%08lx) - %d times\n",
                       (u_long)magic, ++lcp->LcpFailedMagic);
 	    lcp->want_magic = GenerateMagic();
 	    memcpy(dec->nakend, cp, 6);
@@ -698,11 +698,11 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	}
 	break;
       case MODE_NAK:
-	LogPrintf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
+	log_Printf(LogLCP, " Magic 0x%08lx is NAKed!\n", (u_long)magic);
 	lcp->want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
+	log_Printf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
 	lcp->want_magic = 0;
 	lcp->his_reject |= (1 << type);
 	break;
@@ -710,7 +710,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_PROTOCOMP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -739,7 +739,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_ACFCOMP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
 	if (IsAccepted(lcp->cfg.acfcomp)) {
@@ -767,7 +767,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_SDP:
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
       switch (mode_type) {
       case MODE_REQ:
       case MODE_NAK:
@@ -778,7 +778,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 
     case TY_SHORTSEQ:
       mp = &lcp->fsm.bundle->ncp.mp;
-      LogPrintf(LogLCP, "%s\n", request);
+      log_Printf(LogLCP, "%s\n", request);
 
       switch (mode_type) {
       case MODE_REQ:
@@ -802,12 +802,12 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       break;
 
     case TY_ENDDISC:
-      LogPrintf(LogLCP, "%s %s\n", request,
+      log_Printf(LogLCP, "%s %s\n", request,
                 mp_Enddisc(cp[2], cp + 3, length - 3));
       switch (mode_type) {
       case MODE_REQ:
         if (!p) {
-          LogPrintf(LogLCP, " ENDDISC rejected - not a physical link\n");
+          log_Printf(LogLCP, " ENDDISC rejected - not a physical link\n");
 	  goto reqreject;
         } else if (length-3 < sizeof p->dl->peer.enddisc.address &&
                    cp[2] <= MAX_ENDDISC_CLASS) {
@@ -820,10 +820,10 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
 	  dec->ackend += length;
         } else {
           if (cp[2] > MAX_ENDDISC_CLASS)
-            LogPrintf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
+            log_Printf(LogLCP, " ENDDISC rejected - unrecognised class %d\n",
                       cp[2]);
           else
-            LogPrintf(LogLCP, " ENDDISC rejected - local max length is %d\n",
+            log_Printf(LogLCP, " ENDDISC rejected - local max length is %d\n",
                       sizeof p->dl->peer.enddisc.address - 1);
 	  goto reqreject;
         }
@@ -845,13 +845,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       for (pos = 0; sz--; pos++)
         sprintf(desc+(pos<<1)+1, "%02x", cp[pos+2]);
 
-      LogPrintf(LogLCP, "%s%s\n", request, desc);
+      log_Printf(LogLCP, "%s%s\n", request, desc);
 
       if (mode_type == MODE_REQ) {
 reqreject:
         if (length > sizeof dec->rej - (dec->rejend - dec->rej)) {
           length = sizeof dec->rej - (dec->rejend - dec->rej);
-          LogPrintf(LogLCP, "Can't REJ length %d - trunating to %d\n",
+          log_Printf(LogLCP, "Can't REJ length %d - trunating to %d\n",
 		    cp[1], length);
         }
 	memcpy(dec->rejend, cp, length);
@@ -878,8 +878,8 @@ reqreject:
 }
 
 void
-LcpInput(struct lcp *lcp, struct mbuf * bp)
+lcp_Input(struct lcp *lcp, struct mbuf * bp)
 {
   /* Got PROTO_LCP from link */
-  FsmInput(&lcp->fsm, bp);
+  fsm_Input(&lcp->fsm, bp);
 }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.19 1998/04/25 10:49:43 brian Exp $
+ * $Id: route.c,v 1.42.2.20 1998/04/28 01:25:39 brian Exp $
  *
  */
 
@@ -212,7 +212,7 @@ Index2Nam(int idx)
     mib[5] = 0;
 
     if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-      LogPrintf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
+      log_Printf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
       return "???";
     }
     if ((buf = malloc(needed)) == NULL)
@@ -236,7 +236,7 @@ Index2Nam(int idx)
           else
             ifs = (char **)malloc(sizeof(char *) * have);
           if (!ifs) {
-            LogPrintf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
+            log_Printf(LogDEBUG, "Index2Nam: %s\n", strerror(errno));
             nifs = 0;
             return "???";
           }
@@ -249,20 +249,20 @@ Index2Nam(int idx)
           if (nifs < ifm->ifm_index)
             nifs = ifm->ifm_index;
         }
-      } else if (LogIsKept(LogDEBUG))
-        LogPrintf(LogDEBUG, "Skipping out-of-range interface %d!\n",
+      } else if (log_IsKept(LogDEBUG))
+        log_Printf(LogDEBUG, "Skipping out-of-range interface %d!\n",
                   ifm->ifm_index);
     }
     free(buf);
   }
 
-  if (LogIsKept(LogDEBUG) && !debug_done) {
+  if (log_IsKept(LogDEBUG) && !debug_done) {
     int f;
 
-    LogPrintf(LogDEBUG, "Found the following interfaces:\n");
+    log_Printf(LogDEBUG, "Found the following interfaces:\n");
     for (f = 0; f < nifs; f++)
       if (ifs[f] != NULL)
-        LogPrintf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
+        log_Printf(LogDEBUG, " Index %d, name \"%s\"\n", f+1, ifs[f]);
     debug_done = 1;
   }
 
@@ -273,7 +273,7 @@ Index2Nam(int idx)
 }
 
 int
-ShowRoute(struct cmdargs const *arg)
+route_Show(struct cmdargs const *arg)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa_dst, *sa_gw, *sa_mask;
@@ -288,7 +288,7 @@ ShowRoute(struct cmdargs const *arg)
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "ShowRoute: sysctl: estimate: %s\n", strerror(errno));
+    log_Printf(LogERROR, "route_Show: sysctl: estimate: %s\n", strerror(errno));
     return (1);
   }
   if (needed < 0)
@@ -297,7 +297,7 @@ ShowRoute(struct cmdargs const *arg)
   if (sp == NULL)
     return (1);
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "ShowRoute: sysctl: getroute: %s\n", strerror(errno));
+    log_Printf(LogERROR, "route_Show: sysctl: getroute: %s\n", strerror(errno));
     free(sp);
     return (1);
   }
@@ -341,7 +341,7 @@ ShowRoute(struct cmdargs const *arg)
  *  Delete routes associated with our interface
  */
 void
-DeleteIfRoutes(struct bundle *bundle, int all)
+route_IfDelete(struct bundle *bundle, int all)
 {
   struct rt_msghdr *rtm;
   struct sockaddr *sa;
@@ -351,7 +351,7 @@ DeleteIfRoutes(struct bundle *bundle, int all)
   char *sp, *cp, *ep;
   int mib[6];
 
-  LogPrintf(LogDEBUG, "DeleteIfRoutes (%d)\n", bundle->ifIndex);
+  log_Printf(LogDEBUG, "route_IfDelete (%d)\n", bundle->ifIndex);
   sa_none.s_addr = INADDR_ANY;
 
   mib[0] = CTL_NET;
@@ -361,7 +361,7 @@ DeleteIfRoutes(struct bundle *bundle, int all)
   mib[4] = NET_RT_DUMP;
   mib[5] = 0;
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: estimate: %s\n",
+    log_Printf(LogERROR, "route_IfDelete: sysctl: estimate: %s\n",
 	      strerror(errno));
     return;
   }
@@ -373,7 +373,7 @@ DeleteIfRoutes(struct bundle *bundle, int all)
     return;
 
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "DeleteIfRoutes: sysctl: getroute: %s\n",
+    log_Printf(LogERROR, "route_IfDelete: sysctl: getroute: %s\n",
 	      strerror(errno));
     free(sp);
     return;
@@ -394,7 +394,7 @@ DeleteIfRoutes(struct bundle *bundle, int all)
     for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
       rtm = (struct rt_msghdr *) cp;
       sa = (struct sockaddr *) (rtm + 1);
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, Netif: %d (%s),"
+      log_Printf(LogDEBUG, "route_IfDelete: addrs: %x, Netif: %d (%s),"
                 " flags: %x, dst: %s ?\n", rtm->rtm_addrs, rtm->rtm_index,
                 Index2Nam(rtm->rtm_index), rtm->rtm_flags,
 	        inet_ntoa(((struct sockaddr_in *) sa)->sin_addr));
@@ -406,13 +406,13 @@ DeleteIfRoutes(struct bundle *bundle, int all)
         if (sa->sa_family == AF_INET || sa->sa_family == AF_LINK) {
           if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
               (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
-            LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it (pass %d)\n", pass);
+            log_Printf(LogDEBUG, "route_IfDelete: Remove it (pass %d)\n", pass);
             bundle_SetRoute(bundle, RTM_DELETE, sa_dst, sa_none, sa_none, 0);
           } else
-            LogPrintf(LogDEBUG, "DeleteIfRoutes: Skip it (pass %d)\n", pass);
+            log_Printf(LogDEBUG, "route_IfDelete: Skip it (pass %d)\n", pass);
         } else
-          LogPrintf(LogDEBUG,
-                    "DeleteIfRoutes: Can't remove routes of %d family !\n",
+          log_Printf(LogDEBUG,
+                    "route_IfDelete: Can't remove routes of %d family !\n",
                     sa->sa_family);
       }
     }

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.13.2.9 1998/04/07 00:54:09 brian Exp $
+ * $Id: mbuf.c,v 1.13.2.10 1998/04/07 01:29:43 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -43,7 +43,7 @@ static struct memmap {
 static int totalalloced;
 
 int
-plength(struct mbuf * bp)
+mbuf_Length(struct mbuf * bp)
 {
   int len;
 
@@ -53,22 +53,22 @@ plength(struct mbuf * bp)
 }
 
 struct mbuf *
-mballoc(int cnt, int type)
+mbuf_Alloc(int cnt, int type)
 {
   u_char *p;
   struct mbuf *bp;
 
   if (type > MB_MAX)
-    LogPrintf(LogERROR, "Bad mbuf type %d\n", type);
+    log_Printf(LogERROR, "Bad mbuf type %d\n", type);
   bp = (struct mbuf *) malloc(sizeof(struct mbuf));
   if (bp == NULL) {
-    LogPrintf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
+    log_Printf(LogALERT, "failed to allocate memory: %u\n", sizeof(struct mbuf));
     AbortProgram(EX_OSERR);
   }
   memset(bp, '\0', sizeof(struct mbuf));
   p = (u_char *) malloc(cnt);
   if (p == NULL) {
-    LogPrintf(LogALERT, "failed to allocate memory: %d\n", cnt);
+    log_Printf(LogALERT, "failed to allocate memory: %d\n", cnt);
     AbortProgram(EX_OSERR);
   }
   MemMap[type].count += cnt;
@@ -81,7 +81,7 @@ mballoc(int cnt, int type)
 }
 
 struct mbuf *
-mbfree(struct mbuf * bp)
+mbuf_FreeSeg(struct mbuf * bp)
 {
   struct mbuf *nbp;
 
@@ -97,14 +97,14 @@ mbfree(struct mbuf * bp)
 }
 
 void
-pfree(struct mbuf * bp)
+mbuf_Free(struct mbuf * bp)
 {
   while (bp)
-    bp = mbfree(bp);
+    bp = mbuf_FreeSeg(bp);
 }
 
 struct mbuf *
-mbread(struct mbuf * bp, u_char * ptr, int len)
+mbuf_Read(struct mbuf * bp, u_char * ptr, int len)
 {
   int nb;
 
@@ -122,7 +122,7 @@ mbread(struct mbuf * bp, u_char * ptr, int len)
 #ifdef notdef
       bp = bp->next;
 #else
-      bp = mbfree(bp);
+      bp = mbuf_FreeSeg(bp);
 #endif
     }
   }
@@ -130,12 +130,12 @@ mbread(struct mbuf * bp, u_char * ptr, int len)
 }
 
 void
-mbwrite(struct mbuf * bp, u_char * ptr, int cnt)
+mbuf_Write(struct mbuf * bp, u_char * ptr, int cnt)
 {
   int plen;
   int nb;
 
-  plen = plength(bp);
+  plen = mbuf_Length(bp);
   if (plen < cnt)
     cnt = plen;
 
@@ -148,7 +148,7 @@ mbwrite(struct mbuf * bp, u_char * ptr, int cnt)
 }
 
 int
-ShowMemMap(struct cmdargs const *arg)
+mbuf_Show(struct cmdargs const *arg)
 {
   /* Watch it - ~m calls us with arg == NULL */
   int i;
@@ -168,23 +168,23 @@ ShowMemMap(struct cmdargs const *arg)
 }
 
 void
-LogMemory()
+mbuf_Log()
 {
-  LogPrintf(LogDEBUG, "LogMemory: mem alloced: %d\n", totalalloced);
-  LogPrintf(LogDEBUG, "LogMemory:  1: %d  2: %d   3: %d   4: %d\n",
+  log_Printf(LogDEBUG, "mbuf_Log: mem alloced: %d\n", totalalloced);
+  log_Printf(LogDEBUG, "mbuf_Log:  1: %d  2: %d   3: %d   4: %d\n",
 	MemMap[1].count, MemMap[2].count, MemMap[3].count, MemMap[4].count);
-  LogPrintf(LogDEBUG, "LogMemory:  5: %d  6: %d   7: %d   8: %d\n",
+  log_Printf(LogDEBUG, "mbuf_Log:  5: %d  6: %d   7: %d   8: %d\n",
 	MemMap[5].count, MemMap[6].count, MemMap[7].count, MemMap[8].count);
-  LogPrintf(LogDEBUG, "LogMemory:  9: %d 10: %d\n",
+  log_Printf(LogDEBUG, "mbuf_Log:  9: %d 10: %d\n",
 	MemMap[9].count, MemMap[10].count);
 }
 
 struct mbuf *
-Dequeue(struct mqueue *q)
+mbuf_Dequeue(struct mqueue *q)
 {
   struct mbuf *bp;
   
-  LogPrintf(LogDEBUG, "Dequeue: queue len = %d\n", q->qlen);
+  log_Printf(LogDEBUG, "mbuf_Dequeue: queue len = %d\n", q->qlen);
   bp = q->top;
   if (bp) {
     q->top = q->top->pnext;
@@ -192,7 +192,7 @@ Dequeue(struct mqueue *q)
     if (q->top == NULL) {
       q->last = q->top;
       if (q->qlen)
-	LogPrintf(LogERROR, "Dequeue: Not zero (%d)!!!\n", q->qlen);
+	log_Printf(LogERROR, "mbuf_Dequeue: Not zero (%d)!!!\n", q->qlen);
     }
   }
 
@@ -200,7 +200,7 @@ Dequeue(struct mqueue *q)
 }
 
 void
-Enqueue(struct mqueue *queue, struct mbuf *bp)
+mbuf_Enqueue(struct mqueue *queue, struct mbuf *bp)
 {
   if (queue->last) {
     queue->last->pnext = bp;
@@ -208,5 +208,5 @@ Enqueue(struct mqueue *queue, struct mbuf *bp)
   } else
     queue->last = queue->top = bp;
   queue->qlen++;
-  LogPrintf(LogDEBUG, "Enqueue: len = %d\n", queue->qlen);
+  log_Printf(LogDEBUG, "mbuf_Enqueue: len = %d\n", queue->qlen);
 }

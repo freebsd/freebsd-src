@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.35.2.7 1998/04/14 23:17:11 brian Exp $
+ * $Id: systems.c,v 1.35.2.8 1998/04/30 23:53:56 brian Exp $
  *
  *  TODO:
  */
@@ -34,7 +34,6 @@
 #include "log.h"
 #include "id.h"
 #include "defs.h"
-#include "pathnames.h"
 #include "systems.h"
 
 #define issep(ch) ((ch) == ' ' || (ch) == '\t')
@@ -48,7 +47,7 @@ OpenSecret(const char *file)
   snprintf(line, sizeof line, "%s/%s", _PATH_PPP, file);
   fp = ID0fopen(line, "r");
   if (fp == NULL)
-    LogPrintf(LogWARN, "OpenSecret: Can't open %s.\n", line);
+    log_Printf(LogWARN, "OpenSecret: Can't open %s.\n", line);
   return (fp);
 }
 
@@ -157,7 +156,7 @@ DecodeCtrlCommand(char *line, char *arg)
   return CTRL_UNKNOWN;
 }
 
-/* Initialised in ValidSystem(), set in ReadSystem(), used by ValidSystem() */
+/* Initialised in system_IsValid(), set in ReadSystem(), used by system_IsValid() */
 static int modeok;
 static int userok;
 static int modereq;
@@ -165,7 +164,7 @@ static int modereq;
 int
 AllowUsers(struct cmdargs const *arg)
 {
-  /* arg->bundle may be NULL (see ValidSystem()) ! */
+  /* arg->bundle may be NULL (see system_IsValid()) ! */
   int f;
   char *user;
 
@@ -210,7 +209,7 @@ mode2Nam(int mode)
 int
 AllowModes(struct cmdargs const *arg)
 {
-  /* arg->bundle may be NULL (see ValidSystem()) ! */
+  /* arg->bundle may be NULL (see system_IsValid()) ! */
   int f;
   int m;
   int allowed;
@@ -223,7 +222,7 @@ AllowModes(struct cmdargs const *arg)
         break;
       }
     if (modes[m].mode == 0)
-      LogPrintf(LogWARN, "allow modes: %s: Invalid mode\n", arg->argv[f]);
+      log_Printf(LogWARN, "allow modes: %s: Invalid mode\n", arg->argv[f]);
   }
 
   modeok = modereq & allowed ? 1 : 0;
@@ -294,10 +293,10 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
     snprintf(filename, sizeof filename, "%s/%s", _PATH_PPP, file);
   fp = ID0fopen(filename, "r");
   if (fp == NULL) {
-    LogPrintf(LogDEBUG, "ReadSystem: Can't open %s.\n", filename);
+    log_Printf(LogDEBUG, "ReadSystem: Can't open %s.\n", filename);
     return (-1);
   }
-  LogPrintf(LogDEBUG, "ReadSystem: Checking %s (%s).\n", name, filename);
+  log_Printf(LogDEBUG, "ReadSystem: Checking %s (%s).\n", name, filename);
 
   linenum = 0;
   while ((n = xgets(line, sizeof line, fp))) {
@@ -314,14 +313,14 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
     case '!':
       switch (DecodeCtrlCommand(cp+1, arg)) {
       case CTRL_INCLUDE:
-        LogPrintf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
+        log_Printf(LogCOMMAND, "%s: Including \"%s\"\n", filename, arg);
         n = ReadSystem(bundle, name, arg, doexec, prompt);
-        LogPrintf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
+        log_Printf(LogCOMMAND, "%s: Done include of \"%s\"\n", filename, arg);
         if (!n)
           return 0;	/* got it */
         break;
       default:
-        LogPrintf(LogWARN, "%s: %s: Invalid command\n", filename, cp);
+        log_Printf(LogWARN, "%s: %s: Invalid command\n", filename, cp);
         break;
       }
       break;
@@ -329,7 +328,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
     default:
       wp = strchr(cp, ':');
       if (wp == NULL || wp[1] != '\0') {
-	LogPrintf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
+	log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
 		  filename, linenum);
 	continue;
       }
@@ -350,10 +349,10 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
             break;
 
           len = strlen(cp);
-          InterpretCommand(cp, len, &argc, &argv);
+          command_Interpret(cp, len, &argc, &argv);
           allowcmd = argc > 0 && !strcasecmp(*argv, "allow");
           if ((!doexec && allowcmd) || (doexec && !allowcmd))
-	    RunCommand(bundle, argc, (char const *const *)argv, prompt, name);
+	    command_Run(bundle, argc, (char const *const *)argv, prompt, name);
         }
 
 	fclose(fp);  /* everything read - get out */
@@ -367,7 +366,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
 }
 
 int
-ValidSystem(const char *name, struct prompt *prompt, int mode)
+system_IsValid(const char *name, struct prompt *prompt, int mode)
 {
   /*
    * Note:  The ReadSystem() calls only result in calls to the Allow*
@@ -385,7 +384,7 @@ ValidSystem(const char *name, struct prompt *prompt, int mode)
 }
 
 int
-SelectSystem(struct bundle *bundle, const char *name, const char *file,
+system_Select(struct bundle *bundle, const char *name, const char *file,
              struct prompt *prompt)
 {
   userok = modeok = 1;

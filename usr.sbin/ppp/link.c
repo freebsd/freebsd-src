@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.18 1998/04/07 00:53:57 brian Exp $
+ *  $Id: link.c,v 1.1.2.19 1998/04/24 19:15:25 brian Exp $
  *
  */
 
@@ -61,9 +61,9 @@ link_AddOutOctets(struct link *l, int n)
 void
 link_SequenceQueue(struct link *l)
 {
-  LogPrintf(LogDEBUG, "link_SequenceQueue\n");
+  log_Printf(LogDEBUG, "link_SequenceQueue\n");
   while (l->Queue[PRI_NORMAL].qlen)
-    Enqueue(l->Queue + PRI_LINK, Dequeue(l->Queue + PRI_NORMAL));
+    mbuf_Enqueue(l->Queue + PRI_LINK, mbuf_Dequeue(l->Queue + PRI_NORMAL));
 }
 
 int
@@ -88,7 +88,7 @@ link_QueueBytes(struct link *l)
     len = l->Queue[i].qlen;
     m = l->Queue[i].top;
     while (len--) {
-      bytes += plength(m);
+      bytes += mbuf_Length(m);
       m = m->pnext;
     }
   }
@@ -104,8 +104,8 @@ link_Dequeue(struct link *l)
 
   for (bp = (struct mbuf *)0, pri = LINK_QUEUES - 1; pri >= 0; pri--)
     if (l->Queue[pri].qlen) {
-      bp = Dequeue(l->Queue + pri);
-      LogPrintf(LogDEBUG, "link_Dequeue: Dequeued from queue %d,"
+      bp = mbuf_Dequeue(l->Queue + pri);
+      log_Printf(LogDEBUG, "link_Dequeue: Dequeued from queue %d,"
                 " containing %d more packets\n", pri, l->Queue[pri].qlen);
       break;
     }
@@ -125,10 +125,10 @@ link_Write(struct link *l, int pri, const char *ptr, int count)
   if(pri < 0 || pri >= LINK_QUEUES)
     pri = 0;
 
-  bp = mballoc(count, MB_LINK);
+  bp = mbuf_Alloc(count, MB_LINK);
   memcpy(MBUF_CTOP(bp), ptr, count);
 
-  Enqueue(l->Queue + pri, bp);
+  mbuf_Enqueue(l->Queue + pri, bp);
 }
 
 void
@@ -140,10 +140,10 @@ link_Output(struct link *l, int pri, struct mbuf *bp)
   if(pri < 0 || pri >= LINK_QUEUES)
     pri = 0;
 
-  len = plength(bp);
-  wp = mballoc(len, MB_LINK);
-  mbread(bp, MBUF_CTOP(wp), len);
-  Enqueue(l->Queue + pri, wp);
+  len = mbuf_Length(bp);
+  wp = mbuf_Alloc(len, MB_LINK);
+  mbuf_Read(bp, MBUF_CTOP(wp), len);
+  mbuf_Enqueue(l->Queue + pri, wp);
 }
 
 static struct protostatheader {

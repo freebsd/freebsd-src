@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.23 1998/04/25 10:49:04 brian Exp $
+ * $Id: ip.c,v 1.38.2.24 1998/04/28 01:25:25 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -116,7 +116,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 	  return (A_PERMIT);
 
         if (!didname)
-          LogPrintf(LogDEBUG, "%s filter:\n", filter->name);
+          log_Printf(LogDEBUG, "%s filter:\n", filter->name);
         didname = 1;
 
 	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
@@ -133,7 +133,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		ih = (struct icmp *) ptop;
 		sport = ih->icmp_type;
 		estab = syn = finrst = -1;
-                if (LogIsKept(LogDEBUG))
+                if (log_IsKept(LogDEBUG))
 		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
 		break;
 	      case IPPROTO_UDP:
@@ -142,7 +142,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		sport = ntohs(uh->uh_sport);
 		dport = ntohs(uh->uh_dport);
 		estab = syn = finrst = -1;
-                if (LogIsKept(LogDEBUG))
+                if (log_IsKept(LogDEBUG))
 		  snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
                            sport, dport);
 		break;
@@ -154,7 +154,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		estab = (th->th_flags & TH_ACK);
 		syn = (th->th_flags & TH_SYN);
 		finrst = (th->th_flags & (TH_FIN|TH_RST));
-                if (LogIsKept(LogDEBUG) && !estab)
+                if (log_IsKept(LogDEBUG) && !estab)
 		  snprintf(dbuff, sizeof dbuff,
                            "flags = %02x, sport = %d, dport = %d",
                            th->th_flags, sport, dport);
@@ -162,19 +162,19 @@ FilterCheck(struct ip *pip, struct filter *filter)
 	      default:
 		return (A_DENY);       /* We'll block unknown type of packet */
 	      }
-              if (LogIsKept(LogDEBUG)) {
+              if (log_IsKept(LogDEBUG)) {
                 if (estab != -1) {
                   len = strlen(dbuff);
                   snprintf(dbuff + len, sizeof dbuff - len,
                            ", estab = %d, syn = %d, finrst = %d",
                            estab, syn, finrst);
                 }
-	        LogPrintf(LogDEBUG, " Filter: proto = %s, %s\n",
+	        log_Printf(LogDEBUG, " Filter: proto = %s, %s\n",
                           filter_Proto2Nam(cproto), dbuff);
               }
 	      gotinfo = 1;
 	    }
-            if (LogIsKept(LogDEBUG)) {
+            if (log_IsKept(LogDEBUG)) {
 	      if (fp->opt.srcop != OP_NONE) {
                 snprintf(dbuff, sizeof dbuff, ", src %s %d",
                          filter_Op2Nam(fp->opt.srcop), fp->opt.srcport);
@@ -188,7 +188,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
               } else if (!len)
                 *dbuff = '\0';
 
-	      LogPrintf(LogDEBUG, "  rule = %d: Address match, "
+	      log_Printf(LogDEBUG, "  rule = %d: Address match, "
                         "check against proto %s%s, action = %s\n",
                         n, filter_Proto2Nam(fp->proto),
                         dbuff, filter_Action2Nam(fp->action));
@@ -207,12 +207,12 @@ FilterCheck(struct ip *pip, struct filter *filter)
 	    }
 	  } else {
 	    /* Address is mached. Make a decision. */
-	    LogPrintf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
+	    log_Printf(LogDEBUG, "  rule = %d: Address match, action = %s\n", n,
                       filter_Action2Nam(fp->action));
 	    return (fp->action);
 	  }
 	} else
-	  LogPrintf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
+	  log_Printf(LogDEBUG, "  rule = %d: Address mismatch\n", n);
       }
       fp++;
     }
@@ -228,9 +228,9 @@ IcmpError(struct ip * pip, int code)
   struct mbuf *bp;
 
   if (pip->ip_p != IPPROTO_ICMP) {
-    bp = mballoc(cnt, MB_IPIN);
+    bp = mbuf_Alloc(cnt, MB_IPIN);
     memcpy(MBUF_CTOP(bp), ptr, cnt);
-    SendPppFrame(bp);
+    vj_SendFrame(bp);
     ipcp_AddOutOctets(cnt);
   }
 }
@@ -252,7 +252,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   int logit, loglen;
   static char logbuf[200];
 
-  logit = LogIsKept(LogTCPIP) && filter->logok;
+  logit = log_IsKept(LogTCPIP) && filter->logok;
   loglen = 0;
 
   pip = (struct ip *) cp;
@@ -331,7 +331,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 
   if ((FilterCheck(pip, filter) & A_DENY)) {
     if (logit)
-      LogPrintf(LogTCPIP, "%s - BLOCKED\n", logbuf);
+      log_Printf(LogTCPIP, "%s - BLOCKED\n", logbuf);
 #ifdef notdef
     if (direction == 0)
       IcmpError(pip, pri);
@@ -341,16 +341,16 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     /* Check Keep Alive filter */
     if (logit) {
       if (FilterCheck(pip, &bundle->filter.alive) & A_DENY)
-        LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
+        log_Printf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       else
-        LogPrintf(LogTCPIP, "%s\n", logbuf);
+        log_Printf(LogTCPIP, "%s\n", logbuf);
     }
     return (pri);
   }
 }
 
 void
-IpInput(struct bundle *bundle, struct mbuf * bp)
+ip_Input(struct bundle *bundle, struct mbuf * bp)
 {
   u_char *cp;
   struct mbuf *wp;
@@ -363,9 +363,9 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   nb = 0;
   for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
     if (sizeof tun.data - (cp - tun.data) < wp->cnt) {
-      LogPrintf(LogERROR, "IpInput: Packet too large (%d) - dropped\n",
-                plength(bp));
-      pfree(bp);
+      log_Printf(LogERROR, "ip_Input: Packet too large (%d) - dropped\n",
+                mbuf_Length(bp));
+      mbuf_Free(bp);
       return;
     }
     memcpy(cp, MBUF_CTOP(wp), wp->cnt);
@@ -374,7 +374,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   }
 
 #ifndef NOALIAS
-  if (AliasEnabled()) {
+  if (alias_IsEnabled()) {
     struct tun_data *frag;
     int iresult;
     char *fptr;
@@ -383,14 +383,14 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
     nb = ntohs(((struct ip *) tun.data)->ip_len);
 
     if (nb > MAX_MRU) {
-      LogPrintf(LogERROR, "IpInput: Problem with IP header length\n");
-      pfree(bp);
+      log_Printf(LogERROR, "ip_Input: Problem with IP header length\n");
+      mbuf_Free(bp);
       return;
     }
     if (iresult == PKT_ALIAS_OK
 	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
       if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-	pfree(bp);
+	mbuf_Free(bp);
 	return;
       }
 
@@ -404,10 +404,10 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       nw = write(bundle->tun_fd, &tun, nb);
       if (nw != nb) {
         if (nw == -1)
-	  LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
+	  log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
                     strerror(errno));
         else
-	  LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+	  log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
       }
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
@@ -420,10 +420,10 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 	  nw = write(bundle->tun_fd, frag, nb);
 	  if (nw != nb) {
             if (nw == -1)
-	      LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb,
+	      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
                         strerror(errno));
             else
-	      LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+	      log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
           }
 	  free(frag);
 	}
@@ -433,7 +433,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
       nb += sizeof tun - sizeof tun.data;
       frag = (struct tun_data *)malloc(nb);
       if (frag == NULL)
-	LogPrintf(LogALERT, "IpInput: Cannot allocate memory for fragment\n");
+	log_Printf(LogALERT, "ip_Input: Cannot allocate memory for fragment\n");
       else {
         tun_fill_header(*frag, AF_INET);
 	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
@@ -444,7 +444,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
 #endif /* #ifndef NOALIAS */
   {			/* no aliasing */
     if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-      pfree(bp);
+      mbuf_Free(bp);
       return;
     }
 
@@ -457,24 +457,24 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
     nw = write(bundle->tun_fd, &tun, nb);
     if (nw != nb) {
       if (nw == -1)
-	LogPrintf(LogERROR, "IpInput: wrote %d, got %s\n", nb, strerror(errno));
+	log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));
       else
-        LogPrintf(LogERROR, "IpInput: wrote %d, got %d\n", nb, nw);
+        log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
     }
   }
-  pfree(bp);
+  mbuf_Free(bp);
 }
 
 static struct mqueue IpOutputQueues[PRI_FAST + 1];
 
 void
-IpEnqueue(int pri, char *ptr, int count)
+ip_Enqueue(int pri, char *ptr, int count)
 {
   struct mbuf *bp;
 
-  bp = mballoc(count, MB_IPQ);
+  bp = mbuf_Alloc(count, MB_IPQ);
   memcpy(MBUF_CTOP(bp), ptr, count);
-  Enqueue(&IpOutputQueues[pri], bp);
+  mbuf_Enqueue(&IpOutputQueues[pri], bp);
 }
 
 int
@@ -490,7 +490,7 @@ ip_QueueLen()
 }
 
 int
-IpFlushPacket(struct link *l, struct bundle *bundle)
+ip_FlushPacket(struct link *l, struct bundle *bundle)
 {
   struct mqueue *queue;
   struct mbuf *bp;
@@ -501,12 +501,12 @@ IpFlushPacket(struct link *l, struct bundle *bundle)
 
   for (queue = &IpOutputQueues[PRI_FAST]; queue >= IpOutputQueues; queue--)
     if (queue->top) {
-      bp = Dequeue(queue);
+      bp = mbuf_Dequeue(queue);
       if (bp) {
         struct ip *pip = (struct ip *)MBUF_CTOP(bp);
 
-	cnt = plength(bp);
-	SendPppFrame(l, bp, bundle);
+	cnt = mbuf_Length(bp);
+	vj_SendFrame(l, bp, bundle);
         if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
           bundle_StartIdleTimer(bundle);
         ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
