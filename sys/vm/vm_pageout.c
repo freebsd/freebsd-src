@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.117 1998/03/01 04:18:28 dyson Exp $
+ * $Id: vm_pageout.c,v 1.118 1998/03/07 21:37:19 dyson Exp $
  */
 
 /*
@@ -851,7 +851,7 @@ rescan0:
 	    (cnt.v_free_count + cnt.v_inactive_count + cnt.v_cache_count);
 	if (page_shortage <= 0) {
 		if (pages_freed == 0) {
-			page_shortage = cnt.v_free_min - cnt.v_free_count;
+			page_shortage = cnt.v_free_min - (cnt.v_free_count + cnt.v_cache_count);
 		} else {
 			page_shortage = 1;
 		}
