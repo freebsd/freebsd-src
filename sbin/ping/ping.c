@@ -154,12 +154,25 @@ main(argc, argv)
 	struct protoent *proto;
 	struct termios ts;
 	register int i;
-	int ch, fdmask, hold, packlen, preload;
+	int ch, fdmask, hold, packlen, preload, sockerrno;
 	u_char *datap, *packet;
 	char *target, hnamebuf[MAXHOSTNAMELEN], *malloc();
 #ifdef IP_OPTIONS
 	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
 #endif
+
+	/*
+	 * Do the stuff that we need root priv's for *first*, and
+	 * then drop our setuid bit.  Save error reporting for
+	 * after arg parsing.
+	 */
+	proto = getprotobyname("icmp");
+	if (proto) {
+		s = socket(AF_INET, SOCK_RAW, proto->p_proto);
+		sockerrno = errno;
+	}
+
+	setuid(getuid());
 
 	preload = 0;
 	if (tcgetattr (0, &ts) != -1) {
@@ -288,11 +301,12 @@ main(argc, argv)
 
 	ident = getpid() & 0xFFFF;
 
-	if (!(proto = getprotobyname("icmp"))) {
+	if (!proto) {
 		(void)fprintf(stderr, "ping: unknown protocol icmp.\n");
 		exit(1);
 	}
-	if ((s = socket(AF_INET, SOCK_RAW, proto->p_proto)) < 0) {
+	if (s < 0) {
+		errno = sockerrno;
 		perror("ping: socket");
 		exit(1);
 	}
