@@ -408,8 +408,8 @@ static	int	siocnunit;
 #endif
 static	Port_t	siogdbiobase;
 static	int	siogdbunit = -1;
-static	struct intrhand *sio_slow_ih;
-static	struct intrhand *sio_fast_ih;
+static	void	*sio_slow_ih;
+static	void	*sio_fast_ih;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -769,7 +769,7 @@ sioprobe(dev, xrid)
 	com->bsh = rman_get_bushandle(port);
 
 	if (atomic_cmpset_int(&sio_inited, 0, 1))
-		mtx_init(&sio_lock, "sio", MTX_SPIN);
+		mtx_init(&sio_lock, driver_name, MTX_SPIN);
 
 #if 0
 	/*
@@ -1314,10 +1314,10 @@ determined_type: ;
 	printf("\n");
 
 	if (sio_fast_ih == NULL) {
-		sio_fast_ih = sinthand_add("tty:sio", &tty_ithd, siopoll,
-		    NULL, SWI_TTY, 0);
-		sio_slow_ih = sinthand_add("tty:sio", &clk_ithd, siopoll,
-		    NULL, SWI_TTY, 0);
+		swi_add(&tty_ithd, "tty:sio", siopoll, NULL, SWI_TTY, 0,
+		    &sio_fast_ih);
+		swi_add(&clk_ithd, "tty:sio", siopoll, NULL, SWI_TTY, 0,
+		    &sio_slow_ih);
 	}
 	com->devs[0] = make_dev(&sio_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, "ttyd%r", unit);
@@ -1964,7 +1964,7 @@ siointr1(com)
 			}
 			++com->bytes_in;
 			if (com->hotchar != 0 && recv_data == com->hotchar)
-				sched_swi(sio_fast_ih, SWI_NOSWITCH);
+				swi_sched(sio_fast_ih, SWI_NOSWITCH);
 			ioptr = com->iptr;
 			if (ioptr >= com->ibufend)
 				CE_RECORD(com, CE_INTERRUPT_BUF_OVERFLOW);
@@ -1972,10 +1972,10 @@ siointr1(com)
 				if (com->do_timestamp)
 					microtime(&com->timestamp);
 				++com_events;
-				sched_swi(sio_slow_ih, SWI_DELAY);
+				swi_sched(sio_slow_ih, SWI_DELAY);
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
-	sched_swi(sio_fast_ih, SWI_NOSWITCH);
+	swi_sched(sio_fast_ih, SWI_NOSWITCH);
 #endif
 				ioptr[0] = recv_data;
 				ioptr[com->ierroff] = line_status;
@@ -2013,7 +2013,7 @@ cont:
 			if (!(com->state & CS_CHECKMSR)) {
 				com_events += LOTS_OF_EVENTS;
 				com->state |= CS_CHECKMSR;
-				sched_swi(sio_fast_ih, SWI_NOSWITCH);
+				swi_sched(sio_fast_ih, SWI_NOSWITCH);
 			}
 
 			/* handle CTS change immediately for crisp flow ctl */
@@ -2068,7 +2068,7 @@ cont:
 					com_events += LOTS_OF_EVENTS;
 					com->state |= CS_ODONE;
 					/* handle at high level ASAP */
-					sched_swi(sio_fast_ih, SWI_NOSWITCH);
+					swi_sched(sio_fast_ih, SWI_NOSWITCH);
 				}
 			}
 			if (COM_IIR_TXRDYBUG(com->flags) && (int_ctl != int_ctl_new)) {

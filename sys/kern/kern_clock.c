@@ -209,11 +209,11 @@ hardclock(frame)
 	mtx_unlock_spin(&callout_lock);
 
 	/*
-	 * sched_swi acquires sched_lock, so we don't want to call it with
+	 * swi_sched acquires sched_lock, so we don't want to call it with
 	 * callout_lock held; incorrect locking order.
 	 */
 	if (need_softclock)
-		sched_swi(softclock_ih, SWI_NOSWITCH);
+		swi_sched(softclock_ih, SWI_NOSWITCH);
 }
 
 /*
