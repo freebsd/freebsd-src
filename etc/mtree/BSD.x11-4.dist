@@ -90,6 +90,8 @@
                 ..
                 Speedo
                 ..
+                TTF
+                ..
                 Type1
                 ..
                 cyrillic
@@ -119,6 +121,8 @@
                 C
                 ..
                 armscii-8
+                ..
+                common
                 ..
                 en_US.UTF-8
                 ..
@@ -204,7 +208,11 @@
                 ..
                 zh
                 ..
+                zh_CN
+                ..
                 zh_CN.gbk
+                ..
+                zh_HK.big5
                 ..
                 zh_HK.big5hkscs
                 ..
@@ -230,6 +238,8 @@
             xdm
                 pixmaps
                 ..
+            ..
+            xedit
             ..
             xinit
             ..
