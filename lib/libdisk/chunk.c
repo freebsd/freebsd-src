@@ -239,6 +239,7 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 	/* PLATFORM POLICY BEGIN ------------------------------------- */
 	switch(platform) {
 	case p_i386:
+	case p_amd64:
 		switch (type) {
 		case fat:
 		case mbr:
@@ -317,7 +318,8 @@ Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
 		if (platform == p_sparc64) {
 			offset = Prev_Cyl_Aligned(d, offset);
 			size = Next_Cyl_Aligned(d, size);
-		} else if (platform == p_i386 || platform == p_pc98) {
+		} else if (platform == p_i386 || platform == p_pc98 ||
+		    platform == p_amd64) {
 			if (type != freebsd)
 				break;
 			if (!(flags & CHUNK_ALIGN))

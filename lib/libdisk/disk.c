@@ -56,6 +56,8 @@ const enum platform platform =
 	p_ia64
 #elif defined(__ppc__)
 	p_ppc
+#elif defined(__amd64__)
+	p_amd64
 #else
 	IHAVENOIDEA
 #endif
@@ -391,7 +393,7 @@ Debug_Disk(struct disk *d)
 #if defined(PC98)
 	printf("  boot1=%p, boot2=%p, bootipl=%p, bootmenu=%p\n",
 		d->boot1, d->boot2, d->bootipl, d->bootmenu);
-#elif defined(__i386__)
+#elif defined(__i386__) || defined(__amd64__)
 	printf("  boot1=%p, boot2=%p, bootmgr=%p\n",
 		d->boot1, d->boot2, d->bootmgr);
 #elif defined(__alpha__)
@@ -427,7 +429,7 @@ Free_Disk(struct disk *d)
 	if (d->boot1)
 		free(d->boot1);
 #endif
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	if (d->boot2)
 		free(d->boot2);
 #endif
@@ -556,7 +558,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 int
 Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 {
-#if defined(__i386__)
+#if defined(__i386__) || defined(__amd64__)
 	if (d->boot1)
 		free(d->boot1);
 	d->boot1 = malloc(512);
