@@ -569,10 +569,10 @@ ext2_reload(mountp, cred, td)
 	brelse(bp);
 
 loop:
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 	for (vp = TAILQ_FIRST(&mountp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mountp) {
-			mtx_unlock(&mntvnode_mtx);
+			MNT_IUNLOCK(mp);
 			goto loop;
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
@@ -581,7 +581,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
@@ -614,9 +614,9 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -901,7 +901,7 @@ ext2_sync(mp, waitfor, cred, td)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -916,19 +916,19 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
 			VI_UNLOCK(vp);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -937,9 +937,9 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	/*
 	 * Force stale file system control information to be flushed.
 	 */

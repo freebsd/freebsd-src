@@ -116,9 +116,6 @@ struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 /* For any iteration/modification of mountlist */
 struct mtx mountlist_mtx;
 
-/* For any iteration/modification of mnt_vnodelist */
-struct mtx mntvnode_mtx;
-
 /*
  * The vnode of the system's root (/ in the filesystem, without chroot
  * active.)
@@ -662,6 +659,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	mp->mnt_nvnodelistsize = 0;
+	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -1029,6 +1027,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	mp->mnt_nvnodelistsize = 0;
+	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -1371,6 +1370,7 @@ dounmount(mp, flags, td)
 		panic("unmount: dangling vnode");
 	lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK, &mountlist_mtx, td);
 	lockdestroy(&mp->mnt_lock);
+	mtx_destroy(&mp->mnt_mtx);
 	if (coveredvp != NULL)
 		vrele(coveredvp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
@@ -1408,6 +1408,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 	if (vfsp == NULL)
 		return (ENODEV);
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK | M_ZERO);
+	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, td);
 	TAILQ_INIT(&mp->mnt_nvnodelist);

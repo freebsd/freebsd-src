@@ -476,7 +476,6 @@ vntblinit(void *dummy __unused)
 	    (5 * (sizeof(struct vm_object) + sizeof(struct vnode))));
 	minvnodes = desiredvnodes / 4;
 	mtx_init(&mountlist_mtx, "mountlist", NULL, MTX_DEF);
-	mtx_init(&mntvnode_mtx, "mntvnode", NULL, MTX_DEF);
 	mtx_init(&mntid_mtx, "mntid", NULL, MTX_DEF);
 	mtx_init(&spechash_mtx, "spechash", NULL, MTX_DEF);
 	TAILQ_INIT(&vnode_free_list);
@@ -710,7 +709,7 @@ vlrureclaim(struct mount *mp)
 	trigger = cnt.v_page_count * 2 / usevnodes;
 
 	done = 0;
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 	count = mp->mnt_nvnodelistsize / 10 + 1;
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
@@ -722,16 +721,16 @@ vlrureclaim(struct mount *mp)
 			if (VMIGHTFREE(vp) &&           /* critical path opt */
 			    (vp->v_object == NULL ||
 			    vp->v_object->resident_page_count < trigger)) {
-				mtx_unlock(&mntvnode_mtx);
+				MNT_IUNLOCK(mp);
 				vgonel(vp, curthread);
 				done++;
-				mtx_lock(&mntvnode_mtx);
+				MNT_ILOCK(mp);
 			} else
 				VI_UNLOCK(vp);
 		}
 		--count;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return done;
 }
 
@@ -1051,24 +1050,26 @@ insmntque(vp, mp)
 	register struct mount *mp;
 {
 
-	mtx_lock(&mntvnode_mtx);
 	/*
 	 * Delete from old mount point vnode list, if on one.
 	 */
 	if (vp->v_mount != NULL) {
+		MNT_ILOCK(vp->v_mount);
 		KASSERT(vp->v_mount->mnt_nvnodelistsize > 0,
 			("bad mount point vnode list size"));
 		TAILQ_REMOVE(&vp->v_mount->mnt_nvnodelist, vp, v_nmntvnodes);
 		vp->v_mount->mnt_nvnodelistsize--;
+		MNT_IUNLOCK(vp->v_mount);
 	}
 	/*
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
 	if ((vp->v_mount = mp) != NULL) {
+		MNT_ILOCK(vp->v_mount);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		mp->mnt_nvnodelistsize++;
+		MNT_IUNLOCK(vp->v_mount);
 	}
-	mtx_unlock(&mntvnode_mtx);
 }
 
 /*
@@ -2368,7 +2369,7 @@ vflush(mp, rootrefs, flags)
 		vput(rootvp);
 
 	}
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
 		/*
@@ -2380,10 +2381,10 @@ loop:
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		VI_LOCK(vp);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		error = vn_lock(vp, LK_INTERLOCK | LK_EXCLUSIVE, td);
 		if (error) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto loop;
 		}
 		/*
@@ -2391,7 +2392,7 @@ loop:
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
 			VOP_UNLOCK(vp, 0, td);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -2407,7 +2408,7 @@ loop:
 			    (error == 0 && vattr.va_nlink > 0)) &&
 			    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 				VOP_UNLOCK(vp, LK_INTERLOCK, td);
-				mtx_lock(&mntvnode_mtx);
+				MNT_ILOCK(mp);
 				continue;
 			}
 		} else
@@ -2421,7 +2422,7 @@ loop:
 		 */
 		if (vp->v_usecount == 0) {
 			vgonel(vp, td);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 
@@ -2435,7 +2436,7 @@ loop:
 				vgonel(vp, td);
 			else
 				vgonechrl(vp, td);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 #ifdef DIAGNOSTIC
@@ -2443,10 +2444,10 @@ loop:
 			vprint("vflush: busy vnode", vp);
 #endif
 		VI_UNLOCK(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		busy++;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	if (rootrefs > 0 && (flags & FORCECLOSE) == 0) {
 		/*
 		 * If just the root vnode is busy, and if its refcount
@@ -2481,10 +2482,10 @@ vlruvp(struct vnode *vp)
 	struct mount *mp;
 
 	if ((mp = vp->v_mount) != NULL) {
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 		TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 	}
 #endif
 }
@@ -3073,7 +3074,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
 			continue;
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
 			if (n == len)
 				break;
@@ -3122,7 +3123,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 			vrele(vp);
 			++n;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		mtx_lock(&mountlist_mtx);
 		vfs_unbusy(mp, td);
 		if (n == len)
@@ -3201,7 +3202,7 @@ vfs_msync(struct mount *mp, int flags)
 	GIANT_REQUIRED;
 
 	tries = 5;
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mp) {
@@ -3219,13 +3220,13 @@ loop:
 
 		if ((vp->v_iflag & VI_OBJDIRTY) &&
 		    (flags == MNT_WAIT || VOP_ISLOCKED(vp, NULL) == 0)) {
-			mtx_unlock(&mntvnode_mtx);
+			MNT_IUNLOCK(mp);
 			if (!vget(vp,
 			    LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
 			    curthread)) {
 				if (vp->v_vflag & VV_NOSYNC) {	/* unlinked */
 					vput(vp);
-					mtx_lock(&mntvnode_mtx);
+					MNT_ILOCK(mp);
 					continue;
 				}
 
@@ -3238,7 +3239,7 @@ loop:
 				}
 				vput(vp);
 			}
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp) {
 				if (--tries > 0)
 					goto loop;
@@ -3247,7 +3248,7 @@ loop:
 		} else
 			VI_UNLOCK(vp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 }
 
 /*

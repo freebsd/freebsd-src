@@ -132,6 +132,7 @@ struct mount {
 	struct vnodelst	mnt_nvnodelist;		/* list of vnodes this mount */
 	struct vnodelst	mnt_reservedvnlist;	/* (future) dirty vnode list */
 	struct lock	mnt_lock;		/* mount structure lock */
+	struct mtx	mnt_mtx;		/* mount structure interlock */
 	int		mnt_writeopcount;	/* write syscalls in progress */
 	int		mnt_flag;		/* flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
@@ -148,6 +149,11 @@ struct mount {
 	struct label	mnt_fslabel;		/* MAC label for the fs */
 	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 };
+
+
+#define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
+#define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
+
 #endif /* _KERNEL */
 
 /*

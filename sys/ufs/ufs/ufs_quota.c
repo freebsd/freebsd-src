@@ -455,34 +455,34 @@ quotaon(td, mp, type, fname)
 	 * adding references to quota file being opened.
 	 * NB: only need to add dquot's for inodes being modified.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 again:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount == 0) {
 			VOP_UNLOCK(vp, 0, td);
 			vrele(vp);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		if (error)
 			break;
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	ump->um_qflags[type] &= ~QTF_OPENING;
 	if (error)
 		quotaoff(td, mp, type);
@@ -516,7 +516,7 @@ quotaoff(td, mp, type)
 	 * Search vnodes associated with this mount point,
 	 * deleting any references to quota file being closed.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 again:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
@@ -524,14 +524,14 @@ again:
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		VI_LOCK(vp);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto again;
 		}
 		ip = VTOI(vp);
@@ -540,11 +540,11 @@ again:
 		dqrele(vp, dq);
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	dqflush(qvp);
 	ASSERT_VOP_LOCKED(qvp, "quotaoff");
 	qvp->v_vflag &= ~VV_SYSTEM;
@@ -749,22 +749,22 @@ qsync(mp)
 	 * Search vnodes associated with this mount point,
 	 * synchronizing any modified dquot structures.
 	 */
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 again:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nextvp) {
 		if (vp->v_mount != mp)
 			goto again;
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		VI_LOCK(vp);
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto again;
 			continue;
@@ -775,11 +775,11 @@ again:
 				dqsync(vp, dq);
 		}
 		vput(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nextvp)
 			goto again;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return (0);
 }
 
