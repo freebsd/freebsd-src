@@ -931,7 +931,8 @@ loop:
 		if (vp->v_type == VNON ||
 		    ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
+		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
+		    waitfor == MNT_LAZY))) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);
 			continue;

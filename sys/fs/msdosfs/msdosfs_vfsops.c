@@ -741,9 +741,9 @@ msdosfs_unmount(mp, mntflags, td)
 		    TAILQ_NEXT(vp, v_freelist), vp->v_freelist.tqe_prev,
 		    vp->v_mount);
 		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
-		    TAILQ_FIRST(&vp->v_cleanblkhd),
-		    TAILQ_FIRST(&vp->v_dirtyblkhd),
-		    vp->v_numoutput, vp->v_type);
+		    TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd),
+		    TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
+		    vp->v_bufobj.bo_numoutput, vp->v_type);
 		printf("union %p, tag %s, data[0] %08x, data[1] %08x\n",
 		    vp->v_socket, vp->v_tag,
 		    ((u_int *)vp->v_data)[0],
@@ -854,7 +854,8 @@ loop:
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
-		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
+		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
+		    waitfor == MNT_LAZY))) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);
 			continue;
