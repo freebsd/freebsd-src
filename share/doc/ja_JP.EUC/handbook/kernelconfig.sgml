@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.1.1.1 1996/11/15 05:14:40 asami Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.2 1996/12/17 16:02:25 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
@@ -1147,8 +1147,8 @@ controller wcd0
 	保護するのが望ましいでしょう. このファイルの詳細については 
 	<tt>man fbtab</tt> を参照してください. 
 
-	GENERICに含まれていないためにエントリが作られていないデバイスでは, 
-	以上の簡単な手順をおこなうことになります. 
+	GENERICに含まれていないデバイスはエントリがありませんから,以上
+	の簡単な手順をおこなうことになります.
 
 	<quote><em/注:/ すべての SCSIコントローラは同じ <tt>/dev</tt>の
 	エントリを使用しますのでノードを作る必要はありません. またネッ
