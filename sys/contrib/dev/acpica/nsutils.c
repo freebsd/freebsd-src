@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 71 $
+ *              $Revision: 72 $
  *
  *****************************************************************************/
 
@@ -248,9 +248,10 @@ AcpiNsInternalizeName (
 {
     NATIVE_CHAR             *Result = NULL;
     NATIVE_CHAR             *InternalName;
-    UINT32                  NumSegments;
+    UINT32                  NumSegments = 0;
     BOOLEAN                 FullyQualified = FALSE;
     UINT32                  i;
+    UINT32                  NumCarats = 0;
 
 
     FUNCTION_TRACE ("NsInternalizeName");
@@ -280,6 +281,18 @@ AcpiNsInternalizeName (
         ExternalName++;
     }
 
+    else
+    {
+        /*
+         * Handle Carat prefixes
+         */
+
+        while (*ExternalName == '^')
+        {
+            NumCarats++;
+            ExternalName++;
+        }
+    }
 
     /*
      * Determine the number of ACPI name "segments" by counting
@@ -288,19 +301,22 @@ AcpiNsInternalizeName (
      * + 1, and zero separators is ok.
      */
 
-    NumSegments = 1;
-    for (i = 0; ExternalName[i]; i++)
+    if (*ExternalName)
     {
-        if (AcpiNsValidPathSeparator (ExternalName[i]))
+        NumSegments = 1;
+        for (i = 0; ExternalName[i]; i++)
         {
-            NumSegments++;
+            if (AcpiNsValidPathSeparator (ExternalName[i]))
+            {
+                NumSegments++;
+            }
         }
     }
 
 
     /* We need a segment to store the internal version of the name */
 
-    InternalName = AcpiCmCallocate ((ACPI_NAME_SIZE * NumSegments) + 4);
+    InternalName = AcpiCmCallocate ((ACPI_NAME_SIZE * NumSegments) + 4 + NumCarats);
     if (!InternalName)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
@@ -312,15 +328,58 @@ AcpiNsInternalizeName (
     if (FullyQualified)
     {
         InternalName[0] = '\\';
-        InternalName[1] = AML_MULTI_NAME_PREFIX_OP;
-        InternalName[2] = (char) NumSegments;
-        Result = &InternalName[3];
+
+        if (NumSegments <= 1)
+        {
+            Result = &InternalName[1];
+        }
+        else if (NumSegments == 2)
+        {
+            InternalName[1] = AML_DUAL_NAME_PREFIX;
+            Result = &InternalName[2];
+        }
+        else
+        {
+            InternalName[1] = AML_MULTI_NAME_PREFIX_OP;
+            InternalName[2] = (char) NumSegments;
+            Result = &InternalName[3];
+        }
+
     }
+
     else
     {
-        InternalName[0] = AML_MULTI_NAME_PREFIX_OP;
-        InternalName[1] = (char) NumSegments;
-        Result = &InternalName[2];
+        /*
+         * Not fully qualified.
+         * Handle Carats first, then append the name segments
+         */
+
+        i = 0;
+        if (NumCarats)
+        {
+            for (i = 0; i < NumCarats; i++)
+            {
+                InternalName[i] = '^';
+            }
+        }
+
+        if (NumSegments == 1)
+        {
+            Result = &InternalName[i];
+        }
+
+        else if (NumSegments == 2)
+        {
+            InternalName[i] = AML_DUAL_NAME_PREFIX;
+            Result = &InternalName[i+1];
+        }
+
+        else
+        {
+            InternalName[i] = AML_MULTI_NAME_PREFIX_OP;
+            InternalName[i+1] = (char) NumSegments;
+            Result = &InternalName[i+2];
+        }
     }
 
 
@@ -378,7 +437,7 @@ AcpiNsInternalizeName (
     {
         DEBUG_PRINT (TRACE_EXEC,
             ("NsInternalizeName: returning [%p] (abs) \"\\%s\"\n",
-            InternalName, &InternalName[3]));
+            InternalName, &InternalName[0]));
     }
     else
     {

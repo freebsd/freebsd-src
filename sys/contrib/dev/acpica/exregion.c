@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 36 $
+ *              $Revision: 40 $
  *
  *****************************************************************************/
 
@@ -151,7 +151,7 @@
 ACPI_STATUS
 AcpiAmlSystemMemorySpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -197,9 +197,9 @@ AcpiAmlSystemMemorySpaceHandler (
      *    2) Address beyond the current mapping?
      */
 
-    if ((Address < (ACPI_INTEGER) MemInfo->MappedPhysicalAddress) ||
+    if ((Address < MemInfo->MappedPhysicalAddress) ||
         ((Address + Length) >
-            (ACPI_INTEGER) (MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
+            (MemInfo->MappedPhysicalAddress + MemInfo->MappedLength)))
     {
         /*
          * The request cannot be resolved by the current memory mapping;
@@ -218,7 +218,7 @@ AcpiAmlSystemMemorySpaceHandler (
 
         /* Create a new mapping starting at the address given */
 
-        Status = AcpiOsMapMemory ((void *) (UINT32) Address, SYSMEM_REGION_WINDOW_SIZE,
+        Status = AcpiOsMapMemory (Address, SYSMEM_REGION_WINDOW_SIZE,
                                     (void **) &MemInfo->MappedLogicalAddress);
         if (ACPI_FAILURE (Status))
         {
@@ -227,7 +227,7 @@ AcpiAmlSystemMemorySpaceHandler (
 
         /* TBD: should these pointers go to 64-bit in all cases ? */
 
-        MemInfo->MappedPhysicalAddress = (UINT8 *) (UINT32) Address;
+        MemInfo->MappedPhysicalAddress = Address;
         MemInfo->MappedLength = SYSMEM_REGION_WINDOW_SIZE;
     }
 
@@ -240,7 +240,7 @@ AcpiAmlSystemMemorySpaceHandler (
     /* TBD: should these pointers go to 64-bit in all cases ? */
 
     LogicalAddrPtr = MemInfo->MappedLogicalAddress +
-                    ((UINT8 *) (UINT32) Address - MemInfo->MappedPhysicalAddress);
+                    (Address - MemInfo->MappedPhysicalAddress);
 
     /* Perform the memory read or write */
 
@@ -324,7 +324,7 @@ AcpiAmlSystemMemorySpaceHandler (
 ACPI_STATUS
 AcpiAmlSystemIoSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,
@@ -432,7 +432,7 @@ AcpiAmlSystemIoSpaceHandler (
 ACPI_STATUS
 AcpiAmlPciConfigSpaceHandler (
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value,
     void                    *HandlerContext,

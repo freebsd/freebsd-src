@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 31 $
+ *       $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -127,8 +127,6 @@
 
 #define MTH_TYPE_LOCAL              0
 #define MTH_TYPE_ARG                1
-
-
 
 
 /* Common interfaces */

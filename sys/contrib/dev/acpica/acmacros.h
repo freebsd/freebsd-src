@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 50 $
+ *       $Revision: 56 $
  *
  *****************************************************************************/
 
@@ -219,6 +219,11 @@
 #define MUL_16(a)                       _MUL(a,4)
 #define MOD_16(a)                       _MOD(a,16)
 
+/*
+ * Divide and Modulo
+ */
+#define ACPI_DIVIDE(n,d)                ((n) / (d))
+#define ACPI_MODULO(n,d)                ((n) % (d))
 
 /*
  * Rounding macros (Power of two boundaries only)
@@ -228,16 +233,33 @@
 #define ROUND_UP(value,boundary)        (((value) + ((boundary)-1)) & (~((boundary)-1)))
 
 #define ROUND_DOWN_TO_32_BITS(a)        ROUND_DOWN(a,4)
+#define ROUND_DOWN_TO_64_BITS(a)        ROUND_DOWN(a,8)
 #define ROUND_DOWN_TO_NATIVE_WORD(a)    ROUND_DOWN(a,ALIGNED_ADDRESS_BOUNDARY)
 
 #define ROUND_UP_TO_32BITS(a)           ROUND_UP(a,4)
+#define ROUND_UP_TO_64BITS(a)           ROUND_UP(a,8)
 #define ROUND_UP_TO_NATIVE_WORD(a)      ROUND_UP(a,ALIGNED_ADDRESS_BOUNDARY)
 
 #define ROUND_PTR_UP_TO_4(a,b)          ((b *)(((NATIVE_UINT)(a) + 3) & ~3))
+#define ROUND_PTR_UP_TO_8(a,b)          ((b *)(((NATIVE_UINT)(a) + 7) & ~7))
+
+#define ROUND_UP_TO_1K(a)               (((a) + 1023) >> 10)
 
 #ifdef DEBUG_ASSERT
 #undef DEBUG_ASSERT
 #endif
+
+
+/* Macros for GAS addressing */
+
+#define ACPI_PCI_DEVICE_MASK            (UINT64) 0x0000FFFF00000000
+#define ACPI_PCI_FUNCTION_MASK          (UINT64) 0x00000000FFFF0000
+#define ACPI_PCI_REGISTER_MASK          (UINT64) 0x000000000000FFFF
+
+#define ACPI_PCI_FUNCTION(a)            (UINT32) ((((a) & ACPI_PCI_FUNCTION_MASK) >> 16))
+#define ACPI_PCI_DEVICE(a)              (UINT32) ((((a) & ACPI_PCI_DEVICE_MASK) >> 32))
+#define ACPI_PCI_REGISTER(a)            (UINT32) (((a) & ACPI_PCI_REGISTER_MASK))
+#define ACPI_PCI_DEVFUN(a)              (UINT32) ((ACPI_PCI_DEVICE(a) << 16) | ACPI_PCI_FUNCTION(a))
 
 
 /*
@@ -335,11 +357,11 @@
 
 #else
 
-#define REPORT_INFO(fp)                 {_ReportInfo("",__LINE__,_COMPONENT); \
+#define REPORT_INFO(fp)                 {_ReportInfo("ACPI",__LINE__,_COMPONENT); \
                                             DebugPrintRaw PARAM_LIST(fp);}
-#define REPORT_ERROR(fp)                {_ReportError("",__LINE__,_COMPONENT); \
+#define REPORT_ERROR(fp)                {_ReportError("ACPI",__LINE__,_COMPONENT); \
                                             DebugPrintRaw PARAM_LIST(fp);}
-#define REPORT_WARNING(fp)              {_ReportWarning("",__LINE__,_COMPONENT); \
+#define REPORT_WARNING(fp)              {_ReportWarning("ACPI",__LINE__,_COMPONENT); \
                                             DebugPrintRaw PARAM_LIST(fp);}
 
 #endif
@@ -394,7 +416,7 @@
 
 /* Conditional execution */
 
-#define DEBUG_EXEC(a)                   a;
+#define DEBUG_EXEC(a)                   a
 #define NORMAL_EXEC(a)
 
 #define DEBUG_DEFINE(a)                 a;
@@ -499,7 +521,7 @@
  * DEBUG_PRINT stuff (set by ACPI_DEBUG) is on, or not.
  */
 #ifdef ENABLE_DEBUGGER
-#define DEBUGGER_EXEC(a)                a;
+#define DEBUGGER_EXEC(a)                a
 #else
 #define DEBUGGER_EXEC(a)
 #endif
@@ -532,5 +554,6 @@
 #define ADD_OBJECT_NAME(a,b)
 
 #endif
+
 
 #endif /* ACMACROS_H */

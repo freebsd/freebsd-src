@@ -2,7 +2,7 @@
  *
  * Module Name: rscalc - AcpiRsCalculateByteStreamLength
  *                       AcpiRsCalculateListLength
- *              $Revision: 11 $
+ *              $Revision: 16 $
  *
  ******************************************************************************/
 
@@ -118,6 +118,7 @@
 #define __RSCALC_C__
 
 #include "acpi.h"
+#include "acresrc.h"
 
 #define _COMPONENT          RESOURCE_MANAGER
         MODULE_NAME         ("rscalc")
@@ -884,7 +885,7 @@ AcpiRsCalculatePciRoutingTableLength (
     UINT32                  *BufferSizeNeeded)
 {
     UINT32                  NumberOfElements;
-    UINT32                  TempSizeNeeded;
+    UINT32                  TempSizeNeeded = 0;
     ACPI_OPERAND_OBJECT     **TopObjectList;
     UINT32                  Index;
     ACPI_OPERAND_OBJECT     *PackageElement;
@@ -908,8 +909,6 @@ AcpiRsCalculatePciRoutingTableLength (
      * NOTE: The NumberOfElements is incremented by one to add an end
      * table structure that is essentially a structure of zeros.
      */
-    TempSizeNeeded = (NumberOfElements + 1) *
-                       (sizeof (PCI_ROUTING_TABLE) - 1);
 
     /*
      * But each PRT_ENTRY structure has a pointer to a string and
@@ -951,6 +950,8 @@ AcpiRsCalculatePciRoutingTableLength (
             }
         }
 
+        TempSizeNeeded += (sizeof (PCI_ROUTING_TABLE) - 1);
+
         /*
          * Was a String type found?
          */
@@ -972,15 +973,20 @@ AcpiRsCalculatePciRoutingTableLength (
             TempSizeNeeded += sizeof(UINT32);
         }
 
+
+        /* Round up the size since each element must be aligned */
+
+        TempSizeNeeded = ROUND_UP_TO_64BITS (TempSizeNeeded);
+
         /*
          * Point to the next ACPI_OPERAND_OBJECT
          */
         TopObjectList++;
     }
 
-    /* Align the count before returning it */
 
-    *BufferSizeNeeded = ROUND_UP_TO_32BITS (TempSizeNeeded);
+    *BufferSizeNeeded = TempSizeNeeded + sizeof (PCI_ROUTING_TABLE);
 
     return_ACPI_STATUS (AE_OK);
 }
+

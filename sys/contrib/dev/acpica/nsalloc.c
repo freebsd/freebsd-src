@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  ******************************************************************************/
 
@@ -578,7 +578,7 @@ AcpiNsDeleteNamespaceSubtree (
  *
  ******************************************************************************/
 
-void
+static void
 AcpiNsRemoveReference (
     ACPI_NAMESPACE_NODE     *Node)
 {

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmsvc.h - VC specific defines, etc.
- *       $Revision: 1 $
+ *       $Revision: 2 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,9 @@
 
 /* warn C4127: conditional expression is constant */
 #pragma warning(disable:4127)
+
+/* warn C4706: assignment within conditional expression */
+#pragma warning(disable:4706)
 
 
 #endif /* __ACMSVC_H__ */

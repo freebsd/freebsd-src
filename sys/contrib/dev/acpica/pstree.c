@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pstree - Parser op tree manipulation/traversal/search
- *              $Revision: 23 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -394,125 +394,6 @@ AcpiPsGetDepthNext (
     }
 
     return (Next);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiPsFetchPrefix
- *
- * PARAMETERS:  Scope           - Op to fetch prefix for
- *              Path            - A namestring containing the prefix
- *              io              - Direction flag
- *
- * RETURN:      Op referenced by the prefix
- *
- * DESCRIPTION: Fetch and handle path prefix ('\\' or '^')
- *
- ******************************************************************************/
-
-ACPI_PARSE_OBJECT *
-AcpiPsFetchPrefix (
-    ACPI_PARSE_OBJECT       *Scope,
-    NATIVE_CHAR             **Path,
-    UINT32                  io)
-{
-    UINT32                  prefix = io ? GET8 (*Path):**Path;
-
-
-    switch (prefix)
-    {
-    case '\\':
-    case '/':
-
-        /* go to the root */
-
-        *Path += 1;
-        while (Scope->Parent)
-        {
-            Scope = Scope->Parent;
-        }
-        break;
-
-
-    case '^':
-
-        /* go up one level */
-
-        *Path += 1;
-        Scope = Scope->Parent;
-        break;
-    }
-
-    if (Scope && !Scope->Parent)
-    {
-        /* searching from the root, start with its children */
-
-        Scope = AcpiPsGetChild (Scope);
-    }
-
-    return (Scope);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiPsFetchName
- *
- * PARAMETERS:  Path            - A string containing the name segment
- *              io              - Direction flag
- *
- * RETURN:      The 4-INT8 ASCII ACPI Name as a UINT32
- *
- * DESCRIPTION: Fetch ACPI name segment (dot-delimited)
- *
- ******************************************************************************/
-
-UINT32
-AcpiPsFetchName (
-    NATIVE_CHAR             **Path,
-    UINT32                  io)
-{
-    UINT32                  Name = 0;
-    NATIVE_CHAR             *nm;
-    UINT32                  i;
-    NATIVE_CHAR             ch;
-
-
-    if (io)
-    {
-        /* Get the name from the path pointer */
-
-        MOVE_UNALIGNED32_TO_32 (&Name, *Path);
-        *Path += 4;
-    }
-
-    else
-    {
-        if (**Path == '.')
-        {
-            *Path += 1;
-        }
-
-        nm = (NATIVE_CHAR *) &Name;
-        for (i = 0; i < 4; i++)
-        {
-            ch = **Path;
-            if (ch && ch != '.')
-            {
-                *nm = ch;
-                *Path += 1;
-            }
-
-            else
-            {
-                *nm = '_';
-            }
-            nm++;
-        }
-    }
-
-    return (Name);
 }
 
 

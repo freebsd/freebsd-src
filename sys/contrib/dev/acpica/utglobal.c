@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmglobal - Global variables for the ACPI subsystem
- *              $Revision: 104 $
+ *              $Revision: 110 $
  *
  *****************************************************************************/
 
@@ -166,6 +166,9 @@ UINT32                      AcpiGbl_StartupFlags = 0;
 BOOLEAN                     AcpiGbl_Shutdown = TRUE;
 
 
+UINT8                       AcpiGbl_DecodeTo8bit [8] = {1,2,4,8,16,32,64,128};
+
+
 /******************************************************************************
  *
  * Namespace globals
@@ -230,24 +233,29 @@ UINT8                       AcpiGbl_NsProperties[] =
     NSP_NORMAL,                 /* 21 Alias            */
     NSP_NORMAL,                 /* 22 Notify           */
     NSP_NORMAL,                 /* 23 Address Handler  */
-    NSP_NORMAL,                 /* 24 DefFieldDefn     */
-    NSP_NORMAL,                 /* 25 BankFieldDefn    */
-    NSP_NORMAL,                 /* 26 IndexFieldDefn   */
-    NSP_NORMAL,                 /* 27 If               */
-    NSP_NORMAL,                 /* 28 Else             */
-    NSP_NORMAL,                 /* 29 While            */
-    NSP_NEWSCOPE,               /* 30 Scope            */
-    NSP_LOCAL,                  /* 31 DefAny           */
-    NSP_NORMAL,                 /* 32 Method Arg       */
-    NSP_NORMAL,                 /* 33 Method Local     */
-    NSP_NORMAL,                 /* 34 Extra            */
-    NSP_NORMAL                  /* 35 Invalid          */
+    NSP_NEWSCOPE | NSP_LOCAL,   /* 24 Resource         */
+    NSP_NORMAL,                 /* 25 DefFieldDefn     */
+    NSP_NORMAL,                 /* 26 BankFieldDefn    */
+    NSP_NORMAL,                 /* 27 IndexFieldDefn   */
+    NSP_NORMAL,                 /* 28 If               */
+    NSP_NORMAL,                 /* 29 Else             */
+    NSP_NORMAL,                 /* 30 While            */
+    NSP_NEWSCOPE,               /* 31 Scope            */
+    NSP_LOCAL,                  /* 32 DefAny           */
+    NSP_NORMAL,                 /* 33 Method Arg       */
+    NSP_NORMAL,                 /* 34 Method Local     */
+    NSP_NORMAL,                 /* 35 Extra            */
+    NSP_NORMAL                  /* 36 Invalid          */
 };
 
 
 /******************************************************************************
  *
  * Table globals
+ *
+ * NOTE: This table includes ONLY the ACPI tables that the subsystem consumes.
+ * it is NOT an exhaustive list of all possible ACPI tables.  All ACPI tables
+ * that are not used by the subsystem are simply ignored.
  *
  ******************************************************************************/
 
@@ -257,19 +265,15 @@ ACPI_TABLE_DESC             AcpiGbl_AcpiTables[NUM_ACPI_TABLES];
 
 ACPI_TABLE_SUPPORT          AcpiGbl_AcpiTableData[NUM_ACPI_TABLES] =
 {
-                 /* Name,   Signature,  Signature size,    How many allowed?,   Supported?  Global typed pointer */
+    /***********    Name,    Signature,  Signature size,    How many allowed?,   Supported?  Global typed pointer */
 
-    /* RSDP 0 */ {"RSDP",   RSDP_SIG, sizeof (RSDP_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      NULL},
-    /* APIC 1 */ {APIC_SIG, APIC_SIG, sizeof (APIC_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_APIC},
-    /* DSDT 2 */ {DSDT_SIG, DSDT_SIG, sizeof (DSDT_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_DSDT},
-    /* FACP 3 */ {FACP_SIG, FACP_SIG, sizeof (FACP_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_FACP},
-    /* FACS 4 */ {FACS_SIG, FACS_SIG, sizeof (FACS_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_FACS},
-    /* PSDT 5 */ {PSDT_SIG, PSDT_SIG, sizeof (PSDT_SIG)-1, ACPI_TABLE_MULTIPLE, AE_OK,      NULL},
-    /* RSDT 6 */ {RSDT_SIG, RSDT_SIG, sizeof (RSDT_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      NULL},
-    /* SSDT 7 */ {SSDT_SIG, SSDT_SIG, sizeof (SSDT_SIG)-1, ACPI_TABLE_MULTIPLE, AE_OK,      NULL},
-    /* SBST 8 */ {SBST_SIG, SBST_SIG, sizeof (SBST_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_SBST},
-    /* SPIC 9 */ {SPIC_SIG, SPIC_SIG, sizeof (SPIC_SIG)-1, ACPI_TABLE_MULTIPLE, AE_OK,      NULL},
-    /* BOOT 10 */{BOOT_SIG, BOOT_SIG, sizeof (BOOT_SIG)-1, ACPI_TABLE_SINGLE,   AE_SUPPORT, NULL}
+    /* RSDP 0 */ {RSDP_NAME, RSDP_SIG, sizeof (RSDP_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      NULL},
+    /* DSDT 1 */ {DSDT_SIG,  DSDT_SIG, sizeof (DSDT_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_DSDT},
+    /* FADT 2 */ {FADT_SIG,  FADT_SIG, sizeof (FADT_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_FADT},
+    /* FACS 3 */ {FACS_SIG,  FACS_SIG, sizeof (FACS_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      (void **) &AcpiGbl_FACS},
+    /* PSDT 4 */ {PSDT_SIG,  PSDT_SIG, sizeof (PSDT_SIG)-1, ACPI_TABLE_MULTIPLE, AE_OK,      NULL},
+    /* SSDT 5 */ {SSDT_SIG,  SSDT_SIG, sizeof (SSDT_SIG)-1, ACPI_TABLE_MULTIPLE, AE_OK,      NULL},
+    /* XSDT 6 */ {XSDT_SIG,  XSDT_SIG, sizeof (RSDT_SIG)-1, ACPI_TABLE_SINGLE,   AE_OK,      NULL},
 };
 
 
@@ -348,18 +352,19 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 21 */ "Alias",
     /* 22 */ "Notify",
     /* 23 */ "AddrHndlr",
-    /* 24 */ "DefFldDfn",
-    /* 25 */ "BnkFldDfn",
-    /* 26 */ "IdxFldDfn",
-    /* 27 */ "If",
-    /* 28 */ "Else",
-    /* 29 */ "While",
-    /* 30 */ "Scope",
-    /* 31 */ "DefAny",
-    /* 32 */ "MethodArg",
-    /* 33 */ "MethodLcl",
-    /* 34 */ "Extra",
-    /* 35 */ "Invalid"
+    /* 24 */ "Resource",
+    /* 25 */ "DefFldDfn",
+    /* 26 */ "BnkFldDfn",
+    /* 27 */ "IdxFldDfn",
+    /* 28 */ "If",
+    /* 29 */ "Else",
+    /* 30 */ "While",
+    /* 31 */ "Scope",
+    /* 32 */ "DefAny",
+    /* 33 */ "MethodArg",
+    /* 34 */ "MethodLcl",
+    /* 35 */ "Extra",
+    /* 36 */ "Invalid"
 };
 
 
@@ -609,12 +614,10 @@ AcpiCmInitGlobals (
     /* Global "typed" ACPI table pointers */
 
     AcpiGbl_RSDP                        = NULL;
-    AcpiGbl_RSDT                        = NULL;
+    AcpiGbl_XSDT                        = NULL;
     AcpiGbl_FACS                        = NULL;
-    AcpiGbl_FACP                        = NULL;
-    AcpiGbl_APIC                        = NULL;
+    AcpiGbl_FADT                        = NULL;
     AcpiGbl_DSDT                        = NULL;
-    AcpiGbl_SBST                        = NULL;
 
 
     /* Global Lock support */
@@ -628,7 +631,6 @@ AcpiCmInitGlobals (
     AcpiGbl_StartupFlags                = 0;
     AcpiGbl_GlobalLockSet               = FALSE;
     AcpiGbl_RsdpOriginalLocation        = 0;
-    AcpiGbl_WhenToParseMethods          = METHOD_PARSE_CONFIGURATION;
     AcpiGbl_CmSingleStep                = FALSE;
     AcpiGbl_DbTerminateThreads          = FALSE;
     AcpiGbl_Shutdown                    = FALSE;
@@ -665,15 +667,6 @@ AcpiCmInitGlobals (
     AcpiGbl_WalkStateCacheDepth         = 0;
     AcpiGbl_WalkStateCacheRequests      = 0;
     AcpiGbl_WalkStateCacheHits          = 0;
-
-    /* Interpreter */
-
-    AcpiGbl_BufSeq                      = 0;
-    AcpiGbl_NodeErr                     = FALSE;
-
-    /* Parser */
-
-    AcpiGbl_ParsedNamespaceRoot         = NULL;
 
     /* Hardware oriented */
 

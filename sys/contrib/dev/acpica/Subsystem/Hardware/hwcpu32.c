@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: hwcpu32.c - CPU support for IA32 (Throttling, CxStates)
- *              $Revision: 33 $
+ *              $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -226,7 +226,7 @@ AcpiHwEnterC2(
      * We have to do something useless after reading LVL2 because chipsets
      * cannot guarantee that STPCLK# gets asserted in time to freeze execution.
      */
-    AcpiOsIn8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk);
+    AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM2_CONTROL);
 
     /*
      * Compute Time in C2:
@@ -265,7 +265,6 @@ AcpiHwEnterC3(
     UINT32                  *PmTimerTicks)
 {
     UINT32                  Timer = 0;
-    UINT8                   Pm2CntBlk = 0;
     UINT32                  BusMasterStatus = 0;
 
 
@@ -282,12 +281,12 @@ AcpiHwEnterC3(
      *  eventually cause a demotion to C2
      */
     if (1 == (BusMasterStatus =
-        AcpiHwRegisterAccess (ACPI_READ, ACPI_MTX_LOCK, BM_STS)))
+        AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_LOCK, BM_STS)))
     {
         /*
          * Clear the BM_STS bit by setting it.
          */
-        AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_STS, 1);
+        AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_STS, 1);
         *PmTimerTicks = 0;
         return (AE_OK);
     }
@@ -302,9 +301,7 @@ AcpiHwEnterC3(
      * ----------------------
      * Set the PM2_CNT.ARB_DIS bit (bit #0), preserving all other bits.
      */
-    Pm2CntBlk = AcpiOsIn8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk);
-    Pm2CntBlk |= 0x01;
-    AcpiOsOut8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk, Pm2CntBlk);
+     AcpiHwRegisterBitAccess(ACPI_WRITE, ACPI_MTX_LOCK, ARB_DIS, 1);
 
     /*
      * Get the timer base before entering C state
@@ -324,8 +321,7 @@ AcpiHwEnterC3(
      * We have to do something useless after reading LVL3 because chipsets
      * cannot guarantee that STPCLK# gets asserted in time to freeze execution.
      */
-    AcpiOsIn8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk);
-
+    AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM2_CONTROL);
     /*
      * Immediately compute the time in the C state
      */
@@ -336,9 +332,7 @@ AcpiHwEnterC3(
      * ------------------------
      * Clear the PM2_CNT.ARB_DIS bit (bit #0), preserving all other bits.
      */
-    Pm2CntBlk = AcpiOsIn8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk);
-    Pm2CntBlk &= 0xFE;
-    AcpiOsOut8 ((ACPI_IO_ADDRESS) AcpiGbl_FACP->Pm2CntBlk, Pm2CntBlk);
+    AcpiHwRegisterBitAccess(ACPI_WRITE, ACPI_MTX_LOCK, ARB_DIS, 0);
 
     /* TBD: [Unhandled]: Support 24-bit timers (this algorithm assumes 32-bit) */
 
@@ -431,7 +425,7 @@ AcpiHwSetCx (
     switch (CxState)
     {
     case 3:
-        AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_RLD, 1);
+        AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_RLD, 1);
         break;
     }
 
@@ -445,7 +439,7 @@ AcpiHwSetCx (
     switch (AcpiHwActiveCxState)
     {
     case 3:
-        AcpiHwRegisterAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_RLD, 0);
+        AcpiHwRegisterBitAccess (ACPI_WRITE, ACPI_MTX_LOCK, BM_RLD, 0);
         break;
     }
 
@@ -511,18 +505,18 @@ AcpiHwGetCxInfo (
      * and on SMP systems when P_LVL2_UP (which indicates C2 only on UP)
      * is not set.
      */
-    if (AcpiGbl_FACP->Plvl2Lat <= 100)
+    if (AcpiGbl_FADT->Plvl2Lat <= 100)
     {
         if (!SMP_system)
         {
             AcpiHwCxHandlers[2] = AcpiHwEnterC2;
-            CxStates[2] = AcpiGbl_FACP->Plvl2Lat;
+            CxStates[2] = AcpiGbl_FADT->Plvl2Lat;
         }
 
-        else if (!AcpiGbl_FACP->Plvl2Up)
+        else if (!AcpiGbl_FADT->Plvl2Up)
         {
             AcpiHwCxHandlers[2] = AcpiHwEnterC2;
-            CxStates[2] = AcpiGbl_FACP->Plvl2Lat;
+            CxStates[2] = AcpiGbl_FADT->Plvl2Lat;
         }
     }
 
@@ -537,13 +531,13 @@ AcpiHwGetCxInfo (
      * cannot be used on SMP systems, and flushing caches (e.g. WBINVD)
      * is simply too costly (at this time).
      */
-    if (AcpiGbl_FACP->Plvl3Lat <= 1000)
+    if (AcpiGbl_FADT->Plvl3Lat <= 1000)
     {
-        if (!SMP_system && (AcpiGbl_FACP->Pm2CntBlk &&
-            AcpiGbl_FACP->Pm2CntLen))
+        if (!SMP_system && (AcpiGbl_FADT->XPm2CntBlk.Address &&
+            AcpiGbl_FADT->Pm2CntLen))
         {
             AcpiHwCxHandlers[3] = AcpiHwEnterC3;
-            CxStates[3] = AcpiGbl_FACP->Plvl3Lat;
+            CxStates[3] = AcpiGbl_FADT->Plvl3Lat;
         }
     }
 
@@ -841,5 +835,3 @@ AcpiHwProgramDutyCycle (
 
     return_VOID;
 }
-
- 

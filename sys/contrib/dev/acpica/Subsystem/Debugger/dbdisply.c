@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 34 $
+ *              $Revision: 35 $
  *
  ******************************************************************************/
 
@@ -579,7 +579,7 @@ AcpiDbDisplayMethodInfo (
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->Origin->Node;
+    Node = WalkState->MethodNode;
 
     NumArgs = ObjDesc->Method.ParamCount;
     Concurrency = ObjDesc->Method.Concurrency;
@@ -686,7 +686,7 @@ AcpiDbDisplayLocals (void)
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->Origin->Node;
+    Node = WalkState->MethodNode;
 
 
     AcpiOsPrintf ("Local Variables for method [%4.4s]:\n", &Node->Name);
@@ -820,14 +820,14 @@ AcpiDbDisplayCallingTree (void)
     }
 
     ObjDesc = WalkState->MethodDesc;
-    Node = WalkState->Origin->Node;
+    Node = WalkState->MethodNode;
 
     AcpiOsPrintf ("Current Control Method Call Tree\n");
 
     for (i = 0; WalkState; i++)
     {
         ObjDesc = WalkState->MethodDesc;
-        Node = WalkState->Origin->Node;
+        Node = WalkState->MethodNode;
 
         AcpiOsPrintf ("    [%4.4s]\n", &Node->Name);
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cminit - Common ACPI subsystem initialization
- *              $Revision: 84 $
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -130,7 +130,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiCmFacpRegisterError
+ * FUNCTION:    AcpiCmFadtRegisterError
  *
  * PARAMETERS:  *RegisterName           - Pointer to string identifying register
  *              Value                   - Actual register contents value
@@ -143,15 +143,15 @@
  *
  ******************************************************************************/
 
-ACPI_STATUS
-AcpiCmFacpRegisterError (
+static ACPI_STATUS
+AcpiCmFadtRegisterError (
     NATIVE_CHAR             *RegisterName,
-    UINT32                  Value)
+    UINT64                  Value)
 {
 
     REPORT_ERROR (
-        ("Invalid FACP register value, %s = 0x%X (FACP=0x%X)\n",
-        RegisterName, Value, AcpiGbl_FACP));
+        ("Invalid FADT register value, %s = 0x%X (FADT=0x%X)\n",
+        RegisterName, Value, AcpiGbl_FADT));
 
 
     return (AE_BAD_VALUE);
@@ -160,18 +160,18 @@ AcpiCmFacpRegisterError (
 
 /******************************************************************************
  *
- * FUNCTION:    AcpiCmValidateFacp
+ * FUNCTION:    AcpiCmValidateFadt
  *
  * PARAMETERS:  None
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Validate various ACPI registers in the FACP
+ * DESCRIPTION: Validate various ACPI registers in the FADT
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiCmValidateFacp (
+AcpiCmValidateFadt (
     void)
 {
     ACPI_STATUS                 Status = AE_OK;
@@ -182,61 +182,64 @@ AcpiCmValidateFacp (
      * but don't abort on any problems, just display error
      */
 
-    if (AcpiGbl_FACP->Pm1EvtLen < 4)
+    if (AcpiGbl_FADT->Pm1EvtLen < 4)
     {
-        Status = AcpiCmFacpRegisterError ("PM1_EVT_LEN",
-                        (UINT32) AcpiGbl_FACP->Pm1EvtLen);
+        Status = AcpiCmFadtRegisterError ("PM1_EVT_LEN",
+                        (UINT32) AcpiGbl_FADT->Pm1EvtLen);
     }
 
-    if (!AcpiGbl_FACP->Pm1CntLen)
+    if (!AcpiGbl_FADT->Pm1CntLen)
     {
-        Status = AcpiCmFacpRegisterError ("PM1_CNT_LEN",
-                        (UINT32) AcpiGbl_FACP->Pm1CntLen);
+        Status = AcpiCmFadtRegisterError ("PM1_CNT_LEN",
+                        (UINT32) AcpiGbl_FADT->Pm1CntLen);
     }
 
-    if (!AcpiGbl_FACP->Pm1aEvtBlk)
+    if (!AcpiGbl_FADT->XPm1aEvtBlk.Address)
     {
-        Status = AcpiCmFacpRegisterError ("PM1a_EVT_BLK",
-                        AcpiGbl_FACP->Pm1aEvtBlk);
+        Status = AcpiCmFadtRegisterError ("PM1a_EVT_BLK",
+                        AcpiGbl_FADT->XPm1aEvtBlk.Address);
     }
 
-    if (!AcpiGbl_FACP->Pm1aCntBlk)
+    if (!AcpiGbl_FADT->XPm1aCntBlk.Address)
     {
-        Status = AcpiCmFacpRegisterError ("PM1a_CNT_BLK",
-                        AcpiGbl_FACP->Pm1aCntBlk);
+        Status = AcpiCmFadtRegisterError ("PM1a_CNT_BLK",
+                        AcpiGbl_FADT->XPm1aCntBlk.Address);
     }
 
-    if (!AcpiGbl_FACP->PmTmrBlk)
+    if (!AcpiGbl_FADT->XPmTmrBlk.Address)
     {
-        Status = AcpiCmFacpRegisterError ("PM_TMR_BLK",
-                        AcpiGbl_FACP->PmTmrBlk);
+        Status = AcpiCmFadtRegisterError ("PM_TMR_BLK",
+                        AcpiGbl_FADT->XPmTmrBlk.Address);
     }
 
-    if (AcpiGbl_FACP->Pm2CntBlk && !AcpiGbl_FACP->Pm2CntLen)
+    if ((AcpiGbl_FADT->XPm2CntBlk.Address &&
+        !AcpiGbl_FADT->Pm2CntLen))
     {
-        Status = AcpiCmFacpRegisterError ("PM2_CNT_LEN",
-                        (UINT32) AcpiGbl_FACP->Pm2CntLen);
+        Status = AcpiCmFadtRegisterError ("PM2_CNT_LEN",
+                        (UINT32) AcpiGbl_FADT->Pm2CntLen);
     }
 
-    if (AcpiGbl_FACP->PmTmLen < 4)
+    if (AcpiGbl_FADT->PmTmLen < 4)
     {
-        Status = AcpiCmFacpRegisterError ("PM_TM_LEN",
-                        (UINT32) AcpiGbl_FACP->PmTmLen);
+        Status = AcpiCmFadtRegisterError ("PM_TM_LEN",
+                        (UINT32) AcpiGbl_FADT->PmTmLen);
     }
 
     /* length of GPE blocks must be a multiple of 2 */
 
 
-    if (AcpiGbl_FACP->Gpe0Blk && (AcpiGbl_FACP->Gpe0BlkLen & 1))
+    if (AcpiGbl_FADT->XGpe0Blk.Address &&
+        (AcpiGbl_FADT->Gpe0BlkLen & 1))
     {
-        Status = AcpiCmFacpRegisterError ("GPE0_BLK_LEN",
-                        (UINT32) AcpiGbl_FACP->Gpe0BlkLen);
+        Status = AcpiCmFadtRegisterError ("GPE0_BLK_LEN",
+                        (UINT32) AcpiGbl_FADT->Gpe0BlkLen);
     }
 
-    if (AcpiGbl_FACP->Gpe1Blk && (AcpiGbl_FACP->Gpe1BlkLen & 1))
+    if (AcpiGbl_FADT->XGpe1Blk.Address &&
+        (AcpiGbl_FADT->Gpe1BlkLen & 1))
     {
-        Status = AcpiCmFacpRegisterError ("GPE1_BLK_LEN",
-                        (UINT32) AcpiGbl_FACP->Gpe1BlkLen);
+        Status = AcpiCmFadtRegisterError ("GPE1_BLK_LEN",
+                        (UINT32) AcpiGbl_FADT->Gpe1BlkLen);
     }
 
     return (Status);
