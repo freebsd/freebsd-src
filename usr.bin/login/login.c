@@ -265,6 +265,8 @@ main(argc, argv)
 	} else
 		ask = 1;
 
+	setproctitle("-%s", getprogname());
+
 	for (cnt = getdtablesize(); cnt > 2; cnt--)
 		(void)close(cnt);
 
@@ -632,6 +634,7 @@ main(argc, argv)
 		} else if (pid) {
 			/* parent - wait for child to finish, then cleanup
 			   session */
+			setproctitle("-%s [pam]", getprogname());
 			wait(NULL);
 			PAM_END;
 			exit(0);
