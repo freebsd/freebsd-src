@@ -1,9 +1,9 @@
 #!/bin/sh
-# $Id: extract.sh,v 1.12 1994/11/18 10:05:36 jkh Exp $
+# $Id: extract.sh,v 1.13 1994/11/18 10:22:39 jkh Exp $
 PATH=/stand:$PATH
 DDIR=/
 
-if [ -f bin_tgz.aa ] ; then
+if [ -f bindist_tgz.aa ] ; then
 	# Temporary kludge for pathological bindist.
 	if [ -f $DDIR/etc/myname ]; then
 		cp $DDIR/etc/hosts $DDIR/etc/myname $DDIR/stand/etc
