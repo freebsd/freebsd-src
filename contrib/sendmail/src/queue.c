@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,13 +13,9 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.22 2002/12/19 18:00:39 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.28 2003/02/11 17:17:22 ca Exp $")
 
 #include <dirent.h>
-
-#if SM_CONF_SHM
-# include <sm/shm.h>
-#endif /* SM_CONF_SHM */
 
 # define RELEASE_QUEUE	(void) 0
 # define ST_INODE(st)	(st).st_ino
@@ -77,7 +73,7 @@ static int	NumWorkGroups;	/* number of work groups */
 **	Notice: DoQueueRun is modified in a signal handler!
 */
 
-static bool	volatile DoQueueRun;	/* non-interrupt time queue run needed */
+static bool	volatile DoQueueRun; /* non-interrupt time queue run needed */
 
 /*
 **  Work group definition structure.
@@ -1691,7 +1687,7 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 					  w->w_name + 2);
 
 			(void) dowork(w->w_qgrp, w->w_qdir, w->w_name + 2,
-				      ForkQueueRuns , false, e);
+				      ForkQueueRuns, false, e);
 			errno = 0;
 		}
 		sm_free(w->w_name); /* XXX */
@@ -3446,7 +3442,6 @@ dowork(qgrp, qdir, id, forkflag, requeueflag, e)
 			**  handler for child process.
 			*/
 
-
 			/* Reset global flags */
 			RestartRequest = NULL;
 			RestartWorkGroup = false;
@@ -3632,7 +3627,6 @@ doworklist(el, forkflag, requeueflag)
 			**  Initialize exception stack and default exception
 			**  handler for child process.
 			*/
-
 
 			/* Reset global flags */
 			RestartRequest = NULL;
@@ -6722,10 +6716,12 @@ setup_queues(owner)
 	hashval = 0;
 	errno = 0;
 	len = sm_strlcpy(basedir, QueueDir, sizeof basedir);
-	if (len >= sizeof basedir)
+
+	/* Provide space for trailing '/' */
+	if (len >= sizeof basedir - 1)
 	{
 		syserr("QueueDirectory: path too long: %d,  max %d",
-			len, (int) sizeof basedir);
+			len, (int) sizeof basedir - 1);
 		ExitStat = EX_CONFIG;
 		return;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.887.2.12 2002/12/05 17:38:44 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887.2.20 2003/02/07 17:57:44 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -77,7 +77,7 @@ static SIGFUNC_DECL	sigusr1 __P((int));
 **			     UCB/Mammoth Project (10/89 - 7/95).
 **			     InReference, Inc. (8/95 - 1/97).
 **			     Sendmail, Inc. (1/98 - present).
-**		The support of the my employers is gratefully acknowledged.
+**		The support of my employers is gratefully acknowledged.
 **			Few of them (Britton-Lee in particular) have had
 **			anything to gain from my involvement in this project.
 **
@@ -4241,7 +4241,7 @@ testmodeline(line, e)
 						     "Usage: /parse address\n");
 				return;
 			}
-			q = crackaddr(p);
+			q = crackaddr(p, e);
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Cracked address = ");
 			xputs(q);

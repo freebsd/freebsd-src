@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.17 2002/12/09 16:46:18 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.21 2003/01/15 19:17:14 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -1635,8 +1635,8 @@ smtp(nullserver, d_flags, e)
 				if (LogLevel > 5)
 				{
 					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=server, error: accept failed=%d, SSL_error=%d, timedout=%d",
-						  r, i, (int) timedout);
+						  "STARTTLS=server, error: accept failed=%d, SSL_error=%d, timedout=%d, errno=%d",
+						  r, i, (int) timedout, errno);
 					if (LogLevel > 8)
 						tlslogerr("server");
 				}
@@ -2717,17 +2717,22 @@ tlsfail:
 			id = p;
 			if (*id == '#')
 			{
-				int wgrp;
+				int i, qgrp;
 
 				id++;
-				wgrp = name2qid(id);
-				if (!ISVALIDQGRP(wgrp))
+				qgrp = name2qid(id);
+				if (!ISVALIDQGRP(qgrp))
 				{
 					usrerr("459 4.5.4 Queue %s unknown",
 					       id);
 					break;
 				}
-				ok = run_work_group(wgrp, RWG_FORK|RWG_RUNALL);
+				for (i = 0; i < NumQueue && Queue[i] != NULL;
+				     i++)
+					Queue[i]->qg_nextrun = (time_t) -1;
+				Queue[qgrp]->qg_nextrun = 0;
+				ok = run_work_group(Queue[qgrp]->qg_wgrp,
+						    RWG_FORK|RWG_FORCE);
 				if (ok && Errors == 0)
 					message("250 2.0.0 Queuing for queue group %s started", id);
 				break;
