@@ -991,6 +991,13 @@
     gives the option of enabling or disabling &man.inetd.8; on new
     installations, as well as editing
     <filename>inetd.conf</filename>. &merged;</para>
+
+    <para>A flaw in the implementation of the &man.ipfw.8;
+    <literal>me</literal> rules on point-to-point links has been
+    corrected.  Formerly, <literal>me</literal> filter rules would
+    match the remote IP address of a point-to-point interface in
+    addition to the intended local IP address (see security advisory
+    FreeBSD-SA-01:53). &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
