@@ -644,7 +644,7 @@ cs4281_init(struct sc_info *sc)
 	      CS4281PCI_ACOSV_SLV(3) | CS4281PCI_ACOSV_SLV(4));
 
     /* Set Master and headphone to max */
-    cs4281_wrcd(0, sc, AC97_MIX_PHONES, 0);
+    cs4281_wrcd(0, sc, AC97_MIX_AUXOUT, 0);
     cs4281_wrcd(0, sc, AC97_MIX_MASTER, 0);
 
     /* Power on the DAC */
