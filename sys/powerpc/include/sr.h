@@ -26,7 +26,7 @@
  */
 
 #ifndef _MACHINE_SR_H_
-#define _MACHINE_SR_H_
+#define	_MACHINE_SR_H_
 
 /*
  * Bit definitions for segment registers.
@@ -38,7 +38,7 @@
 #define	SR_TYPE		0x80000000	/* Type selector */
 #define	SR_KS		0x40000000	/* Supervisor-state protection key */
 #define	SR_KP		0x20000000	/* User-state protection key */
-#define SR_N		0x10000000	/* No-execute protection */
+#define	SR_N		0x10000000	/* No-execute protection */
 #define	SR_VSID_MASK	0x00ffffff	/* Virtual Segment ID mask */
 
 #endif /* !_MACHINE_SR_H_ */
