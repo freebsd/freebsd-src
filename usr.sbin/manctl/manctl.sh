@@ -30,12 +30,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: manctl,v 1.3 1994/04/17 21:01:18 g89r4222 Exp $
+# $Id: manctl,v 1.5 1994/04/18 15:39:29 g89r4222 Exp $
 #
 # manctl: 
 #	a utility for manipulating manual pages
 # functions:
 #	compress uncompressed man pages (elliminating .so's)
+#		this is now two-pass.  If possible, .so's
+#		are replaced with hard links
 #	uncompress compressed man pages
 #	purge old formatted man pages (not implemented yet)
 # Things to watch out for:
@@ -151,6 +153,97 @@ do_uncompress()
 }
 
 #
+# Remove .so's from one file
+#
+so_purge_page()
+{
+ 	local	so_entries
+	local	lines
+	local	fname
+
+	so_entries=`grep "^\.so" $1 | wc -l`
+	if [ $so_entries -eq 0 ] ; then ; return 0 ; fi
+
+	# we have a page with a .so in it
+	echo $1 contains a .so entry 2>&1
+	
+	# now check how many lines in the file
+	lines=`wc -l < $1`
+
+	# if the file is only one line long, we can replace it
+	# with a hard link!
+	if [ $lines -eq 1 ] ; then
+		fname=$1;
+		echo replacing $fname with a hard link
+		set `cat $fname`;
+		rm -f $fname
+		ln ../$2 $fname
+	else
+		echo inlining page $fname 1>&2
+		cat $fname | \
+		(cd .. ; soelim ) > /tmp/manager.$$
+		chmod u+w $fname
+		cp /tmp/manager.$$ $fname
+		chmod 444 $fname
+	fi
+}
+
+#
+# Remove .so entries from man pages
+#	If a page consists of just one line with a .so,
+#	replace it with a hard link
+#
+remove_so()
+{
+	local	pname
+	local	fname
+	local	sect
+
+	# break up file name
+	pname=$1
+	IFS='.' ; set $pname
+	if [ $# -lt 2 ] ; then 
+		IFS=" 	" ; echo ignoring $pname 1>&2 ; return 0 ; 
+	fi
+	# construct name and section
+	fname=$1 ; shift
+	while [ $# -gt 1 ] ; do
+		fname=$fname.$1
+		shift
+	done
+	sect=$1
+
+	IFS=" 	"
+	case "$sect" in
+	gz) 	{ echo file $pname already gzipped 1>&2 ; } ;;
+	Z)	{ echo file $pname already compressed 1>&2 ; } ;;
+	[12345678ln]*){
+		IFS=" 	" ; set `file $pname`
+		if [ $2 = "gzip" ] ; then 
+			echo moving hard link $pname 1>&2
+			mv $pname $pname.gz	# link
+		else
+			if [ $2 != "symbolic" ] ; then
+				echo "removing .so's in  page $pname" 1>&2
+				so_purge_page $pname
+			else
+				# skip symlink - this can be
+				# a program like expn, which is
+				# its own man page !
+				echo skipping symlink $pname 1>&2
+			fi
+		fi };;
+	*)	{
+		IFS=" 	"
+		echo skipping file $pname 1>&2
+		} ;;
+	esac
+	# reset IFS - this is important!
+	IFS=" 	"
+}
+
+
+#
 # compress one page
 #	We need to watch out for hard links here.
 #
@@ -212,12 +305,15 @@ compress_page()
 #
 # Compress man pages in paths
 #
-do_compress()
+do_compress_so()
 {
 	local	i
 	local	dir
 	local	workdir
+	local	what
 
+	what=$1
+	shift
 	workdir=`pwd`
 	while [ $# != 0 ] ; do
 		if [ -d $1 ] ; then
@@ -228,10 +324,10 @@ do_compress()
 				*cat?)	;; # ignore cat directories
 				*)	{
 					if [ -d $i ] ; then 
-						do_compress $i
+						do_compress_so $what $i
 					else 
 						if [ -e $i ] ; then
-							compress_page $i
+							$what $i
 						fi
 					fi } ;;
 				esac
@@ -256,6 +352,16 @@ ctl_usage()
 	exit 1
 }
 
+#
+# remove .so's and do compress
+#
+do_compress()
+{
+	# First remove all so's from the pages to be compressed
+	do_compress_so remove_so "$@"
+	# now do ahead and compress the pages
+	do_compress_so compress_page "$@"
+}
 
 #
 # dispatch options
