@@ -127,7 +127,7 @@ union sockunion {
 #define su_port		su_si.si_port
 
 void	 doit __P((union sockunion *));
-static void	 rshd_errx __P((int, const char *, ...));
+static void	 rshd_errx __P((int, const char *, ...)) __printf0like(2, 3);
 void	 getstr __P((char *, int, char *));
 int	 local_domain __P((char *));
 char	*topdomain __P((char *));
