@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_inet.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_inet.c,v 1.2 1994/08/02 07:51:08 davidg Exp $
+ * $Id: tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp $
  */
 
 /***********************************************************
@@ -62,7 +62,7 @@ SOFTWARE.
  */
 /* 
  * ARGO TP
- * $Header: /home/ncvs/src/sys/netiso/tp_inet.c,v 1.2 1994/08/02 07:51:08 davidg Exp $ 
+ * $Header: /home/ncvs/src/sys/netiso/tp_inet.c,v 1.3 1994/11/15 14:26:16 bde Exp $ 
  * $Source: /home/ncvs/src/sys/netiso/tp_inet.c,v $
  *
  * Here is where you find the inet-dependent code.  We've tried
@@ -92,6 +92,7 @@ SOFTWARE.
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 

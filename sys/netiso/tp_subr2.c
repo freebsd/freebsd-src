@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr2.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_subr2.c,v 1.2 1994/08/02 07:51:26 davidg Exp $
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_subr2.c,v 1.1.1.1 1994/05/24 10:06:45 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_subr2.c,v 1.2 1994/08/02 07:51:26 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_subr2.c,v $
  *
  * Some auxiliary routines:
@@ -89,6 +89,7 @@ SOFTWARE.
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 
 #undef MNULL
 #include <netiso/argo_debug.h>
