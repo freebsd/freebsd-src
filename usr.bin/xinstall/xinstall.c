@@ -270,6 +270,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 
 	files_match = 0;
+	from_fd = -1;
+	to_fd = -1;
 
 	/* If try to install NULL file to a directory, fails. */
 	if (flags & DIRECTORY || strcmp(from_name, _PATH_DEVNULL)) {
