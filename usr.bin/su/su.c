@@ -131,7 +131,7 @@ main(int argc, char *argv[])
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 
-	struct sigaction sa, sa_int, sa_quit, sa_tstp;
+	struct sigaction sa, sa_int, sa_quit;
 
 	shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
@@ -327,7 +327,9 @@ main(int argc, char *argv[])
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
-
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGTSTP, &sa, NULL);
+  
 	statusp = 1;
 	child_pid = fork();
 	switch (child_pid) {
@@ -356,7 +358,6 @@ main(int argc, char *argv[])
 	case 0:
 		sigaction(SIGINT, &sa_int, NULL);
 		sigaction(SIGQUIT, &sa_quit, NULL);
-		sigaction(SIGTSTP, &sa_tstp, NULL);
 		/*
 		 * Set all user context except for: Environmental variables
 		 * Umask Login records (wtmp, etc) Path
