@@ -417,5 +417,6 @@ initarm(void *arg, void *arg2)
 	init_param2(physmem);
 	kdb_init();
 	avail_end = 0xc0000000 + 0x02000000 - 1;
-	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP));
+	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
+	    sizeof(struct pcb)));
 }
