@@ -36,7 +36,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: es1370.c,v 1.1 1998/12/31 08:14:27 luigi Exp $
+ *	$Id: es1370.c,v 1.2 1999/04/24 20:13:58 peter Exp $
  */
 
 #include "pci.h"
@@ -53,6 +53,7 @@
 
 #include <pci/es1370_reg.h>
 #include <i386/isa/snd/sound.h>
+#define DSP_ULAW_NOT_WANTED
 #include <i386/isa/snd/ulaw.h>
 
 #if NPCI != 0
@@ -130,7 +131,7 @@ static int      es_rdabort(snddev_info *);
 static void     es_rd_map(void *, bus_dma_segment_t *, int, int);
 static int      es_wrabort(snddev_info *);
 static void     es_wr_map(void *, bus_dma_segment_t *, int, int);
-static char    *es_pci_probe __P((pcici_t, pcidi_t));
+static const char *es_pci_probe __P((pcici_t, pcidi_t));
 static void	es_pci_attach __P((pcici_t, int));
 static int	es_rd_dmaupdate(snddev_info *);
 static d_select_t es_select;
@@ -1025,7 +1026,7 @@ es_init(snddev_info *d)
 	return (0);
 }
 
-static char *
+static const char *
 es_pci_probe(pcici_t tag, pcidi_t type)
 {
 	if (type == ES1370_PCI_ID)
