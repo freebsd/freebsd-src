@@ -2704,7 +2704,7 @@ The option can only be enabled if network address translation is enabled
 With this option enabled,
 .Nm
 will pass traffic for old interface addresses through the NAT engine
-.Pq see Xr libalias 5 ,
+.Pq see Xr libalias 3 ,
 resulting in the ability (in
 .Fl auto
 mode) to properly connect the process that caused the PPP link to
