@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 5/31/93";
+#endif
+static const char rcsid[] =
+ "$FreeBSD$"
 #endif /* not lint */
 
 #include <ctype.h>
@@ -107,7 +111,7 @@ msgcrd(c, brfrank, mid, brfsuit)
 	else
 		addmsg(rankname[c.rank]);
 	if (mid != NULL)
-		addmsg(mid);
+		addmsg("%s", mid);
 	if (brfsuit)
 		addmsg("%1.1s", suitchar[c.suit]);
 	else
@@ -194,7 +198,7 @@ infrom(hand, n, prompt)
 		exit(74);
 	}
 	for (;;) {
-		msg(prompt);
+		msg("%s", prompt);
 		if (incard(&crd)) {	/* if card is full card */
 			if (!isone(crd, hand, n))
 				msg("That's not in your hand");
@@ -347,7 +351,7 @@ number(lo, hi, prompt)
 	register int sum;
 
 	for (sum = 0;;) {
-		msg(prompt);
+		msg("%s", prompt);
 		if (!(p = getline()) || *p == '\0') {
 			msg(quiet ? "Not a number" :
 			    "That doesn't look like a number");
