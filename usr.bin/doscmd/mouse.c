@@ -151,7 +151,7 @@ int33(regcontext_t *REGS)
 
     case 0x0c:	/* Set event handler */
 	mouse_status.mask = R_CX;
-	mouse_status.handler = N_GETVEC(R_ES, R_DX);
+	mouse_status.handler = MAKEVEC(R_ES, R_DX);
 	break;
     
     case 0x0d:	/* Enable light pen */
@@ -177,9 +177,9 @@ int33(regcontext_t *REGS)
 	vec = mouse_status.handler;
 
 	mouse_status.mask = R_CX;
-	mouse_status.handler = GETVEC(R_ES, R_DX);
+	mouse_status.handler = MAKEVEC(R_ES, R_DX);
 	R_CX = mask;
-	N_PUTVEC(R_ES, R_DX, vec);
+	PUTVEC(R_ES, R_DX, vec);
 	break;
 
     case 0x15:	/* Determine mouse status buffer size */
@@ -187,12 +187,12 @@ int33(regcontext_t *REGS)
 	break;
 
     case 0x16:	/* Store mouse buffer */
-	memcpy((char *)N_GETPTR(R_ES, R_DX), &mouse_status,
+	memcpy((char *)MAKEPTR(R_ES, R_DX), &mouse_status,
 	       sizeof(mouse_status));
 	break;
 
     case 0x17:	/* Restore mouse buffer */
-	memcpy(&mouse_status, (char *)N_GETPTR(R_ES, R_DX),
+	memcpy(&mouse_status, (char *)MAKEPTR(R_ES, R_DX),
 	       sizeof(mouse_status));
 	break;
 
@@ -209,7 +209,7 @@ int33(regcontext_t *REGS)
 	    break;
 	}
 	mouse_status.altmask[i] = R_CX;
-	mouse_status.althandler[i] = N_GETVEC(R_ES, R_DX);
+	mouse_status.althandler[i] = MAKEVEC(R_ES, R_DX);
 	break;
 
     case 0x19:	/* Determine address of alternate event handler */
@@ -222,7 +222,7 @@ int33(regcontext_t *REGS)
 	    vec = mouse_status.althandler[2];
 	else
 	    R_CX = 0;
-	N_PUTVEC(R_ES, R_DX, vec);
+	PUTVEC(R_ES, R_DX, vec);
 	break;
 
     case 0x1a:	/* set mouse sensitivity */
@@ -247,7 +247,7 @@ int33(regcontext_t *REGS)
 
     case 0x1f:	/* Disable mouse driver */
 	if (mouse_status.installed) {
-	    N_PUTVEC(R_ES, R_DX, mouse_status.handler);
+	    PUTVEC(R_ES, R_DX, mouse_status.handler);
 	    mouse_status.installed = 0;
 	} else {
 	    R_AX = 0xffff;

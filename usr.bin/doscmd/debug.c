@@ -150,13 +150,13 @@ dump_regs(regcontext_t *REGS)
     debug (D_ALWAYS, "cs=%04x ss=%04x ds=%04x es=%04x\n", R_CS, R_SS, R_DS, R_ES);
     debug (D_ALWAYS, "ip=%x eflags=%x\n", R_IP, R_EFLAGS);
 
-    addr = (u_char *)N_GETPTR(R_CS, R_IP);
+    addr = (u_char *)MAKEPTR(R_CS, R_IP);
 
     for (i = 0; i < 16; i++)
 	debug (D_ALWAYS, "%02x ", addr[i]);
     debug (D_ALWAYS, "\n");
 
-    addr = (char *)N_GETPTR(R_CS, R_IP);
+    addr = (char *)MAKEPTR(R_CS, R_IP);
     i386dis(R_CS, R_IP, addr, buf, 0);
 
     debug (D_ALWAYS, "%s\n", buf);

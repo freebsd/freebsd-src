@@ -599,7 +599,7 @@ int13(regcontext_t *REGS)
 	break;
 	case 0x02:	/* Read */
 	    R_AH = 0;
-	    addr = (char *)N_GETPTR(R_ES, R_BX);
+	    addr = (char *)MAKEPTR(R_ES, R_BX);
 	    sectors = R_AL;
 	    side = R_DH;
 	    R_AL = 0;		/* Start out with nothing read */
@@ -658,7 +658,7 @@ int13(regcontext_t *REGS)
 
 	case 0x03:	/* Write */
 	    R_AH = 0;
-	    addr = (char *)GETPTR(R_ES, R_BX);
+	    addr = (char *)MAKEPTR(R_ES, R_BX);
 	    sectors = R_AL;
 	    side = R_DH;
 	    R_AL = 0;	/* Start out with nothing written */
@@ -792,7 +792,7 @@ int13(regcontext_t *REGS)
 
 	R_BX = di->type;
 	if ((drive & 0x80) == 0)
-	    N_PUTVEC(R_ES, R_DI, di->location);
+	    PUTVEC(R_ES, R_DI, di->location);
 
 	R_CL = di->sectors | ((di->cylinders >> 2) & 0xc0);
 	R_CH = di->cylinders & 0xff;

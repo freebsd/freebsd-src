@@ -42,15 +42,15 @@ softint(int intnum)
     debug(D_TRAPS|intnum, "Int%x [%04x:%04x]\n", 
 	  intnum, vec >> 16, vec & 0xffff);
 
-    N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
-    N_PUSH(R_CS, REGS);
-    N_PUSH(R_IP, REGS);
+    PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
+    PUSH(R_CS, REGS);
+    PUSH(R_IP, REGS);
 #if 1
     R_EFLAGS &= ~PSL_VIF;		/* XXX disable interrupts? */
 #else
     R_EFLAGS |= PSL_VIF;
 #endif
-    N_PUTVEC(R_CS, R_IP, vec);
+    PUTVEC(R_CS, R_IP, vec);
 }
 
 /*
@@ -90,15 +90,15 @@ hardint(int intnum)
 	debug(D_TRAPS|intnum, "Int%x [%04x:%04x]\n",
 	      intnum, vec >> 16, vec & 0xffff);
 
-        N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
-	N_PUSH(R_CS, REGS);
-	N_PUSH(R_IP, REGS);
+        PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
+	PUSH(R_CS, REGS);
+	PUSH(R_IP, REGS);
 #if 1
 	R_EFLAGS &= ~PSL_VIF;		/* XXX disable interrupts */
 #else
         R_EFLAGS |= PSL_VIF;
 #endif
-	N_PUTVEC(R_CS, R_IP, vec);
+	PUTVEC(R_CS, R_IP, vec);
 }
 
 typedef void (*foo_t)(int);
