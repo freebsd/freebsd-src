@@ -104,7 +104,7 @@ struct fpreg {
  * Placeholder.
  */
 struct dbreg {
-	unsigned long wankage;
+	unsigned long junk;
 };
 
 #ifdef _KERNEL
