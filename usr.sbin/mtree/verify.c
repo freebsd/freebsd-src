@@ -47,11 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "mtree.h"
 #include "extern.h"
 
-extern int ftsoptions;
-extern int dflag, eflag, qflag, rflag, sflag, uflag;
-extern char fullpath[MAXPATHLEN];
-extern int lineno;
-
 static NODE *root;
 static char path[MAXPATHLEN];
 
