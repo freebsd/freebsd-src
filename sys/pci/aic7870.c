@@ -149,13 +149,13 @@ struct seeprom_config {
 /*
  * Host Adapter Control Bits
  */
-/* UNUSED		0x0001 */
-#define CFULTRAEN       0x0002          /* Ultra SCSI speed enable (Ultra cards) */
-#define CFSTERM		0x0004		/* SCSI low byte termination (non-wide cards) */
-#define CFWSTERM	0x0008		/* SCSI high byte termination (wide card) */
+#define CFAUTOTERM	0x0001		/* Perform Auto termination */
+#define CFULTRAEN	0x0002		/* Ultra SCSI speed enable */
+#define CFSTERM		0x0004		/* SCSI low byte termination */
+#define CFWSTERM	0x0008		/* SCSI high byte termination */
 #define CFSPARITY	0x0010		/* SCSI parity */
 /* UNUSED		0x0020 */
-#define CFRESETB	0x0040		/* reset SCSI bus at IC initialization */
+#define CFRESETB	0x0040		/* reset SCSI bus at boot */
 /* UNUSED		0xff80 */
   u_int16_t adapter_control;	/* word 17 */
 
@@ -181,6 +181,8 @@ struct seeprom_config {
 static void load_seeprom __P((struct ahc_softc *ahc, u_int8_t *sxfrctl1));
 static int acquire_seeprom __P((struct seeprom_descriptor *sd));
 static void release_seeprom __P((struct seeprom_descriptor *sd));
+static void write_brdctl __P((struct ahc_softc *ahc, u_int8_t value));
+static u_int8_t read_brdctl __P((struct ahc_softc *ahc));
 
 static int aic3940_count;
 static int aic398X_count;
@@ -338,8 +340,10 @@ ahc_pci_attach(parent, self, aux)
 #if defined(__FreeBSD__)
 	io_port = 0;
 	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+#ifdef AHC_ALLOW_MEMIO
 	if ((command & PCI_COMMAND_MEM_ENABLE) == 0
 	 || (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr)) == 0)
+#endif
 		if ((command & PCI_COMMAND_IO_ENABLE) == 0
 		 || (pci_map_port(config_id, PCI_BASEADR0, &io_port)) == 0)
 			return;
@@ -758,8 +762,135 @@ load_seeprom(ahc, sxfrctl1)
 		 *termination settings
 		 */
 		*sxfrctl1 = 0;
-		if (sc.adapter_control & CFSTERM)
-			*sxfrctl1 |= STPWEN;
+		if (sc.adapter_control & CFAUTOTERM) {
+			/* Play around with the memory port */
+			have_seeprom = acquire_seeprom(&sd);
+			if (have_seeprom) {
+				u_int8_t brdctl;
+				u_int8_t seectl;
+				int	 internal50_present;
+				int	 internal68_present;
+				int	 external68_present;
+				int	 eprom_present;
+				int	 high_on;
+				int	 low_on;
+
+				seectl = sd.sd_CS|sd.sd_MS;
+				SEEPROM_OUTB(&sd, seectl);
+				/*
+				 * First read the status of our cables.
+				 * Set the rom bank to 0 since the
+				 * bank setting serves as a multiplexor
+				 * for the cable detection logic.
+				 * BRDDAT5 controls the bank switch.
+				 */
+				write_brdctl(ahc, 0);
+
+				/*
+				 * Now read the state of the internal
+				 * connectors.  BRDDAT6 is INT50 and
+				 * BRDDAT7 is INT68.
+				 */
+				brdctl = read_brdctl(ahc);
+				internal50_present = !(brdctl & BRDDAT6);
+				internal68_present = !(brdctl & BRDDAT7);
+				if (bootverbose) {
+					printf("internal50 cable %s present\n"
+					       "internal68 cable %s present\n"
+					       "brdctl == 0x%x\n",
+					       internal50_present ? "is":"not",
+					       internal68_present ? "is":"not",
+					       brdctl);
+				}
+
+				/*
+				 * Set the rom bank to 1 and determine
+				 * the other signals.
+				 */
+				write_brdctl(ahc, BRDDAT5);
+
+				/*
+				 * Now read the state of the external
+				 * connectors.  BRDDAT6 is EXT68 and
+				 * BRDDAT7 is EPROMPS.
+				 */
+				brdctl = read_brdctl(ahc);
+				external68_present = !(brdctl & BRDDAT6);
+				eprom_present = brdctl & BRDDAT7;
+				if (bootverbose) {
+					printf("external68 %s present\n"
+					       "eprom %s present\n"
+					       "brdctl == 0x%x\n",
+					       external68_present ? "is":"not",
+					       eprom_present ? "is" : "not",
+					       brdctl);
+				}
+
+				/*
+				 * Now set the termination based on what
+				 * we found.  BRDDAT6 controls wide
+				 * termination enable.
+				 */
+				high_on = FALSE;
+				low_on = FALSE;
+				if ((external68_present == 0)
+				 || (internal68_present == 0))
+					high_on = TRUE;
+
+				if (((internal50_present ? 1 : 0)
+				   + (internal68_present ? 1 : 0)
+				   + (external68_present ? 1 : 0)) <= 1)
+					low_on = TRUE;
+					
+				if ((internal50_present != 0)
+				 && (internal68_present != 0)
+				 && (external68_present != 0)) {
+					printf("Illegal cable configuration!!. "
+					       "Only two connectors on the "
+					       "adapter may be used at a "
+					       "time!");
+				}
+
+				if (high_on == TRUE)
+					write_brdctl(ahc, BRDDAT6);
+				else
+					write_brdctl(ahc, 0);
+
+				if (low_on == TRUE)
+					*sxfrctl1 |= STPWEN;
+
+				if (bootverbose) {
+					printf("low byte termination %s, "
+					       "high byte termination %s\n",
+					       low_on ? "enabled":"disabled",
+					       high_on ? "enabled":"disabled");
+				}
+			}
+			release_seeprom(&sd);
+		} else {
+			if (sc.adapter_control & CFSTERM)
+				*sxfrctl1 |= STPWEN;
+			have_seeprom = acquire_seeprom(&sd);
+			if (have_seeprom) {
+				SEEPROM_OUTB(&sd, sd.sd_CS|sd.sd_MS);
+				if (sc.adapter_control & CFWSTERM)
+					write_brdctl(ahc, BRDDAT6);
+				else
+					write_brdctl(ahc, 0);
+				release_seeprom(&sd);
+			} else
+				printf("Unabled to configure high byte "
+				       "termination!\n");
+				
+			if (bootverbose) {
+				printf("low byte termination %s, "
+				       "high byte termination %s\n",
+				       sc.adapter_control & CFSTERM ?
+							"enabled":"disabled",
+				       sc.adapter_control & CFWSTERM ?
+							"enabled":"disabled");
+			}
+		}
 
 		if (ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
@@ -805,6 +936,31 @@ release_seeprom(sd)
 {
 	/* Release access to the memory port and the serial EEPROM. */
 	SEEPROM_OUTB(sd, 0);
+}
+
+static void
+write_brdctl(ahc, value)
+	struct 	ahc_softc *ahc;
+	u_int8_t value;
+{
+	u_int8_t brdctl;
+
+	brdctl = BRDCS|BRDSTB;
+	ahc_outb(ahc, BRDCTL, brdctl);
+	brdctl |= value;
+	ahc_outb(ahc, BRDCTL, brdctl);
+	brdctl &= ~BRDSTB;
+	ahc_outb(ahc, BRDCTL, brdctl);
+	brdctl &= ~BRDCS;
+	ahc_outb(ahc, BRDCTL, brdctl);
+}
+
+static u_int8_t
+read_brdctl(ahc)
+	struct 	ahc_softc *ahc;
+{
+	ahc_outb(ahc, BRDCTL, BRDRW|BRDCS);
+	return ahc_inb(ahc, BRDCTL);
 }
 
 #endif /* NPCI > 0 */
