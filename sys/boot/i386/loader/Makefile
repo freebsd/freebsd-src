@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.19 1998/11/12 07:40:51 jkh Exp $
+# $Id: Makefile,v 1.20 1998/12/15 14:21:30 msmith Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -68,7 +68,7 @@ vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
-${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} ${BASE}.help
+${BASE}: ${BASE}.bin ${BTXLDR} ${BTXKERN} ${BTXCRT} # ${BASE}.help
 	btxld -v -f aout -e 0x100000 -o ${.TARGET} -l ${BTXLDR} -b ${BTXKERN} \
 		${BASE}.bin
 
@@ -79,14 +79,14 @@ ${BASE}.bin: ${BASE}.sym
 ${BASE}.help: help.common help.i386
 	perl ${.CURDIR}/../../common/merge_help.pl ${.ALLSRC} > ${.TARGET}
 
-beforeinstall:
-.if exists(${.OBJDIR}/loader.help)
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.OBJDIR}/${BASE}.help \
-		${DESTDIR}/boot
-.else
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/${BASE}.help \
-		${DESTDIR}/boot
-.endif
+#beforeinstall:
+#.if exists(${.OBJDIR}/loader.help)
+#	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.OBJDIR}/${BASE}.help \
+#		${DESTDIR}/boot
+#.else
+#	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/${BASE}.help \
+#		${DESTDIR}/boot
+#.endif
 
 # Cannot use ${OBJS} above this line
 .include <bsd.prog.mk>
