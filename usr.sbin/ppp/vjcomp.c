@@ -105,7 +105,6 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
 {
   u_char *bufp;
   int len, olen, rlen;
-  struct mbuf *nbp;
   u_char work[MAX_HDR + MAX_VJHEADER];	/* enough to hold TCP/IP header */
 
   bp = m_pullup(bp);
@@ -144,11 +143,11 @@ VjUncompressTcp(struct ipcp *ipcp, struct mbuf *bp, u_char type)
   }
   len -= olen;
   len += rlen;
-  nbp = m_get(len, MB_VJIN);
-  memcpy(MBUF_CTOP(nbp), bufp, len);
+
+  bp = m_prepend(bp, bufp, len, 0);
   m_settype(bp, MB_VJIN);
-  nbp->m_next = bp;
-  return nbp;
+
+  return bp;
 }
 
 static struct mbuf *
