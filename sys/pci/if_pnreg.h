@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.17 1999/02/26 07:49:31 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.21 1999/03/27 20:08:53 wpaul Exp $
  */
 
 /*
@@ -367,8 +367,6 @@ struct pn_txdesc {
 
 #define PN_TXOWN(x)	x->pn_ptr->pn_frag[0].pn_status
 
-#define PN_UNSENT	0x12344321
-
 struct pn_list_data {
 	struct pn_desc		pn_rx_list[PN_RX_LIST_CNT];
 	struct pn_txdesc	pn_tx_list[PN_TX_LIST_CNT];
@@ -458,7 +456,7 @@ struct pn_softc {
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_space_write_4(sc->pn_btag, sc->pn_bhandle, reg, val)
 #define CSR_WRITE_2(sc, reg, val)	\
-	bus_space_write_2(sc->pn_btag, sc->pn_bbhandle, reg, val)
+	bus_space_write_2(sc->pn_btag, sc->pn_bhandle, reg, val)
 #define CSR_WRITE_1(sc, reg, val)	\
 	bus_space_write_1(sc->pn_btag, sc->pn_bhandle, reg, val)
 
@@ -651,3 +649,9 @@ struct pn_softc {
 #define PHY_BMSR_LINKSTAT		0x0004
 #define PHY_BMSR_JABBER			0x0002
 #define PHY_BMSR_EXTENDED		0x0001
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		(pmap_kextract(((vm_offset_t) (va))) \
+					+ 1*1024*1024*1024)
+#endif

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.37 1999/02/26 07:49:31 wpaul Exp $
+ *	$Id: if_pn.c,v 1.41 1999/03/27 20:32:32 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.37 1999/02/26 07:49:31 wpaul Exp $";
+	"$Id: if_pn.c,v 1.41 1999/03/27 20:32:32 wpaul Exp $";
 #endif
 
 /*
@@ -855,7 +855,12 @@ pn_attach(config_id, unit)
 		printf ("pn%d: couldn't map ports\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->pn_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->pn_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("pn%d: failed to enable memory mapping!\n", unit);
@@ -867,7 +872,12 @@ pn_attach(config_id, unit)
 		goto fail;
 	}
 	sc->pn_bhandle = vbase;
+#ifdef __i386__
 	sc->pn_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->pn_btag = ALPHA_BUS_SPACE_MEM;
+#endif
 #endif
 
 	/* Allocate interrupt */
@@ -1246,6 +1256,9 @@ static void pn_rxeof(sc)
 
 	while(!((rxstat = sc->pn_cdata.pn_rx_head->pn_ptr->pn_status) &
 							PN_RXSTAT_OWN)) {
+#ifdef __alpha__
+		struct mbuf		*m0 = NULL;
+#endif
 		cur_rx = sc->pn_cdata.pn_rx_head;
 		sc->pn_cdata.pn_rx_head = cur_rx->pn_nextdesc;
 
@@ -1305,10 +1318,51 @@ static void pn_rxeof(sc)
 			continue;
 		}
 
+#ifdef __alpha__
+		/*
+		 * Grrrr! On the alpha platform, the start of the
+		 * packet data must be longword aligned so that ip_input()
+		 * doesn't perform any unaligned accesses when it tries
+		 * to fiddle with the IP header. But the PNIC is stupid
+		 * and wants RX buffers to start on longword boundaries.
+		 * So we can't just shift the DMA address over a few
+		 * bytes to alter the payload alignment. Instead, we
+		 * have to chop out ethernet and IP header parts of
+		 * the packet and place then in a separate mbuf with
+		 * the alignment fixed up properly.
+		 *
+		 * As if this chip wasn't broken enough already.
+		 */
+		MGETHDR(m0, M_DONTWAIT, MT_DATA);
+		if (m0 == NULL) {
+			ifp->if_ierrors++;
+			cur_rx->pn_ptr->pn_status = PN_RXSTAT;
+			cur_rx->pn_ptr->pn_ctl = PN_RXCTL_RLINK | PN_RXLEN;
+			bzero((char *)mtod(cur_rx->pn_mbuf, char *), MCLBYTES);
+			continue;
+		}
+
+		m0->m_data += 2;
+		if (total_len <= (MHLEN - 2)) {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), total_len);				m_freem(m);
+			m = m0;
+			m->m_pkthdr.len = m->m_len = total_len;
+		} else {
+			bcopy(mtod(m, caddr_t), mtod(m0, caddr_t), (MHLEN - 2));
+			m->m_len = total_len - (MHLEN - 2);
+			m->m_data += (MHLEN - 2);
+			m0->m_next = m;
+			m0->m_len = (MHLEN - 2);
+			m = m0;
+			m->m_pkthdr.len = total_len;
+		}
+#else
+		m->m_pkthdr.len = m->m_len = total_len;
+#endif
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
 		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = total_len;
+
 #if NBPFILTER > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
@@ -1377,7 +1431,7 @@ static void pn_txeof(sc)
 		cur_tx = sc->pn_cdata.pn_tx_head;
 		txstat = PN_TXSTATUS(cur_tx);
 
-		if ((txstat & PN_TXSTAT_OWN) || txstat == PN_UNSENT)
+		if (txstat & PN_TXSTAT_OWN)
 			break;
 
 		if (txstat & PN_TXSTAT_ERRSUM) {
@@ -1424,12 +1478,6 @@ static void pn_txeoc(sc)
 		sc->pn_cdata.pn_tx_tail = NULL;
 		if (sc->pn_want_auto)
 			pn_autoneg_mii(sc, PN_FLAG_SCHEDDELAY, 1);
-	} else {
-		if (PN_TXOWN(sc->pn_cdata.pn_tx_head) == PN_UNSENT) {
-			PN_TXOWN(sc->pn_cdata.pn_tx_head) = PN_TXSTAT_OWN;
-			ifp->if_timer = 5;
-			CSR_WRITE_4(sc, PN_TXSTART, 0xFFFFFFFF);
-		}
 	}
 
 	return;
@@ -1588,7 +1636,7 @@ static int pn_encap(sc, c, m_head)
 
 	c->pn_mbuf = m_head;
 	c->pn_lastdesc = frag - 1;
-	PN_TXCTL(c) |= PN_TXCTL_LASTFRAG;
+	PN_TXCTL(c) |= PN_TXCTL_LASTFRAG|PN_TXCTL_FINT;
 	PN_TXNEXT(c) = vtophys(&c->pn_nextdesc->pn_ptr->pn_frag[0]);
 
 	return(0);
@@ -1649,6 +1697,8 @@ static void pn_start(ifp)
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->pn_mbuf);
 #endif
+		PN_TXOWN(cur_tx) = PN_TXSTAT_OWN;
+		CSR_WRITE_4(sc, PN_TXSTART, 0xFFFFFFFF);
 	}
 
 	/*
@@ -1657,23 +1707,10 @@ static void pn_start(ifp)
 	if (cur_tx == NULL)
 		return;
 
-	/*
-	 * Place the request for the upload interrupt
-	 * in the last descriptor in the chain. This way, if
-	 * we're chaining several packets at once, we'll only
-	 * get an interupt once for the whole chain rather than
-	 * once for each packet.
-	 */
-	PN_TXCTL(cur_tx) |= PN_TXCTL_FINT;
 	sc->pn_cdata.pn_tx_tail = cur_tx;
 
-	if (sc->pn_cdata.pn_tx_head == NULL) {
+	if (sc->pn_cdata.pn_tx_head == NULL)
 		sc->pn_cdata.pn_tx_head = start_tx;
-		PN_TXOWN(start_tx) = PN_TXSTAT_OWN;
-		CSR_WRITE_4(sc, PN_TXSTART, 0xFFFFFFFF);
-	} else {
-		PN_TXOWN(start_tx) = PN_UNSENT;
-	}
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
