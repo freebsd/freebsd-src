@@ -2,6 +2,7 @@
 # $FreeBSD$
 #
 # Make command line options:
+#	-DNO_DYNAMICROOT do not link /bin and /sbin dynamically
 #	-DNO_KERBEROS Do not build Heimdal (Kerberos 5)
 #	-DNO_RESCUE do not build rescue binaries
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
@@ -52,7 +53,7 @@ SUBDIR+= lib
 # When upgrading to a dynamically linked root, install the runtime
 # linker early into its new location before make(1) has a chance
 # to run the dynamically linked /bin/sh.
-.if defined(WITH_DYNAMICROOT) && !defined(NOPIC) && \
+.if !defined(NO_DYNAMICROOT) && !defined(NOPIC) && \
     (!defined(TARGET_ARCH) || ${TARGET_ARCH} == ${MACHINE_ARCH}) && \
     !defined(DISTDIR) && \
     (!defined(DESTDIR) || empty(DESTDIR) || ${DESTDIR} == "/") && \
