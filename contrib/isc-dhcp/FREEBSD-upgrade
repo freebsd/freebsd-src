@@ -36,8 +36,8 @@ Imported by:
 To make local changes to isc-dhcp, simply patch and commit to the main
 branch (aka HEAD).  Never make local changes on the vendor (ISC) branch.
 
-All local changes should be submitted to "amd-dev@majordomo.cs.columbia.edu"
-for inclusion in the next vendor release.
+All local changes should be submitted to the ISC for inclusion in the 
+next vendor release.
 
 obrien@NUXI.com
 9-Feburary-1999
