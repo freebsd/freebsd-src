@@ -78,6 +78,20 @@ dlerror(void)
 	return sorry;
 }
 
+#pragma weak dllockinit
+void
+dllockinit(void *context,
+	   void *(*lock_create)(void *context),
+	   void (*rlock_acquire)(void *lock),
+	   void (*wlock_acquire)(void *lock),
+	   void (*lock_release)(void *lock),
+	   void (*lock_destroy)(void *lock),
+	   void (*context_destroy)(void *context))
+{
+	if (context_destroy != NULL)
+		context_destroy(context);
+}
+
 #pragma weak dlopen
 void *
 dlopen(const char *name, int mode)
