@@ -66,7 +66,7 @@ struct md_ioctl {
 
 #define MD_NAME		"md"
 #define MDCTL_NAME	"mdctl"
-#define MDIOVERSION	1
+#define MDIOVERSION	0
 
 /*
  * Before you can use a unit, it must be configured with MDIOCSET.
