@@ -32,20 +32,6 @@
 #define M32_TS		32	/* We have 32 timeslots */
 
 #define NG_MN_NODE_TYPE	"mn"
-#define NG_MN_COOKIKE	941432500
-
-#define MN_MAGIC	0x4d6e0000
-
-#define MN_GET		(MN_MAGIC | 0x1)
-#define MN_SET		(MN_MAGIC | 0x2)
-#define MN_DEBUG	(MN_MAGIC | 0x3)
-
-struct mn_control	{
-	int		cmd;
-	char		name[8];
-	unsigned	chan;
-	unsigned	ts[M32_CHAN];
-};
 
 #ifdef _KERNEL
 #define PPP_HEADER_LEN       4 	/* XXX: should live in some header somewhere */
@@ -381,6 +367,8 @@ ngmn_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr, struct ng_mes
 		pos += sprintf(arg + pos, "    Last error: %b  Prev error: %b\n",
 		    sch->last_error, "\20\7SHORT\5CRC\4MOD8\3LONG\2ABORT\1OVERRUN",
 		    sch->prev_error, "\20\7SHORT\5CRC\4MOD8\3LONG\2ABORT\1OVERRUN");
+		pos += sprintf(arg + pos, "    Xmit bytes pending %ld\n",
+		    sch->tx_pending);
 	}
 	(*resp)->header.arglen = pos + 1;
 	FREE(msg, M_NETGRAPH);
@@ -519,10 +507,12 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 
 	if (sch->state != UP) {
 		NG_FREE_DATA(m, meta);
+		printf("D1\n");
 		return (0);
 	}
 	if (sch->tx_pending + m->m_pkthdr.len > sch->tx_limit * mn_maxlatency) {
 		NG_FREE_DATA(m, meta);
+		printf("D2\n");
 		return (0);
 	}
 	NG_FREE_META(meta);
@@ -566,8 +556,14 @@ ngmn_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	if (pitch)
 		printf("%s%d: Short on mem, pitched %d packets\n", 
 		    sc->name, chan, pitch);
-	else
+	else {
+#if 0
+		printf("%d = %d + %d (%p)\n",
+		    sch->tx_pending + m->m_pkthdr.len,
+		    sch->tx_pending , m->m_pkthdr.len, m);
+#endif
 		sch->tx_pending += m->m_pkthdr.len;
+	}
 	return (0);
 }
 
@@ -588,7 +584,6 @@ ngmn_connect(hook_p hook)
 	chan = sch->chan;
 	sc = sch->sc;
 
-	printf("%s: OPEN{ state = %d\n", sch->name, sch->state);
 	if (sch->state == UP) 
 		return (0);
 	sch->state = UP;
@@ -610,6 +605,7 @@ ngmn_connect(hook_p hook)
 	/* XXX: we actually send a 1 byte packet */
 	dp = mn_alloc_desc();
 	MGETHDR(m, M_WAIT, MT_DATA);
+	m->m_pkthdr.len = 0;
 	dp->m = m;
 	dp->flags = 0xc0000000 + (1 << 16);
 	dp->next = vtophys(dp);
@@ -650,13 +646,12 @@ ngmn_connect(hook_p hook)
 	/* Initialize this channel */
 	sc->m32_mem.ccb = 0x00008000 + (chan << 8);
 	sc->m32x->cmd = 0x1;
-	DELAY(30);
+	DELAY(1000);
 	u = sc->m32x->stat; 
 	if (!(u & 1))
 		printf("%s: init chan %d stat %08x\n", sc->name, chan, u);
 	sc->m32x->stat = 1; 
 
-	printf("%s%d: TLS} state = %d\n", sc->name, chan, sc->ch[chan]->state);
 	return (0);
 }
 
@@ -676,7 +671,6 @@ ngmn_disconnect(hook_p hook)
 	chan = sch->chan;
 	sc = sch->sc;
 	
-	printf("%s: TLF{ state = %d\n", sch->name, sch->state);
 	if (sch->state == DOWN) 
 		return (0);
 	sch->state = DOWN;
@@ -714,7 +708,6 @@ ngmn_disconnect(hook_p hook)
 		sc->ch[chan]->x1 = dp2 = dp->vnext;
 		mn_free_desc(dp);
 	}
-	printf("%s%d: TLF} state = %d\n", sc->name, chan, sc->ch[chan]->state);
 	return(0);
 }
 
@@ -1006,6 +999,11 @@ mn_tx_intr(struct softc *sc, u_int32_t vector)
 			return;
 		m = dp->m;
 		if (m) {
+#if 0
+			printf("%d = %d - %d (%p)\n",
+			    sc->ch[chan]->tx_pending - m->m_pkthdr.len,
+			    sc->ch[chan]->tx_pending , m->m_pkthdr.len, m);
+#endif
 			sc->ch[chan]->tx_pending -= m->m_pkthdr.len;
 			m_freem(m);
 		}
@@ -1120,7 +1118,7 @@ mn_intr(void *xsc)
 #endif
 
 	if (stat & ~0xc200) {
-		printf("%s*: I stat=%08x lstat=%08x\n", sc->name, stat, lstat);
+		printf("%s: I stat=%08x lstat=%08x\n", sc->name, stat, lstat);
 	}
 
 	if ((stat & 0x200) || (lstat & 2)) 
@@ -1248,7 +1246,7 @@ mn_attach (pcici_t tag, int unit)
 
 	sc->tag = tag;
 	sc->unit = unit;
-	sprintf(sc->name, "mn%c", 'A' + unit);
+	sprintf(sc->name, "mn%d", unit);
 
 	if (!pci_map_int(tag, mn_intr, sc, &net_imask)) {
 		printf("mn%d: could not map interrupt\n", sc->unit);
