@@ -291,6 +291,13 @@ endloop:
 		for (cnt = 0; cnt < n; cnt++) {
 			(void)next(&s2);
 			string1[carray[cnt]] = s2.lastch;
+			/*
+			 * Chars taken from s2 can be different this time
+			 * due to lack of complex upper/lower processing,
+			 * so fill string2 again to not miss some.
+			 */
+			if (sflag)
+				string2[s2.lastch] = 1;
 		}
 	}
 
