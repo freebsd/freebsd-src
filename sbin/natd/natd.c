@@ -91,7 +91,6 @@ static void	ReadConfigFile (const char* fileName);
 static void	SetupPortRedirect (const char* parms);
 static void	SetupProtoRedirect(const char* parms);
 static void	SetupAddressRedirect (const char* parms);
-static void	SetupPptpAlias (const char* parms);
 static void	StrToAddr (const char* str, struct in_addr* addr);
 static u_short  StrToPort (const char* str, const char* proto);
 static int      StrToPortRange (const char* str, const char* proto, port_range *portRange);
@@ -867,7 +866,6 @@ enum Option {
 	RedirectAddress,
 	ConfigFile,
 	DynamicMode,
-	PptpAlias,
 	ProxyRule,
  	LogDenied,
  	LogFacility
@@ -1058,14 +1056,6 @@ static struct OptionInfo optionTable[] = {
 		"redirect_address",
 		NULL },
 
-       { PptpAlias,
-		0,
-		String,
-		"src",
-		"define inside machine for PPTP traffic",
-		"pptpalias",
-		NULL },
-
 	{ ConfigFile,
 		0,
 		String,
@@ -1231,10 +1221,6 @@ static void ParseOption (const char* option, const char* parms)
 		SetupAddressRedirect (strValue);
 		break;
 
-	case PptpAlias:
-		SetupPptpAlias (strValue);
-		break;
-
 	case ProxyRule:
 		PacketAliasProxyRule (strValue);
 		break;
@@ -1354,25 +1340,6 @@ static void Usage ()
 	}
 
 	exit (1);
-}
-
-void SetupPptpAlias (const char* parms)
-{
-	char		buf[128];
-	char*		ptr;
-	struct in_addr	srcAddr;
-
-	strcpy (buf, parms);
-
-/*
- * Extract source address.
- */
-	ptr = strtok (buf, " \t");
-	if (!ptr)
-		errx(1, "pptpalias: missing src address");
-
-	StrToAddr (ptr, &srcAddr);
-	PacketAliasPptp (srcAddr);
 }
 
 void SetupPortRedirect (const char* parms)
