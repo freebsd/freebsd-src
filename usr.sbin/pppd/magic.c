@@ -18,22 +18,19 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: magic.c,v 1.5 1995/06/06 01:52:25 paulus Exp $";
+static char rcsid[] = "$Id: magic.c,v 1.7 1998/06/20 18:02:12 peter Exp $";
 #endif
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
 
 #include "pppd.h"
 #include "magic.h"
 
-static u_int32_t next;		/* Next value to return */
-
-extern int gethostid __P((void));
 extern long mrand48 __P((void));
 extern void srand48 __P((long));
-
 
 /*
  * magic_init - Initialize the magic number generator.
@@ -49,7 +46,7 @@ magic_init()
     struct timeval t;
 
     gettimeofday(&t, NULL);
-    seed = gethostid() ^ t.tv_sec ^ t.tv_usec ^ getpid();
+    seed = get_host_seed() ^ t.tv_sec ^ t.tv_usec ^ getpid();
     srand48(seed);
 }
 
