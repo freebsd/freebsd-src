@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.9 1995/01/10 13:06:51 davidg Exp $
+ * $Id: nfs_bio.c,v 1.10 1995/02/03 03:40:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,6 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/trace.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id: ufs_bmap.c,v 1.4 1994/10/08 06:57:21 phk Exp $
+ * $Id: ufs_bmap.c,v 1.5 1995/01/09 16:05:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/resourcevar.h>
-#include <sys/trace.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -179,15 +178,11 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 
 		xap->in_exists = 1;
 		bp = getblk(vp, metalbn, mp->mnt_stat.f_iosize, 0, 0);
-		if (bp->b_flags & B_CACHE) {
-			trace(TR_BREADHIT, pack(vp, size), metalbn);
-		}
+		if ((bp->b_flags & B_CACHE) == 0) {
 #ifdef DIAGNOSTIC
-		else if (!daddr)
-			panic("ufs_bmaparry: indirect block not in cache");
+			if (!daddr)
+				panic("ufs_bmaparry: indirect block not in cache");
 #endif
-		else {
-			trace(TR_BREADMISS, pack(vp, size), metalbn);
 			bp->b_blkno = blkptrtodb(ump, daddr);
 			bp->b_flags |= B_READ;
 			vfs_busy_pages(bp, 0);
