@@ -7,6 +7,9 @@
 # 2.  The usual English name for the country,
 #	chosen so that alphabetic sorting of subsets produces helpful lists.
 #
+# For France in Europe, we follow common practice and use FR,
+# even though FX might be more technically correct.
+#
 # Columns are separated by a single tab.
 # The table is sorted by country code.
 #
@@ -51,8 +54,9 @@ BY	Belarus
 BZ	Belize
 CA	Canada
 CC	Cocos (Keeling) Islands
+CD	Congo (Dem. Rep.)
 CF	Central African Rep.
-CG	Congo
+CG	Congo (Rep.)
 CH	Switzerland
 CI	Cote d'Ivoire
 CK	Cook Islands
@@ -85,6 +89,7 @@ FK	Falkland Islands
 FM	Micronesia
 FO	Faeroe Islands
 FR	France
+FX	France, Metropolitan
 GA	Gabon
 GB	Britain (UK)
 GD	Grenada
@@ -103,7 +108,6 @@ GT	Guatemala
 GU	Guam
 GW	Guinea-Bissau
 GY	Guyana
-HK	Hong Kong
 HM	Heard Island & McDonald Islands
 HN	Honduras
 HR	Croatia
@@ -250,5 +254,4 @@ YT	Mayotte
 YU	Yugoslavia
 ZA	South Africa
 ZM	Zambia
-ZR	Zaire
 ZW	Zimbabwe
