@@ -265,28 +265,22 @@ xgets(char *buf, int buflen, FILE *fp)
 static char *
 GetLabel(char *line, const char *filename, int linenum)
 {
-  char *wp;
+  char *argv[MAXARGS];
+  int argc, len;
 
-  if ((wp = findblank(line, 1)) != NULL) {
-    while (issep(*wp))
-      *wp++ = '\0';
-    if (*wp == '#')
-      *wp = '\0';
-    if (*wp != '\0') {
-      log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
-                   filename, linenum);
-      return NULL;
-    }
-  }
-  wp = strchr(line, ':');
-  if (wp == NULL || wp[1] != '\0') {
-      log_Printf(LogWARN, "Bad rule in %s (line %d) - missing colon.\n",
+  argc = MakeArgs(line, argv, MAXARGS, PARSE_REDUCE);
+
+  if (argc == 2 && !strcmp(argv[1], ":"))
+    return argv[0];
+
+  if (argc != 1 || (len = strlen(argv[0])) < 2 || argv[0][len-1] != ':') {
+      log_Printf(LogWARN, "Bad label in %s (line %d) - missing colon\n",
                  filename, linenum);
       return NULL;
   }
-  *wp = '\0';
+  argv[0][len-1] = '\0';	/* Lose the ':' */
 
-  return line;
+  return argv[0];
 }
 
 /* Returns -2 for ``file not found'' and -1 for ``label not found'' */
@@ -349,7 +343,6 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
     default:
       if ((cp = GetLabel(cp, filename, linenum)) == NULL)
         continue;
-      cp = strip(cp);  /* lose any spaces between the label and the ':' */
 
       if (strcmp(cp, name) == 0) {
         /* We're in business */
@@ -365,7 +358,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
 
           if (!indent) {			/* start of next section */
             if (*cp != '!' && how == SYSTEM_EXEC)
-              GetLabel(cp, filename, linenum);
+              cp = GetLabel(cp, filename, linenum);
             break;
           }
 
