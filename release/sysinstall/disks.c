@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.29 1995/11/04 11:08:47 jkh Exp $
+ * $Id: disks.c,v 1.31.2.30 1995/11/04 11:21:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -543,6 +543,7 @@ diskPartitionEditor(char *str)
 	else
 	    diskPartition(devs[0], (Disk *)devs[0]->private);
 	i = RET_SUCCESS;
+	variable_set2(DISK_SELECTED, "yes");
     }
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);

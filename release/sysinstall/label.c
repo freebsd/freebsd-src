@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.26 1995/11/03 12:02:39 jkh Exp $
+ * $Id: label.c,v 1.32.2.27 1995/11/04 11:09:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -138,7 +138,7 @@ diskLabelEditor(char *str)
 		   "Documentation menu for clues on diagnosing this type of problem.");
 	return RET_FAIL;
     }
-    else if (cnt == 1 || variable_get(DISK_PARTITIONED)) {
+    else if (cnt == 1 || variable_get(DISK_SELECTED)) {
 	devs[0]->enabled = TRUE;
 	if (str && !strcmp(str, "script"))
 	    i = scriptLabel(str);

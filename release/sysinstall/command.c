@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: command.c,v 1.11.4.3 1995/11/04 11:08:39 jkh Exp $
+ * $Id: command.c,v 1.11.4.4 1995/11/04 11:42:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -77,7 +77,7 @@ addit(char *key, int type, void *cmd, void *data)
 {
     int i;
 
-    /* First, look for the key already present and add a command to it */
+    /* First, look for the key already present and add a command to it if found */
     for (i = 0; i < numCommands; i++) {
 	if (!strcmp(commandStack[i]->key, key)) {
 	    if (commandStack[i]->ncmds == MAX_NUM_COMMANDS)
@@ -98,7 +98,8 @@ addit(char *key, int type, void *cmd, void *data)
     commandStack[numCommands]->ncmds = 1;
     commandStack[numCommands]->cmds[0].type = type;
     commandStack[numCommands]->cmds[0].ptr = cmd;
-    commandStack[numCommands++]->cmds[0].data = data;
+    commandStack[numCommands]->cmds[0].data = data;
+    ++numCommands;
 }
 
 /* Add a shell command under a given key */
@@ -108,9 +109,9 @@ command_shell_add(char *key, char *fmt, ...)
     va_list args;
     char *cmd;
 
-    cmd = (char *)safe_malloc(1024);
+    cmd = (char *)safe_malloc(256);
     va_start(args, fmt);
-    vsnprintf(cmd, 1024, fmt, args);
+    vsnprintf(cmd, 256, fmt, args);
     va_end(args);
 
     addit(key, CMD_SHELL, cmd, NULL);
@@ -123,7 +124,6 @@ command_func_add(char *key, commandFunc func, void *data)
     addit(key, CMD_FUNCTION, func, data);
 }
 
-/* arg to sort */
 static int
 sort_compare(Command *p1, Command *p2)
 {
@@ -175,7 +175,8 @@ command_execute(void)
 	    else {
 		/* It's a function pointer - call it with the key and the data */
 		func = (commandFunc)commandStack[i]->cmds[j].ptr;
-		msgNotify("%x: Execute(%s, %s)", func, commandStack[i]->key, commandStack[i]->cmds[j].data);
+		if (isDebug())
+		    msgDebug("%x: Execute(%s, %s)", func, commandStack[i]->key, commandStack[i]->cmds[j].data);
 		ret = (*func)(commandStack[i]->key, commandStack[i]->cmds[j].data);
 		if (isDebug())
 		    msgDebug("Function @ %x returns status %d\n", commandStack[i]->cmds[j].ptr, ret);
