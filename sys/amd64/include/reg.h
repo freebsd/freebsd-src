@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.17 1999/04/03 22:19:59 jdp Exp $
+ *	$Id: reg.h,v 1.18 1999/04/28 01:04:06 luoqi Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -118,6 +118,18 @@ struct fpreg {
 	unsigned char	fpr_pad[64];
 };
 
+struct dbreg {
+	unsigned int  dr0;	/* debug address register 0 */
+	unsigned int  dr1;	/* debug address register 1 */
+	unsigned int  dr2;	/* debug address register 2 */
+	unsigned int  dr3;	/* debug address register 3 */
+	unsigned int  dr4;	/* reserved */
+	unsigned int  dr5;	/* reserved */
+	unsigned int  dr6;	/* debug status register */
+	unsigned int  dr7;	/* debug control register */
+};
+
+
 #ifdef KERNEL
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
@@ -125,6 +137,7 @@ struct fpreg {
 int	set_fpregs __P((struct proc *, struct fpreg *));
 int	set_regs __P((struct proc *p, struct reg *regs));
 void	setregs __P((struct proc *, u_long, u_long, u_long));
+int	set_dbregs __P((struct proc *p, struct dbreg *dbregs));
 #endif
 
 #endif /* !_MACHINE_REG_H_ */

@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.25 1999/05/04 08:00:10 phk Exp $
+ *	$Id: procfs.h,v 1.26 1999/06/13 20:53:13 phk Exp $
  */
 
 /*
@@ -51,6 +51,7 @@ typedef enum {
 	Pmem,		/* the process's memory image */
 	Pregs,		/* the process's register set */
 	Pfpregs,	/* the process's FP register set */
+	Pdbregs,	/* the process's debug register set */
 	Pctl,		/* process control */
 	Pstatus,	/* process status */
 	Pnote,		/* process notifier */
@@ -124,6 +125,7 @@ vfs_namemap_t *vfs_findname __P((vfs_namemap_t *, char *, int));
 /* <machine/reg.h> */
 struct reg;
 struct fpreg;
+struct dbreg;
 
 #define PFIND(pid) ((pid) ? pfind(pid) : &proc0)
 
@@ -137,9 +139,12 @@ int procfs_read_regs __P((struct proc *, struct reg *));
 int procfs_write_regs __P((struct proc *, struct reg *));
 int procfs_read_fpregs __P((struct proc *, struct fpreg *));
 int procfs_write_fpregs __P((struct proc *, struct fpreg *));
+int procfs_read_dbregs __P((struct proc *, struct dbreg *));
+int procfs_write_dbregs __P((struct proc *, struct dbreg *));
 int procfs_donote __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_doregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_dodbregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
@@ -155,6 +160,7 @@ int procfs_kmemaccess __P((struct proc *));
 int procfs_validfile __P((struct proc *));
 int procfs_validfpregs __P((struct proc *));
 int procfs_validregs __P((struct proc *));
+int procfs_validdbregs __P((struct proc *));
 int procfs_validmap __P((struct proc *));
 int procfs_validtype __P((struct proc *));
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: md_var.h,v 1.28 1999/01/08 16:29:58 bde Exp $
+ *	$Id: md_var.h,v 1.29 1999/04/28 01:04:02 luoqi Exp $
  */
 
 #ifndef _MACHINE_MD_VAR_H_
@@ -64,6 +64,7 @@ typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
 struct	reg;
 struct	fpreg;
+struct  dbreg;
 
 void	bcopyb __P((const void *from, void *to, size_t len));
 void	busdma_swi __P((void));
@@ -80,6 +81,7 @@ void	doreti_popl_fs __P((void)) __asm(__STRING(doreti_popl_fs));
 void	doreti_popl_fs_fault __P((void)) __asm(__STRING(doreti_popl_fs_fault));
 int	fill_fpregs __P((struct proc *, struct fpreg *));
 int	fill_regs __P((struct proc *p, struct reg *regs));
+int	fill_dbregs __P((struct proc *p, struct dbreg *dbregs));
 void	fillw __P((int /*u_short*/ pat, void *base, size_t cnt));
 void	i486_bzero __P((void *buf, size_t len));
 void	i586_bcopy __P((const void *from, void *to, size_t len));

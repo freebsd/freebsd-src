@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.68 1999/05/04 08:01:55 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.69 1999/06/13 20:53:16 phk Exp $
  */
 
 /*
@@ -95,6 +95,7 @@ static struct proc_target {
 	{ DT_REG, N("mem"),	Pmem,		NULL },
 	{ DT_REG, N("regs"),	Pregs,		procfs_validregs },
 	{ DT_REG, N("fpregs"),	Pfpregs,	procfs_validfpregs },
+	{ DT_REG, N("dbregs"),	Pdbregs,	procfs_validdbregs },
 	{ DT_REG, N("ctl"),	Pctl,		NULL },
 	{ DT_REG, N("status"),	Pstatus,	NULL },
 	{ DT_REG, N("note"),	Pnote,		NULL },
@@ -491,6 +492,7 @@ procfs_getattr(ap)
 	case Pctl:
 	case Pregs:
 	case Pfpregs:
+	case Pdbregs:
 		if (procp->p_flag & P_SUGID)
 			vap->va_mode &= ~((VREAD|VWRITE)|
 					  ((VREAD|VWRITE)>>3)|
@@ -570,6 +572,10 @@ procfs_getattr(ap)
 	case Pfpregs:
 		vap->va_bytes = vap->va_size = sizeof(struct fpreg);
 		break;
+
+        case Pdbregs:
+                vap->va_bytes = vap->va_size = sizeof(struct dbreg);
+                break;
 
 	case Ptype:
 	case Pmap:

@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.10 1997/07/20 08:37:22 bde Exp $
+ *	$Id: procfs_machdep.c,v 1.11 1998/09/14 22:43:33 jdp Exp $
  */
 
 /*
@@ -58,6 +58,9 @@
  *
  * procfs_read_fpregs, procfs_write_fpregs
  *	deal with the floating point register set, otherwise as above.
+ *
+ * procfs_read_dbregs, procfs_write_dbregs
+ *	deal with the processor debug register set, otherwise as above.
  *
  * procfs_sstep(proc)
  *	Arrange for the process to trap after executing a single instruction.
@@ -98,6 +101,26 @@ procfs_write_regs(p, regs)
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
 	return (set_regs(p, regs));
+}
+
+int
+procfs_read_dbregs(p, dbregs)
+	struct proc *p;
+	struct dbreg *dbregs;
+{
+	if ((p->p_flag & P_INMEM) == 0)
+		return (EIO);
+	return (fill_dbregs(p, dbregs));
+}
+
+int
+procfs_write_dbregs(p, dbregs)
+	struct proc *p;
+	struct dbreg *dbregs;
+{
+	if ((p->p_flag & P_INMEM) == 0)
+		return (EIO);
+	return (set_dbregs(p, dbregs));
 }
 
 /*
