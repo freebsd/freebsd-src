@@ -171,7 +171,7 @@ typedef	_BSD_TIMER_T_	timer_t;
 #endif
 
 #ifndef _POSIX_SOURCE
-#define	NBBY	8U		/* number of bits in a byte */
+#define	NBBY	8		/* number of bits in a byte */
 
 /*
  * Select uses bit masks of file descriptors in longs.  These macros
