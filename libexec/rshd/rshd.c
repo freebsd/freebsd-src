@@ -337,10 +337,11 @@ doit(fromp)
 		des_set_key(&kdata->session, schedule);
 	}
 #endif
+	(void) alarm(60);
 	getstr(remuser, sizeof(remuser), "remuser");
-
 	getstr(locuser, sizeof(locuser), "locuser");
 	getstr(cmdbuf, sizeof(cmdbuf), "command");
+	(void) alarm(0);
 	setpwent();
 	pwd = getpwnam(locuser);
 	if (pwd == NULL) {
