@@ -61,11 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #include "extern.h"
 #include "tftpsubs.h"
 
-extern  struct sockaddr_in peeraddr;	/* filled in by main */
+extern  struct sockaddr_storage peeraddr; /* filled in by main */
 extern  int     f;			/* the opened socket */
 extern  int     trace;
 extern  int     verbose;
@@ -78,13 +79,14 @@ int	timeout;
 jmp_buf	toplevel;
 jmp_buf	timeoutbuf;
 
-static void nak(int);
+static void nak(int, struct sockaddr *);
 static int makerequest(int, const char *, struct tftphdr *, const char *);
 static void printstats(const char *, unsigned long);
 static void startclock(void);
 static void stopclock(void);
 static void timer(int);
 static void tpacket(const char *, struct tftphdr *, int);
+static int cmpport(struct sockaddr *, struct sockaddr *);
 
 /*
  * Send the requested file.
@@ -101,9 +103,11 @@ xmitfile(fd, name, mode)
 	volatile unsigned short block;
 	volatile int size, convert;
 	volatile unsigned long amount;
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	int fromlen;
 	FILE *file;
+	struct sockaddr_storage peer;
+	struct sockaddr_storage serv;	/* valid server port number */
 
 	startclock();		/* start stat's clock */
 	dp = r_init();		/* reset fillbuf/read-ahead code */
@@ -112,6 +116,8 @@ xmitfile(fd, name, mode)
 	convert = !strcmp(mode, "netascii");
 	block = 0;
 	amount = 0;
+	memcpy(&peer, &peeraddr, peeraddr.ss_len);
+	memset(&serv, 0, sizeof(serv));
 
 	signal(SIGALRM, timer);
 	do {
@@ -121,7 +127,7 @@ xmitfile(fd, name, mode)
 		/*	size = read(fd, dp->th_data, SEGSIZE);	 */
 			size = readit(file, &dp, convert);
 			if (size < 0) {
-				nak(errno + 100);
+				nak(errno + 100, (struct sockaddr *)&peer);
 				break;
 			}
 			dp->th_opcode = htons((u_short)DATA);
@@ -133,7 +139,7 @@ send_data:
 		if (trace)
 			tpacket("sent", dp, size + 4);
 		n = sendto(f, dp, size + 4, 0,
-		    (struct sockaddr *)&peeraddr, sizeof(peeraddr));
+		    (struct sockaddr *)&peer, peer.ss_len);
 		if (n != size + 4) {
 			warn("sendto");
 			goto abort;
@@ -151,7 +157,14 @@ send_data:
 				warn("recvfrom");
 				goto abort;
 			}
-			peeraddr.sin_port = from.sin_port;	/* added */
+			if (!serv.ss_family)
+				serv = from;
+			else if (!cmpport((struct sockaddr *)&serv,
+			    (struct sockaddr *)&from)) {
+				warn("server port mismatch");
+				goto abort;
+			}
+			peer = from;
 			if (trace)
 				tpacket("received", ap, n);
 			/* should verify packet came from server */
@@ -207,10 +220,12 @@ recvfile(fd, name, mode)
 	volatile unsigned short block;
 	volatile int size, firsttrip;
 	volatile unsigned long amount;
-	struct sockaddr_in from;
+	struct sockaddr_storage from;
 	int fromlen;
 	FILE *file;
 	volatile int convert;		/* true if converting crlf -> lf */
+	struct sockaddr_storage peer;
+	struct sockaddr_storage serv;	/* valid server port number */
 
 	startclock();
 	dp = w_init();
@@ -220,6 +235,8 @@ recvfile(fd, name, mode)
 	block = 1;
 	firsttrip = 1;
 	amount = 0;
+	memcpy(&peer, &peeraddr, peeraddr.ss_len);
+	memset(&serv, 0, sizeof(serv));
 
 	signal(SIGALRM, timer);
 	do {
@@ -237,8 +254,8 @@ recvfile(fd, name, mode)
 send_ack:
 		if (trace)
 			tpacket("sent", ap, size);
-		if (sendto(f, ackbuf, size, 0, (struct sockaddr *)&peeraddr,
-		    sizeof(peeraddr)) != size) {
+		if (sendto(f, ackbuf, size, 0, (struct sockaddr *)&peer,
+		    peer.ss_len) != size) {
 			alarm(0);
 			warn("sendto");
 			goto abort;
@@ -256,7 +273,14 @@ send_ack:
 				warn("recvfrom");
 				goto abort;
 			}
-			peeraddr.sin_port = from.sin_port;	/* added */
+			if (!serv.ss_family)
+				serv = from;
+			else if (!cmpport((struct sockaddr *)&serv,
+			    (struct sockaddr *)&from)) {
+				warn("server port mismatch");
+				goto abort;
+			}
+			peer = from;
 			if (trace)
 				tpacket("received", dp, n);
 			/* should verify client address */
@@ -288,7 +312,7 @@ send_ack:
 	/*	size = write(fd, dp->th_data, n - 4); */
 		size = writeit(file, &dp, n - 4, convert);
 		if (size < 0) {
-			nak(errno + 100);
+			nak(errno + 100, (struct sockaddr *)&peer);
 			break;
 		}
 		amount += size;
@@ -296,8 +320,8 @@ send_ack:
 abort:						/* ok to ack, since user */
 	ap->th_opcode = htons((u_short)ACK);	/* has seen err msg */
 	ap->th_block = htons((u_short)block);
-	(void) sendto(f, ackbuf, 4, 0, (struct sockaddr *)&peeraddr,
-	    sizeof(peeraddr));
+	(void) sendto(f, ackbuf, 4, 0, (struct sockaddr *)&peer,
+	    peer.ss_len);
 	write_behind(file, convert);		/* flush last buffer */
 	fclose(file);
 	stopclock();
@@ -347,8 +371,9 @@ struct errmsg {
  * offset by 100.
  */
 static void
-nak(error)
+nak(error, peer)
 	int error;
+	struct sockaddr *peer;
 {
 	struct errmsg *pe;
 	struct tftphdr *tp;
@@ -368,8 +393,7 @@ nak(error)
 	length = strlen(pe->e_msg) + 4;
 	if (trace)
 		tpacket("sent", tp, length);
-	if (sendto(f, ackbuf, length, 0, (struct sockaddr *)&peeraddr,
-	    sizeof(peeraddr)) != length)
+	if (sendto(f, ackbuf, length, 0, peer, peer->sa_len) != length)
 		warn("nak");
 }
 
@@ -456,4 +480,21 @@ timer(sig)
 		longjmp(toplevel, -1);
 	}
 	longjmp(timeoutbuf, 1);
+}
+
+static int
+cmpport(sa, sb)
+	struct sockaddr *sa;
+	struct sockaddr *sb;
+{
+	char a[NI_MAXSERV], b[NI_MAXSERV];
+
+	if (getnameinfo(sa, sa->sa_len, NULL, 0, a, sizeof(a), NI_NUMERICSERV))
+		return 0;
+	if (getnameinfo(sb, sb->sa_len, NULL, 0, b, sizeof(b), NI_NUMERICSERV))
+		return 0;
+	if (strcmp(a, b) != 0)
+		return 0;
+
+	return 1;
 }
