@@ -45,6 +45,7 @@ sed	-e '/	pci$/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
 	-e '/gzip/d' \
+	-e '/random/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
@@ -66,6 +67,7 @@ sed	-e '/pty/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
 	-e '/gzip/d' \
+	-e '/random/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
@@ -95,6 +97,7 @@ sed	-e '/pty/d' \
 	-e '/gif/d' \
 	-e '/faith/d' \
 	-e '/gzip/d' \
+	-e '/random/d' \
 	-e '/splash/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
