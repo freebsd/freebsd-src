@@ -60,7 +60,6 @@
 #define	SEL_USEC	0
 #endif /* !USE_KQUEUE */
 
-
 /*-
  * Job Table definitions.
  *
@@ -148,7 +147,6 @@ typedef struct Job {
 #define	outFile		output.o_file.of_outFile
 #define	outFd	  	output.o_file.of_outFd
 
-
 /*-
  * Shell Specifications:
  * Each shell type has associated with it the following information:

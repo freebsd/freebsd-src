@@ -72,7 +72,7 @@ Lst_ForEachFrom(Lst list, LstNode ln, DoProc *proc, void *d)
     Boolean 	done;
     int     	result;
 
-    if (!Lst_Valid (list) || Lst_IsEmpty (list)) {
+    if (!Lst_Valid(list) || Lst_IsEmpty(list)) {
 	return;
     }
 
@@ -84,9 +84,9 @@ Lst_ForEachFrom(Lst list, LstNode ln, DoProc *proc, void *d)
 
 	next = ln->nextPtr;
 
-	(void) ln->useCount++;
-	result = (*proc) (ln->datum, d);
-	(void) ln->useCount--;
+	ln->useCount++;
+	result = (*proc)(ln->datum, d);
+	ln->useCount--;
 
 	/*
 	 * We're done with the traversal if

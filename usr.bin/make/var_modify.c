@@ -66,19 +66,19 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Boolean
-VarHead (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
+VarHead(const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 {
     char *slash;
     char *buffer;
 
     buffer = estrdup(word);
-    slash = strrchr (buffer, '/');
+    slash = strrchr(buffer, '/');
     if (slash != NULL) {
 	if (addSpace) {
-	    Buf_AddByte (buf, (Byte)' ');
+	    Buf_AddByte(buf, (Byte)' ');
 	}
 	*slash = '\0';
-	Buf_AddBytes (buf, strlen (buffer), (Byte *)buffer);
+	Buf_AddBytes(buf, strlen (buffer), (Byte *)buffer);
 	free(buffer);
 	return (TRUE);
     } else {
@@ -111,7 +111,7 @@ VarHead (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarTail (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
+VarTail(const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 {
     const char *slash;
 
@@ -119,11 +119,11 @@ VarTail (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 	Buf_AddByte (buf, (Byte)' ');
     }
 
-    slash = strrchr (word, '/');
+    slash = strrchr(word, '/');
     if (slash++ != NULL) {
-	Buf_AddBytes (buf, strlen(slash), (Byte *)slash);
+	Buf_AddBytes(buf, strlen(slash), (Byte *)slash);
     } else {
-	Buf_AddBytes (buf, strlen(word), (Byte *)word);
+	Buf_AddBytes(buf, strlen(word), (Byte *)word);
     }
     return (TRUE);
 }
@@ -143,16 +143,16 @@ VarTail (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarSuffix (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
+VarSuffix(const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 {
     const char *dot;
 
-    dot = strrchr (word, '.');
+    dot = strrchr(word, '.');
     if (dot++ != (char *)NULL) {
 	if (addSpace) {
-	    Buf_AddByte (buf, (Byte)' ');
+	    Buf_AddByte(buf, (Byte)' ');
 	}
-	Buf_AddBytes (buf, strlen (dot), (Byte *)dot);
+	Buf_AddBytes(buf, strlen (dot), (Byte *)dot);
 	addSpace = TRUE;
     }
     return (addSpace);
@@ -174,21 +174,21 @@ VarSuffix (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarRoot (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
+VarRoot(const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
 {
     char *buffer;
     char *dot;
 
     if (addSpace) {
-	Buf_AddByte (buf, (Byte)' ');
+	Buf_AddByte(buf, (Byte)' ');
     }
 
     buffer = estrdup(word);
-    dot = strrchr (buffer, '.');
+    dot = strrchr(buffer, '.');
     if (dot != NULL) {
 	*dot = '\0';
     }
-    Buf_AddBytes (buf, strlen(buffer), (Byte *)buffer);
+    Buf_AddBytes(buf, strlen(buffer), (Byte *)buffer);
     free(buffer);
     return (TRUE);
 }
@@ -211,8 +211,9 @@ VarRoot (const char *word, Boolean addSpace, Buffer buf, void *dummy __unused)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
+VarMatch(const char *word, Boolean addSpace, Buffer buf, void *pattern)
 {
+
     if (Str_Match(word, pattern)) {
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
@@ -220,7 +221,7 @@ VarMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
 	addSpace = TRUE;
 	Buf_AddBytes(buf, strlen(word), word);
     }
-    return(addSpace);
+    return (addSpace);
 }
 
 #ifdef SYSVVARSUB
@@ -241,11 +242,11 @@ VarMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarSYSVMatch (const char *word, Boolean addSpace, Buffer buf, void *patp)
+VarSYSVMatch(const char *word, Boolean addSpace, Buffer buf, void *patp)
 {
     int len;
     const char *ptr;
-    VarPattern 	  *pat = (VarPattern *) patp;
+    VarPattern 	  *pat = (VarPattern *)patp;
 
     if (addSpace)
 	Buf_AddByte(buf, (Byte)' ');
@@ -257,7 +258,7 @@ VarSYSVMatch (const char *word, Boolean addSpace, Buffer buf, void *patp)
     else
 	Buf_AddBytes(buf, strlen(word), (Byte *) word);
 
-    return(addSpace);
+    return (addSpace);
 }
 #endif
 
@@ -279,8 +280,9 @@ VarSYSVMatch (const char *word, Boolean addSpace, Buffer buf, void *patp)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarNoMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
+VarNoMatch(const char *word, Boolean addSpace, Buffer buf, void *pattern)
 {
+
     if (!Str_Match(word, pattern)) {
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
@@ -288,7 +290,7 @@ VarNoMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
 	addSpace = TRUE;
 	Buf_AddBytes(buf, strlen(word), (Byte *)word);
     }
-    return(addSpace);
+    return (addSpace);
 }
 
 
@@ -307,11 +309,11 @@ VarNoMatch (const char *word, Boolean addSpace, Buffer buf, void *pattern)
  *-----------------------------------------------------------------------
  */
 Boolean
-VarSubstitute (const char *word, Boolean addSpace, Buffer buf, void *patternp)
+VarSubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 {
     int		  	wordLen;    /* Length of word */
     const char	 	*cp;	    /* General pointer */
-    VarPattern	*pattern = (VarPattern *) patternp;
+    VarPattern	*pattern = (VarPattern *)patternp;
 
     wordLen = strlen(word);
     if (1) { /* substitute in each word of the variable */
@@ -452,7 +454,7 @@ VarSubstitute (const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	Buf_AddByte(buf, (Byte)' ');
     }
     Buf_AddBytes(buf, wordLen, (Byte *)word);
-    return(TRUE);
+    return (TRUE);
 }
 
 /*-
@@ -579,5 +581,5 @@ VarRESubstitute(const char *word, Boolean addSpace, Buffer buf, void *patternp)
 	}
 	break;
     }
-    return(addSpace||added);
+    return (addSpace||added);
 }

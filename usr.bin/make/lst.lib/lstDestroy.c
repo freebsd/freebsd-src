@@ -82,22 +82,22 @@ Lst_Destroy(Lst list, FreeProc *freeProc)
     if (list->lastPtr != NULL)
 	list->lastPtr->nextPtr = NULL;
     else {
-	free (list);
+	free(list);
 	return;
     }
 
     if (freeProc) {
 	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
-	     (*freeProc) (ln->datum);
-	     free (ln);
+	     (*freeProc)(ln->datum);
+	     free(ln);
 	}
     } else {
 	for (ln = list->firstPtr; ln != NULL; ln = tln) {
 	     tln = ln->nextPtr;
-	     free (ln);
+	     free(ln);
 	}
     }
 
-    free (list);
+    free(list);
 }
