@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.ypxfrd.8,v 1.2 1996/06/03 20:17:16 wpaul Exp $
+.\"	$Id: rpc.ypxfrd.8,v 1.1.1.1 1996/06/05 04:36:54 wpaul Exp $
 .\"
 .Dd June 2, 1996
 .Dt RPC.YPXFRD 8
@@ -88,7 +88,7 @@ server speeds up the transfer process by allowing NIS slave servers to
 simply copy the master server's map files rather than building their
 own from scratch. Simply put,
 .Nm rpc.ypxfrd
-impliments an RPC-based file transfer protocol. Transfering even
+implements an RPC-based file transfer protocol. Transfering even
 a multi-megabyte file in this fashion takes only a few seconds compared
 to the several minutes it would take even a reasonably fast slave server
 to build a new map from scratch.
@@ -120,18 +120,18 @@ map databases. The compiled-in default path is
 The NIS maps for a particular NIS domain.
 .El
 .Sh SEE ALSO
-.Xr ypserv 8 ,
+.Xr yp 4 ,
 .Xr yppush 8 ,
-.Xr ypxfr 8 ,
-.Xr yp 4
+.Xr ypserv 8 ,
+.Xr ypxfr 8
 .Sh BUGS
 The FreeBSD
 .Nm ypxfrd
 protocol is not compatible with that used by SunOS. This is unfortunate
 but unavoidable: Sun's protocol is not freely available, and even if it
-were it would probably not be useful since the SunOS NIS v2 implimentation
+were it would probably not be useful since the SunOS NIS v2 implementation
 uses the original ndbm package for its map databases whereas the FreeBSD
-implimentation uses Berkeley DB. These two packages use vastly different
+implementation uses Berkeley DB. These two packages use vastly different
 file formats. Furthermore, ndbm is byte-order sensitive and not very
 smart about it, meaning that am ndbm database created on a big endian
 system can't be read on a little endian system.
