@@ -184,7 +184,7 @@ static	int		scrn_saver_failed;
 	u_char      	scr_rmap[256];
 static	int		initial_video_mode;	/* initial video mode # */
 	int     	fonts_loaded = 0
-#ifdef STD8X16FONT
+#if defined(STD8X16FONT) || defined(PC98)
 	| FONT_16
 #endif
 	;
