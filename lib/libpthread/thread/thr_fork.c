@@ -42,7 +42,13 @@ pid_t
 fork(void)
 {
 	int             flags;
+	int             status;
 	pid_t           ret;
+	pthread_t	pthread;
+	pthread_t	pthread_next;
+
+	/* Block signals to avoid being interrupted at a bad time: */
+	_thread_kern_sig_block(&status);
 
 	/* Fork a new process: */
 	if ((ret = _thread_sys_fork()) <= 0) {
@@ -83,8 +89,41 @@ fork(void)
 		else if (_thread_sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
 			/* Abort this application: */
 			abort();
+		} else {
+			/* Point to the first thread in the list: */
+			pthread = _thread_link_list;
+
+			/*
+			 * Enter a loop to remove all threads other than
+			 * the running thread from the thread list:
+			 */
+			while (pthread != NULL) {
+				pthread_next = pthread->nxt;
+				if (pthread == _thread_run) {
+					_thread_link_list = pthread;
+					pthread->nxt = NULL;
+				} else {
+					if (pthread->attr.stackaddr_attr ==
+					    NULL && pthread->stack != NULL) {
+						/*
+						 * Free the stack of the
+						 * dead thread:
+						 */
+						free(pthread->stack);
+					}
+					if (pthread->specific_data != NULL)
+						free(pthread->specific_data);
+					free(pthread);
+				}
+
+				/* Point to the next thread: */
+				pthread = pthread_next;
+			}
 		}
 	}
+
+	/* Unblock signals: */
+	_thread_kern_sig_unblock(&status);
 
 	/* Return the process ID: */
 	return (ret);
