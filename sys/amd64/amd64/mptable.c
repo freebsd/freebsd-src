@@ -2279,16 +2279,21 @@ start_ap(int logical_cpu, u_int boot_addr)
 	icr_hi |= (physical_cpu << 24);
 	lapic.icr_hi = icr_hi;
 
+	/* setup common fields for subsequent IPIs */
+	icr_lo = lapic.icr_lo & APIC_ICRLO_RESV_MASK;
+	icr_lo |= APIC_DESTMODE_PHY;
+	
 	/* do an INIT IPI: assert RESET */
-	icr_lo = lapic.icr_lo & 0xfff00000;
-	lapic.icr_lo = icr_lo | 0x0000c500;
+	lapic.icr_lo = icr_lo | APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_ASSERT | APIC_DELMODE_INIT;
 
 	/* wait for pending status end */
 	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 
 	/* do an INIT IPI: deassert RESET */
-	lapic.icr_lo = icr_lo | 0x00008500;
+	lapic.icr_lo = icr_lo | APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
+	    APIC_LEVEL_DEASSERT | APIC_DELMODE_INIT;
 
 	/* wait for pending status end */
 	u_sleep(10000);		/* wait ~10mS */
@@ -2305,7 +2310,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 */
 
 	/* do a STARTUP IPI */
-	lapic.icr_lo = icr_lo | 0x00000600 | vector;
+	lapic.icr_lo = icr_lo | APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_DEASSERT | APIC_DELMODE_STARTUP | vector;
 	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
@@ -2317,7 +2323,8 @@ start_ap(int logical_cpu, u_int boot_addr)
 	 * recognized after hardware RESET or INIT IPI.
 	 */
 
-	lapic.icr_lo = icr_lo | 0x00000600 | vector;
+	lapic.icr_lo = icr_lo | APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_DEASSERT | APIC_DELMODE_STARTUP | vector;
 	while (lapic.icr_lo & APIC_DELSTAT_MASK)
 		 /* spin */ ;
 	u_sleep(200);		/* wait ~200uS */
