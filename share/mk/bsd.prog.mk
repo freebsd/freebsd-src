@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.58 1997/12/17 15:35:09 bde Exp $
+#	$Id: bsd.prog.mk,v 1.59 1997/12/18 12:56:52 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -60,10 +60,9 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 .if !target(clean)
 clean: _SUBDIR
-.if defined(PROG) && !empty(PROG) || defined(OBJS) && !empty(OBJS) || \
-    defined(CLEANFILES) && !empty(CLEANFILES)
-	rm -f ${PROG} ${OBJS} ${CLEANFILES} 
-.endif
+	if [ -n "${PROG}" -o -n "${OBJS}" -o -n "${CLEANFILES}" ] ; then \
+		rm -f ${PROG} ${OBJS} ${CLEANFILES} ; \
+	fi
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
 	rm -rf ${CLEANDIRS}
 .endif
