@@ -36,7 +36,7 @@
 .\" $FreeBSD$
 .\" $Whistle: netgraph.4,v 1.7 1999/01/28 23:54:52 julian Exp $
 .\"
-.Dd January 19, 1999
+.Dd July 1, 2004
 .Dt NETGRAPH 4
 .Os
 .Sh NAME
@@ -144,8 +144,8 @@ removing either hook destroys both hooks.
 .It
 A hook can be set into a state where incoming packets are always queued
 by the input queueing system, rather than being delivered directly.
-This is used when the two joined nodes need to be decoupled, e.g. if they are
-running at different processor priority levels.  (spl)
+This can be used when the data is sent from an interrupt handler,
+and processing must be quick so as not to block other interrupts.
 .It
 A hook may supply over-riding receive data and receive message functions
 which should be used for data and messages received through that hook
@@ -166,8 +166,8 @@ The first mbuf in a chain must have the
 .Dv M_PKTHDR
 flag set. Each node decides how to handle data coming in on its hooks.
 .Pp
-Control messages are type-specific C structures sent from one node
-directly to some arbitrary other node.
+Along with data, nodes can also receive control messages.
+There are generic and type-specific control messages.
 Control messages have a common
 header format, followed by type-specific data, and are binary structures
 for efficiency.
@@ -284,21 +284,47 @@ Whenever a node delivers a data or control message, the node
 may need to allow for the possibility of receiving a returning
 message before the original delivery function call returns.
 .It
-Netgraph nodes and support routines generally run at
-.Fn splnet .
-However, some nodes may want to send data and control messages
-from a different priority level.
-Netgraph supplies a mechanism which
-utilizes the NETISR system to move message and data delivery to
-.Fn splnet .
-Nodes that run at other priorities (e.g. interfaces) can be directly
-linked to other nodes so that the combination runs at the other priority,
-however any interaction with nodes running at splnet MUST be achieved via the
-queueing functions, (which use the
-.Fn netisr
-feature of the kernel).
-Note that messages are always received at
-.Fn splnet .
+.Nm
+provides internal synchronization between nodes.
+Data always enters a
+.Nm
+.Dq graph
+at an
+.Em edge node .
+An
+.Em edge node
+is a node that interfaces between
+.Nm
+and some other part of the system.
+Examples of
+.Dq edge nodes
+include device drivers, the
+.Vt socket , ether , tty ,
+and
+.Vt ksocket
+node type.
+In these
+.Em edge nodes ,
+the calling thread directly executes code in the node and from that code,
+calls upon the
+.Nm
+framework to deliver data across some edge
+in the graph.
+From an execution point of view, the calling thread will execute the
+.Nm
+framework methods, and if it can acquire a lock to do so,
+the input methods of the next node.
+This continues until either the data is discarded or queued for some
+device or system entity, or the thread is unable to acquire a lock on
+the next node.
+In that case, the data is queued for the node, and execution rewinds
+back to the original calling entity.
+The queued data will be picked up and processed by either the current
+holder of the lock when they have completed their operations, or by
+a special
+.Nm
+thread that is activated when there are such items
+queued.
 .It
 It's possible for an infinite loop to occur if the graph contains cycles.
 .El
@@ -331,18 +357,17 @@ Another example is a device driver that presents
 a node interface to the hardware.
 .Ss Node Methods
 Nodes are notified of the following actions via function calls
-to the following node methods (all at
-.Fn splnet )
+to the following node methods
 and may accept or reject that action (by returning the appropriate
 error code):
 .Bl -tag -width xxx
 .It Creation of a new node
-The constructor for the type is called. If creation of a new node is
-allowed, the constructor must call the generic node creation
-function (in object-oriented terms, the superclass constructor)
-and then allocate any special resources it needs. For nodes that
-correspond to hardware, this is typically done during the device
-attach routine. Often a global
+The constructor for the type is called.
+If creation of a new node is allowed, constructor method may allocate any
+special resources it needs.
+For nodes that correspond to hardware, this is typically done during the
+device attach routine.
+Often a global
 .Tn ASCII
 name corresponding to the
 device name is assigned here as well.
@@ -364,6 +389,14 @@ The node is notified of a broken connection. The node may consider some hooks
 to be critical to operation and others to be expendable: the disconnection
 of one hook may be an acceptable event while for another it
 may affect a total shutdown for the node.
+.It Preshutdown of a node
+This method is called before real shutdown, which is discussed below.
+While in this method, the node is fully operational and can send a
+.Dq goodbye
+message to its peers, or it can exclude itself from the chain and reconnect
+its peers together, like the
+.Xr ng_tee 4
+node type does.
 .It Shutdown of a node
 This method allows a node to clean up
 and to ensure that any actions that need to be performed
@@ -389,8 +422,8 @@ A
 .Em Netgraph queueable request item ,
 usually referred to as an
 .Em item ,
-is received by the function.
-The item contains a pointer to an mbuf and metadata about the packet.
+is received by this function.
+The item contains a pointer to an mbuf.
 .Pp
 The node is notified on which hook the item arrived,
 and can use this information in its processing decision.
@@ -402,43 +435,29 @@ Similarly the
 .Em item
 must be freed if it is not to be passed on to another node, by using the
 .Fn NG_FREE_ITEM
-macro. If the item still holds references to mbufs or metadata at the time of
+macro.
+If the item still holds references to mbufs at the time of
 freeing then they will also be appropriately freed.
-Therefore, if there is any chance that the mbuf or metadata will be
+Therefore, if there is any chance that the mbuf will be
 changed or freed separately from the item, it is very important
-that these fields be retrieved using the
+that it be retrieved using the
 .Fn NGI_GET_M
-and
-.Fn NGI_GET_META
-macros that also remove the reference within the item. (or multiple frees
-of the same object will occur).
+macro that also removes the reference within the item.
+(Or multiple frees of the same object will occur.)
 .Pp
-If it is only required to examine the contents of the mbufs or the
-metadata, then it is possible to use the
+If it is only required to examine the contents of the mbufs,
+then it is possible to use the
 .Fn NGI_M
-and
-.Fn NGI_META
-macros to both read and rewrite these fields.
+macro to both read and rewrite mbuf pointer inside the item.
 .Pp
-In addition to the mbuf chain itself there may also be a pointer to a
-structure describing meta-data about the message
-(e.g. priority information). This pointer may be
-.Dv NULL
-if there is no additional information. The format for this information is
-described in
-.Pa sys/netgraph/netgraph.h .
-The memory for meta-data must allocated via
-.Fn malloc
-with type
-.Dv M_NETGRAPH_META .
-As with the data itself, it is the receiver's responsibility to
-.Fn free
-the meta-data. If the mbuf chain is freed the meta-data must
-be freed at the same time. If the meta-data is freed but the
-real data on is passed on, then a
-.Dv NULL
-pointer must be substituted. It is also the duty of the receiver to free
-the request item itself, or to use it to pass the message on further.
+If developer needs to pass any meta information along with the mbuf chain,
+he should use
+.Xr mbuf_tags 9
+framework.
+.Bf -symbolic
+.Nm
+specific meta-data is obsoleted now.
+.Ef
 .Pp
 The receiving node may decide to defer the data by queueing it in the
 .Nm
@@ -449,17 +468,7 @@ The infrastructure will respect that bit and queue the data for delivery at
 a later time, rather than deliver it directly. A node may decide to set
 the bit on the
 .Em peer
-node, so that its own output packets are queued. This is used
-by device drivers running at different processor priorities to transfer
-packet delivery to the splnet() level at which the bulk of
-.Nm
-runs.
-.Pp
-The structure and use of meta-data is still experimental, but is
-presently used in frame-relay to indicate that management packets
-should be queued for transmission
-at a higher priority than data packets. This is required for
-conformance with Frame Relay standards.
+node, so that its own output packets are queued.
 .Pp
 The node may elect to nominate a different receive data function
 for data received on a particular hook, to simplify coding. It uses
@@ -744,7 +753,7 @@ accessed in the following manner:
 .Bl -bullet -compact -offset 2n
 .Pp
 .It
-A node dependent opaque cookie.
+A hook dependent opaque cookie.
 .Pp
 You may place anything of type
 .Em pointer
@@ -1067,26 +1076,6 @@ and have a separate cookie
 .Em NG_FLOW_COOKIE
 to help identify them.
 They will not be covered in depth here.
-.Ss Metadata
-Data moving through the
-.Nm
-system can be accompanied by meta-data that describes some
-aspect of that data.
-The form of the meta-data is a fixed header,
-which contains enough information for most uses, and can optionally
-be supplemented by trailing
-.Em option
-structures, which contain a
-.Em cookie
-(see the section on control messages), an identifier, a length and optional
-data. If a node does not recognize the cookie associated with an option,
-it should ignore that option.
-.Pp
-Meta data might include such things as priority, discard eligibility,
-or special processing requirements.
-It might also mark a packet for
-debug status, etc.
-The use of meta-data is still experimental.
 .Sh INITIALIZATION
 The base
 .Nm
@@ -1225,6 +1214,11 @@ This node encapsulates and de-encapsulates asynchronous frames
 according to RFC 1662. This is used in conjunction with the TTY node
 type for supporting PPP links over asynchronous serial lines.
 .Pp
+.It ETHERNET
+This node is attached to every Ethernet interface in the system.
+It allows capturing raw Ethernet frames from the network, as well as
+sending frames out of the interface.
+.Pp
 .It INTERFACE
 This node is also a system networking interface. It has hooks representing
 each protocol family (IP, AppleTalk, IPX, etc.) and appears in the output of
@@ -1281,23 +1275,13 @@ There are three exceptions:
 Mbufs sent across a data link are never to be freed by the sender. In the
 case of error, they should be considered freed.
 .It 2
-Any meta-data information traveling with the data has the same restriction.
-It might be freed by any node the data passes through, and a
-.Dv NULL
-passed onwards, but the caller will never free it.
-Two macros
-.Fn NG_FREE_META "meta"
-and
-.Fn NG_FREE_M "m"
-should be used if possible to free data and meta data (see
-.Pa netgraph.h ) .
-.It 3
-Messages sent using
-.Fn ng_send_message
-are freed by the recipient. As in the case above, the addresses
+Messages sent using one of
+.Fn NG_SEND_MSG_*
+family macros are freed by the recipient.
+As in the case above, the addresses
 associated with the message are freed by whatever allocated them so the
 recipient should copy them if it wants to keep that information.
-.It 4
+.It 3
 Both control messages and data are delivered and queued with
 a netgraph
 .Em item .
