@@ -285,6 +285,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 		case RAD_ACCESS_REJECT:
 			rad_close(radh);
+			PAM_VERBOSE_ERROR("Radius rejection");
 			PAM_RETURN(PAM_AUTH_ERR);
 
 		case RAD_ACCESS_CHALLENGE:
@@ -299,12 +300,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			syslog(LOG_CRIT, "rad_send_request: %s",
 			    rad_strerror(radh));
 			rad_close(radh);
+			PAM_VERBOSE_ERROR("Radius failure");
 			PAM_RETURN(PAM_AUTHINFO_UNAVAIL);
 
 		default:
 			syslog(LOG_CRIT,
 			    "rad_send_request: unexpected return value");
 			rad_close(radh);
+			PAM_VERBOSE_ERROR("Radius error");
 			PAM_RETURN(PAM_SERVICE_ERR);
 		}
 	}
@@ -313,7 +316,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_radius");

@@ -124,7 +124,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 PAM_EXTERN int
 pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	return PAM_SUCCESS;
+	struct options options;
+
+	pam_std_option(&options, NULL, argc, argv);
+
+	PAM_LOG("Options processed");
+
+	PAM_RETURN(PAM_SUCCESS);
 }
 
 PAM_MODULE_ENTRY("pam_opie");
