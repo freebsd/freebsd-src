@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.7 1995/02/16 00:27:41 wollman Exp $
+ * $Id: igmp.c,v 1.8 1995/03/16 18:14:49 bde Exp $
  */
 
 /*
@@ -212,7 +212,7 @@ igmp_input(m, iphlen)
 	case IGMP_HOST_MEMBERSHIP_QUERY:
 		++igmpstat.igps_rcv_queries;
 
-		if (ifp == &loif)
+		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
 		if (igmp->igmp_code == 0) {
@@ -348,7 +348,7 @@ igmp_input(m, iphlen)
 	case IGMP_HOST_MEMBERSHIP_REPORT:
 		++igmpstat.igps_rcv_reports;
 
-		if (ifp == &loif)
+		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
 		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
@@ -410,7 +410,7 @@ igmp_input(m, iphlen)
 		 */
 		++igmpstat.igps_rcv_reports;
     
-		if (ifp == &loif)
+		if (ifp->if_flags & IFF_LOOPBACK)
 		  break;
 		
 		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
@@ -474,7 +474,7 @@ igmp_joingroup(inm)
 	inm->inm_state = IGMP_IDLE_MEMBER;
 
 	if (inm->inm_addr.s_addr == igmp_all_hosts_group ||
-	    inm->inm_ifp == &loif)
+	    inm->inm_ifp->if_flags & IFF_LOOPBACK)
 		inm->inm_timer = 0;
 	else {
 		igmp_sendpkt(inm,fill_rti(inm));
@@ -497,7 +497,7 @@ igmp_leavegroup(inm)
 	 case IGMP_DELAYING_MEMBER:
 	 case IGMP_IDLE_MEMBER:
 	   if (!(inm->inm_addr.s_addr == igmp_all_hosts_group ||
-	       inm->inm_ifp == &loif))
+	       inm->inm_ifp->if_flags & IFF_LOOPBACK))
 	       if (inm->inm_rti->type != IGMP_OLD_ROUTER)
 		   igmp_sendleave(inm);
 	   break;
@@ -587,7 +587,7 @@ igmp_sendpkt(inm, type)
 		return;
 	}
 
-	m->m_pkthdr.rcvif = &loif;
+	m->m_pkthdr.rcvif = loif;
 	m->m_pkthdr.len = sizeof(struct ip) + IGMP_MINLEN;
 	MH_ALIGN(m, IGMP_MINLEN + sizeof(struct ip));
 	m->m_data += sizeof(struct ip);

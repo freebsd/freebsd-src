@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.11 1995/03/23 18:14:40 wollman Exp $
+ * $Id: in.c,v 1.12 1995/04/25 19:50:20 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -259,7 +259,7 @@ in_control(so, cmd, data, ifp)
 				ia->ia_broadaddr.sin_family = AF_INET;
 			}
 			ia->ia_ifp = ifp;
-			if (ifp != &loif)
+			if (!(ifp->if_flags & IFF_LOOPBACK))
 				in_interfaces++;
 		}
 		break;
