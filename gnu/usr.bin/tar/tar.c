@@ -281,7 +281,7 @@ main (argc, argv)
     }
   if (f_volno_file)
     closeout_volume_number ();
-  exit (errors);
+  exit (errors ? EX_ARGSBAD : 0);	/* FIXME (should be EX_NONDESCRIPT) */
   /* NOTREACHED */
 }
 
