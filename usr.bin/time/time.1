@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)time.1	8.1 (Berkeley) 6/6/93
+.\"	$FreeBSD$
 .\"
 .Dd June 6, 1993
 .Dt TIME 1
@@ -70,7 +71,8 @@ Available options:
 If the
 .Fl o
 flag is used, append to the specified file rather than overwriting
-it. Otherwise, this option has no effect.
+it.
+Otherwise, this option has no effect.
 .It Fl l
 The contents of the
 .Em rusage
@@ -89,18 +91,17 @@ Makes
 output POSIX.2 compliant (each time is printed on its own line).
 .El
 .Pp
-Most shells (including
-.Xr csh 1 )
-have their own and syntactically different builtin version of
-.Nm time .
-The command described here
-is available as
-.Pa /usr/bin/time
-to users of those shells.
+Some shells may provide a builtin
+.Nm
+command which is similar or identical to this utility.
+Consult the
+.Xr builtin 1
+manual page. 
 .Sh DIAGNOSTICS
 If
 .Ar command
-could be timed successfully, its exit status is returned. In case
+could be timed successfully, its exit status is returned.
+If
 .Ar command
 terminated abnormally, a warning message is output to stderr.
 If the 
@@ -114,6 +115,7 @@ If
 encounters any other error, the exit status is between 1 and 125
 included.
 .Sh SEE ALSO
+.Xr builtin 1 ,
 .Xr csh 1 ,
 .Xr getrusage 2 ,
 .Xr wait 2
