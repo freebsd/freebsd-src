@@ -36,6 +36,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)wwterminfo.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #ifdef TERMINFO
@@ -80,7 +81,7 @@ wwterminfoinit()
 		WWT_TERMCAP, wwncol, wwnrow, wwwintermcap);
 	(void) fclose(fp);
 	(void) sprintf(buf,
-		"cd %s; %s cap >info 2>/dev/null; %s info >/dev/null 2>&1",
+		"cd %s; %s cap >info 2>" _PATH_DEVNULL "; %s info >" _PATH_DEVNULL " 2>&1",
 		wwterminfopath, _PATH_CAPTOINFO, _PATH_TIC);
 	(void) system(buf);
 	return 0;
