@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#72 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#73 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -62,8 +62,9 @@ idle_loop:
 		 * interrupt collision on the hardware
 		 * setting of HWERR.
 		 */
-		test	ERROR, 0xFF jz . + 2;
+		test	ERROR, 0xFF jz no_error_set;
 		SET_SEQINTCODE(SAW_HWERR)
+no_error_set:
 	}
 	SET_MODE(M_SCSI, M_SCSI)
 	test	SCSISEQ0, ENSELO|ENARBO jnz idle_loop_checkbus;
@@ -937,8 +938,9 @@ complete_accepted:
 	/*
 	 * See if we attempted to deliver a message but the target ingnored us.
 	 */
-	test	SCB_CONTROL, MK_MESSAGE jz . + 2;
+	test	SCB_CONTROL, MK_MESSAGE jz complete_nomsg;
 	SET_SEQINTCODE(MKMSG_FAILED)
+complete_nomsg:
 	call	queue_scb_completion;
 	jmp	await_busfree;
 
