@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/timetc.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/cons.h>
 #include <sys/power.h>
