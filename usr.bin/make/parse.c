@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: parse.c,v 1.18 1997/07/24 06:58:08 charnier Exp $";
+	"$Id: parse.c,v 1.19 1998/05/25 03:28:37 steve Exp $";
 #endif /* not lint */
 
 /*-
@@ -1412,8 +1412,10 @@ Parse_DoVar (line, ctxt)
 	default:
 #ifdef SUNSHCMD
 	    while (*opc != ':')
-		if (--opc < line)
+		if (opc == line)
 		    break;
+		else
+		    --opc;
 
 	    if (strncmp(opc, ":sh", 3) == 0) {
 		type = VAR_SHELL;
