@@ -27,17 +27,39 @@
 static unsigned piix_get_timecount(struct timecounter *tc);
 
 static u_int32_t piix_timecounter_address;
+static u_int piix_freq = 14318182/4;
 
 static struct timecounter piix_timecounter = {
 	piix_get_timecount,
 	0,
 	0xffffff,
-	14318182/4,
+	0,
 	"PIIX"
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, piix_timecounter, CTLFLAG_RD,
 	&piix_timecounter, sizeof(piix_timecounter), "S,timecounter", "");
+
+static int
+sysctl_machdep_piix_freq SYSCTL_HANDLER_ARGS
+{
+	int error;
+	u_int freq;
+
+	if (piix_timecounter.tc_frequency == 0)
+		return (EOPNOTSUPP);
+	freq = piix_freq;
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
+	if (error == 0 && req->newptr != NULL) {
+		piix_freq = freq;
+		piix_timecounter.tc_frequency = piix_freq;
+		update_timecounter(&piix_timecounter);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, piix_freq, CTLTYPE_INT | CTLFLAG_RW,
+    0, sizeof(u_int), sysctl_machdep_piix_freq, "I", "");
 
 static unsigned
 piix_get_timecount(struct timecounter *tc)
@@ -57,6 +79,7 @@ piix_probe (device_t dev)
 			return 0;	/* IO space not mapped */
 		d = pci_read_config(dev, 0x40, 4);
 		piix_timecounter_address = (d & 0xffc0) + 8;
+		piix_timecounter.tc_frequency = piix_freq;
 		init_timecounter(&piix_timecounter);
 		return (ENXIO);
 	};
