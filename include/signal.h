@@ -48,7 +48,7 @@ extern __const char *__const sys_siglist[NSIG];
 extern __const int sys_nsig;
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
@@ -60,7 +60,7 @@ struct timespec;
 
 int	raise(int);
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE || __XSI_VISIBLE
+#if __POSIX_VISIBLE || __XSI_VISIBLE
 int	kill(__pid_t, int);
 int	sigaction(int, const struct sigaction * __restrict,
 	    struct sigaction * __restrict);
@@ -75,18 +75,21 @@ int	sigsuspend(const sigset_t *);
 int	sigwait(const sigset_t * __restrict, int * __restrict);
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
+#if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 600
 int	sigqueue(__pid_t, int, const union sigval);
 int	sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
 	    const struct timespec * __restrict);
 int	sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 #endif
 
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __XSI_VISIBLE
 int	killpg(__pid_t, int);
 int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
-int	siginterrupt(int, int);
 int	sigpause(int);
+#endif
+
+#if __POSIX_VISIBLE >= 200112
+int	siginterrupt(int, int);
 #endif
 
 #if __BSD_VISIBLE
