@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include "collate.h"
 
 /*
  * Compare two characters using collate
