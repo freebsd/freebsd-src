@@ -183,6 +183,10 @@
 
       <para>The directory layout preference algorithm for FFS has been
       changed to improve its speed on large filesystems.</para>
+
+      <para>The virtual memory subsystem now backs UFS directory
+      memory requirements by default (this behavior is controlled via
+      the <varname>vfs.vmiodirenable</varname> sysctl variable.</para>
     </sect3>
 
     <sect3>
