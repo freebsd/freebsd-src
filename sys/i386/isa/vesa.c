@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.21 1999/03/29 15:10:56 yokota Exp $
+ * $Id: vesa.c,v 1.22 1999/03/31 15:27:00 yokota Exp $
  */
 
 #include "vga.h"
@@ -1093,8 +1093,6 @@ vesa_load(void)
 	return error;
 }
 
-#ifdef KLD_MODULE
-
 static int
 vesa_unload(void)
 {
@@ -1154,12 +1152,5 @@ static moduledata_t vesa_mod = {
 };
 
 DECLARE_MODULE(vesa, vesa_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-
-#else /* KLD_MODULE */
-
-SYSINIT(vesa, SI_SUB_DRIVERS, SI_ORDER_MIDDLE,
-	(void (*)(void *))vesa_load, NULL);
-
-#endif /* KLD_MODULE */
 
 #endif /* (NVGA > 0 && VESA && VM86) || KLD_MODULE */
