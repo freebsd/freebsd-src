@@ -235,7 +235,7 @@ sequential-only writeable devices such as CD-R drives, which are
 supported by cdrecord.
 
 The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
-Privacy (WEP) encryption, settable via ancontrol(8).
+Privacy (WEP) encryption, settable via ancontrol(8). [MERGED]
 
 The pcm(4) audio driver is now compiled into the GENERIC kernel by
 default.
@@ -257,6 +257,23 @@ support routines, have been added to the kernel.  Details are in
 sbuf(9).
 
 The el(4) driver can now be loaded as a module.
+
+The vinum(4) volume manager has received some bugfixes and enhancements.
+
+ICMP ECHO and TSTAMP replies are now rate limited.  TCP RSTs generated
+due to packets sent to open and unopen ports are now limited by
+seperate counters.  Each rate limiting queue now has its own
+description.
+
+ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections, as
+controlled by the net.inet.tcp.icmp_admin_prohib_like_rst sysctl.
+
+PECOFF (WIN32 Execution file format) support has been added.
+
+kernfs(5) is obsolete and has been retired.
+
+pkg_update(1), a utility to update installed packages and update their
+dependencies, has been added.
 
 
 1.2. SECURITY FIXES
@@ -436,6 +453,9 @@ killall(1) is now a C program, rather than a Perl script.  As a
 result, killall's -m option now uses the regular expression syntax of
 regex(3), rather than that of perl(1). [MERGED]
 
+killall(1) now allows non-root users to kill SUID root processes that
+they started.
+
 finger(1) now has the ability to support fingering aliases, via the
 finger.conf(5) file. [MERGED]
 
@@ -586,6 +606,15 @@ phase.
 
 Catching up with most other network utilities in the base system,
 lpd(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
+
+libdisk can now do install-time configuration of the i386 boot0 boot
+loader. [MERGED]
+
+rm(1) -v now displays the entire pathname of a file being
+removed. [MERGED]
+
+lpr(1), lpq(1), and lpd(8) have received a few minor
+enhancements. [MERGED]
 
 
 2. Supported Configurations
