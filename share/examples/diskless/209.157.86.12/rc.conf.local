@@ -1,0 +1,9 @@
+# DISKLESS RC.CONF.LOCAL
+#
+# Override system standard /etc/rc.conf
+
+. /conf/HT.DISKLESS/rc.conf.local
+
+hostname=test2.backplane.com
+start_xdm=NO
+
