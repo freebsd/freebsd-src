@@ -323,6 +323,13 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	if (prot == IPPROTO_IPIP) {
 		struct ip ipn;
 
+		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
+			IPSEC_ISTAT(sproto, espstat.esps_hdrops,
+			    ahstat.ahs_hdrops,
+			    ipcompstat.ipcomps_hdrops);
+			error = EINVAL;
+			goto bad;
+		}
 		/* ipn will now contain the inner IPv4 header */
 		m_copydata(m, ip->ip_hl << 2, sizeof(struct ip),
 		    (caddr_t) &ipn);
@@ -362,6 +369,13 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	if (prot == IPPROTO_IPV6) {
 		struct ip6_hdr ip6n;
 
+		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
+			IPSEC_ISTAT(sproto, espstat.esps_hdrops,
+			    ahstat.ahs_hdrops,
+			    ipcompstat.ipcomps_hdrops);
+			error = EINVAL;
+			goto bad;
+		}
 		/* ip6n will now contain the inner IPv6 header. */
 		m_copydata(m, ip->ip_hl << 2, sizeof(struct ip6_hdr),
 		    (caddr_t) &ip6n);
@@ -633,6 +647,13 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if (prot == IPPROTO_IPIP) {
 		struct ip ipn;
 
+		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
+			IPSEC_ISTAT(sproto, espstat.esps_hdrops,
+			    ahstat.ahs_hdrops,
+			    ipcompstat.ipcomps_hdrops);
+			error = EINVAL;
+			goto bad;
+		}
 		/* ipn will now contain the inner IPv4 header */
 		m_copydata(m, skip, sizeof(struct ip), (caddr_t) &ipn);
 
@@ -668,6 +689,13 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if (prot == IPPROTO_IPV6) {
 		struct ip6_hdr ip6n;
 
+		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
+			IPSEC_ISTAT(sproto, espstat.esps_hdrops,
+			    ahstat.ahs_hdrops,
+			    ipcompstat.ipcomps_hdrops);
+			error = EINVAL;
+			goto bad;
+		}
 		/* ip6n will now contain the inner IPv6 header. */
 		m_copydata(m, skip, sizeof(struct ip6_hdr),
 		    (caddr_t) &ip6n);
