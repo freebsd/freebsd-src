@@ -123,8 +123,6 @@
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #endif	/* SMP */
 #define	PTDPTDI		(KPTDI-NPGPTD)	/* ptd entry that points to ptd! */
-#define	UMAXPTDI	(PTDPTDI-1)	/* ptd entry for user space end */
-#define	UMAXPTEOFF	(NPTEPG)	/* pte entry for user space end */
 
 /*
  * XXX doesn't really belong here I guess...
