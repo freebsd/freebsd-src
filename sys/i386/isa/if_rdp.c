@@ -99,15 +99,9 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_rdpreg.h>
-#if __FreeBSD_version >= 300000
 #include <i386/isa/intr_machdep.h>
-#endif
 
-#if __FreeBSD_version >= 300003
 #define IOCTL_CMD_T u_long
-#else
-#define IOCTL_CMD_T int
-#endif
 
 /*
  * Debug levels (ORed together):
@@ -182,9 +176,7 @@ static int rdp_ioctl(struct ifnet *, IOCTL_CMD_T, caddr_t);
 static void rdp_start(struct ifnet *);
 static void rdp_reset(struct ifnet *);
 static void rdp_watchdog(struct ifnet *);
-#if __FreeBSD_version >= 300004
 static void rdpintr(int);
-#endif
 
 /*
  * REDP private functions.
@@ -462,13 +454,7 @@ rdp_probe(struct isa_device *isa_dev)
 	int unit = isa_dev->id_unit;
 	struct rdp_softc *sc = &rdp_softc[unit];
 	u_char b1, b2;
-#if __FreeBSD_version < 300000
-	int irqmap[3];
-# define IRQPEND_ARGS isa_dev
-#else
 	intrmask_t irqmap[3];
-# define IRQPEND_ARGS /* */
-#endif
 	u_char sval[3];
 
 	if (unit < 0 || unit >= NRDP)
@@ -524,7 +510,7 @@ rdp_probe(struct isa_device *isa_dev)
 	WrNib(sc, CMR1, CMR1_RDPAC);
 	DELAY(1000);
 
-	irqmap[0] = isa_irq_pending(IRQPEND_ARGS);
+	irqmap[0] = isa_irq_pending();
 	sval[0] = inb(sc->baseaddr + lpt_status);
 
 	/* allow IRQs to pass the parallel interface */
@@ -534,7 +520,7 @@ rdp_probe(struct isa_device *isa_dev)
 	WrNib(sc, IMR + HNib, MkHi(ISR_RBER));
 	DELAY(1000);
 
-	irqmap[1] = isa_irq_pending(IRQPEND_ARGS);
+	irqmap[1] = isa_irq_pending();
 	sval[1] = inb(sc->baseaddr + lpt_status);
 
 	/* de-assert and disable IRQ */
@@ -542,7 +528,7 @@ rdp_probe(struct isa_device *isa_dev)
 	(void)inb(sc->baseaddr + lpt_status); /* might be necessary to
 						 clear IRQ */
 	DELAY(1000);
-	irqmap[2] = isa_irq_pending(IRQPEND_ARGS);
+	irqmap[2] = isa_irq_pending();
 	sval[2] = inb(sc->baseaddr + lpt_status);
 
 	WrNib(sc, CMR1 + HNib, MkHi(0));
@@ -599,9 +585,7 @@ rdp_attach(struct isa_device *isa_dev)
 	struct rdp_softc *sc = &rdp_softc[unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 
-#if __FreeBSD_version >= 300004
 	isa_dev->id_ointr = rdpintr;
-#endif
 
 	/*
 	 * Reset interface
@@ -715,13 +699,8 @@ rdp_init(void *xsc)
 	u_char reg;
 
 	/* address not known */
-#if defined __FreeBSD_version && __FreeBSD_version >= 300000
 	if (TAILQ_EMPTY(&ifp->if_addrhead))
 		return;
-#else
-        if (ifp->if_addrlist == (struct ifaddr *) 0)
-		return;
-#endif
 
 	s = splimp();
 
@@ -863,26 +842,9 @@ rdp_ioctl(struct ifnet *ifp, IOCTL_CMD_T command, caddr_t data)
 
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
-#if __FreeBSD_version < 225000
-		ether_ioctl(ifp, command, data);
-#else
 	case SIOCSIFMTU:
 		error = ether_ioctl(ifp, command, data);
-#endif
 		break;
-
-#if __FreeBSD_version < 225000
-	case SIOCSIFMTU:
-	{
-		struct ifreq *ifr = (struct ifreq *) data;
-
-		if (ifr->ifr_mtu > ETHERMTU)
-			error = EINVAL;
-		else
-			ifp->if_mtu = ifr->ifr_mtu;
-		break;
-	}
-#endif
 
 	case SIOCSIFFLAGS:
 		/*
