@@ -38,7 +38,7 @@
  *      @(#)bpf.h	8.1 (Berkeley) 6/10/93
  *	@(#)bpf.h	1.34 (LBL)     6/16/96
  *
- * $Id: bpf.h,v 1.14 1998/08/18 10:13:11 ache Exp $
+ * $Id: bpf.h,v 1.15 1998/09/15 19:35:37 fenner Exp $
  */
 
 #ifndef _NET_BPF_H_
@@ -54,7 +54,7 @@ typedef	u_int32_t bpf_u_int32;
  * Alignment macros.  BPF_WORDALIGN rounds up to the next
  * even multiple of BPF_ALIGNMENT.
  */
-#define BPF_ALIGNMENT sizeof(bpf_int32)
+#define BPF_ALIGNMENT sizeof(long)
 #define BPF_WORDALIGN(x) (((x)+(BPF_ALIGNMENT-1))&~(BPF_ALIGNMENT-1))
 
 #define BPF_MAXINSNS 512
