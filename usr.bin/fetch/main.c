@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.43 1997/08/19 01:57:53 asami Exp $ */
+/* $Id: main.c,v 1.44 1998/02/20 05:11:42 jb Exp $ */
 
 #include <sys/types.h>
 
@@ -177,16 +177,11 @@ main(int argc, char *const *argv)
 	    }
 
 	    uri = alloca(sizeof("ftp://") + strlen(hostname) + 
-			 strlen(change_to_dir) + 2 + strlen(file_to_get));
+			 strlen(change_to_dir) + 5 + strlen(file_to_get));
 	    strcpy(uri, "ftp://");
 	    strcat(uri, hostname);
-	    /*
-	     * XXX - we should %-map a leading `/' into `%2f', but for
-	     * anonymous FTP it is unlikely to matter.  Still, it would
-	     * be better to follow the spec.
-	     */
-	    if (change_to_dir[0] != '/')
-		    strcat(uri, "/");
+	    strcat(uri, "/");
+	    if (change_to_dir[0] == '/') strcat(uri, "%2f");
 	    strcat(uri, change_to_dir);
 	    if (file_to_get[0] != '/' && uri[strlen(uri) - 1] != '/')
 		    strcat(uri, "/");
