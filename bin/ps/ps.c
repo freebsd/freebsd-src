@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.10 1995/12/26 03:38:55 peter Exp $
+ *	$Id: ps.c,v 1.11 1996/01/12 08:49:43 peter Exp $
  */
 
 #ifndef lint
@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <limits.h>
 #include <nlist.h>
 #include <paths.h>
 #include <stdio.h>
@@ -117,7 +118,7 @@ main(argc, argv)
 	uid_t uid;
 	int all, ch, flag, i, fmt, lineno, nentries;
 	int prtheader, wflag, what, xflg;
-	char *nlistf, *memf, *swapf, errbuf[256];
+	char *nlistf, *memf, *swapf, errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
 
