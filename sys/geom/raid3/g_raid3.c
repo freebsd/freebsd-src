@@ -143,16 +143,6 @@ static void g_raid3_dumpconf(struct sbuf *sb, const char *indent,
 static void g_raid3_sync_stop(struct g_raid3_softc *sc, int type);
 
 
-/*
- * XXX: it should be placed in subr_disk.c.
- */
-static void
-bioq_insert_head(struct bio_queue_head *head, struct bio *bp)
-{
-
-	TAILQ_INSERT_HEAD(&head->queue, bp, bio_queue);
-}
-
 static const char *
 g_raid3_disk_state2str(int state)
 {
