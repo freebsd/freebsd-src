@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
+#include <machine/atomic.h>
 #include <machine/clock.h>	/* for DELAY */
 
 #include <net/if_types.h>
@@ -1207,7 +1208,7 @@ static void
 fxp_start(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
-	struct fxp_tx *txp;
+	struct fxp_tx *txp, *last;
 	struct mbuf *mb_head;
 	int error;
 
@@ -1377,18 +1378,21 @@ fxp_start(struct ifnet *ifp)
 		 * Advance the end of list forward.
 		 */
 
-#ifdef __alpha__
 		/*
 		 * On platforms which can't access memory in 16-bit
 		 * granularities, we must prevent the card from DMA'ing
 		 * up the status while we update the command field.
 		 * This could cause us to overwrite the completion status.
+		 *
+		 * This is a bit tricky, because we want to avoid using
+		 * atomic operations on 16bits values, since they may not
+		 * be available on any architecture or may be very
+		 * inefficient.
 		 */
-		atomic_clear_short(&sc->fxp_desc.tx_last->tx_cb->cb_command,
-		    FXP_CB_COMMAND_S);
-#else
-		sc->fxp_desc.tx_last->tx_cb->cb_command &= ~FXP_CB_COMMAND_S;
-#endif /*__alpha__*/
+		last = sc->fxp_desc.tx_last;
+		atomic_clear_32((u_int32_t *)&last->tx_cb->cb_status,
+		    htobe32(bswap16(FXP_CB_COMMAND_S)));
+
 		sc->fxp_desc.tx_last = txp;
 
 		/*
