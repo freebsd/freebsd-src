@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.114 1998/06/17 15:16:52 bde Exp $
+#	$Id: Makefile.i386,v 1.115 1998/06/24 13:55:32 eivind Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	300004
+%VERSREQ=	300005
 
 BINFORMAT?=	aout
 #BINFORMAT?=	aoutkld
@@ -53,13 +53,13 @@ PROF+=	-mprofiler-epilogue
 .endif
 
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
-NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 NORMAL_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
+DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
-PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
+PROFILE_C= ${CC} -c ${CFLAGS} $<
 
 # ${I386}/i386/setdef0.c and ${I386}/i386/setdef1.c are intentionally
 # omitted from SYSTEM_CFILES.  They depend on setdefs.h, a header which
@@ -112,7 +112,7 @@ clean:
 	      vers.c vnode_if.c vnode_if.h .vnode_if_created ${CLEAN}
 
 #lint: /tmp param.c
-#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
+#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
 #	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
@@ -166,10 +166,10 @@ assym.s: genassym
 # Some of the defines that genassym outputs may well depend on the
 # value of kernel options.
 genassym.o: ${I386}/i386/genassym.c Makefile opt_global.h opt_vm86.h
-	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
+	${CC} -c ${CFLAGS} -UKERNEL ${I386}/i386/genassym.c
 
 genassym: genassym.o
-	${CC} ${CFLAGS} ${PARAM} genassym.o -o ${.TARGET}
+	${CC} ${CFLAGS} genassym.o -o ${.TARGET}
 
 ${OBJS}: opt_global.h
 
@@ -177,7 +177,7 @@ ${OBJS}: opt_global.h
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -f .newdep ${COPTS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
+	mkdep -a -f .newdep ${COPTS} -UKERNEL ${I386}/i386/genassym.c
 	MKDEP_CPP="${CC} -E -x assembler-with-cpp" ; export MKDEP_CPP ; \
 	mkdep -a -f .newdep -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
@@ -224,7 +224,7 @@ param.c: $S/conf/param.c
 	cp $S/conf/param.c .
 
 param.o: param.c Makefile
-	${CC} -c ${CFLAGS} ${PARAM} param.c
+	${CC} -c ${CFLAGS} param.c
 
 vers.o: $S/sys/param.h ${SYSTEM_DEP} ${SYSTEM_SWAP_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
