@@ -164,6 +164,28 @@ control message from
 can be used directly as a control message for
 .Xr sendmsg 2 .
 .Pp
+If the
+.Dv IP_RECVTTL
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TTL
+(time to live) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the 
+.Tn TTL .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = sizeof(u_char)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTTL
+.Ed
+.Pp
 If the 
 .Dv IP_RECVIF 
 option is enabled on a 
