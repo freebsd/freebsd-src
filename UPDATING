@@ -916,7 +916,8 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	the config file update procedure.
 		http://people.freebsd.org/~imp/config-upd.html
 	NOTE: LINT is gone.  It has been replaced with NOTES.  NOTES
-	isn't buildable.  However, you can generate a LINT file.
+	isn't buildable.  However, you can generate a LINT file:
+		cd /sys/<ARCH>/conf && make LINT
 
 20000620:
 	Binutils 2.10 have hit the tree, or will shortly.  As soon
