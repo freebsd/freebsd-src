@@ -62,14 +62,21 @@ _retire_thread(void *entry)
 void *
 _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 {
+#ifndef COMPAT_32BIT
 	union descriptor desc;
+#endif
 	struct tcb *tcb;
 	void *oldtls;
+#ifndef COMPAT_32BIT
 	int ldt_index;
+#endif
 
 	*err = 0;
 
 	if (uc == NULL && thr->arch_id != NULL) {
+#ifndef COMPAT_32BIT
+		 _amd64_set_gsbase(thr->arch_id);
+#endif
 		return (thr->arch_id);
 	}
 
@@ -91,6 +98,7 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 	 */
 	tcb->tcb_thread = thr;
 
+#ifndef COMPAT_32BIT
 	bzero(&desc, sizeof(desc));
 
 	/*
@@ -119,6 +127,10 @@ _set_curthread(ucontext_t *uc, struct pthread *thr, int *err)
 		uc->uc_mcontext.mc_gs = LSEL(ldt_index, SEL_UPL);
 	else
 		_set_gs(LSEL(ldt_index, SEL_UPL));
+#else
+	if (uc == NULL)
+		_amd64_set_gsbase(tcb);
+#endif
 
 	return (tcb);
 }
