@@ -1,4 +1,4 @@
-#	$NetBSD: Makefile,v 1.49 2002/08/22 00:09:38 christos Exp $
+#	$NetBSD: Makefile,v 1.51 2003-07-23 08:01:27 itojun Exp $
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
 
 .include <bsd.own.mk>
@@ -28,19 +28,24 @@ LDADD+= -lskey
 
 ftpd.o ftpcmd.o: version.h
 
-# XXX Kerberos support is broken right now.
+#.if (${USE_KERBEROS} != "no")
+#
 #.PATH:	${NETBSDSRCDIR}/usr.bin/login
-
-#.ifdef KERBEROS5
+#
 #SRCS+=	k5login.c
 #CPPFLAGS+=-DKERBEROS5
-#DPADD+= ${LIBKRB5} ${LIBK5CRYPTO} ${LIBCOM_ERR}
-#LDADD+= -lkrb5 -lk5crypto -lcom_err
-#.else
-#SRCS+=	klogin.c
-#CPPFLAGS+=-DKERBEROS
-#DPADD+= ${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
-#LDADD+= -lkrb -kdes -lcom_err
+#CPPFLAGS+=-DKERBEROS5 -I${DESTDIR}/usr/include/krb5
+#DPADD+=	${LIBKRB5} ${LIBASN1}
+#LDADD+= -lkrb5 -lasn1
+#
+#SRCS+= klogin.c
+#CPPFLAGS+=-DKERBEROS -I${DESTDIR}/usr/include/kerberosIV
+#DPADD+=	${LIBKRB}
+#LDADD+= -lkrb
+#
+#DPADD+=	${LIBCRYPTO} ${LIBROKEN} ${LIBCOM_ERR}
+#LDADD+=	-lcrypto -lroken -lcom_err
+#
 #.endif
 
 .include <bsd.prog.mk>

@@ -1,7 +1,7 @@
-/*	$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.158 2004-08-09 12:56:47 lukem Exp $	*/
 
 /*
- * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -48,11 +48,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -109,7 +105,7 @@ __COPYRIGHT(
 #if 0
 static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $");
+__RCSID("$NetBSD: ftpd.c,v 1.158 2004-08-09 12:56:47 lukem Exp $");
 #endif
 #endif /* not lint */
 
@@ -144,7 +140,6 @@ __RCSID("$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $");
 #include <limits.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <setjmp.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -174,8 +169,10 @@ __RCSID("$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $");
 #include "pathnames.h"
 #include "version.h"
 
+volatile sig_atomic_t	transflag;
+volatile sig_atomic_t	urgflag;
+
 int	data;
-jmp_buf	urgcatch;
 int	sflag;
 int	stru;			/* avoid C keyword */
 int	mode;
@@ -183,7 +180,8 @@ int	dataport;		/* use specific data port */
 int	dopidfile;		/* maintain pid file */
 int	doutmp;			/* update utmp file */
 int	dowtmp;			/* update wtmp file */
-int	doxferlog;		/* syslog wu-ftpd style xferlog entries */
+int	doxferlog;		/* syslog/write wu-ftpd style xferlog entries */
+int	xferlogfd;		/* fd to write wu-ftpd xferlog entries to */
 int	dropprivs;		/* if privileges should or have been dropped */
 int	mapped;			/* IPv4 connection on AF_INET6 socket */
 off_t	file_size;
@@ -198,6 +196,9 @@ static struct utmpx utmpx;	/* for utmpx */
 
 static const char *anondir = NULL;
 static const char *confdir = _DEFAULT_CONFDIR;
+
+static char	*curname;		/* current USER name */
+static size_t	curname_len;		/* length of curname (include NUL) */
 
 #if defined(KERBEROS) || defined(KERBEROS5)
 int	has_ccache = 0;
@@ -222,6 +223,7 @@ int	swaitint = SWAITINT;
 
 enum send_status {
 	SS_SUCCESS,
+	SS_ABORTED,			/* transfer aborted */
 	SS_NO_TRANSFER,			/* no transfer made yet */
 	SS_FILE_ERROR,			/* file read error */
 	SS_DATA_ERROR			/* data send error */
@@ -237,7 +239,10 @@ static char	*gunique(const char *);
 static void	 login_utmp(const char *, const char *, const char *);
 static void	 logremotehost(struct sockinet *);
 static void	 lostconn(int);
-static void	 myoob(int);
+static void	 toolong(int);
+static void	 sigquit(int);
+static void	 sigurg(int);
+static int	 handleoobcmd(void);
 static int	 receive_data(FILE *, FILE *);
 static int	 send_data(FILE *, FILE *, const struct stat *, int);
 static struct passwd *sgetpwnam(const char *);
@@ -269,7 +274,9 @@ main(int argc, char *argv[])
 	krb5_error_code	kerror;
 #endif
 	char		*p;
+	const char	*xferlogname = NULL;
 	long		l;
+	struct sigaction sa;
 
 	connections = 1;
 	debug = 0;
@@ -281,6 +288,7 @@ main(int argc, char *argv[])
 	doutmp = 0;		/* default: Do NOT log to utmp */
 	dowtmp = 1;		/* default: DO log to wtmp */
 	doxferlog = 0;		/* default: Do NOT syslog xferlog */
+	xferlogfd = -1;		/* default: Do NOT write xferlog file */
 	dropprivs = 0;
 	mapped = 0;
 	usedefault = 1;
@@ -297,7 +305,7 @@ main(int argc, char *argv[])
 	 */
 	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
-	while ((ch = getopt(argc, argv, "a:c:C:de:h:HlP:qQrst:T:uUvV:wWX"))
+	while ((ch = getopt(argc, argv, "a:c:C:de:h:HlL:P:qQrst:T:uUvV:wWX"))
 	    != -1) {
 		switch (ch) {
 		case 'a':
@@ -334,6 +342,10 @@ main(int argc, char *argv[])
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'L':
+			xferlogname = optarg;
 			break;
 
 		case 'P':
@@ -397,7 +409,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'X':
-			doxferlog = 1;
+			doxferlog |= 1;
 			break;
 
 		default:
@@ -409,6 +421,23 @@ main(int argc, char *argv[])
 	}
 	if (EMPTYSTR(confdir))
 		confdir = _DEFAULT_CONFDIR;
+
+	errno = 0;
+	l = sysconf(_SC_LOGIN_NAME_MAX);
+	if (l == -1 && errno != 0) {
+		syslog(LOG_ERR, "sysconf _SC_LOGIN_NAME_MAX: %m");
+		exit(1);
+	} else if (l <= 0) {
+		syslog(LOG_WARNING, "using conservative LOGIN_NAME_MAX value");
+		curname_len = _POSIX_LOGIN_NAME_MAX;
+	} else 
+		curname_len = (size_t)l;
+	curname = malloc(curname_len);
+	if (curname == NULL) {
+		syslog(LOG_ERR, "malloc: %m");
+		exit(1);
+	}
+	curname[0] = '\0';
 
 	memset((char *)&his_addr, 0, sizeof(his_addr));
 	addrlen = sizeof(his_addr.si_su);
@@ -490,10 +519,26 @@ main(int argc, char *argv[])
 	(void)snprintf(ttyline, sizeof(ttyline), "ftp%d", getpid());
 
 	(void) freopen(_PATH_DEVNULL, "w", stderr);
-	(void) signal(SIGPIPE, lostconn);
-	(void) signal(SIGCHLD, SIG_IGN);
-	if (signal(SIGURG, myoob) == SIG_ERR)
-		syslog(LOG_WARNING, "signal: %m");
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sa.sa_flags = SA_RESTART;
+	sigemptyset(&sa.sa_mask);
+	(void) sigaction(SIGCHLD, &sa, NULL);
+
+	sa.sa_handler = sigquit;
+	sa.sa_flags = SA_RESTART;
+	sigfillset(&sa.sa_mask);	/* block all sigs in these handlers */
+	(void) sigaction(SIGHUP, &sa, NULL);
+	(void) sigaction(SIGINT, &sa, NULL);
+	(void) sigaction(SIGQUIT, &sa, NULL);
+	(void) sigaction(SIGTERM, &sa, NULL);
+	sa.sa_handler = lostconn;
+	(void) sigaction(SIGPIPE, &sa, NULL);
+	sa.sa_handler = toolong;
+	(void) sigaction(SIGALRM, &sa, NULL);
+	sa.sa_handler = sigurg;
+	(void) sigaction(SIGURG, &sa, NULL);
 
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
@@ -549,7 +594,16 @@ main(int argc, char *argv[])
 	else
 		reply(220, "%s FTP server (%s) ready.", hostname, version);
 
-	(void) setjmp(errcatch);
+	if (xferlogname != NULL) {
+		xferlogfd = open(xferlogname, O_WRONLY | O_APPEND | O_CREAT,
+		    0660);
+		if (xferlogfd == -1)
+			syslog(LOG_WARNING, "open xferlog `%s': %m",
+			    xferlogname);
+		else
+			doxferlog |= 2;
+	}
+
 	ftp_loop();
 	/* NOTREACHED */
 }
@@ -562,6 +616,37 @@ lostconn(int signo)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(1);
 }
+
+static void
+toolong(int signo)
+{
+
+		/* XXXSIGRACE */
+	reply(421,
+	    "Timeout (" LLF " seconds): closing control connection.",
+	    (LLT)curclass.timeout);
+	if (logging)
+		syslog(LOG_INFO, "User %s timed out after " LLF " seconds",
+		    (pw ? pw->pw_name : "unknown"), (LLT)curclass.timeout);
+	dologout(1);
+}
+
+static void
+sigquit(int signo)
+{
+
+	if (debug)
+		syslog(LOG_DEBUG, "got signal %d", signo);
+	dologout(1);
+}
+
+static void
+sigurg(int signo)
+{
+	
+	urgflag = 1;
+}
+
 
 /*
  * Save the result of a getpwnam.  Used for USER command, since
@@ -596,7 +681,6 @@ sgetpwnam(const char *name)
 static int	login_attempts;	/* number of failed login attempts */
 static int	askpasswd;	/* had USER command, ask for PASSwd */
 static int	permitted;	/* USER permitted */
-static char	curname[LOGIN_NAME_MAX];	/* current USER name */
 
 /*
  * USER command.
@@ -670,7 +754,7 @@ user(const char *name)
 	} else
 		pw = sgetpwnam(name);
 
-	strlcpy(curname, name, sizeof(curname));
+	strlcpy(curname, name, curname_len);
 
 			/* check user in /etc/ftpusers, and setup class */
 	permitted = checkuser(_PATH_FTPUSERS, curname, 1, 0, &class);
@@ -936,10 +1020,10 @@ login_utmp(const char *line, const char *name, const char *host)
 		(void)strncpy(utmpx.ut_name, name, sizeof(utmpx.ut_name));
 		(void)strncpy(utmpx.ut_line, line, sizeof(utmpx.ut_line));
 		(void)strncpy(utmpx.ut_host, host, sizeof(utmpx.ut_host));
-		loginx(&utmpx);
+		ftpd_loginx(&utmpx);
 	}
 	if (dowtmp)
-		logwtmpx(line, name, host, 0, USER_PROCESS);
+		ftpd_logwtmpx(line, name, host, 0, USER_PROCESS);
 #endif
 #ifdef SUPPORT_UTMP
 	if (doutmp) {
@@ -948,10 +1032,10 @@ login_utmp(const char *line, const char *name, const char *host)
 		(void)strncpy(utmp.ut_name, name, sizeof(utmp.ut_name));
 		(void)strncpy(utmp.ut_line, line, sizeof(utmp.ut_line));
 		(void)strncpy(utmp.ut_host, host, sizeof(utmp.ut_host));
-		login(&utmp);
+		ftpd_login(&utmp);
 	}
 	if (dowtmp)
-		logwtmp(line, name, host);
+		ftpd_logwtmp(line, name, host);
 #endif
 }
 
@@ -965,15 +1049,15 @@ logout_utmp(void)
 			okwtmp = logoutx(ttyline, 0, DEAD_PROCESS) & dowtmp;
 #endif
 #ifdef SUPPORT_UTMP
-			okwtmp = logout(ttyline) & dowtmp;
+			okwtmp = ftpd_logout(ttyline) & dowtmp;
 #endif
 		}
 		if (okwtmp) {
 #ifdef SUPPORT_UTMPX
-			logwtmpx(ttyline, "", "", 0, DEAD_PROCESS);
+			ftpd_logwtmpx(ttyline, "", "", 0, DEAD_PROCESS);
 #endif
 #ifdef SUPPORT_UTMP
-			logwtmp(ttyline, "", "");
+			ftpd_logwtmp(ttyline, "", "");
 #endif
 		}
 	}
@@ -1092,7 +1176,11 @@ pass(const char *passwd)
 	}
 	(void) initgroups(pw->pw_name, pw->pw_gid);
 			/* cache groups for cmds.c::matchgroup() */
-	gidcount = getgroups(sizeof(gidlist), gidlist);
+	gidcount = getgroups(0, NULL);
+	if (gidlist)
+		free(gidlist);
+	gidlist = malloc(gidcount * sizeof *gidlist);
+	gidcount = getgroups(gidcount, gidlist);
 
 	/* open utmp/wtmp before chroot */
 	login_utmp(ttyline, pw->pw_name, remotehost);
@@ -1206,6 +1294,7 @@ pass(const char *passwd)
 		}
 		break;
 	}
+	setsid();
 	setlogin(pw->pw_name);
 	if (dropprivs ||
 	    (curclass.type != CLASS_REAL && 
@@ -1756,6 +1845,8 @@ send_data_with_read(int filefd, int netfd, const struct stat *st, int isdata)
 			error = SS_FILE_ERROR;
 		else if (write_data(netfd, buf, c, &bufrem, &then, isdata))
 			error = SS_DATA_ERROR;
+		else if (urgflag && handleoobcmd())
+			error = SS_ABORTED;
 		else
 			continue;
 
@@ -1822,6 +1913,8 @@ send_data_with_mmap(int filefd, int netfd, const struct stat *st, int isdata)
 		    isdata);
 		(void) madvise(win, mapsize, MADV_DONTNEED);
 		munmap(win, mapsize);
+		if (urgflag && handleoobcmd())
+			return (SS_ABORTED);
 		if (error)
 			return (SS_DATA_ERROR);
 		off += mapsize;
@@ -1843,10 +1936,9 @@ send_data(FILE *instr, FILE *outstr, const struct stat *st, int isdata)
 {
 	int	 c, filefd, netfd, rval;
 
+	urgflag = 0;
 	transflag = 1;
 	rval = -1;
-	if (setjmp(urgcatch))
-		goto cleanup_send_data;
 
 	switch (type) {
 
@@ -1854,6 +1946,8 @@ send_data(FILE *instr, FILE *outstr, const struct stat *st, int isdata)
  /* XXXLUKEM: rate limit ascii send (get) */
 		(void) alarm(curclass.timeout);
 		while ((c = getc(instr)) != EOF) {
+			if (urgflag && handleoobcmd())
+				goto cleanup_send_data;
 			byte_count++;
 			if (c == '\n') {
 				if (ferror(outstr))
@@ -1894,6 +1988,7 @@ send_data(FILE *instr, FILE *outstr, const struct stat *st, int isdata)
 		case SS_SUCCESS:
 			break;
 
+		case SS_ABORTED:
 		case SS_NO_TRANSFER:
 			goto cleanup_send_data;
 
@@ -1919,11 +2014,12 @@ send_data(FILE *instr, FILE *outstr, const struct stat *st, int isdata)
  file_err:
 	(void) alarm(0);
 	perror_reply(551, "Error on input file");
-		/* FALLTHROUGH */
+	goto cleanup_send_data;
 
  cleanup_send_data:
 	(void) alarm(0);
 	transflag = 0;
+	urgflag = 0;
 	if (isdata) {
 		total_files_out++;
 		total_files++;
@@ -1945,16 +2041,22 @@ receive_data(FILE *instr, FILE *outstr)
 	int	c, bare_lfs, netfd, filefd, rval;
 	off_t	byteswritten;
 	char	buf[BUFSIZ];
+	struct sigaction sa, sa_saved;
 #ifdef __GNUC__
 	(void) &bare_lfs;
 #endif
 
+	memset(&sa, 0, sizeof(sa));
+	sigfillset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sa.sa_handler = lostconn;
+	(void) sigaction(SIGALRM, &sa, &sa_saved);
+
 	bare_lfs = 0;
+	urgflag = 0;
 	transflag = 1;
 	rval = -1;
 	byteswritten = 0;
-	if (setjmp(urgcatch))
-		goto cleanup_recv_data;
 
 #define FILESIZECHECK(x) \
 			do { \
@@ -1984,6 +2086,8 @@ receive_data(FILE *instr, FILE *outstr)
 					if ((c = read(netfd, buf,
 					    MIN(sizeof(buf), bufrem))) <= 0)
 						goto recvdone;
+					if (urgflag && handleoobcmd())
+						goto cleanup_recv_data;
 					FILESIZECHECK(byte_count + c);
 					if ((d = write(filefd, buf, c)) != c)
 						goto file_err;
@@ -2002,6 +2106,8 @@ receive_data(FILE *instr, FILE *outstr)
 			}
 		} else {
 			while ((c = read(netfd, buf, sizeof(buf))) > 0) {
+				if (urgflag && handleoobcmd())
+					goto cleanup_recv_data;
 				FILESIZECHECK(byte_count + c);
 				if (write(filefd, buf, c) != c)
 					goto file_err;
@@ -2027,6 +2133,8 @@ receive_data(FILE *instr, FILE *outstr)
 		(void) alarm(curclass.timeout);
  /* XXXLUKEM: rate limit ascii receive (put) */
 		while ((c = getc(instr)) != EOF) {
+			if (urgflag && handleoobcmd())
+				goto cleanup_recv_data;
 			byte_count++;
 			total_data_in++;
 			total_data++;
@@ -2092,7 +2200,9 @@ receive_data(FILE *instr, FILE *outstr)
 
  cleanup_recv_data:
 	(void) alarm(0);
+	(void) sigaction(SIGALRM, &sa_saved, NULL);
 	transflag = 0;
+	urgflag = 0;
 	total_files_in++;
 	total_files++;
 	total_xfers_in++;
@@ -2382,29 +2492,24 @@ fatal(const char *s)
 void
 reply(int n, const char *fmt, ...)
 {
-	off_t b;
-	va_list ap;
+	char	msg[MAXPATHLEN * 2 + 100];
+	size_t	b;
+	va_list	ap;
 
-	va_start(ap, fmt);
 	b = 0;
 	if (n == 0)
-		cprintf(stdout, "    ");
+		b = snprintf(msg, sizeof(msg), "    ");
 	else if (n < 0)
-		cprintf(stdout, "%d-", -n);
+		b = snprintf(msg, sizeof(msg), "%d-", -n);
 	else
-		cprintf(stdout, "%d ", n);
-	b = vprintf(fmt, ap);
+		b = snprintf(msg, sizeof(msg), "%d ", n);
+	va_start(ap, fmt);
+	vsnprintf(msg + b, sizeof(msg) - b, fmt, ap);
 	va_end(ap);
-	total_bytes += b;
-	total_bytes_out += b;
-	cprintf(stdout, "\r\n");
+	cprintf(stdout, "%s\r\n", msg);
 	(void)fflush(stdout);
-	if (debug) {
-		syslog(LOG_DEBUG, "<--- %d%c", abs(n), (n < 0) ? '-' : ' ');
-		va_start(ap, fmt);
-		vsyslog(LOG_DEBUG, fmt, ap);
-		va_end(ap);
-	}
+	if (debug)
+		syslog(LOG_DEBUG, "<--- %s", msg);
 }
 
 static void
@@ -2426,6 +2531,8 @@ logremotehost(struct sockinet *who)
 
 /*
  * Record logout in wtmp file and exit with supplied status.
+ * NOTE: because this is called from signal handlers it cannot
+ *       use stdio (or call other functions that use stdio).
  */
 void
 dologout(int status)
@@ -2443,6 +2550,8 @@ dologout(int status)
 #endif
 	}
 	/* beware of flushing buffers after a SIGPIPE */
+	if (xferlogfd != -1)
+		close(xferlogfd);
 	_exit(status);
 }
 
@@ -2450,17 +2559,21 @@ void
 abor(void)
 {
 
+	if (!transflag)
+		return;
 	tmpline[0] = '\0';
 	is_oob = 0;
 	reply(426, "Transfer aborted. Data connection closed.");
 	reply(226, "Abort successful");
-	longjmp(urgcatch, 1);
+	transflag = 0;		/* flag that the transfer has aborted */
 }
 
 void
 statxfer(void)
 {
 
+	if (!transflag)
+		return;
 	tmpline[0] = '\0';
 	is_oob = 0;
 	if (file_size != (off_t) -1)
@@ -2473,22 +2586,39 @@ statxfer(void)
 		    (LLT)byte_count, PLURAL(byte_count));
 }
 
-static void
-myoob(int signo)
+/*
+ * Call when urgflag != 0 to handle Out Of Band commands.
+ * Returns non zero if the OOB command aborted the transfer
+ * by setting transflag to 0. (c.f., "ABOR").
+ */
+static int
+handleoobcmd()
 {
 	char *cp;
 
+	if (!urgflag)
+		return (0);
+	urgflag = 0;
 	/* only process if transfer occurring */
 	if (!transflag)
-		return;
+		return (0);
 	cp = tmpline;
 	if (getline(cp, sizeof(tmpline), stdin) == NULL) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
 	}
-	is_oob = 1;
-	ftp_handle_line(cp);
-	is_oob = 0;
+		/*
+		 * Manually parse OOB commands, because we can't
+		 * recursively call the yacc parser...
+		 */
+	if (strcasecmp(cp, "ABOR\r\n") == 0) {
+		abor();
+	} else if (strcasecmp(cp, "STAT\r\n") == 0) {
+		statxfer();
+	} else {
+		/* XXX: error with "500 unknown command" ? */
+	}
+	return (transflag == 0);
 }
 
 static int
@@ -2904,7 +3034,8 @@ send_file_list(const char *whichf)
 	DIR *dirp = NULL;
 	struct dirent *dir;
 	FILE *dout = NULL;
-	char **dirlist, *dirname, *notglob, *p;
+	char **dirlist, *dirname, *p;
+	char *notglob = NULL;
 	int simple = 0;
 	int freeglob = 0;
 	glob_t gl;
@@ -2915,6 +3046,7 @@ send_file_list(const char *whichf)
 	(void) &simple;
 	(void) &freeglob;
 #endif
+	urgflag = 0;
 
 	p = NULL;
 	if (strpbrk(whichf, "~{[*?") != NULL) {
@@ -2924,11 +3056,11 @@ send_file_list(const char *whichf)
 		freeglob = 1;
 		if (glob(whichf, flags, 0, &gl)) {
 			reply(550, "not found");
-			goto out;
+			goto cleanup_send_file_list;
 		} else if (gl.gl_pathc == 0) {
 			errno = ENOENT;
 			perror_reply(550, whichf);
-			goto out;
+			goto cleanup_send_file_list;
 		}
 		dirlist = gl.gl_pathv;
 	} else {
@@ -2939,10 +3071,6 @@ send_file_list(const char *whichf)
 	}
 					/* XXX: } for vi sm */
 
-	if (setjmp(urgcatch)) {
-		transflag = 0;
-		goto out;
-	}
 	while ((dirname = *dirlist++) != NULL) {
 		int trailingslash = 0;
 
@@ -2958,7 +3086,7 @@ send_file_list(const char *whichf)
 
 				argv[1] = dirname;
 				retrieve(argv, dirname);
-				goto out;
+				goto cleanup_send_file_list;
 			}
 			perror_reply(550, whichf);
 			goto cleanup_send_file_list;
@@ -2973,8 +3101,8 @@ send_file_list(const char *whichf)
 			if (dout == NULL) {
 				dout = dataconn("file list", (off_t)-1, "w");
 				if (dout == NULL)
-					goto out;
-				transflag++;
+					goto cleanup_send_file_list;
+				transflag = 1;
 			}
 			cprintf(dout, "%s%s\n", dirname,
 			    type == TYPE_A ? "\r" : "");
@@ -2990,6 +3118,9 @@ send_file_list(const char *whichf)
 
 		while ((dir = readdir(dirp)) != NULL) {
 			char nbuf[MAXPATHLEN];
+
+			if (urgflag && handleoobcmd())
+				goto cleanup_send_file_list;
 
 			if (ISDOTDIR(dir->d_name) || ISDOTDOTDIR(dir->d_name))
 				continue;
@@ -3013,8 +3144,8 @@ send_file_list(const char *whichf)
 					dout = dataconn("file list", (off_t)-1,
 						"w");
 					if (dout == NULL)
-						goto out;
-					transflag++;
+						goto cleanup_send_file_list;
+					transflag = 1;
 				}
 				p = nbuf;
 				if (nbuf[0] == '.' && nbuf[1] == '/')
@@ -3034,9 +3165,9 @@ send_file_list(const char *whichf)
 		reply(226, "Transfer complete.");
 
  cleanup_send_file_list:
-	transflag = 0;
 	closedataconn(dout);
- out:
+	transflag = 0;
+	urgflag = 0;
 	total_xfers++;
 	total_xfers_out++;
 	if (notglob)
@@ -3067,7 +3198,7 @@ conffilename(const char *s)
  *	if error != NULL, append ": " + error
  *
  *	if doxferlog != 0, bytes != -1, and command is "get", "put",
- *	or "append", syslog a wu-ftpd style xferlog entry
+ *	or "append", syslog and/or write a wu-ftpd style xferlog entry
  */
 void
 logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
@@ -3110,7 +3241,6 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 		syslog(LOG_INFO, "%s", buf);
 	}
 
-
 		/*
 		 * syslog wu-ftpd style log entry, prefixed with "xferlog: "
 		 */
@@ -3125,21 +3255,15 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 		return;
 
 	time(&now);
-	syslog(LOG_INFO,
-	    "xferlog%s: %.24s %ld %s " LLF " %s %c %s %c %c %s FTP 0 * %c",
+	len = snprintf(buf, sizeof(buf),
+	    "%.24s %ld %s " LLF " %s %c %s %c %c %s FTP 0 * %c\n",
 
 /*
- * XXX: wu-ftpd puts (send) or (recv) in the syslog message, and removes
+ * XXX: wu-ftpd puts ' (send)' or ' (recv)' in the syslog message, and removes
  *	the full date.  This may be problematic for accurate log parsing,
  *	given that syslog messages don't contain the full date.
  */
-#if 1		/* lukem's method; easier to convert to actual xferlog file */
-	    "",
 	    ctime(&now),
-#else		/* wu-ftpd's syslog method, with an extra unneeded space */
-	    (direction == 'i') ? " (recv)" : " (send)",
-	    "",
-#endif
 	    elapsed == NULL ? 0 : elapsed->tv_sec + (elapsed->tv_usec > 0),
 	    remotehost,
 	    (LLT) bytes,
@@ -3155,6 +3279,13 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 	    curclass.type == CLASS_GUEST ? pw->pw_passwd : pw->pw_name,
 	    error != NULL ? 'i' : 'c'
 	    );
+
+	if ((doxferlog & 2) && xferlogfd != -1)
+		write(xferlogfd, buf, len);
+	if ((doxferlog & 1)) {
+		buf[len-1] = '\n';	/* strip \n from syslog message */
+		syslog(LOG_INFO, "xferlog: %s", buf);
+	}
 }
 
 /*
