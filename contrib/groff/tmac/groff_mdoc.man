@@ -1699,6 +1699,8 @@ and their results are:
 .Lb libmenu
 .It Li libossaudio
 .Lb libossaudio
+.It Li libpam
+.Lb libpam
 .It Li libpcap
 .Lb libpcap
 .It Li libpci
