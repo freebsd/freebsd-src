@@ -108,7 +108,7 @@ afdattach(struct atapi_softc *atp)
     }
 
     if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
-		 "IOMEGA ZIP", 11))
+		 "IOMEGA ZIP", 10))
 	fdp->transfersize = 64;
 
     devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
@@ -195,10 +195,11 @@ afd_describe(struct afd_softc *fdp)
 	    printf("\n");
     }
     else {
-	printf("afd%d: %luMB floppy <%.40s> at ata%d-%s using %s\n",
+	printf("afd%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s using %s\n",
 	       fdp->lun, (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
 			 ((1024L * 1024L) / fdp->cap.sector_size),	
 	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
+	       fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 	       fdp->atp->controller->lun,
 	       (fdp->atp->unit == ATA_MASTER) ? "master" : "slave",
 	       ata_mode2str(fdp->atp->controller->mode[ATA_DEV(fdp->atp->unit)])
@@ -298,7 +299,7 @@ afd_start(struct afd_softc *fdp)
 	return;
     }
 
-    lba = bp->b_blkno / (fdp->cap.sector_size / DEV_BSIZE);
+    lba = bp->b_pblkno / (fdp->cap.sector_size / DEV_BSIZE);
     count = (bp->b_bcount + (fdp->cap.sector_size - 1)) / fdp->cap.sector_size;
     data_ptr = bp->b_data;
     bp->b_resid = 0; 
