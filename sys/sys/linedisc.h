@@ -151,9 +151,6 @@ typedef void devfs_remove_t __P((dev_t dev));
 /*
  * Flags for d_flags.
  */
-#define	D_NOCLUSTERR	0x10000		/* disables cluter read */
-#define	D_NOCLUSTERW	0x20000		/* disables cluster write */
-#define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
 #define	D_CANFREE	0x40000		/* can free blocks */
 #define	D_TRACKCLOSE	0x80000		/* track all closes */
 
