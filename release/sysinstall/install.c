@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.11 1995/06/02 00:03:35 jkh Exp $
+ * $Id: install.c,v 1.70.2.12 1995/06/02 00:05:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -407,6 +407,8 @@ root_extract(void)
 	    OnCDROM = FALSE;
     }
     if (mediaDevice) {
+	if (isDebug())
+	    msgDebug("Attempting to extract root image from %s device\n", mediaDevice->description);
 	switch(mediaDevice->type) {
 
 	case DEVICE_TYPE_TAPE:
