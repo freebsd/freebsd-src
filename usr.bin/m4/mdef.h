@@ -1,3 +1,6 @@
+/*	$OpenBSD: mdef.h,v 1.21 2001/09/27 11:40:33 espie Exp $	*/
+/*	$NetBSD: mdef.h,v 1.7 1996/01/13 23:25:27 pk Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -69,8 +72,22 @@
 #define SYSVTYPE        31
 #define EXITTYPE        32
 #define DEFNTYPE        33
+#define SELFTYPE	34
+#define INDIRTYPE	35
+#define BUILTINTYPE	36
+#define PATSTYPE	37
+#define FILENAMETYPE	38
+#define LINETYPE	39
+#define REGEXPTYPE	40
+#define ESYSCMDTYPE	41
+#define TRACEONTYPE	42
+#define TRACEOFFTYPE	43
+
  
-#define STATIC          128
+#define TYPEMASK	63	/* Keep bits really corresponding to a type. */
+#define RECDEF		256	/* Pure recursive def, don't expand it */
+#define NOARGS		512	/* builtin needs no args */
+#define NEEDARGS	1024	/* mark builtin that need args with this */
 
 /*
  * m4 special characters
@@ -93,15 +110,15 @@
  * other important constants
  */
 
-#define EOS             (char) 0
-#define MAXINP          10              /* maximum include files   */
-#define MAXOUT          10              /* maximum # of diversions */
-#define MAXSTR          512             /* maximum size of string  */
-#define BUFSIZE         4096            /* size of pushback buffer */
-#define STACKMAX        1024            /* size of call stack      */
-#define STRSPMAX        4096            /* size of string space    */
-#define MAXTOK          MAXSTR          /* maximum chars in a tokn */
-#define HASHSIZE        199             /* maximum size of hashtab */
+#define EOS             '\0'
+#define MAXINP          10              /* maximum include files   	    */
+#define MAXOUT          10              /* maximum # of diversions 	    */
+#define BUFSIZE         4096            /* starting size of pushback buffer */
+#define INITSTACKMAX    4096           	/* starting size of call stack      */
+#define STRSPMAX        4096            /* starting size of string space    */
+#define MAXTOK          512          	/* maximum chars in a tokn 	    */
+#define HASHSIZE        199             /* maximum size of hashtab 	    */
+#define MAXCCHARS	5		/* max size of comment/quote delim  */
  
 #define ALL             1
 #define TOP             0
@@ -116,11 +133,12 @@
  
 typedef struct ndblock *ndptr;
  
-struct ndblock {                /* hastable structure         */
-        char    *name;          /* entry name..               */
-        char    *defn;          /* definition..               */
-        int     type;           /* type of the entry..        */
-        ndptr   nxtptr;         /* link to next entry..       */
+struct ndblock {		/* hastable structure         */
+	char		*name;	/* entry name..               */
+	char		*defn;	/* definition..               */
+	unsigned int	type;	/* type of the entry..        */
+	unsigned int 	hv;	/* hash function value..      */
+	ndptr		nxtptr;	/* link to next entry..       */
 };
  
 #define nil     ((ndptr) 0)
@@ -135,6 +153,15 @@ typedef union {			/* stack structure */
 	char 	*sstr;		/* string entry */
 } stae;
 
+struct input_file {
+	FILE 		*file;
+	char 		*name;
+	unsigned long 	lineno;
+	int 		c;
+};
+
+#define CURRENT_NAME	(infile[ilevel].name)
+#define CURRENT_LINE	(infile[ilevel].lineno)
 /*
  * macros for readibility and/or speed
  *
@@ -142,9 +169,30 @@ typedef union {			/* stack structure */
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define gpbc() 	 (bp > bufbase) ? *--bp : getc(infile[ilevel])
-#define pushf(x) if (sp < STACKMAX) mstack[++sp].sfra = (x)
-#define pushs(x) if (sp < STACKMAX) mstack[++sp].sstr = (x)
+#define gpbc() 	 (bp > bufbase) ? *--bp : obtain_char(infile+ilevel)
+#define pushf(x) 			\
+	do {				\
+		if (++sp == STACKMAX) 	\
+			enlarge_stack();\
+		mstack[sp].sfra = (x);	\
+		sstack[sp] = 0; \
+	} while (0)
+
+#define pushs(x) 			\
+	do {				\
+		if (++sp == STACKMAX) 	\
+			enlarge_stack();\
+		mstack[sp].sstr = (x);	\
+		sstack[sp] = 1; \
+	} while (0)
+
+#define pushs1(x) 			\
+	do {				\
+		if (++sp == STACKMAX) 	\
+			enlarge_stack();\
+		mstack[sp].sstr = (x);	\
+		sstack[sp] = 0; \
+	} while (0)
 
 /*
  *	    .				   .
