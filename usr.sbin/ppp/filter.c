@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.33 1999/07/28 03:01:51 brian Exp $
+ * $Id: filter.c,v 1.34 1999/08/02 11:53:16 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -277,6 +277,7 @@ ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
   return 1;
 }
 
+#ifdef P_OSPF
 static int
 ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
 {
@@ -292,6 +293,7 @@ ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
 
   return 1;
 }
+#endif
 
 static unsigned
 addrtype(const char *addr)
@@ -451,9 +453,11 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   case P_IGMP:
     val = ParseIgmp(argc, argv, &filterdata);
     break;
+#ifdef P_OSPF
   case P_OSPF:
     val = ParseOspf(argc, argv, &filterdata);
     break;
+#endif
   }
 
   log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
