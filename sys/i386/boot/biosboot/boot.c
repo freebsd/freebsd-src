@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.52 1996/07/09 02:28:20 julian Exp $
+ *	$Id: boot.c,v 1.53 1996/07/12 05:25:45 bde Exp $
  */
 
 
@@ -332,6 +332,8 @@ nextarg:
 					if (*howto & RB_SERIAL)
 						init_serial();
 				}
+				if (c == 'g')
+					*howto |= RB_GDB;
 				if (c == 'r')
 					*howto |= RB_DFLTROOT;
 				if (c == 's')
