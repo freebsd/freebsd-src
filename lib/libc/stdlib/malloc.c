@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.9 1996/01/05 23:30:41 phk Exp $
+ * $Id: malloc.c,v 1.10 1996/01/22 00:01:44 julian Exp $
  *
  */
 
@@ -806,13 +806,10 @@ malloc_bytes(size_t size)
 /*
  * Allocate a piece of memory
  */
-void *
-malloc(size_t size)
+static __inline void *
+imalloc(size_t size)
 {
     void *result;
-#ifdef  _THREAD_SAFE
-    int     status;
-#endif
 
     if (!initialized)
 	malloc_init();
@@ -820,9 +817,6 @@ malloc(size_t size)
     if (suicide)
 	abort();
 
-#ifdef  _THREAD_SAFE
-    _thread_kern_sig_block(&status);
-#endif
     if (size <= malloc_maxsize)
 	result =  malloc_bytes(size);
     else
@@ -834,25 +828,19 @@ malloc(size_t size)
     if (malloc_zero)
 	memset(result,0,size);
 
-#ifdef  _THREAD_SAFE
-    _thread_kern_sig_unblock(status);
-#endif
     return result;
 }
 
 /*
  * Change the size of an allocation.
  */
-void *
-realloc(void *ptr, size_t size)
+static __inline void *
+irealloc(void *ptr, size_t size)
 {
     void *p;
     u_long osize,index;
     struct pginfo **mp;
     int i;
-#ifdef  _THREAD_SAFE
-    int     status;
-#endif
 
     if (suicide)
 	return 0;
@@ -870,24 +858,15 @@ realloc(void *ptr, size_t size)
 	return 0;
     }
 
-#ifdef  _THREAD_SAFE
-    _thread_kern_sig_block(&status);
-#endif
     index = ptr2index(ptr);
 
     if (index < malloc_pageshift) {
 	wrtwarning("realloc(): junk pointer (too low)\n");
-#ifdef  _THREAD_SAFE
-	_thread_kern_sig_unblock(status);
-#endif
 	return 0;
     }
 
     if (index > last_index) {
 	wrtwarning("realloc(): junk pointer (too high)\n");
-#ifdef  _THREAD_SAFE
-	_thread_kern_sig_unblock(status);
-#endif
 	return 0;
     }
 
@@ -898,9 +877,6 @@ realloc(void *ptr, size_t size)
 	/* Check the pointer */
 	if ((u_long)ptr & malloc_pagemask) {
 	    wrtwarning("realloc(): modified page pointer.\n");
-#ifdef  _THREAD_SAFE
-	    _thread_kern_sig_unblock(status);
-#endif
 	    return 0;
 	}
 
@@ -911,9 +887,6 @@ realloc(void *ptr, size_t size)
         if (!malloc_realloc && 			/* unless we have to, */
 	  size <= osize && 			/* .. or are too small, */
 	  size > (osize - malloc_pagesize)) {	/* .. or can free a page, */
-#ifdef  _THREAD_SAFE
-	    _thread_kern_sig_unblock(status);
-#endif
 	    return ptr;				/* don't do anything. */
 	}
 
@@ -922,9 +895,6 @@ realloc(void *ptr, size_t size)
 	/* Check the pointer for sane values */
 	if (((u_long)ptr & ((*mp)->size-1))) {
 	    wrtwarning("realloc(): modified chunk pointer.\n");
-#ifdef  _THREAD_SAFE
-	    _thread_kern_sig_unblock(status);
-#endif
 	    return 0;
 	}
 
@@ -934,9 +904,6 @@ realloc(void *ptr, size_t size)
 	/* Verify that it isn't a free chunk already */
 	if (tst_bit(*mp,i)) {
 	    wrtwarning("realloc(): already free chunk.\n");
-#ifdef  _THREAD_SAFE
-	    _thread_kern_sig_unblock(status);
-#endif
 	    return 0;
 	}
 
@@ -946,17 +913,11 @@ realloc(void *ptr, size_t size)
 	  size < osize && 		/* ..or are too small, */
 	  (size > osize/2 ||	 	/* ..or could use a smaller size, */
 	  osize == malloc_minsize)) {	/* ..(if there is one) */
-#ifdef  _THREAD_SAFE
-	    _thread_kern_sig_unblock(status);
-#endif
 	    return ptr;			/* ..Don't do anything */
 	}
 
     } else {
 	wrtwarning("realloc(): wrong page pointer.\n");
-#ifdef  _THREAD_SAFE
-	_thread_kern_sig_unblock(status);
-#endif
 	return 0;
     }
 
@@ -970,9 +931,6 @@ realloc(void *ptr, size_t size)
 	    memcpy(p,ptr,size);
 	free(ptr);
     } 
-#ifdef  _THREAD_SAFE
-    _thread_kern_sig_unblock(status);
-#endif
     return p;
 }
 
@@ -1162,14 +1120,11 @@ free_bytes(void *ptr, int index, struct pginfo *info)
     free(vp);
 }
 
-void
-free(void *ptr)
+static __inline void
+ifree(void *ptr)
 {
     struct pginfo *info;
     int index;
-#ifdef  _THREAD_SAFE
-    int     status;
-#endif
 
     /* This is legal */
     if (!ptr)
@@ -1184,24 +1139,15 @@ free(void *ptr)
     if (suicide)
 	return;
 
-#ifdef  _THREAD_SAFE
-    _thread_kern_sig_block(&status);
-#endif
     index = ptr2index(ptr);
 
     if (index < malloc_pageshift) {
 	wrtwarning("free(): junk pointer (too low)\n");
-#ifdef  _THREAD_SAFE
-	_thread_kern_sig_unblock(status);
-#endif
 	return;
     }
 
     if (index > last_index) {
 	wrtwarning("free(): junk pointer (too high)\n");
-#ifdef  _THREAD_SAFE
-	_thread_kern_sig_unblock(status);
-#endif
 	return;
     }
 
@@ -1211,8 +1157,49 @@ free(void *ptr)
         free_pages(ptr,index,info);
     else
 	free_bytes(ptr,index,info);
+    return;
+}
+
+void *
+malloc(size_t size)
+{
 #ifdef  _THREAD_SAFE
+    int     status;
+    register void *r;
+    _thread_kern_sig_block(&status);
+    r = imalloc(size);
     _thread_kern_sig_unblock(status);
+    return r;
+#else 
+    return imalloc(size);
+#endif
+}
+
+void
+free(void *ptr)
+{
+#ifdef  _THREAD_SAFE
+    int     status;
+    _thread_kern_sig_block(&status);
+    ifree(ptr);
+    _thread_kern_sig_unblock(status);
+#else
+    ifree(ptr);
 #endif
     return;
+}
+
+void *
+realloc(void *ptr, size_t size)
+{
+#ifdef  _THREAD_SAFE
+    int     status;
+    register void *r;
+    _thread_kern_sig_block(&status);
+    r = irealloc(ptr, size);
+    _thread_kern_sig_unblock(status);
+    return r;
+#else
+    return irealloc(ptr, size);
+#endif
 }
