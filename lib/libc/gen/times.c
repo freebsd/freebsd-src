@@ -53,7 +53,8 @@ times(tp)
 	struct tms *tp;
 {
 	struct rusage ru;
-	struct timeval t;
+	struct timespec t;
+	clock_t c;
 
 	if (getrusage(RUSAGE_SELF, &ru) < 0)
 		return ((clock_t)-1);
@@ -63,7 +64,8 @@ times(tp)
 		return ((clock_t)-1);
 	tp->tms_cutime = CONVTCK(ru.ru_utime);
 	tp->tms_cstime = CONVTCK(ru.ru_stime);
-	if (gettimeofday(&t, (struct timezone *)0))
+	if (clock_gettime(CLOCK_MONOTONIC, &t))
 		return ((clock_t)-1);
-	return ((clock_t)(CONVTCK(t)));
+	c = t.tv_sec * CLK_TCK + t.tv_nsec / (1000000000 / CLK_TCK);
+	return (c);
 }
