@@ -317,7 +317,7 @@ chn_wrintr(pcm_channel *c)
 		 */
 		if (chn_wrfeed(c) > 0) {
 			chn_dmawakeup(c);
-			while(chn_wrfeed(c) > 0);
+			while (chn_wrfeed(c) > 0);
 		}
 		start = (b->rl >= DMA_ALIGN_THRESHOLD && !(c->flags & CHN_F_ABORTING));
 	}
@@ -327,13 +327,12 @@ chn_wrintr(pcm_channel *c)
 		if (c->flags & CHN_F_MAPPED) l = c->blocksize;
 		else l = min(b->rl, c->blocksize) & DMA_ALIGN_MASK;
 		/*
-	 	* check if we need to reprogram the DMA on the sound card.
-	 	* This happens if the size has changed from zero
-	 	*
-	 	*/
+	 	 * check if we need to reprogram the DMA on the sound card.
+	 	 * This happens if the size has changed from zero
+	 	 */
 		if (b->dl == 0) {
 			/* Start DMA operation */
-	    		b->dl = c->blocksize ; /* record new transfer size */
+	    		b->dl = c->blocksize; /* record new transfer size */
 	    		chn_trigger(c, PCMTRIG_START);
 		}
 		if (b->dl != l)
