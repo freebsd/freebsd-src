@@ -38,6 +38,8 @@
 typedef int faultbuf[23];
 
 struct pcb {
+	u_int32_t pcb_context[18];	/* non-volatile r14-r31 */
+	u_int32_t pcb_cr;		/* Condition register */
 	struct pmap *pcb_pm;	/* pmap of our vmspace */
 	struct pmap *pcb_pmreal; /* real address of above */
 	register_t pcb_sp;	/* saved SP */
