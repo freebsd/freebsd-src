@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.10 1997/02/22 17:59:40 hanai Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.11 1997/02/25 07:02:40 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.50 -->
+<!-- Original revision: 1.52 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -34,10 +34,12 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 	入手できます. もし FreeBSD を anonymous FTP によって手にいれる場合は,
 	近くのサイトを利用するようにしてください. 
 
+<ref id="mirrors-ar" name="Argentina">,
 <ref id="mirrors-au" name="Australia">, 
 <ref id="mirrors-br" name="Brazil">, 
 <ref id="mirrors-ca" name="Canada">,
 <ref id="mirrors-cz" name="Czech Republic">,
+<ref id="mirrors-dk" name="Denmark">,
 <ref id="mirrors-ee" name="Estonia">,
 <ref id="mirrors-fi" name="Finland">,
 <ref id="mirrors-fr" name="France">,
@@ -58,8 +60,21 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 <ref id="mirrors-us" name="USA">,
 <ref id="mirrors-uk" name="UK">.
 
-
 <descrip>
+<tag><label id="mirrors-ar">アルゼンチン</tag>
+
+何か問題がある場合は，このドメインの
+<url url="mailto:hostmaster@ar.FreeBSD.ORG" name="hostmaster">
+に連絡してください．
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ar.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp.ar.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
 <tag><label id="mirrors-au">オーストラリア</tag>
 
 何か問題がある場合は, このドメインの
@@ -136,6 +151,20 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
 	連絡先: <url url="jj@sunsite.mff.cuni.cz"
 	name="jj@sunsite.mff.cuni.cz">.
+
+</itemize>
+
+<tag><label id="mirrors-dk">デンマーク</tag>
+
+何か問題がある場合は，このドメインの
+<url url="mailto:hostmaster@dk.FreeBSD.ORG" name="hostmaster">
+に連絡してください．
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.dk.freeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -316,13 +345,15 @@ name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
 
 <tag><label id="mirrors-pl">ポーランド</tag>
 
+何か問題がある場合は，このドメインの
+<url url="mailto:hostmaster@pl.FreeBSD.ORG" name="hostmaster">
+に連絡してください．
+
 <itemize>
  
 <item>
-<url url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
-	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
-	連絡先: <url url="mailto:ftp@SunSITE.icm.edu.pl"
-	name="ftp@SunSITE.icm.edu.pl">.
+<url url="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.pl.freebsd.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
