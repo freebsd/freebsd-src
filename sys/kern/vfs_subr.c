@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.199 1999/05/24 00:34:10 jb Exp $
+ * $Id: vfs_subr.c,v 1.200 1999/05/31 11:27:44 phk Exp $
  */
 
 /*
@@ -125,8 +125,16 @@ static vm_zone_t vnode_zone;
  */
 #define SYNCER_MAXDELAY		32
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
-time_t syncdelay =		30;
-int rushjob;				/* number of slots to run ASAP */
+time_t syncdelay = 30;		/* max time to delay syncing data */
+time_t filedelay = 30;		/* time to delay syncing files */
+SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0, "");
+time_t dirdelay = 15;		/* time to delay syncing directories */
+SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0, "");
+time_t metadelay = 10;		/* time to delay syncing metadata */
+SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0, "");
+static int rushjob;			/* number of slots to run ASAP */
+static int stat_rush_requests;	/* number of times I/O speeded up */
+SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
 
 static int syncer_delayno = 0;
 static long syncer_mask; 
@@ -999,6 +1007,28 @@ sched_sync(void)
 }
 
 /*
+ * Request the syncer daemon to speed up its work.
+ * We never push it to speed up more than half of its
+ * normal turn time, otherwise it could take over the cpu.
+ */
+int
+speedup_syncer()
+{
+	int s;
+
+	s = splhigh();
+	if (updateproc->p_wchan == &lbolt)
+		setrunnable(updateproc);
+	splx(s);
+	if (rushjob < syncdelay / 2) {
+		rushjob += 1;
+		stat_rush_requests += 1;
+		return (1);
+	}
+	return(0);
+}
+
+/*
  * Associate a p-buffer with a vnode.
  *
  * Also sets B_PAGING flag to indicate that vnode is not fully associated
@@ -1116,16 +1146,16 @@ reassignbuf(bp, newvp)
 		if ((newvp->v_flag & VONWORKLST) == 0) {
 			switch (newvp->v_type) {
 			case VDIR:
-				delay = syncdelay / 2;
+				delay = dirdelay;
 				break;
 			case VBLK:
 				if (newvp->v_specmountpoint != NULL) {
-					delay = syncdelay / 3;
+					delay = metadelay;
 					break;
 				}
 				/* fall through */
 			default:
-				delay = syncdelay;
+				delay = filedelay;
 			}
 			vn_syncer_add_to_worklist(newvp, delay);
 		}
