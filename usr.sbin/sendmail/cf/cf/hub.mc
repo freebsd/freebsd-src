@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.2.4 1998/01/15 17:35:59 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.9 1998/03/23 20:52:57 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -77,8 +77,8 @@ define(`confTO_DATAFINAL', `10m')dnl
 define(`confTO_RSET', `1m')dnl
 define(`confTO_COMMAND', `5m')dnl
 define(`confTO_HOSTSTATUS', `30m')dnl
-define(`confMIN_QUEUE_AGE', `30m')dnl
-define(`confMAX_QUEUE_RUN_SIZE', `500')dnl
+define(`confMIN_QUEUE_AGE', `10m')dnl
+define(`confMAX_QUEUE_RUN_SIZE', `10000')dnl
 define(`confQUEUE_SORT_ORDER', `host')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confTRUSTED_USERS', `majordom')dnl
@@ -88,7 +88,7 @@ define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
           $.$b$?g
           (envelope-from $g)$.')dnl
 define(`confHOST_STATUS_DIRECTORY', `/var/spool/.hoststat')dnl
-define(`confMAX_DAEMON_CHILDREN', `8')dnl
+define(`confMAX_DAEMON_CHILDREN', `40')dnl
 define(`confCONNECTION_THROTTLE_RATE', `1')dnl
 define(`confFORWARD_PATH', `/var/forward/$u')dnl
 
