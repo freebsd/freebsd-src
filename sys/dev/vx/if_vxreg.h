@@ -49,8 +49,8 @@
  * Ethernet software status per interface.
  */
 struct vx_softc {
-    int unit;			/* unit number */
     struct arpcom arpcom;	/* Ethernet common part		*/
+    int unit;			/* unit number */
     u_int vx_io_addr;		/* i/o bus address		*/
 #define MAX_MBS  8		/* # of mbufs we keep around	*/
     struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
