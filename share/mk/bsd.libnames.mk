@@ -10,6 +10,7 @@ LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a	# XXX in secure dist, not base
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
+LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBC_R?=	${DESTDIR}${LIBDIR}/libc_r.a
