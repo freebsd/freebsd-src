@@ -32,7 +32,7 @@
 .\"     @(#)acct.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd April 17, 2004
 .Dt ACCT 2
 .Os
 .Sh NAME
@@ -78,6 +78,20 @@ This call is permitted only to the super-user.
 Accounting is automatically disabled when the file system the
 accounting file resides on runs out of space; it is enabled when
 space once again becomes available.
+The values controlling this behaviour can be modified using the following
+.Xr sysctl 8
+variables:
+.Bl -tag -width ".Va kern.acct_chkfreq"
+.It Va kern.acct_chkfreq
+Specifies the frequency (in seconds) with which free disk
+space should be checked.
+.It Va kern.acct_resume
+The percentage of free disk space above which process
+accounting will resume.
+.It Va kern.acct_suspend
+The percentage of free disk space below which process
+accounting will suspend.
+.El
 .Sh RETURN VALUES
 On error -1 is returned.
 The file must exist and the call may be exercised only by the super-user.
@@ -109,6 +123,7 @@ An I/O error occurred while reading from or writing to the file system.
 .El
 .Sh SEE ALSO
 .Xr acct 5 ,
+.Xr accton 8 ,
 .Xr sa 8
 .Sh HISTORY
 An
