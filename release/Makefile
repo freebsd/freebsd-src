@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.491 1999/06/17 19:04:43 markm Exp $
+#	$Id: Makefile,v 1.492 1999/07/04 13:31:05 hosokawa Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -135,7 +135,12 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+# Make both PC-card boot.flp and plain boot.flp
+EXTRAS= floppies cdrom.1 ftp.1
+.else
 EXTRAS= cdrom.1 ftp.1
+.endif
 
 .if !defined(NODOC)
 DOCREL= doc.1
