@@ -54,14 +54,15 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- * $FreeBSD$
  */
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef NO_IDEA
+#include "../e_os.h"
+
+#ifdef OPENSSL_NO_IDEA
 int main(int argc, char *argv[])
 {
     printf("No IDEA support\n");
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
 	else
 		printf("ok\n");
 
-	exit(err);
+	EXIT(err);
 	return(err);
 	}
 
