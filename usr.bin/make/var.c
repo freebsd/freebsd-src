@@ -167,6 +167,7 @@ typedef struct {
 } VarREPattern;
 
 static int VarCmp(void *, void *);
+static void VarPossiblyExpand(char **, GNode *);
 static Var *VarFind(char *, GNode *, int);
 static void VarAdd(char *, char *, GNode *);
 static void VarDelete(void *);
@@ -208,6 +209,27 @@ VarCmp (v, name)
     void *     name;	/* name to look for */
 {
     return (strcmp ((char *) name, ((Var *) v)->name));
+}
+
+/*-
+ *-----------------------------------------------------------------------
+ * VarPossiblyExpand --
+ *	Expand a variable name's embedded variables in the given context.
+ *
+ * Results:
+ *	The string pointed to by `name' may change.
+ *
+ * Side Effects:
+ *	None.
+ *-----------------------------------------------------------------------
+ */
+static void
+VarPossiblyExpand(name, ctxt)
+    char		**name;
+    GNode		*ctxt;
+{
+    if (strchr(*name, '$') != NULL)
+        *name = Var_Subst(NULL, *name, ctxt, 0);
 }
 
 /*-
@@ -471,6 +493,7 @@ Var_Set (name, val, ctxt)
      * here will override anything in a lower context, so there's not much
      * point in searching them all just to save a bit of memory...
      */
+    VarPossiblyExpand(&name, ctxt);
     v = VarFind (name, ctxt, 0);
     if (v == (Var *) NULL) {
 	VarAdd (name, val, ctxt);
@@ -521,6 +544,7 @@ Var_Append (name, val, ctxt)
 {
     Var		   *v;
 
+    VarPossiblyExpand(&name, ctxt);
     v = VarFind (name, ctxt, (ctxt == VAR_GLOBAL) ? FIND_ENV : 0);
 
     if (v == (Var *) NULL) {
@@ -567,6 +591,7 @@ Var_Exists(name, ctxt)
 {
     Var	    	  *v;
 
+    VarPossiblyExpand(&name, ctxt);
     v = VarFind(name, ctxt, FIND_CMD|FIND_GLOBAL|FIND_ENV);
 
     if (v == (Var *)NULL) {
@@ -599,6 +624,7 @@ Var_Value (name, ctxt, frp)
 {
     Var            *v;
 
+    VarPossiblyExpand(&name, ctxt);
     v = VarFind (name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
     *frp = NULL;
     if (v != (Var *) NULL) {
