@@ -555,13 +555,7 @@ int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
 
 /* C library stuff */
-void	endvfsent(void);
 int	getvfsbyname(const char *, struct xvfsconf *);
-struct	ovfsconf *getvfsbytype(int);
-struct	ovfsconf *getvfsent(void);
-void	setvfsent(int);
-int	vfsisloadable(const char *);
-int	vfsload(const char *);
 __END_DECLS
 
 #endif /* _KERNEL */

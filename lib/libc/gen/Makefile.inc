@@ -15,7 +15,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getobjformat.c getosreldate.c getpagesize.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
-	getusershell.c getvfsbyname.c getvfsent.c glob.c \
+	getusershell.c getvfsbyname.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
@@ -48,7 +48,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
 	getmntinfo.3 getnetgrent.3 getobjformat.3 getosreldate.3 \
 	getpagesize.3 getpass.3 getpeereid.3 getprogname.3 getpwent.3 \
-	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
+	getttyent.3 getusershell.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
 	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
 	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
@@ -103,9 +103,6 @@ MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
 	getttyent.3 isdialuptty.3 getttyent.3 isnettty.3 \
 	getttyent.3 setttyent.3
 MLINKS+=getusershell.3 endusershell.3 getusershell.3 setusershell.3
-MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
-	getvfsent.3 setvfsent.3 getvfsent.3 vfsisloadable.3 \
-	getvfsent.3 vfsload.3
 MLINKS+=glob.3 globfree.3
 MLINKS+=isgreater.3 isgreaterequal.3 isgreater.3 isless.3 \
 	isgreater.3 islessequal.3 isgreater.3 islessgreater.3 \
