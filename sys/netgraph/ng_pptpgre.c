@@ -790,8 +790,8 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 		splx(s);
 		return;
 	}
-	NG_NODE_UNREF(node);
 	if (arg != a->rackTimerPtr) {	/* timer stopped race condition */
+		NG_NODE_UNREF(node);
 		splx(s);
 		return;
 	}
@@ -817,6 +817,7 @@ ng_pptpgre_recv_ack_timeout(void *arg)
 	priv->recvAck = priv->xmitSeq;		/* pretend we got the ack */
 	a->xmitWin = (a->xmitWin + 1) / 2;	/* shrink transmit window */
 	a->winAck = priv->recvAck + a->xmitWin;	/* reset win expand time */
+	NG_NODE_UNREF(node);
 	splx(s);
 }
 
