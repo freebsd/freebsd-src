@@ -109,7 +109,7 @@ agp_nvidia_match (device_t dev)
 	case NVIDIA_DEVICEID_NFORCE2:
 		return ("NVIDIA nForce2 AGP Controller");
 	}
-	return ("NVIDIA Generic AGP Controller");
+	return (NULL);
 }
 
 static int
