@@ -149,7 +149,7 @@ ibcs2_getipdomainname(td, uap)
 	int len;
 
 	/* Get the domain name */
-	snprintf(hname, sizeof(hname), "%s", getcredhostname(td->td_ucred));
+	getcredhostname(td->td_ucred, hname, sizeof(hname));
 
 	dptr = index(hname, '.');
 	if ( dptr )
