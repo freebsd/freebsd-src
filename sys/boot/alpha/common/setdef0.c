@@ -29,7 +29,6 @@
 #ifdef __ELF__
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 
 /*
  * DEFINE_SET creates the section and label for a set, and emits the
