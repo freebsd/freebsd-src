@@ -47,7 +47,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	EMU_CHANS	4
 #define	ENV_ON		DCYSUSV_CHANNELENABLE_MASK
 #define	ENV_OFF		0x00	/* XXX: should this be 1? */
-#undef EMUDEBUG
 
 struct emu_memblk {
 	SLIST_ENTRY(emu_memblk) link;
