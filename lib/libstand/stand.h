@@ -175,14 +175,42 @@ extern struct open_file files[];
 #define	F_RAW		0x0004	/* raw device open - no file system */
 #define F_NODEV		0x0008	/* network open - no device */
 
-#define isupper(c)	((c) >= 'A' && (c) <= 'Z')
-#define islower(c)	((c) >= 'a' && (c) <= 'z')
-#define isspace(c)	((c) == ' ' || ((c) >= 0x9 && (c) <= 0xd))
-#define isdigit(c)	((c) >= '0' && (c) <= '9')
-#define isxdigit(c)	(isdigit(c) || ((c) >= 'a' && (c) <= 'f') || ((c) >= 'A' && (c) <= 'F'))
 #define isascii(c)	(((c) & ~0x7F) == 0)
-#define isalpha(c)	(isupper(c) || (islower(c)))
-#define isalnum(c)	(isalpha(c) || isdigit(c))
+
+static __inline int isupper(int c)
+{
+    return c >= 'A' && c <= 'Z';
+}
+
+static __inline int islower(int c)
+{
+    return c >= 'a' && c <= 'z';
+}
+
+static __inline int isspace(int c)
+{
+    return c == ' ' || (c >= 0x9 && c <= 0xd);
+}
+
+static __inline int isdigit(int c)
+{
+    return c >= '0' && c <= '9';
+}
+
+static __inline int isxdigit(int c)
+{
+    return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+static __inline int isalpha(int c)
+{
+    return isupper(c) || islower(c);
+}
+
+static __inline int isalnum(int c)
+{
+    return isalpha(c) || isdigit(c);
+}
 
 static __inline int toupper(int c)
 {
