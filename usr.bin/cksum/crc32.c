@@ -11,6 +11,11 @@
  *			Spencer Garrett <srg@quick.com>
  */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 #include <sys/types.h>
 
 #define CRC(crc, ch)	 (crc = (crc >> 8) ^ crctab[(crc ^ (ch)) & 0xff])
