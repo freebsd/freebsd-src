@@ -85,6 +85,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"an",		"Aironet 4500/4800 802.11 wireless adapter"			},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"axe",		"ASIX Electronics USB ethernet adapter"					},
+    { DEVICE_TYPE_NETWORK,	"bfe",		"Broadcom BCM440x PCI ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"bge",		"Broadcom BCM570x PCI gigabit ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"cue",		"CATC USB ethernet adapter"					},
     { DEVICE_TYPE_NETWORK,	"fpa",		"DEC DEFPA PCI FDDI card"					},
