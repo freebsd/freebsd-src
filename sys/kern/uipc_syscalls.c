@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.26 1997/04/27 20:00:45 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.27 1997/08/16 19:15:06 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -55,6 +55,10 @@
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 extern int sendit __P((struct proc *p, int s, struct msghdr *mp, int flags,
 		       int *retsize));
@@ -251,7 +255,7 @@ accept1(p, uap, retval, compat)
 			goto gotnoname;
 		return 0;
 	}
-	if ((u_long)sa < 0xf0000000) {
+	if ((u_long)sa < KERNBASE) {
 		panic("accept1 bad sa");
 	}
 	if (uap->name) {
