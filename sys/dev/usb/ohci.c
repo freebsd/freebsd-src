@@ -4,6 +4,7 @@
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  *	$NetBSD: ohci.c,v 1.141 2003/09/10 20:08:29 mycroft Exp $
  *	$NetBSD: ohci.c,v 1.142 2003/10/11 03:04:26 toshii Exp $
+ *	$NetBSD: ohci.c,v 1.143 2003/10/18 04:50:35 simonb Exp $
  */
 
 #include <sys/cdefs.h>
@@ -365,7 +366,6 @@ ohci_activate(device_ptr_t self, enum devact act)
 	switch (act) {
 	case DVACT_ACTIVATE:
 		return (EOPNOTSUPP);
-		break;
 
 	case DVACT_DEACTIVATE:
 		if (sc->sc_child != NULL)
@@ -1581,7 +1581,6 @@ void
 ohci_rhsc(ohci_softc_t *sc, usbd_xfer_handle xfer)
 {
 	usbd_pipe_handle pipe;
-	struct ohci_pipe *opipe;
 	u_char *p;
 	int i, m;
 	int hstatus;
@@ -1596,7 +1595,6 @@ ohci_rhsc(ohci_softc_t *sc, usbd_xfer_handle xfer)
 	}
 
 	pipe = xfer->pipe;
-	opipe = (struct ohci_pipe *)pipe;
 
 	p = KERNADDR(&xfer->dmabuf, 0);
 	m = min(sc->sc_noport, xfer->length * 8 - 1);
