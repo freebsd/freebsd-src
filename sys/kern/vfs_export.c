@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.141 1998/03/16 01:55:26 dyson Exp $
+ * $Id: vfs_subr.c,v 1.142 1998/03/16 02:13:03 dyson Exp $
  */
 
 /*
@@ -679,7 +679,7 @@ vtruncbuf(vp, cred, p, length, blksize)
 {
 	register struct buf *bp;
 	struct buf *nbp, *blist;
-	int s, error, anyfreed;
+	int s, error, anyfreed, anymetadirty;
 	vm_object_t object;
 	int trunclbn;
 
@@ -687,6 +687,7 @@ vtruncbuf(vp, cred, p, length, blksize)
 	 * Round up to the *next* lbn.
 	 */
 	trunclbn = ((length + blksize - 1) / blksize) * blksize;
+	anymetadirty = 0;
 
 	s = splbio();
 restart:
@@ -738,9 +739,40 @@ restart:
 					 (nbp->b_flags & B_DELWRI) == 0)) {
 					goto restart;
 				}
+			} else if (bp->b_lblkno < 0) {
+				anymetadirty++;
 			}
 		}
 	}
+
+rescan:
+	if ((length > 0) && anymetadirty) {
+		for (bp = LIST_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+
+			nbp = LIST_NEXT(bp, b_vnbufs);
+
+			if ((bp->b_flags & B_DELWRI) && (bp->b_lblkno < 0)) {
+				if (bp->b_flags & B_BUSY) {
+					bp->b_flags |= B_WANTED;
+					tsleep((caddr_t) bp, PRIBIO, "vtrb3", 0);
+					nbp = bp;
+					continue;
+				} else {
+					bremfree(bp);
+					bp->b_flags |= B_ASYNC | B_BUSY;
+					VOP_BWRITE(bp);
+					goto rescan;
+				}
+			}
+		}
+	}
+
+	while (vp->v_numoutput > 0) {
+		vp->v_flag |= VBWAIT;
+		tsleep(&vp->v_numoutput, PVM, "vbtrunc", 0);
+	}
+
+
 	splx(s);
 
 	vnode_pager_setsize(vp, length);
