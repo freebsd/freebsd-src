@@ -3,6 +3,20 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19991213:
+	Soren updated the ata driver.  Please update to at least this
+	version before submitting bug reports.
+
+19991210:
+	The ata driver has become the primary ata/ide/atapi driver in
+	the kernel.  The wd driver is obsolete.  You should upgrade your
+	machine to the new ata driver.  You will need to follow the
+	directions for updating the devices in the 19991205 entry.  You
+	will need to update all occurances of wd to ad in your config files
+	(/etc/rc.conf, /etc/fstab, etc).  A compatibility device exists
+	for wd for the time being, but once you have determined that
+	ata is working for you, transition to the new ad devices.
+
 19991205:
 	Block devices are going away.  You will need to update your /dev
 	tree with a fresh copy of MAKEDEV for things to always work in 
@@ -13,12 +27,16 @@ directly to him.  See end of file for further details.
 	starting the following:
 
 		For N in the list of disks
-			MAKEDEV N			# eg wd0
+			MAKEDEV N			# eg ad0
 			for M in the list of slices
-				MAKEDEV NsMa		# eg wd0s1a
+				MAKEDEV NsMa		# eg ad0s1a
 
 	*** All uses of block devices must be converted to char devices.
 	*** Likely the only thing impacted is dumpdev in /etc/rc.conf
+
+19991204:
+	The dc interface has replaced al, ax, dm, pn and mx.  The former
+	have been removed.
 
 19991204:
 	Support for the old 'sd' device names has been removed in
@@ -39,6 +57,11 @@ directly to him.  See end of file for further details.
 19991203:
 	BAD144 support has been removed.  Cope or replace the hardware.
 
+19991129:
+	ALPHA users take note.  All klds will need to be recompiled for
+	kernels build after this date.  It is a good time to update since
+	pal.s will be going away soon.
+
 19991126:
 	MFS_ROOT and MFS_ROOT_SIZE are gone, replaced by MD_ROOT and
 	MD_ROOT_SIZE options in the md driver.  md driver now deals with
@@ -48,6 +71,11 @@ directly to him.  See end of file for further details.
 19991125:
 	The ep changed a while ago and can no longer be used with hard
 	wired addresses in the config file.
+
+19991122:
+	The bridge drivers for sound cards have been committed.  Please
+	see LINT for instructions for your card, if it still works at
+	all.
 
 19991113:
 	Gcc 2.95.2 is now the default compiler.
