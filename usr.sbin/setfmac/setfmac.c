@@ -269,7 +269,7 @@ add_specs(struct label_specs *specs, const char *file, int is_sebsd)
 			free(line);
 	}
 	fclose(fp);
-	warnx("%s: read %u specifications", file, spec->nentries);
+	warnx("%s: read %lu specifications", file, spec->nentries);
 	STAILQ_INSERT_TAIL(&specs->head, spec, link);
 }
 
