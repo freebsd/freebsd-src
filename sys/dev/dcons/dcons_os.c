@@ -493,7 +493,9 @@ dcons_cnputc(DEV dev, int c)
 static int
 dcons_drv_init(int stage)
 {
+#ifdef __i386__
 	int addr, size;
+#endif
 
 	if (drv_init)
 		return(drv_init);
