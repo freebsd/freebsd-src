@@ -586,6 +586,8 @@ idestroy_dev(struct cdev *dev)
 		csw->d_purge(dev);
 		msleep(csw, &devmtx, PRIBIO, "devprg", hz/10);
 	}
+	if (csw->d_purge != NULL)
+		printf("All threads purged from %s\n", devtoname(dev));
 
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
@@ -596,8 +598,8 @@ idestroy_dev(struct cdev *dev)
 		LIST_REMOVE(dev, si_list);
 
 		/* If cdevsw has no struct cdev *'s, clean it */
-		if (LIST_EMPTY(&dev->si_devsw->d_devs))
-			fini_cdevsw(dev->si_devsw);
+		if (LIST_EMPTY(&csw->d_devs))
+			fini_cdevsw(csw);
 
 		LIST_REMOVE(dev, si_hash);
 	}
