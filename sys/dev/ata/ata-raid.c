@@ -462,9 +462,11 @@ ar_promise_conf(struct ad_softc *adp, struct ar_softc **raidp)
     }
 
     /* now convert Promise config info into our generic form */
-    if ((info->raid.flags != PR_F_CONFED) || 
+    if ((info->raid.flags != PR_F_READY) || 
 	(((info->raid.status & (PR_S_DEFINED|PR_S_ONLINE)) != 
 	  (PR_S_DEFINED|PR_S_ONLINE)))) {
+	if (bootverbose)
+	    printf("Promise check3 failed\n");       
 	goto promise_out;
     }
 
@@ -472,8 +474,11 @@ ar_promise_conf(struct ad_softc *adp, struct ar_softc **raidp)
 
     array = info->raid.array_number;
     if (raidp[array]) {
-	if (magic != raidp[array]->magic_0)
+	if (magic != raidp[array]->magic_0) {
+	    if (bootverbose)
+		printf("Promise check4 failed\n");       
 	    goto promise_out;
+	}
     }
     else {
 	if (!(raidp[array] = (struct ar_softc *)

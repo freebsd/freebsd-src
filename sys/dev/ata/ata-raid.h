@@ -111,32 +111,33 @@ struct highpoint_raid_conf {
 	u_int32_t	lba;
     } errorlog[32];
     int8_t		filler2[60];
-};
+} __attribute__((packed));
 
 struct promise_raid_conf {
     char		promise_id[24];
 #define PR_MAGIC	"Promise Technology, Inc."
 
     int32_t		dummy_0;
-    int32_t		magic_0;
-    int32_t		dummy_1;
-    int32_t		magic_1;
-    int16_t		dummy_2;
+    int8_t		magic_0[8];
+    int16_t		magic_1;
+    int32_t		magic_2;
     int8_t		filler1[470];
     struct {
 	int32_t	flags;				/* 0x200 */
-#define PR_F_CONFED		0x00000080
+#define PR_F_READY		0x00000080
+#define PR_F_SPARE		0x00000040
+#define PR_F_DOWN		0x00000020
+#define PR_F_VALID		0x00000001
 
 	int8_t		dummy_0;
 	int8_t		disk_number;
 	int8_t		channel;
 	int8_t		device;
-	int32_t		magic_0;
-	int32_t		dummy_1;
-	int32_t		dummy_2;		/* 0x210 */
+	int8_t		magic_0[8];
+	int32_t		disk_offset;		/* 0x210 */
 	int32_t		disk_secs;
-	int32_t		dummy_3;
-	int16_t		dummy_4;
+	int32_t		dummy_1;
+	int16_t		dummy_2;
 	int8_t		status;
 #define	PR_S_DEFINED		0x01
 #define	PR_S_ONLINE		0x02
@@ -156,19 +157,18 @@ struct promise_raid_conf {
 	u_int16_t	cylinders;
 	u_int8_t	heads;
 	u_int8_t	sectors;
-	int32_t		magic_1;
-	int32_t		dummy_5;		/* 0x230 */
+	int8_t		magic_1[8];
 	struct {
-	    int16_t	dummy_0;
+	    int8_t	flags;
+	    int8_t	dummy_0;
 	    int8_t	channel;
 	    int8_t	device;
-	    int32_t	magic_0;
-	    int32_t	disk_number;
+	    int8_t	magic_0[8];
 	} disk[8];
     } raid;
     int32_t		filler2[346];
     uint32_t		checksum;
-};
+} __attribute__((packed));
 
 int ar_probe(struct ad_softc *);
 
