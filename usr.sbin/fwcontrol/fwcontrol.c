@@ -340,7 +340,7 @@ show_topology_map(int fd)
 			printf("%02d sequel packet\n", sid.p0.phy_id);
 			continue;
 		}
-		printf("%02d   %2d      %d  %4s     %d    %d   %3s"
+		printf("%02d   %2d      %2d  %4s     %d    %d   %3s"
 				"     %s     %s     %s   %d    %d\n",
 			sid.p0.phy_id,
 			sid.p0.link_active,
