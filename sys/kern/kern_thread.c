@@ -452,6 +452,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 			kse_purge_group(td);
 			ke->ke_flags |= KEF_EXIT;
 		}
+		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
@@ -1512,6 +1513,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
+		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
@@ -1627,21 +1629,17 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		mtx_unlock_spin(&sched_lock);
 	} else if (td->td_mailbox) {
 		error = thread_export_context(td);
-		if (error) {
-			PROC_LOCK(td->td_proc);
-			mtx_lock_spin(&sched_lock);
-			/* possibly upcall with error? */
-		} else {
-			PROC_LOCK(td->td_proc);
-			mtx_lock_spin(&sched_lock);
-			/*
-			 * There are upcall threads waiting for
-			 * work to do, wake one of them up.
-			 * XXXKSE Maybe wake all of them up. 
-			 */
-			if (kg->kg_upsleeps)
-				wakeup_one(&kg->kg_completed);
-		}
+		/* possibly upcall with error? */
+		PROC_LOCK(p);
+		/*
+		 * There are upcall threads waiting for
+		 * work to do, wake one of them up.
+		 * XXXKSE Maybe wake all of them up. 
+		 */
+		if (!error && kg->kg_upsleeps)
+			wakeup_one(&kg->kg_completed);
+		mtx_lock_spin(&sched_lock);
+		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
@@ -1918,13 +1916,14 @@ thread_suspend_check(int return_instead)
 		if (return_instead)
 			return (1);
 
+		mtx_lock_spin(&sched_lock);
+		thread_stopped(p);
 		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
-			mtx_lock_spin(&sched_lock);
 			while (mtx_owned(&Giant))
 				mtx_unlock(&Giant);
 			thread_exit();
@@ -1935,18 +1934,6 @@ thread_suspend_check(int return_instead)
 		 * moves to the processes's suspend queue
 		 * and stays there.
 		 */
-		mtx_lock_spin(&sched_lock);
-		if ((p->p_flag & P_STOPPED_SIG) &&
-		    (p->p_suspcount+1 == p->p_numthreads)) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_LOCK(p->p_pptr);
-			if ((p->p_pptr->p_procsig->ps_flag &
-				PS_NOCLDSTOP) == 0) {
-				psignal(p->p_pptr, SIGCHLD);
-			}
-			PROC_UNLOCK(p->p_pptr);
-			mtx_lock_spin(&sched_lock);
-		}
 		mtx_assert(&Giant, MA_NOTOWNED);
 		thread_suspend_one(td);
 		PROC_UNLOCK(p);
@@ -1969,6 +1956,7 @@ thread_suspend_one(struct thread *td)
 	struct proc *p = td->td_proc;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
 	TD_SET_SUSPENDED(td);
 	TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
