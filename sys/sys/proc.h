@@ -630,6 +630,7 @@ struct proc {
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
+#define	PS_XCPU		0x00002 /* Exceeded CPU limit. */
 #define	PS_PROFIL	0x00004	/* Has started profiling. */
 #define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
