@@ -97,6 +97,8 @@ extern int isprefix();
 extern char **genget();
 extern int Ambiguous();
 
+static int switch_af(struct addrinfo **aip);
+
 static call();
 
 typedef struct {
@@ -2149,23 +2151,45 @@ setpolicy(net, res, policy)
 }
 #endif
 
+#ifdef INET6
+/*
+ * When an Address Family related error happend, check if retry with
+ * another AF is possible or not.
+ * Return 1, if retry with another af is OK. Else, return 0.
+ */
+static int
+switch_af(aip)
+    struct addrinfo **aip;
+{
+    int nextaf;
+    struct addrinfo *ai;
+
+    ai = *aip;
+    nextaf = (ai->ai_family == AF_INET) ? AF_INET6 : AF_INET;
+    do
+        ai=ai->ai_next;
+    while (ai != NULL && ai->ai_family != nextaf);
+    *aip = ai;
+    if (*aip != NULL) {
+        return 1;
+    }
+    return 0;
+}
+#endif
+
 int
 tn(argc, argv)
     int argc;
     char *argv[];
 {
-    struct sockaddr_storage ss, src_ss;
     char *srp = 0, *strrchr();
     int proto, opt;
     int sourceroute(), srlen;
     int srcroute = 0, result;
     char *cmd, *hostp = 0, *portp = 0, *user = 0;
     char *src_addr = NULL;
-    struct addrinfo hints, *res;
-    int error = 0;
-
-    /* clear the socket address prior to use */
-    memset((char *)&ss, 0, sizeof(ss));
+    struct addrinfo hints, *res, *res0 = NULL, *src_res, *src_res0 = NULL;
+    int error = 0, af_error = 0;
 
     if (connected) {
 	printf("?Already connected to %s\n", hostname);
@@ -2229,19 +2253,19 @@ tn(argc, argv)
 	hints.ai_flags = AI_NUMERICHOST;
 	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
-	error = getaddrinfo(src_addr, 0, &hints, &res);
+	error = getaddrinfo(src_addr, 0, &hints, &src_res);
 	if (error == EAI_NONAME) {
 		hints.ai_flags = 0;
-		error = getaddrinfo(src_addr, 0, &hints, &res);
+		error = getaddrinfo(src_addr, 0, &hints, &src_res);
 	}
 	if (error != 0) {
 		fprintf(stderr, "%s: %s\n", src_addr, gai_strerror(error));
 		if (error == EAI_SYSTEM)
 			fprintf(stderr, "%s: %s\n", src_addr, strerror(errno));
+		setuid(getuid());
 		return 0;
 	}
-	memcpy((void *)&src_ss, (void *)res->ai_addr, res->ai_addrlen);
-	freeaddrinfo(res);
+	src_res0 = src_res;
     }
     if (hostp[0] == '@' || hostp[0] == '!') {
 	if (
@@ -2287,9 +2311,8 @@ tn(argc, argv)
 	    if (error == EAI_SYSTEM)
 	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
 	    setuid(getuid());
-	    return 0;
+	    goto fail;
 	}
-	memcpy((void *)&ss, (void *)res->ai_addr, res->ai_addrlen);
 	if (srcroute != 0)
 	    (void) strncpy(_hostname, hostname, sizeof(_hostname) - 1);
 	else if (res->ai_canonname != NULL)
@@ -2303,20 +2326,33 @@ tn(argc, argv)
 	    if (error == EAI_SYSTEM)
 	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
 	    setuid(getuid());
-	    return 0;
+	    goto fail;
     }
+    res0 = res;
     if (srcroute != 0) {
+        char hostbuf[BUFSIZ];
+
+	strncpy(hostbuf, hostp, BUFSIZ - 1);
+	hostbuf[BUFSIZ - 1] = '\0';
+    af_again:
+	if (af_error != 0)
+		hostp = hostbuf;
 	srp = 0;
 	result = sourceroute(res, hostp, &srp, &srlen, &proto, &opt);
 	if (result == 0) {
+#ifdef INET6
+	    if (family == AF_UNSPEC && af_error == 0 &&
+		switch_af(&res) == 1) {
+	        af_error = 1;
+		goto af_again;
+	    }
+#endif
 	    setuid(getuid());
-	    freeaddrinfo(res);
-	    return 0;
+	    goto fail;
 	} else if (result == -1) {
 	    printf("Bad source route option: %s\n", hostp);
 	    setuid(getuid());
-	    freeaddrinfo(res);
-	    return 0;
+	    goto fail;
 	}
     }
     printf("Trying %s...\n", sockaddr_ntop(res->ai_addr));
@@ -2324,8 +2360,15 @@ tn(argc, argv)
 	net = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	setuid(getuid());
 	if (net < 0) {
+#ifdef INET6
+	    if (family == AF_UNSPEC && af_error == 0 &&
+		switch_af(&res) == 1) {
+	        af_error = 1;
+		goto af_again;
+	    }
+#endif
 	    perror("telnet: socket");
-	    return 0;
+	    goto fail;
 	}
 	if (srp && setsockopt(net, proto, opt, (char *)srp, srlen) < 0)
 		perror("setsockopt (source route)");
@@ -2351,40 +2394,60 @@ tn(argc, argv)
 	}
 
 	if (src_addr != NULL) {
-	    if (bind(net, (struct sockaddr *)&src_ss,
-		     ((struct sockaddr *)&src_ss)->sa_len) == -1) {
+	    for (src_res = src_res0; src_res != 0; src_res = src_res->ai_next)
+	        if (src_res->ai_family != res->ai_family)
+		    continue;
+	    if (src_res == NULL)
+		src_res = src_res0;
+	    if (bind(net, src_res->ai_addr, src_res->ai_addrlen) == -1) {
+#ifdef INET6
+	        if (family == AF_UNSPEC && af_error == 0 &&
+		    switch_af(&res) == 1) {
+		    af_error = 1;
+		    goto af_again;
+		}
+#endif
 		perror("bind");
-		return 0;
+		goto fail;
 	    }
 	}
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(net, res, ipsec_policy_in) < 0)
-		return 0;
+		goto fail;
 	if (setpolicy(net, res, ipsec_policy_out) < 0)
-		return 0;
+		goto fail;
 #endif
 
 	if (connect(net, res->ai_addr, res->ai_addrlen) < 0) {
-	    if (res->ai_next) {
+	    struct addrinfo *next;
+
+	    next = res->ai_next;
+ 	    /* If already an af failed, only try same af. */
+ 	    if (af_error != 0)
+		while (next != NULL && next->ai_family != res->ai_family)
+		    next = next->ai_next;
+	    if (next != NULL) {
 		int oerrno = errno;
 
 		fprintf(stderr, "telnet: connect to address %s: ",
 						sockaddr_ntop(res->ai_addr));
 		errno = oerrno;
 		perror((char *)0);
-		res = res->ai_next;
+		res = next;
 		(void) NetClose(net);
 		continue;
 	    }
 	    perror("telnet: Unable to connect to remote host");
-	    return 0;
+	    goto fail;
 	}
 	connected++;
 #if	defined(AUTHENTICATION)
 	auth_encrypt_connect(connected);
 #endif	/* defined(AUTHENTICATION) */
     } while (connected == 0);
-    freeaddrinfo(res);
+    freeaddrinfo(res0);
+    if (src_res0 != NULL)
+        freeaddrinfo(src_res0);
     cmdrc(hostp, hostname);
     if (autologin && user == NULL) {
 	struct passwd *pw;
@@ -2408,6 +2471,12 @@ tn(argc, argv)
     (void) NetClose(net);
     ExitString("Connection closed by foreign host.\n",1);
     /*NOTREACHED*/
+ fail:
+    if (res0 != NULL)
+        freeaddrinfo(res0);
+    if (src_res0 != NULL)
+        freeaddrinfo(src_res0);
+    return 0;
 }
 
 #define HELPINDENT (sizeof ("connect"))
