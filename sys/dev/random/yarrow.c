@@ -51,6 +51,9 @@ RANDOM_CHECK_UINT(fastthresh, BLOCKSIZE/4, BLOCKSIZE);
 RANDOM_CHECK_UINT(slowthresh, BLOCKSIZE/4, BLOCKSIZE);
 RANDOM_CHECK_UINT(slowoverthresh, 1, 5);
 
+/* Structure holding the entropy state */
+static struct random_state random_state;
+
 SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
 SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, gengateinterval,
 	CTLTYPE_INT|CTLFLAG_RW, &random_state.gengateinterval, 10,
@@ -70,9 +73,6 @@ SYSCTL_PROC(_kern_random_yarrow, OID_AUTO, slowoverthresh,
 
 static void generator_gate(void);
 static void reseed(u_int);
-
-/* Structure holding the entropy state */
-struct random_state random_state;
 
 /* The reseed thread mutex */
 static struct mtx random_reseed_mtx;
