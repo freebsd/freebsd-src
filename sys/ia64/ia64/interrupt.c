@@ -98,8 +98,8 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		printf("ExtINT interrupt: vector=%ld\n", vector);
 		goto out;	/* XXX */
 	}
-	
-	if (vector == 240) {/* clock interrupt */
+
+	if (vector == 255) {/* clock interrupt */
 		/* CTR0(KTR_INTR, "clock interrupt"); */
 			
 		cnt.v_intr++;

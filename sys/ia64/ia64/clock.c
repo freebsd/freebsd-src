@@ -189,7 +189,7 @@ cpu_initclocks()
 	tc_init(&ia64_timecounter);
 
 	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
-	ia64_set_itv(240);	/* highest priority class */
+	ia64_set_itv(255);	/* highest priority class */
 
 	stathz = 128;
 }
