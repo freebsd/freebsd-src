@@ -114,7 +114,6 @@ struct buf {
 #define	b_iocmd		b_io.bio_cmd
 #define	b_ioflags	b_io.bio_flags
 #define	b_iooffset	b_io.bio_offset
-#define	b_pblkno	b_io.bio_pblkno
 #define	b_resid		b_io.bio_resid
 	struct buf_ops	*b_op;
 	unsigned		b_magic;
