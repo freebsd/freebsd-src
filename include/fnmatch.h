@@ -44,7 +44,6 @@
 #ifndef _POSIX_SOURCE
 #define	FNM_LEADING_DIR	0x08	/* Ignore /<tail> after Imatch. */
 #define	FNM_CASEFOLD	0x10	/* Case insensitive search. */
-#define	FNM_NOCASE	FNM_CASEFOLD
 #define	FNM_IGNORECASE	FNM_CASEFOLD
 #endif
 
