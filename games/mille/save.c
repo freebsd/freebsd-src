@@ -54,7 +54,7 @@ static const char rcsid[] =
 # ifdef	attron
 #	include	<term.h>
 #	define	_tty	cur_term->Nttyb
-# endif	attron
+# endif	/* attron */
 
 /*
  * @(#)save.c	1.2 (Berkeley) 3/28/83
