@@ -52,7 +52,7 @@
     <note>
       <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
       Lower case input is also acceptable to SRM. Upper case is used for
-      clarity.
+      clarity.</para>
     </note>
 
     <note>
@@ -332,7 +332,7 @@
 	         <para>70ns or better</para>
                </listitem>
                <listitem>
-                 <para>installed in pairs of 2
+                 <para>installed in pairs of 2</para>
                </listitem>
                <listitem>
                <para>4 SIMM sockets</para>
@@ -476,7 +476,7 @@ cpu	EV4</programlisting>
                  <para>70ns or better</para>
                </listitem>
                <listitem>
-                 <para>SIMMs are installed in pairs of 2
+                 <para>SIMMs are installed in pairs of 2</para>
                </listitem>
                <listitem>
                <para>4 SIMM sockets</para>
@@ -657,7 +657,7 @@ cpu	EV4</programlisting>
       <quote>a</quote>). Systems designated from day 1 to run Tru64
       Unix or OpenVMS will sport <quote>433au</quote>. WinNT-Miatas
       are likely to come pre-configured with an IDE CDROM drive. So,
-      in general systems are named like PWS[433,500,600]a[u].
+      in general systems are named like PWS[433,500,600]a[u].</para>
 
       <para>There was also a Miata model with a special CPU cooling
       system by Kryotech. The Kryotech has a special cooling system 
@@ -1030,12 +1030,12 @@ cpu	EV5</programlisting>
       for the TC SCSI adapters were not brought into CAM that the
       recent &os; versions use. TC option cards for single (PMAZ-A) or
       dual fast SCSI (PMAZC-AA) are also available.  These cards currently
-      have no drivers on &os; either.<para>
+      have no drivers on &os; either.</para>
 
       <para>DEC3000/300 has 5 MBytes/sec SCSI on-board. This bus is
       used for both internal and external devices. DEC3000/500 has 2
       SCSI buses. One is for internal devices only, the other one is
-      for external devices only.<para>
+      for external devices only.</para>
 
       <para>Floppy devices found in the DEC3000s are attached to the
       SCSI bus (via a bridge card). This makes it possible to boot from them
@@ -1198,7 +1198,7 @@ cpu	EV4</programlisting>
           <para>21064 or 21064A CPU, 150 to 275 MHz</para>
         </listitem>
         <listitem>
-          <para>memory:  
+          <para>memory:</para>
              <itemizedlist>
                <listitem>
                  <para>memory buswidth: 128 bit</para>
@@ -1554,7 +1554,7 @@ cpu	EV4</programlisting>
       <itemizedlist>
         <listitem>
           <para>21164 EV5 CPU at 266, 300, 333, 366, 400, 433, 466, or 
-  	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)<para>
+  	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)</para>
         </listitem>
         <listitem>
           <para>21171 or 21172 (Alcor) core logic chip-set</para>
@@ -1576,7 +1576,7 @@ cpu	EV4</programlisting>
           </itemizedlist></para>
         </listitem>
         <listitem>
-          <para>memory buswidth: 256 bits
+          <para>memory buswidth: 256 bits</para>
         </listitem>
         <listitem><para>AS500 memory:
   	  <itemizedlist>
@@ -1596,6 +1596,7 @@ cpu	EV4</programlisting>
   	      <para>uses ECC </para>
               </listitem>
   	  </itemizedlist></para>
+	  </listitem>
          <listitem><para>AS600 memory:
   	  <itemizedlist>
   	    <listitem>
@@ -1790,11 +1791,13 @@ cpu	EV5</programlisting>
 		<para>uses ECC</para>
 	      </listitem>
 	    </itemizedlist>
+	    </para>
           </listitem>
 	  <listitem>
 	   <para>AS800: Uses 60ns 3.3 Volts EDO DIMMs</para>
 	  </listitem>
          </itemizedlist>
+	 </para>
        </listitem>
        <listitem>
         <para>embedded VGA (on some mainboard models)</para>
@@ -2054,22 +2057,22 @@ cpu	EV5</programlisting>
 	     </itemizedlist></para>
 	</listitem>
 	<listitem>
-          <para>1 Ultra-Wide SCSI port based on a Qlogic 1040 chip
+          <para>1 Ultra-Wide SCSI port based on a Qlogic 1040 chip</para>
 	</listitem>
 	<listitem>
-          <para>2 16550A serial port        
+          <para>2 16550A serial port</para>
 	</listitem>
 	<listitem>
-          <para>1 parallel port        
+          <para>1 parallel port</para>
 	</listitem>
 	<listitem>
-          <para>PS/2 keyboard & mouse port        
+          <para>PS/2 keyboard & mouse port</para>
 	</listitem>
 	<listitem>
-          <para>embedded 16-bit ESS ES1888 sound chip
+          <para>embedded 16-bit ESS ES1888 sound chip</para>
 	</listitem>
 	<listitem>
-          <para>2 USB ports
+          <para>2 USB ports</para>
 	</listitem>
 	<listitem>
           <para>graphics options: ELSA Gloria Synergy or 
@@ -2552,11 +2555,11 @@ cpu	EV5	#dependent on CPU model installed</programlisting>
      PCI bridges. There is currently a limited fix in place which allows 
      for single level, single device PCI bridges. The fix allows the use of
      the Digital supplied Qlogic SCSI card which sits behind 
-     a 21054 PCI bridge chip.<para>
+     a 21054 PCI bridge chip.</para>
 
      <note><para>EISA slots are currently unsupported, but the Compaq Qvision
      EISA VGA adapter is treated as an ISA device. It therefore works 
-     OK as a console.<para></note>
+     OK as a console.</para></note>
 
      <para>Rawhide employs an I2C based power controller system. If 
      you want to be sure all power is removed from the system remove the 
@@ -2681,7 +2684,7 @@ cpu	EV5</programlisting>
 	  <listitem>
             <para>expansion: 3 system <quote>I/O ports</quote> that allow up to 
 	    12 I/O channels each I/O channel can connect to 
-	    XMI, Futurebus+ or PCI boxes
+	    XMI, Futurebus+ or PCI boxes</para>
 	  </listitem>
 	</itemizedlist>
       </para>
@@ -2812,6 +2815,7 @@ cpu	EV5</programlisting>
 	          <para>1 AGP slot</para>
 		</listitem>
 	       </itemizedlist>
+            </para>
           </listitem>
 	</itemizedlist>
        </para>
@@ -3162,6 +3166,6 @@ cpu	EV5</programlisting>
       <listitem>
         <para>Lodewijk van den Berg, Compaq</para>
       </listitem>
-    </itemizedlist>
+    </itemizedlist></para>
   </sect2>
 </sect1>
