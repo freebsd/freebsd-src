@@ -99,8 +99,6 @@ globaldata_init(struct globaldata *globaldata, int cpuno, size_t sz)
 	bzero(globaldata, sz);
 	globaldata->gd_cpuno = cpuno;
 	globaldata->gd_other_cpus = all_cpus & ~(1 << cpuno);
-	globaldata->gd_next_asn = 0;
-	globaldata->gd_current_asngen = 1;
 	cpuno_to_globaldata[cpuno] = globaldata;
 }
 
