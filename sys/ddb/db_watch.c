@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.c,v 1.15 1997/06/14 11:52:37 bde Exp $
+ *	$Id: db_watch.c,v 1.16 1998/02/13 02:19:29 bde Exp $
  */
 
 /*
@@ -174,9 +174,9 @@ db_list_watchpoints()
 	for (watch = db_watchpoint_list;
 	     watch != 0;
 	     watch = watch->link)
-	    db_printf("%s%8x  %8x  %x\n",
+	    db_printf("%s%8p  %8x  %x\n",
 		      db_map_current(watch->map) ? "*" : " ",
-		      watch->map, watch->loaddr,
+		      (void *)watch->map, watch->loaddr,
 		      watch->hiaddr - watch->loaddr);
 }
 
