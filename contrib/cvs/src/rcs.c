@@ -1857,9 +1857,9 @@ RCS_getdatebranch (rcs, date, branch)
     free (xbranch);
     if (p == vers->branches->list)
     {
-	/* FIXME: This case would seem to imply that the RCS file is
-           somehow invalid.  Should we give an error message?  */
-	return (NULL);
+	   /* This happens when you have a couple of branches off a revision,
+	   and your branch has not diverged, but another has. */
+	return (xstrdup (cur_rev));
     }
 
     p = findnode (rcs->versions, p->key);
