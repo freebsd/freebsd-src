@@ -16,13 +16,5 @@ rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 required_files="/etc/printcap"
 
-case ${OSTYPE} in
-NetBSD)
-	pidfile="/var/run/${name}.pid"
-	;;
-*)
-	;;
-esac
-
 load_rc_config $name
 run_rc_command "$1"

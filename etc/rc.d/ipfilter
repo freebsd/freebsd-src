@@ -14,15 +14,7 @@
 name="ipfilter"
 rcvar=`set_rcvar`
 load_rc_config $name
-
-case ${OSTYPE} in
-FreeBSD)
-	stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
-	;;
-NetBSD)
-	stop_precmd="test -f /etc/ipf.conf -o -f /etc/ipf6.conf"
-	;;
-esac
+stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
 
 start_precmd="ipfilter_prestart"
 start_cmd="ipfilter_start"
@@ -37,8 +29,6 @@ extra_commands="reload resync status"
 
 ipfilter_prestart()
 {
-case ${OSTYPE} in
-FreeBSD)
 	# load ipfilter kernel module if needed
 	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
 		if kldload ipl; then
@@ -54,73 +44,35 @@ FreeBSD)
 		warn 'IP-filter: NO IPF RULES'
 		return 1
 	fi
-	;;
-NetBSD)
-	if [ ! -f /etc/ipf.conf ] && [ ! -f /etc/ipf6.conf ]; then
-		warn "/etc/ipf*.conf not readable; ipfilter start aborted."
-			#
-			# If booting directly to multiuser, send SIGTERM to
-			# the parent (/etc/rc) to abort the boot
-			#
-		if [ "$autoboot" = yes ]; then
-			echo "ERROR: ABORTING BOOT (sending SIGTERM to parent)!"
-			kill -TERM $$
-			exit 1
-		fi
-		return 1
-	fi
-	;;
-esac
 	return 0
 }
 
 ipfilter_start()
 {
 	echo "Enabling ipfilter."
-	case ${OSTYPE} in
-	FreeBSD)
-		if [ `sysctl -n net.inet.ipf.fr_running` -eq 0 ]; then
-			${ipfilter_program:-/sbin/ipf} -E
-		fi
-		${ipfilter_program:-/sbin/ipf} -Fa
-		if [ -r "${ipfilter_rules}" ]; then
-			${ipfilter_program:-/sbin/ipf} \
-			    -f "${ipfilter_rules}" ${ipfilter_flags}
-		fi
-		${ipfilter_program:-/sbin/ipf} -6 -Fa
-		if [ -r "${ipv6_ipfilter_rules}" ]; then
-			${ipfilter_program:-/sbin/ipf} -6 \
-			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
-		fi
-		;;
-	NetBSD)
-		/sbin/ipf -E -Fa
-		if [ -f /etc/ipf.conf ]; then
-			/sbin/ipf -f /etc/ipf.conf
-		fi
-		if [ -f /etc/ipf6.conf ]; then
-			/sbin/ipf -6 -f /etc/ipf6.conf
-		fi
-		;;
-	esac
+	if [ `sysctl -n net.inet.ipf.fr_running` -eq 0 ]; then
+		${ipfilter_program:-/sbin/ipf} -E
+	fi
+	${ipfilter_program:-/sbin/ipf} -Fa
+	if [ -r "${ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} \
+		    -f "${ipfilter_rules}" ${ipfilter_flags}
+	fi
+	${ipfilter_program:-/sbin/ipf} -6 -Fa
+	if [ -r "${ipv6_ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -6 \
+		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+	fi
 }
 
 ipfilter_stop()
 {
 	# XXX - The ipf -D command is not effective for 'lkm's
 	if [ `sysctl -n net.inet.ipf.fr_running` -eq 1 ]; then
-		case ${OSTYPE} in
-		FreeBSD)
-			echo "Saving firewall state tables"
-			${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
-			echo "Disabling ipfilter."
-			${ipfilter_program:-/sbin/ipf} -D
-			;;
-		NetBSD)
-			echo "Disabling ipfilter."
-			/sbin/ipf -D
-			;;
-		esac
+		echo "Saving firewall state tables"
+		${ipfs_program:-/sbin/ipfs} -W ${ipfs_flags}
+		echo "Disabling ipfilter."
+		${ipfilter_program:-/sbin/ipf} -D
 	fi
 }
 
@@ -128,47 +80,26 @@ ipfilter_reload()
 {
 	echo "Reloading ipfilter rules."
 
-	case ${OSTYPE} in
-	FreeBSD)
-		${ipfilter_program:-/sbin/ipf} -I -Fa
-		if [ -r "${ipfilter_rules}" ]; then
-			${ipfilter_program:-/sbin/ipf} -I \
-			    -f "${ipfilter_rules}" ${ipfilter_flags}
-		fi
-		${ipfilter_program:-/sbin/ipf} -I -6 -Fa
-		if [ -r "${ipv6_ipfilter_rules}" ]; then
-			${ipfilter_program:-/sbin/ipf} -I -6 \
-			    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
-		fi
-		${ipfilter_program:-/sbin/ipf} -s
-		;;
-	NetBSD)
-		/sbin/ipf -I -Fa
-		if [ -f /etc/ipf.conf ] && ! /sbin/ipf -I -f /etc/ipf.conf; then
-			err 1 "reload of ipf.conf failed; not swapping to" \
-			    " new ruleset."
-		fi
-		if [ -f /etc/ipf6.conf ] && \
-		    ! /sbin/ipf -I -6 -f /etc/ipf6.conf; then
-			err 1 "reload of ipf6.conf failed; not swapping to" \
-			    " new ruleset."
-		fi
-		/sbin/ipf -s
-		;;
-	esac
+	${ipfilter_program:-/sbin/ipf} -I -Fa
+	if [ -r "${ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -I \
+		    -f "${ipfilter_rules}" ${ipfilter_flags}
+	fi
+	${ipfilter_program:-/sbin/ipf} -I -6 -Fa
+	if [ -r "${ipv6_ipfilter_rules}" ]; then
+		${ipfilter_program:-/sbin/ipf} -I -6 \
+		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+	fi
+	${ipfilter_program:-/sbin/ipf} -s
 
 }
 
 ipfilter_resync()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-		# Don't resync if ipfilter is not loaded
-		if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
-			 return
-		fi
-		;;
-	esac
+	# Don't resync if ipfilter is not loaded
+	if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+		 return
+	fi
 	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
 }
 
