@@ -322,7 +322,8 @@ draw:
 			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
 			if (st & DITEM_REDRAW) {
 			    for (i = 0; i < max_choice; i++) {
-				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
+				status[scroll + i] = ditems[scroll + i].checked ?
+				    ditems[scroll + i].checked(&ditems[scroll + i]) : FALSE;
 				print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1],
 					   status[scroll + i], i, i == choice,
 					   DREF(ditems, scroll + i));
