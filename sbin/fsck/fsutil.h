@@ -48,15 +48,18 @@ const char *blockcheck __P((const char *));
 const char *devcheck __P((const char *));
 const char *cdevname __P((void));
 void setcdevname __P((const char *, int));
+struct statfs *getmntpt __P((const char *));
 int  hotroot __P((void));
 void *emalloc __P((size_t));
 void *erealloc __P((void *, size_t));
 char *estrdup __P((const char *));
 
-#define CHECK_PREEN	1
-#define	CHECK_VERBOSE	2
-#define	CHECK_DEBUG	4
+#define	CHECK_PREEN	0x0001
+#define	CHECK_VERBOSE	0x0002
+#define	CHECK_DEBUG	0x0004
+#define	CHECK_BACKGRD	0x0008
+#define	DO_BACKGRD	0x0010
 
 struct fstab;
-int checkfstab __P((int, void *(*)(struct fstab *), 
-    int (*) (const char *, const char *, const char *, void *, pid_t *)));
+int checkfstab __P((int, int (*)(struct fstab *), 
+    int (*) (const char *, const char *, const char *, char *, pid_t *)));
