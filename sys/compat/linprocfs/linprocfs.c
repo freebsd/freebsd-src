@@ -397,7 +397,7 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    (int)(averunnable.ldavg[2] * 100 / averunnable.fscale % 100),
 	    1,				/* number of running tasks */
 	    nprocs,			/* number of tasks */
-	    nextpid			/* the last pid */
+	    lastpid			/* the last pid */
 	);
 	
 	return (0);
