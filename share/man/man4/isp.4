@@ -56,7 +56,8 @@ Fibre Channel support uses FCP SCSI profile for
 and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
 3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
 Support is available for Public and Private loops, and for
-point-to-point connections (Qlogic 2200 only).  Command tagging is
+point-to-point connections (Qlogic 2200 only). The newer 2-Gigabit
+cards (2300, 2312) are also supported. Command tagging is
 supported for all (in fact,
 .Tn FibreChannel
 requires tagging). Fabric support is enabled by default (but may
@@ -106,6 +107,10 @@ cards.
 .It Qlogic 2202
 Qlogic 2200 Dual Bus Optical Fibre Channel Arbitrated Loop PCI
 cards.
+.It Qlogic 2300
+Qlogic 2300 Optical Fibre Channel PCI cards.
+.It Qlogic 2312
+Qlogic 2312 Optical Fibre Channel PCI cards.
 .It PTI SBS470
 Performance Technology ISP2100 variants.
 .It Antares P-0033
