@@ -1,6 +1,6 @@
-<!-- $Id: sup.sgml,v 1.10 1997/03/07 04:56:58 hanai Exp $ -->
+<!-- $Id: sup.sgml,v 1.11 1997/03/12 04:20:34 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.27 -->
+<!-- Original revision: 1.28 -->
 
 <sect><heading>SUP<label id="sup"></heading>
 
@@ -116,6 +116,7 @@ ports-benchmarks: /usr/ports/benchmarks ベンチマークプログラム
 ports-cad:        /usr/ports/cad        CAD ツール
 ports-chinese:    /usr/ports/chinese    中国語サポート
 ports-comms:      /usr/ports/comms      通信ソフトウェア
+ports-converters: /usr/ports/converters	文字コードコンバータ
 ports-databases:  /usr/ports/databases  データベース
 ports-devel:      /usr/ports/devel      開発ユーティリティ
 ports-editors:    /usr/ports/editors    エディタ
@@ -137,6 +138,7 @@ ports-russian:    /usr/ports/russian    ロシア語サポート
 ports-security:   /usr/ports/security   よりよい (悪い?) 「セキュリティ」関連のユーティリティ
 ports-shells:     /usr/ports/shells     色々な UN*X シェル
 ports-sysutils:   /usr/ports/sysutils   システムユーティリティ
+ports-textproc:	  /usr/ports/textproc	文書処理ユーティリティ(デスクトップパブリッシングは含まない)
 ports-vietnamese: /usr/ports/vietnamese	ベトナム語サポート
 ports-www:        /usr/ports/www        WWW 関連のソフトウェア
 ports-x11:        /usr/ports/x11        X11 のソフトウェア
