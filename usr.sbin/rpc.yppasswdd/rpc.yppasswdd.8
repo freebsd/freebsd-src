@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.yppasswdd.8,v 1.6 1996/06/03 23:53:21 wpaul Exp $
+.\"	$Id: rpc.yppasswdd.8,v 1.7 1997/02/22 16:12:53 peter Exp $
 .\"
 .Dd February 8, 1996
 .Dt RPC.YPPASSWDD 8
@@ -298,10 +298,10 @@ The template password file(s) for non-default domains
 (used only in multi-domain mode).
 .El
 .Sh SEE ALSO
-.Xr ypserv 8 ,
+.Xr yp 4 ,
 .Xr yppush 8 ,
-.Xr ypxfr 8 ,
-.Xr yp 4
+.Xr ypserv 8 ,
+.Xr ypxfr 8
 .Sh BUGS
 As listed in the yppasswd.x protocol definition, the YPPASSWDPROC_UPDATE
 procedure takes two arguments: a V7-style passwd structure containing
