@@ -204,6 +204,8 @@ struct bootpc_globalcontext {
 #define TAG_DHCP_SERVERID 54
 #define TAG_DHCP_LEASETIME 51
 
+#define TAG_VENDOR_INDENTIFIER 60
+
 #define DHCP_NOMSG    0
 #define DHCP_DISCOVER 1
 #define DHCP_OFFER    2
@@ -1050,10 +1052,11 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	ifctx->broadcast.sin_addr.s_addr = sin->sin_addr.s_addr;
 	
 	error = ifioctl(so, SIOCSIFBRDADDR, (caddr_t)ireq, procp);
-	if (error != 0)
+	if (error != 0 && error != EADDRNOTAVAIL)
 		panic("bootpc_fakeup_interface: "
 		      "set if broadcast addr, error=%d",
 		      error);
+	error = 0;
 	
 	/* Get HW address */
 	
@@ -1115,7 +1118,7 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		sin = (struct sockaddr_in *) &ireq->ifr_addr;
 		clear_sinaddr(sin);
 		error = ifioctl(so, SIOCDIFADDR, (caddr_t) ireq, procp);
-		if (error != 0 && (error != EEXIST ||
+		if (error != 0 && (error != EADDRNOTAVAIL ||
 				   ifctx == gctx->interfaces))
 			panic("bootpc_adjust_interface: "
 			      "SIOCDIFADDR, error=%d", error);
@@ -1339,7 +1342,9 @@ bootpc_compose_query(ifctx, gctx, procp)
 	struct proc *procp;
 {
 	unsigned char *vendp;
+	unsigned char vendor_client[64];
 	uint32_t leasetime;
+	uint8_t vendor_client_len;
 
 	ifctx->gotrootpath = 0;
 
@@ -1364,6 +1369,14 @@ bootpc_compose_query(ifctx, gctx, procp)
 	*vendp++ = 2;
 	*vendp++ = (sizeof(struct bootp_packet) >> 8) & 255;
 	*vendp++ = sizeof(struct bootp_packet) & 255;
+
+	snprintf(vendor_client, sizeof(vendor_client), "%s:%s:%s",
+		ostype, MACHINE, osrelease);
+	vendor_client_len = strlen(vendor_client);
+	*vendp++ = TAG_VENDOR_INDENTIFIER;
+	*vendp++ = vendor_client_len;
+	memcpy(vendp, vendor_client, vendor_client_len);
+	vendp += vendor_client_len;;
 	ifctx->dhcpquerytype = DHCP_NOMSG;
 	switch (ifctx->state) {
 	case IF_DHCP_UNRESOLVED:
