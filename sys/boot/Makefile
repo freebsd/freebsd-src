@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+.if ${MACHINE_ARCH} == "amd64"
+MACHINE_ARCH=i386
+MACHINE=i386
+.endif
+
 .if !defined(NOFORTH)
 # Build the add-in FORTH interpreter
 SUBDIR+=		ficl
