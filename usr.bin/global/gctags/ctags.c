@@ -32,15 +32,20 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)ctags.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* LIBC_SCCS and not lint */
 
+#include <err.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -86,7 +91,7 @@ char	lbuf[LINE_MAX];
 
 void	init __P((void));
 void	find_entries __P((char *));
-int	main __P((int, char **));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -108,9 +113,9 @@ main(argc, argv)
 #endif
 	aflag = uflag = NO;
 #ifdef GTAGS
-	while ((ch = getopt(argc, argv, "BDFadef:rtuwvxy")) != EOF)
+	while ((ch = getopt(argc, argv, "BDFadef:rtuwvxy")) != -1)
 #else
-	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != EOF)
+	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != -1)
 #endif
 		switch(ch) {
 		case 'B':
@@ -159,19 +164,12 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			goto usage;
+			usage();
 		}
 	argv += optind;
 	argc -= optind;
-	if (!argc) {
-usage:		(void)fprintf(stderr,
-#ifdef GTAGS
-			"usage: ctags [-BDFadrtuwvx] [-f tagsfile] file ...\n");
-#else
-			"usage: ctags [-BFadtuwvx] [-f tagsfile] file ...\n");
-#endif
-		exit(1);
-	}
+	if (!argc) 
+		usage();
 #ifdef GTAGS
 	if (rflag)
 		gtagopen();
@@ -180,7 +178,7 @@ usage:		(void)fprintf(stderr,
 
 	for (exit_val = step = 0; step < argc; ++step)
 		if (!(inf = fopen(argv[step], "r"))) {
-			fprintf(stderr, "gctags: %s cannot open\n", argv[step]);
+			warnx("%s cannot open", argv[step]);
 			exit_val = 1;
 		}
 		else {
@@ -204,7 +202,7 @@ usage:		(void)fprintf(stderr,
 				++aflag;
 			}
 			if (!(outf = fopen(outfile, aflag ? "a" : "w"))) {
-				fprintf(stderr, "gctags: %s cannot open\n", outfile);
+				warnx("%s cannot open", outfile);
 				exit(exit_val);
 			}
 			put_entries(head);
@@ -220,6 +218,18 @@ usage:		(void)fprintf(stderr,
 		gtagclose();
 #endif
 	exit(exit_val);
+}
+
+static void 
+usage()
+{
+	(void)fprintf(stderr,
+#ifdef GTAGS
+			"usage: gctags [-BDFadrtuwvx] [-f tagsfile] file ...\n");
+#else
+			"usage: gctags [-BFadtuwvx] [-f tagsfile] file ...\n");
+#endif
+		exit(1);
 }
 
 /*
@@ -366,10 +376,8 @@ gtagopen()
 
 #define O_RDONLY        0x0000          /* open for reading only */
 	db = dbopen(dbname, O_RDONLY, 0, DB_BTREE, &info);
-	if (db == 0) {
-		fprintf(stderr, "GTAGS file needed.\n");
-		exit(1);
-	}
+	if (db == 0)
+		errx(1, "GTAGS file needed");
 }
 int
 isdefined(skey)
@@ -386,8 +394,7 @@ char	*skey;
 	case RET_SUCCESS:
 		return(1);				/* exist */
 	case RET_ERROR:
-                fprintf(stderr, "db->get failed.\n");
-		exit(1);
+		errx(1, "db->get failed");
 	case RET_SPECIAL:				/* not exist */
 		break;
 	}
@@ -396,9 +403,7 @@ char	*skey;
 void
 gtagclose()
 {
-        if (db->close(db)) {
-		fprintf(stderr, "GTAGS cannot close.(dbclose)\n");
-		exit(1);
-	}
+	if (db->close(db))
+		errx(1, "GTAGS cannot close.(dbclose)");
 }
 #endif

@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include <err.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,14 +61,12 @@ pfnote(name, ln)
 
 	/*NOSTRICT*/
 	if (!(np = (NODE *)malloc(sizeof(NODE)))) {
-		fprintf(stderr, "too many entries to sort");
+		warnx("too many entries to sort");
 		put_entries(head);
 		free_tree(head);
 		/*NOSTRICT*/
-		if (!(head = np = (NODE *)malloc(sizeof(NODE)))) {
-			fprintf(stderr, "gctags: out of space\n");
-			exit(1);
-		}
+		if (!(head = np = (NODE *)malloc(sizeof(NODE))))
+			errx(1, "out of space");
 	}
 	if (!xflag && !strcmp(name, "main")) {
 		if (!(fp = strrchr(curfile, '/')))
@@ -80,17 +79,13 @@ pfnote(name, ln)
 			*fp = EOS;
 		name = nbuf;
 	}
-	if (!(np->entry = strdup(name))) {
-		fprintf(stderr, "gctags: out of space\n");
-		exit(1);
-	}
+	if (!(np->entry = strdup(name)))
+		errx(1, "out of space");
 	np->file = curfile;
 	np->lno = ln;
 	np->left = np->right = 0;
-	if (!(np->pat = strdup(lbuf))) {
-		fprintf(stderr, "gctags: out of space\n");
-		exit(1);
-	}
+	if (!(np->pat = strdup(lbuf)))
+		errx(1, "out of space");
 	if (!head)
 		head = np;
 	else
