@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
- * $Id$
+ * $Id: tty_conf.c,v 1.3 1994/08/02 07:42:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,28 +56,15 @@
 int	nullioctl __P((struct tty *tp, int cmd, caddr_t data,
 			int flag, struct proc *p));
 
-#include "tb.h"
-#if NTB > 0
-int	tbopen __P((dev_t dev, struct tty *tp));
-int	tbclose __P((struct tty *tp, int flags));
-int	tbread __P((struct tty *, struct uio *, int flags));
-int	tbioctl __P((struct tty *tp, int cmd, caddr_t data,
-			int flag, struct proc *p));
-int	tbinput __P((int c, struct tty *tp));
+#ifndef MAXLDISC
+#define MAXLDISC 8
 #endif
 
-#include "sl.h"
-#if NSL > 0
-int	slopen __P((dev_t dev, struct tty *tp));
-int	slclose __P((struct tty *tp, int flags));
-int	sltioctl __P((struct tty *tp, int cmd, caddr_t data,
-			int flag, struct proc *p));
-int	slinput __P((int c, struct tty *tp));
-int	slstart __P((struct tty *tp));
-#endif
+#define NODISC(n) \
+	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl, \
+	  ttyerrinput, ttyerrstart, nullmodem },
 
-
-struct	linesw linesw[] =
+struct	linesw linesw[MAXLDISC] =
 {
 	{ ttyopen, ttylclose, ttread, ttwrite, nullioctl,
 	  ttyinput, ttstart, ttymodem },		/* 0- termios */
@@ -93,21 +80,11 @@ struct	linesw linesw[] =
 	  ttyerrinput, ttyerrstart, nullmodem },
 #endif
 
-#if NTB > 0
-	{ tbopen, tbclose, tbread, enodev, tbioctl,
-	  tbinput, ttstart, nullmodem },		/* 3- TABLDISC */
-#else
-	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, nullmodem },
-#endif
-
-#if NSL > 0
-	{ slopen, slclose, ttyerrio, ttyerrio, sltioctl,
-	  slinput, slstart, nullmodem },		/* 4- SLIPDISC */
-#else
-	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, nullmodem },
-#endif
+	NODISC(3)		/* TABLDISC */
+	NODISC(4)		/* SLIPDISC */
+	NODISC(5)		/* PPPDISC */
+	NODISC(6)		/* loadable */
+	NODISC(7)		/* loadable */
 };
 
 int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
