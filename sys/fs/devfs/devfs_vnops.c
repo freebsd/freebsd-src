@@ -505,10 +505,8 @@ devfs_reclaim(ap)
 	vp->v_data = NULL;
 	if (vp->v_rdev != NODEV && vp->v_rdev != NULL) {
 		i = vcount(vp);
-		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0) {
+		if ((vp->v_rdev->si_flags & SI_CHEAPCLONE) && i == 0)
 			destroy_dev(vp->v_rdev);
-			printf("Reclaim <%s> %d %d Killed\n", vp->v_rdev->si_name, vp->v_rdev->si_flags, i);
-		}		
 	}
 	return (0);
 }
