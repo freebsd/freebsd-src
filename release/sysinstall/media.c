@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.65 1996/11/07 14:17:09 jkh Exp $
+ * $Id: media.c,v 1.67 1996/12/11 09:35:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -349,7 +349,6 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
-    ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
@@ -385,7 +384,6 @@ mediaSetUFS(dialogMenuItem *self)
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
-    ufsDevice.close = dummyClose;
     ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(cp);
     mediaDevice = &ufsDevice;
@@ -433,7 +431,6 @@ mediaSetNFS(dialogMenuItem *self)
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
-    nfsDevice.close = dummyClose;
     nfsDevice.shutdown = mediaShutdownNFS;
     nfsDevice.private = mediaDevice;
     mediaDevice = &nfsDevice;
@@ -523,7 +520,7 @@ mediaExtractDistEnd(int zpid, int cpid)
 
 
 Boolean
-mediaExtractDist(char *dir, int fd)
+mediaExtractDist(char *dir, FILE *fp)
 {
     int i, j, zpid, cpid, pfd[2];
 
@@ -537,7 +534,7 @@ mediaExtractDist(char *dir, int fd)
     if (!zpid) {
 	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
 
-	dup2(fd, 0); close(fd);
+	dup2(fileno(fp), 0); fclose(fp);
 	dup2(pfd[1], 1); close(pfd[1]);
 	if (DebugFD != -1)
 	    dup2(DebugFD, 2);
@@ -556,7 +553,7 @@ mediaExtractDist(char *dir, int fd)
 	char *cpio = RunningAsInit ? "/stand/cpio" : "/usr/bin/cpio";
 
 	dup2(pfd[0], 0); close(pfd[0]);
-	close(fd);
+	fclose(fp);
 	close(pfd[1]);
 	if (DebugFD != -1) {
 	    dup2(DebugFD, 1);

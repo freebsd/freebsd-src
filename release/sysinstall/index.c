@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38 1996/08/03 10:10:54 jkh Exp $
+ * $Id: index.c,v 1.39 1996/12/09 08:22:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,12 +199,12 @@ copy_to_sep(char *to, char *from, int sep)
 }
 
 static int
-readline(int fd, char *buf, int max)
+readline(FILE *fp, char *buf, int max)
 {
     int rv, i = 0;
     char ch;
 
-    while ((rv = read(fd, &ch, 1)) == 1 && ch != '\n' && i < max)
+    while ((rv = fread(&ch, 1, 1, fp)) == 1 && ch != '\n' && i < max)
 	buf[i++] = ch;
     if (i < max)
 	buf[i] = '\0';
@@ -212,13 +212,13 @@ readline(int fd, char *buf, int max)
 }
 
 int
-index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *deps)
+index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, char *descr, char *maint, char *cats, char *deps)
 {
     char line[1024];
     char *cp;
     int i;
 
-    i = readline(fd, line, 1024);
+    i = readline(fp, line, 1024);
     if (i <= 0)
 	return EOF;
     cp = line;
@@ -237,25 +237,26 @@ index_parse(int fd, char *name, char *pathto, char *prefix, char *comment, char 
 int
 index_get(char *fname, PkgNodePtr papa)
 {
-    int i, fd;
+    int i;
+    FILE *fp;
 
-    fd = open(fname, O_RDONLY);
-    if (fd < 0) {
+    fp = fopen(fname, "r");
+    if (!fp) {
 	fprintf(stderr, "Unable to open index file `%s' for reading.\n", fname);
 	i = -1;
     }
     else
-	i = index_read(fd, papa);
-    close(fd);
+	i = index_read(fp, papa);
+    fclose(fp);
     return i;
 }
 
 int
-index_read(int fd, PkgNodePtr papa)
+index_read(FILE *fp, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[511];
 
-    while (index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
+    while (index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
 	char *cp, *cp2, tmp[511];
 	IndexEntryPtr idx;
 

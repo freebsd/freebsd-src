@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.89 1996/12/09 06:37:45 jkh Exp $
+ * $Id: sysinstall.h,v 1.93 1996/12/12 08:33:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,10 +57,6 @@
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
 #define PACKAGE_SAMBA	"samba-1.9.15p8"
 #define PACKAGE_LYNX	"lynx-2.6"
-
-/* variable limits */
-#define VAR_NAME_MAX		128
-#define VAR_VALUE_MAX		1024
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
@@ -173,8 +169,8 @@ typedef struct _dmenu {
 /* A sysconfig variable */
 typedef struct _variable {
     struct _variable *next;
-    char name[VAR_NAME_MAX];
-    char value[VAR_VALUE_MAX];
+    char *name;
+    char *value;
 } Variable;
 
 /* For attribs */
@@ -214,8 +210,7 @@ typedef struct _device {
     DeviceType type;
     Boolean enabled;
     Boolean (*init)(struct _device *dev);
-    int (*get)(struct _device *dev, char *file, Boolean probe);
-    Boolean (*close)(struct _device *dev, int fd);
+    FILE * (*get)(struct _device *dev, char *file, Boolean probe);
     void (*shutdown)(struct _device *dev);
     void *private;
     unsigned int flags;
@@ -358,11 +353,11 @@ extern int	configAnonFTP(dialogMenuItem *self);
 /* attrs.c */
 extern char	*attr_match(Attribs *attr, char *name);
 extern int	attr_parse_file(Attribs *attr, char *file);
-extern int	attr_parse(Attribs *attr, int fd);
+extern int	attr_parse(Attribs *attr, FILE *fp);
 
 /* cdrom.c */
 extern Boolean	mediaInitCDROM(Device *dev);
-extern int	mediaGetCDROM(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetCDROM(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownCDROM(Device *dev);
 
 /* command.c */
@@ -401,12 +396,12 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
 extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file, Boolean probe),
-				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
+				Boolean (*init)(Device *mediadev),
+				FILE * (*get)(Device *dev, char *file, Boolean probe),
+				void (*shutDown)(Device *mediadev),
 				void *private);
 extern Boolean	dummyInit(Device *dev);
-extern int	dummyGet(Device *dev, char *dist, Boolean probe);
-extern Boolean	dummyClose(Device *dev, int fd);
+extern FILE	*dummyGet(Device *dev, char *dist, Boolean probe);
 extern void	dummyShutdown(Device *dev);
 
 /* disks.c */
@@ -455,20 +450,21 @@ extern int	docBrowser(dialogMenuItem *self);
 extern int	docShowDocument(dialogMenuItem *self);
 
 /* dos.c */
+extern Boolean	mediaCloseDOS(Device *dev, FILE *fp);
 extern Boolean	mediaInitDOS(Device *dev);
-extern int	mediaGetDOS(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetDOS(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownDOS(Device *dev);
 
 /* floppy.c */
 extern int	getRootFloppy(void);
 extern Boolean	mediaInitFloppy(Device *dev);
-extern int	mediaGetFloppy(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetFloppy(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownFloppy(Device *dev);
 
 /* ftp_strat.c */
-extern Boolean	mediaCloseFTP(Device *dev, int fd);
+extern Boolean	mediaCloseFTP(Device *dev, FILE *fp);
 extern Boolean	mediaInitFTP(Device *dev);
-extern int	mediaGetFTP(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetFTP(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownFTP(Device *dev);
 
 /* globals.c */
@@ -476,7 +472,7 @@ extern void	globalsInit(void);
 
 /* index.c */
 int		index_get(char *fname, PkgNodePtr papa);
-int		index_read(int fd, PkgNodePtr papa);
+int		index_read(FILE *fp, PkgNodePtr papa);
 int		index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll);
 void		index_init(PkgNodePtr top, PkgNodePtr plist);
 void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
@@ -536,7 +532,7 @@ extern int	mediaSetNFS(dialogMenuItem *self);
 extern int	mediaSetFTPUserPass(dialogMenuItem *self);
 extern int	mediaSetCPIOVerbosity(dialogMenuItem *self);
 extern int	mediaGetType(dialogMenuItem *self);
-extern Boolean	mediaExtractDist(char *dir, int fd);
+extern Boolean	mediaExtractDist(char *dir, FILE *fp);
 extern Boolean	mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpic);
 extern Boolean	mediaExtractDistEnd(int zpid, int cpid);
 extern Boolean	mediaVerify(void);
@@ -590,7 +586,7 @@ extern void	mediaShutdownNetwork(Device *dev);
 
 /* nfs.c */
 extern Boolean	mediaInitNFS(Device *dev);
-extern int	mediaGetNFS(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetNFS(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownNFS(Device *dev);
 
 /* options.c */
@@ -618,7 +614,7 @@ extern int	vsystem(char *fmt, ...);
 /* tape.c */
 extern char	*mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
-extern int	mediaGetTape(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetTape(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownTape(Device *dev);
 
 /* tcpip.c */
@@ -632,7 +628,7 @@ extern int	set_termcap(void);
 /* ufs.c */
 extern void	mediaShutdownUFS(Device *dev);
 extern Boolean	mediaInitUFS(Device *dev);
-extern int	mediaGetUFS(Device *dev, char *file, Boolean probe);
+extern FILE	*mediaGetUFS(Device *dev, char *file, Boolean probe);
 
 /* user.c */
 extern int	userAddGroup(dialogMenuItem *self);
