@@ -480,11 +480,12 @@ static void
 ep_if_start(ifp)
     struct ifnet *ifp;
 {
-    struct ep_softc *sc = ifp->if_softc;
+    struct ep_softc *sc;
     u_int len;
     struct mbuf *m, *m0;
     int s, pad;
 
+    sc = ifp->if_softc;
     if (sc->gone)
 	return;
 
@@ -497,7 +498,7 @@ startagain:
     IF_DEQUEUE(&ifp->if_snd, m0);
     if (m0 == NULL)
 	return;
-    for (len = 0, m = m0; m; m = m->m_next)
+    for (len = 0, m = m0; m != NULL; m = m->m_next)
 	len += m->m_len;
 
     pad = (4 - len) & 3;
@@ -509,7 +510,7 @@ startagain:
      */
     if (len + pad > ETHER_MAX_LEN) {
 	/* packet is obviously too large: toss it */
-	++ifp->if_oerrors;
+	ifp->if_oerrors++;
 	m_freem(m0);
 	goto readcheck;
     }
