@@ -404,13 +404,14 @@ copyin(udaddr, kaddr, len)
 	char *p;
 	size_t l;
 	faultbuf env;
+	uint segment;
 
 	up = udaddr;
 	kp = kaddr;
 
 #if 0
 	if (setfault(env)) {
-		curpcb->pcb_onfault = 0;
+		PCPU_GET(curpcb)->pcb_onfault = 0;
 		return EFAULT;
 	}
 #endif
@@ -419,13 +420,14 @@ copyin(udaddr, kaddr, len)
 		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
 		if (l > len)
 			l = len;
-		setusr(curpcb->pcb_pm->pm_sr[(u_int)up >> ADDR_SR_SHFT]);
+		segment = (uint)up >> ADDR_SR_SHFT;
+		setusr(PCPU_GET(curpcb)->pcb_pm->pm_sr[segment]);
 		bcopy(p, kp, l);
 		up += l;
 		kp += l;
 		len -= l;
 	}
-	curpcb->pcb_onfault = 0;
+	PCPU_GET(curpcb)->pcb_onfault = 0;
 	return 0;
 }
 
@@ -440,13 +442,14 @@ copyout(kaddr, udaddr, len)
 	char *p;
 	size_t l;
 	faultbuf env;
+	uint segment;
 
 	kp = kaddr;
 	up = udaddr;
 
 #if 0
 	if (setfault(env)) {
-		curpcb->pcb_onfault = 0;
+		PCPU_GET(curpcb)->pcb_onfault = 0;
 		return EFAULT;
 	}
 #endif
@@ -455,13 +458,14 @@ copyout(kaddr, udaddr, len)
 		l = ((char *)USER_ADDR + SEGMENT_LENGTH) - p;
 		if (l > len)
 			l = len;
-		setusr(curpcb->pcb_pm->pm_sr[(u_int)up >> ADDR_SR_SHFT]);
+		segment = (u_int)up >> ADDR_SR_SHFT;
+		setusr(PCPU_GET(curpcb)->pcb_pm->pm_sr[segment]);
 		bcopy(kp, p, l);
 		up += l;
 		kp += l;
 		len -= l;
 	}
-	curpcb->pcb_onfault = 0;
+	PCPU_GET(curpcb)->pcb_onfault = 0;
 	return 0;
 }
 
@@ -481,15 +485,15 @@ kcopy(const void *src, void *dst, size_t len)
 {
 	faultbuf env, *oldfault;
 
-	oldfault = curpcb->pcb_onfault;
+	oldfault = PCPU_GET(curpcb)->pcb_onfault;
 	if (setfault(env)) {
-		curpcb->pcb_onfault = oldfault;
+		PCPU_GET(curpcb)->pcb_onfault = oldfault;
 		return EFAULT;
 	}
 
 	bcopy(src, dst, len);
 
-	curpcb->pcb_onfault = oldfault;
+	PCPU_GET(curpcb)->pcb_onfault = oldfault;
 	return 0;
 }
 
@@ -510,7 +514,7 @@ badaddr_read(void *addr, size_t size, int *rptr)
 	__asm __volatile ("sync; isync");
 
 	if (setfault(env)) {
-		curpcb->pcb_onfault = 0;
+		PCPU_GET(curpcb)->pcb_onfault = 0;
 		__asm __volatile ("sync");
 		return 1;
 	}
@@ -534,7 +538,7 @@ badaddr_read(void *addr, size_t size, int *rptr)
 	/* Make sure we took the machine check, if we caused one. */
 	__asm __volatile ("sync; isync");
 
-	curpcb->pcb_onfault = 0;
+	PCPU_GET(curpcb)->pcb_onfault = 0;
 	__asm __volatile ("sync");	/* To be sure. */
 
 	/* Use the value to avoid reorder. */
