@@ -210,6 +210,8 @@ makefile()
 			do_rules(ofp);
 		else if (eq(line, "%LOAD\n"))
 			do_load(ofp);
+		else if (eq(line, "%CLEAN\n"))
+			do_clean(ofp);
 		else
 			fprintf(stderr,
 			    "Unknown %% construct in generic makefile: %s",
@@ -230,7 +232,7 @@ read_files()
 	register struct device *dp;
 	struct device *save_dp;
 	register struct opt *op;
-	char *wd, *this, *needs, *special, *depends;
+	char *wd, *this, *needs, *special, *depends, *clean;
 	char fname[32];
 	int nreqs, first = 1, configdep, isdup, std, filetype, 
 	    imp_rule, no_obj, before_depend;
@@ -252,7 +254,8 @@ next:
 	 * filename	[ standard | optional ] [ config-dependent ]
 	 *	[ dev* | profiling-routine ] [ device-driver] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ] 
-	 *      [ dependancy "dependancy-list"] [ before-depend ]
+	 *      [ dependency "dependency-list"] [ before-depend ]
+	 *	[ clean "file-list"]
 	 */
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
@@ -300,6 +303,7 @@ next:
 	nreqs = 0;
 	special = 0;
 	depends = 0;
+	clean = 0;
 	configdep = 0;
 	needs = 0;
 	std = 0;
@@ -338,7 +342,7 @@ nextparam:
 		before_depend++;
 		goto nextparam;
 	}
-	if (eq(wd, "dependancy")) {
+	if (eq(wd, "dependency")) {
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
 			printf("%s: %s missing compile command string.\n",
@@ -348,27 +352,14 @@ nextparam:
 		depends = ns(wd);
 		goto nextparam;
 	}
-	if (eq(wd, "no-obj")) {
-		no_obj++;
-		goto nextparam;
-	}
-	if (eq(wd, "no-implicit-rule")) {
-		if (special == 0) {
-			printf("%s: alternate rule required when "
-			       "\"no-implicit-rule\" is specified.\n",
-			       fname);
-		}
-		imp_rule++;
-		goto nextparam;
-	}
-	if (eq(wd, "dependancy")) {
+	if (eq(wd, "clean")) {
 		next_quoted_word(fp, wd);
 		if (wd == 0) {
-			printf("%s: %s missing compile command string.\n",
+			printf("%s: %s missing clean file list.\n",
 			       fname);
 			exit(1);
 		}
-		depends = ns(wd);
+		clean = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "compile-with")) {
@@ -429,6 +420,7 @@ invis:
 	tp->f_flags = isdup;
 	tp->f_special = special;
 	tp->f_depends = depends;
+	tp->f_clean = clean;
 	goto next;
 
 doneparam:
@@ -466,6 +458,7 @@ save:
 	tp->f_needs = needs;
 	tp->f_special = special;
 	tp->f_depends = depends;
+	tp->f_clean = clean;
 	if (pf && pf->f_type == INVISIBLE)
 		pf->f_flags = 1;		/* mark as duplicate */
 	goto next;
@@ -487,7 +480,6 @@ opteq(cp, dp)
 			return (1);
 	}
 }
-
 
 do_before_depend(fp)
 	FILE *fp;
@@ -696,6 +688,29 @@ do_load(f)
 		if (fl->f_type == SYSTEMSPEC)
 			fprintf(f, " %s", fl->f_needs);
 	putc('\n', f);
+}
+
+do_clean(fp)
+	FILE *fp;
+{
+	register struct file_list *tp, *fl;
+	register int lpos, len;
+	char swapname[32];
+
+	fputs("CLEAN=", fp);
+	lpos = 7;
+	for (tp = ftab; tp; tp = tp->f_next)
+		if (tp->f_clean) {
+			len = strlen(tp->f_clean);
+			if (len + lpos > 72) {
+				lpos = 8;
+				fputs("\\\n\t", fp);
+			}
+			fprintf(fp, "%s ", tp->f_clean);
+			lpos += len + 1;
+		}
+	if (lpos != 8)
+		putc('\n', fp);
 }
 
 struct file_list *
