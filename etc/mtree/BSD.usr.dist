@@ -151,8 +151,6 @@
     ..
     local
     ..
-    mdec
-    ..
     obj nochange
     ..
     sbin
