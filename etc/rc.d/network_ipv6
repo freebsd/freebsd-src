@@ -30,7 +30,7 @@
 
 # PROVIDE: network_ipv6
 # REQUIRE: routing
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 . /etc/network.subr

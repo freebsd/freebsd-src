@@ -27,7 +27,7 @@
 
 # PROVIDE: netif
 # REQUIRE: atm1 ipfilter mountcritlocal pccard serial sppp sysctl
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 . /etc/network.subr

@@ -30,7 +30,7 @@
 # PROVIDE: atm2
 # REQUIRE: atm1 netif
 # BEFORE:  routing
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 #
 # Additional ATM interface configuration

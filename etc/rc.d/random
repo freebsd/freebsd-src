@@ -6,7 +6,7 @@
 # PROVIDE: random
 # REQUIRE: diskless mountcritlocal initrandom
 # BEFORE: netif
-# KEYWORD: FreeBSD shutdown
+# KEYWORD: FreeBSD nojail shutdown
 
 . /etc/rc.subr
 
