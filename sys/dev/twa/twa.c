@@ -831,8 +831,9 @@ fw_passthru_done:
 
 		cur_time = time_second - (tz_minuteswest * 60) - 
 					(wall_cmos_clock ? adjkerntz : 0);
-		copyin(user_buf->pdata, &twa_lock,
-				sizeof(struct twa_lock_packet));
+		if ((error = copyin(user_buf->pdata, &twa_lock,
+				sizeof(struct twa_lock_packet))) != 0)
+			break;
 		s = splcam();
 		if ((sc->twa_ioctl_lock.lock == TWA_LOCK_FREE) ||
 				(twa_lock.force_flag) ||
@@ -850,8 +851,9 @@ fw_passthru_done:
 					TWA_ERROR_IOCTL_LOCK_ALREADY_HELD;
 		}
 		splx(s);
-		copyout(&twa_lock, user_buf->pdata,
-				sizeof(struct twa_lock_packet));
+		if ((error = copyout(&twa_lock, user_buf->pdata,
+				sizeof(struct twa_lock_packet))) != 0)
+			twa_printf(sc, "get_lock: Could not copyout to lock packet. error = %x\n", error);
 		break;
 	}
 
