@@ -82,10 +82,10 @@ struct gif_softc {
 #define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
 
 /* Prototypes */
-void gif_input __P((struct mbuf *, int, struct ifnet *));
-int gif_output __P((struct ifnet *, struct mbuf *,
-		    struct sockaddr *, struct rtentry *));
-int gif_ioctl __P((struct ifnet *, u_long, caddr_t));
+void gif_input(struct mbuf *, int, struct ifnet *);
+int gif_output(struct ifnet *, struct mbuf *,
+		    struct sockaddr *, struct rtentry *);
+int gif_ioctl(struct ifnet *, u_long, caddr_t);
 
 #endif /* _KERNEL */
 

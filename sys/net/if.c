@@ -92,7 +92,7 @@ static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
  * XXX: declare here to avoid to include many inet6 related files..
  * should be more generalized?
  */
-extern void	nd6_setmtu __P((struct ifnet *));
+extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 int	if_index = 0;

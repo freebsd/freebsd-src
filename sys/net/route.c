@@ -59,9 +59,9 @@ struct radix_node_head *rt_tables[AF_MAX+1];
 
 static int	rttrash;		/* routes not in table but not freed */
 
-static void rt_maskedcopy __P((struct sockaddr *,
-	    struct sockaddr *, struct sockaddr *));
-static void rtable_init __P((void **));
+static void rt_maskedcopy(struct sockaddr *,
+	    struct sockaddr *, struct sockaddr *);
+static void rtable_init(void **);
 
 static void
 rtable_init(table)
@@ -456,8 +456,8 @@ ifa_ifwithroute(flags, dst, gateway)
 	return (ifa);
 }
 
-static int rt_fixdelete __P((struct radix_node *, void *));
-static int rt_fixchange __P((struct radix_node *, void *));
+static int rt_fixdelete(struct radix_node *, void *);
+static int rt_fixchange(struct radix_node *, void *);
 
 struct rtfc_arg {
 	struct rtentry *rt0;

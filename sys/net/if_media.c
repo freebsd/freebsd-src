@@ -62,12 +62,12 @@
  * 	Useful for debugging newly-ported  drivers.
  */
 
-static struct ifmedia_entry *ifmedia_match __P((struct ifmedia *ifm,
-    int flags, int mask));
+static struct ifmedia_entry *ifmedia_match(struct ifmedia *ifm,
+    int flags, int mask);
 
 #ifdef IFMEDIA_DEBUG
 int	ifmedia_debug = 0;
-static	void ifmedia_printword __P((int));
+static	void ifmedia_printword(int);
 #endif
 
 /*

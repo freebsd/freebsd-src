@@ -83,8 +83,8 @@
 	} \
 }
 
-static u_int16_t	m_xhalf __P((struct mbuf *m, bpf_u_int32 k, int *err));
-static u_int32_t	m_xword __P((struct mbuf *m, bpf_u_int32 k, int *err));
+static u_int16_t	m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err);
+static u_int32_t	m_xword(struct mbuf *m, bpf_u_int32 k, int *err);
 
 static u_int32_t
 m_xword(m, k, err)
