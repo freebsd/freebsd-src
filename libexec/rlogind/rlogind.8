@@ -154,7 +154,19 @@ by the server failed.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr ruserok 3 ,
-.Xr rshd 8
+.Xr hosts 5 ,
+.Xr nologin 5 ,
+.Xr rshd 8 ,
+
+
+.Sh FILES
+.Bl -tag -width /etc/hostsxxxxxxxx -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Pa $HOME/.rhosts
+.It Pa /etc/nologin
+.El
+
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.  This is
