@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.93 1997/04/26 11:45:28 peter Exp $
+ *	$Id: trap.c,v 1.94 1997/05/05 04:08:12 dyson Exp $
  */
 
 /*
@@ -204,7 +204,7 @@ trap(frame)
 		/* user trap */
 
 		sticks = p->p_sticks;
-		p->p_md.md_regs = (int *)&frame;
+		p->p_md.md_regs = &frame;
 
 		switch (type) {
 		case T_PRIVINFLT:	/* privileged instruction fault */
@@ -856,7 +856,7 @@ syscall(frame)
 	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("syscall");
 
-	p->p_md.md_regs = (int *)&frame;
+	p->p_md.md_regs = &frame;
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;
 	if (p->p_sysent->sv_prepsyscall) {
