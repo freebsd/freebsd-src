@@ -268,6 +268,41 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "allprison", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * Sockets
+	 */
+	{ "filedesc structure", &lock_class_mtx_sleep },
+	{ "accept", &lock_class_mtx_sleep },
+	{ "sellck", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * Routing
+	 */
+	{ "radix node head", &lock_class_mtx_sleep },
+	{ "rtentry", &lock_class_mtx_sleep },
+	{ "ifaddr", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * UNIX Domain Sockets
+	 */
+	{ NULL, NULL },
+	/*
+	 * UDP/IP
+	 */
+	{ "udp", &lock_class_mtx_sleep },
+	{ "udpinp", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * TCP/IP
+	 */
+	{ "tcp", &lock_class_mtx_sleep },
+	{ "tcpinp", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
+	 * SLIP
+	 */
+	{ "slip_mtx", &lock_class_mtx_sleep },
+	{ "slip sc_mtx", &lock_class_mtx_sleep },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP
