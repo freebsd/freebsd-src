@@ -575,6 +575,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * the wrong msleep().  Yuck.
 		 */
 		td->td_flags |= TDF_TIMEOUT;
+		td->td_state = TDS_SLP;
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 	}
