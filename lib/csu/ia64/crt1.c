@@ -60,31 +60,17 @@ extern int etext;
 char **environ;
 char *__progname = "";
 
-__asm ("
-	.text
-	.global _start
-	.proc _start
-_start:
-	alloc	r14=ar.pfs,0,0,3,0 ;;
-	mov	out0=sp
-	mov	out1=r14
-	mov	out2=r15
-	mov	r14=15 ;;
-	andcm	sp=sp,r14 ;;
-	add	sp=-16,sp
-	movl	gp=_GLOBAL_OFFSET_TABLE_
-	br.call.sptk rp=_start2
-	.endp	_start");
-
 /* The entry function. */
 void
-_start2(char **ap,
+_start(char **ap,
        struct ps_strings *ps_strings,
        void (*cleanup)(void))
 {
 	int argc;
 	char **argv;
 	char **env;
+
+	__asm __volatile("movl gp=_GLOBAL_OFFSET_TABLE_");
 
 	argc = * (long *) ap;
 	argv = ap + 1;
