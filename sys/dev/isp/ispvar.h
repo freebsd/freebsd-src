@@ -626,18 +626,23 @@ void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
  *
  *
  *	DEFAULT_IID(struct ispsoftc *)		Default SCSI initiator ID
- *
  *	DEFAULT_LOOPID(struct ispsoftc *)	Default FC Loop ID
- *	DEFAULT_NODEWWN(struct ispsoftc *)	Default FC Node WWN
- *	DEFAULT_PORTWWN(struct ispsoftc *)	Default FC Port WWN
+ *	DEFAULT_NODEWWN(struct ispsoftc *)	Default Node WWN
+ *	DEFAULT_PORTWWN(struct ispsoftc *)	Default Port WWN
+ *		These establish reasonable defaults for each platform.
+ * 		These must be available independent of card NVRAM and are
+ *		to be used should NVRAM not be readable.
  *
- *	PORT_FROM_NODE_WWN(struct ispsoftc *, u_int64_t nwwn)
+ *	ISP_NODEWWN(struct ispsoftc *)	FC Node WWN to use
+ *	ISP_PORTWWN(struct ispsoftc *)	FC Port WWN to use
  *
- *		Node to Port WWN generator- this needs to be platform
- *		specific so that given a NAA=2 WWN dragged from the Qlogic
- *		card's NVRAM, a Port WWN can be generated that has the
- *		appropriate bits set in bits 48..60 that are likely to be
- *		based on the device instance number.
+ *		These are to be used after NVRAM is read. The tags
+ *		in fcparam.isp_{node,port}wwn reflect the values
+ *		read from NVRAM (possibly corrected for card botches).
+ *		Each platform can take that information and override
+ *		it or ignore and return the Node and Port WWNs to be
+ * 		used when sending the Qlogic f/w the Initialization Control
+ *		Block.
  *
  *	(XXX these do endian specific transformations- in transition XXX)
  *	ISP_SWIZZLE_ICB
