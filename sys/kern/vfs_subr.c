@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.181 1999/01/08 17:31:17 eivind Exp $
+ * $Id: vfs_subr.c,v 1.182 1999/01/10 01:58:26 eivind Exp $
  */
 
 /*
@@ -925,7 +925,8 @@ sched_sync(void)
 		starttime = time_second;
 
 		/*
-		 * Push files whose dirty time has expired.
+		 * Push files whose dirty time has expired.  Be careful
+		 * of interrupt race on slp queue
 		 */
 		s = splbio();
 		slp = &syncer_workitem_pending[syncer_delayno];
@@ -938,16 +939,21 @@ sched_sync(void)
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			(void) VOP_FSYNC(vp, p->p_ucred, MNT_LAZY, p);
 			VOP_UNLOCK(vp, 0, p);
+			s = splbio();
 			if (LIST_FIRST(slp) == vp) {
 				if (TAILQ_EMPTY(&vp->v_dirtyblkhd) &&
 				    vp->v_type != VBLK)
 					panic("sched_sync: fsync failed");
 				/*
 				 * Move ourselves to the back of the sync list.
+				 * Put us back on the worklist.  The worklist
+				 * routine will remove us from our current
+				 * position and then add us back in at a later
+				 * position.
 				 */
-				LIST_REMOVE(vp, v_synclist);
 				vn_syncer_add_to_worklist(vp, syncdelay);
 			}
+			splx(s);
 		}
 
 		/*
@@ -2791,6 +2797,8 @@ sync_inactive(ap)
 
 /*
  * The syncer vnode is no longer needed and is being decommissioned.
+ *
+ * Modifications to the worklist must be protected at splbio().
  */
 static int
 sync_reclaim(ap)
@@ -2799,12 +2807,15 @@ sync_reclaim(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	int s;
 
+	s = splbio();
 	vp->v_mount->mnt_syncer = NULL;
 	if (vp->v_flag & VONWORKLST) {
 		LIST_REMOVE(vp, v_synclist);
 		vp->v_flag &= ~VONWORKLST;
 	}
+	splx(s);
 
 	return (0);
 }
