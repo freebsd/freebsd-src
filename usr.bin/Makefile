@@ -264,7 +264,9 @@ _usbhidctl=	usbhidctl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
+.if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth
+.endif
 _doscmd=	doscmd
 _ncplist=	ncplist
 _ncplogin=	ncplogin
