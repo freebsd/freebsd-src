@@ -147,13 +147,6 @@ g_orphan_register(struct g_provider *pp)
 #endif
 }
 
-static void
-g_destroy_event(struct g_event *ep)
-{
-
-	g_free(ep);
-}
-
 static int
 one_event(void)
 {
@@ -189,7 +182,7 @@ one_event(void)
 		ep->flag |= EV_DONE;
 		wakeup(ep);
 	} else {
-		g_destroy_event(ep);
+		g_free(ep);
 	}
 	g_pending_events--;
 	if (g_pending_events == 0)
@@ -234,7 +227,7 @@ g_cancel_event(void *ref)
 					ep->flag |= EV_CANCELED;
 					wakeup(ep);
 				} else {
-					g_destroy_event(ep);
+					g_free(ep);
 				}
 				break;
 			}
@@ -314,7 +307,7 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	while (!(ep->flag & EV_DONE));
 	if (ep->flag & EV_CANCELED)
 		error = EAGAIN;
-	g_destroy_event(ep);
+	g_free(ep);
 	return (error);
 }
 
