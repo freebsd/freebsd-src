@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.14 1998/04/19 23:32:20 julian Exp $
+ * $Id: devfsdefs.h,v 1.15 1998/07/04 22:30:22 julian Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
@@ -89,7 +89,7 @@
 
 
 extern vop_t **devfs_vnodeop_p;		/* our own vector array for dirs */
-extern vop_t **dev_spec_vnodeop_p;	/* our own vector array for devs */
+extern vop_t **devfs_spec_vnodeop_p;	/* our own vector array for devs */
 
 typedef struct dev_name *devnm_p;
 typedef	struct devnode	*dn_p;
