@@ -184,7 +184,6 @@ struct setpriority_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 setpriority(td, uap)
 	struct thread *td;
@@ -267,8 +266,8 @@ setpriority(td, uap)
 /* 
  * Set "nice" for a process.  Doesn't really understand threaded processes
  * well but does try.  Has the unfortunate side effect of making all the NICE
- * values for a process's ksegrps the same.. This suggests that
- * NICE valuse should be stored as a process nice and deltas for the ksegrps.
+ * values for a process's ksegrps the same.  This suggests that
+ * NICE values should be stored as a process nice and deltas for the ksegrps.
  * (but not yet).
  */
 static int
@@ -287,7 +286,7 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MIN;
 	/* 
 	 * Only allow nicing if to more than the lowest nice.
-	 * E.g., for nices of 4,3,2  allow nice to 3 but not 1
+	 * E.g., for nices of 4,3,2 allow nice to 3 but not 1
 	 */
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		if (kg->kg_nice < low)
@@ -303,7 +302,11 @@ donice(struct thread *td, struct proc *p, int n)
 	return (0);
 }
 
-/* rtprio system call */
+/*
+ * Set realtime priority
+ *
+ * MPSAFE
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct rtprio_args {
 	int		function;
@@ -312,12 +315,6 @@ struct rtprio_args {
 };
 #endif
 
-/*
- * Set realtime priority
- *
- * MPSAFE
- */
-/* ARGSUSED */
 int
 rtprio(td, uap)
 	struct thread *td;
@@ -450,7 +447,6 @@ struct osetrlimit_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 osetrlimit(td, uap)
 	struct thread *td;
@@ -477,7 +473,6 @@ struct ogetrlimit_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 ogetrlimit(td, uap)
 	struct thread *td;
@@ -510,7 +505,6 @@ struct __setrlimit_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 setrlimit(td, uap)
 	struct thread *td;
@@ -659,8 +653,8 @@ getrlimit(td, uap)
 	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
-	struct proc *p;
 	struct rlimit rlim;
+	struct proc *p;
 	int error;
 
 	if (uap->which >= RLIM_NLIMITS)
@@ -701,7 +695,7 @@ calcru(p, up, sp, ip)
 		st = 1;
 		tt = 1;
 	}
-	if (curthread->td_proc == p) {
+	if (p == curthread->td_proc) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
@@ -728,7 +722,7 @@ calcru(p, up, sp, ip)
 	uu = (tu * ut) / tt;
 	su = (tu * st) / tt;
 	iu = tu - uu - su;
-		
+
 	/* Enforce monotonicity. */
 	if (uu < p->p_uu || su < p->p_su || iu < p->p_iu) {
 		if (uu < p->p_uu)
@@ -1103,7 +1097,7 @@ chgsbsize(uip, hiwat, to, max)
 	s = splnet();
 	UIDINFO_LOCK(uip);
 	new = uip->ui_sbsize + to - *hiwat;
-	/* don't allow them to exceed max, but allow subtraction */
+	/* Don't allow them to exceed max, but allow subtraction */
 	if (to > *hiwat && new > max) {
 		splx(s);
 		UIDINFO_UNLOCK(uip);

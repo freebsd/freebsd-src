@@ -106,9 +106,8 @@ struct uidinfo {
 #define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp)
 #define	UIDINFO_UNLOCK(ui)	mtx_unlock((ui)->ui_mtxp)
 
-struct thread;
-struct kse;
 struct proc;
+struct thread;
 
 void	 addupc_intr(struct thread *td, uintptr_t pc, u_int ticks);
 void	 addupc_task(struct thread *td, uintptr_t pc, u_int ticks);
