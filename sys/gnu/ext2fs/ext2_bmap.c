@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_bmap.c	8.6 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ufs_bmap.c,v 1.3 1994/08/02 07:54:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,8 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+
+int	ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *, int *, int *));
 
 /*
  * Bmap converts a the logical block number of a file to its physical block
@@ -137,7 +139,8 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 	xap = ap == NULL ? a : ap;
 	if (!nump)
 		nump = &num;
-	if (error = ufs_getlbns(vp, bn, xap, nump))
+	error = ufs_getlbns(vp, bn, xap, nump);
+	if (error)
 		return (error);
 
 	num = *nump;
@@ -165,7 +168,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 		 */
 
 		metalbn = xap->in_lbn;
-		if (daddr == 0 && !incore(vp, metalbn) || metalbn == bn)
+		if ((daddr == 0 && !incore(vp, metalbn)) || metalbn == bn)
 			break;
 		/*
 		 * If we get here, we've either got the block in the cache
@@ -189,7 +192,8 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp)
 			bp->b_flags |= B_READ;
 			VOP_STRATEGY(bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
-			if (error = biowait(bp)) {
+			error = biowait(bp);
+			if (error) {
 				brelse(bp);
 				return (error);
 			}

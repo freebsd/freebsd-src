@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_inode.c	8.4 (Berkeley) 1/21/94
- * $Id: ufs_inode.c,v 1.2 1994/08/02 07:54:56 davidg Exp $
+ * $Id: ufs_inode.c,v 1.3 1994/08/18 22:35:57 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,7 @@ ufs_reclaim(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	register struct inode *ip;
-	int i, type;
+	int type;
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_reclaim: pushing active", vp);

@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.6 (Berkeley) 4/1/94
- * $Id$
+ * $Id: ufs_lookup.c,v 1.2 1994/08/02 07:54:58 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/buf.h>
 #include <sys/file.h>
@@ -141,7 +142,8 @@ ufs_lookup(ap)
 	 */
 	if ((dp->i_mode & IFMT) != IFDIR)
 		return (ENOTDIR);
-	if (error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc))
+	error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc);
+	if (error)
 		return (error);
 
 	/*
@@ -151,7 +153,8 @@ ufs_lookup(ap)
 	 * check the name cache to see if the directory/name pair
 	 * we are looking for is known already.
 	 */
-	if (error = cache_lookup(vdp, vpp, cnp)) {
+	error = cache_lookup(vdp, vpp, cnp);
+	if (error) {
 		int vpid;	/* capability number of vnode */
 
 		if (error == ENOENT)
@@ -189,7 +192,8 @@ ufs_lookup(ap)
 			if (lockparent && pdp != vdp && (flags & ISLASTCN))
 				VOP_UNLOCK(pdp);
 		}
-		if (error = VOP_LOCK(pdp))
+		error = VOP_LOCK(pdp);
+		if (error)
 			return (error);
 		vdp = pdp;
 		dp = VTOI(pdp);
@@ -248,8 +252,9 @@ searchloop:
 		if ((dp->i_offset & bmask) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error =
-			    VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp))
+			error =
+			    VOP_BLKATOFF(vdp, (off_t)dp->i_offset, NULL, &bp);
+			if (error)
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -271,7 +276,7 @@ searchloop:
 		 */
 		ep = (struct direct *)((char *)bp->b_data + entryoffsetinblock);
 		if (ep->d_reclen == 0 ||
-		    dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock)) {
+		    (dirchk && ufs_dirbadentry(vdp, ep, entryoffsetinblock))) {
 			int i;
 
 			ufs_dirbad(dp, dp->i_offset, "mangled entry");
@@ -366,7 +371,8 @@ searchloop:
 		 * Access for write is interpreted as allowing
 		 * creation of files in the directory.
 		 */
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error)
 			return (error);
 		/*
 		 * Return an indication of where the new directory
@@ -446,7 +452,8 @@ found:
 		/*
 		 * Write access to directory required to delete files.
 		 */
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error)
 			return (error);
 		/*
 		 * Return pointer to current entry in dp->i_offset,
@@ -463,7 +470,8 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (error)
 			return (error);
 		/*
 		 * If directory is "sticky", then user must own
@@ -492,7 +500,8 @@ found:
 	 */
 	if (nameiop == RENAME && wantparent &&
 	    (flags & ISLASTCN)) {
-		if (error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc))
+		error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_proc);
+		if (error)
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -500,7 +509,8 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (error)
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
@@ -531,7 +541,8 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp);	/* race to get the inode */
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) {
+		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (error) {
 			VOP_LOCK(pdp);
 			return (error);
 		}
@@ -545,7 +556,8 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		if (error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp))
+		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		if (error)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
 			VOP_UNLOCK(pdp);
@@ -569,7 +581,7 @@ ufs_dirbad(ip, offset, how)
 	struct mount *mp;
 
 	mp = ITOV(ip)->v_mount;
-	(void)printf("%s: bad dir ino %d at offset %d: %s\n",
+	(void)printf("%s: bad dir ino %ld at offset %ld: %s\n",
 	    mp->mnt_stat.f_mntonname, ip->i_number, offset, how);
 	if ((mp->mnt_stat.f_flags & MNT_RDONLY) == 0)
 		panic("bad dir");
@@ -715,7 +727,8 @@ ufs_direnter(ip, dvp, cnp)
 	/*
 	 * Get the block containing the space for the new directory entry.
 	 */
-	if (error = VOP_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp))
+	error = VOP_BLKATOFF(dvp, (off_t)dp->i_offset, &dirbuf, &bp);
+	if (error)
 		return (error);
 	/*
 	 * Find space for the new entry. In the simple case, the entry at
@@ -793,8 +806,9 @@ ufs_dirremove(dvp, cnp)
 		/*
 		 * First entry in block: set d_ino to zero.
 		 */
-		if (error =
-		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp))
+		error =
+		    VOP_BLKATOFF(dvp, (off_t)dp->i_offset, (char **)&ep, &bp);
+		if (error)
 			return (error);
 		ep->d_ino = 0;
 		error = VOP_BWRITE(bp);
@@ -804,8 +818,9 @@ ufs_dirremove(dvp, cnp)
 	/*
 	 * Collapse new free space into previous entry.
 	 */
-	if (error = VOP_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
-	    (char **)&ep, &bp))
+	error = VOP_BLKATOFF(dvp, (off_t)(dp->i_offset - dp->i_count),
+	    (char **)&ep, &bp);
+	if (error)
 		return (error);
 	ep->d_reclen += dp->i_reclen;
 	error = VOP_BWRITE(bp);
@@ -828,7 +843,8 @@ ufs_dirrewrite(dp, ip, cnp)
 	struct vnode *vdp = ITOV(dp);
 	int error;
 
-	if (error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp))
+	error = VOP_BLKATOFF(vdp, (off_t)dp->i_offset, (char **)&ep, &bp);
+	if (error)
 		return (error);
 	ep->d_ino = ip->i_number;
 	if (vdp->v_mount->mnt_maxsymlinklen > 0)
@@ -956,7 +972,8 @@ ufs_checkpath(source, target, cred)
 		if (dirbuf.dotdot_ino == rootino)
 			break;
 		vput(vp);
-		if (error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp)) {
+		error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp);
+		if (error) {
 			vp = NULL;
 			break;
 		}

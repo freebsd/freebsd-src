@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.2 1994/08/02 07:54:59 davidg Exp $
+ * $Id: ufs_quota.c,v 1.3 1994/10/06 21:07:02 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -136,7 +136,8 @@ chkdq(ip, change, cred, flags)
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
-			if (error = chkdqchg(ip, change, cred, i))
+			error = chkdqchg(ip, change, cred, i);
+			if (error)
 				return (error);
 		}
 	}
@@ -251,7 +252,8 @@ chkiq(ip, change, cred, flags)
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
-			if (error = chkiqchg(ip, change, cred, i))
+			error = chkiqchg(ip, change, cred, i);
+			if (error)
 				return (error);
 		}
 	}
@@ -371,7 +373,8 @@ quotaon(p, mp, type, fname)
 
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, p);
-	if (error = vn_open(&nd, FREAD|FWRITE, 0))
+	error = vn_open(&nd, FREAD|FWRITE, 0);
+	if (error)
 		return (error);
 	vp = nd.ni_vp;
 	VOP_UNLOCK(vp);
@@ -416,7 +419,8 @@ again:
 			continue;
 		if (vget(vp, 1))
 			goto again;
-		if (error = getinoquota(VTOI(vp))) {
+		error = getinoquota(VTOI(vp));
+		if (error) {
 			vput(vp);
 			break;
 		}
@@ -497,7 +501,8 @@ getquota(mp, id, type, addr)
 	struct dquot *dq;
 	int error;
 
-	if (error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq))
+	error = dqget(NULLVP, id, VFSTOUFS(mp), type, &dq);
+	if (error)
 		return (error);
 	error = copyout((caddr_t)&dq->dq_dqb, addr, sizeof (struct dqblk));
 	dqrele(NULLVP, dq);
@@ -520,9 +525,11 @@ setquota(mp, id, type, addr)
 	struct dqblk newlim;
 	int error;
 
-	if (error = copyin(addr, (caddr_t)&newlim, sizeof (struct dqblk)))
+	error = copyin(addr, (caddr_t)&newlim, sizeof (struct dqblk));
+	if (error)
 		return (error);
-	if (error = dqget(NULLVP, id, ump, type, &ndq))
+	error = dqget(NULLVP, id, ump, type, &ndq);
+	if (error)
 		return (error);
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
@@ -579,9 +586,11 @@ setuse(mp, id, type, addr)
 	struct dqblk usage;
 	int error;
 
-	if (error = copyin(addr, (caddr_t)&usage, sizeof (struct dqblk)))
+	error = copyin(addr, (caddr_t)&usage, sizeof (struct dqblk));
+	if (error)
 		return (error);
-	if (error = dqget(NULLVP, id, ump, type, &ndq))
+	error = dqget(NULLVP, id, ump, type, &ndq);
+	if (error)
 		return (error);
 	dq = ndq;
 	while (dq->dq_flags & DQ_LOCK) {
@@ -748,7 +757,8 @@ dqget(vp, id, ump, type, dqp)
 		dqfreel = dp;
 		dq->dq_freef = NULL;
 		dq->dq_freeb = NULL;
-		if (dp = dq->dq_forw)
+		dp = dq->dq_forw;
+		if (dp)
 			dp->dq_back = dq->dq_back;
 		*dq->dq_back = dp;
 	}
@@ -757,7 +767,8 @@ dqget(vp, id, ump, type, dqp)
 	 */
 	if (vp != dqvp)
 		VOP_LOCK(dqvp);
-	if (dp = *dpp)
+	dp = *dpp;
+	if (dp)
 		dp->dq_back = &dq->dq_forw;
 	dq->dq_forw = dp;
 	dq->dq_back = dpp;
@@ -789,7 +800,8 @@ dqget(vp, id, ump, type, dqp)
 	 * quota structure and reflect problem to caller.
 	 */
 	if (error) {
-		if (dp = dq->dq_forw)
+		dp = dq->dq_forw;
+		if (dp)
 			dp->dq_back = dq->dq_back;
 		*dq->dq_back = dp;
 		dq->dq_forw = NULL;
@@ -928,7 +940,8 @@ dqflush(vp)
 				continue;
 			if (dq->dq_cnt)
 				panic("dqflush: stray dquot");
-			if (dp = dq->dq_forw)
+			dp = dq->dq_forw;
+			if (dp)
 				dp->dq_back = dq->dq_back;
 			*dq->dq_back = dp;
 			dq->dq_forw = NULL;
