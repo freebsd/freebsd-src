@@ -72,8 +72,18 @@
 #include <sys/vmmeter.h>
 
 #include <machine/clock.h>
+
+#ifdef __alpha__
+#include <machine/alpha_cpu.h>
+#include <machine/cpuconf.h>
+#include <machine/rpb.h>
+extern int ncpus;
+#endif /* __alpha__ */
+
+#ifdef __i386__
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
+#endif /* __i386__ */
 
 #include <sys/socket.h>
 #include <net/if.h>
@@ -81,7 +91,7 @@
 #include <compat/linux/linux_mib.h>
 #include <fs/pseudofs/pseudofs.h>
 
-extern struct	cdevsw *cdevsw[];
+extern struct cdevsw *cdevsw[];
 
 /*
  * Various conversion macros
@@ -93,6 +103,9 @@ extern struct	cdevsw *cdevsw[];
 #define P2B(x) ((x) << PAGE_SHIFT)			/* pages to bytes */
 #define P2K(x) ((x) << (PAGE_SHIFT - 10))		/* pages to kbytes */
 
+/*
+ * Filler function for proc/meminfo
+ */
 static int
 linprocfs_domeminfo(PFS_FILL_ARGS)
 {
@@ -163,6 +176,80 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	return (0);
 }
 
+#ifdef __alpha__
+/*
+ * Filler function for proc/cpuinfo (Alpha version)
+ */
+static int
+linprocfs_docpuinfo(PFS_FILL_ARGS)
+{
+	u_int64_t type, major;
+	struct pcs *pcsp;
+	const char *model, *sysname;
+
+	static const char *cpuname[] = {
+		"EV3", "EV4", "Simulate", "LCA4", "EV5", "EV45", "EV56",
+		"EV6", "PCA56", "PCA57", "EV67", "EV68CB", "EV68AL"
+	};
+
+	pcsp = LOCATE_PCS(hwrpb, hwrpb->rpb_primary_cpu_id);
+	type = pcsp->pcs_proc_type;
+	major = (type & PCS_PROC_MAJOR) >> PCS_PROC_MAJORSHIFT;
+	if (major < sizeof(cpuname)/sizeof(char *)) {
+		model = cpuname[major - 1];
+	} else {
+		model = "unknown";
+	}
+	
+	sysname = alpha_dsr_sysname();
+	    
+	sbuf_printf(sb,
+	    "cpu\t\t\t: Alpha\n"
+	    "cpu model\t\t: %s\n"
+	    "cpu variation\t\t: %ld\n"
+	    "cpu revision\t\t: %ld\n"
+	    "cpu serial number\t: %s\n"
+	    "system type\t\t: %s\n"
+	    "system variation\t: %s\n"
+	    "system revision\t\t: %ld\n"
+	    "system serial number\t: %s\n"
+	    "cycle frequency [Hz]\t: %lu\n"
+	    "timer frequency [Hz]\t: %lu\n"
+	    "page size [bytes]\t: %ld\n"
+	    "phys. address bits\t: %ld\n"
+	    "max. addr. space #\t: %ld\n"
+	    "BogoMIPS\t\t: %lu.%02lu\n"
+	    "kernel unaligned acc\t: %ld (pc=%lx,va=%lx)\n"
+	    "user unaligned acc\t: %ld (pc=%lx,va=%lx)\n"
+	    "platform string\t\t: %s\n"
+	    "cpus detected\t\t: %d\n"
+	    ,
+	    model,
+	    pcsp->pcs_proc_var,
+	    *(int *)hwrpb->rpb_revision,
+	    " ",
+	    " ",
+	    "0",
+	    0,
+	    " ",
+	    hwrpb->rpb_cc_freq,
+	    hz,
+	    hwrpb->rpb_page_size,
+	    hwrpb->rpb_phys_addr_size,
+	    hwrpb->rpb_max_asn,
+	    0, 0,
+	    0, 0, 0,
+	    0, 0, 0,
+	    sysname,
+	    ncpus);
+	return (0);
+}
+#endif /* __alpha__ */
+
+#ifdef __i386__
+/*
+ * Filler function for proc/cpuinfo (i386 version)
+ */
 static int
 linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
@@ -235,7 +322,11 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 
 	return (0);
 }
+#endif /* __i386__ */
 
+/*
+ * Filler function for proc/stat
+ */
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
@@ -261,6 +352,9 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/uptime
+ */
 static int
 linprocfs_douptime(PFS_FILL_ARGS)
 {
@@ -273,6 +367,9 @@ linprocfs_douptime(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/version
+ */
 static int
 linprocfs_doversion(PFS_FILL_ARGS)
 {
@@ -284,16 +381,12 @@ linprocfs_doversion(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/loadavg
+ */
 static int
 linprocfs_doloadavg(PFS_FILL_ARGS)
 {
-	int lastpid, ilen;
-
-	ilen = sizeof(lastpid);
-	if (kernel_sysctlbyname(p, "kern.lastpid",
-	    &lastpid, &ilen, NULL, 0, NULL) != 0)
-		lastpid = -1;				/* fake it */
-
 	sbuf_printf(sb,
 	    "%d.%02d %d.%02d %d.%02d %d/%d %d\n",
 	    (int)(averunnable.ldavg[0] / averunnable.fscale),
@@ -304,12 +397,15 @@ linprocfs_doloadavg(PFS_FILL_ARGS)
 	    (int)(averunnable.ldavg[2] * 100 / averunnable.fscale % 100),
 	    1,				/* number of running tasks */
 	    nprocs,			/* number of tasks */
-	    lastpid			/* the last pid */
+	    nextpid			/* the last pid */
 	);
 	
 	return (0);
 }
 
+/*
+ * Filler function for proc/pid/stat
+ */
 static int
 linprocfs_doprocstat(PFS_FILL_ARGS)
 {
@@ -379,6 +475,9 @@ static char *state_str[] = {
 	"M (mutex)"
 };
 
+/*
+ * Filler function for proc/pid/status
+ */
 static int
 linprocfs_doprocstatus(PFS_FILL_ARGS)
 {
@@ -476,6 +575,9 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/self
+ */
 static int
 linprocfs_doselflink(PFS_FILL_ARGS)
 {
@@ -483,6 +585,45 @@ linprocfs_doselflink(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/pid/cmdline
+ */
+static int
+linprocfs_doproccmdline(PFS_FILL_ARGS)
+{
+	struct ps_strings pstr;
+	int error, i;
+
+	/*
+	 * If we are using the ps/cmdline caching, use that.  Otherwise
+	 * revert back to the old way which only implements full cmdline
+	 * for the currept process and just p->p_comm for all other
+	 * processes.
+	 * Note that if the argv is no longer available, we deliberately
+	 * don't fall back on p->p_comm or return an error: the authentic
+	 * Linux behaviour is to return zero-length in this case.
+	 */
+
+	if (p->p_args && (ps_argsopen || !p_can(curp, p, P_CAN_SEE, NULL))) {
+		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
+	} else if (p != curp) {
+		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
+	} else {
+		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
+		if (error)
+			return (error);
+		for (i = 0; i < pstr.ps_nargvstr; i++) {
+			sbuf_copyin(sb, pstr.ps_argvstr[i], 0);
+			sbuf_printf(sb, "%c", '\0');
+		}
+	}
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/pid/exe
+ */
 static int
 linprocfs_doexelink(PFS_FILL_ARGS)
 {
@@ -496,6 +637,9 @@ linprocfs_doexelink(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/net/dev
+ */
 static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
@@ -526,6 +670,9 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/devices
+ */
 static int
 linprocfs_dodevices(PFS_FILL_ARGS)
 {
@@ -542,6 +689,9 @@ linprocfs_dodevices(PFS_FILL_ARGS)
 	return (0);
 }
 
+/*
+ * Filler function for proc/cmdline
+ */
 static int
 linprocfs_docmdline(PFS_FILL_ARGS)
 {
@@ -558,7 +708,7 @@ static struct pfs_node linprocfs_proc_nodes[] = {
 	PFS_THIS,
 	PFS_PARENT,
 	/*	    name	flags uid  gid	mode  data */
-     /* PFS_FILE(   "cmdline",	0,    0,   0,	0444, procfs_doproccmdline), */
+        PFS_FILE(   "cmdline",	0,    0,   0,	0444, linprocfs_doproccmdline),
 	PFS_SYMLINK("exe",	0,    0,   0,	0444, linprocfs_doexelink),
      /* PFS_FILE(   "mem",	0,    0,   0,	0444, procfs_domem), */
 	PFS_FILE(   "stat",	0,    0,   0,	0444, linprocfs_doprocstat),
