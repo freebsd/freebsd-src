@@ -1,15 +1,12 @@
-# From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
+# 	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
 PROG=	login
 SRCS=	login.c login_fbtab.c
-MAN=	login.1 login.access.5
-
 CFLAGS+=-DLOGALL
-
 DPADD=	${LIBUTIL} ${LIBCRYPT} ${LIBPAM}
 LDADD=	-lutil -lcrypt ${MINUSLPAM}
-
+MAN=	login.1 login.access.5
 BINOWN=	root
 BINMODE=4555
 INSTALLFLAGS=-fschg
