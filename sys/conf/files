@@ -868,6 +868,7 @@ dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 #dev/wlp/if_wlp.c		optional wlp card
+dev/watchdog/watchdog.c		standard
 dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
