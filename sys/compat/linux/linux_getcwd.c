@@ -42,12 +42,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/namei.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/syscallsubr.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -414,8 +414,7 @@ out:
 int
 linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 {
-	struct __getcwd_args bsd;
-	caddr_t sg, bp, bend, path;
+	caddr_t bp, bend, path;
 	int error, len, lenused;
 
 #ifdef DEBUG
@@ -423,28 +422,25 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 	       args->buf, (long)args->bufsize);
 #endif
 
-	sg = stackgap_init();
-	bsd.buf = stackgap_alloc(&sg, SPARE_USRSPACE);
-	bsd.buflen = SPARE_USRSPACE;
-	error = __getcwd(td, &bsd);
+	len = args->bufsize;
+
+	if (len > MAXPATHLEN*4)
+		len = MAXPATHLEN*4;
+	else if (len < 2)
+		return ERANGE;
+
+	path = (char *)malloc(len, M_TEMP, M_WAITOK);
+
+	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
 	if (!error) {
-		lenused = strlen(bsd.buf) + 1;
+		lenused = strlen(path) + 1;
 		if (lenused <= args->bufsize) {
 			td->td_retval[0] = lenused;
-			error = copyout(bsd.buf, args->buf, lenused);
+			error = copyout(path, args->buf, lenused);
 		}
 		else
 			error = ERANGE;
 	} else {
-		len = args->bufsize;
-
-		if (len > MAXPATHLEN*4)
-			len = MAXPATHLEN*4;
-		else if (len < 2)
-			return ERANGE;
-
-		path = (char *)malloc(len, M_TEMP, M_WAITOK);
-
 		bp = &path[len];
 		bend = bp;
 		*(--bp) = '\0';
@@ -464,10 +460,9 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 		td->td_retval[0] = lenused;
 		/* put the result into user buffer */
 		error = copyout(bp, args->buf, lenused);
-
-out:
-		free(path, M_TEMP);	
 	}
+out:
+	free(path, M_TEMP);
 	return (error);
 }
 

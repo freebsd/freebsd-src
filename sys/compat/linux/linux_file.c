@@ -931,30 +931,22 @@ bsd_to_linux_flock64(struct flock *bsd_flock, struct l_flock64 *linux_flock)
 static int
 fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 {
-	struct fcntl_args fcntl_args;
 	struct file *fp;
+	long arg;
 	int error, result;
-
-	fcntl_args.fd = args->fd;
 
 	switch (args->cmd) {
 	case LINUX_F_DUPFD:
-		fcntl_args.cmd = F_DUPFD;
-		fcntl_args.arg = args->arg;
-		return (fcntl(td, &fcntl_args));
+		return (kern_fcntl(td, args->fd, F_DUPFD, args->arg));
 
 	case LINUX_F_GETFD:
-		fcntl_args.cmd = F_GETFD;
-		return (fcntl(td, &fcntl_args));
+		return (kern_fcntl(td, args->fd, F_GETFD, 0));
 
 	case LINUX_F_SETFD:
-		fcntl_args.cmd = F_SETFD;
-		fcntl_args.arg = args->arg;
-		return (fcntl(td, &fcntl_args));
+		return (kern_fcntl(td, args->fd, F_SETFD, args->arg));
 
 	case LINUX_F_GETFL:
-		fcntl_args.cmd = F_GETFL;
-		error = fcntl(td, &fcntl_args);
+		error = kern_fcntl(td, args->fd, F_GETFL, 0);
 		result = td->td_retval[0];
 		td->td_retval[0] = 0;
 		if (result & O_RDONLY)
@@ -974,21 +966,19 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		return (error);
 
 	case LINUX_F_SETFL:
-		fcntl_args.arg = 0;
+		arg = 0;
 		if (args->arg & LINUX_O_NDELAY)
-			fcntl_args.arg |= O_NONBLOCK;
+			arg |= O_NONBLOCK;
 		if (args->arg & LINUX_O_APPEND)
-			fcntl_args.arg |= O_APPEND;
+			arg |= O_APPEND;
 		if (args->arg & LINUX_O_SYNC)
-			fcntl_args.arg |= O_FSYNC;
+			arg |= O_FSYNC;
 		if (args->arg & LINUX_FASYNC)
-			fcntl_args.arg |= O_ASYNC;
-		fcntl_args.cmd = F_SETFL;
-		return (fcntl(td, &fcntl_args));
+			arg |= O_ASYNC;
+		return (kern_fcntl(td, args->fd, F_SETFL, arg));
 
 	case LINUX_F_GETOWN:
-		fcntl_args.cmd = F_GETOWN;
-		return (fcntl(td, &fcntl_args));
+		return (kern_fcntl(td, args->fd, F_GETOWN, 0));
 
 	case LINUX_F_SETOWN:
 		/*
@@ -1005,9 +995,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		}
 		fdrop(fp, td);
 
-		fcntl_args.cmd = F_SETOWN;
-		fcntl_args.arg = args->arg;
-		return (fcntl(td, &fcntl_args));
+		return (kern_fcntl(td, args->fd, F_SETOWN, args->arg));
 	}
 
 	return (EINVAL);
@@ -1017,14 +1005,9 @@ int
 linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 {
 	struct linux_fcntl64_args args64;
-	struct fcntl_args fcntl_args;
 	struct l_flock linux_flock;
-	struct flock *bsd_flock;
+	struct flock bsd_flock;
 	int error;
-	caddr_t sg;
-
-	sg = stackgap_init();
-	bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(bsd_flock));
 
 #ifdef DEBUG
 	if (ldebug(fcntl))
@@ -1037,14 +1020,11 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_GETLK;
-		fcntl_args.arg = (long)bsd_flock;
-		error = fcntl(td, &fcntl_args);
+		linux_to_bsd_flock(&linux_flock, &bsd_flock);
+		error = kern_fcntl(td, args->fd, F_GETLK, (intptr_t)&bsd_flock);
 		if (error)
 			return (error);
-		bsd_to_linux_flock(bsd_flock, &linux_flock);
+		bsd_to_linux_flock(&bsd_flock, &linux_flock);
 		return (copyout(&linux_flock, (caddr_t)args->arg,
 		    sizeof(linux_flock)));
 
@@ -1053,22 +1033,18 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_SETLK;
-		fcntl_args.arg = (long)bsd_flock;
-		return (fcntl(td, &fcntl_args));
+		linux_to_bsd_flock(&linux_flock, &bsd_flock);
+		return (kern_fcntl(td, args->fd, F_SETLK,
+		    (intptr_t)&bsd_flock));
 
 	case LINUX_F_SETLKW:
 		error = copyin((caddr_t)args->arg, &linux_flock,
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_SETLKW;
-		fcntl_args.arg = (long)bsd_flock;
-		return (fcntl(td, &fcntl_args));
+		linux_to_bsd_flock(&linux_flock, &bsd_flock);
+		return (kern_fcntl(td, args->fd, F_SETLKW,
+		     (intptr_t)&bsd_flock));
 	}
 
 	args64.fd = args->fd;
@@ -1081,14 +1057,9 @@ linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 int
 linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 {
-	struct fcntl_args fcntl_args;
 	struct l_flock64 linux_flock;
-	struct flock *bsd_flock;
+	struct flock bsd_flock;
 	int error;
-	caddr_t sg;
-
-	sg = stackgap_init();
-	bsd_flock = (struct flock *)stackgap_alloc(&sg, sizeof(bsd_flock));
 
 #ifdef DEBUG
 	if (ldebug(fcntl64))
@@ -1102,14 +1073,11 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock64(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_GETLK;
-		fcntl_args.arg = (long)bsd_flock;
-		error = fcntl(td, &fcntl_args);
+		linux_to_bsd_flock64(&linux_flock, &bsd_flock);
+		error = kern_fcntl(td, args->fd, F_GETLK, (intptr_t)&bsd_flock);
 		if (error)
 			return (error);
-		bsd_to_linux_flock64(bsd_flock, &linux_flock);
+		bsd_to_linux_flock64(&bsd_flock, &linux_flock);
 		return (copyout(&linux_flock, (caddr_t)args->arg,
 		    sizeof(linux_flock)));
 
@@ -1119,11 +1087,9 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock64(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_SETLK;
-		fcntl_args.arg = (long)bsd_flock;
-		return (fcntl(td, &fcntl_args));
+		linux_to_bsd_flock64(&linux_flock, &bsd_flock);
+		return (kern_fcntl(td, args->fd, F_SETLK,
+		    (intptr_t)&bsd_flock));
 
 	case LINUX_F_SETLKW:
 	case LINUX_F_SETLKW64:
@@ -1131,11 +1097,9 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 		    sizeof(linux_flock));
 		if (error)
 			return (error);
-		linux_to_bsd_flock64(&linux_flock, bsd_flock);
-		fcntl_args.fd = args->fd;
-		fcntl_args.cmd = F_SETLKW;
-		fcntl_args.arg = (long)bsd_flock;
-		return (fcntl(td, &fcntl_args));
+		linux_to_bsd_flock64(&linux_flock, &bsd_flock);
+		return (kern_fcntl(td, args->fd, F_SETLKW,
+		    (intptr_t)&bsd_flock));
 	}
 
 	return (fcntl_common(td, args));
