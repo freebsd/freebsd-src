@@ -25,11 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: file.c,v 1.2 1998/11/06 22:14:08 des Exp $
+ *	$Id: file.c,v 1.3 1998/12/16 10:24:55 des Exp $
  */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+
+#include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -63,12 +65,12 @@ fetchPutFile(struct url *u, char *flags)
     return f;
 }
 
-int
-fetchStatFile(struct url *u, struct url_stat *us, char *flags)
+static int
+_fetch_stat_file(char *fn, struct url_stat *us)
 {
     struct stat sb;
 
-    if (stat(u->doc, &sb) == -1) {
+    if (stat(fn, &sb) == -1) {
 	_fetch_syserr();
 	return -1;
     }
@@ -76,4 +78,45 @@ fetchStatFile(struct url *u, struct url_stat *us, char *flags)
     us->atime = sb.st_atime;
     us->mtime = sb.st_mtime;
     return 0;
+}
+
+int
+fetchStatFile(struct url *u, struct url_stat *us, char *flags)
+{
+    return _fetch_stat_file(u->doc, us);
+}
+
+struct url_ent *
+fetchListFile(struct url *u, char *flags)
+{
+    DIR *dir;
+    struct dirent *de;
+    struct url_stat us;
+    struct url_ent *ue;
+    int size, len;
+    char fn[MAXPATHLEN], *p;
+    int l;
+
+    if ((dir = opendir(u->doc)) == NULL) {
+	_fetch_syserr();
+	return NULL;
+    }
+
+    ue = NULL;
+    strncpy(fn, u->doc, sizeof fn - 2);
+    fn[sizeof fn - 2] = 0;
+    strcat(fn, "/");
+    p = strchr(fn, 0);
+    l = sizeof fn - strlen(fn) - 1;
+    
+    while ((de = readdir(dir)) != NULL) {
+	strncpy(p, de->d_name, l - 1);
+	p[l - 1] = 0;
+	if (_fetch_stat_file(fn, &us) == -1)
+	    /* should I return a partial result, or abort? */
+	    break;
+	_fetch_add_entry(&ue, &size, &len, de->d_name, &us);
+    }
+    
+    return ue;
 }
