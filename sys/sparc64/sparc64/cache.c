@@ -81,6 +81,7 @@
 #include <dev/ofw/openfirm.h>
 
 #include <machine/cache.h>
+#include <machine/tlb.h>
 #include <machine/ver.h>
 
 struct cacheinfo cache;
@@ -126,8 +127,10 @@ cache_init(phandle_t node)
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
 		dcache_page_inval = cheetah_dcache_page_inval;
 		icache_page_inval = cheetah_icache_page_inval;
+		tlb_flush_user = cheetah_tlb_flush_user;
 	} else {
 		dcache_page_inval = spitfire_dcache_page_inval;
 		icache_page_inval = spitfire_icache_page_inval;
+		tlb_flush_user = spitfire_tlb_flush_user;
 	}
 }

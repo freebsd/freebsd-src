@@ -56,7 +56,7 @@ ENTRY(cpu_switch)
 	/*
 	 * If the current thread was using floating point in the kernel, save
 	 * its context.  The userland floating point context has already been
-	 * saved.
+	 * saved in that case.
 	 */
 	rd	%fprs, %l2
 	andcc	%l2, FPRS_FEF, %g0
@@ -125,9 +125,6 @@ ENTRY(cpu_switch)
 	ldx	[PCB_REG + PCB_PC], %i7
 	sub	%fp, CCFSZ, %sp
 
-	SET(sched_lock, %i3, %i2)
-	stx	%i0, [%i2 + MTX_LOCK]
-
 	/*
 	 * Point to the vmspaces of the new process, and of the last non-kernel
 	 * process to run.
@@ -152,21 +149,12 @@ ENTRY(cpu_switch)
 	 nop
 
 	/*
-	 * If the new process has nucleus context we are done.
+	 * If the new process is a kernel thread we can just leave the old
+	 * context active and avoid recycling its context number.
 	 */
-	lduw	[PCPU(CPUID)], %i3
-	sllx	%i3, INT_SHIFT, %i3
-	add	%i2, VM_PMAP + PM_CONTEXT, %i4
-	lduw	[%i3 + %i4], %i5
-
-#if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: ctx=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%i5, [%g1 + KTR_PARM1]
-9:
-#endif
-
-	brz,a,pn %i5, 5f
+	SET(vmspace0, %i4, %i3)
+	cmp	%i2, %i3
+	be,a,pn %xcc, 5f
 	 nop
 
 	/*
@@ -185,7 +173,7 @@ ENTRY(cpu_switch)
 	stw	%l3, [%l2 + VM_PMAP + PM_ACTIVE]
 
 	/*
-	 * Take away its context.
+	 * Take away its context number.
 	 */
 	lduw	[PCPU(CPUID)], %l3
 	sllx	%l3, INT_SHIFT, %l3
@@ -194,55 +182,41 @@ ENTRY(cpu_switch)
 	stw	%l5, [%l3 + %l4]
 
 	/*
-	 * Find the current free tlb context for this cpu and install it as
-	 * the new primary context.
+	 * Find a new tlb context.  If we've run out we have to flush all user
+	 * mappings from the tlb and reset the context numbers.
 	 */
-3:	lduw	[PCPU(TLB_CTX)], %i5
-	stw	%i5, [%i3 + %i4]
-	mov	AA_DMMU_PCXR, %i4
-	stxa	%i5, [%i4] ASI_DMMU
-	membar	#Sync
-
-	/*
-	 * See if we have run out of free contexts.
-	 */
-	lduw	[PCPU(TLB_CTX_MAX)], %i3
-
-#if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: ctx=%#lx next=%#lx max=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%i5, [%g1 + KTR_PARM1]
-	add	%i5, 1, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%i3, [%g1 + KTR_PARM3]
-9:
-#endif
-
-	add	%i5, 1, %i5
-	cmp	%i3, %i5
+3:	lduw	[PCPU(TLB_CTX)], %i3
+	lduw	[PCPU(TLB_CTX_MAX)], %i4
+	cmp	%i3, %i4
 	bne,a,pt %xcc, 4f
-	 stw	%i5, [PCPU(TLB_CTX)]
-
-#if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: context rollover"
-	    , %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
+	 nop
+	SET(tlb_flush_user, %i5, %i4)
+	ldx	[%i4], %i5
+	call	%i5
+	 nop
+	lduw	[PCPU(TLB_CTX_MIN)], %i3
 
 	/*
-	 * We will start re-using contexts on the next switch.  Flush all
-	 * non-nucleus mappings from the tlb, and reset the next free context.
+	 * Advance next free context.
 	 */
-	call	pmap_context_rollover
-	 nop
+4:	add	%i3, 1, %i4
+	stw	%i4, [PCPU(TLB_CTX)]
+
+	/*
+	 * Set the new context number in the pmap.
+	 */
+	lduw	[PCPU(CPUID)], %i4
+	sllx	%i4, INT_SHIFT, %i4
+	add	%i2, VM_PMAP + PM_CONTEXT, %i5
+	stw	%i3, [%i4 + %i5]
 
 	/*
 	 * Mark the pmap as active on this cpu.
 	 */
-4:	lduw	[%i2 + VM_PMAP + PM_ACTIVE], %i3
-	lduw	[PCPU(CPUMASK)], %i4
-	or	%i3, %i4, %i3
-	stw	%i3, [%i2 + VM_PMAP + PM_ACTIVE]
+	lduw	[%i2 + VM_PMAP + PM_ACTIVE], %i4
+	lduw	[PCPU(CPUMASK)], %i5
+	or	%i4, %i5, %i4
+	stw	%i4, [%i2 + VM_PMAP + PM_ACTIVE]
 
 	/*
 	 * Make note of the change in vmspace.
@@ -250,26 +224,22 @@ ENTRY(cpu_switch)
 	stx	%i2, [PCPU(VMSPACE)]
 
 	/*
-	 * Load the tsb registers.
+	 * Fiddle the hardware bits.  Set the tsb registers and install the
+	 * new context number in the cpu.
 	 */
-	ldx	[%i2 + VM_PMAP + PM_TSB], %i3
-	mov	AA_DMMU_TSB, %i4
-	stxa	%i3, [%i4] ASI_DMMU
-	mov	AA_IMMU_TSB, %i4
-	stxa	%i3, [%i4] ASI_IMMU
+	ldx	[%i2 + VM_PMAP + PM_TSB], %i4
+	mov	AA_DMMU_TSB, %i5
+	stxa	%i4, [%i5] ASI_DMMU
+	mov	AA_IMMU_TSB, %i5
+	stxa	%i4, [%i5] ASI_IMMU
+	mov	AA_DMMU_PCXR, %i5
+	stxa	%i3, [%i5] ASI_DMMU
 	membar	#Sync
-
-5:
-#if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: return"
-	    , %g1, %g2, %g3, 7, 8, 9)
-9:
-#endif
 
 	/*
 	 * Done.  Return and load the new process's window from the stack.
 	 */
-	ret
+5:	ret
 	 restore
 END(cpu_switch)
 

@@ -286,11 +286,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 	if (child == 0)
 		panic("cpu_startup: no cpu\n");
-	OF_getprop(child, "#dtlb-entries", &tlb_dtlb_entries,
-	    sizeof(tlb_dtlb_entries));
-	OF_getprop(child, "#itlb-entries", &tlb_itlb_entries,
-	    sizeof(tlb_itlb_entries));
-
 	cache_init(child);
 
 	getenv_int("machdep.use_vis", &cpu_use_vis);
