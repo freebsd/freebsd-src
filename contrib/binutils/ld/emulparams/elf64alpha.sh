@@ -1,4 +1,4 @@
-ENTRY=__start
+ENTRY=_start
 SCRIPT_NAME=elf
 ELFSIZE=64
 TEMPLATE_NAME=elf32
