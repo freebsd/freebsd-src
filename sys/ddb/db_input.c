@@ -361,10 +361,3 @@ db_check_interrupt()
 		break;
 	}
 }
-
-/* called from kdb_trap in db_interface.c */
-void
-cnpollc (flag)
-	int flag;
-{
-}

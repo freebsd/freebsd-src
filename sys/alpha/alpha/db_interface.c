@@ -1,4 +1,5 @@
 /* $NetBSD: db_interface.c,v 1.2 1997/09/16 19:07:19 thorpej Exp $ */
+/* $FreeBSD$ */
 
 /* 
  * Mach Operating System
@@ -83,7 +84,7 @@ extern char *trap_type[];
 extern int trap_types;
 #endif
 
-int	db_active = 0;
+int	db_active;
 
 void	ddbprinttrap __P((unsigned long, unsigned long, unsigned long,
 	    unsigned long));
@@ -188,14 +189,14 @@ kdb_trap(a0, a1, a2, entry, regs)
 	s = splhigh();
 
 	db_active++;
-	cnpollc(TRUE);		/* Set polling mode, unblank video */
 
-	if (ddb_mode)
+	if (ddb_mode) {
+	    cndbctl(TRUE);	/* DDB active, unblank video */
 	    db_trap(entry, a0);	/* Where the work happens */
-	else
+	    cndbctl(FALSE);	/* DDB inactive */
+	} else
 	    gdb_handle_exception(&ddb_regs, entry, a0);
 
-	cnpollc(FALSE);		/* Resume interrupt mode */
 	db_active--;
 
 	splx(s);
