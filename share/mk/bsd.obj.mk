@@ -117,9 +117,7 @@ cleanobj:
 	else \
 		cd ${.CURDIR} && ${MAKE} clean cleandepend; \
 	fi
-.if defined(OBJLINK)
 	@if [ -h ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
-.endif
 
 .if !target(cleanfiles)
 cleanfiles:
