@@ -728,6 +728,7 @@ find_base_value (src)
      rtx src;
 {
   unsigned int regno;
+
   switch (GET_CODE (src))
     {
     case SYMBOL_REF:
@@ -744,12 +745,12 @@ find_base_value (src)
 	return new_reg_base_value[regno];
 
       /* If a pseudo has a known base value, return it.  Do not do this
-	 for hard regs since it can result in a circular dependency
-	 chain for registers which have values at function entry.
+	 for non-fixed hard regs since it can result in a circular
+	 dependency chain for registers which have values at function entry.
 
 	 The test above is not sufficient because the scheduler may move
 	 a copy out of an arg reg past the NOTE_INSN_FUNCTION_BEGIN.  */
-      if (regno >= FIRST_PSEUDO_REGISTER
+      if ((regno >= FIRST_PSEUDO_REGISTER || fixed_regs[regno])
 	  && regno < reg_base_value_size
 	  && reg_base_value[regno])
 	return reg_base_value[regno];
@@ -846,8 +847,6 @@ find_base_value (src)
       if (GET_MODE_SIZE (GET_MODE (src)) < GET_MODE_SIZE (Pmode))
 	break;
       /* Fall through.  */
-    case ZERO_EXTEND:
-    case SIGN_EXTEND:	/* used for NT/Alpha pointers */
     case HIGH:
     case PRE_INC:
     case PRE_DEC:
@@ -856,6 +855,19 @@ find_base_value (src)
     case PRE_MODIFY:
     case POST_MODIFY:
       return find_base_value (XEXP (src, 0));
+
+    case ZERO_EXTEND:
+    case SIGN_EXTEND:	/* used for NT/Alpha pointers */
+      {
+	rtx temp = find_base_value (XEXP (src, 0));
+
+#ifdef POINTERS_EXTEND_UNSIGNED
+	if (temp != 0 && CONSTANT_P (temp) && GET_MODE (temp) != Pmode)
+	  temp = convert_memory_address (Pmode, temp);
+#endif
+
+	return temp;
+      }
 
     default:
       break;
@@ -1230,8 +1242,6 @@ find_base_term (x)
       if (GET_MODE_SIZE (GET_MODE (x)) < GET_MODE_SIZE (Pmode))
         return 0;
       /* Fall through.  */
-    case ZERO_EXTEND:
-    case SIGN_EXTEND:	/* Used for Alpha/NT pointers */
     case HIGH:
     case PRE_INC:
     case PRE_DEC:
@@ -1240,6 +1250,19 @@ find_base_term (x)
     case PRE_MODIFY:
     case POST_MODIFY:
       return find_base_term (XEXP (x, 0));
+
+    case ZERO_EXTEND:
+    case SIGN_EXTEND:	/* Used for Alpha/NT pointers */
+      {
+	rtx temp = find_base_term (XEXP (x, 0));
+
+#ifdef POINTERS_EXTEND_UNSIGNED
+	if (temp != 0 && CONSTANT_P (temp) && GET_MODE (temp) != Pmode)
+	  temp = convert_memory_address (Pmode, temp);
+#endif
+
+	return temp;
+      }
 
     case VALUE:
       val = CSELIB_VAL_PTR (x);
@@ -1999,6 +2022,13 @@ true_dependence (mem, mem_mode, x, varies)
   if (MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem))
     return 1;
 
+  /* (mem:BLK (scratch)) is a special mechanism to conflict with everything.
+     This is used in epilogue deallocation functions.  */
+  if (GET_MODE (x) == BLKmode && GET_CODE (XEXP (x, 0)) == SCRATCH)
+    return 1;
+  if (GET_MODE (mem) == BLKmode && GET_CODE (XEXP (mem, 0)) == SCRATCH)
+    return 1;
+
   if (DIFFERENT_ALIAS_SETS_P (x, mem))
     return 0;
 
@@ -2074,6 +2104,13 @@ canon_true_dependence (mem, mem_mode, mem_addr, x, varies)
   if (MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem))
     return 1;
 
+  /* (mem:BLK (scratch)) is a special mechanism to conflict with everything.
+     This is used in epilogue deallocation functions.  */
+  if (GET_MODE (x) == BLKmode && GET_CODE (XEXP (x, 0)) == SCRATCH)
+    return 1;
+  if (GET_MODE (mem) == BLKmode && GET_CODE (XEXP (mem, 0)) == SCRATCH)
+    return 1;
+
   if (DIFFERENT_ALIAS_SETS_P (x, mem))
     return 0;
 
@@ -2131,6 +2168,13 @@ write_dependence_p (mem, x, writep)
   rtx base;
 
   if (MEM_VOLATILE_P (x) && MEM_VOLATILE_P (mem))
+    return 1;
+
+  /* (mem:BLK (scratch)) is a special mechanism to conflict with everything.
+     This is used in epilogue deallocation functions.  */
+  if (GET_MODE (x) == BLKmode && GET_CODE (XEXP (x, 0)) == SCRATCH)
+    return 1;
+  if (GET_MODE (mem) == BLKmode && GET_CODE (XEXP (mem, 0)) == SCRATCH)
     return 1;
 
   if (DIFFERENT_ALIAS_SETS_P (x, mem))
@@ -2253,6 +2297,7 @@ nonlocal_mentioned_p (x)
     case CC0:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case CONST:
     case LABEL_REF:
       return 0;

@@ -480,9 +480,11 @@ initialize_inlined_parameters (id, args, fn)
       tree init_stmt;
       tree var;
       tree value;
+      tree cleanup;
 
       /* Find the initializer.  */
-      value = a ? TREE_VALUE (a) : NULL_TREE;
+      value = (*lang_hooks.tree_inlining.convert_parm_for_inlining)
+	      (p, a ? TREE_VALUE (a) : NULL_TREE, fn);
 
       /* If the parameter is never assigned to, we may not need to
 	 create a new variable here at all.  Instead, we may be able
@@ -558,16 +560,26 @@ initialize_inlined_parameters (id, args, fn)
 	  TREE_CHAIN (init_stmt) = init_stmts;
 	  init_stmts = init_stmt;
 	}
+
+      /* See if we need to clean up the declaration.  */
+      cleanup = maybe_build_cleanup (var);
+      if (cleanup) 
+	{
+	  tree cleanup_stmt;
+	  /* Build the cleanup statement.  */
+	  cleanup_stmt = build_stmt (CLEANUP_STMT, var, cleanup);
+	  /* Add it to the *front* of the list; the list will be
+	     reversed below.  */
+	  TREE_CHAIN (cleanup_stmt) = init_stmts;
+	  init_stmts = cleanup_stmt;
+	}
     }
 
   /* Evaluate trailing arguments.  */
   for (; a; a = TREE_CHAIN (a))
     {
       tree init_stmt;
-      tree value;
-
-      /* Find the initializer.  */
-      value = a ? TREE_VALUE (a) : NULL_TREE;
+      tree value = TREE_VALUE (a);
 
       if (! value || ! TREE_SIDE_EFFECTS (value))
 	continue;
@@ -842,6 +854,8 @@ expand_call_inline (tp, walk_subtrees, data)
      type of the statement expression is the return type of the
      function call.  */
   expr = build1 (STMT_EXPR, TREE_TYPE (TREE_TYPE (fn)), NULL_TREE);
+  /* There is no scope associated with the statement-expression.  */
+  STMT_EXPR_NO_SCOPE (expr) = 1;
 
   /* Local declarations will be replaced by their equivalents in this
      map.  */
@@ -1223,6 +1237,7 @@ walk_tree (tp, func, data, htab_)
     case IDENTIFIER_NODE:
     case INTEGER_CST:
     case REAL_CST:
+    case VECTOR_CST:
     case STRING_CST:
     case REAL_TYPE:
     case COMPLEX_TYPE:

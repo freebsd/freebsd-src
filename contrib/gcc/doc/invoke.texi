@@ -157,7 +157,7 @@ in the following sections.
 @xref{Overall Options,,Options Controlling the Kind of Output}.
 @gccoptlist{
 -c  -S  -E  -o @var{file}  -pipe  -pass-exit-codes  -x @var{language} @gol
--v  --target-help  --help}
+-v  -###  --target-help  --help}
 
 @item C Language Options
 @xref{C Dialect Options,,Options Controlling C Dialect}.
@@ -165,7 +165,7 @@ in the following sections.
 -ansi  -std=@var{standard}  -aux-info @var{filename} @gol
 -fno-asm  -fno-builtin -fno-builtin-@var{function} @gol
 -fhosted  -ffreestanding @gol
--trigraphs  -traditional  -traditional-cpp @gol
+-trigraphs  -no-integrated-cpp  -traditional  -traditional-cpp @gol
 -fallow-single-precision  -fcond-mismatch @gol
 -fsigned-bitfields  -fsigned-char @gol
 -funsigned-bitfields  -funsigned-char @gol
@@ -348,10 +348,10 @@ in the following sections.
 -mcmodel=@var{code-model} @gol
 -m32  -m64 @gol
 -mapp-regs  -mbroken-saverestore  -mcypress @gol
--mepilogue  -mfaster-structs  -mflat @gol
+-mfaster-structs  -mflat @gol
 -mfpu  -mhard-float  -mhard-quad-float @gol
 -mimpure-text  -mlive-g0  -mno-app-regs @gol
--mno-epilogue  -mno-faster-structs  -mno-flat  -mno-fpu @gol
+-mno-faster-structs  -mno-flat  -mno-fpu @gol
 -mno-impure-text  -mno-stack-bias  -mno-unaligned-doubles @gol
 -msoft-float  -msoft-quad-float  -msparclite  -mstack-bias @gol
 -msupersparc  -munaligned-doubles  -mv8}
@@ -435,7 +435,7 @@ in the following sections.
 -mpowerpc-gpopt  -mno-powerpc-gpopt @gol
 -mpowerpc-gfxopt  -mno-powerpc-gfxopt @gol
 -mnew-mnemonics  -mold-mnemonics @gol
--mfull-toc   -mminimal-toc  -mno-fop-in-toc  -mno-sum-in-toc @gol
+-mfull-toc   -mminimal-toc  -mno-fp-in-toc  -mno-sum-in-toc @gol
 -m64  -m32  -mxl-call  -mno-xl-call  -mpe @gol
 -msoft-float  -mhard-float  -mmultiple  -mno-multiple @gol
 -mstring  -mno-string  -mupdate  -mno-update @gol
@@ -445,7 +445,7 @@ in the following sections.
 -mtoc  -mno-toc -mlittle  -mlittle-endian  -mbig  -mbig-endian @gol
 -mcall-aix -mcall-sysv -mcall-netbsd @gol
 -maix-struct-return -msvr4-struct-return
--mabi=altivec @gol
+-mabi=altivec -mabi=no-altivec @gol
 -mprototype  -mno-prototype @gol
 -msim  -mmvme  -mads  -myellowknife  -memb -msdata @gol
 -msdata=@var{opt}  -mvxworks -G @var{num} -pthread}
@@ -540,6 +540,9 @@ in the following sections.
 @gccoptlist{
 -m1  -m2  -m3  -m3e @gol
 -m4-nofpu  -m4-single-only  -m4-single  -m4 @gol
+-m5-64media -m5-64media-nofpu @gol
+-m5-32media -m5-32media-nofpu @gol
+-m5-compact -m5-compact-nofpu @gol
 -mb  -ml  -mdalign  -mrelax @gol
 -mbigtable  -mfmovd  -mhitachi  -mnomacsave @gol
 -mieee  -misize  -mpadstruct  -mspace @gol
@@ -593,7 +596,8 @@ in the following sections.
 @gccoptlist{
 -mlibfuncs -mno-libfuncs -mepsilon -mno-epsilon -mabi=gnu @gol
 -mabi=mmixware -mzero-extend -mknuthdiv -mtoplevel-symbols @gol
--melf -mbranch-predict -mno-branch-predict}
+-melf -mbranch-predict -mno-branch-predict -mbase-addresses @gol
+-mno-base-addresses}
 
 @emph{IA-64 Options}
 @gccoptlist{
@@ -779,10 +783,6 @@ package body).  Such files are also called @dfn{bodies}.
 @c @var{file}.p
 @c @var{file}.pas
 
-@item @var{file}.ch
-@itemx @var{file}.chi
-CHILL source code (preprocessed with the traditional preprocessor).
-
 @item @var{file}.s
 Assembler code.
 
@@ -809,7 +809,6 @@ c++  c++-cpp-output
 objective-c  objc-cpp-output
 assembler  assembler-with-cpp
 ada
-chill
 f77  f77-cpp-input  ratfor
 java
 @end example
@@ -887,6 +886,12 @@ all preprocessed C source on standard output.
 Print (on standard error output) the commands executed to run the stages
 of compilation.  Also print the version number of the compiler driver
 program and of the preprocessor and the compiler proper.
+
+@item -###
+@opindex ###
+Like @option{-v} except the commands are not executed and all command
+arguments are quoted.  This is useful for shell scripts to capture the
+driver-generated command lines.
 
 @item -pipe
 @opindex pipe
@@ -1013,7 +1018,7 @@ ISO C89 as modified in amendment 1.
 @itemx iso9899:1999
 @itemx iso9899:199x
 ISO C99.  Note that this standard is not yet fully supported; see
-@w{@uref{http://gcc.gnu.org/c99status.html}} for more information.  The
+@w{@uref{http://gcc.gnu.org/gcc-3.1/c99status.html}} for more information.  The
 names @samp{c9x} and @samp{iso9899:199x} are deprecated.
 
 @item gnu89
@@ -1136,6 +1141,16 @@ freestanding and hosted environments.
 @opindex trigraphs
 Support ISO C trigraphs.  The @option{-ansi} option (and @option{-std}
 options for strict ISO C conformance) implies @option{-trigraphs}.
+
+@item -no-integrated-cpp
+@opindex no-integrated-cpp
+Invoke the external cpp during compilation.  The default is to use the
+integrated cpp (internal cpp).  This option also allows a
+user-supplied cpp via the @option{-B} option.  This flag is applicable
+in both C and C++ modes.
+
+We do not guarantee to retain this option in future, and we may change
+its semantics.
 
 @cindex traditional C language
 @cindex C language, traditional
@@ -1571,10 +1586,44 @@ The following @option{-W@dots{}} options are not affected by @option{-Wall}.
 @table @gcctabopt
 @item -Weffc++ @r{(C++ only)}
 @opindex Weffc++
-Warn about violations of various style guidelines from Scott Meyers'
-@cite{Effective C++} books.  If you use this option, you should be aware
-that the standard library headers do not obey all of these guidelines;
-you can use @samp{grep -v} to filter out those warnings.
+Warn about violations of the following style guidelines from Scott Meyers'
+@cite{Effective C++} book:
+
+@itemize @bullet
+@item
+Item 11:  Define a copy constructor and an assignment operator for classes
+with dynamically allocated memory.
+
+@item
+Item 12:  Prefer initialization to assignment in constructors.
+
+@item
+Item 14:  Make destructors virtual in base classes.
+
+@item
+Item 15:  Have @code{operator=} return a reference to @code{*this}.
+
+@item
+Item 23:  Don't try to return a reference when you must return an object.
+
+@end itemize
+
+and about violations of the following style guidelines from Scott Meyers'
+@cite{More Effective C++} book:
+
+@itemize @bullet
+@item
+Item 6:  Distinguish between prefix and postfix forms of increment and
+decrement operators.
+
+@item
+Item 7:  Never overload @code{&&}, @code{||}, or @code{,}.
+
+@end itemize
+
+If you use this option, you should be aware that the standard library
+headers do not obey all of these guidelines; you can use @samp{grep -v}
+to filter out those warnings.
 
 @item -Wno-deprecated @r{(C++ only)}
 @opindex Wno-deprecated
@@ -1783,7 +1832,9 @@ negative form beginning @samp{-Wno-} to turn off warnings;
 for example, @option{-Wno-implicit}.  This manual lists only one of the
 two forms, whichever is not the default.
 
-These options control the amount and kinds of warnings produced by GCC:
+The following options control the amount and kinds of warnings produced
+by GCC; for further, language-specific options also refer to
+@ref{C++ Dialect Options} and @ref{Objective-C Dialect Options}.
 
 @table @gcctabopt
 @cindex syntax checking
@@ -2548,7 +2599,7 @@ appropriate may not be detected.  This option has no effect unless
 @item -Wno-deprecated-declarations
 @opindex Wno-deprecated-declarations
 Do not warn about uses of functions, variables, and types marked as
-deprecated by using the @code{deprecated} attribute. 
+deprecated by using the @code{deprecated} attribute.
 (@pxref{Function Attributes}, @pxref{Variable Attributes},
 @pxref{Type Attributes}.)
 
@@ -2745,8 +2796,6 @@ supported).  This is the format used by DEBUG on VMS systems.
 @itemx -gstabs@var{level}
 @itemx -gcoff@var{level}
 @itemx -gxcoff@var{level}
-@itemx -gdwarf@var{level}
-@itemx -gdwarf-2@var{level}
 @itemx -gvms@var{level}
 Request debugging information and also use @var{level} to specify how
 much information.  The default level is 2.
@@ -2759,6 +2808,11 @@ about local variables and no line numbers.
 Level 3 includes extra information, such as all the macro definitions
 present in the program.  Some debuggers support macro expansion when
 you use @option{-g3}.
+
+Note that in order to avoid confusion between DWARF1 debug level 2,
+and DWARF2, neither @option{-gdwarf} nor @option{-gdwarf-2} accept
+a concatenated debug level.  Instead use an additional @option{-g@var{level}}
+option to change the debug level for DWARF1 or DWARF2.
 
 @cindex @code{prof}
 @item -p
@@ -3895,320 +3949,18 @@ Some of these options make sense only together with @option{-E} because
 they cause the preprocessor output to be unsuitable for actual
 compilation.
 
-@table @gcctabopt
-@item -include @var{file}
-@opindex include
-Process @var{file} as input before processing the regular input file.
-In effect, the contents of @var{file} are compiled first.  Any @option{-D}
-and @option{-U} options on the command line are always processed before
-@option{-include @var{file}}, regardless of the order in which they are
-written.  All the @option{-include} and @option{-imacros} options are
-processed in the order in which they are written.
-
-@item -imacros @var{file}
-@opindex imacros
-Process @var{file} as input, discarding the resulting output, before
-processing the regular input file.  Because the output generated from
-@var{file} is discarded, the only effect of @option{-imacros @var{file}}
-is to make the macros defined in @var{file} available for use in the
-main input.  All the @option{-include} and @option{-imacros} options are
-processed in the order in which they are written.
-
-@item -idirafter @var{dir}
-@opindex idirafter
-@cindex second include path
-Add the directory @var{dir} to the second include path.  The directories
-on the second include path are searched when a header file is not found
-in any of the directories in the main include path (the one that
-@option{-I} adds to).
-
-@item -iprefix @var{prefix}
-@opindex iprefix
-Specify @var{prefix} as the prefix for subsequent @option{-iwithprefix}
-options.
-
-@item -iwithprefix @var{dir}
-@opindex iwithprefix
-Add a directory to the second include path.  The directory's name is
-made by concatenating @var{prefix} and @var{dir}, where @var{prefix} was
-specified previously with @option{-iprefix}.  If you have not specified a
-prefix yet, the directory containing the installed passes of the
-compiler is used as the default.
-
-@item -iwithprefixbefore @var{dir}
-@opindex iwithprefixbefore
-Add a directory to the main include path.  The directory's name is made
-by concatenating @var{prefix} and @var{dir}, as in the case of
-@option{-iwithprefix}.
-
-@item -isystem @var{dir}
-@opindex isystem
-Add a directory to the beginning of the second include path, marking it
-as a system directory, so that it gets the same special treatment as
-is applied to the standard system directories.
-
-@item -nostdinc
-@opindex nostdinc
-Do not search the standard system directories for header files.  Only
-the directories you have specified with @option{-I} options (and the
-current directory, if appropriate) are searched.  @xref{Directory
-Options}, for information on @option{-I}.
-
-By using both @option{-nostdinc} and @option{-I-}, you can limit the include-file
-search path to only those directories you specify explicitly.
-
-@item -remap
-@opindex remap
-When searching for a header file in a directory, remap file names if a
-file named @file{header.gcc} exists in that directory.  This can be used
-to work around limitations of file systems with file name restrictions.
-The @file{header.gcc} file should contain a series of lines with two
-tokens on each line: the first token is the name to map, and the second
-token is the actual name to use.
-
-@item -undef
-@opindex undef
-Do not predefine any nonstandard macros.  (Including architecture flags).
-
-@item -E
-@opindex E
-Run only the C preprocessor.  Preprocess all the C source files
-specified and output the results to standard output or to the
-specified output file.
-
-@item -C
-@opindex C
-Tell the preprocessor not to discard comments.  Used with the
-@option{-E} option.
-
-@item -P
-@opindex P
-Tell the preprocessor not to generate @samp{#line} directives.
-Used with the @option{-E} option.
-
-@cindex make
-@cindex dependencies, make
-@item -M
-@opindex M
-Instead of outputting the result of preprocessing, output a rule
-suitable for @code{make} describing the dependencies of the main source
-file.  The preprocessor outputs one @code{make} rule containing the
-object file name for that source file, a colon, and the names of all the
-included files.  Unless overridden explicitly, the object file name
-consists of the basename of the source file with any suffix replaced with
-object file suffix.  If there are many included files then the
-rule is split into several lines using @samp{\}-newline.
-
-@option{-M} implies @option{-E}.
-
-@item -MM
-@opindex MM
-Like @option{-M}, but mention only the files included with @samp{#include
-"@var{file}"}.  System header files included with @samp{#include
-<@var{file}>} are omitted.
-
-@item -MD
-@opindex MD
-Like @option{-M} but the dependency information is written to a file
-rather than stdout.  @code{gcc} will use the same file name and
-directory as the object file, but with the suffix @file{.d} instead.
-
-This is in addition to compiling the main file as specified---@option{-MD}
-does not inhibit ordinary compilation the way @option{-M} does,
-unless you also specify @option{-MG}.
-
-With Mach, you can use the utility @code{md} to merge multiple
-dependency files into a single dependency file suitable for using with
-the @samp{make} command.
-
-@item -MMD
-@opindex MMD
-Like @option{-MD} except mention only user header files, not system
--header files.
-
-@item -MF @var{file}
-@opindex MF
-When used with @option{-M} or @option{-MM}, specifies a file to write the
-dependencies to.  This allows the preprocessor to write the preprocessed
-file to stdout normally.  If no @option{-MF} switch is given, CPP sends
-the rules to stdout and suppresses normal preprocessed output.
-
-Another way to specify output of a @code{make} rule is by setting
-the environment variable @env{DEPENDENCIES_OUTPUT} (@pxref{Environment
-Variables}).
-
-@item -MG
-@opindex MG
-When used with @option{-M} or @option{-MM}, @option{-MG} says to treat missing
-header files as generated files and assume they live in the same
-directory as the source file.  It suppresses preprocessed output, as a
-missing header file is ordinarily an error.
-
-This feature is used in automatic updating of makefiles.
-
-@item -MP
-@opindex MP
-This option instructs CPP to add a phony target for each dependency
-other than the main file, causing each to depend on nothing.  These
-dummy rules work around errors @code{make} gives if you remove header
-files without updating the @code{Makefile} to match.
-
-This is typical output:-
-
-@smallexample
-/tmp/test.o: /tmp/test.c /tmp/test.h
-
-/tmp/test.h:
-@end smallexample
-
-@item -MQ @var{target}
-@item -MT @var{target}
-@opindex MQ
-@opindex MT
-By default CPP uses the main file name, including any path, and appends
-the object suffix, normally ``.o'', to it to obtain the name of the
-target for dependency generation.  With @option{-MT} you can specify a
-target yourself, overriding the default one.
-
-If you want multiple targets, you can specify them as a single argument
-to @option{-MT}, or use multiple @option{-MT} options.
-
-The targets you specify are output in the order they appear on the
-command line.  @option{-MQ} is identical to @option{-MT}, except that the
-target name is quoted for Make, but with @option{-MT} it isn't.  For
-example, @option{-MT '$(objpfx)foo.o'} gives
-
-@smallexample
-$(objpfx)foo.o: /tmp/foo.c
-@end smallexample
-
-but @option{-MQ '$(objpfx)foo.o'} gives
-
-@smallexample
-$$(objpfx)foo.o: /tmp/foo.c
-@end smallexample
-
-The default target is automatically quoted, as if it were given with
-@option{-MQ}.
-
-@item -H
-@opindex H
-Print the name of each header file used, in addition to other normal
-activities.
-
-@item -A@var{question}(@var{answer})
-@opindex A
-Assert the answer @var{answer} for @var{question}, in case it is tested
-with a preprocessing conditional such as @samp{#if
-#@var{question}(@var{answer})}.  @option{-A-} disables the standard
-assertions that normally describe the target machine.
-
-@item -D@var{macro}
-@opindex D
-Define macro @var{macro} with the string @samp{1} as its definition.
-
-@item -D@var{macro}=@var{defn}
-Define macro @var{macro} as @var{defn}.  All instances of @option{-D} on
-the command line are processed before any @option{-U} options.
-
-Any @option{-D} and @option{-U} options on the command line are processed in
-order, and always before @option{-imacros @var{file}}, regardless of the
-order in which they are written.
-
-@item -U@var{macro}
-@opindex U
-Undefine macro @var{macro}.  @option{-U} options are evaluated after all
-@option{-D} options, but before any @option{-include} and @option{-imacros}
-options.
-
-Any @option{-D} and @option{-U} options on the command line are processed in
-order, and always before @option{-imacros @var{file}}, regardless of the
-order in which they are written.
-
-@item -dM
-@opindex dM
-Tell the preprocessor to output only a list of the macro definitions
-that are in effect at the end of preprocessing.  Used with the @option{-E}
-option.
-
-@item -dD
-@opindex dD
-Tell the preprocessing to pass all macro definitions into the output, in
-their proper sequence in the rest of the output.
-
-@item -dN
-@opindex dN
-Like @option{-dD} except that the macro arguments and contents are omitted.
-Only @samp{#define @var{name}} is included in the output.
-
-@item -dI
-@opindex dI
-Output @samp{#include} directives in addition to the result of
-preprocessing.
-
-@item -fpreprocessed
-@opindex fpreprocessed
-Indicate to the preprocessor that the input file has already been
-preprocessed.  This suppresses things like macro expansion, trigraph
-conversion, escaped newline splicing, and processing of most directives.
-The preprocessor still recognizes and removes comments, so that you can
-pass a file preprocessed with @option{-C} to the compiler without
-problems.  In this mode the integrated preprocessor is little more than
-a tokenizer for the front ends.
-
-@option{-fpreprocessed} is implicit if the input file has one of the
-extensions @samp{i}, @samp{ii} or @samp{mi}.  These are the extensions
-that GCC uses for preprocessed files created by @option{-save-temps}.
-
-@item -trigraphs
-@opindex trigraphs
-Process ISO standard trigraph sequences.  These are three-character
-sequences, all starting with @samp{??}, that are defined by ISO C to
-stand for single characters.  For example, @samp{??/} stands for
-@samp{\}, so @samp{'??/n'} is a character constant for a newline.  By
-default, GCC ignores trigraphs, but in standard-conforming modes it
-converts them.  See the @option{-std} and @option{-ansi} options.
-
-The nine trigraph sequences are
-@table @samp
-@item ??(
-@expansion{} @samp{[}
-
-@item ??)
-@expansion{} @samp{]}
-
-@item ??<
-@expansion{} @samp{@{}
-
-@item ??>
-@expansion{} @samp{@}}
-
-@item ??=
-@expansion{} @samp{#}
-
-@item ??/
-@expansion{} @samp{\}
-
-@item ??'
-@expansion{} @samp{^}
-
-@item ??!
-@expansion{} @samp{|}
-
-@item ??-
-@expansion{} @samp{~}
-
-@end table
-
-Trigraph support is not popular, so many compilers do not implement it
-properly.  Portable code should not rely on trigraphs being either
-converted or ignored.
-
-@item -Wp,@var{option}
 @opindex Wp
-Pass @var{option} as an option to the preprocessor.  If @var{option}
-contains commas, it is split into multiple options at the commas.
-@end table
+You can use @option{-Wp,@var{option}} to bypass the compiler driver
+and pass @var{option} directly through to the preprocessor.  If
+@var{option} contains commas, it is split into multiple options at the
+commas.  However, many options are modified, translated or interpreted
+by the compiler driver before being passed to the preprocessor, and
+@option{-Wp} forcibly bypasses this phase.  The preprocessor's direct
+interface is undocumented and subject to change, so whenever possible
+you should avoid using @option{-Wp} and let the driver handle the
+options instead.
+
+@include cppopts.texi
 
 @node Assembler Options
 @section Passing Options to the Assembler
@@ -4371,15 +4123,26 @@ of these is when the application wishes to throw and catch exceptions
 across different shared libraries.  In that case, each of the libraries
 as well as the application itself should use the shared @file{libgcc}.
 
-Therefore, whenever you specify the @option{-shared} option, the GCC
-driver automatically adds @option{-shared-libgcc}, unless you explicitly
-specify @option{-static-libgcc}.  The G++ driver automatically adds
-@option{-shared-libgcc} when you build a main executable as well because
-for C++ programs that is typically the right thing to do.
-(Exception-handling will not work reliably otherwise.)
+Therefore, the G++ and GCJ drivers automatically add
+@option{-shared-libgcc} whenever you build a shared library or a main
+executable, because C++ and Java programs typically use exceptions, so
+this is the right thing to do.
 
-However, when linking a main executable written in C, you must
-explicitly say @option{-shared-libgcc} if you want to use the shared
+If, instead, you use the GCC driver to create shared libraries, you may
+find that they will not always be linked with the shared @file{libgcc}.
+If GCC finds, at its configuration time, that you have a GNU linker that
+does not support option @option{--eh-frame-hdr}, it will link the shared
+version of @file{libgcc} into shared libraries by default.  Otherwise,
+it will take advantage of the linker and optimize away the linking with
+the shared version of @file{libgcc}, linking with the static version of
+libgcc by default.  This allows exceptions to propagate through such
+shared libraries, without incurring relocation costs at library load
+time.
+
+However, if a library or main executable is supposed to throw or catch
+exceptions, you must link it using the G++ or GCJ driver, as appropriate
+for the languages used in the program, or using the option
+@option{-shared-libgcc}, such that it is linked with the shared
 @file{libgcc}.
 
 @item -symbolic
@@ -5444,18 +5207,6 @@ a trap handler for one of these instructions, and then the trap handler
 emulates the effect of the instruction.  Because of the trap handler overhead,
 this is much slower than calling the ABI library routines.  Thus the
 @option{-msoft-quad-float} option is the default.
-
-@item -mno-epilogue
-@itemx -mepilogue
-@opindex mno-epilogue
-@opindex mepilogue
-With @option{-mepilogue} (the default), the compiler always emits code for
-function exit at the end of each function.  Any function exit in
-the middle of the function (such as a return statement in C) will
-generate a jump to the exit code at the end of the function.
-
-With @option{-mno-epilogue}, the compiler tries to emit exit code inline
-at every function exit.
 
 @item -mno-flat
 @itemx -mflat
@@ -6964,6 +6715,10 @@ Extend the current ABI with AltiVec ABI extensions.  This does not
 change the default ABI, instead it adds the AltiVec ABI extensions to
 the current ABI@.
 
+@item -mabi=no-altivec
+@opindex mabi=no-altivec
+Disable AltiVec ABI extensions for the current ABI.
+
 @item -mprototype
 @itemx -mno-prototype
 @opindex mprototype
@@ -7643,9 +7398,12 @@ in ordinary CPU registers instead.
 @opindex mno-fancy-math-387
 Some 387 emulators do not support the @code{sin}, @code{cos} and
 @code{sqrt} instructions for the 387.  Specify this option to avoid
-generating those instructions.  This option is the default on FreeBSD@.
-As of revision 2.6.1, these instructions are not generated unless you
-also use the @option{-funsafe-math-optimizations} switch.
+generating those instructions.  This option is the default on FreeBSD,
+OpenBSD and NetBSD@.  This option is overridden when @option{-march}
+indicates that the target cpu will always have an FPU and so the
+instruction will not need emulation.  As of revision 2.6.1, these
+instructions are not generated unless you also use the
+@option{-funsafe-math-optimizations} switch.
 
 @item -malign-double
 @itemx -mno-align-double
@@ -8267,7 +8025,7 @@ arithmetic instead of IEEE single and double precision.
 @opindex mexplicit-relocs
 @opindex mno-explicit-relocs
 Older Alpha assemblers provided no way to generate symbol relocations
-except via assembler macros.  Use of these macros does not allow 
+except via assembler macros.  Use of these macros does not allow
 optimial instruction scheduling.  GNU binutils as of version 2.12
 supports a new syntax that allows the compiler to explicitly mark
 which relocations should apply to which instructions.  This option
@@ -8278,7 +8036,7 @@ the assembler when it is built and sets the default accordingly.
 @itemx -mlarge-data
 @opindex msmall-data
 @opindex mlarge-data
-When @option{-mexplicit-relocs} is in effect, static data is 
+When @option{-mexplicit-relocs} is in effect, static data is
 accessed via @dfn{gp-relative} relocations.  When @option{-msmall-data}
 is used, objects 8 bytes long or smaller are placed in a @dfn{small data area}
 (the @code{.sdata} and @code{.sbss} sections) and are accessed via
@@ -8616,8 +8374,8 @@ count register BK@.
 Enable (disable) generation of code using decrement and branch,
 DBcond(D), instructions.  This is enabled by default for the C4x.  To be
 on the safe side, this is disabled for the C3x, since the maximum
-iteration count on the C3x is @math{2^23 + 1} (but who iterates loops more than
-@math{2^23} times on the C3x?).  Note that GCC will try to reverse a loop so
+iteration count on the C3x is @math{2^{23} + 1} (but who iterates loops more than
+@math{2^{23}} times on the C3x?).  Note that GCC will try to reverse a loop so
 that it can utilise the decrement and branch instruction, but will give
 up if there is more than one memory reference in the loop.  Thus a loop
 where the loop counter is decremented can generate slightly more
@@ -8685,9 +8443,9 @@ instruction, it is disabled by default.
 @opindex mloop-unsigned
 @opindex mno-loop-unsigned
 The maximum iteration count when using RPTS and RPTB (and DB on the C40)
-is @math{2^31 + 1} since these instructions test if the iteration count is
+is @math{2^{31} + 1} since these instructions test if the iteration count is
 negative to terminate the loop.  If the iteration count is unsigned
-there is a possibility than the @math{2^31 + 1} maximum iteration count may be
+there is a possibility than the @math{2^{31} + 1} maximum iteration count may be
 exceeded.  This switch allows an unsigned iteration count.
 
 @item -mti
@@ -9269,7 +9027,7 @@ generates IEEE floating-point instructions.  This is the default.
 @itemx -mno-backchain
 @opindex mbackchain
 @opindex mno-backchain
-Generate (or do not generate) code which maintains an explicit 
+Generate (or do not generate) code which maintains an explicit
 backchain within the stack frame that points to the caller's frame.
 This is currently needed to allow debugging.  The default is to
 generate the backchain.
@@ -9278,8 +9036,8 @@ generate the backchain.
 @itemx -mno-small-exec
 @opindex msmall-exec
 @opindex mno-small-exec
-Generate (or do not generate) code using the @code{bras} instruction 
-to do subroutine calls. 
+Generate (or do not generate) code using the @code{bras} instruction
+to do subroutine calls.
 This only works reliably if the total executable size does not
 exceed 64k.  The default is to use the @code{basr} instruction instead,
 which does not have this limitation.
@@ -9292,14 +9050,14 @@ When @option{-m31} is specified, generate code compliant to the
 Linux for S/390 ABI@.  When @option{-m64} is specified, generate
 code compliant to the Linux for zSeries ABI@.  This allows GCC in
 particular to generate 64-bit instructions.  For the @samp{s390}
-targets, the default is @option{-m31}, while the @samp{s390x} 
+targets, the default is @option{-m31}, while the @samp{s390x}
 targets default to @option{-m64}.
 
 @item -mmvcle
 @itemx -mno-mvcle
 @opindex mmvcle
 @opindex mno-mvcle
-Generate (or do not generate) code using the @code{mvcle} instruction 
+Generate (or do not generate) code using the @code{mvcle} instruction
 to perform block moves.  When @option{-mno-mvcle} is specifed,
 use a @code{mvc} loop instead.  This is the default.
 
@@ -9513,6 +9271,19 @@ Generate an executable in the ELF format, rather than the default
 @opindex mno-branch-predict
 Use (do not use) the probable-branch instructions, when static branch
 prediction indicates a probable branch.
+
+@item -mbase-addresses
+@itemx -mno-base-addresses
+@opindex mbase-addresses
+@opindex mno-base-addresses
+Generate (do not generate) code that uses @emph{base addresses}.  Using a
+base address automatically generates a request (handled by the assembler
+and the linker) for a constant to be set up in a global register.  The
+register is used for one or more base address requests within the range 0
+to 255 from the value held in the register.  The generally leads to short
+and fast code, but the number of different data items that can be
+addressed is limited.  This means that a program that uses lots of static
+data may require @option{-mno-base-addresses}.
 @end table
 
 @node PDP-11 Options
@@ -10255,35 +10026,6 @@ using GCC also uses these directories when searching for ordinary
 libraries for the @option{-l} option (but directories specified with
 @option{-L} come first).
 
-@item C_INCLUDE_PATH
-@itemx CPLUS_INCLUDE_PATH
-@itemx OBJC_INCLUDE_PATH
-@findex C_INCLUDE_PATH
-@findex CPLUS_INCLUDE_PATH
-@findex OBJC_INCLUDE_PATH
-@c @itemx OBJCPLUS_INCLUDE_PATH
-These environment variables pertain to particular languages.  Each
-variable's value is a colon-separated list of directories, much like
-@env{PATH}.  When GCC searches for header files, it tries the
-directories listed in the variable for the language you are using, after
-the directories specified with @option{-I} but before the standard header
-file directories.
-
-@item DEPENDENCIES_OUTPUT
-@findex DEPENDENCIES_OUTPUT
-@cindex dependencies for make as output
-If this variable is set, its value specifies how to output dependencies
-for Make based on the header files processed by the compiler.  This
-output looks much like the output from the @option{-M} option
-(@pxref{Preprocessor Options}), but it goes to a separate file, and is
-in addition to the usual results of compilation.
-
-The value of @env{DEPENDENCIES_OUTPUT} can be just a file name, in
-which case the Make rules are written to that file, guessing the target
-name from the source file name.  Or the value can have the form
-@samp{@var{file} @var{target}}, in which case the rules are written to
-file @var{file} using @var{target} as the target name.
-
 @item LANG
 @findex LANG
 @cindex locale definition
@@ -10306,6 +10048,12 @@ If @env{LANG} is not defined, or if it has some other value, then the
 compiler will use mblen and mbtowc as defined by the default locale to
 recognize and translate multibyte characters.
 @end table
+
+@noindent
+Some additional environments variables affect the behavior of the
+preprocessor.
+
+@include cppenv.texi
 
 @c man end
 

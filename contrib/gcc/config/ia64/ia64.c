@@ -24,7 +24,6 @@ Boston, MA 02111-1307, USA.  */
 #include "system.h"
 #include "rtl.h"
 #include "tree.h"
-#include "tm_p.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "real.h"
@@ -46,6 +45,7 @@ Boston, MA 02111-1307, USA.  */
 #include "timevar.h"
 #include "target.h"
 #include "target-def.h"
+#include "tm_p.h"
 
 /* This is used for communication between ASM_OUTPUT_LABEL and
    ASM_OUTPUT_LABELREF.  */
@@ -138,7 +138,6 @@ static rtx ia64_expand_compare_and_swap PARAMS ((enum machine_mode, int,
 static rtx ia64_expand_lock_test_and_set PARAMS ((enum machine_mode,
 						  tree, rtx));
 static rtx ia64_expand_lock_release PARAMS ((enum machine_mode, tree, rtx));
-const struct attribute_spec ia64_attribute_table[];
 static bool ia64_assemble_integer PARAMS ((rtx, unsigned int, int));
 static void ia64_output_function_prologue PARAMS ((FILE *, HOST_WIDE_INT));
 static void ia64_output_function_epilogue PARAMS ((FILE *, HOST_WIDE_INT));
@@ -156,6 +155,14 @@ static int ia64_variable_issue PARAMS ((FILE *, int, rtx, int));
 static rtx ia64_cycle_display PARAMS ((int, rtx));
 
 
+/* Table of valid machine attributes.  */
+static const struct attribute_spec ia64_attribute_table[] =
+{
+  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
+  { "syscall_linkage", 0, 0, false, true,  true,  NULL },
+  { NULL,              0, 0, false, false, false, NULL }
+};
+
 /* Initialize the GCC target structure.  */
 #undef TARGET_ATTRIBUTE_TABLE
 #define TARGET_ATTRIBUTE_TABLE ia64_attribute_table
@@ -1137,7 +1144,8 @@ ia64_expand_call (retval, addr, nextarg, sibcall_p)
      rtx nextarg;
      int sibcall_p;
 {
-  rtx insn, b0, pfs, gp_save, narg_rtx;
+  rtx insn, b0, pfs, gp_save, narg_rtx, dest;
+  bool indirect_p;
   int narg;
 
   addr = XEXP (addr, 0);
@@ -1164,61 +1172,36 @@ ia64_expand_call (retval, addr, nextarg, sibcall_p)
       return;
     }
 
-  if (sibcall_p)
+  indirect_p = ! symbolic_operand (addr, VOIDmode);
+
+  if (sibcall_p || (TARGET_CONST_GP && !indirect_p))
     gp_save = NULL_RTX;
   else
     gp_save = ia64_gp_save_reg (setjmp_operand (addr, VOIDmode));
 
+  if (gp_save)
+    emit_move_insn (gp_save, pic_offset_table_rtx);
+
   /* If this is an indirect call, then we have the address of a descriptor.  */
-  if (! symbolic_operand (addr, VOIDmode))
+  if (indirect_p)
     {
-      rtx dest;
-
-      if (! sibcall_p)
-	emit_move_insn (gp_save, pic_offset_table_rtx);
-
       dest = force_reg (DImode, gen_rtx_MEM (DImode, addr));
       emit_move_insn (pic_offset_table_rtx,
 		      gen_rtx_MEM (DImode, plus_constant (addr, 8)));
-
-      if (sibcall_p)
-	insn = gen_sibcall_pic (dest, narg_rtx, b0, pfs);
-      else if (! retval)
-	insn = gen_call_pic (dest, narg_rtx, b0);
-      else
-	insn = gen_call_value_pic (retval, dest, narg_rtx, b0);
-      emit_call_insn (insn);
-
-      if (! sibcall_p)
-	emit_move_insn (pic_offset_table_rtx, gp_save);
-    }
-  else if (TARGET_CONST_GP)
-    {
-      if (sibcall_p)
-	insn = gen_sibcall_nopic (addr, narg_rtx, b0, pfs);
-      else if (! retval)
-	insn = gen_call_nopic (addr, narg_rtx, b0);
-      else
-	insn = gen_call_value_nopic (retval, addr, narg_rtx, b0);
-      emit_call_insn (insn);
     }
   else
-    {
-      if (sibcall_p)
-	emit_call_insn (gen_sibcall_pic (addr, narg_rtx, b0, pfs));
-      else
-	{
-	  emit_move_insn (gp_save, pic_offset_table_rtx);
+    dest = addr;
 
-	  if (! retval)
-	    insn = gen_call_pic (addr, narg_rtx, b0);
-	  else
-	    insn = gen_call_value_pic (retval, addr, narg_rtx, b0);
-	  emit_call_insn (insn);
+  if (sibcall_p)
+    insn = gen_sibcall_pic (dest, narg_rtx, b0, pfs);
+  else if (! retval)
+    insn = gen_call_pic (dest, narg_rtx, b0);
+  else
+    insn = gen_call_value_pic (retval, dest, narg_rtx, b0);
+  emit_call_insn (insn);
 
-	  emit_move_insn (pic_offset_table_rtx, gp_save);
-	}
-    }
+  if (gp_save)
+    emit_move_insn (pic_offset_table_rtx, gp_save);
 }
 
 /* Begin the assembly file.  */
@@ -2040,7 +2023,7 @@ ia64_expand_prologue ()
   /* We don't need an alloc instruction if we've used no outputs or locals.  */
   if (current_frame_info.n_local_regs == 0
       && current_frame_info.n_output_regs == 0
-      && current_frame_info.n_input_regs <= current_function_args_info.words)
+      && current_frame_info.n_input_regs <= current_function_args_info.int_regs)
     {
       /* If there is no alloc, but there are input registers used, then we
 	 need a .regstk directive.  */
@@ -2873,7 +2856,7 @@ hfa_element_mode (type, nested)
 	return VOIDmode;
 
     case ARRAY_TYPE:
-      return TYPE_MODE (TREE_TYPE (type));
+      return hfa_element_mode (TREE_TYPE (type), 1);
 
     case RECORD_TYPE:
     case UNION_TYPE:
@@ -3181,14 +3164,14 @@ ia64_function_arg_advance (cum, mode, type, named)
      FR registers, then FP values must also go in general registers.  This can
      happen when we have a SFmode HFA.  */
   else if (! FLOAT_MODE_P (mode) || cum->fp_regs == MAX_ARGUMENT_SLOTS)
-    return;
+    cum->int_regs = cum->words;
 
   /* If there is a prototype, then FP values go in a FR register when
      named, and in a GR registeer when unnamed.  */
   else if (cum->prototype)
     {
       if (! named)
-	return;
+	cum->int_regs = cum->words;
       else
 	/* ??? Complex types should not reach here.  */
 	cum->fp_regs += (GET_MODE_CLASS (mode) == MODE_COMPLEX_FLOAT ? 2 : 1);
@@ -3196,10 +3179,24 @@ ia64_function_arg_advance (cum, mode, type, named)
   /* If there is no prototype, then FP values go in both FR and GR
      registers.  */
   else
-    /* ??? Complex types should not reach here.  */
-    cum->fp_regs += (GET_MODE_CLASS (mode) == MODE_COMPLEX_FLOAT ? 2 : 1);
+    { 
+      /* ??? Complex types should not reach here.  */
+      cum->fp_regs += (GET_MODE_CLASS (mode) == MODE_COMPLEX_FLOAT ? 2 : 1);
+      cum->int_regs = cum->words;
+    }
+}
 
-  return;
+/* Variable sized types are passed by reference.  */
+/* ??? At present this is a GCC extension to the IA-64 ABI.  */
+
+int
+ia64_function_arg_pass_by_reference (cum, mode, type, named)
+     CUMULATIVE_ARGS *cum ATTRIBUTE_UNUSED;
+     enum machine_mode mode ATTRIBUTE_UNUSED;
+     tree type;
+     int named ATTRIBUTE_UNUSED;
+{
+  return type && TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST;
 }
 
 /* Implement va_start.  */
@@ -3231,6 +3228,13 @@ ia64_va_arg (valist, type)
      tree valist, type;
 {
   tree t;
+
+  /* Variable sized types are passed by reference.  */
+  if (TREE_CODE (TYPE_SIZE (type)) != INTEGER_CST)
+    {
+      rtx addr = std_expand_builtin_va_arg (valist, build_pointer_type (type));
+      return gen_rtx_MEM (ptr_mode, force_reg (Pmode, addr));
+    }
 
   /* Arguments with alignment larger than 8 bytes start at the next even
      boundary.  */
@@ -4765,6 +4769,7 @@ group_barrier_needed_p (insn)
 	  /* We play dependency tricks with the epilogue in order
 	     to get proper schedules.  Undo this for dv analysis.  */
 	case CODE_FOR_epilogue_deallocate_stack:
+	case CODE_FOR_prologue_allocate_stack:
 	  pat = XVECEXP (pat, 0, 0);
 	  break;
 
@@ -5236,21 +5241,22 @@ ia64_single_set (insn)
     x = COND_EXEC_CODE (x);
   if (GET_CODE (x) == SET)
     return x;
-  ret = single_set_2 (insn, x);
-  if (ret == NULL && GET_CODE (x) == PARALLEL)
+
+  /* Special case here prologue_allocate_stack and epilogue_deallocate_stack.
+     Although they are not classical single set, the second set is there just
+     to protect it from moving past FP-relative stack accesses.  */
+  switch (recog_memoized (insn))
     {
-      /* Special case here prologue_allocate_stack and
-	 epilogue_deallocate_stack.  Although it is not a classical
-	 single set, the second set is there just to protect it
-	 from moving past FP-relative stack accesses.  */
-      if (XVECLEN (x, 0) == 2
-	  && GET_CODE (XVECEXP (x, 0, 0)) == SET
-	  && GET_CODE (XVECEXP (x, 0, 1)) == SET
-	  && GET_CODE (SET_DEST (XVECEXP (x, 0, 1))) == REG
-	  && SET_DEST (XVECEXP (x, 0, 1)) == SET_SRC (XVECEXP (x, 0, 1))
-	  && ia64_safe_itanium_class (insn) == ITANIUM_CLASS_IALU)
-	ret = XVECEXP (x, 0, 0);
+    case CODE_FOR_prologue_allocate_stack:
+    case CODE_FOR_epilogue_deallocate_stack:
+      ret = XVECEXP (x, 0, 0);
+      break;
+
+    default:
+      ret = single_set_2 (insn, x);
+      break;
     }
+
   return ret;
 }
 
@@ -5348,6 +5354,7 @@ ia64_adjust_cost (insn, link, dep_insn, cost)
       if (reg_overlap_mentioned_p (SET_DEST (set), addr))
 	return cost + 1;
     }
+
   if ((dep_class == ITANIUM_CLASS_IALU
        || dep_class == ITANIUM_CLASS_ILOG
        || dep_class == ITANIUM_CLASS_LD)
@@ -5355,25 +5362,28 @@ ia64_adjust_cost (insn, link, dep_insn, cost)
 	  || insn_class == ITANIUM_CLASS_MMSHF
 	  || insn_class == ITANIUM_CLASS_MMSHFI))
     return 3;
+
   if (dep_class == ITANIUM_CLASS_FMAC
       && (insn_class == ITANIUM_CLASS_FMISC
 	  || insn_class == ITANIUM_CLASS_FCVTFX
 	  || insn_class == ITANIUM_CLASS_XMPY))
     return 7;
+
   if ((dep_class == ITANIUM_CLASS_FMAC
        || dep_class == ITANIUM_CLASS_FMISC
        || dep_class == ITANIUM_CLASS_FCVTFX
        || dep_class == ITANIUM_CLASS_XMPY)
       && insn_class == ITANIUM_CLASS_STF)
     return 8;
+
+  /* Intel docs say only LD, ST, IALU, ILOG, ISHF consumers have latency 4,
+     but HP engineers say any non-MM operation.  */
   if ((dep_class == ITANIUM_CLASS_MMMUL
        || dep_class == ITANIUM_CLASS_MMSHF
        || dep_class == ITANIUM_CLASS_MMSHFI)
-      && (insn_class == ITANIUM_CLASS_LD
-	  || insn_class == ITANIUM_CLASS_ST
-	  || insn_class == ITANIUM_CLASS_IALU
-	  || insn_class == ITANIUM_CLASS_ILOG
-	  || insn_class == ITANIUM_CLASS_ISHF))
+      && insn_class != ITANIUM_CLASS_MMMUL
+      && insn_class != ITANIUM_CLASS_MMSHF
+      && insn_class != ITANIUM_CLASS_MMSHFI)
     return 4;
 
   return cost;
@@ -5475,32 +5485,6 @@ ia64_emit_insn_before (insn, before)
   emit_insn_before (insn, before);
 }
 
-#if 0
-/* Generate a nop insn of the given type.  Note we never generate L type
-   nops.  */
-
-static rtx
-gen_nop_type (t)
-     enum attr_type t;
-{
-  switch (t)
-    {
-    case TYPE_M:
-      return gen_nop_m ();
-    case TYPE_I:
-      return gen_nop_i ();
-    case TYPE_B:
-      return gen_nop_b ();
-    case TYPE_F:
-      return gen_nop_f ();
-    case TYPE_X:
-      return gen_nop_x ();
-    default:
-      abort ();
-    }
-}
-#endif
-
 /* When rotating a bundle out of the issue window, insert a bundle selector
    insn in front of it.  DUMP is the scheduling dump file or NULL.  START
    is either 0 or 3, depending on whether we want to emit a bundle selector
@@ -5565,8 +5549,8 @@ cycle_end_fill_slots (dump)
 	  if (slot > sched_data.split)
 	    abort ();
 	  if (dump)
-	    fprintf (dump, "// Packet needs %s, have %s\n", type_names[packet->t[slot]],
-		     type_names[t]);
+	    fprintf (dump, "// Packet needs %s, have %s\n",
+		     type_names[packet->t[slot]], type_names[t]);
 	  sched_data.types[slot] = packet->t[slot];
 	  sched_data.insns[slot] = 0;
 	  sched_data.stopbit[slot] = 0;
@@ -5578,15 +5562,22 @@ cycle_end_fill_slots (dump)
 
 	  slot++;
 	}
+
       /* Do _not_ use T here.  If T == TYPE_A, then we'd risk changing the
 	 actual slot type later.  */
       sched_data.types[slot] = packet->t[slot];
       sched_data.insns[slot] = tmp_insns[i];
       sched_data.stopbit[slot] = 0;
       slot++;
+
       /* TYPE_L instructions always fill up two slots.  */
       if (t == TYPE_L)
-	slot++;
+	{
+	  sched_data.types[slot] = packet->t[slot];
+	  sched_data.insns[slot] = 0;
+	  sched_data.stopbit[slot] = 0;
+	  slot++;
+	}
     }
 
   /* This isn't right - there's no need to pad out until the forced split;
@@ -5629,6 +5620,8 @@ rotate_one_bundle (dump)
       memmove (sched_data.insns,
 	       sched_data.insns + 3,
 	       sched_data.cur * sizeof *sched_data.insns);
+      sched_data.packet
+	= &packets[(sched_data.packet->t2 - bundle) * NR_BUNDLES];
     }
   else
     {
@@ -6060,6 +6053,7 @@ static void
 maybe_rotate (dump)
      FILE *dump;
 {
+  cycle_end_fill_slots (dump);
   if (sched_data.cur == 6)
     rotate_two_bundles (dump);
   else if (sched_data.cur >= 3)
@@ -6074,12 +6068,6 @@ static int prev_cycle;
    value of sched_data.first_slot.  */
 static int prev_first;
 
-/* The last insn that has been scheduled.  At the start of a new cycle
-   we know that we can emit new insns after it; the main scheduling code
-   has already emitted a cycle_display insn after it and is using that
-   as its current last insn.  */
-static rtx last_issued;
-
 /* Emit NOPs to fill the delay between PREV_CYCLE and CLOCK_VAR.  Used to
    pad out the delay between MM (shifts, etc.) and integer operations.  */
 
@@ -6090,12 +6078,13 @@ nop_cycles_until (clock_var, dump)
 {
   int prev_clock = prev_cycle;
   int cycles_left = clock_var - prev_clock;
+  bool did_stop = false;
 
   /* Finish the previous cycle; pad it out with NOPs.  */
   if (sched_data.cur == 3)
     {
-      rtx t = gen_insn_group_barrier (GEN_INT (3));
-      last_issued = emit_insn_after (t, last_issued);
+      sched_emit_insn (gen_insn_group_barrier (GEN_INT (3)));
+      did_stop = true;
       maybe_rotate (dump);
     }
   else if (sched_data.cur > 0)
@@ -6114,12 +6103,9 @@ nop_cycles_until (clock_var, dump)
 	  int i;
 	  for (i = sched_data.cur; i < split; i++)
 	    {
-	      rtx t;
-
-	      t = gen_nop_type (sched_data.packet->t[i]);
-	      last_issued = emit_insn_after (t, last_issued);
-	      sched_data.types[i] = sched_data.packet->t[sched_data.cur];
-	      sched_data.insns[i] = last_issued;
+	      rtx t = sched_emit_insn (gen_nop_type (sched_data.packet->t[i]));
+	      sched_data.types[i] = sched_data.packet->t[i];
+	      sched_data.insns[i] = t;
 	      sched_data.stopbit[i] = 0;
 	    }
 	  sched_data.cur = split;
@@ -6131,12 +6117,9 @@ nop_cycles_until (clock_var, dump)
 	  int i;
 	  for (i = sched_data.cur; i < 6; i++)
 	    {
-	      rtx t;
-
-	      t = gen_nop_type (sched_data.packet->t[i]);
-	      last_issued = emit_insn_after (t, last_issued);
-	      sched_data.types[i] = sched_data.packet->t[sched_data.cur];
-	      sched_data.insns[i] = last_issued;
+	      rtx t = sched_emit_insn (gen_nop_type (sched_data.packet->t[i]));
+	      sched_data.types[i] = sched_data.packet->t[i];
+	      sched_data.insns[i] = t;
 	      sched_data.stopbit[i] = 0;
 	    }
 	  sched_data.cur = 6;
@@ -6146,8 +6129,8 @@ nop_cycles_until (clock_var, dump)
 
       if (need_stop || sched_data.cur == 6)
 	{
-	  rtx t = gen_insn_group_barrier (GEN_INT (3));
-	  last_issued = emit_insn_after (t, last_issued);
+	  sched_emit_insn (gen_insn_group_barrier (GEN_INT (3)));
+	  did_stop = true;
 	}
       maybe_rotate (dump);
     }
@@ -6155,24 +6138,22 @@ nop_cycles_until (clock_var, dump)
   cycles_left--;
   while (cycles_left > 0)
     {
-      rtx t = gen_bundle_selector (GEN_INT (0));
-      last_issued = emit_insn_after (t, last_issued);
-      t = gen_nop_type (TYPE_M);
-      last_issued = emit_insn_after (t, last_issued);
-      t = gen_nop_type (TYPE_I);
-      last_issued = emit_insn_after (t, last_issued);
+      sched_emit_insn (gen_bundle_selector (GEN_INT (0)));
+      sched_emit_insn (gen_nop_type (TYPE_M));
+      sched_emit_insn (gen_nop_type (TYPE_I));
       if (cycles_left > 1)
 	{
-	  t = gen_insn_group_barrier (GEN_INT (2));
-	  last_issued = emit_insn_after (t, last_issued);
+	  sched_emit_insn (gen_insn_group_barrier (GEN_INT (2)));
 	  cycles_left--;
 	}
-      t = gen_nop_type (TYPE_I);
-      last_issued = emit_insn_after (t, last_issued);
-      t = gen_insn_group_barrier (GEN_INT (3));
-      last_issued = emit_insn_after (t, last_issued);
+      sched_emit_insn (gen_nop_type (TYPE_I));
+      sched_emit_insn (gen_insn_group_barrier (GEN_INT (3)));
+      did_stop = true;
       cycles_left--;
     }
+
+  if (did_stop)
+    init_insn_group_barriers ();
 }
 
 /* We are about to being issuing insns for this clock cycle.
@@ -6198,31 +6179,34 @@ ia64_internal_sched_reorder (dump, sched_verbose, ready, pn_ready,
       dump_current_packet (dump);
     }
 
+  /* Work around the pipeline flush that will occurr if the results of
+     an MM instruction are accessed before the result is ready.  Intel
+     documentation says this only happens with IALU, ISHF, ILOG, LD,
+     and ST consumers, but experimental evidence shows that *any* non-MM
+     type instruction will incurr the flush.  */
   if (reorder_type == 0 && clock_var > 0 && ia64_final_schedule)
     {
       for (insnp = ready; insnp < e_ready; insnp++)
 	{
-	  rtx insn = *insnp;
+	  rtx insn = *insnp, link;
 	  enum attr_itanium_class t = ia64_safe_itanium_class (insn);
-	  if (t == ITANIUM_CLASS_IALU || t == ITANIUM_CLASS_ISHF
-	      || t == ITANIUM_CLASS_ILOG
-	      || t == ITANIUM_CLASS_LD || t == ITANIUM_CLASS_ST)
-	    {
-	      rtx link;
-	      for (link = LOG_LINKS (insn); link; link = XEXP (link, 1))
-		if (REG_NOTE_KIND (link) != REG_DEP_OUTPUT
-		    && REG_NOTE_KIND (link) != REG_DEP_ANTI)
+
+	  if (t == ITANIUM_CLASS_MMMUL
+	      || t == ITANIUM_CLASS_MMSHF
+	      || t == ITANIUM_CLASS_MMSHFI)
+	    continue;
+
+	  for (link = LOG_LINKS (insn); link; link = XEXP (link, 1))
+	    if (REG_NOTE_KIND (link) == 0)
+	      {
+		rtx other = XEXP (link, 0);
+		enum attr_itanium_class t0 = ia64_safe_itanium_class (other);
+		if (t0 == ITANIUM_CLASS_MMSHF || t0 == ITANIUM_CLASS_MMMUL)
 		  {
-		    rtx other = XEXP (link, 0);
-		    enum attr_itanium_class t0 = ia64_safe_itanium_class (other);
-		    if (t0 == ITANIUM_CLASS_MMSHF
-			|| t0 == ITANIUM_CLASS_MMMUL)
-		      {
-			nop_cycles_until (clock_var, sched_verbose ? dump : NULL);
-			goto out;
-		      }
+		    nop_cycles_until (clock_var, sched_verbose ? dump : NULL);
+		    goto out;
 		  }
-	    }
+	      }
 	}
     }
  out:
@@ -6485,8 +6469,6 @@ ia64_variable_issue (dump, sched_verbose, insn, can_issue_more)
      int can_issue_more ATTRIBUTE_UNUSED;
 {
   enum attr_type t = ia64_safe_type (insn);
-
-  last_issued = insn;
 
   if (sched_data.last_was_stop)
     {
@@ -6833,13 +6815,33 @@ ia64_epilogue_uses (regno)
     }
 }
 
-/* Table of valid machine attributes.  */
-const struct attribute_spec ia64_attribute_table[] =
+/* Return true if REGNO is used by the frame unwinder.  */
+
+int
+ia64_eh_uses (regno)
+     int regno;
 {
-  /* { name, min_len, max_len, decl_req, type_req, fn_type_req, handler } */
-  { "syscall_linkage", 0, 0, false, true,  true,  NULL },
-  { NULL,              0, 0, false, false, false, NULL }
-};
+  if (! reload_completed)
+    return 0;
+
+  if (current_frame_info.reg_save_b0
+      && regno == current_frame_info.reg_save_b0)
+    return 1;
+  if (current_frame_info.reg_save_pr
+      && regno == current_frame_info.reg_save_pr)
+    return 1;
+  if (current_frame_info.reg_save_ar_pfs
+      && regno == current_frame_info.reg_save_ar_pfs)
+    return 1;
+  if (current_frame_info.reg_save_ar_unat
+      && regno == current_frame_info.reg_save_ar_unat)
+    return 1;
+  if (current_frame_info.reg_save_ar_lc
+      && regno == current_frame_info.reg_save_ar_lc)
+    return 1;
+
+  return 0;
+}
 
 /* For ia64, SYMBOL_REF_FLAG set means that it is a function.
 

@@ -214,8 +214,7 @@ no)	;;
 	;;
 esac
 ], 
-# Enable some checks by default for development versions of GCC
-[ac_checking=1; ac_tree_checking=1; ac_gc_checking=1;])
+[])
 if test x$ac_checking != x ; then
   AC_DEFINE(ENABLE_CHECKING, 1,
 [Define if you want more run-time sanity checks.  This one gets a grab
@@ -350,6 +349,9 @@ fi
 AC_SUBST(NO_MINUS_C_MINUS_O)
 AC_SUBST(OUTPUT_OPTION)
 
+# See if GNAT has been installed
+gcc_AC_PROG_GNAT
+
 AC_CACHE_CHECK(whether ${CC-cc} accepts -Wno-long-long,
 ac_cv_prog_cc_no_long_long,
 [save_CFLAGS="$CFLAGS"
@@ -357,8 +359,26 @@ CFLAGS="-Wno-long-long"
 AC_TRY_COMPILE(,,ac_cv_prog_cc_no_long_long=yes,
 	       ac_cv_prog_cc_no_long_long=no)
 CFLAGS="$save_CFLAGS"])
+
+if test x$have_gnat != xno ; then 
+AC_CACHE_CHECK(whether ${ADAC} accepts -Wno-long-long,
+ac_cv_prog_adac_no_long_long,
+[cat >conftest.adb <<EOF
+procedure conftest is begin null; end conftest;
+EOF
+if $ADAC -Wno-long-long -c conftest.adb 1>&5 2>&5 ; then
+  ac_cv_prog_adac_no_long_long=yes
+else
+  ac_cv_prog_adac_no_long_long=no
+fi
+rm -f conftest*])
+else
+  ac_cv_prog_adac_no_long_long=yes
+fi
+
 strict1_warn=
-if test $ac_cv_prog_cc_no_long_long = yes; then
+if test $ac_cv_prog_cc_no_long_long = yes && \
+    test $ac_cv_prog_adac_no_long_long = yes ; then
   strict1_warn="-pedantic -Wno-long-long"
 fi
 AC_SUBST(strict1_warn)
@@ -478,9 +498,6 @@ gcc_AC_C_CHAR_BIT
 gcc_AC_C_COMPILE_ENDIAN
 gcc_AC_C_FLOAT_FORMAT
 
-# See if GNAT has been installed
-gcc_AC_PROG_GNAT
-
 # See if we have the mktemp command.
 AC_CHECK_PROG(have_mktemp_command, mktemp, yes, no)
 
@@ -494,7 +511,7 @@ else
   # that we can use it.
   gcc_AC_CHECK_PROG_VER(MAKEINFO, makeinfo, --version,
   [GNU texinfo.* \([0-9][0-9.]*\)],
-  [4.*])
+  [4.[1-9]*])
 fi
 
 if test $gcc_cv_prog_makeinfo_modern = no; then
@@ -864,7 +881,7 @@ else
 	saved_CFLAGS="${CFLAGS}"
 	CC="${CC_FOR_BUILD}" CFLAGS="${CFLAGS_FOR_BUILD}" \
 	${realsrcdir}/configure \
-		--target=$target --host=$build --build=$build
+		--target=$target_alias --host=$build_alias --build=$build_alias
 	CFLAGS="${saved_CFLAGS}"
 
 	# We just finished tests for the build machine, so rename
@@ -1201,11 +1218,11 @@ changequote([,])dnl
 changequote(,)dnl
 	gcc_cv_gas_major_version=`expr "$gcc_cv_gas_version" : "VERSION=\([0-9]*\)"`
 	gcc_cv_gas_minor_version=`expr "$gcc_cv_gas_version" : "VERSION=[0-9]*\.\([0-9]*\)"`
+	gcc_cv_gas_patch_version=`expr "$gcc_cv_gas_version" : "VERSION=[0-9]*\.[0-9]*\.\([0-9]*\)"`
 changequote([,])dnl
 fi
 
-if test "x$gcc_cv_as" = x -a x$host = x$target; then
-	# Native build.
+if test "x$gcc_cv_as" = x; then
 	# Search the same directories that the installed compiler will
 	# search.  Else we may find the wrong assembler and lose.  If we
 	# do not find a suitable assembler binary, then try the user's
@@ -1230,14 +1247,21 @@ if test "x$gcc_cv_as" = x -a x$host = x$target; then
 	# If the loop below does not find an assembler, then use whatever
 	# one we can find in the users's path.
 	# user's path.
-	gcc_cv_as=as$host_exeext
+	if test "x$program_prefix" != xNONE; then
+		gcc_cv_as=${program_prefix}as$host_exeext
+	else
+		gcc_cv_as=`echo as | sed ${program_transform_name}`$host_exeext
+	fi
 
-	test_dirs="$test_prefix/lib/gcc-lib/$target/$gcc_version \
-		   $test_prefix/lib/gcc-lib/$target \
-		   /usr/lib/gcc/$target/$gcc_version \
-		   /usr/lib/gcc/$target \
-		   $test_prefix/$target/bin/$target/$gcc_version \
-		   $test_prefix/$target/bin \
+	test_dirs="$test_prefix/lib/gcc-lib/$target_alias/$gcc_version \
+		   $test_prefix/lib/gcc-lib/$target_alias \
+		   /usr/lib/gcc/$target_alias/$gcc_version \
+		   /usr/lib/gcc/$target_alias \
+		   $test_prefix/$target_alias/bin/$target_alias/$gcc_version \
+		   $test_prefix/$target_alias/bin"
+
+	if test x$host = x$target; then
+	    test_dirs="$test_dirs \
 		   /usr/libexec \
 		   /usr/ccs/gcc \
 		   /usr/ccs/bin \
@@ -1248,9 +1272,10 @@ if test "x$gcc_cv_as" = x -a x$host = x$target; then
 		   /sysv/usr/lib/cmplrs/cc \
 		   /svr4/usr/lib/cmplrs/cc \
 		   /usr/bin"
+	fi
 
 	for dir in $test_dirs; do
-		if test -f $dir/as$host_exeext; then
+		if test -x $dir/as$host_exeext; then
 			gcc_cv_as=$dir/as$host_exeext
 			break;
 		fi
@@ -1293,8 +1318,7 @@ changequote(,)dnl
 changequote([,])dnl
 fi
 
-if test "x$gcc_cv_ld" = x -a x$host = x$target; then
-	# Native build.
+if test "x$gcc_cv_ld" = x; then
 	# Search the same directories that the installed compiler will
 	# search.  Else we may find the wrong linker and lose.  If we
 	# do not find a suitable linker binary, then try the user's
@@ -1319,14 +1343,21 @@ if test "x$gcc_cv_ld" = x -a x$host = x$target; then
 	# If the loop below does not find an linker, then use whatever
 	# one we can find in the users's path.
 	# user's path.
-	gcc_cv_ld=ld$host_exeext
+	if test "x$program_prefix" != xNONE; then
+		gcc_cv_ld=${program_prefix}ld$host_exeext
+	else
+		gcc_cv_ld=`echo ld | sed ${program_transform_name}`$host_exeext
+	fi
 
-	test_dirs="$test_prefix/lib/gcc-lib/$target/$gcc_version \
-		   $test_prefix/lib/gcc-lib/$target \
-		   /usr/lib/gcc/$target/$gcc_version \
-		   /usr/lib/gcc/$target \
-		   $test_prefix/$target/bin/$target/$gcc_version \
-		   $test_prefix/$target/bin \
+	test_dirs="$test_prefix/lib/gcc-lib/$target_alias/$gcc_version \
+		   $test_prefix/lib/gcc-lib/$target_alias \
+		   /usr/lib/gcc/$target_alias/$gcc_version \
+		   /usr/lib/gcc/$target_alias \
+		   $test_prefix/$target_alias/bin/$target_alias/$gcc_version \
+		   $test_prefix/$target_alias/bin"
+
+	if test x$host = x$target; then
+	    test_dirs="$test_dirs \
 		   /usr/libexec \
 		   /usr/ccs/gcc \
 		   /usr/ccs/bin \
@@ -1337,9 +1368,10 @@ if test "x$gcc_cv_ld" = x -a x$host = x$target; then
 		   /sysv/usr/lib/cmplrs/cc \
 		   /svr4/usr/lib/cmplrs/cc \
 		   /usr/bin"
+	fi
 
 	for dir in $test_dirs; do
-		if test -f $dir/ld$host_exeext; then
+		if test -x $dir/ld$host_exeext; then
 			gcc_cv_ld=$dir/ld$host_exeext
 			break;
 		fi
@@ -1355,9 +1387,10 @@ fi
 AC_MSG_CHECKING(what nm to use)
 if test -x nm$host_exeext; then
 	gcc_cv_nm=./nm$host_exeext
-elif test x$host = x$target; then
-	# Native build.
-	gcc_cv_nm=nm$host_exeext
+elif test "x$program_prefix" != xNONE; then
+	gcc_cv_nm=${program_prefix}nm$host_exeext
+else
+	gcc_cv_nm=`echo nm | sed ${program_transform_name}`$host_exeext
 fi
 AC_MSG_RESULT($gcc_cv_nm)
 
@@ -1365,9 +1398,10 @@ AC_MSG_RESULT($gcc_cv_nm)
 AC_MSG_CHECKING(what objdump to use)
 if test -x objdump$host_exeext; then
 	gcc_cv_objdump=./objdump$host_exeext
-elif test x$host = x$target; then
-	# Native build.
-	gcc_cv_objdump=objdump$host_exeext
+elif test "x$program_prefix" != xNONE; then
+	gcc_cv_objdump=${program_prefix}objdump$host_exeext
+else
+	gcc_cv_objdump=`echo objdump | sed ${program_transform_name}`$host_exeext
 fi
 AC_MSG_RESULT($gcc_cv_objdump)
 
@@ -1467,7 +1501,13 @@ AC_MSG_RESULT($gcc_cv_as_weak)
 AC_MSG_CHECKING(assembler hidden support)
 gcc_cv_as_hidden=no
 if test x$gcc_cv_gas_major_version != x -a x$gcc_cv_gas_minor_version != x; then
-  if test "$gcc_cv_gas_major_version" -eq 2 -a "$gcc_cv_gas_minor_version" -ge 10 -o "$gcc_cv_gas_major_version" -gt 2 && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
+  if test "$gcc_cv_gas_major_version" -eq 2	\
+	  -a "$gcc_cv_gas_minor_version" -eq 12	\
+	  -a "$gcc_cv_gas_patch_version" -ge 1	\
+	  -o "$gcc_cv_gas_major_version" -eq 2	\
+	  -a "$gcc_cv_gas_minor_version" -gt 12	\
+	  -o "$gcc_cv_gas_major_version" -gt 2	\
+    && grep 'obj_format = elf' ../gas/Makefile > /dev/null; then
     gcc_cv_as_hidden="yes"
   fi
 elif test x$gcc_cv_as != x; then
@@ -1478,12 +1518,28 @@ elif test x$gcc_cv_as != x; then
 		gcc_cv_as_hidden="yes"
 	fi
 	rm -f conftest.s conftest.o conftest.nm1 conftest.nm2
+
+	# GNU LD versions before 2.12.1 have buggy support for STV_HIDDEN.
+	# This is irritatingly difficult to feature test for.  Look for 
+	# the date string after the version number.
+	ld_ver=`$gcc_cv_ld --version 2>/dev/null | head -1`
+	if echo "$ld_ver" | grep GNU > /dev/null; then
+changequote(,)dnl
+		ld_date=`echo $ld_ver | sed -n 's,^.*\([2-9][0-9][0-9][0-9]\)[-]*\([01][0-9]\)[-]*\([0-3][0-9]\).*$,\1\2\3,p'`
+changequote([,])dnl
+		if test 0"$ld_date" -lt 20020404; then
+			gcc_cv_as_hidden="no"
+		fi
+	fi
 fi
+
 if test x"$gcc_cv_as_hidden" = xyes; then
 	AC_DEFINE(HAVE_GAS_HIDDEN, 1,
 		[Define if your assembler supports .hidden.])
 fi
 AC_MSG_RESULT($gcc_cv_as_hidden)
+libgcc_visibility=$gcc_cv_as_hidden
+AC_SUBST(libgcc_visibility)
 
 AC_MSG_CHECKING(assembler leb128 support)
 gcc_cv_as_leb128=no
@@ -1715,10 +1771,9 @@ EOF
 	if test x$gcc_cv_as != x -a x$gcc_cv_ld != x; then
 	    gcc_cv_as_sparc_ua_pcrel=no
 	    echo ".text; foo: nop; .data; .align 4; .byte 0; .uaword %r_disp32(foo)" > conftest.s
-	    if $gcc_cv_as -K PIC -o conftest.o conftest.s > /dev/null 2>&1; then
-		if $gcc_cv_ld -o conftest conftest.o -G > /dev/null 2>&1; then
-		    gcc_cv_as_sparc_ua_pcrel=yes
-		fi
+	    if $gcc_cv_as -K PIC -o conftest.o conftest.s > /dev/null 2>&1 \
+	       && $gcc_cv_ld -o conftest conftest.o -G > /dev/null 2>&1; then
+		gcc_cv_as_sparc_ua_pcrel=yes
 	    fi
 	    rm -f conftest.s conftest.o conftest
 	fi
@@ -1728,42 +1783,36 @@ EOF
 		[Define if your assembler and linker support unaligned PC relative relocs.])
     fi
 
-    case "$tm_file" in
-    *64*)
-	AC_CACHE_CHECK([for 64 bit support in assembler ($gcc_cv_as)],
-	    gcc_cv_as_flags64, [
-		if test -n "$gcc_cv_as"; then
-		    echo ".xword foo" > conftest.s
-		    gcc_cv_as_flags64=no
-		    for flag in "-xarch=v9" "-64 -Av9"; do
-			if $gcc_cv_as $flag -o conftest.o conftest.s \
-			    > /dev/null 2>&1; then
-			    gcc_cv_as_flags64=$flag
-			    break
-			fi
-		    done
-		    rm -f conftest.s conftest.o
-		else
-		    if test "$gas" = yes; then
-			gcc_cv_as_flags64="-64 -Av9"
+    AC_CACHE_CHECK([assembler and linker support unaligned pc related relocs against hidden symbols],
+	gcc_cv_as_sparc_ua_pcrel_hidden, [
+	if test "x$gcc_cv_as_sparc_ua_pcrel" = xyes; then
+	    gcc_cv_as_sparc_ua_pcrel_hidden=unknown
+	    if test x$gcc_cv_objdump != x; then
+	        gcc_cv_as_sparc_ua_pcrel_hidden=no
+		echo ".data; .align 4; .byte 0x31; .uaword %r_disp32(foo)" > conftest.s
+		echo ".byte 0x32, 0x33, 0x34; .global foo; .hidden foo" >> conftest.s
+		echo "foo: .skip 4" >> conftest.s
+		if $gcc_cv_as -K PIC -o conftest.o conftest.s > /dev/null 2>&1 \
+		   && $gcc_cv_ld -o conftest conftest.o -G > /dev/null 2>&1 \
+		   && $gcc_cv_objdump -s -j .data conftest 2> /dev/null \
+		      | grep ' 31000000 07323334' > /dev/null 2>&1; then
+		    if $gcc_cv_objdump -R conftest 2> /dev/null \
+		       | grep 'DISP32' > /dev/null 2>&1; then
+			:
 		    else
-			gcc_cv_as_flags64="-xarch=v9"
+			gcc_cv_as_sparc_ua_pcrel_hidden=yes
 		    fi
 		fi
-	])
-	if test "x$gcc_cv_as_flags64" = xno; then
-changequote(, )
-	    tmake_file=`echo " $tmake_file " | sed -e 's, sparc/t-sol2-64 , ,' -e 's,^ ,,' -e 's, $,,'`
-	    dep_tmake_file=`echo " $dep_tmake_file " | sed -e 's, [^ ]*/config/sparc/t-sol2-64 , ,' -e 's,^ ,,' -e 's, $,,'`
-changequote([, ])
+	    fi
+	    rm -f conftest.s conftest.o conftest
 	else
-	    AC_DEFINE_UNQUOTED(AS_SPARC64_FLAG, "$gcc_cv_as_flags64",
-			[Define if the assembler supports 64bit sparc.])
+	    gcc_cv_as_sparc_ua_pcrel_hidden="$gcc_cv_as_sparc_ua_pcrel"
 	fi
-	;;
-    *) gcc_cv_as_flags64=${gcc_cv_as_flags64-no}
-	;;
-    esac
+    ])
+    if test "x$gcc_cv_as_sparc_ua_pcrel_hidden" = xyes; then
+	AC_DEFINE(HAVE_AS_SPARC_UA_PCREL_HIDDEN, 1,
+		[Define if your assembler and linker support unaligned PC relative relocs against hidden symbols.])
+    fi
 
     if test "x$gcc_cv_as_flags64" != xno; then
 	AC_CACHE_CHECK([for assembler offsetable %lo() support],
@@ -1967,11 +2016,94 @@ elif test x$gcc_cv_ld != x; then
 		gcc_cv_ld_eh_frame_hdr=yes
 	fi
 fi
+AC_MSG_RESULT($gcc_cv_ld_eh_frame_hdr)
 if test x"$gcc_cv_ld_eh_frame_hdr" = xyes; then
+  AC_MSG_CHECKING(whether linker eh_frame optimizations work properly)
+  gcc_cv_ld_eh_frame_hdr_works=no
+  if test x$gcc_cv_gld_major_version != x -a x$gcc_cv_gld_minor_version != x; then
+    if test "$gcc_cv_gld_major_version" -eq 2 -a "$gcc_cv_gld_minor_version" -ge 13 -o "$gcc_cv_gld_major_version" -gt 2 && grep 'EMUL = elf' ../ld/Makefile > /dev/null; then
+      gcc_cv_ld_eh_frame_hdr_works=yes
+    fi
+  elif test x$gcc_cv_ld != x; then
+    for gcc_WS in 4 8; do
+      cat > conftest.s <<EOF
+	.text
+.LFB1:	.skip	64
+.LFE1:
+.LFB2:	.skip	64
+.LFE2:
+.LFB3:	.skip	64
+.LFE3:
+	.section .eh_frame,"aw",@progbits
+.Lframe1:
+	.4byte	.LECIE1-.LSCIE1
+.LSCIE1:
+	.4byte	0x0
+	.byte	0x1
+	.ascii "zR\0"
+	.uleb128 0x1
+	.sleb128 -4
+	.byte	0x8
+	.uleb128 0x1
+	.byte	0x50
+	.byte	0xc
+	.uleb128 0x4
+	.uleb128 0x4
+	.byte	0x88
+	.uleb128 0x1
+	.balign	${gcc_WS}
+.LECIE1:
+.LSFDE1:
+	.4byte	.LEFDE1-.LASFDE1
+.LASFDE1:
+	.4byte	.LASFDE1-.Lframe1
+	.${gcc_WS}byte	.LFB1
+	.${gcc_WS}byte	.LFE1-.LFB1
+	.uleb128 0x0
+	.balign	${gcc_WS}
+.LEFDE1:
+.LSFDE2:
+	.4byte	.LEFDE2-.LASFDE2
+.LASFDE2:
+	.4byte	.LASFDE2-.Lframe1
+	.${gcc_WS}byte	.LFB2
+	.${gcc_WS}byte	.LFE2-.LFB2
+	.uleb128 0x0
+	.balign	${gcc_WS}
+.LEFDE2:
+.LSFDE3:
+	.4byte	.LEFDE3-.LASFDE3
+.LASFDE3:
+	.4byte	.LASFDE3-.Lframe1
+	.${gcc_WS}byte	.LFB3
+	.${gcc_WS}byte	.LFE3-.LFB3
+	.uleb128 0x0
+	.balign	${gcc_WS}
+.LEFDE3:
+	.4byte	0
+EOF
+      if ($gcc_cv_as -o conftest.o conftest.s; exit $?) 1>&AC_FD_CC 2>&1; then
+        if ($gcc_cv_ld --eh-frame-hdr -shared -o conftest.so conftest.o; exit $?) 1>&AC_FD_CC 2>&1; then
+changequote(,)dnl
+	  if $gcc_cv_objdump -h conftest.so 2>&AC_FD_CC \
+	     | grep 'eh_frame_hdr[ 	]*0*[01][048cC][ 	]' 1>&AC_FD_CC 2>&1; then
+	    gcc_cv_ld_eh_frame_hdr_works=yes; break
+	  else
+	    $gcc_cv_objdump -h conftest.so 2>/dev/null | grep eh_frame_hdr 1>&AC_FD_CC 2>&1
+	  fi
+changequote([,])dnl
+	fi
+      fi
+      rm -f conftest.*
+    done
+  fi
+  AC_MSG_RESULT($gcc_cv_ld_eh_frame_hdr_works)
+fi
+if test x"$gcc_cv_ld_eh_frame_hdr" = xyes \
+   && test x"$gcc_cv_ld_eh_frame_hdr_works" = xyes; then
 	AC_DEFINE(HAVE_LD_EH_FRAME_HDR, 1,
 [Define if your linker supports --eh-frame-hdr option.])
 fi
-AC_MSG_RESULT($gcc_cv_ld_eh_frame_hdr)
 
 if test "$prefix" != "/usr" && test "$prefix" != "/usr/local" ; then
   AC_DEFINE_UNQUOTED(PREFIX_INCLUDE_DIR, "$prefix/include")
