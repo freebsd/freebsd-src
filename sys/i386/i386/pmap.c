@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.43 1995/01/24 09:56:32 davidg Exp $
+ *	$Id: pmap.c,v 1.44 1995/01/25 22:06:23 davidg Exp $
  */
 
 /*
@@ -1520,6 +1520,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			if ((p->bmapped == 0) &&
 			    (p->busy == 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			    ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
@@ -1536,6 +1537,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			if (p && (p->bmapped == 0) &&
 			    (p->busy == 0) &&
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+			    ((p->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
@@ -1620,6 +1622,7 @@ pmap_prefault(pmap, addra, entry, object)
 		if ((m->bmapped == 0) &&
 		    (m->busy == 0) &&
 		    ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
+		    ((m->flags & (PG_ACTIVE | PG_INACTIVE)) != 0) &&
 		    (m->flags & (PG_CACHE | PG_BUSY | PG_FICTITIOUS)) == 0) {
 			/*
 			 * test results show that the system is faster when
