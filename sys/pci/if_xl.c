@@ -350,11 +350,11 @@ xl_wait(sc)
  */
 #define MII_SET(x)					\
 	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) | x)
+		CSR_READ_2(sc, XL_W4_PHY_MGMT) | (x))
 
 #define MII_CLR(x)					\
 	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) & ~x)
+		CSR_READ_2(sc, XL_W4_PHY_MGMT) & ~(x))
 
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.

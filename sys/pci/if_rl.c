@@ -387,11 +387,11 @@ rl_read_eeprom(sc, dest, off, cnt, swap)
  */
 #define MII_SET(x)					\
 	CSR_WRITE_1(sc, RL_MII,				\
-		CSR_READ_1(sc, RL_MII) | x)
+		CSR_READ_1(sc, RL_MII) | (x))
 
 #define MII_CLR(x)					\
 	CSR_WRITE_1(sc, RL_MII,				\
-		CSR_READ_1(sc, RL_MII) & ~x)
+		CSR_READ_1(sc, RL_MII) & ~(x))
 
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
