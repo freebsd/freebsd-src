@@ -168,11 +168,12 @@ revive_block(int sdno)
 
 	    if (debug & DEBUG_REVIVECONFLICT)
 		log(LOG_DEBUG,
-		    "Relaunch revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		    "Relaunch revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		    rq->sdno,
 		    (u_int) rq,
 		    rq->bp->b_flags & B_READ ? "Read" : "Write",
-		    rq->bp->b_dev,
+		    major(rq->bp->b_dev),
+		    minor(rq->bp->b_dev),
 		    rq->bp->b_blkno,
 		    rq->bp->b_bcount);
 #endif

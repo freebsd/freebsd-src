@@ -92,32 +92,28 @@ enum constants {
     MAXNAME = 64,					    /* maximum length of any name */
 
 
-/* Create a block device number */
-#define VINUMBDEV(v,p,s,t)  ((BDEV_MAJOR << MAJORDEV_SHIFT)	\
-			     | (v << VINUM_VOL_SHIFT)		\
-			     | (p << VINUM_PLEX_SHIFT)		\
-			     | (s << VINUM_SD_SHIFT) 		\
-			     | (t << VINUM_TYPE_SHIFT) )
+#define VINUMMINOR(v,p,s,t)  (  (v << VINUM_VOL_SHIFT)		\
+			      | (p << VINUM_PLEX_SHIFT)		\
+			      | (s << VINUM_SD_SHIFT) 		\
+			      | (t << VINUM_TYPE_SHIFT) )
+
+/* Create block and character device minor numbers */
+#define VINUMBDEV(v,p,s,t)  makedev (BDEV_MAJOR, VINUMMINOR (v, p, s, t))
+#define VINUMCDEV(v,p,s,t)  makedev (CDEV_MAJOR, VINUMMINOR (v, p, s, t))
 
 /* Create a bit mask for x bits */
 #define MASK(x)  ((1 << (x)) - 1)
 
-/* Create a raw block device number */
-#define VINUMRBDEV(d,t)  ((BDEV_MAJOR << MAJORDEV_SHIFT)				\
-			     | ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
-			     | ((d & ~MASK (VINUM_VOL_WIDTH))				\
-				<< (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
-			     | (t << VINUM_TYPE_SHIFT) )
+/* Create a raw block device minor number */
+#define VINUMRMINOR(d,t) ( ((d & MASK (VINUM_VOL_WIDTH)) << VINUM_VOL_SHIFT)	\
+			  | ((d & ~MASK (VINUM_VOL_WIDTH))			\
+			     << (VINUM_PLEX_SHIFT + VINUM_VOL_WIDTH)) 		\
+			  | (t << VINUM_TYPE_SHIFT) )
 
-/* And a character device number */
-#define VINUMCDEV(v,p,s,t)  ((CDEV_MAJOR << MAJORDEV_SHIFT)	\
-			     | (v << VINUM_VOL_SHIFT)		\
-			     | (p << VINUM_PLEX_SHIFT)		\
-			     | (s << VINUM_SD_SHIFT) 		\
-			     | (t << VINUM_TYPE_SHIFT) )
+#define VINUMRBDEV(d,t)	makedev (BDEV_MAJOR, VINUMRMINOR (d, t))
 
 /* extract device type */
-#define DEVTYPE(x) ((x >> VINUM_TYPE_SHIFT) & 7)
+#define DEVTYPE(x) ((minor (x) >> VINUM_TYPE_SHIFT) & 7)
 
 /*
  * This mess is used to catch people who compile
@@ -126,13 +122,14 @@ enum constants {
  */
 
 #ifdef VINUMDEBUG
-    VINUM_SUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
-    VINUM_WRONGSUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* non-debug superdevice number */
+#define	VINUM_SUPERDEV VINUMBDEV (1, 0, 0, VINUM_SUPERDEV_TYPE)	/* superdevice number */
+#define	VINUM_WRONGSUPERDEV VINUMBDEV (2, 0, 0, VINUM_SUPERDEV_TYPE) /* non-debug superdevice number */
 #else
-    VINUM_SUPERDEV = VINUMBDEV(2, 0, 0, VINUM_SUPERDEV_TYPE), /* superdevice number */
-    VINUM_WRONGSUPERDEV = VINUMBDEV(1, 0, 0, VINUM_SUPERDEV_TYPE), /* debug superdevice number */
+#define	VINUM_SUPERDEV VINUMBDEV (2, 0, 0, VINUM_SUPERDEV_TYPE)	/* superdevice number */
+#define	VINUM_WRONGSUPERDEV VINUMBDEV (1, 0, 0, VINUM_SUPERDEV_TYPE) /* debug superdevice number */
 #endif
-    VINUM_DAEMON_DEV = VINUMBDEV(0, 0, 0, VINUM_SUPERDEV_TYPE),	/* daemon superdevice number */
+
+#define	VINUM_DAEMON_DEV VINUMBDEV (0, 0, 0, VINUM_SUPERDEV_TYPE) /* daemon superdevice number */
 
 /*
  * the number of object entries to cater for initially, and also the
@@ -173,6 +170,7 @@ enum constants {
  * raw subdisk:         type, subdisk number is made of bits 27-16 and 7-0
  */
 
+/* This doesn't get used.  Consider removing it. */
 struct devcode {
 /*
  * CARE.  These fields assume a big-endian word.  On a
@@ -367,7 +365,6 @@ struct drive {
     u_int64_t writes;					    /* number of writes on this drive */
     u_int64_t bytes_read;				    /* number of bytes read */
     u_int64_t bytes_written;				    /* number of bytes written */
-    dev_t dev;						    /* and device number */
     char devicename[MAXDRIVENAME];			    /* name of the slice it's on */
     struct vnode *vp;					    /* vnode pointer */
     struct proc *p;
@@ -464,7 +461,7 @@ struct volume {
     int preferred_plex;					    /* plex to read from, -1 for round-robin */
     int last_plex_read;					    /* index of plex used for last read,
 							    * for round-robin */
-    dev_t devno;					    /* device number */
+    int volno;						    /* volume number */
     int flags;						    /* status and configuration flags */
     int openflags;					    /* flags supplied to last open(2) */
     u_int64_t size;					    /* size of volume */
