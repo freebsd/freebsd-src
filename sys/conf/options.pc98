@@ -7,6 +7,7 @@ BROKEN_KEYBOARD_RESET	opt_reset.h
 COMPAT_OLDISA
 I586_PMC_GUPROF		opt_i586_guprof.h
 MAXMEM
+NO_MIXED_MODE
 PERFMON
 DISABLE_PSE		opt_pmap.h
 DISABLE_PG_G		opt_pmap.h
@@ -25,8 +26,6 @@ COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
 PECOFF_SUPPORT		opt_dontuse.h
 PECOFF_DEBUG		opt_pecoff.h
-# i386 SMP options
-APIC_IO			opt_global.h
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
@@ -102,6 +101,7 @@ EPSON_MEMWIN		opt_pc98.h
 LINE30			opt_syscons.h
 
 # Device options
+DEV_APIC		opt_apic.h
 DEV_NPX			opt_npx.h
 DEV_MECIA		opt_mecia.h
 
