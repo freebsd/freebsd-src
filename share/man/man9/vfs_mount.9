@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn vfs_mount "struct proc *p" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
+.Fn vfs_mount "struct thread *td" "char *fstype" "char *fspath" "int fsflags" "void *fsdata"
 .Sh DESCRIPTION
 The
 .Fn vfs_mount
@@ -52,8 +52,8 @@ system call.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa fsflags"
-.It Fa p
-The process responsible for this call.
+.It Fa td
+The thread responsible for this call.
 .It Fa fstype
 The type of filesystem being mounted.
 .It Fa fspath
