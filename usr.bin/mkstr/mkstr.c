@@ -32,21 +32,25 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkstr.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define	ungetchar(c)	ungetc(c, stdin)
 
-long	ftell();
-char	*calloc();
 /*
  * mkstr - create a string error message file by massaging C source
  *
@@ -73,29 +77,36 @@ char	*calloc();
  * existing error message file for recompilation of single routines.
  */
 
-
 FILE	*mesgread, *mesgwrite;
-char	*progname;
-char	usagestr[] =	"usage: %s [ - ] mesgfile prefix file ...\n";
 char	name[100], *np;
 
+void copystr __P((void));
+int fgetNUL __P((char *, int, FILE *));
+unsigned hashit __P((char *, char, unsigned));
+void inithash __P((void));
+int match __P((char *));
+int octdigit __P((char));
+void process __P((void));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
 	char addon = 0;
 
-	argc--, progname = *argv++;
+	argc--, argv++;
 	if (argc > 1 && argv[0][0] == '-')
 		addon++, argc--, argv++;
 	if (argc < 3)
-		fprintf(stderr, usagestr, progname), exit(1);
+		usage();
 	mesgwrite = fopen(argv[0], addon ? "a" : "w");
 	if (mesgwrite == NULL)
-		perror(argv[0]), exit(1);
+		err(1, "%s", argv[0]);
 	mesgread = fopen(argv[0], "r");
 	if (mesgread == NULL)
-		perror(argv[0]), exit(1);
+		err(1, "%s", argv[0]);
 	inithash();
 	argc--, argv++;
 	strcpy(name, argv[0]);
@@ -104,18 +115,25 @@ main(argc, argv)
 	do {
 		strcpy(np, argv[0]);
 		if (freopen(name, "w", stdout) == NULL)
-			perror(name), exit(1);
+			err(1, "%s", name);
 		if (freopen(argv[0], "r", stdin) == NULL)
-			perror(argv[0]), exit(1);
+			err(1, "%s", argv[0]);
 		process();
 		argc--, argv++;
 	} while (argc > 0);
 	exit(0);
 }
 
+static void
+usage()
+{
+	fprintf(stderr, "usage: mkstr [ - ] mesgfile prefix file ...\n");
+	exit(1);
+}
+
+void
 process()
 {
-	register char *cp;
 	register c;
 
 	for (;;) {
@@ -137,6 +155,7 @@ process()
 	}
 }
 
+int
 match(ocp)
 	char *ocp;
 {
@@ -155,6 +174,7 @@ match(ocp)
 	return (1);
 }
 
+void
 copystr()
 {
 	register c, ch;
@@ -218,6 +238,7 @@ out:
 	printf("%d", hashit(buf, 1, NULL));
 }
 
+int
 octdigit(c)
 	char c;
 {
@@ -225,13 +246,14 @@ octdigit(c)
 	return (c >= '0' && c <= '7');
 }
 
+void
 inithash()
 {
 	char buf[512];
 	int mesgpt = 0;
 
 	rewind(mesgread);
-	while (fgetNUL(buf, sizeof buf, mesgread) != NULL) {
+	while (fgetNUL(buf, sizeof buf, mesgread) != 0) {
 		hashit(buf, 0, mesgpt);
 		mesgpt += strlen(buf) + 2;
 	}
@@ -245,6 +267,7 @@ struct	hash {
 	struct	hash *hnext;
 } *bucket[NBUCKETS];
 
+unsigned
 hashit(str, really, fakept)
 	char *str;
 	char really;
@@ -294,6 +317,7 @@ hashit(str, really, fakept)
 #include <sys/types.h>
 #include <sys/stat.h>
 
+int
 fgetNUL(obuf, rmdr, file)
 	char *obuf;
 	register int rmdr;
@@ -306,5 +330,5 @@ fgetNUL(obuf, rmdr, file)
 		*buf++ = c;
 	*buf++ = 0;
 	getc(file);
-	return ((feof(file) || ferror(file)) ? NULL : 1);
+	return ((feof(file) || ferror(file)) ? 0 : 1);
 }
