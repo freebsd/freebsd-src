@@ -182,15 +182,13 @@ ata_start(struct ata_channel *ch)
 	    /* check for the right state */
 	    mtx_lock(&ch->state_mtx);
 	    if (ch->state == ATA_IDLE) {
+		ATA_DEBUG_RQ(request, "starting");
 		TAILQ_REMOVE(&ch->ata_queue, request, chain);
 		ch->running = request;
-
-		ATA_DEBUG_RQ(request, "starting");
-
+		ch->state = ATA_ACTIVE;
 		if (!dumping)
 		    callout_reset(&request->callout, request->timeout * hz,
 				  (timeout_t*)ata_timeout, request);
-
 		if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
 		    ch->running = NULL;
 		    ch->state = ATA_IDLE;
@@ -200,8 +198,6 @@ ata_start(struct ata_channel *ch)
 		    ata_finish(request);
 		    return;
 		}
-		else
-		    ch->state = ATA_ACTIVE;
 	    }
 	    mtx_unlock(&ch->state_mtx);
 	}
@@ -242,14 +238,9 @@ ata_completed(void *context, int dummy)
 
     /* if we had a timeout, reinit channel and deal with the falldown */
     if (request->flags & ATA_R_TIMEOUT) {
-	int error = ata_reinit(ch);
 
-	/* if our device disappeared return as cleanup was done already */
-	if (!request->device->param)
-	    return;
-	
 	/* if reinit succeeded and retries still permit, reinject request */
-	if (!error && request->retries-- > 0) {
+	if (ata_reinit(ch) && request->retries-- > 0 && request->device->param){
 	    request->flags &= ~(ATA_R_TIMEOUT | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_IMMEDIATE | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "completed reinject");
