@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.1 1994/10/14 08:53:13 sos Exp $
+ *	$Id: imgact_coff.c,v 1.2 1995/02/20 23:52:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -56,13 +56,13 @@ load_coff_section(vmspace, vp, offset, vmaddr, memsz, filsz, prot)
 {
 	size_t map_len;
 	vm_offset_t map_offset;
-	caddr_t map_addr;
+	vm_offset_t map_addr;
 	int error;
 	unsigned char *data_buf = 0;
 	size_t copy_len;
 
 	map_offset = trunc_page(offset);
-	map_addr = (caddr_t)trunc_page(vmaddr);
+	map_addr = trunc_page(vmaddr);
 
 	if (memsz > filsz) {
 		/*
@@ -92,7 +92,7 @@ printf("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
 			     prot,
 			     VM_PROT_ALL,
 			     MAP_FILE | MAP_PRIVATE | MAP_FIXED,
-			     vp,
+			     (caddr_t) vp,
 			     map_offset))
 		return error;
 
@@ -110,7 +110,7 @@ printf("%s(%d):  vm_mmap(&vmspace->vm_map, &0x%08lx, 0x%x, 0x%x, "
 	 */
 
 	copy_len = (offset + filsz) - trunc_page(offset + filsz);
-	map_addr = (caddr_t)trunc_page(vmaddr + filsz);
+	map_addr = trunc_page(vmaddr + filsz);
 	map_len = round_page(memsz) - trunc_page(filsz);
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
@@ -119,19 +119,27 @@ printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, 0x%x, FALSE)\n"
 }
 
 	if (map_len != 0) {
-		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr, map_len, FALSE);
+		error = vm_map_find(&vmspace->vm_map, NULL, 0, &map_addr,
+				    map_len, FALSE);
 		if (error)
 			return error;
 	}
 
-	if (error = vm_mmap(kernel_map, &data_buf, PAGE_SIZE,
-			     VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-			     vp, trunc_page(offset + filsz)))
+	if (error = vm_mmap(kernel_map,
+			    (vm_offset_t *) &data_buf,
+			    PAGE_SIZE,
+			    VM_PROT_READ,
+			    VM_PROT_READ,
+			    MAP_FILE,
+			    (caddr_t) vp,
+			    trunc_page(offset + filsz)))
 		return error;
 
-	bcopy(data_buf, map_addr, copy_len);
+	bcopy(data_buf, (caddr_t) map_addr, copy_len);
 
-	if (vm_map_remove(kernel_map, data_buf, data_buf + PAGE_SIZE))
+	if (vm_map_remove(kernel_map,
+			  (vm_offset_t) data_buf,
+			  (vm_offset_t) data_buf + PAGE_SIZE))
 		panic("load_coff_section vm_map_remove failed");
 
 	return 0;
@@ -194,8 +202,14 @@ coff_load_file(struct proc *p, char *name)
   	if (error = VOP_OPEN(vnodep, FREAD, p->p_ucred, p))
     		goto fail;
 
-  	if (error = vm_mmap(kernel_map, &ptr, PAGE_SIZE, VM_PROT_READ,
-		       	    VM_PROT_READ, MAP_FILE, vnodep, 0))
+  	if (error = vm_mmap(kernel_map,
+			    (vm_offset_t *) &ptr,
+			    PAGE_SIZE,
+			    VM_PROT_READ,
+		       	    VM_PROT_READ,
+			    MAP_FILE,
+			    (caddr_t) vnodep,
+			    0))
     	goto fail;
 
   	fhdr = (struct filehdr *)ptr;
@@ -253,7 +267,9 @@ coff_load_file(struct proc *p, char *name)
   	error = 0;
 
  	dealloc_and_fail:
-	if (vm_map_remove(kernel_map, ptr, ptr + PAGE_SIZE))
+	if (vm_map_remove(kernel_map,
+			  (vm_offset_t) ptr,
+			  (vm_offset_t) ptr + PAGE_SIZE))
     		panic(__FUNCTION__ " vm_map_remove failed");
 
  fail:
@@ -359,9 +375,14 @@ printf("i = %d, scns[i].s_name = %s, scns[i].s_vaddr = %08lx, "
 	    	int len = round_page(scns[i].s_size + PAGE_SIZE);
 	    	int j;
 
-	    	if (error = vm_mmap(kernel_map, &buf, len,
-				 VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-				 iparams->vnodep, foff)) {
+	    	if (error = vm_mmap(kernel_map,
+				    (vm_offset_t *) &buf,
+				    len,
+				    VM_PROT_READ,
+				    VM_PROT_READ,
+				    MAP_FILE,
+				    (caddr_t) iparams->vnodep,
+				    foff)) {
 	      		return ENOEXEC;
 	    	}
 	    	for (j = off; j < scns[i].s_size + off; j++) {
@@ -376,7 +397,9 @@ printf("%s(%d):  shared library %s\n", __FILE__, __LINE__, libname);
 	      		if (error)
 			break;
 	    	}
-		if (vm_map_remove(kernel_map, buf, buf + len))
+		if (vm_map_remove(kernel_map,
+				  (vm_offset_t) buf,
+				  (vm_offset_t) buf + len))
 	      		panic("exec_coff_imgact vm_map_remove failed");
 	    	if (error)
 	      		return error;
@@ -440,7 +463,8 @@ printf("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALS
 	__FILE__, __LINE__, hole);
 printf("imgact: error = %d\n", error);
 }
-	error = vm_map_find(&vmspace->vm_map, NULL, 0, &hole, PAGE_SIZE, FALSE);
+	error = vm_map_find(&vmspace->vm_map, NULL, 0,
+			    (vm_offset_t *) &hole, PAGE_SIZE, FALSE);
 
 if (ibcs2_trace & IBCS2_TRACE_COFF) {
 printf("IBCS2: start vm_dsize = 0x%x, vm_daddr = 0x%x end = 0x%x\n", 
