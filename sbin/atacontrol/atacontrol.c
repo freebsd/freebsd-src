@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 
 char *
 mode2str(int mode)
@@ -85,7 +86,7 @@ void
 usage()
 {
 	fprintf(stderr, "usage: atacontrol <command> channel [args]\n");
-	exit(1);
+	exit(EX_USAGE);
 }
 
 int
@@ -268,13 +269,17 @@ main(int argc, char **argv)
 		    !strcmp(argv[1], "rebuild") ||
 		    !strcmp(argv[1], "status")) {
 			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
-			      sscanf(argv[2], "ar%d", &chan) == 1))
-				usage();
+			      sscanf(argv[2], "ar%d", &chan) == 1)) {
+				fprintf(stderr, "atacontrol: Invalid RAID device\n");
+				exit(EX_USAGE);
+			}
 		}
 		else {
 			if (!(sscanf(argv[2], "%d", &chan) == 1 ||
-			      sscanf(argv[2], "ata%d", &chan) == 1))
-				usage();
+			      sscanf(argv[2], "ata%d", &chan) == 1)) {
+				fprintf(stderr, "atacontrol: Invalid ATA channel\n");
+				exit(EX_USAGE);
+			}
 		}
 		iocmd.channel = chan;
 	}
@@ -333,13 +338,20 @@ main(int argc, char **argv)
 			iocmd.u.raid_setup.type = 3;
 		if (!strcmp(argv[2], "SPAN") || !strcmp(argv[2], "JBOD"))
 			iocmd.u.raid_setup.type = 4;
-		if (!iocmd.u.raid_setup.type)
-		     usage();
+		if (!iocmd.u.raid_setup.type) {
+			fprintf(stderr, "atacontrol: Invalid RAID type\n");
+			fprintf(stderr, "atacontrol: Valid RAID types : \n");
+			fprintf(stderr, "            RAID0 | stripe | RAID1 | mirror "
+						    "| RAID0+1 | SPAN | JBOD\n");
+			exit(EX_USAGE);
+		}
 		
 		if (iocmd.u.raid_setup.type & 1) {
 			if (!sscanf(argv[3], "%d",
-				    &iocmd.u.raid_setup.interleave) == 1)
-				usage();
+				    &iocmd.u.raid_setup.interleave) == 1) {
+				fprintf(stderr, "atacontrol: Invalid interleave\n");
+				exit(EX_USAGE);
+			}
 			offset = 4;
 		}
 		else
@@ -347,10 +359,21 @@ main(int argc, char **argv)
 		
 		for (disk = 0; disk < 16 && (offset + disk) < argc; disk++) {
 			if (!(sscanf(argv[offset + disk], "%d", &dev) == 1 ||
-			      sscanf(argv[offset + disk], "ad%d", &dev) == 1))
-				usage();
+			      sscanf(argv[offset + disk], "ad%d", &dev) == 1)) {
+				fprintf(stderr,
+					"atacontrol: Invalid device %s\n",
+					argv[offset + disk]);
+				exit(EX_USAGE);
+			}
 			iocmd.u.raid_setup.disks[disk] = dev;
 		}
+
+		if(disk < 2) {
+			fprintf(stderr, "atacontrol: At least 2 disks must be "
+				"specified to create RAID\n");
+			exit(EX_USAGE);
+		}
+
 		iocmd.u.raid_setup.total_disks = disk;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			err(1, "ioctl(ATARAIDCREATE)");
@@ -367,8 +390,11 @@ main(int argc, char **argv)
 
 		iocmd.cmd = ATARAIDADDSPARE;
 		if (!(sscanf(argv[3], "%d", &dev) == 1 ||
-		      sscanf(argv[3], "ad%d", &dev) == 1))
+		      sscanf(argv[3], "ad%d", &dev) == 1)) {
+			fprintf(stderr,
+				"atacontrol: Invalid device %s\n", argv[3]);
 			usage();
+		}
 		iocmd.u.raid_spare.disk = dev;
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATARAIDADDSPARE)");
@@ -445,5 +471,5 @@ main(int argc, char **argv)
 	}
 	else
 	    	usage();
-	exit(0);
+	exit(EX_OK);
 }
