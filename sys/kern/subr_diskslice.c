@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.55 1998/07/29 11:15:48 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.56 1998/07/30 15:16:05 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -165,6 +165,7 @@ dscheck(bp, ssp)
 	daddr_t	secno;
 	daddr_t	slicerel_secno;
 	struct diskslice *sp;
+	int s;
 
 	blkno = bp->b_blkno;
 	if (blkno < 0) {
@@ -284,8 +285,11 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 			 * XXX probably need to copy the data to avoid even
 			 * temporarily corrupting the in-core copy.
 			 */
-			if (bp->b_vp != NULL)
+			if (bp->b_vp != NULL) {
+				s = splbio();
 				bp->b_vp->v_numoutput++;
+				splx(s);
+			}
 			/* XXX need name here. */
 			msg = fixlabel((char *)NULL, sp,
 				       (struct disklabel *)
@@ -374,7 +378,7 @@ int
 dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 	char	*dname;
 	dev_t	dev;
-	int	cmd;
+	u_long	cmd;
 	caddr_t	data;
 	int	flags;
 	struct diskslices **sspp;
