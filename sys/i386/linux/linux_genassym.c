@@ -1,12 +1,11 @@
-/* $Id: linux_genassym.c,v 1.5 1997/07/20 16:05:56 bde Exp $ */
-
-#include <stdio.h>
+/* $Id: linux_genassym.c,v 1.6 1997/08/25 23:36:23 bde Exp $ */
 
 #include <sys/param.h>
 
 #include <i386/linux/linux.h>
 
 int	main __P((void));
+int	printf __P((const char *, ...));
 
 int
 main()
