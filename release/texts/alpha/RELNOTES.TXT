@@ -636,7 +636,7 @@ current phase number and progress information relevant to the current
 phase. [MERGED]
 
 Catching up with most other network utilities in the base system,
-lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable. 
+lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
 [MERGED]
 
 rm(1) -v now displays the entire pathname of a file being
@@ -1053,7 +1053,7 @@ Digital Equipment DEFPA PCI adapters are supported.,
         - FORE Systems, Inc. PCA-200E ATM PCI Adapters
         - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
 
-   o ATM Signalling Protocols
+   o ATM Signaling Protocols
         - The ATM Forum UNI 3.1 signaling protocol
         - The ATM Forum UNI 3.0 signaling protocol
         - The ATM Forum ILMI address registration
