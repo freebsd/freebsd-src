@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*                  
  * Copyright (c) 1999, Traakan Software
  * All rights reserved.
@@ -24,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -102,6 +102,7 @@ struct wxmdvar {
 	bus_space_handle_t	sh;		/* bus space handle */
 	struct ifmedia 		ifm;
 	struct wx_softc *	next;
+	int			spl;
 };
 #define	wx_dev		w.dev
 #define	wx_enaddr	w.enaddr
@@ -121,6 +122,10 @@ struct wxmdvar {
 #define	VTIMEOUT(sc, func, arg, time)	timeout(func, arg, time)
 #define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg)
 #define	INLINE				inline
+#define	WX_LOCK(_sc)			_sc->w.spl = splimp()
+#define	WX_UNLOCK(_sc)			splx(_sc->w.spl)
+#define	WX_ILOCK(_sc)
+#define	WX_IUNLK(_sc)
 
 #define	vm_offset_t		vaddr_t
 #ifndef	IFM_1000_SX
@@ -130,6 +135,11 @@ struct wxmdvar {
 #define	WRITE_CSR	_write_csr
 
 #elif	defined(__FreeBSD__)
+/*
+ * Enable for FreeBSD 5.0 SMP code
+ */
+/* #define	SMPNG		1 */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -178,6 +188,11 @@ struct wxmdvar {
 	bus_space_handle_t	sh;	/* bus space handle */
 	struct ifmedia 		ifm;
 	struct wx_softc *	next;
+#ifdef	SMPNG
+	struct mtx		wxmtx;
+#else
+	int			spl;
+#endif
 };
 #define	wx_dev		w.dev
 #define	wx_enaddr	w.arpcom.ac_enaddr
@@ -187,6 +202,7 @@ struct wxmdvar {
 
 #define	wx_if		w.arpcom.ac_if
 #define	wx_name		w.name
+#define	wx_mtx		w.wxmtx
 
 #define	IOCTL_CMD_TYPE			u_long
 #define	WXMALLOC(len)			malloc(len, M_DEVBUF, M_NOWAIT)
@@ -197,6 +213,18 @@ struct wxmdvar {
 #define	TIMEOUT(sc, func, arg, time)	(sc)->w.sch = timeout(func, arg, time)
 #define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg, (sc)->w.sch)
 #define	INLINE				__inline
+#ifdef	SMPNG
+#define WX_LOCK(_sc)			mtx_enter(&(_sc)->wx_mtx, MTX_DEF)
+#define WX_UNLOCK(_sc)			mtx_exit(&(_sc)->wx_mtx, MTX_DEF)
+#define	WX_ILOCK(_sc)			mtx_enter(&(_sc)->wx_mtx, MTX_DEF)
+#define	WX_IUNLK(_sc)			mtx_exit(&(_sc)->wx_mtx, MTX_DEF)
+#else
+#define	WX_LOCK(_sc)			_sc->w.spl = splimp()
+#define	WX_UNLOCK(_sc)			splx(_sc->w.spl)
+#define	WX_ILOCK(_sc)
+#define	WX_IUNLK(_sc)
+#endif
+
 
 #define	READ_CSR(sc, reg)						\
 	bus_space_read_4((sc)->w.st, (sc)->w.sh, (reg))
@@ -260,6 +288,7 @@ struct wxmdvar {
 	bus_space_handle_t	sh;		/* bus space handle */
 	struct ifmedia 		ifm;
 	struct wx_softc *	next;
+	int			spl;
 };
 #define	wx_dev		w.dev
 #define	wx_enaddr	w.arpcom.ac_enaddr
@@ -279,6 +308,10 @@ struct wxmdvar {
 #define	VTIMEOUT(sc, func, arg, time)	timeout(func, arg, time)
 #define	UNTIMEOUT(f, arg, sc)		untimeout(f, arg)
 #define	INLINE				inline
+#define	WX_LOCK(_sc)			_sc->w.spl = splimp()
+#define	WX_UNLOCK(_sc)			splx(_sc->w.spl)
+#define	WX_ILOCK(_sc)
+#define	WX_IUNLK(_sc)
 
 #define	vm_offset_t		vaddr_t
 #define	READ_CSR	_read_csr
