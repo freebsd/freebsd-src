@@ -51,7 +51,6 @@
 #define	_BSD_PTRDIFF_T_		int		/* ptr1 - ptr2 */
 #define	_BSD_SIZE_T_		unsigned int	/* sizeof() */
 #define	_BSD_SSIZE_T_		long		/* byte count or error */
-#define	_BSD_SUSECONDS_T_	int		/* suseconds_t */
 #define	_BSD_TIME_T_		long		/* time() */
 #define	_BSD_TIMER_T_		int		/* timer_t */
 
