@@ -19,10 +19,8 @@ CFLAGS+=-I${.CURDIR}/../../lib
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 
-.ifdef MAKE_EBONES
 .if exists(/usr/lib/libkrb.a)
 LDADD+= -ldes -lkrb
-.endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
