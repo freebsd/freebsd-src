@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm ng_pppoe
-.Nd RFC 2516 PPPOE protocol netgraph node type
+.Nd RFC 2516 PPPoE protocol netgraph node type
 .Sh SYNOPSIS
 .In net/ethernet.h
 .In netgraph/ng_pppoe.h
@@ -55,7 +55,7 @@ to and from a PPP agent (which is not specified).
 The
 .Dv NGM_PPPOE_GET_STATUS
 control message can be used at any time to query the current status
-of the PPPOE module. The only statistics presently available are the
+of the PPPoE module. The only statistics presently available are the
 total packet counts for input and output.
 This node does not yet support
 the
@@ -71,7 +71,7 @@ The hook that should normally be connected to an Ethernet node.
 Presently no use.
 .It Dv [unspecified]
 Any other name is assumed to be a session hook that will be connected to
-a PPP client agent, or a ppp server agent.
+a PPP client agent, or a PPP server agent.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
@@ -81,8 +81,8 @@ This command returns status information in a
 .Dv "struct ngpppoestat" :
 .Bd -literal -offset 4n
 struct ngpppoestat {
-    u_int   packets_in;     /* packets in from ethernet */
-    u_int   packets_out;    /* packets out towards ethernet */
+    u_int   packets_in;     /* packets in from Ethernet */
+    u_int   packets_out;    /* packets out towards Ethernet */
 };
 .Ed
 .It Dv NGM_TEXT_STATUS
@@ -182,10 +182,10 @@ control message, when all session have been disconnected or when the
 hook is disconnected.
 .Sh SYSCTLs
 If you are one of the unfortunate people who have an ISP that
-uses some "pppoe" equipment from (I believe) 3com, and who have to
-use a different ethertype on pppoe packets
+uses some "PPPoE" equipment from (I believe) 3com, and who have to
+use a different ethertype on PPPoE packets
 (hey why not change it from the standard for
-no reason?) then after you have kldloaded or compiled in your pppoe node,
+no reason?) then after you have kldloaded or compiled in your PPPoE node,
 you may have to do the following sysctl:
 .Bd -literal
 (kldload netgraph)
@@ -250,7 +250,7 @@ setup(char *ethername, char *service, char *sessname,
 	int             ch, no_hooks = 0;
 	struct linkinfo *link;
 	struct nodeinfo *peer;
-	/****message to connect pppoe session*****/
+	/****message to connect PPPoE session*****/
 	struct {
 		struct ngpppoe_init_data idata;
 		char            service[100];
@@ -338,7 +338,7 @@ setup(char *ethername, char *service, char *sessname,
 	if (k < ninfo->hooks) {
 		if (strcmp(peer->type, NG_PPPOE_NODE_TYPE) == 0) {
 			/*
-			 * If it's a type pppoe, we skip making one
+			 * If it's a type PPPoE, we skip making one
 			 * ourself, but we continue, using
 			 * the existing one.
 			 */
@@ -354,7 +354,7 @@ setup(char *ethername, char *service, char *sessname,
 	} else {
 
 		/*
-		 * Try make a node of type pppoe against node "ID"
+		 * Try make a node of type PPPoE against node "ID"
 		 * On hook NG_ETHER_HOOK_ORPHAN.
 		 */
 		snprintf(mkp.type, sizeof(mkp.type),
@@ -375,8 +375,8 @@ setup(char *ethername, char *service, char *sessname,
 			source_ID, NG_ETHER_HOOK_ORPHAN);
 	}
 	/*
-	 * We now have a pppoe node attached to the ethernet
-	 * card. The Ethernet is addressed as ethername: The pppoe
+	 * We now have a PPPoE node attached to the Ethernet
+	 * card. The Ethernet is addressed as ethername: The PPPoE
 	 * node is addressed as pppoe_node_name: attach to it.
 	 * Connect socket node to specified node Use the same hook
 	 * name on both ends of the link.
