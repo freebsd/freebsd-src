@@ -86,7 +86,3 @@ pseudo-device	log
 pseudo-device	sl	2
 pseudo-device	pty	16
 pseudo-device	speaker
-
-pseudo-device	swappager
-pseudo-device	vnodepager
-pseudo-device	devpager
