@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.106 1997/09/25 16:17:57 phk Exp $
+ * $Id: vfs_subr.c,v 1.107 1997/09/26 08:08:58 phk Exp $
  */
 
 /*
@@ -1365,9 +1365,11 @@ vclean(vp, flags, p)
 		vrele(vp);
 	cache_purge(vp);
 	if (vp->v_vnlock) {
+#if 0 /* This is the only place we have LK_DRAINED in the entire kernel ??? */
 #ifdef DIAGNOSTIC
 		if ((vp->v_vnlock->lk_flags & LK_DRAINED) == 0)
 			vprint("vclean: lock not drained", vp);
+#endif
 #endif
 		FREE(vp->v_vnlock, M_VNODE);
 		vp->v_vnlock = NULL;
