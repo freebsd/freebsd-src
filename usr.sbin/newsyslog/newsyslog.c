@@ -1890,7 +1890,7 @@ save_zipwork(const struct conf_entry *ent, const struct sigwork_entry *swork,
 	zprev = NULL;
 	ndiff = 1;
 	SLIST_FOREACH(ztmp, &zwhead, zw_nextp) {
-		ndiff = strcmp(ent->pid_file, ztmp->zw_fname);
+		ndiff = strcmp(zipfname, ztmp->zw_fname);
 		if (ndiff == 0)
 			break;
 		if (zsize > ztmp->zw_fsize)
