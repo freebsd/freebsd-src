@@ -43,11 +43,11 @@
 .Sh SYNOPSIS
 .Nm ar
 .Fl d
-.Op Fl \Tv
+.Op Fl \&Tv
 .Ar archive file ...
 .Nm ar
 .Fl m
-.Op Fl \Tv
+.Op Fl \&Tv
 .Ar archive file ...
 .Nm ar
 .Fl m
@@ -55,7 +55,7 @@
 .Ar position archive file ...
 .Nm ar
 .Fl p
-.Op Fl \Tv
+.Op Fl \&Tv
 .Ar archive [file ...]
 .Nm ar
 .Fl q
@@ -71,7 +71,7 @@
 .Ar position archive file ...
 .Nm ar
 .Fl t
-.Op Fl \Tv
+.Op Fl \&Tv
 .Ar archive [file ...]
 .Nm ar
 .Fl x
