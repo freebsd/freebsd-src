@@ -9,7 +9,6 @@ SUBDIR=	atrun \
 	ftpd \
 	getNAME \
 	getty \
-	lukemftpd \
 	makekey \
 	mknetid \
 	pppoed \
@@ -45,6 +44,10 @@ SUBDIR+=mail.local smrsh
     defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
 # make release needs both
 SUBDIR+=telnetd
+.endif
+
+.if defined(WANT_LUKEMFTPD)
+SUBDIR+=lukemftpd
 .endif
 
 .include <bsd.subdir.mk>
