@@ -215,10 +215,16 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 		rt->rt_flags |= RTPRF_OURS;
 		rt->rt_rmx.rmx_expire = time_second + rtq_reallyold;
 	} else {
+		struct rtentry *dummy;
+
+		/*
+		 * rtrequest() would recursively call rtfree() without the
+		 * dummy entry argument, causing duplicated free.
+		 */
 		rtrequest(RTM_DELETE,
 			  (struct sockaddr *)rt_key(rt),
 			  rt->rt_gateway, rt_mask(rt),
-			  rt->rt_flags, 0);
+			  rt->rt_flags, &dummy);
 	}
 }
 
