@@ -35,6 +35,7 @@
 #ifndef LOCORE
 
 #include <sys/ktr.h>
+#include <sys/proc.h>	/* Needed for curproc. */
 #include <sys/queue.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
@@ -74,8 +75,6 @@
 #define	MTX_CONTESTED	0x02		/* (non-spin) lock contested */
 #define	MTX_FLAGMASK	~(MTX_RECURSE | MTX_CONTESTED)
 #define MTX_UNOWNED	0x8		/* Cookie for free mutex */
-
-struct proc;	/* XXX */
 
 /*
  * Sleep/spin mutex
@@ -569,7 +568,7 @@ void	witness_restore(struct mtx *, const char *, int);
 /*
  * KTR_EXTEND saves file name and line for all entries, so we don't need them
  * here.  Theoretically we should also change the entries which refer to them
- * (from CTR5 to CTR3), but since they're just passed to snprinf as the last
+ * (from CTR5 to CTR3), but since they're just passed to snprintf as the last
  * parameters, it doesn't do any harm to leave them.
  */
 char	STR_mtx_enter_fmt[] = "GOT %s [%x] r=%d";
