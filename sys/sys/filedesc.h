@@ -108,12 +108,12 @@ int	falloc(struct thread *td, struct file **resultfp, int *resultfd);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdavail(struct thread *td, int n);
 int	fdcheckstd(struct thread *td);
+void	fdclose(struct filedesc *fdp, struct file *fp, int idx, struct thread *td);
 void	fdcloseexec(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
 void	fdfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
-void	fdunused(struct filedesc *fdp, int fd);
 void	fdused(struct filedesc *fdp, int fd);
 void	ffree(struct file *fp);
 struct filedesc_to_leader *
