@@ -70,6 +70,12 @@ struct __sbuf {
 
 struct __file_lock;
 
+/* hold a buncha junk that would grow the ABI */
+struct __sFILEX {
+	struct __file_lock *_mtlock;	/* used for MT-safety */
+	unsigned char *_up;	/* saved _p when _p is doing ungetc data */
+};
+
 /*
  * stdio state variables.
  *
@@ -114,7 +120,7 @@ typedef	struct __sFILE {
 
 	/* separate buffer for long sequences of ungetc() */
 	struct	__sbuf _ub;	/* ungetc buffer */
-	unsigned char *_up;	/* saved _p when _p is doing ungetc data */
+	struct __sFILEX *_extra; /* additions to FILE to not break ABI */
 	int	_ur;		/* saved _r when _r is counting ungetc data */
 
 	/* tricks to meet minimum requirements even when malloc() fails */
@@ -127,13 +133,10 @@ typedef	struct __sFILE {
 	/* Unix stdio files get aligned to block boundaries on fseek() */
 	int	_blksize;	/* stat.st_blksize (may be != _bf._size) */
 	fpos_t	_offset;	/* current lseek offset (see WARNING) */
-	struct __file_lock *_lock;	/* used for MT-safety */
 } FILE;
 
 __BEGIN_DECLS
-extern FILE __stdin;
-extern FILE __stdout;
-extern FILE __stderr;
+extern FILE __sF[];
 __END_DECLS
 
 #define	__SLBF	0x0001		/* line buffered */
@@ -196,9 +199,9 @@ __END_DECLS
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
 #endif
 
-#define	stdin	(&__stdin)
-#define	stdout	(&__stdout)
-#define	stderr	(&__stderr)
+#define	stdin	(&__sF[0])
+#define	stdout	(&__sF[1])
+#define	stderr	(&__sF[2])
 
 /*
  * Functions defined in ANSI C standard.
