@@ -154,8 +154,8 @@ sl_compress_tcp(struct mbuf * m,
    * the caller has already made sure the packet is IP proto TCP).
    */
   if ((ip->ip_off & htons(0x3fff)) || m->m_len < 40) {
-    log_Printf(LogDEBUG, "??? 1 ip_off = %x, m_len = %d\n",
-	      ip->ip_off, m->m_len);
+    log_Printf(LogDEBUG, "??? 1 ip_off = %x, m_len = %lu\n",
+	      ip->ip_off, (unsigned long)m->m_len);
     log_DumpBp(LogDEBUG, "", m);
     return (TYPE_IP);
   }
