@@ -1976,13 +1976,6 @@ rpstart(tp)
 	}
 	count = sGetTxCnt(cp);
 
-	if(tp->t_outq.c_cc <= tp->t_lowat) {
-		if(tp->t_state & TS_SO_OLOWAT) {
-			tp->t_state &= ~TS_SO_OLOWAT;
-			wakeup(TSA_CARR_ON(tp));
-		}
-		selwakeup(&tp->t_wsel);
-	}
 	if(tp->t_outq.c_cc == 0) {
 		if((tp->t_state & TS_BUSY) && (count == 0)) {
 			tp->t_state &= ~TS_BUSY;
@@ -1991,14 +1984,6 @@ rpstart(tp)
 		splx(spl);
 		return;
 	}
-/*
-	if((tp->t_state & TS_BUSY) && count == 0)
-		tp->t_state &= ~TS_BUSY;
-
-	if(tp->t_outq.c_cc <= tp->t_lowat)
-		ttyowake(tp);
-
-*/
 	xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 	qp = &tp->t_outq;
 	count = 0;
