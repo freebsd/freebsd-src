@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.123 1998/09/15 22:07:24 gibbs Exp $
+ *	$Id: fd.c,v 1.124 1998/10/22 05:58:38 bde Exp $
  *
  */
 
@@ -340,7 +340,7 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		if (out_fdc(fdcu, va_arg(ap, int)) < 0)
 		{
 			char msg[50];
-			sprintf(msg,
+			snprintf(msg, sizeof(msg),
 				"cmd %x failed at out byte %d of %d\n",
 				cmd, n + 1, n_out);
 			return fdc_err(fdcu, msg);
@@ -353,7 +353,7 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		if (fd_in(fdcu, ptr) < 0)
 		{
 			char msg[50];
-			sprintf(msg,
+			snprintf(msg, sizeof(msg),
 				"cmd %02x failed at in byte %d of %d\n",
 				cmd, n + 1, n_in);
 			return fdc_err(fdcu, msg);

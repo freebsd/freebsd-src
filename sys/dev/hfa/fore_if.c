@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_if.c,v 1.1 1998/09/15 08:22:55 phk Exp $
+ *	@(#) $Id: fore_if.c,v 1.2 1998/10/31 20:06:52 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_if.c,v 1.1 1998/09/15 08:22:55 phk Exp $");
+__RCSID("@(#) $Id: fore_if.c,v 1.2 1998/10/31 20:06:52 phk Exp $");
 #endif
 
 
@@ -85,7 +85,8 @@ fore_atm_ioctl(code, data, arg)
 		fup = (Fore_unit *)pip;
 		if ( pip == NULL )
 			return ( ENXIO );
-		sprintf ( ifname, "%s%d", pip->pif_name, pip->pif_unit );
+		snprintf ( ifname, sizeof(ifname),
+		    "%s%d", pip->pif_name, pip->pif_unit );
 
 		/*
 		 * Cast response structure onto user's buffer

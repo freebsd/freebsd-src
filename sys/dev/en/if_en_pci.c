@@ -259,7 +259,7 @@ int unit;
   enpcis[unit] = scp;			/* lock it in */
   en_cd.cd_devs[unit] = sc;		/* fake a cfdriver structure */
   en_cd.cd_ndevs = NEN;
-  sprintf(sc->sc_dev.dv_xname, "en%d", unit);
+  snprintf(sc->sc_dev.dv_xname, sizeof(sc->sc_dev.dv_xname), "en%d", unit);
   sc->enif.if_unit = unit;
   sc->enif.if_name = "en";
 

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.10 1998/11/10 06:47:11 gibbs Exp $
+ *      $Id: bt.c,v 1.11 1998/11/13 13:23:36 gibbs Exp $
  */
 
  /*
@@ -449,15 +449,15 @@ bt_fetch_adapter_info(struct bt_softc *bt)
 
 	if (esetup_info.bus_type == 'A'
 	 && bt->firmware_ver[0] == '2') {
-		strcpy(bt->model, "542B");
+		snprintf(bt->model, sizeof(bt->model), "542B");
 	} else if (esetup_info.bus_type == 'E'
 		&& (strncmp(bt->firmware_ver, "2.1", 3) == 0
 		 || strncmp(bt->firmware_ver, "2.20", 4) == 0)) {
-		strcpy(bt->model, "742A");
+		snprintf(bt->model, sizeof(bt->model), "742A");
 	} else if (esetup_info.bus_type == 'E'
 		&& bt->firmware_ver[0] == '0') {
 		/* AMI FastDisk EISA Series 441 0.x */
-		strcpy(bt->model, "747A");
+		snprintf(bt->model, sizeof(bt->model), "747A");
 	} else {
 		ha_model_data_t model_data;
 		int i;
@@ -819,7 +819,7 @@ bt_name(struct bt_softc *bt)
 {
 	static char name[10];
 
-	sprintf(name, "bt%d", bt->unit);
+	snprintf(name, sizeof(name), "bt%d", bt->unit);
 	return (name);
 }
 

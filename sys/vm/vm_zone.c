@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.22 1998/10/09 00:24:49 jdp Exp $
+ * $Id: vm_zone.c,v 1.23 1998/10/31 17:21:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -388,7 +388,8 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 	char tmpbuf[128];
 	char tmpname[14];
 
-	sprintf(tmpbuf, "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
+	snprintf(tmpbuf, sizeof(tmpbuf),
+	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
 	error = SYSCTL_OUT(req, tmpbuf, strlen(tmpbuf));
 	if (error)
 		return (error);
@@ -413,7 +414,7 @@ sysctl_vm_zone SYSCTL_HANDLER_ARGS
 			tmpbuf[0] = '\n';
 		}
 
-		sprintf(tmpbuf + offset,
+		snprintf(tmpbuf + offset, sizeof(tmpbuf) - offset,
 			"%s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
 			tmpname, curzone->zsize, curzone->zmax,
 			(curzone->ztotal - curzone->zfreecnt),

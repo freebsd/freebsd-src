@@ -335,7 +335,7 @@ sound_timer_init(struct sound_lowlev_timer * t, char *name)
     else
 	n = num_sound_timers++;
 
-    strcpy(sound_timer.info.name, name);
+    snprintf(sound_timer.info.name, sizeof(sound_timer.info.name), "%s", name);
 
     sound_timer_devs[n] = &sound_timer;
 }

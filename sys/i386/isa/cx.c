@@ -417,7 +417,8 @@ int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			case 8: o->iftype = c->board->if8type; break;
 			}
 			if (c->master != c->ifp)
-				sprintf (o->master, "%s%d", c->master->if_name,
+				snprintf (o->master, sizeof(o->master),
+				    "%s%d", c->master->if_name,
 					c->master->if_unit);
 			else
 				*o->master = 0;

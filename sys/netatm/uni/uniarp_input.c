@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_input.c,v 1.1 1998/09/15 08:23:09 phk Exp $
+ *	@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp_input.c,v 1.1 1998/09/15 08:23:09 phk Exp $");
+__RCSID("@(#) $Id: uniarp_input.c,v 1.2 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 
@@ -846,7 +846,8 @@ uniarp_pdu_print(ivp, m, msg)
 	struct vccb	*vcp;
 
 	vcp = ivp->iv_conn->co_connvc->cvc_vcc;
-	sprintf(buf, "uniarp %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
+	snprintf(buf, sizeof(buf),
+	    "uniarp %s: vcc=(%d,%d)\n", msg, vcp->vc_vpi, vcp->vc_vci);
 	atm_pdu_print(m, buf);
 }
 

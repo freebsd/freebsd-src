@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.44 1998/09/24 13:25:43 jkh Exp $
+ *  $Id: linux_misc.c,v 1.45 1998/10/05 12:40:42 sos Exp $
  */
 
 #include <sys/param.h>
@@ -746,12 +746,18 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
     printf("Linux-emul(%d): newuname(*)\n", p->p_pid);
 #endif
     bzero(&linux_newuname, sizeof(struct linux_newuname_t));
-    strncpy(linux_newuname.sysname, ostype, 64);
-    strncpy(linux_newuname.nodename, hostname, 64);
-    strncpy(linux_newuname.release, osrelease, 64);
-    strncpy(linux_newuname.version, version, 64);
-    strncpy(linux_newuname.machine, machine, 64);
-    strncpy(linux_newuname.domainname, domainname, 64);
+    strncpy(linux_newuname.sysname, ostype,
+	sizeof(linux_newuname.sysname) - 1);
+    strncpy(linux_newuname.nodename, hostname,
+	sizeof(linux_newuname.nodename) - 1);
+    strncpy(linux_newuname.release, osrelease,
+	sizeof(linux_newuname.release) - 1);
+    strncpy(linux_newuname.version, version,
+	sizeof(linux_newuname.version) - 1);
+    strncpy(linux_newuname.machine, machine,
+	sizeof(linux_newuname.machine) - 1);
+    strncpy(linux_newuname.domainname, domainname,
+	sizeof(linux_newuname.domainname) - 1);
     return (copyout((caddr_t)&linux_newuname, (caddr_t)args->buf,
 	    	    sizeof(struct linux_newuname_t)));
 }

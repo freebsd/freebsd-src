@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.172 1998/10/31 07:42:03 peter Exp $
+ * $Id: vfs_subr.c,v 1.173 1998/10/31 14:20:39 peter Exp $
  */
 
 /*
@@ -1902,7 +1902,7 @@ vprint(label, vp)
 	char *label;
 	register struct vnode *vp;
 {
-	char buf[64];
+	char buf[96];
 
 	if (label != NULL)
 		printf("%s: %p: ", label, (void *)vp);

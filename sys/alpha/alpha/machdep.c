@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.24 1998/11/25 09:45:27 dfr Exp $
+ *	$Id: machdep.c,v 1.25 1998/12/04 10:52:47 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -484,7 +484,7 @@ alpha_unknown_sysname()
 {
 	static char s[128];		/* safe size */
 
-	sprintf(s, "%s family, unknown model variation 0x%lx",
+	snprintf(s, sizeof(s), "%s family, unknown model variation 0x%lx",
 	    platform.family, hwrpb->rpb_variation & SV_ST_MASK);
 	return ((const char *)s);
 }
@@ -676,7 +676,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		/* NOTREACHED */
 	}
 	cpuinit[cputype].init(cputype);
-	strcpy(cpu_model, platform.model);
+	snprintf(cpu_model, sizeof(cpu_model), "%s", platform.model);
 
 	/*
 	 * Initalize the real console, so the the bootstrap console is

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp.c,v 1.2 1998/09/17 09:35:01 phk Exp $
+ *	@(#) $Id: uniarp.c,v 1.3 1998/10/31 20:07:00 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <netatm/uni/uniip_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: uniarp.c,v 1.2 1998/09/17 09:35:01 phk Exp $");
+__RCSID("@(#) $Id: uniarp.c,v 1.3 1998/10/31 20:07:00 phk Exp $");
 #endif
 
 
@@ -1022,7 +1022,8 @@ uniarp_ioctl(code, data, arg1)
 					AF_INET;
 				SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr =
 					uap->ua_dstip.s_addr;
-				(void) sprintf(aar.aap_intf, "%s%d",
+				(void) snprintf(aar.aap_intf,
+				    sizeof(aar.aap_intf), "%s%d",
 					nip->nif_if.if_name,
 					nip->nif_if.if_unit);
 				aar.aap_flags = uap->ua_flags;
@@ -1076,7 +1077,8 @@ uniarp_ioctl(code, data, arg1)
 			 */
 			SATOSIN(&aar.aap_arp_addr)->sin_family = AF_INET;
 			SATOSIN(&aar.aap_arp_addr)->sin_addr.s_addr = 0;
-			(void) sprintf(aar.aap_intf, "%s%d",
+			(void) snprintf(aar.aap_intf,
+			    sizeof(aar.aap_intf), "%s%d",
 				nip->nif_if.if_name, nip->nif_if.if_unit);
 			aar.aap_flags = 0;
 			aar.aap_origin = uap->ua_origin;
@@ -1157,7 +1159,8 @@ updbuf:
 			 * Fill in info to be returned
 			 */
 			nip = uip->uip_ipnif->inf_nif;
-			(void) sprintf(asr.asp_intf, "%s%d",
+			(void) snprintf(asr.asp_intf,
+			    sizeof(asr.asp_intf), "%s%d",
 				nip->nif_if.if_name, nip->nif_if.if_unit);
 			asr.asp_state = uip->uip_arpstate;
 			if (uip->uip_arpstate == UIAS_SERVER_ACTIVE) {

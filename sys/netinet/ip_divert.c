@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.33 1998/07/02 06:31:25 julian Exp $
+ *	$Id: ip_divert.c,v 1.34 1998/07/06 09:06:58 julian Exp $
  */
 
 #include "opt_inet.h"
@@ -197,8 +197,8 @@ div_input(struct mbuf *m, int hlen)
 	/*
 	 * Record the incoming interface name whenever we have one.
 	 */
+	bzero(&divsrc.sin_zero, sizeof(divsrc.sin_zero));
 	if (m->m_pkthdr.rcvif) {
-		char	name[32];
 		/*
 		 * Hide the actual interface name in there in the 
 		 * sin_zero array. XXX This needs to be moved to a
@@ -217,9 +217,9 @@ div_input(struct mbuf *m, int hlen)
 		 * this iface name will come along for the ride.
 		 * (see div_output for the other half of this.)
 		 */ 
-		sprintf(name, "%s%d",
-			m->m_pkthdr.rcvif->if_name, m->m_pkthdr.rcvif->if_unit);
-		strncpy(divsrc.sin_zero, name, 7);
+		snprintf(divsrc.sin_zero, sizeof(divsrc.sin_zero),
+			"%s%d", m->m_pkthdr.rcvif->if_name,
+			m->m_pkthdr.rcvif->if_unit);
 	}
 
 	/* Put packet on socket queue, if any */

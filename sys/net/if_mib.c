@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_mib.c,v 1.4 1997/02/22 09:41:02 peter Exp $
+ *	$Id: if_mib.c,v 1.5 1997/08/02 14:32:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -89,7 +89,8 @@ sysctl_ifdata SYSCTL_HANDLER_ARGS /* XXX bad syntax! */
 		return ENOENT;
 
 	case IFDATA_GENERAL:
-		ifnlen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
+		ifnlen = snprintf(workbuf, sizeof(workbuf),
+		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifmd.ifmd_name) {
 			return ENAMETOOLONG;
 		} else {

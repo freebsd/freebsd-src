@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: unisig_if.c,v 1.2 1998/09/17 09:35:02 phk Exp $
+ *	@(#) $Id: unisig_if.c,v 1.3 1998/10/31 20:07:01 phk Exp $
  *
  */
 
@@ -47,7 +47,7 @@
 #include <netatm/uni/unisig_msg.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: unisig_if.c,v 1.2 1998/09/17 09:35:02 phk Exp $");
+__RCSID("@(#) $Id: unisig_if.c,v 1.3 1998/10/31 20:07:01 phk Exp $");
 #endif
 
 
@@ -894,7 +894,8 @@ unisig_ioctl(code, data, arg1)
 			/*
 			 * Fill out the response struct for the VCC
 			 */
-			(void) sprintf(rsp.avp_intf, "%s%d",
+			(void) snprintf(rsp.avp_intf,
+				    sizeof(rsp.avp_intf), "%s%d",
 					usp->us_pif->pif_name,
 					usp->us_pif->pif_unit);
 			rsp.avp_vpi = uvp->uv_vpi;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.34 1998/06/25 16:54:18 dt Exp $
+ * $Id: kernfs_vnops.c,v 1.35 1998/07/30 17:40:45 bde Exp $
  */
 
 /*
@@ -133,13 +133,13 @@ kernfs_xread(kt, buf, len, lenp)
 	case KTT_TIME: {
 		struct timeval tv;
 		microtime(&tv);
-		sprintf(buf, "%ld %ld\n", tv.tv_sec, tv.tv_usec);
+		snprintf(buf, len, "%ld %ld\n", tv.tv_sec, tv.tv_usec);
 		break;
 	}
 
 	case KTT_INT: {
 		int *ip = kt->kt_data;
-		sprintf(buf, "%d\n", *ip);
+		snprintf(buf, len, "%d\n", *ip);
 		break;
 	}
 
@@ -181,7 +181,7 @@ kernfs_xread(kt, buf, len, lenp)
 	}
 
 	case KTT_AVENRUN:
-		sprintf(buf, "%lu %lu %lu %ld\n",
+		snprintf(buf, len, "%lu %lu %lu %ld\n",
 		    (u_long)averunnable.ldavg[0], (u_long)averunnable.ldavg[1],
 		    (u_long)averunnable.ldavg[2], averunnable.fscale);
 		break;

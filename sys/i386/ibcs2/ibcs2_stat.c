@@ -221,20 +221,19 @@ ibcs2_utssys(p, uap)
 		struct ibcs2_utsname sut;
 		bzero(&sut, ibcs2_utsname_len);
 
-		strncpy(sut.sysname, IBCS2_UNAME_SYSNAME, sizeof(sut.sysname));
-		strncpy(sut.release, IBCS2_UNAME_RELEASE, sizeof(sut.release));
-		strncpy(sut.version, IBCS2_UNAME_VERSION, sizeof(sut.version));
-		strncpy(machine_name, hostname, sizeof(machine_name));
+		strncpy(sut.sysname,
+			IBCS2_UNAME_SYSNAME, sizeof(sut.sysname) - 1);
+		strncpy(sut.release,
+			IBCS2_UNAME_RELEASE, sizeof(sut.release) - 1);
+		strncpy(sut.version,
+			IBCS2_UNAME_VERSION, sizeof(sut.version) - 1);
+		strncpy(machine_name, hostname, sizeof(machine_name) - 1);
+		machine_name[sizeof(machine_name) - 1] = 0;
 		p = index(machine_name, '.');
 		if ( p )
 			*p = '\0';
-		strncpy(sut.nodename, machine_name, sizeof(sut.nodename));
-		strncpy(sut.machine, machine, sizeof(sut.machine));
-		sut.sysname[sizeof(sut.sysname)-1] = '\0';
-		sut.release[sizeof(sut.release)-1] = '\0';
-		sut.version[sizeof(sut.version)-1] = '\0';
-		sut.nodename[sizeof(sut.nodename)-1] = '\0';
-		sut.machine[sizeof(sut.machine)-1] = '\0';
+		strncpy(sut.nodename, machine_name, sizeof(sut.nodename) - 1);
+		strncpy(sut.machine, machine, sizeof(sut.machine) - 1);
 
 		DPRINTF(("IBCS2 uname: sys=%s rel=%s ver=%s node=%s mach=%s\n",
 			 sut.sysname, sut.release, sut.version, sut.nodename,

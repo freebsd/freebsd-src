@@ -380,7 +380,7 @@ static char *cmdname (u_char cmd)
 	case 0xbd: return ("ATAPI_MECH_STATUS"); 
 	case 0xbe: return ("READ_CD");
 	}
-	sprintf (buf, "[0x%x]", cmd);
+	snprintf (buf, sizeof(buf), "[0x%x]", cmd);
 	return (buf);
 }
 

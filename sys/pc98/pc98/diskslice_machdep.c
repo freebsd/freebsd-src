@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.15 1998/07/27 09:49:23 kato Exp $
+ *	$Id: diskslice_machdep.c,v 1.16 1998/08/10 16:55:54 kato Exp $
  */
 
 /*
@@ -470,7 +470,7 @@ reread_mbr:
 		sp->ds_size = pc98_size;
 		sp->ds_type = dp->dp_mid;
 		sp->ds_subtype = dp->dp_sid;
-		strncpy(sp->ds_name, dp->dp_name, 16);
+		strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
 #else
 		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
@@ -580,7 +580,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 
 			sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE,
 				       RAW_PART, partname);
-			strcpy(buf, sname);
+			snprintf(buf, sizeof(buf), "%s", sname);
 			if (strlen(buf) < sizeof buf - 11)
 				strcat(buf, "<extended>");
 			check_part(buf, dp, base_ext_offset, nsectors,
@@ -611,7 +611,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			sp->ds_size = pc98_size;
 			sp->ds_type = dp->dp_mid;
 			sp->ds_subtype = dp->dp_sid;
-			strncpy(sp->ds_name, dp->dp_name, 16);
+			strncpy(sp->ds_name, dp->dp_name, sizeof(sp->ds_name));
 #else
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;
