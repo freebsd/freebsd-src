@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt_server.c,v 1.15 1996/12/25 19:21:10 wpaul Exp $
+ *	$Id: crypt_server.c,v 1.1.1.1 1997/05/28 15:44:22 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -45,7 +45,7 @@
 #include "crypt.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: crypt_server.c,v 1.15 1996/12/25 19:21:10 wpaul Exp $";
+static const char rcsid[] = "$Id: crypt_server.c,v 1.1.1.1 1997/05/28 15:44:22 wpaul Exp $";
 #endif
 
 /*
@@ -56,7 +56,7 @@ static const char rcsid[] = "$Id: crypt_server.c,v 1.15 1996/12/25 19:21:10 wpau
  * throw us in federal prison.
  *
  * Consequently, the core OS ships without DES support, and keyserv
- * defaults to using RC4 with only a 40 bit key, just like nutscrape.
+ * defaults to using ARCFOUR with only a 40 bit key, just like nutscrape.
  * This breaks compatibility with Secure RPC on other systems, but it
  * allows Secure RPC to work between FreeBSD systems that don't have the
  * DES package installed without throwing security totally out the window.
@@ -66,25 +66,25 @@ static const char rcsid[] = "$Id: crypt_server.c,v 1.15 1996/12/25 19:21:10 wpau
  * into our address space at runtime. We check for the presence of
  * /usr/lib/libdes.so.3.0 at startup and load it if we find it. If we
  * can't find it, or the __des_crypt symbol doesn't exist, we fall back
- * to the RC4 encryption code. The user can specify another path using
+ * to the ARCFOUR encryption code. The user can specify another path using
  * the -p flag.
  */
 
- /* rc4.h */
-typedef struct rc4_key
+ /* arcfour.h */
+typedef struct arcfour_key
 {      
    unsigned char state[256];       
    unsigned char x;        
    unsigned char y;
-} rc4_key;
+} arcfour_key;
 
 static void prepare_key(unsigned char *key_data_ptr,int key_data_len,
-		 rc4_key *key);
-static void rc4(unsigned char *buffer_ptr,int buffer_len,rc4_key * key);
+		 arcfour_key *key);
+static void arcfour(unsigned char *buffer_ptr,int buffer_len,arcfour_key * key);
 static void swap_byte(unsigned char *a, unsigned char *b);
 
 static void prepare_key(unsigned char *key_data_ptr, int key_data_len,
-		 rc4_key *key)
+		 arcfour_key *key)
 {
    unsigned char index1;
    unsigned char index2;
@@ -108,7 +108,7 @@ static void prepare_key(unsigned char *key_data_ptr, int key_data_len,
    }       
 }
 
-static void rc4(unsigned char *buffer_ptr, int buffer_len, rc4_key *key)
+static void arcfour(unsigned char *buffer_ptr, int buffer_len, arcfour_key *key)
 { 
    unsigned char x;
    unsigned char y;
@@ -143,22 +143,22 @@ static void swap_byte(unsigned char *a, unsigned char *b)
    *b = swapByte;
 }
 
-/* Dummy _des_crypt function that uses RC4 with a 40 bit key */
-int _rc4_crypt(buf, len, desp)
+/* Dummy _des_crypt function that uses ARCFOUR with a 40 bit key */
+int _arcfour_crypt(buf, len, desp)
 	char *buf;
 	int len;
 	struct desparams *desp;
 {
-	struct rc4_key rc4k;
+	struct arcfour_key arcfourk;
 
 	/*
 	 * U.S. government anti-crypto weasels take
 	 * note: although we are supplied with a 64 bit
-	 * key, we're only passing 40 bits to the RC4
+	 * key, we're only passing 40 bits to the ARCFOUR
 	 * encryption code. So there.
 	 */
-	prepare_key(desp->des_key, 5, &rc4k);
-	rc4(buf, len, &rc4k);
+	prepare_key(desp->des_key, 5, &arcfourk);
+	arcfour(buf, len, &arcfourk);
 
 	return(DESERR_NOHWDEVICE);
 }
@@ -213,10 +213,10 @@ void load_des(warn, libpath)
 	if (_my_crypt == NULL) {
 		if (dlhandle != NULL)
 			dlclose(dlhandle);
-		_my_crypt = &_rc4_crypt;
+		_my_crypt = &_arcfour_crypt;
 		if (warn) {
-			printf ("DES support disabled -- using RC4 instead.\n");
-			printf ("Warning: RC4 cipher is not compatible with ");
+			printf ("DES support disabled -- using ARCFOUR instead.\n");
+			printf ("Warning: ARCFOUR cipher is not compatible with ");
 			printf ("other Secure RPC implementations.\nInstall ");
 			printf ("the FreeBSD 'des' distribution to enable");
 			printf (" DES encryption.\n");
@@ -242,17 +242,51 @@ des_crypt_1_svc(desargs *argp, struct svc_req *rqstp)
 		return(&result);
 	}
 
+
 	bcopy(argp->des_key, dparm.des_key, 8);
 	bcopy(argp->des_ivec, dparm.des_ivec, 8);
 	dparm.des_mode = argp->des_mode;
 	dparm.des_dir = argp->des_dir;
-
 #ifdef BROKEN_DES
 	dparm.UDES.UDES_buf = argp->desbuf.desbuf_val;
 #endif
-	result.stat = _my_crypt(argp->desbuf.desbuf_val,
-				argp->desbuf.desbuf_len,
-				&dparm);
+
+	/*
+	 * XXX This compensates for a bug in the libdes Secure RPC
+	 * compat interface. (Actually, there are a couple.) The
+	 * des_ecb_encrypt() routine in libdes only encrypts 8 bytes
+	 * (64 bits) at a time. However, the Sun Secure RPC ecb_crypt()
+	 * routine is supposed to be able to handle buffers up to 8Kbytes.
+	 * The rpc_enc module in libdes ignores this fact and just drops
+	 * the length parameter on the floor, encrypting only the
+	 * first 64 bits of whatever buffer you feed it. We deal with
+	 * this here: if we're using DES encryption, and we're using
+	 * ECB mode, then we make a pass over the entire buffer
+	 * ourselves. Note: the rpc_enc module incorrectly transposes
+	 * the mode flags, so when you ask for CBC mode, you're really
+	 * getting ECB mode.
+	 */
+#ifdef BROKEN_DES
+	if (_my_crypt != &_arcfour_crypt && argp->des_mode == CBC) {
+#else
+	if (_my_crypt != &_arcfour_crypt && argp->des_mode == ECB) {
+#endif
+		int			i;
+		char			*dptr;
+
+		for (i = 0; i < argp->desbuf.desbuf_len / 8; i++) {
+			dptr = argp->desbuf.desbuf_val;
+			dptr += (i * 8);
+#ifdef BROKEN_DES
+			dparm.UDES.UDES_buf = dptr;
+#endif
+			result.stat = _my_crypt(dptr, 8, &dparm);
+		}
+	} else {
+		result.stat = _my_crypt(argp->desbuf.desbuf_val,
+					argp->desbuf.desbuf_len,
+					&dparm);
+	}
 
 	if (result.stat == DESERR_NONE || result.stat == DESERR_NOHWDEVICE) {
 		bcopy(dparm.des_ivec, result.des_ivec, 8);
