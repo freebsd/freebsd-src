@@ -18,6 +18,9 @@
  *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
  *  dufault@hda.com (Peter Dufault)
  *
+ * Copyright (c) 2001 Joerg Wunsch,
+ *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -1801,7 +1804,7 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 
 	fd = devclass_get_softc(fd_devclass, fdu);
 	fd->flags &= ~FD_OPEN;
-	fd->options &= ~FDOPT_NORETRY;
+	fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG);
 
 	return (0);
 }
@@ -2597,26 +2600,29 @@ retrier(struct fdc_data *fdc)
 	default:
 	fail:
 		{
+			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
 			dev_t sav_b_dev = bp->b_dev;
+
 			/* Trick diskerr */
 			bp->b_dev = makedev(major(bp->b_dev),
 				    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
-			diskerr(bp, "hard error", LOG_PRINTF,
-				fdc->fd->skip / DEV_BSIZE,
-				(struct disklabel *)NULL);
+			if (printerror)
+				diskerr(bp, "hard error", LOG_PRINTF,
+					fdc->fd->skip / DEV_BSIZE,
+					(struct disklabel *)NULL);
 			bp->b_dev = sav_b_dev;
-			if (fdc->flags & FDC_STAT_VALID)
-			{
-				printf(
+			if (printerror) {
+				if (fdc->flags & FDC_STAT_VALID)
+					printf(
 			" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
-				       fdc->status[0], NE7_ST0BITS,
-				       fdc->status[1], NE7_ST1BITS,
-				       fdc->status[2], NE7_ST2BITS,
-				       fdc->status[3], fdc->status[4],
-				       fdc->status[5]);
+					       fdc->status[0], NE7_ST0BITS,
+					       fdc->status[1], NE7_ST1BITS,
+					       fdc->status[2], NE7_ST2BITS,
+					       fdc->status[3], fdc->status[4],
+					       fdc->status[5]);
+				else
+					printf(" (No status)\n");
 			}
-			else
-				printf(" (No status)\n");
 		}
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
@@ -2723,6 +2729,7 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	struct fd_type *fdt;
 	struct disklabel *dl;
+	struct fdc_status *fsp;
 	char buffer[DEV_BSIZE];
 	int error = 0;
 
@@ -2800,6 +2807,13 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	case FD_SOPTS:			/* set drive options */
 		fd->options = *(int *)addr;
+		break;
+
+	case FD_GSTAT:
+		fsp = (struct fdc_status *)addr;
+		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
+			return EINVAL;
+		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
 		break;
 
 	default:
