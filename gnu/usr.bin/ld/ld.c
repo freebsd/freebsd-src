@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.43 1997/04/11 17:08:56 bde Exp $
+ *	$Id: ld.c,v 1.44 1997/04/25 19:43:19 bde Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -448,6 +448,8 @@ classify_arg(arg)
 			return 1;
 		if (!strcmp(&arg[2], "dynamic"))
 			return 1;
+		if (!strcmp(&arg[2], "forcedynamic"))
+			return 1;
 
 	case 'T':
 		if (arg[2] == 0)
@@ -533,6 +535,8 @@ decode_command(argc, argv)
 				link_mode &= ~DYNAMIC;
 			else if (strcmp(string, "dynamic") == 0)
 				link_mode |= DYNAMIC;
+			else if (strcmp(string, "forcedynamic") == 0)
+				link_mode |= DYNAMIC|FORCEDYNAMIC;
 			else if (strcmp(string, "symbolic") == 0)
 				link_mode |= SYMBOLIC;
 			else if (strcmp(string, "forcearchive") == 0)
@@ -545,6 +549,10 @@ decode_command(argc, argv)
 			else if (strcmp(string, "~silly") == 0)
 				link_mode &= ~SILLYARCHIVE;
 #endif
+		}
+		if (!strcmp(argv[i] + 1, "assert")) {
+			if (!strcmp(string, "pure-text"))
+				link_mode |= WARNRRSTEXT;
 		}
 		if (argv[i][1] == 'A') {
 			if (p != file_table)
@@ -632,6 +640,8 @@ decode_option(swt, arg)
 	if (!strcmp(swt + 1, "Bstatic"))
 		return;
 	if (!strcmp(swt + 1, "Bdynamic"))
+		return;
+	if (!strcmp(swt + 1, "Bforcedynamic"))
 		return;
 	if (!strcmp(swt + 1, "Bsymbolic"))
 		return;
@@ -2624,7 +2634,7 @@ write_header()
 		 */
 		flags = 0;
 
-	if (oldmagic && (flags & EX_DPMASK))
+	if (oldmagic && (flags & EX_DPMASK) && !(link_mode & FORCEDYNAMIC))
 		warnx("Cannot set flag in old magic headers\n");
 
 	N_SET_FLAG (outheader, flags);
