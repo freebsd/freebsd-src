@@ -215,6 +215,7 @@ double	logb(double) __pure2;
 double	nextafter(double, double);
 double	remainder(double, double);
 double	rint(double) __pure2;
+double	round(double);
 #endif /* __BSD_VISIBLE || __ISO_C_VISIBLE >= 1999 || __XSI_VISIBLE */
 
 #if __BSD_VISIBLE || __XSI_VISIBLE
@@ -292,6 +293,7 @@ float	ceilf(float);
 float	fabsf(float);
 float	floorf(float);
 float	fmodf(float, float);
+float	roundf(float);
 
 float	erff(float);
 float	erfcf(float) __pure2;
