@@ -63,6 +63,7 @@
 .Nm VGLTextSetFontFile
 .Nd Video Graphics Library functions (libvgl)
 .Sh SYNOPSIS
+.Fd #include <machine/console.h>
 .Fd #include <vgl.h>
 .Ft int
 .Fn VGLInit "int mode"
@@ -125,7 +126,7 @@
 .Ft int
 .Fn VGLSetVScreenSize "VGLBitmap *object" "int vxsize" "int vysize"
 .Ft int
-.Fn VGLPanSreen "VGLBitmap *object" "int x" "int y"
+.Fn VGLPanScreen "VGLBitmap *object" "int x" "int y"
 .Ft void 
 .Fn VGLBlankDisplay "int blank"
 .Sh DESCRIPTION
