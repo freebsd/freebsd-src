@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumio.h,v 1.17 1999/10/12 04:35:01 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -112,10 +113,12 @@ struct vinum_ioctl_msg {
     enum objectstate state;				    /* state to set (VINUM_SETSTATE) */
     int force;						    /* do it even if it doesn't make sense */
     int recurse;					    /* recurse (VINUM_REMOVE) */
+    int verify;						    /* verify (initsd) */
     int otherobject;					    /* superordinate object (attach),
 							    * replacement object (replace) */
     int rename;						    /* rename object (attach) */
     int64_t offset;					    /* offset of subdisk (for attach) */
+    int blocksize;					    /* size of block to revive (bytes) */
 };
 
 #define VINUM_RELEASECONFIG	_IOC(0, L, 77, 0)	    /* release locks and write config to disk */
