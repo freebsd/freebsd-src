@@ -156,13 +156,11 @@ There is insufficient swap space for the new process.
 does not yet implement a native
 .Fn clone
 library call, and the current pthreads implementation does not use
-.Fn
-rfork
+.Fn rfork
 with RFMEM.  A native port of the linux threads library,
 .Pa /usr/ports/devel/linuxthreads ,
 contains a working
-.Fn
-clone
+.Fn clone
 call that utilizes RFMEM.
 The
 .Fn rfork_thread
