@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: md.c,v 1.11 1994/12/23 22:31:12 nate Exp $
+ *	$Id: md.c,v 1.12 1995/03/04 17:46:20 nate Exp $
  */
 
 #include <sys/param.h>
@@ -40,7 +40,13 @@
 #include <stab.h>
 #include <string.h>
 
-#include "ld.h"
+#include "dynamic.h"
+
+#if defined(RTLD) && defined(SUN_COMPAT)
+#define REL_SIZE(r) (2)		/* !!!!! Sun BUG compatible */
+#else
+#define REL_SIZE(r) ((r)->r_length)
+#endif
 
 /*
  * Get relocation addend corresponding to relocation record RP
@@ -51,7 +57,7 @@ md_get_addend(rp, addr)
 struct relocation_info	*rp;
 unsigned char		*addr;
 {
-	switch (RELOC_TARGET_SIZE(rp)) {
+	switch (REL_SIZE(rp)) {
 	case 0:
 		return get_byte(addr);
 	case 1:
@@ -60,7 +66,7 @@ unsigned char		*addr;
 		return get_long(addr);
 	default:
 		errx(1, "Unsupported relocation size: %x",
-		    RELOC_TARGET_SIZE(rp));
+		    REL_SIZE(rp));
 	}
 }
 
@@ -74,7 +80,7 @@ long			relocation;
 unsigned char		*addr;
 int			relocatable_output;
 {
-	switch (RELOC_TARGET_SIZE(rp)) {
+	switch (REL_SIZE(rp)) {
 	case 0:
 		put_byte(addr, relocation);
 		break;
@@ -86,7 +92,7 @@ int			relocatable_output;
 		break;
 	default:
 		errx(1, "Unsupported relocation size: %x",
-		    RELOC_TARGET_SIZE(rp));
+		    REL_SIZE(rp));
 	}
 }
 
@@ -102,7 +108,7 @@ int			type;
 	/* Relocation size */
 	r->r_length = rp->r_length;
 
-	if (RELOC_PCREL_P(rp))
+	if (rp->r_pcrel)
 		r->r_pcrel = 1;
 
 	if (type & RELTYPE_RELATIVE)
