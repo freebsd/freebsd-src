@@ -100,6 +100,8 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
+COMMON_SRCS+= fabsl.c
+
 # Exclude the generic versions of what we provide in the MD area.
 .if defined(ARCH_SRCS)
 .PATH:	${.CURDIR}/${ARCH}
