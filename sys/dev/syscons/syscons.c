@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: syscons.c,v 1.278 1998/09/15 18:16:37 sos Exp $
  */
 
 #include "sc.h"
@@ -121,6 +121,7 @@ typedef struct old_mouse_info {
 
 /* XXX use sc_bcopy where video memory is concerned */
 extern void generic_bcopy(const void *, void *, size_t);
+extern void generic_bzero(void *, size_t);
 
 static default_attr user_default = {
     (FG_LIGHTGREY | BG_BLACK) << 8,
@@ -293,6 +294,7 @@ static void do_bell(scr_stat *scp, int pitch, int duration);
 static timeout_t blink_screen;
 #ifdef SC_SPLASH_SCREEN
 static void scsplash_init(scr_stat *scp);
+static void scsplash_term(scr_stat *scp);
 static void scsplash_saver(int show);
 #define scsplash_stick(stick)		(sticky_splash = (stick))
 #else
@@ -326,7 +328,8 @@ static	struct cdevsw	sc_cdevsw = {
 static void
 draw_cursor_image(scr_stat *scp)
 {
-    u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
+    u_short cursor_image;
+    u_short *ptr;
     u_short prev_image;
 
     if (ISPIXELSC(scp)) {
@@ -334,6 +337,9 @@ draw_cursor_image(scr_stat *scp)
 	  scp->cursor_pos - scp->scr_buf, 1);
 	return;
     }
+
+    ptr = (u_short *)(get_adapter(scp)->va_window)
+			 + (scp->cursor_pos - scp->scr_buf);
 
     /* do we have a destructive cursor ? */
     if (flags & CHAR_CURSOR) {
@@ -383,9 +389,11 @@ remove_cursor_image(scr_stat *scp)
 {
     if (ISPIXELSC(scp))
 	sc_bcopy(scp, scp->scr_buf, scp->cursor_oldpos - scp->scr_buf, 
-	  scp->cursor_oldpos - scp->scr_buf, 0);
+		 scp->cursor_oldpos - scp->scr_buf, 0);
     else
-	*(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
+	*((u_short *)(get_adapter(scp)->va_window)
+			 + (scp->cursor_oldpos - scp->scr_buf))
+	    = scp->cursor_saveunder;
 }
 
 static void
@@ -412,12 +420,13 @@ scprobe(struct isa_device *dev)
 	    printf("sc%d: no video adapter is found.\n", dev->id_unit);
 	return (0);
     }
-    (*biosvidsw.diag)(bootverbose);
+
 #if defined(VESA) && defined(VM86)
     if (vesa_load())
 	return FALSE;
-    (*biosvidsw.diag)(bootverbose);
 #endif
+
+    (*biosvidsw.diag)(bootverbose);
 
     sc_port = dev->id_iobase;
     if (sckbdprobe(dev->id_unit, dev->id_flags))
@@ -663,9 +672,15 @@ scattach(struct isa_device *dev)
 #if defined(VESA) && defined(VM86)
     if ((flags & VESA800X600) 
 	&& ((*biosvidsw.get_info)(scp->adp, M_VESA_800x600, &info) == 0)) {
+#ifdef SC_SPLASH_SCREEN
+	scsplash_term(scp);
+#endif
 	sc_set_graphics_mode(scp, NULL, M_VESA_800x600);
 	sc_set_pixel_mode(scp, NULL, COL, ROW, 16);
 	initial_video_mode = M_VESA_800x600;
+#ifdef SC_SPLASH_SCREEN
+	scsplash_init(scp);
+#endif
     }
 #endif /* VESA && VM86 */
 
@@ -2310,10 +2325,8 @@ exchange_scr(void)
 {
     move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
     cur_console = new_scp;
-    if (old_scp->mode != new_scp->mode || ISUNKNOWNSC(old_scp)) {
-	if (adp_flags & V_ADP_MODECHANGE)
-	    set_mode(new_scp);
-    }
+    if (old_scp->mode != new_scp->mode || ISUNKNOWNSC(old_scp))
+	set_mode(new_scp);
     move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
     if (ISTEXTSC(new_scp) && (flags & CHAR_CURSOR))
 	set_destructive_cursor(new_scp);
@@ -2326,10 +2339,6 @@ exchange_scr(void)
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
-
-    /* FIXME: the screen size may be larger than a 64K segment. */
-    if (ISPIXELSC(new_scp))
-	bzero(Crtat, new_scp->xpixel*new_scp->ypixel/8);
 }
 
 static void
@@ -2496,7 +2505,7 @@ scan_esc(scr_stat *scp, u_char c)
 		      scp->xsize - scp->xpos);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
     		mark_for_update(scp, scp->cursor_pos - scp->scr_buf +
-				scp->xsize - scp->xpos);
+				scp->xsize - 1 - scp->xpos);
 		break;
 	    case 1: /* clear from beginning of line to cursor */
 		fillw(scp->term.cur_color | scr_map[0x20],
@@ -2510,7 +2519,7 @@ scan_esc(scr_stat *scp, u_char c)
 		      scp->cursor_pos - scp->xpos,
 		      scp->xsize);
     		mark_for_update(scp, scp->ypos * scp->xsize);
-    		mark_for_update(scp, (scp->ypos + 1) * scp->xsize);
+    		mark_for_update(scp, (scp->ypos + 1) * scp->xsize - 1);
 		break;
 	    }
 	    break;
@@ -2555,7 +2564,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    src = dst + count;
 	    fillw(scp->term.cur_color | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count - 1);
 	    break;
 
 	case '@':   /* Insert n chars */
@@ -2568,7 +2577,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    bcopy(src, dst, count * sizeof(u_short));
 	    fillw(scp->term.cur_color | scr_map[0x20], src, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n + count - 1);
 	    break;
 
 	case 'S':   /* scroll up n lines */
@@ -2604,7 +2613,7 @@ scan_esc(scr_stat *scp, u_char c)
 	    fillw(scp->term.cur_color | scr_map[0x20],
 		  scp->cursor_pos, n);
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n);
+	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf + n - 1);
 	    break;
 
 	case 'Z':   /* move n tabs backwards */
@@ -3023,8 +3032,8 @@ scinit(void)
 
     /* copy screen to temporary buffer */
     if (ISTEXTSC(console[0]))
-	    generic_bcopy(Crtat, sc_buffer,
-		   console[0]->xsize * console[0]->ysize * sizeof(u_short));
+	generic_bcopy((ushort *)(get_adapter(console[0])->va_window), sc_buffer,
+		      console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
     console[0]->scr_buf = console[0]->mouse_pos = console[0]->mouse_oldpos
 	= sc_buffer;
@@ -3993,12 +4002,55 @@ set_mode(scr_stat *scp)
 	}
 	mark_all(scp);
     }
+
+    if (scp->status & PIXEL_MODE)
+	generic_bzero((u_char *)(adp->va_window), scp->xpixel*scp->ypixel/8);
     set_border(scp, scp->border);
 
     /* move hardware cursor out of the way */
     (*biosvidsw.set_hw_cursor)(scp->adp, -1, -1);
 
     return 0;
+}
+
+void
+set_border(scr_stat *scp, int color)
+{
+    u_char *p;
+    int xoff;
+    int yoff;
+    int xlen;
+    int ylen;
+    int i;
+
+    (*biosvidsw.set_border)(scp->adp, color);
+
+    if (scp->status & PIXEL_MODE) {
+	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
+	outw(GDCIDX, 0x0003);		/* data rotate/function select */
+	outw(GDCIDX, 0x0f01);		/* set/reset enable */
+	outw(GDCIDX, 0xff08);		/* bit mask */
+	outw(GDCIDX, (color << 8) | 0x00);	/* set/reset */
+	p = (u_char *)(get_adapter(scp)->va_window);
+	xoff = scp->xoff;
+	yoff = scp->yoff*scp->font_size;
+	xlen = scp->xpixel/8;
+	ylen = scp->ysize*scp->font_size;
+	if (yoff > 0) {
+	    generic_bzero(p, xlen*yoff);
+	    generic_bzero(p + xlen*(yoff + ylen),
+			  xlen*scp->ypixel - xlen*(yoff + ylen));
+	}
+	if (xoff > 0) {
+	    for (i = 0; i < ylen; ++i) {
+		generic_bzero(p + xlen*(yoff + i), xoff);
+		generic_bzero(p + xlen*(yoff + i) + xoff + scp->xsize, 
+			      xlen - xoff - scp->xsize);
+	    }
+	}
+	outw(GDCIDX, 0x0000);		/* set/reset */
+	outw(GDCIDX, 0x0001);		/* set/reset enable */
+    }
 }
 
 void
@@ -4322,7 +4374,8 @@ draw_mouse_image(scr_stat *scp)
 {
     u_short buffer[32];
     u_short xoffset, yoffset;
-    u_short *crt_pos = Crtat + (scp->mouse_pos - scp->scr_buf);
+    u_short *crt_pos = (u_short *)(get_adapter(scp)->va_window)
+				      + (scp->mouse_pos - scp->scr_buf);
     u_char *font_buffer;
     int font_size;
     int i;
@@ -4394,10 +4447,13 @@ draw_mouse_image(scr_stat *scp)
 static void
 remove_mouse_image(scr_stat *scp)
 {
-    u_short *crt_pos = Crtat + (scp->mouse_oldpos - scp->scr_buf);
+    u_short *crt_pos;
 
     if (!ISTEXTSC(scp))
 	return;
+
+    crt_pos = (u_short *)(get_adapter(scp)->va_window)
+			     + (scp->mouse_oldpos - scp->scr_buf);
     *(crt_pos) = *(scp->mouse_oldpos);
     *(crt_pos+1) = *(scp->mouse_oldpos+1);
     *(crt_pos+scp->xsize) = *(scp->mouse_oldpos+scp->xsize);
@@ -4409,11 +4465,13 @@ remove_mouse_image(scr_stat *scp)
 static void
 draw_cutmarking(scr_stat *scp)
 {
+    u_short *crt_pos;
     u_short *ptr;
     u_short och, nch;
 
+    crt_pos = (u_short *)(get_adapter(scp)->va_window);
     for (ptr=scp->scr_buf; ptr<=(scp->scr_buf+(scp->xsize*scp->ysize)); ptr++) {
-	nch = och = *(Crtat + (ptr - scp->scr_buf));
+	nch = och = *(crt_pos + (ptr - scp->scr_buf));
 	/* are we outside the selected area ? */
 	if ( ptr < (scp->mouse_cut_start > scp->mouse_cut_end ? 
 	            scp->mouse_cut_end : scp->mouse_cut_start) ||
@@ -4435,7 +4493,7 @@ draw_cutmarking(scr_stat *scp)
 	    }
 	}
 	if (nch != och)
-	    *(Crtat + (ptr - scp->scr_buf)) = nch;
+	    *(crt_pos + (ptr - scp->scr_buf)) = nch;
     }
 }
 
@@ -4484,10 +4542,12 @@ blink_screen(void *arg)
     else {
 	if (blink_in_progress & 1)
 	    fillw(kernel_default.std_color | scr_map[0x20],
-		  Crtat, scp->xsize * scp->ysize);
+		  (u_short *)(get_adapter(scp)->va_window),
+		  scp->xsize * scp->ysize);
 	else
 	    fillw(kernel_default.rev_color | scr_map[0x20],
-		  Crtat, scp->xsize * scp->ysize);
+		  (u_short *)(get_adapter(scp)->va_window),
+		  scp->xsize * scp->ysize);
 	blink_in_progress--;
 	timeout(blink_screen, scp, hz / 10);
     }
@@ -4497,15 +4557,19 @@ void
 sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark)
 {
     u_char *font;
-    u_char *d, *e;
+    u_char volatile *d;
+    u_char *e;
     u_char *f;
     int font_size;
     int line_length;
     int xsize;
+    u_short bg;
     int i, j;
+    u_char c;
 
     if (ISTEXTSC(scp)) {
-	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
+	generic_bcopy(p + from, (u_short *)(get_adapter(scp)->va_window) + from,
+		      (to - from + 1)*sizeof(u_short));
     } else /* if ISPIXELSC(scp) */ {
 	if (mark)
 	    mark = 255;
@@ -4518,20 +4582,72 @@ sc_bcopy(scr_stat *scp, u_short *p, int from, int to, int mark)
 	    font = font_14;
 	line_length = scp->xpixel/8;
 	xsize = scp->xsize;
-	d = (u_char *)Crtat 
+	d = (u_char *)(get_adapter(scp)->va_window)
 	    + scp->xoff + scp->yoff*font_size*line_length 
 	    + (from%xsize) + font_size*line_length*(from/xsize);
+
+	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
+	outw(GDCIDX, 0x0003);		/* data rotate/function select */
+	outw(GDCIDX, 0x0f01);		/* set/reset enable */
+	bg = -1;
 	for (i = from ; i <= to ; i++) {
-	    e = d;
+	    /* set background color in EGA/VGA latch */
+	    if (bg != (p[i] & 0xf000)) {
+		bg = (p[i] & 0xf000);
+		outw(GDCIDX, (bg >> 4) | 0x00); /* set/reset */
+		outw(GDCIDX, 0xff08);		/* bit mask */
+		*d = 0;
+		c = *d;		/* set the background color in the latch */
+	    }
+	    /* foreground color */
+	    outw(GDCIDX, (p[i] & 0x0f00) | 0x00); /* set/reset */
+	    e = (u_char *)d;
 	    f = &font[(p[i] & 0x00ff)*font_size];
 	    for (j = 0 ; j < font_size; j++, f++) {
-	        *e = mark^*f;
+		outw(GDCIDX, ((*f^mark) << 8) | 0x08);	/* bit mask */
+	        *e = 0;
 		e += line_length;
 	    }
 	    d++;
 	    if ((i % xsize) == xsize - 1)
 		d += scp->xoff*2 + (font_size - 1)*line_length;
 	}
+	outw(GDCIDX, 0x0000);		/* set/reset */
+	outw(GDCIDX, 0x0001);		/* set/reset enable */
+	outw(GDCIDX, 0xff08);		/* bit mask */
+
+#if 0	/* VGA only */
+	outw(GDCIDX, 0x0305);		/* read mode 0, write mode 3 */
+	outw(GDCIDX, 0x0003);		/* data rotate/function select */
+	outw(GDCIDX, 0x0f01);		/* set/reset enable */
+	outw(GDCIDX, 0xff08);		/* bit mask */
+	bg = -1;
+	for (i = from ; i <= to ; i++) {
+	    /* set background color in EGA/VGA latch */
+	    if (bg != (p[i] & 0xf000)) {
+		bg = (p[i] & 0xf000);
+		outw(GDCIDX, 0x0005);	/* read mode 0, write mode 0 */
+		outw(GDCIDX, (bg >> 4) | 0x00); /* set/reset */
+		*d = 0;
+		c = *d;		/* set the background color in the latch */
+		outw(GDCIDX, 0x0305);	/* read mode 0, write mode 3 */
+	    }
+	    /* foreground color */
+	    outw(GDCIDX, (p[i] & 0x0f00) | 0x00); /* set/reset */
+	    e = (u_char *)d;
+	    f = &font[(p[i] & 0x00ff)*font_size];
+	    for (j = 0 ; j < font_size; j++, f++) {
+	        *e = *f^mark;
+		e += line_length;
+	    }
+	    d++;
+	    if ((i % xsize) == xsize - 1)
+		d += scp->xoff*2 + (font_size - 1)*line_length;
+	}
+	outw(GDCIDX, 0x0005);		/* read mode 0, write mode 0 */
+	outw(GDCIDX, 0x0000);		/* set/reset */
+	outw(GDCIDX, 0x0001);		/* set/reset enable */
+#endif /* 0 */
     }
 }
 
@@ -4542,14 +4658,6 @@ scsplash_init(scr_stat *scp)
 {
     video_info_t info;
 
-    /* 
-     * We currently assume the splash screen always use
-     * VGA_CG320 mode and abort installation if this mode is not
-     * supported with this video card. XXX
-     */
-    if ((*biosvidsw.get_info)(scp->adp, M_VGA_CG320, &info))
-	return;
-
     if (scsplash_load(scp) == 0 && add_scrn_saver(scsplash_saver) == 0) {
 	default_saver = scsplash_saver;
 	scrn_blank_time = DEFAULT_BLANKTIME;
@@ -4559,6 +4667,15 @@ scsplash_init(scr_stat *scp)
 	    scsplash_saver(TRUE);
 	}
     }
+}
+
+static void
+scsplash_term(scr_stat *scp)
+{
+    default_saver = none_saver;
+    scsplash_stick(FALSE);
+    remove_scrn_saver(scsplash_saver);
+    scsplash_unload(scp);
 }
 
 static void

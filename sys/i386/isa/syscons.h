@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: syscons.h,v 1.40 1998/09/15 18:16:38 sos Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -210,9 +210,9 @@ int set_mode(scr_stat *scp);
 scr_stat *sc_get_scr_stat(dev_t dev);
 
 void copy_font(scr_stat *scp, int operation, int font_size, u_char *font_image);
+void set_border(scr_stat *scp, int color);
 #define save_palette(scp, pal)	(*biosvidsw.save_palette)((scp)->adp, pal)
 #define load_palette(scp, pal)	(*biosvidsw.load_palette)((scp)->adp, pal)
-#define set_border(scp, col)	(*biosvidsw.set_border)((scp)->adp, col)
 #define get_adapter(scp)	(*biosvidsw.adapter)((scp)->adp)
 
 int add_scrn_saver(void (*this)(int));

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: vesa.c,v 1.1 1998/09/15 18:16:38 sos Exp $
  */
 
 #include "sc.h"
@@ -133,9 +133,10 @@ static int vesa_bios_load_palette(int start, int colors, u_char *palette);
 #define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
 static int vesa_bios_state_buf_size(void);
 static int vesa_bios_save_restore(int code, void *p, size_t size);
-static int translate_flags(u_int16_t vflags);
+static int vesa_map_gen_mode_num(int type, int color, int mode);
+static int vesa_translate_flags(u_int16_t vflags);
 static int vesa_bios_init(void);
-static void clear_modes(video_info_t *info, int color);
+static void vesa_clear_modes(video_info_t *info, int color);
 
 static void
 dump_buffer(u_char *buf, size_t len)
@@ -282,8 +283,30 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	return ((err != 0) || (vmf.vmf_eax != 0x4f));
 }
 
+/* map a generic video mode to a known mode */
 static int
-translate_flags(u_int16_t vflags)
+vesa_map_gen_mode_num(int type, int color, int mode)
+{
+    static struct {
+	int from;
+	int to;
+    } mode_map[] = {
+	{ M_TEXT_132x25, M_VESA_C132x25 },
+	{ M_TEXT_132x43, M_VESA_C132x43 },
+	{ M_TEXT_132x50, M_VESA_C132x50 },
+	{ M_TEXT_132x60, M_VESA_C132x60 },
+    };
+    int i;
+
+    for (i = 0; i < sizeof(mode_map)/sizeof(mode_map[0]); ++i) {
+        if (mode_map[i].from == mode)
+            return mode_map[i].to;
+    }
+    return mode;
+}
+
+static int
+vesa_translate_flags(u_int16_t vflags)
 {
 	static struct {
 		u_int16_t mask;
@@ -373,8 +396,8 @@ vesa_bios_init(void)
 		vesa_vmode[modes].vi_buffer = vmode.v_lfb;
 		vesa_vmode[modes].vi_buffer_size = vmode.v_offscreen;
 		/* pixel format, memory model... */
-		vesa_vmode[modes].vi_flags = translate_flags(vmode.v_modeattr)
-					     | V_INFO_VESA;
+		vesa_vmode[modes].vi_flags 
+			= vesa_translate_flags(vmode.v_modeattr) | V_INFO_VESA;
 		++modes;
 	}
 	vesa_vmode[modes].vi_mode = EOT;
@@ -386,7 +409,7 @@ vesa_bios_init(void)
 }
 
 static void
-clear_modes(video_info_t *info, int color)
+vesa_clear_modes(video_info_t *info, int color)
 {
 	while (info->vi_mode != EOT) {
 		if ((info->vi_flags & V_INFO_COLOR) != color)
@@ -432,6 +455,9 @@ vesa_get_info(int ad, int mode, video_info_t *info)
 
 	if (ad != vesa_adp->va_index)
 		return 1;
+
+	mode = vesa_map_gen_mode_num(vesa_adp->va_type, 
+				     vesa_adp->va_flags & V_ADP_COLOR, mode);
 	for (i = 0; vesa_vmode[i].vi_mode != EOT; ++i) {
 		if (vesa_vmode[i].vi_mode == NA)
 			continue;
@@ -490,6 +516,8 @@ vesa_set_mode(int ad, int mode)
 	if (ad != vesa_adp->va_index)
 		return (*prevvidsw.set_mode)(ad, mode);
 
+	mode = vesa_map_gen_mode_num(vesa_adp->va_type, 
+				     vesa_adp->va_flags & V_ADP_COLOR, mode);
 #ifdef SC_VIDEO_DEBUG
 	printf("VESA: set_mode(): %d(%x) -> %d(%x)\n",
 		vesa_adp->va_mode, vesa_adp->va_mode, mode, mode);
@@ -697,6 +725,11 @@ vesa_diag(int level)
 	u_int32_t p;
 	int i;
 
+#ifndef VESA_MODULE
+	/* call the previous handler first */
+	(*prevvidsw.diag)(level);
+#endif
+
 	/* general adapter information */
 	printf("VESA: v%d.%d, %dk memory, flags:0x%x, mode table:%p (%x)\n", 
 	       ((vesa_adp_info->v_version & 0xf000) >> 12) * 10 
@@ -806,9 +839,9 @@ vesa_load(void)
 
 	/* remove conflicting modes if we have more than one adapter */
 	if (adapters > 1) {
-		clear_modes(vesa_vmode,
-			    (vesa_adp->va_flags & V_ADP_COLOR) ? 
-				V_INFO_COLOR : 0);
+		vesa_clear_modes(vesa_vmode,
+				 (vesa_adp->va_flags & V_ADP_COLOR) ? 
+				     V_INFO_COLOR : 0);
 	}
 
 #ifdef VESA_MODULE
