@@ -37,41 +37,56 @@
 #ifndef _MACHINE_PROFILE_H_
 #define	_MACHINE_PROFILE_H_
 
-#ifdef _KERNEL
-
 /*
- * Config generates something to tell the compiler to align functions on 16
+ * Config generates something to tell the compiler to align functions on 32 
  * byte boundaries.  A strict alignment is good for keeping the tables small.
  */
 #define	FUNCTION_ALIGNMENT	16
 
-/*
- * The kernel uses assembler stubs instead of unportable inlines.
- * This is mainly to save a little time when profiling is not enabled,
- * which is the usual case for the kernel.
- */
+
 #define	_MCOUNT_DECL void mcount
-#define	MCOUNT
 
-#ifdef GUPROF
-#define	MCOUNT_DECL(s)
-#define	MCOUNT_ENTER(s)
-#define	MCOUNT_EXIT(s)
-#else
-#define	MCOUNT_DECL(s)	u_long s;
-#ifdef SMP
-extern int	mcount_lock;
-#define	MCOUNT_ENTER(s)	{ s = intr_disable(); \
- 			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1)) \
-			  	/* nothing */ ; }
-#define	MCOUNT_EXIT(s)	{ atomic_store_rel_int(&mcount_lock, 0); \
-			  intr_restore(s); }
-#else
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
-#define	MCOUNT_EXIT(s)	(write_eflags(s))
+typedef u_long	fptrdiff_t;
+
+/*
+ * Cannot implement mcount in C as GCC will trash the ip register when it
+ * pushes a trapframe. Pity we cannot insert assembly before the function
+ * prologue.
+ */
+
+#ifndef PLTSYM
+#define	PLTSYM
 #endif
-#endif /* GUPROF */
 
+#define	MCOUNT								\
+	__asm__(".text");						\
+	__asm__(".align	0");						\
+	__asm__(".type	_mcount ,%function");				\
+	__asm__(".global	_mcount");				\
+	__asm__("_mcount:");						\
+	/*								\
+	 * Preserve registers that are trashed during mcount		\
+	 */								\
+	__asm__("stmfd	sp!, {r0-r3, ip, lr}");				\
+	/*								\
+	 * find the return address for mcount,				\
+	 * and the return address for mcount's caller.			\
+	 *								\
+	 * frompcindex = pc pushed by call into self.			\
+	 */								\
+	__asm__("mov	r0, ip");					\
+	/*								\
+	 * selfpc = pc pushed by mcount call				\
+	 */								\
+	__asm__("mov	r1, lr");					\
+	/*								\
+	 * Call the real mcount code					\
+	 */								\
+	__asm__("bl	mcount");					\
+	/*								\
+	 * Restore registers that were trashed during mcount		\
+	 */								\
+	__asm__("ldmfd	sp!, {r0-r3, lr, pc}");
 void bintr(void);
 void btrap(void);
 void eintr(void);
@@ -85,38 +100,26 @@ void user(void);
 	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
 		(uintfptr_t)btrap) : ~0U)
 
-#else /* !_KERNEL */
-
-#define	FUNCTION_ALIGNMENT	4
-
-#define	_MCOUNT_DECL static __inline void _mcount
-
-#define	MCOUNT		
-
-typedef	unsigned int	uintfptr_t;
-
-#endif /* _KERNEL */
-
-/*
- * An unsigned integral type that can hold non-negative difference between
- * function pointers.
- */
-typedef	u_int	fptrdiff_t;
 
 #ifdef _KERNEL
 
+#define	MCOUNT_DECL(s)	register_t s;
+
+#include <machine/asm.h>
+#include <machine/cpufunc.h>
+/*
+ * splhigh() and splx() are heavyweight, and call mcount().  Therefore
+ * we disabled interrupts (IRQ, but not FIQ) directly on the CPU.
+ *
+ * We're lucky that the CPSR and 's' both happen to be 'int's.
+ */
+#define	MCOUNT_ENTER(s)	{s = intr_disable(); }	/* kill IRQ */
+#define	MCOUNT_EXIT(s)	{intr_restore(s); }	/* restore old value */
+
 void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
-#else /* !_KERNEL */
-
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-#ifdef __GNUC__
-void	mcount(void) __asm(".mcount");
-#endif
-__END_DECLS
-
+#else
+typedef	u_int	uintfptr_t;
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_PROFILE_H_ */
