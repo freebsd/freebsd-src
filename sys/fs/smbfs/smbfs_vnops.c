@@ -249,7 +249,7 @@ smbfs_closel(struct vop_close_args *ap)
 
 	smb_makescred(&scred, td, ap->a_cred);
 
-	if (np->n_opencount == 0) {
+	if (np->n_opencount == 0 && vp->v_type != VDIR) {
 		SMBERROR("Negative opencount\n");
 		return 0;
 	}
