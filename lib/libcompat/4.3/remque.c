@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)remque.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * remque -- vax remque instruction
@@ -48,7 +50,7 @@ struct vaxque {		/* queue format expected by VAX queue instructions */
 
 void
 remque(e)
-	register struct vaxque *e;
+	struct vaxque *e;
 {
 	e->vq_prev->vq_next = e->vq_next;
 	e->vq_next->vq_prev = e->vq_prev;

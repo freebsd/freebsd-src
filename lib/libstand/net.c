@@ -73,16 +73,16 @@ __FBSDID("$FreeBSD$");
  */
 ssize_t
 sendrecv(d, sproc, sbuf, ssize, rproc, rbuf, rsize)
-	register struct iodesc *d;
-	register ssize_t (*sproc)(struct iodesc *, void *, size_t);
-	register void *sbuf;
-	register size_t ssize;
-	register ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t);
-	register void *rbuf;
-	register size_t rsize;
+	struct iodesc *d;
+	ssize_t (*sproc)(struct iodesc *, void *, size_t);
+	void *sbuf;
+	size_t ssize;
+	ssize_t (*rproc)(struct iodesc *, void *, size_t, time_t);
+	void *rbuf;
+	size_t rsize;
 {
-	register ssize_t cc;
-	register time_t t, tmo, tlast;
+	ssize_t cc;
+	time_t t, tmo, tlast;
 	long tleft;
 
 #ifdef NET_DEBUG
@@ -140,11 +140,11 @@ n_long
 inet_addr(cp)
 	char *cp;
 {
-	register u_long val;
-	register int n;
-	register char c;
+	u_long val;
+	int n;
+	char c;
 	u_int parts[4];
-	register u_int *pp = parts;
+	u_int *pp = parts;
 
 	for (;;) {
 		/*
@@ -224,11 +224,11 @@ inet_ntoa(ia)
 /* Similar to inet_ntoa() */
 char *
 intoa(addr)
-	register n_long addr;
+	n_long addr;
 {
-	register char *cp;
-	register u_int byte;
-	register int n;
+	char *cp;
+	u_int byte;
+	int n;
 	static char buf[17];	/* strlen(".255.255.255.255") + 1 */
 
 	addr = ntohl(addr);

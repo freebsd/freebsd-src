@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)cuserid.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <pwd.h>
 #include <stdio.h>
@@ -44,7 +46,7 @@ char *
 cuserid(s)
 	char *s;
 {
-	register struct passwd *pwd;
+	struct passwd *pwd;
 
 	if ((pwd = getpwuid(geteuid())) == NULL) {
 		if (s)

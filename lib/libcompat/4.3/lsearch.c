@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)lsearch.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -68,7 +70,7 @@ linear_base(key, base, nelp, width, compar, add_flag)
 	u_int *nelp, width;
 	int (*compar)(), add_flag;
 {
-	register char *element, *end;
+	char *element, *end;
 
 	end = base + *nelp * width;
 	for (element = base; element < end; element += width)

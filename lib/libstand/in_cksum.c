@@ -52,11 +52,11 @@ __FBSDID("$FreeBSD$");
  */
 int
 in_cksum(p, len)
-	register void *p;
-	register int len;
+	void *p;
+	int len;
 {
-	register int sum = 0, oddbyte = 0, v = 0;
-	register u_char *cp = p;
+	int sum = 0, oddbyte = 0, v = 0;
+	u_char *cp = p;
 
 	/* we assume < 2^16 bytes being summed */
 	while (len > 0) {

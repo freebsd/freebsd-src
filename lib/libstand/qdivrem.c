@@ -65,9 +65,9 @@ typedef u_long digit;
  * We may assume len >= 0.  NOTE THAT THIS WRITES len+1 DIGITS.
  */
 static void
-shl(register digit *p, register int len, register int sh)
+shl(digit *p, int len, int sh)
 {
-	register int i;
+	int i;
 
 	for (i = 0; i < len; i++)
 		p[i] = LHALF(p[i] << sh) | (p[i + 1] >> (HALF_BITS - sh));
@@ -88,7 +88,7 @@ __qdivrem(uq, vq, arq)
 {
 	union uu tmp;
 	digit *u, *v, *q;
-	register digit v1, v2;
+	digit v1, v2;
 	u_long qhat, rhat, t;
 	int m, n, d, j, i;
 	digit uspace[5], vspace[5], qspace[5];
@@ -198,7 +198,7 @@ __qdivrem(uq, vq, arq)
 	v1 = v[1];	/* for D3 -- note that v[1..n] are constant */
 	v2 = v[2];	/* for D3 */
 	do {
-		register digit uj0, uj1, uj2;
+		digit uj0, uj1, uj2;
 
 		/*
 		 * D3: Calculate qhat (\^q, in TeX notation).

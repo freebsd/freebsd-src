@@ -51,13 +51,13 @@ long
 strtol(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
-	register int base;
+	int base;
 {
-	register const char *s;
-	register unsigned long acc;
-	register unsigned char c;
-	register unsigned long cutoff;
-	register int neg = 0, any, cutlim;
+	const char *s;
+	unsigned long acc;
+	unsigned char c;
+	unsigned long cutoff;
+	int neg = 0, any, cutlim;
 
 	/* Be sensible about NULL strings */
 	if (nptr == NULL)

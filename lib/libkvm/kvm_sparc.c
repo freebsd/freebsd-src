@@ -92,9 +92,9 @@ int
 _kvm_initvtop(kd)
 	kvm_t *kd;
 {
-	register int i;
-	register int off;
-	register struct vmstate *vm;
+	int i;
+	int off;
+	struct vmstate *vm;
 	struct stat st;
 	struct nlist nlist[2];
 
@@ -168,8 +168,8 @@ _kvm_uvatop(kd, p, va, pa)
 	u_long *pa;
 {
 	int kva, pte;
-	register int off, frame;
-	register struct vmspace *vms = p->p_vmspace;
+	int off, frame;
+	struct vmspace *vms = p->p_vmspace;
 
 	if ((u_long)vms < KERNBASE) {
 		_kvm_err(kd, kd->program, "_kvm_uvatop: corrupt proc");
@@ -218,10 +218,10 @@ _kvm_kvatop(kd, va, pa)
 	u_long va;
 	u_long *pa;
 {
-	register struct vmstate *vm;
-	register int s;
-	register int pte;
-	register int off;
+	struct vmstate *vm;
+	int s;
+	int pte;
+	int off;
 
 	if (va >= KERNBASE) {
 		vm = kd->vmst;

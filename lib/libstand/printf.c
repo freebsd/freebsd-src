@@ -106,11 +106,11 @@ vsprintf(char *buf, const char *cfmt, va_list ap)
  */
 static char *
 ksprintn(ul, base, lenp)
-	register u_long ul;
-	register int base, *lenp;
+	u_long ul;
+	int base, *lenp;
 {					/* A long in base 8, plus NULL. */
 	static char buf[sizeof(long) * NBBY / 3 + 2];
-	register char *p;
+	char *p;
 
 	p = buf;
 	do {
