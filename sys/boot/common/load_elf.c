@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.8 1998/10/16 03:04:15 peter Exp $
+ *	$Id: load_elf.c,v 1.9 1998/10/17 03:06:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -323,11 +323,11 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     if (shdr == NULL)
 	goto nosyms;
     if (lseek(fd, ehdr->e_shoff, SEEK_SET) == -1) {
-	printf("\nelf_loadimage: cannot lseek() to section headers\n");
+	printf("\nelf_loadimage: cannot lseek() to section headers");
 	goto nosyms;
     }
     if (read(fd, shdr, chunk) != chunk) {
-	printf("\nelf_loadimage: read section headers failed\n");
+	printf("\nelf_loadimage: read section headers failed");
 	goto nosyms;
     }
     symtabindex = -1;
@@ -382,7 +382,7 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	lastaddr += sizeof(long);
 
 #ifdef ELF_VERBOSE
-	printf("%s: 0x%lx@0x%lx -> 0x%lx-0x%lx\n", secname,
+	printf("\n%s: 0x%lx@0x%lx -> 0x%lx-0x%lx", secname,
 	    shdr[i].sh_size, shdr[i].sh_offset,
 	    lastaddr, lastaddr + shdr[i].sh_size);
 #else
@@ -392,14 +392,14 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 #endif
 
 	if (lseek(fd, shdr[i].sh_offset, SEEK_SET) == -1) {
-	    printf("\nelf_loadimage: could not seek for symbols - skipped!\n");
+	    printf("\nelf_loadimage: could not seek for symbols - skipped!");
 	    lastaddr = ssym;
 	    ssym = 0;
 	    goto nosyms;
 	}
 	if (archsw.arch_readin(fd, lastaddr, shdr[i].sh_size) !=
 	    shdr[i].sh_size) {
-	    printf("\nelf_loadimage: could not read symbols - skipped!\n");
+	    printf("\nelf_loadimage: could not read symbols - skipped!");
 	    lastaddr = ssym;
 	    ssym = 0;
 	    goto nosyms;
@@ -414,13 +414,14 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     }
     esym = lastaddr;
 #ifndef ELF_VERBOSE
-    printf("]\n");
+    printf("]");
 #endif
 
     mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
     mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
 
 nosyms:
+    printf("\n");
 
     ret = lastaddr - firstaddr;
     mp->m_addr = firstaddr;
