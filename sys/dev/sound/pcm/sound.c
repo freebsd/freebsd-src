@@ -163,24 +163,34 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	}
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
+
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
     	sz = (numplay + numrec) * sizeof(pcm_channel *);
-    	d->aplay = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
-    	if (!d->aplay) goto no;
-    	d->arec = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
-    	if (!d->arec) goto no;
-    	bzero(d->aplay, sz);
-    	bzero(d->arec, sz);
 
-    	d->play = (pcm_channel *)malloc(numplay * sizeof(pcm_channel),
-					M_DEVBUF, M_NOWAIT);
-    	if (!d->play) goto no;
-    	d->rec = (pcm_channel *)malloc(numrec * sizeof(pcm_channel),
-				       M_DEVBUF, M_NOWAIT);
-    	if (!d->rec) goto no;
-    	bzero(d->play, numplay * sizeof(pcm_channel));
-    	bzero(d->rec, numrec * sizeof(pcm_channel));
+	if (sz > 0) {
+		d->aplay = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
+    		if (!d->aplay) goto no;
+    		bzero(d->aplay, sz);
+
+    		d->arec = (pcm_channel **)malloc(sz, M_DEVBUF, M_NOWAIT);
+    		if (!d->arec) goto no;
+    		bzero(d->arec, sz);
+	}
+
+	if (numplay > 0) {
+    		d->play = (pcm_channel *)malloc(numplay * sizeof(pcm_channel),
+						M_DEVBUF, M_NOWAIT);
+    		if (!d->play) goto no;
+    		bzero(d->play, numplay * sizeof(pcm_channel));
+	}
+
+	if (numrec > 0) {
+	  	d->rec = (pcm_channel *)malloc(numrec * sizeof(pcm_channel),
+				       	M_DEVBUF, M_NOWAIT);
+    		if (!d->rec) goto no;
+    		bzero(d->rec, numrec * sizeof(pcm_channel));
+	}
 
 	fkchan_setup(&d->fakechan);
 	chn_init(&d->fakechan, NULL, 0);
