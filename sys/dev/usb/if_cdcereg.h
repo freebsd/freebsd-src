@@ -53,7 +53,6 @@ struct cdce_chain {
 	usbd_xfer_handle	 cdce_xfer;
 	char			*cdce_buf;
 	struct mbuf		*cdce_mbuf;
-	int			 cdce_accum;
 	int			 cdce_idx;
 };
 
