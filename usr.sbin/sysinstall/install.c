@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.197 1997/09/03 11:19:56 jkh Exp $
+ * $Id: install.c,v 1.198 1997/10/03 14:14:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -806,6 +806,8 @@ installFixup(dialogMenuItem *self)
 	/* BOGON #6: deal with new boot files */
 	vsystem("touch /kernel.config");
 	vsystem("touch /boot.config");
+	if (file_readable("/stand/boot.help"))
+	    vsystem("mv /stand/boot.help /");
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
@@ -1036,8 +1038,6 @@ copySelf(void)
 	msgConfirm("Copy returned error status of %d!", i);
 	return FALSE;
     }
-    if (file_readable("/stand/boot.help"))
-	vsystem("mv /stand/boot.help /");
 
     /* Copy the /etc files into their rightful place */
     if (vsystem("cd /mnt/stand; find etc | cpio %s -pdum /mnt", cpioVerbosity())) {
