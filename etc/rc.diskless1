@@ -92,6 +92,12 @@ for i in ${iflist} ; do
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
+if [ -z "`hostname -s`" ]; then
+        hostname=`kenv dhcp.host-name`
+        hostname $hostname
+	echo "Hostname is $hostname"
+fi
+
 if [ -d /conf/default/etc ]; then
 	mount_md 4096 /etc 0
 	chkerr $? "MFS mount on /etc"
@@ -109,11 +115,24 @@ fi
 # This way we have some flexibility to handle clusters of machines on
 # separate subnets.
 
-for i in ${bootp_ipbca} ${bootp_ipa} ; do
+for i in ${bootp_ipbca} ${bootp_ipa} ${hostname} ; do
 	if [ -d /conf/${i}/etc ]; then
 		cp -Rp /conf/${i}/etc/* /etc
 	fi
 done
+
+#
+# if the info is available via dhcp/kenv
+# build the resolv.conf
+#
+if [ ! -e /etc/resolv.conf ]; then
+        echo domain `kenv dhcp.domain-name` > /etc/resolv.conf
+
+        set `kenv dhcp.domain-name-servers`
+        for ns in `IFS=','; echo $*`; do
+                echo nameserver $ns >> /etc/resolv.conf;
+        done
+fi
 
 # Tell /etc/rc to run the specified script after it does its mounts but
 # before it does anything else.
