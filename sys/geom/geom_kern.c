@@ -162,7 +162,7 @@ g_init(void)
 }
 
 static int
-sysctl_debug_geomdot(SYSCTL_HANDLER_ARGS)
+sysctl_kern_geom_dotconf(SYSCTL_HANDLER_ARGS)
 {
 	int i, error;
 	struct sbuf *sb;
@@ -174,12 +174,8 @@ sysctl_debug_geomdot(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, geomdot, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_debug_geomdot, "A",
-	"Dump the GEOM config");
-
 static int
-sysctl_debug_geomconf(SYSCTL_HANDLER_ARGS)
+sysctl_kern_geom_xmlconf(SYSCTL_HANDLER_ARGS)
 {
 	int i, error;
 	struct sbuf *sb;
@@ -191,11 +187,17 @@ sysctl_debug_geomconf(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_debug, OID_AUTO, geomconf, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_debug_geomconf, "A",
+SYSCTL_NODE(_kern, OID_AUTO, geom, CTLFLAG_RW, 0, "GEOMetry management");
+
+SYSCTL_PROC(_kern_geom, OID_AUTO, xmlconf, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_kern_geom_xmlconf, "A",
 	"Dump the GEOM config");
 
-SYSCTL_INT(_debug, OID_AUTO, geomdebugflags, CTLTYPE_INT|CTLFLAG_RW,
+SYSCTL_PROC(_kern_geom, OID_AUTO, dotconf, CTLTYPE_STRING|CTLFLAG_RD,
+	0, 0, sysctl_kern_geom_dotconf, "A",
+	"Dump the GEOM config");
+
+SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLTYPE_INT|CTLFLAG_RW,
 	&g_debugflags, 0, "");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLTYPE_INT|CTLFLAG_RD,
