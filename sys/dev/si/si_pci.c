@@ -33,21 +33,25 @@
 
 #include <pci/pcivar.h>
 
-static const char *
+static int
 si_pci_probe(device_t dev)
 {
+	const char *desc = NULL;
+
 	switch (pci_get_devid(dev)) {
 	case 0x400011cb:
-		return("Specialix SI/XIO PCI host card");
+		desc = "Specialix SI/XIO PCI host card";
 		break;
 	case 0x200011cb:
 		if (pci_read_config(dev, SIJETSSIDREG, 4) == 0x020011cb)
-			return("Specialix SX PCI host card");
-		else
-			return NULL;
+			desc = "Specialix SX PCI host card";
 		break;
 	}
-	return NULL;
+	if (desc) {
+		device_set_desc(dev, desc);
+		return 0;
+	}
+	return ENXIO;
 }
 
 static int
