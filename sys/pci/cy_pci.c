@@ -55,6 +55,7 @@
 #define CY_PLX_9060_ICS			0x68
 #define CY_PLX_9050_ICS_IENABLE		0x040
 #define CY_PLX_9050_ICS_LOCAL_IENABLE	0x001
+#define CY_PLX_9050_ICS_LOCAL_IPOLARITY	0x002
 #define CY_PLX_9060_ICS_IENABLE		0x100
 #define CY_PLX_9060_ICS_LOCAL_IENABLE	0x800
 
@@ -177,9 +178,9 @@ cy_pci_attach(dev)
 	plx_ver = *((u_char *)vaddr + PLX_VER) & 0x0f;
 	switch (plx_ver) {
 	case PLX_9050:
-		outw(ioport + CY_PLX_9050_ICS, 
-		    inw(ioport + CY_PLX_9050_ICS) | CY_PLX_9050_ICS_IENABLE |
-		    CY_PLX_9050_ICS_LOCAL_IENABLE);
+		outw(ioport + CY_PLX_9050_ICS,
+		    CY_PLX_9050_ICS_IENABLE | CY_PLX_9050_ICS_LOCAL_IENABLE |
+		    CY_PLX_9050_ICS_LOCAL_IPOLARITY);
 		break;
 	case PLX_9060:
 	case PLX_9080:
