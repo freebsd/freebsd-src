@@ -159,6 +159,7 @@ struct mount {
 	struct label	*mnt_mntlabel;		/* MAC label for the mount */
 	struct label	*mnt_fslabel;		/* MAC label for the fs */
 	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
+	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
