@@ -79,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
+#include <sys/file.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 
@@ -269,7 +270,8 @@ void
 vm_init2(void) 
 {
 	uma_zone_set_obj(kmapentzone, &kmapentobj, lmin(cnt.v_page_count,
-	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8);
+	    (VM_MAX_KERNEL_ADDRESS - KERNBASE) / PAGE_SIZE) / 8 +
+	     maxproc * 2 + maxfiles);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
 #ifdef INVARIANTS
 	    vmspace_zdtor,
