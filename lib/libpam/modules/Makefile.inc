@@ -4,6 +4,7 @@ PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 
 INTERNALLIB=	yes
 INTERNALSTATICLIB=yes
+SHLIB_NAME?=	${LIB}.so.${SHLIB_MAJOR}
 
 CFLAGS+=	-I${PAMDIR}/include
 CFLAGS+=	-I${.CURDIR}/../../libpam

@@ -22,10 +22,9 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
 LIB=		pam_permit
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_permit.c
 MAN=		pam_permit.8
 

@@ -25,7 +25,6 @@
 # $FreeBSD$
 
 LIB=		pam_self
-SHLIB_NAME=	${LIB}.so.${SHLIB_MAJOR}
 SRCS=		pam_self.c
 MAN=		pam_self.8
 
