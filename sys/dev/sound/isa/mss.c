@@ -174,13 +174,13 @@ static struct pcmchan_caps opti931_caps = {4000, 48000, opti931_fmt, 0};
 static void
 mss_lock(struct mss_info *mss)
 {
-	snd_mtxlock(mss);
+	snd_mtxlock(mss->lock);
 }
 
 static void
 mss_unlock(struct mss_info *mss)
 {
-	snd_mtxunlock(mss);
+	snd_mtxunlock(mss->lock);
 }
 
 static int
