@@ -44,7 +44,8 @@ MAN+=	addr2ascii.3 byteorder.3 ethers.3 getaddrinfo.3 gethostbyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 hesiod.3 \
 	if_indextoname.3 \
 	inet.3 inet_net.3 \
-	inet6_option_space.3 inet6_rthdr_space.3 linkaddr.3 \
+	inet6_opt_init.3 inet6_option_space.3 inet6_rth_space.3 \
+	inet6_rthdr_space.3 linkaddr.3 \
 	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3 sockatmark.3
 
 MLINKS+=addr2ascii.3 ascii2addr.3
@@ -73,11 +74,22 @@ MLINKS+=inet.3 addr.3 inet.3 inet_addr.3 inet.3 inet_aton.3 \
 	inet.3 inet_ntop.3 inet.3 inet_pton.3 \
 	inet.3 network.3 inet.3 ntoa.3 
 MLINKS+=inet_net.3 inet_net_ntop.3 inet_net.3 inet_net_pton.3
-MLINKS+=inet6_option_space.3 inet6_option_alloc.3 \
+MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \
+	inet6_opt_init.3 inet6_opt_find.3 \
+	inet6_opt_init.3 inet6_opt_finish.3 \
+	inet6_opt_init.3 inet6_opt_get_val.3 \
+	inet6_opt_init.3 inet6_opt_next.3 \
+	inet6_opt_init.3 inet6_opt_set_val.3 \
+	inet6_option_space.3 inet6_option_alloc.3 \
 	inet6_option_space.3 inet6_option_append.3 \
 	inet6_option_space.3 inet6_option_find.3 \
 	inet6_option_space.3 inet6_option_init.3 \
 	inet6_option_space.3 inet6_option_next.3 \
+	inet6_rth_space.3 inet6_rth_add.3 \
+	inet6_rth_space.3 inet6_rth_getaddr.3 \
+	inet6_rth_space.3 inet6_rth_init.3 \
+	inet6_rth_space.3 inet6_rth_reverse.3 \
+	inet6_rth_space.3 inet6_rth_segments.3 \
 	inet6_rthdr_space.3 inet6_rthdr_add.3 \
 	inet6_rthdr_space.3 inet6_rthdr_getaddr.3 \
 	inet6_rthdr_space.3 inet6_rthdr_getflags.3 \

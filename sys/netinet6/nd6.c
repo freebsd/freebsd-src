@@ -1323,7 +1323,7 @@ nd6_ioctl(cmd, data, ifp)
 	struct ifnet *ifp;
 {
 	struct in6_drlist *drl = (struct in6_drlist *)data;
-	struct in6_prlist *prl = (struct in6_prlist *)data;
+	struct in6_oprlist *oprl = (struct in6_oprlist *)data;
 	struct in6_ndireq *ndi = (struct in6_ndireq *)data;
 	struct in6_nbrinfo *nbi = (struct in6_nbrinfo *)data;
 	struct in6_ndifreq *ndif = (struct in6_ndifreq *)data;
@@ -1343,14 +1343,7 @@ nd6_ioctl(cmd, data, ifp)
 		dr = TAILQ_FIRST(&nd_defrouter);
 		while (dr && i < DRLSTSIZ) {
 			drl->defrouter[i].rtaddr = dr->rtaddr;
-			if (IN6_IS_ADDR_LINKLOCAL(&drl->defrouter[i].rtaddr)) {
-				/* XXX: need to this hack for KAME stack */
-				drl->defrouter[i].rtaddr.s6_addr16[1] = 0;
-			} else
-				log(LOG_ERR,
-				    "default router list contains a "
-				    "non-linklocal address(%s)\n",
-				    ip6_sprintf(&drl->defrouter[i].rtaddr));
+			in6_clearscope(&drl->defrouter[i].rtaddr);
 
 			drl->defrouter[i].flags = dr->flags;
 			drl->defrouter[i].rtlifetime = dr->rtlifetime;
@@ -1364,50 +1357,46 @@ nd6_ioctl(cmd, data, ifp)
 	case SIOCGPRLST_IN6:
 		/*
 		 * obsolete API, use sysctl under net.inet6.icmp6
+		 *
+		 * XXX the structure in6_prlist was changed in backward-
+		 * incompatible manner.  in6_oprlist is used for SIOCGPRLST_IN6,
+		 * in6_prlist is used for nd6_sysctl() - fill_prlist().
 		 */
 		/*
 		 * XXX meaning of fields, especialy "raflags", is very
 		 * differnet between RA prefix list and RR/static prefix list.
 		 * how about separating ioctls into two?
 		 */
-		bzero(prl, sizeof(*prl));
+		bzero(oprl, sizeof(*oprl));
 		s = splnet();
 		pr = nd_prefix.lh_first;
 		while (pr && i < PRLSTSIZ) {
 			struct nd_pfxrouter *pfr;
 			int j;
 
-			(void)in6_embedscope(&prl->prefix[i].prefix,
+			(void)in6_embedscope(&oprl->prefix[i].prefix,
 			    &pr->ndpr_prefix, NULL, NULL);
-			prl->prefix[i].raflags = pr->ndpr_raf;
-			prl->prefix[i].prefixlen = pr->ndpr_plen;
-			prl->prefix[i].vltime = pr->ndpr_vltime;
-			prl->prefix[i].pltime = pr->ndpr_pltime;
-			prl->prefix[i].if_index = pr->ndpr_ifp->if_index;
-			prl->prefix[i].expire = pr->ndpr_expire;
+			oprl->prefix[i].raflags = pr->ndpr_raf;
+			oprl->prefix[i].prefixlen = pr->ndpr_plen;
+			oprl->prefix[i].vltime = pr->ndpr_vltime;
+			oprl->prefix[i].pltime = pr->ndpr_pltime;
+			oprl->prefix[i].if_index = pr->ndpr_ifp->if_index;
+			oprl->prefix[i].expire = pr->ndpr_expire;
 
 			pfr = pr->ndpr_advrtrs.lh_first;
 			j = 0;
 			while (pfr) {
 				if (j < DRLSTSIZ) {
-#define RTRADDR prl->prefix[i].advrtr[j]
+#define RTRADDR oprl->prefix[i].advrtr[j]
 					RTRADDR = pfr->router->rtaddr;
-					if (IN6_IS_ADDR_LINKLOCAL(&RTRADDR)) {
-						/* XXX: hack for KAME */
-						RTRADDR.s6_addr16[1] = 0;
-					} else
-						log(LOG_ERR,
-						    "a router(%s) advertises "
-						    "a prefix with "
-						    "non-link local address\n",
-						    ip6_sprintf(&RTRADDR));
+					in6_clearscope(&RTRADDR);
 #undef RTRADDR
 				}
 				j++;
 				pfr = pfr->pfr_next;
 			}
-			prl->prefix[i].advrtrs = j;
-			prl->prefix[i].origin = PR_ORIG_RA;
+			oprl->prefix[i].advrtrs = j;
+			oprl->prefix[i].origin = PR_ORIG_RA;
 
 			i++;
 			pr = pr->ndpr_next;
@@ -1419,16 +1408,16 @@ nd6_ioctl(cmd, data, ifp)
 		     rpp = LIST_NEXT(rpp, rp_entry)) {
 			if (i >= PRLSTSIZ)
 				break;
-			(void)in6_embedscope(&prl->prefix[i].prefix,
+			(void)in6_embedscope(&oprl->prefix[i].prefix,
 			    &pr->ndpr_prefix, NULL, NULL);
-			prl->prefix[i].raflags = rpp->rp_raf;
-			prl->prefix[i].prefixlen = rpp->rp_plen;
-			prl->prefix[i].vltime = rpp->rp_vltime;
-			prl->prefix[i].pltime = rpp->rp_pltime;
-			prl->prefix[i].if_index = rpp->rp_ifp->if_index;
-			prl->prefix[i].expire = rpp->rp_expire;
-			prl->prefix[i].advrtrs = 0;
-			prl->prefix[i].origin = rpp->rp_origin;
+			oprl->prefix[i].raflags = rpp->rp_raf;
+			oprl->prefix[i].prefixlen = rpp->rp_plen;
+			oprl->prefix[i].vltime = rpp->rp_vltime;
+			oprl->prefix[i].pltime = rpp->rp_pltime;
+			oprl->prefix[i].if_index = rpp->rp_ifp->if_index;
+			oprl->prefix[i].expire = rpp->rp_expire;
+			oprl->prefix[i].advrtrs = 0;
+			oprl->prefix[i].origin = rpp->rp_origin;
 			i++;
 		}
 	      }
