@@ -35,7 +35,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "$Id$";
+static char sccsid[] = "$Id: parse_netgroup.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -50,6 +50,10 @@ static char sccsid[] = "$Id$";
 #include <stdlib.h>
 #include <unistd.h>
 #include "hash.h"
+
+#ifndef lint
+static const char rcsid[] = "$Id$";
+#endif
 
 /*
  * Static Variables and functions used by setnetgrent(), getnetgrent() and

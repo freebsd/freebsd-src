@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: hash.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -37,6 +37,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include "hash.h"
+
+#ifndef lint
+static const char rcsid[] = "$Id$";
+#endif
 
 /*
  * This hash function is stolen directly from the
@@ -97,7 +101,7 @@ hash(keyarg, len)
 /*
  * Generate a hash value for a given key (character string).
  * We mask off all but the lower 8 bits since our table array
- * can only hole 256 elements.
+ * can only hold 256 elements.
  */
 u_int32_t hashkey(key)
 	char *key;
@@ -136,7 +140,7 @@ char *lookup(table, key)
  *
  * One way to deal with this is to malloc(2) a second table and start
  * doing indirection, but this is a pain in the butt and it's not worth
- * going to all that trouble for a dinky littke program like this. Instead,
+ * going to all that trouble for a dinky little program like this. Instead,
  * we turn each table entry into a linked list and simply link keys
  * with the same hash value together at the same index location within
  * the table.
@@ -162,7 +166,7 @@ void store (table, key, data)
 }
 
 /*
- * Store an group member entry and/or update its grouplist. This is
+ * Store a group member entry and/or update its grouplist. This is
  * a bit more complicated than the previous function since we have to
  * maintain not only the hash table of group members, each group member
  * structure also has a linked list of groups hung off it. If handed
