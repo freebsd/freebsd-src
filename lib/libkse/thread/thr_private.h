@@ -224,6 +224,18 @@ struct pthread_key {
 	void            (*destructor) ();
 };
 
+struct pthread_rwlockattr {
+	int		pshared;
+};
+
+struct pthread_rwlock {
+	pthread_mutex_t	lock;	/* monitor lock */
+	int		state;	/* 0 = idle  >0 = # of readers  -1 = writer */
+	pthread_cond_t	read_signal;
+	pthread_cond_t	write_signal;
+	int		blocked_writers;
+};
+
 /*
  * Thread states.
  */
