@@ -40,11 +40,9 @@
  * $Whistle: ng_pppoe.c,v 1.10 1999/11/01 09:24:52 julian Exp $
  */
 #if 0
-#define AAA printf("pppoe: %s\n", __func__ );
-#define BBB printf("-%d-", __LINE__ );
+#define DBG printf("pppoe: %s\n", __func__ )
 #else
-#define AAA
-#define BBB
+#define DBG
 #endif
 
 #include <sys/param.h>
@@ -350,7 +348,7 @@ get_new_sid(node_p node)
 	u_int16_t val; 
 	priv_p privp = NG_NODE_PRIVATE(node);
 
-AAA
+	DBG;
 restart:
 	val = pppoe_sid++;
 	/*
@@ -401,7 +399,7 @@ get_tag(const struct pppoe_hdr* ph, u_int16_t idx)
 	/*
 	 * Keep processing tags while a tag header will still fit.
 	 */
-AAA
+	DBG;
 	while((const char*)(pt + 1) <= end) {
 	    /*
 	     * If the tag data would go past the end of the packet, abort.
@@ -427,7 +425,7 @@ AAA
 static void
 init_tags(sessp sp)
 {
-AAA
+	DBG;
 	if(sp->neg == NULL) {
 		printf("pppoe: asked to init NULL neg pointer\n");
 		return;
@@ -441,7 +439,7 @@ insert_tag(sessp sp, const struct pppoe_tag *tp)
 	int	i;
 	negp neg;
 
-AAA
+	DBG;
 	if((neg = sp->neg) == NULL) {
 		printf("pppoe: asked to use NULL neg pointer\n");
 		return;
@@ -471,7 +469,7 @@ make_packet(sessp sp) {
 	int tlen;
 	u_int16_t length = 0;
 
-AAA
+	DBG;
 	if ((sp->neg == NULL) || (sp->neg->m == NULL)) {
 		printf("pppoe: make_packet called from wrong state\n");
 	}
@@ -517,7 +515,7 @@ pppoe_match_svc(node_p node, const char *svc_name, int svc_len, int match)
 	hook_p	allhook	= NULL;
 	hook_p	hook;
 
-AAA
+	DBG;
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 
 		/* skip any hook that is debug or ethernet */
@@ -566,7 +564,7 @@ pppoe_findsession(node_p node, const struct pppoe_full_hdr *wh)
 	/*
 	 * find matching peer/session combination.
 	 */
-AAA
+	DBG;
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
 		/* don't check special hooks */
 		if ((NG_HOOK_PRIVATE(hook) == &privp->debug_hook)
@@ -593,7 +591,7 @@ pppoe_finduniq(node_p node, const struct pppoe_tag *tag)
 	priv_p	privp = NG_NODE_PRIVATE(node);
 	union uniq		uniq;
 
-AAA
+	DBG;
 	bcopy(tag->tag_data, uniq.bytes, sizeof(void *));
 	/* cycle through all known hooks */
 	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
@@ -625,7 +623,7 @@ ng_pppoe_constructor(node_p node)
 {
 	priv_p privdata;
 
-AAA
+	DBG;
 	/* Initialize private descriptor */
 	MALLOC(privdata, priv_p, sizeof(*privdata), M_NETGRAPH_PPPOE,
 	    M_NOWAIT | M_ZERO);
@@ -657,7 +655,7 @@ ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
 	const priv_p privp = NG_NODE_PRIVATE(node);
 	sessp sp;
 
-AAA
+	DBG;
 	if (strcmp(name, NG_PPPOE_HOOK_ETHERNET) == 0) {
 		privp->ethernet_hook = hook;
 		NG_HOOK_SET_PRIVATE(hook, &privp->ethernet_hook);
@@ -699,7 +697,7 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	negp neg = NULL;
 	struct ng_mesg *msg;
 
-AAA
+	DBG;
 	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
@@ -965,7 +963,7 @@ pppoe_start(sessp sp)
 	/* 
 	 * kick the state machine into starting up
 	 */
-AAA
+	DBG;
 	sp->state = PPPOE_SINIT;
 	/* Reset the packet header to broadcast. Since we are in a client
 	 * mode use configured ethertype. */
@@ -1047,7 +1045,7 @@ ng_pppoe_rcvdata(hook_p hook, item_p item)
 	negp			neg = NULL;
 	struct mbuf		*m;
 
-AAA
+	DBG;
 	NGI_GET_M(item, m);
 	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
 		/*
@@ -1552,7 +1550,7 @@ ng_pppoe_shutdown(node_p node)
 {
 	const priv_p privdata = NG_NODE_PRIVATE(node);
 
-AAA
+	DBG;
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH_PPPOE);
@@ -1584,7 +1582,7 @@ ng_pppoe_disconnect(hook_p hook)
 	sessp	sp;
 	int 	hooks;
 
-AAA
+	DBG;
 	hooks = NG_NODE_NUMHOOKS(node); /* this one already not counted */
 	if (NG_HOOK_PRIVATE(hook) == &privp->debug_hook) {
 		privp->debug_hook = NULL;
@@ -1684,7 +1682,7 @@ pppoe_ticker(void *arg)
 	struct mbuf *m0 = NULL;
 	priv_p privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-AAA
+	DBG;
 	switch(sp->state) {
 		/*
 		 * resend the last packet, using an exponential backoff.
@@ -1729,7 +1727,7 @@ sendpacket(sessp sp)
 	negp	neg = sp->neg;
 	priv_p	privp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 
-AAA
+	DBG;
 	switch(sp->state) {
 	case	PPPOE_LISTENING:
 	case	PPPOE_DEAD:
@@ -1791,7 +1789,7 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 	/*
 	 * Keep processing tags while a tag header will still fit.
 	 */
-AAA
+	DBG;
 	while((const char*)(pt + 1) <= end) {
 		/*
 		 * If the tag data would go past the end of the packet, abort.
@@ -1828,7 +1826,7 @@ pppoe_send_event(sessp sp, enum cmd cmdid)
 	struct ng_mesg *msg;
 	struct ngpppoe_sts *sts;
 
-AAA
+	DBG;
 	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
 			sizeof(struct ngpppoe_sts), M_NOWAIT);
 	if (msg == NULL)
