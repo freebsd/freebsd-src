@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Marcel Moolenaar
+ * Copyright (c) 2002,2005 Marcel Moolenaar
  * Copyright (c) 2002 Hiten Mahesh Pandya
  * All rights reserved.
  *
@@ -35,7 +35,7 @@
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_is_nil.htm
  */
 int32_t
-uuid_is_nil(uuid_t *u, uint32_t *status)
+uuid_is_nil(const uuid_t *u, uint32_t *status)
 {
 	uint32_t *p;
 
