@@ -315,6 +315,23 @@ g_wither_geom(struct g_geom *gp, int error)
 }
 
 /*
+ * This function is called (repeatedly) until the has withered away.
+ */
+void
+g_wither_geom_close(struct g_geom *gp, int error)
+{
+	struct g_consumer *cp;
+
+	g_topology_assert();
+	G_VALID_GEOM(gp);
+	g_trace(G_T_TOPOLOGY, "g_wither_geom_close(%p(%s))", gp, gp->name);
+	LIST_FOREACH(cp, &gp->consumer, consumer)
+		if (cp->acr || cp->acw || cp->ace)
+			g_access(cp, -cp->acr, -cp->acw, -cp->ace);
+	g_wither_geom(gp, error);
+}
+
+/*
  * This function is called (repeatedly) until we cant wash away more
  * withered bits at present.  Return value contains two bits.  Bit 0
  * set means "withering stuff we can't wash now", bit 1 means "call
