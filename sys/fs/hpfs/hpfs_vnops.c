@@ -71,7 +71,7 @@ static vop_access_t	hpfs_access;
 static vop_open_t	hpfs_open;
 static vop_close_t	hpfs_close;
 static vop_readdir_t	hpfs_readdir;
-static vop_lookup_t	hpfs_lookup;
+static vop_cachedlookup_t	hpfs_lookup;
 static vop_create_t	hpfs_create;
 static vop_remove_t	hpfs_remove;
 static vop_bmap_t	hpfs_bmap;
@@ -1022,7 +1022,7 @@ readdone:
 
 int
 hpfs_lookup(ap)
-	struct vop_lookup_args /* {
+	struct vop_cachedlookup_args /* {
 		struct vnode *a_dvp;
 		struct vnode **a_vpp;
 		struct componentname *a_cnp;
