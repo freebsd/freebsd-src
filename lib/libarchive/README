@@ -9,7 +9,9 @@ Documentation:
  * archive_read.3 and archive_write.3 provide detailed calling
    sequences for the read and write APIs
  * archive_entry.3 details the "struct archive_entry" utility class
- * tar.5 documents the "tar" file formats supported by the library
+ * libarchive-formats.5 documents the file formats supported by the library
+ * tar.5 provides some detailed information about a variety of different
+   "tar" formats.
 
 You should also read the copious comments in "archive.h" and the source
 code for the sample "bsdtar" program for more details.  Please let me know
