@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.75 1999/04/27 18:34:13 jdp Exp $
+ *	$Id: pccard.c,v 1.76 1999/04/27 18:47:39 jdp Exp $
  */
 
 #include "opt_devfs.h"
@@ -727,7 +727,7 @@ pccard_event(struct slot *slt, enum card_event event)
 	case card_inserted:
 		slt->insert_seq = 1;
 		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
-		pccard_remove_beep();
+		pccard_insert_beep();
 		break;
 	}
 }
