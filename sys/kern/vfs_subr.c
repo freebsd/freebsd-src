@@ -930,18 +930,18 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	if (flags & V_SAVE) {
 		error = bufobj_wwait(bo, slpflag, slptimeo);
 		if (error) {
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			return (error);
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
 			 * enabled under INVARIANTS
 			 */
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)
 				panic("vinvalbuf: dirty bufs");
 		}
@@ -991,12 +991,11 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	}
 
 #ifdef INVARIANTS
-	VI_LOCK(vp);
+	BO_LOCK(bo);
 	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
-	    (vp->v_bufobj.bo_dirty.bv_cnt > 0 ||
-	     vp->v_bufobj.bo_clean.bv_cnt > 0))
+	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 #endif
 	return (0);
 }
@@ -1014,8 +1013,10 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 {
 	struct buf *bp, *nbp;
 	int found, error;
+	struct bufobj *bo;
 
-	ASSERT_VI_LOCKED(vp, "flushbuflist");
+	bo = &vp->v_bufobj;
+	ASSERT_BO_LOCKED(bo);
 
 	found = 0;
 	TAILQ_FOREACH_SAFE(bp, &bufv->bv_hd, b_bobufs, nbp) {
@@ -1025,10 +1026,10 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 		}
 		found += 1;
 		error = BUF_TIMELOCK(bp,
-		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, VI_MTX(vp),
+		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, BO_MTX(bo),
 		    "flushbuf", slpflag, slptimeo);
 		if (error) {
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			return (error != ENOLCK ? error : EAGAIN);
 		}
 		/*
@@ -1054,14 +1055,14 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 				bremfree(bp);
 				(void) bwrite(bp);
 			}
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			return (EAGAIN);
 		}
 		bremfree(bp);
 		bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 	}
 	return (found ? EAGAIN : 0);
 }
