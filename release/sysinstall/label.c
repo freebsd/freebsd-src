@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.8 1995/05/18 18:02:31 jkh Exp $
+ * $Id: label.c,v 1.9 1995/05/19 02:09:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,7 +64,7 @@
 
 /* Where to start printing the freebsd slices */
 #define CHUNK_SLICE_START_ROW		2
-#define CHUNK_PART_START_ROW		10
+#define CHUNK_PART_START_ROW		11
 
 /* The smallest filesystem we're willing to create */
 #define FS_MIN_SIZE			2048
@@ -271,7 +271,7 @@ getNewfsCmd(PartInfo *p)
 #define PART_OFF	38
 
 /* How many mounted partitions to display in column before going to next */
-#define CHUNK_COLUMN_MAX	6
+#define CHUNK_COLUMN_MAX	5
 
 /* stick this all up on the screen */
 static void
@@ -285,30 +285,20 @@ print_label_chunks(void)
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
-    label_attr = A_BOLD;	/* A_UNDERLINE is *BROKEN* in syscons! */
 
     for (i = 0; i < 2; i++) {
-	attrset(label_attr);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_PART_COL + (i * PART_OFF),
-		 "Part");
-	attrset(A_NORMAL);
+	mvaddstr(CHUNK_PART_START_ROW - 2, PART_PART_COL + (i * PART_OFF), "Part");
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_PART_COL + (i * PART_OFF), "----");
 
-	attrset(label_attr);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_MOUNT_COL + (i * PART_OFF),
-		 "Mount");
-	attrset(A_NORMAL);
+	mvaddstr(CHUNK_PART_START_ROW - 2, PART_MOUNT_COL + (i * PART_OFF), "Mount");
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_MOUNT_COL + (i * PART_OFF), "-----");
 
-	attrset(label_attr);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2,
-		 "Size");
-	attrset(A_NORMAL);
+	mvaddstr(CHUNK_PART_START_ROW - 2, PART_SIZE_COL + (i * PART_OFF) + 2, "Size");
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2, "----");
 
-	attrset(label_attr);
-	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF),
-		 "Newfs");
-	attrset(A_NORMAL);
+	mvaddstr(CHUNK_PART_START_ROW - 2, PART_NEWFS_COL + (i * PART_OFF), "Newfs");
+	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF), "-----");
     }
-
     srow = CHUNK_SLICE_START_ROW;
     prow = CHUNK_PART_START_ROW;
     pcol = 0;
