@@ -72,29 +72,27 @@
  */
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq) \
     do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
+        asm("1:     movl %1,%%eax;" \
             "movl   %%eax,%%edx;" \
             "andl   %2,%%edx;" \
             "btsl   $0x1,%%edx;" \
             "adcl   $0x0,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
+            "lock;  cmpxchgl %%edx,%1;" \
             "jnz    1b;" \
             "cmpb   $0x3,%%dl;" \
             "sbbl   %%eax,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~1L):"dx"); \
+            : "=a" (Acq), "+m" (GLptr) : "i" (~1L) : "edx"); \
     } while(0)
 
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq) \
     do { \
-        int dummy; \
-        asm("1:     movl (%1),%%eax;" \
+        asm("1:     movl %1,%%eax;" \
             "movl   %%eax,%%edx;" \
             "andl   %2,%%edx;" \
-            "lock;  cmpxchgl %%edx,(%1);" \
+            "lock;  cmpxchgl %%edx,%1;" \
             "jnz    1b;" \
             "andl   $0x1,%%eax" \
-            :"=a"(Acq),"=c"(dummy):"c"(GLptr),"i"(~3L):"dx"); \
+            : "=a" (Acq), "+m" (GLptr) : "i" (~3L) : "edx"); \
     } while(0)
 
 
