@@ -56,7 +56,7 @@ static const char sccsid[] = "@(#)cmp.c	8.3 (Berkeley) 4/2/94";
 
 #include "extern.h"
 
-int	lflag, sflag, xflag;
+int	lflag, sflag, xflag, zflag;
 
 static void usage __P((void));
 
@@ -70,17 +70,21 @@ main(argc, argv)
 	int ch, fd1, fd2, special;
 	char *file1, *file2;
 
-	while ((ch = getopt(argc, argv, "-lsx")) != -1)
+	while ((ch = getopt(argc, argv, "-lsxz")) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			lflag = 1;
 			break;
 		case 's':		/* silent run */
 			sflag = 1;
+			zflag = 1;
 			break;
 		case 'x':		/* hex output */
 			lflag = 1;
 			xflag = 1;
+			break;
+		case 'z':		/* compare size first */
+			zflag = 1;
 			break;
 		case '-':		/* stdin (must be after options) */
 			--optind;
@@ -94,7 +98,7 @@ endargs:
 	argc -= optind;
 
 	if (lflag && sflag)
-		errx(ERR_EXIT, "only one of -l and -s may be specified");
+		errx(ERR_EXIT, "specifying -s with -l or -x is not permitted");
 
 	if (argc < 2 || argc > 4)
 		usage();
@@ -154,6 +158,12 @@ endargs:
 	if (special)
 		c_special(fd1, file1, skip1, fd2, file2, skip2);
 	else
+		if (zflag && sb1.st_size != sb2.st_size) {
+			if (!sflag)
+				(void) printf("%s %s differ: size\n",
+				    file1, file2);
+			exit(DIFF_EXIT);
+		}
 		c_regular(fd1, file1, skip1, sb1.st_size,
 		    fd2, file2, skip2, sb2.st_size);
 	exit(0);
@@ -164,6 +174,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: cmp [-l | -s] file1 file2 [skip1 [skip2]]\n");
+	    "usage: cmp [-l | -s | -x] [-z] file1 file2 [skip1 [skip2]]\n");
 	exit(ERR_EXIT);
 }
