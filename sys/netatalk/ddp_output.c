@@ -72,6 +72,11 @@ ddp_output( struct mbuf *m, struct socket *so)
     }
     deh->deh_bytes = htonl( deh->deh_bytes );
 
+#ifdef NETATALK_DEBUG
+    printf ("ddp_output: from %d.%d:%d to %d.%d:%d\n",
+	ntohs(deh->deh_snet), deh->deh_snode, deh->deh_sport,
+	ntohs(deh->deh_dnet), deh->deh_dnode, deh->deh_dport);
+#endif
     return( ddp_route( m, &ddp->ddp_route ));
 }
 
@@ -142,13 +147,24 @@ ddp_route( struct mbuf *m, struct route *ro)
 	}
     } else {
 	m_freem( m );
-	return( EINVAL );
+#ifdef NETATALK_DEBUG
+	if (ro->ro_rt == NULL)
+	    printf ("ddp_route: no ro_rt.\n");
+	else if (ro->ro_rt->rt_ifa == NULL)
+	    printf ("ddp_route: no ro_rt->rt_ifa\n");
+	else
+	    printf ("ddp_route: no ro_rt->rt_ifa->ifa_ifp\n");
+#endif
+	return( ENETUNREACH );
     }
 
     if ( aa == NULL ) {
-printf( "ddp_route: oops\n" );
+#ifdef NETATALK_DEBUG
+	printf( "ddp_route: no atalk address found for %s%d\n", 
+	    ifp->if_name, ifp->if_unit);
+#endif
 	m_freem( m );
-	return( EINVAL );
+	return( ENETUNREACH );
     }
 
     /*
@@ -189,7 +205,24 @@ printf( "ddp_route: oops\n" );
     }
     ro->ro_rt->rt_use++;
 
+#ifdef NETATALK_DEBUG
+    printf ("ddp_route: from %d.%d to %d.%d, via %d.%d (%s%d)\n",
+	ntohs(satosat(&aa->aa_addr)->sat_addr.s_net),
+	satosat(&aa->aa_addr)->sat_addr.s_node,
+	ntohs(satosat(&ro->ro_dst)->sat_addr.s_net),
+	satosat(&ro->ro_dst)->sat_addr.s_node,
+	ntohs(gate.sat_addr.s_net),
+	gate.sat_addr.s_node,
+	ifp->if_name, ifp->if_unit);
+#endif
+
+    /* short-circuit the output if we're sending this to ourself */
+    if ((satosat(&aa->aa_addr)->sat_addr.s_net  == satosat(&ro->ro_dst)->sat_addr.s_net) &&
+	(satosat(&aa->aa_addr)->sat_addr.s_node == satosat(&ro->ro_dst)->sat_addr.s_node))
+    {
+	return (if_simloop(ifp, m, (struct sockaddr *)&gate, 0));
+    }
+
     return((*ifp->if_output)( ifp,
 	m, (struct sockaddr *)&gate, NULL)); /* XXX */
 }
-
