@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_LINK.9,v 1.3 1997/04/13 14:48:53 bde Exp $
+.\" $Id: VOP_LINK.9,v 1.4 1998/03/12 07:31:11 charnier Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -46,20 +46,24 @@ Its arguments are:
 .Bl -tag -width 8X
 .It Ar dvp
 the vnode of the directory
-.It At vp
+.It Ar vp
 the vnode of the file to be linked
 .It Ar cnp
 pathname information about the file
 .El
 .Pp
-The directory vnode is unlocked and released on exit.
+The pathname info must be released on exit.  The directory and 
+file vnodes should NOT be released on exit.
 .Sh LOCKS
 The directory,
 .Fa dvp
-should be locked on entry and will be unlocked and released on exit.
+is locked on entry.  The caller will unlock and release the directory
+on return.  The VOP routine should not try to unlock or release
+the directory.
 The file
 .Fa vp
-should not be locked.
+is not locked on entry.  If the VOP routine locks it, it must remember
+to unlock it prior to returning.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
@@ -79,6 +83,10 @@ vop_link(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	VOP_ABORTOP(dvp, cnp);
 	goto out2;
     }
+
+    /*
+     * now that we've locked vp, we have to use out1 instead of out2
+     */
 
     if (vp would have too many links) {
 	VOP_ABORTOP(dvp, cnp);
@@ -109,7 +117,6 @@ out1:
     if (vp != dvp)
 	VOP_UNLOCK(vp);
 out2:
-    vput(dvp);
 
     return error;
 }
