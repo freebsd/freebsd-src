@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.446 1998/07/11 04:46:27 julian Exp $
+#	$Id: LINT,v 1.447 1998/07/20 20:00:30 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1440,6 +1440,7 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 #	Requires SCSI disk support ('scbus' and 'sd'), best
 #	performance is achieved with ports in EPP 1.9 mode.
 # nlpt	Parallel Printer
+# plip	Parallel network interface
 # ppi	General-purpose I/O ("Geek Port")
 #
 # Supported interfaces:
@@ -1448,6 +1449,7 @@ options		POWERFAIL_NMI	# make it beep instead of panicing
 controller	ppbus0
 controller	vpo0	at ppbus?
 device		nlpt0	at ppbus?
+device		plip0	at ppbus?
 device		ppi0	at ppbus?
 device		pps0	at ppbus?
 

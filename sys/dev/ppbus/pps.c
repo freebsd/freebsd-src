@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.8 1998/06/13 09:30:10 phk Exp $
+ * $Id: pps.c,v 1.9 1998/06/21 18:02:32 bde Exp $
  *
  * This driver implements a draft-mogul-pps-api-02.txt PPS source.
  *
@@ -93,6 +93,7 @@ ppsprobe(struct ppb_data *ppb)
 
 	sc->pps_dev.id_unit = sc->pps_unit;
 	sc->pps_dev.ppb = ppb;
+	sc->pps_dev.name = ppsdriver.name;
 	sc->pps_dev.intr = ppsintr;
 
 	return (&sc->pps_dev);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppb_1284.h,v 1.1 1997/08/16 14:05:33 msmith Exp $
  *
  */
 #ifndef __1284_H
@@ -32,9 +32,12 @@
 #define NIBBLE_1284_NORMAL	0
 #define NIBBLE_1284_REQUEST_ID	4
 
-extern void nibble_1284_sync(struct ppb_device *);
+extern int do_1284_wait(struct ppb_device *, char, char);
+
+extern int byte_1284_inbyte(struct ppb_device *, char *);
+
 extern int nibble_1284_inbyte(struct ppb_device *, char *);
-extern int nibble_1284_wait(struct ppb_device *, char, char);
+extern void nibble_1284_sync(struct ppb_device *);
 extern int nibble_1284_mode(struct ppb_device *, int);
 
 #endif
