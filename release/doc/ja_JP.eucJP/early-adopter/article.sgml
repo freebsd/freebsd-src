@@ -25,7 +25,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.6
+    Original revision: 1.8
 -->
 
 <article>
@@ -131,7 +131,7 @@
 
     <para>&os; リリースエンジニアリング工程に関する詳細は、
       <ulink url="http://www.FreeBSD.org/releng/index.html">リリースエンジニアリングのウェブページ</ulink>
-      および、&os; に含まれている<ulink url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">リリースエンジニアリング</ulink>という記事をご覧ください。</para>
+      および、&os; に含まれている<ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/articles/releng/index.html">リリースエンジニアリング</ulink>という記事をご覧ください。</para>
 
   </sect1>
 
@@ -167,7 +167,7 @@
       <listitem>
 	<para>GCC:  コンパイラツールチェインが
 	  GCC 2.95.<replaceable>X</replaceable> ベースのものから、
-          GCC 3.<replaceable>X</replaceable> ベースのものに更新されました。</para>
+          GCC 3.2.1 pre-release スナップショットベースのものに更新されました。</para>
       </listitem>
 
       <listitem>
@@ -220,7 +220,9 @@
       <listitem>
         <para>カーネルのデータ構造体や ABI, API が変更されたため、
           サードパーティ製のデバイスドライバは、
-          &os; 5.0 に対応させるための作業が必要です。</para>
+          &os; 5.0 に対応させるための作業が必要です。
+          また、5-STABLE ブランチが作成される前に若干の
+          ABI, API の変更が加えられる可能性があります。</para>
       </listitem>
 
       <listitem>
@@ -262,6 +264,15 @@
           -STABLE ブランチの慣習に則っていないという意味です)。
           (5-STABLE 開発ブランチは、5.1-RELEASE もしくは 5.2-RELEASE
           の後あたりに作成される予定です)。</para>
+      </listitem>
+
+      <listitem>
+        <para>&os; <ulink
+          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/index.html">ハンドブック</ulink>
+        と <ulink
+          url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/index.html">FAQ</ulink>
+        のような文書は &os; 5.0
+        までに加えられた最近の変更を反映していないかもしれません。</para>
       </listitem>
 
     </itemizedlist>
@@ -332,7 +343,11 @@
       <para>現時点の &man.sysinstall.8; のバイナリアップグレード機能は、
         メジャーバージョンをまたぐアップグレードに対して
         十分に試験されていません。
-        そのため、この機能を使うことはおすすめできません。</para>
+        そのため、この機能を使うことはおすすめできません。
+        特に、バイナリアップグレードは
+        &os; 4.<replaceable>X</replaceable> に存在して
+        &os 5.0 に存在しないファイルをシステムに数多く残します。
+        これらの古いファイルは何らかの問題を引き起こす可能性があります。</para>
 
       <para>i386 および pc98 プラットフォームの 4-STABLE では、
         インストールメディアからの起動の際、
@@ -383,6 +398,14 @@
         ベースシステムのユーティリティで Perl を使うものは、
         まだ使われているものは Perl を使わないものに書き換えられ、
         使わなくなったものは削除されています。</para>
+
+      <para>スクリプトの中には、Perl インタプリタが
+        <filename>/usr/bin/perl</filename> に存在することを想定しているものがあります。
+        Perl の port に含まれる <filename>use.perl</filename> コマンドを使うと、
+        そういったスクリプトが動作できるよう、
+        シンボリックリンクを適切に作成することが可能です。
+        ほとんどの場合は <command>use.perl port</command>
+        を実行するだけで、必要な設定をしてくれるでしょう。</para>
 
       <para>基本的に、従来の 4.<replaceable>X</replaceable>
         で使っていた実行ファイルは 5.<replaceable>X</replaceable> でも動作します。
