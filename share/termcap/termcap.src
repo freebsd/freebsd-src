@@ -4149,12 +4149,12 @@ ifmr|Informer D304:\
 	:am:bs:cd=\E/:ce=\EQ:cl=\EZ:cm=\EY%r%+ %+ :co#80:dc=\E\\:\
 	:do=^J:ic=\E[:li#24:nd=\EC:so=\EJ:se=\EK:up=\EA:\
 	:sr=\En:ho=\EH:
-# From Christian Weisgerber, naddy@bigeye.rhein-neckar.de, a TERMCAP entry 
+# From Christian Weisgerber, naddy@mips.inka.de, a TERMCAP entry 
 # for Linux consoles.
 linux|Linux Console:\
 	:am:eo:mi:ms:xn:xo:\
 	:co#80:it#8:li#25:\
-	:pa#64:Co#8:Sf=\E[3%dm:Sb=\E[4%dm:\
+	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:K2=\E[G:\
 	:ae=\E[10m:al=\E[L:as=\E[11m:bl=^G:cd=\E[J:ce=\E[K:\
 	:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:cs=\E[%i%d;%dr:\
@@ -4168,7 +4168,7 @@ linux|Linux Console:\
 	:ue=\E[24m:up=\E[A:us=\E[4m:vb=200\E[?5h\E[?5l:\
 	:ve=\E[?25h:vi=\E[?25l:
 linux-m|Linux Console no color:\
-	:pa@:Co@:Sf@:Sb@:\
+	:pa@:Co@:AF@:AB@:op@:\
 	:tc=linux:
 #
 # END OF TERMCAP
