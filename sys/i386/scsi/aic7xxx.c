@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.20 1996/06/05 19:49:08 nate Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.21 1996/06/08 07:10:46 gibbs Exp $
  */
 /*
  * TODO:
@@ -1647,6 +1647,31 @@ pagein_done:
 			else
 				panic("ahc_intr: Immediate complete for "
 				      "unknown operation.");
+			break;
+		  }
+		  case DATA_OVERRUN:
+		  {
+			/*
+			 * When the sequencer detects an overrun, it
+			 * sets STCNT to 0x00ffffff and allows the
+			 * target to complete its transfer in
+			 * BITBUCKET mode.
+			 */
+			u_char scbindex = AHC_INB(ahc, SCB_TAG);
+			u_int32_t overrun;
+			scb = ahc->scbarray[scbindex];
+			overrun = AHC_INB(ahc, STCNT0)
+				| (AHC_INB(ahc, STCNT1) << 8)
+				| (AHC_INB(ahc, STCNT2) << 16);
+			overrun = 0x00ffffff - overrun;
+			sc_print_addr(scb->xs->sc_link);
+			printf("data overrun of %d bytes detected."
+			       "  Forcing a retry.\n", overrun);
+			/*
+			 * Set this and it will take affect when the
+			 * target does a command complete.
+			 */
+			scb->xs->error = XS_DRIVER_STUFFUP;
 			break;
 		  }
 #if NOT_YET
