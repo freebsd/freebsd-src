@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.85 1994/11/03 14:57:54 jkh Exp $
+ *	$Id: machdep.c,v 1.86 1994/11/06 01:33:03 bde Exp $
  */
 
 #include "npx.h"
@@ -859,13 +859,16 @@ setregs(p, entry, stack)
 	u_long entry;
 	u_long stack;
 {
-	p->p_md.md_regs[tEBP] = 0;	/* bottom of the fp chain */
-	p->p_md.md_regs[tEIP] = entry;
-	p->p_md.md_regs[tESP] = stack;
-	p->p_md.md_regs[tSS] = _udatasel;
-	p->p_md.md_regs[tDS] = _udatasel;
-	p->p_md.md_regs[tES] = _udatasel;
-	p->p_md.md_regs[tCS] = _ucodesel;
+	int *regs = p->p_md.md_regs;
+
+	bzero(regs, sizeof(struct trapframe));
+	regs[tEIP] = entry;
+	regs[tESP] = stack;
+	regs[tEFLAGS] = PSL_USERSET | (regs[tEFLAGS] & PSL_T);
+	regs[tSS] = _udatasel;
+	regs[tDS] = _udatasel;
+	regs[tES] = _udatasel;
+	regs[tCS] = _ucodesel;
 
 	p->p_addr->u_pcb.pcb_flags = 0;	/* no fp at all */
 	load_cr0(rcr0() | CR0_TS);	/* start emulating */
