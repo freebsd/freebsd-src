@@ -55,8 +55,6 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <ufs/ufs/ufsmount.h>
-
 #include "mntopts.h"
 
 struct mntopt mopts[] = {
@@ -74,9 +72,9 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct ufs_args args;
+	struct iovec iov[6];
 	int ch, mntflags;
-	char *fs_name, *options, mntpath[MAXPATHLEN];
+	char *fs_name, *options, *fspec, mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
 	int error;
 
@@ -97,7 +95,7 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-        args.fspec = argv[0];	/* the name of the device file */
+	fspec = argv[0];	/* the name of the device file */
 	fs_name = argv[1];	/* the mount point */
 
 	/*
@@ -105,14 +103,7 @@ main(argc, argv)
 	 * slashes from the devicename if there are any.
 	 */
 	(void)checkpath(fs_name, mntpath);
-	(void)rmslashes(args.fspec, args.fspec);
-
-#define DEFAULT_ROOTUID	-2
-	args.export.ex_root = DEFAULT_ROOTUID;
-	if (mntflags & MNT_RDONLY)
-		args.export.ex_flags = MNT_EXRDONLY;
-	else
-		args.export.ex_flags = 0;
+	(void)rmslashes(fspec, fspec);
 
 	error = getvfsbyname("ext2fs", &vfc);
 	if (error && vfsisloadable("ext2fs")) {
@@ -125,8 +116,20 @@ main(argc, argv)
 	if (error)
 		errx(EX_OSERR, "ext2fs filesystem is not available");
 
-	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
-		err(EX_OSERR, "%s", args.fspec);
+	iov[0].iov_base = "fstype";
+	iov[0].iov_len = sizeof("fstype");
+	iov[1].iov_base = vfc.vfc_name;
+	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[2].iov_base = "fspath";
+	iov[2].iov_len = sizeof("fspath");
+	iov[3].iov_base = mntpath;
+	iov[3].iov_len = strlen(mntpath) + 1;
+	iov[4].iov_base = "from";
+	iov[4].iov_len = sizeof("from");
+	iov[5].iov_base = fspec;
+	iov[5].iov_len = strlen(fspec) + 1;
+	if (nmount(iov, 6, mntflags) < 0)
+		err(EX_OSERR, "%s", fspec);
 	exit(0);
 }
 
