@@ -33,7 +33,7 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <alpha/linux/linux.h>
-#include <linux_proto.h>
+#include <alpha/linux/linux_proto.h>
 
 ; #ifdef's, etc. may be included, and are copied to the output files.
 
