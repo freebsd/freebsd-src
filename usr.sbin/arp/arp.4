@@ -41,11 +41,13 @@
 .Sh SYNOPSIS
 .Cd "pseudo-device ether"
 .Sh DESCRIPTION
-The Address Resolution Protocol (ARP) is a protocol used to dynamically
-map between Internet host addresses and 10Mb/s Ethernet addresses.
-It is used by all the 10Mb/s Ethernet interface drivers.
-It is not specific to Internet protocols or to 10Mb/s Ethernet,
-but this implementation currently supports only that combination.
+The Address Resolution Protocol (ARP) is used to dynamically
+map between Protocol Addresses (such as IP addresses) and
+Local Network Addresses (such as Ethernet addresses).
+This implementation maps IP addresses to Ethernet,
+ARCnet,
+or Token Ring addresses.
+It is used by all the Ethernet interface drivers.
 .Pp
 ARP caches Internet-Ethernet address mappings.
 When an interface requests a mapping for an address not in the cache,
