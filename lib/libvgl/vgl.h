@@ -37,8 +37,13 @@ typedef unsigned char byte;
 typedef struct {
   byte 	Type;
   int  	Xsize, Ysize;
+  int  	VXsize, VYsize;
+  int   Xorigin, Yorigin;
   byte 	*Bitmap;
 } VGLBitmap;
+
+#define VGLBITMAP_INITIALIZER(t, x, y, bits)	\
+	{ (t), (x), (y), 0, 0, 0, 0, (bits) }
 
 /*
  * Defined Type's
@@ -47,6 +52,8 @@ typedef struct {
 #define VIDBUF4		1
 #define VIDBUF8		2
 #define VIDBUF8X	3
+#define VIDBUF8S	4
+#define VIDBUF4S	5
 #define NOBUF		255
 
 typedef struct VGLText {
@@ -78,7 +85,10 @@ typedef struct VGLObject {
 #define VGL_CODEKEYS		2
 #define VGL_XLATEKEYS		3
 
-extern VGLBitmap 	*VGLDisplay;
+extern video_adapter_info_t	VGLAdpInfo;
+extern video_info_t		VGLModeInfo;
+extern VGLBitmap 		*VGLDisplay;
+extern byte 			*VGLBuf;
 
 /*
  * Prototypes
@@ -86,6 +96,9 @@ extern VGLBitmap 	*VGLDisplay;
 /* bitmap.c */
 int __VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, int dsty, int width, int hight);
 int VGLBitmapCopy(VGLBitmap *src, int srcx, int srcy, VGLBitmap *dst, int dstx, int dsty, int width, int hight);
+VGLBitmap *VGLBitmapCreate(int type, int xsize, int ysize, byte *bits);
+void VGLBitmapDestroy(VGLBitmap *object);
+int VGLBitmapAllocateBits(VGLBitmap *object);
 /* keyboard.c */
 int VGLKeyboardInit(int mode);
 void VGLKeyboardEnd(void);
@@ -94,6 +107,9 @@ int VGLKeyboardGetCh(void);
 void VGLEnd(void);
 int VGLInit(int mode);
 void VGLCheckSwitch(void);
+int VGLSetVScreenSize(VGLBitmap *object, int VXsize, int VYsize);
+int VGLPanScreen(VGLBitmap *object, int x, int y);
+int VGLSetSegment(unsigned int offset);
 /* mouse.c */
 void VGLMousePointerShow(void);
 void VGLMousePointerHide(void);
