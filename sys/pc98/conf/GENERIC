@@ -92,8 +92,6 @@ options 	ATA_STATIC_ID		#Static device numbering
 
 # ATAPI devices on wdc
 #device		wcd	1	#IDE CD-ROM
-#device		wfd	1	#IDE Floppy (e.g. LS-120)
-#device		wst	1	#IDE Tape (e.g. Travan)
 
 # SCSI Controllers
 device		adv		# Advansys SCSI adapters
