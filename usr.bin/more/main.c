@@ -51,7 +51,6 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
 #include <sys/file.h>
 #include <stdio.h>
 #include <less.h>
-#include <locale.h>
 
 int	ispipe;
 int	new_file;
@@ -252,8 +251,6 @@ main(argc, argv)
 {
 	int envargc, argcnt;
 	char *envargv[2], *getenv();
-
-	setlocale(LC_CTYPE, "");
 
 	/*
 	 * Process command line arguments and MORE environment arguments.
