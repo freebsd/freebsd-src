@@ -69,19 +69,18 @@ static void
 g_mirror_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
-	struct g_provider *pp;
+	int error;
 
 	g_topology_assert();
 	gp = cp->geom;
 	g_access_rel(cp, -cp->acr, -cp->acw, -cp->ace);
+	error = cp->provider->error;
 	g_detach(cp);
 	g_destroy_consumer(cp);	
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
-	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, ENXIO);
 	g_free(gp->softc);
-	gp->flags |= G_GEOM_WITHER;
+	g_wither_geom(gp, error);
 }
 
 static void
