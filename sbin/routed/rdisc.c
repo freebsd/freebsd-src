@@ -43,7 +43,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/9
 #elif defined(__NetBSD__)
 __RCSID"$NetBSD$");
 #endif
-#ident "$Revision: 1.3 $"
+#ident "$FreeBSD$"
 
 /* router advertisement ICMP packet */
 struct icmp_ad {

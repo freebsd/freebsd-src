@@ -46,7 +46,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)rdisc.c	8.1 (Berkeley) x/y/9
 #elif defined(__NetBSD__)
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 1.3 $"
+#ident "$FreeBSD$"
 
 #define log(x, msg) syslog(x, msg)
 #define panic(s) {log(LOG_ERR,s); exit(1);}

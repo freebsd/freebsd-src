@@ -41,7 +41,7 @@ static char sccsid[] __attribute__((unused)) = "@(#)input.c	8.1 (Berkeley) 6/5/9
 #include <sys/cdefs.h>
 __RCSID("$NetBSD$");
 #endif
-#ident "$Revision: 1.5 $"
+#ident "$FreeBSD$"
 
 static void input(struct sockaddr_in *, struct interface *, struct interface *,
 		  struct rip *, int);

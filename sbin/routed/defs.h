@@ -36,7 +36,7 @@
  */
 
 #ifdef  sgi
-#ident "$Revision: 1.11 $"
+#ident "$FreeBSD$"
 #endif
 
 /* Definitions for RIPv2 routing process.
