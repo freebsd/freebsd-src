@@ -46,13 +46,12 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 static void	putppt(int);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int c;
 	char *p;
@@ -69,8 +68,7 @@ main(argc, argv)
 }
 
 static void
-putppt(c)
-	int c;
+putppt(int c)
 {
 	int i;
 
