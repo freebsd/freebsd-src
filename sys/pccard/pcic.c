@@ -530,7 +530,7 @@ pcic_probe(void)
 	struct slot *slotp;
 	struct pcic_slot *sp;
 	unsigned char c;
-	static int is_vlsi = 0;
+	static int maybe_vlsi = 0;
 
 	/* Determine the list of free interrupts */
 	free_irqs = build_freelist(PCIC_INT_MASK_ALLOWED);
@@ -575,7 +575,7 @@ pcic_probe(void)
 		 * ones would need to be probed at the new offset we set after
 		 * we assume it's broken.
 		 */
-		if ((slot == 1) && is_vlsi && (getb(sp, PCIC_ID_REV != 0x84))) {
+		if (slot == 1 && maybe_vlsi && getb(sp, PCIC_ID_REV) != 0x84) {
 			sp->index += 4;
 			sp->data += 4;
 			sp->offset = PCIC_SLOT_SIZE << 1;
@@ -622,7 +622,7 @@ pcic_probe(void)
 		 */
 		case 0x84:
 			sp->controller = PCIC_VLSI;
-			is_vlsi = 1;
+			maybe_vlsi = 1;
 			break;
 		case 0x88:
 		case 0x89:
