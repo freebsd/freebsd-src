@@ -1521,10 +1521,9 @@ ath_rx_proc(void *arg, int npending)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len;
 		if (IFF_DUMPPKTS(ifp)) {
-			struct ieee80211com *ic = &sc->sc_ic;
-			const HAL_RATE_TABLE *rt = sc->sc_rates[ic->ic_curmode];
 			ieee80211_dump_pkt(mtod(m, u_int8_t *), len,
-				rt ? rt->info[rt->rateCodeToIndex[ds->ds_rxstat.rs_rate]].dot11Rate & IEEE80211_RATE_VAL : 0,
+				sc->sc_hwmap[ds->ds_rxstat.rs_rate] &
+					IEEE80211_RATE_VAL,
 				ds->ds_rxstat.rs_rssi);
 		}
 		m_adj(m, -IEEE80211_CRC_LEN);
@@ -2393,6 +2392,9 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	KASSERT(rt != NULL, ("no h/w rate set for phy mode %u", mode));
 	for (i = 0; i < rt->rateCount; i++)
 		sc->sc_rixmap[rt->info[i].dot11Rate & IEEE80211_RATE_VAL] = i;
+	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
+	for (i = 0; i < 32; i++)
+		sc->sc_hwmap[i] = rt->info[rt->rateCodeToIndex[i]].dot11Rate;
 	sc->sc_currates = rt;
 	sc->sc_curmode = mode;
 }
