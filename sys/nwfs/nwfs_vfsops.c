@@ -117,8 +117,8 @@ nwfs_initnls(struct nwmount *nmp) {
 
 	nmp->m.nls.opt |= NWHP_NLS | NWHP_DOS;
 	if ((nmp->m.flags & NWFS_MOUNT_HAVE_NLS) == 0) {
-		nmp->m.nls.tolower = ncp_defnls.tolower;
-		nmp->m.nls.toupper = ncp_defnls.toupper;
+		nmp->m.nls.to_lower = ncp_defnls.to_lower;
+		nmp->m.nls.to_upper = ncp_defnls.to_upper;
 		nmp->m.nls.n2u = ncp_defnls.n2u;
 		nmp->m.nls.u2n = ncp_defnls.u2n;
 		return 0;
@@ -127,8 +127,8 @@ nwfs_initnls(struct nwmount *nmp) {
 	if (pe == NULL) return ENOMEM;
 	pc = pe;
 	do {
-		COPY_TABLE(nmp->m.nls.tolower, ncp_defnls.tolower);
-		COPY_TABLE(nmp->m.nls.toupper, ncp_defnls.toupper);
+		COPY_TABLE(nmp->m.nls.to_lower, ncp_defnls.to_lower);
+		COPY_TABLE(nmp->m.nls.to_upper, ncp_defnls.to_upper);
 		COPY_TABLE(nmp->m.nls.n2u, ncp_defnls.n2u);
 		COPY_TABLE(nmp->m.nls.u2n, ncp_defnls.u2n);
 	} while(0);
@@ -277,7 +277,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 	}
 	mp->mnt_data = (qaddr_t)0;
 	if (nmp->m.flags & NWFS_MOUNT_HAVE_NLS)
-		free(nmp->m.nls.tolower, M_NWFSDATA);
+		free(nmp->m.nls.to_lower, M_NWFSDATA);
 	free(nmp, M_NWFSDATA);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	return (error);

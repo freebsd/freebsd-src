@@ -188,14 +188,14 @@ struct ncp_nlstables ncp_defnls = {
 
 void ncp_str_upper(char *name) {
 	while (*name) {
-		*name = ncp_defnls.toupper[(u_char)*name];
+		*name = ncp_defnls.to_upper[(u_char)*name];
 		name++;
 	}
 }
 
 void ncp_str_lower(char *name) {
 	while (*name) {
-		*name = ncp_defnls.tolower[(u_char)*name];
+		*name = ncp_defnls.to_lower[(u_char)*name];
 		name++;
 	}
 }
@@ -209,7 +209,7 @@ ncp_pathcheck(char *s, int len, struct ncp_nlstables *nt, int strict) {
 	int opt = nt->opt;
 
 	if (opt & (NWHP_UPPER | NWHP_LOWER))
-		tbl = (opt & NWHP_UPPER) ? nt->toupper : nt->tolower;
+		tbl = (opt & NWHP_UPPER) ? nt->to_upper : nt->to_lower;
 	if ((opt & NWHP_DOS) == 0) {
 		while (len--) {
 			sc = (u_char)*(s++);
@@ -251,7 +251,7 @@ ncp_pathcopy(char *src, char *dst, int len, struct ncp_nlstables *nt) {
 		}
 	} else if (nt->opt & NWHP_DOS) {
 		while (len--) {
-		    c = nt->toupper[(u_char)*src];
+		    c = nt->to_upper[(u_char)*src];
 		    *dst = donls ? nt->u2n[c] : c;
 		    dst++;
 		    src++;
@@ -287,7 +287,7 @@ ncp_path2unix(char *src, char *dst, int len, struct ncp_nlstables *nt) {
 		}
 		return;
 	}
-	tbl = (nt->opt & NWHP_LOWER) ? nt->tolower : nt->toupper;
+	tbl = (nt->opt & NWHP_LOWER) ? nt->to_lower : nt->to_upper;
 	while (len--) {
 		c = *src;
 		*dst = tbl[donls ? nt->n2u[c] : c];
