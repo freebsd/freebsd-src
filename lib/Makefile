@@ -22,10 +22,10 @@ SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
 	libncurses libradius libskey libtacplus libutil \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} libcalendar \
 	libcam libcompat libdevstat libdisk libedit libfetch libform \
-	libftpio libgnumalloc ${_libio} libipsec libipx libisc libkvm libmenu \
+	libftpio ${_libio} libipsec libipx libisc libkvm libmenu \
 	${_libmilter} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
-	libposix1e libresolv librpcsvc ${_libsm} ${_libsmb} ${_libsmdb} \
+	libposix1e librpcsvc ${_libsm} ${_libsmb} ${_libsmdb} \
 	${_libsmutil} \
 	libstand ${_libtelnet} libusbhid ${_libvgl} libwrap libxpg4 liby libz
 
