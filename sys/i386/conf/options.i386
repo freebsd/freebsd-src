@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.12 1997/10/18 11:03:38 joerg Exp $
+#	$Id: options.i386,v 1.26.2.13 1997/11/09 07:12:15 yokota Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -61,6 +61,8 @@ SC_HISTORY_SIZE		opt_syscons.h
 PSM_ACCEL		opt_psm.h
 PSM_EMULATION		opt_psm.h
 PSM_CHECKSYNC		opt_psm.h
+PSM_HOOKAPM		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
 KBD_RESETDELAY		opt_kbdio.h
