@@ -391,18 +391,18 @@ and related programs.
 Set to not build the
 .Xr mailwrapper 8
 MTA selector.
-.It Va NO_MAKEDEV_INSTALL
+.It Va MAKEDEV_INSTALL
 .Pq Vt bool
-Set to avoid installing
+Set to install
 .Pa MAKEDEV
 in
 .Pa /dev .
-This implies the
-.Va NO_MAKEDEV_RUN
-variable.
-.It Va NO_MAKEDEV_RUN
+This is needed for the
+.Va MAKEDEV_RUN
+variable to have an effect.
+.It Va MAKEDEV_RUN
 .Pq Vt bool
-Set to avoid running
+Set to run
 .Dq Li "MAKEDEV all"
 on
 .Pa /dev
