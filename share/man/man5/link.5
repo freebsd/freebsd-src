@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: link.5,v 1.1 1994/12/23 22:41:46 nate Exp $
 .\"
 .Dd October 23, 1993
 .Dt LINK 5
@@ -218,7 +218,7 @@ in the section_dispatch_table structure.
 struct sod {
 	long	sod_name;
 	u_int	sod_library : 1,
-		sod_unused : 31;
+		sod_reserved : 31;
 	short	sod_major;
 	short	sod_minor;
 	long	sod_next;
@@ -437,7 +437,7 @@ struct ld_entry {
 	void	*(*dlopen)(char *, int);
 	int	(*dlclose)(void *);
 	void	*(*dlsym)(void *, char *);
-	int	(*dlctl)(void *, int, void *);
+	char	*(*dlerror)(void);
 };
 .Ed
 
@@ -454,10 +454,12 @@ struct crt_ldso {
 	caddr_t		crt_bp;
 	char		*crt_prog;
 	char		*crt_ldso;
+	struct ld_entry	*crt_ldentry;
 };
 #define CRT_VERSION_SUN		1
-#define CRT_VERSION_BSD2	2
-#define CRT_VERSION_BSD3	3
+#define CRT_VERSION_BSD_2	2
+#define CRT_VERSION_BSD_3	3
+#define	CRT_VERSION_BSD_4	4
 .Ed
 .Bl -tag -width crt_dzfd
 .It Fa crt_ba
