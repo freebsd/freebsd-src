@@ -1,8 +1,9 @@
 /*
  * Send a compressed CTM delta to a recipient mailing list by encoding it
- * in safe ASCII characters, in mailer-friendly chunks, and passing it
- * to sendmail.  The encoding is almost the same as MIME BASE64, and is
- * protected by a simple checksum.
+ * in safe ASCII characters, in mailer-friendly chunks, and passing them
+ * to sendmail.  Optionally, the chunks can be queued to be sent later by
+ * ctm_dequeue in controlled bursts.  The encoding is almost the same as
+ * MIME BASE64, and is protected by a simple checksum.
  *
  * Author: Stephen McKay
  *
@@ -10,7 +11,7 @@
  * In return you should think about all the nice people who give away software.
  * Maybe you should write some free software too.
  *
- * $Id: ctm_smail.c,v 1.7 1996/09/07 18:48:44 peter Exp $
+ * $Id: ctm_smail.c,v 1.8 1996/09/07 21:06:19 peter Exp $
  */
 
 #include <stdio.h>
@@ -22,38 +23,42 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <paths.h>
+#include <limits.h>
 #include "error.h"
 #include "options.h"
 
 #define DEF_MAX_MSG	64000	/* Default maximum mail msg minus headers. */
 
-#define LINE_LENGTH	76	/* Chars per encode line. Divisible by 4. */
+#define LINE_LENGTH	76	/* Chars per encoded line. Divisible by 4. */
 
-void chop_and_send(char *delta, off_t ctm_size, long max_msg_size,
+int chop_and_send_or_queue(FILE *dfp, char *delta, off_t ctm_size,
+	long max_msg_size, char *mail_alias, char *queue_dir);
+int chop_and_send(FILE *dfp, char *delta, long msg_size, int npieces,
 	char *mail_alias);
-void chop_and_queue(char *delta, off_t ctm_size, long max_msg_size,
-	char *queue_dir, char *mail_alias);
-unsigned encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size);
+int chop_and_queue(FILE *dfp, char *delta, long msg_size, int npieces,
+	char *mail_alias, char *queue_dir);
+void clean_up_queue(char *queue_dir);
+int encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size, unsigned *sum);
 void write_header(FILE *sfp, char *mail_alias, char *delta, int pce,
 	int npieces);
 void write_trailer(FILE *sfp, unsigned sum);
-void apologise(char *delta, off_t ctm_size, long max_ctm_size,
+int apologise(char *delta, off_t ctm_size, long max_ctm_size,
 	char *mail_alias);
 FILE *open_sendmail(void);
 int close_sendmail(FILE *fp);
-int lock_queuedir(char *queue_dir);
-void free_lock(int lockf, char *queue_dir);
-void add_to_queue(char *queue_dir, char *mail_alias, char *delta, int npieces, char **tempnames);
 
 int
 main(int argc, char **argv)
     {
+    int status = 0;
     char *delta_file;
     char *mail_alias;
     long max_msg_size = DEF_MAX_MSG;
     long max_ctm_size = 0;
     char *log_file = NULL;
     char *queue_dir = NULL;
+    char *delta;
+    FILE *dfp;
     struct stat sb;
 
     err_prog_name(argv[0]);
@@ -74,194 +79,212 @@ main(int argc, char **argv)
     delta_file = argv[1];
     mail_alias = argv[2];
 
-    if (stat(delta_file, &sb) < 0)
+    if ((delta = strrchr(delta_file, '/')) == NULL)
+	delta = delta_file;
+    else
+	delta++;
+
+    if ((dfp = fopen(delta_file, "r")) == NULL || fstat(fileno(dfp), &sb) < 0)
 	{
-	err("%s: %s", delta_file, strerror(errno));
+	err("*%s", delta_file);
 	exit(1);
 	}
 
     if (max_ctm_size != 0 && sb.st_size > max_ctm_size)
-	apologise(delta_file, sb.st_size, max_ctm_size, mail_alias);
-    else if (queue_dir == NULL)
-	chop_and_send(delta_file, sb.st_size, max_msg_size, mail_alias);
+	status = apologise(delta, sb.st_size, max_ctm_size, mail_alias);
     else
-	chop_and_queue(delta_file, sb.st_size, max_msg_size, queue_dir, mail_alias);
+	status = chop_and_send_or_queue(dfp, delta, sb.st_size, max_msg_size,
+		mail_alias, queue_dir);
+
+    fclose(dfp);
+
+    return status;
+    }
+
+
+/*
+ * Carve our CTM delta into pieces, encode them, and send or queue them.
+ * Returns 0 on success, and 1 on failure.
+ */
+int
+chop_and_send_or_queue(FILE *dfp, char *delta, off_t ctm_size,
+	long max_msg_size, char *mail_alias, char *queue_dir)
+    {
+    int npieces;
+    long msg_size;
+    long exp_size;
+    int status;
+
+#undef howmany
+#define	howmany(x,y)	(((x)+((y)-1)) / (y))
+
+    /*
+     * Work out how many pieces we need, bearing in mind that each piece
+     * grows by 4/3 when encoded.  We count the newlines too, but ignore
+     * all mail headers and piece headers.  They are a "small" (almost
+     * constant) per message overhead that we make the user worry about. :-)
+     */
+    exp_size = ctm_size * 4 / 3;
+    exp_size += howmany(exp_size, LINE_LENGTH);
+    npieces = howmany(exp_size, max_msg_size);
+    msg_size = howmany(ctm_size, npieces);
+
+#undef howmany
+
+    if (queue_dir == NULL)
+	status = chop_and_send(dfp, delta, msg_size, npieces, mail_alias);
+    else
+	{
+	status = chop_and_queue(dfp, delta, msg_size, npieces, mail_alias,
+		queue_dir);
+	if (status)
+	    clean_up_queue(queue_dir);
+	}
+
+    return status;
+    }
+
+
+/*
+ * Carve our CTM delta into pieces, encode them, and send them.
+ * Returns 0 on success, and 1 on failure.
+ */
+int
+chop_and_send(FILE *dfp, char *delta, long msg_size, int npieces,
+	char *mail_alias)
+    {
+    int pce;
+    FILE *sfp;
+    unsigned sum;
+
+    /*
+     * Send each chunk directly to sendmail as it is generated.
+     * No temporary files necessary.  If things turn ugly, we just
+     * have to live with the fact the we have sent only part of
+     * the delta.
+     */
+    for (pce = 1; pce <= npieces; pce++)
+	{
+	int read_error;
+
+	if ((sfp = open_sendmail()) == NULL)
+	    return 1;
+
+	write_header(sfp, mail_alias, delta, pce, npieces);
+	read_error = encode_body(sfp, dfp, msg_size, &sum);
+	if (!read_error)
+	    write_trailer(sfp, sum);
+
+	if (!close_sendmail(sfp) || read_error)
+	    return 1;
+
+	err("%s %d/%d sent to %s", delta, pce, npieces, mail_alias);
+	}
 
     return 0;
     }
 
 
 /*
- * Carve our CTM delta into pieces, encode them, and send them.
+ * Construct the tmp queue file name of a delta piece.
  */
-void
-chop_and_send(char *delta, off_t ctm_size, long max_msg_size, char *mail_alias)
+#define mk_tmp_name(fn,qd,p) \
+    sprintf((fn), "%s/.%08ld.%03d", (qd), (long)getpid(), (p))
+
+/*
+ * Construct the final queue file name of a delta piece.
+ */
+#define mk_queue_name(fn,qd,d,p,n) \
+    sprintf((fn), "%s/%s+%03d-%03d", (qd), (d), (p), (n))
+
+/*
+ * Carve our CTM delta into pieces, encode them, and queue them.
+ * Returns 0 on success, and 1 on failure.
+ */
+int
+chop_and_queue(FILE *dfp, char *delta, long msg_size, int npieces,
+	char *mail_alias, char *queue_dir)
     {
-    int npieces;
-    long msg_size;
-    long exp_size;
     int pce;
-    FILE *sfp;
-    FILE *dfp;
+    FILE *qfp;
     unsigned sum;
-    char *deltaname;
-
-#ifdef howmany
-#undef howmany
-#endif
-
-#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
+    char tname[PATH_MAX];
+    char qname[PATH_MAX];
 
     /*
-     * Work out how many pieces we need, bearing in mind that each piece
-     * grows by 4/3 when encoded.  We count the newlines too, but ignore
-     * all mail headers and piece headers.  They are a "small" (almost
-     * constant) per message overhead that we make the user worry about. :-)
+     * Store each piece in the queue directory, but under temporary names,
+     * so that they can be deleted without unpleasant consequences if
+     * anything goes wrong.  We could easily fill up a disk, for example.
      */
-    exp_size = ctm_size * 4 / 3;
-    exp_size += howmany(exp_size, LINE_LENGTH);
-    npieces = howmany(exp_size, max_msg_size);
-    msg_size = howmany(ctm_size, npieces);
-
-#undef howmany
-
-    if ((dfp = fopen(delta, "r")) == NULL)
-	{
-	err("cannot open '%s' for reading.", delta);
-	exit(1);
-	}
-
-    deltaname = strrchr(delta, '/');
-    if (deltaname)
-	deltaname++;	/* skip slash */
-    else
-	deltaname = delta;
-
     for (pce = 1; pce <= npieces; pce++)
 	{
-	sfp = open_sendmail();
-	if (sfp == NULL)
-	    exit(1);
-	write_header(sfp, mail_alias, delta, pce, npieces);
-	sum = encode_body(sfp, dfp, msg_size);
-	write_trailer(sfp, sum);
-	if (!close_sendmail(sfp))
-	    exit(1);
-	err("%s %d/%d sent to %s", deltaname, pce, npieces, mail_alias);
+	int write_error;
+
+	mk_tmp_name(tname, queue_dir, pce);
+	if ((qfp = fopen(tname, "w")) == NULL)
+	    {
+	    err("cannot open '%s' for writing", tname);
+	    return 1;
+	    }
+
+	write_header(qfp, mail_alias, delta, pce, npieces);
+	if (encode_body(qfp, dfp, msg_size, &sum))
+	    return 1;
+	write_trailer(qfp, sum);
+
+	fflush(qfp);
+	write_error = ferror(qfp);
+	fclose(qfp);
+	if (write_error)
+	    {
+	    err("error writing '%s'", tname);
+	    return 1;
+	    }
+
+	/*
+	 * Give the warm success message now, instead of all in a rush
+	 * during the rename phase.
+	 */
+	err("%s %d/%d queued for %s", delta, pce, npieces, mail_alias);
 	}
 
-    fclose(dfp);
+    /*
+     * Rename the pieces into place.  If an error occurs now, we are
+     * stuffed, but there is no neat way to back out.  rename() should
+     * only fail now under extreme circumstances.
+     */
+    for (pce = 1; pce <= npieces; pce++)
+	{
+	mk_tmp_name(tname, queue_dir, pce);
+	mk_queue_name(qname, queue_dir, delta, pce, npieces);
+	if (rename(tname, qname) < 0)
+	    {
+	    err("*rename: '%s' to '%s'", tname, qname);
+	    unlink(tname);
+	    }
+	}
+
+    return 0;
     }
 
-/* 
- * Carve our CTM delta into pieces, encode them, and drop them in the
- * queue dir.
- *
- * Basic algorythm:
- *
- * - for (each piece)
- * -   gen. temp. file name (one which the de-queuer will ignore)
- * -   record in array
- * -   open temp. file
- * -   encode delta (including headers) into the temp file
- * -   close temp. file
- * - end
- * - lock queue directory
- * - foreach (temp. file)
- * -   rename to the proper filename
- * - end
- * - unlock queue directory
- *
- * This is probably overkill, but it means that incomplete deltas
- * don't get mailed, and also reduces the window for lock races
- * between ctm_smail and the de-queueing process.
+
+/*
+ * There may be temporary files cluttering up the queue directory.
  */
-
 void
-chop_and_queue(char *delta, off_t ctm_size, long max_msg_size, char *queue_dir, char *mail_alias)
-{
-    int npieces, pce, len;
-    long msg_size, exp_size;
-    FILE *sfp, *dfp;
-    unsigned sum;
-    char **tempnames, *tempnam, *sn;
-
-#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
-
-    /*
-     * Work out how many pieces we need, bearing in mind that each piece
-     * grows by 4/3 when encoded.  We count the newlines too, but ignore
-     * all mail headers and piece headers.  They are a "small" (almost
-     * constant) per message overhead that we make the user worry about. :-)
-     */
-    exp_size = ctm_size * 4 / 3;
-    exp_size += howmany(exp_size, LINE_LENGTH);
-    npieces = howmany(exp_size, max_msg_size);
-    msg_size = howmany(ctm_size, npieces);
-
-#undef howmany
-
-    /*
-     * allocate space for the array of filenames. Try to be portable
-     * by not assuming anything to do with sizeof(char *)
-     */
-    tempnames = malloc(npieces * sizeof(char *));
-    if (tempnames == NULL)
+clean_up_queue(char *queue_dir)
     {
-	err("malloc for tempnames failed");
-	exit(1);
-    }
- 
-    len = strlen(queue_dir) + 16;
-    tempnam = malloc(len);
-    if (tempnam == NULL)
-    {
-	err("malloc for tempnames failed");
-	exit(1);
-    }
-    
-    if ((dfp = fopen(delta, "r")) == NULL)
-    {
-	err("cannot open '%s' for reading.", delta);
-	exit(1);
-    }
+    int pce;
+    char tname[PATH_MAX];
 
-    if ((sn = strrchr(delta, '/')) == NULL)
-	sn = delta;
-    else
-	sn++;
-
-    for (pce = 1; pce <= npieces; pce++)
-    {
-	if (snprintf(tempnam, len, "%s/.%08d-%03d", queue_dir, getpid(), pce) >= len)
-	    err("Whoops! tempnam isn't long enough");
-
-	tempnames[pce - 1] = strdup(tempnam);
-	if (tempnames[pce - 1] == NULL)
+    err("discarding queued delta pieces");
+    for (pce = 1; ; pce++)
 	{
-	    err("strdup failed for temp. filename");
-	    exit(1);
+	mk_tmp_name(tname, queue_dir, pce);
+	if (unlink(tname) < 0)
+	    break;
 	}
-
-	sfp = fopen(tempnam, "w");
-	if (sfp == NULL)
-	    exit(1);
-	
-	write_header(sfp, mail_alias, delta, pce, npieces);
-	sum = encode_body(sfp, dfp, msg_size);
-	write_trailer(sfp, sum);
-
-	if (fclose(sfp) != 0)
-	    exit(1);
-
-	err("%s %d/%d created succesfully", sn, pce, npieces);
     }
-
-    add_to_queue(queue_dir, mail_alias, delta, npieces, tempnames);
-
-    fclose(dfp);
-
-}
 
 
 /*
@@ -288,8 +311,8 @@ static char to_b64[0x40] =
  * of 4 characters encodes 3 input characters.  Each output character encodes
  * 6 bits.  Thus 64 different characters are needed in this representation.
  */
-unsigned
-encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size)
+int
+encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size, unsigned *sum)
     {
     unsigned short cksum = 0xffff;
     unsigned char *ip;
@@ -344,16 +367,12 @@ encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size)
     if (ferror(delta_fp))
 	{
 	err("error reading input file.");
-	exit(1);
+	return 1;
 	}
 
-    if (ferror(sm_fp))
-	{
-	err("error writing encoded file");
-	exit(1);
-	}
+    *sum = cksum;
 
-    return cksum;
+    return 0;
     }
 
 
@@ -363,18 +382,11 @@ encode_body(FILE *sm_fp, FILE *delta_fp, long msg_size)
 void
 write_header(FILE *sfp, char *mail_alias, char *delta, int pce, int npieces)
     {
-    char *sn;
-
-    if ((sn = strrchr(delta, '/')) == NULL)
-	sn = delta;
-    else
-	sn++;
-
     fprintf(sfp, "From: owner-%s\n", mail_alias);
     fprintf(sfp, "To: %s\n", mail_alias);
-    fprintf(sfp, "Subject: ctm-mail %s %d/%d\n\n", sn, pce, npieces);
+    fprintf(sfp, "Subject: ctm-mail %s %d/%d\n\n", delta, pce, npieces);
 
-    fprintf(sfp, "CTM_MAIL BEGIN %s %d %d\n", sn, pce, npieces);
+    fprintf(sfp, "CTM_MAIL BEGIN %s %d %d\n", delta, pce, npieces);
     }
 
 
@@ -390,32 +402,30 @@ write_trailer(FILE *sfp, unsigned sum)
 
 /*
  * We're terribly sorry, but the delta is too big to send.
+ * Returns 0 on success, 1 on failure.
  */
-void
+int
 apologise(char *delta, off_t ctm_size, long max_ctm_size, char *mail_alias)
     {
     FILE *sfp;
-    char *sn;
 
     sfp = open_sendmail();
     if (sfp == NULL)
-	exit(1);
+	return 1;
 
-    if ((sn = strrchr(delta, '/')) == NULL)
-	sn = delta;
-    else
-	sn++;
-
-    fprintf(sfp, "From: %s-owner\n", mail_alias);
+    fprintf(sfp, "From: owner-%s\n", mail_alias);
     fprintf(sfp, "To: %s\n", mail_alias);
-    fprintf(sfp, "Subject: ctm-notice %s\n\n", sn);
+    fprintf(sfp, "Subject: ctm-notice %s\n\n", delta);
 
-    fprintf(sfp, "%s is %ld bytes.  The limit is %ld bytes.\n\n", sn,
+    fprintf(sfp, "%s is %ld bytes.  The limit is %ld bytes.\n\n", delta,
 	(long)ctm_size, max_ctm_size);
-    fprintf(sfp, "You can retrieve this delta via ftpmail, or your good mate at the university.\n");
+    fprintf(sfp, "You can retrieve this delta via ftpmail, "
+	"or your good mate at the university.\n");
 
     if (!close_sendmail(sfp))
-	exit(1);
+	return 1;
+
+    return 0;
     }
 
 
@@ -457,137 +467,3 @@ close_sendmail(FILE *fp)
 
     return (status == 0);
     }
-
-/*
- * Lock the queuedir so we're the only guy messing about in there.
- */
-int
-lock_queuedir(char *queue_dir)
-{
-    int fp, len;
-    char *buffer;
-    struct stat sb;
-
-    len = strlen(queue_dir) + 8;
-
-    buffer = malloc(len);
-    if (buffer == NULL)
-    {
-	err("malloc failed in lock_queuedir");
-	exit(1);
-    }
-
-    if (snprintf(buffer, len, "%s/.lock", queue_dir) >= len)
-	err("Whoops. lock buffer too small in lock_queuedir");
-
-    /*
-     * We do our own lockfile scanning to avoid unlink races. 60
-     * seconds should be enough to ensure that we won't get more races
-     * happening between the stat and the open/flock.
-     */
-
-    while (stat(buffer, &sb) == 0)
-	sleep(60);
-
-    if ((fp = open(buffer, O_WRONLY | O_CREAT | O_EXLOCK, 0600)) < 0)
-    {
-	err("can't open `%s' in lock_queuedir", buffer);
-	exit(1);
-    }
-
-    snprintf(buffer, len, "%8ld", getpid());
-    write(fp, buffer, 8);
-
-    free(buffer);
-    
-    return(fp);
-}
-
-/*
- * Lock the queuedir so we're the only guy messing about in there.
- */
-void
-free_lock(int lockf, char *queue_dir)
-{
-    int len;
-    char *path;
-
-    /*
-     * Most important: free the lock before we do anything else!
-     */
-
-    close(lockf);
-
-    len = strlen(queue_dir) + 7;
-
-    path = malloc(len);
-    if (path == NULL)
-    {
-	err("malloc failed in free_lock");
-	exit(1);
-    }
-
-    if (snprintf(path, len, "%s/.lock", queue_dir) >= len)
-	err("lock path buffer too small in free_lock");
-
-    if (unlink(path) != 0)
-    {
-	err("can't unlink lockfile `%s'", path);
-	exit(1);
-    }
-
-    free(path);
-}
-
-/* move everything into the queue directory. */
-
-void
-add_to_queue(char *queue_dir, char *mail_alias, char *delta, int npieces, char **tempnames)
-{
-    char *queuefile, *sn;
-    int pce, len, lockf;
-    
-    if ((sn = strrchr(delta, '/')) == NULL)
-	sn = delta;
-    else
-	sn++;
-
-    /* try to malloc all we need BEFORE entering the lock loop */
-    
-    len = strlen(queue_dir) + strlen(sn) + 7;
-    queuefile = malloc(len);
-    if (queuefile == NULL)
-    {
-	err("can't malloc for queuefile");
-	exit(1);
-    }
-
-    /*
-     * We should be the only process mucking around in the queue
-     * directory while we add the new queue files ... it could be
-     * awkward if the de-queue process starts it's job while we're
-     * adding files ...
-     */
-
-    lockf = lock_queuedir(queue_dir);
-    for (pce = 0; pce < npieces; pce++)
-    {
-	struct stat sb;
-
-	if (snprintf(queuefile, len, "%s/%s+%03d", queue_dir, sn, pce + 1) >= len)
-	    err("whoops, queuefile buffer is too small");
-
-	if (stat(queuefile, &sb) == 0)
-	{
-	    err("WOAH! Queue file `%s' already exists! Bailing out.", queuefile);
-	    free_lock(lockf, queue_dir);
-	    exit(1);
-	}
-
-	rename(tempnames[pce], queuefile);
-    }
-    
-    free_lock(lockf, queue_dir);
-
-    free(queuefile);
-}
