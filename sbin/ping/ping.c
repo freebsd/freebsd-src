@@ -105,7 +105,6 @@ __FBSDID("$FreeBSD$");
 					/* runs out of buffer space */
 #define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
 #define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
-#define	MINICMPLEN	ICMP_MINLEN
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
 #define	MAXTOS		255
@@ -459,7 +458,7 @@ main(argc, argv)
 		errx(EX_USAGE, "ICMP_TSTAMP and ICMP_MASKREQ are exclusive.");
 		break;
 	}
-	icmp_len = sizeof(struct ip) + MINICMPLEN + phdr_len;
+	icmp_len = sizeof(struct ip) + ICMP_MINLEN + phdr_len;
 	if (options & F_RROUTE)
 		icmp_len += MAX_IPOPTLEN;
 	maxpayload = IP_MAXPACKET - icmp_len;
@@ -467,7 +466,7 @@ main(argc, argv)
 		errx(EX_USAGE, "packet size too large: %d > %d", datalen,
 		    maxpayload);
 	send_len = icmp_len + datalen;
-	datap = &outpack[MINICMPLEN + phdr_len + TIMEVAL_LEN];
+	datap = &outpack[ICMP_MINLEN + phdr_len + TIMEVAL_LEN];
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
@@ -869,11 +868,11 @@ pinger(void)
 				* 1000 + now.tv_usec / 1000);
 		if (timing)
 			bcopy((void *)&now,
-			    (void *)&outpack[MINICMPLEN + phdr_len],
+			    (void *)&outpack[ICMP_MINLEN + phdr_len],
 			    sizeof(struct timeval));
 	}
 
-	cc = MINICMPLEN + phdr_len + datalen;
+	cc = ICMP_MINLEN + phdr_len + datalen;
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
@@ -1017,7 +1016,7 @@ pr_pack(buf, cc, from, tv)
 			}
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[phdr_len];
-			dp = &outpack[MINICMPLEN + phdr_len];
+			dp = &outpack[ICMP_MINLEN + phdr_len];
 			cc -= ICMP_MINLEN + phdr_len;
 			i = 0;
 			if (timing) {   /* don't check variable timestamp */
@@ -1038,7 +1037,7 @@ pr_pack(buf, cc, from, tv)
 						(void)printf("%2x ", *cp);
 					}
 					(void)printf("\ndp:");
-					cp = &outpack[MINICMPLEN];
+					cp = &outpack[ICMP_MINLEN];
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 16) == 8)
 							(void)printf("\n\t");
