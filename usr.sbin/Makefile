@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.158 1999/07/19 20:22:44 rnordier Exp $
+#	$Id: Makefile,v 1.159 1999/07/28 20:16:49 se Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -22,6 +22,9 @@ SUBDIR=	IPXrouted \
 	dev_mkdb \
 	diskpart \
 	edquota \
+	fdcontrol \
+	fdformat \
+	fdwrite \
 	inetd \
 	iostat \
 	ipfstat \
@@ -125,9 +128,6 @@ SUBDIR+=apm \
 	bad144 \
 	boot0cfg \
 	btxld \
-	fdcontrol \
-	fdformat \
-	fdwrite \
 	i4b \
 	kgmon \
 	kgzip \
