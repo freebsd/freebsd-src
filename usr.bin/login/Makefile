@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id: Makefile,v 1.26 1999/01/19 22:59:37 abial Exp $
+# $Id: Makefile,v 1.27 1999/01/20 21:58:46 jdp Exp $
 
 PROG=	login
 MAN1=	login.1
@@ -20,5 +20,6 @@ LDADD+=	${MINUSLPAM}
 
 BINMODE=4555
 INSTALLFLAGS=-fschg
+NEED_LIBNAMES= yes
 
 .include <bsd.prog.mk>
