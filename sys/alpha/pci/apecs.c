@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apecs.c,v 1.7 1999/05/08 21:58:40 dfr Exp $
+ *	$Id: apecs.c,v 1.8 1999/05/20 15:33:18 gallatin Exp $
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -59,6 +59,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -73,6 +74,11 @@
 #include <machine/cpuconf.h>
 #include <machine/swiz.h>
 #include <machine/rpb.h>
+#include <machine/sgmap.h>
+
+#include <vm/vm.h>
+#include <vm/vm_prot.h>
+#include <vm/vm_page.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
@@ -478,6 +484,63 @@ static driver_t apecs_driver = {
 	sizeof(struct apecs_softc),
 };
 
+#define APECS_SGMAP_BASE		(8*1024*1024)
+#define APECS_SGMAP_SIZE		(8*1024*1024)
+
+static void
+apecs_sgmap_invalidate(void)
+{
+	alpha_mb();
+	REGVAL(EPIC_TBIA) = 0;
+	alpha_mb();
+}
+
+static void
+apecs_sgmap_map(void *arg, vm_offset_t ba, vm_offset_t pa)
+{
+	u_int64_t *sgtable = arg;
+	int index = alpha_btop(ba - APECS_SGMAP_BASE);
+
+	if (pa) {
+		if (pa > (1L<<32))
+			panic("apecs_sgmap_map: can't map address 0x%lx", pa);
+		sgtable[index] = ((pa >> 13) << 1) | 1;
+	} else {
+		sgtable[index] = 0;
+	}
+	alpha_mb();
+	apecs_sgmap_invalidate();
+}
+
+static void
+apecs_init_sgmap(void)
+{
+	void *sgtable;
+
+	/*
+	 * First setup Window 0 to map 8Mb to 16Mb with an
+	 * sgmap. Allocate the map aligned to a 32 boundary.
+	 */
+	REGVAL(EPIC_PCI_BASE_1) = APECS_SGMAP_BASE |
+		EPIC_PCI_BASE_SGEN | EPIC_PCI_BASE_WENB;
+	alpha_mb();
+
+	REGVAL(EPIC_PCI_MASK_1) = EPIC_PCI_MASK_8M;
+	alpha_mb();
+
+	sgtable = contigmalloc(8192, M_DEVBUF, M_NOWAIT,
+			       0, (1L<<34),
+			       32*1024, (1L<<34));
+	if (!sgtable)
+		panic("apecs_init_sgmap: can't allocate page table");
+	REGVAL(EPIC_TBASE_1) =
+		(pmap_kextract((vm_offset_t) sgtable) >> EPIC_TBASE_SHIFT);
+
+	chipset.sgmap = sgmap_map_create(APECS_SGMAP_BASE,
+					 APECS_SGMAP_BASE + APECS_SGMAP_SIZE,
+					 apecs_sgmap_map, sgtable);
+}
+
 void
 apecs_init()
 {
@@ -509,6 +572,7 @@ apecs_probe(device_t dev)
 
 	pci_init_resources();
 	isa_init_intr();
+	apecs_init_sgmap();
 
 	device_add_child(dev, "pcib", 0, 0);
 
