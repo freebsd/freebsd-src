@@ -406,11 +406,9 @@ main(argc, argv)
 	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
-		 * No path prefix; try /dev/r%s then /dev/%s.
+		 * No path prefix; try /dev/%s.
 		 */
-		(void)sprintf(device, "%sr%s", _PATH_DEV, special);
-		if (stat(device, &st) == -1)
-			(void)sprintf(device, "%s%s", _PATH_DEV, special);
+		(void)sprintf(device, "%s%s", _PATH_DEV, special);
 		special = device;
 	}
 	if (Nflag) {

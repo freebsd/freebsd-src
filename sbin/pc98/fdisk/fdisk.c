@@ -67,7 +67,7 @@ int secsize = 0;		/* the sensed sector size */
 const char *disk;
 const char *disks[] =
 {
-  "/dev/rad0", "/dev/rwd0", "/dev/rda0", "/dev/rod0", 0
+  "/dev/ad0", "/dev/wd0", "/dev/da0", "/dev/od0", 0
 };
 
 struct disklabel disklabel;		/* disk parameters */
