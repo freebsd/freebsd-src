@@ -194,6 +194,8 @@ i386/bios/mca_machdep.c		optional	mca
 i386/bios/smapi.c		optional	smapi isa
 i386/bios/smapi_isa.c		optional	smapi isa
 i386/bios/smapi_bios.S		optional	smapi isa
+i386/bios/smbios.c		optional	smbios
+i386/bios/vpd.c			optional	vpd
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
