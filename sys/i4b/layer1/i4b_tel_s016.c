@@ -51,7 +51,6 @@
 #if NISIC > 0 && defined(TEL_S0_16)
 
 #include <sys/param.h>
-#include <sys/ioccom.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

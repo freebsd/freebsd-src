@@ -41,7 +41,6 @@
 #if (NISIC > 0) && defined(DRN_NGO)
 
 #include <sys/param.h>
-#include <sys/ioccom.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

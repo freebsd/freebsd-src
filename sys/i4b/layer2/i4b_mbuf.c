@@ -40,7 +40,6 @@
 #include <sys/mbuf.h>
 
 #if defined(__FreeBSD__)
-#include <sys/ioccom.h>
 #else
 #include <sys/ioctl.h>
 #endif

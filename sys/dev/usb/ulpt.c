@@ -52,7 +52,6 @@
 #include <sys/device.h>
 #include <sys/ioctl.h>
 #elif defined(__FreeBSD__)
-#include <sys/ioccom.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #endif
