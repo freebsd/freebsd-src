@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.55 1994/03/11 10:31:04 swallace Exp $
+#	$Id: LINT,v 1.56 1994/03/11 22:17:24 swallace Exp $
 #
 
 machine		"i386"
@@ -26,7 +26,7 @@ options		"COM_MULTIPORT"		#Multiport support in sys/isa/sio.c
 options         "FIFO_TRIGGER=FIFO_TRIGGER_1"   #Use this fifo value in sio.c
 
 options		"COMPAT_43"		#compatible with BSD 4.3
-options		"SYMTAB_SPACE=104705"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=112433"	#This kernel needs LOTS of symtable
 options		GATEWAY			#internetwork gateway
 options		KTRACE			#kernel tracing
 
@@ -139,7 +139,7 @@ device		lpa1	at isa? port "IO_LPT2" tty
 # interrupt driven parallel printer port driver
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 # Driver for Mutsumi CD-ROM players
-device		mcd0	at isa? port 0x300 bio irq 10 vector mcdint
+device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr

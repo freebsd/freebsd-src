@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.6 1994/01/26 20:18:56 nate Exp $
+ *	$Id: if_ep.c,v 1.7 1994/02/03 11:51:06 davidg Exp $
  */
 /*
  * TODO:
@@ -773,7 +773,7 @@ epioctl(ifp, cmd, data)
 			else {
 				ifp->if_flags &= ~IFF_RUNNING;
 				bcopy((caddr_t) ina->x_host.c_host,
-					(caddr_t)sc->arpcom.ns_addr
+					(caddr_t)sc->arpcom.ac_enaddr,
 					sizeof(sc->arpcom.ac_enaddr));
 			}
 			epinit(ifp->if_unit);
