@@ -38,11 +38,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.19 1995/03/01 22:29:06 dufault Exp $
+ *      $Id: userconfig.c,v 1.20 1995/03/02 20:07:05 dufault Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 
 #include <i386/i386/cons.h>
 
@@ -77,6 +78,8 @@ typedef struct _cmd {
     CmdParm *parms;
 } Cmd;
 
+struct isa_device	*isa_devlist = NULL;
+
 #if NSCBUS > 0
 static void lsscsi(void);
 static int list_scsi(CmdParm *);
@@ -89,6 +92,7 @@ static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
 unsigned long strtoul(const char *, char **, int);
+static int save_dev(struct isa_device *);
 
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
@@ -271,6 +275,7 @@ static int
 set_device_ioaddr(CmdParm *parms)
 {
     parms[0].parm.dparm->id_iobase = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -281,6 +286,7 @@ set_device_irq(CmdParm *parms)
 
     irq = parms[1].parm.iparm;
     parms[0].parm.dparm->id_irq = (irq < 16 ? 1 << irq : 0);
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -295,6 +301,7 @@ set_device_drq(CmdParm *parms)
      */
     drq = parms[1].parm.iparm;
     parms[0].parm.dparm->id_drq = (drq < 32768 ? drq : -1);
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -302,6 +309,7 @@ static int
 set_device_iosize(CmdParm *parms)
 {
     parms[0].parm.dparm->id_msize = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -309,6 +317,7 @@ static int
 set_device_mem(CmdParm *parms)
 {
     parms[0].parm.dparm->id_maddr = parms[1].parm.aparm;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -316,6 +325,7 @@ static int
 set_device_flags(CmdParm *parms)
 {
     parms[0].parm.dparm->id_flags = parms[1].parm.iparm;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -323,6 +333,7 @@ static int
 set_device_enable(CmdParm *parms)
 {
     parms[0].parm.dparm->id_enabled = TRUE;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -330,6 +341,7 @@ static int
 set_device_disable(CmdParm *parms)
 {
     parms[0].parm.dparm->id_enabled = FALSE;
+    save_dev(parms[0].parm.dparm);
     return 0;
 }
 
@@ -645,3 +657,28 @@ list_scsi(CmdParm *parms)
     return 0;
 }
 #endif
+
+static int
+save_dev(idev)
+struct isa_device 	*idev;
+{
+	struct isa_device	*id_p,*id_pn;
+	
+	for (id_p=isa_devlist;
+	id_p;
+	id_p=id_p->id_next) {
+printf("Id=%d\n",id_p->id_id);
+		if (id_p->id_id == idev->id_id) {
+			id_pn = id_p->id_next;
+			bcopy(idev,id_p,sizeof(struct isa_device));
+			id_p->id_next = id_pn;
+			return 1;
+		}
+	}
+	id_pn = malloc(sizeof(struct isa_device),M_DEVL,M_WAITOK);
+	bcopy(idev,id_pn,sizeof(struct isa_device));
+	id_pn->id_next = isa_devlist;
+	isa_devlist = id_pn;
+	return 0;
+}
+
