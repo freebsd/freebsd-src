@@ -173,25 +173,28 @@ build(char *path, mode_t omode)
 		}
 		if (last)
 			(void)umask(oumask);
-		if (stat(path, &sb)) {
-			if (errno != ENOENT ||
-			    mkdir(path, last ? omode : 
-				  S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+		if (mkdir(path, last ? omode : S_IRWXU | S_IRWXG | S_IRWXO) < 0) {
+			if (errno == EEXIST) {
+				if (stat(path, &sb) < 0) {
+					warn("%s", path);
+					retval = 1;
+					break;
+				} else if (!S_ISDIR(sb.st_mode)) {
+					if (last)
+						errno = EEXIST;
+					else
+						errno = ENOTDIR;
+					warn("%s", path);
+					retval = 1;
+					break;
+				}
+			} else {
 				warn("%s", path);
 				retval = 1;
 				break;
-			} else if (vflag)
-				printf("%s\n", path);
-		}
-		else if ((sb.st_mode & S_IFMT) != S_IFDIR) {
-			if (last)
-				errno = EEXIST;
-			else
-				errno = ENOTDIR;
-			warn("%s", path);
-			retval = 1;
-			break;
-		}
+			}
+		} else if (vflag)
+			printf("%s\n", path);
 		if (!last)
 		    *p = '/';
 	}
