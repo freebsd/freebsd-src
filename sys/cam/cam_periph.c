@@ -653,16 +653,14 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		 * vmapbuf() after the useracc() check.
 		 */
 		if (vmapbuf(mapinfo->bp[i]) < 0) {
-			printf("cam_periph_mapmem: error, "
-				"address %p, length %lu isn't "
-				"user accessible any more\n",
-				(void *)*data_ptrs[i],
-				(u_long)lengths[i]);
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
+				vunmapbuf(mapinfo->bp[j]);
 				mapinfo->bp[j]->b_flags &= ~B_PHYS;
 				relpbuf(mapinfo->bp[j], NULL);
 			}
+			mapinfo->bp[i]->b_flags &= ~B_PHYS;
+			relpbuf(mapinfo->bp[i], NULL);
 			PRELE(curproc);
 			return(EACCES);
 		}
