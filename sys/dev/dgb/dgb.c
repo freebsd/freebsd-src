@@ -135,13 +135,13 @@ struct dgb_p {
 	u_char fepstartca;
 	u_char txwin;
 	u_char rxwin;
-	ushort fepiflag;
-	ushort fepcflag;
-	ushort fepoflag;
-	ushort txbufhead;
-	ushort txbufsize;
-	ushort rxbufhead;
-	ushort rxbufsize;
+	u_short fepiflag;
+	u_short fepcflag;
+	u_short fepoflag;
+	u_short txbufhead;
+	u_short txbufsize;
+	u_short rxbufhead;
+	u_short rxbufsize;
 	int close_delay;
 	int count;
 	int blocked_open;
@@ -549,7 +549,7 @@ dgbattach(dev)
 	volatile struct board_chan *bc;
 	int shrinkmem;
 	int nfails;
-	volatile ushort *pstat;
+	volatile u_short *pstat;
 	int lowwater;
 	static int nports=0;
 	char suffix;
@@ -680,15 +680,15 @@ dgbattach(dev)
 		DPRINT3(DB_INFO,"dgb%d: reset dropped after %d us\n",unit,i);
 
 		for(i=0; i<200000; i++) {
-			if( *((ushort volatile *)(mem+MISCGLOBAL)) == *((ushort *)"GD") )
+			if( *((u_short volatile *)(mem+MISCGLOBAL)) == *((u_short *)"GD") )
 				goto load_fep;
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
 		DPRINT4(DB_EXCEPT,"dgb%d: code=0x%x must be 0x%x\n",
 			dev->id_unit,
-			*((ushort volatile *)(mem+MISCGLOBAL)),
-			*((ushort *)"GD"));
+			*((u_short volatile *)(mem+MISCGLOBAL)),
+			*((u_short *)"GD"));
 
 		sc->status=DISABLED;
 		hidewin(sc);
@@ -737,16 +737,16 @@ dgbattach(dev)
 		addr=setwin(sc,MISCGLOBAL);
 
 		for(i=0; i<200000; i++) {
-			if(*(ushort volatile *)(mem+addr)== *(ushort *)"GD")
+			if(*(u_short volatile *)(mem+addr)== *(u_short *)"GD")
 				goto load_fep;
 			DELAY(1);
 		}
 		printf("dgb%d: BIOS download failed\n",dev->id_unit);
 		DPRINT5(DB_EXCEPT,"dgb%d: Error#(0x%x,0x%x) code=0x%x\n",
 			dev->id_unit,
-			*(ushort volatile *)(mem+0xC12),
-			*(ushort volatile *)(mem+0xC14),
-			*(ushort volatile *)(mem+MISCGLOBAL));
+			*(u_short volatile *)(mem+0xC12),
+			*(u_short volatile *)(mem+0xC14),
+			*(u_short volatile *)(mem+MISCGLOBAL));
 
 		sc->status=DISABLED;
 		hidewin(sc);
@@ -764,21 +764,21 @@ load_fep:
 		*ptr++ = pcxx_cook[i];
 
 	addr=setwin(sc,MBOX);
-	*(ushort volatile *)(mem+addr+ 0)=2;
-	*(ushort volatile *)(mem+addr+ 2)=sc->mem_seg+FEPCODESEG;
-	*(ushort volatile *)(mem+addr+ 4)=0;
-	*(ushort volatile *)(mem+addr+ 6)=FEPCODESEG;
-	*(ushort volatile *)(mem+addr+ 8)=0;
-	*(ushort volatile *)(mem+addr+10)=pcxx_ncook;
+	*(u_short volatile *)(mem+addr+ 0)=2;
+	*(u_short volatile *)(mem+addr+ 2)=sc->mem_seg+FEPCODESEG;
+	*(u_short volatile *)(mem+addr+ 4)=0;
+	*(u_short volatile *)(mem+addr+ 6)=FEPCODESEG;
+	*(u_short volatile *)(mem+addr+ 8)=0;
+	*(u_short volatile *)(mem+addr+10)=pcxx_ncook;
 
 	outb(sc->port,FEPMEM|FEPINT); /* send interrupt to BIOS */
 	outb(sc->port,FEPMEM);
 
-	for(i=0; *(ushort volatile *)(mem+addr)!=0; i++) {
+	for(i=0; *(u_short volatile *)(mem+addr)!=0; i++) {
 		if(i>200000) {
 			printf("dgb%d: FEP code download failed\n",unit);
 			DPRINT3(DB_EXCEPT,"dgb%d: code=0x%x must be 0\n", unit,
-				*(ushort volatile *)(mem+addr));
+				*(u_short volatile *)(mem+addr));
 			sc->status=DISABLED;
 			hidewin(sc);
 			return 0;
@@ -787,17 +787,17 @@ load_fep:
 
 	DPRINT2(DB_INFO,"dgb%d: FEP code loaded\n",unit);
 
-	*(ushort volatile *)(mem+setwin(sc,FEPSTAT))=0;
+	*(u_short volatile *)(mem+setwin(sc,FEPSTAT))=0;
 	addr=setwin(sc,MBOX);
-	*(ushort volatile *)(mem+addr+0)=1;
-	*(ushort volatile *)(mem+addr+2)=FEPCODESEG;
-	*(ushort volatile *)(mem+addr+4)=0x4;
+	*(u_short volatile *)(mem+addr+0)=1;
+	*(u_short volatile *)(mem+addr+2)=FEPCODESEG;
+	*(u_short volatile *)(mem+addr+4)=0x4;
 
 	outb(sc->port,FEPINT); /* send interrupt to BIOS */
 	outb(sc->port,FEPCLR);
 
 	addr=setwin(sc,FEPSTAT);
-	for(i=0; *(ushort volatile *)(mem+addr)!= *(ushort *)"OS"; i++) {
+	for(i=0; *(u_short volatile *)(mem+addr)!= *(u_short *)"OS"; i++) {
 		if(i>200000) {
 			printf("dgb%d: FEP/OS start failed\n",dev->id_unit);
 			sc->status=DISABLED;
@@ -808,7 +808,7 @@ load_fep:
 
 	DPRINT2(DB_INFO,"dgb%d: FEP/OS started\n",dev->id_unit);
 
-	sc->numports= *(ushort volatile *)(mem+setwin(sc,NPORT));
+	sc->numports= *(u_short volatile *)(mem+setwin(sc,NPORT));
 
 	printf("dgb%d: %d ports\n",unit,sc->numports);
 
@@ -830,7 +830,7 @@ load_fep:
 	nports+=sc->numports;
 
 	addr=setwin(sc,PORTBASE);
-	pstat=(ushort volatile *)(mem+addr);
+	pstat=(u_short volatile *)(mem+addr);
 
 	for(i=0; i<sc->numports && pstat[i]; i++)
 		if(pstat[i])
@@ -2210,7 +2210,7 @@ fepcmd(port, cmd, op1, op2, ncmds, bytecmd)
 		tail=sc->mailbox->cout;
 
 		n = (head-tail) & (FEP_CMAX-FEP_CSTART-4);
-		if(n <= ncmds * (sizeof(ushort)*4))
+		if(n <= ncmds * (sizeof(u_short)*4))
 			return;
 	}
 	printf("dgb%d(%d): timeout on FEP cmd=0x%x\n", port->unit, port->pnum, cmd);
