@@ -114,7 +114,7 @@ decode_prologue(db_addr_t callpc, db_addr_t func,
 #define	CHECK_FRAMESIZE							\
 do {									\
 	if (pi->pi_frame_size != 0) {					\
-		printf("frame size botch: adjust register offsets?\n"); \
+		db_printf("frame size botch: adjust register offsets?\n"); \
 	}								\
 } while (0)
 
@@ -132,7 +132,7 @@ do {									\
 			signed_immediate = (long)ins.mem_format.displacement;
 #if 1
 			if (signed_immediate > 0)
-				printf("prologue botch: displacement %ld\n",
+				db_printf("prologue botch: displacement %ld\n",
 				    signed_immediate);
 #endif
 			CHECK_FRAMESIZE;
@@ -178,22 +178,16 @@ decode_syscall(int number, struct proc *p)
 	sy_call_t *f;
 	const char *symname;
 
-	printf(" (%d", number);
-	if (!p)
-		goto out;
-
-	if (0 <= number && number < p->p_sysent->sv_size) {
-
+	db_printf(" (%d", number);
+	if (p != NULL && 0 <= number && number < p->p_sysent->sv_size) {
 		f = p->p_sysent->sv_table[number].sy_call;
 		sym = db_search_symbol((db_addr_t)f, DB_STGY_ANY, &diff);
-		if (sym == DB_SYM_NULL || diff != 0)
-			goto out;
-		db_symbol_values(sym, &symname, NULL);
-		printf(", %s, %s", p->p_sysent->sv_name, symname);
+		if (sym != DB_SYM_NULL && diff == 0) {
+			db_symbol_values(sym, &symname, NULL);
+			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
+		}
 	}
- out:
-	printf(")");
-	
+	db_printf(")");	
 }
 
 void
@@ -215,9 +209,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 	struct proc *p = NULL;
 	boolean_t trace_thread = FALSE;
 	boolean_t have_trapframe = FALSE;
-
-	while ((c = *cp++) != 0)
-		trace_thread |= c == 't';
+	pid_t pid;
 
 	if (count == -1)
 		count = 65535;
@@ -227,27 +219,42 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		addr = DDB_REGS->tf_regs[FRAME_SP] - FRAME_SIZE * 8;
 		tf = (struct trapframe *)addr;
 		have_trapframe = 1;
-	} else {
-		if (trace_thread) {
-			printf("trace: pid %d ", (int)addr);
-			p = pfind(addr);
+	} else if (addr < KERNBASE) {
+		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
+		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
+		    ((addr >> 16) % 16) * 10000;
+		/*
+		 * The pcb for curproc is not valid at this point,
+		 * so fall back to the default case.
+		 */
+		if (pid == curproc->p_pid) {
+			p = curproc;
+			addr = DDB_REGS->tf_regs[FRAME_SP] - FRAME_SIZE * 8;
+			tf = (struct trapframe *)addr;
+			have_trapframe = 1;
+		} else {
+			/* sx_slock(&allproc_lock); */
+			LIST_FOREACH(p, &allproc, p_list) {
+				if (p->p_pid == pid)
+					break;
+			}
+			/* sx_sunlock(&allproc_lock); */
 			if (p == NULL) {
-				printf("not found\n");
+				db_printf("pid %d not found\n", pid);
 				return;
-			}	
+			}
 			if ((p->p_sflag & PS_INMEM) == 0) {
-				printf("swapped out\n");
+				db_printf("pid %d swapped out\n", pid);
 				return;
 			}
 			pcbp = &p->p_addr->u_pcb;
 			addr = (db_expr_t)pcbp->pcb_hw.apcb_ksp;
 			callpc = pcbp->pcb_context[7];
-			printf("at 0x%lx\n", addr);
-		} else {
-			printf("alpha trace requires known PC =eject=\n");
-			return;
+			frame = addr;
 		}
-		frame = addr;
+	} else {
+		db_printf("alpha trace requires known PC =eject=\n");
+		return;
 	}
 
 	while (count--) {
@@ -264,7 +271,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		db_symbol_values(sym, &symname, (db_expr_t *)&symval);
 
 		if (callpc < symval) {
-			printf("symbol botch: callpc 0x%lx < "
+			db_printf("symbol botch: callpc 0x%lx < "
 			    "func 0x%lx (%s)\n", callpc, symval, symname);
 			return;
 		}
@@ -296,9 +303,9 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		 * could get the arguments if we use a remote source-level
 		 * debugger (for serious debugging).
 		 */
-		printf("%s() at ", symname);
+		db_printf("%s() at ", symname);
 		db_printsym(callpc, DB_STGY_PROC);
-		printf("\n");
+		db_printf("\n");
 
 		/*
 		 * If we are in a trap vector, frame points to a
@@ -309,7 +316,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 
 			for (i = 0; special_symbols[i].ss_val != NULL; ++i)
 				if (symval == special_symbols[i].ss_val)
-					printf("--- %s",
+					db_printf("--- %s",
 					    special_symbols[i].ss_note);
 
 			tfps = tf->tf_regs[FRAME_PS];
@@ -318,9 +325,9 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 			if ((tfps & ALPHA_PSL_IPL_MASK) != last_ipl) {
 				last_ipl = tfps & ALPHA_PSL_IPL_MASK;
 				if (symval != (uintptr_t)&XentSys)
-					printf(" (from ipl %ld)", last_ipl);
+					db_printf(" (from ipl %ld)", last_ipl);
 			}
-			printf(" ---\n");
+			db_printf(" ---\n");
 			if (tfps & ALPHA_PSL_USERMODE) {
 				printf("--- user mode ---\n");
 				break;	/* Terminate search.  */
@@ -346,7 +353,7 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 			if (ra_from_tf)
 				callpc = tf->tf_regs[FRAME_RA];
 			else {
-				printf("--- root of call graph ---\n");
+				db_printf("--- root of call graph ---\n");
 				break;
 			}
 		} else
