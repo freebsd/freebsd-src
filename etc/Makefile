@@ -21,7 +21,7 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
 
 .if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
-BIN1+=	${.CURDIR}/../crypto/openssh/ssh_config \
+SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config
 .endif
 
@@ -60,18 +60,22 @@ distribution:
 	    ${DESTDIR}/var/log/cron; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    master.passwd ${DESTDIR}/etc; \
-	( cd ${.CURDIR}/periodic; ${MAKE} install );\
-	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall );\
+	( cd ${.CURDIR}/periodic; ${MAKE} install ); \
+	( cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall ); \
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install ); \
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	( cd ${.CURDIR}/sendmail; ${MAKE} etc-sendmail.cf ); \
-	( cd ${.CURDIR}/isdn; ${MAKE} install );\
+	( cd ${.CURDIR}/isdn; ${MAKE} install ); \
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
+	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
+	    ${DESTDIR}/etc/ssh )
+.endif
 .if !defined(NO_MAKEDEV)
-	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
+	(cd ${DESTDIR}/dev; sh MAKEDEV all)
 .endif
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
