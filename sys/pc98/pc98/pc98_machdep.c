@@ -29,6 +29,8 @@
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
 
+#include <scsi/scsiconf.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -212,3 +214,66 @@ pc98_getmemsize(void)
 	init_epson_memwin();
 #endif
 }
+
+#include "sd.h"
+
+#if NSD > 0
+/*
+ * XXX copied from sd.c.
+ */
+struct disk_parms {
+	u_char	heads;	/* Number of heads */
+	u_int16_t	cyls;	/* Number of cylinders */
+	u_char	sectors;	/*dubious *//* Number of sectors/track */
+	u_int16_t	secsiz;	/* Number of bytes/sector */
+	u_int32_t	disksize;	/* total number sectors */
+};
+
+int	sd_bios_parms __P((struct disk_parms *, struct scsi_link *));
+
+/*
+ * Read a geometry information of SCSI HDD from BIOS work area.
+ *
+ * XXX - Before reading BIOS work area, we should check whether
+ * host adapter support it.
+ */
+int
+sd_bios_parms(disk_parms, sc_link)
+	struct	disk_parms *disk_parms;
+	struct	scsi_link *sc_link;
+{
+	u_char *tmp;
+
+	tmp = (u_char *)&PC98_SYSTEM_PARAMETER(0x460 + sc_link->target*4);
+	if ((PC98_SYSTEM_PARAMETER(0x482) & ((1 << sc_link->target)&0xff)) != 0) {
+		disk_parms->sectors = *tmp;
+		disk_parms->cyls = ((*(tmp+3)<<8)|*(tmp+2))&0xfff;
+		switch (*(tmp + 3) & 0x30) {
+		case 0x00:
+			disk_parms->secsiz = 256;
+			printf("Warning!: not supported.\n");
+			break;
+		case 0x10:
+			disk_parms->secsiz = 512;
+			break;
+		case 0x20:
+			disk_parms->secsiz = 1024;
+			break;
+		default:
+			disk_parms->secsiz = 512;
+			printf("Warning!: not supported. But force to 512\n");
+			break;
+		}
+		if (*(tmp+3) & 0x40) {
+			disk_parms->cyls += (*(tmp+1)&0xf0)<<8;
+			disk_parms->heads = *(tmp+1)&0x0f;
+		} else {
+			disk_parms->heads = *(tmp+1);
+		}
+		disk_parms->disksize = disk_parms->sectors * disk_parms->heads *
+									disk_parms->cyls;
+		return 1;
+	}
+	return 0;
+}
+#endif
