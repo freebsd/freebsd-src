@@ -42,8 +42,6 @@
 # a subtopic is a topic that will connected under the subtree of
 # topic.
 
-use FileHandle;
-
 # Declaration of constants
 #
 $SOD 	= 'D';				# Start of description character
@@ -75,12 +73,12 @@ foreach $filename ( @files ) {
 		$file = STDIN;
 	} else {
 		die "Could not open file $filename, $!"
-			unless $file = new FileHandle $filename;
+			unless open FILE, $filename;
 	}
 
 	# Process one file and add it to the hash
 	#
-	&add_file($file);
+	&add_file(FILE);
 } 
 
 # Print the results of our processing
