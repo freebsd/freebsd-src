@@ -28,10 +28,18 @@ MACHINE_CPU = arm
 # between e.g. i586 and pentium)
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "pentiumpro"
+.  if ${CPUTYPE} == "pentium4"
+CPUTYPE = p4
+.  elif ${CPUTYPE} == "pentium3"
+CPUTYPE = p3
+.  elif ${CPUTYPE} == "pentiumpro"
 CPUTYPE = i686
 .  elif ${CPUTYPE} == "pentium"
 CPUTYPE = i586
+.  elif ${CPUTYPE} == "opteron"
+CPUTYPE = athlon-mp
+.  elif ${CPUTYPE} == "athlon64"
+CPUTYPE = athlon-xp
 .  elif ${CPUTYPE} == "k7"
 CPUTYPE = athlon
 .  endif
