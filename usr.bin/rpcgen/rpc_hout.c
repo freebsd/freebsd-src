@@ -59,9 +59,6 @@ static void parglist( proc_list *, char * );
 static void pprocdef( proc_list *, version_list *, char *, int, int );
 void pdeclaration( char *, declaration *, int, char * );
 
-static char RESULT[] = "clnt_res";
-
-
 /*
  * Print the C-version of an xdr definition
  */
