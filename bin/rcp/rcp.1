@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rcp.1	8.1 (Berkeley) 5/31/93
-.\"	$Id: rcp.1,v 1.5 1997/02/22 14:05:21 peter Exp $
+.\"	$Id: rcp.1,v 1.6 1998/05/18 06:36:02 charnier Exp $
 .\"
 .Dd May 31, 1993
 .Dt RCP 1
@@ -120,6 +120,11 @@ and requires the same authorization.
 .Nm Rcp
 handles third party copies, where neither source nor target files
 are on the current machine.
+.Sh FILES
+.Bl -tag -width /etc/auth.conf -compact
+.It Pa /etc/auth.conf
+configure authentication services
+.El
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr ftp 1 ,
