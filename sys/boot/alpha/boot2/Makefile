@@ -7,7 +7,7 @@ NEWVERSWHAT=	"SRM disk boot"
 
 .PATH:		${.CURDIR}/../common
 
-# i386-specific bootstrap sources
+# Alpha-specific bootstrap sources
 SRCS+=		main.c conf.c
 
 # Always add MI sources 
