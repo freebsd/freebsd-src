@@ -10,6 +10,16 @@ SRCS+=		main.c conf.c
 SRCS+=		dev_net.c
 .endif
 
+# Enable BootForth
+BOOT_FORTH=	yes
+CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/alpha
+#CFLAGS+=	-DBOOT_FORTH
+.if exists(${.OBJDIR}/../../ficl/libficl.a)
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.else
+LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
+
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
 .include	<${.CURDIR}/../../common/Makefile.inc>
@@ -39,11 +49,11 @@ vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 ${BASE}: ${BASE}.sym ${BASE}.help
 	objcopy -O binary ${BASE}.sym ${BASE}
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
 	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${LOAD_ADDRESS} \
 	${CRT} setdef0.o ${OBJS} setdef1.o vers.o \
-	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} \
-	> ${.OBJDIR}/${BASE}.list
+	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBFICL} ${LIBSTAND} \
+	>${.OBJDIR}/${BASE}.list
 
 ${BASE}.help: help.common help.alpha
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
