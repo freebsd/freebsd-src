@@ -33,7 +33,7 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-VERSIONID(`@(#)freefall.mc	$Revision: 1.5 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.6 $')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 MAILER(local)dnl
@@ -45,6 +45,7 @@ define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
 define(`confCHECKPOINT_INTERVAL', `4')dnl
 define(`confAUTO_REBUILD', `True')dnl
 define(`confMIN_FREE_BLOCKS', `1024')dnl
+define(`confSMTP_MAILER', `smtp8')dnl
 define(`confME_TOO', `True')dnl
 define(`confMCI_CACHE_TIMEOUT', `10m')dnl
 define(`confTO_QUEUEWARN', `1d')dnl
