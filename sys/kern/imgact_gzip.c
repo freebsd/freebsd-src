@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: imgact_gzip.c,v 1.9 1994/10/22 11:40:27 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -327,7 +327,8 @@ Flush(void *vp, u_char * ptr, u_long siz)
 		if (gz->output == sizeof gz->a_out) {
 			i = do_aout_hdr(gz);
 			if (i == -1) {
-				gz->where = __LINE__;
+				if (!gz->where)
+					gz->where = __LINE__;
 				gz->error = ENOEXEC;
 				return ENOEXEC;
 			} else if (i) {
