@@ -120,7 +120,6 @@ static driver_t wi_pccard_driver = {
 
 DRIVER_MODULE(wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
 MODULE_DEPEND(wi, wlan, 1, 1, 1);
-MODULE_DEPEND(wi, pccard, 1, 1, 1);
 
 #if __FreeBSD_version >= 500000
 static const struct pccard_product wi_pccard_products[] = {
