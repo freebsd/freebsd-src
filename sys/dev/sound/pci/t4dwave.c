@@ -38,6 +38,14 @@
 
 /* -------------------------------------------------------------------- */
 
+#define TDX_PCI_ID 	0x20001023
+#define TNX_PCI_ID 	0x20011023
+
+#define TR_BUFFSIZE 	0xf000
+#define TR_TIMEOUT_CDC	0xffff
+#define TR_INTSAMPLES	0x2000
+#define TR_MAXPLAYCH	4
+
 struct tr_info;
 
 /* channel registers */
