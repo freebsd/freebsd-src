@@ -50,6 +50,7 @@ The FreeBSD Core Team
 	Gary Palmer <gpalmer@FreeBSD.org>
 	Geoff Rehmet <csgr@FreeBSD.org>
 	Jack Vogel <jackv@FreeBSD.org>
+	Joerg Wunsch <joerg@FreeBSD.org>
 	John Dyson <dyson@FreeBSD.org>
 	Jordan K. Hubbard <jkh@FreeBSD.org>
 	Justin Gibbs <gibbs@FreeBSD.org>
@@ -246,4 +247,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.13 1995/05/28 02:48:05 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.14 1995/06/14 22:17:57 joerg Exp $
