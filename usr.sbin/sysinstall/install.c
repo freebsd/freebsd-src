@@ -109,8 +109,12 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+#ifndef __ia64__
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
+#else
+	    c2 = c1;
+#endif
 		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
 			if (!strcmp(((PartInfo *)c2->private_data)->mountpoint, "/")) {
 			    if (rootdev) {
@@ -176,8 +180,10 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 			    }
 			}
 		    }
+#ifndef __ia64__
 		}
 	    }
+#endif
 	}
     }
 
@@ -190,16 +196,22 @@ checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vd
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+#ifndef __ia64__
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
+#else
+	    c2 = c1;
+#endif
 		    if (c2->type == part && c2->subtype == FS_SWAP && !swapdev) {
 			swapdev = c2;
 			if (isDebug())
 			    msgDebug("Found swapdev at %s!\n", swapdev->name);
 			break;
 		    }
+#ifndef __ia64__
 		}
 	    }
+#endif
 	}
     }
 
