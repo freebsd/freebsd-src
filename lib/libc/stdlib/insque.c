@@ -17,7 +17,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>	/* for NULL */
 #endif
 
-void insque(void *element, void *pred)
+void
+insque(void *element, void *pred)
 {
 	struct que_elem *prev, *next, *elem;
 
