@@ -34,14 +34,14 @@
 
 #ifdef LOCORE
 
-#define	AND(var, mask, r1, r2, r3, l1) \
+#define	AND(var, mask, r1, r2, r3) \
 	setx	var, r2, r1 ; \
 	setx	mask, r3, r2 ; \
 	lduw	[r1], r3 ; \
 	and	r2, r3, r1
 
 #define	TEST(var, mask, r1, r2, r3, l1) \
-	AND(var, mask, r1, r2, r3, l1) ; \
+	AND(var, mask, r1, r2, r3) ; \
 	brz	r1, l1 ## f ; \
 	 nop
 
