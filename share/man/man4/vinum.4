@@ -34,7 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.10 1999/02/04 05:01:14 grog Exp $
+.\" $Id: vinum.4,v 1.11 1999/02/05 00:34:21 grog Exp $
 .\"
 .Dd 22 July 1998
 .Dt vinum 4
@@ -320,18 +320,35 @@ name from which they are derived.
 When
 .Nm vinum(8)
 creates or deletes objects, it creates a directory
-.Ar /dev/vinum ,
+.Pa /dev/vinum ,
 in which it makes device entries for each volume it finds.  It also creates 
 subdirectories,
-.Ar /dev/vinum/plex
+.Pa /dev/vinum/plex ,
+.Pa /dev/vinum/sd 
 and 
-.Ar /dev/vinum/sd ,
-in which it stores device entries for the plexes and subdisks.  In addition, it
-creates two more directories,
-.Ar /dev/vinum/vol
+.Pa /dev/vinum/rsd ,
+in which it stores device entries for the plexes and subdisks.  
+.Pa /dev/vinum/sd
+contains block device entries, while
+.Pa /dev/vinum/rsd
+contains character device entries.  In addition, it creates two more
+directories,
+.Pa /dev/vinum/vol
 and
-.Ar /dev/vinum/drive ,
+.Pa /dev/vinum/drive ,
 in which it stores hierarchical information for volumes and drives.
+.It
+In addition,
+.Nm
+creates two super-devices,
+.Pa /dev/vinum/control
+and
+.Pa /dev/vinum/controld .
+These are used by
+.Xr vinum 8
+and the
+.Nm
+daemon respectively.
 .It
 Unlike 
 .Nm UNIX
@@ -396,6 +413,7 @@ looks like:
 total 5
 brwxr-xr--  1 root  wheel   25,   2 Mar 30 16:08 concat
 brwx------  1 root  wheel   25, 0x40000000 Mar 30 16:08 control
+brwx------  1 root  wheel   25, 0x40000001 Mar 30 16:08 controld
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 drive
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 plex
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 rvol
@@ -643,6 +661,9 @@ Drives can have the following states:
 .sp
 .ne 1i
 .Bl -hang -width 14n
+.It referenced
+At least one subdisk refers to the drive, but it is not currently accessible to
+the system.
 .It down
 The drive is not accessible.
 .It up
@@ -657,14 +678,6 @@ is a new product.  Many bugs can be expected.  The configuration mechanism is
 not yet fully functional.  If you have difficulties, please look at
 http://www.lemis.com/vinum_beta.html and
 http://www.lemis.com/vinum_debugging.html before reporting problems.
-.It
-It is possible to unload the
-.Nm
-module with the
-.Nm kldunload
-command.  This is buggy, and the only reason it is present at all is to make it
-easier for people testing the system: the alternative is a reboot.  It works
-about 80% of the time: expect about one panic every five unloads.
 .It
 It is possible to configure
 .Nm
@@ -709,8 +722,8 @@ Next, look at the on-disk configuration, using a Bourne-style shell:
 .Bd -literal
 # rm -f log
 # for i in /dev/da0s1h /dev/da1s1h /dev/da2s1h /dev/da3s1h; do
->    (dd if=/dev/da1h skip=8 count=6|tr -d '\e000-\e011\e200-\e377'; echo) >> log
->  done
+    (dd if=$i skip=8 count=6|tr -d '\e000-\e011\e200-\e377'; echo) >> log
+  done
 .Ed
 .if t .vs
 .if t .ps
@@ -778,8 +791,15 @@ command if you have this kind of trouble.
 In order to analyse a panic which you suspect comes from
 .Nm
 you will need to build a debug kernel.  See the online handbook for more details
-of how to do this.
-.P
+of how to do this.  Be sure to include the
+.Nm ddb
+debugger.  To do this, put the following lines in your kernel configuration
+file:
+.Bd -literal
+options 	DDB
+options		BREAK_TO_DEBUGGER
+.Ed
+.Pp
 You will need some additional steps to get symbolic information for the
 .Nm
 kernel loadable module:
