@@ -385,6 +385,10 @@ g_gate_create(struct g_gate_ctl_create *ggio)
 		G_GATE_DEBUG(1, "Invalid sector size.");
 		return (EINVAL);
 	}
+	if ((ggio->gctl_mediasize % ggio->gctl_sectorsize) != 0) {
+		G_GATE_DEBUG(1, "Invalid media size.");
+		return (EINVAL);
+	}
 	if ((ggio->gctl_flags & G_GATE_FLAG_READONLY) != 0 &&
 	    (ggio->gctl_flags & G_GATE_FLAG_WRITEONLY) != 0) {
 		G_GATE_DEBUG(1, "Invalid flags.");
@@ -466,6 +470,13 @@ g_gate_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct threa
 		DROP_GIANT();
 		error = g_gate_create(ggio);
 		PICKUP_GIANT();
+		/*
+		 * Reset TDP_GEOM flag.
+		 * There are pending events for sure, because we just created
+		 * new provider and other classes want to taste it, but we
+		 * cannot answer on I/O requests until we're here.
+		 */
+		td->td_pflags &= ~TDP_GEOM;
 		return (error);
 	    }
 	case G_GATE_CMD_DESTROY:
