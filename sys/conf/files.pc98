@@ -239,6 +239,7 @@ i386/isa/loran.c		optional	loran
 i386/isa/npx.c			optional	npx
 i386/isa/pmtimer.c		optional	pmtimer
 i386/isa/prof_machdep.c		optional	profiling-routine
+i386/isa/spkr.c			optional	speaker
 i386/isa/spigot.c		count		spigot
 i386/isa/stallion.c		optional	stl nowerror
 i386/isa/tw.c			count		tw
@@ -379,7 +380,6 @@ pc98/pc98/scterm-sck.c		optional	sc
 pc98/pc98/scvtbpc98.c		optional	sc
 pc98/pc98/sio.c			optional	sio
 pc98/pc98/sio_cbus.c		optional	sio isa
-pc98/pc98/spkr.c		optional	speaker
 pc98/pc98/syscons.c		optional	sc
 pc98/pc98/syscons_pc98.c	optional	sc
 pc98/pc98/wd.c			count		wdc
