@@ -131,8 +131,8 @@ barray
 getBARRAY (ptr, idx, dsize, max)
      unsigned char *ptr;
      int *idx;
-     int dsize;
-     int max;
+     int dsize ATTRIBUTE_UNUSED;
+     int max ATTRIBUTE_UNUSED;
 {
   barray res;
   int i;

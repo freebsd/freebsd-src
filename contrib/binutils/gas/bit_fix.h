@@ -1,6 +1,5 @@
-/* write.h
-
-   Copyright (C) 1987, 1992 Free Software Foundation, Inc.
+/* bit_fix.h
+   Copyright (C) 1987, 1992, 2000 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +14,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   along with GAS; see the file COPYING.  If not, write to the Free
+   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
 /* The bit_fix was implemented to support machines that need variables
    to be inserted in bitfields other than 1, 2 and 4 bytes.
@@ -33,19 +33,16 @@
 #ifndef __bit_fix_h__
 #define __bit_fix_h__
 
-struct bit_fix
-  {
-    int fx_bit_size;		/* Length of bitfield */
-    int fx_bit_offset;		/* Bit offset to bitfield */
-    long fx_bit_base;		/* Where do we apply the bitfix.
-				      If this is zero, default is assumed. */
-    long fx_bit_base_adj;	/* Adjustment of base */
-    long fx_bit_max;		/* Signextended max for bitfield */
-    long fx_bit_min;		/* Signextended min for bitfield */
-    long fx_bit_add;		/* Or mask, used for huffman prefix */
-  };
+struct bit_fix {
+  int fx_bit_size;		/* Length of bitfield */
+  int fx_bit_offset;		/* Bit offset to bitfield */
+  long fx_bit_base;		/* Where do we apply the bitfix.
+				   If this is zero, default is assumed.  */
+  long fx_bit_base_adj;		/* Adjustment of base */
+  long fx_bit_max;		/* Signextended max for bitfield */
+  long fx_bit_min;		/* Signextended min for bitfield */
+  long fx_bit_add;		/* Or mask, used for huffman prefix */
+};
 typedef struct bit_fix bit_fixS;
 
 #endif /* __bit_fix_h__ */
-
-/* end of bit_fix.h */

@@ -31,7 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define PCRELOFFSET          true
 #define COFF_LONG_SECTION_NAMES
 
-#ifndef bfd_arm_allocate_interworking_sections 
+#ifndef bfd_arm_allocate_interworking_sections
 #define bfd_arm_allocate_interworking_sections \
 	bfd_arm_pe_allocate_interworking_sections
 #define bfd_arm_get_bfd_for_interworking \
@@ -39,7 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define bfd_arm_process_before_allocation \
 	bfd_arm_pe_process_before_allocation
 #endif
-	
+
 #ifdef ARM_WINCE
 #define TARGET_UNDERSCORE 0
 #endif

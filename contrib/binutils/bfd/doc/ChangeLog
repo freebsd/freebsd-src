@@ -1,3 +1,30 @@
+2001-01-25  Kazu Hirata  <kazu@hxi.com>
+
+	* chew.c: Do not output trailing whitespaces in type and
+	functionname.  Update copyright.
+
+2001-01-24  Kazu Hirata  <kazu@hxi.com>
+
+	* chew.c: Do not output a trailing whitespace.
+
+2000-11-06  Nick Clifton  <nickc@redhat.com>
+
+	* bfd.texinfo: Add GNU Free Documentation License.
+
+2000-07-09  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.in: Regenerate.
+
+2000-07-08  Alan Modra  <alan@linuxcare.com.au>
+
+	* chew.c (outputdots): Don't add a space before `/*'.
+	(courierize): Likewise.
+
+Wed May 24 12:03:25 2000  Hans-Peter Nilsson  <hp@axis.com>
+
+	* bfdint.texi (BFD ELF processor required): Add paragraph about
+	target necessities for readelf.
+
 2000-04-30  Ben Elliston  <bje@redhat.com>
 
 	* bfdint.texi (BFD generated files): Fix another typo.
@@ -5,6 +32,10 @@
 2000-04-17  Ben Elliston  <bje@redhat.com>
 
 	* bfdint.texi (BFD_JUMP_TABLE macros): Fix typo.
+
+Fri Apr  7 17:54:38 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* Makefile.in: Rebuild with current autoconf/automake.
 
 Thu Feb  4 23:21:36 1999  Ian Lance Taylor  <ian@cygnus.com>
 

@@ -40,16 +40,16 @@ To detect calling these with less than a @code{bfd_vma}, use
 @code{gcc -Wconversion} on a host with 64 bit @code{bfd_vma}'s.
 @example
 
- /* Byte swapping macros for user section data.  */
+/* Byte swapping macros for user section data.  */
 
 #define bfd_put_8(abfd, val, ptr) \
-                ((void) (*((unsigned char *)(ptr)) = (unsigned char)(val)))
+                ((void) (*((unsigned char *) (ptr)) = (unsigned char) (val)))
 #define bfd_put_signed_8 \
                bfd_put_8
 #define bfd_get_8(abfd, ptr) \
-                (*(unsigned char *)(ptr))
+                (*(unsigned char *) (ptr))
 #define bfd_get_signed_8(abfd, ptr) \
-               ((*(unsigned char *)(ptr) ^ 0x80) - 0x80)
+               ((*(unsigned char *) (ptr) ^ 0x80) - 0x80)
 
 #define bfd_put_16(abfd, val, ptr) \
                 BFD_SEND(abfd, bfd_putx16, ((val),(ptr)))
@@ -104,7 +104,7 @@ some object files keep their header records in big endian
 order and their data in little endian order.
 @example
 
- /* Byte swapping macros for file header data.  */
+/* Byte swapping macros for file header data.  */
 
 #define bfd_h_put_8(abfd, val, ptr) \
                bfd_put_8 (abfd, val, ptr)

@@ -245,7 +245,7 @@ static
 struct coff_line *
 do_lines (i, name)
      int i;
-     char *name;
+     char *name ATTRIBUTE_UNUSED;
 {
   struct coff_line *res = (struct coff_line *) xcalloc (sizeof (struct coff_line), 1);
   asection *s;

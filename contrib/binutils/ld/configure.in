@@ -4,8 +4,9 @@ AC_PREREG(2.13)
 AC_INIT(ldmain.c)
 
 AC_CANONICAL_SYSTEM
+AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(ld, 2.10.1)
+AM_INIT_AUTOMAKE(ld, 2.11)
 
 AM_PROG_LIBTOOL
 
@@ -24,6 +25,27 @@ AC_ARG_ENABLE(64-bit-bfd,
   no)   want64=false ;;
   *)    AC_MSG_ERROR(bad value ${enableval} for 64-bit-bfd option) ;;
 esac],[want64=false])dnl
+
+build_warnings="-W -Wall"
+AC_ARG_ENABLE(build-warnings,
+[  --enable-build-warnings Enable build-time compiler warnings if gcc is used],
+[case "${enableval}" in
+  yes)	;;
+  no)	build_warnings="-w";;
+  ,*)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
+        build_warnings="${build_warnings} ${t}";;
+  *,)   t=`echo "${enableval}" | sed -e "s/,/ /g"`
+        build_warnings="${t} ${build_warnings}";;
+  *)    build_warnings=`echo "${enableval}" | sed -e "s/,/ /g"`;;
+esac
+if test x"$silent" != x"yes" && test x"$build_warnings" != x""; then
+  echo "Setting warning flags = $build_warnings" 6>&1
+fi])dnl
+WARN_CFLAGS=""
+if test "x${build_warnings}" != x -a "x$GCC" = xyes ; then
+    WARN_CFLAGS="${build_warnings}"
+fi
+AC_SUBST(WARN_CFLAGS)
 
 AM_CONFIG_HEADER(config.h:config.in)
 

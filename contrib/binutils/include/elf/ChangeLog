@@ -1,15 +1,130 @@
-2000-10-14  Philip Blundell  <philb@gnu.org>
+2001-01-11  Peter Targett  <peter.targett@arccores.com>
 
-	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+	* arc.h (E_ARC_MACH_ARC5, E_ARC_MACH_ARC6, E_ARC_MACH_ARC7,
+	E_ARC_MACH_ARC8): New definitions for cpu types.
+
+	* common.h (EM_ARC): Change comment.
+
+2000-12-12  Nick Clifton  <nickc@redhat.com>
+
+	* mips.h: Fix formatting.
+
+2000-12-11  Jeffrey A Law  (law@cygnus.com)
+
+	* hppa.h (DT_HP_*): Define relative to OLD_DT_LOOS for hpux
+	compatibility.
+
+2000-10-16  Chris Demetriou  <cgd@sibyte.com>
+
+        * mips.h (E_MIPS_ARCH_32): New constant.
+        (E_MIPS_MACH_MIPS32, E_MIPS_MACH_MIPS32_4K): Replace the
+        former with the latter. 
+
+        * mips.h (E_MIPS_ARCH_5, E_MIPS_ARCH_64): New definitions.
+
+        * mips.h (E_MIPS_MACH_SB1): New constant.
+
+2000-11-30  Jan Hubicka  <jh@suse.cz>
+	
+        * common.h (EM_X86_64): New macro.
+        * x86-64.h: New file.
+
+2000-11-27  Hans-Peter Nilsson  <hp@axis.com>
+
+	* common.h (e_machine numbers): Clarify comments to describe how
+	EM_* constants are assigned.  Move EM_PJ from official section to
+	ad-hoc section.
+	(EM_CRIS): Correct comment to match official description.
+	(EM_MMIX): Ditto.
+
+2000-11-22  Nick Clifton  <nickc@redhat.com>
+
+	* common.h (EM_JAVELIN): New machine number.
+	(EM_FIREPATH): New machine number.
+	(EM_ZSP): New machine number.
+	(EM_MMIX): New machine number.
+	(EM_HUANY): New machine number.
+	(EM_PRISM): New machine number.
+	(SHT_GROUP): New section type.
+	(SHT_SYMTAB_SHNDX): New section type.
+	(SHF_GROUP): New section flag.
+	(SHN_XINDEX): New section index.
+	(GRP_COMDAT): New section group flag.
+
+2000-11-20  H.J. Lu  <hjl@gnu.org>
+
+	* common.h (ELFOSABI_MONTEREY): Renamed to ...
+	(ELFOSABI_AIX): This.
+
+2000-11-16  Richard Henderson  <rth@redhat.com>
+
+	Update relocations per August psABI docs.
+	* ia64.h (R_IA64_SEGBASE): Remove.
+	(R_IA64_LTV*): Renumber to 0x74 to 0x77.
+	(R_IA64_EPLTMSB, R_IA64_EPLTLSB): Remove.
+	(R_IA64_TPREL14, R_IA64_TPREL64I): New.
+	(R_IA64_DTPMOD*): New.
+	(R_IA64_DTPREL*): New.
+
+2000-09-29  Hans-Peter Nilsson  <hp@axis.com>
+
+	* cris.h (EF_CRIS_UNDERSCORE): New.
+
+2000-09-27  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h (R_PARISC_DIR14F): Add.
+
+2000-09-14  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sh.h (R_SH_GOT32, R_SH_PLT32, R_SH_COPY, R_SH_GLOB_DAT,
+	R_SH_JMP_SLOT, R_SH_RELATIVE, R_SH_GOTOFF, R_SH_GOTPC): Change
+	numbers to the range from 160 to 167.
+	(R_SH_FIRST_INVALID_RELOC): Adjust.
+	(R_SH_FIRST_INVALID_RELOC_2, R_SH_LAST_INVALID_RELOC_2):
+	New relocs to fill in the gap.
+
+2000-09-13  Anders Norlander  <anorland@acc.umu.se>
+
+ 	* mips.h (E_MIPS_MACH_4K): New define.
+
+2000-09-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h: Fix a comment.
+	(R_PARISC_PCREL12F): Define.
+	(R_PARISC_GNU_VTENTRY): Define.
+	(R_PARISC_GNU_VTINHERIT): Define.
+
+2000-09-01  Alexandre Oliva  <aoliva@redhat.com>
+
+	* sh.h (R_SH_GOT32, R_SH_PLT32, R_SH_COPY, R_SH_GLOB_DAT,
+	R_SH_JMP_SLOT, R_SH_RELATIVE, R_SH_GOTOFF, R_SH_GOTPC): New relocs.
+	(R_SH_FIRST_INVALID_RELOC): Adjust.
+
+2000-08-14  Jim Wilson  <wilson@cygnus.com>
+
+	* elf/ia64.h (EF_IA_64_REDUCEDFP, EF_IA_64_CONS_GP,
+	EF_IA_64_NOFUNCDESC_CONS_GP, EF_IA_64_ABSOLUTE): Define.
+
+2000-08-07  Nick Clifton  <nickc@cygnus.com>
+
+	* ppc.h: Remove spurious CYGNUS LOCAL comments.
+	* v850.h: Likewise.
+
+2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
+
+	common.h (EM_CRIS): New machine number.
+	cris.h: New file.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (DF_1_NODEFLIB): Renamed from DF_1_NODEPLIB.
 
-	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+2000-07-19  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (DT_CHECKSUM): Set to 0x6ffffdf8.
 	(DTF_1_CONFEXP): It is 0x00000002 as suspected.
 
-	From 2000-07-19  H.J. Lu  <hjl@gnu.org>
+2000-07-19  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (DT_FEATURE): Renamed from DT_FEATURE_1.
 	(DT_CONFIG): New. From Solaris 8.
@@ -23,15 +138,82 @@
 	(DT_CHECKSUM): Likewise. FIXME. Check the value on Solaris 8.
 	(DTF_1_CONFEXP): Likewise.
 
-	From 2000-07-18  H.J. Lu  <hjl@gnu.org>
+2000-07-18  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (DT_FLAGS_1): Renamed from DT_1_FLAGS.
+
+2000-07-12  Alan Modra  <alan@linuxcare.com.au>
+
+	* internal.h (struct elf_internal_sym): Update comment for st_other.
+
+2000-07-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* hppa.h: Add comments to all the relocs. 
+
+2000-06-26  Marek Michalkiewicz  <marekm@linux.org.pl>
+
+	* avr.h (E_AVR_MACH_AVR5): Define.
+
+2000-06-18  Stephane Carrez  <stcarrez@worldnet.fr>
+
+	* m68hc11.h: New file, definitions for the Motorola 68hc11.
+
+2000-06-06  Alan Modra  <alan@linuxcare.com.au>
+
+	* reloc-macros.h (START_RELOC_NUMBERS): Don't define initial dummy
+	-1 valued enum.
+	(RELOC_NUMBER, FAKE_RELOC, EMPTY_RELOC): Append rather than
+	prepend comma.
+	(END_RELOC_NUMBERS): Give macro an arg to define as last enum.
+
+	* alpha.h (R_ALPHA_max): Define via END_RELOC_NUMBERS rather than
+	with EMPTY_RELOC.
+	* arc.h (R_ARC_max): Likewise.
+	* avr.h (R_AVR_max): Likewise.
+	* fr30.h (R_FR30_max): Likewise.
+	* hppa.h (R_PARISC_UNIMPLEMENTED): Likewise.
+	* i960.h (R_960_max): Likewise.
+	* m32r.h (R_M32R_max): Likewise.
+	* m68k.h (R_68K_max): Likewise.
+	* mcore.h (R_MCORE_max): Likewise.
+	* mn10300.h (R_MN10300_MAX): Likewise.
+	* pj.h (R_PJ_max): Likewise.
+	* ppc.h (R_PPC_max): Likewise.
+	* sh.h (R_SH_max): Likewise.
+	* sparc.h (R_SPARC_max): Likewise.
+	* v850.h (R_V850_max): Likewise.
+
+	* arm.h (R_ARM_max): Define via END_RELOC_NUMBERS.
+	* d10v.h (R_D10V_max): Likewise.
+	* d30v.h (R_D30V_max): Likewise.
+	* ia64.h (R_IA64_max): Likewise.
+	* mips.h (R_MIPS_maxext): Likewise.
+	* mn10200.h (R_MN10200_max): Likewise.
+
+	* i386.h (R_386_max): Remove old RELOC_NUMBER definition, and
+	define via END_RELOC_NUMBERS.
+
+2000-06-03  Alan Modra  <alan@linuxcare.com.au>
+
+	* reloc-macros.h (START_RELOC_NUMBERS): Fix name clash for
+	!__STDC__ case.
+	(RELOC_NUMBER): Use ansi stringify if ALMOST_STDC defined.
+
+2000-05-22  Richard Henderson  <rth@cygnus.com>
+
+	* ia64.h (R_IA64_PCREL60B, R_IA64_PCREL21BI): New.
+	(R_IA64_PCREL22, R_IA64_PCREL64I): New.
 
 2000-05-02  H.J. Lu  <hjl@gnu.org>
 
 	* common.h (ELFOSABI_NONE): Renamed from ELFOSABI_SYSV.
 	(ELFOSABI_MODESTO): Defined.
 	(ELFOSABI_OPENBSD): Likewise.
+
+Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
+			  David Mosberger  <davidm@hpl.hp.com>
+
+	* ia64.h: New file.
 
 2000-04-14  H.J. Lu  <hjl@gnu.org>
 
@@ -47,6 +229,26 @@
 	(ELFOSABI_FREEBSD): Likewise.
 	(ELFOSABI_TRUE64): Likewise.
 
+2000-04-07  Nick Clifton  <nickc@cygnus.com>
+
+	* arm-oabi.h: Delete.
+	* arm.h: Merge in definitions of old reloc numbers from
+	arm-oabi.h.
+
+2000-04-06  Nick Clifton  <nickc@cygnus.com>
+
+	* arm.h (EF_ARM_SYMSARESORTED): Define.
+	(EF_ARM_EABIMASK): Define.
+	(EF_ARM_EABI_VERSION): Define.
+	(EF_ARM_EABI_UNKNOWN): Define.
+	(EF_ARM_EABI_VER1): Define.
+	(PF_ARM_PI): Define.
+	(PF_ARM_ABS): Define.
+
+Wed Apr  5 22:08:59 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+
+	* sh.h (R_SH_LOOP_START, R_SH_LOOP_END): New RELOC_NUMBERs.
+
 2000-03-27  Denis Chertykov  <denisc@overta.ru>
 
 	* avr.h: New file.  AVR ELF support for BFD.
@@ -55,8 +257,8 @@
 2000-03-10  Geoffrey Keating  <geoffk@cygnus.com>
 
 	* mips.h: Add R_MIPS_GNU_REL_HI16, R_MIPS_GNU_REL_LO16,
- 	R_MIPS_GNU_REL16_S2, R_MIPS_PC64 and R_MIPS_PC32 relocation
- 	numbers.
+	R_MIPS_GNU_REL16_S2, R_MIPS_PC64 and R_MIPS_PC32 relocation
+	numbers.
 
 2000-02-23  Linas Vepstas <linas@linas.org>
 
@@ -85,7 +287,7 @@ Thu Feb 17 00:18:33 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 2000-01-27  Thomas de Lellis  <tdel@windriver.com>
 
-        * arm.h (STT_ARM_TFUNC): Define in terms of STT_LOPROC.
+	* arm.h (STT_ARM_TFUNC): Define in terms of STT_LOPROC.
 	(STT_ARM_16BIT): New flag.  Denotes a label that was defined in
 	Thumb block but was does not identify a function.
 
@@ -112,12 +314,12 @@ Thu Feb 17 00:18:33 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 2000-01-10  Egor Duda  <deo@logos-m.ru>
 
-	* common.h (NT_WIN32PSTATUS): Define.  (cygwin elf core dumps). 
+	* common.h (NT_WIN32PSTATUS): Define.  (cygwin elf core dumps).
 
 1999-12-28  Nick Clifton  <nickc@cygnus.com>
 
 	* mips.h (STO_*): Redefine in terms of STV_* values now in
-	common.h. 
+	common.h.
 
 1999-12-27  Nick Clifton  <nickc@cygnus.com>
 
@@ -175,7 +377,7 @@ Thu Feb 17 00:18:33 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 	* i960.h (reloc-macros.h):  Include using relative dir elf/.
 	* i386.h (reloc-macros.h):  Include using relative dir elf/.
 	* hppa.h (reloc-macros.h):  Include using relative dir elf/.
-	
+
 1999-12-07  Jim Blandy  <jimb@cygnus.com>
 
 	* common.h (NT_PRXFPREG): New definition.
@@ -284,9 +486,9 @@ Wed Jun  9 15:16:34 1999  Jeffrey A Law  (law@cygnus.com)
 
 	* mcore.h (R_MCORE_RELATIVE): Define.
 
-999-05-05  Catherine Moore  <clm@cygnus.com>
+1999-05-05  Catherine Moore  <clm@cygnus.com>
 
-        * m68k.h (EF_CPU32): Define.
+	* m68k.h (EF_CPU32): Define.
 
 1999-04-21  Nick Clifton  <nickc@cygnus.com>
 
@@ -344,10 +546,10 @@ Thu Feb 18 18:58:26 1999  Ian Lance Taylor  <ian@cygnus.com>
 
 Mon Feb  1 11:33:56 1999  Catherine Moore  <clm@cygnus.com>
 
-        * arm.h:  Renumber relocs to conform to standard.
-        (EF_NEW_ABI):  Define.
-        (EF_OLD_ABI):  Define.
-        * arm-oabi.h:  New file.
+	* arm.h:  Renumber relocs to conform to standard.
+	(EF_NEW_ABI):  Define.
+	(EF_OLD_ABI):  Define.
+	* arm-oabi.h:  New file.
 
 1999-01-28  Nick Clifton  <nickc@cygnus.com>
 
@@ -384,7 +586,7 @@ Tue Nov 10 15:12:28 1998  Nick Clifton  <nickc@cygnus.com>
 
 Tue Nov 10 15:17:28 1998  Catherine Moore  <clm@cygnus.com>
 
-        * d10v.h:  Add vtable relocs.
+	* d10v.h:  Add vtable relocs.
 
 Wed Nov  4 15:56:50 1998  Nick Clifton  <nickc@cygnus.com>
 
@@ -394,9 +596,9 @@ Wed Nov  4 15:56:50 1998  Nick Clifton  <nickc@cygnus.com>
 
 Fri Oct 30 11:54:15 1998  Catherine Moore  <clm@cygnus.com>
 
-        From Philip Blundell <pb@nexus.co.uk>:
-        * arm.h (R_ARM_COPY, et al.): New relocs, used by Linux for PIC.
-        (EF_ALIGN8): New flag.
+	From Philip Blundell <pb@nexus.co.uk>:
+	* arm.h (R_ARM_COPY, et al.): New relocs, used by Linux for PIC.
+	(EF_ALIGN8): New flag.
 
 Tue Oct 20 11:19:50 1998  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -404,25 +606,25 @@ Tue Oct 20 11:19:50 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 Mon Oct 19 20:24:11 1998  Catherine Moore  <clm@cygnus.com>
 
-        * sh.h:  Add vtable relocs.
+	* sh.h:  Add vtable relocs.
 
 Mon Oct 19 01:44:42 1998  Felix Lee  <flee@cygnus.com>
 
 	* common.h (NT_PSTATUS, NT_FPREGS, NT_PSINFO,
- 	NT_LWPSTATUS,NT_LWPSINFO): added.
+	NT_LWPSTATUS,NT_LWPSINFO): added.
 	* internal.h (Elf_Internal_Note): new structure members.
 
 Fri Oct 16 14:11:25 1998  Catherine Moore  <clm@cygnus.com>
 
-        * m32r.h:  Add vtable relocs.
+	* m32r.h:  Add vtable relocs.
 
 Tue Oct  6 09:22:22 1998  Catherine Moore  <clm@cygnus.com>
 
-        * sparc.h:  Add vtable relocs.
+	* sparc.h:  Add vtable relocs.
 
 Mon Oct  5 09:39:22 1998  Catherine Moore  <clm@cygnus.com>
 
-        * v850.h:  Add vtable relocs.
+	* v850.h:  Add vtable relocs.
 
 Sun Oct  4 21:17:51 1998  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -430,7 +632,7 @@ Sun Oct  4 21:17:51 1998  Ian Lance Taylor  <ian@cygnus.com>
 
 Mon Sep 21 12:24:44 1998  Catherine Moore  <clm@cygnus.com>
 
-        * i386.h:  Change vtable reloc numbers.
+	* i386.h:  Change vtable reloc numbers.
 
 Sun Sep 20 00:54:22 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
 
@@ -438,12 +640,12 @@ Sun Sep 20 00:54:22 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.
 
 Tue Sep 15 09:56:49 CDT 1998  Catherine Moore  <clm@cygnus.com>
 
-       * arm.h:  Add vtable relocs.
+	* arm.h:  Add vtable relocs.
 
 Mon Aug 31 11:25:27 1998  Catherine Moore  <clm@cygnus.com>
 
-        * arm.h:  Define STT_ARM_TFUNC.  Remove ST_THUMB_xxxx
-        definitions.
+	* arm.h:  Define STT_ARM_TFUNC.  Remove ST_THUMB_xxxx
+	definitions.
 
 Sat Aug 29 22:25:51 1998  Richard Henderson  <rth@cygnus.com>
 
@@ -460,7 +662,7 @@ Sat Aug 29 22:25:51 1998  Richard Henderson  <rth@cygnus.com>
 
 Sun Aug  9 20:26:49 CDT 1998  Catherine Moore  <clm@cygnus.com>
 
-       * arm.h:  Add ST_THUMB definitions.
+	* arm.h:  Add ST_THUMB definitions.
 
 Wed Aug  5 15:52:35 1998  Nick Clifton  <nickc@cygnus.com>
 
@@ -476,7 +678,7 @@ Wed Aug  5 15:52:35 1998  Nick Clifton  <nickc@cygnus.com>
 
 Fri Jul 31 10:01:40 1998 Catherine Moore  <clm@cygnus.com>
 
-        * arm.h: Add R_ARM_THM_PC9 relocation.
+	* arm.h: Add R_ARM_THM_PC9 relocation.
 
 1998-07-30 16:25  Ulrich Drepper  <drepper@cygnus.com>
 
@@ -496,7 +698,7 @@ Fri Jul 24 11:22:06 1998  Jeffrey A Law  (law@cygnus.com)
 
 Wed Jul 22 19:29:00 Catherine Moore  <clm@cygnus.com>
 
-        * arm.h: Rename relocations.
+	* arm.h: Rename relocations.
 
 1998-07-22  Ulrich Drepper  <drepper@cygnus.com>
 
