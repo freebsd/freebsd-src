@@ -971,7 +971,7 @@ ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 	if(sce->fill < sce->cur && sce->cur <= sce->fill + count) {
 		sce->cur += count;
 		if(sce->cur >= sce->limit)
-			sce->cur = sce->ibuf + (sce->limit - sce->cur);
+			sce->cur = sce->ibuf + (sce->cur - sce->limit);
 		DPRINTFN(5, ("ugen_isoc_rintr: throwing away %d bytes\n",
 			     count));
 	}
