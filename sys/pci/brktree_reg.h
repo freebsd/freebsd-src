@@ -28,7 +28,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: brktree_reg.h,v 1.22 1998/09/30 21:06:54 sos Exp $
+ * $Id: brktree_reg.h,v 1.23 1998/10/31 11:26:38 nsouch Exp $
  */
 #ifndef PCI_LATENCY_TIMER
 #define	PCI_LATENCY_TIMER		0x0c	/* pci timer register */
@@ -494,7 +494,9 @@ struct bktr_softc {
     u_long              id;
 #define BT848_USE_XTALS 0
 #define BT848_USE_PLL   1
-    int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */
+    int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */    int                 remote_control;      /* remote control detected */
+    int                 remote_control_addr; /* remote control i2c address */
+
 };
 
 typedef struct bktr_softc bktr_reg_t;
