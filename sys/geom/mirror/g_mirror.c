@@ -1907,6 +1907,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 				    G_MIRROR_BUMP_ON_FIRST_WRITE;
 			}
 		}
+		wakeup(&g_mirror_class);
 		break;
 	    }
 	case G_MIRROR_DEVICE_STATE_RUNNING:
@@ -2684,5 +2685,45 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "</State>\n");
 	}
 }
+
+static int
+g_mirror_can_go(void)
+{
+	struct g_mirror_softc *sc;
+	struct g_geom *gp;
+	struct g_provider *pp;
+	int can_go;
+
+	DROP_GIANT();
+	can_go = 1;
+	g_topology_lock();
+	LIST_FOREACH(gp, &g_mirror_class.geom, geom) {
+		sc = gp->softc;
+		pp = sc->sc_provider;
+		if (pp == NULL || pp->error != 0) {
+			can_go = 0;
+			break;
+		}
+	}
+	g_topology_unlock();
+	PICKUP_GIANT();
+	return (can_go);
+}
+
+static void
+g_mirror_rootwait(void)
+{
+
+	/*
+	 * Wait for mirrors in degraded state.
+	 */
+	for (;;) {
+		if (g_mirror_can_go())
+			break;
+		tsleep(&g_mirror_class, PRIBIO, "mroot", hz);
+	}
+}
+
+SYSINIT(g_mirror_root, SI_SUB_RAID, SI_ORDER_FIRST, g_mirror_rootwait, NULL)
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
