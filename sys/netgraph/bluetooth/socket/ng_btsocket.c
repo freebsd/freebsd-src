@@ -234,7 +234,8 @@ static moduledata_t	ng_btsocket_mod = {
 	NULL
 };
 
-DECLARE_MODULE(ng_btsocket, ng_btsocket_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(ng_btsocket, ng_btsocket_mod, SI_SUB_PROTO_DOMAIN,
+	SI_ORDER_ANY);
 MODULE_VERSION(ng_btsocket, NG_BLUETOOTH_VERSION);
 MODULE_DEPEND(ng_btsocket, ng_bluetooth, NG_BLUETOOTH_VERSION,
 	NG_BLUETOOTH_VERSION, NG_BLUETOOTH_VERSION);
