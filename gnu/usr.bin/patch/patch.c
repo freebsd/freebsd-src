@@ -313,7 +313,6 @@ char **argv;
 	    newwhere = pch_newfirst() + last_offset;
 	    if (skip_rest_of_patch) {
 		abort_hunk();
-		failed++;
 		if (verbose)
 		    say3("Hunk #%d ignored at %ld.\n", hunk, newwhere);
 	    }
