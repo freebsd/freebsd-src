@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= csu libgcc libdialog libregex libreadline
+SUBDIR= csu libgcc libgcov libdialog libregex libreadline
 
 # libsupc++ uses libstdc++ headers, although 'make includes' should
 # have taken care of that already.
