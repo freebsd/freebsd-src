@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.8 1996/12/22 17:09:17 jkh Exp $
+ * $Id: vars.h,v 1.12 1997/04/21 01:02:02 brian Exp $
  *
  *	TODO:
  */
@@ -62,7 +62,10 @@ struct pppvars {
   int    idle_timeout;		/* Idle timeout value */
   int	 lqr_timeout;		/* LQR timeout value */
   int    retry_timeout;		/* Retry timeout value */
+  int    reconnect_timer;	/* Timeout before reconnect on carrier loss */
+  int    reconnect_tries;	/* Attempt reconnect on carrier loss */
   int    redial_timeout;	/* Redial timeout value */
+  int    redial_next_timeout;	/* Redial next timeout value */
   int    dial_tries;		/* Dial attempts before giving up, 0 == forever */
   char   modem_dev[20];		/* Name of device */
   int	 open_mode;		/* LCP open mode */
@@ -100,7 +103,10 @@ struct pppvars {
 #define VarPhoneCopy    pppVars.phone_copy
 #define VarNextPhone    pppVars.next_phone
 #define	VarShortHost	pppVars.shostname
+#define VarReconnectTimer pppVars.reconnect_timer
+#define VarReconnectTries pppVars.reconnect_tries
 #define VarRedialTimeout pppVars.redial_timeout
+#define VarRedialNextTimeout pppVars.redial_next_timeout
 #define VarDialTries	pppVars.dial_tries
 
 #define	DEV_IS_SYNC	(VarSpeed == 0)
@@ -109,4 +115,5 @@ extern struct pppvars pppVars;
 
 int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
+int lostCarrier;
 #endif

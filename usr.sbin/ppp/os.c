@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7.2.2 1996/12/23 18:13:39 jkh Exp $
+ * $Id: os.c,v 1.16 1997/05/04 02:39:04 ache Exp $
  *
  */
 #include "fsm.h"
@@ -271,7 +271,7 @@ int *ptun;
 {
   int s;
   char ifname[IFNAMSIZ];
-  char devname[14];  /* sufficient room for "/dev/tun65535" */
+  static char devname[14];  /* sufficient room for "/dev/tun65535" */
   unsigned unit, enoentcount=0;
 
   for( unit=0; unit <= MAX_TUN ; unit++ ) {
@@ -292,6 +292,11 @@ int *ptun;
     return(-1);
   }
   *ptun = unit;
+
+  if (logptr != NULL)
+    LogClose();
+  if (LogOpen(unit))
+    return(-1);
 
   /*
    * At first, name the interface.

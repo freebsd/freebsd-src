@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.6 1997/02/22 17:59:08 joerg Exp $
+ * $Id: main.c,v 1.46 1997/05/04 02:39:03 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -78,6 +78,7 @@ static int server;
 static pid_t BGPid = 0;
 struct sockaddr_in ifsin;
 char pid_filename[128];
+int tunno;
 
 static void
 TtyInit()
@@ -172,10 +173,12 @@ int excode;
       LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
     close(BGFiledes[1]);
   }
-  LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
+  LogPrintf(LOG_PHASE_BIT, "PPP Terminated %d.\n",excode);
   LogClose();
-  if (server > 0)
+  if (server >= 0) {
     close(server);
+    server = -1;
+  }
   TtyOldMode();
 
   exit(excode);
@@ -294,12 +297,10 @@ main(argc, argv)
 int argc;
 char **argv;
 {
-  int tunno;
-
   argc--; argv++;
 
   mode = MODE_INTER;		/* default operation is interactive mode */
-  netfd = -1;
+  netfd = server = modem = tun_in = -1;
   ProcessArgs(argc, argv);
   Greetings();
   GetUid();
@@ -309,9 +310,6 @@ char **argv;
   if (SelectSystem("default", CONFFILE) < 0) {
     fprintf(stderr, "Warning: No default entry is given in config file.\n");
   }
-
-  if (LogOpen())
-    exit(EX_START);
 
   switch ( LocalAuthInit() ) {
     case NOT_FOUND:
@@ -335,7 +333,7 @@ char **argv;
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     printf("Interactive mode\n");
-    netfd = 0;
+    netfd = STDIN_FILENO;
   } else if (mode & MODE_AUTO) {
     printf("Automatic Dialer mode\n");
     if (dstsystem == NULL) {
@@ -361,7 +359,7 @@ char **argv;
   signal(SIGSEGV, Hangup);
 #endif
 #ifdef SIGPIPE
-  signal(SIGPIPE, Hangup);
+  signal(SIGPIPE, SIG_IGN);
 #endif
 #ifdef SIGALRM
   pending_signal(SIGALRM, SIG_IGN);
@@ -405,7 +403,6 @@ char **argv;
 	perror("pipe");
 	Cleanup(EX_SOCK);
       }
-      server = -1;
     }
     else {
       /*
@@ -469,7 +466,7 @@ char **argv;
 	  close(fd);
       }
     }
-    if (server > 0)
+    if (server >= 0)
 	LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
     if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
@@ -490,7 +487,6 @@ char **argv;
       }
     }
   } else {
-    server = -1;
     TtyInit();
     TtyCommandMode(1);
   }
@@ -562,10 +558,11 @@ ReadTty()
     if (n > 0) {
       DecodeCommand(linebuff, n, 1);
     } else {
-#ifdef DEBUG
-      logprintf("connection closed.\n");
-#endif
+      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
+      VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
+      close(1);
+      dup2(2, 1);     /* Have to have something here or the modem will be 1 */
       netfd = -1;
       mode &= ~MODE_INTER;
     }
@@ -681,18 +678,21 @@ RedialTimeout()
 }
 
 static void
-StartRedialTimer()
+StartRedialTimer(Timeout)
+	int Timeout;
 {
   StopTimer(&RedialTimer);
 
-  if (VarRedialTimeout) {
-    LogPrintf(LOG_PHASE_BIT, "Enter pause for redialing.\n");
+  if (Timeout) {
     RedialTimer.state = TIMER_STOPPED;
 
-    if (VarRedialTimeout > 0)
-	RedialTimer.load = VarRedialTimeout * SECTICKS;
+    if (Timeout > 0)
+	RedialTimer.load = Timeout * SECTICKS;
     else
 	RedialTimer.load = (random() % REDIAL_PERIOD) * SECTICKS;
+
+    LogPrintf(LOG_PHASE_BIT, "Enter pause (%d) for redialing.\n",
+	      RedialTimer.load / SECTICKS);
 
     RedialTimer.func = RedialTimeout;
     StartTimer(&RedialTimer);
@@ -704,7 +704,7 @@ static void
 DoLoop()
 {
   fd_set rfds, wfds, efds;
-  int pri, i, n, wfd;
+  int pri, i, n, wfd, nfds;
   struct sockaddr_in hisaddr;
   struct timeval timeout, *tp;
   int ssize = sizeof(hisaddr);
@@ -723,7 +723,7 @@ DoLoop()
     fflush(stderr);
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
-    if (!modem)
+    if (modem < 0)
       modem = OpenModem(mode);
   }
 
@@ -731,6 +731,7 @@ DoLoop()
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
+  lostCarrier = 0;
 
   if (mode & MODE_BACKGROUND)
     dial_up = TRUE;			/* Bring the line up */
@@ -738,6 +739,7 @@ DoLoop()
     dial_up = FALSE;			/* XXXX */
   tries = 0;
   for (;;) {
+    nfds = 0;
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
 
     /* 
@@ -747,21 +749,37 @@ DoLoop()
     if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
         dial_up = TRUE;
 
+    /*
+     * If we lost carrier and want to re-establish the connection
+     * due to the "set reconnect" value, we'd better bring the line
+     * back up now.
+     */
+    if (LcpFsm.state <= ST_CLOSED && dial_up != TRUE
+        && lostCarrier && lostCarrier <= VarReconnectTries) {
+        LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
+                  lostCarrier, VarReconnectTries);
+	StartRedialTimer(VarReconnectTimer);
+        dial_up = TRUE;
+    }
+
    /*
-    * If Ip packet for output is enqueued and require dial up,
+    * If Ip packet for output is enqueued and require dial up, 
     * Just do it!
     */
-    if ( dial_up && RedialTimer.state != TIMER_RUNNING ) { /* XXX */
+    if ( dial_up && RedialTimer.state != TIMER_RUNNING ) {
 #ifdef DEBUG
       logprintf("going to dial: modem = %d\n", modem);
 #endif
       modem = OpenModem(mode);
       if (modem < 0) {
-	modem = 0;	       /* Set intial value for next OpenModem */
-	StartRedialTimer();
+	StartRedialTimer(VarRedialTimeout);
       } else {
-	tries++;
-	LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
+	tries++;    /* Tries are per number, not per list of numbers. */
+        if (VarDialTries)
+	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u of %d\n", tries,
+		    VarDialTries);
+        else
+	  LogPrintf(LOG_CHAT_BIT, "Dial attempt %u\n", tries);
 	if (DialModem()) {
 	  sleep(1);	       /* little pause to allow peer starts */
 	  ModemTimeout();
@@ -770,13 +788,22 @@ DoLoop()
 	  tries = 0;
 	} else {
 	  CloseModem();
-	  /* Dial failed. Keep quite during redial wait period. */
-	  StartRedialTimer();
-
-	  if (VarDialTries && tries >= VarDialTries) {
-	      dial_up = FALSE;
-	      tries = 0;
-	  }
+	  if (mode & MODE_BACKGROUND) {
+	    if (VarNextPhone == NULL)
+	      Cleanup(EX_DIAL);  /* Tried all numbers - no luck */
+	    else
+	      /* Try all numbers in background mode */
+	      StartRedialTimer(VarRedialNextTimeout);
+	  } else if (VarDialTries && tries >= VarDialTries) {
+	    /* I give up !  Can't get through :( */
+	    StartRedialTimer(VarRedialTimeout);
+	    dial_up = FALSE;
+	    tries = 0;
+	  } else if (VarNextPhone == NULL)
+	    /* Dial failed. Keep quite during redial wait period. */
+	    StartRedialTimer(VarRedialTimeout);
+	  else
+	    StartRedialTimer(VarRedialNextTimeout);
 	}
       }
     }
@@ -787,14 +814,20 @@ DoLoop()
       qlen = ModemQlen();
     }
 
-    if (modem) {
+    if (modem >= 0) {
+      if (modem + 1 > nfds)
+	nfds = modem + 1;
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);
       if (qlen > 0) {
 	FD_SET(modem, &wfds);
       }
     }
-    if (server > 0) FD_SET(server, &rfds);
+    if (server >= 0) {
+      if (server + 1 > nfds)
+	nfds = server + 1;
+      FD_SET(server, &rfds);
+    }
 
     /*  *** IMPORTANT ***
      *
@@ -811,10 +844,15 @@ DoLoop()
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
-    if (qlen < 20)
+    if (qlen < 20 && tun_in >= 0) {
+      if (tun_in + 1 > nfds)
+	nfds = tun_in + 1;
       FD_SET(tun_in, &rfds);
+    }
 
-    if (netfd > -1) {
+    if (netfd >= 0) {
+      if (netfd + 1 > nfds)
+	nfds = netfd + 1;
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
@@ -825,7 +863,7 @@ DoLoop()
      *  In AUTO mode, select will block until we find packet from tun
      */
     tp = (RedialTimer.state == TIMER_RUNNING)? &timeout : NULL;
-    i = select(tun_in+10, &rfds, &wfds, &efds, tp);
+    i = select(nfds, &rfds, &wfds, &efds, tp);
 #else
     /*
      * When SIGALRM timer is running, a select function will be
@@ -834,7 +872,7 @@ DoLoop()
      * trying to dial, poll with a 0 value timer.
      */
     tp = (dial_up && RedialTimer.state != TIMER_RUNNING) ? &timeout : NULL;
-    i = select(tun_in+10, &rfds, &wfds, &efds, tp);
+    i = select(nfds, &rfds, &wfds, &efds, tp);
 #endif
 
     if ( i == 0 ) {
@@ -850,24 +888,30 @@ DoLoop()
        break;
     }
 
-    if ((netfd > 0 && FD_ISSET(netfd, &efds)) || FD_ISSET(modem, &efds)) {
+    if ((netfd >= 0 && FD_ISSET(netfd, &efds)) || (modem >= 0 && FD_ISSET(modem, &efds))) {
       logprintf("Exception detected.\n");
       break;
     }
 
-    if (server > 0 && FD_ISSET(server, &rfds)) {
-#ifdef DEBUG
-      logprintf("connected to client.\n");
-#endif
+    if (server >= 0 && FD_ISSET(server, &rfds)) {
+      LogPrintf(LOG_PHASE_BIT, "connected to client.\n");
       wfd = accept(server, (struct sockaddr *)&hisaddr, &ssize);
-      if (netfd > 0) {
+      if (wfd < 0) {
+	perror("accept");
+	continue;
+      }
+      if (netfd >= 0) {
 	write(wfd, "already in use.\n", 16);
 	close(wfd);
 	continue;
       } else
 	netfd = wfd;
-      if (dup2(netfd, 1) < 0)
+      if (dup2(netfd, 1) < 0) {
 	perror("dup2");
+	close(netfd);
+	netfd = -1;
+	continue;
+      }
       mode |= MODE_INTER;
       Greetings();
       switch ( LocalAuthInit() ) {
@@ -886,12 +930,12 @@ DoLoop()
       Prompt(0);
     }
 
-    if ((mode & MODE_INTER) && FD_ISSET(netfd, &rfds) &&
+    if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&
 	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
       /* something to read from tty */
       ReadTty();
     }
-    if (modem) {
+    if (modem >= 0) {
       if (FD_ISSET(modem, &wfds)) {	/* ready to write into modem */
 	 ModemStartOutput(modem);
       }
@@ -935,7 +979,7 @@ DoLoop()
       }
     }
 
-    if (FD_ISSET(tun_in, &rfds)) {	/* something to read from tun */
+    if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {       /* something to read from tun */
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
 	perror("read from tun");

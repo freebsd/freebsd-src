@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: log.h,v 1.6 1996/05/11 20:48:32 phk Exp $
+ * $Id: log.h,v 1.10 1997/05/04 02:39:03 ache Exp $
  *
  *	TODO:
  */
@@ -58,10 +58,11 @@
 #		define 	LM_CARRIER	"Carrier"
 #define	MAXLOGLEVEL	10
 
-extern int loglevel;
+extern int loglevel, tunno;
+extern char *logptr;
 
 extern void LogTimeStamp __P((void));
-extern int LogOpen __P((void));
+extern int LogOpen __P((int));
 extern void LogReOpen __P((int));
 extern void DupLog __P((void));
 extern void LogClose __P((void));

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.3 1997/01/12 21:52:46 joerg Exp $
+ * $Id: command.c,v 1.41 1997/05/08 01:26:31 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -41,8 +41,8 @@
 #include <net/route.h>
 #include "os.h"
 #include <paths.h>
+#include "chat.h"
 
-extern int  MakeArgs();
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
 extern int  AcceptCommand(), DenyCommand();
@@ -55,7 +55,10 @@ extern void TtyOldMode(), TtyCommandMode();
 extern struct pppvars pppVars;
 extern struct cmdtab const SetCommands[];
 
+extern char *IfDevName;
+
 struct in_addr ifnetmask;
+int randinit;
 
 static int ShowCommand(), TerminalCommand(), QuitCommand();
 static int CloseCommand(), DialCommand(), DownCommand();
@@ -75,7 +78,7 @@ struct cmdtab *plist;
 
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++) {
-      if (strcmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
+      if (strcasecmp(cmd->name, *argv) == 0 && (cmd->lauth & VarLocalAuth)) {
 	if (plist == SetCommands)
 		printf("set ");
         printf("%s %s\n", cmd->name, cmd->syntax);
@@ -143,7 +146,6 @@ char **argv;
     modem = OpenModem(mode);
     if (modem < 0) {
       printf("failed to open modem.\n");
-      modem = 0;
       break;
     }
     if (DialModem()) {
@@ -211,10 +213,13 @@ char **argv;
      if(argc > 0) {
        /* substitute pseudo args */
        for (i=1; i<argc; i++) {
-         if (strcmp(argv[i], "HISADDR") == 0) {
+         if (strcasecmp(argv[i], "HISADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.his_ipaddr));
          }
-         if (strcmp(argv[i], "MYADDR") == 0) {
+         if (strcasecmp(argv[i], "INTERFACE") == 0) {
+           argv[i] = strdup(IfDevName);
+         }
+         if (strcasecmp(argv[i], "MYADDR") == 0) {
            argv[i] = strdup(inet_ntoa(IpcpInfo.want_ipaddr));
          }
        }
@@ -360,12 +365,28 @@ static int ShowLogList()
   return(1);
 }
 
+static int ShowReconnect()
+{
+  printf(" Reconnect Timer:  %d,  %d tries\n",
+         VarReconnectTimer, VarReconnectTries);
+  return(1);
+}
+
 static int ShowRedial()
 {
   printf(" Redial Timer: ");
 
   if (VarRedialTimeout >= 0) {
     printf(" %d seconds, ", VarRedialTimeout);
+  }
+  else {
+    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+  }
+
+  printf(" Redial Next Timer: ");
+
+  if (VarRedialNextTimeout >= 0) {
+    printf(" %d seconds, ", VarRedialNextTimeout);
   }
   else {
     printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
@@ -427,15 +448,17 @@ struct cmdtab const ShowCommands[] = {
 	"Show Output filters", StrOption},
   { "proto",    NULL,     ReportProtStatus,	LOCAL_AUTH,
 	"Show protocol summary", StrNull},
+  { "reconnect",NULL,	  ShowReconnect,	LOCAL_AUTH,
+	"Show Reconnect timer ntries", StrNull},
+  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
+	"Show Redial timeout value", StrNull},
   { "route",    NULL,     ShowRoute,		LOCAL_AUTH,
 	"Show routing table", StrNull},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", StrNull},
-  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
-	"Show Redial timeout value", StrNull},
 #ifdef MSEXT
   { "msext", 	NULL,	  ShowMSExt,		LOCAL_AUTH,
-	"Show MS PPP extention values", StrNull},
+	"Show MS PPP extentions", StrNull},
 #endif /* MSEXT */
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", StrNull},
@@ -455,10 +478,10 @@ int *pmatch;
   struct cmdtab *found = NULL;
 
   while (cmds->func) {
-    if (cmds->name && strncmp(str, cmds->name, len) == 0) {
+    if (cmds->name && strncasecmp(str, cmds->name, len) == 0) {
       nmatch++;
       found = cmds;
-    } else if (cmds->alias && strncmp(str, cmds->alias, len) == 0) {
+    } else if (cmds->alias && strncasecmp(str, cmds->alias, len) == 0) {
       nmatch++;
       found = cmds;
     }
@@ -532,7 +555,7 @@ int prompt;
     if (cp)
       *cp = '\0';
     {
-      argc = MakeArgs(buff, &vector);
+      argc = MakeArgs(buff, vector, VECSIZE(vector));
       argv = vector;
 
       if (argc > 0)
@@ -570,7 +593,6 @@ TerminalCommand()
   modem = OpenModem(mode);
   if (modem < 0) {
     printf("failed to open modem.\n");
-    modem = 0;
     return(1);
   }
   printf("Enter to terminal mode.\n");
@@ -590,6 +612,7 @@ char **argv;
       Cleanup(EX_NORMAL);
       mode &= ~MODE_INTER;
     } else {
+      LogPrintf(LOG_PHASE_BIT, "client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       close(1);
@@ -616,7 +639,8 @@ DownCommand()
   return(1);
 }
 
-static int SetModemSpeed(list, argc, argv)
+static int
+SetModemSpeed(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
@@ -638,16 +662,33 @@ char **argv;
   return(1);
 }
 
-static int SetRedialTimeout(list, argc, argv)
+static int
+SetReconnect(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc == 2) {
+    VarReconnectTimer = atoi(argv[0]);
+    VarReconnectTries = atoi(argv[1]);
+  } else
+    printf("Usage: %s %s\n", list->name, list->syntax);
+  return(1);
+}
+
+static int
+SetRedialTimeout(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
 {
   int timeout;
   int tries;
+  char *dot;
 
   if (argc == 1 || argc == 2 ) {
-    if (strcasecmp(argv[0], "random") == 0) {
+    if (strncasecmp(argv[0], "random", 6) == 0 &&
+	(argv[0][6] == '\0' || argv[0][6] == '.')) {
       VarRedialTimeout = -1;
       printf("Using random redial timeout.\n");
       srandom(time(0));
@@ -663,6 +704,28 @@ char **argv;
 	printf("Usage: %s %s\n", list->name, list->syntax);
       }
     }
+
+    dot = index(argv[0],'.');
+    if (dot) {
+      if (strcasecmp(++dot, "random") == 0) {
+        VarRedialNextTimeout = -1;
+        printf("Using random next redial timeout.\n");
+        srandom(time(0));
+      }
+      else {
+        timeout = atoi(dot);
+        if (timeout >= 0) {
+          VarRedialNextTimeout = timeout;
+        }
+        else {
+          printf("invalid next redial timeout\n");
+          printf("Usage: %s %s\n", list->name, list->syntax);
+        }
+      }
+    }
+    else
+      VarRedialNextTimeout = NEXT_REDIAL_PERIOD;   /* Default next timeout */
+
     if (argc == 2) {
       tries = atoi(argv[1]);
 
@@ -681,7 +744,8 @@ char **argv;
   return(1);
 }
 
-static int SetModemParity(list, argc, argv)
+static int
+SetModemParity(list, argc, argv)
 struct cmdtab *list;
 int argc;
 char **argv;
@@ -1029,12 +1093,14 @@ struct cmdtab const SetCommands[] = {
 	"Set modem parity", "[odd|even|none]"},
   { "phone",    NULL,     SetVariable,		LOCAL_AUTH,
 	"Set telephone number(s)", "phone1[:phone2[...]]", (void *)VAR_PHONE },
+  { "reconnect",NULL,     SetReconnect,		LOCAL_AUTH,
+	"Set Reconnect timeout", "value ntries"},
+  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
+	"Set Redial timeout", "value|random[.value|random] [dial_attempts]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
 	"Set modem speed", "speed"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
 	"Set Idle timeout", StrValue},
-  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
-	"Set Redial timeout", "value|random [dial_attempts]"},
 #ifdef MSEXT
   { "ns",	NULL,	  SetNS,		LOCAL_AUTH,
 	"Set NameServer", "pri-addr [sec-addr]"},
@@ -1073,7 +1139,7 @@ char **argv;
   if (argc == 3) {
     dest = GetIpAddr(argv[0]);
     netmask = GetIpAddr(argv[1]);
-    if (strcmp(argv[2], "HISADDR") == 0)
+    if (strcasecmp(argv[2], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
     else
       gateway = GetIpAddr(argv[2]);
@@ -1094,7 +1160,7 @@ char **argv;
 
   if (argc >= 2) {
     dest = GetIpAddr(argv[0]);
-    if (strcmp(argv[1], "HISADDR") == 0)
+    if (strcasecmp(argv[1], "HISADDR") == 0)
       gateway = IpcpInfo.his_ipaddr;
     else
       gateway = GetIpAddr(argv[1]);
@@ -1106,7 +1172,7 @@ char **argv;
       }
     }
     OsSetRoute(RTM_DELETE, dest, gateway, netmask);
-  } else if (argc == 1 && strcmp(argv[0], "ALL") == 0) {
+  } else if (argc == 1 && strcasecmp(argv[0], "ALL") == 0) {
     DeleteIfRoutes(0);
   } else {
     printf("Usage: %s %s\n", list->name, list->syntax);

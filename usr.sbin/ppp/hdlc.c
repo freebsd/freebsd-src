@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.8 1996/01/30 20:04:31 phk Exp $
+ * $Id: hdlc.c,v 1.13 1997/04/19 11:31:38 ache Exp $
  *
  *	TODO:
  */
@@ -334,6 +334,12 @@ HdlcInput(struct mbuf *bp)
   }
   if (!DEV_IS_SYNC)
     bp->cnt -= 2;		/* discard FCS part */
+
+  if (bp->cnt < 2) {		/* XXX: raise this bar ? */
+	pfree(bp);
+	return;
+  }
+
   cp = MBUF_CTOP(bp);
 
   ifInPackets++;

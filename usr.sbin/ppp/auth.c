@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.7 1996/05/11 20:48:11 phk Exp $
+ * $Id: auth.c,v 1.11 1997/05/07 23:01:21 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -68,7 +68,7 @@ LocalAuthValidate( char *fname, char *system, char *key) {
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, vector);
+    n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 1)
       continue;
     if (strcmp(vector[0], system) == 0) {
@@ -102,7 +102,7 @@ char *fname, *system, *key;
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, vector);
+    n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
     if (strcmp(vector[0], system) == 0) {
@@ -143,7 +143,7 @@ int len, setaddr;
       continue;
     buff[strlen(buff)-1] = 0;
     bzero(vector, sizeof(vector));
-    n = MakeArgs(buff, vector);
+    n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {

@@ -15,13 +15,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
+ * $Id: cdefs.h,v 1.4 1997/03/09 20:09:11 ache Exp $
  *
  *	TODO:
  */
 
 #ifndef __P
-#ifdef __bsdi__
+#if defined(__bsdi__) || defined(__FreeBSD__)
 #include <sys/cdefs.h>
 #else
 #ifdef __STDC__
