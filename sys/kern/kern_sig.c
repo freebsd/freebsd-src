@@ -54,7 +54,6 @@
 #include <sys/pioctl.h>
 #include <sys/acct.h>
 #include <sys/fcntl.h>
-#include <sys/ipl.h>
 #include <sys/condvar.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -1608,13 +1607,13 @@ killproc(p, why)
 	struct proc *p;
 	char *why;
 {
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)",
 		p, p->p_pid, p->p_comm);
 	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
 		p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1, why);
-	PROC_LOCK(p);
 	psignal(p, SIGKILL);
-	PROC_UNLOCK(p);
 }
 
 /*
