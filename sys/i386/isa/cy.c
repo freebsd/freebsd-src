@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.72 1998/10/22 05:58:38 bde Exp $
+ *	$Id: cy.c,v 1.73 1998/11/22 17:40:32 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -432,11 +432,11 @@ sioprobe(dev)
 	iobase = (cy_addr)dev->id_maddr;
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
-	cd_inb(iobase, CY16_RESET, 0);	/* XXX? */
+	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
 	DELAY(500);	/* wait for the board to get its act together */
 
 	/* this is needed to get the board out of reset */
-	cd_outb(iobase, CY_CLEAR_INTR, 0, 0);
+	cy_outb(iobase, CY_CLEAR_INTR, 0, 0);
 	DELAY(500);
 
 	return (cy_units(iobase, 0) == 0 ? 0 : -1);
@@ -646,7 +646,7 @@ cyattach_common(cy_iobase, cy_align)
 	}
 
 	/* ensure an edge for the next interrupt */
-	cd_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
+	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
 	return (adapter);
 }
@@ -1068,7 +1068,7 @@ siointr(unit)
 					  & CD1400_xIVR_CHAN));
 #else
 			/* ack receive service */
-			serv_type = cy_inb(iobase, CY8_SVCACKR);
+			serv_type = cy_inb(iobase, CY8_SVCACKR, cy_align);
 
 			com = com_addr(baseu +
 				       + ((serv_type >> CD1400_xIVR_CHAN_SHIFT)
@@ -1241,7 +1241,7 @@ cont:
 				       + (save_mir & CD1400_MIR_CHAN));
 #else
 			/* ack modem service */
-			vector = cy_inb(iobase, CY8_SVCACKM);
+			vector = cy_inb(iobase, CY8_SVCACKM, cy_align);
 
 			com = com_addr(baseu
 				       + ((vector >> CD1400_xIVR_CHAN_SHIFT)
@@ -1324,7 +1324,7 @@ cont:
 				       + (save_tir & CD1400_TIR_CHAN));
 #else
 			/* ack transmit service */
-			vector = cy_inb(iobase, CY8_SVCACKT);
+			vector = cy_inb(iobase, CY8_SVCACKT, cy_align);
 
 			com = com_addr(baseu
 				       + ((vector >> CD1400_xIVR_CHAN_SHIFT)
@@ -1384,7 +1384,7 @@ cont:
 	}
 
 	/* ensure an edge for the next interrupt */
-	cd_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
+	cy_outb(cy_iobase, CY_CLEAR_INTR, cy_align, 0);
 
 	schedsofttty();
 
