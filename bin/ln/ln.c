@@ -132,6 +132,7 @@ main(int argc, char *argv[])
 	case 2:				/* ln target source */
 		exit(linkit(argv[0], argv[1], 0));
 	default:
+		;
 	}
 					/* ln target1 target2 directory */
 	sourcedir = argv[argc - 1];
