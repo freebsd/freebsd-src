@@ -257,7 +257,7 @@ struct pthread_cond_attr {
  * Static cond initialization values. 
  */
 #define PTHREAD_COND_STATIC_INITIALIZER    \
-	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, NULL \
+	{ COND_TYPE_FAST, PTHREAD_QUEUE_INITIALIZER, NULL, NULL, \
 	0, _SPINLOCK_INITIALIZER }
 
 /*
