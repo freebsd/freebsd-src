@@ -7,6 +7,9 @@
 # MSDOS   - we all know what it is :-)
 # read_pwd.c makes a reasonable guess at what is correct.
 
+# If you are on a DEC Alpha, edit des.h and change the DES_LONG
+# define to 'unsigned int'.  I have seen this give a %20 speedup.
+
 OPTS0= -DRAND -DTERMIO #-DNOCONST
 
 # Version 1.94 has changed the strings_to_key function so that it is
@@ -26,7 +29,9 @@ OPTS0= -DRAND -DTERMIO #-DNOCONST
 # For other machines, experiment with changing the option and run
 # ./speed to see which is faster.
 # DO NOT TURN THIS OPTION ON WHEN COMPILING THIS CODE ON A 64 BIT MACHINE
-#OPTS2= -DDES_USE_PTR
+# 12-Apr-1996 - It appears to be broken and I'm not bothering to fix
+# it right now, so don't use this option :-)
+#OPTS2= -DDES_PTR
 
 OPTS= $(OPTS0) $(OPTS1) $(OPTS2)
 
@@ -51,10 +56,11 @@ OBJS=	cbc3_enc.o cbc_cksm.o cbc_enc.o ncbc_enc.o pcbc_enc.o qud_cksm.o \
 GENERAL=COPYRIGHT FILES INSTALL Imakefile README VERSION Makefile \
 	times vms.com KERBEROS MODES.DES  GNUmakefile des.man \
 	DES.pm DES.pod DES.xs Makefile.PL Makefile.uni typemap t \
-	des_crypt.man Makefile.ssl des.doc makefile.bc
+	des_crypt.man Makefile.ssl des.doc makefile.bc des.org \
+	des_locl.org
 DES=	des.c
 TESTING=destest.c speed.c rpw.c
-HEADERS=version.h des.h des_locl.h podd.h sk.h spr.h rpc_des.h
+HEADERS=des_ver.h des.h des_locl.h podd.h sk.h spr.h rpc_des.h
 LIBDES= cbc3_enc.c cbc_cksm.c cbc_enc.c ncbc_enc.c pcbc_enc.c qud_cksm.c \
 	cfb64ede.c cfb64enc.c cfb_enc.c ecb3_enc.c ecb_enc.c  ede_enc.c  \
 	enc_read.c enc_writ.c fcrypt.c  ofb64ede.c ofb64enc.c ofb_enc.c  \

@@ -1,5 +1,5 @@
 /* lib/des/des.h */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -48,7 +48,17 @@
 #ifndef HEADER_DES_H
 #define HEADER_DES_H
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
+
+/* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
+ * %20 speed up (longs are 8 bytes, int's are 4). */
+#ifndef DES_LONG
+#define DES_LONG unsigned long
+#endif
 
 typedef unsigned char des_cblock[8];
 typedef struct des_ks_struct
@@ -57,7 +67,7 @@ typedef struct des_ks_struct
 		des_cblock _;
 		/* make sure things are correct size on machines with
 		 * 8 byte longs */
-		unsigned long pad[2];
+		DES_LONG pad[2];
 		} ks;
 #undef _
 #define _	ks._
@@ -86,8 +96,10 @@ typedef struct des_ks_struct
 
 #define C_Block des_cblock
 #define Key_schedule des_key_schedule
+#ifdef KERBEROS
 #define ENCRYPT DES_ENCRYPT
 #define DECRYPT DES_DECRYPT
+#endif
 #define KEY_SZ DES_KEY_SZ
 #define string_to_key des_string_to_key
 #define read_pw_string des_read_pw_string
@@ -102,7 +114,7 @@ typedef struct des_ks_struct
 #define quad_cksum des_quad_cksum
 
 /* For compatibility with the MIT lib - eay 20/05/92 */
-typedef struct des_key_schedule bit_64;
+typedef des_key_schedule bit_64;
 #define des_fixup_key_parity des_set_odd_parity
 #define des_check_key_parity check_parity
 
@@ -116,10 +128,11 @@ extern int des_rw_mode;		/* defaults to DES_PCBC_MODE */
 #undef NOPROTO
 #endif
 #ifndef NOPROTO
+char *des_options(void);
 void des_ecb3_encrypt(des_cblock *input,des_cblock *output,
 	des_key_schedule ks1,des_key_schedule ks2,
 	des_key_schedule ks3, int enc);
-unsigned long des_cbc_cksum(des_cblock *input,des_cblock *output,
+DES_LONG des_cbc_cksum(des_cblock *input,des_cblock *output,
 	long length,des_key_schedule schedule,des_cblock *ivec);
 void des_cbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
@@ -132,8 +145,8 @@ void des_cfb_encrypt(unsigned char *in,unsigned char *out,int numbits,
 	long length,des_key_schedule schedule,des_cblock *ivec,int enc);
 void des_ecb_encrypt(des_cblock *input,des_cblock *output,
 	des_key_schedule ks,int enc);
-void des_encrypt(unsigned long *data,des_key_schedule ks, int enc);
-void des_encrypt2(unsigned long *data,des_key_schedule ks, int enc);
+void des_encrypt(DES_LONG *data,des_key_schedule ks, int enc);
+void des_encrypt2(DES_LONG *data,des_key_schedule ks, int enc);
 void des_ede3_cbc_encrypt(des_cblock *input, des_cblock *output, 
 	long length, des_key_schedule ks1, des_key_schedule ks2, 
 	des_key_schedule ks3, des_cblock *ivec, int enc);
@@ -163,7 +176,7 @@ void des_ofb_encrypt(unsigned char *in,unsigned char *out,
 	int numbits,long length,des_key_schedule schedule,des_cblock *ivec);
 void des_pcbc_encrypt(des_cblock *input,des_cblock *output,long length,
 	des_key_schedule schedule,des_cblock *ivec,int enc);
-unsigned long des_quad_cksum(des_cblock *input,des_cblock *output,
+DES_LONG des_quad_cksum(des_cblock *input,des_cblock *output,
 	long length,int out_count,des_cblock *seed);
 void des_random_seed(des_cblock key);
 void des_random_key(des_cblock ret);
@@ -195,8 +208,9 @@ void des_generate_random_block(des_cblock *block);
 
 #else
 
+char *des_options();
 void des_ecb3_encrypt();
-unsigned long des_cbc_cksum();
+DES_LONG des_cbc_cksum();
 void des_cbc_encrypt();
 void des_ncbc_encrypt();
 void des_3cbc_encrypt();
@@ -216,7 +230,7 @@ char *crypt();
 #endif
 void des_ofb_encrypt();
 void des_pcbc_encrypt();
-unsigned long des_quad_cksum();
+DES_LONG des_quad_cksum();
 void des_random_seed();
 void des_random_key();
 int des_read_password();
@@ -236,11 +250,18 @@ void des_cblock_print_file();
 /* The following functions are not in the normal unix build or the
  * SSLeay build.  When using the SSLeay build, use RAND_seed()
  * and RAND_bytes() instead. */
+#ifdef FreeBSD
 int des_new_random_key();
 void des_init_random_number_generator();
 void des_set_random_generator_seed();
 void des_set_sequence_number();
 void des_generate_random_block();
+#endif
 
 #endif
+
+#ifdef  __cplusplus
+}
+#endif
+
 #endif

@@ -1,5 +1,5 @@
-/* lib/des/new_rkey.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/new_rkey.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -84,7 +84,7 @@
  * few changes since it need to compile on all version of unix and
  * there were a few things that would not :-) */
 
-#incldue <stdio.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/param.h>
@@ -95,7 +95,7 @@
 
 /* This counter keeps track of the pseudo-random sequence */
 static union {
-	unsigned long ul0, ul1;
+	DES_LONG ul0, ul1;
 	unsigned char uc[8];
 } counter;
 

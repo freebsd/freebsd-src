@@ -21,7 +21,7 @@ routines:= $(destest)
 distribute:= ARTISTIC COPYRIGHT FILES INSTALL Imakefile README VERSION \
 	GNUmakefile times vms.com KERBEROS MODES.DES \
 	des.man des_crypt.man \
-	version.h des_locl.h podd.h sk.h spr.h \
+	des_ver.h des_locl.h podd.h sk.h spr.h \
 	des.pl testdes.pl doIP doPC1 doPC2 PC1 PC2 shifts.pl \
 	des.doc makefile.bc
 

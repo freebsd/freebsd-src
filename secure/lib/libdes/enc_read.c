@@ -1,5 +1,5 @@
-/* lib/des/enc_read.c */
-/* Copyright (C) 1995 Eric Young (eay@mincom.oz.au)
+/* crypto/des/enc_read.c */
+/* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
  * 
  * This file is part of an SSL implementation written
@@ -50,7 +50,7 @@
 #include "des_locl.h"
 
 /* This has some uglies in it but it works - even over sockets. */
-extern int errno;
+/*extern int errno;*/
 int des_rw_mode=DES_PCBC_MODE;
 
 int des_enc_read(fd, buf, len, sched, iv)
@@ -62,17 +62,33 @@ des_cblock (*iv);
 	{
 	/* data to be unencrypted */
 	int net_num=0;
-	unsigned char net[BSIZE];
+	static unsigned char *net=NULL;
 	/* extra unencrypted data 
 	 * for when a block of 100 comes in but is des_read one byte at
 	 * a time. */
-	static char unnet[BSIZE];
+	static char *unnet=NULL;
 	static int unnet_start=0;
 	static int unnet_left=0;
+	static char *tmpbuf=NULL;
 	int i;
 	long num=0,rnum;
 	unsigned char *p;
 
+	if (tmpbuf == NULL)
+		{
+		tmpbuf=(char *)malloc(BSIZE);
+		if (tmpbuf == NULL) return(-1);
+		}
+	if (net == NULL)
+		{
+		net=(unsigned char *)malloc(BSIZE);
+		if (net == NULL) return(-1);
+		}
+	if (unnet == NULL)
+		{
+		unnet=(char *)malloc(BSIZE);
+		if (unnet == NULL) return(-1);
+		}
 	/* left over data from last decrypt */
 	if (unnet_left != 0)
 		{
@@ -102,7 +118,6 @@ des_cblock (*iv);
 	if (len > MAXWRITE) len=MAXWRITE;
 
 	/* first - get the length */
-	net_num=0;
 	while (net_num < HDRSIZE) 
 		{
 		i=read(fd,&(net[net_num]),(unsigned int)HDRSIZE-net_num);
@@ -113,7 +128,7 @@ des_cblock (*iv);
 
 	/* we now have at net_num bytes in net */
 	p=net;
-	num=0;
+	/* num=0;  */
 	n2l(p,num);
 	/* num should be rounded up to the next group of eight
 	 * we make sure that we have read a multiple of 8 bytes from the net.
@@ -135,14 +150,14 @@ des_cblock (*iv);
 	if (len < num)
 		{
 		if (des_rw_mode & DES_PCBC_MODE)
-			pcbc_encrypt((des_cblock *)net,(des_cblock *)unnet,
+			des_pcbc_encrypt((des_cblock *)net,(des_cblock *)unnet,
 				num,sched,iv,DES_DECRYPT);
 		else
-			cbc_encrypt((des_cblock *)net,(des_cblock *)unnet,
+			des_cbc_encrypt((des_cblock *)net,(des_cblock *)unnet,
 				num,sched,iv,DES_DECRYPT);
 		memcpy(buf,unnet,(unsigned int)len);
 		unnet_start=len;
-		unnet_left=num-len;
+		unnet_left=(int)num-len;
 
 		/* The following line is done because we return num
 		 * as the number of bytes read. */
@@ -157,14 +172,13 @@ des_cblock (*iv);
 		 * FIXED - Should be ok now 18-9-90 - eay */
 		if (len < rnum)
 			{
-			char tmpbuf[BSIZE];
 
 			if (des_rw_mode & DES_PCBC_MODE)
-				pcbc_encrypt((des_cblock *)net,
+				des_pcbc_encrypt((des_cblock *)net,
 					(des_cblock *)tmpbuf,
 					num,sched,iv,DES_DECRYPT);
 			else
-				cbc_encrypt((des_cblock *)net,
+				des_cbc_encrypt((des_cblock *)net,
 					(des_cblock *)tmpbuf,
 					num,sched,iv,DES_DECRYPT);
 
@@ -175,15 +189,15 @@ des_cblock (*iv);
 		else
 			{
 			if (des_rw_mode & DES_PCBC_MODE)
-				pcbc_encrypt((des_cblock *)net,
+				des_pcbc_encrypt((des_cblock *)net,
 					(des_cblock *)buf,num,sched,iv,
 					DES_DECRYPT);
 			else
-				cbc_encrypt((des_cblock *)net,
+				des_cbc_encrypt((des_cblock *)net,
 					(des_cblock *)buf,num,sched,iv,
 					DES_DECRYPT);
 			}
 		}
-	return(num);
+	return((int)num);
 	}
 
