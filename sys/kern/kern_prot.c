@@ -1148,7 +1148,7 @@ crget()
 }
 
 /*
- * Claim another referernce to a ucred structure
+ * Claim another reference to a ucred structure
  */
 void
 crhold(cr)
