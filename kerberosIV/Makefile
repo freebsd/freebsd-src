@@ -22,6 +22,7 @@ CODAD=	${MAKE} ${MFLAGS} MAKE_KERBEROS4=yes cleandir && \
 kprog:
 	cd ${SDIR}/bin/rcp; ${CODAI}
 	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAI}
+	cd ${SDIR}/libexec/ftpd; ${CODAI}
 	cd ${SDIR}/libexec/rlogind; ${CODAI}
 	cd ${SDIR}/libexec/rshd; ${CODAI}
 	cd ${SDIR}/usr.bin/login; ${CODAI}
@@ -37,6 +38,7 @@ kprog:
 dekerberise:
 	cd ${SDIR}/bin/rcp; ${CODAIN}
 	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAIN}
+	cd ${SDIR}/libexec/ftpd; ${CODAIN}
 	cd ${SDIR}/libexec/rlogind; ${CODAIN}
 	cd ${SDIR}/libexec/rshd; ${CODAIN}
 	cd ${SDIR}/usr.bin/login; ${CODAIN}
@@ -52,6 +54,7 @@ bootstrap: cleandir obj depend all install kprog
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
 	cd ${SDIR}/gnu/usr.bin/cvs; ${CODAD}
+	cd ${SDIR}/libexec/ftpd; ${CODAD}
 	cd ${SDIR}/libexec/rlogind; ${CODAD}
 	cd ${SDIR}/libexec/rshd; ${CODAD}
 	cd ${SDIR}/usr.bin/login; ${CODAD}
