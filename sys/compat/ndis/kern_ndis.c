@@ -824,18 +824,28 @@ ndis_convert_res(arg)
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
+				prd->cprd_flags = CM_RESOURCE_PORT_IO;
+				prd->cprd_sharedisp =
+				    CmResourceShareDeviceExclusive;
 				prd->u.cprd_port.cprd_start.np_quad =
 				    brle->start;
 				prd->u.cprd_port.cprd_len = brle->count;
 				break;
 			case SYS_RES_MEMORY:
 				prd->cprd_type = CmResourceTypeMemory;
+				prd->cprd_flags =
+				    CM_RESOURCE_MEMORY_READ_WRITE;
+				prd->cprd_sharedisp =
+				    CmResourceShareDeviceExclusive;
 				prd->u.cprd_port.cprd_start.np_quad =
 				    brle->start;
 				prd->u.cprd_port.cprd_len = brle->count;
 				break;
 			case SYS_RES_IRQ:
 				prd->cprd_type = CmResourceTypeInterrupt;
+				prd->cprd_flags = 0;
+				prd->cprd_sharedisp =
+				    CmResourceShareDeviceExclusive;
 				prd->u.cprd_intr.cprd_level = brle->start;
 				prd->u.cprd_intr.cprd_vector = brle->start;
 				prd->u.cprd_intr.cprd_affinity = 0;

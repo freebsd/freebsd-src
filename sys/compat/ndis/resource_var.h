@@ -97,6 +97,7 @@ typedef enum cm_share_disposition cm_share_disposition;
 struct cm_partial_resource_desc {
 	uint8_t			cprd_type;
 	uint8_t			cprd_sharedisp;
+	uint16_t		cprd_flags;
 	union {
 		struct {
 			physaddr		cprd_start;
