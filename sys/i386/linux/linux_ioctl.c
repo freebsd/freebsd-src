@@ -511,7 +511,7 @@ set_linux_cdrom_addr(union linux_cdrom_addr *addr, int format, int lba)
         addr->lba = lba;
 }
 
-static unsigned dirbits[4] = { IOC_VOID, IOC_OUT, IOC_IN, IOC_INOUT };
+static unsigned dirbits[4] = { IOC_VOID, IOC_IN, IOC_OUT, IOC_INOUT };
 
 #define SETDIR(c)       (((c) & ~IOC_DIRMASK) | dirbits[args->cmd >> 30])
 
