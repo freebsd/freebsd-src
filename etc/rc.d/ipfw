@@ -37,7 +37,9 @@ ipfw_start()
 	if [ -r "${firewall_script}" ]; then
 		. "${firewall_script}"
 		echo -n 'Firewall rules loaded, starting divert daemons:'
-		/etc/rc.d/natd start
+		if [ -f /etc/rc.d/natd ] ; then
+			/etc/rc.d/natd start
+		fi
 	elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
 		echo 'Warning: kernel has firewall functionality, but' \
 		    ' firewall rules are not enabled.'
@@ -62,7 +64,9 @@ ipfw_stop()
 	# Disable the firewall
 	#
 	${SYSCTL_W} net.inet.ip.fw.enable=0
-	/etc/rc.d/natd stop
+	if [ -f /etc/rc.d/natd ] ; then
+		/etc/rc.d/natd stop
+	fi
 }
 
 load_rc_config $name
