@@ -1,13 +1,9 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.33 1998/01/12 18:29:02 eivind Exp $
+#	$Id: Makefile,v 1.34 1998/02/06 16:46:31 jdp Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
 CLEANFILES+=	a.out
-MAN3+=		dladdr.3 dlopen.3
-MLINKS+=	dlopen.3 dlsym.3 \
-		dlopen.3 dlerror.3 \
-		dlopen.3 dlclose.3
 
 all: ${OBJS}
 
