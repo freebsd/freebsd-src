@@ -47,6 +47,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/sbuf.h>
 #include <sys/stdint.h>
 #include <sys/sysctl.h>
@@ -146,13 +147,10 @@ propagate_priority(struct thread *td)
 		 * If on run queue move to new run queue, and quit.
 		 * XXXKSE this gets a lot more complicated under threads
 		 * but try anyhow.
-		 * We should have a special call to do this more efficiently.
 		 */
 		if (TD_ON_RUNQ(td)) {
 			MPASS(td->td_blocked == NULL);
-			remrunqueue(td);
-			td->td_priority = pri;
-			setrunqueue(td);
+			sched_prio(td, pri);
 			return;
 		}
 		/*

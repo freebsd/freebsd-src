@@ -53,6 +53,7 @@
 #include <sys/kse.h>
 #include <sys/ktr.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -73,7 +74,6 @@ userret(td, frame, oticks)
 {
 	struct proc *p = td->td_proc;
 	struct kse *ke = td->td_kse; 
-	struct ksegrp *kg = td->td_ksegrp;
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -95,19 +95,9 @@ userret(td, frame, oticks)
 #endif
 
 	/*
-	 * XXX we cheat slightly on the locking here to avoid locking in
-	 * the usual case.  Setting td_priority here is essentially an
-	 * incomplete workaround for not setting it properly elsewhere.
-	 * Now that some interrupt handlers are threads, not setting it
-	 * properly elsewhere can clobber it in the window between setting
-	 * it here and returning to user mode, so don't waste time setting
-	 * it perfectly here.
+	 * Let the scheduler adjust our priority etc.
 	 */
-	if (td->td_priority != kg->kg_user_pri) {
-		mtx_lock_spin(&sched_lock);
-		td->td_priority = kg->kg_user_pri;
-		mtx_unlock_spin(&sched_lock);
-	}
+	sched_userret(td);
 
 	/*
 	 * We need to check to see if we have to exit or wait due to a
@@ -250,7 +240,7 @@ ast(struct trapframe *framep)
 	}
 	if (flags & KEF_NEEDRESCHED) {
 		mtx_lock_spin(&sched_lock);
-		td->td_priority = kg->kg_user_pri;
+		sched_prio(td, kg->kg_user_pri);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);

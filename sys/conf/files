@@ -946,6 +946,7 @@ kern/kern_uuid.c	standard
 kern/kern_xxx.c		standard
 kern/link_elf.c		standard
 kern/md5c.c		standard
+kern/sched_4bsd.c	standard
 kern/subr_autoconf.c	standard
 kern/subr_blist.c	standard
 kern/subr_bus.c		standard
