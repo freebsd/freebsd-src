@@ -308,6 +308,17 @@ interface. [MERGED]
 A bug in the NFS client that caused bogus access times with
 O_EXCL|O_CREAT opens was fixed.  [MERGED]
 
+Support for the 80386 processor has been removed from the GENERIC
+kernel, as this code seriously pessimizes performance on other ia32
+processors.
+
+The I386_CPU kernel option to support the 80386 processor is now mutually
+exclusive with support for other ia32 processors; this should slightly
+improve performance on the 80386 due to the elimination of runtime
+processor type checks.
+
+Custom kernels that will run on the 80386 can still be built by changing
+the cpu options in the kernel configuration file to only include I386_CPU.
 
 
 1.2. SECURITY FIXES
