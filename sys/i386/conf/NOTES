@@ -1770,6 +1770,10 @@ device		miibus
 #       the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
 #       bridge with a PCMCIA adapter plugged into it.
 # wx:   Intel Gigabit Ethernet PCI card (`Wiseman')
+#
+#	NOTE: THIS DRIVER IS SOON TO BE REMOVED FROM FREEBSD AND SHOULD BE
+#	CONSIDERED DEPRECATED
+#
 # xe:   Xircom/Intel EtherExpress Pro100/16 PC Card ethernet controller,
 #       Accton Fast EtherCard-16, Compaq Netelligent 10/100 PC Card,
 #       Toshiba 10/100 Ethernet PC Card, Xircom 16-bit Ethernet + Modem 56
