@@ -380,7 +380,7 @@ ich_intr(void *p)
 	u_int32_t cbi, lbi, lvi, st, gs;
 	int i;
 
-	gs = ich_rd(sc, ICH_REG_GLOB_STA, 4) | ICH_GLOB_STA_IMASK;
+	gs = ich_rd(sc, ICH_REG_GLOB_STA, 4) & ICH_GLOB_STA_IMASK;
 	if (gs & (ICH_GLOB_STA_PRES | ICH_GLOB_STA_SRES)) {
 		/* Clear resume interrupt(s) - nothing doing with them */
 		ich_wr(sc, ICH_REG_GLOB_STA, gs, 4);
