@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.16 1994/08/24 14:49:33 jkh Exp $
+# $Id: bsd.port.mk,v 1.17 1994/08/25 13:53:02 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -80,16 +80,13 @@ HOME_LOCATION?=	<original site unknown>
 .MAIN: all
 all: extract configure build
 
-# Try to make whomever's install target maintain the same semantics.
-install:: pre-install
-
 .if !target(pre-install)
 pre-install:
 	@echo -n
 .endif
 
 .if !target(install)
-install:
+install: pre-install
 	@echo "===>  Installing for ${DISTNAME}"
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${GMAKE} install)
@@ -98,16 +95,13 @@ install:
 .endif
 .endif
 
-# Try to make whomever's package target maintain the same semantics.
-package::	pre-package
-
 .if !target(pre-package)
 pre-package:
 	@echo -n
 .endif
 
 .if !target(package)
-package:
+package: pre-package
 # Makes some gross assumptions about a fairly simple package with no
 # install, require or deinstall scripts.  Override the arguments with
 # PKG_ARGS if your package is anything but run-of-the-mill.
@@ -122,16 +116,13 @@ package:
 	fi
 .endif
 
-# Try to make whomever's build target maintain the same semantics.
-build::	pre-build
-
 .if !target(pre-build)
 pre-build:
 	@echo -n
 .endif
 
 .if !target(build)
-build: configure
+build: configure pre-build
 	@echo "===>  Building for ${DISTNAME}"
 .if defined(DEPENDS)
 	@echo "===>  ${DISTNAME} depends on:  ${DEPENDS}"
@@ -193,16 +184,13 @@ ${CONFIGURE_COOKIE}:
 	@touch -f ${CONFIGURE_COOKIE}
 .endif
 
-# Try to make whomever's bundle target maintain the same semantics.
-bundle:: pre-bundle
-
 .if !target(pre-bundle)
 pre-bundle:
 	@echo -n
 .endif
 
 .if !target(bundle)
-bundle:
+bundle: pre-bundle
 	@echo "===>  Bundling for ${DISTNAME}"
 	@if [ ! -f ${EXTRACT_COOKIE} ]; then \
 	   echo ">> There doesn't appear to be a properly extracted"; \
@@ -217,9 +205,6 @@ bundle:
 		${DISTNAME}
 .endif
 
-# Try to make whomever's extract target maintain the same semantics.
-extract::	pre-extract
-
 .if !target(pre-extract)
 pre-extract:
 	@echo -n
@@ -230,7 +215,7 @@ pre-extract:
 # because if the user interrupts the extract in the middle (and it's often
 # a long procedure), we get tricked into thinking that we've got a good dist
 # in ${WRKDIR}.
-extract: ${EXTRACT_COOKIE}
+extract: pre-extract ${EXTRACT_COOKIE}
 
 ${EXTRACT_COOKIE}:
 	@echo "===>  Extracting for ${DISTNAME}"
