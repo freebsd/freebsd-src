@@ -176,9 +176,8 @@ trap(struct trapframe *tf)
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = tf;
 		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-		PROC_LOCK(p);
-		td->td_ucred = crhold(p->p_ucred);
-		PROC_UNLOCK(p);
+		if (td->td_ucred != p->p_ucred)
+			cred_update_thread(td);
  	} else {
  		sticks = 0;
 if ((type & ~T_KERNEL) != T_BREAKPOINT)
@@ -380,10 +379,12 @@ trapsig:
 user:
 	userret(td, tf, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 out:
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
 	return;
@@ -540,9 +541,8 @@ syscall(struct trapframe *tf)
 	sticks = td->td_kse->ke_sticks;
 	td->td_frame = tf;
 	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
-	PROC_LOCK(p);
-	td->td_ucred = crhold(p->p_ucred);
-	PROC_UNLOCK(p);	
+	if (td->td_ucred != p->p_ucred)
+		cred_update_thread(td);
 	code = tf->tf_global[1];
 
 	/*
@@ -677,10 +677,12 @@ bad:
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+#ifdef	INVARIANTS
 	mtx_lock(&Giant);
 	crfree(td->td_ucred);
 	mtx_unlock(&Giant);
 	td->td_ucred = NULL;
+#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
