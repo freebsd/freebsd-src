@@ -94,7 +94,7 @@ int	 atexit __P((void (*)(void)));
 double	 atof __P((const char *));
 int	 atoi __P((const char *));
 long	 atol __P((const char *));
-long	 atoll __P((const char *));
+long long	atoll __P((const char *));
 void	*bsearch __P((const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *)));
 void	*calloc __P((size_t, size_t));
