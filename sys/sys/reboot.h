@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.6 1994/10/26 13:45:52 jkh Exp $
+ * $Id: reboot.h,v 1.7 1994/11/26 09:08:40 phk Exp $
  */
 
 #ifndef _SYS_REBOOT_H_
@@ -56,6 +56,7 @@
 #define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
 #define RB_CONFIG	0x400	/* invoke user configuration routing */
 #define RB_VERBOSE	0x800	/* print all potentially useful info */
+#define	RB_SERIAL	0x1000	/* user serial port as console */
 
 /*
  * Constants for converting boot-style device number to type,
