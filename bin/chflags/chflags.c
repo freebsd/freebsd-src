@@ -99,15 +99,16 @@ main(argc, argv)
 	if (argc < 2)
 		usage();
 
-	fts_options = FTS_PHYSICAL;
 	if (Rflag) {
+		fts_options = FTS_PHYSICAL;
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
 		if (Lflag) {
 			fts_options &= ~FTS_PHYSICAL;
 			fts_options |= FTS_LOGICAL;
 		}
-	}
+	} else
+		fts_options = FTS_LOGICAL;
 
 	flags = *argv;
 	if (*flags >= '0' && *flags <= '7') {
