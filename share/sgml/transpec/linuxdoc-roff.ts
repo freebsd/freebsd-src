@@ -1,6 +1,6 @@
 <!--
 
-  $Id: linuxdoc-roff.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+  $Id: linuxdoc-roff.ts,v 1.2 1996/09/08 19:20:05 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -61,15 +61,9 @@
 
 <transpec>
 
-<!-- Character mapping -->
-<cmap>
-&cmap;
-</cmap>
-
-<!-- SDATA entity mapping -->
-<smap>
-&sdata;
-</smap>
+<!-- Character and SDATA entity mapping -->
+<cmap>&cmap;</cmap>
+<smap>&sdata;</smap>
 
 <!-- Transform rules -->
 
@@ -129,9 +123,8 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>ARTICLE
 <action>
-<start>
-^.nr Hb 4
-.nr Hs 4^
+<start>^.nr Hb 4
+.nr Hs 4^</start>
 <end>^.bp
 .TC^</end>
 </rule>
@@ -145,7 +138,7 @@ ${_followrel descendant LABEL &r.initr;}</start>
 .nr Hs 5^</start>
 <end>
 ^.bp
-.TC^
+.TC^</end>
 </rule>
 
 <rule>
@@ -162,29 +155,25 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>TITLEPAG
 <action>
-<start>
-^\&
-.if t .SP 1i^
-<end>
-^.SP 3^
+<start>^\&
+.if t .SP 1i^</start>
+<end>^.SP 3^</end>
 </rule>
 
 <rule>
 <match>
 <gi>TITLE
 <action>
-<start>
-^.if t .S 18
+<start>^.if t .S 18
 .DS C F
 .if t .fam H
 .B
-.if t .SA 0^
-<end>
-^.if t .SA 1
+.if t .SA 0^</start>
+<end>^.if t .SA 1
 .R
 .if t .fam &family;
 .DE
-.if t .S D^
+.if t .S D^</end>
 </rule>
 
 <rule>
@@ -196,30 +185,28 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>DATE
 <action>
-<start>^.DS C F^
-<end>^.DE^
+<start>^.DS C F^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ABSTRACT
 <action>
-<start>
-^.SP 3
+<start>^.SP 3
 .DS C
 .B Abstract
 .DE
-.DS I F^
-<end>
-^.DE^
+.DS I F^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>AUTHOR
 <action>
-<start>^.DS C F^
-<end>^.DE^
+<start>^.DS C F^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
@@ -231,38 +218,37 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>AND
 <action>
-<start>^.br^
+<start>^.br^</start>
 </rule>
 
 <rule>
 <match>
 <gi>THANKS
 <action>
-<start>
-\*F
-.FS^
-<end>	^.FE^
+<start>\*F
+.FS^</start>
+<end>^.FE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>INST
 <action>
-<start>	^.br^
+<start>^.br^</start>
 </rule>
 
 <rule>
 <match>
 <gi>NEWLINE
 <action>
-<start>	^.br^
+<start>^.br^</start>
 </rule>
 
 <rule id="&r.label;">
 <match>
 <gi>LABEL
 <action>
-<start>^.SETR "${ID}"^
+<start>^.SETR "${ID}"^</start>
 </rule>
 
 <rule>
@@ -274,31 +260,31 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>LHEAD
 <action>
-<start>	^.EH '
-<end>	'''^
+<start>^.EH '</start>
+<end>'''^</end>
 </rule>
 
 <rule>
 <match>
 <gi>RHEAD
 <action>
-<start>	^.OH '''
-<end>	'^
+<start>^.OH '''</start>
+<end>'^</end>
 </rule>
 
 <rule>
 <match>
 <gi>COMMENT
 <action>
-<start>	^(*^
-<end>	^*)^
+<start>^(*^</start>
+<end>^*)^</end>
 </rule>
 
 <rule>
 <match>
 <gi>APPENDIX
 <action>
-<start>	^.af H1 A^
+<start>^.af H1 A^</start>
 </rule>
 
 <rule>
@@ -325,8 +311,7 @@ ${_followrel descendant LABEL &r.initr;}</start>
 <match>
 <gi>CHAPT
 <action>
-<start>
-^.if t .SK
+<start>^.if t .SK
 ${_set sl 1}</start>
 </rule>
 
@@ -372,7 +357,7 @@ ${_set sl 1}</start>
 <match>
 <gi>SECT2
 <action>
-<start>${_set sl 3}
+<start>${_set sl 3}</start>
 </rule>
 
 <rule>
@@ -410,18 +395,17 @@ ${_set sl 1}</start>
 <gi>HEADING
 <context>PART
 <action>
-<start>
-^.if t .SK
+<start>^.if t .SK
 \&
 .if t .fam H
 .SP 3i
 .if t .S 24
 Part \n+(H0
 .SP 1i
-.if t .S 36^
+.if t .S 36^</start>
 <end>^.if t .S D
 .if t .fam &family;
-.if t .SK^
+.if t .SK^</end>
 </rule>
 
 <rule>
@@ -430,7 +414,7 @@ Part \n+(H0
 <action>
 <start>^.H ${sl} "</start>
 <end>"
-${_followrel child LABEL &r.label}
+${_followrel child LABEL &r.label}</end>
 </rule>
 
 <!--
@@ -444,7 +428,7 @@ ${_followrel child LABEL &r.label}
 .di
 .asciify fbsd-head
 .H ${sl} \*[fbsd-head]
-${_followrel child LABEL &r.label}
+${_followrel child LABEL &r.label}</end>
 </rule>
 -->
 
@@ -459,7 +443,7 @@ ${_followrel child LABEL &r.label}
 <match>
 <gi>P
 <action>
-<start> ${_notempty &r.phack;}
+<start>${_notempty &r.phack;}</start>
 </rule>
 
 <!-- Completely empty paragraphs. -->
@@ -467,7 +451,7 @@ ${_followrel child LABEL &r.label}
 <match>
 <gi>_phack
 <action>
-<replace>^.P^
+<replace>^.P^</replace>
 </rule>
 
 
@@ -475,145 +459,142 @@ ${_followrel child LABEL &r.label}
 <match>
 <gi>ITEMIZE
 <action>
-<start>	^.BL^
-<end>	^.LE^
+<start>^.BL^</start>
+<end>^.LE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ENUM
 <action>
-<start>	^.AL^
-<end>	^.LE^
+<start>^.AL^</start>
+<end>^.LE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>DESCRIP
 <action>
-<start>	^.BVL \n(Li*2/1 \n(Li^
-<end>	^.LE^
+<start>^.BVL \n(Li*2/1 \n(Li^</start>
+<end>^.LE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ITEM
 <action>
-<start>	^.LI^
+<start>^.LI^</start>
 </rule>
 
 <rule>
 <match>
 <gi>TAG
 <action>
-<start>	^.LI "
-<end>"^
+<start>^.LI "</start>
+<end>"^</end>
 </rule>
 
 <rule>
 <match>
 <gi>CITE
 <action>
-<start>	^.\[
+<start>^.\[
 ${ID}
-.\]^
+.\]^</start>
 </rule>
 
 <rule>
 <match>
 <gi>NCITE
 <action>
-<start>	^.\[
+<start>^.\[
 ${ID}
 .\]
-(${NOTE})
+(${NOTE})</start>
 </rule>
 
 <rule>
 <match>
 <gi>FOOTNOTE
 <action>
-<start>
-\*F
-.FS^
-<end>^.FE^
+<start>\*F
+.FS^</start>
+<end>^.FE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>SQ
 <action>
-<start>	\*Q
-<end>	\*U
+<start>\*Q</start>
+<end>\*U</end>
 </rule>
 
 <rule>
 <match>
 <gi>LQ
 <action>
-<start>
-^.if t .br
+<start>^.if t .br
 .if t .S -2
-.DS I F^
-<end>
-^.DE
-.if t .S D^
+.DS I F^</start>
+<end>^.DE
+.if t .S D^</end>
 </rule>
 
 <rule>
 <match>
 <gi>EM
 <action>
-<start>	\fI
-<end>	\fR
+<start>\fI</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>BF
 <action>
-<start>	\fB
-<end>	\fR
+<start>\fB</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>IT
 <action>
-<start>	\fI
-<end>	\fR
+<start>\fI</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>SF
 <action>
-<start>	\fR
-<end>	\fR
+<start>\fR</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>SL
 <action>
-<start>	\fI
-<end>	\fR
+<start>\fI</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>TT
 <action>
-<start>	\fC
-<end>	\fR
+<start>\fC</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>CPARAM
 <action>
-<start>	\fI<
-<end>	>\fR
+<start>\fI<</start>
+<end>>\fR</end>
 </rule>
 
 <!-- A URL with a NAME attribute -->
@@ -622,11 +603,11 @@ ${ID}
 <gi>URL
 <attval>NAME .
 <action>
-<start>	${NAME}\*F
+<start>${NAME}\*F
 .FS
 \fC&lt;URL:${URL}&gt;\fP
 .FE
-\&
+\&</start>
 </rule>
 
 <!-- A URL without a NAME attribute -->
@@ -634,14 +615,14 @@ ${ID}
 <match>
 <gi>URL
 <action>
-<start>	\fC&lt;URL:${URL}&gt;\fP
+<start>\fC&lt;URL:${URL}&gt;\fP</start>
 </rule>
 
 <rule>
 <match>
 <gi>HTMLURL
 <action>
-<start>	${NAME}
+<start>${NAME}</start>
 </rule>
 
 <rule>
@@ -649,33 +630,30 @@ ${ID}
 <gi>REF
 <attval>NAME .
 <action>
-<start>
-\fI${NAME}\fP (section\~
+<start>\fI${NAME}\fP (section\~
 .GETHN "${ID}"
 , page\~
 .GETPN "${ID}"
-)
+)</start>
 </rule>
 
 <rule>
 <match>
 <gi>REF
 <action>
-<start>
-\fI${ID}\fP (section\~
+<start>\fI${ID}\fP (section\~
 .GETHN "${ID}"
 , page\~
 .GETPN "${ID}"
-)
+)</start>
 </rule>
 
 <rule>
 <match>
 <gi>PAGEREF
 <action>
-<start>
-^.GETPN "${ID}"
-\&
+<start>^.GETPN "${ID}"
+\&</start>
 </rule>
 
 <rule>
@@ -692,22 +670,21 @@ ${ID}
 <match>
 <gi>BIBLIO
 <action>
-<start>	^.\[
+<start>^.\[
 \$LIST\$
-.\]^
+.\]^</start>
 </rule>
 
 <rule>
 <match>
 <gi>VERB CODE
 <action>
-<start>	^.if t .br
+<start>^.if t .br
 .if t .S -2
 .DS I
-.fam C^
-<end>
-^.DE
-.if t .S D^
+.fam C^</start>
+<end>^.DE
+.if t .S D^</end>
 </rule>
 
 <rule>
@@ -720,98 +697,96 @@ ${ID}
 <match>
 <gi>TSCREEN
 <action>
-<start>	^.if t .br
+<start>^.if t .br
 .if t .S -2
 .DS I
-.fam C^
-<end>
-^.DE
-.if t .S D^
+.fam C^</start>
+<end>^.DE
+.if t .S D^</end>
 </rule>
 
 <rule>
 <match>
 <gi>QUOTE
 <action>
-<start>	^.DS I F^
-<end>
-^.DE^
+<start>^.DS I F^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>DEF
 <action>
-<start>	^.sp
+<start>^.sp
 .nr def \n\[def\]+1
-.B "Definition \n\[def\] "^
-<end>	^.ft P
-.sp^
+.B "Definition \n\[def\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>PROP
 <action>
-<start>	^.sp
+<start>^.sp
 .nr prop \n\[prop\]+1
-.B "Proposition \n\[prop\] "^
-<end>	^.ft P
-.sp^
+.B "Proposition \n\[prop\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>LEMMA
 <action>
-<start>	^.sp
+<start>^.sp
 .nr lemma \n\[lemma\]+1
-.B "Lemma \n\[lemma\] "^
-<end>	^.ft P
-.sp^
+.B "Lemma \n\[lemma\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>COROLL
 <action>
-<start>	^.sp
+<start>^.sp
 .nr coroll \n\[coroll\]+1
-.B "Corolloary \n\[coroll\] "^
-<end>	^.ft P
-.sp^
+.B "Corolloary \n\[coroll\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>PROOF
 <action>
-<start>	^.sp
+<start>^.sp
 .nr proof \n\[proof\]+1
-.B "Proof \n\[proof\] "^
-<end>	^.ft P
-.sp^
+.B "Proof \n\[proof\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>THEOREM
 <action>
-<start>	^.sp
+<start>^.sp
 .nr theorem \n\[theorem\]+1
-.B "Theorem \n\[theorem\] "^
-<end>	^.ft P
-.sp^
+.B "Theorem \n\[theorem\] "^</start>
+<end>^.ft P
+.sp^</end>
 </rule>
 
 <rule>
 <match>
 <gi>THTAG
 <action>
-<start>	^.B
-(
-<end>	)
-.I^
+<start>^.B
+(</start>
+<end>)
+.I^</end>
 </rule>
 
 <rule>
@@ -823,16 +798,16 @@ ${ID}
 <match>
 <gi>DM
 <action>
-<start>	^.DS L^
-<end>	^.DE^
+<start>^.DS L^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>EQ
 <action>
-<start>	^.DS L^
-<end>	^.DE^
+<start>^.DS L^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
@@ -844,16 +819,16 @@ ${ID}
 <match>
 <gi>NU
 <action>
-<start>	{
-<end>	} over 
+<start>{</start>
+<end>} over </end>
 </rule>
 
 <rule>
 <match>
 <gi>DE
 <action>
-<start>	{
-<end>	}
+<start>{</start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -870,16 +845,16 @@ ${ID}
 <match>
 <gi>LL
 <action>
-<start>	 from {
-<end>	}
+<start>from {</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>UL
 <action>
-<start>	 to {
-<end>	}
+<start>to {</start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -891,39 +866,39 @@ ${ID}
 <match>
 <gi>PR
 <action>
-<start>	 prod 
+<start> prod </start>
 </rule>
 
 <rule>
 <match>
 <gi>IN
 <action>
-<start>	 int 
+<start> int </start>
 </rule>
 
 <rule>
 <match>
 <gi>SUM
 <action>
-<start>	 sum 
+<start>	sum </start>
 </rule>
 
 <rule>
 <match>
 <gi>ROOT
 <action>
-<start>	 sqrt {
-<end>	}
+<start> sqrt {</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>AR
 <action>
-<start>	^.TS
+<start>^.TS
 center, tab(|) ;
-${CA}.^
-<end>	^.TE^
+${CA}.^</start>
+<end>^.TE^</end>
 </rule>
 
 <rule>
@@ -935,78 +910,78 @@ ${CA}.^
 <match>
 <gi>ARC
 <action>
-<start>	|
+<start>|</start>
 </rule>
 
 <rule>
 <match>
 <gi>SUP
 <action>
-<start>	 sup {
-<end>	}
+<start> sup {</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>INF
 <action>
-<start>	 sub {
-<end>	}
+<start> sub {</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>UNL
 <action>
-<start>	{
-<end>	} under 
+<start>{</start>
+<end>} under </end>
 </rule>
 
 <rule>
 <match>
 <gi>OVL
 <action>
-<start>	{
-<end>	} bar 
+<start>{</start>
+<end>} bar </end>
 </rule>
 
 <rule>
 <match>
 <gi>RF
 <action>
-<start>	 bold{
-<end>	}
+<start> bold{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>V
 <action>
-<start>	{
-<end>	} vec 
+<start>{</start>
+<end>} vec </end>
 </rule>
 
 <rule>
 <match>
 <gi>FI
 <action>
-<start>	\fI
-<end>	\fR
+<start>\fI</start>
+<end>\fR</end>
 </rule>
 
 <rule>
 <match>
 <gi>PHR
 <action>
-<start>	 roman }
-<end>	}
+<start> roman }</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>TU
 <action>
-<start>	^.br^
+<start>^.br^</start>
 </rule>
 
 <rule>
@@ -1018,176 +993,175 @@ ${CA}.^
 <match>
 <gi>EPS
 <action>
-<start>	^.if t .PSPIC ${FILE}
-.if n .sp 4^
+<start>^.if t .PSPIC ${FILE}
+.if n .sp 4^</start>
 </rule>
 
 <rule>
 <match>
 <gi>PH
 <action>
-<start>	^.sp ${VSPACE}^
+<start>^.sp ${VSPACE}^</start>
 </rule>
 
 <rule>
 <match>
 <gi>CAPTION
 <action>
-<start>	^.sp
-.ce^
+<start>^.sp
+.ce^</start>
 </rule>
 
 <rule>
 <match>
 <gi>TABLE
 <action>
-<start>	^.DF
-.R^
-<end>	^.DE^
+<start>^.DF
+.R^</start>
+<end>^.DE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>TABULAR
 <action>
-<start>	^.TS
+<start>^.TS
 center, tab(|) ; 
-${CA}.^
-<end>	^.TE^
+${CA}.^</start>
+<end>^.TE^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ROWSEP
 <action>
-<start>	
-^
+<start>^</start>
 </rule>
 
 <rule>
 <match>
 <gi>COLSEP
 <action>
-<start>	|
+<start>|</start>
 </rule>
 
 <rule>
 <match>
 <gi>HLINE
 <action>
-<start>	^_^
+<start>^_^</start>
 </rule>
 
 <rule>
 <match>
 <gi>SLIDES
 <action>
-<start>	^.nr PS 18^
+<start>^.nr PS 18^</start>
 </rule>
 
 <rule>
 <match>
 <gi>SLIDE
 <action>
-<end>	^.bp
-\&^
+<end>^.bp
+\&^</end>
 </rule>
 
 <rule>
 <match>
 <gi>LETTER
 <action>
-<start>	^.nf^
-<end>	^
+<start>^.nf^</start>
+<end>^</end>
 </rule>
 
 <rule>
 <match>
 <gi>FROM
 <action>
-<start>	^From: 
+<start>^From: </start>
 </rule>
 
 <rule>
 <match>
 <gi>TO
 <action>
-<start>	^To: 
+<start>^To: </start>
 </rule>
 
 <rule>
 <match>
 <gi>ADDRESS
 <action>
-<start>	^.de Ad
-<end>	^..^
+<start>^.de Ad</start>
+<end>^..^</end>
 </rule>
 
 <rule>
 <match>
 <gi>EMAIL
 <action>
-<start>	 <
-<end>	>
+<start><</start>
+<end>></end>
 </rule>
 
 <rule>
 <match>
 <gi>SUBJECT
 <action>
-<start>	^Subject: 
+<start>^Subject: </start>
 </rule>
 
 <rule>
 <match>
 <gi>SREF
 <action>
-<start>	^Sref: 
+<start>^Sref: </start>
 </rule>
 
 <rule>
 <match>
 <gi>RREF
 <action>
-<start>	^In-Reply-To: 
+<start>^In-Reply-To: </start>
 </rule>
 
 <rule>
 <match>
 <gi>CC
 <action>
-<start>	^cc: 
+<start>^cc: </start>
 </rule>
 
 <rule>
 <match>
 <gi>OPENING
 <action>
-<start>	^.fi
-.LP^
+<start>^.fi
+.LP^</start>
 </rule>
 
 <rule>
 <match>
 <gi>CLOSING
 <action>
-<start>	^.LP^
+<start>^.LP^</start>
 </rule>
 
 <rule>
 <match>
 <gi>ENCL
 <action>
-<start>	^.XP
-encl: 
+<start>^.XP
+encl: </start>
 </rule>
 
 <rule>
 <match>
 <gi>PS
 <action>
-<start>	^.LP
-p.s.
+<start>^.LP
+p.s.</start>
 </rule>
 
 <!-- Pass the content through -->

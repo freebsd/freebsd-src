@@ -1,6 +1,6 @@
 <!--
 
-  $Id: linuxdoc-latex.ts,v 1.1.1.1 1996/09/08 02:37:39 jfieber Exp $
+  $Id: linuxdoc-latex.ts,v 1.2 1996/09/08 19:20:04 jfieber Exp $
 
   Copyright (C) 1996
        John R. Fieber.  All rights reserved.
@@ -51,21 +51,18 @@
 
 <transpec>
 
-<cmap>
-&cmap;
-</cmap>
+<!-- Character and SDATA entity mapping -->
+<cmap>&cmap;</cmap>
+<smap>&sdata;</smap>
 
-<smap>
-&sdata;
-</smap>
+<!-- Transform rules -->
 
 <rule>
 <match>
 <gi>LINUXDOC
 <action>
-<start>
-% Generated ${date} using ${transpec}
-% by ${user}@${host}
+<start>% Generated ${date} using ${transpec}
+% by ${user}@${host}</start>
 </rule>
 
 <rule>
@@ -117,9 +114,6 @@
 <rule>
 <match>
 <gi>MANPAGE
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
@@ -127,7 +121,7 @@
 <gi>TITLEPAG
 <action>
 <end>^\begin{document}
-\maketitle^<end>
+\maketitle^</end>
 </rule>
 
 <rule>
@@ -157,9 +151,6 @@
 <rule>
 <match>
 <gi>NAME
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
@@ -173,8 +164,8 @@
 <match>
 <gi>THANKS
 <action>
-<start>\thanks{
-<end>}
+<start>\thanks{</start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -197,15 +188,14 @@
 <match>
 <gi>NEWLINE
 <action>
-<start>\\ 
-<end>
+<start>\\ </start>
 </rule>
 
 <rule>
 <match>
 <gi>LABEL
 <action>
-<start>\label{${ID}}
+<start>\label{${ID}}</start>
 </rule>
 
 <rule>
@@ -219,8 +209,8 @@
 <match>
 <gi>LHEAD
 <action>
-<start>{
-<end>}
+<start>{</start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -235,8 +225,8 @@
 <match>
 <gi>COMMENT
 <action>
-<start>{\tt 
-<end>}
+<start>{\tt </start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -322,14 +312,13 @@
 <gi>SECT4
 <action>
 <start>^\subparagraph</start>
-<end>
 </rule>
 
 <rule>
 <match>
 <gi>HEADING
 <action>
-<start>{
+<start>{</start>
 <end>}
 
 </end>
@@ -395,48 +384,48 @@
 <match>
 <gi>CITE
 <action>
-<start>\cite{${ID}
-<end>}
+<start>\cite{${ID}</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>NCITE
 <action>
-<start>\cite\[${NOTE}\]{${ID}
-<end>}
+<start>\cite\[${NOTE}\]{${ID}</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>IDX
 <action>
-<start>\idx{
-<end>}
+<start>\idx{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>CDX
 <action>
-<start>\cdx{
-<end>}
+<start>\cdx{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>FOOTNOTE
 <action>
-<start>\footnote{
-<end>}
+<start>\footnote{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>SQ
 <action>
-<start>``
-<end>''
+<start>``</start>
+<end>''</end>
 </rule>
 
 <rule>
@@ -451,56 +440,56 @@
 <match>
 <gi>EM
 <action>
-<start>\emph{
-<end>}
+<start>\emph{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>BF
 <action>
-<start>{\bf 
-<end>}
+<start>{\bf </start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>IT
 <action>
-<start>\textit{
-<end>}
+<start>\textit{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>SF
 <action>
-<start>\textsf{
-<end>}
+<start>\textsf{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>SL
 <action>
-<start>\textsl{
-<end>}
+<start>\textsl{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>RM
 <action>
-<start>\textrm{
-<end>}
+<start>\textrm{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>TT
 <action>
-<start>\texttt{
-<end>}
+<start>\texttt{</start>
+<end>}</end>
 </rule>
 
 <rule>
@@ -515,16 +504,14 @@
 <match>
 <gi>REF
 <action>
-<start>\ref{${ID}}
-<end>
+<start>\ref{${ID}}</start>
 </rule>
 
 <rule>
 <match>
 <gi>PAGEREF
 <action>
-<start>\pageref{${ID}}
-<end>
+<start>\pageref{${ID}}</start>
 </rule>
 
 <!-- A URL with a NAME attribute -->
@@ -548,24 +535,17 @@
 <match>
 <gi>HTMLURL
 <action>
-<start>${NAME}
-<end>
+<start>${NAME}</start>
 </rule>
 
 <rule>
 <match>
 <gi>X
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
 <match>
 <gi>MC
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
@@ -625,304 +605,286 @@
 <match>
 <gi>PROP
 <action>
-<start>^\begin{proposition}^
-<end>^\end{proposition}^
+<start>^\begin{proposition}^</start>
+<end>^\end{proposition}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>LEMMA
 <action>
-<start>^\begin{lemma}
-<end>^\end{lemma}^
+<start>^\begin{lemma}</start>
+<end>^\end{lemma}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>COROLL
 <action>
-<start>^\begin{corollary}
-<end>^\end{corollary}^
+<start>^\begin{corollary}</start>
+<end>^\end{corollary}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>PROOF
 <action>
-<start>^{\noindent{\bf Proof.}  ^
-<end>^}
+<start>^{\noindent{\bf Proof.}  ^</start>
+<end>^}</end>
 </rule>
 
 <rule>
 <match>
 <gi>THEOREM
 <action>
-<start>^\begin{theorem}
-<end>^\end{theorem}^
+<start>^\begin{theorem}</start>
+<end>^\end{theorem}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>THTAG
 <action>
-<start>\[
-<end>\]^
+<start>\[</start>
+<end>\]^</end>
 </rule>
 
 <rule>
 <match>
 <gi>F
 <action>
-<start>\$
-<end>\$
+<start>\$</start>
+<end>\$</end>
 </rule>
 
 <rule>
 <match>
 <gi>DM
 <action>
-<start>^\\[
-<end>\\]^
+<start>^\\[</start>
+<end>\\]^</end>
 </rule>
 
 <rule>
 <match>
 <gi>EQ
 <action>
-<start>^\begin{equation}^
-<end>^\end{equation}^
+<start>^\begin{equation}^</start>
+<end>^\end{equation}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>FR
 <action>
-<start>\frac
-<end>
+<start>\frac</start>
 </rule>
 
 <rule>
 <match>
 <gi>NU
 <action>
-<start>{
-<end>}
+<start>{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>DE
 <action>
-<start>{
-<end>}
+<start>{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>LIM
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
 <match>
 <gi>OP
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
 <match>
 <gi>LL
 <action>
-<start>_{
-<end>}
+<start>_{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>UL
 <action>
-<start>^{
-<end>}
+<start>^{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>OPD
-<action>
-<start>
-<end>
 </rule>
 
 <rule>
 <match>
 <gi>PR
 <action>
-<start>\prod
-<end>
+<start>\prod</start>
 </rule>
 
 <rule>
 <match>
 <gi>IN
 <action>
-<start>\int
-<end>
+<start>\int</start>
 </rule>
 
 <rule>
 <match>
 <gi>SUM
 <action>
-<start>\sum
-<end>
+<start>\sum</start>
 </rule>
 
 <rule>
 <match>
 <gi>ROOT
 <action>
-<start>\sqrt\[[n]\]{
-<end>}
+<start>\sqrt\[[n]\]{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>AR
 <action>
-<start>^\begin{array}{[ca]}^
-<end>^\end{array}^
+<start>^\begin{array}{[ca]}^</start>
+<end>^\end{array}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ARR
 <action>
-<start>\\ ^
-<end>
+<start>\\ ^</start>
 </rule>
 
 <rule>
 <match>
 <gi>ARC
 <action>
-<start>& 
-<end>
+<start>& </start>
 </rule>
 
 <rule>
 <match>
 <gi>SUP
 <action>
-<start>^{
-<end>}
+<start>^{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>INF
 <action>
-<start>_{
-<end>}
+<start>_{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>UNL
 <action>
-<start>\underline{
-<end>}
+<start>\underline{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>OVL
 <action>
-<start>\overline{
-<end>}
+<start>\overline{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>RF
 <action>
-<start>\mbox{\tt 
-<end>}
+<start>\mbox{\tt </start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>V
 <action>
-<start>\vec{
-<end>}
+<start>\vec{</start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>FI
 <action>
-<start>{\cal 
-<end>}
+<start>{\cal </start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>PHR
 <action>
-<start>{\rm 
-<end>}
+<start>{\rm </start>
+<end>}</end>
 </rule>
 
 <rule>
 <match>
 <gi>TU
 <action>
-<start>\\
-<end>
+<start>\\</start>
 </rule>
 
 <rule>
 <match>
 <gi>FIGURE
 <action>
-<start>^\begin{figure}\[${LOC}\]^
-<end>^\end{figure}^
+<start>^\begin{figure}\[${LOC}\]^</start>
+<end>^\end{figure}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>EPS
 <action>
-<start>^\centerline{\epsffile{${FILE}}}^
-<end>
+<start>^\centerline{\epsffile{${FILE}}}^</start>
 </rule>
 
 <rule>
 <match>
 <gi>PH
 <action>
-<start>^\vspace{${VSPACE}}\par^
-<end>
+<start>^\vspace{${VSPACE}}\par^</start>
 </rule>
 
 <rule>
 <match>
 <gi>CAPTION
 <action>
-<start>^\caption{
-<end>}^
+<start>^\caption{</start>
+<end>}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>TABLE
 <action>
-<start>^\begin{table}\[${LOC}\]^
-<end>^\end{table}^
+<start>^\begin{table}\[${LOC}\]^</start>
+<end>^\end{table}^</end>
 </rule>
 
 <rule>
@@ -930,33 +892,30 @@
 <gi>TABULAR
 <action>
 <start>^\begin{center}
-\begin{tabular}{${CA}}^
+\begin{tabular}{${CA}}^</start>
 <end>^\end{tabular}
-\end{center}^
+\end{center}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>ROWSEP
 <action>
-<start>\\ ^
-<end>
+<start>\\ ^</start>
 </rule>
 
 <rule>
 <match>
 <gi>COLSEP
 <action>
-<start>& 
-<end>
+<start>& </start>
 </rule>
 
 <rule>
 <match>
 <gi>HLINE
 <action>
-<start>^\hline^
-<end>
+<start>^\hline^</start>
 </rule>
 
 <rule>
@@ -972,16 +931,15 @@
 \end{center}
 \bigskip
 }
-\begin{document}^
-<end>^\end{document}^
+\begin{document}^</start>
+<end>^\end{document}^</end>
 </rule>
 
 <rule>
 <match>
 <gi>SLIDE
 <action>
-<start>
-<end>^\newpage^
+<end>^\newpage^</end>
 </rule>
 
 </transpec>
