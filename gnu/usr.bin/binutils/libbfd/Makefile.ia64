@@ -26,8 +26,7 @@ elf64-target.h: elfxx-target.h
 	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
 
 elf64-ia64.c: elfxx-ia64.c
-	sed -e s/NN/64/g -e 's/^.*#.*define.*ELF_DYNAMIC_INTERPRETER.*$$//g' \
-	    ${.ALLSRC} > ${.TARGET}
+	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
 
 pepigen.c: peXXigen.c
 	sed -e s/XX/pep/g ${.ALLSRC} > ${.TARGET}
