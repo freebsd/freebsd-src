@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.7 1996/08/13 09:19:45 peter Exp $
+ * $Id: route.c,v 1.8 1996/10/06 13:32:35 jkh Exp $
  *
  */
 #include <sys/types.h>
@@ -198,10 +198,12 @@ ShowRoute()
 #if (BSD >= 199306)
   if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
     perror("sysctl-getroute");
+    free(sp);
     return(1);
   }
 #else
   if (getkerninfo(KINFO_RT_DUMP, sp, &needed, 0) < 0)
+    free(sp);
     return(1);
 #endif
   ep = sp + needed;
@@ -226,11 +228,11 @@ ShowRoute()
 #endif
 	wp = (u_char *)(lp + 1);
 	mask = 0;
-	for (nb = *lp; nb > 4; nb--) {
+	for (nb = *(char *)lp; nb > 4; nb--) {
 	  mask <<= 8;
 	  mask |= *wp++;
 	}
-	for (nb = 8 - *lp; nb > 0; nb--)
+	for (nb = 8 - *(char *)lp; nb > 0; nb--)
 	  mask <<= 8;
       }
     }
@@ -238,7 +240,7 @@ ShowRoute()
     p_flags(rtm->rtm_flags & (RTF_UP|RTF_GATEWAY|RTF_HOST), "%-6.6s ");
     printf("(%d)\n", rtm->rtm_index);
   }
-
+  free(sp);
   return(1);
 }
 
