@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.19 1998/04/16 16:32:49 kato Exp $
+ *	$Id: lpt.c,v 1.20 1998/06/08 08:55:44 kato Exp $
  */
 
 /*
@@ -291,12 +291,6 @@ static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
 static void lpintr(int);
 #endif /* INET */
-
-#ifdef PC98
-#ifndef PC98_LPT_INTR
-void lptintr(int unit);
-#endif
-#endif
 
 struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
