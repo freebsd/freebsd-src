@@ -2203,8 +2203,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			    (int) csio->cdb_len);
 			softc->last_ctl_resid = resid;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ
-		    0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO, ("Key 0x%x ASC/ASCQ "
+		    "0x%x 0x%x flags 0x%x resid %d dxfer_len %d\n", sense_key,
 		    asc, ascq, sense->flags & ~SSD_KEY_RESERVED, resid,
 		    csio->dxfer_len));
 	} else {
