@@ -90,7 +90,6 @@ static void buf_daemon __P((void));
  * but the code is intricate enough already.
  */
 vm_page_t bogus_page;
-int vmiodirenable = FALSE;
 int runningbufspace;
 static vm_offset_t bogus_offset;
 
@@ -138,8 +137,6 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW,
 	&getnewbufcalls, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW,
 	&getnewbufrestarts, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW,
-	&vmiodirenable, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, bufdefragcnt, CTLFLAG_RW,
 	&bufdefragcnt, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, buffreekvacnt, CTLFLAG_RW,
