@@ -7,7 +7,7 @@ This manual page documents the format of the magic file as
 used by the
 .BR file (__CSECTION__)
 command, version __VERSION__. The
-.B file
+.BR file
 command identifies the type of a file using,
 among other tests,
 a test for whether the file begins with a certain
@@ -70,7 +70,7 @@ than UTC.
 .RE
 .PP
 The numeric types may optionally be followed by
-.B &
+.B \*[Am]
 and a numeric value,
 to specify that the value is to be AND'ed with the
 numeric value before any comparisons are done.  Prepending a
@@ -87,17 +87,17 @@ may be preceded by a character indicating the operation to be performed.
 It may be
 .BR = ,
 to specify that the value from the file must equal the specified value,
-.BR < ,
+.BR \*[Lt] ,
 to specify that the value from the file must be less than the specified
 value,
-.BR > ,
+.BR \*[Gt] ,
 to specify that the value from the file must be greater than the specified
 value,
-.BR & ,
-to specify that the value from the file must have set all of the bits 
+.BR \*[Am] ,
+to specify that the value from the file must have set all of the bits
 that are set in the specified value,
 .BR ^ ,
-to specify that the value from the file must have clear any of the bits 
+to specify that the value from the file must have clear any of the bits
 that are set in the specified value, or
 .BR x ,
 to specify that any value will match. If the character is omitted,
@@ -113,34 +113,34 @@ is octal, and
 is hexadecimal.
 .IP
 For string values, the byte string from the
-file must match the specified byte string. 
+file must match the specified byte string.
 The operators
 .BR = ,
-.B <
+.B \*[Lt]
 and
-.B >
+.B \*[Gt]
 (but not
-.BR & )
+.BR \*[Am] )
 can be applied to strings.
 The length used for matching is that of the string argument
 in the magic file.  This means that a line can match any string, and
 then presumably print that string, by doing
-.B >\e0
+.B \*[Gt]\e0
 (because all strings are greater than the null string).
 .IP message
 The message to be printed if the comparison succeeds.  If the string
 contains a
-.BR printf (3S)
+.BR printf (3)
 format specification, the value from the file (with any specified masking
 performed) is printed using the message as the format string.
 .PP
 Some file formats contain additional information which is to be printed
 along with the file type.  A line which begins with the character
-.B >
+.B \*[Gt]
 indicates additional tests and messages to be printed.  The number of
-.B >
+.B \*[Gt]
 on the line indicates the level of the test; a line with no
-.B >
+.B \*[Gt]
 at the beginning is considered to be at level 0.
 Each line at level
 .IB n \(pl1
@@ -156,7 +156,7 @@ line at level
 .I n
 terminates this.
 If the first character following the last
-.B >
+.B \*[Gt]
 is a
 .B (
 then the string after the parenthesis is interpreted as an indirect offset.
@@ -164,11 +164,11 @@ That means that the number after the parenthesis is used as an offset in
 the file. The value at that offset is read, and is used again as an offset
 in the file. Indirect offsets are of the form:
 .BI (( x [.[bslBSL]][+-][ y ]).
-The value of 
+The value of
 .I x
 is used as an offset in the file. A byte, short or long is read at that offset
-depending on the 
-.B [bslBSL] 
+depending on the
+.B [bslBSL]
 type specifier. The capitalized types interpret the number as a big endian
 value, whereas the small letter versions interpet the number as a little
 endian value. To that number the value of
@@ -179,13 +179,13 @@ if one is not specified is long.
 Sometimes you do not know the exact offset as this depends on the length of
 preceding fields. You can specify an offset relative to the end of the
 last uplevel field (of course this may only be done for sublevel tests, i.e.
-test beginning with 
-.B >
+test beginning with
+.B \*[Gt]
 ). Such a relative offset is specified using
-.B &
+.B \*[Am]
 as a prefix to the offset.
 .SH BUGS
-The formats 
+The formats
 .IR long ,
 .IR belong ,
 .IR lelong ,
@@ -197,7 +197,7 @@ The formats
 and
 .I ledate
 are system-dependent; perhaps they should be specified as a number
-of bytes (2B, 4B, etc), 
+of bytes (2B, 4B, etc),
 since the files being recognized typically come from
 a system on which the lengths are invariant.
 .PP
@@ -210,13 +210,13 @@ indirect offsets.
 .\" From: guy@sun.uucp (Guy Harris)
 .\" Newsgroups: net.bugs.usg
 .\" Subject: /etc/magic's format isn't well documented
-.\" Message-ID: <2752@sun.uucp>
+.\" Message-ID: \*[Lt]2752@sun.uucp\*[Gt]
 .\" Date: 3 Sep 85 08:19:07 GMT
 .\" Organization: Sun Microsystems, Inc.
 .\" Lines: 136
-.\" 
+.\"
 .\" Here's a manual page for the format accepted by the "file" made by adding
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.man,v 1.17 2001/08/07 15:38:42 christos Exp $
+.\" @(#)$Id: magic.man,v 1.19 2002/07/03 18:26:38 christos Exp $

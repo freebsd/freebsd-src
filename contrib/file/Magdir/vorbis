@@ -4,6 +4,7 @@
 #
 # From Felix von Leitner <leitner@fefe.de>
 # Extended by Beni Cherniavsky <cben@crosswinds.net>
+# Further extended by Greg Wooledge <greg@wooledge.org>
 #
 # Most (everything but the number of channels and bitrate) is commented
 # out with `##' as it's not interesting to the average user.  The most
@@ -29,34 +30,44 @@
 >>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	\b,
 # The above tests if at least one of these is specified:
 >>>>>44		lelong		!-1
->>>>>>44	lelong		x		>%lu
+# Vorbis RC2 has a bug which puts -1000 in the min/max bitrate fields
+# instead of -1.
+>>>>>>44	lelong		!-1000
+>>>>>>>44	lelong		x		>%lu
 >>>>>48		lelong		!-1
 >>>>>>48	lelong		x		~%lu
 >>>>>52		lelong		!-1
->>>>>>52	lelong		x		<%lu
+>>>>>>52	lelong		!-1000
+>>>>>>>52	lelong		x		<%lu
 >>>>>48		string		<\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	kbps
 # -- Second vorbis header packet - the comments
->>>102		string		\x03vorbis
 # A kludge to read the vendor string.  It's a counted string, not a
 # zero-terminated one, so file(1) can't read it in a generic way.
 # libVorbis is the only one existing currently, so I detect specifically
 # it.  The interesting value is the cvs date (8 digits decimal).
-##>>>>113		string/c	Xiphophorus\ libVorbis\ I	\b, created by: Xiphophorus libVorbis I
-##>>>>>137	string		>00000000	%.8s
+# Post-RC1 Ogg files have the second header packet (and thus the version)
+# in a different place, so we must use an indirect offset.
+>>>(84.b+85)		string		\x03vorbis
+>>>>(84.b+96)		string/c	Xiphophorus\ libVorbis\ I	\b, created by: Xiphophorus libVorbis I
+>>>>>(84.b+120)		string		>00000000	%.8s
 # Map to beta version numbers:
-##>>>>>>137	string		<20000508	(<beta1 - prepublic)
+>>>>>>(84.b+120)	string		<20000508	(<beta1 - prepublic)
+>>>>>>(84.b+120)	string		20000508	(beta1/2)
+>>>>>>(84.b+120)	string		>20000508
+>>>>>>>(84.b+120)	string		<20001031	(beta2-3)
+>>>>>>(84.b+120)	string		20001031	(beta3)
+>>>>>>(84.b+120)	string		>20001031
+>>>>>>>(84.b+120)	string		<20010225	(beta3-4)
+>>>>>>(84.b+120)	string		20010225	(beta4)
+>>>>>>(84.b+120)	string		>20010225
+>>>>>>>(84.b+120)	string		<20010615	(beta4-RC1)
+>>>>>>(84.b+120)	string		20010615	(RC1)
+>>>>>>(84.b+120)	string		20010813	(RC2)
+>>>>>>(84.b+120)	string		20010816	(RC2 - Garf tuned v1)
+>>>>>>(84.b+120)	string		20011014	(RC2 - Garf tuned v2)
+>>>>>>(84.b+120)	string		20011217	(pre-RC3 CVS)
+>>>>>>(84.b+120)	string		20011231	(RC3)
 # The string has not changed from beta1 to 2 - they are indistinguishable.
-##>>>>>>137	string		20000508	(beta1/2)
-##>>>>>>137	string		>20000508
-##>>>>>>>137	string		<20001031	(beta2-3)
-##>>>>>>137	string		20001031	(beta3)
-##>>>>>>137	string		>20001031
-##>>>>>>>137	string		<20010225	(beta3-4)
-##>>>>>>137	string		20010225	(beta4)
-##>>>>>>137	string		>20010225
-##>>>>>>>137	string		<20010615	(beta4-RC1)
-##>>>>>>137	string		20010615	(RC1)
-##>>>>>>137	string		>20010615	(>RC1)
 # Then come the comments, again length-counted (and number-counted).
 # Some looping constructs and registers would allow reading them but now
 # it's impossible.  However we can print the number of comments present

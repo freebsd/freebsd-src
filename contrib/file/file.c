@@ -24,13 +24,12 @@
  *
  * 4. This notice may not be removed or altered.
  */
-#include <stdio.h>
+
+#include "file.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/param.h>	/* for MAXPATHLEN */
-#include <sys/stat.h>
 #include <fcntl.h>	/* for open() */
 #ifdef RESTORE_TIME
 # if (__COHERENT__ >= 0x420)
@@ -50,13 +49,16 @@
 #include <locale.h>
 #endif
 
+#ifdef HAVE_GETOPT_H
+#include <getopt.h>	/* for long options (is this portable?)*/
+#endif
+
 #include <netinet/in.h>		/* for byte swapping */
 
-#include "file.h"
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.59 2001/07/23 00:02:32 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.66 2002/07/03 19:00:41 christos Exp $")
 #endif	/* lint */
 
 
@@ -65,6 +67,11 @@ FILE_RCSID("@(#)$Id: file.c,v 1.59 2001/07/23 00:02:32 christos Exp $")
 #else
 # define USAGE  "Usage: %s [-bciknsvz] [-f namefile] [-m magicfiles] file...\n"
 #endif
+
+#ifdef __EMX__
+static char *apptypeName = NULL;
+int os2_apptype (const char *fn, char *buf, int nb);
+#endif /* __EMX__ */
 
 #ifndef MAGIC
 # define MAGIC "/etc/magic"
@@ -96,30 +103,60 @@ char *progname;		/* used throughout 			*/
 int lineno;		/* line number in the magic file	*/
 
 
-static void	unwrap		__P((char *fn));
-static void	usage		__P((void));
+static void	unwrap(char *fn);
+static void	usage(void);
+#ifdef HAVE_GETOPT_H
+static void	help(void);
+#endif
 #if 0
-static int	byteconv4	__P((int, int, int));
-static short	byteconv2	__P((int, int, int));
+static int	byteconv4(int, int, int);
+static short	byteconv2(int, int, int);
 #endif
 
-int main __P((int, char *[]));
+int main(int, char *[]);
 
 /*
  * main - parse arguments and handle options
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	int c;
 	int action = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
 	char *mime, *home, *usermagic;
 	struct stat sb;
+#define OPTSTRING	"bcdf:ikm:nsvzCL"
+#ifdef HAVE_GETOPT_H
+	int longindex;
+	static struct option long_options[] =
+	{
+		{"version", 0, 0, 'v'},
+		{"help", 0, 0, 0},
+		{"brief", 0, 0, 'b'},
+		{"checking-printout", 0, 0, 'c'},
+		{"debug", 0, 0, 'd'},
+		{"files-from", 1, 0, 'f'},
+		{"mime", 0, 0, 'i'},
+		{"keep-going", 0, 0, 'k'},
+#ifdef S_IFLNK
+		{"dereference", 0, 0, 'L'},
+#endif
+		{"magic-file", 1, 0, 'm'},
+		{"uncompress", 0, 0, 'z'},
+		{"no-buffer", 0, 0, 'n'},
+		{"special-files", 0, 0, 's'},
+		{"compile", 0, 0, 'C'},
+		{0, 0, 0, 0},
+	};
+#endif
 
 #ifdef LC_CTYPE
 	setlocale(LC_CTYPE, ""); /* makes islower etc work for other langs */
+#endif
+
+#ifdef __EMX__
+	/* sh-like wildcard expansion! Shouldn't hurt at least ... */
+	_wildcard(&argc, &argv);
 #endif
 
 	if ((progname = strrchr(argv[0], '/')) != NULL)
@@ -142,8 +179,19 @@ main(argc, argv)
 			}
 		}
 
-	while ((c = getopt(argc, argv, "bcdf:ikm:nsvzCL")) != EOF)
+#ifndef HAVE_GETOPT_H
+	while ((c = getopt(argc, argv, OPTSTRING)) != -1)
+#else
+	while ((c = getopt_long(argc, argv, OPTSTRING, long_options,
+	    &longindex)) != -1)
+#endif
 		switch (c) {
+#ifdef HAVE_GETOPT_H
+		case 0 :
+			if (longindex == 1)
+				help();
+			break;
+#endif
 		case 'b':
 			++bflag;
 			break;
@@ -241,8 +289,7 @@ main(argc, argv)
  * unwrap -- read a file of filenames, do each one.
  */
 static void
-unwrap(fn)
-	char *fn;
+unwrap(char *fn)
 {
 	char buf[MAXPATHLEN];
 	FILE *f;
@@ -286,10 +333,7 @@ unwrap(fn)
  *	big_endian	whether we are a big endian host
  */
 static int
-byteconv4(from, same, big_endian)
-	int from;
-	int same;
-	int big_endian;
+byteconv4(int from, int same, int big_endian)
 {
 	if (same)
 		return from;
@@ -316,10 +360,7 @@ byteconv4(from, same, big_endian)
  * Same as byteconv4, but for shorts
  */
 static short
-byteconv2(from, same, big_endian)
-	int from;
-	int same;
-	int big_endian;
+byteconv2(int from, int same, int big_endian)
 {
 	if (same)
 		return from;
@@ -344,9 +385,7 @@ byteconv2(from, same, big_endian)
  * process - process input file
  */
 void
-process(inname, wid)
-	const char	*inname;
-	int wid;
+process(const char *inname, int wid)
 {
 	int	fd = 0;
 	static  const char stdname[] = "standard input";
@@ -400,7 +439,7 @@ process(inname, wid)
 		ckfputs(iflag ? "application/x-empty" : "empty", stdout);
 	else {
 		buf[nbytes++] = '\0';	/* null-terminate it */
-		match = tryit(buf, nbytes, zflag);
+		match = tryit(inname, buf, nbytes, zflag);
 	}
 
 #ifdef BUILTIN_ELF
@@ -446,12 +485,24 @@ process(inname, wid)
 
 
 int
-tryit(buf, nb, zflag)
-	unsigned char *buf;
-	int nb, zflag;
+tryit(const char *fn, unsigned char *buf, int nb, int zfl)
 {
+
+	/*
+	 * The main work is done here!
+	 * We have the file name and/or the data buffer to be identified. 
+	 */
+
+#ifdef __EMX__
+	/*
+	 * Ok, here's the right place to add a call to some os-specific
+	 * routine, e.g.
+	 */
+	if (os2_apptype(fn, buf, nb) == 1)
+	       return 'o';
+#endif
 	/* try compression stuff */
-	if (zflag && zmagic(buf, nb))
+	if (zfl && zmagic(fn, buf, nb))
 		return 'z';
 
 	/* try tests in /etc/magic (or surrogate magic file) */
@@ -463,14 +514,46 @@ tryit(buf, nb, zflag)
 		return 'a';
 
 	/* abandon hope, all ye who remain here */
-	ckfputs("data", stdout);
+	ckfputs(iflag ? "application/octet-stream" : "data", stdout);
 		return '\0';
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, USAGE, progname);
 	(void)fprintf(stderr, "Usage: %s -C [-m magic]\n", progname);
+#ifdef HAVE_GETOPT_H
+	(void)fputs("Try `file --help' for more information.\n", stderr);
+#endif
 	exit(1);
 }
+
+#ifdef HAVE_GETOPT_H
+static void
+help(void)
+{
+	puts(
+"Usage: file [OPTION]... [FILE]...\n"
+"Determine file type of FILEs.\n"
+"\n"
+"  -m, --magic-file LIST      use LIST as a colon-separated list of magic\n"
+"                               number files\n"
+"  -z, --uncompress           try to look inside compressed files\n"
+"  -b, --brief                do not prepend filenames to output lines\n"
+"  -c, --checking-printout    print the parsed form of the magic file, use in\n"
+"                               conjunction with -m to debug a new magic file\n"
+"                               before installing it\n"
+"  -f, --files-from FILE      read the filenames to be examined from FILE\n"
+"  -i, --mime                 output mime type strings\n"
+"  -k, --keep-going           don't stop at the first match\n"
+"  -L, --dereference          causes symlinks to be followed\n"
+"  -n, --no-buffer            do not buffer output\n"
+"  -s, --special-files        treat special (block/char devices) files as\n"
+"                             ordinary ones\n"
+"      --help                 display this help and exit\n"
+"      --version              output version information and exit\n"
+);
+	exit(0);
+}
+#endif

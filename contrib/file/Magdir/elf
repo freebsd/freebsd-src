@@ -5,38 +5,45 @@
 # We have to check the byte order flag to see what byte order all the
 # other stuff in the header is in.
 #
-# MIPS R3000 may also be for MIPS R2000.
 # What're the correct byte orders for the nCUBE and the Fujitsu VPP500?
 #
 # updated by Daniel Quinlan (quinlan@yggdrasil.com)
 0	string		\177ELF		ELF
 >4	byte		0		invalid class
 >4	byte		1		32-bit
-# only for MIPS
+# only for MIPS - in the future, the ABI field of e_flags should be used.
 >>18	beshort		8
 >>18	beshort		10
 >>>36   belong          &0x20           N32
 >4	byte		2		64-bit
 >5	byte		0		invalid byte order
 >5	byte		1		LSB
-# only for MIPS R3000_BE
+# The official e_machine number for MIPS is now #8, regardless of endianness.
+# The second number (#10) will be deprecated later. For now, we still
+# say something if #10 is encountered, but only gory details for #8.
 >>18    leshort		8
 # only for 32-bit
 >>>4	byte		1
->>>>36  lelong&0xf0000000       0x00000000      mips-1
->>>>36  lelong&0xf0000000       0x10000000      mips-2
->>>>36  lelong&0xf0000000       0x20000000      mips-3
->>>>36  lelong&0xf0000000       0x30000000      mips-4
->>>>36  lelong&0xf0000000       0x40000000      mips-5
->>>>36  lelong&0xf0000000       0x50000000      mips-6
+>>>>36  lelong&0xf0000000	0x00000000	MIPS-I
+>>>>36  lelong&0xf0000000	0x10000000	MIPS-II
+>>>>36  lelong&0xf0000000	0x20000000	MIPS-III
+>>>>36  lelong&0xf0000000	0x30000000	MIPS-IV
+>>>>36  lelong&0xf0000000	0x40000000	MIPS-V
+>>>>36  lelong&0xf0000000	0x60000000	MIPS32
+>>>>36  lelong&0xf0000000	0x70000000	MIPS64
+>>>>36  lelong&0xf0000000	0x80000000	MIPS32 rel2
+>>>>36  lelong&0xf0000000	0x90000000	MIPS64 rel2
 # only for 64-bit
 >>>4	byte		2
->>>>48  lelong&0xf0000000       0x00000000      mips-1
->>>>48  lelong&0xf0000000       0x10000000      mips-2
->>>>48  lelong&0xf0000000       0x20000000      mips-3
->>>>48  lelong&0xf0000000       0x30000000      mips-4
->>>>48  lelong&0xf0000000       0x40000000      mips-5
->>>>48  lelong&0xf0000000       0x50000000      mips-6
+>>>>48  lelong&0xf0000000	0x00000000	MIPS-I
+>>>>48  lelong&0xf0000000	0x10000000	MIPS-II
+>>>>48  lelong&0xf0000000	0x20000000	MIPS-III
+>>>>48  lelong&0xf0000000	0x30000000	MIPS-IV
+>>>>48  lelong&0xf0000000	0x40000000	MIPS-V
+>>>>48  lelong&0xf0000000	0x60000000	MIPS32
+>>>>48  lelong&0xf0000000	0x70000000	MIPS64 
+>>>>48  lelong&0xf0000000	0x80000000	MIPS32 rel2
+>>>>48  lelong&0xf0000000	0x90000000	MIPS64 rel2
 >>16	leshort		0		no file type,
 >>16	leshort		1		relocatable,
 >>16	leshort		2		executable,
@@ -44,21 +51,24 @@
 # Core handling from Peter Tobias <tobias@server.et-inf.fho-emden.de>
 # corrections by Christian 'Dr. Disk' Hechelmann <drdisk@ds9.au.s.shuttle.de>
 >>16	leshort		4		core file
->>>(0x38+0xcc) string	>\0		of '%s'
->>>(0x38+0x10) lelong	>0		(signal %d),
+# Core file detection is not reliable.
+#>>>(0x38+0xcc) string	>\0		of '%s'
+#>>>(0x38+0x10) lelong	>0		(signal %d),
 >>16	leshort		&0xff00		processor-specific,
 >>18	leshort		0		no machine,
 >>18	leshort		1		AT&T WE32100 - invalid byte order,
 >>18	leshort		2		SPARC - invalid byte order,
 >>18	leshort		3		Intel 80386,
->>18	leshort		4		Motorola 68000 - invalid byte order,
+>>18	leshort		4		Motorola
+>>>36	lelong		&0x01000000	68000 - invalid byte order,
+>>>36	lelong		&0x00810000	CPU32 - invalid byte order,
+>>>36	lelong		0		68020 - invalid byte order,
 >>18	leshort		5		Motorola 88000 - invalid byte order,
 >>18	leshort		6		Intel 80486,
 >>18	leshort		7		Intel 80860,
-# "officially" big endian, but binutils bfd only emits magic #8 for MIPS.
->>18	leshort		8		MIPS R3000_LE [bfd bug],
+>>18	leshort		8		MIPS,
 >>18	leshort		9		Amdahl - invalid byte order,
->>18	leshort		10		MIPS R3000_LE,
+>>18	leshort		10		MIPS (deprecated),
 >>18	leshort		11		RS6000 - invalid byte order,
 >>18	leshort		15		PA-RISC - invalid byte order,
 >>>50	leshort		0x0214		2.0
@@ -92,43 +102,52 @@
 >>20	lelong		1		version 1
 >>36	lelong		1		MathCoPro/FPU/MAU Required
 >5	byte		2		MSB
-# only for MIPS R3000_BE
+# only for MIPS - see comment in little-endian section above.
 >>18    beshort		8
 # only for 32-bit
 >>>4	byte		1
->>>>36  belong&0xf0000000       0x00000000      mips-1
->>>>36  belong&0xf0000000       0x10000000      mips-2
->>>>36  belong&0xf0000000       0x20000000      mips-3
->>>>36  belong&0xf0000000       0x30000000      mips-4
->>>>36  belong&0xf0000000       0x40000000      mips-5
->>>>36  belong&0xf0000000       0x50000000      mips-6
+>>>>36  belong&0xf0000000	0x00000000	MIPS-I
+>>>>36  belong&0xf0000000	0x10000000	MIPS-II
+>>>>36  belong&0xf0000000	0x20000000	MIPS-III
+>>>>36  belong&0xf0000000	0x30000000	MIPS-IV
+>>>>36  belong&0xf0000000	0x40000000	MIPS-V
+>>>>36  belong&0xf0000000	0x60000000	MIPS32
+>>>>36  belong&0xf0000000	0x70000000	MIPS64
+>>>>36  belong&0xf0000000	0x80000000	MIPS32 rel2
+>>>>36  belong&0xf0000000	0x90000000	MIPS64 rel2
 # only for 64-bit
 >>>4	byte		2
->>>>48  belong&0xf0000000       0x00000000      mips-1
->>>>48  belong&0xf0000000       0x10000000      mips-2
->>>>48  belong&0xf0000000       0x20000000      mips-3
->>>>48  belong&0xf0000000       0x30000000      mips-4
->>>>48  belong&0xf0000000       0x40000000      mips-5
->>>>48  belong&0xf0000000       0x50000000      mips-6
+>>>>48	belong&0xf0000000	0x00000000	MIPS-I
+>>>>48	belong&0xf0000000	0x10000000	MIPS-II
+>>>>48	belong&0xf0000000	0x20000000	MIPS-III
+>>>>48	belong&0xf0000000	0x30000000	MIPS-IV
+>>>>48	belong&0xf0000000	0x40000000	MIPS-V
+>>>>48	belong&0xf0000000	0x60000000	MIPS32
+>>>>48	belong&0xf0000000	0x70000000	MIPS64 
+>>>>48	belong&0xf0000000	0x80000000	MIPS32 rel2
+>>>>48	belong&0xf0000000	0x90000000	MIPS64 rel2
 >>16	beshort		0		no file type,
 >>16	beshort		1		relocatable,
 >>16	beshort		2		executable,
 >>16	beshort		3		shared object,
 >>16	beshort		4		core file,
->>>(0x38+0xcc) string	>\0		of '%s'
->>>(0x38+0x10) belong	>0		(signal %d),
+#>>>(0x38+0xcc) string	>\0		of '%s'
+#>>>(0x38+0x10) belong	>0		(signal %d),
 >>16	beshort		&0xff00		processor-specific,
 >>18	beshort		0		no machine,
 >>18	beshort		1		AT&T WE32100,
 >>18	beshort		2		SPARC,
 >>18	beshort		3		Intel 80386 - invalid byte order,
->>18	beshort		4		Motorola 68000,
+>>18	beshort		4		Motorola
+>>>36	belong		&0x01000000	68000,
+>>>36	belong		&0x00810000	CPU32,
+>>>36	belong		0		68020,
 >>18	beshort		5		Motorola 88000,
 >>18	beshort		6		Intel 80486 - invalid byte order,
 >>18	beshort		7		Intel 80860,
->>18	beshort		8		MIPS R3000_BE,
+>>18	beshort		8		MIPS,
 >>18	beshort		9		Amdahl,
->>18	beshort		10		MIPS R3000_LE - invalid byte order,
+>>18	beshort		10		MIPS (deprecated),
 >>18	beshort		11		RS6000,
 >>18	beshort		15		PA-RISC
 >>>50	beshort		0x0214		2.0
