@@ -95,12 +95,15 @@ static const char rcsid[] =
  *
  ******************************************************************************/
 
+#include <errno.h>
 #if __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 #include <string.h>
+#include <unistd.h>
+
 #include "snake.h"
 
 int CMlength;
@@ -191,7 +194,7 @@ gto(sp)
 struct point *sp;
 {
 
-	int distance,f,tfield,j;
+	int distance,f,tfield;
 
 	if (cursor.line > LINES || cursor.line <0 ||
 	    cursor.col <0 || cursor.col > COLUMNS)
@@ -344,7 +347,7 @@ home(){
 }
 
 ll(){
-	int j,l;
+	int l;
 	struct point z;
 
 	l = lcnt + 2;
@@ -531,14 +534,9 @@ baudrate()
 #endif
 
 delay(t)
-int t;
+unsigned int t;
 {
-	int k,j;
-
-	k = baudrate() * t / 300;
-	for(j=0;j<k;j++){
-		putchar(PC);
-	}
+	while (usleep(t*50000U) == -1 && errno == EINTR) ;
 }
 
 done()
@@ -552,6 +550,7 @@ cook()
 	delay(1);
 	putpad(TE);
 	putpad(KE);
+	putpad(VE);
 	fflush(stdout);
 	stty(0, &orig);
 #ifdef TIOCSLTC
@@ -583,7 +582,6 @@ getcap()
 	char *getenv();
 	char *term;
 	char *xPC;
-	struct point z;
 	void stop();
 #ifdef TIOCGWINSZ
 	struct winsize win;
@@ -649,26 +647,43 @@ getcap()
 	KR = tgetstr("kr", &ap);
 	KU = tgetstr("ku", &ap);
 	KD = tgetstr("kd", &ap);
-	Klength = strlen(KL);
-		/*	NOTE:   If KL, KR, KU, and KD are not
-		 *		all the same length, some problems
-		 *		may arise, since tests are made on
-		 *		all of them together.
-		 */
+	if (KL)
+		Klength = strlen(KL);
+	else
+		Klength = strlen(KL);
+	/*
+	 *	NOTE:   If KL, KR, KU, and KD are not
+	 *		all the same length, some problems
+	 *		may arise, since tests are made on
+	 *		all of them together.
+	 */
 
 	TI = tgetstr("ti", &ap);
 	TE = tgetstr("te", &ap);
 	KS = tgetstr("ks", &ap);
 	KE = tgetstr("ke", &ap);
 
+	VI = tgetstr("vi", &ap);
+	VE = tgetstr("ve", &ap);
+
 	xPC = tgetstr("pc", &ap);
 	if (xPC)
 		PC = *xPC;
 
-	NDlength = strlen(ND);
-	BSlength = strlen(BS);
+	if (ND)
+		NDlength = strlen(ND); 
+	else
+		NDlength = 0;
+
+	if (BS)
+		BSlength = strlen(BS);
+	else
+		BSlength = 0;
+
 	if ((CM == 0) &&
-		(HO == 0 | UP==0 || BS==0 || ND==0)) {
+		(HO == 0 || DO == 0 || UP==0 || BS==0 || ND==0))
+	{
+		/* XXX as written in rev.1.6, we can assert(DO) */
 		fprintf(stderr, "Terminal must have addressible ");
 		fprintf(stderr, "cursor or home + 4 local motions\n");
 		exit(5);
