@@ -68,6 +68,7 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	SMP			# Symmetric MultiProcessor Kernel
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
 device		atpic			# 8259A compatability
+options 	NO_MIXED_MODE		# Don't penalize working chipsets
 
 device		acpi
 device		isa
