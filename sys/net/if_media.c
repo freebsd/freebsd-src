@@ -412,6 +412,12 @@ struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
 struct ifmedia_description ifm_subtype_ieee80211_mode_descriptions[] =
     IFM_SUBTYPE_IEEE80211_MODE_DESCRIPTIONS;
 
+struct ifmedia_description ifm_subtype_atm_descriptions[] =
+    IFM_SUBTYPE_ATM_DESCRIPTIONS;
+
+struct ifmedia_description ifm_subtype_atm_option_descriptions[] =
+    IFM_SUBTYPE_ATM_OPTION_DESCRIPTIONS;
+
 struct ifmedia_description ifm_subtype_shared_descriptions[] =
     IFM_SUBTYPE_SHARED_DESCRIPTIONS;
 
@@ -445,6 +451,11 @@ struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 	  &ifm_subtype_ieee80211_descriptions[0],
 	  &ifm_subtype_ieee80211_option_descriptions[0],
 	  &ifm_subtype_ieee80211_mode_descriptions[0]
+	},
+	{
+	  &ifm_subtype_atm_descriptions[0],
+	  &ifm_subtype_atm_option_descriptions[0],
+	  NULL,
 	},
 };
 
