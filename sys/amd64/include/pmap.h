@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.55 1998/05/11 01:05:59 dyson Exp $
+ * 	$Id: pmap.h,v 1.56 1998/06/21 14:08:27 mckay Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -237,9 +237,10 @@ typedef struct pv_entry {
 #define NPPROVMTRR		8
 #define PPRO_VMTRRphysBase0	0x200
 #define PPRO_VMTRRphysMask0	0x201
-struct {
+struct ppro_vmtrr {
 	u_int64_t base, mask;
-} PPro_vmtrr[NPPROVMTRR];
+};
+extern struct ppro_vmtrr PPro_vmtrr[NPPROVMTRR];
 
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
