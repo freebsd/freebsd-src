@@ -219,7 +219,7 @@ struct kseq {
 	int		ksq_load_transferable;	/* kses that may be migrated. */
 	int		ksq_idled;
 	int		ksq_cpus;	/* Count of CPUs in this kseq. */
-	struct kse	*ksq_assigned;	/* assigned by another CPU. */
+	volatile struct kse *ksq_assigned;	/* assigned by another CPU. */
 #endif
 };
 
@@ -486,7 +486,7 @@ kseq_assign(struct kseq *kseq)
 	struct kse *ke;
 
 	do {
-		ke = kseq->ksq_assigned;
+		(volatile struct kse *)ke = kseq->ksq_assigned;
 	} while(!atomic_cmpset_ptr(&kseq->ksq_assigned, ke, NULL));
 	for (; ke != NULL; ke = nke) {
 		nke = ke->ke_assign;
@@ -510,7 +510,7 @@ kseq_notify(struct kse *ke, int cpu)
 	 * Place a KSE on another cpu's queue and force a resched.
 	 */
 	do {
-		ke->ke_assign = kseq->ksq_assigned;
+		(volatile struct kse *)ke->ke_assign = kseq->ksq_assigned;
 	} while(!atomic_cmpset_ptr(&kseq->ksq_assigned, ke->ke_assign, ke));
 	pcpu = pcpu_find(cpu);
 	td = pcpu->pc_curthread;
