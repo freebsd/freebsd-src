@@ -90,6 +90,7 @@ struct shminfo {
  */
 struct shmid_kernel {
 	struct shmid_ds u;
+	struct label *label;	/* MAC label */
 };
 
 extern struct shminfo	shminfo;
