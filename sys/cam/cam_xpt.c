@@ -670,6 +670,11 @@ static void		xpt_async_bcast(struct async_list *async_head,
 					u_int32_t async_code,
 					struct cam_path *path,
 					void *async_arg);
+static void		xpt_dev_async(u_int32_t async_code,
+				      struct cam_eb *bus,
+				      struct cam_et *target,
+				      struct cam_ed *device,
+				      void *async_arg);
 static path_id_t xptnextfreepathid(void);
 static path_id_t xptpathid(const char *sim_name, int sim_unit, int sim_bus);
 static union ccb *xpt_get_ccb(struct cam_ed *device);
@@ -4243,7 +4248,8 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		next_target = TAILQ_NEXT(target, links);
 
 		if (path->target != target
-		 && path->target->target_id != CAM_TARGET_WILDCARD)
+		 && path->target->target_id != CAM_TARGET_WILDCARD
+		 && target->target_id != CAM_TARGET_WILDCARD)
 			continue;
 
 		if (async_code == AC_SENT_BDR) {
@@ -4258,67 +4264,19 @@ xpt_async(u_int32_t async_code, struct cam_path *path, void *async_arg)
 		for (device = TAILQ_FIRST(&target->ed_entries);
 		     device != NULL;
 		     device = next_device) {
-			cam_status status;
-			struct cam_path newpath;
 
 			next_device = TAILQ_NEXT(device, links);
 
 			if (path->device != device 
-			 && path->device->lun_id != CAM_LUN_WILDCARD)
+			 && path->device->lun_id != CAM_LUN_WILDCARD
+			 && device->lun_id != CAM_LUN_WILDCARD)
 				continue;
 
-			/*
-			 * We need our own path with wildcards expanded to
-			 * handle certain types of events.
-			 */
-			if ((async_code == AC_SENT_BDR)
-			 || (async_code == AC_BUS_RESET)
-			 || (async_code == AC_INQ_CHANGED))
-				status = xpt_compile_path(&newpath, NULL,
-							  bus->path_id,
-							  target->target_id,
-							  device->lun_id);
-			else
-				status = CAM_REQ_CMP_ERR;
+			xpt_dev_async(async_code, bus, target,
+				      device, async_arg);
 
-			if (status == CAM_REQ_CMP) {
-
-				/*
-				 * Allow transfer negotiation to occur in a
-				 * tag free environment.
-				 */
-				if (async_code == AC_SENT_BDR
-				  || async_code == AC_BUS_RESET)
-					xpt_toggle_tags(&newpath);
-
-				if (async_code == AC_INQ_CHANGED) {
-					/*
-					 * We've sent a start unit command, or
-					 * something similar to a device that
-					 * may have caused its inquiry data to
-					 * change. So we re-scan the device to
-					 * refresh the inquiry data for it.
-					 */
-					xpt_scan_lun(newpath.periph, &newpath,
-						     CAM_EXPECT_INQ_CHANGE,
-						     NULL);
-				}
-				xpt_release_path(&newpath);
-			} else if (async_code == AC_LOST_DEVICE) {
-				device->flags |= CAM_DEV_UNCONFIGURED;
-			} else if (async_code == AC_TRANSFER_NEG) {
-				struct ccb_trans_settings *settings;
-
-				settings =
-				    (struct ccb_trans_settings *)async_arg;
-				xpt_set_transfer_settings(settings, device,
-							  /*async_update*/TRUE);
-			}
-
-			xpt_async_bcast(&device->asyncs,
-					async_code,
-					path,
-					async_arg);
+			xpt_async_bcast(&device->asyncs, async_code,
+					path, async_arg);
 		}
 	}
 	
@@ -4353,6 +4311,70 @@ xpt_async_bcast(struct async_list *async_head,
 					    async_code, path,
 					    async_arg);
 		cur_entry = next_entry;
+	}
+}
+
+/*
+ * Handle any per-device event notifications that require action by the XPT.
+ */
+static void
+xpt_dev_async(u_int32_t async_code, struct cam_eb *bus, struct cam_et *target,
+	      struct cam_ed *device, void *async_arg)
+{
+	cam_status status;
+	struct cam_path newpath;
+
+	/*
+	 * We only need to handle events for real devices.
+	 */
+	if (target->target_id == CAM_TARGET_WILDCARD
+	 || device->lun_id == CAM_LUN_WILDCARD)
+		return;
+
+	/*
+	 * We need our own path with wildcards expanded to
+	 * handle certain types of events.
+	 */
+	if ((async_code == AC_SENT_BDR)
+	 || (async_code == AC_BUS_RESET)
+	 || (async_code == AC_INQ_CHANGED))
+		status = xpt_compile_path(&newpath, NULL,
+					  bus->path_id,
+					  target->target_id,
+					  device->lun_id);
+	else
+		status = CAM_REQ_CMP_ERR;
+
+	if (status == CAM_REQ_CMP) {
+
+		/*
+		 * Allow transfer negotiation to occur in a
+		 * tag free environment.
+		 */
+		if (async_code == AC_SENT_BDR
+		 || async_code == AC_BUS_RESET)
+			xpt_toggle_tags(&newpath);
+
+		if (async_code == AC_INQ_CHANGED) {
+			/*
+			 * We've sent a start unit command, or
+			 * something similar to a device that
+			 * may have caused its inquiry data to
+			 * change. So we re-scan the device to
+			 * refresh the inquiry data for it.
+			 */
+			xpt_scan_lun(newpath.periph, &newpath,
+				     CAM_EXPECT_INQ_CHANGE, NULL);
+		}
+		xpt_release_path(&newpath);
+	} else if (async_code == AC_LOST_DEVICE) {
+		device->flags |= CAM_DEV_UNCONFIGURED;
+	} else if (async_code == AC_TRANSFER_NEG) {
+		struct ccb_trans_settings *settings;
+
+		settings = (struct ccb_trans_settings *)async_arg;
+		xpt_set_transfer_settings(settings, device,
+					  /*async_update*/TRUE);
 	}
 }
 
