@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12 1996/10/28 08:25:13 joerg Exp $";
+	"$Id: syslogd.c,v 1.12.2.1 1996/11/28 08:28:35 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -936,10 +936,9 @@ init(signo)
 		switch (f->f_type) {
 		case F_FILE:
 		case F_FORW:
-			(void)close(f->f_file);
-			break;
 		case F_CONSOLE:
 		case F_TTY:
+			(void)close(f->f_file);
 			break;
 		}
 		next = f->f_next;
@@ -1161,7 +1160,7 @@ cfline(line, f, prog)
 
 	case '/':
 		if ((f->f_file = open(p, O_WRONLY|O_APPEND, 0)) < 0) {
-			f->f_file = F_UNUSED;
+			f->f_type = F_UNUSED;
 			logerror(p);
 			break;
 		}
@@ -1170,7 +1169,6 @@ cfline(line, f, prog)
 				f->f_type = F_CONSOLE;
 			else
 				f->f_type = F_TTY;
-			close(f->f_file);
 			(void)strcpy(f->f_un.f_fname, p + sizeof _PATH_DEV - 1);
 		} else {
 			(void)strcpy(f->f_un.f_fname, p);
