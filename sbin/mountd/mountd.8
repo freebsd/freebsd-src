@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
-.\"	$Id: mountd.8,v 1.5.2.3 1997/05/14 08:19:20 dfr Exp $
+.\"	$Id: mountd.8,v 1.5.2.4 1998/07/17 20:13:36 jkh Exp $
 .\"
 .Dd April 28, 1995
 .Dt MOUNTD 8
@@ -42,7 +42,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm mountd
-.Op Fl 2dlnr
+.Op Fl 2dnr
 .Op Ar exportsfile
 .Sh DESCRIPTION
 .Nm Mountd
@@ -66,10 +66,6 @@ version 2
 protocol to mount filesystems from this server.
 .It Fl d
 Output debugging information.
-.It Fl l
-Cause all succeeded
-.Nm
-requests to be logged.
 .It Fl n
 Allow non-root mount requests to be served.
 This should only be specified if there are clients such as PC's,
