@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.56 1998/11/05 14:43:29 dg Exp $
+#	$Id: Makefile.inc,v 1.57 1998/11/24 08:15:08 jkoshy Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -99,6 +99,7 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 aio_read.2 \
 MAN2+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
 .endif
+MAN2+=	kldfind.2 kldfirstmod.2 kldload.2 kldnext.2 kldstat.2 kldunload.2
 
 MLINKS+=brk.2 sbrk.2
 MLINKS+=dup.2 dup2.2
