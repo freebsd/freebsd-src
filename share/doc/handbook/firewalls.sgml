@@ -1,4 +1,4 @@
-<!-- $Id: firewalls.sgml,v 1.9 1996/09/07 00:34:08 adam Exp $ -->
+<!-- $Id: firewalls.sgml,v 1.10 1996/09/07 00:51:36 adam Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Firewalls<label id="firewalls"></heading>
@@ -489,14 +489,9 @@ want to allow from the inside. Some general rules are:
 
 <itemize>
 
- <item>Block all incoming access to ports below 1000 for TCP. This is
+ <item>Block all incoming access to ports below 1024 for TCP. This is
 where most of the security sensitive services are, like finger, SMTP
 (mail) and telnet.
-
- <item>Block all incoming access also to TCP ports between 1001 and 1024
-inclusive, unless rlogin/rsh access from outside is to be enabled, in which
-case incoming SYN (<bf>setup</bf>) connections should be blocked on these
-ports and allowed on the relevant service port(s).
 
  <item>Block <bf>all</bf> incoming UDP traffic. There are very few
 useful services that travel over UDP, and what useful traffic there is
