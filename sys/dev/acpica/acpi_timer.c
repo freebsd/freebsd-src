@@ -31,7 +31,11 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#if __FreeBSD_version >= 500000
 #include <sys/timetc.h>
+#else
+#include <sys/time.h>
+#endif
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
