@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.10 1996/12/18 02:28:53 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.11 1996/12/23 02:52:29 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -811,7 +811,7 @@ do-extract:
 	@${MKDIR} ${WRKDIR}
 .endif
 	@for file in ${EXTRACT_ONLY}; do \
-		if !(cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${_DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
+		if ! (cd ${WRKDIR} && ${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${_DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
