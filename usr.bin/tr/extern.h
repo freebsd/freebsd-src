@@ -34,6 +34,10 @@
  * $FreeBSD$
  */
 
+#include <limits.h>
+#define	NCHARS	(UCHAR_MAX + 1)		/* Number of possible characters. */
+#define	OOBCH	(UCHAR_MAX + 1)		/* Out of band character value. */
+
 typedef struct {
 	enum { STRING1, STRING2 } which;
 	enum { EOS, INFINITE, NORMAL, RANGE, SEQUENCE, SET } state;
@@ -43,9 +47,5 @@ typedef struct {
 	int	*set;			/* set of characters */
 	char	*str;			/* user's string */
 } STR;
-
-#include <limits.h>
-#define	NCHARS	(UCHAR_MAX + 1)		/* Number of possible characters. */
-#define	OOBCH	(UCHAR_MAX + 1)		/* Out of band character value. */
 
 int	 next(STR *);
