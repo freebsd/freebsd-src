@@ -63,8 +63,8 @@ parse.o:	parse.c
 
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
-	mv y.tab.c parse.c
-	mv y.tab.h parse.h
+	cp y.tab.c parse.c
+	cp y.tab.h parse.h
 
 lex.o:		lex.l
 
@@ -78,5 +78,5 @@ make-print-version: make-print-version.c
 	${CC} ${CFLAGS} -static -o ${.TARGET} ${.OODATE}
 
 CLEANFILES+=	${GEN} asn1_compile lex.o parse.o parse.c parse.h \
-		hdb_asn1.h make-print-version print_version.h print_version.o
-
+		hdb_asn1.h make-print-version print_version.h print_version.o \
+		y.tab.c y.tab.h
