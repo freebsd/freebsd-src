@@ -1,0 +1,4 @@
+# $Id$
+# This file determins whether Cornell's GateD should be automatically
+# started.  The default is off.
+off
