@@ -1399,7 +1399,7 @@ yylex(void)
 				c = cbuf[cpos];
 				cbuf[cpos] = '\0';
 				yylval.u.i = atoi(cp);
-				yylval.u.o = strtoull(cp, (char **)NULL, 10);
+				yylval.u.o = strtoull(cp, NULL, 10);
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}

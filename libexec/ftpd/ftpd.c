@@ -1035,7 +1035,7 @@ user(char *name)
 				syslog(LOG_NOTICE,
 				    "FTP LOGIN REFUSED FROM %s, %s",
 				    remotehost, name);
-			pw = (struct passwd *) NULL;
+			pw = NULL;
 			return;
 		}
 	}
@@ -2058,7 +2058,7 @@ send_data(FILE *instr, FILE *outstr, size_t blksize, off_t filesize, int isreg)
 
 			while (filesize > 0) {
 				err = sendfile(filefd, netfd, offset, 0,
-					(struct sf_hdtr *) NULL, &cnt, 0);
+					       NULL, &cnt, 0);
 				/*
 				 * Calculate byte_count before OOB processing.
 				 * It can be used in myoob() later.
@@ -2553,7 +2553,7 @@ pwd(void)
 {
 	char *s, path[MAXPATHLEN + 1];
 
-	if (getwd(path) == (char *)NULL)
+	if (getwd(path) == NULL)
 		reply(550, "%s.", path);
 	else {
 		if ((s = doublequote(path)) == NULL)
