@@ -79,10 +79,23 @@ fields mentioned above.
 .Pp
 To allocate an item from a zone, simply call
 .Fn uma_zalloc
-with a pointer to that zone; it will return a pointer to an item, or
+with a pointer to that zone
+and set the
+.Fa wait
+argument to
+.Dv M_WAITOK
+or
+.Dv M_NOWAIT
+depending on whether or not to block while allocating memory for this zone,
+should we run out.
+It will return a pointer to an item if successful,
+or
 .Dv NULL
 in the rare case where all items in the zone are in use and the
-allocator is unable to grow the zone.
+allocator is unable to grow the zone
+or when
+.Dv M_NOWAIT
+is specified.
 .Pp
 Items are released back to the zone from which they were allocated by
 calling
