@@ -144,7 +144,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	 */
 	m0->m_data = (caddr_t)sf->kva;
 	m0->m_len = PAGE_SIZE;
-	MEXTADD(m0, sf->kva, PAGE_SIZE, socow_iodone, sf, 0, EXT_SFBUF);
+	MEXTADD(m0, sf->kva, PAGE_SIZE, socow_iodone, sf, M_RDONLY, EXT_SFBUF);
 	socow_stats.success++;
 
 	iov = uio->uio_iov;
