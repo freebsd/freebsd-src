@@ -121,7 +121,6 @@ static TAILQ_HEAD(, pthread)	free_threadq;
 static struct lock		thread_lock;
 static int			free_thread_count = 0;
 static int			inited = 0;
-static int			active_threads = 1;
 static int			active_kse_count = 0;
 static int			active_kseg_count = 0;
 static u_int64_t		next_uniqueid = 1;
@@ -158,6 +157,7 @@ static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
 		    struct pthread_sigframe *psf);
 static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
 static void	thr_unlink(struct pthread *thread);
+static void	thr_destroy(struct pthread *thread);
 static void	thread_gc(struct pthread *thread);
 static void	kse_gc(struct pthread *thread);
 static void	kseg_gc(struct pthread *thread);
@@ -213,7 +213,7 @@ _kse_single_thread(struct pthread *curthread)
 	 * dump core.
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	active_threads = 1;
+	_thr_active_threads = 1;
 
 	/*
 	 * Enter a loop to remove and free all threads other than
@@ -232,11 +232,7 @@ _kse_single_thread(struct pthread *curthread)
 			_thr_stack_free(&thread->attr);
 			if (thread->specific != NULL)
 				free(thread->specific);
-			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-				_lockuser_destroy(&thread->lockusers[i]);
-			}
-			_lock_destroy(&thread->lock);
-			free(thread);
+			thr_destroy(thread);
 		}
 	}
 
@@ -253,69 +249,42 @@ _kse_single_thread(struct pthread *curthread)
 	/* Free the free KSEs: */
 	while ((kse = TAILQ_FIRST(&free_kseq)) != NULL) {
 		TAILQ_REMOVE(&free_kseq, kse, k_qe);
-		for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
-			_lockuser_destroy(&kse->k_lockusers[i]);
-		}
-		_lock_destroy(&kse->k_lock);
-		_kcb_dtor(kse->k_kcb);
-		if (kse->k_stack.ss_sp != NULL)
-			free(kse->k_stack.ss_sp);
-		free(kse);
+		kse_destroy(kse);
 	}
 	free_kse_count = 0;
 
 	/* Free the active KSEs: */
 	while ((kse = TAILQ_FIRST(&active_kseq)) != NULL) {
 		TAILQ_REMOVE(&active_kseq, kse, k_qe);
-		for (i = 0; i < MAX_KSE_LOCKLEVEL; i++) {
-			_lockuser_destroy(&kse->k_lockusers[i]);
-		}
-		_lock_destroy(&kse->k_lock);
-		if (kse->k_stack.ss_sp != NULL)
-			free(kse->k_stack.ss_sp);
-		free(kse);
+		kse_destroy(kse);
 	}
 	active_kse_count = 0;
 
 	/* Free the free KSEGs: */
 	while ((kseg = TAILQ_FIRST(&free_kse_groupq)) != NULL) {
 		TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
-		_lock_destroy(&kseg->kg_lock);
-		_pq_free(&kseg->kg_schedq.sq_runq);
-		free(kseg);
+		kseg_destroy(kseg);
 	}
 	free_kseg_count = 0;
 
 	/* Free the active KSEGs: */
 	while ((kseg = TAILQ_FIRST(&active_kse_groupq)) != NULL) {
 		TAILQ_REMOVE(&active_kse_groupq, kseg, kg_qe);
-		_lock_destroy(&kseg->kg_lock);
-		_pq_free(&kseg->kg_schedq.sq_runq);
-		free(kseg);
+		kseg_destroy(kseg);
 	}
 	active_kseg_count = 0;
 
 	/* Free the free threads. */
 	while ((thread = TAILQ_FIRST(&free_threadq)) != NULL) {
 		TAILQ_REMOVE(&free_threadq, thread, tle);
-		if (thread->specific != NULL)
-			free(thread->specific);
-		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-			_lockuser_destroy(&thread->lockusers[i]);
-		}
-		_lock_destroy(&thread->lock);
-		free(thread);
+		thr_destroy(thread);
 	}
 	free_thread_count = 0;
 
 	/* Free the to-be-gc'd threads. */
 	while ((thread = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
 		TAILQ_REMOVE(&_thread_gc_list, thread, gcle);
-		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-			_lockuser_destroy(&thread->lockusers[i]);
-		}
-		_lock_destroy(&thread->lock);
-		free(thread);
+		thr_destroy(thread);
 	}
 	TAILQ_INIT(&gc_ksegq);
 	_gc_count = 0;
@@ -361,7 +330,7 @@ _kse_single_thread(struct pthread *curthread)
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
-	active_threads = 1;
+	_thr_active_threads = 1;
 #endif
 }
 
@@ -1247,19 +1216,6 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	DBG_MSG("Adding thread %p to GC list\n", thread);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	/* Use thread_list_lock */
-	active_threads--;
-#ifdef SYSTEM_SCOPE_ONLY
-	if (active_threads == 0) {
-#else
-	if (active_threads == 1) {
-#endif
-		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
-		/* Possible use a signalcontext wrapper to call exit ? */
-		curkse->k_curthread = thread; 
-		_tcb_set(curkse->k_kcb, thread->tcb);
-		exit(0);
-        }
 	THR_GCLIST_ADD(thread);
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	if (sys_scope) {
@@ -2347,8 +2303,9 @@ kse_destroy(struct kse *kse)
 struct pthread *
 _thr_alloc(struct pthread *curthread)
 {
-	kse_critical_t crit;
-	struct pthread *thread = NULL;
+	kse_critical_t	crit;
+	struct pthread	*thread = NULL;
+	int i;
 
 	if (curthread != NULL) {
 		if (GC_NEEDED())
@@ -2370,6 +2327,21 @@ _thr_alloc(struct pthread *curthread)
 		if ((thread->tcb = _tcb_ctor(thread)) == NULL) {
 			free(thread);
 			thread = NULL;
+		} else {
+			/*
+			 * Initialize thread locking.
+			 * Lock initializing needs malloc, so don't
+			 * enter critical region before doing this!
+			 */
+			if (_lock_init(&thread->lock, LCK_ADAPTIVE,
+			    _thr_lock_wait, _thr_lock_wakeup) != 0)
+				PANIC("Cannot initialize thread lock");
+			for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+				_lockuser_init(&thread->lockusers[i],
+				    (void *)thread);
+				_LCK_SET_PRIVATE2(&thread->lockusers[i],
+				    (void *)thread);
+			}
 		}
 	}
 	return (thread);
@@ -2379,23 +2351,11 @@ void
 _thr_free(struct pthread *curthread, struct pthread *thread)
 {
 	kse_critical_t crit;
-	int i;
 
 	DBG_MSG("Freeing thread %p\n", thread);
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
-		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
-			_lockuser_destroy(&thread->lockusers[i]);
-		}
-		_lock_destroy(&thread->lock);
-		_tcb_dtor(thread->tcb);
-		free(thread);
-	}
-	else {
-		/* Reinitialize any important fields here. */
-		thread->lock_switch = 0;
-		sigemptyset(&thread->sigpend);
-		thread->check_pending = 0;
-
+		thr_destroy(thread);
+	} else {
 		/* Add the thread to the free thread list. */
 		crit = _kse_critical_enter();
 		KSE_LOCK_ACQUIRE(curthread->kse, &thread_lock);
@@ -2404,6 +2364,18 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 		KSE_LOCK_RELEASE(curthread->kse, &thread_lock);
 		_kse_critical_leave(crit);
 	}
+}
+
+static void
+thr_destroy(struct pthread *thread)
+{
+	int i;
+
+	for (i = 0; i < MAX_THR_LOCKLEVEL; i++)
+		_lockuser_destroy(&thread->lockusers[i]);
+	_lock_destroy(&thread->lock);
+	_tcb_dtor(thread->tcb);
+	free(thread);
 }
 
 /*
@@ -2424,7 +2396,6 @@ thr_link(struct pthread *thread)
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
 	curthread = _get_curthread();
-	thread->sigmask = curthread->sigmask;
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	/*
 	 * Initialize the unique id (which GDB uses to track
@@ -2433,7 +2404,7 @@ thr_link(struct pthread *thread)
 	 */
 	thread->uniqueid = next_uniqueid++;
 	THR_LIST_ADD(thread);
-	active_threads++;
+	_thr_active_threads++;
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	_kse_critical_leave(crit);
 }
@@ -2451,7 +2422,7 @@ thr_unlink(struct pthread *thread)
 	curkse = _get_curkse();
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	THR_LIST_REMOVE(thread);
-	active_threads--;
+	_thr_active_threads--;
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	_kse_critical_leave(crit);
 }

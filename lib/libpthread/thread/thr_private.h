@@ -994,6 +994,8 @@ SCLASS TAILQ_HEAD(, pthread)	_thread_list
 SCLASS TAILQ_HEAD(, pthread)	_thread_gc_list
     SCLASS_PRESET(TAILQ_HEAD_INITIALIZER(_thread_gc_list));
 
+SCLASS int	_thr_active_threads  SCLASS_PRESET(1);
+
 /* Default thread attributes: */
 SCLASS struct pthread_attr _pthread_attr_default
     SCLASS_PRESET({
