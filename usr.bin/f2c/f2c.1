@@ -42,6 +42,7 @@
 .Op Fl \&I2
 .Op Fl \&i2
 .Op Fl kr Ns Op Cm d
+.Op Fl o Ar name
 .Op Fl onetrip
 .Op Fl P Ns Op Cm s
 .Op Fl r8
@@ -155,6 +156,9 @@ where K&R (first edition) parenthesization rules allow rearrangement.
 If the option is
 .Fl krd ,
 use double precision temporaries even for single-precision operands.
+.It Fl o Ar name
+The C source code is written into file
+.Ar name .
 .It Fl onetrip
 Compile DO loops that are performed at least once if reached.  (Fortran 77 DO
 loops are not performed at all if the upper limit is smaller than the lower
