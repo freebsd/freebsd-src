@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.11.2.3 1998/09/08 10:42:41 jkh Exp $";
+	"$Id: main.c,v 1.11.2.4 1998/09/14 19:23:16 jkh Exp $";
 #endif
 
 /*
@@ -29,11 +29,12 @@ static const char rcsid[] =
 #include "lib.h"
 #include "add.h"
 
-static char Options[] = "hvIRfnp:SMt:";
+static char Options[] = "hvIRfnrp:SMt:";
 
 char	*Prefix		= NULL;
 Boolean	NoInstall	= FALSE;
 Boolean	NoRecord	= FALSE;
+Boolean Remote		= FALSE;
 
 char	*Mode		= NULL;
 char	*Owner		= NULL;
@@ -47,6 +48,9 @@ add_mode_t AddMode	= NORMAL;
 char	pkgnames[MAX_PKGS][MAXPATHLEN];
 char	*pkgs[MAX_PKGS];
 
+static char *getpackagesite(void);
+int getosreldate(void);
+
 static void usage __P((void));
 
 int
@@ -55,6 +59,9 @@ main(int argc, char **argv)
     int ch, err;
     char **start;
     char *cp;
+
+    char *remotepkg = NULL, *ptr;
+    static char packageroot[MAXPATHLEN] = "ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/";
 
     start = argv;
     while ((ch = getopt(argc, argv, Options)) != -1) {
@@ -82,6 +89,10 @@ main(int argc, char **argv)
 	case 'n':
 	    Fake = TRUE;
 	    Verbose = TRUE;
+	    break;
+
+	case 'r':
+	    Remote = TRUE;
 	    break;
 
 	case 't':
@@ -116,10 +127,23 @@ main(int argc, char **argv)
 
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
+    	    if (Remote) {
+		if (getenv("PACKAGESITE") == NULL) {
+		   strcat(packageroot, getpackagesite());
+		}
+		else
+	    	   strcpy(packageroot, (getenv("PACKAGESITE")));
+		remotepkg = strcat(packageroot, *argv);
+		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
+			ptr[2] == 'g' && ptr[3] == 'z' && !ptr[4]))
+		   strcat(remotepkg, ".tgz");
+    	    }
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		pkgs[ch] = "-";
 	    else if (isURL(*argv))	/* preserve URLs */
 		pkgs[ch] = strcpy(pkgnames[ch], *argv);
+	    else if ((Remote) && isURL(remotepkg))
+		pkgs[ch] = strcpy(pkgnames[ch], remotepkg);
 	    else {			/* expand all pathnames to fullnames */
 		if (fexists(*argv)) /* refers to a file directly */
 		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
@@ -156,11 +180,28 @@ main(int argc, char **argv)
 	return 0;
 }
 
+static char *
+getpackagesite()
+{
+    int reldate;
+
+    reldate = getosreldate();
+
+    // Use the following logic if this branch ever recieves a 'final'
+    // release, and packages to match it.
+
+    /* if (reldate == 228001 )
+  	return "i386/packages-2.2-stable/Latest/"; */
+
+    return("i386/packages-2.2-stable/Latest/");
+
+}
+
 static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n",
-		"usage: pkg_add [-vInfRMS] [-t template] [-p prefix]",
+		"usage: pkg_add [-vInrfRMS] [-t template] [-p prefix]",
 		"               pkg-name [pkg-name ...]");
     exit(1);
 }
