@@ -52,8 +52,9 @@ The main reason to crunch programs together is for fitting
 as many programs as possible onto an installation or system recovery
 floppy.
 .Pp
+The
 .Nm
-reads in the specifications in
+utility reads in the specifications in
 .Ar conf-file
 for a crunched binary, and generates a
 .Pa Makefile
@@ -66,14 +67,16 @@ can optionally attempt to determine the object (.o) files that make up
 the program from its source directory
 .Pa Makefile .
 This information is cached between runs.
+The
 .Nm
-uses the companion program
+utility uses the companion program
 .Xr crunchide 1
 to eliminate link-time conflicts between the component programs by
 hiding all unnecessary symbols.
 .Pp
+The
 .Nm
-places specific requirements on package
+utility places specific requirements on package
 .Pa Makefile Ns s
 which make it unsuitable for use with
 .No non- Ns Bx
@@ -165,15 +168,17 @@ Quiet operation.
 Status messages are suppressed.
 .El
 .Sh CRUNCHGEN CONFIGURATION FILE COMMANDS
+The
 .Nm
-reads specifications from the
+utility reads specifications from the
 .Ar conf-file
 that describe the components of the crunched binary.
 In its simplest
 use, the component program names are merely listed along with the
 top-level source directories in which their sources can be found.
+The
 .Nm
-then calculates (via the source makefiles) and caches the
+utility then calculates (via the source makefiles) and caches the
 list of object files and their locations.
 For more specialized
 situations, the user can specify by hand all the parameters that
@@ -434,8 +439,9 @@ The
 must then be used to get those object files built, or
 some other arrangements made.
 .Sh AUTHORS
+The
 .Nm
-was written by
+utility was written by
 .An James da Silva Aq jds@cs.umd.edu .
 .Pp
 Copyright (c) 1994 University of Maryland.

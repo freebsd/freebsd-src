@@ -194,8 +194,9 @@ daemon for text mode cut & paste functionality.
 .It Fl p
 Capture the current contents of the video buffer corresponding
 to the terminal device referred to by standard input.
+The
 .Nm
-writes contents of the video buffer to the standard
+utility writes contents of the video buffer to the standard
 output in a raw binary format.
 For details about that
 format see
@@ -286,8 +287,9 @@ utility uses the
 .Dv CONS_SCRSHOT
 .Xr ioctl 2
 to capture the current contents of the video buffer.
+The
 .Nm
-writes version and additional information to the standard
+utility writes version and additional information to the standard
 output, followed by the contents of the terminal device.
 .Pp
 VGA video memory is typically arranged in two byte tuples,

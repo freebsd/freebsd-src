@@ -45,8 +45,9 @@ command,
 and
 .Nm ctm_rmail
 are used to distribute changes to a source tree via email.
+The
 .Nm ctm_smail
-is given a compressed
+utility is given a compressed
 .Xr ctm
 delta, and a mailing list to send it to.  It splits the delta into manageable
 pieces, encodes them as mail messages and sends them to the mailing list
@@ -362,7 +363,7 @@ manipulation in
 which allows
 .Nm ctm_rmail
 to execute
-.Xr ctm
+.Xr ctm 1
 on the
 .Pq non- Ns Fx
 machine that this example was taken from.
@@ -418,13 +419,15 @@ File containing the name and number of the next delta to be applied to this
 source tree.
 .El
 .Sh DIAGNOSTICS
+The
 .Nm ctm_smail ,
 .Nm ctm_dequeue
 and
 .Nm ctm_rmail
-return exit status 0 for success, and 1 for various failures.
+utilities return exit status 0 for success, and 1 for various failures.
+The
 .Nm ctm_rmail
-is expected to be called from a mail transfer program, and thus signals
+utility is expected to be called from a mail transfer program, and thus signals
 failure only when the input mail message should be bounced (preferably into
 your regular maildrop, not back to the sender).  In short, failure to
 apply a completed delta with
@@ -445,14 +448,16 @@ or, if queueing,
 ctm_smail: src-cur.0250.gz 1/2 queued for src-guys
 .Ed
 .Pp
+The
 .Nm ctm_dequeue
-will report messages like:
+utility will report messages like:
 .Bd -literal -offset indent
 ctm_dequeue: src-cur.0250.gz 1/2 sent
 .Ed
 .Pp
+The
 .Nm ctm_rmail
-will report messages like:
+utility will report messages like:
 .Bd -literal -offset indent
 ctm_rmail: src-cur.0250.gz 1/2 stored
 ctm_rmail: src-cur.0250.gz 2/2 stored
@@ -472,7 +477,7 @@ back into your real mailbox if your mail filter goes wonky.
 These messages go to
 .Em stderr
 or to the log file.  Messages from
-.Xr ctm
+.Xr ctm 1
 turn up here too.  Error messages should be self explanatory.
 .Sh SEE ALSO
 .Xr ctm 1 ,
