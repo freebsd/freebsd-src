@@ -42,10 +42,6 @@
 static const char rcsid[] = "$FreeBSD$";
 #endif
 
-#ifndef KEYSERVSOCK
-#define KEYSERVSOCK "/var/run/keyservsock"
-#endif
-
 int
 _des_crypt_call(buf, len, dparms)
 	char *buf;
@@ -55,12 +51,27 @@ _des_crypt_call(buf, len, dparms)
 	CLIENT *clnt;
 	desresp  *result_1;
 	desargs  des_crypt_1_arg;
-	int	stat;
+	struct netconfig *nconf;
+	void *localhandle;
+	int stat;
 
-	clnt = clnt_create(KEYSERVSOCK, CRYPT_PROG, CRYPT_VERS, "unix");
-	if (clnt == (CLIENT *) NULL) {
+	nconf = NULL;
+	localhandle = setnetconfig();
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
+		if (nconf->nc_protofmly != NULL &&
+		     strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
+			break;
+	}
+	if (nconf == NULL) {
+		warnx("getnetconfig: %s", nc_sperror());
 		return(DESERR_HWERROR);
 	}
+	clnt = clnt_tp_create(NULL, CRYPT_PROG, CRYPT_VERS, nconf);
+	if (clnt == (CLIENT *) NULL) {
+		endnetconfig(localhandle);
+		return(DESERR_HWERROR);
+	}
+	endnetconfig(localhandle);
 
 	des_crypt_1_arg.desbuf.desbuf_len = len;
 	des_crypt_1_arg.desbuf.desbuf_val = buf;
