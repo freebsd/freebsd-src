@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.13 1993/12/19 00:50:27 wollman Exp $
+ *      $Id: aha1742.c,v 1.14 1994/01/11 07:24:32 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -343,7 +343,7 @@ void
 ahb_send_mbox(int unit, int opcode, int target, struct ecb *ecb)
 {
 	int     port = ahbdata[unit]->baseport;
-	int     wait = 100;	/* 1ms should be enough */
+	int     wait = 300;	/* 3ms should be enough */
 	int     stport = port + G2STAT;
 	int     s = splbio();
 
