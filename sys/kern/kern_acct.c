@@ -294,8 +294,7 @@ acct_process(td)
 	/*
 	 * Eliminate any file size rlimit.
 	 */
-	if (p->p_limit->p_refcnt > 1 &&
-	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
+	if (p->p_limit->p_refcnt > 1) {
 		p->p_limit->p_refcnt--;
 		p->p_limit = limcopy(p->p_limit);
 	} 

@@ -555,8 +555,7 @@ dosetrlimit(td, which, limp)
 			return (error);
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	if (p->p_limit->p_refcnt > 1 &&
-	    (p->p_limit->p_lflags & PL_SHAREMOD) == 0) {
+	if (p->p_limit->p_refcnt > 1) {
 		p->p_limit->p_refcnt--;
 		p->p_limit = limcopy(p->p_limit);
 		alimp = &p->p_rlimit[which];
@@ -828,7 +827,6 @@ limcopy(lim)
 	MALLOC(copy, struct plimit *, sizeof(struct plimit),
 	    M_SUBPROC, M_WAITOK);
 	bcopy(lim->pl_rlimit, copy->pl_rlimit, sizeof(struct plimit));
-	copy->p_lflags = 0;
 	copy->p_refcnt = 1;
 	return (copy);
 }
