@@ -218,7 +218,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 			break;
 
 		case MS_TYP_CHA:
-			msq[ins].arg[arg].i = (int)va_arg(p_list, char);
+			msq[ins].arg[arg].i = (int)va_arg(p_list, int);
 			break;
 
 		case MS_TYP_PTR:
