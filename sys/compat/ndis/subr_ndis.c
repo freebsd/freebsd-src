@@ -1642,7 +1642,10 @@ ndis_release_buf(buf)
 	return;
 }
 
-/* Get the virtual address and length of a buffer */
+/*
+ * Get the virtual address and length of a buffer.
+ * Note: the vaddr argument is optional.
+ */
 
 __stdcall static void
 ndis_query_buf(buf, vaddr, len)
@@ -1650,7 +1653,8 @@ ndis_query_buf(buf, vaddr, len)
 	void			**vaddr;
 	uint32_t		*len;
 {
-	*vaddr = buf->nb_mappedsystemva;
+	if (vaddr != NULL)
+		*vaddr = buf->nb_mappedsystemva;
 	*len = buf->nb_bytecount;
 
 	return;
@@ -1665,7 +1669,8 @@ ndis_query_buf_safe(buf, vaddr, len, prio)
 	uint32_t		*len;
 	uint32_t		prio;
 {
-	*vaddr = buf->nb_mappedsystemva;
+	if (vaddr != NULL)
+		*vaddr = buf->nb_mappedsystemva;
 	*len = buf->nb_bytecount;
 
 	return;
@@ -2144,7 +2149,7 @@ ndis_firstbuf(packet, buf, firstva, firstlen, totlen)
 		*firstva = NULL;
 		*firstlen = *totlen = 0;
 	} else {
-		*firstva = tmp->nb_startva;
+		*firstva = tmp->nb_mappedsystemva;
 		*firstlen = *totlen = tmp->nb_bytecount;
 		for (tmp = tmp->nb_next; tmp != NULL; tmp = tmp->nb_next)
 			*totlen += tmp->nb_bytecount;
