@@ -98,6 +98,7 @@ struct cdr_cuesheet {
 #define CDRIOCFIXATE		_IOW('c', 106, int)
 #define CDRIOCREADSPEED		_IOW('c', 107, int)
 #define CDRIOCWRITESPEED	_IOW('c', 108, int)
+#define CDR_MAX_SPEED		0xffff
 #define CDRIOCGETBLOCKSIZE	_IOR('c', 109, int)
 #define CDRIOCSETBLOCKSIZE	_IOW('c', 110, int)
 #define CDRIOCGETPROGRESS	_IOR('c', 111, int)

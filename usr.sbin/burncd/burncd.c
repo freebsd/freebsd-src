@@ -70,7 +70,7 @@ main(int argc, char **argv)
 {
 	int ch, arg, addr;
 	int dao = 0, eject = 0, fixate = 0, list = 0, multi = 0, preemp = 0;
-	int nogap = 0, speed = 4, test_write = 0;
+	int nogap = 0, speed = 4 * 177, test_write = 0;
 	int block_size = 0, block_type = 0, cdopen = 0;
 	const char *dev = "/dev/acd0c";
 
@@ -109,7 +109,10 @@ main(int argc, char **argv)
 			break;
 
 		case 's':
-			speed = atoi(optarg);
+			if (strcasecmp("max", optarg) == 0)
+				speed = CDR_MAX_SPEED;
+			else
+				speed = atoi(optarg) * 177;
 			if (speed <= 0)
 				errx(EX_USAGE, "Invalid speed: %s", optarg);
 			break;
