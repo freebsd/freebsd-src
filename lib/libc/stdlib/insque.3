@@ -4,7 +4,7 @@
 .\" All rights reserved.
 .\"
 .\" As long as the above copyright statement and this notice remain
-.\" unchanged, you can do what ever you want with this file. 
+.\" unchanged, you can do what ever you want with this file.
 .\"
 .\" $FreeBSD$
 .\"
@@ -24,21 +24,30 @@
 .Ft void
 .Fn remque "void *element"
 .Sh DESCRIPTION
-.Pp
 The
 .Fn insque
 and
 .Fn remque
 functions encapsulate the ever-repeating task of doing insertion and
-removal operations on doubly linked lists.  The functions expect their
+removal operations on doubly linked lists.
+The functions expect their
 arguments to point to a structure whose first and second members are
 pointers to the next and previous element, respectively.
 The
 .Fn insque
 functions also allows the
 .Fa pred
-argument to be a NULL pointer for the initialization of a new list's
+argument to be a
+.Dv NULL
+pointer for the initialization of a new list's
 head element.
+.Sh STANDARDS
+The
+.Fn insque
+and
+.Fn remque
+functions conform to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn insque
@@ -49,11 +58,4 @@ functions appeared in
 In
 .Fx 5.0 ,
 they reappeared conforming to
-.St -p1003.1-2001 .
-.Sh STANDARDS
-The
-.Fn insque
-and
-.Fn remque
-functions conform to
 .St -p1003.1-2001 .
