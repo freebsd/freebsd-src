@@ -48,6 +48,7 @@
 #include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
+#include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -82,7 +83,9 @@ static int	ffs_read(struct vop_read_args *);
 static int	ffs_write(struct vop_write_args *);
 static int	ffs_extread(struct vnode *vp, struct uio *uio, int ioflag);
 static int	ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred);
+static int	ffs_closeextattr(struct vop_closeextattr_args *);
 static int	ffs_getextattr(struct vop_getextattr_args *);
+static int	ffs_openextattr(struct vop_openextattr_args *);
 static int	ffs_setextattr(struct vop_setextattr_args *);
 
 
@@ -95,7 +98,9 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_read_desc,		(vop_t *) ffs_read },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
+	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
@@ -106,7 +111,9 @@ vop_t **ffs_specop_p;
 static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
@@ -117,7 +124,9 @@ vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
+	{ &vop_closeextattr_desc,	(vop_t *) ffs_closeextattr },
 	{ &vop_getextattr_desc,		(vop_t *) ffs_getextattr },
+	{ &vop_openextattr_desc,	(vop_t *) ffs_openextattr },
 	{ &vop_setextattr_desc,		(vop_t *) ffs_setextattr },
 	{ NULL, NULL }
 };
@@ -999,7 +1008,7 @@ ffs_getpages(ap)
 }
 
 /*
- * Extended attribute reading.
+ * Extended attribute area reading.
  */
 static int
 ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
@@ -1166,7 +1175,7 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 }
 
 /*
- * Extended attribute writing.
+ * Extended attribute area writing.
  */
 static int
 ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
@@ -1379,8 +1388,123 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	return (0);
 }
 
+static int
+ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
+{
+	struct inode *ip;
+	struct fs *fs;
+	struct ufs2_dinode *dp;
+	int error;
+
+	ip = VTOI(vp);
+	fs = ip->i_fs;
+
+	if (ip->i_ea_area != NULL)
+		return (EBUSY);
+	dp = ip->i_din2;
+	error = ffs_rdextattr(&ip->i_ea_area, vp, td, 0);
+	if (error)
+		return (error);
+	ip->i_ea_len = dp->di_extsize;
+	ip->i_ea_error = 0;
+	return (0);
+}
+
 /*
- * Vnode operating to retrieve a named extended attribute.
+ * Vnode extattr transaction commit/abort
+ */
+static int
+ffs_close_ea(struct vnode *vp, int commit, struct ucred *cred, struct thread *td)
+{
+	struct inode *ip;
+	struct fs *fs;
+	struct uio luio;
+	struct iovec liovec;
+	int error;
+	struct ufs2_dinode *dp;
+
+	ip = VTOI(vp);
+	fs = ip->i_fs;
+	if (ip->i_ea_area == NULL)
+		return (EINVAL);
+	dp = ip->i_din2;
+	error = ip->i_ea_error;
+	if (commit && error == 0) {
+		liovec.iov_base = ip->i_ea_area;
+		liovec.iov_len = ip->i_ea_len;
+		luio.uio_iov = &liovec;
+		luio.uio_iovcnt = 1;
+		luio.uio_offset = 0;
+		luio.uio_resid = ip->i_ea_len;
+		luio.uio_segflg = UIO_SYSSPACE;
+		luio.uio_rw = UIO_WRITE;
+		luio.uio_td = td;
+		/* XXX: I'm not happy about truncating to zero size */
+		if (ip->i_ea_len < dp->di_extsize)
+			error = ffs_truncate(vp, 0, IO_EXT, cred, td);
+		error = ffs_extwrite(vp, &luio, IO_EXT | IO_SYNC, cred);
+	}
+	free(ip->i_ea_area, M_TEMP);
+	ip->i_ea_area = NULL;
+	ip->i_ea_len = 0;
+	ip->i_ea_error = 0;
+	return (error);
+}
+
+/*
+ * Vnode extattr transaction commit/abort
+ */
+int
+ffs_openextattr(struct vop_openextattr_args *ap)
+/*
+struct vop_openextattr_args {
+	struct vnodeop_desc *a_desc;
+	struct vnode *a_vp;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	struct inode *ip;
+	struct fs *fs;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+	return (ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td));
+}
+
+
+/*
+ * Vnode extattr transaction commit/abort
+ */
+int
+ffs_closeextattr(struct vop_closeextattr_args *ap)
+/*
+struct vop_closeextattr_args {
+	struct vnodeop_desc *a_desc;
+	struct vnode *a_vp;
+	int a_commit;
+	IN struct ucred *a_cred;
+	IN struct thread *a_td;
+};
+*/
+{
+	struct inode *ip;
+	struct fs *fs;
+
+	ip = VTOI(ap->a_vp);
+	fs = ip->i_fs;
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		return (ufs_vnoperate((struct vop_generic_args *)ap));
+	return (ffs_close_ea(ap->a_vp, ap->a_commit, ap->a_cred, ap->a_td));
+}
+
+
+
+/*
+ * Vnode operation to retrieve a named extended attribute.
  */
 int
 ffs_getextattr(struct vop_getextattr_args *ap)
@@ -1402,7 +1526,7 @@ vop_getextattr {
 	struct ufs2_dinode *dp;
 	unsigned easize;
 	uint32_t ul;
-	int error, ealen;
+	int error, ealen, stand_alone;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
@@ -1410,11 +1534,22 @@ vop_getextattr {
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
 
-	dp = ip->i_din2;
-	error = ffs_rdextattr(&eae, ap->a_vp, ap->a_td, 0);
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, IREAD);
 	if (error)
 		return (error);
-	easize = dp->di_extsize;
+
+	if (ip->i_ea_area == NULL) {
+		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+		if (error)
+			return (error);
+		stand_alone = 1;
+	} else {
+		stand_alone = 0;
+	}
+	dp = ip->i_din2;
+	eae = ip->i_ea_area;
+	easize = ip->i_ea_len;
 	if (strlen(ap->a_name) > 0) {
 		ealen = ffs_findextattr(eae, easize,
 		    ap->a_attrnamespace, ap->a_name, NULL, &p);
@@ -1449,7 +1584,8 @@ vop_getextattr {
 			}
 		}
 	}
-	free(eae, M_TEMP);
+	if (stand_alone)
+		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 	return(error);
 }
 
@@ -1474,10 +1610,9 @@ vop_setextattr {
 	uint32_t ealength, ul;
 	int ealen, olen, eacont, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
-	struct uio luio;
-	struct iovec liovec;
 	struct ufs2_dinode *dp;
 	struct ucred *cred;
+	int stand_alone;
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
@@ -1485,11 +1620,29 @@ vop_setextattr {
 	if (fs->fs_magic == FS_UFS1_MAGIC)
 		return (ufs_vnoperate((struct vop_generic_args *)ap));
 
+	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
+	    ap->a_cred, ap->a_td, IWRITE);
+	if (error) {
+		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
+			ip->i_ea_error = error;
+		return (error);
+	}
+
 	if (ap->a_cred != NOCRED)
 		cred = ap->a_cred;
 	else
 		cred = ap->a_vp->v_mount->mnt_cred;
+
 	dp = ip->i_din2;
+
+	if (ip->i_ea_area == NULL) {
+		error = ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td);
+		if (error)
+			return (error);
+		stand_alone = 1;
+	} else {
+		stand_alone = 0;
+	}
 
 	/* Calculate the length of the EA entry */
 	if (ap->a_uio == NULL) {
@@ -1508,18 +1661,20 @@ vop_setextattr {
 		ealength += eapad1 + ealen + eapad2;
 	}
 
-	error = ffs_rdextattr(&eae, ap->a_vp, ap->a_td, ealength);
-	if (error)
-		return (error);
+	eae = malloc(ip->i_ea_len + ealength, M_TEMP, M_WAITOK);
+	bcopy(ip->i_ea_area, eae, ip->i_ea_len);
+	easize = ip->i_ea_len;
 
-	easize = dp->di_extsize;
 	olen = ffs_findextattr(eae, easize,
 	    ap->a_attrnamespace, ap->a_name, &p, NULL);
 	if (olen == -1 && ealength == 0) {
 		/* delete but nonexistent */
 		free(eae, M_TEMP);
+		if (stand_alone)
+			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		return(ENOATTR);
-	} else if (olen == -1) {
+	}
+        if (olen == -1) {
 		/* new, append at end */
 		p = eae + easize;
 		easize += ealength;
@@ -1533,6 +1688,10 @@ vop_setextattr {
 	}
 	if (easize > NXADDR * fs->fs_bsize) {
 		free(eae, M_TEMP);
+		if (stand_alone)
+			ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+		else if (ip->i_ea_error == 0)
+			ip->i_ea_error = ENOSPC;
 		return(ENOSPC);
 	}
 	if (ealength != 0) {
@@ -1548,26 +1707,20 @@ vop_setextattr {
 		error = uiomove(p, ealen, ap->a_uio);
 		if (error) {
 			free(eae, M_TEMP);
+			if (stand_alone)
+				ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
+			else if (ip->i_ea_error == 0)
+				ip->i_ea_error = error;
 			return(error);
 		}
 		p += ealen;
 		bzero(p, eapad2);
 	}
-	liovec.iov_base = eae;
-	liovec.iov_len = easize;
-	luio.uio_iov = &liovec;
-	luio.uio_iovcnt = 1;
-	luio.uio_offset = 0;
-	luio.uio_resid = easize;
-	luio.uio_segflg = UIO_SYSSPACE;
-	luio.uio_rw = UIO_WRITE;
-	luio.uio_td = ap->a_td;
-	/* XXX: I'm not happy about truncating to zero size */
-	if (easize < dp->di_extsize)
-		error = ffs_truncate(ap->a_vp, 0, IO_EXT, cred, ap->a_td);
-	error = ffs_extwrite(ap->a_vp, &luio, IO_EXT | IO_SYNC, cred);
-	free(eae, M_TEMP);
-	if (error)
-		return(error);
+	p = ip->i_ea_area;
+	ip->i_ea_area = eae;
+	ip->i_ea_len = easize;
+	free(p, M_TEMP);
+	if (stand_alone)
+		error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
 	return(error);
 }
