@@ -26,3 +26,11 @@
 
 SHLIB_MAJOR=	2
 
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if defined(MAKE_KERBEROS4) 
+DISTRIBUTION+=	krb4
+.endif
+.if defined(MAKE_KERBEROS5)
+DISTRIBUTION+=	krb5
+.endif
+.endif
