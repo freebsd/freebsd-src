@@ -479,6 +479,8 @@ ffs_reload(mp, cred, p)
 	newfs->fs_csp = fs->fs_csp;
 	newfs->fs_maxcluster = fs->fs_maxcluster;
 	newfs->fs_contigdirs = fs->fs_contigdirs;
+ 	/* The file system is still read-only. */
+ 	newfs->fs_ronly = 1;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	if (fs->fs_sbsize < SBSIZE)
 		bp->b_flags |= B_INVAL;
