@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.80 1998/10/06 23:17:44 alex Exp $
+ * $Id: kern_clock.c,v 1.81 1998/10/23 10:44:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -357,7 +357,6 @@ statclock(frame)
 	register struct gmonparam *g;
 #endif
 	register struct proc *p;
-	register int i;
 	struct pstats *pstats;
 	long rss;
 	struct rusage *ru;
@@ -663,7 +662,7 @@ tco_setscales(struct timecounter *tc)
 void
 init_timecounter(struct timecounter *tc)
 {
-	struct timespec ts0, ts1;
+	struct timespec ts1;
 	struct timecounter *t1, *t2, *t3;
 	int i;
 

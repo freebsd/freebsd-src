@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.46 1998/07/29 17:38:14 bde Exp $
+ * $Id: kern_malloc.c,v 1.47 1998/08/16 01:21:51 bde Exp $
  */
 
 #include "opt_vm.h"
@@ -436,8 +436,6 @@ static void
 malloc_init(type)
 	struct malloc_type *type;
 {
-	int npg;
-	int mem_size;
 
 	if (type->ks_magic != M_MAGIC) 
 		panic("malloc type lacks magic");

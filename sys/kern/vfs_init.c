@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.35 1998/10/16 03:55:00 peter Exp $
+ * $Id: vfs_init.c,v 1.36 1998/10/25 10:52:34 bde Exp $
  */
 
 
@@ -63,13 +63,6 @@ MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 #define DODEBUG(A) A
 #else
 #define DODEBUG(A)
-#endif
-
-static struct vfsconf void_vfsconf;
-
-#ifdef unused
-extern struct linker_set vfs_opv_descs_;
-#define vfs_opv_descs ((struct vnodeopv_desc **)vfs_opv_descs_.ls_items)
 #endif
 
 extern struct vnodeop_desc *vfs_op_descs[];
@@ -243,8 +236,6 @@ static void
 vfsinit(dummy)
 	void *dummy;
 {
-	struct vfsconf **vfc, *vfsp;
-	int maxtypenum;
 
 	namei_zone = zinit("NAMEI", MAXPATHLEN, 0, 0, 2);
 
@@ -275,7 +266,7 @@ vfs_register(vfc)
 	struct linker_set *l;
 	struct sysctl_oid **oidpp;
 	struct vfsconf *vfsp;
-	int error, i, maxtypenum, exists;
+	int i, exists;
 
 	vfsp = NULL;
 	l = &sysctl__vfs;
@@ -336,7 +327,6 @@ void
 vfs_mod_opv_init(handle)
 	void *handle;
 {
-	int i;
 	struct vnodeopv_desc *opv;
 
 	opv = (struct vnodeopv_desc *)handle;

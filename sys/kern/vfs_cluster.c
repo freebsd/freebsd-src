@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.69 1998/08/24 08:39:39 dfr Exp $
+ * $Id: vfs_cluster.c,v 1.70 1998/09/04 08:06:55 dfr Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -309,7 +309,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 {
 	struct buf *bp, *tbp;
 	daddr_t bn;
-	int i, inc, j, s;
+	int i, inc, j;
 
 #ifdef DIAGNOSTIC
 	if (size != vp->v_mount->mnt_stat.f_iosize)

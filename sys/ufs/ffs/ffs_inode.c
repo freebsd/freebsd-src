@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.46 1998/07/04 20:45:38 julian Exp $
+ * $Id: ffs_inode.c,v 1.47 1998/09/15 14:45:28 luoqi Exp $
  */
 
 #include "opt_quota.h"
@@ -144,7 +144,7 @@ ffs_truncate(vp, length, flags, cred, p)
 	register struct fs *fs;
 	struct buf *bp;
 	int offset, size, level;
-	long count, nblocks, vflags, blocksreleased = 0;
+	long count, nblocks, blocksreleased = 0;
 	struct timeval tv;
 	register int i;
 	int aflags, error, allerror;

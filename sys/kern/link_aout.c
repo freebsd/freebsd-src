@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.13 1998/10/09 23:49:28 peter Exp $
+ *	$Id: link_aout.c,v 1.14 1998/10/16 03:45:35 peter Exp $
  */
 
 #ifndef __alpha__
@@ -561,7 +561,6 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 	struct nzlist* sp;
 	struct nzlist* ep;
 	struct nzlist* best = 0;
-	int i;
 
 	for (sp = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic)),
 		 ep = (struct nzlist *) ((caddr_t) sp + LD_STABSZ(af->dynamic));
