@@ -28,8 +28,16 @@
  */
 int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int width)
 {
-  int i, x, y, key = 0, button = 0;
+  int i, j, x, y, key = 0, button = 0;
   WINDOW *dialog;
+
+  if (height < 0)
+	height = strheight(prompt)+4;
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j)+4;
+  }
 
   /* center dialog box on screen */
   x = (COLS - width)/2;

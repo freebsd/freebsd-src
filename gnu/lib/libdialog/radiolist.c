@@ -33,9 +33,9 @@ static int list_width, check_x, item_x;
 /*
  * Display a dialog box with a list of options that can be turned on or off
  */
-int dialog_radiolist(char *title, char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result)
+int dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int width, int list_height, int item_no, unsigned char **items, unsigned char *result)
 {
-  int i, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
+  int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
       scroll = 0, max_choice, *status, was_on = 0;
   WINDOW *dialog, *list;
 
@@ -57,6 +57,22 @@ int dialog_radiolist(char *title, char *prompt, int height, int width, int list_
 	was_on = 1;
   }
   max_choice = MIN(list_height, item_no);
+
+  check_x = 0;
+  item_x = 0;
+  /* Find length of longest item in order to center radiolist */
+  for (i = 0; i < item_no; i++) {
+    check_x = MAX(check_x, strlen(items[i*3]) + strlen(items[i*3 + 1]) + 6);
+    item_x = MAX(item_x, strlen(items[i*3]));
+  }
+  if (height < 0)
+	height = strheight(prompt)+list_height+4+2;
+  if (width < 0) {
+	i = strwidth(prompt);
+	j = strwidth(title);
+	width = MAX(i,j);
+	width = MAX(width,check_x+10)+4;
+  }
 
   /* center dialog box on screen */
   x = (COLS - width)/2;
@@ -114,13 +130,6 @@ int dialog_radiolist(char *title, char *prompt, int height, int width, int list_
   /* draw a box around the list items */
   draw_box(dialog, box_y, box_x, list_height+2, list_width+2, menubox_border_attr, menubox_attr);
 
-  check_x = 0;
-  item_x = 0;
-  /* Find length of longest item in order to center radiolist */
-  for (i = 0; i < item_no; i++) {
-    check_x = MAX(check_x, strlen(items[i*3]) + strlen(items[i*3 + 1]) + 6);
-    item_x = MAX(item_x, strlen(items[i*3]));
-  }
   check_x = (list_width - check_x) / 2;
   item_x = check_x + item_x + 6;
 

@@ -422,3 +422,53 @@ void end_dialog(void)
 {
     endwin();
 }
+
+int strwidth(const char *p)
+{
+	int i = 0, len, incr;
+	const char *start, *s, *s1, *s2;
+
+	for (start = s = p; ; start = (s += incr)) {
+		s1 = strchr(s, '\n');
+		s2 = strstr(s, "\\n");
+		if (s2 == NULL)
+			s = s1;
+		else if (s1 == NULL)
+			s = s2;
+		else
+			s = MIN(s1, s2);
+		if (s == NULL)
+			break;
+		incr = 1 + (s == s2);
+		len = s - start;
+		if (len > i)
+			i = len;
+	}
+	len = strlen(start);
+	if (len > i)
+		i = len;
+	return i;
+}
+
+int strheight(const char *p)
+{
+	int i = 1, incr;
+	const char *s, *s1, *s2;
+
+	for (s = p; ; s += incr) {
+		s1 = strchr(s, '\n');
+		s2 = strstr(s, "\\n");
+		if (s2 == NULL)
+			s = s1;
+		else if (s1 == NULL)
+			s = s2;
+		else
+			s = MIN(s1, s2);
+		if (s == NULL)
+			break;
+		incr = 1 + (s == s2);
+		i++;
+	}
+	return i;
+}
+
