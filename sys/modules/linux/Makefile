@@ -6,11 +6,15 @@ MAINTAINER=	marcel@FreeBSD.org
 
 KMOD=	linux
 SRCS=	linux_file.c linux_ioctl.c linux_machdep.c linux_misc.c \
-	linux_signal.c linux_ipc.c linux_socket.c linux_stats.c linux_mib.c \
+	linux_signal.c linux_socket.c linux_stats.c linux_mib.c \
 	linux_dummy.c linux_sysent.c linux_sysvec.c linux_util.c \
-	imgact_linux.c opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
+	opt_compat.h opt_linux.h opt_vmpage.h vnode_if.h
 OBJS=	linux_locore.o
 MAN8=	linux.8
+
+.if ${MACHINE_ARCH} == "i386"
+SRCS+=  imgact_linux.c linux_ipc.c
+.endif
 
 EXPORT_SYMS=_linux_mod
 CLEANFILES= linux_assym.h linux_genassym.o
