@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.3 1997/11/12 10:44:22 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
@@ -73,7 +73,7 @@ extern	int	opts;
 							  second; }
 # define	FR_VERBOSE(verb_pr)			verbose verb_pr
 # define	FR_DEBUG(verb_pr)			debug verb_pr
-# define	SEND_RESET(ip, qif, if)		send_reset(ip, if)
+# define	SEND_RESET(ip, qif, if, m)		send_reset(ip, if)
 # define	IPLLOG(a, c, d, e)		ipllog()
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
 # if SOLARIS
@@ -98,7 +98,12 @@ extern	kmutex_t	ipf_mutex, ipf_auth;
 			icmp_error(ip, t, c, if, src)
 # else /* SOLARIS */
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
-#  define	SEND_RESET(ip, qif, if)	send_reset((struct tcpiphdr *)ip)
+#  ifdef linux
+#   define	SEND_RESET(ip, qif, if)		send_reset((tcpiphdr_t *)ip,\
+							   ifp)
+#  else
+#   define	SEND_RESET(ip, qif, if)		send_reset((tcpiphdr_t *)ip)
+#  endif
 #  ifdef __sgi
 #   define	ICMP_ERROR(b, ip, t, c, if, src) \
 			icmp_error(b, t, c, if, src, if)
@@ -553,7 +558,7 @@ int out;
 	fr_info_t frinfo, *fc;
 	register fr_info_t *fin = &frinfo;
 	frentry_t *fr = NULL;
-	int pass, changed, apass;
+	int pass, changed, apass, error = EHOSTUNREACH;
 #if !SOLARIS || !defined(_KERNEL)
 	register mb_t *m = *mp;
 #endif
@@ -767,10 +772,11 @@ logit:
 # else
 #  ifndef linux
 		mc = m_copy(m, 0, M_COPYALL);
+#  else
+		;
 #  endif
 # endif
 #endif
-
 	if (pass & FR_PASS)
 		frstats[out].fr_pass++;
 	else if (pass & FR_BLOCK) {
@@ -811,6 +817,9 @@ logit:
 				frstats[1].fr_ret++;
 			}
 #endif
+		} else {
+			if (pass & FR_RETRST)
+				error = ECONNRESET;
 		}
 	}
 
@@ -842,8 +851,8 @@ logit:
 		m_copyback(m, 0, up, hbuf);
 #   endif
 #  endif /* !linux */
-	return (pass & FR_PASS) ? 0 : -1;
-#  else /* !SOLARIS */
+	return (pass & FR_PASS) ? 0 : error;
+# else /* !SOLARIS */
 	if (fr) {
 		frdest_t *fdp = &fr->fr_tif;
 
@@ -855,7 +864,7 @@ logit:
 		if (mc)
 			ipfr_fastroute(qif, ip, mc, mp, fin, &fr->fr_dif);
 	}
-	return (pass & FR_PASS) ? changed : -1;
+	return (pass & FR_PASS) ? changed : error;
 # endif /* !SOLARIS */
 #else /* _KERNEL */
 	if (pass & FR_NOMATCH)
@@ -872,6 +881,7 @@ logit:
 /*
  * ipf_cksum
  * addr should be 16bit aligned and len is in bytes.
+ * length is in bytes
  */
 u_short ipf_cksum(addr, len)
 register u_short *addr;
@@ -900,10 +910,11 @@ register int len;
  * and the TCP header.  We also assume that data blocks aren't allocated in
  * odd sizes.
  */
-u_short fr_tcpsum(m, ip, tcp)
+u_short fr_tcpsum(m, ip, tcp, len)
 mb_t *m;
 ip_t *ip;
 tcphdr_t *tcp;
+int len;
 {
 	union {
 		u_char	c[2];
@@ -911,7 +922,6 @@ tcphdr_t *tcp;
 	} bytes;
 	u_long sum;
 	u_short	*sp;
-	int len;
 # if SOLARIS || defined(__sgi)
 	int add, hlen;
 # endif
@@ -926,9 +936,9 @@ tcphdr_t *tcp;
 	/*
 	 * Add up IP Header portion
 	 */
-	len = ip->ip_len - (ip->ip_hl << 2);
 	bytes.c[0] = 0;
 	bytes.c[1] = IPPROTO_TCP;
+	len -= (ip->ip_hl << 2);
 	sum = bytes.s;
 	sum += htons((u_short)len);
 	sp = (u_short *)&ip->ip_src;
@@ -994,13 +1004,13 @@ tcphdr_t *tcp;
 		goto nodata;
 	while (len > 0) {
 #if SOLARIS
-		if ((caddr_t)sp >= (caddr_t)m->b_wptr) {
+		while ((caddr_t)sp >= (caddr_t)m->b_wptr) {
 			m = m->b_cont;
 			PANIC((!m),("fr_tcpsum: not enough data"));
 			sp = (u_short *)m->b_rptr;
 		}
 #else
-		if (((caddr_t)sp - mtod(m, caddr_t)) >= m->m_len)
+		while (((caddr_t)sp - mtod(m, caddr_t)) >= m->m_len)
 		{
 			m = m->m_next;
 			PANIC((!m),("fr_tcpsum: not enough data"));
@@ -1009,7 +1019,11 @@ tcphdr_t *tcp;
 #endif /* SOLARIS */
 		if (len < 2)
 			break;
-		sum += *sp++;
+		if((u_long)sp & 1) {
+			bcopy((char *)sp++, (char *)&bytes.s, sizeof(bytes.s));
+			sum += bytes.s;
+		} else
+			sum += *sp++;
 		len -= 2;
 	}
 	if (len) {
@@ -1059,7 +1073,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.0.2.41.2.3 1997/11/12 10:44:22 darrenr Exp $
+ * $Id: fil.c,v 2.0.2.41.2.9 1997/12/02 13:56:06 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1258,11 +1272,11 @@ frentry_t *list, **listp;
 }
 
 
-void frflush(unit, data)
+void frflush(unit, result)
 int unit;
-caddr_t data;
+int *result;
 {
-	int flags = *(int *)data, flushed = 0, set = fr_active;
+	int flags = *result, flushed = 0, set = fr_active;
 
 	bzero((char *)frcache, sizeof(frcache[0]) * 2);
 
@@ -1286,5 +1300,5 @@ caddr_t data;
 		}
 	}
 
-	*(int *)data = flushed;
+	*result = flushed;
 }
