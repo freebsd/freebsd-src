@@ -82,8 +82,8 @@ void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 
-struct	ipi_level_args ipi_level_args;
-struct	ipi_tlb_args ipi_tlb_args;
+extern	struct	ipi_level_args ipi_level_args;
+extern	struct	ipi_tlb_args ipi_tlb_args;
 
 extern	int mp_ncpus;
 
