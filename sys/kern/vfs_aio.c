@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.18 1997/12/01 18:41:08 dyson Exp $
+ * $Id: vfs_aio.c,v 1.19 1997/12/08 02:18:25 dyson Exp $
  */
 
 /*
@@ -555,7 +555,7 @@ aio_process(struct aiocblist *aiocbe)
 	fd = cb->aio_fildes;
 	fp = fdp->fd_ofiles[fd];
 
-	aiov.iov_base = cb->aio_buf;
+	aiov.iov_base = (void *) cb->aio_buf;
 	aiov.iov_len = cb->aio_nbytes;
 
 	auio.uio_iov = &aiov;
@@ -1059,7 +1059,7 @@ aio_qphysio(p, aiocbe)
 	bp->b_flags = B_BUSY | B_PHYS | B_CALL | bflags;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
-	bp->b_data = cb->aio_buf;
+	bp->b_data = (void *) cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
 
 	if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
@@ -1708,7 +1708,7 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 		return aio_aqueue(p, (struct aiocb *) uap->aiocbp, LIO_READ);
 	}
 
-	aiov.iov_base = iocb.aio_buf;
+	aiov.iov_base = (void *) iocb.aio_buf;
 	aiov.iov_len = iocb.aio_nbytes;
 
 	auio.uio_iov = &aiov;
@@ -1770,7 +1770,7 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 	if (iocb.aio_offset == -1LL)
 		return EINVAL;
 
-	aiov.iov_base = iocb.aio_buf;
+	aiov.iov_base = (void *) iocb.aio_buf;
 	aiov.iov_len = iocb.aio_nbytes;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
