@@ -1263,7 +1263,11 @@ NODE *tree;
 		(void) setstate(state);
 
 	if (tree == NULL)
+#ifdef __FreeBSD__
+		srandom((unsigned int) (save_seed = (long) time((time_t *) 0) ^ getpid()));
+#else
 		srandom((unsigned int) (save_seed = (long) time((time_t *) 0)));
+#endif
 	else {
 		tmp = tree_eval(tree->lnode);
 		srandom((unsigned int) (save_seed = (long) force_number(tmp)));
