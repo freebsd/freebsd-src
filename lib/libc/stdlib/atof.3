@@ -67,10 +67,6 @@ strtod(nptr, (char **)NULL);
 The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
-.Pp
-The
-.Fn atof
-function does not detect errors.
 .Sh IMPLEMENTATION NOTES
 The
 .Fn atof
@@ -81,6 +77,10 @@ The
 function has been deprecated by
 .Fn strtod
 and should not be used in new code.
+.Sh ERRORS
+The
+.Fn atof
+function does not detect errors.
 .Sh SEE ALSO
 .Xr atoi 3 ,
 .Xr atol 3 ,
@@ -91,7 +91,7 @@ and should not be used in new code.
 The
 .Fn atof
 function conforms to
-.St -p1003.1 ,
+.St -p1003.1-90 ,
 .St -isoC ,
 and
 .St -isoC-99 .
