@@ -55,6 +55,7 @@
 #include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/socketvar.h>
+#include <sys/ctype.h>
 #include <machine/limits.h>
 
 #include <net/netisr.h>
