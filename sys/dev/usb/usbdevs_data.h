@@ -142,6 +142,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "QuickCam",
 	},
 	{
+	    USB_VENDOR_LUCENT, USB_PRODUCT_LUCENT_EVALKIT,
+	    0,
+	    "Lucent",
+	    "USS-720 evaluation kit",
+	},
+	{
 	    USB_VENDOR_ACER, USB_PRODUCT_ACER_ACERSCAN_C310U,
 	    0,
 	    "Acer Peripherals",
@@ -157,7 +163,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_EPSON, USB_PRODUCT_EPSON_PRINTER3,
 	    0,
 	    "Epson",
-	    "printer adapter",
+	    "ISD USB Smart Cable",
 	},
 	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
@@ -367,6 +373,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_CONNECTIX, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Connectix",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_LUCENT, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Lucent",
 	    NULL,
 	},
 	{
