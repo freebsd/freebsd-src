@@ -2015,6 +2015,11 @@ ix86_can_use_return_insn_p ()
   int reglimit = (frame_pointer_needed
 		  ? FRAME_POINTER_REGNUM : STACK_POINTER_REGNUM);
 
+#ifdef TARGET_PROFILER_EPILOGUE
+  if (TARGET_PROFILER_EPILOGUE)
+    return 0;
+#endif
+
 #ifdef NON_SAVING_SETJMP
   if (NON_SAVING_SETJMP && current_function_calls_setjmp)
     return 0;
@@ -2080,6 +2085,10 @@ ix86_epilogue (do_rtl)
 
   if (flag_pic || profile_flag || profile_block_flag)
     emit_insn (gen_blockage ());
+
+#ifdef FUNCTION_PROFILER_EPILOGUE
+  FUNCTION_PROFILER_EPILOGUE (asm_out_file, do_rtl);
+#endif
 
   /* If we're only restoring one register and sp is not valid then
      using a move instruction to restore the register since it's
@@ -2216,6 +2225,7 @@ ix86_epilogue (do_rtl)
 #ifdef FUNCTION_BLOCK_PROFILER_EXIT
   if (profile_block_flag == 2)
     {
+      /* XXX this is hosed like FUNCTION_PROFILER_EPILOGUE () was.  */
       FUNCTION_BLOCK_PROFILER_EXIT(file);
     }
 #endif
@@ -2899,6 +2909,9 @@ output_pic_addr_const (file, x, code)
 
     case SYMBOL_REF:
       assemble_name (file, XSTR (x, 0));
+#ifdef ASM_HACK_SYMBOLREF_CODE
+      ASM_HACK_SYMBOLREF_CODE (XSTR (x, 0), code);
+#endif
       if (code == 'P' && ! SYMBOL_REF_FLAG (x))
 	fputs ("@PLT", file);
       break;
