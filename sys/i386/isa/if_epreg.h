@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id$
+ *  $Id: if_epreg.h,v 1.20 1997/02/22 09:36:26 peter Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -55,25 +55,13 @@
 struct ep_softc {
     struct arpcom arpcom;	/* Ethernet common part		 */
     int ep_io_addr;		/* i/o bus address		 */
-#define MAX_MBS  8		/* # of mbufs we keep around	 */
-    struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		 */
-    int next_mb;		/* Which mbuf to use next. 	 */
-    int last_mb;		/* Last mbuf.			 */
     struct mbuf *top, *mcur;
-    short tx_start_thresh;	/* Current TX_start_thresh.	 */
-    short tx_rate;
-    short tx_counter;
-    short rx_early_thresh;	/* Current RX_early_thresh.     */
-    short rx_latency;
-    short rx_avg_pkt;
     short cur_len;
     u_short ep_connectors;	/* Connectors on this card.	 */
     u_char ep_connector;	/* Configured connector.	 */
     int stat;			/* some flags */
     int gone;			/* adapter is not present (for PCCARD) */
 #define         F_RX_FIRST   0x1
-#define         F_WAIT_TRAIL 0x2
-#define         F_RX_TRAILER 0x4
 #define		F_PROMISC    0x8
 
 #define         F_ACCESS_32_BITS 0x100
@@ -108,9 +96,8 @@ struct ep_board {
 #define TX_INIT_RATE         16
 #define TX_INIT_MAX_RATE     64
 #define RX_INIT_LATENCY      64
-#define RX_INIT_EARLY_THRESH 64
-#define MIN_RX_EARLY_THRESHF   16 /* not less than ether_header */
-#define MIN_RX_EARLY_THRESHL   4
+#define RX_INIT_EARLY_THRESH 208 /* not less than MINCLSIZE */
+#define RX_NEXT_EARLY_THRESH 500
 
 #define EEPROMSIZE      0x40
 #define MAX_EEPROMBUSY  1000
