@@ -115,8 +115,6 @@ SYSCTL_INT(_machdep, CPU_UNALIGNED_SIGBUS, unaligned_sigbus,
 static void cpu_startup __P((void *));
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
-static MALLOC_DEFINE(M_MBUF, "mbuf", "mbuf");
-
 struct msgbuf *msgbufp=0;
 
 int bootverbose = 0, Maxmem = 0;
@@ -286,22 +284,13 @@ again:
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
+	mtx_unlock(&vm_mtx);
 
 	/*
-	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
-	 * we use the more space efficient malloc in place of kmem_alloc.
+	 * Finally, allocate mbuf pool.
+	 * XXX: Mbuf system machine-specific initializations should
+	 *      go here, if anywhere.
 	 */
-	{
-		vm_offset_t mb_map_size;
-
-		mb_map_size = nmbufs * MSIZE + nmbclusters * MCLBYTES +
-		    (nmbclusters + nmbufs / 4) * sizeof(union mext_refcnt);
-		mb_map_size = roundup2(mb_map_size, max(MCLBYTES, PAGE_SIZE));
-		mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl,
-		    &maxaddr, mb_map_size);
-		mb_map->system_map = 1;
-	}
-	mtx_unlock(&vm_mtx);
 
 	/*
 	 * Initialize callouts
