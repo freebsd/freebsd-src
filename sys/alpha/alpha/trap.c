@@ -38,7 +38,6 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/kse.h>
 #include <sys/exec.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
