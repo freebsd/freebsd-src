@@ -788,12 +788,40 @@ vinum_info(int argc, char *argv[], char *argv0[])
 #endif
 }
 
-/* Print config file to a file.  This is a userland version
- * of kernel format_config */
+/*
+ * Print config file to a file.  This is a userland version
+ * of kernel format_config
+ */
 void 
 vinum_printconfig(int argc, char *argv[], char *argv0[])
 {
     FILE *of;
+
+    if (argc > 1) {
+	fprintf(stderr, "Usage: \tprintconfig [<outfile>]\n");
+	return;
+    } else if (argc == 1)
+	of = fopen(argv[0], "w");
+    else
+	of = stdout;
+    if (of == NULL) {
+	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
+	return;
+    }
+    printconfig(of, "");
+    if (argc == 1)
+	fclose(of);
+}
+
+/*
+ * The guts of printconfig.  This is called from
+ * vinum_printconfig and from vinum_create when
+ * called without an argument, in order to give
+ * the user something to edit.
+ */
+void 
+printconfig(FILE * of, char *comment)
+{
     struct utsname uname_s;
     time_t now;
     int i;
@@ -802,17 +830,8 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     struct sd sd;
     struct drive drive;
 
-    if (argc != 1) {
-	fprintf(stderr, "Usage: \tprintconfig <outfile>\n");
-	return;
-    }
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
-	return;
-    }
-    of = fopen(argv[0], "w");
-    if (of == NULL) {
-	fprintf(stderr, "Can't open %s: %s\n", argv[0], strerror(errno));
 	return;
     }
     uname(&uname_s);					    /* get our system name */
@@ -822,11 +841,14 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	uname_s.nodename,
 	ctime(&now));					    /* say who did it */
 
+    if (comment[0] != 0)				    /* abuse this for commented version */
+	fprintf(of, "# Current configuration:\n");
     for (i = 0; i < vinum_conf.drives_allocated; i++) {
 	get_drive_info(&drive, i);
 	if (drive.state != drive_unallocated) {
 	    fprintf(of,
-		"drive %s device %s\n",
+		"%sdrive %s device %s\n",
+		comment,
 		drive.label.name,
 		drive.devicename);
 	}
@@ -837,11 +859,12 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	if (vol.state != volume_unallocated) {
 	    if (vol.preferred_plex >= 0)		    /* preferences, */
 		fprintf(of,
-		    "volume %s readpol prefer %s\n",
+		    "%svolume %s readpol prefer %s\n",
+		    comment,
 		    vol.name,
 		    vinum_conf.plex[vol.preferred_plex].name);
 	    else					    /* default round-robin */
-		fprintf(of, "volume %s\n", vol.name);
+		fprintf(of, "%svolume %s\n", comment, vol.name);
 	}
     }
 
@@ -849,7 +872,8 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
     for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	get_plex_info(&plex, i);
 	if (plex.state != plex_unallocated) {
-	    fprintf(of, "plex name %s org %s ",
+	    fprintf(of, "%splex name %s org %s ",
+		comment,
 		plex.name,
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
@@ -871,7 +895,8 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
 	    get_drive_info(&drive, sd.driveno);
 	    get_plex_info(&plex, sd.plexno);
 	    fprintf(of,
-		"sd name %s drive %s plex %s len %qdb driveoffset %qdb plexoffset %qdb\n",
+		"%ssd name %s drive %s plex %s len %qdb driveoffset %qdb plexoffset %qdb\n",
+		comment,
 		sd.name,
 		drive.label.name,
 		plex.name,
