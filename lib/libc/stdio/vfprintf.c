@@ -70,11 +70,30 @@ static const char rcsid[] =
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
 
+union arg {
+    int			intarg;
+    unsigned int	uintarg;
+    long		longarg;
+    unsigned long	ulongarg;
+    quad_t		quadarg;
+    u_quad_t		uquadarg;
+    void		*pvoidarg;
+    char		*pchararg;
+    short		*pshortarg;
+    int			*pintarg;
+    long		*plongarg;
+    quad_t		*pquadarg;
+#ifdef FLOATING_POINT
+    double		doublearg;
+    long double		longdoublearg;
+#endif
+};
+
 static int	__sprint __P((FILE *, struct __suio *));
 static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
 static char *	__ultoa __P((u_long, char *, int, int, char *));
 static char *	__uqtoa __P((u_quad_t, char *, int, int, char *));
-static void	__find_arguments __P((const char *, va_list, void ***));
+static void	__find_arguments __P((const char *, va_list, union arg **));
 static void	__grow_type_table __P((int, unsigned char **, int *));
 
 /*
@@ -330,8 +349,8 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	struct __siov iov[NIOV];/* ... and individual io vectors */
 	char buf[BUF];		/* space for %c, %[diouxX], %[eEfgG] */
 	char ox[2];		/* space for 0x hex-prefix */
-        void **argtable;        /* args, built due to positional arg */
-        void *statargtable [STATIC_ARG_TBL_SIZE];
+        union arg *argtable;        /* args, built due to positional arg */
+        union arg statargtable [STATIC_ARG_TBL_SIZE];
         int nextarg;            /* 1-based argument index */
         va_list orgap;          /* original argument pointer */
 
@@ -382,7 +401,7 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
          * argument (and arguments must be gotten sequentially).
          */
 #define GETARG(type) \
-        ((argtable != NULL) ? *((type*)(argtable[nextarg++])) : \
+        ((argtable != NULL) ? *((type*)(&argtable[nextarg++])) : \
             (nextarg++, va_arg(ap, type)))
 
 	/*
@@ -912,7 +931,7 @@ error:
  * It will be replaces with a malloc-ed one if it overflows.
  */ 
 static void
-__find_arguments (const char *fmt0, va_list ap, void ***argtable)
+__find_arguments (const char *fmt0, va_list ap, union arg  **argtable)
 {
 	char *fmt;		/* format string */
 	int ch;			/* character from fmt */
@@ -1112,63 +1131,65 @@ done:
 	 * Build the argument table.
 	 */
 	if (tablemax >= STATIC_ARG_TBL_SIZE) {
-		*argtable = (void **)
-		    malloc (sizeof (void *) * (tablemax + 1));
+		*argtable = (union arg *)
+		    malloc (sizeof (union arg) * (tablemax + 1));
 	}
 
-	(*argtable) [0] = NULL;
+	(*argtable) [0].intarg = 0;
 	for (n = 1; n <= tablemax; n++) {
 		switch (typetable [n]) {
 		    case T_UNUSED:
-			(*argtable) [n] = (void *) &va_arg (ap, int);
+			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
 		    case T_SHORT:
-			(*argtable) [n] = (void *) &va_arg (ap, int);
+			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
 		    case T_U_SHORT:
-			(*argtable) [n] = (void *) &va_arg (ap, int);
+			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
 		    case TP_SHORT:
-			(*argtable) [n] = (void *) &va_arg (ap, short *);
+			(*argtable) [n].pshortarg = va_arg (ap, short *);
 			break;
 		    case T_INT:
-			(*argtable) [n] = (void *) &va_arg (ap, int);
+			(*argtable) [n].intarg = va_arg (ap, int);
 			break;
 		    case T_U_INT:
-			(*argtable) [n] = (void *) &va_arg (ap, unsigned int);
+			(*argtable) [n].uintarg = va_arg (ap, unsigned int);
 			break;
 		    case TP_INT:
-			(*argtable) [n] = (void *) &va_arg (ap, int *);
+			(*argtable) [n].pintarg = va_arg (ap, int *);
 			break;
 		    case T_LONG:
-			(*argtable) [n] = (void *) &va_arg (ap, long);
+			(*argtable) [n].longarg = va_arg (ap, long);
 			break;
 		    case T_U_LONG:
-			(*argtable) [n] = (void *) &va_arg (ap, unsigned long);
+			(*argtable) [n].ulongarg = va_arg (ap, unsigned long);
 			break;
 		    case TP_LONG:
-			(*argtable) [n] = (void *) &va_arg (ap, long *);
+			(*argtable) [n].plongarg = va_arg (ap, long *);
 			break;
 		    case T_QUAD:
-			(*argtable) [n] = (void *) &va_arg (ap, quad_t);
+			(*argtable) [n].quadarg = va_arg (ap, quad_t);
 			break;
 		    case T_U_QUAD:
-			(*argtable) [n] = (void *) &va_arg (ap, u_quad_t);
+			(*argtable) [n].uquadarg = va_arg (ap, u_quad_t);
 			break;
 		    case TP_QUAD:
-			(*argtable) [n] = (void *) &va_arg (ap, quad_t *);
+			(*argtable) [n].pquadarg = va_arg (ap, quad_t *);
 			break;
+#ifdef FLOATING_POINT
 		    case T_DOUBLE:
-			(*argtable) [n] = (void *) &va_arg (ap, double);
+			(*argtable) [n].doublearg = va_arg (ap, double);
 			break;
 		    case T_LONG_DOUBLE:
-			(*argtable) [n] = (void *) &va_arg (ap, long double);
+			(*argtable) [n].longdoublearg = va_arg (ap, long double);
 			break;
+#endif
 		    case TP_CHAR:
-			(*argtable) [n] = (void *) &va_arg (ap, char *);
+			(*argtable) [n].pchararg = va_arg (ap, char *);
 			break;
 		    case TP_VOID:
-			(*argtable) [n] = (void *) &va_arg (ap, void *);
+			(*argtable) [n].pvoidarg = va_arg (ap, void *);
 			break;
 		}
 	}
