@@ -30,7 +30,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd "January 2, 1997"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd January 8, 1997
 .Dt EXAMPLE 1
 .\" Note: Only specify the operating system when the command
 .\" is FreeBSD specific, otherwise use the .Os macro with no
@@ -89,11 +91,34 @@ Example of a file in the
 .Sx FILES
 section.
 .El
+.Sh EXAMPLES
+The following is an example of a typical usage
+of the
+.Nm
+command:
+.Pp
+.Dl % example -abc -d xyzzy /dev/null
 .Sh SEE ALSO
 .Xr example 3 ,
 .Xr example 4 ,
 .Xr mdoc 7 ,
 .Xr mdoc.samples 7
+.Rs
+.%A A. B. Author
+.%T Example RFC Title
+.%O RFC0000
+.Re
+.Rs
+.%A A. B. Author
+.%B Example Book Title
+.%O ISBN-0-000-00000-0
+.Re
+.Rs
+.%A A. B. Author
+.%D January 1997
+.%J Example Journal Name
+.%T Example Article Title
+.Re
 .Sh STANDARDS
 If the command conforms to some standard, such as
 .St -p1003.2
@@ -101,12 +126,33 @@ or
 .St -ansiC ,
 it should be noted here.
 .Sh DIAGNOSTICS
-None.
+Exist status is 0 on success, and 1 if the command
+fails for one of the following reasons
+.Bl -diag
+.It example error message
+An example of an error message.
+.It another example error message.
+Self explanatory.
+.El
 .Sh HISTORY
 The
 .Nm
 manual page example first appeared in
 .Fx 3.0 .
+.Pp
+Some other common
+.Sx HISTORY
+section examples are:
+.Pp
+The
+.Nm
+manual page example first appeared in
+.Bx 4.4 .
+.Pp
+The
+.Nm
+manual page example first appeared in
+.At v6 .
 .Sh AUTHOR
 This
 manual page was written by Mike Pritchard
