@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.26 1997/12/10 20:33:59 guido Exp $";
+	"$Id: mountd.c,v 1.27 1997/12/13 19:50:14 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -256,11 +256,8 @@ main(argc, argv)
 	char **argv;
 {
 	SVCXPRT *udptransp, *tcptransp;
-	int c;
-	int mib[3];
-#ifdef __FreeBSD__
+	int c, error, mib[3];
 	struct vfsconf vfc;
-	int error;
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -271,7 +268,6 @@ main(argc, argv)
 	}
 	if (error)
 		errx(1, "NFS support is not available in the running kernel");
-#endif	/* __FreeBSD__ */
 
 	while ((c = getopt(argc, argv, "2dlnr")) != -1)
 		switch (c) {
@@ -327,10 +323,9 @@ main(argc, argv)
 		fclose(pidfile);
 	  }
 	}
-
 	if (!resvport_only) {
 		mib[0] = CTL_VFS;
-		mib[1] = MOUNT_NFS;
+		mib[1] = vfc.vfc_typenum;
 		mib[2] = NFS_NFSPRIVPORT;
 		if (sysctl(mib, 3, NULL, NULL, &resvport_only,
 		    sizeof(resvport_only)) != 0 && errno != ENOENT) {
@@ -338,7 +333,6 @@ main(argc, argv)
 			exit(1);
 		}
 	}
-
 	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||
 	    (tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0)) == NULL) {
 		syslog(LOG_ERR, "Can't create socket");
