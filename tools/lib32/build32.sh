@@ -53,6 +53,7 @@ export MACHINE_ARCH=i386
 export CC="cc $CCARGS"
 export CXX="c++ $CXXARGS"
 export LD="ld -m elf_i386_fbsd -Y P,/usr/lib32" 
+export AS="as --32"
 make -s -DNO_BIND -DNOMAN -DNODOC -DNOINFO -k libraries
 
 # Hack to fix gnuregex which does hacks to the -I path based on $DESTDIR.  But, we cannot
