@@ -2055,8 +2055,6 @@ local void send_bits(s, value, length)
 }
 #endif /* DEBUG_ZLIB */
 
-
-#define MAX(a,b) (a >= b ? a : b)
 /* the arguments must not have side effects */
 
 /* ===========================================================================

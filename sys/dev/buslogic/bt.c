@@ -72,10 +72,6 @@
  
 #include <dev/buslogic/btreg.h>
 
-#ifndef MAX
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
 /* MailBox Management functions */
 static __inline void	btnextinbox(struct bt_softc *bt);
 static __inline void	btnextoutbox(struct bt_softc *bt);

@@ -398,13 +398,6 @@ static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
 #define MAX_QUEUE	SYM_CONF_MAX_QUEUE
 
 /*
- *  These ones should have been already defined.
- */
-#ifndef MIN
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-/*
  *  Active debugging tags and verbosity.
  */
 #define DEBUG_ALLOC	(0x0001)

@@ -172,10 +172,6 @@ static struct cd_quirk_entry cd_quirk_table[] =
 	}
 };
 
-#ifndef MIN
-#define MIN(x,y) ((x<y) ? x : y)
-#endif
-
 #define CD_CDEV_MAJOR 15
 
 static	d_open_t	cdopen;
