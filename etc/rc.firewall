@@ -131,8 +131,6 @@ esac
 ${fwcmd} add 100 pass all from any to any via lo0
 ${fwcmd} add 200 deny all from any to 127.0.0.0/8
 ${fwcmd} add 300 deny ip from 127.0.0.0/8 to any
-# If you're using 'options BRIDGE', uncomment the following line to pass ARP
-#${fwcmd} add 400 pass udp from 0.0.0.0 2054 to 0.0.0.0
 
 
 # Prototype setups.
