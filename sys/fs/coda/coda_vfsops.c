@@ -294,6 +294,7 @@ coda_root(vfsp, vpp)
     int error;
     struct proc *p = curproc;    /* XXX - bnoble */
     ViceFid VFid;
+    struct ucred* uc;
 
     ENTRY;
     MARK_ENTRY(CODA_ROOT_STATS);
@@ -317,7 +318,12 @@ coda_root(vfsp, vpp)
 	    }
     }
 
-    error = venus_root(vftomi(vfsp), p->p_ucred, p, &VFid);
+    PROC_LOCK(p);
+    uc = p->p_ucred;
+    crhold(uc);
+    PROC_UNLOCK(p);
+    error = venus_root(vftomi(vfsp), uc, p, &VFid);
+    crfree(uc);
 
     if (!error) {
 	/*
@@ -443,6 +449,7 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
     int error;
     struct proc *p = curproc; /* XXX -mach */
     ViceFid VFid;
+    struct ucred *uc;
     int vtype;
 
     ENTRY;
@@ -456,7 +463,12 @@ coda_fhtovp(vfsp, fhp, nam, vpp, exflagsp, creadanonp)
 	return(0);
     }
     
-    error = venus_fhtovp(vftomi(vfsp), &cfid->cfid_fid, p->p_ucred, p, &VFid, &vtype);
+    PROC_LOCK(p);
+    uc = p->p_ucred;
+    crhold(uc);
+    PROC_UNLOCK(p);
+    error = venus_fhtovp(vftomi(vfsp), &cfid->cfid_fid, uc, p, &VFid, &vtype);
+    crfree(uc);
     
     if (error) {
 	CODADEBUG(CODA_VGET, myprintf(("vget error %d\n",error));)
