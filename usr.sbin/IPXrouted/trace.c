@@ -279,7 +279,7 @@ traceactionlog(action, rt)
 			first = 0;
 		}
 	}
-	syslog(LOG_DEBUG, lstr);
+	syslog(LOG_DEBUG, "%s", lstr);
 	free(lstr);
 }
 
