@@ -93,108 +93,42 @@ __FBSDID("$FreeBSD$");
 #include <arm/sa11x0/sa11x0_var.h>
 
 #include <machine/cpu.h>
+#include <machine/intr.h>
 
 #define NIRQS 0x20
 struct intrhand *irqhandlers[NIRQS];
 
 int current_intr_depth;
-u_int actual_mask;
-#define IPL_LEVELS 13
-#ifdef hpcarm
-#define IPL_LEVELS (NIPL+1)
-u_int imask[NIPL];
-#else
-u_int spl_mask;
-u_int irqmasks[IPL_LEVELS];
-#endif
-u_int irqblock[NIRQS];
-u_int levels[IPL_LEVELS];
+extern struct sa11x0_softc *sa11x0_softc;
 
-
-extern void set_spl_masks(void);
-#if 0
-static int fakeintr(void *);
-#endif
-#ifdef DEBUG
-static int dumpirqhandlers(void);
-#endif
 
 /* Recalculate the interrupt masks from scratch.
  * We could code special registry and deregistry versions of this function that
  * would be faster, but the code would be nastier, and we don't expect this to
  * happen very much anyway.
  */
-void intr_calculatemasks(void);
-void
-intr_calculatemasks(void)
-{       
-	int irq;
-	int intrlevel[ICU_LEN];
-	int level;
+int
+arm_get_irqnb(void *frame)
+{
+	struct sa11x0_softc *sc = sa11x0_softc;
 
-	/* First, figure out which levels each IRQ uses. */
-	for (irq = 0; irq < ICU_LEN; irq++) {
-			intrlevel[irq] = levels[irq];
-	}
-	/* Then figure out which IRQs use each level. */        
-#ifdef hpcarm
-	for (level = 0; level < NIPL; level++) {
-#else
-	for (level = 0; level <= IPL_LEVELS; level++) {
-#endif
-		int irqs = 0;
-		for (irq = 0; irq < ICU_LEN; irq++) {
-			if (intrlevel[irq] & (1 << level)) {
-				irqs |= 1 << irq;
-			}
-		}
-#ifdef hpcarm
-
-		imask[level] = irqs;
-#else
-		irqmasks[level] = irqs;
-		printf("level %d set to %x\n", level, irqs);
-#endif
-	}
-	        /*
-       		 * Enforce a hierarchy that gives slow devices a better chance at not
-		 * dropping data.                                     
-		 */
-#ifdef hpcarm
-	for (level = NIPL - 1; level > 0; level--)
-		imask[level - 1] |= imask[level];
-#else
-	for (level = IPL_LEVELS; level > 0; level--)
-		irqmasks[level - 1] |= irqmasks[level];
-#endif
-        /*
-	 * Calculate irqblock[], which emulates hardware interrupt levels.
-	 */
-#if 0
-	for (irq = 0; irq < ICU_LEN; irq++) {
-		int irqs = 1 << irq;
-		for (q = irqhandlers[irq]; q; q = q->ih_next)
-#ifdef hpcarm           
-			irqs |= ~imask[q->ih_level];
-#else                   
-			irqs |= ~irqmasks[q->ih_level];       
-#endif
-		irqblock[irq] = irqs;
-	}
-#endif
+	return(bus_space_read_4(sc->sc_iot, sc->sc_ioh, SAIPIC_IP));
 }
-					
-const struct evcnt *sa11x0_intr_evcnt(sa11x0_chipset_tag_t, int);
+
+void
+arm_mask_irqs(int irq)
+{
+	/* XXX */	
+}
+
+void
+arm_unmask_irqs(int irq)
+{
+	/* XXX */
+}
+
 void stray_irqhandler(void *);
 
-
-const struct evcnt *
-sa11x0_intr_evcnt(sa11x0_chipset_tag_t ic, int irq)
-{
-
-	/* XXX for now, no evcnt parent reported */
-	return NULL;
-}
 
 
 void
@@ -202,32 +136,5 @@ stray_irqhandler(void *p)
 {
 
 	printf("stray interrupt %p\n", p);
-	printf("bla\n");
 }
-
-#if 0
-int
-fakeintr(void *p)
-{
-
-	return 0;
-}
-#endif
-#ifdef DEBUG
-int
-dumpirqhandlers()
-{
-	int irq;
-	struct irqhandler *p;
-
-	for (irq = 0; irq < ICU_LEN; irq++) {
-		printf("irq %d:", irq);
-		p = irqhandlers[irq];
-		for (; p; p = p->ih_next)
-			printf("ih_func: 0x%lx, ", (unsigned long)p->ih_func);
-		printf("\n");
-	}
-	return 0;
-}
-#endif
 /* End of irqhandler.c */
