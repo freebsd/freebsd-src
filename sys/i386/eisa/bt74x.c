@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.6 1996/06/12 05:02:40 gpalmer Exp $
+ *	$Id: bt74x.c,v 1.7 1996/09/06 23:06:56 phk Exp $
  */
 
 #include "eisa.h"
@@ -102,9 +102,9 @@ struct eisa_driver bt_eisa_driver = {
 
 DATA_SET (eisadriver_set, bt_eisa_driver);
 
-static char   *bt_match __P((eisa_id_t type));
+static const char *bt_match __P((eisa_id_t type));
 
-static  char*
+static const char*
 bt_match(type)
 	eisa_id_t type;
 {
@@ -289,10 +289,15 @@ bt_eisa_attach(e_dev)
 {
 	struct bt_data *bt;
 	int unit = e_dev->unit;
-	int irq = ffs(e_dev->ioconf.irq) - 1;
+	int irq;
 	resvaddr_t *ioport;
 	resvaddr_t *eisa_ioport;
 	u_char level_intr;
+
+	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+		return (-1);
+
+	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
 	/*
 	 * The addresses are sorted in increasing order

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: eisaconf.h,v 1.17 1997/09/21 21:35:23 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -64,11 +64,19 @@ typedef struct resvaddr {
 
 LIST_HEAD(resvlist, resvaddr);
 
+struct irq_node {
+	int	irq_no;
+	void	*idesc;
+	TAILQ_ENTRY(irq_node) links;
+};
+
+TAILQ_HEAD(irqlist, irq_node);
+
 struct eisa_ioconf {
 	int		slot;
 	struct resvlist	ioaddrs;	/* list of reserved I/O ranges */
 	struct resvlist maddrs;		/* list of reserved memory ranges */
-	u_short		irq;		/* bitmask of interrupt */
+	struct irqlist	irqs;		/* list of reserved irqs */
 };
 
 struct eisa_device;
@@ -90,18 +98,20 @@ struct eisa_driver {
 struct eisa_device {
 	eisa_id_t		id;
 	u_long			unit;
-	char*			full_name; /* for use in the probe message */
+	const char*		full_name; /* for use in the probe message */
 	struct eisa_ioconf	ioconf;
 	struct eisa_driver*	driver;
 };
 
 void eisa_configure __P((void));
-struct eisa_device *eisa_match_dev __P((struct eisa_device *, char * (*)(eisa_id_t)));
+struct eisa_device *eisa_match_dev __P((struct eisa_device *,
+					const char * (*)(eisa_id_t)));
 
 void eisa_reg_start __P((struct eisa_device *));
 void eisa_reg_end __P((struct eisa_device *));
 int eisa_add_intr __P((struct eisa_device *, int));
-int eisa_reg_intr __P((struct eisa_device *, int, void (*)(void *), void *, u_int *, int));
+int eisa_reg_intr __P((struct eisa_device *, int, void (*)(void *),
+		       void *, u_int *, int));
 int eisa_release_intr __P((struct eisa_device *, int, void (*)(void *)));
 int eisa_enable_intr __P((struct eisa_device *, int));
 int eisa_add_iospace __P((struct eisa_device *, u_long, u_long, int));
