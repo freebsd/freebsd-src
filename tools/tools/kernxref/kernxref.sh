@@ -7,13 +7,13 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# $Id: kernxref.sh,v 1.1 1995/10/15 11:33:42 phk Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
-# kernell.
+# kernel.
 
 cd /sys/compile/LINT
-nm -gon *.o /sys/libkern/obj/*.o /lkm/* | tr : ' ' | awk '
+nm -gon *.o /sys/libkern/obj/*.o /lkm/*.o | tr : ' ' | awk '
 NF > 1	{
 	if (length($2) == 8) {
 		$2 = $3
