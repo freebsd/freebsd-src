@@ -29,13 +29,13 @@ static unsigned char *welcome[] = {
     "Read the `READ ME FIRST' File .",
     "2. Release Notes",
      "Read the 2.0 release notes (recommended).",
-    "2. COPYRIGHT",
+    "3. COPYRIGHT",
     "Read FreeBSD Copyright Information.",
-    "3. Proceed",
+    "4. Proceed",
     "Proceed with installation.",
-    "4. Fixit",
+    "5. Fixit",
     "Repair existing installation (`fixit' mode).",
-    "5. Quit",
+    "6. Quit",
     "Don't do anything, just reboot.",
 };
 
@@ -45,7 +45,7 @@ stage0()
 evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
 		    "Please select one of the following options:",
-		    15, 75, 6, 5, welcome, selection)) {
+		    15, 75, 6, 6, welcome, selection)) {
 	dialog_clear();
 	end_dialog();
 	reboot(RB_AUTOBOOT);
