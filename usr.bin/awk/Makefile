@@ -12,14 +12,14 @@ DPADD=	${LIBM}
 LDADD=	-lm
 
 .if ${MACHINE_ARCH} == "sparc64"
-LINKS+=	${BINDIR}/nawk ${BINDIR}/awk
-MLINKS+=	nawk.1 awk.1
+LINKS=	${BINDIR}/nawk ${BINDIR}/awk
+MLINKS=	nawk.1 awk.1
 .endif
 
-CLEANFILES+=	maketab proctab.c ytab.h
+CLEANFILES= maketab proctab.c ytab.h
 
-ytab.h: awkgram.h                                                              
-	ln -sf ${.ALLSRC} ${.TARGET}
+ytab.h: awkgram.h
+	ln -fs ${.ALLSRC} ${.TARGET}
 
 proctab.c: maketab
 	./maketab > proctab.c
@@ -27,8 +27,8 @@ proctab.c: maketab
 build-tools: maketab
 maketab: ytab.h ${AWKSRC}/maketab.c
 
-CLEANFILES+=	nawk.1
+CLEANFILES+= nawk.1
 nawk.1: awk.1
-	ln -sf ${.ALLSRC} ${.TARGET}
+	ln -fs ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>
