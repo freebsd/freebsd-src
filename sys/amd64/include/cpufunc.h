@@ -43,13 +43,8 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-#include <sys/cdefs.h>
-#include <machine/psl.h>
-
-struct thread;
 struct region_descriptor;
 
-__BEGIN_DECLS
 #define readb(va)	(*(volatile u_int8_t *) (va))
 #define readw(va)	(*(volatile u_int16_t *) (va))
 #define readl(va)	(*(volatile u_int32_t *) (va))
@@ -563,21 +558,18 @@ load_gs(u_int sel)
 }
 #endif
 
-/* void lidt(struct region_descriptor *addr); */
 static __inline void
 lidt(struct region_descriptor *addr)
 {
 	__asm __volatile("lidt (%0)" : : "r" (addr));
 }
 
-/* void lldt(u_short sel); */
 static __inline void
 lldt(u_short sel)
 {
 	__asm __volatile("lldt %0" : : "r" (sel));
 }
 
-/* void ltr(u_short sel); */
 static __inline void
 ltr(u_short sel)
 {
@@ -717,30 +709,37 @@ intr_restore(register_t rflags)
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
 u_int	bsrl(u_int mask);
-void	cpu_invlpg(u_long addr);
-void	cpu_invlpg_range(u_long start, u_long end);
 void	disable_intr(void);
 void	do_cpuid(u_int ax, u_int *p);
 void	enable_intr(void);
 void	halt(void);
+void	ia32_pause(void);
 u_char	inb(u_int port);
 u_int	inl(u_int port);
 void	insb(u_int port, void *addr, size_t cnt);
 void	insl(u_int port, void *addr, size_t cnt);
 void	insw(u_int port, void *addr, size_t cnt);
+register_t	intr_disable(void);
+void	intr_restore(register_t rf);
 void	invd(void);
 void	invlpg(u_int addr);
-void	invlpg_range(u_int start, u_int end);
 void	invltlb(void);
 u_short	inw(u_int port);
-void	load_cr0(u_int cr0);
-void	load_cr3(u_int cr3);
-void	load_cr4(u_int cr4);
-void	load_fs(u_int sel);
-void	load_gs(u_int sel);
-struct region_descriptor;
 void	lidt(struct region_descriptor *addr);
 void	lldt(u_short sel);
+void	load_cr0(u_long cr0);
+void	load_cr3(u_long cr3);
+void	load_cr4(u_long cr4);
+void	load_dr0(u_int64_t dr0);
+void	load_dr1(u_int64_t dr1);
+void	load_dr2(u_int64_t dr2);
+void	load_dr3(u_int64_t dr3);
+void	load_dr4(u_int64_t dr4);
+void	load_dr5(u_int64_t dr5);
+void	load_dr6(u_int64_t dr6);
+void	load_dr7(u_int64_t dr7);
+void	load_fs(u_int sel);
+void	load_gs(u_int sel);
 void	ltr(u_short sel);
 void	outb(u_int port, u_char data);
 void	outl(u_int port, u_int data);
@@ -748,43 +747,30 @@ void	outsb(u_int port, const void *addr, size_t cnt);
 void	outsl(u_int port, const void *addr, size_t cnt);
 void	outsw(u_int port, const void *addr, size_t cnt);
 void	outw(u_int port, u_short data);
-void	ia32_pause(void);
-u_int	rcr0(void);
-u_int	rcr2(void);
-u_int	rcr3(void);
-u_int	rcr4(void);
-u_int	rfs(void);
-u_int	rgs(void);
+u_long	rcr0(void);
+u_long	rcr2(void);
+u_long	rcr3(void);
+u_long	rcr4(void);
 u_int64_t rdmsr(u_int msr);
 u_int64_t rdpmc(u_int pmc);
+u_int64_t rdr0(void);
+u_int64_t rdr1(void);
+u_int64_t rdr2(void);
+u_int64_t rdr3(void);
+u_int64_t rdr4(void);
+u_int64_t rdr5(void);
+u_int64_t rdr6(void);
+u_int64_t rdr7(void);
 u_int64_t rdtsc(void);
 u_int	read_rflags(void);
+u_int	rfs(void);
+u_int	rgs(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, u_int64_t newval);
-u_int64_t	rdr0(void);
-void	load_dr0(u_int64_t dr0);
-u_int64_t	rdr1(void);
-void	load_dr1(u_int64_t dr1);
-u_int64_t	rdr2(void);
-void	load_dr2(u_int64_t dr2);
-u_int64_t	rdr3(void);
-void	load_dr3(u_int64_t dr3);
-u_int64_t	rdr4(void);
-void	load_dr4(u_int64_t dr4);
-u_int64_t	rdr5(void);
-void	load_dr5(u_int64_t dr5);
-u_int64_t	rdr6(void);
-void	load_dr6(u_int64_t dr6);
-u_int64_t	rdr7(void);
-void	load_dr7(u_int64_t dr7);
-register_t	intr_disable(void);
-void	intr_restore(register_t rf);
 
 #endif	/* __GNUC__ */
 
 void	reset_dbregs(void);
-
-__END_DECLS
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
