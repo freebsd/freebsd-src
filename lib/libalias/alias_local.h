@@ -12,6 +12,8 @@
     
      <updated several times by original author and Eivind Eiklund>
 */
+#ifndef ALIAS_LOCAL_H
+#define ALIAS_LOCAL_H
 
 extern int packetAliasMode;
 
@@ -53,7 +55,6 @@ FindOriginalAddress(struct in_addr);
 struct in_addr
 FindAliasAddress(struct in_addr);
 
-
 /* External data access/modification */
 void GetFragmentAddr(struct alias_link *, struct in_addr *);
 void SetFragmentAddr(struct alias_link *, struct in_addr);
@@ -77,6 +78,8 @@ int GetDeltaSeqOut(struct ip *, struct alias_link *);
 void AddSeq(struct ip *, struct alias_link *, int);
 void SetExpire(struct alias_link *, int);
 void ClearCheckNewLink(void);
+void PunchFWHole(struct alias_link *);
+
 
 /* Housekeeping function */
 void HouseKeeping(void);
@@ -86,8 +89,11 @@ void HouseKeeping(void);
 void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 void AliasHandleIrcOut(struct ip *pip, struct alias_link *link, int maxsize );
 
-/* Log file control */
-void InitPacketAliasLog(void);
-void UninitPacketAliasLog(void);
+enum alias_tcp_state {
+    ALIAS_TCP_STATE_NOT_CONNECTED,
+    ALIAS_TCP_STATE_CONNECTED,
+    ALIAS_TCP_STATE_DISCONNECTED
+};
 
 /*lint -restore */
+#endif /* defined(ALIAS_LOCAL_H) */
