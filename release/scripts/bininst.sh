@@ -13,14 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst.sh,v 1.5 1995/02/02 04:08:12 jkh Exp $
-
-if [ "${_BININST_LOADED_}" = "yes" ]; then
-	error "Error, $0 loaded more than once!"
-	return 1
-else
-	_BININST_LOADED_=yes
-fi
+# $Id: bininst.sh,v 1.6 1995/02/02 04:57:05 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
@@ -30,6 +23,9 @@ fi
 
 # Grab the network setup routines
 . /stand/scripts/netinst.sh
+
+# Grab the setup script
+. /stand/scripts/setup.sh
 
 # Deal with trigger-happy users.
 trap interrupt 1 2 15
@@ -50,7 +46,7 @@ welcome()
 
 do_last_config()
 {
-	sh /stand/scripts/setup.sh
+	setup
 	dialog --title "Auf Wiedersehen!" --msgbox \
 "Don't forget that the login name \"root\" has no password.
 If you didn't create any users with adduser, you can at least log in
