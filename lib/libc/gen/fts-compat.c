@@ -1,5 +1,3 @@
-/*	$OpenBSD: fts.c,v 1.9 1997/08/02 00:13:49 millert Exp $	*/
-
 /*-
  * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -31,10 +29,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)fts.c	8.6 (Berkeley) 8/14/94";
+#else
+static char rcsid[] = "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -53,7 +57,7 @@ static FTSENT	*fts_build __P((FTS *, int));
 static void	 fts_lfree __P((FTSENT *));
 static void	 fts_load __P((FTS *, FTSENT *));
 static size_t	 fts_maxarglen __P((char * const *));
-static void	 fts_padjust __P((FTS *, void *));
+static void	 fts_padjust __P((FTS *, FTSENT *));
 static int	 fts_palloc __P((FTS *, size_t));
 static FTSENT	*fts_sort __P((FTS *, FTSENT *, int));
 static u_short	 fts_stat __P((FTS *, FTSENT *, int));
@@ -97,6 +101,9 @@ fts_open(argv, options, compar)
 	memset(sp, 0, sizeof(FTS));
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+
+	/* Shush, GCC. */
+	tmp = NULL;
 
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
@@ -163,7 +170,7 @@ fts_open(argv, options, compar)
 	sp->fts_cur->fts_info = FTS_INIT;
 
 	/*
-	 * If using chdir(2), grab a file descriptor pointing to dot to insure
+	 * If using chdir(2), grab a file descriptor pointing to dot to ensure
 	 * that we can get back here; this could be avoided for some paths,
 	 * but almost certainly not worth the effort.  Slashes, symbolic links,
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
@@ -239,15 +246,16 @@ fts_close(sp)
 	if (!ISSET(FTS_NOCHDIR)) {
 		saved_errno = fchdir(sp->fts_rfd) ? errno : 0;
 		(void)close(sp->fts_rfd);
+
+		/* Set errno and return. */
+		if (saved_errno != 0) {
+			/* Free up the stream pointer. */
+			free(sp);
+			errno = saved_errno;
+			return (-1);
+		}
 	}
 
-	/* Set errno and return. */
-	if (!ISSET(FTS_NOCHDIR) && saved_errno) {
-		/* Free up the stream pointer. */
-		free(sp);
-		errno = saved_errno;
-		return (-1);
-	}
 	/* Free up the stream pointer. */
 	free(sp);
 	return (0);
@@ -296,12 +304,13 @@ fts_read(sp)
 	if (instr == FTS_FOLLOW &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1);
-		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR))
+		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 			if ((p->fts_symfd = open(".", O_RDONLY, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
 				p->fts_flags |= FTS_SYMFOLLOW;
+		}
 		return (p);
 	}
 
@@ -363,8 +372,8 @@ next:	tmp = p;
 		free(tmp);
 
 		/*
-		 * If reached the top, return to the original directory, and
-		 * load the paths for the next root.
+		 * If reached the top, return to the original directory (or
+		 * the root of the tree), and load the paths for the next root.
 		 */
 		if (p->fts_level == FTS_ROOTLEVEL) {
 			if (FCHDIR(sp, sp->fts_rfd)) {
@@ -384,13 +393,14 @@ next:	tmp = p;
 			goto next;
 		if (p->fts_instr == FTS_FOLLOW) {
 			p->fts_info = fts_stat(sp, p, 1);
-			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR))
+			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
 				    open(".", O_RDONLY, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
 					p->fts_flags |= FTS_SYMFOLLOW;
+			}
 			p->fts_instr = FTS_NOINSTR;
 		}
 
@@ -414,7 +424,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		return (sp->fts_cur = NULL);
 	}
 
-	/* Nul terminate the pathname. */
+	/* NUL terminate the pathname. */
 	sp->fts_path[p->fts_pathlen] = '\0';
 
 	/*
@@ -560,8 +570,9 @@ fts_build(sp, type)
 	register int nitems;
 	FTSENT *cur, *tail;
 	DIR *dirp;
-	void *adjaddr;
-	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno;
+	void *oldaddr;
+	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno,
+	    nostat, doadjust;
 	char *cp;
 
 	/* Set current node pointer. */
@@ -592,12 +603,17 @@ fts_build(sp, type)
 	 * directory if we're cheating on stat calls, 0 if we're not doing
 	 * any stat calls at all, -1 if we're doing stats on everything.
 	 */
-	if (type == BNAMES)
+	if (type == BNAMES) {
 		nlinks = 0;
-	else if (ISSET(FTS_NOSTAT) && ISSET(FTS_PHYSICAL))
+		/* Be quiet about nostat, GCC. */
+		nostat = 0;
+	} else if (ISSET(FTS_NOSTAT) && ISSET(FTS_PHYSICAL)) {
 		nlinks = cur->fts_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2);
-	else
+		nostat = 1;
+	} else {
 		nlinks = -1;
+		nostat = 0;
+	}
 
 #ifdef notdef
 	(void)printf("nlinks == %d (cur: %d)\n", nlinks, cur->fts_nlink);
@@ -620,7 +636,7 @@ fts_build(sp, type)
 	 * checking FTS_NS on the returned nodes.
 	 */
 	cderrno = 0;
-	if (nlinks || type == BREAD)
+	if (nlinks || type == BREAD) {
 		if (fts_safe_changedir(sp, cur, dirfd(dirp))) {
 			if (nlinks && type == BREAD)
 				cur->fts_errno = errno;
@@ -631,7 +647,7 @@ fts_build(sp, type)
 			dirp = NULL;
 		} else
 			descend = 1;
-	else
+	} else
 		descend = 0;
 
 	/*
@@ -644,25 +660,30 @@ fts_build(sp, type)
 	 * If not changing directories set a pointer so that can just append
 	 * each new name into the path.
 	 */
-	maxlen = sp->fts_pathlen - cur->fts_pathlen - 1;
 	len = NAPPEND(cur);
 	if (ISSET(FTS_NOCHDIR)) {
 		cp = sp->fts_path + len;
 		*cp++ = '/';
+	} else {
+		/* GCC, you're too verbose. */
+		cp = NULL;
 	}
+	len++;
+	maxlen = sp->fts_pathlen - len;
 
 	level = cur->fts_level + 1;
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
-	adjaddr = NULL;
+	doadjust = 0;
 	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
 		if ((p = fts_alloc(sp, dp->d_name, (int)dp->d_namlen)) == NULL)
 			goto mem1;
-		if (dp->d_namlen > maxlen) {
-			if (fts_palloc(sp, (size_t)dp->d_namlen)) {
+		if (dp->d_namlen >= maxlen) {	/* include space for NUL */
+			oldaddr = sp->fts_path;
+			if (fts_palloc(sp, dp->d_namlen +len + 1)) {
 				/*
 				 * No more memory for path or structures.  Save
 				 * errno, free up the current structure and the
@@ -673,18 +694,38 @@ mem1:				saved_errno = errno;
 					free(p);
 				fts_lfree(head);
 				(void)closedir(dirp);
-				errno = saved_errno;
 				cur->fts_info = FTS_ERR;
 				SET(FTS_STOP);
+				errno = saved_errno;
 				return (NULL);
 			}
-			adjaddr = sp->fts_path;
-			maxlen = sp->fts_pathlen - sp->fts_cur->fts_pathlen - 1;
+			/* Did realloc() change the pointer? */
+			if (oldaddr != sp->fts_path) {
+				doadjust = 1;
+				if (ISSET(FTS_NOCHDIR))
+					cp = sp->fts_path + len;
+			}
+			maxlen = sp->fts_pathlen - len;
 		}
 
-		p->fts_pathlen = len + dp->d_namlen + 1;
-		p->fts_parent = sp->fts_cur;
+		if (len + dp->d_namlen >= USHRT_MAX) {
+			/*
+			 * In an FTSENT, fts_pathlen is a u_short so it is
+			 * possible to wraparound here.  If we do, free up
+			 * the current structure and the structures already
+			 * allocated, then error out with ENAMETOOLONG.
+			 */
+			free(p);
+			fts_lfree(head);
+			(void)closedir(dirp);
+			cur->fts_info = FTS_ERR;
+			SET(FTS_STOP);
+			errno = ENAMETOOLONG;
+			return (NULL);
+		}
 		p->fts_level = level;
+		p->fts_parent = sp->fts_cur;
+		p->fts_pathlen = len + dp->d_namlen;
 
 #ifdef FTS_WHITEOUT
 		if (dp->d_type == DT_WHT)
@@ -700,7 +741,7 @@ mem1:				saved_errno = errno;
 			p->fts_accpath = cur->fts_accpath;
 		} else if (nlinks == 0
 #ifdef DT_DIR
-		    || (nlinks > 0 &&
+		    || (nostat &&
 		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN)
 #endif
 		    ) {
@@ -737,18 +778,18 @@ mem1:				saved_errno = errno;
 		(void)closedir(dirp);
 
 	/*
-	 * If had to realloc the path, adjust the addresses for the rest
-	 * of the tree.
+	 * If realloc() changed the address of the path, adjust the
+	 * addresses for the rest of the tree and the dir list.
 	 */
-	if (adjaddr)
-		fts_padjust(sp, adjaddr);
+	if (doadjust)
+		fts_padjust(sp, head);
 
 	/*
 	 * If not changing directories, reset the path back to original
 	 * state.
 	 */
 	if (ISSET(FTS_NOCHDIR)) {
-		if (len == sp->fts_pathlen)
+		if (len == sp->fts_pathlen || nitems == 0)
 			--cp;
 		*cp = '\0';
 	}
@@ -880,12 +921,18 @@ fts_sort(sp, head, nitems)
 	 * 40 so don't realloc one entry at a time.
 	 */
 	if (nitems > sp->fts_nitems) {
+		struct _ftsent **a;
+
 		sp->fts_nitems = nitems + 40;
-		if ((sp->fts_array = reallocf(sp->fts_array,
-		    (size_t)(sp->fts_nitems * sizeof(FTSENT *)))) == NULL) {
+		if ((a = realloc(sp->fts_array,
+		    sp->fts_nitems * sizeof(FTSENT *))) == NULL) {
+			if (sp->fts_array)
+				free(sp->fts_array);
+			sp->fts_array = NULL;
 			sp->fts_nitems = 0;
 			return (head);
 		}
+		sp->fts_array = a;
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
@@ -919,8 +966,9 @@ fts_alloc(sp, name, namelen)
 	if ((p = malloc(len)) == NULL)
 		return (NULL);
 
-	/* Copy the name plus the trailing NULL. */
-	memmove(p->fts_name, name, namelen + 1);
+	/* Copy the name and guarantee NUL termination. */
+	memmove(p->fts_name, name, namelen);
+	p->fts_name[namelen] = '\0';
 
 	if (!ISSET(FTS_NOSTAT))
 		p->fts_statp = (struct stat *)ALIGN(p->fts_name + namelen + 2);
@@ -958,27 +1006,30 @@ fts_palloc(sp, more)
 	FTS *sp;
 	size_t more;
 {
-	sp->fts_pathlen += more + 256;
-	sp->fts_path = reallocf(sp->fts_path, (size_t)sp->fts_pathlen);
-	return (sp->fts_path == NULL);
-}
+	char *p;
 
-static void
-ADJUST(p, addr)
-	FTSENT *p;
-	void *addr;
-{
-	if ((p)->fts_accpath >= (p)->fts_path &&			
-	    (p)->fts_accpath < (p)->fts_path + (p)->fts_pathlen) {
-		if (p->fts_accpath != p->fts_path)
-			errx(1, "fts ADJUST: accpath %p path %p",
-			    p->fts_accpath, p->fts_path);
-		if (p->fts_level != 0)
-			errx(1, "fts ADJUST: level %d not 0", p->fts_level);
-		(p)->fts_accpath =					
-		    (char *)addr + ((p)->fts_accpath - (p)->fts_path);	
+	sp->fts_pathlen += more + 256;
+	/*
+	 * Check for possible wraparound.  In an FTS, fts_pathlen is
+	 * a signed int but in an FTSENT it is an unsigned short.
+	 * We limit fts_pathlen to USHRT_MAX to be safe in both cases.
+	 */
+	if (sp->fts_pathlen < 0 || sp->fts_pathlen >= USHRT_MAX) {
+		if (sp->fts_path)
+			free(sp->fts_path);
+		sp->fts_path = NULL;
+		errno = ENAMETOOLONG;
+		return (1);
 	}
-	(p)->fts_path = addr;						
+	p = realloc(sp->fts_path, sp->fts_pathlen);
+	if (p == NULL) {
+		if (sp->fts_path)
+			free(sp->fts_path);
+		sp->fts_path = NULL;
+		return (1);
+	}
+	sp->fts_path = p;
+	return (0);
 }
 
 /*
@@ -986,24 +1037,27 @@ ADJUST(p, addr)
  * already returned.
  */
 static void
-fts_padjust(sp, addr)
+fts_padjust(sp, head)
 	FTS *sp;
-	void *addr;
+	FTSENT *head;
 {
 	FTSENT *p;
+	char *addr = sp->fts_path;
 
-#define	ADJUST1(p) {							\
-	if ((p)->fts_accpath == (p)->fts_path)				\
-		(p)->fts_accpath = (addr);				\
+#define	ADJUST(p) {							\
+	if ((p)->fts_accpath != (p)->fts_name) {			\
+		(p)->fts_accpath =					\
+		    (char *)addr + ((p)->fts_accpath - (p)->fts_path);	\
+	}								\
 	(p)->fts_path = addr;						\
 }
 	/* Adjust the current set of children. */
 	for (p = sp->fts_child; p; p = p->fts_link)
-		ADJUST(p, addr);
+		ADJUST(p);
 
-	/* Adjust the rest of the tree. */
-	for (p = sp->fts_cur; p->fts_level >= FTS_ROOTLEVEL;) {
-		ADJUST(p, addr);
+	/* Adjust the rest of the tree, including the current level. */
+	for (p = head; p->fts_level >= FTS_ROOTLEVEL;) {
+		ADJUST(p);
 		p = p->fts_link ? p->fts_link : p->fts_parent;
 	}
 }
@@ -1017,7 +1071,7 @@ fts_maxarglen(argv)
 	for (max = 0; *argv; ++argv)
 		if ((len = strlen(*argv)) > max)
 			max = len;
-	return (max);
+	return (max + 1);
 }
 
 /*
