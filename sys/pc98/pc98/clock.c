@@ -593,7 +593,7 @@ calibrate_clocks(void)
 		else
 			tot_count += prev_count - count;
 		prev_count = count;
-		if ((sec == start_sec + 1200) ||
+		if ((sec == start_sec + 1200) || /* 1200 = 307.2KHz >> 8 */
 		    (sec < start_sec &&
 		        (u_int)sec + 0x10000 == (u_int)start_sec + 1200))
 			break;
