@@ -74,6 +74,11 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 
 static struct	ifqueue rtsintrq;
 
+SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+SYSCTL_INT(_net_route, OID_AUTO, netisr_maxqlen, CTLFLAG_RW,
+    &rtsintrq.ifq_maxlen, 0, "maximum routing socket dispatch queue length");
+TUNABLE_INT("net.route.netisr_maxqlen", &rtsintrq.ifq_maxlen);
+
 struct walkarg {
 	int	w_tmemsize;
 	int	w_op, w_arg;
@@ -101,7 +106,7 @@ static void
 rts_init(void)
 {
 
-	IFQ_SET_MAXLEN(&rtsintrq, IFQ_MAXLEN);
+	rtsintrq.ifq_maxlen = 256;
 	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, NETISR_MPSAFE);
 }
