@@ -79,7 +79,7 @@ static const char rcsid[] =
 struct uufsd disk;
 
 int	dumpfs(const char *);
-int	dumpcg(int);
+int	dumpcg(void);
 void	pbits(void *, int);
 void	usage(void) __dead2;
 
@@ -227,9 +227,10 @@ dumpfs(const char *name)
 		printf("blocks in last group %d\n\n",
 		    (fssize % afs.fs_fpg) / afs.fs_frag);
 	}
-	for (i = 0; i < afs.fs_ncg; i++)
-		if (dumpcg(i))
+	while ((i = cgread(&disk)) != 0) {
+		if (i == -1 || dumpcg())
 			goto err;
+	}
 	ufs_disk_close(&disk);
 	return (0);
 
@@ -242,16 +243,14 @@ err:	if (disk.d_error != NULL)
 }
 
 int
-dumpcg(int c)
+dumpcg(void)
 {
 	time_t time;
 	off_t cur;
 	int i, j;
 
-	printf("\ncg %d:\n", c);
-	cur = fsbtodb(&afs, cgtod(&afs, c)) * disk.d_bsize;
-	if (cgread1(&disk, c) != 1)
-		return (1);
+	printf("\ncg %d:\n", disk.d_lcg);
+	cur = fsbtodb(&afs, cgtod(&afs, disk.d_lcg)) * disk.d_bsize;
 	switch (disk.d_ufs) {
 	case 2:
 		time = acg.cg_time;
