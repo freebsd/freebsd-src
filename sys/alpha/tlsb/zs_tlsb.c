@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.9 1999/05/07 10:09:38 phk Exp $
+ *	$Id: zs_tlsb.c,v 1.10 1999/05/08 21:58:54 dfr Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -375,7 +375,7 @@ zsdevtotty(dev_t dev)
 }
 
 DEV_DRIVER_MODULE(zs, zsc, zs_driver, zs_devclass,
-	   CDEV_MAJOR, NODEV, zs_cdevsw, 0, 0);
+	   CDEV_MAJOR, NOMAJ, zs_cdevsw, 0, 0);
 
 /*
  * The zsc bus holds two zs devices, one for channel A, one for channel B.
