@@ -346,7 +346,7 @@ by the kernel during the boot phase.
 .It Va bootfile
 List of semicolon-separated search path for bootable kernels.
 The default is
-.Li Dq kernel;kernel.old .
+.Dq Li kernel;kernel.old .
 .It Va console
 Defines the current console.
 .It Va currdev
@@ -356,10 +356,10 @@ Syntax for devices is odd.
 Sets the list of binaries which the kernel will try to run as initial
 process.
 The default is
-.Li Dq /sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall .
+.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:/stand/sysinstall .
 .It Va interpret
 Has the value 
-.Li Dq ok
+.Dq Li ok
 if the Forth's current state is interpreting.
 .It Va LINES
 Define the number of lines on the screen, to be used by the pager.
@@ -367,7 +367,7 @@ Define the number of lines on the screen, to be used by the pager.
 Sets the list of directories which will be searched in for modules
 named in a load command or implicitly required by a dependancy.
 The default value for this variable is
-.Li Dq /;/boot;/modules .
+.Dq Li /;/boot;/modules .
 .It Va num_ide_disks
 Sets the number of IDE disks as a work around for some problems in
 finding the root disk at boot.
@@ -378,7 +378,7 @@ Value of
 .Nm Ns 's
 prompt.
 Defaults to
-.Li Dq "${currdev}>" .
+.Dq Li "${currdev}>" .
 .It Va root_disk_unit
 If the code which detects the disk unit number for the root disk is
 confused, eg. by a mix of SCSI and IDE disks, or IDE disks with
@@ -498,9 +498,9 @@ be passed, even if the builtin accepts no arguments.
 .Pp
 While this behavior has benefits, it has its trade-offs.
 If the execution token of a builtin is acquired (through
-.Ic No '
+.Ic '
 or
-.Ic No ['] ) ,
+.Ic ['] ) ,
 and then passed to
 .Ic catch
 or
@@ -782,7 +782,7 @@ bye, forget, see, words,
 \&[else]
 .Ef
 .Em and
-.Li No [then]
+.Li [then]
 .Bf Em
 from the Programming-Tools extension word set, Providing the
 Search-Order extensions word set.
