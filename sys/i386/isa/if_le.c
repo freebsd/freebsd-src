@@ -77,8 +77,6 @@ typedef struct le_board le_board_t;
 typedef u_short le_mcbits_t;
 #define	LE_MC_NBPW_LOG2		4
 #define LE_MC_NBPW		(1 << LE_MC_NBPW_LOG2)
-#define	IF_RESET_ARGS	int unit
-#define	LE_RESET(ifp)	(((sc)->if_reset)((sc)->le_if.if_unit))
 
 #if !defined(LE_NOLEMAC)
 /*
@@ -197,8 +195,8 @@ static void (*le_intrvec[NLE])(le_softc_t *sc);
  */
 struct le_softc {
     struct arpcom le_ac;		/* Common Ethernet/ARP Structure */
-    void (*if_init) __P((int));		/* Interface init routine */
-    void (*if_reset) __P((int));	/* Interface reset routine */
+    void (*if_init) __P((le_softc_t *));/* Interface init routine */
+    void (*if_reset) __P((le_softc_t *));/* Interface reset routine */
     caddr_t le_membase;			/* Starting memory address (virtual) */
     unsigned le_iobase;			/* Starting I/O base address */
     unsigned le_irq;			/* Interrupt Request Value */
@@ -456,7 +454,7 @@ le_ioctl(
                 break;
 
 	case SIOCSIFFLAGS: {
-	    (*sc->if_init)(ifp->if_unit);
+	    sc->if_init(sc);
 	    break;
 	}
 
@@ -465,7 +463,7 @@ le_ioctl(
 	    /*
 	     * Update multicast listeners
 	     */
-		(*sc->if_init)(ifp->if_unit);
+		sc->if_init(sc);
 		error = 0;
 		break;
 
@@ -622,9 +620,9 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static void lemac_init(int unit);
+static void lemac_init(le_softc_t *sc);
 static void lemac_start(struct ifnet *ifp);
-static void lemac_reset(IF_RESET_ARGS);
+static void lemac_reset(le_softc_t *sc);
 static void lemac_intr(le_softc_t *sc);
 static void lemac_rne_intr(le_softc_t *sc);
 static void lemac_tne_intr(le_softc_t *sc);
@@ -701,7 +699,7 @@ lemac_probe(
     sc->le_if.if_start = lemac_start;
     sc->if_reset = lemac_reset;
     sc->lemac_memmode = 2;
-    LE_RESET(sc);
+    sc->if_reset(sc);
     if ((sc->le_flags & IFF_UP) == 0)
 	return 0;
 
@@ -730,9 +728,8 @@ lemac_probe(
  */
 static void
 lemac_reset(
-    IF_RESET_ARGS)
+    le_softc_t *sc)
 {
-    le_softc_t *sc = &le_softc[unit];
     int portval, cksum;
 
     /*
@@ -788,9 +785,8 @@ lemac_reset(
 
 static void
 lemac_init(
-    int unit)
+    le_softc_t *sc)
 {
-    le_softc_t *sc = &le_softc[unit];
     int s;
 
     if ((sc->le_flags & IFF_UP) == 0)
@@ -955,9 +951,9 @@ lemac_rxd_intr(
     printf("%s%d: fatal RXD error, attempting recovery\n",
 	   sc->le_if.if_name, sc->le_if.if_unit);
 
-    LE_RESET(sc);
+    sc->if_reset(sc);
     if (sc->le_flags & IFF_UP) {
-	lemac_init(sc->le_if.if_unit);
+	lemac_init(sc);
 	return;
     }
 
@@ -1149,8 +1145,8 @@ static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,
 			    unsigned ndescs, unsigned bufoffset,
 			    unsigned descoffset);
-static void lance_init(int unit);
-static void lance_reset(IF_RESET_ARGS);
+static void lance_init(le_softc_t *sc);
+static void lance_reset(le_softc_t *sc);
 static void lance_intr(le_softc_t *sc);
 static int  lance_rx_intr(le_softc_t *sc);
 static void lance_start(struct ifnet *ifp);
@@ -1374,7 +1370,7 @@ depca_probe(
     sc->if_init = lance_init;
     sc->le_if.if_start = lance_start;
     DEPCA_WRNICSR(sc, DEPCA_NICSR_SHE | DEPCA_NICSR_ENABINTR);
-    LE_RESET(sc);
+    sc->if_reset(sc);
 
     LN_STAT(low_txfree = sc->lance_txinfo.ri_max);
     LN_STAT(low_txheapsize = 0xFFFFFFFF);
@@ -1527,9 +1523,8 @@ lance_dumpcsrs(
 
 static void
 lance_reset(
-    IF_RESET_ARGS)
+    le_softc_t *sc)
 {
-    le_softc_t *sc = &le_softc[unit];
     register int cnt, csr;
 
     /* lance_dumpcsrs(sc, "lance_reset: start"); */
@@ -1592,16 +1587,15 @@ lance_reset(
 
 static void
 lance_init(
-    int unit)
+    le_softc_t *sc)
 {
-    le_softc_t *sc = &le_softc[unit];
     lance_ring_t *ri;
     lance_descinfo_t *di;
     ln_desc_t desc;
 
     LN_STAT(inits++);
     if (sc->le_if.if_flags & IFF_RUNNING) {
-	LE_RESET(sc);
+        sc->if_reset(sc);
 	lance_tx_intr(sc);
 	/*
 	 * If we were running, requeue any pending transmits.
@@ -1618,7 +1612,7 @@ lance_init(
 	    ri->ri_free++;
 	}
     } else {
-	LE_RESET(sc);
+        sc->if_reset(sc);
     }
 
     /*
@@ -1692,14 +1686,14 @@ lance_intr(
 	if (oldcsr & LN_CSR0_MEMERROR) {
 	    LN_STAT(memory_errors++);
 	    if (oldcsr & (LN_CSR0_RXON|LN_CSR0_TXON)) {
-		lance_init(sc->le_if.if_unit);
+		lance_init(sc);
 		return;
 	    }
 	}
     }
 
     if ((oldcsr & LN_CSR0_RXINT) && lance_rx_intr(sc)) {
-	lance_init(sc->le_if.if_unit);
+	lance_init(sc);
 	return;
     }
 
@@ -1968,7 +1962,7 @@ lance_tx_intr(
 		    LN_STAT(tx_buferror++);
 		sc->le_if.if_oerrors++;
 		if ((desc.d_status & LN_DSTS_TxLATECOLL) == 0) {
-		    lance_init(sc->le_if.if_unit);
+		    lance_init(sc);
 		    return 0;
 		} else {
 		    LN_STAT(tx_late_collisions++);
