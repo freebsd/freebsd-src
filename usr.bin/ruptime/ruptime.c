@@ -31,16 +31,18 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
-
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ruptime.c	8.2 (Berkeley) 4/5/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -83,7 +85,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
 	struct dirent *dp;
 	struct hs *hsp;
 	struct whod *wd;
@@ -161,7 +162,7 @@ main(argc, argv)
 		++nhosts;
 	}
 	if (nhosts == 0)
-		errx(1, "no hosts in %s.", _PATH_RWHODIR);
+		errx(1, "no hosts in %s", _PATH_RWHODIR);
 
 	(void)time(&now);
 	qsort(hs, nhosts, sizeof(hs[0]), cmp);
