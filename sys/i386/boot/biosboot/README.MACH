@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:33:55  rpd
- *	$Id$
+ *	$Id: README.MACH,v 1.5 1997/02/22 09:30:03 peter Exp $
  */
 
 ********NOTE: This is not all relevant to the 386BSD version**********
@@ -206,5 +206,5 @@ for 1MB and the bootblocks modified to run below 512KB. (8000:0)]
 
 	make -f boot.mk fdboot      (floppy boot loader)
 	make -f boot.mk hdboot      (wini boot loader)
-[to make 386bsd bootblocks  "make sd wd" (warning: they will be installed
+[to make 386bsd bootblocks  "make da wd" (warning: they will be installed
 in /dev/mdec.. take backups)]
