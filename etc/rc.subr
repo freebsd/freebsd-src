@@ -1231,6 +1231,7 @@ devfs_domount()
 	if [ -n "$rs" ]; then
 		devfs_init_rulesets
 		devfs_set_ruleset $rs $devdir
+		devfs -m $devdir rule applyset
 	fi
 	return 0
 }
