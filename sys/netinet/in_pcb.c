@@ -416,7 +416,8 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			 * counting down
 			 */
 			if (ipport_randomized)
-				*lastport = first - (arc4random() % (first - last));
+				*lastport = first -
+					    (arc4random() % (first - last));
 			count = first - last;
 
 			do {
@@ -433,7 +434,8 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			 * counting up
 			 */
 			if (ipport_randomized)
-				*lastport = first + (arc4random() % (last - first));
+				*lastport = first +
+					    (arc4random() % (last - first));
 			count = last - first;
 
 			do {
