@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.13 1998/06/17 14:58:00 bde Exp $ */
+/* $Id: if_wl.c,v 1.14 1998/08/20 05:49:59 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1777,7 +1777,7 @@ wlxmt(int unit, struct mbuf *m)
 #ifdef	WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG) {
 	if (xmt_debug) {
-	    printf("XMT    mbuf: L%d @%x ", count, mb_p);
+	    printf("XMT    mbuf: L%d @%p ", count, (void *)mb_p);
 	    printf("ether type %x\n", eh_p->ether_type);
 	}
     }
@@ -1835,7 +1835,7 @@ wlxmt(int unit, struct mbuf *m)
 #ifdef	WLDEBUG
 	if (sc->wl_if.if_flags & IFF_DEBUG)
 	    if (xmt_debug)
-		printf("mbuf+ L%d @%x ", count, mb_p);
+		printf("mbuf+ L%d @%p ", count, (void *)mb_p);
 #endif	WLDEBUG
     }
 #ifdef	WLDEBUG
