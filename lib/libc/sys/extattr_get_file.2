@@ -35,6 +35,9 @@
 .Nm extattr_get_file ,
 .Nm extattr_set_file ,
 .Nm extattr_delete_file
+.Nm extattr_get_link ,
+.Nm extattr_set_link ,
+.Nm extattr_delete_link
 .Nd system calls to manipulate VFS extended attributes
 .Sh LIBRARY
 .Lb libc
@@ -54,6 +57,12 @@
 .Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
+.Ft ssize_t
+.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft int
+.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft int
+.Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"
 .Sh DESCRIPTION
 Named extended attributes are meta-data associated with vnodes
 representing files and directories.
@@ -97,6 +106,13 @@ in a call to
 then the size of defined extended attribute data will be returned, rather
 than the quantity read, permitting applications to test the size of the
 data without performing a read.
+The
+.Fn extattr_delete_link ,
+.Fn extattr_get_link ,
+and
+.Fn extattr_set_link
+functions behave in the same way as their _file counterparts, except that
+they do not follow symlinks.
 .Pp
 The
 .Fn extatttr_get_fd ,
