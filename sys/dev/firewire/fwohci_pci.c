@@ -253,6 +253,8 @@ fwohci_pci_detach(device_t self)
 
 
 	s = splfw();
+
+	fwohci_shutdown(self);
 	bus_generic_detach(self);
 
 	/* disable interrupts that might have been switched on */
@@ -305,7 +307,10 @@ fwohci_pci_suspend(device_t dev)
 static int
 fwohci_pci_resume(device_t dev)
 {
+	fwohci_softc_t *sc = device_get_softc(dev);
+
 	device_printf(dev, "fwoch_pci_resume\n");
+	fwohci_reset(sc, dev);
 	return 0;
 }
 
