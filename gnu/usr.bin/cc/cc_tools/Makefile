@@ -135,38 +135,38 @@ COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h tm.h
 GENSRCS+=	${COMMONHDRS}
 
 config.h hconfig.h:
-	echo '#include "auto-host.h"' > ${.TARGET}
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"' >> ${.TARGET}
+	echo '#include "auto-host.h"'			> ${.TARGET}
+	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
 
 multilib.h:
 	echo 'static char *multilib_raw[] = { \
-	    "aout maout;", "elf !maout;", NULL };' > ${.TARGET}
+	    "aout maout;", "elf !maout;", NULL };'	> ${.TARGET}
 	echo 'static char *multilib_matches_raw[] = { \
-	    "maout maout;", "melf melf;", NULL };' >> ${.TARGET}
-	echo 'static char *multilib_extra = "";' >> ${.TARGET}
+	    "maout maout;", "melf melf;", NULL };'	>> ${.TARGET}
+	echo 'static char *multilib_extra = "";'	>> ${.TARGET}
 
 options.h:
-	echo '#include "cp/lang-options.h"' > ${.TARGET}
-	echo '#include "f/lang-options.h"' >> ${.TARGET}
+	echo '#include "cp/lang-options.h"'		> ${.TARGET}
+	echo '#include "f/lang-options.h"'		>> ${.TARGET}
 
 specs.h:
-	echo '#include "cp/lang-specs.h"' > ${.TARGET}
-	echo '#include "f/lang-specs.h"'    >> ${.TARGET}
+	echo '#include "cp/lang-specs.h"'		> ${.TARGET}
+	echo '#include "f/lang-specs.h"'		>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"' > ${.TARGET}
+	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	> ${.TARGET}
 
 tm.h:
-	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"' > ${.TARGET}
+	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/att.h"' >> ${.TARGET}
-	echo '#include "svr4.h"' >> ${.TARGET}
+	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
+	echo '#include "svr4.h"'			>> ${.TARGET}
 .endif
-	echo '#include "${GCC_ARCH}/freebsd.h"' >> ${.TARGET}
+	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/perform.h"' >> ${.TARGET}
+	echo '#include "${GCC_ARCH}/perform.h"'		>> ${.TARGET}
 .endif
-	echo '#include <freebsd-native.h>' >> ${.TARGET}
+	echo '#include <freebsd-native.h>'		>> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
