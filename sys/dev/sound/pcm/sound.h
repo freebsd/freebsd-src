@@ -107,16 +107,16 @@ struct snddev_channel {
 /* descriptor of audio device */
 struct snddev_info {
 	SLIST_HEAD(, snddev_channel) channels;
-	struct pcm_channel **aplay, **arec, *fakechan;
-	unsigned chancount, maxchans, defaultchan;
-	struct snd_mixer *mixer;
+	struct pcm_channel *fakechan;
+	unsigned chancount, defaultchan;
+	/* struct snd_mixer *mixer; */
 	unsigned flags;
+	int inprog;
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
-	dev_t dspdev, dspWdev, audiodev, mixerdev;
 	void *lock;
 };
 
@@ -132,7 +132,30 @@ struct snddev_info {
 #define PCM_PREFVER	PCM_MODVER
 #define PCM_MAXVER	1
 
-#define	MAGIC(unit) (0xa4d10de0 + unit)
+/*
+PROPOSAL:
+each unit needs:
+status, mixer, dsp, dspW, audio, sequencer, midi-in, seq2, sndproc = 9 devices
+dspW and audio are deprecated.
+dsp needs min 64 channels, will give it 256
+
+minor = (unit << 20) + (dev << 16) + channel
+currently minor = (channel << 16) + (unit << 4) + dev
+
+nomenclature:
+	/dev/pcmX/dsp.(0..255)
+	/dev/pcmX/dspW
+	/dev/pcmX/audio
+	/dev/pcmX/status
+	/dev/pcmX/mixer
+	[etc.]
+*/
+
+#define PCMMINOR(x) (minor(x))
+#define PCMCHAN(x) ((PCMMINOR(x) & 0x00ff0000) >> 16)
+#define PCMUNIT(x) ((PCMMINOR(x) & 0x000000f0) >> 4)
+#define PCMDEV(x)   (PCMMINOR(x) & 0x0000000f)
+#define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 #define SD_F_SIMPLEX		0x00000001
 #define SD_F_PRIO_RD		0x10000000
@@ -155,6 +178,11 @@ struct snddev_info {
 
 struct pcm_channel *fkchan_setup(device_t dev);
 int fkchan_kill(struct pcm_channel *c);
+
+/*
+ * Major nuber for the sound driver.
+ */
+#define SND_CDEV_MAJOR 30
 
 /*
  * Minor numbers for the sound driver.
@@ -184,6 +212,9 @@ int fkchan_kill(struct pcm_channel *c);
 #define OFF		0
 
 #ifdef _KERNEL
+
+extern int snd_unit;
+extern devclass_t pcm_devclass;
 
 /*
  * some macros for debugging purposes
@@ -224,7 +255,6 @@ void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
 void snd_mtxlock(void *m);
 void snd_mtxunlock(void *m);
-
 #endif /* _KERNEL */
 
 /* usage of flags in device config entry (config file) */

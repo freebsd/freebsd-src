@@ -96,8 +96,6 @@ static int sb_speed(struct sb_chinfo *ch);
 static int sb_start(struct sb_chinfo *ch);
 static int sb_stop(struct sb_chinfo *ch);
 
-static devclass_t pcm_devclass;
-
 /*
  * Common code for the midi and pcm functions
  *

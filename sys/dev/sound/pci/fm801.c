@@ -704,6 +704,4 @@ static driver_t fm801_driver = {
 	sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(fm801, pci, fm801_driver, pcm_devclass, 0, 0);

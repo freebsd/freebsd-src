@@ -1185,8 +1185,6 @@ static driver_t agg_driver = {
     sizeof(struct snddev_info),
 };
 
-static devclass_t pcm_devclass;
-
 DRIVER_MODULE(snd_maestro, pci, agg_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_maestro, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_maestro, 1);
