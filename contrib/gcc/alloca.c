@@ -25,6 +25,13 @@
 #include <config.h>
 #endif
 
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
 #ifdef emacs
 #include "blockinput.h"
 #endif
@@ -66,7 +73,9 @@ typedef void *pointer;
 typedef char *pointer;
 #endif
 
+#ifndef NULL
 #define	NULL	0
+#endif
 
 /* Different portions of Emacs need to call different versions of
    malloc.  The Emacs executable needs alloca to call xmalloc, because
@@ -171,7 +180,7 @@ alloca (size)
 #endif
 
   /* Reclaim garbage, defined as all alloca'd storage that
-     was allocated from deeper in the stack than currently. */
+     was allocated from deeper in the stack than currently.  */
 
   {
     register header *hp;	/* Traverses linked list.  */
@@ -208,6 +217,9 @@ alloca (size)
   {
     register pointer new = malloc (sizeof (header) + size);
     /* Address of header.  */
+
+    if (new == 0)
+      abort();
 
     ((header *) new)->h.next = last_alloca_header;
     ((header *) new)->h.deep = depth;
@@ -338,7 +350,7 @@ struct stk_trailer
 
 #ifdef CRAY2
 /* Determine a "stack measure" for an arbitrary ADDRESS.
-   I doubt that "lint" will like this much. */
+   I doubt that "lint" will like this much.  */
 
 static long
 i00afunc (long *address)

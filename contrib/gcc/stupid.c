@@ -1,5 +1,5 @@
 /* Dummy data flow analysis for GNU compiler in nonoptimizing mode.
-   Copyright (C) 1987, 1991, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91, 94, 95, 96, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -22,7 +22,7 @@ Boston, MA 02111-1307, USA.  */
 /* This file performs stupid register allocation, which is used
    when cc1 gets the -noreg switch (which is when cc does not get -O).
 
-   Stupid register allocation goes in place of the the flow_analysis,
+   Stupid register allocation goes in place of the flow_analysis,
    local_alloc and global_alloc passes.  combine_instructions cannot
    be done with stupid allocation because the data flow info that it needs
    is not computed here.
@@ -42,12 +42,14 @@ Boston, MA 02111-1307, USA.  */
    pseudo reg is computed.  Then the pseudo regs are ordered by priority
    and assigned hard regs in priority order.  */
 
-#include <stdio.h>
 #include "config.h"
+#include "system.h"
+
 #include "rtl.h"
 #include "hard-reg-set.h"
 #include "regs.h"
 #include "flags.h"
+#include "toplev.h"
 
 /* Vector mapping INSN_UIDs to suids.
    The suids are like uids but increase monotonically always.
@@ -64,6 +66,11 @@ static int *uid_suid;
    so we can tell whether a pseudo reg crosses any calls.  */
 
 static int last_call_suid;
+
+/* Record the suid of the last NOTE_INSN_SETJMP
+   so we can tell whether a pseudo reg crosses any setjmp.  */
+
+static int last_setjmp_suid;
 
 /* Element N is suid of insn where life span of pseudo reg N ends.
    Element is  0 if register N has not been seen yet on backward scan.  */
@@ -88,6 +95,10 @@ static char *regs_live;
 
 static char *regs_change_size;
 
+/* Indexed by reg number, nonzero if reg crosses a setjmp.  */
+
+static char *regs_crosses_setjmp;
+
 /* Indexed by insn's suid, the set of hard regs live after that insn.  */
 
 static HARD_REG_SET *after_insn_hard_regs;
@@ -97,7 +108,7 @@ static HARD_REG_SET *after_insn_hard_regs;
 #define MARK_LIVE_AFTER(INSN,REGNO)  \
   SET_HARD_REG_BIT (after_insn_hard_regs[INSN_SUID (INSN)], (REGNO))
 
-static int stupid_reg_compare	PROTO((int *, int *));
+static int stupid_reg_compare	PROTO((const GENERIC_PTR,const GENERIC_PTR));
 static int stupid_find_reg	PROTO((int, enum reg_class, enum machine_mode,
 				       int, int, int));
 static void stupid_mark_refs	PROTO((rtx, rtx));
@@ -119,6 +130,8 @@ stupid_life_analysis (f, nregs, file)
   register int i;
   register rtx last, insn;
   int max_uid, max_suid;
+
+  current_function_has_computed_jump = 0;
 
   bzero (regs_ever_live, sizeof regs_ever_live);
 
@@ -148,6 +161,7 @@ stupid_life_analysis (f, nregs, file)
     }
 
   last_call_suid = i + 1;
+  last_setjmp_suid = i + 1;
   max_suid = i + 1;
 
   max_regno = nregs;
@@ -166,12 +180,13 @@ stupid_life_analysis (f, nregs, file)
   regs_change_size = (char *) alloca (nregs * sizeof (char));
   bzero ((char *) regs_change_size, nregs * sizeof (char));
 
-  reg_renumber = (short *) oballoc (nregs * sizeof (short));
+  regs_crosses_setjmp = (char *) alloca (nregs * sizeof (char));
+  bzero ((char *) regs_crosses_setjmp, nregs * sizeof (char));
+
+  /* Allocate the reg_renumber array */
+  allocate_reg_info (max_regno, FALSE, TRUE);
   for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
     reg_renumber[i] = i;
-
-  for (i = FIRST_VIRTUAL_REGISTER; i < max_regno; i++)
-    reg_renumber[i] = -1;
 
   after_insn_hard_regs
     = (HARD_REG_SET *) alloca (max_suid * sizeof (HARD_REG_SET));
@@ -184,7 +199,7 @@ stupid_life_analysis (f, nregs, file)
   allocate_for_life_analysis ();
 
   for (i = 0; i < max_regno; i++)
-    reg_n_deaths[i] = 1;
+    REG_N_DEATHS (i) = 1;
 
   bzero (regs_live, nregs);
 
@@ -215,27 +230,46 @@ stupid_life_analysis (f, nregs, file)
       if (GET_RTX_CLASS (GET_CODE (insn)) == 'i')
 	stupid_mark_refs (PATTERN (insn), insn);
 
-      /* Mark all call-clobbered regs as live after each call insn
-	 so that a pseudo whose life span includes this insn
-	 will not go in one of them.
+      if (GET_CODE (insn) == NOTE
+	  && NOTE_LINE_NUMBER (insn) == NOTE_INSN_SETJMP)
+	last_setjmp_suid = INSN_SUID (insn);
+
+      /* Mark all call-clobbered regs as dead after each call insn so that
+	 a pseudo whose life span includes this insn will not go in one of
+	 them.  If the function contains a non-local goto, mark all hard
+	 registers dead (except for stack related bits).
+
 	 Then mark those regs as all dead for the continuing scan
 	 of the insns before the call.  */
 
       if (GET_CODE (insn) == CALL_INSN)
 	{
 	  last_call_suid = INSN_SUID (insn);
-	  IOR_HARD_REG_SET (after_insn_hard_regs[last_call_suid],
-			    call_used_reg_set);
 
-	  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-	    if (call_used_regs[i])
-	      regs_live[i] = 0;
+	  if (current_function_has_nonlocal_label)
+	    {
+	      IOR_COMPL_HARD_REG_SET (after_insn_hard_regs[last_call_suid],
+				      fixed_reg_set);
+	      for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+		if (! fixed_regs[i])
+	          regs_live[i] = 0;
+	    }
+	  else
+	    {
+	      IOR_HARD_REG_SET (after_insn_hard_regs[last_call_suid],
+				call_used_reg_set);
+	      for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+	        if (call_used_regs[i])
+	          regs_live[i] = 0;
+	    }
 
 	  /* It is important that this be done after processing the insn's
 	     pattern because we want the function result register to still
 	     be live if it's also used to pass arguments.  */
 	  stupid_mark_refs (CALL_INSN_FUNCTION_USAGE (insn), insn);
 	}
+      if (GET_CODE (insn) == JUMP_INSN && computed_jump_p (insn))
+	current_function_has_computed_jump = 1;
     }
 
   /* Now decide the order in which to allocate the pseudo registers.  */
@@ -253,13 +287,17 @@ stupid_life_analysis (f, nregs, file)
     {
       register int r = reg_order[i];
 
-      /* Some regnos disappear from the rtl.  Ignore them to avoid crash.  */
-      if (regno_reg_rtx[r] == 0)
+      /* Some regnos disappear from the rtl.  Ignore them to avoid crash. 
+	 Also don't allocate registers that cross a setjmp, or live across
+	 a call if this function receives a nonlocal goto.  */
+      if (regno_reg_rtx[r] == 0 || regs_crosses_setjmp[r]
+	  || (REG_N_CALLS_CROSSED (r) > 0 
+	      && current_function_has_nonlocal_label))
 	continue;
 
       /* Now find the best hard-register class for this pseudo register */
       if (N_REG_CLASSES > 1)
-	reg_renumber[r] = stupid_find_reg (reg_n_calls_crossed[r], 
+	reg_renumber[r] = stupid_find_reg (REG_N_CALLS_CROSSED (r), 
 					   reg_preferred_class (r),
 					   PSEUDO_REGNO_MODE (r),
 					   reg_where_born[r],
@@ -268,7 +306,7 @@ stupid_life_analysis (f, nregs, file)
 
       /* If no reg available in that class, try alternate class.  */
       if (reg_renumber[r] == -1 && reg_alternate_class (r) != NO_REGS)
-	reg_renumber[r] = stupid_find_reg (reg_n_calls_crossed[r],
+	reg_renumber[r] = stupid_find_reg (REG_N_CALLS_CROSSED (r),
 					   reg_alternate_class (r),
 					   PSEUDO_REGNO_MODE (r),
 					   reg_where_born[r],
@@ -285,9 +323,10 @@ stupid_life_analysis (f, nregs, file)
 
 static int
 stupid_reg_compare (r1p, r2p)
-     int *r1p, *r2p;
+     const GENERIC_PTR r1p;
+     const GENERIC_PTR r2p;
 {
-  register int r1 = *r1p, r2 = *r2p;
+  register int r1 = *(int *)r1p, r2 = *(int *)r2p;
   register int len1 = reg_where_dead[r1] - reg_where_born[r1];
   register int len2 = reg_where_dead[r2] - reg_where_born[r2];
   int tem;
@@ -296,7 +335,7 @@ stupid_reg_compare (r1p, r2p)
   if (tem != 0)
     return tem;
 
-  tem = reg_n_refs[r1] - reg_n_refs[r2];
+  tem = REG_N_REFS (r1) - REG_N_REFS (r2);
   if (tem != 0)
     return tem;
 
@@ -308,8 +347,8 @@ stupid_reg_compare (r1p, r2p)
 /* Find a block of SIZE words of hard registers in reg_class CLASS
    that can hold a value of machine-mode MODE
      (but actually we test only the first of the block for holding MODE)
-   currently free from after insn whose suid is BIRTH
-   through the insn whose suid is DEATH,
+   currently free from after insn whose suid is BORN_INSN
+   through the insn whose suid is DEAD_INSN,
    and return the number of the first of them.
    Return -1 if such a block cannot be found.
 
@@ -337,6 +376,13 @@ stupid_find_reg (call_preserved, class, mode,
   static struct {int from, to; } eliminables[] = ELIMINABLE_REGS;
 #endif
 
+  /* If this register's life is more than 5,000 insns, we probably
+     can't allocate it, so don't waste the time trying.  This avoids
+     quadratic behavior on programs that have regularly-occurring
+     SAVE_EXPRs.  */
+  if (dead_insn > born_insn + 5000)
+    return -1;
+
   COPY_HARD_REG_SET (used,
 		     call_preserved ? call_used_reg_set : fixed_reg_set);
 
@@ -353,6 +399,12 @@ stupid_find_reg (call_preserved, class, mode,
   for (ins = born_insn; ins < dead_insn; ins++)
     IOR_HARD_REG_SET (used, after_insn_hard_regs[ins]);
 
+#ifdef STACK_REGS
+  if (current_function_has_computed_jump)
+    for (i = FIRST_STACK_REG; i <= LAST_STACK_REG; i++)
+      SET_HARD_REG_BIT (used, i);
+#endif
+  
   IOR_COMPL_HARD_REG_SET (used, reg_class_contents[(int) class]);
 
 #ifdef CLASS_CANNOT_CHANGE_SIZE
@@ -450,13 +502,13 @@ stupid_mark_refs (x, insn)
 
 		  /* The following line is for unused outputs;
 		     they do get stored even though never used again.  */
-		  MARK_LIVE_AFTER (insn, regno);
+		  MARK_LIVE_AFTER (insn, regno+j);
 
 		  /* When a hard reg is clobbered, mark it in use
 		     just before this insn, so it is live all through.  */
 		  if (code == CLOBBER && INSN_SUID (insn) > 0)
 		    SET_HARD_REG_BIT (after_insn_hard_regs[INSN_SUID (insn) - 1],
-				      regno);
+				      regno+j);
 		}
 	    }
 	  /* For pseudo regs, record where born, where dead, number of
@@ -483,10 +535,27 @@ stupid_mark_refs (x, insn)
 		}
 
 	      /* Count the refs of this reg.  */
-	      reg_n_refs[regno]++;
+	      REG_N_REFS (regno)++;
 
 	      if (last_call_suid < reg_where_dead[regno])
-		reg_n_calls_crossed[regno] += 1;
+		REG_N_CALLS_CROSSED (regno) += 1;
+
+	      if (last_setjmp_suid < reg_where_dead[regno])
+		regs_crosses_setjmp[regno] = 1;
+
+	      /* If this register is only used in this insn and is only
+		 set, mark it unused.  We have to do this even when not 
+		 optimizing so that MD patterns which count on this
+		 behavior (e.g., it not causing an output reload on
+		 an insn setting CC) will operate correctly.  */
+	      if (GET_CODE (SET_DEST (x)) == REG
+		  && REGNO_FIRST_UID (regno) == INSN_UID (insn)
+		  && REGNO_LAST_UID (regno) == INSN_UID (insn)
+		  && (code == CLOBBER || ! reg_mentioned_p (SET_DEST (x),
+							    SET_SRC (x))))
+		REG_NOTES (insn) = gen_rtx_EXPR_LIST (REG_UNUSED,
+						      SET_DEST (x),
+						      REG_NOTES (insn));
 	    }
 	}
 
@@ -531,7 +600,7 @@ stupid_mark_refs (x, insn)
 	  /* Pseudo reg: record first use, last use and number of uses.  */
 
 	  reg_where_born[regno] = INSN_SUID (insn);
-	  reg_n_refs[regno]++;
+	  REG_N_REFS (regno)++;
 	  if (regs_live[regno] == 0)
 	    {
 	      regs_live[regno] = 1;

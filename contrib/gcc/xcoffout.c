@@ -1,5 +1,5 @@
 /* Output xcoff-format symbol table information from GNU compiler.
-   Copyright (C) 1992, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1994, 1995, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -24,13 +24,13 @@ Boston, MA 02111-1307, USA.  */
    interface.  Many functions are very similar to their counterparts in
    sdbout.c.  */
 
-/* Include this first, because it may define MIN and MAX.  */
-#include <stdio.h>
-
 #include "config.h"
+#include "system.h"
 #include "tree.h"
 #include "rtl.h"
 #include "flags.h"
+#include "toplev.h"
+#include "output.h"
 
 #ifdef XCOFF_DEBUGGING_INFO
 
@@ -38,8 +38,9 @@ Boston, MA 02111-1307, USA.  */
 #include <dbxstclass.h>
 
 #include "xcoffout.h"
+#include "dbxout.h"
 
-#if defined (USG) || defined (NO_STAB_H)
+#if defined (USG) || !defined (HAVE_STAB_H)
 #include "gstab.h"
 #else
 #include <stab.h>
@@ -53,8 +54,8 @@ Boston, MA 02111-1307, USA.  */
 /* Line number of beginning of current function, minus one.
    Negative means not in a function or not using xcoff.  */
 
-int xcoff_begin_function_line = -1;
-int xcoff_inlining = 0;
+static int xcoff_begin_function_line = -1;
+static int xcoff_inlining = 0;
 
 /* Name of the current include file.  */
 
@@ -65,7 +66,7 @@ char *xcoff_current_include_file;
    (by including that file of course), then the line number will be
    absolute.  */
 
-char *xcoff_current_function_file;
+static char *xcoff_current_function_file;
 
 /* Names of bss and data sections.  These should be unique names for each
    compilation unit.  */
@@ -113,6 +114,9 @@ char *xcoff_lastfile;
 
 #define ASM_OUTPUT_LBE(FILE,LINENUM,BLOCKNUM) \
   fprintf (FILE, "\t.eb\t%d\n", ABS_OR_RELATIVE_LINENO (LINENUM))
+
+static void assign_type_number		PROTO((tree, char *, int));
+static void xcoffout_block		PROTO((tree, int, tree));
 
 /* Support routines for XCOFF debugging info.  */
 
@@ -145,14 +149,14 @@ xcoff_output_standard_types (syms)
 {
   /* Handle built-in C types here.  */
 
-  assign_type_number (syms, "int", (TARGET_64BIT ? -31 : -1));
+  assign_type_number (syms, "int", -1);
   assign_type_number (syms, "char", -2);
   assign_type_number (syms, "short int", -3);
   assign_type_number (syms, "long int", (TARGET_64BIT ? -31 : -4));
   assign_type_number (syms, "unsigned char", -5);
   assign_type_number (syms, "signed char", -6);
   assign_type_number (syms, "short unsigned int", -7);
-  assign_type_number (syms, "unsigned int", (TARGET_64BIT ? -32 : -8));
+  assign_type_number (syms, "unsigned int", -8);
   /* No such type "unsigned".  */
   assign_type_number (syms, "long unsigned int", (TARGET_64BIT ? -32 : -10));
   assign_type_number (syms, "void", -11);
@@ -496,6 +500,16 @@ xcoffout_begin_function (file, last_linenum)
 {
   ASM_OUTPUT_LFB (file, last_linenum);
   dbxout_parms (DECL_ARGUMENTS (current_function_decl));
+
+  /* Emit the symbols for the outermost BLOCK's variables.  sdbout.c does this
+     in sdbout_begin_block, but there is no guarantee that there will be any
+     inner block 1, so we must do it here.  This gives a result similar to
+     dbxout, so it does make some sense.  */
+  do_block = 0;
+  next_block_number = 0;
+  xcoffout_block (DECL_INITIAL (current_function_decl), 0,
+		  DECL_ARGUMENTS (current_function_decl));
+
   ASM_OUTPUT_SOURCE_LINE (file, last_linenum);
 }
 

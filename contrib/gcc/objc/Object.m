@@ -1,5 +1,5 @@
 /* The implementation of class Object for Objective-C.
-   Copyright (C) 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -10,7 +10,7 @@ later version.
 
 GNU CC is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -28,8 +28,6 @@ Boston, MA 02111-1307, USA.  */
 #include "objc/Object.h"
 #include "objc/Protocol.h"
 #include "objc/objc-api.h"
-
-extern void (*_objc_error)(id object, const char *format, va_list);
 
 extern int errno;
 
@@ -215,7 +213,7 @@ extern int errno;
       }
     }
 
-  if (parent = [self superClass])
+  if ((parent = [self superClass]))
     return [parent conformsTo: aProtocol];
   else
     return NO;
@@ -337,7 +335,7 @@ extern size_t strlen(const char*);
                     object_is_instance(self)?"instance":"class",
                     (aString!=NULL)?aString:"");
   va_start(ap, aString);
-  (*_objc_error)(self, fmt, ap);
+  objc_verror(self, OBJC_ERR_UNKNOWN, fmt, ap);
   va_end(ap);
   return nil;
 #undef FMT

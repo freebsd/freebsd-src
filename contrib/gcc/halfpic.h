@@ -1,5 +1,5 @@
 /* OSF/rose half-pic support definitions.
-   Copyright (C) 1992 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,22 +20,7 @@ Boston, MA 02111-1307, USA.  */
 
 #ifndef NO_HALF_PIC
 
-/* Add prototype support.  */
-#ifndef PROTO
-#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
-#define PROTO(ARGS) ARGS
-#else
-#define PROTO(ARGS) ()
-#endif
-#endif
-
-#if !defined(STDIO_PROTO) && !defined(NO_STDIO_H)
-#ifndef BUFSIZ
-#include <stdio.h>
-#endif
-
-#define STDIO_PROTO(ARGS) PROTO(ARGS)
-#endif
+#include "gansidecl.h"
 
 #if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)
 union tree_node;		/* forward reference */
@@ -47,7 +32,7 @@ struct rtx_def;
    strict ANSI).  This is because rtl.c now refers to the
    CONSTANT_ADDRESS_P macro, which in turn refers to flag_half_pic,
    and wants to call half_pic_address_p, whose address we also store
-   in in a BSS variable.  This way, the gen* programs won't get
+   in a BSS variable.  This way, the gen* programs won't get
    unknown symbol errors when being linked (flag_half_pic will never
    be true in the gen* programs).  */
 
@@ -62,9 +47,8 @@ extern void half_pic_external PROTO((char *));			/* declare object external */
 extern void half_pic_init PROTO((void));			/* half_pic initialization */
 extern int  half_pic_address_p PROTO((struct rtx_def *));	/* true if an address is half-pic */
 extern struct rtx_def *half_pic_ptr PROTO((struct rtx_def *));	/* return RTX for half-pic pointer */
-#ifdef STDIO_PROTO
-extern void half_pic_finish STDIO_PROTO((FILE *));		/* half_pic termination */
-#endif
+/* Can't use prototype since FILE isn't defined yet.  */
+extern void half_pic_finish (/* FILE * */);		/* half_pic termination */
 
 /* Macros to provide access to the half-pic stuff (so they can easily
    be stubbed out.  */

@@ -1,5 +1,5 @@
 /* GNU Objective-C Runtime API.
-   Copyright (C) 1993, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -10,7 +10,7 @@ later version.
 
 GNU CC is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
 License for more details.
 
 You should have received a copy of the GNU General Public License
@@ -29,7 +29,9 @@ Boston, MA 02111-1307, USA.  */
 
 #include "objc/objc.h"
 #include "objc/hash.h"
+#include "objc/thr.h"
 #include <stdio.h>
+#include <stdarg.h>
 
 /* For functions which return Method_t */
 #define METHOD_NULL	(Method_t)0
@@ -73,6 +75,59 @@ struct objc_method_description
 #define _C_STRUCT_E '}'
 
 
+/*
+** Error handling
+**
+** Call objc_error() or objc_verror() to record an error; this error
+** routine will generally exit the program but not necessarily if the
+** user has installed his own error handler.
+**
+** Call objc_set_error_handler to assign your own function for
+** handling errors.  The function should return YES if it is ok
+** to continue execution, or return NO or just abort if the
+** program should be stopped.  The default error handler is just to
+** print a message on stderr.
+**
+** The error handler function should be of type objc_error_handler
+** The first parameter is an object instance of relevance.
+** The second parameter is an error code.
+** The third parameter is a format string in the printf style.
+** The fourth parameter is a variable list of arguments.
+*/
+extern void objc_error(id object, int code, const char* fmt, ...);
+extern void objc_verror(id object, int code, const char* fmt, va_list ap);
+typedef BOOL (*objc_error_handler)(id, int code, const char *fmt, va_list ap);
+objc_error_handler objc_set_error_handler(objc_error_handler func);
+
+/*
+** Error codes
+** These are used by the runtime library, and your
+** error handling may use them to determine if the error is
+** hard or soft thus whether execution can continue or abort.
+*/
+#define OBJC_ERR_UNKNOWN 0             /* Generic error */
+
+#define OBJC_ERR_OBJC_VERSION 1        /* Incorrect runtime version */
+#define OBJC_ERR_GCC_VERSION 2         /* Incorrect compiler version */
+#define OBJC_ERR_MODULE_SIZE 3         /* Bad module size */
+#define OBJC_ERR_PROTOCOL_VERSION 4    /* Incorrect protocol version */
+
+#define OBJC_ERR_MEMORY 10             /* Out of memory */
+
+#define OBJC_ERR_RECURSE_ROOT 20       /* Attempt to archive the root
+					  object more than once. */
+#define OBJC_ERR_BAD_DATA 21           /* Didn't read expected data */
+#define OBJC_ERR_BAD_KEY 22            /* Bad key for object */
+#define OBJC_ERR_BAD_CLASS 23          /* Unknown class */
+#define OBJC_ERR_BAD_TYPE 24           /* Bad type specification */
+#define OBJC_ERR_NO_READ 25            /* Cannot read stream */
+#define OBJC_ERR_NO_WRITE 26           /* Cannot write stream */
+#define OBJC_ERR_STREAM_VERSION 27     /* Incorrect stream version */
+#define OBJC_ERR_BAD_OPCODE 28         /* Bad opcode */
+
+#define OBJC_ERR_UNIMPLEMENTED 30      /* Method is not implemented */
+
+#define OBJC_ERR_BAD_STATE 40          /* Bad thread state */
 
 /*
 ** Set this variable nonzero to print a line describing each
@@ -80,6 +135,16 @@ struct objc_method_description
 */
 extern BOOL objc_trace;
 
+
+/* For every class which happens to have statically allocated instances in
+   this module, one OBJC_STATIC_INSTANCES is allocated by the compiler.
+   INSTANCES is NULL terminated and points to all statically allocated
+   instances of this class.  */
+struct objc_static_instances
+{
+  char *class_name;
+  id instances[0];
+};
 
 /*
 ** Whereas a Module (defined further down) is the root (typically) of a file,
@@ -97,22 +162,15 @@ typedef struct objc_symtab {
   unsigned short cat_def_cnt;                   /* Number of categories 
                                                   compiled (defined) in the 
                                                   module. */
+
   void      *defs[1];                           /* Variable array of pointers.
                                                   cls_def_cnt of type Class 
                                                   followed by cat_def_cnt of
-                                                  type Category_t. */
+                                                  type Category_t, followed
+						  by a NULL terminated array
+						  of objc_static_instances. */
 } Symtab,   *Symtab_t;
 
-
-/* For every class which happens to have statically allocated instances in
-   this module, one OBJC_STATIC_INSTANCES is allocated by the compiler.
-   INSTANCES is NULL terminated and points to all statically allocated
-   instances of this class.  */
-struct objc_static_instances
-{
-  char *class_name;
-  id instances[0];
-};
 
 /*
 ** The compiler generates one of these structures for each module that
@@ -130,12 +188,10 @@ typedef struct objc_module {
                                                   module was generated.   The 
                                                   name includes the path. */
 
-  /* Pointer to a NULL terminated array of objc_static_instances.  */
-  struct objc_static_instances **statics;
-
   Symtab_t    symtab;                           /* Pointer to the Symtab of
                                                   the module.  The Symtab
-                                                  holds an array of pointers to 
+                                                  holds an array of 
+						  pointers to 
                                                   the classes and categories 
                                                   defined in the module. */
 } Module, *Module_t;
@@ -245,7 +301,7 @@ struct objc_protocol_list {
 
 /*
 ** The class number of this class.  This must be the same for both the 
-** class and it's meta class object
+** class and its meta class object
 */
 #define CLS_GETNUMBER(cls) (__CLS_INFO(cls) >> (HOST_BITS_PER_LONG/2))
 #define CLS_SETNUMBER(cls, num) \
@@ -308,11 +364,53 @@ extern Class (*_objc_lookup_class)(const char *name);
 */
 extern void (*_objc_load_callback)(Class class, Category* category);
 
+/*
+** Hook functions for allocating, copying and disposing of instances
+*/
 extern id (*_objc_object_alloc)(Class class);
-
 extern id (*_objc_object_copy)(id object);
-
 extern id (*_objc_object_dispose)(id object);
+
+/*
+** Standard functions for memory allocation and disposal.
+** Users should use these functions in their ObjC programs so
+** that they work properly with garbage collectors as well as
+** can take advantage of the exception/error handling available.
+*/
+void *
+objc_malloc(size_t size);
+
+void *
+objc_atomic_malloc(size_t size);
+
+void *
+objc_valloc(size_t size);
+
+void *
+objc_realloc(void *mem, size_t size);
+
+void *
+objc_calloc(size_t nelem, size_t size);
+
+void
+objc_free(void *mem);
+
+/*
+** Hook functions for memory allocation and disposal.
+** This makes it easy to substitute garbage collection systems
+** such as Boehm's GC by assigning these function pointers
+** to the GC's allocation routines.  By default these point
+** to the ANSI standard malloc, realloc, free, etc.
+**
+** Users should call the normal objc routines above for
+** memory allocation and disposal within their programs.
+*/
+extern void *(*_objc_malloc)(size_t);
+extern void *(*_objc_atomic_malloc)(size_t);
+extern void *(*_objc_valloc)(size_t);
+extern void *(*_objc_realloc)(void *, size_t);
+extern void *(*_objc_calloc)(size_t, size_t);
+extern void (*_objc_free)(void *);
 
 Method_t class_get_class_method(MetaClass class, SEL aSel);
 
@@ -405,6 +503,12 @@ method_get_imp(Method_t method)
 
 IMP get_imp (Class class, SEL sel);
 
+/* Redefine on NeXTSTEP so as not to conflict with system function */
+#ifdef __NeXT__
+#define object_copy	gnu_object_copy
+#define object_dispose	gnu_object_dispose
+#endif
+
 id object_copy(id object);
 
 id object_dispose(id object);
@@ -470,6 +574,9 @@ object_is_meta_class(id object)
 {
   return CLS_ISMETA((Class)object);
 }
+
+struct sarray* 
+objc_get_uninstalled_dtable(void);
 
 #endif /* not __objc_api_INCLUDE_GNU */
 

@@ -1,5 +1,5 @@
-/* Front-end tree definitions for GNU compiler.
-   Copyright (C) 1989, 1991, 1994 Free Software Foundation, Inc.
+/* Definitions of floating-point access for GNU compiler.
+   Copyright (C) 1989, 1991, 1994, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -26,6 +26,7 @@ Boston, MA 02111-1307, USA.  */
 #define IEEE_FLOAT_FORMAT 1
 #define VAX_FLOAT_FORMAT 2
 #define IBM_FLOAT_FORMAT 3
+#define C4X_FLOAT_FORMAT 4
 
 /* Default to IEEE float if not specified.  Nearly all machines use it.  */
 
@@ -136,10 +137,12 @@ extern REAL_VALUE_TYPE ereal_negate PROTO((REAL_VALUE_TYPE));
 extern HOST_WIDE_INT efixi	PROTO((REAL_VALUE_TYPE));
 extern unsigned HOST_WIDE_INT efixui PROTO((REAL_VALUE_TYPE));
 extern void ereal_from_int	PROTO((REAL_VALUE_TYPE *,
-				       HOST_WIDE_INT, HOST_WIDE_INT));
+				       HOST_WIDE_INT, HOST_WIDE_INT,
+				       enum machine_mode));
 extern void ereal_from_uint	PROTO((REAL_VALUE_TYPE *,
 				       unsigned HOST_WIDE_INT,
-				       unsigned HOST_WIDE_INT));
+				       unsigned HOST_WIDE_INT,
+				       enum machine_mode));
 extern void ereal_to_int	PROTO((HOST_WIDE_INT *, HOST_WIDE_INT *,
 				       REAL_VALUE_TYPE));
 extern REAL_VALUE_TYPE ereal_ldexp PROTO((REAL_VALUE_TYPE, int));
@@ -151,6 +154,8 @@ extern long etarsingle		PROTO((REAL_VALUE_TYPE));
 extern void ereal_to_decimal	PROTO((REAL_VALUE_TYPE, char *));
 extern int ereal_cmp		PROTO((REAL_VALUE_TYPE, REAL_VALUE_TYPE));
 extern int ereal_isneg		PROTO((REAL_VALUE_TYPE));
+extern REAL_VALUE_TYPE ereal_unto_float PROTO((long));
+extern REAL_VALUE_TYPE ereal_unto_double PROTO((long *));
 extern REAL_VALUE_TYPE ereal_from_float PROTO((HOST_WIDE_INT));
 extern REAL_VALUE_TYPE ereal_from_double PROTO((HOST_WIDE_INT *));
 
@@ -162,7 +167,8 @@ extern REAL_VALUE_TYPE ereal_from_double PROTO((HOST_WIDE_INT *));
 /* These return REAL_VALUE_TYPE: */
 #define REAL_VALUE_RNDZINT(x) (etrunci (x))
 #define REAL_VALUE_UNSIGNED_RNDZINT(x) (etruncui (x))
-extern REAL_VALUE_TYPE real_value_truncate ();
+extern REAL_VALUE_TYPE real_value_truncate	PROTO ((enum machine_mode,
+							REAL_VALUE_TYPE));
 #define REAL_VALUE_TRUNCATE(mode, x)  real_value_truncate (mode, x)
 
 /* These return HOST_WIDE_INT: */
@@ -181,10 +187,11 @@ extern REAL_VALUE_TYPE real_value_truncate ();
 #define REAL_VALUE_TO_INT ereal_to_int
 
 /* Here the cast to HOST_WIDE_INT sign-extends arguments such as ~0.  */
-#define REAL_VALUE_FROM_INT(d, lo, hi) \
-  ereal_from_int (&d, (HOST_WIDE_INT) (lo), (HOST_WIDE_INT) (hi))
+#define REAL_VALUE_FROM_INT(d, lo, hi, mode) \
+  ereal_from_int (&d, (HOST_WIDE_INT) (lo), (HOST_WIDE_INT) (hi), mode)
 
-#define REAL_VALUE_FROM_UNSIGNED_INT(d, lo, hi) (ereal_from_uint (&d, lo, hi))
+#define REAL_VALUE_FROM_UNSIGNED_INT(d, lo, hi, mode) \
+  ereal_from_uint (&d, lo, hi, mode)
 
 /* IN is a REAL_VALUE_TYPE.  OUT is an array of longs. */
 #if LONG_DOUBLE_TYPE_SIZE == 96
@@ -196,6 +203,12 @@ extern REAL_VALUE_TYPE real_value_truncate ();
 
 /* IN is a REAL_VALUE_TYPE.  OUT is a long. */
 #define REAL_VALUE_TO_TARGET_SINGLE(IN, OUT) ((OUT) = etarsingle ((IN)))
+
+/* Inverse of REAL_VALUE_TO_TARGET_DOUBLE. */
+#define REAL_VALUE_UNTO_TARGET_DOUBLE(d)  (ereal_unto_double (d))
+
+/* Inverse of REAL_VALUE_TO_TARGET_SINGLE. */
+#define REAL_VALUE_UNTO_TARGET_SINGLE(f)  (ereal_unto_float (f))
 
 /* d is an array of HOST_WIDE_INT that holds a double precision
    value in the target computer's floating point format. */
@@ -251,10 +264,18 @@ typedef struct {
    value in host format and then to a single type `long' value which
    is the bitwise equivalent of the `float' value.  */
 #ifndef REAL_VALUE_TO_TARGET_SINGLE
-#define REAL_VALUE_TO_TARGET_SINGLE(IN, OUT)				\
-do { float f = (float) (IN);						\
-     (OUT) = *(long *) &f;						\
-   } while (0)
+#define REAL_VALUE_TO_TARGET_SINGLE(IN, OUT)		\
+do {							\
+  union {						\
+    float f;						\
+    HOST_WIDE_INT l;					\
+  } u;							\
+  if (sizeof(HOST_WIDE_INT) < sizeof(float))		\
+    abort();						\
+  u.l = 0;						\
+  u.f = (IN);						\
+  (OUT) = u.l;						\
+} while (0)
 #endif
 
 /* Convert a type `double' value in host format to a pair of type `long'
@@ -262,18 +283,20 @@ do { float f = (float) (IN);						\
    proper word order for the target.  */
 #ifndef REAL_VALUE_TO_TARGET_DOUBLE
 #define REAL_VALUE_TO_TARGET_DOUBLE(IN, OUT)				\
-do { REAL_VALUE_TYPE in = (IN);  /* Make sure it's not in a register.  */\
-     if (HOST_FLOAT_WORDS_BIG_ENDIAN == FLOAT_WORDS_BIG_ENDIAN)		\
-       {								\
-	 (OUT)[0] = ((long *) &in)[0];					\
-	 (OUT)[1] = ((long *) &in)[1];					\
-       }								\
-     else								\
-       {								\
-	 (OUT)[1] = ((long *) &in)[0];					\
-	 (OUT)[0] = ((long *) &in)[1];					\
-       }								\
-   } while (0)
+do {									\
+  union {								\
+    REAL_VALUE_TYPE f;							\
+    HOST_WIDE_INT l[2];							\
+  } u;									\
+  if (sizeof(HOST_WIDE_INT) * 2 < sizeof(REAL_VALUE_TYPE))		\
+    abort();								\
+  u.l[0] = u.l[1] = 0;							\
+  u.f = (IN);								\
+  if (HOST_FLOAT_WORDS_BIG_ENDIAN == FLOAT_WORDS_BIG_ENDIAN)		\
+    (OUT)[0] = u.l[0], (OUT)[1] = u.l[1];				\
+  else									\
+    (OUT)[1] = u.l[0], (OUT)[0] = u.l[1];				\
+} while (0)
 #endif
 #endif /* HOST_FLOAT_FORMAT == TARGET_FLOAT_FORMAT */
 
@@ -281,6 +304,13 @@ do { REAL_VALUE_TYPE in = (IN);  /* Make sure it's not in a register.  */\
 #ifndef REAL_VALUE_TO_TARGET_LONG_DOUBLE
 #define REAL_VALUE_TO_TARGET_LONG_DOUBLE(a, b) REAL_VALUE_TO_TARGET_DOUBLE (a, b)
 #endif
+
+/* Compare two floating-point objects for bitwise identity.
+   This is not the same as comparing for equality on IEEE hosts:
+   -0.0 equals 0.0 but they are not identical, and conversely
+   two NaNs might be identical but they cannot be equal.  */
+#define REAL_VALUES_IDENTICAL(x, y) \
+  (!bcmp ((char *) &(x), (char *) &(y), sizeof (REAL_VALUE_TYPE)))
 
 /* Compare two floating-point values for equality.  */
 #ifndef REAL_VALUES_EQUAL
@@ -349,7 +379,7 @@ extern double (atof) ();
    size and where `float' is SFmode.  */
 
 /* Don't use REAL_VALUE_TRUNCATE directly--always call real_value_truncate.  */
-extern REAL_VALUE_TYPE real_value_truncate ();
+extern REAL_VALUE_TYPE real_value_truncate PROTO((enum machine_mode, REAL_VALUE_TYPE));
 
 #ifndef REAL_VALUE_TRUNCATE
 #define REAL_VALUE_TRUNCATE(mode, x) \
@@ -371,6 +401,10 @@ extern REAL_VALUE_TYPE real_value_truncate ();
 #ifndef REAL_VALUE_NEGATIVE
 #define REAL_VALUE_NEGATIVE(x) (target_negative (x))
 #endif
+
+extern int target_isnan			PROTO ((REAL_VALUE_TYPE));
+extern int target_isinf			PROTO ((REAL_VALUE_TYPE));
+extern int target_negative		PROTO ((REAL_VALUE_TYPE));
 
 /* Determine whether a floating-point value X is minus 0. */
 #ifndef REAL_VALUE_MINUS_ZERO
@@ -410,11 +444,12 @@ union real_extract
    or cc0_rtx if it is not on the chain.  */
 #define CONST_DOUBLE_MEM(r) XEXP (r, 0)
 
+/* Given a CONST_DOUBLE in FROM, store into TO the value it represents.  */
 /* Function to return a real value (not a tree node)
    from a given integer constant.  */
-REAL_VALUE_TYPE real_value_from_int_cst ();
-
-/* Given a CONST_DOUBLE in FROM, store into TO the value it represents.  */
+union tree_node;
+REAL_VALUE_TYPE real_value_from_int_cst	PROTO ((union tree_node *,
+						union tree_node *));
 
 #define REAL_VALUE_FROM_CONST_DOUBLE(to, from)		\
 do { union real_extract u;				\
@@ -435,4 +470,12 @@ extern struct rtx_def *immed_real_const_1	PROTO((REAL_VALUE_TYPE,
 #define REAL_VALUE_TO_DECIMAL(r, fmt, s) (sprintf (s, fmt, r))
 #endif
 
+/* Replace R by 1/R in the given machine mode, if the result is exact.  */
+extern int exact_real_inverse PROTO((enum machine_mode, REAL_VALUE_TYPE *));
+
+extern void debug_real			PROTO ((REAL_VALUE_TYPE));
+
+/* In varasm.c */
+extern void assemble_real		PROTO ((REAL_VALUE_TYPE,
+						enum machine_mode));
 #endif /* Not REAL_H_INCLUDED */

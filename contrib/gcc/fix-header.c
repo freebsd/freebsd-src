@@ -1,5 +1,5 @@
 /* fix-header.c - Make C header file suitable for C++.
-   Copyright (C) 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94-97, 1998 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -16,7 +16,7 @@ along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* This program massages a system include file (such as stdio.h),
-   into a form more conforming with ANSI/POSIX, and more suitable for C++:
+   into a form that is compatible with GNU C and GNU C++.
 
    * extern "C" { ... } braces are added (inside #ifndef __cplusplus),
    if they seem to be needed.  These prevent C++ compilers from name
@@ -26,7 +26,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    an argument list), and it is a "standard" function listed in
    the file sys-protos.h (and with a non-empty argument list), then
    the declaration is converted to a complete prototype by replacing
-   the empty parameter list with the argument lust from sys-protos.h.
+   the empty parameter list with the argument list from sys-protos.h.
 
    * The program can be given a list of (names of) required standard
    functions (such as fclose for stdio.h).  If a required function
@@ -68,21 +68,22 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    if anything needs to be done.  (e.g. ./include/stdio.h)
    * OPTIONS are such as you would pass to cpp.
 
-   Written by Per Bothner <bothner@cygnus.com>, July 1993. */
+   Written by Per Bothner <bothner@cygnus.com>, July 1993.  */
 
-#include <stdio.h>
-#include <ctype.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
+#include "gansidecl.h"
 #include "obstack.h"
 #include "scan.h"
 #include "cpplib.h"
-#ifndef O_RDONLY
-#define O_RDONLY 0
-#endif
+#include "cpphash.h"
 
-#if !__STDC__
-#define const /* nothing */
-#endif
+void fatal PVPROTO ((const char *, ...)) ATTRIBUTE_PRINTF_1;
 
 sstring buf;
 
@@ -97,12 +98,11 @@ int warnings = 0;
 #if ADD_MISSING_EXTERN_C
 int missing_extern_C_count = 0;
 #endif
-int missing_errno = 0;
 
 #include "xsys-protos.h"
 
 #ifdef FIXPROTO_IGNORE_LIST
-/* This is a currently unused feature. */
+/* This is a currently unused feature.  */
 
 /* List of files and directories to ignore.
    A directory name (ending in '/') means ignore anything in that
@@ -125,148 +125,245 @@ char *inf_ptr;
 enum special_file
 {
   no_special,
+#ifdef errno_h
+#undef errno_h
+#endif
   errno_h,
+#ifdef stdio_h
+#undef stdio_h
+#endif
   stdio_h,
+#ifdef stdlib_h
+#undef stdlib_h
+#endif
+  stdlib_h,
+#ifdef sys_stat_h
+#undef sys_stat_h
+#endif
   sys_stat_h
 };
 
 /* A NAMELIST is a sequence of names, separated by '\0', and terminated
-   by an empty name (i.e. by "\0\0"). */
+   by an empty name (i.e. by "\0\0").  */
 
-typedef const char* namelist;
+typedef const char *namelist;
+
+/* The following macros provide the bits for symbol_flags.  */
+typedef int symbol_flags;
+
+/* Used to mark names defined in the ANSI/ISO C standard.  */
+#define ANSI_SYMBOL 1
+
+/* We no longer massage include files for POSIX or XOPEN symbols,
+   as there are now several versions of the POSIX and XOPEN standards,
+   and it would be a maintenance nightmare for us to track them all.
+   Better to be compatible with the system include files.  */
+/*#define ADD_MISSING_POSIX 1 */
+/*#define ADD_MISSING_XOPEN 1 */
+
+#if ADD_MISSING_POSIX
+/* Used to mark names defined in the Posix.1 or Posix.2 standard.  */
+#define POSIX1_SYMBOL 2
+#define POSIX2_SYMBOL 4
+#else
+#define POSIX1_SYMBOL 0
+#define POSIX2_SYMBOL 0
+#endif
+
+#if ADD_MISSING_XOPEN
+/* Used to mark names defined in X/Open Portability Guide.  */
+#define XOPEN_SYMBOL 8
+/* Used to mark names defined in X/Open UNIX Extensions.  */
+#define XOPEN_EXTENDED_SYMBOL 16
+#else
+#define XOPEN_SYMBOL 0
+#define XOPEN_EXTENDED_SYMBOL 0
+#endif
+
+/* Used to indicate names that are not functions */
+#define MACRO_SYMBOL 512
+
+struct symbol_list {
+  symbol_flags flags;
+  namelist names;
+};
+
+#define SYMBOL_TABLE_SIZE 10
+struct symbol_list symbol_table[SYMBOL_TABLE_SIZE];
+int cur_symbol_table_size;
+
+void
+add_symbols (flags, names)
+     symbol_flags flags;
+     namelist names;
+{
+  symbol_table[cur_symbol_table_size].flags = flags;
+  symbol_table[cur_symbol_table_size].names = names;
+  cur_symbol_table_size++;
+  if (cur_symbol_table_size >= SYMBOL_TABLE_SIZE)
+    fatal ("too many calls to add_symbols");
+  symbol_table[cur_symbol_table_size].names = NULL; /* Termination.  */
+}
 
 struct std_include_entry {
   const char *name;
-  namelist required;
-  namelist extra;
-  int special;
+  symbol_flags flags;
+  namelist names;
 };
 
-/* End of namelist NAMES. */
+const char NONE[] = "";  /* The empty namelist.  */
 
-namelist
-namelist_end (names)
-     namelist names;
-{
-  register namelist ptr;
-  for (ptr = names; ; ptr++)
-    {
-      if (*ptr == '\0')
-	{
-	  ptr++;
-	  if (*ptr == '\0')
-	    return ptr;
-	}
-    }
-}
-
-const char NONE[] = "";
+/* Special name to indicate a continuation line in std_include_table.  */
+const char CONTINUED[] = "";
 
 struct std_include_entry *include_entry;
 
 struct std_include_entry std_include_table [] = {
-  { "ctype.h",
+  { "ctype.h", ANSI_SYMBOL,
       "isalnum\0isalpha\0iscntrl\0isdigit\0isgraph\0islower\0\
-isprint\0ispunct\0isspace\0isupper\0isxdigit\0tolower\0toupper\0", NONE },
+isprint\0ispunct\0isspace\0isupper\0isxdigit\0tolower\0toupper\0" },
 
-  { "dirent.h", "closedir\0opendir\0readdir\0rewinddir\0", NONE},
+  { "dirent.h", POSIX1_SYMBOL, "closedir\0opendir\0readdir\0rewinddir\0"},
 
-  { "errno.h", NONE, "errno\0" },
+  { "errno.h", ANSI_SYMBOL|MACRO_SYMBOL, "errno\0" },
 
-  { "curses.h", "box\0delwin\0endwin\0getcurx\0getcury\0initscr\0\
+  /* ANSI_SYMBOL is wrong, but ...  */
+  { "curses.h", ANSI_SYMBOL, "box\0delwin\0endwin\0getcurx\0getcury\0initscr\0\
 mvcur\0mvwprintw\0mvwscanw\0newwin\0overlay\0overwrite\0\
 scroll\0subwin\0touchwin\0waddstr\0wclear\0wclrtobot\0wclrtoeol\0\
 waddch\0wdelch\0wdeleteln\0werase\0wgetch\0wgetstr\0winsch\0winsertln\0\
-wmove\0wprintw\0wrefresh\0wscanw\0wstandend\0wstandout\0", NONE },
+wmove\0wprintw\0wrefresh\0wscanw\0wstandend\0wstandout\0" },
 
-  { "fcntl.h", "creat\0fcntl\0open\0", NONE },
+  { "fcntl.h", POSIX1_SYMBOL, "creat\0fcntl\0open\0" },
 
   /* Maybe also "getgrent fgetgrent setgrent endgrent" */
-  { "grp.h", "getgrgid\0getgrnam\0", NONE },
+  { "grp.h", POSIX1_SYMBOL, "getgrgid\0getgrnam\0" },
 
 /*{ "limit.h", ... provided by gcc }, */
 
-  { "locale.h", "localeconv\0setlocale\0", NONE },
+  { "locale.h", ANSI_SYMBOL, "localeconv\0setlocale\0" },
 
-  { "math.h", "acos\0asin\0atan\0atan2\0ceil\0cos\0cosh\0exp\0\
+  { "math.h", ANSI_SYMBOL,
+      "acos\0asin\0atan\0atan2\0ceil\0cos\0cosh\0exp\0\
 fabs\0floor\0fmod\0frexp\0ldexp\0log10\0log\0modf\0pow\0sin\0sinh\0sqrt\0\
-tan\0tanh\0", "HUGE_VAL\0" },
+tan\0tanh\0" },
 
-  { "pwd.h", "getpwnam\0getpwuid\0", NONE },
+  { CONTINUED, ANSI_SYMBOL|MACRO_SYMBOL, "HUGE_VAL\0" },
 
-  /* Left out siglongjmp sigsetjmp - these depend on sigjmp_buf. */
-  { "setjmp.h", "longjmp\0setjmp\0", NONE },
+  { "pwd.h", POSIX1_SYMBOL, "getpwnam\0getpwuid\0" },
+
+  /* Left out siglongjmp sigsetjmp - these depend on sigjmp_buf.  */
+  { "setjmp.h", ANSI_SYMBOL, "longjmp\0setjmp\0" },
 
   /* Left out signal() - its prototype is too complex for us!
      Also left out "sigaction sigaddset sigdelset sigemptyset
      sigfillset sigismember sigpending sigprocmask sigsuspend"
      because these need sigset_t or struct sigaction.
-     Most systems that provide them will also declare them. */
-  { "signal.h", "kill\0raise\0", NONE },
+     Most systems that provide them will also declare them.  */
+  { "signal.h", ANSI_SYMBOL, "kill\0raise\0" },
 
-  { "stdio.h", "clearerr\0fclose\0feof\0ferror\0fflush\0fgetc\0fgetpos\0\
+  { "stdio.h", ANSI_SYMBOL,
+      "clearerr\0fclose\0feof\0ferror\0fflush\0fgetc\0fgetpos\0\
 fgets\0fopen\0fprintf\0fputc\0fputs\0fread\0freopen\0fscanf\0fseek\0\
-fsetpos\0ftell\0fwrite\0getc\0getchar\0gets\0pclose\0perror\0popen\0\
+fsetpos\0ftell\0fwrite\0getc\0getchar\0gets\0perror\0\
 printf\0putc\0putchar\0puts\0remove\0rename\0rewind\0scanf\0setbuf\0\
 setvbuf\0sprintf\0sscanf\0vprintf\0vsprintf\0vfprintf\0tmpfile\0\
-tmpnam\0ungetc\0", NONE },
+tmpnam\0ungetc\0" },
+  { CONTINUED, POSIX1_SYMBOL, "fdopen\0fileno\0" },
+  { CONTINUED, POSIX2_SYMBOL, "pclose\0popen\0" },  /* I think ...  */
 /* Should perhaps also handle NULL, EOF, ... ? */
 
   /* "div ldiv", - ignored because these depend on div_t, ldiv_t
      ignore these: "mblen mbstowcs mbstowc wcstombs wctomb"
      Left out getgroups, because SunOS4 has incompatible BSD and SVR4 versions.
      Should perhaps also add NULL */
-  { "stdlib.h", "abort\0abs\0atexit\0atof\0atoi\0atol\0bsearch\0calloc\0\
+  { "stdlib.h", ANSI_SYMBOL,
+      "abort\0abs\0atexit\0atof\0atoi\0atol\0bsearch\0calloc\0\
 exit\0free\0getenv\0labs\0malloc\0putenv\0qsort\0rand\0realloc\0\
-srand\0strtod\0strtol\0strtoul\0system\0", NONE },
+srand\0strtod\0strtol\0strtoul\0system\0" },
+  { CONTINUED, ANSI_SYMBOL|MACRO_SYMBOL, "EXIT_FAILURE\0EXIT_SUCCESS\0" },
 
-  { "string.h", "memchr\0memcmp\0memcpy\0memmove\0memset\0\
+  { "string.h", ANSI_SYMBOL, "memchr\0memcmp\0memcpy\0memmove\0memset\0\
 strcat\0strchr\0strcmp\0strcoll\0strcpy\0strcspn\0strerror\0\
 strlen\0strncat\0strncmp\0strncpy\0strpbrk\0strrchr\0strspn\0strstr\0\
-strtok\0strxfrm\0", NONE },
+strtok\0strxfrm\0" },
 /* Should perhaps also add NULL and size_t */
 
-  { "sys/stat.h", "chmod\0fstat\0mkdir\0mkfifo\0stat\0lstat\0umask\0",
+  { "strings.h", XOPEN_EXTENDED_SYMBOL,
+      "bcmp\0bcopy\0bzero\0ffs\0index\0rindex\0strcasecmp\0strncasecmp\0" },
+
+  { "strops.h", XOPEN_EXTENDED_SYMBOL, "ioctl\0" },
+
+  /* Actually, XPG4 does not seem to have <sys/ioctl.h>, but defines
+     ioctl in <strops.h>.  However, many systems have it is sys/ioctl.h,
+     and many systems do have <sys/ioctl.h> but not <strops.h>.  */
+  { "sys/ioctl.h", XOPEN_EXTENDED_SYMBOL, "ioctl\0" },
+
+  { "sys/socket.h", XOPEN_EXTENDED_SYMBOL, "socket\0" },
+
+  { "sys/stat.h", POSIX1_SYMBOL,
+      "chmod\0fstat\0mkdir\0mkfifo\0stat\0lstat\0umask\0" },
+  { CONTINUED, POSIX1_SYMBOL|MACRO_SYMBOL,
       "S_ISDIR\0S_ISBLK\0S_ISCHR\0S_ISFIFO\0S_ISREG\0S_ISLNK\0S_IFDIR\0\
 S_IFBLK\0S_IFCHR\0S_IFIFO\0S_IFREG\0S_IFLNK\0" },
+  { CONTINUED, XOPEN_EXTENDED_SYMBOL, "fchmod\0" },
 
-  { "sys/times.h", "times\0", NONE },
+#if 0
+/* How do we handle fd_set? */
+  { "sys/time.h", XOPEN_EXTENDED_SYMBOL, "select\0" },
+  { "sys/select.h", XOPEN_EXTENDED_SYMBOL /* fake */, "select\0" },
+#endif
+
+  { "sys/times.h", POSIX1_SYMBOL, "times\0" },
   /* "sys/types.h" add types (not in old g++-include) */
 
-  { "sys/utsname.h", "uname\0", NONE },
+  { "sys/utsname.h", POSIX1_SYMBOL, "uname\0" },
 
-  { "sys/wait.h", "wait\0waitpid\0",
+  { "sys/wait.h", POSIX1_SYMBOL, "wait\0waitpid\0" },
+  { CONTINUED, POSIX1_SYMBOL|MACRO_SYMBOL,
       "WEXITSTATUS\0WIFEXITED\0WIFSIGNALED\0WIFSTOPPED\0WSTOPSIG\0\
 WTERMSIG\0WNOHANG\0WNOTRACED\0" },
 
-  { "tar.h", NONE, NONE },
+  { "tar.h", POSIX1_SYMBOL, NONE },
 
-  { "termios.h", "cfgetispeed\0cfgetospeed\0cfsetispeed\0cfsetospeed\0tcdrain\0tcflow\0tcflush\0tcgetattr\0tcsendbreak\0tcsetattr\0", NONE },
+  { "termios.h", POSIX1_SYMBOL,
+      "cfgetispeed\0cfgetospeed\0cfsetispeed\0cfsetospeed\0tcdrain\0tcflow\0tcflush\0tcgetattr\0tcsendbreak\0tcsetattr\0" },
 
-  { "time.h", "asctime\0clock\0ctime\0difftime\0gmtime\0localtime\0mktime\0strftime\0time\0tzset\0", NONE },
+  { "time.h", ANSI_SYMBOL,
+      "asctime\0clock\0ctime\0difftime\0gmtime\0localtime\0mktime\0strftime\0time\0tzset\0" },
 
-  { "unistd.h", "_exit\0access\0alarm\0chdir\0chown\0close\0ctermid\0cuserid\0\
+  { "unistd.h", POSIX1_SYMBOL,
+      "_exit\0access\0alarm\0chdir\0chown\0close\0ctermid\0cuserid\0\
 dup\0dup2\0execl\0execle\0execlp\0execv\0execve\0execvp\0fork\0fpathconf\0\
-getcwd\0getegid\0geteuid\0getgid\0getlogin\0getopt\0getpgrp\0getpid\0\
+getcwd\0getegid\0geteuid\0getgid\0getlogin\0getpgrp\0getpid\0\
 getppid\0getuid\0isatty\0link\0lseek\0pathconf\0pause\0pipe\0read\0rmdir\0\
 setgid\0setpgid\0setsid\0setuid\0sleep\0sysconf\0tcgetpgrp\0tcsetpgrp\0\
-ttyname\0unlink\0write\0", NONE },
+ttyname\0unlink\0write\0" },
+  { CONTINUED, POSIX2_SYMBOL, "getopt\0" },
+  { CONTINUED, XOPEN_EXTENDED_SYMBOL,
+      "lockf\0gethostid\0gethostname\0readlink\0" },
 
-  { 0, NONE, NONE }
+  { "utime.h", POSIX1_SYMBOL, "utime\0" },
+
+  { NULL, 0, NONE }
 };
 
 enum special_file special_file_handling = no_special;
 
+/* They are set if the corresponding macro has been seen.  */
 /* The following are only used when handling sys/stat.h */
-/* They are set if the corresponding macro has been seen. */
 int seen_S_IFBLK = 0, seen_S_ISBLK  = 0;
 int seen_S_IFCHR = 0, seen_S_ISCHR  = 0;
 int seen_S_IFDIR = 0, seen_S_ISDIR  = 0;
 int seen_S_IFIFO = 0, seen_S_ISFIFO = 0;
 int seen_S_IFLNK = 0, seen_S_ISLNK  = 0;
 int seen_S_IFREG = 0, seen_S_ISREG  = 0;
+/* The following are only used when handling errno.h */
+int seen_errno = 0;
+/* The following are only used when handling stdlib.h */
+int seen_EXIT_FAILURE = 0, seen_EXIT_SUCCESS = 0;
 
-/* Wrapper around free, to avoid prototype clashes. */
+/* Wrapper around free, to avoid prototype clashes.  */
 
 void
 xfree (ptr)
@@ -290,6 +387,7 @@ fancy_abort ()
 struct obstack scan_file_obstack;
 
 /* NOTE:  If you edit this, also edit gen-protos.c !! */
+
 struct fn_decl *
 lookup_std_proto (name, name_length)
      const char *name;
@@ -320,8 +418,8 @@ sstring line;
 
 int lbrac_line, rbrac_line;
 
-namelist required_functions_list;
 int required_unseen_count = 0;
+int required_other = 0;
 
 void 
 write_lbrac ()
@@ -364,10 +462,10 @@ void
 recognized_macro (fname)
      char *fname;
 {
-  /* The original include file defines fname as a macro. */
+  /* The original include file defines fname as a macro.  */
   struct fn_decl *fn = lookup_std_proto (fname, strlen (fname));
 
-  /* Since fname is a macro, don't require a prototype for it. */
+  /* Since fname is a macro, don't require a prototype for it.  */
   if (fn)
     {
       if (REQUIRED (fn))
@@ -378,7 +476,14 @@ recognized_macro (fname)
   switch (special_file_handling)
     {
     case errno_h:
-      if (strcmp (fname, "errno") == 0) missing_errno = 0;
+      if (strcmp (fname, "errno") == 0 && !seen_errno)
+	seen_errno = 1, required_other--;
+      break;
+    case stdlib_h:
+      if (strcmp (fname, "EXIT_FAILURE") == 0 && !seen_EXIT_FAILURE)
+	seen_EXIT_FAILURE = 1, required_other--;
+      if (strcmp (fname, "EXIT_SUCCESS") == 0 && !seen_EXIT_SUCCESS)
+	seen_EXIT_SUCCESS = 1, required_other--;
       break;
     case sys_stat_h:
       if (fname[0] == 'S' && fname[1] == '_')
@@ -396,6 +501,10 @@ recognized_macro (fname)
 	  else if (strcmp (fname, "S_IFREG") == 0) seen_S_IFREG++;
 	  else if (strcmp (fname, "S_ISREG") == 0) seen_S_ISREG++;
 	}
+      break;
+
+    default:
+      break;
     }
 }
 
@@ -408,7 +517,11 @@ recognized_extern (name, name_length, type, type_length)
   switch (special_file_handling)
     {
     case errno_h:
-      if (strncmp (name, "errno", name_length) == 0) missing_errno = 0;
+      if (name_length == 5 && strncmp (name, "errno", 5) == 0 && !seen_errno)
+	seen_errno = 1, required_other--;
+      break;
+
+    default:
       break;
     }
 }
@@ -419,7 +532,7 @@ recognized_extern (name, name_length, type, type_length)
    KIND is 'I' for an inline function;
    'F' if a normal function declaration preceded by 'extern "C"'
    (or nested inside 'extern "C"' braces); or
-   'f' for other function declarations. */
+   'f' for other function declarations.  */
 
 void
 recognized_function (fname, fname_length,
@@ -444,7 +557,7 @@ recognized_function (fname, fname_length,
 
   fn = lookup_std_proto (fname, fname_length);
 
-  /* Remove the function from the list of required function. */
+  /* Remove the function from the list of required function.  */
   if (fn)
     {
       if (REQUIRED (fn))
@@ -452,7 +565,7 @@ recognized_function (fname, fname_length,
       SET_SEEN (fn);
     }
 
-  /* If we have a full prototype, we're done. */
+  /* If we have a full prototype, we're done.  */
   if (have_arg_list)
     return;
       
@@ -460,7 +573,7 @@ recognized_function (fname, fname_length,
     return;
 
   /* If the partial prototype was included from some other file,
-     we don't need to patch it up (in this run). */
+     we don't need to patch it up (in this run).  */
   i = strlen (file_seen);
   if (i < inc_filename_length
       || strcmp (inc_filename, file_seen + (i - inc_filename_length)) != 0)
@@ -472,9 +585,9 @@ recognized_function (fname, fname_length,
     return;
 
   /* We only have a partial function declaration,
-     so remember that we have to add a complete prototype. */
+     so remember that we have to add a complete prototype.  */
   partial_count++;
-  partial = (struct partial_proto*)
+  partial = (struct partial_proto *)
     obstack_alloc (&scan_file_obstack, sizeof (struct partial_proto));
   partial->fname = obstack_alloc (&scan_file_obstack, fname_length + 1);
   bcopy (fname, partial->fname, fname_length);
@@ -494,11 +607,11 @@ recognized_function (fname, fname_length,
 }
 
 /* For any name in NAMES that is defined as a macro,
-   call recognized_macro on it. */
+   call recognized_macro on it.  */
 
 void
 check_macro_names (pfile, names)
-     struct parse_file *pfile;
+     cpp_reader *pfile;
      namelist names;
 {
   while (*names)
@@ -519,57 +632,51 @@ read_scan_file (in_fname, argc, argv)
   cpp_options scan_options;
   struct fn_decl *fn;
   int i;
+  register struct symbol_list *cur_symbols;
 
   obstack_init (&scan_file_obstack); 
 
-  init_parse_file (&scan_in);
+  cpp_reader_init (&scan_in);
   scan_in.data = &scan_options;
-  init_parse_options (&scan_options);
+  cpp_options_init (&scan_options);
   i = cpp_handle_options (&scan_in, argc, argv);
-  if (i < argc)
-    fatal ("Invalid option `%s'", argv[i]);
-  push_parse_file (&scan_in, in_fname);
+  if (i < argc && ! CPP_FATAL_ERRORS (&scan_in))
+    cpp_fatal (&scan_in, "Invalid option `%s'", argv[i]);
+  if (CPP_FATAL_ERRORS (&scan_in))
+    exit (FATAL_EXIT_CODE);
+
+  if (! cpp_start_read (&scan_in, in_fname))
+    exit (FATAL_EXIT_CODE);
   CPP_OPTIONS (&scan_in)->no_line_commands = 1;
 
-#ifdef FIXPROTO_INIT
-  /* Some targets may assume special definitions (for example
-     OSF header files assume __LANGUAGE_C__).  These macros
-     are normally passed to cpplib by gcc - but we here invoke
-     cpplib directly, without going through gcc.
-     Handle these and other target-dependent initializations here. */
-  FIXPROTO_INIT (&scan_in);
-#endif
-
-  /* Actually (pre-)process the header file. */
   scan_decls (&scan_in, argc, argv);
-
-  check_macro_names (&scan_in, include_entry->required);
-  check_macro_names (&scan_in, include_entry->extra);
+  for (cur_symbols = &symbol_table[0]; cur_symbols->names; cur_symbols++)
+    check_macro_names (&scan_in, cur_symbols->names);
 
   if (verbose && (scan_in.errors + warnings) > 0)
     fprintf (stderr, "(%s: %d errors and %d warnings from cpp)\n",
 	     inc_filename, scan_in.errors, warnings);
   if (scan_in.errors)
-    exit (0);
+    exit (SUCCESS_EXIT_CODE);
 
   /* Traditionally, getc and putc are defined in terms of _filbuf and _flsbuf.
-     If so, those functions are also required. */
+     If so, those functions are also required.  */
   if (special_file_handling == stdio_h
       && (fn = lookup_std_proto ("_filbuf", 7)) != NULL)
     {
       static char getchar_call[] = "getchar();";
-      cpp_buffer *buf =
-	cpp_push_buffer (&scan_in, getchar_call, sizeof(getchar_call) - 1);
+      cpp_buffer *buf
+	= cpp_push_buffer (&scan_in, getchar_call, sizeof(getchar_call) - 1);
       int old_written = CPP_WRITTEN (&scan_in);
       int seen_filbuf = 0;
 
-      /* Scan the macro expansion of "getchar();". */
+      /* Scan the macro expansion of "getchar();".  */
       for (;;)
 	{
 	  enum cpp_token token = cpp_get_token (&scan_in);
 	  int length = CPP_WRITTEN (&scan_in) - old_written;
 	  CPP_SET_WRITTEN (&scan_in, old_written);
-	  if (token == CPP_EOF) /* Should not happen ... */
+	  if (token == CPP_EOF) /* Should not happen ...  */
 	    break;
 	  if (token == CPP_POP && CPP_BUFFER (&scan_in) == buf)
 	    {
@@ -587,34 +694,27 @@ read_scan_file (in_fname, argc, argv)
 	  int need_flsbuf
 	    = flsbuf_fn && !SEEN (flsbuf_fn) && !REQUIRED (flsbuf_fn);
 
-	  /* Append "_filbuf" and/or "_flsbuf" to end of
-	     required_functions_list. */
+	  /* Append "_filbuf" and/or "_flsbuf" to the required functions.  */
 	  if (need_filbuf + need_flsbuf)
 	    {
-	      int old_len = namelist_end (required_functions_list)
-		- required_functions_list;
-	      char *new_list = (char*) xmalloc (old_len + 20);
-	      bcopy (required_functions_list, new_list, old_len);
+	      char *new_list;
 	      if (need_filbuf)
-		{
-		  strcpy (new_list + old_len, "_filbuf");
-		  old_len += 8;
-		  SET_REQUIRED (fn);
-		}
+		SET_REQUIRED (fn);
 	      if (need_flsbuf)
-		{
-		  strcpy (new_list + old_len, "_flsbuf");
-		  old_len += 8;
-		  SET_REQUIRED (flsbuf_fn);
-		}
-	      new_list[old_len] = '\0';
-	      required_functions_list = (namelist)new_list;
+		SET_REQUIRED (flsbuf_fn);
+	      if (need_flsbuf + need_filbuf == 2)
+		new_list = "_filbuf\0_flsbuf\0";
+	      else if (need_flsbuf)
+		new_list = "_flsbuf\0";
+	      else /* if (need_flsbuf) */
+		new_list = "_filbuf\0";
+	      add_symbols (ANSI_SYMBOL, new_list);
 	      required_unseen_count += need_filbuf + need_flsbuf;
 	    }
 	}
     }
 
-  if (required_unseen_count + partial_count + missing_errno
+  if (required_unseen_count + partial_count + required_other
 #if ADD_MISSING_EXTERN_C
       + missing_extern_C_count
 #endif      
@@ -622,7 +722,7 @@ read_scan_file (in_fname, argc, argv)
     {
       if (verbose)
 	fprintf (stderr, "%s: OK, nothing needs to be done.\n", inc_filename);
-      exit (0);
+      exit (SUCCESS_EXIT_CODE);
     }
   if (!verbose)
     fprintf (stderr, "%s: fixing %s\n", progname, inc_filename);
@@ -648,57 +748,101 @@ write_rbrac ()
 {
   struct fn_decl *fn;
   const char *cptr;
+  register struct symbol_list *cur_symbols;
 
   if (required_unseen_count)
     {
-      fprintf (outf,
-	"#if defined(__cplusplus) || defined(__USE_FIXED_PROTOTYPES__)\n");
 #ifdef NO_IMPLICIT_EXTERN_C
       fprintf (outf, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
 #endif
     }
 
-  /* Now we print out prototypes for those functions that we haven't seen. */
-  for (cptr = required_functions_list; *cptr!= '\0'; )
+  /* Now we print out prototypes for those functions that we haven't seen.  */
+  for (cur_symbols = &symbol_table[0]; cur_symbols->names; cur_symbols++)
     {
-      int macro_protect = 0;
-      int name_len = strlen (cptr);
+      int if_was_emitted = 0;
+      int name_len;
+      cptr = cur_symbols->names;
+      for ( ; (name_len = strlen (cptr)) != 0; cptr+= name_len + 1)
+	{
+	  int macro_protect = 0;
 
-      fn = lookup_std_proto (cptr, name_len);
-      cptr+= name_len + 1;
-      if (fn == NULL || !REQUIRED (fn))
-	continue;
+	  if (cur_symbols->flags & MACRO_SYMBOL)
+	    continue;
 
-      /* In the case of memmove, protect in case the application
-	 defines it as a macro before including the header.  */
-      if (!strcmp (fn->fname, "memmove")
-	  || !strcmp (fn->fname, "vprintf")
-	  || !strcmp (fn->fname, "vfprintf")
-	  || !strcmp (fn->fname, "vsprintf")
-	  || !strcmp (fn->fname, "rewinddir"))
-	macro_protect = 1;
+	  fn = lookup_std_proto (cptr, name_len);
+	  if (fn == NULL || !REQUIRED (fn))
+	    continue;
 
-      if (macro_protect)
-	fprintf (outf, "#ifndef %s\n", fn->fname);
-      fprintf (outf, "extern %s %s (%s);\n",
-	       fn->rtype, fn->fname, fn->params);
-      if (macro_protect)
-	fprintf (outf, "#endif\n");
+	  if (!if_was_emitted)
+	    {
+/*	      what about curses. ??? or _flsbuf/_filbuf ??? */
+	      if (cur_symbols->flags & ANSI_SYMBOL)
+		fprintf (outf,
+	 "#if defined(__USE_FIXED_PROTOTYPES__) || defined(__cplusplus) || defined (__STRICT_ANSI__)\n");
+	      else if (cur_symbols->flags & (POSIX1_SYMBOL|POSIX2_SYMBOL))
+		fprintf (outf,
+       "#if defined(__USE_FIXED_PROTOTYPES__) || (defined(__cplusplus) \\\n\
+    ? (!defined(__STRICT_ANSI__) || defined(_POSIX_SOURCE)) \\\n\
+    : (defined(__STRICT_ANSI__) && defined(_POSIX_SOURCE)))\n");
+	      else if (cur_symbols->flags & XOPEN_SYMBOL)
+		{
+		fprintf (outf,
+       "#if defined(__USE_FIXED_PROTOTYPES__) \\\n\
+   || (defined(__STRICT_ANSI__) && defined(_XOPEN_SOURCE))\n");
+		}
+	      else if (cur_symbols->flags & XOPEN_EXTENDED_SYMBOL)
+		{
+		fprintf (outf,
+       "#if defined(__USE_FIXED_PROTOTYPES__) \\\n\
+   || (defined(__STRICT_ANSI__) && defined(_XOPEN_EXTENDED_SOURCE))\n");
+		}
+	      else
+		{
+		  fatal ("internal error for function %s", fn->fname);
+		}
+	      if_was_emitted = 1;
+	    }
+
+	  /* In the case of memmove, protect in case the application
+	     defines it as a macro before including the header.  */
+	  if (!strcmp (fn->fname, "memmove")
+	      || !strcmp (fn->fname, "vprintf")
+	      || !strcmp (fn->fname, "vfprintf")
+	      || !strcmp (fn->fname, "vsprintf")
+	      || !strcmp (fn->fname, "rewinddir")
+	      || !strcmp (fn->fname, "abort"))
+	    macro_protect = 1;
+
+	  if (macro_protect)
+	    fprintf (outf, "#ifndef %s\n", fn->fname);
+	  fprintf (outf, "extern %s %s (%s);\n",
+		   fn->rtype, fn->fname, fn->params);
+	  if (macro_protect)
+	    fprintf (outf, "#endif\n");
+	}
+      if (if_was_emitted)
+	fprintf (outf,
+		 "#endif /* defined(__USE_FIXED_PROTOTYPES__) || ... */\n");
     }
   if (required_unseen_count)
     {
 #ifdef NO_IMPLICIT_EXTERN_C
       fprintf (outf, "#ifdef __cplusplus\n}\n#endif\n");
 #endif
-      fprintf (outf,
-	"#endif /* defined(__cplusplus) || defined(__USE_FIXED_PROTOTYPES__*/\n");
     }
 
   switch (special_file_handling)
     {
     case errno_h:
-      if (missing_errno)
+      if (!seen_errno)
 	fprintf (outf, "extern int errno;\n");
+      break;
+    case stdlib_h:
+      if (!seen_EXIT_FAILURE)
+	fprintf (outf, "#define EXIT_FAILURE 1\n");
+      if (!seen_EXIT_SUCCESS)
+	fprintf (outf, "#define EXIT_SUCCESS 0\n");
       break;
     case sys_stat_h:
       if (!seen_S_ISBLK && seen_S_IFBLK)
@@ -719,6 +863,9 @@ write_rbrac ()
       if (!seen_S_ISREG && seen_S_IFREG)
 	fprintf (outf,
 		 "#define S_ISREG(mode) (((mode) & S_IFMT) == S_IFREG)\n");
+      break;
+
+    default:
       break;
     }
 
@@ -745,7 +892,7 @@ xstrdup (str)
 
  */
 
-#define INF_GET() (inf_ptr < inf_limit ? *(unsigned char*)inf_ptr++ : EOF)
+#define INF_GET() (inf_ptr < inf_limit ? *(unsigned char *) inf_ptr++ : EOF)
 #define INF_UNGET(c) ((c)!=EOF && inf_ptr--)
 
 int
@@ -761,7 +908,7 @@ inf_skip_spaces (c)
 	  c = INF_GET ();
 	  if (c != '*')
 	    {
-	      INF_UNGET (c);
+	      (void) INF_UNGET (c);
 	      return '/';
 	    }
 	  c = INF_GET ();
@@ -785,7 +932,7 @@ inf_skip_spaces (c)
   return c;
 }
 
-/* Read into STR from inf_buffer upto DELIM. */
+/* Read into STR from inf_buffer upto DELIM.  */
 
 int
 inf_read_upto (str, delim)
@@ -811,13 +958,13 @@ inf_scan_ident (s, c)
      int c;
 {
   s->ptr = s->base;
-  if (isalpha (c) || c == '_')
+  if (ISALPHA (c) || c == '_')
     {
       for (;;)
 	{
 	  SSTRING_PUT (s, c);
 	  c = INF_GET ();
-	  if (c == EOF || !(isalnum (c) || c == '_'))
+	  if (c == EOF || !(ISALNUM (c) || c == '_'))
 	    break;
 	}
     }
@@ -829,7 +976,7 @@ inf_scan_ident (s, c)
 /* Returns 1 if the file is correctly protected against multiple
    inclusion, setting *ifndef_line to the line number of the initial #ifndef
    and setting *endif_line to the final #endif.
-   Otherwise return 0. */
+   Otherwise return 0.  */
 
 int
 check_protection (ifndef_line, endif_line)
@@ -840,7 +987,7 @@ check_protection (ifndef_line, endif_line)
   char *protect_name = NULL; /* Identifier following initial #ifndef */
   int define_seen = 0;
 
-  /* Skip initial white space (including comments). */
+  /* Skip initial white space (including comments).  */
   for (;; lineno++)
     {
       c = inf_skip_spaces (' ');
@@ -855,14 +1002,14 @@ check_protection (ifndef_line, endif_line)
   if (SSTRING_LENGTH (&buf) == 0 || strcmp (buf.base, "ifndef") != 0)
     return 0;
 
-  /* So far so good: We've seen an initial #ifndef. */
+  /* So far so good: We've seen an initial #ifndef.  */
   *ifndef_line = lineno;
   c = inf_scan_ident (&buf, inf_skip_spaces (c));
   if (SSTRING_LENGTH (&buf) == 0 || c == EOF)
     return 0;
   protect_name = xstrdup (buf.base);
 
-  INF_UNGET (c);
+  (void) INF_UNGET (c);
   c = inf_read_upto (&buf, '\n');
   if (c == EOF)
     return 0;
@@ -923,7 +1070,7 @@ check_protection (ifndef_line, endif_line)
   if (!define_seen)
      return 0;
   *endif_line = lineno;
-  /* Skip final white space (including comments). */
+  /* Skip final white space (including comments).  */
   for (;;)
     {
       c = inf_skip_spaces (' ');
@@ -944,12 +1091,15 @@ main (argc, argv)
   int inf_fd;
   struct stat sbuf;
   int c;
-  int i, done;
-  const char *cptr, **pptr;
+#ifdef FIXPROTO_IGNORE_LIST
+  int i;
+#endif
+  const char *cptr;
   int ifndef_line;
   int endif_line;
   long to_read;
   long int inf_size;
+  register struct symbol_list *cur_symbols;
 
   if (argv[0] && argv[0][0])
     {
@@ -966,7 +1116,7 @@ main (argc, argv)
     {
       fprintf (stderr, "%s: Usage: foo.h infile.h outfile.h options\n",
 	       progname);
-      exit (-1);
+      exit (FATAL_EXIT_CODE);
     }
 
   inc_filename = argv[1];
@@ -984,7 +1134,7 @@ main (argc, argv)
 	    {
 	      if (verbose)
 		fprintf (stderr, "%s: ignoring %s\n", progname, inc_filename);
-	      exit (0);
+	      exit (SUCCESS_EXIT_CODE);
 	    }
 	}
 	  
@@ -994,27 +1144,49 @@ main (argc, argv)
   if (strcmp (inc_filename, "sys/stat.h") == 0)
     special_file_handling = sys_stat_h;
   else if (strcmp (inc_filename, "errno.h") == 0)
-    special_file_handling = errno_h, missing_errno = 1;
+    special_file_handling = errno_h, required_other++;
+  else if (strcmp (inc_filename, "stdlib.h") == 0)
+    special_file_handling = stdlib_h, required_other+=2;
   else if (strcmp (inc_filename, "stdio.h") == 0)
     special_file_handling = stdio_h;
   include_entry = std_include_table;
   while (include_entry->name != NULL
-	 && strcmp (inc_filename, include_entry->name) != 0)
+	 && (include_entry->name == CONTINUED
+	     || strcmp (inc_filename, include_entry->name) != 0))
     include_entry++;
 
-  required_functions_list = include_entry->required;
-
-  /* Count and mark the prototypes required for this include file. */ 
-  for (cptr = required_functions_list; *cptr!= '\0'; )
+  if (include_entry->name != NULL)
     {
-      int name_len = strlen (cptr);
-      struct fn_decl *fn = lookup_std_proto (cptr, name_len);
-      required_unseen_count++;
-      if (fn == NULL)
-	fprintf (stderr, "Internal error:  No prototype for %s\n", cptr);
-      else
-	SET_REQUIRED (fn);
-      cptr += name_len + 1;
+      struct std_include_entry *entry;
+      cur_symbol_table_size = 0;
+      for (entry = include_entry; ;)
+	{
+	  if (entry->flags)
+	    add_symbols (entry->flags, entry->names);
+	  entry++;
+	  if (entry->name != CONTINUED)
+	    break;
+	}
+    }
+  else
+    symbol_table[0].names = NULL;
+
+  /* Count and mark the prototypes required for this include file.  */ 
+  for (cur_symbols = &symbol_table[0]; cur_symbols->names; cur_symbols++)
+    {
+      int name_len;
+      if (cur_symbols->flags & MACRO_SYMBOL)
+	continue;
+      cptr = cur_symbols->names;
+      for ( ; (name_len = strlen (cptr)) != 0; cptr+= name_len + 1)
+	{
+	  struct fn_decl *fn = lookup_std_proto (cptr, name_len);
+	  required_unseen_count++;
+	  if (fn == NULL)
+	    fprintf (stderr, "Internal error:  No prototype for %s\n", cptr);
+	  else
+	    SET_REQUIRED (fn);
+	}
     }
 
   read_scan_file (argv[2], argc - 4, argv + 4);
@@ -1025,16 +1197,16 @@ main (argc, argv)
       fprintf (stderr, "%s: Cannot open '%s' for reading -",
 	       progname, argv[2]);
       perror (NULL);
-      exit (-1);
+      exit (FATAL_EXIT_CODE);
     }
   if (fstat (inf_fd, &sbuf) < 0)
     {
       fprintf (stderr, "%s: Cannot get size of '%s' -", progname, argv[2]);
       perror (NULL);
-      exit (-1);
+      exit (FATAL_EXIT_CODE);
     }
   inf_size = sbuf.st_size;
-  inf_buffer = (char*) xmalloc (inf_size + 2);
+  inf_buffer = (char *) xmalloc (inf_size + 2);
   inf_buffer[inf_size] = '\n';
   inf_buffer[inf_size + 1] = '\0';
   inf_limit = inf_buffer + inf_size;
@@ -1048,7 +1220,7 @@ main (argc, argv)
 	{
 	  fprintf (stderr, "%s: Failed to read '%s' -", progname, argv[2]);
 	  perror (NULL);
-	  exit (-1);
+	  exit (FATAL_EXIT_CODE);
 	}
       if (i == 0)
 	{
@@ -1060,7 +1232,7 @@ main (argc, argv)
 
   close (inf_fd);
 
-  /* If file doesn't end with '\n', add one. */
+  /* If file doesn't end with '\n', add one.  */
   if (inf_limit > inf_buffer && inf_limit[-1] != '\n')
     inf_limit++;
 
@@ -1071,7 +1243,7 @@ main (argc, argv)
       fprintf (stderr, "%s: Cannot open '%s' for writing -",
 	       progname, argv[3]);
       perror (NULL);
-      exit (-1);
+      exit (FATAL_EXIT_CODE);
     }
 
   lineno = 1;
@@ -1087,7 +1259,7 @@ main (argc, argv)
       rbrac_line = -1;
     }
 
-  /* Reset input file. */
+  /* Reset input file.  */
   inf_ptr = inf_buffer;
   lineno = 1;
 
@@ -1103,15 +1275,15 @@ main (argc, argv)
 	  c = INF_GET ();
 	  if (c == EOF)
 	    break;
-	  if (isalpha (c) || c == '_')
+	  if (ISALPHA (c) || c == '_')
 	    {
 	      c = inf_scan_ident (&buf, c);
-	      INF_UNGET (c);
+	      (void) INF_UNGET (c);
 	      fputs (buf.base, outf);
 	      fn = lookup_std_proto (buf.base, strlen (buf.base));
 	      /* We only want to edit the declaration matching the one
 		 seen by scan-decls, as there can be multiple
-		 declarations, selected by #ifdef __STDC__ or whatever. */
+		 declarations, selected by #ifdef __STDC__ or whatever.  */
 	      if (fn && fn->partial && fn->partial->line_seen == lineno)
 		{
 		  c = inf_skip_spaces (' ');
@@ -1127,7 +1299,7 @@ main (argc, argv)
 		      else
 			{
 			  putc ('(', outf);
-			  INF_UNGET (c);
+			  (void) INF_UNGET (c);
 			}
 		    }
 		  else
@@ -1154,11 +1326,11 @@ main (argc, argv)
 }
 
 /* Stub error functions.  These replace cpperror.c,
-   because we want to suppress error messages. */
+   because we want to suppress error messages.  */
 
 void
 cpp_file_line_for_message (pfile, filename, line, column)
-     cpp_reader *pfile;
+     cpp_reader * pfile;
      char *filename;
      int line, column;
 {
@@ -1172,41 +1344,107 @@ cpp_file_line_for_message (pfile, filename, line, column)
 
 void
 cpp_print_containing_files (pfile)
-     cpp_reader *pfile;
+     cpp_reader *pfile ATTRIBUTE_UNUSED;
 {
 }
 
-/* IS_ERROR is 1 for error, 0 for warning */
-void cpp_message (pfile, is_error, msg, arg1, arg2, arg3)
-     int is_error;
+/* IS_ERROR is 2 for fatal error, 1 for error, 0 for warning */
+
+void
+v_cpp_message (pfile, is_error, msg, ap)
      cpp_reader *pfile;
-     char *msg;
-     char *arg1, *arg2, *arg3;
+     int is_error;
+     const char *msg;
+     va_list ap;
 {
-  if (is_error)
+  if (is_error == 1)
     pfile->errors++;
+  else if (is_error > 1)
+    pfile->errors = CPP_FATAL_LIMIT;
   if (!verbose)
     return;
   if (!is_error)
     fprintf (stderr, "warning: ");
-  fprintf (stderr, msg, arg1, arg2, arg3);
+  vfprintf (stderr, msg, ap);
   fprintf (stderr, "\n");
 }
 
 void
-fatal (str, arg)
-     char *str, *arg;
+cpp_message VPROTO ((cpp_reader *pfile, int is_error, const char *msg, ...))
+{
+#ifndef __STDC__
+  cpp_reader *pfile;
+  int is_error;
+  const char *msg;
+#endif
+  va_list ap;
+  
+  VA_START (ap, msg);
+  
+#ifndef __STDC__
+  pfile = va_arg (ap, cpp_reader *);
+  is_error = va_arg (ap, const int);
+  msg = va_arg (ap, const char *);
+#endif
+
+  v_cpp_message(pfile, is_error, msg, ap);
+  va_end(ap);
+}
+
+static void
+v_fatal (str, ap)
+  const char * str;
+  va_list ap;
 {
   fprintf (stderr, "%s: %s: ", progname, inc_filename);
-  fprintf (stderr, str, arg);
+  vfprintf (stderr, str, ap);
   fprintf (stderr, "\n");
+  
   exit (FATAL_EXIT_CODE);
+}
+
+void
+fatal VPROTO ((const char *str, ...))
+{
+#ifndef __STDC__
+  const char *str;
+#endif
+  va_list ap;
+  
+  VA_START(ap, str);
+
+#ifndef __STDC__
+  str = va_arg (ap, const char *);
+#endif
+
+  v_fatal(str, ap);
+  va_end(ap);
+}
+
+void
+cpp_fatal VPROTO ((cpp_reader * pfile, const char *str, ...))
+{
+#ifndef __STDC__
+  cpp_reader * pfile;
+  const char *str;
+#endif
+  va_list ap;
+  
+  VA_START(ap, str);
+
+#ifndef __STDC__
+  pfile = va_arg (ap, cpp_reader *);
+  str = va_arg (ap, const char *);
+#endif
+
+  v_fatal(str, ap);
+  va_end(ap);
 }
 
 void
 cpp_pfatal_with_name (pfile, name)
      cpp_reader *pfile;
-     char *name;
+     const char *name;
 {
   cpp_perror_with_name (pfile, name);
   exit (FATAL_EXIT_CODE);

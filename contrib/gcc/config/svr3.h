@@ -1,8 +1,7 @@
-/* svr3.h  --  operating system specific defines to be used when
-   targeting GCC for some generic System V Release 3 system.
-   Copyright (C) 1991 Free Software Foundation, Inc.
-
-   Written by Ron Guilmette (rfg@netcom.com).
+/* Operating system specific defines to be used when targeting GCC for
+   generic System V Release 3 system.
+   Copyright (C) 1991, 1996 Free Software Foundation, Inc.
+   Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
 
@@ -103,7 +102,11 @@ Boston, MA 02111-1307, USA.
 #define STARTFILE_SPEC  \
   "%{pg:gcrt1.o%s}%{!pg:%{p:mcrt1.o%s}%{!p:crt1.o%s}}"
 
+#ifdef CROSS_COMPILE
+#define LIB_SPEC "-lc crtn.o%s"
+#else
 #define LIB_SPEC "%{p:-L/usr/lib/libp}%{pg:-L/usr/lib/libp} -lc crtn.o%s"
+#endif
 
 /* Special flags for the linker.  I don't know what they do.  */
 
@@ -156,14 +159,13 @@ Boston, MA 02111-1307, USA.
 #undef ASM_BYTE_OP
 #define ASM_BYTE_OP "\t.byte"
 
-/* This is how to output a reference to a user-level label named NAME.
-   `assemble_name' uses this.
+/* The prefix to add to user-visible assembler symbols.
 
    For System V Release 3 the convention is to prepend a leading
    underscore onto user-level symbol names.  */
 
-#undef ASM_OUTPUT_LABELREF
-#define ASM_OUTPUT_LABELREF(FILE,NAME) fprintf (FILE, "_%s", NAME)
+#undef USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX "_"
 
 /* This is how to output an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.
@@ -247,28 +249,16 @@ do {								\
 
 #endif /* STACK_GROWS_DOWNWARD */
 
-/* Add extra sections .init and .fini, in addition to .bss from att386.h. */
+/* Add extra sections .rodata, .init and .fini.  */
 
 #undef EXTRA_SECTIONS
-#define EXTRA_SECTIONS in_const, in_bss, in_init, in_fini
+#define EXTRA_SECTIONS in_const, in_init, in_fini
 
 #undef EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS					\
   CONST_SECTION_FUNCTION					\
-  BSS_SECTION_FUNCTION						\
   INIT_SECTION_FUNCTION						\
   FINI_SECTION_FUNCTION
-
-#define BSS_SECTION_FUNCTION					\
-void								\
-bss_section ()							\
-{								\
-  if (in_section != in_bss)					\
-    {								\
-      fprintf (asm_out_file, "\t%s\n", BSS_SECTION_ASM_OP);	\
-      in_section = in_bss;					\
-    }								\
-}
 
 #define INIT_SECTION_FUNCTION					\
 void								\

@@ -1,6 +1,6 @@
-/* nextstep.h -- operating system specific defines to be used when
-   targeting GCC for NeXTSTEP.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+/* Operating system specific defines to be used when targeting GCC
+   for NeXTSTEP.
+   Copyright (C) 1989, 90-93, 1996, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -27,26 +27,43 @@ Boston, MA 02111-1307, USA.  */
 #undef	INCLUDE_DEFAULTS
 #define INCLUDE_DEFAULTS				\
   {							\
-    { GPLUSPLUS_INCLUDE_DIR, 1, 1 },			\
-    { LOCAL_INCLUDE_DIR, 0, 1 },			\
-    { TOOL_INCLUDE_DIR, 0, 1 },				\
-    { GCC_INCLUDE_DIR, 0, 0 },				\
+    { GPLUSPLUS_INCLUDE_DIR, "G++", 1, 1 },		\
+    { LOCAL_INCLUDE_DIR, 0, 0, 1 },			\
+    { TOOL_INCLUDE_DIR, "BINUTILS", 0, 1 },		\
+    { GCC_INCLUDE_DIR, "GCC", 0, 0 },			\
     /* These are for fixincludes-fixed ansi/bsd headers	\
        which wouldn't be found otherwise.		\
        (The use of string catenation here is OK since	\
 	NeXT's native compiler is derived from GCC.) */	\
-    { GCC_INCLUDE_DIR "/ansi", 0, 0 },			\
-    { GCC_INCLUDE_DIR "/bsd", 0, 0 },			\
-    { "/NextDeveloper/Headers", 0, 0 },			\
-    { "/NextDeveloper/Headers/ansi", 0, 0 },		\
-    { "/NextDeveloper/Headers/bsd", 0, 0 },		\
-    { "/LocalDeveloper/Headers", 0, 0 },		\
-    { "/LocalDeveloper/Headers/ansi", 0, 0 },		\
-    { "/LocalDeveloper/Headers/bsd", 0, 0 },		\
-    { "/NextDeveloper/2.0CompatibleHeaders", 0, 0 },	\
-    { STANDARD_INCLUDE_DIR, 0, 0 },			\
-    { "/usr/include/bsd", 0, 0 },			\
-    { 0, 0, 0 }						\
+    { GCC_INCLUDE_DIR "/ansi", 0, 0, 0 },		\
+    { GCC_INCLUDE_DIR "/bsd", 0, 0, 0 },		\
+    { "/NextDeveloper/Headers", 0, 0, 0 },		\
+    { "/NextDeveloper/Headers/ansi", 0, 0, 0 },		\
+    { "/NextDeveloper/Headers/bsd", 0, 0, 0 },		\
+    { "/LocalDeveloper/Headers", 0, 0, 0 },		\
+    { "/LocalDeveloper/Headers/ansi", 0, 0, 0 },	\
+    { "/LocalDeveloper/Headers/bsd", 0, 0, 0 },		\
+    { "/NextDeveloper/2.0CompatibleHeaders", 0, 0, 0 },	\
+    { STANDARD_INCLUDE_DIR, 0, 0, 0 },                  \
+    { "/usr/include/bsd", 0, 0, 0 },			\
+    { 0, 0, 0, 0 }				       	\
+  }
+#else /* CROSS_COMPILE */
+#undef	INCLUDE_DEFAULTS
+#define INCLUDE_DEFAULTS				\
+  {							\
+    { GPLUSPLUS_INCLUDE_DIR, "G++", 1, 1 },		\
+    { GPLUSPLUS_INCLUDE_DIR, 0, 1, 1 },			\
+    { LOCAL_INCLUDE_DIR, 0, 0, 1 },			\
+    { GCC_INCLUDE_DIR, "GCC", 0, 0 },			\
+    { GCC_INCLUDE_DIR "/ansi", 0, 0, 0 },		\
+    { GCC_INCLUDE_DIR "/bsd", 0, 0, 0 },		\
+    { TOOL_INCLUDE_DIR, "BINUTILS", 0, 1 },		\
+    { TOOL_INCLUDE_DIR "/ansi", 0, 0, 0 },		\
+    { TOOL_INCLUDE_DIR "/bsd", 0, 0, 0 },		\
+    { STANDARD_INCLUDE_DIR, 0, 0, 0 },			\
+    { "/usr/include/bsd", 0, 0, 0 },			\
+    { 0, 0, 0, 0 }					\
   }
 #endif /* CROSS_COMPILE */
 
@@ -152,11 +169,6 @@ Boston, MA 02111-1307, USA.  */
      %{p:%e-p profiling is no longer supported.  Use -pg instead.} \
      %{!p:-lposixcrt0.o}}}"
 
-/* Why not? */
-
-#undef	DOLLARS_IN_IDENTIFIERS
-#define DOLLARS_IN_IDENTIFIERS 2
-
 /* Allow #sscs (but don't do anything). */
 
 #define SCCS_DIRECTIVE
@@ -240,7 +252,7 @@ Boston, MA 02111-1307, USA.  */
 /* How to parse #pragma's */
 
 #undef	HANDLE_PRAGMA
-#define HANDLE_PRAGMA(finput) handle_pragma (finput, &get_directive_line)
+#define HANDLE_PRAGMA(FINPUT, NODE) handle_pragma (FINPUT, NODE)
 
 /* Give methods pretty symbol names on NeXT. */
 
@@ -254,6 +266,11 @@ Boston, MA 02111-1307, USA.  */
 		  (CLASS_NAME), (SEL_NAME));				\
      } while (0)
 
+/* The prefix to add to user-visible assembler symbols. */
+
+#undef USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX "_"
+
 /* Wrap new method names in quotes so the assembler doesn't gag.
    Make Objective-C internal symbols local.  */
 
@@ -263,7 +280,7 @@ Boston, MA 02111-1307, USA.  */
        else if (!strncmp (NAME, "_OBJC_", 6)) fprintf (FILE, "L%s", NAME);   \
        else if (!strncmp (NAME, ".objc_class_name_", 17))		\
 	 fprintf (FILE, "%s", NAME);					\
-       else fprintf (FILE, "_%s", NAME); } while (0)
+       else fprintf (FILE, "%s%s", USER_LABEL_PREFIX, NAME); } while (0)
 
 #undef	ALIGN_ASM_OP
 #define ALIGN_ASM_OP		".align"
@@ -565,3 +582,9 @@ objc_section_init ()				\
 	const_section ();						\
     }									\
   while (0)
+
+#ifdef ASM_COMMENT_START
+# undef ASM_COMMENT_START
+#endif
+
+#define ASM_COMMENT_START ";#"
