@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.8 1996/12/12 04:49:53 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.9 1996/12/17 12:24:24 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -635,17 +635,21 @@ IGNORECMD=	${DO_NADA}
 .else
 IGNORECMD=	${ECHO_MSG} "===>  ${PKGNAME} ${IGNORE}."
 .endif
+fetch:
+	@${IGNORECMD}
+checksum:
+	@${IGNORECMD}
+extract:
+	@${IGNORECMD}
+patch:
+	@${IGNORECMD}
+configure:
+	@${IGNORECMD}
 all:
 	@${IGNORECMD}
 build:
 	@${IGNORECMD}
 install:
-	@${IGNORECMD}
-fetch:
-	@${IGNORECMD}
-checksum:
-	@${IGNORECMD}
-configure:
 	@${IGNORECMD}
 package:
 	@${IGNORECMD}
