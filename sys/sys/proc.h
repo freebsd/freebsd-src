@@ -364,7 +364,6 @@ struct kse {
 	u_int64_t	ke_sticks;	/* (j) Statclock hits in system mode. */
 	u_int64_t	ke_iticks;	/* (j) Statclock hits in intr. */
 	u_char		ke_oncpu;	/* (j) Which cpu we are on. */
-	u_int		ke_slptime;	/* (j) Time since last idle. */
 	char		ke_rqindex;	/* (j) Run queue index. */
 	enum {
 		KES_IDLE = 0x10,
@@ -396,6 +395,7 @@ struct kse {
 #define	KEF_USER	0x00200	/* Process is not officially in the kernel */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
+#define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 
 /*
  * (*) A bound KSE with a bound thread in a KSE process may be lent to
