@@ -8,7 +8,7 @@ SRCS=	vnode_if.h kernel_lkm.c kernel_interface.c kernel_util.c \
 NOMAN=	yes
 SUBDIR+=	syscall_gate
 SUBDIR+=	plm
-CFLAGS+=	-I${.CURDIR}/../../contrib/lomac
+CFLAGS+=	-I${.CURDIR}/../../security/lomac
 CFLAGS+=	-DUSES_LOCKMGR		# necessary until VM uses sx locks
 #CFLAGS+=	-DP_CAN_HOOKS	# There are no hooks for p_can*() ops in the
 #				  kernel yet.  Until then, all subject-subject
@@ -23,7 +23,7 @@ CFLAGS+=	-DUSES_LOCKMGR		# necessary until VM uses sx locks
 #CFLAGS+=	-DLOMAC_DEBUG_PIPE		# relatively cheap
 #CFLAGS+=	-DLOMAC_DEBUG_RECWD		# only happens once
 
-.PATH:	${.CURDIR}/../../contrib/lomac
+.PATH:	${.CURDIR}/../../security/lomac
 
 load-all:	all
 	@cd ${.CURDIR}/syscall_gate; ${MAKE} load
