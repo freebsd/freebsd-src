@@ -320,7 +320,7 @@ isa_setup_intr(device_t dev, device_t child,
 	error = alpha_setup_intr(
 			 device_get_nameunit(child ? child : dev),
 			 0x800 + (irq->r_start << 4), isa_handle_intr, ii,
-			 ithread_priority(flags), &ii->ih,
+			 ithread_priority(flags), flags, &ii->ih,
 			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start],
 			 NULL, NULL);
 	if (error) {
