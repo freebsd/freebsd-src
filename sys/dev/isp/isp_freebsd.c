@@ -1543,7 +1543,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		default:
 			isp_prt(isp, ISP_LOGERR,
 			    "What's this? 0x%x at %d in file %s",
-			    isp->isp_name, error, __LINE__, __FILE__);
+			    error, __LINE__, __FILE__);
 			XS_SETERR(ccb, CAM_REQ_CMP_ERR);
 			xpt_done(ccb);
 		}
@@ -1723,8 +1723,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			*dptr |= DPARM_SAFE_DFLT;
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
-			    isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", 
 			    sdp->isp_devparam[tgt].sync_period,
 			    sdp->isp_devparam[tgt].sync_offset,
@@ -1804,8 +1803,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ISP_UNLOCK(isp);
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
-			    isp->isp_name, bus, tgt,
-			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    bus, tgt, (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
 			    "current" : "user", pval, oval, dval);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
