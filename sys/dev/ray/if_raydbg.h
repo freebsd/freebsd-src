@@ -52,6 +52,8 @@
  *	STOP		driver detaching
  *	CTL		CTL packets
  *	MGT		MGT packets
+ *	TX		TX routine info
+ *	DCOM		dump comq entries
  */
 #define RAY_DBG_RECERR		0x0001
 #define RAY_DBG_SUBR		0x0002
@@ -67,6 +69,7 @@
 #define RAY_DBG_CTL		0x1000
 #define RAY_DBG_MGT		0x2000
 #define RAY_DBG_TX		0x4000
+#define RAY_DBG_DCOM		0x8000
 /* Cut and paste this into a kernel configuration file */
 #if 0
 #define RAY_DEBUG	(				\
@@ -84,6 +87,7 @@
                         /* RAY_DBG_CTL		| */ 	\
                         /* RAY_DBG_MGT		| */  	\
                         /* RAY_DBG_TX		| */  	\
+                        /* RAY_DBG_DCOM		| */  	\
 			0				\
 			)
 #endif
