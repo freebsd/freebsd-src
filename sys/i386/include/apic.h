@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.1 1997/04/26 11:45:32 peter Exp $
+ *	$Id: apic.h,v 1.1 1997/05/28 19:43:45 smp Exp smp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -121,6 +121,102 @@
  */
 
 /******************************************************************************
+ * LOCAL APIC structure
+ */
+
+#ifndef LOCORE
+#include <sys/types.h>
+
+#define PAD3	int : 32; int : 32; int : 32
+#define PAD4	int : 32; int : 32; int : 32; int : 32
+
+struct LAPIC {
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	u_int32_t id;		PAD3;
+	u_int32_t version;	PAD3;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	u_int32_t tpr;		PAD3;
+	u_int32_t apr;		PAD3;
+	u_int32_t ppr;		PAD3;
+	u_int32_t eoi;		PAD3;
+	/* reserved */		PAD4;
+	u_int32_t ldr;		PAD3;
+	u_int32_t dfr;		PAD3;
+	u_int32_t svr;		PAD3;
+	u_int32_t isr0;		PAD3;
+	u_int32_t isr1;		PAD3;
+	u_int32_t isr2;		PAD3;
+	u_int32_t isr3;		PAD3;
+	u_int32_t isr4;		PAD3;
+	u_int32_t isr5;		PAD3;
+	u_int32_t isr6;		PAD3;
+	u_int32_t isr7;		PAD3;
+	u_int32_t tmr0;		PAD3;
+	u_int32_t tmr1;		PAD3;
+	u_int32_t tmr2;		PAD3;
+	u_int32_t tmr3;		PAD3;
+	u_int32_t tmr4;		PAD3;
+	u_int32_t tmr5;		PAD3;
+	u_int32_t tmr6;		PAD3;
+	u_int32_t tmr7;		PAD3;
+	u_int32_t irr0;		PAD3;
+	u_int32_t irr1;		PAD3;
+	u_int32_t irr2;		PAD3;
+	u_int32_t irr3;		PAD3;
+	u_int32_t irr4;		PAD3;
+	u_int32_t irr5;		PAD3;
+	u_int32_t irr6;		PAD3;
+	u_int32_t irr7;		PAD3;
+	u_int32_t esr;		PAD3;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	u_int32_t icr_lo;	PAD3;
+	u_int32_t icr_hi;	PAD3;
+	u_int32_t lvt_timer;	PAD3;
+	/* reserved */		PAD4;
+	u_int32_t lvt_pcint;	PAD3;
+	u_int32_t lvt_lint0;	PAD3;
+	u_int32_t lvt_lint1;	PAD3;
+	u_int32_t lvt_error;	PAD3;
+	u_int32_t icr_timer;	PAD3;
+	u_int32_t ccr_timer;	PAD3;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	/* reserved */		PAD4;
+	u_int32_t dcr_timer;	PAD3;
+	/* reserved */		PAD4;
+};
+
+typedef struct LAPIC lapic_t;
+
+/******************************************************************************
+ * I/O APIC structure
+ */
+
+struct IOAPIC {
+	u_int32_t ioregsel;	PAD3;
+	u_int32_t iowin;	PAD3;
+};
+
+typedef struct IOAPIC ioapic_t;
+
+#undef PAD4
+#undef PAD3
+
+#endif  /* LOCORE */
+
+
+/******************************************************************************
  * LOCAL APIC defines
  */
 
@@ -161,6 +257,7 @@
 
 # else /* !LOCORE */
 
+#if 0  /** XXX APIC_STRUCT */
 /* offsets in apic_base[] */
 #define APIC_ID			(0x020/4)
 #define APIC_VER		(0x030/4)
@@ -191,6 +288,7 @@
 #define APIC_TICR		(0x380/4)
 #define APIC_TCCR		(0x390/4)
 #define APIC_TDCR		(0x3e0/4)
+#endif  /** XXX APIC_STRUCT */
 
 # endif /* LOCORE */
 
@@ -402,5 +500,46 @@
 # define IOART_DELEXINT	0x00000700	/*       External INTerrupt */
 
 #define IOART_INTVEC	0x000000ff	/* R/W: INTerrupt vector field */
+
+/**
+ * XXX FIXME: temproary defines till we get private pages...
+ */
+#if 1  /** XXX APIC_STRUCT */
+
+/* XXX when automatically mapped to a virtual page */
+#define lapic__id		lapic->id
+#define lapic__version		lapic->version
+#define lapic__eoi		lapic->eoi
+#define lapic__irr1		lapic->irr1
+#define lapic__lvt_lint0	lapic->lvt_lint0
+#define lapic__lvt_lint1	lapic->lvt_lint1
+#define lapic__tpr		lapic->tpr
+#define lapic__svr		lapic->svr
+#define lapic__icr_lo		lapic->icr_lo
+#define lapic__icr_hi		lapic->icr_hi
+#define lapic__dcr_timer	lapic->dcr_timer
+#define lapic__lvt_timer	lapic->lvt_timer
+#define lapic__icr_timer	lapic->icr_timer
+#define lapic__ccr_timer	lapic->ccr_timer
+
+#else
+
+/* XXX when mapped to a known virtual address */
+#define lapic__id		lapic.id
+#define lapic__version		lapic.version
+#define lapic__eoi		lapic.eoi
+#define lapic__irr1		lapic.irr1
+#define lapic__lvt_lint0	lapic.lvt_lint0
+#define lapic__lvt_lint1	lapic.lvt_lint1
+#define lapic__tpr		lapic.tpr
+#define lapic__svr		lapic.svr
+#define lapic__icr_lo		lapic.icr_lo
+#define lapic__icr_hi		lapic.icr_hi
+#define lapic__dcr_timer	lapic.dcr_timer
+#define lapic__lvt_timer	lapic.lvt_timer
+#define lapic__icr_timer	lapic.icr_timer
+#define lapic__ccr_timer	lapic.ccr_timer
+
+#endif  /** XXX APIC_STRUCT */
 
 #endif /* _MACHINE_APIC_H_ */
