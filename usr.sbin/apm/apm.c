@@ -55,7 +55,8 @@ usage(void)
  * interpretation of the string argument given.
  */
 static int
-is_true(const char *boolean) {
+is_true(const char *boolean)
+{
 	char *endp;
 	long val;
 
@@ -134,8 +135,8 @@ apm_getinfo(int fd, apm_info_t aip)
 }
 
 static void 
-apm_enable(int fd, int enable) {
-
+apm_enable(int fd, int enable) 
+{
 	if (enable) {
 		if (ioctl(fd, APMIO_ENABLE) == -1)
 			err(1, "ioctl(APMIO_ENABLE)");
@@ -145,53 +146,71 @@ apm_enable(int fd, int enable) {
 	}
 }
 
+static void
+print_batt_time(int batt_time)
+{
+	printf("Remaining battery time: ");
+	if (batt_time == -1)
+		printf("unknown\n");
+	else {
+		int h, m, s;
+
+		h = batt_time;
+		s = h % 60;
+		h /= 60;
+		m = h % 60;
+		h /= 60;
+		printf("%2d:%02d:%02d\n", h, m, s);
+	}
+}
+
+static void
+print_batt_life(u_int batt_life)
+{
+	printf("Remaining battery life: ");
+	if (batt_life >= 255)
+		printf("unknown\n");
+	else if (batt_life <= 100)
+		printf("%d%%\n", batt_life);
+	else
+		printf("invalid value (0x%x)\n", batt_life);
+}
+
+static void
+print_batt_stat(u_int batt_stat)
+{
+	const char *batt_msg[] = { "high", "low", "critical", "charging" };
+
+	printf("Battery Status: ");
+	if (batt_stat >= 255)
+		printf("unknown\n");
+	else if (batt_stat > 3)
+		printf("invalid value (0x%x)\n", batt_stat);
+	else
+		printf("%s\n", batt_msg[batt_stat]);
+}
+
 static void 
 print_all_info(int fd, apm_info_t aip, int bioscall_available)
 {
 	struct apm_bios_arg args;
 	int apmerr;
-	const char *batt_msg[] = { "high", "low", "critical", "charging" };
 	const char *line_msg[] = { "off-line", "on-line" };
 
 	printf("APM version: %d.%d\n", aip->ai_major, aip->ai_minor);
 	printf("APM Management: %s\n", aip->ai_status ? "Enabled" : "Disabled");
 	printf("AC Line status: ");
 	if (aip->ai_acline >= 255)
-		printf("unknown");
+		printf("unknown\n");
 	else if (aip->ai_acline > 1)
-		printf("invalid value (0x%x)", aip->ai_acline);
+		printf("invalid value (0x%x)\n", aip->ai_acline);
 	else
-		printf("%s", line_msg[aip->ai_acline]);
-	printf("\n");
-	printf("Battery status: ");
-	if (aip->ai_batt_stat >= 255)
-		printf("unknown");
-	else if (aip->ai_batt_stat > 3)
-		printf("invalid value (0x%x)", aip->ai_batt_stat);
-	else
-		printf("%s", batt_msg[aip->ai_batt_stat]);
-	printf("\n");
-	printf("Remaining battery life: ");
-	if (aip->ai_batt_life >= 255)
-		printf("unknown\n");
-	else if (aip->ai_batt_life <= 100)
-		printf("%d%%\n", aip->ai_batt_life);
-	else
-		printf("invalid value (0x%x)\n", aip->ai_batt_life);
-	printf("Remaining battery time: ");
-	if (aip->ai_batt_time == -1)
-		printf("unknown\n");
-	else {
-		int t, h, m, s;
+		printf("%s\n", line_msg[aip->ai_acline]);
 
-		t = aip->ai_batt_time;
-		s = t % 60;
-		t /= 60;
-		m = t % 60;
-		t /= 60;
-		h = t;
-		printf("%2d:%02d:%02d\n", h, m, s);
-	}
+	print_batt_stat(aip->ai_batt_stat);
+	print_batt_life(aip->ai_batt_life);
+	print_batt_time(aip->ai_batt_time);
+
 	if (aip->ai_infoversion >= 1) {
 		printf("Number of batteries: ");
 		if (aip->ai_batteries >= 255)
@@ -213,36 +232,10 @@ print_all_info(int fd, apm_info_t aip, int bioscall_available)
 					printf("not present\n");
 					continue;
 				}
-				if (aps.ap_batt_stat >= 255)
-					printf("unknown\n");
-				else if (aps.ap_batt_stat > 3)
-					printf("invalid value (0x%x)\n",
-					       aps.ap_batt_stat);
-				else
-					printf("%s\n",
-					       batt_msg[aps.ap_batt_stat]);
-				printf("\tRemaining battery life: ");
-				if (aps.ap_batt_life >= 255)
-					printf("unknown\n");
-				else if (aps.ap_batt_life <= 100)
-					printf("%d%%\n", aps.ap_batt_life);
-				else
-					printf("invalid value (0x%x)\n",
-					       aps.ap_batt_life);
-				printf("\tRemaining battery time: ");
-				if (aps.ap_batt_time == -1)
-					printf("unknown\n");
-				else {
-					int t, h, m, s;
 
-					t = aps.ap_batt_time;
-					s = t % 60;
-					t /= 60;
-					m = t % 60;
-					t /= 60;
-					h = t;
-					printf("%2d:%02d:%02d\n", h, m, s);
-				}
+				print_batt_stat(aps.ap_batt_stat);
+				print_batt_life(aps.ap_batt_life);
+				print_batt_time(aps.ap_batt_time);
 			}
 		}
 	}
@@ -346,8 +339,8 @@ apm_display(int fd, int newstate)
 }
 
 static void
-apm_haltcpu(int fd, int enable) {
-
+apm_haltcpu(int fd, int enable)
+{
 	if (enable) {
 		if (ioctl(fd, APMIO_HALTCPU, NULL) == -1)
 			err(1, "ioctl(APMIO_HALTCPU)");
