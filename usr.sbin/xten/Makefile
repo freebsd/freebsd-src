@@ -1,10 +1,7 @@
-# Makefile for xten (Stark) 10/30/93
+#	Makefile for xten (Stark) 10/30/93
+#	$Id$
 
 PROG=	xten
-SRCS=	xten.c
-CFLAGS+=-I. -I${.CURDIR}/../../libexec/xtend
-
-MAN1=	xten.1
+CFLAGS+= -I${.CURDIR}/../../libexec/xtend
 
 .include <bsd.prog.mk>
-
