@@ -1048,6 +1048,11 @@
     primaries for regular-expression matches.  The <option>-E</option>
     flag now enables extended regular expressions. &merged;</para>
 
+    <para>&man.find.1; now has the <option>-anewer</option>,
+    <option>-cnewer</option>, <option>-mnewer</option>,
+    <option>-okdir</option>, and <option>-newer[acm][acmt]</option>
+    primaries for comparisons of file timestamps.</para>
+
     <para>&man.tftpd.8; now takes the <option>-c</option> and
     <option>-C</option> options, which allow the server to
     &man.chroot.2; based on the IP address of the connecting client.
@@ -1187,6 +1192,8 @@
     <para>&man.fmtcheck.3;, a function for checking consistency of
     format string arguments, has been added.</para>
 
+    <para>&man.nl.1;, a line numbering filter program, has been added.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1246,6 +1253,9 @@
 
       <para><application>libreadline</application> has been upgraded to
       4.2.</para>
+
+      <para>Linux <application>PAM</application> has been updated to
+      0.75.</para>
 
       <para><application>ncurses</application> has been updated to
       5.1-20001009. &merged;</para>
@@ -1322,6 +1332,20 @@
 	<para>In <filename>/etc/ssh/sshd_config</filename>, the
 	<literal>ConnectionsPerPeriod</literal> parameter has been
 	deprecated in favor of <literal>MaxStartups</literal>.</para>
+
+	<para><application>OpenSSH</application> now has a
+	<literal>VersionAddendum</literal> configuration setting for
+	&man.sshd.8; to allow changing the part of the
+	<application>OpenSSH</application> version string after the
+	main version number.</para>
+
+	<para><application>OpenSSH</application> has been updated to
+	version 2.9, which adds two new programs, &man.sftp.1; and
+	&man.ssh-keyscan.1;.  Among the various enhancements: The
+	default protocol is now v2, rekeying of existing SSH sessions
+	is now supported, and an experimental
+	<application>SOCKS4</application> proxy has been added to
+	&man.ssh.1;.</para>
       </sect4>
 
       <sect4>
