@@ -290,8 +290,6 @@ main(int argc, char *argv[])
 	if (asme) {
 		if (ruid != 0 && !chshell(pwd->pw_shell))
 			errx(1, "permission denied (shell)");
-		shell = _PATH_BSHELL;
-		iscsh = NO;
 	}
 	else if (pwd->pw_shell && *pwd->pw_shell) {
 		shell = pwd->pw_shell;
