@@ -163,7 +163,7 @@ struct addrinfo {
 #define	EAI_NODATA	 7	/* no address associated with hostname */
 #endif
 #define	EAI_NONAME	 8	/* hostname nor servname provided, or not known */
-#define EAI_NODATA	EAINONAME	/* To be removed on 23 APR 2004 */
+#define EAI_NODATA	EAI_NONAME	/* To be removed on 23 APR 2004 */
 #define	EAI_SERVICE	 9	/* servname not supported for ai_socktype */
 #define	EAI_SOCKTYPE	10	/* ai_socktype not supported */
 #define	EAI_SYSTEM	11	/* system error returned in errno */
