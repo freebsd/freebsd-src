@@ -581,7 +581,7 @@ pmap_invalidate_all_1(void *arg)
 {
 	u_int64_t addr;
 	int i, j;
-	critical_t psr;
+	register_t psr;
 
 	psr = intr_disable();
 	addr = pmap_ptc_e_base;
