@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.5 1999/04/23 19:53:38 dt Exp $
+ *	$Id: mem.c,v 1.6 1999/04/27 11:13:20 phk Exp $
  */
 
 /*
@@ -48,13 +48,13 @@
 #include "opt_devfs.h"
 
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/buf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -210,7 +210,8 @@ kmemphys:
 			break;
 
 /* minor device 1 is kernel memory */
-		case 1:
+		case 1: {
+			vm_offset_t addr, eaddr;
 			v = uio->uio_offset;
 
 			if (v >= ALPHA_K0SEG_BASE && v <= ALPHA_K0SEG_END) {
@@ -219,6 +220,16 @@ kmemphys:
 			}
 
 			c = min(iov->iov_len, MAXPHYS);
+			/*
+			 * Make sure that all of the pages are currently resident so
+			 * that we don't create any zero-fill pages.
+			 */
+			addr = trunc_page(v);
+			eaddr = round_page(v + c);
+			for (; addr < eaddr; addr += PAGE_SIZE) 
+				if (pmap_extract(kernel_pmap, addr) == 0)
+					return EFAULT;
+			
 #if defined(UVM)
 			if (!uvm_kernacc((caddr_t)v, c,
 			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
@@ -230,6 +241,7 @@ kmemphys:
 #endif
 			error = uiomove((caddr_t)v, c, uio);
 			break;
+		}
 
 /* minor device 2 is EOF/rathole */
 		case 2:
