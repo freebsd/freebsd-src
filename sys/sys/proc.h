@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.72 1999/02/28 10:53:29 bde Exp $
+ * $Id: proc.h,v 1.73 1999/03/03 18:15:29 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -171,8 +171,8 @@ struct	proc {
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
 	char	p_lock;			/* Process lock (prevent swap) count. */
-	char	p_oncpu;		/* Which cpu we are on */
-	char	p_lastcpu;		/* Last cpu we were on */
+	u_char	p_oncpu;		/* Which cpu we are on */
+	u_char	p_lastcpu;		/* Last cpu we were on */
 	char	p_pad2;			/* alignment */
 
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
