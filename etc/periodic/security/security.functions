@@ -1,4 +1,4 @@
-#!/bin/sh -
+#!/bin/sh
 #
 # Copyright (c) 2001  The FreeBSD Project
 # All rights reserved.
@@ -27,33 +27,51 @@
 # $FreeBSD$
 #
 
-# Show changes in the way filesystems are mounted
+#
+# Show differences in the output of an audit command
 #
 
-# If there is a global system configuration file, suck it in.
-#
-if [ -r /etc/defaults/periodic.conf ]
-then
-    . /etc/defaults/periodic.conf
-    source_periodic_confs
-fi
-
-. /etc/periodic/security/security.functions
-
-ignore="${daily_status_security_chkmounts_ignore}"
+LOG="${daily_status_security_logdir}"
 rc=0
 
-case "$daily_status_security_chkmounts_enable" in
-    [Yy][Ee][Ss])
-	case "$daily_status_security_noamd" in
-	    [Yy][Ee][Ss])
-		ignore="${ignore}|^amd:"
-	esac
-	[ -n "$ignore" ] && cmd="egrep -v ${ignore#|}" || cmd=cat
-	mount -p | ${cmd} |
-	  check_diff mount - "${host} changes in mounted filesystems:"
-	rc=$?;;
-    *)	rc=0;;
-esac
+# Usage: COMMAND | check_diff [new_only] LABEL - MSG
+#        COMMAND > TMPFILE; check_diff [new_only] LABEL TMPFILE MSG
+#   if $1 is new_only, show only the 'new' part of the diff.
+#   LABEL is the base name of the ${LOG}/${label}.{today,yesterday} files.
 
-exit "$rc"
+check_diff() {
+  rc=0
+  if [ "$1" = "new_only" ]; then
+    shift
+    filter="grep '^>'"
+  else
+    filter="cat"
+  fi
+  label="$1"; shift
+  tmpf="$1"; shift
+  msg="$1"; shift
+
+  if [ "${tmpf}" = "-" ]; then
+    tmpf=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
+    cat > ${tmpf}
+  fi
+
+  if [ ! -f ${LOG}/${label}.today ]; then
+    rc=1
+    echo ""
+    echo "No ${LOG}/${label}.today"
+    cp ${tmpf} ${LOG}/${label}.today || rc=3
+  fi
+
+  if ! cmp ${LOG}/${label}.today ${tmpf} >/dev/null; then
+    [ $rc -lt 1 ] && rc=1
+    echo ""
+    echo "${msg}"
+    diff -b ${LOG}/${label}.today ${tmpf} | eval "${filter}"
+    mv ${LOG}/${label}.today ${LOG}/${label}.yesterday || rc=3
+    mv ${tmpf} ${LOG}/${label}.today || rc=3
+  fi
+
+  rm -f ${tmpf}
+  exit ${rc}
+}
