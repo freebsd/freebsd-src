@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.39 1996/02/28 17:04:43 adam Exp $
+#	$Id: sysconfig,v 1.40 1996/03/06 03:59:15 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -200,6 +200,37 @@ check_quotas=NO
 accounting=NO
 
 ######################### End Of Netconfig Section #######################
+
+######################### Start Of PC-card Section #######################
+
+# If you want to enable APM BIOS driver, set to YES
+# (The APM BIOS driver is not configured into GENERIC kernel b/c of bugs)
+apm_enable=NO
+
+# If you want to use PC-card package, set to YES
+# (PC-card support is not configured in the GENERIC kernel)
+pccard_enable=NO
+
+# If you want to specify the address of memory used by PCIC, 
+# set this address (NO for default 0xd0000)
+pccard_mem=NO
+
+# If you want to use Etnerent PCMCIA cards, specify the ifconfig portion
+# here.  (card-specific flags like connector selection should be written in
+# the card-specific entry in /etc/pccard.conf).  Set to DHCP if you want to
+# use a DHCP server to determine your IP address (not implemented).
+#
+# Set to NO if you don't want to configure your PC-CARD ethernet controller.
+#
+# for example:
+#
+#      pccard_ifconfig="131.113.32.126 netmask 0xffffff00"
+# or
+#      pccard_ifconfig="DHCP"
+#
+pccard_ifconfig=NO
+
+######################### End Of PC-card Section #######################
 
 ######################### Start Of Misc Section #######################
 
