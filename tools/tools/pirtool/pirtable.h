@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2004 Bruce M. Simpson.
+ * Copyright (c) 2002-2005 Bruce M. Simpson.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 #define PIR_SIZE	0x10000
 #define PIR_OFFSET	16
 
-#define PIR_DEV(x)	(((x) & 0xF8) >> 5)
+#define PIR_DEV(x)	(((x) & 0xF8) >> 3)
 #define PIR_FUNC(x)	((x) & 0x7)
 
 typedef struct {
