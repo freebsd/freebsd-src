@@ -96,8 +96,6 @@ hint.sc.0.at="isa"
 
 #hint.apm.0.disabled="1"
 #hint.apm.0.flags="0x20"
-#hint.pmtimer.0.at="isa"
-
 #hint.pmc.0.at="isa"
 #hint.pmc.0.port="0x8f0"
 
