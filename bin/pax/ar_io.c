@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ar_io.c,v 1.3 1995/05/30 00:06:52 rgrimes Exp $
+ *	$Id: ar_io.c,v 1.4 1995/10/23 21:22:56 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ar_io.c	8.2 (Berkeley) 4/18/94";
+static char const sccsid[] = "@(#)ar_io.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cache.c,v 1.3 1995/10/23 21:23:02 ache Exp $
+ *	$Id: cache.c,v 1.3.2.1 1997/06/04 06:37:19 charnier Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)cache.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)cache.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -244,7 +244,7 @@ name_uid(uid, frc)
 #		ifdef NET2_STAT
 		(void)sprintf(ptr->name, "%u", uid);
 #		else
-		(void)sprintf(ptr->name, "%lu", uid);
+		(void)sprintf(ptr->name, "%lu", (u_long)uid);
 #		endif
 		if (frc == 0)
 			return("");
@@ -321,7 +321,7 @@ name_gid(gid, frc)
 #		ifdef NET2_STAT
 		(void)sprintf(ptr->name, "%u", gid);
 #		else
-		(void)sprintf(ptr->name, "%lu", gid);
+		(void)sprintf(ptr->name, "%lu", (u_long)gid);
 #		endif
 		if (frc == 0)
 			return("");
