@@ -1101,17 +1101,10 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func)
 }
 
 static void
-sbp_scsi_status(struct sbp_status *sbp_status, struct sbp_ocb *ocb)
+sbp_print_scsi_cmd(struct sbp_ocb *ocb)
 {
-	struct sbp_cmd_status *sbp_cmd_status;
-	struct scsi_sense_data *sense;
 	struct ccb_scsiio *csio;
 
-
-	sbp_cmd_status = (struct sbp_cmd_status *)sbp_status->data;
-	sense = &ocb->ccb->csio.sense_data;
-
-SBP_DEBUG(0)
 	csio = &ocb->ccb->csio;
 	printf("%s:%d:%d XPT_SCSI_IO: "
 		"cmd: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
@@ -1132,6 +1125,19 @@ SBP_DEBUG(0)
 		ocb->ccb->ccb_h.flags & CAM_DIR_MASK,
 		csio->cdb_len, csio->dxfer_len,
 		csio->sense_len);
+}
+
+static void
+sbp_scsi_status(struct sbp_status *sbp_status, struct sbp_ocb *ocb)
+{
+	struct sbp_cmd_status *sbp_cmd_status;
+	struct scsi_sense_data *sense;
+
+	sbp_cmd_status = (struct sbp_cmd_status *)sbp_status->data;
+	sense = &ocb->ccb->csio.sense_data;
+
+SBP_DEBUG(0)
+	sbp_print_scsi_cmd(ocb);
 	/* XXX need decode status */
 	sbp_show_sdev_info(ocb->sdev, 2);
 	printf("SCSI status %x sfmt %x valid %x key %x code %x qlfr %x len %d",
@@ -1664,11 +1670,7 @@ sbp_timeout(void *arg)
 	/* XXX need reset? */
 
 	s = splfw();
-#if 1
 	sbp_abort_all_ocbs(sdev, CAM_CMD_TIMEOUT);
-#else
-	sbp_abort_ocb(ocb, CAM_CMD_TIMEOUT);
-#endif
 	splx(s);
 	return;
 }
@@ -2153,8 +2155,9 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_abort_ocb 0x%x\n", status);
+	if (ocb->ccb != NULL)
+		sbp_print_scsi_cmd(ocb);
 END_DEBUG
-	STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
 	if (ocb->ccb != NULL && !(ocb->flags & OCB_DONE)) {
 		if (status != CAM_CMD_TIMEOUT)
 			untimeout(sbp_timeout, (caddr_t)ocb,
@@ -2173,12 +2176,18 @@ static void
 sbp_abort_all_ocbs(struct sbp_dev *sdev, int status)
 {
 	int s;
-	struct sbp_ocb *ocb;
+	struct sbp_ocb *ocb, *next;
+	STAILQ_HEAD(, sbp_ocb) temp;
 
 	s = splfw();
-	while ((ocb = STAILQ_FIRST(&sdev->ocbs))) {
+
+	bcopy(&sdev->ocbs, &temp, sizeof(temp));
+	STAILQ_INIT(&sdev->ocbs);
+	for (ocb = STAILQ_FIRST(&temp); ocb != NULL; ocb = next) {
+		next = STAILQ_NEXT(ocb, ocb);
 		sbp_abort_ocb(ocb, status);
 	}
+
 	splx(s);
 }
 
