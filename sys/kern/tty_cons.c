@@ -390,12 +390,18 @@ cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
 	struct nameidata nd;
 	struct vnode *vp;
 	struct cdev *dev;
+	struct cdevsw *csw;
 	int error;
 
 	if ((vp = cnd->cnd_vp) != NULL) {
 		if (!forceopen && vp->v_type != VBAD) {
 			dev = vp->v_rdev;
-			return ((*devsw(dev)->d_open)(dev, openflag, 0, td));
+			csw = dev_refthread(dev);
+			if (csw == NULL)
+				return (ENXIO);
+			error = (*csw->d_open)(dev, openflag, 0, td);
+			dev_relthread(dev);
+			return (error);
 		}
 		cnd->cnd_vp = NULL;
 		vn_close(vp, openflag, td->td_ucred, td);
@@ -448,18 +454,27 @@ static int
 cnread(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct cn_device *cnd;
+	struct cdevsw *csw;
+	int error;
 
 	cnd = STAILQ_FIRST(&cn_devlist);
 	if (cn_mute || CND_INVALID(cnd, curthread))
 		return (0);
 	dev = cnd->cnd_vp->v_rdev;
-	return ((*devsw(dev)->d_read)(dev, uio, flag));
+	csw = dev_refthread(dev);
+	if (csw == NULL)
+		return (ENXIO);
+	error = (csw->d_read)(dev, uio, flag);
+	dev_relthread(dev);
+	return (error);
 }
 
 static int
 cnwrite(struct cdev *dev, struct uio *uio, int flag)
 {
 	struct cn_device *cnd;
+	struct cdevsw *csw;
+	int error;
 
 	cnd = STAILQ_FIRST(&cn_devlist);
 	if (cn_mute || CND_INVALID(cnd, curthread))
@@ -470,7 +485,12 @@ cnwrite(struct cdev *dev, struct uio *uio, int flag)
 		dev = cnd->cnd_vp->v_rdev;
 	if (dev != NULL) {
 		log_console(uio);
-		return ((*devsw(dev)->d_write)(dev, uio, flag));
+		csw = dev_refthread(dev);
+		if (csw == NULL)
+			return (ENXIO);
+		error = (csw->d_write)(dev, uio, flag);
+		dev_relthread(dev);
+		return (error);
 	}
 done:
 	uio->uio_resid = 0; /* dump the data */
@@ -481,6 +501,7 @@ static int
 cnioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	struct cn_device *cnd;
+	struct cdevsw *csw;
 	int error;
 
 	cnd = STAILQ_FIRST(&cn_devlist);
@@ -498,9 +519,14 @@ cnioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		return (0);
 	}
 	dev = cnd->cnd_vp->v_rdev;
-	if (dev != NULL)
-		return ((*devsw(dev)->d_ioctl)(dev, cmd, data, flag, td));
-	return (0);
+	if (dev == NULL)
+		return (0);	/* XXX : ENOTTY ? */
+	csw = dev_refthread(dev);
+	if (csw == NULL)
+		return (ENXIO);
+	error = (csw->d_ioctl)(dev, cmd, data, flag, td);
+	dev_relthread(dev);
+	return (error);
 }
 
 /*
@@ -511,28 +537,42 @@ static int
 cnpoll(struct cdev *dev, int events, struct thread *td)
 {
 	struct cn_device *cnd;
+	struct cdevsw *csw;
+	int error;
 
 	cnd = STAILQ_FIRST(&cn_devlist);
 	if (cn_mute || CND_INVALID(cnd, td))
 		return (0);
 	dev = cnd->cnd_vp->v_rdev;
-	if (dev != NULL)
-		return ((*devsw(dev)->d_poll)(dev, events, td));
-	return (0);
+	if (dev == NULL)
+		return (0);
+	csw = dev_refthread(dev);
+	if (csw == NULL)
+		return (ENXIO);
+	error = (csw->d_poll)(dev, events, td);
+	dev_relthread(dev);
+	return (error);
 }
 
 static int
 cnkqfilter(struct cdev *dev, struct knote *kn)
 {
 	struct cn_device *cnd;
+	struct cdevsw *csw;
+	int error;
 
 	cnd = STAILQ_FIRST(&cn_devlist);
 	if (cn_mute || CND_INVALID(cnd, curthread))
 		return (EINVAL);
 	dev = cnd->cnd_vp->v_rdev;
-	if (dev != NULL)
-		return ((*devsw(dev)->d_kqfilter)(dev, kn));
-	return (ENXIO);
+	if (dev == NULL)
+		return (ENXIO);
+	csw = dev_refthread(dev);
+	if (csw == NULL)
+		return (ENXIO);
+	error = (csw->d_kqfilter)(dev, kn);
+	dev_relthread(dev);
+	return (error);
 }
 
 /*
