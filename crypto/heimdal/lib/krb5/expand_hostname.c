@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: expand_hostname.c,v 1.7 2000/02/02 04:42:57 assar Exp $");
+RCSID("$Id: expand_hostname.c,v 1.8 2000/02/20 02:25:29 assar Exp $");
 
 static krb5_error_code
 copy_hostname(krb5_context context,
@@ -81,6 +81,31 @@ krb5_expand_hostname (krb5_context context,
 }
 
 /*
+ * handle the case of the hostname being unresolvable and thus identical
+ */
+
+static krb5_error_code
+vanilla_hostname (krb5_context context,
+		  const char *orig_hostname,
+		  char **new_hostname,
+		  char ***realms)
+{
+    krb5_error_code ret;
+
+    ret = copy_hostname (context, orig_hostname, new_hostname);
+    if (ret)
+	return ret;
+    strlwr (*new_hostname);
+
+    ret = krb5_get_host_realm (context, *new_hostname, realms);
+    if (ret) {
+	free (*new_hostname);
+	return ret;
+    }
+    return 0;
+}
+
+/*
  * expand `hostname' to a name we believe to be a hostname in newly
  * allocated space in `host' and return realms in `realms'.
  */
@@ -100,21 +125,24 @@ krb5_expand_hostname_realms (krb5_context context,
 
     error = getaddrinfo (orig_hostname, NULL, &hints, &ai);
     if (error)
-	return copy_hostname (context, orig_hostname, new_hostname);
+	return vanilla_hostname (context, orig_hostname, new_hostname,
+				 realms);
+
     for (a = ai; a != NULL; a = a->ai_next) {
 	if (a->ai_canonname != NULL) {
 	    ret = copy_hostname (context, orig_hostname, new_hostname);
-	    if (ret)
-		goto out;
+	    if (ret) {
+		freeaddrinfo (ai);
+		return ret;
+	    }
 	    strlwr (*new_hostname);
 	    ret = krb5_get_host_realm (context, *new_hostname, realms);
-	    if (ret == 0)
-		goto out;
+	    if (ret == 0) {
+		freeaddrinfo (ai);
+		return 0;
+	    }
 	    free (*new_hostname);
 	}
     }
-    ret = copy_hostname (context, orig_hostname, new_hostname);
- out:
-    freeaddrinfo (ai);
-    return ret;
+    return vanilla_hostname (context, orig_hostname, new_hostname, realms);
 }

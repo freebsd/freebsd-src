@@ -1,3 +1,9 @@
+Changes in release 0.2p:
+
+ * bug fix in `kadmin load/merge'
+
+ * bug fix in krb5_parse_address
+
 Changes in release 0.2o:
 
  * gss_{import,export}_sec_context added to libgssapi
