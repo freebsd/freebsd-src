@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.29 1994/02/11 12:02:35 nate Exp $
+ *	$Id: wd.c,v 1.30 1994/02/21 12:32:33 rgrimes Exp $
  */
 
 /* TODO:
@@ -256,9 +256,11 @@ wdattach(struct isa_device *dvp)
 
 		/*
 		 * Print out description of drive.
+		 * wdp_model can be [0..40] bytes, thus \0 can be missing so
+		 * use %40s to print it.
 		 */
 		if (wdgetctlr(du) == 0) {
-		    printf("wdc%d: unit %d (wd%d): <%s>\n",
+		    printf("wdc%d: unit %d (wd%d): <%40s>\n",
 			dvp->id_unit, unit, lunit, du->dk_params.wdp_model);
 		    if (du->dk_params.wdp_heads == 0)
 			printf("wd%d: size unknown\n", lunit);
@@ -1108,6 +1110,13 @@ wdgetctlr(struct disk *du)
 		p = (u_short *) (wp->wdp_model + i);
 		*p = ntohs(*p);
 	}
+	/* Clean up the wdp_model by converting nulls to spaces */
+	for (i = 0; i < sizeof(wp->wdp_model); i++) {
+		if (wp->wdp_model[i] == '\0') {
+			wp->wdp_model[i] = ' ';
+		}
+	}
+
 #ifdef WDDEBUG
 	printf(
 "\nwd(%d,%d): wdgetctlr: gc %x cyl %d trk %d sec %d type %d sz %d model %s\n",
