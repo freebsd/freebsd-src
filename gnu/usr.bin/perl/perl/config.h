@@ -386,7 +386,7 @@
  *	available to change the real, effective and saved gid of the current
  *	program.
  */
-#undef	HAS_SETREGID		/**/
+#define  HAS_SETREGID            /**/
 
 /* HAS_SETREUID
  *	This symbol, if defined, indicates that the setreuid routine is
@@ -397,19 +397,19 @@
  *	available to change the real, effective and saved uid of the current
  *	program.
  */
-#undef	HAS_SETREUID		/**/
+#define  HAS_SETREUID            /**/
 
 /* HAS_SETRGID
  *	This symbol, if defined, indicates that the setrgid routine is available
  *	to change the real gid of the current program.
  */
-#undef	HAS_SETRGID		/**/
+#define  HAS_SETRGID             /**/
 
 /* HAS_SETRUID
  *	This symbol, if defined, indicates that the setruid routine is available
  *	to change the real uid of the current program.
  */
-#undef	HAS_SETRUID		/**/
+#define  HAS_SETRUID             /**/
 
 
 /* HAS_SOCKET
