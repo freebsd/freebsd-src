@@ -317,8 +317,9 @@ below.
 .It Dv SC_DFLT_FONT
 This option will specify the default font.
 Available fonts are: iso, iso2, koi8-r, koi8-u, cp437, cp850, cp865,
-cp866 and cp866u. 16-line, 14-line and 8-line font data will be
-compiled in. Without this option, the
+cp866 and cp866u.
+16-line, 14-line and 8-line font data will be compiled in.
+Without this option, the
 .Nm
 driver will use whatever font already loaded in the video card,
 unless you explicitly load software font at startup.
@@ -474,10 +475,11 @@ to the kernel.
 .Sh CAVEATS
 Amount of data that is possible to insert from the cut buffer is limited
 by the
-.Pf \&{ Dv MAX_INPUT Ns \&} ,
+.Brq Dv MAX_INPUT ,
 a system limit on the number of bytes that may be stored in the terminal
 input queue - usually 1024 bytes
-.Pq see Xr termios 4 .
+(see
+.Xr termios 4 ) .
 .Sh BUGS
 This manual page is incomplete and urgently needs revision.
 .Sh SEE ALSO
