@@ -330,7 +330,7 @@ ptrace(curp, uap)
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		if ((unsigned)uap->data >= NSIG)
+		if ((uap->req != PT_STEP) && ((unsigned)uap->data >= NSIG))
 			return EINVAL;
 
 		PHOLD(p);
