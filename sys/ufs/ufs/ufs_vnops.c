@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.71 1997/12/13 12:30:34 bde Exp $
+ * $Id: ufs_vnops.c,v 1.72 1997/12/15 03:09:59 wollman Exp $
  */
 
 #include "opt_quota.h"
+#include "opt_suiddir.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
