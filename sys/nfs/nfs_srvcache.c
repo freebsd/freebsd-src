@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_srvcache.c	8.1 (Berkeley) 6/10/93
- * $Id: nfs_srvcache.c,v 1.3 1994/08/02 07:52:12 davidg Exp $
+ * $Id: nfs_srvcache.c,v 1.4 1994/10/02 17:27:00 phk Exp $
  */
 
 /*
@@ -66,10 +66,11 @@
 
 long numnfsrvcache, desirednfsrvcache = NFSRVCACHESIZ;
 
-#define	NFSRCHASH(xid)		(((xid) + ((xid) >> 24)) & rheadhash)
-static struct nfsrvcache *nfsrvlruhead, **nfsrvlrutail = &nfsrvlruhead;
-static struct nfsrvcache **rheadhtbl;
-static u_long rheadhash;
+#define	NFSRCHASH(xid) \
+	(&nfsrvhashtbl[((xid) + ((xid) >> 24)) & nfsrvhash])
+LIST_HEAD(nfsrvhash, nfsrvcache) *nfsrvhashtbl;
+TAILQ_HEAD(nfsrvlru, nfsrvcache) nfsrvlruhead;
+u_long nfsrvhash;
 
 #define TRUE	1
 #define	FALSE	0
@@ -140,7 +141,8 @@ void
 nfsrv_initcache()
 {
 
-	rheadhtbl = hashinit(desirednfsrvcache, M_NFSD, &rheadhash);
+	nfsrvhashtbl = hashinit(desirednfsrvcache, M_NFSD, &nfsrvhash);
+	TAILQ_INIT(&nfsrvlruhead);
 }
 
 /*
@@ -163,7 +165,7 @@ nfsrv_getcache(nam, nd, repp)
 	register struct nfsd *nd;
 	struct mbuf **repp;
 {
-	register struct nfsrvcache *rp, *rq, **rpp;
+	register struct nfsrvcache *rp;
 	struct mbuf *mb;
 	struct sockaddr_in *saddr;
 	caddr_t bpos;
@@ -171,9 +173,9 @@ nfsrv_getcache(nam, nd, repp)
 
 	if (nd->nd_nqlflag != NQL_NOVAL)
 		return (RC_DOIT);
-	rpp = &rheadhtbl[NFSRCHASH(nd->nd_retxid)];
 loop:
-	for (rp = *rpp; rp; rp = rp->rc_forw) {
+	for (rp = NFSRCHASH(nd->nd_retxid)->lh_first; rp != 0;
+	    rp = rp->rc_hash.le_next) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nam)) {
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
@@ -183,15 +185,9 @@ loop:
 			}
 			rp->rc_flag |= RC_LOCKED;
 			/* If not at end of LRU chain, move it there */
-			if (rp->rc_next) {
-				/* remove from LRU chain */
-				*rp->rc_prev = rp->rc_next;
-				rp->rc_next->rc_prev = rp->rc_prev;
-				/* and replace at end of it */
-				rp->rc_next = NULL;
-				rp->rc_prev = nfsrvlrutail;
-				*nfsrvlrutail = rp;
-				nfsrvlrutail = &rp->rc_next;
+			if (rp->rc_lru.tqe_next) {
+				TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
+				TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);
 			}
 			if (rp->rc_state == RC_UNUSED)
 				panic("nfsrv cache");
@@ -229,32 +225,22 @@ loop:
 		numnfsrvcache++;
 		rp->rc_flag = RC_LOCKED;
 	} else {
-		rp = nfsrvlruhead;
+		rp = nfsrvlruhead.tqh_first;
 		while ((rp->rc_flag & RC_LOCKED) != 0) {
 			rp->rc_flag |= RC_WANTED;
 			(void) tsleep((caddr_t)rp, PZERO-1, "nfsrc", 0);
-			rp = nfsrvlruhead;
+			rp = nfsrvlruhead.tqh_first;
 		}
 		rp->rc_flag |= RC_LOCKED;
-		/* remove from hash chain */
-		rq = rp->rc_forw;
-		if (rq)
-			rq->rc_back = rp->rc_back;
-		*rp->rc_back = rq;
-		/* remove from LRU chain */
-		*rp->rc_prev = rp->rc_next;
-		rp->rc_next->rc_prev = rp->rc_prev;
+		LIST_REMOVE(rp, rc_hash);
+		TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
 		if (rp->rc_flag & RC_REPMBUF)
 			m_freem(rp->rc_reply);
 		if (rp->rc_flag & RC_NAM)
 			MFREE(rp->rc_nam, mb);
 		rp->rc_flag &= (RC_LOCKED | RC_WANTED);
 	}
-	/* place at end of LRU list */
-	rp->rc_next = NULL;
-	rp->rc_prev = nfsrvlrutail;
-	*nfsrvlrutail = rp;
-	nfsrvlrutail = &rp->rc_next;
+	TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);
 	rp->rc_state = RC_INPROG;
 	rp->rc_xid = nd->nd_retxid;
 	saddr = mtod(nam, struct sockaddr_in *);
@@ -270,13 +256,7 @@ loop:
 		break;
 	};
 	rp->rc_proc = nd->nd_procnum;
-	/* insert into hash chain */
-	rq = *rpp;
-	if (rq)
-		rq->rc_back = &rp->rc_forw;
-	rp->rc_forw = rq;
-	rp->rc_back = rpp;
-	*rpp = rp;
+	LIST_INSERT_HEAD(NFSRCHASH(nd->nd_retxid), rp, rc_hash);
 	rp->rc_flag &= ~RC_LOCKED;
 	if (rp->rc_flag & RC_WANTED) {
 		rp->rc_flag &= ~RC_WANTED;
@@ -300,7 +280,8 @@ nfsrv_updatecache(nam, nd, repvalid, repmbuf)
 	if (nd->nd_nqlflag != NQL_NOVAL)
 		return;
 loop:
-	for (rp = rheadhtbl[NFSRCHASH(nd->nd_retxid)]; rp; rp = rp->rc_forw) {
+	for (rp = NFSRCHASH(nd->nd_retxid)->lh_first; rp != 0;
+	    rp = rp->rc_hash.le_next) {
 	    if (nd->nd_retxid == rp->rc_xid && nd->nd_procnum == rp->rc_proc &&
 		netaddr_match(NETFAMILY(rp), &rp->rc_haddr, nam)) {
 			if ((rp->rc_flag & RC_LOCKED) != 0) {
@@ -342,12 +323,11 @@ nfsrv_cleancache()
 {
 	register struct nfsrvcache *rp, *nextrp;
 
-	for (rp = nfsrvlruhead; rp; rp = nextrp) {
-		nextrp = rp->rc_next;
+	for (rp = nfsrvlruhead.tqh_first; rp != 0; rp = nextrp) {
+		nextrp = rp->rc_lru.tqe_next;
+		LIST_REMOVE(rp, rc_hash);
+		TAILQ_REMOVE(&nfsrvlruhead, rp, rc_lru);
 		free(rp, M_NFSD);
 	}
-	bzero((char *)rheadhtbl, (rheadhash + 1) * sizeof(void *));
-	nfsrvlruhead = NULL;
-	nfsrvlrutail = &nfsrvlruhead;
 	numnfsrvcache = 0;
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.5 1994/08/18 22:35:35 wollman Exp $
+ * $Id: nfs_bio.c,v 1.6 1994/10/02 17:26:55 phk Exp $
  */
 
 #include <sys/param.h>
@@ -438,6 +438,11 @@ nfs_write(ap)
 	do {
 
 		/*
+		 * XXX make sure we aren't cached in the VM page cache
+		 */
+		(void)vnode_pager_uncache(vp);
+
+		/*
 		 * Check for a valid write lease.
 		 * If non-cachable, just do the rpc
 		 */
@@ -715,9 +720,28 @@ nfs_doio(bp, cr, p)
 	/*
 	 * Historically, paging was done with physio, but no more.
 	 */
-	if (bp->b_flags & B_PHYS)
-	    panic("doio phys");
-	if (bp->b_flags & B_READ) {
+	if (bp->b_flags & B_PHYS) {
+	    /*
+	     * ...though reading /dev/drum still gets us here.
+	     */
+	    io.iov_len = uiop->uio_resid = bp->b_bcount;
+	    /* mapping was done by vmapbuf() */
+	    io.iov_base = bp->b_data;
+	    uiop->uio_offset = bp->b_blkno * DEV_BSIZE;
+	    if (bp->b_flags & B_READ) {
+		uiop->uio_rw = UIO_READ;
+		nfsstats.read_physios++;
+		error = nfs_readrpc(vp, uiop, cr);
+	    } else {
+		uiop->uio_rw = UIO_WRITE;
+		nfsstats.write_physios++;
+		error = nfs_writerpc(vp, uiop, cr,0);
+	    }
+	    if (error) {
+		bp->b_flags |= B_ERROR;
+		bp->b_error = error;
+	    }
+	} else if (bp->b_flags & B_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;
@@ -749,6 +773,7 @@ nfs_doio(bp, cr, p)
 		}
 		if (p && (vp->v_flag & VTEXT) &&
 			(((nmp->nm_flag & NFSMNT_NQNFS) &&
+			  NQNFS_CKINVALID(vp, np, NQL_READ) &&
 			  np->n_lrev != np->n_brev) ||
 			 (!(nmp->nm_flag & NFSMNT_NQNFS) &&
 			  np->n_mtime != np->n_vattr.va_mtime.ts_sec))) {

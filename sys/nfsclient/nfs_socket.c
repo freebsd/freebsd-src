@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.3 1994/08/02 07:52:11 davidg Exp $
+ * $Id: nfs_socket.c,v 1.4 1994/10/02 17:26:59 phk Exp $
  */
 
 /*
@@ -57,6 +57,7 @@
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
 #include <nfs/rpcv2.h>
 #include <nfs/nfsv2.h>
 #include <nfs/nfs.h>
@@ -66,6 +67,8 @@
 #include <nfs/nfsnode.h>
 #include <nfs/nfsrtt.h>
 #include <nfs/nqnfs.h>
+
+#include <machine/clock.h>	/* for inittodr */
 
 #define	TRUE	1
 #define	FALSE	0
@@ -158,7 +161,6 @@ void	nfs_rcvunlock(), nqnfs_serverd(), nqnfs_clientlease();
 struct mbuf *nfsm_rpchead();
 int nfsrtton = 0;
 struct nfsrtt nfsrtt;
-struct nfsd nfsd_head;
 
 int	nfsrv_null(),
 	nfsrv_getattr(),
@@ -207,8 +209,6 @@ int (*nfsrv_procs[NFS_NPROCS])() = {
 	nfsrv_noop,
 	nqnfsrv_access,
 };
-
-struct nfsreq nfsreqh;
 
 /*
  * Initialize sockets and congestion for a new NFS connection.
@@ -375,11 +375,9 @@ nfs_reconnect(rep)
 	 * Loop through outstanding request list and fix up all requests
 	 * on old socket.
 	 */
-	rp = nfsreqh.r_next;
-	while (rp != &nfsreqh) {
+	for (rp = nfs_reqq.tqh_first; rp != 0; rp = rp->r_chain.tqe_next) {
 		if (rp->r_nmp == nmp)
 			rp->r_flags |= R_MUSTRESEND;
-		rp = rp->r_next;
 	}
 	return (0);
 }
@@ -769,8 +767,8 @@ nfsmout:
 		 * Loop through the request list to match up the reply
 		 * Iff no match, just drop the datagram
 		 */
-		rep = nfsreqh.r_next;
-		while (rep != &nfsreqh) {
+		for (rep = nfs_reqq.tqh_first; rep != 0;
+		    rep = rep->r_chain.tqe_next) {
 			if (rep->r_mrep == NULL && rxid == rep->r_xid) {
 				/* Found it.. */
 				rep->r_mrep = mrep;
@@ -832,13 +830,12 @@ nfsmout:
 				nmp->nm_timeouts = 0;
 				break;
 			}
-			rep = rep->r_next;
 		}
 		/*
 		 * If not matched to a request, drop it.
 		 * If it's mine, get out.
 		 */
-		if (rep == &nfsreqh) {
+		if (rep == 0) {
 			nfsstats.rpcunexpected++;
 			m_freem(mrep);
 		} else if (rep == myrep) {
@@ -878,7 +875,6 @@ nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	register int i;
 	struct nfsmount *nmp;
 	struct mbuf *md, *mheadend;
-	struct nfsreq *reph;
 	struct nfsnode *np;
 	time_t reqtime, waituntil;
 	caddr_t dpos, cp2;
@@ -964,11 +960,7 @@ tryagain:
 	 * to put it LAST so timer finds oldest requests first.
 	 */
 	s = splsoftclock();
-	reph = &nfsreqh;
-	reph->r_prev->r_next = rep;
-	rep->r_prev = reph->r_prev;
-	reph->r_prev = rep;
-	rep->r_next = reph;
+	TAILQ_INSERT_TAIL(&nfs_reqq, rep, r_chain);
 
 	/* Get send time for nqnfs */
 	reqtime = time.tv_sec;
@@ -1009,8 +1001,7 @@ tryagain:
 	 * RPC done, unlink the request.
 	 */
 	s = splsoftclock();
-	rep->r_prev->r_next = rep->r_next;
-	rep->r_next->r_prev = rep->r_prev;
+	TAILQ_REMOVE(&nfs_reqq, rep, r_chain);
 	splx(s);
 
 	/*
@@ -1167,7 +1158,7 @@ nfs_rephead(siz, nd, err, cache, frev, mrq, mbp, bposp)
 	tl = mtod(mreq, u_long *);
 	mreq->m_len = 6*NFSX_UNSIGNED;
 	bpos = ((caddr_t)tl)+mreq->m_len;
-	*tl++ = nd->nd_retxid;
+	*tl++ = txdr_unsigned(nd->nd_retxid);
 	*tl++ = rpc_reply;
 	if (err == ERPCMISMATCH || err == NQNFS_AUTHERR) {
 		*tl++ = rpc_msgdenied;
@@ -1255,7 +1246,7 @@ nfs_timer(arg)
 	int s, error;
 
 	s = splnet();
-	for (rep = nfsreqh.r_next; rep != &nfsreqh; rep = rep->r_next) {
+	for (rep = nfs_reqq.tqh_first; rep != 0; rep = rep->r_chain.tqe_next) {
 		nmp = rep->r_nmp;
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
 			continue;
@@ -1842,7 +1833,7 @@ nfs_getreq(nd, has_header)
 	dpos = nd->nd_dpos;
 	if (has_header) {
 		nfsm_dissect(tl, u_long *, 10*NFSX_UNSIGNED);
-		nd->nd_retxid = *tl++;
+		nd->nd_retxid = fxdr_unsigned(u_long, *tl++);
 		if (*tl++ != rpc_call) {
 			m_freem(mrep);
 			return (EBADRPC);
@@ -1980,11 +1971,11 @@ void
 nfsrv_wakenfsd(slp)
 	struct nfssvc_sock *slp;
 {
-	register struct nfsd *nd = nfsd_head.nd_next;
+	register struct nfsd *nd;
 
 	if ((slp->ns_flag & SLP_VALID) == 0)
 		return;
-	while (nd != (struct nfsd *)&nfsd_head) {
+	for (nd = nfsd_head.tqh_first; nd != 0; nd = nd->nd_chain.tqe_next) {
 		if (nd->nd_flag & NFSD_WAITING) {
 			nd->nd_flag &= ~NFSD_WAITING;
 			if (nd->nd_slp)
@@ -1994,10 +1985,9 @@ nfsrv_wakenfsd(slp)
 			wakeup((caddr_t)nd);
 			return;
 		}
-		nd = nd->nd_next;
 	}
 	slp->ns_flag |= SLP_DOREC;
-	nfsd_head.nd_flag |= NFSD_CHECKSLP;
+	nfsd_head_flag |= NFSD_CHECKSLP;
 }
 
 int

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.5 1994/09/22 22:10:44 wollman Exp $
+ * $Id: nfs_subs.c,v 1.6 1994/10/02 17:27:01 phk Exp $
  */
 
 /*
@@ -94,7 +94,6 @@ u_long nfs_vers, nfs_prog, nfs_true, nfs_false;
 static u_long nfs_xid = 0;
 enum vtype ntov_type[7] = { VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON };
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
-extern struct nfsreq nfsreqh;
 extern int nqnfs_piggy[NFS_NPROCS];
 extern struct nfsrtt nfsrtt;
 extern time_t nqnfsstarttime;
@@ -109,6 +108,8 @@ extern int getfh(struct proc *, struct getfh_args *, int *);
 struct nfssvc_args;
 extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
 #endif
+
+LIST_HEAD(nfsnodehashhead, nfsnode);
 
 /*
  * Create the header for an rpc request packet
@@ -615,6 +616,7 @@ nfs_init()
 	nfs_prog = txdr_unsigned(NFS_PROG);
 	nfs_true = txdr_unsigned(TRUE);
 	nfs_false = txdr_unsigned(FALSE);
+	nfs_xdrneg1 = txdr_unsigned(-1);
 	/* Loop thru nfs procids */
 	for (i = 0; i < NFS_NPROCS; i++)
 		nfs_procids[i] = txdr_unsigned(i);
@@ -622,7 +624,6 @@ nfs_init()
 	for (i = 0; i < NFS_MAXASYNCDAEMON; i++)
 		nfs_iodwant[i] = (struct proc *)0;
 	TAILQ_INIT(&nfs_bufq);
-	nfs_xdrneg1 = txdr_unsigned(-1);
 	nfs_nhinit();			/* Init the nfsnode table */
 	nfsrv_init(0);			/* Init server data structures */
 	nfsrv_initcache();		/* Init the server request cache */
@@ -636,15 +637,14 @@ nfs_init()
 		NQLOADNOVRAM(nqnfsstarttime);
 		nqnfs_prog = txdr_unsigned(NQNFS_PROG);
 		nqnfs_vers = txdr_unsigned(NQNFS_VER1);
-		nqthead.th_head[0] = &nqthead;
-		nqthead.th_head[1] = &nqthead;
-		nqfhead = hashinit(NQLCHSZ, M_NQLEASE, &nqfheadhash);
+		CIRCLEQ_INIT(&nqtimerhead);
+		nqfhhashtbl = hashinit(NQLCHSZ, M_NQLEASE, &nqfhhash);
 	}
 
 	/*
 	 * Initialize reply list and start timer
 	 */
-	nfsreqh.r_prev = nfsreqh.r_next = &nfsreqh;
+	TAILQ_INIT(&nfs_reqq);
 	nfs_timer(0);
 
 	/*
@@ -689,7 +689,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	register struct vattr *vap;
 	register struct nfsv2_fattr *fp;
 	extern int (**spec_nfsv2nodeop_p)();
-	register struct nfsnode *np, *nq, **nhpp;
+	register struct nfsnode *np;
+	register struct nfsnodehashhead *nhpp;
 	register long t1;
 	caddr_t dpos, cp2;
 	int error = 0, isnq;
@@ -743,10 +744,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 				/*
 				 * Discard unneeded vnode, but save its nfsnode.
 				 */
-				nq = np->n_forw;
-				if (nq)
-					nq->n_back = np->n_back;
-				*np->n_back = nq;
+				LIST_REMOVE(np, n_hash);
 				nvp->v_data = vp->v_data;
 				vp->v_data = NULL;
 				vp->v_op = spec_vnodeop_p;
@@ -756,13 +754,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 				 * Reinitialize aliased node.
 				 */
 				np->n_vnode = nvp;
-				nhpp = (struct nfsnode **)nfs_hash(&np->n_fh);
-				nq = *nhpp;
-				if (nq)
-					nq->n_back = &np->n_forw;
-				np->n_forw = nq;
-				np->n_back = nhpp;
-				*nhpp = np;
+				nhpp = nfs_hash(&np->n_fh);
+				LIST_INSERT_HEAD(nhpp, np, n_hash);
 				*vpp = vp = nvp;
 			}
 		}
@@ -794,9 +787,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		vap->va_fileid = fxdr_unsigned(long, fp->fa_nfsfileid);
 		fxdr_nfstime(&fp->fa_nfsatime, &vap->va_atime);
 		vap->va_flags = 0;
-		vap->va_ctime.ts_sec = fxdr_unsigned(long, fp->fa_nfsctime.nfs_sec);
-		vap->va_ctime.ts_nsec = 0;
-		vap->va_gen = fxdr_unsigned(u_long, fp->fa_nfsctime.nfs_usec);
+		fxdr_nfstime(&fp->fa_nfsctime, &vap->va_ctime);
+		vap->va_gen = 0;
 		vap->va_filerev = 0;
 	}
 	if (vap->va_size != np->n_size) {
@@ -1106,24 +1098,24 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp)
 	 * Check/setup credentials.
 	 */
 	if (exflags & MNT_EXKERB) {
-		uidp = slp->ns_uidh[NUIDHASH(cred->cr_uid)];
-		while (uidp) {
+		for (uidp = NUIDHASH(slp, cred->cr_uid)->lh_first; uidp != 0;
+		    uidp = uidp->nu_hash.le_next) {
 			if (uidp->nu_uid == cred->cr_uid)
 				break;
-			uidp = uidp->nu_hnext;
 		}
-		if (uidp) {
-			cred->cr_uid = uidp->nu_cr.cr_uid;
-			for (i = 0; i < uidp->nu_cr.cr_ngroups; i++)
-				cred->cr_groups[i] = uidp->nu_cr.cr_groups[i];
-		} else {
+		if (uidp == 0) {
 			vput(*vpp);
 			return (NQNFS_AUTHERR);
 		}
+		cred->cr_uid = uidp->nu_cr.cr_uid;
+		for (i = 0; i < uidp->nu_cr.cr_ngroups; i++)
+			cred->cr_groups[i] = uidp->nu_cr.cr_groups[i];
+		cred->cr_ngroups = i;
 	} else if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		cred->cr_uid = credanon->cr_uid;
 		for (i = 0; i < credanon->cr_ngroups && i < NGROUPS; i++)
 			cred->cr_groups[i] = credanon->cr_groups[i];
+		cred->cr_ngroups = i;
 	}
 	if (exflags & MNT_EXRDONLY)
 		*rdonlyp = 1;
