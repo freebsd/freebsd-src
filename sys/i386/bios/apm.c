@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/poll.h>
 #include <sys/power.h>
 #include <sys/reboot.h>
