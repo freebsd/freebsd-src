@@ -269,7 +269,7 @@ i4b_OpenInfo(struct physical *p)
 
 static void
 i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
 {
   struct i4bdevice *dev = device2i4b(d);
   int sz = physical_MaxDeviceSize();
@@ -292,6 +292,7 @@ static struct device basei4bdevice = {
   I4B_DEVICE,
   "i4b",
   i4b_AwaitCarrier,
+  NULL,
   i4b_Raw,
   i4b_Offline,
   i4b_Cooked,
@@ -306,7 +307,7 @@ static struct device basei4bdevice = {
 
 struct device *
 i4b_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == I4B_DEVICE) {
     struct i4bdevice *dev = (struct i4bdevice *)iov[(*niov)++].iov_base;

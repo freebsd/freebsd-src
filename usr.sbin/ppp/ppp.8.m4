@@ -206,7 +206,7 @@ will force it to exit.
 .Nm
 can use either the standard LCP callback protocol or the Microsoft
 CallBack Control Protocol (ftp://ftp.microsoft.com/developr/rfc/cbcp.txt).
-.It Supports packet aliasing.
+.It Supports NAT or packet aliasing.
 Packet aliasing (a.k.a. IP masquerading) allows computers on a
 private, unregistered network to access the Internet.  The
 .Em PPP
@@ -277,19 +277,39 @@ link.
 .It Supports PPP over TCP and PPP over UDP.
 If a device name is specified as
 .Em host Ns No : Ns Em port Ns
-.Op / Ns Em tcp Ns No | Ns Em udp ,
+.Xo
+.Op / Ns tcp|udp ,
+.Xc
 .Nm
 will open a TCP or UDP connection for transporting data rather than using a
 conventional serial device.  UDP connections force
 .Nm
 into synchronous mode.
-.It Supports PPP over ISDN
+.It Supports PPP over ISDN.
 If
 .Nm
 is given a raw B-channel i4b device to open as a link, it's able to talk
 to the
 .Xr isdnd 8
 daemon to establish an ISDN connection.
+.It Supports PPP over Ethernet (rfc 2516).
+If
+.Nm
+is given a device specification of the format
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
+and if
+.Xr netgraph 4
+is available,
+.Nm
+will attempt talk
+.Em PPP
+over Ethernet to
+.Ar provider
+using the
+.Ar iface
+network interface.
 .It "Supports IETF draft Predictor-1 (rfc 1978) and DEFLATE (rfc 1979) compression."
 .Nm
 supports not only VJ-compression but also Predictor-1 and DEFLATE compression.
@@ -3712,9 +3732,15 @@ If
 does not begin with
 .Pa /dev/ ,
 it must either begin with an exclamation mark
-.Pq Dq \&!
+.Pq Dq \&! ,
+be of the format
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
 or be of the format
-.Dq host:port Ns Op Ns /proto .
+.Ar host Ns No : Ns Ar port Ns Oo
+.No /tcp|udp
+.Oc .
 .Pp
 If it begins with an exclamation mark, the rest of the device name is
 treated as a program name, and that program is executed when the device
@@ -3723,15 +3749,42 @@ is opened.  Standard input, output and error are fed back to
 and are read and written as if they were a regular device.
 .Pp
 If a
-.Dq host:port Ns Op /tcp|/udp
+.No PPPoE: Ns Ar iface Ns Xo
+.Op \&: Ns Ar provider Ns
+.Xc
+specification is given,
+.Nm
+will attempt to create a
+.Em PPP
+over Ethernet connection using the given
+.Ar iface
+interface.  If a
+.Ar provider
+is given,
+.Nm
+will attempt to make a connection to that provider only.  Refer to
+.Xr netgraph 4
+and
+.Xr ng_pppoe 8
+for further details.
+.Pp
+If a
+.Ar host Ns No : Ns Ar port Ns Oo
+.No /tcp|udp
+.Oc
 specification is given,
 .Nm
 will attempt to connect to the given
-.Dq host
+.Ar host
 on the given
-.Dq port .
-If a tcp or udp specification is not given, the default is tcp.  Refer to
-the section on
+.Ar port .
+If a
+.Dq /tcp
+or
+.Dq /udp
+suffix is not provided, the default is
+.Dq /tcp .
+Refer to the section on
 .Em PPP OVER TCP and UDP
 above for further details.
 .Pp
@@ -4769,6 +4822,7 @@ This socket is used to pass links between different instances of
 .Xr libalias 3 ,
 .Xr syslog 3 ,
 .Xr uucplock 3 ,
+.Xr netgraph 4 ,
 .Xr crontab 5 ,
 .Xr group 5 ,
 .Xr passwd 5 ,
@@ -4782,6 +4836,7 @@ This socket is used to pass links between different instances of
 .Xr init 8 ,
 .Xr isdn 8 ,
 .Xr named 8 ,
+.Xr ng_pppoe 8 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
