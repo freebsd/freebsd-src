@@ -624,7 +624,6 @@ vn_drvinit(void *unused)
 	dev_t dev;
 #ifdef DEVFS
 	int mynor;
-	char name[32];
 	int unit;
 	struct vn_softc *vn;
 #endif
@@ -639,15 +638,16 @@ vn_drvinit(void *unused)
 		for (unit = 0; unit < NVN; unit++) {
 			vn = vn_softc[unit];
 			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-			sprintf(name, "rvn%d", unit);
 			/*
 			 * XXX not saving tokens yet.  The vn devices don't
 			 * exist until after they have been opened :-).
 			 */
-			devfs_add_devsw("/", name + 1, &vn_bdevsw, mynor,
-					DV_BLK, 0, 0, 0640);
-			devfs_add_devsw("/", name, &vn_cdevsw, mynor,
-					DV_CHR, 0, 0, 0640);
+			devfs_add_devswf(&vn_bdevsw, mynor, DV_BLK,
+					 UID_ROOT, GID_OPERATOR, 0640,
+					 "vn%d", unit);
+			devfs_add_devswf(&vn_cdevsw, mynor, DV_CHR,
+					 UID_ROOT, GID_OPERATOR, 0640,
+					 "rvn%d", unit);
 		}
 #endif
 	}
