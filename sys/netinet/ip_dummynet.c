@@ -440,7 +440,6 @@ transmit_event(struct dn_pipe *pipe)
 	case DN_TO_ETH_DEMUX:
 	    {
 		struct mbuf *m = (struct mbuf *)pkt ;
-		struct ether_header *eh;
 
 		if (pkt->dn_m->m_len < ETHER_HDR_LEN &&
 		    (pkt->dn_m = m_pullup(pkt->dn_m, ETHER_HDR_LEN)) == NULL) {
@@ -448,22 +447,20 @@ transmit_event(struct dn_pipe *pipe)
 		    break;
 		}
 		/*
-		 * same as ether_input, make eh be a pointer into the mbuf
-		 */
-		eh = mtod(pkt->dn_m, struct ether_header *);
-		m_adj(pkt->dn_m, ETHER_HDR_LEN);
-		/*
 		 * bdg_forward() wants a pointer to the pseudo-mbuf-header, but
 		 * on return it will supply the pointer to the actual packet
 		 * (originally pkt->dn_m, but could be something else now) if
 		 * it has not consumed it.
 		 */
 		if (pkt->dn_dir == DN_TO_BDG_FWD) {
-		    m = bdg_forward_ptr(m, eh, pkt->ifp);
+		    /*
+		     * same as ether_input, make eh be a pointer into the mbuf
+		     */
+		    m = bdg_forward_ptr(m, pkt->ifp);
 		    if (m)
 			m_freem(m);
 		} else
-		    ether_demux(NULL, eh, m); /* which consumes the mbuf */
+		    ether_demux(NULL, m); /* which consumes the mbuf */
 	    }
 	    break ;
 	case DN_TO_ETH_OUT:
