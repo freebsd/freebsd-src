@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.26 1996/10/14 21:32:22 jkh Exp $
+ * $Id: cdrom.c,v 1.27 1996/12/11 09:34:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,7 +74,7 @@ mediaInitCDROM(Device *dev)
     args.fspec = dev->devname;
     args.flags = 0;
 
-    cd_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
+    cd_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
     cp = NULL;
     dontRead = FALSE;
     /* If this cdrom's not already mounted or can't be mounted, yell */
@@ -116,6 +116,7 @@ mediaInitCDROM(Device *dev)
 		       "to set the boot floppy version string to match that of the CD\n"
 		       "before selecting it as an installation media to avoid this warning", cp, variable_get(VAR_RELNAME));
     }
+    attr_free(cd_attr);
     msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
     return TRUE;
 }

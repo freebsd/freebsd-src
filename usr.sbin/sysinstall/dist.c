@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.80 1996/12/08 12:27:54 jkh Exp $
+ * $Id: dist.c,v 1.81 1996/12/11 09:34:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -400,7 +400,7 @@ distExtract(char *parent, Distribution *me)
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
-	    safe_free(dist_attr);
+	    attr_free(dist_attr);
 	    fclose(fp);
 	    if (!numchunks)
 		continue;
