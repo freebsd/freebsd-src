@@ -520,3 +520,9 @@ HIFN_NO_RNG		opt_hifn.h
 SAFE_DEBUG		opt_safe.h
 SAFE_RNDTEST		opt_safe.h
 SAFE_NO_RNG		opt_safe.h
+
+# dcons options
+DCONS_BUF_SIZE		opt_dcons.h
+DCONS_POLL_HZ		opt_dcons.h
+DCONS_FORCE_CONSOLE	opt_dcons.h
+DCONS_FORCE_GDB		opt_dcons.h

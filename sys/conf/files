@@ -334,6 +334,8 @@ dev/cm/smc90cx6.c	optional cm
 dev/cs/if_cs.c		optional cs
 dev/cs/if_cs_isa.c	optional cs isa
 dev/cs/if_cs_pccard.c	optional cs card
+dev/dcons/dcons.c	optional dcons
+dev/dcons/dcons_crom.c	optional dcons_crom
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
 dev/dpt/dpt_eisa.c	optional dpt eisa

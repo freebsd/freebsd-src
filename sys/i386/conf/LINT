@@ -2755,6 +2755,14 @@ device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
 device		fwe		# Ethernet over FireWire (non-standard!)
 
+# dcons support (Dumb Console Device)
+device		dcons			# dumb console driver
+device		dcons_crom		# FireWire attachment
+options		DCONS_BUF_SIZE=16384	# buffer size
+options		DCONS_POLL_HZ=100	# polling rate
+options		DCONS_FORCE_CONSOLE=0	# force to be the primary console
+options		DCONS_FORCE_GDB=1	# force to be the gdb device
+
 #####################################################################
 # crypto subsystem
 #

@@ -18,6 +18,8 @@ SUBDIR=	accf_data \
 	cryptodev \
 	cue \
 	dc \
+	dcons \
+	dcons_crom \
 	dummynet \
 	ed \
 	fdesc \
