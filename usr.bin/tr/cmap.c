@@ -115,7 +115,7 @@ cmap_add(struct cmap *cm, wint_t from, wint_t to)
 
 /*
  * cmap_lookup_hard --
- *	Look up the mapping for a character using the cache.
+ *	Look up the mapping for a character without using the cache.
  */
 wint_t
 cmap_lookup_hard(struct cmap *cm, wint_t ch)
