@@ -8,12 +8,4 @@ DPADD=	${LIBUTIL}
 LDADD=	-lutil
 CFLAGS+= -Wall -DINET6
 
-.if defined(NOPAM)
-CFLAGS+= -DNO_PAM
-.else
-SRCS+=	auth_pam.c
-DPADD+= ${LIBPAM}
-LDADD+= ${MINUSLPAM}
-.endif
-
 .include <bsd.prog.mk>
