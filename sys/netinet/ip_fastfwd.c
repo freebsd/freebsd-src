@@ -80,7 +80,6 @@
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
-#include "opt_mac.h"
 #include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
