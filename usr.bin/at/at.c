@@ -673,8 +673,7 @@ main(int argc, char **argv)
     char *pgm;
 
     int program = AT;			/* our default program */
-    const char *options = "q:f:t:rmvldbVc";	/* default options for at */
-    int disp_version = 0;
+    const char *options = "q:f:t:rmvldbc"; /* default options for at */
     time_t timer;
 
     timer = -1;
@@ -693,15 +692,15 @@ main(int argc, char **argv)
      */
     if (strcmp(pgm, "atq") == 0) {
 	program = ATQ;
-	options = "q:vV";
+	options = "q:v";
     }
     else if (strcmp(pgm, "atrm") == 0) {
 	program = ATRM;
-	options = "V";
+	options = "";
     }
     else if (strcmp(pgm, "batch") == 0) {
 	program = BATCH;
-	options = "f:q:mvV";
+	options = "f:q:mv";
     }
 
     /* process whatever options we can process
@@ -741,7 +740,7 @@ main(int argc, char **argv)
 		usage();
 
 	    program = ATRM;
-	    options = "V";
+	    options = "";
 	    break;
 
 	case 't':
@@ -755,7 +754,7 @@ main(int argc, char **argv)
 		usage();
 
 	    program = ATQ;
-	    options = "q:vV";
+	    options = "q:v";
 	    break;
 
 	case 'b':
@@ -763,11 +762,7 @@ main(int argc, char **argv)
 		usage();
 
 	    program = BATCH;
-	    options = "f:q:mvV";
-	    break;
-
-	case 'V':
-	    disp_version = 1;
+	    options = "f:q:mv";
 	    break;
 
 	case 'c':
@@ -781,9 +776,6 @@ main(int argc, char **argv)
 	}
     /* end of options eating
      */
-
-    if (disp_version)
-	fprintf(stderr, "%s version " VERSION "\n", namep);
 
     /* select our program
      */
