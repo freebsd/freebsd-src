@@ -176,8 +176,8 @@ vm_pageq_remove(vm_page_t m)
  *
  *	The page coloring optimization attempts to locate a page
  *	that does not overload other nearby pages in the object in
- *	the cpu's L1 or L2 caches.  We need this optimization because 
- *	cpu caches tend to be physical caches, while object spaces tend 
+ *	the cpu's L2 cache.  We need this optimization because cpu
+ *	caches tend to be physical caches, while object spaces tend 
  *	to be virtual.
  *
  *	This routine must be called at splvm().
