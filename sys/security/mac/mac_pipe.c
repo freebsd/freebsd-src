@@ -98,14 +98,14 @@ SYSCTL_DECL(_security);
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
 
-#if MAC_MAX_POLICIES > 32
-#error "MAC_MAX_POLICIES too large"
+#if MAC_MAX_SLOTS > 32
+#error "MAC_MAX_SLOTS too large"
 #endif
 
-static unsigned int mac_max_policies = MAC_MAX_POLICIES;
-static unsigned int mac_policy_offsets_free = (1 << MAC_MAX_POLICIES) - 1;
-SYSCTL_UINT(_security_mac, OID_AUTO, max_policies, CTLFLAG_RD,
-    &mac_max_policies, 0, "");
+static unsigned int mac_max_slots = MAC_MAX_SLOTS;
+static unsigned int mac_slot_offsets_free = (1 << MAC_MAX_SLOTS) - 1;
+SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD,
+    &mac_max_slots, 0, "");
 
 /*
  * Has the kernel started generating labeled objects yet?  All read/write
@@ -645,13 +645,13 @@ mac_policy_register(struct mac_policy_conf *mpc)
 		}
 	}
 	if (mpc->mpc_field_off != NULL) {
-		slot = ffs(mac_policy_offsets_free);
+		slot = ffs(mac_slot_offsets_free);
 		if (slot == 0) {
 			error = ENOMEM;
 			goto out;
 		}
 		slot--;
-		mac_policy_offsets_free &= ~(1 << slot);
+		mac_slot_offsets_free &= ~(1 << slot);
 		*mpc->mpc_field_off = slot;
 	}
 	mpc->mpc_runtime_flags |= MPC_RUNTIME_FLAG_REGISTERED;
