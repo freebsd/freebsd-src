@@ -576,6 +576,10 @@ decode_rfc1048(p)
 			case RFC1048_END:
 				p = end;
 				continue;
+			case RFC1048_GATEWAY:
+				convert_ipaddr(&arptable[ARP_GATEWAY].ipaddr,
+					p+2);
+				break;
 			case RFC1048_NETMASK:
 				bcopy(p+2,&netmask,4);
 				break;
