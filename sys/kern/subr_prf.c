@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.4 1994/08/13 14:21:51 davidg Exp $
+ * $Id: subr_prf.c,v 1.5 1994/08/27 16:14:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -447,6 +447,13 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 		case 'u':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 10;
+			goto number;
+		case 'p':
+			ul = (u_long) va_arg(ap, void *);
+			width=8;
+			base=16;
+			putchar('0',flags,tp);
+			putchar('x',flags,tp);
 			goto number;
 		case 'x':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
