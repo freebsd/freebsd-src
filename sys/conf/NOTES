@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.210 1995/10/31 18:27:45 phk Exp $
+#	$Id: LINT,v 1.211 1995/10/31 23:35:59 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -460,7 +460,6 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
-controller	ahc0	at isa? bio irq ? vector ahcintr # port??? iomem?
 controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
@@ -748,6 +747,17 @@ device		si0	at isa? iomem 0xd0000 tty irq 12 vector siintr
 device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
 device		bqu0	at isa? port 0x150
 
+#
+# EISA devices:
+#
+# The EISA bus device is eisa0.  It provides auto-detection and
+# configuration support for all devices on the EISA bus.
+#
+# The `ahc' device provides support for the Adaptec 274X and 284X
+# adapters.  The 284X, although a VLB card responds to EISA probes.
+#
+controller	eisa0
+controller	ahc0
 
 #
 # PCI devices:
@@ -755,6 +765,9 @@ device		bqu0	at isa? port 0x150
 # The main PCI bus device is `pci'.  It provides auto-detection and
 # configuration support for all devices on the PCI bus, using either
 # configuration mode defined in the PCI specification.
+#
+# The `ahc' device provides support for the Adaptec 29/3940(U)(W)
+# and motherboard based AIC7870/AIC7880 adapters.
 #
 # The `ncr' device provides support for the NCR 53C810 and 53C825
 # self-contained SCSI host adapters.
@@ -781,6 +794,7 @@ device		bqu0	at isa? port 0x150
 #	taken
 #
 controller	pci0
+controller	ahc1
 device		ncr0
 device		de0
 device		vx0 at pci0 port? irq? vector vxintr
