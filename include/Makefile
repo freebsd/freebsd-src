@@ -7,7 +7,7 @@
 #
 all clean cleandir depend lint tags:
 
-#MISSING mp.h
+# XXX MISSING:	mp.h
 FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	err.h fnmatch.h fstab.h fts.h glob.h grp.h kvm.h limits.h locale.h \
 	math.h memory.h mpool.h ndbm.h netdb.h nlist.h paths.h pwd.h \
@@ -86,10 +86,6 @@ copies:
 	chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/machine;
 	chmod -R 444 ${DESTDIR}/usr/include/machine;
 	chmod 755 ${DESTDIR}/usr/include/machine;
-#	rm -rf ${DESTDIR}/usr/include/X11
-#	mkdir ${DESTDIR}/usr/include/X11
-#	cd /usr/X11/include/X11 && \
-#	    tar cf - *.h | (cd ${DESTDIR}/usr/include/X11; tar xpfB -);
 
 symlinks:
 	@for i in ${LDIRS} ${LUDIR}; do					\
@@ -100,7 +96,5 @@ symlinks:
 	done
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s /sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
-#	rm -rf ${DESTDIR}/usr/include/X11
-#	ln -s /usr/X11/include/X11 ${DESTDIR}/usr/include/X11
 
 .include <bsd.prog.mk>
