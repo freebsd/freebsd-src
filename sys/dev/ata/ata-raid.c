@@ -299,6 +299,7 @@ static int
 ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
 {
     struct highpoint_raid_conf info;
+    struct ar_softc *raid;
     int array_done = 0, r;
 
     if (ar_read(adp, 0x09, DEV_BSIZE, (char *)&info)) {
@@ -325,52 +326,82 @@ ar_highpoint_conf(struct ad_softc *adp, struct ar_config *raidp)
 	    }
 	    bzero(raidp->raid[r], sizeof(struct ar_softc));
 	}
+	raid = raidp->raid[r];
 
 	switch (info.type) {
 	case HPT_T_RAID_0:
-	    if (raidp->raid[r]->magic && raidp->raid[r]->magic != info.magic_0)
-		continue;
-	    raidp->raid[r]->magic = info.magic_0;
+	    /* check the order byte to determine what this really is */
+	    switch (info.order & (HPT_O_MIRROR | HPT_O_STRIPE)) {
+	    case HPT_O_MIRROR:
+	    	goto hpt_mirror;
+	    
+	    case HPT_O_STRIPE:
+		if (raid->magic_0 && raid->magic_0 != info.magic_0)
+		    continue;
+		raid->magic_0 = info.magic_0;
+		raid->flags |= (AR_F_RAID_0 | AR_F_RAID_1);
+		raid->interleave = 1 << info.raid0_shift;
+		raid->subdisk[info.disk_number] = adp;
+		raid->num_subdisks++;
+    		if ((raid->num_subdisks + raid->num_mirrordisks) == 
+		    (info.raid_disks * 2))
+		    array_done = 1;
+		break;
 
-	    /* check for the MIRROR bit in "order" smells like bug to me :) */
-	    if (info.order & HPT_O_MIRROR)
-		goto hpt_mirror;
-	    raidp->raid[r]->flags |= AR_F_RAID_0;
-	    raidp->raid[r]->interleave = 1 << info.raid0_shift;
-	    raidp->raid[r]->subdisk[raidp->raid[r]->num_subdisks] = adp;
-	    raidp->raid[r]->num_subdisks++;
-    	    if (raidp->raid[r]->num_subdisks == info.raid_disks)
-		array_done = 1;
+	    case (HPT_O_MIRROR | HPT_O_STRIPE):
+		if (raid->magic_1 && raid->magic_1 != info.magic_1)
+		    continue;
+		raid->magic_1 = info.magic_1;
+		raid->flags |= (AR_F_RAID_0 | AR_F_RAID_1);
+		raid->mirrordisk[info.disk_number] = adp;
+		raid->num_mirrordisks++;
+    		if ((raid->num_subdisks + raid->num_mirrordisks) ==
+		    (info.raid_disks * 2))
+		    array_done = 1;
+		break;
+
+	    default:
+		if (raid->magic_0 && raid->magic_0 != info.magic_0)
+		    continue;
+		raid->magic_0 = info.magic_0;
+		raid->magic_1 = 0xffffffff;
+		raid->flags |= AR_F_RAID_0;
+		raid->interleave = 1 << info.raid0_shift;
+		raid->subdisk[info.disk_number] = adp;
+		raid->num_subdisks++;
+    		if (raid->num_subdisks == info.raid_disks)
+		    array_done = 1;
+	    }
 	    break;
 
 	case HPT_T_RAID_1:
-	    if (raidp->raid[r]->magic && raidp->raid[r]->magic != info.magic_1)
-		continue;
-	    raidp->raid[r]->magic = info.magic_1;
 hpt_mirror:
-	    raidp->raid[r]->flags |= AR_F_RAID_1;
-	    if (raidp->raid[r]->num_subdisks == 0) {
-		raidp->raid[r]->subdisk[raidp->raid[r]->num_subdisks] = adp;
-		raidp->raid[r]->num_subdisks = 1;
+	    if (raid->magic_1 && raid->magic_1 != info.magic_1)
+		continue;
+	    raid->magic_1 = info.magic_1;
+	    raid->magic_0 = 0xffffffff;
+	    raid->flags |= AR_F_RAID_1;
+	    if (info.disk_number == 0 && raid->num_subdisks == 0) {
+		raid->subdisk[raid->num_subdisks] = adp;
+		raid->num_subdisks = 1;
 	    }
-	    else if (raidp->raid[r]->num_subdisks == 1 &&
-		raidp->raid[r]->num_mirrordisks == 0) {
-		raidp->raid[r]->mirrordisk[raidp->raid[r]->num_mirrordisks]=adp;
-		raidp->raid[r]->num_mirrordisks = 1;
+	    if (info.disk_number == 1 && raid->num_mirrordisks == 0) {
+		raid->mirrordisk[raid->num_mirrordisks] = adp;
+		raid->num_mirrordisks = 1;
 	    }
-    	    if ((raidp->raid[r]->num_subdisks + 
-		 raidp->raid[r]->num_mirrordisks) == (info.raid_disks * 2))
+    	    if ((raid->num_subdisks + 
+		 raid->num_mirrordisks) == (info.raid_disks * 2))
 		array_done = 1;
 	    break;
 
 	case HPT_T_SPAN:
-	    if (raidp->raid[r]->magic && raidp->raid[r]->magic != info.magic_0)
+	    if (raid->magic_0 && raid->magic_0 != info.magic_0)
 		continue;
-	    raidp->raid[r]->magic = info.magic_0;
-	    raidp->raid[r]->flags |= AR_F_SPAN;
-	    raidp->raid[r]->subdisk[raidp->raid[r]->num_subdisks] = adp;
-	    raidp->raid[r]->num_subdisks++;
-    	    if (raidp->raid[r]->num_subdisks == info.raid_disks)
+	    raid->magic_0 = info.magic_0;
+	    raid->flags |= AR_F_SPAN;
+	    raid->subdisk[raid->num_subdisks] = adp;
+	    raid->num_subdisks++;
+    	    if (raid->num_subdisks == info.raid_disks)
 		array_done = 1;
 	    break;
 
@@ -378,15 +409,14 @@ hpt_mirror:
 	    printf("HighPoint unknown RAID type 0x%02x\n", info.type);
 	}
 	if (array_done) {
-		raidp->raid[r]->lun = r;
-		raidp->raid[r]->heads = 255;
-		raidp->raid[r]->sectors = 63;
-		raidp->raid[r]->cylinders = (info.total_secs - 9) / (63 * 255);
-		raidp->raid[r]->total_secs = info.total_secs - 
-		    (9 * raidp->raid[r]->num_subdisks);
-		raidp->raid[r]->offset = 10;
-		raidp->raid[r]->reserved = 10;
-		ar_attach(raidp->raid[r]);
+		raid->lun = r;
+		raid->heads = 255;
+		raid->sectors = 63;
+		raid->cylinders = (info.total_secs - 9) / (63 * 255);
+		raid->total_secs = info.total_secs - (9 * raid->num_subdisks);
+		raid->offset = 10;
+		raid->reserved = 10;
+		ar_attach(raid);
 	    return 0;
 	}
 	break;
@@ -418,6 +448,7 @@ static int
 ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 {
     struct promise_raid_conf info;
+    struct ar_softc *raid;
     u_int32_t lba;
     u_int32_t cksum, *ckptr;
     int count, i, j, r; 
@@ -455,7 +486,7 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	}
 
 	if (raidp->raid[r]) {
-	    if (ar_promise_magic(&info) != raidp->raid[r]->magic) {
+	    if (ar_promise_magic(&info) != raidp->raid[r]->magic_0) {
 		r++;
 		i--;
 		continue;
@@ -470,20 +501,21 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	    else
 		bzero(raidp->raid[r], sizeof(struct ar_softc));
 	}
-	raidp->raid[r]->magic = ar_promise_magic(&info);
+	raid = raidp->raid[r];
+	raid->magic_0 = ar_promise_magic(&info);
 
 	switch (info.raid[i].type) {
 	case PR_T_STRIPE:
-	    raidp->raid[r]->flags |= AR_F_RAID_0;
-	    raidp->raid[r]->interleave = 1 << info.raid[i].raid0_shift;
+	    raid->flags |= AR_F_RAID_0;
+	    raid->interleave = 1 << info.raid[i].raid0_shift;
 	    break;
 
 	case PR_T_MIRROR:
-	    raidp->raid[r]->flags |= AR_F_RAID_1;
+	    raid->flags |= AR_F_RAID_1;
 	    break;
 
 	case PR_T_SPAN:
-	    raidp->raid[r]->flags |= AR_F_SPAN;
+	    raid->flags |= AR_F_SPAN;
 	    break;
 
 	default:
@@ -495,12 +527,11 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	for (j = 0; j < info.raid[i].raid0_disks; j++) {
 	    if (info.channel == info.raid[i].disk[j].channel &&
 		info.device == info.raid[i].disk[j].device) {
-		raidp->raid[r]->subdisk[raidp->raid[r]->num_subdisks] = adp;
-		raidp->raid[r]->num_subdisks++;
-		if (raidp->raid[r]->num_subdisks > 1 &&
-		    !(raidp->raid[r]->flags & AR_F_SPAN)) {
-		    raidp->raid[r]->flags |= AR_F_RAID_0;
-		    raidp->raid[r]->interleave = 1 << info.raid[i].raid0_shift;
+		raid->subdisk[raid->num_subdisks] = adp;
+		raid->num_subdisks++;
+		if (raid->num_subdisks > 1 && !(raid->flags & AR_F_SPAN)) {
+		    raid->flags |= AR_F_RAID_0;
+		    raid->interleave = 1 << info.raid[i].raid0_shift;
 		}
 	    }
 	}
@@ -509,23 +540,22 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	for (; j < info.raid[i].total_disks; j++) {
 	    if (info.channel == info.raid[i].disk[j].channel &&
 		info.device == info.raid[i].disk[j].device) {
-		raidp->raid[r]->
-		    mirrordisk[raidp->raid[r]->num_mirrordisks] = adp;
-		raidp->raid[r]->num_mirrordisks++;
+		raid-> mirrordisk[raid->num_mirrordisks] = adp;
+		raid->num_mirrordisks++;
 	    }
 	}
 
 	/* do we have a complete array to attach to ? */
-	if (raidp->raid[r]->num_subdisks + raidp->raid[r]->num_mirrordisks == 
+	if (raid->num_subdisks + raid->num_mirrordisks ==
 	    info.raid[i].total_disks) {
-	    raidp->raid[r]->lun = r;
-	    raidp->raid[r]->heads = info.raid[i].heads + 1;
-	    raidp->raid[r]->sectors = info.raid[i].sectors;
-	    raidp->raid[r]->cylinders = info.raid[i].cylinders + 1;
-	    raidp->raid[r]->total_secs = info.raid[i].total_secs;
-	    raidp->raid[r]->offset = 0;
-	    raidp->raid[r]->reserved = 63;
-	    ar_attach(raidp->raid[r]);
+	    raid->lun = r;
+	    raid->heads = info.raid[i].heads + 1;
+	    raid->sectors = info.raid[i].sectors;
+	    raid->cylinders = info.raid[i].cylinders + 1;
+	    raid->total_secs = info.raid[i].total_secs;
+	    raid->offset = 0;
+	    raid->reserved = 63;
+	    ar_attach(raid);
 	}
 	r++;
     }

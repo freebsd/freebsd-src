@@ -30,7 +30,8 @@
 
 struct ar_softc {
     int lun;
-    int32_t magic;
+    int32_t magic_0;
+    int32_t magic_1;
     int flags;
 #define	AR_F_RAID_0	0x0001		/* STRIPE */
 #define	AR_F_RAID_1	0x0002		/* MIRROR */
@@ -79,6 +80,7 @@ struct highpoint_raid_conf {
     u_int32_t		magic_1;
     u_int32_t		order;
 #define HPT_O_MIRROR		0x01
+#define HPT_O_STRIPE		0x02
 #define HPT_O_OK		0x04
 
     u_int8_t		raid_disks;
