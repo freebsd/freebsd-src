@@ -3,8 +3,8 @@
    DHCP Client. */
 
 /*
- * Copyright (c) 1995, 1996, 1997 The Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999
+ * The Internet Software Consortium.    All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,8 +55,8 @@
  */
 
 #ifndef lint
-static char copyright[] =
-"$Id: dhclient.c,v 1.44.2.1 1997/12/06 11:24:31 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+static char ocopyright[] =
+"$Id: dhclient.c,v 1.44.2.14 1999/02/09 04:59:50 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -83,16 +83,19 @@ struct sockaddr_in sockaddr_broadcast;
    assert (state_is == state_shouldbe). */
 #define ASSERT_STATE(state_is, state_shouldbe) {}
 
-#ifdef USE_FALLBACK
-struct interface_info fallback_interface;
-#endif
-
 u_int16_t local_port;
 u_int16_t remote_port;
 int log_priority;
 int no_daemon;
 int save_scripts;
 int onetry;
+
+static char copyright[] =
+"Copyright 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium.";
+static char arr [] = "All rights reserved.";
+static char message [] = "Internet Software Consortium DHCP Client V2.0b1pl11";
+static char contrib [] = "\nPlease contribute if you find this software useful.";
+static char url [] = "For info, please visit http://www.isc.org/dhcp-contrib.html\n";
 
 static void usage PROTO ((void));
 
@@ -104,6 +107,7 @@ int main (argc, argv, envp)
 	struct servent *ent;
 	struct interface_info *ip;
 	int seed;
+	int quiet;
 
 #ifdef SYSLOG_4_2
 	openlog ("dhclient", LOG_NDELAY);
@@ -129,6 +133,13 @@ int main (argc, argv, envp)
 			save_scripts = 1;
 		} else if (!strcmp (argv [i], "-1")) {
 			onetry = 1;
+		} else if (!strcmp (argv [i], "-lf")) {
+			if (++i == argc)
+				usage ();
+			path_dhclient_db = argv [i];
+		} else if (!strcmp (argv [i], "-q")) {
+			quiet = 1;
+			quiet_interface_discovery = 1;
  		} else if (argv [i][0] == '-') {
  		    usage ();
  		} else {
@@ -146,6 +157,15 @@ int main (argc, argv, envp)
  		    interfaces = tmp;
  		}
 	}
+
+	if (!quiet) {
+		note (message);
+		note (copyright);
+		note (arr);
+		note (contrib);
+		note (url);
+	}
+
 	/* Default to the DHCP/BOOTP port. */
 	if (!local_port) {
 		ent = getservbyname ("dhcpc", "udp");
@@ -189,11 +209,19 @@ int main (argc, argv, envp)
 			     (struct string_list *)0);
 		script_go ((struct interface_info *)0);
 
+		note ("No broadcast interfaces found - exiting.");
 		/* Nothing more to do. */
 		exit (0);
 	} else {
 		/* Call the script with the list of interfaces. */
 		for (ip = interfaces; ip; ip = ip -> next) {
+			/* If interfaces were specified, don't configure
+			   interfaces that weren't specified! */
+			if (interfaces_requested &&
+			    ((ip -> flags & (INTERFACE_REQUESTED |
+					     INTERFACE_AUTOMATIC)) !=
+			     INTERFACE_REQUESTED))
+				continue;
 			script_init (ip, "PREINIT", (struct string_list *)0);
 			if (ip -> client -> alias)
 				script_write_params (ip, "alias_",
@@ -243,7 +271,7 @@ int main (argc, argv, envp)
 
 static void usage ()
 {
-	error ("Usage: dhclient [-1] [-c] [-p <port>] [interface]");
+	error ("Usage: dhclient [-1] [-c] [-p <port>] [-lf lease-file] [interface]");
 }
 
 void cleanup ()
@@ -294,10 +322,14 @@ void state_reboot (ipp)
 	/* We are in the rebooting state. */
 	ip -> client -> state = S_REBOOTING;
 
+	/* make_request doesn't initialize xid because it normally comes
+	   from the DHCPDISCOVER, but we haven't sent a DHCPDISCOVER,
+	   so pick an xid now. */
+	ip -> client -> xid = random ();
+
 	/* Make a DHCPREQUEST packet, and set appropriate per-interface
 	   flags. */
 	make_request (ip, ip -> client -> active);
-	ip -> client -> xid = ip -> client -> packet.xid;
 	ip -> client -> destination = iaddr_broadcast;
 	ip -> client -> first_sending = cur_time;
 	ip -> client -> interval = ip -> client -> config -> initial_interval;
@@ -435,7 +467,11 @@ void dhcpack (packet)
 	
 	/* If we're not receptive to an offer right now, or if the offer
 	   has an unrecognizable transaction id, then just drop it. */
-	if (packet -> interface -> client -> xid != packet -> raw -> xid) {
+	if (packet -> interface -> client -> xid != packet -> raw -> xid ||
+	    (packet -> interface -> hw_address.hlen !=
+	     packet -> raw -> hlen) ||
+	    (memcmp (packet -> interface -> hw_address.haddr,
+		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
 		debug ("DHCPACK in wrong transaction.");
 		return;
 	}
@@ -501,7 +537,7 @@ void bind_lease (ip)
 	ip -> client -> new -> medium = ip -> client -> medium;
 
 	/* Write out the new lease. */
-	write_client_lease (ip, ip -> client -> new);
+	write_client_lease (ip, ip -> client -> new, 0);
 
 	/* Run the client script with the new parameters. */
 	script_init (ip, (ip -> client -> state == S_REQUESTING
@@ -665,7 +701,11 @@ void dhcpoffer (packet)
 	/* If we're not receptive to an offer right now, or if the offer
 	   has an unrecognizable transaction id, then just drop it. */
 	if (ip -> client -> state != S_SELECTING ||
-	    packet -> interface -> client -> xid != packet -> raw -> xid) {
+	    packet -> interface -> client -> xid != packet -> raw -> xid ||
+	    (packet -> interface -> hw_address.hlen !=
+	     packet -> raw -> hlen) ||
+	    (memcmp (packet -> interface -> hw_address.haddr,
+		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
 		debug ("%s in wrong transaction.", name);
 		return;
 	}
@@ -864,7 +904,11 @@ void dhcpnak (packet)
 
 	/* If we're not receptive to an offer right now, or if the offer
 	   has an unrecognizable transaction id, then just drop it. */
-	if (packet -> interface -> client -> xid != packet -> raw -> xid) {
+	if (packet -> interface -> client -> xid != packet -> raw -> xid ||
+	    (packet -> interface -> hw_address.hlen !=
+	     packet -> raw -> hlen) ||
+	    (memcmp (packet -> interface -> hw_address.haddr,
+		     packet -> raw -> chaddr, packet -> raw -> hlen))) {
 		debug ("DHCPNAK in wrong transaction.");
 		return;
 	}
@@ -966,8 +1010,8 @@ void send_discover (ipp)
 		    ip -> client -> config -> backoff_cutoff)
 			ip -> client -> interval =
 				((ip -> client -> config -> backoff_cutoff / 2)
-				 + ((random () >> 2)
-				    % ip -> client -> interval));
+				 + ((random () >> 2) %
+				    ip -> client -> config -> backoff_cutoff));
 	} else if (!ip -> client -> interval)
 		ip -> client -> interval =
 			ip -> client -> config -> initial_interval;
@@ -1168,6 +1212,14 @@ void send_request (ipp)
 					     ip -> client -> alias);
 		script_go (ip);
 
+		/* Now do a preinit on the interface so that we can
+		   discover a new address. */
+		script_init (ip, "PREINIT", (struct string_list *)0);
+		if (ip -> client -> alias)
+			script_write_params (ip, "alias_",
+					     ip -> client -> alias);
+		script_go (ip);
+
 		ip -> client -> state = S_INIT;
 		state_init (ip);
 		return;
@@ -1202,6 +1254,7 @@ void send_request (ipp)
 	/* If the lease T2 time has elapsed, or if we're not yet bound,
 	   broadcast the DHCPREQUEST rather than unicasting. */
 	if (ip -> client -> state == S_REQUESTING ||
+	    ip -> client -> state == S_REBOOTING ||
 	    cur_time > ip -> client -> active -> rebind)
 		destination.sin_addr.s_addr = INADDR_BROADCAST;
 	else
@@ -1230,16 +1283,15 @@ void send_request (ipp)
 	      inet_ntoa (destination.sin_addr),
 	      ntohs (destination.sin_port));
 
-#ifdef USE_FALLBACK
-	if (destination.sin_addr.s_addr != INADDR_BROADCAST)
-		result = send_fallback (&fallback_interface,
-					(struct packet *)0,
-					&ip -> client -> packet,
-					ip -> client -> packet_length,
-					from, &destination,
-					(struct hardware *)0);
+	if (destination.sin_addr.s_addr != INADDR_BROADCAST &&
+	    fallback_interface)
+		result = send_packet (fallback_interface,
+				      (struct packet *)0,
+				      &ip -> client -> packet,
+				      ip -> client -> packet_length,
+				      from, &destination,
+				      (struct hardware *)0);
 	else
-#endif /* USE_FALLBACK */
 		/* Send out a packet. */
 		result = send_packet (ip, (struct packet *)0,
 				      &ip -> client -> packet,
@@ -1480,18 +1532,20 @@ void make_request (ip, lease)
 	ip -> client -> packet.hops = 0;
 	ip -> client -> packet.xid = ip -> client -> xid;
 	ip -> client -> packet.secs = 0; /* Filled in by send_request. */
-	ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
 
 	/* If we own the address we're requesting, put it in ciaddr;
 	   otherwise set ciaddr to zero. */
 	if (ip -> client -> state == S_BOUND ||
 	    ip -> client -> state == S_RENEWING ||
-	    ip -> client -> state == S_REBINDING)
+	    ip -> client -> state == S_REBINDING) {
 		memcpy (&ip -> client -> packet.ciaddr,
 			lease -> address.iabuf, lease -> address.len);
-	else
+		ip -> client -> packet.flags = 0;
+	} else {
 		memset (&ip -> client -> packet.ciaddr, 0,
 			sizeof ip -> client -> packet.ciaddr);
+		ip -> client -> packet.flags = htons (BOOTP_BROADCAST);
+	}
 
 	memset (&ip -> client -> packet.yiaddr, 0,
 		sizeof ip -> client -> packet.yiaddr);
@@ -1643,7 +1697,7 @@ void make_release (ip, lease)
 	ip -> client -> packet.htype = ip -> hw_address.htype;
 	ip -> client -> packet.hlen = ip -> hw_address.hlen;
 	ip -> client -> packet.hops = 0;
-	ip -> client -> packet.xid = ip -> client -> packet.xid;
+	ip -> client -> packet.xid = ip -> client -> xid;
 	ip -> client -> packet.secs = 0;
 	ip -> client -> packet.flags = 0;
 	memcpy (&ip -> client -> packet.ciaddr,
@@ -1691,36 +1745,45 @@ void rewrite_client_leases ()
 		fclose (leaseFile);
 	leaseFile = fopen (path_dhclient_db, "w");
 	if (!leaseFile)
-		error ("can't create /var/db/dhclient.leases: %m");
+		error ("can't create %s: %m", path_dhclient_db);
 
 	/* Write out all the leases attached to configured interfaces that
 	   we know about. */
 	for (ip = interfaces; ip; ip = ip -> next) {
 		for (lp = ip -> client -> leases; lp; lp = lp -> next) {
-			write_client_lease (ip, lp);
+			write_client_lease (ip, lp, 1);
 		}
 		if (ip -> client -> active)
-			write_client_lease (ip, ip -> client -> active);
+			write_client_lease (ip, ip -> client -> active, 1);
 	}
 
 	/* Write out any leases that are attached to interfaces that aren't
 	   currently configured. */
 	for (ip = dummy_interfaces; ip; ip = ip -> next) {
 		for (lp = ip -> client -> leases; lp; lp = lp -> next) {
-			write_client_lease (ip, lp);
+			write_client_lease (ip, lp, 1);
 		}
 		if (ip -> client -> active)
-			write_client_lease (ip, ip -> client -> active);
+			write_client_lease (ip, ip -> client -> active, 1);
 	}
 	fflush (leaseFile);
 }
 
-void write_client_lease (ip, lease)
+void write_client_lease (ip, lease, rewrite)
 	struct interface_info *ip;
 	struct client_lease *lease;
+	int rewrite;
 {
 	int i;
 	struct tm *t;
+	static int leases_written;
+
+	if (!rewrite) {
+		if (leases_written++ > 20) {
+			rewrite_client_leases ();
+			leases_written = 0;
+		}
+	}
 
 	/* If the lease came from the config file, we don't need to stash
 	   a copy in the lease database. */
@@ -1730,7 +1793,7 @@ void write_client_lease (ip, lease)
 	if (!leaseFile) {	/* XXX */
 		leaseFile = fopen (path_dhclient_db, "w");
 		if (!leaseFile)
-			error ("can't create /var/db/dhclient.leases: %m");
+			error ("can't create %s: %m", path_dhclient_db);
 	}
 
 	fprintf (leaseFile, "lease {\n");
@@ -1758,6 +1821,10 @@ void write_client_lease (ip, lease)
 				  lease -> options [i].len, 1, 1));
 		}
 	}
+
+	/* Note: the following is not a Y2K bug - it's a Y1.9K bug.   Until
+	   somebody invents a time machine, I think we can safely disregard
+	   it. */
 	t = gmtime (&lease -> renewal);
 	fprintf (leaseFile,
 		 "  renew %d %d/%d/%d %02d:%02d:%02d;\n",
@@ -1800,7 +1867,9 @@ void script_init (ip, reason, medium)
 #ifdef HAVE_MKSTEMP
 		fd = mkstemp (scriptName);
 #else
-		mktemp (scriptName);
+		if (!mktemp (scriptName))
+			error ("can't create temporary client script %s: %m",
+			       scriptName);
 		fd = creat (scriptName, 0600);
 	} while (fd < 0);
 #endif
