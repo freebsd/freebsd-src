@@ -326,11 +326,6 @@ Set to install the
 .Fx
 4
 compatibility libraries.
-.It Va ENABLE_SUIDPERL
-.Pq Vt bool
-Set to enable the installation of an suid
-.Xr perl 1
-binary.
 .It Va FETCH_CMD
 .Pq Vt str
 Command to use to fetch files.
@@ -413,11 +408,6 @@ Set to not build OpenSSH.
 .Pq Vt bool
 Set to not build OpenSSL (implies
 .Va NO_OPENSSH ) .
-.It Va NO_PERL
-.Pq Vt bool
-Set to avoid building
-.Xr perl 1 .
-(Also disables OpenSSL optimizations.)
 .It Va NO_SENDMAIL
 .Pq Vt bool
 Set to not build
@@ -469,13 +459,6 @@ Set to not build
 .It Va NOMANCOMPRESS
 .Pq Vt bool
 Set to install man pages uncompressed.
-.It Va NOPERL
-.Pq Vt bool
-Set to avoid building
-.Xr perl 1 .
-This is deprecated in favour of
-.Va NO_PERL
-(above).
 .It Va NOPROFILE
 .Pq Vt bool
 Set to avoid compiling profiled libraries.
