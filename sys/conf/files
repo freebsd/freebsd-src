@@ -1569,7 +1569,6 @@ nfsserver/nfs_syscalls.c	optional nfsserver
 # crypto support
 opencrypto/cast.c		optional crypto
 opencrypto/criov.c		optional crypto
-opencrypto/crmbuf.c		optional crypto
 opencrypto/crypto.c		optional crypto
 opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptosoft.c		optional crypto

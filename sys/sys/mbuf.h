@@ -435,6 +435,8 @@ extern	int nsfbufs;			/* Number of sendfile(2) bufs */
 
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
+int		 m_apply(struct mbuf *, int, int,
+		 int (*)(void *, caddr_t, unsigned int), void *);
 void		 m_cat(struct mbuf *, struct mbuf *);
 void		 m_chtype(struct mbuf *, short);
 void		 m_clget(struct mbuf *, int);
@@ -460,6 +462,7 @@ struct	mbuf	*m_getcl(int, short, int);
 struct	mbuf	*m_gethdr(int, short);
 struct	mbuf	*m_gethdr_clrd(int, short);
 struct	mbuf	*m_getm(struct mbuf *, int, int, short);
+struct	mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
 struct	mbuf	*m_prepend(struct mbuf *, int, int);
