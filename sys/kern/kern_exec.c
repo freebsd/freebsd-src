@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21.4.5 1996/06/03 04:09:36 davidg Exp $
+ *	$Id: kern_exec.c,v 1.21.4.6 1996/06/04 02:11:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -259,7 +259,9 @@ interpret:
 			p->p_ucred->cr_groups[0] = attr.va_gid;
 		p->p_flag |= P_SUGID;
 	} else {
-		p->p_flag &= ~P_SUGID;
+	        if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
+		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
+			p->p_flag &= ~P_SUGID;
 	}
 
 	/*
