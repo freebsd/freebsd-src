@@ -2257,6 +2257,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.
       &merged;</para>
 
+    <para>A file descriptor leak in the &man.fpathconf.2; system call,
+      which could allow a local user to crash the system or
+      cause a privilege escalation, has been fixed.  More details can
+      be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:44.filedesc.asc">FreeBSD-SA-02:44</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
