@@ -75,12 +75,4 @@ struct kse_global_mailbox
 };
 #define GMBXF_CRITICAL 0x00000001
 
-/* some provisional sycalls: */
-
-#ifndef _KERNEL
-int	kse_new(struct kse_mailbox *mbx, int new_grp_flag);
-int	kse_exit(void);
-int	thread_wakeup(struct thread_mailbox *tmbx);
-int	kse_wakeup(void);
-#endif
 #endif
