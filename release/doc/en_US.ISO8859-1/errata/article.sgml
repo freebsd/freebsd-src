@@ -181,6 +181,41 @@
       branch and the &release.prev; security fix branch.  More details
       can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
+
+    <para>The &os; ARP code contains a bug that could allow the kernel
+      to cause resource starvation which eventually results in a system panic.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
+
+    <para>The implementation of the &man.readv.2; system call contains
+      a bug which could potentially cause a system crash or privilege escalation.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>.</para>
+
+    <para>The implementation of the &man.procfs.5; and the &man.linprocfs.5;
+      contain a bug that could result in disclosing the contents of kernel memory.
+      This bug has been fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.</para>
+
+    <para><application>OpenSSL</application> contains several bugs
+      which could allow a remote attacker to crash an
+      <application>OpenSSL</application>-using application or
+      to execute arbitrary code with the privileges of the application.
+      These bugs have been fixed with the import of a new version of
+      <application>OpenSSL</application> on the &release.branch;
+      development branch and with a vendor-supplied patch
+      on the &release.prev; security fix branch.
+      Note that only applications that use <application>OpenSSL</application>'s
+      ASN.1 or X.509 handling code are affected (<application>OpenSSH</application>
+      is unaffected, for example).
+      More information can be found in security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>.</para>
 ]]>
 
   </sect1>
