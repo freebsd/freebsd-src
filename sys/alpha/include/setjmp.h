@@ -40,7 +40,7 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-typedef struct { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
+typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif /* not ANSI */
 
-typedef struct { long _jb[_JBLEN + 1]; } jmp_buf[1];
+typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
