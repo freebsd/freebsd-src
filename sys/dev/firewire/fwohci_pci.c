@@ -288,6 +288,8 @@ fwohci_pci_detach(device_t self)
 		sc->bst = 0;
 		sc->bsh = 0;
 	}
+
+	fwohci_detach(sc, self);
 	splx(s);
 
 	return 0;
