@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id: mkfs.c,v 1.24 1998/07/15 06:28:04 charnier Exp $";
+	"$Id: mkfs.c,v 1.25 1998/08/12 06:07:43 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -529,7 +529,7 @@ mkfs(pp, fsys, fi, fo)
 		sblock.fs_cpc = 0;
 		goto next;
 	}
-	postblsize = sblock.fs_nrpos * sblock.fs_cpc * sizeof(short);
+	postblsize = sblock.fs_nrpos * sblock.fs_cpc * sizeof(int16_t);
 	rotblsize = sblock.fs_cpc * sblock.fs_spc / NSPB(&sblock);
 	totalsbsize = sizeof(struct fs) + rotblsize;
 	if (sblock.fs_nrpos == 8 && sblock.fs_cpc <= 16) {
@@ -777,9 +777,9 @@ initcg(cylno, utime)
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
 	acg.cg_btotoff = &acg.cg_space[0] - (u_char *)(&acg.cg_firstfield);
-	acg.cg_boff = acg.cg_btotoff + sblock.fs_cpg * sizeof(long);
+	acg.cg_boff = acg.cg_btotoff + sblock.fs_cpg * sizeof(int32_t);
 	acg.cg_iusedoff = acg.cg_boff +
-		sblock.fs_cpg * sblock.fs_nrpos * sizeof(short);
+		sblock.fs_cpg * sblock.fs_nrpos * sizeof(u_int16_t);
 	acg.cg_freeoff = acg.cg_iusedoff + howmany(sblock.fs_ipg, NBBY);
 	if (sblock.fs_contigsumsize <= 0) {
 		acg.cg_nextfreeoff = acg.cg_freeoff +
@@ -787,11 +787,11 @@ initcg(cylno, utime)
 	} else {
 		acg.cg_clustersumoff = acg.cg_freeoff + howmany
 		    (sblock.fs_cpg * sblock.fs_spc / NSPF(&sblock), NBBY) -
-		    sizeof(long);
+		    sizeof(u_int32_t);
 		acg.cg_clustersumoff =
-		    roundup(acg.cg_clustersumoff, sizeof(long));
+		    roundup(acg.cg_clustersumoff, sizeof(u_int32_t));
 		acg.cg_clusteroff = acg.cg_clustersumoff +
-		    (sblock.fs_contigsumsize + 1) * sizeof(long);
+		    (sblock.fs_contigsumsize + 1) * sizeof(u_int32_t);
 		acg.cg_nextfreeoff = acg.cg_clusteroff + howmany
 		    (sblock.fs_cpg * sblock.fs_spc / NSPB(&sblock), NBBY);
 	}
