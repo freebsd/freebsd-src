@@ -423,17 +423,17 @@ typedef int		pid_t;
 /*
 **  386BSD / FreeBSD 1.0E / NetBSD (all architectures, all versions)
 **
-**  4.3BSD clone, closer to 4.4BSD
+**  Were 4.3BSD clone, closer to 4.4BSD
+**  Now real 4.4BSD.
 **
 **	See also BSD defines.
 */
 
-#if defined(__FreeBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
-# ifdef __NetBSD__
-#  define HASUNAME	1	/* has uname(2) syscall */
-# endif
+# define HASUNAME	1	/* has uname(2) syscall */
+# define GIDSET_T	gid_t
 # include <sys/cdefs.h>
 # define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
 # ifndef LA_TYPE
