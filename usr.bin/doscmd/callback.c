@@ -51,7 +51,7 @@ find_callback(u_long vec)
     struct callback *elm;
 
     head = &cbhead[CBHASH(vec)];
-    for (elm = head->lh_first; elm; elm = elm->chain.le_next)
+    LIST_FOREACH(elm, head, chain)
 	if (elm->vec == vec)
 	    break;
     if (elm) {
