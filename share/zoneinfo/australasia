@@ -1,6 +1,6 @@
 # @(#)australasia	7.65
 # This file also includes Pacific islands.
-# $FreeBSD$
+
 # Notes are at the end of this file
 
 ###############################################################################
@@ -975,7 +975,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Lord Howe Island Board (controlling authority for the Island) is
 # seeking the community's views on various options for summer time
 # arrangements on the Island, e.g. advance clocks by 1 full hour
-# instead of only 30 minutes.  Dependent on the wishes of residents
+# instead of only 30 minutes.  Dependant on the wishes of residents
 # the Board may approach the NSW government to change the existing
 # arrangements.  The starting date for summer time on the Island will
 # however always coincide with the rest of NSW.
