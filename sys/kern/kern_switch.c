@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 1999 Peter Wemm <peter@FreeBSD.org>
- * All rights reserved.
  * Copyright (c) 2001 Jake Burkholder <jake@FreeBSD.org>
  * All rights reserved.
  *
