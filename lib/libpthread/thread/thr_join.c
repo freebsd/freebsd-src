@@ -42,6 +42,16 @@ pthread_join(pthread_t pthread, void **thread_return)
 	int             status;
 	pthread_t	pthread1;
 
+	/* Check if the caller has specified an invalid thread: */
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+		/* Invalid thread: */
+		return(EINVAL);
+
+	/* Check if the caller has specified itself: */
+	if (pthread == _thread_run)
+		/* Avoid a deadlock condition: */
+		return(EDEADLK);
+
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
 
