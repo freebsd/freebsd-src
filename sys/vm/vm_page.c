@@ -253,7 +253,7 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	    VM_PROT_READ | VM_PROT_WRITE);
 	bzero((caddr_t) mapped, end - new_end);
 
-	mtx_init(&vm_page_buckets_mtx, "vm page buckets mutex", NULL, MTX_DEF);
+	mtx_init(&vm_page_buckets_mtx, "vm page buckets mutex", NULL, MTX_SPIN);
 	vm_page_buckets = (struct vm_page **)mapped;
 	bucket = vm_page_buckets;
 	for (i = 0; i < vm_page_bucket_count; i++) {
@@ -599,10 +599,10 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 	 * Insert it into the object_object/offset hash table
 	 */
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	mtx_lock(&vm_page_buckets_mtx);
+	mtx_lock_spin(&vm_page_buckets_mtx);
 	m->hnext = *bucket;
 	*bucket = m;
-	mtx_unlock(&vm_page_buckets_mtx);
+	mtx_unlock_spin(&vm_page_buckets_mtx);
 
 	/*
 	 * Now link into the object's list of backed pages.
@@ -662,7 +662,7 @@ vm_page_remove(vm_page_t m)
 	 * must be on the hash queue, we will panic if it isn't
 	 */
 	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
-	mtx_lock(&vm_page_buckets_mtx);
+	mtx_lock_spin(&vm_page_buckets_mtx);
 	while (*bucket != m) {
 		if (*bucket == NULL)
 			panic("vm_page_remove(): page not found in hash");
@@ -670,7 +670,7 @@ vm_page_remove(vm_page_t m)
 	}
 	*bucket = m->hnext;
 	m->hnext = NULL;
-	mtx_unlock(&vm_page_buckets_mtx);
+	mtx_unlock_spin(&vm_page_buckets_mtx);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -706,15 +706,12 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	 * Search the hash table for this object/offset pair
 	 */
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	mtx_lock(&vm_page_buckets_mtx);
-	for (m = *bucket; m != NULL; m = m->hnext) {
-		if ((m->object == object) && (m->pindex == pindex)) {
-			mtx_unlock(&vm_page_buckets_mtx);
-			return (m);
-		}
-	}
-	mtx_unlock(&vm_page_buckets_mtx);
-	return (NULL);
+	mtx_lock_spin(&vm_page_buckets_mtx);
+	for (m = *bucket; m != NULL; m = m->hnext)
+		if (m->object == object && m->pindex == pindex)
+			break;
+	mtx_unlock_spin(&vm_page_buckets_mtx);
+	return (m);
 }
 
 /*

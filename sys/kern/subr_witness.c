@@ -217,6 +217,7 @@ static struct witness_order_list_entry order_lists[] = {
 	 * leaf locks
 	 */
 	{ "allpmaps", &lock_class_mtx_spin },
+	{ "vm page buckets mutex", &lock_class_mtx_spin },
 	{ "icu", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
