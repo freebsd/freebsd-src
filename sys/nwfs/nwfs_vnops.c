@@ -123,14 +123,6 @@ static struct vnodeopv_desc nwfs_vnodeop_opv_desc =
 
 VNODEOP_SET(nwfs_vnodeop_opv_desc);
 
-void nwfs_createname(char *_name,struct vnode *vp,struct componentname *cnp);
-
-
-void nwfs_createname(char *_name,struct vnode *vp,struct componentname *cnp){
-	strncpy(_name, cnp->cn_nameptr, cnp->cn_namelen);
-	_name[cnp->cn_namelen] = '\0';
-	ncp_str_upper(_name);
-}
 /*
  * nwfs_access vnode op
  * for now just return ok
@@ -879,13 +871,7 @@ nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
 		return error;
 	newnp = VTONW(vp);
 	if (fap) {
-		if (newnp->n_flag & NNEW) {
-			newnp->n_nmlen = fap->nameLen;
-			bcopy(fap->entryName, newnp->n_name, newnp->n_nmlen);
-			newnp->n_name[fap->nameLen] = 0;
-		}
 		newnp->n_attr = fap->attributes;
-		newnp->n_dosfid = fap->DosDirNum;
 		vp->v_type = newnp->n_attr & aDIR ? VDIR : VREG;
 		nwfs_attr_cacheenter(vp, fap);
 	}

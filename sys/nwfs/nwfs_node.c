@@ -284,6 +284,9 @@ nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi)
 	struct vattr *va = &np->n_vattr;
 
 	va->va_type = vp->v_type;		/* vnode type (for create) */
+	np->n_nmlen = fi->nameLen;
+	bcopy(fi->entryName, np->n_name, np->n_nmlen);
+	np->n_name[fi->nameLen] = 0;
 	if (vp->v_type == VREG) {
 		if (va->va_size != fi->dataStreamSize) {
 			va->va_size = fi->dataStreamSize;
@@ -320,6 +323,7 @@ nwfs_attr_cacheenter(struct vnode *vp, struct nw_entry_info *fi)
 		np->n_mtime = va->va_mtime.tv_sec;
 	}
 	np->n_atime = time_second;
+	np->n_dosfid = fi->DosDirNum;
 	return;
 }
 
