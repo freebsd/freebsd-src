@@ -17,11 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
-20030427:
-	The old rc system will soon be going away.  If you have specified
-	rc_ng="NO" in your /etc/rc.conf[.local] you should remove it and
-	test with the new rc system.  Please report any problems to
-	freebsd-rc@yahoogroups.com, and/or freebsd-current@freebsd.org.
+20030501:
+	The old rc system has been removed.  Please report any problems
+	to freebsd-rc@yahoogroups.com, and/or freebsd-current@freebsd.org.
+	Your personal versions of these files will not be removed, so you can
+	continue to use them. However, you should take great care when updating,
+	especially when using mergemaster, since the compatibility code that
+	utilizes these old scripts has also been removed.
+
 
 20030423:
 	A bug has been fixed in /dev/devctl which would cause devd
