@@ -95,6 +95,7 @@ extern char	*mfs_mtpt;	/* mount point for mfs          */
 extern struct stat mfs_mtstat;	/* stat prior to mount          */
 extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* format as an 4.3BSD file system */
+extern int	Uflag;		/* enable soft updates for file system */
 extern int	fssize;		/* file system size */
 extern int	ntracks;	/* # tracks/cylinder */
 extern int	nsectors;	/* # sectors/track */
@@ -252,6 +253,9 @@ mkfs(pp, fsys, fi, fo)
 	} else {
 		sblock.fs_inodefmt = FS_44INODEFMT;
 		sblock.fs_maxsymlinklen = MAXSYMLINKLEN;
+	}
+	if (Uflag) {
+		sblock.fs_flags |= FS_DOSOFTDEP;
 	}
 	/*
 	 * Validate the given file system size.
@@ -673,11 +677,12 @@ next:
 		    fsys, sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
 		    "cylinders", sblock.fs_ntrak, sblock.fs_nsect);
 #define B2MBFACTOR (1 / (1024.0 * 1024.0))
-		printf("\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)\n",
+		printf("\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)%s\n",
 		    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
 		    sblock.fs_ncg, sblock.fs_cpg,
 		    (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
-		    sblock.fs_ipg);
+		    sblock.fs_ipg,
+			sblock.fs_flags & FS_DOSOFTDEP ? " SOFTUPDATES" : "");
 #undef B2MBFACTOR
 	}
 	/*
