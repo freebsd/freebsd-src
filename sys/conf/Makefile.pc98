@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600000
+%VERSREQ=	600001
 
 .if !defined(S)
 .if exists(./@/.)
