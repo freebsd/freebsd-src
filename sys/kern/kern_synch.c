@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.55 1998/05/17 11:52:45 phk Exp $
+ * $Id: kern_synch.c,v 1.56 1998/05/17 22:12:14 tegge Exp $
  */
 
 #include "opt_ktrace.h"
@@ -599,9 +599,7 @@ mi_switch()
 {
 	register struct proc *p = curproc;	/* XXX */
 	register struct rlimit *rlim;
-	register long s, u;
 	int x;
-	struct timeval tv;
 
 	/*
 	 * XXX this spl is almost unnecessary.  It is partly to allow for
@@ -630,36 +628,23 @@ mi_switch()
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
 	 */
-	microuptime(&tv);
-	u = p->p_rtime.tv_usec + (tv.tv_usec - p->p_runtime.tv_usec);
-	s = p->p_rtime.tv_sec + (tv.tv_sec - p->p_runtime.tv_sec);
-	if (u < 0) {
-		u += 1000000;
-		s--;
-	} else if (u >= 1000000) {
-		u -= 1000000;
-		s++;
-	}
-#ifdef SMP
-	if (s < 0)
-		s = u = 0;
-#endif
-	p->p_rtime.tv_usec = u;
-	p->p_rtime.tv_sec = s;
+	microuptime(&switchtime);
+	p->p_runtime += (switchtime.tv_usec - p->p_switchtime.tv_usec) +
+	    (switchtime.tv_sec - p->p_switchtime.tv_sec) * (int64_t)1000000;
 
 	/*
 	 * Check if the process exceeds its cpu resource allocation.
 	 * If over max, kill it.
 	 */
-	if (p->p_stat != SZOMB) {
+	if (p->p_stat != SZOMB && p->p_runtime > p->p_limit->p_cpulimit) {
 		rlim = &p->p_rlimit[RLIMIT_CPU];
-		if (s >= rlim->rlim_cur) {
-			if (s >= rlim->rlim_max)
-				killproc(p, "exceeded maximum CPU limit");
-			else {
-				psignal(p, SIGXCPU);
-				if (rlim->rlim_cur < rlim->rlim_max)
-					rlim->rlim_cur += 5;
+		if (p->p_runtime / (rlim_t)1000000 >= rlim->rlim_max) {
+			killproc(p, "exceeded maximum CPU limit");
+		} else {
+			psignal(p, SIGXCPU);
+			if (rlim->rlim_cur < rlim->rlim_max) {
+				/* XXX: we should make a private copy */
+				rlim->rlim_cur += 5;
 			}
 		}
 	}
@@ -669,7 +654,10 @@ mi_switch()
 	 */
 	cnt.v_swtch++;
 	cpu_switch(p);
-	microuptime(&p->p_runtime);
+	if (switchtime.tv_sec)
+		p->p_switchtime = switchtime;
+	else
+		microuptime(&p->p_switchtime);
 	splx(x);
 }
 

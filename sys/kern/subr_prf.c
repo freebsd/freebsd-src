@@ -36,13 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.44 1997/12/28 05:03:33 bde Exp $
+ * $Id: subr_prf.c,v 1.45 1998/05/19 08:58:51 phk Exp $
  */
-
-#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/msgbuf.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -71,6 +70,7 @@ static void  putchar __P((int ch, void *arg));
 static char *ksprintn __P((u_long num, int base, int *len));
 
 static int consintr = 1;		/* Ok to handle console interrupts? */
+static int msgbufmapped;		/* Set when safe to use msgbuf */
 
 /*
  * Warn that a system table is full.
@@ -275,7 +275,7 @@ vprintf(const char *fmt, va_list ap)
 
 /*
  * Print a character on console or users terminal.  If destination is
- * the console then the last MSGBUFS characters are saved in msgbuf for
+ * the console then the last bunch of characters are saved in msgbuf for
  * inspection later.
  */
 static void
@@ -598,3 +598,44 @@ msglogchar(int c, void *dummyarg)
 		}
 	}
 }
+
+void
+msgbufinit(void *ptr, size_t size)
+{
+	char *cp;
+
+	cp = (char *)ptr;
+	msgbufp = (struct msgbuf *) (cp + size - sizeof(*msgbufp));
+	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
+		bzero(cp, size);
+		msgbufp->msg_magic = MSG_MAGIC;
+		msgbufp->msg_size = (char *)msgbufp - cp;
+		msgbufp->msg_ptr = cp;
+	}
+	msgbufmapped = 1;
+}
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
+{
+	int i, j;
+
+	if (!msgbufmapped) {
+		db_printf("msgbuf not mapped yet\n");
+		return;
+	}
+	db_printf("msgbufp = %p\n", msgbufp);
+	db_printf("magic = %x, size = %d, r= %d, w = %d, ptr = %p\n",
+	    msgbufp->msg_magic, msgbufp->msg_size, msgbufp->msg_bufr,
+	    msgbufp->msg_bufx, msgbufp->msg_ptr);
+	for (i = 0; i < msgbufp->msg_size; i++) {
+		j = (i + msgbufp->msg_bufr) % msgbufp->msg_size;
+		db_printf("%c", msgbufp->msg_ptr[j]);
+	}
+	db_printf("\n");
+}
+
+#endif /* DDB */

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.91 1998/04/19 23:31:54 julian Exp $
+ * $Id: init_main.c,v 1.92 1998/05/17 11:52:35 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -377,7 +377,9 @@ proc0_init(dummy)
 	limit0.pl_rlimit[RLIMIT_RSS].rlim_max = i;
 	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_max = i;
 	limit0.pl_rlimit[RLIMIT_MEMLOCK].rlim_cur = i / 3;
+	limit0.p_cpulimit = RLIM_INFINITY;
 	limit0.p_refcnt = 1;
+
 
 	/* Allocate a prototype map so we have something to fork. */
 	pmap_pinit0(&vmspace0.vm_pmap);
@@ -426,13 +428,13 @@ proc0_post(dummy)
 
 	/*
 	 * Now can look at time, having had a chance to verify the time
-	 * from the file system.  Reset p->p_rtime as it may have been
+	 * from the file system.  Reset p->p_runtime as it may have been
 	 * munched in mi_switch() after the time got set.  Set
-	 * p->p_runtime to be consistent with this unmunching.
+	 * p->p_switchtime to be consistent with this unmunching.
 	 */
 	microtime(&proc0.p_stats->p_start);
-	timevalclear(&proc0.p_rtime);
-	microuptime(&proc0.p_runtime);
+	proc0.p_runtime = 0;
+	microuptime(&proc0.p_switchtime);
 
 	/*
 	 * Give the ``random'' number generator a thump.

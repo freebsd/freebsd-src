@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id: resourcevar.h,v 1.10 1997/02/22 09:45:46 peter Exp $
+ * $Id: resourcevar.h,v 1.11 1998/03/28 10:33:23 bde Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -77,6 +77,7 @@ struct plimit {
 #define	PL_SHAREMOD	0x01		/* modifications are shared */
 	int	p_lflags;
 	int	p_refcnt;		/* number of references */
+	rlim_t	p_cpulimit;		/* current cpu limit in usec */
 };
 
 #ifdef KERNEL
