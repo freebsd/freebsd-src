@@ -69,22 +69,30 @@ The value of
 has one of the following meanings:
 .Bl -bullet
 .It
+The
 .Fa msgtyp
+argument
 is greater than 0. The first message of type
 .Fa msgtyp
 will be received.
 .It
+The
 .Fa msgtyp
+argument
 is equal to 0. The first message on the queue will be received.
 .It
+The
 .Fa msgtyp
+argument
 is less than 0. The first message of the lowest message type that is
 less than or equal to the absolute value of
 .Fa msgtyp
 will be received.
 .El
 .Pp
+The
 .Fa msgsz
+argument
 specifies the maximum length of the requested message.
 If the received
 message has a length greater than
@@ -165,14 +173,18 @@ function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa msqid
+argument
 is not a valid message queue identifier.
 .Pp
 The message queue was removed while
 .Fn msgrcv
 was waiting for a message of the requested type to become available on it.
 .Pp
+The
 .Fa msgsz
+argument
 is less than 0.
 .It Bq Er E2BIG
 A matching message was received, but its size was greater than
@@ -184,7 +196,9 @@ flag was not set in
 .It Bq Er EACCES
 The calling process does not have read access to the message queue.
 .It Bq Er EFAULT
+The
 .Fa msgp
+argument
 points to an invalid address.
 .It Bq Er EINTR
 The system call was interrupted by the delivery of a signal.

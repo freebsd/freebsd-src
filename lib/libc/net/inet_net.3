@@ -61,7 +61,9 @@ function converts an Internet network number from network format (usually a
 .Vt "struct in_addr"
 or some other binary form, in network byte order) to CIDR presentation format
 (suitable for external display purposes).
+The
 .Fa bits
+argument
 is the number of bits in
 .Fa src
 that are the network number.
@@ -90,7 +92,9 @@ The only value for
 .Fa af
 currently supported is
 .Dv AF_INET .
+The
 .Fa size
+argument
 is the size of the result buffer
 .Fa dst .
 .Pp

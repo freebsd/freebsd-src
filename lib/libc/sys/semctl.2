@@ -53,7 +53,7 @@ is required for certain values of
 .Fa cmd .
 For the commands that use the
 .Fa arg
-parameter,
+argument,
 .Fa "union semun"
 is defined as follows:
 .Bd -literal
@@ -136,7 +136,7 @@ in any process are cleared.
 .El
 .Pp
 The
-.Fa "struct semid_ds"
+.Vt "struct semid_ds"
 is defined as follows:
 .Bd -literal
 .\"
@@ -177,7 +177,9 @@ will fail if:
 No semaphore set corresponds to
 .Fa semid .
 .It Bq Er EINVAL
+The
 .Fa semnum
+argument
 is not in the range of valid semaphores for given semaphore set.
 .It Bq Er EPERM
 The calling process's effective uid does not match the uid of

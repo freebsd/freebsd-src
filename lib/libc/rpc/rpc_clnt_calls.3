@@ -77,7 +77,7 @@ The remaining routines deal with error handling in the case of errors.
 .Pp
 Some of the routines take a
 .Vt CLIENT
-handle as one of the parameters.
+handle as one of the arguments.
 A
 .Vt CLIENT
 handle can be created by an RPC creation routine such as
@@ -107,16 +107,19 @@ client creation routine such as
 .Fn clnt_create
 (see
 .Xr rpc_clnt_create 3 ) .
-The parameter
+The
 .Fa inproc
-is the XDR function used to encode the procedure's parameters, and
+argument
+is the XDR function used to encode the procedure's arguments, and
 .Fa outproc
 is the XDR function used to decode the procedure's results;
 .Fa in
 is the address of the procedure's argument(s), and
 .Fa out
 is the address of where to place the result(s).
+The
 .Fa tout
+argument
 is the time allowed for results to be returned, which is overridden by
 a time-out set explicitly through
 .Fn clnt_control ,
@@ -128,8 +131,9 @@ otherwise an appropriate status is returned.
 .It Fn clnt_freeres
 A function macro that frees any data allocated by the
 RPC/XDR system when it decoded the results of an RPC call.
-The parameter
+The
 .Fa out
+argument
 is the address of the results, and
 .Fa outproc
 is the XDR routine describing the results.
@@ -257,7 +261,9 @@ except that the initial timeout,
 and the maximum timeout,
 .Fa waittime
 are specified in milliseconds.
+The
 .Fa inittime
+argument
 is the initial time that
 .Fn rpc_broadcast_exp
 waits before resending the request.
@@ -272,16 +278,19 @@ and
 .Fa procnum
 on the machine,
 .Fa host .
-The parameter
+The
 .Fa inproc
-is used to encode the procedure's parameters, and
+argument
+is used to encode the procedure's arguments, and
 .Fa outproc
 is used to decode the procedure's results;
 .Fa in
 is the address of the procedure's argument(s), and
 .Fa out
 is the address of where to place the result(s).
+The
 .Fa nettype
+argument
 can be any of the values listed on
 .Xr rpc 3 .
 This routine returns

@@ -56,7 +56,7 @@ returns information describing the resources utilized by the current
 process, or all its terminated child processes.
 The
 .Fa who
-parameter is either
+argument is either
 .Dv RUSAGE_SELF
 or
 .Dv RUSAGE_CHILDREN .
@@ -163,11 +163,11 @@ system call will fail if:
 .It Bq Er EINVAL
 The
 .Fa who
-parameter is not a valid value.
+argument is not a valid value.
 .It Bq Er EFAULT
 The address specified by the
 .Fa rusage
-parameter is not in a valid part of the process address space.
+argument is not in a valid part of the process address space.
 .El
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,

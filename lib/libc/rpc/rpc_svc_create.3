@@ -57,7 +57,9 @@ data structure.
 .It Fn svc_control
 A function to change or retrieve various information
 about a service object.
+The
 .Fa req
+argument
 indicates the type of operation and
 .Fa info
 is a pointer to the information.
@@ -73,7 +75,9 @@ an
 .Dv RPC_PROGVERSMISMATCH
 error will normally
 be returned.
+The
 .Fa info
+argument
 should be a pointer to an
 integer.
 Upon successful completion of the
@@ -98,7 +102,9 @@ error will normally
 be returned.
 It is sometimes desirable to
 change this behavior.
+The
 .Fa info
+argument
 should be a
 pointer to an integer which is either 0
 (indicating normal server behavior - an
@@ -114,7 +120,9 @@ function
 creates server handles for all the transports
 belonging to the class
 .Fa nettype .
+The
 .Fa nettype
+argument
 defines a class of transports which can be used
 for a particular application.
 The transports are tried in left to right order in
@@ -133,7 +141,9 @@ function
 registers itself with the rpcbind
 service (see
 .Xr rpcbind 8 ) .
+The
 .Fa dispatch
+function
 is called when there is a remote procedure call for the given
 .Fa prognum
 and
@@ -167,10 +177,12 @@ service handle, and returns a pointer to it.
 This routine returns
 .Dv NULL
 if it fails, and an error message is logged.
+The
 .Fa sendsz
 and
 .Fa recvsz
-are parameters used to specify the size of the buffers.
+arguments
+are arguments used to specify the size of the buffers.
 If they are 0, suitable defaults are chosen.
 The file descriptor
 .Fa fildes
@@ -188,9 +200,11 @@ This routine creates a service on top of an open and bound file descriptor,
 and returns the handle to it.
 Typically, this descriptor is a connected file descriptor for a
 connection-oriented transport.
+The
 .Fa sendsz
 and
 .Fa recvsz
+arguments
 indicate sizes for the send and receive buffers.
 If they are 0, reasonable defaults are chosen.
 This routine returns
@@ -219,7 +233,9 @@ should not be called when the raw interface is being used.
 .It Fn svc_tli_create
 This routine creates an RPC
 server handle, and returns a pointer to it.
+The
 .Fa fildes
+argument
 is the file descriptor on which the service is listening.
 If
 .Fa fildes
@@ -257,7 +273,7 @@ In the case where the default address is chosen,
 the number of outstanding connect requests is set to 8
 for connection-oriented transports.
 The user may specify the size of the send and receive buffers
-with the parameters
+with the arguments
 .Fa sendsz
 and
 .Fa recvsz ;
@@ -277,7 +293,9 @@ creates a server handle for the network
 specified by
 .Fa netconf ,
 and registers itself with the rpcbind service.
+The
 .Fa dispatch
+function
 is called when there is a remote procedure call
 for the given
 .Fa prognum
@@ -299,7 +317,7 @@ This routine returns
 .Dv NULL
 if it fails, and an error message is logged.
 The users may specify the size of the send and receive buffers
-with the parameters
+with the arguments
 .Fa sendsz
 and
 .Fa recvsz ;

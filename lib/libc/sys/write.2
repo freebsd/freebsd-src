@@ -147,7 +147,9 @@ system calls
 will fail and the file pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Fa D
+The
+.Fa d
+argument
 is not a valid descriptor open for writing.
 .It Bq Er EPIPE
 An attempt is made to write to a pipe that is not open
@@ -201,7 +203,9 @@ domain datagram socket on which
 .Xr connect 2
 had been used to set a destination address.
 .It Bq Er EINVAL
-.Fa Iovcnt
+The
+.Fa iovcnt
+argument
 was less than or equal to 0, or greater than
 .Dv UIO_MAXIOV .
 .It Bq Er EINVAL

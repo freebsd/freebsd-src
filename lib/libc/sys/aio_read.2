@@ -59,6 +59,7 @@ of the calling process minus
 .Pp
 The
 .Fa iocb->aio_lio_opcode
+argument
 is ignored by the
 .Fn aio_read
 system call.
@@ -137,7 +138,9 @@ returned in
 .Pp
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa iocb->aio_fildes
+argument
 is invalid.
 .It Bq Er EINVAL
 The offset
@@ -169,7 +172,9 @@ system call is either one of the error returns from the
 system call, or one of:
 .Bl -tag -width Er
 .It Bq Er EBADF
+The
 .Fa iocb->aio_fildes
+argument
 is invalid for reading.
 .It Bq Er ECANCELED
 The request was explicitly cancelled via a call to

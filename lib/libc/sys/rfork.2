@@ -31,7 +31,9 @@ The resources include
 the open file descriptor table (which, when shared, permits processes
 to open and close files for other processes),
 and open files.
-.Fa Flags
+The
+.Fa flags
+argument
 is the logical OR of some subset of:
 .Bl -tag -width "RFCNAMEG" -compact -offset indent
 .It RFPROC
@@ -140,7 +142,9 @@ MIB variable
 .Dv KERN_MAXPROCPERUID .
 .It Bq Er EAGAIN
 The user is not the super user, and
-the soft resource limit corresponding to the resource parameter
+the soft resource limit corresponding to the
+.Fa resource
+argument
 .Dv RLIMIT_NOFILE
 would be exceeded (see
 .Xr getrlimit 2 ) .

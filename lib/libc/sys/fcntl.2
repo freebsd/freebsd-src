@@ -409,7 +409,9 @@ or the type is an exclusive lock and some portion of the
 segment of a file to be locked is already shared-locked or
 exclusive-locked by another process.
 .It Bq Er EBADF
-.Fa \&Fd
+The
+.Fa fd
+argument
 is not a valid open file descriptor.
 .Pp
 The argument
@@ -452,7 +454,9 @@ is
 .Dv F_SETLKW ,
 and the system call was interrupted by a signal.
 .It Bq Er EINVAL
-.Fa Cmd
+The
+.Fa cmd
+argument
 is
 .Dv F_DUPFD
 and
@@ -513,14 +517,18 @@ and an
 .Fa off_t
 calculation overflowed.
 .It Bq Er EPERM
-.Fa Cmd
+The
+.Fa cmd
+argument
 is
 .Dv F_SETOWN
 and
 the process ID or process group given as an argument is in a
 different session than the caller.
 .It Bq Er ESRCH
-.Fa Cmd
+The
+.Fa cmd
+argument
 is
 .Dv F_SETOWN
 and

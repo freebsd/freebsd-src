@@ -82,7 +82,7 @@ The other wait functions are implemented using
 .Pp
 The
 .Fa wpid
-parameter specifies the set of child processes for which to wait.
+argument specifies the set of child processes for which to wait.
 If
 .Fa wpid
 is -1, the call waits for any child process.
@@ -102,9 +102,9 @@ equals the absolute value of
 .Pp
 The
 .Fa status
-parameter is defined below.  The
+argument is defined below.  The
 .Fa options
-parameter contains the bitwise OR of any of the following options.
+argument contains the bitwise OR of any of the following options.
 The
 .Dv WCONTINUED
 option indicates that children of the current process that
@@ -279,7 +279,7 @@ The
 .Fa status
 or
 .Fa rusage
-arguments point to an illegal address.
+argument points to an illegal address.
 (May not be detected before exit of a child process.)
 .It Bq Er EINTR
 The call was interrupted by a caught signal,

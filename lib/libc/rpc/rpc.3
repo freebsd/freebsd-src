@@ -33,7 +33,7 @@ be included.
 Some of the high-level
 RPC interface routines take a
 .Fa nettype
-string as one of the parameters
+string as one of the arguments
 (for example,
 .Fn clnt_create ,
 .Fn svc_create ,
@@ -42,7 +42,9 @@ string as one of the parameters
 This string defines a class of transports which can be used
 for a particular application.
 .Pp
+The
 .Fa nettype
+argument
 can be one of the following:
 .Bl -tag -width datagram_v
 .It netpath

@@ -135,9 +135,10 @@ and neither the containing directory nor
 .Fa from
 are owned by the effective user ID.
 .It Bq Er EPERM
-The
+The file pointed at by the
 .Fa to
-file exists,
+argument
+exists,
 the directory containing
 .Fa to
 is marked sticky,
@@ -149,12 +150,16 @@ Too many symbolic links were encountered in translating either pathname.
 .It Bq Er ENOTDIR
 A component of either path prefix is not a directory.
 .It Bq Er ENOTDIR
+The
 .Fa from
+argument
 is a directory, but
 .Fa to
 is not a directory.
 .It Bq Er EISDIR
+The
 .Fa to
+argument
 is a directory, but
 .Fa from
 is not a directory.
@@ -184,7 +189,9 @@ system.
 Path
 points outside the process's allocated address space.
 .It Bq Er EINVAL
-.Fa From
+The
+.Fa from
+argument
 is a parent directory of
 .Fa to ,
 or an attempt is made to rename
@@ -192,7 +199,9 @@ or an attempt is made to rename
 or
 .Ql \&.. .
 .It Bq Er ENOTEMPTY
-.Fa To
+The
+.Fa to
+argument
 is a directory and is not empty.
 .El
 .Sh SEE ALSO

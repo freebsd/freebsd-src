@@ -146,20 +146,22 @@ is returned and
 is set.
 The
 .Fa flags
-parameter is not currently used.
+argument is not currently used.
 .Pp
 The function
 .Fn mpool_put
 unpins the page referenced by
 .Fa pgaddr .
-.Fa Pgaddr
+The
+.Fa pgaddr
+argument
 must be an address previously returned by
 .Fn mpool_get
 or
 .Fn mpool_new .
 The
 .Fa flags
-value is specified by
+argument is specified by
 .Em or Ns 'ing
 any of the following values:
 .Bl -tag -width indent

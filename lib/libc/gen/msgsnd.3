@@ -50,7 +50,9 @@ The
 .Fn msgsnd
 function sends a message to the message queue specified in
 .Fa msqid .
+The
 .Fa msgp
+argument
 points to a structure containing the message.
 This structure should
 consist of the following members:
@@ -129,7 +131,9 @@ function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa msqid
+argument
 is not a valid message queue identifier
 .Pp
 The message queue was removed while
@@ -137,11 +141,15 @@ The message queue was removed while
 was waiting for a resource to become available in order to deliver the
 message.
 .Pp
+The
 .Fa msgsz
+argument
 is less than 0, or greater than
 .Va msg_qbytes .
 .Pp
+The
 .Fa mtype
+argument
 is not greater than 0.
 .It Bq Er EACCES
 The calling process does not have write access to the message queue.
@@ -152,7 +160,9 @@ system, and
 was set in
 .Fa msgflg .
 .It Bq Er EFAULT
+The
 .Fa msgp
+argument
 points to an invalid address.
 .It Bq Er EINTR
 The system call was interrupted by the delivery of a signal.

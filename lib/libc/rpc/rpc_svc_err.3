@@ -55,7 +55,7 @@ Called by a service dispatch routine that refuses to perform
 a remote procedure call due to an authentication error.
 .It Fn svcerr_decode
 Called by a service dispatch routine that cannot successfully
-decode the remote parameters
+decode the remote arguments
 (see
 .Fn svc_getargs
 in
@@ -70,7 +70,9 @@ Service implementors usually do not need this routine.
 .It Fn svcerr_progvers
 Called when the desired version of a program is not registered with the
 RPC package.
+The
 .Fa low_vers
+argument
 is the lowest version number,
 and
 .Fa high_vers
@@ -84,7 +86,7 @@ it may call this routine.
 .It Fn svcerr_weakauth
 Called by a service dispatch routine that refuses to perform
 a remote procedure call due to insufficient (but correct)
-authentication parameters.
+authentication arguments.
 The routine calls
 .Fn svcerr_auth "xprt" "AUTH_TOOWEAK" .
 .El

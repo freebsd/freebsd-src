@@ -140,11 +140,13 @@ is 100000000.
 .Sh NOTES
 Three macros for manipulating time values are defined in
 .Ao Pa sys/time.h Ac .
-.Fa Timerclear
+The
+.Fn timerclear
+macro
 sets a time value to zero,
-.Fa timerisset
+.Fn timerisset
 tests if a time value is non-zero, and
-.Fa timercmp
+.Fn timercmp
 compares two time values.
 .Sh RETURN VALUES
 .Rv -std
@@ -159,11 +161,11 @@ will fail if:
 .It Bq Er EFAULT
 The
 .Fa value
-parameter specified a bad address.
+argument specified a bad address.
 .It Bq Er EINVAL
-A
+The
 .Fa value
-parameter specified a time that was too large
+argument specified a time that was too large
 to be handled.
 .El
 .Sh SEE ALSO

@@ -64,7 +64,7 @@ or
 .Pp
 The
 .Fa backlog
-parameter defines the maximum length the queue of
+argument defines the maximum length the queue of
 pending connections may grow to.
 If a connection
 request arrives with the queue full the client may
@@ -78,7 +78,7 @@ Note that before
 and the introduction of the syncache,
 the
 .Fa backlog
-parameter also determined the length of the incomplete
+argument also determined the length of the incomplete
 connection queue, which held TCP sockets in the process
 of completing TCP's 3-way handshake.
 These incomplete connections
@@ -116,7 +116,7 @@ its accept filter criteria will be terminated.
 This secondary queue, like the primary listen queue, is sized
 according to the
 .Fa backlog
-parameter.
+argument.
 .Sh RETURN VALUES
 .Rv -std listen
 .Sh ERRORS

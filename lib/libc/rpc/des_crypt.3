@@ -54,23 +54,23 @@ Also, regularities in the clear text will
 not appear in the cipher text.
 .Pp
 Here is how to use these routines.
-The first parameter,
+The first argument,
 .Fa key ,
 is the 8-byte encryption key with parity.
 To set the key's parity, which for
 .Tn DES
 is in the low bit of each byte, use
 .Fn des_setparity .
-The second parameter,
+The second argument,
 .Fa data ,
 contains the data to be encrypted or decrypted.
 The
-third parameter,
+third argument,
 .Fa datalen ,
 is the length in bytes of
 .Fa data ,
 which must be a multiple of 8.
-The fourth parameter,
+The fourth argument,
 .Fa mode ,
 is formed by
 .Em OR Ns 'ing
@@ -95,8 +95,9 @@ in software and the routine returns
 .Er DESERR_NOHWDEVICE .
 For
 .Fn cbc_crypt ,
-the parameter
+the
 .Fa ivec
+argument
 is the 8-byte initialization
 vector for the chaining.
 It is updated to the next initialization
@@ -110,7 +111,7 @@ Encryption succeeded, but done in software instead of the requested hardware.
 .It Bq Er DESERR_HWERR
 An error occurred in the hardware or driver.
 .It Bq Er DESERR_BADPARAM
-Bad parameter to routine.
+Bad argument to routine.
 .El
 .Pp
 Given a result status

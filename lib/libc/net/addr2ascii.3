@@ -87,16 +87,16 @@ function performs the inverse operation to
 .Fn addr2ascii .
 In addition to
 .Fa af ,
-it takes two parameters,
+it takes two arguments,
 .Fa ascii
 and
 .Fa result .
 The
 .Fa ascii
-parameter is a pointer to the string which is to be converted into
+argument is a pointer to the string which is to be converted into
 binary.  The
 .Fa result
-parameter is a pointer to an appropriate network address structure for
+argument is a pointer to an appropriate network address structure for
 the specified family.
 .Pp
 The following gives the appropriate structure to use for binary
@@ -171,12 +171,12 @@ The
 .Fn addr2ascii
 routine was passed a
 .Fa len
-parameter which was inappropriate for the address family given by
+argument which was inappropriate for the address family given by
 .Fa af .
 .It Bq Er EPROTONOSUPPORT
 Either routine was passed an
 .Fa af
-parameter other than
+argument other than
 .Dv AF_INET
 or
 .Dv AF_LINK .

@@ -59,7 +59,9 @@ all resources associated with the file are reclaimed.
 If one or more process have the file open when the last link is removed,
 the link is removed, but the removal of the file is delayed until
 all references to it have been closed.
+The
 .Fa path
+argument
 may not be a directory.
 .Sh RETURN VALUES
 .Rv -std unlink
@@ -97,7 +99,9 @@ or deallocating the inode.
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .El
 .Sh SEE ALSO

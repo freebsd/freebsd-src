@@ -82,10 +82,14 @@ system call will fail if:
 Kernel resources to complete the request are
 temporarily unavailable.
 .It Bq Er EBADF
-.Fa S
+The
+.Fa s
+argument
 is not a valid descriptor.
 .It Bq Er ENOTSOCK
-.Fa S
+The
+.Fa s
+argument
 is not a socket.
 .It Bq Er EADDRNOTAVAIL
 The specified address is not available from the local machine.
@@ -97,7 +101,7 @@ has inadequate permission to access it.
 .It Bq Er EFAULT
 The
 .Fa addr
-parameter is not in a valid part of the user
+argument is not in a valid part of the user
 address space.
 .El
 .Pp

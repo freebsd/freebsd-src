@@ -79,13 +79,19 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa addr
+argument
 is not a multiple of the hardware page size.
 .It Bq Er EINVAL
+The
 .Fa len
+argument
 is too large or negative.
 .It Bq Er EINVAL
+The
 .Fa flags
+argument
 was both MS_ASYNC and MS_INVALIDATE.
 Only one of these flags is allowed.
 .It Bq Er EIO

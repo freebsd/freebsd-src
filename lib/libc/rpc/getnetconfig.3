@@ -58,7 +58,9 @@ function
 returns
 .Dv NULL
 at the end of the file.
+The
 .Fa handlep
+argument
 is the handle obtained through
 .Fn setnetconfig .
 .Pp
@@ -90,7 +92,9 @@ The
 .Fn endnetconfig
 function
 should be called when processing is complete to release resources for reuse.
+The
 .Fa handlep
+argument
 is the handle obtained through
 .Fn setnetconfig .
 Programmers should be aware, however, that the last call to

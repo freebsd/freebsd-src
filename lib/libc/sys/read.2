@@ -142,10 +142,14 @@ system calls
 will succeed unless:
 .Bl -tag -width Er
 .It Bq Er EBADF
-.Fa D
+The
+.Fa d
+argument
 is not a valid file or socket descriptor open for reading.
 .It Bq Er EFAULT
-.Fa Buf
+The
+.Fa buf
+argument
 points outside the allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from the file system.
@@ -166,7 +170,9 @@ In addition,
 may return one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-.Fa Iovcnt
+The
+.Fa iovcnt
+argument
 was less than or equal to 0, or greater than 16.
 .It Bq Er EINVAL
 One of the

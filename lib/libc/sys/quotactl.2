@@ -112,7 +112,9 @@ Only the super-user may turn quotas off.
 Get disk quota limits and current usage for the user or group
 (as determined by the command type) with identifier
 .Fa id .
-.Fa Addr
+The
+.Fa addr
+argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
@@ -121,7 +123,9 @@ structure (defined in
 Set disk quota limits for the user or group
 (as determined by the command type) with identifier
 .Fa id .
-.Fa Addr
+The
+.Fa addr
+argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
@@ -134,7 +138,9 @@ This system call is restricted to the super-user.
 Set disk usage limits for the user or group
 (as determined by the command type) with identifier
 .Fa id .
-.Fa Addr
+The
+.Fa addr
+argument
 is a pointer to a
 .Fa struct dqblk
 structure (defined in
@@ -148,7 +154,7 @@ The
 .Fa id
 and
 .Fa addr
-parameters are ignored.
+arguments are ignored.
 .El
 .Sh RETURN VALUES
 .Rv -std quotactl
@@ -164,7 +170,9 @@ option.
 .It Bq Er EUSERS
 The quota table cannot be expanded.
 .It Bq Er EINVAL
-.Fa Cmd
+The
+.Fa cmd
+argument
 or the command type is invalid.
 In
 .Dv Q_GETQUOTA
@@ -201,7 +209,9 @@ An invalid
 was supplied; the associated structure could not be copied in or out
 of the kernel.
 .It Bq Er EFAULT
-.Fa Path
+The
+.Fa path
+argument
 points outside the process's allocated address space.
 .It Bq Er EPERM
 The call was privileged and the caller was not the super-user.
