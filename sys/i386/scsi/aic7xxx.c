@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.70 1996/05/23 15:02:06 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.71 1996/05/30 07:19:57 gibbs Exp $
  */
 /*
  * TODO:
@@ -235,10 +235,7 @@ static struct scsi_device ahc_dev =
  * Restart the sequencer program from address zero
  */
 #define RESTART_SEQUENCER(ahc)						\
-	do {								\
-		AHC_OUTB(ahc, SEQCTL, SEQRESET|FASTMODE);		\
-	} while (AHC_INB(ahc, SEQADDR0) != 0 &&				\
-		 AHC_INB(ahc, SEQADDR1) != 0);				\
+	AHC_OUTB(ahc, SEQCTL, SEQRESET|FASTMODE);			\
 									\
 	UNPAUSE_SEQUENCER(ahc);
 
@@ -1747,13 +1744,14 @@ clear:
                         printf("parity error during %s phase.\n", phase);
 
 			/*
-			 * We've set the hardware to assert ATN if we
-			 * get a parity error on "in" phases, so all we
-			 * need to do is stuff the message buffer with
+			 * Assert ATN if we got a parity error in an "in"
+			 * phase, and stuff the message buffer with
 			 * the appropriate message.  "In" phases have set
 			 * mesg_out to something other than MSG_NOP.
 			 */
 			if(mesg_out != MSG_NOP) {
+				u_char scsisig = AHC_INB(ahc, SCSISIGI);
+				AHC_OUTB(ahc, SCSISIGO, scsisig | ATNO);
 				AHC_OUTB(ahc, MSG0, mesg_out);
 				AHC_OUTB(ahc, MSG_LEN, 1);
 			}
@@ -1783,6 +1781,8 @@ clear:
 				IS_SCSIBUS_B(ahc, xs->sc_link)
 #endif
 				 	? 'B' : 'A');
+			/* Stop the selection */
+			AHC_OUTB(ahc, SCSISEQ, 0);
 
 			AHC_OUTB(ahc, SCB_CONTROL, 0);
 
@@ -2624,11 +2624,8 @@ static void ahc_loadseq(ahc)
 	AHC_OUTSB(ahc, SEQRAM, seqprog, sizeof(seqprog));
 
 	AHC_OUTB(ahc, SEQCTL, FASTMODE|SEQRESET);
-	do {
-		AHC_OUTB(ahc, SEQCTL, SEQRESET|FASTMODE);
 
-	} while (AHC_INB(ahc, SEQADDR0) != 0 &&
-		 AHC_INB(ahc, SEQADDR1) != 0);
+	AHC_OUTB(ahc, SEQCTL, SEQRESET|FASTMODE);
 }
 
 /*
