@@ -58,6 +58,7 @@ struct nameidata {
      /* struct	ucred *ni_cred;		   credentials */
 	struct	vnode *ni_startdir;	/* starting directory */
 	struct	vnode *ni_rootdir;	/* logical root directory */
+	struct	vnode *ni_topdir;	/* logical top directory */
 	/*
 	 * Results: returned from/manipulated by lookup
 	 */

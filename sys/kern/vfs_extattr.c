@@ -910,6 +910,10 @@ chroot(p, uap)
 		return (error);
 	vrele(fdp->fd_rdir);
 	fdp->fd_rdir = nd.ni_vp;
+	if (!fdp->fd_jdir) {
+		fdp->fd_jdir = nd.ni_vp;
+                VREF(fdp->fd_jdir);
+	}
 	return (0);
 }
 
