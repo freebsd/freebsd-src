@@ -39,6 +39,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/pcpu.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/bio.h>
@@ -1368,7 +1369,5 @@ globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
 {
 	bzero(globaldata, sz);
 	globaldata->gd_cpuid = cpuid;
-#ifdef SMP
 	globaldata_register(globaldata);
-#endif
 }

@@ -31,32 +31,19 @@
 
 /*
  * This module holds the global variables and machine independent functions
- * used for the kernel SMP support.  It also provides MI support for per-cpu
- * data.
+ * used for the kernel SMP support.
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/ipl.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/kernel.h>
+#include <sys/pcpu.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_map.h>
-#include <sys/user.h>
-#include <sys/dkstat.h>
-
-#include <machine/atomic.h>
-#include <machine/globaldata.h>
-#include <machine/pmap.h>
-#include <machine/clock.h>
 
 volatile u_int stopped_cpus;
 volatile u_int started_cpus;
@@ -66,9 +53,6 @@ int mp_ncpus;
 
 volatile int smp_started;
 u_int all_cpus;
-
-static struct globaldata *cpuid_to_globaldata[MAXCPU];
-struct cpuhead cpuhead = SLIST_HEAD_INITIALIZER(cpuhead);
 
 SYSCTL_NODE(_kern, OID_AUTO, smp, CTLFLAG_RD, NULL, "Kernel SMP");
 
@@ -114,29 +98,6 @@ mp_start(void *dummy)
 	cpu_mp_announce();
 }
 SYSINIT(cpu_mp, SI_SUB_CPU, SI_ORDER_SECOND, mp_start, NULL)
-
-/*
- * Register a struct globaldata.
- */
-void
-globaldata_register(struct globaldata *globaldata)
-{
-
-	KASSERT(globaldata->gd_cpuid >= 0 && globaldata->gd_cpuid < MAXCPU,
-	    ("globaldata_register: invalid cpuid"));
-	cpuid_to_globaldata[globaldata->gd_cpuid] = globaldata;
-	SLIST_INSERT_HEAD(&cpuhead, globaldata, gd_allcpu);
-}
-
-/*
- * Locate a struct globaldata by cpu id.
- */
-struct globaldata *
-globaldata_find(u_int cpuid)
-{
-
-	return (cpuid_to_globaldata[cpuid]);
-}
 
 void
 forward_signal(struct proc *p)

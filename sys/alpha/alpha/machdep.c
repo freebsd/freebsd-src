@@ -103,6 +103,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/pcpu.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
 #include <sys/bio.h>
@@ -131,7 +132,6 @@
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
-#include <machine/globaldata.h>
 #include <machine/cpuconf.h>
 #include <machine/bootinfo.h>
 #include <machine/rpb.h>
@@ -2241,7 +2241,5 @@ globaldata_init(struct globaldata *globaldata, int cpuid, size_t sz)
 	globaldata->gd_cpuid = cpuid;
 	globaldata->gd_next_asn = 0;
 	globaldata->gd_current_asngen = 1;
-#ifdef SMP
 	globaldata_register(globaldata);
-#endif
 }
