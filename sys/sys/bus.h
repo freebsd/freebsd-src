@@ -58,8 +58,8 @@ struct u_device {
 	char		dv_name[32];		/* Name of device in tree. */
 	char		dv_desc[32];		/* Driver description */
 	char		dv_drivername[32];	/* Driver name */
-	char		dv_pnpinfo[64];		/* Plug and play info */
-	char		dv_location[64];	/* Where is the device? */
+	char		dv_pnpinfo[128];	/* Plug and play info */
+	char		dv_location[128];	/* Where is the device? */
 	uint32_t	dv_devflags;		/* API Flags for device */
 	uint16_t	dv_flags;		/* flags for dev date */
 	device_state_t	dv_state;		/* State of attachment */
