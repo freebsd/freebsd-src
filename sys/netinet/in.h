@@ -46,10 +46,12 @@
  * Protocols (RFC 1700)
  */
 #define	IPPROTO_IP		0		/* dummy for IP */
+#define	IPPROTO_HOPOPTS		0		/* IP6 hop-by-hop options */
 #define	IPPROTO_ICMP		1		/* control message protocol */
 #define	IPPROTO_IGMP		2		/* group mgmt protocol */
 #define	IPPROTO_GGP		3		/* gateway^2 (deprecated) */
-#define IPPROTO_IPIP		4 		/* IP encapsulation in IP */
+#define IPPROTO_IPV4		4 		/* IPv4 encapsulation */
+#define IPPROTO_IPIP		IPPROTO_IPV4	/* for compatibility */
 #define	IPPROTO_TCP		6		/* tcp */
 #define	IPPROTO_ST		7		/* Stream protocol II */
 #define	IPPROTO_EGP		8		/* exterior gateway protocol */
@@ -85,21 +87,24 @@
 #define	IPPROTO_CMTP		38		/* Control Message Transport */
 #define	IPPROTO_TPXX		39		/* TP++ Transport */
 #define	IPPROTO_IL		40		/* IL transport protocol */
-#define	IPPROTO_SIP		41		/* Simple Internet Protocol */
+#define	IPPROTO_IPV6		41		/* IP6 header */
 #define	IPPROTO_SDRP		42		/* Source Demand Routing */
-#define	IPPROTO_SIPSR		43		/* SIP Source Route */
-#define	IPPROTO_SIPFRAG		44		/* SIP Fragment */
+#define	IPPROTO_ROUTING		43		/* IP6 routing header */
+#define	IPPROTO_FRAGMENT	44		/* IP6 fragmentation header */
 #define	IPPROTO_IDRP		45		/* InterDomain Routing*/
-#define IPPROTO_RSVP		46 		/* resource reservation */
+#define	IPPROTO_RSVP		46 		/* resource reservation */
 #define	IPPROTO_GRE		47		/* General Routing Encap. */
 #define	IPPROTO_MHRP		48		/* Mobile Host Routing */
 #define	IPPROTO_BHA		49		/* BHA */
-#define	IPPROTO_ESP		50		/* SIPP Encap Sec. Payload */
-#define	IPPROTO_AH		51		/* SIPP Auth Header */
+#define	IPPROTO_ESP		50		/* IP6 Encap Sec. Payload */
+#define	IPPROTO_AH		51		/* IP6 Auth Header */
 #define	IPPROTO_INLSP		52		/* Integ. Net Layer Security */
 #define	IPPROTO_SWIPE		53		/* IP with encryption */
 #define	IPPROTO_NHRP		54		/* Next Hop Resolution */
-/* 55-60: Unassigned */
+/* 55-57: Unassigned */
+#define	IPPROTO_ICMPV6		58		/* ICMP6 */
+#define	IPPROTO_NONE		59		/* IP6 no next header */
+#define	IPPROTO_DSTOPTS		60		/* IP6 destination option */
 #define	IPPROTO_AHIP		61		/* any host internal protocol */
 #define	IPPROTO_CFTP		62		/* CFTP */
 #define	IPPROTO_HELLO		63		/* "hello" routing protocol */
@@ -140,7 +145,9 @@
 #define	IPPROTO_ENCAP		98		/* encapsulation header */
 #define	IPPROTO_APES		99		/* any private encr. scheme */
 #define	IPPROTO_GMTP		100		/* GMTP*/
+#define	IPPROTO_IPCOMP		108		/* payload compression (IPComp) */
 /* 101-254: Partly Unassigned */
+#define	IPPROTO_PIM		103		/* Protocol Independent Mcast */
 #define	IPPROTO_PGM		113		/* PGM */
 /* 255: Reserved */
 /* BSD Private, local use, namespace incursion */
@@ -148,6 +155,8 @@
 #define	IPPROTO_RAW		255		/* raw IP packet */
 #define	IPPROTO_MAX		256
 
+/* last return value of *_input(), meaning "all job for this pkt is done".  */
+#define	IPPROTO_DONE		257
 
 /*
  * Local port number conventions:
@@ -280,6 +289,8 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
+#define	INET_ADDRSTRLEN                 16
+
 /*
  * Structure used to describe IP options.
  * Used to store options internally, to pass them to a process,
@@ -316,13 +327,16 @@ struct ip_opts {
 #define IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
 #define IP_PORTRANGE		19   /* int; range to choose for unspec port */
 #define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
+/* for IPSEC */
+#define	IP_IPSEC_POLICY		21   /* int; set/get security policy */
+#define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
 
-#define IP_FW_ADD     		50   /* add a firewall rule to chain */
-#define IP_FW_DEL    		51   /* delete a firewall rule from chain */
-#define IP_FW_FLUSH   		52   /* flush firewall rule chain */
-#define IP_FW_ZERO    		53   /* clear single/all firewall counter(s) */
-#define IP_FW_GET     		54   /* get entire firewall rule chain */
-#define IP_FW_RESETLOG		55   /* reset logging counters */
+#define	IP_FW_ADD     		50   /* add a firewall rule to chain */
+#define	IP_FW_DEL    		51   /* delete a firewall rule from chain */
+#define	IP_FW_FLUSH   		52   /* flush firewall rule chain */
+#define	IP_FW_ZERO    		53   /* clear single/all firewall counter(s) */
+#define	IP_FW_GET     		54   /* get entire firewall rule chain */
+#define	IP_FW_RESETLOG		55   /* reset logging counters */
 
 #define	IP_DUMMYNET_CONFIGURE	60   /* add/configure a dummynet pipe */
 #define	IP_DUMMYNET_DEL		61   /* delete a dummynet pipe from chain */
@@ -358,7 +372,7 @@ struct ip_mreq {
  * Third level is protocol number.
  * Fourth level is desired variable within that protocol.
  */
-#define	IPPROTO_MAXID	(IPPROTO_IDP + 1)	/* don't list to IPPROTO_MAX */
+#define	IPPROTO_MAXID	(IPPROTO_ESP + 1)	/* don't list to IPPROTO_MAX */
 
 #define	CTL_IPPROTO_NAMES { \
 	{ "ip", CTLTYPE_NODE }, \
@@ -401,11 +415,13 @@ struct ip_mreq {
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
-#define IPCTL_INTRQDROPS	11	/* number of netisr q drops */
+#define	IPCTL_INTRQDROPS	11	/* number of netisr q drops */
 #define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
-#define IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
-#define	IPCTL_MAXID		15
+#define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
+#define	IPCTL_KEEPFAITH		15
+#define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
+#define	IPCTL_MAXID		17
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -425,6 +441,8 @@ struct ip_mreq {
 	{ "fastforwarding", CTLTYPE_INT }, \
 }
 
+/* INET6 stuff */
+#include <netinet6/in6.h>
 
 #ifdef KERNEL
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */

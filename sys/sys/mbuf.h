@@ -48,7 +48,7 @@
 #define	MLEN		(MSIZE - sizeof(struct m_hdr))	/* normal data len */
 #define	MHLEN		(MLEN - sizeof(struct pkthdr))	/* data len w/pkthdr */
 
-#define	MINCLSIZE	(MHLEN + MLEN)	/* smallest amount to put in cluster */
+#define	MINCLSIZE	(MHLEN + 1)	/* smallest amount to put in cluster */
 #define	M_MAXCOMPRESS	(MHLEN / 2)	/* max amount to copy for compression */
 
 /*
@@ -123,14 +123,18 @@ struct mbuf {
 #define	M_PKTHDR	0x0002	/* start of record */
 #define	M_EOR		0x0004	/* end of record */
 #define	M_PROTO1	0x0008	/* protocol-specific */
+#define	M_PROTO2	0x0010	/* protocol-specific */
+#define	M_PROTO3	0x0020	/* protocol-specific */
+#define	M_PROTO4	0x0040	/* protocol-specific */
+#define	M_PROTO5	0x0080	/* protocol-specific */
 
 /* mbuf pkthdr flags, also in m_flags */
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
-#define M_FRAG		0x0400	/* packet is a fragment of a larger packet */
+#define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
 
 /* flags copied when copying m_pkthdr */
-#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_BCAST|M_MCAST)
+#define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG)
 
 /* mbuf types */
 #define	MT_FREE		0	/* should be on free list */

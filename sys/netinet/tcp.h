@@ -102,6 +102,14 @@ struct tcphdr {
  */
 #define	TCP_MSS	512
 
+/*
+ * Default maximum segment size for TCP6.
+ * With an IP6 MSS of 1280, this is 1220,
+ * but 1024 is probably more convenient. (xxx kazu in doubt)
+ * This should be defined as MIN(1024, IP6_MSS - sizeof (struct tcpip6hdr))
+ */
+#define	TCP6_MSS	1024
+
 #define	TCP_MAXWIN	65535	/* largest value for (unscaled) window */
 #define	TTCP_CLIENT_SND_WND	4096	/* dflt send window for T/TCP client */
 

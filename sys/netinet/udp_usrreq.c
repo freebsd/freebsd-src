@@ -74,22 +74,22 @@ static int	udpcksum = 0;		/* XXX */
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
 
-static int log_in_vain = 0;
+int	log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
     &log_in_vain, 0, "Log all incoming UDP packets");
 
-static int blackhole = 0;
+static int	blackhole = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
 	&blackhole, 0, "Do not send port unreachables for refused connects");
 
-static struct	inpcbhead udb;		/* from udp_var.h */
-struct inpcbinfo udbinfo;
+struct	inpcbhead udb;		/* from udp_var.h */
+struct	inpcbinfo udbinfo;
 
 #ifndef UDBHASHSIZE
 #define UDBHASHSIZE 16
 #endif
 
-static struct	udpstat udpstat;	/* from udp_var.h */
+struct	udpstat udpstat;	/* from udp_var.h */
 SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RD,
     &udpstat, udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
@@ -97,7 +97,6 @@ static struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
 
 static	int udp_output __P((struct inpcb *, struct mbuf *, struct sockaddr *,
 			    struct mbuf *, struct proc *));
-static	void udp_notify __P((struct inpcb *, int));
 
 void
 udp_init()
@@ -341,7 +340,7 @@ bad:
  * Notify a udp user of an asynchronous error;
  * just wake up so that he can collect error status.
  */
-static void
+void
 udp_notify(inp, errno)
 	register struct inpcb *inp;
 	int errno;
@@ -585,12 +584,12 @@ release:
 	return (error);
 }
 
-static u_long	udp_sendspace = 9216;		/* really max datagram size */
+u_long	udp_sendspace = 9216;		/* really max datagram size */
 					/* 40 1K datagrams */
 SYSCTL_INT(_net_inet_udp, UDPCTL_MAXDGRAM, maxdgram, CTLFLAG_RW,
     &udp_sendspace, 0, "Maximum outgoing UDP datagram size");
 
-static u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
+u_long	udp_recvspace = 40 * (1024 + sizeof(struct sockaddr_in));
 SYSCTL_INT(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum incoming UDP datagram size");
 
@@ -718,7 +717,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	return udp_output(inp, m, addr, control, p);
 }
 
-static int
+int
 udp_shutdown(struct socket *so)
 {
 	struct inpcb *inp;
