@@ -197,6 +197,7 @@ dev/aac/aac_debug.c	optional aac
 dev/aac/aac_disk.c	optional aac
 dev/aac/aac_pci.c	optional aac pci
 dev/acpica/acpi.c		optional acpica
+dev/acpica/acpica_support.c	optional acpica
 dev/acpica/acpi_acad.c		optional acpica
 dev/acpica/acpi_battery.c	optional acpica
 dev/acpica/acpi_button.c	optional acpica
