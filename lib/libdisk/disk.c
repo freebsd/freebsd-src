@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <err.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
