@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.1 1996/04/28 01:07:26 jkh Exp $
+ * $Id: samba.c,v 1.2 1996/04/28 03:27:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -37,7 +37,7 @@
 #include "sysinstall.h"
 
 static DMenu MenuSamba = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Samba Services Menu",
     "This allows you to configure various aspects of your Samba server.",
     NULL,
@@ -58,6 +58,7 @@ int
 configSamba(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS;
+    WINDOW *w = savescr();
 
     if (!dmenuOpenSimple(&MenuSamba))
 	i = DITEM_FAILURE;
@@ -150,6 +151,7 @@ configSamba(dialogMenuItem *self)
     }
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("samba", "YES");
-    return i | DITEM_RESTORE | DITEM_RECREATE;
+    restorescr(w);
+    return i | DITEM_RECREATE;
 }
 
