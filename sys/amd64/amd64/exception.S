@@ -30,13 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.27 1997/05/26 18:00:34 fsmp Exp $
+ *	$Id: exception.s,v 1.28 1997/05/29 05:11:09 peter Exp $
  */
 
 #include "npx.h"				/* NNPX */
 #include "assym.s"				/* system defines */
 #include <sys/errno.h>				/* error return codes */
-#include <machine/spl.h>			/* SWI_AST_MASK ... */
+#include <machine/ipl.h>			/* SWI_AST_MASK ... */
 #include <machine/psl.h>			/* PSL_I */
 #include <machine/trap.h>			/* trap codes */
 #include <sys/syscall.h>			/* syscall numbers */
