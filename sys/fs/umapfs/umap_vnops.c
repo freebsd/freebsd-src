@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.26 1998/12/07 21:58:34 archie Exp $
+ * $Id: umap_vnops.c,v 1.27 1999/06/16 23:27:41 mckusick Exp $
  */
 
 /*
@@ -294,8 +294,6 @@ umap_getattr(ap)
 	error = umap_bypass((struct vop_generic_args *)ap);
 	if (error)
 		return (error);
-	/* Requires that arguments be restored. */
-	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 
 	/*
 	 * Umap needs to map the uid and gid returned by a stat

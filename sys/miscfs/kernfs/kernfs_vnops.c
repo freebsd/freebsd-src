@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.37 1998/12/07 21:58:31 archie Exp $
+ * $Id: kernfs_vnops.c,v 1.38 1999/01/27 22:42:06 dillon Exp $
  */
 
 /*
@@ -378,7 +378,6 @@ kernfs_getattr(ap)
 	vattr_null(vap);
 	vap->va_uid = 0;
 	vap->va_gid = 0;
-	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	vap->va_size = 0;
 	vap->va_blocksize = DEV_BSIZE;
 	nanotime(&vap->va_atime);
