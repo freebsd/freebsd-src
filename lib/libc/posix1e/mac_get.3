@@ -15,9 +15,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -45,21 +42,25 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/mac.h
-.Ft mac_t
-.Fn mac_get_file "const char *path_p"
-.Ft mac_t
-.Fn mac_get_fd "int fd"
-.Ft mac_t
-.Fn mac_get_proc
+.Ft int
+.Fn mac_get_file "const char *path" "mac_t label"
+.Ft int
+.Fn mac_get_fd "int fd" "mac_t label"
+.Ft int
+.Fn mac_get_pid "pid_t pid" "mac_t label"
+.Ft int
+.Fn mac_get_proc "mac_t label"
 .Sh DESCRIPTION
 The
 .Fn mac_get_file
 and
 .Fn mac_get_fd
-functions return the MAC label associated
-with the file referenced by
-the pathname pointed to by
-.Fa path_p
+functions fill in
+.Fa label
+(which must first be allocated by
+.Xr mac_prepare 3 )
+with the MAC label associated with the file referenced by
+.Fa path
 or the file descriptor specified by
 .Fa fd ,
 respectively.
@@ -67,42 +68,52 @@ Note that this function will fail on socket descriptors.
 For information on
 getting MAC labels on socket descriptors see
 .Xr getsockopt 2 .
+.Pp
 The
 .Fn mac_get_proc
-function returns a MAC label associated
-with the requesting process.
+and
+.Fn mac_get_pid
+functions fill in
+.Fa label
+(which must first be allocated by
+.Xr mac_prepare 3 )
+with the MAC label associated
+with the requesting process
+or the specified process, respectively.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EACCES
 A component of
-.Fa path_p
+.Fa path
 is not searchable,
 or MAC read access to the file
 is denied.
 .It Bq Er ENAMETOOLONG
 The pathname pointed to by
-.Fa path_p
+.Fa path
 exceeds
 .Dv PATH_MAX ,
 or a component of the pathname exceeds
 .Dv NAME_MAX .
 .It Bq Er ENOENT
 A component of
-.Fa path_p
+.Fa path
 does not exist.
 .It Bq Er ENOMEM
 Insufficient memory is available
 to allocate a new MAC label structure.
 .It Bq Er ENOTDIR
 A component of
-.Fa path_p
+.Fa path
 is not a directory.
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
 .Xr mac_free 3 ,
+.Xr mac_text 3 ,
+.Xr mac_prepare 3 ,
 .Xr mac_set 3 ,
-.Xr mac_text 3
+.Xr mac 9
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.
 Discussion of the draft
