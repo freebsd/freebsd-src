@@ -158,7 +158,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	nga_rcvdata,
-	nga_rcvdata,
 	nga_disconnect,
 	nga_cmdlist
 };
@@ -232,7 +231,7 @@ nga_newhook(node_p node, hook_p hook, const char *name)
  */
 static int
 nga_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const sc_p sc = hook->node->private;
 

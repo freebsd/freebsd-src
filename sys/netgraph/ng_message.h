@@ -83,7 +83,7 @@ struct ng_mesg {
 }
 
 /* Negraph type binary compatibility field */
-#define NG_VERSION	3
+#define NG_VERSION	4
 
 /* Flags field flags */
 #define NGF_ORIG	0x0000		/* the msg is the original request */
@@ -117,6 +117,34 @@ struct ng_mesg {
 #define	NGM_ASCII2BINARY	13	/* convert ascii to struct ng_mesg */
 #define	NGM_TEXT_CONFIG		14	/* (optional) get/set text config */
 
+/*
+ * Flow control and intra node control messages.
+ * These are routed between nodes to allow flow control and to allow
+ * events to be passed around the graph. 
+ * There will be some form of default handling for these but I 
+ * do not yet know what it is..
+ */
+
+/* Generic message type cookie */
+#define NGM_FLOW_COOKIE	851672669 /* temp for debugging */
+
+/* Upstream messages */
+#define NGM_LINK_IS_UP		32	/* e.g. carrier found - no data */
+#define NGM_LINK_IS_DOWN	33	/* carrier lost, includes queue state */
+#define NGM_HIGH_WATER_PASSED	34	/* includes queue state */
+#define NGM_LOW_WATER_PASSED	35	/* includes queue state */
+#define NGM_SYNC_QUEUE_STATE	36	/* sync response from sending packet */
+
+/* Downstream messages */
+#define NGM_DROP_LINK		41	/* drop DTR, etc. - stay in the graph */
+#define NGM_RAISE LINK		42	/* if you previously dropped it */
+#define NGM_FLUSH_QUEUE		43	/* no data */
+#define NGM_GET_BANDWIDTH	44	/* either real or measured */
+#define NGM_SET_XMIT_Q_LIMITS	45	/* includes queue state */
+#define NGM_GET_XMIT_Q_LIMITS	46	/* returns queue state */
+#define NGM_MICROMANAGE		47	/* We want sync. queue state reply 
+					   for each packet sent down */
+#define NGM_SET_FLOW_MANAGER	48	/* send flow control here */ 
 /* Structure used for NGM_MKPEER */
 struct ngm_mkpeer {
 	char	type[NG_TYPELEN + 1];			/* peer type */
@@ -270,6 +298,69 @@ struct typelist {
 	  { NULL },						\
 	}							\
 }
+
+struct ngm_bandwidth {
+	u_int64_t	nominal_in;
+	u_int64_t	seen_in;
+	u_int64_t	nominal_out;
+	u_int64_t	seen_out;
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_BANDWIDTH_INFO()	{			\
+	{							\
+	  { "nominal_in",	&ng_parse_uint64_type	},	\
+	  { "seen_in",		&ng_parse_uint64_type	},	\
+	  { "nominal_out",	&ng_parse_uint64_type	},	\
+	  { "seen_out",		&ng_parse_uint64_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/*
+ * Information about a node's 'output' queue.
+ * This is NOT the netgraph input queueing mechanism,
+ * but rather any queue the node may implement internally
+ * This has to consider ALTQ if we are to work with it.
+ * As far as I can see, ALTQ counts PACKETS, not bytes.
+ * If ALTQ has several queues and one has passed a watermark
+ * we should have the priority of that queue be real (and not -1)
+ * XXX ALTQ stuff is just an idea.....
+ */
+struct ngm_queue_state {
+	u_int queue_priority; /* maybe only low-pri is full. -1 = all*/
+	u_int	max_queuelen_bytes;
+	u_int	max_queuelen_packets;
+	u_int	low_watermark;
+	u_int	high_watermark;
+	u_int	current;
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_QUEUE_INFO()	{				\
+	{							\
+	  { "max_queuelen_bytes", &ng_parse_uint_type	},	\
+	  { "max_queuelen_packets", &ng_parse_uint_type	},	\
+	  { "high_watermark",	&ng_parse_uint_type	},	\
+	  { "low_watermark",	&ng_parse_uint_type	},	\
+	  { "current",		&ng_parse_uint_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Tell a node who to send async flow control info to. */
+struct flow_manager {
+	ng_ID_t		id;			/* unique identifier */
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_FLOW_MANAGER_INFO()	{			\
+	{							\
+	  { "id",		&ng_parse_hint32_type	},	\
+	  { NULL },						\
+	}							\
+}
+
 
 /*
  * For netgraph nodes that are somehow associated with file descriptors

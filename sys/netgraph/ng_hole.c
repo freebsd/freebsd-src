@@ -67,7 +67,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ngh_rcvdata,
-	ngh_rcvdata,
 	ngh_disconnect,
 	NULL
 };
@@ -78,7 +77,7 @@ NETGRAPH_INIT(hole, &typestruct);
  */
 static int
 ngh_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	NG_FREE_DATA(m, meta);
 	return 0;

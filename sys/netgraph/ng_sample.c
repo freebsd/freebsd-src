@@ -65,7 +65,6 @@ static ng_shutdown_t	ng_xxx_rmnode;
 static ng_newhook_t	ng_xxx_newhook;
 static ng_connect_t	ng_xxx_connect;
 static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
-static ng_rcvdata_t	ng_xxx_rcvdataq; /* note these are both ng_rcvdata_t */
 static ng_disconnect_t	ng_xxx_disconnect;
 
 /* Parse type for struct ngxxxstat */
@@ -107,7 +106,6 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_xxx_connect,
 	ng_xxx_rcvdata,
-	ng_xxx_rcvdataq,
 	ng_xxx_disconnect,
 	ng_xxx_cmdlist
 };
@@ -318,34 +316,13 @@ ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * if we use up this data or abort we must free BOTH of these.
  *
  * If we want, we may decide to force this data to be queued and reprocessed
- * at the netgraph NETISR time. (at which time it will be entered using ng_xxx_rcvdataq().
+ * at the netgraph NETISR time.
+ * We would do that by setting the HK_QUEUE flag on our hook. We would do that
+ * in the connect() method. 
  */
 static int
 ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
-{
-	int dlci = -2;
-
-	if (hook->private) {
-		/* 
-		 * If it's dlci 1023, requeue it so that it's handled
-		 * at a lower priority. This is how a node decides to
-		 * defer a data message.
-		 */
-		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
-		if (dlci == 1023) {
-			return(ng_queue_data(hook->peer, m, meta));
-		}
-	}
-	return(ng_xxx_rcvdataq(hook, m, meta));
-}
-
-/*
- * Always accept the data. This version of rcvdata is called from the dequeueing routine.
- */
-static int
-ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const xxx_p xxxp = hook->node->private;
 	int chan = -2;
@@ -362,7 +339,7 @@ ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta,
 			 * the front here */
 			/* M_PREPEND(....)	; */
 			/* mtod(m, xxxxxx)->dlci = dlci; */
-			error = ng_send_data(xxxp->downstream_hook.hook,
+			NG_SEND_DATA(error, xxxp->downstream_hook.hook,
 			    m, meta);
 			xxxp->packets_out++;
 		} else {
@@ -406,13 +383,15 @@ ng_xxx_rcvdataq(hook_p hook, struct mbuf *m, meta_p meta,
  */
 devintr()
 {
-	meta_p  meta = NULL;	/* whatever metadata we might imagine goes
+	int error;
 				 * here */
 
 	/* get packet from device and send on */
 	m = MGET(blah blah)
-	    error = ng_queueit(upstream, m, meta);	/* see note above in
-							 * xxx_rcvdata() */
+	
+	NG_SEND_DATA_ONLY(error, xxxp->upstream_hook.hook, m);
+				/* see note above in xxx_rcvdata() */
+				/* and ng_xxx_connect() */
 }
 
 #endif				/* 0 */
@@ -449,7 +428,35 @@ ng_xxx_rmnode(node_p node)
 static int
 ng_xxx_connect(hook_p hook)
 {
-	/* be really amiable and just say "YUP that's OK by me! " */
+#if 0
+	/*
+	 * If we were a driver running at other than splnet then
+	 * we should set the QUEUE bit on the edge so that we
+	 * will deliver by queing.
+	 */
+	if /*it is the upstream hook */
+	hook->peer->flags |= HK_QUEUE;
+#endif
+#if 0
+	/*
+	 * If for some reason we want incoming date to be queued
+	 * by the NETISR system and delivered later we can set the same bit on
+	 * OUR hook. (maybe to allow unwinding of the stack)
+	 */
+
+	if (hook->private) {
+		int dlci;
+		/* 
+		 * If it's dlci 1023, requeue it so that it's handled
+		 * at a lower priority. This is how a node decides to
+		 * defer a data message.
+		 */
+		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
+		if (dlci == 1023) {
+			hook->flags |= HK_QUEUE;
+		}
+#endif
+	/* otherwise be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
 

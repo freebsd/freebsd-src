@@ -172,7 +172,6 @@ static struct ng_type ng_one2many_typestruct = {
 	NULL,
 	NULL,
 	ng_one2many_rcvdata,
-	ng_one2many_rcvdata,
 	ng_one2many_disconnect,
 	ng_one2many_cmdlist,
 };
@@ -383,7 +382,7 @@ ng_one2many_rcvmsg(node_p node, struct ng_mesg *msg,
  */
 static int
 ng_one2many_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta)
+	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;

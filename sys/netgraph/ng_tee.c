@@ -138,7 +138,6 @@ static struct ng_type ng_tee_typestruct = {
 	NULL,
 	NULL,
 	ngt_rcvdata,
-	ngt_rcvdata,
 	ngt_disconnect,
 	ng_tee_cmds
 };
@@ -275,7 +274,7 @@ done:
  */
 static int
 ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const sc_p sc = hook->node->private;
 	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;

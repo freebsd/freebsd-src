@@ -117,6 +117,13 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	},
 	{
 	  NGM_PPPOE_COOKIE,
+	  NGM_PPPOE_SERVICE,
+	  "pppoe_service",
+	  &ngpppoe_init_data_state_type,
+	  NULL
+	},
+	{
+	  NGM_PPPOE_COOKIE,
 	  NGM_PPPOE_SUCCESS,
 	  "pppoe_success",
 	  &ng_pppoe_sts_state_type,
@@ -150,7 +157,6 @@ static struct ng_type typestruct = {
 	ng_pppoe_newhook,
 	NULL,
 	ng_pppoe_connect,
-	ng_pppoe_rcvdata,
 	ng_pppoe_rcvdata,
 	ng_pppoe_disconnect,
 	ng_pppoe_cmds
@@ -524,10 +530,6 @@ AAA
  * with a single reference for us.. we transfer it to the
  * private structure.. when we free the private struct we must
  * unref the node so it gets freed too.
- *
- * If this were a device node than this work would be done in the attach()
- * routine and the constructor would return EINVAL as you should not be able
- * to creatednodes that depend on hardware (unless you can add the hardware :)
  */
 static int
 ng_pppoe_constructor(node_p *nodep)
@@ -561,6 +563,7 @@ AAA
  * The following hook names are special:
  *  Ethernet:  the hook that should be connected to a NIC.
  *  debug:	copies of data sent out here  (when I write the code).
+ * All other hook names need only be unique. (the framework checks this).
  */
 static int
 ng_pppoe_newhook(node_p node, hook_p hook, const char *name)
@@ -618,6 +621,7 @@ AAA
 		case NGM_PPPOE_CONNECT:
 		case NGM_PPPOE_LISTEN: 
 		case NGM_PPPOE_OFFER: 
+		case NGM_PPPOE_SERVICE: 
 			ourmsg = (struct ngpppoe_init_data *)msg->data;
 			if (msg->header.arglen < sizeof(*ourmsg)) {
 				printf("pppoe: init data too small\n");
@@ -653,6 +657,14 @@ AAA
 				LEAVE(EINVAL);
 			}
 			sp = hook->private;
+
+			/*
+			 * PPPOE_SERVICE advertisments are set up
+			 * on sessions that are in PRIMED state.
+			 */
+			if (msg->header.cmd == NGM_PPPOE_SERVICE) {
+				break;
+			}
 			if (sp->state |= PPPOE_SNONE) {
 				printf("pppoe: Session already active\n");
 				LEAVE(EISCONN);
@@ -735,7 +747,6 @@ AAA
 			 * Store the originator of this message so we can send
 			 * a success of fail message to them later.
 			 * Move the hook to 'LISTENING'
-
 			 */
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
 			neg->service.hdr.tag_len =
@@ -770,6 +781,25 @@ AAA
 			 * Wait for PADI packet coming from hook
 			 */
 			sp->state = PPPOE_PRIMED;
+			break;
+		case NGM_PPPOE_SERVICE: 
+			/* 
+			 * Check the session is primed.
+			 * for now just allow ONE service to be advertised.
+			 * If you do it twice you just overwrite.
+			 */
+			if (sp->state |= PPPOE_PRIMED) {
+				printf("pppoe: Session not primed\n");
+				LEAVE(EISCONN);
+			}
+			neg->service.hdr.tag_type = PTT_SRV_NAME;
+			neg->service.hdr.tag_len =
+			    htons((u_int16_t)ourmsg->data_len);
+
+			if (ourmsg->data_len)
+				bcopy(ourmsg->data, neg->service.data,
+				    ourmsg->data_len);
+			neg->service_len = ourmsg->data_len;
 			break;
 		default:
 			LEAVE(EINVAL);
@@ -828,7 +858,7 @@ AAA
  */
 static int
 ng_pppoe_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	node_p			node = hook->node;
 	const priv_p		privp = node->private;
@@ -1268,10 +1298,20 @@ AAA
 			insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
 			if ((tag = get_tag(ph, PTT_SRV_NAME)))
 				insert_tag(sp, tag);	  /* return service */
+			/*
+			 * If we have a NULL service request
+			 * and have an extra service defined in this hook,
+			 * then also add a tag for the extra service.
+			 * XXX this is a hack. eventually we should be able
+			 * to support advertising many services, not just one 
+			 */
+			if (((tag == NULL) || (tag->tag_len == 0))
+			&& (neg->service.hdr.tag_len != 0)) {
+				insert_tag(sp, &neg->service.hdr); /* SERVICE */
+			}
 			if ((tag = get_tag(ph, PTT_HOST_UNIQ)))
 				insert_tag(sp, tag); /* returned hostunique */
 			insert_tag(sp, &uniqtag.hdr);
-			/* XXX maybe put the tag in the session store */
 			scan_tags(sp, ph);
 			make_packet(sp);
 			sendpacket(sp);
@@ -1583,8 +1623,10 @@ pppoe_send_event(sessp sp, enum cmd cmdid)
 AAA
 	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
 			sizeof(struct ngpppoe_sts), M_NOWAIT);
+	if (msg == NULL)
+		return (ENOMEM);
 	sts = (struct ngpppoe_sts *)msg->data;
 	strncpy(sts->hook, sp->hook->name, NG_HOOKLEN + 1);
-	error = ng_send_msg(sp->hook->node, msg, sp->creator, NULL);
+	error = ng_send_msg(sp->hook->node, msg, sp->creator, NULL, NULL, NULL);
 	return (error);
 }

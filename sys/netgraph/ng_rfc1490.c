@@ -106,7 +106,6 @@ static struct ng_type typestruct = {
 	NULL,
 	NULL,
 	ng_rfc1490_rcvdata,
-	ng_rfc1490_rcvdata,
 	ng_rfc1490_disconnect,
 	NULL
 };
@@ -215,7 +214,7 @@ ng_rfc1490_rcvmsg(node_p node, struct ng_mesg *msg,
 
 static int
 ng_rfc1490_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta)
+		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
