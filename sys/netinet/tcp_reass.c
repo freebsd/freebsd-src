@@ -445,7 +445,7 @@ tcp_input(m, off0)
 #endif
 
 	/* Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain. */
-	next_hop = ip_claim_next_hop(m);
+	next_hop = m_claim_next_hop(m, PACKET_TAG_IPFORWARD);
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
