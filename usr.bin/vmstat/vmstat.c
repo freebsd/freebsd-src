@@ -909,7 +909,7 @@ kread(nlx, addr, size)
 {
 	char *sym;
 
-	if (namelist[nlx].n_value == 0) {
+	if (namelist[nlx].n_type == 0 || namelist[nlx].n_value == 0) {
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
