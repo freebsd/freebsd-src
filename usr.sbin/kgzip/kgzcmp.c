@@ -27,7 +27,9 @@
  */
 
 #define	_KERNEL
+#define KLD_MODULE
 #include <sys/param.h>
+#undef KLD_MODULE
 #undef _KERNEL
 #include <sys/types.h>
 #include <sys/stat.h>
