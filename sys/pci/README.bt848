@@ -22,10 +22,10 @@ driver.
 Finally you need to create nodes for the driver:
 
 Create a video device:
-mknod /dev/bktr0 c 79 0
+mknod /dev/bktr0 c 92  0
 
 Create a tuner device:
-mknod /dev/tuner0 c 79 16
+mknod /dev/tuner0 c 92 16
 
 -------------------------------------------------------------------------------
 The code attempts to auto-probe code to detect card/tuner types.

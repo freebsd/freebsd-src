@@ -202,8 +202,13 @@ struct _bktr_clip {
 #define BT848_I2CWR     _IOWR('x', 57, u_long)    /* i2c read-write */
 /* Support for radio tuner */
 #define RADIO_SETMODE	 _IOW('x', 58, unsigned int)  /* set radio modes */
+#define RADIO_GETMODE	 _IOR('x', 58, unsigned char)  /* get radio modes */
+#define   RADIO_AFC	 0x01		/* These modes will probably not */
+#define   RADIO_MONO	 0x02		/*  work on the FRxxxx. It does	 */
+#define   RADIO_MUTE	 0x08		/*  work on the FMxxxx.	*/
 #define RADIO_SETFREQ    _IOW('x', 59, unsigned int)  /* set frequency   */
 #define RADIO_GETFREQ    _IOR('x', 59, unsigned int)  /* set frequency   */
+ /*        Argument is frequency*100MHz  */
 
 /*  XXX - Copied from /sys/pci/brktree_reg.h  */
 #define BT848_IFORM_FORMAT              (0x7<<0)
