@@ -117,7 +117,6 @@ static void	tulip_ifinit(void *);
 static int	tulip_ifmedia_change(struct ifnet * const ifp);
 static void	tulip_ifmedia_status(struct ifnet * const ifp,
 		    struct ifmediareq *req);
-static void	tulip_ifstart_one(struct ifnet *ifp);
 static void	tulip_ifstart(struct ifnet *ifp);
 static void	tulip_init(tulip_softc_t * const sc);
 static void	tulip_intr_shared(void *arg);
@@ -4635,29 +4634,9 @@ tulip_ifstart(
 		break;
 	    }
 	}
-	if (IFQ_DRV_IS_EMPTY(&sc->tulip_if.if_snd))
-	    sc->tulip_if.if_start = tulip_ifstart_one;
     }
 
     TULIP_PERFEND(ifstart);
-}
-
-static void
-tulip_ifstart_one(
-    struct ifnet * const ifp)
-{
-    TULIP_PERFSTART(ifstart_one)
-    tulip_softc_t * const sc = (tulip_softc_t *)ifp->if_softc;
-
-    if ((sc->tulip_if.if_flags & IFF_RUNNING)
-	    && !IFQ_DRV_IS_EMPTY(&sc->tulip_if.if_snd)) {
-	struct mbuf *m;
-	IFQ_DRV_DEQUEUE(&sc->tulip_if.if_snd, m);
-	if(m == NULL);
-	else if((m = tulip_txput(sc, m)) != NULL)
-	    IFQ_DRV_PREPEND(&sc->tulip_if.if_snd, m);
-    }
-    TULIP_PERFEND(ifstart_one);
 }
 
 /*
