@@ -64,9 +64,6 @@ struct mn_control	{
 #include <vm/pmap.h>
 #include <machine/clock.h>
 
-#include <net/if.h>
-#include <net/if_sync.h>
-
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_sample.h>
 #include <netgraph/netgraph.h>  
@@ -216,7 +213,6 @@ struct schan {
 	enum {DOWN, UP} state;
 	struct softc	*sc;
 	int		chan;
-	struct if_sync	sif;
 	u_int32_t	ts;
 	char		name[8];
 	struct trxd	*r1, *rl;
