@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.42 1996/03/09 06:48:26 dyson Exp $
+ * $Id: vm_fault.c,v 1.43 1996/03/28 04:53:23 dyson Exp $
  */
 
 /*
@@ -269,8 +269,8 @@ RetryFault:;
 				int s;
 
 				UNLOCK_THINGS;
-				s = splhigh();
-				if ((m->flags & PG_BUSY) || m->busy) {
+				s = splvm();
+				if (((m->flags & PG_BUSY) || m->busy)) {
 					m->flags |= PG_WANTED | PG_REFERENCED;
 					cnt.v_intrans++;
 					tsleep(m, PSWP, "vmpfw", 0);
@@ -311,7 +311,7 @@ RetryFault:;
 			 * Allocate a new page for this object/offset pair.
 			 */
 			m = vm_page_alloc(object, pindex,
-				vp?VM_ALLOC_NORMAL:VM_ALLOC_ZERO);
+				(vp || object->backing_object)?VM_ALLOC_NORMAL:VM_ALLOC_ZERO);
 
 			if (m == NULL) {
 				UNLOCK_AND_DEALLOCATE;
@@ -551,9 +551,9 @@ readrest:
 				vm_pindex_t other_pindex, other_pindex_offset;
 				vm_page_t tm;
 				
-				other_object = object->shadow_head.tqh_first;
+				other_object = TAILQ_FIRST(&object->shadow_head);
 				if (other_object == first_object)
-					other_object = other_object->shadow_list.tqe_next;
+					other_object = TAILQ_NEXT(other_object, shadow_list);
 				if (!other_object)
 					panic("vm_fault: other object missing");
 				if (other_object &&
@@ -712,7 +712,7 @@ readrest:
 	m->valid = VM_PAGE_BITS_ALL;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
-	if (vp && (change_wiring == 0) && (wired == 0))
+	if ((change_wiring == 0) && (wired == 0))
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
 
 	/*
@@ -780,8 +780,9 @@ vm_fault_wire(map, start, end)
 	for (va = start; va < end; va += PAGE_SIZE) {
 
 		while( curproc != pageproc &&
-			(cnt.v_free_count <= cnt.v_pageout_free_min))
+			(cnt.v_free_count <= cnt.v_pageout_free_min)) {
 			VM_WAIT;
+		}
 
 		rv = vm_fault(map, va, VM_PROT_READ|VM_PROT_WRITE, TRUE);
 		if (rv) {
@@ -817,11 +818,10 @@ vm_fault_unwire(map, start, end)
 
 	for (va = start; va < end; va += PAGE_SIZE) {
 		pa = pmap_extract(pmap, va);
-		if (pa == (vm_offset_t) 0) {
-			panic("unwire: page not in pmap");
+		if (pa != (vm_offset_t) 0) {
+			pmap_change_wiring(pmap, va, FALSE);
+			vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 		}
-		pmap_change_wiring(pmap, va, FALSE);
-		vm_page_unwire(PHYS_TO_VM_PAGE(pa));
 	}
 
 	/*

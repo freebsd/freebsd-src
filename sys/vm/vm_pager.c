@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.21 1995/12/14 09:55:11 phk Exp $
+ * $Id: vm_pager.c,v 1.22 1996/05/03 21:01:53 phk Exp $
  */
 
 /*
@@ -249,7 +249,7 @@ vm_pager_object_lookup(pg_list, handle)
 {
 	register vm_object_t object;
 
-	for (object = pg_list->tqh_first; object != NULL; object = object->pager_object_list.tqe_next)
+	for (object = TAILQ_FIRST(pg_list); object != NULL; object = TAILQ_NEXT(object,pager_object_list))
 		if (object->handle == handle)
 			return (object);
 	return (NULL);
@@ -288,7 +288,7 @@ getpbuf()
 
 	s = splbio();
 	/* get a bp from the swap buffer header pool */
-	while ((bp = bswlist.tqh_first) == NULL) {
+	while ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		bswneeded = 1;
 		tsleep(&bswneeded, PVM, "wswbuf", 0);
 	}
@@ -313,7 +313,7 @@ trypbuf()
 	struct buf *bp;
 
 	s = splbio();
-	if ((bp = bswlist.tqh_first) == NULL) {
+	if ((bp = TAILQ_FIRST(&bswlist)) == NULL) {
 		splx(s);
 		return NULL;
 	}
