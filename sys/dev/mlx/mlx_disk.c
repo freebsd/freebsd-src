@@ -253,6 +253,7 @@ mlxd_attach(device_t dev)
     sc->mlxd_controller = (struct mlx_softc *)device_get_softc(parent);
     sc->mlxd_unit = device_get_unit(dev);
     sc->mlxd_drive = device_get_ivars(dev);
+    sc->mlxd_dev = dev;
 
     switch(sc->mlxd_drive->ms_state) {
     case MLX_SYSD_ONLINE:
