@@ -193,10 +193,10 @@ note_spool_dir(const struct printer *pp, const struct stat *st)
 		err(++problems, "malloc(%lu)", strlen(pp->spool_dir) + 1UL);
 	
 	last = 0;
-	dp2 = dirlist.lh_first;
-	while (dp2 && lessp(dp, dp2)) {
+	LIST_FOREACH(dp2, &dirlist, link) {
+		if(!lessp(dp, dp2))
+			break;
 		last = dp2;
-		dp2 = dp2->link.le_next;
 	}
 
 	if (last) {
@@ -211,8 +211,8 @@ check_spool_dirs(void)
 {
 	struct dirlist *dp, *dp2;
 
-	for (dp = dirlist.lh_first; dp; dp = dp2) {
-		dp2 = dp->link.le_next;
+	for (dp = LIST_FIRST(&dirlist); dp; dp = dp2) {
+		dp2 = LIST_NEXT(dp, link);
 
 		if (dp2 != 0 && equal(dp, dp2)) {
 			++problems;
