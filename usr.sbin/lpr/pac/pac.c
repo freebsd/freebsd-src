@@ -96,25 +96,23 @@ struct hent {
 
 static struct	hent	*hashtab[HSHSIZE];	/* Hash table proper */
 
-int		main __P((int, char **));
-static void	account __P((FILE *));
-static int	any __P((int, char []));
-static int	chkprinter __P((char *));
-static void	dumpit __P((void));
-static int	hash __P((char []));
-static struct	hent *enter __P((char []));
-static struct	hent *lookup __P((char []));
-static int	qucmp __P((const void *, const void *));
-static void	rewrite __P((void));
-static void	usage __P((void));
+int		 main(int argc, char **_argv);
+static void	 account(FILE *_acct);
+static int	 any(int _ch, const char _str[]);
+static int	 chkprinter(const char *_ptrname);
+static void	 dumpit(void);
+static int	 hash(const char _name[]);
+static struct hent 	*enter(const char _name[]);
+static struct hent 	*lookup(const char _name[]);
+static int	 qucmp(const void *_a, const void *_b);
+static void	 rewrite(void);
+static void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	FILE *acct;
-	char *cp, *printer;
+	const char *cp, *printer;
 
 	printer = NULL;
 	euid = geteuid();	/* these aren't used in pac(1) */
@@ -198,7 +196,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 	"usage: pac [-Pprinter] [-pprice] [-s] [-c] [-r] [-m] [user ...]\n");
@@ -214,8 +212,7 @@ usage()
  * Host names are ignored if the -m flag is present.
  */
 static void
-account(acct)
-	register FILE *acct;
+account(FILE *acct)
 {
 	char linebuf[BUFSIZ];
 	double t;
@@ -257,7 +254,7 @@ account(acct)
  * and print it all out.
  */
 static void
-dumpit()
+dumpit(void)
 {
 	struct hent **base;
 	register struct hent *hp, **ap;
@@ -295,7 +292,7 @@ dumpit()
  * Rewrite the summary file with the summary information we have accumulated.
  */
 static void
-rewrite()
+rewrite(void)
 {
 	register struct hent *hp;
 	register int i;
@@ -335,8 +332,7 @@ rewrite()
  */
 
 static struct hent *
-enter(name)
-	char name[];
+enter(const char name[])
 {
 	register struct hent *hp;
 	register int h;
@@ -361,8 +357,7 @@ enter(name)
  */
 
 static struct hent *
-lookup(name)
-	char name[];
+lookup(const char name[])
 {
 	register int h;
 	register struct hent *hp;
@@ -379,11 +374,10 @@ lookup(name)
  * the hash table to begin the search.
  */
 static int
-hash(name)
-	char name[];
+hash(const char name[])
 {
 	register int h;
-	register char *cp;
+	register const char *cp;
 
 	for (cp = name, h = 0; *cp; h = (h << 2) + *cp++)
 		;
@@ -394,12 +388,10 @@ hash(name)
  * Other stuff
  */
 static int
-any(ch, str)
-	int ch;
-	char str[];
+any(int ch, const char str[])
 {
 	register int c = ch;
-	register char *cp = str;
+	register const char *cp = str;
 
 	while (*cp)
 		if (*cp++ == c)
@@ -413,14 +405,13 @@ any(ch, str)
  * or by feet of typesetter film, according to sort.
  */
 static int
-qucmp(a, b)
-	const void *a, *b;
+qucmp(const void *a, const void *b)
 {
-	register struct hent *h1, *h2;
+	register const struct hent *h1, *h2;
 	register int r;
 
-	h1 = *(struct hent **)a;
-	h2 = *(struct hent **)b;
+	h1 = *(const struct hent **)a;
+	h2 = *(const struct hent **)b;
 	if (sort)
 		r = h1->h_feetpages < h2->h_feetpages ?
 		    -1 : h1->h_feetpages > h2->h_feetpages;
@@ -433,14 +424,13 @@ qucmp(a, b)
  * Perform lookup for printer name or abbreviation --
  */
 static int
-chkprinter(s)
-	register char *s;
+chkprinter(const char *ptrname)
 {
 	int stat;
 	struct printer myprinter, *pp = &myprinter;
 
 	init_printer(&myprinter);
-	stat = getprintcap(s, pp);
+	stat = getprintcap(ptrname, pp);
 	switch(stat) {
 	case PCAPERR_OSERR:
 		printf("pac: getprintcap: %s\n", pcaperr(stat));
@@ -451,7 +441,7 @@ chkprinter(s)
 		fatal(pp, "%s", pcaperr(stat));
 	}
 	if ((acctfile = pp->acct_file) == NULL)
-		errx(3, "accounting not enabled for printer %s", s);
+		errx(3, "accounting not enabled for printer %s", ptrname);
 	if (!pflag && pp->price100)
 		price = pp->price100/10000.0;
 	sumfile = (char *) calloc(sizeof(char), strlen(acctfile)+5);
