@@ -115,7 +115,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${MACHINE_ARCH}
 .endif
 WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 # /usr/games added for fortune which depend on strfile and caesar.
-STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+STRICTTMPPATH=	${WORLDTMP}/sbin:${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
 #
