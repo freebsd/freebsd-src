@@ -747,12 +747,16 @@ static int
 link_elf_symbol_values(linker_file_t lf, c_linker_sym_t sym,
     linker_symval_t *symval)
 {
+	Elf_Addr base;
 	elf_file_t ef = (elf_file_t) lf;
 	const Elf_Sym *es = (const Elf_Sym*) sym;
 
 	if (es >= ef->ddbsymtab && es < (ef->ddbsymtab + ef->ddbsymcnt)) {
+		base = findbase(ef, es->st_shndx);
+		if (base == 0)
+			base = (Elf_Addr)ef->address;
 		symval->name = ef->ddbstrtab + es->st_name;
-		symval->value = (caddr_t) ef->address + es->st_value;
+		symval->value = (caddr_t)base + es->st_value;
 		symval->size = es->st_size;
 		return 0;
 	}
