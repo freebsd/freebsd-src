@@ -33,10 +33,10 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
-#define ESS_BUFFSIZE (4096)
+#define ESS_BUFFSIZE (16384)
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
-/* audio2 never generates irqs and sounds very noisy */
+/* if defined, playback always uses the 2nd channel and full duplex works */
 #undef ESS18XX_DUPLEX
 
 /* more accurate clocks and split audio1/audio2 rates */
@@ -58,10 +58,13 @@ static pcmchan_caps ess_playcaps = {
 	AFMT_STEREO | AFMT_S16_LE
 };
 
+/*
+ * Recording output is byte-swapped
+ */
 static pcmchan_caps ess_reccaps = {
 	5000, 49000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_U16_LE | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_U16_BE | AFMT_S16_BE,
+	AFMT_STEREO | AFMT_S16_BE
 };
 
 static pcm_channel ess_chantemplate = {
@@ -90,7 +93,7 @@ struct ess_info {
     	struct resource *irq;
     	bus_dma_tag_t parent_dmat;
 
-    	int type, duplex:1, newspeed:1, dmasz[2];
+    	int simplex_dir, type, duplex:1, newspeed:1, dmasz[2];
     	struct ess_chinfo pch, rch;
 };
 
@@ -306,7 +309,7 @@ static void
 ess_intr(void *arg)
 {
     	struct ess_info *sc = (struct ess_info *)arg;
-	int src, pirq, rirq;
+	int src, pirq = 0, rirq = 0;
 
 	src = 0;
 	if (ess_getmixer(sc, 0x7a) & 0x80)
@@ -314,8 +317,17 @@ ess_intr(void *arg)
 	if (ess_rd(sc, 0x0c) & 0x01)
 		src |= 1;
 
-	pirq = (src & sc->pch.hwch)? 1 : 0;
-	rirq = (src & sc->rch.hwch)? 1 : 0;
+	if (sc->duplex) {
+		pirq = (src & sc->pch.hwch)? 1 : 0;
+		rirq = (src & sc->rch.hwch)? 1 : 0;
+	} else {
+		if (sc->simplex_dir == PCMDIR_PLAY)
+			pirq = 1;
+		if (sc->simplex_dir == PCMDIR_REC)
+			rirq = 1;
+		if (!pirq && !rirq)
+			printf("solo: IRQ neither playback nor rec!\n");
+	}
 
 	DEB(printf("ess_intr: pirq:%d rirq:%d\n",pirq,rirq));
 
@@ -406,12 +418,13 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 	int play = (dir == PCMDIR_PLAY)? 1 : 0;
 	int b16 = (fmt & AFMT_16BIT)? 1 : 0;
 	int stereo = (fmt & AFMT_STEREO)? 1 : 0;
-	int unsign = (fmt == AFMT_U8 || fmt == AFMT_U16_LE)? 1 : 0;
+	int unsign = (fmt == AFMT_U8 || fmt == AFMT_U16_LE || fmt == AFMT_U16_BE)? 1 : 0;
 	u_int8_t spdval, fmtval;
-
 
 	DEB(printf("ess_setupch\n"));
 	spdval = (sc->newspeed)? ess_calcspeed9(&spd) : ess_calcspeed8(&spd);
+
+	sc->simplex_dir = play ? PCMDIR_PLAY : PCMDIR_REC ;
 
 	if (ch == 1) {
 		KASSERT((dir == PCMDIR_PLAY) || (dir == PCMDIR_REC), ("ess_setupch: dir1 bad"));
@@ -884,9 +897,17 @@ ess_attach(device_t dev)
     	mixer_init(d, &ess_mixer, sc);
 
 	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
+#ifdef ESS18XX_DUPLEX
 	sc->duplex = 1;
-	sc->newspeed = 1;
+#else
+	sc->duplex = 0;
+#endif
 
+#ifdef ESS18XX_NEWSPEED
+	sc->newspeed = 1;
+#else
+	sc->newspeed = 0;
+#endif
 	if (sc->newspeed)
 		ess_setmixer(sc, 0x71, 0x2a);
 
