@@ -2334,11 +2334,17 @@ isp_start(XS_T *xs)
 				XS_SETERR(xs, HBA_SELTIMEOUT);
 				return (CMD_COMPLETE);
 			}
-			if (fcp->isp_topo != TOPO_F_PORT &&
-			    target < FL_PORT_ID) {
-				XS_SETERR(xs, HBA_SELTIMEOUT);
-				return (CMD_COMPLETE);
-			}
+			/*
+			 * We used to exclude having local loop ports
+			 * at the same time that we have fabric ports.
+			 * That is, we used to exclude having ports
+			 * at < FL_PORT_ID if we're FL-port.
+			 *
+			 * That's wrong. The only thing that could be
+			 * dicey is if the switch you're connected to
+			 * has these local loop ports appear on the
+			 * fabric and we somehow attach them twice.
+			 */
 		}
 #else
 		/*
