@@ -59,7 +59,9 @@ option.
 .It Fl U Ar user
 name of user used in login sequence.
 .It Fl A Ar host
-connect to NetWare/IP server, specified by host.
+use UDP protocol to connect to NetWare 5.x server specified by
+.Ar host
+parameter.
 .It Fl C
 don't convert password to uppercase.
 .It Fl D
@@ -143,8 +145,8 @@ options.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa ~/.nwfsrc
-keeps description for each connection. See
-.Xr nwfsrc 8
+keeps static parameters for connections and other information. See
+.Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
 
 .Sh NOTES
