@@ -877,17 +877,18 @@ ata_reinit(struct ata_channel *ch)
     if ((newdev = ~devices & ch->devices)) {
 	if (newdev & ATA_ATA_MASTER)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY))
-		newdev &= ~ATA_ATA_MASTER;
+		ch->devices &= ~ATA_ATA_MASTER;
 	if (newdev & ATA_ATA_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
-		newdev &= ~ATA_ATA_SLAVE;
+		ch->devices &= ~ATA_ATA_SLAVE;
 	if (newdev & ATA_ATAPI_MASTER)
 	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
-		newdev &= ~ATA_ATAPI_MASTER;
+		ch->devices &= ~ATA_ATAPI_MASTER;
 	if (newdev & ATA_ATAPI_SLAVE)
 	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY))
-		newdev &= ~ATA_ATAPI_SLAVE;
+		ch->devices &= ~ATA_ATAPI_SLAVE;
     }
+    newdev = ~devices & ch->devices;
 #ifdef DEV_ATADISK
     if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
 	ad_attach(&ch->device[MASTER]);
