@@ -95,6 +95,7 @@ static int msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 
 static int      log_console_output = 1;
+TUNABLE_INT("kern.log_console_output", &log_console_output);
 SYSCTL_INT(_kern, OID_AUTO, log_console_output, CTLFLAG_RW,
     &log_console_output, 0, "");
 
