@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.7 1997/02/13 21:10:41 jmg Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.8 1997/03/17 01:44:42 jmg Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,15 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.8  1997/03/17 01:44:42  jmg
+ * fix compilation warnings in patch... (with slight modification)
+ *
+ * also remove -Wall that I acidentally committed last time I was here...
+ *
+ * Submitted-by: Philippe Charnier
+ *
+ * Closes PR#2998
+ *
  * Revision 1.7  1997/02/13 21:10:41  jmg
  * Fix a problem with patch in that is will always default, even when the
  * controlling terminal is closed.  Now the function ask() will return 1 when th
@@ -544,7 +553,7 @@ get_some_switches()
 		break;
 	    case 'D':
 	    	do_defines = TRUE;
-		if (!isalpha(*optarg) && '_' != *optarg)
+		if (!isalpha((unsigned char)*optarg) && '_' != *optarg)
 		    fatal1("argument to -D is not an identifier\n");
 		Sprintf(if_defined, "#ifdef %s\n", optarg);
 		Sprintf(not_defined, "#ifndef %s\n", optarg);
@@ -954,12 +963,12 @@ Reg2 char *b;
 Reg3 int len;
 {
     while (len) {
-	if (isspace(*b)) {		/* whitespace (or \n) to match? */
-	    if (!isspace(*a))		/* no corresponding whitespace? */
+	if (isspace((unsigned char)*b)) {              /* whitespace (or \n) to match? */
+	    if (!isspace((unsigned char)*a))           /* no corresponding whitespace? */
 		return FALSE;
-	    while (len && isspace(*b) && *b != '\n')
+	    while (len && isspace((unsigned char)*b) && *b != '\n')
 		b++,len--;		/* skip pattern whitespace */
-	    while (isspace(*a) && *a != '\n')
+	    while (isspace((unsigned char)*a) && *a != '\n')
 		a++;			/* skip target whitespace */
 	    if (*a == '\n' || *b == '\n')
 		return (*a == *b);	/* should end in sync */
