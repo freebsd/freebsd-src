@@ -96,6 +96,8 @@ struct flags {
 	int     mask;
 };
 
+extern int	doverbose;
+
 static void    parsefile(void);
 static char   *getline(void);
 static char   *next_tok(void);
@@ -744,7 +746,7 @@ iosize_tok(void)
 			return 0;
 	}
 #ifdef DEBUG
-	if (verbose)
+	if (doverbose)
 		printf("iosize: size=%x\n", iosize);
 #endif
 	return iosize;
