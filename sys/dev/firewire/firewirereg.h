@@ -58,14 +58,16 @@ struct fw_device{
 	int rommax;	/* offset from 0xffff f000 0000 */
 	u_int32_t csrrom[CSRROMSIZE/4];
 	int rcnt;
-	device_t dev;
+	struct firewire_comm *fc;
 	u_int32_t status;
 #define FWDEVINIT	1
 #define FWDEVATTACHED	2
 #define FWDEVINVAL	3
 	TAILQ_ENTRY(fw_device) link;
+#if 0
 	LIST_HEAD(, fw_xfer) txqueue;
 	LIST_HEAD(, fw_xfer) rxqueue;
+#endif
 };
 struct firewire_softc {
 #if __FreeBSD_version >= 500000
@@ -310,6 +312,7 @@ u_int16_t fw_crc16 __P((u_int32_t *, u_int32_t));
 void fw_xfer_timeout __P((void *));
 void fw_xfer_done __P((struct fw_xfer *));
 void fw_asy_callback __P((struct fw_xfer *));
+struct fw_device *fw_noderesolve __P((struct firewire_comm *, struct fw_eui64));
 
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
