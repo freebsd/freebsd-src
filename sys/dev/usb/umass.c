@@ -2081,18 +2081,18 @@ umass_cam_detach(struct umass_softc *sc)
 	struct cam_path *path;
 
 	if (umass_sim) {
-	/* detach of sim not done until module unload */
-	DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d: losing CAM device entry\n",
-		USBDEVNAME(sc->sc_dev), cam_sim_path(umass_sim),
-		USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD));
+		/* detach of sim not done until module unload */
+		DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d: losing CAM device entry\n",
+			USBDEVNAME(sc->sc_dev), cam_sim_path(umass_sim),
+			USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD));
 
-	if (xpt_create_path(&path, NULL, cam_sim_path(umass_sim),
-		    USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD)
-	    != CAM_REQ_CMP)
-		return(ENOMEM);
+		if (xpt_create_path(&path, NULL, cam_sim_path(umass_sim),
+			    USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD)
+		    != CAM_REQ_CMP)
+			return(ENOMEM);
 
-	xpt_async(AC_LOST_DEVICE, path, NULL);
-	xpt_free_path(path);
+		xpt_async(AC_LOST_DEVICE, path, NULL);
+		xpt_free_path(path);
 	}
 
 	return(0);
