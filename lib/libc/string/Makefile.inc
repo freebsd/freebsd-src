@@ -1,7 +1,7 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.12 1997/10/16 13:46:50 bde Exp $
+#	$Id: Makefile.inc,v 1.13 1997/10/21 08:41:15 bde Exp $
 
-.PATH: ${.CURDIR}/../libc/${MACHINE}/string ${.CURDIR}/../libc/string
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/string ${.CURDIR}/../libc/string
 
 CFLAGS += -I${.CURDIR}/../libc/locale
 
@@ -13,7 +13,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 	strspn.c strstr.c strtok.c strxfrm.c swab.c
 
 # machine-dependent string sources
-.include "${.CURDIR}/../libc/${MACHINE}/string/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc"
 
 .if ${LIB} == "c"
 MAN3+=	bcmp.3 bcopy.3 bstring.3 bzero.3 ffs.3 index.3 memccpy.3 memchr.3 \
