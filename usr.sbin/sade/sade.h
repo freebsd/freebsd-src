@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.133 1997/06/13 14:21:21 jkh Exp $
+ * $Id: sysinstall.h,v 1.134 1997/06/13 17:55:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -135,6 +135,7 @@
 #define VAR_NFS_SECURE			"nfsSecure"
 #define VAR_NFS_SERVER			"nfs_server_enable"
 #define VAR_NO_CONFIRM			"noConfirm"
+#define VAR_NO_WARN			"noWarn"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define VAR_PARTITION			"partition"
