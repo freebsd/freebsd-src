@@ -736,6 +736,9 @@ es_pci_attach(device_t dev)
 
 	mapped = 0;
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
+	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, data, 2);
+	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (mapped == 0 && (data & PCIM_CMD_MEMEN)) {
 		regid = MEM_MAP_REG;
 		type = SYS_RES_MEMORY;
