@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.6 1998/09/09 06:03:51 jb Exp $
+#	$Id: Makefile.inc0,v 1.7 1998/09/10 20:44:56 ache Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -56,12 +56,12 @@ LEGACY_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout	\
 #
 world:
 	@echo "--------------------------------------------------------------"
-	@echo " ${OBJFORMAT} make world started on `LC_TIME=C date`"
+	@echo ">>> ${OBJFORMAT} make world started on `LC_TIME=C date`"
 	@echo "--------------------------------------------------------------"
 .if target(pre-world)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making 'pre-world' target"
+	@echo ">>> Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} pre-world
 .endif
@@ -76,13 +76,13 @@ world:
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " Making 'post-world' target"
+	@echo ">>> Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
 	@cd ${.CURDIR}; ${MK_ENV} ${MAKE} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo " ${OBJFORMAT} make world completed on `LC_TIME=C date`"
+	@echo ">>> ${OBJFORMAT} make world completed on `LC_TIME=C date`"
 	@echo "--------------------------------------------------------------"
 
 #
