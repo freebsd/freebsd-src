@@ -29,7 +29,9 @@ ident		LINT
 
 #
 # The `maxusers' parameter controls the static sizing of a number of
-# internal system tables by a formula defined in subr_param.c.
+# internal system tables by a formula defined in subr_param.c.  Setting
+# maxusers to 0 will cause the system to auto-size based on physical 
+# memory.
 #
 maxusers	10
 
