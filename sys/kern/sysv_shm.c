@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.6 1995/07/29 11:40:15 bde Exp $ */
+/*	$Id: sysv_shm.c,v 1.7 1995/08/28 09:18:48 julian Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -48,24 +48,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 
-/*
- * Provides the following externally accessible functions:
- *
- * shminit(void);		           initialization
- * shmexit(struct proc *)                  cleanup
- * shmfork(struct proc *, struct proc *, int) fork handling
- * shmsys(arg1, arg2, arg3, arg4);         shm{at,ctl,dt,get}(arg2, arg3, arg4)
- *
- * Structures:
- * shmsegs (an array of 'struct shmid_ds')
- * per proc array of 'struct shmmap_state'
- */
-
-/*
- * System initialization
- */
-
-extern void shminit();				/* should be static*/
+static void shminit __P((caddr_t));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
 int	oshmctl();
@@ -573,7 +556,8 @@ shmexit(p)
 }
 
 void
-shminit()
+shminit(udata)
+	caddr_t udata;
 {
 	int i;
 	vm_offset_t garbage1, garbage2;
