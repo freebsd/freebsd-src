@@ -270,7 +270,7 @@ dsp_write_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1 ;
             ret = tsleep( (caddr_t)b, PRIBIO|PCATCH, "dspwr", timeout);
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
 	    if (ret == EINTR)
@@ -553,7 +553,7 @@ dsp_read_body(snddev_info *d, struct uio *buf)
 	    else
 		timeout = 1; /* maybe data will be ready earlier */
             ret = tsleep( (caddr_t)b, PRIBIO | PCATCH , "dsprd", timeout ) ;
-	    if (ret == EINTR)
+	    if (ret == EINTR || ret == ERESTART)
 		d->flags |= SND_F_ABORTING ;
 	    splx(s);
 	    if (ret == EINTR)
