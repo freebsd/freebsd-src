@@ -103,7 +103,7 @@ struct ipcp {
   u_int32_t my_reject;			/* Request codes I have rejected */
 
   struct pppThroughput throughput;	/* throughput statistics */
-  struct mqueue Queue[4];		/* Output packet queues */
+  struct mqueue Queue[3];		/* Output packet queues */
 };
 
 #define fsm2ipcp(fp) (fp->proto == PROTO_IPCP ? (struct ipcp *)fp : NULL)
