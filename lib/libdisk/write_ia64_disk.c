@@ -38,11 +38,13 @@ Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const stru
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
+#if !defined(__ia64__)
 	if(new->boot1)
 		memcpy(buf, new->boot1, 512);
 
 	if(new->boot2)
 		memcpy(buf + 512, new->boot2, BBSIZE-512);
+#endif
 
 	dl = (struct disklabel *)(buf + 512 * LABELSECTOR + LABELOFFSET);
 	Fill_Disklabel(dl, new, old, c1);
@@ -65,6 +67,7 @@ Write_Int32(u_int32_t *p, u_int32_t v)
     bp[3] = (v >> 24) & 0xff;
 }
 
+#if !defined(__ia64__)
 /*
  * Special install-time configuration for the i386 boot0 boot manager.
  */
@@ -78,6 +81,7 @@ Cfg_Boot_Mgr(u_char *mbr, int edd)
 	    mbr[0x1bb] &= 0x7f;	/* Packet mode off */
     }
 }
+#endif
 
 int
 Write_Disk(const struct disk *d1)
@@ -180,17 +184,21 @@ Write_Disk(const struct disk *d1)
 				dp[i].dp_flag = 0x80;
 
 	mbr = read_block(fd, 0, d1->sector_size);
+#if !defined(__ia64__)
 	if (d1->bootmgr) {
 		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);
         }
+#endif
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
 	write_block(fd, 0, mbr, d1->sector_size);
+#if !defined(__ia64__)
 	if (d1->bootmgr && d1->bootmgr_size > d1->sector_size)
 	  for(i = 1; i * d1->sector_size <= d1->bootmgr_size; i++)
 	    write_block(fd, i, &d1->bootmgr[i * d1->sector_size], d1->sector_size);
+#endif
 
 	close(fd);
 	return 0;

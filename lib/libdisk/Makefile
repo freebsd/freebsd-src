@@ -16,7 +16,11 @@ SRCS	+=	write_pc98_disk.c
 SRCS	+=	write_i386_disk.c
 .endif
 
-.if ${MACHINE} == "alpha"
+.if ${MACHINE_ARCH} == "ia64"
+SRCS	+=	write_ia64_disk.c
+.endif
+
+.if ${MACHINE_ARCH} == "alpha"
 SRCS	+=	write_alpha_disk.c
 .endif
 
