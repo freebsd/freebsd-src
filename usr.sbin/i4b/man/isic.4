@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -24,333 +24,314 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Fri Jan 26 14:32:33 2001]
+.\"	last edit-date: [Sun Jul 28 20:14:24 2002]
 .\"
-.Dd January 26, 2001
+.Dd July 28, 2002
 .Dt ISIC 4
 .Os
 .Sh NAME
 .Nm isic
 .Nd isdn4bsd Siemens ISDN Chipset device driver
 .Sh SYNOPSIS
-.Ss FreeBSD (FreeBSD >= 4.0)
-.Pp
-Asuscom ISDNLink 128K (ISA PnP):
-.Cd options \&"ASUSCOM_IPAC\&"
-.Cd "device isic0"
-.Pp
-AVM A1 or AVM Fritz!Card classic:
-.Cd options \&"AVM_A1\&"
-.Cd "device isic0 at isa? port 0x340 irq 5 flags 4"
-.Pp
-Dr. Neuhaus Niccy Go@ (PnP):
-.Cd options \&"DRN_NGO\&"
-.Cd "device isic0"
-.Pp
-ELSA QuickStep 1000pro ISA (PnP):
-.Cd options \&"ELSA_QS1ISA\&"
-.Cd "device isic0"
-.Pp
-ELSA MicroLink ISDN/PCI (ELSA QuickStep 1000pro PCI):
-.Cd options \&"ELSA_QS1PCI\&"
-.Cd "device isic0"
-.Pp
-ELSA PCC-16:
-.Cd options \&"ELSA_PCC16\&"
-.Cd "device isic0 at isa? port 0x360 irq 10 flags 20"
-.Pp
-Sedlbauer Win Speed card (PnP):
-.Cd options \&"SEDLBAUER\&"
-.Cd "device isic0"
-.Pp
-Siemens I-Surf 2.0 PnP:
-.Cd options \&"SIEMENS_ISURF2\&"
-.Cd "device isic0"
-.Pp
-Teles S0/8 or Niccy 1008 card:
-.Cd options \&"TEL_S0_8\&"
-.Cd "device isic0 at isa? iomem 0xd0000 irq 5 flags 1"
-.Pp
-Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
-.Cd options \&"TEL_S0_16\&"
-.Cd "device isic0 at isa? port 0xd80 iomem 0xd0000 irq 5 flags 2"
-.Pp
-Teles S0/16.3 card:
-.Cd options \&"TEL_S0_16_3\&"
-.Cd "device isic0 at isa? port 0xd80 irq 5 flags 3"
-.Pp
-Teles S0/16.3 PnP card (PnP) or
-Creatix ISDN-S0 P&P card (PnP):
-.Cd options \&"TEL_S0_16_3_P\&"
-.Cd "device isic0"
-.Pp
-USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
-.Cd options \&"USR_STI\&"
-.Cd "device isic0 at isa? port 0x268 irq 5 flags 7"
-.Pp
-Eicon.Diehl DIVA 2.0 and 2.02 ISA PnP card:
-.Cd options \&"EICON_DIVA\&"
-.Cd "device isic0"
-.Pp
-.Ss NetBSD
-On the ISA bus:
-.Pp
-Teles S0/8 or Niccy 1008 card:
-.Cd options \&"TEL_S0_8\&"
-.Cd "isic0 at isa? iomem 0xd0000 irq 5"
-.Pp
-Teles S0/16 or Creatix ISDN-S0 or Niccy 1016 card:
-.Cd options \&"TEL_S0_16\&"
-.Cd "isic0 at isa? port 0xd80 iomem 0xd0000 irq 5"
-.Pp
-Teles S0/16.3 card:
-.Cd options \&"TEL_S0_16_3\&"
-.Cd "isic0 at isa? port 0xd80 irq 5"
-.Pp
-AVM A1 or AVM Fritz card:
-.Cd options \&"AVM_A1\&"
-.Cd "isic0 at isa? port 0x340 irq 5"
-.Pp
-USRobotics Sportster ISDN TA internal or Stollmann Tina-pp card:
-.Cd options \&"USR_STI\&"
-.Cd "isic0 at isa? port 0x268 irq 5"
-.Pp
-ITK ix1 micro card:
-.Cd options \&"ITKIX1\&"
-.Cd "isic0 at isa? port 0x398 irq 10"
-.Pp
-On the ISAPNP bus:
-.Pp
-Teles S0/16.3 PnP card
-.Cd options \&"TEL_S0_16_3_P\&"
-.Cd "isic* at isapnp?"
-.Pp
-Creatix ISDN-S0 P&P card
-.Cd options \&"CRTX_S0_P\&"
-.Cd "isic* at isapnp?"
-.Pp
-Dr. Neuhaus Niccy GO@
-.Cd options \&"DRN_NGO\&"
-.Cd "isic* at isapnp?"
-.Pp
-ELSA QuickStep 1000pro (ISA version):
-.Cd options \&"ELSA_QS1ISA\&"
-.Cd "isic* at isapnp?"
-.Pp
-Sedlbauer WinSpeed:
-.Cd options \&"SEDLBAUER\&"
-.Cd "isic* at isapnp?"
-.Pp
-Dynalink IS64PH:
-.Cd options \&"DYNALINK\&"
-.Cd "isic* at isapnp?"
-.Pp
-Cards on the PCI bus:
-.Pp
-ELSA QuickStep 1000pro (PCI version)
-.Cd options \&"ELSA_QS1PCI\&"
-.Cd "isic* at pci?"
-.Pp
-Cards on the PCMCIA or PCCARD bus:
-.Pp
-AVM Fritz!Card PCMCIA
-.Cd options \&"AVM_A1_PCMCIA\&"
-.Cd "isic* at pcmcia? function ?"
-.Pp
-ELSA MicroLink ISDN/MC
-.Cd options \&"ELSA_ISDNMC\&"
-.Cd "isic* at pcmcia? function ?"
-.Pp
-ELSA MicroLink MC/all
-.Cd options \&"ELSA_MCALL\&"
-.Cd "isic* at pcmcia? function ?"
-.Pp
-Cards on the Amiga Zorro bus:
-.Pp
-BSC/ITH ISDN Master, ITH ISDN MasterII or VMC ISDN Blaster
-.Cd "aster* at zbus?"
-.Cd "isic* at aster? port ?"
+.Cd "device isic"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides D-channel layer 1 supports as specified in ITU Recommendation
 I.430 and layer 1 support for the B-channel.
 .Pp
-The driver supports several 8 and 16bit passive ISDN cards from various
-manufacturers which are all based upon the popular Siemens ISDN chipset
-consisting of the ISDN Subscriber Access Controller ISAC (such as the
-PEB2085 or PSB 2186) and the High-Level Serial Communications Controller
-Extended HSCX (such as the SAB82525 or PSB21525). The newer IPAC chip
-(which integrates an ISAC and a HSCX in one chip, with the added benefit
-of larger FIFO buffers) is also supported.
-.Sh SUPPORTED CARDS
+The driver supports several 8 and 16bit passive ISA, ISA PnP and PCI 
+ISDN cards from various manufacturers which are all based upon the 
+popular Siemens ISDN chipset consisting of the ISDN Subscriber Access 
+Controller ISAC (such as the PEB2085 or PSB 2186) and the High-Level 
+Serial Communications Controller Extended HSCX (such as the SAB82525 
+or PSB21525). 
+The newer IPAC chip (which integrates an ISAC and a HSCX in one chip,
+with the added benefit of larger FIFO buffers) is also supported.
+.Sh SUPPORTED CARDS: ISA bus, NON-PnP
 .Bl -tag -width Ds -compact
 .It Ar Teles S0/8, Dr. Neuhaus Niccy 1008, Creatix ISDN-S0/8
 .Pp
-The required (optional for
-.Nx )
-.Em flag
-value is 1.
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options TEL_S0_8
+.Ed
+.Pp
+The required entry in 
+.Xr device.hints 5
+file is:
+.Pp
+.Bd -literal -offset indent
+hint.isic.0.at="isa"
+hint.isic.0.maddr="0xd0000"
+hint.isic.0.irq="5"
+hint.isic.0.flags="1"
+.Ed
 .Pp
 Notice that this cards must not have a
 .Em port
-value in the config line.
+value.
 .Pp
-Valid interrupts are 2, 3, 4, 5, 6 and 7.
+Valid values for hint.isic.N.irq are 2, 3, 4, 5, 6 and 7.
 .Pp
-The i/o ports are memory mapped and the memory start address may
-be in the range 0xA0000 to 0xDF000 and uses 4kB of memory.
+The i/o ports are memory mapped and the memory start address (hint.isic.N.maddr)
+may be in the range 0xA0000 to 0xDF000 and use a region of 4kB of memory.
 .Pp
 .It Ar Teles S0/16, Creatix ISDN-S0, Dr. Neuhaus Niccy 1016
 .Pp
-The required (optional under
-.Nx )
-.Em flag
-value is 2.
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options TEL_S0_16
+.Ed
 .Pp
-These boards have a jumper which specifies an i/o base address of either
-0xd80, 0xe80 or 0xf80. The remaining necessary configuration values are then
+The required entry in 
+.Xr device.hints 5
+file is:
+.Pp
+.Bd -literal -offset indent
+hint.isic.0.at="isa"
+hint.isic.0.port="0xd80"
+hint.isic.0.maddr="0xd0000"
+hint.isic.0.irq="5"
+hint.isic.0.flags="2"
+.Ed
+.Pp
+These boards have a jumper which specifies an i/o base address
+(hint.isic.N.port) of either 0xd80, 0xe80 or 0xf80. 
+The remaining necessary configuration values are then
 programmed at run time by accessing this i/o port.
 .Pp
-Valid interrupts are 2, 3, 4, 5, 10, 11, 12 or 15.
+Valid interrupts (hint.isic.N.irq) are 2, 3, 4, 5, 10, 11, 12 or 15.
 .Pp
-Valid memory start
-addresses are 0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000,
-0xCE000, 0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000 and
+Valid memory start addresses (hint.isic.N.maddr) are 
+0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000, 0xCE000, 
+0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000 and
 0xDE000.
 .Pp
-Notice: Although the Jumpers are labeled 0xd80, 0xe80 or 0xf80, they
+Notice: Although the jumpers are labeled 0xd80, 0xe80 or 0xf80, they
 also require i/o space at addresses 0x180, 0x280 or 0x380.
 .Pp
 .It Ar Teles S0/16.3
 .Pp
-The required (optional under
-.Nx )
-.Em flag
-value is 3.
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options TEL_S0_16_3
+.Ed
+.Pp
+The required entry in 
+.Xr device.hints 5
+file is:
+.Pp
+.Bd -literal -offset indent
+hint.isic.0.at="isa"
+hint.isic.0.port="0xd80"
+hint.isic.0.irq="5"
+hint.isic.0.flags="3"
+.Ed
 .Pp
 This card is completely i/o mapped and must not have an
-.Em iomem
-statement in the config line.
+.Em maddr
+statement in the hints file.
 .Pp
-Valid interrupts are 2, 5, 9, 10, 12 or 15.
+Valid interrupts (hint.isic.N.irq) are 2, 5, 9, 10, 12 or 15.
+.Pp
+These boards have a jumper which specifies an i/o base address
+(hint.isic.N.port) of either 0xd80, 0xe80 or 0xf80.
 .Pp
 Notice: Although the switch positions are labeled 0x180, 0x280 and 0x380,
 the card is to be configured at 0xd80, 0xe80 or 0xf80 respectively!
 .Pp
-.It Ar AVM A1, AVM Fritz!Card
+.It Ar AVM A1 and AVM Fritz!Card
 .Pp
-The required (optional under
-.Nx )
-.Em flag
-value is 4.
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options AVM_A1
+.Ed
 .Pp
-These boards have a jumper which specifies an i/o base address of either
-0x200, 0x240, 0x300 or 0x340.
+The required entry in 
+.Xr device.hints 5
+file is:
 .Pp
-Valid interrupt configurations are 3, 4, 5, 6, 7, 10, 11, 12 or 15.
+.Bd -literal -offset indent
+hint.isic.0.at="isa" 
+hint.isic.0.port="0x340"
+hint.isic.0.irq="5"
+hint.isic.0.flags="4"
+.Ed
+.Pp
+These boards have a jumper which specifies an i/o base address (hint.isic.N.port)
+of either 0x200, 0x240, 0x300 or 0x340.
+.Pp
+Valid interrupt (hint.isic.N.irq) values are 3, 4, 5, 6, 7, 10, 11, 12 or 15.
 .Pp
 Older Versions of the AVM A1 also require setting of an IRQ jumper, newer
 versions of this and the Fritz!Card only have an i/o base jumper and the
 interrupt is setup at runtime by reprogramming a register.
 .Pp
-This card is completely i/o mapped and must not have an
-.Em iomem
-statement in the config line.
+.It Ar USRobotics Sportster ISDN TA intern and Stollmann Tina pp
 .Pp
-.It Ar Teles S0/16.3 PnP
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options USR_STI
+.Ed
 .Pp
-Possible i/o port values are 0x580, 0x500 and 0x680.
-Possible interrupt configurations are 3, 5, 7, 10, 11 and 12.
+The required entry in 
+.Xr device.hints 5
+file is:
 .Pp
-The the card is auto-configured by the PnP kernel subsystem.
+.Bd -literal -offset indent
+hint.isic.0.at="isa"   
+hint.isic.0.port="0x268"
+hint.isic.0.irq="5"
+hint.isic.0.flags="7"
+.Ed
 .Pp
-.It Ar Creatix ISDN-S0 P&P
+Valid i/o port values (hint.isic.N.port) are 0x200, 0x208, 0x210, 0x218, 
+0x220, 0x228, 0x230, 0x238, 0x240, 0x248, 0x250, 0x258, 0x260, 0x268, 
+0x270 and 0x278.
 .Pp
-Valid i/o port values are 0x120, 0x180 and 0x100.
+Valid interrupt (hint.isic.N.irq) values are 5, 7, 10, 11, 12, 14, 15.
 .Pp
-Valid interrupt configurations are 3, 5, 7, 10, 11 and 12.
+Notice: this card has a strange address decoding scheme resulting in 
+occupying 64 windows of some bytes length over the whole i/o address
+range.
 .Pp
-The card is auto-configured by the PnP kernel subsystem.
+.It Ar ITK ix1 Micro ( < V.3, non-PnP version )
 .Pp
-.It Ar "3Com USRobotics Sportster ISDN TA intern and Stollmann Tina pp"
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options ITKIX1
+.Ed
 .Pp
-The required (optional for
-.Nx )
-.Em flag
-value is 7.
+The required entry in 
+.Xr device.hints 5
+file is:
 .Pp
-Valid i/o port values are 0x200, 0x208, 0x210, 0x218, 0x220, 0x228, 0x230,
-0x238, 0x240, 0x248, 0x250, 0x258, 0x260, 0x268, 0x270 and 0x278.
-.Pp
-Valid interrupt configurations are 5, 7, 10, 11, 12, 14, 15.
-.Pp
-Notice: this card has a strange address decoding scheme resulting in 64
-windows of some bytes length. Anyway, support for this card is good because
-the manufacturer gave out technical docs for this card!
-.Pp
-.Pp
-.It Ar "Dr. Neuhaus Niccy Go@"
-.Pp
-Valid i/o port values must be in the range 0x200 ... 0x3e0.
-.Pp
-Valid interrupt configurations are 3, 4, 5, 9, 10, 11, 12, 15.
-.Pp
-The card is auto-configured by the PnP kernel subsystem.
-.Pp
-.It Ar "Sedlbauer Win Speed"
-.Pp
-Valid i/o port values must be in the range 0x100 ... 0x3f0. (alignment 0x8,
-len 0x8)
-.Pp
-Valid interrupt configurations are 3, 4, 5, 7, 10, 11, 12, 13, 15.
-.Pp
-The card is auto-configured by the PnP kernel subsystem.
-.Pp
-.It Ar "ELSA QuickStep 1000pro (ISA)"
-.Pp
-I/O port in the range 0x160 ... 0x360 (occupies 8 bytes).
-.Pp
-Valid interrupt configurations are 3, 4, 5, 7, 10, 11, 12, 15.
-.Pp
-The card is auto-configured by the PnP kernel subsystem.
-.Pp
-.Pp
-.It Ar "ELSA QuickStep 1000pro-PCI"
-.Pp
-The card is auto-configured by the PCI kernel subsystem.
-.Pp
-.Pp
-.It Ar "ITK ix1 micro"
-.Pp
-The required (optional under
-.Nx )
-.Em flag
-value is 18.
+.Bd -literal -offset indent
+hint.isic.0.at="isa" 
+hint.isic.0.port="0x398"
+hint.isic.0.irq="10"
+hint.isic.0.flags="18" 
+.Ed
 .Pp
 Valid i/o port values must be in the range (<unknown>).
 .Pp
 Valid interrupt configurations are (<unknown>).
 .Pp
-.It Ar "BSC ISDN Master"
-.It Ar "ITH ISDN MasterII"
-.It Ar "VMC ISDN Blaster"
+.It Ar ELSA MicroLink ISDN/PCC-16 and ELSA PCFpro
 .Pp
-The card addresses are auto-configured by the Zorro bus kernel subsystem.
-The ISDN functions of the boards are at known (to the driver) relative
-addresses.
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options ELSA_PCC16
+.Ed
 .Pp
-Note that currently, you have to jumper the card interupt for
-.Em IPL 2
-instead of IPL 6 (which is used by most AmigaOS software).
+The required entry in 
+.Xr device.hints 5
+file is:
 .Pp
-Note that the ITH ISDN MasterII doesn't work in the DraCo Zorro bus. This
-is no
-.Nx
-problem, but general.
+.Bd -literal -offset indent
+hint.isic.0.at="isa" 
+hint.isic.0.port="0x360"
+hint.isic.0.irq="10"
+hint.isic.0.flags="20"
+.Ed
+.Pp
+Valid i/o port (hint.isic.N.port) values are 0x160, 0x170, 0x260 and 0x360.
+.Pp
+Valid interrupt (hint.isic.N.irq) values are 2, 3, 5, 10, 11 and 15.
+.Pp
+The LED's are not supported and are off.
+.Pp
+.El
+.Sh SUPPORTED CARDS: ISA bus, PnP (Plug 'n Pray)
+.Bl -tag -width Ds -compact
+.It Ar Teles S0/16.3 PnP
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options TEL_S0_16_3_P
+.Ed
+.Pp
+.It Ar Creatix ISDN-S0 P&P
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options CRTX_S0_P
+.Ed
+.Pp
+.It Ar "Dr. Neuhaus Niccy Go@"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options DRN_NGO
+.Ed
+.Pp
+.It Ar "Sedlbauer Win Speed"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options SEDLBAUER
+.Ed
+.Pp
+.It Ar "Dynalink IS64PH"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options DYNALINK
+.Ed
+.Pp
+.It Ar "ELSA QuickStep 1000pro ISA"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options ELSA_QS1ISA
+.Ed
+.Pp
+The LED's are not supported and are off.
+.Pp
+.It Ar "Siemens I-Surf 2.0"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options SIEMENS_ISURF2
+.Ed
+.Pp
+.It Ar "Asuscom ISDNlink 128K ISA"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options ASUSCOM_IPAC
+.Ed
+.Pp
+.It Ar "Eicon Diehl DIVA 2.0 and 2.02"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options EICON_DIVA
+.Ed
+.Pp
+.It Ar "Compaq Microcom 610 ISDN card (Compaq series PSB2222I)"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options COMPAQ_M610
+.Ed
+.Pp
+.El
+.Sh SUPPORTED CARDS: PCI bus
+.Bl -tag -width Ds -compact
+.It Ar "ELSA QuickStep 1000pro-PCI"
+.Pp
+The required entry in the kernel config file is:
+.Bd -literal -offset indent
+options ELSA_QS1PCI
+.Ed
+.Pp
+The LED's are not supported and are off.
+.Pp
 .El
 .Sh CAVEATS
-Note that all of the boards with I/O ports actually use several ranges
+Note that all of ISA boards with i/o ports actually use several ranges
 of port addresses; Teles happen to refer to the 0xd80 range in their
 documentation (the board also uses 0x180 etc.), while AVM happen to refer
 to the 0x200 range in their documentation (the board also uses 0x600 etc.)
@@ -358,8 +339,8 @@ The driver matches the manufacturers' description for the purposes of
 configuration, but of course makes use of all the ports in order to
 operate the card.
 .Sh BUGS
-Since there is no hardware documentation available from several manufacturers
-for their boards, it is likely that there are many, many bugs left.
+Since there is no hardware documentation available from the manufacturers
+of several boards, it is likely that there are many bugs left.
 .Sh STANDARDS
 CCITT Recommendation I.430
 .Sh SEE ALSO
@@ -370,19 +351,11 @@ CCITT Recommendation I.430
 The
 .Nm
 driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
 It is based on earlier work of
 .An Arne Helme ,
 .An Andrew Gordon
 and
-.An Gary Jennejohn .
-.Pp
-The complete porting to and maintenance of
-.Nx
-was done by
-.An Martin Husemann Aq martin@rumolt.teuto.de .
-.Pp
-The
-.Nx Ns /Amiga
-ISDN Blaster/Master/MasterII driver was written by
-.An Ignatios Souvatzis Aq is@netbsd.org .
+.An Gary Jennejohn Aq gj@freebsd.org .
+
+

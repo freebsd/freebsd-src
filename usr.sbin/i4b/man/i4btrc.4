@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,11 +22,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btrc.4,v 1.9 1999/12/13 22:11:55 hm Exp $
-.\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:14:19 1999]
+.\"	last edit-date: [Sun Jul 28 14:21:03 2002]
 .\"
 .Dd July 30, 1999
 .Dt I4BTRC 4
@@ -34,22 +32,23 @@
 .Sh NAME
 .Nm i4btrc
 .Nd "isdn4bsd ISDN interface driver for D and B channel tracing
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btrc\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Sh SYNOPSIS
+.Cd device \&"i4btrc\&" Op count
 .Sh DESCRIPTION
 The
 .Nm
 driver is used to add a header to the data got from the D and/or B channel
 and queues it to be read and further processed by the
 .Xr isdntrace 8
-utility.
+or
+.Xr isdndecode 8
+utilities.
 .Sh SEE ALSO
 .Xr isdnd 8 ,
 .Xr isdntrace 8
+.Xr isdndecode 8
 .Sh AUTHORS
 The
 .Nm
 device driver and this manpage were written by
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
