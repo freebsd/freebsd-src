@@ -76,15 +76,15 @@ ENTRY(bzero)
 
 /* Address: %rdi */
 ENTRY(pagezero)
-	lea	4096(%rdi),%rsi
+	movq	$-PAGE_SIZE,%rdx
+	subq	%rdx,%rdi
 	xorq	%rax,%rax
 1:
-	movnti	%rax,(%rdi)
-	movnti	%rax,8(%rdi)
-	movnti	%rax,16(%rdi)
-	movnti	%rax,24(%rdi)
-	addq	$32,%rdi
-	cmpq	%rsi,%rdi
+	movnti	%rax,(%rdi,%rdx)
+	movnti	%rax,8(%rdi,%rdx)
+	movnti	%rax,16(%rdi,%rdx)
+	movnti	%rax,24(%rdi,%rdx)
+	addq	$32,%rdx
 	jne	1b
 	sfence
 	retq
