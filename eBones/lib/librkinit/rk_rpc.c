@@ -1,7 +1,7 @@
 /* 
- * $Id$
+ * $Id: rk_rpc.c,v 1.4 1997/02/22 14:37:57 peter Exp $
  * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_rpc.c,v $
- * $Author: jkh $
+ * $Author: peter $
  *
  * This file contains functions that are used for network communication.
  * See the comment at the top of rk_lib.c for a description of the naming
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id$";
+static char *rcsid = "$Id: rk_rpc.c,v 1.4 1997/02/22 14:37:57 peter Exp $";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>
@@ -33,8 +33,6 @@ static int sock;
 struct sockaddr_in saddr;
 
 static char errbuf[BUFSIZ];
-
-char *calloc();
 
 #ifdef __STDC__
 int rki_send_packet(int sock, char type, u_int32_t length, const char *data)
