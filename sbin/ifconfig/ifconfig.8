@@ -32,7 +32,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2001
+.Dd April 28, 2003
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -302,6 +302,18 @@ list of available options.
 .It Fl mediaopt Ar opts
 If the driver supports the media selection system, disable the
 specified media options on the interface.
+.It Cm mode Ar mode
+If the driver supports the media selection system, set the specified
+operating mode on the interface to
+.Ar mode .
+For IEEE 802.11 wireless interfaces that support multiple operating modes
+this directive is used to select between 802.11a (\c
+.Dq 11a ),
+802.11b (\c
+.Dq 11b ),
+and 802.11g (\c
+.Dq 11g )
+operating modes.
 .It Cm rxcsum , txcsum
 If the driver supports user-configurable checksum offloading,
 enable receive (or transmit) checksum offloading on the interface.
@@ -454,7 +466,7 @@ The prefix can also be specified using the slash notation after the address.
 See the
 .Ar address
 option above for more information.
-.\" see
+3\" see
 .\" Xr eon 5 .
 .\" .It Cm nsellength Ar n
 .\" .Pf ( Tn ISO
