@@ -358,9 +358,6 @@ div_attach(struct socket *so, int proto, struct proc *p)
 	inp->inp_ip_p = proto;
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_flags |= INP_HDRINCL;
-	/* The socket is always "connected" because
-	   we always know "where" to send the packet */
-	so->so_state |= SS_ISCONNECTED;
 	return 0;
 }
 
@@ -374,21 +371,6 @@ div_detach(struct socket *so)
 		panic("div_detach");
 	in_pcbdetach(inp);
 	return 0;
-}
-
-static int
-div_abort(struct socket *so)
-{
-	soisdisconnected(so);
-	return div_detach(so);
-}
-
-static int
-div_disconnect(struct socket *so)
-{
-	if ((so->so_state & SS_ISCONNECTED) == 0)
-		return ENOTCONN;
-	return div_abort(so);
 }
 
 static int
@@ -528,9 +510,9 @@ SYSCTL_PROC(_net_inet_divert, OID_AUTO, pcblist, CTLFLAG_RD, 0, 0,
 	    div_pcblist, "S,xinpcb", "List of active divert sockets");
 
 struct pr_usrreqs div_usrreqs = {
-	div_abort, pru_accept_notsupp, div_attach, div_bind,
+	NULL, pru_accept_notsupp, div_attach, div_bind,
 	pru_connect_notsupp, pru_connect2_notsupp, in_control, div_detach,
-	div_disconnect, pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
+	NULL, pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp,
 	pru_rcvoob_notsupp, div_send, pru_sense_null, div_shutdown,
 	in_setsockaddr, sosend, soreceive, sopoll
 };
