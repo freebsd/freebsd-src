@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.9.2.2 1996/05/05 18:00:30 peter Exp $
+ *	$Id: si.c,v 1.9.2.3 1996/05/05 18:17:06 peter Exp $
  */
 
 #ifndef lint
@@ -1150,10 +1150,10 @@ siioctl(dev, cmd, data, flag, p)
 
 	switch (cmd) {
 	case TIOCSBRK:
-		si_command(pp, SBREAK, SI_NOWAIT);
+		si_command(pp, SBREAK, SI_WAIT);
 		break;
 	case TIOCCBRK:
-		si_command(pp, EBREAK, SI_NOWAIT);
+		si_command(pp, EBREAK, SI_WAIT);
 		break;
 	case TIOCSDTR:
 		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
@@ -1423,7 +1423,7 @@ siparam(tp, t)
 	if (cflag & CCTS_OFLOW)
 		val |= MR2_RTSCONT;
 
-	ccbp->hi_mr1 = val;
+	ccbp->hi_mr2 = val;
 
 	/* ========== set hi_mr1 ========== */
 	val = 0;
@@ -1773,6 +1773,8 @@ siintr(int unit)
 				case MPEND:
 				case MOPEN:
 				case CONFIG:
+				case SBREAK:
+				case EBREAK:
 					pp->sp_pend = ccbp->hi_stat;
 						/* sleeping in si_command */
 					wakeup(&pp->sp_state);
@@ -1805,7 +1807,7 @@ siintr(int unit)
 				isopen = 0;
 
 			/*
-			 * Do break processing
+			 * Do input break processing
 			 */
 			if (ccbp->hi_state & ST_BREAK) {
 				if (isopen) {
@@ -2072,9 +2074,9 @@ si_start(tp)
 				else
 					time = 2;
 			} else {
-				printf("si%d: bad char time value!!\n",
-					(int)SI_CARD(tp->t_dev));
-				goto out;
+				DPRINT((pp, DBG_START,
+					"bad char time value! %d\n", time));
+				time = hz/10;
 			}
 		}
 
@@ -2186,8 +2188,11 @@ si_command(pp, cmd, waitflag)
 	oldspl = spltty();		/* Keep others out */
 
 	/* wait until it's finished what it was doing.. */
+	/* XXX: sits in IDLE_BREAK until something disturbs it or break
+	 * is turned off. */
 	while((x = ccbp->hi_stat) != IDLE_OPEN &&
 			x != IDLE_CLOSE &&
+			x != IDLE_BREAK &&
 			x != cmd) {
 		if (in_intr) {			/* Prevent sleep in intr */
 			DPRINT((pp, DBG_PARAM,
@@ -2201,20 +2206,20 @@ si_command(pp, cmd, waitflag)
 			return;
 		}
 	}
-	/* it should now be in IDLE_OPEN, IDLE_CLOSE, or "cmd" */
+	/* it should now be in IDLE_{OPEN|CLOSE|BREAK}, or "cmd" */
 
 	/* if there was a pending command, cause a state-change wakeup */
-	if (pp->sp_pend != IDLE_OPEN) {
-		switch(pp->sp_pend) {
-		case LOPEN:
-		case MPEND:
-		case MOPEN:
-		case CONFIG:
-			wakeup(&pp->sp_state);
-			break;
-		default:
-			break;
-		}
+	switch(pp->sp_pend) {
+	case LOPEN:
+	case MPEND:
+	case MOPEN:
+	case CONFIG:
+	case SBREAK:
+	case EBREAK:
+		wakeup(&pp->sp_state);
+		break;
+	default:
+		break;
 	}
 
 	pp->sp_pend = cmd;		/* New command pending */
@@ -2227,7 +2232,8 @@ si_command(pp, cmd, waitflag)
 				cmd));
 			splx(oldspl);
 			return;
-		} else while(ccbp->hi_stat != IDLE_OPEN) {
+		} else while(ccbp->hi_stat != IDLE_OPEN &&
+			     ccbp->hi_stat != IDLE_BREAK) {
 			if (ttysleep(pp->sp_tty, (caddr_t)&pp->sp_state, TTIPRI|PCATCH,
 			    "sicmd2", 0))
 				break;
