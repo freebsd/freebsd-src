@@ -1367,6 +1367,11 @@ ata_promise_chipinit(device_t dev)
 	return ENXIO;
     }
 
+    if (ctlr->chip->max_dma >= ATA_SA150)
+	ctlr->setmode = ata_sata_setmode;
+    else
+	ctlr->setmode = ata_promise_setmode;
+
     switch  (ctlr->chip->cfg1) {
     case PRNEW:
 	/* setup clocks */
@@ -1413,22 +1418,33 @@ ata_promise_chipinit(device_t dev)
 	ctlr->dmainit = ata_promise_mio_dmainit;
 	ctlr->allocate = ata_promise_mio_allocate;
 
-	if (ctlr->chip->cfg2 & PRPATA) {
-	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x01) > 0) +
-			     ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 2;
-	}
-	else if (ctlr->chip->cfg2 & PRCMBO) {
-	    ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
-	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 3;
-	}
-	else if (ctlr->chip->cfg2 & PRCMBO2) {
-	    ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
-	    ctlr->channels = 3;
-	}
-	else
-	    ctlr->channels = 4;
+	switch (ctlr->chip->cfg2) {
+	case PRPATA:
+            ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x01) > 0) +
+                             ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 2;
+	    break;
 
-	if (ctlr->chip->cfg2 & PRSX4X) {
+	case PRCMBO:
+            ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
+            ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 3;
+	    break;
+
+	case PRSATA:
+            ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
+            ctlr->channels = 4;
+	    break;
+
+	case PRCMBO2:
+            ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
+            ctlr->channels = 3;
+	    break;
+
+	case PRSATA2:
+            ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
+            ctlr->channels = 4;
+	    break;
+
+	case PRSX4X: {
 	    struct ata_promise_sx4 *hpkt;
 	    u_int32_t dimm = ATA_INL(ctlr->r_res2, 0x000c0080);
 
@@ -1448,26 +1464,25 @@ ata_promise_chipinit(device_t dev)
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    hpkt->busy = hpkt->head = hpkt->tail = 0;
 
+            ctlr->channels = 4;
+
 	    if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
 				ata_promise_sx4_intr, ctlr, &ctlr->handle))) {
 		device_printf(dev, "unable to setup interrupt\n");
 		return ENXIO;
 	    }
-	}
-	else {
-	    if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
-				ata_promise_mio_intr, ctlr, &ctlr->handle))) {
-		device_printf(dev, "unable to setup interrupt\n");
-		return ENXIO;
+	    return 0;
 	    }
 	}
-	break;
+
+	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+			    ata_promise_mio_intr, ctlr, &ctlr->handle))) {
+	    device_printf(dev, "unable to setup interrupt\n");
+	    return ENXIO;
+	}
+	return 0;
     }
-    if (ctlr->chip->max_dma >= ATA_SA150)
-	ctlr->setmode = ata_sata_setmode;
-    else
-	ctlr->setmode = ata_promise_setmode;
-    return 0;
+    return ENXIO;
 }
 
 static int
@@ -1587,13 +1602,13 @@ ata_promise_mio_reset(struct ata_channel *ch)
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
 
-    if (ctlr->chip->cfg2 & PRSX4X) {
+    switch (ctlr->chip->cfg2) {
+    case PRSX4X: {
 	struct ata_promise_sx4 *hpktp = ctlr->driver;
 
-	/* softreset channels ATA module */
+	/* softreset channel ATA module */
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7), ch->unit + 1);
 	DELAY(1000);
-
 	ATA_OUTL(ctlr->r_res2, 0xc0260 + (ch->unit << 7),
 		 (ATA_INL(ctlr->r_res2, 0xc0260 + (ch->unit << 7)) &
 		  ~0x00003f9f) | (ch->unit + 1));
@@ -1606,8 +1621,20 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	ATA_OUTL(ctlr->r_res2, 0xc012c,
 		 (ATA_INL(ctlr->r_res2, 0xc012c) & ~0x00000f9f));
 	mtx_unlock(&hpktp->mtx);
-    }
-    else if (ctlr->chip->cfg2 & PRSATA) {
+        }
+        break;
+
+    case PRCMBO:
+    case PRCMBO2:
+	/* softreset channel ATA module */
+	ATA_OUTL(ctlr->r_res2, 0x0260 + (ch->unit << 7), (1 << 11));
+	ata_udelay(10000);
+	ATA_OUTL(ctlr->r_res2, 0x0260 + (ch->unit << 7),
+		 (ATA_INL(ctlr->r_res2, 0x0260 + (ch->unit << 7)) &
+		  ~0x00003f9f) | (ch->unit + 1));
+	break;
+
+    case PRSATA: {
 	u_int32_t status = 0;
 	int timeout;
 
@@ -1633,14 +1660,16 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	if (timeout >= 1000000)
 	    device_printf(ch->dev, "connect status=%08x\n", status);
 
-	/* enable plug/unplug intr */
+	/* reset and enable plug/unplug intr */
 	ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
-    }
-    else if (ctlr->chip->cfg2 & PRSATA2) {
+        }
+	break;
+
+    case PRSATA2: {
 	u_int32_t status = 0;
 	int timeout;
 
-	/* set PM port */
+	/* set portmultiplier port */
 	ATA_OUTL(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x0f);
 
 	/* mask plug/unplug intr */
@@ -1670,11 +1699,13 @@ ata_promise_mio_reset(struct ata_channel *ch)
 	if (timeout >= 1000000)
 	    device_printf(ch->dev, "connect status=%08x\n", status);
 
-	/* enable plug/unplug intr */
+	/* reset and enable plug/unplug intr */
 	ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
 
-	/* set PM port */
-	ATA_OUTL(ctlr->r_res2, 0x4e8 + (ch->unit * 0x100), 0x00);
+	/* set portmultiplier port */
+	ATA_OUTL(ctlr->r_res2, 0x4e8 + (ch->unit << 8), 0x00);
+	}
+	break;
     }
 }
 
