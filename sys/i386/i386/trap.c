@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.44 1995/01/14 13:20:10 bde Exp $
+ *	$Id: trap.c,v 1.45 1995/01/24 09:56:33 davidg Exp $
  */
 
 /*
@@ -131,7 +131,10 @@ userret(p, frame, oticks)
 		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 	}
-	if (p->p_stats->p_prof.pr_scale) {
+	/*
+	 * Charge system time if profiling.
+	 */
+	if (p->p_flag & P_PROFIL) {
 		u_quad_t ticks = p->p_sticks - oticks;
 
 		if (ticks) {
