@@ -71,8 +71,9 @@ END(.rtld_start)
  * Find the address of _DYNAMIC by disassembling a call instruction to it.
  * Binutils may not fill in the GOT as expected on other architectures.
  */
+.weak	_DYNAMIC
 
-ENTRY(rtld_dynamic)
+ENTRY(rtld_dynamic_addr)
 	save	%sp, -CCFSZ, %sp
 	call	1f
 	 nop
@@ -82,7 +83,7 @@ ENTRY(rtld_dynamic)
 	sra	%o0, 0, %o0
 	ret
 	 restore %o0, %o7, %o0
-END(rtld_dynamic)
+END(rtld_dynamic_addr)
 
 	/*
 	 * We have two separate entry points to the runtime linker.
