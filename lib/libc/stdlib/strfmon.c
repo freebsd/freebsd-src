@@ -501,11 +501,8 @@ __format_grouped_double(double value, int *flags,
 
 	grouping = lc->mon_grouping;
 	decimal_point = *lc->mon_decimal_point;
-	if (decimal_point == '\0') {
+	if (decimal_point == '\0')
 		decimal_point = *lc->decimal_point;
-		if (decimal_point == '\0')
-			decimal_point = '.';
-	}
 	thousands_sep = *lc->mon_thousands_sep;
 	if (thousands_sep == '\0')
 		thousands_sep = *lc->thousands_sep;
