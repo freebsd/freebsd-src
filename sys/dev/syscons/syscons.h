@@ -56,6 +56,10 @@
 #undef SC_PIXEL_MODE
 #endif
 
+#ifndef SC_MOUSE_CHAR
+#define SC_MOUSE_CHAR	(0xd0)
+#endif
+
 #ifndef SC_DEBUG_LEVEL
 #define SC_DEBUG_LEVEL	0
 #endif
@@ -236,6 +240,8 @@ typedef struct sc_softc {
 	u_char		*font_14;
 	u_char		*font_16;
 #endif
+
+	u_char		mouse_char;
 
 } sc_softc_t;
 
