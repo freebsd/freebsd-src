@@ -59,6 +59,4 @@ CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
-.ifdef GCC3
 CFLAGS+=	-ffreestanding
-.endif
