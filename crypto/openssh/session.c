@@ -857,14 +857,15 @@ do_child(const char *command, struct passwd * pw, const char *term,
 	extern char **environ;
 	struct stat st;
 	char *argv[10];
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+#endif
 
 	/* login(1) is only called if we execute the login shell */
 	if (options.use_login && command != NULL)
 		options.use_login = 0;
 
 #ifdef LOGIN_CAP
-	login_cap_t *lc;
-
 	lc = login_getpwclass(pw);
 	if (lc == NULL)
 		lc = login_getclassbyname(NULL, pw);
