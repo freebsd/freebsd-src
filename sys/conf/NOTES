@@ -95,7 +95,7 @@ options 	DFLDSIZ=(1024UL*1024*1024)
 
 #
 # BLKDEV_IOSIZE sets the default block size used in user block
-# device I/O.  Note that this value will be overriden by the label
+# device I/O.  Note that this value will be overridden by the label
 # when specifying a block device from a label with a non-0
 # partition blocksize.  The default is PAGE_SIZE.
 #
@@ -184,7 +184,7 @@ options 	MUTEX_NOINLINE
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_DDB causes the witness code to drop into the kernel debugger if
-#	  a lock heirarchy violation occurs or if locks are held when going to
+#	  a lock hierarchy violation occurs or if locks are held when going to
 #	  sleep.
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
 options 	MUTEX_DEBUG
@@ -328,7 +328,7 @@ options 	DIAGNOSTIC
 
 #
 # REGRESSION causes optional kernel interfaces necessary only for regression
-# testing to be enabled.  These interfaces may consitute security risks
+# testing to be enabled.  These interfaces may constitute security risks
 # when enabled, as they permit processes to easily modify aspects of the
 # run-time environment to reproduce unlikely or unusual (possibly normally
 # impossible) scenarios.
@@ -408,7 +408,7 @@ options 	ALTQ_RED	# Random Early Drop
 options 	ALTQ_RIO	# RED In/Out
 options 	ALTQ_HFSC	# Hierarchical Packet Scheduler
 options 	ALTQ_CDNR	# Traffic conditioner
-options 	ALTQ_PRIQ	# Prioirity Queueing
+options 	ALTQ_PRIQ	# Priority Queueing
 options 	ALTQ_NOPCC	# Required for SMP build
 options 	ALTQ_DEBUG
 
@@ -589,7 +589,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
-# PFIL_HOOKS enables an abtraction layer which is meant to be used in
+# PFIL_HOOKS enables an abstraction layer which is meant to be used in
 # network code where filtering is required.  See pfil(9).  This option is
 # required by the IPFILTER option and the PF device.
 #
@@ -657,7 +657,7 @@ options 	DUMMYNET
 options 	BRIDGE
 
 # Zero copy sockets support.  This enables "zero copy" for sending and
-# receving data via a socket.  The send side works for any type of NIC,
+# receiving data via a socket.  The send side works for any type of NIC,
 # the receive side only works for NICs that support MTUs greater than the
 # page size of your architecture and that support header splitting.  See
 # zero_copy(9) for more details.
@@ -932,8 +932,8 @@ hint.sa.1.target="6"
 #
 # The cd driver drives SCSI Read Only Direct Access ("cd") devices.
 #
-# The ses driver drives SCSI Envinronment Services ("ses") and
-# SAF-TE ("SCSI Accessable Fault-Tolerant Enclosure") devices.
+# The ses driver drives SCSI Environment Services ("ses") and
+# SAF-TE ("SCSI Accessible Fault-Tolerant Enclosure") devices.
 #
 # The pt driver drives SCSI Processor devices.
 #
@@ -1554,7 +1554,7 @@ options 	PUC_FASTINTR
 #
 # MII bus support is required for some PCI 10/100 ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
-# tranceiver control interfaces that operate like an MII. Adding
+# transceiver control interfaces that operate like an MII. Adding
 # "device miibus0" to the kernel config pulls in support for
 # the generic miibus API and all of the PHY drivers, including a
 # generic one for PHYs that aren't specifically handled by an
@@ -1644,7 +1644,7 @@ device		miibus
 #       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
 #       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
 #       supports several Olicom 10Mbps and 10/100 boards.
-# tx:   SMC 9432 TX, BTX and FTX cards. (SMC EtherPower II serie)
+# tx:   SMC 9432 TX, BTX and FTX cards. (SMC EtherPower II series)
 # txp:	Support for 3Com 3cR990 cards with the "Typhoon" chipset
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
@@ -1800,7 +1800,7 @@ options 	LIBMBPOOL		#needed by patm, iatm
 # Gravis UltraSound ISA PnP/non-PnP
 # Crystal Semiconductor CS461x/428x PCI
 # Neomagic 256AV (ac97)
-# Most of the more common ISA/PnP sb/mss/ess compatable cards.
+# Most of the more common ISA/PnP sb/mss/ess compatible cards.
 
 device		pcm
 
@@ -1919,7 +1919,7 @@ device		nmdm
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
 # or
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
-# Specifes the default video capture mode.
+# Specifies the default video capture mode.
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
 # to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
 #
@@ -2224,12 +2224,12 @@ options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
 makeoptions	UKBD_DFLT_KEYMAP=it.iso
 
 # options for uplcom:
-options 	UPLCOM_INTR_INTERVAL=100	# interrpt pipe interval
+options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
 						# in milliseconds
 
 # options for uvscom:
 options 	UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
-options 	UVSCOM_INTR_INTERVAL=100	# interrpt pipe interval
+options 	UVSCOM_INTR_INTERVAL=100	# interrupt pipe interval
 						# in milliseconds
 
 #####################################################################
