@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.75 1994/06/29 11:06:30 jkh Exp $
+#	$Id: Makefile,v 1.76 1994/06/29 21:19:38 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -49,7 +49,7 @@ KC_DIRS=	bin dev mnt sbin
 KC_FILES=	${COPYRIGHT}
 KC_LINKS=	bin/[ bin/cp bin/echo bin/sh bin/test
 KC_LINKS+=	sbin/fsck sbin/halt sbin/init
-KC_LINKS+=	sbin/mount sbin/mount_isofs
+KC_LINKS+=	sbin/mount sbin/mount_cd9660
 KC_LINKS+=	sbin/umount
 #
 CD_DIRS=	etc usr
@@ -88,7 +88,7 @@ CPIO_CPIO=	bin/dd bin/ps bin/pwd bin/stty
 CPIO_CPIO+=	etc/protocols etc/remote etc/services
 CPIO_CPIO+=	etc/termcap
 CPIO_CPIO+=	sbin/dmesg
-CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod sbin/mount_isofs
+CPIO_CPIO+=	sbin/ifconfig sbin/fsck sbin/mknod sbin/mount_cd9660
 CPIO_CPIO+=	sbin/mount_procfs
 CPIO_CPIO+=	sbin/reboot sbin/route sbin/slattach
 CPIO_CPIO+=	usr/bin/awk usr/bin/chgrp usr/bin/cpio usr/bin/ex usr/bin/ftp
