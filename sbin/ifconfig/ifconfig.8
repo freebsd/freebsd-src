@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 26, 2004
+.Dd Nov 2, 2004
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -55,6 +55,7 @@
 .Op Fl d
 .Op Fl m
 .Op Fl u
+.Op Fl v
 .Op Ar address_family
 .Nm
 .Fl l
@@ -66,6 +67,7 @@
 .Op Fl d
 .Op Fl m
 .Op Fl u
+.Op Fl v
 .Op Fl C
 .Sh DESCRIPTION
 The
@@ -596,64 +598,101 @@ This may be used to enable an interface after an
 It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
-.It Cm ssid Ar ssid
-For IEEE 802.11 wireless interfaces, set the desired Service Set
-Identifier (aka network name).
-The SSID is a string up to 32 characters
-in length and may be specified as either a normal string or in
-hexadecimal when proceeded by
-.Ql 0x .
-Additionally, the SSID may be cleared by setting it to
-.Ql - .
-.It Cm nwid Ar ssid
-Another name for the
-.Cm ssid
-parameter.
-Included for
-.Nx
-compatibility.
-.It Cm stationname Ar name
-For IEEE 802.11 wireless interfaces, set the name of this station.
-It appears that the station name is not really part of the IEEE 802.11
-protocol though all interfaces seem to support it.
-As such it only
-seems to be meaningful to identical or virtually identical equipment.
-Setting the station name is identical in syntax to setting the SSID.
-.It Cm station Ar name
-Another name for the
-.Cm stationname
-parameter.
-Included for
-.Bsx
-compatibility.
-.It Cm channel Ar number
-For IEEE 802.11 wireless interfaces, set the desired channel.
-Channels range from 1 to 14, but the exact selection available
-depends on the region your adaptor was manufactured for.
-Setting
-the channel to 0 will give you the default for your adaptor.
-Many
-adaptors ignore this setting unless you are in ad-hoc mode.
+.El
+.Pp
+The following parameters are specific to IEEE 802.11 wireless interfaces:
+.Bl -tag -width indent
+.It Cm apbridge
+When operating as an access point pass packets between
+wireless clients directly (default).
+To instead let them pass up through the
+system and be forwarded using some other mechanism use
+.Dq Li -apbridge.
+Disabling the internal bridging
+is useful when traffic is to be processed with
+packet filtering.
 .It Cm authmode Ar mode
-For IEEE 802.11 wireless interfaces, set the desired authentication mode
-in infrastructure mode.
+Set the desired authentication mode in infrastructure mode.
 Not all adaptors support all modes.
 The set of
 valid modes is
 .Dq Li none ,
 .Dq Li open ,
+.Dq Li shared (shared key),
+.Dq Li 8021x (IEEE 802.1x),
+or
+.Dq Li wpa (IEEE WPA/WPA2/802.11i).
+The
+.Dq Li 8021x
 and
-.Dq Li shared .
+.Dq Li wpa
+modes are only useful when used an authentication service
+(a supplicant for client operation or an authenticator when
+operating as an access point).
 Modes are case insensitive.
+.It Cm bssid Ar address
+Specify the MAC address of the access point to use when operating
+as a station in a BSS network.
+This overrides any automatic selection done by the system.
+To disable a previously selected access point supply
+.Dq Li any ,
+.Dq Li none ,
+or
+.Dq Li -
+for the address.
+This option is useful when more than one access points have the same SSID.
+Another name for the
+.Cm bssid
+parameter is
+.Cm ap .
+.It Cm chanlist Ar channels
+Set the desired channels to use when scanning for access
+points, neighbors in an IBSS network, or looking for unoccupied
+channels when operating as an access point.
+The set of channels is specified as a comma-separated list with
+each element in the list either a single channel number of a range
+of the form
+.Dq Li a-b .
+Channel numbers must be in the range 1 to 255 and be permissible
+according to the operating characteristics of the device.
+.It Cm channel Ar number
+Set a single desired channel.
+Channels range from 1 to 255, but the exact selection available
+depends on the region your adaptor was manufactured for.
+Setting
+the channel to
+.Dq Li 0 ,
+.Dq Li any ,
+or
+.Dq Li -
+will give you the default for your adaptor.
+Many
+adaptors ignore this setting unless you are in ad-hoc mode.
+Alternatively the frequency, in megahertz, may be specified
+instead of the channel number.
+.It Cm hidessid
+When operating as an access point do not broadcast the SSID
+in beacon frames.
+By default the SSID is included in beacon frames.
+To re-enable the broadcast of the SSID use
+.Fl hidessid .
 .It Cm powersave
-For IEEE 802.11 wireless interfaces, enable powersave mode.
-.It Fl powersave
-For IEEE 802.11 wireless interfaces, disable powersave mode.
+Enable powersave operation.
+When operating as a client the station will conserve power by
+periodically turning off the radio and listening for
+messages from the access point telling it there are packets waiting.
+The station must then retrieve the packets.
+When operating as an access point the station must honor power
+save operation of associated clients.
+Not all devices support power save operation, either as a client
+or as an access point.
+Use
+.Fl powersave
+to disable powersave operation.
 .It Cm powersavesleep Ar sleep
-For IEEE 802.11 wireless interfaces, set the desired max powersave sleep
-time in milliseconds.
+Set the desired max powersave sleep time in milliseconds.
 .It Cm protmode Ar technique
-For IEEE 802.11 wireless interfaces operating in 11g, use the specified
+For interfaces operating in 802.11g, use the specified
 .Ar technique
 for protecting OFDM frames in a mixed 11b/11g network.
 The set of valid techniques is
@@ -664,8 +703,25 @@ and
 .Dq Li rtscts
 (RTS/CTS).
 Technique names are case insensitive.
+.It Cm roaming Ar mode
+When operating as a station, control how the system will
+behave when communication with the current access point
+is broken.
+.I Mode
+may be one of
+.Dq Li device
+(leave it to the hardware device to decide),
+.Dq Li auto
+(handle either in the device or the operating system--as appropriate),
+.Dq Li manual
+(do nothing until explicitly instructed).
+By the default the device is left to handle this if it is
+capable; otherwise the operating system will automatically
+attempt to reestablish communication.
+Manual mode is mostly useful when an application wants to
+control the selection of an access point.
 .It Cm rtsthreshold Ar length
-For IEEE 802.11 wireless interfaces, set the threshold for which
+Set the threshold for which
 transmitted frames are preceded by transmission of an
 RTS
 control frame.
@@ -674,8 +730,26 @@ The
 argument
 is the frame size in bytes and must be in the range 1 to 2312.
 Not all adaptors support setting the RTS threshold.
+.It Cm ssid Ar ssid
+Set the desired Service Set Identifier (aka network name).
+The SSID is a string up to 32 characters
+in length and may be specified as either a normal string or in
+hexadecimal when proceeded by
+.Ql 0x .
+Additionally, the SSID may be cleared by setting it to
+.Ql - .
+.It Cm scan
+Display the current set of scanned neighbors and/or trigger a new scan.
+Only the super-user can trigger a scan.
+.It Cm stationname Ar name
+Set the name of this station.
+It appears that the station name is not really part of the IEEE 802.11
+protocol though all interfaces seem to support it.
+As such it only
+seems to be meaningful to identical or virtually identical equipment.
+Setting the station name is identical in syntax to setting the SSID.
 .It Cm txpower Ar power
-For IEEE 802.11 wireless interfaces, set the power used to transmit frames.
+Set the power used to transmit frames.
 The
 .Ar power
 argument
@@ -686,7 +760,7 @@ Typically only a few discreet power settings are available and
 the driver will use the setting closest to the specified value.
 Not all adaptors support changing the transmit power.
 .It Cm wepmode Ar mode
-For IEEE 802.11 wireless interfaces, set the desired WEP mode.
+Set the desired WEP mode.
 Not all adaptors support all modes.
 The set of valid modes is
 .Dq Li off ,
@@ -706,10 +780,9 @@ is generally another name for
 .Dq Li mixed .
 Modes are case insensitive.
 .It Cm weptxkey Ar index
-For IEEE 802.11 wireless interfaces, set the WEP key to be used for
-transmission.
+Set the WEP key to be used for transmission.
 .It Cm wepkey Ar key Ns | Ns Ar index : Ns Ar key
-For IEEE 802.11 wireless interfaces, set the selected WEP key.
+Set the selected WEP key.
 If an
 .Ar index
 is not given, key 1 is set.
@@ -732,6 +805,31 @@ Some adaptors support more than four keys.
 If that is the case, then the first four keys
 (1-4) will be the standard temporary keys and any others will be adaptor
 specific keys such as permanent keys stored in NVRAM.
+.It Cm wme
+Enable Wireless Media Extensions (WME) support, if available,
+for the specified interface.
+WME is a subset of the IEEE 802.11e standard to support the
+efficient communication of realtime and multimedia data.
+To disable WME support use
+.Fl wme .
+.El
+.Pp
+The following parameters are support for compatibility with other systems:
+.Bl -tag -width indent
+.It Cm nwid Ar ssid
+Another name for the
+.Cm ssid
+parameter.
+Included for
+.Nx
+compatibility.
+.It Cm station Ar name
+Another name for the
+.Cm stationname
+parameter.
+Included for
+.Bsx
+compatibility.
 .It Cm wep
 Another way of saying
 .Cm wepmode on .
@@ -746,9 +844,7 @@ Included for
 compatibility.
 .It Cm nwkey key
 Another way of saying:
-.Pp
 .Dq Li "wepmode on weptxkey 1 wepkey 1:key wepkey 2:- wepkey 3:- wepkey 4:-" .
-.Pp
 Included for
 .Nx
 compatibility.
@@ -758,16 +854,13 @@ compatibility.
 .Sm on
 .Xc
 Another way of saying
-.Pp
 .Dq Li "wepmode on weptxkey n wepkey 1:k1 wepkey 2:k2 wepkey 3:k3 wepkey 4:k4" .
-.Pp
 Included for
 .Nx
 compatibility.
 .It Fl nwkey
 Another way of saying
 .Cm wepmode off .
-.Pp
 Included for
 .Nx
 compatibility.
@@ -818,6 +911,10 @@ with all other flags and commands, except for
 and
 .Fl u
 (only list interfaces that are up).
+.Pp
+The
+.Fl v
+flag may be used to get more verbose status for an interface.
 .Pp
 The
 .Fl C
