@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #define	MC_LEN_OFFSET		80	/* offset to mc_len from mcontext */
 #define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
 #define	MC_OWNEDFP_OFFSET	88	/* offset to mc_ownedfp from mcontext */
-#define	KM_STACK_SP_OFFSET	32	/* offset to km_stack.ss_sp */
-#define	KM_STACK_SIZE_OFFSET	36	/* offset to km_stack.ss_sp */
-#define	KM_FUNC_OFFSET		28	/* offset to km_func */
+#define	KM_STACK_SP_OFFSET	36	/* offset to km_stack.ss_sp */
+#define	KM_STACK_SIZE_OFFSET	40	/* offset to km_stack.ss_sp */
+#define	KM_FUNC_OFFSET		32	/* offset to km_func */
 
 /*
  * int _thread_enter_uts(kse_thr_mailbox *tm, kse_mailbox *km);
