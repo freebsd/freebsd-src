@@ -34,7 +34,7 @@ case "$daily_clean_disks_enable" in
 		    -e 's/[ 	]*$//' \
 		    -e 's/[ 	][ 	]*/ -o -name /g'`
 
-	    case "$daily_clean_tmps_verbose" in
+	    case "$daily_clean_disks_verbose" in
 		[Yy][Ee][Ss])
 		    print=-print;;
 		*)
