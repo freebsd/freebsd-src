@@ -161,7 +161,7 @@ restart:
 	 * to set size to that of the filesystem.
 	 */
 	numblks = howmany(fs->fs_size, fs->fs_frag);
-	error = VOP_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
+	error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(numblks - 1)),
 	    fs->fs_bsize, KERNCRED, B_CLRBUF, &bp);
 	if (error)
 		goto out;
@@ -182,7 +182,7 @@ restart:
 	 * needing to be copied.
 	 */
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, p->p_ucred, B_METAONLY, &ibp);
 		if (error)
 			goto out;
@@ -193,7 +193,7 @@ restart:
 				panic("ffs_snapshot: lost direct block");
 			ip->i_db[iblkno] = BLK_NOCOPY;
 		} else {
-			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)iblkno),
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)iblkno),
 			   fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 			if (error)
 				goto out;
@@ -219,7 +219,7 @@ restart:
 				break;
 		if (i == inoblkcnt) {
 			inoblks[inoblkcnt++] = blkno;
-			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 			    fs->fs_bsize, KERNCRED, 0, &nbp);
 			if (error)
 				goto out;
@@ -230,7 +230,7 @@ restart:
 	 * Allocate all cylinder group blocks.
 	 */
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
-		error = VOP_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
+		error = UFS_BALLOC(vp, (off_t)(cgtod(fs, cg)) << fs->fs_fshift,
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -239,13 +239,13 @@ restart:
 	/*
 	 * Allocate copies for the superblock and its summary information.
 	 */
-	if ((error = VOP_BALLOC(vp, (off_t)(SBOFF), SBSIZE, KERNCRED, 0, &nbp)))
+	if ((error = UFS_BALLOC(vp, (off_t)(SBOFF), SBSIZE, KERNCRED, 0, &nbp)))
 		goto out;
 	bawrite(nbp);
 	blkno = fragstoblks(fs, fs->fs_csaddr);
 	len = howmany(fs->fs_cssize, fs->fs_bsize);
 	for (loc = 0; loc < len; loc++) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out;
@@ -316,7 +316,7 @@ restart:
 				ip->i_db[loc] = BLK_NOCOPY;
 			}
 		}
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(base + loc)),
 		    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 		if (error) {
 			brelse(bp);
@@ -327,7 +327,7 @@ restart:
 			if (indiroff >= NINDIR(fs)) {
 				ibp->b_flags |= B_VALIDSUSPWRT;
 				bawrite(ibp);
-				error = VOP_BALLOC(vp,
+				error = UFS_BALLOC(vp,
 				    lblktosize(fs, (off_t)(base + loc)),
 				    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 				if (error) {
@@ -349,7 +349,7 @@ restart:
 	/*
 	 * Snapshot the superblock and its summary information.
 	 */
-	if ((error = VOP_BALLOC(vp, SBOFF, SBSIZE, KERNCRED, 0, &nbp)) != 0)
+	if ((error = UFS_BALLOC(vp, SBOFF, SBSIZE, KERNCRED, 0, &nbp)) != 0)
 		goto out1;
 	copy_fs = (struct fs *)(nbp->b_data + blkoff(fs, SBOFF));
 	bcopy(fs, copy_fs, fs->fs_sbsize);
@@ -365,7 +365,7 @@ restart:
 	size = fs->fs_bsize;
 	space = fs->fs_csp;
 	for (loc = 0; loc <= len; loc++) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)(blkno + loc)),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out1;
@@ -383,7 +383,7 @@ restart:
 	 * the copies can can be expunged.
 	 */
 	for (loc = 0; loc < inoblkcnt; loc++) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)inoblks[loc]),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)inoblks[loc]),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out1;
@@ -424,7 +424,7 @@ restart:
 		 * Set copied snapshot inode to be a zero length file.
 		 */
 		blkno = fragstoblks(fs, ino_to_fsba(fs, xp->i_number));
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, KERNCRED, 0, &nbp);
 		if (error)
 			goto out1;
@@ -563,7 +563,7 @@ snapacct(vp, oldblkp, lastblkp)
 			blkp = &ip->i_db[lbn];
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		} else {
-			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 			if (error)
 				return (error);
@@ -665,7 +665,7 @@ ffs_snapremove(vp)
 			ip->i_db[blkno] = 0;
 	}
 	for (blkno = NDADDR; blkno < fs->fs_size; blkno += NINDIR(fs)) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 		if (error)
 			continue;
@@ -732,7 +732,7 @@ ffs_snapblkfree(freeip, bno, size)
 		} else {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			p->p_flag |= P_COWINPROGRESS;
-			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
 			p->p_flag &= ~P_COWINPROGRESS;
 			VOP_UNLOCK(vp, 0, p);
@@ -815,7 +815,7 @@ ffs_snapblkfree(freeip, bno, size)
 		 */
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		p->p_flag |= P_COWINPROGRESS;
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, 0, &cbp);
 		p->p_flag &= ~P_COWINPROGRESS;
 		if (error) {
@@ -974,13 +974,13 @@ ffs_copyonwrite(devvp, bp)
 		 * We ensure that everything of our own that needs to be
 		 * copied will be done at the time that ffs_snapshot is
 		 * called. Thus we can skip the check here which can
-		 * deadlock in doing the lookup in VOP_BALLOC.
+		 * deadlock in doing the lookup in UFS_BALLOC.
 		 */
 		if (bp->b_vp == vp)
 			continue;
 		/*
 		 * Check to see if block needs to be copied. We have to
-		 * be able to do the VOP_BALLOC without blocking, otherwise
+		 * be able to do the UFS_BALLOC without blocking, otherwise
 		 * we may get in a deadlock with another process also
 		 * trying to allocate. If we find outselves unable to
 		 * get the buffer lock, we unlock the snapshot vnode,
@@ -992,7 +992,7 @@ retry:
 			blkno = ip->i_db[lbn];
 		} else {
 			p->p_flag |= P_COWINPROGRESS;
-			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+			error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 			   fs->fs_bsize, KERNCRED, B_METAONLY | B_NOWAIT, &ibp);
 			p->p_flag &= ~P_COWINPROGRESS;
 			if (error) {
@@ -1020,7 +1020,7 @@ retry:
 		 * the snapshot inode.
 		 */
 		p->p_flag |= P_COWINPROGRESS;
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
+		error = UFS_BALLOC(vp, lblktosize(fs, (off_t)lbn),
 		    fs->fs_bsize, KERNCRED, B_NOWAIT, &cbp);
 		p->p_flag &= ~P_COWINPROGRESS;
 		if (error) {

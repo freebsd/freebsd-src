@@ -79,7 +79,6 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
 	{ &vop_putpages_desc,		(vop_t *) ffs_putpages },
 	{ &vop_read_desc,		(vop_t *) ffs_read },
-	{ &vop_balloc_desc,		(vop_t *) ffs_balloc },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 #ifdef UFS_EXTATTR

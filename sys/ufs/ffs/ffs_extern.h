@@ -55,7 +55,8 @@ struct vop_copyonwrite_args;
 
 int	ffs_alloc __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));
-int	ffs_balloc __P((struct vop_balloc_args *));
+int	ffs_balloc __P((struct vnode *a_vp, off_t a_startoffset, int a_size,
+            struct ucred *a_cred, int a_flags, struct buf **a_bpp));
 int	ffs_blkatoff __P((struct vnode *, off_t, char **, struct buf **));
 void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
 ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
