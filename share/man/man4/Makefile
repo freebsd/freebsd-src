@@ -99,6 +99,7 @@ MAN=	aac.4 \
 	mem.4 \
 	mlx.4 \
 	mly.4 \
+	mac.4 \
 	mac_biba.4 \
 	mac_bsdextended.4 \
 	mac_ifoff.4 \
