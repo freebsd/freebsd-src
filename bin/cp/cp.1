@@ -153,21 +153,22 @@ options.)
 .It Fl p
 Cause
 .Nm
-to preserve in the copy as many of the modification time, access time,
-file flags, file mode, user ID, and group ID as allowed by permissions.
+to preserve the following attributes of each source
+file in the copy: modification time, access time,
+file flags, file mode, user ID, and group ID, as allowed by permissions.
 .Pp
 If the user ID and group ID cannot be preserved, no error message
 is displayed and the exit value is not altered.
 .Pp
-If the source file has its set user ID bit on and the user ID cannot
-be preserved, the set user ID bit is not preserved
+If the source file has its set-user-ID bit on and the user ID cannot
+be preserved, the set-user-ID bit is not preserved
 in the copy's permissions.
-If the source file has its set group ID bit on and the group ID cannot
-be preserved, the set group ID bit is not preserved
+If the source file has its set-group-ID bit on and the group ID cannot
+be preserved, the set-group-ID bit is not preserved
 in the copy's permissions.
-If the source file has both its set user ID and set group ID bits on,
+If the source file has both its set-user-ID and set-group-ID bits on,
 and either the user ID or group ID cannot be preserved, neither
-the set user ID nor set group ID bits are preserved in the copy's
+the set-user-ID nor set-group-ID bits are preserved in the copy's
 permissions.
 .It Fl v
 Cause
@@ -194,13 +195,13 @@ used as modified by the file mode creation mask
 .Pf ( Ic umask ,
 see
 .Xr csh 1 ) .
-If the source file has its set user ID bit on, that bit is removed
+If the source file has its set-user-ID bit on, that bit is removed
 unless both the source file and the destination file are owned by the
 same user.
-If the source file has its set group ID bit on, that bit is removed
+If the source file has its set-group-ID bit on, that bit is removed
 unless both the source file and the destination file are in the same
 group and the user is a member of that group.
-If both the set user ID and set group ID bits are set, all of the above
+If both the set-user-ID and set-group-ID bits are set, all of the above
 conditions must be fulfilled or both bits are removed.
 .Pp
 Appropriate permissions are required for file creation or overwriting.
