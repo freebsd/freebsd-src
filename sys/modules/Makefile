@@ -17,6 +17,7 @@ SUBDIR=	3dfx \
 	accf_http \
 	agp \
 	aha \
+	aic7xxx \
 	aio \
 	amr \
 	an \
