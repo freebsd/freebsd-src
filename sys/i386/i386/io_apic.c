@@ -127,6 +127,8 @@ static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
 static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
+static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+		    enum intr_polarity pol);
 static void	ioapic_suspend(struct intsrc *isrc);
 static void	ioapic_resume(struct intsrc *isrc);
 static void	ioapic_program_destination(struct ioapic_intsrc *intpin);
@@ -137,7 +139,8 @@ static void	ioapic_setup_mixed_mode(struct ioapic_intsrc *intpin);
 struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_eoi_source, ioapic_enable_intr,
 			       ioapic_vector, ioapic_source_pending,
-			       ioapic_suspend, ioapic_resume };
+			       ioapic_suspend, ioapic_resume,
+			       ioapic_config_intr };
 	
 static int next_ioapic_base, logical_clusters, current_cluster;
 
@@ -288,6 +291,41 @@ ioapic_source_pending(struct intsrc *isrc)
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 
 	return (lapic_intr_pending(intpin->io_vector));
+}
+
+static int
+ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
+	struct ioapic *io = (struct ioapic *)isrc->is_pic;
+
+	KASSERT(!(trig == INTR_TRIGGER_CONFORM || pol == INTR_POLARITY_CONFORM),
+	    ("%s: Conforming trigger or polarity\n", __func__));
+
+	/*
+	 * For now we ignore any requests but do output any changes that
+	 * would be made to the console it bootverbose is enabled.  The only
+	 * known causes of these messages so far is a bug in acpi(4) that
+	 * causes the ISA IRQs used for PCI interrupts in PIC mode to be
+	 * set to level/low when they aren't being used.  There are possibly
+	 * legitimate requests, so at some point when the acpi(4) driver is
+	 * fixed this code can be changed to actually change the intpin as
+	 * requested.
+	 */
+	if (!bootverbose)
+		return (0);
+	if (intpin->io_edgetrigger != (trig == INTR_TRIGGER_EDGE))
+		printf(
+	"ioapic%u: Request to change trigger for pin %u to %s ignored\n",
+		    io->io_id, intpin->io_intpin, trig == INTR_TRIGGER_EDGE ?
+		    "edge" : "level");
+	if (intpin->io_activehi != (pol == INTR_POLARITY_HIGH))
+		printf(
+	"ioapic%u: Request to change polarity for pin %u to %s ignored\n",
+		    io->io_id, intpin->io_intpin, pol == INTR_POLARITY_HIGH ?
+		    "high" : "low");
+	return (0);
 }
 
 static void

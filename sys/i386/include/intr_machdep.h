@@ -57,6 +57,8 @@ struct pic {
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct intsrc *);
 	void (*pic_resume)(struct intsrc *);
+	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
+	    enum intr_polarity);
 };
 
 /*
@@ -84,6 +86,8 @@ void	elcr_resume(void);
 void	elcr_write_trigger(u_int irq, enum intr_trigger trigger);
 int	intr_add_handler(const char *name, int vector, driver_intr_t handler,
     void *arg, enum intr_type flags, void **cookiep);
+int	intr_config_intr(int vector, enum intr_trigger trig,
+    enum intr_polarity pol);
 void	intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe);
 struct intsrc *intr_lookup_source(int vector);
 int	intr_register_source(struct intsrc *isrc);
