@@ -968,9 +968,10 @@ open(p, uap)
 		syscallarg(int) mode;
 	} */ *uap;
 {
-	register struct filedesc *fdp = p->p_fd;
-	register struct file *fp;
-	register struct vnode *vp;
+	struct filedesc *fdp = p->p_fd;
+	struct file *fp;
+	struct vnode *vp;
+	struct vattr vat;
 	int cmode, flags, oflags;
 	struct file *nfp;
 	int type, indx, error;
@@ -988,7 +989,7 @@ open(p, uap)
 	cmode = ((SCARG(uap, mode) &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	p->p_dupfd = -indx - 1;			/* XXX check for fdopen */
-	error = vn_open(&nd, flags, cmode);
+	error = vn_open(&nd, &flags, cmode);
 	if (error) {
 		ffree(fp);
 		if ((error == ENODEV || error == ENXIO) &&
@@ -1011,6 +1012,7 @@ open(p, uap)
 	fp->f_flag = flags & FMASK;
 	fp->f_ops = &vnops;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
+	VOP_UNLOCK(vp, 0, p);
 	if (flags & (O_EXLOCK | O_SHLOCK)) {
 		lf.l_whence = SEEK_SET;
 		lf.l_start = 0;
@@ -1022,22 +1024,30 @@ open(p, uap)
 		type = F_FLOCK;
 		if ((flags & FNONBLOCK) == 0)
 			type |= F_WAIT;
-		VOP_UNLOCK(vp, 0, p);
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0) {
-			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
-			ffree(fp);
-			fdp->fd_ofiles[indx] = NULL;
-			return (error);
-		}
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0)
+			goto bad;
 		fp->f_flag |= FHASLOCK;
+	}
+	if (flags & O_TRUNC) {
+		VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
+		VATTR_NULL(&vat);
+		vat.va_size = 0;
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		error = VOP_SETATTR(vp, &vat, p->p_ucred, p);
+		VOP_UNLOCK(vp, 0, p);
+		if (error)
+			goto bad;
 	}
 	/* assert that vn_open created a backing object if one is needed */
 	KASSERT(!vn_canvmio(vp) || vp->v_object != NULL,
 		("open: vmio vnode has no backing object after vn_open"));
-	VOP_UNLOCK(vp, 0, p);
 	p->p_retval[0] = indx;
 	return (0);
+bad:
+	(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
+	ffree(fp);
+	fdp->fd_ofiles[indx] = NULL;
+	return (error);
 }
 
 #ifdef COMPAT_43

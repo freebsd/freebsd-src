@@ -1175,7 +1175,7 @@ linker_search_path(const char *name)
     struct nameidata	nd;
     struct proc		*p = curproc;	/* XXX */
     char		*cp, *ep, *result, **cpp;
-    int			error, extlen, len;
+    int			error, extlen, len, flags;
     enum vtype		type;
 
     /* qualified at all? */
@@ -1211,7 +1211,8 @@ linker_search_path(const char *name)
 	     * and it's a regular file.
 	     */
 	    NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
-	    error = vn_open(&nd, FREAD, 0);
+	    flags = FREAD;
+	    error = vn_open(&nd, &flags, 0);
 	    if (error == 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		type = nd.ni_vp->v_type;

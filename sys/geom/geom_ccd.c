@@ -1538,10 +1538,11 @@ ccdlookup(path, p, vpp)
 {
 	struct nameidata nd;
 	struct vnode *vp;
-	int error;
+	int error, flags;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, p);
-	if ((error = vn_open(&nd, FREAD|FWRITE, 0)) != 0) {
+	flags = FREAD | FWRITE;
+	if ((error = vn_open(&nd, &flags, 0)) != 0) {
 #ifdef DEBUG
 		if (ccddebug & CCDB_FOLLOW|CCDB_INIT)
 			printf("ccdlookup: vn_open error = %d\n", error);

@@ -192,13 +192,14 @@ link_aout_load_file(linker_class_t lc, const char* filename, linker_file_t* resu
     struct nameidata nd;
     struct proc* p = curproc;	/* XXX */
     int error = 0;
-    int resid;
+    int resid, flags;
     struct exec header;
     aout_file_t af;
     linker_file_t lf = 0;
 
     NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, p);
-    error = vn_open(&nd, FREAD, 0);
+    flags = FREAD;
+    error = vn_open(&nd, &flags, 0);
     if (error)
 	return error;
     NDFREE(&nd, NDF_ONLY_PNBUF);
