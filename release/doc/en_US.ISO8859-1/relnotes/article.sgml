@@ -273,6 +273,10 @@
 	</note>
       </para>
 
+      <para arch="i386">Due to code size limitations, the i386 boot
+        loader can only load kernels from root file systems that are
+        1.5TB or smaller in size.</para>
+
       <!-- Above this line, order bootloader changes by keyword-->
 
     </sect3>
@@ -655,7 +659,14 @@
 
     <para arch="i386,alpha,sparc64,ia64">&man.sysinstall.8; will now
       select UFS2 as the default layout for new file systems unless
-      specifically requested in the disk labeler.</para>
+      specifically requested in the disk labeler.
+
+      <note arch="i386">
+	<para>Due to i386 boot loader limitations, the root file system
+	must be 1.5TB or smaller in size.</para>
+      </note>
+
+      </para>
 
     <para>The &man.swapoff.8; command has been added to disable paging
       and swapping on a device.  A related &man.swapctl.8; command has
@@ -765,6 +776,9 @@
 
     <para><application>OpenPAM</application> has been updated to the
       <quote>Daffodil</quote> release.</para>
+
+    <para><application>OpenSSH</application> has been updated to
+      3.6.1p1.</para>
 
     <para><application>OpenSSL</application> has been updated to
       release 0.9.7a.  Among other features, this release includes
