@@ -207,7 +207,12 @@ extern void	knlist_remove_inevent(struct knlist *knl, struct knote *kn);
 extern int	knlist_empty(struct knlist *knl);
 extern void	knlist_init(struct knlist *knl, struct mtx *mtx);
 extern void	knlist_destroy(struct knlist *knl);
-extern void	knlist_clear(struct knlist *knl, int islocked);
+extern void	knlist_cleardel(struct knlist *knl, struct thread *td,
+	int islocked, int killkn);
+#define knlist_clear(knl, islocked)				\
+		knlist_cleardel((knl), NULL, (islocked), 0)
+#define knlist_delete(knl, td, islocked)			\
+		knlist_cleardel((knl), (td), (islocked), 1)
 extern void	knote_fdclose(struct thread *p, int fd);
 extern int 	kqueue_register(struct kqueue *kq,
 		    struct kevent *kev, struct thread *p, int waitok);
