@@ -92,5 +92,6 @@ get_cyclecount(void)
 
 void	savectx(struct pcb *);
 void	fork_trampoline(void);
+int	kcopy(const void *, void *, size_t);
 
 #endif	/* _MACHINE_CPU_H_ */

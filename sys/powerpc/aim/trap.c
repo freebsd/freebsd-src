@@ -570,36 +570,6 @@ setusr(u_int content)
 		      :: "n"(USER_SR), "r"(content));
 }
 
-/*
- * kcopy(const void *src, void *dst, size_t len);
- *
- * Copy len bytes from src to dst, aborting if we encounter a fatal
- * page fault.
- *
- * kcopy() _must_ save and restore the old fault handler since it is
- * called by uiomove(), which may be in the path of servicing a non-fatal
- * page fault.
- */
-int
-kcopy(const void *src, void *dst, size_t len)
-{
-	struct thread	*td;
-	faultbuf	env, *oldfault;
-	int		rv;
-
-	td = PCPU_GET(curthread);
-	oldfault = td->td_pcb->pcb_onfault;
-	if ((rv = setfault(env)) != 0) {
-		td->td_pcb->pcb_onfault = oldfault;
-		return rv;
-	}
-
-	memcpy(dst, src, len);
-
-	td->td_pcb->pcb_onfault = oldfault;
-	return (0);
-}
-
 int
 badaddr(void *addr, size_t size)
 {
