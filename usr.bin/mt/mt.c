@@ -306,29 +306,13 @@ main(argc, argv)
 	/* NOTREACHED */
 }
 
-#if defined(__i386__)
-#include <machine/wtio.h>
-#endif
-
 struct tape_desc {
 	short	t_type;		/* type of magtape device */
 	char	*t_name;	/* printing name */
 	char	*t_dsbits;	/* "drive status" register */
 	char	*t_erbits;	/* "error" register */
 } tapes[] = {
-	/*
-	 * XXX This is weird.  The st driver reports the tape drive
-	 * as 0x7 (MT_ISAR - Sun/Archive compatible); the wt driver
-	 * either reports MT_ISVIPER1 for an Archive tape, or 0x11
-	 * (MT_ISMFOUR) for other tapes.
-	 * XXX for the wt driver, rely on it behaving like a "standard"
-	 * magtape driver.
-	 */
 	{ MT_ISAR,	"SCSI tape drive", 0,		0 },
-#if defined (__i386__)
-	{ MT_ISVIPER1,	"Archive Viper", WTDS_BITS, WTER_BITS },
-	{ MT_ISMFOUR,	"Wangtek",	 WTDS_BITS, WTER_BITS },
-#endif
 	{ 0, NULL, 0, 0 }
 };
 
