@@ -62,6 +62,30 @@
 				/* may disable terminal special characters */
 #define	_POSIX_VDISABLE		0xff
 
+/*
+ * Threads features:
+ *
+ * Note that those commented out are not currently supported by the
+ * implementation.
+ */
+#define _POSIX_THREADS
+#define _POSIX_THREAD_ATTR_STACKADDR
+#define _POSIX_THREAD_ATTR_STACKSIZE
+#define _POSIX_THREAD_PRIORITY_SCHEDULING
+#define _POSIX_THREAD_PRIO_INHERIT
+#define _POSIX_THREAD_PRIO_PROTECT
+/* #define _POSIX_THREAD_PROCESS_SHARED */
+/*
+ * 1003.1c-1995 says on page 38 (2.9.3, paragraph 3) that if _POSIX_THREADS is
+ * defined, then _POSIX_THREAD_SAFE_FUNCTIONS must also be defined.  (This is
+ * likely a typo (reversed dependency), in which case we would be compliant if
+ * the typo were officially acknowledged.)  However, we do not support all of
+ * the required _r() interfaces, which means we cannot legitimately define
+ * _POSIX_THREAD_SAFE_FUNCTIONS.  Therefore, we are non-compliant here in two
+ * ways.
+ */
+/* #define _POSIX_THREAD_SAFE_FUNCTIONS */
+
 /* access function */
 #define	F_OK		0	/* test for existence of file */
 #define	X_OK		0x01	/* test for execute or search permission */
