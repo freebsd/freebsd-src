@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.1 1994/08/08 17:42:35 csgr Exp $
+#	$Id: Makefile,v 1.2 1994/09/08 19:06:58 csgr Exp $
 
-SUBDIR=	libcipher libcrypt
+SUBDIR=	libcipher libcrypt libtelnet
 
 .include <bsd.subdir.mk>
 
