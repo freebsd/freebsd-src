@@ -308,10 +308,9 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		 * before we got a chance to run again.  We check for
 		 * this by looking to see if our state is RUNNING.
 		 */
-		if (rval == EAGAIN) {
+		if (rval == ETIMEDOUT) {
 			if (curthread->state != PS_RUNNING) {
 				PTHREAD_SET_STATE(curthread, PS_RUNNING);
-				rval = ETIMEDOUT;
 			} else
 				rval = 0;
 		}
