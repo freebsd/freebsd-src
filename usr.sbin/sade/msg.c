@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.40 1996/08/03 10:11:21 jkh Exp $
+ * $Id: msg.c,v 1.41 1996/10/01 04:56:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -257,7 +257,7 @@ msgGetInput(char *buf, char *fmt, ...)
     use_helpline(NULL);
     use_helpfile(NULL);
     if (buf)
-	strcpy(input_buffer, buf);
+	SAFE_STRCPY(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
     if (OnVTY) {

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.26 1996/11/07 08:03:21 jkh Exp $
+ * $Id: dmenu.c,v 1.27 1996/11/09 16:46:56 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -182,7 +182,7 @@ dmenuVarCheck(dialogMenuItem *item)
 	w = (char *)item->data;
     if (!w)
 	return FALSE;
-    strncpy(tmp, w, 256);
+    SAFE_STRCPY(tmp, w);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
 	if ((cp3 = index(cp, ',')) != NULL)

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.10 1996/04/29 06:47:10 jkh Exp $
+ * $Id: variable.c,v 1.11 1996/06/12 14:02:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,15 +51,15 @@ make_variable(char *var, char *value)
 	if (!strcmp(newvar->name, var)) {
 	    if (isDebug())
 		msgDebug("variable %s was %s, now %s\n", newvar->name, newvar->value, value);
-	    strncpy(newvar->value, value, VAR_VALUE_MAX);
+	    SAFE_STRCPY(newvar->value, value);
 	    return;
 	}
     }
 
     /* No?  Create a new one */
     newvar = (Variable *)safe_malloc(sizeof(Variable));
-    strncpy(newvar->name, var, VAR_NAME_MAX);
-    strncpy(newvar->value, value, VAR_VALUE_MAX);
+    SAFE_STRCPY(newvar->name, var);
+    SAFE_STRCPY(newvar->value, value);
     newvar->next = VarHead;
     VarHead = newvar;
     if (isDebug())
@@ -75,7 +75,7 @@ variable_set(char *var)
 	msgFatal("NULL variable name & value passed.");
     else if (!*var)
 	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
-    strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
+    SAFE_STRCPY(tmp, var);
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
