@@ -146,7 +146,7 @@
         is no longer needed when only a USB keyboard is connected.
         &merged;</para>
 
-      <para arch="amd64,alpha,i386,ia64">The &man.puc.4;, 
+      <para arch="amd64,alpha,i386,ia64,pc98">The &man.puc.4;, 
         PCI Universal Communications driver now supports
         to connect parallel ports to the &man.ppc.4; driver.</para>
 
