@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.119 1999/06/26 02:46:46 mckusick Exp $
+ * $Id: swap_pager.c,v 1.120 1999/06/27 22:08:38 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1193,7 +1193,6 @@ swap_pager_getpages(object, m, count, reqpage)
 	if (mreq->valid != VM_PAGE_BITS_ALL) {
 		return(VM_PAGER_ERROR);
 	} else {
-		mreq->object->last_read = lastpindex;
 		return(VM_PAGER_OK);
 	}
 
