@@ -1,10 +1,13 @@
 Updating Information for FreeBSD STABLE users
 
-This file is maintained by imp@village.org.  Please send new entries
-directly to him.  See end of file for further details.  A reverse
-chronology since 4.0 was released is included, followed by the common
-items quick how-tos, followed by entries for versions of -current
-prior to 4.0 Release.
+This file is maintained and copyrighted by M. Warner Losh
+<imp@village.org>.  Please send new entries directly to him.  See end
+of file for further details.  For commonly done items, please see the
+COMMON ITEMS: section later in the file.
+
+A reverse chronology since 4.0 was released is included, followed by
+the common items quick how-tos, followed by entries for versions of
+-current prior to 4.0 Release.
 
 20010611:
 	The TCP_RESTRICT_RST option has been removed. You should entirely
@@ -907,5 +910,28 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 
 Please filter your entries through Warner Losh (imp@village.org) so
 that the style, formatting, etc of this file can be maintained.
+
+Copyright information:
+
+Copyright 1998, 2001 M. Warner Losh.  All Rights Reserved.
+
+Redistribution, translation and use, with or without modification, in
+full or in part, are permitted provided that the above copyright
+notice is retained.
+
+THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL WARNER LOSH BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+If you find this document useful, and you want to, you may buy the
+author a beer.
 
 $FreeBSD$
