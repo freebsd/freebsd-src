@@ -63,7 +63,7 @@
 #include <net/if_tun.h>
 
 #ifdef __FreeBSD__
-static void tunattach __P((caddr_t));
+static void tunattach __P((void *));
 PSEUDO_SET(tunattach, if_tun);
 #endif
 
@@ -92,7 +92,7 @@ static int tuninit __P((int));
 
 static void
 tunattach(udata)
-	caddr_t udata;
+	void *udata;
 {
 	register int i;
 	struct ifnet *ifp;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.25 1995/08/28 09:19:05 julian Exp $
+ *	$Id: mount.h,v 1.26 1995/08/30 01:34:14 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -467,7 +467,7 @@ struct nfs_args {
 #endif /* NFS */
 
 #ifdef KERNEL
-extern	int (*mountroot) __P((caddr_t));
+extern	int (*mountroot) __P((void *));
 extern	struct vfsops	*mountrootvfsops;
 
 /*
@@ -483,7 +483,7 @@ struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 	  __P((struct mount *, struct netexport *, struct mbuf *));
 int	vfs_lock __P((struct mount *));         /* lock a vfs */
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
-int	vfs_mountroot __P((caddr_t));		/* XXX goes away? */
+int	vfs_mountroot __P((void *));		/* XXX goes away? */
 void	vfs_msync __P((struct mount *, int));
 void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
 void	vfs_unmountall __P((void));

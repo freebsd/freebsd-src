@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.10 1995/05/30 08:06:32 rgrimes Exp $
+ * $Id: vfs_init.c,v 1.11 1995/08/28 09:18:55 julian Exp $
  */
 
 
@@ -60,7 +60,7 @@
  * System initialization
  */
 
-static void vfsinit __P((caddr_t));
+static void vfsinit __P((void *));
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 
 /*
@@ -239,8 +239,8 @@ struct vattr va_null;
  */
 /* ARGSUSED*/
 static void
-vfsinit( udata)
-caddr_t		udata;		/* not used*/
+vfsinit(udata)
+	void *udata;		/* not used*/
 {
 	struct vfsops **vfsp;
 	struct vfsconf **vfc;

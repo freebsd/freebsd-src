@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.11 1995/08/31 06:28:29 bde Exp $
+ * $Id: kernel.h,v 1.12 1995/09/03 05:43:50 julian Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -179,8 +179,8 @@ typedef enum sysinit_elem_type {
 struct sysinit {
 	unsigned int	subsystem;		/* subsystem identifier*/
 	unsigned int	order;			/* init order within subsystem*/
-	void		(*func) __P((caddr_t));	/* init function*/
-	caddr_t		udata;			/* multiplexer/argument*/
+	void		(*func) __P((void *));	/* init function*/
+	void 		*udata;			/* multiplexer/argument*/
 	si_elem_t	type;			/* sysinit_elem_type*/
 };
 
@@ -225,7 +225,7 @@ struct kproc_desc {
 };
 
 /* init_proc.c*/
-extern void kproc_start __P(( caddr_t udata));
+extern void kproc_start __P((void *udata));
 
 
 #ifdef PSEUDO_LKM

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.23 1995/07/13 08:48:21 davidg Exp $
+ * $Id: vm_glue.c,v 1.24 1995/08/28 09:19:22 julian Exp $
  */
 
 #include <sys/param.h>
@@ -87,15 +87,15 @@
  * Note: proc0 from proc.h
  */
 
-static void vm_init_limits __P((caddr_t));
-SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, (caddr_t)&proc0)
+static void vm_init_limits __P((void *));
+SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
 
 /*
  * THIS MUST BE THE LAST INITIALIZATION ITEM!!!
  *
  * Note: run scheduling should be divorced from the vm system.
  */
-static void scheduler __P((caddr_t));
+static void scheduler __P((void *));
 SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 
 
@@ -286,8 +286,8 @@ vm_fork(p1, p2, isvfork)
  * XXX should probably act directly on proc0.
  */
 static void
-vm_init_limits( udata)
-caddr_t		udata;
+vm_init_limits(udata)
+	void *udata;
 {
 	register struct proc *p = (struct proc *)udata;
 	int rss_limit;
@@ -364,8 +364,8 @@ faultin(p)
  */
 /* ARGSUSED*/
 static void
-scheduler( udata)
-caddr_t		udata;		/* not used*/
+scheduler(udata)
+	void *udata;		/* not used*/
 {
 	register struct proc *p;
 	register int pri;

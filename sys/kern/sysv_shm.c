@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.7 1995/08/28 09:18:48 julian Exp $ */
+/*	$Id: sysv_shm.c,v 1.8 1995/08/30 00:33:02 bde Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -48,7 +48,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 
-static void shminit __P((caddr_t));
+static void shminit __P((void *));
 SYSINIT(sysv_shm, SI_SUB_SYSV_SHM, SI_ORDER_FIRST, shminit, NULL)
 
 int	oshmctl();
@@ -557,7 +557,7 @@ shmexit(p)
 
 void
 shminit(udata)
-	caddr_t udata;
+	void *udata;
 {
 	int i;
 	vm_offset_t garbage1, garbage2;

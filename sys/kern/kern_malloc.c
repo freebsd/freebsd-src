@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.12 1995/05/30 08:05:33 rgrimes Exp $
+ * $Id: kern_malloc.c,v 1.13 1995/08/28 09:18:44 julian Exp $
  */
 
 #include <sys/param.h>
@@ -47,7 +47,7 @@
  * System initialization
  */
 
-static void kmeminit __P((caddr_t));
+static void kmeminit __P((void *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
 
@@ -366,8 +366,8 @@ free(addr, type)
  */
 /* ARGSUSED*/
 static void
-kmeminit( udata)
-caddr_t		udata;		/* not used*/
+kmeminit(udata)
+	void *udata;		/* not used*/
 {
 	register long indx;
 	int npg;

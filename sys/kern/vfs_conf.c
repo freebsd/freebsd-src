@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.7 1995/08/28 09:18:54 julian Exp $
+ * $Id: vfs_conf.c,v 1.8 1995/08/30 00:17:18 bde Exp $
  */
 
 /*
@@ -61,7 +61,7 @@
 /*
  * GLOBALS
  */
-int (*mountroot) __P((caddr_t));
+int (*mountroot) __P((void *));
 struct vnode *rootvnode;
 struct vfsops	*mountrootvfsops;
 
@@ -97,8 +97,8 @@ struct vfsops	*mountrootvfsops;
  *		fixing the other file systems, not this code!
  */
 int
-vfs_mountroot( data)
-caddr_t		data;	/* file system function table*/
+vfs_mountroot(data)
+	void *data;	/* file system function table*/
 {
 	struct mount		*mp;
 	u_int			size;

@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.53 1995/07/13 08:48:40 davidg Exp $
+ * $Id: vm_pageout.c,v 1.54 1995/08/28 09:19:24 julian Exp $
  */
 
 /*
@@ -102,7 +102,7 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT_KT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, (caddr_t)&page_kp)
+SYSINIT_KT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
 
 /* the kernel process "vm_daemon"*/
 static void vm_daemon __P((void));
@@ -113,7 +113,7 @@ static struct kproc_desc vm_kp = {
 	vm_daemon,
 	&vmproc
 };
-SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, (caddr_t)&vm_kp)
+SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
 
 
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.11 1995/05/30 08:05:44 rgrimes Exp $
+ * $Id: kern_synch.c,v 1.12 1995/08/28 09:18:45 julian Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@
  * System initialization
  */
 
-static void rqinit __P((caddr_t));
+static void rqinit __P((void *));
 SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
 
 
@@ -614,8 +614,8 @@ mi_switch()
  */
 /* ARGSUSED*/
 static void
-rqinit( udata)
-caddr_t		udata;		/* not used*/
+rqinit(udata)
+	void *udata;		/* not used*/
 {
 	register int i;
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.30 1995/06/26 07:39:49 bde Exp $
+ *	$Id: cons.c,v 1.31 1995/09/03 05:43:01 julian Exp $
  */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ static struct tty *cn_tp;	/* physical console tty struct */
 #include <sys/devfsext.h>
 #include "sys/kernel.h"
 
-void cndev_init(caddr_t data) /* data not used */
+void cndev_init(void *data) /* data not used */
 {
   void * x;
 /*            path	name		devsw   minor	type   uid gid perm*/
