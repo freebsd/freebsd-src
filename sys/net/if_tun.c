@@ -57,6 +57,7 @@ static void tuncreate __P((dev_t dev));
 
 #define TUNDEBUG	if (tundebug) printf
 static int tundebug = 0;
+static struct tun_softc *tunhead = NULL;
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
 static int tunoutput __P((struct ifnet *, struct mbuf *, struct sockaddr *,
@@ -106,20 +107,45 @@ tun_clone(arg, name, namelen, dev)
 		return;
 	*dev = make_dev(&tun_cdevsw, unit2minor(u),
 	    UID_ROOT, GID_WHEEL, 0600, "tun%d", u);
-
+	(*dev)->si_drv2 = (void *)1;	/* Mark it as make_dev()'d */
 }
 
 static int
 tun_modevent(module_t mod, int type, void *data) 
-{ 
+{
+	static eventhandler_tag tag;
+	struct tun_softc *tp;
+	dev_t dev;
+	int err;
+
 	switch (type) { 
 	case MOD_LOAD: 
-		EVENTHANDLER_REGISTER(dev_clone, tun_clone, 0, 1000);
-		cdevsw_add(&tun_cdevsw);
+		tag = EVENTHANDLER_REGISTER(dev_clone, tun_clone, 0, 1000);
+		if (tag == NULL)
+			return (ENOMEM);
+		err = cdevsw_add(&tun_cdevsw);
+		if (err != 0) {
+			EVENTHANDLER_DEREGISTER(dev_clone, tag);
+			return (err);
+		}
 		break; 
 	case MOD_UNLOAD: 
-		printf("if_tun module unload - not possible for this module type\n"); 
-		return EINVAL; 
+		while (tunhead != NULL) {
+			if (tunhead->tun_flags & TUN_OPEN)
+				return (EBUSY);
+			tp = tunhead;
+			dev = makedev(tun_cdevsw.d_maj,
+			    unit2minor(tp->tun_if.if_unit));
+			KASSERT(dev->si_drv1 == tp, ("Bad makedev result"));
+			tunhead = tp->next;
+			bpfdetach(&tp->tun_if);
+			if_detach(&tp->tun_if);
+			KASSERT(dev->si_drv2 != NULL, ("Bad si_drv2 value"));
+			destroy_dev(dev);
+			FREE(tp, M_TUN);
+		}
+		EVENTHANDLER_DEREGISTER(dev_clone, tag);
+		break;
 	} 
 	return 0; 
 } 
@@ -154,11 +180,16 @@ tuncreate(dev)
 	struct tun_softc *sc;
 	struct ifnet *ifp;
 
-	dev = make_dev(&tun_cdevsw, minor(dev),
-	    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
+	if (dev->si_drv2 == NULL) {
+		dev = make_dev(&tun_cdevsw, minor(dev),
+		    UID_UUCP, GID_DIALER, 0600, "tun%d", dev2unit(dev));
+		dev->si_drv2 = (void *)1;
+	}
 
 	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	sc->tun_flags = TUN_INITED;
+	sc->next = tunhead;
+	tunhead = sc;
 
 	ifp = &sc->tun_if;
 	ifp->if_unit = dev2unit(dev);
@@ -177,8 +208,9 @@ tuncreate(dev)
 }
 
 /*
- * tunnel open - must be superuser & the device must be
- * configured in
+ * tunnel open.  We assume that any tun_clone() call is immediately
+ * followed by a call to tunopen() - otherwise nothing will ever
+ * destroy_dev() the specinfo.
  */
 static	int
 tunopen(dev, flag, mode, p)
