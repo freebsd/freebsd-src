@@ -1,6 +1,7 @@
 #
-#	$Id: Makefile,v 1.5 1999/02/15 05:02:54 nate Exp $
+#	$Id: Makefile,v 1.6 1999/04/09 00:28:31 jdp Exp $
 #
+MAINTAINER=	jdp
 PROG=		ld-elf.so.1
 SRCS=		rtld_start.S rtld.c map_object.c malloc.c xmalloc.c debug.c \
 		reloc.c
