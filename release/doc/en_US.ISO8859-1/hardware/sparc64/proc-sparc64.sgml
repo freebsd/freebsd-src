@@ -10,8 +10,10 @@
 
   <para>SMP is supported on all systems with more than 1 processor.</para>
 
-  <para>If you have a system that is not listed here it may work but has not
-    been tested.  If so, please try it and let <ulink url="freebsd-sparc@freebsd.org">us</ulink> know about it.</para>
+  <para>If you have a system that is not listed here, it may not have
+    been tested with &os; &release.current;.  We encourage you to
+    try it and send a note to the &a.sparc; with your results,
+    including which devices work and which do not.</para>
 
   <sect2>
     <title>Fully Supported Systems</title>
