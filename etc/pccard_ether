@@ -64,3 +64,17 @@ if [ -n "${static_routes}" ]; then
 		route add ${route_args}
 	done
 fi
+
+# IPv6 setup
+case ${ipv6_enable} in
+[Yy][Ee][Ss])
+	case ${ipv6_gateway_enable} in
+	[Yy][Ee][Ss])
+		;;
+	*)
+		ifconfig ${interface} up
+		rtsol ${interface}
+		;;
+	esac
+	;;
+esac
