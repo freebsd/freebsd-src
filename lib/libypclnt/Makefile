@@ -42,7 +42,7 @@ yp_clnt.c: ${RPCSRC}
 yppasswd.h: ${RPCSRC_PW}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC_PW}
 
-yppasswd_xdr.c: ${RPCSRC_PRIV}
+yppasswd_xdr.c: ${RPCSRC_PW}
 	${RPCGEN} -c -o ${.TARGET} ${RPCSRC_PW}
 
 yppasswd_clnt.c: ${RPCSRC_PW}
