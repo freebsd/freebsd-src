@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id$
+ *	$Id: db_expr.c,v 1.11 1997/02/22 09:28:23 peter Exp $
  */
 
 /*
@@ -31,7 +31,6 @@
  *	Date:	7/90
  */
 #include <sys/param.h>
-#include <sys/systm.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
