@@ -142,5 +142,5 @@ error(name)
 	char *name;
 {
 
-	errx(1, "%s", name);
+	err(1, "%s", name);
 }
