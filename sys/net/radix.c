@@ -344,6 +344,7 @@ rn_newpair(v, b, nodes)
 	tt->rn_key = (caddr_t)v;
 	tt->rn_parent = t;
 	tt->rn_flags = t->rn_flags = RNF_ACTIVE;
+	tt->rn_mklist = t->rn_mklist = 0;
 #ifdef RN_DEBUG
 	tt->rn_info = rn_nodenum++; t->rn_info = rn_nodenum++;
 	tt->rn_twin = t;
