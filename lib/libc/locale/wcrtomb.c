@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
+#include <limits.h>
 #include <rune.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -36,7 +37,10 @@ size_t
 wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps __unused)
 {
 	char *e;
+	char buf[MB_LEN_MAX];
 
+	if (s == NULL)
+		s = buf;
 	sputrune(wc, s, MB_CUR_MAX, &e);
 	if (e == NULL) {
 		errno = EILSEQ;
