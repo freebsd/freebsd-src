@@ -148,6 +148,7 @@ product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
 product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 
 /* Allied Telesis K.K. */
+product ALLIEDTELESIS WR211PCM	0x0000 Allied Telesis WR211PCM
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
 /* Archos */
