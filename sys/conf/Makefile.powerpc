@@ -19,9 +19,6 @@
 # Which version of config(8) is required.
 %VERSREQ=	600000
 
-# Temporary stuff while we're still embryonic
-NO_MODULES=
-
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -34,6 +31,11 @@ S=	../../..
 .include "$S/conf/kern.pre.mk"
 
 CFLAGS+= -msoft-float
+
+DDB_ENABLED!=	grep DDB opt_ddb.h || true
+.if ${DDB_ENABLED} != ""
+CFLAGS+=	-fno-omit-frame-pointer
+.endif
 
 %BEFORE_DEPEND
 
