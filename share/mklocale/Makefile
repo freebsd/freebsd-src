@@ -36,6 +36,8 @@ LATIN2LINKS = cs_CZ hr_HR hu_HU pl_PL sl_SI sk_SK
 
 LATIN4LINKS = lt_LT
 
+LATIN5LINKS = uk_UA
+
 .SUFFIXES: .src .out
 
 .src.out:
@@ -63,6 +65,10 @@ afterinstall:
 .for link in ${LATIN4LINKS}
 	ln -fs ../la_LN.ISO8859-4/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO8859-4/LC_CTYPE
+.endfor
+.for link in ${LATIN5LINKS}
+	ln -fs ../ru_RU.ISO8859-5/LC_CTYPE \
+		${LOCALEDIR}/${link}.ISO8859-5/LC_CTYPE
 .endfor
 .for link in ${ASCIILINKS}
 	ln -fs ../la_LN.US-ASCII/LC_CTYPE \
