@@ -263,10 +263,10 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 				     start, end, count, flags);
 	    break;
 
-	case ATA_ALTADDR_RID:
+	case ATA_CTLADDR_RID:
 	    if (ata_legacy(dev)) {
-		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_ALTOFFSET;
-		count = ATA_ALTIOSIZE;
+		start = (unit ? ATA_SECONDARY : ATA_PRIMARY) + ATA_CTLOFFSET;
+		count = ATA_CTLIOSIZE;
 		end = start + count - 1;
 	    }
 	    myrid = PCIR_BAR(1) + (unit << 3);
@@ -309,7 +309,7 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 					PCIR_BAR(0) + (unit << 3), r);
 	    break;
 
-	case ATA_ALTADDR_RID:
+	case ATA_CTLADDR_RID:
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
 					SYS_RES_IOPORT,
 					PCIR_BAR(1) + (unit << 3), r);
@@ -387,7 +387,7 @@ ata_pci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    struct resource *io = NULL, *altio = NULL;
+    struct resource *io = NULL, *ctlio = NULL;
     int i, rid;
 
     rid = ATA_IOADDR_RID;
@@ -395,25 +395,25 @@ ata_pci_allocate(device_t dev)
     if (!io)
 	return ENXIO;
 
-    rid = ATA_ALTADDR_RID;
-    altio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
-    if (!altio) {
+    rid = ATA_CTLADDR_RID;
+    ctlio = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &rid, RF_ACTIVE);
+    if (!ctlio) {
 	bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 	return ENXIO;
     }
 
-    for (i = ATA_DATA; i <= ATA_STATUS; i ++) {
+    for (i = ATA_DATA; i <= ATA_COMMAND; i ++) {
 	ch->r_io[i].res = io;
 	ch->r_io[i].offset = i;
     }
-    ch->r_io[ATA_ALTSTAT].res = altio;
-    ch->r_io[ATA_ALTSTAT].offset = ata_legacy(device_get_parent(dev)) ? 0 : 2;
+    ch->r_io[ATA_CONTROL].res = ctlio;
+    ch->r_io[ATA_CONTROL].offset = ata_legacy(device_get_parent(dev)) ? 0 : 2;
     ch->r_io[ATA_IDX_ADDR].res = io;
-
+    ata_default_registers(ch);
     if (ctlr->r_res1) {
 	for (i = ATA_BMCMD_PORT; i <= ATA_BMDTP_PORT; i++) {
 	    ch->r_io[i].res = ctlr->r_res1;
-	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
+	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT) + (ch->unit*ATA_BMIOSIZE);
 	}
     }
 
@@ -546,7 +546,7 @@ ata_pcichannel_detach(device_t dev)
     if (ch->dma)
 	ch->dma->free(ch);
 
-    /* free resources for io and altio XXX SOS */
+    /* free resources for io and ctlio XXX SOS */
 
     return 0;
 }
