@@ -41,6 +41,7 @@
 #define	_STDIO_H_
 
 #include <sys/cdefs.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 
 typedef	__off_t		fpos_t;
@@ -55,10 +56,6 @@ typedef	__size_t	size_t;
 typedef	__va_list	va_list;
 #define	_VA_LIST_DECLARED
 #endif
-#endif
-
-#ifndef NULL
-#define	NULL	0
 #endif
 
 #define	_FSTDIO			/* Define for new stdio with functions. */

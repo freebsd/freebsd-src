@@ -68,12 +68,9 @@
 #define _WCHAR_H_
 
 #include <sys/cdefs.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 #include <machine/_limits.h>
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 #ifndef _MBSTATE_T_DECLARED
 typedef	__mbstate_t	mbstate_t;
