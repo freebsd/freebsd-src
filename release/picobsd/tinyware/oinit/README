@@ -118,6 +118,6 @@ Credits
 The overall framework was taken from FreeBSD /sbin/init.
 
 Andrzej Bialecki
-<abial@nask.pl>
+<abial@freebsd.org>
 
-$Id: README,v 1.5 1998/08/11 06:53:47 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $

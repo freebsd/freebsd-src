@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $Id: rc.pl,v 1.2 1998/09/26 17:27:19 abial Exp $
 #
 ############################################
 ### Special setup for one floppy PICOBSD ###
@@ -101,7 +101,7 @@ echo '| SSH). Po wiecej szczegolow zajrzyj na        |'
 echo '| http://www.freebsd.org/~picobsd, lub         |'
 echo '| skontaktuj sie z autorem.                    |'
 echo '|                                              |'
-echo '|                     abial@nask.pl            |'
+echo '|                     abial@freebsd.org        |'
 echo '|                                              |'
 echo '+----------------------------------------------+'
 exit 0
