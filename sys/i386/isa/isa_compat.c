@@ -48,6 +48,17 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <i386/isa/isa_device.h>
 
+/*
+ * The 'priv' field has been removed from 'struct driver' since the
+ * only remaining user of that field was this compatibility layer. We
+ * use this field to map from the newbus driver stub to the underlying
+ * old-style isa driver.
+ */
+struct isa_compat_driver {
+	KOBJ_CLASS_FIELDS;
+	void *priv;
+};
+
 struct isa_compat_resources {
 	struct resource *ports;
 	struct resource *memory;
@@ -137,6 +148,7 @@ isa_compat_release_resources(device_t dev, struct isa_compat_resources *res)
 static int
 isa_compat_probe(device_t dev)
 {
+	struct isa_compat_driver *drv;
 	struct isa_device *dvp = device_get_softc(dev);
 	struct isa_compat_resources res;
 	u_long start, count;
@@ -149,7 +161,8 @@ isa_compat_probe(device_t dev)
 	/*
 	 * Fill in the isa_device fields.
 	 */
-	dvp->id_driver = device_get_driver(dev)->priv;
+	drv = (struct isa_compat_driver *) device_get_driver(dev);
+	dvp->id_driver = drv->priv;
 	if (bus_get_resource(dev, SYS_RES_IOPORT, 0,
 			     &start, &count) == 0)
 		dvp->id_iobase = start;
@@ -267,12 +280,13 @@ int
 compat_isa_handler(module_t mod, int type, void *data)
 {
 	struct isa_driver *id = (struct isa_driver *)data;
-	driver_t *driver;
+	struct isa_compat_driver *driver;
 	devclass_t isa_devclass = devclass_find("isa");
 
 	switch (type) {
 	case MOD_LOAD:
-		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT | M_ZERO);
+		driver = malloc(sizeof(struct isa_compat_driver),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (!driver)
 			return ENOMEM;
 		driver->name = id->name;
@@ -287,7 +301,7 @@ compat_isa_handler(module_t mod, int type, void *data)
 			    driver->name);
 #endif
 		}
-		devclass_add_driver(isa_devclass, driver);
+		devclass_add_driver(isa_devclass, (kobj_class_t) driver);
 		break;
 	case MOD_UNLOAD:
 		printf("%s: module unload not supported!\n", id->name);
