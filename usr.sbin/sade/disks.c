@@ -41,7 +41,7 @@
 #include <sys/disklabel.h>
 
 #ifdef WITH_SLICES
-enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_SIZE };
+enum size_units_t { UNIT_BLOCKS, UNIT_KILO, UNIT_MEG, UNIT_GIG, UNIT_SIZE };
 
 #ifdef PC98
 #define	SUBTYPE_FREEBSD		50324
@@ -110,7 +110,8 @@ print_chunks(Disk *d, int u)
     int sz;
     char *szstr;
 
-    szstr = (u == UNIT_MEG ? "MB" : (u == UNIT_KILO ? "KB" : "ST"));
+    szstr = (u == UNIT_GIG ? "GB" : (u == UNIT_MEG ? "MB" :
+	(u == UNIT_KILO ? "KB" : "ST")));
 
     for (i = Total = 0; chunk_info[i]; i++)
 	Total += chunk_info[i]->size;
@@ -156,6 +157,9 @@ print_chunks(Disk *d, int u)
 	    break;
 	case UNIT_MEG:
 	    sz = chunk_info[i]->size / (1024/512) / 1024;
+	    break;
+	case UNIT_GIG:
+	    sz = chunk_info[i]->size / (1024/512) / 1024 / 1024;
 	    break;
 	}
 	if (i == current_chunk)
