@@ -129,8 +129,10 @@ cnt(file)
 	fd = STDIN_FILENO;
 	linect = wordct = charct = 0;
 	if (file) {
-		if ((fd = open(file, O_RDONLY, 0)) < 0)
-			err("%s: %s", file, strerror(errno));
+		if ((fd = open(file, O_RDONLY, 0)) < 0) {
+			warn("%s", file);
+			return;
+		}
 		if (doword)
 			goto word;
 		/*
