@@ -53,7 +53,7 @@ char lmc_version[] = "BSD 1.1";
 #include <netgraph/netgraph.h>
 
 #include <vm/pmap.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <pci/dc21040reg.h>
 #define INCLUDE_PATH_PREFIX "dev/lmc/"
 

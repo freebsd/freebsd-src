@@ -65,8 +65,8 @@
 
 #include <machine/iommuvar.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/pci/psychoreg.h>
