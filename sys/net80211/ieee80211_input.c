@@ -408,6 +408,7 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				goto out;
 			}
 			wh = mtod(m, struct ieee80211_frame *);
+			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		} else {
 			key = NULL;
 		}
@@ -585,6 +586,8 @@ ieee80211_input(struct ieee80211com *ic, struct mbuf *m,
 				/* NB: stats+msgs handled in crypto_decap */
 				goto out;
 			}
+			wh = mtod(m, struct ieee80211_frame *);
+			wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
 		}
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
