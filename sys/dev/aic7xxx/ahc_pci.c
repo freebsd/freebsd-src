@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ahc_pci.c,v 1.1 1998/09/15 07:25:33 gibbs Exp $
  */
 
 #include <pci.h>
@@ -510,10 +510,14 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		{
 			u_int dscommand0;
 
+			/*
+			 * DPARCKEN doesn't work correctly on
+			 * some MBs so don't use it.
+			 */
 			id_string = "aic7896/97 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
-			dscommand0 &= ~USCBSIZE32;
-			dscommand0 |= CACHETHEN|DPARCKEN|MPARCKEN;
+			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
+			dscommand0 |= CACHETHEN|MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
@@ -521,10 +525,14 @@ ahc_pci_attach(pcici_t config_id, int unit)
 		{
 			u_int dscommand0;
 
+			/*
+			 * DPARCKEN doesn't work correctly on
+			 * some MBs so don't use it.
+			 */
 			id_string = "aic7890/91 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
-			dscommand0 &= ~USCBSIZE32;
-			dscommand0 |= CACHETHEN|DPARCKEN|MPARCKEN;
+			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
+			dscommand0 |= CACHETHEN|MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
