@@ -115,8 +115,8 @@ sed	\
 	-e '/	ncr/d' \
 	-e '/	sa/d' \
 	-e '/pass/d' \
-	-e '/splash/d' \
 	-e '/	amr/d' \
+	-e '/splash/d' \
 	-e '/	apm0/d' \
 	-e '/ppc/d' \
 	-e '/ppbus/d' \
@@ -126,6 +126,9 @@ sed	\
 	-e '/vpo/d' \
 	-e '/	le	/d' \
 	-e '/	pcn	/d' \
+	-e '/	sf	/d' \
+	-e '/	sis	/d' \
+	-e '/	ste	/d' \
 	-e '/	wx	/d' \
 	-e '/gzip/d' \
 	-e '/	sl	/d' \
