@@ -745,7 +745,8 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			xfer->dst = ntohs(fp->mode.hdr.dst);
 			break;
 		case FWASREQEUI:
-			fwdev = fw_noderesolve(sc->fc, asyreq->req.dst.eui);
+			fwdev = fw_noderesolve_eui64(sc->fc,
+						asyreq->req.dst.eui);
 			if (fwdev == NULL) {
 				device_printf(sc->fc->bdev,
 					"cannot find node\n");

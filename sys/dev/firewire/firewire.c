@@ -54,6 +54,7 @@
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
+#include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
 
@@ -91,6 +92,7 @@ static void fw_vmaccess __P((struct fw_xfer *));
 #endif
 struct fw_xfer *asyreqq __P((struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
 	u_int32_t, u_int32_t, void (*)__P((struct fw_xfer *))));
+static int fw_bmr __P((struct firewire_comm *));
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
@@ -122,18 +124,40 @@ static driver_t firewire_driver = {
 };
 
 /*
- * To lookup node id. from EUI64.
+ * Lookup fwdev by node id.
  */
 struct fw_device *
-fw_noderesolve(struct firewire_comm *fc, struct fw_eui64 eui)
+fw_noderesolve_nodeid(struct firewire_comm *fc, int dst)
 {
 	struct fw_device *fwdev;
-	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
-		fwdev = TAILQ_NEXT(fwdev, link)){
-		if(fwdev->eui.hi == eui.hi && fwdev->eui.lo == eui.lo){
+	int s;
+
+	s = splfw();
+	TAILQ_FOREACH(fwdev, &fc->devices, link)
+		if (fwdev->dst == dst)
 			break;
-		}
-	}
+	splx(s);
+
+	if(fwdev == NULL) return NULL;
+	if(fwdev->status == FWDEVINVAL) return NULL;
+	return fwdev;
+}
+
+/*
+ * Lookup fwdev by EUI64.
+ */
+struct fw_device *
+fw_noderesolve_eui64(struct firewire_comm *fc, struct fw_eui64 eui)
+{
+	struct fw_device *fwdev;
+	int s;
+
+	s = splfw();
+	TAILQ_FOREACH(fwdev, &fc->devices, link)
+		if (fwdev->eui.hi == eui.hi && fwdev->eui.lo == eui.lo)
+			break;
+	splx(s);
+
 	if(fwdev == NULL) return NULL;
 	if(fwdev->status == FWDEVINVAL) return NULL;
 	return fwdev;
@@ -851,19 +875,14 @@ fw_xfer_free( struct fw_xfer* xfer)
 	free(xfer, M_DEVBUF);
 }
 
-/*
- * Callback for PHY configuration. 
- */
 static void
-fw_phy_config_callback(struct fw_xfer *xfer)
+fw_asy_callback_free(struct fw_xfer *xfer)
 {
 #if 0
-	printf("phy_config done state=%d resp=%d\n",
+	printf("asyreq done state=%d resp=%d\n",
 				xfer->state, xfer->resp);
 #endif
 	fw_xfer_free(xfer);
-	/* XXX need bus reset ?? */
-	/* sc->fc->ibr(xfer->fc);  LOOP */
 }
 
 /*
@@ -885,7 +904,7 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	xfer->send.off = 0;
 	xfer->fc = fc;
 	xfer->retry_req = fw_asybusy;
-	xfer->act.hand = fw_phy_config_callback;
+	xfer->act.hand = fw_asy_callback_free;
 
 	xfer->send.buf = malloc(sizeof(u_int32_t),
 					M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1041,9 +1060,9 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 #endif
 	}
 	free(buf, M_DEVBUF);
-	/* Optimize gap_count, if I am BMGR */
 	if(fc->irm == ((CSRARC(fc, NODE_IDS) >> 16 ) & 0x3f)){
-		fw_phy_config(fc, -1, gap_cnt[fc->max_hop]);
+		/* I am BMGR */
+		fw_bmr(fc);
 	}
 	callout_reset(&fc->busprobe_callout, hz/4,
 			(void *)fw_bus_probe, (void *)fc);
@@ -1851,10 +1870,7 @@ fw_try_bmr_callback(struct fw_xfer *xfer)
 		CSRARC(fc, BUS_MGR_ID));
 	if(bmr == fc->nodeid){
 		printf("(me)\n");
-/* If I am bus manager, optimize gapcount */
-		if(fc->max_hop <= MAX_GAPHOP ){
-			fw_phy_config(fc, -1, gap_cnt[fc->max_hop]);
-		}
+		fw_bmr(fc);
 	}else{
 		printf("\n");
 	}
@@ -2006,6 +2022,37 @@ fw_crc16(u_int32_t *ptr, u_int32_t len){
 		crc &= 0xffff;
 	}
 	return((u_int16_t) crc);
+}
+
+int
+fw_bmr(struct firewire_comm *fc)
+{
+	struct fw_device fwdev;
+	int cmstr;
+
+	/* XXX Assume that the current root node is cycle master capable */
+	cmstr = fc->max_node;
+	/* If I am the bus manager, optimize gapcount */
+	if(fc->max_hop <= MAX_GAPHOP ){
+		fw_phy_config(fc, (fc->max_node > 0)?cmstr:-1,
+						gap_cnt[fc->max_hop]);
+	}
+	/* If we are the cycle master, nothing to do */
+	if (cmstr == fc->nodeid)
+		return 0;
+	/* Bus probe has not finished, make dummy fwdev for cmstr */
+	bzero(&fwdev, sizeof(fwdev));
+	fwdev.fc = fc;
+	fwdev.dst = cmstr;
+	fwdev.speed = 0;
+	fwdev.maxrec = 8; /* 512 */
+	fwdev.status = FWDEVINIT;
+	/* Set cmstr bit on the cycle master */
+	fwmem_write_quad(&fwdev, NULL, 0/*spd*/,
+		0xffff, 0xf0000000 | STATE_SET, 1 << 16,
+		fw_asy_callback_free);
+
+	return 0;
 }
 
 DRIVER_MODULE(firewire,fwohci,firewire_driver,firewire_devclass,0,0);
