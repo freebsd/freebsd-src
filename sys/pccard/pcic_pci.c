@@ -151,7 +151,7 @@ pd6832_legacy_init(device_t dev)
 	 * sequentially.  We only initialize the first socket's legacy port,
 	 * the other is a dummy.
 	 */
-	io_port = PCIC_INDEX_0 + num6832 * CLPD6832_NUM_REGS;
+	io_port = PCIC_PORT_0 + num6832 * CLPD6832_NUM_REGS;
 	if (unit == 0)
 		pci_write_config(dev, CLPD6832_LEGACY_16BIT_IOADDR,
 		    io_port & ~CLPD6832_LEGACY_16BIT_IOENABLE, 4);
@@ -288,7 +288,7 @@ generic_cardbus_attach(device_t dev)
 	iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2) &
 	    ~CB_PCI_LEGACY16_IOENABLE;
 	if (!iobase) {
-		iobase = PCIC_INDEX_0 | CB_PCI_LEGACY16_IOENABLE;
+		iobase = PCIC_PORT_0 | CB_PCI_LEGACY16_IOENABLE;
 		pci_write_config(dev, CB_PCI_LEGACY16_IOADDR, iobase, 2);
 		iobase = pci_read_config(dev, CB_PCI_LEGACY16_IOADDR, 2)
 		    & ~CB_PCI_LEGACY16_IOENABLE;

@@ -914,7 +914,8 @@ pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
 pccard/pcic.c		optional pcic card
-pccard/pcic_pci.c	optional pcic pci
+pccard/pcic_isa.c	optional pcic isa card
+pccard/pcic_pci.c	optional pcic pci card
 pci/agp.c		optional agp
 pci/agp_intel.c		optional agp
 pci/agp_via.c		optional agp

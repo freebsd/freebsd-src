@@ -8,6 +8,7 @@
  * Updated 3/3/95 to include Cirrus Logic stuff.
  *-------------------------------------------------------------------------
  *
+ * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
  * Copyright (c) 1995 Andrew McRae.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +36,7 @@
  * $FreeBSD$
  */
 
-#define	PCIC_I82365	0		/* Intel chip */
+#define	PCIC_I82365	0		/* Intel i82365SL-A/B or clone */
 #define	PCIC_IBM	1		/* IBM clone */
 #define	PCIC_VLSI	2		/* VLSI chip */
 #define	PCIC_PD672X	3		/* Cirrus logic 672x */
@@ -44,11 +45,10 @@
 #define	PCIC_VG465      6		/* Vadem 465 */
 #define	PCIC_VG468	7		/* Vadem 468 */
 #define	PCIC_VG469	8		/* Vadem 469 */
-#define	PCIC_RF5C396	9		/* Ricoh RF5C396 */
-#define	PCIC_IBM_KING	10		/* IBM KING PCMCIA Controller */
-#define	PCIC_PC98	11		/* NEC PC98 PCMCIA Controller */
-/* These last ones aren't in normal freebsd */
-#define	PCIC_TI1130	12		/* TI PCI1130 CardBus */
+#define	PCIC_RF5C296	9		/* Ricoh RF5C296 */
+#define	PCIC_RF5C396	10		/* Ricoh RF5C396 */
+#define	PCIC_IBM_KING	11		/* IBM KING PCMCIA Controller */
+#define PCIC_I82365SL_DF 12		/* Intel i82365sl-DF step */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -61,10 +61,10 @@
  *	identify the port number, and the lower 6 bits
  *	select one of the 64 possible data registers.
  */
-#define PCIC_INDEX_0	0x3e0			/* index reg, chips 0 and 1 */
-#define PCIC_DATA_0	(PCIC_INDEX_0 + 1)	/* data reg, chips 0 and 1 */
-#define PCIC_INDEX_1	(PCIC_INDEX_0 + 2)	/* index reg, chips 2 and 3 */
-#define PCIC_DATA_1	(PCIC_INDEX_1 + 1)	/* data reg, chips 2 and 3 */
+#define PCIC_INDEX	0			/* Index register */
+#define PCIC_DATA	1			/* Data register */
+#define PCIC_NPORT	2			/* Number of ports */
+#define PCIC_PORT_0	0x3e0			/* index reg, chips 0 and 1 */
 
 /*
  *	Register index addresses.
@@ -86,8 +86,10 @@
 #define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
 #define PCIC_CLCHIP	0x1f	/* PD67xx: Chip I/D */
 #define PCIC_CVSR	0x2f	/* Vadem: Voltage select register */
+#define PCIC_RICOH_MCR2 0x2f	/* Ricoh: Mode Control Register 2 */
 
 #define PCIC_VMISC	0x3a	/* Vadem: Misc control register */
+#define PCIC_RICOH_ID	0x3a	/* Ricoh: ID register */
 
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
@@ -103,6 +105,7 @@
 /* For Identification and Revision (PCIC_ID_REV) */
 #define PCIC_INTEL0	0x82	/* Intel 82365SL Rev. 0; Both Memory and I/O */
 #define PCIC_INTEL1	0x83	/* Intel 82365SL Rev. 1; Both Memory and I/O */
+#define PCIC_INTEL2	0x84	/* Intel 82365SL step D */
 #define PCIC_VLSI82C146	0x84	/* VLSI 82C146 */
 #define PCIC_IBM1	0x88	/* IBM PCIC clone; Both Memory and I/O */
 #define PCIC_IBM2	0x89	/* IBM PCIC clone; Both Memory and I/O */
@@ -123,6 +126,7 @@
 #define PCIC_PCPWRE	0x10	/* PC Card Power Enable */
 #define	PCIC_VCC	0x18	/* Vcc control bits */
 #define	PCIC_VCC_5V	0x10	/* 5 volts */
+#define	PCIC_VCC_ON	0x10	/* Turn on VCC on some chips. */
 #define	PCIC_VCC_3V	0x18	/* 3 volts */
 #define	PCIC_VCC_5V_KING	0x14	/* 5 volts for KING PCIC */
 #define	PCIC_VPP	0x03	/* Vpp control bits */
@@ -208,6 +212,8 @@
 #define PCIC_GPI_TRANS	0x08	/* GPI Transition Control */
 #define PCIC_CDRES_EN	0x10	/* card detect resume enable */
 #define PCIC_SW_CD_INT	0x20	/* s/w card detect interrupt */
+#define PCIC_VS1STAT	0x40	/* 0 VS1# low, 1 VS1# high */
+#define PCIC_VS2STAT	0x80	/* 0 VS2# low, 1 VS2# high */
 
 /* CL-PD67[12]x: For 3.3V cards, etc. (PCIC_MISC1) */
 #define PCIC_MISC1_5V_DETECT 0x01	/* PD6710 only */
@@ -239,8 +245,15 @@
 #define PCIC_CVSR_VS_XX	0x02		/* X.XV when available */
 #define PCIC_CVSR_VS_33 0x03		/* 3.3V */
 
+/* Ricoh: Misc Control Register 2 (PCIC_RICOH_MCR2) */
+#define PCIC_MCR2_VCC_33 0x01		/* 3.3V */
+
 /* Vadem: misc register (PCIC_VMISC) */
 #define PCIC_VADEMREV	0x40
+
+/* Ricoh: ID register values (PCIC_RICOH_ID) */
+#define PCIC_RID_296	0x32
+#define PCIC_RID_396	0xb2
 
 /*
  *	Mask of allowable interrupts.
@@ -254,11 +267,11 @@
  *
  *	For NEC PC98 machines, irq 3, 5, 6, 9, 10, 11, 12, 13 are allowed.
  *	These correspond to the C-BUS signals INT 0, 1, 2, 3, 41, 42, 5, 6
- *	respectively.  This is with the desktop C-BUS addin card.  I don't
- *	know if this corresponds to laptop usage or not.
+ *	respectively.  This is with the desktop C-BUS addin card.
  *
- *	I'm not sure the proper way to map these interrupts, but it looks
- *	like pc98 is a subset of ibm-at so no actual mapping is required.
+ *	Hiroshi TSUKADA-san writes in FreeBSD98-testers that cbus IRQ
+ *	6 is routed to the IRQ 7 pin of the pcic in pc98 cbus based
+ *	cards.  I do not know how pc98 laptop models are wired.
  */
 #ifdef PC98
 #define	PCIC_INT_MASK_ALLOWED	0x3E68		/* PC98 */
