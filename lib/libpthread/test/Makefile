@@ -29,6 +29,7 @@ LDFLAGS_S :=
 LIBS := -lkse
 
 # Flags passed to verify.  "-v" or "-u" may be useful.
+VERIFY = perl verify
 VFLAGS :=
 
 all : default
@@ -82,21 +83,21 @@ check_a : tests_a
 	@cp $(bin)_a $(bin)
 .endfor
 	@echo "Test static library:"
-	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
+	@$(VERIFY) $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check_p : tests_p
 .for bin in $(CTESTS) $(BTESTS)
 	@cp $(bin)_p $(bin)
 .endfor
 	@echo "Test profile library:"
-	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
+	@$(VERIFY) $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check_s : tests_s
 .for bin in $(CTESTS) $(BTESTS)
 	@cp $(bin)_s $(bin)
 .endfor
 	@echo "Test shared library:"
-	@./verify $(VFLAGS) $(CTESTS) $(PTESTS)
+	@$(VERIFY) $(VFLAGS) $(CTESTS) $(PTESTS)
 
 check : check_a check_p check_s
 
