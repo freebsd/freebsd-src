@@ -173,7 +173,7 @@ static struct ftphost {
 } *thishost, *firsthost;
 
 #endif
-char	remotehost[MAXHOSTNAMELEN];
+char	remotehost[NI_MAXHOST];
 char	*ident = NULL;
 
 static char ttyline[20];
@@ -606,7 +606,8 @@ main(int argc, char *argv[], char **envp)
 #ifndef VIRTUAL_HOSTING
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
 		fatalerror("Ran out of memory.");
-	(void) gethostname(hostname, MAXHOSTNAMELEN - 1);
+	if (gethostname(hostname, MAXHOSTNAMELEN - 1) < 0)
+		hostname[0] = '\0';
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 #endif
 	if (hostinfo)
@@ -657,7 +658,7 @@ inithosts(void)
 	 */
 	if ((hostname = malloc(MAXHOSTNAMELEN)) == NULL)
 		fatalerror("Ran out of memory.");
-	if (gethostname(hostname, MAXHOSTNAMELEN) < 0)
+	if (gethostname(hostname, MAXHOSTNAMELEN - 1) < 0)
 		hostname[0] = '\0';
 	hostname[MAXHOSTNAMELEN - 1] = '\0';
 	if ((hrp = malloc(sizeof(struct ftphost))) == NULL)
@@ -1403,11 +1404,12 @@ skip:
 	(void) umask(defumask);
 #ifdef	LOGIN_CAP
 	if ((lc = login_getpwclass(pw)) != NULL) {
-		char	remote_ip[MAXHOSTNAMELEN];
+		char	remote_ip[NI_MAXHOST];
 
-		getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
+		if (getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
 			remote_ip, sizeof(remote_ip) - 1, NULL, 0,
-			NI_NUMERICHOST);
+			NI_NUMERICHOST))
+				*remote_ip = 0;
 		remote_ip[sizeof(remote_ip) - 1] = 0;
 		if (!auth_hostok(lc, remotehost, remote_ip)) {
 			syslog(LOG_INFO|LOG_AUTH,
@@ -1939,11 +1941,16 @@ pdata_err:
 	do {
 		file = getdatasock(mode);
 		if (file == NULL) {
-			char hostbuf[BUFSIZ], portbuf[BUFSIZ];
-			getnameinfo((struct sockaddr *)&data_source,
-				data_source.su_len, hostbuf, sizeof(hostbuf) - 1,
-				portbuf, sizeof(portbuf),
-				NI_NUMERICHOST|NI_NUMERICSERV);
+			char hostbuf[NI_MAXHOST], portbuf[NI_MAXSERV];
+
+			if (getnameinfo((struct sockaddr *)&data_source,
+				data_source.su_len,
+				hostbuf, sizeof(hostbuf) - 1,
+				portbuf, sizeof(portbuf) - 1,
+				NI_NUMERICHOST|NI_NUMERICSERV))
+					*hostbuf = *portbuf = 0;
+			hostbuf[sizeof(hostbuf) - 1] = 0;
+			portbuf[sizeof(portbuf) - 1] = 0;
 			reply(425, "Can't create data socket (%s,%s): %s.",
 				hostbuf, portbuf, strerror(errno));
 			return (NULL);
@@ -2264,6 +2271,7 @@ statcmd(void)
 	printf("     Connected to %s", remotehost);
 	if (!getnameinfo((struct sockaddr *)&his_addr, his_addr.su_len,
 			 hname, sizeof(hname) - 1, NULL, 0, NI_NUMERICHOST)) {
+		hname[sizeof(hname) - 1] = 0;
 		if (strcmp(hname, remotehost) != 0)
 			printf(" (%s)", hname);
 	}
@@ -2369,6 +2377,7 @@ epsvonly:;
 			if (!getnameinfo((struct sockaddr *)&tmp, tmp.su_len,
 					hname, sizeof(hname) - 1, NULL, 0,
 					NI_NUMERICHOST)) {
+				hname[sizeof(hname) - 1] = 0;
 				printf("     %s |%d|%s|%d|\r\n",
 					ispassive ? "EPSV" : "EPRT",
 					af, hname, htons(tmp.su_port));
@@ -2578,6 +2587,7 @@ dolog(struct sockaddr *who)
 	int error;
 
 	realhostname_sa(remotehost, sizeof(remotehost) - 1, who, who->sa_len);
+	remotehost[sizeof(remotehost) - 1] = 0;
 
 #ifdef SETPROCTITLE
 #ifdef VIRTUAL_HOSTING
@@ -2599,11 +2609,12 @@ dolog(struct sockaddr *who)
 		else
 #endif
 		{
-			char	who_name[MAXHOSTNAMELEN];
+			char	who_name[NI_MAXHOST];
 
 			error = getnameinfo(who, who->sa_len,
 					    who_name, sizeof(who_name) - 1,
 					    NULL, 0, NI_NUMERICHOST);
+			who_name[sizeof(who_name) - 1] = 0;
 			syslog(LOG_INFO, "connection from %s (%s)", remotehost,
 			       error == 0 ? who_name : "");
 		}
