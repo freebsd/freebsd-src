@@ -1191,9 +1191,9 @@ ngether_send(struct arpcom *ac, struct ether_header *eh, struct mbuf *m)
 				 * big lump. The next node will do an m_pullup()
 				 * for exactly the amount of data it needs and
 				 * hopefully everything after that will not
-				 * need one. So let's just use m_prepend.
+				 * need one. So let's just use M_PREPEND.
 				 */
-				m = m_prepend(m, sizeof(*eh), M_DONTWAIT);
+				M_PREPEND(m, sizeof (*eh), M_DONTWAIT);
 				if (m == NULL)
 					return;
 			}
