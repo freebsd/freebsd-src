@@ -208,7 +208,8 @@ arstrategy(struct buf *bp)
 	    chunk = count;
 	}
 
-	buf1->bp.b_pblkno += rdp->offset;
+	if (buf1->drive > 0)
+	    buf1->bp.b_pblkno += rdp->offset;
 	buf1->bp.b_caller1 = (void *)rdp;
 	buf1->bp.b_bcount = chunk * DEV_BSIZE;
 	buf1->bp.b_data = data;
