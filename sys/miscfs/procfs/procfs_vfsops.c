@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.16 1997/08/02 14:32:19 bde Exp $
+ *	$Id: procfs_vfsops.c,v 1.17 1997/08/16 19:15:19 wollman Exp $
  */
 
 /*
@@ -60,6 +60,8 @@ static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
 static int	procfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
+
+extern void procfs_exit __P((struct proc *));
 
 /*
  * VFS Operations.
@@ -96,6 +98,7 @@ procfs_mount(mp, path, data, ndp, p)
 	bcopy("procfs", mp->mnt_stat.f_mntfromname, size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)procfs_statfs(mp, &mp->mnt_stat, p);
+
 	return (0);
 }
 
@@ -172,6 +175,12 @@ static int
 procfs_init(vfsp)
 	struct vfsconf *vfsp;
 {
+	int error;
+	/*
+	 * XXX - this should be rm_at_exit'd in an LKM unload function,
+	 */
+	if (error = at_exit(procfs_exit))
+		printf("procfs:  cannot register procfs_exit with at_exit -- error %d\n", error);
 
 	return (0);
 }
