@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.19 1997/09/04 21:17:16 helbig Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.20 1997/10/15 04:34:44 jkh Exp $
 
 Contents last changed:  March 27th, 1997
 
@@ -477,7 +477,7 @@ A: This is a known problem, and will hopefully be fixed in the future.
    local system in /usr/share/doc/FAQ, provided you have installed the
    `doc' distribution.
 
-A: I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I find
+Q: I have a Panasonic AL-N1 or Rios Chandler Pentium machine and I find
    that the system hangs before ever getting into the installation
    now.
 
