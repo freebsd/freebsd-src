@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.20 1996/05/31 00:20:29 peter Exp $
+ * $Id: param.c,v 1.20.2.1 1997/01/17 19:28:20 davidg Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -88,11 +88,6 @@ int	maxprocperuid = NPROC-1;		/* maximum # of processes per user */
 int	maxfiles = NPROC*2;			/* system wide open files limit */
 int	maxfilesperproc = NPROC*2;		/* per-process open files limit */
 int	ncallout = 16 + NPROC;			/* maximum # of timer events */
-
-#ifndef EXTRAVNODES
-#define EXTRAVNODES 0
-#endif
-int	extravnodes = EXTRAVNODES;		/* spare vnodes to allocate */
 
 /* maximum # of mbuf clusters */
 #ifndef NMBCLUSTERS

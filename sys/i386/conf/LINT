@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.13 1997/02/08 15:42:25 joerg Exp $
+#	$Id: LINT,v 1.286.2.14 1997/02/22 20:31:26 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -59,16 +59,6 @@ options		OPEN_MAX=128
 #
 options		"MAXDSIZ=(256*1024*1024)"
 options		"DFLDSIZ=(256*1024*1024)"
-
-#
-# Under some circumstances it is useful to have an extra number of
-# vnode data structures allocated at boot time.  In particular,
-# usenet news servers can benefit if there are enough vnodes to
-# cache the busiest newsgroup and overview directories.  Beware that
-# this is an expensive option, it consumes physical non-pageable ram.
-# A busy news server may benefit from 10,000 extra vnodes or so.
-#
-options		EXTRAVNODES=1
 
 #
 # A math emulator is mandatory if you wish to run on hardware which
