@@ -193,6 +193,7 @@ static __inline int
 		iface_match __P((struct ifnet *ifp, union ip_fw_if *ifu,
 				 int byname));
 static int	ipopts_match __P((struct ip *ip, struct ip_fw *f));
+static int	iptos_match __P((struct ip *ip, struct ip_fw *f));
 static __inline int
 		port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag, int mask));
@@ -352,6 +353,33 @@ ipopts_match(struct ip *ip, struct ip_fw *f)
 	else
 		return 0;
 }
+
+static int
+iptos_match(struct ip *ip, struct ip_fw *f)
+{
+
+	u_int flags = (ip->ip_tos & 0x1f);
+	u_char opts, nopts, nopts_sve;
+
+	opts = f->fw_iptos;
+	nopts = nopts_sve = f->fw_ipntos;
+
+	while (flags != 0) {
+		u_int flag;
+
+		flag = 1 << (ffs(flags) -1);
+		opts &= ~flag;
+		nopts &= ~flag;
+		flags &= ~flag;
+	}
+
+	if (opts == 0 && nopts == nopts_sve)
+		return 1;
+	else
+		return 0;
+
+}
+
 
 static int
 tcpopts_match(struct tcphdr *tcp, struct ip_fw *f)
@@ -1108,8 +1136,18 @@ again:
 				continue;
 		}
 
-		/* Check IP options */
-		if (f->fw_ipopt != f->fw_ipnopt && !ipopts_match(ip, f))
+		/* Check IP header values */
+		if (f->fw_ipflg & IP_FW_IF_IPOPT && !ipopts_match(ip, f))
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPLEN && f->fw_iplen != ip->ip_len)
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPID && f->fw_ipid != ip->ip_id)
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPTOS && !iptos_match(ip, f))
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPTTL && f->fw_ipttl != ip->ip_ttl)
+			continue;
+		if (f->fw_ipflg & IP_FW_IF_IPVER && f->fw_ipver != ip->ip_v)
 			continue;
 
 		/* Check protocol; if wildcard, and no [ug]id, match */
@@ -1211,9 +1249,15 @@ again:
 			}
 			tcp = (struct tcphdr *) ((u_int32_t *)ip + ip->ip_hl);
 
-			if (f->fw_tcpopt != f->fw_tcpnopt && !tcpopts_match(tcp, f))
+			if (f->fw_ipflg & IP_FW_IF_TCPOPT && !tcpopts_match(tcp, f))
 				continue;
-			if (f->fw_tcpf != f->fw_tcpnf && !tcpflg_match(tcp, f))
+			if (f->fw_ipflg & IP_FW_IF_TCPFLG && !tcpflg_match(tcp, f))
+				continue;
+			if (f->fw_ipflg & IP_FW_IF_TCPSEQ && tcp->th_seq != f->fw_tcpseq)
+				continue;
+			if (f->fw_ipflg & IP_FW_IF_TCPACK && tcp->th_ack != f->fw_tcpack)
+				continue;
+			if (f->fw_ipflg & IP_FW_IF_TCPWIN && tcp->th_win != f->fw_tcpwin)
 				continue;
 			goto check_ports;
 		    }
