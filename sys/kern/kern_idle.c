@@ -61,11 +61,15 @@ idle_setup(void *dummy)
 		if (error)
 			panic("idle_setup: kthread_create error %d\n", error);
 
+		PROC_LOCK(p);
 		p->p_flag |= P_NOLOAD;
+		mtx_lock_spin(&sched_lock);
 		p->p_state = PRS_NORMAL;
 		td = FIRST_THREAD_IN_PROC(p);
 		td->td_state = TDS_CAN_RUN;
-		td->td_kse->ke_flags |= KEF_IDLEKSE; 
+		td->td_kse->ke_flags |= KEF_IDLEKSE;
+		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(p);
 #ifdef SMP
 	}
 #endif
