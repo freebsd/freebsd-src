@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.56 1995/01/12 16:18:16 jkh Exp $
+# $Id: bininst.sh,v 1.1 1995/01/14 10:28:20 jkh Exp $
 
 if [ "${_BININST_LOADED_}" = "yes" ]; then
 	error "Error, $0 loaded more than once!"
@@ -67,7 +67,11 @@ Further information may be obtained by sending mail to
 questions@freebsd.org (though please read the docs first,
 we get LOTS of questions! :-) or browsing http://www.freebsd.org/
 
-We sincerely hope you enjoy FreeBSD 2.0!
+If you encounter a bug and can send/receive Internet email, please
+use the \`send-pr\' command to submit a report - this will ensure
+that the bug is noted and tracked to some sort of resolution.
+
+Enjoy FreeBSD 2.0!
 
 		The FreeBSD Project Team" -1 -1
 }
