@@ -836,7 +836,8 @@ daasync(void *callback_arg, u_int32_t code,
  
 		cgd = (struct ccb_getdev *)arg;
 
-		if ((cgd->pd_type != T_DIRECT) && (cgd->pd_type != T_OPTICAL))
+		if (SID_TYPE(&cgd->inq_data) != T_DIRECT
+		    && SID_TYPE(&cgd->inq_data) != T_OPTICAL)
 			break;
 
 		/*
@@ -960,7 +961,7 @@ daregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "da", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_DISK);
 
 	/*
