@@ -19,7 +19,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -31,10 +31,10 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: vif.c,v 1.3 1999/09/12 17:00:11 jinmei Exp $
+ *  $Id: vif.c,v 1.5 2000/05/18 15:29:40 itojun Exp $
  */
 /*
  * Part of this program has been derived from mrouted.
@@ -83,7 +83,7 @@ init_vifs()
     vifi_t vifi;
     struct uvif *v;
     int enabled_vifs;
-
+	
     numvifs    = 0;
     vifs_down = FALSE;
 
@@ -137,7 +137,7 @@ init_vifs()
      */
     enabled_vifs    = 0;
     phys_vif        = -1;
-
+	 
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN))
 	    continue;
@@ -184,11 +184,11 @@ start_all_vifs()
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN)) {
 	    if (v->uv_flags & VIFF_DISABLED)
 		log(LOG_INFO, 0,
-		    "%s is DISABLED; if #%u out of service",
+		    "%s is DISABLED; if #%u out of service", 
 		    v->uv_name, vifi);
 	    else
 		log(LOG_INFO, 0,
-		    "%s is DOWN; if #%u out of service",
+		    "%s is DOWN; if #%u out of service", 
 		    v->uv_name, vifi);
 	    }
 	else
@@ -220,7 +220,7 @@ stop_all_vifs()
  * physical, tunnel (tunnels will be used in the future
  * when this code becomes PIM multicast boarder router.)
  */
-static void
+static void 
 start_vif(vifi)
     vifi_t vifi;
 {
@@ -234,29 +234,36 @@ start_vif(vifi)
     /* TODO: CHECK THE TIMERS!!!!! Set or reset? */
     v->uv_gq_timer  = 0;
     v->uv_pim_neighbors = (pim_nbr_entry_t *)NULL;
-
+    
     /* Tell kernel to add, i.e. start this vif */
-    k_add_vif(mld6_socket, vifi, &uvifs[vifi]);
+    k_add_vif(mld6_socket, vifi, &uvifs[vifi]);   
     log(LOG_INFO, 0, "%s comes up; if #%u now in service", v->uv_name, vifi);
-
+    
     /*
      * Join the PIM multicast group on the interface.
      */
     k_join(mld6_socket, &allpim6routers_group.sin6_addr, v->uv_ifindex);
-
+	
     /*
      * Join the ALL-ROUTERS multicast group on the interface.
      * This allows mtrace requests to loop back if they are run
      * on the multicast router.
      */
     k_join(mld6_socket, &allrouters_group.sin6_addr, v->uv_ifindex);
-
+	
     /*
      * Until neighbors are discovered, assume responsibility for sending
      * periodic group membership queries to the subnet.  Send the first
      * query.
      */
     v->uv_flags |= VIFF_QUERIER;
+    if (!v->uv_querier) {
+	v->uv_querier = (struct listaddr *)malloc(sizeof(*v->uv_querier));
+	memset(v->uv_querier, 0, sizeof(*v->uv_querier));
+    }
+    v->uv_querier->al_addr = v->uv_linklocal->pa_addr;
+    v->uv_querier->al_timer = MLD6_OTHER_QUERIER_PRESENT_INTERVAL;
+    time(&v->uv_querier->al_ctime); /* reset timestamp */
     query_groups(v);
 
     /*
@@ -272,7 +279,7 @@ start_vif(vifi)
  * Stop a vif (either physical interface or tunnel).
  * If we are running only PIM we don't have tunnels.
  */
-static void
+static void 
 stop_vif(vifi)
     vifi_t vifi;
 {
@@ -280,11 +287,11 @@ stop_vif(vifi)
     struct listaddr *a;
     register pim_nbr_entry_t *n, *next;
     struct vif_acl *acl;
-
+    
     /*
-     * TODO: make sure that the kernel viftable is
+     * TODO: make sure that the kernel viftable is 
      * consistent with the daemon table
-     */
+     */	
     v = &uvifs[vifi];
     k_leave(mld6_socket, &allpim6routers_group.sin6_addr, v->uv_ifindex);
     k_leave(mld6_socket, &allrouters_group.sin6_addr, v->uv_ifindex);
@@ -297,15 +304,15 @@ stop_vif(vifi)
 	v->uv_groups = a->al_next;
 	free((char *)a);
     }
-
+    
     /*
      * TODO: inform (eventually) the neighbors I am going down by sending
      * PIM_HELLO with holdtime=0 so someone else should become a DR.
-     */
+     */ 
 
     /* TODO: dummy! Implement it!! Any problems if don't use it? */
     delete_vif_from_mrt(vifi);
-
+    
     /*
      * Delete the interface from the kernel's vif structure.
      */
@@ -331,7 +338,7 @@ stop_vif(vifi)
     vifs_down = TRUE;
     log(LOG_INFO, 0,
 	"%s goes down; if #%u out of service", v->uv_name, vifi);
-}
+}		
 
 /*
  * return the max global Ipv6 address of an UP and ENABLED interface
@@ -368,7 +375,7 @@ max_global_address()
 						   &p->pa_addr) &&
 				    !IN6_IS_ADDR_LINKLOCAL(&p->pa_addr.sin6_addr) &&
 				    !IN6_IS_ADDR_SITELOCAL(&p->pa_addr.sin6_addr))
-					pmax=p;
+					pmax=p;	
 			}
 		}
 	}
@@ -422,7 +429,7 @@ check_vif_state()
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & VIFF_DISABLED)
 	    continue;
-
+	
 	strncpy(ifr.ifr_name, v->uv_name, IFNAMSIZ);
 	/* get the interface flags */
 	if (ioctl(udp_socket, SIOCGIFFLAGS, (char *)&ifr) < 0)
@@ -455,14 +462,14 @@ check_vif_state()
  * Local addresses are excluded.
  * Return the vif number or NO_VIF if not found.
  */
-vifi_t
+vifi_t 
 find_vif_direct(src)
     struct sockaddr_in6 *src;
 {
     vifi_t vifi;
     register struct uvif *v;
     register struct phaddr *p;
-
+	
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN | VIFF_TUNNEL))
 	    continue;
@@ -474,7 +481,7 @@ find_vif_direct(src)
 	}
     }
     return (NO_VIF);
-}
+} 
 
 
 /*
@@ -488,7 +495,7 @@ local_address(src)
     vifi_t vifi;
     register struct uvif *v;
     register struct phaddr *p;
-
+    
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN))
 	    continue;
@@ -496,9 +503,9 @@ local_address(src)
 		if (inet6_equal(src, &p->pa_addr))
 			return(vifi);
 	}
-    }
+    }   
     /* Returning NO_VIF means not a local address */
-    return (NO_VIF);
+    return (NO_VIF);	
 }
 
 /*
@@ -507,14 +514,14 @@ local_address(src)
  * (tunnels excluded).
  * Return the vif number or NO_VIF if not found.
  */
-vifi_t
+vifi_t 
 find_vif_direct_local(src)
     struct sockaddr_in6 *src;
 {
     vifi_t vifi;
     register struct uvif *v;
     register struct phaddr *p;
-
+	
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN | VIFF_TUNNEL))
 	    continue;
@@ -525,4 +532,4 @@ find_vif_direct_local(src)
 	}
     }
     return (NO_VIF);
-}
+} 

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -47,7 +47,7 @@
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL USC, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -59,10 +59,10 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Pavlin Ivanov Radoslavov (pavlin@catarina.usc.edu)
  *
- *  $Id: pim6.c,v 1.3 1999/10/26 08:39:19 itojun Exp $
+ *  $Id: pim6.c,v 1.6 2000/03/07 02:23:50 jinmei Exp $
  *  $FreeBSD$
  */
 
@@ -79,12 +79,13 @@ struct sockaddr_in6 allpim6routers_group; /* ALL_PIM_ROUTERS group       */
 int	pim6_socket;		/* socket for PIM control msgs */
 
 /*
- * Local variables.
+ * Local variables. 
  */
 static struct sockaddr_in6 from;
 static struct msghdr sndmh;
 static struct iovec sndiov[2];
 static struct in6_pktinfo *sndpktinfo;
+static u_char *sndcmsgbuf = NULL;
 
 /*
  * Local function definitions.
@@ -92,15 +93,16 @@ static struct in6_pktinfo *sndpktinfo;
 static void pim6_read   __P((int f, fd_set *rfd));
 static void accept_pim6 __P((int recvlen));
 static int pim6_cksum __P((u_short *, struct in6_addr *,
-			   struct in6_addr *, int));
+			   struct in6_addr *, int)); 
 
 void
 init_pim6()
 {
-	static u_char sndcmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+	static int sndcmsglen;
 	struct cmsghdr *cmsgp = (struct cmsghdr *)sndcmsgbuf;
 
-	if ((pim6_socket = socket(AF_INET6, SOCK_RAW, IPPROTO_PIM)) < 0)
+	sndcmsglen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+	if ((pim6_socket = socket(AF_INET6, SOCK_RAW, IPPROTO_PIM)) < 0) 
 		log(LOG_ERR, errno, "PIM6 socket");
 
 	k_set_rcvbuf(pim6_socket, SO_RECV_BUF_SIZE_MAX,
@@ -113,7 +115,7 @@ init_pim6()
 	if (inet_pton(AF_INET6, "ff02::d",
 		      (void *)&allpim6routers_group.sin6_addr) != 1)
 		log(LOG_ERR, 0, "inet_pton failed for ff02::d");
-
+    
 	if ((pim6_recv_buf = malloc(RECV_BUF_SIZE)) == NULL ||
 	    (pim6_send_buf = malloc(RECV_BUF_SIZE)) == NULL) {
 		log(LOG_ERR, 0, "init_pim6: malloc failed\n");
@@ -123,13 +125,16 @@ init_pim6()
 	sndmh.msg_namelen = sizeof(struct sockaddr_in6);
 	sndmh.msg_iov = sndiov;
 	sndmh.msg_iovlen = 1;
+	if (sndcmsgbuf == NULL && (sndcmsgbuf = malloc(sndcmsglen)) == NULL)
+		log(LOG_ERR, 0, "malloc failed");
 	sndmh.msg_control = (caddr_t)sndcmsgbuf;
-	sndmh.msg_controllen = sizeof(sndcmsgbuf);
+	sndmh.msg_controllen = sndcmsglen;
 	/* initilization cmsg for specifing outgoing interfaces and source */
-	sndpktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsgp);
+	cmsgp=(struct cmsghdr *)sndcmsgbuf;
 	cmsgp->cmsg_len = CMSG_SPACE(sizeof(struct in6_pktinfo));
 	cmsgp->cmsg_level = IPPROTO_IPV6;
 	cmsgp->cmsg_type = IPV6_PKTINFO;
+	sndpktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsgp);
 
 	if (register_input_handler(pim6_socket, pim6_read) < 0)
 		log(LOG_ERR, 0,
@@ -170,9 +175,9 @@ pim6_read(f, rfd)
 	/* Use of omask taken from main() */
 	omask = sigblock(sigmask(SIGALRM));
 #endif /* SYSV */
-
+    
 	accept_pim6(pim6_recvlen);
-
+    
 #ifdef SYSV
 	(void)sigprocmask(SIG_SETMASK, &oblock, (sigset_t *)NULL);
 #else
@@ -191,7 +196,7 @@ accept_pim6(pimlen)
 	/* sanity check */
 	if (pimlen < sizeof(pim)) {
 		log(LOG_WARNING, 0,
-		    "data field too short (%u bytes) for PIM header, from %s",
+		    "data field too short (%u bytes) for PIM header, from %s", 
 		    pimlen, inet6_fmt(&src->sin6_addr));
 		return;
 	}
@@ -201,7 +206,7 @@ accept_pim6(pimlen)
 	IF_DEBUG(DEBUG_PIM_DETAIL) {
 		IF_DEBUG(DEBUG_PIM) {
 			log(LOG_DEBUG, 0, "Receiving %s from %s",
-			    packet_kind(IPPROTO_PIM, pim->pim_type, 0),
+			    packet_kind(IPPROTO_PIM, pim->pim_type, 0), 
 			    inet6_fmt(&src->sin6_addr));
 			log(LOG_DEBUG, 0, "PIM type is %u", pim->pim_type);
 		}
@@ -218,7 +223,7 @@ accept_pim6(pimlen)
 
 	switch (pim->pim_type) {
 	 case PIM_HELLO:
-		 receive_pim6_hello(src, (char *)(pim), pimlen);
+		 receive_pim6_hello(src, (char *)(pim), pimlen); 
 		 break;
 	 case PIM_REGISTER:
 		 log(LOG_INFO, 0, "ignore %s from %s",
@@ -231,7 +236,7 @@ accept_pim6(pimlen)
 		     inet6_fmt(&src->sin6_addr));
 		 break;
 	 case PIM_JOIN_PRUNE:
-		 receive_pim6_join_prune(src, (char *)(pim), pimlen);
+		 receive_pim6_join_prune(src, (char *)(pim), pimlen); 
 		 break;
 	 case PIM_BOOTSTRAP:
 		 log(LOG_INFO, 0, "ignore %s from %s",
@@ -239,7 +244,7 @@ accept_pim6(pimlen)
 		     inet6_fmt(&src->sin6_addr));
 		 break;
 	 case PIM_ASSERT:
-		 receive_pim6_assert(src, (char *)(pim), pimlen);
+		 receive_pim6_assert(src, (char *)(pim), pimlen); 
 		 break;
 	 case PIM_GRAFT:
 	 case PIM_GRAFT_ACK:
@@ -264,7 +269,7 @@ accept_pim6(pimlen)
  * Send a multicast PIM packet from src to dst, PIM message type = "type"
  * and data length (after the PIM header) = "datalen"
  */
-void
+void 
 send_pim6(buf, src, dst, type, datalen)
 	char *buf;
 	struct sockaddr_in6 *src, *dst;
@@ -312,7 +317,7 @@ send_pim6(buf, src, dst, type, datalen)
 		    IN6_ARE_ADDR_EQUAL(&dst->sin6_addr,
 				       &allpim6routers_group.sin6_addr)) {
 			setloop = 1;
-			k_set_loop(pim6_socket, TRUE);
+			k_set_loop(pim6_socket, TRUE);  
 		}
 	}
 
@@ -327,12 +332,12 @@ send_pim6(buf, src, dst, type, datalen)
 			    inet6_fmt(&src->sin6_addr),
 			    inet6_fmt(&dst->sin6_addr));
 		if (setloop)
-			k_set_loop(pim6_socket, FALSE);
+			k_set_loop(pim6_socket, FALSE); 
 		return;
 	}
 
 	if (setloop)
-		k_set_loop(pim6_socket, FALSE);
+		k_set_loop(pim6_socket, FALSE); 
 
 	IF_DEBUG(DEBUG_PIM_DETAIL) {
 		IF_DEBUG(DEBUG_PIM) {
@@ -348,7 +353,7 @@ send_pim6(buf, src, dst, type, datalen)
 }
 
 u_int pim_send_cnt = 0;
-#define	SEND_DEBUG_NUMBER 50
+#define SEND_DEBUG_NUMBER 50
 
 /* ============================== */
 
@@ -359,8 +364,8 @@ u_int pim_send_cnt = 0;
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define	ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define	REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
 static union {
 	u_short phs[4];

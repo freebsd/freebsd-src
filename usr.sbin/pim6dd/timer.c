@@ -10,15 +10,15 @@
  *  documentation, and that any documentation, advertising materials,
  *  and other materials related to such distribution and use acknowledge
  *  that the software was developed by the University of Oregon.
- *  The name of the University of Oregon may not be used to endorse or
- *  promote products derived from this software without specific prior
+ *  The name of the University of Oregon may not be used to endorse or 
+ *  promote products derived from this software without specific prior 
  *  written permission.
  *
  *  THE UNIVERSITY OF OREGON DOES NOT MAKE ANY REPRESENTATIONS
  *  ABOUT THE SUITABILITY OF THIS SOFTWARE FOR ANY PURPOSE.  THIS SOFTWARE IS
  *  PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
  *  INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
- *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+ *  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND 
  *  NON-INFRINGEMENT.
  *
  *  IN NO EVENT SHALL UO, OR ANY OTHER CONTRIBUTOR BE LIABLE FOR ANY
@@ -30,22 +30,22 @@
  *  noted when applicable.
  */
 /*
- *  Questions concerning this software should be directed to
+ *  Questions concerning this software should be directed to 
  *  Kurt Windisch (kurtw@antc.uoregon.edu)
  *
- *  $Id: timer.c,v 1.3 1999/09/15 07:45:12 jinmei Exp $
+ *  $Id: timer.c,v 1.5 2000/05/18 16:09:39 itojun Exp $
  */
 /*
  * Part of this program has been derived from PIM sparse-mode pimd.
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
- *
+ *  
  * The pimd program is COPYRIGHT 1998 by University of Southern California.
  *
  * Part of this program has been derived from mrouted.
  * The mrouted program is covered by the license in the accompanying file
  * named "LICENSE.mrouted".
- *
+ * 
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
@@ -116,7 +116,7 @@ age_vifs()
 
 /* XXX: TODO: currently, sending to qe* interface which is DOWN
  * doesn't return error (ENETDOWN) on my Solaris machine,
- * so have to check periodically the
+ * so have to check periodically the 
  * interfaces status. If this is fixed, just remove the defs around
  * the "if (vifs_down)" line.
  */
@@ -130,6 +130,20 @@ age_vifs()
     for (vifi = 0, v = uvifs; vifi < numvifs; ++vifi, ++v) {
 	if (v->uv_flags & (VIFF_DISABLED | VIFF_DOWN))
 	    continue;
+
+	/* Timeout the MLD querier (unless we re the querier) */
+	if ((v->uv_flags & VIFF_QUERIER) == 0 &&
+	    v->uv_querier) { /* this must be non-NULL, but check for safety. */
+	    IF_TIMEOUT(v->uv_querier->al_timer) {
+		/* act as a querier by myself */
+		v->uv_flags |= VIFF_QUERIER;
+		v->uv_querier->al_addr = v->uv_linklocal->pa_addr;
+		v->uv_querier->al_timer = MLD6_OTHER_QUERIER_PRESENT_INTERVAL;
+		time(&v->uv_querier->al_ctime); /* reset timestamp */
+		query_groups(v);
+	    }
+	}
+
 	/* Timeout neighbors */
 	for (curr_nbr = v->uv_pim_neighbors; curr_nbr != NULL;
 	     curr_nbr = next_nbr) {
@@ -146,7 +160,7 @@ age_vifs()
 
 	    delete_pim6_nbr(curr_nbr);
 	}
-
+	
 	/* PIM_HELLO periodic */
 	IF_TIMEOUT(v->uv_pim_hello_timer)
 	    send_pim6_hello(v, PIM_TIMER_HELLO_HOLDTIME);
@@ -191,16 +205,16 @@ age_routes()
 	ucast_flag = FALSE;
     }
 
-    /* Walk the the (S,G) entries */
-    if(grplist == (grpentry_t *)NULL)
+    /* Walk the (S,G) entries */
+    if(grplist == (grpentry_t *)NULL) 
 	return;
     for(grpentry_ptr = grplist;
-	grpentry_ptr != (grpentry_t *)NULL;
+	grpentry_ptr != (grpentry_t *)NULL; 
 	grpentry_ptr = grpentry_next) {
 	grpentry_next = grpentry_ptr->next;
 
-	for(mrtentry_ptr = grpentry_ptr->mrtlink;
-	    mrtentry_ptr != (mrtentry_t *)NULL;
+	for(mrtentry_ptr = grpentry_ptr->mrtlink; 
+	    mrtentry_ptr != (mrtentry_t *)NULL; 
 	    mrtentry_ptr = mrtentry_next) {
 	    mrtentry_next = mrtentry_ptr->grpnext;
 
@@ -214,21 +228,21 @@ age_routes()
 		delete_mrtentry(mrtentry_ptr);
 		continue;
 	    }
-	    if(!(IF_ISEMPTY(&mrtentry_ptr->oifs)) &&
+	    if(!(IF_ISEMPTY(&mrtentry_ptr->oifs)) && 
 	       curr_bytecnt != mrtentry_ptr->sg_count.bytecnt) {
 		/* Packets have been forwarded - refresh timer
-		 * Note that these counters count packets received,
+		 * Note that these counters count packets received, 
 		 * not packets forwarded.  So only refresh if packets
 		 * received and non-null oiflist.
 		 */
 		IF_DEBUG(DEBUG_MFC)
-		    log(LOG_DEBUG, 0,
+		    log(LOG_DEBUG, 0, 
 			"Refreshing src %s, dst %s after %d bytes forwarded",
 			inet6_fmt(&mrtentry_ptr->source->address.sin6_addr),
 			inet6_fmt(&mrtentry_ptr->group->group.sin6_addr),
-			mrtentry_ptr->sg_count.bytecnt);
+			mrtentry_ptr->sg_count.bytecnt); 
 		SET_TIMER(mrtentry_ptr->timer, PIM_DATA_TIMEOUT);
-	    }
+	    }	    
 
 	    /* Time out the entry */
 	    IF_TIMEOUT(mrtentry_ptr->timer) {
@@ -237,7 +251,7 @@ age_routes()
 	    }
 
 	    /* Time out asserts */
-	    if(mrtentry_ptr->flags & MRTF_ASSERTED)
+	    if(mrtentry_ptr->flags & MRTF_ASSERTED) 
 		IF_TIMEOUT(mrtentry_ptr->assert_timer) {
 		    mrtentry_ptr->flags &= ~MRTF_ASSERTED;
 		    mrtentry_ptr->upstream = mrtentry_ptr->source->upstream;
@@ -255,7 +269,7 @@ age_routes()
 		        change_flag = TRUE;
 		    }
 	    }
-
+	    
 	    /* Unicast Route changes */
 	    update_src_iif = FALSE;
 	    if (ucast_flag == TRUE) {
@@ -264,7 +278,7 @@ age_routes()
 		srcentry_save.upstream = mrtentry_ptr->source->upstream;
 		srcentry_save.preference = mrtentry_ptr->source->preference;
 		srcentry_save.metric = mrtentry_ptr->source->metric;
-
+		
 		if (set_incoming(mrtentry_ptr->source,
 				 PIM_IIF_SOURCE) != TRUE) {
 		    /*
@@ -277,7 +291,7 @@ age_routes()
 		}
 		else {
 		    /* iif info found */
-		    if (!(mrtentry_ptr->flags & MRTF_ASSERTED) &&
+		    if (!(mrtentry_ptr->flags & MRTF_ASSERTED) && 
 			((srcentry_save.incoming !=
 			  mrtentry_ptr->incoming)
 			 || (srcentry_save.upstream !=
@@ -294,9 +308,9 @@ age_routes()
 			 * larger and thus the correct assert winner
 			 * from upstream will be chosen.
 			 */
-			mrtentry_ptr->preference =
+			mrtentry_ptr->preference = 
 			    mrtentry_ptr->source->preference;
-			mrtentry_ptr->metric =
+			mrtentry_ptr->metric = 
 			    mrtentry_ptr->source->metric;
 		    }
 		}
@@ -304,7 +318,7 @@ age_routes()
 
 	    if ((change_flag == TRUE) || (update_src_iif == TRUE)) {
 		    /* Flush the changes */
-		    state_change =
+		    state_change = 
 			    change_interfaces(mrtentry_ptr,
 					      mrtentry_ptr->incoming,
 					      &mrtentry_ptr->pruned_oifs,
