@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,11 +78,11 @@ static void setup(void);
 IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc)(void);		/* conversion function */
-u_quad_t cpy_cnt;		/* # of blocks to copy */
+uintmax_t cpy_cnt;		/* # of blocks to copy */
 static off_t	pending = 0;	/* pending seek if sparse */
-u_int	ddflags;		/* conversion options */
+u_int	ddflags = 0;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
-quad_t	files_cnt = 1;		/* # of files to copy */
+uintmax_t files_cnt = 1;	/* # of files to copy */
 const	u_char *ctab;		/* conversion table */
 
 int
@@ -247,7 +248,7 @@ dd_in(void)
 		case 0:
 			break;
 		default:
-			if (st.in_full + st.in_part >= (u_quad_t)cpy_cnt)
+			if (st.in_full + st.in_part >= (uintmax_t)cpy_cnt)
 				return;
 			break;
 		}

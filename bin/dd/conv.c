@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <err.h>
+#include <inttypes.h>
 #include <string.h>
 
 #include "dd.h"
@@ -171,7 +172,8 @@ block(void)
 				++st.trunc;
 
 			/* Toss characters to a newline. */
-			for (; in.dbcnt && *inp++ != '\n'; --in.dbcnt);
+			for (; in.dbcnt && *inp++ != '\n'; --in.dbcnt)
+				;
 			if (!in.dbcnt)
 				intrunc = 1;
 			else
@@ -223,8 +225,8 @@ unblock(void)
 
 	/* Translation and case conversion. */
 	if ((t = ctab) != NULL)
-		for (cnt = in.dbrcnt, inp = in.dbp; cnt--;)
-			*--inp = t[*inp];
+		for (inp = in.dbp - (cnt = in.dbrcnt); cnt--; ++inp)
+			*inp = t[*inp];
 	/*
 	 * Copy records (max cbsz size chunks) into the output buffer.  The
 	 * translation has to already be done or we might not recognize the
