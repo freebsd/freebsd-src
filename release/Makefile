@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.328 1997/10/04 09:05:06 jkh Exp $
+#	$Id: Makefile,v 1.329 1997/10/04 20:51:42 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -25,7 +25,7 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # If this is a RELEASE, then set
 #RELEASETAG=RELENG_2_2
 
-NODOC=	YES
+#NODOC=	YES
 
 # Things which without too much trouble can be considered variables
 # BIN_DISTS are special in that they get full /etc installation sets.
