@@ -374,7 +374,8 @@ i4b/layer1/itjc/i4b_itjc_l1fsm.c	optional	itjc
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/fd.c			optional	fdc
-isa/ppc.c			optional	ppc
+dev/ppc/ppc.c			optional	ppc
+dev/ppc/ppc_puc.c		optional	ppc puc pci
 isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
