@@ -129,8 +129,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RD,
      &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 static int	do_tcpdrain = 1;
-SYSCTL_INT(_debug, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
-     "Enable non Net3 compliant tcp_drain");
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
+     "Enable tcp_drain routine for extra help when low on mbufs");
 
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
