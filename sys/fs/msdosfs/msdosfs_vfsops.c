@@ -586,8 +586,7 @@ mountmsdosfs(devvp, mp, td, argp)
 	 * Allocate memory for the bitmap of allocated clusters, and then
 	 * fill it in.
 	 */
-	pmp->pm_inusemap = malloc(((pmp->pm_maxcluster + N_INUSEBITS - 1)
-				   / N_INUSEBITS)
+	pmp->pm_inusemap = malloc(howmany(pmp->pm_maxcluster + 1, N_INUSEBITS)
 				  * sizeof(*pmp->pm_inusemap),
 				  M_MSDOSFSFAT, M_WAITOK);
 
