@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
-.\"	$Id: dumpon.8,v 1.5 1997/02/22 14:32:21 peter Exp $
+.\"	$Id: dumpon.8,v 1.6 1998/05/25 08:54:40 jkoshy Exp $
 .\"
 .Dd May 12, 1995
 .Dt DUMPON 8
@@ -41,45 +41,45 @@
 .Sh SYNOPSIS
 .Nm dumpon
 .Op Fl v
-.Ar swap_device
+.Ar special_file
+.Nm dumpon
+.Op Fl v
+.Ar off
 .Sh DESCRIPTION
 .Nm Dumpon
 is used to specify a device where the kernel can save a crash dump in
 the case of a panic.
 .Pp
-The system begins with no dump area configured for safety.  If a 
-.Dq dumps on
-clause is specified in the kernel configuration file 
-or if the variable
-.Dq Li dumpdev
-in the boot time configuration file 
-.Pa /etc/rc.conf
-names a dump device, future panics will cause the kernel 
-to save a crash dump on the specified dump device.
-The dump device must be one of the swap areas
-specified in the filesystem configuration file
-.Pa /etc/fstab , 
-and it must be at least the size of physical memory.
-.Pp
-Calls to
-.Nm dumpon
-normally occur in the system multi-user initialization file
+Calls to 
+.Nm
+normally occur from the system multi-user initialization file
 .Pa /etc/rc ,
-before the
-.Xr savecore 8
-program is run.
+controlled by the
+.Dq dumpdev
+variable in the boot time configuration file 
+.Pa /etc/rc.conf .
+.Pp
+The size of the specified dump device must be at least 64 KB greater the 
+size of physical memory.
+.Pp
 The
 .Fl v
-flag can be specified to cause the
+flag causes 
 .Nm
-program to be verbose about its activity.
+to be verbose about its activity.
 .Sh NOTES
+One of the system swap devices is usually chosen as the dump device, as
+swap devices are the most likely to have the required space at dump time.
 .Pp
-Hardcoding the dump device using the kernel configuration file 
-is only useful if a kernel crashes before reaching multi-user mode. 
-Otherwise, the use of
+The dump device can also be specified at kernel compile time using
+the
+.Dq dumps on
+clause in the kernel configuration file (see
+.Xr config 8 ).  
+This is useful when the kernel panics before multi-user mode 
+is reached.  Subsequent successful invocations of 
 .Nm
-to specify the dump device is recommended.
+will override the compiled in value.
 .Pp
 The 
 .Nm
@@ -93,7 +93,7 @@ or to
 .Dv NODEV
 (meaning that no dumps are to be taken) if
 .Ar special_file
-is the text string
+is the text string:
 .Dq Li off .
 .Sh SEE ALSO
 .Xr sysctl 3 ,
@@ -109,14 +109,16 @@ is the text string
 .Bl -tag -width /dev/[ws]d?b -compact
 .It Pa /dev/[ws]d?b
 standard swap areas
-.It Pa /etc/fstab
-static filesystem and swap information
 .It Pa /etc/rc.conf
 boot-time system configuration
 .El
 .Sh BUGS
 Because the filesystem layer is already dead by the time a crash dump
 is taken, it is not possible to send crash dumps directly to a file.
+.Pp
+.Nm
+currently allows only devices with minor number 1 to be used as dump 
+devices.
 .Sh HISTORY
 The
 .Nm
