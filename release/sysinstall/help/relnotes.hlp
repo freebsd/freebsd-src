@@ -258,9 +258,6 @@ Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
 Adaptec AIC7850 on-board SCSI controllers.
 
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
-
 ** Note: You cannot boot from the SoundBlaster cards as they have no
    on-board BIOS, such being necessary for mapping the boot device into the
    system BIOS I/O vectors.  They're perfectly usable for external tapes,
@@ -307,7 +304,6 @@ DAT and 8mm Exabyte) and CD ROM drives.
 The following CD-ROM type systems are supported at this time:
 (cd)    SCSI interface (also includes ProAudio Spectrum and
         SoundBlaster SCSI)
-(mcd)   Mitsumi proprietary interface (all models)
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
@@ -318,8 +314,12 @@ Unmaintained drivers, they might or might not work for your hardware:
 
   Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
   Adaptec 152x series ISA SCSI controllers
+  Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+  and SoundBlaster SCSI cards.
 
   Floppy tape interface (Colorado/Mountain/Insight)
+
+  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 2.2. Ethernet cards
 -------------------
@@ -406,9 +406,9 @@ Cortex1 frame grabber
 Hauppauge Wincast/TV boards (PCI)
 STB TV PCI
 Intel Smart Video Recorder III
+Various Frame grabbers based on Brooktree Bt848 chip.
 
-
-HP4020i, Philips CDD2000 and PLASMON WORM (CDR) drives.
+HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
 PS/2 mice
 
