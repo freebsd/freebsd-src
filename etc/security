@@ -186,7 +186,7 @@ fi
 #
 separator
 echo "${host} login failures:"
-n=$(catmsgs | grep -i "^$yesterday.*login failure" | tee /dev/stderr | wc -l)
+n=$(catmsgs | grep -ia "^$yesterday.*login failure" | tee /dev/stderr | wc -l)
 [ $n -gt 0 -a $rc -lt 1 ] && rc=1
 
 # Show tcp_wrapper warning messages
