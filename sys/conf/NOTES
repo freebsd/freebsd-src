@@ -77,23 +77,32 @@ makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	MODULES_OVERRIDE="linux sound/sound sound/driver/maestro3"
 makeoptions	DESTDIR=/tmp
 
+# FreeBSD processes are subject to certain limits to their consumption
+# of system resources.  See getrlimit(2) for more details.  Each
+# resource limit has two values, a "soft" limit and a "hard" limit.
+# The soft limits can be modified during normal system operation, but
+# the hard limits are set at boot time.  Their default values are
+# in sys/<arch>/include/vmparam.h.  There are two ways to change them:
+# 
+# 1.  Set the values at kernel build time.  The options below are one
+#     way to allow that limit to grow to 1GB.  They can be increased
+#     further by changing the parameters:
 
-#
-# Certain applications can grow to be larger than the 512M limit
-# that FreeBSD initially imposes.  Below are some options to
-# allow that limit to grow to 1GB, and can be increased further
-# with changing the parameters.  MAXDSIZ is the maximum that the
-# limit can be set to, and the DFLDSIZ is the default value for
-# the limit.  MAXSSIZ is the maximum that the stack limit can be
-# set to.  You might want to set the default lower than the max,
-# and explicitly set the maximum with a shell command for processes
-# that regularly exceed the limit like INND.
-#
-options 	MAXDSIZ=(1024UL*1024*1024)
+# Hard limit for data segment size (default currently 512 MB).
+options		MAXDSIZ=(1024UL*1024*1024)
+# Hard limit for stack size (default currently 64 MB)
 options 	MAXSSIZ=(128UL*1024*1024)
+# Soft limit for data segment size (default currently 128 MB)
 options 	DFLDSIZ=(1024UL*1024*1024)
 
+# 2.  In /boot/loader.conf, set the tunables kern.maxswzone,
+#     kern.maxbcache, kern.maxtsiz, kern.dfldsiz, kern.maxdsiz,
+#     kern.dflssiz, kern.maxssiz and kern.sgrowsiz.
 #
+# The options in /boot/loader.conf override anything in the kernel
+# configuration file.  See the function init_param1 in
+# sys/kern/subr_param.c for more details.
+
 # BLKDEV_IOSIZE sets the default block size used in user block
 # device I/O.  Note that this value will be overridden by the label
 # when specifying a block device from a label with a non-0
