@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.613.2.11 2002/12/05 16:13:52 ca Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.613.2.14 2003/02/11 17:17:22 ca Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -3518,7 +3518,7 @@ getauthinfo(fd, may_be_forged)
 	if (i < 0 || p == &ibuf[0])
 		goto noident;
 
-	if (*--p == '\n' && *--p == '\r')
+	if (p >= &ibuf[2] && *--p == '\n' && *--p == '\r')
 		p--;
 	*++p = '\0';
 

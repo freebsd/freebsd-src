@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1986, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,9 +14,9 @@
 #include <sendmail.h>
 
 #if NAMED_BIND
-SM_RCSID("@(#)$Id: domain.c,v 8.181.2.1 2002/06/27 16:55:04 ca Exp $ (with name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181.2.6 2003/01/15 19:17:15 ca Exp $ (with name server)")
 #else /* NAMED_BIND */
-SM_RCSID("@(#)$Id: domain.c,v 8.181.2.1 2002/06/27 16:55:04 ca Exp $ (without name server)")
+SM_RCSID("@(#)$Id: domain.c,v 8.181.2.6 2003/01/15 19:17:15 ca Exp $ (without name server)")
 #endif /* NAMED_BIND */
 
 #if NAMED_BIND
