@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.14 1998/02/04 21:56:36 eivind Exp $
+#	$Id: Makefile,v 1.15 1998/02/06 23:54:21 eivind Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -21,7 +21,7 @@ linux_locore.o:	linux_locore.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE -DKERNEL ${CFLAGS} \
 		${.IMPSRC} -o ${.TARGET}
 
-linux_genassym.o:	linux_genassym.c linux.h
+linux_genassym.o:	linux_genassym.c linux.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
 
 linux_genassym:	linux_genassym.o
