@@ -68,8 +68,6 @@ struct pam_chain {
 	pam_chain_t	*next;
 };
 
-#define PAM_NUM_ITEMS	       10
-
 typedef struct pam_data pam_data_t;
 struct pam_data {
 	char		*name;
@@ -102,5 +100,9 @@ int		openpam_findenv(pam_handle_t *, const char *, size_t);
 int		openpam_add_module(pam_handle_t *, int, int,
 				   const char *, int, const char **);
 void		openpam_clear_chains(pam_handle_t *);
+
+#ifdef OPENPAM_STATIC_MODULES
+pam_module_t   *openpam_static(const char *);
+#endif
 
 #endif

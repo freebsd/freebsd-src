@@ -37,16 +37,98 @@
 #include <sys/types.h>
 
 #include <ctype.h>
+#include <setjmp.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include <unistd.h>
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
 
+int openpam_ttyconv_timeout = 0;
+static jmp_buf jmpenv;
+static int timed_out;
+
+static void
+timeout(int sig)
+{
+	timed_out = 1;
+	longjmp(jmpenv, sig);
+}
+
+static char *
+prompt(const char *msg)
+{
+	char buf[PAM_MAX_RESP_SIZE];
+	struct sigaction action, saved_action;
+	sigset_t saved_sigset, sigset;
+	unsigned int saved_alarm;
+	size_t len;
+
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGINT);
+	sigaddset(&sigset, SIGTSTP);
+	sigprocmask(SIG_SETMASK, &sigset, &saved_sigset);
+	action.sa_handler = &timeout;
+	action.sa_flags = 0;
+	sigemptyset(&action.sa_mask);
+	sigaction(SIGALRM, &action, &saved_action);
+	fputs(msg, stderr);
+	buf[0] = '\0';
+	timed_out = 0;
+	saved_alarm = alarm(openpam_ttyconv_timeout);
+	if (setjmp(jmpenv) == 0)
+		fgets(buf, sizeof buf, stdin);
+	else
+		fputs(" timeout!\n", stderr);
+	alarm(0);
+	sigaction(SIGALRM, &saved_action, NULL);
+	sigprocmask(SIG_SETMASK, &saved_sigset, NULL);
+	alarm(saved_alarm);
+	if (timed_out || ferror(stdin))
+		return (NULL);
+	/* trim trailing whitespace */
+	for (len = strlen(buf); len > 0; --len)
+		if (!isspace(buf[len - 1]))
+			break;
+	buf[len] = '\0';
+	return (strdup(buf));
+}
+
+static char *
+prompt_echo_off(const char *msg)
+{
+	struct termios tattr;
+	tcflag_t lflag;
+	char *ret;
+	int fd;
+
+	fd = fileno(stdin);
+	if (tcgetattr(fd, &tattr) != 0) {
+		openpam_log(PAM_LOG_ERROR, "tcgetattr(): %m");
+		return (NULL);
+	}
+	lflag = tattr.c_lflag;
+	tattr.c_lflag &= ~ECHO;
+	if (tcsetattr(fd, TCSAFLUSH, &tattr) != 0) {
+		openpam_log(PAM_LOG_ERROR, "tcsetattr(): %m");
+		return (NULL);
+	}
+	ret = prompt(msg);
+	tattr.c_lflag = lflag;
+	(void)tcsetattr(fd, TCSANOW, &tattr);
+	if (ret != NULL)
+		fputs("\n", stdout);
+	return (ret);
+}
+
 /*
- * Simple tty-based conversation function.
+ * OpenPAM extension
+ *
+ * Simple tty-based conversation function
  */
 
 int
@@ -55,60 +137,26 @@ openpam_ttyconv(int n,
 	 struct pam_response **resp,
 	 void *data)
 {
-	char buf[PAM_MAX_RESP_SIZE];
-	struct termios tattr;
-	tcflag_t lflag;
-	int fd, err, i;
-	size_t len;
+	int i;
 
 	data = data;
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		return (PAM_CONV_ERR);
 	if ((*resp = calloc(n, sizeof **resp)) == NULL)
 		return (PAM_BUF_ERR);
-	fd = fileno(stdin);
 	for (i = 0; i < n; ++i) {
 		resp[i]->resp_retcode = 0;
 		resp[i]->resp = NULL;
 		switch (msg[i]->msg_style) {
 		case PAM_PROMPT_ECHO_OFF:
+			resp[i]->resp = prompt_echo_off(msg[i]->msg);
+			if (resp[i]->resp == NULL)
+				goto fail;
+			break;
 		case PAM_PROMPT_ECHO_ON:
-			if (msg[i]->msg_style == PAM_PROMPT_ECHO_OFF) {
-				if (tcgetattr(fd, &tattr) != 0) {
-					openpam_log(PAM_LOG_ERROR,
-					    "tcgetattr(): %m");
-					err = PAM_CONV_ERR;
-					goto fail;
-				}
-				lflag = tattr.c_lflag;
-				tattr.c_lflag &= ~ECHO;
-				if (tcsetattr(fd, TCSAFLUSH, &tattr) != 0) {
-					openpam_log(PAM_LOG_ERROR,
-					    "tcsetattr(): %m");
-					err = PAM_CONV_ERR;
-					goto fail;
-				}
-			}
-			fputs(msg[i]->msg, stderr);
-			buf[0] = '\0';
-			fgets(buf, sizeof buf, stdin);
-			if (msg[i]->msg_style == PAM_PROMPT_ECHO_OFF) {
-				tattr.c_lflag = lflag;
-				(void)tcsetattr(fd, TCSANOW, &tattr);
-				fputs("\n", stderr);
-			}
-			if (ferror(stdin)) {
-				err = PAM_CONV_ERR;
+			resp[i]->resp = prompt(msg[i]->msg);
+			if (resp[i]->resp == NULL)
 				goto fail;
-			}
-			for (len = strlen(buf); len > 0; --len)
-				if (!isspace(buf[len - 1]))
-					break;
-			buf[len] = '\0';
-			if ((resp[i]->resp = strdup(buf)) == NULL) {
-				err = PAM_BUF_ERR;
-				goto fail;
-			}
 			break;
 		case PAM_ERROR_MSG:
 			fputs(msg[i]->msg, stderr);
@@ -117,7 +165,6 @@ openpam_ttyconv(int n,
 			fputs(msg[i]->msg, stdout);
 			break;
 		default:
-			err = PAM_BUF_ERR;
 			goto fail;
 		}
 	}
@@ -127,5 +174,15 @@ openpam_ttyconv(int n,
 		free(resp[--i]);
 	free(*resp);
 	*resp = NULL;
-	return (err);
+	return (PAM_CONV_ERR);
 }
+
+/*
+ * NOLIST
+ *
+ * Error codes:
+ *
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ *	PAM_CONV_ERR
+ */

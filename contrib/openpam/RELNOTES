@@ -1,12 +1,12 @@
 
-		 Release notes for OpenPAM Caliopsis
-		 ===================================
+		 Release notes for OpenPAM Cantaloupe
+		 ====================================
 
 This is a beta release.
 
 The library itself is mostly complete.  Documentation exists in the
-form of skeletal man pages for the library itself, but no detailed
-documentation is provided in this release.
+form of man pages for the library functions, though some pages are
+still incomplete.
 
 This release is primarily intended for reviewers and developers
 interested in testing OpenPAM on FreeBSD.  It has not been tested on
@@ -15,14 +15,9 @@ NetBSD and OpenBSD.
 
 Known issues:
 
-  - The pam_get_user() and pam_get_authtok() functions do not check
-    for commonly used options such as {use,try}_first_pass or
-    auth_as_self.  In fact, pam_get_authtok() behaves as if
-    try_first_pass was always specified.
+  - The documentation is still incomplete.
 
-  - The provided conversation function, openpam_ttyconv(), should
-    block signals, and support some sort of timeout.
-
-  - The documentation is far from complete.
+Oh, and the previous release's code name was misspelled - egg on my
+face!  It should have been "Calliopsis".
 
 $Id$

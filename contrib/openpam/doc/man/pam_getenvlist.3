@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_GETENVLIST 3
 .Os
 .Sh NAME
@@ -48,16 +48,45 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function returns a copy of the given PAM context's
+environment list as a pointer to an array of strings.
+The last element in the array is
+.Dv NULL .
+The pointer is suitable for assignment to
+.Va environ .
+.Pp
+The array and the strings it lists are allocated using
+.Xr malloc 3 ,
+and
+should be released using
+.Xr free 3
+after use:
+.Pp
+.Bd -literal
+    char **envlist, **env;
+
+    envlist = environ;
+    environ = pam_getenvlist(pamh);
+    /* do something nifty */
+    for (env = environ; *env != NULL; env++)
+        free(*env);
+    free(environ);
+    environ = envlist;
+
 .Sh RETURN VALUES
 The
-.Fn
-function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
-.El
+.Nm
+function returns
+.Dv NULL
+on failure.
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr environ 7 ,
+.Xr free 3 ,
+.Xr malloc 3 ,
+.Xr pam 3 ,
+.Xr pam_getenv 3 ,
+.Xr pam_putenv 3 ,
+.Xr pam_setenv 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

@@ -47,6 +47,8 @@ static void _openpam_check_error_code(int, int);
 #endif /* !defined(OPENPAM_RELAX_CHECKS) */
 
 /*
+ * OpenPAM internal
+ *
  * Execute a module chain
  */
 
@@ -210,3 +212,9 @@ _openpam_check_error_code(int primitive, int r)
 	    _pam_sm_func_name[primitive], r);
 }
 #endif /* !defined(OPENPAM_RELAX_CHECKS) */
+
+/*
+ * NODOC
+ *
+ * Error codes:
+ */

@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_SETCRED 3
 .Os
 .Sh NAME
@@ -48,16 +48,48 @@
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function manages the application's credentials.
+The operation to perform is specified by the
+.Va flags
+argument:
+.Bl -tag -width 18n
+.It PAM_ESTABLISH_CRED
+Establish the credentials of the target user.
+.It PAM_DELETE_CRED
+Revoke all established credentials.
+.It PAM_REINITIALISE_CRED
+Fully reinitialise credentials.
+.It PAM_REFRESH_CRED
+Refresh credentials.
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_CRED_ERR
+Failed to set user credentials.
+.It Bq Er PAM_CRED_EXPIRED
+User credentials have expired.
+.It Bq Er PAM_CRED_UNAVAIL
+Failed to retrieve user credentials.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
+.It Bq Er PAM_USER_UNKNOWN
+Unknown user.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

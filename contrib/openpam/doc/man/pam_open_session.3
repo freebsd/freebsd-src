@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_OPEN_SESSION 3
 .Os
 .Sh NAME
@@ -46,18 +46,30 @@
 .Ft int
 .Fn pam_open_session "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
-The
-.Nm
-function is not yet documented.
+No description available.
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_ABORT
+General failure.
+.It Bq Er PAM_BUF_ERR
+Memory buffer error.
+.It Bq Er PAM_CONV_ERR
+Conversation failure.
+.It Bq Er PAM_PERM_DENIED
+Permission denied.
+.It Bq Er PAM_SERVICE_ERR
+Error in service module.
+.It Bq Er PAM_SESSION_ERR
+Session failure.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"

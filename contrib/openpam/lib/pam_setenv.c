@@ -77,3 +77,21 @@ pam_setenv(pam_handle_t *pamh,
 	free(env);
 	return (r);
 }
+
+/*
+ * Error codes:
+ *
+ *	=pam_putenv
+ *	PAM_SYSTEM_ERR
+ *	PAM_BUF_ERR
+ */
+
+/**
+ * The =pam_setenv function sets a environment variable.
+ * Its semantics are similar to those of =setenv, but it modifies the PAM
+ * context's environment list instead of the application's.
+ *
+ * >pam_getenv
+ * >pam_getenvlist
+ * >pam_putenv
+ */

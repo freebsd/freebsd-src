@@ -33,7 +33,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd February 9, 2002
+.Dd February 22, 2002
 .Dt PAM_GET_DATA 3
 .Os
 .Sh NAME
@@ -44,20 +44,39 @@
 .Sh SYNOPSIS
 .In security/pam_appl.h
 .Ft int
-.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "void **data"
+.Fn pam_get_data "pam_handle_t *pamh" "const char *module_data_name" "const void **data"
 .Sh DESCRIPTION
 The
 .Nm
-function is not yet documented.
+function looks up the opaque object associated with
+the string specified by the
+.Va module_data_name
+argument, in the PAM
+context specified by the
+.Va pamh
+argument.
+A pointer to the object is stored in the location pointed to by the
+.Va data
+argument.
+.Pp
+This function and its counterpart
+.Xr pam_set_data 3
+are useful for managing
+data that are meaningful only to a particular service module.
 .Sh RETURN VALUES
 The
-.Fn
+.Nm
 function returns one of the following values:
-.Bl -tag -width PAM_AUTHTOK_DISABLE_AGING
+.Bl -tag -width 18n
+.It Bq Er PAM_NO_MODULE_DATA
+Module data not found.
+.It Bq Er PAM_SYSTEM_ERR
+System error.
 .El
 .Sh SEE ALSO
-.Xr pam_strerror 3 ,
-.Xr pam 3
+.Xr pam 3 ,
+.Xr pam_set_data 3 ,
+.Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
 .%T "X/Open Single Sign-On Service (XSSO) - Pluggable Authentication Modules"
