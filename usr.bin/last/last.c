@@ -48,6 +48,7 @@ static const char sccsid[] = "@(#)last.c	8.2 (Berkeley) 4/2/94";
 
 #include <err.h>
 #include <fcntl.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <paths.h>
 #include <signal.h>
@@ -90,6 +91,7 @@ static const	char *file = _PATH_WTMP;		/* wtmp file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
+static int      d_first;
 static int	snapfound = 0;			/* found snapshot entry? */
 static time_t	snaptime;			/* if != 0, we will only
 						 * report users logged in
@@ -127,6 +129,7 @@ main(argc, argv)
 	char *p;
 
 	(void) setlocale(LC_TIME, "");
+	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	maxrec = -1;
 	snaptime = 0;
@@ -332,8 +335,9 @@ printentry(bp, tt)
 	if (maxrec != -1 && !maxrec--)
 		exit(0);
 	tm = localtime(&bp->ut_time);
-	(void) strftime(ct, sizeof(ct), yflag ? "%a %Ef %Y %R" :
-	     "%a %Ef %R", tm);
+	(void) strftime(ct, sizeof(ct), d_first ?
+	    (yflag ? "%a %e %b %Y %R" : "%a %e %b %R") :
+	    (yflag ? "%a %b %e %Y %R" : "%a %b %e %R"), tm);
 	printf("%-*.*s %-*.*s %-*.*s %s%c",
 	    UT_NAMESIZE, UT_NAMESIZE, bp->ut_name,
 	    UT_LINESIZE, UT_LINESIZE, bp->ut_line,
@@ -562,8 +566,10 @@ onintr(signo)
 	struct tm *tm;
 
 	tm = localtime(&buf[0].ut_time);
-	(void) strftime(ct, sizeof(ct), "%c", tm);
-	printf("\ninterrupted %10.10s %5.5s \n", ct, ct + 11);
+	(void) strftime(ct, sizeof(ct),
+			d_first ? "%a %e %b %R" : "%a %b %e %R",
+			tm);
+	printf("\ninterrupted %s\n", ct);
 	if (signo == SIGINT)
 		exit(1);
 	(void)fflush(stdout);			/* fix required for rsh */
