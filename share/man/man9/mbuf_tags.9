@@ -20,7 +20,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2004
+.Dd Nov 18, 2004
 .Dt MBUF_TAGS 9
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ Tags are maintained in chains off of the
 .Xr mbuf 9
 header, and maintained using a series of API calls to allocate, search, and
 delete tags.
-Tags are identified using an ID and cookie that uniquely identifier a class
+Tags are identified using an ID and cookie that uniquely identify a class
 of data tagged onto the packet, and may contain an arbitrary amount of
 additional storage.
 Typical uses of mbuf tags include the storage of VLAN tags as described in
@@ -79,7 +79,10 @@ and packet filter tags used by
 .Xr pf 4 .
 .Pp
 Tags will be maintained across a variety of operations, including the copying
-of packet headers using facilities such as M_COPY_PKTHDR and M_MOVE_PKTHDR.
+of packet headers using facilities such as
+.Fn M_COPY_PKTHDR
+and
+.Fn M_MOVE_PKTHDR .
 Any tags associated with an mbuf header will be automatically freed when the
 mbuf is freed, although some subsystems will wish to delete the tags prior
 to that time.
