@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.if	${MACHINE_ARCH} == "sparc"
+.if	${TARGET_ARCH} == "sparc"
 HOST=		sparc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf32_sparc\"
 CFLAGS+=	-DTARGET=\"sparc-unknown-freebsd\"

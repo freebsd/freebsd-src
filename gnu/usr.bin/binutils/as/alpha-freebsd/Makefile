@@ -5,7 +5,7 @@
 .include "${.CURDIR}/../Makefile.inc0"
 
 PROG=		as
-.if	${MACHINE_ARCH} != "alpha"
+.if	${TARGET_ARCH} != "alpha"
 NOMAN=		1
 BINDIR=		/usr/libexec/cross/alpha-freebsd
 .endif
