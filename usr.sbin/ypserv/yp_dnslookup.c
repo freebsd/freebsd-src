@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_dnslookup.c,v 1.13 1997/10/29 07:25:02 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -79,6 +79,10 @@ static char *parse(hp)
 	len = 16 + strlen(hp->h_name);
 	for (i = 0; hp->h_aliases[i]; i++)
 		len += strlen(hp->h_aliases[i]) + 1;
+	len++;
+
+	if (len > sizeof(result))
+		return(NULL);
 
 	bzero(result, sizeof(result));
 
