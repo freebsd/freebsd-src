@@ -502,6 +502,7 @@ getNewVnode(vpp)
 		      NULL, NULL);
 }
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 /* get the mount structure corresponding to a given device.  Assume 

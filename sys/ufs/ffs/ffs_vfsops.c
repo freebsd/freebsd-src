@@ -34,6 +34,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ffs.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>
@@ -49,6 +50,7 @@
 #include <sys/disklabel.h>
 #include <sys/malloc.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
@@ -84,7 +86,11 @@ static struct vfsops ufs_vfsops = {
 	ffs_vptofh,
 	ffs_init,
 	vfs_stduninit,
+#ifdef FFS_EXTATTR
+	ufs_extattrctl,
+#else
 	vfs_stdextattrctl,
+#endif
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
@@ -710,6 +716,9 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_seqinc = fs->fs_frag;
 	for (i = 0; i < MAXQUOTAS; i++)
 		ump->um_quotas[i] = NULLVP;
+#ifdef FFS_EXTATTR
+	ufs_extattr_uepm_init(&ump->um_extattr);
+#endif
 	devvp->v_specmountpoint = mp;
 	ffs_oldfscompat(fs);
 
@@ -808,6 +817,11 @@ ffs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
+#ifdef FFS_EXTATTR
+	if ((error = ufs_extattr_stop(mp, p))) {
+		printf("ffs_unmonut: ufs_extattr_stop returned %d\n", error);
+	}
+#endif
 	if (mp->mnt_flag & MNT_SOFTDEP) {
 		if ((error = softdep_flushfiles(mp, flags, p)) != 0)
 			return (error);

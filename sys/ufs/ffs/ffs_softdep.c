@@ -77,6 +77,7 @@
 #include <sys/vnode.h>
 #include <sys/conf.h>
 #include <ufs/ufs/dir.h>
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
