@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.10 1995/02/22 22:46:48 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.11 1995/03/12 08:17:30 bde Exp $
  */
 
 #include <sys/param.h>
@@ -94,14 +94,14 @@ disksort(ap, bp)
 	 * must locate the second request list and add ourselves to it.
 	 */
 	bq = ap->b_actf;
-	if (bp->b_cylinder < bq->b_cylinder) {
+	if (bp->b_pblkno < bq->b_pblkno) {
 		while (bq->b_actf) {
 			/*
 			 * Check for an ``inversion'' in the normally ascending
 			 * cylinder numbers, indicating the start of the second
 			 * request list.
 			 */
-			if (bq->b_actf->b_cylinder < bq->b_cylinder) {
+			if (bq->b_actf->b_pblkno < bq->b_pblkno) {
 				/*
 				 * Search the second request list for the first
 				 * request at a larger cylinder number.  We go
@@ -109,12 +109,7 @@ disksort(ap, bp)
 				 * go at end.
 				 */
 				do {
-					if (bp->b_cylinder <
-					    bq->b_actf->b_cylinder)
-						goto insert;
-					if (bp->b_cylinder ==
-					    bq->b_actf->b_cylinder &&
-					    bp->b_blkno < bq->b_actf->b_blkno)
+					if (bp->b_pblkno < bq->b_actf->b_pblkno)
 						goto insert;
 					bq = bq->b_actf;
 				} while (bq->b_actf);
@@ -139,10 +134,8 @@ disksort(ap, bp)
 		 * request list), or if the next request is a larger cylinder
 		 * than our request.
 		 */
-		if (bq->b_actf->b_cylinder < bq->b_cylinder ||
-		    bp->b_cylinder < bq->b_actf->b_cylinder ||
-		    (bp->b_cylinder == bq->b_actf->b_cylinder &&
-		    bp->b_blkno < bq->b_actf->b_blkno))
+		if (bq->b_actf->b_pblkno < bq->b_pblkno ||
+		    bp->b_pblkno < bq->b_actf->b_pblkno)
 			goto insert;
 		bq = bq->b_actf;
 	}
