@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.117 1997/12/29 00:22:45 dyson Exp $
+ * $Id: vfs_subr.c,v 1.118 1997/12/29 01:03:41 dyson Exp $
  */
 
 /*
@@ -878,6 +878,14 @@ vget(vp, flags, p)
 	}
 	simple_unlock(&vp->v_interlock);
 	return (0);
+}
+
+void
+vref(struct vnode *vp)
+{
+	simple_lock(&vp->v_interlock);
+	vp->v_usecount++;
+	simple_unlock(&vp->v_interlock);
 }
 
 /*
