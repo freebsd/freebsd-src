@@ -439,20 +439,30 @@ oltr_pci_detach(device_t dev)
 {
 	struct oltr_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int s;
+	int s, i;
 
 	device_printf(dev, "driver unloading\n");
 
 	s = splimp();
 
 	if_detach(ifp);
-	oltr_stop(sc);
+	if (sc->state > OL_CLOSED)
+		oltr_stop(sc);
 
 	untimeout(oltr_poll, (void *)sc, sc->oltr_poll_ch);
 	/*untimeout(oltr_stat, (void *)sc, sc->oltr_stat_ch);*/
 
 	bus_teardown_intr(dev, sc->oltr_irq, sc->oltr_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->oltr_irq);
+
+	/* Deallocate all dynamic memory regions */
+	for (i = 0; i < RING_BUFFER_LEN; i++) {
+		free(sc->rx_ring[i].data, M_DEVBUF);
+		free(sc->tx_ring[i].data, M_DEVBUF);
+	}
+	if (sc->work_memory)
+		free(sc->work_memory, M_DEVBUF);
+	free(sc->TRlldAdapter, M_DEVBUF);
 
 	(void)splx(s);
 
@@ -466,7 +476,8 @@ oltr_pci_shutdown(device_t dev)
 
 	device_printf(dev, "oltr_pci_shutdown called\n");
 
-	oltr_stop(sc);
+	if (sc->state > OL_CLOSED)
+		oltr_stop(sc);
 
 	return;
 }
