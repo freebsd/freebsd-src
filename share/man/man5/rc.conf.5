@@ -1516,6 +1516,35 @@ is set to
 these are the flags to pass to the
 .Xr sendmail 8
 daemon.
+.It Va sendmail_outbound_enable
+.Pq Vt bool
+If set to
+.Dq YES
+and
+.Va sendmail_enable
+is set to
+.Dq NO
+then run
+.Xr sendmail 8
+using
+.Va sendmail_outbound_flags
+instead of
+.Va sendmail_flags .
+This is intended to allow local mail queue management
+for systems that do not offer a listening SMTP service.
+.It Va sendmail_outbound_flags
+.Pq Vt str
+If
+.Va sendmail_enable
+is set to
+.Dq NO
+and
+.Va sendmail_outbound_enable
+is set to
+.Dq YES
+then these are the flags to pass to the
+.Xr sendmail 8
+daemon.
 .It Va dumpdev
 .Pq Vt str
 If not set to
