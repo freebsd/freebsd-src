@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: boot.c,v 1.8 1998/10/31 02:53:09 msmith Exp $
+ *	$Id: boot.c,v 1.9 1998/10/31 17:12:32 dfr Exp $
  */
 
 /*
@@ -38,7 +38,7 @@
 static char	*getbootfile(int try);
 
 /* List of kernel names to try (may be overwritten by boot.config) XXX should move from here? */
-static char *default_bootfiles = "kernel,kernel.old";
+static char *default_bootfiles = "kernel;kernel.old";
 
 static int autoboot_tried;
 
@@ -243,11 +243,11 @@ getbootfile(int try)
 	spec = default_bootfiles;
 
     while ((try > 0) && (spec != NULL)) {
-	spec = strchr(spec, ',');
+	spec = strchr(spec, ';');
 	try--;
     }
     if (spec != NULL) {
-	if ((ep = strchr(spec, ',')) != NULL) {
+	if ((ep = strchr(spec, ';')) != NULL) {
 	    len = ep - spec;
 	} else {
 	    len = strlen(spec);
