@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.114 1998/10/14 01:04:44 jkh Exp $
+ * $Id: config.c,v 1.115 1998/11/15 09:06:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -287,9 +287,8 @@ readConfig(char *config, char **lines, int max)
 
 #define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 
-/* Load the environment from an rc.conf file */
-void
-configEnvironmentRC_conf(char *config)
+static void
+configReadRC_conf(char *config)
 {
     char *lines[MAX_LINES], *cp, *cp2;
     int i, nlines;
@@ -318,6 +317,24 @@ configEnvironmentRC_conf(char *config)
 		variable_set2(lines[i], cp);
 	}
 	free(lines[i]);
+    }
+}
+
+/* Load the environment from rc.conf file(s) */
+void
+configEnvironmentRC_conf(void)
+{
+    static char *configs[] = {
+	"/etc/rc.conf",
+	"/etc/rc.conf.site",
+	"/etc/rc.conf.local",
+	NULL
+    };
+    int i;
+
+    for (i = 0; configs[i]; i++) {
+	if (file_readable(configs[i]))
+	    configReadRC_conf(configs[i]);
     }
 }
 
@@ -359,10 +376,14 @@ configRC(dialogMenuItem *unused)
 void
 configRC_conf(char *config)
 {
-    FILE *fp;
+    FILE *rcSite;
     char *lines[MAX_LINES], *cp;
     Variable *v;
     int i, nlines, len;
+
+    rcSite = fopen("/etc/rc.conf.site", "w");
+    if (!rcSite)
+	return;
 
     nlines = readConfig(config, lines, MAX_LINES);
     if (nlines == -1)
@@ -372,8 +393,11 @@ configRC_conf(char *config)
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
 	    /* Skip the comments & non-variable settings */
-	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
+	    if (lines[i][0] == '#' || !(cp = index(lines[i], '='))) {
+		free(lines[i]);
 		continue;
+	    }
+
 	    len = strlen(v->name);
 	    if (!strncmp(lines[i], v->name, cp - lines[i]) && (cp - lines[i]) == len) {
 		char *cp2, *comment = NULL;
@@ -389,57 +413,50 @@ configRC_conf(char *config)
 		    }
 		}
 		free(lines[i]);
-		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
+		lines[i] = (char *)alloca(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
 		if (comment)
 		    sprintf(lines[i], "%s=\"%s\"%s", v->name, v->value, comment);
 		else
 		    sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
-	    }
-	}
-    }
+		fputs(lines[i], rcSite);
+		/* Stand by for bogus special case handling;
+		 * we try to dump the interface specs here
+		 */
+		if (!strncmp(lines[i], VAR_INTERFACES,
+			     strlen(VAR_INTERFACES))) {
+		    Device **devp;
+		    int j, cnt;
 
-    /* Now write it all back out again */
-    if (isDebug())
-	msgDebug("Writing configuration changes to %s file..", config);
-    if (Fake)
-	fp = fdopen(DebugFD, "w");
-    else {
-	(void)vsystem("cp %s %s.previous", config, config);
-    	fp = fopen(config, "w");
-    }
-    for (i = 0; i < nlines; i++) {
-	fprintf(fp, lines[i]);
-	/* Stand by for bogus special case handling - we try to dump the interface specs here */
-	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
-	    Device **devp;
-	    int j, cnt;
+		    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+		    cnt = deviceCount(devp);
+		    for (j = 0; j < cnt; j++) {
+			char iname[255], toadd[512];
+			int k, addit = TRUE;
 
-	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
-	    cnt = deviceCount(devp);
-	    for (j = 0; j < cnt; j++) {
-		char iname[255], toadd[512];
-		int k, addit = TRUE;
+			if (!strncmp(devp[j]->name, "ppp", 3) ||
+			    !strncmp(devp[j]->name, "tun", 3))
+			    continue;
 
-		if (!strncmp(devp[j]->name, "ppp", 3) || !strncmp(devp[j]->name, "tun", 3))
-		    continue;
-
-		snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
-		if ((cp = variable_get(iname))) {
-		    snprintf(toadd, sizeof toadd, "%s=\"%s\"\n", iname, cp);
-		    for (k = 0; k < nlines; k++) {
-			if (!strcmp(lines[k], toadd)) {
-			    addit = FALSE;
-			    break;
+			snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
+			if ((cp = variable_get(iname))) {
+			    snprintf(toadd, sizeof toadd, "%s=\"%s\"\n", iname, cp);
+			    for (k = 0; k < nlines; k++) {
+				if (!strcmp(lines[k], toadd)) {
+				    addit = FALSE;
+				    break;
+				}
+			    }
+			    if (addit)
+				fputs(toadd, rcSite);
 			}
 		    }
-		    if (addit)
-			fprintf(fp, toadd);
 		}
 	    }
+	    else
+		free(lines[i]);
 	}
-	free(lines[i]);
     }
-    fclose(fp);
+    fclose(rcSite);
 }
 
 int
