@@ -93,6 +93,7 @@ device		isp		# Qlogic family
 device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		trm		# Tekram DC395U/UW/F DC315U adapters
 
 device		adv		# Advansys SCSI adapters
 device		adw		# Advansys wide SCSI adapters
