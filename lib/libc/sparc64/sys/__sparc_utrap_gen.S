@@ -70,8 +70,12 @@ ENTRY(__sparc_utrap_gen)
 	stx	%i6, [%sp + SPOFF + CCFSZ + UF_O6]
 	stx	%i7, [%sp + SPOFF + CCFSZ + UF_O7]
 
+	rd	%y, %l6
+
 	call	__sparc_utrap
 	 add	%sp, SPOFF + CCFSZ, %o0
+
+	wr	%l6, 0, %y	
 
 	ldx	[%sp + SPOFF + CCFSZ + UF_G1], %g1
 	ldx	[%sp + SPOFF + CCFSZ + UF_G2], %g2
