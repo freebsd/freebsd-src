@@ -456,6 +456,9 @@ setrunqueue(struct thread *td, int flags)
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct thread *tda;
+	CTR5(KTR_SCHED, "setrunqueue: %p(%s) prio %d by %p(%s)",
+            td, td->td_proc->p_comm, td->td_priority, curthread,
+            curthread->td_proc->p_comm);
 
 	CTR3(KTR_RUNQ, "setrunqueue: td:%p kg:%p pid:%d",
 	    td, td->td_ksegrp, td->td_proc->p_pid);
