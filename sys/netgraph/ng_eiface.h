@@ -80,21 +80,5 @@ static const struct ng_parse_struct_info ng_eiface_par_fields = {
   }
 };
 
-static const struct ng_parse_type ng_eiface_par_type = {
-	&ng_parse_struct_type,
-	&ng_eiface_par_fields
-};
-
-static const struct ng_cmdlist ng_eiface_cmdlist[] = {
-	{
-	  NGM_EIFACE_COOKIE,
-	  NGM_EIFACE_SET,
-	  "set",
-	  &ng_eiface_par_type,
-	  NULL
-	},
-	{ 0 }
-};
-
 
 #endif /* _NETGRAPH_EIFACE_H_ */
