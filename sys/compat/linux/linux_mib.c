@@ -123,8 +123,7 @@ get_prison(struct proc *p)
 
 	if (pr->pr_linux == NULL) {
 		MALLOC(lpr, struct linux_prison *, sizeof *lpr,
-		       M_PRISON, M_WAITOK);
-		bzero((caddr_t)lpr, sizeof *lpr);
+		    M_PRISON, M_WAITOK|M_ZERO);
 		pr->pr_linux = lpr;
 	}
 
