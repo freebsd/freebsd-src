@@ -113,6 +113,9 @@ The asr(4) driver, which provides support for the Adaptec SCSI RAID
 controller family, as well as the DPT SmartRAID V and VI families, has
 been added.
 
+SMP support has been largely reworked, incorporating code from BSD/OS
+5.0.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -212,7 +215,7 @@ finger.conf(5) file. [MERGED]
 nsswitch support has been merged from NetBSD.  By creating an
 nsswitch.conf(5) file, FreeBSD can be configured so that various 
 databases such as passwd(5) and group(5) can be looked up using flat 
-files, NIS, or Hesiod.
+files, NIS, or Hesiod.  The old hosts.conf(5) file is no longer used.
 
 sshd X11Forwarding is now turned on by default on server (any risk is
 to the client, where it is already disabled by default).
@@ -224,6 +227,8 @@ default, and the rsaref port and librsaUSA are no longer
 required for USA residents. [MERGED]
 
 sshd now enabled by default on new installs. [MERGED]
+
+perl has been updated to version 5.6.0.
 
 
 2. Supported Configurations
