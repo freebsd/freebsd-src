@@ -73,7 +73,7 @@ struct cdev {
 	LIST_ENTRY(cdev)	si_siblings;
 	dev_t		si_parent;
 	u_int		si_inode;
-	char		si_name[SPECNAMELEN + 1];
+	char		*si_name;
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
@@ -96,6 +96,7 @@ struct cdev {
 			int (*__sid_copyonwrite)(struct vnode *, struct buf *);
 		} __si_disk;
 	} __si_u;
+	char		__si_namebuf[SPECNAMELEN + 1];
 };
 
 #define si_tty		__si_u.__si_tty.__sit_tty

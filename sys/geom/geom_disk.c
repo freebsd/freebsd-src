@@ -296,8 +296,10 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
+	KASSERT(strlen(dp->d_name) < SPECNAMELEN - 4, ("disk name too long"));
 	dev->si_disk = dp;
 	dev->si_udev = 0x10002; /* XXX: Needed ? */
+	dev->si_name = dev->__si_namebuf;
 	sprintf(dev->si_name, "%s%d", dp->d_name, unit);
 	g_call_me(g_disk_create, dev);
 	return (dev);
