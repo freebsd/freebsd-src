@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.1 1999/01/23 16:53:27 dfr Exp $
+ * $Id: atkbdc_isa.c,v 1.2 1999/04/16 23:39:15 peter Exp $
  */
 
 #include "atkbdc.h"
@@ -205,6 +205,8 @@ atkbdc_print_child(device_t bus, device_t dev)
 
 	if (kbdcdev->flags != 0)
 		printf(" flags 0x%x", kbdcdev->flags);
+	if (kbdcdev->irq != -1)
+		printf(" irq %d", kbdcdev->irq);
 
 	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
 }
