@@ -1,4 +1,4 @@
-/*	$NetBSD: mem2.c,v 1.3 1995/10/02 17:27:11 jpo Exp $	*/
+/*	$NetBSD: mem2.c,v 1.6 2002/01/21 19:49:52 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,17 +31,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: mem2.c,v 1.6 2002/01/21 19:49:52 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
-#include <err.h>
 
 #include "lint2.h"
 
@@ -55,7 +55,7 @@ static size_t	nxtfree;
 static void	*mbuf;
 
 void
-initmem()
+initmem(void)
 {
 	int	pgsz;
 
@@ -71,13 +71,13 @@ initmem()
  * need never to be freed.
  */
 void *
-xalloc(sz)
-	size_t	sz;
+xalloc(size_t sz)
 {
 	void	*ptr;
 	int	prot, flags;
 
-	sz = ALIGN(sz);
+	/* Align to at least 8 bytes. */
+	sz = (sz + 7) & ~7L;
 	if (nxtfree + sz > mblklen) {
 		/* use mmap() instead of malloc() to avoid malloc overhead. */
 		prot = PROT_READ | PROT_WRITE;
@@ -85,8 +85,6 @@ xalloc(sz)
 		mbuf = mmap(NULL, mblklen, prot, flags, -1, (off_t)0);
 		if (mbuf == (void *)MAP_FAILED)
 			err(1, "can't map memory");
-		if (ALIGN((u_long)mbuf) != (u_long)mbuf)
-			errx(1, "mapped address is not aligned");
 		(void)memset(mbuf, 0, mblklen);
 		nxtfree = 0;
 	}

@@ -1,4 +1,4 @@
-/*	$NetBSD: mem1.c,v 1.2 1995/07/03 21:24:25 cgd Exp $	*/
+/*	$NetBSD: mem1.c,v 1.6 2002/01/29 02:43:39 tv Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,10 +31,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: mem1.c,v 1.6 2002/01/29 02:43:39 tv Exp $");
 #endif
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -42,7 +43,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 
 #include "lint1.h"
 
@@ -58,15 +58,13 @@ typedef struct fn {
 
 static	fn_t	*fnames;
 
-static	fn_t	*srchfn __P((const char *, size_t));
+static	fn_t	*srchfn(const char *, size_t);
 
 /*
  * Look for a Filename of length l.
  */
 static fn_t *
-srchfn(s, len)
-	const	char *s;
-	size_t	len;
+srchfn(const char *s, size_t len)
 {
 	fn_t	*fn;
 
@@ -81,16 +79,14 @@ srchfn(s, len)
  * Return a shared string for filename s.
  */
 const char *
-fnalloc(s)
-	const	char *s;
+fnalloc(const char *s)
 {
+
 	return (s != NULL ? fnnalloc(s, strlen(s)) : NULL);
 }
 
 const char *
-fnnalloc(s, len)
-	const	char *s;
-	size_t	len;
+fnnalloc(const char *s, size_t len)
 {
 	fn_t	*fn;
 
@@ -124,8 +120,7 @@ fnnalloc(s, len)
  * Get id of a filename.
  */
 int
-getfnid(s)
-	const	char *s;
+getfnid(const char *s)
 {
 	fn_t	*fn;
 
@@ -166,12 +161,12 @@ static	mbl_t	*frmblks;
 /* length of new allocated memory blocks */
 static	size_t	mblklen;
 
-static	void	*xgetblk __P((mbl_t **, size_t));
-static	void	xfreeblk __P((mbl_t **));
-static	mbl_t	*xnewblk __P((void));
+static	void	*xgetblk(mbl_t **, size_t);
+static	void	xfreeblk(mbl_t **);
+static	mbl_t	*xnewblk(void);
 
 static mbl_t *
-xnewblk()
+xnewblk(void)
 {
 	mbl_t	*mb;
 	int	prot, flags;
@@ -186,8 +181,6 @@ xnewblk()
 	mb->blk = mmap(NULL, mblklen, prot, flags, -1, (off_t)0);
 	if (mb->blk == (void *)MAP_FAILED)
 		err(1, "can't map memory");
-	if (ALIGN((u_long)mb->blk) != (u_long)mb->blk)
-		errx(1, "mapped address is not aligned");
 
 	mb->size = mblklen;
 
@@ -203,9 +196,7 @@ xnewblk()
  * zero'd in xfreeblk().
  */
 static void *
-xgetblk(mbp, s)
-	mbl_t	**mbp;
-	size_t	s;
+xgetblk(mbl_t **mbp, size_t s)
 {
 	mbl_t	*mb;
 	void	*p;
@@ -234,8 +225,7 @@ xgetblk(mbp, s)
  * used memory to zero.
  */
 static void
-xfreeblk(fmbp)
-	mbl_t	**fmbp;
+xfreeblk(mbl_t **fmbp)
 {
 	mbl_t	*mb;
 
@@ -248,7 +238,7 @@ xfreeblk(fmbp)
 }
 
 void
-initmem()
+initmem(void)
 {
 	int	pgsz;
 
@@ -259,15 +249,14 @@ initmem()
 		nomem();
 }
 
-	
+
 /*
  * Allocate memory associated with level l.
  */
 void *
-getlblk(l, s)
-	int	l;
-	size_t	s;
+getlblk(int l, size_t s)
 {
+
 	while (l >= nmblks) {
 		if ((mblks = realloc(mblks, (nmblks + ML_INC) *
 		    sizeof (mbl_t *))) == NULL)
@@ -279,9 +268,9 @@ getlblk(l, s)
 }
 
 void *
-getblk(s)
-	size_t	s;
+getblk(size_t s)
 {
+
 	return (getlblk(mblklev, s));
 }
 
@@ -289,15 +278,16 @@ getblk(s)
  * Free all memory associated with level l.
  */
 void
-freelblk(l)
-	int	l;
+freelblk(int l)
 {
+
 	xfreeblk(&mblks[l]);
 }
 
 void
-freeblk()
+freeblk(void)
 {
+
 	freelblk(mblklev);
 }
 
@@ -308,9 +298,9 @@ freeblk()
 static	mbl_t	*tmblk;
 
 void *
-tgetblk(s)
-	size_t	s;
+tgetblk(size_t s)
 {
+
 	return (xgetblk(&tmblk, s));
 }
 
@@ -318,17 +308,19 @@ tgetblk(s)
  * Get memory for a new tree node.
  */
 tnode_t *
-getnode()
+getnode(void)
 {
+
 	return (tgetblk(sizeof (tnode_t)));
 }
 
 /*
- * Free all memory which is allocated by the the current expression.
+ * Free all memory which is allocated by the current expression.
  */
 void
-tfreeblk()
+tfreeblk(void)
 {
+
 	xfreeblk(&tmblk);
 }
 
@@ -338,7 +330,7 @@ tfreeblk()
  * used to restore the memory.
  */
 mbl_t *
-tsave()
+tsave(void)
 {
 	mbl_t	*tmem;
 
@@ -353,9 +345,9 @@ tsave()
  * tfreeblk() frees the restored memory.
  */
 void
-trestor(tmem)
-	mbl_t	*tmem;
+trestor(mbl_t *tmem)
 {
+
 	tfreeblk();
 	if (tmblk != NULL) {
 		free(tmblk->blk);
