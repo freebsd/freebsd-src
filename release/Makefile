@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.145 1995/05/01 12:01:39 jkh Exp $
+#	$Id: Makefile,v 1.146 1995/05/09 00:18:32 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,7 +11,7 @@
 # that on a 14.4 line just yet...
 
 # SET THIS !!!
-BUILDNAME=SOME_RANDOM_BUILD
+#BUILDNAME=SOME_RANDOM_BUILD
 
 # If this is a RELEASE, then set
 #RELEASETAG=something
@@ -59,8 +59,8 @@ FD=			${RELEASEDIR}/ftp
 CD=			${RELEASEDIR}/cdrom
 
 release:
-.if !defined(CHROOTDIR)
-	@echo "To make a release you must set CHROOTDIR" && false
+.if !defined(CHROOTDIR) || !defined(BUILDNAME)
+	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
 .endif
 	-mkdir ${CHROOTDIR}
 	chflags -R noschg ${CHROOTDIR}/.
@@ -80,6 +80,37 @@ release:
 	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
 	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
+.endif
+	( cd ${CHROOTDIR}/usr/src/sys/conf && \
+	mv newvers.sh foo && \
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
+	# To be used in development...
+	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	chmod 755 ${CHROOTDIR}/mk
+	chroot ${CHROOTDIR} /mk
+
+# Same as above, but assume that a build just fell over, has been corrected
+# and now we just want to pick up where we left off.
+rerelease:
+.if !defined(CHROOTDIR) || !defined(BUILDNAME)
+	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
+.endif
+	@if [ ! -d ${CHROOTDIR} ]; then echo "No ${CHROOTDIR} directory to re-release in!"; exit 1; fi
+	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
+	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
+	echo "set -ex"				>> ${CHROOTDIR}/mk
+	echo "cd /usr/src"			>> ${CHROOTDIR}/mk
+	echo "make all install"			>> ${CHROOTDIR}/mk
+	echo "cd ../../release"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
+	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/etc/make.conf
+.if !defined(RELEASETAG)
+	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
+.else
+	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} -P -d -q src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
 	mv newvers.sh foo && \
