@@ -1,9 +1,11 @@
-#	$Id: Makefile,v 1.6 1996/09/05 08:43:50 peter Exp $
+#	$Id: Makefile,v 1.6.2.1 1997/06/28 03:27:49 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${CVSDIR}/contrib
 .PATH:	${CVSDIR}/man
+
+#pvcs_to_rcs left out, it needs perl5
 
 SCRIPTS= clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
 	 log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs \

@@ -3,13 +3,20 @@
 CVSDIR=		$(.CURDIR)/../../../../contrib/cvs
 
 .if exists(${.OBJDIR}/../lib)
-LIBDESTDIR=	${.OBJDIR}/../lib
+LIBCVSDIR=	${.OBJDIR}/../lib
 .else
-LIBDESTDIR=	${.CURDIR}/../lib
+LIBCVSDIR=	${.CURDIR}/../lib
 .endif
 
-LDDESTDIR=	-L${LIBDESTDIR}
-LIBCVS=		${LIBDESTDIR}/libcvs.a
+LIBCVS=		${LIBCVSDIR}/libcvs.a
+
+.if exists(${.OBJDIR}/../libdiff)
+LIBDIFFDIR=	${.OBJDIR}/../libdiff
+.else
+LIBDIFFDIR=	${.CURDIR}/../libdiff
+.endif
+
+LIBDIFF=	${LIBDIFFDIR}/libdiff.a
 
 .if exists(${.CURDIR}/../../Makefile.inc)
 .include "${.CURDIR}/../../Makefile.inc"

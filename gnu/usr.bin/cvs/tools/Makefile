@@ -1,6 +1,4 @@
-#	$Id: Makefile,v 1.7 1995/12/11 01:58:50 peter Exp $
-
-.include "${.CURDIR}/../Makefile.inc"
+#	$Id: Makefile,v 1.1 1996/08/21 00:04:28 peter Exp $
 
 FILES=	INSTALL NEWS README \
 	pcl-cvs-lucid.el pcl-cvs-startup.el \
