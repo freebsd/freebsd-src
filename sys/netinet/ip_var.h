@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.39 1998/06/05 22:40:01 julian Exp $
+ *	$Id: ip_var.h,v 1.40 1998/06/06 19:39:10 julian Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -76,11 +76,11 @@ struct ipq {
  */
 struct	ipasfrag {
 #if BYTE_ORDER == LITTLE_ENDIAN 
-	u_char	ip_hl:4,
+	u_int	ip_hl:4,
 		ip_v:4;
 #endif
 #if BYTE_ORDER == BIG_ENDIAN 
-	u_char	ip_v:4,
+	u_int	ip_v:4,
 		ip_hl:4;
 #endif
 	u_char	ipf_mff;		/* XXX overlays ip_tos: use low bit

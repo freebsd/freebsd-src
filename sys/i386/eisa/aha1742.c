@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.61 1997/09/21 21:35:21 gibbs Exp $
+ *      $Id: aha1742.c,v 1.62 1998/04/17 22:36:23 des Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
@@ -189,9 +189,9 @@ struct ahb_ecb_status {
 struct ecb {
 	u_char  opcode;
 #define	ECB_SCSI_OP	0x01
-	        u_char:4;
-	u_char  options:3;
-	        u_char:1;
+	        u_int:4;
+	u_int   options:3;
+	        int:1;
 	short   opt1;
 #define	ECB_CNE	0x0001
 #define	ECB_DI	0x0080

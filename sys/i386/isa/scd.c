@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.36 1998/04/15 17:45:48 bde Exp $ */
+/* $Id: scd.c,v 1.37 1998/06/07 17:10:56 dfr Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -125,8 +125,8 @@ static struct scd_data {
 	struct disklabel dlabel;
 	int	openflag;
 	struct {
-		unsigned char adr :4;
-		unsigned char ctl :4; /* xcdplayer needs this */
+		unsigned int  adr :4;
+		unsigned int  ctl :4; /* xcdplayer needs this */
 		unsigned char start_msf[3];
 	} toc[MAX_TRACKS];
 	short	first_track;
