@@ -32,6 +32,9 @@
  * $FreeBSD$
  */
 
+
+#include "bpfilter.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -46,7 +49,9 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
+#if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -59,20 +64,13 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
-#include "miibus_if.h"
-
 #define STE_USEIOSPACE
+
+/*#define STE_BACKGROUND_AUTONEG*/
 
 #include <pci/if_stereg.h>
 
@@ -90,9 +88,13 @@ static struct ste_type ste_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int ste_probe		__P((device_t));
-static int ste_attach		__P((device_t));
-static int ste_detach		__P((device_t));
+static struct ste_type ste_phys[] = {
+	{ 0, 0, "<MII-compliant physical interface>" }
+};
+
+static unsigned long ste_count = 0;
+static const char *ste_probe	__P((pcici_t, pcidi_t));
+static void ste_attach		__P((pcici_t, int));
 static void ste_init		__P((void *));
 static void ste_intr		__P((void *));
 static void ste_rxeof		__P((struct ste_softc *));
@@ -106,22 +108,24 @@ static int ste_encap		__P((struct ste_softc *, struct ste_chain *,
 					struct mbuf *));
 static void ste_start		__P((struct ifnet *));
 static void ste_watchdog	__P((struct ifnet *));
-static void ste_shutdown	__P((device_t));
+static void ste_shutdown	__P((int, void *));
 static int ste_newbuf		__P((struct ste_softc *,
 					struct ste_chain_onefrag *,
 					struct mbuf *));
 static int ste_ifmedia_upd	__P((struct ifnet *));
 static void ste_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static void ste_mii_sync	__P((struct ste_softc *));
-static void ste_mii_send	__P((struct ste_softc *, u_int32_t, int));
-static int ste_mii_readreg	__P((struct ste_softc *,
-					struct ste_mii_frame *));
-static int ste_mii_writereg	__P((struct ste_softc *,
-					struct ste_mii_frame *));
-static int ste_miibus_readreg	__P((device_t, int, int));
-static int ste_miibus_writereg	__P((device_t, int, int, int));
-static void ste_miibus_statchg	__P((device_t));
+static void ste_mii_sync		__P((struct ste_softc *));
+static void ste_mii_send		__P((struct ste_softc *, u_int32_t, int));
+static int ste_mii_readreg	__P((struct ste_softc *, struct ste_mii_frame *));
+static int ste_mii_writereg	__P((struct ste_softc *, struct ste_mii_frame *));
+static u_int16_t ste_phy_readreg	__P((struct ste_softc *, int));
+static void ste_phy_writereg	__P((struct ste_softc *, int, int));
+
+static void ste_autoneg_xmit	__P((struct ste_softc *));
+static void ste_autoneg_mii	__P((struct ste_softc *, int, int));
+static void ste_setmode_mii	__P((struct ste_softc *, int));
+static void ste_getmode_mii	__P((struct ste_softc *));
 
 static int ste_eeprom_wait	__P((struct ste_softc *));
 static int ste_read_eeprom	__P((struct ste_softc *, caddr_t, int,
@@ -131,44 +135,6 @@ static u_int8_t ste_calchash	__P((caddr_t));
 static void ste_setmulti	__P((struct ste_softc *));
 static int ste_init_rx_list	__P((struct ste_softc *));
 static void ste_init_tx_list	__P((struct ste_softc *));
-
-#ifdef STE_USEIOSPACE
-#define STE_RES			SYS_RES_IOPORT
-#define STE_RID			STE_PCI_LOIO
-#else
-#define STE_RES			SYS_RES_MEMORY
-#define STE_RID			STE_PCI_LOMEM
-#endif
-
-static device_method_t ste_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		ste_probe),
-	DEVMETHOD(device_attach,	ste_attach),
-	DEVMETHOD(device_detach,	ste_detach),
-	DEVMETHOD(device_shutdown,	ste_shutdown),
-
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	/* MII interface */
-	DEVMETHOD(miibus_readreg,	ste_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	ste_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	ste_miibus_statchg),
-
-	{ 0, 0 }
-};
-
-static driver_t ste_driver = {
-	"ste",
-	ste_methods,
-	sizeof(struct ste_softc)
-};
-
-static devclass_t ste_devclass;
-
-DRIVER_MODULE(if_ste, pci, ste_driver, ste_devclass, 0, 0);
-DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 
 #define STE_SETBIT4(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | x)
@@ -188,6 +154,15 @@ DRIVER_MODULE(miibus, ste, miibus_driver, miibus_devclass, 0, 0);
 #define STE_CLRBIT1(sc, reg, x)				\
 	CSR_WRITE_1(sc, reg, CSR_READ_1(sc, reg) & ~x)
 
+
+#ifdef __i386__
+#define STE_BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define STE_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#endif
+#ifdef __alpha__
+#define STE_BUS_SPACE_IO	ALPHA_BUS_SPACE_IO
+#define STE_BUS_SPACE_MEM	ALPHA_BUS_SPACE_MEM
+#endif
 
 #define MII_SET(x)		STE_SETBIT1(sc, STE_PHYCTL, x)
 #define MII_CLR(x)		STE_CLRBIT1(sc, STE_PHYCTL, x) 
@@ -378,70 +353,376 @@ static int ste_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int ste_miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+static u_int16_t ste_phy_readreg(sc, reg)
+	struct ste_softc		*sc;
+	int			reg;
 {
-	struct ste_softc	*sc;
 	struct ste_mii_frame	frame;
-
-	sc = device_get_softc(dev);
 
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = phy;
+	frame.mii_phyaddr = sc->ste_phy_addr;
 	frame.mii_regaddr = reg;
 	ste_mii_readreg(sc, &frame);
 
 	return(frame.mii_data);
 }
 
-static int ste_miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+static void ste_phy_writereg(sc, reg, data)
+	struct ste_softc		*sc;
+	int			reg;
+	int			data;
 {
-	struct ste_softc	*sc;
 	struct ste_mii_frame	frame;
 
-	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = phy;
+	frame.mii_phyaddr = sc->ste_phy_addr;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
 	ste_mii_writereg(sc, &frame);
 
-	return(0);
+	return;
 }
 
-static void ste_miibus_statchg(dev)
-	device_t		dev;
+
+/*
+ * Initiate an autonegotiation session.
+ */
+static void ste_autoneg_xmit(sc)
+	struct ste_softc		*sc;
 {
-	struct ste_softc	*sc;
-	struct mii_data		*mii;
+	u_int16_t		phy_sts;
 
-	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->ste_miibus);
+	ste_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+	DELAY(500);
+	while(ste_phy_readreg(sc, STE_PHY_GENCTL)
+			& PHY_BMCR_RESET);
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
-	} else {
+	phy_sts = ste_phy_readreg(sc, PHY_BMCR);
+	phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
+	ste_phy_writereg(sc, PHY_BMCR, phy_sts);
+
+	return;
+}
+
+/*
+ * Invoke autonegotiation on a PHY. Also used with the 3Com internal
+ * autoneg logic which is mapped onto the MII.
+ */
+static void ste_autoneg_mii(sc, flag, verbose)
+	struct ste_softc		*sc;
+	int			flag;
+	int			verbose;
+{
+	u_int16_t		phy_sts = 0, media, advert, ability;
+	struct ifnet		*ifp;
+	struct ifmedia		*ifm;
+
+	ifm = &sc->ifmedia;
+	ifp = &sc->arpcom.ac_if;
+
+	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
+
+	/*
+	 * The 100baseT4 PHY on the 3c905-T4 has the 'autoneg supported'
+	 * bit cleared in the status register, but has the 'autoneg enabled'
+	 * bit set in the control register. This is a contradiction, and
+	 * I'm not sure how to handle it. If you want to force an attempt
+	 * to autoneg for 100baseT4 PHYs, #define FORCE_AUTONEG_TFOUR
+	 * and see what happens.
+	 */
+#ifndef FORCE_AUTONEG_TFOUR
+	/*
+	 * First, see if autoneg is supported. If not, there's
+	 * no point in continuing.
+	 */
+	phy_sts = ste_phy_readreg(sc, PHY_BMSR);
+	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
+		if (verbose)
+			printf("ste%d: autonegotiation not supported\n",
+							sc->ste_unit);
+		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;	
+		media = ste_phy_readreg(sc, PHY_BMCR);
+		media &= ~PHY_BMCR_SPEEDSEL;
+		media &= ~PHY_BMCR_DUPLEX;
+		ste_phy_writereg(sc, PHY_BMCR, media);
 		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+		return;
+	}
+#endif
+
+	switch (flag) {
+	case STE_FLAG_FORCEDELAY:
+		/*
+	 	 * XXX Never use this option anywhere but in the probe
+	 	 * routine: making the kernel stop dead in its tracks
+ 		 * for three whole seconds after we've gone multi-user
+		 * is really bad manners.
+	 	 */
+		ste_autoneg_xmit(sc);
+		DELAY(5000000);
+		break;
+	case STE_FLAG_SCHEDDELAY:
+		/*
+		 * Wait for the transmitter to go idle before starting
+		 * an autoneg session, otherwise ste_start() may clobber
+	 	 * our timeout, and we don't want to allow transmission
+		 * during an autoneg session since that can screw it up.
+	 	 */
+		if (sc->ste_cdata.ste_tx_head != NULL) {
+			sc->ste_want_auto = 1;
+			return;
+		}
+		ste_autoneg_xmit(sc);
+		ifp->if_timer = 5;
+		sc->ste_autoneg = 1;
+		sc->ste_want_auto = 0;
+		return;
+		break;
+	case STE_FLAG_DELAYTIMEO:
+		ifp->if_timer = 0;
+		sc->ste_autoneg = 0;
+		break;
+	default:
+		printf("ste%d: invalid autoneg flag: %d\n", sc->ste_unit, flag);
+		return;
+	}
+
+	if (ste_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_AUTONEGCOMP) {
+		if (verbose)
+			printf("ste%d: autoneg complete, ", sc->ste_unit);
+		phy_sts = ste_phy_readreg(sc, PHY_BMSR);
+	} else {
+		if (verbose)
+			printf("ste%d: autoneg not complete, ", sc->ste_unit);
+	}
+
+	media = ste_phy_readreg(sc, PHY_BMCR);
+
+	/* Link is good. Report modes and set duplex mode. */
+	if (ste_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT) {
+		if (verbose)
+			printf("link status good ");
+		advert = ste_phy_readreg(sc, STE_PHY_ANAR);
+		ability = ste_phy_readreg(sc, STE_PHY_LPAR);
+
+		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(100baseT4)\n");
+		} else if (advert & PHY_ANAR_100BTXFULL &&
+			ability & PHY_ANAR_100BTXFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			printf("(full-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_100BTXHALF &&
+			ability & PHY_ANAR_100BTXHALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(half-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_10BTFULL &&
+			ability & PHY_ANAR_10BTFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			printf("(full-duplex, 10Mbps)\n");
+		} else if (advert & PHY_ANAR_10BTHALF &&
+			ability & PHY_ANAR_10BTHALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(half-duplex, 10Mbps)\n");
+		}
+
+		/* Set ASIC's duplex mode to match the PHY. */
+		if (media & PHY_BMCR_DUPLEX)
+			STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+		else
+			STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+		ste_phy_writereg(sc, PHY_BMCR, media);
+	} else {
+		if (verbose)
+			printf("no carrier (forcing half-duplex, 10Mbps)\n");
+		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+		media &= ~PHY_BMCR_SPEEDSEL;
+		media &= ~PHY_BMCR_DUPLEX;
+		ste_phy_writereg(sc, PHY_BMCR, media);
+		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+	}
+
+	ste_init(sc);
+
+	if (sc->ste_tx_pend) {
+		sc->ste_autoneg = 0;
+		sc->ste_tx_pend = 0;
+		ste_start(ifp);
 	}
 
 	return;
 }
- 
+
+static void ste_getmode_mii(sc)
+	struct ste_softc		*sc;
+{
+	u_int16_t		bmsr;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
+
+	bmsr = ste_phy_readreg(sc, PHY_BMSR);
+	if (bootverbose)
+		printf("ste%d: PHY status word: %x\n", sc->ste_unit, bmsr);
+
+	/* fallback */
+	sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+
+	if (bmsr & PHY_BMSR_10BTHALF) {
+		if (bootverbose)
+			printf("ste%d: 10Mbps half-duplex mode supported\n",
+								sc->ste_unit);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+	}
+
+	if (bmsr & PHY_BMSR_10BTFULL) {
+		if (bootverbose)
+			printf("ste%d: 10Mbps full-duplex mode supported\n",
+								sc->ste_unit);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+	}
+
+	if (bmsr & PHY_BMSR_100BTXHALF) {
+		if (bootverbose)
+			printf("ste%d: 100Mbps half-duplex mode supported\n",
+								sc->ste_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+	}
+
+	if (bmsr & PHY_BMSR_100BTXFULL) {
+		if (bootverbose)
+			printf("ste%d: 100Mbps full-duplex mode supported\n",
+								sc->ste_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	}
+
+	/* Some also support 100BaseT4. */
+	if (bmsr & PHY_BMSR_100BT4) {
+		if (bootverbose)
+			printf("ste%d: 100baseT4 mode supported\n", sc->ste_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_T4;
+#ifdef FORCE_AUTONEG_TFOUR
+		if (bootverbose)
+			printf("ste%d: forcing on autoneg support for BT4\n",
+							 sc->ste_unit);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
+#endif
+	}
+
+	if (bmsr & PHY_BMSR_CANAUTONEG) {
+		if (bootverbose)
+			printf("ste%d: autoneg supported\n", sc->ste_unit);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
+	}
+
+	return;
+}
+
+/*
+ * Set speed and duplex mode.
+ */
+static void ste_setmode_mii(sc, media)
+	struct ste_softc		*sc;
+	int			media;
+{
+	u_int16_t		bmcr;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
+
+	/*
+	 * If an autoneg session is in progress, stop it.
+	 */
+	if (sc->ste_autoneg) {
+		printf("ste%d: canceling autoneg session\n", sc->ste_unit);
+		ifp->if_timer = sc->ste_autoneg = sc->ste_want_auto = 0;
+		bmcr = ste_phy_readreg(sc, PHY_BMCR);
+		bmcr &= ~PHY_BMCR_AUTONEGENBL;
+		ste_phy_writereg(sc, PHY_BMCR, bmcr);
+	}
+
+	printf("ste%d: selecting MII, ", sc->ste_unit);
+
+	bmcr = ste_phy_readreg(sc, PHY_BMCR);
+
+	bmcr &= ~(PHY_BMCR_AUTONEGENBL|PHY_BMCR_SPEEDSEL|
+			PHY_BMCR_DUPLEX|PHY_BMCR_LOOPBK);
+
+	if (IFM_SUBTYPE(media) == IFM_100_T4) {
+		printf("100Mbps/T4, half-duplex\n");
+		bmcr |= PHY_BMCR_SPEEDSEL;
+		bmcr &= ~PHY_BMCR_DUPLEX;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_100_TX) {
+		printf("100Mbps, ");
+		bmcr |= PHY_BMCR_SPEEDSEL;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_10_T) {
+		printf("10Mbps, ");
+		bmcr &= ~PHY_BMCR_SPEEDSEL;
+	}
+
+	if ((media & IFM_GMASK) == IFM_FDX) {
+		printf("full duplex\n");
+		bmcr |= PHY_BMCR_DUPLEX;
+		STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+	} else {
+		printf("half duplex\n");
+		bmcr &= ~PHY_BMCR_DUPLEX;
+		STE_CLRBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
+	}
+
+	ste_phy_writereg(sc, PHY_BMCR, bmcr);
+
+	return;
+}
+
 static int ste_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct ste_softc	*sc;
-	struct mii_data		*mii;
+	struct ifmedia		*ifm;
 
 	sc = ifp->if_softc;
-	mii = device_get_softc(sc->ste_miibus);
-	mii_mediachg(mii);
+	ifm = &sc->ifmedia;
+
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+		return(EINVAL);
+
+	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
+		ste_autoneg_mii(sc, STE_FLAG_SCHEDDELAY, 1);
+	else
+		ste_setmode_mii(sc, ifm->ifm_media);
 
 	return(0);
 }
@@ -450,15 +731,43 @@ static void ste_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
-	struct ste_softc	*sc;
-	struct mii_data		*mii;
+	struct ste_softc		*sc;
+	u_int16_t		advert = 0, ability = 0;
 
 	sc = ifp->if_softc;
-	mii = device_get_softc(sc->ste_miibus);
 
-	mii_pollstat(mii);
-	ifmr->ifm_active = mii->mii_media_active;
-	ifmr->ifm_status = mii->mii_media_status;
+	ifmr->ifm_active = IFM_ETHER;
+
+	if (!(ste_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
+		if (ste_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
+			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
+		else
+			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		if (ste_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_DUPLEX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
+		return;
+	}
+
+	ability = ste_phy_readreg(sc, STE_PHY_LPAR);
+	advert = ste_phy_readreg(sc, STE_PHY_ANAR);
+	if (advert & PHY_ANAR_100BT4 &&
+		ability & PHY_ANAR_100BT4) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_T4;
+	} else if (advert & PHY_ANAR_100BTXFULL &&
+		ability & PHY_ANAR_100BTXFULL) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	} else if (advert & PHY_ANAR_100BTXHALF &&
+		ability & PHY_ANAR_100BTXHALF) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_HDX;
+	} else if (advert & PHY_ANAR_10BTFULL &&
+		ability & PHY_ANAR_10BTFULL) {
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_FDX;
+	} else if (advert & PHY_ANAR_10BTHALF &&
+		ability & PHY_ANAR_10BTHALF) {
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_HDX;
+	}
 
 	return;
 }
@@ -721,9 +1030,11 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
+#if NBPFILTER > 0
 		/* Handle BPF listeners. Let the BPF user see the packet. */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
+#endif
 
 #ifdef BRIDGE
 		if (do_bridge) {
@@ -739,6 +1050,7 @@ again:
 		}
 #endif
 
+#if NBPFILTER > 0
 		/*
 		 * Don't pass packet up to the ether_input() layer unless it's
 		 * a broadcast packet, multicast packet, matches our ethernet
@@ -752,6 +1064,7 @@ again:
 				continue;
 			}
 		}
+#endif
 
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
@@ -816,7 +1129,9 @@ static void ste_txeoc(sc)
 			CSR_WRITE_2(sc, STE_TX_RECLAIM_THRESH,
 			    (STE_PACKET_SIZE >> 4));
 		}
-		ste_init(sc);
+		STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_ENABLE);
+		if (CSR_READ_4(sc, STE_TX_DMALIST_PTR))
+			CSR_WRITE_4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 		CSR_WRITE_2(sc, STE_TX_STATUS, txstat);
 	}
 
@@ -851,6 +1166,8 @@ static void ste_txeof(sc)
 	if (sc->ste_cdata.ste_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->ste_cdata.ste_tx_tail = NULL;
+		if (sc->ste_want_auto)
+			ste_autoneg_mii(sc, STE_FLAG_SCHEDDELAY, 1);
 	} else {
 		if (CSR_READ_4(sc, STE_DMACTL) & STE_DMACTL_TXDMA_STOPPED ||
 		    !CSR_READ_4(sc, STE_TX_DMALIST_PTR)) {
@@ -869,7 +1186,6 @@ static void ste_stats_update(xsc)
 	struct ste_softc	*sc;
 	struct ste_stats	stats;
 	struct ifnet		*ifp;
-	struct mii_data		*mii;
 	int			i, s;
 	u_int8_t		*p;
 
@@ -877,8 +1193,6 @@ static void ste_stats_update(xsc)
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
-	mii = device_get_softc(sc->ste_miibus);
-
 	p = (u_int8_t *)&stats;
 
 	for (i = 0; i < sizeof(stats); i++) {
@@ -888,8 +1202,6 @@ static void ste_stats_update(xsc)
 
 	ifp->if_collisions += stats.ste_single_colls +
 	    stats.ste_multi_colls + stats.ste_late_colls;
-
-	mii_tick(mii);
 
 	sc->ste_stat_ch = timeout(ste_stats_update, sc, hz);
 	splx(s);
@@ -902,125 +1214,121 @@ static void ste_stats_update(xsc)
  * Probe for a Sundance ST201 chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int ste_probe(dev)
-	device_t		dev;
+static const char *ste_probe(config_id, device_id)
+	pcici_t			config_id;
+	pcidi_t			device_id;
 {
 	struct ste_type		*t;
 
 	t = ste_devs;
 
 	while(t->ste_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ste_vid) &&
-		    (pci_get_device(dev) == t->ste_did)) {
-			device_set_desc(dev, t->ste_name);
-			return(0);
+		if ((device_id & 0xFFFF) == t->ste_vid &&
+		    ((device_id >> 16) & 0xFFFF) == t->ste_did) {
+			return(t->ste_name);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return(NULL);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int ste_attach(dev)
-	device_t		dev;
+static void
+ste_attach(config_id, unit)
+	pcici_t			config_id;
+	int			unit;
 {
-	int			s;
+	int			s, i;
+#ifndef STE_USEIOSPACE
+	vm_offset_t		pbase, vbase;
+#endif
 	u_int32_t		command;
 	struct ste_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	struct ste_type		*p;
+	u_int16_t		phy_vid, phy_did, phy_sts;
 
 	s = splimp();
 
-	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
+	sc = malloc(sizeof(struct ste_softc), M_DEVBUF, M_NOWAIT);
+	if (sc == NULL) {
+		printf("ste%d: no memory for softc struct!\n", unit);
+		goto fail;
+	}
 	bzero(sc, sizeof(struct ste_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
-	command = pci_read_config(dev, STE_PCI_CAPID, 4) & 0x000000FF;
+	command = pci_conf_read(config_id, STE_PCI_CAPID) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_read_config(dev, STE_PCI_PWRMGMTCTRL, 4);
+		command = pci_conf_read(config_id, STE_PCI_PWRMGMTCTRL);
 		if (command & STE_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, STE_PCI_LOIO, 4);
-			membase = pci_read_config(dev, STE_PCI_LOMEM, 4);
-			irq = pci_read_config(dev, STE_PCI_INTLINE, 4);
+			iobase = pci_conf_read(config_id, STE_PCI_LOIO);
+			membase = pci_conf_read(config_id, STE_PCI_LOMEM);
+			irq = pci_conf_read(config_id, STE_PCI_INTLINE);
 
 			/* Reset the power state. */
 			printf("ste%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & STE_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_write_config(dev, STE_PCI_PWRMGMTCTRL, command, 4);
+			pci_conf_write(config_id, STE_PCI_PWRMGMTCTRL, command);
 
 			/* Restore PCI config data. */
-			pci_write_config(dev, STE_PCI_LOIO, iobase, 4);
-			pci_write_config(dev, STE_PCI_LOMEM, membase, 4);
-			pci_write_config(dev, STE_PCI_INTLINE, irq, 4);
+			pci_conf_write(config_id, STE_PCI_LOIO, iobase);
+			pci_conf_write(config_id, STE_PCI_LOMEM, membase);
+			pci_conf_write(config_id, STE_PCI_INTLINE, irq);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 
 #ifdef STE_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("ste%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
+
+	if (!pci_map_port(config_id, STE_PCI_LOIO,
+	    (pci_port_t *)&(sc->ste_bhandle))) {
+		printf ("ste%d: couldn't map ports\n", unit);
+		goto fail;
+        }
+
+	sc->ste_btag = STE_BUS_SPACE_IO;
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("ste%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
 		goto fail;
 	}
+
+	if (!pci_map_mem(config_id, STE_PCI_LOMEM, &vbase, &pbase)) {
+		printf ("ste%d: couldn't map memory\n", unit);
+		goto fail;
+	}
+	sc->ste_btag = STE_BUS_SPACE_MEM;
+	sc->ste_bhandle = vbase;
 #endif
 
-	rid = STE_RID;
-	sc->ste_res = bus_alloc_resource(dev, STE_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
-
-	if (sc->ste_res == NULL) {
-		printf ("ste%d: couldn't map ports/memory\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->ste_btag = rman_get_bustag(sc->ste_res);
-	sc->ste_bhandle = rman_get_bushandle(sc->ste_res);
-
-	rid = 0;
-	sc->ste_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->ste_irq == NULL) {
+	/* Allocate interrupt */
+	if (!pci_map_int(config_id, ste_intr, sc, &net_imask)) {
 		printf("ste%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET,
-	    ste_intr, sc, &sc->ste_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		printf("ste%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1035,10 +1343,7 @@ static int ste_attach(dev)
 	if (ste_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
 	    STE_EEADDR_NODE0, 3, 0)) {
 		printf("ste%d: failed to read station address\n", unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		error = ENXIO;;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
 
@@ -1052,28 +1357,57 @@ static int ste_attach(dev)
 
 	/* Allocate the descriptor queues. */
 	sc->ste_ldata = contigmalloc(sizeof(struct ste_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->ste_ldata == NULL) {
+		free(sc, M_DEVBUF);
 		printf("ste%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-		error = ENXIO;
 		goto fail;
 	}
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
 
-	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->ste_miibus,
-		ste_ifmedia_upd, ste_ifmedia_sts)) {
+	if (bootverbose)
+		printf("ste%d: probing for a PHY\n", sc->ste_unit);
+	for (i = STE_PHYADDR_MIN; i < STE_PHYADDR_MAX + 1; i++) {
+		if (bootverbose)
+			printf("ste%d: checking address: %d\n",
+						sc->ste_unit, i);
+		sc->ste_phy_addr = i;
+		ste_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		DELAY(500);
+		while(ste_phy_readreg(sc, PHY_BMCR)
+				& PHY_BMCR_RESET);
+		if ((phy_sts = ste_phy_readreg(sc, PHY_BMSR)))
+			break;
+	}
+	if (phy_sts) {
+		phy_vid = ste_phy_readreg(sc, STE_PHY_VENID);
+		phy_did = ste_phy_readreg(sc, STE_PHY_DEVID);
+		if (bootverbose)
+			printf("ste%d: found PHY at address %d, ",
+				sc->ste_unit, sc->ste_phy_addr);
+		if (bootverbose)
+			printf("vendor id: %x device id: %x\n",
+			phy_vid, phy_did);
+		p = ste_phys;
+		while(p->ste_vid) {
+			if (phy_vid == p->ste_vid &&
+				(phy_did | 0x000F) == p->ste_did) {
+				sc->ste_pinfo = p;
+				break;
+			}
+			p++;
+		}
+		if (sc->ste_pinfo == NULL)
+			sc->ste_pinfo = &ste_phys[PHY_UNKNOWN];
+		if (bootverbose)
+			printf("ste%d: PHY type: %s\n",
+				sc->ste_unit, sc->ste_pinfo->ste_name);
+	} else {
 		printf("ste%d: MII without any phy!\n", sc->ste_unit);
-		bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-		bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
 		free(sc->ste_ldata, M_DEVBUF);
-		error = ENXIO;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
 
@@ -1092,46 +1426,33 @@ static int ste_attach(dev)
 	ifp->if_snd.ifq_maxlen = STE_TX_LIST_CNT - 1;
 
 	/*
+	 * Do ifmedia setup.
+	 */
+	ifmedia_init(&sc->ifmedia, 0, ste_ifmedia_upd, ste_ifmedia_sts);
+
+	ste_getmode_mii(sc);
+	ste_autoneg_mii(sc, STE_FLAG_FORCEDELAY, 1);
+	media = sc->ifmedia.ifm_media;
+	ste_stop(sc);
+
+	ifmedia_set(&sc->ifmedia, media);
+
+	/*
 	 * Call MI attach routines.
 	 */
 
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
+#if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+#endif
+
+	at_shutdown(ste_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return(error);
-}
-
-static int ste_detach(dev)
-	device_t		dev;
-{
-	struct ste_softc	*sc;
-	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
-
-	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
-
-	ste_stop(sc);
-	if_detach(ifp);
-
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->ste_miibus);
-
-	bus_teardown_intr(dev, sc->ste_irq, sc->ste_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ste_irq);
-	bus_release_resource(dev, STE_RES, STE_RID, sc->ste_res);
-
-	free(sc->ste_ldata, M_DEVBUF);
-
-	splx(s);
-
-	return(0);
+	return;
 }
 
 static int ste_newbuf(sc, c, m)
@@ -1234,14 +1555,19 @@ static void ste_init(xsc)
 {
 	struct ste_softc	*sc;
 	int			i, s;
+	u_int16_t		phy_bmcr = 0;
 	struct ifnet		*ifp;
-	struct mii_data		*mii;
-
-	s = splimp();
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
-	mii = device_get_softc(sc->ste_miibus);
+
+	if (sc->ste_autoneg)
+		return;
+
+	s = splimp();
+
+	if (sc->ste_pinfo != NULL)
+		phy_bmcr = ste_phy_readreg(sc, PHY_BMCR);
 
 	ste_stop(sc);
 
@@ -1311,7 +1637,10 @@ static void ste_init(xsc)
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
-	mii_mediachg(mii);
+	if (sc->ste_pinfo != NULL)
+		ste_phy_writereg(sc, PHY_BMCR, phy_bmcr);
+	if (phy_bmcr & PHY_BMCR_DUPLEX)
+		STE_SETBIT2(sc, STE_MACCTL0, STE_MACCTL0_FULLDUPLEX);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -1416,7 +1745,6 @@ static int ste_ioctl(ifp, command, data)
 {
 	struct ste_softc	*sc;
 	struct ifreq		*ifr;
-	struct mii_data		*mii;
 	int			error = 0, s;
 
 	s = splimp();
@@ -1446,8 +1774,7 @@ static int ste_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->ste_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
 	default:
 		error = EINVAL;
@@ -1530,6 +1857,11 @@ static void ste_start(ifp)
 
 	sc = ifp->if_softc;
 
+	if (sc->ste_autoneg) {
+		sc->ste_tx_pend = 1;
+		return;
+	}
+
 	if (sc->ste_cdata.ste_tx_free == NULL) {
 		ifp->if_flags |= IFF_OACTIVE;
 		return;
@@ -1555,12 +1887,14 @@ static void ste_start(ifp)
 		}
 		prev = cur_tx;
 
+#if NBPFILTER > 0
 		/*
 		 * If there's a BPF listener, bounce a copt of this frame
 		 * to him.
 	 	 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, cur_tx->ste_mbuf);
+#endif
 	}
 
 	if (cur_tx == NULL)
@@ -1600,16 +1934,21 @@ static void ste_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+	if (sc->ste_autoneg) {
+		ste_autoneg_mii(sc, STE_FLAG_DELAYTIMEO, 1);
+		if (!(ifp->if_flags & IFF_UP))
+			ste_stop(sc);
+		return;
+	}
+
 	ifp->if_oerrors++;
 	printf("ste%d: watchdog timeout\n", sc->ste_unit);
 
-#ifdef foo
 	if (sc->ste_pinfo != NULL) {
 		if (!(ste_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
 			printf("ste%d: no carrier - transceiver "
 			    "cable problem?\n", sc->ste_unit);
 	}
-#endif
 
 	ste_txeoc(sc);
 	ste_txeof(sc);
@@ -1623,14 +1962,27 @@ static void ste_watchdog(ifp)
 	return;
 }
 
-static void ste_shutdown(dev)
-	device_t		dev;
+static void ste_shutdown(howto, arg)
+	int			howto;
+	void			*arg;
 {
 	struct ste_softc	*sc;
 
-	sc = device_get_softc(dev);
-
+	sc = arg;
 	ste_stop(sc);
 
 	return;
 }
+
+static struct pci_device ste_device = {
+	"ste",
+	ste_probe,
+	ste_attach,
+	&ste_count,
+	NULL
+};
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(ste, ste_device);
+#else
+DATA_SET(pcidevice_set, ste_device);
+#endif /* COMPAT_PCI_DRIVER */

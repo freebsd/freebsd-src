@@ -97,6 +97,11 @@ Support for probabilistic rule matching has been added to IPFW.
 IPFW logging is now dynamic. IPFW logging counts can be reset, and any
 given rule can be given an arbitrary logging limit.
 
+Driver support has been added for PCI fast ethernet adapters based on
+the Sundance Technologies ST201 controller, including the D-Link DFE-550TX.
+
+Driver support has been added for PCI fast ethernet adapters based on
+the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
 
 1.2. SECURITY FIXES
 -------------------
@@ -325,6 +330,12 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast Ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE530TX
+
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
+
+Sundance Technologies ST201 PCI fast ethernet NICs including
+the following:
+  D-Link DFE-550TX
 
 SysKonnect SK-984x PCI gigabit Ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port

@@ -101,6 +101,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"pn",		"Lite-On 82168/82169 PNIC PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"rl",		"RealTek 8129/8139 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"sf",		"Adaptec AIC-6915 PCI ethernet card"		},
+    { DEVICE_TYPE_NETWORK,	"sis",		"SiS 900/SiS 7016 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ste",		"Sundance ST201 PCI ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"sk",		"SysKonnect PCI gigabit ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"tx",		"SMC 9432TX ethernet card"					},

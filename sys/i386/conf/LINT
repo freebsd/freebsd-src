@@ -1572,6 +1572,14 @@ options	"EISA_SLOTS=12"
 # The driver will autodetect the number of ports on the card and
 # attach each one as a separate network interface.
 #
+# The 'ste' device provides support for adapters based on the Sundance
+# Technologies ST201 PCI fast ethernet controller. This includes the
+# D-Link DFE-550TX.
+#
+# The 'sis' device provides support for adapters based on the Silicon
+# Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet controller
+# chips.
+#
 # The 'ti' device provides support for PCI gigabit ethernet NICs based
 # on the Alteon Networks Tigon 1 and Tigon 2 chipsets. This includes the
 # Alteon AceNIC, the 3Com 3c985, the Netgear GA620 and various others.

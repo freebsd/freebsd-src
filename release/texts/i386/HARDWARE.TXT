@@ -109,6 +109,8 @@ mx0     dyn     dyn     n/a     dyn     Macronix 98713/15/25 PCI based cards
 pn0     dyn     dyn     n/a     dyn     Lite-On PNIC PCI based cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
+sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
+ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
 vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
@@ -478,6 +480,8 @@ NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE-530TX
 
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
+
 Sundance Technologies ST201 PCI fast ethernet NICs including
 the following:
   D-Link DFE-550TX
@@ -497,6 +501,7 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
 ADMtek AL981-based PCI fast ethernet NICs
+ADMtek AN985-based PCI fast ethernet NICs
 
 ASIX Electronics AX88140A PCI NICs, including the following:
   Alfa Inc. GFC2204

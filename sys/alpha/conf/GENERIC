@@ -106,6 +106,8 @@ device mx0
 device pn0
 device rl0
 device sf0
+device sis0
+device ste0
 device tl0
 device wb0
 device xl0
