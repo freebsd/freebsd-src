@@ -27,7 +27,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tcpslice.c,v 1.5 1998/01/20 07:30:27 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -325,12 +325,19 @@ fill_tm(char *time_string, int is_delta, struct tm *t, time_t *usecs_addr)
 {
 	char *t_start, *t_stop, format_ch;
 	int val;
+	struct timeval now;
+	struct timezone tz;
+	struct tm tmnow;
 
 #define SET_VAL(lhs,rhs)	\
 	if (is_delta)		\
 		lhs += rhs;	\
 	else			\
 		lhs = rhs
+
+	if (gettimeofday(&now, &tz) < 0)
+		err(1, "gettimeofday");
+	tmnow = *localtime(&now.tv_sec);
 
 	/* Loop through the time string parsing one specification at
 	 * a time.  Each specification has the form <number><letter>
@@ -358,6 +365,8 @@ fill_tm(char *time_string, int is_delta, struct tm *t, time_t *usecs_addr)
 			case 'y':
 				if ( val > 1900 )
 					val -= 1900;
+				else if (val < 100)
+					val += (tmnow.tm_year / 100) * 100;
 				SET_VAL(t->tm_year, val);
 				break;
 
