@@ -477,6 +477,9 @@ readlabel(int flag)
 	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
 		err(4, "cannot get disk geometry");
 	}
+	if (mediasize > (off_t)0xffffffff * secsize)
+		errx(1,
+		    "disks with more than 2^32-1 sectors are not supported");
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	if (read(f, bootarea, BBSIZE) != BBSIZE)
 		err(4, "%s read", specname);
