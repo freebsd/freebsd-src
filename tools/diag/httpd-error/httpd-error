@@ -54,7 +54,7 @@ case "$mode" in
 		uniq -c | sort -nr
 	;;
 
-    *) echo 'usage $0 {-host|-filehits|-user|-userhits} < error.log' >&2
+    *) echo "usage $0 {-host|-filehits|-user|-userhits} < error.log" >&2
        exit 1
        ;;
 esac
