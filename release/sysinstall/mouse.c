@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mouse.c,v 1.3 1998/03/23 05:59:18 jkh Exp $
+ * $Id: mouse.c,v 1.4 1998/03/23 06:08:47 yokota Exp $
  */
 
 #include "sysinstall.h"
@@ -61,9 +61,9 @@ mousedTest(dialogMenuItem *self)
 	if (ret) {
 		if (file_readable("/var/run/moused.pid"))
 		    vsystem("kill `cat /var/run/moused.pid`");
-		variable_set2(VAR_MOUSED, "NO");
+		variable_set2(VAR_MOUSED, "NO", 1);
 	} else {
-		variable_set2(VAR_MOUSED, "YES");
+		variable_set2(VAR_MOUSED, "YES", 1);
 		vsystem("ln -fs /dev/sysmouse /dev/mouse"); /* backwards compat */
 	}
 
@@ -75,8 +75,8 @@ mousedDisable(dialogMenuItem *self)
 {
 	if (file_readable("/var/run/moused.pid"))
 	    vsystem("kill `cat /var/run/moused.pid`");
-	variable_set2(VAR_MOUSED, "NO");
-	variable_set2(VAR_MOUSED_TYPE, "NO");
+	variable_set2(VAR_MOUSED, "NO", 1);
+	variable_set2(VAR_MOUSED_TYPE, "NO", 1);
 	variable_unset(VAR_MOUSED_PORT);
 	msgConfirm("The mouse daemon is disabled.");
 	return DITEM_SUCCESS;
