@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.77 1994/12/11 14:50:40 gpalmer Exp $
+# $Id: bsd.port.mk,v 1.78 1994/12/11 15:31:22 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -142,6 +142,8 @@ DO_NADA?=		echo -n
 # Miscellaneous overridable commands:
 GMAKE?=			gmake
 XMKMF?=			xmkmf
+MD5?=			md5
+MD5_FILE?=		${FILESDIR}/md5
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
 
@@ -455,6 +457,35 @@ fetch: pre-fetch
 			fi; \
 	    fi \
 	 done)
+.endif
+
+.if !target(make-md5)
+make-md5: fetch
+	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
+	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
+	
+	@(cd ${DISTDIR}; \
+	for file in ${DISTFILES}; do \
+		${MD5} $$file >> ${MD5_FILE}; \
+	done)
+.endif
+
+.if !target(check-md5)
+check-md5: fetch
+	@if [ ! -f ${MD5_FILE} ]; then \
+		echo ">> No MD5 checksum file."; \
+		exit 1; \
+	fi
+	@(cd ${DISTDIR}; \
+	for file in ${DISTFILES}; do \
+		CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
+		CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
+		if [ "$$CKSUM" != "$$CKSUM2" ]; then \
+			echo ">> Checksum mismatch for $$file" \
+			exit 1;\
+		fi; \
+	done)
+	@echo "Checksums OK."
 .endif
 
 .if !target(pre-extract)
