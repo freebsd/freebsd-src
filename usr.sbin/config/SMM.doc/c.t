@@ -55,9 +55,9 @@ timezone	8 dst
 ident	ANSEL
 maxusers	40
 
-config	vmunix	root on hp0
-config	hpvmunix	root on hp0 swap on hp0 and hp2
-config	genvmunix	swap generic
+config	kernel	root on hp0
+config	hpkernel	root on hp0 swap on hp0 and hp2
+config	genkernel	swap generic
 
 controller	mba0	at nexus ?
 disk	hp0	at mba? disk ?
@@ -86,9 +86,9 @@ maxusers	32
 options	INET
 options	NS
 
-config	vmunix	root on hp swap on hp and rk0 and rk1
-config	upvmunix	root on up
-config	hkvmunix	root on hk swap on rk0 and rk1
+config	kernel	root on hp swap on hp and rk0 and rk1
+config	upkernel	root on up
+config	hkkernel	root on hk swap on rk0 and rk1
 
 controller	mba0	at nexus ?
 controller	uba0	at nexus ?

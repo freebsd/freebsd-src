@@ -512,7 +512,7 @@ planning (dreaming) stage.
 The NFS client does include kernel support for diskless/dataless operation
 where the root file system and optionally the swap area is remote NFS mounted.
 A diskless/dataless client is configured using a version of the
-``swapvmunix.c'' file as provided in the directory \fIcontrib/diskless.nfs\fR.
+``swapkernel.c'' file as provided in the directory \fIcontrib/diskless.nfs\fR.
 If the swap device == NODEV, it specifies an NFS mounted swap area and should
 be configured the same size as set up by diskless_setup when run on the server.
 This file must be put in the \fIsys/compile/<machine_name>\fR kernel build
@@ -529,7 +529,7 @@ flexibility when setting up different servers.
 .lp
 The tools are as follows:
 .ip \(bu
-diskless_offset.c - This little program reads a ``vmunix'' object file and
+diskless_offset.c - This little program reads a ``kernel'' object file and
 writes the file byte offset of the nfs_diskless structure in it to
 standard out. It was kept separate because it sometimes has to
 be compiled/linked in funny ways depending on the client architecture.
@@ -537,47 +537,47 @@ be compiled/linked in funny ways depending on the client architecture.
 .ip \(bu
 diskless_setup.c - This program is run on the server and sets up files for a
 given client. It mostly just fills in an nfs_diskless structure and
-writes it out to either the "vmunix" file or a separate file called
+writes it out to either the "kernel" file or a separate file called
 /var/diskless/setup.<official-hostname>
 .ip \(bu
 diskless_boot.c - There are two functions in here that may be used
-by a bootstrap server such as tftpd to permit sharing of the ``vmunix''
+by a bootstrap server such as tftpd to permit sharing of the ``kernel''
 object file for similar clients. This saves disk space on the bootstrap
 server and simplify organization, but are not critical for correct operation.
-They read the ``vmunix''
+They read the ``kernel''
 file, but optionally fill in the nfs_diskless structure from a
 separate "setup.<official-hostname>" file so that there is only
-one copy of "vmunix" for all similar (same arch etc.) clients.
+one copy of "kernel" for all similar (same arch etc.) clients.
 These functions use a text file called
 /var/diskless/boot.<official-hostname> to control the netboot.
 .lp
 The basic setup steps are:
 .ip \(bu
-make a "vmunix" for the client(s) with mountroot() == nfs_mountroot()
+make a "kernel" for the client(s) with mountroot() == nfs_mountroot()
 and swdevt[0].sw_dev == NODEV if it is to do nfs swapping as well
-(See the same swapvmunix.c file)
+(See the same swapkernel.c file)
 .ip \(bu
-run diskless_offset on the vmunix file to find out the byte offset
+run diskless_offset on the kernel file to find out the byte offset
 of the nfs_diskless structure
 .ip \(bu
 Run diskless_setup on the server to set up the server and fill in the
 nfs_diskless structure for that client.
 The nfs_diskless structure can either be written into the
-vmunix file (the -x option) or
+kernel file (the -x option) or
 saved in /var/diskless/setup.<official-hostname>.
 .ip \(bu
 Set up the bootstrap server. If the nfs_diskless structure was written into
-the ``vmunix'' file, any vanilla bootstrap protocol such as bootp/tftp can
+the ``kernel'' file, any vanilla bootstrap protocol such as bootp/tftp can
 be used. If the bootstrap server has been modified to use the functions in
 diskless_boot.c, then a
 file called /var/diskless/boot.<official-hostname>
 must be created.
 It is simply a two line text file, where the first line is the pathname
-of the correct ``vmunix'' file and the second line has the pathname of
+of the correct ``kernel'' file and the second line has the pathname of
 the nfs_diskless structure file and its byte offset in it.
 For example:
 .br
-	/var/diskless/vmunix.pmax
+	/var/diskless/kernel.pmax
 .br
 	/var/diskless/setup.rickers.cis.uoguelph.ca 642308
 .br

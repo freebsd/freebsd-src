@@ -428,7 +428,7 @@ printsys(msg)
 	int c, pri, flags;
 	char *lp, *p, *q, line[MAXLINE + 1];
 
-	(void)strcpy(line, "vmunix: ");
+	(void)strcpy(line, "kernel: ");
 	lp = line + strlen(line);
 	for (p = msg; *p != '\0'; ) {
 		flags = SYNC_FILE | ADDDATE;	/* fsync file after write */

@@ -1059,7 +1059,7 @@ vk
 vlp
 vlpmacs
 vmcore
-vmunix
+kernel
 vol
 vpd
 vpf
@@ -1570,7 +1570,7 @@ tzp
 uio.h
 usec
 vec
-vmunix
+kernel
 wait.h
 writefds
 writen
@@ -2526,7 +2526,7 @@ vidnorm
 vlimit.3c
 vlimit.h
 vm
-vmunix
+kernel
 vrbose
 vtimes.3c
 vtimes.h
@@ -3931,7 +3931,7 @@ vaxif
 vaxmba
 vaxuba
 versatec
-vmunix
+kernel
 vpacct
 vv.c
 wd
@@ -4564,8 +4564,8 @@ vipw
 vipw.8
 vmcore
 vmcore.n
-vmunix
-vmunix.n
+kernel
+kernel.n
 whod
 whoent
 xfc

@@ -110,7 +110,7 @@ the dump.  The \fIsavecore\fP\|(8)
 program then copies the information from the dump partition to
 a file in a ``crash'' directory and also makes a copy of the
 system which was running at the time of the crash (usually
-``/vmunix'').  The offset to the system dump is defined in the
+``/kernel'').  The offset to the system dump is defined in the
 system variable \fIdumplo\fP (a sector offset from
 the front of the dump partition). The 
 .I savecore

@@ -51,7 +51,7 @@ struct __kvm {
 	int	pmfd;		/* physical memory file (or crashdump) */
 	int	vmfd;		/* virtual memory file (-1 if crashdump) */
 	int	swfd;		/* swap file (e.g., /dev/drum) */
-	int	nlfd;		/* namelist file (e.g., /vmunix) */
+	int	nlfd;		/* namelist file (e.g., /kernel) */
 	struct kinfo_proc *procbase;
 	char	*argspc;	/* (dynamic) storage for argv strings */
 	int	arglen;		/* length of the above */

@@ -63,7 +63,7 @@ is insufficient disk space.
 .It Fl N
 Use
 .Ar system
-as the kernel instead of the default ``/vmunix''.
+as the kernel instead of the default ``/kernel''.
 .It Fl v
 Prints out some additional debugging information.
 .It Fl z
@@ -77,7 +77,7 @@ that it corresponds to the currently running system.
 If it passes these checks, it saves the core image in
 .Ar directory Ns Pa /vmcore.#
 and the system in
-.Ar directory Ns Pa /vmunix.#
+.Ar directory Ns Pa /kernel.#
 The ``#'' is the number from the first line of the file
 .Ar directory Ns Pa /bounds ,
 and it is incremented and stored back into the file each time
@@ -107,8 +107,8 @@ is meant to be called near the end of the initialization file
 (see
 .Xr rc 8 ) .
 .Sh FILES
-.Bl -tag -width /vmunixxx -compact
-.It Pa /vmunix
+.Bl -tag -width /kernelxx -compact
+.It Pa /kernel
 current
 .Tn UNIX
 .El

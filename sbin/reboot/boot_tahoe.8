@@ -122,9 +122,9 @@ to boot from a file system which starts at cylinder 0
 of unit 0 of an
 .Tn SMD-E
 disk, type
-.Ql dk(0,0)vmunix
+.Ql dk(0,0)kernel
 to the boot prompt;
-.Ql dk(2,1,0)vmunix
+.Ql dk(2,1,0)kernel
 would specify drive 1 on
 .Tn SMD-E
 controller 2.
@@ -134,8 +134,8 @@ In an emergency, the bootstrap methods described in the paper
 can be used
 to boot from a distribution tape.
 .Sh FILES
-.Bl -tag -width /vmunix -compact
-.It Pa /vmunix
+.Bl -tag -width /kernel -compact
+.It Pa /kernel
 system code
 .It Pa /boot
 system bootstrap

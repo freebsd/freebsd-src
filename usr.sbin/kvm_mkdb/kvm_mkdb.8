@@ -46,7 +46,7 @@ creates a database in
 .Pa /var/db
 containing information about the specified file.
 If no file is specified,
-.Pa /vmunix
+.Pa /kernel
 is used by default.
 The file is named ``kvm_filename.db'', where ``filename'' is the
 name of the file read.
@@ -57,9 +57,9 @@ used by the
 function, however, in the future the database may contain other static
 information about the current system.
 .Sh FILES
-.Bl -tag -width /var/db/kvm_vmunix.db -compact
-.It Pa /vmunix
-.It Pa /var/db/kvm_vmunix.db
+.Bl -tag -width /var/db/kvm_kernel.db -compact
+.It Pa /kernel
+.It Pa /var/db/kvm_kernel.db
 .El
 .Sh SEE ALSO
 .Xr kvm_nlist 3
