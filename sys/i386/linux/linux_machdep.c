@@ -442,7 +442,9 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		long pad;
 		off_t pos;
 	} */ bsd_args;
+	int error;
 
+	error = 0;
 	bsd_args.flags = 0;
 	if (linux_args->flags & LINUX_MAP_SHARED)
 		bsd_args.flags |= MAP_SHARED;
@@ -530,12 +532,18 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 
 #ifdef DEBUG
 	if (ldebug(mmap))
-		printf("-> (%p, %d, %d, 0x%08x, %d, %d)\n",
+		printf("-> %s(%p, %d, %d, 0x%08x, %d, 0x%x)\n",
+		    __func__,
 		    (void *)bsd_args.addr, bsd_args.len, bsd_args.prot,
 		    bsd_args.flags, bsd_args.fd, (int)bsd_args.pos);
 #endif
-
-	return (mmap(td, &bsd_args));
+	error = mmap(td, &bsd_args);
+#ifdef DEBUG
+	if (ldebug(mmap))
+		printf("-> %s() return: 0x%x (0x%08x)\n",
+			__func__, error, (u_int)td->td_retval[0]);
+#endif
+	return (error);
 }
 
 int
