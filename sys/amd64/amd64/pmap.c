@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.96 1996/05/31 00:37:48 dyson Exp $
+ *	$Id: pmap.c,v 1.97 1996/06/01 19:19:21 dyson Exp $
  */
 
 /*
@@ -405,6 +405,10 @@ pmap_is_managed(pa)
 	return 0;
 }
 
+/*
+ * This routine unholds page table pages, and if the hold count
+ * drops to zero, then it decrements the wire count.
+ */
 static __inline int
 pmap_unwire_pte_hold(vm_page_t m) {
 	vm_page_unhold(m);
@@ -676,15 +680,22 @@ pmap_release_free_page(pmap, p)
 		return 0;
 	}
 
-	if (p->flags & PG_MAPPED) {
-		p->flags &= ~PG_MAPPED;
-		pmap_remove_pte_mapping(VM_PAGE_TO_PHYS(p));
-	}
+	pmap_remove_pte_mapping(VM_PAGE_TO_PHYS(p));
 
+	if (p->hold_count)  {
 #if defined(PMAP_DIAGNOSTIC)
-	if (p->hold_count)
 		panic("pmap_release: freeing held page table page");
 #endif
+		/*
+		 * If this failure happens, we must clear the page, because
+		 * there is likely a mapping still valid.  This condition
+		 * is an error, but at least this zero operation will mitigate
+		 * some Sig-11's or crashes, because this page is thought
+		 * to be zero.  This is a robustness fix, and not meant to
+		 * be a long term work-around.
+		 */
+		pmap_zero_page(VM_PAGE_TO_PHYS(p));
+	}
 	/*
 	 * Page directory pages need to have the kernel
 	 * stuff cleared, so they can go into the zero queue also.
@@ -1395,6 +1406,12 @@ retry:
 			pmap_zero_page(VM_PAGE_TO_PHYS(m));
 		m->flags &= ~(PG_ZERO|PG_BUSY);
 		m->valid = VM_PAGE_BITS_ALL;
+	} else {
+		if ((m->flags & PG_BUSY) || m->busy) {
+			m->flags |= PG_WANTED;
+			tsleep(m, PVM, "ptewai", 0);
+			goto retry;
+		}
 	}
 
 	/*
@@ -1445,7 +1462,6 @@ retry:
 #endif
 		*ppv = pv;
 		splx(s);
-		m->flags |= PG_MAPPED;
 	} else {
 #if defined(PMAP_DIAGNOSTIC)
 		if (VM_PAGE_TO_PHYS(m) != (ptepa & PG_FRAME))
@@ -1453,9 +1469,9 @@ retry:
 #endif
 		pmap->pm_pdir[ptepindex] =
 			(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_MANAGED);
-		pmap_update_1pg(pteva);
-		m->flags |= PG_MAPPED;
 	}
+	pmap_update();
+	m->flags |= PG_MAPPED;
 	return m;
 }
 
@@ -1958,7 +1974,11 @@ pmap_copy(dst_pmap, src_pmap, dst_addr, len, src_addr)
 				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr);
 				if (ptetemp = *src_pte) {
-					*dst_pte = ptetemp;
+					/*
+					 * Simply clear the modified and accessed (referenced)
+					 * bits.
+					 */
+					*dst_pte = ptetemp & ~(PG_M|PG_A);
 					dst_pmap->pm_stats.resident_count++;
 					pmap_insert_entry(dst_pmap, addr, dstmpte,
 						(ptetemp & PG_FRAME));
@@ -2497,5 +2517,3 @@ pmap_pvdump(pa)
 	printf(" ");
 }
 #endif
-
-
