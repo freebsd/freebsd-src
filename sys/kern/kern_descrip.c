@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.57 1998/11/11 10:55:56 truckman Exp $
+ * $Id: kern_descrip.c,v 1.58 1999/01/08 17:31:08 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -287,16 +287,16 @@ fcntl(p, uap)
 			if ((fp->f_flag & FREAD) == 0)
 				return (EBADF);
 			p->p_flag |= P_ADVLOCK;
-			return (VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &fl, flg));
+			return (VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK, &fl, flg));
 
 		case F_WRLCK:
 			if ((fp->f_flag & FWRITE) == 0)
 				return (EBADF);
 			p->p_flag |= P_ADVLOCK;
-			return (VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &fl, flg));
+			return (VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK, &fl, flg));
 
 		case F_UNLCK:
-			return (VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &fl,
+			return (VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &fl,
 				F_POSIX));
 
 		default:
@@ -317,7 +317,7 @@ fcntl(p, uap)
 			return (EINVAL);
 		if (fl.l_whence == SEEK_CUR)
 			fl.l_start += fp->f_offset;
-		if ((error = VOP_ADVLOCK(vp,(caddr_t)p,F_GETLK,&fl,F_POSIX)))
+		if ((error = VOP_ADVLOCK(vp,(caddr_t)p->p_leader,F_GETLK,&fl,F_POSIX)))
 			return (error);
 		return (copyout((caddr_t)&fl, (caddr_t)(intptr_t)uap->arg,
 		    sizeof(fl)));
@@ -1047,7 +1047,7 @@ closef(fp, p)
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
 		vp = (struct vnode *)fp->f_data;
-		(void) VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_POSIX);
+		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
 	}
 	if (--fp->f_count > 0)
 		return (0);
