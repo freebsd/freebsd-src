@@ -47,202 +47,97 @@ static char sccsid[] = "@(#)rain.c	8.1 (Berkeley) 5/31/93";
  */
 
 #include <sys/types.h>
+#include <curses.h>
+#include <err.h>
 #include <stdio.h>
-#ifdef USG
-#include <termio.h>
-#else
-#include <sgtty.h>
-#endif
 #include <signal.h>
-#include <termcap.h>
 #include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
 
-#define	cursor(c, r)	tputs(tgoto(CM, c, r), 1, fputchar)
+volatile sig_atomic_t sig_caught = 0;
 
-#ifdef USG
-static struct termio sg, old_tty;
-#else
-static struct sgttyb sg, old_tty;
-#endif
-
-int	fputchar();
-char    *LL, *TE;
-
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern short ospeed;
-	extern char *UP;
 	register int x, y, j;
-	register char *CM, *BC, *DN, *ND, *term;
-	char *TI, *tcp, *mp, tcb[100];
 	long cols, lines;
 	int xpos[5], ypos[5];
+	unsigned int delay = 0;
+	int ch;
 	static void onsig();
 
-	if (!(term = getenv("TERM"))) {
-		fprintf(stderr, "%s: TERM: parameter not set\n", *argv);
-		exit(1);
-	}
-	if (!(mp = malloc((u_int)1024))) {
-		fprintf(stderr, "%s: out of space.\n", *argv);
-		exit(1);
-	}
-	if (tgetent(mp, term) <= 0) {
-		fprintf(stderr, "%s: %s: unknown terminal type\n", *argv, term);
-		exit(1);
-	}
-	tcp = tcb;
-	if (!(CM = tgetstr("cm", &tcp))) {
-		fprintf(stderr, "%s: terminal not capable of cursor motion\n", *argv);
-		exit(1);
-	}
-	if (!(BC = tgetstr("bc", &tcp)))
-		BC = "\b";
-	if (!(DN = tgetstr("dn", &tcp)))
-		DN = "\n";
-	if (!(ND = tgetstr("nd", &tcp)))
-		ND = " ";
-	if ((cols = tgetnum("co")) == -1)
-		cols = 80;
-	if ((lines = tgetnum("li")) == -1)
-		lines = 24;
-	cols -= 4;
-	lines -= 4;
-	TE = tgetstr("te", &tcp);
-	TI = tgetstr("ti", &tcp);
-	UP = tgetstr("up", &tcp);
-	if (!(LL = tgetstr("ll", &tcp))) {
-		if (!(LL = malloc((u_int)10))) {
-			fprintf(stderr, "%s: out of space.\n", *argv);
+	while ((ch = getopt(argc, argv, "d:h")) != -1)
+		switch (ch) {
+		case 'd':
+			if ((delay = (unsigned int)strtoul(optarg, (char **)NULL, 10)) < 1
+			    || delay > 1000)
+				errx(1, "invalid delay (1-1000)");
+			delay *= 1000;  /* ms -> us */
+			break;
+		case 'h':
+		default:
+			(void)fprintf(stderr, "usage: rain [-d delay]\n");
 			exit(1);
 		}
-		(void)strcpy(LL, tgoto(CM, 0, 23));
-	}
 	srandomdev();
-#ifdef USG
-	ioctl(1, TCGETA, &sg);
-	ospeed = sg.c_cflag&CBAUD;
-#else
-	gtty(1, &sg);
-	ospeed = sg.sg_ospeed;
-#endif
+
+	initscr();
+	cols = COLS - 4;
+	lines = LINES - 4;
+
 	(void)signal(SIGHUP, onsig);
 	(void)signal(SIGINT, onsig);
 	(void)signal(SIGQUIT, onsig);
 	(void)signal(SIGSTOP, onsig);
 	(void)signal(SIGTSTP, onsig);
 	(void)signal(SIGTERM, onsig);
-#ifdef USG
-	ioctl(1, TCGETA, &old_tty);	/* save tty bits for exit */
-	ioctl(1, TCGETA, &sg);
-	sg.c_iflag &= ~ICRNL;
-	sg.c_oflag &= ~ONLCR;
-	sg.c_lflag &= ~ECHO;
-	ioctl(1, TCSETAW, &sg);
-#else
-	gtty(1, &old_tty);		/* save tty bits for exit */
-	gtty(1, &sg);
-	sg.sg_flags &= ~(CRMOD|ECHO);
-	stty(1, &sg);
-#endif
-	if (TI)
-		tputs(TI, 1, fputchar);
-	tputs(tgetstr("cl", &tcp), 1, fputchar);
-	(void)fflush(stdout);
+
 	for (j = 4; j >= 0; --j) {
 		xpos[j] = random() % cols + 2;
 		ypos[j] = random() % lines + 2;
 	}
 	for (j = 0;;) {
+		if (sig_caught) {
+			endwin();
+			exit(0);
+		}
 		x = random() % cols + 2;
 		y = random() % lines + 2;
-		cursor(x, y);
-		fputchar('.');
-		cursor(xpos[j], ypos[j]);
-		fputchar('o');
+		mvaddch(y, x, '.');
+		mvaddch(ypos[j], xpos[j], 'o');
 		if (!j--)
 			j = 4;
-		cursor(xpos[j], ypos[j]);
-		fputchar('O');
+		mvaddch(ypos[j], xpos[j], 'O');
 		if (!j--)
 			j = 4;
-		cursor(xpos[j], ypos[j] - 1);
-		fputchar('-');
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputs("|.|", stdout);
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputchar('-');
+		mvaddch(ypos[j] - 1, xpos[j], '-');
+		mvaddstr(ypos[j], xpos[j] - 1, "|.|");
+		mvaddch(ypos[j] + 1, xpos[j], '-');
 		if (!j--)
 			j = 4;
-		cursor(xpos[j], ypos[j] - 2);
-		fputchar('-');
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputs("/ \\", stdout);
-		cursor(xpos[j] - 2, ypos[j]);
-		fputs("| O |", stdout);
-		cursor(xpos[j] - 1, ypos[j] + 1);
-		fputs("\\ /", stdout);
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputchar('-');
+		mvaddch(ypos[j] - 2, xpos[j], '-');
+		mvaddstr(ypos[j] - 1, xpos[j] - 1, "/ \\");
+		mvaddstr(ypos[j], xpos[j] - 2, "| O |");
+		mvaddstr(ypos[j] + 1, xpos[j] - 1, "\\ /");
+		mvaddch(ypos[j] + 2, xpos[j], '-');
 		if (!j--)
 			j = 4;
-		cursor(xpos[j], ypos[j] - 2);
-		fputchar(' ');
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputchar(' ');
-		tputs(ND, 1, fputchar);
-		fputchar(' ');
-		cursor(xpos[j] - 2, ypos[j]);
-		fputchar(' ');
-		tputs(ND, 1, fputchar);
-		fputchar(' ');
-		tputs(ND, 1, fputchar);
-		fputchar(' ');
-		cursor(xpos[j] - 1, ypos[j] + 1);
-		fputchar(' ');
-		tputs(ND, 1, fputchar);
-		fputchar(' ');
-		tputs(DN, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		tputs(BC, 1, fputchar);
-		fputchar(' ');
+		mvaddch(ypos[j] - 2, xpos[j], ' ');
+		mvaddstr(ypos[j] - 1, xpos[j] - 1, "   ");
+		mvaddstr(ypos[j], xpos[j] - 2, "     ");
+		mvaddstr(ypos[j] + 1, xpos[j] - 1, "   ");
+		mvaddch(ypos[j] + 2, xpos[j], ' ');
 		xpos[j] = x;
 		ypos[j] = y;
-		(void)fflush(stdout);
+		refresh();
+		if (delay) usleep(delay);
 	}
 }
 
 static void
 onsig()
 {
-	tputs(LL, 1, fputchar);
-	if (TE)
-		tputs(TE, 1, fputchar);
-	(void)fflush(stdout);
-#ifdef USG
-	ioctl(1, TCSETAW, &old_tty);
-#else
-	stty(1, &old_tty);
-#endif
-	exit(0);
-}
-
-int
-fputchar(c)
-	int c;
-{
-	putchar(c);
+	sig_caught = 1;
 }

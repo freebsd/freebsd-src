@@ -39,21 +39,26 @@
 .Sh SYNOPSIS
 .Nm worms
 .Op Fl ft
+.Op Fl d Ar delay
 .Op Fl l Ar length
 .Op Fl n Ar number
 .Sh DESCRIPTION
-A UNIX version of the DEC-2136 program ``worms''.
+A UNIX version of the DEC-2136 program
+.Dq worms .
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl f
-Makes a ``field'' for the worm(s) to eat.
+Makes a
+.Dq field
+for the worm(s) to eat.
 .It Fl t
 Makes each worm leave a trail behind it.
+.It Fl d
+Specifies a delay, in milliseconds, between each update.  This is
+useful for fast terminals.  Reasonable values are around 20-200.  The
+default is 0.
 .It Fl l
 Specifies a length for each worm; the default is 16.
 .It Fl n
 Specifies the number of worms; the default is 3.
-.Sh BUGS
-The lower-right-hand character position will not be updated properly
-on a terminal that wraps at the right margin.

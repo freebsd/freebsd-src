@@ -5,8 +5,8 @@ CFLAGS+=-DBSD -I${.CURDIR} -I.
 SRCS=	extern.c grammar.y graphics.c input.c lex.l list.c log.c \
 	main.c tunable.c update.c y.tab.h
 MAN6=	atc.6
-DPADD=	${LIBL} ${LIBM} ${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
-LDADD=	-ll -lm -lcurses -ltermcap -lcompat
+DPADD=	${LIBL} ${LIBM} ${LIBCURSES} ${LIBTERMCAP}
+LDADD=	-ll -lm -lcurses -ltermcap
 GAMES=  Game_List Killer crossover default easy game_2
 HIDEGAME=hidegame
 
