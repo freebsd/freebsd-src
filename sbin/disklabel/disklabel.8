@@ -48,7 +48,7 @@
 .Nm disklabel
 .Fl w
 .Op Fl r
-.Ar disk Ar disktype
+.Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Nm disklabel
 .Fl e
@@ -69,7 +69,7 @@
 .Fl s Ar boot2
 .Oc
 .Ar disk
-.Oo Ar disktype Oc
+.Oo Ar disktype/auto Oc
 .Nm disklabel
 .Fl w
 .Fl B
@@ -77,7 +77,7 @@
 .Fl b Ar boot1
 .Fl s Ar boot2
 .Oc
-.Ar disk Ar disktype
+.Ar disk Ar disktype/auto
 .Oo Ar packid Oc
 .Nm disklabel
 .Fl R
@@ -87,7 +87,7 @@
 .Fl s Ar boot2
 .Oc
 .Ar disk Ar protofile
-.Oo Ar disktype Oc
+.Oo Ar disktype/auto Oc
 .Sh DESCRIPTION
 .Nm Disklabel
 installs, examines or modifes the label on a disk drive or pack.  When writing
@@ -116,15 +116,23 @@ is described under each command.
 All 
 .Nm disklabel 
 forms require a disk device name, which should always be the raw
-.if t ``complete'' (or ``c'')
-.if n "complete" (or "c")
-partition, for example
-.Pa /dev/da0c .
+device name representing the disk or slice.  For example
+.Pa da0
+represents the entire disk irregardless of any DOS partitioning,
+and
+.Pa da0s1
+represents a slice.  Some devices, most notably
+.Ar ccd ,
+require that the
+.if t ``whole-disk'' (or ``c'')
+.if n "whole-disk" (or "c")
+partition be specified.  For example
+.Pa ccd0c .
+You do not have to include the
+.Pa /dev/
+path prefix when specifying the device.
 .Nm
-understands the abbreviation
-.Pa da0 ,
-which it converts internally to
-.Pa /dev/da0c .
+will automatically prepend it.
 .Ss Reading the disk label
 .Pp
 To examine or save the label on a disk drive, use
@@ -151,7 +159,9 @@ If the
 .Fl r
 flag is given, 
 .Nm
-reads the label from the raw disk and displays it.
+reads the label from the raw disk and displays it.  Both versions are usually
+identical except in the case where a label has not yet been initialized or
+is corrupt.
 .Ss Writing a standard label
 .Pp
 To write a standard label, use the form
@@ -159,8 +169,14 @@ To write a standard label, use the form
 .Nm disklabel
 .Fl w
 .Op Fl r
-.Ar disk Ar disktype
+.Ar disk Ar disktype/auto
 .Oo Ar packid Oc
+.Pp
+.Nm disklabel
+.Fl w
+.Op Fl r
+.Ar disk
+auto
 .Pp
 The required arguments to
 .Nm
@@ -202,6 +218,20 @@ disk is the only supported operation, and the
 .Ar disk
 itself must be provided as the canonical name, i.e. not as a full
 path name.
+.Pp
+PC-based systems have special requirements in order for the BIOS to properly
+recognize a FreeBSD disklabel.  Older systems may require what is known as
+a ``dangerously dedicated''
+disklabel, which creates a fake DOS partition to work around problems older
+BIOSes have with modern disk geometries.  On newer systems you generally want
+to create a normal DOS slice using
+.Ar fdisk
+and then create a FreeBSD disklabel within that slice.  This is described
+later on in this page.
+.Pp
+Installing a new disklabel does not in of itself allow your system to boot
+a kernel using that label.  You must also install boot blocks, which is
+described later on in this manual page.
 .Ss Editing an existing disk label
 .Pp
 To edit an existing disk label, use the form
@@ -262,7 +292,16 @@ command
 .Pp
 The final three forms of
 .Nm
-are used to install bootstrap code:
+are used to install bootstrap code.  If you are creating a
+``dangerously-dedicated'' partition for compatibility with older PC systems,
+you generally want to specify the raw disk name such as
+.Pa da0.
+If you are creating a label within an existing DOS slice, you should specify
+the slice name such as
+.Pa da0s1 .
+Making a partition bootable can be tricky.  If you are using a normal DOS
+slice you typically install (or leave) a standard MBR on the base disk and
+then install the FreeBSD bootblocks in the slice.
 .Pp
 .Nm disklabel
 .Fl B
@@ -274,6 +313,11 @@ are used to install bootstrap code:
 .Oo Ar disktype Oc
 .Pp
 This form installs the bootstrap only.  It does not change the disk label.
+You should never use this command on a base disk unless you intend to create
+a ``dangerously-dedicated'' disk, such as
+.Ar da0 .
+This command is typically run on a slice such as 
+.Ar da0s1 .
 .Pp
 .Nm disklabel
 .Fl w
@@ -288,6 +332,8 @@ This form installs the bootstrap only.  It does not change the disk label.
 .if t This form corresponds to the ``write label'' command described above.  
 .if n This form corresponds to the "write label" command described above.  
 In addition to writing a new volume label, it also installs the bootstrap.
+If run on a base disk this command will create a ``dangerously-dedicated''
+label.  This command is normally run on a slice rather then a base disk.
 .Pp
 .Nm disklabel
 .Fl R
@@ -302,6 +348,8 @@ In addition to writing a new volume label, it also installs the bootstrap.
 .if t This form corresponds to the ``restore label'' command described above.  
 .if n This form corresponds to the "restore label" command described above.  
 In addition to restoring the volume label, it also installs the bootstrap.
+If run on a base disk this command will create a ``dangerously-dedicated''
+label.  This command is normally run on a slice rather then a base disk.
 .Pp
 The bootstrap commands always access the disk directly, so it is not necessary
 to specify the
@@ -343,6 +391,49 @@ and
 for the standard stage1 and stage2 boot images (details may vary
 on architectures like the Alpha, where only a single-stage boot is used).
 .El
+.Ss Initializing/Formatting a bootable disk from scratch
+.Pp
+To initialize a disk from scratch the following sequence is recommended.
+Please note that this will wipe everything that was previously on the disk,
+including any non-FreeBSD slices.
+.Bl -enum
+.It
+Use
+.Ar fdisk
+to initialize the DOS partition table, creating a real whole-disk slice to
+hold the FreeBSD disklabel, and installing a master boot record.
+.It
+Use
+.Ar disklabel
+to initialize a virgin FreeBSD disklabel and install FreeBSD boot blocks .
+.It
+Use
+.Ar disklabel
+to edit your newly created label, addiing appropriate partitions.
+.It
+Finally newfs the filesystem partitions you created in the label.  A typical
+disklabel partiioning scheme would be to have an ``a'' partition 
+of approximately 128MB to hold the root filesystem, a ``b'' partition for
+swap, a ``d'' partition for /var (usually 128MB), an ``e'' partition
+for /var/tmp (usually 128MB), an ``f'' partition for /usr (usually around 2G),
+and finally a ``g'' partition for /home (usally all remaining space).
+Your mileage may vary.
+.El
+.Pp
+.Nm fdisk -BI da0
+.Pp
+.Nm disklabel
+.Fl w
+.Fl r
+.Fl B
+.Ar da0s1
+auto
+.Pp
+.Pp
+.Nm disklabel
+.Fl e
+.Ar da0s1
+.Pp
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/disktab
@@ -445,63 +536,67 @@ cylinder boundary.
 .Dl disklabel da0
 .Pp
 Display the in-core label for 
-.Pa da0
+.Pa da0s1
 as obtained via
-.Pa /dev/da0c .
+.Pa /dev/da0s1 .
+When reading a label, FreeBSD will allow you to specify the base disk name
+even if the label resides on a slice.  However, to be proper you should
+specify the base disk name only if you are using a ``dangerously-dedicated''
+label.  Normally you specify the slice.
 .Pp
-.Dl disklabel da0 > savedlabel
+.Dl disklabel da0s1 > savedlabel
 .Pp
 Save the in-core label for 
-.Pa da0
+.Pa da0s1
 into the file
 .Pa savedlabel .
 This file can be used with the
 .Fl R
 flag to restore the label at a later date.
 .Pp
-.Dl disklabel -w -r /dev/da0c da2212 foo
+.Dl disklabel -w -r /dev/da0s1 da2212 foo
 .Pp
 Create a label for 
-.Pa da0
+.Pa da0s1
 based on information for
 .if t ``da2212'' found in
 .if n "da2212" found in
 .Pa /etc/disktab .
 Any existing bootstrap code will be clobbered.
 .Pp
-.Dl disklabel -e -r da0
+.Dl disklabel -e -r da0s1
 .Pp
 Read the on-disk label for 
-.Pa da0 ,
+.Pa da0s1 ,
 edit it and reinstall in-core as well as on-disk.  Existing bootstrap code is
 unaffected.
 .Pp
-.Dl disklabel -r -w da0 auto
+.Dl disklabel -r -w da0s1 auto
 .Pp
 Try to auto-detect the required information from 
-.Pa da0 ,
+.Pa da0s1 ,
 and write a new label to the disk.  Use another disklabel -e command to edit the
 partitioning and file system information.
 .Pp
-.Dl disklabel -R da0 savedlabel
+.Dl disklabel -R da0s1 savedlabel
 .Pp
 Restore the on-disk and in-core label for 
-.Pa da0
+.Pa da0s1
 from information in
 .Pa savedlabel .
 Existing bootstrap code is unaffected.
 .Pp
-.Dl disklabel -B da0
+.Dl disklabel -B da0s1
 .Pp
 Install a new bootstrap on 
-.Pa da0 .
+.Pa da0s1 .
 The boot code comes from
 .Pa /boot/boot1
 and possibly
 .Pa /boot/boot2 .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl disklabel -w -B /dev/da0c -b newboot1 -s newboot da2212
+.Dl disklabel -w -B /dev/da0s1 -b newboot1 -s newboot da2212
 .Pp
 Install a new label and bootstrap.
 .if t The label is derived from disktab information for ``da2212'' and
@@ -511,6 +606,19 @@ The bootstrap code comes from the files
 .Pa /boot/newboot1
 and
 .Pa /boot/newboot2 .
+.Pp
+.Dl dd if=/dev/zero of=/dev/da0 bs=512 count=32
+.Dl fdisk -BI da0
+.Dl dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
+.Dl disklabel -w -r -B da0s1 auto
+.Dl disklabel -e da0s1
+.Pp
+Completely wipe any prior information on the disk, creating a new bootable
+disk with a DOS partition table containing one ``whole-disk'' slice.  Then
+initialize the slice, then edit it to your needs.  The
+.Pa dd
+commands are optional, but may be necessary for some BIOSes to properly
+recognize the disk.
 .Sh SEE ALSO
 .Xr disklabel 5 ,
 .Xr disktab 5 ,
