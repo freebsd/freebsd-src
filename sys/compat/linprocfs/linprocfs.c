@@ -672,23 +672,21 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 	 * Linux behaviour is to return zero-length in this case.
 	 */
 
-	if (ps_argsopen || !p_cansee(td->td_proc, p)) {
-		PROC_LOCK(p);
-		if (p->p_args) {
-			sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
-			PROC_UNLOCK(p);
-		} else if (p != td->td_proc) {
-			sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
-			PROC_UNLOCK(p);
-		} else {
-			PROC_UNLOCK(p);
-			error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
-			if (error)
-				return (error);
-			for (i = 0; i < pstr.ps_nargvstr; i++) {
-				sbuf_copyin(sb, pstr.ps_argvstr[i], 0);
-				sbuf_printf(sb, "%c", '\0');
-			}
+	PROC_LOCK(p);
+	if (p->p_args && (ps_argsopen || !p_cansee(td->td_proc, p))) {
+		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
+		PROC_UNLOCK(p);
+	} else if (p != td->td_proc) {
+		PROC_UNLOCK(p);
+		sbuf_printf(sb, "%.*s", MAXCOMLEN, p->p_comm);
+	} else {
+		PROC_UNLOCK(p);
+		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
+		if (error)
+			return (error);
+		for (i = 0; i < pstr.ps_nargvstr; i++) {
+			sbuf_copyin(sb, pstr.ps_argvstr[i], 0);
+			sbuf_printf(sb, "%c", '\0');
 		}
 	}
 
