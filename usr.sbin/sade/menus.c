@@ -302,7 +302,7 @@ DMenu MenuInitial = {
       { "Doc",	"Installation instructions, README, etc.",	NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "Keymap",	"Select keyboard type",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
       { "Options",	"View/Set various installation options",	NULL, optionsEditor },
-      { "Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "Fixit",	"Repair mode with CDROM/DVD/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
       { "Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
@@ -1703,16 +1703,16 @@ DMenu MenuFixit = {
     DMENU_NORMAL_TYPE,
     "Please choose a fixit option",
     "There are three ways of going into \"fixit\" mode:\n"
-    "- you can use the 2nd FreeBSD CDROM, in which case there will be\n"
+    "- you can use the live filesystem CDROM/DVD, in which case there will be\n"
     "  full access to the complete set of FreeBSD commands and utilities,\n"
     "- you can use the more limited (but perhaps customized) fixit floppy,\n"
     "- or you can start an Emergency Holographic Shell now, which is\n"
     "  limited to the subset of commands that is already available right now.",
     "Press F1 for more detailed repair instructions",
     "fixit",
-{ { "X Exit",	"Exit this menu (returning to previous)",		NULL, dmenuExit },
-  { "2 CDROM",	"Use the 2nd \"live\" CDROM from the distribution",	NULL, installFixitCDROM },
-  { "3 Floppy",	"Use a floppy generated from the fixit image",		NULL, installFixitFloppy },
-  { "4 Shell",	"Start an Emergency Holographic Shell",			NULL, installFixitHoloShell },
+{ { "X Exit",		"Exit this menu (returning to previous)",	NULL, dmenuExit },
+  { "2 CDROM/DVD",	"Use the \"live\" filesystem CDROM/DVD",	NULL, installFixitCDROM },
+  { "3 Floppy",		"Use a floppy generated from the fixit image",	NULL, installFixitFloppy },
+  { "4 Shell",		"Start an Emergency Holographic Shell",		NULL, installFixitHoloShell },
   { NULL } },
 };
