@@ -368,7 +368,6 @@ struct CONTROLLER_str
 	struct resource		**io;		/* IO resources */
 
 	struct rp_port		*rp;		/* port */
-	struct tty		*tty;		/* tty */
 
 	/* Device nodes */
 	struct cdev **dev_nodes;
@@ -1005,6 +1004,7 @@ void sEnInterrupts(CHANNEL_T *ChP,Word_t Flags);
 void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags);
 int rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports);
 void rp_releaseresource(CONTROLLER_t *ctlp);
+void rp_untimeout(void);
 
 #ifndef ROCKET_C
 extern Byte_t R[RDATASIZE];
