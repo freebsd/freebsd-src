@@ -45,6 +45,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
 #include <sys/msgbuf.h>
 
 #include <err.h>
@@ -53,9 +54,10 @@ static const char rcsid[] =
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sysexits.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <vis.h>
-#include <sys/syslog.h>
 
 struct nlist nl[] = {
 #define	X_MSGBUF	0
@@ -108,6 +110,9 @@ main(argc, argv)
 	 */
 	if (memf != NULL || nlistf != NULL)
 		setgid(getgid());
+
+	if (all && getuid())
+		errx(EX_NOPERM, "must be root to use -a");
 
 	/* Read in kernel message buffer, do sanity checks. */
 	if ((kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg")) == NULL)
