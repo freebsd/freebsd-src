@@ -2,6 +2,6 @@
 
 .PATH: ${.CURDIR}/../boot0
 
-PROG=	boot0sio
+BOOT=	boot0sio
 
 .include "${.CURDIR}/../boot0/Makefile"
