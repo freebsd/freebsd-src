@@ -475,11 +475,8 @@ NewFtpMessage(struct ip *pip,
         struct tcphdr *tc;
 
 #ifndef NO_FW_PUNCH
-	if (ftp_message_type == FTP_PORT_COMMAND ||
-	    ftp_message_type == FTP_EPRT_COMMAND) {
-	    /* Punch hole in firewall */
-	    PunchFWHole(ftp_link);
-	}
+	/* Punch hole in firewall */
+	PunchFWHole(ftp_link);
 #endif
 
 /* Calculate data length of TCP packet */
