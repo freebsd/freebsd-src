@@ -515,11 +515,19 @@ if [ -r /etc/rc.devfs ]; then
 	sh /etc/rc.devfs
 fi
 
+echo -n additional ABI support:
+
 # Start the Linux binary compatibility if requested.
 #
 case ${linux_enable} in
 [Yy][Ee][Ss])
-	echo -n ' linux';	linux > /dev/null 2>&1
+	echo -n ' linux'
+	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
+		kldload linux > /dev/null 2>&1
+	fi
+	if [ -x /compat/linux/sbin/ldconfig ]; then
+		/compat/linux/sbin/ldconfig
+	fi
 	;;
 esac
 
@@ -527,10 +535,11 @@ esac
 #
 case ${svr4_enable} in
 [Yy][Ee][Ss])
-	echo -n ' svr4';	svr4 > /dev/null 2>&1
+	echo -n ' svr4';	kldload svr4 > /dev/null 2>&1
 	;;
 esac
 
+echo .
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
 # use this file and want to make it programmatic, source /etc/defaults/rc.conf
