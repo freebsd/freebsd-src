@@ -97,11 +97,12 @@ SSL_CTX_get_session_cache_mode() returns the currently set cache mode.
 =head1 SEE ALSO
 
 L<ssl(3)|ssl(3)>, L<SSL_set_session(3)|SSL_set_session(3)>,
+L<SSL_session_reused(3)|SSL_session_reused(3)>,
 L<SSL_CTX_sess_number(3)|SSL_CTX_sess_number(3)>,
 L<SSL_CTX_sess_set_cache_size(3)|SSL_CTX_sess_set_cache_size(3)>,
 L<SSL_CTX_sess_set_get_cb(3)|SSL_CTX_sess_set_get_cb(3)>,
 L<SSL_CTX_set_session_id_context(3)|SSL_CTX_set_session_id_context(3)>,
-L<SSL_CTX_set_timeout.pod(3)|SSL_CTX_set_timeout.pod(3)>,
+L<SSL_CTX_set_timeout(3)|SSL_CTX_set_timeout(3)>,
 L<SSL_CTX_flush_sessions(3)|SSL_CTX_flush_sessions(3)>
 
 =cut

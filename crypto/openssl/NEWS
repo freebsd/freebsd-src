@@ -5,6 +5,41 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.6c and OpenSSL 0.9.6d:
+
+      o Various SSL/TLS library bugfixes.
+      o Fix DH parameter generation for 'non-standard' generators.
+
+  Major changes between OpenSSL 0.9.6b and OpenSSL 0.9.6c:
+
+      o Various SSL/TLS library bugfixes.
+      o BIGNUM library fixes.
+      o RSA OAEP and random number generation fixes.
+      o Object identifiers corrected and added.
+      o Add assembler BN routines for IA64.
+      o Add support for OS/390 Unix, UnixWare with gcc, OpenUNIX 8,
+        MIPS Linux; shared library support for Irix, HP-UX.
+      o Add crypto accelerator support for AEP, Baltimore SureWare,
+        Broadcom and Cryptographic Appliance's keyserver
+        [in 0.9.6c-engine release].
+
+  Major changes between OpenSSL 0.9.6a and OpenSSL 0.9.6b:
+
+      o Security fix: PRNG improvements.
+      o Security fix: RSA OAEP check.
+      o Security fix: Reinsert and fix countermeasure to Bleichbacher's
+        attack.
+      o MIPS bug fix in BIGNUM.
+      o Bug fix in "openssl enc".
+      o Bug fix in X.509 printing routine.
+      o Bug fix in DSA verification routine and DSA S/MIME verification.
+      o Bug fix to make PRNG thread-safe.
+      o Bug fix in RAND_file_name().
+      o Bug fix in compatibility mode trust settings.
+      o Bug fix in blowfish EVP.
+      o Increase default size for BIO buffering filter.
+      o Compatibility fixes in some scripts.
+
   Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.6a:
 
       o Security fix: change behavior of OpenSSL to avoid using
@@ -21,7 +56,7 @@
       o Bug fixes for Win32, HP/UX and Irix.
       o Bug fixes in BIGNUM, SSL, PKCS#7, PKCS#12, X.509, CONF and
         memory checking routines.
-      o Bug fixes for RSA operations in threaded enviroments.
+      o Bug fixes for RSA operations in threaded environments.
       o Bug fixes in misc. openssl applications.
       o Remove a few potential memory leaks.
       o Add tighter checks of BIGNUM routines.

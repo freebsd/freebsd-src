@@ -13,7 +13,7 @@ SSL_get_error - obtain result code for TLS/SSL I/O operation
 =head1 DESCRIPTION
 
 SSL_get_error() returns a result code (suitable for the C "switch"
-statement) for a preceding call to SSL_connect(), SSL_accept(),
+statement) for a preceding call to SSL_connect(), SSL_accept(), SSL_do_handshake(),
 SSL_read(), SSL_peek(), or SSL_write() on B<ssl>.  The value returned by
 that TLS/SSL I/O function must be passed to SSL_get_error() in parameter
 B<ret>.
@@ -68,6 +68,17 @@ SSL_read() or SSL_peek() may want to write data and SSL_write() may want
 to read data.  This is mainly because TLS/SSL handshakes may occur at any
 time during the protocol (initiated by either the client or the server);
 SSL_read(), SSL_peek(), and SSL_write() will handle any pending handshakes.
+
+=item SSL_ERROR_WANT_CONNECT, SSL_ERROR_WANT_ACCEPT
+
+The operation did not complete; the same TLS/SSL I/O function should be
+called again later. The underlying BIO was not connected yet to the peer
+and the call would block in connect()/accept(). The SSL function should be
+called again when the connection is established. These messages can only
+appear with a BIO_s_connect() or BIO_s_accept() BIO, respectively.
+In order to find out, when the connection has been successfully established,
+on many platforms select() or poll() for writing on the socket file descriptor
+can be used.
 
 =item SSL_ERROR_WANT_X509_LOOKUP
 
