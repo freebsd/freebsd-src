@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.14 1995/12/02 19:37:52 bde Exp $
+ * $Id: igmp.c,v 1.15 1995/12/09 20:43:51 phk Exp $
  */
 
 /*
@@ -44,8 +44,9 @@
  * Written by Steve Deering, Stanford, May 1988.
  * Modified by Rosen Sharma, Stanford, Aug 1994.
  * Modified by Bill Fenner, Xerox PARC, Feb 1995.
+ * Modified to fully comply to IGMPv2 by Bill Fenner, Oct 1995.
  *
- * MULTICAST Revision: 3.3.1.2
+ * MULTICAST Revision: 3.5.1.4
  */
 
 #include <sys/param.h>
@@ -78,61 +79,38 @@ SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RD,
 
 static int igmp_timers_are_running;
 static u_long igmp_all_hosts_group;
-static u_long igmp_local_group;
-static u_long igmp_local_group_mask;
+static u_long igmp_all_rtrs_group;
+static struct mbuf *router_alert;
 static struct router_info *Head;
 
-static void igmp_sendpkt(struct in_multi *, int);
-static void igmp_sendleave(struct in_multi *);
+static void igmp_sendpkt(struct in_multi *, int, unsigned long);
 
 void
 igmp_init()
 {
+	struct ipoption *ra;
+
 	/*
 	 * To avoid byte-swapping the same value over and over again.
 	 */
 	igmp_all_hosts_group = htonl(INADDR_ALLHOSTS_GROUP);
-	igmp_local_group = htonl(0xe0000000);		/* 224.0.0.0 */
-	igmp_local_group_mask = htonl(0xffffff00);	/* ........^ */
+	igmp_all_rtrs_group = htonl(INADDR_ALLRTRS_GROUP);
 
 	igmp_timers_are_running = 0;
 
+	/*
+	 * Construct a Router Alert option to use in outgoing packets
+	 */
+	MGET(router_alert, M_DONTWAIT, MT_DATA);
+	ra = mtod(router_alert, struct ipoption *);
+	ra->ipopt_dst.s_addr = 0;
+	ra->ipopt_list[0] = IPOPT_RA;	/* Router Alert Option */
+	ra->ipopt_list[1] = 0x04;	/* 4 bytes long */
+	ra->ipopt_list[2] = 0x00;
+	ra->ipopt_list[3] = 0x00;
+	router_alert->m_len = sizeof(ra->ipopt_dst) + ra->ipopt_list[1];
+
 	Head = (struct router_info *) 0;
-}
-
-static int
-fill_rti(inm)
-	struct in_multi *inm;
-{
-	register struct router_info *rti = Head;
-
-#ifdef IGMP_DEBUG
-	printf("[igmp.c, _fill_rti] --> entering \n");
-#endif
-	while (rti) {
-		if (rti->ifp == inm->inm_ifp) {
-			inm->inm_rti  = rti;
-#ifdef IGMP_DEBUG
-			printf("[igmp.c, _fill_rti] --> found old entry \n");
-#endif
-			if (rti->type == IGMP_OLD_ROUTER) 
-				return IGMP_HOST_MEMBERSHIP_REPORT;
-			else
-				return IGMP_HOST_NEW_MEMBERSHIP_REPORT;
-		}
-		rti = rti->next;
-	}
-	MALLOC(rti, struct router_info *, sizeof *rti, M_MRTABLE, M_NOWAIT);
-	rti->ifp = inm->inm_ifp;
-	rti->type = IGMP_NEW_ROUTER;
-	rti->time = IGMP_AGE_THRESHOLD;
-	rti->next = Head;
-	Head = rti;	
-	inm->inm_rti = rti;
-#ifdef IGMP_DEBUG
-	printf("[igmp.c, _fill_rti] --> created new entry \n");
-#endif
-	return IGMP_HOST_NEW_MEMBERSHIP_REPORT;
 }
 
 static struct router_info *
@@ -145,19 +123,19 @@ find_rti(ifp)
 	printf("[igmp.c, _find_rti] --> entering \n");
 #endif
         while (rti) {
-                if (rti->ifp == ifp) {
+                if (rti->rti_ifp == ifp) {
 #ifdef IGMP_DEBUG
 			printf("[igmp.c, _find_rti] --> found old entry \n");
 #endif
                         return rti;
                 }
-                rti = rti->next;
+                rti = rti->rti_next;
         }
 	MALLOC(rti, struct router_info *, sizeof *rti, M_MRTABLE, M_NOWAIT);
-        rti->ifp = ifp;
-        rti->type = IGMP_NEW_ROUTER;
-        rti->time = IGMP_AGE_THRESHOLD;
-        rti->next = Head;
+        rti->rti_ifp = ifp;
+        rti->rti_type = IGMP_V2_ROUTER;
+        rti->rti_time = 0;
+        rti->rti_next = Head;
         Head = rti;
 #ifdef IGMP_DEBUG
 	printf("[igmp.c, _find_rti] --> created an entry \n");
@@ -220,115 +198,102 @@ igmp_input(m, iphlen)
 	timer = igmp->igmp_code * PR_FASTHZ / IGMP_TIMER_SCALE;
 	rti = find_rti(ifp);
 
+	/*
+	 * In the IGMPv2 specification, there are 3 states and a flag.
+	 *
+	 * In Non-Member state, we simply don't have a membership record.
+	 * In Delaying Member state, our timer is running (inm->inm_timer)
+	 * In Idle Member state, our timer is not running (inm->inm_timer==0)
+	 *
+	 * The flag is inm->inm_state, it is set to IGMP_OTHERMEMBER if
+	 * we have heard a report from another member, or IGMP_IREPORTEDLAST
+	 * if I sent the last report.
+	 */
 	switch (igmp->igmp_type) {
 
-	case IGMP_HOST_MEMBERSHIP_QUERY:
+	case IGMP_MEMBERSHIP_QUERY:
 		++igmpstat.igps_rcv_queries;
 
 		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
 		if (igmp->igmp_code == 0) {
-
-			rti->type = IGMP_OLD_ROUTER; rti->time = 0;
-
 			/*
-			** Do exactly as RFC 1112 says
-			*/
+			 * Old router.  Remember that the querier on this
+			 * interface is old, and set the timer to the
+			 * value in RFC 1112.
+			 */
 
-			if (ip->ip_dst.s_addr != igmp_all_hosts_group) {
+			rti->rti_type = IGMP_V1_ROUTER;
+			rti->rti_time = 0;
+
+			timer = IGMP_MAX_HOST_REPORT_DELAY * PR_FASTHZ;
+
+			if (ip->ip_dst.s_addr != igmp_all_hosts_group ||
+			    igmp->igmp_group.s_addr != 0) {
 				++igmpstat.igps_rcv_badqueries;
 				m_freem(m);
 				return;
 			}
-
+		} else {
 			/*
-			 * Start the timers in all of our membership records for
-			 * the interface on which the query arrived, except those
-			 * that are  already running and those that belong to a
-			 * "local" group (224.0.0.X).
+			 * New router.  Simply do the new validity check.
 			 */
-			IN_FIRST_MULTI(step, inm);
-			while (inm != NULL) {
-				if (inm->inm_ifp == ifp 
-				    && inm->inm_timer == 0
-				    && ((inm->inm_addr.s_addr 
-					 & igmp_local_group_mask) 
-					!= igmp_local_group)) {
+			
+			if (igmp->igmp_group.s_addr != 0 &&
+			    !IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
+				++igmpstat.igps_rcv_badqueries;
+				m_freem(m);
+				return;
+			}
+		}
 
-					inm->inm_state = IGMP_DELAYING_MEMBER;
-					inm->inm_timer = IGMP_RANDOM_DELAY(
-				IGMP_MAX_HOST_REPORT_DELAY * PR_FASTHZ );
-
+		/*
+		 * - Start the timers in all of our membership records
+		 *   that the query applies to for the interface on
+		 *   which the query arrived excl. those that belong
+		 *   to the "all-hosts" group (224.0.0.1).
+		 * - Restart any timer that is already running but has
+		 *   a value longer than the requested timeout.
+		 * - Use the value specified in the query message as
+		 *   the maximum timeout.
+		 */
+		IN_FIRST_MULTI(step, inm);
+		while (inm != NULL) {
+			if (inm->inm_ifp == ifp &&
+			    inm->inm_addr.s_addr != igmp_all_hosts_group &&
+			    (igmp->igmp_group.s_addr == 0 ||
+			     igmp->igmp_group.s_addr == inm->inm_addr.s_addr)) {
+				if (inm->inm_timer == 0 ||
+				    inm->inm_timer > timer) {
+					inm->inm_timer =
+						IGMP_RANDOM_DELAY(timer);
 					igmp_timers_are_running = 1;
 				}
-				IN_NEXT_MULTI(step, inm);
-			}
-		} else {
-		    /*
-		    ** New Router
-		    */
-		    
-		    if (!(m->m_flags & M_MCAST)) {
-			++igmpstat.igps_rcv_badqueries;
-			m_freem(m);
-			return;
-		    }
-		    
-		    /*
-		     * - Start the timers in all of our membership records
-		     *   that the query applies to for the interface on
-		     *   which the query arrived excl. those that belong
-		     *   to a "local" group (224.0.0.X)
-		     * - For timers already running check if they need to
-		     *   be reset.
-		     * - Use the igmp->igmp_code field as the maximum 
-		     *   delay possible
-		     */
-		    IN_FIRST_MULTI(step, inm);
-		    while (inm != NULL) {
-			if (inm->inm_ifp == ifp &&
-			    (inm->inm_addr.s_addr & igmp_local_group_mask) !=
-				igmp_local_group &&
-			    (ip->ip_dst.s_addr == igmp_all_hosts_group ||
-			     ip->ip_dst.s_addr == inm->inm_addr.s_addr)) {
-			    switch(inm->inm_state) {
-			      case IGMP_IDLE_MEMBER:
-			      case IGMP_LAZY_MEMBER:
-			      case IGMP_AWAKENING_MEMBER:
-				    inm->inm_timer = IGMP_RANDOM_DELAY(timer);
-				    igmp_timers_are_running = 1;
-				    inm->inm_state = IGMP_DELAYING_MEMBER;
-				    break;
-			      case IGMP_DELAYING_MEMBER:
-				if (inm->inm_timer > timer) {
-				    inm->inm_timer = IGMP_RANDOM_DELAY(timer);
-				    igmp_timers_are_running = 1;
-				    inm->inm_state = IGMP_DELAYING_MEMBER;
-				}
-				break;
-			      case IGMP_SLEEPING_MEMBER:
-				inm->inm_state = IGMP_AWAKENING_MEMBER;
-				break;
-			    }
 			}
 			IN_NEXT_MULTI(step, inm);
 		}
-	    }
 
 		break;
 
-	case IGMP_HOST_MEMBERSHIP_REPORT:
+	case IGMP_V1_MEMBERSHIP_REPORT:
+	case IGMP_V2_MEMBERSHIP_REPORT:
 		/*
-		 * an old report
+		 * For fast leave to work, we have to know that we are the
+		 * last person to send a report for this group.  Reports
+		 * can potentially get looped back if we are a multicast
+		 * router, so discard reports sourced by me.
 		 */
+		IFP_TO_IA(ifp, ia);
+		if (ia && ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
+			break;
+
 		++igmpstat.igps_rcv_reports;
 
 		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
-		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
-		    igmp->igmp_group.s_addr != ip->ip_dst.s_addr) {
+		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
 			++igmpstat.igps_rcv_badreports;
 			m_freem(m);
 			return;
@@ -343,10 +308,8 @@ igmp_input(m, iphlen)
 		 * to compensate for the lack of any way for a process to
 		 * determine the arrival interface of an incoming packet.
 		 */
-		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0) {
-			IFP_TO_IA(ifp, ia);
+		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0)
 			if (ia) ip->ip_src.s_addr = htonl(ia->ia_subnet);
-		}
 
 		/*
 		 * If we belong to the group being reported, stop
@@ -355,92 +318,13 @@ igmp_input(m, iphlen)
 		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
 
 		if (inm != NULL) {
-		  inm->inm_timer = 0;
-		  ++igmpstat.igps_rcv_ourreports;
-		  
-		  switch(inm->inm_state){
-		  case IGMP_IDLE_MEMBER:
-		  case IGMP_LAZY_MEMBER:
-		  case IGMP_AWAKENING_MEMBER:
-		  case IGMP_SLEEPING_MEMBER:
-		    inm->inm_state = IGMP_SLEEPING_MEMBER;
-		    break;
-		  case IGMP_DELAYING_MEMBER:
-		    if (inm->inm_rti->type == IGMP_OLD_ROUTER)
-			inm->inm_state = IGMP_LAZY_MEMBER;
-		    else
-			inm->inm_state = IGMP_SLEEPING_MEMBER;
-		    break;
-		  }
+			inm->inm_timer = 0;
+			++igmpstat.igps_rcv_ourreports;
+
+			inm->inm_state = IGMP_OTHERMEMBER;
 		}
-	      
+
 		break;
-
-	      case IGMP_HOST_NEW_MEMBERSHIP_REPORT:
-		/*
-		 * a new report
-		 */
-
-		/*
-		 * We can get confused and think there's someone
-		 * else out there if we are a multicast router.
-		 * For fast leave to work, we have to know that
-		 * we are the only member.
-		 */
-		IFP_TO_IA(ifp, ia);
-		if (ia && ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
-			break;
-
-		++igmpstat.igps_rcv_reports;
-    
-		if (ifp->if_flags & IFF_LOOPBACK)
-		  break;
-		
-		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr)) ||
-		    igmp->igmp_group.s_addr != ip->ip_dst.s_addr) {
-		  ++igmpstat.igps_rcv_badreports;
-		  m_freem(m);
-		  return;
-		}
-		
-		/*
-		 * KLUDGE: if the IP source address of the report has an
-		 * unspecified (i.e., zero) subnet number, as is allowed for
-		 * a booting host, replace it with the correct subnet number
-		 * so that a process-level multicast routing demon can
-		 * determine which subnet it arrived from.  This is necessary
-		 * to compensate for the lack of any way for a process to
-		 * determine the arrival interface of an incoming packet.
-		 */
-		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0) {
-/* #ifndef MROUTING XXX - I don't think the ifdef is necessary */
-		  IFP_TO_IA(ifp, ia);
-/* #endif */
-		  if (ia) ip->ip_src.s_addr = htonl(ia->ia_subnet);
-		}
-		
-		/*
-		 * If we belong to the group being reported, stop
-		 * our timer for that group.
-		 */
-		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
-		if (inm != NULL) {
-		  inm->inm_timer = 0;
-		  ++igmpstat.igps_rcv_ourreports;
-		  
-		  switch(inm->inm_state){
-		  case IGMP_DELAYING_MEMBER:
-		  case IGMP_IDLE_MEMBER:
-		    inm->inm_state = IGMP_LAZY_MEMBER;
-		    break;
-		  case IGMP_AWAKENING_MEMBER:
-		    inm->inm_state = IGMP_LAZY_MEMBER;
-		    break;
-		  case IGMP_LAZY_MEMBER:
-		  case IGMP_SLEEPING_MEMBER:
-		    break;
-		  }
-		}
 	}
 
 	/*
@@ -456,16 +340,16 @@ igmp_joingroup(inm)
 {
 	int s = splnet();
 
-	inm->inm_state = IGMP_IDLE_MEMBER;
-
-	if ((inm->inm_addr.s_addr & igmp_local_group_mask) == igmp_local_group
-	    || inm->inm_ifp->if_flags & IFF_LOOPBACK)
+	if (inm->inm_addr.s_addr == igmp_all_hosts_group
+	    || inm->inm_ifp->if_flags & IFF_LOOPBACK) {
 		inm->inm_timer = 0;
-	else {
-		igmp_sendpkt(inm,fill_rti(inm));
+		inm->inm_state = IGMP_OTHERMEMBER;
+	} else {
+		inm->inm_rti = find_rti(inm->inm_ifp);
+		igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
 		inm->inm_timer = IGMP_RANDOM_DELAY(
 					IGMP_MAX_HOST_REPORT_DELAY*PR_FASTHZ);
-		inm->inm_state = IGMP_DELAYING_MEMBER;
+		inm->inm_state = IGMP_IREPORTEDLAST;
 		igmp_timers_are_running = 1;
 	}
 	splx(s);
@@ -475,20 +359,11 @@ void
 igmp_leavegroup(inm)
 	struct in_multi *inm;
 {
-         switch(inm->inm_state) {
-	 case IGMP_DELAYING_MEMBER:
-	 case IGMP_IDLE_MEMBER:
-	   if (((inm->inm_addr.s_addr & igmp_local_group_mask) 
-		!= igmp_local_group)
-	       && !(inm->inm_ifp->if_flags & IFF_LOOPBACK))
-	       if (inm->inm_rti->type != IGMP_OLD_ROUTER)
-		   igmp_sendleave(inm);
-	   break;
-	 case IGMP_LAZY_MEMBER:
-	 case IGMP_AWAKENING_MEMBER:
-	 case IGMP_SLEEPING_MEMBER:
-	   break;
-	 }
+	if (inm->inm_state == IGMP_IREPORTEDLAST &&
+	    inm->inm_addr.s_addr != igmp_all_hosts_group &&
+	    !(inm->inm_ifp->if_flags & IFF_LOOPBACK) &&
+	    inm->inm_rti->rti_type != IGMP_V1_ROUTER)
+		igmp_sendpkt(inm, IGMP_V2_LEAVE_GROUP, igmp_all_rtrs_group);
 }
 
 void
@@ -513,13 +388,8 @@ igmp_fasttimo()
 		if (inm->inm_timer == 0) {
 			/* do nothing */
 		} else if (--inm->inm_timer == 0) {
-		  if (inm->inm_state == IGMP_DELAYING_MEMBER) {
-		    if (inm->inm_rti->type == IGMP_OLD_ROUTER)
-			igmp_sendpkt(inm, IGMP_HOST_MEMBERSHIP_REPORT);
-		    else
-			igmp_sendpkt(inm, IGMP_HOST_NEW_MEMBERSHIP_REPORT);
-		    inm->inm_state = IGMP_IDLE_MEMBER;
-		  }
+			igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
+			inm->inm_state = IGMP_IREPORTEDLAST;
 		} else {
 			igmp_timers_are_running = 1;
 		}
@@ -538,12 +408,13 @@ igmp_slowtimo()
 	printf("[igmp.c,_slowtimo] -- > entering \n");
 #endif
 	while (rti) {
-		rti->time ++;
-		if (rti->time >= IGMP_AGE_THRESHOLD){
-			rti->type = IGMP_NEW_ROUTER;
-			rti->time = IGMP_AGE_THRESHOLD;
+	    if (rti->rti_type == IGMP_V1_ROUTER) {
+		rti->rti_time++;
+		if (rti->rti_time >= IGMP_AGE_THRESHOLD) {
+			rti->rti_type = IGMP_V2_ROUTER;
 		}
-		rti = rti->next;
+	    }
+	    rti = rti->rti_next;
 	}
 #ifdef IGMP_DEBUG	
 	printf("[igmp.c,_slowtimo] -- > exiting \n");
@@ -552,9 +423,10 @@ igmp_slowtimo()
 }
 
 static void
-igmp_sendpkt(inm, type)
+igmp_sendpkt(inm, type, addr)
 	struct in_multi *inm;
 	int type;
+	unsigned long addr;
 {
         struct mbuf *m;
         struct igmp *igmp;
@@ -591,7 +463,7 @@ igmp_sendpkt(inm, type)
         ip->ip_off        = 0;
         ip->ip_p          = IPPROTO_IGMP;
         ip->ip_src.s_addr = INADDR_ANY;
-        ip->ip_dst        = igmp->igmp_group;
+        ip->ip_dst.s_addr = addr ? addr : igmp->igmp_group.s_addr;
 
         imo->imo_multicast_ifp  = inm->inm_ifp;
         imo->imo_multicast_ttl  = 1;
@@ -602,15 +474,8 @@ igmp_sendpkt(inm, type)
          */
         imo->imo_multicast_loop = (ip_mrouter != NULL);
 
-        ip_output(m, (struct mbuf *)0, (struct route *)0, 0, imo);
+        ip_output(m, router_alert, (struct route *)0, 0, imo);
 
 	FREE(imo, M_IPMOPTS);
         ++igmpstat.igps_snd_reports;
-}
-
-static void
-igmp_sendleave(inm)
-	struct in_multi *inm;
-{
-	igmp_sendpkt(inm, IGMP_HOST_LEAVE_MESSAGE);
 }

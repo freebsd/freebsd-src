@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.14 1996/01/19 08:00:57 peter Exp $
+ * $Id: in.h,v 1.15 1996/02/22 21:32:17 peter Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -159,6 +159,7 @@ struct in_addr {
 
 #define	INADDR_UNSPEC_GROUP	(u_long)0xe0000000	/* 224.0.0.0 */
 #define	INADDR_ALLHOSTS_GROUP	(u_long)0xe0000001	/* 224.0.0.1 */
+#define	INADDR_ALLRTRS_GROUP	(u_long)0xe0000002	/* 224.0.0.2 */
 #define	INADDR_MAX_LOCAL_GROUP	(u_long)0xe00000ff	/* 224.0.0.255 */
 
 #define	IN_LOOPBACKNET		127			/* official! */
