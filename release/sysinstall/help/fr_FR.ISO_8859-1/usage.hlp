@@ -1,0 +1,45 @@
+COMMENT UTILISER CE SYSTÈME DE MENUS
+====================================
+
+TOUCHE          ACTION
+------          ------
+FLÈCHE HAUT     Aller sur la rubrique précédente (ou remonter, dans du texte).
+FLÈCHE BAS      Aller sur la rubrique suivante (ou descendre, dans du texte).
+TAB             Aller sur la rubrique ou le groupe suivant.
+FLÈCHE DROITE   Aller sur la rubrique suivante. (même chose que TAB).
+MAJ-TAB         Aller sur la rubrique ou le groupe précédent.
+FLÈCHE GAUCHE   Aller sur la rubrique précédente. (même chose que MAJ-TAB).
+ENTRÉE          Sélectionne la rubrique.
+ESC             Lance un sous-shell (pour diagnostics). Exit sort du shell.
+PAGE PRÉC.      Remonte d'une page, dans les boîtes de texte.
+PAGE SUIV.      Descend d'une page, dans les boîtes de texte.
+ESPACE		Sélectionne/désélectionne l'élément (menus à choix multiples).
+F1              Aide (pour les écrans qui en proposent).
+
+De même, si vous voyez des symboles du genre "^(-)" ou "v(+)" sur les côtés
+d'un menu, cela veut dire qu'il y a d'autres rubriques non affichées (par
+manque de place) plus haut ou plus bas. Les flèches haut ou bas feront
+défiler le menu pour faire apparaître les autres rubriques. Si un symbole
+disparaît, c'est que vous êtes au début (ou a la fin) du menu.
+
+Dans les boîtes de texte, le pourcentage de texte qui reste à afficher est
+indiqué dans le coin inférieur droit. 100% veut dire qu'il n'y a plus rien 
+à afficher.
+
+Sélectionner  OK      dans un menu pour confirmer l'action correspondante
+Sélectionner  Cancel  pour annuler l'opération et revenir au menu précédent.
+
+
+PARTICULARITÉS.
+===============
+
+On peut aussi choisir une rubrique dans un menu en tapant la première
+lettre de son nom, si il n'y pas d'ambiguïté. Ces lettres "accélératrices"
+apparaîtront en sur-brillant dans le nom de la rubrique.
+
+Le driver d'écran permet de remonter en arrière pour revoir du texte qui a
+déjà défilé. Pour cela appuyer sur la touche "arrêt défil" ("Scroll Lock"
+en anglais) puis utiliser la flèche-haut ou les touches Page Préc./Page
+Suiv. pour faire défiler le texte. Pour quitter ce mode, appuyer à nouveau
+sur la touche "arrêt défil.". Cette particularité est utile lorsque l'on
+est dans un sous-shell ou dans un mode qui ne présente pas de menu.
