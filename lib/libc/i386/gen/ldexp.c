@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  * We do the conversion in C to let gcc optimize it away, if possible.
- * The "fxch ; fstp" stuff is because value is still on the stack
- * (stupid 8087!).
  */
 double
 ldexp (double value, int exp)
@@ -58,17 +56,11 @@ ldexp (double value, int exp)
 	double temp, texp, temp2;
 	texp = exp;
 #ifdef __GNUC__
-#if    __GNUC__ >= 2
 	__asm ("fscale "
 		: "=u" (temp2), "=t" (temp)
 		: "0" (texp), "1" (value));
 #else
-	asm ("fscale ; fxch %%st(1) ; fstp%L1 %1 "
-		: "=f" (temp), "=0" (temp2)
-		: "0" (texp), "f" (value));
-#endif
-#else
-error unknown asm
+#error unknown asm
 #endif
 	return (temp);
 }
