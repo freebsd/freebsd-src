@@ -29,11 +29,12 @@
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
-#define	NPIL		(1 << 4)
-#define	NIV		(1 << 11)
+#define	IRSR_BUSY	(1 << 5)
 
-#define	IQ_SIZE		(NPIL * 2)
-#define	IQ_MASK		(IQ_SIZE - 1)
+#define	PIL_MAX		(1 << 4)
+#define	IV_MAX		(1 << 11)
+
+#define	IR_FREE		(PIL_MAX * 2)
 
 #define	IH_SHIFT	PTR_SHIFT
 #define	IQE_SHIFT	5
@@ -47,26 +48,18 @@
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
-struct trapframe;
-
 typedef	void ih_func_t(struct trapframe *);
 typedef	void iv_func_t(void *);
 
-struct iqe {
-	u_int	iqe_tag;
-	u_int	iqe_pri;
-	u_long	iqe_vec;
-	iv_func_t *iqe_func;
-	void	*iqe_arg;
-};
-
-struct intr_queue {
-	struct	iqe iq_queue[IQ_SIZE];	/* must be first */
-	u_long	iq_head;
-	u_long	iq_tail;
-};
-
 struct ithd;
+
+struct intr_request {
+	struct	intr_request *ir_next;
+	iv_func_t *ir_func;
+	void	*ir_arg;
+	u_int	ir_vec;
+	u_int	ir_pri;
+};
 
 struct intr_vector {
 	iv_func_t *iv_func;

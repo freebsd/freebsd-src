@@ -217,7 +217,7 @@ nexus_probe(device_t dev)
 	sc->sc_mem_rman.rm_descr = "UPA Device Memory";
 	if (rman_init(&sc->sc_intr_rman) != 0 ||
 	    rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_intr_rman, 0, NIV - 1) != 0 ||
+	    rman_manage_region(&sc->sc_intr_rman, 0, IV_MAX - 1) != 0 ||
 	    rman_manage_region(&sc->sc_mem_rman, UPA_MEMSTART, UPA_MEMEND) != 0)
 		panic("nexus_probe: failed to set up rmans");
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {

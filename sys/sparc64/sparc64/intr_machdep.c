@@ -80,44 +80,17 @@
 #define	MAX_STRAY_LOG	5
 
 CTASSERT((1 << IV_SHIFT) == sizeof(struct intr_vector));
-CTASSERT((1 << IQE_SHIFT) == sizeof(struct iqe));
 
-ih_func_t *intr_handlers[NPIL];
-struct	intr_vector intr_vectors[NIV];
+ih_func_t *intr_handlers[PIL_MAX];
+struct	intr_vector intr_vectors[IV_MAX];
 
-u_long	intr_stray_count[NIV];
+u_long	intr_stray_count[IV_MAX];
 
 /* protect the intr_vectors table */
 static struct	mtx intr_table_lock;
 
 static void intr_stray_level(struct trapframe *tf);
 static void intr_stray_vector(void *cookie);
-
-void
-intr_dequeue(struct trapframe *tf)
-{
-	struct intr_queue *iq;
-	struct iqe *iqe;
-	u_long head;
-	u_long next;
-	u_long tail;
-
-	iq = PCPU_PTR(iq);
-	for (head = iq->iq_head;; head = next) {
-		for (tail = iq->iq_tail; tail != head;) {
-			iqe = &iq->iq_queue[tail];
-			atomic_add_long(&intrcnt[iqe->iqe_vec], 1);
-			KASSERT(iqe->iqe_func != NULL,
-			    ("intr_dequeue: iqe->iqe_func NULL"));
-			iqe->iqe_func(iqe->iqe_arg);
-			tail = (tail + 1) & IQ_MASK;
-		}
-		iq->iq_tail = tail;
-		next = iq->iq_head;
-		if (head == next)
-			break;
-	}
-}
 
 void
 intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
@@ -162,9 +135,9 @@ intr_init1()
 	int i;
 
 	/* Mark all interrupts as being stray. */
-	for (i = 0; i < NPIL; i++)
+	for (i = 0; i < PIL_MAX; i++)
 		intr_handlers[i] = intr_stray_level;
-	for (i = 0; i < NIV; i++) {
+	for (i = 0; i < IV_MAX; i++) {
 		intr_vectors[i].iv_func = intr_stray_vector;
 		intr_vectors[i].iv_arg = &intr_vectors[i];
 		intr_vectors[i].iv_pri = PIL_LOW;

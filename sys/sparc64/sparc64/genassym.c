@@ -177,7 +177,9 @@ ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
-ASSYM(PC_IQ, offsetof(struct pcpu, pc_iq));
+ASSYM(PC_IRHEAD, offsetof(struct pcpu, pc_irhead));
+ASSYM(PC_IRTAIL, offsetof(struct pcpu, pc_irtail));
+ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
@@ -187,16 +189,13 @@ ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
 
-ASSYM(IQ_MASK, IQ_MASK);
-ASSYM(IQ_HEAD, offsetof(struct intr_queue, iq_head));
-ASSYM(IQ_TAIL, offsetof(struct intr_queue, iq_tail));
+ASSYM(IRSR_BUSY, IRSR_BUSY);
 
-ASSYM(IQE_SHIFT, IQE_SHIFT);
-ASSYM(IQE_TAG, offsetof(struct iqe, iqe_tag));
-ASSYM(IQE_PRI, offsetof(struct iqe, iqe_pri));
-ASSYM(IQE_VEC, offsetof(struct iqe, iqe_vec));
-ASSYM(IQE_FUNC, offsetof(struct iqe, iqe_func));
-ASSYM(IQE_ARG, offsetof(struct iqe, iqe_arg));
+ASSYM(IR_NEXT, offsetof(struct intr_request, ir_next));
+ASSYM(IR_FUNC, offsetof(struct intr_request, ir_func));
+ASSYM(IR_ARG, offsetof(struct intr_request, ir_arg));
+ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
+ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_TLB, offsetof(struct ipi_tlb_args, ita_tlb));
@@ -210,7 +209,7 @@ ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
 ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));
 ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
 
-ASSYM(NIV, NIV);
+ASSYM(IV_MAX, IV_MAX);
 
 ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
