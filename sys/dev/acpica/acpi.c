@@ -204,6 +204,8 @@ acpi_Startup(void)
 #endif
     static int error, started = 0;
 
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
     if (started)
 	return_VALUE(error);
     started = 1;
