@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.29.2.26 1996/10/06 22:50:48 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.29.2.27 1997/02/12 18:39:01 gibbs Exp $
  */
 /*
  * TODO:
@@ -1217,8 +1217,7 @@ ahc_handle_seqint(ahc, intstat)
 				 * retrieve the sense.
 				 */
 				untimeout(ahc_timeout, (caddr_t)scb);
-				timeout(ahc_timeout, (caddr_t)scb,
-					(100 * hz) / 1000);
+				timeout(ahc_timeout, (caddr_t)scb, hz);
 				break;
 			}
 			/*
