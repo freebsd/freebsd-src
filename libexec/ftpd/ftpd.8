@@ -43,6 +43,7 @@
 .Op Fl 46ADdEMmOoRrSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
+.Op Fl P Ar port
 .Op Fl p Ar file
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
@@ -55,7 +56,9 @@ Internet File Transfer Protocol
 server process.  The server uses the
 .Tn TCP
 protocol
-and listens at the port specified in the
+and listens at the port specified with the
+.Fl P
+option or in the
 .Dq ftp
 service specification; see
 .Xr services 5 .
@@ -133,6 +136,14 @@ is also specified.
 .It Fl o
 Put server in write-only mode.
 RETR is disabled, preventing downloads.
+.It Fl P
+When
+.Fl D
+is specified, accept connections at
+.Ar port ,
+specified as a numeric value or service name, instead of at the default
+.Dq ftp
+port.
 .It Fl p
 When
 .Fl D

@@ -115,6 +115,7 @@ union sockunion pasv_addr;
 
 int	daemon_mode;
 int	data;
+int	dataport;
 int	logged_in;
 struct	passwd *pw;
 int	ftpdebug;
@@ -277,6 +278,7 @@ main(int argc, char *argv[], char **envp)
 	FILE *fd;
 	int error;
 	char	*bindname = NULL;
+	const char *bindport = "ftp";
 	int	family = AF_UNSPEC;
 	int	enable_v4 = 0;
 	struct sigaction sa;
@@ -296,7 +298,7 @@ main(int argc, char *argv[], char **envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:rRSt:T:u:UvW")) != -1) {
+	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:P:rRSt:T:u:UvW")) != -1) {
 		switch (ch) {
 		case '4':
 			enable_v4 = 1;
@@ -350,6 +352,10 @@ main(int argc, char *argv[], char **envp)
 
 		case 'p':
 			pid_file = optarg;
+			break;
+
+		case 'P':
+			bindport = optarg;
 			break;
 
 		case 'r':
@@ -436,11 +442,11 @@ main(int argc, char *argv[], char **envp)
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = 0;
 		hints.ai_flags = AI_PASSIVE;
-		error = getaddrinfo(bindname, "ftp", &hints, &res);
+		error = getaddrinfo(bindname, bindport, &hints, &res);
 		if (error) {
 			if (family == AF_UNSPEC) {
 				hints.ai_family = AF_UNSPEC;
-				error = getaddrinfo(bindname, "ftp", &hints,
+				error = getaddrinfo(bindname, bindport, &hints,
 						    &res);
 			}
 		}
@@ -553,6 +559,7 @@ main(int argc, char *argv[], char **envp)
 		syslog(LOG_ERR, "getsockname (%s): %m",argv[0]);
 		exit(1);
 	}
+	dataport = ntohs(ctrl_addr.su_port) - 1; /* as per RFC 959 */
 #ifdef VIRTUAL_HOSTING
 	/* select our identity from virtual host table */
 	selecthost(&ctrl_addr);
@@ -1722,7 +1729,7 @@ getdatasock(char *mode)
 		syslog(LOG_WARNING, "data setsockopt (SO_REUSEADDR): %m");
 	/* anchor socket to avoid multi-homing problems */
 	data_source = ctrl_addr;
-	data_source.su_port = htons(20); /* ftp-data port */
+	data_source.su_port = htons(dataport);
 	for (tries = 1; ; tries++) {
 		if (bind(s, (struct sockaddr *)&data_source,
 		    data_source.su_len) >= 0)
