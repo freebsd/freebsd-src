@@ -42,32 +42,52 @@ static const char copyright[] =
 static char sccsid[] = "@(#)what.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: what.c,v 1.3 1997/08/25 06:49:45 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static int sflag;
+static int found;
 
 void search __P((void));
 
 /*
  * what
  */
-/* ARGSUSED */
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	if (!*++argv)
+	int c;
+
+	while ((c = getopt(argc, argv, "s")) != -1)
+		switch (c) {
+		case 's':
+			sflag = 1;
+			break;
+		default:
+			(void)fprintf(stderr,
+			    "usage: what [-s] file ...\n");
+			exit(1);
+		}
+	argv += optind;
+
+	if (!*argv)
 		search();
 	else do {
 		if (!freopen(*argv, "r", stdin))
-			err(1, "%s", *argv);
-		printf("%s\n", *argv);
-		search();
+			warn("%s", *argv);
+		else {
+			printf("%s:\n", *argv);
+			search();
+		}
 	} while(*++argv);
-	exit(0);
+	exit(!found);
 }
 
 void
@@ -86,8 +106,11 @@ loop:		if (c != '@')
 			goto loop;
 		putchar('\t');
 		while ((c = getchar()) != EOF && c && c != '"' &&
-		    c != '>' && c != '\n')
+		    c != '>' && c != '\\' && c != '\n')
 			putchar(c);
 		putchar('\n');
+		found = 1;
+		if (sflag)
+			return;
 	}
 }
