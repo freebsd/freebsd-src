@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$";
+    "@(#) $Header: /home/ncvs/src/contrib/tcpdump/print-token.c,v 1.1 1999/02/20 11:17:55 julian Exp $";
 #endif
 
 #include <sys/param.h>
@@ -67,8 +67,11 @@ token_print(register const u_char *bp, u_int length)
 
         tp = (const struct token_header *)bp;
         lp = (struct llc *)(bp + TOKEN_HDR_LEN);
-        if (IS_SOURCE_ROUTED) 
+
+        if (IS_SOURCE_ROUTED) {
+            tp->ether_shost[0] = tp->ether_shost[0] & 0x7f;
                 lp = (struct llc *)(bp + TOKEN_HDR_LEN + RIF_LENGTH);
+        }
 
         /* 
          * Ethertype on ethernet is a short, but ethertype in an llc-snap has
@@ -105,7 +108,7 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	struct token_header *tp;
 	u_short ether_type;
 	extern u_short extracted_ethertype;
-        u_int route_len = 0;
+        u_int route_len = 0, seg;
         struct llc *lp;
 
         tp = (struct token_header *)p;
@@ -117,9 +120,6 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 		goto out;
 	}
 
-	if (eflag)
-		token_print(p, length);
-
 	/*
 	 * Some printers want to get back at the ethernet addresses,
 	 * and/or check that they're not walking off the end of the packet.
@@ -129,7 +129,31 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 
         /* Adjust for source routing information in the MAC header */
         if (IS_SOURCE_ROUTED) {
+
+            if (eflag)
+                token_print(p, length);
+
                 route_len =  RIF_LENGTH;
+            if (vflag) {
+                if (vflag > 1) 
+                    printf("ac %x fc %x ", tp->ac, tp->fc);
+                ether_type = ntohs((int)lp->ethertype);
+    
+                printf("%s ", broadcast_indicator[BROADCAST]);
+                printf("%s", direction[DIRECTION]);
+     
+                for (seg = 0; seg < SEGMENT_COUNT; seg++)
+                    printf(" [%d:%d]", RING_NUMBER(seg), BRIDGE_NUMBER(seg));
+            } else {
+                printf("rt = %x", ntohs(tp->rcf));
+ 
+                for (seg = 0; seg < SEGMENT_COUNT; seg++)
+                    printf(":%x", ntohs(tp->rseg[seg]));
+            } 
+            printf(" (%s) ", largest_frame[LARGEST_FRAME]);
+        } else {
+            if (eflag)
+                token_print(p, length);
         }
 
         /* Set pointer to llc header, adjusted for routing information */
@@ -142,8 +166,6 @@ token_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	length -= TOKEN_HDR_LEN + route_len;
 	caplen -= TOKEN_HDR_LEN + route_len;
 	p += TOKEN_HDR_LEN + route_len;
-
-	ether_type = ntohs((int)lp->ethertype);
 
 	extracted_ethertype = 0;
 	/* Try to print the LLC-layer header & higher layers */

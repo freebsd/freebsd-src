@@ -27,10 +27,27 @@
  */
 
 #define TOKEN_HDR_LEN       14
-#define IS_SOURCE_ROUTED    (tp->ether_shost[0] & 0x80)
-#define RIF_LENGTH          ((ntohs(tp->rcf) & 0x1f00) >> 8)
 #define TOKEN_RING_MAC_LEN  6
 #define ROUTING_SEGMENT_MAX 16
+#define IS_SOURCE_ROUTED    (tp->ether_shost[0] & 0x80)
+#define BROADCAST           ((ntohs(tp->rcf) & 0xE000) >> 13)
+#define RIF_LENGTH          ((ntohs(tp->rcf) & 0x1f00) >> 8)
+#define DIRECTION           ((ntohs(tp->rcf) & 0x0080) >> 7)
+#define LARGEST_FRAME       ((ntohs(tp->rcf) & 0x0070) >> 4)
+#define RING_NUMBER(x)      ((ntohs(tp->rseg[x]) & 0xfff0) >> 4)
+#define BRIDGE_NUMBER(x)    ((ntohs(tp->rseg[x]) & 0x000f))
+#define SEGMENT_COUNT       ((RIF_LENGTH - 2) / 2)
+
+char *broadcast_indicator[] = { "Non-Broadcast", "Non-Broadcast", 
+                                "Non-Broadcast", "Non-Broadcast",
+                                "All-routes",    "All-routes",
+                                "Single-route",  "Single-route"};
+
+char *direction[] = { "Forward", "Backward"};
+
+char *largest_frame[] = { "516", "1500", "2052", "4472", "8144",
+                          "11407", "17800", ""};
+
 
 struct token_header {
         u_char   ac;
@@ -40,4 +57,3 @@ struct token_header {
         u_short  rcf;
         u_short  rseg[ROUTING_SEGMENT_MAX];
 };
-
