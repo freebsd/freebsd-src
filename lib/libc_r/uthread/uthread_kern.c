@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.3.2.1 1997/06/24 00:27:58 julian Exp $
+ * $Id: uthread_kern.c,v 1.3.2.2 1998/02/13 01:35:56 julian Exp $
  *
  */
 #include <errno.h>
@@ -891,6 +891,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_FDR_WAIT:
 	case PS_FDW_WAIT:
 	case PS_SLEEP_WAIT:
+        case PS_SIGWAIT:
 		/* Return the 'interrupted' error: */
 		_thread_seterrno(pthread, EINTR);
 		pthread->interrupted = 1;
@@ -900,18 +901,6 @@ _thread_signal(pthread_t pthread, int sig)
 
 		/* Return the signal number: */
 		pthread->signo = sig;
-		break;
-
-	/* Waiting on a signal: */
-	case PS_SIGWAIT:
-		/* Change the state of the thread to run: */
-		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-
-		/* Return the signal number: */
-		pthread->signo = sig;
-
-		/* Flag the signal as dealt with: */
-		done = 1;
 		break;
 	}
 
