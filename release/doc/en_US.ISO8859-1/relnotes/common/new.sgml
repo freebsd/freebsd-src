@@ -92,7 +92,7 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A bug in the &man.fetch.1; utility which allows
+    <para>A bug in the &man.fetch.1; utility, which allows
       a malicious HTTP server to cause arbitrary portions of the client's
       memory to be overwritten, has been fixed.
       For more information, see security advisory
@@ -100,9 +100,10 @@
       </para>
 
     <para>A bug in &man.procfs.5; and &man.linprocfs.5;
-      which could cause a malicious local user could perform a local
-      denial of service attack by causing a system panic, or the user
-      could read parts of kernel memory, has been fixed.
+      which could allow a malicious local user to read parts of kernel
+      memory or perform a local
+      denial of service attack by causing a system panic,
+      has been fixed.
       For more information, see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       </para>
@@ -128,7 +129,7 @@
 
     <para arch="i386">Memory allocation for legacy PCI bridges has
       been limited to the top 32MB of RAM.  Many older, legacy bridges
-      only allow allocation from this range and this only appies
+      only allow allocation from this range.  This change only appies
       to devices which don't have their memory assigned by the BIOS.
       This change fixes the <quote>bad Vcc</quote> error of CardBus
       bridges (&man.pccbb.4;).</para>
@@ -197,7 +198,7 @@
 	  and &man.altq.4;.</para>
 
 	<para>Several programming errors in the &man.sk.4; driver have
-	  been corrected.  This bug was particular to SMP systems, and
+	  been corrected.  These bugs were particular to SMP systems, and
 	  could cause panics, page faults, aborted SSH connections, or
 	  corrupted file transfers.  More details can be found in
 	  errata note
@@ -326,14 +327,14 @@
       echo</command> to get this behaviour.</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
-      option that asks for confirmation once if recursively
+      option that asks for confirmation (once) if recursively
       removing directories or if more than 3 files are listed in the
       command line.</para>
 
     <para>The &man.syslog.3; function is now thread-safe.</para>
 
     <para>The &man.syslogd.8; utility now opens an additional domain
-      socket <filename>/var/run/logpriv</filename> by default,
+      socket (<filename>/var/run/logpriv</filename> by default),
       with <literal>0600</literal> permissions to be used
       by privileged programs.  This prevents privileged
       programs from locking when the domain sockets
@@ -346,8 +347,8 @@
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
       for querying <hostid role="fqdn">whois.krnic.net</hostid>
-      (the National Internet Development Agency of Korea)
-      which hold details of IP address allocations within
+      (the National Internet Development Agency of Korea),
+      which holds details of IP address allocations within
       Korea.</para>
 
     <sect3 id="rc-scripts">
