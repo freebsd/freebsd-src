@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: ispmbox.h,v 1.4 1998/12/28 19:22:26 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Mailbox and Queue Entry Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -83,7 +83,7 @@
 #define MBOX_GET_SBUS_PARAMS		0x0027
 #define MBOX_GET_TARGET_PARAMS		0x0028
 #define MBOX_GET_DEV_QUEUE_PARAMS	0x0029
-					/*  2a */
+#define	MBOX_GET_RESET_DELAY_PARAMS	0x002a
 					/*  2b */
 					/*  2c */
 					/*  2d */
@@ -94,13 +94,13 @@
 #define MBOX_SET_RETRY_COUNT		0x0032
 #define MBOX_SET_TAG_AGE_LIMIT		0x0033
 #define MBOX_SET_CLOCK_RATE		0x0034
-#define MBOX_SET_ACTIVE_NEG_STATE	0x0035
+#define MBOX_SET_ACT_NEG_STATE		0x0035
 #define MBOX_SET_ASYNC_DATA_SETUP_TIME	0x0036
 #define MBOX_SET_SBUS_CONTROL_PARAMS	0x0037
 #define		MBOX_SET_PCI_PARAMETERS	0x0037
 #define MBOX_SET_TARGET_PARAMS		0x0038
 #define MBOX_SET_DEV_QUEUE_PARAMS	0x0039
-					/*  3a */
+#define	MBOX_SET_RESET_DELAY_PARAMS	0x003a
 					/*  3b */
 					/*  3c */
 					/*  3d */
@@ -109,6 +109,10 @@
 #define	MBOX_RETURN_BIOS_BLOCK_ADDR	0x0040
 #define	MBOX_WRITE_FOUR_RAM_WORDS	0x0041
 #define	MBOX_EXEC_BIOS_IOCB		0x0042
+#define	MBOX_SET_FW_FEATURES		0x004a
+#define	MBOX_GET_FW_FEATURES		0x004b
+#define		FW_FEATURE_LVD_NOTIFY	0x2
+#define		FW_FEATURE_FAST_POST	0x1
 
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
@@ -123,7 +127,8 @@
 #define	MBOX_CLEAR_TASK_SET		0x67
 #define	MBOX_ABORT_TASK_SET		0x68
 #define	MBOX_GET_FW_STATE		0x69
-#define	MBOX_GET_LINK_STATUS		0x6a
+#define	MBOX_GET_PORT_NAME		0x6a
+#define	MBOX_GET_LINK_STATUS		0x6b
 #define	MBOX_INIT_LIP_RESET		0x6c
 #define	MBOX_INIT_LIP_LOGIN		0x72
 
@@ -180,19 +185,34 @@ typedef struct {
 	u_int32_t	ds_count;
 } ispds_t;
 
+#define	_ISP_SWAP8(a, b)	{	\
+	u_int8_t tmp;			\
+	tmp = a;			\
+	a = b;				\
+	b = tmp;			\
+}
+
+/*
+ * These elements get swizzled around for SBus instances.
+ */
 typedef struct {
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	rqs_entry_count;
-	u_int8_t	rqs_entry_type;
-	u_int8_t	rqs_flags;
-	u_int8_t	rqs_seqno;
-#else
 	u_int8_t	rqs_entry_type;
 	u_int8_t	rqs_entry_count;
 	u_int8_t	rqs_seqno;
 	u_int8_t	rqs_flags;
-#endif
 } isphdr_t;
+/*
+ * There are no (for all intents and purposes) non-sparc SBus machines
+ */
+#ifdef	__sparc__
+#define	ISP_SBUSIFY_ISPHDR(isp, hdrp)					\
+    if ((isp)->isp_bustype == ISP_BT_SBUS) {				\
+	_ISP_SWAP8((hdrp)->rqs_entry_count, (hdrp)->rqs_entry_type);	\
+	_ISP_SWAP8((hdrp)->rqs_flags, (hdrp)->rqs_seqno);		\
+    }
+#else
+#define	ISP_SBUSIFY_ISPHDR(a, b)
+#endif
 
 /* RQS Flag definitions */
 #define	RQSFLAG_CONTINUATION	0x01
@@ -232,13 +252,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	req_header;
 	u_int32_t	req_handle;
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	req_target;
-	u_int8_t	req_lun_trn;
-#else
 	u_int8_t	req_lun_trn;
 	u_int8_t	req_target;
-#endif
 	u_int16_t	req_cdblen;
 #define	req_modifier	req_cdblen	/* marker packet */
 	u_int16_t	req_flags;
@@ -249,17 +264,31 @@ typedef struct {
 	ispds_t		req_dataseg[ISP_RQDSEG];
 } ispreq_t;
 
+/*
+ * A request packet can also be a marker packet.
+ */
+#define SYNC_DEVICE	0
+#define SYNC_TARGET	1
+#define SYNC_ALL	2
+
+/*
+ * There are no (for all intents and purposes) non-sparc SBus machines
+ */
+#ifdef	__sparc__
+#define	ISP_SBUSIFY_ISPREQ(isp, rqp)					\
+    if ((isp)->isp_bustype == ISP_BT_SBUS) {				\
+	_ISP_SWAP8((rqp)->req_target, (rqp)->req_lun_trn);		\
+    }
+#else
+#define	ISP_SBUSIFY_ISPREQ(a, b)
+#endif
+
 #define	ISP_RQDSEG_T2	3
 typedef struct {
 	isphdr_t	req_header;
 	u_int32_t	req_handle;
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	req_target;
-	u_int8_t	req_lun_trn;
-#else
 	u_int8_t	req_lun_trn;
 	u_int8_t	req_target;
-#endif
 	u_int16_t	req_scclun;
 	u_int16_t	req_flags;
 	u_int16_t	_res2;
@@ -294,13 +323,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	req_header;
 	u_int32_t	req_handle;
-#if	BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	req_target;
-	u_int8_t	req_lun_trn;
-#else
 	u_int8_t	req_lun_trn;
 	u_int8_t	req_target;
-#endif
 	u_int16_t	req_cdblen;
 	u_int16_t	req_flags;
 	u_int16_t	_res1;
@@ -315,26 +339,6 @@ typedef struct {
 	u_int32_t	_res1;
 	ispds_t		req_dataseg[ISP_CDSEG];
 } ispcontreq_t;
-
-typedef struct {
-	isphdr_t	req_header;
-	u_int32_t	_res1;
-#if	BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	req_target;
-	u_int8_t	req_lun_trn;
-	u_int8_t	_res2;
-	u_int8_t	req_modifier;
-#else
-	u_int8_t	req_lun_trn;
-	u_int8_t	req_target;
-	u_int8_t	req_modifier;
-	u_int8_t	_res2;
-#endif
-} ispmarkreq_t;
-
-#define SYNC_DEVICE	0
-#define SYNC_TARGET	1
-#define SYNC_ALL	2
 
 typedef struct {
 	isphdr_t	req_header;
@@ -425,7 +429,7 @@ typedef struct {
 #define RQSTF_NEGOTIATION		0x0080
 
 /*
- * FC (ISP2100) specific initialization data structures
+ * FC (ISP2100) specific data structures
  */
 
 /*
@@ -434,33 +438,18 @@ typedef struct {
  * Version One format.
  */
 typedef struct {
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	_reserved0;
-	u_int8_t	icb_version;
-#else
 	u_int8_t	icb_version;
 	u_int8_t	_reserved0;
-#endif
         u_int16_t	icb_fwoptions;
         u_int16_t	icb_maxfrmlen;
 	u_int16_t	icb_maxalloc;
 	u_int16_t	icb_execthrottle;
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	icb_retry_delay;
-	u_int8_t	icb_retry_count;
-#else
 	u_int8_t	icb_retry_count;
 	u_int8_t	icb_retry_delay;
-#endif
         u_int8_t	icb_nodename[8];
 	u_int16_t	icb_hardaddr;
-#if BYTE_ORDER == BIG_ENDIAN
-	u_int8_t	_reserved1;
-	u_int8_t	icb_iqdevtype;
-#else
 	u_int8_t	icb_iqdevtype;
 	u_int8_t	_reserved1;
-#endif
         u_int8_t	icb_portname[8];
 	u_int16_t	icb_rqstout;
 	u_int16_t	icb_rspnsin;
@@ -518,6 +507,76 @@ typedef struct {
 	array[ICB_NNM7] = (u_int8_t) ((wwn >> 56) & 0xff)
 
 /*
+ * Port Data Base Element
+ */
+
+typedef struct {
+	u_int16_t	pdb_options;
+	u_int8_t	pdb_mstate;
+	u_int8_t	pdb_sstate;
+#define	BITS2WORD(x)	(x)[0] << 16 | (x)[3] << 8 | (x)[2]
+	u_int8_t	pdb_hardaddr_bits[4];
+	u_int8_t	pdb_portid_bits[4];
+	u_int8_t	pdb_nodename[8];
+	u_int8_t	pdb_portname[8];
+	u_int16_t	pdb_execthrottle;
+	u_int16_t	pdb_exec_count;
+	u_int8_t	pdb_retry_count;
+	u_int8_t	pdb_retry_delay;
+	u_int16_t	pdb_resalloc;
+	u_int16_t	pdb_curalloc;
+	u_int16_t	pdb_qhead;
+	u_int16_t	pdb_qtail;
+	u_int16_t	pdb_tl_next;
+	u_int16_t	pdb_tl_last;
+	u_int16_t	pdb_features;	/* PLOGI, Common Service */
+	u_int16_t	pdb_pconcurrnt;	/* PLOGI, Common Service */
+	u_int16_t	pdb_roi;	/* PLOGI, Common Service */
+	u_int8_t	pdb_target;
+	u_int8_t	pdb_initiator;	/* PLOGI, Class 3 Control Flags */
+	u_int16_t	pdb_rdsiz;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_ncseq;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_noseq;	/* PLOGI, Class 3 */
+	u_int16_t	pdb_labrtflg;
+	u_int16_t	pdb_lstopflg;
+	u_int16_t	pdb_sqhead;
+	u_int16_t	pdb_sqtail;
+	u_int16_t	pdb_ptimer;
+	u_int16_t	pdb_nxt_seqid;
+	u_int16_t	pdb_fcount;
+	u_int16_t	pdb_prli_len;
+	u_int16_t	pdb_prli_svc0;
+	u_int16_t	pdb_prli_svc3;
+	u_int16_t	pdb_loopid;
+	u_int16_t	pdb_il_ptr;
+	u_int16_t	pdb_sl_ptr;
+} isp_pdb_t;
+
+#define	INVALID_PDB_OPTIONS	0xDEAD
+
+#define	PDB_OPTIONS_XMITTING	(1<<11)
+#define	PDB_OPTIONS_LNKXMIT	(1<<10)
+#define	PDB_OPTIONS_ABORTED	(1<<9)
+#define	PDB_OPTIONS_ADISC	(1<<1)
+
+#define	PDB_STATE_DISCOVERY	0
+#define	PDB_STATE_WDISC_ACK	1
+#define	PDB_STATE_PLOGI		2
+#define	PDB_STATE_PLOGI_ACK	3
+#define	PDB_STATE_PRLI		4
+#define	PDB_STATE_PRLI_ACK	5
+#define	PDB_STATE_LOGGED_IN	6
+#define	PDB_STATE_PORT_UNAVAIL	7
+#define	PDB_STATE_PRLO		8
+#define	PDB_STATE_PRLO_ACK	9
+#define	PDB_STATE_PLOGO		10
+#define	PDB_STATE_PLOG_ACK	11
+
+#define		SVC3_TGT_ROLE		0x10
+#define 	SVC3_INI_ROLE		0x20
+#define			SVC3_ROLE_MASK	0x30
+
+/*
  * Target Mode Structures
  */
 #define TGTSVALID	0x80	/* scsi status & sense data valid */
@@ -529,23 +588,17 @@ typedef struct {
 typedef struct {
 	isphdr_t		le_header;
 	u_int32_t		le_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t		le_lun;
 	u_int8_t		le_rsvd;
 	u_int8_t		le_ops;		/* Modify LUN only */
 	u_int8_t		le_tgt;		/* Not for FC */
-#endif
 	u_int32_t		le_flags;	/* Not for FC */
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t		le_status;
 	u_int8_t		le_rsvd2;
 	u_int8_t		le_cmd_count;
 	u_int8_t		le_in_count;
 	u_int8_t		le_cdb6len;	/* Not for FC */
 	u_int8_t		le_cdb7len;	/* Not for FC */
-#endif
 	u_int16_t		le_timeout;
 	u_int16_t		le_reserved[20];
 } lun_entry_t;
@@ -581,21 +634,15 @@ typedef struct {
 typedef struct {
 	isphdr_t	in_header;
 	u_int32_t	in_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	in_lun;			/* lun */
 	u_int8_t	in_iid;			/* initiator */
 	u_int8_t	in_rsvd;
 	u_int8_t	in_tgt;			/* target */
-#endif
 	u_int32_t	in_flags;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	in_status;
 	u_int8_t	in_rsvd2;
 	u_int8_t	in_tag_val;		/* tag value */
 	u_int8_t	in_tag_type;		/* tag type */
-#endif
 	u_int16_t	in_seqid;		/* sequence id */
 	u_int8_t	in_msg[IN_MSGLEN];	/* SCSI message bytes */
 	u_int16_t	in_reserved[IN_RSVDLEN];
@@ -605,11 +652,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	in_header;
 	u_int32_t	in_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	in_lun;		/* lun */
 	u_int8_t	in_iid;		/* initiator */
-#endif
 	u_int16_t	in_rsvd;
 	u_int32_t	in_rsvd2;
 	u_int16_t	in_status;
@@ -634,19 +678,13 @@ typedef struct {
 typedef struct {
 	isphdr_t	na_header;
 	u_int32_t	na_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	na_lun;		/* lun */
 	u_int8_t	na_iid;		/* initiator */
 	u_int8_t	na_rsvd;
 	u_int8_t	na_tgt;		/* target */
-#endif
 	u_int32_t	na_flags;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	na_status;
 	u_int8_t	na_event;
-#endif
 	u_int16_t	na_seqid;	/* sequence id */
 	u_int16_t	na_reserved[NA_RSVDLEN];
 } na_entry_t;
@@ -660,11 +698,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	na_header;
 	u_int32_t	na_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	na_lun;		/* lun */
 	u_int8_t	na_iid;		/* initiator */
-#endif
 	u_int16_t	na_rsvd;
 	u_int16_t	na_flags;
 	u_int16_t	na_rsvd2;
@@ -687,21 +722,15 @@ typedef struct {
 typedef struct {
 	isphdr_t	at_header;
 	u_int32_t	at_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	at_lun;			/* lun */
 	u_int8_t	at_iid;			/* initiator */
 	u_int8_t	at_cdblen;	 	/* cdb length */
 	u_int8_t	at_tgt;			/* target */
-#endif
 	u_int32_t	at_flags;	
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	at_status;		/* firmware status */
 	u_int8_t	at_scsi_status;		/* scsi status */
 	u_int8_t	at_tag_val;		/* tag value */
 	u_int8_t	at_tag_type;		/* tag type */
-#endif
 	u_int8_t	at_cdb[ATIO_CDBLEN];	/* received CDB */
 	u_int8_t	at_sense[SUGGSENSELEN];	/* suggested sense data */
 } at_entry_t;
@@ -729,21 +758,15 @@ typedef struct {
 typedef struct {
 	isphdr_t	at_header;	
 	u_int32_t	at_reserved2;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	at_lun;			/* lun */
 	u_int8_t	at_iid;			/* initiator */
-#endif
 	u_int16_t	at_rxid;	 	/* response ID */
 	u_int16_t	at_flags;
 	u_int16_t	at_status;		/* firmware status */
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	at_reserved1;
 	u_int8_t	at_taskcodes;
 	u_int8_t	at_taskflags;
 	u_int8_t	at_execodes;
-#endif
 	u_int8_t	at_cdb[ATIO2_CDBLEN];	/* received CDB */
 	u_int32_t	at_datalen;		/* allocated data len */
 	u_int16_t	at_scclun;
@@ -775,21 +798,15 @@ typedef struct {
 typedef struct {
 	isphdr_t	ct_header;
 	u_int32_t	ct_reserved;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	ct_lun;		/* lun */
 	u_int8_t	ct_iid;		/* initiator id */
 	u_int8_t	ct_rsvd;
 	u_int8_t	ct_tgt;		/* our target id */
-#endif
 	u_int32_t	ct_flags;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t 	ct_status;	/* isp status */
 	u_int8_t 	ct_scsi_status;	/* scsi status */
 	u_int8_t 	ct_tag_val;	/* tag value */
 	u_int8_t 	ct_tag_type;	/* tag type */
-#endif
 	u_int32_t	ct_xfrlen;	/* transfer length */
 	u_int32_t	ct_resid;	/* residual length */
 	u_int16_t	ct_timeout;
@@ -851,11 +868,8 @@ typedef struct {
 typedef struct {
 	isphdr_t	ct_header;
 	u_int32_t	ct_reserved;
-#if	BYTE_ORDER == BIG_ENDIAN
-#else
 	u_int8_t	ct_lun;		/* lun */
 	u_int8_t	ct_iid;		/* initiator id */
-#endif
 	u_int16_t	ct_rxid;	 /* response ID */
 	u_int16_t	ct_flags;
 	u_int16_t 	ct_status;	/* isp status */
