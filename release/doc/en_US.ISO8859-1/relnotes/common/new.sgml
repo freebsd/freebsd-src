@@ -211,6 +211,10 @@
       restrict the printing of GECOS information to the user's full
       name only.</para>
 
+    <para>&man.finger.1; now supports the <option>-4</option> and
+      <option>-6</option> flags to specify an address family for
+      remote queries.</para>
+
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
@@ -218,6 +222,12 @@
     <para>&man.ifconfig.8; now supports a <option>eui64</option>
       command to fill in the lowermost 64 bits of an IPv6 address
       automatically.  This makes &man.prefix.8; obsolete.</para>
+
+    <para>The &man.ls.1; program now supports a <option>-m</option>
+      flag to list files across a page, a <option>-p</option> flag to
+      force printing of a <literal>/</literal> after directories, and
+      a <option>-x</option> flag to sort filenames across a
+      page.</para>
 
     <para>&man.nice.1; now uses the <option>-n</option> option to
       specify the <quote>niceness</quote> of the utility being
@@ -245,6 +255,30 @@
 
     <para>&man.sed.1; now takes a <option>-i</option> option to enable
       in-place editing of files.</para>
+
+    <para>&man.sh.1; now supports a <option>-C</option> option to
+      prevent existing regular files from being overwritten by output
+      redirection, and a <option>-u</option> to give an error if an
+      unset variable is expanded.</para>
+
+    <para>The &man.sh.1; built-in <command>cd</command> command now
+      supports <option>-L</option> and <option>-P</option> flags to
+      invoke logical or physical modes of operation, respectively.
+      Logical mode is the default, but the default can be changed with
+      the <varname>physical</varname> &man.sh.1; option.</para>
+
+    <para>The &man.sh.1; built-in <command>jobs</command> command now
+      supports a <option>-s</option> flag to output PIDs only and a
+      <option>-l</option> flag to add PIDs to the output.</para>
+
+    <para>The &man.sh.1; built-in <command>export</command> and
+      <command>readonly</command> commands now support a
+      <option>-p</option> flag to print their output in
+      <quote>portable</quote> format.</para>
+
+    <para>&man.split.1; now supports a <option>-a</option> option to
+      specify the number of letters to use for the suffix of split
+      files.</para>
 
     <para>&man.su.1; now has support for Kerberos V authentication.</para>
 
