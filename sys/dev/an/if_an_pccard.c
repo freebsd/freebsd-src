@@ -176,18 +176,26 @@ an_pccard_attach(device_t dev)
 	an_alloc_port(dev, sc->port_rid, AN_IOSIZ);
 	an_alloc_irq(dev, sc->irq_rid, 0);
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       an_intr, sc, &sc->irq_handle);
-	if (error) {
-		printf("setup intr failed %d \n", error);
-		an_release_resources(dev);
-		return (error);
-	}
-
 	sc->an_bhandle = rman_get_bushandle(sc->port_res);
 	sc->an_btag = rman_get_bustag(sc->port_res);
 	sc->an_dev = dev;
 
 	error = an_attach(sc, device_get_unit(dev), flags);
+	if (error) {
+		goto fail;
+	}
+	
+	/*
+	 * Must setup the interrupt after the an_attach to prevent racing.
+	 */
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+			       an_intr, sc, &sc->irq_handle);
+	if (error) {
+		goto fail;
+	}
+
+fail:
+	if (error)
+		an_release_resources(dev);
 	return (error);
 }

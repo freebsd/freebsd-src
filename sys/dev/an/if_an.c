@@ -668,13 +668,12 @@ an_attach(sc, unit, flags)
 	int flags;
 {
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int			error;
+	int			error = EIO;
 	int			i, nrate, mword;
 	u_int8_t		r;
 
 	mtx_init(&sc->an_mtx, device_get_nameunit(sc->an_dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	AN_LOCK(sc);
 
 	sc->an_gone = 0;
 	sc->an_associated = 0;
@@ -687,15 +686,13 @@ an_attach(sc, unit, flags)
 	if (sc->mpi350) {
 		error = an_init_mpi350_desc(sc);
 		if (error)
-			return(error);
+			goto fail;
 	}
 
 	/* Load factory config */
 	if (an_cmd(sc, AN_CMD_READCFG, 0)) {
 		printf("an%d: failed to load config data\n", sc->an_unit);
-		AN_UNLOCK(sc);
-		mtx_destroy(&sc->an_mtx);
-		return(EIO);
+		goto fail;
 	}
 
 	/* Read the current configuration */
@@ -703,9 +700,7 @@ an_attach(sc, unit, flags)
 	sc->an_config.an_len = sizeof(struct an_ltv_genconfig);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_config)) {
 		printf("an%d: read record failed\n", sc->an_unit);
-		AN_UNLOCK(sc);
-		mtx_destroy(&sc->an_mtx);
-		return(EIO);
+		goto fail;
 	}
 
 	/* Read the card capabilities */
@@ -713,9 +708,7 @@ an_attach(sc, unit, flags)
 	sc->an_caps.an_len = sizeof(struct an_ltv_caps);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_caps)) {
 		printf("an%d: read record failed\n", sc->an_unit);
-		AN_UNLOCK(sc);
-		mtx_destroy(&sc->an_mtx);
-		return(EIO);
+		goto fail;
 	}
 
 	/* Read ssid list */
@@ -723,9 +716,7 @@ an_attach(sc, unit, flags)
 	sc->an_ssidlist.an_len = sizeof(struct an_ltv_ssidlist);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_ssidlist)) {
 		printf("an%d: read record failed\n", sc->an_unit);
-		AN_UNLOCK(sc);
-		mtx_destroy(&sc->an_mtx);
-		return(EIO);
+		goto fail;
 	}
 
 	/* Read AP list */
@@ -733,9 +724,7 @@ an_attach(sc, unit, flags)
 	sc->an_aplist.an_len = sizeof(struct an_ltv_aplist);
 	if (an_read_record(sc, (struct an_ltv_gen *)&sc->an_aplist)) {
 		printf("an%d: read record failed\n", sc->an_unit);
-		AN_UNLOCK(sc);
-		mtx_destroy(&sc->an_mtx);
-		return(EIO);
+		goto fail;
 	}
 
 #ifdef ANCACHE
@@ -817,9 +806,11 @@ an_attach(sc, unit, flags)
 	 */
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	callout_handle_init(&sc->an_stat_ch);
-	AN_UNLOCK(sc);
 
 	return(0);
+fail:;
+	mtx_destroy(&sc->an_mtx);
+	return(error);
 }
 
 static void
