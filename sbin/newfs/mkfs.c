@@ -136,19 +136,6 @@ mkfs(struct partition *pp, char *fsys)
 		randinit = 1;
 		srandomdev();
 	}
-	/*
-	 * allocate space for superblock, cylinder group map, and
-	 * two sets of inode blocks.
-	 */
-	if (bsize < SBLOCKSIZE)
-		iobufsize = SBLOCKSIZE + 3 * bsize;
-	else
-		iobufsize = 4 * bsize;
-	if ((iobuf = malloc(iobufsize)) == 0) {
-		printf("Cannot allocate I/O buffer\n");
-		exit(38);
-	}
-	bzero(iobuf, iobufsize);
 	sblock.fs_old_flags = FS_FLAGS_UPDATED;
 	sblock.fs_flags = 0;
 	if (Uflag)
@@ -195,10 +182,20 @@ mkfs(struct partition *pp, char *fsys)
 		    sblock.fs_fsize, sectorsize);
 		sblock.fs_fsize = sectorsize;
 	}
+	if (sblock.fs_bsize > MAXBSIZE) {
+		printf("decreasing block size from %d to maximum (%d)\n",
+		    sblock.fs_bsize, MAXBSIZE);
+		sblock.fs_bsize = MAXBSIZE;
+	}
 	if (sblock.fs_bsize < MINBSIZE) {
 		printf("increasing block size from %d to minimum (%d)\n",
 		    sblock.fs_bsize, MINBSIZE);
 		sblock.fs_bsize = MINBSIZE;
+	}
+	if (sblock.fs_fsize > MAXBSIZE) {
+		printf("decreasing fragment size from %d to maximum (%d)\n",
+		    sblock.fs_fsize, MAXBSIZE);
+		sblock.fs_fsize = MAXBSIZE;
 	}
 	if (sblock.fs_bsize < sblock.fs_fsize) {
 		printf("increasing block size from %d to fragment size (%d)\n",
@@ -297,7 +294,7 @@ mkfs(struct partition *pp, char *fsys)
 	 */
 	origdensity = density;
 	for (;;) {
-		fragsperinode = numfrags(&sblock, density);
+		fragsperinode = MAX(numfrags(&sblock, density), 1);
 		minfpg = fragsperinode * INOPB(&sblock);
 		if (minfpg > sblock.fs_size)
 			minfpg = sblock.fs_size;
@@ -443,6 +440,19 @@ mkfs(struct partition *pp, char *fsys)
 	printf("super-block backups (for fsck -b #) at:\n");
 	i = 0;
 	width = charsperline();
+	/*
+	 * allocate space for superblock, cylinder group map, and
+	 * two sets of inode blocks.
+	 */
+	if (sblock.fs_bsize < SBLOCKSIZE)
+		iobufsize = SBLOCKSIZE + 3 * sblock.fs_bsize;
+	else
+		iobufsize = 4 * sblock.fs_bsize;
+	if ((iobuf = malloc(iobufsize)) == 0) {
+		printf("Cannot allocate I/O buffer\n");
+		exit(38);
+	}
+	bzero(iobuf, iobufsize);
 	/*
 	 * Make a copy of the superblock into the buffer that we will be
 	 * writing out in each cylinder group.
