@@ -28,6 +28,7 @@
  *	$FreeBSD$
  */
 
+#include "acpi_if.h"
 #include "bus_if.h"
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
@@ -215,7 +216,6 @@ void		acpi_EnterDebugger(void);
 #define ACPI_DEVINFO_PRESENT(x)	(((x) & 0x9) == 9)
 BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
-BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, char *hid);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 		    ACPI_HANDLE *result);
 uint32_t	acpi_TimerDelta(uint32_t end, uint32_t start);
