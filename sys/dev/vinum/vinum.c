@@ -2,6 +2,8 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -33,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.25 1999/06/29 04:07:55 grog Exp $
+ * $Id: vinum.c,v 1.25 1999/06/25 07:54:48 grog Exp grog $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -266,7 +268,7 @@ vinumopen(dev_t dev,
     struct volume *vol;
     struct plex *plex;
     struct sd *sd;
-    int devminor;
+    int devminor;					    /* minor number */
 
     devminor = minor(dev);
     error = 0;
@@ -316,6 +318,10 @@ vinumopen(dev_t dev,
 	if ((Volno(dev) >= vinum_conf.volumes_allocated)    /* no such volume */
 	||(Plexno(dev) >= vinum_conf.plexes_allocated))	    /* or no such plex */
 	    return ENXIO;				    /* no such device */
+
+	/* FALLTHROUGH */
+
+    case VINUM_RAWSD_TYPE:
 	index = Sdno(dev);				    /* get the subdisk number */
 	if ((index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
 	||(SD[index].state < sd_init))			    /* or SD is not real */
@@ -336,12 +342,6 @@ vinumopen(dev_t dev,
 	    return 0;
 	}
 
-	/* Vinum drives are disks.  We already have a disk
-	 * driver, so don't handle them here */
-    case VINUM_DRIVE_TYPE:
-    default:
-	return ENODEV;					    /* don't know what to do with these */
-
     case VINUM_SUPERDEV_TYPE:
 	error = suser(p);				    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
@@ -354,6 +354,11 @@ vinumopen(dev_t dev,
 	}
 	return error;
 
+	/* Vinum drives are disks.  We already have a disk
+	 * driver, so don't handle them here */
+    case VINUM_DRIVE_TYPE:
+    default:
+	return ENODEV;					    /* don't know what to do with these */
     }
 }
 
