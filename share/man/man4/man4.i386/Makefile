@@ -11,7 +11,8 @@ MAN=	aic.4 alpm.4 amdpm.4 apm.4 ar.4 asc.4 \
 	tx.4 viapm.4 vpd.4 vx.4 \
 	wd.4 wl.4 wt.4
 
-MLINKS=	spkr.4 speaker.4
+MLINKS=pae.4 PAE.4
+MLINKS+=spkr.4 speaker.4
 MLINKS+=sbni.4 if_sbni.4
 
 MANSUBDIR=/i386
