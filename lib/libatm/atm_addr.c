@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $
+ *	@(#) $Id: atm_addr.c,v 1.1 1998/09/15 08:22:33 phk Exp $
  *
  */
 
@@ -36,7 +36,7 @@
  */
 
 #ifndef lint
-static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $";
+static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/09/15 08:22:33 phk Exp $";
 #endif
 
 #include <sys/types.h>
@@ -305,7 +305,7 @@ format_atm_addr(addr)
 		u2.c[3] = atm_spans->aas_addr[7];
 
 		if (!(u1.w == 0 && u2.w == 0))
-			sprintf(str, "0x%08x.%08x", u1.w, u2.w);
+			sprintf(str, "0x%08lx.%08lx", ntohl(u1.w), ntohl(u2.w));
 		break;
 
 	case T_ATM_PVC_ADDR:
