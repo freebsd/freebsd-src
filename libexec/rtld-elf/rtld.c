@@ -1965,7 +1965,7 @@ rtld_dirname(const char *path, char *bname)
     /* Empty or NULL string gets treated as "." */
     if (path == NULL || *path == '\0') {
 	bname[0] = '.';
-	bname[1] = '0';
+	bname[1] = '\0';
 	return (0);
     }
 
