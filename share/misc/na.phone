@@ -31,11 +31,11 @@
 219:Hammond:Indiana:IN
 219:Michigan City:Indiana:IN
 219:South Bend:Indiana:IN
-242::Bahamas:
-246::Barbados:
+242::Bahamas:BS
+246::Barbados:BB
 250:Prince George:British Columbia:BC
 250:Victoria:British Columbia:BC
-268::Antigua and Barbuda:
+268::Antigua and Barbuda:AG
 281:Houston Cellular and Pagers:Texas:TX
 301:Bethesda:Maryland:MD
 301:Hagerstown:Maryland:MD
@@ -127,7 +127,7 @@
 423:Chattanooga:Tennessee:TN
 423:Johnson City:Tennessee:TN
 423:Knoxville:Tennessee:TN
-441::Bermuda:
+441::Bermuda:BM
 501::Arkansas:AR
 502:Frankfort:Kentucky:KY
 502:Louisville:Kentucky:KY
@@ -258,7 +258,7 @@
 719:Lamar:Colorado:CO
 719:South Fork:Colorado:CO
 757:Norfolk:Virginia:VI
-758::St Lucida:
+758::St Lucia:LC
 770:Atlanta(Metro) outside 285 beltway:Georgia:GA
 770:La Grange:Georgia:GA
 770:Marietta:Georgia:GA
@@ -278,7 +278,15 @@
 806:Lubbock:Texas:TX
 807:Thunder Bay:Ontario:ON
 808::Hawaii:HI
-809::Virgin Islands:VI
+809::US Virgin Islands:VI
+809::Anguilla:AI
+809::British Virgin Islands:VG
+809::Dominican Republic:DO
+809::Grenada:GD
+809::Jamaica:JM
+809::St. Vincent:VC
+809::Trinidad & Tobago:TT
+809::Turks Islands:TC
 810:Flint:Michigan:MI
 810:Pontiac:Michigan:MI
 810:Southfield:Michigan:MI
@@ -306,7 +314,7 @@
 860:Hartford:Connecticut:CT
 864:Greeville:South Carolina:SC
 864:Spartanburg:South Carolina:SC
-869::St Kitts and Nevis:
+869::St Kitts and Nevis:KN
 901:Memphis:Tennessee:TN
 902:Charlottetown:Prince Edward Island:PE
 902:Halifax:Nova Scotia:NS
