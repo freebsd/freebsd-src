@@ -48,7 +48,7 @@ The
 .Nm
 utility is a filter which folds the contents of the specified files,
 or the standard input if no files are specified,
-breaking the lines to have a maximum of 80 characters.
+breaking the lines to have a maximum of 80 columns.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -61,7 +61,7 @@ Fold line after the last blank character within the first
 .Ar width
 column positions (or bytes).
 .It Fl w Ar width
-Specify a line width to use instead of the default 80 characters.
+Specify a line width to use instead of the default 80 columns.
 .Ar Width
 should be a multiple of 8 if tabs are present, or the tabs should
 be expanded using

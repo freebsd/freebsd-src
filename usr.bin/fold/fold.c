@@ -171,7 +171,8 @@ fold(width)
 				indx -= space;
 				col = 0;
 				for (i = 0; i < indx; i++)
-					col = newpos(col, buf[i]);
+					col = newpos(col,
+					    (unsigned char)buf[i]);
 			} else {
 				fwrite(buf, 1, indx, stdout);
 				col = indx = 0;
@@ -214,7 +215,8 @@ newpos(col, ch)
 			col = (col + 8) & ~7;
 			break;
 		default:
-			++col;
+			if (isprint(ch))
+				++col;
 			break;
 		}
 
