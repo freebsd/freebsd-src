@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.137 1999/07/06 08:45:35 jkh Exp $
+ * $Id: config.c,v 1.138 1999/07/07 09:47:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -549,6 +549,7 @@ configXSetup(dialogMenuItem *self)
     char *config, *execfile, *style;
     char *moused;
 
+    setenv("XWINHOME", "/usr/X11R6", 1);
 tryagain:
     dialog_clear_norefresh();
     variable_unset(VAR_DESKSTYLE);
