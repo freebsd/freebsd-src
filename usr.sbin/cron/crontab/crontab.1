@@ -1,0 +1,100 @@
+.\"/* Copyright 1988,1990,1993 by Paul Vixie
+.\" * All rights reserved
+.\" *
+.\" * Distribute freely, except: don't remove my name from the source or
+.\" * documentation (don't take credit for my work), mark your changes (don't
+.\" * get me blamed for your possible bugs), don't alter or remove this
+.\" * notice.  May be sold if buildable source is provided to buyer.  No
+.\" * warrantee of any kind, express or implied, is included with this
+.\" * software; use at your own risk, responsibility for damages (if any) to
+.\" * anyone resulting from the use of this software rests entirely with the
+.\" * user.
+.\" *
+.\" * Send bug reports, bug fixes, enhancements, requests, flames, etc., and
+.\" * I'll try to keep a version up to date.  I can be reached as follows:
+.\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
+.\" */
+.\"
+.\" $Id: crontab.1,v 2.4 1993/12/31 10:47:33 vixie Exp $
+.\"
+.TH CRONTAB 1 "29 December 1993"
+.UC 4
+.SH NAME
+crontab \- maintain crontab files for individual users (V3)
+.SH SYNOPSIS
+crontab [ -u user ] file
+.br
+crontab [ -u user ] { -l | -r | -e }
+.SH DESCRIPTION
+.I Crontab
+is the program used to install, deinstall or list the tables
+used to drive the
+.IR cron (8)
+daemon in Vixie Cron.  Each user can have their own crontab, and though
+these are files in /var, they are not intended to be edited directly.
+.PP
+If the
+.I allow
+file exists, then you must be listed therein in order to be allowed to use
+this command.  If the
+.I allow
+file does not exist but the
+.I deny
+file does exist, then you must \fBnot\fR be listed in the
+.I deny
+file in order to use this command.  If neither of these files exists, then
+depending on site-dependent configuration parameters, only the super user
+will be allowed to use this command, or all users will be able to use this
+command.
+.PP
+If the
+.I -u
+option is given, it specifies the name of the user whose crontab is to be
+tweaked.  If this option is not given,
+.I crontab
+examines "your" crontab, i.e., the crontab of the person executing the
+command.  Note that
+.IR su (8)
+can confuse
+.I crontab
+and that if you are running inside of
+.IR su (8)
+you should always use the
+.I -u
+option for safety's sake.
+.PP
+The first form of this command is used to install a new crontab from some
+named file or standard input if the pseudo-filename ``-'' is given.
+.PP
+The
+.I -l
+option causes the current crontab to be displayed on standard output.
+.PP
+The
+.I -r
+option causes the current crontab to be removed.
+.PP
+The
+.I -e
+option is used to edit the current crontab using the editor specified by
+the \s-1VISUAL\s+1 or \s-1EDITOR\s+1 environment variables.  After you exit
+from the editor, the modified crontab will be installed automatically.
+.SH "SEE ALSO"
+crontab(5), cron(8)
+.SH FILES
+.nf
+/var/cron/allow
+/var/cron/deny
+.fi
+.SH STANDARDS
+The
+.I crontab
+command conforms to IEEE Std1003.2-1992 (``POSIX'').  This new command syntax
+differs from previous versions of Vixie Cron, as well as from the classic
+SVR3 syntax.
+.SH DIAGNOSTICS
+A fairly informative usage message appears if you run it with a bad command
+line.
+.SH AUTHOR
+.nf
+Paul Vixie <paul@vix.com>
