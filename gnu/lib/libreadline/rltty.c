@@ -20,6 +20,8 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
+
 #include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
@@ -29,14 +31,8 @@
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
-/* This is needed to include support for TIOCGWINSZ and window resizing. */
-#if defined (OSF1) || defined (BSD386) || defined (NetBSD) || \
-    defined (FreeBSD) || defined (_386BSD) || defined (AIX)
-#  include <sys/ioctl.h>
-#endif /* OSF1 || BSD386 */
-
 #include "rldefs.h"
-#include <readline/readline.h>
+#include "readline.h"
 
 #if !defined (errno)
 extern int errno;
@@ -49,6 +45,8 @@ extern int _rl_eof_char;
 #  include <sys/pc.h>
 #  undef HANDLE_SIGNALS
 #endif /* __GO32__ */
+
+static int output_was_flushed;
 
 /* **************************************************************** */
 /*								    */
@@ -125,6 +123,7 @@ extern char *term_mo;
 
 extern char *term_ks;
 extern char *term_ke;
+
 static int
 outchar (c)
      int c;
@@ -201,6 +200,13 @@ get_tty_settings (tty, tiop)
      int tty;
      TIOTYPE *tiop;
 {
+#if !defined (SHELL) && defined (TIOCGWINSZ)
+  struct winsize w;
+
+  if (ioctl (tty, TIOCGWINSZ, &w) == 0)
+      (void) ioctl (tty, TIOCSWINSZ, &w);
+#endif
+
   tiop->flags = tiop->lflag = 0;
 
   ioctl (tty, TIOCGETP, &(tiop->sgttyb));
@@ -360,21 +366,30 @@ prepare_terminal_settings (meta_flag, otio, tiop)
 
 static TIOTYPE otio;
 
+#if defined (FLUSHO)
+#  define OUTPUT_BEING_FLUSHED(tp)  (tp->c_lflag & FLUSHO)
+#else
+#  define OUTPUT_BEING_FLUSHED(tp)  0
+#endif
+
 static int
 get_tty_settings (tty, tiop)
      int tty;
      TIOTYPE *tiop;
 {
-#ifdef TIOCGWINSZ
-/* XXX this prevents to got editing mode from tcsh. Ache */
+#if !defined (SHELL) && defined (TIOCGWINSZ)
   struct winsize w;
 
   if (ioctl (tty, TIOCGWINSZ, &w) == 0)
       (void) ioctl (tty, TIOCSWINSZ, &w);
 #endif
 
-  while (GETATTR (tty, tiop) < 0)
+  /* Keep looping if output is being flushed after a ^O (or whatever
+     the flush character is). */
+  while (GETATTR (tty, tiop) < 0 || OUTPUT_BEING_FLUSHED (tiop))
     {
+      if (OUTPUT_BEING_FLUSHED (tiop))
+        continue;
       if (errno != EINTR)
 	return -1;
       errno = 0;
@@ -452,6 +467,13 @@ prepare_terminal_settings (meta_flag, otio, tiop)
   tiop->c_cc[VMIN] = 1;
   tiop->c_cc[VTIME] = 0;
 
+  if (tiop->c_lflag & FLUSHO)
+    {
+      output_was_flushed = 1;
+      tiop->c_lflag &= ~FLUSHO;
+      otio.c_lflag &= ~FLUSHO;
+    }
+
   /* Turn off characters that we need on Posix systems with job control,
      just to be sure.  This includes ^Y and ^V.  This should not really
      be necessary.  */
@@ -500,8 +522,12 @@ rl_prep_terminal (meta_flag)
       return;
     }
 
+  if (output_was_flushed)
+    output_was_flushed = 0;
+
   control_meta_key (1);
   control_keypad (1);
+  fflush (rl_outstream);
   terminal_prepped = 1;
 
   release_sigint ();
@@ -529,6 +555,7 @@ rl_deprep_terminal ()
 
   control_meta_key (0);
   control_keypad (0);
+  fflush (rl_outstream);
   terminal_prepped = 0;
 
   release_sigint ();
@@ -614,79 +641,56 @@ rltty_set_default_bindings (kmap)
 
 #if defined (NEW_TTY_DRIVER)
 
+#define SET_SPECIAL(sc, func) \
+  do \
+    { \
+      int ic; \
+      ic = sc; \
+      if (ic != -1 && kmap[ic].type == ISFUNC) \
+	kmap[ic].function = func; \
+    } \
+  while (0)
+
   if (get_tty_settings (tty, &ttybuff) == 0)
     {
       if (ttybuff.flags & SGTTY_SET)
 	{
-	  int erase, kill;
-
-	  erase = ttybuff.sgttyb.sg_erase;
-	  kill  = ttybuff.sgttyb.sg_kill;
-
-	  if (erase != -1 && kmap[erase].type == ISFUNC)
-	    kmap[erase].function = rl_rubout;
-
-	  if (kill != -1 && kmap[kill].type == ISFUNC)
-	    kmap[kill].function = rl_unix_line_discard;
+	  SET_SPECIAL (ttybuff.sgttyb.sg_erase, rl_rubout);
+	  SET_SPECIAL (ttybuff.sgttyb.sg_kill, rl_unix_line_discard);
 	}
 
 #  if defined (TIOCGLTC)
-
       if (ttybuff.flags & LTCHARS_SET)
 	{
-	  int werase, nextc;
-
-	  werase = ttybuff.ltchars.t_werasc;
-	  nextc = ttybuff.ltchars.t_lnextc;
-
-	  if (werase != -1 && kmap[werase].type == ISFUNC)
-	    kmap[werase].function = rl_unix_word_rubout;
-
-	  if (nextc != -1 && kmap[nextc].type == ISFUNC)
-	    kmap[nextc].function = rl_quoted_insert;
+	  SET_SPECIAL (ttybuff.ltchars.t_werasc, rl_unix_word_rubout);
+	  SET_SPECIAL (ttybuff.ltchars.t_lnextc, rl_quoted_insert);
 	}
-    }
 #  endif /* TIOCGLTC */
+    }
 
 #else /* !NEW_TTY_DRIVER */
 
+#define SET_SPECIAL(sc, func) \
+  do \
+    { \
+      unsigned char uc; \
+      uc = ttybuff.c_cc[sc]; \
+      if (uc != (unsigned char)_POSIX_VDISABLE && kmap[uc].type == ISFUNC) \
+	kmap[uc].function = func; \
+    } \
+  while (0)
+
   if (get_tty_settings (tty, &ttybuff) == 0)
     {
-      unsigned char erase, kill;
-
-      erase = ttybuff.c_cc[VERASE];
-      kill = ttybuff.c_cc[VKILL];
-
-      if (erase != (unsigned char)_POSIX_VDISABLE &&
-	  kmap[erase].type == ISFUNC)
-	kmap[erase].function = rl_rubout;
-
-      if (kill != (unsigned char)_POSIX_VDISABLE &&
-	  kmap[kill].type == ISFUNC)
-	kmap[kill].function = rl_unix_line_discard;
+      SET_SPECIAL (VERASE, rl_rubout);
+      SET_SPECIAL (VKILL, rl_unix_line_discard);
 
 #  if defined (VLNEXT) && defined (TERMIOS_TTY_DRIVER)
-      {
-	unsigned char nextc;
-
-	nextc = ttybuff.c_cc[VLNEXT];
-
-	if (nextc != (unsigned char)_POSIX_VDISABLE &&
-	    kmap[nextc].type == ISFUNC)
-	  kmap[nextc].function = rl_quoted_insert;
-      }
+      SET_SPECIAL (VLNEXT, rl_quoted_insert);
 #  endif /* VLNEXT && TERMIOS_TTY_DRIVER */
 
 #  if defined (VWERASE) && defined (TERMIOS_TTY_DRIVER)
-      {
-	unsigned char werase;
-
-	werase = ttybuff.c_cc[VWERASE];
-
-	if (werase != (unsigned char)_POSIX_VDISABLE &&
-	    kmap[werase].type == ISFUNC)
-	  kmap[werase].function = rl_unix_word_rubout;
-      }
+      SET_SPECIAL (VWERASE, rl_unix_word_rubout);
 #  endif /* VWERASE && TERMIOS_TTY_DRIVER */
     }
 #endif /* !NEW_TTY_DRIVER */

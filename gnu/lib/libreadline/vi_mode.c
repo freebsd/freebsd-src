@@ -20,6 +20,7 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
 
 /* **************************************************************** */
 /*								    */
@@ -38,19 +39,19 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
 #include <stdio.h>
 
 /* Some standard library routines. */
 #include "rldefs.h"
-#include <readline/readline.h>
-#include <readline/history.h>
+#include "readline.h"
+#include "history.h"
 
-#ifndef digit
-#define digit(c)  ((c) >= '0' && (c) <= '9')
-#endif
-
-#ifndef isletter
-#define isletter(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+#ifndef digit_p
+#define digit_p(c)  ((c) >= '0' && (c) <= '9')
 #endif
 
 #ifndef digit_value
@@ -58,15 +59,15 @@
 #endif
 
 #ifndef member
-#define member(c, s) ((c) ? (char *)strchr ((s), (c)) : 0)
+#define member(c, s) ((c) ? (char *)strchr ((s), (c)) != (char *)NULL : 0)
 #endif
 
 #ifndef isident
-#define isident(c) ((isletter(c) || digit(c) || c == '_'))
+#define isident(c) ((pure_alphabetic (c) || digit_p (c) || c == '_'))
 #endif
 
 #ifndef exchange
-#define exchange(x, y) {int temp = x; x = y; y = temp;}
+#define exchange(x, y) do {int temp = x; x = y; y = temp;} while (0)
 #endif
 
 #ifndef VI_COMMENT_BEGIN_DEFAULT
@@ -152,7 +153,7 @@ int
 rl_vi_textmod_command (c)
      int c;
 {
-  return (member (c, vi_textmod) != (char *)NULL);
+  return (member (c, vi_textmod));
 }
 
 /* Bound to `.'.  Called from command mode, so we know that we have to
@@ -175,8 +176,8 @@ rl_vi_redo (count, c)
 }
     
 /* Yank the nth arg from the previous line into this line at point. */
-rl_vi_yank_arg (count)
-     int count;
+rl_vi_yank_arg (count, key)
+     int count, key;
 {
   /* Readline thinks that the first word on a line is the 0th, while vi
      thinks the first word on a line is the 1st.  Compensate. */
@@ -503,14 +504,16 @@ rl_vi_eword (count)
   return (0);
 }
 
-rl_vi_insert_beg ()
+rl_vi_insert_beg (count, key)
+     int count, key;
 {
   rl_beg_of_line ();
   rl_vi_insertion_mode ();
   return (0);
 }
 
-rl_vi_append_mode ()
+rl_vi_append_mode (count, key)
+     int count, key;
 {
   if (rl_point < rl_end)
     rl_point++;
@@ -518,7 +521,8 @@ rl_vi_append_mode ()
   return (0);
 }
 
-rl_vi_append_eol ()
+rl_vi_append_eol (count, key)
+     int count, key;
 {
   rl_end_of_line ();
   rl_vi_append_mode ();
@@ -536,7 +540,8 @@ rl_vi_eof_maybe (count, c)
 
 /* Switching from one mode to the other really just involves
    switching keymaps. */
-rl_vi_insertion_mode ()
+rl_vi_insertion_mode (count, key)
+     int count, key;
 {
   _rl_keymap = vi_insertion_keymap;
   return (0);
@@ -558,7 +563,8 @@ _rl_vi_done_inserting ()
     vi_continued_command = 0;
 }
 
-rl_vi_movement_mode ()
+rl_vi_movement_mode (count, key)
+     int count, key;
 {
   if (rl_point > 0)
     rl_backward (1);
@@ -636,7 +642,8 @@ rl_vi_check ()
   return (0);
 }
 
-rl_vi_column (count)
+rl_vi_column (count, key)
+     int count, key;
 {
   if (count > rl_end)
     rl_end_of_line ();
@@ -658,7 +665,7 @@ rl_vi_domove (key, nextkey)
 
   if (!member (c, vi_motion))
     {
-      if (digit (c))
+      if (digit_p (c))
 	{
 	  save = rl_numeric_arg;
 	  rl_numeric_arg = digit_value (c);
@@ -753,7 +760,7 @@ rl_digit_loop1 ()
 	}
 
       c = UNMETA (c);
-      if (numeric (c))
+      if (digit_p (c))
 	{
 	  if (rl_explicit_arg)
 	    rl_numeric_arg = (rl_numeric_arg * 10) + digit_value (c);
@@ -862,8 +869,8 @@ rl_vi_yank_to (count, key)
   return (0);
 }
 
-rl_vi_delete (count)
-     int count;
+rl_vi_delete (count, key)
+     int count, key;
 {
   int end;
 
@@ -887,7 +894,8 @@ rl_vi_delete (count)
 
 /* Turn the current line into a comment in shell history.
    A K*rn shell style function. */
-rl_vi_comment ()
+rl_vi_comment (count, key)
+     int count, key;
 {
   rl_beg_of_line ();
 
@@ -901,7 +909,8 @@ rl_vi_comment ()
   return (0);
 }
 
-rl_vi_first_print ()
+rl_vi_first_print (count, key)
+     int count, key;
 {
   return (rl_back_to_indent ());
 }
@@ -1022,7 +1031,8 @@ rl_vi_char_search (count, key)
 }
 
 /* Match brackets */
-rl_vi_match ()
+rl_vi_match (ignore, key)
+     int ignore, key;
 {
   int count = 1, brack, pos;
 

@@ -49,7 +49,7 @@ command line editing interface.
 * Bindable Readline Commands::	A description of most of the Readline commands
 				available for binding
 * Readline vi Mode::		A short description of how to make Readline
-				behave line the vi editor.
+				behave like the vi editor.
 @end menu
 
 @node Introduction and Notation
@@ -164,6 +164,9 @@ operate on characters while meta keystrokes operate on words.
 @node Readline Killing Commands
 @subsection Readline Killing Commands
 
+@cindex Killing text
+@cindex Yanking text
+
 @dfn{Killing} text means to delete the text from the line, but to save
 it away for later use, usually by @dfn{yanking} (re-inserting)
 it back into the line.
@@ -177,6 +180,7 @@ that when you yank it back, you get it all.  The kill
 ring is not line specific; the text that you killed on a previously
 typed line is available to be yanked back later, when you are typing
 another line.
+@cindex Kill ring
 
 Here is the list of commands for killing text.
 
@@ -236,7 +240,12 @@ keybindings installed by default,
 it is possible that you would like to use a different set
 of keybindings.  You can customize programs that use Readline by putting
 commands in an @dfn{init} file in your home directory.  The name of this
+@ifset BashFeatures
 file is taken from the value of the shell variable @code{INPUTRC}.  If
+@end ifset
+@ifclear BashFeatures
+file is taken from the value of the environment variable @code{INPUTRC}.  If
+@end ifclear
 that variable is unset, the default is @file{~/.inputrc}.
 
 When a program which uses the Readline library starts up, the
@@ -614,6 +623,11 @@ insert the @var{n}th word from the previous command (the words
 in the previous command begin with word 0).  A negative argument
 inserts the @var{n}th word from the end of the previous command.
 
+@item yank-last-arg (M-., M-_)
+Insert last argument to the previous command (the last word on the
+previous line).  With an
+argument, behave exactly like @code{yank-nth-arg}.
+
 @end ftable
 
 @node Commands For Text
@@ -730,7 +744,7 @@ bound to a key.
 @ftable @code
 @item complete (TAB)
 Attempt to do completion on the text before the cursor.  This is
-implementation defined.  Generally, if you are typing a filename
+application-specific.  Generally, if you are typing a filename
 argument, you can do filename completion; if you are typing a command,
 you can do command completion, if you are typing in a symbol to GDB, you
 can do symbol name completion, if you are typing in a variable to Bash,
@@ -818,11 +832,7 @@ word expansions.
 Perform history expansion on the current line.
 
 @item insert-last-argument (M-., M-_)
-Insert the last argument to the previous command (the last word on
-the previous line).  With an argument @var{n},
-insert the @var{n}th word from the previous command (the words
-in the previous command begin with word 0).  A negative argument
-inserts the @var{n}th word from the end of the previous command.
+A synonym for @code{yank-last-arg}.
 
 @item operate-and-get-next (C-o)
 Accept the current line for execution and fetch the next line

@@ -24,7 +24,7 @@
 #include <stdio.h>
 #endif /* !BUFSIZ */
 
-#include <readline/readline.h>
+#include "readline.h"
 
 #if 0
 extern KEYMAP_ENTRY_ARRAY vi_escape_keymap;
@@ -61,7 +61,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_yank },			/* Control-y */
   { ISFUNC, (Function *)0x0 },		/* Control-z */
 
-  { ISFUNC, rl_abort },			/* Control-[ */	/* vi_escape_keymap */
+  { ISFUNC, (Function *)0x0 },		/* Control-[ */	/* vi_escape_keymap */
   { ISFUNC, (Function *)0x0 },		/* Control-\ */
   { ISFUNC, (Function *)0x0 },		/* Control-] */
   { ISFUNC, (Function *)0x0 },		/* Control-^ */

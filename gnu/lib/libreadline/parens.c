@@ -19,13 +19,26 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    675 Mass Ave, Cambridge, MA 02139, USA. */
+#define READLINE_LIBRARY
+
+#include "rlconf.h"
+
+#if !defined (PAREN_MATCHING)
+
+rl_insert_close (count, invoking_key)
+     int count, invoking_key;
+{
+  return (rl_insert (count, invoking_key));
+}
+
+#else /* PAREN_MATCHING */
 
 #include <stdio.h>
 #include <sys/types.h>
 #if defined (FD_SET)
-#include <sys/time.h>
-#endif
-#include <readline/readline.h>
+#  include <sys/time.h>
+#endif /* FD_SET */
+#include "readline.h"
 
 extern int rl_explicit_arg;
 
@@ -114,5 +127,4 @@ find_matching_open (string, from, closer)
   return (i);
 }
 
-
-      
+#endif /* PAREN_MATCHING */

@@ -23,6 +23,11 @@
 /* The goal is to make the implementation transparent, so that you
    don't have to know what data types are used, just what functions
    you can call.  I think I have done that. */
+#define READLINE_LIBRARY
+
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -50,7 +55,7 @@ extern int errno;
 #endif /* !errno */
 
 #include "memalloc.h"
-#include <readline/history.h>
+#include "history.h"
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();
@@ -72,8 +77,8 @@ extern char *strcpy ();
 #define whitespace(c) (((c) == ' ') || ((c) == '\t'))
 #endif
 
-#ifndef digit
-#define digit(c)  ((c) >= '0' && (c) <= '9')
+#ifndef digit_p
+#define digit_p(c)  ((c) >= '0' && (c) <= '9')
 #endif
 
 #ifndef digit_value
@@ -117,7 +122,7 @@ static HIST_ENTRY **the_history = (HIST_ENTRY **)NULL;
 
 /* Non-zero means that we have enforced a limit on the amount of
    history that we save. */
-int history_stifled = 0;
+static int history_stifled = 0;
 
 /* If HISTORY_STIFLED is non-zero, then this is the maximum number of
    entries to remember. */
@@ -168,6 +173,9 @@ history_get_history_state ()
   state->offset = history_offset;
   state->length = history_length;
   state->size = history_size;
+  state->flags = 0;
+  if (history_stifled)
+    state->flags |= HS_STIFLED;
 
   return (state);
 }
@@ -181,6 +189,8 @@ history_set_history_state (state)
   history_offset = state->offset;
   history_length = state->length;
   history_size = state->size;
+  if (state->flags & HS_STIFLED)
+    history_stifled = 1;
 }
 
 /* Begin a session in which the history functions might be used.  This
@@ -490,6 +500,12 @@ unstifle_history ()
   return (result);
 }
 
+int
+history_is_stifled ()
+{
+  return (history_stifled);
+}
+
 /* Return the string that should be used in the place of this
    filename.  This only matters when you don't specify the
    filename to read_history (), or write_history (). */
@@ -664,7 +680,7 @@ history_truncate_file (fname, lines)
 
   /* Write only if there are more lines in the file than we want to
      truncate to. */
-  if (i && ((file = open (filename, O_WRONLY, 0666)) != -1))
+  if (i && ((file = open (filename, O_WRONLY|O_TRUNC, 0666)) != -1))
     {
       write (file, buffer + i, finfo.st_size - i);
       close (file);
@@ -922,10 +938,10 @@ get_history_event (string, caller_index, delimiting_quote)
       i++;
     }
 
-  if (digit (string[i]))
+  if (digit_p (string[i]))
     {
       /* Get the extent of the digits and compute the value. */
-      for (which = 0; digit (string[i]); i++)
+      for (which = 0; digit_p (string[i]); i++)
 	which = (which * 10) + digit_value (string[i]);
 
       *caller_index = i;
@@ -1067,40 +1083,45 @@ quote_breaks (s)
 #endif /* SHELL */
 
 static char *
-hist_error (ret, s, start, current, errtype)
-      char *ret, *s;
+hist_error(s, start, current, errtype)
+      char *s;
       int start, current, errtype;
 {
   char *temp, *emsg;
-  int ll;
+  int ll, elen;
 
-  ll = 1 + (current - start);
-  temp = xmalloc (1 + ll);
-  strncpy (temp, s + start, ll);
-  temp[ll] = 0;
+  ll = current - start;
 
   switch (errtype)
     {
     case EVENT_NOT_FOUND:
       emsg = "event not found";
+      elen = 15;
       break;
     case BAD_WORD_SPEC:
       emsg = "bad word specifier";
+      elen = 18;
       break;
     case SUBST_FAILED:
       emsg = "substitution failed";
+      elen = 19;
       break;
     case BAD_MODIFIER:
       emsg = "unrecognized history modifier";
+      elen = 29;
       break;
     default:
       emsg = "unknown expansion error";
+      elen = 23;
       break;
     }
 
-  sprintf (ret, "%s: %s", temp, emsg);
-  free (temp);
-  return ret;
+  temp = xmalloc (ll + elen + 3);
+  strncpy (temp, s + start, ll);
+  temp[ll] = ':';
+  temp[ll + 1] = ' ';
+  strcpy (temp + ll + 2, emsg);
+  return (temp);
 }
 
 /* Get a history substitution string from STR starting at *IPTR
@@ -1237,8 +1258,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	  
   if (!event)
     {
-      hist_error (result, string, start, i, EVENT_NOT_FOUND);
-      *ret_string = result;
+      *ret_string = hist_error (string, start, i, EVENT_NOT_FOUND);
+      free (result);
       return (-1);
     }
 
@@ -1251,8 +1272,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
      we complain. */
   if (word_spec == (char *)&error_pointer)
     {
-      hist_error (result, string, starting_index, i, BAD_WORD_SPEC);
-      *ret_string = result;
+      *ret_string = hist_error (string, starting_index, i, BAD_WORD_SPEC);
+      free (result);
       return (-1);
     }
 
@@ -1283,8 +1304,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
       switch (c)
 	{
 	default:
-	  hist_error (result, string, i+1, i+2, BAD_MODIFIER);
-	  *ret_string = result;
+	  *ret_string = hist_error (string, i+1, i+2, BAD_MODIFIER);
+	  free (result);
 	  free (temp);
 	  return -1;
 
@@ -1389,8 +1410,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 		/* If there is no lhs, the substitution can't succeed. */
 		if (subst_lhs_len == 0)
 		  {
-		    hist_error (result, string, starting_index, i, SUBST_FAILED);
-		    *ret_string = result;
+		    *ret_string = hist_error (string, starting_index, i, SUBST_FAILED);
+		    free (result);
 		    free (temp);
 		    return -1;
 		  }
@@ -1411,8 +1432,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	    /* Ignore impossible cases. */
 	    if (subst_lhs_len > l_temp)
 	      {
-		hist_error (result, string, starting_index, i, SUBST_FAILED);
-		*ret_string = result;
+		*ret_string = hist_error (string, starting_index, i, SUBST_FAILED);
+		free (result);
 		free (temp);
 		return (-1);
 	      }
@@ -1455,8 +1476,8 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	    if (failed == 0)
 	      continue;		/* don't want to increment i */
 
-	    hist_error (result, string, starting_index, i, SUBST_FAILED);
-	    *ret_string = result;
+	    *ret_string = hist_error (string, starting_index, i, SUBST_FAILED);
+	    free (result);
 	    free (temp);
 	    return (-1);
 	  }
@@ -1486,7 +1507,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 
   n = strlen (temp);
   if (n > result_len)
-    result = xrealloc (result, n + 1);
+    result = xrealloc (result, n + 2);
   strcpy (result, temp);
   free (temp);
 
@@ -1513,8 +1534,12 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	  { \
 	    int sl = strlen (s); \
 	    j += sl; \
-	    while (j >= result_len) \
-	      result = xrealloc (result, result_len += 128); \
+	    if (j >= result_len) \
+	      { \
+	        while (j >= result_len) \
+	          result_len += 128; \
+	        result = xrealloc (result, result_len); \
+	      } \
 	    strcpy (result + j - sl, s); \
 	  } \
 	while (0)
@@ -1522,7 +1547,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 #define ADD_CHAR(c) \
 	do \
 	  { \
-	    if (j >= result_len) \
+	    if (j >= result_len - 1) \
 	      result = xrealloc (result, result_len += 64); \
 	    result[j++] = c; \
 	    result[j] = '\0'; \
@@ -1545,6 +1570,14 @@ history_expand (hstring, output)
   /* Used when adding the string. */
   char *temp;
 
+  /* Setting the history expansion character to 0 inhibits all
+     history expansion. */
+  if (history_expansion_char == 0)
+    {
+      *output = savestring (hstring);
+      return (0);
+    }
+    
   /* Prepare the buffer for printing error messages. */
   result = xmalloc (result_len = 256);
   result[0] = '\0';
@@ -1679,7 +1712,7 @@ history_expand (hstring, output)
 	      break;
 	    }
 
-#ifdef NO_BANG_HASH_MODIFIERS
+#if defined (NO_BANG_HASH_MODIFIERS)
 	  /* There is something that is listed as a `word specifier' in csh
 	     documentation which means `the expanded text to this point'.
 	     That is not a word specifier, it is an event specifier.  If we
@@ -1790,11 +1823,13 @@ get_history_word_specifier (spec, from, caller_index)
 
   /* Try to get FIRST and LAST figured out. */
 
-  if (spec[i] == '-' || spec[i] == '^')
+  if (spec[i] == '-')
+    first = 0;
+  else if (spec[i] == '^')
     first = 1;
-  else if (digit (spec[i]) && expecting_word_spec)
+  else if (digit_p (spec[i]) && expecting_word_spec)
     {
-      for (first = 0; digit (spec[i]); i++)
+      for (first = 0; digit_p (spec[i]); i++)
 	first = (first * 10) + digit_value (spec[i]);
     }
   else
@@ -1811,9 +1846,9 @@ get_history_word_specifier (spec, from, caller_index)
     {
       i++;
 
-      if (digit (spec[i]))
+      if (digit_p (spec[i]))
 	{
-	  for (last = 0; digit (spec[i]); i++)
+	  for (last = 0; digit_p (spec[i]); i++)
 	    last = (last * 10) + digit_value (spec[i]);
 	}
       else if (spec[i] == '$')
