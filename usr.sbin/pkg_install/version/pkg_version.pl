@@ -48,6 +48,7 @@ $DebugFlag = 0;
 $VerboseFlag = 0;
 $CommentChar = "#";
 $LimitFlag = "";
+$PreventFlag = "";
 
 #
 # CompareNumbers
@@ -196,7 +197,8 @@ Usage: pkg_version [-c] [-d debug] [-h] [-v] [index]
 -c              Show commands to update installed packages
 -d debug	Debugging output (debug controls level of output)
 -h		Help (this message)
--l limchar	Limit output
+-l limchar	Limit output to status flags that match
+-L limchar	Limit output to status flags that DON'T match
 -v		Verbose output
 index		URL or filename of index file
 		(Default is $IndexFile)
@@ -206,18 +208,24 @@ EOF
 #
 # Parse command-line arguments, deal with them
 #
-if (!getopts('cdhl:v') || ($opt_h)) {
+if (!getopts('cdhl:L:v') || ($opt_h)) {
     &PrintHelp();
     exit;
 }
 if ($opt_c) {
     $ShowCommandsFlag = $opt_c;
+    $LimitFlag = "<?";	# note that if the user specifies -l, we
+			# deal with this *after* setting a default
+			# for $LimitFlag
 }
 if ($opt_d) {
     $DebugFlag = $opt_d;
 }
 if ($opt_l) {
     $LimitFlag = $opt_l;
+}
+if ($opt_L) {
+    $PreventFlag = $opt_L;
 }
 if ($opt_v) {
     $VerboseFlag = 1;
@@ -318,7 +326,6 @@ foreach $packageName (sort keys %currentPackages) {
 				 $indexPackages{$packageName}{'fullversion'});
 	    
 	    if ($rc == 0) {
-		next if $ShowCommandsFlag;
 		$versionCode = "=";
 		$Comment = "up-to-date";
 	    }
@@ -327,7 +334,6 @@ foreach $packageName (sort keys %currentPackages) {
 		$Comment = "needs updating (index has $indexVersion)"
 	    }
 	    elsif ($rc > 0) {
-		next if $ShowCommandsFlag;
 		$versionCode = ">";
 		$Comment = "succeeds index (index has $indexVersion)";
 	    }
@@ -343,10 +349,21 @@ foreach $packageName (sort keys %currentPackages) {
 	$Comment = "unknown in index";
     }
 
-    if ($LimitFlag) {
-	write if $versionCode =~ m/[$LimitFlag]/o;
-    } else {
+    # Having figured out what to print, now determine, based on the
+    # $LimitFlag and $PreventFlag variables, if we should print or not.
+    if ((not $LimitFlag) and (not $PreventFlag)) {
 	write;
+    } elsif ($PreventFlag) {
+	if ($versionCode !~ m/[$PreventFlag]/o) {
+	    if (not $LimitFlag) {
+		write;
+	    } else {
+		write if $versionCode =~ m/[$LimitFlag]/o;
+	    }
+	}
+    } else {
+	# Must mean that there is a LimitFlag
+	write if $versionCode =~ m/[$LimitFlag]/o;
     }
 }
 
