@@ -95,6 +95,7 @@ static VAR var[] = {
 	{"inblk", "INBLK", NULL, USER, rvar, NULL, 4, ROFF(ru_inblock), LONG,
 		"ld", 0},
 	{"inblock", "", "inblk", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
+	{"jid", "JID", NULL, 0, kvar, NULL, 6, KOFF(ki_jid), INT, "d", 0},
 	{"jobc", "JOBC", NULL, 0, kvar, NULL, 4, KOFF(ki_jobc), SHORT, "d",
 		0},
 	{"ktrace", "KTRACE", NULL, 0, kvar, NULL, 8, KOFF(ki_traceflag), INT,
