@@ -486,7 +486,7 @@ get_reply:
 	 * now decode and validate the response
 	 */
 
-	xdrmem_create(&reply_xdrs, cu->cu_inbuf, (u_int)inlen, XDR_DECODE);
+	xdrmem_create(&reply_xdrs, cu->cu_inbuf, (u_int)recvlen, XDR_DECODE);
 	ok = xdr_replymsg(&reply_xdrs, &reply_msg);
 	/* XDR_DESTROY(&reply_xdrs);	save a few cycles on noop destroy */
 	if (ok) {
