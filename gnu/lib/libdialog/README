@@ -1,0 +1,7 @@
+This library splitted out from 'dialog' program for use inside
+C-programs. For interface function list see dialog.h.
+For usage examples see 'dialog' program sources itself into
+/usr/src/gnu/usr.bin/dialog.
+You can additionly use any ncurses functions after init_dialog().
+
+							Ache.
