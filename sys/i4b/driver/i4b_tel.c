@@ -27,7 +27,7 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.40 1999/05/06 08:24:45 hm Exp $
+ *	$Id: i4b_tel.c,v 1.3 1999/05/20 10:09:03 hm Exp $
  *
  *	last edit-date: [Thu May  6 09:30:13 1999]
  *
@@ -185,19 +185,33 @@ PDEVSTATIC d_read_t i4btelwrite;
 PDEVSTATIC d_ioctl_t i4btelioctl;
 #ifdef OS_USES_POLL
 PDEVSTATIC d_poll_t i4btelpoll;
+#define POLLFIELD i4btelpoll
 #else
 PDEVSTATIC d_select_t i4btelsel;
+#define POLLFIELD i4btelsel
 #endif
 
 #define CDEV_MAJOR 56
 static struct cdevsw i4btel_cdevsw = {
-	i4btelopen,	i4btelclose,	i4btelread,	i4btelwrite,
-  	i4btelioctl,	nostop,		noreset,	nodevtotty,
-#ifdef OS_USES_POLL
-	i4btelpoll,	nommap, 	NULL, "i4btel", NULL, -1
-#else
-	i4btelsel,	nommap, 	NULL, "i4btel", NULL, -1
-#endif
+	/* open */	i4btelopen,
+	/* close */	i4btelclose,
+	/* read */	i4btelread,
+	/* write */	i4btelwrite,
+	/* ioctl */	i4btelioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4btel",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 PDEVSTATIC void i4btelinit(void *unused);
@@ -215,11 +229,8 @@ PSEUDO_SET(i4btelattach, i4b_tel);
 PDEVSTATIC void
 i4btelinit(void *unused)
 {
-    dev_t dev;
     
-    dev = makedev(CDEV_MAJOR, 0);
-
-    cdevsw_add(&dev, &i4btel_cdevsw, NULL);
+    cdevsw_add(&i4btel_cdevsw);
 }
 
 SYSINIT(i4bteldev, SI_SUB_DRIVERS,

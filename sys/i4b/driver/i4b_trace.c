@@ -27,7 +27,7 @@
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
  *
- *	$Id: i4b_trace.c,v 1.18 1999/04/28 08:23:21 hm Exp $
+ *	$Id: i4b_trace.c,v 1.3 1999/05/20 10:09:05 hm Exp $
  *
  *	last edit-date: [Wed Apr 28 10:21:09 1999]
  *
@@ -127,17 +127,32 @@ static d_read_t i4btrcread;
 static d_ioctl_t i4btrcioctl;
 #ifdef OS_USES_POLL
 static d_poll_t i4btrcpoll;
+#define POLLFIELD i4btrcpoll
+#else
+#define POLLFIELD noselect
 #endif
 
 #define CDEV_MAJOR 59
 static struct cdevsw i4btrc_cdevsw = {
-	i4btrcopen,	i4btrcclose,	i4btrcread,	nowrite,
-  	i4btrcioctl,	nostop,		noreset,	nodevtotty,
-#ifdef OS_USES_POLL
-	i4btrcpoll,	nommap, 	NULL, "i4btrc", NULL, -1
-#else
-	noselect,	nommap, 	NULL, "i4btrc", NULL, -1
-#endif
+	/* open */	i4btrcopen,
+	/* close */	i4btrcclose,
+	/* read */	i4btrcread,
+	/* write */	nowrite,
+	/* ioctl */	i4btrcioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4btrc",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 /*---------------------------------------------------------------------------*
@@ -146,11 +161,8 @@ static struct cdevsw i4btrc_cdevsw = {
 static
 void i4btrcinit(void *unused)
 {
-    dev_t dev;
-    
-    dev = makedev(CDEV_MAJOR, 0);
 
-    cdevsw_add(&dev, &i4btrc_cdevsw, NULL);
+    cdevsw_add(&i4btrc_cdevsw);
 }
 
 SYSINIT(i4btrcdev, SI_SUB_DRIVERS,

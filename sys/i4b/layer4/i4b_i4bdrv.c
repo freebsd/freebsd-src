@@ -27,7 +27,7 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.44 1999/05/06 08:24:45 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.5 1999/05/20 10:11:20 hm Exp $ 
  *
  *      last edit-date: [Thu May  6 10:05:01 1999]
  *
@@ -140,19 +140,34 @@ PDEVSTATIC	d_ioctl_t	i4bioctl;
 
 #ifdef OS_USES_POLL
 PDEVSTATIC	d_poll_t	i4bpoll;
+#define POLLFIELD		i4bpoll
 #else
 PDEVSTATIC	d_select_t	i4bselect;
+#define POLLFIELD		i4bselect
 #endif
 
 #define CDEV_MAJOR 60
-static struct cdevsw i4b_cdevsw = 
-	{ i4bopen,	i4bclose,	i4bread,	nowrite,
-	  i4bioctl,	nostop,		nullreset,	nodevtotty,
-#ifdef OS_USES_POLL
-	  i4bpoll,	nommap,		NULL,	"i4b", NULL,	-1 };
-#else
-	  i4bselect,	nommap,		NULL,	"i4b", NULL,	-1 };
-#endif
+static struct cdevsw i4b_cdevsw = {
+	/* open */	i4bopen,
+	/* close */	i4bclose,
+	/* read */	i4bread,
+	/* write */	nowrite,
+	/* ioctl */	i4bioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4b",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 PDEVSTATIC void i4battach(void *);
 PSEUDO_SET(i4battach, i4b_i4bdrv);
@@ -952,13 +967,8 @@ static int i4b_devsw_installed = 0;
 static void
 i4b_drvinit(void *unused)
 {
-	dev_t dev;
 
-	if( ! i4b_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&i4b_cdevsw,NULL);
-		i4b_devsw_installed = 1;
-    	}
+	cdevsw_add(&i4b_cdevsw);
 }
 
 SYSINIT(i4bdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,i4b_drvinit,NULL)

@@ -27,7 +27,7 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.31 1999/05/06 13:07:59 hm Exp $
+ *	$Id: i4b_rbch.c,v 1.3 1999/05/20 10:09:02 hm Exp $
  *
  *	last edit-date: [Thu May  6 13:40:22 1999]
  *
@@ -168,19 +168,33 @@ PDEVSTATIC d_ioctl_t i4brbchioctl;
 
 #ifdef OS_USES_POLL
 PDEVSTATIC d_poll_t i4brbchpoll;
+#define POLLFIELD	i4brbchpoll
 #else
 PDEVSTATIC d_select_t i4brbchselect;
+#define POLLFIELD	i4brbchselect
 #endif
 
 #define CDEV_MAJOR 57
 static struct cdevsw i4brbch_cdevsw = {
-	i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
-  	i4brbchioctl,	nostop,		noreset,	nodevtotty,
-#ifdef OS_USES_POLL
- 	i4brbchpoll,	nommap, 	NULL, "i4brbch", NULL, -1
-#else
-	i4brbchselect,	nommap, 	NULL, "i4brbch", NULL, -1
-#endif
+	/* open */	i4brbchopen,
+	/* close */	i4brbchclose,
+	/* read */	i4brbchread,
+	/* write */	i4brbchwrite,
+	/* ioctl */	i4brbchioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	POLLFIELD,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"i4brbch",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* maxio */	0,
+	/* bmaj */	-1
 };
 
 static void i4brbchattach(void *);
@@ -196,11 +210,8 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 static void
 i4brbchinit(void *unused)
 {
-    dev_t dev;
-    
-    dev = makedev(CDEV_MAJOR, 0);
 
-    cdevsw_add(&dev, &i4brbch_cdevsw, NULL);
+    cdevsw_add(&i4brbch_cdevsw);
 }
 
 SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
