@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.34 1996/01/09 03:01:45 peter Exp $
+ *	$Id: si.c,v 1.35 1996/01/16 18:13:18 phk Exp $
  */
 
 #ifndef lint
@@ -87,10 +87,6 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
 
 enum si_mctl { GET, SET, BIS, BIC };
-
-static	const char devchar[] = "ABCDEFGHIJK";
-static	const char portchar[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-
 
 static void si_command __P((struct si_port *, int, int));
 static int si_modem __P((struct si_port *, enum si_mctl, int));
@@ -701,22 +697,18 @@ mem_fail:
 /*	path	name	devsw		minor	type   uid gid perm*/
 	for ( x = 0; x < sc->sc_nport; x++ ) {
 		y = x + 1;	/* For sync with the manuals that start at 1 */
-		sprintf(name,"ttyA%02d", y);
-		sc->devfs_token[x].ttyd = devfs_add_devsw(
-			"/", name, &si_cdevsw, x,
-			DV_CHR, 0, 0, 0600);
-		sprintf(name,"cuaA%02d", y);
-		sc->devfs_token[x].cuaa = devfs_add_devsw(
-			"/", name, &si_cdevsw, x + 128,
-			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttyiA%02d", y);
-		sc->devfs_token[x].ttyi = devfs_add_devsw(
-			"/", name, &si_cdevsw, x + 0x10000,
-			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttylA%02d", y);
-		sc->devfs_token[x].ttyl = devfs_add_devsw(
-			"/", name, &si_cdevsw, x + 0x20000,
-			DV_CHR, 0, 0, 0600);
+		sc->devfs_token[x].ttyd = devfs_add_devswf(
+			&si_cdevsw, x,
+			DV_CHR, 0, 0, 0600, "ttyA%02d", y);
+		sc->devfs_token[x].cuaa = devfs_add_devswf(
+			&si_cdevsw, x + 128,
+			DV_CHR, 0, 0, 0600, "cuaA%02d", y);
+		sc->devfs_token[x].ttyi = devfs_add_devswf(
+			&si_cdevsw, x + 0x10000,
+			DV_CHR, 0, 0, 0600, "ttyiA%02d", y);
+		sc->devfs_token[x].ttyl = devfs_add_devswf(
+			&si_cdevsw, x + 0x20000,
+			DV_CHR, 0, 0, 0600, "ttylA%02d", y);
 	}
 	sc->control_token = devfs_add_devsw("/", "si_control",
 						&si_cdevsw, 0x40000,
@@ -2339,14 +2331,15 @@ si_dprintf(pp, flags, fmt, va_alist)
 #endif
 {
 	va_list ap;
+
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
-		va_start(ap, fmt);
 	    	if (pp != NULL)
 	    		printf("%ci%d(%d): ", 's',
 	    			(int)SI_CARD(pp->sp_tty->t_dev),
 	    			(int)SI_PORT(pp->sp_tty->t_dev));
-		printf("%r", fmt, ap);
+		va_start(ap, fmt);
+		vprintf(fmt, ap);
 		va_end(ap);
 	}
 }

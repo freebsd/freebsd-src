@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.33 1995/12/14 08:31:59 phk Exp $
+ * $Id: tty_pty.c,v 1.34 1995/12/22 15:53:53 bde Exp $
  */
 
 /*
@@ -771,7 +771,6 @@ static ptc_devsw_installed = 0;
 static	void	*devfs_token_pts[MAXUNITS];
 static	void	*devfs_token_ptc[MAXUNITS];
 static  const	char jnames[] = "pqrsPQRS";
-static  const	char knames[] = "0123456789abcdefghijklmnopqrstuv";
 #endif
 
 static void
@@ -800,14 +799,14 @@ ptc_drvinit(void *unused)
 
 			j = i / 32;
 			k = i % 32;
-			sprintf(name,"tty%c%c",jnames[j],knames[k]);
 			devfs_token_pts[i] = 
-				devfs_add_devsw("/",name,&pts_cdevsw,i,
-						DV_CHR,0,0,0666);
-			sprintf(name,"pty%c%c",jnames[j],knames[k]);
+				devfs_add_devswf(&pts_cdevsw,i,
+						DV_CHR,0,0,0666,
+						"tty%c%n",j,k);
 			devfs_token_ptc[i] =
-				devfs_add_devsw("/",name,&ptc_cdevsw,i,
-						DV_CHR,0,0,0666);
+				devfs_add_devswf(&ptc_cdevsw,i,
+						DV_CHR,0,0,0666,
+						"pty%c%n",j,k);
 		}
 #endif
     	}
