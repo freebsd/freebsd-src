@@ -1492,7 +1492,7 @@ thread_signal_add(struct thread *td, int sig)
 	ps = p->p_sigacts;
 	mtx_assert(&ps->ps_mtx, MA_OWNED);
 
-	thread_siginfo(sig, 0, &siginfo);
+	cpu_thread_siginfo(sig, 0, &siginfo);
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
 	error = copyout(&siginfo, &td->td_mailbox->tm_syncsig, sizeof(siginfo));
