@@ -274,9 +274,10 @@ fsirand(char *device)
 					    inumber,
 					    sblock->fs_magic == FS_UFS1_MAGIC ?
 					    (quad_t)dp1->di_gen : dp2->di_gen);
+				else if (sblock->fs_magic == FS_UFS1_MAGIC) 
+					dp1->di_gen = random(); 
 				else
-					(sblock->fs_magic == FS_UFS1_MAGIC ?
-					dp1->di_gen : dp2->di_gen) = random();
+					dp2->di_gen = random();
 			}
 		}
 

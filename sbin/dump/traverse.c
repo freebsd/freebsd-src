@@ -63,6 +63,12 @@ union dinode {
 #define	DIP(dp, field) \
 	((sblock->fs_magic == FS_UFS1_MAGIC) ? \
 	(dp)->dp1.field : (dp)->dp2.field)
+#define DIP_SET(dp, field, val) do {\
+	if (sblock->fs_magic == FS_UFS1_MAGIC) \
+		(dp)->dp1.field = (val); \
+	else \
+		(dp)->dp2.field = (val); \
+	} while (0)
 
 #define	HASDUMPEDFILE	0x1
 #define	HASSUBDIRS	0x2
@@ -446,8 +452,8 @@ dumpino(union dinode *dp, ino_t ino)
 	 * as a zero length file.
 	 */
 	if ((DIP(dp, di_flags) & SF_SNAPSHOT) != 0) {
-		DIP(dp, di_size) = 0;
-		DIP(dp, di_flags) &= ~SF_SNAPSHOT;
+		DIP_SET(dp, di_size, 0);
+		DIP_SET(dp, di_flags, DIP(dp, di_flags) & ~SF_SNAPSHOT);
 	}
 	if (sblock->fs_magic == FS_UFS1_MAGIC) {
 		spcl.c_mode = dp->dp1.di_mode;
