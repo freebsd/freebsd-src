@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: mknetid.c,v 1.2 1996/06/27 05:42:01 wpaul Exp $
+ *	$Id: mknetid.c,v 1.3 1996/07/12 05:55:38 bde Exp $
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: mknetid.c,v 1.2 1996/06/27 05:42:01 wpaul Exp $";
+static const char rcsid[] = "$Id: mknetid.c,v 1.3 1996/07/12 05:55:38 bde Exp $";
 #endif
 
 #define LINSIZ 1024
@@ -273,8 +273,6 @@ domain not set");
 
 			writebuf[0] = *ptr;
 			*ptr = '\0';
-			snprintf(writebuf, sizeof(readbuf), "%s.%s@%s", OPSYS,
-								ptr, domain);
 			if (lookup(dtable, (char *)&readbuf)) {
 				if (!quiet)
 					warnx("duplicate netid '%s' -- skipping",
