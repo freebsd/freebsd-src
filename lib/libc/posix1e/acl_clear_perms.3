@@ -26,11 +26,11 @@
 .\" $FreeBSD$
 .\"
 .Dd March 10, 2001
-.Dt ACL_CLEAR_PERM 3
+.Dt ACL_CLEAR_PERMS 3
 .Os
 .Sh NAME
 .Nm acl_clear_perms
-.Nd Clear permissions from a permission set
+.Nd clear permissions from a permission set
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,27 +41,17 @@
 .Sh DESCRIPTION
 .Fn acl_clear_perms
 is a POSIX.1e call that clears all permissions from permissions set
-.Ar perm .
+.Fa permset_d .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_clear_perms
 .Sh ERRORS
-If the following condition occurs, the
+The
 .Fn acl_clear_perms
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar permset_d
+.Fa permset_d
 is not a valid descriptor for a permission set.
 .El
 .Sh SEE ALSO

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_create_entry
-.Nd Create a new ACL entry
+.Nd create a new ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -42,27 +42,17 @@
 .Fn acl_create_entry
 is a POSIX.1e call that creates a new ACL entry in the ACL
 pointed to by
-.Ar acl_p.
+.Fa acl_p .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_create_entry
 .Sh ERRORS
-If one of the following conditions occur, the
+The
 .Fn acl_create_entry
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar acl_p
+.Fa acl_p
 does not point to a pointer to a valid ACL.
 .It Bq Er ENOMEM
 The ACL working storage requires more memory than is
