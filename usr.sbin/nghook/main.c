@@ -71,16 +71,20 @@ main(int ac, char *av[])
 	char   *path = NULL, *hook = DEFAULT_HOOKNAME;
 	int     csock, dsock;
 	int     asciiFlag = 0;
+	int     loopFlag = 0;
 	int	ch;
 
 	/* Parse flags */
-	while ((ch = getopt(ac, av, "da")) != EOF) {
+	while ((ch = getopt(ac, av, "adl")) != EOF) {
 		switch (ch) {
+		case 'a':
+			asciiFlag = 1;
+			break;
 		case 'd':
 			NgSetDebug(NgSetDebug(-1) + 1);
 			break;
-		case 'a':
-			asciiFlag = 1;
+		case 'l':
+			loopFlag = 1;
 			break;
 		case '?':
 		default:
@@ -151,6 +155,11 @@ main(int ac, char *av[])
 					    "stdout: read %d, wrote %d",
 					    rl, wl);
 				}
+			}
+			/* Loopback */
+			if (loopFlag) {
+				if (NgSendData(dsock, NG_SOCK_HOOK_NAME, buf, rl) < 0)
+					err(EX_OSERR, "write(hook)");
 			}
 		}
 

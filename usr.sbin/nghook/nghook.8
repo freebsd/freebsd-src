@@ -45,6 +45,7 @@ node
 .Nm
 .Op Fl a
 .Op Fl d
+.Op Fl l
 .Ar path
 .Op Ar hookname
 .Sh DESCRIPTION
@@ -73,6 +74,9 @@ Output each read packet in
 .Tn ASCII .
 .It Fl d
 Increase the debugging verbosity level.
+.It Fl l
+Loops all received data back to the hook in addition to writing it
+to standard output.
 .El
 .Sh BUGS
 Although all input is read in unbuffered mode, 
