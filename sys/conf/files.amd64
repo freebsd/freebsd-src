@@ -130,7 +130,7 @@ geom/geom_mbr_enc.c		standard
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
 isa/fd.c			optional	fdc
-isa/ppc.c			optional	ppc
+dev/ppc/ppc.c			optional	ppc
 isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga

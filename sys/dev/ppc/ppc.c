@@ -50,41 +50,26 @@ __FBSDID("$FreeBSD$");
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_msq.h>
 
-#include <isa/ppcreg.h>
+#include <dev/ppc/ppcvar.h>
+#include <dev/ppc/ppcreg.h>
 
 #include "ppbus_if.h"
+
+static int ppc_isa_probe(device_t dev);
+
+static void ppcintr(void *arg);
 
 #define LOG_PPC(function, ppc, string) \
 		if (bootverbose) printf("%s: %s\n", function, string)
 
 
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
+
+devclass_t ppc_devclass;
   
-static devclass_t ppc_devclass;
-
-static int ppc_probe(device_t dev);
-static int ppc_attach(device_t dev);
-static int ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val);
-
-static void ppc_reset_epp(device_t);
-static void ppc_ecp_sync(device_t);
-static void ppcintr(void *arg);
-
-static int ppc_exec_microseq(device_t, struct ppb_microseq **);
-static int ppc_setmode(device_t, int);
-
-static int ppc_read(device_t, char *, int, int);
-static int ppc_write(device_t, char *, int, int);
-
-static u_char ppc_io(device_t, int, u_char *, int, u_char);
-
-static int ppc_setup_intr(device_t, device_t, struct resource *, int,
-		void (*)(void *), void *, void **);
-static int ppc_teardown_intr(device_t, device_t, struct resource *, void *);
-
 static device_method_t ppc_methods[] = {
 	/* device interface */
-	DEVMETHOD(device_probe,         ppc_probe),
+	DEVMETHOD(device_probe,         ppc_isa_probe),
 	DEVMETHOD(device_attach,        ppc_attach),
 
 	/* bus interface */
@@ -110,7 +95,7 @@ static driver_t ppc_driver = {
 	ppc_methods,
 	sizeof(struct ppc_data),
 };
-  
+
 static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
 	"82091AA", "Generic", "W83877F", "W83877AF", "Winbond", "PC87334",
@@ -149,7 +134,7 @@ static char *ppc_epp_protocol[] = { " (EPP 1.9)", " (EPP 1.7)", 0 };
 /*
  * ppc_ecp_sync()		XXX
  */
-static void
+void
 ppc_ecp_sync(device_t dev) {
 
 	int i, r;
@@ -1339,7 +1324,7 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
  * Execute a microsequence.
  * Microsequence mechanism is supposed to handle fast I/O operations.
  */
-static int
+int
 ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -1626,7 +1611,7 @@ ppcintr(void *arg)
 	return;
 }
 
-static int
+int
 ppc_read(device_t dev, char *buf, int len, int mode)
 {
 	return (EINVAL);
@@ -1639,7 +1624,7 @@ ppc_read(device_t dev, char *buf, int len, int mode)
  * If what you want is not possible (no ECP, no DMA...),
  * EINVAL is returned
  */
-static int
+int
 ppc_write(device_t dev, char *buf, int len, int how)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -1791,7 +1776,7 @@ error:
 	return (error);
 }
 
-static void
+void
 ppc_reset_epp(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -1801,7 +1786,7 @@ ppc_reset_epp(device_t dev)
 	return;
 }
 
-static int
+int
 ppc_setmode(device_t dev, int mode)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -1828,15 +1813,10 @@ static struct isa_pnp_id lpc_ids[] = {
 };
 
 static int
-ppc_probe(device_t dev)
+ppc_isa_probe(device_t dev)
 {
-#ifdef __i386__
-	static short next_bios_ppc = 0;
-#endif
-	struct ppc_data *ppc;
 	device_t parent;
 	int error;
-	u_long port;
 
 	parent = device_get_parent(dev);
 
@@ -1845,6 +1825,19 @@ ppc_probe(device_t dev)
 		return (ENXIO);
 	else if (error != 0)	/* XXX shall be set after detection */
 		device_set_desc(dev, "Parallel port");
+
+	return(ppc_probe(dev));
+}
+		
+int
+ppc_probe(device_t dev)
+{
+#ifdef __i386__
+	static short next_bios_ppc = 0;
+#endif
+	struct ppc_data *ppc;
+	int error;
+	u_long port;
 
 	/*
 	 * Allocate the ppc_data structure.
@@ -1967,7 +1960,7 @@ error:
 	return (ENXIO);
 }
 
-static int
+int
 ppc_attach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
@@ -2012,7 +2005,7 @@ ppc_attach(device_t dev)
 	return (0);
 }
 
-static u_char
+u_char
 ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
@@ -2078,7 +2071,7 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 	return (0);	/* not significative */
 }
 
-static int
+int
 ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 {
 	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(bus);
@@ -2101,7 +2094,7 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
  * Resource is useless here since ppbus devices' interrupt handlers are
  * multiplexed to the same resource initially allocated by ppc
  */
-static int
+int
 ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 			void (*ihand)(void *), void *arg, void **cookiep)
 {
@@ -2132,7 +2125,7 @@ ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
  * When no underlying device has a registered interrupt, register the ppc
  * layer one
  */
-static int
+int
 ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 {
 	int error;
