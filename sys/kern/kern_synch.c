@@ -718,7 +718,7 @@ restart:
 					setrunqueue(td);
 					maybe_resched(td);
 				} else {
-/* XXXKSE Wrong! */			td->td_state = TDS_RUNQ;
+					td->td_state = TDS_SWAPPED;
 					p->p_sflag |= PS_SWAPINREQ;
 					wakeup(&proc0);
 				}
@@ -765,7 +765,7 @@ restart:
 					maybe_resched(td);
 					break;
 				} else {
-/* XXXKSE Wrong */			td->td_state = TDS_RUNQ;
+					td->td_state = TDS_SWAPPED;
 					p->p_sflag |= PS_SWAPINREQ;
 					wakeup(&proc0);
 				}
@@ -919,6 +919,7 @@ setrunnable(struct thread *td)
 	case 0:
 	case TDS_RUNNING:
 	case TDS_IWAIT:
+	case TDS_SWAPPED:
 	default:
 		printf("state is %d", td->td_state);
 		panic("setrunnable(2)");
@@ -939,7 +940,7 @@ setrunnable(struct thread *td)
 		updatepri(td);
 	td->td_ksegrp->kg_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
-		td->td_state = TDS_RUNQ; /* XXXKSE not a good idea */
+		td->td_state = TDS_SWAPPED;
 		p->p_sflag |= PS_SWAPINREQ;
 		wakeup(&proc0);
 	} else {
