@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.10 1998/08/24 10:17:20 cracauer Exp $";
+	"$Id: main.c,v 1.11 1998/09/07 05:49:43 sef Exp $";
 #endif /* not lint */
 
 /*
@@ -53,10 +53,16 @@ static const char rcsid[] =
 
 extern int setup_and_wait(char **);
 extern int start_tracing(int, int);
+#ifdef __alpha__
+extern void alpha_syscall_entry(int, int);
+extern void alpha_syscall_exit(int, int);
+#endif
+#ifdef __i386__
 extern void i386_syscall_entry(int, int);
 extern void i386_syscall_exit(int, int);
 extern void i386_linux_syscall_entry(int, int);
 extern void i386_linux_syscall_exit(int, int);
+#endif
 
 /*
  * These should really be parameterized -- I don't like having globals,
@@ -87,9 +93,14 @@ struct ex_types {
   void (*enter_syscall)(int, int);
   void (*exit_syscall)(int, int);
 } ex_types[] = {
+#ifdef __alpha__
+  { "FreeBSD ELF", alpha_syscall_entry, alpha_syscall_exit },
+#endif
+#ifdef __i386__
   { "FreeBSD a.out", i386_syscall_entry, i386_syscall_exit },
   { "FreeBSD ELF", i386_syscall_entry, i386_syscall_exit },
   { "Linux ELF", i386_linux_syscall_entry, i386_linux_syscall_exit },
+#endif
   { 0, 0, 0 },
 };
 
