@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
  *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: rpc_msg.h,v 1.1 1993/10/27 05:40:49 paul Exp $
+ *	$Id: rpc_msg.h,v 1.2 1994/08/07 18:40:59 wollman Exp $
  */
 
 /*
@@ -189,6 +189,7 @@ extern bool_t	xdr_replymsg	__P((XDR *, struct rpc_msg *));
  * 	struct rpc_msg *msg;
  * 	struct rpc_err *error;
  */
+struct rpc_err;
 extern void	_seterr_reply	__P((struct rpc_msg *, struct rpc_err *));
 __END_DECLS
 
