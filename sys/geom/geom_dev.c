@@ -264,9 +264,8 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 static int
 g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
-	struct g_geom *gp, *gp2;
+	struct g_geom *gp;
 	struct g_consumer *cp;
-	struct g_provider *pp2;
 	struct g_kerneldump kd;
 	int i, error;
 	u_int u;
@@ -274,8 +273,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
-	pp2 = cp->provider;
-	gp2 = pp2->geom;
 	gio = NULL;
 
 	error = 0;
@@ -394,7 +391,6 @@ g_dev_done(struct bio *bp2)
 static void
 g_dev_strategy(struct bio *bp)
 {
-	struct g_geom *gp;
 	struct g_consumer *cp;
 	struct bio *bp2;
 	dev_t dev;
@@ -404,7 +400,6 @@ g_dev_strategy(struct bio *bp)
 	        bp->bio_cmd == BIO_DELETE,
 		("Wrong bio_cmd bio=%p cmd=%d", bp, bp->bio_cmd));
 	dev = bp->bio_dev;
-	gp = dev->si_drv1;
 	cp = dev->si_drv2;
 	KASSERT(cp->acr || cp->acw,
 	    ("Consumer with zero access count in g_dev_strategy"));
