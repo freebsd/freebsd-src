@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.8 1995/10/22 00:41:56 jfieber Exp $
+     $Id: booting.sgml,v 1.9 1996/01/31 14:25:57 mpp Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -57,7 +57,7 @@
           Dosboot will boot the kernel from a MS-DOS file or from a FreeBSD
           filesystem partition on the disk.  It attempts to negotiate with
           the various and strange kinds of memory manglers that lurk in
-          high memory on MS/DOS systems and usually wins them for it's
+          high memory on MS/DOS systems and usually wins them for its
           case.
 
       <tag>Netboot</tag>
