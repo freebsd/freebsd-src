@@ -293,7 +293,7 @@ static int
 no_page_exists(char *dir, StringList *names, char *suffix)
 {
 	char path[MAXPATHLEN];
-	int i;
+	size_t i;
 
 	for (i = 0; i < names->sl_cur; i++) {
 		snprintf(path, sizeof path, "%s/%s.%s.gz", dir, names->sl_str[i], suffix);
@@ -363,7 +363,7 @@ linesort(const void *a, const void *b)
 static void
 finish_output(FILE *output, char *name)
 {
-	int i;
+	size_t i;
 	char *prev = NULL;
 
 	qsort(whatis_lines->sl_str, whatis_lines->sl_cur, sizeof(char *), linesort);
@@ -693,7 +693,7 @@ process_page(struct page_info *page, char *section_dir)
 	StringList *names;
 	char *descr;
 	int state = STATE_UNKNOWN;
-	int i;
+	size_t i;
 
 	sbuf_clear(whatis_proto);
 	if ((in = gzopen(page->filename, "r")) == NULL) {
@@ -824,7 +824,7 @@ process_section(char *section_dir)
 	struct page_info **pages;
 	int npages = 0;
 	int i;
-	int prev_inode = 0;
+	ino_t prev_inode = 0;
 
 	if (verbose)
 		fprintf(stderr, "  %s\n", section_dir);
