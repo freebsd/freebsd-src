@@ -1,3 +1,4 @@
+.\" Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -35,40 +36,26 @@
 .\"	@(#)multibyte.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 10, 2003
+.Dd December 7, 2003
 .Dt MULTIBYTE 3
 .Os
 .Sh NAME
-.Nm mblen ,
-.Nm mbstowcs ,
-.Nm mbtowc ,
-.Nm wcstombs ,
-.Nm wctomb
-.Nd multibyte character support for C
+.Nm multibyte
+.Nd multibyte and wide character manipulation functions
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.In limits.h
 .In stdlib.h
-.Ft int
-.Fn mblen "const char *mbchar" "size_t nbytes"
-.Ft size_t
-.Fn mbstowcs "wchar_t * restrict wcstring" "const char * restrict mbstring" "size_t nwchars"
-.Ft int
-.Fn mbtowc "wchar_t * restrict wcharp" "const char * restrict mbchar" "size_t nbytes"
-.Ft size_t
-.Fn wcstombs "char * restrict mbstring" "const wchar_t * restrict wcstring" "size_t nbytes"
-.Ft int
-.Fn wctomb "char *mbchar" "wchar_t wchar"
+.In wchar.h
 .Sh DESCRIPTION
-The basic elements of some written natural languages such as Chinese
+The basic elements of some written natural languages, such as Chinese,
 cannot be represented uniquely with single C
 .Va char Ns s .
 The C standard supports two different ways of dealing with
-extended natural language encodings,
-.Em wide
-characters and
-.Em multibyte
-characters.
+extended natural language encodings:
+wide characters and
+multibyte characters.
 Wide characters are an internal representation
 which allows each basic element to map
 to a single object of type
@@ -102,24 +89,16 @@ but are lumped with a neighboring character.
 There is always a distinguished
 .Sq initial
 shift state.
-The
-.Fn mbstowcs
-and
-.Fn wcstombs
-functions assume that multibyte strings are interpreted
-starting from the initial shift state.
-The
+Some functions (e.g.
 .Fn mblen ,
 .Fn mbtowc
 and
-.Fn wctomb
-functions maintain static shift state internally.
-A call with a null
-.Fa mbchar
-pointer returns nonzero if the current locale requires shift states,
-zero otherwise;
-if shift states are required, the shift state is reset to the initial state.
-The internal shift states are undefined after a call to
+.Fn wctomb )
+maintain static shift state internally, whereas
+others store in an
+.Vt mbstate_t
+object passed by the caller.
+Shift states are undefined after a call to
 .Fn setlocale
 with the
 .Dv LC_CTYPE
@@ -136,102 +115,25 @@ and the character with value 0
 is recognized as the multibyte character string terminator.
 Null bytes are not permitted within multibyte characters.
 .Pp
-The
-.Fn mblen
-function computes the length in bytes
-of a multibyte character
-.Fa mbchar .
-Up to
-.Fa nbytes
-bytes are examined.
-.Pp
-The
-.Fn mbtowc
-function converts a multibyte character
-.Fa mbchar
-into a wide character and stores the result
-in the object pointed to by
-.Fa wcharp .
-Up to
-.Fa nbytes
-bytes are examined.
-.Pp
-The
-.Fn wctomb
-function converts a wide character
-.Fa wchar
-into a multibyte character and stores
-the result in
-.Fa mbchar .
-The object pointed to by
-.Fa mbchar
-must be large enough to accommodate the multibyte character.
-.Pp
-The
-.Fn mbstowcs
-function converts a multibyte character string
-.Fa mbstring
-into a wide character string
-.Fa wcstring .
-No more than
-.Fa nwchars
-wide characters are stored.
-A terminating null wide character is appended if there is room.
-.Pp
-The
-.Fn wcstombs
-function converts a wide character string
-.Fa wcstring
-into a multibyte character string
-.Fa mbstring .
-Up to
-.Fa nbytes
-bytes are stored in
-.Fa mbstring .
-Partial multibyte characters at the end of the string are not stored.
-The multibyte character string is null terminated if there is room.
-.Sh "RETURN VALUES
-If
-.Fa mbchar
-is
-.Dv NULL ,
-the
-.Fn mblen ,
-.Fn mbtowc
-and
-.Fn wctomb
-functions return nonzero if shift states are supported,
-zero otherwise.
-If
-.Fa mbchar
-is valid,
-then these functions return
-the number of bytes processed in
-.Fa mbchar ,
-or \-1 if no multibyte character
-could be recognized or converted.
-.Pp
-The
-.Fn mbstowcs
-function returns the number of wide characters converted,
-not counting any terminating null wide character.
-The
-.Fn wcstombs
-function returns the number of bytes converted,
-not counting any terminating null byte.
-If any invalid multibyte characters are encountered,
-both functions return \-1.
+The C library provides the following functions for dealing with
+multibyte characters:
+.Bl -column "Description"
+.It Sy "Function        Description"
+.It "mblen	get number of bytes in a character"
+.It "mbrlen	get number of bytes in a character (restartable)"
+.It "mbrtowc	convert a character to a wide-character code (restartable)"
+.It "mbsrtowcs	convert a character string to a wide-character string (restartable)"
+.It "mbstowcs	convert a character string to a wide-character string"
+.It "mbtowc	convert a character to a wide-character code"
+.It "wcrtomb	convert a wide-character code to a character (restartable)"
+.It "wcstombs	convert a wide-character string to a character string"
+.It "wcsrtombs	convert a wide-character string to a character string (restartable)"
+.It "wctomb	convert a wide-character code to a character"
+.El
 .Sh SEE ALSO
-.Xr btowc 3 ,
-.Xr mbrlen 3 ,
-.Xr mbrtowc 3 ,
-.Xr mbrune 3 ,
-.Xr mbsinit 3 ,
-.Xr mbsrtowcs 3 ,
-.Xr rune 3 ,
+.Xr mklocale 1 ,
+.Xr stdio 3 ,
 .Xr setlocale 3 ,
-.Xr wcrtomb 3 ,
-.Xr wcsrtombs 3 ,
 .Xr big5 5 ,
 .Xr euc 5 ,
 .Xr gb18030 5 ,
@@ -241,14 +143,10 @@ both functions return \-1.
 .Xr utf2 5 ,
 .Xr utf8 5
 .Sh STANDARDS
-The
-.Fn mblen ,
-.Fn mbstowcs ,
-.Fn mbtowc ,
-.Fn wcstombs
+These functions conform to
+.St -isoC
 and
-.Fn wctomb
-functions conform to
-.St -isoC .
+.St -isoC-99
+as documented in their individual manual pages.
 .Sh BUGS
 The current implementation does not support shift states.
