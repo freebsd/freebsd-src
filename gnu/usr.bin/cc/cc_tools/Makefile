@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1996/09/19 15:47:16 peter Exp $
+# $Id: Makefile,v 1.1.2.1 1997/10/26 22:47:42 jkh Exp $
 #
 
 #
@@ -116,7 +116,7 @@ CLEANFILES+= objc-parse.y		# insurance
 CLEANFILES+=	${SRCS}
 
 #-----------------------------------------------------------------------
-all:		${BINFORMAT} ${SRCS}
+all:		aout ${SRCS}
 
 #-----------------------------------------------------------------------
 # Make 'depend' in compat mode
@@ -124,13 +124,12 @@ all:		${BINFORMAT} ${SRCS}
 .SINGLESHELL:
 .endif
 
-beforedepend:	${BINFORMAT}
+beforedepend:	aout
 
 #-----------------------------------------------------------------------
 # the host/target compiler config.
 
 aout:
-	@rm -f elf
 	echo '#include "i386/freebsd.h"'     > tm.h
 	echo '#include "i386/xm-freebsd.h"'  > config.h
 	echo '#include "i386/xm-freebsd.h"'  > hconfig.h
@@ -140,17 +139,6 @@ aout:
 	echo '#include "f2c-specs.h"'        >> specs.h
 	@touch aout
 
-elf:
-	@rm -f aout
-	echo '#include "i386/freebsd-elf.h"' > tm.h
-	echo '#include "i386/xm-freebsd.h"'  > config.h
-	echo '#include "i386/xm-freebsd.h"'  > hconfig.h
-	echo '#include "i386/xm-freebsd.h"'  > tconfig.h
-	echo '#include "cp/lang-options.h"'  > options.h
-	echo '#include "cp/lang-specs.h"'    > specs.h
-	echo '#include "f2c-specs.h"'        >> specs.h
-	@touch elf
-
-CLEANFILES+=	config.h hconfig.h tconfig.h tm.h options.h specs.h elf aout
+CLEANFILES+=	config.h hconfig.h tconfig.h tm.h options.h specs.h aout
 
 .include <bsd.prog.mk>
