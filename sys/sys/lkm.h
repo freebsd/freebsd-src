@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * lkm.h,v 1.5 1995/04/20 05:08:51 wpaul Exp
+ * $Id$
  */
 
 #ifndef _SYS_LKM_H_
