@@ -235,12 +235,12 @@ printtrap(a0, a1, a2, entry, framep, isfatal, user)
 	printf("    pc             = 0x%lx\n", framep->tf_regs[FRAME_PC]);
 	printf("    ra             = 0x%lx\n", framep->tf_regs[FRAME_RA]);
 	printf("    sp             = 0x%lx\n", framep->tf_regs[FRAME_SP]);
-	if (curproc != NULL && (curproc->p_flag & P_KTHREAD) == 0)
+	if (curthread != NULL && (curthread->td_proc->p_flag & P_KTHREAD) == 0)
 		printf("    usp            = 0x%lx\n", alpha_pal_rdusp());
-	printf("    curproc        = %p\n", curproc);
-	if (curproc != NULL)
-		printf("        pid = %d, comm = %s\n", curproc->p_pid,
-		       curproc->p_comm);
+	printf("    curthread      = %p\n", curthread);
+	if (curthread != NULL)
+		printf("        pid = %d, comm = %s\n",
+		    curthread->td_proc->p_pid, curthread->td_proc->p_comm);
 	printf("\n");
 }
 
@@ -275,6 +275,10 @@ trap(a0, a1, a2, entry, framep)
 	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
+	if (td == NULL) {
+		printtrap(a0, a1, a2, entry, framep, 1, 0);
+		cpu_halt();
+	}
 	td->td_md.md_kernnest++;
 	cpu_critical_exit(s);
 #endif
