@@ -1,33 +1,29 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 12/15/93
 # $FreeBSD$
 
+TELNETDIR=	${.CURDIR}/../../contrib/telnet
+.PATH:		${TELNETDIR}/libtelnet
+
 LIB=		telnet
 
 INTERNALLIB=	yes
 
 SRCS=		genget.c getent.c misc.c
+CFLAGS+=	-I${TELNETDIR}
 
 WARNS?=		2
 
-unifdef:
-	-cd ${.CURDIR} ; \
-	( for i in *.[ch] ; do \
-		unifdef -UAUTHENTICATION -UENCRYPTION \
-			${.CURDIR}/../../crypto/telnet/libtelnet/$$i \
-				> ${.CURDIR}/$$i ; \
-		echo $$i ; \
-	done )
+.if !defined(NO_CRYPTO)
+SRCS+=		encrypt.c auth.c enc_des.c sra.c pk.c
+CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA
+.if !defined(NO_KERBEROS)
+SRCS+=		kerberos5.c
+CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
+CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
+.endif
+.endif
+
+INCS=		${TELNETDIR}/arpa/telnet.h
+INCSDIR=	${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>
-
-#
-# Remove obsolete shared libraries, if any.  We don't bother moving them
-# to /usr/lib/compat, since they were only used by telnet, telnetd and
-# tn3270.
-#
-beforeinstall: __remove-stale-libs
-__remove-stale-libs: .PHONY
-.if exists(${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0)
-	-chflags noschg ${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0
-	rm -f ${DESTDIR}${SHLIBDIR}/lib${LIB}.so.2.0
-.endif
