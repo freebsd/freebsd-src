@@ -399,6 +399,7 @@ if_attach(struct ifnet *ifp)
 		if_index = ifp->if_index;
 	if (if_index >= if_indexlim)
 		if_grow();
+	ifp->if_data.ifi_datalen = sizeof(struct if_data);
 
 	ifnet_byindex(ifp->if_index) = ifp;
 	ifdev_byindex(ifp->if_index) = make_dev(&net_cdevsw,
