@@ -10,7 +10,10 @@ RUNDIR=		/var/run
 ETCDIR=		/etc
 DBDIR=		/var/db
 
-MANFILTER= perl -pe 's\#DBDIR\#${DBDIR}\#g;s\#ETCDIR\#${ETCDIR}\#g;s\#CLIENTBINDIR\#${CLIENTBINDIR}\#g;s\#RUNDIR\#${RUNDIR}\#g;'
+MANFILTER= sed	-e 's|DBDIR|${DBDIR}|g' \
+		-e 's|ETCDIR|${ETCDIR}|g' \
+		-e 's|CLIENTBINDIR|${CLIENTBINDIR}|g' \
+		-e 's|RUNDIR|${RUNDIR}|g'
 
 .if exists(${.OBJDIR}/../common)
 LIBDHCP=	${.OBJDIR}/../common/libdhcp.a
