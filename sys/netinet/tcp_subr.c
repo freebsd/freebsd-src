@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.38 1997/09/16 18:36:06 joerg Exp $
+ *	$Id: tcp_subr.c,v 1.39 1997/10/28 15:58:53 bde Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -164,6 +164,8 @@ tcp_template(tp)
  *
  * In any case the ack and sequence number of the transmitted
  * segment are as specified by the parameters.
+ *
+ * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
  */
 void
 tcp_respond(tp, ti, m, ack, seq, flags)
