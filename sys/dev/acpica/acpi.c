@@ -1107,13 +1107,9 @@ acpi_probe_children(device_t bus)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     ACPI_ASSERTLOCK;
 
-    /* Create any static children by calling device identify methods. */
-    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
-    bus_generic_probe(bus);
-
     /*
      * Scan the namespace and insert placeholders for all the devices that
-     * we find.
+     * we find.  We also probe/attach any early devices.
      *
      * Note that we use AcpiWalkNamespace rather than AcpiGetDevices because
      * we want to create nodes for all devices, not just those that are
@@ -1129,9 +1125,11 @@ acpi_probe_children(device_t bus)
 	}
     }
 
-    /*
-     * Scan all of the child devices we have created and let them probe/attach.
-     */
+    /* Create any static children by calling device identify methods. */
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
+    bus_generic_probe(bus);
+
+    /* Probe/attach all children, created staticly and from the namespace. */
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "first bus_generic_attach\n"));
     bus_generic_attach(bus);
 
