@@ -452,13 +452,8 @@ get_fmt(int size, enum fd_drivetype type)
 		return fd_types_auto;
 
 	for (i = 0; i < n; i++, fdtp++)
-#ifdef PC98
 		if (((128 << fdtp->secsize) * fdtp->size / 1024) == size)
 			return (fdtp);
-#else
-		if (fdtp->size / 2 == size)
-			return (fdtp);
-#endif
 
 	return (0);
 }
