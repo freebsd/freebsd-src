@@ -40,16 +40,7 @@
 #define COPYRIGHT_PC98 \
 	"Copyright (c) 1994-2000 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
 
-/* HP + Motorola */
-#define COPYRIGHT_HPFPLIB \
-	"Copyright (c) 1992 Hewlett-Packard Company.\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n"
-
-
-
-#if defined(HPFPLIB)
-char copyright[] = COPYRIGHT_UCB/**/COPYRIGHT_HPFPLIB;
-
-#elif defined(PC98)
+#if defined(PC98)
 char copyright[] = COPYRIGHT_FreeBSD/**/COPYRIGHT_PC98/**/COPYRIGHT_UCB;
 
 #else
