@@ -290,8 +290,7 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    CRYPTODists |= (DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
-	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
+    CRYPTODists = DIST_CRYPTO_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -316,6 +315,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
+    CRYPTODists |= DIST_CRYPTO_BIN;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
@@ -339,6 +339,7 @@ distSetUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
+    CRYPTODists |= DIST_CRYPTO_BIN;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
