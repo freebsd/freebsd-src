@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_simple.c 1.18 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_simple.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_simple.c,v 1.2 1995/05/30 05:41:37 rgrimes Exp $";
+static char *rcsid = "$Id: svc_simple.c,v 1.3 1995/10/22 14:51:37 phk Exp $";
 #endif
 
 /*
@@ -47,6 +47,8 @@ static char *rcsid = "$Id: svc_simple.c,v 1.2 1995/05/30 05:41:37 rgrimes Exp $"
 #include <sys/socket.h>
 #include <netdb.h>
 
+bool_t pmap_unset(u_long, u_long);
+
 static struct proglst {
 	char *(*p_progname)();
 	int  p_prognum;
@@ -58,14 +60,15 @@ static void universal();
 static SVCXPRT *transp;
 struct proglst *pl;
 
-registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
+int registerrpc(prognum, versnum, procnum, progname, inproc, outproc)
 	char *(*progname)();
+	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
 {
 
 	if (procnum == NULLPROC) {
 		(void) fprintf(stderr,
-		    "can't reassign procedure number %d\n", NULLPROC);
+		    "can't reassign procedure number %ld\n", NULLPROC);
 		return (-1);
 	}
 	if (transp == 0) {

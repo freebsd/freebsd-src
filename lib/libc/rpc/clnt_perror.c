@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_perror.c 1.15 87/10/07 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_perror.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_perror.c,v 1.3 1995/10/22 14:51:14 phk Exp $";
+static char *rcsid = "$Id: clnt_perror.c,v 1.4 1995/12/10 17:40:18 wpaul Exp $";
 #endif
 
 /*
@@ -252,6 +252,8 @@ clnt_spcreateerror(s)
 		else
 			(void) sprintf(&str[strlen(str)], "Error %d",
 			    rpc_createerr.cf_error.re_errno);
+		break;
+	default:
 		break;
 	}
 	(void) strcat(str, "\n");
