@@ -78,6 +78,13 @@ typedef int	bool;
 #define	TRUE	1
 
     /*
+     *	Historical scale factor in profil(2)'s algorithm for converting
+     *	pc addresses to bucket numbers.  This now just complicates the
+     *	scaling and makes bucket:pc densities of more than 1/2 useless.
+     */
+#define	HISTORICAL_SCALE_2	2
+
+    /*
      *	ticks per second
      */
 long	hz;
@@ -87,7 +94,6 @@ typedef	int64_t UNIT;
 #else
 typedef	u_short UNIT;		/* unit of profiling */
 #endif
-#define	UNITS_TO_CODE	(OFFSET_OF_CODE / sizeof(UNIT))
 
 char	*a_outname;
 #define	A_OUTNAME		"a.out"
