@@ -46,78 +46,32 @@ LLABEL(name,1):
 
 
 #define	SYSCALL(name)						\
-LEAF(__CONCAT(_,name),0);		/* XXX # of args? */	\
-	WEAK_ALIAS(name, __CONCAT(_,name));			\
+LEAF(__CONCAT(__sys_,name),0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __CONCAT(__sys_,name));		\
+	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(__sys_,name));	\
 	CALLSYS_ERROR(name)
 
 #define	SYSCALL_NOERROR(name)					\
-LEAF(name,0);				/* XXX # of args? */	\
+LEAF(__CONCAT(__sys_,name),0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __CONCAT(__sys_,name));		\
+	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(__sys_,name));	\
 	CALLSYS_NOERROR(name)
 
 
 #define RSYSCALL(name)						\
 	SYSCALL(name);						\
 	RET;							\
-END(__CONCAT(_,name))
+END(__CONCAT(__sys_,name))
 
 #define RSYSCALL_NOERROR(name)					\
 	SYSCALL_NOERROR(name);					\
 	RET;							\
-END(name)
+END(__CONCAT(__sys_,name))
 
 
-#define	PSEUDO(label,name)					\
-LEAF(__CONCAT(_,label),0);		/* XXX # of args? */	\
-	WEAK_ALIAS(label, __CONCAT(_,label));			\
+#define	PSEUDO(name)						\
+LEAF(__CONCAT(__sys_,name),0);		/* XXX # of args? */	\
+	WEAK_ALIAS(__CONCAT(_,name), __CONCAT(__sys_, name));	\
 	CALLSYS_ERROR(name);					\
 	RET;							\
-END(__CONCAT(_,label));
-
-#define	PSEUDO_NOERROR(label,name)				\
-LEAF(label,0);				/* XXX # of args? */	\
-	CALLSYS_NOERROR(name);					\
-	RET;							\
-END(label);
-
-/*
- * Design note:
- *
- * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
- * syscall needs to be renamed in the threaded library.
- */
-/*
- * For the thread_safe versions, we prepend __sys_ to the function
- * name so that the 'C' wrapper can go around the real name.
- */
-#define	PNAME(name)	__CONCAT(__sys_,name)
-
-#define	PCALL(name)						\
-	CALL(PNAME(name))
-
-#define	PLEAF(name, args)					\
-LEAF(PNAME(name),args)
-
-#define	PEND(name)						\
-END(PNAME(name))
-
-#define	PSYSCALL(name)						\
-PLEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(name, PNAME(name));				\
-	WEAK_ALIAS(__CONCAT(_,name), PNAME(name));		\
-	CALLSYS_ERROR(name)
-
-#define	PRSYSCALL(name)						\
-PLEAF(name,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(name, PNAME(name));				\
-	WEAK_ALIAS(__CONCAT(_,name), PNAME(name));		\
-	CALLSYS_ERROR(name)					\
-	RET;							\
-PEND(name)
-
-#define	PPSEUDO(label,name)					\
-PLEAF(label,0);				/* XXX # of args? */	\
-	WEAK_ALIAS(label, PNAME(label));			\
-	WEAK_ALIAS(__CONCAT(_,label), PNAME(label));		\
-	CALLSYS_ERROR(name);					\
-	RET;							\
-PEND(label)
+END(__CONCAT(__sys_,name))

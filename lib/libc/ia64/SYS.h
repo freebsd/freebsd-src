@@ -38,72 +38,39 @@
 
 
 #define	SYSCALL(name)						\
-ENTRY(_ ## name,0);			/* XXX # of args? */	\
-	WEAK_ALIAS(name, _ ## name);				\
+ENTRY(__sys_ ## name,0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __sys_ ## name);			\
+	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
 	CALLSYS_ERROR(name)
 
 #define	SYSCALL_NOERROR(name)					\
-ENTRY(name,0);				/* XXX # of args? */	\
+ENTRY(__sys_ ## name,0);		/* XXX # of args? */	\
+	WEAK_ALIAS(name, __sys_ ## name);			\
+	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
 	CALLSYS_NOERROR(name)
 
 
 #define RSYSCALL(name)						\
 	SYSCALL(name);						\
 	br.ret.sptk.few rp;					\
-END(_ ## name)
+END(__sys_ ## name)
 
 #define RSYSCALL_NOERROR(name)					\
 	SYSCALL_NOERROR(name);					\
 	br.ret.sptk.few rp;					\
-END(name)
-
-
-#define	PSEUDO(label,name)					\
-ENTRY(_ ## label,0);		/* XXX # of args? */		\
-	WEAK_ALIAS(label, _ ## label);				\
-	CALLSYS_ERROR(name);					\
-	br.ret.sptk.few rp;					\
-END(_ ## label);
-
-#define	PSEUDO_NOERROR(label,name)				\
-ENTRY(label,0);				/* XXX # of args? */	\
-	CALLSYS_NOERROR(name);					\
-	br.ret.sptk.few rp;					\
-END(label);
-
-/*
- * Design note:
- *
- * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
- * syscall needs to be renamed in the threaded library.
- */
-/*
- * For the thread_safe versions, we prepend __sys_ to the function
- * name so that the 'C' wrapper can go around the real name.
- */
-#define	PCALL(name)						\
-	CALL(__sys_ ## name)
-
-#define	PENTRY(name, args)					\
-ENTRY(__sys_ ## name,args)
-
-#define	PEND(name)						\
 END(__sys_ ## name)
 
-#define	PSYSCALL(name)						\
-PENTRY(name,0);				/* XXX # of args? */	\
-	CALLSYS_ERROR(name)
 
-#define	PRSYSCALL(name)						\
-PENTRY(_sys_ ## name,0);		/* XXX # of args? */	\
-	WEAK_ALIAS(name, __sys_ ## name);			\
+#define	PSEUDO(name)						\
+ENTRY(__sys_ ## name,0);	/* XXX # of args? */		\
 	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
-	CALLSYS_ERROR(name)					\
-	br.ret.sptk.few rp;					\
-PEND(name)
-
-#define	PPSEUDO(label,name)					\
-PENTRY(label,0);			/* XXX # of args? */	\
 	CALLSYS_ERROR(name);					\
 	br.ret.sptk.few rp;					\
-PEND(label)
+END(__sys_ ## name);
+
+#define	PSEUDO_NOERROR(name)					\
+ENTRY(__sys_ ## name,0);		/* XXX # of args? */	\
+	WEAK_ALIAS(_ ## name, __sys_ ## name);			\
+	CALLSYS_NOERROR(name);					\
+	br.ret.sptk.few rp;					\
+END(__sys_ ## name);
