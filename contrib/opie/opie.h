@@ -117,6 +117,6 @@ FILE *__opieopen __P((char *, int, int));
 #endif /* EOF */
 int __opiereadrec __P((struct opie *));
 int __opiewriterec __P((struct opie *));
-#endif /* _OPIE */
 __END_DECLS
+#endif /* _OPIE */
 #endif /* _OPIE_H */
