@@ -403,8 +403,10 @@ Static int aue_miibus_readreg(dev, phy, reg)
 	    sc->aue_info->aue_did == USB_PRODUCT_ADMTEK_PEGASUS) {
 		if (phy == 3)
 			return(0);
+#ifdef notdef
 		if (phy != 1)
 			return(0);
+#endif
 	}
 
 	csr_write_1(sc, AUE_PHY_ADDR, phy);
