@@ -351,3 +351,56 @@ is_physical_memory(addr)
 
 	return 1;
 }
+
+/*
+ * KSE functions
+ */
+void
+cpu_thread_exit(struct thread *td)     
+{
+
+	return;
+}
+
+void
+cpu_thread_setup(struct thread *td)
+{
+
+	return;
+}
+
+void
+cpu_save_upcall(struct thread *td, struct kse *newkse)
+{
+
+	return;
+}
+
+void
+cpu_set_upcall(struct thread *td, void *pcb)
+{
+
+	return;
+}
+ 
+void
+cpu_set_args(struct thread *td, struct kse *ke)
+{
+
+	return;
+}
+ 
+void
+cpu_free_kse_mdstorage(struct kse *ke)
+{
+
+	return;
+}
+ 
+int
+cpu_export_context(struct thread *td)
+{
+
+	return (0);
+}
+
