@@ -32,17 +32,22 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <err.h>
+#include <errno.h>
 #include <fts.h>
 #include <fnmatch.h>
-#include <unistd.h>
-#include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "mtree.h"
 #include "extern.h"
 
@@ -50,6 +55,7 @@ extern long int crc_total;
 extern int ftsoptions;
 extern int dflag, eflag, rflag, sflag, uflag;
 extern char fullpath[MAXPATHLEN];
+extern int lineno;
 
 static NODE *root;
 static char path[MAXPATHLEN];
@@ -80,7 +86,7 @@ vwalk()
 	argv[0] = ".";
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, NULL)) == NULL)
-		err("fts_open: %s", strerror(errno));
+		err(1, "line %d: fts_open", lineno);
 	level = root;
 	specdepth = rval = 0;
 	while ((p = fts_read(t))) {
@@ -97,8 +103,7 @@ vwalk()
 		case FTS_DNR:
 		case FTS_ERR:
 		case FTS_NS:
-			(void)fprintf(stderr, "mtree: %s: %s\n",
-			    RP(p), strerror(p->fts_errno));
+			warnx("%s: %s", RP(p), strerror(p->fts_errno));
 			continue;
 		default:
 			if (dflag)
@@ -143,8 +148,7 @@ extra:
 	}
 	(void)fts_close(t);
 	if (sflag)
-		(void)fprintf(stderr,
-		    "mtree: %s checksum: %lu\n", fullpath, crc_total);
+		warnx("%s checksum: %lu", fullpath, crc_total);
 	return (rval);
 }
 
