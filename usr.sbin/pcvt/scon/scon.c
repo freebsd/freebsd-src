@@ -38,6 +38,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <err.h>
 #include <fcntl.h>
 #include <machine/pcvt_ioctl.h>
 
@@ -239,43 +240,23 @@ char *argv[];
 				if(!strcmp(optarg, "list"))
 				{
 					if(Pflag)
-					{
-						fprintf(stderr,
-						"-p list is mutual exclusive "
-						"with other -p options\n");
-						return 2;
-					}
+						errx(2, "-p list is mutual exclusive with other -p options");
 					Pflag = 3;
 				}
 				else if(!strcmp(optarg, "default"))
 				{
 					if(Pflag)
-					{
-						fprintf(stderr,
-						"multiple -p default not "
-						"allowed\n");
-						return 2;
-					}
+						errx(2, "multiple -p default not allowed");
 					Pflag = 2;
 				} else {
 					unsigned idx, r, g, b;
 
 					if(Pflag > 1)
-					{
-						fprintf(stderr,
-						"-p default and -p i,r,g,b "
-						"ambiguous\n");
-						return 2;
-					}
+						errx(2, "-p default and -p i,r,g,b ambiguous");
 					Pflag = 1;
 					parsepopt(optarg, &idx, &r, &g, &b);
 					if(idx >= NVGAPEL)
-					{
-						fprintf(stderr,
-						"index %u in -p option "
-						"out of range\n", idx);
-						return 2;
-					}
+						errx(2, "index %u in -p option out of range", idx);
 					palette[idx].r = r;
 					palette[idx].g = g;
 					palette[idx].b = b;
@@ -322,13 +303,7 @@ char *argv[];
 	else
 	{
 		if((fd = open(device, O_RDWR)) == -1)
-		{
-			char buffer[80];
-			strcpy(buffer,"ERROR opening ");
-			strcat(buffer,device);
-			perror(buffer);
-			exit(1);
-		}
+			err(1, "ERROR opening %s", device);
 		if(vflag)
 			printf("using device %s\n",device);
 	}
@@ -368,7 +343,7 @@ char *argv[];
 
 		if(ioctl(fd, VGASCREENSAVER, &timeout) < 0)
 		{
-			perror("ioctl(VGASCREENSAVER)");
+			warn("ioctl(VGASCREENSAVER)");
 			fprintf(stderr, "Check the driver, the screensaver is probably not compiled in!\n");
 			exit(2);
 		}
@@ -380,10 +355,7 @@ char *argv[];
 		if(vflag)
 			printf("Setting number of columns to %d\n", colms);
 		if(ioctl(fd, VGASETCOLMS, &colms) < 0)
-		{
-			perror("ioctl(VGASETCOLMS)");
-			exit(2);
-		}
+			err(2, "ioctl(VGASETCOLMS)");
 		goto success;
 	}
 
@@ -416,10 +388,7 @@ char *argv[];
 				p.g = palette[idx].g;
 				p.b = palette[idx].b;
 				if(ioctl(fd, VGAWRITEPEL, (caddr_t)&p) < 0)
-				{
-					perror("ioctl(fd, VGAWRITEPEL)");
-					return 2;
-				}
+					err(2, "ioctl(fd, VGAWRITEPEL)");
 			}
 		goto success;
 	}
@@ -436,10 +405,7 @@ char *argv[];
 			printf("processing option -c, setting current screen to %d\n",current);
 
 		if(ioctl(1, VGASETSCREEN, &screeninfo) == -1)
-		{
-			perror("ioctl VGASETSCREEN failed");
-			exit(1);
-		}
+			err(1, "ioctl VGASETSCREEN failed");
 		exit(0);
 	}
 
@@ -498,10 +464,7 @@ char *argv[];
 	screeninfo.force_24lines = fflag;
 
 	if(ioctl(fd, VGASETSCREEN, &screeninfo) == -1)
-	{
-		perror("ioctl VGASETSCREEN failed");
-		exit(1);
-	}
+		err(1, "ioctl VGASETSCREEN failed");
 success:
 	if(vflag)
 		printf("successful execution of ioctl VGASETSCREEN!\n");
@@ -538,10 +501,7 @@ printadaptor(fd)
 int fd;
 {
 	if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
-	{
-		perror("ioctl VGAGETSCREEN failed");
-		exit(1);
-	}
+		err(1, "ioctl VGAGETSCREEN failed");
 	switch(screeninfo.adaptor_type)
 	{
 		default:
@@ -571,10 +531,7 @@ printmonitor(fd)
 int fd;
 {
 	if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
-	{
-		perror("ioctl VGAGETSCREEN failed");
-		exit(1);
-	}
+		err(1, "ioctl VGAGETSCREEN failed");
 	switch(screeninfo.monitor_type)
 	{
 		default:
@@ -651,10 +608,7 @@ printinfo(fd)
 int fd;
 {
 	if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
-	{
-		perror("ioctl VGAGETSCREEN failed");
-		exit(1);
-	}
+		err(1, "ioctl VGAGETSCREEN failed");
 
 	printf( "\nVideo Adaptor Type           = ");
 
@@ -776,10 +730,7 @@ static void printpalette(int fd)
 		struct vgapel p;
 		p.idx = idx;
 		if(ioctl(fd, VGAREADPEL, &p) < 0)
-		{
-			perror("ioctl(VGAREADPEL)");
-			exit(2);
-		}
+			err(2, "ioctl(VGAREADPEL)");
 		palette[idx].r = p.r;
 		palette[idx].g = p.g;
 		palette[idx].b = p.b;
@@ -817,10 +768,8 @@ static void parsepopt(char *arg, unsigned *idx,
 	register unsigned i;
 
 	if(sscanf(arg, "%20[a-zA-Z0-9]%*[,:]%u,%u,%u", firstarg, r, g, b) < 4
-	   || strlen(firstarg) == 0) {
-		fprintf(stderr, "too few args in -p i,r,g,b\n");
-		exit(2);
-	}
+	   || strlen(firstarg) == 0)
+		errx(2, "too few args in -p i,r,g,b");
 
 	if(firstarg[0] >= '0' && firstarg[0] <= '9') {
 		*idx = strtoul(firstarg, NULL, 10);
@@ -832,7 +781,5 @@ static void parsepopt(char *arg, unsigned *idx,
 			*idx = colnames[i].idx;
 			return;
 		}
-	fprintf(stderr, "arg ``%s'' in -p option not recognized\n",
-		firstarg);
-	exit(2);
+	errx(2, "arg ``%s'' in -p option not recognized", firstarg);
 }
