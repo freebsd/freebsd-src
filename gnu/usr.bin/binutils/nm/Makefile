@@ -8,6 +8,7 @@ PROG=	nm
 SRCS=	nm.c
 WARNS=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
+CFLAGS+= -I${SRCDIR}/bfd
 CFLAGS+= -I${SRCDIR}/binutils
 DPADD=	${RELTOP}/libbinutils/libbinutils.a
 DPADD+=	${RELTOP}/libbfd/libbfd.a

@@ -149,7 +149,7 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "2.12" */
+/* #define VERSION "2.13" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
@@ -162,9 +162,6 @@
 
 /* Define as 1 if big endian. */
 /* #undef TARGET_BYTES_BIG_ENDIAN */
-
-/* Use ELF stabs for MIPS, not ECOFF stabs */
-/* #undef MIPS_STABS_ELF */
 
 /* Default architecture. */
 /* #undef DEFAULT_ARCH */
@@ -215,7 +212,7 @@
 /* #undef USE_EMULATIONS */
 
 /* Supported emulations. */
-#define EMULATIONS
+#define EMULATIONS 
 
 /* Default emulation. */
 #define DEFAULT_EMULATION ""
