@@ -71,6 +71,9 @@
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include "opt_ipfilter.h"
 # endif
+# if defined(_KERNEL) && (__FreeBSD_version >= 501108) && !defined(KLD_MODULE)
+#  include "opt_pfil_hooks.h"
+# endif
 #endif
 #ifdef __sgi
 #include <sys/debug.h>
@@ -307,6 +310,27 @@ int dir;
 }
 # endif
 #endif /* __NetBSD_Version >= 105110000 && _KERNEL */
+#if (__FreeBSD_version >= 501108)
+# include <net/pfil.h>
+
+static int
+fr_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
+{
+	struct ip *ip = mtod(*mp, struct ip *);
+	return fr_check(ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT), mp);
+}
+
+# ifdef USE_INET6
+#  include <netinet/ip6.h>
+
+static int
+fr_check_wrapper6(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
+{
+	return (fr_check(mtod(*mp, struct ip *), sizeof(struct ip6_hdr),
+	    ifp, (dir == PFIL_OUT), mp));
+}
+# endif
+#endif /* __FreeBSD_version >= 501108 */
 #ifdef	_KERNEL
 # if	defined(IPFILTER_LKM) && !defined(__sgi)
 int iplidentify(s)
@@ -348,7 +372,8 @@ int iplattach()
   ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011)))
 	int error = 0;
 # endif
-#if defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105110000)
+#if (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105110000)) || \
+    (__FreeBSD_version >= 501108)
 	struct pfil_head *ph_inet;
 # ifdef USE_INET6
 	struct pfil_head *ph_inet6;
@@ -380,7 +405,7 @@ int iplattach()
 
 # ifdef NETBSD_PF
 #  if (__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011)
-#   if __NetBSD_Version__ >= 105110000
+#   if (__NetBSD_Version__ >= 105110000) || (__FreeBSD_version >= 501108)
 	ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 #    ifdef USE_INET6
 	ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
@@ -416,7 +441,7 @@ int iplattach()
 	pfil_add_hook((void *)fr_check, PFIL_IN|PFIL_OUT);
 #  endif
 #  ifdef USE_INET6
-#   if __NetBSD_Version__ >= 105110000
+#   if (__NetBSD_Version__ >= 105110000) || (__FreeBSD_version >= 501108)
 	if (ph_inet6 != NULL)
 		error = pfil_add_hook((void *)fr_check_wrapper6, NULL,
 				      PFIL_IN|PFIL_OUT, ph_inet6);
@@ -508,7 +533,7 @@ int ipldetach()
 #if defined(NETBSD_PF) && \
     ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
 	int error = 0;
-# if __NetBSD_Version__ >= 105150000
+# if (__NetBSD_Version__ >= 105150000) || (__FreeBSD_version >= 501108)
         struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 #  ifdef USE_INET6
         struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
@@ -552,7 +577,7 @@ int ipldetach()
 
 # ifdef NETBSD_PF
 #  if ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
-#   if __NetBSD_Version__ >= 105110000
+#   if (__NetBSD_Version__ >= 105110000) || (__FreeBSD_version >= 501108)
 	if (ph_inet != NULL)
 		error = pfil_remove_hook((void *)fr_check_wrapper, NULL,
 					 PFIL_IN|PFIL_OUT, ph_inet);
@@ -570,7 +595,7 @@ int ipldetach()
 	pfil_remove_hook((void *)fr_check, PFIL_IN|PFIL_OUT);
 #  endif
 #  ifdef USE_INET6
-#   if __NetBSD_Version__ >= 105110000
+#   if (__NetBSD_Version__ >= 105110000) || (__FreeBSD_version >= 501108)
 	if (ph_inet6 != NULL)
 		error = pfil_remove_hook((void *)fr_check_wrapper6, NULL,
 					 PFIL_IN|PFIL_OUT, ph_inet6);
