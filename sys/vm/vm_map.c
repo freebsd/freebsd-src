@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.120 1998/04/29 04:28:04 dyson Exp $
+ * $Id: vm_map.c,v 1.121 1998/04/29 06:59:08 dyson Exp $
  */
 
 /*
@@ -1969,6 +1969,7 @@ vm_map_split(entry)
 		m->flags |= PG_BUSY;
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
+		m->dirty = VM_PAGE_BITS_ALL;
 		PAGE_WAKEUP(m);
 	}
 
