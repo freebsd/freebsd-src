@@ -931,17 +931,6 @@ getnewvnode(tag, mp, vops, vpp)
 
 	splx(s);
 
-#if 0
-	mp_fixme("This code does not lock access to numvnodes && freevnodes.");
-	vnodeallocs++;
-	if (vnodeallocs % vnoderecycleperiod == 0 &&
-	    freevnodes < vnoderecycleminfreevn &&
-	    vnoderecyclemintotalvn < numvnodes) {
-		/* Recycle vnodes. */
-		cache_purgeleafdirs(vnoderecyclenumber);
-	}
-#endif
-
 	return (0);
 }
 
@@ -2183,12 +2172,12 @@ loop:
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 
 		mtx_unlock(&mntvnode_mtx);
-		VI_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		/*
 		 * Skip over a vnodes marked VV_SYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_vflag & VV_SYSTEM)) {
-			VI_UNLOCK(vp);
+			VOP_UNLOCK(vp, 0, td);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
@@ -2197,16 +2186,19 @@ loop:
 		 * files (even if open only for reading) and regular file
 		 * vnodes open for writing.
 		 */
-		mp_fixme("Getattr called with interlock held!");
+		error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+		VI_LOCK(vp);
+
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_type == VNON ||
-		    (VOP_GETATTR(vp, &vattr, td->td_ucred, td) == 0 &&
-		    vattr.va_nlink > 0)) &&
+		    (error == 0 && vattr.va_nlink > 0)) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
-			mtx_unlock(&vp->v_interlock);
+			VOP_UNLOCK(vp, LK_INTERLOCK, td);
 			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
+
+		VOP_UNLOCK(vp, 0, td);
 
 		/*
 		 * With v_usecount == 0, all we need to do is clear out the
