@@ -1726,7 +1726,9 @@ done:
 				/*
 				 * Retain the map lock.
 				 */
-				vm_fault_unwire(map, entry->start, entry->end);
+				vm_fault_unwire(map, entry->start, entry->end,
+				    entry->object.vm_object != NULL &&
+				    entry->object.vm_object->type == OBJT_DEVICE);
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -1758,7 +1760,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	vm_offset_t saved_end, saved_start;
 	unsigned int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result, user_wire;
+	boolean_t fictitious, need_wakeup, result, user_wire;
 
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
@@ -1834,13 +1836,15 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
+			fictitious = entry->object.vm_object != NULL &&
+			    entry->object.vm_object->type == OBJT_DEVICE;
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.
 			 */
 			vm_map_unlock(map);
 			rv = vm_fault_wire(map, saved_start, saved_end,
-			    user_wire);
+			    user_wire, fictitious);
 			vm_map_lock(map);
 			if (last_timestamp + 1 != map->timestamp) {
 				/*
@@ -1924,7 +1928,9 @@ done:
 				/*
 				 * Retain the map lock.
 				 */
-				vm_fault_unwire(map, entry->start, entry->end);
+				vm_fault_unwire(map, entry->start, entry->end,
+				    entry->object.vm_object != NULL &&
+				    entry->object.vm_object->type == OBJT_DEVICE);
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -2048,7 +2054,9 @@ vm_map_sync(
 static void
 vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
-	vm_fault_unwire(map, entry->start, entry->end);
+	vm_fault_unwire(map, entry->start, entry->end,
+	    entry->object.vm_object != NULL &&
+	    entry->object.vm_object->type == OBJT_DEVICE);
 	entry->wired_count = 0;
 }
 
