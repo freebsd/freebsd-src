@@ -1590,6 +1590,9 @@ config_pipe(int ac, char **av)
 						    || !strncmp(end, "by", 2))
 							pipe.bandwidth *= 8;
 					}
+					if (pipe.bandwidth < 0)
+						errx(EX_DATAERR,
+						    "bandwidth too large");
 					av += 2;
 					ac -= 2;
 				} else if (!strncmp(*av, "delay", len)) {
@@ -1643,74 +1646,76 @@ config_pipe(int ac, char **av)
 			    " 2 <= x <= 100", pipe.fs.qsize);
 	}
 	if (pipe.fs.flags_fs & DN_IS_RED) {
+		size_t len;
+		int lookup_depth, avg_pkt_size;
+		double s, idle, weight, w_q;
+		struct clockinfo clock;
+		int t;
+
 		if (pipe.fs.min_th >= pipe.fs.max_th)
 			errx(EX_DATAERR, "min_th %d must be < than max_th %d",
 			    pipe.fs.min_th, pipe.fs.max_th);
 		if (pipe.fs.max_th == 0)
 			errx(EX_DATAERR, "max_th must be > 0");
-		if (pipe.bandwidth) {
-			size_t len;
-			int lookup_depth, avg_pkt_size;
-			double s, idle, weight, w_q;
-			struct clockinfo clock;
-			int t;
 
-			len = sizeof(int);
-			if (sysctlbyname("net.inet.ip.dummynet.red_lookup_depth",
+		len = sizeof(int);
+		if (sysctlbyname("net.inet.ip.dummynet.red_lookup_depth",
 			    &lookup_depth, &len, NULL, 0) == -1)
 
-				errx(1, "sysctlbyname(\"%s\")",
-				    "net.inet.ip.dummynet.red_lookup_depth");
-			if (lookup_depth == 0)
-				errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
-				    " must be greater than zero");
+			errx(1, "sysctlbyname(\"%s\")",
+			    "net.inet.ip.dummynet.red_lookup_depth");
+		if (lookup_depth == 0)
+			errx(EX_DATAERR, "net.inet.ip.dummynet.red_lookup_depth"
+			    " must be greater than zero");
 
-			len = sizeof(int);
-			if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
+		len = sizeof(int);
+		if (sysctlbyname("net.inet.ip.dummynet.red_avg_pkt_size",
 			    &avg_pkt_size, &len, NULL, 0) == -1)
 
-				errx(1, "sysctlbyname(\"%s\")",
-				    "net.inet.ip.dummynet.red_avg_pkt_size");
-			if (avg_pkt_size == 0)
-				errx(EX_DATAERR, "net.inet.ip.dummynet.red_avg_pkt_size must"
-				    " be greater than zero");
+			errx(1, "sysctlbyname(\"%s\")",
+			    "net.inet.ip.dummynet.red_avg_pkt_size");
+		if (avg_pkt_size == 0)
+			errx(EX_DATAERR,
+			    "net.inet.ip.dummynet.red_avg_pkt_size must"
+			    " be greater than zero");
 
-			len = sizeof(struct clockinfo);
-			if (sysctlbyname("kern.clockrate",
-			    &clock, &len, NULL, 0) == -1)
-				errx(1, "sysctlbyname(\"%s\")",
-				    "kern.clockrate");
+		len = sizeof(struct clockinfo);
+		if (sysctlbyname("kern.clockrate", &clock, &len, NULL, 0) == -1)
+			errx(1, "sysctlbyname(\"%s\")", "kern.clockrate");
 
-			/* ticks needed for sending a medium-sized packet */
+		/*
+		 * Ticks needed for sending a medium-sized packet.
+		 * Unfortunately, when we are configuring a WF2Q+ queue, we
+		 * do not have bandwidth information, because that is stored
+		 * in the parent pipe, and also we have multiple queues
+		 * competing for it. So we set s=0, which is not very
+		 * correct. But on the other hand, why do we want RED with
+		 * WF2Q+ ?
+		 */
+		if (pipe.bandwidth==0) /* this is a WF2Q+ queue */
+			s = 0;
+		else
 			s = clock.hz * avg_pkt_size * 8 / pipe.bandwidth;
 
-			/*
-			 * max idle time (in ticks) before avg queue size
-			 * becomes 0.
-			 * NOTA:  (3/w_q) is approx the value x so that
-			 * (1-w_q)^x < 10^-3.
-			 */
-			w_q = ((double)pipe.fs.w_q) / (1 << SCALE_RED);
-			idle = s * 3. / w_q;
-			pipe.fs.lookup_step = (int)idle / lookup_depth;
-			if (!pipe.fs.lookup_step)
-				pipe.fs.lookup_step = 1;
-			weight = 1 - w_q;
-			for (t = pipe.fs.lookup_step; t > 0; --t)
-				weight *= weight;
-			pipe.fs.lookup_weight =
-			    (int)(weight * (1 << SCALE_RED));
-		}
+		/*
+		 * max idle time (in ticks) before avg queue size becomes 0.
+		 * NOTA:  (3/w_q) is approx the value x so that
+		 * (1-w_q)^x < 10^-3.
+		 */
+		w_q = ((double)pipe.fs.w_q) / (1 << SCALE_RED);
+		idle = s * 3. / w_q;
+		pipe.fs.lookup_step = (int)idle / lookup_depth;
+		if (!pipe.fs.lookup_step)
+			pipe.fs.lookup_step = 1;
+		weight = 1 - w_q;
+		for (t = pipe.fs.lookup_step; t > 0; --t)
+			weight *= weight;
+		pipe.fs.lookup_weight = (int)(weight * (1 << SCALE_RED));
 	}
-#if 0
-	printf("configuring pipe %d bw %d delay %d size %d\n",
-	    pipe.pipe_nr, pipe.bandwidth, pipe.delay, pipe.queue_size);
-#endif
 	i = setsockopt(s, IPPROTO_IP, IP_DUMMYNET_CONFIGURE, &pipe,
 	    sizeof pipe);
 	if (i)
 		err(1, "setsockopt(%s)", "IP_DUMMYNET_CONFIGURE");
-
 }
 
 static void
