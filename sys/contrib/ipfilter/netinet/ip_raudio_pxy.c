@@ -62,8 +62,8 @@ nat_t *nat;
 	raudio_t *rap = aps->aps_data;
 	unsigned char membuf[512 + 1], *s;
 	u_short id = 0;
-	tcphdr_t *tcp;
 	int off, dlen;
+	tcphdr_t *tcp;
 	int len = 0;
 	mb_t *m;
 #if	SOLARIS
@@ -86,14 +86,16 @@ nat_t *nat;
 	dlen = msgdsize(m) - off;
 	if (dlen <= 0)
 		return 0;
-	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
+	dlen = MIN(sizeof(membuf), dlen);
+	copyout_mblk(m, off, dlen, (char *)membuf);
 #else
 	m = *(mb_t **)fin->fin_mp;
 
 	dlen = mbufchainlen(m) - off;
 	if (dlen <= 0)
 		return 0;
-	m_copydata(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
+	dlen = MIN(sizeof(membuf), dlen);
+	m_copydata(m, off, dlen, (char *)membuf);
 #endif
 	/*
 	 * In all the startup parsing, ensure that we don't go outside
@@ -170,8 +172,8 @@ nat_t *nat;
 	unsigned char membuf[IPF_MAXPORTLEN + 1], *s;
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	raudio_t *rap = aps->aps_data;
+	int off, dlen, slen, clen;
 	struct in_addr swa, swb;
-	int off, dlen, slen;
 	int a1, a2, a3, a4;
 	u_short sp, dp;
 	fr_info_t fi;
@@ -202,13 +204,15 @@ nat_t *nat;
 	if (dlen <= 0)
 		return 0;
 	bzero(membuf, sizeof(membuf));
-	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
+	clen = MIN(sizeof(membuf), dlen);
+	copyout_mblk(m, off, clen, (char *)membuf);
 #else
 	dlen = mbufchainlen(m) - off;
 	if (dlen <= 0)
 		return 0;
 	bzero(membuf, sizeof(membuf));
-	m_copydata(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
+	clen = MIN(sizeof(membuf), dlen);
+	m_copydata(m, off, clen, (char *)membuf);
 #endif
 
 	seq = ntohl(tcp->th_seq);
@@ -217,7 +221,7 @@ nat_t *nat;
 	 * We only care for the first 19 bytes coming back from the server.
 	 */
 	if (rap->rap_sseq == 0) {
-		s = (u_char *)memstr("PNA", (char *)membuf, 3, dlen);
+		s = (u_char *)memstr("PNA", (char *)membuf, 3, clen);
 		if (s == NULL)
 			return 0;
 		a1 = s - membuf;
@@ -278,6 +282,7 @@ nat_t *nat;
 		tcp2->th_dport = htons(dp);
 		fi.fin_data[0] = dp;
 		fi.fin_data[1] = sp;
+		fi.fin_out = 0;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, 
 			      IPN_UDP | (sp ? 0 : FI_W_SPORT), NAT_OUTBOUND);
 		if (ipn != NULL) {
@@ -292,6 +297,7 @@ nat_t *nat;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[0] = sp;
 		fi.fin_data[1] = 0;
+		fi.fin_out = 1;
 		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_UDP|FI_W_DPORT,
 			      NAT_OUTBOUND);
 		if (ipn != NULL) {
