@@ -318,7 +318,7 @@ main(argc, argv)
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_storage frominet;
 	FILE *fp;
-	char *p, *hname, line[MAXLINE + 1];
+	char *hname, line[MAXLINE + 1];
 	struct timeval tv, *tvp;
 	struct sigaction sact;
 	sigset_t mask;
@@ -398,12 +398,6 @@ main(argc, argv)
 
 	consfile.f_type = F_CONSOLE;
 	(void)strcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1);
-	(void)gethostname(LocalHostName, sizeof(LocalHostName));
-	if ((p = strchr(LocalHostName, '.')) != NULL) {
-		*p++ = '\0';
-		LocalDomain = p;
-	} else
-		LocalDomain = "";
 	(void)strcpy(bootfile, getbootfile());
 	(void)signal(SIGTERM, die);
 	(void)signal(SIGINT, Debug ? die : SIG_IGN);
@@ -1343,8 +1337,24 @@ init(signo)
 	char cline[LINE_MAX];
  	char prog[NAME_MAX+1];
 	char host[MAXHOSTNAMELEN];
+	char oldLocalHostName[MAXHOSTNAMELEN];
+	char hostMsg[2*MAXHOSTNAMELEN+40];
 
 	dprintf("init\n");
+
+	/*
+	 * Load hostname (may have changed).
+	 */
+	if (signo)
+		(void)strlcpy(oldLocalHostName, LocalHostName,
+		    sizeof(oldLocalHostName));
+	if (gethostname(LocalHostName, sizeof(LocalHostName)))
+		err(EX_OSERR, "gethostname failed");
+	if ((p = strchr(LocalHostName, '.')) != NULL) {
+		*p++ = '\0';
+		LocalDomain = p;
+	} else
+		LocalDomain = "";
 
 	/*
 	 *  Close all open log files.
@@ -1495,6 +1505,16 @@ init(signo)
 
 	logmsg(LOG_SYSLOG|LOG_INFO, "syslogd: restart", LocalHostName, ADDDATE);
 	dprintf("syslogd: restarted\n");
+	/*
+	 * Log a change in hostname, but only on a restart.
+	 */
+	if (signo && strcmp(oldLocalHostName, LocalHostName)) {
+		snprintf(hostMsg, sizeof(hostMsg),
+		    "syslogd: hostname changed, \"%s\" to \"%s\"",
+		    oldLocalHostName, LocalHostName);
+		logmsg(LOG_SYSLOG|LOG_INFO, hostMsg, LocalHostName, ADDDATE);
+		dprintf("%s\n", hostMsg);
+	}
 }
 
 /*
