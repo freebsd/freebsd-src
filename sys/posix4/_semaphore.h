@@ -29,6 +29,7 @@
 #define __SEMAPHORE_H_
 
 typedef intptr_t semid_t;
+struct timespec;
 
 #ifndef _KERNEL
 
