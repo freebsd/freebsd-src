@@ -1,6 +1,6 @@
 extern int server;
 
-extern int ServerLocalOpen(const char *name);
+extern int ServerLocalOpen(const char *name, mode_t mask);
 extern int ServerTcpOpen(int);
 extern void ServerClose(void);
 
