@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fstab.h>
@@ -131,7 +132,7 @@ main(argc, argv)
 	FILE *mountdfp;
 	pid_t pid;
 	int all, ch, i, init_flags, mntsize, rval, have_fstab;
-	char *options;
+	char *cp, *ep, *options;
 
 	all = init_flags = 0;
 	options = NULL;
@@ -278,13 +279,25 @@ main(argc, argv)
 	case 2:
 		/*
 		 * If -t flag has not been specified, the path cannot be
-		 * found, spec contains either a ':' or a '@', and the
-		 * spec is not a file with those characters, then assume
+		 * found, spec contains either a ':' or a '@', then assume
 		 * that an NFS filesystem is being specified ala Sun.
+		 * Check if the hostname contains only allowed characters
+		 * to reduce false positives.  IPv6 addresses containing
+		 * ':' will be correctly parsed only if the separator is '@'.
+		 * The definition of a valid hostname is taken from RFC 1034.
 		 */
-		if (vfslist == NULL && strpbrk(argv[0], ":@") != NULL &&
-		    access(argv[0], 0) == -1)
-			vfstype = "nfs";
+		if (vfslist == NULL && ((ep = strchr(argv[0], '@')) != NULL) ||
+		    ((ep = strchr(argv[0], ':')) != NULL)) {
+			cp = argv[0];
+			while (cp != ep) {
+				if (!isdigit(*cp) && !isalpha(*cp) &&
+				    *cp != '.' && *cp != '-' && *cp != ':')
+					break;
+				cp++;
+			}
+			if (cp == ep)
+				vfstype = "nfs";
+		}
 		rval = mountfs(vfstype,
 		    argv[0], argv[1], init_flags, options, NULL);
 		break;
