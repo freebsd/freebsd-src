@@ -245,6 +245,9 @@
     module name and version to KLD filename mapping.  The new
     &man.kldxref.8; utility is used to generate these files.</para>
 
+    <para>Idle zeroing of pages can be enabled with the
+    <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
+
     <para>On many modern hosts, PCCARD devices can be configured to
     route their interrupts via either the ISA or PCI interrupt paths.
     The &man.pcic.4; driver has been updated to support both interrupt
@@ -384,6 +387,10 @@ hw.pcic.irq="0"</programlisting>
 
       <para>The &man.an.4; driver now supports the Cisco Aironet 350
       series of adaptors. &merged;</para>
+
+      <para>The &man.an.4; driver now supports <quote>monitor</quote>
+      mode, settable via the <option>-M</option> option to
+      &man.ancontrol.8;.</para>
 
       <para arch="i386">The &man.el.4; driver can now be loaded as a
       module.</para>
@@ -1430,6 +1437,9 @@ hw.pcic.irq="0"</programlisting>
     image files from a filename was also added; <filename>-</filename>
     can be used as a filename for <literal>stdin</literal>. &merged;</para>
 
+    <para>&man.burncd.8; now supports Disk At Once (DAO) mode,
+    selectable via the <option>-d</option> flag.</para>
+
     <para>&man.dmesg.8; now has a <option>-a</option> option to show
     the entire message buffer, including &man.syslogd.8; records and
     <filename>/dev/console</filename> output. &merged;</para>
@@ -1823,6 +1833,9 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.syslogd.8; now has the ability to bind to a specific
     address--as opposed to using every available one--via the
     <option>-b</option> option.</para>
+
+    <para>&man.cat.1; now has the ability to read from UNIX-domain
+    sockets.</para>
 
     <sect3>
       <title>Contributed Software</title>
