@@ -150,13 +150,6 @@ main(argc, argv)
 
 	(void)setlocale(LC_ALL, "");
 
-	/*
-	 * Note: this implementation strictly conforms to the XBD Utility
-	 * Syntax Guidelines and does not permit the optional `file' operand
-	 * to be intermingled with the options, which is defined in the
-	 * XCU specification (Issue 5) but declared an obsolescent feature that
-	 * will be removed from a future issue.  It shouldn't matter, though.
-	 */
 	while ((c = getopt(argc, argv, "pb:d:f:h:i:l:n:s:v:w:")) != -1) {
 		switch (c) {
 		case 'p':
