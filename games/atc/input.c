@@ -413,7 +413,7 @@ right(c)
 {
 	dir = D_RIGHT;
 	p.new_dir = p.dir + 1;
-	if (p.new_dir > MAXDIR)
+	if (p.new_dir >= MAXDIR)
 		p.new_dir -= MAXDIR;
 	return (NULL);
 }
@@ -431,7 +431,7 @@ char	*
 Right(c)
 {
 	p.new_dir = p.dir + 2;
-	if (p.new_dir > MAXDIR)
+	if (p.new_dir >= MAXDIR)
 		p.new_dir -= MAXDIR;
 	return (NULL);
 }
