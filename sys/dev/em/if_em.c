@@ -1339,6 +1339,8 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
          * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
          * that this frame is available to transmit.
          */
+        bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
+            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
         if (adapter->hw.mac_type == em_82547 &&
             adapter->link_duplex == HALF_DUPLEX) {
                 em_82547_move_tail_locked(adapter);
@@ -2390,6 +2392,8 @@ em_clean_transmit_interrupts(struct adapter * adapter)
         tx_buffer = &adapter->tx_buffer_area[i];
         tx_desc = &adapter->tx_desc_base[i];
 
+        bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
+            BUS_DMASYNC_POSTREAD);
         while (tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
 
                 tx_desc->upper.data = 0;
@@ -2397,8 +2401,6 @@ em_clean_transmit_interrupts(struct adapter * adapter)
 
                 if (tx_buffer->m_head) {
 			ifp->if_opackets++;
-                        bus_dmamap_sync(adapter->txtag, tx_buffer->map,
-                                        BUS_DMASYNC_POSTWRITE);
                         bus_dmamap_unload(adapter->txtag, tx_buffer->map);
                         bus_dmamap_destroy(adapter->txtag, tx_buffer->map);
 
@@ -2412,6 +2414,8 @@ em_clean_transmit_interrupts(struct adapter * adapter)
                 tx_buffer = &adapter->tx_buffer_area[i];
                 tx_desc = &adapter->tx_desc_base[i];
         }
+        bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
+            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
         adapter->oldest_used_tx_desc = i;
 
@@ -2551,6 +2555,8 @@ em_allocate_receive_structures(struct adapter * adapter)
                         return(error);
                 }
         }
+        bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
+            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
         return(0);
 
@@ -2736,6 +2742,8 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
 	ifp = &adapter->interface_data.ac_if;
 	i = adapter->next_rx_desc_to_check;
         current_desc = &adapter->rx_desc_base[i];
+	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
+	    BUS_DMASYNC_POSTREAD);
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
 #ifdef DBG_STATS
@@ -2883,6 +2891,8 @@ em_process_receive_interrupts(struct adapter * adapter, int count)
                 } else
 			current_desc++;
 	}
+	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	adapter->next_rx_desc_to_check = i;
 	return;
 }
