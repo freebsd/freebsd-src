@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: file.c,v 1.12 1997/10/06 11:36:06 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -93,7 +93,7 @@ readfile(char *name)
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
-			log_1s("warning: card %s(%s) has no valid configuration\n",
+			logmsg("warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
 }
@@ -401,7 +401,7 @@ static void
 error(char *msg)
 {
 	pusht = 1;
-	log_1s("%s: %s at line %d, near %s\n",
+	logmsg("%s: %s at line %d, near %s\n",
 	    filename, msg, lineno, next_tok());
 	pusht = 1;
 }
