@@ -665,8 +665,7 @@ my_getmode_mii(struct my_softc * sc)
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_AUTO;
 #endif
 	}
-#if 0
-	/* this version did not support 1000M, */
+#if 0				/* this version did not support 1000M, */
 	if (sc->my_pinfo->my_vid == MarvellPHYID0) {
 		if (bootverbose)
 			printf("my%d: 1000Mbps half-duplex mode supported\n",
@@ -720,12 +719,9 @@ my_setmode_mii(struct my_softc * sc, int media)
 	bmcr = my_phy_readreg(sc, PHY_BMCR);
 	bmcr &= ~(PHY_BMCR_AUTONEGENBL | PHY_BMCR_SPEEDSEL | PHY_BMCR_1000 |
 		  PHY_BMCR_DUPLEX | PHY_BMCR_LOOPBK);
-	/*
-	 * this version did not support 1000M,
-	 */
-#if 0
-	if (IFM_SUBTYPE(media) ==
-	    IFM_1000_TX) {
+
+#if 0				/* this version did not support 1000M, */
+	if (IFM_SUBTYPE(media) == IFM_1000_TX) {
 		printf("1000Mbps/T4, half-duplex\n");
 		bmcr &= ~PHY_BMCR_SPEEDSEL;
 		bmcr &= ~PHY_BMCR_DUPLEX;
@@ -876,13 +872,12 @@ my_attach(device_t dev)
 	/*
 	 * Map control/status registers.
 	 */
-	/*
-	 * command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4); command
-	 * |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	 * pci_write_config(dev, PCI_COMMAND_STATUS_REG, command &
-	 * 0x000000ff, 4); command = pci_read_config(dev,
-	 * PCI_COMMAND_STATUS_REG, 4);
-	 */
+#if 0
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	command |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command & 0x000000ff, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+#endif
 	command = pci_read_config(dev, PCIR_COMMAND, 4);
 	command |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, command & 0x000000ff, 4);
@@ -901,10 +896,10 @@ my_attach(device_t dev)
 			goto fail;
 		}
 #if 0
-		if (!pci_map_port(config_id, MY_PCI_LOIO,
-		    (u_int16_t *)&(sc->my_bhandle))) {
-			printf ("my%d: couldn't map ports\n",
-			    unit); error = ENXIO; goto fail;
+		if (!pci_map_port(config_id, MY_PCI_LOIO, (u_int16_t *) & (sc->my_bhandle))) {
+			printf("my%d: couldn't map ports\n", unit);
+			error = ENXIO;
+			goto fail;
 		}
 		  
 		sc->my_btag = I386_BUS_SPACE_IO;
@@ -922,8 +917,8 @@ my_attach(device_t dev)
 			error = ENXIO;
 			goto fail;
 		}
-		  
-		sc->my_btag = I386_BUS_SPACE_MEM; sc->my_bhandle = vbase;
+		sc->my_btag = I386_BUS_SPACE_MEM;
+		sc->my_bhandle = vbase;
 #endif
 	}
 
@@ -1098,15 +1093,17 @@ my_detach(device_t dev)
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	my_stop(sc);
 
-	/*
-	 * bus_generic_detach(dev); device_delete_child(dev, sc->rl_miibus);
-	 */
+#if 0
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->rl_miibus);
+#endif
+
 	bus_teardown_intr(dev, sc->my_irq, sc->my_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->my_irq);
 	bus_release_resource(dev, MY_RES, MY_RID, sc->my_res);
-	/*
-	 * contigfree(sc->my_cdata.my_rx_buf, MY_RXBUFLEN + 32, M_DEVBUF);
-	 */
+#if 0
+	contigfree(sc->my_cdata.my_rx_buf, MY_RXBUFLEN + 32, M_DEVBUF);
+#endif
 	free(sc, M_DEVBUF);
 	MY_UNLOCK(sc);
 	splx(s);
@@ -1416,10 +1413,14 @@ my_intr(void *arg)
 			my_txeof(sc);
 		if (status & MY_TBU)	/* tx buffer unavailable */
 			my_txeoc(sc);
-		/*
-		 * 90/1/18 delete if (status & MY_FBE) { my_reset(sc);
-		 * my_init(sc); }
-		 */
+
+#if 0				/* 90/1/18 delete */
+		if (status & MY_FBE) {
+			my_reset(sc);
+			my_init(sc);
+		}
+#endif
+
 	}
 
 	/* Re-enable interrupts. */
@@ -1592,10 +1593,10 @@ my_init(void *xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
-	/*
-	 * 89/9/1 modify, CSR_WRITE_4(sc, MY_BCR, MY_RPBLE512);
-	 * CSR_WRITE_4(sc, MY_TCRRCR, MY_TFTSF);
-	 */
+#if 0				/* 89/9/1 modify,  */
+	CSR_WRITE_4(sc, MY_BCR, MY_RPBLE512);
+	CSR_WRITE_4(sc, MY_TCRRCR, MY_TFTSF);
+#endif
 	CSR_WRITE_4(sc, MY_BCR, MY_PBL8);
 	CSR_WRITE_4(sc, MY_TCRRCR, MY_TFTSF | MY_RBLEN | MY_RPBLE512);
 	/*
@@ -1704,11 +1705,10 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 	MY_LOCK(sc);
 	ifmr->ifm_active = IFM_ETHER;
 	if (!(my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
-		/*
-		 * this version did not support 1000M, if (my_phy_readreg(sc,
-		 * PHY_BMCR) & PHY_BMCR_1000) ifmr->ifm_active =
-		 * IFM_ETHER|IFM_1000TX;
-		 */
+#if 0				/* this version did not support 1000M, */
+		if (my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_1000)
+			ifmr->ifm_active = IFM_ETHER | IFM_1000TX;
+#endif
 		if (my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
 			ifmr->ifm_active = IFM_ETHER | IFM_100_TX;
 		else
@@ -1724,10 +1724,7 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 	ability = my_phy_readreg(sc, PHY_LPAR);
 	advert = my_phy_readreg(sc, PHY_ANAR);
 
-	/*
-	 * this version did not support 1000M,
-	 */
-#if 0
+#if 0				/* this version did not support 1000M, */
 	if (sc->my_pinfo->my_vid = MarvellPHYID0) {
 		ability2 = my_phy_readreg(sc, PHY_1000SR);
 		if (ability2 & PHY_1000SR_1000BTXFULL) {
