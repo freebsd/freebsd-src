@@ -141,10 +141,16 @@ and
 account only for real
 I/O; data supplied by the caching mechanism is charged only
 to the first process to read or write the data.
+.Sh RETURN VALUES
+Uponsuccessful completion,
+.Fn getrusage
+returns 0.  Otherwise, a value of -1 is returned and
+.Va errno
+is set to indicate the error.
 .Sh ERRORS
-.Fn Getrusage
-returns -1 on error.
-The possible errors are:
+The
+.Fn getrusage
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
