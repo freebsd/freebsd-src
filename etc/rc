@@ -88,6 +88,13 @@ case ${rc_ng} in
 
 	for _rc_elem in ${files}; do
         	run_rc_script ${_rc_elem} ${_boot}
+		# Local FreeBSD hack to reload the rc.conf on
+		# a return status of 2
+		if [ $? -eq 2 ]; then
+			unset _rc_conf_loaded
+			load_rc_config 'XXX'
+			echo "Reloading rc.conf"
+		fi
 	done
 
 	echo ''

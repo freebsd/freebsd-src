@@ -138,3 +138,5 @@ if [ ! -e /etc/resolv.conf ]; then
 		echo nameserver $ns >> /etc/resolv.conf;
 	done
 fi
+
+exit 2		# Tell /etc/rc to re-source rc.conf
