@@ -150,8 +150,7 @@ uart_tty_oproc(struct tty *tp)
 {
 	struct uart_softc *sc;
 
-	KASSERT(tp->t_dev != NULL, ("foo"));
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	if (sc == NULL || sc->sc_leaving)
 		return;
 
@@ -194,8 +193,7 @@ uart_tty_param(struct tty *tp, struct termios *t)
 	struct uart_softc *sc;
 	int databits, parity, stopbits;
 
-	KASSERT(tp->t_dev != NULL, ("foo"));
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	if (sc == NULL || sc->sc_leaving)
 		return (ENODEV);
 	if (t->c_ispeed != t->c_ospeed && t->c_ospeed != 0)
@@ -245,7 +243,7 @@ uart_tty_modem(struct tty *tp, int biton, int bitoff)
 {
 	struct uart_softc *sc;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	if (biton != 0 || bitoff != 0)
 		UART_SETSIG(sc, SER_DELTA(bitoff|biton) | biton);
 	return (sc->sc_hwsig);
@@ -256,7 +254,7 @@ uart_tty_break(struct tty *tp, int state)
 {
 	struct uart_softc *sc;
 
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	UART_IOCTL(sc, UART_IOCTL_BREAK, state);
 }
 
@@ -265,8 +263,7 @@ uart_tty_stop(struct tty *tp, int rw)
 {
 	struct uart_softc *sc;
 
-	KASSERT(tp->t_dev != NULL, ("foo"));
-	sc = tp->t_dev->si_drv1;
+	sc = tp->t_sc;
 	if (sc == NULL || sc->sc_leaving)
 		return;
 	if (rw & FWRITE) {
@@ -342,6 +339,7 @@ uart_tty_attach(struct uart_softc *sc)
 
 	tp = ttyalloc();
 	sc->sc_u.u_tty.tp = tp;
+	tp->t_sc = sc;
 
 	sc->sc_u.u_tty.si[0] = make_dev(&uart_cdevsw,
 	    device_get_unit(sc->sc_dev), UID_ROOT, GID_WHEEL, 0600, "ttyu%r",
