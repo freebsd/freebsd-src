@@ -651,26 +651,17 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p)
 	ifv->ifv_flags = 0;
 
 	/*
+	 * The active VLAN counter on the parent is used
+	 * at various places to see if there is a vlan(4)
+	 * attached to this physical interface.
+	 */
+	p->if_nvlans++;
+
+	/*
 	 * If the parent supports the VLAN_MTU capability,
 	 * i.e. can Tx/Rx larger than ETHER_MAX_LEN frames,
 	 * use it.
-	 * First of all, enable Tx/Rx of such extended frames on the
-	 * parent if it's disabled and we're the first to attach.
 	 */
-	p->if_nvlans++;
-	if (p->if_nvlans == 1 &&
-	    (p->if_capabilities & IFCAP_VLAN_MTU) &&
-	    (p->if_capenable & IFCAP_VLAN_MTU) == 0) {
-		struct ifreq ifr;
-		int error;
-
-		ifr.ifr_reqcap = p->if_capenable | IFCAP_VLAN_MTU;
-		error = (*p->if_ioctl)(p, SIOCSIFCAP, (caddr_t) &ifr);
-		if (error) {
-			p->if_nvlans--;
-			return (error);
-		}
-	}
 	if (p->if_capenable & IFCAP_VLAN_MTU) {
 		/*
 		 * No need to fudge the MTU since the parent can
@@ -777,17 +768,6 @@ vlan_unconfig(struct ifnet *ifp)
 		}
 
 		p->if_nvlans--;
-		if (p->if_nvlans == 0) {
-			struct ifreq ifr;
-
-			/*
-			 * Try to disable Tx/Rx of VLAN-sized frames.
-			 * This may have no effect for some interfaces,
-			 * but only the parent driver knows that.
-			 */
-			ifr.ifr_reqcap = p->if_capenable & ~IFCAP_VLAN_MTU;
-			(*p->if_ioctl)(p, SIOCSIFCAP, (caddr_t) &ifr);
-		}
 	}
 
 	/* Disconnect from parent. */
