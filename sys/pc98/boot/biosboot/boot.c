@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.14 1997/06/15 16:33:52 kato Exp $
+ *	$Id: boot.c,v 1.15 1997/09/01 10:38:30 kato Exp $
  */
 
 
@@ -142,8 +142,10 @@ boot(int drive)
 #endif
 	}
 #endif /* PC98 */
+#ifndef RAWBOOT
 	readfile("boot.config", boot_config, BOOT_CONFIG_SIZE);
 	readfile("boot.help", boot_help, BOOT_HELP_SIZE);
+#endif
 #ifdef	NAMEBLOCK
 	/*
 	 * XXX
