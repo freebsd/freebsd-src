@@ -219,5 +219,6 @@ struct ieee80211_michael_event {
 #define	RTM_IEEE80211_SCAN	105	/* scan complete, results available */
 #define	RTM_IEEE80211_REPLAY	106	/* sequence counter replay detected */
 #define	RTM_IEEE80211_MICHAEL	107	/* Michael MIC failure detected */
+#define	RTM_IEEE80211_REJOIN	108	/* station re-associate (ap mode) */
 
 #endif /* _NET80211_IEEE80211_FREEBSD_H_ */
