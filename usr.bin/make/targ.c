@@ -100,10 +100,6 @@ static Hash_Table targets;	/* a hash table of same */
 
 #define	HTSIZE	191		/* initial size of hash table */
 
-static int TargPrintOnlySrc(void *, void *);
-static int TargPrintName(void *, void *);
-static int TargPrintNode(void *, void *);
-
 /*-
  *-----------------------------------------------------------------------
  * Targ_Init --
@@ -342,34 +338,6 @@ Targ_SetMain(GNode *gn)
     mainTarg = gn;
 }
 
-static int
-TargPrintName(void *gnp, void *ppath)
-{
-    GNode *gn = (GNode *) gnp;
-
-    printf("%s ", gn->name);
-#ifdef notdef
-    if (ppath) {
-	if (gn->path) {
-	    printf("[%s]  ", gn->path);
-	}
-	if (gn == mainTarg) {
-	    printf("(MAIN NAME)  ");
-	}
-    }
-#endif /* notdef */
-    return (ppath ? 0 : 0);
-}
-
-
-int
-Targ_PrintCmd(void *cmd, void *dummy __unused)
-{
-
-    printf("\t%s\n", (char *)cmd);
-    return (0);
-}
-
 /*-
  *-----------------------------------------------------------------------
  * Targ_FmtTime --
@@ -449,10 +417,9 @@ Targ_PrintType(int type)
  *-----------------------------------------------------------------------
  */
 static int
-TargPrintNode(void *gnp, void *passp)
+TargPrintNode(const GNode *gn, int pass)
 {
-    GNode         *gn = gnp;
-    int	    	  pass = *(int *)passp;
+    const LstNode	*tln;
 
     if (!OP_NOP(gn->type)) {
 	printf("#\n");
@@ -485,14 +452,16 @@ TargPrintNode(void *gnp, void *passp)
 	    }
 	    if (!Lst_IsEmpty(&gn->iParents)) {
 		printf("# implicit parents: ");
-		Lst_ForEach(&gn->iParents, TargPrintName, (void *)NULL);
-		fputc('\n', stdout);
+		LST_FOREACH(tln, &gn->iParents)
+			printf("%s ", ((const GNode *)Lst_Datum(tln))->name);
+		printf("\n");
 	    }
 	}
 	if (!Lst_IsEmpty(&gn->parents)) {
 	    printf("# parents: ");
-	    Lst_ForEach(&gn->parents, TargPrintName, (void *)NULL);
-	    fputc('\n', stdout);
+	    LST_FOREACH(tln, &gn->parents)
+		printf("%s ", ((const GNode *)Lst_Datum(tln))->name);
+	    printf("\n");
 	}
 
 	printf("%-16s", gn->name);
@@ -507,38 +476,17 @@ TargPrintNode(void *gnp, void *passp)
 		break;
 	}
 	Targ_PrintType(gn->type);
-	Lst_ForEach(&gn->children, TargPrintName, (void *)NULL);
-	fputc('\n', stdout);
-	Lst_ForEach(&gn->commands, Targ_PrintCmd, (void *)NULL);
+	LST_FOREACH(tln, &gn->children)
+	    printf("%s ", ((const GNode *)Lst_Datum(tln))->name);
+	printf("\n");
+	LST_FOREACH(tln, &gn->commands)
+	    printf("\t%s\n", (const char *)Lst_Datum(tln));
 	printf("\n\n");
 	if (gn->type & OP_DOUBLEDEP) {
-	    Lst_ForEach(&gn->cohorts, TargPrintNode, &pass);
+	    LST_FOREACH(tln, &gn->cohorts)
+		TargPrintNode((const GNode *)Lst_Datum(tln), pass);
 	}
     }
-    return (0);
-}
-
-/*-
- *-----------------------------------------------------------------------
- * TargPrintOnlySrc --
- *	Print only those targets that are just a source.
- *
- * Results:
- *	0.
- *
- * Side Effects:
- *	The name of each file is printed preceded by #\t
- *
- *-----------------------------------------------------------------------
- */
-static int
-TargPrintOnlySrc(void *gnp, void *dummy __unused)
-{
-    GNode   	  *gn = gnp;
-
-    if (OP_NOP(gn->type))
-	printf("#\t%s [%s]\n", gn->name, gn->path ? gn->path : gn->name);
-
     return (0);
 }
 
@@ -557,12 +505,21 @@ TargPrintOnlySrc(void *gnp, void *dummy __unused)
 void
 Targ_PrintGraph(int pass)
 {
+    const GNode *gn;
+    const LstNode *tln;
 
     printf("#*** Input graph:\n");
-    Lst_ForEach(&allTargets, TargPrintNode, &pass);
+    LST_FOREACH(tln, &allTargets)
+	TargPrintNode((const GNode *)Lst_Datum(tln), pass);
     printf("\n\n");
+
     printf("#\n#   Files that are only sources:\n");
-    Lst_ForEach(&allTargets, TargPrintOnlySrc, (void *)NULL);
+    LST_FOREACH(tln, &allTargets) {
+	gn = Lst_Datum(tln);
+	if (OP_NOP(gn->type))
+	    printf("#\t%s [%s]\n", gn->name, gn->path ? gn->path : gn->name);
+    }
+
     printf("#*** Global Variables:\n");
     Var_Dump(VAR_GLOBAL);
     printf("#*** Command-line Variables:\n");
