@@ -46,6 +46,8 @@ static const char rcsid[] =
 #include "rpc_parse.h"
 #include "rpc_util.h"
 
+extern int tirpc_socket;
+
 static char RQSTP[] = "rqstp";
 static char TRANSP[] = "transp";
 static char ARG[] = "argument";
@@ -109,7 +111,7 @@ write_most(infile, netflag, nomain)
 		var_type = (nomain? "extern" : "static");
 		f_print(fout, "%s int _rpcpmstart;", var_type);
 		f_print(fout, "\t\t/* Started by a port monitor ? */\n");
-		if (!tirpcflag) {
+		if (!tirpcflag || tirpc_socket) {
 			f_print(fout, "%s int _rpcfdtype;", var_type);
 			f_print(fout, "\n\t\t /* Whether Stream or \
 Datagram ? */\n");
@@ -141,7 +143,8 @@ serviced */\n");
 	if (nomain)
 		return;
 
-	f_print(fout, "\nmain()\n");
+	f_print(fout, "\nint\n");
+	f_print(fout, "main()\n");
 	f_print(fout, "{\n");
 	if (inetdflag) {
 		write_inetmost(infile);
@@ -156,15 +159,24 @@ serviced */\n");
 			}
 			f_print(fout, "\tpid_t pid;\n");
 			f_print(fout, "\tint i;\n");
-			f_print(fout, "\tchar mname[FMNAMESZ + 1];\n\n");
+			if (pmflag) {
+				if (tirpc_socket) {
+					f_print(fout, "\tstruct sockaddr_storage saddr;\n");
+					f_print(fout, "\tint asize = sizeof (saddr);\n\n");
+				} else
+					f_print(fout, "\tchar mname[FMNAMESZ + 1];\n\n");
+			}
 
 			if (mtflag & timerflag)
 				f_print(fout, "\tmutex_init(&_svcstate_lock, USYNC_THREAD, NULL);\n");
+			if (pmflag) {
+				write_pm_most(infile, netflag);
+				f_print(fout, "\telse {\n");
+				write_rpc_svc_fg(infile, "\t\t");
+				f_print(fout, "\t}\n");
+			} else 
+				write_rpc_svc_fg(infile, "\t\t");
 
-			write_pm_most(infile, netflag);
-			f_print(fout, "\telse {\n");
-			write_rpc_svc_fg(infile, "\t\t");
-			f_print(fout, "\t}\n");
 		} else {
 			f_print(fout, "\tregister SVCXPRT *%s;\n", TRANSP);
 			f_print(fout, "\n");
@@ -858,8 +870,15 @@ write_pm_most(infile, netflag)
 	definition *def;
 	version_list *vp;
 
-	f_print(fout, "\tif (!ioctl(0, I_LOOK, mname) &&\n");
-	f_print(fout, "\t\t(!strcmp(mname, \"sockmod\") ||");
+	if (tirpc_socket) {
+		f_print(fout,
+		"\tif (getsockname(0, (struct sockaddr *)&saddr, &asize) == 0) {\n");
+		f_print(fout, "\t\tint ssize = sizeof (int);\n");
+	} else {
+		f_print(fout, "\tif (!ioctl(0, I_LOOK, mname) &&\n");
+		f_print(fout, "\t\t(!strcmp(mname, \"sockmod\") ||");
+		f_print(fout, " !strcmp(mname, \"timod\"))) {\n");
+	}
 	f_print(fout, " !strcmp(mname, \"timod\"))) {\n");
 	f_print(fout, "\t\tchar *netid;\n");
 	if (!netflag) {	/* Not included by -n option */
@@ -873,6 +892,14 @@ write_pm_most(infile, netflag)
  *  f_print(fout, "\t\textern char *getenv();\n");
  */
 	f_print(fout, "\n");
+	if (tirpc_socket) {
+		f_print(fout, "\t\tif (saddr.ss_family != AF_INET &&\n");
+		f_print(fout, "\t\t    saddr.ss_family != AF_INET6)\n");
+		f_print(fout, "\t\t\texit(1);\n");
+		f_print(fout, "\t\tif (getsockopt(0, SOL_SOCKET, SO_TYPE,\n");
+		f_print(fout, "\t\t\t\t(char *)&_rpcfdtype, &ssize) == -1)\n");
+		f_print(fout, "\t\t\texit(1);\n");
+	}
 	f_print(fout, "\t\t_rpcpmstart = 1;\n");
 	open_log_file(infile, "\t\t");
 	f_print(fout, "\n\t\tif ((netid = \
@@ -887,23 +914,28 @@ getenv(\"NLSPROVIDER\")) == NULL) {\n");
 	f_print(fout, "\t\t\tif ((nconf = getnetconfigent(netid)) == NULL)\n");
 	sprintf(_errbuf, "cannot get transport info");
 	print_err_message("\t\t\t\t");
-	if (timerflag)
-		f_print(fout, "\n\t\t\tpmclose = \
-(t_getstate(0) != T_DATAXFER);\n");
+       if (timerflag) {
+		if (tirpc_socket)
+			f_print(fout, "\n\t\t\tpmclose = 1;\t/* XXX */\n");
+		else
+			f_print(fout,
+			    "\n\t\t\tpmclose = (t_getstate(0) != T_DATAXFER);\n");
+	}
 	f_print(fout, "\t\t}\n");
 	/*
 	 * A kludgy support for inetd services. Inetd only works with
 	 * sockmod, and RPC works only with timod, hence all this jugglery
 	 */
-	f_print(fout, "\t\tif (strcmp(mname, \"sockmod\") == 0) {\n");
-	f_print(fout,
-		"\t\t\tif (ioctl(0, I_POP, 0) || \
-ioctl(0, I_PUSH, \"timod\")) {\n");
-	sprintf(_errbuf, "could not get the right module");
-	print_err_message("\t\t\t\t");
-	f_print(fout, "\t\t\t\texit(1);\n");
-	f_print(fout, "\t\t\t}\n");
-	f_print(fout, "\t\t}\n");
+	if (!tirpc_socket) {
+		f_print(fout, "\t\tif (strcmp(mname, \"sockmod\") == 0) {\n");
+		f_print(fout, "\t\t\tif (ioctl(0, I_POP, 0) || ");
+		f_print(fout, "ioctl(0, I_PUSH, \"timod\")) {\n");
+		sprintf(_errbuf, "could not get the right module");
+		print_err_message("\t\t\t\t");
+		f_print(fout, "\t\t\t\texit(1);\n");
+		f_print(fout, "\t\t\t}\n");
+		f_print(fout, "\t\t}\n");
+	}
 	f_print(fout,
 		"\t\tif ((%s = svc_tli_create(0, nconf, NULL, 0, 0)) \
 == NULL) {\n",
