@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -2467,7 +2468,7 @@ ttyinfo(struct tty *tp)
 	else
 		state = "unknown";
 	calcru(pick, &utime, &stime, NULL);
-	pctcpu = (td->td_kse->ke_pctcpu * 10000 + FSCALE / 2) >> FSHIFT;
+	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
 	if (pick->p_state == PRS_NEW || pick->p_state == PRS_ZOMBIE)
 		rss = 0;
 	else
