@@ -164,4 +164,9 @@ if [ -f /etc/Distfile ]; then
 	rdist -f /etc/Distfile
 fi
 
+if [ -f /etc/daily.local ]; then
+    echo "Running daily.local:"
+    sh /etc/daily.local
+fi
+
 sh /etc/security 2>&1 | sendmail root
