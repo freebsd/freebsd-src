@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.142 1998/03/16 02:13:03 dyson Exp $
+ * $Id: vfs_subr.c,v 1.143 1998/03/17 06:30:52 dyson Exp $
  */
 
 /*
@@ -686,7 +686,7 @@ vtruncbuf(vp, cred, p, length, blksize)
 	/*
 	 * Round up to the *next* lbn.
 	 */
-	trunclbn = ((length + blksize - 1) / blksize) * blksize;
+	trunclbn = (length + blksize - 1) / blksize;
 	anymetadirty = 0;
 
 	s = splbio();
