@@ -8,7 +8,7 @@ PROG=	rmail
 SRCS=	rmail.c
 MAN=	rmail.8
 CFLAGS+=-I${SENDMAIL_DIR}/include -I.
-WARNS=	0
+WARNS?=	0
 WFORMAT=0
 
 .if exists(${.OBJDIR}/../../lib/libsm)
