@@ -393,7 +393,6 @@ stgattach(DEVPORT_PDEVICE devi)
 
 	sc->sc_ih = stgintr;
 
-	printf("stg%d",DEVPORT_PDEVUNIT(devi));
 	return(STGIOSZ);
 }
 #endif /* NCARD>0 */
