@@ -2923,7 +2923,7 @@ number_to_chars_bigendian (buf, val, n)
      valueT val;
      int n;
 {
-  if ((size_t) n > sizeof (val) || n <= 0)
+  if (n <= 0)
     abort ();
   while (n--)
     {
@@ -2938,7 +2938,7 @@ number_to_chars_littleendian (buf, val, n)
      valueT val;
      int n;
 {
-  if ((size_t) n > sizeof (val) || n <= 0)
+  if (n <= 0)
     abort ();
   while (n--)
     {

@@ -42,6 +42,8 @@ SECTIONS
   .rela.data	: { *(.rela.data) }
   .rel.rodata	: { *(.rel.rodata) }
   .rela.rodata	: { *(.rela.rodata) }
+  .rel.gcc_except_table : { *(.rel.gcc_except_table) }
+  .rela.gcc_except_table : { *(.rela.gcc_except_table) }
   .rel.got	: { *(.rel.got) }
   .rela.got	: { *(.rela.got) }
   .rel.ctors	: { *(.rel.ctors) }
@@ -115,6 +117,12 @@ SECTIONS
     KEEP (*crtend.o(.dtors))
     ${CONSTRUCTING+___dtors_end = .;}
   }
+  .jcr		:
+  {
+    KEEP (*(.jcr))
+  }
+
+  .gcc_except_table : { *(.gcc_except_table) }
 
   .got		: { *(.got.plt) *(.got) }
   .dynamic	: { *(.dynamic) }

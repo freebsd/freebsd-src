@@ -1,3 +1,302 @@
+2002-04-06  Hans-Peter Nilsson  <hp@axis.com>
+
+	* elf32-cris.c (cris_elf_howto_table) <R_CRIS_16_PCREL,
+	R_CRIS_32_PCREL>: Fix typo in name.
+	(cris_elf_check_relocs): Always create .rela.got here when
+	R_CRIS_16_GOTPLT or R_CRIS_32_GOTPLT is seen.
+	(elf_cris_adjust_gotplt_to_got): Don't create .rela.got here;
+	assume it's created.
+
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in: Bump version to 2.12.1 and comment out is_release.
+	* configure: Regenerate.
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR, and not INCDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	Merge from mainline
+	2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+	* srec.c (MAXCHUNK, Chunk): Revise comments.
+	(srec_write_record): Correct buffer size.
+	(srec_write_header): Do without intermediate buffer.
+	(srec_write_section): Validate Chunk.
+	(srec_write_terminator): Pass NULL instead of dummy buffer.
+	(srec_write_symbols): Pass file and symbol names directly to
+	bfd_bwrite so sprintf won't overflow buffer.
+
+	2002-04-03  Jakub Jelinek  <jakub@redhat.com>
+	* elf32-sparc.c (elf32_sparc_relocate_section): Don't emit dynamic
+	PC relative relocs against hidden symbols.
+	* elf64-sparc.c (sparc64_elf_relocate_section): Likewise.
+
+	2002-04-03  Alan Modra  <amodra@bigpond.net.au>
+	* elf.c (_bfd_elf_make_section_from_shdr): When setting section
+	LMAs, loop over segments until p_vaddr and p_memsz specify an
+	extent enclosing the section.
+
+	2002-04-02  Nick Clifton  <nickc@cambridge.redhat.com>
+	* ihex.c (ihex_write_object_contents): Do not allow records to
+	cross a 64K boundary - wrap if necessary.
+
+	2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+	* linker.c (link_action): Ignore duplicate warning syms.
+	(_bfd_generic_link_write_global_symbol): Follow warning symbol link.
+	* elflink.h (elf_adjust_dynstr_offsets): Likewise.
+	(elf_adjust_dynamic_symbol): Likewise.
+	(elf_export_symbol): Likewise.
+	(elf_link_find_version_dependencies): Likewise.
+	(elf_link_assign_sym_version): Likewise.
+	(elf_link_sec_merge_syms): Likewise.
+	(elf_link_output_extsym): Likewise.
+	(elf_gc_sweep_symbol): Likewise.
+	(elf_gc_propagate_vtable_entries_used): Likewise.
+	(elf_gc_smash_unused_vtentry_relocs): Likewise.
+	(elf_gc_allocate_got_offsets): Likewise.
+	(elf_collect_hash_codes): Likewise.
+	* elflink.c (elf_link_renumber_hash_table_dynsyms): Likewise.
+	* elf-hppa.h (elf_hppa_unmark_useless_dynamic_symbols): Likewise.
+	(elf_hppa_remark_useless_dynamic_symbols): Likewise.
+	* elf-m10300.c (elf32_mn10300_finish_hash_table_entry): Likewise.
+	* elf32-arm.h (elf32_arm_discard_copies): Likewise.
+	* elf32-cris.c (elf_cris_adjust_gotplt_to_got): Likewise.
+	(elf_cris_discard_excess_dso_dynamics): Likewise.
+	* elf32-hppa.c (clobber_millicode_symbols): Likewise.
+	(mark_PIC_calls): Likewise.
+	(allocate_plt_static): Likewise.
+	(allocate_dynrelocs): Likewise.
+	(readonly_dynrelocs): Likewise.
+	* elf32-i386.c (allocate_dynrelocs): Likewise.
+	(readonly_dynrelocs): Likewise.
+	* elf32-i370.c (i370_elf_adjust_dynindx): Likewise.
+	* elf32-m68k.c (elf_m68k_discard_copies): Likewise.
+	* elf32-mips.c (mips_elf_output_extsym): Likewise.
+	(mips_elf_sort_hash_table_f): Likewise.
+	(mips_elf_check_mips16_stubs): Likewise.
+	* elf32-s390.c (allocate_dynrelocs): Likewise.
+	(readonly_dynrelocs): Likewise.
+	* elf32-sh.c (sh_elf_discard_copies): Likewise.
+	* elf32-xstormy16.c (xstormy16_relax_plt_check): Likewise.
+	(xstormy16_relax_plt_realloc): Likewise.
+	* elf64-alpha.c (elf64_alpha_calc_got_offsets_for_symbol): Likewise.
+	(elf64_alpha_output_extsym): Likewise.
+	* elf64-hppa.c (elf64_hppa_mark_exported_functions): Likewise.
+	* elf64-mips.c (mips_elf64_sort_hash_table_f): Likewise.
+	(mips_elf64_check_mips16_stubs): Likewise.
+	(mips_elf64_output_extsym): Likewise.
+	* elf64-ppc.c (func_desc_adjust): Likewise.
+	(allocate_dynrelocs): Likewise.
+	(readonly_dynrelocs): Likewise.
+	* elf64-s390.c (allocate_dynrelocs): Likewise.
+	(readonly_dynrelocs): Likewise.
+	* elf64-sh64.c (sh64_elf64_discard_copies): Likewise.
+	* elf64-x86-64.c (elf64_x86_64_discard_copies): Likewise.
+	* elfxx-ia64.c (elfNN_ia64_global_dyn_sym_thunk): Likewise.
+	* aoutx.h (aout_link_write_other_symbol): Likewise.
+	* cofflink.c (_bfd_coff_write_task_globals): Likewise.
+	(_bfd_coff_write_global_sym): Likewise.
+	* i386linux.c (linux_tally_symbols): Likewise.
+	* m68klinux.c (linux_tally_symbols): Likewise.
+	* sparclinux.c (linux_tally_symbols): Likewise.
+	* pdp11.c (aout_link_write_other_symbol): Likewise.
+	* sunos.c (sunos_scan_dynamic_symbol): Likewise.
+	* xcofflink.c (xcoff_build_ldsyms): Likewise.
+	(xcoff_write_global_symbol): Likewise.
+	* cofflink.c (_bfd_coff_final_link): Formatting.
+	* elf32-i386.c (elf_i386_check_relocs): Formatting.
+	* elf32-sh.c (sh_elf_size_dynamic_sections): Likewise.
+	* elf64-alpha.c (elf64_alpha_output_extsym): Likewise.
+	* elf64-mips.c (mips_elf64_sort_hash_table): Likewise.
+	(mips_elf64_final_link): Likewise.
+	* elflink.h (elf_link_find_version_dependencies): Remove duplicate
+	prototype.
+
+	2002-03-21  Richard Earnshaw  <rearnsha@arm.com>
+	* elf32-arm.h (elf32_arm_final_link_relocate <case R_ARM_GOTOFF>,
+	<case R_ARM_GOT>): Handle relocations to Thumb functions.
+
+	2002-03-19  Hans-Peter Nilsson  <hp@bitrange.com>
+	* elflink.h (NAME(bfd_elf,record_link_assignment)): Don't set
+	STT_NOTYPE symbols to STT_OBJECT.
+
+	2002-03-13  Alan Modra  <amodra@bigpond.net.au>
+	* archures.c (bfd_default_compatible): Test bits_per_word.
+	* cpu-i386.c (i386_compatible): Remove.  Replace occurrences with
+	bfd_default_compatible.
+	* cpu-i370.c (i370_compatible): Likewise.
+	* cpu-sparc.c (sparc_compatible): Likewise.
+	* cpu-h8300.c (compatible): Test in->arch == out->arch.
+
+	2002-02-19  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+	* archures.c (bfd_mach_s390_esa): Rename to bfd_mach_s390_31.
+	(bfd_mach_s390_esame): Rename to bfd_mach_s390_64.
+	* bfd-in2.h: Regenerate.
+	* cpu-s390.c (arch_info_struct): Use renamed architecture defines.
+	Replace architecture name "s390" with "s390:31-bit" and "s390:esame"
+	with "s390:64-bit".
+	* elf32-s390.c (elf_howto_table): Add 32 bit pc relative relocations.
+	(elf_s390_reloc_type_lookup): Likewise.
+	(elf_s390_check_relocs): Likewise.
+	(elf_s390_gc_sweep_hook): Likewise.
+	(elf_s390_relocate_section): Likewise.
+	(elf_s390_object_p): Use renamed architecture define.
+	* elf64-s390.c (elf_s390_object_p): Use renamed architecture define.
+
+2002-04-03  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+	* cpu-mips.c (mips_compatible): Make static, prototype.
+
+	2002-03-14  Alan Modra  <amodra@bigpond.net.au>
+	* cpu-mips.c (mips_compatible): New.  Don't check bits_per_word.
+	(N): Use the above.
+
+2002-04-01  Nathan Williams  <nathanw@wasabisystems.com>
+
+	* elf.c (elfcore_netbsd_get_lwpid): Fix off-by-one error
+	which caused the returned LWP ID to always be 0.
+
+2002-04-01  Richard Henderson  <rth@redhat.com>
+
+	* elf32-sparc.c (WILL_CALL_FINISH_DYNAMIC_SYMBOL): New.
+	(elf32_sparc_relocate_section): Use it to figure out when to
+	initialize .got entries.
+	* elf64-sparc.c: Similarly.
+
+2002-03-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	Merge from mainline
+	2002-03-27  Gregory Steuck <greg@nest.cx>
+	* elf.c (_bfd_elf_get_symtab_upper_bound): Leave space for
+	terminating NULL if empty symbol table.
+	(_bfd_elf_get_dynamic_symtab_upper_bound): Likewise.
+
+	2002-03-26  Alan Modra  <amodra@bigpond.net.au>
+	* elflink.h (elf_gc_mark): Don't recurse into non-ELF sections.
+
+	2002-03-23  Alan Modra  <amodra@bigpond.net.au>
+	* elf.c (_bfd_elf_make_section_from_shdr): Don't set lma based on
+	section file offset for !SEC_LOAD sections.
+
+	2002-03-20  Daniel Jacobowitz  <drow@mvista.com>
+	* dwarf2.c (struct funcinfo): Move up.
+	(lookup_address_in_function_table): New argument function_ptr.
+	Set it.
+	(lookup_address_in_line_table): New argument function.  If function
+	is non-NULL, use it to handle ``addr'' before the first line note of
+	the function.
+	(comp_unit_find_nearest_line): Update and swap calls to
+	lookup_address_in_function_table and lookup_address_in_line_table.
+	* syms.c (_bfd_stab_section_find_nearest_line): Use the first
+	N_SLINE encountered if we see an N_FUN before any N_SLINE.
+
+	2002-03-18  Alan Modra  <amodra@bigpond.net.au>
+	* libbfd.c (bfd_write_bigendian_4byte_int): Return true iff success.
+	* libbfd.h: Regenerate.
+	* archive.c (coff_write_armap): Pass on failures from
+	bfd_write_bigendian_4byte_int.
+
+	2002-03-14  H.J. Lu <hjl@gnu.org>
+	* elflink.h (NAME(bfd_elf,size_dynamic_sections)): Set the BFD
+	error to bfd_error_nonrepresentable_section for reinit_array
+	section in DSO.
+
+	2002-03-14  Nick Clifton  <nickc@cambridge.redhat.com>
+	* coffcode.h (coff_slurp_symbol_table): When adding BSF_WEAK flag,
+	OR it in rather than replacing previously selected flags.
+	* elfxx-target.h (TARGET_BIG_SYM): Set ar_max_namelen to 15.
+	(TARGET_LITTLE_SYM): Set ar_max_namelen to 15.
+
+	2002-03-14  Alan Modra  <amodra@bigpond.net.au>
+	* elflink.h (elf_bfd_final_link): Revert last change.  Instead,
+	ensure reloc size matches before calling elf_link_input_bfd.
+	Add an assert to check reloc size when counting output relocs.
+
+	2002-03-14  Nick Clifton  <nickc@cambridge.redhat.com>
+	* mmo.c (mmo_get_loc): Return NULL rather than false.
+
+	2002-03-13  Alan Modra  <amodra@bigpond.net.au>
+	* elflink.h: Formatting fixes.
+	(elf_link_output_extsym): Merge undefined and undef weak cases.
+	* elflink.h (elf_bfd_final_link): Only call elf_link_input_bfd
+	when word size of input matches output word size.
+
+	2002-03-07  H.J. Lu  (hjl@gnu.org)
+	* coff-sh.c (shcoff_reloc_map): Use bfd_reloc_code_real_type
+	as the type for bfd_reloc_val.
+
+	2002-03-05  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+	* elf-hppa.h (elf_hppa_is_dynamic_loader_symbol): New function.
+	(elf_hppa_relocate_section): Ignore undefined dynamic loader symbols.
+	(elf_hppa_final_link_relocate): Correct relocations for indirect
+	references to local data through the DLT.  Fix .opd creation for
+	local symbols using R_PARISC_LTOFF_FPTR32 and R_PARISC_FPTR64
+	relocations.  Use e_lsel selector for R_PARISC_DLTIND21L,
+	R_PARISC_LTOFF_FPTR21L and R_PARISC_LTOFF_TP21L as per
+	"Processor-Specific ELF for PA_RISC, Version 1.43" document.
+	Similarly, use e_rsel for DLT and LTOFF 'R' relocations.
+	* elf32-hppa.c (final_link_relocate): Revise relocation selectors
+	as per "Processor-Specific ELF for PA_RISC, Version 1.43" document.
+
+	2002-03-05  Jakub Jelinek  <jakub@redhat.com>
+	* merge.c (_bfd_merge_sections): Don't segfault if there
+	is nothing to merge due to GC.
+
+	2002-03-05  Alan Modra  <amodra@bigpond.net.au>
+	* elf32-hppa.c (clobber_millicode_symbols): Remove hack to keep
+	symbols that have been forced local.
+	* elflink.h (elf_bfd_final_link): Call elf_link_output_extsym
+	to output forced local syms for non-shared link.
+	(elf_link_output_extsym): Tweak condition for calling backend
+	adjust_dynamic_symbol so that previous behaviour is kept.
+	Whitespace changes throughout file.
+
+	2002-03-04  H.J. Lu <hjl@gnu.org>
+	* elf.c (bfd_section_from_shdr): Handle special sections,
+	.init_array, .fini_array and .preinit_array.
+	(elf_fake_sections): Likewise.
+	* elflink.h (NAME(bfd_elf,size_dynamic_sections)): Create the
+	DT entry only if the section is in output for .init_array,
+	.fini_array and .preinit_array. Complain about .preinit_array
+	section in DSO.
+	(elf_bfd_final_link): Warn zero size for .init_array,
+	.fini_array and .preinit_array sections.
+	* elfxx-ia64.c (elfNN_ia64_section_from_shdr): Remove
+	SHT_INIT_ARRAY, SHT_FINI_ARRAY and SHT_PREINIT_ARRAY.
+	(elfNN_ia64_fake_sections): Remove .init_array, .fini_array and
+	.preinit_array.
+
+	2002-03-01  David Mosberger  <davidm@hpl.hp.com>
+	* elflink.h (size_dynamic_sections): If section named
+	".preinit_array" exists, create DT_PREINIT_ARRAY and
+	DT_PREINIT_ARRAYSZ entries in dynamic table.  Analogously for
+	".init_array" and ".fini_array".
+	(elf_bfd_final_link): Handle DT_PREINIT_ARRAYSZ, DT_INIT_ARRAYSZ,
+	DT_FINI_ARRAYSZ, DT_PREINIT_ARRAY, DT_INIT_ARRAY, and
+	DT_FINI_ARRAY.
+
+	2002-02-19  Frank Ch. Eigler  <fche@redhat.com>
+	* syms.c (stt[]): Sorted.  Added .init/.fini -> "t" mapping.
+
+	2002-02-13  Nick Clifton  <nickc@cambridge.redhat.com>
+	* elf.c (_bfd_elf_make_section_from_shdr): Do not insist on
+	non-zero physical addresses when adjusting the LMAs of new
+	sections.
+
+	2002-02-11  Michael Snyder  <msnyder@redhat.com>
+	* elf-bfd.h (elfcore_write_lwpstatus): Add prototype.
+	* elf.c (elfcore_grok_pstatus): Add prototype.
+	(elfcore_grok_lwpstatus): Add prototype.
+	(elfcore_write_lwpstatus): New function.
+	(elfcore_write_pstatus): Fix typo, eliminate unnecessary memcpy.
+
 2002-03-20  Tom Rix  <trix@redhat.com>
 
 	* coff-rs6000.c (_bfd_xcoff_stat_arch_elt): Renamed from 

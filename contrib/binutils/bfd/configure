@@ -1116,7 +1116,7 @@ fi
 
 PACKAGE=bfd
 
-VERSION=2.12
+VERSION=2.12.1
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }
@@ -1199,7 +1199,7 @@ fi
 
 
 # Uncomment the next line to remove the date from the reported bfd version
-is_release=y
+#is_release=y
 
 bfd_version=`echo "${VERSION}" | sed -e 's/\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\)\.*\([^\.]*\).*/\1.00\2.00\3.00\4.00\5/' -e 's/\([^\.]*\)\..*\(..\)\..*\(..\)\..*\(..\)\..*\(..\)$/\1\2\3\4\5/'`
 

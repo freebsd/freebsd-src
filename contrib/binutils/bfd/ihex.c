@@ -873,6 +873,11 @@ ihex_write_object_contents (abfd)
 	    }
 
 	  rec_addr = where - (extbase + segbase);
+
+          /* Output records shouldn't cross 64K boundaries.  */
+          if (rec_addr + now > 0xfffff)
+            now = 0xffff - rec_addr;
+
 	  if (! ihex_write_record (abfd, now, rec_addr, 0, p))
 	    return false;
 

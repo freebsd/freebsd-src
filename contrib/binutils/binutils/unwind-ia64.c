@@ -1071,7 +1071,7 @@ unw_decode_b3_x4 (dp, code, arg)
 }
 
 typedef const unsigned char *(*unw_decoder)
-     PARAMS ((const unsigned char *, unsigned char, void *));
+     PARAMS ((const unsigned char *, unsigned int, void *));
 
 static unw_decoder unw_decode_table[2][8] =
   {

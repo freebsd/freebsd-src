@@ -1,5 +1,5 @@
 /* Target definitions for NN-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -523,9 +523,9 @@ const bfd_target TARGET_BIG_SYM =
 
   /* ar_max_namelen: maximum number of characters in an archive header
      FIXME:  this really has nothing to do with ELF, this is a characteristic
-     of the archiver and should be independently tunable.  This value is
-     a WAG (wild a** guess) */
-  14,
+     of the archiver and should be independently tunable.  The System V ABI,
+     Chapter 7 (Formats & Protocols), Archive section sets this as 15.  */
+  15,
 
   /* Routines to byte-swap various sized integers from the data sections */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
@@ -619,9 +619,9 @@ const bfd_target TARGET_LITTLE_SYM =
 
   /* ar_max_namelen: maximum number of characters in an archive header
      FIXME:  this really has nothing to do with ELF, this is a characteristic
-     of the archiver and should be independently tunable.  This value is
-     a WAG (wild a** guess) */
-  14,
+     of the archiver and should be independently tunable.  The System V ABI,
+     Chapter 7 (Formats & Protocols), Archive section sets this as 15.  */
+  15,
 
   /* Routines to byte-swap various sized integers from the data sections */
   bfd_getl64, bfd_getl_signed_64, bfd_putl64,

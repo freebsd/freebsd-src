@@ -1531,6 +1531,8 @@ extern char *elfcore_write_prfpreg
   PARAMS ((bfd *, char *, int *, void *, int));
 extern char *elfcore_write_prxfpreg 
   PARAMS ((bfd *, char *, int *, void *, int));
+extern char *elfcore_write_lwpstatus 
+  PARAMS ((bfd*, char*, int*, long, int, void*));
 
 /* MIPS ELF specific routines.  */
 

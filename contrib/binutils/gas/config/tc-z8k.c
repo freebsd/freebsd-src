@@ -1,5 +1,5 @@
 /* tc-z8k.c -- Assemble code for the Zilog Z800n
-   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000
+   Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -24,11 +24,10 @@
 #define DEFINE_TABLE
 #include <stdio.h>
 
-#include "opcodes/z8k-opc.h"
-
 #include "as.h"
 #include "bfd.h"
-#include <ctype.h>
+#include "safe-ctype.h"
+#include "opcodes/z8k-opc.h"
 
 const char comment_chars[] = "!";
 const char line_comment_chars[] = "#";
@@ -70,9 +69,9 @@ int
 tohex (c)
      int c;
 {
-  if (isdigit (c))
+  if (ISDIGIT (c))
     return c - '0';
-  if (islower (c))
+  if (ISLOWER (c))
     return c - 'a' + 10;
   return c - 'A' + 10;
 }
@@ -221,7 +220,7 @@ whatreg (reg, src)
      int *reg;
      char *src;
 {
-  if (isdigit (src[1]))
+  if (ISDIGIT (src[1]))
     {
       *reg = (src[0] - '0') * 10 + src[1] - '0';
       return src + 2;
@@ -259,7 +258,7 @@ parse_reg (src, mode, reg)
   char *res = 0;
   char regno;
 
-  if (src[0] == 's' && src[1] == 'p')
+  if (src[0] == 's' && src[1] == 'p' && (src[2] == 0 || src[2] == ','))
     {
       if (segmented_mode)
 	{
@@ -277,6 +276,8 @@ parse_reg (src, mode, reg)
     {
       if (src[1] == 'r')
 	{
+	  if (src[2] < '0' || src[2] > '9')
+	    return res;	 /* Assume no register name but a label starting with 'rr'.  */
 	  *mode = CLASS_REG_LONG;
 	  res = whatreg (reg, src + 2);
 	  regno = *reg;
@@ -285,6 +286,8 @@ parse_reg (src, mode, reg)
 	}
       else if (src[1] == 'h')
 	{
+	  if (src[2] < '0' || src[2] > '9')
+	    return res;	 /* Assume no register name but a label starting with 'rh'.  */
 	  *mode = CLASS_REG_BYTE;
 	  res = whatreg (reg, src + 2);
 	  regno = *reg;
@@ -293,6 +296,8 @@ parse_reg (src, mode, reg)
 	}
       else if (src[1] == 'l')
 	{
+	  if (src[2] < '0' || src[2] > '9')
+	    return res;	 /* Assume no register name but a label starting with 'rl'.  */
 	  *mode = CLASS_REG_BYTE;
 	  res = whatreg (reg, src + 2);
 	  regno = *reg;
@@ -302,6 +307,8 @@ parse_reg (src, mode, reg)
 	}
       else if (src[1] == 'q')
 	{
+	  if (src[2] < '0' || src[2] > '9')
+	    return res;	 /* Assume no register name but a label starting with 'rq'.  */
 	  *mode = CLASS_REG_QUAD;
 	  res = whatreg (reg, src + 2);
 	  regno = *reg;
@@ -310,6 +317,8 @@ parse_reg (src, mode, reg)
 	}
       else
 	{
+	  if (src[1] < '0' || src[1] > '9')
+	    return res;	 /* Assume no register name but a label starting with 'r'.  */
 	  *mode = CLASS_REG_WORD;
 	  res = whatreg (reg, src + 1);
 	  regno = *reg;
@@ -1396,10 +1405,12 @@ md_section_align (seg, size)
 }
 
 void
-md_apply_fix (fixP, val)
+md_apply_fix3 (fixP, valP, segment)
      fixS *fixP;
-     long val;
+     valueT * valP;
+     segT segment ATTRIBUTE_UNUSED;
 {
+  long val = * (long *) valP;
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
 
   switch (fixP->fx_r_type)
@@ -1455,6 +1466,9 @@ md_apply_fix (fixP, val)
     default:
       abort ();
     }
+
+  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
+    fixP->fx_done = 1;
 }
 
 int
