@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.86 1998/09/07 13:17:06 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.87 1998/09/14 19:56:41 sos Exp $
  */
 
 #include "opt_quota.h"
@@ -140,9 +140,8 @@ ffs_mount( mp, path, data, ndp, p)
 	struct ufs_args args;
 	struct ufsmount *ump = 0;
 	register struct fs *fs;
-	int error, flags;
+	int error, flags, ronly = 0;
 	mode_t accessmode;
-	int ronly = 0;
 
 	/*
 	 * Use NULL path to flag a root mount
@@ -199,7 +198,7 @@ ffs_mount( mp, path, data, ndp, p)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (bdevsw[major(ump->um_dev)]->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
-		if (fs->fs_ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+		if (ronly == 0 && (mp->mnt_flag & MNT_RDONLY)) {
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
@@ -208,6 +207,7 @@ ffs_mount( mp, path, data, ndp, p)
 			} else {
 				err = ffs_flushfiles(mp, flags, p);
 			}
+			ronly = 1;
 		}
 		if (!err && (mp->mnt_flag & MNT_RELOAD))
 			err = ffs_reload(mp, ndp->ni_cnd.cn_cred, p);
@@ -215,17 +215,6 @@ ffs_mount( mp, path, data, ndp, p)
 			goto error_1;
 		}
 		if (ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
-			if (!fs->fs_clean) {
-				if (mp->mnt_flag & MNT_FORCE) {
-					printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
-				} else {
-					printf("WARNING: R/W mount of %s denied. Filesystem is not clean - run fsck.\n",
-					    fs->fs_fsmnt);
-					err = EPERM;
-					goto error_1;
-				}
-			}
-
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -238,6 +227,20 @@ ffs_mount( mp, path, data, ndp, p)
 					return (error);
 				}
 				VOP_UNLOCK(devvp, 0, p);
+			}
+
+			if (fs->fs_clean == 0) {
+				if (mp->mnt_flag & MNT_FORCE) {
+					printf(
+"WARNING: %s was not properly dismounted\n",
+					    fs->fs_fsmnt);
+				} else {
+					printf(
+"WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
+					    fs->fs_fsmnt);
+					err = EPERM;
+					goto error_1;
+				}
 			}
 
 			/* check to see if we need to start softdep */
@@ -395,11 +398,12 @@ error_1:	/* no state to back out*/
 
 success:
 	if (!err && path && (mp->mnt_flag & MNT_UPDATE)) {
-		/* update superblock after ro -> rw update */
+		/* Update clean flag after changing read-onlyness. */
 		fs = ump->um_fs;
-		if (!ronly && fs->fs_ronly) {
-			fs->fs_ronly = 0;
-			fs->fs_clean = 0;
+		if (ronly != fs->fs_ronly) {
+			fs->fs_ronly = ronly;
+			fs->fs_clean = ronly &&
+			    (fs->fs_flags & FS_UNCLEAN) == 0 ? 1 : 0;
 			ffs_sbupdate(ump, MNT_WAIT);
 		}
 	}
@@ -638,11 +642,17 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		goto out;
 	}
 	fs->fs_fmod = 0;
-	if (!fs->fs_clean) {
+	fs->fs_flags &= ~FS_UNCLEAN;
+	if (fs->fs_clean == 0) {
+		fs->fs_flags |= FS_UNCLEAN;
 		if (ronly || (mp->mnt_flag & MNT_FORCE)) {
-			printf("WARNING: %s was not properly dismounted.\n",fs->fs_fsmnt);
+			printf(
+"WARNING: %s was not properly dismounted\n",
+			    fs->fs_fsmnt);
 		} else {
-			printf("WARNING: R/W mount of %s denied. Filesystem is not clean - run fsck.\n",fs->fs_fsmnt);
+			printf(
+"WARNING: R/W mount of %s denied.  Filesystem is not clean - run fsck\n",
+			    fs->fs_fsmnt);
 			error = EPERM;
 			goto out;
 		}
@@ -821,7 +831,7 @@ ffs_unmount(mp, mntflags, p)
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	if (fs->fs_ronly == 0) {
-		fs->fs_clean = 1;
+		fs->fs_clean = fs->fs_flags & FS_UNCLEAN ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT);
 		if (error) {
 			fs->fs_clean = 0;
