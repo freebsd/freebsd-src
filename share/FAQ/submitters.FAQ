@@ -1,11 +1,3 @@
-Thank you for your offer of this driver!  It does look like it will be of
-use to our many japanese users.  I am appending a copy of my standard
-"how to submit code to FreeBSD" document below.  It hopefully explains
-any questions you may have, though please do not hesitate in contacting
-me should you have any further questions.
-
-						Jordan
-
 -- A submitter's guide to FreeBSD --
 
 This guide is intended for those who are moderately familar with FreeBSD
@@ -33,8 +25,7 @@ A submission in *any* of these catagories is highly welcomed as they
 are each, in their own way, quite significant to the project.  
 
 
-1. An idea, suggestion or fix can be communicated in one of the following
-ways:
+1. An idea, suggestion or fix can be communicated in one of the following ways:
 
 	o An idea or suggestion of general technical interest should be
 	  mailed to <hackers@freebsd.org>.  Likewise, people with an interest
@@ -66,7 +57,7 @@ ways:
    the convenience of developers who wish to actively work on the system.
 
    Working from older sources unfortunately means that your changes may
-   sometimes be too obsolute to use, or too divergent to allow for easy
+   sometimes be too obsolete to use, or too divergent to allow for easy
    re-integration.  This can be minimized somewhat by subscribing to the
    <announce@freebsd.org> mailing list (among others) where periodic
    announcements concerning the current state of the system are made.
