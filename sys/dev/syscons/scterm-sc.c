@@ -213,7 +213,12 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			tcp->esc = 4;
 			return;
 #endif
-		case 'c':	/* Clear screen & home */
+		case 'c':       /* reset */
+			tcp->attr_mask = NORMAL_ATTR;
+			tcp->cur_color = tcp->std_color
+				       = tcp->dflt_std_color;
+			tcp->rev_color = tcp->dflt_rev_color;
+			tcp->cur_attr = mask2attr(tcp);
 			sc_clear_screen(scp);
 			break;
 
