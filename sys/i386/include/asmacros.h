@@ -138,4 +138,15 @@
 #define MEXITCOUNT
 #endif /* GPROF */
 
+#ifdef LOCORE
+/*
+ * Convenience macros for declaring interrupt entry points and trap
+ * stubs.
+ */
+#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
+			.type __CONCAT(X,name),@function; __CONCAT(X,name):
+#define	TRAP(a)		pushl $(a) ; jmp alltraps
+
+#endif /* LOCORE */
+
 #endif /* !_MACHINE_ASMACROS_H_ */
