@@ -17,10 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.176 1998/11/05 21:59:47 brian Exp $
+ * $Id: command.c,v 1.177 1998/12/14 01:15:34 brian Exp $
  *
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -76,6 +76,9 @@
 #include "link.h"
 #include "physical.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "server.h"
 #include "prompt.h"
@@ -115,6 +118,7 @@
 #define	VAR_CHOKED	26
 #define	VAR_SENDPIPE	27
 #define	VAR_RECVPIPE	28
+#define	VAR_RADIUS	29
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -134,7 +138,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/11/05 21:59:47 $";
+const char VersionDate[] = "$Date: 1998/12/14 01:15:34 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1297,7 +1301,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
   iplist_reset(&ipcp->cfg.peer_list);
 
   if (arg->argc > arg->argn) {
-    if (!ParseAddr(ipcp, arg->argc - arg->argn, arg->argv + arg->argn,
+    if (!ParseAddr(ipcp, arg->argv[arg->argn],
                    &ipcp->cfg.my_range.ipaddr, &ipcp->cfg.my_range.mask,
                    &ipcp->cfg.my_range.width))
       return 1;
@@ -1616,10 +1620,10 @@ SetVariable(struct cmdargs const *arg)
     addr[0].s_addr = addr[1].s_addr = INADDR_ANY;
 
     if (arg->argc > arg->argn) {
-      ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+      ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn],
                 addr, &dummyaddr, &dummyint);
       if (arg->argc > arg->argn+1)
-        ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn + 1,
+        ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn + 1],
                   addr + 1, &dummyaddr, &dummyint);
 
       if (addr[1].s_addr == INADDR_ANY)
@@ -1691,6 +1695,22 @@ SetVariable(struct cmdargs const *arg)
     long_val = atol(argp);
     arg->bundle->ncp.ipcp.cfg.recvpipe = long_val;
     break;
+
+#ifndef NORADIUS
+  case VAR_RADIUS:
+    if (!*argp)
+      *arg->bundle->radius.cfg.file = '\0';
+    else if (access(argp, R_OK)) {
+      log_Printf(LogWARN, "%s: %s\n", argp, strerror(errno));
+      return 1;
+    } else {
+      strncpy(arg->bundle->radius.cfg.file, argp,
+              sizeof arg->bundle->radius.cfg.file - 1);
+      arg->bundle->radius.cfg.file
+        [sizeof arg->bundle->radius.cfg.file - 1] = '\0';
+    }
+    break;
+#endif
   }
 
   return err ? 1 : 0;
@@ -1788,6 +1808,10 @@ static struct cmdtab const SetCommands[] = {
   "set phone phone1[:phone2[...]]", (const void *)VAR_PHONE},
   {"proctitle", "title", SetProcTitle, LOCAL_AUTH,
   "Process title", "set proctitle [value]"},
+#ifndef NORADIUS
+  {"radius", NULL, SetVariable, LOCAL_AUTH,
+  "RADIUS Config", "set radius cfgfile", (const void *)VAR_RADIUS},
+#endif
   {"reconnect", NULL, datalink_SetReconnect, LOCAL_AUTH | LOCAL_CX,
   "Reconnect timeout", "set reconnect value ntries"},
   {"recvpipe", NULL, SetVariable, LOCAL_AUTH,
@@ -1844,7 +1868,7 @@ AddCommand(struct cmdargs const *arg)
     else {
       int width;
 
-      if (!ParseAddr(&arg->bundle->ncp.ipcp, 1, arg->argv + arg->argn,
+      if (!ParseAddr(&arg->bundle->ncp.ipcp, arg->argv[arg->argn],
 	             &dest, &netmask, &width))
         return -1;
       if (!strncasecmp(arg->argv[arg->argn], "MYADDR", 6))
@@ -1873,7 +1897,8 @@ AddCommand(struct cmdargs const *arg)
     gateway = GetIpAddr(arg->argv[arg->argn+gw]);
 
   if (bundle_SetRoute(arg->bundle, RTM_ADD, dest, gateway, netmask,
-                  arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0))
+                  arg->cmd->args ? 1 : 0, (addrs & ROUTE_GWHISADDR) ? 1 : 0)
+      && addrs != ROUTE_STATIC)
     route_Add(&arg->bundle->ncp.ipcp.route, addrs, dest, netmask, gateway);
 
   return 0;
@@ -2355,24 +2380,24 @@ IfaceAddCommand(struct cmdargs const *arg)
   struct in_addr ifa, mask, brd;
 
   if (arg->argc == arg->argn + 1) {
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+    if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
       return -1;
     mask.s_addr = brd.s_addr = INADDR_BROADCAST;
   } else {
     if (arg->argc == arg->argn + 2) {
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, &mask, &bits))
+      if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, &mask, &bits))
         return -1;
       n = 1;
     } else if (arg->argc == arg->argn + 3) {
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+      if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
         return -1;
-      if (!ParseAddr(NULL, 1, arg->argv + arg->argn + 1, &mask, NULL, NULL))
+      if (!ParseAddr(NULL, arg->argv[arg->argn + 1], &mask, NULL, NULL))
         return -1;
       n = 2;
     } else
       return -1;
 
-    if (!ParseAddr(NULL, 1, arg->argv + arg->argn + n, &brd, NULL, NULL))
+    if (!ParseAddr(NULL, arg->argv[arg->argn + n], &brd, NULL, NULL))
       return -1;
   }
 
@@ -2392,7 +2417,7 @@ IfaceDeleteCommand(struct cmdargs const *arg)
   if (arg->argc != arg->argn + 1)
     return -1;
 
-  if (!ParseAddr(NULL, 1, arg->argv + arg->argn, &ifa, NULL, NULL))
+  if (!ParseAddr(NULL, arg->argv[arg->argn], &ifa, NULL, NULL))
     return -1;
 
   if (arg->bundle->ncp.ipcp.fsm.state == ST_OPENED &&

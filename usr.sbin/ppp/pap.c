@@ -18,11 +18,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.26 1998/08/07 18:42:50 brian Exp $
+ * $Id: pap.c,v 1.27 1998/08/26 18:07:57 brian Exp $
  *
  *	TODO:
  */
-#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -53,6 +53,9 @@
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "chat.h"
 #include "chap.h"
