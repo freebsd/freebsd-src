@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <stdio.h>
 #ifdef __STDC__
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #endif
@@ -553,7 +554,6 @@ bread(blkno, buf, size)
 	int size;
 {
 	int cnt, i;
-	extern int errno;
 
 loop:
 	if (lseek(diskfd, ((off_t)blkno << dev_bshift), 0) !=
