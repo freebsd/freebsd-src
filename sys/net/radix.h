@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.2 (Berkeley) 10/31/94
- *	$Id: radix.h,v 1.12 1997/09/07 08:49:04 bde Exp $
+ *	$Id: radix.h,v 1.13 1997/10/12 20:25:13 phk Exp $
  */
 
 #ifndef _RADIX_H_
@@ -161,6 +161,9 @@ struct radix_node
 	 *rn_addmask __P((void *, int, int)),
 	 *rn_addroute __P((void *, void *, struct radix_node_head *,
 			struct radix_node [2])),
+	 *rn_delete __P((void *, void *, struct radix_node_head *)),
+	 *rn_lookup __P((void *v_arg, void *m_arg,
+		        struct radix_node_head *head)),
 	 *rn_match __P((void *, struct radix_node_head *));
 
 
