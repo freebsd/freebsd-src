@@ -130,4 +130,5 @@ botch:
 	CALL(longjmperror)
 	CALL(abort)
 	RET					/* "can't" get here... */
+#endif
 END(__longjmp)
