@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.39 1995/01/24 22:30:37 ache Exp $
+#	$Id: Makefile,v 1.40 1995/02/09 11:09:41 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -16,11 +16,6 @@
 
 # Put initial settings here.
 SUBDIR=
-
-# Must be first for "distribute" to work
-.if exists(release)
-SUBDIR+= release
-.endif
 
 .if exists(bin)
 SUBDIR+= bin
@@ -106,7 +101,7 @@ hierarchy:
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/release &&		${MAKE} hierarchy
+	cd ${.CURDIR}/etc &&		${MAKE} distrib-dirs
 
 update:
 .if defined(SUP_UPDATE)
