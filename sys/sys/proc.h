@@ -719,10 +719,6 @@ sigonstack(size_t sp)
 	    : 0);
 }
 
-/* Handy macro to determine if p1 can mangle p2. */
-#define	PRISON_CHECK(p1, p2) \
-	((p1)->p_prison == NULL || (p1)->p_prison == (p2)->p_prison)
-
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
  * as it is used to represent "no process group".
