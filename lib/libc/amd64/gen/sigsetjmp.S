@@ -35,28 +35,43 @@
  *
  *
  *	from: @(#)setjmp.s	5.1 (Berkeley) 4/23/90"
- *	$Id: sigsetjmp.S,v 1.1 1993/12/05 13:01:05 ats Exp $
+ *	$Id: sigsetjmp.S,v 1.1 1994/08/05 01:18:08 wollman Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.1 1993/12/05 13:01:05 ats Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.1 1994/08/05 01:18:08 wollman Exp $"
 #endif /* LIBC_SCCS and not lint */
 
 #include "DEFS.h"
 #include "SYS.h"
 
+/*-
+ * TODO:
+ *	Rename sigsetjmp to __sigsetjmp and siglongjmp to __siglongjmp,
+ *	remove the other *jmp functions and define everything in terms
+ *	of the renamed functions.  This requires compiler support for
+ *	the renamed functions (introduced in gcc-2.5.3; previous versions
+ *	only supported *jmp with 0 or 1 leading underscores).
+ *
+ *	Use sigprocmask() instead of sigblock() and sigsetmask(), and
+ *	check for and handle errors.
+ *
+ *	Restore _all_ the registers and the signal mask atomically.  Can
+ *	use sigreturn() if sigreturn() works.
+ */
+
 ENTRY(sigsetjmp)
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx 
-	movl	%eax,24(%ecx)
+	movl	%eax,32(%ecx)
 	testl	%eax,%eax
 	jz	1f
 	pushl	$0
 	call	PIC_PLT(_sigblock)
 	addl	$4,%esp
 	movl	4(%esp),%ecx 
-	movl	%eax,28(%ecx)
+	movl	%eax,24(%ecx)
 1:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
 	movl	%ebx, 4(%ecx)
@@ -64,14 +79,15 @@ ENTRY(sigsetjmp)
 	movl	%ebp,12(%ecx)
 	movl	%esi,16(%ecx)
 	movl	%edi,20(%ecx)
+	fnstcw	28(%ecx)
 	xorl	%eax,%eax
 	ret
 
 ENTRY(siglongjmp)
 	movl	4(%esp),%edx
-	cmpl	$0,24(%edx)
+	cmpl	$0,32(%edx)
 	jz	1f
-	pushl	28(%edx)
+	pushl	24(%edx)
 	call	PIC_PLT(_sigsetmask)
 	addl	$4,%esp
 1:	movl	4(%esp),%edx
@@ -82,6 +98,8 @@ ENTRY(siglongjmp)
 	movl	12(%edx),%ebp
 	movl	16(%edx),%esi
 	movl	20(%edx),%edi
+	fninit
+	fldcw	28(%edx)
 	testl	%eax,%eax
 	jnz	2f
 	incl	%eax
