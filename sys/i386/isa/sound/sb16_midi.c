@@ -315,7 +315,8 @@ probe_sb16midi (struct address_info *hw_config)
 
   sb16midi_detected = ok;
   if (ok) {
-    hw_config->irq = sb_config->irq;
+/* cause conflicts */
+/*    hw_config->irq = sb_config->irq; */
     return 2;
   } else
     return 0;
