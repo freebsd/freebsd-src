@@ -130,7 +130,8 @@ main(int argc, char *argv[])
 			statusp, child_pid, child_pgrp, ret_pid, setmaclabel;
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
-	struct sigaction sa, sa_int, sa_quit;
+	struct sigaction sa, sa_int, sa_quit, sa_pipe;
+	int temp, fds[2];
 
 	shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
@@ -326,20 +327,30 @@ main(int argc, char *argv[])
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
+	sigaction(SIGPIPE, &sa, &sa_pipe);
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGTSTP, &sa, NULL);
 	statusp = 1;
+	if (pipe(fds) == -1) {
+		err(1, "pipe");
+		PAM_END();
+		exit(1);
+	}
 	child_pid = fork();
 	switch (child_pid) {
 	default:
-		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) != -1) {
+		close(fds[0]);
+		setpgid(child_pid, child_pid);
+		tcsetpgrp(1, child_pid);
+		close(fds[1]);
+		sigaction(SIGPIPE, &sa_pipe, NULL);
+		while ((ret_pid = waitpid(child_pid, &statusp, WUNTRACED)) !=
+		        -1) {
 			if (WIFSTOPPED(statusp)) {
 				kill(getpid(), SIGSTOP);
 				child_pgrp = getpgid(child_pid);
-				if (tcgetpgrp(1) == getpgrp()) {
-					tcsetpgrp(1, child_pgrp);
-					kill(child_pid, SIGCONT);
-				}
+				tcsetpgrp(1, child_pgrp);
+				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
 			}
@@ -354,8 +365,13 @@ main(int argc, char *argv[])
 		PAM_END();
 		exit(1);
 	case 0:
+		close(fds[1]);
+		read(fds[0], &temp, 1);
+		close(fds[0]);
+		sigaction(SIGPIPE, &sa_pipe, NULL);
 		sigaction(SIGINT, &sa_int, NULL);
 		sigaction(SIGQUIT, &sa_quit, NULL);
+
 		/*
 		 * Set all user context except for: Environmental variables
 		 * Umask Login records (wtmp, etc) Path
