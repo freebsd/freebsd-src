@@ -6,14 +6,14 @@ Type "make solaris" to build all the required binaries.
 
 Once IP Filter has been successfully compiled, you may then install it using
 the usual package method (using pkgadd), however, the package needs to be
-created, prior to pkgadd'ing.  To create the package in /var/spoo/pkg, change
+created, prior to pkgadd'ing.  To create the package in /var/spool/pkg, change
 directory to SunOS5 and enter the following command:
 
 make package
 
-If you wish to then install it using `pkgadd', run the following command:
-
-pkgadd -s '/var/spool/pkg'
+This will build the package into SunOS5/<arch>/root, copy that to
+/var/spool/pkg as a package and then start the installation using
+pkgadd.
 
 As part of the postinstall script, it will install loadable kernel module
 as part of Solaris 2 (using add_drv) making it available for immeadiate use.

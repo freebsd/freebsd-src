@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: iptests.c,v 2.0.2.13 1997/10/23 11:42:45 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: iptests.c,v 2.0.2.13.2.1 1997/11/28 03:37:10 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -892,6 +892,7 @@ int	ptest;
 	t->th_sum = 0;
 	t->th_seq = 1;
 	t->th_ack = 0;
+	ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t);
 	nfd = initdevice(dev, t->th_sport, 1);
 
 	if (!ptest || (ptest == 1)) {
@@ -1021,9 +1022,10 @@ int	ptest;
 		PAUSE();
 	}
 
-#if !defined(linux) && !defined(__SVR4) && !defined(__svr4__) && !defined(__sgi)
+#if !defined(linux) && !defined(__SVR4) && !defined(__svr4__) && \
+    !defined(__sgi)
 	{
-	struct tcpcb *t, tcb;
+	struct tcpcb *tcbp, tcb;
 	struct tcpiphdr ti;
 	struct sockaddr_in sin;
 	int fd, slen;
@@ -1032,10 +1034,13 @@ int	ptest;
 
 	for (i = 1; i < 63; i++) {
 		fd = socket(AF_INET, SOCK_STREAM, 0);
+		bzero((char *)&sin, sizeof(sin));
 		sin.sin_addr.s_addr = ip->ip_dst.s_addr;
 		sin.sin_port = htons(i);
+		sin.sin_family = AF_INET;
 		if (!connect(fd, (struct sockaddr *)&sin, sizeof(sin)))
 			break;
+		close(fd);
 	}
 
 	if (i == 63) {
@@ -1046,15 +1051,15 @@ int	ptest;
 	}
 
 	bcopy((char *)ip, (char *)&ti, sizeof(*ip));
-	ti.ti_dport = i;
+	t->th_dport = htons(i);
 	slen = sizeof(sin);
 	if (!getsockname(fd, (struct sockaddr *)&sin, &slen))
-		ti.ti_sport = sin.sin_port;
-	if (!(t = find_tcp(fd, &ti))) {
+		t->th_sport = sin.sin_port;
+	if (!(tcbp = find_tcp(fd, &ti))) {
 		printf("Can't find PCB\n");
 		goto skip_five_and_six;
 	}
-	KMCPY(&tcb, t, sizeof(tcb));
+	KMCPY(&tcb, tcbp, sizeof(tcb));
 	ti.ti_win = tcb.rcv_adv;
 	ti.ti_seq = tcb.snd_nxt - 1;
 	ti.ti_ack = tcb.rcv_nxt;
@@ -1063,27 +1068,36 @@ int	ptest;
 		/*
 		 * Test 5: urp
 		 */
-		printf("5.1 TCP Urgent pointer\n");
-		ti.ti_urp = 1;
+		t->th_flags = TH_ACK|TH_URG;
+		printf("5.5.1 TCP Urgent pointer, sport %hu dport %hu\n",
+			ntohs(t->th_sport), ntohs(t->th_dport));
+		t->th_urp = htons(1);
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		PAUSE();
-		ti.ti_urp = 0x7fff;
+
+		t->th_seq = tcb.snd_nxt;
+		ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t) + 1;
+		t->th_urp = htons(0x7fff);
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		PAUSE();
-		ti.ti_urp = 0x8000;
+		t->th_urp = htons(0x8000);
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		PAUSE();
-		ti.ti_urp = 0xffff;
+		t->th_urp = htons(0xffff);
 		(void) send_tcp(nfd, mtu, ip, gwip);
 		PAUSE();
+		t->th_urp = htons(0);
+		t->th_flags &= ~TH_URG;
+		ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t);
 	}
 
 	if (!ptest || (ptest == 6)) {
 		/*
 		 * Test 6: data offset, off = 0, off is inside, off is outside
 		 */
-		printf("6.1 TCP off = 0-15, len = 40\n");
-		for (i = 0; i < 16; i++) {
+		t->th_flags = TH_ACK;
+		printf("5.6.1 TCP off = 1-15, len = 40\n");
+		for (i = 1; i < 16; i++) {
 			ti.ti_off = ntohs(i);
 			(void) send_tcp(nfd, mtu, ip, gwip);
 			printf("%d\r", i);
@@ -1091,6 +1105,7 @@ int	ptest;
 			PAUSE();
 		}
 		putchar('\n');
+		ip->ip_len = sizeof(ip_t) + sizeof(tcphdr_t);
 	}
 
 	(void) close(fd);
@@ -1099,9 +1114,9 @@ skip_five_and_six:
 #endif
 	t->th_seq = 1;
 	t->th_ack = 1;
+	t->th_off = 0;
 
 	if (!ptest || (ptest == 7)) {
-		t->th_off = 0;
 		t->th_flags = TH_SYN;
 		/*
 		 * Test 7: sport = 0, sport = 1, sport = 32767
@@ -1140,6 +1155,7 @@ skip_five_and_six:
 
 	if (!ptest || (ptest == 8)) {
 		t->th_sport = 1;
+		t->th_flags = TH_SYN;
 		/*
 		 * Test 8: dport = 0, dport = 1, dport = 32767
 		 *         dport = 32768, dport = 65535
@@ -1174,6 +1190,20 @@ skip_five_and_six:
 		fflush(stdout);
 		PAUSE();
 	}
+
+	/* LAND attack - self connect, so make src & dst ip/port the same */
+	if (!ptest || (ptest == 9)) {
+		printf("5.9 TCP LAND attack. sport = 25, dport = 25\n");
+		/* chose SMTP port 25 */
+		t->th_sport = htons(25);
+		t->th_dport = htons(25);
+		t->th_flags = TH_SYN;
+		ip->ip_src = ip->ip_dst;
+		(void) send_tcp(nfd, mtu, ip, gwip);
+		fflush(stdout);
+		PAUSE();
+	}
+
 	/* TCP options header checking */
 	/* 0 length options, etc */
 }
@@ -1208,6 +1238,9 @@ int	ptest;
 	u->uh_dport = htons(u->uh_dport);
 	u->uh_ulen = 7168;
 
+	printf("6. Exhaustive mbuf test.\n");
+	printf("   Send 7k packet in 768 & 128 byte fragments, 128 times.\n");
+	printf("   Total of around 8,900 packets\n");
 	for (i = 0; i < 128; i++) {
 		/*
 		 * First send the entire packet in 768 byte chunks.

@@ -1,0 +1,49 @@
+IP-Filter on Linux 2.0.31
+-------------------------
+
+NOTE: I have *ONLY* compiled and created patches for using IP Filter on
+      Linux 2.0.31.  Any other kernel revision may need seprate patches.
+      Also, I've only tested on a x86 CPU so I can't make any guarantees
+      about it working on Sparc/Mac/Amiga.
+
+First, you should do a sanity check of your system to make sure it will
+compile IP Filter.  You will need a "libfl" and a "libelf".  If you don't
+have these, install them before proceeding.
+
+The installation and compiliation process assumes that Linux 2.0.31
+will be in the /usr/src/linux directory and that all the symbolic links
+in /usr/include match.  /usr/src/linux may be a symbolic link too, but
+it must point to a 2.0.31 kernel source tree.
+
+The first step is to make the IP Filter binaries.  Do this with a
+"make linux" from the ip_fil3.2.x directory.  If this completes with
+no errors, install IP Filter with a "make install-linux".
+
+Now that the user part of it is complete, it is time to work on the
+kernel.  To start this off, run "Linux/kinstall".  This will patch your
+kernel source code and configuration files so you can enabled IP Filter.
+You must now go to /usr/src/linux and configure your kernel using one of
+the available interfaces to enable IP Filter.  IP Filter will be presented
+as a three way choice "y/m/n" - select "m" to enable it.  Save your kernel
+configuration file, rebuild, install and reboot with the new kernel.
+
+When you've rebooted with the new kernel, you should be able to load
+IP Filter with the command "insmod if_ipl".  All going will, you will
+see a message like this on your console:
+
+IP Filter: initialized.  Default = pass all, Logging = enabled
+
+indicating that IP Filter has successfully been loaded into the kernel
+and is awaiting.
+
+Darren
+
+Features Not Available on Linux, yet:
+
+- compiled into the kernel
+"<action> in on <if> to <if> ..."
+"<action> in on <if> dup-to <if> ..."
+"<action> in on <if> fastroute ..."
+"block return-rst ..."
+"map ... proxy ..." (Linux's masquerading is better at present)
+

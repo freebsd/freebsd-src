@@ -1,4 +1,4 @@
 #
 # block all outgoing TCP packets on le0 from any host to port 23 of host bar.
 #
-block out on le0 proto tcp from any to bar/32 port != 23
+block out on le0 proto tcp from any to bar/32 port = 23

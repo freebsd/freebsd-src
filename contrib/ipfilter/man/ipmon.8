@@ -4,7 +4,15 @@ ipmon \- monitors /dev/ipl for logged packets
 .SH SYNOPSIS
 .B ipmon
 [
-.B \-aFhnNsStvxX
+.B \-aFhnstvxX
+] [
+.B "\-o [NSI]"
+] [
+.B "\-O [NSI]"
+] [
+.B "\-N <device>"
+] [
+.B "\-S <device>"
 ] [
 .B "\-f <device>"
 ] [
@@ -27,22 +35,40 @@ Open all of the device logfiles for reading log entries from.  All entries
 are displayed to the same output 'device' (stderr or syslog).
 .TP
 .B "\-f <device>"
-specify an alternative device/file from which to read the log information.
+specify an alternative device/file from which to read the log information
+for normal IP Filter log records.
 .TP
 .B \-F
 Flush the current packet log buffer.  The number of bytes flushed is displayed,
 even should the result be zero.
 .TP
+.B "\-N <device>"
+Set the logfile to be opened for reading NAT log records from to <device>.
+.TP
 .B \-n
 IP addresses and port numbers will be mapped, where possible, back into
 hostnames and service names.
 .TP
-.B \-N
-Treat the logfile as being composed of NAT log records.
+.B "\-N <device>"
+Set the logfile to be opened for reading NAT log records from to <device>.
+.TP
+.B \-o
+Specify which log files to actually read data from.  N - NAT logfile,
+S - State logfile, I - normal IP Filter logfile.  The \fB-a\fP option is
+equivalent to using \fB-o NSI\fP.
+.TP
+.B \-O
+Specify which log files you do not wish to read from.  This is most sensibly
+used with the \fB-a\fP.  Letters available as paramters to this are the same
+as for \fB-o\fP.
 .TP
 .B \-s
 Packet information read in will be sent through syslogd rather than
 saved to a file.  The following levels are used:
+.TP
+.B "\-S <device>"
+Set the logfile to be opened for reading state log records from to <device>.
+.TP
 .IP
 .B LOG_INFO
 \- packets logged using the "log" keyword as the action rather
@@ -76,5 +102,5 @@ recorded data.
 .SH FILES
 /dev/ipl
 .SH SEE ALSO
-ipf(1), ipfstat(1)
+ipf(8), ipfstat(8)
 .SH BUGS
