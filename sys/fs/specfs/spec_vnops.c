@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.27 1996/01/01 20:20:45 phk Exp $
+ * $Id: spec_vnops.c,v 1.28 1996/03/09 07:02:52 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -625,7 +625,8 @@ spec_close(ap)
 		 * sum of the reference counts on all the aliased
 		 * vnodes descends to one, we are on last close.
 		 */
-		if (vcount(vp) > 1 && (vp->v_flag & VXLOCK) == 0)
+		if ((vcount(vp) > ((vp->v_flag & VVMIO)?2:1)) &&
+			(vp->v_flag & VXLOCK) == 0)
 			return (0);
 		devclose = bdevsw[major(dev)]->d_close;
 		mode = S_IFBLK;
