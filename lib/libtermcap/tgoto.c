@@ -90,6 +90,8 @@ toohard:
 	added[0] = 0;
 	while ( (c = *cp++) ) {
 		if (c != '%') {
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = c;
 			continue;
 		}
@@ -110,14 +112,20 @@ toohard:
 			/* fall into... */
 
 		case '3':
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = (which / 100) | '0';
 			which %= 100;
 			/* fall into... */
 
 		case '2':
 two:
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = which / 10 | '0';
 one:
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = which % 10 | '0';
 swap:
 			oncol = 1 - oncol;
@@ -170,6 +178,8 @@ casedot:
 						which++;
 					} while (which == '\n');
 			}
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = which;
 			goto swap;
 
@@ -184,6 +194,8 @@ casedot:
 			continue;
 
 		case '%':
+			if (dp >= &result[MAXRETURNSIZE])
+				return ("OVERFLOW");
 			*dp++ = c;
 			continue;
 
@@ -203,6 +215,8 @@ casedot:
 			goto toohard;
 		}
 	}
+	if (dp+strlen(added)+1 > &result[MAXRETURNSIZE])
+		return ("OVERFLOW");
 	strcpy(dp, added);
 	return (result);
 }
