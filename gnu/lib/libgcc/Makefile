@@ -4,7 +4,9 @@ GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 
 .PATH: ${GCCDIR}/cp ${GCCDIR}
 
+.if !defined(LIB) || ${LIB} != "gcc_r"
 LIB=	gcc
+.endif
 
 # Install libgcc_pic.a, since ld.so uses it.
 INSTALL_PIC_ARCHIVE=  yes
