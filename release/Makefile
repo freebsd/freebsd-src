@@ -165,35 +165,18 @@ MNT=			/mnt
 
 .if ${TARGET_ARCH} == "i386"
 .if ${TARGET} == "pc98"
-SMALLBOOTSIZE=		1200
-BOOTSIZE=		1440
-SMALLFIXITSIZE=		1200
-FIXITSIZE=		1440
-MFSSIZE=		4320
-BOOTINODE=		80000
-FIXITINODE=		40000
-MFSINODE=		8000
-SMALLBOOTLABEL=		fd1200
-BOOTLABEL=		fd1440
-SMALLFIXITLABEL=	fd1200
-FIXITLABEL=		fd1440
-MFSLABEL=		minimum3
-.else
-DRIVERSIZE=		1440
-BOOTSIZE=		1440
-FIXITSIZE=		1440
-MFSSIZE=		4320
-BIGBOOTSIZE=		2880
-DRIVERINODE=		40000
-BOOTINODE=		80000
-FIXITINODE=		40000
-MFSINODE=		8000
-DRIVERLABEL=		fd1440
-BOOTLABEL=		fd1440
-FIXITLABEL=		fd1440
-MFSLABEL=		minimum3
-BIGBOOTLABEL=		minimum2
+SMALLFLOPPYSIZE=	1200
+SMALLFLOPPYSPLITSIZE=	1152
+SMALLFLOPPYLABEL=	fd1200
 .endif
+FLOPPYSIZE=		1440
+FLOPPYSPLITSIZE=	1392
+MFSSIZE=		4320
+FLOPPYINODE=		40000
+BOOTINODE=		80000
+MFSINODE=		8000
+FLOPPYLABEL=		fd1440
+MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "alpha"
 MFSSIZE=		4320
 MFSINODE=		8000
@@ -224,7 +207,7 @@ DISKLABEL?=		bsdlabel
 DISKLABEL?=		disklabel
 .endif
 
-ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
+ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1392k -
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO) && !make(release) && !make(rerelease)
@@ -262,7 +245,10 @@ CRUNCH_TARGETS+=fixit-small
 .endif
 .endif
 
-EXTRAS= ftp.1
+.if !defined(NOFLOPPIES)
+EXTRAS= floppies.1 floppies.2 floppies.3
+.endif
+EXTRAS+= ftp.1
 .if !defined(NOCDROM)
 EXTRAS+= cdrom.1
 .if defined(MAKE_ISOS)
@@ -489,8 +475,7 @@ release rerelease:
 	env -i /usr/sbin/chroot `dirname ${_MK}` /`basename ${_MK}`
 
 clean:
-	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] release.10 \
-	    ${EXTRAS}
+	rm -rf ${CRUNCH_TARGETS:S/$/_crunch/} release.[0-9] ${EXTRAS}
 
 fetch-distfiles:
 	@for i in ${DOCPORTS}; do \
@@ -666,19 +651,7 @@ release.8:
 .endif
 	touch ${.TARGET}
 
-# Complete the bootfd
-#
-# Now, just to get this picture down once and for all:
-#
-# +------------------------------------------------------------------------+
-# |boot.flp                                                                |
-# +-----+-----+------------------------------------------------------------+
-# |boot1|boot2|floppy filesystem "bootfd"                                  |
-# +-----+-----+-+----------------------+---------------------------------+-+
-#               |kernel.gz             |mfsroot.gz                       |
-#               +----------------------+---------------------------------+
-#
-
+# Build the memory root filesystem.
 release.9:
 .if exists(${.CURDIR}/../sys/boot/${TARGET}/loader)
 	cd ${.CURDIR}/../sys/boot/${TARGET}/loader; \
@@ -742,61 +715,69 @@ release.9:
 .endif
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
-.if defined(SMALLBOOTSIZE)
-	@mkdir -p ${RD}/mfsroot-small
-.if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
-	@mkdir -p ${RD}/mfsfd/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
-	    ${.CURDIR}/${TARGET}/drivers-small.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
-.endif
-	sh -e ${DOFS_SH} ${RD}/mfsroot-small/mfsroot ${RD} ${MNT} \
-	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9nv ${RD}/mfsroot-small/mfsroot
-	@rm -rf ${RD}/mfsfd/modules
-.endif
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@mkdir -p ${RD}/mfsfd/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
-.endif
 	@mkdir -p ${RD}/mfsroot
 	sh -e ${DOFS_SH} ${RD}/mfsroot/mfsroot ${RD} ${MNT} \
 	    ${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9nv ${RD}/mfsroot/mfsroot
 	touch ${.TARGET}
 
-release.10:
-.if !defined(NO_FLOPPIES)
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@echo "Making the drivers floppy."
-	@rm -rf ${RD}/driversfd
-	@mkdir ${RD}/driversfd
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/driversfd
-	-@rmdir ${RD}/driversfd
-	if [ -d ${RD}/driversfd ]; then \
-	    sh -e ${DOFS_SH} ${RD}/floppies/drivers.flp ${RD} ${MNT} \
-	        ${DRIVERSIZE} ${RD}/driversfd ${DRIVERINODE} ${DRIVERLABEL}; \
-	    cd ${RD}/driversfd && awk -f  ${.CURDIR}/scripts/driver-desc.awk \
-		*.dsc >> ${RD}/floppies/DRIVERS.TXT; \
-	fi
+KERNFLOPPYSET=		${RD}/floppyset/kern/kernel.gz
+.if defined(SMALLFLOPPYSIZE)
+SMALLKERNFLOPPYSET=	${RD}/floppyset/kern-small/kernel.gz
 .endif
-.if defined(BOOTSIZE)
-	@echo "Making the regular boot floppy."
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
+.if defined(SPLIT_MFSROOT)
+MFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot/mfsroot.gz
+.if defined(SMALLFLOPPYSIZE)
+SMALLMFSROOTFLOPPYSET=	${RD}/floppyset/mfsroot-small/mfsroot.gz
 .endif
-.if defined(SMALLBOOTSIZE)
-	@echo "Making the small boot floppy."
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
 .endif
-.if defined(BIGBOOTSIZE)
-	@echo "Making the big boot floppy."
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
+
+# Build boot and install floppies.
+floppies.1:
+	@gzip -9nc ${RD}/trees/base/boot/kernel/kernel > ${RD}/kernels/kernel.gz
+	@echo "Making the kernel boot floppies..."
+	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern \
+	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz
+.if defined(SMALLFLOPPYSIZE)
+	@echo "Making the small kernel boot floppies..."
+	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=kern-small \
+	    FLOPPYDESC="Kernel" SPLITFILE=${RD}/kernels/kernel.gz \
+	    FDSIZE="SMALL"
 .endif
-.if defined(FIXITSIZE) || defined(SMALLFIXITSIZE)
+.if defined(SPLIT_MFSROOT)
+	@echo "Making the mfsroot boot floppies..."
+	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=mfsroot \
+	    FLOPPYDESC="Memory Filesystem" SPLITFILE=${RD}/mfsroot/mfsroot.gz
+.if defined(SMALLFLOPPYSIZE)
+	@echo "Making the small mfsroot boot floppies..."
+	@cd ${.CURDIR} && ${MAKE} makeFloppySet FLOPPYBASE=mfsroot-small \
+	    FLOPPYDESC="Memory Filesystem" SPLITFILE=${RD}/mfsroot/mfsroot.gz \
+	    FDSIZE="SMALL"
+.endif
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
+	    MFSROOTFILE="${MFSROOTFLOPPYSET}.split ${MFSROOTFLOPPYSET}.boot"
+.if defined(SMALLFLOPPYSIZE)
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
+	    MFSROOTFILE="${SMALLMFSROOTFLOPPYSET}.split ${SMALLMFSROOTFLOPPYSET}.boot" \
+	    FDSIZE="SMALL"
+.endif
+.else	# !SPLIT_MFSROOT
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	    KERNFILE="${KERNFLOPPYSET}.split ${KERNFLOPPYSET}.boot" \
+	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz
+.if defined(SMALLFLOPPYSIZE)
+	@cd ${.CURDIR} && ${MAKE} buildBootFloppy FSIMAGE="boot" \
+	    KERNFILE="${SMALLKERNFLOPPYSET}.split ${SMALLKERNFLOPPYSET}.boot" \
+	    MFSROOTFILE=${RD}/mfsroot/mfsroot.gz \
+	    FDSIZE="SMALL"
+.endif
+.endif	# SPLIT_MFSROOT
+	touch ${.TARGET}
+
+# Build fixit floppy.
+floppies.2:
 	@echo "Making fixit floppy."
 	@rm -rf ${RD}/fixitfd
 	@mkdir ${RD}/fixitfd
@@ -813,29 +794,28 @@ release.10:
 	@cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	@cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
 	@chmod 555 ${RD}/fixitfd/stand/tar
-.if defined(SMALLFIXITSIZE)
+.if defined(SMALLFLOPPYSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit-small \
 	    DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${DOFS_SH} ${RD}/floppies/fixit-small.flp ${RD} ${MNT} \
-	    ${SMALLFIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${SMALLFIXITLABEL}
+	    ${SMALLFLOPPYSIZE} ${RD}/fixitfd ${FLOPPYINODE} ${SMALLFLOPPYLABEL}
 	@rm -rf ${RD}/fixitfd/stand
 	@mkdir ${RD}/fixitfd/stand
 .endif
-.if defined(FIXITSIZE)
 	@cd ${.CURDIR} && ${MAKE} installCRUNCH CRUNCH=fixit \
 	    DIR=${RD}/fixitfd/stand ZIP=false
 	@sh -e ${DOFS_SH} ${RD}/floppies/fixit.flp ${RD} ${MNT} \
-	    ${FIXITSIZE} ${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
-.endif
-.endif
-# Do our last minute floppies directory setup in a convenient place.
+	    ${FLOPPYSIZE} ${RD}/fixitfd ${FLOPPYINODE} ${FLOPPYLABEL}
+	touch ${.TARGET}
+
+# Do our last minute floppies directory setup
+floppies.3:
 .if !defined(NODOC)
 	@cp ${RND}/${RELNOTES_LANG}/installation/${TARGET}/article.txt \
 	    ${RD}/floppies/README.TXT
 	@(cd ${RD}/floppies; md5 README.TXT *.flp > CHECKSUM.MD5)
 .else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
-.endif
 .endif
 	touch ${.TARGET}
 
@@ -1036,12 +1016,13 @@ doTARBALL:
 	)
 
 doRELEASE: release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
-    release.6 release.7 release.8 release.9 release.10 ${EXTRAS}
+    release.6 release.7 release.8 release.9 ${EXTRAS}
 	@echo "Release done"
 
 floppies:
-	@rm -f release.5 release.9 release.10
-	@cd ${.CURDIR} && ${MAKE} release.5 release.9 release.10
+	@rm -f release.5 release.9 floppies.[123]
+	@cd ${.CURDIR} && ${MAKE} release.5 release.9 floppies.1 floppies.2 \
+	    floppies.3
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
 installCRUNCH:
@@ -1071,94 +1052,109 @@ installCRUNCH:
 	fi
 
 #
-# --==## Put a filesystem into a BOOTMFS kernel ##==--
+# --==## Build a floppy set for a splitfs file ##==--
 #
-doMFSKERN:
-	@echo "Running ${.TARGET} for ${FSIMAGE}"
-	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR}/../sys/${TARGET}/conf; \
-	if [ -r ${.CURDIR}/${TARGET}/dokern.sh ]; then \
-	    sh ${.CURDIR}/${TARGET}/dokern.sh ${FDSIZE}; \
-	else \
-	    sed -e 's/ident.*GENERIC/ident		BOOTMFS/g'; \
-	fi < GENERIC > BOOTMFS; \
-	[ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
-.if defined(FDSIZE) && ${FDSIZE} == "SMALL" && \
-    exists(${.CURDIR}/${TARGET}/drivers-small.conf)
-	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
-	    ${.CURDIR}/${TARGET}/drivers-small.conf \
-	    ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
-.elif exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS
+# FLOPPYBASE - basename of floppy image files
+# FLOPPYDESC - description of floppy set
+# SPLITFILE - filename of the file to split
+# FDSIZE - if specified and "small", small floppy is created
+
+.if make(makeFloppySet)
+SPLITDIR=	${RD}/floppyset/${FLOPPYBASE}
+.if defined(FDSIZE) && ${FDSIZE} == "SMALL"
+FLPSPLITSIZE=	${SMALLFLOPPYSPLITSIZE}
+FLPSIZE=	${SMALLFLOPPYSIZE}
+FLPLABEL=	${SMALLFLOPPYLABEL}
+.else
+FLPSPLITSIZE=	${FLOPPYSPLITSIZE}
+FLPSIZE=	${FLOPPYSIZE}
+FLPLABEL=	${FLOPPYLABEL}
 .endif
-	cd ${.CURDIR}/..; \
-	KERNEL_KO=BOOTMFS KODIR= \
-	    ${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES -DNO_KERNELCLEAN \
-	    KERNCONF=BOOTMFS COPTFLAGS="-Os -pipe" -DNO_CPU_COPTFLAGS \
-	    buildkernel reinstallkernel \
-	    DESTDIR=${RD}/kernels
-	[ -r ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ] && \
-	    cp ${.CURDIR}/../sys/${TARGET}/conf/BOOTMFS.hints ${RD}/kernels
-	@rm -rf ${RD}/image.${FSIMAGE}
-	@mkdir ${RD}/image.${FSIMAGE}
-	@cd ${RD}/kernels && \
-	    (chflags noschg BOOTMFS || true) && \
-	    ${WMAKEENV} strip -R .comment BOOTMFS && \
-	    cp BOOTMFS BOOTMFS.${FSIMAGE} && \
-	    [ -r BOOTMFS.hints ] && mv BOOTMFS.hints BOOTMFS.${FSIMAGE}.hints
-	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
+.endif
+
+makeFloppySet:
+.if !defined(FLOPPYBASE)
+	@echo "FLOPPYBASE undefined in ${.TARGET}" && exit 1
+.endif
+.if !defined(FLOPPYDESC)
+	@echo "FLOPPYDESC undefined in ${.TARGET}" && exit 1
+.endif
+.if !defined(SPLITFILE)
+	@echo "SPLITFILE undefined in ${.TARGET}" && exit 1
+.endif
+	${.CURDIR}/scripts/split-file.sh ${SPLITFILE} \
+	    ${RD}/floppyset/${FLOPPYBASE} ${FLPSPLITSIZE} "${FLOPPYDESC}"
+	( splitfile=${SPLITDIR}/`basename ${SPLITFILE}`.split ; \
+	lines=`cat $${splitfile} | wc -l`; \
+	lines=$$((lines - 1)) ; \
+	for line in `jot $$lines`; do \
+		file=`head -n $$(($${line} + 1)) $${splitfile} | tail -1 | cut -f 1 -d ' '` ; \
+		sh -e ${DOFS_SH} ${RD}/floppies/${FLOPPYBASE}$${line}.flp \
+		${RD} ${MNT} ${FLPSIZE} ${SPLITDIR}/$${file} \
+		${BOOTINODE} ${FLPLABEL}; \
+	done )
+
+#
+# --==## Build a boot floppy ##==--
+#
+# FSIMAGE - base floppy image name
+# FDSIZE - if specified and "small", small floppy is created
+# KERNFILE - path to kernel split file
+# MFSROOTFILE - path to mfsroot split file
+
+.if make(buildBootFloppy)
+IMAGEDIR=	${RD}/image.${FSIMAGE}
+HINTSFILE=	${.CURDIR}/../sys/${TARGET}/conf/GENERIC.hints
+IMAGEFILE=	${RD}/floppies/${FSIMAGE}.flp
+.if defined(FDSIZE) && ${FDSIZE} == "SMALL"
+FLPSIZE=	${SMALLFLOPPYSIZE}
+FLPLABEL=	${SMALLFLOPPYLABEL}
+.else
+FLPSIZE=	${FLOPPYSIZE}
+FLPLABEL=	${FLOPPYLABEL}
+.endif
+.endif
+
+buildBootFloppy:
+.if !defined(FSIMAGE)
+	@echo "FSIMAGE undefined in ${.TARGET}" && exit 1
+.endif
+.if !defined(KERNFILE)
+	@echo "KERNFILE undefined in ${.TARGET}" && exit 1
+.endif
+.if !defined(MFSROOTFILE)
+	@echo "MFSROOTFILE undefined in ${.TARGET}" && exit 1
+.endif
+	@echo "Running ${.TARGET} for ${FSIMAGE}"
+	@rm -rf ${IMAGEDIR}
+	@mkdir ${IMAGEDIR}
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
-	@mkdir -p ${RD}/image.${FSIMAGE}/boot
+	@mkdir -p ${IMAGEDIR}/boot
 .if ${TARGET} == "i386"
 	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o -o \
-	    ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/special/boot/loader
+	    ${IMAGEDIR}/boot/loader ${RD}/trees/special/boot/loader
 .else
-	@cp ${RD}/trees/special/boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp ${RD}/trees/special/boot/loader ${IMAGEDIR}/boot
 .endif
-	@[ -r ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints ] && \
-	  sed -e '/^hint/s/^/set /' -e '/^#/d' \
-	      ${RD}/kernels/BOOTMFS.${FSIMAGE}.hints > \
-	      ${RD}/image.${FSIMAGE}/boot/device.hints && \
-	  echo "include /boot/device.hints" \
-	      > ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "load /kernel" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if !defined(FDSIZE) || ${FDSIZE} != "BIG"
-	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.endif
-	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@if [ -r ${RD}/floppies/drivers.flp ]; then \
-		echo "set driver_floppy=YES" >> ${RD}/image.${FSIMAGE}/boot/loader.rc; \
-	fi
-	@echo "set module_path=\"/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@[ -r ${HINTSFILE} ] && \
+	  sed -e '/^hint/s/^/set /' -e '/^#/d' ${HINTSFILE} > \
+	    ${IMAGEDIR}/boot/device.hints && \
+	  echo "include /boot/device.hints" > ${IMAGEDIR}/boot/loader.rc
+	@echo "load /kernel" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "echo Please insert boot floppy and press enter:" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "read" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "load -t mfs_root /mfsroot" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "set hint.acpi.0.disabled=1" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "echo \\007\\007" >> ${IMAGEDIR}/boot/loader.rc
+	@echo "autoboot 10" >> ${IMAGEDIR}/boot/loader.rc
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
-	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
+	@echo "-P" >> ${IMAGEDIR}/boot.config
 .endif
-	@gzip -9v ${RD}/image.${FSIMAGE}/kernel
-	@rm -f ${RD}/floppies/${FSIMAGE}.flp
-.if defined(FDSIZE) && ${FDSIZE} == "BIG"
-	@cp ${RD}/mfsroot/mfsroot.gz ${RD}/image.${FSIMAGE}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
-	    ${BIGBOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} ${BIGBOOTLABEL}
-.elif defined(FDSIZE) && ${FDSIZE} == "SMALL"
-	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot-small.flp ${RD} ${MNT} \
-	    ${SMALLBOOTSIZE} ${RD}/mfsroot-small/mfsroot.gz ${BOOTINODE} \
-	    ${SMALLBOOTLABEL}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
-	    ${SMALLBOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} \
-	    ${SMALLBOOTLABEL}
-.else
-	sh -e ${DOFS_SH} ${RD}/floppies/mfsroot.flp ${RD} ${MNT} \
-	    ${BOOTSIZE} ${RD}/mfsroot/mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
-	sh -e ${DOFS_SH} ${RD}/floppies/${FSIMAGE}.flp ${RD} ${MNT} \
-	    ${BOOTSIZE} ${RD}/image.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
-.endif
+	@rm -f ${IMAGEFILE}
+	@cp ${KERNFILE} ${MFSROOTFILE} ${IMAGEDIR}
+	sh -e ${DOFS_SH} ${IMAGEFILE} ${RD} ${MNT} ${FLPSIZE} ${IMAGEDIR} \
+	    ${BOOTINODE} ${FLPLABEL}
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
 
 .include <bsd.obj.mk>
