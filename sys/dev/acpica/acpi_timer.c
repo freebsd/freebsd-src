@@ -67,6 +67,7 @@ static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
 static unsigned	acpi_timer_get_timecount(struct timecounter *tc);
+static unsigned	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_test(void);
 
@@ -94,7 +95,7 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
  * Timecounter.
  */
 static struct timecounter acpi_timer_timecounter = {
-    acpi_timer_get_timecount,
+    acpi_timer_get_timecount_safe,
     0,
     0xffffff,
     0,
@@ -144,6 +145,20 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     sprintf(desc, "%d-bit timer at 3.579545MHz", AcpiGbl_FADT->TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
 
+#if 0    
+    {
+	u_int64_t	first;
+    
+	first = rdtsc();
+	acpi_timer_get_timecount(NULL);	
+	printf("acpi_timer_get_timecount %lld cycles\n", rdtsc() - first);
+
+	first = rdtsc();
+	acpi_timer_get_timecount_safe(NULL);
+	printf("acpi_timer_get_timecount_safe %lld cycles\n", rdtsc() - first);
+    }
+#endif
+
     return_VOID;
 }
 
@@ -162,12 +177,31 @@ acpi_timer_attach(device_t dev)
 }
 
 /*
- * Fetch current time value from hardware.
+ * Fetch current time value from reliable hardware.
  */
 static unsigned
 acpi_timer_get_timecount(struct timecounter *tc)
 {
     return(TIMER_READ);
+}
+
+/*
+ * Fetch current time value from hardware that may not correctly
+ * latch the counter.
+ */
+static unsigned
+acpi_timer_get_timecount_safe(struct timecounter *tc)
+{
+    unsigned u1, u2, u3;
+
+    u2 = TIMER_READ;
+    u3 = TIMER_READ;
+    do {
+	u1 = u2;
+	u2 = u3;
+	u3 = TIMER_READ;
+    } while (u1 > u2 || u2 > u3);
+    return (u2);
 }
 
 /*
@@ -227,6 +261,16 @@ acpi_timer_test(void)
 /*
  * Chipset workaround driver hung off PCI.
  *
+ * Some ACPI timers are known or believed to suffer from implementation
+ * problems which can lead to erroneous values being read from the timer.
+ *
+ * Since we can't trust unknown chipsets, we default to a timer-read
+ * routine which compensates for the most common problem (as detailed
+ * in the excerpt from the Intel PIIX4 datasheet below).
+ *
+ * When we detect a known-functional chipset, we disable the workaround
+ * to improve speed.
+ *
  * ] 20. ACPI Timer Errata
  * ]
  * ]   Problem: The power management timer may return improper result when
@@ -250,7 +294,6 @@ acpi_timer_test(void)
  */
 
 static int	acpi_timer_pci_probe(device_t dev);
-static unsigned	acpi_timer_get_timecount_piix(struct timecounter *tc);
 
 static device_method_t acpi_timer_pci_methods[] = {
     DEVMETHOD(device_probe,	acpi_timer_pci_probe),
@@ -267,40 +310,21 @@ devclass_t acpi_timer_pci_devclass;
 DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver, acpi_timer_pci_devclass, 0, 0);
 
 /*
- * Look at PCI devices as they go past, and if we detect a PIIX4 older than
- * the PIIX4M, use an alternate get_timecount routine.
- *
- * XXX do we know that other timecounters work?  Perhaps we should test them?
+ * Look at PCI devices going past; if we detect one we know contains
+ * a functional ACPI timer device, enable the faster timecounter read
+ * routine.
  */
 static int
 acpi_timer_pci_probe(device_t dev)
 {
     if ((pci_get_vendor(dev) == 0x8086) &&
 	(pci_get_device(dev) == 0x7113) &&
-	(pci_get_revid(dev) < 0x03)) {
-	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount_piix;
-	acpi_timer_timecounter.tc_name = "ACPI-PIIX";
-	device_printf(acpi_timer_dev, "enabling PIIX4 timer workaround\n");
+	(pci_get_revid(dev) >= 0x03)) {
+	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
+	acpi_timer_timecounter.tc_name = "ACPI-PIIX4M";
+	if (bootverbose)
+	    device_printf(acpi_timer_dev, "PIIX4M or later detected, enabling ACPI timer optimisation\n");
     }
 
     return(ENXIO);		/* we never match anything */
 }
-
-/*
- * Read the buggy PIIX4 ACPI timer and compensate for its behaviour.
- */
-static unsigned
-acpi_timer_get_timecount_piix(struct timecounter *tc)
-{
-    unsigned u1, u2, u3;
-
-    u2 = TIMER_READ;
-    u3 = TIMER_READ;
-    do {
-	u1 = u2;
-	u2 = u3;
-	u3 = TIMER_READ;
-    } while (u1 > u2 || u2 > u3);
-    return (u2);
-}
-
