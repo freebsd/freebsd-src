@@ -344,7 +344,8 @@ ep_detach(device_t dev)
 		device_printf(dev, "already unloaded\n");
 		return (0);
 	}
-	epstop(sc);
+	if (bus_child_present(dev))
+		epstop(sc);
 
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp);
