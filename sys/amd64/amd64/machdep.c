@@ -49,7 +49,6 @@
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
 #include "opt_perfmon.h"
-#include "opt_smp.h"
 #include "opt_user_ldt.h"
 #include "opt_userconfig.h"
 
@@ -1181,11 +1180,7 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
  */
 
 int _default_ldt;
-#ifdef SMP
-union descriptor gdt[NGDT * NCPU];	/* global descriptor table */
-#else
-union descriptor gdt[NGDT];		/* global descriptor table */
-#endif
+union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */

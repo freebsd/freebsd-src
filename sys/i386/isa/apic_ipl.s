@@ -235,7 +235,8 @@ write_ioapic_mask:
 	jz	all_done		/* no change, return */
 
 	movl	_APIC, %esi		/* APIC # */
-	movl	_ioapic(,%esi,4), %esi	/* %esi holds APIC base address */
+	movl	_ioapic, %ecx
+	movl	(%ecx,%esi,4), %esi	/* %esi holds APIC base address */
 
 next_loop:				/* %ebx = diffs, %esi = APIC base */
 	bsfl	%ebx, %ecx		/* %ecx = index if 1st/next set bit */
@@ -355,7 +356,8 @@ clr_ioapic_maskbit:
  */
 ENTRY(io_apic_read)
 	movl	4(%esp), %ecx		/* APIC # */
-	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl	_ioapic, %eax
+	movl	(%eax,%ecx,4), %edx	/* APIC base register address */
 	movl	8(%esp), %eax		/* target register index */
 	movl	%eax, (%edx)		/* write the target register index */
 	movl	16(%edx), %eax		/* read the APIC register data */
@@ -366,7 +368,8 @@ ENTRY(io_apic_read)
  */
 ENTRY(io_apic_write)
 	movl	4(%esp), %ecx		/* APIC # */
-	movl	_ioapic(,%ecx,4), %edx	/* APIC base register address */
+	movl	_ioapic, %eax
+	movl	(%eax,%ecx,4), %edx	/* APIC base register address */
 	movl	8(%esp), %eax		/* target register index */
 	movl	%eax, (%edx)		/* write the target register index */
 	movl	12(%esp), %eax		/* target register value */
