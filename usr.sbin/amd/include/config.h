@@ -317,7 +317,7 @@
 #define HAVE_FS_NFS3 1
 
 /* Define if have NULLFS (loopback on bsd44) filesystem */
-/* #undef HAVE_FS_NULLFS */
+#define HAVE_FS_NULLFS 1
 
 /* Define if have PCFS filesystem */
 #define HAVE_FS_PCFS 1
@@ -1767,7 +1767,7 @@
 #define MNTTAB_TYPE_NFS3 "nfs3"
 
 /* Mount-table entry name for NULLFS (loopback on bsd44) filesystem */
-/* #undef MNTTAB_TYPE_NULLFS */
+#define MNTTAB_TYPE_NULLFS "nullfs"
 
 /* Mount-table entry name for PCFS filesystem */
 #define MNTTAB_TYPE_PCFS "msdosfs"
@@ -1824,7 +1824,7 @@
 #define MOUNT_TYPE_NFS3 MOUNT_NFS3
 
 /* Mount(2) type/name for NULLFS (loopback on bsd44) filesystem */
-/* #undef MOUNT_TYPE_NULLFS */
+#define MOUNT_TYPE_NULLFS "nullfs"
 
 /* Mount(2) type/name for PCFS filesystem. XXX: conf/trap/trap_hpux.h may
    override this definition for HPUX 9.0 */
