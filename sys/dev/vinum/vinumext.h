@@ -56,7 +56,7 @@ struct proc;
 #endif
 
 #ifdef KERNEL
-int vinum_inactive(void);
+int vinum_inactive(int);
 void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
 int give_plex_to_volume(int volno, int plexno);
