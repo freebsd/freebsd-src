@@ -1044,6 +1044,7 @@ skip_ipsec2:;
 		u_char nextproto;
 		struct ip6ctlparam ip6cp;
 		u_int32_t mtu32;
+		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
 
 		/*
 		 * Too large for the destination or interface;
@@ -1065,6 +1066,17 @@ skip_ipsec2:;
 		if (len < 8) {
 			error = EMSGSIZE;
 			in6_ifstat_inc(ifp, ifs6_out_fragfail);
+			goto bad;
+		}
+
+		/*
+		 * Verify that we have any chance at all of being able to queue
+		 *      the packet or packet fragments
+		 */
+		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
+		    < tlen  /* - hlen */)) {
+			error = ENOBUFS;
+			ip6stat.ip6s_odropped++;
 			goto bad;
 		}
 
