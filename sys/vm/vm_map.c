@@ -159,7 +159,7 @@ vm_map_startup(void)
 	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(mapzone, MAX_KMAP);
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_MTXCLASS);
 	uma_prealloc(kmapentzone, MAX_KMAPENT);
 	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
