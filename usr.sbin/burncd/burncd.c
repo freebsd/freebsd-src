@@ -51,9 +51,10 @@ main(int argc, char **argv)
 	int ch, speed = 1, preemp = 0, test_write = 0, eject = 0, quiet = 0;
 	char *devname = "/dev/acd0c";
 	char buf[2352*BLOCKS];
-	int arg, file, addr, count;
+	int arg, file, addr, count, filesize;
 	int block_size = 0, cdopen = 0, size, tot_size = 0;
 	struct cdr_track track;
+	struct stat stat;
 
 	while ((ch = getopt(argc, argv, "ef:pqs:t")) != -1) {
 		switch (ch) {
@@ -159,17 +160,18 @@ main(int argc, char **argv)
 		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
         		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
 
+		if (fstat(file, &stat) < 0)
+			err(EX_IOERR, "fstat(%s)", argv[arg]);
+		filesize = stat.st_size / 1024;
 		if (!quiet) {
-			struct stat stat;
-
-			if (fstat(file, &stat) < 0)
-				err(EX_IOERR, "fstat(%s)", argv[arg]);
 			fprintf(stderr, "next writeable LBA %d\n", addr);
-			fprintf(stderr, "writing from file %s size %qd KB\n",
-				argv[arg], stat.st_size / 1024);
+			fprintf(stderr, "writing from file %s size %d KB\n",
+				argv[arg], filesize);
 		}
 		lseek(fd, addr * block_size, SEEK_SET);
 		size = 0;
+		if (filesize == 0)
+			filesize++;	/* cheat, avoid divide by zero */
 
 		while ((count = read(file, buf, block_size * BLOCKS)) > 0) {	
 			int res;
@@ -186,10 +188,14 @@ main(int argc, char **argv)
 			}
 			size += count;
 			tot_size += count;
-			if (!quiet)
+			if (!quiet) {
+				int pct;
+
+				pct = (size / 1024) * 100 / filesize;
 				fprintf(stderr, "written this track %d KB"
-						" total %d KB\r",
-						size/1024, tot_size/1024);
+						" (%d%%) total %d KB\r",
+						size/1024, pct, tot_size/1024);
+			}
 		}
 		if (!quiet)
 			fprintf(stderr, "\n");
