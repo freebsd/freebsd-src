@@ -1771,16 +1771,19 @@ ndis_get_assoc(sc, assoc)
 	ndis_80211_macaddr	bssid;
 	int			i, len, error;
 
+	if (!sc->ndis_link)
+		return(ENOENT);
+
 	len = sizeof(bssid);
 	error = ndis_get_info(sc, OID_802_11_BSSID, &bssid, &len);
 	if (error) {
-		device_printf(sc->ndis_dev, "failed to get bssid");
+		device_printf(sc->ndis_dev, "failed to get bssid\n");
 		return(ENOENT);
 	}
 	len = 0;
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, NULL, &len);
 	if (error != ENOSPC) {
-		device_printf(sc->ndis_dev, "bssid_list failed");
+		device_printf(sc->ndis_dev, "bssid_list failed\n");
 		return (error);
 	}
 
@@ -1788,7 +1791,7 @@ ndis_get_assoc(sc, assoc)
 	error = ndis_get_info(sc, OID_802_11_BSSID_LIST, bl, &len);
 	if (error) {
 		free(bl, M_TEMP);
-		device_printf(sc->ndis_dev, "bssid_list failed");
+		device_printf(sc->ndis_dev, "bssid_list failed\n");
 		return (error);
 	}
 
