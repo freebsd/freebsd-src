@@ -1,3 +1,5 @@
+$FreeBSD$
+
 By 1996/12/04, the utmp element size has been changed, in order to
 allow for longer usernames.  This change renders all existing wtmp
 files unusable.  The cvt-wtmp utility is provided as an aid to convert
@@ -13,7 +15,7 @@ The old wtmp files are being renamed to <file>.bak, so nothing will be
 lost even in case of a failure.  If you are only about to test whether
 the tool will grok your files correctly, you can run it as:
 
-	./cvs-wtmp -n /var/log/wtmp*
+	./cvt-wtmp -n /var/log/wtmp*
 
 The tool tries an ``educated guess'', based on the reasonability of
 the timestamp values in the wtmp file.  If it fails to recognize the
@@ -21,9 +23,9 @@ format of your wtmp, it normally bails out, or at least ignores
 garbage records.  In this case, rename the .bak files to the original
 name, and try to force the conversion:
 
-	./cvs-tmp -f /var/log/wtmp.xxx
+	./cvt-wtmp -f /var/log/wtmp.xxx
 
 Make sure to verify the result however!
 
 
-Dresden, Jan 2, 1996			Joerg  <joerg@freebsd.org>
+Dresden, Jan 2, 1996			Joerg  <joerg@FreeBSD.org>
