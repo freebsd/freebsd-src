@@ -1422,7 +1422,7 @@ ufs_mkdir(ap)
 	}
 	if ((error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) |
 				       DOINGASYNC(tvp)))) != 0) {
-		(void)VOP_BWRITE(bp->b_vp, bp);
+		(void)BUF_WRITE(bp);
 		goto bad;
 	}
 	VN_POLLEVENT(dvp, POLLWRITE); /* XXX right place? */
@@ -1439,7 +1439,7 @@ ufs_mkdir(ap)
 	 */
 	if (DOINGASYNC(dvp))
 		bdwrite(bp);
-	else if (!DOINGSOFTDEP(dvp) && ((error = VOP_BWRITE(bp->b_vp, bp))))
+	else if (!DOINGSOFTDEP(dvp) && ((error = BUF_WRITE(bp))))
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp);

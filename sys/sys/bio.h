@@ -424,6 +424,9 @@ bufq_first(struct buf_queue_head *head)
 	return (TAILQ_FIRST(&head->queue));
 }
 
+#define BUF_WRITE(bp)		VOP_BWRITE((bp)->b_vp, (bp))
+#define BUF_STRATEGY(bp)	VOP_STRATEGY((bp)->b_vp, (bp))
+
 #endif /* _KERNEL */
 
 /*

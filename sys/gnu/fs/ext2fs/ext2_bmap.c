@@ -195,7 +195,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			bp->b_iocmd = BIO_READ;
 			bp->b_flags &= ~(B_INVAL|B_ERROR);
 			vfs_busy_pages(bp, 0);
-			VOP_STRATEGY(bp->b_vp, bp);
+			BUF_STRATEGY(bp);
 			curproc->p_stats->p_ru.ru_inblock++;	/* XXX */
 			error = biowait(bp);
 			if (error) {

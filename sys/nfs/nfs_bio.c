@@ -994,7 +994,7 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			if (VOP_BWRITE(bp->b_vp, bp) == EINTR)
+			if (BUF_WRITE(bp) == EINTR)
 				return (EINTR);
 			goto again;
 		}
@@ -1063,7 +1063,7 @@ again:
 		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
-			error = VOP_BWRITE(bp->b_vp, bp);
+			error = BUF_WRITE(bp);
 			if (error)
 				break;
 			if (np->n_flag & NQNFSNONCACHE) {

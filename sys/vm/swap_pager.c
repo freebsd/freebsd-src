@@ -1133,7 +1133,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	 */
 
 	BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	/*
 	 * wait for the page we want to complete.  PG_SWAPINPROG is always
@@ -1383,7 +1383,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		if (sync == FALSE) {
 			bp->b_iodone = swp_pager_async_iodone;
 			BUF_KERNPROC(bp);
-			VOP_STRATEGY(bp->b_vp, bp);
+			BUF_STRATEGY(bp);
 
 			for (j = 0; j < n; ++j)
 				rtvals[i+j] = VM_PAGER_PEND;
@@ -1397,7 +1397,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 */
 
 		bp->b_iodone = swp_pager_sync_iodone;
-		VOP_STRATEGY(bp->b_vp, bp);
+		BUF_STRATEGY(bp);
 
 		/*
 		 * Wait for the sync I/O to complete, then update rtvals.

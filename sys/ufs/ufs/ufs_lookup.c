@@ -735,7 +735,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			bdwrite(bp);
 			return (UFS_UPDATE(dvp, 0));
 		}
-		error = VOP_BWRITE(bp->b_vp, bp);
+		error = BUF_WRITE(bp);
 		ret = UFS_UPDATE(dvp, 1);
 		if (error == 0)
 			return (ret);
@@ -913,7 +913,7 @@ out:
 			ip->i_flag |= IN_CHANGE;
 		}
 		if (flags & DOWHITEOUT)
-			error = VOP_BWRITE(bp->b_vp, bp);
+			error = BUF_WRITE(bp);
 		else if (DOINGASYNC(dvp) && dp->i_count != 0) {
 			bdwrite(bp);
 			error = 0;
