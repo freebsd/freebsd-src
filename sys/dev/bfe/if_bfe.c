@@ -83,6 +83,8 @@ MODULE_DEPEND(bfe, miibus, 1, 1, 1);
 static struct bfe_type bfe_devs[] = {
 	{ BCOM_VENDORID, BCOM_DEVICEID_BCM4401,
 		"Broadcom BCM4401 Fast Ethernet" },
+	{ BCOM_VENDORID, BCOM_DEVICEID_BCM4401B0,
+		"Broadcom BCM4401-B0 Fast Ethernet" },
 		{ 0, 0, NULL }
 };
 
