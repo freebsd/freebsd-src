@@ -89,6 +89,7 @@ struct tdfx_softc {
 	unsigned char dv;
 	struct file *curFile;
 	device_t dev;
+	dev_t devt;
 	struct mem_range_desc mrdesc;
 	int busy;
 };
