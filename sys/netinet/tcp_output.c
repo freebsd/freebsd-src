@@ -200,23 +200,44 @@ again:
 	sack_rxmit = 0;
 	len = 0;
 	p = NULL;
-	if (tp->sack_enable &&  IN_FASTRECOVERY(tp) &&
+	if (tp->sack_enable && SEQ_LT(tp->snd_una,tp->snd_recover) &&
 	    (p = tcp_sack_output(tp))) {
+		KASSERT(tp->snd_cwnd >= 0,
+			("%s: CWIN is negative : %ld", __func__, tp->snd_cwnd));
+		/* Do not retransmit SACK segments beyond snd_recover */
+		if (SEQ_GT(p->end, tp->snd_recover)) {
+			/*
+			 * (At least) part of sack hole extends beyond 
+			 * snd_recover. Check to see if we can rexmit data 
+			 * for this hole.
+			 */
+			if (SEQ_GEQ(p->rxmit, tp->snd_recover)) {
+				/* 
+				 * Can't rexmit any more data for this hole.
+				 * That data will be rexmitted in the next 
+				 * sack recovery episode, when snd_recover 
+				 * moves past p->rxmit.
+				 */
+				p = NULL;
+				goto after_sack_rexmit;
+			} else
+				/* Can rexmit part of the current hole */
+				len = ((long)ulmin(tp->snd_cwnd, 
+					  tp->snd_recover - p->rxmit));
+		} else
+			len = ((long)ulmin(tp->snd_cwnd, p->end - p->rxmit));
 		sack_rxmit = 1;
 		sendalot = 1;
 		off = p->rxmit - tp->snd_una;
-		KASSERT(tp->snd_cwnd >= 0,("%s: CWIN is negative: %ld", __func__, tp->snd_cwnd));
-		/* Do not retransmit SACK segments beyond snd_recover */
-		if (SEQ_GT(p->end, tp->snd_recover))
-			len = min(tp->snd_cwnd, tp->snd_recover - p->rxmit);
-		else
-			len = min(tp->snd_cwnd, p->end - p->rxmit);
+		KASSERT(off >= 0,("%s: sack block to the left of una : %d", 
+		    __func__, off));
 		if (len > 0) {
 			tcpstat.tcps_sack_rexmits++;
 			tcpstat.tcps_sack_rexmit_bytes += 
-				min(len, tp->t_maxseg);
+			    min(len, tp->t_maxseg);
 		}
 	}
+after_sack_rexmit:
 	/*
 	 * Get standard flags, and add SYN or FIN if requested by 'hidden'
 	 * state flags.
