@@ -47,7 +47,8 @@ struct sc_info;
 
 /* channel registers */
 struct sc_chinfo {
-	int spd, dir, fmt;
+	int active, spd, dir, fmt;
+	u_int32_t blksize, wmark;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
 	struct sc_info *parent;
@@ -203,14 +204,17 @@ static int
 nm_waitcd(struct sc_info *sc)
 {
 	int cnt = 10;
+	int fail = 1;
 
 	while (cnt-- > 0) {
-		if (nm_rd(sc, sc->ac97_status, 2) & sc->ac97_busy)
+		if (nm_rd(sc, sc->ac97_status, 2) & sc->ac97_busy) {
 			DELAY(100);
-		else
+		} else {
+			fail = 0;
 			break;
+		}
 	}
-	return (nm_rd(sc, sc->ac97_status, 2) & sc->ac97_busy);
+	return (fail);
 }
 
 static u_int32_t
@@ -338,6 +342,9 @@ nmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 
 	chnbuf = (dir == PCMDIR_PLAY)? sc->pbuf : sc->rbuf;
 	ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
+	ch->active = 0;
+	ch->blksize = 0;
+	ch->wmark = 0;
 	ch->buffer = b;
 	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
@@ -376,6 +383,10 @@ nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 static int
 nmchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
+	struct sc_chinfo *ch = data;
+
+	ch->blksize = blocksize;
+
 	return blocksize;
 }
 
@@ -395,26 +406,32 @@ nmchan_trigger(kobj_t obj, void *data, int go)
 
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
+			ch->active = 1;
+			ch->wmark = ch->blksize;
 			nm_wr(sc, NM_PBUFFER_START, sc->pbuf, 4);
 			nm_wr(sc, NM_PBUFFER_END, sc->pbuf + NM_BUFFSIZE - ssz, 4);
 			nm_wr(sc, NM_PBUFFER_CURRP, sc->pbuf, 4);
-			nm_wr(sc, NM_PBUFFER_WMARK, sc->pbuf + NM_BUFFSIZE / 2, 4);
+			nm_wr(sc, NM_PBUFFER_WMARK, sc->pbuf + ch->wmark, 4);
 			nm_wr(sc, NM_PLAYBACK_ENABLE_REG, NM_PLAYBACK_FREERUN |
 				NM_PLAYBACK_ENABLE_FLAG, 1);
 			nm_wr(sc, NM_AUDIO_MUTE_REG, 0, 2);
 		} else {
+			ch->active = 0;
 			nm_wr(sc, NM_PLAYBACK_ENABLE_REG, 0, 1);
 			nm_wr(sc, NM_AUDIO_MUTE_REG, NM_AUDIO_MUTE_BOTH, 2);
 		}
 	} else {
 		if (go == PCMTRIG_START) {
+			ch->active = 1;
+			ch->wmark = ch->blksize;
 			nm_wr(sc, NM_RECORD_ENABLE_REG, NM_RECORD_FREERUN |
 				NM_RECORD_ENABLE_FLAG, 1);
 			nm_wr(sc, NM_RBUFFER_START, sc->rbuf, 4);
 			nm_wr(sc, NM_RBUFFER_END, sc->rbuf + NM_BUFFSIZE, 4);
 			nm_wr(sc, NM_RBUFFER_CURRP, sc->rbuf, 4);
-			nm_wr(sc, NM_RBUFFER_WMARK, sc->rbuf + NM_BUFFSIZE / 2, 4);
+			nm_wr(sc, NM_RBUFFER_WMARK, sc->rbuf + ch->wmark, 4);
 		} else {
+			ch->active = 0;
 			nm_wr(sc, NM_RECORD_ENABLE_REG, 0, 1);
 		}
 	}
@@ -465,11 +482,19 @@ nm_intr(void *p)
 
 	if (status & sc->playint) {
 		status &= ~sc->playint;
+		sc->pch.wmark += sc->pch.blksize;
+		sc->pch.wmark %= NM_BUFFSIZE;
+		nm_wr(sc, NM_PBUFFER_WMARK, sc->pbuf + sc->pch.wmark, 4);
+
 		nm_ackint(sc, sc->playint);
 		chn_intr(sc->pch.channel);
 	}
 	if (status & sc->recint) {
 		status &= ~sc->recint;
+		sc->rch.wmark += sc->rch.blksize;
+		sc->rch.wmark %= NM_BUFFSIZE;
+		nm_wr(sc, NM_RBUFFER_WMARK, sc->rbuf + sc->rch.wmark, 4);
+
 		nm_ackint(sc, sc->recint);
 		chn_intr(sc->rch.channel);
 	}
@@ -533,10 +558,15 @@ nm_init(struct sc_info *sc)
 	ofs = sc->buftop - 0x0400;
 	sc->buftop -= 0x1400;
 
+	if (bootverbose)
+		device_printf(sc->dev, "buftop is 0x%08x\n", sc->buftop);
  	if ((nm_rdbuf(sc, ofs, 4) & NM_SIG_MASK) == NM_SIGNATURE) {
 		i = nm_rdbuf(sc, ofs + 4, 4);
-		if (i != 0 && i != 0xffffffff)
+		if (i != 0 && i != 0xffffffff) {
+			if (bootverbose)
+				device_printf(sc->dev, "buftop is changed to 0x%08x\n", i);
 			sc->buftop = i;
+		}
 	}
 
 	sc->cbuf = sc->buftop - NM_MAX_COEFFICIENT;
@@ -590,6 +620,12 @@ nm_pci_probe(device_t dev)
 				return ENXIO;
 			}
 
+			/*
+			 * My Panasonic CF-M2EV needs resetting device
+			 * before checking mixer is present or not.
+			 * t.ichinoseki@nifty.com.
+			 */
+			nm_wr(sc, 0, 0x11, 1); /* reset device */
 			if ((nm_rd(sc, NM_MIXER_PRESENCE, 2) &
 				NM_PRESENCE_MASK) != NM_PRESENCE_VALUE) {
 				i = 0;	/* non-ac97 card, but not listed */
@@ -710,21 +746,57 @@ nm_pci_detach(device_t dev)
 }
 
 static int
+nm_pci_suspend(device_t dev)
+{
+	struct sc_info *sc;
+
+	sc = pcm_getdevinfo(dev);
+
+	/* stop playing */
+	if (sc->pch.active) {
+		nm_wr(sc, NM_PLAYBACK_ENABLE_REG, 0, 1);
+		nm_wr(sc, NM_AUDIO_MUTE_REG, NM_AUDIO_MUTE_BOTH, 2);
+	}
+	/* stop recording */
+	if (sc->rch.active) {
+		nm_wr(sc, NM_RECORD_ENABLE_REG, 0, 1);
+	}
+	return 0;
+}
+
+static int
 nm_pci_resume(device_t dev)
 {
 	struct sc_info *sc;
 
 	sc = pcm_getdevinfo(dev);
 
-	/* Reinit audio device */
-    	if (nm_init(sc) == -1) {
-		device_printf(dev, "unable to reinitialize the card\n");
-		return ENXIO;
-	}
+	/*
+	 * Reinit audio device.
+	 * Don't call nm_init(). It would change buftop if X ran or
+	 * is running. This makes playing and recording buffer address
+	 * shift but these buffers of channel layer are not changed.
+	 * As a result of this inconsistency, periodic noise will be
+	 * generated while playing.
+	 */
+	nm_wr(sc, 0, 0x11, 1);
+	nm_wr(sc, 0x214, 0, 2);
+
 	/* Reinit mixer */
     	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
 		return ENXIO;
+	}
+	/* restart playing */
+	if (sc->pch.active) {
+		nm_wr(sc, NM_PLAYBACK_ENABLE_REG, NM_PLAYBACK_FREERUN |
+			  NM_PLAYBACK_ENABLE_FLAG, 1);
+		nm_wr(sc, NM_AUDIO_MUTE_REG, 0, 2);
+	}
+	/* restart recording */
+	if (sc->rch.active) {
+		nm_wr(sc, NM_RECORD_ENABLE_REG, NM_RECORD_FREERUN |
+			  NM_RECORD_ENABLE_FLAG, 1);
 	}
 	return 0;
 }
@@ -734,6 +806,7 @@ static device_method_t nm_methods[] = {
 	DEVMETHOD(device_probe,		nm_pci_probe),
 	DEVMETHOD(device_attach,	nm_pci_attach),
 	DEVMETHOD(device_detach,	nm_pci_detach),
+	DEVMETHOD(device_suspend,	nm_pci_suspend),
 	DEVMETHOD(device_resume,	nm_pci_resume),
 	{ 0, 0 }
 };
