@@ -1038,29 +1038,73 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 int
 get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 {
+	struct _special s;
 	struct trapframe *tf;
+	uint64_t bspst, *kstk, *ustk;
 
 	tf = td->td_frame;
-	mc->mc_special = tf->tf_special;
+	s = tf->tf_special;
+	s.pfs = s.cfm;
+	s.rp = s.iip;
+	s.cfm = s.iip = 0;
+	if (s.ndirty != 0) {
+		__asm __volatile("mov	ar.rsc=0;;");
+		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
+		/* Make sure we have all the user registers written out. */
+		if (bspst - td->td_kstack < s.ndirty)
+			__asm __volatile("flushrs;;");
+		__asm __volatile("mov	ar.rsc=3");
+		ustk = (uint64_t*)s.bspstore;
+		kstk = (uint64_t*)td->td_kstack;
+		while (s.ndirty > 0) {
+			*ustk++ = *kstk++;
+			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
+				*ustk++ = 0;
+			if (((uintptr_t)kstk & 0x1ff) == 0x1f8) {
+				kstk++;
+				s.ndirty -= 8;
+			}
+			s.ndirty -= 8;
+		}
+		s.bspstore = (uintptr_t)ustk;
+	}
+	mc->mc_special = s;
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
+	/*
+	 * Put the syscall return values in the context. We need this
+	 * for swapcontext() to work. Note that we don't use gr11 in
+	 * the kernel, but the runtime specification defines it as a
+	 * return register, just like gr8-gr10.
+	 */
+	mc->mc_scratch.gr8 = (clear_ret) ? 0 : tf->tf_scratch.gr8;
+	mc->mc_scratch.gr9 = (clear_ret) ? 0 : tf->tf_scratch.gr9;
+	mc->mc_scratch.gr10 = (clear_ret) ? 0 : tf->tf_scratch.gr10;
+	mc->mc_scratch.gr11 = (clear_ret) ? 0 : tf->tf_scratch.gr11;
 	return (0);
 }
 
 int
 set_mcontext(struct thread *td, const mcontext_t *mc)
 {
+	struct _special s;
 	struct trapframe *tf;
-	uint64_t psr;
 
 	tf = td->td_frame;
+	s = mc->mc_special;
+	s.cfm = s.pfs;
+	s.iip = s.rp;
+	s.pfs = tf->tf_special.pfs;
+	s.rp = tf->tf_special.rp;
 	/* Only copy the user mask from the new context. */
-	psr = tf->tf_special.psr & ~0x1f;
-	psr |= mc->mc_special.psr & 0x1f;
-	tf->tf_special = mc->mc_special;
-	tf->tf_special.psr = psr;
+	s.psr = (s.psr & 0x1f) | (tf->tf_special.psr & ~0x1f);
+	tf->tf_special = s;
 	restore_callee_saved(&mc->mc_preserved);
 	restore_callee_saved_fp(&mc->mc_preserved_fp);
+	tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
+	tf->tf_scratch.gr9 = mc->mc_scratch.gr9;
+	tf->tf_scratch.gr10 = mc->mc_scratch.gr10;
+	tf->tf_scratch.gr11 = mc->mc_scratch.gr11;
 	return (0);
 }
 
