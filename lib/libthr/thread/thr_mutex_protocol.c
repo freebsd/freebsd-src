@@ -43,28 +43,19 @@ __weak_reference(_pthread_mutexattr_setprotocol, pthread_mutexattr_setprotocol);
 int
 _pthread_mutexattr_getprotocol(pthread_mutexattr_t *mattr, int *protocol)
 {
-	int ret = 0;
-
-	if ((mattr == NULL) || (*mattr == NULL))
-		ret = EINVAL;
-	else
-		*protocol = (*mattr)->m_protocol;
-
-	return(ret);
+	if (*mattr == NULL)
+		return (EINVAL);
+	*protocol = (*mattr)->m_protocol;
+	return(0);
 }
 
 int
 _pthread_mutexattr_setprotocol(pthread_mutexattr_t *mattr, int protocol)
 {
-	int ret = 0;
-
-	if ((mattr == NULL) || (*mattr == NULL) ||
-	    (protocol < PTHREAD_PRIO_NONE) || (protocol > PTHREAD_PRIO_PROTECT))
-		ret = EINVAL;
-	else {
-		(*mattr)->m_protocol = protocol;
-		(*mattr)->m_ceiling = PTHREAD_MAX_PRIORITY;
-	}
-	return(ret);
+	if (*mattr == NULL || protocol < PTHREAD_PRIO_NONE ||
+	    protocol > PTHREAD_PRIO_PROTECT)
+		return (EINVAL);
+	(*mattr)->m_protocol = protocol;
+	(*mattr)->m_ceiling = PTHREAD_MAX_PRIORITY;
+	return(0);
 }
-
