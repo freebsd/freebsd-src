@@ -1,4 +1,5 @@
-@c Copyright (C) 1991, 92, 93, 94, 95, 97, 1998 Free Software Foundation, Inc.
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001
+@c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -26,7 +27,7 @@ extending the Intel architecture to 64-bits.
 * i386-Regs::                   Register Naming
 * i386-Prefixes::               Instruction Prefixes
 * i386-Memory::                 Memory References
-* i386-jumps::                  Handling of Jump Instructions
+* i386-Jumps::                  Handling of Jump Instructions
 * i386-Float::                  Floating Point
 * i386-SIMD::                   Intel's MMX and AMD's 3DNow! SIMD Operations
 * i386-16bit::                  Writing 16-bit Code
@@ -488,7 +489,7 @@ the default absolute addressing.
 Other addressing modes remain unchanged in x86-64 architecture, except
 registers used are 64-bit instead of 32-bit.
 
-@node i386-jumps
+@node i386-Jumps
 @section Handling of Jump Instructions
 
 @cindex jump optimization, i386
@@ -498,11 +499,11 @@ registers used are 64-bit instead of 32-bit.
 Jump instructions are always optimized to use the smallest possible
 displacements.  This is accomplished by using byte (8-bit) displacement
 jumps whenever the target is sufficiently close.  If a byte displacement
-is insufficient a long (32-bit) displacement is used.  We do not support
+is insufficient a long displacement is used.  We do not support
 word (16-bit) displacement jumps in 32-bit mode (i.e. prefixing the jump
 instruction with the @samp{data16} instruction prefix), since the 80386
 insists upon masking @samp{%eip} to 16 bits after the word displacement
-is added.
+is added. (See also @pxref{i386-Arch})
 
 Note that the @samp{jcxz}, @samp{jecxz}, @samp{loop}, @samp{loopz},
 @samp{loope}, @samp{loopnz} and @samp{loopne} instructions only come in byte
@@ -696,13 +697,33 @@ supported on the CPU specified.  The choices for @var{cpu_type} are:
 @item @samp{sledgehammer}
 @end multitable
 
-Apart from the warning, there is only one other effect on
-@code{@value{AS}} operation;  If you specify a CPU other than
+Apart from the warning, there are only two other effects on
+@code{@value{AS}} operation;  Firstly, if you specify a CPU other than
 @samp{i486}, then shift by one instructions such as @samp{sarl $1, %eax}
 will automatically use a two byte opcode sequence.  The larger three
 byte opcode sequence is used on the 486 (and when no architecture is
 specified) because it executes faster on the 486.  Note that you can
 explicitly request the two byte opcode by writing @samp{sarl %eax}.
+Secondly, if you specify @samp{i8086}, @samp{i186}, or @samp{i286},
+@emph{and} @samp{.code16} or @samp{.code16gcc} then byte offset
+conditional jumps will be promoted when necessary to a two instruction
+sequence consisting of a conditional jump of the opposite sense around
+an unconditional jump to the target.
+
+Following the CPU architecture, you may specify @samp{jumps} or
+@samp{nojumps} to control automatic promotion of conditional jumps.
+@samp{jumps} is the default, and enables jump promotion;  All external
+jumps will be of the long variety, and file-local jumps will be promoted
+as necessary.  (@pxref{i386-Jumps})  @samp{nojumps} leaves external
+conditional jumps as byte offset jumps, and warns about file-local
+conditional jumps that @code{@value{AS}} promotes.
+Unconditional jumps are treated as for @samp{jumps}.
+
+For example
+
+@smallexample
+ .arch i8086,nojumps
+@end smallexample
 
 @node i386-Notes
 @section Notes

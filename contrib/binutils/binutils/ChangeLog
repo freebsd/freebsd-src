@@ -1,3 +1,118 @@
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+
+	2001-04-27  Michal Svec <rebel@atrey.karlin.mff.cuni.cz>
+	* strings.c (isgraphic): Do not use isascii() unless it is needed
+	for isprint() to work.
+	(main): Set the locale domain to LC_ALL not just LC_MESSAGES.
+
+	2001-04-10  Alan Modra  <amodra@one.net.au>
+	* nm.c (print_symbol_info_bsd): Use a simple printf string.
+
+	2001-02-07  Todd Vierling  <tv@wasabisystems.com>
+	* bucomm.c (bfd_target_vector): Change extern array to pointer.
+	* objdump.c (bfd_target_vector): Likewise.
+
+2001-06-10  Philip Blundell  <philb@gnu.org>
+
+	* configure.in: Set version to 2.11.1.
+	* configure: Regenerate.
+
+2001-06-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* NEWS: Mention hppa64-elf.  Add binutils-2.11 marker.
+
+	* MAINTAINERS: Replace with mainline version.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Most files: Update copyright notices.
+
+2001-05-30  Honda Hiroki  <hhonda@kobe-catv.ne.jp>
+
+	* objcopy.c: Add new switches: --keep-global-symbol,
+	--keep-symbols, --localize-symbols, --keep-global-symbols and
+	--weaken-symbols.
+	* binutils.texi: Document new switches.
+	* objcopy.1: Regenerate.
+	* NEWS: Announce new feature.
+
+2001-05-28  Philip Blundell  <philb@gnu.org>
+
+	From 2001-05-28  Andreas Jaeger  <aj@suse.de>
+	* readelf.c (display_debug_frames): Fix warnings: Remove unused
+	variables, fix format strings.
+
+	From 2001-05-16  Richard Henderson  <rth@redhat.com>
+	* readelf.c (do_debug_frames_interp): New.
+	(byte_get_little_endian): If BFD64, always read entire 8-byte fields.
+	(byte_get_big_endian): Likewise.
+	(parse_args) ['F']: Set do_debug_frames_interp.
+	(Frame_Chunk): Make data_factor signed, add fde_encoding.
+	(frame_display_row): Don't trunc pc_begin to int.
+	(size_of_encoded_value): New.
+	(display_debug_frames): Handle 64-bit targets.  Print raw data
+	unless do_debug_frames_interp.
+	(debug_displays): Remove duplicate .debug_frame.
+
+	From 2001-05-15  Ralf Baechle  <ralf@gnu.org>
+	* readelf.c: Replace uses of EM_MIPS_RS4_BE with EM_MIPS_RS3_LE.
+	The former constant was never in active use and is used otherwise
+	by the ABI.
+
+	From 2001-05-11  Jakub Jelinek  <jakub@redhat.com>
+	* readelf.c (process_unwind): Print all unwind sections, not just
+	one.
+
+	From 2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+	* readelf.c (process_unwind): Remove const specifier.
+
+	From 2001-03-30  H.J. Lu  <hjl@gnu.org>
+	* readelf.c (process_unwind): Just return if do_unwind is 0.
+
+	From 2001-03-29  H.J. Lu  <hjl@gnu.org>
+	* readelf.c (process_unwind): Only do unwind sections for
+	IA64.
+
+	From 2001-02-28  Nick Clifton  <nickc@redhat.com>
+	* readelf.c: (struct unw_aux_info): Remove const modifier for
+	'strtab' field.
+	(process_unwind): Remove non-K&R compliant LHS type cast in call
+	to GET_DATA_ALLOC macro.
+
+	From 2001-02-11  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+	* readelf.c (struct unw_aux_info): Remove const from the info member.
+	(process_unwind): Don't type-cast the third argument to the
+	GET_DATA_ALLOC macro.
+
+	From 2001-02-11  Nick Clifton  <nickc@redhat.com>
+	* readelf.c (dump_relocations): Free corrected allocated
+	array.
+	(process_unwind): Fix compile time warning.
+
+	From 2001-02-07  David Mosberger  <davidm@hpl.hp.com>
+	* readelf.c (process_unwind): New function.
+	(slurp_ia64_unwind_table): Ditto.
+	(dump_ia64_unwind): Ditto.
+	(find_symbol_for_address): Ditto.
+	(slurp_rela_relocs): New function (split off from dump_relocations()).
+	(slurp_rel_relocs): Ditto.
+	(parse_args): Handle '-u' option.
+	* unwind-ia64.c: New file.
+	* unwind-ia64.h: New file.
+	* Makefile.am: Include unwind-ia64.c in readelf build.
+	* Makefile.in: Regenerate.
+	* po/binutils.pot: Regenerate.
+
+2001-04-06  Hans-Peter Nilsson  <hp@axis.com>
+
+	* readelf.c (display_debug_lines): Fix typo for "Prologue".
+
 2001-03-16  Philip Blundell  <philb@gnu.org>
 
 	* configure: Regenerate.
@@ -352,15 +467,15 @@ Mon Dec 11 14:30:21 MET 2000  Jan Hubicka  <jh@suse.cz>
 
 2000-07-20  H.J. Lu  <hjl@gnu.org>
 
-	* binutils/binutils.texi: Put back "@end table" deleted by
+	* binutils.texi: Put back "@end table" deleted by
 	accident.
 
 2000-07-05  Kenneth Block  <krblock@computer.org>
 
-	* binutils/nm.c: Add optional style to demangle switch.
-	* binutils/objdump.c: Add optional style to demangle switch.
-	* binutils/addr2line.c: Add optional style to demangle switch.
-	* binutils/binutils.texi: Document optional style to demangle
+	* nm.c: Add optional style to demangle switch.
+	* objdump.c: Add optional style to demangle switch.
+	* addr2line.c: Add optional style to demangle switch.
+	* binutils.texi: Document optional style to demangle
 	switch.
 
 2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
@@ -673,7 +788,7 @@ Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
 
 2000-04-10  Philippe De Muyter  <phdm@macqel.be>
 
-	* readelf (dynamic_segment_mips_val): Call `sprintf', not
+	* readelf.c (dynamic_segment_mips_val): Call `sprintf', not
 	`strftime' since strftime is not available on all systems.
 	(process_mips_specific): Ditto.
 
@@ -926,7 +1041,7 @@ Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
 	* configure.in: Add arm-wince, mips-pe and sh-pe targets.
 	* configure: Regenerate.
 
-	* dlltoolc.: Add support for sh-pe and mips-pe targets.
+	* dlltool.c: Add support for sh-pe and mips-pe targets.
 	* rescoff.c: Add support for sh-pe and mips-pe targets.
 
 2000-02-23  H.J. Lu  <hjl@gnu.org>
@@ -971,7 +1086,7 @@ Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
 
 2000-02-03  Timothy Wall <twall@redhat.com>
 
-	* binutils/objdump.c (dump_section_header, find_symbol_for_address,
+	* objdump.c (dump_section_header, find_symbol_for_address,
 	show_line, disassemble_bytes, disassemble_data, dump_data):
 	distinguish between octets and bytes.
 

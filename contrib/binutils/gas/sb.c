@@ -1,5 +1,5 @@
 /* sb.c - string buffer manipulation routines
-   Copyright (C) 1994, 1995, 2000 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com

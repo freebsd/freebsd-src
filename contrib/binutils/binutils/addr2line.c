@@ -1,5 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997, 98, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@mchp.siemens.de>
 
    This file is part of GNU Binutils.

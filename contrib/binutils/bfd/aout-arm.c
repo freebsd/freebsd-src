@@ -1,5 +1,6 @@
 /* BFD back-end for raw ARM a.out binaries.
-   Copyright (C) 1994, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 1999, 2000
+   Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
 This file is part of BFD, the Binary File Descriptor library.

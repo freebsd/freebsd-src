@@ -1,5 +1,6 @@
 /* BFD COFF object file private structure.
-   Copyright (C) 1990, 91, 92, 93, 94, 95, 96, 97, 98, 1999
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
+   2000, 2001
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -121,6 +122,8 @@ typedef struct pe_tdata
   int has_reloc_section;
   boolean (*in_reloc_p) PARAMS((bfd *, reloc_howto_type *));
   flagword real_flags;
+  int target_subsystem;
+  boolean force_minimum_alignment;
 } pe_data_type;
 
 #define pe_data(bfd)		((bfd)->tdata.pe_obj_data)
@@ -160,10 +163,10 @@ struct xcoff_tdata
   short cputype;
 
   /* maxdata from optional header.  */
-  bfd_size_type maxdata;
+  bfd_vma maxdata;
 
   /* maxstack from optional header.  */
-  bfd_size_type maxstack;
+  bfd_vma maxstack;
 
   /* Used by the XCOFF backend linker.  */
   asection **csects;

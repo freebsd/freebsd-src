@@ -1,4 +1,5 @@
-.\" Copyright (c) 1991, 92, 93, 94, 95, 96, 97, 98, 1999, 2000 Free Software Foundation
+.\" Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+.\" 2001 Free Software Foundation, Inc.
 .\" See section COPYING for conditions for redistribution
 .TH ld 1 "" "Free Software Foundation" "GNU Development Tools"
 .de BP
@@ -28,6 +29,7 @@ ld \- the GNU linker
 .I input-format\c
 \&\|] 
 .RB "[\|" \-Bstatic "\|]"  
+.RB "[\|" \-Bgroup "\|]"  
 .RB "[\|" \-Bdynamic "\|]"  
 .RB "[\|" \-Bsymbolic "\|]"  
 .RB "[\|" "\-c\ "\c
@@ -97,7 +99,7 @@ ld \- the GNU linker
 .RB "[\|" \-O\c
 .I level\c
 \&\|]
-.RB "[\|" "\-oformat\ "\c
+.RB "[\|" "\--oformat\ "\c
 .I output-format\c
 \&\|] 
 .RB "[\|" "\-R\ "\c
@@ -404,6 +406,19 @@ platforms for which shared libraries are supported.
 Link against dynamic libraries.  This is only meaningful on platforms
 for which shared libraries are supported.  This option is normally the
 default on such platforms.
+
+.TP
+.B \-Bgroup
+Set the \c
+.B DF_1_GROUP
+\c
+flag in the \c
+.B DT_FLAGS_1
+\c
+entry in the dynamic section.  This causes the runtime linker to handle
+lookups in this object and its dependencies to be performed only inside
+the group.  No undefined symbols are allowed.  This option is only
+meaningful on ELF platforms which support shared libraries.
 
 .TP
 .B \-Bsymbolic
@@ -728,7 +743,7 @@ final binary.
 the optimizations.
 
 .TP
-.BI "\-oformat " "output\-format"
+.BI "\--oformat " "output\-format"
 Specify the binary format for the output object file.
 You don't usually need to specify this, as
 \c

@@ -1,5 +1,5 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright (C) 1995, 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 2000 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.

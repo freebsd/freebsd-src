@@ -1,5 +1,5 @@
 /* ELF 32-bit executable support for BFD.
-   Copyright 1993 Free Software Foundation, Inc.
+   Copyright 1993, 2001 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 

@@ -1,5 +1,5 @@
 /* write.h
-   Copyright (C) 1987, 92, 93, 94, 95, 96, 97, 2000
+   Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -181,7 +181,7 @@ extern void record_alignment PARAMS ((segT seg, int align));
 extern int get_recorded_alignment PARAMS ((segT seg));
 extern void subsegs_finish PARAMS ((void));
 extern void write_object_file PARAMS ((void));
-extern long relax_frag PARAMS ((fragS *, long));
+extern long relax_frag PARAMS ((segT, fragS *, long));
 extern void relax_segment
   PARAMS ((struct frag * seg_frag_root, segT seg_type));
 

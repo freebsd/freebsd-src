@@ -1,5 +1,5 @@
 /* i860 ELF support for BFD.
-   Copyright (C) 2000 Free Software Foundation, Inc.
+   Copyright 2000 Free Software Foundation, Inc.
 
    Contributed by Jason Eckhardt <jle@cygnus.com>.
 

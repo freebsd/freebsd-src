@@ -1,5 +1,5 @@
 /* Linker file opening and searching.
-   Copyright (C) 1991, 92, 93, 94, 95, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -33,6 +33,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ldgram.h"
 #include "ldlex.h"
 #include "ldemul.h"
+#include "libiberty.h"
 
 #include <ctype.h>
 
@@ -231,23 +232,32 @@ ldfile_open_file (entry)
   else
     {
       search_arch_type *arch;
+      boolean found = false;
 
       /* Try to open <filename><suffix> or lib<filename><suffix>.a */
       for (arch = search_arch_head;
 	   arch != (search_arch_type *) NULL;
 	   arch = arch->next)
 	{
-	  if (ldfile_open_file_search (arch->name, entry, "lib", ".a"))
-	    return;
+	  found = ldfile_open_file_search (arch->name, entry, "lib", ".a");
+	  if (found)
+	    break;
 #ifdef VMS
-	  if (ldfile_open_file_search (arch->name, entry, ":lib", ".a"))
-	    return;
+	  found = ldfile_open_file_search (arch->name, entry, ":lib", ".a");
+	  if (found)
+	    break;
 #endif
-	  if (ldemul_find_potential_libraries (arch->name, entry))
-	    return;
+	  found = ldemul_find_potential_libraries (arch->name, entry);
+	  if (found)
+	    break;
 	}
 
-      einfo (_("%F%P: cannot find %s\n"), entry->local_sym_name);
+      /* If we have found the file, we don't need to search directories
+	 again.  */
+      if (found)
+	entry->search_dirs_flag = false;
+      else
+	einfo (_("%F%P: cannot find %s\n"), entry->local_sym_name);
     }
 }
 
@@ -405,7 +415,7 @@ void
 ldfile_add_arch (in_name)
      CONST char *in_name;
 {
-  char *name = buystring (in_name);
+  char *name = xstrdup (in_name);
   search_arch_type *new =
     (search_arch_type *) xmalloc (sizeof (search_arch_type));
 

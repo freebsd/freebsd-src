@@ -1,5 +1,6 @@
 /* COFF specific linker code.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.

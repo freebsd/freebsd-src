@@ -1739,7 +1739,9 @@ SUPPORT_FILES = list-of-support-files-for-tool-in-question
 
 # NOTE: No double quotes in the below.  It is used within shell script
 # as VER="$(VER)"
-VER = `	if grep AM_INIT_AUTOMAKE $(TOOL)/configure.in >/dev/null 2>&1; then \
+VER = `	if grep 'AM_INIT_AUTOMAKE.*BFD_VERSION' $(TOOL)/configure.in >/dev/null 2>&1; then \
+	  sed < bfd/configure.in -n 's/AM_INIT_AUTOMAKE[^,]*, *\([^)]*\))/\1/p'; \
+	elif grep AM_INIT_AUTOMAKE $(TOOL)/configure.in >/dev/null 2>&1; then \
 	  sed < $(TOOL)/configure.in -n 's/AM_INIT_AUTOMAKE[^,]*, *\([^)]*\))/\1/p'; \
 	else \
 	  sed < $(TOOL)/Makefile.in -n 's/^VERSION *= *//p'; \

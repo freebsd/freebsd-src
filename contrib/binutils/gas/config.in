@@ -25,6 +25,9 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 #undef off_t
 
+/* Define if you need to in order for stat and other things to work.  */
+#undef _POSIX_SOURCE
+
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 #undef size_t
 
@@ -154,11 +157,17 @@
 /* Use ELF stabs for MIPS, not ECOFF stabs */
 #undef MIPS_STABS_ELF
 
+/* Use ELF stabs for MIPS, not ECOFF stabs */
+#undef MIPS_STABS_ELF
+
 /* Define if default target is PowerPC Solaris. */
 #undef TARGET_SOLARIS_COMMENT
 
 /* Define as 1 if big endian. */
 #undef TARGET_BYTES_BIG_ENDIAN
+
+/* Default architecture. */
+#undef DEFAULT_ARCH
 
 /* Default architecture. */
 #undef DEFAULT_ARCH

@@ -1,5 +1,6 @@
 /* BFD back end for traditional Unix core files (U-area and raw sections)
-   Copyright 1988, 89, 91, 92, 93, 94, 95, 96, 98, 99, 2000
+   Copyright 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
+   2000
    Free Software Foundation, Inc.
    Written by John Gilmore of Cygnus Support.
 

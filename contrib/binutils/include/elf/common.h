@@ -1,5 +1,6 @@
 /* ELF support for BFD.
-   Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -104,7 +105,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define EM_860		7	/* Intel 80860 */
 #define EM_MIPS		8	/* MIPS R3000 (officially, big-endian only) */
 #define EM_S370		9	/* IBM System/370 */
-#define EM_MIPS_RS4_BE 10	/* MIPS R4000 big-endian */ /* Depreciated */
 #define EM_MIPS_RS3_LE 10	/* MIPS R3000 little-endian (Oct 4 1999 Draft)*/ /* Depreciated */
 
 #define EM_PARISC      15	/* HPPA */

@@ -1,5 +1,6 @@
 /* Routines to link ECOFF debugging information.
-   Copyright 1993, 94, 95, 96, 97, 99, 2000 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 2000
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support, <ian@cygnus.com>.
 
 This file is part of BFD, the Binary File Descriptor library.

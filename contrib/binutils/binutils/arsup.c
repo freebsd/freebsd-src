@@ -1,5 +1,5 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright (C) 1992, 93, 94, 95, 96, 97, 98, 99, 2000
+   Copyright 1992, 1994, 1995, 1996, 1997, 2000
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
