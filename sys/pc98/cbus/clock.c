@@ -143,9 +143,6 @@ int	statclock_disable;
 #endif
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
-uint64_t	tsc_freq;
-int	tsc_is_broken;
-u_int	tsc_present;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 struct mtx clock_lock;
 
@@ -181,16 +178,7 @@ static int rtc_inb(void);
 static void rtc_outb(int);
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
-static	unsigned tsc_get_timecount(struct timecounter *tc);
 static	void	set_timer_freq(u_int freq, int intr_freq);
-
-static struct timecounter tsc_timecounter = {
-	tsc_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
- 	~0u,			/* counter_mask */
-	0,			/* frequency */
-	 "TSC"			/* name */
-};
 
 static struct timecounter i8254_timecounter = {
 	i8254_get_timecount,	/* get_timecount */
@@ -588,8 +576,6 @@ calibrate_clocks(void)
 		goto fail;
 	tot_count = 0;
 
-	if (tsc_present) 
-		wrmsr(0x10, 0LL);	/* XXX 0x10 is the MSR for the TSC */
 	start_sec = sec;
 	for (;;) {
 		sec = inw(0x5e);
@@ -608,16 +594,8 @@ calibrate_clocks(void)
 		if (--timeout == 0)
 			goto fail;
 	}
-	/*
-	 * Read the cpu cycle counter.  The timing considerations are
-	 * similar to those for the i8254 clock.
-	 */
-	if (tsc_present) 
-		tsc_freq = rdtsc();
 
 	if (bootverbose) {
-		if (tsc_present)
-		        printf("TSC clock: %ju Hz, ", (intmax_t)tsc_freq);
 	        printf("i8254 clock: %u Hz\n", tot_count);
 	}
 	return (tot_count);
@@ -687,12 +665,6 @@ startrtclock()
 	else
 		timer_freq = 2457600L; /* 2.4576 MHz */
 
-	if (cpu_feature & CPUID_TSC)
-		tsc_present = 1;
-	else
-		tsc_present = 0;
-
-
 	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
@@ -723,68 +695,13 @@ startrtclock()
 			printf(
 		    "%d Hz differs from default of %d Hz by more than 1%%\n",
 			       freq, timer_freq);
-		tsc_freq = 0;
 	}
 
 	set_timer_freq(timer_freq, hz);
 	i8254_timecounter.tc_frequency = timer_freq;
 	tc_init(&i8254_timecounter);
 
-#ifndef CLK_USE_TSC_CALIBRATION
-	if (tsc_freq != 0) {
-		if (bootverbose)
-			printf(
-"CLK_USE_TSC_CALIBRATION not specified - using old calibration method\n");
-		tsc_freq = 0;
-	}
-#endif
-	if (tsc_present && tsc_freq == 0) {
-		/*
-		 * Calibration of the i586 clock relative to the mc146818A
-		 * clock failed.  Do a less accurate calibration relative
-		 * to the i8254 clock.
-		 */
-		u_int64_t old_tsc = rdtsc();
-
-		DELAY(1000000);
-		tsc_freq = rdtsc() - old_tsc;
-#ifdef CLK_USE_TSC_CALIBRATION
-		if (bootverbose)
-			printf("TSC clock: %ju Hz (Method B)\n",
-			    (intmax_t)tsc_freq);
-#endif
-	}
-
-#if !defined(SMP)
-	/*
-	 * We can not use the TSC in SMP mode, until we figure out a
-	 * cheap (impossible), reliable and precise (yeah right!)  way
-	 * to synchronize the TSCs of all the CPUs.
-	 * Curse Intel for leaving the counter out of the I/O APIC.
-	 */
-
-	/*
-	 * We can not use the TSC if we support APM. Precise timekeeping
-	 * on an APM'ed machine is at best a fools pursuit, since 
-	 * any and all of the time spent in various SMM code can't 
-	 * be reliably accounted for.  Reading the RTC is your only
-	 * source of reliable time info.  The i8254 looses too of course
-	 * but we need to have some kind of time...
-	 * We don't know at this point whether APM is going to be used
-	 * or not, nor when it might be activated.  Play it safe.
-	 */
-	if (power_pm_get_type() == POWER_PM_TYPE_APM) {
-		if (bootverbose)
-			printf("TSC initialization skipped: APM enabled.\n");
-		return;
-	}
-
-	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
-		tsc_timecounter.tc_frequency = tsc_freq;
-		tc_init(&tsc_timecounter);
-	}
-
-#endif /* !defined(SMP) */
+	init_TSC();
 }
 
 static void
@@ -1154,26 +1071,6 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(u_int), sysctl_machdep_i8254_freq, "IU", "");
 
-static int
-sysctl_machdep_tsc_freq(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	uint64_t freq;
-
-	if (tsc_timecounter.tc_frequency == 0)
-		return (EOPNOTSUPP);
-	freq = tsc_freq;
-	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
-	if (error == 0 && req->newptr != NULL) {
-		tsc_freq = freq;
-		tsc_timecounter.tc_frequency = tsc_freq;
-	}
-	return (error);
-}
-
-SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_QUAD | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_tsc_freq, "IU", "");
-
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
 {
@@ -1208,12 +1105,6 @@ i8254_get_timecount(struct timecounter *tc)
 	count += i8254_offset;
 	mtx_unlock_spin(&clock_lock);
 	return (count);
-}
-
-static unsigned
-tsc_get_timecount(struct timecounter *tc)
-{
-	return (rdtsc());
 }
 
 #ifdef DEV_ISA
