@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.54 1999/07/01 22:54:55 peter Exp $
+ * $Id: kern_shutdown.c,v 1.55 1999/07/17 20:47:50 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -408,7 +408,10 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 	int error;
 	udev_t ndumpdev;
 
-	ndumpdev = dev2udev(dumpdev);
+	if (dumpdev != NODEV)
+		ndumpdev = makeudev(devsw(dumpdev)->d_bmaj, minor(dumpdev));
+	else
+		ndumpdev = dev2udev(dumpdev);
 	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
 	if (error == 0 && req->newptr != NULL)
 		error = setdumpdev(udev2dev(ndumpdev, 1));
