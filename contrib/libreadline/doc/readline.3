@@ -1,4 +1,4 @@
-.\" $FreeBSD$
+.\"
 .\" MAN PAGE COMMENTS to
 .\"
 .\"	Chet Ramey
@@ -6,12 +6,13 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Tue Jan 22 09:18:25 EST 2002
+.\"	Last Change: Wed Jan 28 15:43:53 EST 2004
 .\"
-.TH READLINE 3 "2002 January 22" "GNU Readline 4.3"
+.TH READLINE 3 "2004 January 28" "GNU Readline 5.0"
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
+.\" $FreeBSD$
 .\"
 .de FN
 \fI\|\\$1\|\fP
@@ -34,8 +35,8 @@ readline \- get a line from a user with editing
 \fBreadline\fP (\fIconst char *prompt\fP);
 .fi
 .SH COPYRIGHT
-.if n Readline is Copyright (C) 1989\-2002 by the Free Software Foundation, Inc.
-.if t Readline is Copyright \(co 1989\-2002 by the Free Software Foundation, Inc.
+.if n Readline is Copyright (C) 1989\-2004 by the Free Software Foundation, Inc.
+.if t Readline is Copyright \(co 1989\-2004 by the Free Software Foundation, Inc.
 .SH DESCRIPTION
 .LP
 .B readline
@@ -465,6 +466,16 @@ set to
 words which have more than one possible completion cause the
 matches to be listed immediately instead of ringing the bell.
 .TP
+.B show\-all\-if\-unmodified (Off)
+This alters the default behavior of the completion functions in
+a fashion similar to \fBshow\-all\-if\-ambiguous\fP.
+If set to
+.BR on , 
+words which have more than one possible completion without any
+possible partial completion (the possible completions don't share 
+a common prefix) cause the matches to be listed immediately instead
+of ringing the bell.
+.TP
 .B visible\-stats (Off)
 If set to \fBOn\fP, a character denoting a file's type as reported  
 by \fIstat\fP(2) is appended to the filename when listing possible
@@ -787,6 +798,11 @@ Word boundaries are the same as those used by \fBbackward\-word\fP.
 Kill the word behind point, using white space as a word boundary.
 The killed text is saved on the kill-ring.
 .TP
+.B unix\-filename\-rubout
+Kill the word behind point, using white space and the slash character
+as the word boundaries.
+The killed text is saved on the kill-ring.
+.TP
 .B delete\-horizontal\-space (M\-\e)
 Delete all spaces and tabs around point.
 .TP
@@ -868,7 +884,7 @@ with a single match from the list of possible completions.
 Repeated execution of \fBmenu\-complete\fP steps through the list
 of possible completions, inserting each match in turn.
 At the end of the list of completions, the bell is rung
-(subject to the setting of \Bbell\-style\fP)
+(subject to the setting of \fBbell\-style\fP)
 and the original text is restored.
 An argument of \fIn\fP moves \fIn\fP positions forward in the list
 of matches; a negative argument may be used to move backward 
@@ -979,7 +995,7 @@ of an \fIinputrc\fP file.
 .TP
 .B dump\-macros
 Print all of the readline key sequences bound to macros and the
-strings they ouput.  If a numeric argument is supplied,
+strings they output.  If a numeric argument is supplied,
 the output is formatted in such a way that it can be made part
 of an \fIinputrc\fP file.
 .TP
