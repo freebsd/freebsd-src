@@ -226,12 +226,12 @@ again:
 					  tp->snd_recover - p->rxmit));
 		} else
 			len = ((long)ulmin(tp->snd_cwnd, p->end - p->rxmit));
-		sack_rxmit = 1;
-		sendalot = 1;
 		off = p->rxmit - tp->snd_una;
 		KASSERT(off >= 0,("%s: sack block to the left of una : %d",
 		    __func__, off));
 		if (len > 0) {
+			sack_rxmit = 1;
+			sendalot = 1;
 			tcpstat.tcps_sack_rexmits++;
 			tcpstat.tcps_sack_rexmit_bytes +=
 			    min(len, tp->t_maxseg);
