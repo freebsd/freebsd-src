@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.202 1996/09/06 23:07:03 phk Exp $
+ *	$Id: machdep.c,v 1.203 1996/09/10 23:06:58 bde Exp $
  */
 
 #include "npx.h"
@@ -44,6 +44,7 @@
 #include "opt_bounce.h"
 #include "opt_machdep.h"
 #include "opt_perfmon.h"
+#include "opt_userconfig.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -380,8 +381,12 @@ again:
 		callout[i-1].c_next = &callout[i];
 
         if (boothowto & RB_CONFIG) {
+#ifdef USERCONFIG
 		userconfig();
 		cninit();	/* the preferred console may have changed */
+#else
+		printf("Sorry! no userconfig in this kernel\n");
+#endif 
 	}
 
 #ifdef BOUNCE_BUFFERS

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.42 1996/04/13 18:33:04 bde Exp $
+ **      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
  **/
 
 /**
@@ -118,10 +118,14 @@
 
 #include <pci/pcivar.h>
 
+#include <opt_userconfig.h>
+
+static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
+
+#ifdef VISUAL_USERCONFIG
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
 
-static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
 #define putchar(x)	cnputc(x)
 #define getchar()	cngetc()
@@ -2109,6 +2113,7 @@ visuserconfig(void)
     }
 }
 
+#endif /* VISUAL_USERCONFIG */
 /*
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -2151,7 +2156,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.42 1996/04/13 18:33:04 bde Exp $
+ *      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
  */
 
 #include "scbus.h"
@@ -2243,7 +2248,9 @@ static Cmd CmdList[] = {
 #if NSCBUS > 0
     { "s",	list_scsi,		NULL },		/* scsi */
 #endif
+#ifdef VISUAL_USERCONFIG
     { "v",	(CmdFunc)visuserconfig,	NULL },		/* visual mode */
+#endif
     { NULL,	NULL,			NULL },
 };
 
