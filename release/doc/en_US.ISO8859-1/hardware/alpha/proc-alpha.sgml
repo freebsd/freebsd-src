@@ -1,11 +1,17 @@
+<!-- $FreeBSD$ -->
+
 <sect1>
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <authorgroup>
+      <author>
+	<firstname>Wilko</firstname>
+	<surname>Bulte</surname>
+	<contrib>Maintained by </contrib>
+      </author>
+    </authorgroup>
   </sect1info>
 
   <title>Supported processors and motherboards</title>
-
-  <para>This section is maintained by &a.wilko;.</para>
 
   <para>Additions, corrections and constructive criticism are invited. In 
   particular information on system quirks is more than welcome.</para>
