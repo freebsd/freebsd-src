@@ -662,6 +662,9 @@ of bandwidth, queue occupation, and also counters.
 .It Cm ipversion Ar ver
 Match if the IP header version is
 .Ar ver .
+.It Cm ipprecedence Ar precedence
+Match if the numeric value of IP datagram's precedence is equal to
+.Ar precedence .
 .It Cm iptos Ar spec
 Match if the IP header contains the comma separated list of
 service types specified in
