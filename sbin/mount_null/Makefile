@@ -5,7 +5,7 @@ SRCS=	mount_null.c getmntopts.c
 MAN8=	mount_null.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+= -I/sys -I${MOUNT}
+CFLAGS+= -I${.CURDIR}/../../sys -I${MOUNT}
 .PATH:	${MOUNT}
 
 .include <bsd.prog.mk>
