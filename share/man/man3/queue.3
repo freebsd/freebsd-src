@@ -67,6 +67,7 @@
 .Nm LIST_ENTRY ,
 .Nm LIST_FIRST ,
 .Nm LIST_FOREACH ,
+.Nm LIST_FOREACH_SAFE ,
 .Nm LIST_HEAD ,
 .Nm LIST_HEAD_INITIALIZER ,
 .Nm LIST_INIT ,
@@ -130,6 +131,7 @@ lists and tail queues
 .Fn LIST_ENTRY "TYPE"
 .Fn LIST_FIRST "LIST_HEAD *head"
 .Fn LIST_FOREACH "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME"
+.Fn LIST_FOREACH_SAFE "TYPE *var" "LIST_HEAD *head" "LIST_ENTRY NAME" "TYPE *temp_var"
 .Fn LIST_HEAD "HEADNAME" "TYPE"
 .Fn LIST_HEAD_INITIALIZER "LIST_HEAD head"
 .Fn LIST_INIT "LIST_HEAD *head"
@@ -619,6 +621,19 @@ in the forward direction, assigning each element in turn to
 .Fa var .
 .Pp
 The macro
+.Nm LIST_FOREACH_SAFE
+traverses the list referenced by
+.Fa head
+in the forward direction, assigning each element in turn to
+.Fa var .
+However, unlike
+.Fn LIST_FOREACH
+here it is permitted to both remove
+.Fa var
+as well as free it from within the loop safely without interfering with the
+traversal.
+.Pp
+The macro
 .Nm LIST_INIT
 initializes the list referenced by
 .Fa head .
@@ -661,7 +676,7 @@ struct entry {
 	...
 	LIST_ENTRY(entry) entries;	/* List. */
 	...
-} *n1, *n2, *n3, *np;
+} *n1, *n2, *n3, *np, *np_temp;
 
 LIST_INIT(&head);			/* Initialize the list. */
 
@@ -679,6 +694,14 @@ free(n2);
 					/* Forward traversal. */
 LIST_FOREACH(np, &head, entries)
 	np-> ...
+
+					/* Safe forward traversal. */
+LIST_FOREACH_SAFE(np, &head, entries, np_temp) {
+	np->do_stuff();
+	...
+	LIST_REMOVE(np, entries);
+	free(np);
+}
 
 while (!LIST_EMPTY(&head)) {		/* List Deletion. */
 	n1 = LIST_FIRST(&head);
