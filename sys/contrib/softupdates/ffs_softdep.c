@@ -54,7 +54,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.28 (McKusick) 8/8/98
- *	$Id: ffs_softdep.c,v 1.18 1998/12/10 20:11:47 julian Exp $
+ *	$Id: ffs_softdep.c,v 1.19 1999/01/06 18:18:04 bde Exp $
  */
 
 /*
@@ -3583,7 +3583,9 @@ softdep_fsync(vp)
 	struct fs *fs;
 	struct proc *p = CURPROC;		/* XXX */
 	int error, ret, flushparent;
+#ifndef __FreeBSD__
 	struct timeval tv;
+#endif
 	ino_t parentino;
 	ufs_lbn_t lbn;
 
@@ -3650,12 +3652,13 @@ softdep_fsync(vp)
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (flushparent) {
-#ifndef __FreeBSD__
-			tv = time;
+#ifdef __FreeBSD__
+			error = UFS_UPDATE(pvp, 1);
 #else
-			getmicrotime(&tv);
-#endif /* __FreeBSD__ */
-			if (error = UFS_UPDATE(pvp, &tv, &tv, 1)) {
+			tv = time;
+			error = UFS_UPDATE(pvp, &tv, &tv, 1);
+#endif
+			if (error) {
 				vput(pvp);
 				return (error);
 			}
@@ -4009,7 +4012,9 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct inodedep *inodedep;
 	struct ufsmount *ump;
 	struct diradd *dap;
+#ifndef __FreeBSD__
 	struct timeval tv;
+#endif
 	struct vnode *vp;
 	int gotit, error = 0;
 	struct buf *bp;
@@ -4022,13 +4027,14 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 * has a MKDIR_PARENT dependency.
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
-#ifndef __FreeBSD__
-			tv = time;
-#else
-			getmicrotime(&tv);
-#endif /* __FreeBSD__ */
 			FREE_LOCK(&lk);
-			if (error = UFS_UPDATE(pvp, &tv, &tv, 1))
+#ifdef __FreeBSD__
+			error = UFS_UPDATE(pvp, 1);
+#else
+			tv = time;
+			error = UFS_UPDATE(pvp, &tv, &tv, 1);
+#endif
+			if (error)
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -4110,12 +4116,12 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			}
 			FREE_LOCK(&lk);
 		}
-#ifndef __FreeBSD__
-		tv = time;
+#ifdef __FreeBSD__
+		error = UFS_UPDATE(vp, 1);
 #else
-		getmicrotime(&tv);
-#endif /* __FreeBSD__ */
+		tv = time;
 		error = UFS_UPDATE(vp, &tv, &tv, 1);
+#endif
 		vput(vp);
 		if (error)
 			break;

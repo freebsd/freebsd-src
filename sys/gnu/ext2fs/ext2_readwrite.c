@@ -173,7 +173,6 @@ WRITE(ap)
 	daddr_t lbn;
 	off_t osize;
 	int blkoffset, error, flags, ioflag, resid, size, xfersize;
-	struct timeval tv;
 
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
@@ -289,9 +288,7 @@ WRITE(ap)
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;
 		}
-	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		getmicrotime(&tv);
-		error = UFS_UPDATE(vp, &tv, &tv, 1);
-	}
+	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC))
+		error = UFS_UPDATE(vp, 1);
 	return (error);
 }

@@ -232,7 +232,6 @@ return ENOSPC;
 	daddr_t start_lbn, end_lbn, soff, eoff, newblk, blkno;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
 	int i, len, start_lvl, end_lvl, pref, ssize;
-	struct timeval tv;
 
 	vp = ap->a_vp;
 	ip = VTOI(vp);
@@ -339,10 +338,8 @@ return ENOSPC;
 			bwrite(sbp);
 	} else {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		if (!doasyncfree) {
-			gettime(&tv);
-			UFS_UPDATE(vp, &tv, &tv, 1);
-		}
+		if (!doasyncfree)
+			UFS_UPDATE(vp, 1);
 	}
 	if (ssize < len)
 		if (doasyncfree)
