@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #if __FreeBSD_version < 502113
 #include <sys/sysctl.h>
 #endif
@@ -109,7 +110,6 @@ static funcptr ndis_linksts_wrap;
 static funcptr ndis_linksts_done_wrap;
 
 static void ndis_intr		(void *);
-static void ndis_intrtask	(void *);
 static void ndis_tick		(void *);
 static void ndis_ticktask	(void *);
 static void ndis_start		(struct ifnet *);
@@ -426,6 +426,7 @@ ndis_attach(dev)
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ndis_softc	*sc;
 	driver_object		*drv;
+	driver_object		*pdrv;
 	device_object		*pdo;
 	struct ifnet		*ifp = NULL;
 	void			*img;
@@ -437,17 +438,22 @@ ndis_attach(dev)
 	mtx_init(&sc->ndis_mtx, "ndis softc lock",
 	    MTX_NETWORK_LOCK, MTX_DEF);
 
-        /*
+	/*
 	 * Hook interrupt early, since calling the driver's
-	 * init routine may trigger an interrupt.
+	 * init routine may trigger an interrupt. Note that
+	 * we don't need to do any explicit interrupt setup
+	 * for USB.
 	 */
 
-	error = bus_setup_intr(dev, sc->ndis_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    ndis_intr, sc, &sc->ndis_intrhand);
+	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
+		error = bus_setup_intr(dev, sc->ndis_irq,
+		    INTR_TYPE_NET | INTR_MPSAFE,
+		    ndis_intr, sc, &sc->ndis_intrhand);
 
-	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		goto fail;
+		if (error) {
+			device_printf(dev, "couldn't set up irq\n");
+			goto fail;
+		}
 	}
 
 	if (sc->ndis_iftype == PCMCIABus) {
@@ -468,6 +474,16 @@ ndis_attach(dev)
 	/* Create sysctl registry nodes */
 	ndis_create_sysctls(sc);
 
+	/* Find the PDO for this device instance. */
+
+	if (sc->ndis_iftype == PCIBus)
+		pdrv = windrv_lookup(0, "PCI Bus");
+	else if (sc->ndis_iftype == PCMCIABus)
+		pdrv = windrv_lookup(0, "PCCARD Bus");
+	else
+		pdrv = windrv_lookup(0, "USB Bus");
+	pdo = windrv_find_pdo(pdrv, dev);
+
 	/*
 	 * Create a new functional device object for this
 	 * device. This is what creates the miniport block
@@ -475,8 +491,7 @@ ndis_attach(dev)
 	 */
 
 	img = drv_data;
-	drv = windrv_lookup((vm_offset_t)img);
-	pdo = windrv_find_pdo(drv, dev);
+	drv = windrv_lookup((vm_offset_t)img, NULL);
 	if (NdisAddDevice(drv, pdo) != STATUS_SUCCESS) {
 		device_printf(dev, "failed to create FDO!\n");
 		error = ENXIO;
@@ -489,7 +504,10 @@ ndis_attach(dev)
 	    sc->ndis_chars->nmc_version_minor);
 
 	/* Do resource conversion. */
-	ndis_convert_res(sc);
+	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus)
+		ndis_convert_res(sc);
+	else
+		sc->ndis_block->nmb_rlist = NULL;
 
 	/* Install our RX and TX interrupt handlers. */
 	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
@@ -854,7 +872,12 @@ ndis_detach(dev)
 
 	/* Destroy the PDO for this device. */
 	
-	drv = windrv_lookup((vm_offset_t)drv_data);
+	if (sc->ndis_iftype == PCIBus)
+		drv = windrv_lookup(0, "PCI Bus");
+	else if (sc->ndis_iftype == PCMCIABus)
+		drv = windrv_lookup(0, "PCCARD Bus");
+	else
+		drv = windrv_lookup(0, "USB Bus");
 	if (drv == NULL)
 		panic("couldn't find driver object");
 	windrv_destroy_pdo(drv, dev);
@@ -1054,8 +1077,11 @@ ndis_linksts(adapter, status, sbuf, slen)
 	uint32_t		slen;
 {
 	ndis_miniport_block	*block;
+	struct ndis_softc	*sc;
 
 	block = adapter;
+	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+
 	block->nmb_getstat = status;
 
 	return;
@@ -1073,11 +1099,8 @@ ndis_linksts_done(adapter)
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
 	ifp = &sc->arpcom.ac_if;
 
-	NDIS_LOCK(sc);
-	if (!NDIS_INITIALIZED(sc)) {
-		NDIS_UNLOCK(sc);
+	if (!NDIS_INITIALIZED(sc))
 		return;
-	}
 
 	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
@@ -1091,27 +1114,6 @@ ndis_linksts_done(adapter)
 	default:
 		break;
 	}
-
-	NDIS_UNLOCK(sc);
-	return;
-}
-
-static void
-ndis_intrtask(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	struct ifnet		*ifp;
-	uint8_t			irql;
-
-	sc = arg;
-	ifp = &sc->arpcom.ac_if;
-
-	irql = KeRaiseIrql(DISPATCH_LEVEL);
-	ndis_intrhand(sc);
-	KeLowerIrql(irql);
-
-	ndis_enable_intr(sc);
 
 	return;
 }
@@ -1144,7 +1146,7 @@ ndis_intr(arg)
 	KeReleaseSpinLock(&intr->ni_dpccountlock, irql);
 
 	if ((is_our_intr || call_isr))
-		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
+		IoRequestDpc(sc->ndis_block->nmb_deviceobj, NULL, sc);
 
 	return;
 }
@@ -1183,7 +1185,8 @@ ndis_ticktask(xsc)
 	hangfunc = sc->ndis_chars->nmc_checkhang_func;
 
 	if (hangfunc != NULL) {
-		rval = hangfunc(sc->ndis_block->nmb_miniportadapterctx);
+		rval = MSCALL1(hangfunc,
+		    sc->ndis_block->nmb_miniportadapterctx);
 		if (rval == TRUE) {
 			ndis_reset_nic(sc);
 			return;

@@ -150,10 +150,8 @@ ndis_probe_pccard(dev)
 	const char		*prodstr, *vendstr;
 	int			error;
 	driver_object		*drv;
-	vm_offset_t		img;
- 
-	img = (vm_offset_t)drv_data;
-	drv = windrv_lookup(img);
+
+	drv = windrv_lookup(0, "PCCARD Bus"); 
 	if (drv == NULL)
 		return(ENXIO);
 

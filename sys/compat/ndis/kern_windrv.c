@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/hal_var.h>
+#include <compat/ndis/usbd_var.h>
 
 struct windrv_type {
 	uint16_t		windrv_vid;	/* for PCI or USB */
@@ -130,19 +131,35 @@ windrv_libfini(void)
  */
 
 driver_object *
-windrv_lookup(img)
+windrv_lookup(img, name)
 	vm_offset_t		img;
+	char			*name;
 {
 	struct drvdb_ent	*d;
+	unicode_string		us;
+
+	/* Damn unicode. */
+
+	if (name != NULL) {
+	 	us.us_len = strlen(name) * 2;
+		us.us_maxlen = strlen(name) * 2;
+		us.us_buf = NULL;
+		ndis_ascii_to_unicode(name, &us.us_buf);
+	}
 
 	mtx_lock(&drvdb_mtx); 
 	STAILQ_FOREACH(d, &drvdb_head, link) {
-		if (d->windrv_object->dro_driverstart == (void *)img) {
+		if (d->windrv_object->dro_driverstart == (void *)img ||
+		    bcmp((char *)d->windrv_object->dro_drivername.us_buf,
+		    (char *)us.us_buf, us.us_len) == 0) {
 			mtx_unlock(&drvdb_mtx);
 			return(d->windrv_object);
 		}
 	}
 	mtx_unlock(&drvdb_mtx);
+
+	if (name != NULL)
+		ExFreePool(us.us_buf);
 
 	return(NULL);
 }
@@ -217,7 +234,7 @@ windrv_load(mod, img, len)
 	image_optional_header	opt_hdr;
 	driver_entry		entry;
 	struct drvdb_ent	*new;
-	struct driver_object	*dobj;
+	struct driver_object	*drv;
 	int			status;
 
 	/*
@@ -244,12 +261,10 @@ windrv_load(mod, img, len)
 	}
 
 	/* Dynamically link USBD.SYS -- optional */
-#ifdef notyet
 	if (pe_get_import_descriptor(img, &imp_desc, "USBD") == 0) {
-		if (pe_patch_imports(img, "USBD", ntoskrnl_functbl))
+		if (pe_patch_imports(img, "USBD", usbd_functbl))
 			return(ENOEXEC);
 	}
-#endif
 
 	/* Next step: find the driver entry point. */
 
@@ -262,43 +277,43 @@ windrv_load(mod, img, len)
 	if (new == NULL)
 		return (ENOMEM);
 
-	dobj = malloc(sizeof(device_object), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (dobj == NULL) {
+	drv = malloc(sizeof(driver_object), M_DEVBUF, M_NOWAIT|M_ZERO);
+	if (drv == NULL) {
 		free (new, M_DEVBUF);
 		return (ENOMEM);
 	}
 
 	/* Allocate a driver extension structure too. */
 
-	dobj->dro_driverext = malloc(sizeof(driver_extension),
+	drv->dro_driverext = malloc(sizeof(driver_extension),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
 
-	if (dobj->dro_driverext == NULL) {
+	if (drv->dro_driverext == NULL) {
 		free(new, M_DEVBUF);
-		free(dobj, M_DEVBUF);
+		free(drv, M_DEVBUF);
 		return(ENOMEM);
 	}
 
-	INIT_LIST_HEAD((&dobj->dro_driverext->dre_usrext));
+	INIT_LIST_HEAD((&drv->dro_driverext->dre_usrext));
 
-	dobj->dro_driverstart = (void *)img;
-	dobj->dro_driversize = len;
+	drv->dro_driverstart = (void *)img;
+	drv->dro_driversize = len;
 
-	dobj->dro_drivername.us_len = strlen(DUMMY_REGISTRY_PATH) * 2;
-        dobj->dro_drivername.us_maxlen = strlen(DUMMY_REGISTRY_PATH) * 2;
-        dobj->dro_drivername.us_buf = NULL;
+	drv->dro_drivername.us_len = strlen(DUMMY_REGISTRY_PATH) * 2;
+        drv->dro_drivername.us_maxlen = strlen(DUMMY_REGISTRY_PATH) * 2;
+        drv->dro_drivername.us_buf = NULL;
         ndis_ascii_to_unicode(DUMMY_REGISTRY_PATH,
-	    &dobj->dro_drivername.us_buf);
+	    &drv->dro_drivername.us_buf);
 
-	new->windrv_object = dobj;
+	new->windrv_object = drv;
 
 	/* Now call the DriverEntry() function. */
 
-	status = MSCALL2(entry, dobj, &dobj->dro_drivername);
+	status = MSCALL2(entry, drv, &drv->dro_drivername);
 
 	if (status != STATUS_SUCCESS) {
-		free(dobj->dro_drivername.us_buf, M_DEVBUF);
-		free(dobj, M_DEVBUF);
+		free(drv->dro_drivername.us_buf, M_DEVBUF);
+		free(drv, M_DEVBUF);
 		free(new, M_DEVBUF);
 		return(ENODEV);
 	}

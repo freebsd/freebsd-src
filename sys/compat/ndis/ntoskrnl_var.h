@@ -100,6 +100,10 @@ typedef struct mdl mdl, ndis_buffer;
 #define MDL_NETWORK_HEADER		0x1000
 #define MDL_MAPPING_CAN_FAIL		0x2000
 #define MDL_ALLOCATED_MUST_SUCCEED	0x4000
+#define MDL_ZONE_ALLOCED		0x8000	/* BSD private */
+
+#define MDL_ZONE_PAGES 16
+#define MDL_ZONE_SIZE (sizeof(mdl) + (sizeof(vm_offset_t) * MDL_ZONE_PAGES))
 
 /* Note: assumes x86 page size of 4K. */
 
@@ -126,7 +130,7 @@ typedef struct mdl mdl, ndis_buffer;
 #define MmInitializeMdl(b, baseva, len)					\
 	(b)->mdl_next = NULL;						\
 	(b)->mdl_size = (uint16_t)(sizeof(mdl) +			\
-		(sizeof(uint32_t) * SPAN_PAGES((baseva), (len))));	\
+		(sizeof(vm_offset_t) * SPAN_PAGES((baseva), (len))));	\
 	(b)->mdl_flags = 0;						\
 	(b)->mdl_startva = (void *)PAGE_ALIGN((baseva));		\
 	(b)->mdl_byteoffset = BYTE_OFFSET((baseva));			\
@@ -347,7 +351,7 @@ typedef struct nt_kevent nt_kevent;
 /* Kernel defered procedure call (i.e. timer callback) */
 
 struct kdpc;
-typedef void (*kdpc_func)(struct kdpc *, void *, void *, void *);
+typedef __stdcall void (*kdpc_func)(struct kdpc *, void *, void *, void *);
 
 struct kdpc {
 	uint16_t		k_type;
@@ -424,7 +428,9 @@ typedef struct general_lookaside general_lookaside;
 
 struct npaged_lookaside_list {
 	general_lookaside	nll_l;
+#ifdef __i386__
 	kspin_lock		nll_obsoletelock;
+#endif
 };
 
 typedef struct npaged_lookaside_list npaged_lookaside_list;
@@ -574,6 +580,26 @@ struct devobj_extension {
 
 typedef struct devobj_extension devobj_extension;
 
+/* Device object flags */
+
+#define DO_VERIFY_VOLUME		0x00000002      
+#define DO_BUFFERED_IO			0x00000004      
+#define DO_EXCLUSIVE			0x00000008      
+#define DO_DIRECT_IO			0x00000010      
+#define DO_MAP_IO_BUFFER		0x00000020      
+#define DO_DEVICE_HAS_NAME		0x00000040      
+#define DO_DEVICE_INITIALIZING		0x00000080      
+#define DO_SYSTEM_BOOT_PARTITION	0x00000100      
+#define DO_LONG_TERM_REQUESTS		0x00000200      
+#define DO_NEVER_LAST_DEVICE		0x00000400      
+#define DO_SHUTDOWN_REGISTERED		0x00000800      
+#define DO_BUS_ENUMERATED_DEVICE	0x00001000      
+#define DO_POWER_PAGABLE		0x00002000      
+#define DO_POWER_INRUSH			0x00004000      
+#define DO_LOW_PRIORITY_FILESYSTEM	0x00010000      
+
+/* Priority boosts */
+
 #define IO_NO_INCREMENT			0
 #define IO_CD_ROM_INCREMENT		1
 #define IO_DISK_INCREMENT		1
@@ -630,7 +656,7 @@ typedef struct devobj_extension devobj_extension;
 #define IRP_MN_MOUNT_VOLUME             0x01
 #define IRP_MN_VERIFY_VOLUME            0x02
 #define IRP_MN_LOAD_FILE_SYSTEM         0x03
-#define IRP_MN_TRACK_LINK               0x04    // To be obsoleted soon
+#define IRP_MN_TRACK_LINK               0x04
 #define IRP_MN_KERNEL_CALL              0x04
 
 #define IRP_MN_LOCK                     0x01
@@ -723,6 +749,34 @@ typedef struct devobj_extension devobj_extension;
 #define IRP_ALLOCATED_FIXED_SIZE        0x04
 #define IRP_LOOKASIDE_ALLOCATION        0x08
 
+/* I/O method types */
+
+#define METHOD_BUFFERED			0
+#define METHOD_IN_DIRECT		1
+#define METHOD_OUT_DIRECT		2
+#define METHOD_NEITHER			3
+
+/* File access types */
+
+#define FILE_ANY_ACCESS			0x0000
+#define FILE_SPECIAL_ACCESS		FILE_ANY_ACCESS
+#define FILE_READ_ACCESS		0x0001
+#define FILE_WRITE_ACCESS		0x0002
+
+/* Recover I/O access method from IOCTL code. */
+
+#define IO_METHOD(x)			((x) & 0xFFFFFFFC)
+
+/* Recover function code from IOCTL code */
+
+#define IO_FUNC(x)			(((x) & 0x7FFC) >> 2)
+
+/* Macro to construct an IOCTL code. */
+
+#define IOCTL_CODE(dev, func, iomethod, acc)	\
+	((dev) << 16) | (acc << 14) | (func << 2) | (iomethod))
+
+
 struct io_status_block {
 	union {
 		uint32_t		isb_status;
@@ -756,6 +810,8 @@ typedef struct kapc kapc;
 
 typedef __stdcall uint32_t (*completion_func)(device_object *,
 	struct irp *, void *);
+typedef __stdcall uint32_t (*cancel_func)(device_object *,
+	struct irp *);
 
 struct io_stack_location {
 	uint8_t			isl_major;
@@ -775,12 +831,28 @@ struct io_stack_location {
 
 	union {
 		struct {
+			uint32_t		isl_len;
+			uint32_t		*isl_key;
+			uint64_t		isl_byteoff;
+		} isl_read;
+		struct {
+			uint32_t		isl_len;
+			uint32_t		*isl_key;
+			uint64_t		isl_byteoff;
+		} isl_write;
+		struct {
+			uint32_t		isl_obuflen;
+			uint32_t		isl_ibuflen;
+			uint32_t		isl_iocode;
+			void			*isl_type3ibuf;
+		} isl_ioctl;
+		struct {
 			void			*isl_arg1;
 			void			*isl_arg2;
 			void			*isl_arg3;
 			void			*isl_arg4;
 		} isl_others;
-	} isl_parameters;
+	} isl_parameters __attribute__((packed));
 
 	void			*isl_devobj;
 	void			*isl_fileobj;
@@ -826,7 +898,7 @@ struct irp {
 		} irp_asyncparms;
 		uint64_t			irp_allocsz;
 	} irp_overlay;
-	void			*irp_cancelfunc;
+	cancel_func		irp_cancelfunc;
 	void			*irp_userbuf;
 
 	/* Windows kernel info */
@@ -860,9 +932,16 @@ struct irp {
 
 typedef struct irp irp;
 
+#define InterlockedExchangePointer(dst, val)				\
+	(void *)FASTCALL2(InterlockedExchange, (uint32_t *)(dst),	\
+	(uintptr_t)(val))
+
 #define IoSizeOfIrp(ssize)						\
 	((uint16_t) (sizeof(irp) + ((ssize) * (sizeof(io_stack_location)))))
 
+#define IoSetCancelRoutine(irp, func)					\
+	(cancel_func)InterlockedExchangePointer(			\
+	(void *)&(ip)->irp_cancelfunc, (void *)(func))
 
 #define IoGetCurrentIrpStackLocation(irp)				\
 	(irp)->irp_tail.irp_overlay.irp_csl
@@ -905,6 +984,12 @@ typedef struct irp irp;
 		(irp)->irp_currentstackloc++;				\
 		(irp)->irp_tail.irp_overlay.irp_csl++;			\
 	} while(0)
+
+#define IoInitializeDpcRequest(dobj, dpcfunc)				\
+	KeInitializeDpc(&(dobj)->do_dpc, dpcfunc, dobj)
+
+#define IoRequestDpc(dobj, irp, ctx)					\
+	KeInsertQueueDpc(&(dobj)->do_dpc, irp, ctx)
 
 typedef __stdcall uint32_t (*driver_dispatch)(device_object *, irp *);
 
@@ -1039,6 +1124,7 @@ typedef struct driver_object driver_object;
 #define STATUS_KERNEL_APC		0x00000100
 #define STATUS_ALERTED			0x00000101
 #define STATUS_TIMEOUT			0x00000102
+#define STATUS_PENDING			0x00000103
 #define STATUS_INVALID_PARAMETER	0xC000000D
 #define STATUS_INVALID_DEVICE_REQUEST	0xC0000010
 #define STATUS_MORE_PROCESSING_REQUIRED	0xC0000016
@@ -1073,7 +1159,7 @@ typedef void (*funcptr)(void);
 __BEGIN_DECLS
 extern int windrv_libinit(void);
 extern int windrv_libfini(void);
-extern driver_object *windrv_lookup(vm_offset_t);
+extern driver_object *windrv_lookup(vm_offset_t, char *);
 extern int windrv_load(module_t, vm_offset_t, int);
 extern int windrv_unload(module_t, vm_offset_t, int);
 extern int windrv_create_pdo(driver_object *, device_t);
@@ -1101,9 +1187,17 @@ __stdcall extern void KeClearEvent(nt_kevent *);
 __stdcall extern uint32_t KeReadStateEvent(nt_kevent *);
 __stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
 __stdcall extern uint32_t KeResetEvent(nt_kevent *);
+#ifdef __i386__
 __fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
 __fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
+__stdcall extern uint8_t KeAcquireSpinLockRaiseToDpc(kspin_lock *);
+#else
+__stdcall extern void KeAcquireSpinLockAtDpcLevel(kspin_lock *);
+__stdcall extern void KeReleaseSpinLockFromDpcLevel(kspin_lock *);
+#endif
 __stdcall extern void KeInitializeSpinLock(kspin_lock *);
+__fastcall extern uintptr_t InterlockedExchange(REGARGS2(volatile uint32_t *,
+	uintptr_t));
 __stdcall extern void *ExAllocatePoolWithTag(uint32_t, size_t, uint32_t);
 __stdcall extern void ExFreePool(void *);
 __stdcall extern uint32_t IoAllocateDriverObjectExtension(driver_object *,
@@ -1115,6 +1209,9 @@ __stdcall extern void IoDeleteDevice(device_object *);
 __stdcall extern device_object *IoGetAttachedDevice(device_object *);
 __fastcall extern uint32_t IofCallDriver(REGARGS2(device_object *, irp *));
 __fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
+__stdcall extern void IoAcquireCancelSpinLock(uint8_t *);
+__stdcall extern void IoReleaseCancelSpinLock(uint8_t);
+__stdcall extern uint8_t IoCancelIrp(irp *);
 __stdcall extern void IoDetachDevice(device_object *);
 __stdcall extern device_object *IoAttachDeviceToDeviceStack(device_object *,
 	device_object *);
@@ -1133,6 +1230,10 @@ __stdcall void IoFreeMdl(mdl *);
 #define KeReleaseSpinLock(a, b)	FASTCALL2(KfReleaseSpinLock, a, b)
 #define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
 #define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
+#define KeAcquireSpinLockAtDpcLevel(a)		\
+				FASTCALL1(KefAcquireSpinLockAtDpcLevel, a)
+#define KeReleaseSpinLockFromDpcLevel(a)	\
+				FASTCALL1(KefReleaseSpinLockFromDpcLevel, a)
 #endif /* __i386__ */
 
 #ifdef __amd64__

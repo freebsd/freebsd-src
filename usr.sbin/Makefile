@@ -323,6 +323,7 @@ _lptcontrol=	lptcontrol
 _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
+_ndiscvt=	ndiscvt
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/ntoskrnl_var.h>
@@ -137,6 +138,8 @@ __fastcall static slist_entry
 __fastcall static slist_entry
 	*ExInterlockedPopEntrySList(REGARGS2(slist_header *head,
 	kspin_lock *lock));
+__stdcall static uint16_t
+	ExQueryDepthSList(slist_header *);
 __fastcall static uint32_t
 	InterlockedIncrement(REGARGS1(volatile uint32_t *addend));
 __fastcall static uint32_t
@@ -177,14 +180,17 @@ __stdcall static ndis_status ObReferenceObjectByHandle(ndis_handle,
 __fastcall static void ObfDereferenceObject(REGARGS1(void *object));
 __stdcall static uint32_t ZwClose(ndis_handle);
 static void *ntoskrnl_memset(void *, int, size_t);
+static funcptr ntoskrnl_findwrap(funcptr);
 static uint32_t DbgPrint(char *, ...);
 __stdcall static void DbgBreakPoint(void);
 __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
 static kspin_lock ntoskrnl_global;
+static kspin_lock ntoskrnl_cancellock;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
+static uma_zone_t mdl_zone;
 
 int
 ntoskrnl_libinit()
@@ -194,6 +200,7 @@ ntoskrnl_libinit()
 	mtx_init(&ntoskrnl_dispatchlock,
 	    "ntoskrnl dispatch lock", MTX_NDIS_LOCK, MTX_DEF);
 	KeInitializeSpinLock(&ntoskrnl_global);
+	KeInitializeSpinLock(&ntoskrnl_cancellock);
 	TAILQ_INIT(&ntoskrnl_reflist);
 
 	patch = ntoskrnl_functbl;
@@ -203,6 +210,22 @@ ntoskrnl_libinit()
 		patch++;
 	}
 
+	/*
+	 * MDLs are supposed to be variable size (they describe
+	 * buffers containing some number of pages, but we don't
+	 * know ahead of time how many pages that will be). But
+	 * always allocating them off the heap is very slow. As
+	 * a compromize, we create an MDL UMA zone big enough to
+	 * handle any buffer requiring up to 16 pages, and we
+	 * use those for any MDLs for buffers of 16 pages or less
+	 * in size. For buffers larger than that (which we assume
+	 * will be few and far between, we allocate the MDLs off
+	 * the heap.
+	 */
+
+	mdl_zone = uma_zcreate("Windows MDL", MDL_ZONE_SIZE,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+
 	return(0);
 }
 
@@ -210,13 +233,16 @@ int
 ntoskrnl_libfini()
 {
 	image_patch_table	*patch;
-	mtx_destroy(&ntoskrnl_dispatchlock);
 
 	patch = ntoskrnl_functbl;
 	while (patch->ipt_func != NULL) {
 		windrv_unwrap(patch->ipt_wrap);
 		patch++;
 	}
+
+	uma_zdestroy(mdl_zone);
+
+	mtx_destroy(&ntoskrnl_dispatchlock);
 
 	return(0);
 }
@@ -418,6 +444,8 @@ IoCreateDevice(drv, devextlen, devname, devtype, devchars, exclusive, newdev)
 			ExFreePool(dev);
 			return(STATUS_INSUFFICIENT_RESOURCES);
 		}
+
+		bzero(dev->do_devext, devextlen);
 	} else
 		dev->do_devext = NULL;
 
@@ -531,7 +559,14 @@ IoBuildSynchronousFsdRequest(func, dobj, buf, len, off, event, status)
 	nt_kevent		*event;
 	io_status_block		*status;
 {
-	return(NULL);
+	irp			*ip;
+
+	ip = IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status);
+	if (ip == NULL)
+		return(NULL);
+	ip->irp_usrevent = event;
+
+	return(ip);
 }
 
 __stdcall static irp *
@@ -543,7 +578,66 @@ IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status)
 	uint64_t		*off;
 	io_status_block		*status;
 {
-	return(NULL);
+	irp			*ip;
+	io_stack_location	*sl;
+
+	ip = IoAllocateIrp(dobj->do_stacksize, TRUE);
+	if (ip == NULL)
+		return(NULL);
+
+	ip->irp_usriostat = status;
+	ip->irp_tail.irp_overlay.irp_thread = NULL;
+
+	sl = IoGetNextIrpStackLocation(ip);
+	sl->isl_major = func;
+	sl->isl_minor = 0;
+	sl->isl_flags = 0;
+	sl->isl_ctl = 0;
+	sl->isl_devobj = dobj;
+	sl->isl_fileobj = NULL;
+	sl->isl_completionfunc = NULL;
+
+	ip->irp_userbuf = buf;
+
+	if (dobj->do_flags & DO_BUFFERED_IO) {
+		ip->irp_assoc.irp_sysbuf =
+		    ExAllocatePoolWithTag(NonPagedPool, len, 0);
+		if (ip->irp_assoc.irp_sysbuf == NULL) {
+			IoFreeIrp(ip);
+			return(NULL);
+		}
+		bcopy(buf, ip->irp_assoc.irp_sysbuf, len);
+	}
+
+	if (dobj->do_flags & DO_DIRECT_IO) {
+		ip->irp_mdl = IoAllocateMdl(buf, len, FALSE, FALSE, ip);
+		if (ip->irp_mdl == NULL) {
+			if (ip->irp_assoc.irp_sysbuf != NULL)
+				ExFreePool(ip->irp_assoc.irp_sysbuf);
+			IoFreeIrp(ip);
+			return(NULL);
+		}
+		ip->irp_userbuf = NULL;
+		ip->irp_assoc.irp_sysbuf = NULL;
+	}
+
+	if (func == IRP_MJ_READ) {
+		sl->isl_parameters.isl_read.isl_len = len;
+		if (off != NULL)
+			sl->isl_parameters.isl_read.isl_byteoff = *off;
+		else
+			sl->isl_parameters.isl_read.isl_byteoff = 0;
+	}
+
+	if (func == IRP_MJ_WRITE) {
+		sl->isl_parameters.isl_write.isl_len = len;
+		if (off != NULL)
+			sl->isl_parameters.isl_write.isl_byteoff = *off;
+		else
+			sl->isl_parameters.isl_write.isl_byteoff = 0;
+	}	
+
+	return(ip);
 }
 
 __stdcall static irp *
@@ -559,7 +653,87 @@ IoBuildDeviceIoControlRequest(iocode, dobj, ibuf, ilen, obuf, olen,
 	nt_kevent		*event;
 	io_status_block		*status;
 {
-	return (NULL);
+	irp			*ip;
+	io_stack_location	*sl;
+	uint32_t		buflen;
+
+	ip = IoAllocateIrp(dobj->do_stacksize, TRUE);
+	if (ip == NULL)
+		return(NULL);
+	ip->irp_usrevent = event;
+	ip->irp_usriostat = status;
+	ip->irp_tail.irp_overlay.irp_thread = NULL;
+
+	sl = IoGetNextIrpStackLocation(ip);
+	sl->isl_major = isinternal == TRUE ?
+	    IRP_MJ_INTERNAL_DEVICE_CONTROL : IRP_MJ_DEVICE_CONTROL;
+	sl->isl_minor = 0;
+	sl->isl_flags = 0;
+	sl->isl_ctl = 0;
+	sl->isl_devobj = dobj;
+	sl->isl_fileobj = NULL;
+	sl->isl_completionfunc = NULL;
+	sl->isl_parameters.isl_ioctl.isl_iocode = iocode;
+	sl->isl_parameters.isl_ioctl.isl_ibuflen = ilen;
+	sl->isl_parameters.isl_ioctl.isl_obuflen = olen;
+
+	switch(IO_METHOD(iocode)) {
+	case METHOD_BUFFERED:
+		if (ilen > olen)
+			buflen = ilen;
+		else
+			buflen = olen;
+		if (buflen) {
+			ip->irp_assoc.irp_sysbuf =
+			    ExAllocatePoolWithTag(NonPagedPool, buflen, 0);
+			if (ip->irp_assoc.irp_sysbuf == NULL) {
+				IoFreeIrp(ip);
+				return(NULL);
+			}
+		}
+		if (ilen && ibuf != NULL) {
+			bcopy(ibuf, ip->irp_assoc.irp_sysbuf, ilen);
+			bzero((char *)ip->irp_assoc.irp_sysbuf + ilen,
+			    buflen - ilen);
+		} else
+			bzero(ip->irp_assoc.irp_sysbuf, ilen);
+		ip->irp_userbuf = obuf;
+		break;
+	case METHOD_IN_DIRECT:
+	case METHOD_OUT_DIRECT:
+		if (ilen && ibuf != NULL) {
+			ip->irp_assoc.irp_sysbuf =
+			    ExAllocatePoolWithTag(NonPagedPool, ilen, 0);
+			if (ip->irp_assoc.irp_sysbuf == NULL) {
+				IoFreeIrp(ip);
+				return(NULL);
+			}
+			bcopy(ibuf, ip->irp_assoc.irp_sysbuf, ilen);
+		}
+		if (olen && obuf != NULL) {
+			ip->irp_mdl = IoAllocateMdl(obuf, olen,
+			    FALSE, FALSE, ip);
+			/*
+			 * Normally we would MmProbeAndLockPages()
+			 * here, but we don't have to in our
+			 * imlementation.
+			 */
+		}
+		break;
+	case METHOD_NEITHER:
+		ip->irp_userbuf = obuf;
+		sl->isl_parameters.isl_ioctl.isl_type3ibuf = ibuf;
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Ideally, we should associate this IRP with the calling
+	 * thread here.
+	 */
+
+	return (ip);
 }
 
 __stdcall static irp *
@@ -575,7 +749,7 @@ IoAllocateIrp(stsize, chargequota)
 
 	IoInitializeIrp(i, IoSizeOfIrp(stsize), stsize);
 
-	return (NULL);
+	return (i);
 }
 
 __stdcall static irp *
@@ -613,7 +787,7 @@ IoInitializeIrp(io, psize, ssize)
 	uint16_t		psize;
 	uint8_t			ssize;
 {
-	bzero((char *)io, sizeof(irp));
+	bzero((char *)io, IoSizeOfIrp(ssize));
 	io->irp_size = psize;
 	io->irp_stackcnt = ssize;
 	io->irp_currentstackloc = ssize;
@@ -639,6 +813,38 @@ IoReuseIrp(ip, status)
 	return;
 }
 
+__stdcall void
+IoAcquireCancelSpinLock(irql)
+	uint8_t			*irql;
+{
+	KeAcquireSpinLock(&ntoskrnl_cancellock, irql);
+	return;
+}
+
+__stdcall void
+IoReleaseCancelSpinLock(irql)
+	uint8_t			irql;
+{
+	KeReleaseSpinLock(&ntoskrnl_cancellock, irql);
+	return;
+}
+
+__stdcall uint8_t
+IoCancelIrp(irp *ip)
+{
+	cancel_func		cfunc;
+
+	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
+	cfunc = IoSetCancelRoutine(ip, NULL);
+	ip->irp_cancel = TRUE;
+	if (ip->irp_cancelfunc == NULL) {
+		IoReleaseCancelSpinLock(ip->irp_cancelirql);
+		return(FALSE);
+	}
+	MSCALL2(cfunc, IoGetCurrentIrpStackLocation(ip)->isl_devobj, ip);
+	return(TRUE);
+}
+
 __fastcall uint32_t
 IofCallDriver(REGARGS2(device_object *dobj, irp *ip))
 {
@@ -658,7 +864,7 @@ IofCallDriver(REGARGS2(device_object *dobj, irp *ip))
 	sl->isl_devobj = dobj;
 
 	disp = drvobj->dro_dispatch[sl->isl_major];
-	status = disp(dobj, ip);
+	status = MSCALL2(disp, dobj, ip);
 
 	return(status);
 }
@@ -691,7 +897,7 @@ IofCompleteRequest(REGARGS2(irp *ip, uint8_t prioboost))
 		    (ip->irp_cancel == TRUE &&
 		    sl->isl_ctl & SL_INVOKE_ON_CANCEL))) {
 			cf = sl->isl_completionfunc;
-			status = cf(dobj, ip, sl->isl_completionctx);
+			status = MSCALL3(cf, dobj, ip, sl->isl_completionctx);
 			if (status == STATUS_MORE_PROCESSING_REQUIRED)
 				return;
 		}
@@ -747,12 +953,10 @@ IoAttachDeviceToDeviceStack(src, dst)
 	device_object		*attached;
 
 	mtx_lock(&ntoskrnl_dispatchlock);
-
 	attached = IoGetAttachedDevice(dst);
 	attached->do_attacheddev = src;
 	src->do_attacheddev = NULL;
 	src->do_stacksize = attached->do_stacksize + 1;
-
 	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(attached);
@@ -788,6 +992,7 @@ IoDetachDevice(topdev)
 	return;
 }
 
+/* Always called with dispatcher lock held. */
 static void
 ntoskrnl_wakeup(arg)
 	void			*arg;
@@ -799,7 +1004,6 @@ ntoskrnl_wakeup(arg)
 
 	obj = arg;
 
-	mtx_lock(&ntoskrnl_dispatchlock);
 	obj->dh_sigstate = TRUE;
 	e = obj->dh_waitlisthead.nle_flink;
 	while (e != &obj->dh_waitlisthead) {
@@ -814,7 +1018,6 @@ ntoskrnl_wakeup(arg)
 			break;
 		e = e->nle_flink;
 	}
-	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return;
 }
@@ -962,12 +1165,8 @@ KeWaitForSingleObject(obj, reason, mode, alertable, duetime)
 		}
 	}
 
-	mtx_unlock(&ntoskrnl_dispatchlock);
-
-	error = ndis_thsuspend(td->td_proc,
+	error = ndis_thsuspend(td->td_proc, &ntoskrnl_dispatchlock,
 	    duetime == NULL ? 0 : tvtohz(&tv));
-
-	mtx_lock(&ntoskrnl_dispatchlock);
 
 	/* We timed out. Leave the object alone and return status. */
 
@@ -1093,12 +1292,10 @@ KeWaitForMultipleObjects(cnt, obj, wtype, reason, mode,
 
 	while (wcnt) {
 		nanotime(&t1);
-		mtx_unlock(&ntoskrnl_dispatchlock);
 
-		error = ndis_thsuspend(td->td_proc,
+		error = ndis_thsuspend(td->td_proc, &ntoskrnl_dispatchlock,
 		    duetime == NULL ? 0 : tvtohz(&tv));
 
-		mtx_lock(&ntoskrnl_dispatchlock);
 		nanotime(&t2);
 
 		for (i = 0; i < cnt; i++) {
@@ -1308,6 +1505,33 @@ ntoskrnl_popsl(head)
 	return(first);
 }
 
+/*
+ * We need this to make lookaside lists work for amd64.
+ * We pass a pointer to ExAllocatePoolWithTag() the lookaside
+ * list structure. For amd64 to work right, this has to be a
+ * pointer to the wrapped version of the routine, not the
+ * original. Letting the Windows driver invoke the original
+ * function directly will result in a convention calling
+ * mismatch and a pretty crash. On x86, this effectively
+ * becomes a no-op since ipt_func and ipt_wrap are the same.
+ */
+
+static funcptr
+ntoskrnl_findwrap(func)
+	funcptr			func;
+{
+	image_patch_table	*patch;
+
+	patch = ntoskrnl_functbl;
+	while (patch->ipt_func != NULL) {
+		if ((funcptr)patch->ipt_func == func)
+			return((funcptr)patch->ipt_wrap);
+		patch++;
+	}
+
+	return(NULL);
+}
+
 __stdcall static void
 ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
     flags, size, tag, depth)
@@ -1327,18 +1551,23 @@ ExInitializePagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
+		lookaside->nll_l.gl_allocfunc =
+		    ntoskrnl_findwrap((funcptr)ExAllocatePoolWithTag);
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ExFreePool;
+		lookaside->nll_l.gl_freefunc =
+		    ntoskrnl_findwrap((funcptr)ExFreePool);
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+#ifdef __i386__
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
+#endif
 
-	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_type = NonPagedPool;
+	lookaside->nll_l.gl_depth = depth;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
 
 	return;
@@ -1377,18 +1606,23 @@ ExInitializeNPagedLookasideList(lookaside, allocfunc, freefunc,
 		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
-		lookaside->nll_l.gl_allocfunc = ExAllocatePoolWithTag;
+		lookaside->nll_l.gl_allocfunc =
+		    ntoskrnl_findwrap((funcptr)ExAllocatePoolWithTag);
 	else
 		lookaside->nll_l.gl_allocfunc = allocfunc;
 
 	if (freefunc == NULL)
-		lookaside->nll_l.gl_freefunc = ExFreePool;
+		lookaside->nll_l.gl_freefunc =
+		    ntoskrnl_findwrap((funcptr)ExFreePool);
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
+#ifdef __i386__
 	KeInitializeSpinLock(&lookaside->nll_obsoletelock);
+#endif
 
-	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_type = NonPagedPool;
+	lookaside->nll_l.gl_depth = depth;
 	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
 
 	return;
@@ -1465,6 +1699,20 @@ ExInterlockedPopEntrySList(REGARGS2(slist_header *head, kspin_lock *lock))
 	return(first);
 }
 
+__stdcall static uint16_t
+ExQueryDepthSList(head)
+	slist_header		*head;
+{
+	uint16_t		depth;
+	uint8_t			irql;
+
+	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	depth = head->slh_list.slh_depth;
+	KeReleaseSpinLock(&ntoskrnl_global, irql);
+
+	return(depth);
+}
+
 /*
  * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
  * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
@@ -1481,6 +1729,7 @@ KeInitializeSpinLock(lock)
 	return;
 }
 
+#ifdef __i386__
 __fastcall void
 KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *lock))
 {
@@ -1496,6 +1745,52 @@ KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 	atomic_store_rel_int((volatile u_int *)lock, 0);
 
 	return;
+}
+
+__stdcall uint8_t
+KeAcquireSpinLockRaiseToDpc(kspin_lock *lock)
+{
+        uint8_t                 oldirql;
+
+        if (KeGetCurrentIrql() > DISPATCH_LEVEL)
+                panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
+
+        oldirql = KeRaiseIrql(DISPATCH_LEVEL);
+        KeAcquireSpinLockAtDpcLevel(lock);
+
+        return(oldirql);
+}
+#else
+__stdcall void
+KeAcquireSpinLockAtDpcLevel(kspin_lock *lock)
+{
+	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
+		/* sit and spin */;
+
+	return;
+}
+
+__stdcall void
+KeReleaseSpinLockFromDpcLevel(kspin_lock *lock)
+{
+	atomic_store_rel_int((volatile u_int *)lock, 0);
+
+	return;
+}
+#endif /* __i386__ */
+
+__fastcall uintptr_t
+InterlockedExchange(REGARGS2(volatile uint32_t *dst, uintptr_t val))
+{
+	uint8_t			irql;
+	uintptr_t		r;
+
+	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	r = *dst;
+	*dst = val;
+	KeReleaseSpinLock(&ntoskrnl_global, irql);
+
+	return(r);
 }
 
 __fastcall static uint32_t
@@ -1533,14 +1828,29 @@ IoAllocateMdl(vaddr, len, secondarybuf, chargequota, iopkt)
 	irp			*iopkt;
 {
 	mdl			*m;
+	int			zone = 0;
 
-	m = ExAllocatePoolWithTag(NonPagedPool,
-	    MmSizeOfMdl(vaddr, len), 0);
+	if (MmSizeOfMdl(vaddr, len) > MDL_ZONE_SIZE)
+		m = ExAllocatePoolWithTag(NonPagedPool,
+		    MmSizeOfMdl(vaddr, len), 0);
+	else {
+		m = uma_zalloc(mdl_zone, M_NOWAIT | M_ZERO);
+		zone++;
+	}
 
 	if (m == NULL)
 		return (NULL);
 
 	MmInitializeMdl(m, vaddr, len);
+
+	/*
+	 * MmInitializMdl() clears the flags field, so we
+	 * have to set this here. If the MDL came from the
+	 * MDL UMA zone, tag it so we can release it to
+	 * the right place later.
+	 */
+	if (zone)
+		m->mdl_flags = MDL_ZONE_ALLOCED;
 
 	if (iopkt != NULL) {
 		if (secondarybuf == TRUE) {
@@ -1566,7 +1876,10 @@ IoFreeMdl(m)
 	if (m == NULL)
 		return;
 
-	free (m, M_DEVBUF);
+	if (m->mdl_flags & MDL_ZONE_ALLOCED)
+		uma_zfree(mdl_zone, m);
+	else
+		ExFreePool(m);
 
         return;
 }
@@ -1884,10 +2197,9 @@ KeReleaseMutex(kmutex, kwait)
 	kmutex->km_acquirecnt--;
 	if (kmutex->km_acquirecnt == 0) {
 		kmutex->km_ownerthread = NULL;
-		mtx_unlock(&ntoskrnl_dispatchlock);
 		ntoskrnl_wakeup(&kmutex->km_header);
-	} else
-		mtx_unlock(&ntoskrnl_dispatchlock);
+	}
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(kmutex->km_acquirecnt);
 }
@@ -1934,8 +2246,10 @@ KeSetEvent(kevent, increment, kwait)
 {
 	uint32_t		prevstate;
 
+	mtx_lock(&ntoskrnl_dispatchlock);
 	prevstate = kevent->k_header.dh_sigstate;
 	ntoskrnl_wakeup(&kevent->k_header);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(prevstate);
 }
@@ -2070,12 +2384,14 @@ PsTerminateSystemThread(status)
 {
 	struct nt_objref	*nr;
 
+	mtx_lock(&ntoskrnl_dispatchlock);
 	TAILQ_FOREACH(nr, &ntoskrnl_reflist, link) {
 		if (nr->no_obj != curthread->td_proc)
 			continue;
 		ntoskrnl_wakeup(&nr->no_dh);
 		break;
 	}
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	ntoskrnl_kth--;
 
@@ -2119,6 +2435,8 @@ ntoskrnl_timercall(arg)
 
 	mtx_unlock(&Giant);
 
+	mtx_lock(&ntoskrnl_dispatchlock);
+
 	timer = arg;
 
 	timer->k_header.dh_inserted = FALSE;
@@ -2136,14 +2454,15 @@ ntoskrnl_timercall(arg)
 		tv.tv_sec = 0;
 		tv.tv_usec = timer->k_period * 1000;
 		timer->k_header.dh_inserted = TRUE;
-		timer->k_handle =
-		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
+		timer->k_handle = timeout(ntoskrnl_timercall,
+		    timer, tvtohz(&tv));
 	}
 
 	if (timer->k_dpc != NULL)
 		KeInsertQueueDpc(timer->k_dpc, NULL, NULL);
 
 	ntoskrnl_wakeup(&timer->k_header);
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	mtx_lock(&Giant);
 
@@ -2210,17 +2529,12 @@ KeInitializeDpc(dpc, dpcfunc, dpcctx)
 	void			*dpcfunc;
 	void			*dpcctx;
 {
-	uint8_t			irql;
 
 	if (dpc == NULL)
 		return;
 
-	KeInitializeSpinLock(&dpc->k_lock);
-
-	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_deferedfunc = dpcfunc;
 	dpc->k_deferredctx = dpcctx;
-	KeReleaseSpinLock(&dpc->k_lock, irql);
 
 	return;
 }
@@ -2231,12 +2545,8 @@ KeInsertQueueDpc(dpc, sysarg1, sysarg2)
 	void			*sysarg1;
 	void			*sysarg2;
 {
-	uint8_t			irql;
-
-	KeAcquireSpinLock(&dpc->k_lock, &irql);
 	dpc->k_sysarg1 = sysarg1;
 	dpc->k_sysarg2 = sysarg2;
-	KeReleaseSpinLock(&dpc->k_lock, irql);
 
 	if (ndis_sched(ntoskrnl_run_dpc, dpc, NDIS_SWI))
 		return(FALSE);
@@ -2268,6 +2578,8 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	if (timer == NULL)
 		return(FALSE);
 
+	mtx_lock(&ntoskrnl_dispatchlock);
+
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 		timer->k_header.dh_inserted = FALSE;
@@ -2298,6 +2610,8 @@ KeSetTimerEx(timer, duetime, period, dpc)
 	timer->k_header.dh_inserted = TRUE;
 	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 
+	mtx_unlock(&ntoskrnl_dispatchlock);
+
 	return(pending);
 }
 
@@ -2319,14 +2633,15 @@ KeCancelTimer(timer)
 	if (timer == NULL)
 		return(FALSE);
 
+	mtx_lock(&ntoskrnl_dispatchlock);
+
 	if (timer->k_header.dh_inserted == TRUE) {
 		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
-		if (timer->k_dpc != NULL)
-			KeRemoveQueueDpc(timer->k_dpc);
 		pending = TRUE;
 	} else
-		pending = FALSE;
+		pending = KeRemoveQueueDpc(timer->k_dpc);
 
+	mtx_unlock(&ntoskrnl_dispatchlock);
 
 	return(pending);
 }
@@ -2376,6 +2691,9 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(IoGetDriverObjectExtension),
 	IMPORT_FUNC(IofCallDriver),
 	IMPORT_FUNC(IofCompleteRequest),
+	IMPORT_FUNC(IoAcquireCancelSpinLock),
+	IMPORT_FUNC(IoReleaseCancelSpinLock),
+	IMPORT_FUNC(IoCancelIrp),
 	IMPORT_FUNC(IoCreateDevice),
 	IMPORT_FUNC(IoDeleteDevice),
 	IMPORT_FUNC(IoGetAttachedDevice),
@@ -2417,11 +2735,30 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(ExDeleteNPagedLookasideList),
 	IMPORT_FUNC(InterlockedPopEntrySList),
 	IMPORT_FUNC(InterlockedPushEntrySList),
+	IMPORT_FUNC(ExQueryDepthSList),
+	IMPORT_FUNC_MAP(ExpInterlockedPopEntrySList, InterlockedPopEntrySList),
+	IMPORT_FUNC_MAP(ExpInterlockedPushEntrySList,
+		InterlockedPushEntrySList),
 	IMPORT_FUNC(ExInterlockedPopEntrySList),
 	IMPORT_FUNC(ExInterlockedPushEntrySList),
+	IMPORT_FUNC(ExAllocatePoolWithTag),
+	IMPORT_FUNC(ExFreePool),
+#ifdef __i386__
 	IMPORT_FUNC(KefAcquireSpinLockAtDpcLevel),
 	IMPORT_FUNC(KefReleaseSpinLockFromDpcLevel),
+	IMPORT_FUNC(KeAcquireSpinLockRaiseToDpc),
+#else
+	/*
+	 * For AMD64, we can get away with just mapping
+	 * KeAcquireSpinLockRaiseToDpc() directly to KfAcquireSpinLock()
+	 * because the calling conventions end up being the same.
+	 * On i386, we have to be careful because KfAcquireSpinLock()
+	 * is _fastcall but KeAcquireSpinLockRaiseToDpc() isn't.
+	 */
+	IMPORT_FUNC(KeAcquireSpinLockAtDpcLevel),
+	IMPORT_FUNC(KeReleaseSpinLockFromDpcLevel),
 	IMPORT_FUNC_MAP(KeAcquireSpinLockRaiseToDpc, KfAcquireSpinLock),
+#endif
 	IMPORT_FUNC_MAP(KeReleaseSpinLock, KfReleaseSpinLock),
 	IMPORT_FUNC(InterlockedIncrement),
 	IMPORT_FUNC(InterlockedDecrement),

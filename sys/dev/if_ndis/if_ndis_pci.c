@@ -145,11 +145,9 @@ ndis_probe_pci(dev)
 {
 	struct ndis_pci_type	*t;
 	driver_object		*drv;
-	vm_offset_t		img;
 
 	t = ndis_devs;
-	img = (vm_offset_t)drv_data;
-	drv = windrv_lookup(img);
+	drv = windrv_lookup(0, "PCI Bus");
 
 	if (drv == NULL)
 		return(ENXIO);

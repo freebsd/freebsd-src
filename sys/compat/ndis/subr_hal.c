@@ -295,8 +295,8 @@ KfAcquireSpinLock(REGARGS1(kspin_lock *lock))
 	if (KeGetCurrentIrql() > DISPATCH_LEVEL)
 		panic("IRQL_NOT_LESS_THAN_OR_EQUAL");
 
-	oldirql = FASTCALL1(KfRaiseIrql, DISPATCH_LEVEL);
-	FASTCALL1(KefAcquireSpinLockAtDpcLevel, lock);
+	oldirql = KeRaiseIrql(DISPATCH_LEVEL);
+	KeAcquireSpinLockAtDpcLevel(lock);
 
 	return(oldirql);
 }
@@ -304,8 +304,8 @@ KfAcquireSpinLock(REGARGS1(kspin_lock *lock))
 __fastcall void
 KfReleaseSpinLock(REGARGS2(kspin_lock *lock, uint8_t newirql))
 {
-	FASTCALL1(KefReleaseSpinLockFromDpcLevel, lock);
-	FASTCALL1(KfLowerIrql, newirql);
+	KeReleaseSpinLockFromDpcLevel(lock);
+	KeLowerIrql(newirql);
 
 	return;
 }
