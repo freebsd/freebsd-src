@@ -253,13 +253,13 @@ spec_read(ap)
 	struct uio *uio;
 	dev_t dev;
 	int error, resid;
+	struct cdevsw *dsw;
 
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
 	uio = ap->a_uio;
 	td = uio->uio_td;
 	resid = uio->uio_resid;
-	struct cdevsw *dsw;
 
 	if (resid == 0)
 		return (0);
