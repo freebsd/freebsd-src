@@ -59,6 +59,7 @@
 # Pointing devices:
 #	mse*	Logitech and ATI Inport bus mouse
 #	psm*	PS/2 mouse
+#	jogdial Sony VAIO jog dial
 #	sysmouse Mousesystems mouse emulator for syscons
 #
 # Time devices:
@@ -265,7 +266,7 @@ all)
 	sh MAKEDEV pty0					# cdev, pseudo tty
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3		# cdev, serial tty
 	sh MAKEDEV kbd0 kbd1				# cdev, keyboard
-	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
+	sh MAKEDEV mse0 psm0 jogdial sysmouse		# cdev, mouse
 	sh MAKEDEV pcaudio speaker			# cdev, noise
 	sh MAKEDEV lpt0 lpt1 lpt2			# cdev, printer
 	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
@@ -304,7 +305,7 @@ fixit)
 	sh MAKEDEV pty0					# cdev, pseudo tty
 	sh MAKEDEV ttyd0				# cdev, serial tty
 	sh MAKEDEV kbd0					# cdev, keyboard
-	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
+	sh MAKEDEV mse0 psm0 jogdial sysmouse		# cdev, mouse
 	sh MAKEDEV lpt0					# cdev, printer
 	sh MAKEDEV ppi0					# cdev, parallel port
 	sh MAKEDEV iic0					# cdev, I2C device
@@ -1525,6 +1526,10 @@ tap*)
 sysmouse)
 	mknod sysmouse c 12 128
 	mknod consolectl c 12 255
+	;;
+
+jogdial)
+	mknod jogdial c 160 0
 	;;
 
 snp?)
