@@ -52,6 +52,8 @@
 
 #include "pcib_if.h"
 
+#define PRVERB(a) printf a
+
 static int cfgmech;
 static int devmax;
 static int usebios;
@@ -87,6 +89,27 @@ pci_kill_pcibios(void)
     return pcireg_cfgopen() != 0;
 }
 
+static u_int16_t
+pcibios_get_version(void)
+{
+    struct bios_regs args;
+
+    if (PCIbios.entry == 0) {
+	PRVERB(("pcibios: No call entry point\n"));
+	return (0);
+    }
+    args.eax = PCIBIOS_BIOS_PRESENT;
+    if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL))) {
+	PRVERB(("pcibios: BIOS_PRESENT call failed\n"));
+	return (0);
+    }
+    if (args.edx != 0x20494350) {
+	PRVERB(("pcibios: BIOS_PRESENT didn't return 'PCI ' in edx\n"));
+	return (0);
+    }
+    return (args.ebx & 0xffff);
+}
+
 /* 
  * Initialise access to PCI configuration space 
  */
@@ -113,9 +136,9 @@ pci_cfgregopen(void)
     /*
      * Look for the interrupt routing table.
      */
-    /* XXX use PCI BIOS if it's available */
-
-    if ((pt == NULL) && ((sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0)) {
+    /* We use PCI BIOS's PIR table if it's available */
+    if (pcibios_get_version() >= 0x0210 && pt == NULL && 
+      (sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0) {
 	pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < (pt->pt_header.ph_length); i++) {
 	    ck += cv[i];
@@ -212,7 +235,15 @@ pci_cfgintr(int bus, int device, int pin)
     struct PIR_entry	*pe;
     int			i, irq;
     struct bios_regs	args;
+    u_int16_t		v;
     
+    v = pcibios_get_version();
+    if (v < 0x0210) {
+	PRVERB((
+	  "pci_cfgintr: BIOS %x.%02x doesn't support interrupt routing\n",
+	  (v & 0xff00) >> 8, v & 0xff));
+	return (255);
+    }
     if ((bus < 0) || (bus > 255) || (device < 0) || (device > 255) ||
       (pin < 1) || (pin > 4))
 	return(255);
@@ -224,9 +255,13 @@ pci_cfgintr(int bus, int device, int pin)
 	if ((bus != pe->pe_bus) || (device != pe->pe_device))
 	    continue;
 
+	irq = pci_cfgintr_linked(pe, pin);
+	if (irq != 255) {
+	    PRVERB(("pci_cfgintr: %d:%d INT%c already routed to irq %d\n",
+	      bus, device, 'A' + pin - 1, irq));
+	    return (irq);
+	}
 	irq = pci_cfgintr_unique(pe, pin);
-	if (irq == 255)
-	    irq = pci_cfgintr_linked(pe, pin);
 	if (irq == 255)
 	    irq = pci_cfgintr_virgin(pe, pin);
 	
@@ -240,18 +275,26 @@ pci_cfgintr(int bus, int device, int pin)
 	args.eax = PCIBIOS_ROUTE_INTERRUPT;
 	args.ebx = (bus << 8) | (device << 3);
 	args.ecx = (irq << 8) | (0xa + pin - 1);	/* pin value is 0xa - 0xd */
-	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
+	if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL))) {
+	    /*
+	     * XXX if it fails, we should try to smack the router
+	     * hardware directly.
+	     * XXX Also, there may be other choices that we can try that
+	     * will work.
+	     */
+	    PRVERB(("pci_cfgintr: ROUTE_INTERRUPT failured.\n"));
+	    return(255);
+	}
 
 	/*
 	 * XXX if it fails, we should try to smack the router hardware directly
 	 */
-
-	printf("pci_cfgintr: %d:%d INT%c routed to irq %d\n", 
-	       bus, device, 'A' + pin - 1, irq);
+	PRVERB(("pci_cfgintr: %d:%d INT%c routed to irq %d\n", 
+	       bus, device, 'A' + pin - 1, irq));
 	return(irq);
     }
 
-    printf("pci_cfgintr: can't route an interrupt to %d:%d INT%c\n", bus, device, 'A' + pin - 1);
+    PRVERB(("pci_cfgintr: can't route an interrupt to %d:%d INT%c\n", bus, device, 'A' + pin - 1));
     return(255);
 }
 
@@ -265,7 +308,7 @@ pci_cfgintr_unique(struct PIR_entry *pe, int pin)
     
     if (powerof2(pe->pe_intpin[pin - 1].irqs)) {
 	irq = ffs(pe->pe_intpin[pin - 1].irqs) - 1;
-	printf("pci_cfgintr_unique: hard-routed to irq %d\n", irq);
+	PRVERB(("pci_cfgintr_unique: hard-routed to irq %d\n", irq));
 	return(irq);
     }
     return(255);
@@ -301,8 +344,8 @@ pci_cfgintr_linked(struct PIR_entry *pe, int pin)
 	    /* link destination mapped to a unique interrupt? */
 	    if (powerof2(pi->irqs)) {
 		irq = ffs(pi->irqs) - 1;
-		printf("pci_cfgintr_linked: linked (%x) to hard-routed irq %d\n",
-		       pi->link, irq);
+		PRVERB(("pci_cfgintr_linked: linked (%x) to hard-routed irq %d\n",
+		       pi->link, irq));
 		return(irq);
 	    } 
 
@@ -349,9 +392,9 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 		(pci_get_slot(*childp) == device) &&
 		(pci_get_intpin(*childp) == matchpin) &&
 		((irq = pci_get_irq(*childp)) != 255)) {
-		printf("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
+		PRVERB(("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
 		       pe->pe_intpin[pin - 1].link, irq,
-		       pci_get_bus(*childp), pci_get_slot(*childp), pci_get_function(*childp));
+		       pci_get_bus(*childp), pci_get_slot(*childp), pci_get_function(*childp)));
 		break;
 	    }
 	}
@@ -378,7 +421,7 @@ pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
 	/* can we use this interrupt? */
 	if ((pci_route_table->pt_header.ph_pci_irqs & ibit) &&
 	    (pe->pe_intpin[pin - 1].irqs & ibit)) {
-	    printf("pci_cfgintr_virgin: using routable PCI-only interrupt %d\n", irq);
+	    PRVERB(("pci_cfgintr_virgin: using routable PCI-only interrupt %d\n", irq));
 	    return(irq);
 	}
     }
@@ -388,7 +431,7 @@ pci_cfgintr_virgin(struct PIR_entry *pe, int pin)
 	ibit = (1 << irq);
     
 	if (pe->pe_intpin[pin - 1].irqs & ibit) {
-	    printf("pci_cfgintr_virgin: using routable interrupt %d\n", irq);
+	    PRVERB(("pci_cfgintr_virgin: using routable interrupt %d\n", irq));
 	    return(irq);
 	}
     }
@@ -450,19 +493,6 @@ pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
     args.ecx = data;
     args.edi = reg;
     bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
-}
-
-static u_int16_t
-pcibios_get_version(void)
-{
-    struct bios_regs args;
-
-    args.eax = PCIBIOS_BIOS_PRESENT;
-    if (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)))
-	return (0x0000);
-    if (args.edx != 0x20494350)
-	return (0x0000);
-    return (args.ebx & 0xffff);
 }
 
 /*
