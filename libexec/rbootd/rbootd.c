@@ -39,7 +39,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rbootd.c	8.1 (Berkeley) 6/4/93
- *	$Id: rbootd.c,v 1.7 1997/06/29 19:00:15 steve Exp $
  *
  * From: Utah Hdr: rbootd.c 3.1 92/07/06
  * Author: Jeff Forys, University of Utah CSS
@@ -52,7 +51,11 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -69,7 +72,7 @@ static const char sccsid[] = "@(#)rbootd.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include "defs.h"
 
-extern	char *__progname;	/* from crt0.o */
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -107,12 +110,14 @@ main(argc, argv)
 		    case 'i':
 			IntfName = optarg;
 			break;
+		    default:
+			usage();
 		}
 	for (; optind < argc; optind++) {
 		if (ConfigFile == NULL)
 			ConfigFile = argv[optind];
 		else {
-			warnx("too many config files (`%s' ignored)\n",
+			warnx("too many config files (`%s' ignored)",
 			    argv[optind]);
 		}
 	}
@@ -134,7 +139,7 @@ main(argc, argv)
 		(void) signal(SIGUSR2, DebugOff);
 	}
 
-	openlog(__progname, LOG_PID, LOG_DAEMON);
+	openlog("rbootd", LOG_PID, LOG_DAEMON);
 
 	/*
 	 *  If no interface was specified, get one now.
@@ -280,6 +285,13 @@ main(argc, argv)
 			}
 		}
 	}
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: rbootd [-ad] [-i interface] [config_file]\n");
+	exit (1);
 }
 
 /*
