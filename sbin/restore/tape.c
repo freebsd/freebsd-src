@@ -506,10 +506,10 @@ extractfile(name)
 
 	curfile.name = name;
 	curfile.action = USING;
-	timep[0].tv_sec = curfile.dip->di_atime.ts_sec;
-	timep[0].tv_usec = curfile.dip->di_atime.ts_nsec / 1000;
-	timep[1].tv_sec = curfile.dip->di_mtime.ts_sec;
-	timep[1].tv_usec = curfile.dip->di_mtime.ts_nsec / 1000;
+	timep[0].tv_sec = curfile.dip->di_atime.tv_sec;
+	timep[0].tv_usec = curfile.dip->di_atime.tv_nsec / 1000;
+	timep[1].tv_sec = curfile.dip->di_mtime.tv_sec;
+	timep[1].tv_usec = curfile.dip->di_mtime.tv_nsec / 1000;
 	mode = curfile.dip->di_mode;
 	switch (mode & IFMT) {
 
@@ -1037,9 +1037,9 @@ gethead(buf)
 	buf->c_dinode.di_gid = u_ospcl.s_ospcl.c_dinode.odi_gid;
 	buf->c_dinode.di_size = u_ospcl.s_ospcl.c_dinode.odi_size;
 	buf->c_dinode.di_rdev = u_ospcl.s_ospcl.c_dinode.odi_rdev;
-	buf->c_dinode.di_atime.ts_sec = u_ospcl.s_ospcl.c_dinode.odi_atime;
-	buf->c_dinode.di_mtime.ts_sec = u_ospcl.s_ospcl.c_dinode.odi_mtime;
-	buf->c_dinode.di_ctime.ts_sec = u_ospcl.s_ospcl.c_dinode.odi_ctime;
+	buf->c_dinode.di_atime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_atime;
+	buf->c_dinode.di_mtime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_mtime;
+	buf->c_dinode.di_ctime.tv_sec = u_ospcl.s_ospcl.c_dinode.odi_ctime;
 	buf->c_count = u_ospcl.s_ospcl.c_count;
 	bcopy(u_ospcl.s_ospcl.c_addr, buf->c_addr, (long)256);
 	if (u_ospcl.s_ospcl.c_magic != OFS_MAGIC ||
