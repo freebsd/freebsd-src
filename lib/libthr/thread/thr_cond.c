@@ -38,8 +38,15 @@
 #include "thr_private.h"
 
 /*
+ * Proctect two different threads calling a pthread_cond_* function
+ * from accidentally initializing the condition variable twice.
+ */
+static spinlock_t static_cond_lock = _SPINLOCK_INITIALIZER;
+
+/*
  * Prototypes
  */
+static inline int	cond_init(pthread_cond_t *);
 static pthread_t	cond_queue_deq(pthread_cond_t);
 static void		cond_queue_remove(pthread_cond_t, pthread_t);
 static void		cond_queue_enq(pthread_cond_t, pthread_t);
@@ -202,7 +209,7 @@ cond_wait_common(pthread_cond_t * cond, pthread_mutex_t * mutex,
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
 	 */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
+	if (*cond == PTHREAD_COND_INITIALIZER && (rval = cond_init(cond)) != 0)
 		return (rval);
 
 
@@ -363,7 +370,7 @@ cond_signal(pthread_cond_t * cond, int broadcast)
         * If the condition variable is statically initialized, perform dynamic
         * initialization.
         */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
+	if (*cond == PTHREAD_COND_INITIALIZER && (rval = cond_init(cond)) != 0)
 		return (rval);
 
 	COND_LOCK(*cond);
@@ -518,3 +525,14 @@ cond_queue_enq(pthread_cond_t cond, pthread_t pthread)
 	pthread->flags |= PTHREAD_FLAGS_IN_CONDQ;
 	pthread->data.cond = cond;
 }
+
+static inline int
+cond_init(pthread_cond_t *cond)
+{
+	_SPINLOCK(&static_cond_lock);
+	if (*cond == PTHREAD_COND_INITIALIZER)
+		return (_pthread_cond_init(cond, NULL));
+	_SPINUNLOCK(&static_cond_lock);
+	return (0);
+}
+
