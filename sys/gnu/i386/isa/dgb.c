@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.2.2.2 1995/10/13 03:41:22 davidg Exp $
+ *  dgb.c $Id: dgb.c,v 1.2.2.3 1996/06/16 11:50:38 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -14,23 +14,6 @@
  *      Joint Stock Commercial Bank "Chelindbank"
  *      (Chelyabinsk, Russia)
  *      babkin@hq.icb.chel.su
- *
- *  Modified by Oleg Panashchenko
- *	    helg@tav.kiev.ua
- *      - read optimization
- *      - corrections in data flow mechanism
- *      - restoring board memory window state while returning from
- *		  reentrable functions
- *    1996/03/16:
- *      - now several boards can coexist and share the same memory window
- *    1996/03/24:
- *      - eliminated 'b_to_q to a clist..' message while turning off modem 
- *    1996/04/10
- *      - 'static int nports'... - next attempt to drive several boards.
- *        Reported that with this fix it works with 2 boards.
- *    1996/04/20
- *      - Overloading channel (ping -f host) caused 'No buffer space..'
- *        state until slip unit restart. Fixed.
  */
 
 #include "dgb.h"
