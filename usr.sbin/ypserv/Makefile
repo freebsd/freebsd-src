@@ -8,7 +8,10 @@ MAN=	ypserv.8 ypinit.8
 SRCS=	yp_svc.c yp_server.c yp_dblookup.c yp_dnslookup.c \
 	ypxfr_clnt.c yp.h yp_main.c yp_error.c yp_access.c yp_svc_udp.c
 
-CFLAGS+= -I. -DDB_CACHE
+DPADD=	${LIBWRAP}
+LDADD=	-lwrap
+
+CFLAGS+= -I. -DDB_CACHE -DTCP_WRAPPER
 
 CLEANFILES= yp_svc.c ypxfr_clnt.c yp.h
 
