@@ -153,29 +153,29 @@ uhci_pci_attach(device_t self)
 	device_t parent = device_get_parent(self);
 	int rid;
 	void *ih;
-	struct resource *res;
+	struct resource *io_res, *irq_res;
 	int intr;
 	int legsup;
 	int err;
 
 	rid = PCI_UHCI_BASE_REG;
-	res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-				 0, ~0, 1, RF_ACTIVE);
-	if (!res) {
+	io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
+				    0, ~0, 1, RF_ACTIVE);
+	if (!io_res) {
 		device_printf(self, "could not map ports\n");
 		return ENXIO;
         }
 
-	sc->iot = rman_get_bustag(res);
-	sc->ioh = rman_get_bushandle(res);
+	sc->iot = rman_get_bustag(io_res);
+	sc->ioh = rman_get_bushandle(io_res);
 
 	/* disable interrupts */
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	rid = 0;
-	res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				 RF_SHAREABLE | RF_ACTIVE);
-	if (res == NULL) {
+	irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				     RF_SHAREABLE | RF_ACTIVE);
+	if (irq_res == NULL) {
 		device_printf(self, "could not allocate irq\n");
 		err = ENOMEM;
 		goto bad1;
@@ -229,7 +229,7 @@ uhci_pci_attach(device_t self)
 		goto bad3;
 	}
 
-	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
+	err = BUS_SETUP_INTR(parent, self, irq_res, INTR_TYPE_BIO,
 			       (driver_intr_t *) uhci_intr, sc, &ih);
 	if (err) {
 		device_printf(self, "could not setup irq, %d\n", err);
@@ -265,7 +265,7 @@ bad4:
 	 */
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
-	err = BUS_TEARDOWN_INTR(parent, self, res, ih);
+	err = BUS_TEARDOWN_INTR(parent, self, irq_res, ih);
 	if (err)
 		/* XXX or should we panic? */
 		device_printf(self, "could not tear down irq, %d\n",
@@ -274,9 +274,9 @@ bad4:
 bad3:
 	device_delete_child(self, sc->sc_bus.bdev);
 bad2:
-	bus_delete_resource(self, SYS_RES_IRQ, 0);
+	bus_release_resource(self, SYS_RES_IRQ, 0, irq_res);
 bad1:
-	bus_delete_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG);
+	bus_release_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG, io_res);
 	return err;
 }
 
