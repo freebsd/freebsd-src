@@ -44,8 +44,8 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility informs the system whether you want to be notified when mail arrives
-during the current terminal session.
+utility informs the system whether you want to be notified on your terminal
+when mail arrives.
 .Pp
 Affected is the first terminal associated with the standard input,
 standard output or standard error file descriptor, in that order.
@@ -77,6 +77,11 @@ to be executed at each login.
 When bell notification is enabled, only two bell characters (ASCII \\007) 
 will be printed on your terminal whenever mail arrives.
 .Pp
+If no arguments are given,
+.Nm
+displays the present notification status of the terminal to the 
+standard output.
+.Pp
 The
 .Nm
 utility operates asynchronously.
@@ -100,6 +105,11 @@ Notification is disabled.
 .It >1
 An error occurred.
 .El
+.Sh COMPATIBILITY
+Previous versions of the
+.Nm
+utility affected the terminal attached to standard error without first
+trying the standard input or output devices.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr mail 1 ,
