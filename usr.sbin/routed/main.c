@@ -35,235 +35,723 @@
 static char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
 
-#ifndef lint
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
-/*
- * Routing Table Management Daemon
- */
+#ident "$Revision: 1.1.3.1 $"
+
 #include "defs.h"
-#include <sys/ioctl.h>
+#include "pathnames.h"
+#ifdef sgi
+#include "math.h"
+#endif
+#include <signal.h>
+#include <fcntl.h>
 #include <sys/file.h>
 
-#include <net/if.h>
+pid_t	mypid;
 
-#include <sys/errno.h>
-#include <sys/signal.h>
-#include <sys/syslog.h>
-#include "pathnames.h"
+naddr	myaddr;				/* system address */
+char	myname[MAXHOSTNAMELEN+1];
 
-int	supplier = -1;		/* process should supply updates */
-int	gateway = 0;		/* 1 if we are a gateway to parts beyond */
-int	debug = 0;
-int	bufspace = 127*1024;	/* max. input buffer size to request */
+int	supplier;			/* supply or broadcast updates */
+int	supplier_set;
+int	ipforwarding = 1;		/* kernel forwarding on */
 
-struct	rip *msg = (struct rip *)packet;
-void	hup(), rtdeleteall(), sigtrace(), timer();
+int	default_gateway;		/* 1=advertise default */
+int	background = 1;
+int	ridhosts;			/* 1=reduce host routes */
+int	ppp_noage;			/* do not age routes on quiet links */
+int	mhome;				/* 1=want multi-homed host route */
+int	advertise_mhome;		/* 1=must continue adverising it */
+int	auth_ok = 1;			/* 1=ignore auth if we do not care */
 
-main(argc, argv)
-	int argc;
-	char *argv[];
+struct timeval epoch;			/* when started */
+struct timeval clk, prev_clk;
+struct timeval now;			/* current idea of time */
+time_t	now_stale;
+time_t	now_garbage;
+
+struct timeval next_bcast;		/* next general broadcast */
+struct timeval no_flash = {EPOCH+SUPPLY_INTERVAL};  /* inhibit flash update */
+
+fd_set	fdbits;
+int	sock_max;
+int	rip_sock = -1;			/* RIP socket */
+struct interface *rip_sock_mcast;	/* current multicast interface */
+int	rt_sock;			/* routing socket */
+int	rt_sock_seqno;
+
+
+static  int get_rip_sock(naddr, int);
+static void timevalsub(struct timeval *, struct timeval *, struct timeval *);
+
+int
+main(int argc,
+     char *argv[])
 {
-	int n, cc, nfd, omask, tflags = 0;
-	struct sockaddr from;
-	struct timeval *tvp, waittime;
-	struct itimerval itval;
-	register struct rip *query = msg;
+	int n, mib[4], off;
+	size_t len;
+	char *p, *q;
+	struct timeval wtime, wtime2;
+	time_t dt;
 	fd_set ibits;
-	u_char retry;
+	naddr p_addr_h, p_mask;
+	struct parm *parmp;
+	struct interface *ifp;
+	char *tracename = 0;
 
-	argv0 = argv;
-#if BSD >= 43
+
 	openlog("routed", LOG_PID | LOG_ODELAY, LOG_DAEMON);
-	setlogmask(LOG_UPTO(LOG_WARNING));
-#else
-	openlog("routed", LOG_PID);
-#define LOG_UPTO(x) (x)
-#define setlogmask(x) (x)
-#endif
-	sp = getservbyname("router", "udp");
-	if (sp == NULL) {
-		fprintf(stderr, "routed: router/udp: unknown service\n");
-		exit(1);
-	}
-	addr.sin_family = AF_INET;
-	addr.sin_port = sp->s_port;
-	r = socket(AF_ROUTE, SOCK_RAW, 0);
-	/* later, get smart about lookingforinterfaces */
-	if (r)
-		shutdown(r, 0); /* for now, don't want reponses */
-	else {
-		fprintf(stderr, "routed: no routing socket\n");
-		exit(1);
-	}
-	s = getsocket(AF_INET, SOCK_DGRAM, &addr);
-	if (s < 0)
-		exit(1);
-	argv++, argc--;
-	while (argc > 0 && **argv == '-') {
-		if (strcmp(*argv, "-s") == 0) {
+	ftrace = stdout;
+
+	gettimeofday(&clk, 0);
+	prev_clk = clk;
+	epoch = clk;
+	epoch.tv_sec -= EPOCH;
+	now.tv_sec = EPOCH;
+	now_stale = EPOCH - STALE_TIME;
+	now_garbage = EPOCH - GARBAGE_TIME;
+	wtime.tv_sec = 0;
+
+	(void)gethostname(myname, sizeof(myname)-1);
+	(void)gethost(myname, &myaddr);
+
+	while ((n = getopt(argc, argv, "sqdghmpAtT:F:P:")) != EOF) {
+		switch (n) {
+		case 's':
 			supplier = 1;
-			argv++, argc--;
-			continue;
-		}
-		if (strcmp(*argv, "-q") == 0) {
+			supplier_set = 1;
+			break;
+
+		case 'q':
 			supplier = 0;
-			argv++, argc--;
-			continue;
+			supplier_set = 1;
+			break;
+
+		case 'd':
+			background = 0;
+			break;
+
+		case 'g':
+			default_gateway = 1;
+			break;
+
+		case 'h':		/* suppress extra host routes */
+			ridhosts = 1;
+			break;
+
+		case 'm':		/* advertise host route */
+			mhome = 1;	/* on multi-homed hosts */
+			break;
+
+		case 'p':		/* do not age routes on quiet */
+			ppp_noage = 1;	/* point-to-point links */
+			break;
+
+		case 'A':
+			/* Ignore authentication if we do not care.
+			 * Crazy as it is, that is what RFC 1723 requires.
+			 */
+			auth_ok = 0;
+			break;
+
+		case 't':
+			new_tracelevel++;
+			break;
+
+		case 'T':
+			tracename = optarg;
+			break;
+
+		case 'F':		/* minimal routes for SLIP */
+			n = HOPCNT_INFINITY-2;
+			p = strchr(optarg,',');
+			if (p && *p != '\0') {
+				n = (int)strtoul(p+1, &q, 0);
+				if (*q == '\0'
+				    && n <= HOPCNT_INFINITY-2
+				    && n >= 1)
+					*p = '\0';
+			}
+			if (!getnet(optarg, &p_addr_h, &p_mask)) {
+				msglog("routed:  bad network;"
+				       " \"-F %s\" ignored",
+				       optarg);
+				break;
+			}
+			parmp = (struct parm*)malloc(sizeof(*parmp));
+			bzero(parmp, sizeof(*parmp));
+			parmp->parm_next = parms;
+			parms = parmp;
+			parmp->parm_a_h = p_addr_h;
+			parmp->parm_m = p_mask;
+			parmp->parm_d_metric = n;
+			break;
+
+		case 'P':
+			/* handle arbirary, (usually) per-interface
+			 * parameters.
+			 */
+			p = parse_parms(optarg);
+			if (p != 0) {
+				msglog("routed: bad \"%s\" in \"%s\"",
+				       p, optarg);
+			}
+			break;
+
+		default:
+			goto usage;
 		}
-		if (strcmp(*argv, "-t") == 0) {
-			tflags++;
-			setlogmask(LOG_UPTO(LOG_DEBUG));
-			argv++, argc--;
-			continue;
-		}
-		if (strcmp(*argv, "-d") == 0) {
-			debug++;
-			setlogmask(LOG_UPTO(LOG_DEBUG));
-			argv++, argc--;
-			continue;
-		}
-		if (strcmp(*argv, "-g") == 0) {
-			gateway = 1;
-			argv++, argc--;
-			continue;
-		}
-		fprintf(stderr,
-			"usage: routed [ -s ] [ -q ] [ -t ] [ -g ]\n");
-		exit(1);
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (tracename == 0 && argc >= 1) {
+		tracename = *argv++;
+		argc--;
+	}
+	if (argc != 0) {
+usage:
+		logbad(0, "usage: routed [-sqdghmpAt] [-T /tracefile]"
+		       " [-F net[,metric]] [-P parms]");
 	}
 
-	if (debug == 0 && tflags == 0)
-		daemon(0, 0);
-	/*
-	 * Any extra argument is considered
-	 * a tracing log file.
-	 */
-	if (argc > 0)
-		traceon(*argv);
-	while (tflags-- > 0)
-		bumploglevel();
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET;
+	mib[2] = IPPROTO_IP;
+	mib[3] = IPCTL_FORWARDING;
+	len = sizeof(ipforwarding);
+	if (sysctl(mib, 4, &ipforwarding, &len, 0, 0) < 0)
+		LOGERR("sysctl(IPCTL_FORWARDING)");
 
-	(void) gettimeofday(&now, (struct timezone *)NULL);
-	/*
-	 * Collect an initial view of the world by
-	 * checking the interface configuration and the gateway kludge
-	 * file.  Then, send a request packet on all
-	 * directly connected networks to find out what
-	 * everyone else thinks.
-	 */
-	rtinit();
-	ifinit();
-	gwkludge();
-	if (gateway > 0)
-		rtdefault();
-	if (supplier < 0)
+	if (!ipforwarding) {
+		if (supplier)
+			msglog("-s incompatible with ipforwarding=0");
+		if (default_gateway) {
+			msglog("-g incompatible with ipforwarding=0");
+			default_gateway = 0;
+		}
 		supplier = 0;
-	query->rip_cmd = RIPCMD_REQUEST;
-	query->rip_vers = RIPVERSION;
-	if (sizeof(query->rip_nets[0].rip_dst.sa_family) > 1)	/* XXX */
-		query->rip_nets[0].rip_dst.sa_family = htons((u_short)AF_UNSPEC);
-	else
-		query->rip_nets[0].rip_dst.sa_family = AF_UNSPEC;
-	query->rip_nets[0].rip_metric = htonl((u_long)HOPCNT_INFINITY);
-	toall(sndmsg);
-	signal(SIGALRM, timer);
-	signal(SIGHUP, hup);
-	signal(SIGTERM, hup);
-	signal(SIGINT, rtdeleteall);
-	signal(SIGUSR1, sigtrace);
-	signal(SIGUSR2, sigtrace);
-	itval.it_interval.tv_sec = TIMER_RATE;
-	itval.it_value.tv_sec = TIMER_RATE;
-	itval.it_interval.tv_usec = 0;
-	itval.it_value.tv_usec = 0;
-	srandom(getpid());
-	if (setitimer(ITIMER_REAL, &itval, (struct itimerval *)NULL) < 0)
-		syslog(LOG_ERR, "setitimer: %m\n");
+		supplier_set = 1;
+	}
+	if (default_gateway) {
+		if (supplier_set && !supplier) {
+			msglog("-g and -q incompatible");
+		} else {
+			supplier = 1;
+			supplier_set = 1;
+		}
+	}
 
-	FD_ZERO(&ibits);
-	nfd = s + 1;			/* 1 + max(fd's) */
+
+	/* get into the background */
+	if (background) {
+#ifdef sgi
+		if (_daemonize(_DF_NOCHDIR,STDOUT_FILENO,STDERR_FILENO,-1)<0)
+			BADERR(0, "_daemonize()");
+#else
+		if (daemon(1, 1) < 0)
+			BADERR(0,"daemon()");
+#endif
+	}
+
+	mypid = getpid();
+	srandom((int)(clk.tv_sec ^ clk.tv_usec ^ mypid));
+
+	/* prepare socket connected to the kernel.
+	 */
+	rt_sock = socket(AF_ROUTE, SOCK_RAW, 0);
+	if (rt_sock < 0)
+		BADERR(1,"rt_sock = socket()");
+	if (fcntl(rt_sock, F_SETFL, O_NONBLOCK) == -1)
+		logbad(1, "fcntl(rt_sock) O_NONBLOCK: %s", strerror(errno));
+	off = 0;
+	if (setsockopt(rt_sock, SOL_SOCKET,SO_USELOOPBACK,
+		       &off,sizeof(off)) < 0)
+		LOGERR("setsockopt(SO_USELOOPBACK,0)");
+
+	/* prepare Router Discovery socket.
+	 */
+	rdisc_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	if (rdisc_sock < 0)
+		BADERR(1,"rdisc_sock = socket()");
+	fix_sock(rdisc_sock,"rdisc_sock");
+
+	fix_select();
+
+
+	if (background && new_tracelevel == 0)
+		ftrace = 0;
+	if (tracename != 0) {
+		trace_on(tracename, 1);
+		if (new_tracelevel == 0)
+			new_tracelevel = 1;
+	}
+	set_tracelevel();
+
+	/* initialize radix tree */
+	rtinit();
+
+	/* Pick a random part of the second for our output to minimize
+	 * collisions.
+	 *
+	 * Start broadcasting after hearing from other routers, and
+	 * at a random time so a bunch of systems do not get synchronized
+	 * after a power failure.
+	 */
+	intvl_random(&next_bcast, EPOCH+MIN_WAITTIME, EPOCH+SUPPLY_INTERVAL);
+	age_timer.tv_usec = next_bcast.tv_usec;
+	age_timer.tv_sec = EPOCH+MIN_WAITTIME;
+	rdisc_timer = next_bcast;
+	ifinit_timer.tv_usec = next_bcast.tv_usec;
+
+	signal(SIGALRM, sigalrm);
+	signal(SIGHUP, sigterm);
+	signal(SIGTERM, sigterm);
+	signal(SIGINT, sigterm);
+	signal(SIGUSR1, sigtrace_on);
+	signal(SIGUSR2, sigtrace_off);
+
+	/* If we have an interface to the wide, wide world, add an entry for
+	 * an Internet default route to the internal tables and advertise it.
+	 * This route is not added to the kernel routes, but this entry
+	 * prevents us from listening to default routes from other
+	 * systems and installing them in the kernel.
+	 */
+	if (default_gateway > 0)
+		rtadd(RIP_DEFAULT, 0, myaddr, myaddr, 1, 0, RS_GW, 0);
+
+	/* Collect an initial view of the world by checking the interface
+	 * configuration and the kludge file.
+	 */
+	gwkludge();
+	ifinit();
+	flush_kern();
+
+	/* Ask for routes */
+	rip_query();
+	if (!supplier)
+		rdisc_sol();
+
+	/* Loop forever, listening and broadcasting.
+	 */
 	for (;;) {
-		FD_SET(s, &ibits);
-		/*
-		 * If we need a dynamic update that was held off,
-		 * needupdate will be set, and nextbcast is the time
-		 * by which we want select to return.  Compute time
-		 * until dynamic update should be sent, and select only
-		 * until then.  If we have already passed nextbcast,
-		 * just poll.
-		 */
-		if (needupdate) {
-			waittime = nextbcast;
-			timevalsub(&waittime, &now);
-			if (waittime.tv_sec < 0) {
-				waittime.tv_sec = 0;
-				waittime.tv_usec = 0;
-			}
-			if (traceactions)
-				fprintf(ftrace,
-				 "select until dynamic update %d/%d sec/usec\n",
-				    waittime.tv_sec, waittime.tv_usec);
-			tvp = &waittime;
-		} else
-			tvp = (struct timeval *)NULL;
-		n = select(nfd, &ibits, 0, 0, tvp);
-		if (n <= 0) {
-			/*
-			 * Need delayed dynamic update if select returned
-			 * nothing and we timed out.  Otherwise, ignore
-			 * errors (e.g. EINTR).
+		prev_clk = clk;
+		gettimeofday(&clk, 0);
+		timevalsub(&wtime2, &clk, &prev_clk);
+		if (wtime2.tv_sec < 0
+		    || wtime2.tv_sec > wtime.tv_sec + 5) {
+			/* Deal with time changes before other housekeeping to
+			 * keep everything straight.
 			 */
-			if (n < 0) {
-				if (errno == EINTR)
-					continue;
-				syslog(LOG_ERR, "select: %m");
+			dt = wtime2.tv_sec;
+			if (dt > 0)
+				dt -= wtime.tv_sec;
+			trace_msg("time changed by %d sec\n", dt);
+			epoch.tv_sec += dt;
+		}
+		timevalsub(&now, &clk, &epoch);
+		now_stale = now.tv_sec - STALE_TIME;
+		now_garbage = now.tv_sec - GARBAGE_TIME;
+
+		/* deal with interrupts that should affect tracing */
+		set_tracelevel();
+
+		if (stopint != 0) {
+			if (supplier) {
+				rip_bcast(0);
+				rdisc_adv();
 			}
-			omask = sigblock(sigmask(SIGALRM));
-			if (n == 0 && needupdate) {
-				if (traceactions)
-					fprintf(ftrace,
-					    "send delayed dynamic update\n");
-				(void) gettimeofday(&now,
-					    (struct timezone *)NULL);
-				toall(supply, RTS_CHANGED,
-				    (struct interface *)NULL);
-				lastbcast = now;
-				needupdate = 0;
-				nextbcast.tv_sec = 0;
-			}
-			sigsetmask(omask);
+			trace_off("exiting","");
+			exit(stopint | 128);
+		}
+
+		/* look for new or dead interfaces */
+		timevalsub(&wtime, &ifinit_timer, &now);
+		if (wtime.tv_sec <= 0) {
+			ifinit();
+			rip_query();
 			continue;
 		}
-		(void) gettimeofday(&now, (struct timezone *)NULL);
-		omask = sigblock(sigmask(SIGALRM));
-#ifdef doesntwork
-/*
-printf("s %d, ibits %x index %d, mod %d, sh %x, or %x &ibits %x\n",
-	s,
-	ibits.fds_bits[0],
-	(s)/(sizeof(fd_mask) * 8),
-	((s) % (sizeof(fd_mask) * 8)),
-	(1 << ((s) % (sizeof(fd_mask) * 8))),
-	ibits.fds_bits[(s)/(sizeof(fd_mask) * 8)] & (1 << ((s) % (sizeof(fd_mask) * 8))),
-	&ibits
-	);
-*/
-		if (FD_ISSET(s, &ibits))
-#else
-		if (ibits.fds_bits[s/32] & (1 << s))
-#endif
-			process(s);
-		/* handle ICMP redirects */
-		sigsetmask(omask);
+
+		/* If it is time, then broadcast our routes.
+		 */
+		if (supplier || advertise_mhome) {
+			timevalsub(&wtime2, &next_bcast, &now);
+			if (wtime2.tv_sec <= 0) {
+				/* Synchronize the aging and broadcast
+				 * timers to minimize awakenings
+				 */
+				age(0);
+
+				rip_bcast(0);
+
+				/* It is desirable to send routing updates
+				 * regularly.  So schedule the next update
+				 * 30 seconds after the previous one was
+				 * secheduled, instead of 30 seconds after
+				 * the previous update was finished.
+				 * Even if we just started after discovering
+				 * a 2nd interface or were otherwise delayed,
+				 * pick a 30-second aniversary of the
+				 * original broadcast time.
+				 */
+				n = 1 + (0-wtime2.tv_sec)/SUPPLY_INTERVAL;
+				next_bcast.tv_sec += n*SUPPLY_INTERVAL;
+
+				continue;
+			}
+
+			if (timercmp(&wtime2, &wtime, <))
+				wtime = wtime2;
+		}
+
+		/* If we need a flash update, either do it now or
+		 * set the delay to end when it is time.
+		 *
+		 * If we are within MIN_WAITTIME seconds of a full update,
+		 * do not bother.
+		 */
+		if (need_flash
+		    && supplier
+		    && no_flash.tv_sec+MIN_WAITTIME < next_bcast.tv_sec) {
+			/* accurate to the millisecond */
+			if (!timercmp(&no_flash, &now, >))
+				rip_bcast(1);
+			timevalsub(&wtime2, &no_flash, &now);
+			if (timercmp(&wtime2, &wtime, <))
+				wtime = wtime2;
+		}
+
+		/* trigger the main aging timer.
+		 */
+		timevalsub(&wtime2, &age_timer, &now);
+		if (wtime2.tv_sec <= 0) {
+			age(0);
+			continue;
+		}
+		if (timercmp(&wtime2, &wtime, <))
+			wtime = wtime2;
+
+		/* update the kernel routing table
+		 */
+		timevalsub(&wtime2, &need_kern, &now);
+		if (wtime2.tv_sec <= 0) {
+			age(0);
+			continue;
+		}
+		if (timercmp(&wtime2, &wtime, <))
+			wtime = wtime2;
+
+		/* take care of router discovery,
+		 * but do it to the millisecond
+		 */
+		if (!timercmp(&rdisc_timer, &now, >)) {
+			rdisc_age(0);
+			continue;
+		}
+		timevalsub(&wtime2, &rdisc_timer, &now);
+		if (timercmp(&wtime2, &wtime, <))
+			wtime = wtime2;
+
+
+		/* wait for input or a timer to expire.
+		 */
+		ibits = fdbits;
+		trace_flush();
+		n = select(sock_max, &ibits, 0, 0, &wtime);
+		if (n <= 0) {
+			if (n < 0 && errno != EINTR && errno != EAGAIN)
+				BADERR(1,"select");
+			continue;
+		}
+
+		if (FD_ISSET(rt_sock, &ibits)) {
+			read_rt();
+			n--;
+		}
+		if (rdisc_sock >= 0 && FD_ISSET(rdisc_sock, &ibits)) {
+			read_d();
+			n--;
+		}
+		if (rip_sock >= 0 && FD_ISSET(rip_sock, &ibits)) {
+			read_rip(rip_sock, 0);
+			n--;
+		}
+
+		for (ifp = ifnet; n > 0 && 0 != ifp; ifp = ifp->int_next) {
+			if (ifp->int_rip_sock >= 0
+			    && FD_ISSET(ifp->int_rip_sock, &ibits)) {
+				read_rip(ifp->int_rip_sock, ifp);
+				n--;
+			}
+		}
 	}
 }
 
-timevaladd(t1, t2)
-	struct timeval *t1, *t2;
+
+/* ARGSUSED */
+void
+sigalrm(int sig)
+{
+	/* Historically, SIGALRM would cause the daemon to check for
+	 * new and broken interfaces.
+	 */
+	ifinit_timer.tv_sec = now.tv_sec;
+}
+
+
+/* watch for fatal signals */
+void
+sigterm(int sig)
+{
+	stopint = sig;
+	(void)signal(sig, SIG_DFL);	/* catch it only once */
+}
+
+
+void
+fix_select(void)
+{
+	struct interface *ifp;
+
+
+	FD_ZERO(&fdbits);
+	sock_max = 0;
+
+	FD_SET(rt_sock, &fdbits);
+	if (sock_max <= rt_sock)
+		sock_max = rt_sock+1;
+	if (rip_sock >= 0) {
+		FD_SET(rip_sock, &fdbits);
+		if (sock_max <= rip_sock)
+			sock_max = rip_sock+1;
+	}
+	for (ifp = ifnet; 0 != ifp; ifp = ifp->int_next) {
+		if (ifp->int_rip_sock >= 0) {
+			FD_SET(ifp->int_rip_sock, &fdbits);
+			if (sock_max <= ifp->int_rip_sock)
+				sock_max = ifp->int_rip_sock+1;
+		}
+	}
+	if (rdisc_sock >= 0) {
+		FD_SET(rdisc_sock, &fdbits);
+		if (sock_max <= rdisc_sock)
+			sock_max = rdisc_sock+1;
+	}
+}
+
+
+void
+fix_sock(int sock,
+	 char *name)
+{
+	int on;
+#define MIN_SOCKBUF (4*1024)
+	static int rbuf;
+
+	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1)
+		logbad(1, "fcntl(%s) O_NONBLOCK: %s",
+		       name, strerror(errno));
+	on = 1;
+	if (setsockopt(sock, SOL_SOCKET,SO_BROADCAST,
+		       &on,sizeof(on)) < 0)
+		msglog("setsockopt(%s,SO_BROADCAST): %s",
+		       name, strerror(errno));
+	if (rbuf >= MIN_SOCKBUF) {
+		if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+			       &rbuf, sizeof(rbuf)) < 0)
+			msglog("setsockopt(%s,SO_RCVBUF=%d): %s",
+			       name, rbuf, strerror(errno));
+	} else {
+		for (rbuf = 60*1024; ; rbuf -= 4096) {
+			if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+				       &rbuf, sizeof(rbuf)) == 0) {
+				trace_msg("RCVBUF=%d\n", rbuf);
+				break;
+			}
+			if (rbuf < MIN_SOCKBUF) {
+				msglog("setsockopt(%s,SO_RCVBUF = %d): %s",
+				       name, rbuf, strerror(errno));
+				break;
+			}
+		}
+	}
+}
+
+
+/* get a rip socket
+ */
+static int				/* <0 or file descriptor */
+get_rip_sock(naddr addr,
+	     int serious)		/* 1=failure to bind is serious */
+{
+	struct sockaddr_in sin;
+	unsigned char ttl;
+	int s;
+
+
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+		BADERR(1,"rip_sock = socket()");
+
+	bzero(&sin,sizeof(sin));
+#ifdef _HAVE_SIN_LEN
+	sin.sin_len = sizeof(sin);
+#endif
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(RIP_PORT);
+	sin.sin_addr.s_addr = addr;
+	if (bind(s, (struct sockaddr *)&sin,sizeof(sin)) < 0) {
+		if (serious)
+			BADERR(errno != EADDRINUSE, "bind(rip_sock)");
+		return -1;
+	}
+	fix_sock(s,"rip_sock");
+
+	ttl = 1;
+	if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL,
+		       &ttl, sizeof(ttl)) < 0)
+		DBGERR(1,"rip_sock setsockopt(IP_MULTICAST_TTL)");
+
+	return s;
+}
+
+
+/* turn off main RIP socket */
+void
+rip_off(void)
+{
+	struct interface *ifp;
+	register naddr addr;
+
+
+	if (rip_sock >= 0) {
+		trace_msg("turn off RIP\n");
+
+		(void)close(rip_sock);
+		rip_sock = -1;
+
+		/* get non-broadcast sockets to listen to queries.
+		 */
+		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+			if (ifp->int_rip_sock < 0
+			    && !(ifp->int_state & IS_ALIAS)) {
+				addr = ((ifp->int_if_flags & IFF_POINTOPOINT)
+					? ifp->int_dstaddr
+					: ifp->int_addr);
+				ifp->int_rip_sock = get_rip_sock(addr, 0);
+			}
+		}
+
+		fix_select();
+
+		age(0);
+	}
+}
+
+
+/* Prepare socket used for RIP.
+ */
+void
+rip_on(struct interface *ifp)
+{
+	struct ip_mreq m;
+
+
+	if (rip_sock >= 0) {
+		if (ifp != 0
+		    && 0 == (ifp->int_state & (IS_NO_RIP_IN|IS_PASSIVE))
+		    && (ifp->int_if_flags & IFF_MULTICAST)
+#ifdef MCAST_PPP_BUG
+		    && !(ifp->int_if_flags & IFF_POINTOPOINT)
+#endif
+		    && !(ifp->int_state & IS_ALIAS)) {
+			m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
+			m.imr_interface.s_addr = ((ifp->int_if_flags
+						   & IFF_POINTOPOINT)
+						  ? ifp->int_dstaddr
+						  : ifp->int_addr);
+			if (setsockopt(rip_sock,IPPROTO_IP, IP_ADD_MEMBERSHIP,
+				       &m, sizeof(m)) < 0)
+				DBGERR(1,"setsockopt(IP_ADD_MEMBERSHIP RIP)");
+		}
+		return;
+	}
+
+	if (rip_interfaces > 0 && !rdisc_ok) {
+		trace_msg("turn on RIP\n");
+
+		/* Close all of the query sockets so that we can open
+		 * the main socket.  SO_REUSEPORT is not a solution,
+		 * since that would let two daemons bind to the broadcast
+		 * socket.
+		 */
+		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+			if (ifp->int_rip_sock >= 0) {
+				(void)close(ifp->int_rip_sock);
+				ifp->int_rip_sock = -1;
+			}
+		}
+
+		rip_sock = get_rip_sock(INADDR_ANY, 1);
+		rip_sock_mcast = 0;
+
+		/* Do not advertise anything until we have heard something
+		 */
+		if (next_bcast.tv_sec < now.tv_sec+MIN_WAITTIME)
+			next_bcast.tv_sec = now.tv_sec+MIN_WAITTIME;
+
+		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
+			if ((ifp->int_state & IS_NO_RIP_IN) != IS_NO_RIP_IN)
+				ifp->int_state &= ~IS_RIP_QUERIED;
+
+			if ((ifp->int_if_flags & IFF_MULTICAST)
+			    && !(ifp->int_state & IS_ALIAS)) {
+			    m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
+			    m.imr_interface.s_addr = ifp->int_addr;
+			    if (setsockopt(rip_sock, IPPROTO_IP,
+					   IP_ADD_MEMBERSHIP,
+					   &m, sizeof(m)) < 0)
+				DBGERR(1,"setsockopt(IP_ADD_MEMBERSHIP RIP)");
+			}
+		}
+
+		ifinit_timer.tv_sec = now.tv_sec;
+
+		fix_select();
+
+	} else if (ifp != 0
+		   && ifp->int_rip_sock < 0
+		   && !(ifp->int_state & IS_ALIAS)) {
+		/* RIP is off, so ensure there are sockets on which
+		 * to listen for queries.
+		 */
+		ifp->int_rip_sock = get_rip_sock(ifp->int_addr, 0);
+
+		fix_select();
+	}
+}
+
+
+/* get a random instant in an interval
+ */
+void
+intvl_random(struct timeval *tp,	/* put value here */
+	     u_long lo,			/* value is after this second */
+	     u_long hi)			/* and before this */
+{
+	tp->tv_sec = (time_t)(hi == lo
+			      ? lo
+			      : (lo + random() % ((hi - lo))));
+	tp->tv_usec = random() % 1000000;
+}
+
+
+void
+timevaladd(struct timeval *t1,
+	   struct timeval *t2)
 {
 
 	t1->tv_sec += t2->tv_sec;
@@ -273,79 +761,57 @@ timevaladd(t1, t2)
 	}
 }
 
-timevalsub(t1, t2)
-	struct timeval *t1, *t2;
-{
 
-	t1->tv_sec -= t2->tv_sec;
-	if ((t1->tv_usec -= t2->tv_usec) < 0) {
+/* t1 = t2 - t3
+ */
+static void
+timevalsub(struct timeval *t1,
+	   struct timeval *t2,
+	   struct timeval *t3)
+{
+	t1->tv_sec = t2->tv_sec - t3->tv_sec;
+	if ((t1->tv_usec = t2->tv_usec - t3->tv_usec) < 0) {
 		t1->tv_sec--;
 		t1->tv_usec += 1000000;
 	}
 }
 
-process(fd)
-	int fd;
-{
-	struct sockaddr from;
-	int fromlen, cc;
-	union {
-		char	buf[MAXPACKETSIZE+1];
-		struct	rip rip;
-	} inbuf;
 
-	for (;;) {
-		fromlen = sizeof (from);
-		cc = recvfrom(fd, &inbuf, sizeof (inbuf), 0, &from, &fromlen);
-		if (cc <= 0) {
-			if (cc < 0 && errno != EWOULDBLOCK)
-				perror("recvfrom");
-			break;
-		}
-		if (fromlen != sizeof (struct sockaddr_in))
-			break;
-		rip_input(&from, &inbuf.rip, cc);
+void
+msglog(char *p, ...)
+{
+	va_list args;
+
+	trace_flush();
+
+	va_start(args, p);
+	vsyslog(LOG_ERR, p, args);
+
+	if (ftrace != 0) {
+		if (ftrace == stdout)
+			(void)fputs("routed: ", ftrace);
+		(void)vfprintf(ftrace, p, args);
+		(void)fputc('\n', ftrace);
 	}
 }
 
-getsocket(domain, type, sin)
-	int domain, type;
-	struct sockaddr_in *sin;
-{
-	int sock, on = 1;
 
-	if ((sock = socket(domain, type, 0)) < 0) {
-		perror("socket");
-		syslog(LOG_ERR, "socket: %m");
-		return (-1);
-	}
-#ifdef SO_BROADCAST
-	if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &on, sizeof (on)) < 0) {
-		syslog(LOG_ERR, "setsockopt SO_BROADCAST: %m");
-		close(sock);
-		return (-1);
-	}
-#endif
-#ifdef SO_RCVBUF
-	for (on = bufspace; ; on -= 1024) {
-		if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-		    &on, sizeof (on)) == 0)
-			break;
-		if (on <= 8*1024) {
-			syslog(LOG_ERR, "setsockopt SO_RCVBUF: %m");
-			break;
-		}
-	}
-	if (traceactions)
-		fprintf(ftrace, "recv buf %d\n", on);
-#endif
-	if (bind(sock, (struct sockaddr *)sin, sizeof (*sin)) < 0) {
-		perror("bind");
-		syslog(LOG_ERR, "bind: %m");
-		close(sock);
-		return (-1);
-	}
-	if (fcntl(sock, F_SETFL, O_NONBLOCK) == -1)
-		syslog(LOG_ERR, "fcntl O_NONBLOCK: %m\n");
-	return (sock);
+void
+logbad(int dump, char *p, ...)
+{
+	va_list args;
+
+	trace_flush();
+
+	va_start(args, p);
+	vsyslog(LOG_ERR, p, args);
+
+	(void)fputs("routed: ", stderr);
+	(void)vfprintf(stderr, p, args);
+	(void)fputs("; giving up\n",stderr);
+	(void)fflush(stderr);
+
+	if (dump)
+		abort();
+	exit(1);
 }
