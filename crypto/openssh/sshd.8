@@ -124,7 +124,7 @@ not fork and will only process one connection.  This option is only
 intended for debugging for the server.
 .It Fl f Ar configuration_file
 Specifies the name of the configuration file.  The default is
-.Pa /etc/sshd_config .
+.Pa /etc/ssh/sshd_config .
 .Nm
 refuses to start if there is no configuration file.
 .It Fl g Ar login_grace_time
@@ -134,7 +134,7 @@ this many seconds, the server disconnects and exits.  A value of zero
 indicates no limit.
 .It Fl h Ar host_key_file
 Specifies the file from which the host key is read (default
-.Pa /etc/ssh_host_key ) .
+.Pa /etc/ssh/ssh_host_key ) .
 This option must be given if
 .Nm
 is not run as root (as the normal
@@ -279,7 +279,7 @@ id isn't recognized.  By default login is allowed regardless of
 the user name.
 .It Cm HostKey
 Specifies the file containing the private host key (default
-.Pa /etc/ssh_host_key ) .
+.Pa /etc/ssh/ssh_host_key ) .
 Note that
 .Nm
 does not start if this file is group/world-accessible.
@@ -291,7 +291,7 @@ and
 files will not be used in authentication.
 .Pa /etc/hosts.equiv
 and
-.Pa /etc/shosts.equiv 
+.Pa /etc/ssh/shosts.equiv 
 are still used.  The default is 
 .Dq yes .
 .It Cm IgnoreUserKnownHosts
@@ -514,7 +514,7 @@ Changes to user's home directory.
 If
 .Pa $HOME/.ssh/rc
 exists, runs it; else if
-.Pa /etc/sshrc
+.Pa /etc/ssh/sshrc
 exists, runs
 it; otherwise runs xauth.  The
 .Dq rc
@@ -600,7 +600,7 @@ from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23.\|.\|.\|2334 ylo@niksula
 command="dump /home",no-pty,no-port-forwarding 1024 33 23.\|.\|.\|2323 backup.hut.fi
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The 
-.Pa /etc/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts
 and 
 .Pa $HOME/.ssh/known_hosts
 files contain host public keys for all known hosts.  The global file should
@@ -623,7 +623,7 @@ pattern on the line.
 .Pp
 Bits, exponent, and modulus are taken directly from the host key; they
 can be obtained, e.g., from
-.Pa /etc/ssh_host_key.pub .
+.Pa /etc/ssh/ssh_host_key.pub .
 The optional comment field continues to the end of the line, and is not used.
 .Pp
 Lines starting with
@@ -642,25 +642,25 @@ Note that the lines in these files are typically hundreds of characters
 long, and you definitely don't want to type in the host keys by hand.
 Rather, generate them by a script
 or by taking 
-.Pa /etc/ssh_host_key.pub
+.Pa /etc/ssh/ssh_host_key.pub
 and adding the host names at the front.
 .Ss Examples
 closenet,closenet.hut.fi,.\|.\|.\|,130.233.208.41 1024 37 159.\|.\|.93 closenet.hut.fi
 .Sh FILES
 .Bl -tag -width Ds
-.It Pa /etc/sshd_config
+.It Pa /etc/ssh/sshd_config
 Contains configuration data for
 .Nm sshd .
 This file should be writable by root only, but it is recommended
 (though not necessary) that it be world-readable.
-.It Pa /etc/ssh_host_key
+.It Pa /etc/ssh/ssh_host_key
 Contains the private part of the host key.
 This file should only be owned by root, readable only by root, and not
 accessible to others.
 Note that
 .Nm
 does not start if this file is group/world-accessible.
-.It Pa /etc/ssh_host_key.pub
+.It Pa /etc/ssh/ssh_host_key.pub
 Contains the public part of the host key.
 This file should be world-readable but writable only by
 root.  Its contents should match the private part.  This file is not
@@ -681,14 +681,14 @@ This file must be readable by root (which may on some machines imply
 it being world-readable if the user's home directory resides on an NFS
 volume).  It is recommended that it not be accessible by others.  The
 format of this file is described above.
-.It Pa "/etc/ssh_known_hosts" and "$HOME/.ssh/known_hosts"
+.It Pa "/etc/ssh/ssh_known_hosts" and "$HOME/.ssh/known_hosts"
 These files are consulted when using rhosts with RSA host
 authentication to check the public key of the host.  The key must be
 listed in one of these files to be accepted.
 The client uses the same files
 to verify that the remote host is the one we intended to
 connect. These files should be writable only by root/the owner.
-.Pa /etc/ssh_known_hosts
+.Pa /etc/ssh/ssh_known_hosts
 should be world-readable, and
 .Pa $HOME/.ssh/known_hosts
 can but need not be world-readable.
@@ -750,7 +750,7 @@ user root access.  The only valid use for user names that I can think
 of is in negative entries.
 .Pp
 Note that this warning also applies to rsh/rlogin.
-.It Pa /etc/shosts.equiv
+.It Pa /etc/ssh/shosts.equiv
 This is processed exactly as
 .Pa /etc/hosts.equiv .
 However, this file may be useful in environments that want to run both
@@ -780,13 +780,13 @@ something similar to: "if read proto cookie; then echo add $DISPLAY
 $proto $cookie | xauth -q -; fi".
 .Pp
 If this file does not exist,
-.Pa /etc/sshrc
+.Pa /etc/ssh/sshrc
 is run, and if that
 does not exist either, xauth is used to store the cookie.
 .Pp
 This file should be writable only by the user, and need not be
 readable by anyone else.
-.It Pa /etc/sshrc
+.It Pa /etc/ssh/sshrc
 Like
 .Pa $HOME/.ssh/rc .
 This can be used to specify
