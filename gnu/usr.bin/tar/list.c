@@ -568,7 +568,7 @@ print_header ()
   extern long baserec;
 
   if (f_sayblock)
-    fprintf (msg_file, "rec %10d: ", baserec + (ar_record - ar_block));
+    fprintf (msg_file, "rec %10ld: ", baserec + (ar_record - ar_block));
   /* annofile(msg_file, (char *)NULL); */
 
   if (f_verbose <= 1)
@@ -653,7 +653,7 @@ print_header ()
       else
 	{
 	  user = uform;
-	  (void) sprintf (uform, "%d",
+	  (void) sprintf (uform, "%ld",
 			  from_oct (8, head->header.uid));
 	}
       if (*head->header.gname && head_standard)
@@ -663,7 +663,7 @@ print_header ()
       else
 	{
 	  group = gform;
-	  (void) sprintf (gform, "%d",
+	  (void) sprintf (gform, "%ld",
 			  from_oct (8, head->header.gid));
 	}
 
@@ -779,7 +779,7 @@ pr_mkdir (pathname, length, mode)
       demode ((unsigned) mode, modes + 1);
 
       if (f_sayblock)
-	fprintf (msg_file, "rec %10d: ", baserec + (ar_record - ar_block));
+	fprintf (msg_file, "rec %10ld: ", baserec + (ar_record - ar_block));
       /* annofile(msg_file, (char *)NULL); */
       name = quote_copy_string (pathname);
       if (!name)

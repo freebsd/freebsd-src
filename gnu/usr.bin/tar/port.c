@@ -1116,7 +1116,7 @@ msg (char *str,...)
   fflush (msg_file);
   fprintf (stderr, "%s: ", tar);
   if (f_sayblock)
-    fprintf (stderr, "rec %d: ", baserec + (ar_record - ar_block));
+    fprintf (stderr, "rec %ld: ", baserec + (ar_record - ar_block));
   vfprintf (stderr, str, args);
   va_end (args);
   putc ('\n', stderr);
@@ -1133,7 +1133,7 @@ msg_perror (char *str,...)
   fflush (msg_file);
   fprintf (stderr, "%s: ", tar);
   if (f_sayblock)
-    fprintf (stderr, "rec %d: ", baserec + (ar_record - ar_block));
+    fprintf (stderr, "rec %ld: ", baserec + (ar_record - ar_block));
   va_start (args, str);
   vfprintf (stderr, str, args);
   va_end (args);

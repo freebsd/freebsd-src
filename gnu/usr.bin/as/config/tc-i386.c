@@ -25,7 +25,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: tc-i386.c,v 1.8 1997/02/22 15:44:23 peter Exp $";
 #endif
 
 #include "as.h"
@@ -443,7 +443,7 @@ static void pe (e)
 expressionS *e;
 {
 	fprintf (stdout, "    segment       %s\n", segment_name (e->X_seg));
-	fprintf (stdout, "    add_number    %d (%x)\n",
+	fprintf (stdout, "    add_number    %ld (%lx)\n",
 		 e->X_add_number, e->X_add_number);
 	if (e->X_add_symbol) {
 		fprintf (stdout, "    add_symbol    ");
