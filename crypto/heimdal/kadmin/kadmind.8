@@ -124,14 +124,15 @@ representing the default set of ports.
 .Sh FILES
 .Pa /var/heimdal/kadmind.acl
 .Sh EXAMPLES
-This will cause kadmind to listen to port 4711 in addition to any
+This will cause
+.Nm
+to listen to port 4711 in addition to any
 compiled in defaults:
-.Bd -literal -offset indent
-# kadmind --ports="+ 4711" &
-.Ed
+.Pp
+.D1 Nm Fl -ports Ns Li "=\*[q]+ 4711\*[q] &"
 .\".Sh DIAGNOSTICS
 .Sh SEE ALSO
-.Xr kdc 8 ,
 .Xr kadmin 1 ,
-.Xr kpasswdd 8 ,
-.Xr kpasswd 1
+.Xr kpasswd 1 ,
+.Xr kdc 8 ,
+.Xr kpasswdd 8

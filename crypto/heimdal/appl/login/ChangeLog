@@ -1,3 +1,26 @@
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* login.c (do_login): add setpcred
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* login.c: move osf2c magic earlier.  from Mark Davies
+	<mark@MCS.VUW.AC.NZ>
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): dereference result from krb5_princ_realm.
+	noted by Thomas Nystrom <thn@saeab.se>
+
+2001-06-04  Assar Westerlund  <assar@sics.se>
+
+	* update copyright messages on Wietse Venema's code.
+
+2001-05-31  Assar Westerlund  <assar@sics.se>
+
+	* login.c (krb5_to4): look for [realms]<realm>krb4_get_tickets to
+	decide whether to get kerberos 4 tickets
+
 2001-02-08  Assar Westerlund  <assar@sics.se>
 
 	* utmp_login.c, utmpx_login.c: try to write a useful string as

@@ -1,3 +1,34 @@
+2001-10-27  Assar Westerlund  <assar@sics.se>
+
+	* pam/Makefile.am: actually build the pam module
+
+2001-09-13  Assar Westerlund  <assar@sics.se>
+
+	* sia/sia.c: move krb5_error_code inside a ifdef KRB5
+	* sia/sia_locl.h: move roken.h earlier to grab definition of
+	socklen_t
+
+2001-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* sia/krb5_matrix.conf: athena -> heimdal
+
+2001-07-17  Assar Westerlund  <assar@sics.se>
+
+	* sia/Makefile.am: use make-rpath to sort rpath arguments
+
+2001-07-15  Assar Westerlund  <assar@sics.se>
+
+	* afskauthlib/Makefile.am: use LIB_des, so that we link with
+	libcrypto/libdes from krb4
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* sia/Makefile.am: use $(CC) instead of ld for linking
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* sia/Makefile.am: use LDFLAGS, and conditional libdes
+
 2001-03-06  Assar Westerlund  <assar@sics.se>
 
 	* sia/Makefile.am: make sure of using -rpath and not -R when

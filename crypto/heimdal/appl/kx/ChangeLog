@@ -1,3 +1,24 @@
+2001-09-17  Assar Westerlund  <assar@sics.se>
+
+	* kx.h: add a kludge to make it build on aix (that defines NOERROR
+	in both sys/stream.h and arpa/nameser.h and considers that a fatal
+	error)
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* common.c (connect_local_xsocket): handle a tcp socket as last
+	resort
+
+	* rxterm.in: add -K (send arguments to kx)
+	* rxtelnet.in: add -K (send arguments to kx)
+	
+2001-06-21  Assar Westerlund  <assar@sics.se>
+
+	* rxterm.in: add -b for pointing to the rsh program.  from
+	<mikan@mikan.net>
+	* rxtelnet.in: add -b for pointing to the telnet program.  from
+	<mikan@mikan.net>
+
 2001-01-17  Johan Danielsson  <joda@pdc.kth.se>
 
 	* common.c: don't write to string constants
@@ -17,6 +38,10 @@
 	to select on
 	* krb4.c (krb4_copy_encrypted): check that fds are not too large
 	to select on
+
+2000-07-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: use conditional for X
 
 2000-06-10  Assar Westerlund  <assar@sics.se>
 

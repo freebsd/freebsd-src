@@ -1,3 +1,7 @@
+2001-09-04  Assar Westerlund  <assar@sics.se>
+
+	* push.c (doit): check return values from snprintf being negative
+
 2000-12-31  Assar Westerlund  <assar@sics.se>
 
 	* push.c (main): handle krb5_init_context failure consistently

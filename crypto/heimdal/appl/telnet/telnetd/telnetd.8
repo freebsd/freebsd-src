@@ -50,6 +50,7 @@ protocol server
 .Op Fl u Ar len
 .Op Fl debug
 .Op Fl L Ar /bin/login
+.Op Fl y
 .Op Ar port
 .Sh DESCRIPTION
 The
@@ -248,8 +249,12 @@ authentication, and
 can be used to temporarily disable
 a specific authentication type without having to recompile
 .Nm telnetd .
-.It Fl L pathname
+.It Fl L Ar pathname
 Specify pathname to an alternative login program.
+.It Fl y
+Makes
+.Nm
+not warn when a user is trying to login with a cleartext password.
 .El
 .Pp
 .Nm Telnetd
@@ -444,7 +449,6 @@ is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
 .El
-.Sh ENVIRONMENT
 .Sh FILES
 .Bl -tag -width /etc/services -compact
 .It Pa /etc/services

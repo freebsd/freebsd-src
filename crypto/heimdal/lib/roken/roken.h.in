@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.157 2001/05/18 18:00:12 assar Exp $ */
+/* $Id: roken.h.in,v 1.162 2001/10/21 23:24:33 assar Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,11 +92,14 @@ struct sockaddr_dl;
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
+#ifdef HAVE_ARPA_NAMESER_H
+#include <arpa/nameser.h>
+#endif
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
-#endif
-#ifdef HAVE_WINSOCK_H
-#include <winsock.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -567,6 +570,19 @@ char *
 strptime (const char *buf, const char *format, struct tm *timeptr);
 #endif
 
+#ifndef HAVE_EMALLOC
+void *emalloc (size_t);
+#endif
+#ifndef HAVE_ECALLOC
+void *ecalloc(size_t num, size_t sz);
+#endif
+#ifndef HAVE_EREALLOC
+void *erealloc (void *, size_t);
+#endif
+#ifndef HAVE_ESTRDUP
+char *estrdup (const char *);
+#endif
+
 /*
  * kludges and such
  */
@@ -617,5 +633,10 @@ const char *getprogname(void);
 
 void set_progname(char *argv0);
 const char *get_progname(void);
+
+#ifndef HAVE_LOCALTIME_R
+struct tm *
+localtime_r(const time_t *timer, struct tm *result);
+#endif
 
 ROKEN_CPP_END

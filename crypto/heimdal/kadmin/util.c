@@ -34,12 +34,15 @@
 #include "kadmin_locl.h"
 #include <parse_units.h>
 
-RCSID("$Id: util.c,v 1.32 2001/05/14 06:17:20 assar Exp $");
+RCSID("$Id: util.c,v 1.36 2001/08/27 23:07:36 assar Exp $");
 
 /*
  * util.c - functions for parsing, unparsing, and editing different
  * types of data used in kadmin.
  */
+
+static int
+get_response(const char *prompt, const char *def, char *buf, size_t len);
 
 /*
  * attributes 
@@ -130,7 +133,8 @@ edit_attributes (const char *prompt, krb5_flags *attr, int *mask, int bit)
 
     attributes2str(*attr, buf, sizeof(buf));
     for (;;) {
-	get_response("Attributes", buf, resp, sizeof(resp));
+	if(get_response("Attributes", buf, resp, sizeof(resp)) != 0)
+	    return 1;
 	if (resp[0] == '\0')
 	    break;
 	if (parse_attributes (resp, attr, mask, bit) == 0)
@@ -242,7 +246,8 @@ edit_timet (const char *prompt, krb5_timestamp *value, int *mask, int bit)
     time_t2str (*value, buf, sizeof (buf), 0);
 
     for (;;) {
-	get_response(prompt, buf, resp, sizeof(resp));
+	if(get_response(prompt, buf, resp, sizeof(resp)) != 0)
+	    return 1;
 	if (parse_timet (resp, value, mask, bit) == 0)
 	    break;
     }
@@ -327,7 +332,8 @@ edit_deltat (const char *prompt, krb5_deltat *value, int *mask, int bit)
 
     deltat2str(*value, buf, sizeof(buf));
     for (;;) {
-	get_response(prompt, buf, resp, sizeof(resp));
+	if(get_response(prompt, buf, resp, sizeof(resp)) != 0)
+	    return 1;
 	if (parse_deltat (resp, value, mask, bit) == 0)
 	    break;
     }
@@ -338,44 +344,63 @@ edit_deltat (const char *prompt, krb5_deltat *value, int *mask, int bit)
  * allow the user to edit `ent'
  */
 
-int
-edit_entry(kadm5_principal_ent_t ent, int *mask,
-	   kadm5_principal_ent_t default_ent, int default_mask)
+void
+set_defaults(kadm5_principal_ent_t ent, int *mask,
+	     kadm5_principal_ent_t default_ent, int default_mask)
 {
     if (default_ent
 	&& (default_mask & KADM5_MAX_LIFE)
 	&& !(*mask & KADM5_MAX_LIFE))
 	ent->max_life = default_ent->max_life;
-    edit_deltat ("Max ticket life", &ent->max_life, mask,
-		 KADM5_MAX_LIFE);
 
     if (default_ent
 	&& (default_mask & KADM5_MAX_RLIFE)
 	&& !(*mask & KADM5_MAX_RLIFE))
 	ent->max_renewable_life = default_ent->max_renewable_life;
-    edit_deltat ("Max renewable life", &ent->max_renewable_life, mask,
-		 KADM5_MAX_RLIFE);
 
     if (default_ent
 	&& (default_mask & KADM5_PRINC_EXPIRE_TIME)
 	&& !(*mask & KADM5_PRINC_EXPIRE_TIME))
 	ent->princ_expire_time = default_ent->princ_expire_time;
-    edit_timet ("Principal expiration time", &ent->princ_expire_time, mask,
-	       KADM5_PRINC_EXPIRE_TIME);
 
     if (default_ent
 	&& (default_mask & KADM5_PW_EXPIRATION)
 	&& !(*mask & KADM5_PW_EXPIRATION))
 	ent->pw_expiration = default_ent->pw_expiration;
-    edit_timet ("Password expiration time", &ent->pw_expiration, mask,
-	       KADM5_PW_EXPIRATION);
 
     if (default_ent
 	&& (default_mask & KADM5_ATTRIBUTES)
 	&& !(*mask & KADM5_ATTRIBUTES))
 	ent->attributes = default_ent->attributes & ~KRB5_KDB_DISALLOW_ALL_TIX;
-    edit_attributes ("Attributes", &ent->attributes, mask,
-		     KADM5_ATTRIBUTES);
+}
+
+int
+edit_entry(kadm5_principal_ent_t ent, int *mask,
+	   kadm5_principal_ent_t default_ent, int default_mask)
+{
+
+    set_defaults(ent, mask, default_ent, default_mask);
+
+    if(edit_deltat ("Max ticket life", &ent->max_life, mask,
+		    KADM5_MAX_LIFE) != 0)
+	return 1;
+    
+    if(edit_deltat ("Max renewable life", &ent->max_renewable_life, mask,
+		    KADM5_MAX_RLIFE) != 0)
+	return 1;
+
+    if(edit_timet ("Principal expiration time", &ent->princ_expire_time, mask,
+		   KADM5_PRINC_EXPIRE_TIME) != 0)
+	return 1;
+
+    if(edit_timet ("Password expiration time", &ent->pw_expiration, mask,
+		   KADM5_PW_EXPIRATION) != 0)
+	return 1;
+
+    if(edit_attributes ("Attributes", &ent->attributes, mask,
+			KADM5_ATTRIBUTES) != 0)
+	return 1;
+
     return 0;
 }
 
@@ -512,20 +537,45 @@ foreach_principal(const char *exp,
  * in `buf, len'
  */
 
-void
+#include <setjmp.h>
+
+static sig_atomic_t num_intrs;
+static jmp_buf jmpbuf;
+
+static void
+interrupt(int sig)
+{
+    longjmp(jmpbuf, 1);
+}
+
+static int
 get_response(const char *prompt, const char *def, char *buf, size_t len)
 {
     char *p;
+    void (*osig)(int);
+
+    num_intrs = 0;
+    osig = signal(SIGINT, interrupt);
+    if(setjmp(jmpbuf)) {
+	signal(SIGINT, osig);
+	return 1;
+    }
 
     printf("%s [%s]:", prompt, def);
-    if(fgets(buf, len, stdin) == NULL)
-	*buf = '\0';
+    if(fgets(buf, len, stdin) == NULL) {
+	int save_errno = errno;
+	if(ferror(stdin))
+	    krb5_err(context, 1, save_errno, "<stdin>");
+	signal(SIGINT, osig);
+	return 1;
+    }
     p = strchr(buf, '\n');
     if(p)
 	*p = '\0';
     if(strcmp(buf, "") == 0)
-	strncpy(buf, def, len);
-    buf[len-1] = 0;
+	strlcpy(buf, def, len);
+    signal(SIGINT, osig);
+    return 0;
 }
 
 /*

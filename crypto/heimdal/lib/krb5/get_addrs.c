@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: get_addrs.c,v 1.41 2001/05/14 06:14:46 assar Exp $");
+RCSID("$Id: get_addrs.c,v 1.43 2001/07/03 18:43:57 assar Exp $");
 
 #ifdef __osf__
 /* hate */
@@ -102,6 +102,7 @@ find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
     struct ifaddrs *ifa0, *ifa;
     krb5_error_code ret = ENXIO; 
     int num, idx;
+    krb5_addresses ignore_addresses;
 
     res->val = NULL;
 
@@ -123,9 +124,17 @@ find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
 	return (ENXIO);
     }
 
+    if (flags & EXTRA_ADDRESSES) {
+	/* we'll remove the addresses we don't care about */
+	ret = krb5_get_ignore_addresses(context, &ignore_addresses);
+	if(ret)
+	    return ret;
+    }
+
     /* Allocate storage for them. */
     res->val = calloc(num, sizeof(*res->val));
     if (res->val == NULL) {
+	krb5_free_addresses(context, &ignore_addresses);
 	freeifaddrs(ifa0);
 	krb5_set_error_string (context, "malloc: out of memory");
 	return (ENOMEM);
@@ -139,7 +148,6 @@ find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
 	    continue;
 	if (krb5_sockaddr_uninteresting(ifa->ifa_addr))
 	    continue;
-
 	if ((ifa->ifa_flags & IFF_LOOPBACK) != 0) {
 	    /* We'll deal with the LOOP_IF_NONE case later. */
 	    if ((flags & LOOP) == 0)
@@ -156,6 +164,16 @@ find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
 	     */
 	    continue;
 	}
+	/* possibly skip this address? */
+	if((flags & EXTRA_ADDRESSES) && 
+	   krb5_address_search(context, &res->val[idx], &ignore_addresses)) {
+	    krb5_free_address(context, &res->val[idx]);
+	    flags &= ~LOOP_IF_NONE; /* we actually found an address,
+                                       so don't add any loop-back
+                                       addresses */
+	    continue;
+	}
+
 	idx++;
     }
 
@@ -181,11 +199,19 @@ find_all_addresses (krb5_context context, krb5_addresses *res, int flags)
 		     */
 		    continue;
 		}
+		if((flags & EXTRA_ADDRESSES) && 
+		   krb5_address_search(context, &res->val[idx], 
+				       &ignore_addresses)) {
+		    krb5_free_address(context, &res->val[idx]);
+		    continue;
+		}
 		idx++;
 	    }
 	}
     }
 
+    if (flags & EXTRA_ADDRESSES)
+	krb5_free_addresses(context, &ignore_addresses);
     freeifaddrs(ifa0);
     if (ret)
 	free(res->val);
@@ -207,8 +233,8 @@ get_addrs_int (krb5_context context, krb5_addresses *res, int flags)
 	ret = 0;
 
     if(ret == 0 && (flags & EXTRA_ADDRESSES)) {
-	/* append user specified addresses */
 	krb5_addresses a;
+	/* append user specified addresses */
 	ret = krb5_get_extra_addresses(context, &a);
 	if(ret) {
 	    krb5_free_addresses(context, res);
@@ -220,6 +246,10 @@ get_addrs_int (krb5_context context, krb5_addresses *res, int flags)
 	    return ret;
 	}
 	krb5_free_addresses(context, &a);
+    }
+    if(res->len == 0) {
+	free(res->val);
+	res->val = NULL;
     }
     return ret;
 }

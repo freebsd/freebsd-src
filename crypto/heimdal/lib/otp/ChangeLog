@@ -1,3 +1,7 @@
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add required library dependencies
+
 2001-01-30  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libotp_la_LDFLAGS): bump version to 1:2:1

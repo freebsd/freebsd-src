@@ -1,3 +1,51 @@
+2002-02-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* init_c.c: we have to create our own param struct before
+	marshaling
+
+2001-09-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: link with LIB_pidfile
+
+	* iprop.h: include util.h for pidfile
+
+2001-08-31  Assar Westerlund  <assar@sics.se>
+
+	* ipropd_slave.c (main): syslog with the correct name
+
+2001-08-30  Jacques Vidrine <n@nectar.com>
+
+	* ipropd_slave.c, ipropd_master.c (main): call pidfile
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5srv_la_LDFLAGS): set version to 7:4:0
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* acl.c (fetch_acl): do not return bogus flags and re-organize
+	function
+
+	* Makefile.am: rename variable name to avoid error from current
+	automake
+
+2001-08-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* set_keys.c: add easier afs configuration, defaulting to the
+	local realm in lower case; also try to remove duplicate salts
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add required library dependencies
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libkadm5clnt_la_LDFLAGS): set version to 6:2:2
+
+2001-06-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* init_c.c: call krb5_get_init_creds_opt_set_default_flags
+
 2001-02-19  Johan Danielsson  <joda@pdc.kth.se>
 
 	* replay_log.c: add --{start-end}-version flags to replay just

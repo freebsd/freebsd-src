@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_krb4.c,v 1.8 2001/05/16 22:23:31 assar Exp $");
+RCSID("$Id: keytab_krb4.c,v 1.9 2002/02/11 14:05:10 joda Exp $");
 
 struct krb4_kt_data {
     char *filename;
@@ -87,6 +87,31 @@ struct krb4_cursor_extra_data {
     int num;
 };
 
+static int
+open_flock(const char *filename, int flags, int mode)
+{
+    int lock_mode;
+    int tries = 0;
+    int fd = open(filename, flags, mode);
+    if(fd < 0)
+	return fd;
+    if((flags & O_ACCMODE) == O_RDONLY)
+	lock_mode = LOCK_SH | LOCK_NB;
+    else
+	lock_mode = LOCK_EX | LOCK_NB;
+    while(flock(fd, lock_mode) < 0) {
+	if(++tries < 5) {
+	    sleep(1);
+	} else {
+	    close(fd);
+	    return -1;
+	}
+    }
+    return fd;
+}
+
+
+
 static krb5_error_code
 krb4_kt_start_seq_get_int (krb5_context context,
 			   krb5_keytab id,
@@ -105,7 +130,7 @@ krb4_kt_start_seq_get_int (krb5_context context,
     ed->entry.principal = NULL;
     ed->num = -1;
     c->data = ed;
-    c->fd = open (d->filename, flags);
+    c->fd = open_flock (d->filename, flags, 0);
     if (c->fd < 0) {
 	ret = errno;
 	free (ed);
@@ -228,24 +253,45 @@ krb4_kt_end_seq_get (krb5_context context,
 }
 
 static krb5_error_code
-krb4_kt_add_entry (krb5_context context,
-		   krb5_keytab id,
-		   krb5_keytab_entry *entry)
+krb4_store_keytab_entry(krb5_context context, 
+			krb5_keytab_entry *entry, 
+			krb5_storage *sp)
 {
-    struct krb4_kt_data *d = id->data;
     krb5_error_code ret;
-    int fd;
 #define ANAME_SZ 40
 #define INST_SZ 40
 #define REALM_SZ 40
     char service[ANAME_SZ];
     char instance[INST_SZ];
     char realm[REALM_SZ];
-    int8_t kvno;
+    ret = krb5_524_conv_principal (context, entry->principal,
+				   service, instance, realm);
+    if (ret)
+	return ret;
+    if (entry->keyblock.keyvalue.length == 8
+	&& entry->keyblock.keytype == ETYPE_DES_CBC_MD5) {
+	ret = krb5_store_stringz(sp, service);
+	ret = krb5_store_stringz(sp, instance);
+	ret = krb5_store_stringz(sp, realm);
+	ret = krb5_store_int8(sp, entry->vno);
+	ret = (*sp->store)(sp, entry->keyblock.keyvalue.data, 8);
+    }
+    return 0;
+}
 
-    fd = open (d->filename, O_WRONLY | O_APPEND | O_BINARY);
+static krb5_error_code
+krb4_kt_add_entry (krb5_context context,
+		   krb5_keytab id,
+		   krb5_keytab_entry *entry)
+{
+    struct krb4_kt_data *d = id->data;
+    krb5_storage *sp;
+    krb5_error_code ret;
+    int fd;
+
+    fd = open_flock (d->filename, O_WRONLY | O_APPEND | O_BINARY, 0);
     if (fd < 0) {
-	fd = open (d->filename,
+	fd = open_flock (d->filename,
 		   O_WRONLY | O_APPEND | O_BINARY | O_CREAT, 0600);
 	if (fd < 0) {
 	    ret = errno;
@@ -254,24 +300,103 @@ krb4_kt_add_entry (krb5_context context,
 	    return ret;
 	}
     }
-    ret = krb5_524_conv_principal (context, entry->principal,
-				   service, instance, realm);
-    if (ret) {
-	close (fd);
-	return ret;
+    sp = krb5_storage_from_fd(fd);
+    if(sp == NULL) {
+	close(fd);
+	return ENOMEM;
     }
-    if (entry->keyblock.keyvalue.length == 8
-	&& entry->keyblock.keytype == ETYPE_DES_CBC_MD5) {
-	write(fd, service, strlen(service)+1);
-	write(fd, instance, strlen(instance)+1);
-	write(fd, realm, strlen(realm)+1);
-	kvno = entry->vno;
-	write(fd, &kvno, sizeof(kvno));
-	write(fd, entry->keyblock.keyvalue.data, 8);
-    }
-    close (fd);
-    return 0;
+    ret = krb4_store_keytab_entry(context, entry, sp);
+    krb5_storage_free(sp);
+    if(close (fd) < 0)
+	return errno;
+    return ret;
 }
+
+static krb5_error_code
+krb4_kt_remove_entry(krb5_context context,
+		 krb5_keytab id,
+		 krb5_keytab_entry *entry)
+{
+    struct krb4_kt_data *d = id->data;
+    krb5_error_code ret;
+    krb5_keytab_entry e;
+    krb5_kt_cursor cursor;
+    krb5_storage *sp;
+    int remove_flag = 0;
+    
+    sp = krb5_storage_emem();
+    ret = krb5_kt_start_seq_get(context, id, &cursor);
+    while(krb5_kt_next_entry(context, id, &e, &cursor) == 0) {
+	if(!krb5_kt_compare(context, &e, entry->principal, 
+			    entry->vno, entry->keyblock.keytype)) {
+	    ret = krb4_store_keytab_entry(context, &e, sp);
+	    if(ret) {
+		krb5_storage_free(sp);
+		return ret;
+	    }
+	} else
+	    remove_flag = 1;
+    }
+    krb5_kt_end_seq_get(context, id, &cursor);
+    if(remove_flag) {
+	int fd;
+	unsigned char buf[1024];
+	ssize_t n;
+	krb5_data data;
+	struct stat st;
+
+	krb5_storage_to_data(sp, &data);
+	krb5_storage_free(sp);
+
+	fd = open_flock (d->filename, O_RDWR | O_BINARY, 0);
+	if(fd < 0) {
+	    memset(data.data, 0, data.length);
+	    krb5_data_free(&data);
+	    if(errno == EACCES || errno == EROFS) 
+		return KRB5_KT_NOWRITE;
+	    return errno;
+	}
+
+	if(write(fd, data.data, data.length) != data.length) {
+	    memset(data.data, 0, data.length);
+	    close(fd);
+	    krb5_set_error_string(context, "failed writing to \"%s\"", d->filename);
+	    return errno;
+	}
+	memset(data.data, 0, data.length);
+	if(fstat(fd, &st) < 0) {
+	    close(fd);
+	    krb5_set_error_string(context, "failed getting size of \"%s\"", d->filename);
+	    return errno;
+	}
+	st.st_size -= data.length;
+	memset(buf, 0, sizeof(buf));
+	while(st.st_size > 0) {
+	    n = min(st.st_size, sizeof(buf));
+	    n = write(fd, buf, n);
+	    if(n <= 0) {
+		close(fd);
+		krb5_set_error_string(context, "failed writing to \"%s\"", d->filename);
+		return errno;
+		
+	    }
+	    st.st_size -= n;
+	}
+	if(ftruncate(fd, data.length) < 0) {
+	    close(fd);
+	    krb5_set_error_string(context, "failed truncating \"%s\"", d->filename);
+	    return errno;
+	}
+	krb5_data_free(&data);
+	if(close(fd) < 0) {
+	    krb5_set_error_string(context, "error closing \"%s\"", d->filename);
+	    return errno;
+	}
+	return 0;
+    } else
+	return KRB5_KT_NOTFOUND;
+}
+
 
 const krb5_kt_ops krb4_fkt_ops = {
     "krb4",
@@ -283,7 +408,7 @@ const krb5_kt_ops krb4_fkt_ops = {
     krb4_kt_next_entry,
     krb4_kt_end_seq_get,
     krb4_kt_add_entry,		/* add_entry */
-    NULL			/* remove_entry */
+    krb4_kt_remove_entry	/* remove_entry */
 };
 
 const krb5_kt_ops krb5_srvtab_fkt_ops = {
@@ -296,5 +421,5 @@ const krb5_kt_ops krb5_srvtab_fkt_ops = {
     krb4_kt_next_entry,
     krb4_kt_end_seq_get,
     krb4_kt_add_entry,		/* add_entry */
-    NULL			/* remove_entry */
+    krb4_kt_remove_entry	/* remove_entry */
 };

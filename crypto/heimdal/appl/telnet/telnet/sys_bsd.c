@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: sys_bsd.c,v 1.27 2001/03/06 20:10:14 assar Exp $");
+RCSID("$Id: sys_bsd.c,v 1.29 2001/12/20 20:39:52 joda Exp $");
 
 /*
  * The following routines try to encapsulate what is system dependent
@@ -491,9 +491,8 @@ TerminalNewMode(int f)
 	}
     } else {
         sigset_t sm;
-#ifdef	SIGINFO
-	RETSIGTYPE ayt_status(int);
 
+#ifdef	SIGINFO
 	signal(SIGINFO, ayt_status);
 #endif
 #ifdef	SIGTSTP
@@ -652,10 +651,17 @@ deadpeer(int sig)
 	longjmp(peerdied, -1);
 }
 
+int intr_happened = 0;
+int intr_waiting = 0;
+
     /* ARGSUSED */
 static RETSIGTYPE
 intr(int sig)
 {
+    if (intr_waiting) {
+	intr_happened = 1;
+	return;
+    }
     if (localchars) {
 	intp();
 	return;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2000, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: log.c,v 1.26 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: log.c,v 1.27 2002/02/04 10:48:33 joda Exp $");
 
 struct facility {
     int min;
@@ -363,7 +363,7 @@ krb5_closelog(krb5_context context,
 {
     int i;
     for(i = 0; i < fac->len; i++)
-	(*fac->val[i].close)(&fac->val[i].data);
+	(*fac->val[i].close)(fac->val[i].data);
     return 0;
 }
 

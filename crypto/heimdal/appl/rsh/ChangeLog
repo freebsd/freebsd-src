@@ -1,3 +1,30 @@
+2001-11-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.c: make the syslog messages somewhat more informative
+
+2001-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: only complain about encryption flag when old
+	authentication is requested
+
+2001-08-07  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rsh.c: don't try broken auth if rresvport failed; try to give
+	some more informative error messages
+
+2001-07-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rshd.8: add an EXAMPLE
+	* rshd.8: manual page
+	* rshd.c: add some compat flags
+	* rsh.1: manual page
+	* rsh.c: iff -d, set the SO_DEBUG flags of the stdout and stderr
+	socket; implement parsing user@host
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* rshd.c (fatal): use vsnprintf correctly
+
 2001-02-07  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am: add login_access

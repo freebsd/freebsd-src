@@ -108,7 +108,7 @@ forwarded, to convert it to a DCE context. If there is no TGT, an
 attempt will be made to join an existing PAG for the local userid, and
 Kerberos principal. If there are existing PAGs, and a forwarded TGT,
 k5dcecon will check the lifetime of the forwarded TGT, and if it is
-less then the lifetime of the PAG, it will just join the PAG. If it
+less than the lifetime of the PAG, it will just join the PAG. If it
 is greater, it will refresh the PAG using the forwarded TGT. 
 This approach has the advantage of not requiring many new tickets from
 having to be obtained, and allows one to refresh a DCE context, or use
@@ -242,7 +242,7 @@ You should build the testpag routine and make sure it works before
 adding all the other mods. If it fails you can still use the klogind
 and telnetd with the k5prelogin and k5dcelogin code. 
 
-If you intend to install with a prefix other then /krb5, change:
+If you intend to install with a prefix other than /krb5, change:
 DPAGAIX and K5DCECON in k5dfspag.c; the three references in
 k5prelogin.c; and the DESTDIR in the Makefile.
 

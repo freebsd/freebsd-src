@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 #ifndef TEST
 #include "ftpd_locl.h"
 
-RCSID("$Id: ls.c,v 1.20 2001/01/25 01:33:15 joda Exp $");
+RCSID("$Id: ls.c,v 1.23 2001/09/14 11:32:52 joda Exp $");
 
 #else
 #include <stdio.h>
@@ -49,14 +49,21 @@ RCSID("$Id: ls.c,v 1.20 2001/01/25 01:33:15 joda Exp $");
 
 #define sec_fprintf2 fprintf
 #define sec_fflush fflush
-void
-builtin_ls(FILE *out, const char *file);
+static void list_files(FILE *out, const char **files, int n_files, int flags);
+static int parse_flags(const char *options);
+
 int
 main(int argc, char **argv)
 {
-    int i;
-    for(i = 1; i < argc; i++)
-	builtin_ls(stdout, argv[i]);
+    int i = 1;
+    int flags;
+    if(argc > 1 && argv[1][0] == '-') {
+	flags = parse_flags(argv[1]);
+	i = 2;
+    } else
+	flags = parse_flags(NULL);
+
+    list_files(stdout, (const char **)argv + i, argc - i, flags);
     return 0;
 }
 #endif
@@ -107,6 +114,11 @@ free_fileinfo(struct fileinfo *f)
 #define LS_DISP_LONG	(1 << 8)
 #define LS_DISP_COLUMN	(2 << 8)
 #define LS_DISP_CROSS	(3 << 8)
+#define LS_SHOW_ALL	(1 << 10)
+#define LS_RECURSIVE	(1 << 11)
+#define LS_EXTRA_BLANK	(1 << 12)
+#define LS_SHOW_DIRNAME	(1 << 13)
+#define LS_DIR_FLAG	(1 << 14)	/* these files come via list_dir */
 
 #ifndef S_ISTXT
 #define S_ISTXT S_ISVTX
@@ -120,19 +132,25 @@ free_fileinfo(struct fileinfo *f)
 #define S_ISLNK(mode)   (((mode) & _S_IFMT) == S_IFLNK)
 #endif
 
+static size_t
+block_convert(size_t blocks)
+{
+#ifdef S_BLKSIZE
+    return blocks * S_BLKSIZE / 1024;
+#else
+    return blocks * 512 / 1024;
+#endif
+}
+
 static void
-make_fileinfo(const char *filename, struct fileinfo *file, int flags)
+make_fileinfo(FILE *out, const char *filename, struct fileinfo *file, int flags)
 {
     char buf[128];
     int file_type = 0;
     struct stat *st = &file->st;
 
     file->inode = st->st_ino;
-#ifdef S_BLKSIZE
-    file->bsize = st->st_blocks * S_BLKSIZE / 1024;
-#else
-    file->bsize = st->st_blocks * 512 / 1024;
-#endif
+    file->bsize = block_convert(st->st_blocks);
 
     if(S_ISDIR(st->st_mode)) {
 	file->mode[0] = 'd';
@@ -251,7 +269,7 @@ make_fileinfo(const char *filename, struct fileinfo *file, int flags)
 	    buf[n] = '\0';
 	    file->link = strdup(buf);
 	} else
-	    warn("%s: readlink", filename);
+	    sec_fprintf2(out, "readlink(%s): %s", filename, strerror(errno));
     }
 }
 
@@ -443,11 +461,20 @@ lstat_file (const char *file, struct stat *sb)
     return lstat (file, sb);
 }
 
+#define IS_DOT_DOTDOT(X) ((X)[0] == '.' && ((X)[1] == '\0' || \
+				((X)[1] == '.' && (X)[2] == '\0')))
+
 static void
 list_files(FILE *out, const char **files, int n_files, int flags)
 {
     struct fileinfo *fi;
     int i;
+    int *dirs = NULL;
+    size_t total_blocks = 0;
+    int n_print = 0;
+
+    if(n_files > 1)
+	flags |= LS_SHOW_DIRNAME;
 
     fi = calloc(n_files, sizeof(*fi));
     if (fi == NULL) {
@@ -459,12 +486,23 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	    sec_fprintf2(out, "%s: %s\r\n", files[i], strerror(errno));
 	    fi[i].filename = NULL;
 	} else {
-	    if((flags & LS_DIRS) == 0 && S_ISDIR(fi[i].st.st_mode)) {
-		if(n_files > 1)
-		    sec_fprintf2(out, "%s:\r\n", files[i]);
-		list_dir(out, files[i], flags);
-	    } else {
-		make_fileinfo(files[i], &fi[i], flags);
+	    int include_in_list = 1;
+	    total_blocks += block_convert(fi[i].st.st_blocks);
+	    if(S_ISDIR(fi[i].st.st_mode)) {
+		if(dirs == NULL)
+		    dirs = calloc(n_files, sizeof(*dirs));
+		if(dirs == NULL) {
+		    sec_fprintf2(out, "%s: %s\r\n", 
+				 files[i], strerror(errno));
+		    goto out;
+		}
+		dirs[i] = 1;
+		if((flags & LS_DIRS) == 0)
+		    include_in_list = 0;
+	    }
+	    if(include_in_list) {
+		make_fileinfo(out, files[i], &fi[i], flags);
+		n_print++;
 	    }
 	}
     }
@@ -521,7 +559,9 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	max_inode = log10(max_inode);
 	max_bsize = log10(max_bsize);
 	max_n_link = log10(max_n_link);
-
+	
+	if(n_print > 0)
+	    sec_fprintf2(out, "total %lu\r\n", (unsigned long)total_blocks);
 	if(flags & LS_SORT_REVERSE)
 	    for(i = n_files - 1; i >= 0; i--)
 		print_file(out,
@@ -553,6 +593,7 @@ list_files(FILE *out, const char **files, int n_files, int flags)
     } else if(DISP_MODE(flags) == LS_DISP_COLUMN || 
 	      DISP_MODE(flags) == LS_DISP_CROSS) {
 	int max_len = 0;
+	int size_len = 0;
 	int num_files = n_files;
 	int columns;
 	int j;
@@ -563,14 +604,30 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	    }
 	    if(strlen(fi[i].filename) > max_len)
 		max_len = strlen(fi[i].filename);
+	    if(log10(fi[i].bsize) > size_len)
+		size_len = log10(fi[i].bsize);
 	}
-	columns = 80 / (max_len + 1); /* get space between columns */
-	max_len = 80 / columns;
+	if(num_files == 0)
+	    goto next;
+	if(flags & LS_SIZE) {
+	    columns = 80 / (size_len + 1 + max_len + 1);
+	    max_len = 80 / columns - size_len - 1;
+	} else {
+	    columns = 80 / (max_len + 1); /* get space between columns */
+	    max_len = 80 / columns;
+	}
+	if(flags & LS_SIZE)
+	    sec_fprintf2(out, "total %lu\r\n", 
+			 (unsigned long)total_blocks);
 	if(DISP_MODE(flags) == LS_DISP_CROSS) {
 	    for(i = 0, j = 0; i < n_files; i++) {
 		if(fi[i].filename == NULL)
 		    continue;
-		sec_fprintf2(out, "%-*s", max_len, fi[i].filename);
+		if(flags & LS_SIZE)
+		    sec_fprintf2(out, "%*u %-*s", size_len, fi[i].bsize, 
+				 max_len, fi[i].filename);
+		else
+		    sec_fprintf2(out, "%-*s", max_len, fi[i].filename);
 		j++;
 		if(j == columns) {
 		    sec_fprintf2(out, "\r\n");
@@ -578,7 +635,7 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 		}
 	    }
 	    if(j > 0)
-		    sec_fprintf2(out, "\r\n");
+		sec_fprintf2(out, "\r\n");
 	} else {
 	    int skip = (num_files + columns - 1) / columns;
 	    j = 0;
@@ -586,7 +643,11 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 		for(j = i; j < n_files;) {
 		    while(j < n_files && fi[j].filename == NULL)
 			j++;
-		    sec_fprintf2(out, "%-*s", max_len, fi[j].filename);
+		    if(flags & LS_SIZE)
+			sec_fprintf2(out, "%*u %-*s", size_len, fi[j].bsize, 
+				     max_len, fi[j].filename);
+		    else
+			sec_fprintf2(out, "%-*s", max_len, fi[j].filename);
 		    j += skip;
 		}
 		sec_fprintf2(out, "\r\n");
@@ -599,9 +660,32 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 	    sec_fprintf2(out, "%s\r\n", fi[i].filename);
 	}
     }
+ next:
+    if(((flags & LS_DIRS) == 0 || (flags & LS_RECURSIVE)) && dirs != NULL) {
+	for(i = 0; i < n_files; i++) {
+	    if(dirs[i]) {
+		const char *p = strrchr(files[i], '/');
+		if(p == NULL)
+		    p = files[i];
+		else 
+		    p++;
+		if(!(flags & LS_DIR_FLAG) || !IS_DOT_DOTDOT(p)) {
+		    if((flags & LS_SHOW_DIRNAME)) {
+			if ((flags & LS_EXTRA_BLANK))
+			    sec_fprintf2(out, "\r\n");
+			sec_fprintf2(out, "%s:\r\n", files[i]);
+		    }
+		    list_dir(out, files[i], flags | LS_DIRS | LS_EXTRA_BLANK);
+		}
+	    }
+	}
+    }
+ out:
     for(i = 0; i < n_files; i++)
 	free_fileinfo(&fi[i]);
     free(fi);
+    if(dirs != NULL)
+	free(dirs);
 }
 
 static void
@@ -612,6 +696,22 @@ free_files (char **files, int n)
     for (i = 0; i < n; ++i)
 	free (files[i]);
     free (files);
+}
+
+static int
+hide_file(const char *filename, int flags)
+{
+    if(filename[0] != '.')
+	return 0;
+    if((flags & LS_IGNORE_DOT))
+	return 1;
+    if(filename[1] == '\0' || (filename[1] == '.' && filename[2] == '\0')) {
+	if((flags & LS_SHOW_ALL))
+	    return 0;
+	else
+	    return 1;
+    }
+    return 0;
 }
 
 static void
@@ -629,14 +729,8 @@ list_dir(FILE *out, const char *directory, int flags)
     while((ent = readdir(d)) != NULL) {
 	void *tmp;
 
-	if(ent->d_name[0] == '.') {
-	    if (flags & LS_IGNORE_DOT)
-	        continue;
-	    if (ent->d_name[1] == 0) /* Ignore . */
-	        continue;
-	    if (ent->d_name[1] == '.' && ent->d_name[2] == 0) /* Ignore .. */
-	        continue;
-	}
+	if(hide_file(ent->d_name, flags))
+	    continue;
 	tmp = realloc(files, (n_files + 1) * sizeof(*files));
 	if (tmp == NULL) {
 	    sec_fprintf2(out, "%s: out of memory\r\n", directory);
@@ -655,62 +749,96 @@ list_dir(FILE *out, const char *directory, int flags)
 	++n_files;
     }
     closedir(d);
-    list_files(out, (const char**)files, n_files, flags | LS_DIRS);
+    list_files(out, (const char**)files, n_files, flags | LS_DIR_FLAG);
+}
+
+static int
+parse_flags(const char *options)
+{
+#ifdef TEST
+    int flags = LS_SORT_NAME | LS_IGNORE_DOT | LS_DISP_COLUMN;
+#else
+    int flags = LS_SORT_NAME | LS_IGNORE_DOT | LS_DISP_LONG;
+#endif
+
+    const char *p;
+    if(options == NULL || *options != '-')
+	return flags;
+    for(p = options + 1; *p; p++) {
+	switch(*p) {
+	case '1':
+	    flags = (flags & ~LS_DISP_MODE);
+	    break;
+	case 'a':
+	    flags |= LS_SHOW_ALL;
+	    /*FALLTHROUGH*/
+	case 'A':
+	    flags &= ~LS_IGNORE_DOT;
+	    break;
+	case 'C':
+	    flags = (flags & ~LS_DISP_MODE) | LS_DISP_COLUMN;
+	    break;
+	case 'd':
+	    flags |= LS_DIRS;
+	    break;
+	case 'f':
+	    flags = (flags & ~LS_SORT_MODE);
+	    break;
+	case 'F':
+	    flags |= LS_TYPE;
+	    break;
+	case 'i':
+	    flags |= LS_INODE;
+	    break;
+	case 'l':
+	    flags = (flags & ~LS_DISP_MODE) | LS_DISP_LONG;
+	    break;
+	case 'r':
+	    flags |= LS_SORT_REVERSE;
+	    break;
+	case 'R':
+	    flags |= LS_RECURSIVE;
+	    break;
+	case 's':
+	    flags |= LS_SIZE;
+	    break;
+	case 'S':
+	    flags = (flags & ~LS_SORT_MODE) | LS_SORT_SIZE;
+	    break;
+	case 't':
+	    flags = (flags & ~LS_SORT_MODE) | LS_SORT_MTIME;
+	    break;
+	case 'x':
+	    flags = (flags & ~LS_DISP_MODE) | LS_DISP_CROSS;
+	    break;
+	    /* these are a bunch of unimplemented flags from BSD ls */
+	case 'k': /* display sizes in kB */
+	case 'c': /* last change time */
+	case 'L': /* list symlink target */
+	case 'm': /* stream output */
+	case 'o': /* BSD file flags */
+	case 'p': /* display / after directories */
+	case 'q': /* print non-graphic characters */
+	case 'u': /* use last access time */
+	case 'T': /* display complete time */
+	case 'W': /* include whiteouts */
+	    break;
+	}
+    }
+    return flags;
 }
 
 void
 builtin_ls(FILE *out, const char *file)
 {
-    int flags = LS_SORT_NAME | LS_IGNORE_DOT | LS_DISP_LONG;
+    int flags;
 
     if(*file == '-') {
-	const char *p;
-	for(p = file + 1; *p; p++) {
-	    switch(*p) {
-	    case '1':
-		flags = (flags & ~LS_DISP_MODE);
-		break;
-	    case 'a':
-	    case 'A':
-		flags &= ~LS_IGNORE_DOT;
-		break;
-	    case 'C':
-		flags = (flags & ~LS_DISP_MODE) | LS_DISP_COLUMN;
-		break;
-	    case 'd':
-		flags |= LS_DIRS;
-		break;
-	    case 'f':
-		flags = (flags & ~LS_SORT_MODE);
-		break;
-	    case 'F':
-		flags |= LS_TYPE;
-		break;
-	    case 'i':
-		flags |= LS_INODE;
-		break;
-	    case 'l':
-		flags = (flags & ~LS_DISP_MODE) | LS_DISP_LONG;
-		break;
-	    case 't':
-		flags = (flags & ~LS_SORT_MODE) | LS_SORT_MTIME;
-		break;
-	    case 's':
-		flags |= LS_SIZE;
-		break;
-	    case 'S':
-		flags = (flags & ~LS_SORT_MODE) | LS_SORT_SIZE;
-		break;
-	    case 'r':
-		flags |= LS_SORT_REVERSE;
-		break;
-	    case 'x':
-		flags = (flags & ~LS_DISP_MODE) | LS_DISP_CROSS;
-		break;
-	    }
-	}
+	flags = parse_flags(file);
 	file = ".";
-    }
+    } else
+	flags = parse_flags("");
+
     list_files(out, &file, 1, flags);
     sec_fflush(out);
 }

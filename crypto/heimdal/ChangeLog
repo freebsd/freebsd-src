@@ -1,3 +1,678 @@
+2002-02-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab_keyfile.c (akf_add_entry): don't create the file
+	before we need to write to it
+	(from Åke Sandgren)
+
+2002-02-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: rk_RETSIGTYPE and rk_BROKEN_REALLOC are called via
+	rk_ROKEN (from Gombas Gabor); find inttypes by CHECK_TYPES
+	directly
+
+	* lib/krb5/rd_safe.c: actually use the correct key (from Daniel
+	Kouril)
+
+2002-02-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/context.c (krb5_get_err_text): protect against NULL
+	context
+
+2002-02-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin/ktutil.c: no need to use the "modify" keytab anymore
+
+	* lib/krb5/keytab_any.c: implement add and remove
+
+	* lib/krb5/keytab_krb4.c: implement add and remove
+
+	* lib/krb5/store_emem.c (emem_free): clear memory before freeing
+	(this should perhaps be selectable with a flag)
+
+2002-02-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/config.c (get_dbinfo): if there are database specifications
+	in the config file, don't automatically try to use the default
+	values (from Gombas Gabor)
+
+	* lib/krb5/log.c (krb5_closelog): don't pass pointer to pointer
+	(from Gombas Gabor)
+
+2002-01-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin/list.c: get the default keytab from krb5.conf, and list
+	all parts of an ANY type keytab
+
+	* lib/krb5/context.c: default default_keytab_modify to NULL
+
+	* lib/krb5/keytab.c (krb5_kt_default_modify_name): if no modify
+	name is specified take it from the first component of the default
+	keytab name
+
+2002-01-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/keytab.c: compare keytab types case insensitively
+
+2002-01-07  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/crypto.c (create_checksum): make usage `unsigned' (it's
+	not really a krb5_key_usage).  From Ben Harris <bjh21@netbsd.org>
+	* lib/krb5/get_in_tkt.c: use krb5_enctype consistently.  From Ben
+	Harris <bjh21@netbsd.org>
+	* lib/krb5/crypto.c: use krb5_enctype consistently.  From Ben
+	Harris <bjh21@netbsd.org>
+	* kdc/kerberos5.c: use krb5_enctype consistently.  From Ben Harris
+	<bjh21@netbsd.org>
+
+2001-12-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/crypto.c: use our own des string-to-key function, since
+	the one from openssl sometimes generates wrong output
+
+2001-12-05  Jacques Vidrine <n@nectar.cc>
+
+        * lib/hdb/mkey.c: fix a bug in which kstash would crash if
+        there were no /etc/krb5.conf
+
+2001-10-29  Jacques Vidrine <n@nectar.com>
+
+	* admin/get.c: fix a bug in which a reference to a data
+	structure on the stack was being kept after the containing
+	function's lifetime, resulting in a segfault during `ktutil
+	get'.
+
+2001-10-22  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/crypto.c: make all high-level encrypting and decrypting
+	functions check the return value of the underlying function and
+	handle errors more consistently.  noted by Sam Hartman
+	<hartmans@mit.edu>
+
+2001-10-21  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/crypto.c (enctype_arcfour_hmac_md5): actually use a
+	non-keyed checksum when it should be non-keyed
+
+2001-09-29  Assar Westerlund  <assar@sics.se>
+
+	* kuser/kinit.1: add the kauth alias
+	* kuser/kinit.c: allow specification of afslog in krb5.conf, noted
+	by jhutz@cs.cmu.edu
+
+2001-09-27  Assar Westerlund  <assar@sics.se>
+
+	* lib/asn1/gen.c: remove the need for libasn1.h, also make
+	generated files include all files from IMPORTed modules
+
+	* lib/krb5/krb5.h (KRB5_KPASSWD_*): set correct values
+	* kpasswd/kpasswd.c: improve error message printing
+	* lib/krb5/changepw.c (krb5_passwd_result_to_string): add change
+	to use sequence numbers connect the udp socket so that we can
+	figure out the local address
+
+2001-09-25  Assar Westerlund  <assar@sics.se>
+
+	* lib/asn1: implement OBJECT IDENTIFIER and ENUMERATED
+
+2001-09-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/principal.c (krb5_425_conv_principal_ext): try using
+	lower case realm as domain, but only when given a verification
+	function
+
+2001-09-20  Assar Westerlund  <assar@sics.se>
+
+	* lib/asn1/der_put.c (der_put_length): do not even try writing
+	anything when len == 0
+
+2001-09-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/hpropd.c: add realm override option
+
+	* lib/krb5/set_default_realm.c (krb5_set_default_realm): make
+	realm parameter const
+
+	* kdc/hprop.c: more free's
+
+	* lib/krb5/init_creds_pw.c (krb5_get_init_creds_keytab): free key
+	proc data
+
+	* lib/krb5/expand_hostname.c (krb5_expand_hostname_realms): free
+	addrinfo
+
+	* lib/hdb/mkey.c (hdb_set_master_keyfile): clear error string when
+	not returning error
+
+2001-09-16  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/appdefault.c (krb5_appdefault_{boolean,string,time):
+	make realm const
+
+	* lib/krb5/crypto.c: use des functions to avoid generating
+	warnings with openssl's prototypes
+
+2001-09-05  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: check for termcap.h
+
+	* lib/asn1/lex.l: add another undef ECHO to keep AIX lex happy
+
+2001-09-03  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/addr_families.c (krb5_print_address): handle snprintf
+	returning < 0.  noticed by hin@stacken.kth.se
+
+2001-09-03  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.4e
+
+2001-09-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/Makefile.am: install kauth as a symlink to kinit
+
+	* kuser/kinit.c: get v4_tickets by default
+
+	* lib/asn1/Makefile.am: fix for broken automake
+
+2001-08-31  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/hdb/hdb-ldap.c: some pretty much untested changes from Luke
+	Howard
+
+	* kuser/kinit.1: remove references to kauth
+
+	* kuser/Makefile.am: kauth is no more
+
+	* kuser/kinit.c: use appdefaults for everything. defaults are now
+	as in kauth.
+
+	* lib/krb5/appdefault.c: also check libdefaults, and realms/realm
+
+	* lib/krb5/context.c (krb5_free_context): free more stuff
+
+2001-08-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_krb5_conf.c: do some checks of the values in the
+	file
+
+	* lib/krb5/krb5.conf.5: remove srv_try_txt, fix spelling
+
+	* lib/krb5/context.c: don't init srv_try_txt, since it isn't used
+	anymore
+
+2001-08-29  Jacques Vidrine  <n@nectar.com>
+
+	* configure.in: Check for already-installed com_err.
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): set versoin to 18:2:1
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* kuser/Makefile.am: remove CHECK_LOCAL - non bin programs require
+	no special treatment now
+
+	* kuser/generate-requests.c: parse arguments in a useful way
+	* kuser/kverify.c: add --help/--verify
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: bump prereq to 2.52 remove unused test_LIB_KRB4
+
+	* configure.in: re-write the handling of crypto libraries.  try to
+	use the one of openssl's libcrypto or krb4's libdes that has all
+	the required functionality (md4, md5, sha1, des, rc4).  if there
+	is no such library, the included lib/des is built.
+
+	* kdc/headers.h: include libutil.h if it exists
+	* kpasswd/kpasswd_locl.h: include libutil.h if it exists
+	* kdc/kerberos4.c (get_des_key): check for null keys even if
+	is_server
+
+2001-08-21  Assar Westerlund  <assar@sics.se>
+
+	* lib/asn1/asn1_print.c: print some size_t correctly
+	* configure.in: remove extra space after -L check for libutil.h
+
+2001-08-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/kdc_locl.h: fix prototype for get_des_key
+
+	* kdc/kaserver.c: fix call to get_des_key
+
+	* kdc/524.c: fix call to get_des_key
+
+	* kdc/kerberos4.c (get_des_key): if getting a key for a server,
+	return any des-key not just keys that can be string-to-keyed by
+	the client
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.4d
+
+2001-08-10  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: check for openpty
+	* lib/hdb/Makefile.am (libhdb_la_LDFLAGS): update to 7:4:0
+
+2001-08-08  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: just add -L (if required) from krb4 when testing
+	for libdes/libcrypto
+
+2001-08-04  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am (man_MANS): add some missing man pages
+	* fix-export: fix the sed expression for finding the man pages
+
+2001-07-31  Assar Westerlund  <assar@sics.se>
+
+	* kpasswd/kpasswd-generator.c (main): implement --version and
+	--help
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): update version to
+	18:1:1
+
+2001-07-27  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/context.c (init_context_from_config_file): check
+	parsing of addresses
+
+2001-07-26  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/sock_principal.c (krb5_sock_to_principal): rename
+	sa_len -> salen to avoid the macro that's defined on irix.  noted
+	by "Jacques A. Vidrine" <n@nectar.com>
+
+2001-07-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/addr_families.c: add support for type
+	KRB5_ADDRESS_ADDRPORT
+
+	* lib/krb5/addr_families.c (krb5_address_order): complain about
+	unsuppored address types
+
+2001-07-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* admin/get.c: don't open connection to server until we loop over
+	the principals, at that time we know the realm of the (first)
+	principal and we can default to that admin server
+
+	* admin: add a rename command
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* kdc/hprop.c (usage): clarify a tiny bit
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.4c
+
+2001-07-19  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): bump version to
+	18:0:1
+
+	* lib/krb5/get_for_creds.c (krb5_fwd_tgt_creds): make it behave
+	the same way as the MIT function
+
+	* lib/hdb/Makefile.am (libhdb_la_LDFLAGS): update to 7:3:0
+	* lib/krb5/sock_principal.c (krb5_sock_to_principal): use
+	getnameinfo
+
+	* lib/krb5/krbhst.c (srv_find_realm): handle port numbers
+	consistenly in local byte order
+
+	* lib/krb5/get_default_realm.c (krb5_get_default_realm): set an
+	error string
+
+	* kuser/kinit.c (renew_validate): invert condition correctly.  get
+	v4 tickets if we succeed renewing
+	* lib/krb5/principal.c (krb5_principal_get_type): add
+	(default_v4_name_convert): add "smtp"
+
+2001-07-13  Assar Westerlund  <assar@sics.se>
+
+	* configure.in: remove make-print-version from LIBOBJS, it's no
+	longer in lib/roken but always built in lib/vers
+
+2001-07-12  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/hdb/mkey.c: more set_error_string
+
+2001-07-12  Assar Westerlund  <assar@sics.se>
+
+	* lib/hdb/Makefile.am (libhdb_la_LIBADD): add required library
+	dependencies
+
+	* lib/asn1/Makefile.am (libasn1_la_LIBADD): add required library
+	dependencies
+
+2001-07-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/hprop.c: remove v4 master key handling; remove old v4-db and
+	ka-db flags; add defaults for v4_realm and afs_cell
+
+2001-07-09  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/sock_principal.c (krb5_sock_to_principal): copy hname
+	before calling krb5_sname_to_principal.  from "Jacques A. Vidrine"
+	<n@nectar.com>
+
+2001-07-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/context.c: use krb5_copy_addresses instead of
+	copy_HostAddresses
+
+2001-07-06  Assar Westerlund  <assar@sics.se>
+
+	* configure.in (LIB_des_a, LIB_des_so): add these so that they can
+	be used by lib/auth/sia
+
+	* kuser/kinit.c: re-do some of the v4 fallbacks: look at
+	get-tokens flag do not print extra errors do not try to do 524 if
+	we got tickets from a v4 server
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/replay.c (krb5_get_server_rcache): cast argument to
+	printf
+
+	* lib/krb5/get_addrs.c (find_all_addresses): call free_addresses
+	on ignore_addresses correctly
+	* lib/krb5/init_creds.c
+	(krb5_get_init_creds_opt_set_default_flags): change to take a
+	const realm
+
+	* lib/krb5/principal.c (krb5_425_conv_principal_ext): if the
+	instance is the first component of the local hostname, the
+	converted host should be the long hostname.  from
+	<shadow@dementia.org>
+
+2001-07-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/Makefile.am: address.c is no more; add a couple of
+	manpages
+
+	* lib/krb5/krb5_timeofday.3: new manpage
+
+	* lib/krb5/krb5_get_all_client_addrs.3: new manpage
+
+	* lib/krb5/get_in_tkt.c (init_as_req): treat no addresses as
+	wildcard
+
+	* lib/krb5/get_cred.c (get_cred_kdc_la): treat no addresses as
+	wildcard
+
+	* lib/krb5/get_addrs.c: don't include client addresses that match
+	ignore_addresses
+
+	* lib/krb5/context.c: initialise ignore_addresses
+
+	* lib/krb5/addr_families.c: add new `arange' fake address type,
+	that matches more than one address; this required some internal
+	changes to many functions, so all of address.c got moved here
+	(wasn't much left there)
+
+	* lib/krb5/krb5.h: add list of ignored addresses to context
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.4b
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/Makefile.am (libkrb5_la_LDFLAGS): set version to 17:0:0
+	* lib/hdb/Makefile.am (libhdb_la_LDFLAGS): set version to 7:2:0
+
+2001-07-03  Assar Westerlund  <assar@sics.se>
+
+	* Release 0.4a
+
+2001-07-02  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.c: make this compile without krb4 support
+
+	* lib/krb5/write_message.c: remove priv parameter from
+	write_safe_message; don't know why it was there in the first place
+
+	* doc/install.texi: remove kaserver switches, it's always compiled
+	in now
+
+	* kdc/hprop.c: always include kadb support
+
+	* kdc/kaserver.c: always include kaserver support
+
+2001-07-02  Assar Westerlund  <assar@sics.se>
+
+	* kpasswd/kpasswdd.c (doit): make failing to bind a socket a
+	non-fatal error, and abort if no sockets were bound
+
+2001-07-01  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/krbhst.c: remember the real port number when falling
+	back from kpasswd -> kadmin, and krb524 -> kdc
+
+2001-06-29  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/get_for_creds.c (krb5_get_forwarded_creds): if
+	no_addresses is set, do not add any local addresses to KRB_CRED
+
+	* kuser/kinit.c: remove extra clearing of password and some
+	redundant code
+
+2001-06-29  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kuser/kinit.c: move ticket conversion code to separate function,
+	and call that from a couple of places, like when renewing a
+	ticket; also add a flag for just converting a ticket
+
+	* lib/krb5/init_creds_pw.c: set renew-life to some sane value
+
+	* kdc/524.c: don't send more data than required
+
+2001-06-24  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/store_fd.c (krb5_storage_from_fd): check malloc returns
+
+	* lib/krb5/keytab_any.c (any_resolve); improving parsing of ANY:
+	(any_start_seq_get): remove a double free
+	(any_next_entry): iterate over all (sub) keytabs and avoid leave data
+	around to be freed again
+
+	* kdc/kdc_locl.h: add a define for des_new_random_key when using
+	openssl's libcrypto
+
+	* configure.in: move v6 tests down
+
+	* lib/krb5/krb5.h (krb5_context_data): remove srv_try_rfc2052
+
+	* update to libtool 1.4 and autoconf 2.50
+
+2001-06-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/hdb/hdb.c: use krb5_add_et_list
+
+2001-06-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/hdb/Makefile.am: add generation number
+	* lib/hdb/common.c: add generation number code
+	* lib/hdb/hdb.asn1: add generation number
+	* lib/hdb/print.c: use krb5_storage to make it more dynamic
+
+2001-06-21  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/krb5.conf.5: update to changed names used by
+	krb5_get_init_creds_opt_set_default_flags
+	* lib/krb5/init_creds.c
+	(krb5_get_init_creds_opt_set_default_flags): make the appdefault
+	keywords have the same names
+
+	* configure.in: only add -L and -R to the krb4 libdir if we are
+	actually using it
+
+	* lib/krb5/krbhst.c (fallback_get_hosts): do not copy trailing
+	dot of hostname add some comments
+	* lib/krb5/krbhst.c: use getaddrinfo instead of dns_lookup when
+	testing for kerberos.REALM.  this allows reusing that information
+	when actually contacting the server and thus avoids one DNS lookup
+
+2001-06-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.h: include k524_err.h
+
+	* lib/krb5/convert_creds.c (krb524_convert_creds_kdc): don't test
+	for keytype, the server will do this for us if it has anything to
+	complain about
+
+	* lib/krb5/context.c: add protocol compatible krb524 error codes
+
+	* lib/krb5/Makefile.am: add protocol compatible krb524 error codes
+
+	* lib/krb5/k524_err.et: add protocol compatible krb524 error codes
+
+	* lib/krb5/krb5_principal_get_realm.3: manpage
+
+	* lib/krb5/principal.c: add functions `krb5_principal_get_realm'
+	and `krb5_principal_get_comp_string' that returns parts of a
+	principal; this is a replacement for the internal
+	`krb5_princ_realm' and `krb5_princ_component' macros that everyone
+	seem to use
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* kuser/kinit.c (main): dereference result from krb5_princ_realm.
+	from Thomas Nystrom <thn@saeab.se>
+
+2001-06-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/mk_req.c (krb5_mk_req_exact): free creds when done
+	* lib/krb5/crypto.c (krb5_string_to_key_derived): fix memory leak
+	* lib/krb5/krbhst.c (config_get_hosts): free hostlist
+	* kuser/kinit.c: free principal
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/send_to_kdc.c (krb5_sendto): remove an extra
+	freeaddrinfo
+
+	* lib/krb5/convert_creds.c (krb524_convert_creds_kdc_ccache):
+	remove some unused variables
+
+	* lib/krb5/krbhst.c (admin_get_next): spell kerberos correctly
+	* kdc/kerberos5.c: update to new krb5_auth_con* names
+	* kdc/hpropd.c: update to new krb5_auth_con* names
+	* lib/krb5/rd_req.c (krb5_rd_req): use krb5_auth_con* functions
+	and remove some comments
+	* lib/krb5/rd_safe.c (krb5_rd_safe): pick the keys in the right
+	order: remote - local - session
+	* lib/krb5/rd_rep.c (krb5_rd_rep): save the remote sub key in the
+	auth_context
+	* lib/krb5/rd_priv.c (krb5_rd_priv): pick keys in the correct
+	order: remote - local - session
+	* lib/krb5/mk_safe.c (krb5_mk_safe): pick keys in the right order,
+	local - remote - session
+
+2001-06-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/convert_creds.c: use starttime instead of authtime,
+	from Chris Chiappa
+
+	* lib/krb5/convert_creds.c: make krb524_convert_creds_kdc match
+	the MIT function by the same name; add
+	krb524_convert_creds_kdc_ccache that does what the old version did
+
+	* admin/list.c (do_list): make sure list of keys is NULL
+	terminated; similar to patch sent by Chris Chiappa
+
+2001-06-18  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/mcache.c (mcc_remove_cred): use
+	krb5_free_creds_contents
+
+	* lib/krb5/auth_context.c: name function krb5_auth_con more
+	consistenly
+	* lib/krb5/rd_req.c (krb5_verify_authenticator_checksum): use
+	renamed krb5_auth_con_getauthenticator
+
+	* lib/krb5/convert_creds.c (krb524_convert_creds_kdc): update to
+	use krb5_krbhst API
+	* lib/krb5/changepw.c (krb5_change_password): update to use
+	krb5_krbhst API
+	* lib/krb5/send_to_kdc.c: update to use krb5_krbhst API
+	* lib/krb5/krbhst.c (krb5_krbhst_get_addrinfo): add set def_port
+	in krb5_krbhst_info
+	(krb5_krbhst_free): free everything
+
+	* lib/krb5/krb5.h (KRB5_VERIFY_NO_ADDRESSES): add
+	(krb5_krbhst_info): add def_port (default port for this service)
+
+	* lib/krb5/krbhst-test.c: make it more verbose and useful
+	* lib/krb5/krbhst.c: remove some more memory leaks do not try any
+	dns operations if there is local configuration admin: fallback to
+	kerberos.REALM 524: fallback to kdcs kpasswd: fallback to admin
+	add some comments
+
+	* configure.in: remove initstate and setstate, they should be in
+	cf/roken-frag.m4
+
+	* lib/krb5/Makefile.am (noinst_PROGRAMS): add krbhst-test
+	* lib/krb5/krbhst-test.c: new program for testing krbhst
+	* lib/krb5/krbhst.c (common_init): remove memory leak
+	(main): move test program into krbhst-test
+
+2001-06-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5_krbhst_init.3: manpage
+
+	* lib/krb5/krb5_get_krbhst.3: manpage
+
+2001-06-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/krb5.h: add opaque krb5_krbhst_handle type
+
+	* lib/krb5/krbhst.c: change void* to krb5_krbhst_handle
+
+	* lib/krb5/krb5.h: types for new krbhst api
+
+	* lib/krb5/krbhst.c: implement a new api that looks up one host at
+	a time, instead of making a list of hosts
+
+2001-06-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* configure.in: test for initstate and setstate
+
+	* lib/krb5/krbhst.c: remove rfc2052 support
+
+2001-06-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* fix some manpages for broken mdoc.old grog test
+
+2001-05-28  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/krb5.conf.5: add [appdefaults]
+	* lib/krb5/init_creds_pw.c: remove configuration reading that is
+	now done in krb5_get_init_creds_opt_set_default_flags
+	* lib/krb5/init_creds.c
+	(krb5_get_init_creds_opt_set_default_flags): add reading of
+	libdefaults versions of these and add no_addresses
+
+	* lib/krb5/get_in_tkt.c (krb5_get_in_cred): clear error string
+	when preauth was required and we retry
+
+2001-05-25  Assar Westerlund  <assar@sics.se>
+
+	* lib/krb5/convert_creds.c (krb524_convert_creds_kdc): call
+	krb5_get_krb524hst
+	* lib/krb5/krbhst.c (krb5_get_krb524hst): add and restructure the
+	support functions
+
+2001-05-22  Assar Westerlund  <assar@sics.se>
+
+	* kdc/kerberos5.c (tgs_rep2): alloc and free csec and cusec
+	properly
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
 
 	* Release 0.3f
@@ -10,6 +685,10 @@
 	* lib/krb5/keytab_krb4.c: add SRVTAB as an alias for krb4
 	* lib/krb5/codec.c: remove dead code
 
+2001-05-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kdc/config.c: actually check the ticket addresses
+
 2001-05-15  Assar Westerlund  <assar@sics.se>
 
 	* lib/krb5/rd_error.c (krb5_error_from_rd_error): use correct
@@ -20,6 +699,10 @@
 	pass the current and relevant value.  update callers
 
 2001-05-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* lib/krb5/verify_user.c: krb5_verify_user_opt
+
+	* lib/krb5/krb5.h: verify_opt
 
 	* kdc/kerberos5.c: pass context to krb5_domain_x500_decode
 

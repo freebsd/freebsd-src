@@ -1,3 +1,62 @@
+2002-02-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ext.c: no need to use the "modify" keytab anymore
+
+2001-09-20  Assar Westerlund  <assar@sics.se>
+
+	* add-random-users.c: allocate several buffers for the list of
+	words, instead of one strdup per word (running under efence does
+	not work very well otherwise)
+
+2001-09-13  Assar Westerlund  <assar@sics.se>
+
+	* add-random-users.c: allow specifying the number of users to
+	create
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: rename variable name to avoid error from current
+	automake
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* kadmin_locl.h: include libutil.h if it exists
+
+2001-08-10  Johan Danielsson  <joda@pdc.kth.se>
+
+	* util.c: do something to handle C-c in prompts
+
+	* load.c: remove unused etypes code, and add parsing of the
+	generation field
+
+	* ank.c: add a --use-defaults option to just use default values
+	without questions
+
+	* kadmin.c: add "del" alias for delete
+
+	* cpw.c: call this operation "passwd" in usage
+
+	* kadmin_locl.h: prototype for set_defaults
+
+	* util.c (edit_entry): move setting of default values to a
+	separate function, set_defaults
+
+2001-08-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kadmin.c: print help message on bad options
+
+2001-07-31  Assar Westerlund  <assar@sics.se>
+
+	* add-random-users.c (main): handle --version
+
+2001-07-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* load.c: increase line buffer to 8k
+
+2001-06-12  Assar Westerlund  <assar@sics.se>
+
+	* ext.c (ext_keytab): use the default modify keytab per default
+
 2001-05-17  Assar Westerlund  <assar@sics.se>
 
 	* kadm_conn.c (start_server): fix krb5_eai_to_heim_errno call

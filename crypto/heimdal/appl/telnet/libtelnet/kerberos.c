@@ -55,7 +55,7 @@
 #include <config.h>
 #endif
 
-RCSID("$Id: kerberos.c,v 1.51 2001/02/15 04:20:52 assar Exp $");
+RCSID("$Id: kerberos.c,v 1.54 2001/08/22 20:30:22 assar Exp $");
 
 #ifdef	KRB4
 #ifdef HAVE_SYS_TYPES_H
@@ -200,7 +200,8 @@ kerberos4_send(char *name, Authenticator *ap)
 	printf("get_cred failed: %s\r\n", krb_get_err_text(r));
 	return(0);
     }
-    if (!auth_sendname(UserNameRequested, strlen(UserNameRequested))) {
+    if (!auth_sendname((unsigned char*)UserNameRequested, 
+		       strlen(UserNameRequested))) {
 	if (auth_debug_mode)
 	    printf("Not enough room for user name\r\n");
 	return(0);
@@ -219,7 +220,9 @@ kerberos4_send(char *name, Authenticator *ap)
 
 	des_key_sched(&cred.session, sched);
 	memcpy (&cred_session, &cred.session, sizeof(cred_session));
+#ifndef HAVE_OPENSSL
 	des_init_random_number_generator(&cred.session);
+#endif
 	des_new_random_key(&session_key);
 	des_ecb_encrypt(&session_key, &session_key, sched, 0);
 	des_ecb_encrypt(&session_key, &challenge, sched, 0);
@@ -571,11 +574,11 @@ kerberos4_printsub(unsigned char *data, int cnt, unsigned char *buf, int buflen)
 	goto common2;
 
     default:
-	snprintf(buf, buflen, " %d (unknown)", data[3]);
+	snprintf((char*)buf, buflen, " %d (unknown)", data[3]);
     common2:
 	BUMP(buf, buflen);
 	for (i = 4; i < cnt; i++) {
-	    snprintf(buf, buflen, " %d", data[i]);
+	    snprintf((char*)buf, buflen, " %d", data[i]);
 	    BUMP(buf, buflen);
 	}
 	break;
@@ -647,7 +650,7 @@ pack_cred(CREDENTIALS *cred, unsigned char *buf)
 static int
 unpack_cred(unsigned char *buf, int len, CREDENTIALS *cred)
 {
-    unsigned char *p = buf;
+    char *p = (char*)buf;
     u_int32_t tmp;
 
     strncpy (cred->service, p, ANAME_SZ);

@@ -1,3 +1,149 @@
+2001-11-30  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: move ipv6 tests after -lsocket (to handle Solaris
+	8)
+
+2001-09-29  Assar Westerlund  <assar@sics.se>
+
+	* install-catman.sh: handle man pages without SYNOPSIS but looking
+	for both SYNOPSIS and DESCRIPTION
+
+2001-09-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: include freeaddrinfo if using getaddrinfo
+
+2001-09-13  Assar Westerlund  <assar@sics.se>
+
+	* db.m4: test for the ndbm database really being a .db one
+	and use it when moving/removing database files
+
+2001-09-03  Assar Westerlund  <assar@sics.se>
+
+	* db.m4: prefer ndbm.h to dbm.h
+	* roken-frag.m4: check for atexit and on_exit
+
+2001-09-02  Assar Westerlund  <assar@sics.se>
+
+	* check-compile-et.m4: only add /usr/include/et to CPPFLAGS if
+	it's actually used
+
+2001-09-01  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (AUTOMAKE_OPTIONS): set 1.4b here so that
+	users are warned if using earlier automake versions
+
+	* find-func-no-libs2.m4: ignore "no" as a library - another
+	special case to make it easy to send the result from this macro
+	into another invocation
+
+2001-08-30  Assar Westerlund  <assar@sics.se>
+
+	* db.m4: check for ndbm functions in db3 library too
+
+2001-08-29  Jacques Vidrine  <n@nectar.com>
+
+	* check-compile-et.m4: Check for already-installed com_err.
+	* Makefile.am.common: Use the compile_et discovered at
+	  configuration time.
+
+2001-08-29  Assar Westerlund  <assar@sics.se>
+
+	* crypto.m4: use AC_WITH_ALL to allow separate specification of
+	include and lib
+	* with-all.m4: new macro for doing --with-foo, --with-foo-include,
+	and --with-foo-lib in a sensible way
+
+	* find-func-no-libs2.m4: handle both -llib and lib in the second
+	argument also yes -> "" as a library, to ease callers that send in
+	results from this macro (this might be a little bit unclean)
+
+2001-08-28  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: test for issetugid
+
+2001-08-24  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common: change one += to = to AM_CFLAGS to avoid an
+	error with recent automake
+
+2001-08-22  Assar Westerlund  <assar@sics.se>
+
+	* crypto.m4: SHA1_CTX should be SHA_CTX
+
+2001-08-21  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: remove all winsock.h
+	for now, it does more harm than good under cygwin and if it should be
+	used, the correct conditional needs to be found
+	from <tol@stacken.kth.se>
+
+2001-08-21  Johan Danielsson  <joda@pdc.kth.se>
+
+	* check-var.m4: AC_TR_CPP -> AS_TR_CPP to make autoconf 2.52 happy
+
+2001-08-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* krb-ipv6.m4: add test for non-existant in6addr_loopback in AIX
+
+2001-08-15  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: test for getaddrinfo's that doesn't like numeric
+	services
+
+	* broken-getaddrinfo.m4: test for getaddrinfo's that doesn't like
+	numeric services
+
+2001-08-08  Assar Westerlund  <assar@sics.se>
+
+	* db.m4: do a separate test for gdbm/ndbm.h and -lgdbm
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* db.m4: ac_cv_funclib_\func can be yes
+	* db.m4: use AC_FIND_FUNC_NO_LIBS to test in libc
+	anset cache variables after first attempt at finding dbm_firstkey (how
+	should this be done?)
+	* db.m4: do not test for ndbm library when ndbm-db was found in libc
+	* db.m4: test for ndbm-compatability with db
+	* db.m4: add forgotten AC_SUBST
+	* db.m4: first steps towards a new db test
+
+	* roken-frag.m4: remove header files checked by rk_db
+
+2001-08-05  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: remove header files checked by rk_db
+
+2001-06-24  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4: make sure of building getaddrinfo et al if
+	missing
+
+2001-06-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* install-catman.sh: try to install links to manpages
+
+2001-06-19  Assar Westerlund  <assar@sics.se>
+
+	* broken-glob.m4: try to handle FreeBSD's GLOB_MAXPATH
+
+2001-06-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: test for getaddrinfo needs netdb.h on Tru64
+
+2001-06-17  Assar Westerlund  <assar@sics.se>
+
+	* roken-frag.m4 (AC_CHECK_HEADERS): test for random
+	* roken-frag.m4 (AC_CHECK_HEADERS): test for initstate and
+	setstate
+
+	* roken-frag.m4 (AC_BROKEN): test for
+	emalloc,ecalloc,erealloc,estrdup
+
+2001-05-11  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken-frag.m4: bswap{16,32}
+	
 2001-03-26  Assar Westerlund  <assar@sics.se>
 
 	* broken-glob.m4: also test for GLOB_LIMIT

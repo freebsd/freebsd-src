@@ -37,7 +37,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: utilities.c,v 1.24 2000/10/08 22:30:15 assar Exp $");
+RCSID("$Id: utilities.c,v 1.25 2001/08/29 00:45:21 assar Exp $");
 
 FILE	*NetTrace = 0;		/* Not in bss, since needs to stay */
 int	prettydump;
@@ -176,7 +176,6 @@ void
 optionstatus(void)
 {
     int i;
-    extern char will_wont_resp[], do_dont_resp[];
 
     for (i = 0; i < 256; i++) {
 	if (do_dont_resp[i]) {
@@ -254,7 +253,6 @@ printsub(int direction, unsigned char *pointer, int length)
 {
     int i;
     unsigned char buf[512];
-    extern int want_status_response;
 
     if (showoptions || direction == 0 ||
 	(want_status_response && (pointer[0] == TELOPT_STATUS))) {
