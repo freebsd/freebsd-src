@@ -3483,7 +3483,25 @@ This list type generates multiple columns.
 The number of columns and the width of each column is determined by the
 arguments to the
 .Fl column
-list.
+list,
+.Aq Ar string1 ,
+.Aq Ar string2 ,
+etc.
+If
+.Aq Ar stringN
+starts with a
+.Ql .\&
+(dot) immediately followed by a valid
+.Nm \-mdoc
+macro name, interpret
+.Aq Ar stringN
+and use the width of the result.
+Otherwise, the width of
+.Aq Ar stringN
+(typeset with a fixed-width font) is taken as the
+.Ar N Ns th
+column width.
+.Pp
 Each
 .Ql .It
 argument is parsed to make a row, each column within the row is a separate
@@ -3493,7 +3511,7 @@ macro.
 .Pp
 The table:
 .
-.Bl -column -offset indent String Nroff Troff
+.Bl -column -offset indent ".Sy String" ".Sy Nroff" ".Sy Troff"
 .It Sy String Ta Sy Nroff Ta Sy Troff
 .It Li <= Ta <= Ta \*(<=
 .It Li >= Ta >= Ta \*(>=
@@ -3502,8 +3520,8 @@ The table:
 .
 was produced by:
 .
-.Bd -literal -offset indent
-\&.Bl -column -offset indent String Nroff Troff
+.Bd -literal
+\&.Bl -column -offset indent ".Sy String" ".Sy Nroff" ".Sy Troff"
 \&.It Sy String Ta Sy Nroff Ta Sy Troff
 \&.It Li <= Ta <= Ta \e*(<=
 \&.It Li >= Ta >= Ta \e*(>=
@@ -3517,47 +3535,13 @@ Other keywords:
 .Bl -tag -width ".Fl indent Ao Ar string Ac"
 .It Fl width Ao Ar string Ac
 If
-.Ao string Ac
-is a valid numeric expression
-.Pf ( Em with a scale indicator other than
-.Sq Em u ) ,
-use that value for indentation.
-The most useful scale indicators are
-.Sq m
-and
-.Sq n ,
-specifying the so-called
-.Em \&Em
-and
-.Em "En square" .
-This is approximately the width of the letter
-.Sq m
-resp.\& the letter
-.Sq n
-of the current font (for nroff output, both scale indicators give the same
-values).
-If
-.Ao string Ac
-isn't a numeric expression, it is tested whether it is an
+.Aq Ar string
+starts with a
+.Ql .\&
+(dot) immediately followed by a valid
 .Nm \-mdoc
-macro name, and the default offset value associated with this macro is used.
-Finally, if all tests fail,
-the width of
-.Ao string Ac
-(typeset with a fixed-width font) is taken as the offset.
-.Pp
-If a width is not specified for the tag list type, every time
-.Ql .It
-is invoked, an attempt is made to determine an appropriate width.
-If the first argument to
-.Ql .It
-is a callable macro, the default width for that macro will be used;
-otherwise, the default width of
-.Ql .No
-is used.
-.It Fl width Ao Ar string Ac
-Interpret
-.Ao string Ac
+macro name, interpret
+.Aq Ar string
 and use the width of the result.
 Almost all lists in this document use this option.
 .Pp
@@ -3583,10 +3567,10 @@ flag works in combination with a tag list.
 .El
 .Pp
 .
-Note that the current state of
+(Note that the current state of
 .Nm \-mdoc
 is saved before
-.Ao string Ac
+.Aq Ar string
 is interpreted; afterwards, all variables are restored again.
 However, boxes (used for enclosures) can't be saved in
 .Tn GNU
@@ -3595,13 +3579,53 @@ as a consequence, arguments must always be
 .Em balanced
 to avoid nasty errors.
 For example, do not write
-.Ql ".Ao string"
+.Ql ".Ao Ar string"
 but
-.Ql ".Ao string Xc"
-instead if you really need only an opening angle bracket.
+.Ql ".Ao Ar string Xc"
+instead if you really need only an opening angle bracket.)
+.Pp
+Otherwise, if
+.Aq Ar string
+is a valid numeric expression
+.Em ( with a scale indicator other than
+.Sq Em u ) ,
+use that value for indentation.
+The most useful scale indicators are
+.Sq m
+and
+.Sq n ,
+specifying the so-called
+.Em \&Em
+and
+.Em "En square" .
+This is approximately the width of the letter
+.Sq m
+resp.\& the letter
+.Sq n
+of the current font (for nroff output, both scale indicators give the same
+values).
+If
+.Aq Ar string
+isn't a numeric expression, it is tested whether it is an
+.Nm \-mdoc
+macro name, and the default width value associated with this macro is used.
+Finally, if all tests fail,
+the width of
+.Aq Ar string
+(typeset with a fixed-width font) is taken as the width.
+.Pp
+If a width is not specified for the tag list type, every time
+.Ql .It
+is invoked, an attempt is made to determine an appropriate width.
+If the first argument to
+.Ql .It
+is a callable macro, the default width for that macro will be used;
+otherwise, the default width of
+.Ql .No
+is used.
 .It Fl offset Ao Ar string Ac
 If
-.Ao string Ac
+.Aq Ar string
 is
 .Ar indent ,
 a default indent value (normally set to\~6n, similar to the value used in
@@ -3610,7 +3634,7 @@ or
 .Ql .Bd )
 is used.
 If
-.Ao string Ac
+.Aq Ar string
 is a valid numeric expression instead
 .Pf ( Em with a scale indicator other than
 .Sq Em u ) ,
@@ -3630,13 +3654,13 @@ resp.\& the letter
 of the current font (for nroff output, both scale indicators give the same
 values).
 If
-.Ao string Ac
+.Aq Ar string
 isn't a numeric expression, it is tested whether it is an
 .Nm \-mdoc
 macro name, and the default offset value associated with this macro is used.
 Finally, if all tests fail,
 the width of
-.Ao string Ac
+.Aq Ar string
 (typeset with a fixed-width font) is taken as the offset.
 .It Fl compact
 Suppress insertion of vertical space before the list and between list items.
