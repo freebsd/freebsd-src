@@ -127,22 +127,31 @@ static struct macio_pci_dev {
  * Devices to exclude from the probe
  * XXX some of these may be required in the future...
  */
-static char *macio_excl_name[] = {
-	"interrupt-controller",
-	"escc-legacy",
-	"gpio",
-	"timer",
-        NULL
+#define	MACIO_QUIRK_IGNORE		0x00000001
+#define	MACIO_QUIRK_CHILD_HAS_INTR	0x00000002
+
+struct macio_quirk_entry {
+	const char	*mq_name;
+	int		mq_quirks;
+};
+
+static struct macio_quirk_entry macio_quirks[] = {
+	{ "interrupt-controller",	MACIO_QUIRK_IGNORE },
+	{ "escc-legacy",		MACIO_QUIRK_IGNORE },
+	{ "gpio",			MACIO_QUIRK_IGNORE },
+	{ "timer",			MACIO_QUIRK_IGNORE },
+	{ "escc",			MACIO_QUIRK_CHILD_HAS_INTR },
+        { NULL,				0 }
 };
 
 static int
-macio_inlist(char *name)
+macio_get_quirks(const char *name)
 {
-        int i;
+        struct	macio_quirk_entry *mqe;
 
-        for (i = 0; macio_excl_name[i] != NULL; i++)
-                if (strcmp(name, macio_excl_name[i]) == 0)
-                        return (1);
+        for (mqe = macio_quirks; mqe->mq_name != NULL; mqe++)
+                if (strcmp(name, mqe->mq_name) == 0)
+                        return (mqe->mq_quirks);
         return (0);
 }
 
@@ -153,15 +162,27 @@ macio_inlist(char *name)
 static void
 macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 {
-        u_int intr = -1;
-	
-        if ((OF_getprop(devnode, "interrupts", &intr, sizeof(intr)) != -1) ||
-	    (OF_getprop(devnode, "AAPL,interrupts", 
-			&intr, sizeof(intr) != -1))) {
-                resource_list_add(&dinfo->mdi_resources, 
-                                  SYS_RES_IRQ, 0, intr, intr, 1);
-        }
-        dinfo->mdi_interrupt = intr;
+	int	intr;
+
+	if (dinfo->mdi_ninterrupts >= 5) {
+		printf("macio: device has more than 5 interrupts\n");
+		return;
+	}
+
+	if (OF_getprop(devnode, "interrupts", &intr, sizeof(intr)) == -1) {
+		if (OF_getprop(devnode, "AAPL,interrupts", &intr,
+		    sizeof(intr)) == -1)
+			return;
+	}
+
+	if (intr == -1)
+		return;
+
+        resource_list_add(&dinfo->mdi_resources, SYS_RES_IRQ,
+	    dinfo->mdi_ninterrupts, intr, intr, 1);
+
+	dinfo->mdi_interrupts[dinfo->mdi_ninterrupts] = intr;
+	dinfo->mdi_ninterrupts++;
 }
 
 
@@ -183,7 +204,7 @@ macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
                 dinfo->mdi_nregs = 1;
 		start = dinfo->mdi_reg[0];
 		end = start + dinfo->mdi_reg[1] - 1;
-		resource_list_add(&dinfo->mdi_resources, SYS_RES_MEMORY, 0,
+		resource_list_add_next(&dinfo->mdi_resources, SYS_RES_MEMORY,
 				  start, end, end - start + 1);
         } else {
 		dinfo->mdi_nregs = -1;
@@ -221,9 +242,11 @@ macio_attach(device_t dev)
         struct macio_devinfo *dinfo;
         phandle_t  root;
 	phandle_t  child;
+	phandle_t  subchild;
         device_t cdev;
         u_int reg[3];
 	char *name, *type;
+	int quirks;
 
 	sc = device_get_softc(dev);
 	root = sc->sc_node = OF_finddevice("mac-io");
@@ -255,7 +278,8 @@ macio_attach(device_t dev)
 		OF_getprop_alloc(child, "name", 1, (void **)&name);
 		OF_getprop_alloc(child, "device_type", 1, (void **)&type);
 
-		if (macio_inlist(name)) {
+		quirks = macio_get_quirks(name);
+		if ((quirks & MACIO_QUIRK_IGNORE) != 0) {
 			free(name, M_OFWPROP);
 			free(type, M_OFWPROP);
 			continue;
@@ -269,8 +293,18 @@ macio_attach(device_t dev)
 			dinfo->mdi_node = child;
 			dinfo->mdi_name = name;
 			dinfo->mdi_device_type = type;
+			dinfo->mdi_ninterrupts = 0;
 			macio_add_intr(child, dinfo);
 			macio_add_reg(child, dinfo);
+
+
+			if ((quirks & MACIO_QUIRK_CHILD_HAS_INTR) != 0) {
+				for (subchild = OF_child(child); subchild != 0;
+				    subchild = OF_peer(subchild)) {
+					macio_add_intr(subchild, dinfo);
+				}
+			}
+
 			device_set_ivars(cdev, dinfo);
 		} else {
 			free(name, M_OFWPROP);
