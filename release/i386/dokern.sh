@@ -28,6 +28,7 @@ sed	-e '/	pty	/d' \
  	-e '/WITNESS/d' \
 	-e '/AHC_REG_PRETTY_PRINT/d' \
 	-e '/AHD_REG_PRETTY_PRINT/d' \
+	-e '/COMPAT_FREEBSD4/d' \
 	-e '/	ncr	/d' \
 	-e '/	pcm/d' \
 	-e '/	agp	/d' \
@@ -43,6 +44,8 @@ sed	-e '/	pty	/d' \
 	-e '/	urio	/d' \
 	-e '/	uscanner	/d' \
 	-e '/	ses	/d' \
+	-e '/	splash	/d' \
+	-e '/	tun	/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
