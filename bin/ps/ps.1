@@ -47,7 +47,9 @@
 .Op Fl o Ar fmt
 .Op Fl p Ar pid
 .Op Fl t Ar tty
-.Op Fl U Ar username
+.Oo Fl U Ar username Ns
+.Op , Ns Ar username Ns No ...
+.Oc
 .Op Fl W Ar swap
 .Nm ps
 .Op Fl L
@@ -145,7 +147,7 @@ Display information about processes attached to the specified terminal
 device.
 .It Fl U
 Display the processes belonging to the specified
-.Tn username .
+.Tn username Ns No (s).
 .It Fl u
 Display information associated with the following keywords:
 user, pid, %cpu, %mem, vsz, rss, tt, state, start, time and command.
