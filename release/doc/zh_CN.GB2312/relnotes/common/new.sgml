@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.761.2.39
+     Original revision: 1.761.2.41
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -189,6 +189,8 @@
       <sect4 id="net-if">
 	<title>网络接口设备支持</title>
 
+	<para>加入了用于支持 USB 以太网通讯设备一类的 &man.cdce.4; 驱动。</para>
+
 	<para>&man.cp.4; 驱动现在是 MPSAFE 的了。</para>
 
 	<para>&man.ctau.4; 驱动现在是 MPSAFE 的了。</para>
@@ -306,6 +308,11 @@
 	提供者之间实现秘密分享的能力。 所有提供者必须都存在，
 	才能够解开保存的秘密信息。 这一特性可以通过 &man.gshsec.8;
 	工具来控制。</para>
+
+      <para arch="i386,ia64">加入了 &man.arcmsr.4; 驱动。
+	它支持 Areca ARC-11<replaceable>xx</replaceable> 和
+	ARC-12<replaceable>xx</replaceable> 系列的 SATA RAID
+	控制器。</para>
 
       <para>加入了用于支持 HighPoint
 	RocketRAID 182x 系列硬件的 &man.hptmv.4; 驱动。</para>
@@ -564,13 +571,16 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
       ports tree， 以及现场文件系统， 使得它适合于初始安装，
       以及修复工作。 (在 ia64 上， 由于现场文件系统的尺寸太大，
       以至于不得不将其放到另一张盘上。)
-      第三方 package 都在另一张盘上。</para>
+      第三方 package 都在另一张盘上。 特别地， <filename>disc2</filename>
+      上包含了常用的预编译软件包， 例如桌面环境软件等。
+      来自 &os; 文档计划的各类文档， 也被置于
+      <filename>disc2</filename>。</para>
 
     <para>受支持的
       <application>GNOME</application> 桌面环境的版本， 由 2.6.2
       升级到了 2.10。 更多关于在 &os; 上运行 <application>GNOME</application>
       的详细资料， 可以在
-      the <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
+      <ulink url="&url.base;/gnome/">FreeBSD GNOME Project</ulink>
       Web 页面上找到。
 
       <note>
