@@ -1651,10 +1651,12 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 	struct vm_page *pg;
 	struct writev_args nuap;
 	struct sf_hdtr hdtr;
-	off_t off, xfsize, sbytes = 0;
+	off_t off, xfsize, hdtr_size, sbytes = 0;
 	int error, s;
 
 	mtx_lock(&Giant);
+
+	hdtr_size = 0;
 
 	/*
 	 * The descriptor must be a regular file and have a backing VM object.
@@ -1698,7 +1700,7 @@ sendfile(struct thread *td, struct sendfile_args *uap)
 			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			sbytes += td->td_retval[0];
+			hdtr_size += td->td_retval[0];
 		}
 	}
 
@@ -1934,7 +1936,7 @@ retry_space:
 			error = writev(td, &nuap);
 			if (error)
 				goto done;
-			sbytes += td->td_retval[0];
+			hdtr_size += td->td_retval[0];
 	}
 
 done:
@@ -1946,6 +1948,7 @@ done:
 		td->td_retval[0] = 0;
 	}
 	if (uap->sbytes != NULL) {
+		sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 	if (vp)
