@@ -44,10 +44,10 @@
 .Sh DESCRIPTION
 The special files
 named
-.Pa /dev/[nr]sa*
+.Pa /dev/[n]sa*
 refer to SCSI tape drives,
 which may be attached to the system.
-.Pa /dev/[nr]sa*.ctl
+.Pa /dev/[n]sa*.ctl
 are control devices that can be used to issue ioctls to the SCSI
 tape driver to set parameters that are required to last beyond the
 unmounting of a tape.
@@ -273,7 +273,7 @@ union mterrstat {
 #define	MTIOCGETEOTMODEL	_IOR('m', 8, u_int32_t)
 
 #ifndef _KERNEL
-#define	DEFTAPE	"/dev/nrsa0"
+#define	DEFTAPE	"/dev/nsa0"
 #endif
 
 #ifdef	_KERNEL
@@ -293,8 +293,8 @@ union mterrstat {
 #endif /* !_SYS_MTIO_H_ */
 .Ed
 .Sh FILES
-.Bl -tag -width /dev/[nr]sa* -compact
-.It Pa /dev/[nr]sa*
+.Bl -tag -width /dev/[n]sa* -compact
+.It Pa /dev/[n]sa*
 .El
 .Sh SEE ALSO
 .Xr mt 1 ,
