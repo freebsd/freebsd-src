@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.74 1997/12/16 17:40:20 eivind Exp $
+ * $Id: kern_sysctl.c,v 1.75 1998/08/24 08:39:38 dfr Exp $
  */
 
 #include "opt_compat.h"
@@ -995,7 +995,7 @@ static char bsdi_strings[80];	/* It had better be less than this! */
 struct getkerninfo_args {
 	int	op;
 	char	*where;
-	int	*size;
+	size_t	*size;
 	int	arg;
 };
 #endif
