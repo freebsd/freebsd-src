@@ -34,11 +34,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/bus.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
@@ -47,8 +45,8 @@
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
+#include <sys/malloc.h>
 
-#include <dev/mpt/mpt.h>
 #include <dev/mpt/mpt_freebsd.h>
 
 #ifndef	PCI_VENDOR_LSI
@@ -74,12 +72,13 @@
 
 static int mpt_probe(device_t);
 static int mpt_attach(device_t);
-static void mpt_free_bus_resources(struct mpt_softc *mpt);
+static void mpt_free_bus_resources(mpt_softc_t *mpt);
 static int mpt_detach(device_t);
 static int mpt_shutdown(device_t);
-static int mpt_dma_mem_alloc(struct mpt_softc *mpt);
-static void mpt_dma_mem_free(struct mpt_softc *mpt);
-static void mpt_read_config_regs(struct mpt_softc *mpt);
+static int mpt_dma_mem_alloc(mpt_softc_t *mpt);
+static void mpt_dma_mem_free(mpt_softc_t *mpt);
+static void mpt_read_config_regs(mpt_softc_t *mpt);
+static void mpt_pci_intr(void *);
 
 static device_method_t mpt_methods[] = {
 	/* Device interface */
@@ -91,7 +90,7 @@ static device_method_t mpt_methods[] = {
 };
 
 static driver_t mpt_driver = {
-	"mpt", mpt_methods, sizeof (struct mpt_softc)
+	"mpt", mpt_methods, sizeof (mpt_softc_t)
 };
 static devclass_t mpt_devclass;
 DRIVER_MODULE(mpt, pci, mpt_driver, mpt_devclass, 0, 0);
@@ -101,7 +100,7 @@ int
 mpt_intr(void *dummy)
 {
 	u_int32_t reply;
-	struct mpt_softc *mpt = (struct mpt_softc *)dummy;
+	mpt_softc_t *mpt = (mpt_softc_t *)dummy;
 
 	reply = mpt_pop_reply_queue(mpt);
 	while (reply != MPT_REPLY_EMPTY) {
@@ -149,7 +148,7 @@ mpt_probe(device_t dev)
 
 #ifdef	RELENG_4
 static void
-mpt_set_options(struct mpt_softc *mpt)
+mpt_set_options(mpt_softc_t *mpt)
 {
 	int bitmap;
 
@@ -171,7 +170,7 @@ mpt_set_options(struct mpt_softc *mpt)
 }
 #else
 static void
-mpt_set_options(struct mpt_softc *mpt)
+mpt_set_options(mpt_softc_t *mpt)
 {
 	int tval;
 
@@ -194,15 +193,15 @@ mpt_attach(device_t dev)
 {
 	int iqd;
 	u_int32_t data, cmd;
-	struct mpt_softc *mpt;
+	mpt_softc_t *mpt;
 
 	/* Allocate the softc structure */
-	mpt  = (struct mpt_softc*) device_get_softc(dev);
+	mpt  = (mpt_softc_t*) device_get_softc(dev);
 	if (mpt == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
-	bzero(mpt, sizeof (struct mpt_softc));
+	bzero(mpt, sizeof (mpt_softc_t));
 	switch ((pci_get_device(dev) & ~1)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC929:
@@ -243,7 +242,7 @@ mpt_attach(device_t dev)
 	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929) {
 		/* Yes; is the previous device the counterpart? */
 		if (mpt->unit) {
-			mpt->mpt2 = (struct mpt_softc *)
+			mpt->mpt2 = (mpt_softc_t *)
 				devclass_get_softc(mpt_devclass, mpt->unit-1);
 
 			if ((mpt->mpt2->mpt2 == NULL)
@@ -285,12 +284,13 @@ mpt_attach(device_t dev)
 	}
 
 	/* Register the interrupt handler */
-	if (bus_setup_intr(dev, mpt->pci_irq,
-	    INTR_TYPE_CAM, (void (*)(void *))mpt_intr,
+	if (bus_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, mpt_pci_intr,
 	    mpt, &mpt->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
+
+	MPT_LOCK_SETUP(mpt);
 
 	/* Disable interrupts at the part */
 	mpt_disable_ints(mpt);
@@ -301,27 +301,35 @@ mpt_attach(device_t dev)
 		goto bad;
 	}
 
-	/* Initialize character device */
-	/*   currently closed */
-	mpt->open = 0;
+	/*
+	 * Save the PCI config register values
+ 	 *
+	 * Hard resets are known to screw up the BAR for diagnostic
+	 * memory accesses (Mem1).
+	 *
+	 * Using Mem1 is known to make the chip stop responding to 
+	 * configuration space transfers, so we need to save it now
+	 */
 
-	/* Save the PCI config register values */
-	/*   Hard resets are known to screw up the BAR for diagnostic
-	     memory accesses (Mem1). */
-	/*   Using Mem1 is known to make the chip stop responding to 
-	     configuration space transfers, so we need to save it now */
 	mpt_read_config_regs(mpt);
 
 	/* Initialize the hardware */
 	if (mpt->disabled == 0) {
-		if (mpt_init(mpt, MPT_DB_INIT_HOST) != 0)
+		MPT_LOCK(mpt);
+		if (mpt_init(mpt, MPT_DB_INIT_HOST) != 0) {
+			MPT_UNLOCK(mpt);
 			goto bad;
+		}
 
-		/* Attach to CAM */
+		/*
+		 *  Attach to CAM
+		 */
+		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_cam_attach(mpt);
+		CAMLOCK_2_MPTLOCK(mpt);
+		MPT_UNLOCK(mpt);
 	}
 
-	/* Done */
 	return (0);
 
 bad:
@@ -334,11 +342,11 @@ bad:
 	return (0);
 }
 
-/******************************************************************************
+/*
  * Free bus resources
  */
 static void
-mpt_free_bus_resources(struct mpt_softc *mpt)
+mpt_free_bus_resources(mpt_softc_t *mpt)
 {
 	if (mpt->ih) {
 		bus_teardown_intr(mpt->dev, mpt->pci_irq, mpt->ih);
@@ -355,23 +363,18 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 			mpt->pci_reg);
 		mpt->pci_reg = 0;
 	}
-	if (mpt->pci_mem) {
-		bus_release_resource(mpt->dev, SYS_RES_MEMORY, mpt->pci_mem_id,
-			mpt->pci_mem);
-		mpt->pci_mem = 0;
-	}
-
+	MPT_LOCK_DESTROY(mpt);
 }
 
 
-/******************************************************************************
+/*
  * Disconnect ourselves from the system.
  */
 static int
 mpt_detach(device_t dev)
 {
-	struct mpt_softc *mpt;
-	mpt  = (struct mpt_softc*) device_get_softc(dev);
+	mpt_softc_t *mpt;
+	mpt  = (mpt_softc_t*) device_get_softc(dev);
 
 	device_printf(mpt->dev,"mpt_detach!\n");
 
@@ -386,14 +389,14 @@ mpt_detach(device_t dev)
 }
 
 
-/******************************************************************************
+/*
  * Disable the hardware
  */
 static int
 mpt_shutdown(device_t dev)
 {
-	struct mpt_softc *mpt;
-	mpt  = (struct mpt_softc*) device_get_softc(dev);
+	mpt_softc_t *mpt;
+	mpt  = (mpt_softc_t*) device_get_softc(dev);
 
 	if (mpt) {
 		mpt_reset(mpt);
@@ -403,7 +406,7 @@ mpt_shutdown(device_t dev)
 
 
 struct imush {
-	struct mpt_softc *mpt;
+	mpt_softc_t *mpt;
 	int error;
 	u_int32_t phys;
 };
@@ -418,7 +421,7 @@ mpt_map_rquest(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 
 static int
-mpt_dma_mem_alloc(struct mpt_softc *mpt)
+mpt_dma_mem_alloc(mpt_softc_t *mpt)
 {
 	int i, error;
 	u_char *vptr;
@@ -551,7 +554,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 /* Deallocate memory that was allocated by mpt_dma_mem_alloc 
  */
 static void
-mpt_dma_mem_free(struct mpt_softc *mpt)
+mpt_dma_mem_free(mpt_softc_t *mpt)
 {
 	int i;
 
@@ -581,7 +584,7 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 
 /* Reads modifiable (via PCI transactions) config registers */
 static void
-mpt_read_config_regs(struct mpt_softc *mpt)
+mpt_read_config_regs(mpt_softc_t *mpt)
 {
 	mpt->pci_cfg.Command = pci_read_config(mpt->dev, PCIR_COMMAND, 2);
 	mpt->pci_cfg.LatencyTimer_LineSize =
@@ -598,7 +601,7 @@ mpt_read_config_regs(struct mpt_softc *mpt)
 
 /* Sets modifiable config registers */
 void
-mpt_set_config_regs(struct mpt_softc *mpt)
+mpt_set_config_regs(mpt_softc_t *mpt)
 {
 	u_int32_t val;
 
@@ -635,4 +638,13 @@ mpt_set_config_regs(struct mpt_softc *mpt)
 	pci_write_config(mpt->dev, PCIR_BIOS, mpt->pci_cfg.ROM_BAR, 4);
 	pci_write_config(mpt->dev, PCIR_INTLINE, mpt->pci_cfg.IntLine, 1);
 	pci_write_config(mpt->dev, 0x44, mpt->pci_cfg.PMCSR, 4);
+}
+
+static void
+mpt_pci_intr(void *arg)
+{
+	mpt_softc_t *mpt = arg;
+	MPT_LOCK(mpt);
+	mpt_intr(mpt);
+	MPT_UNLOCK(mpt);
 }

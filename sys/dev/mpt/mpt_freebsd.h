@@ -31,15 +31,22 @@
 
 #ifndef  _MPT_FREEBSD_H_
 #define  _MPT_FREEBSD_H_
-#include <sys/ioccom.h>
 
-#ifdef _KERNEL
+/* #define RELENG_4	1 */
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/queue.h>
+#ifdef	RELENG_4
+#include <sys/malloc.h>
+#else
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/condvar.h>
+#endif
 #include <sys/proc.h>
 #include <sys/bus.h>
 
@@ -58,8 +65,49 @@
 #include <cam/cam_debug.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
+
 #include "opt_ddb.h"
+
+#include "dev/mpt/mpilib/mpi_type.h"
+#include "dev/mpt/mpilib/mpi.h"
+#include "dev/mpt/mpilib/mpi_cnfg.h"
+#include "dev/mpt/mpilib/mpi_fc.h"
+#include "dev/mpt/mpilib/mpi_init.h"
+#include "dev/mpt/mpilib/mpi_ioc.h"
+#include "dev/mpt/mpilib/mpi_lan.h"
+#include "dev/mpt/mpilib/mpi_targ.h"
+
+
 #define INLINE __inline
+
+#ifdef	RELENG_4
+#define	MPT_IFLAGS		INTR_TYPE_CAM
+#define	MPT_LOCK(mpt)		mpt_lockspl(mpt)
+#define	MPT_UNLOCK(mpt)		mpt_unlockspl(mpt)
+#define	MPTLOCK_2_CAMLOCK	MPT_UNLOCK
+#define	CAMLOCK_2_MPTLOCK(mpt)	MPT_LOCK
+#define	MPT_LOCK_SETUP(mpt)
+#define	MPT_LOCK_DESTROY(mpt)
+#else
+#define	MPT_IFLAGS		INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
+#define	MPT_LOCK_SETUP(mpt)						\
+		mtx_init(&mpt->mpt_lock, "mpt", NULL, MTX_DEF);		\
+		mpt->mpt_locksetup = 1
+#define	MPT_LOCK_DESTROY(mpt)						\
+	if (mpt->mpt_locksetup) {					\
+		mtx_destroy(&mpt->mpt_lock);				\
+		mpt->mpt_locksetup = 0;					\
+	}
+
+#define	MPT_LOCK(mpt)		mtx_lock(&(mpt)->mpt_lock)
+#define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
+#define	MPTLOCK_2_CAMLOCK(mpt)	\
+	mtx_unlock(&(mpt)->mpt_lock); mtx_lock(&Giant)
+#define	CAMLOCK_2_MPTLOCK(mpt)	\
+	mtx_unlock(&Giant); mtx_lock(&(mpt)->mpt_lock)
+#endif
+	
+
 
 /* Max MPT Reply we are willing to accept (must be power of 2) */
 #define MPT_REPLY_SIZE   128
@@ -112,17 +160,16 @@ enum mpt_req_state {
     REQ_FREE, REQ_IN_PROGRESS, REQ_TIMEOUT, REQ_ON_CHIP, REQ_DONE
 };
 typedef struct req_entry {
-	u_int16_t    index;          /* Index of this entry */
-	union ccb   *ccb;            /* Request that generated this command */
-	void        *req_vbuf;       /* Virtual Address of Entry */
-	void        *sense_vbuf;     /* Virtual Address of sense data */
-	u_int32_t    req_pbuf;       /* Physical Address of Entry */
-	u_int32_t    sense_pbuf;     /* Physical Address of sense data */
-	bus_dmamap_t dmap;           /* DMA map for data buffer */
-	SLIST_ENTRY(req_entry) link; /* Pointer to next in list */
-	enum mpt_req_state debug;    /* Debuging */
-	u_int32_t    sequence;       /* Sequence Number */
-
+	u_int16_t    index;		/* Index of this entry */
+	union ccb   *ccb;		/* CAM request */
+	void        *req_vbuf;		/* Virtual Address of Entry */
+	void        *sense_vbuf;	/* Virtual Address of sense data */
+	u_int32_t    req_pbuf;		/* Physical Address of Entry */
+	u_int32_t    sense_pbuf;	/* Physical Address of sense data */
+	bus_dmamap_t dmap;		/* DMA map for data buffer */
+	SLIST_ENTRY(req_entry) link;	/* Pointer to next in list */
+	enum mpt_req_state debug;	/* Debugging */
+	u_int32_t    sequence;		/* Sequence Number */
 } request_t;
 
 
@@ -138,98 +185,162 @@ struct mpt_pci_cfg {
 	u_int32_t PMCSR;
 };
 
-struct mpt_softc {
-	device_t            dev;
-	int                 unit;
-	struct mtx  	    lock;
-
-	/* Operational flags, set during initialization */
-	int		    verbose;	/* print debug messages */
-
-	struct resource    *pci_irq;	/* Interrupt map for chip */
-	void               *ih;			/* Interupt handle */
-
-        /* First Memory Region (Device MEM) */
-	struct resource    *pci_reg;    /* Register map for chip */
-	int                 pci_reg_id; /* Resource ID */
-	bus_space_tag_t     pci_st;     /* Bus tag for registers */
-	bus_space_handle_t  pci_sh;     /* Bus handle for registers */
-	vm_offset_t         pci_pa;     /* Physical Address */
-
-	/* Second Memory Region (Diagnostic memory window) */
-	/* (only used for diagnostic purposes) */
-	struct resource    *pci_mem;     /* Register map for chip */
-	int                 pci_mem_id;  /* Resource ID */
-	bus_space_tag_t     pci_mst;     /* Bus tag for registers */
-	bus_space_handle_t  pci_msh;     /* Bus handle for registers */
-
-	/* DMA Memory for IOCTLs */
-        void            *ioctl_mem_va;   /* Virtual Addr */
-        u_int32_t       ioctl_mem_pa;    /* Physical Addr */
-        bus_dmamap_t    ioctl_mem_map;   /* DMA map for buffer */
-        bus_dma_tag_t   ioctl_mem_tag;   /* DMA tag for memory alloc */
-	int             open;            /* only allow one open at a time */
-
-	bus_dma_tag_t       parent_dmat; /* DMA tag for parent PCI bus */
-
-	bus_dma_tag_t       reply_dmat;  /* DMA tag for reply memory */
-	bus_dmamap_t        reply_dmap;  /* DMA map for reply memory */
-	char               *reply;       /* Virtual address of reply memory */
-	u_int32_t           reply_phys;  /* Physical address of reply memory */
-
-	u_int32_t
-				: 29,
+typedef struct mpt_softc {
+	device_t		dev;
+#ifdef	RELENG_4
+	int			mpt_splsaved;
+	u_int32_t		mpt_islocked;	
+#else
+	struct mtx		mpt_lock;
+#endif
+	u_int32_t		: 16,
+		unit		: 8,
+		verbose		: 3,
+				: 1,
+		mpt_locksetup	: 1,
 		disabled	: 1,
 		is_fc		: 1,
 		bus		: 1;	/* FC929/1030 have two busses */
 
-	u_int32_t           blk_size;    /* Block size transfers to IOC */
-	u_int16_t           mpt_global_credits;
-	u_int16_t           request_frame_size;
+	/*
+	 * IOC Facts
+	 */
+	u_int16_t		mpt_global_credits;
+	u_int16_t		request_frame_size;
+	u_int8_t		mpt_max_devices;
+	u_int8_t		mpt_max_buses;
 
-	bus_dma_tag_t       buffer_dmat; /* DMA tag for mapping data buffers */
+	/*
+	 * Port Facts
+	 */
+	u_int16_t		mpt_ini_id;
 
-	bus_dma_tag_t       request_dmat; /* DMA tag for request memroy */
-	bus_dmamap_t        request_dmap; /* DMA map for request memroy */
-	char               *request;      /* Virtual address of Request memory */
-	u_int32_t           request_phys; /* Physical address of Request memory */
 
-	request_t            requests[MPT_MAX_REQUESTS];
+	/*
+	 * Device Configuration Information
+	 */
+	union {
+		struct mpt_spi_cfg {
+			fCONFIG_PAGE_SCSI_PORT_0	_port_page0;
+			fCONFIG_PAGE_SCSI_PORT_1	_port_page1;
+			fCONFIG_PAGE_SCSI_PORT_2	_port_page2;
+			fCONFIG_PAGE_SCSI_DEVICE_0	_dev_page0[16];
+			fCONFIG_PAGE_SCSI_DEVICE_1	_dev_page1[16];
+			uint16_t			_tagmask;
+			uint16_t			_update_params0;
+			uint16_t			_update_params1;
+		} spi;
+#define	mpt_port_page0		cfg.spi._port_page0
+#define	mpt_port_page1		cfg.spi._port_page1
+#define	mpt_port_page2		cfg.spi._port_page2
+#define	mpt_dev_page0		cfg.spi._dev_page0
+#define	mpt_dev_page1		cfg.spi._dev_page1
+#define	mpt_tagmask		cfg.spi._tagmask
+#define	mpt_update_params0	cfg.spi._update_params0
+#define	mpt_update_params1	cfg.spi._update_params1
+		struct mpi_fc_cfg {
+			u_int8_t	nada;
+		} fc;
+	} cfg;
+
+	/*
+	 * PCI Hardware info
+	 */
+	struct resource *	pci_irq;	/* Interrupt map for chip */
+	void *			ih;		/* Interupt handle */
+	struct mpt_pci_cfg	pci_cfg;	/* saved PCI conf registers */
+
+	/*
+	 * DMA Mapping Stuff
+	 */
+
+	struct resource *	pci_reg;	/* Register map for chip */
+	int			pci_reg_id;	/* Resource ID */
+	bus_space_tag_t		pci_st;		/* Bus tag for registers */
+	bus_space_handle_t	pci_sh;		/* Bus handle for registers */
+	vm_offset_t		pci_pa;		/* Physical Address */
+
+	bus_dma_tag_t		parent_dmat;	/* DMA tag for parent PCI bus */
+	bus_dma_tag_t		reply_dmat;	/* DMA tag for reply memory */
+	bus_dmamap_t		reply_dmap;	/* DMA map for reply memory */
+	char *			reply;		/* KVA of reply memory */
+	u_int32_t		reply_phys;	/* BusAddr of reply memory (XXX Wrong) */
+
+
+	bus_dma_tag_t		buffer_dmat;	/* DMA tag for buffers */
+	bus_dma_tag_t		request_dmat;	/* DMA tag for request memroy */
+	bus_dmamap_t		request_dmap;	/* DMA map for request memroy */
+	char *			request;	/* KVA of Request memory */
+	u_int32_t		request_phys;	/* BusADdr of request memory (XXX WRONG) */
+
+
+	/*
+	 * CAM && Software Management
+	 */
+
+	request_t		requests[MPT_MAX_REQUESTS];
 	SLIST_HEAD(req_queue, req_entry) request_free_list;
 
-	struct cam_sim      *sim;
-	struct cam_path     *path;
+	struct cam_sim *	sim;
+	struct cam_path *	path;
 
-	u_int32_t    sequence;       /* Sequence Number */
-	u_int32_t    timeouts;       /* timeout count */
-	u_int32_t    success;       /* timeout  successes afer timeout */
+	u_int32_t		sequence;	/* Sequence Number */
+	u_int32_t		timeouts;	/* timeout count */
+	u_int32_t		success;	/* successes afer timeout */
 
-	/* Opposing port in a 929, or NULL */
-	struct mpt_softc *mpt2;
+	/* Opposing port in a 929 or 1030, or NULL */
+	struct mpt_softc *	mpt2;
 
-	/* Saved values for the PCI configuration registers */
-	struct mpt_pci_cfg pci_cfg;
-};
+} mpt_softc_t;
+
+#include <dev/mpt/mpt.h>
+
+
+static INLINE void mpt_write(mpt_softc_t *, size_t, u_int32_t);
+static INLINE u_int32_t mpt_read(mpt_softc_t *, int);
 
 static INLINE void
-mpt_write(struct mpt_softc *mpt, size_t offset, u_int32_t val)
+mpt_write(mpt_softc_t *mpt, size_t offset, u_int32_t val)
 {
 	bus_space_write_4(mpt->pci_st, mpt->pci_sh, offset, val);
 }
 
 static INLINE u_int32_t
-mpt_read(struct mpt_softc *mpt, int offset)
+mpt_read(mpt_softc_t *mpt, int offset)
 {
-	return bus_space_read_4(mpt->pci_st, mpt->pci_sh, offset);
+	return (bus_space_read_4(mpt->pci_st, mpt->pci_sh, offset));
 }
 
-void mpt_cam_attach(struct mpt_softc *mpt);
-void mpt_cam_detach(struct mpt_softc *mpt);
-void mpt_done(struct mpt_softc *mpt, u_int32_t reply);
-void mpt_notify(struct mpt_softc *mpt, void *vmsg);
+void mpt_cam_attach(mpt_softc_t *);
+void mpt_cam_detach(mpt_softc_t *);
+void mpt_done(mpt_softc_t *, u_int32_t);
+void mpt_notify(mpt_softc_t *, void *, u_int32_t);
+void mpt_set_config_regs(mpt_softc_t *);
 
-/* mpt_pci.c declarations */
-void mpt_set_config_regs(struct mpt_softc *mpt);
+#ifdef	RELENG_4
+static INLINE void mpt_lockspl(mpt_softc_t *);
+static INLINE void mpt_unlockspl(mpt_softc_t *);
 
-#endif  /*_KERNEL */
+static INLINE void
+mpt_lockspl(mpt_softc_t *mpt)
+{
+       int s = splcam();
+       if (mpt->mpt_islocked++ == 0) {  
+               mpt->mpt_splsaved = s;
+       } else {
+               splx(s);
+       }
+}
+
+static INLINE void
+mpt_unlockspl(mpt_softc_t *mpt)
+{
+       if (mpt->mpt_islocked) {
+               if (--mpt->mpt_islocked == 0) {
+                       splx(mpt->mpt_splsaved);
+               }
+       }
+}
+#endif
+
 #endif	/* _MPT_FREEBSD_H */
