@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.184 1995/05/26 23:08:33 jkh Exp $
+#	$Id: Makefile,v 1.185 1995/05/27 21:07:13 jkh Exp $
 #
 # How to roll a release:
 #
@@ -44,7 +44,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
-BOOTMFSSIZE=		950
+BOOTMFSSIZE=		700
 MFSINODE=		40000
 
 # Things which will get you into trouble if you change them
@@ -315,33 +315,33 @@ release.7:
 #
 
 release.8: write_mfs_in_kernel
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
-	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=boot \
+	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=true
-	( cd ${RD}/trees/bin/dev ; \
+	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
-	cd ${RD}/trees/bin ; ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
+	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
-	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
-		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES; \
+	cd ${RD}/trees/bin/usr/share/FAQ/Text && \
+		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES && \
 		install -c README ${RD}/mfsfd/stand/help/en_US.ISO8859-1/README
 	( 								\
-	a=`expr ${BOOTMFSSIZE} \* 2` ;					\
-	echo ;								\
-	echo "mfs${BOOTMFSSIZE}:ty=mfs:se#512:nt#1:rm#300:\\" ;		\
-	echo "	:ns#$$a:nc#1:\\" ;					\
-	echo "	:pa#$$a:oa#0:ba#4096:fa#512:\\" ;			\
-	echo "	:pc#$$a:oc#0:bc#4096:fc#512:" ;				\
-	echo ; 								\
+	a=`expr ${BOOTMFSSIZE} \* 2` &&					\
+	echo &&								\
+	echo "mfs${BOOTMFSSIZE}:ty=mfs:se#512:nt#1:rm#300:\\" &&	\
+	echo "	:ns#$$a:nc#1:\\" &&					\
+	echo "	:pa#$$a:oa#0:ba#4096:fa#512:\\" &&			\
+	echo "	:pc#$$a:oc#0:bc#4096:fc#512:" &&			\
+	echo   								\
 	) >> /etc/disktab
 	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
 		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
@@ -353,33 +353,33 @@ release.8: write_mfs_in_kernel
 	kzip ${RD}/bootfd/kernel
 	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
 	ls -l ${RD}/bootfd/kernel
-	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.8
 
 # Complete the rootfd directory
 release.9:
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/rootfd
 	mkdir ${RD}/rootfd
 	cd ${RD}/rootfd && \
 		mkdir stand stand/info
 	ln -f ${RD}/kernels/GENERIC ${RD}/rootfd/kernel
-	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=root \
+	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
-	cd ${RD}/rootfd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
+	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
 # Complete the fixitfd
 release.10:
-	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
+	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -rf ${RD}/fixitfd
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
 		mkdir stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
 	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
-	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=fixit \
+	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
 		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
@@ -394,7 +394,7 @@ release.10:
 	echo 'echo /etc/rc'	> ${RD}/fixitfd/etc/rc
 	echo 'exit 1'		>> ${RD}/fixitfd/etc/rc
 	touch ${RD}/fixitfd/etc/spwd.db
-	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=fixit
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit
 	touch release.10
 
 ftp.1:
