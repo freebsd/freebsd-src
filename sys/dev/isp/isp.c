@@ -2274,11 +2274,11 @@ isp_intr(arg)
 	if (sema) {
 		u_int16_t mbox = ISP_READ(isp, OUTMAILBOX0);
 		if (mbox & 0x4000) {
-			IDPRINTF(3, ("%s: Command Mbox 0x%x\n",
+			IDPRINTF(4, ("%s: Command Mbox 0x%x\n",
 			    isp->isp_name, mbox));
 		} else {
 			u_int32_t fhandle = isp_parse_async(isp, (int) mbox);
-			IDPRINTF(3, ("%s: Async Mbox 0x%x\n",
+			IDPRINTF(4, ("%s: Async Mbox 0x%x\n",
 			    isp->isp_name, mbox));
 			if (fhandle > 0) {
 				isp_fastpost_complete(isp, fhandle);
@@ -2340,7 +2340,7 @@ isp_intr(arg)
 #define	_RQS_OFLAGS	\
 	~(RQSFLAG_CONTINUATION|RQSFLAG_FULL|RQSFLAG_BADHEADER|RQSFLAG_BADPACKET)
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
-				IDPRINTF(3, ("%s: continuation segment\n",
+				IDPRINTF(4, ("%s: continuation segment\n",
 				    isp->isp_name));
 				ISP_WRITE(isp, INMAILBOX5, optr);
 				continue;
@@ -2640,7 +2640,7 @@ isp_parse_async(isp, mbox)
 	case ASYNC_CMD_CMPLT:
 		fast_post_handle = (ISP_READ(isp, OUTMAILBOX2) << 16) |
 		    ISP_READ(isp, OUTMAILBOX1);
-		IDPRINTF(3, ("%s: fast post completion of %u\n", isp->isp_name,
+		IDPRINTF(4, ("%s: fast post completion of %u\n", isp->isp_name,
 		    fast_post_handle));
 		break;
 
