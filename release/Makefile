@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.74 1998/02/01 06:36:24 pst Exp $
+#	$Id: Makefile,v 1.246.2.75 1998/02/02 17:37:05 jhay Exp $
 #
 # How to roll a release:
 #
@@ -54,7 +54,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
 BOOTMFSSIZE=		1440
-MFSINODE=		8000
+MFSINODE=		15000
 FIXITINODE=		6000
 BOOTINODE=		100000
 
@@ -405,9 +405,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
-		*[swo]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
-		cd0a mcd0a scd0a matcd0a wcd0c rst0 rft0 rwt0 | \
+		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
