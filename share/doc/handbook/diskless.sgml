@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.5 1996/07/06 14:20:11 joerg Exp $ -->
+<!-- $Id: diskless.sgml,v 1.6 1996/09/22 15:40:11 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
@@ -102,13 +102,21 @@ hostname myclient.mydomain
 
 	  <item>If you are swapping over NFS (completely diskless
 	    configuration) create a swap file for your client
-	    using touch.  If your <tt>swapfs</tt> command has the
-	    argument <tt>/swapfs</tt> as in the example above,
-	    the swapfile for myclient will be called
+	    using <tt>dd</tt>.  If your <tt>swapfs</tt> command has the
+	    arguments <tt>/swapfs</tt> and the size 20000 as in the
+            example above, the swapfile for myclient will be called
 	    <tt>/swapfs/swap.X.X.X.X</tt> where <tt>X.X.X.X</tt>
 	    is the client's IP addr, eg:   
 <tscreen><verb>
-# touch /swapfs/swap.192.1.2.4
+# dd if=/dev/zero of=/swapfs/swap.192.1.2.4 bs=1k count=20000
+</verb></tscreen>
+
+            Also, the client's swap space might contain sensitive
+            information once swapping starts, so make sure to
+            restrict read and write access to this file to prevent
+            unauthorized access:
+<tscreen><verb>
+# chmod 0600 /swapfs/swap.192.1.2.4
 </verb></tscreen>
 
 	  <item> Unpack the root filesystem in the directory the
