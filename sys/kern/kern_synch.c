@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.72 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_synch.c,v 1.72.2.1 1999/02/23 13:44:36 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -64,43 +64,37 @@
 
 static void rqinit __P((void *));
 SYSINIT(runqueue, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, rqinit, NULL)
+static void sched_setup __P((void *dummy));
+SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
-u_char	curpriority;		/* usrpri of curproc */
+u_char	curpriority;
 int	hogticks;
-int	lbolt;			/* once a second sleep address */
+int	lbolt;
+int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
 static void	endtsleep __P((void *));
 static void	roundrobin __P((void *arg));
 static void	schedcpu __P((void *arg));
 static void	updatepri __P((struct proc *p));
 
-#define MAXIMUM_SCHEDULE_QUANTUM	(1000000) /* arbitrary limit */
-#ifndef DEFAULT_SCHEDULE_QUANTUM
-#define DEFAULT_SCHEDULE_QUANTUM 10
-#endif
-static int quantum = DEFAULT_SCHEDULE_QUANTUM; /* default value */
-
 static int
 sysctl_kern_quantum SYSCTL_HANDLER_ARGS
 {
-	int error;
-	int new_val = quantum;
+	int error, new_val;
 
-	new_val = quantum;
+	new_val = sched_quantum * tick;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-	if (error == 0) {
-		if ((new_val > 0) && (new_val < MAXIMUM_SCHEDULE_QUANTUM)) {
-			quantum = new_val;
-		} else {
-			error = EINVAL;
-		}
-	}
-	hogticks = 2 * (hz / quantum);
-	return (error);
+        if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val < tick)
+		return (EINVAL);
+	sched_quantum = new_val / tick;
+	hogticks = 2 * sched_quantum;
+	return (0);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof quantum, sysctl_kern_quantum, "I", "");
+	0, sizeof sched_quantum, sysctl_kern_quantum, "I", "");
 
 /* maybe_resched: Decide if you need to reschedule or not
  * taking the priorities and schedulers into account.
@@ -126,10 +120,10 @@ static void maybe_resched(struct proc *chk)
 	}
 }
 
-#define ROUNDROBIN_INTERVAL (hz / quantum)
-int roundrobin_interval(void)
+int 
+roundrobin_interval(void)
 {
-	return ROUNDROBIN_INTERVAL;
+	return (sched_quantum);
 }
 
 /*
@@ -152,7 +146,7 @@ roundrobin(arg)
  		need_resched();
 #endif
 
- 	timeout(roundrobin, NULL, ROUNDROBIN_INTERVAL);
+ 	timeout(roundrobin, NULL, sched_quantum);
 }
 
 /*
@@ -358,11 +352,12 @@ static TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
 int safepri;
 
 void
-sleepinit()
+sleepinit(void)
 {
 	int i;
 
-	hogticks = 2 * (hz / quantum);
+	sched_quantum = hz/10;
+	hogticks = 2 * sched_quantum;
 	for (i = 0; i < TABLESIZE; i++)
 		TAILQ_INIT(&slpque[i]);
 }
@@ -915,7 +910,6 @@ resetpriority(p)
 }
 
 /* ARGSUSED */
-static void sched_setup __P((void *dummy));
 static void
 sched_setup(dummy)
 	void *dummy;
@@ -924,5 +918,4 @@ sched_setup(dummy)
 	roundrobin(NULL);
 	schedcpu(NULL);
 }
-SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
