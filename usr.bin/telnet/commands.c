@@ -2292,7 +2292,19 @@ tn(argc, argv)
     hints.ai_family = family;
     hints.ai_socktype = SOCK_STREAM;
     error = getaddrinfo(hostname, portp, &hints, &res);
-    if (error == 0) {
+    if (error) {
+        hints.ai_flags = AI_CANONNAME;
+	error = getaddrinfo(hostname, portp, &hints, &res);
+    }
+    if (error != 0) {
+	fprintf(stderr, "%s: %s\n", hostname, gai_strerror(error));
+	if (error == EAI_SYSTEM)
+	    fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
+	setuid(getuid());
+	goto fail;
+    }
+    if (hints.ai_flags == AI_NUMERICHOST) {
+	/* hostname has numeric */
         int gni_err = 1;
 
 	if (doaddrlookup)
@@ -2300,19 +2312,11 @@ tn(argc, argv)
 				  _hostname, sizeof(_hostname) - 1, NULL, 0,
 				  NI_NAMEREQD);
 	if (gni_err != 0)
-	        (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
+	    (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
 	_hostname[sizeof(_hostname)-1] = '\0';
 	hostname = _hostname;
-    } else if (error == EAI_NONAME) {
-        hints.ai_flags = AI_CANONNAME;
-	error = getaddrinfo(hostname, portp, &hints, &res);
-	if (error != 0) {
-	    fprintf(stderr, "%s: %s\n", hostname, gai_strerror(error));
-	    if (error == EAI_SYSTEM)
-	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
-	    setuid(getuid());
-	    goto fail;
-	}
+    } else {
+	/* hostname has FQDN */
 	if (srcroute != 0)
 	    (void) strncpy(_hostname, hostname, sizeof(_hostname) - 1);
 	else if (res->ai_canonname != NULL)
@@ -2321,12 +2325,6 @@ tn(argc, argv)
 	  (void) strncpy(_hostname, hostp, sizeof(_hostname) - 1);
 	_hostname[sizeof(_hostname)-1] = '\0';
 	hostname = _hostname;
-    } else if (error != 0) {
-	    fprintf(stderr, "%s: %s\n", hostname, gai_strerror(error));
-	    if (error == EAI_SYSTEM)
-	        fprintf(stderr, "%s: %s\n", hostname, strerror(errno));
-	    setuid(getuid());
-	    goto fail;
     }
     res0 = res;
  af_again:
