@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: devstat.h,v 1.1 1998/09/15 06:23:21 gibbs Exp $
  */
 
 #ifndef _DEVSTAT_H
@@ -68,7 +68,7 @@ struct device_selection {
 struct devinfo {
 	struct devstat	*devices;
 	u_int8_t	*mem_ptr;
-	int		generation;
+	long		generation;
 	int		numdevs;
 };
 
@@ -89,13 +89,13 @@ typedef enum {
 
 __BEGIN_DECLS
 int getnumdevs(void);
-int getgeneration(void);
+long getgeneration(void);
 int getversion(void);
 int checkversion(void);
 int getdevs(struct statinfo *stats);
 int selectdevs(struct device_selection **dev_select, int *num_selected,
-	       int *num_selections, int *select_generation, 
-	       int current_generation, struct devstat *devices, int numdevs,
+	       int *num_selections, long *select_generation, 
+	       long current_generation, struct devstat *devices, int numdevs,
 	       struct devstat_match *matches, int num_matches,
 	       char **dev_selections, int num_dev_selections,
 	       devstat_select_mode select_mode, int maxshowdevs,

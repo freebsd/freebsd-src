@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: devstat.3,v 1.1 1998/09/15 06:23:21 gibbs Exp $
 .\"
 .Dd May 21, 1998
 .Dt DEVSTAT 3
@@ -37,7 +37,7 @@
 .Fd #include <devstat.h>
 .Ft int
 .Fn getnumdevs "void"
-.Ft int
+.Ft long
 .Fn getgeneration "void"
 .Ft int
 .Fn getversion "void"
@@ -50,8 +50,8 @@
 .Fa "struct device_selection **dev_select"
 .Fa "int *num_selected"
 .Fa "int *num_selections"
-.Fa "int *select_generation"
-.Fa "int current_generation"
+.Fa "long *select_generation"
+.Fa "long current_generation"
 .Fa "struct devstat *devices"
 .Fa "int numdevs"
 .Fa "struct devstat_match *matches"
@@ -146,7 +146,7 @@ subelement contains the following elements:
 struct devinfo {
 	struct devstat	*devices;
 	u_int8_t	*mem_ptr;
-	int		generation;
+	long		generation;
 	int		numdevs;
 };
 .Ed
