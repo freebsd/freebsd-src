@@ -30,22 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#21 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#24 $
  *
  * $FreeBSD$
  */
 
-#ifdef	__linux__
-#include "aic7xxx_linux.h"
-#include "aic7xxx_inline.h"
-#include "aic7xxx_93cx6.h"
-#endif
-
-#ifdef	__FreeBSD__
 #include <dev/aic7xxx/aic7xxx_freebsd.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
-#endif
 
 #define AHC_PCI_IOADDR	PCIR_MAPS	/* I/O Address */
 #define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
@@ -271,7 +263,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	{
 		ID_AHA_2930C_VAR & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
-		"Adaptec 2930C SCSI adapter (VAR)",
+		"Adaptec 2930C Ultra SCSI adapter (VAR)",
 		ahc_aic7860_setup
 	},
 	/* aic7870 based controllers */
@@ -460,7 +452,7 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	{
 		ID_AIC7892_ARO,
 		ID_ALL_MASK,
-		"Adaptec aic7892 Ultra2 SCSI adapter (ARO)",
+		"Adaptec aic7892 Ultra160 SCSI adapter (ARO)",
 		ahc_aic7892_setup
 	},
 	/* aic7895 based controllers */	
@@ -554,13 +546,13 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 	{
 		ID_AIC7859 & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
-		"Adaptec aic7859 Ultra SCSI adapter",
+		"Adaptec aic7859 SCSI adapter",
 		ahc_aic7860_setup
 	},
 	{
 		ID_AIC7860 & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
-		"Adaptec aic7860 SCSI adapter",
+		"Adaptec aic7860 Ultra SCSI adapter",
 		ahc_aic7860_setup
 	},
 	{
@@ -786,17 +778,14 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 		/* Perform ALT-Mode Setup */
 		sfunct = ahc_inb(ahc, SFUNCT) & ~ALT_MODE;
 		ahc_outb(ahc, SFUNCT, sfunct | ALT_MODE);
-		ahc_outb(ahc, OPTIONMODE, OPTIONMODE_DEFAULTS);
+		ahc_outb(ahc, OPTIONMODE,
+			 OPTIONMODE_DEFAULTS|AUTOACKEN|BUSFREEREV|EXPPHASEDIS);
 		ahc_outb(ahc, SFUNCT, sfunct);
 
 		/* Normal mode setup */
 		ahc_outb(ahc, CRCCONTROL1, CRCVALCHKEN|CRCENDCHKEN|CRCREQCHKEN
 					  |TARGCRCENDEN);
 	}
-
-	error = ahc_pci_map_int(ahc);
-	if (error != 0)
-		return (error);
 
 	dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 	dscommand0 |= MPARCKEN|CACHETHEN;
@@ -825,6 +814,19 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	    ahc_pci_read_config(ahc->dev_softc, CSIZE_LATTIME,
 				/*bytes*/1) & CACHESIZE;
 	ahc->pci_cachesize *= 4;
+
+	/*
+	 * We cannot perform ULTRA speeds without the presense
+	 * of the external precision resistor.
+	 */
+	if ((ahc->features & AHC_ULTRA) != 0) {
+		uint32_t devconfig;
+
+		devconfig = ahc_pci_read_config(ahc->dev_softc,
+						DEVCONFIG, /*bytes*/4);
+		if ((devconfig & REXTVALID) == 0)
+			ahc->features &= ~AHC_ULTRA;
+	}
 
 	/* See if we have a SEEPROM and perform auto-term */
 	check_extport(ahc, &sxfrctl1);
@@ -880,20 +882,6 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if ((sxfrctl1 & STPWEN) != 0)
 		ahc->flags |= AHC_TERM_ENB_A;
 
-	/*
-	 * We cannot perform ULTRA speeds without
-	 * the presense of the external precision
-	 * resistor.
-	 */
-	if ((ahc->features & AHC_ULTRA) != 0) {
-		uint32_t devconfig;
-
-		devconfig = ahc_pci_read_config(ahc->dev_softc,
-						DEVCONFIG, /*bytes*/4);
-		if ((devconfig & REXTVALID) == 0)
-			ahc->flags |= AHC_ULTRA_DISABLED;
-	}
-
 	/* Core initialization */
 	error = ahc_init(ahc);
 	if (error != 0)
@@ -907,6 +895,10 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	/*
 	 * Allow interrupts now that we are completely setup.
 	 */
+	error = ahc_pci_map_int(ahc);
+	if (error != 0)
+		return (error);
+
 	ahc_intr_enable(ahc, TRUE);
 
 	return (0);
