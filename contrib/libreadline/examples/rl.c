@@ -12,7 +12,7 @@
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
-#include <config.h>
+#  include <config.h>
 #endif
 
 #include <stdio.h>
@@ -24,7 +24,9 @@
 extern int optind;
 extern char *optarg;
 
+#if !defined (strchr) && !defined (__STDC__)
 extern char *strrchr();
+#endif
 
 static char *progname;
 static char *deftext;

@@ -32,7 +32,9 @@
 #include <stdio.h>
 
 #include <sys/types.h>
-#include <sys/file.h>
+#ifndef _MINIX
+#  include <sys/file.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
 
@@ -129,19 +131,31 @@ read_history_range (filename, from, to)
      int from, to;
 {
   register int line_start, line_end;
-  char *input, *buffer = (char *)NULL;
+  char *input, *buffer;
   int file, current_line;
   struct stat finfo;
+  size_t file_size;
 
+  buffer = (char *)NULL;
   input = history_filename (filename);
   file = open (input, O_RDONLY|O_BINARY, 0666);
 
   if ((file < 0) || (fstat (file, &finfo) == -1))
     goto error_and_exit;
 
-  buffer = xmalloc ((int)finfo.st_size + 1);
+  file_size = (size_t)finfo.st_size;
 
-  if (read (file, buffer, finfo.st_size) != finfo.st_size)
+  /* check for overflow on very large files */
+  if (file_size != finfo.st_size || file_size + 1 < file_size)
+    {
+#if defined (EFBIG)
+      errno = EFBIG;
+#endif
+      goto error_and_exit;
+    }
+
+  buffer = xmalloc (file_size + 1);
+  if (read (file, buffer, file_size) != file_size)
     {
   error_and_exit:
       if (file >= 0)
@@ -157,15 +171,15 @@ read_history_range (filename, from, to)
 
   /* Set TO to larger than end of file if negative. */
   if (to < 0)
-    to = finfo.st_size;
+    to = file_size;
 
   /* Start at beginning of file, work to end. */
   line_start = line_end = current_line = 0;
 
   /* Skip lines until we are at FROM. */
-  while (line_start < finfo.st_size && current_line < from)
+  while (line_start < file_size && current_line < from)
     {
-      for (line_end = line_start; line_end < finfo.st_size; line_end++)
+      for (line_end = line_start; line_end < file_size; line_end++)
 	if (buffer[line_end] == '\n')
 	  {
 	    current_line++;
@@ -176,7 +190,7 @@ read_history_range (filename, from, to)
     }
 
   /* If there are lines left to gobble, then gobble them now. */
-  for (line_end = line_start; line_end < finfo.st_size; line_end++)
+  for (line_end = line_start; line_end < file_size; line_end++)
     if (buffer[line_end] == '\n')
       {
 	buffer[line_end] = '\0';
@@ -209,6 +223,7 @@ history_truncate_file (fname, lines)
   int file, chars_read;
   char *buffer, *filename;
   struct stat finfo;
+  size_t file_size;
 
   buffer = (char *)NULL;
   filename = history_filename (fname);
@@ -217,8 +232,20 @@ history_truncate_file (fname, lines)
   if (file == -1 || fstat (file, &finfo) == -1)
     goto truncate_exit;
 
-  buffer = xmalloc ((int)finfo.st_size + 1);
-  chars_read = read (file, buffer, finfo.st_size);
+  file_size = (size_t)finfo.st_size;
+
+  /* check for overflow on very large files */
+  if (file_size != finfo.st_size || file_size + 1 < file_size)
+    {
+      close (file);
+#if defined (EFBIG)
+      errno = EFBIG;
+#endif
+      goto truncate_exit;
+    }
+
+  buffer = xmalloc (file_size + 1);
+  chars_read = read (file, buffer, file_size);
   close (file);
 
   if (chars_read <= 0)
@@ -248,7 +275,7 @@ history_truncate_file (fname, lines)
      truncate to. */
   if (i && ((file = open (filename, O_WRONLY|O_TRUNC|O_BINARY, 0600)) != -1))
     {
-      write (file, buffer + i, finfo.st_size - i);
+      write (file, buffer + i, file_size - i);
       close (file);
     }
 

@@ -4,8 +4,8 @@ dnl
 dnl report bugs to chet@po.cwru.edu
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION([for Readline 2.1, version 2.04, from autoconf version] AC_ACVERSION)
-LIBVERSION=2.1
+AC_REVISION([for Readline 2.2, version 2.07, from autoconf version] AC_ACVERSION)
+LIBVERSION=2.2
 
 AC_INIT(readline.h)
 AC_CONFIG_HEADER(config.h)
@@ -17,10 +17,22 @@ AC_CONFIG_AUX_DIR(./support)
 
 AC_CANONICAL_HOST
 
+dnl configure defaults
+opt_curses=no
+opt_shared=no
+
+dnl arguments to configure
+AC_ARG_WITH(curses, --with-curses               use the curses library instead of the termcap library,opt_curses=$withval)
+
+if test "$opt_curses" = "yes"; then
+	prefer_curses=yes
+fi
+
 # We want these before the checks, so the checks can modify their values.
 test -z "$CFLAGS" && CFLAGS=-g auto_cflags=1
 
 AC_PROG_CC
+AC_MINIX
 
 # If we're using gcc and the user hasn't specified CFLAGS, add -O to CFLAGS.
 test -n "$GCC" && test -n "$auto_cflags" && CFLAGS="$CFLAGS -O"
@@ -55,8 +67,18 @@ BASH_HAVE_TIOCGWINSZ
 BASH_HAVE_TIOCSTAT
 BASH_HAVE_FIONREAD
 BASH_MISC_SPEED_T
+BASH_STRUCT_WINSIZE
 BASH_STRUCT_DIRENT_D_INO
 BASH_STRUCT_DIRENT_D_FILENO
+
+dnl yuck
+case "$host_os" in
+aix*)   prefer_curses=yes ;;
+esac
+BASH_CHECK_LIB_TERMCAP
+if test "$TERMCAP_LIB" = "./lib/termcap/libtermcap.a"; then
+	TERMCAP_LIB=-ltermcap	#default
+fi
 
 case "$host_cpu" in
 *cray*)	LOCAL_CFLAGS=-DCRAY ;;
@@ -66,14 +88,20 @@ case "$host_os" in
 isc*)	LOCAL_CFLAGS=-Disc386 ;;
 esac
 
+BUILD_DIR=`pwd`
+AC_SUBST(BUILD_DIR)
+
 AC_SUBST(CFLAGS)
 AC_SUBST(LOCAL_CFLAGS)
+AC_SUBST(LOCAL_LDFLAGS)
 AC_SUBST(LOCAL_DEFS)
 
 AC_SUBST(host_cpu)
 AC_SUBST(host_os)
 
 AC_SUBST(LIBVERSION)
+
+AC_SUBST(TERMCAP_LIB)
 
 AC_OUTPUT([Makefile doc/Makefile examples/Makefile],
 [

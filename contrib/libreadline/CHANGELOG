@@ -1,0 +1,77 @@
+[Readline-specific changelog.  Descriptions of changes to the source are
+ found in the bash changelog.]
+
+				    6/9
+				    ---
+Makefile.in
+	- quote value of ${INSTALL_DATA} when passing it to makes in
+	  subdirectories
+
+				    7/1
+				    ---
+Makefile.in
+	- don't pass INSTALL_DATA to a make in the `doc' subdirectory; let
+	  autoconf set the value itself in the Makefile
+	- removed a stray `-' before $(RANLIB) in the `install' recipe
+
+doc/Makefile.in
+	- add a VPATH assignment so the documentation is not remade if it's
+	  already up-to-date in the distribution
+
+configure.in
+	- call AC_SUBST(LOCAL_LDFLAGS), since Makefile.in contains
+	  @LOCAL_LDFLAGS@
+
+				    7/9
+				    ---
+
+config.h.in
+	- add define lines for STRUCT_WINSIZE_IN_SYS_IOCTL and
+	  STRUCT_WINSIZE_IN_TERMIOS
+
+configure.in
+	- call BASH_STRUCT_WINSIZE to look for the definition of
+	  `struct winsize'
+
+				   7/17
+				   ----
+configure.in
+	- call AC_MINIX
+
+config.h.in
+	- add define line for AC_MINIX
+
+				   7/18
+				   ----
+Makefile.in
+	- add `install-shared' and `uninstall-shared' targets
+
+				    8/4
+				    ---
+Makefile.in
+	- install and uninstall libhistory.a in the `install' and
+	  `uninstall' targets
+
+				    9/4
+				    ---
+configure.in
+	- bumped LIBVERSION up to 2.1.1, indicating that this is patch
+	  level 1 to release 2.1
+
+
+				   9/16
+				   ----
+Makefile.in
+	- `make distclean' now descends into the `examples' subdir
+
+doc/Makefile.in
+	- the `distclean' and `maintainer-clean' targets should remove
+	  Makefile
+
+examples/Makefile.in
+	- added the various clean targets
+
+				    4/2
+				    ---
+configure.in
+	- bumped LIBVERSION up to 2.2
