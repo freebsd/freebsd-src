@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)getgrent.c	8.2 (Berkeley) 3/21/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: parse_group.c,v 1.1.1.1.2.1 1997/12/15 07:16:19 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -141,6 +141,8 @@ grscan(search, gid, name)
 		if (search && name == NULL && _gr_group.gr_gid != gid)
 			continue;
 		cp = NULL;
+		if (bp == NULL) /* !! Must check for this! */
+			break;
 		for (m = _gr_group.gr_mem = members;; bp++) {
 			if (m == &members[MAXGRP - 1])
 				break;
