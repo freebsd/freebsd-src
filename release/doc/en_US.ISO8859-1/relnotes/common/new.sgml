@@ -621,7 +621,7 @@
         in the ports collection as <port>net/pim6dd</port> and
         <port>net/pim6sd</port>.</para>
 
-	<para>&man.route6d.8; now supports a <option>-n</option> flag
+	<para>&man.route6d.8; now supports an <option>-n</option> flag
 	to avoid updating the kernel forwarding table.</para>
 
 	<para>The <option>-R</option> (router renumbering) option to
