@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.11 1996/05/25 21:50:54 wosch Exp $
+#	$Id: bsd.man.mk,v 1.12 1996/05/25 23:09:48 wosch Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -55,7 +55,7 @@ MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 MCOMPRESS=	gzip -c
 ZEXTENSION=	.gz
 
-SECTIONS=	1 2 3 3f 4 5 6 7 8 9
+SECTIONS=	1 2 3 3f 4 5 6 7 8 9 n
 
 .undef _MANPAGES
 .for sect in ${SECTIONS}
