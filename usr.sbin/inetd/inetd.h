@@ -110,19 +110,19 @@ struct	servtab {
 #define	se_nomapped		se_flags.se_nomapped
 #define	se_reset		se_flags.se_reset
 
-int		check_loop __P((const struct sockaddr *, const struct servtab *sep));
-int		getvalue __P((const char *, int *, const char *));
-char	       *newstr __P((const char *));
-void		inetd_setproctitle __P((const char *, int));
-void		print_service __P((const char *, const struct servtab *));
-char	       *sskip __P((char **));
-char	       *skip __P((char **));
-struct servtab *tcpmux __P((int));
+int		check_loop(const struct sockaddr *, const struct servtab *sep);
+int		getvalue(const char *, int *, const char *);
+char	       *newstr(const char *);
+void		inetd_setproctitle(const char *, int);
+void		print_service(const char *, const struct servtab *);
+char	       *sskip(char **);
+char	       *skip(char **);
+struct servtab *tcpmux(int);
 
 extern int	 debug;
 extern struct servtab *servtab;
 
-typedef void (bi_fn_t) __P((int, struct servtab *));
+typedef void (bi_fn_t)(int, struct servtab *);
 
 struct biltin {
 	const char *bi_service;		/* internally provided service name */
