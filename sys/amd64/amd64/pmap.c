@@ -1305,9 +1305,10 @@ void
 pmap_growkernel(vm_offset_t addr)
 {
 	int s;
-	vm_paddr_t ptppaddr;
+	vm_paddr_t paddr;
 	vm_page_t nkpg;
-	pd_entry_t newpdir;
+	pd_entry_t *pde, newpdir;
+	pdp_entry_t newpdp;
 
 	s = splhigh();
 	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
@@ -1321,7 +1322,21 @@ pmap_growkernel(vm_offset_t addr)
 	}
 	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
 	while (kernel_vm_end < addr) {
-		if ((*pmap_pde(kernel_pmap, kernel_vm_end) & PG_V) != 0) {
+		pde = pmap_pde(kernel_pmap, kernel_vm_end);
+		if (pde == NULL) {
+			/* We need a new PDP entry */
+			nkpg = vm_page_alloc(NULL, nkpt,
+			    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+			if (!nkpg)
+				panic("pmap_growkernel: no memory to grow kernel");
+			pmap_zero_page(nkpg);
+			paddr = VM_PAGE_TO_PHYS(nkpg);
+			newpdp = (pdp_entry_t)
+				(paddr | PG_V | PG_RW | PG_A | PG_M);
+			*pmap_pdpe(kernel_pmap, kernel_vm_end) = newpdp;
+			continue; /* try again */
+		}
+		if ((*pde & PG_V) != 0) {
 			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 			continue;
 		}
@@ -1337,8 +1352,8 @@ pmap_growkernel(vm_offset_t addr)
 		nkpt++;
 
 		pmap_zero_page(nkpg);
-		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
-		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
+		paddr = VM_PAGE_TO_PHYS(nkpg);
+		newpdir = (pd_entry_t) (paddr | PG_V | PG_RW | PG_A | PG_M);
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
 
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
@@ -2851,26 +2866,7 @@ pmap_mapdev(pa, size)
 	vm_paddr_t pa;
 	vm_size_t size;
 {
-	vm_offset_t va, tmpva, offset;
-
-	offset = pa & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
-
-	GIANT_REQUIRED;
-
-	va = kmem_alloc_pageable(kernel_map, size);
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-
-	pa = pa & PG_FRAME;
-	for (tmpva = va; size > 0; ) {
-		pmap_kenter(tmpva, pa);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	return ((void *)(va + offset));
+	return (void *)PHYS_TO_DMAP(pa);
 }
 
 void
@@ -2878,18 +2874,6 @@ pmap_unmapdev(va, size)
 	vm_offset_t va;
 	vm_size_t size;
 {
-	vm_offset_t base, offset, tmpva;
-	pt_entry_t *pte;
-
-	base = va & PG_FRAME;
-	offset = va & PAGE_MASK;
-	size = roundup(offset + size, PAGE_SIZE);
-	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE) {
-		pte = vtopte(tmpva);
-		pte_clear(pte);
-	}
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
-	kmem_free(kernel_map, base, size);
 }
 
 /*
