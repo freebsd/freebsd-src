@@ -164,7 +164,7 @@ struct pfs_info {
 	struct pfs_node		*pi_root;
 	/* currently, the mutex is only used to protect the bitmap */
 	struct mtx		 pi_mutex;
-	struct pfs_bitmap	*pi_bitmap;
+	struct unrhdr		*pi_unrhdr;
 };
 
 /*

@@ -43,56 +43,18 @@ __FBSDID("$FreeBSD$");
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/pseudofs/pseudofs_internal.h>
 
-static MALLOC_DEFINE(M_PFSFILENO, "pfs_fileno", "pseudofs fileno bitmap");
-
-static struct mtx pfs_fileno_mutex;
-
-#define PFS_BITMAP_SIZE	4096
-#define PFS_SLOT_BITS	(int)(sizeof(unsigned int) * CHAR_BIT)
-#define PFS_BITMAP_BITS	(PFS_BITMAP_SIZE * PFS_SLOT_BITS)
-struct pfs_bitmap {
-	u_int32_t		 pb_offset;
-	int			 pb_used;
-	unsigned int		 pb_bitmap[PFS_BITMAP_SIZE];
-	struct pfs_bitmap	*pb_next;
-};
-
-/*
- * Initialization
- */
-void
-pfs_fileno_load(void)
-{
-	mtx_init(&pfs_fileno_mutex, "pseudofs_fileno", NULL, MTX_DEF);
-}
-
-/*
- * Teardown
- */
-void
-pfs_fileno_unload(void)
-{
-	mtx_destroy(&pfs_fileno_mutex);
-}
-
 /*
  * Initialize fileno bitmap
  */
 void
 pfs_fileno_init(struct pfs_info *pi)
 {
-	struct pfs_bitmap *pb;
+	struct unrhdr *up;
 
-	MALLOC(pb, struct pfs_bitmap *, sizeof *pb,
-	    M_PFSFILENO, M_WAITOK|M_ZERO);
-
+	up = new_unrhdr(3, INT_MAX, &pi->pi_mutex);
 	mtx_lock(&pi->pi_mutex);
-
-	pb->pb_bitmap[0] = 07;
-	pb->pb_used = 3;
-	pi->pi_bitmap = pb;
+	pi->pi_unrhdr = up;
 	pi->pi_root->pn_fileno = 2;
-
 	mtx_unlock(&pi->pi_mutex);
 }
 
@@ -102,110 +64,16 @@ pfs_fileno_init(struct pfs_info *pi)
 void
 pfs_fileno_uninit(struct pfs_info *pi)
 {
-	struct pfs_bitmap *pb, *npb;
-	int used;
+	struct unrhdr *up;
 
 	mtx_lock(&pi->pi_mutex);
 
-	pb = pi->pi_bitmap;
-	pi->pi_bitmap = NULL;
+	up = pi->pi_unrhdr;
+	pi->pi_unrhdr = NULL;
 
 	mtx_unlock(&pi->pi_mutex);
 
-	for (used = 0; pb; pb = npb) {
-		npb = pb->pb_next;
-		used += pb->pb_used;
-		FREE(pb, M_PFSFILENO);
-	}
-#if 0
-	/* we currently don't reclaim filenos */
-	if (used > 2)
-		printf("WARNING: %d file numbers still in use\n", used);
-#endif
-}
-
-/*
- * Get the next available file number
- */
-static u_int32_t
-pfs_get_fileno(struct pfs_info *pi)
-{
-	struct pfs_bitmap *pb, *ppb;
-	u_int32_t fileno;
-	unsigned int *p;
-	int i;
-
-	mtx_lock(&pi->pi_mutex);
-
-	/* look for the first page with free bits */
-	for (ppb = NULL, pb = pi->pi_bitmap; pb; ppb = pb, pb = pb->pb_next)
-		if (pb->pb_used != PFS_BITMAP_BITS)
-			break;
-
-	/* out of pages? */
-	if (pb == NULL) {
-		mtx_unlock(&pi->pi_mutex);
-		MALLOC(pb, struct pfs_bitmap *, sizeof *pb,
-		    M_PFSFILENO, M_WAITOK|M_ZERO);
-		mtx_lock(&pi->pi_mutex);
-		/* protect against possible race */
-		while (ppb->pb_next)
-			ppb = ppb->pb_next;
-		pb->pb_offset = ppb->pb_offset + PFS_BITMAP_BITS;
-		ppb->pb_next = pb;
-	}
-
-	/* find the first free slot */
-	for (i = 0; i < PFS_BITMAP_SIZE; ++i)
-		if (pb->pb_bitmap[i] != UINT_MAX)
-			break;
-
-	/* find the first available bit and flip it */
-	fileno = pb->pb_offset + i * PFS_SLOT_BITS;
-	p = &pb->pb_bitmap[i];
-	for (i = 0; i < PFS_SLOT_BITS; ++i, ++fileno)
-		if ((*p & (unsigned int)(1 << i)) == 0)
-			break;
-	KASSERT(i < PFS_SLOT_BITS,
-	    ("slot has free bits, yet doesn't"));
-	*p |= (unsigned int)(1 << i);
-	++pb->pb_used;
-
-	mtx_unlock(&pi->pi_mutex);
-
-	return fileno;
-}
-
-/*
- * Free a file number
- */
-static void
-pfs_free_fileno(struct pfs_info *pi, u_int32_t fileno)
-{
-	struct pfs_bitmap *pb;
-	unsigned int *p;
-	int i;
-
-	mtx_lock(&pi->pi_mutex);
-
-	/* find the right page */
-	for (pb = pi->pi_bitmap;
-	     pb && fileno >= PFS_BITMAP_BITS;
-	     pb = pb->pb_next, fileno -= PFS_BITMAP_BITS)
-		/* nothing */ ;
-	KASSERT(pb,
-	    ("fileno isn't in any bitmap"));
-
-	/* find the right bit in the right slot and flip it */
-	p = &pb->pb_bitmap[fileno / PFS_SLOT_BITS];
-	i = fileno % PFS_SLOT_BITS;
-	KASSERT(*p & (unsigned int)(1 << i),
-	    ("fileno is already free"));
-	*p &= ~((unsigned int)(1 << i));
-	--pb->pb_used;
-
-	mtx_unlock(&pi->pi_mutex);
-	printf("pfs_free_fileno(): reclaimed %d\n", fileno);
+	delete_unrhdr(up);
 }
 
 /*
@@ -224,7 +92,7 @@ pfs_fileno_alloc(struct pfs_info *pi, struct pfs_node *pn)
 	case pfstype_file:
 	case pfstype_symlink:
 	case pfstype_procdir:
-		pn->pn_fileno = pfs_get_fileno(pi);
+		pn->pn_fileno = alloc_unr(pi->pi_unrhdr);
 		break;
 	case pfstype_this:
 		KASSERT(pn->pn_parent != NULL,
@@ -272,7 +140,7 @@ pfs_fileno_free(struct pfs_info *pi, struct pfs_node *pn)
 	case pfstype_file:
 	case pfstype_symlink:
 	case pfstype_procdir:
-		pfs_free_fileno(pi, pn->pn_fileno);
+		free_unr(pi->pi_unrhdr, pn->pn_fileno);
 		break;
 	case pfstype_this:
 	case pfstype_parent:
