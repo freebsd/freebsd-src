@@ -30,6 +30,10 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#if defined (HAVE_UNISTD_H)
+#  include <unistd.h>
+#endif
+
 #if defined (FD_SET) && !defined (HAVE_SELECT)
 #  define HAVE_SELECT
 #endif
@@ -54,7 +58,7 @@ extern char *strchr (), *strrchr ();
 #include "readline.h"
 #include "rlprivate.h"
 
-static int find_matching_open __P((char *, int, int));
+static int find_matching_open PARAMS((char *, int, int));
 
 /* Non-zero means try to blink the matching open parenthesis when the
    close parenthesis is inserted. */
@@ -103,7 +107,7 @@ rl_insert_close (count, invoking_key)
      int count, invoking_key;
 {
   if (rl_explicit_arg || !rl_blink_matching_paren)
-    rl_insert (count, invoking_key);
+    _rl_insert_char (count, invoking_key);
   else
     {
 #if defined (HAVE_SELECT)
@@ -111,7 +115,7 @@ rl_insert_close (count, invoking_key)
       struct timeval timer;
       fd_set readfds;
 
-      rl_insert (1, invoking_key);
+      _rl_insert_char (1, invoking_key);
       (*rl_redisplay_function) ();
       match_point =
 	find_matching_open (rl_line_buffer, rl_point - 2, invoking_key);
@@ -131,7 +135,7 @@ rl_insert_close (count, invoking_key)
       ready = select (1, &readfds, (fd_set *)NULL, (fd_set *)NULL, &timer);
       rl_point = orig_point;
 #else /* !HAVE_SELECT */
-      rl_insert (count, invoking_key);
+      _rl_insert_char (count, invoking_key);
 #endif /* !HAVE_SELECT */
     }
   return 0;

@@ -54,4 +54,7 @@
    X `callback' style. */
 #define READLINE_CALLBACKS
 
+/* Define this if you want the cursor to indicate insert or overwrite mode. */
+/* #define CURSOR_MODE */
+
 #endif /* _RLCONF_H_ */

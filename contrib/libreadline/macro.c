@@ -49,8 +49,6 @@
 #include "rlprivate.h"
 #include "xmalloc.h"
 
-#define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
-
 /* **************************************************************** */
 /*								    */
 /*			Hacking Keyboard Macros 		    */
@@ -60,9 +58,6 @@
 /* The currently executing macro string.  If this is non-zero,
    then it is a malloc ()'ed string where input is coming from. */
 char *rl_executing_macro = (char *)NULL;
-
-/* Non-zero means to save keys that we dispatch on in a kbd macro. */
-int _rl_defining_kbd_macro = 0;
 
 /* The offset in the above string to the next character to be read. */
 static int executing_macro_index;
@@ -163,9 +158,9 @@ _rl_add_macro_char (c)
   if (current_macro_index + 1 >= current_macro_size)
     {
       if (current_macro == 0)
-	current_macro = xmalloc (current_macro_size = 25);
+	current_macro = (char *)xmalloc (current_macro_size = 25);
       else
-	current_macro = xrealloc (current_macro, current_macro_size += 25);
+	current_macro = (char *)xrealloc (current_macro, current_macro_size += 25);
     }
 
   current_macro[current_macro_index++] = c;
@@ -186,7 +181,6 @@ _rl_kill_kbd_macro ()
   rl_executing_macro = (char *) NULL;
   executing_macro_index = 0;
 
-  _rl_defining_kbd_macro = 0;
   RL_UNSETSTATE(RL_STATE_MACRODEF);
 }
 
@@ -200,7 +194,7 @@ int
 rl_start_kbd_macro (ignore1, ignore2)
      int ignore1, ignore2;
 {
-  if (_rl_defining_kbd_macro)
+  if (RL_ISSTATE (RL_STATE_MACRODEF))
     {
       _rl_abort_internal ();
       return -1;
@@ -214,7 +208,6 @@ rl_start_kbd_macro (ignore1, ignore2)
   else
     current_macro_index = 0;
 
-  _rl_defining_kbd_macro = 1;
   RL_SETSTATE(RL_STATE_MACRODEF);
   return 0;
 }
@@ -226,7 +219,7 @@ int
 rl_end_kbd_macro (count, ignore)
      int count, ignore;
 {
-  if (_rl_defining_kbd_macro == 0)
+  if (RL_ISSTATE (RL_STATE_MACRODEF) == 0)
     {
       _rl_abort_internal ();
       return -1;
@@ -235,7 +228,6 @@ rl_end_kbd_macro (count, ignore)
   current_macro_index -= rl_key_sequence_length - 1;
   current_macro[current_macro_index] = '\0';
 
-  _rl_defining_kbd_macro = 0;
   RL_UNSETSTATE(RL_STATE_MACRODEF);
 
   return (rl_call_last_kbd_macro (--count, 0));
@@ -250,7 +242,7 @@ rl_call_last_kbd_macro (count, ignore)
   if (current_macro == 0)
     _rl_abort_internal ();
 
-  if (_rl_defining_kbd_macro)
+  if (RL_ISSTATE (RL_STATE_MACRODEF))
     {
       rl_ding ();		/* no recursive macros */
       current_macro[--current_macro_index] = '\0';	/* erase this char */

@@ -46,7 +46,7 @@ typedef int QSFUNC (const void *, const void *);
 typedef int QSFUNC ();
 #endif
 
-extern int _rl_qsort_string_compare __P((char **, char **));
+extern int _rl_qsort_string_compare PARAMS((char **, char **));
 
 FUNMAP **funmap;
 static int funmap_size;
@@ -60,7 +60,8 @@ static FUNMAP default_funmap[] = {
   { "abort", rl_abort },
   { "accept-line", rl_newline },
   { "arrow-key-prefix", rl_arrow_keys },
-  { "backward-char", rl_backward },
+  { "backward-byte", rl_backward_byte },
+  { "backward-char", rl_backward_char },
   { "backward-delete-char", rl_rubout },
   { "backward-kill-line", rl_backward_kill_line },
   { "backward-kill-word", rl_backward_kill_word },
@@ -91,7 +92,8 @@ static FUNMAP default_funmap[] = {
   { "end-of-line", rl_end_of_line },
   { "exchange-point-and-mark", rl_exchange_point_and_mark },
   { "forward-backward-delete-char", rl_rubout_or_delete },
-  { "forward-char", rl_forward },
+  { "forward-byte", rl_forward_byte },
+  { "forward-char", rl_forward_char },
   { "forward-search-history", rl_forward_search_history },
   { "forward-word", rl_forward_word },
   { "history-search-backward", rl_history_search_backward },
@@ -108,6 +110,7 @@ static FUNMAP default_funmap[] = {
   { "non-incremental-reverse-search-history", rl_noninc_reverse_search },
   { "non-incremental-forward-search-history-again", rl_noninc_forward_search_again },
   { "non-incremental-reverse-search-history-again", rl_noninc_reverse_search_again },
+  { "overwrite-mode", rl_overwrite_mode },
 #ifdef __CYGWIN__
   { "paste-from-clipboard", rl_paste_from_clipboard },
 #endif

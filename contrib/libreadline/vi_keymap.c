@@ -41,7 +41,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_emacs_editing_mode },		/* Control-e */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* Control-f */
   { ISFUNC, rl_abort },				/* Control-g */
-  { ISFUNC, rl_backward },			/* Control-h */
+  { ISFUNC, rl_backward_char },			/* Control-h */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* Control-i */
   { ISFUNC, rl_newline },			/* Control-j */
   { ISFUNC, rl_kill_line },			/* Control-k */
@@ -68,7 +68,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_undo },			/* Control-_ */
 
   /* The start of printing characters. */
-  { ISFUNC, rl_forward },			/* SPACE */
+  { ISFUNC, rl_forward_char },			/* SPACE */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* ! */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* " */
   { ISFUNC, rl_insert_comment },		/* # */
@@ -150,11 +150,11 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_vi_end_word },			/* e */
   { ISFUNC, rl_vi_char_search },		/* f */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* g */
-  { ISFUNC, rl_backward },			/* h */
+  { ISFUNC, rl_backward_char },			/* h */
   { ISFUNC, rl_vi_insertion_mode },		/* i */
   { ISFUNC, rl_get_next_history },		/* j */
   { ISFUNC, rl_get_previous_history },		/* k */
-  { ISFUNC, rl_forward },			/* l */
+  { ISFUNC, rl_forward_char },			/* l */
   { ISFUNC, rl_vi_set_mark },			/* m */
   { ISFUNC, rl_vi_search_again },		/* n */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* o */
