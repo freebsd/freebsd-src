@@ -31,8 +31,8 @@ LDIRS=	cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 	netipsec netipx netkey netnatm netncp netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
-LSUBDIRS=	cam/scsi dev/an dev/firewire dev/ic dev/iicbus dev/ofw \
-	dev/ppbus dev/smbus dev/usb dev/wi dev/utopia fs/devfs \
+LSUBDIRS=	cam/scsi dev/an dev/bktr dev/firewire dev/ic dev/iicbus \
+	dev/ofw dev/ppbus dev/smbus dev/usb dev/wi dev/utopia fs/devfs \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/udf fs/umapfs fs/unionfs isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
@@ -100,11 +100,14 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/bktr} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
 .endfor
+	cd ${.CURDIR}/../sys/dev/bktr; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
