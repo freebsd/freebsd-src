@@ -44,14 +44,14 @@ static const char copyright[] =
 #if 0
 static const char sccsid[] = "@(#)du.c	8.5 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] = "$FreeBSD$";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 
 #include <sys/param.h>
 #include <sys/stat.h>
 
-#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
@@ -139,7 +139,7 @@ main(argc, argv)
 				errno = 0;
 				depth = atoi(optarg);
 				if (errno == ERANGE || depth < 0) {
-					(void) fprintf(stderr, "Invalid argument to option d: %s\n", optarg);
+					warnx("invalid argument to option d: %s", optarg);
 					usage();
 				}
 				break;
@@ -229,7 +229,7 @@ main(argc, argv)
 				p->fts_parent->fts_number +=
 				    p->fts_number += p->fts_statp->st_blocks;
 				
-				if (p->fts_level <= depth)
+				if (p->fts_level <= depth) {
 					if (hflag) {
 						(void) prthumanval(howmany(p->fts_number, blocksize));
 						(void) printf("\t%s\n", p->fts_path);
@@ -238,6 +238,7 @@ main(argc, argv)
 					    howmany(p->fts_number, blocksize),
 					    p->fts_path);
 					}
+				}
 				break;
 			case FTS_DC:			/* Ignore. */
 				break;
@@ -251,7 +252,7 @@ main(argc, argv)
 				if (p->fts_statp->st_nlink > 1 && linkchk(p))
 					break;
 				
-				if (listall || p->fts_level == 0)
+				if (listall || p->fts_level == 0) {
 					if (hflag) {
 						(void) prthumanval(howmany(p->fts_statp->st_blocks,
 							blocksize));
@@ -261,6 +262,7 @@ main(argc, argv)
 							howmany(p->fts_statp->st_blocks, blocksize),
 							p->fts_path);
 					}
+				}
 
 				p->fts_parent->fts_number += p->fts_statp->st_blocks;
 		}
@@ -270,13 +272,14 @@ main(argc, argv)
 	if (errno)
 		err(1, "fts_read");
 
-	if (cflag)
+	if (cflag) {
 		if (hflag) {
 			(void) prthumanval(howmany(savednumber, blocksize));
 			(void) printf("\ttotal\n");
 		} else {
 			(void) printf("%ld\ttotal\n", howmany(savednumber, blocksize));
 		}
+	}
 
 	exit(rval);
 }
@@ -307,7 +310,7 @@ linkchk(p)
 
 	if (nfiles == maxfiles && (files = realloc((char *)files,
 	    (u_int)(sizeof(ID) * (maxfiles += 128)))) == NULL)
-		err(1, "can't allocate memory");
+		errx(1, "can't allocate memory");
 	files[nfiles].inode = ino;
 	files[nfiles].dev = dev;
 	++nfiles;
