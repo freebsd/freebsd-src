@@ -1509,6 +1509,12 @@ ata_sii_chipinit(device_t dev)
     }
     else 
 	ctlr->setmode = ata_cmd_setmode;
+
+    if ((pci_read_config(dev, 0x51, 1) & 0x08) != 0x08) {
+        device_printf(dev, "secondary channel disabled\n");
+        ctlr->channels = 1;
+    }    
+
     return 0;
 }
 
