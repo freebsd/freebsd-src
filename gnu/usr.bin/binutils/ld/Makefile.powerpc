@@ -1,30 +1,12 @@
 # $FreeBSD$
 
-.if ${TARGET_ARCH} == "powerpc"
 NATIVE_EMULATION=	elf32ppc
-HOST=	${TARGET_TUPLE}
-CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
-CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_powerpc_path=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
-.else
-_powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
-.endif
-EMS+=		${NATIVE_EMULATION}
-LDSCRIPTS+=	${NATIVE_EMULATION}.x	\
-		${NATIVE_EMULATION}.xbn	\
-		${NATIVE_EMULATION}.xn	\
-		${NATIVE_EMULATION}.xr	\
-		${NATIVE_EMULATION}.xs	\
-		${NATIVE_EMULATION}.xu	\
-		${NATIVE_EMULATION}.xsc \
-		${NATIVE_EMULATION}.xd \
-		${NATIVE_EMULATION}.xdc
+
 SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
-
 e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_powerpc_path} \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${NATIVE_EMULATION} ""  no ${NATIVE_EMULATION} ${TARGET_TUPLE}
