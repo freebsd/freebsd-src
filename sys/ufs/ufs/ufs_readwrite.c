@@ -617,8 +617,9 @@ ffs_getpages(ap)
 	reqlblkno = foff / bsize;
 	poff = (foff % bsize) / PAGE_SIZE;
 
-	if ( VOP_BMAP( vp, reqlblkno, &dp, &reqblkno,
-		&bforwards, &bbackwards) || (reqblkno == -1)) {
+	dp = VTOI(vp)->i_devvp;
+	if (ufs_bmaparray(vp, reqlblkno, &reqblkno, &bforwards, &bbackwards)
+	    || (reqblkno == -1)) {
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vm_page_free(ap->a_m[i]);
