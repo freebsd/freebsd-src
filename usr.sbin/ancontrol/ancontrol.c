@@ -127,7 +127,7 @@ static void an_getval(iface, areq)
 
 	bzero((char *)&ifr, sizeof(ifr));
 
-	strcpy(ifr.ifr_name, iface);
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)areq;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -152,7 +152,7 @@ static void an_setval(iface, areq)
 
 	bzero((char *)&ifr, sizeof(ifr));
 
-	strcpy(ifr.ifr_name, iface);
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)areq;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -1035,24 +1035,21 @@ static void an_setssid(iface, act, arg)
 	an_getval(iface, &areq);
 	ssid = (struct an_ltv_ssidlist *)&areq;
 
-	switch(act) {
+	switch (act) {
 	case ACT_SET_SSID1:
 		bzero(ssid->an_ssid1, sizeof(ssid->an_ssid1));
-		bcopy((char *)arg, (char *)&ssid->an_ssid1,
-		    strlen((char *)arg));
-		ssid->an_ssid1_len = strlen((char *)arg);
+		strlcpy(ssid->an_ssid1, (char *)arg, sizeof(ssid->an_ssid1));
+		ssid->an_ssid1_len = strlen(ssid->an_ssid1);
 		break;
 	case ACT_SET_SSID2:
 		bzero(ssid->an_ssid2, sizeof(ssid->an_ssid2));
-		bcopy((char *)arg, (char *)&ssid->an_ssid2,
-		    strlen((char *)arg));
-		ssid->an_ssid2_len = strlen((char *)arg);
+		strlcpy(ssid->an_ssid2, (char *)arg, sizeof(ssid->an_ssid2));
+		ssid->an_ssid2_len = strlen(ssid->an_ssid2);
 		break;
 	case ACT_SET_SSID3:
 		bzero(ssid->an_ssid3, sizeof(ssid->an_ssid3));
-		bcopy((char *)arg, (char *)&ssid->an_ssid3,
-		    strlen((char *)arg));
-		ssid->an_ssid3_len = strlen((char *)arg);
+		strlcpy(ssid->an_ssid3, (char *)arg, sizeof(ssid->an_ssid3));
+		ssid->an_ssid3_len = strlen(ssid->an_ssid3);
 		break;
 	default:
 		errx(1, "unknown action");
