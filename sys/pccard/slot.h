@@ -33,6 +33,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _PCCARD_SLOT_H
+#define _PCCARD_SLOT_H
+
+/*
+ * Normally we shouldn't include stuff here, but we're trying to be
+ * compatible with the long, dark hand of the past.
+ */
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
+#include <i386/isa/isa_device.h>
+
 /*
  *	Controller data - Specific to each slot controller.
  */
@@ -82,6 +95,7 @@ struct pccard_device {
 	int (*handler)(struct pccard_devinfo *);	/* interrupt handler */
 	int	attr;					/* driver attributes */
 	unsigned int *imask;				/* Interrupt mask ptr */
+	driver_t *driver;			/* Driver */
 
 	struct pccard_device *next;
 };
@@ -114,13 +128,12 @@ DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 struct pccard_devinfo {
 	struct pccard_device *drv;
 	struct isa_device isahd;	/* Device details */
-#if 0
-	void *arg;			/* Device argument */
-#endif
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
 	struct slot *slt;		/* Back pointer to slot */
 
+	struct resource *iorv;		/* Kludge: keep track of io resource */
+	struct resource *irqrv;		/* Kludge: keep track of irq */
 	struct pccard_devinfo *next;	/* List of drivers */
 };
 
@@ -157,3 +170,5 @@ enum card_event { card_removed, card_inserted };
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
 void		 pccard_remove_controller(struct slot_ctrl *);
+
+#endif /* !_PCCARD_SLOT_H */
