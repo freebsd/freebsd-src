@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: worm.4,v 1.10 1997/02/22 13:24:55 peter Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -125,23 +125,7 @@ The following
 calls apply to CD-R devices.  Their declaration can be found in the
 header file
 .Pa <sys/wormio.h> .
-.Bl -tag -width WORMIOCQUIRKSELECT
-.It Dv WORMIOCQUIRKSELECT
-Select the set of quirk functions to use for this device.  This is the
-only allowed action on a virgin device after booting.  The argument
-structure takes a vendor and a model string, which are matched against
-the vendor and model strings of all quirk records that have been
-registered with the driver.  Currently, the only known quirks must
-have been statically compiled into the driver.
-.Pp
-If the driver fails to match the vendor and model string against any
-known quirk record, the system call returns with an error, and the
-variable
-.Va errno
-will be set to
-.Er EINVAL .
-The system call argument is a pointer to a
-.Dv struct wormio_quirk_select .
+.Bl -tag -width WORMIOFINISHTRACK
 .It Dv WORMIOCPREPDISK
 This command selects several session-wide parameters in the driver.
 The argument structure,
@@ -161,22 +145,98 @@ is device-dependent, where a speed value of one generally applies to
 audio disks, and a speed value of 2 (or more) is used for recording
 data.
 .It Dv WORMIOCPREPTRACK
-The two parameters
+This command selects several options for writing the next track.
+The argument structure,
+.Dv struct wormio_prepare_track
+is as follows:
+.Bd -literal -offset indent
+struct wormio_prepare_track {
+	int audio;
+	int preemp;
+        int track_type;
+        int copy_bits; 
+        int track_number;
+        char ISRC_country[2];
+        char ISRC_owner[3];
+        int ISRC_year;
+        char ISRC_serial[5];
+};
+.Ed
 .Dv audio
-and
-.Dv preemp
-are being passed as arguments in a
-.Dv struct wormio_prepare_track .
-Both are Boolean, i.e. can be either 0 or 1.  If
-.Dv audio
-is set to 1, the next track will be recorded in audio format, with
-2352 bytes per block.  If
+should be set to 1 if you are recording an audio track.
+If
 .Dv preemp
 is also set to 1, the audio data are assumed to be recorded with
-preemphasis.  If
+preemphasis.
+.Dv track_type 
+defines both the the specific data fields in a user data block and
+its size. Currently available types are
+.Bl -tag -width BLOCK_MODE_2_FORM_2b
+.It Dv BLOCK_RAW
+2352 bytes, raw data.
+.It Dv BLOCK_RAWPQ
+2368 bytes, raw data with P and Q subchannels.
+.It Dv BLOCK_RAWPW
+2448 bytes, raw data with P-W subchannel appended.
+.It Dv BLOCK_MODE_1
+2048 bytes, mode 1 (ISO/IEC 10149).
+.It Dv BLOCK_MODE_2
+2336 bytes, mode 2 (ISO/IEC 10149).
+.It Dv BLOCK_MODE_2_FORM_1
+2048 bytes, CD-ROM XA form 1.
+.It Dv BLOCK_MODE_2_FORM_1b 
+2056 bytes, CD-ROM XA form 1.
+.It Dv BLOCK_MODE_2_FORM_2
+2324 bytes, CD-ROM XA form 2.
+.It Dv BLOCK_MODE_2_FORM_2b
+2332 bytes, CD-ROM XA form 2.
+.El
+.Pp
+Note that not all track types are supported for a given drive.
+.Pp
+.Dv copy_bits
+define the permissions for copying the track. Available values are
+.Bl -tag -width  COPY_PERMITTED
+.It Dv COPY_INHIBIT
+No copy is allowed.
+.It Dv COPY_PERMITTED
+The track can be copied.
+.It Dv COPY_SCMS 
+The track can be copied once.
+.El
+
+.Dv track_number :
+if the track number is zero, a new track will be created with a track
+number one higher than the previous track. If the track number is not
+zero, then this track number must point to a reserved track, unless it
+is an  empty disc which will start with the given track number.
+
+.Dv ISRC_country :
+two characters in the range [0-9A-Z] defining the country code.
+
+.Dv ISRC_owner :
+three characters in the range [0-9A-Z] defining the owner code.
+
+.Dv ISRC_year :
+the year of recording.
+
+.Dv ISRC_serial :
+a serial number, composed of 5 digits.
+.Pp
+For writing an audio track, setting 
 .Dv audio
-is 0, CD-ROM data with a block length of 2048 bytes are about to be
-written next.
+to 1,
+.Dv preemp
+to 0 or 1 and all the other field to 0 will do the job. For writing a
+data track, you can just set
+.Dv track_type 
+to
+.Dv BLOCK_MODE_1 .
+
+.It Dv WORMIOCFINISHTRACK
+Will terminate the track. It takes no argument. Note that closing the
+device will also terminate the track.
+
 .It Dv WORMIOCFIXATION
 This closes the current session.  The argument is a pointer to
 .Dv struct wormio_fixation ,
@@ -190,15 +250,50 @@ to 1 will cause the next session being opened, so further recording
 can be performed into the remaining space.  If
 .Dv onp
 is 0, the disk will be closed once and for all.
+
+.It Dv WORMIOERROR
+This call may be used to get additional information when a I/O error
+occured or to check if the last command ended with a recovered
+error or a warning. The argument is  a pointer to an integer. The
+returned value can be:
+.Bl -tag -width  WORM_
+.It Dv WORM_SEQUENCE_ERROR
+Occurs if a write is performed when the track has not been prepared or
+if 
+.Dv WORMCPREPTRACK 
+is done without a prior 
+.Dv WORMIOCPREPDISK .
+.It Dv WORM_BUFFER_UNDERRUN
+Indicates that the write action stopped because the cache buffer emptied.
+.It Dv WORM_DUMMY_BLOCKS_ADDED
+This a warning which may occur when the track is closed. Indicates
+that during writing dummy blocks are added to meet the disc
+specification (minimum of 300 blocks for a track).
+.It Dv WORM_CALIBRATION_AREA_ALMOST_FULL
+This is warning which indicates that a few Optimum Power Calibration
+areas are left. It is recommended to fixate after the tracks are written.
+.It Dv WORM_CALIBRATION_AREA_FULL
+Indicates that the Calibration area is full. This means that no further
+writes can be performed on this disc.
+.It Dv WORM_ABSORPTION_CONTROL_ERROR
+Indicates that an error might have occurred in the recorded data that
+was written, caused by laser power clipping. This is a warning.
+.It Dv WORM_END_OF_MEDIUM
+Indicates that during writing the end of medium is detected or the
+amount of track reached the limit of 99.
+.It Dv WORM_OPTIMUM_POWER_CALIBRATION_ERROR
+Indicates that power calibration failed. This could indicate: Wrong WO
+medium installed, laser failure or drive failure.
+.Pp
+.El
+If an unknown error occured, the returned value will be -1.
+
 .El
 Specifying wrong argument values to the above ioctl command will cause
 the driver to return an error condition with
 .Va errno
 set to
 .Er EINVAL .
-Any attempt to perform something else then selecting a quirks record
-on a device where this has not been done yet will return an error of
-.Er ENXIO .
 .Pp
 In addition, the 
 .Xr scsi 4
