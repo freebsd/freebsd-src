@@ -30,9 +30,8 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 SYSCALL(vfork)
+	cmp.ne	p7,p0=ret1,r0		/* ret1!=0 for child */
 	;;
-	cmp.ne	p6,p0=ret1,r0		/* ret1!=0 for child */
-	;;
-(p6)	mov	ret0=r0
+(p7)	mov	ret0=r0
 	br.ret.sptk.few rp
-END(vfork)
+END(__sys_vfork)
