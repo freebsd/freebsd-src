@@ -177,7 +177,14 @@ g_modevent(module_t mod, int type, void *data)
 	struct g_hh00 *hh;
 	int error;
 	static int g_ignition;
+	struct g_class *mp;
 
+	mp = data;
+	if (mp->version != G_VERSION) {
+		printf("GEOM class %s has Wrong version %x\n",
+		    mp->name, mp->version);
+		return (EINVAL);
+	}
 	if (!g_ignition) {
 		g_ignition++;
 		g_init();
@@ -234,6 +241,13 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	TAILQ_INSERT_HEAD(&geoms, gp, geoms);
 	strcpy(gp->name, sbuf_data(sb));
 	sbuf_delete(sb);
+	/* Fill in defaults from class */
+	gp->start = mp->start;
+	gp->spoiled = mp->spoiled;
+	gp->dumpconf = mp->dumpconf;
+	gp->access = mp->access;
+	gp->orphan = mp->orphan;
+	gp->ioctl = mp->ioctl;
 	return (gp);
 }
 

@@ -87,6 +87,7 @@ typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
  */
 struct g_class {
 	const char		*name;
+	u_int			version;
 	g_taste_t		*taste;
 	g_config_t		*config;
 	g_ctl_req_t		*ctlreq;
@@ -94,11 +95,23 @@ struct g_class {
 	g_fini_t		*fini;
 	g_ctl_destroy_geom_t	*destroy_geom;
 	/*
+	 * Defaults values for geom methods
+	 */
+	g_start_t		*start;
+	g_spoiled_t		*spoiled;
+	g_dumpconf_t		*dumpconf;
+	g_access_t		*access;
+	g_orphan_t		*orphan;
+	g_ioctl_t		*ioctl;
+	/*
 	 * The remaining elements are private
 	 */
 	LIST_ENTRY(g_class)	class;
 	LIST_HEAD(,g_geom)	geom;
 };
+
+#define G_VERSION_00	0x19950323
+#define G_VERSION	G_VERSION_00
 
 /*
  * The g_geom is an instance of a g_class.
