@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,6 +63,7 @@ struct ppc_data {
 
 	int ppc_mode;		/* chipset current mode */
 	int ppc_avm;		/* chipset available modes */
+	int ppc_dtm;		/* chipset detected modes */
 
 #define PPC_IRQ_NONE		0x0
 #define PPC_IRQ_nACK		0x1
