@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.25.2.12 1997/12/12 07:20:32 charnier Exp $";
+	"$Id: ftpd.c,v 1.25.2.13 1997/12/24 19:13:47 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -273,7 +273,8 @@ main(argc, argv, envp)
 	char *cp, line[LINE_MAX];
 	FILE *fd;
 
-	tzset();		/* in case no timezone database in ~ftp */
+	setenv("TZ", "", 1); /* since protocol have no way to tell offset */
+	tzset();
 
 #ifdef OLD_SETPROCTITLE
 	/*
