@@ -136,7 +136,7 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip)
 
 	ip->i_mode &= ACL_PRESERVE_MASK;
 	ip->i_mode |= acl_posix1e_acl_to_mode(acl);
-	DIP(ip, i_mode) = ip->i_mode;
+	DIP_SET(ip, i_mode, ip->i_mode);
 }
 
 /*
