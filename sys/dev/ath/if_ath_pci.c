@@ -90,7 +90,7 @@ ath_pci_probe(device_t dev)
 	devname = ath_hal_probe(pci_get_vendor(dev), pci_get_device(dev));
 	if (devname != NULL) {
 		device_set_desc(dev, devname);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }
