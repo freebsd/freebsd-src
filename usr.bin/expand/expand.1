@@ -53,13 +53,15 @@
 .Op Fl a
 .Op Ar
 .Sh DESCRIPTION
-.Nm Expand
-processes the named files or the standard input writing
+The
+.Nm
+utility processes the named files or the standard input writing
 the standard output with tabs changed into blanks.
 Backspace characters are preserved into the output and decrement
 the column count for tab calculations.
-.Nm Expand
-is useful for pre-processing character files
+The
+.Nm
+utility is useful for pre-processing character files
 (before sorting, looking at specific columns, etc.) that
 contain tabs.
 .Pp
@@ -71,8 +73,9 @@ spaces apart instead of the default 8.
 If multiple tabstops are given then the tabs are set at those
 specific columns.
 .Pp
-.Nm Unexpand
-puts tabs back into the data from the standard input or the named
+The
+.Nm unexpand
+utility puts tabs back into the data from the standard input or the named
 files and writes the result on the standard output.
 .Pp
 Option (with

@@ -17,13 +17,14 @@
 .Op +#
 .Op Ar
 .Sh DESCRIPTION
-The command
+The
 .Nm
+utility
 is a simple screen oriented text editor.  It is always in text insertion
 mode unless there is a prompt at the bottom of the terminal, or a
-menu present (in a box in the middle of the terminal).  The command
+menu present (in a box in the middle of the terminal).  The
 .Nm ree
-is the same as
+utility is the same as
 .Nm ,
 but restricted to editing the named
 file (no file operations, or shell escapes are allowed).
@@ -383,8 +384,9 @@ run on the file, and the file read back in once
 has completed making changes to the file.
 .Ss "Printing the contents of the editor"
 The user may select a menu item which prints the contents of the editor.
+The
 .Nm
-pipes the text in the editor to the command specified by the
+utility pipes the text in the editor to the command specified by the
 initialization command
 .Em printcommand
 (see the section
@@ -544,8 +546,9 @@ supported materials.
 Always make a copy of files that cannot be easily reproduced before
 editing.  Save files early, and save often.
 .Ss "International Code Set Support"
-.Nm Ee
-supports single-byte character code sets (eight-bit clean), or the
+The
+.Nm
+utility supports single-byte character code sets (eight-bit clean), or the
 Chinese Big-5 code set.  (Other multi-byte code sets may function, but the
 reason Big-5 works is that a two-byte character also takes up two columns on
 the screen.)
