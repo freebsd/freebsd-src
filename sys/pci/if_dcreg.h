@@ -712,6 +712,8 @@ struct dc_softc {
  */
 #define DC_DEVICEID_98713	0x0512
 #define DC_DEVICEID_987x5	0x0531
+#define DC_DEVICEID_98727	0x0532
+#define DC_DEVICEID_98732	0x0532
 
 /* Macronix PCI revision codes. */
 #define DC_REVISION_98713	0x00
