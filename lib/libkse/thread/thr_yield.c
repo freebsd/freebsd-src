@@ -34,6 +34,20 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+int
+sched_yield(void)
+{
+	/* Reset the accumulated time slice value for the current thread: */
+	_thread_run->slice_usec = -1;
+
+	/* Schedule the next thread: */
+	_thread_kern_sched(NULL);
+
+	/* Always return no error. */
+	return(0);
+}
+
+/* Draft 4 yield */
 void
 pthread_yield(void)
 {

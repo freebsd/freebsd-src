@@ -52,6 +52,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sched.h>
 
 /*
  * Kernel fatal error handler macro.
@@ -158,30 +159,15 @@ struct pthread_cleanup {
 	void			*routine_arg;
 };
 
-/*
- * Scheduling definitions.
- */
-enum schedparam_policy {
-	SCHED_RR,
-	SCHED_IO,
-	SCHED_FIFO,
-	SCHED_OTHER
-};
-
 struct pthread_attr {
-	enum schedparam_policy	schedparam_policy;
-	int			prio;
-	int			suspend;
-	int			flags;
-	void			*arg_attr;
-	void			(*cleanup_attr) ();
-	void			*stackaddr_attr;
-	size_t			stacksize_attr;
-};
-
-struct sched_param {
+	int	schedparam_policy;
 	int	prio;
-	void	*no_data;
+	int	suspend;
+	int	flags;
+	void	*arg_attr;
+	void	(*cleanup_attr) ();
+	void	*stackaddr_attr;
+	size_t	stacksize_attr;
 };
 
 /*
