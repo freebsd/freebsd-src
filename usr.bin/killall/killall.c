@@ -225,7 +225,7 @@ main(int ac, char **av)
 	}
 	if (user) {
 		uid = strtol(user, &ep, 10);
-		if ((ep - user) < strlen(user)) {
+		if (*user == '\0' || *ep != '\0') { /* was it a number? */
 			pw = getpwnam(user);
 			if (pw == NULL)
 				errx(1, "user %s does not exist", user);
