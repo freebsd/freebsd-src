@@ -383,6 +383,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	WITNESS_SLEEP(0, &mtx->mtx_object);
+	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
+	    ("sleeping without a mutex"));
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
 		/*
@@ -574,6 +576,8 @@ mawait(struct mtx *mtx, int priority, int timo)
 	WITNESS_SAVE_DECL(mtx);
 
 	WITNESS_SLEEP(0, &mtx->mtx_object);
+	KASSERT(timo > 0 || mtx_owned(&Giant) || mtx != NULL,
+	    ("sleeping without a mutex"));
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	if (mtx != NULL) {
