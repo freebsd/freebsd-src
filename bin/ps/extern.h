@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id: extern.h,v 1.2 1994/09/24 02:56:42 davidg Exp $
+ *	$Id: extern.h,v 1.3 1996/10/21 07:30:23 peter Exp $
  */
 
 struct kinfo;
@@ -64,6 +64,7 @@ void	 parsefmt __P((char *));
 void	 pcpu __P((KINFO *, VARENT *));
 void	 pmem __P((KINFO *, VARENT *));
 void	 pri __P((KINFO *, VARENT *));
+void	 rtprior __P((KINFO *, VARENT *));
 void	 printheader __P((void));
 void	 pvar __P((KINFO *, VARENT *));
 void	 rssize __P((KINFO *, VARENT *));
