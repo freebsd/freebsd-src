@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.52 1994/10/19 01:58:58 wollman Exp $
+ * $Id: if_ed.c,v 1.53 1994/10/22 17:52:22 phk Exp $
  */
 
 #include "ed.h"
@@ -173,17 +173,22 @@ static unsigned short ed_790_intr_mask[] = {
 
 static struct kern_devconf kdc_ed[NED] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"ed", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"ed", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* network interfaces are always ``open'' */
+	""			/* description */
 } };
 
 static inline void
-ed_registerdev(struct isa_device *id)
+ed_registerdev(struct isa_device *id, const char *descr)
 {
 	if(id->id_unit)
 		kdc_ed[id->id_unit] = kdc_ed[0];
 	kdc_ed[id->id_unit].kdc_unit = id->id_unit;
-	kdc_ed[id->id_unit].kdc_isa = id;
+	kdc_ed[id->id_unit].kdc_parentdata = id;
+	kdc_ed[id->id_unit].kdc_description = descr;
 	dev_attach(&kdc_ed[id->id_unit]);
 }
 
@@ -1120,7 +1125,7 @@ ed_attach(isa_dev)
 	 * Attach the interface
 	 */
 	if_attach(ifp);
-	ed_registerdev(isa_dev);
+	ed_registerdev(isa_dev, sc->type_str ? sc->type_str : "Ethernet adapter");
 
 	/*
 	 * Print additional info when attached

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.27 1994/10/12 04:15:30 phk Exp $
+ *      $Id: bt742a.c,v 1.28 1994/10/17 21:16:35 phk Exp $
  */
 
 /*
@@ -51,6 +51,7 @@
 #include <i386/isa/isa_device.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <sys/devconf.h>
 
 #ifdef	KERNEL
 #include <sys/kernel.h>
@@ -435,6 +436,26 @@ struct scsi_device bt_dev =
     { 0, 0 }
 };
 
+static struct kern_devconf kdc_bt[NBT] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"bt", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always busy */
+	"Buslogic 742-compatible SCSI host adapter"
+} };
+
+static inline void
+bt_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_bt[id->id_unit] = kdc_bt[0];
+	kdc_bt[id->id_unit].kdc_unit = id->id_unit;
+	kdc_bt[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_bt[id->id_unit]);
+}
+
 #endif /*KERNEL */
 
 #define BT_RESET_TIMEOUT 1000
@@ -658,6 +679,7 @@ btattach(dev)
 	bt->sc_link.device = &bt_dev;
 	bt->sc_link.flags = SDEV_BOUNCE;
 
+	bt_registerdev(dev);
 	/*
 	 * ask the adapter what subunits are present
 	 */

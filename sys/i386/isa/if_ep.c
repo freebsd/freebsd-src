@@ -21,8 +21,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.12 1994/09/03 18:10:43 ats Exp $
+ *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp
+ *	$Id: if_ep.c,v 1.13 1994/09/16 13:33:41 davidg Exp $
  */
 
 #include "ep.h"
@@ -40,6 +40,7 @@
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 #if defined(__NetBSD__)
 #include <sys/select.h>
 #endif
@@ -118,6 +119,26 @@ struct isa_driver epdriver = {
 	epattach,
 	"ep"
 };
+
+static struct kern_devconf kdc_ep[NEP] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"ep", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* network interfaces are always ``open'' */
+	"3Com 3C509 Ethernet adapter"
+} };
+
+static inline void
+ep_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_ep[id->id_unit] = kdc_ep[0];
+	kdc_ep[id->id_unit].kdc_unit = id->id_unit;
+	kdc_ep[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_ep[id->id_unit]);
+}
 
 static int send_ID_sequence __P((u_short));
 static u_short epreadeeprom __P((int, int));
@@ -377,6 +398,7 @@ epattach(is)
 	ifp->if_watchdog = epwatchdog;
 
 	if_attach(ifp);
+	ep_registerdev(is);
 
 	/*
 	 * Fill the hardware address into ifa_addr if we find an

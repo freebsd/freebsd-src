@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.27 1994/09/21 18:33:23 davidg Exp $
+ * $Id: if_is.c,v 1.28 1994/10/19 01:59:02 wollman Exp $
  */
 
 /* TODO
@@ -142,8 +142,12 @@ u_short isrdcsr(unit,port)
 
 static struct kern_devconf kdc_is[NIS] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"is", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"is", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* network interfaces are always busy */
+	"Isolan AT 4141-0, Isolink 4110, or NE2100 Ethernet adapter"
 } };
 
 static inline void

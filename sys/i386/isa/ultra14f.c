@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.24 1994/08/28 16:08:51 bde Exp $
+ *      $Id: ultra14f.c,v 1.25 1994/09/16 13:33:50 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -38,6 +38,7 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
+#include <sys/devconf.h>
 
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */
@@ -313,6 +314,26 @@ struct scsi_device uha_dev =
     { 0, 0 }
 };
 
+static struct kern_devconf kdc_uha[NUHA] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"uha", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always busy */
+	"UltraStore 14F or 34F SCSI host adapter"
+} };
+
+static inline void
+uha_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_uha[id->id_unit] = kdc_uha[0];
+	kdc_uha[id->id_unit].kdc_unit = id->id_unit;
+	kdc_uha[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_uha[id->id_unit]);
+}
+
 #endif /*KERNEL */
 
 #ifndef	KERNEL
@@ -522,6 +543,7 @@ uha_attach(dev)
 	uha->sc_link.device = &uha_dev;
 	uha->sc_link.flags = SDEV_BOUNCE;
 
+	uha_registerdev(dev);
 	/*
 	 * ask the adapter what subunits are present
 	 */

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.11 1994/10/19 01:20:44 wollman Exp $
+ *	$Id: scsiconf.h,v 1.12 1994/10/19 01:49:23 wollman Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -290,6 +290,7 @@ extern void sc_print_addr(struct scsi_link *);
 
 extern int scsi_externalize(struct scsi_link *, void *, size_t *);
 extern int scsi_internalize(struct scsi_link *, void **, size_t *);
+extern struct kern_devconf kdc_scbus0; /* XXX should go away */
 
 #endif
 

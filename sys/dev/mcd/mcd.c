@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.24 1994/09/06 21:56:09 se Exp $
+ *	$Id: mcd.c,v 1.25 1994/09/14 20:28:25 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -58,6 +58,8 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/errno.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
+#include <sys/devconf.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/mcdreg.h>
@@ -197,6 +199,27 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define MIN_DELAY       15
 #define DELAY_GETREPLY  1300000
 
+static struct kern_devconf kdc_mcd[NMCD] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"mcd", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_IDLE,		/* status */
+	"Mitsumi CD-ROM controller"
+} };
+
+static inline void
+mcd_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_mcd[id->id_unit] = kdc_mcd[0];
+	kdc_mcd[id->id_unit].kdc_unit = id->id_unit;
+	kdc_mcd[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_mcd[id->id_unit]);
+}
+
+
 int mcd_attach(struct isa_device *dev)
 {
 	struct mcd_data *cd = mcd_data + dev->id_unit;
@@ -210,6 +233,7 @@ int mcd_attach(struct isa_device *dev)
 	/* wire controller for interrupts and dma */
 	mcd_configure(cd);
 #endif
+	mcd_registerdev(dev);
 
 	return 1;
 }
@@ -266,6 +290,7 @@ MCD_TRACE("open: partition=%d, disksize = %d, blksize=%d\n",
 		cd->openflags |= (1<<part);
 		if (part == RAW_PART && phys != 0)
 			cd->partflags[part] |= MCDREADRAW;
+		kdc_mcd[unit].kdc_state = DC_BUSY;
 		return 0;
 	}
 	
@@ -288,6 +313,7 @@ int mcdclose(dev_t dev)
 	if (!(cd->flags & MCDINIT))
 		return ENXIO;
 
+	kdc_mcd[unit].kdc_state = DC_IDLE;
 	if (mcd_getstat(unit,1) == -2)
 		return 0;
 

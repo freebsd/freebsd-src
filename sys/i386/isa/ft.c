@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.7 1994/06/22 05:52:36 jkh Exp $
+ *  $Id: ft.c,v 1.12 1994/09/25 06:04:23 phk Exp $
  *
  *  06/07/94 v0.9 ++sg
  *  Tape stuck on segment problem should be gone.  Re-wrote buffering
@@ -75,6 +75,8 @@
 #include <sys/buf.h>
 #include <sys/uio.h>
 #include <sys/ftape.h>
+#include <sys/devconf.h>
+
 #include <machine/cpufunc.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/fdreg.h>
@@ -392,6 +394,39 @@ segio_free(ft_p ft, SegReq *sp)
   DPRT(("segio_free: nfree=%d ndone=%d nreq=%d\n", ft->nfreelist, ft->ndoneq, ft->nsegq));
 }
 
+static int ft_externalize(struct proc *, struct kern_devconf *, void *, 
+			  size_t);
+
+extern struct kern_devconf kdc_fdc[];
+static struct kern_devconf kdc_ft[NFT] = { {
+	0, 0, 0,		/* filled in by kern_devconf.c */
+	"ft", 0, { MDDT_DISK, 0 },
+	ft_externalize, 0, 0, DISK_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"floppy tape"
+} };
+
+static inline void
+ft_registerdev(int ctlr, int unit)
+{
+	if(unit != 0)
+		kdc_ft[unit] = kdc_ft[0];
+
+	kdc_ft[unit].kdc_unit = unit;
+	kdc_ft[unit].kdc_parent = &kdc_fdc[ctlr];
+	kdc_ft[unit].kdc_parentdata = 0;
+	dev_attach(&kdc_ft[unit]);
+}
+
+
+static int
+ft_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
+	       size_t len)
+{
+	return disk_externalize(ft_data[kdc->kdc_unit].ftsu, userp, &len);
+}
 
 /*
  *  Probe/attach floppy tapes.
@@ -503,6 +538,7 @@ out:
 		break;
 	}
 	printf(" [%d: ft%d: %s tape]", fdup->id_physid, fdup->id_unit, manu);
+	ft_registerdev(fdcu, ftu);
   }
   ft->attaching = 0;
   return(ft->type);

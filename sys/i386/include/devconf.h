@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.2 1994/10/17 23:33:52 wollman Exp $
+ *	$Id: devconf.h,v 1.4 1994/10/19 01:58:42 wollman Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -50,23 +50,21 @@ enum machdep_devtype { MDDT_CPU, MDDT_ISA, MDDT_EISA, MDDT_PCI, MDDT_SCSI,
 	       }
 
 struct machdep_devconf {
-	char mddc_parent[PARENTNAMELEN];
 	enum machdep_devtype mddc_devtype;
 	int mddc_flags;
-	/*
-	 * The user doesn't need to see this, but it's useful in the kernel code.
-	 */
-	union {
-		struct isa_device *mddcu_isa;
-		struct scsi_link *mddcu_scsi;
-	} mddc_un;
+	char mddc_imask[4];
 };
 
-#define dc_parent dc_md.mddc_parent
+#define MDDC_SCSI { MDDT_SCSI, 0 }
+#define MDDC_SCBUS { MDDT_BUS, 0 }
+
+#define machdep_kdevconf machdep_devconf
+#define MACHDEP_COPYDEV(dc, kdc) ((dc)->dc_md = (kdc)->kdc_md)
+
 #define dc_devtype dc_md.mddc_devtype
 #define dc_flags dc_md.mddc_flags	
-#define kdc_isa kdc_md.mddc_un.mddcu_isa
-#define kdc_scsi kdc_md.mddc_un.mddcu_scsi
+#define kdc_isa kdc_parentdata
+#define kdc_scsi kdc_parentdata
 
 #include <i386/isa/isa_device.h>
 #include <i386/pci/pcireg.h>

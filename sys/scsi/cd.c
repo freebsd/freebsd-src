@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.25 1994/10/08 22:26:35 phk Exp $
+ *      $Id: cd.c,v 1.26 1994/10/19 00:09:42 wollman Exp $
  */
 
 #define SPLCD splbio
@@ -136,8 +136,12 @@ cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
 
 static struct kern_devconf kdc_cd_template = {
 	0, 0, 0,		/* filled in by dev_attach */
-	"cd", 0, { "scsi", MDDT_SCSI, 0 },
-	cd_externalize, 0, cd_goaway, SCSI_EXTERNALLEN
+	"cd", 0, MDDC_SCSI,
+	cd_externalize, 0, cd_goaway, SCSI_EXTERNALLEN,
+	&kdc_scbus0,		/* parent - XXX should be host adapter*/
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"SCSI CD-ROM drive"
 };
 
 static inline void
@@ -149,6 +153,7 @@ cd_registerdev(int unit)
 	if(!kdc) return;
 	*kdc = kdc_cd_template;
 	kdc->kdc_unit = unit;
+	/* XXX should set parentdata */
 	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "cd%d", unit);

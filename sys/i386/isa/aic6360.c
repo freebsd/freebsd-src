@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.1 1994/09/26 16:15:45 jkh Exp $
+ * $Id: aic6360.c,v 1.2 1994/10/19 01:58:53 wollman Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -751,8 +751,12 @@ struct scsi_device aic_dev = {
 
 static struct kern_devconf kdc_aic[NAIC] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"aic", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"aic", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always busy */
+	"Adaptec AIC-6360 SCSI host adapter chipset"
 } };
 
 static inline void
@@ -761,7 +765,7 @@ aic_registerdev(struct isa_device *id)
 	if(id->id_unit)
 		kdc_aic[id->id_unit] = kdc_aic[0];
 	kdc_aic[id->id_unit].kdc_unit = id->id_unit;
-	kdc_aic[id->id_unit].kdc_isa = id;
+	kdc_aic[id->id_unit].kdc_parentdata = id;
 	dev_attach(&kdc_aic[id->id_unit]);
 }
 
