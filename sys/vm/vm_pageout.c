@@ -1410,6 +1410,7 @@ vm_pageout()
 	 */
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 5;
+	mtx_unlock(&vm_mtx);
 
 	PROC_LOCK(curproc);
 	curproc->p_flag |= P_BUFEXHAUST;
@@ -1419,6 +1420,7 @@ vm_pageout()
 	/*
 	 * The pageout daemon is never done, so loop forever.
 	 */
+	mtx_lock(&vm_mtx);
 	while (TRUE) {
 		int error;
 		int s = splvm();
