@@ -40,6 +40,7 @@ LOCALES=        af_ZA.ISO8859-1 \
 		is_IS.ISO8859-1 \
 		it_IT.ISO8859-1 \
 		ja_JP.eucJP \
+		ja_JP.UTF-8 \
 		kk_KZ.PT154 \
 		kk_KZ.UTF-8 \
 		ko_KR.eucKR \
@@ -151,8 +152,6 @@ afterinstall:
 	ln -sf ../${CH_SRC}.UTF-8/LC_MONETARY \
 		${LOCALEDIR}/${link}.UTF-8/LC_MONETARY
 .endfor
-	ln -sf ../ja_JP.eucJP/LC_MONETARY \
-		${LOCALEDIR}/ja_JP.UTF-8/LC_MONETARY
 	ln -sf ../ko_KR.eucKR/LC_MONETARY \
 		${LOCALEDIR}/ko_KR.UTF-8/LC_MONETARY
 	ln -sf ../zh_TW.Big5/LC_MONETARY \
