@@ -36,8 +36,9 @@ static int list_width, check_x, item_x;
 /*
  * Display a dialog box with a list of options that can be turned on or off
  */
-int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width,
-		     int list_height, int item_no, void *it, unsigned char *result)
+int
+dialog_checklist(unsigned char *title, unsigned char *prompt, int height, int width,
+		 int list_height, int item_no, void *it, unsigned char *result)
 {
   int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
     l, k, scroll = 0, max_choice, *status;
@@ -70,7 +71,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 
     /* Initializes status */
     for (i = 0; i < item_no; i++) {
-      status[i] = ditems[i].checked ? (*ditems[i].checked)(&ditems[i]) : FALSE;
+      status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
       items[i*3] = ditems[i].prompt;
       items[i*3 + 1] = ditems[i].title;
       items[i*3 + 2] = status[i] ? "on" : "off";
@@ -179,10 +180,10 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
   if (ditems && result) {
       cancelButton = toupper(ditems[CANCEL_BUTTON].prompt[0]);
       print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		   ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : FALSE);
+		   ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : FALSE);
       okButton = toupper(ditems[OK_BUTTON].prompt[0]);
       print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		   ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : TRUE);
+		   ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : TRUE);
   }
   else {
     cancelButton = 'C';
@@ -198,7 +199,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     /* Shortcut to OK? */
     if (toupper(key) == okButton) {
       if (ditems && result && ditems[OK_BUTTON].fire) {
-	if ((*ditems[OK_BUTTON].fire)(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+	if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
 	  continue;
 	else
 	  delwin(dialog);
@@ -218,7 +219,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     /* Shortcut to cancel? */
     else if (toupper(key) == cancelButton) {
       if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-	if ((*ditems[CANCEL_BUTTON].fire)(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+	if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
 	  continue;
       }
       delwin(dialog);
@@ -266,13 +267,15 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
             getyx(dialog, cur_y, cur_x);    /* Save cursor position */
             if (list_height > 1) {
               /* De-highlight current last item before scrolling up */
-              print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1], status[scroll+max_choice-1], max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
+              print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1],
+			 status[scroll+max_choice-1], max_choice-1, FALSE, DREF(ditems, scroll + max_choice - 1));
               scrollok(list, TRUE);
               scroll(list);
               scrollok(list, FALSE);
             }
             scroll++;
-            print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1], status[scroll+max_choice-1], max_choice-1, TRUE, DREF(ditems, scroll + max_choice - 1));
+            print_item(list, items[(scroll+max_choice-1)*3], items[(scroll+max_choice-1)*3 + 1],
+		       status[scroll+max_choice-1], max_choice-1, TRUE, DREF(ditems, scroll + max_choice - 1));
             wnoutrefresh(list);
 	    print_arrows(dialog, scroll, list_height, item_no, box_x, box_y, check_x + 4, cur_x, cur_y);
             wrefresh(dialog);
@@ -287,7 +290,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 
 	if (ditems) {
 	  if (ditems[scroll+choice].fire) {
-	    int st = (*ditems[scroll+choice].fire)(&ditems[scroll+choice]);
+	    int st = ditems[scroll+choice].fire(&ditems[scroll+choice]);
 
 	    if (st == DITEM_LEAVE_MENU) {
 	      /* Allow a fire action to take us out of the menu */
@@ -299,7 +302,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 	    else if (st == DITEM_REDRAW) {
 	      for (i = 0; i < max_choice; i++) {
 		status[scroll + i] = ditems[scroll + i].checked ?
-		  (*ditems[scroll + i].checked)(&ditems[scroll + i]) : FALSE;
+		  ditems[scroll + i].checked(&ditems[scroll + i]) : FALSE;
 		print_item(list, items[(scroll+i)*3], items[(scroll+i)*3 + 1], status[scroll+i], i, i == choice,
 			   DREF(ditems, scroll + i));
 	      }
@@ -309,7 +312,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 	    }
 	  }
 	  status[scroll+choice] = ditems[scroll+choice].checked ?
-	    (*ditems[scroll+choice].checked)(&ditems[scroll+choice]) : FALSE;
+	    ditems[scroll+choice].checked(&ditems[scroll+choice]) : FALSE;
 	  lbra = ditems[scroll+choice].lbra;
 	  rbra = ditems[scroll+choice].rbra;
 	  mark = ditems[scroll+choice].mark;
@@ -392,15 +395,15 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
       if (ditems && result) {
 	if (button) {
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	}
 	else {
 	  print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-		       ditems[CANCEL_BUTTON].checked ? (*ditems[CANCEL_BUTTON].checked)(&ditems[CANCEL_BUTTON]) : button);
+		       ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
 	  print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-		       ditems[OK_BUTTON].checked ? (*ditems[OK_BUTTON].checked)(&ditems[OK_BUTTON]) : !button);
+		       ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	}
       }
       else {
@@ -421,7 +424,7 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
     case '\r':
       if (!button && result) {
 	if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-	  if ((*ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire)(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) ==
+	  if (ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) ==
 	      DITEM_FAILURE)
 	    continue;
 	}
@@ -470,8 +473,9 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 /*
  * Print list item
  */
-static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int status, int choice, int selected,
-		       dialogMenuItem *me)
+static void
+print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int status, int choice, int selected,
+	   dialogMenuItem *me)
 {
   int i;
 
@@ -494,5 +498,8 @@ static void print_item(WINDOW *win, unsigned char *tag, unsigned char *item, int
   wmove(win, choice, item_x);
   wattrset(win, selected ? item_selected_attr : item_attr);
   waddstr(win, item);
+  /* If have a selection handler for this, call it */
+  if (me && me->selected)
+    me->selected(me, selected);
 }
 /* End of print_item() */

@@ -54,6 +54,7 @@ typedef struct _dmenu_item {
   char *title;
   int (*checked)(struct _dmenu_item *self);
   int (*fire)(struct _dmenu_item *self);
+  void (*selected)(struct _dmenu_item *self, int is_selected);
   void *data;
   char lbra, mark, rbra;
 } dialogMenuItem;
@@ -68,6 +69,7 @@ typedef struct _dmenu_item {
 #define FALSE (0)
 #endif
 
+extern int DialogX, DialogY;
 
 /*
  * Attribute names

@@ -89,8 +89,8 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   if (height > LINES)
 	height = LINES;
   /* center dialog box on screen */
-  x = (COLS - width)/2;
-  y = (LINES - height)/2;
+  x = DialogX ? DialogX : (COLS - width)/2;
+  y = DialogY ? DialogY : (LINES - height)/2;
 
 #ifdef HAVE_NCURSES
   if (use_shadow)
