@@ -45,16 +45,6 @@ struct ufs_args {
 	struct	export_args export;	/* network export information */
 };
 
-/*
- * Arguments to mount MFS
- */
-struct mfs_args {
-	char	*fspec;			/* name to export for statfs */
-	struct	export_args export;	/* if exported MFSes are supported */
-	caddr_t	base;			/* base of file system in memory */
-	u_long	size;			/* size of file system */
-};
-
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE

@@ -397,9 +397,9 @@ ffs_reload(mp, cred, p)
 
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.  See ffs_mountmfs() for more details.
+	 * block device.
 	 */
-	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
+	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, p->p_ucred);
 		mtx_lock(&devvp->v_interlock);
@@ -569,11 +569,11 @@ ffs_mountfs(devvp, mp, p, malloctype)
 
 	/*
 	 * Only VMIO the backing device if the backing device is a real
-	 * block device.  This excludes the original MFS implementation.
+	 * block device.
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
+	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, cred);
 		mtx_lock(&devvp->v_interlock);
