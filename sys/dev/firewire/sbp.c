@@ -68,19 +68,31 @@
 #define ccb_sdev_ptr	spriv_ptr0
 #define ccb_sbp_ptr	spriv_ptr1
 
-#define SBP_NUM_TARGETS 8
+#define SBP_NUM_TARGETS 8 /* MAX 64 */
 #define SBP_NUM_LUNS 8	/* limited by CAM_SCSI2_MAXLUN in cam_xpt.c */
 #define SBP_QUEUE_LEN 4
 #define SBP_NUM_OCB (SBP_QUEUE_LEN * SBP_NUM_TARGETS)
 #define SBP_INITIATOR 7
-#define SBP_ESELECT_TIMEOUT 1
+
+#define LOGIN_DELAY 2
+
+/* 
+ * STATUS FIFO addressing
+ *   bit
+ * -----------------------
+ *  0- 1( 2): 0 (alingment)
+ *  2- 7( 6): target
+ *  8-15( 8): lun
+ * 16-23( 8): unit
+ * 24-31( 8): reserved
+ * 32-47(16): SBP_BIND_HI 
+ * 48-64(16): bus_id, node_id 
+ */
 #define SBP_BIND_HI 0x1
-#define SBP_DEV2ADDR(u, t, l)	\
+#define SBP_DEV2ADDR(u, t, l) \
 	((((u) & 0xff) << 16) | (((l) & 0xff) << 8) | (((t) & 0x3f) << 2))
 #define SBP_ADDR2TRG(a)	(((a) >> 2) & 0x3f)
 #define SBP_ADDR2LUN(a)	(((a) >> 8) & 0xff)
-
-#define MAX_FREEZE	10
 
 #define ORB_NOTIFY	(1 << 31)
 #define	ORB_FMT_STD	(0 << 29)
@@ -106,6 +118,7 @@
 #define	ORB_FUN_LUR	(0xe << 16)
 #define	ORB_FUN_RST	(0xf << 16)
 #define	ORB_FUN_MSK	(0xf << 16)
+#define	ORB_FUN_RUNQUEUE 0xffff
 
 static char *orb_fun_name[] = {
 	/* 0 */ "LOGIN",
@@ -134,6 +147,7 @@ static char *orb_fun_name[] = {
 static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
+static int sbp_cold = 1;
 
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
@@ -164,11 +178,8 @@ struct sbp_ocb {
 };
 #define OCB_ACT_MGM 0
 #define OCB_ACT_CMD 1
-#define OCB_ACT_MASK 3
-#define OCB_RESERVED 0x10
-#define OCB_DONE 0x20
+#define OCB_MATCH(o,s)	(vtophys(&(o)->orb[0]) == ntohl((s)->orb_lo))
 
-#define SBP_RESOURCE_SHORTAGE 0x10
 
 struct sbp_login_res{
 	u_int16_t	len;
@@ -224,9 +235,11 @@ struct sbp_dev{
 		 flags:4;
 	u_int8_t type;
 	u_int16_t lun_id;
+	int freeze;
 	struct cam_path *path;
 	struct sbp_target *target;
 	struct sbp_login_res login;
+	struct callout login_callout;
 	STAILQ_HEAD(, sbp_ocb) ocbs;
 	char vendor[32];
 	char product[32];
@@ -240,17 +253,24 @@ struct sbp_target {
 	struct sbp_softc *sbp;
 	struct fw_device *fwdev;
 	u_int32_t mgm_hi, mgm_lo;
+	struct sbp_ocb *mgm_ocb_cur;
+	STAILQ_HEAD(, sbp_ocb) mgm_ocb_queue;
+	struct callout mgm_ocb_timeout;
+#define SCAN_DELAY 2
+	struct callout scan_callout;
 };
 
 struct sbp_softc {
 	struct firewire_dev_comm fd;
-	unsigned char flags;
 	struct cam_sim  *sim;
+	struct cam_path  *path;
 	struct sbp_target targets[SBP_NUM_TARGETS];
 	struct fw_bind fwb;
 	STAILQ_HEAD(, sbp_ocb) free_ocbs;
 	struct sbp_ocb *ocb;
 	bus_dma_tag_t	dmat;
+#define SBP_RESOURCE_SHORTAGE 0x10
+	unsigned char flags;
 };
 static void sbp_post_explore __P((void *));
 static void sbp_recv __P((struct fw_xfer *));
@@ -264,19 +284,21 @@ static void sbp_abort_all_ocbs __P((struct sbp_dev *, int));
 static struct fw_xfer * sbp_write_cmd __P((struct sbp_dev *, int, int));
 static struct sbp_ocb * sbp_get_ocb __P((struct sbp_softc *));
 static struct sbp_ocb * sbp_enqueue_ocb __P((struct sbp_dev *, struct sbp_ocb *));
-static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, u_int32_t));
+static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, struct sbp_status *));
 static void sbp_cam_detach_target __P((struct sbp_target *));
 static void sbp_timeout __P((void *arg));
-static void sbp_mgm_orb __P((struct sbp_dev *, int, u_int16_t, u_int32_t));
+static void sbp_mgm_orb __P((struct sbp_dev *, int, struct sbp_ocb *));
+#define sbp_login(sdev) \
+	callout_reset(&(sdev)->login_callout, LOGIN_DELAY * hz, \
+			sbp_login_callout, (void *)(sdev));
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
 /* cam related functions */
 static void	sbp_action(struct cam_sim *sim, union ccb *ccb);
 static void	sbp_poll(struct cam_sim *sim);
-static void	sbp_cam_callback(struct cam_periph *periph,
-					union ccb *ccb);
-static void	sbp_cam_scan_lun(struct sbp_dev *sdev);
+static void	sbp_cam_scan_lun(struct cam_periph *, union ccb *);
+static void	sbp_cam_scan_target(void *arg);
 
 static char *orb_status0[] = {
 	/* 0 */ "No additional information to report",
@@ -351,6 +373,9 @@ END_DEBUG
 	}
 
 	device_set_desc(dev, "SBP2/SCSI over firewire");
+
+	if (bootverbose)
+		debug = bootverbose;
 	return (0);
 }
 
@@ -460,6 +485,7 @@ END_DEBUG
 	target->sbp = sbp;
 	target->fwdev = fwdev;
 	target->target_id = i;
+	/* XXX we may want to reload mgm port after each bus reset */
 	if((target->mgm_lo = getcsrdata(fwdev, 0x54)) == 0 ){
 		/* bad target */
 		printf("NULL management address\n");
@@ -468,6 +494,14 @@ END_DEBUG
 	}
 	target->mgm_hi = 0xffff;
 	target->mgm_lo = 0xf0000000 | target->mgm_lo << 2;
+	target->mgm_ocb_cur = NULL;
+SBP_DEBUG(1)
+	printf("target:%d mgm_port: %x\n", i, target->mgm_lo);
+END_DEBUG
+	STAILQ_INIT(&target->mgm_ocb_queue);
+	CALLOUT_INIT(&target->mgm_ocb_timeout);
+	CALLOUT_INIT(&target->scan_callout);
+
 	/* XXX num_lun may be changed. realloc luns? */
 	crom_init_context(&cc, target->fwdev->csrrom);
 	/* XXX shoud parse appropriate unit directories only */
@@ -497,6 +531,7 @@ END_DEBUG
 		sdev->lun_id = i;
 		sdev->target = target;
 		STAILQ_INIT(&sdev->ocbs);
+		CALLOUT_INIT(&sdev->login_callout);
 		sdev->status = SBP_DEV_DEAD;
 	}
 	crom_init_context(&cc, target->fwdev->csrrom);
@@ -564,14 +599,30 @@ sbp_probe_lun(struct sbp_dev *sdev)
 	rev = getcsrdata(sdev->target->fwdev, 0x3c);
 	snprintf(sdev->revision, sizeof(sdev->revision), "%06x", rev);
 }
+
+
 static void
-sbp_probe_target(struct sbp_target *target, int alive)
+sbp_login_callout(void *arg)
 {
+	struct sbp_dev *sdev = (struct sbp_dev *)arg;
+	sbp_mgm_orb(sdev, ORB_FUN_LGI, NULL);
+}
+
+#define SBP_FWDEV_ALIVE(fwdev) \
+	((fwdev->status == FWDEVATTACHED) \
+		&& (getcsrdata(fwdev, CSRKEY_SPEC) == CSRVAL_ANSIT10) \
+		&& (getcsrdata(fwdev, CSRKEY_VER) == CSRVAL_T10SBP2))
+
+static void
+sbp_probe_target(void *arg)
+{
+	struct sbp_target *target = (struct sbp_target *)arg;
 	struct sbp_softc *sbp;
 	struct sbp_dev *sdev;
 	struct firewire_comm *fc;
-	int i;
+	int i, alive;
 
+	alive = SBP_FWDEV_ALIVE(target->fwdev);
 SBP_DEBUG(1)
 	printf("sbp_probe_target %d\n", target->target_id);
 	if (!alive)
@@ -580,32 +631,43 @@ END_DEBUG
 
 	sbp = target->sbp;
 	fc = target->sbp->fd.fc;
+	/* XXX untimeout mgm_ocb and dequeue */
 	for (i=0; i < target->num_lun; i++) {
 		sdev = &target->luns[i];
 		if (alive && (sdev->status != SBP_DEV_DEAD)) {
 			if (sdev->path != NULL) {
 				xpt_freeze_devq(sdev->path, 1);
+				sdev->freeze ++;
 			}
-			sbp_abort_all_ocbs(sdev, CAM_REQUEUE_REQ);
+			sbp_probe_lun(sdev);
+SBP_DEBUG(0)
+			sbp_show_sdev_info(sdev, 
+#if 0
+					(sdev->status == SBP_DEV_TOATTACH));
+#else
+					(sdev->status == SBP_DEV_RESET));
+#endif
+END_DEBUG
+
+			sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
 			switch (sdev->status) {
 			case SBP_DEV_RESET:
 				/* new or revived target */
-				sbp_probe_lun(sdev);
 				if (auto_login) {
+#if 0
 					sdev->status = SBP_DEV_TOATTACH;
-					sbp_mgm_orb(sdev, ORB_FUN_LGI, 0, 0);
+#endif
+					sbp_login(sdev);
 				}
 				break;
+			case SBP_DEV_TOATTACH:
+			case SBP_DEV_PROBE:
+			case SBP_DEV_ATTACHED:
 			case SBP_DEV_RETRY:
-				sbp_probe_lun(sdev);
 			default:
-				sbp_mgm_orb(sdev, ORB_FUN_RCN, 0, 0);
+				sbp_mgm_orb(sdev, ORB_FUN_RCN, NULL);
 				break;
 			}
-SBP_DEBUG(0)
-			sbp_show_sdev_info(sdev, 
-					(sdev->status == SBP_DEV_TOATTACH));
-END_DEBUG
 		} else {
 			switch (sdev->status) {
 			case SBP_DEV_ATTACHED:
@@ -614,10 +676,12 @@ SBP_DEBUG(0)
 				sbp_show_sdev_info(sdev, 2);
 				printf("lost target\n");
 END_DEBUG
-				if (sdev->path)
+				if (sdev->path) {
 					xpt_freeze_devq(sdev->path, 1);
+					sdev->freeze ++;
+				}
 				sdev->status = SBP_DEV_RETRY;
-				sbp_abort_all_ocbs(sdev, CAM_REQUEUE_REQ);
+				sbp_abort_all_ocbs(sdev, CAM_SCSI_BUS_RESET);
 				break;
 			case SBP_DEV_PROBE:
 			case SBP_DEV_TOATTACH:
@@ -640,12 +704,18 @@ sbp_post_explore(void *arg)
 	struct fw_device *fwdev;
 	int i, alive;
 
-SBP_DEBUG(1)
-	printf("sbp_post_explore\n");
+SBP_DEBUG(0)
+	printf("sbp_post_explore (sbp_cold=%d)\n", sbp_cold);
 END_DEBUG
-#if 0
-	xpt_freeze_simq(sbp->sim, /*count*/ 1);
+#if 0	/*
+	 * XXX don't let CAM the bus rest. CAM tries to do something with
+	 * freezed (DEV_RETRY) devices 
+	 */
+	xpt_async(AC_BUS_RESET, sbp->path, /*arg*/ NULL);
 #endif
+	if (sbp_cold > 0)
+		sbp_cold --;
+
 	/* Gabage Collection */
 	for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
 		target = &sbp->targets[i];
@@ -675,9 +745,7 @@ SBP_DEBUG(0)
 			printf("not attached, state=%d.\n", fwdev->status);
 		}
 END_DEBUG
-		alive = (fwdev->status == FWDEVATTACHED)
-			&& (getcsrdata(fwdev, CSRKEY_SPEC) == CSRVAL_ANSIT10)
-			&& (getcsrdata(fwdev, CSRKEY_VER) == CSRVAL_T10SBP2);
+		alive = SBP_FWDEV_ALIVE(fwdev);
 		for(i = 0 ; i < SBP_NUM_TARGETS ; i ++){
 			target = &sbp->targets[i];
 			if(target->fwdev == fwdev ) {
@@ -695,7 +763,7 @@ END_DEBUG
 				continue;
 			}
 		}
-		sbp_probe_target(target, alive);
+		sbp_probe_target((void *)target);
 	}
 #if 0
 	timeout(sbp_release_queue, (caddr_t)sbp, bus_reset_rest * hz / 1000);
@@ -742,46 +810,91 @@ END_DEBUG
 	return;
 }
 
-static void
-sbp_cam_callback(struct cam_periph *periph, union ccb *ccb)
+static struct sbp_dev *
+sbp_next_dev(struct sbp_target *target, int lun)
 {
 	struct sbp_dev *sdev;
-	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
-SBP_DEBUG(0)
-	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_cam_callback\n");
-END_DEBUG
-	sdev->status = SBP_DEV_ATTACHED;
-	free(ccb, M_SBP);
+	int i;
+
+	for (i = lun, sdev = &target->luns[lun];
+			i < target->num_lun; i++, sdev++) {
+		if (sdev->status == SBP_DEV_PROBE)
+			break;
+	}
+	if (i >= target->num_lun)
+		return(NULL);
+	return(sdev);
 }
 
+#define SCAN_PRI 1
 static void
-sbp_cam_scan_lun(struct sbp_dev *sdev)
+sbp_cam_scan_lun(struct cam_periph *periph, union ccb *ccb)
 {
-	union ccb *ccb;
+	struct sbp_target *target;
+	struct sbp_dev *sdev;
 
-	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
-	if (ccb == NULL) {
-		printf("sbp_cam_scan_lun: malloc failed\n");
-		return;
-	}
-
+	sdev = (struct sbp_dev *) ccb->ccb_h.ccb_sdev_ptr;
+	target = sdev->target;
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_cam_scan_lun\n");
 END_DEBUG
-	xpt_setup_ccb(&ccb->ccb_h, sdev->path, 5/*priority (low)*/);
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		sdev->status = SBP_DEV_ATTACHED;
+	} else {
+		sbp_show_sdev_info(sdev, 2);
+		printf("scan failed\n");
+	}
+	sdev = sbp_next_dev(target, sdev->lun_id + 1);
+	if (sdev == NULL) {
+		free(ccb, M_SBP);
+		return;
+	}
+	/* reuse ccb */
+	xpt_setup_ccb(&ccb->ccb_h, sdev->path, SCAN_PRI);
+	ccb->ccb_h.ccb_sdev_ptr = sdev;
+	xpt_action(ccb);
+	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+	sdev->freeze = 1;
+}
+
+static void
+sbp_cam_scan_target(void *arg)
+{
+	struct sbp_target *target = (struct sbp_target *)arg;
+	struct sbp_dev *sdev;
+	union ccb *ccb;
+
+	sdev = sbp_next_dev(target, 0);
+	if (sdev == NULL) {
+		printf("sbp_cam_scan_target: nothing to do for target%d\n",
+							target->target_id);
+		return;
+	}
+SBP_DEBUG(0)
+	sbp_show_sdev_info(sdev, 2);
+	printf("sbp_cam_scan_target\n");
+END_DEBUG
+	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
+	if (ccb == NULL) {
+		printf("sbp_cam_scan_target: malloc failed\n");
+		return;
+	}
+	xpt_setup_ccb(&ccb->ccb_h, sdev->path, SCAN_PRI);
 	ccb->ccb_h.func_code = XPT_SCAN_LUN;
-	ccb->ccb_h.cbfcnp = sbp_cam_callback;
+	ccb->ccb_h.cbfcnp = sbp_cam_scan_lun;
+	ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	ccb->ccb_h.ccb_sdev_ptr = sdev;
 
 	/* The scan is in progress now. */
-	sdev->status = SBP_DEV_PROBE;
 	xpt_action(ccb);
+	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+	sdev->freeze = 1;
 }
 
 
+#if 0
 static void
 sbp_ping_unit_callback(struct cam_periph *periph, union ccb *ccb)
 {
@@ -801,13 +914,15 @@ END_DEBUG
 		} else {
 			/* requeue */
 			xpt_action(ccb);
-			xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
+			xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+			sdev->freeze = 1; /* we will freeze */
 		}
 	} else {
 		free(ccb->csio.data_ptr, M_SBP);
 		free(ccb, M_SBP);
 		sdev->status = SBP_DEV_ATTACHED;
-		xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
+		xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+		sdev->freeze = 0;
 	}
 }
 
@@ -847,7 +962,7 @@ END_DEBUG
 
 	/*
 	 * We need to execute this command before any other queued command.
-	 * Make priority 0 and freeze queue after execution for retry.
+	 * Make priority 0 and freeze the queue after execution for retry.
 	 * cam's scan_lun command doesn't provide this feature.
 	 */
 	xpt_setup_ccb(&ccb->ccb_h, sdev->path, 0/*priority (high)*/);
@@ -864,31 +979,55 @@ END_DEBUG
 		/*timeout*/60000
 	);
 	ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+	ccb->ccb_h.ccb_sdev_ptr = sdev;
 	xpt_action(ccb);
+	if (sdev->status != SBP_DEV_ATTACHED)
+		sdev->status = SBP_DEV_PROBE;
+	xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+	sdev->freeze = 1; /* We will freeze the queue */
+}
+#endif
+
+static __inline void
+sbp_scan_dev(struct sbp_dev *sdev)
+{
 	sdev->status = SBP_DEV_PROBE;
+	callout_reset(&sdev->target->scan_callout, SCAN_DELAY * hz,
+			sbp_cam_scan_target, (void *)sdev->target);
 }
 
 static void
 sbp_do_attach(struct fw_xfer *xfer)
 {
 	struct sbp_dev *sdev;
+	struct sbp_target *target;
+	struct sbp_softc *sbp;
 
 	sdev = (struct sbp_dev *)xfer->sc;
+	target = sdev->target;
+	sbp = target->sbp;
 SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_do_attach\n");
 END_DEBUG
 	fw_xfer_free(xfer);
+
 	if (sdev->path == NULL)
 		xpt_create_path(&sdev->path, xpt_periph,
-			cam_sim_path(sdev->target->sbp->sim),
-			sdev->target->target_id, sdev->lun_id);
+			cam_sim_path(target->sbp->sim),
+			target->target_id, sdev->lun_id);
 
-	if (sdev->status == SBP_DEV_RETRY)
-		sbp_ping_unit(sdev);
-	else
-		sbp_cam_scan_lun(sdev);
-	xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
+	/*
+	 * Let CAM scan the bus if we are in the boot process.
+	 * XXX xpt_scan_bus cannot detect LUN larger than 0
+	 * if LUN 0 doesn't exists.
+	 */
+	if (sbp_cold > 0) {
+		sdev->status = SBP_DEV_ATTACHED;
+		return;
+	}
+
+	sbp_scan_dev(sdev);
 	return;
 }
 
@@ -903,9 +1042,10 @@ SBP_DEBUG(1)
 	printf("sbp_cmd_callback\n");
 END_DEBUG
 	fw_xfer_free(xfer);
-	sbp_abort_all_ocbs(sdev, CAM_REQUEUE_REQ);
-	if (sdev->path)
-		xpt_release_devq(sdev->path, MAX_FREEZE, TRUE);
+	if (sdev->path) {
+		xpt_release_devq(sdev->path, sdev->freeze, TRUE);
+		sdev->freeze = 0;
+	}
 }
 
 static void
@@ -928,6 +1068,7 @@ END_DEBUG
 	fp = (struct fw_pkt *)xfer->send.buf;
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
+	sbp_abort_all_ocbs(sdev, CAM_BDR_SENT);
 }
 
 static void
@@ -1014,6 +1155,7 @@ END_DEBUG
 	}
 }
 
+#if 0
 static void
 sbp_doorbell(struct sbp_dev *sdev)
 {
@@ -1032,6 +1174,7 @@ END_DEBUG
 	fp->mode.wreqq.data = htonl(0xf);
 	fw_asyreq(xfer->fc, -1, xfer);
 }
+#endif
 
 static struct fw_xfer *
 sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
@@ -1074,29 +1217,40 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 }
 
 static void
-sbp_mgm_orb(struct sbp_dev *sdev, int func, u_int16_t orb_hi, u_int32_t orb_lo)
+sbp_mgm_orb(struct sbp_dev *sdev, int func, struct sbp_ocb *aocb)
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 	struct sbp_ocb *ocb;
+	struct sbp_target *target;
 	int s, nid;
 
-	if ((ocb = sbp_get_ocb(sdev->target->sbp)) == NULL) {
-		s = splfw();
-		sdev->target->sbp->flags |= SBP_RESOURCE_SHORTAGE;
+	target = sdev->target;
+	nid = target->sbp->fd.fc->nodeid | FWLOCALBUS;
+
+	s = splfw();
+	if (func == ORB_FUN_RUNQUEUE) {
+		ocb = STAILQ_FIRST(&target->mgm_ocb_queue);
+		if (target->mgm_ocb_cur != NULL || ocb == NULL) {
+			splx(s);
+			return;
+		}
+		STAILQ_REMOVE_HEAD(&target->mgm_ocb_queue, ocb);
+		goto start;
+	}
+	if ((ocb = sbp_get_ocb(target->sbp)) == NULL) {
+		target->sbp->flags |= SBP_RESOURCE_SHORTAGE;
 		splx(s);
 		return;
 	}
 	ocb->flags = OCB_ACT_MGM;
 	ocb->sdev = sdev;
-	ocb->ccb = NULL;
 
-	nid = sdev->target->sbp->fd.fc->nodeid | FWLOCALBUS;
 	bzero((void *)(uintptr_t)(volatile void *)ocb->orb, sizeof(ocb->orb));
 	ocb->orb[6] = htonl((nid << 16) | SBP_BIND_HI);
 	ocb->orb[7] = htonl(SBP_DEV2ADDR(
-		device_get_unit(sdev->target->sbp->fd.dev),
-		sdev->target->target_id,
+		device_get_unit(target->sbp->fd.dev),
+		target->target_id,
 		sdev->lun_id));
 
 SBP_DEBUG(0)
@@ -1111,8 +1265,8 @@ END_DEBUG
 		ocb->orb[5] = htonl(sizeof(struct sbp_login_res));
 		break;
 	case ORB_FUN_ATA:
-		ocb->orb[0] = htonl((0 << 16) | orb_hi);
-		ocb->orb[1] = htonl(orb_lo);
+		ocb->orb[0] = htonl((0 << 16) | 0);
+		ocb->orb[1] = htonl(vtophys(&aocb->orb[0]));
 		/* fall through */
 	case ORB_FUN_RCN:
 	case ORB_FUN_LGO:
@@ -1123,6 +1277,18 @@ END_DEBUG
 		break;
 	}
 
+	if (target->mgm_ocb_cur != NULL) {
+		/* there is a standing ORB */
+		STAILQ_INSERT_TAIL(&sdev->target->mgm_ocb_queue, ocb, ocb);
+		splx(s);
+		return;
+	}
+start:
+	target->mgm_ocb_cur = ocb;
+	splx(s);
+
+	callout_reset(&target->mgm_ocb_timeout, 5*hz,
+				sbp_timeout, (caddr_t)ocb);
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQB, 0);
 	if(xfer == NULL){
 		return;
@@ -1136,7 +1302,6 @@ END_DEBUG
 	fp->mode.wreqb.extcode = 0;
 	fp->mode.wreqb.payload[0] = htonl(nid << 16);
 	fp->mode.wreqb.payload[1] = htonl(vtophys(&ocb->orb[0]));
-	sbp_enqueue_ocb(sdev, ocb);
 
 	fw_asyreq(xfer->fc, -1, xfer);
 }
@@ -1300,15 +1465,19 @@ END_DEBUG
 #endif
 		/* fall through */
 	case T_RBC:
-		/* disable tag queuing */
-		inq->flags &= ~SID_CmdQue;
+		/* enable tag queuing */
+#if 1
+		inq->flags |= SID_CmdQue;
+#endif
 		/*
 		 * Override vendor/product/revision information.
 		 * Some devices sometimes return strange strings.
 		 */
+#if 1
 		bcopy(sdev->vendor, inq->vendor, sizeof(inq->vendor));
 		bcopy(sdev->product, inq->product, sizeof(inq->product));
 		bcopy(sdev->revision+2, inq->revision, sizeof(inq->revision));
+#endif
 		break;
 	}
 }
@@ -1325,7 +1494,7 @@ sbp_recv1(struct fw_xfer *xfer){
 	struct sbp_login_res *login_res = NULL;
 	struct sbp_status *sbp_status;
 	struct sbp_target *target;
-	int	orb_fun, status_valid, t, l;
+	int	orb_fun, status_valid0, status_valid, t, l, reset_agent = 0;
 	u_int32_t addr;
 /*
 	u_int32_t *ld;
@@ -1378,10 +1547,24 @@ END_DEBUG
 	switch (sbp_status->src) {
 	case 0:
 	case 1:
-		ocb = sbp_dequeue_ocb(sdev, ntohl(sbp_status->orb_lo));
+		/* check mgm_ocb_cur first */
+		ocb  = target->mgm_ocb_cur;
+		if (ocb != NULL) {
+			if (OCB_MATCH(ocb, sbp_status)) {
+				callout_stop(&target->mgm_ocb_timeout);
+				target->mgm_ocb_cur = NULL;
+				break;
+			}
+		}
+		ocb = sbp_dequeue_ocb(sdev, sbp_status);
 		if (ocb == NULL) {
 			sbp_show_sdev_info(sdev, 2);
-			printf("No ocb on the queue\n");
+#if __FreeBSD_version >= 500000
+			printf("No ocb(%x) on the queue\n",
+#else
+			printf("No ocb(%lx) on the queue\n",
+#endif
+					ntohl(sbp_status->orb_lo));
 		}
 		break;
 	case 2:
@@ -1394,12 +1577,12 @@ END_DEBUG
 		printf("unknown sbp_status->src\n");
 	}
 
-	status_valid = (sbp_status->src < 2
+	status_valid0 = (sbp_status->src < 2
 			&& sbp_status->resp == ORB_RES_CMPL
-			&& sbp_status->dead == 0
-			&& sbp_status->status == 0);
+			&& sbp_status->dead == 0);
+	status_valid = (status_valid0 && sbp_status->status == 0);
 
-	if (!status_valid || debug > 1){
+	if (!status_valid0 || debug > 1){
 		int status;
 SBP_DEBUG(0)
 		sbp_show_sdev_info(sdev, 2);
@@ -1440,15 +1623,15 @@ END_DEBUG
 
 	/* we have to reset the fetch agent if it's dead */
 	if (sbp_status->dead) {
-		if (sdev->path)
+		if (sdev->path) {
 			xpt_freeze_devq(sdev->path, 1);
-		sbp_agent_reset(sdev);
+			sdev->freeze ++;
+		}
+		reset_agent = 1;
 	}
 
-	if (ocb == NULL) {
-		fw_xfer_free(xfer);
-		return;
-	}
+	if (ocb == NULL)
+		goto done;
 
 	sdev->flags &= ~SBP_DEV_TIMEOUT;
 
@@ -1458,7 +1641,7 @@ END_DEBUG
 	case ORB_FMT_VED:
 		break;
 	case ORB_FMT_STD:
-		switch(ocb->flags & OCB_ACT_MASK){
+		switch(ocb->flags) {
 		case OCB_ACT_MGM:
 			orb_fun = ntohl(ocb->orb[4]) & ORB_FUN_MSK;
 			switch(orb_fun) {
@@ -1473,10 +1656,13 @@ SBP_DEBUG(0)
 sbp_show_sdev_info(sdev, 2);
 printf("login: len %d, ID %d, cmd %08x%08x, recon_hold %d\n", login_res->len, login_res->id, login_res->cmd_hi, login_res->cmd_lo, ntohs(login_res->recon_hold));
 END_DEBUG
+#if 0
+					sdev->status = SBP_DEV_TOATTACH;
+#endif
 #if 1
 					sbp_busy_timeout(sdev);
 #else
-					sbp_mgm_orb(sdev, ORB_FUN_ATS, 0, 0);
+					sbp_mgm_orb(sdev, ORB_FUN_ATS, NULL);
 #endif
 				} else {
 					/* forgot logout? */
@@ -1493,12 +1679,13 @@ sbp_show_sdev_info(sdev, 2);
 printf("reconnect: len %d, ID %d, cmd %08x%08x\n", login_res->len, login_res->id, login_res->cmd_hi, login_res->cmd_lo);
 END_DEBUG
 #if 1
-					sbp_ping_unit(sdev);
-					xpt_release_devq(sdev->path,
-							MAX_FREEZE, TRUE);
+					if (sdev->status == SBP_DEV_ATTACHED)
+						sbp_scan_dev(sdev);
+					else
+						sbp_agent_reset(sdev);
 #else
 					sdev->status = SBP_DEV_ATTACHED;
-					sbp_mgm_orb(sdev, ORB_FUN_ATS, 0, 0);
+					sbp_mgm_orb(sdev, ORB_FUN_ATS, NULL);
 #endif
 				} else {
 					/* reconnection hold time exceed? */
@@ -1506,7 +1693,7 @@ SBP_DEBUG(0)
 					sbp_show_sdev_info(sdev, 2);
 					printf("reconnect failed\n");
 END_DEBUG
-					sbp_mgm_orb(sdev, ORB_FUN_LGI, 0, 0);
+					sbp_login(sdev);
 				}
 				break;
 			case ORB_FUN_LGO:
@@ -1525,6 +1712,7 @@ END_DEBUG
 				printf("unknown function %d\n", orb_fun);
 				break;
 			}
+			sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
 			break;
 		case OCB_ACT_CMD:
 			if(ocb->ccb != NULL){
@@ -1559,8 +1747,10 @@ printf("len %d\n", sbp_status->len);
 		}
 	}
 
-	if (!(ocb->flags & OCB_RESERVED))
-		sbp_free_ocb(sbp, ocb);
+	sbp_free_ocb(sbp, ocb);
+done:
+	if (reset_agent)
+		sbp_agent_reset(sdev);
 
 /* The received packet is usually small enough to be stored within
  * the buffer. In that case, the controller return ack_complete and
@@ -1615,9 +1805,11 @@ sbp_attach(device_t dev)
 	int i, s, error;
 
 SBP_DEBUG(0)
-	printf("sbp_attach\n");
+	printf("sbp_attach (cold=%d)\n", cold);
 END_DEBUG
 
+	if (cold)
+		sbp_cold ++;
 	sbp = ((struct sbp_softc *)device_get_softc(dev));
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
@@ -1648,8 +1840,9 @@ END_DEBUG
 
 	sbp->sim = cam_sim_alloc(sbp_action, sbp_poll, "sbp", sbp,
 				 device_get_unit(dev),
-				 /*untagged*/ SBP_QUEUE_LEN,
-				 /*tagged*/0, devq);
+				 /*untagged*/ 1,
+				 /*tagged*/ SBP_QUEUE_LEN,
+				 devq);
 
 	if (sbp->sim == NULL) {
 		cam_simq_free(devq);
@@ -1671,12 +1864,12 @@ END_DEBUG
 		sbp_free_ocb(sbp, &sbp->ocb[i]);
 	}
 
-	if (xpt_bus_register(sbp->sim, /*bus*/0) != CAM_SUCCESS) {
-		cam_sim_free(sbp->sim, /*free_devq*/TRUE);
-		contigfree(sbp->ocb, sizeof (struct sbp_ocb) * SBP_NUM_OCB,
-									M_SBP);
-		return (ENXIO);
-	}
+	if (xpt_bus_register(sbp->sim, /*bus*/0) != CAM_SUCCESS)
+		goto fail;
+
+	if (xpt_create_path(&sbp->path, xpt_periph, cam_sim_path(sbp->sim),
+			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+		goto fail;
 
 	xfer = fw_xfer_alloc(M_SBP);
 	xfer->act.hand = sbp_recv;
@@ -1694,11 +1887,18 @@ END_DEBUG
 	fw_bindadd(sbp->fd.fc, &sbp->fwb);
 
 	sbp->fd.post_explore = sbp_post_explore;
-	s = splfw();
-	sbp_post_explore((void *)sbp);
-	splx(s);
+
+	if (sbp->fd.fc->status != -1) {
+		s = splfw();
+		sbp_post_explore((void *)sbp);
+		splx(s);
+	}
 
 	return (0);
+fail:
+	cam_sim_free(sbp->sim, /*free_devq*/TRUE);
+	contigfree(sbp->ocb, sizeof (struct sbp_ocb) * SBP_NUM_OCB, M_SBP);
+	return (ENXIO);
 }
 
 static int
@@ -1719,7 +1919,7 @@ END_DEBUG
 			sdev = &target->luns[j];
 			if (sdev->status >= SBP_DEV_TOATTACH &&
 					sdev->status <= SBP_DEV_ATTACHED)
-				sbp_mgm_orb(sdev, ORB_FUN_LGO, 0, 0);
+				sbp_mgm_orb(sdev, ORB_FUN_LGO, NULL);
 		}
 	}
 	return 0;
@@ -1752,6 +1952,7 @@ END_DEBUG
 	
 	for (i = 0; i < SBP_NUM_TARGETS; i ++) 
 		sbp_cam_detach_target(&sbp->targets[i]);
+	xpt_free_path(sbp->path);
 	xpt_bus_deregister(cam_sim_path(sbp->sim));
 
 	sbp_logout_all(sbp);
@@ -1779,8 +1980,11 @@ sbp_cam_detach_target(struct sbp_target *target)
 SBP_DEBUG(0)
 		printf("sbp_detach_target %d\n", target->target_id);
 END_DEBUG
+		callout_stop(&target->scan_callout);
+		callout_stop(&target->mgm_ocb_timeout);
 		for (i = 0; i < target->num_lun; i++) {
 			sdev = &target->luns[i];
+			callout_stop(&sdev->login_callout);
 			if (sdev->status == SBP_DEV_RESET ||
 					sdev->status == SBP_DEV_DEAD)
 				continue;
@@ -1803,7 +2007,17 @@ sbp_timeout(void *arg)
 	sbp_show_sdev_info(sdev, 2);
 	printf("request timeout ... ");
 
+	if (ocb->flags == OCB_ACT_MGM) {
+		printf("management ORB\n");
+		/* XXX just ignore for now */
+		sdev->target->mgm_ocb_cur = NULL;
+		sbp_free_ocb(sdev->target->sbp, ocb);
+		sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
+		return;
+	}
+
 	xpt_freeze_devq(sdev->path, 1);
+	sdev->freeze ++;
 	sbp_abort_all_ocbs(sdev, CAM_CMD_TIMEOUT);
 	if (sdev->flags & SBP_DEV_TIMEOUT) {
 #if 0
@@ -1815,7 +2029,7 @@ sbp_timeout(void *arg)
 		sdev->status == SBP_DEV_RETRY;
 #else
 		printf("target reset\n");
-		sbp_mgm_orb(sdev, ORB_FUN_RST, 0, 0);
+		sbp_mgm_orb(sdev, ORB_FUN_RST, NULL);
 #endif
 		sdev->flags &= ~SBP_DEV_TIMEOUT;
 	} else {
@@ -2067,9 +2281,9 @@ SBP_DEBUG(1)
 			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 END_DEBUG
 		cpi->version_num = 1; /* XXX??? */
-		cpi->hba_inquiry = 0;
+		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
+		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = SBP_NUM_TARGETS - 1;
 		cpi->max_lun = SBP_NUM_LUNS - 1;
@@ -2093,9 +2307,9 @@ SBP_DEBUG(1)
 			device_get_nameunit(sbp->fd.dev),
 			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 END_DEBUG
-		/* Disable disconnect and tagged queuing */
+		/* Enable disconnect and tagged queuing */
 		cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-		cts->flags = 0;
+		cts->flags = CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB;
 
 		cts->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -2105,6 +2319,8 @@ END_DEBUG
 		ccb->ccb_h.status = CAM_UA_ABORT;
 		xpt_done(ccb);
 		break;
+	case XPT_SET_TRAN_SETTINGS:
+		/* XXX */
 	default:
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(ccb);
@@ -2174,9 +2390,7 @@ END_DEBUG
 	
 	ccb = ocb->ccb;
 	prev = sbp_enqueue_ocb(ocb->sdev, ocb);
-	if (prev)
-		sbp_doorbell(ocb->sdev);
-	else
+	if (prev == NULL)
 		sbp_orb_pointer(ocb->sdev, ocb); 
 }
 
@@ -2187,7 +2401,7 @@ sbp_poll(struct cam_sim *sim)
 	return;
 }
 static struct sbp_ocb *
-sbp_dequeue_ocb(struct sbp_dev *sdev, u_int32_t orb_lo)
+sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 {
 	struct sbp_ocb *ocb;
 	struct sbp_ocb *next;
@@ -2206,12 +2420,9 @@ SBP_DEBUG(1)
 #endif
 			vtophys(&ocb->orb[0]), ntohl(ocb->orb[1]), flags);
 END_DEBUG
-		if (vtophys(&ocb->orb[0]) == orb_lo) {
+		if (OCB_MATCH(ocb, sbp_status)) {
 			/* found */
-			if (ocb->flags & OCB_RESERVED)
-				ocb->flags |= OCB_DONE;
-			else
-				STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
+			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
 			if (ocb->ccb != NULL)
 				untimeout(sbp_timeout, (caddr_t)ocb,
 						ocb->ccb->ccb_h.timeout_ch);
@@ -2220,16 +2431,11 @@ END_DEBUG
 							ocb->dmamap);
 				ocb->dmamap = NULL;
 			}
+			if (next != NULL && sbp_status->src == 1)
+				sbp_orb_pointer(sdev, next); 
 			break;
-		} else {
-			if ((ocb->flags & OCB_RESERVED) &&
-					(ocb->flags & OCB_DONE)) {
-				/* next orb must be fetched already */
-				STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
-				sbp_free_ocb(sdev->target->sbp, ocb);
-			} else
-				order ++;
-		}
+		} else
+			order ++;
 	}
 	splx(s);
 SBP_DEBUG(0)
@@ -2271,7 +2477,6 @@ SBP_DEBUG(1)
 #endif
 			vtophys(&ocb->orb[0]));
 END_DEBUG
-		prev->flags |= OCB_RESERVED;
 		prev->orb[1] = htonl(vtophys(&ocb->orb[0]));
 		prev->orb[0] = 0;
 	}
@@ -2290,7 +2495,7 @@ sbp_get_ocb(struct sbp_softc *sbp)
 		printf("ocb shortage!!!\n");
 		return NULL;
 	}
-	STAILQ_REMOVE(&sbp->free_ocbs, ocb, sbp_ocb, ocb);
+	STAILQ_REMOVE_HEAD(&sbp->free_ocbs, ocb);
 	splx(s);
 	ocb->ccb = NULL;
 	return (ocb);
@@ -2322,11 +2527,16 @@ sbp_abort_ocb(struct sbp_ocb *ocb, int status)
 	sdev = ocb->sdev;
 SBP_DEBUG(1)
 	sbp_show_sdev_info(sdev, 2);
-	printf("sbp_abort_ocb 0x%x\n", status);
+#if __FreeBSD_version >= 500000
+	printf("sbp_abort_ocb 0x%tx\n",
+#else
+	printf("sbp_abort_ocb 0x%x\n",
+#endif
+			vtophys(&ocb->orb[0]));
 	if (ocb->ccb != NULL)
 		sbp_print_scsi_cmd(ocb);
 END_DEBUG
-	if (ocb->ccb != NULL && !(ocb->flags & OCB_DONE)) {
+	if (ocb->ccb != NULL) {
 		untimeout(sbp_timeout, (caddr_t)ocb,
 					ocb->ccb->ccb_h.timeout_ch);
 		ocb->ccb->ccb_h.status = status;

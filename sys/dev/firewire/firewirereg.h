@@ -284,8 +284,8 @@ struct fw_xfer{
 	void (*retry_req) __P((struct fw_xfer *));
 	union{
 		void (*hand) __P((struct fw_xfer *));
-
 	} act;
+#if 0
 	union{
 		struct {
 			struct fw_device *device;
@@ -294,6 +294,7 @@ struct fw_xfer{
 			struct stch *channel;
 		} stream;
 	} mode;
+#endif
 	struct {
 		u_int16_t len, off;
 		caddr_t buf;
@@ -366,6 +367,12 @@ extern devclass_t firewire_devclass;
 #undef vtophys
 #define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
+
+#if __FreeBSD_version >= 500000
+#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
+#else
+#define CALLOUT_INIT(x) callout_init(x)
+#endif
 
 MALLOC_DECLARE(M_FW);
 MALLOC_DECLARE(M_FWXFER);

@@ -41,7 +41,7 @@ struct ciphdr {
 	u_int8_t :2,
 		 sph:1,
 		 qpc:3,
-		 fn:1;
+		 fn:2;
 	u_int8_t dbc;
 	u_int8_t fmt:6,
 #define CIP_FMT_DVCR	0

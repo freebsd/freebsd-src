@@ -423,11 +423,6 @@ firewire_attach( device_t dev )
 #else
 	sc->dev[i] = d;
 #endif
-#if __FreeBSD_version >= 500000
-#define CALLOUT_INIT(x) callout_init(x, 0 /* mpsafe */)
-#else
-#define CALLOUT_INIT(x) callout_init(x)
-#endif
 	CALLOUT_INIT(&sc->fc->timeout_callout);
 	CALLOUT_INIT(&sc->fc->bmr_callout);
 	CALLOUT_INIT(&sc->fc->retry_probe_callout);
@@ -1787,13 +1782,14 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 			ntohl(fp->mode.rreqq.dest_lo));
 		if(bind == NULL){
 #if __FreeBSD_version >= 500000
-			printf("Unknown service addr 0x%08x:0x%08x tcode=%x\n",
+			printf("Unknown service addr 0x%08x:0x%08x tcode=%x\n src=0x%x",
 #else
-			printf("Unknown service addr 0x%08x:0x%08lx tcode=%x\n",
+			printf("Unknown service addr 0x%08x:0x%08lx tcode=%x src=0x%x\n",
 #endif
 				ntohs(fp->mode.rreqq.dest_hi),
 				ntohl(fp->mode.rreqq.dest_lo),
-				fp->mode.common.tcode);
+				fp->mode.common.tcode,
+				fp->mode.hdr.src);
 			if (fc->status == FWBUSRESET) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
 				goto err;

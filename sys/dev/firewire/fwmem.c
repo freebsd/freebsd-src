@@ -419,7 +419,11 @@ fwmem_poll (dev_t dev, int events, fw_proc *td)
 	return EINVAL;
 }
 int
+#if __FreeBSD_version < 500000
 fwmem_mmap (dev_t dev, vm_offset_t offset, int nproto)
+#else
+fwmem_mmap (dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nproto)
+#endif
 {  
 	return EINVAL;
 }

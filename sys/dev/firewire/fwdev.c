@@ -67,8 +67,21 @@ static	d_mmap_t	fw_mmap;
 
 struct cdevsw firewire_cdevsw = 
 {
+#if __FreeBSD_version >= 500104
+	.d_open =	fw_open,
+	.d_close =	fw_close,
+	.d_read =	fw_read,
+	.d_write =	fw_write,
+	.d_ioctl =	fw_ioctl,
+	.d_poll =	fw_poll,
+	.d_mmap =	fw_mmap,
+	.d_name =	"fw",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_MEM
+#else
 	fw_open, fw_close, fw_read, fw_write, fw_ioctl,
 	fw_poll, fw_mmap, nostrategy, "fw", CDEV_MAJOR, nodump, nopsize, D_MEM
+#endif
 };
 
 static int
@@ -253,7 +266,7 @@ readloop:
 					return err;
 			}
 			ir->flag |= FWXFERQ_WAKEUP;
-			err = tsleep((caddr_t)ir, FWPRI, "fw_read", hz);
+			err = tsleep(ir, FWPRI, "fw_read", hz);
 			ir->flag &= ~FWXFERQ_WAKEUP;
 			if (err == 0)
 				goto readloop;
@@ -375,7 +388,7 @@ isoloop:
 				err = sc->fc->itx_enable(sc->fc, sub);
 				if (err)
 					return err;
-				err = tsleep((caddr_t)it, FWPRI,
+				err = tsleep(it, FWPRI,
 							"fw_write", hz);
 				if (err)
 					return err;
@@ -420,7 +433,7 @@ dvloop:
 				if(err){
 					return err;
 				}
-				err = tsleep((caddr_t)it, FWPRI, "fw_write", hz);
+				err = tsleep(it, FWPRI, "fw_write", hz);
 				if(err){
 					return err;
 				}
@@ -503,7 +516,7 @@ dvloop:
 #else
 		fw_asyreq(fc, -1, xfer);
 #endif
-		err = tsleep((caddr_t)xfer, FWPRI, "fw_write", hz);
+		err = tsleep(xfer, FWPRI, "fw_write", hz);
 		if(xfer->resp == EBUSY)
 			return EBUSY;
 		fw_xfer_free( xfer);
@@ -777,7 +790,7 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			fw_xfer_free( xfer);
 			return err;
 		}
-		err = tsleep((caddr_t)xfer, FWPRI, "asyreq", hz);
+		err = tsleep(xfer, FWPRI, "asyreq", hz);
 		if(err == 0){
 			if(asyreq->req.len >= xfer->recv.len){
 				asyreq->req.len = xfer->recv.len;
@@ -921,13 +934,21 @@ fw_poll(dev_t dev, int events, fw_proc *td)
 }
 
 static int
+#if __FreeBSD_version < 500000
 fw_mmap (dev_t dev, vm_offset_t offset, int nproto)
+#else
+fw_mmap (dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nproto)
+#endif
 {  
 	struct firewire_softc *fc;
 	int unit = DEV2UNIT(dev);
 
 	if (DEV_FWMEM(dev))
+#if __FreeBSD_version < 500000
 		return fwmem_mmap(dev, offset, nproto);
+#else
+		return fwmem_mmap(dev, offset, paddr, nproto);
+#endif
 
 	fc = devclass_get_softc(firewire_devclass, unit);
 

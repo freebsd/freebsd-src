@@ -1585,7 +1585,6 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 
 	dbch = &sc->ir[dmach];
 	ir = &dbch->xferq;
-	ldesc = dbch->ndesc - 1;
 
 	if ((ir->flag & FWXFERQ_RUNNING) == 0) {
 		tag = (ir->flag >> 6) & 3;
@@ -1609,15 +1608,14 @@ fwohci_irxbuf_enable(struct firewire_comm *fc, int dmach)
 	if(err)
 		return err;
 
-	s = splfw();
-
 	first = STAILQ_FIRST(&ir->stfree);
 	if (first == NULL) {
 		device_printf(fc->dev, "IR DMA no free chunk\n");
-		splx(s);
 		return 0;
 	}
 
+	ldesc = dbch->ndesc - 1;
+	s = splfw();
 	prev = STAILQ_LAST(&ir->stdma, fw_bulkxfer, link);
 	while  ((chunk = STAILQ_FIRST(&ir->stfree)) != NULL) {
 		volatile struct fwohcidb *db;
@@ -1783,13 +1781,6 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
 		fw_busreset(fc);
-
-		OWRITE(sc, OHCI_AREQHI, 1 << 31);
-		/* XXX insecure ?? */
-		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
-		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
-		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
-
 	}
 busresetout:
 	if((stat & OHCI_INT_DMA_IR )){
@@ -1857,6 +1848,12 @@ busresetout:
 #endif
 		/* Enable bus reset interrupt */
 		OWRITE(sc, FWOHCI_INTMASK,  OHCI_INT_PHY_BUS_R);
+		/* Allow async. request to us */
+		OWRITE(sc, OHCI_AREQHI, 1 << 31);
+		/* XXX insecure ?? */
+		OWRITE(sc, OHCI_PREQHI, 0x7fffffff);
+		OWRITE(sc, OHCI_PREQLO, 0xffffffff);
+		OWRITE(sc, OHCI_PREQUPPER, 0x10000);
 /*
 ** Checking whether the node is root or not. If root, turn on 
 ** cycle master.
