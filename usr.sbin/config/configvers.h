@@ -6,6 +6,6 @@
  * The numbering scheme is inspired by the sys/conf/newvers.sh RELDATE
  * and <osreldate.h> system.
  *
- * $Id: configvers.h,v 1.6 1998/09/15 21:07:54 gibbs Exp $
+ * $Id: configvers.h,v 1.7 1998/10/23 17:05:06 bde Exp $
  */
-#define	CONFIGVERS	300008
+#define	CONFIGVERS	300009
