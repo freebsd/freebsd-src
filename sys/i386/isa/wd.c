@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.186.2.1 1999/01/27 20:39:08 julian Exp $
+ *	$Id: wd.c,v 1.191 1999/04/02 13:58:24 phk Exp $
  */
 
 /* TODO:
@@ -328,6 +328,7 @@ wdprobe(struct isa_device *dvp)
 	if (inb(du->dk_port + wd_cyl_lo) == 0xff) {     /* XXX too weak */
 #ifdef ATAPI
 		/* There is no master, try the ATAPI slave. */
+		du->dk_unit = 1;
 		outb(du->dk_port + wd_sdh, WDSD_IBM | 0x10);
 		outb(du->dk_port + wd_cyl_lo, 0xa5);
 		if (inb(du->dk_port + wd_cyl_lo) == 0xff)
@@ -692,10 +693,8 @@ wdstrategy(register struct buf *bp)
 	return;
 
 done:
-	s = splbio();
 	/* toss transfer, we're done early */
 	biodone(bp);
-	splx(s);
 }
 
 static void
@@ -2235,8 +2234,8 @@ out:
 		}
 
 		/* Check final status. */
-		if (du->dk_status
-		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR)
+		if ((du->dk_status
+		    & (WDCS_READY | WDCS_SEEKCMPLT | WDCS_DRQ | WDCS_ERR))
 		    != (WDCS_READY | WDCS_SEEKCMPLT)) {
 			wderror((struct buf *)NULL, du,
 				"wddump: extra DRQ, or error");
@@ -2299,8 +2298,9 @@ wdreset(struct disk *du)
 	outb(du->dk_altport, WDCTL_IDS | WDCTL_RST);
 	DELAY(10 * 1000);
 	outb(du->dk_altport, WDCTL_IDS);
+	outb(du->dk_port + wd_sdh, WDSD_IBM | (du->dk_unit << 4));
 #ifdef ATAPI
-	if (wdwait(du, WDCS_READY | WDCS_SEEKCMPLT, TIMEOUT) != 0)
+	if (wdwait(du, 0, TIMEOUT) != 0)
 		err = 1;                /* no IDE drive found */
 	du->dk_error = inb(du->dk_port + wd_error);
 	if (du->dk_error != 0x01)
