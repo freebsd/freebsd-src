@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 340.uucp,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 340.uucp,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
 #
 # Local cleanup of UUCP files.  This is for backwards compatibility,
 # /etc/uuclean.daily doesn't exist by default.
@@ -8,6 +8,7 @@
 if [ -d /var/spool/uucp -a -f /etc/uuclean.daily ]; then
 	echo ""
 	echo "Cleaning up UUCP:"
+
 	echo /etc/uuclean.daily | su daemon
 fi
 
