@@ -372,15 +372,17 @@ static void cue_setmulti(sc)
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = cue_crc(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		sc->cue_mctab[h >> 3] |= 1 << (h & 0xF);		
+		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);		
 	}
 
 	/*
 	 * Also include the broadcast address in the filter
 	 * so we can receive broadcast frames.
  	 */
-	h = cue_crc(etherbroadcastaddr);
-	sc->cue_mctab[h >> 4] |= 1 << (h & 0xF);		
+	if (ifp->if_flags & IFF_BROADCAST) {
+		h = cue_crc(etherbroadcastaddr);
+		sc->cue_mctab[h >> 3] |= 1 << (h & 0x7);		
+	}
 
 	cue_mem(sc, CUE_CMD_WRITESRAM, CUE_MCAST_TABLE_ADDR,
 	    &sc->cue_mctab, CUE_MCAST_TABLE_LEN);
