@@ -673,7 +673,7 @@ nicstar_init(nicstar_reg_t * const idt)
 	/* allocate space for TSQ, RSQ, SCD for VBR,ABR, UBR */
 	idt->fixbuf = vm_page_alloc_contig(NICSTAR_FIXPAGES * PAGE_SIZE,
 					   0x100000, 0xffffffff, 0x2000);
-	if (idt->fixbuf == NULL)
+	if (idt->fixbuf == 0)
 		return;		/* no space card disabled */
 
 	if (idt_buffer_init(idt))	/* allocate large buffers */
@@ -815,11 +815,11 @@ freemem:
 void
 idt_release_mem(IDT * idt)
 {
-	if (idt->fixbuf != NULL)
+	if (idt->fixbuf != 0)
 		kmem_free(kernel_map, idt->fixbuf,
 			  (NICSTAR_FIXPAGES * PAGE_SIZE));
 
-	if (idt->cbr_base != NULL)
+	if (idt->cbr_base != 0)
 		kmem_free(kernel_map, (vm_offset_t)idt->cbr_base, idt->cbr_size);
 
 	printf("%s() is NOT SAFE!\n", __func__);
@@ -1430,7 +1430,7 @@ idt_queue_init(IDT * idt)
 	idt->cbr_size = IDT_MAX_CBRQUEUE * 16 * 64;
 	idt->cbr_base = idt_malloc_contig(idt->cbr_size / PAGE_SIZE);
 	scqbase = idt->cbr_base;
-	if (scqbase == NULL)
+	if (scqbase == 0)
 		return (1);
 	idt->cbr_freect = idt->cbr_size / (16 * 64);
 
