@@ -169,9 +169,6 @@
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #endif
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
 #else /* PCVT_FREEBSD >= 200 */
 #include "machine/pc/display.h"
 #endif /* PCVT_FREEBSD >= 200 */
