@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.37 1996/02/28 20:08:48 jfieber Exp $
+<date> $Id: freebsd-faq.sgml,v 1.38 1996/03/05 23:48:02 joerg Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1250,6 +1250,42 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
 
           The actual amount of dirty pages that you can have in core at
           once is not reduced; the clean pages are displaced as necessary.
+
+      <sect1>
+        <heading>How can I add more swap space?</heading>
+
+	<p>(by Werner Griessl)
+
+	<p>Here is an example for 64Mb vn-swap (<tt>/usr/swap0</tt>)
+	<p>
+	  <enum>
+	    <item>
+	    create a vn-device
+	    <verb>
+cd /dev; sh ./MAKEDEV vn0
+	    </verb>
+	    <item>
+	    create a swapfile (<tt>/usr/swap0</tt>)
+	    <verb>
+dd if=/dev/zero of=/usr/swap0 bs=1024k count=64
+	    </verb>
+	    <item>
+	    put into /etc/rc.local the line
+	    <verb>
+vnconfig -ce /dev/vn0c /usr/swap0 swap
+	    </verb>
+	    <item>
+	    reboot the machine
+	  </enum>
+
+	<p>
+	  You must also have a kernel with the line
+	  <verb>
+pseudo-device   vn   #Vnode driver (turns a file into a device)
+	  </verb>
+	  in your config-file.
+
+      </sect1>
 
       <sect1>
         <heading>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?</heading>
