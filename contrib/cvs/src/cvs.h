@@ -41,6 +41,10 @@
 #include "popen.h"
 #endif
 
+/* Begin GNULIB headers.  */
+#include "xsize.h"
+/* End GNULIB headers.  */
+
 #ifdef STDC_HEADERS
 #include <stdlib.h>
 #else
