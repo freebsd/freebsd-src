@@ -112,8 +112,9 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
+#	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.178 1998/11/12 22:48:16 nsouch Exp $
+#	$Id: MAKEDEV,v 1.179 1999/01/03 16:48:03 n_hibma Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -204,6 +205,7 @@ all)
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3		# cdev, serial tty
+	sh MAKEDEV kbd0					# cdev, keyboard
 	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
 	sh MAKEDEV pcaudio speaker			# cdev, noise
 	sh MAKEDEV lpt0 lpt1 lpt2			# cdev, printer
@@ -1272,6 +1274,12 @@ ipl)
 	mknod ipnat c 79 1
 	mknod ipstate c 79 2
 	mknod ipauth c 79 3
+	;;
+
+kbd*)
+	unit=`expr $i : 'kbd\(.*\)'`
+	chr=112
+	mknod kbd$unit c $chr $unit
 	;;
 
 local)
