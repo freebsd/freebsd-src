@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.152 1999/04/28 08:00:50 obrien Exp $
+#	$Id: Makefile,v 1.153 1999/04/28 11:36:28 phk Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR=	IPXrouted \
@@ -135,6 +135,7 @@ SUBDIR+=apm \
 	sicontrol \
 	spkrtest \
 	stallion \
+	wicontrol \
 	wlconfig
 .endif
 
