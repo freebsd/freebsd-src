@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.149 1996/05/12 12:36:59 joerg Exp $
+ *  $Id: syscons.c,v 1.150 1996/05/27 06:02:52 peter Exp $
  */
 
 #include "sc.h"
@@ -90,7 +90,9 @@ static default_attr kernel_default = {
 
 static  scr_stat    	main_console;
 static  scr_stat    	*console[MAXCONS];
+#ifdef DEVFS
 static	void		*sc_devfs_token[MAXCONS];
+#endif
 	scr_stat    	*cur_console;
 static  scr_stat    	*new_scp, *old_scp;
 static  term_stat   	kernel_console;
