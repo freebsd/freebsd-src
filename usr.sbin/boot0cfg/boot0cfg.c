@@ -418,6 +418,6 @@ usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
     "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-m mask]",
-    "                [-o options] [-t ticks] disk");
+    "                [-o options] [-s slice] [-t ticks] disk");
     exit(1);
 }
