@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,12 +36,12 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
@@ -56,6 +54,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -78,6 +77,7 @@
 #include <syslog.h>
 #include "vif.h"
 #include "debug.h"
+#include "routesock.h"
 
 #ifdef HAVE_ROUTING_SOCKETS
 union sockunion
@@ -96,7 +96,7 @@ u_long          rtm_inits;
 /*
  * Local functions definitions.
  */
-static int getmsg
+static int getmsg 
 __P((register struct rt_msghdr *, int,
      struct rpfctl * rpfinfo));
 
@@ -104,17 +104,17 @@ __P((register struct rt_msghdr *, int,
  * TODO: check again!
  */
 #ifdef IRIX
-#define	ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
+#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(__uint64_t) - 1))) \
 		    : sizeof(__uint64_t))
 #else
-#define	ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) \
+#define ROUNDUP(a) ((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) \
 		    : sizeof(long))
 #endif				/* IRIX */
 
 #ifdef HAVE_SA_LEN
-#define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 #else
-#define	ADVANCE(x, n) (x += ROUNDUP(4))	/* TODO: a hack!! */
+#define ADVANCE(x, n) (x += ROUNDUP(4))	/* TODO: a hack!! */
 #endif
 
 /* Open and initialize the routing socket */
@@ -175,12 +175,12 @@ k_req_incoming(source, rpfp)
 
     /* TODO: a hack!!!! */
 #ifdef HAVE_SA_LEN
-#define	NEXTADDR(w, u) \
+#define NEXTADDR(w, u) \
     if (rtm_addrs & (w)) { \
 	l = ROUNDUP(u.sa.sa_len); bcopy((char *)&(u), cp, l); cp += l;\
     }
 #else
-#define	NEXTADDR(w, u) \
+#define NEXTADDR(w, u) \
     if (rtm_addrs & (w)) { \
 	l = ROUNDUP(4); bcopy((char *)&(u), cp, l); cp += l;\
     }
@@ -221,7 +221,7 @@ k_req_incoming(source, rpfp)
     errno = 0;
     bzero((char *) &m_rtmsg, sizeof(m_rtmsg));
 
-#define	rtm m_rtmsg.m_rtm
+#define rtm m_rtmsg.m_rtm
     rtm.rtm_type = RTM_GET;
     rtm.rtm_flags = flags;
     rtm.rtm_version = RTM_VERSION;
@@ -281,7 +281,7 @@ getmsg(rtm, msglen, rpfinfop)
     struct sockaddr *dst = NULL,
                    *gate = NULL,
                    *mask = NULL;
-
+					
     struct sockaddr_dl *ifp = NULL;
     register struct sockaddr *sa;
     register char  *cp;

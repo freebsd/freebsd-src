@@ -85,8 +85,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -94,15 +92,16 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -134,11 +133,11 @@
 static int parse_pim6_hello 			__P((char *pktPtr , int datalen , struct sockaddr_in6 *src,
 						     u_int16 *holdtime));
 
-static int send_pim6_register_stop 		__P((struct sockaddr_in6 *reg_src , struct sockaddr_in6 *reg_dst ,
+static int send_pim6_register_stop 		__P((struct sockaddr_in6 *reg_src , struct sockaddr_in6 *reg_dst , 
 	                       		     	     struct sockaddr_in6 *inner_source,
 		                	             struct sockaddr_in6 *inner_grp));
 
-static build_jp_message_t *get_jp6_working_buff __P(());
+static build_jp_message_t *get_jp6_working_buff __P((void));
 static void return_jp6_working_buff 		__P((pim_nbr_entry_t * pim_nbr));
 static void pack_jp6_message 			__P((pim_nbr_entry_t * pim_nbr));
 static void send_jp6_message 			__P((pim_nbr_entry_t * pim_nbr));
@@ -215,9 +214,9 @@ receive_pim6_hello(src, pim_message, datalen)
 	 * translate the addresses in host order.
 	 */
 
-	if (inet6_lessthan(src, &nbr->address))
+	if (inet6_lessthan(src, &nbr->address))  
 	    continue;
-	if (inet6_equal(src, &nbr->address))
+	if (inet6_equal(src, &nbr->address)) 
 	{
 	    /* We already have an entry for this host */
 
@@ -322,8 +321,6 @@ receive_pim6_hello(src, pim_message, datalen)
 		}
 	    }
 	    v->uv_flags &= ~VIFF_DR;
-	    v->uv_flags &= ~VIFF_QUERIER;
-
 	}
     }
 
@@ -374,16 +371,13 @@ delete_pim6_nbr(nbr_delete)
     }
     else
     {
-	if  (inet6_greaterthan(&v->uv_linklocal->pa_addr,
-	    &v->uv_pim_neighbors->address))
-
+	if  (inet6_greaterthan(&v->uv_linklocal->pa_addr, 
+			       &v->uv_pim_neighbors->address)) 
 	    /*
 	     * The first address is the new potential remote DR address, but
 	     * the local address is the winner.
 	     */
-
 	    v->uv_flags |= VIFF_DR;
-   	    v->uv_flags |= VIFF_QUERIER;
     }
 
     /* Update the source entries */
@@ -712,7 +706,7 @@ receive_pim6_register(reg_src, reg_dst, pim_message, datalen)
 
 	SET_TIMER(mrtentry_ptr->timer, pim_data_timeout);	/* restart timer */
 	if (!(mrtentry_ptr->flags & MRTF_SPT))
-	{
+	{			
 		/* The SPT bit is not set */
 
 	    if (!nullRegisterBit)
@@ -902,7 +896,7 @@ send_pim6_register(pkt)
     char           		*buf;
 
     ip6=(struct ip6_hdr *)pkt;
-
+	
     group.sin6_addr = ip6->ip6_dst;
     source.sin6_addr = ip6->ip6_src;
 
@@ -1017,7 +1011,7 @@ send_pim6_null_register(mrtentry_ptr)
 
     dest = &mrtentry_ptr->group->rpaddr;
     reg_source = max_global_address();
-
+    
     send_pim6(pim6_send_buf, reg_source , dest, PIM_REGISTER,
 	      pktlen);
     pim6dstat.out_pim6_register++; /* should be counted separately? */
@@ -1091,15 +1085,15 @@ receive_pim6_register_stop(reg_src, reg_dst, pim_message, datalen)
 				inet6_fmt(&encod_unisrc.unicast_addr));
 		    }
 	    return FALSE;
-    }
+    }		
 
-    v=&uvifs[mifi];
+    v=&uvifs[mifi];	
 
 
     group.sin6_scope_id = inet6_uvif2scopeid(&group, v);
     source.sin6_scope_id = inet6_uvif2scopeid(&source,
 					      v);
-
+	
 
     IF_DEBUG(DEBUG_PIM_REGISTER)
 	{
@@ -1135,7 +1129,7 @@ receive_pim6_register_stop(reg_src, reg_dst, pim_message, datalen)
     }
 
     /* restart the Register-Suppression timer */
-
+ 
     SET_TIMER(mrtentry_ptr->rs_timer, (0.5 * pim_register_suppression_timeout)
 	      + (RANDOM() % (pim_register_suppression_timeout + 1)));
     /* Prune the register_vif from the outgoing list */
@@ -1171,7 +1165,7 @@ send_pim6_register_stop(reg_src, reg_dst, inner_grp, inner_src)
     send_pim6(pim6_send_buf, reg_src , reg_dst , PIM_REGISTER_STOP,
 	      data_ptr-(u_int8 *) buf);
     pim6dstat.out_pim6_register_stop++;
-
+ 
     return (TRUE);
 }
 
@@ -1217,7 +1211,7 @@ join_or_prune(mrtentry_ptr, upstream_router)
 	    {
 		/* I am not the DR for that subnet. */
 		return (PIM_ACTION_PRUNE);
-            }
+            }	
 	    if (IF_ISSET(mrtentry_ptr->incoming, &mrtentry_ptr->leaves))
 		/* I am the DR and have local leaves */
 		return (PIM_ACTION_JOIN);
@@ -1288,7 +1282,7 @@ join_or_prune(mrtentry_ptr, upstream_router)
 }
 
 /* TODO: too long, simplify it! */
-#define	PIM6_JOIN_PRUNE_MINLEN (4 + PIM6_ENCODE_UNI_ADDR_LEN + 4)
+#define PIM6_JOIN_PRUNE_MINLEN (4 + PIM6_ENCODE_UNI_ADDR_LEN + 4)
 
 int
 receive_pim6_join_prune(src, dst, pim_message, datalen)
@@ -1440,13 +1434,13 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 	    GET_HOSTSHORT(num_j_srcs, data_ptr);
 	    GET_HOSTSHORT(num_p_srcs, data_ptr);
 	    if (encod_group.masklen > (sizeof(struct in6_addr) << 3))
-		continue;
+		continue;	
 	    MASKLEN_TO_MASK6(encod_group.masklen, g_mask);
 	    group.sin6_addr = encod_group.mcast_addr;
 	    group.sin6_scope_id = inet6_uvif2scopeid(&group, v);
-
-	    if (!IN6_IS_ADDR_MULTICAST(&group.sin6_addr))
-	    {
+	   
+	    if (!IN6_IS_ADDR_MULTICAST(&group.sin6_addr)) 
+	    {	
 		data_ptr +=
 		    (num_j_srcs + num_p_srcs) * sizeof(pim6_encod_src_addr_t);
 		continue;	/* Ignore this group and jump to the next */
@@ -1469,7 +1463,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 		    if (encod_src.masklen >
                     (sizeof(struct in6_addr) << 3))
                     continue;
-
+ 
 
 	   	    s_flags = encod_src.flags;
 		    MASKLEN_TO_MASK6(encod_src.masklen, s_mask);
@@ -1523,7 +1517,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 		    source.sin6_addr = encod_src.src_addr;
 		    source.sin6_scope_id = inet6_uvif2scopeid(&source,
                                       v);
-
+ 
 		    if (!inet6_valid_host(&source))
 			continue;
 
@@ -1794,7 +1788,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
      * Join and the ~(S,G) prune are in the same message, ~(S,G) has the
      * priority. The spec doesn't say it, but I think the same is true for
      * (*,*,RP) and ~(S,G) prunes.
-     *
+     * 
      * The code below do: (1) Check the whole message for (*,*,RP) Joins. (1.1)
      * If found, clean all pruned_oifs for all (*,G) and all (S,G) for each
      * RP in the list, but do not update the kernel cache. Then go back to
@@ -1809,7 +1803,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
      * (kernel). (3.3) After the Prune part is processed, process the Join
      * part normally (by applying any changes to the kernel) (4) If there
      * were (*,*,RP) Join/Prune, process them.
-     *
+     * 
      * If the Join/Prune list is too long, it may result in long processing
      * overhead. The idea above is not to place any wrong info in the kernel,
      * because it may result in short-time existing traffic forwarding on
@@ -1823,7 +1817,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
     num_groups_tmp = num_groups;
     data_ptr_start = data_ptr;
     star_star_rp_found = FALSE;	/* Indicating whether we have (*,*,RP) join */
-
+ 
     IF_DEBUG(DEBUG_PIM_JOIN_PRUNE)
 	log(LOG_DEBUG,0,"Number of groups to process : %d",num_groups_tmp);
 
@@ -1908,13 +1902,13 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 	GET_HOSTSHORT(num_p_srcs, data_ptr);
 	group.sin6_addr = encod_group.mcast_addr;
 	group.sin6_scope_id = inet6_uvif2scopeid(&group, v);
-
+  
  	IF_DEBUG(DEBUG_PIM_JOIN_PRUNE)
 	{
 		log(LOG_DEBUG,0,"Group to process : %s",inet6_fmt(&encod_group.mcast_addr));
 		log(LOG_DEBUG,0,"Number of join   : %d",num_j_srcs );
 		log(LOG_DEBUG,0,"Number of prune  : %d",num_p_srcs );
-	}
+	}	
 
 	if (!IN6_IS_ADDR_MULTICAST(&group.sin6_addr))
 	{
@@ -1959,7 +1953,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 	    GET_ESADDR6(&encod_src, data_ptr);
 	    source.sin6_addr=encod_src.src_addr;
 	    source.sin6_scope_id = inet6_uvif2scopeid(&source,v);
-
+ 
    	    if ((encod_src.flags & USADDR_RP_BIT)
 		&& (encod_src.flags & USADDR_WC_BIT))
 	    {
@@ -1969,7 +1963,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 		 * pruned_oifs for all (S,G) entries.
 		 */
 
-		if(!inet6_equal(&rpentry_ptr->address, &source))
+		if(!inet6_equal(&rpentry_ptr->address, &source))	
 		{
 		    ignore_group = TRUE;
 		    IF_DEBUG(DEBUG_PIM_JOIN_PRUNE)
@@ -2002,7 +1996,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 	{
 	    GET_ESADDR6(&encod_src, data_ptr);
 	    source.sin6_addr = encod_src.src_addr;
-	    source.sin6_scope_id = inet6_uvif2scopeid(&source, v);
+	    source.sin6_scope_id = inet6_uvif2scopeid(&source, v);	    
 
 	    if (!inet6_valid_host(&source))
 		continue;
@@ -2136,7 +2130,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
 			 * not match the local RP-map, then ignore the whole
 			 * group, not only this particular (*,G) prune.
 			 */
-			if (!inet6_equal(&mrtentry_ptr->group->active_rp_grp->rp->rpentry->address, &source ))
+			if (!inet6_equal(&mrtentry_ptr->group->active_rp_grp->rp->rpentry->address, &source )) 
 			    continue;	/* The RP address doesn't match. */
 			if (v->uv_flags & VIFF_POINT_TO_POINT)
 			{
@@ -2460,7 +2454,7 @@ receive_pim6_join_prune(src, dst, pim_message, datalen)
  * we have ~(S,G)RPbit Prune entry, we must include any (*,G) or (*,*,RP)
  * Currently the whole table is scanned. In the future will have all routing
  * entries linked in a chain with the corresponding upstream pim_nbr_entry.
- *
+ * 
  * If pim_nbr is not NULL, then send to only this particular PIM neighbor,
  */
 int
@@ -3404,7 +3398,7 @@ compare_metrics(local_preference, local_metric, local_address,
 /************************************************************************
  *                        PIM_BOOTSTRAP
  ************************************************************************/
-#define	PIM6_BOOTSTRAP_MINLEN (PIM_MINLEN + PIM6_ENCODE_UNI_ADDR_LEN)
+#define PIM6_BOOTSTRAP_MINLEN (PIM_MINLEN + PIM6_ENCODE_UNI_ADDR_LEN)
 
 int
 receive_pim6_bootstrap(src, dst, pim_message, datalen)
@@ -3480,7 +3474,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
     GET_BYTE(new_bsr_priority, data_ptr);
     GET_EUADDR6(&new_bsr_uni_addr, data_ptr);
 
-    /*
+    /* 
      * BSR address must be a global unicast address.
      * [draft-ietf-pim-ipv6-01.txt sec 4.5]
      */
@@ -3668,7 +3662,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
     }
 
     max_data_ptr = (u_int8 *) pim_message + datalen;
-
+ 
     /*
      * TODO: XXX: this 24 is HARDCODING!!! Do a bunch of definitions and make
      * it stylish!
@@ -3696,6 +3690,15 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 	GET_BYTE(curr_frag_rp_count, data_ptr);
 	GET_HOSTSHORT(reserved_short, data_ptr);
 	MASKLEN_TO_MASK6(curr_group_addr.masklen, curr_group_mask);
+
+	if (IN6_IS_ADDR_MC_NODELOCAL(&curr_group_addr.mcast_addr) ||
+	    IN6_IS_ADDR_MC_LINKLOCAL(&curr_group_addr.mcast_addr)) {
+		log(LOG_WARNING, 0,
+		    "receive_pim6_bootstrap: "
+		    "group prefix has a narraw scope: %s (ignored)",
+		    inet6_fmt(&curr_group_addr.mcast_addr));
+		continue;
+	}
 	if (curr_rp_count == 0)
 	{
 	    group_.sin6_addr = curr_group_addr.mcast_addr;
@@ -3716,7 +3719,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 		if (data_ptr + PIM6_ENCODE_UNI_ADDR_LEN + sizeof(u_int32_t)
 		    > max_data_ptr) {
 		    log(LOG_NOTICE, 0,
-			"receive_pim6_bootstrap: Bootstrap from %s on %s "
+			"receive_pim6_bootstrap: Bootstrap from %s on %s " 
 			"does not have enough length to contatin RP information",
 			inet6_fmt(&src->sin6_addr), v->uv_name);
 
@@ -3752,7 +3755,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 		group_.sin6_len = sizeof(group_);
 		group_.sin6_family = AF_INET6;
 		group_.sin6_scope_id = inet6_uvif2scopeid(&group_,v);
-
+	
 		add_rp_grp_entry(&cand_rp_list, &grp_mask_list,
 				 &rpp_, curr_rp_priority,
 				 curr_rp_holdtime, &group_,
@@ -3772,7 +3775,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 		curr_group_addr.mcast_addr.s6_addr[i]
 		    & curr_group_mask.s6_addr[i];
 	}
-
+	
 	for (grp_mask_ptr = segmented_grp_mask_list;
 	     grp_mask_ptr != (grp_mask_t *) NULL;
 	     grp_mask_ptr = grp_mask_ptr->next)
@@ -3783,7 +3786,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 			& grp_mask_ptr->group_mask.s6_addr[i];
 	    }
 
-	    if (inet6_lessthan(&prefix_h2, &prefix_h))
+	    if (inet6_greaterthan(&prefix_h2, &prefix_h))
 		continue;
 	    else
 		break;
@@ -3867,7 +3870,7 @@ receive_pim6_bootstrap(src, dst, pim_message, datalen)
 	}
     }
 
-
+    
  garbage_collect:
     /*
      * Garbage collection. Check all group prefixes and if the fragment_tag
@@ -3948,7 +3951,7 @@ send_pim6_bootstrap()
  * length of PIM header + prefix-cnt(1) + priority(1) + holdtime(2) +
  *                        encoded unicast RP addr(18)
   */
-#define	PIM6_CAND_RP_ADV_MINLEN (PIM_MINLEN + PIM6_ENCODE_UNI_ADDR_LEN)
+#define PIM6_CAND_RP_ADV_MINLEN (PIM_MINLEN + PIM6_ENCODE_UNI_ADDR_LEN)
 
 /*
  * If I am the Bootstrap router, process the advertisement, otherwise ignore
@@ -3973,7 +3976,7 @@ receive_pim6_cand_rp_adv(src, dst, pim_message, datalen)
     pim6dstat.in_pim6_cand_rp++;
 
     /* if I am not the bootstrap RP, then do not accept the message */
-    if ((cand_bsr_flag != FALSE) &&
+    if ((cand_bsr_flag != FALSE) && 
 	!inet6_equal(&curr_bsr_address, &my_bsr_address))
     {
 	log(LOG_NOTICE, 0,
@@ -4045,7 +4048,7 @@ receive_pim6_cand_rp_adv(src, dst, pim_message, datalen)
 		    return(FALSE);
 	    }
 	    datalen -= PIM6_ENCODE_GRP_ADDR_LEN;
-
+	    
 	    GET_EGADDR6(&encod_grp_addr, data_ptr);
 	    MASKLEN_TO_MASK6(encod_grp_addr.masklen, grp_mask);
 	    group_.sin6_addr = encod_grp_addr.mcast_addr;
@@ -4114,7 +4117,7 @@ send_pim6_cand_rp_adv()
     }
 
     data_ptr = (u_int8 *) (pim6_send_buf + sizeof(struct pim));
-
+    
     bcopy((char *)cand_rp_adv_message.buffer, (char *) data_ptr,
 	  cand_rp_adv_message.message_size);
 

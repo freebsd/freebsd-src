@@ -29,8 +29,6 @@
  *
  *  Other copyrights might apply to parts of this software and are so
  *  noted when applicable.
- *
- * $FreeBSD$
  */
 /*
  *  Questions concerning this software should be directed to
@@ -38,20 +36,21 @@
  *
  */
 /*
- * This program has been derived from pim6dd.
+ * This program has been derived from pim6dd.        
  * The pim6dd program is covered by the license in the accompanying file
  * named "LICENSE.pim6dd".
  */
 /*
- * This program has been derived from pimd.
+ * This program has been derived from pimd.        
  * The pimd program is covered by the license in the accompanying file
  * named "LICENSE.pimd".
  *
+ * $FreeBSD$
  */
 
 
 #ifndef MRT_H
-#define	MRT_H
+#define MRT_H
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -67,31 +66,31 @@
 
 /* flags for the mrt entries */
 
-#define	MRTF_SPT                0x0001  /* iif toward source                */
-#define	MRTF_WC                 0x0002  /* (*,G) entry                      */
-#define	MRTF_RP                 0x0004  /* iif toward RP                    */
-#define	MRTF_NEW                0x0008  /* new created routing entry        */
-#define	MRTF_IIF_REGISTER   	0x0020  /* ???                              */
-#define	MRTF_REGISTER       	0x0080  /* ???                              */
-#define	MRTF_KERNEL_CACHE   	0x0200  /* a mirror for the kernel cache    */
-#define	MRTF_NULL_OIF       	0x0400  /* null oif cache..     ???         */
-#define	MRTF_REG_SUPP       	0x0800  /* register suppress    ???         */
-#define	MRTF_ASSERTED       	0x1000  /* upstream is not that of src ???  */
-#define	MRTF_SG        		0x2000  /* (S,G) pure, not hanging off of (*,G)*/
-#define	MRTF_PMBR      		0x4000  /* (*,*,RP) entry (for interop)     */
-#define	MRTF_MFC_CLONE_SG 	0x8000  /* clone (S,G) MFC from (*,G) or (*,*,RP) */
+#define MRTF_SPT                0x0001  /* iif toward source                */
+#define MRTF_WC                 0x0002  /* (*,G) entry                      */
+#define MRTF_RP                 0x0004  /* iif toward RP                    */
+#define MRTF_NEW                0x0008  /* new created routing entry        */
+#define MRTF_IIF_REGISTER   	0x0020  /* ???                              */
+#define MRTF_REGISTER       	0x0080  /* ???                              */ 
+#define MRTF_KERNEL_CACHE   	0x0200  /* a mirror for the kernel cache    */ 
+#define MRTF_NULL_OIF       	0x0400  /* null oif cache..     ???         */
+#define MRTF_REG_SUPP       	0x0800  /* register suppress    ???         */
+#define MRTF_ASSERTED       	0x1000  /* upstream is not that of src ???  */
+#define MRTF_SG        		0x2000  /* (S,G) pure, not hanging off of (*,G)*/
+#define MRTF_PMBR      		0x4000  /* (*,*,RP) entry (for interop)     */
+#define MRTF_MFC_CLONE_SG 	0x8000  /* clone (S,G) MFC from (*,G) or (*,*,RP) */
 
-#define	CREATE                  TRUE
-#define	DONT_CREATE             FALSE
+#define CREATE                  TRUE 
+#define DONT_CREATE             FALSE
 
 
-#define	MFC_MOVE_FORCE      0x1
-#define	MFC_UPDATE_FORCE    0x2
+#define MFC_MOVE_FORCE      0x1
+#define MFC_UPDATE_FORCE    0x2
 
 
 /* Macro to duplicate oif info (oif bits, timers) */
 
-#define	VOIF_COPY(from , to )								\
+#define VOIF_COPY(from , to )								\
 		do {									\
 			IF_COPY(&from->joined_oifs , &to->joined_oifs);			\
 			IF_COPY(&from->oifs ,&to->oifs );				\
@@ -105,7 +104,7 @@
 		} while (0)
 
 
-#define	FREE_MRTENTRY(mrtentry_ptr)							\
+#define FREE_MRTENTRY(mrtentry_ptr)							\
 		do {									\
 				kernel_cache_t *prev;					\
 				kernel_cache_t *next;					\
@@ -135,12 +134,12 @@ typedef struct build_jp_message {
 	u_int32 				jp_message_size;		/* Size of the Join/Prune message (in bytes)  */
 	u_int16 				holdtime;			/* Join/Prune message holdtime field          */
 	struct sockaddr_in6 	curr_group;					/* Current group address                      */
-	u_int8 					curr_group_msklen;		/* Current group masklen                      */
+	u_int8 					curr_group_msklen;		/* Current group masklen                      */ 	
 	u_int8 					*join_list;			/* The working area for the join addresses    */
 	u_int32 				join_list_size;			/* The size of the join_list (in bytes)       */
 	u_int16 				join_addr_number;		/* Number of the join addresses in join_list  */
 	u_int8 					*prune_list;			/* The working area for the prune addresses   */
-	u_int32 				prune_list_size;	 	/* The size of the prune_list (in bytes)      */
+	u_int32 				prune_list_size;	 	/* The size of the prune_list (in bytes)      */	
 	u_int16 				prune_addr_number;		/* Number of the prune addresses in prune_list*/
 	u_int8 					*rp_list_join;			/* The working area for RP join addresses     */
 	u_int32 				rp_list_join_size;		/* The size of the rp_list_join (in bytes)    */
@@ -148,21 +147,21 @@ typedef struct build_jp_message {
 	u_int8 					*rp_list_prune;			/* The working area for RP prune addresses   */
 	u_int32 				rp_list_prune_size;		/* The size of the rp_list_prune (in bytes)  */
 	u_int16 				rp_list_prune_number;		/* Number of RP addresses in rp_list_prune */
-	u_int8 					*num_groups_ptr;		/* Pointer to number_of_groups in jp_message  */
+	u_int8 					*num_groups_ptr;		/* Pointer to number_of_groups in jp_message  */	
 } build_jp_message_t;
 
 
 typedef struct pim_nbr_entry {
 	struct pim_nbr_entry 	*next;			/* link to next neighbor          */
-	struct pim_nbr_entry 	*prev;			/* link to prev neighbor          */
+	struct pim_nbr_entry 	*prev;			/* link to prev neighbor          */ 
 	struct sockaddr_in6 	address;		/* neighbor address               */
-	vifi_t 					vifi;   /* which interface                */
-	u_int16 				timer; 	/* for timing out neighbor        */
+	vifi_t 					vifi;   /* which interface                */	
+	u_int16 				timer; 	/* for timing out neighbor        */	
 	build_jp_message_t 		*build_jp_message;  /* A structure for fairly
                                            		 * complicated Join/Prune
                                            		 * message construction.
                                            		 */
-
+ 
 } pim_nbr_entry_t;
 
 typedef struct srcentry {
@@ -173,8 +172,8 @@ typedef struct srcentry {
 	vifi_t					incoming;	/* incoming vif                     */
 	struct pim_nbr_entry 	*upstream;			/* upstream router                  */
 	u_int32					metric;		/* Unicast Routing Metric to the source */
-	u_int32					preference;    /* The metric preference (for assers)*/
-	u_int16					timer;		/* Entry timer??? Delete?           */
+	u_int32					preference;    /* The metric preference (for assers)*/		
+	u_int16					timer;		/* Entry timer??? Delete?           */	
 	struct cand_rp			*cand_rp;		/* Used if this is rpentry_t        */
 } srcentry_t;
 typedef srcentry_t rpentry_t;
@@ -204,13 +203,13 @@ typedef struct rp_grp_entry {
 	struct rp_grp_entry 	*rp_grp_prev;	/* Prev entry for same RP */
 	struct rp_grp_entry 	*grp_rp_next;	/* Next entry for same grp prefix */
 	struct rp_grp_entry 	*grp_rp_prev;	/* Prev entry for same grp prefix */
-	struct grpentry		*grplink; 	/* Link to all grps via this entry*/
+	struct grpentry		*grplink; 	/* Link to all grps via this entry*/	
 	u_int16			advholdtime;	/* The advertised holdtime */
 	u_int16 		holdtime;	/* The RP holdtime (will be aged) */
 	u_int16			fragment_tag;   /* The fragment tag from the
                                			 * received BSR message
 						 */
-
+	
 	u_int8			priority;	/* The RP priority */
 	grp_mask_t 		*group;		/* Pointer to (group,mask) entry  */
 	cand_rp_t 		*rp;		/* Pointer to the RP */
@@ -250,7 +249,7 @@ typedef struct mrtentry {
 	u_int32 				metric;			/* Routing Metric for this entry    */
 	u_int32					preference;		/* The metric preference value      */
 	struct sockaddr_in6 	pmbr_addr;				/* The PMBR address (for interop)   */
-	u_int16 				*vif_timers;	 	/* vifs timer list                  */
+	u_int16 				*vif_timers;	 	/* vifs timer list                  */	
 	u_int16					*vif_deletion_delay;	/* vifs deletion delay list    */
 
 	u_int16 				flags;			/* The MRTF_* flags                 */
@@ -277,7 +276,7 @@ typedef struct mrtentry {
 struct sg_count {
 	u_quad_t pktcnt;	/*  Number of packets for (s,g) */
 	u_quad_t bytecnt;	/*  Number of bytes for (s,g)   */
-	u_quad_t wrong_if;	/*  Number of packets received on wrong iif for (s,g) */
+	u_quad_t wrong_if;	/*  Number of packets received on wrong iif for (s,g) */	
 };
 
 /*
@@ -311,17 +310,17 @@ struct vif_count {
     u_long ocount;        /* Output packet count on vif           */
     u_long ibytes;        /* Input byte count on vif              */
     u_long obytes;        /* Output byte count on vif             */
-};
+}; 
 
 /* globals and functions exportations */
 
 extern srcentry_t *srclist;
 extern grpentry_t *grplist;
 
-extern void init_pim6_mrt        __P(());
+extern void init_pim6_mrt __P((void));
 extern mrtentry_t   *find_route              	__P((struct sockaddr_in6 *source,
                           			struct sockaddr_in6 *group,
-                          			u_int16 flags, char create));
+                          			u_int16 flags, char create)); 
 extern grpentry_t *find_group			__P((struct sockaddr_in6 *group));
 extern srcentry_t *find_source      		__P((struct sockaddr_in6 *source));
 extern void delete_mrtentry     		__P((mrtentry_t *mrtentry_ptr));
