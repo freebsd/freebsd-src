@@ -261,9 +261,9 @@ options 	GPL_MATH_EMULATE	#Support for x87 emulation via
 options 	COMPAT_43
 
 #
-# Allow user-mode programs to manipulate their local descriptor tables.
-# This option is required for the WINE Windows(tm) emulator, and is
-# not used by anything else (that we know of).
+# This option is required for the WINE Windows(tm) emulator, as well
+# as the port graphics/avifile.
+# It is not used by anything else (that we know of).
 #
 options 	USER_LDT		#allow user-level control of i386 ldt
 
