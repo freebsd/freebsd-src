@@ -86,7 +86,7 @@ extern int nwfs_pbuf_freecnt;
 static int
 nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 	struct nwmount *nmp = VTONWFS(vp);
-	int error, count, i, len;
+	int error, count, i;
 	struct dirent dp;
 	struct nwnode *np = VTONW(vp);
 	struct nw_entry_info fattr;
@@ -94,7 +94,6 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 	struct nameidata nami, *ndp = &nami;
 	struct componentname *cnp = &ndp->ni_cnd;
 	ncpfid fid;
-	u_char *cp;
 
 	np = VTONW(vp);
 	NCPVNDEBUG("dirname='%s'\n",np->n_name);
@@ -149,11 +148,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 			if (!error) {
 				VTONW(newvp)->n_ctime = VTONW(newvp)->n_vattr.va_ctime.tv_sec;
 				cnp->cn_nameptr = dp.d_name;
-				len = cnp->cn_namelen = dp.d_namlen;
 				ndp->ni_vp = newvp;
-				cnp->cn_hash = 0;
-				for (cp = cnp->cn_nameptr; len; len--, cp++)
-					cnp->cn_hash += *cp;
 			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 				vput(newvp);
 			} else
