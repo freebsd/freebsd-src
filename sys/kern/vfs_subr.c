@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.28 1995/04/16 11:33:33 davidg Exp $
+ * $Id: vfs_subr.c,v 1.29 1995/05/12 04:24:53 davidg Exp $
  */
 
 /*
@@ -1512,4 +1512,32 @@ vfs_export_lookup(mp, nep, nam)
 			np = &nep->ne_defexported;
 	}
 	return (np);
+}
+
+
+/*
+ * perform msync on all vnodes under a mount point
+ * the mount point must be locked.
+ */
+void
+vfs_msync(struct mount *mp, int flags) {
+	struct vnode *vp;
+loop:
+	for (vp = mp->mnt_vnodelist.lh_first;
+	     vp != NULL;
+	     vp = vp->v_mntvnodes.le_next) {
+
+		if (vp->v_mount != mp)
+			goto loop;
+		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
+			continue;
+		if (vp->v_vmdata &&
+		   (((vm_object_t) vp->v_vmdata)->flags & OBJ_WRITEABLE)) {
+			if (vget(vp, 1))
+				goto loop;
+			_vm_object_page_clean( (vm_object_t) vp->v_vmdata,
+					0, 0, TRUE);
+			vput(vp);
+		}
+	}
 }

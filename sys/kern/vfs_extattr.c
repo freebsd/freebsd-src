@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.23 1995/05/02 09:06:04 davidg Exp $
+ * $Id: vfs_syscalls.c,v 1.24 1995/05/15 08:39:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -282,6 +282,7 @@ dounmount(mp, flags, p)
 		return (error);
 
 	mp->mnt_flag &=~ MNT_ASYNC;
+	vfs_msync(mp, MNT_NOWAIT);
 	vnode_pager_umount(mp);	/* release cached vnodes */
 	cache_purgevfs(mp);	/* remove cache entries for this file sys */
 	if ((error = VFS_SYNC(mp, MNT_WAIT, p->p_ucred, p)) == 0 ||
@@ -331,6 +332,7 @@ sync(p, uap, retval)
 		    !vfs_busy(mp)) {
 			asyncflag = mp->mnt_flag & MNT_ASYNC;
 			mp->mnt_flag &= ~MNT_ASYNC;
+			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT, p != NULL ? p->p_ucred : NOCRED, p);
 			if (asyncflag)
 				mp->mnt_flag |= MNT_ASYNC;
@@ -1782,6 +1784,9 @@ fsync(p, uap, retval)
 		return (error);
 	vp = (struct vnode *)fp->f_data;
 	VOP_LOCK(vp);
+	if (vp->v_vmdata) {
+		_vm_object_page_clean((vm_object_t) vp->v_vmdata, 0, 0 ,0);
+	}
 	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 	VOP_UNLOCK(vp);
 	return (error);
