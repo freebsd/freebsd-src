@@ -49,6 +49,7 @@ void	makedir __P((char *));
 void	nack __P((char *));
 void	pass __P((char *));
 void	passive __P((void));
+void	long_passive __P((char *, int));
 void	perror_reply __P((int, char *));
 void	pwd __P((void));
 void	removedir __P((char *));
@@ -71,3 +72,18 @@ int	yyparse __P((void));
 char   *skey_challenge __P((char *, struct passwd *, int));
 #endif
 int	ls_main __P((int, char **));
+
+struct sockaddr_in;
+struct sockaddr_in6;
+union sockunion {
+	struct sockinet {
+		u_char	si_len;
+		u_char	si_family;
+		u_short	si_port;
+	} su_si;
+	struct	sockaddr_in  su_sin;
+	struct	sockaddr_in6 su_sin6;
+};
+#define	su_len		su_si.si_len
+#define	su_family	su_si.si_family
+#define	su_port		su_si.si_port

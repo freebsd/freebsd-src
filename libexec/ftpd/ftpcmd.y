@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <glob.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -71,7 +72,7 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-extern	struct sockaddr_in data_dest, his_addr;
+extern	union sockunion data_dest, his_addr;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
@@ -98,6 +99,8 @@ static	int cmd_bytesz;
 char	cbuf[512];
 char	*fromname;
 
+extern int epsvall;
+
 %}
 
 %union {
@@ -108,6 +111,7 @@ char	*fromname;
 %token
 	A	B	C	E	F	I
 	L	N	P	R	S	T
+	ALL
 
 	SP	CRLF	COMMA
 
@@ -118,6 +122,7 @@ char	*fromname;
 	ABOR	DELE	CWD	LIST	NLST	SITE
 	STAT	HELP	NOOP	MKD	RMD	PWD
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
+	LPRT	LPSV	EPRT	EPSV
 
 	UMASK	IDLE	CHMOD
 
@@ -128,7 +133,8 @@ char	*fromname;
 
 %type	<i> check_login octal_number byte_size
 %type	<i> struct_code mode_code type_code form_code
-%type	<s> pathstring pathname password username
+%type	<s> pathstring pathname password username ext_arg
+%type	<s> ALL
 
 %start	cmd_list
 
@@ -157,30 +163,193 @@ cmd
 		}
 	| PORT check_login SP host_port CRLF
 		{
-			if ($2) {
-				if (paranoid &&
-				    ((ntohs(data_dest.sin_port) <
-				      IPPORT_RESERVED) ||
-				     memcmp(&data_dest.sin_addr,
-					    &his_addr.sin_addr,
-					    sizeof(data_dest.sin_addr)))) {
-					usedefault = 1;
-					reply(500,
-					      "Illegal PORT range rejected.");
-				} else {
-					usedefault = 0;
-					if (pdata >= 0) {
-						(void) close(pdata);
-						pdata = -1;
-					}
-					reply(200, "PORT command successful.");
-				}
+			if (epsvall) {
+				reply(501, "no PORT allowed after EPSV ALL");
+				goto port_done;
 			}
+			if (!$2)
+				goto port_done;
+			if (port_check("PORT") == 1)
+				goto port_done;
+#ifdef INET6
+			if ((his_addr.su_family != AF_INET6 ||
+			     !IN6_IS_ADDR_V4MAPPED(&his_addr.su_sin6.sin6_addr))) {
+				/* shoud never happen */
+				usedefault = 1;
+				reply(500, "Invalid address rejected.");
+				goto port_done;
+			}
+			port_check_v6("pcmd");
+#endif
+		port_done:
+		}
+	| LPRT check_login SP host_long_port CRLF
+		{
+			if (epsvall) {
+				reply(501, "no LPRT allowed after EPSV ALL");
+				goto lprt_done;
+			}
+			if (!$2)
+				goto lprt_done;
+			if (port_check("LPRT") == 1)
+				goto lprt_done;
+#ifdef INET6
+			if (his_addr.su_family != AF_INET6) {
+				usedefault = 1;
+				reply(500, "Invalid address rejected.");
+				goto lprt_done;
+			}
+			if (port_check_v6("LPRT") == 1)
+				goto lprt_done;
+#endif
+		lprt_done:
+		}
+	| EPRT check_login SP STRING CRLF
+		{
+			char delim;
+			char *tmp = NULL;
+			char *p, *q;
+			char *result[3];
+			struct addrinfo hints;
+			struct addrinfo *res;
+			int i;
+
+			if (epsvall) {
+				reply(501, "no EPRT allowed after EPSV ALL");
+				goto eprt_done;
+			}
+			if (!$2)
+				goto eprt_done;
+
+			memset(&data_dest, 0, sizeof(data_dest));
+			tmp = strdup($4);
+			if (debug)
+				syslog(LOG_DEBUG, "%s", tmp);
+			if (!tmp) {
+				fatal("not enough core");
+				/*NOTREACHED*/
+			}
+			p = tmp;
+			delim = p[0];
+			p++;
+			memset(result, 0, sizeof(result));
+			for (i = 0; i < 3; i++) {
+				q = strchr(p, delim);
+				if (!q || *q != delim) {
+		parsefail:
+					reply(500,
+						"Invalid argument, rejected.");
+					if (tmp)
+						free(tmp);
+					usedefault = 1;
+					goto eprt_done;
+				}
+				*q++ = '\0';
+				result[i] = p;
+				if (debug)
+					syslog(LOG_DEBUG, "%d: %s", i, p);
+				p = q;
+			}
+
+			/* some more sanity check */
+			p = result[0];
+			while (*p) {
+				if (!isdigit(*p))
+					goto parsefail;
+				p++;
+			}
+			p = result[2];
+			while (*p) {
+				if (!isdigit(*p))
+					goto parsefail;
+				p++;
+			}
+
+			/* grab address */
+			memset(&hints, 0, sizeof(hints));
+			if (atoi(result[0]) == 1)
+				hints.ai_family = PF_INET;
+#ifdef INET6
+			else if (atoi(result[0]) == 2)
+				hints.ai_family = PF_INET6;
+#endif
+			else
+				hints.ai_family = PF_UNSPEC;	/*XXX*/
+			hints.ai_socktype = SOCK_STREAM;
+			i = getaddrinfo(result[1], result[2], &hints, &res);
+			if (i)
+				goto parsefail;
+			memcpy(&data_dest, res->ai_addr, res->ai_addrlen);
+#ifdef INET6
+			if (his_addr.su_family == AF_INET6
+			    && data_dest.su_family == AF_INET6) {
+				/* XXX more sanity checks! */
+				data_dest.su_sin6.sin6_scope_id =
+					his_addr.su_sin6.sin6_scope_id;
+			}
+#endif
+			free(tmp);
+			tmp = NULL;
+
+			if (port_check("EPRT") == 1)
+				goto eprt_done;
+#ifdef INET6
+			if (his_addr.su_family != AF_INET6) {
+				usedefault = 1;
+				reply(500, "Invalid address rejected.");
+				goto eprt_done;
+			}
+			if (port_check_v6("EPRT") == 1)
+				goto eprt_done;
+#endif
+		eprt_done:;
 		}
 	| PASV check_login CRLF
 		{
-			if ($2)
+			if (epsvall)
+				reply(501, "no PASV allowed after EPSV ALL");
+			else if ($2)
 				passive();
+		}
+	| LPSV check_login CRLF
+		{
+			if (epsvall)
+				reply(501, "no LPSV allowed after EPSV ALL");
+			else if ($2)
+				long_passive("LPSV", PF_UNSPEC);
+		}
+	| EPSV check_login SP NUMBER CRLF
+		{
+			if ($2) {
+				int pf;
+				switch ($4) {
+				case 1:
+					pf = PF_INET;
+					break;
+#ifdef INET6
+				case 2:
+					pf = PF_INET6;
+					break;
+#endif
+				default:
+					pf = -1;	/*junk value*/
+					break;
+				}
+				long_passive("EPSV", pf);
+			}
+		}
+	| EPSV check_login SP ALL CRLF
+		{
+			if ($2) {
+				reply(200,
+				      "EPSV ALL command successful.");
+				epsvall++;
+			}
+		}
+	| EPSV check_login CRLF
+		{
+			if ($2)
+				long_passive("EPSV", PF_UNSPEC);
 		}
 	| TYPE SP type_code CRLF
 		{
@@ -576,12 +745,58 @@ host_port
 		{
 			char *a, *p;
 
-			data_dest.sin_len = sizeof(struct sockaddr_in);
-			data_dest.sin_family = AF_INET;
-			p = (char *)&data_dest.sin_port;
+			data_dest.su_len = sizeof(struct sockaddr_in);
+			data_dest.su_family = AF_INET;
+			p = (char *)&data_dest.su_sin.sin_port;
 			p[0] = $9; p[1] = $11;
-			a = (char *)&data_dest.sin_addr;
+			a = (char *)&data_dest.su_sin.sin_addr;
 			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+		}
+	;
+
+host_long_port
+	: NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER
+		{
+			char *a, *p;
+
+			memset(&data_dest, 0, sizeof(data_dest));
+			data_dest.su_len = sizeof(struct sockaddr_in6);
+			data_dest.su_family = AF_INET6;
+			p = (char *)&data_dest.su_port;
+			p[0] = $39; p[1] = $41;
+			a = (char *)&data_dest.su_sin6.sin6_addr;
+			 a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
+			 a[4] = $13;  a[5] = $15;  a[6] = $17;  a[7] = $19;
+			 a[8] = $21;  a[9] = $23; a[10] = $25; a[11] = $27;
+			a[12] = $29; a[13] = $31; a[14] = $33; a[15] = $35;
+			if (his_addr.su_family == AF_INET6) {
+				/* XXX more sanity checks! */
+				data_dest.su_sin6.sin6_scope_id =
+					his_addr.su_sin6.sin6_scope_id;
+			}
+			if ($1 != 6 || $3 != 16 || $37 != 2)
+				memset(&data_dest, 0, sizeof(data_dest));
+		}
+	| NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER COMMA
+		NUMBER
+		{
+			char *a, *p;
+
+			memset(&data_dest, 0, sizeof(data_dest));
+			data_dest.su_sin.sin_len = sizeof(struct sockaddr_in);
+			data_dest.su_family = AF_INET;
+			p = (char *)&data_dest.su_port;
+			p[0] = $15; p[1] = $17;
+			a = (char *)&data_dest.su_sin.sin_addr;
+			a[0] =  $5;  a[1] =  $7;  a[2] =  $9;  a[3] = $11;
+			if ($1 != 4 || $3 != 4 || $13 != 2)
+				memset(&data_dest, 0, sizeof(data_dest));
 		}
 	;
 
@@ -774,7 +989,11 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "REIN", REIN, ARGS, 0,	"(reinitialize server state)" },
 	{ "QUIT", QUIT, ARGS, 1,	"(terminate service)", },
 	{ "PORT", PORT, ARGS, 1,	"<sp> b0, b1, b2, b3, b4" },
+	{ "LPRT", LPRT, ARGS, 1,	"<sp> af, hal, h1, h2, h3,..., pal, p1, p2..." },
+	{ "EPRT", EPRT, STR1, 1,	"<sp> |af|addr|port|" },
 	{ "PASV", PASV, ARGS, 1,	"(set server in passive mode)" },
+	{ "LPSV", LPSV, ARGS, 1,	"(set server in passive mode)" },
+	{ "EPSV", EPSV, ARGS, 1,	"[<sp> af|ALL]" },
 	{ "TYPE", TYPE, ARGS, 1,	"<sp> [ A | E | I | L ]" },
 	{ "STRU", STRU, ARGS, 1,	"(specify file structure)" },
 	{ "MODE", MODE, ARGS, 1,	"(specify transfer mode)" },
@@ -829,8 +1048,11 @@ static char	*copy __P((char *));
 static void	 help __P((struct tab *, char *));
 static struct tab *
 		 lookup __P((struct tab *, char *));
+static int	 port_check __P((const char *));
+static int	 port_check_v6 __P((const char *));
 static void	 sizecmd __P((char *));
 static void	 toolong __P((int));
+static void	 v4map_data_dest __P((void));
 static int	 yylex __P((void));
 
 static struct tab *
@@ -1085,6 +1307,11 @@ yylex()
 				cbuf[cpos] = c;
 				return (NUMBER);
 			}
+			if (strncasecmp(&cbuf[cpos], "ALL", 3) == 0
+			 && !isalnum(cbuf[cpos + 3])) {
+				cpos += 3;
+				return ALL;
+			}
 			switch (cbuf[cpos++]) {
 
 			case '\n':
@@ -1289,3 +1516,94 @@ sizecmd(filename)
 		reply(504, "SIZE not implemented for Type %c.", "?AEIL"[type]);
 	}
 }
+
+/* Return 1, if port check is done. Return 0, if not yet. */
+static int
+port_check(pcmd)
+	const char *pcmd;
+{
+	if (his_addr.su_family == AF_INET) {
+		if (data_dest.su_family != AF_INET) {
+			usedefault = 1;
+			reply(500, "Invalid address rejected.");
+			return 1;
+		}
+		if (paranoid &&
+		    ((ntohs(data_dest.su_port) < IPPORT_RESERVED) ||
+		     memcmp(&data_dest.su_sin.sin_addr,
+			    &his_addr.su_sin.sin_addr,
+			    sizeof(data_dest.su_sin.sin_addr)))) {
+			usedefault = 1;
+			reply(500, "Illegal PORT range rejected.");
+		} else {
+			usedefault = 0;
+			if (pdata >= 0) {
+				(void) close(pdata);
+				pdata = -1;
+			}
+			reply(200, "%s command successful.", pcmd);
+		}
+		return 1;
+	}
+	return 0;
+}
+
+#ifdef INET6
+/* Return 1, if port check is done. Return 0, if not yet. */
+static int
+port_check_v6(pcmd)
+	const char *pcmd;
+{
+	if (his_addr.su_family == AF_INET6) {
+		if (IN6_IS_ADDR_V4MAPPED(&his_addr.su_sin6.sin6_addr))
+			/* Convert data_dest into v4 mapped sockaddr.*/
+			v4map_data_dest();
+		if (data_dest.su_family != AF_INET6) {
+			usedefault = 1;
+			reply(500, "Invalid address rejected.");
+			return 1;
+		}
+		if (paranoid &&
+		    ((ntohs(data_dest.su_port) < IPPORT_RESERVED) ||
+		     memcmp(&data_dest.su_sin6.sin6_addr,
+			    &his_addr.su_sin6.sin6_addr,
+			    sizeof(data_dest.su_sin6.sin6_addr)))) {
+			usedefault = 1;
+			reply(500, "Illegal PORT range rejected.");
+		} else {
+			usedefault = 0;
+			if (pdata >= 0) {
+				(void) close(pdata);
+				pdata = -1;
+			}
+			reply(200, "%s command successful.", pcmd);
+		}
+		return 1;
+	}
+	return 0;
+}
+
+static void
+v4map_data_dest()
+{
+	struct in_addr savedaddr;
+	int savedport;
+
+	if (data_dest.su_family != AF_INET) {
+		usedefault = 1;
+		reply(500, "Invalid address rejected.");
+		return;
+	}
+
+	savedaddr = data_dest.su_sin.sin_addr;
+	savedport = data_dest.su_port;
+
+	memset(&data_dest, 0, sizeof(data_dest));
+	data_dest.su_sin6.sin6_len = sizeof(struct sockaddr_in6);
+	data_dest.su_sin6.sin6_family = AF_INET6;
+	data_dest.su_sin6.sin6_port = savedport;
+	memset((caddr_t)&data_dest.su_sin6.sin6_addr.s6_addr[10], 0xff, 2);
+	memcpy((caddr_t)&data_dest.su_sin6.sin6_addr.s6_addr[12],
+	       (caddr_t)&savedaddr, sizeof(savedaddr));
+}
+#endif

@@ -32,7 +32,7 @@
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd January 27, 2000
 .Dt FTPD 8
 .Os BSD 4.2
 .Sh NAME
@@ -41,6 +41,8 @@
 Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm ftpd
+.Op Fl 4
+.Op Fl 6
 .Op Fl d
 .Op Fl l Op Fl l
 .Op Fl A
@@ -135,6 +137,20 @@ When
 .Fl D
 is specified, write the daemon's process ID to
 .Ar file .
+.It Fl 6
+When
+.Fl D
+is specified, accept connections via AF_INET6 socket.
+.It Fl 4
+When
+.Fl D
+is specified, accept IPv4 connections.
+When
+.Fl 6
+is also specified, accept IPv4 connection via AF_INET6 socket.
+When
+.Fl 6
+is not specified, accept IPv4 connection via AF_INET socket.
 .It Fl A
 Allow only anonymous ftp access.
 .El
@@ -203,6 +219,10 @@ The case of the requests is ignored.
 .It XMKD Ta "make a directory (deprecated)"
 .It XPWD Ta "print the current working directory (deprecated)"
 .It XRMD Ta "remove a directory (deprecated)"
+.It LPSV Ta "prepare for server-to-server transfer, multiprotocol"
+.It LPRT Ta "specify data connection port, multiprotocol"
+.It EPSV Ta "prepare for server-to-server transfer, multiprotocol"
+.It EPRT Ta "specify data connection port, multiprotocol"
 .El
 .Pp
 The following non-standard or
@@ -453,3 +473,4 @@ The
 .Nm
 command appeared in
 .Bx 4.2 .
+IPv6 support was added in WIDE Hydrangea IPv6 stack kit.

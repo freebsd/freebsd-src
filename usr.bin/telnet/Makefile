@@ -31,6 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$FreeBSD$
 #
 
 PROG=	telnet
@@ -39,11 +40,12 @@ CFLAGS+=-DKLUDGELINEMODE -DUSE_TERMIO #-DAUTHENTICATION -DENCRYPTION
 CFLAGS+=-DENV_HACK
 CFLAGS+=-DSKEY
 CFLAGS+=-I${.CURDIR}/../../lib
+CFLAGS+=-DIPSEC -DINET6
 
 #CFLAGS+= -DKRB4
 
-DPADD=	${LIBTERMCAP} ${LIBTELNET}
-LDADD=	-ltermcap -ltelnet
+DPADD=	${LIBTERMCAP} ${LIBTELNET} ${LIBIPSEC}
+LDADD=	-ltermcap -ltelnet -lipsec
 #DPADD+=	${LIBKRB} ${LIBDES}
 #LDADD+=	-lkrb -ldes
 
