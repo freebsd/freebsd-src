@@ -1504,7 +1504,7 @@ vfs_vmio_release(bp)
 			if ((bp->b_flags & B_ASYNC) == 0 && !m->valid &&
 			    m->hold_count == 0) {
 				vm_page_busy(m);
-				pmap_page_protect(m, VM_PROT_NONE);
+				pmap_remove_all(m);
 				vm_page_free(m);
 			} else if (bp->b_flags & B_DIRECT) {
 				vm_page_try_to_free(m);
@@ -3268,7 +3268,7 @@ retry:
 			 * It may not work properly with small-block devices.
 			 * We need to find a better way.
 			 */
-			pmap_page_protect(m, VM_PROT_NONE);
+			pmap_remove_all(m);
 			if (clear_modify)
 				vfs_page_set_valid(bp, foff, i, m);
 			else if (m->valid == VM_PAGE_BITS_ALL &&
