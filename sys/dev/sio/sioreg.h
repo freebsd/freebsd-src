@@ -63,7 +63,7 @@
 #define	FIFO_RX_MEDH	0x80
 #define	FIFO_RX_HIGH	0xc0
 
-/* character format control register */
+/* character format control register (aka line control register) */
 #define	CFCR_DLAB	0x80
 #define	CFCR_SBREAK	0x40
 #define	CFCR_PZERO	0x30
@@ -76,8 +76,10 @@
 #define	CFCR_7BITS	0x02
 #define	CFCR_6BITS	0x01
 #define	CFCR_5BITS	0x00
+#define	CFCR_EFR_ENABLE	0xbf		/* magic to enable EFR on 16650 up */
 
 /* modem control register */
+#define	MCR_PRESCALE	0x80		/* only available on 16650 up */
 #define	MCR_LOOPBACK	0x10
 #define	MCR_IENABLE	0x08
 #define	MCR_DRS		0x04
@@ -104,6 +106,10 @@
 #define	MSR_TERI	0x04
 #define	MSR_DDSR	0x02
 #define	MSR_DCTS	0x01
+
+/* enhanced feature register (only available on 16650 up) */
+#define	com_efr		com_fifo
+#define	EFR_EFE		0x10		/* enhanced functions enable */
 
 #ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
