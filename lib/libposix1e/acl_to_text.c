@@ -61,7 +61,7 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 
 	buf = strdup("");
 	if (!buf)
-		return(0);
+		return(NULL);
 
 	mask_perm = ACL_PERM_BITS;	/* effective is regular if no mask */
 	for (i = 0; i < acl->acl_cnt; i++)
@@ -218,5 +218,5 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 error_label:
 	/* jump to here sets errno already, we just clean up */
 	if (buf) free(buf);
-	return (0);
+	return (NULL);
 }

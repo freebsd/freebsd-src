@@ -118,12 +118,12 @@ acl_from_text(const char *buf_p)
 	/* Local copy we can mess up. */
 	mybuf_p = strdup(buf_p);
 	if (!mybuf_p)
-		return(0);
+		return(NULL);
 
 	acl = acl_init(3);
 	if (!acl) {
 		free(mybuf_p);
-		return(0);
+		return(NULL);
 	}
 
 	/* Outer loop: delimit at \n boundaries. */
@@ -223,7 +223,7 @@ acl_from_text(const char *buf_p)
 error_label:
 	acl_free(acl);
 	free(mybuf_p);
-	return(0);
+	return(NULL);
 }
 
 
