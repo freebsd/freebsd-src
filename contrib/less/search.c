@@ -1343,21 +1343,3 @@ regerror(s)
 }
 #endif
 
-#if !HAVE_STRCHR
-/*
- * strchr is used by regexp.c.
- */
-	char *
-strchr(s, c)
-	char *s;
-	int c;
-{
-	for ( ;  *s != '\0';  s++)
-		if (*s == c)
-			return (s);
-	if (c == '\0')
-		return (s);
-	return (NULL);
-}
-#endif
-
