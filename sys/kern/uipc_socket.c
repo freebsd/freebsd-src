@@ -31,18 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.58 1999/05/21 15:54:40 ache Exp $
+ *	$Id: uipc_socket.c,v 1.59 1999/06/04 02:27:02 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -124,8 +125,10 @@ socreate(dom, aso, type, proto, p)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	if (p != 0)
-		so->so_uid = p->p_ucred->cr_uid;
+	if (p) {
+		so->so_cred = p->p_cred;
+		so->so_cred->p_refcnt++;
+	} else so->so_cred = NULL;
 	so->so_proto = prp;
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, p);
 	if (error) {
@@ -156,6 +159,10 @@ sodealloc(so)
 	struct socket *so;
 {
 	so->so_gencnt = ++so_gencnt;
+	if (so->so_cred && --so->so_cred->p_refcnt == 0) {
+		crfree(so->so_cred->pc_ucred);
+		FREE(so->so_cred, M_SUBPROC);
+	}
 	zfreei(so->so_zone, so);
 }
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.45 1999/05/03 23:57:24 billf Exp $
+ *	$Id: uipc_socket2.c,v 1.46 1999/05/10 18:15:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -213,7 +213,9 @@ sonewconn(head, connstatus)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	so->so_uid = head->so_uid;
+	so->so_cred = head->so_cred;
+	if (so->so_cred)
+		so->so_cred->p_refcnt++;
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
@@ -915,7 +917,7 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	xso->so_oobmark = so->so_oobmark;
 	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
 	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
-	xso->so_uid = so->so_uid;
+	xso->so_uid = so->so_cred ? so->so_cred->pc_ucred->cr_uid : -1;
 }
 
 /*
