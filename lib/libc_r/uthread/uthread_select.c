@@ -29,10 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_select.c,v 1.8 1999/06/23 15:01:22 dt Exp $
  */
 #include <unistd.h>
 #include <errno.h>
+#include <poll.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
@@ -44,12 +48,10 @@ int
 select(int numfds, fd_set * readfds, fd_set * writefds,
        fd_set * exceptfds, struct timeval * timeout)
 {
-	fd_set          read_locks, write_locks, rdwr_locks;
 	struct timespec ts;
-	struct timeval  zero_timeout = {0, 0};
-	int             i, ret = 0, got_all_locks = 1;
-	int		f_wait = 1;
-	struct pthread_select_data data;
+	int             i, ret = 0, f_wait = 1;
+	int		pfd_index, got_one = 0, fd_count = 0;
+	struct pthread_poll_data data;
 
 	if (numfds > _thread_dtablesize) {
 		numfds = _thread_dtablesize;
@@ -68,112 +70,129 @@ select(int numfds, fd_set * readfds, fd_set * writefds,
 		_thread_kern_set_timeout(NULL);
 	}
 
-	FD_ZERO(&read_locks);
-	FD_ZERO(&write_locks);
-	FD_ZERO(&rdwr_locks);
-
-	/* lock readfds */
+	/* Count the number of file descriptors to be polled: */
 	if (readfds || writefds || exceptfds) {
 		for (i = 0; i < numfds; i++) {
-			if ((readfds && (FD_ISSET(i, readfds))) || (exceptfds && FD_ISSET(i, exceptfds))) {
-				if (writefds && FD_ISSET(i, writefds)) {
-					if ((ret = _FD_LOCK(i, FD_RDWR, NULL)) != 0) {
-						got_all_locks = 0;
-						break;
-					}
-					FD_SET(i, &rdwr_locks);
-				} else {
-					if ((ret = _FD_LOCK(i, FD_READ, NULL)) != 0) {
-						got_all_locks = 0;
-						break;
-					}
-					FD_SET(i, &read_locks);
-				}
-			} else {
-				if (writefds && FD_ISSET(i, writefds)) {
-					if ((ret = _FD_LOCK(i, FD_WRITE, NULL)) != 0) {
-						got_all_locks = 0;
-						break;
-					}
-					FD_SET(i, &write_locks);
-				}
+			if ((readfds && FD_ISSET(i, readfds)) ||
+			    (exceptfds && FD_ISSET(i, exceptfds)) ||
+			    (writefds && FD_ISSET(i, writefds))) {
+				fd_count++;
 			}
 		}
 	}
-	if (got_all_locks) {
-		data.nfds = numfds;
-		FD_ZERO(&data.readfds);
-		FD_ZERO(&data.writefds);
-		FD_ZERO(&data.exceptfds);
-		if (readfds != NULL) {
-			memcpy(&data.readfds, readfds, sizeof(data.readfds));
+
+	/*
+	 * Allocate memory for poll data if it hasn't already been
+	 * allocated or if previously allocated memory is insufficient.
+	 */
+	if ((_thread_run->poll_data.fds == NULL) ||
+	    (_thread_run->poll_data.nfds < fd_count)) {
+		data.fds = (struct pollfd *) realloc(_thread_run->poll_data.fds,
+		    sizeof(struct pollfd) * MAX(128, fd_count));
+		if (data.fds == NULL) {
+			errno = ENOMEM;
+			ret = -1;
 		}
-		if (writefds != NULL) {
-			memcpy(&data.writefds, writefds, sizeof(data.writefds));
+		else {
+			/*
+			 * Note that the threads poll data always
+			 * indicates what is allocated, not what is
+			 * currently being polled.
+			 */
+			_thread_run->poll_data.fds = data.fds;
+			_thread_run->poll_data.nfds = MAX(128, fd_count);
 		}
-		if (exceptfds != NULL) {
-			memcpy(&data.exceptfds, exceptfds, sizeof(data.exceptfds));
+	}
+	if (ret == 0) {
+		/* Setup the wait data. */
+		data.fds = _thread_run->poll_data.fds;
+		data.nfds = fd_count;
+
+		/*
+		 * Setup the array of pollfds.  Optimize this by
+		 * running the loop in reverse and stopping when
+		 * the number of selected file descriptors is reached.
+		 */
+		for (i = numfds - 1, pfd_index = fd_count - 1;
+		    (i >= 0) && (pfd_index >= 0); i--) {
+			data.fds[pfd_index].events = 0;
+			if (readfds && FD_ISSET(i, readfds)) {
+				data.fds[pfd_index].events = POLLRDNORM;
+			}
+			if (exceptfds && FD_ISSET(i, exceptfds)) {
+				data.fds[pfd_index].events |= POLLRDBAND;
+			}
+			if (writefds && FD_ISSET(i, writefds)) {
+				data.fds[pfd_index].events |= POLLWRNORM;
+			}
+			if (data.fds[pfd_index].events != 0) {
+				/*
+				 * Set the file descriptor to be polled and
+				 * clear revents in case of a timeout which
+				 * leaves fds unchanged:
+				 */
+				data.fds[pfd_index].fd = i;
+				data.fds[pfd_index].revents = 0;
+				pfd_index--;
+			}
 		}
-		if ((ret = _thread_sys_select(data.nfds, &data.readfds, &data.writefds, &data.exceptfds, &zero_timeout)) == 0 && f_wait) {
-			data.nfds = numfds;
-			FD_ZERO(&data.readfds);
-			FD_ZERO(&data.writefds);
-			FD_ZERO(&data.exceptfds);
-			if (readfds != NULL) {
-				memcpy(&data.readfds, readfds, sizeof(data.readfds));
-			}
-			if (writefds != NULL) {
-				memcpy(&data.writefds, writefds, sizeof(data.writefds));
-			}
-			if (exceptfds != NULL) {
-				memcpy(&data.exceptfds, exceptfds, sizeof(data.exceptfds));
-			}
-			_thread_run->data.select_data = &data;
+		if (((ret = _thread_sys_poll(data.fds, data.nfds, 0)) == 0) &&
+		   (f_wait != 0)) {
+			_thread_run->data.poll_data = &data;
 			_thread_run->interrupted = 0;
 			_thread_kern_sched_state(PS_SELECT_WAIT, __FILE__, __LINE__);
 			if (_thread_run->interrupted) {
 				errno = EINTR;
+				data.nfds = 0;
 				ret = -1;
 			} else
 				ret = data.nfds;
 		}
 	}
-	/* clean up the locks */
-	for (i = 0; i < numfds; i++)
-		if (FD_ISSET(i, &read_locks))
-			_FD_UNLOCK(i, FD_READ);
-	for (i = 0; i < numfds; i++)
-		if (FD_ISSET(i, &rdwr_locks))
-			_FD_UNLOCK(i, FD_RDWR);
-	for (i = 0; i < numfds; i++)
-		if (FD_ISSET(i, &write_locks))
-			_FD_UNLOCK(i, FD_WRITE);
 
 	if (ret >= 0) {
-		if (readfds != NULL) {
-			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, readfds) &&
-					!FD_ISSET(i, &data.readfds)) {
-					FD_CLR(i, readfds);
+		numfds = 0;
+		for (i = 0; i < fd_count; i++) {
+			/*
+			 * Check the results of the poll and clear
+			 * this file descriptor from the fdset if
+			 * the requested event wasn't ready.
+			 */
+			got_one = 0;
+			if (readfds != NULL) {
+				if (FD_ISSET(data.fds[i].fd, readfds)) {
+					if (data.fds[i].revents & (POLLIN |
+					    POLLRDNORM))
+						got_one = 1;
+					else
+						FD_CLR(data.fds[i].fd, readfds);
 				}
 			}
-		}
-		if (writefds != NULL) {
-			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, writefds) &&
-					!FD_ISSET(i, &data.writefds)) {
-					FD_CLR(i, writefds);
+			if (writefds != NULL) {
+				if (FD_ISSET(data.fds[i].fd, writefds)) {
+					if (data.fds[i].revents & (POLLOUT |
+					    POLLWRNORM | POLLWRBAND))
+						got_one = 1;
+					else
+						FD_CLR(data.fds[i].fd,
+						    writefds);
 				}
 			}
-		}
-		if (exceptfds != NULL) {
-			for (i = 0; i < numfds; i++) {
-				if (FD_ISSET(i, exceptfds) &&
-					!FD_ISSET(i, &data.exceptfds)) {
-					FD_CLR(i, exceptfds);
+			if (exceptfds != NULL) {
+				if (FD_ISSET(data.fds[i].fd, exceptfds)) {
+					if (data.fds[i].revents & (POLLRDBAND |
+					    POLLPRI | POLLHUP | POLLERR |
+					    POLLNVAL))
+						got_one = 1;
+					else
+						FD_CLR(data.fds[i].fd,
+						    exceptfds);
 				}
 			}
+			if (got_one)
+				numfds++;
 		}
+		ret = numfds;
 	}
 
 	return (ret);

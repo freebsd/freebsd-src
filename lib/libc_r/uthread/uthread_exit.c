@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id: uthread_exit.c,v 1.9 1999/06/20 08:28:17 jb Exp $
  */
 #include <errno.h>
 #include <unistd.h>
@@ -92,7 +93,12 @@ _thread_exit(char *fname, int lineno, char *string)
 	_thread_sys_write(2, s, strlen(s));
 
 	/* Force this process to exit: */
+	/* XXX - Do we want abort to be conditional on _PTHREADS_INVARIANTS? */
+#if defined(_PTHREADS_INVARIANTS)
+	abort();
+#else
 	_exit(1);
+#endif
 }
 
 void
@@ -129,22 +135,24 @@ pthread_exit(void *status)
 	}
 
 	/*
-	 * Guard against preemption by a scheduling signal.  A change of
-	 * thread state modifies the waiting and priority queues.
+	 * Defer signals to protect the scheduling queues from access
+	 * by the signal handler:
 	 */
-	_thread_kern_sched_defer();
+	_thread_kern_sig_defer();
 
 	/* Check if there are any threads joined to this one: */
-	while ((pthread = _thread_queue_deq(&(_thread_run->join_queue))) != NULL) {
+	while ((pthread = TAILQ_FIRST(&(_thread_run->join_queue))) != NULL) {
+		/* Remove the thread from the queue: */
+		TAILQ_REMOVE(&_thread_run->join_queue, pthread, qe);
+
 		/* Wake the joined thread and let it detach this thread: */
 		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
 
 	/*
-	 * Reenable preemption and yield if a scheduling signal
-	 * occurred while in the critical region.
+	 * Undefer and handle pending signals, yielding if necessary:
 	 */
-	_thread_kern_sched_undefer();
+	_thread_kern_sig_undefer();
 
 	/*
 	 * Lock the garbage collector mutex to ensure that the garbage
@@ -154,8 +162,21 @@ pthread_exit(void *status)
 		PANIC("Cannot lock gc mutex");
 
 	/* Add this thread to the list of dead threads. */
-	_thread_run->nxt_dead = _thread_dead;
-	_thread_dead = _thread_run;
+	TAILQ_INSERT_HEAD(&_dead_list, _thread_run, dle);
+
+	/*
+	 * Defer signals to protect the scheduling queues from access
+	 * by the signal handler:
+	 */
+	_thread_kern_sig_defer();
+
+	/* Remove this thread from the thread list: */
+	TAILQ_REMOVE(&_thread_list, _thread_run, tle);
+
+	/*
+	 * Undefer and handle pending signals, yielding if necessary:
+	 */
+	_thread_kern_sig_undefer();
 
 	/*
 	 * Signal the garbage collector thread that there is something
