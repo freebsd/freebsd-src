@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.41 1995/10/20 07:02:36 jkh Exp $
+ * $Id: installPreconfig.c,v 1.1 1995/10/20 15:40:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -136,7 +136,6 @@ installPreconfig(char *str)
 
     i = RET_FAIL;
     while (1) {
-	
 	if (!(cfg_file = variable_get_value(CONFIG_FILE,
 					    "Please insert the floppy containing this configuration file\n"
 					    "into drive A now and press [ENTER].")))
@@ -173,20 +172,25 @@ installPreconfig(char *str)
 	    if (attr_parse(cattr, fd) == RET_FAIL)
 		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cfg_file);
 	    else {
+		i = RET_SUCCESS;
 		for (j = 0; cattr[j].name[0]; j++) {
 		    int status;
 
 		    if (call_possible_resword(cattr[j].name, cattr[j].value, &status)) {
-			if (status != RET_SUCCESS)
-			    msgDebug("macro call to %s(%s) returns %d status!\n", cattr[j].name,
-				     cattr[j].value, status);
+			if (status != RET_SUCCESS) {
+			    msgDebug("macro call to %s(%s) returns %d status!\n", cattr[j].name, cattr[j].value,
+				     status);
+			    i = status;
+			}
 		    }
 		    else
 			variable_set2(cattr[j].name, cattr[j].value);
 		}
-		i = RET_SUCCESS;
-		msgConfirm("Configuration file %s loaded successfully!\n"
-			   "Some parameters may now have new default values.", cfg_file);
+		if (i == RET_SUCCESS)
+		    msgConfirm("Configuration file %s loaded successfully!\n"
+			       "Some parameters may now have new default values.", buf);
+		else
+		    msgConfirm("Configuration file %s loaded with some errors.\n", buf);
 	    }
 	    close(fd);
 	    safe_free(cattr);
