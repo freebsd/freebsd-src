@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: dumprmt.c,v 1.11 1998/06/15 06:58:09 charnier Exp $";
+	"$Id: dumprmt.c,v 1.12 1998/07/14 09:19:46 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -250,19 +250,16 @@ rmtread(buf, count)
 {
 	char line[30];
 	int n, i, cc;
-	extern errno;
 
 	(void)snprintf(line, sizeof (line), "R%d\n", count);
 	n = rmtcall("read", line);
-	if (n < 0) {
-		errno = n;
-		return (-1);
-	}
+	if (n < 0)
+		/* rmtcall() properly sets errno for us on errors. */
+		return (n);
 	for (i = 0; i < n; i += cc) {
 		cc = read(rmtape, buf+i, n - i);
-		if (cc <= 0) {
+		if (cc <= 0)
 			rmtconnaborted();
-		}
 	}
 	return (n);
 }
@@ -360,15 +357,15 @@ rmtreply(cmd)
 {
 	register char *cp;
 	char code[30], emsg[BUFSIZ];
+	extern int errno;
 
 	rmtgets(code, sizeof (code));
 	if (*code == 'E' || *code == 'F') {
 		rmtgets(emsg, sizeof (emsg));
 		msg("%s: %s", cmd, emsg);
-		if (*code == 'F') {
+		errno = atoi(code + 1);
+		if (*code == 'F')
 			rmtstate = TS_CLOSED;
-			return (-1);
-		}
 		return (-1);
 	}
 	if (*code != 'A') {

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)tape.c	8.4 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tape.c,v 1.9 1998/06/15 06:58:11 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -822,13 +822,17 @@ doslave(cmd, slave_number)
 		     slave_number, size, writesize);
 #endif
 
+		/*
+		 * Handle ENOSPC as an EOT condition.
+		 */
+		if (wrote < 0 && errno == ENOSPC) {
+			wrote = 0;
+			eot_count++;
+		}
+
 		if (eot_count > 0)
 			size = 0;
 
-		/*
-		 * fixme: Pyramids running OSx return ENOSPC
-		 * at EOT on 1/2 inch drives.
-		 */
 		if (wrote < 0) {
 			(void) kill(master, SIGUSR1);
 			for (;;)
