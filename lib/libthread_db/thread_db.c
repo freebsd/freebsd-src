@@ -226,6 +226,14 @@ td_thr_validate(const td_thrhandle_t *th)
 	return (ta->ta_ops->to_thr_validate(th));
 }
 
+td_err_e
+td_thr_tls_get_addr(const td_thrhandle_t *th, void *linkmap, size_t offset,
+		    void **address)
+{
+	const td_thragent_t *ta = th->th_ta;
+	return (ta->ta_ops->to_thr_tls_get_addr(th, linkmap, offset, address));
+}
+
 /* FreeBSD specific extensions. */
 
 td_err_e

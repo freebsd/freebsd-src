@@ -11,7 +11,13 @@ SRCS+=	libthr_db.c
 INCS=	thread_db.h
 WARNS?= 1
 
-CFLAGS+=-I. -I${.CURDIR}
+CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../libexec/rtld-elf
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+CFLAGS+=-DTLS_DTV_AT_TCB
+.else
+CFLAGS+=-DTLS_DTV_AT_TP
+.endif
 
 SRCS+=	libpthread.h
 CLEANFILES+= libpthread.h
