@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
-#	$Id: Makefile,v 1.115 1998/02/18 13:48:37 msmith Exp $
+#	$Id: Makefile,v 1.116 1998/03/13 19:43:12 jb Exp $
 
 # XXX MISSING:		mkproto
 SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot ckdist \
@@ -15,6 +15,8 @@ SUBDIR= ac accton adduser amd arp bootparamd cdcontrol chown chroot ckdist \
 	yppoll yppush ypset ypserv zic
 
 SUBDIR+=IPXrouted
+
+SUBDIR+=ipfstat ipftest ipmon ipnat ipresend ipsend iptest
 
 .if ${MACHINE_ARCH} == "i386"
 SUBDIR+=kvm_mkdb natd pcvt pnpinfo pstat rndcontrol wlconfig
