@@ -62,7 +62,7 @@ static const char rcsid[] =
 int cflag, dflag, uflag;
 int numchars, numfields, repeats;
 
-FILE	*file __P((char *, char *));
+FILE	*file __P((const char *, const char *));
 void	 show __P((FILE *, char *));
 char	*skip __P((char *));
 void	 obsolete __P((char *[]));
@@ -216,7 +216,7 @@ skip(str)
 
 FILE *
 file(name, mode)
-	char *name, *mode;
+	const char *name, *mode;
 {
 	FILE *fp;
 
