@@ -426,6 +426,7 @@ verifyUserSettings(WINDOW *ds_win)
 	return 0;
     }
     if (strlen(shell) > 0) {
+	setusershell();
 	while((cp = getusershell()) != NULL)
 	    if (strcmp(cp, shell) == 0)
 		break;
