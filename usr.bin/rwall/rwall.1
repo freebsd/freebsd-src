@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)rwall.1	6.7 (Berkeley) 4/23/91
-.\"	$Id: rwall.1,v 1.4 1997/02/22 19:56:55 peter Exp $
+.\"	$Id: rwall.1,v 1.1.1.1.8.1 1997/03/06 07:45:05 mpp Exp $
 .\"
 .Dd April 23, 1991
 .Dt RWALL 1
@@ -39,12 +39,12 @@
 .Nm rwall
 .Nd send a message to users logged on a host
 .Sh SYNOPSIS
-.Nm rwall
+.Nm
 .Ar host
 .Op Ar file
 .Sh DESCRIPTION
 The
-.Nm rwall
+.Nm
 command sends a message to the users logged into the specified host. The
 message to be sent can be typed in and terminated with EOF or it can
 be in a
@@ -71,7 +71,7 @@ and cannot accomodate any RPC-based services.  The host may be down.
 .Xr rpc.rwalld 8
 .Sh HISTORY
 The
-.Nm rwall
+.Nm
 command
 appeared in
 .Em Sun-OS .
