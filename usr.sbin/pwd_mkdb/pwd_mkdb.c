@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.21 1998/01/10 17:27:28 wosch Exp $";
+	"$Id: pwd_mkdb.c,v 1.22 1998/02/15 22:31:40 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -384,7 +384,7 @@ main(argc, argv)
 		}
 		/* Create original format password file entry */
 		if (Cflag && makeold)	/* copy comments */
-			if (fprintf(oldfp, "%s\n", line) == EOF)
+			if (fprintf(oldfp, "%s\n", line) < 0)
 				error("write old");
 		else if (makeold) {
 			char uidstr[20];
@@ -396,7 +396,7 @@ main(argc, argv)
 			if (fprintf(oldfp, "%s:*:%s:%s:%s:%s:%s\n",
 			    pwd.pw_name, pwd.pw_fields & _PWF_UID ? uidstr : "",
 			    pwd.pw_fields & _PWF_GID ? gidstr : "",
-			    pwd.pw_gecos, pwd.pw_dir, pwd.pw_shell) == EOF)
+			    pwd.pw_gecos, pwd.pw_dir, pwd.pw_shell) < 0)
 				error("write old");
 		}
 	}
