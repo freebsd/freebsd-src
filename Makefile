@@ -1,5 +1,5 @@
 #
-#	$Id$
+#	$Id: Makefile,v 1.147 1997/09/28 09:26:05 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -427,7 +427,10 @@ bootstrap:
 	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
 		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
-		${MAKE} ${MK_FLAGS} -DNOLIB all install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} -DNOLIB all install ${CLEANDIR}
+.if !defined(NOOBJDIR)
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} obj
+.endif
 
 #
 # include-tools - generally the same as 'bootstrap', except that it's for
