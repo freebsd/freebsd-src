@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.12 1994/09/15 16:32:07 paul Exp $
+ *	$Id: npx.c,v 1.13 1994/09/22 14:44:16 davidg Exp $
  */
 
 #include "npx.h"
@@ -91,8 +91,6 @@ typedef u_char bool_t;
 
 extern	struct gate_descriptor idt[];
 
-int	npxdna		__P((void));
-void	npxexit		__P((struct proc *p));
 void	npxinit		__P((u_int control));
 void	npxintr		__P((struct intrframe frame));
 void	npxsave		__P((struct save87 *addr));
