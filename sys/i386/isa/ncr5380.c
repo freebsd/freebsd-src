@@ -502,6 +502,7 @@ int nca_attach (struct isa_device *dev)
 	/* fill in the prototype scsi_link */
 	z->sc_link.adapter_unit = unit;
 	z->sc_link.adapter_targ = z->scsi_addr;
+	z->sc_link.adapter_softc = z;
 	z->sc_link.adapter = &nca_switch;
 	z->sc_link.device = &nca_dev;
 
@@ -576,7 +577,7 @@ void nca_tick (void *arg)
 int32 nca_scsi_cmd (struct scsi_xfer *xs)
 {
 	int unit = xs->sc_link->adapter_unit, flags = xs->flags, x = 0;
-	adapter_t *z = &ncadata[unit];
+	adapter_t *z = (adapter_t *)xs->sc_link->adapter_softc;
 	scb_t *scb;
 
 	/* PRINT (("nca%d/%d/%d command 0x%x\n", unit, xs->sc_link->target,
@@ -714,7 +715,7 @@ void nca_timeout (void *arg)
 {
 	scb_t *scb = (scb_t*) arg;
 	int unit = scb->xfer->sc_link->adapter_unit;
-	adapter_t *z = &ncadata[unit];
+	adapter_t *z = (adapter_t *)scb->xfer->sc_link->adapter_softc;
 	int x = splbio ();
 
 	if (! (scb->xfer->flags & SCSI_NOMASK))

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.14 1995/12/07 12:46:04 davidg Exp $
+ * $Id: seagate.c,v 1.15 1995/12/10 13:39:10 phk Exp $
  */
 
 /*
@@ -559,6 +559,7 @@ int sea_attach (struct isa_device *dev)
 	/* fill in the prototype scsi_link */
 	z->sc_link.adapter_unit = unit;
 	z->sc_link.adapter_targ = z->scsi_addr;
+	z->sc_link.adapter_softc = z;
 	z->sc_link.adapter = &sea_switch;
 	z->sc_link.device = &sea_dev;
 
@@ -626,8 +627,8 @@ void sea_tick (void *arg)
  */
 int32 sea_scsi_cmd (struct scsi_xfer *xs)
 {
-	int unit = xs->sc_link->adapter_unit, flags = xs->flags, x = 0;
-	adapter_t *z = &seadata[unit];
+	int flags = xs->flags, x = 0;
+	adapter_t *z = (adapter_t *)xs->sc_link->adapter_softc;
 	scb_t *scb;
 
 	PRINT (("sea%d/%d/%d command 0x%x\n", unit, xs->sc_link->target,
@@ -635,15 +636,16 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 	if (xs->bp)
 		flags |= SCSI_NOSLEEP;
 	if (flags & ITSDONE) {
-		printf ("sea%d: already done?", unit);
+		printf ("sea%d: already done?", xs->sc_link->adapter_unit);
 		xs->flags &= ~ITSDONE;
 	}
 	if (! (flags & INUSE)) {
-		printf ("sea%d: not in use?", unit);
+		printf ("sea%d: not in use?", xs->sc_link->adapter_unit);
 		xs->flags |= INUSE;
 	}
 	if (flags & SCSI_RESET)
-		printf ("sea%d: SCSI_RESET not implemented\n", unit);
+		printf ("sea%d: SCSI_RESET not implemented\n",
+			xs->sc_link->adapter_unit);
 
 	if (! (flags & SCSI_NOMASK))
 		x = splbio ();
@@ -698,7 +700,8 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 			return (SUCCESSFULLY_QUEUED);
 		timeout (sea_timeout, (caddr_t) scb, (xs->timeout * hz) / 1000);
 		scb->flags |= SCB_TIMECHK;
-		PRINT (("sea%d/%d/%d command queued\n", unit,
+		PRINT (("sea%d/%d/%d command queued\n",
+			xs->sc_link->adapter_unit,
 			xs->sc_link->target, xs->sc_link->lun));
 		return (SUCCESSFULLY_QUEUED);
 	}
@@ -719,7 +722,7 @@ int32 sea_scsi_cmd (struct scsi_xfer *xs)
 			 * this time there is no clock queue entry to remove. */
 			sea_timeout ((void*) scb);
 	}
-	PRINT (("sea%d/%d/%d command %s\n", unit,
+	PRINT (("sea%d/%d/%d command %s\n", xs->sc_link->adapter_unit,
 		xs->sc_link->target, xs->sc_link->lun,
 		xs->error ? "failed" : "done")); 
 	return (xs->error ? HAD_ERROR : COMPLETE);
@@ -764,12 +767,12 @@ again:
 void sea_timeout (void *arg)
 {
 	scb_t *scb = (scb_t*) arg;
-	int unit = scb->xfer->sc_link->adapter_unit;
-	adapter_t *z = &seadata[unit];
+	adapter_t *z = (adapter_t *)scb->xfer->sc_link->adapter_softc;
 	int x = splbio ();
 
 	if (! (scb->xfer->flags & SCSI_NOMASK))
-		printf ("sea%d/%d/%d (%s%d) timed out\n", unit,
+		printf ("sea%d/%d/%d (%s%d) timed out\n",
+			scb->xfer->sc_link->adapter_unit,
 			scb->xfer->sc_link->target,
 			scb->xfer->sc_link->lun,
 			scb->xfer->sc_link->device->name,
