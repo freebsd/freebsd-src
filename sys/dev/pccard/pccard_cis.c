@@ -168,7 +168,6 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					ret = 1;
 					goto done;
 				}
-				ret = 1; goto done; /* XXX IMP XXX */
 				tuple.ptr++;
 				break;
 			}
@@ -314,6 +313,7 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 					if ((i % 16) == 13)
 						DPRINTF(("\n"));
 				}
+
 				if ((i % 16) != 14)
 					DPRINTF(("\n"));
 			}
@@ -321,10 +321,6 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 			/* skip to the next tuple */
 			tuple.ptr += 2 + tuple.length;
 		}
-
-#ifdef XXX	/* I'm not up to this tonight, need to implement new API */
-		/* to deal with moving windows and such.  At least that's */
-		/* what it appears at this instant */
 
 		/*
 		 * the chain is done.  Clean up and move onto the next one,
@@ -335,29 +331,10 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 		 */
 
 		while (1) {
-			pccard_chip_mem_unmap(pct, pch, window);
-
 			if (longlink_present) {
-				/*
-				 * if the longlink is to attribute memory,
-				 * then it is unindexed.  That is, if the
-				 * link value is 0x100, then the actual
-				 * memory address is 0x200.  This means that
-				 * we need to multiply by 2 before calling
-				 * mem_map, and then divide the resulting ptr
-				 * by 2 after.
-				 */
-
-				if (!longlink_common)
-					longlink_addr *= 2;
-
-				pccard_chip_mem_map(pct, pch, longlink_common ?
-				    PCCARD_MEM_COMMON : PCCARD_MEM_ATTR,
-				    longlink_addr, PCCARD_CIS_SIZE,
-				    &pcmh, &tuple.ptr, &window);
-
-				if (!longlink_common)
-					tuple.ptr /= 2;
+				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
+				    SYS_RES_MEMORY, rid, longlink_common ?
+				    PCCARD_A_MEM_ATTR : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
 				tuple.mult = longlink_common ? 1 : 2;
@@ -365,23 +342,13 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 				longlink_common = 1;
 				longlink_addr = 0;
 			} else if (mfc_count && (mfc_index < mfc_count)) {
-				if (!mfc[mfc_index].common)
-					mfc[mfc_index].addr *= 2;
-
-				pccard_chip_mem_map(pct, pch,
-				    mfc[mfc_index].common ?
-				    PCCARD_MEM_COMMON : PCCARD_MEM_ATTR,
-				    mfc[mfc_index].addr, PCCARD_CIS_SIZE,
-				    &pcmh, &tuple.ptr, &window);
-
-				if (!mfc[mfc_index].common)
-					tuple.ptr /= 2;
+				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
+				    SYS_RES_MEMORY, rid, mfc[mfc_index].common
+				    ? PCCARD_A_MEM_ATTR : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
 				/* set parse state, and point at the next one */
-
 				tuple.mult = mfc[mfc_index].common ? 1 : 2;
-
 				mfc_index++;
 			} else {
 				goto done;
@@ -411,10 +378,8 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 				continue;
 			}
 			tuple.ptr += 2 + tuple.length;
-
 			break;
 		}
-#endif /* XXX */
 	}
 
 done:
