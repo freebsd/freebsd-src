@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 DB *db;
 time_t now;
 int entries, gflag, lflag, mflag, pplan, sflag, oflag, Tflag;
-sa_family_t family = PF_UNSPEC;
+sa_family_t family = AF_INET;
 int d_first = -1;
 char tbuf[1024];
 
