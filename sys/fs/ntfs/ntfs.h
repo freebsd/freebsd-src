@@ -293,7 +293,6 @@ MALLOC_DECLARE(M_NTFSNTHASH);
 #define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
 #define VGET(a, b, c)		vget((a), (b), (c))
 #define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
-#define	LOCKMGR(a, b, c)	lockmgr((a), (b), (c), NULL)
 
 #if defined(NTFS_DEBUG)
 #define dprintf(a) printf a
