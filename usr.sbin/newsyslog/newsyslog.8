@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.10 1998/03/14 22:28:24 pst Exp $
+.\"	$Id: newsyslog.8,v 1.11 1998/03/23 08:25:29 charnier Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -25,7 +25,7 @@
 .Nd maintain system log files to manageable sizes
 .Sh SYNOPSIS
 .Nm newsyslog
-.Op Fl rnv
+.Op Fl rnvF
 .Op Fl f Ar config_file
 .Sh DESCRIPTION
 .Nm Newsyslog
@@ -89,7 +89,6 @@ is replaced by a
 .Ar * ,
 then the size of the log file is not taken into account
 when determining when to trim the log file.
-of archives
 .It Ar interval
 When 
 .Ar interval
