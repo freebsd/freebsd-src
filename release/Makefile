@@ -1074,7 +1074,8 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 .if ${TARGET} == "i386"
-	@kgzip -vo ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
+	@${WMAKEENV} kgzip -v -l ${RD}/trees/base/usr/lib/kgzldr.o \
+	    -o ${RD}/image.${FSIMAGE}/boot/loader ${RD}/trees/base/boot/loader
 .elif ${TARGET_ARCH} == "ia64"
 	@cp ${RD}/trees/base/boot/loader.efi ${RD}/image.${FSIMAGE}/boot
 .else
