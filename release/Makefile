@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.83 1995/01/15 06:31:50 jkh Exp $
+#	$Id: Makefile,v 1.84 1995/01/17 19:57:35 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -188,7 +188,7 @@ distribute:
 	rm -rf ${RELEASEDIR}/*
 	for i in ${DISTRIBUTIONS} ; \
 	do \
-	mkdir ${RELEASEDIR}/$$i ; \
+	mkdir -p ${RELEASEDIR}/$$i ; \
 	mtree -deU -f ${MTREEFILES}/BSD.root.dist -p ${RELEASEDIR}/$$i/ ; \
 	mtree -deU -f ${MTREEFILES}/BSD.var.dist -p ${RELEASEDIR}/$$i/var ; \
 	mtree -deU -f ${MTREEFILES}/BSD.usr.dist -p ${RELEASEDIR}/$$i/usr ; \
