@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.6 1995/11/29 10:25:47 phk Exp $
+ *	$Id: db_watch.h,v 1.7 1995/12/07 12:45:06 davidg Exp $
  */
 
 /*
@@ -33,8 +33,6 @@
 
 #ifndef _DDB_DB_WATCH_H_
 #define	_DDB_DB_WATCH_H_
-
-#include <machine/db_machdep.h>
 
 /*
  * Watchpoint.
