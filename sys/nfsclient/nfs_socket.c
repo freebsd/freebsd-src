@@ -163,7 +163,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 	nmp->nm_so = (struct socket *)0;
 	saddr = nmp->nm_nam;
 	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype,
-		nmp->nm_soproto, td);
+		nmp->nm_soproto, nmp->nm_cred, td);
 	if (error)
 		goto bad;
 	so = nmp->nm_so;

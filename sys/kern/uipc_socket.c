@@ -137,11 +137,12 @@ soalloc(waitok)
  * closed with soclose().
  */
 int
-socreate(dom, aso, type, proto, td)
+socreate(dom, aso, type, proto, cred, td)
 	int dom;
 	struct socket **aso;
 	register int type;
 	int proto;
+	struct ucred *cred;
 	struct thread *td;
 {
 	register struct protosw *prp;
@@ -172,7 +173,7 @@ socreate(dom, aso, type, proto, td)
 	TAILQ_INIT(&so->so_incomp);
 	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
-	so->so_cred = crhold(td->td_proc->p_ucred);
+	so->so_cred = crhold(cred);
 	so->so_proto = prp;
 	soref(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);

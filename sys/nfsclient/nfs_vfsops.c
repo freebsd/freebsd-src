@@ -92,7 +92,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
 static int	nfs_iosize(struct nfsmount *nmp);
 static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
-		    struct sockaddr *, char *, char *, struct vnode **);
+		    struct sockaddr *, char *, char *, struct vnode **,
+		    struct ucred *cred);
 static int	nfs_mount(struct mount *mp, char *path, caddr_t data,
 		    struct nameidata *ndp, struct thread *td);
 static int	nfs_unmount(struct mount *mp, int mntflags, struct thread *td);
@@ -377,6 +378,7 @@ int
 nfs_mountroot(struct mount *mp)
 {
 	struct mount  *swap_mp;
+	struct nfsmount *nmp = VFSTONFS(mp);
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;
@@ -419,7 +421,8 @@ nfs_mountroot(struct mount *mp)
 	 * Do enough of ifconfig(8) so that the critical net interface can
 	 * talk to the server.
 	 */
-	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0, td);
+	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0,
+	    nmp->nm_cred, td);
 	if (error)
 		panic("nfs_mountroot: socreate(%04x): %d",
 			nd->myif.ifra_addr.sa_family, error);
@@ -557,7 +560,8 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
 	nam = dup_sockaddr((struct sockaddr *)sin, 1);
-	if ((error = mountnfs(args, mp, nam, which, path, vpp)) != 0) {
+	if ((error = mountnfs(args, mp, nam, which, path, vpp, td->td_ucred))
+	    != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, td);
@@ -785,7 +789,7 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
 	if (error)
 		return (error);
 	args.fh = nfh;
-	error = mountnfs(&args, mp, nam, path, hst, &vp);
+	error = mountnfs(&args, mp, nam, path, hst, &vp, td->td_ucred);
 	return (error);
 }
 
@@ -794,7 +798,7 @@ nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
  */
 static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
-    char *pth, char *hst, struct vnode **vpp)
+    char *pth, char *hst, struct vnode **vpp, struct ucred *cred)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -814,6 +818,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	}
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
+	nmp->nm_cred = crhold(cred);
 
 	/*
 	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
@@ -891,6 +896,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	return (0);
 bad:
 	nfs_disconnect(nmp);
+	crfree(nmp->nm_cred);
 	zfree(nfsmount_zone, nmp);
 	FREE(nam, M_SONAME);
 	return (error);
@@ -925,6 +931,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	nfs_disconnect(nmp);
 	FREE(nmp->nm_nam, M_SONAME);
 
+	crfree(nmp->nm_cred);
 	zfree(nfsmount_zone, nmp);
 	return (0);
 }

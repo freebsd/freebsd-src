@@ -586,7 +586,8 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	/*
 	 * Create socket and set its recieve timeout.
 	 */
-	error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td);
+	error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td->td_proc->p_ucred,
+	    td);
 	if (error != 0)
 		goto out;
 
@@ -971,7 +972,8 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 
-	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td);
+	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0,
+	    td->td_proc->p_ucred, td);
 	if (error != 0)
 		panic("nfs_boot: socreate, error=%d", error);
 
