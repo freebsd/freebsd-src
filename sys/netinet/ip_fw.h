@@ -11,7 +11,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.29 1997/09/16 11:43:57 bde Exp $
+ *	$Id: ip_fw.h,v 1.30 1997/10/28 15:58:45 bde Exp $
  */
 
 #ifndef _IP_FW_H
@@ -49,17 +49,20 @@ union ip_fw_if {
  */
 
 struct ip_fw {
-    u_long fw_pcnt,fw_bcnt;		/* Packet and byte counters */
+    u_int64_t fw_pcnt,fw_bcnt;		/* Packet and byte counters */
     struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
     struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
     u_short fw_number;			/* Rule number */
     u_short fw_flg;			/* Flags word */
 #define IP_FW_MAX_PORTS	10		/* A reasonable maximum */
-    u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
+	union {
+	u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
+#define IP_FW_ICMPTYPES_MAX	128
+#define IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
+	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
+	} fw_uar;
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
-#define IP_FW_ICMPTYPES_DIM (32 / (sizeof(unsigned) * 8))
-    unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {

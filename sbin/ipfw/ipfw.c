@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.51 1998/01/07 02:23:04 alex Exp $
+ * $Id: ipfw.c,v 1.52 1998/01/08 00:27:31 alex Exp $
  *
  */
 
@@ -164,7 +164,7 @@ print_reject_code(int code)
 }
 
 static void
-show_ipfw(struct ip_fw *chain)
+show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 {
 	char *comma;
 	u_long adrt;
@@ -180,7 +180,7 @@ show_ipfw(struct ip_fw *chain)
 	printf("%05u ", chain->fw_number);
 
 	if (do_acct) 
-		printf("%10lu %10lu ",chain->fw_pcnt,chain->fw_bcnt);
+		printf("%*qu %*qu ",pcwidth,chain->fw_pcnt,bcwidth,chain->fw_bcnt);
 
 	if (do_time)
 	{
@@ -269,7 +269,7 @@ show_ipfw(struct ip_fw *chain)
 	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
 		comma = " ";
 		for (i = 0; i < nsp; i++) {
-			print_port(chain->fw_prot, chain->fw_pts[i], comma);
+			print_port(chain->fw_prot, chain->fw_uar.fw_pts[i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_SRNG))
 				comma = "-";
 			else
@@ -309,7 +309,7 @@ show_ipfw(struct ip_fw *chain)
 	if (chain->fw_prot == IPPROTO_TCP || chain->fw_prot == IPPROTO_UDP) {
 		comma = " ";
 		for (i = 0; i < ndp; i++) {
-			print_port(chain->fw_prot, chain->fw_pts[nsp+i], comma);
+			print_port(chain->fw_prot, chain->fw_uar.fw_pts[nsp+i], comma);
 			if (i==0 && (chain->fw_flg & IP_FW_F_DRNG))
 				comma = "-";
 			else
@@ -388,7 +388,7 @@ show_ipfw(struct ip_fw *chain)
 		printf(" icmptype");
 
 		for (type_index = 0; type_index < IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8; ++type_index)
-			if (chain->fw_icmptypes[type_index / (sizeof(unsigned) * 8)] & 
+			if (chain->fw_uar.fw_icmptypes[type_index / (sizeof(unsigned) * 8)] & 
 				(1U << (type_index % (sizeof(unsigned) * 8)))) {
 				printf("%c%d", first == 1 ? ' ' : ',', type_index);
 				first = 0;
@@ -406,9 +406,10 @@ list(ac, av)
 {
 	struct ip_fw *r;
 	struct ip_fw rules[1024];
-	int l,i;
+	int l,i,bytes;
 	unsigned long rulenum;
-	int bytes;
+	int pcwidth = 0;
+	int bcwidth = 0;
 
 	/* extract rules from kernel */
 	memset(rules,0,sizeof rules);
@@ -416,11 +417,28 @@ list(ac, av)
 	i = getsockopt(s, IPPROTO_IP, IP_FW_GET, rules, &bytes);
 	if (i < 0)
 		err(2,"getsockopt(IP_FW_GET)");
+	if (do_acct)
+		/* find the maximum packet/byte counter widths */
+		for (r=rules, l = bytes; l >= sizeof rules[0]; 
+			 r++, l-=sizeof rules[0]) {
+			char temp[32];
+			int width;
+
+			/* packet counter */
+			width = sprintf(temp, "%qu", r->fw_pcnt);
+			if (width > pcwidth)
+				pcwidth = width;
+
+			/* byte counter */
+			width = sprintf(temp, "%qu", r->fw_bcnt);
+			if (width > bcwidth)
+				bcwidth = width;
+		}
 	if (!ac) {
 		/* display all rules */
 		for (r = rules, l = bytes; l >= sizeof rules[0]; 
 			 r++, l-=sizeof rules[0])
-			show_ipfw(r);
+			show_ipfw(r, pcwidth, bcwidth);
 	}
 	else {
 		/* display specific rules requested on command line */
@@ -442,7 +460,7 @@ list(ac, av)
 				 l >= sizeof rules[0] && r->fw_number <= rulenum;
 				 r++, l-=sizeof rules[0])
 				if (rulenum == r->fw_number) {
-					show_ipfw(r);
+					show_ipfw(r, pcwidth, bcwidth);
 					seen = 1;
 				}
 			if (!seen) {
@@ -939,7 +957,7 @@ add(ac,av)
 	if (ac && (isdigit(**av) || lookup_port(*av, 1, 1) >= 0)) {
 		u_short nports = 0;
 
-		if (fill_port(&nports, rule.fw_pts, 0, *av))
+		if (fill_port(&nports, rule.fw_uar.fw_pts, 0, *av))
 			rule.fw_flg |= IP_FW_F_SRNG;
 		IP_FW_SETNSRCP(&rule, nports);
 		av++; ac--;
@@ -963,7 +981,7 @@ add(ac,av)
 		u_short	nports = 0;
 
 		if (fill_port(&nports,
-		    rule.fw_pts, IP_FW_GETNSRCP(&rule), *av))
+		    rule.fw_uar.fw_pts, IP_FW_GETNSRCP(&rule), *av))
 			rule.fw_flg |= IP_FW_F_DRNG;
 		IP_FW_SETNDSTP(&rule, nports);
 		av++; ac--;
@@ -1069,7 +1087,7 @@ badviacombo:
 				if (!ac)
 					show_usage("missing argument"
 					    " for ``icmptypes''");
-				fill_icmptypes(rule.fw_icmptypes,
+				fill_icmptypes(rule.fw_uar.fw_icmptypes,
 				    av, &rule.fw_flg);
 				av++; ac--; continue;
 			}
@@ -1091,7 +1109,7 @@ badviacombo:
 		show_usage("can't check xmit interface of incoming packets");
 
 	if (!do_quiet)
-		show_ipfw(&rule);
+		show_ipfw(&rule, 10, 10);
 	i = setsockopt(s, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
 	if (i)
 		err(EX_UNAVAILABLE, "setsockopt(%s)", "IP_FW_ADD");
