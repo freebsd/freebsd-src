@@ -27,8 +27,6 @@
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
 # update      - convenient way to update your source tree (eg: sup/cvs)
-# most        - build user commands, no libraries or include files
-# installmost - install user commands, no libraries or include files
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
@@ -594,33 +592,6 @@ update:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${CVS} -R -q update -A -P -d
 .endif
-
-#
-# most
-#
-# Build most of the user binaries on the existing system libs and includes.
-#
-most:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building programs only"
-	@echo "--------------------------------------------------------------"
-.for _dir in bin sbin libexec usr.bin usr.sbin gnu/usr.bin gnu/usr.sbin
-	cd ${.CURDIR}/${_dir};		${MAKE} DIRPRFX=${_dir}/ all
-.endfor
-
-#
-# installmost
-#
-# Install the binaries built by the 'most' target.  This does not include
-# libraries or include files.
-#
-installmost:
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing programs only"
-	@echo "--------------------------------------------------------------"
-.for _dir in bin sbin libexec usr.bin usr.sbin gnu/usr.bin gnu/usr.sbin
-	cd ${.CURDIR}/${_dir};		${MAKE} DIRPRFX=${_dir}/ install
-.endfor
 
 #
 # ------------------------------------------------------------------------
