@@ -374,7 +374,6 @@ void vm_page_unmanage (vm_page_t);
 void vm_page_unwire (vm_page_t, int);
 void vm_page_wire (vm_page_t);
 void vm_page_set_validclean (vm_page_t, int, int);
-void vm_page_set_dirty (vm_page_t, int, int);
 void vm_page_clear_dirty (vm_page_t, int, int);
 void vm_page_set_invalid (vm_page_t, int, int);
 int vm_page_is_valid (vm_page_t, int, int);
