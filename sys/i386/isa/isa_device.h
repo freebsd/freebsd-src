@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.25 1995/11/05 04:45:16 gibbs Exp $
+ *	$Id: isa_device.h,v 1.26 1995/11/20 12:41:46 phk Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
-#define _I386_ISA_ISA_DEVICE_H_ 1
+#define	_I386_ISA_ISA_DEVICE_H_
 
 /*
  * ISA Bus Autoconfiguration
@@ -121,8 +121,16 @@ extern inthand2_t *intr_handler[];	/* C entry points of intr handlers */
 extern u_int intr_mask[];	/* sets of intrs masked during handling of 1 */
 extern int intr_unit[];		/* cookies to pass to intr handlers */
 
-extern struct isa_device isa_devtab_bio[], isa_devtab_tty[], isa_devtab_net[],
-		isa_devtab_null[], isa_biotab_wdc[], isa_biotab_fdc[];
+extern struct isa_device isa_biotab_fdc[];
+extern struct isa_device isa_biotab_wdc[];
+extern struct isa_device isa_devtab_bio[];
+extern struct isa_device isa_devtab_net[];
+extern struct isa_device isa_devtab_null[];
+extern struct isa_device isa_devtab_tty[];
+extern struct kern_devconf kdc_isa0;
+
+struct kern_devconf;
+struct sysctl_req;
 
 inthand_t
 	IDTVEC(fastintr0), IDTVEC(fastintr1),
@@ -138,31 +146,32 @@ inthand_t
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
+struct isa_device *
+	find_display __P((void));
+struct isa_device *
+	find_isadev __P((struct isa_device *table, struct isa_driver *driverp,
+			 int unit));
+int	haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
+void	isa_configure __P((void));
+void	isa_defaultirq __P((void));
+void	isa_dmacascade __P((unsigned chan));
+void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
+void	isa_dmadone_nobounce __P((unsigned chan));
+void	isa_dmainit __P((unsigned chan, unsigned bouncebufsize));
+void	isa_dmastart __P((int flags, caddr_t addr, unsigned nbytes,
+			  unsigned chan));
+int	isa_externalize __P((struct isa_device *id, struct sysctl_req *req));
+int	isa_generic_externalize __P((struct kern_devconf *kdc,
+				     struct sysctl_req *req));
+int	isa_internalize __P((struct isa_device *id, struct sysctl_req *req));
+int	isa_irq_pending __P((struct isa_device *dvp));
+int	isa_nmi __P((int cd));
+void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
+int	register_intr __P((int intr, int device_id, u_int flags,
+			   inthand2_t *handler, u_int *maskptr, int unit));
+int	unregister_intr __P((int intr, inthand2_t *handler));
+int	update_intr_masks __P((void));
 
-struct isa_device *find_display __P((void));
-struct isa_device *find_isadev __P((struct isa_device *table,
-				    struct isa_driver *driverp, int unit));
-void isa_configure __P((void));
-int haveseen_isadev __P((struct isa_device *dvp, u_int checkbits));
-void isa_defaultirq __P((void));
-void isa_dmacascade __P((unsigned chan));
-void isa_dmadone __P((int, caddr_t, int, int));
-void isa_dmastart __P((int, caddr_t, unsigned, unsigned));
-int isa_irq_pending __P((struct isa_device *dvp));
-int isa_nmi __P((int cd));
-void reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
-int register_intr __P((int intr, int device_id, u_int flags,
-		       inthand2_t *handler, u_int *maskptr, int unit));
-int unregister_intr __P((int intr, inthand2_t *handler));
-int update_intr_masks __P((void));
-
-struct sysctl_req;
-extern int isa_externalize(struct isa_device *, struct sysctl_req *);
-extern int isa_internalize(struct isa_device *, struct sysctl_req *);
-
-struct kern_devconf;
-extern int isa_generic_externalize(struct kern_devconf *, struct sysctl_req *);
-extern struct kern_devconf kdc_isa0;
 #endif /* KERNEL */
 
-#endif /* _I386_ISA_ISA_DEVICE_H_ */
+#endif /* !_I386_ISA_ISA_DEVICE_H_ */
