@@ -48,7 +48,7 @@ wearit()		/* synonyms = {sheathe, sheath} */
 		value = wordvalue[wordnumber];
 		for (n=0; objsht[value][n]; n++);
 		switch(value){
-			
+
 			case -1:
 				puts("Wear what?");
 				return(firstnumber);
@@ -86,11 +86,11 @@ wearit()		/* synonyms = {sheathe, sheath} */
 				}
 				else if (testbit(wear,value))
 					printf("You are already wearing the %s.\n", objsht[value]);
-				else 
+				else
 					printf("You aren't holding the %s.\n", objsht[value]);
 				if (wordnumber < wordcount - 1 && wordvalue[++wordnumber] == AND)
 					wordnumber++;
-				else 
+				else
 					return(firstnumber);
 		} /* end switch */
 	} /* end while */
@@ -166,7 +166,7 @@ murder()
 		printf("Your %s should do the trick.\n",objsht[n]);
 		while (wordtype[++wordnumber] == ADJS);
 		switch(wordvalue[wordnumber]){
-			
+
 			case NORMGOD:
 				if (testbit(location[position].objects,BATHGOD)){
 					puts("The goddess's head slices off.  Her corpse floats in the water.");
@@ -290,7 +290,7 @@ follow()
 		notes[CANTSEE] = 1;
 		return(0);
 	}
-	else 
+	else
 		puts("There is no one to follow.");
 	return(-1);
 }

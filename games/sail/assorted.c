@@ -213,7 +213,7 @@ int rig, shot, hittable, roll;
 			makesignal(on, "crew mutinying!", (struct ship *)0);
 			on->specs->qual = 5;
 			Write(W_CAPTURED, on, 0, on->file->index, 0, 0, 0);
-		} else 
+		} else
 			makesignal(on, "crew demoralized", (struct ship *)0);
 		Write(W_QUAL, on, 0, on->specs->qual, 0, 0, 0);
 	}

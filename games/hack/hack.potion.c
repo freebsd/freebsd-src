@@ -148,7 +148,7 @@ dodrink() {
 		Blind += rn1(100,250);
 		seeoff(0);
 		break;
-	case POT_GAIN_LEVEL: 
+	case POT_GAIN_LEVEL:
 		pluslvl();
 		break;
 	case POT_EXTRA_HEALING:
@@ -280,7 +280,7 @@ register struct obj *obj;
 	case POT_BLINDNESS:
 		mon->mblinded |= 64 + rn2(64);
 		break;
-/*	
+/*
 	case POT_GAIN_LEVEL:
 	case POT_LEVITATION:
 	case POT_FRUIT_JUICE:
@@ -332,7 +332,7 @@ register struct obj *obj;
 		Blind += rnd(5);
 		seeoff(0);
 		break;
-/*	
+/*
 	case POT_GAIN_LEVEL:
 	case POT_LEVITATION:
 	case POT_FRUIT_JUICE:

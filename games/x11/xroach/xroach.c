@@ -1,10 +1,10 @@
 /*
     Xroach - A game of skill.  Try to find the roaches under your windows.
-    
+
     Copyright 1991 by J.T. Anderson
 
     jta@locus.com
-    
+
     This program may be freely distributed provided that all
     copyright notices are retained.
 
@@ -92,7 +92,7 @@ char *av[];
     char *roachColor = "black";
     int nVis;
     int needCalc;
-    
+
     /*
        Process command line options.
     */
@@ -116,7 +116,7 @@ char *av[];
     }
 
     srand((int)time((long *)NULL));
-    
+
     /*
        Catch some signals so we can erase any visible roaches.
     */
@@ -142,7 +142,7 @@ char *av[];
     display_height = DisplayHeight(display, screen);
     center_x = display_width / 2;
     center_y = display_height / 2;
-    
+
     /*
        Create roach pixmaps at several orientations.
     */
@@ -161,12 +161,12 @@ char *av[];
     gc = XCreateGC(display, rootWin, 0L, &xgcv);
     XSetForeground(display, gc, AllocNamedColor(roachColor, black));
     XSetFillStyle(display, gc, FillStippled);
-    
+
     while (curRoaches < maxRoaches)
 	AddRoach();
-    
+
     XSelectInput(display, rootWin, ExposureMask | SubstructureNotifyMask);
-    
+
     needCalc = 1;
     while (!done) {
 	if (XPending(display)) {
@@ -187,9 +187,9 @@ char *av[];
 		eventBlock = 0;
 	    }
 	}
-	
+
 	switch (ev.type) {
-	    
+
 	    case SCAMPER_EVENT:
 		for (rx=0; rx<curRoaches; rx++) {
 		    if (!roaches[rx].hidden)
@@ -198,19 +198,19 @@ char *av[];
 		DrawRoaches();
 		XSync(display, False);
 		break;
-		
+
 	    case Expose:
 	    case MapNotify:
 	    case UnmapNotify:
 	    case ConfigureNotify:
 		needCalc = 1;
 		break;
-		
+
 	}
     }
-    
+
     CoverRoot();
-    
+
     XCloseDisplay(display);
 }
 
@@ -225,14 +225,14 @@ Usage()
     USEPRT("       -rc      roachcolor\n");
     USEPRT("       -roaches numroaches\n");
     USEPRT("       -speed   roachspeed\n");
-    
+
     exit(1);
 }
 
 void
 SigHandler()
 {
-       
+
     /*
        If we are blocked, no roaches are visible and we can just bail
        out.  If we are not blocked, then let the main procedure clean
@@ -274,7 +274,7 @@ unsigned int height;
     if ((rx + roach->rp->width) > (x + width)) return 0;
     if (ry < y) return 0;
     if ((ry + roach->rp->height) > (y + height)) return 0;
-    
+
     return 1;
 }
 
@@ -295,7 +295,7 @@ unsigned int height;
     if ((rx + roach->rp->width) <= x) return 0;
     if (ry >= (y + height)) return 0;
     if ((ry + roach->rp->height) <= y) return 0;
-    
+
     return 1;
 }
 
@@ -306,7 +306,7 @@ void
 AddRoach()
 {
     Roach *r;
-    
+
     if (curRoaches < maxRoaches) {
 	r = &roaches[curRoaches++];
 	r->index = RandInt(ROACH_HEADINGS);
@@ -354,14 +354,14 @@ int rx;
     float newX;
     float newY;
     int ii;
-    
+
     roach = &roaches[rx];
     newX = roach->x + (roachSpeed * roach->rp->cosine);
     newY = roach->y - (roachSpeed * roach->rp->sine);
-    
-    if (RoachInRect(roach, (int)newX, (int)newY, 
+
+    if (RoachInRect(roach, (int)newX, (int)newY,
 			    0, 0, display_width, display_height)) {
-	
+
 	roach->x = newX;
 	roach->y = newY;
 
@@ -374,7 +374,7 @@ int rx;
 	    r2 = &roaches[ii];
 	    if (RoachOverRect(roach, (int)newX, (int)newY,
 		r2->intX, r2->intY, r2->rp->width, r2->rp->height)) {
-	
+
 		TurnRoach(roach);
 	    }
 	}
@@ -383,7 +383,7 @@ int rx;
 	TurnRoach(roach);
     }
 }
-    
+
 /*
    Draw all roaches.
 */
@@ -392,24 +392,24 @@ DrawRoaches()
 {
     Roach *roach;
     int rx;
-    
+
     for (rx=0; rx<curRoaches; rx++) {
 	roach = &roaches[rx];
-	
+
 	if (roach->intX >= 0) {
 	    XClearArea(display, rootWin, roach->intX, roach->intY,
 		roach->rp->width, roach->rp->height, False);
 	}
     }
-    
+
     for (rx=0; rx<curRoaches; rx++) {
 	roach = &roaches[rx];
-	
+
 	if (!roach->hidden) {
 	    roach->intX = roach->x;
 	    roach->intY = roach->y;
 	    roach->rp = &roachPix[roach->index];
-    
+
 	    XSetStipple(display, gc, roach->rp->pixmap);
 	    XSetTSOrigin(display, gc, roach->intX, roach->intY);
 	    XFillRectangle(display, rootWin, gc,
@@ -430,7 +430,7 @@ CoverRoot()
     XSetWindowAttributes xswa;
     long wamask;
     Window roachWin;
-    
+
     xswa.background_pixmap = ParentRelative;
     xswa.override_redirect = True;
     wamask = CWBackPixmap | CWOverrideRedirect;
@@ -440,7 +440,7 @@ CoverRoot()
     XLowerWindow(display, roachWin);
     XMapWindow(display, roachWin);
     XFlush(display);
-}    
+}
 
 #if !GRAB_SERVER
 
@@ -450,7 +450,7 @@ Display *dpy;
 XErrorEvent *err;
 {
     errorVal = err->error_code;
-    
+
     return 0;
 }
 
@@ -474,7 +474,7 @@ CalcRootVisible()
     unsigned int winHeight, winWidth;
     unsigned int borderWidth;
     unsigned int depth;
-    
+
     /*
        If we don't grab the server, the XGetWindowAttribute or XGetGeometry
        calls can abort us.  On the other hand, the server grabs can make for
@@ -490,7 +490,7 @@ CalcRootVisible()
        Get children of root.
     */
     XQueryTree(display, rootWin, &dummy, &dummy, &children, &nChildren);
-    
+
     /*
        For each mapped child, add the window rectangle to the covered
        region.
@@ -519,7 +519,7 @@ CalcRootVisible()
 #else
     XSetErrorHandler((ErrorHandler *)NULL);
 #endif
-    
+
     /*
        Subtract the covered region from the root window region.
     */
@@ -531,19 +531,19 @@ CalcRootVisible()
     XUnionRectWithRegion(&rect, visible, visible);
     XSubtractRegion(visible, covered, visible);
     XDestroyRegion(covered);
-    
+
     /*
        Save visible region globally.
     */
     if (rootVisible)
 	XDestroyRegion(rootVisible);
     rootVisible = visible;
-    
-    
+
+
     /*
        Mark all roaches visible.
     */
-    for (wx=0; wx<curRoaches; wx++) 
+    for (wx=0; wx<curRoaches; wx++)
 	roaches[wx].hidden = 0;
 
     return 0;
@@ -558,11 +558,11 @@ MarkHiddenRoaches()
     int rx;
     Roach *r;
     int nVisible;
-    
+
     nVisible = 0;
     for (rx=0; rx<curRoaches; rx++) {
 	r = &roaches[rx];
-	
+
 	if (!r->hidden) {
 	    if (r->intX > 0 && XRectInRegion(rootVisible, r->intX, r->intY,
 			    r->rp->width, r->rp->height) == RectangleOut) {
@@ -573,7 +573,7 @@ MarkHiddenRoaches()
 	    }
 	}
     }
-    
+
     return nVisible;
 }
 

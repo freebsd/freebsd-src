@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)one.c	8.1 (Berkeley) 5/31/93";
 
 makmove (i)
 register int	i;
- 
+
 {
 	register int	n, d;
 	int		max;

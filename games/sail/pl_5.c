@@ -201,14 +201,14 @@ int crew[3];
 char isdefense;
 char buf;
 {
-	register int k, j, men; 
+	register int k, j, men;
 	struct BP *ptr;
 	int temp[3];
 
 	for (k = 0; k < 3; k++)
 		temp[k] = crew[k];
 	if (isdigit(buf)) {
-		ptr = isdefense ? to->file->DBP : to->file->OBP; 
+		ptr = isdefense ? to->file->DBP : to->file->OBP;
 		for (j = 0; j < NBP && ptr[j].turnsent; j++)
 			;
 		if (!ptr[j].turnsent && buf > '0') {

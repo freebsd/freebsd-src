@@ -93,8 +93,8 @@ typedef struct {
 
 #define NUMSTATES	NUMELS(st)
 
-char	*setplane(), *circle(), *left(), *right(), *Left(), *Right(), 
-	*beacon(), *ex_it(), *climb(), *descend(), *setalt(), *setrelalt(), 
+char	*setplane(), *circle(), *left(), *right(), *Left(), *Right(),
+	*beacon(), *ex_it(), *climb(), *descend(), *setalt(), *setrelalt(),
 	*benum(), *to_dir(), *rel_dir(), *delayb(), *mark(), *unmark(),
 	*airport(), *turn(), *ignore();
 
@@ -104,17 +104,17 @@ RULE	state0[] = {	{ ALPHATOKEN,	1,	"%c:",		setplane},
 			{ CRTOKEN,	-1,	"",		NULL	},
 #endif
 			{ HELPTOKEN,	12,	" [a-z]<ret>",	NULL	}},
-	state1[] = {	{ 't',		2,	" turn",	turn	},	
-			{ 'a',		3,	" altitude:",	NULL	},	
+	state1[] = {	{ 't',		2,	" turn",	turn	},
+			{ 'a',		3,	" altitude:",	NULL	},
 			{ 'c',		4,	" circle",	circle	},
 			{ 'm',		7,	" mark",	mark	},
 			{ 'u',		7,	" unmark",	unmark	},
 			{ 'i',		7,	" ignore",	ignore	},
 			{ HELPTOKEN,	12,	" tacmui",	NULL	}},
-	state2[] = {	{ 'l',		6,	" left",	left	},	
-			{ 'r',		6,	" right",	right	},	
+	state2[] = {	{ 'l',		6,	" left",	left	},
+			{ 'r',		6,	" right",	right	},
 			{ 'L',		4,	" left 90",	Left	},
-			{ 'R',		4,	" right 90",	Right	},	
+			{ 'R',		4,	" right 90",	Right	},
 			{ 't',		11,	" towards",	NULL	},
 			{ 'w',		4,	" to 0",	to_dir	},
 			{ 'e',		4,	" to 45",	to_dir	},
@@ -125,14 +125,14 @@ RULE	state0[] = {	{ ALPHATOKEN,	1,	"%c:",		setplane},
 			{ 'a',		4,	" to 270",	to_dir	},
 			{ 'q',		4,	" to 315",	to_dir	},
 			{ HELPTOKEN,	12,	" lrLRt<dir>",	NULL	}},
-	state3[] = {	{ '+',		10,	" climb",	climb	},	
-			{ 'c',		10,	" climb",	climb	},	
-			{ '-',		10,	" descend",	descend	},	
-			{ 'd',		10,	" descend",	descend	},	
+	state3[] = {	{ '+',		10,	" climb",	climb	},
+			{ 'c',		10,	" climb",	climb	},
+			{ '-',		10,	" descend",	descend	},
+			{ 'd',		10,	" descend",	descend	},
 			{ NUMTOKEN,	7,	" %c000 feet",	setalt	},
 			{ HELPTOKEN,	12,	" +-cd[0-9]",	NULL	}},
-	state4[] = {	{ '@',		9,	" at",		NULL	},	
-			{ 'a',		9,	" at",		NULL	},	
+	state4[] = {	{ '@',		9,	" at",		NULL	},
+			{ 'a',		9,	" at",		NULL	},
 			{ RETTOKEN,	-1,	"",		NULL	},
 #ifdef SYSV
 			{ CRTOKEN,	-1,	"",		NULL	},
@@ -150,9 +150,9 @@ RULE	state0[] = {	{ ALPHATOKEN,	1,	"%c:",		setplane},
 			{ 'z',		4,	" 225",		rel_dir	},
 			{ 'a',		4,	" 270",		rel_dir	},
 			{ 'q',		4,	" 315",		rel_dir	},
-			{ RETTOKEN,	-1,	"",		NULL	},	
+			{ RETTOKEN,	-1,	"",		NULL	},
 #ifdef SYSV
-			{ CRTOKEN,	-1,	"",		NULL	},	
+			{ CRTOKEN,	-1,	"",		NULL	},
 #endif
 			{ HELPTOKEN,	12,	" @a<dir><ret>",NULL	}},
 	state7[] = {	{ RETTOKEN,	-1,	"",		NULL	},
@@ -167,7 +167,7 @@ RULE	state0[] = {	{ ALPHATOKEN,	1,	"%c:",		setplane},
 			{ HELPTOKEN,	12,	" b*",		NULL	}},
 	state10[] = {	{ NUMTOKEN,	7,	" %c000 ft",	setrelalt},
 			{ HELPTOKEN,	12,	" [0-9]",	NULL	}},
-	state11[] = {	{ 'b',		8,	" beacon #",	beacon	},	
+	state11[] = {	{ 'b',		8,	" beacon #",	beacon	},
 			{ '*',		8,	" beacon #",	beacon	},
 			{ 'e',		8,	" exit #",	ex_it	},
 			{ 'a',		8,	" airport #",	airport	},
@@ -272,7 +272,7 @@ getcommand()
 		return (1);	/* forced update */
 
 	dest_type = T_NODEST;
-	
+
 	for (i = 0; i < level; i++) {
 		func = st[stack[i].state].rule[stack[i].rule].func;
 		if (func != NULL)

@@ -86,15 +86,15 @@ char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
 /*
  * prime[i] is the (i-1)th prime.
  *
- * We are able to sieve 2^32-1 because this byte table yields all primes 
+ * We are able to sieve 2^32-1 because this byte table yields all primes
  * up to 65537 and 65537^2 > 2^32-1.
  */
 extern ubig prime[];
 extern ubig *pr_limit;		/* largest prime in the prime array */
 
 /*
- * To avoid excessive sieves for small factors, we use the table below to 
- * setup our sieve blocks.  Each element represents a odd number starting 
+ * To avoid excessive sieves for small factors, we use the table below to
+ * setup our sieve blocks.  Each element represents a odd number starting
  * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
  */
 extern char pattern[];

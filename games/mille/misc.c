@@ -158,7 +158,7 @@ done:
 				goto extend;
 			for (miles = 0, i = 0; i < HAND_SZ; i++)
 				if ((safe = pp->hand[i]) <= C_200)
-					miles += Value[safe]; 
+					miles += Value[safe];
 			if (miles + (Topcard - Deck) * 3 > 1000)
 				goto extend;
 			goto done;

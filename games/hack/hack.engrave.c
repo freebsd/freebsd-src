@@ -207,7 +207,7 @@ register struct obj *otmp;
 		if(type == BURN) otmp->spe++;
 		return(0);
 	}
-	
+
 	switch(type) {
 	case DUST:
 	case BURN:

@@ -88,7 +88,7 @@ unsigned int from[];
 
 	if (wordnumber <= wordcount && wordtype[wordnumber] == NOUNS)
 		switch(wordvalue[wordnumber]){
-			
+
 			case SWORD:
 				if (testbit(from, SWORD)){
 					wordtype[wordnumber--] = OBJECT;
@@ -169,7 +169,7 @@ unsigned int from[];
 					clearbit(location[position].objects,BATHGOD);
 				} else if (!testbit(location[position].objects,BATHGOD))
 					puts("You're in no position to take her.");
-				else 
+				else
 					puts("She moves away from you.");
 				break;
 
@@ -191,7 +191,7 @@ throw(name)
 	first = wordnumber;
 	if (drop(name) != -1){
 		switch(wordvalue[wordnumber]){
-			
+
 			case AHEAD:
 				deposit = ahead;
 				break;
@@ -253,7 +253,7 @@ throw(name)
 			}
 			if (wordnumber < wordcount - 1 && wordvalue[++wordnumber] == AND)
 				wordnumber++;
-			else 
+			else
 				return(first);
 		}
 		return(first);
@@ -264,7 +264,7 @@ throw(name)
 drop(name)
 char *name;
 {
-	
+
 	int firstnumber, value;
 
 	firstnumber = wordnumber;
@@ -333,7 +333,7 @@ eat()
 	while(wordnumber <= wordcount){
 		value = wordvalue[wordnumber];
 		switch(value){
-			
+
 			case -1:
 				puts("Eat what?");
 				return(firstnumber);
@@ -371,7 +371,7 @@ eat()
 					printf("You aren't holding the %s.\n", objsht[value]);
 				if (wordnumber < wordcount - 1 && wordvalue[++wordnumber] == AND)
 					wordnumber++;
-				else 
+				else
 					return(firstnumber);
 		} /* end switch */
 	} /* end while */

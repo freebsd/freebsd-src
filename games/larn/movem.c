@@ -245,7 +245,7 @@ mmove(aa,bb,cc,dd)
 	if (i==OTELEPORTER)	/* monster hits teleport trap */
 		{ flag=3; fillmonst(mitem[cc][dd]);  mitem[cc][dd]=0; }
 	if (c[BLINDCOUNT]) return;	/* if blind don't show where monsters are	*/
-	if (know[cc][dd] & 1) 
+	if (know[cc][dd] & 1)
 		{
 		p=0;
 		if (flag) cursors();

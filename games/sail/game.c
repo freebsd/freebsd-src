@@ -79,7 +79,7 @@ int dir, fs;
 		Move = (flank ? 2 : 1) - WET[windspeed][ship->specs->class-1].D;
 	else if (dir == winddir + 4 || dir == winddir - 4)
 		Move = 0;
-	else 
+	else
 		Move -= WET[windspeed][ship->specs->class-1].A;
 	Move -= riggone;
 	Move = Move < 0 ? 0 : Move;

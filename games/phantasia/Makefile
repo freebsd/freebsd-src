@@ -11,10 +11,10 @@ CLEANFILES+= characs gold lastdead mess monsters motd scoreboard void
 
 all: setup phantasia ${MAN6}
 
-setup: phantglobs.o setup.o monsters.asc ${LIBM} 
+setup: phantglobs.o setup.o monsters.asc ${LIBM}
 	${CC} phantglobs.o setup.o -o ${.TARGET} -lm
 
-beforeinstall: 
+beforeinstall:
 	./setup -m ${.CURDIR}/monsters.asc
 	install -c -m 660 -o games -g bin gold ${DESTDIR}/var/games/phantasia
 	install -c -m 660 -o games -g bin lastdead ${DESTDIR}/var/games/phantasia
