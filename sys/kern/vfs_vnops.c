@@ -233,6 +233,39 @@ vn_close(vp, flags, cred, p)
 	return (error);
 }
 
+static __inline
+int
+sequential_heuristic(struct uio *uio, struct file *fp)
+{
+	/*
+	 * Sequential heuristic - detect sequential operation
+	 */
+	if ((uio->uio_offset == 0 && fp->f_seqcount > 0) ||
+	    uio->uio_offset == fp->f_nextoff) {
+		int tmpseq = fp->f_seqcount;
+		/*
+		 * XXX we assume that the filesystem block size is
+		 * the default.  Not true, but still gives us a pretty
+		 * good indicator of how sequential the read operations
+		 * are.
+		 */
+		tmpseq += (uio->uio_resid + BKVASIZE - 1) / BKVASIZE;
+		if (tmpseq >= 127)
+			tmpseq = 127;
+		fp->f_seqcount = tmpseq;
+		return(fp->f_seqcount << 16);
+	}
+
+	/*
+	 * Not sequential, quick draw-down of seqcount
+	 */
+	if (fp->f_seqcount > 1)
+		fp->f_seqcount = 1;
+	else
+		fp->f_seqcount = 0;
+	return(0);
+}
+
 /*
  * Package up an I/O request on a vnode into a uio and do it.
  */
@@ -304,36 +337,12 @@ vn_read(fp, uio, cred, flags, p)
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 
-	/*
-	 * Sequential read heuristic.
-	 * If we have been doing sequential input,
-	 * a rewind operation doesn't turn off
-	 * sequential input mode.
-	 */
-	if ((uio->uio_offset == 0 && fp->f_seqcount > 0) ||
-	    uio->uio_offset == fp->f_nextread) {
-		int tmpseq = fp->f_seqcount;
-		/*
-		 * XXX we assume that the filesystem block size is
-		 * the default.  Not true, but still gives us a pretty
-		 * good indicator of how sequential the read operations
-		 * are.
-		 */
-		tmpseq += (uio->uio_resid + BKVASIZE - 1) / BKVASIZE;
-		if (tmpseq >= 127)
-			tmpseq = 127;
-		fp->f_seqcount = tmpseq;
-		ioflag |= fp->f_seqcount << 16;
-	} else {
-		if (fp->f_seqcount > 1)
-			fp->f_seqcount = 1;
-		else
-			fp->f_seqcount = 0;
-	}
+	ioflag |= sequential_heuristic(uio, fp);
+
 	error = VOP_READ(vp, uio, ioflag, cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
-	fp->f_nextread = uio->uio_offset;
+	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
@@ -370,9 +379,11 @@ vn_write(fp, uio, cred, flags, p)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
+	ioflag |= sequential_heuristic(uio, fp);
 	error = VOP_WRITE(vp, uio, ioflag, cred);
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
+	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }
