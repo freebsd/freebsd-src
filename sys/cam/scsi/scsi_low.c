@@ -1806,7 +1806,7 @@ scsi_low_alloc_li(ti, lun, alloc)
 
 	li = SCSI_LOW_MALLOC(ti->ti_lunsize);
 	if (li == NULL)
-		panic("no lun info mem\n");
+		panic("no lun info mem");
 
 	SCSI_LOW_BZERO(li, ti->ti_lunsize);
 	li->li_lun = lun;
@@ -1848,7 +1848,7 @@ scsi_low_alloc_ti(slp, targ)
 
 	ti = SCSI_LOW_MALLOC(slp->sl_targsize);
 	if (ti == NULL)
-		panic("%s short of memory\n", slp->sl_xname);
+		panic("%s short of memory", slp->sl_xname);
 
 	SCSI_LOW_BZERO(ti, slp->sl_targsize);
 	ti->ti_id = targ;
@@ -1955,7 +1955,7 @@ scsi_low_timeout_check(slp)
 			cb->ccb_flags |= CCB_NORETRY;
 			cb->ccb_error |= SELTIMEOUTIO;
 			if (scsi_low_revoke_ccb(slp, cb, 1) != NULL)
-				panic("%s: ccb not finished\n", slp->sl_xname);
+				panic("%s: ccb not finished", slp->sl_xname);
 		}
 
 		if (slp->sl_Tnexus == NULL)
@@ -2079,7 +2079,7 @@ scsi_low_abort_ccb(slp, cb)
 	else if ((cb->ccb_flags & CCB_DISCQ) != 0)
 	{
 		if (scsi_low_revoke_ccb(slp, cb, 0) == NULL)
-			panic("%s: revoked ccb done\n", slp->sl_xname);
+			panic("%s: revoked ccb done", slp->sl_xname);
 
 		cb->ccb_flags |= CCB_STARTQ;
 		TAILQ_INSERT_HEAD(&slp->sl_start, cb, ccb_chain);
@@ -2090,7 +2090,7 @@ scsi_low_abort_ccb(slp, cb)
 	else
 	{
 		if (scsi_low_revoke_ccb(slp, cb, 1) != NULL)
-			panic("%s: revoked ccb retried\n", slp->sl_xname);
+			panic("%s: revoked ccb retried", slp->sl_xname);
 	}
 	return 0;
 }
@@ -2115,7 +2115,7 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 #endif	/* SCSI_LOW_INTERFACE_CAM */
 
 	if (slp->sl_osdep_fp == NULL)
-		panic("scsi_low: interface not spcified\n");
+		panic("scsi_low: interface not spcified");
 
 	if (ntargs > SCSI_LOW_NTARGETS)
 	{
@@ -2385,7 +2385,7 @@ scsi_low_setup_start(slp, ti, li, cb)
 		return SCSI_LOW_START_QTAG;
 
 	default:
-		panic("%s: no setup phase\n", slp->sl_xname);
+		panic("%s: no setup phase", slp->sl_xname);
 	}
 
 	return SCSI_LOW_START_NO_QTAG;
@@ -2441,7 +2441,7 @@ scsi_low_start(slp)
 	if (slp->sl_Tnexus || slp->sl_Lnexus || slp->sl_Qnexus)
 	{
 		scsi_low_info(slp, NULL, "NEXUS INCOSISTENT");
-		panic("%s: inconsistent\n", slp->sl_xname);
+		panic("%s: inconsistent", slp->sl_xname);
 	}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
@@ -3774,7 +3774,7 @@ cmd_link_start:
 	cb->ccb_tag = SCSI_LOW_UNKTAG;
 	cb->ccb_otag = SCSI_LOW_UNKTAG;
 	if (scsi_low_done(slp, cb) == SCSI_LOW_DONE_RETRY)
-		panic("%s: linked ccb retried\n", slp->sl_xname);
+		panic("%s: linked ccb retried", slp->sl_xname);
 
 	slp->sl_Qnexus = ncb;
 	slp->sl_ph_count = 0;
@@ -4444,7 +4444,7 @@ scsi_low_revoke_ccb(slp, cb, fdone)
 	if ((cb->ccb_flags & (CCB_STARTQ | CCB_DISCQ)) == 
 	    (CCB_STARTQ | CCB_DISCQ))
 	{
-		panic("%s: ccb in both queue\n", slp->sl_xname);
+		panic("%s: ccb in both queue", slp->sl_xname);
 	}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
@@ -4471,7 +4471,7 @@ scsi_low_revoke_ccb(slp, cb, fdone)
 		cb->ccb_error |= FATALIO;
 		cb->ccb_flags &= ~CCB_AUTOSENSE;
 		if (scsi_low_done(slp, cb) != SCSI_LOW_DONE_COMPLETE)
-			panic("%s: done ccb retried\n", slp->sl_xname);
+			panic("%s: done ccb retried", slp->sl_xname);
 		return NULL;
 	}
 	else

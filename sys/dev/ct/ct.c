@@ -255,7 +255,7 @@ cthw_chip_reset(chp, chiprevp, chipclk, hostid)
 		break;
 
 	default:
-		panic("ct: illegal chip clk rate\n");
+		panic("ct: illegal chip clk rate");
 		break;
 	}
 
