@@ -2,7 +2,7 @@
 /* $NetBSD: tlsbvar.h,v 1.5 1998/05/13 23:23:23 thorpej Exp $ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -73,3 +73,15 @@ struct tlsb_cpu_busdep {
 	u_int8_t	tcpu_vid;	/* virtual ID of CPU */
 	int		tcpu_node;	/* TurboLaser node */
 };
+
+/*
+ * The structure used to attach devices to the TurboLaser.
+ */
+struct tlsb_device {
+	int		td_node;	/* node number (TLSB slot) */
+	u_int32_t	td_tldev;	/* tl device id */
+};
+#define DEVTOTLSB(dev)	((struct tlsb_device *) device_get_ivars(dev))
+#ifdef	_KERNEL
+extern struct tlsb_device *tlsb_primary_cpu;
+#endif
