@@ -914,7 +914,8 @@ smp_rendezvous(void (* setup_func)(void *),
 	int s;
 
 	/* disable interrupts on this CPU, save interrupt status */
-	s = splhigh();
+	s = save_intr();
+	disable_intr();
 
 	/* obtain rendezvous lock */
 	s_lock(&smp_rv_lock);		/* XXX sleep here? NOWAIT flag? */
@@ -937,7 +938,7 @@ smp_rendezvous(void (* setup_func)(void *),
 	s_unlock(&smp_rv_lock);
 
 	/* restore interrupt flag */
-	splx(s);
+	restore_intr(s);
 }
 
 /*

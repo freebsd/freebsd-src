@@ -134,14 +134,14 @@ promcnputc(dev, c)
 	unsigned char *to = (unsigned char *)0x20000000;
 	int s;
 
-	s = enter_prom();	/* splhigh() and map prom */
+	s = enter_prom();	/* disable_intr() and map prom */
 	*to = c;
 
 	do {
 		ret.bits = prom_putstr(alpha_console, to, 1);
 	} while ((ret.u.retval & 1) == 0);
 
-	leave_prom(s);		/* unmap prom and splx(s) */
+	leave_prom(s);		/* unmap prom and restore_intr(s) */
 }
 
 /*
@@ -189,9 +189,9 @@ promcncheckc(dev)
 static int
 enter_prom()
 {
-	int s = splhigh();
-
 	pt_entry_t *lev1map;
+	int s = save_intr();
+	disable_intr();
 
 	if (!prom_mapped) {
 #ifdef SIMOS
@@ -230,7 +230,7 @@ leave_prom __P((s))
 		lev1map[0] = saved_pte[0];	/* XXX */
 		prom_cache_sync();		/* XXX */
 	}
-	splx(s);
+	restore_intr(s);
 }
 
 static void
@@ -270,7 +270,7 @@ prom_halt(halt)
 	/*
 	 * Turn off interrupts, for sanity.
 	 */
-	(void) splhigh();
+	disable_intr();
 
 	/*
 	 * Set "boot request" part of the CPU state depending on what
