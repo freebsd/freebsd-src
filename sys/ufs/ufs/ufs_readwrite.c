@@ -491,23 +491,27 @@ WRITE(ap)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
                 /*      
-                 * Avoid a data-consistency race between write() and mmap()
-                 * by ensuring that newly allocated blocks are zerod.  The
-                 * race can occur even in the case where the write covers
-                 * the entire block.
+		 * We must perform a read-before-write if the transfer size
+		 * does not cover the entire buffer.
                  */
-		flags |= B_CLRBUF;
-#if 0
 		if (fs->fs_bsize > xfersize)
 			flags |= B_CLRBUF;
 		else
 			flags &= ~B_CLRBUF;
-#endif
 /* XXX is uio->uio_offset the right thing here? */
 		error = UFS_BALLOC(vp, uio->uio_offset, xfersize,
 		    ap->a_cred, flags, &bp);
 		if (error != 0)
 			break;
+		/*
+		 * If the buffer is not valid we have to clear out any
+		 * garbage data from the pages instantiated for the buffer.
+		 * If we do not, a failed uiomove() during a write can leave
+		 * the prior contents of the pages exposed to a userland
+		 * mmap().  XXX deal with uiomove() errors a better way.
+		 */
+		if ((bp->b_flags & B_CACHE) == 0 && fs->fs_bsize <= xfersize)
+			vfs_bio_clrbuf(bp);
 		if (ioflag & IO_DIRECT)
 			bp->b_flags |= B_DIRECT;
 		if (ioflag & IO_NOWDRAIN)
