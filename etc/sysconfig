@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.15 1995/06/17 03:37:18 ache Exp $
+#	$Id: sysconfig,v 1.16 1995/06/25 04:01:32 bde Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -144,10 +144,10 @@ namedflags="NO"
 xtend=NO
 
 # Set to the name of the device for kernel crashdumps, or `off' to
-# disable any statically configured dumpdev, or NO to do nothing.
+# disable any statically configured dumpdev, or NO for no change.
 # The device should normally be one of the swap devices specified
 # in /etc/fstab.
-# dumpdev=/dev/sd0b
+dumpdev=NO
 
 # Set to YES if you want kernel crashdumps to be saved for debugging
 savecore=NO
