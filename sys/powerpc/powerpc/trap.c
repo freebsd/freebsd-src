@@ -395,33 +395,28 @@ syscall(struct trapframe *frame)
 		bcopy(params, args, n * sizeof(register_t));
 		error = copyin(MOREARGS(frame->fixreg[1]), args + n,
 			narg - n * sizeof(register_t));
-		if (error) {
-#ifdef	KTRACE
-			/* Can't get all the arguments! */
-			if (KTRPOINT(p, KTR_SYSCALL))
-				ktrsyscall(p->p_tracep, code, narg, args);
-#endif
-			goto bad;
-		}
 		params = (caddr_t)args;
-	}
+	} else
+		error = 0;
 
+#ifdef	KTRACE
+	if (KTRPOINT(td, KTR_SYSCALL))
+		ktrsyscall(code, narg, params);
+#endif
 	/*
 	 * Try to run the syscall without Giant if the syscall is MP safe.
 	 */
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_lock(&Giant);
 
-#ifdef	KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, narg, params);
-#endif
-	td->td_retval[0] = 0;
-	td->td_retval[1] = frame->fixreg[FIRSTARG + 1];
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = frame->fixreg[FIRSTARG + 1];
 
-	STOPEVENT(p, S_SCE, narg);
+		STOPEVENT(p, S_SCE, narg);
 
-	error = (*callp->sy_call)(td, params);
+		error = (*callp->sy_call)(td, params);
+	}
 	switch (error) {
 	case 0:
 		frame->fixreg[FIRSTARG] = td->td_retval[0];
@@ -439,7 +434,6 @@ syscall(struct trapframe *frame)
 		/* nothing to do */
 		break;
 	default:
-bad:
 		if (p->p_sysent->sv_errsize) {
 			if (error >= p->p_sysent->sv_errsize)
 				error = -1;	/* XXX */
@@ -453,13 +447,13 @@ bad:
 	}
 
 	
-#ifdef	KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
-		ktrsysret(p->p_tracep, code, error, td->td_retval[0]);
-#endif
-
 	if ((callp->sy_narg & SYF_MPSAFE) == 0)
 		mtx_unlock(&Giant);
+
+#ifdef	KTRACE
+	if (KTRPOINT(td, KTR_SYSRET))
+		ktrsysret(code, error, td->td_retval[0]);
+#endif
 
 	/*
 	 * Does the comment in the i386 code about errno apply here?
