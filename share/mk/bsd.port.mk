@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.170 1995/06/26 07:06:59 asami Exp $
+# $Id: bsd.port.mk,v 1.171 1995/07/11 02:15:35 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -576,10 +576,14 @@ do-configure:
 	    ./${CONFIGURE_SCRIPT} ${CONFIGURE_ARGS})
 .endif
 .if defined(USE_IMAKE)
+.if defined(X_NO_MAKE_MAKEFILES)
+	@(cd ${WRKSRC}; ${XMKMF})
+.else
 .if defined(USE_GMAKE)
 	@(cd ${WRKSRC}; ${XMKMF} && ${GMAKE} Makefiles)
 .else
 	@(cd ${WRKSRC}; ${XMKMF} && ${MAKE} Makefiles)
+.endif
 .endif
 .endif
 .endif
