@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#define AC97_MUTE	0x8000
+#define AC97_MUTE	0x8080
 
 #define AC97_REG_RESET	0x00
 #define		AC97_CAP_MICCHANNEL	(1 << 0)
