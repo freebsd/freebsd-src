@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.43 1996/03/27 19:04:54 bde Exp $
+ *	$Id: cons.c,v 1.44 1996/03/28 14:28:14 scrappy Exp $
  */
 
 #include <sys/param.h>
@@ -327,9 +327,9 @@ cn_drvinit(void *unused)
 		cdevsw_add(&dev,&cn_cdevsw,NULL);
 		cn_devsw_installed = 1;
 #ifdef DEVFS
-		cn_devfs_token = 
-			devfs_add_devswf(&cn_cdevsw, 0, DV_CHR, 0, 0,
-				 	 0640, "console");
+		cn_devfs_token = devfs_add_devswf(&cn_cdevsw, 0, DV_CHR,
+						  UID_ROOT, GID_WHEEL, 0600,
+						  "console");
 #endif
 	}
 }
