@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.66 1997/07/17 07:17:33 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.67 1997/09/02 20:06:03 bde Exp $
  */
 
 /*
@@ -2761,5 +2761,54 @@ getvnode(fdp, fd, fpp)
 	if (fp->f_type != DTYPE_VNODE && fp->f_type != DTYPE_FIFO)
 		return (EINVAL);
 	*fpp = fp;
+	return (0);
+}
+#ifndef _SYS_SYSPROTO_H_
+struct  __getcwd_args {
+        u_char * buf;
+        u_int buflen;
+};
+#endif
+/* ARGSUSED */
+int
+__getcwd(p, uap, retval)
+	struct proc *p;
+	register struct __getcwd_args *uap;
+	register_t *retval;
+{
+	struct filedesc *fdp = p->p_fd;
+	struct vnode *vp;
+	struct namecache *ncp;
+	int i,j=0;
+
+	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
+		if (vp->v_dd->v_id != vp->v_ddid)
+			return(ENOENT);
+		ncp = TAILQ_FIRST(&vp->v_cache_dst);
+		if (!ncp)
+			return(ENOENT);
+		if (ncp->nc_dvp != vp->v_dd)
+			return(ENOENT);
+		for (i=ncp->nc_nlen-1; i >= 0; i--) {
+			if (uap->buflen-- < 2)
+				return(ENOMEM);
+			subyte(uap->buf, ncp->nc_name[i]);
+			uap->buf++;
+		}
+		if (uap->buflen-- < 2)
+			return(ENOMEM);
+		subyte(uap->buf, '/' );
+		uap->buf++;
+		j++;
+		vp = vp->v_dd;
+	}
+	if (!j) {
+		if (uap->buflen-- < 2)
+			return(ENOMEM);
+		subyte(uap->buf, '/' );
+		uap->buf++;
+	}
+	subyte(uap->buf, '\0' );
+	uap->buf++;
 	return (0);
 }

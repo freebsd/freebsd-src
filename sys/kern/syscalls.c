@@ -347,4 +347,5 @@ char *syscallnames[] = {
 	"thr_wakeup",			/* 323 = thr_wakeup */
 	"mlockall",			/* 324 = mlockall */
 	"munlockall",			/* 325 = munlockall */
+	"__getcwd",			/* 326 = __getcwd */
 };
