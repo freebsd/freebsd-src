@@ -23,8 +23,8 @@
  */
 
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: nametoaddr.c,v 1.43 96/07/17 00:11:41 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: nametoaddr.c,v 1.45 96/10/17 23:26:53 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -190,7 +190,6 @@ struct eproto eproto_db[] = {
 	{ "sprite", ETHERTYPE_SPRITE },
 	{ "mopdl", ETHERTYPE_MOPDL },
 	{ "moprc", ETHERTYPE_MOPRC },
-	{ "atalk", ETHERTYPE_ATALK },
 	{ "decnet", ETHERTYPE_DN },
 	{ "lat", ETHERTYPE_LAT },
 	{ "sca", ETHERTYPE_SCA },
