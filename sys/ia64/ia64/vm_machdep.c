@@ -159,6 +159,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	tf->tf_length = sizeof(struct trapframe);
 	tf->tf_flags = FRAME_SYSCALL;
 	tf->tf_special.ndirty = 0;
+	tf->tf_special.bspstore &= ~0x1ffUL;
 	tf->tf_scratch.gr8 = 0;
 	tf->tf_scratch.gr9 = 1;
 	tf->tf_scratch.gr10 = 0;
@@ -182,12 +183,12 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	uint64_t ndirty, stack;
 
 	tf = td->td_frame;
+	ndirty = tf->tf_special.ndirty + (tf->tf_special.bspstore & 0x1ffUL);
 
-	KASSERT((tf->tf_special.ndirty & ~PAGE_MASK) == 0,
+	KASSERT((ndirty & ~PAGE_MASK) == 0,
 	    ("Whoa there! We have more than 8KB of dirty registers!"));
 
 	fd = ku->ku_func;
-	ndirty = tf->tf_special.ndirty;
 	stack = (uint64_t)ku->ku_stack.ss_sp;
 
 	bzero(&tf->tf_special, sizeof(tf->tf_special));
@@ -228,6 +229,7 @@ cpu_fork(struct thread *td1, struct proc *p2 __unused, struct thread *td2,
     int flags)
 {
 	char *stackp;
+	uint64_t ndirty;
 
 	KASSERT(td1 == curthread || td1 == &thread0,
 	    ("cpu_fork: td1 not curthread and not thread0"));
@@ -263,9 +265,9 @@ cpu_fork(struct thread *td1, struct proc *p2 __unused, struct thread *td2,
 	td2->td_frame = (struct trapframe *)stackp;
 	bcopy(td1->td_frame, td2->td_frame, sizeof(struct trapframe));
 	td2->td_frame->tf_length = sizeof(struct trapframe);
-
-	bcopy((void*)td1->td_kstack, (void*)td2->td_kstack,
-	    td2->td_frame->tf_special.ndirty);
+	ndirty = td2->td_frame->tf_special.ndirty +
+	    (td2->td_frame->tf_special.bspstore & 0x1ffUL);
+	bcopy((void*)td1->td_kstack, (void*)td2->td_kstack, ndirty);
 
 	/* Set-up the return values as expected by the fork() libc stub. */
 	if (td2->td_frame->tf_special.psr & IA64_PSR_IS) {
@@ -277,8 +279,7 @@ cpu_fork(struct thread *td1, struct proc *p2 __unused, struct thread *td2,
 		td2->td_frame->tf_scratch.gr10 = 0;
 	}
 
-	td2->td_pcb->pcb_special.bspstore = td2->td_kstack +
-	    td2->td_frame->tf_special.ndirty;
+	td2->td_pcb->pcb_special.bspstore = td2->td_kstack + ndirty;
 	td2->td_pcb->pcb_special.pfs = 0;
 	td2->td_pcb->pcb_current_pmap = vmspace_pmap(td2->td_proc->p_vmspace);
 
