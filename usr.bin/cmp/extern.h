@@ -31,6 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
+ *
+ * $FreeBSD$
+ *
  */
 
 #define OK_EXIT		0
@@ -42,4 +45,4 @@ void	c_special __P((int, char *, off_t, int, char *, off_t));
 void	diffmsg __P((char *, char *, off_t, off_t));
 void	eofmsg __P((char *));
 
-extern int lflag, sflag;
+extern int lflag, sflag, xflag;
