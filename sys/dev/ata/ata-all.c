@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 /* device structures */
 static	d_ioctl_t	ata_ioctl;
-static struct cdevsw ata_cdevsw = {  
+static struct cdevsw ata_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
 	.d_ioctl =	ata_ioctl,
@@ -80,7 +80,7 @@ MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 struct intr_config_hook *ata_delayed_attach = NULL;
 devclass_t ata_devclass;
 uma_zone_t ata_zone;
-int ata_wc = 1;	 
+int ata_wc = 1;
 
 /* local vars */
 static int ata_dma = 1;
@@ -179,7 +179,7 @@ int
 ata_detach(device_t dev)
 {
     struct ata_channel *ch;
- 
+
     if (!dev || !(ch = device_get_softc(dev)) || !ch->r_irq)
 	return ENXIO;
 
@@ -229,7 +229,7 @@ ata_reinit(struct ata_channel *ch)
 {
     struct ata_request *request = ch->running;
     int devices, misdev, newdev;
-    
+
     if (!ch->r_irq)
 	return ENXIO;
 
@@ -271,7 +271,7 @@ ata_reinit(struct ata_channel *ch)
 	    ch->device[SLAVE].param = NULL;
 	}
     }
-    
+
     /* identify what is present on the channel now */
     ata_identify_devices(ch);
 
@@ -382,7 +382,7 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    error = ENXIO;
 	    break;
 	}
-	iocmd->u.param.type[MASTER] = 
+	iocmd->u.param.type[MASTER] =
 	    ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
 	iocmd->u.param.type[SLAVE] =
 	    ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
@@ -418,7 +418,7 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    ch->device[MASTER].setmode(&ch->device[MASTER],
 				       iocmd->u.mode.mode[MASTER]);
 	iocmd->u.mode.mode[MASTER] = ch->device[MASTER].mode;
-	if (iocmd->u.mode.mode[SLAVE] >= 0 && ch->device[SLAVE].param) 
+	if (iocmd->u.mode.mode[SLAVE] >= 0 && ch->device[SLAVE].param)
 	    ch->device[SLAVE].setmode(&ch->device[SLAVE],
 				      iocmd->u.mode.mode[SLAVE]);
 	iocmd->u.mode.mode[SLAVE] = ch->device[SLAVE].mode;
@@ -451,7 +451,7 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 		break;
 	    }
 	}
-	
+
 	request->device = atadev;
 
 	if (iocmd->u.request.flags & ATA_CMD_ATAPI) {
@@ -518,25 +518,25 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	error = ata_detach(device);
 	/* SOS should disable channel HW on controller XXX */
 	break;
-	
+
 
 #ifdef DEV_ATARAID
     case ATARAIDCREATE:
 	error = ata_raid_create(&iocmd->u.raid_setup);
 	break;
-	
+
     case ATARAIDDELETE:
 	error = ata_raid_delete(iocmd->channel);
 	break;
-	     
+
     case ATARAIDSTATUS:
 	error = ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
 	break;
-		
+
     case ATARAIDADDSPARE:
 	error = ata_raid_addspare(iocmd->channel, iocmd->u.raid_spare.disk);
 	break;
-		
+
     case ATARAIDREBUILD:
 	error = ata_raid_rebuild(iocmd->channel);
 	break;
@@ -549,7 +549,7 @@ ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 /*
  * device probe functions
  */
-static int 
+static int
 ata_getparam(struct ata_device *atadev, u_int8_t command)
 {
     struct ata_request *request;
@@ -558,7 +558,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
     if (!atadev->param)
 	atadev->param = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
     if (atadev->param) {
-	request = ata_alloc_request(); 
+	request = ata_alloc_request();
 	if (request) {
 	    int retries = 2;
 	    while (retries-- > 0) {
@@ -689,7 +689,7 @@ ata_identify_devices(struct ata_channel *ch)
 	ch->device[MASTER].setmode(&ch->device[MASTER], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_MASTER) && atapi_dma &&
 	      (ch->device[MASTER].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR)||
-	     ((ch->devices & ATA_ATA_MASTER) && ata_dma)) && ch->dma) 
+	     ((ch->devices & ATA_ATA_MASTER) && ata_dma)) && ch->dma)
 	    ch->device[MASTER].setmode(&ch->device[MASTER], ATA_DMA_MAX);
 
     }
@@ -697,12 +697,12 @@ ata_identify_devices(struct ata_channel *ch)
 	ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_PIO_MAX);
 	if ((((ch->devices & ATA_ATAPI_SLAVE) && atapi_dma &&
 	      (ch->device[SLAVE].param->config&ATA_DRQ_MASK) != ATA_DRQ_INTR) ||
-	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma) 
+	     ((ch->devices & ATA_ATA_SLAVE) && ata_dma)) && ch->dma)
 	    ch->device[SLAVE].setmode(&ch->device[SLAVE], ATA_DMA_MAX);
     }
 }
 
-static void 
+static void
 ata_boot_attach(void)
 {
     struct ata_channel *ch;
@@ -742,17 +742,17 @@ static void
 bswap(int8_t *buf, int len)
 {
     u_int16_t *ptr = (u_int16_t*)(buf + len);
-    
+
     while (--ptr >= (u_int16_t*)buf)
 	*ptr = ntohs(*ptr);
 }
 
 static void
 btrim(int8_t *buf, int len)
-{ 
+{
     int8_t *ptr;
 
-    for (ptr = buf; ptr < buf+len; ++ptr) 
+    for (ptr = buf; ptr < buf+len; ++ptr)
 	if (!*ptr)
 	    *ptr = ' ';
     for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
@@ -778,7 +778,7 @@ bpack(int8_t *src, int8_t *dst, int len)
 	}
 	dst[j++] = src[i];
     }
-    if (j < len) 
+    if (j < len)
 	dst[j] = 0x00;
 }
 
@@ -835,7 +835,7 @@ ata_free_name(struct ata_device *atadev)
 	free(atadev->name, M_ATA);
     atadev->name = NULL;
 }
-    
+
 int
 ata_get_lun(u_int32_t *map)
 {
@@ -856,7 +856,7 @@ ata_free_lun(u_int32_t *map, int lun)
 {
     *map &= ~(1 << lun);
 }
- 
+
 char *
 ata_mode2str(int mode)
 {
@@ -889,9 +889,9 @@ ata_pmode(struct ata_params *ap)
     if (ap->atavalid & ATA_FLAG_64_70) {
 	if (ap->apiomodes & 0x02)
 	    return ATA_PIO4;
-	if (ap->apiomodes & 0x01) 
+	if (ap->apiomodes & 0x01)
 	    return ATA_PIO3;
-    }	
+    }
     if (ap->mwdmamodes & 0x04)
 	return ATA_PIO4;
     if (ap->mwdmamodes & 0x02)
@@ -904,8 +904,8 @@ ata_pmode(struct ata_params *ap)
 	return ATA_PIO1;
     if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0x000)
 	return ATA_PIO0;
-    return ATA_PIO0; 
-} 
+    return ATA_PIO0;
+}
 
 int
 ata_wmode(struct ata_params *ap)
@@ -953,7 +953,7 @@ ata_limit_mode(struct ata_device *atadev, int mode, int maxmode)
     if (mode >= ATA_WDMA0 && ata_wmode(atadev->param) > 0)
 	return min(mode, ata_wmode(atadev->param));
 
-    if (mode > ata_pmode(atadev->param)) 
+    if (mode > ata_pmode(atadev->param))
 	return min(mode, ata_pmode(atadev->param));
 
     return mode;
