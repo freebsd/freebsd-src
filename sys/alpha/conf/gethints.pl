@@ -9,6 +9,7 @@
 # $FreeBSD$
 
 while (<>) {
+	$line++;
 	chop;
 	s/#.*//;
 	next unless /^device/;
@@ -94,6 +95,6 @@ while (<>) {
 			}
 			next;
 		}
-		print STDERR "unrecognized config token $key\n";
+		print STDERR "unrecognized config token '$key' on line $line\n";
 	}
 }
