@@ -72,7 +72,7 @@ logmsg(const char *fmt, ...)
 	vsprintf(s, fmt, ap);
 
 	if (do_log)
-		syslog(LOG_ERR, s);
+		syslog(LOG_ERR, "%s", s);
 	else {
 #ifdef SYSINSTALL
 		dialog_clear();
