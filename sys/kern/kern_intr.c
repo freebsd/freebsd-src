@@ -155,7 +155,7 @@ sched_swi(struct intrhand *ih, int flag)
 
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
-	CTR3(KTR_INTR, "sched_sihand pid %d(%s) need=%d",
+	CTR3(KTR_INTR, "sched_swi pid %d(%s) need=%d",
 		p->p_pid, p->p_comm, it->it_need);
 
 	/*
