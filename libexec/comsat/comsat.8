@@ -53,7 +53,7 @@ and
 .Xr inetd 8 ) .
 The one line messages are of the form:
 .Pp
-.Dl user@mailbox-offset
+.Dl user@mailbox-offset[:mailbox-name]
 .Pp
 If the
 .Em user
@@ -72,10 +72,14 @@ the message header other than the
 or
 .Dq Subject
 lines are not included in the displayed message.
+.Pp
+If mailbox-name omitted, standard mailbox assumed.
 .Sh FILES
-.Bl -tag -width /var/run/utmp -compact
+.Bl -tag -width /var/mail/user -compact
 .It Pa /var/run/utmp
 to find out who's logged on and on what terminals
+.It Pa /var/mail/user
+standard mailbox
 .El
 .Sh SEE ALSO
 .Xr biff 1 ,
