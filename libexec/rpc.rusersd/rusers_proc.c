@@ -33,19 +33,16 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rusers_proc.c,v 1.7 1997/11/26 07:36:50 charnier Exp $";
 #endif /* not lint */
 
-#include <err.h>
-#include <rpc/rpc.h>
-#include <signal.h>
+#ifdef DEBUG
+#include <errno.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <syslog.h>
 #include <utmp.h>
 #ifdef XIDLE
@@ -248,7 +245,7 @@ rusers_num()
         ufp = fopen(_PATH_UTMP, "r");
         if (!ufp) {
                 syslog(LOG_ERR, "%m");
-                return(0);
+                return(NULL);
         }
 
         /* only entries with both name and line fields */
@@ -383,8 +380,10 @@ rusers_service(rqstp, transp)
 	if (result != NULL && !svc_sendreply(transp, xdr_result, result)) {
 		svcerr_systemerr(transp);
 	}
-	if (!svc_freeargs(transp, xdr_argument, &argument))
-		errx(1, "unable to free arguments");
+	if (!svc_freeargs(transp, xdr_argument, &argument)) {
+		syslog(LOG_ERR, "unable to free arguments");
+		exit(1);
+	}
 leave:
         if (from_inetd)
                 exit(0);
