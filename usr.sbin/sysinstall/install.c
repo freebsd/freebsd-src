@@ -662,7 +662,7 @@ nodisks:
 
 #ifdef WITH_MICE
     dialog_clear_norefresh();
-    if (!msgNoYes("Does this system have a non-USB mouse attached to it?"))
+    if (!msgNoYes("Does this system have a PS/2, serial, or bus mouse?"))
 	dmenuOpenSimple(&MenuMouse, FALSE);
 #endif
 
