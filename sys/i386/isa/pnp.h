@@ -32,6 +32,7 @@
  *      $Id: pnp.h,v 1.4 1997/09/20 06:26:28 peter Exp $
  */
 
+
 #ifndef _I386_ISA_PNP_H_
 #define _I386_ISA_PNP_H_
 
@@ -256,6 +257,8 @@ struct pnp_cinfo {
 
 #ifdef KERNEL
 
+#include <i386/isa/isa_device.h>
+
 struct pnp_device {
     char *pd_name;
     char * (*pd_probe ) (u_long csn, u_long vendor_id);
@@ -263,6 +266,7 @@ struct pnp_device {
 	struct isa_device *dev);
     u_long	*pd_count;
     u_int *imask ;
+    struct isa_device dev ;
 };
 
 struct _pnp_id {
@@ -271,14 +275,7 @@ struct _pnp_id {
     u_char checksum;
 } ;
 
-struct pnp_dlist_node {
-    struct pnp_device *pnp;
-    struct isa_device dev;
-    struct pnp_dlist_node *next;
-};
-
 typedef struct _pnp_id pnp_id;
-extern struct pnp_dlist_node *pnp_device_list;
 extern pnp_id pnp_devices[MAX_PNP_CARDS];
 extern struct pnp_cinfo pnp_ldn_overrides[MAX_PNP_LDN];
 extern int pnp_overrides_valid;

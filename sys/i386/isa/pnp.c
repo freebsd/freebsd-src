@@ -29,20 +29,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>	/* for DATA_SET	*/
-#include <sys/malloc.h>
-#include <sys/interrupt.h>
 #include <machine/clock.h>
-#include <machine/md_var.h>
+#include <machine/cpufunc.h>
 
-#include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
 #include <i386/isa/pnp.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/isa.h>
+#include <i386/isa/icu.h>
 
 int num_pnp_cards = 0;
 pnp_id pnp_devices[MAX_PNP_CARDS];
-struct pnp_dlist_node *pnp_device_list;
-static struct pnp_dlist_node **pnp_device_list_last_ptr;
-
 /*
  * these entries are initialized using the autoconfig menu
  * The struct is invalid (and must be initialized) if the first
@@ -82,18 +78,13 @@ DATA_SET (pnpdevice_set, nullpnp_device);
 static char*
 nullpnp_probe(u_long tag, u_long type)
 {
-    if (bootverbose)
-	    printf("Called nullpnp_probe with tag 0x%08lx, type 0x%08lx\n",
-		    tag, type);
-    return NULL;
+    return NULL ;
 }
 
 static void
 nullpnp_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev)
 {
-    printf("nullpnp_attach: csn %ld, vend_id 0x%08lx name %s unit %d\n",
-	    csn, vend_id, name, dev->id_unit);
     return;
 }
 
@@ -228,11 +219,12 @@ read_pnp_parms(struct pnp_cinfo *d, int ldn)
 	}
     }
     if (bootverbose)
-	printf("port 0x%04x 0x%04x 0x%04x 0x%04x irq %d:%d drq %d:%d en %d\n",
-	    d->port[0], d->port[1], d->port[2], d->port[3],
-	    d->irq[0], d->irq[1],
-	    d->drq[0], d->drq[1],
-	    d->enable);
+	printf("pnp%d:%d port 0x%04x 0x%04x 0x%04x 0x%04x irq %d:%d drq %d:%d en %d fl 0x%x\n",
+	d->csn, d->ldn,
+	d->port[0], d->port[1], d->port[2], d->port[3],
+	d->irq[0], d->irq[1],
+	d->drq[0], d->drq[1],
+	d->enable, d->flags);
     return 1 ; /* success */
 }
 
@@ -332,7 +324,7 @@ enable_pnp_card()
 void
 config_pnp_device(pnp_id *p, int csn)
 {
-    static struct pnp_dlist_node *nod = NULL;
+    struct pnp_cinfo *ci;
     int i;
     u_char *data = (u_char *)p;
 
@@ -340,10 +332,12 @@ config_pnp_device(pnp_id *p, int csn)
     struct pnp_device *dvp, **dvpp;
     char *name ;
 
-    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08lx] Serial 0x%08lx\n", csn,
-	((data[0] & 0x7c) >> 2) + '@',
-	(((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
-	(data[1] & 0x1f) + '@', data[2], data[3], p->vendor_id, p->serial);
+    printf("CSN %d Vendor ID: %c%c%c%02x%02x [0x%08x] Serial 0x%08x\n",
+	    csn,
+	    ((data[0] & 0x7c) >> 2) + '@',
+	    (((data[0] & 0x03) << 3) | ((data[1] & 0xe0) >> 5)) + '@',
+	    (data[1] & 0x1f) + '@', data[2], data[3],
+	    p->vendor_id, p->serial);
 
     doing_pnp_probe = 1 ;
     current_csn = csn ;
@@ -357,10 +351,8 @@ config_pnp_device(pnp_id *p, int csn)
 	if (pnp_ldn_overrides[i].csn == csn &&
 		pnp_ldn_overrides[i].override == 1) {
 	    struct pnp_cinfo d;
-	    if (bootverbose)
-		printf("PnP: override config for CSN %d LDN %d "
-		    "vend_id 0x%08x\n", csn, pnp_ldn_overrides[i].ldn,
-		    current_pnp_id);
+	    printf("PnP: override config for CSN %d LDN %d vend_id 0x%08x\n",
+		csn, pnp_ldn_overrides[i].ldn, current_pnp_id);
 	    /* next assignement is done otherwise read fails */
 	    d.vendor_id = current_pnp_id ;
 	    read_pnp_parms(&d, pnp_ldn_overrides[i].ldn);
@@ -380,9 +372,9 @@ config_pnp_device(pnp_id *p, int csn)
 
     /* lookup device in ioconfiguration */
     dvpp = (struct pnp_device **)pnpdevice_set.ls_items;
-    while ((dvp = *dvpp++)) {
+    while ( (dvp = *dvpp++) ) {
 	if (dvp->pd_probe) {
-	    if ((name = (*dvp->pd_probe)(csn, p->vendor_id)))
+	    if ( (name = (*dvp->pd_probe)(csn, p->vendor_id)) )
 		break;
 	}
     }
@@ -400,70 +392,32 @@ config_pnp_device(pnp_id *p, int csn)
 	 * the attach routine until enable_pnp_card() has been done.
 	 */
 	
-	if (nod == NULL)
-		nod = malloc(sizeof(struct pnp_dlist_node), M_DEVBUF, M_NOWAIT);
-	if (nod == NULL)
-		panic("malloc failed for PnP resource use");
-	bzero(nod, sizeof(*nod));
-	nod->pnp = dvp;
-	nod->dev.id_unit = unit ;
+	bzero( &(dvp->dev), sizeof(dvp->dev) );
+	dvp->dev.id_unit = unit ;
 	if (dvp->pd_attach)
-	    (*dvp->pd_attach) (csn, p->vendor_id, name, &(nod->dev));
-	printf("%s%d (%s <%s> sn 0x%08lx)", nod->dev.id_driver &&
-	    nod->dev.id_driver->name ? nod->dev.id_driver->name : "unknown",
-	    unit, dvp->pd_name, name, p->serial);
-	if (nod->dev.id_alive) {
-	    if (nod->dev.id_irq) {
-		/* the board uses interrupts. Register it. */
-		if (dvp->imask)
-		    INTRMASK( *(dvp->imask), nod->dev.id_irq );
-		register_intr(ffs(nod->dev.id_irq) - 1, nod->dev.id_id,
-		    nod->dev.id_ri_flags, nod->dev.id_intr,
-		    dvp->imask, nod->dev.id_unit);
-		INTREN(nod->dev.id_irq);
-	    }
-	    if (nod->dev.id_alive != 0) {
-	        if (nod->dev.id_iobase == -1) 
-		    printf(" at ?");
-		else {
-		    printf(" at 0x%x", nod->dev.id_iobase);
-		    if ((nod->dev.id_iobase + nod->dev.id_alive -1) !=
-			nod->dev.id_iobase) {
-			printf("-0x%x", nod->dev.id_iobase + nod->dev.id_alive
-			    - 1);
-		    }
-		}
-	    }
-	    if (nod->dev.id_irq)
-		printf(" irq %d", ffs(nod->dev.id_irq) - 1);
-	    if (nod->dev.id_drq != -1)
-		printf(" drq %d", nod->dev.id_drq);
-	    if (nod->dev.id_maddr)
-		printf(" maddr 0x%lx", kvtop(nod->dev.id_maddr));
-	    if (nod->dev.id_msize)
-		printf(" msize %d", nod->dev.id_msize);
-	    if (nod->dev.id_flags)
-		printf(" flags 0x%x", nod->dev.id_flags);
-	    if (nod->dev.id_iobase && !(nod->dev.id_iobase & 0xf300)) {
-		printf(" on motherboard");
-		printf(" id %d", nod->dev.id_id);
-	    } else if (nod->dev.id_iobase >= 0x1000 &&
-		!(nod->dev.id_iobase & 0x300)) {
-		printf (" on eisa slot %d",
-		    nod->dev.id_iobase >> 12);
-	    } else {
-		printf (" on isa");
-	    }
-	    printf("\n");
-	    if (pnp_device_list_last_ptr == NULL)
-		pnp_device_list = nod;
-	    else
-	        *pnp_device_list_last_ptr = nod;
-	    pnp_device_list_last_ptr = &(nod->next);
-	    nod = NULL;
-	} else
-	    printf(" failed to attach\n");
+	    (*dvp->pd_attach) (csn, p->vendor_id, name, &(dvp->dev));
+	if (dvp->dev.id_irq) {
+	    /* the board uses interrupts. Register it. */
+	    if (dvp->imask)
+		INTRMASK( *(dvp->imask), dvp->dev.id_irq );
+	    register_intr(ffs(dvp->dev.id_irq)-1, dvp->dev.id_id,
+		dvp->dev.id_ri_flags, dvp->dev.id_intr,
+		dvp->imask, dvp->dev.id_unit);
+	    INTREN(dvp->dev.id_irq);
+	}
+	printf("%s%d (%s <%s> sn 0x%08x) at 0x%x "
+	    "irq %d drq %d flags 0x%x id %d\n",
+		dvp->dev.id_driver && dvp->dev.id_driver->name ?
+		    dvp->dev.id_driver->name : "unknown",
+		unit,
+		dvp->pd_name, name, p->serial,
+		dvp->dev.id_iobase,
+		ffs(dvp->dev.id_irq)-1,
+		dvp->dev.id_drq,
+		dvp->dev.id_flags,
+		dvp->dev.id_id);
     }
+
     doing_pnp_probe = 0 ;
 }
 
@@ -552,8 +506,7 @@ pnp_configure()
 	    break;
     }
     if (!num_pnp_devs) {
-	if (bootverbose)
-	    printf("No Plug-n-Play devices were found\n");
+	printf("No Plug-n-Play devices were found\n");
 	return;
     }
 }
