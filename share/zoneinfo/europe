@@ -1351,8 +1351,6 @@ Zone	Europe/Rome	0:49:56 -	LMT	1866 Sep 22
 # Vatican is identical to Europe/Rome; San Marino is like Europe/Rome.
 
 # ZONE-DESCR Europe Rome Italy All points
-# ZONE-DESCR Europe Rome Vatican_City All points
-# ZONE-DESCR Europe Rome San_Marino All points
 
 # Latvia
 # They switched from the Julian to the Gregorian calendar on 1918 Feb 15.
