@@ -47,9 +47,15 @@ if [ -f image.uu ] ; then
 else
 	uudecode -p ${1}/image.uu | bzcat > $D
 fi
-gbde attach $D -p foo
+
+if [ `md5 < $D` != "a4066a739338d451b919e63f9ee4a12c" ] ; then
+	echo "Failed to set up md(4) device correctly"
+	exit 2
+fi
+
+./gbde attach $D -p foo
 fsck_ffs ${D}.bde
-gbde detach $D
+./gbde detach $D
 mdconfig -d -u $MD
 
 
