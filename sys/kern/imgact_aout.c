@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.42 1998/09/14 05:36:49 jdp Exp $
+ *	$Id: imgact_aout.c,v 1.43 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -232,8 +232,8 @@ exec_aout_imgact(imgp)
 }
 
 /*
- * Dump core, into a file named "progname.core", unless the process was
- * setuid/setgid.
+ * Dump core, into a file named as described in the comments for
+ * expand_name(), unless the process was setuid/setgid.
  */
 int
 aout_coredump(p)
@@ -248,7 +248,6 @@ aout_coredump(p)
 	char *name;			/* name of corefile */
 
 	STOPEVENT(p, S_CORE, 0);
-
 	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
 		return (EFAULT);
 	if (ctob(UPAGES + vm->vm_dsize + vm->vm_ssize) >=
@@ -257,7 +256,6 @@ aout_coredump(p)
 	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
 	if (name == NULL)
 		return (EFAULT);	/* XXX -- not the best error */
-	
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
 	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
 	free(name, M_TEMP);
