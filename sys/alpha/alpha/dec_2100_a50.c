@@ -241,7 +241,7 @@ dec_2100_a50_intr_map(void *arg)
 	 *  interrupt will actually be routed.  Thank you, NetBSD
 	 */
 	   
-	pirqreg = chipset.cfgreadl(0, 7, 0, SIO_PCIREG_PIRQ_RTCTRL);
+	pirqreg = chipset.cfgreadl(0, 0, 7, 0, SIO_PCIREG_PIRQ_RTCTRL);
 	pirqline = (pirqreg >> (pirq * 8)) & 0xff;
 	if ((pirqline & 0x80) != 0)
 		panic("bad pirqline %d",pirqline);

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.110 1999/05/10 17:56:23 dfr Exp $
+**  $Id: pcisupport.c,v 1.111 1999/05/11 07:55:31 peter Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -869,6 +869,19 @@ static int pcib_attach(device_t dev)
 		return 0;
 }
 
+static int
+pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+{
+	if (which == PCIB_IVAR_HOSE) {
+		/*
+		 * Pass up to parent bus.
+		 */
+		*result = pci_get_hose(dev);
+		return(0);
+	}
+	return ENOENT;
+}
+
 static device_method_t pcib_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcib_probe),
@@ -879,6 +892,7 @@ static device_method_t pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_read_ivar,	pcib_read_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
