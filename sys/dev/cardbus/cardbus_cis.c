@@ -565,9 +565,9 @@ void
 cardbus_cis_free(device_t dev, struct cis_tupleinfo *buff, int* nret)
 {
 	int i;
-	for (i = 0; i < nret; i++)
+	for (i = 0; i < *nret; i++)
 		free(buff[i].data, M_DEVBUF);
-	if (nret > 0)
+	if (*nret > 0)
 		free(buff, M_DEVBUF);
 }
 
