@@ -79,6 +79,11 @@
 #include <net/bpf.h>
 #endif
 
+#include "opt_bdg.h"
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif /* BRIDGE */
+
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
@@ -1333,7 +1338,21 @@ static void vr_rxeof(sc)
 				continue;
 			}
 		}
-#endif
+#endif /* NBPF>0 */
+#ifdef BRIDGE
+		if (do_bridge) {
+			struct ifnet		*bdg_ifp;
+			bdg_ifp = bridge_in(m);
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_DROP)
+				bdg_forward(&m, bdg_ifp);
+			if (((bdg_ifp != BDG_LOCAL) && (bdg_ifp != BDG_BCAST) &&
+			    (bdg_ifp != BDG_MCAST)) || bdg_ifp == BDG_DROP) {
+				m_freem(m);
+				continue;
+			}
+		}
+#endif /* BRIDGE */
+
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
