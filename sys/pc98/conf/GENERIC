@@ -175,7 +175,7 @@ device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 device		ep		# Etherlink III based cards
 options 	FE_8BIT_SUPPORT	# LAC-98 support
 device		fe		# Fujitsu MB8696x based cards
-#device		lnc
+device		lnc		# C-NET(98)S
 device		sn		# SMC's 9000 series of ethernet chips
 device		snc
 device		xe		# Xircom pccard ethernet

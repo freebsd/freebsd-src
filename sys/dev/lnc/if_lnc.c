@@ -140,41 +140,52 @@ void lnc_dump_state __P((struct lnc_softc *sc));
 void mbuf_dump_chain __P((struct mbuf *m));
 #endif
 
-void write_csr(struct lnc_softc *, u_short, u_short);
-u_short read_csr(struct lnc_softc *, u_short);
-void lnc_release_resources(device_t);
-
 u_short
 read_csr(struct lnc_softc *sc, u_short port)
 {
-	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, sc->rap, port);
-	return(bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, sc->rdp));
+	lnc_outw(sc->rap, port);
+	return (lnc_inw(sc->rdp));
 }
 
 void
 write_csr(struct lnc_softc *sc, u_short port, u_short val)
 {
-	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, sc->rap, port);
-	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, sc->rdp, val);
+	lnc_outw(sc->rap, port);
+	lnc_outw(sc->rdp, val);
 }
-
-#undef inb
-#define inb(port) bus_space_read_1(sc->lnc_btag, sc->lnc_bhandle, port)
-#define inw(port) bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, port)
-#define outw(port, val) bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, port, val)
 
 static __inline void
 write_bcr(struct lnc_softc *sc, u_short port, u_short val)
 {
-	outw(sc->rap, port);
-	outw(sc->bdp, val);
+	lnc_outw(sc->rap, port);
+	lnc_outw(sc->bdp, val);
 }
 
 static __inline u_short
 read_bcr(struct lnc_softc *sc, u_short port)
 {
-	outw(sc->rap, port);
-	return (inw(sc->bdp));
+	lnc_outw(sc->rap, port);
+	return (lnc_inw(sc->bdp));
+}
+
+int
+lance_probe(struct lnc_softc *sc)
+{
+	write_csr(sc, CSR0, STOP);
+
+	if ((lnc_inw(sc->rdp) & STOP) && ! (read_csr(sc, CSR3))) {
+		/*
+		 * Check to see if it's a C-LANCE. For the LANCE the INEA bit
+		 * cannot be set while the STOP bit is. This restriction is
+		 * removed for the C-LANCE.
+		 */
+		write_csr(sc, CSR0, INEA);
+		if (read_csr(sc, CSR0) & INEA)
+			return (C_LANCE);
+		else
+			return (LANCE);
+	} else
+		return (UNKNOWN);
 }
 
 static __inline u_long
@@ -613,7 +624,7 @@ lnc_rint(struct lnc_softc *sc)
 	 * here have been dealt with.
 	 */
 
-	outw(sc->rdp, RINT | INEA);
+	lnc_outw(sc->rdp, RINT | INEA);
 }
 
 static __inline void
@@ -848,7 +859,7 @@ lnc_tint(struct lnc_softc *sc)
 	 * the completed transmissions.
 	 */
 
-	outw(sc->rdp, TINT | INEA);
+	lnc_outw(sc->rdp, TINT | INEA);
 }
 
 int
@@ -859,10 +870,14 @@ lnc_attach_common(device_t dev)
 	int i;
 	int skip;
 
-	if (sc->nic.ident == BICC) {
+	switch (sc->nic.ident) {
+	case BICC:
+	case CNET98S:
 		skip = 2;
-	} else {
+		break;
+	default:
 		skip = 1;
+		break;
 	}
 
 	/* Set default mode */
@@ -884,7 +899,7 @@ lnc_attach_common(device_t dev)
 
 	/* Extract MAC address from PROM */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		sc->arpcom.ac_enaddr[i] = inb(i * skip);
+		sc->arpcom.ac_enaddr[i] = lnc_inb(i * skip);
 
 	/*
 	 * XXX -- should check return status of if_attach
@@ -1118,7 +1133,7 @@ lncintr(void *arg)
 	 * we have to include it in any writes that clear other flags.
 	 */
 
-	while ((csr0 = inw(sc->rdp)) & INTR) {
+	while ((csr0 = lnc_inw(sc->rdp)) & INTR) {
 
 		/*
 		 * Clear interrupt flags early to avoid race conditions. The
@@ -1128,8 +1143,8 @@ lncintr(void *arg)
 		 * be missed.
 		 */
 
-		outw(sc->rdp, csr0);
-		/*outw(sc->rdp, IDON | CERR | BABL | MISS | MERR | RINT | TINT | INEA);*/
+		lnc_outw(sc->rdp, csr0);
+		/*lnc_outw(sc->rdp, IDON | CERR | BABL | MISS | MERR | RINT | TINT | INEA);*/
 
 #ifdef notyet
 		if (csr0 & IDON) {
@@ -1355,7 +1370,7 @@ lnc_start(struct ifnet *ifp)
 		}
 
 		/* Force an immediate poll of the transmit ring */
-		outw(sc->rdp, TDMD | INEA);
+		lnc_outw(sc->rdp, TDMD | INEA);
 
 		/*
 		 * Set a timer so if the buggy Am7990.h shuts
@@ -1514,7 +1529,7 @@ lnc_dump_state(struct lnc_softc *sc)
 	    read_csr(sc, CSR2), read_csr(sc, CSR3));
 
 	/* Set RAP back to CSR0 */
-	outw(sc->rap, CSR0);
+	lnc_outw(sc->rap, CSR0);
 }
 
 void

@@ -84,6 +84,22 @@
 #define ACON	0x0002
 #define BCON	0x0001
 
+/* ISA Bus Configuration Registers */
+#define MSRDA   0x0000  /* ISACSR0: Master Mode Read Activity */
+#define MSWRA   0x0001  /* ISACSR1: Master Mode Write Activity */
+#define MC      0x0002  /* ISACSR2: Miscellaneous Configuration */
+
+#define LED1    0x0005  /* ISACSR5: LED1 Status */
+#define LED2    0x0006  /* ISACSR6: LED2 Status */
+#define LED3    0x0007  /* ISACSR7: LED3 Status */
+
+#define LED_PSE         0x0080  /* Pulse Stretcher */
+#define LED_XMTE        0x0010  /* Transmit Status */
+#define LED_RVPOLE      0x0008  /* Receive Polarity */
+#define LED_RCVE        0x0004  /* Receive Status */
+#define LED_JABE        0x0002  /* Jabber */
+#define LED_COLE        0x0001  /* Collision */
+
 /* Initialisation block */
 
 struct init_block {
@@ -191,32 +207,3 @@ struct mds {
 #define LCAR	0x0800		/* Loss of carrier      */
 #define RTRY	0x0400		/* Tried 16 times       */
 #define TDR 	0x03FF		/* Time domain reflectometry */
-
-/* C-NET(98)S port addresses */
-#define CNET98S_RDP    0x400     /* Register Data Port */
-#define CNET98S_RAP    0x402     /* Register Address Port */
-#define CNET98S_RESET  0x404
-#define CNET98S_IDP    0x406
-#define CNET98S_EEPROM 0x40e
-/*
- * XXX - The I/O address range is fragmented in the C-NET(98)S.
- *       This is the number of regs at iobase.
- */
-#define CNET98S_IOSIZE    16     /* # of i/o addresses used. */
-
-/* ISA Bus Configuration Registers */
-/* XXX - Should be in ic/Am7990.h */
-#define MSRDA   0x0000  /* ISACSR0: Master Mode Read Activity */
-#define MSWRA   0x0001  /* ISACSR1: Master Mode Write Activity */
-#define MC      0x0002  /* ISACSR2: Miscellaneous Configuration */
-
-#define LED1    0x0005  /* ISACSR5: LED1 Status */
-#define LED2    0x0006  /* ISACSR6: LED2 Status */
-#define LED3    0x0007  /* ISACSR7: LED3 Status */
-
-#define LED_PSE         0x0080  /* Pulse Stretcher */
-#define LED_XMTE        0x0010  /* Transmit Status */
-#define LED_RVPOLE      0x0008  /* Receive Polarity */
-#define LED_RCVE        0x0004  /* Receive Status */
-#define LED_JABE        0x0002  /* Jabber */
-#define LED_COLE        0x0001  /* Collision */

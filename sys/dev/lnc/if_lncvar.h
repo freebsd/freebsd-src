@@ -76,19 +76,14 @@
 /* DEPCA specific defines */
 #define DEPCA_ADDR_ROM_SIZE 32
 
-#ifdef PC98
 /* C-NET(98)S port addresses */
-#define CNET98S_RDP    0x400     /* Register Data Port */
-#define CNET98S_RAP    0x402     /* Register Address Port */
-#define CNET98S_RESET  0x404
-#define CNET98S_IDP    0x406
-#define CNET98S_EEPROM 0x40e
-/*
- * XXX - The I/O address range is fragmented in the C-NET(98)S.
- *       This is the number of regs at iobase.
- */
-#define CNET98S_IOSIZE    16     /* # of i/o addresses used. */
-#endif
+/* Notice, we can ignore fragmantation by using isa_alloc_resourcev(). */
+#define CNET98S_IOSIZE   32     
+#define CNET98S_RDP    0x10      /* Register Data Port */
+#define CNET98S_RAP    0x12      /* Register Address Port */
+#define CNET98S_RESET  0x14
+#define CNET98S_IDP    0x16
+#define CNET98S_EEPROM 0x1e
 
 /* Chip types */
 #define LANCE           1        /* Am7990   */
@@ -199,7 +194,6 @@ typedef struct lnc_softc {
 	int drqrid;
 	struct resource *portres;
 	int portrid;
-	int iobase;
 	bus_space_tag_t lnc_btag;
 	bus_space_handle_t lnc_bhandle;
 	void *intrhand;
@@ -250,9 +244,21 @@ struct host_ring_entry {
 #define RECV_NEXT (sc->recv_ring->base + sc->recv_next)
 #define TRANS_NEXT (sc->trans_ring->base + sc->trans_next)
 
+#define lnc_inb(port) \
+	bus_space_read_1(sc->lnc_btag, sc->lnc_bhandle, (port))
+#define lnc_inw(port) \
+	bus_space_read_2(sc->lnc_btag, sc->lnc_bhandle, (port))
+#define lnc_outw(port, val) \
+	bus_space_write_2(sc->lnc_btag, sc->lnc_bhandle, (port), (val))
+
 /* Functional declarations */
+extern int lance_probe __P((struct lnc_softc *));
+extern void lnc_release_resources __P((device_t));
 extern int lnc_attach_common __P((device_t));
 extern void lnc_stop __P((struct lnc_softc *));
+
+extern void write_csr __P((struct lnc_softc *, u_short, u_short));
+extern u_short read_csr __P((struct lnc_softc *, u_short));
 
 /* Variable declarations */
 extern driver_intr_t lncintr; 
