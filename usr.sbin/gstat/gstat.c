@@ -268,7 +268,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-        fprintf(stderr, "usage: gstat [-cd] [-I interval]\n");
+        fprintf(stderr, "usage: gstat [-acd] [-I interval]\n");
         exit(1);
         /* NOTREACHED */
 }
