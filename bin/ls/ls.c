@@ -267,6 +267,7 @@ main(int argc, char *argv[])
 			f_inode = 1;
 			break;
 		case 'k':
+			f_humanval = 0;
 			f_kblocks = 1;
 			break;
 		case 'm':

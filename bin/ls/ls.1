@@ -186,6 +186,14 @@ option is specified, print the file size allocation in kilobytes,
 not blocks.
 This option overrides the environment variable
 .Ev BLOCKSIZE .
+Note that
+.Fl k
+is mutually exclusive to
+.Fl h
+and later
+.Fl k
+will nullify earlier
+.Fl h .
 .It Fl l
 (The lowercase letter
 .Dq ell . )
