@@ -7,22 +7,63 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
+# Sort options by "Matthew Emmerton" <matt@gsicomp.on.ca>
+#
 # $FreeBSD$
 #
-# This shellscript will make a cross reference of the symbols of the LINT 
-# kernel.
+# This shell script will make a cross reference of the symbols of a kernel.
+#
 
 COMPILEDIR=/sys/`uname -m`/compile
 KERNELNAME=LINT
+SORTORDER=-k1
 
-if [ "x$1" != "x" ]; then
-	KERNELNAME=$1;
+args=`getopt h?k:s: $*`;
+if [ $? != 0 ]
+then
+	args="-h";
 fi
-
-if [ ! -d ${COMPILEDIR}/${KERNELNAME} ]; then
-	echo "Kernel $KERNELNAME does not exist in ${COMPILEDIR}!";
-	exit 1;
-fi
+set -- $args;
+for i
+do
+	case "$i"
+	in
+	-h|-\?)
+		echo "Usage: $0 [ -k <kernelname> ] [ -s [ 'symbol' | 'filename' ] ]";
+		exit 0;
+		;;
+	-k)
+		KERNELNAME=$2
+		if [ -d ${COMPILEDIR}/${KERNELNAME} ];
+		then
+			shift; shift;
+			continue;
+		fi
+		echo "Kernel '$KERNELNAME' does not exist in ${COMPILEDIR}!";
+		exit 1;
+		;;
+	-s)
+		if [ "x$2" = "xsymbol" ]
+		then
+			SORTORDER=-k1
+			shift; shift;
+			continue;
+		fi
+		if [ "x$2" = "xfilename" ]
+		then
+			SORTORDER=-k2
+			shift; shift;
+			continue;
+		fi
+		echo "Invalid selection for -s: $2";
+		exit 1;
+		;;
+	--)
+		shift;
+		break;
+		;;
+	esac
+done
 
 cd ${COMPILEDIR}/${KERNELNAME}
 
@@ -73,7 +114,7 @@ END	{
 		printf "%s {%s} %s\n",i,def[i],ref[i]
 	}
 	}
-' | sort | awk '
+' | sort $SORTORDER | awk '
 	{
 	if ($2 == "{S}")
 		$2 = "<Linker set>"
