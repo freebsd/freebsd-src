@@ -114,6 +114,11 @@ Typically the problem manifests itself as: "panic: hose encoding hack
 would clobber base address" during boot. You might try to work around
 it by reconfiguring your machine. There is no clear recipe for this, as the
 problem is triggered by the way the SRM console sets up the machine.
+In addition, booting from an installation CD does not work. A transplanted
+disk that was installed on another Alpha is the workaround for this.
+
+AlphaServer 4[01]00 does not want to boot from CD or floppy but a transplanted 
+disk that was installed on another Alpha works.
 
 1.2. SECURITY FIXES
 -------------------
