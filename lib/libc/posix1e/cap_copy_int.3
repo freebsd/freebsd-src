@@ -22,7 +22,7 @@
 .\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.  
+.\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
@@ -31,54 +31,52 @@
 .Os
 .Sh NAME
 .Nm cap_copy_int
-.Nd Convert an External Capability Representation to a Capability State in
-Working Storage
+.Nd convert an external capability representation to a capability state in
+working storage
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/capability.h>
+.In sys/types.h
+.In sys/capability.h
 .Ft cap_t
 .Fn cap_copy_int "void *ext_p"
 .Sh DESCRIPTION
 The
-.Nm
-function converts an external capability representation as returned by
-.Nm cap_copy_ext
-in the memory that
-.Va ext_p
-points to to a handle to a capability state in working storage.
+.Fn cap_copy_int
+function converts an external capability representation (as returned by
+.Xr cap_copy_ext 3 )
+in the buffer pointed to by
+.Fa ext_p
+to a handle to a capability state in working storage.
 .Pp
 This function may cause memory to be allocated.
 The caller should free any releasable memory, when the capability state
 in working memory is no longer required, by calling
 .Xr cap_free 3
 with the
-.Va cap_t
+.Vt cap_t
 as an argument.
 .Sh RETURN VALUES
 Upon successful completion, the
-.Nm
+.Fn cap_copy_int
 function returns a handle to a capability state in working storage.
-On error, it returns
-.Va (cap_t)NULL
-and sets
+Otherwise,
+.Dv NULL
+is returned and the global variable
 .Va errno
-appropriately.
+is set to indicate the error.
 .Sh ERRORS
-The following
-.Dv errno
-values can be set by
-.Nm cap_copy_ext :
+.Fn cap_copy_int
+fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
-.Va ext_p
+.Fa ext_p
 does not refer to an external representation as returned by
-.Xr cap_copy_ext 3
+.Xr cap_copy_ext 3 .
 .It Bq Er ENOMEM
-Not enough memory could be allocated in the working storage to hold the
-capability state.
+The allocation of memory to hold the capability state
+has failed.
 .El
 .Sh SEE ALSO
 .Xr cap_copy_int 3 ,
@@ -90,10 +88,7 @@ capability state.
 .Sh STANDARDS
 This function is expected to conform to the withdrawn
 IEEE draft 1003.1e
-.Po
-.Do  POSIX.1e
-.Dc
-.Pc .
+.Pq Dq POSIX.1e .
 .Sh HISTORY
 This function first appeared in
 .Fx 5.0 .
