@@ -57,6 +57,7 @@ typedef enum {
 	Pstat,	        /* kernel/system statistics */
 	Puptime,	/* system uptime */
 	Pversion,	/* system version */
+	Ploadavg	/* system load average */
 } pfstype;
 
 /*
@@ -132,6 +133,7 @@ int linprocfs_douptime __P((struct proc *, struct proc *, struct pfsnode *pfsp, 
 int linprocfs_doversion __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int linprocfs_doprocstat __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int linprocfs_doprocstatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int linprocfs_doloadavg __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /* functions to check whether or not files should be displayed */
 int linprocfs_validfile __P((struct proc *));

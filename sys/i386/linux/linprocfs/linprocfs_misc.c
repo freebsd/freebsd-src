@@ -496,3 +496,36 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 	xlen = imin(xlen, uio->uio_resid);
 	return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
 }
+
+int
+linprocfs_doloadavg(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+     char *ps, psbuf[512];
+     int xlen;
+	extern int nextpid;
+
+	ps=psbuf;
+
+	ps += sprintf(ps,
+		"%d.%02d %d.%02d %d.%02d %d/%d %d\n",
+		(int)(averunnable.ldavg[0] / averunnable.fscale),
+		(int)(averunnable.ldavg[0] * 100 / averunnable.fscale % 100),
+		(int)(averunnable.ldavg[1] / averunnable.fscale),
+		(int)(averunnable.ldavg[1] * 100 / averunnable.fscale % 100),
+		(int)(averunnable.ldavg[2] / averunnable.fscale),
+		(int)(averunnable.ldavg[2] * 100 / averunnable.fscale % 100),
+		1,			/* number of running tasks */
+		-1,			/* number of tasks */
+		nextpid		/* The last pid */
+	);
+
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = imin(xlen, uio->uio_resid);
+     return (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+}

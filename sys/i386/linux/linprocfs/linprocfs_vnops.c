@@ -529,6 +529,7 @@ linprocfs_getattr(ap)
 	case Pstat:
 	case Puptime:
 	case Pversion:
+	case Ploadavg:
 		vap->va_bytes = vap->va_size = 0;
 		vap->va_uid = 0;
 		vap->va_gid = 0;
@@ -706,6 +707,8 @@ linprocfs_lookup(ap)
 			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Puptime));
 		if (CNEQ(cnp, "version", 7))
 			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Pversion));
+		if (CNEQ(cnp, "loadavg", 7))
+			return (linprocfs_allocvp(dvp->v_mount, vpp, 0, Ploadavg));
 
 		pid = atopid(pname, cnp->cn_namelen);
 		if (pid == NO_PID)
@@ -901,6 +904,14 @@ linprocfs_readdir(ap)
 				bcopy("version", dp->d_name, 8);
 				dp->d_type = DT_REG;
 				break;
+
+			case 8:
+				dp->d_fileno = PROCFS_FILENO(0, Ploadavg);
+				dp->d_namlen = 7;
+				bcopy("loadavg", dp->d_name, 8);
+				dp->d_type = DT_REG;
+				break;
+
 
 			default:
 				while (pcnt < i) {
