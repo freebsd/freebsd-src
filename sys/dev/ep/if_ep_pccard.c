@@ -236,23 +236,6 @@ bad:
 	return (error);
 }
 
-static int
-ep_pccard_detach(device_t dev)
-{
-	struct ep_softc *sc = device_get_softc(dev);
-
-	if (sc->gone) {
-		device_printf(dev, "already unloaded\n");
-		return (0);
-	}
-	sc->arpcom.ac_if.if_flags &= ~IFF_RUNNING; 
-	ether_ifdetach(&sc->arpcom.ac_if);
-	sc->gone = 1;
-	bus_teardown_intr(dev, sc->irq, sc->ep_intrhand);
-	ep_free(dev);
-	return (0);
-}
-
 static const struct pccard_product ep_pccard_products[] = {
 	PCMCIA_CARD(3COM, 3C1, 0),
 	PCMCIA_CARD(3COM, 3C562, 0),
@@ -281,7 +264,7 @@ static device_method_t ep_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_compat_probe),
 	DEVMETHOD(device_attach,	pccard_compat_attach),
-	DEVMETHOD(device_detach,	ep_pccard_detach),
+	DEVMETHOD(device_detach,	ep_detach),
 
 	/* Card interface */
 	DEVMETHOD(card_compat_match,	ep_pccard_match),

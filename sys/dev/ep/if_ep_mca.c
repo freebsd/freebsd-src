@@ -149,6 +149,7 @@ static device_method_t ep_mca_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ep_mca_probe),
 	DEVMETHOD(device_attach,	ep_mca_attach),
+	DEVMETHOD(device_detach,	ep_detach),
 
 	{ 0, 0 }
 };
