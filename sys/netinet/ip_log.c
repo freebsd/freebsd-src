@@ -5,7 +5,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: ip_log.c,v 2.1.2.2 1999/09/21 11:55:44 darrenr Exp $
+ * $Id: ip_log.c,v 2.5.2.1 2000/07/19 13:11:47 darrenr Exp $
  * $FreeBSD$
  */
 #include <sys/param.h>
@@ -22,6 +22,12 @@
 #  endif
 #  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 #   include "opt_ipfilter.h"
+#  endif
+# else
+#  ifdef KLD_MODULE
+#   include <sys/osreldate.h>
+#  else
+#   include <osreldate.h>
 #  endif
 # endif
 #endif

@@ -6,14 +6,20 @@
  * to the original author and the contributors.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.1.2.2 2000/01/24 13:13:52 darrenr Exp $
+ * $Id: ip_state.h,v 2.13.2.1 2000/07/08 02:15:35 darrenr Exp $
  * $FreeBSD$
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
 
-#define	IPSTATE_SIZE	257
-#define	IPSTATE_MAX	2048	/* Maximum number of states held */
+#if defined(__STDC__) || defined(__GNUC__)
+# define	SIOCDELST	_IOW('r', 61, struct ipstate *)
+#else
+# define	SIOCDELST	_IOW(r, 61, struct ipstate *)
+#endif
+
+#define	IPSTATE_SIZE	5737
+#define	IPSTATE_MAX	4013	/* Maximum number of states held */
 
 #define	PAIRS(s1,d1,s2,d2)	((((s1) == (s2)) && ((d1) == (d2))) ||\
 				 (((s1) == (d2)) && ((d1) == (s2))))
