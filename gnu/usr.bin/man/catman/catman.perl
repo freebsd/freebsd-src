@@ -26,7 +26,7 @@
 #
 # /usr/bin/catman - preformat man pages
 #
-# $Id: catman.perl,v 1.8 1996/08/27 20:04:01 wosch Exp $
+# $Id: catman.perl,v 1.8.2.1 1998/05/01 13:30:14 des Exp $
 
 
 sub usage {
@@ -176,7 +176,7 @@ sub catdir_create {
     $catdir = &man2cat($subdir);
     if (-d $catdir) {
 	return 1 if -w _;
-	if (!chmod(755, $catdir)) {
+	if (!chmod(0755, $catdir)) {
 	    warn "Cannot write $catdir, chmod: $!\n";
 	    $exit = 1;
 	    return 0;
