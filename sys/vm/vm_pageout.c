@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.20 1994/10/22 02:18:03 davidg Exp $
+ * $Id: vm_pageout.c,v 1.21 1994/10/23 20:53:33 davidg Exp $
  */
 
 /*
@@ -511,26 +511,24 @@ redeact:
 	cache_size = orig_cache_size;
 	object = vm_object_cached_list.tqh_first;
 	vm_object_cache_lock();
-	while ( object && (cnt.v_inactive_count < cnt.v_inactive_target) &&
-		(cache_size >= (vm_swap_size?vm_desired_cache_size:0))) {
+	while ( object && (cnt.v_inactive_count < cnt.v_inactive_target)) {
 		vm_object_cache_unlock();
-
 		/*
 		 * if there are no resident pages -- get rid of the object
 		 */
 		if( object->resident_page_count == 0) {
 			if (object != vm_object_lookup(object->pager))
-				panic("vm_object_deactivate: I'm sooo confused.");
+				panic("vm_pageout_scan: I'm sooo confused.");
 			pager_cache(object, FALSE);
 			goto redeact;
-		} else {
+		} else if( cache_size >= (vm_swap_size?vm_desired_cache_size:0)) {
 		/*
 		 * if there are resident pages -- deactivate them
 		 */
 			vm_object_deactivate_pages(object);
 			cache_size -= object->resident_page_count;
-			object = object->cached_list.tqe_next;
 		}
+		object = object->cached_list.tqe_next;
 
 		vm_object_cache_lock();
 	}
