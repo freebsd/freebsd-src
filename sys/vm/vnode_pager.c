@@ -521,8 +521,10 @@ vnode_pager_input_smlfs(object, m)
 		}
 	}
 	vm_pager_unmap_page(kva);
+	vm_page_lock_queues();
 	pmap_clear_modify(m);
 	vm_page_flag_clear(m, PG_ZERO);
+	vm_page_unlock_queues();
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
@@ -587,11 +589,13 @@ vnode_pager_input_old(object, m)
 		}
 		vm_pager_unmap_page(kva);
 	}
+	vm_page_lock_queues();
 	pmap_clear_modify(m);
 	vm_page_undirty(m);
 	vm_page_flag_clear(m, PG_ZERO);
 	if (!error)
 		m->valid = VM_PAGE_BITS_ALL;
+	vm_page_unlock_queues();
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
