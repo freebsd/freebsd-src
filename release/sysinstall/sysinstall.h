@@ -110,6 +110,10 @@
 #define VAR_FTP_STATE			"ftpState"
 #define VAR_FTP_USER			"ftpUser"
 #define VAR_FTP_HOST			"ftpHost"
+#define VAR_HTTP_PATH			"_httpPath"
+#define VAR_HTTP_PORT			"httpPort"
+#define VAR_HTTP_HOST			"httpHost"
+#define VAR_HTTP_FTP_MODE		"httpFtpMode"
 #define VAR_GATEWAY			"defaultrouter"
 #define VAR_GEOMETRY			"geometry"
 #define VAR_HOSTNAME			"hostname"
@@ -235,6 +239,7 @@ typedef enum {
     DEVICE_TYPE_UFS,
     DEVICE_TYPE_NFS,
     DEVICE_TYPE_ANY,
+    DEVICE_TYPE_HTTP,
 } DeviceType;
 
 /* CDROM mount codes */
@@ -530,6 +535,10 @@ extern Boolean	mediaInitFTP(Device *dev);
 extern FILE	*mediaGetFTP(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownFTP(Device *dev);
 
+/* http.c */
+extern Boolean	mediaInitHTTP(Device *dev);
+extern FILE	*mediaGetHTTP(Device *dev, char *file, Boolean probe);
+
 /* globals.c */
 extern void	globalsInit(void);
 
@@ -600,6 +609,7 @@ extern int	mediaSetTape(dialogMenuItem *self);
 extern int	mediaSetFTP(dialogMenuItem *self);
 extern int	mediaSetFTPActive(dialogMenuItem *self);
 extern int	mediaSetFTPPassive(dialogMenuItem *self);
+extern int	mediaSetHTTP(dialogMenuItem *self);
 extern int	mediaSetUFS(dialogMenuItem *self);
 extern int	mediaSetNFS(dialogMenuItem *self);
 extern int	mediaSetFTPUserPass(dialogMenuItem *self);

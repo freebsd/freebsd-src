@@ -99,6 +99,7 @@ static struct _word {
     { "mediaSetFTP",		mediaSetFTP		},
     { "mediaSetFTPActive",	mediaSetFTPActive	},
     { "mediaSetFTPPassive",	mediaSetFTPPassive	},
+    { "mediaSetHTTP",		mediaSetHTTP		},
     { "mediaSetUFS",		mediaSetUFS		},
     { "mediaSetNFS",		mediaSetNFS		},
     { "mediaSetFTPUserPass",	mediaSetFTPUserPass	},
