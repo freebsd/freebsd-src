@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.58 1998/02/22 18:00:54 ache Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.59 1998/02/23 09:39:27 ache Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -1703,8 +1703,8 @@ msdosfs_readdir(ap)
 					continue;
 				chksum = win2unixfn((struct winentry *)dentp,
 					&dirbuf, chksum,
-					(pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
-					pmp->pm_u2w : NULL);
+					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+					pmp->pm_u2w);
 				continue;
 			}
 
@@ -1743,9 +1743,10 @@ msdosfs_readdir(ap)
 			if (chksum != winChksum(dentp->deName))
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
-				    pmp->pm_flags & MSDOSFSMNT_SHORTNAME,
-				    (pmp->pm_flags & MSDOSFSMNT_ULTABLE) ?
-				    pmp->pm_ul : NULL);
+				    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+				    pmp->pm_d2u,
+				    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
+				    pmp->pm_ul);
 			else
 				dirbuf.d_name[dirbuf.d_namlen] = 0;
 			chksum = -1;

@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.20 1998/02/22 18:00:49 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.21 1998/02/23 09:39:24 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -338,6 +338,42 @@ u2l[256] = {
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, /* f8-ff */
 };
 
+static u_char
+l2u[256] = {
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, /* 00-07 */
+	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, /* 08-0f */
+	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, /* 10-17 */
+	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, /* 18-1f */
+	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, /* 20-27 */
+	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, /* 28-2f */
+	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, /* 30-37 */
+	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, /* 38-3f */
+	0x40, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, /* 40-47 */
+	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, /* 48-4f */
+	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, /* 50-57 */
+	0x78, 0x79, 0x7a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, /* 58-5f */
+	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, /* 60-67 */
+	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, /* 68-6f */
+	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, /* 70-77 */
+	0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, /* 78-7f */
+	0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, /* 80-87 */
+	0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f, /* 88-8f */
+	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, /* 90-97 */
+	0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, /* 98-9f */
+	0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, /* a0-a7 */
+	0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf, /* a8-af */
+	0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, /* b0-b7 */
+	0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf, /* b8-bf */
+	0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, /* c0-c7 */
+	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, /* c8-cf */
+	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xd7, /* d0-d7 */
+	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xdf, /* d8-df */
+	0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, /* e0-e7 */
+	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef, /* e8-ef */
+	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, /* f0-f7 */
+	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff, /* f8-ff */
+};
+
 /*
  * DOS filenames are made of 2 parts, the name part and the extension part.
  * The name part is 8 characters long and the extension part is 3
@@ -351,16 +387,17 @@ u2l[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, lower, ul)
+dos2unixfn(dn, un, d2u_loaded, d2u, ul_loaded, ul)
 	u_char dn[11];
 	u_char *un;
-	int lower;
+	int d2u_loaded;
+	u_int8_t *d2u;
+	int ul_loaded;
 	u_int8_t *ul;
 {
 	int i;
 	int thislong = 1;
 	u_char c;
-	int table_loaded = (ul != NULL);
 
 	/*
 	 * If first char of the filename is SLOT_E5 (0x05), then the real
@@ -369,22 +406,23 @@ dos2unixfn(dn, un, lower, ul)
 	 * directory slot. Another dos quirk.
 	 */
 	if (*dn == SLOT_E5)
-		c = dos2unix[0xe5];
+		c = d2u_loaded ? d2u[0xe5 & 0x7f] : dos2unix[0xe5];
 	else
-		c = dos2unix[*dn];
-	*un++ = lower ?
-		(table_loaded && (c & 0x80) ?
-		 ul[c & 0x7f] : u2l[c]) : c;
+		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
+		    dos2unix[*dn];
+	*un++ = ul_loaded && (c & 0x80) ?
+		ul[c & 0x7f] : u2l[c];
 	dn++;
 
 	/*
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 1; i < 8 && *dn != ' '; i++) {
-		c = dos2unix[*dn++];
-		*un++ = lower ?
-			(table_loaded && (c & 0x80) ?
-			 ul[c & 0x7f] : u2l[c]) : c;
+		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
+		    dos2unix[*dn];
+		dn++;
+		*un++ = ul_loaded && (c & 0x80) ?
+			ul[c & 0x7f] : u2l[c];
 		thislong++;
 	}
 	dn += 8 - i;
@@ -397,10 +435,11 @@ dos2unixfn(dn, un, lower, ul)
 		*un++ = '.';
 		thislong++;
 		for (i = 0; i < 3 && *dn != ' '; i++) {
-			c = dos2unix[*dn++];
-			*un++ = lower ?
-				(table_loaded && (c & 0x80) ?
-				 ul[c & 0x7f] : u2l[c]) : c;
+			c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
+			    dos2unix[*dn];
+			dn++;
+			*un++ = ul_loaded && (c & 0x80) ?
+				ul[c & 0x7f] : u2l[c];
 			thislong++;
 		}
 	}
@@ -421,16 +460,21 @@ dos2unixfn(dn, un, lower, ul)
  *	3 if conversion was successful and generation number was inserted
  */
 int
-unix2dosfn(un, dn, unlen, gen)
+unix2dosfn(un, dn, unlen, gen, u2d_loaded, u2d, lu_loaded, lu)
 	const u_char *un;
 	u_char dn[12];
 	int unlen;
 	u_int gen;
+	int u2d_loaded;
+	u_int8_t *u2d;
+	int lu_loaded;
+	u_int8_t *lu;
 {
 	int i, j, l;
 	int conv = 1;
 	const u_char *cp, *dp, *dp1;
 	u_char gentext[6], *wcp;
+	u_int8_t c;
 
 	/*
 	 * Fill the dos filename string with blanks. These are DOS's pad
@@ -494,7 +538,12 @@ unix2dosfn(un, dn, unlen, gen)
 		else
 			l = unlen - (dp - un);
 		for (i = 0, j = 8; i < l && j < 11; i++, j++) {
-			if (dp[i] != (dn[j] = unix2dos[dp[i]])
+			c = dp[i];
+			c = lu_loaded && (c & 0x80) ?
+			    lu[c & 0x7f] : l2u[c];
+			c = u2d_loaded && (c & 0x80) ?
+			    u2d[c & 0x7f] : unix2dos[c];
+			if (dp[i] != (dn[j] = c)
 			    && conv != 3)
 				conv = 2;
 			if (!dn[j]) {
@@ -514,7 +563,11 @@ unix2dosfn(un, dn, unlen, gen)
 	 * Now convert the rest of the name
 	 */
 	for (i = j = 0; un < dp && j < 8; i++, j++, un++) {
-		if (*un != (dn[j] = unix2dos[*un])
+		c = lu_loaded && (*un & 0x80) ?
+		    lu[*un & 0x7f] : l2u[*un];
+		c = u2d_loaded && (c & 0x80) ?
+		    u2d[c & 0x7f] : unix2dos[c];
+		if (*un != (dn[j] = c)
 		    && conv != 3)
 			conv = 2;
 		if (!dn[j]) {
@@ -571,19 +624,19 @@ unix2dosfn(un, dn, unlen, gen)
  *	 i.e. doesn't consist solely of blanks and dots
  */
 int
-unix2winfn(un, unlen, wep, cnt, chksum, u2w)
+unix2winfn(un, unlen, wep, cnt, chksum, table_loaded, u2w)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int cnt;
 	int chksum;
+	int table_loaded;
 	u_int16_t *u2w;
 {
 	const u_int8_t *cp;
 	u_int8_t *wcp;
 	int i;
 	u_int16_t code;
-	int table_loaded = (u2w != NULL);
 
 	/*
 	 * Drop trailing blanks and dots
@@ -671,19 +724,19 @@ find_lcode(code, u2w)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, wep, chksum, u2w, ul)
+winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, lu_loaded, lu)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int chksum;
+	int u2w_loaded;
 	u_int16_t *u2w;
-	u_int8_t *ul;
+	int lu_loaded;
+	u_int8_t *lu;
 {
 	u_int8_t *cp;
 	int i;
 	u_int16_t code;
-	int u2w_loaded = (u2w != NULL);
-	int ul_loaded = (ul != NULL);
 	u_int8_t c1, c2;
 
 	/*
@@ -722,10 +775,10 @@ winChkName(un, unlen, wep, chksum, u2w, ul)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = ul_loaded && (code & 0x80) ?
-		     ul[code & 0x7f] : u2l[code];
-		c2 = ul_loaded && (*un & 0x80) ?
-		     ul[*un & 0x7f] : u2l[*un];
+		c1 = lu_loaded && (code & 0x80) ?
+		     lu[code & 0x7f] : l2u[code];
+		c2 = lu_loaded && (*un & 0x80) ?
+		     lu[*un & 0x7f] : l2u[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
@@ -744,10 +797,10 @@ winChkName(un, unlen, wep, chksum, u2w, ul)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = ul_loaded && (code & 0x80) ?
-		     ul[code & 0x7f] : u2l[code];
-		c2 = ul_loaded && (*un & 0x80) ?
-		     ul[*un & 0x7f] : u2l[*un];
+		c1 = lu_loaded && (code & 0x80) ?
+		     lu[code & 0x7f] : l2u[code];
+		c2 = lu_loaded && (*un & 0x80) ?
+		     lu[*un & 0x7f] : l2u[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
@@ -766,10 +819,10 @@ winChkName(un, unlen, wep, chksum, u2w, ul)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = ul_loaded && (code & 0x80) ?
-		     ul[code & 0x7f] : u2l[code];
-		c2 = ul_loaded && (*un & 0x80) ?
-		     ul[*un & 0x7f] : u2l[*un];
+		c1 = lu_loaded && (code & 0x80) ?
+		     lu[code & 0x7f] : l2u[code];
+		c2 = lu_loaded && (*un & 0x80) ?
+		     lu[*un & 0x7f] : l2u[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
@@ -783,17 +836,17 @@ winChkName(un, unlen, wep, chksum, u2w, ul)
  * Returns the checksum or -1 if impossible
  */
 int
-win2unixfn(wep, dp, chksum, u2w)
+win2unixfn(wep, dp, chksum, table_loaded, u2w)
 	struct winentry *wep;
 	struct dirent *dp;
 	int chksum;
+	int table_loaded;
 	u_int16_t *u2w;
 {
 	u_int8_t *cp;
 	u_int8_t *np, *ep = dp->d_name + WIN_MAXLEN;
 	u_int16_t code;
 	int i;
-	int table_loaded = (u2w != NULL);
 
 	if ((wep->weCnt&WIN_CNT) > howmany(WIN_MAXLEN, WIN_CHARS)
 	    || !(wep->weCnt&WIN_CNT))
