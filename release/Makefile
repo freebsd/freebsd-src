@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.129 1995/04/08 09:45:31 phk Exp $
+#	$Id: Makefile,v 1.130 1995/04/08 21:29:56 phk Exp $
 #
 # How to roll a release:
 #
@@ -15,7 +15,7 @@
 EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	secure ${EXPORT_DISTS}
 
-CPIO1=	etc/services etc/protocols
+CPIO1=	etc/services etc/protocols etc/sysconfig
 CPIO2=  scripts/miscfuncs.sh scripts/instdist.sh scripts/netinst.sh \
 	scripts/adduser.sh scripts/bininst.sh scripts/setup.sh
 
