@@ -641,6 +641,13 @@ int
 main(int argc, char **argv)
 {
 	int c, fd;
+	int (*dialog_utc)(unsigned char *, unsigned char *, int, int);
+
+#if defined(__alpha__)
+	dialog_utc = dialog_yesno;
+#else
+	dialog_utc = dialog_noyes;
+#endif
 
 	while ((c = getopt(argc, argv, "n")) != -1) {
 		switch(c) {
@@ -665,9 +672,9 @@ main(int argc, char **argv)
 	make_menus();
 
 	init_dialog();
-	if (!dialog_noyes("Select local or UTC (Greenwich Mean Time) clock",
-			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
-			  "or you don't know, please choose NO here!", 7, 72)) {
+	if (!dialog_utc("Select local or UTC (Greenwich Mean Time) clock",
+			"Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
+			"or you don't know, please choose NO here!", 7, 72)) {
 		if (reallydoit)
 			unlink(_PATH_WALL_CMOS_CLOCK);
 	} else {
