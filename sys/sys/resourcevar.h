@@ -100,7 +100,7 @@ struct uidinfo {
 	long	ui_proccnt;		/* number of processes */
 	uid_t	ui_uid;			/* uid */
 	u_int	ui_ref;			/* reference count */
-	struct mtx	*ui_mtxp;	/* protect all counts/limits */
+	struct mtx *ui_mtxp;		/* protect all counts/limits */
 };
 
 #define	UIDINFO_LOCK(ui)	mtx_lock((ui)->ui_mtxp)
@@ -118,22 +118,22 @@ int	 chgproccnt(struct uidinfo *uip, int diff, int max);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t max);
 int	 fuswintr(void *base);
-rlim_t	 lim_cur(struct proc *p, int which);
-rlim_t	 lim_max(struct proc *p, int which);
-void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
-void	 lim_copy(struct plimit *dst, struct plimit *src);
-void	 lim_free(struct plimit *limp);
 struct plimit
 	*lim_alloc(void);
+void	 lim_copy(struct plimit *dst, struct plimit *src);
+rlim_t	 lim_cur(struct proc *p, int which);
+void	 lim_free(struct plimit *limp);
 struct plimit
 	*lim_hold(struct plimit *limp);
+rlim_t	 lim_max(struct proc *p, int which);
+void	 lim_rlimit(struct proc *p, int which, struct rlimit *rlp);
 void	 ruadd(struct rusage *ru, struct rusage *ru2);
 int	 suswintr(void *base, int word);
 struct uidinfo
 	*uifind(uid_t uid);
-void	 uihold(struct uidinfo *uip);
 void	 uifree(struct uidinfo *uip);
-void	uihashinit(void);
-#endif
+void	 uihashinit(void);
+void	 uihold(struct uidinfo *uip);
 
-#endif	/* !_SYS_RESOURCEVAR_H_ */
+#endif /* _KERNEL */
+#endif /* !_SYS_RESOURCEVAR_H_ */
