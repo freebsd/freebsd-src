@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)refill.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: refill.c,v 1.6 1997/02/22 15:02:22 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
@@ -82,6 +82,7 @@ __srefill(fp)
 	if ((fp->_flags & __SRD) == 0) {
 		if ((fp->_flags & __SRW) == 0) {
 			errno = EBADF;
+			fp->_flags |= __SERR;
 			return (EOF);
 		}
 		/* switch to reading */
