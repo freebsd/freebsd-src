@@ -241,6 +241,13 @@ ntp_gettime1(struct ntptimeval *ntvp)
 		ntvp->time_state = TIME_ERROR;
 }
 
+/*
+ * ntp_gettime() - NTP user application interface
+ *
+ * See the timex.h header file for synopsis and API description. Note
+ * that the TAI offset is returned in the ntvtimeval.tai structure
+ * member.
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct ntp_gettime_args {
 	struct ntptimeval *ntvp;
@@ -257,13 +264,6 @@ ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
 }
 
-/*
- * ntp_gettime() - NTP user application interface
- *
- * See the timex.h header file for synopsis and API description. Note
- * that the TAI offset is returned in the ntvtimeval.tai structure
- * member.
- */
 static int
 ntp_sysctl(SYSCTL_HANDLER_ARGS)
 {
