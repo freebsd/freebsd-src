@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.11 1995/05/30 08:09:58 rgrimes Exp $
+ * $Id: tcp_subr.c,v 1.11.4.1 1995/07/23 05:04:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -440,6 +440,10 @@ tcp_ctlinput(cmd, sa, ip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
+#if 1
+	else if (cmd == PRC_MSGSIZE)
+		notify = tcp_mtudisc;
+#endif
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
 		return;
@@ -465,6 +469,83 @@ tcp_quench(inp, errno)
 	if (tp)
 		tp->snd_cwnd = tp->t_maxseg;
 }
+
+#if 1
+/*
+ * When `need fragmentation' ICMP is received, update our idea of the MSS
+ * based on the new value in the route.  Also nudge TCP to send something,
+ * since we know the packet we just sent was dropped.
+ * This duplicates some code in the tcp_mss() function in tcp_input.c.
+ */
+void
+tcp_mtudisc(inp, errno)
+	struct inpcb *inp;
+	int errno;
+{
+	struct tcpcb *tp = intotcpcb(inp);
+	struct rtentry *rt;
+	struct rmxp_tao *taop;
+	struct socket *so = inp->inp_socket;
+	int offered;
+	int mss;
+
+	if (tp) {
+		rt = tcp_rtlookup(inp);
+		if (!rt || !rt->rt_rmx.rmx_mtu) {
+			tp->t_maxopd = tp->t_maxseg = tcp_mssdflt;
+			return;
+		}
+		taop = rmx_taop(rt->rt_rmx);
+		offered = taop->tao_mssopt;
+		mss = rt->rt_rmx.rmx_mtu - sizeof(struct tcpiphdr);
+		if (offered)
+			mss = min(mss, offered);
+		/*
+		 * XXX - The above conditional probably violates the TCP
+		 * spec.  The problem is that, since we don't know the
+		 * other end's MSS, we are supposed to use a conservative
+		 * default.  But, if we do that, then MTU discovery will
+		 * never actually take place, because the conservative
+		 * default is much less than the MTUs typically seen
+		 * on the Internet today.  For the moment, we'll sweep
+		 * this under the carpet.
+		 *
+		 * The conservative default might not actually be a problem
+		 * if the only case this occurs is when sending an initial
+		 * SYN with options and data to a host we've never talked
+		 * to before.  Then, they will reply with an MSS value which
+		 * will get recorded and the new parameters should get
+		 * recomputed.  For Further Study.
+		 */
+		if (tp->t_maxopd <= mss)
+			return;
+		tp->t_maxopd = mss;
+
+		if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
+		    (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP)
+			mss -= TCPOLEN_TSTAMP_APPA;
+		if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
+		    (tp->t_flags & TF_RCVD_CC) == TF_RCVD_CC)
+			mss -= TCPOLEN_CC_APPA;
+#if	(MCLBYTES & (MCLBYTES - 1)) == 0
+		if (mss > MCLBYTES)
+			mss &= ~(MCLBYTES-1);
+#else
+		if (mss > MCLBYTES)
+			mss = mss / MCLBYTES * MCLBYTES;
+#endif
+		if (so->so_snd.sb_hiwat < mss)
+			mss = so->so_snd.sb_hiwat;
+
+		tp->t_maxseg = mss;
+
+		tcpstat.tcps_mturesent++;
+		tp->t_rtt = 0;
+		tp->snd_nxt = tp->snd_una;
+		tcp_output(tp);
+	}
+}
+#endif
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route

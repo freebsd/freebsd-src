@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.7 1995/05/30 08:09:42 rgrimes Exp $
+ * $Id: ip_icmp.c,v 1.7.4.1 1995/07/23 05:52:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -300,6 +300,46 @@ icmp_input(m, hlen)
 			printf("deliver to protocol %d\n", icp->icmp_ip.ip_p);
 #endif
 		icmpsrc.sin_addr = icp->icmp_ip.ip_dst;
+#if 1
+		/*
+		 * MTU discovery:
+		 * If we got a needfrag and there is a host route to the
+		 * original destination, and the MTU is not locked, then
+		 * set the MTU in the route to the suggested new value
+		 * (if given) and then notify as usual.  The ULPs will
+		 * notice that the MTU has changed and adapt accordingly.
+		 * If no new MTU was suggested, then we guess a new one
+		 * less than the current value.  If the new MTU is 
+		 * unreasonably small (arbitrarily set at 296), then
+		 * we reset the MTU to the interface value and enable the
+		 * lock bit, indicating that we are no longer doing MTU
+		 * discovery.
+		 */
+		if (code == PRC_MSGSIZE) {
+			struct rtentry *rt;
+			int mtu;
+
+			rt = rtalloc1((struct sockaddr *)&icmpsrc, 0,
+				      RTF_CLONING | RTF_PRCLONING);
+			if (rt && (rt->rt_flags & RTF_HOST)
+			    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
+				mtu = ntohs(icp->icmp_nextmtu);
+				if (!mtu)
+					mtu = ip_next_mtu(rt->rt_rmx.rmx_mtu,
+							  1);
+				if (!mtu || mtu < 296) {
+					/* rt->rt_rmx.rmx_mtu =
+						rt->rt_ifp->if_mtu; */
+					rt->rt_rmx.rmx_locks |= RTV_MTU;
+				} else if (rt->rt_rmx.rmx_mtu > mtu) {
+					rt->rt_rmx.rmx_mtu = mtu;
+				}
+			}
+			if (rt)
+				RTFREE(rt);
+		}
+
+#endif
 		ctlfunc = inetsw[ip_protox[icp->icmp_ip.ip_p]].pr_ctlinput;
 		if (ctlfunc)
 			(*ctlfunc)(code, (struct sockaddr *)&icmpsrc,
@@ -604,3 +644,43 @@ icmp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	}
 	/* NOTREACHED */
 }
+
+#if 1
+/*
+ * Return the next larger or smaller MTU plateau (table from RFC 1191)
+ * given current value MTU.  If DIR is less than zero, a larger plateau
+ * is returned; otherwise, a smaller value is returned.
+ */
+int
+ip_next_mtu(mtu, dir)
+	int mtu;
+	int dir;
+{
+	static int mtutab[] = {
+		65535, 32000, 17914, 8166, 4352, 2002, 1492, 1006, 508, 296,
+		68, 0
+	};
+	int i;
+
+	for (i = 0; i < (sizeof mtutab) / (sizeof mtutab[0]); i++) {
+		if (mtu >= mtutab[i])
+			break;
+	}
+
+	if (dir < 0) {
+		if (i == 0) {
+			return 0;
+		} else {
+			return mtutab[i - 1];
+		}
+	} else {
+		if (mtutab[i] == 0) {
+			return 0;
+		} else if(mtu > mtutab[i]) {
+			return mtutab[i];
+		} else {
+			return mtutab[i + 1];
+		}
+	}
+}
+#endif
