@@ -32,14 +32,18 @@
  *
  */
 
-#define XXX 0
+#define XXX		0
+#define XXX_TRACKING	0
 
 /*
  * XXX build options - move to LINT
  */
-#define RAY_NEED_STARTJOIN_TIMEO	/* Might be needed with build 4 */
 #define RAY_DEBUG		100	/* Big numbers get more verbose */
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands - only used for downloading startup parameters */
+#define RAY_NEED_STARTJOIN_TIMO	0	/* Might be needed with build 4 */
+#define RAY_SJ_TIMEOUT		(90*hz)	/* Timeout for failing STARTJOIN commands - only used with RAY_NEED_STARTJOIN_TIMO */
+#define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
+#define RAY_DUMP_CM_ON_GIFMEDIA	1	/* Dump some common memory when the SIOCGIFMEDIA ioctl is issued - a nasty hack for debugging and will be placed by an ioctl and control program */
 /*
  * XXX build options - move to LINT
  */
@@ -52,20 +56,41 @@
 #endif /* RAY_DEBUG */
 
 #if RAY_DEBUG > 0
+
 #define RAY_DHEX8(p, l) do { if (RAY_DEBUG > 10) {		\
     u_int8_t *i;						\
     for (i = p; i < (u_int8_t *)(p+l); i += 8)			\
     	printf("  0x%08lx %8D\n",				\
 		(unsigned long)i, (unsigned char *)i, " ");	\
 } } while (0)
-#define RAY_DPRINTF(x)	do { if (RAY_DEBUG) {			\
+
+#define RAY_DPRINTF(x) do { if (RAY_DEBUG) {			\
     printf x ;							\
-    } } while (0)
+} } while (0)
+
+#define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG) {			\
+    printf("ray%d: Network parameters%s\n", (sc)->unit, (s));		\
+    printf("  bss_id %6D\n", (sc)->sc_bss_id, ":");			\
+    printf("  inited 0x%02x\n", (sc)->sc_inited);			\
+    printf("  def_txrate 0x%02x\n", (sc)->sc_def_txrate);		\
+    printf("  encrypt 0x%02x\n", (sc)->sc_encrypt);			\
+    printf("  net_type 0x%02x\n", (sc)->sc_net_type);			\
+    printf("  ssid \"%.32s\"\n", (sc)->sc_ssid);			\
+    printf("  priv_start 0x%02x\n", (sc)->sc_priv_start);		\
+    printf("  priv_join 0x%02x\n", (sc)->sc_priv_join);			\
+} } while (0)
+
 #else
 #define RAY_HEX8(p, l)
-#define RAY_HEX16(p, l)
 #define RAY_DPRINTF(x)
-#endif /* RAY_DEBUG */
+#define RAY_DNET_DUMP(sc, s)
+#endif /* RAY_DEBUG > 0 */
+
+#if RAY_DEBUG > 10
+#define RAY_DMBUF_DUMP(sc, m, s)	ray_dump_mbuf((sc), (m), (s))
+#else
+#define RAY_DMBUF_DUMP(sc, m, s)
+#endif /* RAY_DEBUG > 10 */
 
 #include "ray.h"
 #include "card.h"
@@ -127,42 +152,47 @@
  */
 struct ray_softc {
 
-    struct arpcom	arpcom;		/* Ethernet common */
-    struct ifmedia	ifmedia;	/* Ifnet common */
+    struct arpcom	arpcom;		/* Ethernet common 		*/
+    struct ifmedia	ifmedia;	/* Ifnet common 		*/
     struct callout_handle \
-    			timerh;		/* Handle for timer */
-#ifdef RAY_NEED_STARTJOIN_TIMEO
+    			timerh;		/* Handle for timer		*/
+#if RAY_NEED_STARTJOIN_TIMO
     struct callout_handle \
-    			sj_timerh;	/* Handle for start_join timer */
-#endif /* RAY_NEED_STARTJOIN_TIMEO */
+    			sj_timerh;	/* Handle for start_join timer	*/
+#endif /* RAY_NEED_STARTJOIN_TIMO */
 
-    char		*card_type;	/* Card model name */
-    char		*vendor;	/* Card manufacturer */
+    char		*card_type;	/* Card model name		*/
+    char		*vendor;	/* Card manufacturer		*/
 
-    int			unit;		/* Unit number */
-    u_char		gone;		/* 1 = Card bailed out */
-    int			irq;		/* Assigned IRQ */
-    caddr_t		maddr;		/* Shared RAM Address */
-    int			msize;		/* Shared RAM Size */
+    int			unit;		/* Unit number			*/
+    u_char		gone;		/* 1 = Card bailed out		*/
+    int			irq;		/* Assigned IRQ			*/
+    caddr_t		maddr;		/* Shared RAM Address		*/
+    int			msize;		/* Shared RAM Size		*/
 
+    int			translation;	/* Packet translation types	*/
     /* XXX these can go when attribute reading is fixed */
-    int			slotnum;	/* Slot number */
-    struct mem_desc	md;		/* Map info for common memory */
+    int			slotnum;	/* Slot number			*/
+    struct mem_desc	md;		/* Map info for common memory	*/
 
-    struct ray_ecf_startup_v5	\
-    			sc_ecf_startup; /* Startup info from card */
+    struct ray_ecf_startup_v5 \
+    			sc_ecf_startup; /* Startup info from card	*/
 
-    u_int8_t		sc_ccsinuse[64];/* ccs in use -- not for tx */
-    size_t		sc_ccs;		/* ccs used by non-scheduled,
-    					 * non-overlapping procedures */
+    u_int8_t		sc_ccsinuse[64];/* ccss' in use -- not for tx	*/
+    size_t		sc_ccs;		/* ccs used by non-scheduled,	*/
+    					/* non-overlapping procedures	*/
 
-    u_int8_t		sc_bssid[ETHER_ADDR_LEN];	/* Current net values */
+    struct ray_cmd_net	sc_cnet_1;	/* current network params from	*/
+    struct ray_net_params sc_cnet_2;	/* starting/joining a network	*/
+
+#if 0
     u_int8_t		sc_cnwid[IEEE80211_NWID_LEN];	/* Last nwid */
     u_int8_t		sc_dnwid[IEEE80211_NWID_LEN];	/* Desired nwid */
     u_int8_t		sc_omode;	/* Old operating mode SC_MODE_xx */
     u_int8_t		sc_mode;	/* Current operating mode SC_MODE_xx */
     u_int8_t		sc_countrycode;	/* Current country code */
     u_int8_t		sc_dcountrycode;/* Desired country code */
+#endif
     int			sc_havenet;	/* true if we have aquired a network */
 };
 static struct ray_softc ray_softc[NRAY];
@@ -171,11 +201,16 @@ static struct ray_softc ray_softc[NRAY];
 #define	sc_version	sc_ecf_startup.e_fw_build_string
 #define	sc_tibsize	sc_ecf_startup.e_tibsize
 
-/* Modes of operation */
-/*XXX must these be tied with defaults on the station type? or do they
- * decribe the network mode and not the station type? */
-#define	SC_MODE_ADHOC	0	/* ad-hoc mode */
-#define	SC_MODE_INFRA	1	/* infrastructure mode */
+#define sc_upd_param	sc_cnet_1.c_upd_param
+#define	sc_bss_id	sc_cnet_1.c_bss_id
+#define	sc_inited	sc_cnet_1.c_inited
+#define	sc_def_txrate	sc_cnet_1.c_def_txrate
+#define	sc_encrypt	sc_cnet_1.c_encrypt
+#define sc_net_type	sc_cnet_2.p_net_type
+#define sc_ssid		sc_cnet_2.p_ssid
+#define sc_priv_start	sc_cnet_2.p_privacy_must_start
+#define sc_priv_join	sc_cnet_2.p_privacy_can_join
+/*XXX add to debug macro too */
 
 /* Commands -- priority given to LSB */
 #define	SCP_FIRST		0x0001
@@ -198,6 +233,9 @@ static struct ray_softc ray_softc[NRAY];
 #define	SCP_TIMOCHECK_CMD_MASK	\
 	(SCP_UPD_UPDATEPARAMS | SCP_UPD_STARTUP | SCP_UPD_MCAST | \
 	SCP_UPD_PROMISC)
+/* Translation types */
+/* XXX maybe better as part of the if structure? */
+#define SC_TRANSLATE_WEBGEAR	0
 
 /*
  * PCMCIA driver definition
@@ -239,7 +277,15 @@ static void	ray_download_timo	__P((void *xsc));
 static u_int8_t	ray_free_ccs 		__P((struct ray_softc *sc, size_t ccs));
 static int	ray_issue_cmd		__P((struct ray_softc *sc, size_t ccs, u_int track));
 static void	ray_rcs_intr		__P((struct ray_softc *sc, size_t ccs));
+static void	ray_rx			__P((struct ray_softc *sc, size_t rcs));
+static void	ray_start_join_done	__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
+#if RAY_NEED_STARTJOIN_TIMO
 static void	ray_start_join_timo	__P((void *xsc));
+#endif /* RAY_NEED_STARTJOIN_TIMO */
+#if RAY_DEBUG > 10
+static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
+#endif /* RAY_DEBUG > 10 */
+
 /*
  * Indirections for reading/writing shared memory - from NetBSD/if_ray.c
  */
@@ -289,10 +335,10 @@ static void	ray_start_join_timo	__P((void *xsc));
 #ifndef RAY_CCS_TIMEOUT
 #define RAY_CCS_TIMEOUT		(hz / 2)
 #endif
-#define	RAY_ECF_READY(sc) 	ray_ecf_ready((sc))
+#define RAY_ECF_READY(sc)	(!(ray_read_reg(sc, RAY_ECFIR) & RAY_ECFIR_IRQ))
 #define	RAY_ECF_START_CMD(sc)	ray_attr_write((sc), RAY_ECFIR, RAY_ECFIR_IRQ)
 #define	RAY_HCS_CLEAR_INTR(sc)	ray_attr_write((sc), RAY_HCSIR, 0)
-#define RAY_HCS_INTR(sc)	ray_hcs_intr((sc))
+#define RAY_HCS_INTR(sc)	(ray_read_reg(sc, RAY_HCSIR) & RAY_HCSIR_IRQ)
 
 /*
  * XXX
@@ -302,12 +348,17 @@ static void	ray_start_join_timo	__P((void *xsc));
  * XXX
  */
 #define CARD_MAJOR		50
-static void	ray_attr_getmap	__P((struct ray_softc *sc));
-static void	ray_attr_cm	__P((struct ray_softc *sc));
 static int	ray_attr_write	__P((struct ray_softc *sc, off_t offset, u_int8_t byte));
 static int	ray_attr_read	__P((struct ray_softc *sc, off_t offset, u_int8_t *buf, int size));
-static int	ray_ecf_ready	__P((struct ray_softc *sc));
+static u_int8_t	ray_read_reg	__P((struct ray_softc *sc, off_t reg));
+
+#if RAY_NEED_CM_REMAPPING
+static void	ray_attr_getmap	__P((struct ray_softc *sc));
+static void	ray_attr_cm	__P((struct ray_softc *sc));
 #define	RAY_MAP_CM(sc)		ray_attr_cm(sc)
+#else
+#define RAY_MAP_CM(sc)
+#endif /* RAY_NEED_CM_REMAPPING */
 
 /*
  * PCCard initialise.
@@ -344,7 +395,9 @@ ray_pccard_init (dev_p)
     printf("ray%d: <Raylink/IEEE 802.11> maddr 0x%lx msize 0x%x irq %d on isa (PC-Card slot %d)\n",
 	sc->unit, (unsigned long)sc->maddr, sc->msize, sc->irq, sc->slotnum);
 
-    ray_attr_getmap(sc); /* XXX remove when attribute/common mapping fixed */
+#if RAY_NEED_CM_REMAPPING
+    ray_attr_getmap(sc);
+#endif /* RAY_NEED_CM_REMAPPING */
 
     if (ray_attach(&dev_p->isahd))
 	return(ENXIO);
@@ -541,15 +594,11 @@ ray_attach (dev_p)
 
     /*
      * Set the parameters that will survive stop/init
+     *
+     * Do not update these in ray_init's parameter setup
      */
 #if XXX
-NetBSD
-    bzero(sc->sc_cnwid, sizeof(sc->sc_cnwid));
-    bzero(sc->sc_dnwid, sizeof(sc->sc_dnwid));
-    strncpy(sc->sc_dnwid, RAY_DEF_NWID, sizeof(sc->sc_dnwid));
-    strncpy(sc->sc_cnwid, RAY_DEF_NWID, sizeof(sc->sc_dnwid));
-    sc->sc_omode = sc->sc_mode = RAY_MODE_DEFAULT;
-    sc->sc_countrycode = sc->sc_dcountrycode = RAY_PID_COUNTRY_CODE_DEFAULT;
+     see the ray_init section for stuff to move here
 #endif
 
     /*
@@ -583,9 +632,9 @@ NetBSD
 
     if (ifunit(ifname) == NULL) {
 	callout_handle_init(&sc->timerh);
-#ifdef RAY_NEED_STARTJOIN_TIMEO
+#if RAY_NEED_STARTJOIN_TIMO
 	callout_handle_init(&sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMEO */
+#endif /* RAY_NEED_STARTJOIN_TIMO */
 	if_attach(ifp);
 	ether_ifattach(ifp);
 #if NBPFILTER > 0
@@ -721,6 +770,12 @@ case SIOCSIFMEDIA:
     break;
 case SIOCGIFMEDIA:
     RAY_DPRINTF(("ray%d: ioctl called for GIFMEDIA\n", sc->unit));
+#if RAY_DUMP_CM_ON_GIFMEDIA
+    RAY_DPRINTF(("ray%d: RAY_SCB\n", sc->unit));
+    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_SCB_BASE, 0x20);
+    RAY_DPRINTF(("ray%d: RAY_STATUS\n", sc->unit));
+    RAY_DNET_DUMP(sc, ".");
+#endif /* RAY_DUMP_CM_ON_GIFMEDIA */
     error = EINVAL;
     break;
 
@@ -730,19 +785,7 @@ case SIOCGIFMEDIA:
 
     (void)splx(s);
 
-    /* XXX This is here to avoid spl's */
-if (command == SIOCGIFMEDIA) {
-    RAY_DPRINTF(("ray%d: RAY_SCB\n", sc->unit));
-    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_SCB_BASE, 0x20);
-    RAY_DPRINTF(("ray%d: RAY_STATUS\n", sc->unit));
-    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_STATUS_BASE, 0x20);
-    RAY_DPRINTF(("ray%d: RAY_ECF_TO_HOST\n", sc->unit));
-    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_ECF_TO_HOST_BASE, 0x40);
-    RAY_DPRINTF(("ray%d: RAY_HOST_TO_ECF\n", sc->unit));
-    RAY_DHEX8((u_int8_t *)sc->maddr + RAY_HOST_TO_ECF_BASE, 0x50);
-}
-
-    return error;
+    return(error);
 }
 
 static void
@@ -795,24 +838,46 @@ ray_init (xsc)
 	return;
     }
 
-#if XXX
-NetBSD
-    if ((sc->sc_if.if_flags & IFF_RUNNING))
-	ray_stop(sc);
-#endif
-
     ifp = &sc->arpcom.ac_if;
+
+    if ((ifp->if_flags & IFF_RUNNING))
+	ray_stop(sc);
 
     /*
      * Reset instance variables
+     *
+     * The first set are network parameters that are fully initialised
+     * when the card starts or joins the network.
+     *
+     * The second set are network parameters that are downloaded to
+     * the card.
+     *
+     * All of the variables in these sets can be updated by the card or ioctls.
      */
+    sc->sc_upd_param = 0;
+    bzero(sc->sc_bss_id, sizeof(sc->sc_bss_id));
+    sc->sc_inited = 0;
+    sc->sc_def_txrate = 0;
+    sc->sc_encrypt = 0;
+
+    sc->translation = SC_TRANSLATE_WEBGEAR;
+
+#if XXX
+    these might be better in _attach so updated values are kept
+    over up/down events
+
+    we probably also need a few more
+    	countrycode
+#endif
+    sc->sc_net_type = RAY_MIB_NET_TYPE_DEFAULT;
+    bzero(&sc->sc_ssid, sizeof(sc->sc_ssid));
+    strncpy(sc->sc_ssid, RAY_MIB_SSID_DEFAULT, RAY_MAXSSIDLEN);
+    sc->sc_priv_start = RAY_MIB_PRIVACY_MUST_START_DEFAULT;
+    sc->sc_priv_join = RAY_MIB_PRIVACY_CAN_JOIN_DEFAULT;
+
+    sc->sc_havenet = 0;
 #if XXX
 NetBSD
-    sc->sc_havenet = 0;
-    bzero(sc->sc_bssid, sizeof(sc->sc_bssid));
-    sc->sc_deftxrate = 0;
-    sc->sc_encrypt = 0;
-    sc->sc_promisc = 0;
     sc->sc_scheduled = 0;
     sc->sc_running = 0;
     sc->sc_txfree = RAY_CCS_NTX;
@@ -888,19 +953,13 @@ NetBSD
 	network. This should complete via the interrupt mechanism, but
 	the NetBSD driver includes a timeout for some buggy stuff somewhere.
 	I've left the hooks in but don't use them. The interrupt handler
-	passes control to ray_start_join_done (again the ccs is in
-	sc->sc_css XXX need to see if this is actually needed).
+	passes control to ray_start_join_done - the ccs is handled by
+	the interrupt mechanism.
 
-	XXX
-    /*
-     * Set running and clear output active, then attempt to start output
-     */
-    ifp->if_flags |= IFF_RUNNING;
-/* XXX spl's needed higher up? but this is called by ioctl only?*/
-    s = splimp();
-    ray_start(ifp);
-    (void) splx(s);
-#endif
+	Once ray_start_join_done has checked the ccs and
+	uploaded/updated the network parameters we are ready to
+	process packets. It can then call ray_start.
+#endif /* XXX */
 
     return;
 }
@@ -940,13 +999,10 @@ ray_ccs_done (sc, ccs)
     struct ray_softc	*sc;
     size_t		ccs;
 {
-    struct ifnet	*ifp;
     u_int		cmd, status;
     
     RAY_DPRINTF(("ray%d: Processing ccs %d\n", sc->unit, RAY_CCS_INDEX(ccs)));
     RAY_MAP_CM(sc);
-
-    ifp = &sc->arpcom.ac_if;
 
     cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
     status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
@@ -983,10 +1039,7 @@ ray_ccs_done (sc, ccs)
 	case RAY_CMD_START_NET:
 	case RAY_CMD_JOIN_NET:
 	    RAY_DPRINTF(("ray%d: ray_ccs_done got START|JOIN_NET\n", sc->unit));
-#ifdef RAY_NEED_STARTJOIN_TIMEO
-	    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
-#endif /* RAY_NEED_STARTJOIN_TIMEO */
-	    XXX;
+	    ray_start_join_done(sc, ccs, status);
 	    break;
 
 	case RAY_CMD_START_ASSOC:
@@ -1051,7 +1104,7 @@ ray_rcs_intr (sc, rcs)
     switch (cmd) {
 	case RAY_ECMD_RX_DONE:
 	    printf("ray%d: ray_rcs_intr got RX_DONE\n", sc->unit);
-	    XXX;
+	    ray_rx(sc, rcs);
 	    break;
 
 	case RAY_ECMD_REJOIN_DONE:
@@ -1081,6 +1134,268 @@ ray_rcs_intr (sc, rcs)
 }
 
 /*
+ * Receive a packet
+ */
+static void
+ray_rx (sc, rcs)
+    struct ray_softc		*sc;
+    size_t			rcs;
+{
+    struct ieee80211_header	*header;
+    struct ether_header		*eh;
+    struct ifnet		*ifp;
+    struct mbuf			*m;
+    size_t			pktlen, fraglen, readlen, tmplen;
+    size_t			bufp, ebufp;
+    u_int8_t			*dst, *src;
+    u_int8_t			fc;
+    u_int			first, ni, i;
+
+    RAY_DPRINTF(("ray%d: ray_rx\n", sc->unit));
+    RAY_MAP_CM(sc);
+
+    RAY_DPRINTF(("ray%d: rcs chain - using rcs 0x%x\n", sc->unit, rcs));
+
+    ifp = &sc->arpcom.ac_if;
+    m = NULL;
+    readlen = 0;
+
+    /*
+     * Get first part of packet and the length. Do some sanity checks
+     * and get a mbuf.
+     */
+    first = RAY_CCS_INDEX(rcs);
+    pktlen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_pktlen);
+
+    if ((pktlen > MCLBYTES) || (pktlen < 1/*XXX should be header size*/)) {
+	RAY_DPRINTF(("ray%d: ray_rx packet is too big or too small\n",
+	    sc->unit));
+	ifp->if_ierrors++;
+	goto skip_read;
+    }
+
+    MGETHDR(m, M_DONTWAIT, MT_DATA);
+    if (m == NULL) {
+	RAY_DPRINTF(("ray%d: ray_rx MGETHDR failed\n", sc->unit));
+	ifp->if_ierrors++;
+	goto skip_read;
+    }
+    if (pktlen > MHLEN) {
+	MCLGET(m, M_DONTWAIT);
+	if ((m->m_flags & M_EXT) == 0) {
+	    RAY_DPRINTF(("ray%d: ray_rx MCLGET failed\n", sc->unit));
+	    ifp->if_ierrors++;
+	    m_freem(m);
+	    m = 0;
+	    goto skip_read;
+	}
+    }
+    m->m_pkthdr.rcvif = ifp;
+    m->m_pkthdr.len = pktlen;
+    m->m_len = pktlen;
+    dst = mtod(m, u_int8_t *);
+
+    /*
+     * Walk the fragment chain to build the complete packet.
+     *
+     * The use of two index variables removes a race with the
+     * hardware. If one index were used the clearing of the CCS would
+     * happen before reading the next pointer and the hardware can get in.
+     * Not my idea but verbatim from the NetBSD driver.
+     */
+    i = ni = first;
+    while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
+	rcs = RAY_CCS_ADDRESS(i);
+	ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
+	bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
+	fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
+	RAY_DPRINTF(("ray%d: ray_rx frag index %d len %d bufp 0x%x ni %d\n",
+		sc->unit, i, fraglen, (int)bufp, ni));
+
+	if (fraglen + readlen > pktlen) {
+	    RAY_DPRINTF(("ray%d: ray_rx bad length current 0x%x pktlen 0x%x\n",
+		    sc->unit, fraglen + readlen, pktlen));
+	    ifp->if_ierrors++;
+	    m_freem(m);
+	    m = 0;
+	    goto skip_read;
+	}
+	if ((i < RAY_RCS_FIRST) || (i > RAY_RCS_LAST)) {
+	    printf("ray%d: ray_rx bad rcs index 0x%x\n", sc->unit, i);
+	    ifp->if_ierrors++;
+	    m_freem(m);
+	    m = 0;
+	    goto skip_read;
+	}
+
+	ebufp = bufp + fraglen;
+	if (ebufp <= RAY_RX_END)
+	    ray_read_region(sc, bufp, dst, fraglen);
+	else {
+	    ray_read_region(sc, bufp, dst, (tmplen = RAY_RX_END - bufp));
+	    ray_read_region(sc, RAY_RX_BASE, dst + tmplen, ebufp - RAY_RX_END);
+	}
+	dst += fraglen;
+	readlen += fraglen;
+    }
+
+skip_read:
+
+    /*
+     * Walk the chain again to free the rcss.
+     */
+    i = ni = first;
+RAY_DPRINTF(("ray%d: ray_rx cleaning rcs fragments ", sc->unit));
+    while ((i = ni) && (i != RAY_CCS_LINK_NULL)) {
+RAY_DPRINTF(("%d ", i));
+	rcs = RAY_CCS_ADDRESS(i);
+	ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
+	SRAM_WRITE_FIELD_1(sc, rcs, ray_cmd, c_status, RAY_CCS_STATUS_FREE);
+    }
+RAY_DPRINTF(("\n"));
+
+    if (!m)
+   	return;
+
+    RAY_DPRINTF(("ray%d: ray_rx got packet pktlen %d actual %d\n",
+	    sc->unit, pktlen, readlen));
+    RAY_DMBUF_DUMP(sc, m, "ray_rx");
+
+    /*
+     * Check the 802.11 packet type and obtain the .11 src address.
+     *
+     * XXX CTL and MGT packets will have separate functions,
+     *     DATA dealt with here
+     */
+    header = mtod(m, struct ieee80211_header *);
+    fc = header->i_fc[0];
+    if ((fc & IEEE80211_FC0_VERSION_MASK) != IEEE80211_FC0_VERSION_0) {
+	RAY_DPRINTF(("ray%d: header not version 0 fc 0x%x\n", sc->unit, fc));
+	m_freem(m);
+	return;
+    }
+    switch (fc & IEEE80211_FC0_TYPE_MASK) {
+
+	case IEEE80211_FC0_TYPE_MGT:
+	    printf("ray%d: ray_rx got a .11 MGT packet - why?\n", sc->unit);
+	    m_freem(m);
+	    return;
+
+	case IEEE80211_FC0_TYPE_CTL:
+	    printf("ray%d: ray_rx got a .11 CTL packet - why?\n", sc->unit);
+	    m_freem(m);
+	    return;
+
+	case IEEE80211_FC0_TYPE_DATA:
+	    RAY_DPRINTF(("ray%d: ray_rx got a .11 DATA packet\n", sc->unit));
+	    break;
+
+	default:
+	    printf("ray%d: ray_rx got a unknown .11 packet fc0 0x%x - why?\n",
+	    		sc->unit, fc);
+	    m_freem(m);
+	    return;
+
+    }
+    fc = header->i_fc[1];
+    switch (fc & IEEE80211_FC1_RCVFROM_MASK) {
+
+	case IEEE80211_FC1_RCVFROM_TERMINAL:
+	    src = header->i_addr2;
+	    RAY_DPRINTF(("ray%d: ray_rx got packet from station %6D\n",
+	    		sc->unit, src, ":"));
+	    break;
+
+	case IEEE80211_FC1_RCVFROM_AP:
+	    src = header->i_addr3;
+	    RAY_DPRINTF(("ray%d: ray_rx got packet from ap %6D\n",
+	    		sc->unit, src, ":"));
+	    break;
+
+	case IEEE80211_FC1_RCVFROM_AP2AP:
+	    RAY_DPRINTF(("ray%d: ray_rx saw packet between aps %6D %6D %6D\n",
+	    		sc->unit, header->i_addr1, ":", header->i_addr2, ":",
+			header->i_addr3, ":"));
+	    m_freem(m);
+	    return;
+
+	default:
+	    printf("ray%d: ray_rx packet type unknown fc1 0x%x - why?\n",
+	    	sc->unit, fc);
+	    m_freem(m);
+	    return;
+    }
+
+    /*
+     * XXX
+     * 
+     * Currently only support the Webgear encapsulation
+     *		802.11	header <net/if_ieee80211.h>struct ieee80211_header
+     *		802.3	header <net/ethernet.h>struct ether_header
+     * 		802.2	LLC header
+     *		802.2	SNAP header
+     *
+     * We should support whatever packet types the following drivers have
+     *   	if_wi.c		FreeBSD, RFC1042
+     *		if_ray.c	NetBSD	Webgear, RFC1042
+     *		rayctl.c	Linux Webgear, RFC1042
+     * also whatever we can divine from the NDC Access points and
+     * Kanda's boxes.
+     *
+     * Most appear to have a RFC1042 translation. The incoming packet is
+     *		802.11	header <net/if_ieee80211.h>struct ieee80211_header
+     * 		802.2	LLC header
+     *		802.2	SNAP header
+     *
+     * This is translated to
+     *		802.3	header <net/ethernet.h>struct ether_header
+     * 		802.2	LLC header
+     *		802.2	SNAP header
+     *
+     * Linux seems to look at the SNAP org_code and do some translations
+     * for IPX and APPLEARP on that. This just may be how Linux does IPX
+     * and NETATALK. Need to see how FreeBSD does these.
+     *
+     * Translation should be selected via if_media stuff or link types.
+     */
+    switch (sc->translation) {
+
+    	case SC_TRANSLATE_WEBGEAR:
+	    /* XXX error checking ? how? */
+	    eh = (struct ether_header *)(header + 1);
+	    m_adj(m, sizeof(struct ieee80211_header)+sizeof(struct ether_header));
+	    break;
+
+	default:
+	    printf("ray%d: ray_rx unknown translation type 0x%x - why?\n",
+	    		sc->unit, sc->translation);
+	    m_freem(m);
+	    return;
+
+    }
+
+#if NBPFILTER > 0
+    /* Handle BPF listeners. */
+    if (ifp->if_bpf)
+	bpf_mtap(ifp, m);
+#endif /* NBPFILTER */
+#if XXX
+if_wi.c - might be needed if we hear our own broadcasts in promiscuous mode
+	if ((ifp->if_flags & IFF_PROMISC) &&
+	    (bcmp(eh->ether_shost, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN) &&
+	    (eh->ether_dhost[0] & 1) == 0)
+	) {
+	    m_freem(m);
+	    return;
+	}
+#endif /* XXX */
+
+    ether_input(ifp, eh, m);
+
+    return;
+}
+
+/*
  * Download start up structures to card.
  *
  * Part of ray_init, download, startjoin control flow.
@@ -1095,6 +1410,7 @@ ray_download_params (sc)
     RAY_DPRINTF(("ray%d: Downloading startup parameters\n", sc->unit));
     RAY_MAP_CM(sc);
 
+    RAY_DNET_DUMP(sc, " before we download them.");
 #if XXX
 netbsd
     ray_cmd_cancel(sc, SCP_UPD_STARTUP);
@@ -1108,9 +1424,9 @@ netbsd
      /*
       * Firmware version 4 defaults - see if_raymib.h for details
       */
-     MIB4(mib_net_type)			= RAY_MIB_NET_TYPE_DEFAULT;
+     MIB4(mib_net_type)			= sc->sc_net_type;
      MIB4(mib_ap_status)		= RAY_MIB_AP_STATUS_DEFAULT;
-strncpy(MIB4(mib_ssid), 		  RAY_MIB_SSID_DEFAULT, RAY_MAXSSIDLEN);
+     strncpy(MIB4(mib_ssid), sc->sc_ssid, RAY_MAXSSIDLEN);
      MIB4(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
      MIB4(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
      bcopy(sc->sc_station_addr, MIB4(mib_mac_addr), ETHER_ADDR_LEN);
@@ -1154,9 +1470,9 @@ PUT2(MIB4(mib_uniq_word),		  RAY_MIB_UNIQ_WORD_DEFAULT);
      /*
       * Firmware version 5 defaults - see if_raymib.h for details
       */
-     MIB5(mib_net_type)			= RAY_MIB_NET_TYPE_DEFAULT;
+     MIB5(mib_net_type)			= sc->sc_net_type;
      MIB5(mib_ap_status)		= RAY_MIB_AP_STATUS_DEFAULT;
-strncpy(MIB5(mib_ssid), 		  RAY_MIB_SSID_DEFAULT, RAY_MAXSSIDLEN);
+     strncpy(MIB5(mib_ssid), sc->sc_ssid, RAY_MAXSSIDLEN);
      MIB5(mib_scan_mode)		= RAY_MIB_SCAN_MODE_DEFAULT;
      MIB5(mib_apm_mode)			= RAY_MIB_APM_MODE_DEFAULT;
      bcopy(sc->sc_station_addr, MIB5(mib_mac_addr), ETHER_ADDR_LEN);
@@ -1198,8 +1514,8 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
      MIB5(mib_test_max_chan)		= RAY_MIB_TEST_MAX_CHAN_DEFAULT;
      MIB5(mib_allow_probe_resp)		= RAY_MIB_ALLOW_PROBE_RESP_DEFAULT;
      MIB5(mib_privacy_must_start)	= RAY_MIB_PRIVACY_MUST_START_DEFAULT;
-     MIB5(mib_privacy_can_join)		= RAY_MIB_PRIVACY_CAN_JOIN_DEFAULT;
-     MIB5(mib_basic_rate_set[0])	= RAY_MIB_BASIC_RATE_SET_DEFAULT;
+     MIB5(mib_privacy_can_join)		= sc->sc_priv_start;
+     MIB5(mib_basic_rate_set[0])	= sc->sc_priv_join;
 
     if (!RAY_ECF_READY(sc))
     	panic("ray%d: ray_download_params something is already happening\n",
@@ -1212,7 +1528,7 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
 	ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
 			 &ray_mib_5_default, sizeof(ray_mib_5_default));
 
-/*
+/* XXX
  * NetBSD
  * hand expanding ray_simple_cmd
  * we dont do any of the clever timeout stuff yet (i.e. ray_cmd_ran) just
@@ -1255,6 +1571,7 @@ ray_download_timo (xsc)
     void		*xsc;
 {
     struct ray_softc	*sc = xsc;
+    size_t		ccs;
     u_int8_t		status, cmd;
 
     RAY_DPRINTF(("ray%d: ray_download_timo\n", sc->unit));
@@ -1268,6 +1585,8 @@ ray_download_timo (xsc)
     	printf("ray%d: Download ccs odd cmd = 0x%02x, status = 0x%02x",
 		sc->unit, cmd, status);
 	/*XXX so what do we do? reset or retry? */
+	/*XXX this gets triggered when we try and re-reset the ipaddress 
+	 *    ray_init gets called */
 
     /*
      * If the card is still busy, re-schedule ourself
@@ -1282,34 +1601,139 @@ ray_download_timo (xsc)
     ray_free_ccs(sc, sc->sc_ccs);
     sc->sc_ccs = RAY_CCS_LAST + 1;
 
+#if XXX
+NetBSD clear IFF_OACTIVE at this point
+#endif
     /*
      * Grab a ccs and don't bother updating the network parameters.
      * Issue the start/join command and we get interrupted back.
      */
-    if (sc->sc_mode == SC_MODE_ADHOC)
+    if (sc->sc_net_type == RAY_MIB_NET_TYPE_ADHOC)
 	    cmd = RAY_CMD_START_NET;
     else
 	    cmd = RAY_CMD_JOIN_NET;
 
-    if (!ray_alloc_ccs(sc, &sc->sc_ccs, cmd, SCP_UPD_STARTJOIN))
+    if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN))
     	panic("ray%d: ray_download_timo can't get a CCS to start/join net\n",
 		sc->unit);
 
-    SRAM_WRITE_FIELD_1(sc, sc->sc_ccs, ray_cmd_net, c_upd_param, 0);
+    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
 
-    if (!ray_issue_cmd(sc, sc->sc_ccs, SCP_UPD_STARTJOIN))
+    if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN))
     	panic("ray%d: ray_download_timo can't issue start/join\n", sc->unit);
 
-#ifdef RAY_NEED_STARTJOIN_TIMEO
+#if RAY_NEED_STARTJOIN_TIMO
     sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_CCS_TIMEOUT);
-#endif /* RAY_NEED_STARTJOIN_TIMEO */
+#endif /* RAY_NEED_STARTJOIN_TIMO */
 
     RAY_DPRINTF(("ray%d: Start-join awaiting interrupt/timeout\n", sc->unit));
 
     return;
 }
 
-#ifdef RAY_NEED_STARTJOIN_TIMEO
+/*
+ * Complete start or join command.
+ *
+ * Part of ray_init, download, start_join control flow.
+ */
+static void
+ray_start_join_done (sc, ccs, status)
+    struct ray_softc	*sc;
+    size_t		ccs;
+    u_int8_t		status;
+{
+    u_int8_t		o_net_type;
+
+    RAY_DPRINTF(("ray%d: ray_start_join_done\n", sc->unit));
+    RAY_MAP_CM(sc);
+
+#if RAY_NEED_STARTJOIN_TIMO
+    untimeout(ray_start_join_timo, sc, sc->sj_timerh);
+#endif /* RAY_NEED_STARTJOIN_TIMO */
+
+#if XXX_TRACKING
+    ray_cmd_done(sc, SCP_UPD_STARTJOIN);
+#endif /* XXX_TRACKING */
+
+    switch (status) {
+
+    	case RAY_CCS_STATUS_FREE:
+    	case RAY_CCS_STATUS_BUSY:
+	    printf("ray%d: ray_start_join_done status is FREE/BUSY - why?\n",
+	    		sc->unit);
+	    break;
+
+    	case RAY_CCS_STATUS_COMPLETE:
+	    break;
+
+    	case RAY_CCS_STATUS_FAIL:
+	    printf("ray%d: ray_start_join_done status is FAIL - why?\n",
+	    		sc->unit);
+#if XXX
+	    restart ray_start_join sequence 
+	    may need to split download_done for this
+#endif
+	    break;
+
+	default:
+	    printf("ray%d: ray_start_join_done unknown status 0x%x\n",
+	    		sc->unit, status);
+	    break;
+    }
+
+    /*
+     * If the command completed correctly, get a few network parameters
+     * from the ccs and active the nextwork.
+     */
+    if (status == RAY_CCS_STATUS_COMPLETE) {
+
+        ray_read_region(sc, ccs, &sc->sc_cnet_1, sizeof(struct ray_cmd_net));
+
+	/* adjust values for buggy build 4 */
+	if (sc->sc_def_txrate == 0x55)
+		sc->sc_def_txrate = RAY_MIB_BASIC_RATE_SET_1500K;
+	if (sc->sc_encrypt == 0x55)
+		sc->sc_encrypt = 0;
+
+	/* card is telling us to update the network parameters */
+	if (sc->sc_upd_param) {
+	    RAY_DPRINTF(("ray%d: ray_start_join_done card request update of network parameters\n", sc->unit));
+	    o_net_type = sc->sc_net_type;
+	    ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
+		&sc->sc_cnet_2, sizeof(struct ray_net_params));
+	    if (sc->sc_net_type != o_net_type) {
+		printf("ray%d: ray_start_join_done card request change of network type - why?\n", sc->unit);
+#if XXX
+    restart ray_start_join sequence ?
+    may need to split download_timo for this
+#endif
+	    }
+	}
+	RAY_DNET_DUMP(sc, " after start/join network completed.");
+
+#if XXX
+	netbsd has already cleared OACTIVE so packets may be queued
+	need to know interrupt level before calling ray_start
+
+	is ray_intr_start === ray_start?
+		yup apart from groking the sc from the ifp
+
+	/* network is now active */
+	ray_cmd_schedule(sc, SCP_UPD_MCAST|SCP_UPD_PROMISC);
+	if (cmd == RAY_CMD_JOIN_NET)
+		return (ray_start_assoc);
+	else {
+		sc->sc_havenet = 1;
+		return (ray_intr_start);
+	}
+#endif
+
+    }
+
+    return;
+};
+
+#if RAY_NEED_STARTJOIN_TIMO
 /*
  * Back stop catcher for start_join command. The NetBSD driver
  * suggests that they need it to catch a bug in the firmware or the
@@ -1329,7 +1753,7 @@ ray_start_join_timo (xsc)
 
     return;
 }
-#endif /* RAY_NEED_STARTJOIN_TIMEO */
+#endif /* RAY_NEED_STARTJOIN_TIMO */
 
 /*
  * Obtain a free ccs buffer.
@@ -1432,24 +1856,56 @@ ray_issue_cmd(sc, ccs, track)
     while (!RAY_ECF_READY(sc))
 	if (++i > 50) {
 	    ray_free_ccs(sc, ccs);
-#if XXX
+#if XXX_TRACKING
 	    if (track)
 		ray_cmd_schedule(sc, track);
-#endif /* XXX */
+#endif /* XXX_TRACKING */
 	    return (0);
 	}
 
     SRAM_WRITE_1(sc, RAY_SCB_CCSI, RAY_CCS_INDEX(ccs));
     RAY_ECF_START_CMD(sc);
-#if XXX
+#if XXX_TRACKING
     ray_cmd_ran(sc, track);
-#endif /* XXX */
+#endif /* XXX_TRACKING */
 
     return (1);
 }
 
+#if RAY_DEBUG > 10
+static void
+ray_dump_mbuf(sc, m, s)
+    struct ray_softc	*sc;
+    struct mbuf		*m;
+    char		*s;
+{
+    u_int8_t		*d, *ed;
+    u_int		i;
+    char		p[17];
+
+    printf("ray%d: %s mbuf dump:", sc->unit, s);
+    i = 0;
+    bzero(p, 17);
+    for (; m; m = m->m_next) {
+	d = mtod(m, u_int8_t *);
+	ed = d + m->m_len;
+
+	for (; d < ed; i++, d++) {
+	    if ((i % 16) == 0) {
+		printf("  %s\n\t", p);
+	    } else if ((i % 8) == 0)
+		printf("  ");
+	    printf(" %02x", *d);
+	    p[i % 16] = ((*d >= 0x20) && (*d < 0x80)) ? *d : '.';
+	}
+    }
+    if ((i - 1) % 16)
+	printf("%s\n", p);
+}
+#endif /* RAY_DEBUG > 10 */
+
 /*
- * Two routines to read from/write to the attribute memory.
+ * Routines to read from/write to the attribute memory.
  *
  * Taken from if_xe.c.
  *
@@ -1469,6 +1925,7 @@ ray_issue_cmd(sc, ccs, track)
  *	successive calls
  *
  */
+#if RAY_NEED_CM_REMAPPING
 static void
 ray_attr_getmap (struct ray_softc *sc)
 {
@@ -1508,6 +1965,7 @@ ray_attr_cm (struct ray_softc *sc)
 
     return;
 }
+#endif /* RAY_NEED_CM_REMAPPING */
 
 static int
 ray_attr_write (struct ray_softc *sc, off_t offset, u_int8_t byte)
@@ -1529,7 +1987,9 @@ ray_attr_write (struct ray_softc *sc, off_t offset, u_int8_t byte)
 
   err = cdevsw[CARD_MAJOR]->d_write(makedev(CARD_MAJOR, sc->slotnum), &uios, 0);
 
+#if RAY_NEED_CM_REMAPPING
   ray_attr_cm(sc);
+#endif /* RAY_NEED_CM_REMAPPING */
 
   return(err);
 }
@@ -1554,19 +2014,21 @@ ray_attr_read (struct ray_softc *sc, off_t offset, u_int8_t *buf, int size)
 
   err =  cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, sc->slotnum), &uios, 0);
 
+#if RAY_NEED_CM_REMAPPING
   ray_attr_cm(sc);
+#endif /* RAY_NEED_CM_REMAPPING */
 
   return(err);
 }
 
 static u_int8_t
-ray_read_reg (sc, off)
-    struct ray_softc	*sc
-    off_t		off
+ray_read_reg (sc, reg)
+    struct ray_softc	*sc;
+    off_t		reg;
 {
     u_int8_t		byte;
 
-    ray_attr_read(sc, off, &byte, 1);
+    ray_attr_read(sc, reg, &byte, 1);
 
     return(byte);
 }
