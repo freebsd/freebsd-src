@@ -106,7 +106,6 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
 
 /*
  * Get a socket structure from our zone, and initialize it.
- * We don't implement `waitok' yet (see comments in uipc_domain.c).
  * Note that it would probably be better to allocate socket
  * and PCB at the same time, but I'm not convinced that all
  * the protocols can be easily modified to do this.
@@ -118,8 +117,14 @@ soalloc(waitok)
 	int waitok;
 {
 	struct socket *so;
+	int flag;
 
-	so = uma_zalloc(socket_zone, waitok);
+	if (waitok == 1)
+		flag = M_WAITOK;
+	else
+		flag = M_NOWAIT;
+
+	so = uma_zalloc(socket_zone, flag);
 	if (so) {
 		/* XXX race condition for reentrant kernel */
 		bzero(so, sizeof *so);
