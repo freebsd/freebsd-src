@@ -3,7 +3,10 @@
 .Dt "AT" 1
 .Os FreeBSD 2.1
 .Sh NAME
-.Nm at , batch , atq , atrm
+.Nm at ,
+.Nm batch ,
+.Nm atq ,
+.Nm atrm
 .Nd queue, examine or delete jobs for later execution
 .Sh SYNOPSIS
 .Nm at
