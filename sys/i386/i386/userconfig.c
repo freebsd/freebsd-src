@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.58 1996/10/09 23:36:54 jkh Exp $
+ **      $Id: userconfig.c,v 1.59 1996/10/10 08:04:03 bde Exp $
  **/
 
 /**
@@ -2212,7 +2212,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.58 1996/10/09 23:36:54 jkh Exp $
+ *      $Id: userconfig.c,v 1.59 1996/10/10 08:04:03 bde Exp $
  */
 
 #include "scbus.h"
@@ -2569,35 +2569,98 @@ center(int y, char *str)
 static int
 introfunc(CmdParm *parms)
 {
-    int y = 3;
+    int curr_item, first_time;
+    static char *choices[] = {
+	" Skip kernel configuration and continue with installation ",
+	" Start kernel configuration in Visual mode                ",
+	" Start kernel configuration in CLI mode (experts only)    ",
+    };
 
     clear();
-    center(y, "!iKernel Configuration Editor!n");
-    y += 2;
-    putxy(2, y++, "In this next screen, you will be shown a full list of all the device");
-    putxy(2, y++, "drivers which are available in this copy of the OS kernel.  This is");
-    putxy(2, y++, "!inot!n a list of devices which you necessarily have, simply those");
-    putxy(2, y++, "which this kernel is capable of supporting.");
-    ++y;
-    putxy(2, y++, "You should go through each device category and delete all entries");
-    putxy(2, y++, "(using the DELETE key) for devices which you are sure that you do");
-    putxy(2, y++, "not have (if you're not sure, or don't know what it is, leave it in!)");
-    putxy(2, y++, "This will minimize the chances for driver conflict and also make");
-    putxy(2, y++, "the kernel boot faster since no time will be wasted in trying to");
-    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which");
-    putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
-    putxy(2, y++, "be sure that its configuration parameters match your actual hardware.");
-    putxy(2, y++, "To edit a device's configuration, simply press ENTER while over it.");
-    putxy(2, y++, "Once you are satisfied with your device configuration, press Q to");
-    putxy(2, y++, "proceed with the booting process.  To skip configuration, hit ESC now.");
-    ++y;
-    center(y, "!iPress a key to continue!n");
-    y = cngetc();
-    /* detect special "I want outta here!" characters */
-    if (y == '\033' || y == 'Q')
-	return 1;
-    else
-	return 0;
+    center(2, "!bKernel Configuration Menu!n");
+
+    curr_item = 0;
+    first_time = 1;
+    while (1) {
+	char tmp[80];
+	int c, i, extended = 0;
+
+	for (i = 0; i < 3; i++) {
+	    tmp[0] = '\0';
+	    if (curr_item == i)
+		strcpy(tmp, "!i");
+	    strcat(tmp, choices[i]);
+	    if (curr_item == i)
+		strcat(tmp, "!n");
+	    putxy(10, 5 + i, tmp);
+	}
+
+	if (first_time) {
+	    putxy(2, 10, "Here you have the chance to go into kernel configuration mode, making");
+	    putxy(2, 11, "any changes which may be necessary to properly adjust the kernel to");
+	    putxy(2, 12, "match your hardware configuration.");
+	    putxy(2, 14, "If you are installing FreeBSD for the first time, select Visual Mode");
+	    putxy(2, 15, "(press Down-Arrow then ENTER).");
+	    putxy(2, 17, "If you need to do more specialized kernel configuration and are an");
+	    putxy(2, 18, "experienced FreeBSD user, select CLI mode.");
+	    putxy(2, 20, "If you are !icertain!n that you do not need to configure your kernel");
+	    putxy(2, 21, "then simply press ENTER or Q now.");
+	    first_time = 0;
+	}
+
+	move(0, 0);	/* move the cursor out of the way */
+	c = getchar();
+	if ((extended == 2) || (c == 588) || (c == 596)) {	/* console gives "alternative" codes */
+	    extended = 0;		/* no longer */
+	    switch (c) {
+	    case 588:
+	    case 'A':				/* up */
+		if (curr_item > 0)
+		    --curr_item;
+		break;
+
+	    case 596:
+	    case 'B':				/* down */
+		if (curr_item < 2)
+		    ++curr_item;
+		break;
+	    }
+	}
+	else {
+	    switch(c) {
+	    case '\033':
+		extended = 1;
+		break;
+		    
+	    case '[':				/* cheat : always preceeds cursor move */
+	    case 'O':				/* ANSI application key mode */
+		if (extended == 1)
+		    extended = 2;
+		else
+		    extended = 0;
+		break;
+		
+	    case 'Q':
+	    case 'q':
+		clear();
+		return 1;	/* user requests exit */
+
+	    case '\r':				
+	    case '\n':
+		clear();
+		if (!curr_item)
+		    return 1;
+		else if (curr_item == 1)
+		    return visuserconfig();
+		else {
+		    putxy(0, 1, "Type \"help\" for help or \"quit\" to exit.");
+		    move (0, 3);
+		    return 0;
+		}
+		break;
+	    }
+	}
+    }
 }
 #endif
 
