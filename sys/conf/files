@@ -715,18 +715,14 @@ dev/bktr/bktr_os.c	optional bktr pci
 pci/pccbb.c		optional pccbb cardbus
 pci/cy_pci.c		optional cy pci
 pci/ida_pci.c		optional ida pci
-pci/if_al.c		optional al
 pci/if_ar_p.c		optional ar pci
-pci/if_ax.c		optional ax
+pci/if_dc.c		optional dc
 pci/if_de.c		optional de
-pci/if_dm.c		optional dm
 pci/if_en_pci.c		optional en pci
 pci/if_fpa.c		optional fpa pci
 pci/if_fxp.c		optional fxp
 pci/if_lnc_p.c		optional lnc pci
 pci/if_mn.c		optional mn
-pci/if_mx.c		optional mx
-pci/if_pn.c		optional pn
 pci/if_rl.c		optional rl
 pci/if_sf.c		optional sf
 pci/if_sis.c		optional sis

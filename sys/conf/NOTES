@@ -1646,30 +1646,19 @@ controller	miibus0
 # nd 1040B PCI SCSI host adapters, as well as the Qlogic ISP 2100
 # FC/AL Host Adapter.
 #
-# The `al' device provides support for PCI fast ethernet adapters
-# based on the ADMtek Inc. AL981 "Comet" and the AN985 "Centaur" chips.
-#
-# The `ax' device provides support for PCI fast ethernet adapters
-# based on the ASIX Electronics AX88140A chip, including the Alfa
-# Inc. GFC2204.
+# The `dc' device provides support for PCI fast ethernet adapters
+# based on the DEC/Intel 21143 and various workalikes including:
+# the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
+# AX88140A and AX88141, the Davicom DM9100 and DM9102, the Lite-On
+# 82c168 and 82c169 PNIC, the Lite-On/Macronix LC82C115 PNIC II
+# and the Macronix 98713/98713A/98715/98715A/98725 PMAC. This driver
+# replaces the old al, ax, dm, pn and mx drivers.
 #
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
 #
-# The `dm' device provides support for PCI fast ethernet adapters
-# based on the the Davicom DM9100 and DM9102 controller chips, including
-# the Jaton Corporation XPressNet.
-#
 # The `fxp' device provides support for the Intel EtherExpress Pro/100B
 # PCI Fast Ethernet adapters.
-#
-# The `mx' device provides support for various fast ethernet adapters
-# based on the Macronix 98713, 987615 and 98725 series chips.
-#
-# The `pn' device provides support for various fast ethernet adapters
-# based on the Lite-On 82c168 and 82c169 PNIC chips, including the
-# LinkSys LNE100TX, the NetGear FA310TX rev. D1 and the Matrox
-# FastNIC 10/100.
 #
 # The 'rl' device provides support for PCI fast ethernet adapters based
 # on the RealTek 8129/8139 chipset. Note that the RealTek driver defaults
@@ -1852,13 +1841,9 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 #options 	ISP_COMPILE_2100_FW=1
 #options 	ISP_COMPILE_2200_FW=1
 
-device		al0
-device		ax0
+device		dc0
 device		de0
-device		dm0
 device		fxp0
-device		mx0
-device		pn0
 device		rl0
 device		sf0
 device		sis0
