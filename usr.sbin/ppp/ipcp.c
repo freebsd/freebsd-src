@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.38 1997/11/22 03:37:34 brian Exp $
+ * $Id: ipcp.c,v 1.39 1997/12/03 10:23:48 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -74,8 +74,6 @@ static void IpcpLayerFinish(struct fsm *);
 static void IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
 static void IpcpInitRestartCounter(struct fsm *);
-
-#define	REJECTED(p, x)	(p->his_reject & (1<<x))
 
 struct fsm IpcpFsm = {
   "IPCP",
@@ -139,16 +137,15 @@ IpcpAddOutOctets(int n)
 int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
-  struct ipcpstate *icp = &IpcpInfo;
   struct fsm *fp = &IpcpFsm;
 
   if (!VarTerm)
     return 1;
   fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
   fprintf(VarTerm, " his side: %s, %s\n",
-	  inet_ntoa(icp->his_ipaddr), vj2asc(icp->his_compproto));
+	  inet_ntoa(IpcpInfo.his_ipaddr), vj2asc(IpcpInfo.his_compproto));
   fprintf(VarTerm, " my  side: %s, %s\n",
-	  inet_ntoa(icp->want_ipaddr), vj2asc(icp->want_compproto));
+	  inet_ntoa(IpcpInfo.want_ipaddr), vj2asc(IpcpInfo.want_compproto));
 
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
@@ -187,15 +184,13 @@ IpcpDefAddress()
 void
 IpcpInit()
 {
-  struct ipcpstate *icp = &IpcpInfo;
-
   FsmInit(&IpcpFsm);
-  memset(icp, '\0', sizeof(struct ipcpstate));
+  memset(&IpcpInfo, '\0', sizeof(struct ipcpstate));
   if ((mode & MODE_DEDICATED) && !GetLabel()) {
-    icp->want_ipaddr.s_addr = icp->his_ipaddr.s_addr = 0;
+    IpcpInfo.want_ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr = 0;
   } else {
-    icp->want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
-    icp->his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+    IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
+    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
   }
 
   /*
@@ -204,14 +199,14 @@ IpcpInit()
    * full negotiation (e.g. "0.0.0.0" or Not "0.0.0.0").
    */
   if (HaveTriggerAddress) {
-    icp->want_ipaddr.s_addr = TriggerAddress.s_addr;
+    IpcpInfo.want_ipaddr.s_addr = TriggerAddress.s_addr;
     LogPrintf(LogIPCP, "Using trigger address %s\n", inet_ntoa(TriggerAddress));
   }
   if (Enabled(ConfVjcomp))
-    icp->want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8) | 1;
+    IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) | ((MAX_STATES - 1) << 8) | 1;
   else
-    icp->want_compproto = 0;
-  icp->heis1172 = 0;
+    IpcpInfo.want_compproto = 0;
+  IpcpInfo.heis1172 = 0;
   IpcpFsm.maxconfig = 10;
   throughput_init(&throughput);
 }
@@ -227,30 +222,29 @@ static void
 IpcpSendConfigReq(struct fsm * fp)
 {
   u_char *cp;
-  struct ipcpstate *icp = &IpcpInfo;
   struct lcp_opt o;
 
   cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
-  if (!DEV_IS_SYNC || !REJECTED(icp, TY_IPADDR)) {
+  if (!DEV_IS_SYNC || !REJECTED(&IpcpInfo, TY_IPADDR)) {
     o.id = TY_IPADDR;
     o.len = 6;
-    *(u_long *)o.data = icp->want_ipaddr.s_addr;
+    *(u_long *)o.data = IpcpInfo.want_ipaddr.s_addr;
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id],
-                     inet_ntoa(icp->want_ipaddr));
+                     inet_ntoa(IpcpInfo.want_ipaddr));
   }
 
-  if (icp->want_compproto && !REJECTED(icp, TY_COMPPROTO)) {
+  if (IpcpInfo.want_compproto && !REJECTED(&IpcpInfo, TY_COMPPROTO)) {
     const char *args;
     o.id = TY_COMPPROTO;
-    if (icp->heis1172) {
+    if (IpcpInfo.heis1172) {
       o.len = 4;
       *(u_short *)o.data = htons(PROTO_VJCOMP);
       args = "";
     } else {
       o.len = 6;
-      *(u_long *)o.data = htonl(icp->want_compproto);
-      args = vj2asc(icp->want_compproto);
+      *(u_long *)o.data = htonl(IpcpInfo.want_compproto);
+      args = vj2asc(IpcpInfo.want_compproto);
     }
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
   }
