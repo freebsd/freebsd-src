@@ -3420,8 +3420,8 @@ softdep_disk_prewrite(struct vnode *vp, struct buf *bp)
 {
 	int error;
 
-	if (bp->b_iocmd != BIO_WRITE) 
-		return (0);
+	KASSERT(bp->b_iocmd == BIO_WRITE,
+	    ("softdep_disk_prewrite on non-BIO_WRITE buffer"));
 	if ((bp->b_flags & B_VALIDSUSPWRT) == 0 &&
 	    bp->b_vp != NULL && bp->b_vp->v_mount != NULL &&
 	    (bp->b_vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED) != 0)
