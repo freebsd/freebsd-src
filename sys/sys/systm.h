@@ -51,7 +51,6 @@ extern int suser_enabled;	/* suser_xxx() is permitted to return 0 */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern const char *panicstr;	/* panic message */
-extern int dumping;		/* system is dumping */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
 
