@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001,2002 Thomas Quinot <thomas@cuivre.fr.eu.org>
+ * Copyright (c) 2001-2003 Thomas Quinot <thomas@cuivre.fr.eu.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,9 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/ata.h>
+#include <sys/taskqueue.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <machine/bus.h>
 
 #include <cam/cam.h>
@@ -45,7 +48,6 @@
 #include <cam/scsi/scsi_all.h>
 
 #include <dev/ata/ata-all.h>
-#include <dev/ata/atapi-all.h>
 
 /* hardware command descriptor block */
 struct atapi_hcb {
@@ -55,7 +57,6 @@ struct atapi_hcb {
     int			target;
     int			lun;
     union ccb		*ccb;
-    u_int8_t		cmd[CAM_MAX_CDBLEN];
     int			flags;
 #define DOING_AUTOSENSE 1
 
@@ -78,6 +79,7 @@ struct atapi_xpt_softc {
 
 enum reinit_reason { BOOT_ATTACH, ATTACH, RESET };
 
+static struct mtx atapicam_softc_mtx;
 static LIST_HEAD(,atapi_xpt_softc) all_buses = LIST_HEAD_INITIALIZER(all_buses);
 
 /* CAM XPT methods */
@@ -85,7 +87,7 @@ static void atapi_action(struct cam_sim *, union ccb *);
 static void atapi_poll(struct cam_sim *);
 static void atapi_async(void *, u_int32_t, struct cam_path *, void *);
 static void atapi_async1(void *, u_int32_t, struct cam_path *, void *);
-static int atapi_cb(struct atapi_request *);
+static void atapi_cb(struct ata_request *);
 
 /* internal functions */
 static void reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason);
@@ -102,7 +104,7 @@ static struct ata_device *get_ata_device(struct atapi_xpt_softc *scp, int id);
 
 static MALLOC_DEFINE(M_ATACAM, "ATA CAM transport", "ATA driver CAM-XPT layer");
 
-void 
+void
 atapi_cam_attach_bus(struct ata_channel *ata_ch)
 {
     struct atapi_xpt_softc *scp = NULL;
@@ -111,10 +113,21 @@ atapi_cam_attach_bus(struct ata_channel *ata_ch)
     struct cam_path *path = NULL;
     int unit;
 
+    GIANT_REQUIRED;
+
+    if (mtx_initialized(&atapicam_softc_mtx) == 0)
+	mtx_init(&atapicam_softc_mtx, "ATAPI/CAM softc mutex", NULL, MTX_DEF);
+
+    mtx_lock(&atapicam_softc_mtx);
+
     LIST_FOREACH(scp, &all_buses, chain) {
 	if (scp->ata_ch == ata_ch)
-	    return;
+	    break;
     }
+    mtx_unlock(&atapicam_softc_mtx);
+
+    if (scp != NULL)
+	return;
 
     if ((scp = malloc(sizeof(struct atapi_xpt_softc),
 		      M_ATACAM, M_NOWAIT | M_ZERO)) == NULL)
@@ -157,11 +170,14 @@ error:
     free_softc(scp);
 }
 
-void 
+void
 atapi_cam_detach_bus(struct ata_channel *ata_ch)
 {
     struct atapi_xpt_softc *scp = get_softc(ata_ch);
+
+    mtx_lock(&Giant);
     free_softc(scp);
+    mtx_unlock(&Giant);
 }
 
 void
@@ -173,12 +189,18 @@ atapi_cam_reinit_bus(struct ata_channel *ata_ch) {
      * the boot-up sequence, before the ATAPI bus is registered.
      */
 
-    if (scp != NULL)
+    if (scp != NULL) {
+	mtx_lock(&Giant);
 	reinit_bus(scp, RESET);
+	mtx_unlock(&Giant);
+    }
 }
 
 static void
 reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
+
+    GIANT_REQUIRED;
+
     if (scp->ata_ch->devices & ATA_ATAPI_MASTER)
 	setup_dev(scp, &scp->ata_ch->device[MASTER]);
     if (scp->ata_ch->devices & ATA_ATAPI_SLAVE)
@@ -199,11 +221,11 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 static void
 setup_dev(struct atapi_xpt_softc *scp, struct ata_device *atp)
 {
-    if (atp->driver == NULL) {
+    if (atp->softc == NULL) {
 	ata_set_name(atp, "atapicam",
 		     2 * device_get_unit(atp->channel->dev) +
 		     (atp->unit == ATA_MASTER) ? 0 : 1);
-	atp->driver = (void *)scp;
+	atp->softc = (void *)scp;
     }
 }
 
@@ -211,6 +233,8 @@ static void
 setup_async_cb(struct atapi_xpt_softc *scp, uint32_t events)
 {
     struct ccb_setasync csa;
+
+    GIANT_REQUIRED;
 
     xpt_setup_ccb(&csa.ccb_h, scp->path, /*priority*/ 5);
     csa.ccb_h.func_code = XPT_SASYNC_CB;
@@ -220,15 +244,16 @@ setup_async_cb(struct atapi_xpt_softc *scp, uint32_t events)
     xpt_action((union ccb *) &csa);
 }
 
-static void 
+static void
 atapi_action(struct cam_sim *sim, union ccb *ccb)
 {
     struct atapi_xpt_softc *softc = (struct atapi_xpt_softc*)cam_sim_softc(sim);
     struct ccb_hdr *ccb_h = &ccb->ccb_h;
     struct atapi_hcb *hcb = NULL;
+    struct ata_request *request = NULL;
     int unit = cam_sim_unit(sim);
     int bus = cam_sim_bus(sim);
-    int len, s;
+    int len;
     char *buf;
 
     switch (ccb_h->func_code) {
@@ -292,7 +317,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	struct ata_device *dev = get_ata_device(softc, tid);
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
-	atapi_reinit(dev);
+	ata_controlcmd(dev, ATA_ATAPI_RESET, 0, 0, 0);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -352,37 +377,45 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	if (dev == NULL) {
 	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
 		      ("SCSI IO received for invalid device\n"));
-	    ccb_h->status = CAM_TID_INVALID;
-	    xpt_done(ccb);
-	    return;
+	    goto action_invalid;
 	}
 	if (lid > 0) {
 	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
 		      ("SCSI IO received for invalid lun %d\n", lid));
-	    ccb_h->status = CAM_LUN_INVALID;
-	    xpt_done(ccb);
-	    return;
+	    goto action_invalid;
+	}
+	if (csio->cdb_len > sizeof request->u.atapi.ccb) {
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
+		("CAM CCB too long for ATAPI"));
+	    goto action_invalid;
 	}
 	if ((ccb_h->flags & CAM_SCATTER_VALID)) {
 	    /* scatter-gather not supported */
 	    xpt_print_path(ccb_h->path);
-	    printf("ATAPI-CAM does not support scatter-gather yet!\n");
+	    printf("ATAPI/CAM does not support scatter-gather yet!\n");
 	    break;
 	}
-	if ((hcb = allocate_hcb(softc, unit, bus, ccb)) == NULL)
+
+	if ((hcb = allocate_hcb(softc, unit, bus, ccb)) == NULL) {
+	    printf("cannot allocate ATAPI/CAM hcb\n");
 	    goto action_oom;
+	}
+	if ((request = ata_alloc_request()) == NULL) {
+	    printf("cannot allocate ATAPI/CAM request\n");
+	    goto action_oom;
+	}
 
 	ccb_h->status |= CAM_SIM_QUEUED;
 
 	bcopy((ccb_h->flags & CAM_CDB_POINTER) ?
 	      csio->cdb_io.cdb_ptr : csio->cdb_io.cdb_bytes,
-	      hcb->cmd, csio->cdb_len);
+	      request->u.atapi.ccb, csio->cdb_len);
 #ifdef CAMDEBUG
 	if (CAM_DEBUGGED(ccb_h->path, CAM_DEBUG_CDB)) {
 		char cdb_str[(SCSI_MAX_CDBLEN * 3) + 1];
 
 		printf("atapi_action: hcb@%p: %s\n", hcb,
-		       scsi_cdb_string(hcb->cmd, cdb_str, sizeof(cdb_str)));
+		       scsi_cdb_string(request->u.atapi.ccb, cdb_str, sizeof(cdb_str)));
 	}
 #endif
 
@@ -390,7 +423,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	buf = csio->data_ptr;
 
 	/* some SCSI commands require special processing */
-	switch (hcb->cmd[0]) {
+	switch (request->u.atapi.ccb[0]) {
 	case INQUIRY: {
 	    /*
 	     * many ATAPI devices seem to report more than
@@ -399,7 +432,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	     * when actually asked for it, so we are going to pretend
 	     * that only SHORT_INQUIRY_LENGTH are expected, anyway.
 	     */
-	    struct scsi_inquiry *inq = (struct scsi_inquiry *) &hcb->cmd[0];
+	    struct scsi_inquiry *inq = (struct scsi_inquiry *) &request->u.atapi.ccb[0];
 
 	    if (inq->byte2 == 0 && inq->page_code == 0 &&
 		inq->length > SHORT_INQUIRY_LENGTH) {
@@ -412,19 +445,19 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    /* FALLTHROUGH */
 
 	case WRITE_6:
-	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE, 
+	    CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
 		      ("Translating %s into _10 equivalent\n",
-		      (hcb->cmd[0] == READ_6) ? "READ_6" : "WRITE_6"));
-	    hcb->cmd[0] |= 0x20;
-	    hcb->cmd[9] = hcb->cmd[5];
-	    hcb->cmd[8] = hcb->cmd[4];
-	    hcb->cmd[7] = 0;
-	    hcb->cmd[6] = 0;
-	    hcb->cmd[5] = hcb->cmd[3];
-	    hcb->cmd[4] = hcb->cmd[2];
-	    hcb->cmd[3] = hcb->cmd[1] & 0x1f;
-	    hcb->cmd[2] = 0;
-	    hcb->cmd[1] = 0;
+		      (request->u.atapi.ccb[0] == READ_6) ? "READ_6" : "WRITE_6"));
+	    request->u.atapi.ccb[0] |= 0x20;
+	    request->u.atapi.ccb[9] = request->u.atapi.ccb[5];
+	    request->u.atapi.ccb[8] = request->u.atapi.ccb[4];
+	    request->u.atapi.ccb[7] = 0;
+	    request->u.atapi.ccb[6] = 0;
+	    request->u.atapi.ccb[5] = request->u.atapi.ccb[3];
+	    request->u.atapi.ccb[4] = request->u.atapi.ccb[2];
+	    request->u.atapi.ccb[3] = request->u.atapi.ccb[1] & 0x1f;
+	    request->u.atapi.ccb[2] = 0;
+	    request->u.atapi.ccb[1] = 0;
 	    break;
 	}
 
@@ -432,28 +465,48 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    /* ATA always transfers an even number of bytes */
 	    if (!(buf = hcb->dxfer_alloc = malloc(++len, M_ATACAM,
 						  M_NOWAIT | M_ZERO)))
+		printf("cannot allocate ATAPI/CAM buffer\n");
 		goto action_oom;
 	}
-	s = splbio();
+	request->device = dev;
+	request->driver = hcb;
+	request->data = buf;
+	request->bytecount = len;
+	request->transfersize = min(request->bytecount, 65534);
+	request->timeout = ccb_h->timeout;
+	request->retries = 2;
+	request->callback = &atapi_cb;
+	request->flags = (ATA_R_QUIET | ATA_R_ATAPI);
+	switch (ccb_h->flags & CAM_DIR_MASK) {
+	case CAM_DIR_IN:
+	     request->flags |= ATA_R_READ;
+	     break;
+	case CAM_DIR_OUT:
+	     request->flags |= ATA_R_WRITE;
+	     break;
+	case CAM_DIR_NONE:
+	     request->flags |= ATA_R_CONTROL;
+	     break;
+	default:
+	     ata_prtdev(dev, "unknown IO operation\n");
+	     goto action_invalid;
+	 }
+
 	TAILQ_INSERT_TAIL(&softc->pending_hcbs, hcb, chain);
-	splx(s);
-	if (atapi_queue_cmd(dev, hcb->cmd, buf, len,
-			    (((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_IN) ?
-			    ATPR_F_READ : 0) | ATPR_F_QUIET,
-			    ccb_h->timeout, atapi_cb, (void *)hcb) == 0)
-	    return;
-	break;
+
+	ata_queue_request(request);
+	return;
     }
 
     default:
 	CAM_DEBUG(ccb_h->path, CAM_DEBUG_SUBTRACE,
 		  ("unsupported function code 0x%02x\n", ccb_h->func_code));
-	ccb_h->status = CAM_REQ_INVALID;
-	xpt_done(ccb);
-	return;
+	goto action_invalid;
     }
 
 action_oom:
+    if (request != NULL)
+	ata_free_request(request);
     if (hcb != NULL)
 	free_hcb(hcb);
     xpt_print_path(ccb_h->path);
@@ -462,22 +515,29 @@ action_oom:
     xpt_freeze_simq(sim, /*count*/ 1);
     ccb_h->status = CAM_REQUEUE_REQ;
     xpt_done(ccb);
+    return;
+
+action_invalid:
+   ccb_h->status = CAM_REQ_INVALID;
+   xpt_done(ccb);
+   return;
 }
 
-static void 
+static void
 atapi_poll(struct cam_sim *sim)
 {
     /* do nothing - we do not actually service any interrupts */
     printf("atapi_poll called!\n");
 }
 
-static int 
-atapi_cb(struct atapi_request *req)
+static void
+atapi_cb(struct ata_request *request)
 {
-    struct atapi_hcb *hcb = (struct atapi_hcb *) req->driver;
+    struct atapi_hcb *hcb = (struct atapi_hcb *) request->driver;
     struct ccb_scsiio *csio = &hcb->ccb->csio;
-    int hcb_status = req->result;
-    int s = splbio();
+    int hcb_status = request->result;
+
+    mtx_lock(&Giant);
 
 #ifdef CAMDEBUG
 	if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
@@ -486,29 +546,35 @@ atapi_cb(struct atapi_request *req)
 		       (hcb_status & 4) ? " ABRT" : "",
 		       (hcb_status & 2) ? " EOM" : "",
 		       (hcb_status & 1) ? " ILI" : "");
-		printf("    %s: cmd %02x - sk=%02x asc=%02x ascq=%02x\n",
-		       req->device->name, req->ccb[0], req->sense.sense_key,
-		       req->sense.asc, req->sense.ascq);
+		printf("    %s: cmd %02x\n",
+		    request->device->name, request->u.atapi.ccb[0]);
 	}
 #endif
     if (hcb_status != 0) {
 	csio->scsi_status = SCSI_STATUS_CHECK_COND;
 	if ((csio->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
-	    csio->ccb_h.status |= CAM_AUTOSNS_VALID;
-	    bcopy((void *)&req->sense, (void *)&csio->sense_data,
-		  sizeof(struct atapi_reqsense));
+	    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
+		sizeof(struct atapi_sense), 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0 };
+
+	    if (ata_atapicmd(request->device, ccb, (caddr_t)&csio->sense_data,
+		sizeof(struct atapi_sense), ATA_R_READ, 30) == 0)
+	    {
+		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
+	    }
 	}
 	free_hcb_and_ccb_done(hcb, CAM_SCSI_STATUS_ERROR);
-    } 
+    }
     else {
 	if (((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) &&
 	    hcb->dxfer_alloc != NULL)
+	{
 	    bcopy(hcb->dxfer_alloc, csio->data_ptr, csio->dxfer_len);
+	}
 	csio->scsi_status = SCSI_STATUS_OK;
 	free_hcb_and_ccb_done(hcb, CAM_REQ_CMP);
     }
-    splx(s);
-    return 0;
+    mtx_unlock(&Giant);
 }
 
 static void
@@ -516,6 +582,8 @@ free_hcb_and_ccb_done(struct atapi_hcb *hcb, u_int32_t status)
 {
     struct atapi_xpt_softc *softc = hcb->softc;
     union ccb *ccb = hcb->ccb;
+
+    GIANT_REQUIRED;
 
     if (hcb != NULL) {
 	/* we're about to free a hcb, so the shortage has ended */
@@ -525,28 +593,29 @@ free_hcb_and_ccb_done(struct atapi_hcb *hcb, u_int32_t status)
 	}
 	free_hcb(hcb);
     }
-    ccb->ccb_h.status = 
+    ccb->ccb_h.status =
 	status | (ccb->ccb_h.status & ~(CAM_STATUS_MASK | CAM_SIM_QUEUED));
     xpt_done(ccb);
 }
 
-static void 
+static void
 atapi_async(void *callback_arg, u_int32_t code,
 	    struct cam_path *path, void *arg)
 {
-    int s = splbio();
-
+    mtx_lock(&Giant);
     atapi_async1(callback_arg, code, path, arg);
-    splx(s);
+    mtx_unlock(&Giant);
 }
 
-static void 
+static void
 atapi_async1(void *callback_arg, u_int32_t code,
 	     struct cam_path* path, void *arg)
 {
     struct atapi_xpt_softc *softc;
     struct cam_sim *sim;
     int targ;
+
+    GIANT_REQUIRED;
 
     sim = (struct cam_sim *) callback_arg;
     softc = (struct atapi_xpt_softc *) cam_sim_softc(sim);
@@ -570,10 +639,10 @@ cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	    	      ("Rescan failed, 0x%04x\n", ccb->ccb_h.status));
+		      ("Rescan failed, 0x%04x\n", ccb->ccb_h.status));
 	} else {
 	    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE,
-	    	      ("Rescan succeeded\n"));
+		      ("Rescan succeeded\n"));
 	}
 	xpt_free_path(ccb->ccb_h.path);
 	free(ccb, M_ATACAM);
@@ -584,7 +653,7 @@ cam_rescan(struct cam_sim *sim)
 {
     struct cam_path *path;
     union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_WAITOK | M_ZERO);
-    
+
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
 			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 	return;
@@ -613,7 +682,7 @@ allocate_hcb(struct atapi_xpt_softc *softc, int unit, int bus, union ccb *ccb)
     return hcb;
 }
 
-static void 
+static void
 free_hcb(struct atapi_hcb *hcb)
 {
     TAILQ_REMOVE(&hcb->softc->pending_hcbs, hcb, chain);
@@ -626,6 +695,8 @@ static void
 free_softc(struct atapi_xpt_softc *scp)
 {
     struct atapi_hcb *hcb;
+
+    GIANT_REQUIRED;
 
     if (scp != NULL) {
 	TAILQ_FOREACH(hcb, &scp->pending_hcbs, chain) {
@@ -653,12 +724,15 @@ free_softc(struct atapi_xpt_softc *scp)
 
 static struct atapi_xpt_softc *
 get_softc(struct ata_channel *ata_ch) {
-    struct atapi_xpt_softc *scp;
+    struct atapi_xpt_softc *scp = NULL;
+
+    mtx_lock(&atapicam_softc_mtx);
     LIST_FOREACH(scp, &all_buses, chain) {
-        if (scp->ata_ch == ata_ch)
-            return scp;
+	if (scp->ata_ch == ata_ch)
+	    break;
     }
-    return NULL;
+    mtx_unlock(&atapicam_softc_mtx);
+    return scp;
 }
 
 static struct ata_device *

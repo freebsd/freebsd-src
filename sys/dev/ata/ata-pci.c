@@ -35,6 +35,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -79,6 +80,8 @@ ata_pci_probe(device_t dev)
 	return ata_highpoint_ident(dev);
     case ATA_INTEL_ID:
 	return ata_intel_ident(dev);
+    case ATA_NATIONAL_ID:
+	return ata_national_ident(dev);
     case ATA_NVIDIA_ID:
 	return ata_nvidia_ident(dev);
     case ATA_PROMISE_ID:
@@ -413,13 +416,11 @@ ata_pci_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
 
     if ((error = ata_dmastart(ch, data, count, dir)))
 	return error;
-
-    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
-    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, (ATA_IDX_INB(ch, ATA_BMSTAT_PORT) | 
 		 (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
-    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
-		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
+    ATA_IDX_OUTB(ch, ATA_BMCMD_PORT,
+		 (dir ? ATA_BMCMD_WRITE_READ : 0) | ATA_BMCMD_START_STOP);
     return 0;
 }
 
@@ -432,10 +433,8 @@ ata_pci_dmastop(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_BMCMD_PORT, 
 		 ATA_IDX_INB(ch, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
     ATA_IDX_OUTB(ch, ATA_BMSTAT_PORT, ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
-
     ata_dmastop(ch);
-
-    return (error & ATA_BMSTAT_MASK);
+    return error;
 }
 
 static int
@@ -505,8 +504,6 @@ ata_pcisub_probe(device_t dev)
     if ((error = ctlr->allocate(dev, ch)))
 	return error;
 
-    if (ctlr->chip)
-	ch->chiptype = ctlr->chip->chipid;
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
     ch->locking = ctlr->locking;

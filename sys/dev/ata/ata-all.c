@@ -33,12 +33,14 @@
 #include <sys/systm.h>
 #include <sys/ata.h>
 #include <sys/kernel.h>
+#include <sys/endian.h>
 #include <sys/conf.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -50,33 +52,35 @@
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-disk.h>
 #include <dev/ata/ata-raid.h>
-#include <dev/ata/atapi-all.h>
 
 /* device structures */
-static	d_ioctl_t	ataioctl;
+static	d_ioctl_t	ata_ioctl;
 static struct cdevsw ata_cdevsw = {  
 	.d_open =	nullopen,
 	.d_close =	nullclose,
-	.d_ioctl =	ataioctl,
+	.d_ioctl =	ata_ioctl,
 	.d_name =	"ata",
 	.d_maj =	159,
 };
 
 /* prototypes */
+static void ata_shutdown(void *arg, int howto);
+static int ata_getparam(struct ata_device *atadev, u_int8_t command);
+static void ata_identify_devices(struct ata_channel *ch);
 static void ata_boot_attach(void);
-static void ata_intr(void *);
-static int ata_getparam(struct ata_device *, u_int8_t);
-static int ata_service(struct ata_channel *);
-static void ata_flush(struct ata_device *);
-static void bswap(int8_t *, int);
-static void btrim(int8_t *, int);
-static void bpack(int8_t *, int8_t *, int);
-static void ata_change_mode(struct ata_device *, int);
-static u_int8_t ata_enclosure_sensor(struct ata_device *, int, u_int8_t, u_int8_t);
-static int ata_enclosure_status(struct ata_device *, int *, int *, int *, int *);
+static void bswap(int8_t *buf, int len);
+static void btrim(int8_t *buf, int len);
+static void bpack(int8_t *src, int8_t *dst, int len);
+static void ata_init(void);
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
+TUNABLE_INT("hw.ata.wc", &ata_wc);
+TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
+int ata_dma = 1;
+int ata_wc = 1;	 
+int atapi_dma = 0;
 
 /* global vars */
 struct intr_config_hook *ata_delayed_attach = NULL;
@@ -85,10 +89,9 @@ devclass_t ata_devclass;
 /* local vars */
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
 
-/* misc defines */
-#define DEV_ATAPIALL	defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || \
-			defined(DEV_ATAPIST) || defined(DEV_ATAPICAM)
-
+/*
+ * newbus device interface related functions
+ */
 int
 ata_probe(device_t dev)
 {
@@ -101,20 +104,22 @@ ata_probe(device_t dev)
 	return EEXIST;
 
     /* initialize the softc basics */
-    ch->active = ATA_IDLE;
-    ch->dev = dev;
+    ata_generic_hw(ch);
     ch->device[MASTER].channel = ch;
     ch->device[MASTER].unit = ATA_MASTER;
     ch->device[MASTER].mode = ATA_PIO;
     ch->device[SLAVE].channel = ch;
     ch->device[SLAVE].unit = ATA_SLAVE;
     ch->device[SLAVE].mode = ATA_PIO;
+    ch->dev = dev;
+    ch->state = ATA_IDLE;
+    bzero(&ch->queue_mtx, sizeof(struct mtx));
+    mtx_init(&ch->queue_mtx, "ATA queue lock", MTX_DEF, 0);
     TAILQ_INIT(&ch->ata_queue);
-    TAILQ_INIT(&ch->atapi_queue);
 
     /* initialise device(s) on this channel */
     ch->locking(ch, ATA_LF_LOCK);
-    ata_reset(ch);
+    ch->hw.reset(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
     return 0;
 }
@@ -135,8 +140,8 @@ ata_attach(device_t dev)
 	ata_printf(ch, -1, "unable to allocate interrupt\n");
 	return ENXIO;
     }
-    if ((error = bus_setup_intr(dev, ch->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
-				ata_intr, ch, &ch->ih))) {
+    if ((error = bus_setup_intr(dev, ch->r_irq, ATA_INTR_FLAGS,
+				ch->hw.interrupt, ch, &ch->ih))) {
 	ata_printf(ch, -1, "unable to setup interrupt\n");
 	return error;
     }
@@ -144,42 +149,19 @@ ata_attach(device_t dev)
     if (ch->dma)
 	ch->dma->alloc(ch);
 
-    /*
-     * do not attach devices if we are in early boot, this is done later 
-     * when interrupts are enabled by a hook into the boot process.
-     * otherwise attach what the probe has found in ch->devices.
-     */
-    if (!ata_delayed_attach) {
-	ch->locking(ch, ATA_LF_LOCK);
-	if (ch->devices & ATA_ATA_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_SLAVE;
-	if (ch->devices & ATA_ATAPI_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_SLAVE;
-	if (ch->devices & ATA_ATA_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_MASTER;
-	if (ch->devices & ATA_ATAPI_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_MASTER;
-#ifdef DEV_ATADISK
-	if (ch->devices & ATA_ATA_MASTER) 
-	    ad_attach(&ch->device[MASTER]);
-	if (ch->devices & ATA_ATA_SLAVE)
-	    ad_attach(&ch->device[SLAVE]);
-#endif
-#if DEV_ATAPIALL
-	if (ch->devices & ATA_ATAPI_MASTER)
-	    atapi_attach(&ch->device[MASTER]);
-	if (ch->devices & ATA_ATAPI_SLAVE)
-	    atapi_attach(&ch->device[SLAVE]);
-#endif
+    /* do not attach devices if we are in early boot */
+    if (ata_delayed_attach)
+	return 0;
+
+    ata_identify_devices(ch);
+
+    if (ch->device[MASTER].attach)
+	ch->device[MASTER].attach(&ch->device[MASTER]);
+    if (ch->device[SLAVE].attach)
+	ch->device[SLAVE].attach(&ch->device[SLAVE]);
 #ifdef DEV_ATAPICAM
-	atapi_cam_attach_bus(ch);
+    atapi_cam_attach_bus(ch);
 #endif
-	ch->locking(ch, ATA_LF_UNLOCK);
-    }
     return 0;
 }
 
@@ -187,56 +169,97 @@ int
 ata_detach(device_t dev)
 {
     struct ata_channel *ch;
-    int s;
+    struct ata_request *request;
  
     if (!dev || !(ch = device_get_softc(dev)) || !ch->r_irq)
 	return ENXIO;
 
-    /* make sure channel is not busy */
-    ch->locking(ch, ATA_LF_LOCK);
-    ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
-
-    s = splbio();
-#ifdef DEV_ATADISK
-    if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver)
-	ad_detach(&ch->device[MASTER]);
-    if (ch->devices & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
-	ad_detach(&ch->device[SLAVE]);
-#endif
-#if DEV_ATAPIALL
-    if (ch->devices & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
-	atapi_detach(&ch->device[MASTER]);
-    if (ch->devices & ATA_ATAPI_SLAVE && ch->device[SLAVE].driver)
-	atapi_detach(&ch->device[SLAVE]);
-#endif
+    /* detach devices on this channel */
+    if (ch->device[MASTER].detach)
+	ch->device[MASTER].detach(&ch->device[MASTER]);
+    if (ch->device[SLAVE].detach)
+	ch->device[SLAVE].detach(&ch->device[SLAVE]);
 #ifdef DEV_ATAPICAM
     atapi_cam_detach_bus(ch);
 #endif
-    splx(s);
+
+    /* fail outstanding requests on this channel */
+    mtx_lock(&ch->queue_mtx);
+    while ((request = TAILQ_FIRST(&ch->ata_queue))) {
+	TAILQ_REMOVE(&ch->ata_queue, request, chain);
+	request->status = ATA_S_ERROR;
+	mtx_unlock(&ch->queue_mtx);
+	ata_finish(request);
+	mtx_lock(&ch->queue_mtx);
+    }
+    mtx_unlock(&ch->queue_mtx);
 
     if (ch->device[MASTER].param) {
-	ata_flush(&ch->device[MASTER]);
+	ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
 	free(ch->device[MASTER].param, M_ATA);
 	ch->device[MASTER].param = NULL;
     }
     if (ch->device[SLAVE].param) {
-	ata_flush(&ch->device[SLAVE]);
+	ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
 	free(ch->device[SLAVE].param, M_ATA);
 	ch->device[SLAVE].param = NULL;
     }
-    ch->device[MASTER].driver = NULL;
-    ch->device[SLAVE].driver = NULL;
     ch->device[MASTER].mode = ATA_PIO;
     ch->device[SLAVE].mode = ATA_PIO;
     ch->devices = 0;
+
     if (ch->dma)
 	ch->dma->free(ch);
 
     bus_teardown_intr(dev, ch->r_irq, ch->ih);
     bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
     ch->r_irq = NULL;
+    return 0;
+}
+
+int
+ata_reinit(struct ata_channel *ch)
+{
+    int devices, misdev, newdev;
+
+    if (!ch->r_irq)
+	return ENXIO;
+
+    /* reset the HW */
+    ata_printf(ch, -1, "resetting devices ..\n");
+    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
+    ch->running = NULL;
+    devices = ch->devices;
+    ch->hw.reset(ch);
     ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
+
+    /* detach what left the channel during reset */
+    if ((misdev = devices & ~ch->devices)) {
+	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
+	    ch->device[MASTER].detach)
+	    ch->device[MASTER].detach(&ch->device[MASTER]);
+	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
+	    ch->device[SLAVE].detach)
+	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
+    }
+
+    /* identify whats present on this channel now */
+    ata_identify_devices(ch);
+
+    /* attach new devices that appeared during reset */
+    if ((newdev = ~devices & ch->devices)) {
+	if ((newdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
+	    ch->device[MASTER].attach)
+	    ch->device[MASTER].attach(&ch->device[MASTER]);
+	if ((newdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
+	    ch->device[SLAVE].attach)
+	    ch->device[SLAVE].attach(&ch->device[SLAVE]);
+    }
+#ifdef DEV_ATAPICAM
+    atapi_cam_reinit_bus(ch);
+#endif
+
+    printf("done\n");
     return 0;
 }
 
@@ -265,239 +288,348 @@ ata_resume(device_t dev)
     ch->locking(ch, ATA_LF_LOCK);
     error = ata_reinit(ch);
     ch->locking(ch, ATA_LF_UNLOCK);
+    ata_start(ch);
     return error;
 }
 
-static int
-ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+static void
+ata_shutdown(void *arg, int howto)
 {
-    struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     struct ata_channel *ch;
-    device_t device = devclass_get_device(ata_devclass, iocmd->channel);
-    int error;
+    int ctlr;
 
-    if (cmd != IOCATA)
-	return ENOTTY;
-    
-    if (iocmd->cmd == ATAGMAXCHANNEL) {
-	iocmd->u.maxchan = devclass_get_maxunit(ata_devclass);
-	return 0;
+    /* flush cache on all devices */
+    for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
+	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
+	    continue;
+	if (ch->device[MASTER].param)
+	    ata_controlcmd(&ch->device[MASTER], ATA_FLUSHCACHE, 0, 0, 0);
+	if (ch->device[SLAVE].param)
+	    ata_controlcmd(&ch->device[SLAVE], ATA_FLUSHCACHE, 0, 0, 0);
     }
-
-    if (iocmd->channel < -1 || iocmd->device < -1 || iocmd->device > SLAVE)
-	return ENXIO;
-
-    switch (iocmd->cmd) {
-	case ATAATTACH:
-	    /* should enable channel HW on controller that can SOS XXX */   
-	    error = ata_probe(device);
-	    if (!error)
-		error = ata_attach(device);
-	    return error;
-
-	case ATADETACH:
-	    error = ata_detach(device);
-	    /* should disable channel HW on controller that can SOS XXX */   
-	    return error;
-
-	case ATAREINIT:
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-	    ch->locking(ch, ATA_LF_LOCK);
-	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
-	    error = ata_reinit(ch);
-	    ch->locking(ch, ATA_LF_UNLOCK);
-	    return error;
-
-	case ATAGMODE:
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-
-	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
-		ch->device[MASTER].driver)
-		iocmd->u.mode.mode[MASTER] = ch->device[MASTER].mode;
-	    else
-		iocmd->u.mode.mode[MASTER] = -1;
-
-	    if ((iocmd->device == SLAVE || iocmd->device == -1) &&
-		ch->device[SLAVE].param)
-		iocmd->u.mode.mode[SLAVE] = ch->device[SLAVE].mode;
-	    else
-		iocmd->u.mode.mode[SLAVE] = -1;
-	    return 0;
-
-	case ATASMODE:
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-
-	    ch->locking(ch, ATA_LF_LOCK);
-	    if ((iocmd->device == MASTER || iocmd->device == -1) &&
-		iocmd->u.mode.mode[MASTER] >= 0 && ch->device[MASTER].param) {
-		ata_change_mode(&ch->device[MASTER],iocmd->u.mode.mode[MASTER]);
-		iocmd->u.mode.mode[MASTER] = ch->device[MASTER].mode;
-	    }
-	    else
-		iocmd->u.mode.mode[MASTER] = -1;
-
-	    if ((iocmd->device == SLAVE || iocmd->device == -1) &&
-		iocmd->u.mode.mode[SLAVE] >= 0 && ch->device[SLAVE].param) {
-		ata_change_mode(&ch->device[SLAVE], iocmd->u.mode.mode[SLAVE]);
-		iocmd->u.mode.mode[SLAVE] = ch->device[SLAVE].mode;
-	    }
-	    else
-		iocmd->u.mode.mode[SLAVE] = -1;
-	    ch->locking(ch, ATA_LF_UNLOCK);
-	    return 0;
-
-	case ATAGPARM:
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-
-	    iocmd->u.param.type[MASTER] = 
-		ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
-	    iocmd->u.param.type[SLAVE] =
-		ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
-
-	    if (ch->device[MASTER].name)
-		strcpy(iocmd->u.param.name[MASTER], ch->device[MASTER].name);
-	    if (ch->device[SLAVE].name)
-		strcpy(iocmd->u.param.name[SLAVE], ch->device[SLAVE].name);
-
-	    if (ch->device[MASTER].param)
-		bcopy(ch->device[MASTER].param, &iocmd->u.param.params[MASTER],
-		      sizeof(struct ata_params));
-	    if (ch->device[SLAVE].param)
-		bcopy(ch->device[SLAVE].param, &iocmd->u.param.params[SLAVE],
-		      sizeof(struct ata_params));
-	    return 0;
-
-	case ATAENCSTAT: {
-	    struct ata_device *atadev;
-
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-
-	    if (iocmd->device == SLAVE)
-		atadev = &ch->device[SLAVE];
-	    else
-		atadev = &ch->device[MASTER];
-
-	    return ata_enclosure_status(atadev,
-					&iocmd->u.enclosure.fan,
-					&iocmd->u.enclosure.temp,
-					&iocmd->u.enclosure.v05,
-					&iocmd->u.enclosure.v12);
-	}
-
-#ifdef DEV_ATADISK
-	case ATARAIDREBUILD:
-	    return ata_raid_rebuild(iocmd->channel);
-
-	case ATARAIDCREATE:
-	    return ata_raid_create(&iocmd->u.raid_setup);
-
-	case ATARAIDDELETE:
-	    return ata_raid_delete(iocmd->channel);
-
-	case ATARAIDADDSPARE:
-	    return ata_raid_addspare(iocmd->channel, iocmd->u.raid_spare.disk);
-
-	case ATARAIDSTATUS:
-	    return ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
-#endif
-#if DEV_ATAPIALL
-	case ATAPICMD: {
-	    struct ata_device *atadev;
-	    caddr_t buf;
-
-	    if (!device || !(ch = device_get_softc(device)))
-		return ENXIO;
-
-	    if (!(atadev = &ch->device[iocmd->device]) ||
-		!(ch->devices & (iocmd->device == MASTER ?
-				 ATA_ATAPI_MASTER : ATA_ATAPI_SLAVE)))
-		return ENODEV;
-
-	    if (!(buf = malloc(iocmd->u.atapi.count, M_ATA, M_NOWAIT)))
-		return ENOMEM;
-
-	    if (iocmd->u.atapi.flags & ATAPI_CMD_WRITE) {
-		error = copyin(iocmd->u.atapi.data, buf, iocmd->u.atapi.count);
-		if (error) {
-		    free(buf, M_ATA);
-		    return error;
-		}
-	    }
-	    error = atapi_queue_cmd(atadev, iocmd->u.atapi.ccb,
-				    buf, iocmd->u.atapi.count,
-				    (iocmd->u.atapi.flags == ATAPI_CMD_READ ?
-				     ATPR_F_READ : 0) | ATPR_F_QUIET, 
-				    iocmd->u.atapi.timeout, NULL, NULL);
-	    if (error) {
-		iocmd->u.atapi.error = error;
-		bcopy(&atadev->result, iocmd->u.atapi.sense_data,
-		      sizeof(struct atapi_reqsense));
-		error = 0;
-	    }
-	    else if (iocmd->u.atapi.flags & ATAPI_CMD_READ)
-		error = copyout(buf, iocmd->u.atapi.data, iocmd->u.atapi.count);
-
-	    free(buf, M_ATA);
-	    return error;
-	}
-#endif
-	default:
-	    break;
-    }
-    return ENOTTY;
 }
 
+/*
+ * device related interfaces
+ */
 static int
+ata_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+{
+    struct ata_cmd *iocmd = (struct ata_cmd *)addr;
+    device_t device = devclass_get_device(ata_devclass, iocmd->channel);
+    struct ata_channel *ch;
+    struct ata_device *atadev;
+    struct ata_request *request;
+    caddr_t buf;
+    int error = ENOTTY;
+
+    DROP_GIANT();
+    switch (iocmd->cmd) {
+    case ATAGMAXCHANNEL:
+	iocmd->u.maxchan = devclass_get_maxunit(ata_devclass);
+	error = 0;
+	break;
+
+    case ATAGPARM:
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
+	iocmd->u.param.type[MASTER] = 
+	    ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER);
+	iocmd->u.param.type[SLAVE] =
+	    ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE);
+	if (ch->device[MASTER].name)
+	    strcpy(iocmd->u.param.name[MASTER], ch->device[MASTER].name);
+	if (ch->device[SLAVE].name)
+	    strcpy(iocmd->u.param.name[SLAVE], ch->device[SLAVE].name);
+	if (ch->device[MASTER].param)
+	    bcopy(ch->device[MASTER].param, &iocmd->u.param.params[MASTER],
+		  sizeof(struct ata_params));
+	if (ch->device[SLAVE].param)
+	    bcopy(ch->device[SLAVE].param, &iocmd->u.param.params[SLAVE],
+		  sizeof(struct ata_params));
+	error = 0;
+	break;
+
+    case ATAGMODE:
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
+	iocmd->u.mode.mode[MASTER] = ch->device[MASTER].mode;
+	iocmd->u.mode.mode[SLAVE] = ch->device[SLAVE].mode;
+	error = 0;
+	break;
+
+    case ATASMODE:
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
+	if (iocmd->u.mode.mode[MASTER] >= 0 && ch->device[MASTER].param)
+	    ch->device[MASTER].setmode(&ch->device[MASTER],
+				       iocmd->u.mode.mode[MASTER]);
+	iocmd->u.mode.mode[MASTER] = ch->device[MASTER].mode;
+	if (iocmd->u.mode.mode[SLAVE] >= 0 && ch->device[SLAVE].param) 
+	    ch->device[SLAVE].setmode(&ch->device[SLAVE],
+				      iocmd->u.mode.mode[SLAVE]);
+	iocmd->u.mode.mode[SLAVE] = ch->device[SLAVE].mode;
+	error = 0;
+	break;
+
+   case ATAREQUEST:
+	if (!device || !(ch = device_get_softc(device))) {
+	    error = ENXIO;
+	    break;
+	}
+	if (!(atadev = &ch->device[iocmd->device])) {
+	    error = ENODEV;
+	    break;
+	}
+	if (!(buf = malloc(iocmd->u.request.count, M_ATA, M_NOWAIT))) {
+	    error = ENOMEM;
+	    break;
+	}
+	if (!(request = ata_alloc_request())) {
+	    error = ENOMEM;
+	    free(buf, M_ATA);
+	    break;
+	}
+	if (iocmd->u.request.flags & ATA_CMD_WRITE) {
+	    error = copyin(iocmd->u.request.data, buf, iocmd->u.request.count);
+	    if (error) {
+		free(buf, M_ATA);
+		ata_free_request(request);
+		break;
+	    }
+	}
+	
+	request->device = atadev;
+
+	if (iocmd->u.request.flags & ATA_CMD_ATAPI) {
+	    request->flags = ATA_R_ATAPI;
+	    bcopy(iocmd->u.request.u.atapi.ccb, request->u.atapi.ccb, 16);
+	}
+	else {
+	     request->u.ata.command = iocmd->u.request.u.ata.command;
+	     request->u.ata.feature = iocmd->u.request.u.ata.feature;
+	     request->u.ata.lba = iocmd->u.request.u.ata.lba;
+	     request->u.ata.count = iocmd->u.request.u.ata.count;
+	}
+
+	request->timeout = iocmd->u.request.timeout;
+	request->data = buf;
+	request->bytecount = iocmd->u.request.count;
+	request->transfersize = request->bytecount;
+
+	if (iocmd->u.request.flags & ATA_CMD_CONTROL)
+	    request->flags |= ATA_R_CONTROL;
+	if (iocmd->u.request.flags & ATA_CMD_READ)
+	    request->flags |= ATA_R_READ;
+	if (iocmd->u.request.flags & ATA_CMD_WRITE)
+	    request->flags |= ATA_R_WRITE;
+
+	ata_queue_request(request);
+
+	if (request->error)
+	    iocmd->u.request.error = request->error;
+	else {
+	    if (iocmd->u.request.flags & ATA_CMD_READ)
+		error = copyout(buf,
+				iocmd->u.request.data, iocmd->u.request.count);
+	    else
+		error = 0;
+	}
+	free(buf, M_ATA);
+	ata_free_request(request);
+	break;
+
+    case ATAREINIT:
+	if (!device || !(ch = device_get_softc(device)))
+	    return ENXIO;
+	error = ata_reinit(ch);
+	ata_start(ch);
+	break;
+
+    case ATAATTACH:
+	if (!device) {
+	    error =  ENXIO;
+	    break;
+	}
+	/* SOS should enable channel HW on controller XXX */
+	error = ata_probe(device);
+	if (!error)
+	    error = ata_attach(device);
+	break;
+
+    case ATADETACH:
+	if (!device) {
+	    error = ENXIO;
+	    break;
+	}
+	error = ata_detach(device);
+	/* SOS should disable channel HW on controller XXX */
+	break;
+	
+
+#ifdef DEV_ATARAID
+    case ATARAIDCREATE:
+	error = ata_raid_create(&iocmd->u.raid_setup);
+	break;
+	
+    case ATARAIDDELETE:
+	error = ata_raid_delete(iocmd->channel);
+	break;
+	     
+    case ATARAIDSTATUS:
+	error = ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
+	break;
+		
+    case ATARAIDADDSPARE:
+	error = ata_raid_addspare(iocmd->channel, iocmd->u.raid_spare.disk);
+	break;
+		
+    case ATARAIDREBUILD:
+	error = ata_raid_rebuild(iocmd->channel);
+	break;
+#endif
+    }
+    PICKUP_GIANT();
+    return error;
+}
+
+/*
+ * device probe functions
+ */
+static int 
 ata_getparam(struct ata_device *atadev, u_int8_t command)
 {
-    struct ata_params *ata_parm;
-    int retry = 0;
+    struct ata_params *atacap;
+    struct ata_request *request;
+    int error = ENOMEM;
 
-    if (!(ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT))) {
-	ata_prtdev(atadev, "malloc for identify data failed\n");
-	return -1;
+    if (atadev->param)
+	atacap = atadev->param;
+    else
+	atacap = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
+    if (atacap) {
+	request = ata_alloc_request(); 
+	if (request) {
+	    request->device = atadev;
+	    request->u.ata.command = command;
+	    request->flags = ATA_R_READ;
+	    request->data = (caddr_t)atacap;
+	    request->timeout = 2;
+	    request->retries = 2;
+	    request->bytecount = sizeof(struct ata_params);
+	    request->transfersize = DEV_BSIZE;
+	    ata_queue_request(request);
+	    error = request->result;
+	    ata_free_request(request);
+	}
+	if (error) {
+	    atadev->param = NULL;
+	    free(atacap, M_ATA);
+	}
+	else {
+#if BYTE_ORDER == BIG_ENDIAN
+	    int16_t *ptr;
+
+	    for (ptr = (int16_t *)atacap;
+		 ptr < (int16_t *)atacap + sizeof(struct ata_params)/2; ptr++) {
+		*ptr = bswap16(*ptr);
+	    }
+#endif
+	    if (!((atacap->model[0] == 'N' && atacap->model[1] == 'E') ||
+		  (atacap->model[0] == 'F' && atacap->model[1] == 'X') ||
+		  (atacap->model[0] == 'P' && atacap->model[1] == 'i')))
+		bswap(atacap->model, sizeof(atacap->model));
+	    btrim(atacap->model, sizeof(atacap->model));
+	    bpack(atacap->model, atacap->model, sizeof(atacap->model));
+	    bswap(atacap->revision, sizeof(atacap->revision));
+	    btrim(atacap->revision, sizeof(atacap->revision));
+	    bpack(atacap->revision, atacap->revision, sizeof(atacap->revision));
+	    bswap(atacap->serial, sizeof(atacap->serial));
+	    btrim(atacap->serial, sizeof(atacap->serial));
+	    bpack(atacap->serial, atacap->serial, sizeof(atacap->serial));
+	    atadev->param = atacap;
+	    if (bootverbose)
+		ata_prtdev(atadev,
+			   "pio=0x%02x wdma=0x%02x udma=0x%02x cable=%spin\n",
+			   ata_pmode(atacap), ata_wmode(atacap),
+			   ata_umode(atacap),
+			   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
+	}
     }
+    return error;
+}
 
-    /* apparently some devices needs this repeated */
-    do {
-	if (ata_command(atadev, command, 0, 0, 0,
-		dumping ? ATA_WAIT_READY : ATA_WAIT_INTR)) {
-	    ata_prtdev(atadev, "%s identify failed\n",
-		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
-	    free(ata_parm, M_ATA);
-	    return -1;
+static void
+ata_identify_devices(struct ata_channel *ch)
+{
+    if (ch->devices & ATA_ATA_SLAVE) {
+	if (ata_getparam(&ch->device[SLAVE], ATA_ATA_IDENTIFY))
+	    ch->devices &= ~ATA_ATA_SLAVE;
+#ifdef DEV_ATADISK
+	else
+	    ch->device[SLAVE].attach = ad_attach;
+#endif
+    }
+    if (ch->devices & ATA_ATAPI_SLAVE) {
+	if (ata_getparam(&ch->device[SLAVE], ATA_ATAPI_IDENTIFY))
+	    ch->devices &= ~ATA_ATAPI_SLAVE;
+	else {
+	    switch (ch->device[SLAVE].param->config & ATA_ATAPI_TYPE_MASK) {
+#ifdef DEV_ATAPICD
+	    case ATA_ATAPI_TYPE_CDROM:
+		ch->device[SLAVE].attach = acd_attach;
+		break;
+#endif
+#ifdef DEV_ATAPIFD
+	    case ATA_ATAPI_TYPE_DIRECT:
+		ch->device[SLAVE].attach = afd_attach;
+		break;
+#endif
+#ifdef DEV_ATAPIST
+	    case ATA_ATAPI_TYPE_TAPE:
+		ch->device[SLAVE].attach = ast_attach;
+		break;
+#endif
+	    }
 	}
-	if (retry++ > 4) {
-	    ata_prtdev(atadev, "%s identify retries exceeded\n",
-		       command == ATA_C_ATAPI_IDENTIFY ? "ATAPI" : "ATA");
-	    free(ata_parm, M_ATA);
-	    return -1;
+    }
+    if (ch->devices & ATA_ATA_MASTER) {
+	if (ata_getparam(&ch->device[MASTER], ATA_ATA_IDENTIFY))
+	    ch->devices &= ~ATA_ATA_MASTER;
+#ifdef DEV_ATADISK
+	else
+	    ch->device[MASTER].attach = ad_attach;
+#endif
+    }
+    if (ch->devices & ATA_ATAPI_MASTER) {
+	if (ata_getparam(&ch->device[MASTER], ATA_ATAPI_IDENTIFY))
+	    ch->devices &= ~ATA_ATAPI_MASTER;
+	else {
+	    switch (ch->device[MASTER].param->config & ATA_ATAPI_TYPE_MASK) {
+#ifdef DEV_ATAPICD
+	    case ATA_ATAPI_TYPE_CDROM:
+		ch->device[MASTER].attach = acd_attach;
+		break;
+#endif
+#ifdef DEV_ATAPIFD
+	    case ATA_ATAPI_TYPE_DIRECT:
+		ch->device[MASTER].attach = afd_attach;
+		break;
+#endif
+#ifdef DEV_ATAPIST
+	    case ATA_ATAPI_TYPE_TAPE:
+		ch->device[MASTER].attach = ast_attach;
+		break;
+#endif
+	    }
 	}
-    } while (ata_wait(atadev, ((command == ATA_C_ATAPI_IDENTIFY) ?
-			       ATA_S_DRQ : (ATA_S_READY|ATA_S_DSC|ATA_S_DRQ))));
-    ATA_IDX_INSW(atadev->channel, ATA_DATA, (int16_t *)ata_parm,
-	     sizeof(struct ata_params)/sizeof(int16_t));
-
-    if (command == ATA_C_ATA_IDENTIFY ||
-	!((ata_parm->model[0] == 'N' && ata_parm->model[1] == 'E') ||
-	  (ata_parm->model[0] == 'F' && ata_parm->model[1] == 'X') ||
-	  (ata_parm->model[0] == 'P' && ata_parm->model[1] == 'i')))
-	bswap(ata_parm->model, sizeof(ata_parm->model));
-    btrim(ata_parm->model, sizeof(ata_parm->model));
-    bpack(ata_parm->model, ata_parm->model, sizeof(ata_parm->model));
-    bswap(ata_parm->revision, sizeof(ata_parm->revision));
-    btrim(ata_parm->revision, sizeof(ata_parm->revision));
-    bpack(ata_parm->revision, ata_parm->revision, sizeof(ata_parm->revision));
-    bswap(ata_parm->serial, sizeof(ata_parm->serial));
-    btrim(ata_parm->serial, sizeof(ata_parm->serial));
-    bpack(ata_parm->serial, ata_parm->serial, sizeof(ata_parm->serial));
-    atadev->param = ata_parm;
-    return 0;
+    }
 }
 
 static void 
@@ -514,845 +646,70 @@ ata_boot_attach(void)
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
 	    continue;
-	ch->locking(ch, ATA_LF_LOCK);
-	if (ch->devices & ATA_ATA_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_SLAVE;
-	if (ch->devices & ATA_ATAPI_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_SLAVE;
-	if (ch->devices & ATA_ATA_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_MASTER;
-	if (ch->devices & ATA_ATAPI_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_MASTER;
-	ch->locking(ch, ATA_LF_UNLOCK);
-    }
-#ifdef DEV_ATADISK
-    /* now we know whats there, do the real attach, first the ATA disks */
-    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
-	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
-	    continue;
-	ch->locking(ch, ATA_LF_LOCK);
-	if (ch->devices & ATA_ATA_MASTER)
-	    ad_attach(&ch->device[MASTER]);
-	if (ch->devices & ATA_ATA_SLAVE)
-	    ad_attach(&ch->device[SLAVE]);
-	ch->locking(ch, ATA_LF_UNLOCK);
-    }
-#endif
-    /* then the atapi devices */
-    for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
-	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
-	    continue;
-	ch->locking(ch, ATA_LF_LOCK);
-#if DEV_ATAPIALL
-	if (ch->devices & ATA_ATAPI_MASTER)
-	    atapi_attach(&ch->device[MASTER]);
-	if (ch->devices & ATA_ATAPI_SLAVE)
-	    atapi_attach(&ch->device[SLAVE]);
-#endif
+	ata_identify_devices(ch);
+	if (ch->device[MASTER].attach)
+	    ch->device[MASTER].attach(&ch->device[MASTER]);
+	if (ch->device[SLAVE].attach)
+	    ch->device[SLAVE].attach(&ch->device[SLAVE]);
 #ifdef DEV_ATAPICAM
 	atapi_cam_attach_bus(ch);
 #endif
-	ch->locking(ch, ATA_LF_UNLOCK);
     }
+#ifdef DEV_ATARAID
+    ata_raid_attach();
+#endif
     if (ata_delayed_attach) {
 	config_intrhook_disestablish(ata_delayed_attach);
 	free(ata_delayed_attach, M_TEMP);
 	ata_delayed_attach = NULL;
     }
-#ifdef DEV_ATADISK
-    ata_raid_attach();
-#endif
+}
+
+/*
+ * misc support functions
+ */
+static void
+bswap(int8_t *buf, int len)
+{
+    u_int16_t *ptr = (u_int16_t*)(buf + len);
+    
+    while (--ptr >= (u_int16_t*)buf)
+	*ptr = ntohs(*ptr);
 }
 
 static void
-ata_intr(void *data)
-{
-    struct ata_channel *ch = (struct ata_channel *)data;
+btrim(int8_t *buf, int len)
+{ 
+    int8_t *ptr;
 
-    /* if device is busy it didn't interrupt */
-    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-	DELAY(100);
-	if (!(ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_DRQ))
-	    return;
-    }
-
-    /* clear interrupt and get status */
-    ch->status = ATA_IDX_INB(ch, ATA_STATUS);
-
-    if (ch->status & ATA_S_ERROR)
-	ch->error = ATA_IDX_INB(ch, ATA_ERROR);
-
-    /* find & call the responsible driver to process this interrupt */
-    switch (ch->active) {
-#ifdef DEV_ATADISK
-    case ATA_ACTIVE_ATA:
-	if (!ch->running || ad_interrupt(ch->running) == ATA_OP_CONTINUES)
-	    return;
-	break;
-#endif
-#if DEV_ATAPIALL
-    case ATA_ACTIVE_ATAPI:
-	if (!ch->running || atapi_interrupt(ch->running) == ATA_OP_CONTINUES)
-	    return;
-	break;
-#endif
-    default:
-	if (ch->active & ATA_WAIT_INTR)
-	    wakeup(ch);
-    }
-
-    if (ch->active & ATA_CONTROL) {
-	ATA_FORCELOCK_CH(ch, ATA_CONTROL);
-	return;
-    }
-
-    if (ch->active & ATA_WAIT_INTR) {
-	ATA_UNLOCK_CH(ch);
-	return;
-    }
-
-    if ((ch->flags & ATA_QUEUED) &&
-	ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_SERVICE) { 
-	ATA_FORCELOCK_CH(ch, ATA_ACTIVE);
-	if (ata_service(ch) == ATA_OP_CONTINUES)
-	    return;
-    }
-    ch->running = NULL;
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
-    ata_start(ch);
-    return;
-}
-
-void
-ata_start(struct ata_channel *ch)
-{
-#ifdef DEV_ATADISK
-    struct ad_request *ad_request; 
-#endif
-#if DEV_ATAPIALL
-    struct atapi_request *atapi_request;
-#endif
-    int s;
-
-    ch->locking(ch, ATA_LF_LOCK);
-    if (!ATA_LOCK_CH(ch, ATA_ACTIVE))
-	return;
-
-    s = splbio();
-#ifdef DEV_ATADISK
-    /* find & call the responsible driver if anything on the ATA queue */
-    if (TAILQ_EMPTY(&ch->ata_queue)) {
-	if (ch->devices & (ATA_ATA_MASTER) && ch->device[MASTER].driver)
-	    ad_start(&ch->device[MASTER]);
-	if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver)
-	    ad_start(&ch->device[SLAVE]);
-    }
-    if ((ad_request = TAILQ_FIRST(&ch->ata_queue))) {
-	TAILQ_REMOVE(&ch->ata_queue, ad_request, chain);
-	ch->active = ATA_ACTIVE_ATA;
-	ch->running = ad_request;
-	if (ad_transfer(ad_request) == ATA_OP_CONTINUES) {
-	    splx(s);
-	    return;
-	}
-    }
-
-#endif
-#if DEV_ATAPIALL
-    /* find & call the responsible driver if anything on the ATAPI queue */
-    if (TAILQ_EMPTY(&ch->atapi_queue)) {
-	if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver)
-	    atapi_start(&ch->device[MASTER]);
-	if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver)
-	    atapi_start(&ch->device[SLAVE]);
-    }
-    if ((atapi_request = TAILQ_FIRST(&ch->atapi_queue))) {
-	TAILQ_REMOVE(&ch->atapi_queue, atapi_request, chain);
-	ch->active = ATA_ACTIVE_ATAPI;
-	ch->running = atapi_request;
-	if (atapi_transfer(atapi_request) == ATA_OP_CONTINUES) {
-	    splx(s);
-	    return;
-	}
-    }
-#endif
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
-    splx(s);
-}
-
-void
-ata_reset(struct ata_channel *ch)
-{
-    u_int8_t lsb, msb, ostat0, ostat1;
-    u_int8_t stat0 = 0, stat1 = 0;
-    int mask = 0, timeout;
-
-    /* do we have any signs of ATA/ATAPI HW being present ? */
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(10);
-    ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
-	stat0 = ATA_S_BUSY;
-	mask |= 0x01;
-    }
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-    DELAY(10);	
-    ostat1 = ATA_IDX_INB(ch, ATA_STATUS);
-    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
-	stat1 = ATA_S_BUSY;
-	mask |= 0x02;
-    }
-
-    ch->devices = 0;
-    if (!mask)
-	return;
-
-    /* in some setups we dont want to test for a slave */
-    if (ch->flags & ATA_NO_SLAVE) {
-	stat1 = 0x0;
-	mask &= ~0x02;
-    }
-
-    if (bootverbose)
-	ata_printf(ch, -1, "pre reset mask=%02x ostat0=%02x ostat2=%02x\n",
-		   mask, ostat0, ostat1);
-
-    /* reset channel */
-    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-    DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
-    DELAY(10000); 
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
-    DELAY(100000);
-    ATA_IDX_INB(ch, ATA_ERROR);
-
-    /* wait for BUSY to go inactive */
-    for (timeout = 0; timeout < 310000; timeout++) {
-	if (stat0 & ATA_S_BUSY) {
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-	    DELAY(10);
-
-	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
-	    if (!(stat0 & ATA_S_BUSY)) {
-		if (bootverbose)
-		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
-		    ch->devices |= ATA_ATAPI_MASTER;
-	    }
-	}
-	if (stat1 & ATA_S_BUSY) {
-	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-	    DELAY(10);
-
-	    /* check for ATAPI signature while its still there */
-	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
-	    if (!(stat1 & ATA_S_BUSY)) {
-		if (bootverbose)
-		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB)
-		    ch->devices |= ATA_ATAPI_SLAVE;
-	    }
-	}
-	if (mask == 0x01)      /* wait for master only */
-	    if (!(stat0 & ATA_S_BUSY))
-		break;
-	if (mask == 0x02)      /* wait for slave only */
-	    if (!(stat1 & ATA_S_BUSY))
-		break;
-	if (mask == 0x03)      /* wait for both master & slave */
-	    if (!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY))
-		break;
-	DELAY(100);
-    }	
-    DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
-
-    if (stat0 & ATA_S_BUSY)
-	mask &= ~0x01;
-    if (stat1 & ATA_S_BUSY)
-	mask &= ~0x02;
-    if (bootverbose)
-	ata_printf(ch, -1, "after reset mask=%02x stat0=%02x stat1=%02x\n", 
-		   mask, stat0, stat1);
-    if (!mask)
-	return;
-
-    if (mask & 0x01 && ostat0 != 0x00 && !(ch->devices & ATA_ATAPI_MASTER)) {
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-	DELAY(10);
-	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_IDX_INB(ch, ATA_ERROR);
-	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	if (bootverbose)
-	    ata_printf(ch, ATA_MASTER, "ATA %02x %02x\n", lsb, msb);
-	if (lsb != 0x58 && msb == 0xa5)
-	    ch->devices |= ATA_ATA_MASTER;
-    }
-    if (mask & 0x02 && ostat1 != 0x00 && !(ch->devices & ATA_ATAPI_SLAVE)) {
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-	DELAY(10);
-	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
-	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_IDX_INB(ch, ATA_ERROR);
-	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-	if (bootverbose)
-	    ata_printf(ch, ATA_SLAVE, "ATA %02x %02x\n", lsb, msb);
-	if (lsb != 0x58 && msb == 0xa5)
-	    ch->devices |= ATA_ATA_SLAVE;
-    }
-    if (bootverbose)
-	ata_printf(ch, -1, "devices=%02x\n", ch->devices);
-}
-
-int
-ata_reinit(struct ata_channel *ch)
-{
-    int devices, misdev, newdev;
-
-
-    if (!ch->r_irq)
-	return ENXIO;
-
-    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
-    ch->running = NULL;
-    devices = ch->devices;
-    ata_printf(ch, -1, "resetting devices ..\n");
-    ata_reset(ch);
-
-    if ((misdev = devices & ~ch->devices)) {
-#ifdef DEV_ATADISK
-	if (misdev & ATA_ATA_MASTER && ch->device[MASTER].driver)
-	    ad_detach(&ch->device[MASTER]);
-	if (misdev & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
-	    ad_detach(&ch->device[SLAVE]);
-#endif
-#if DEV_ATAPIALL
-	if (misdev & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
-	    atapi_detach(&ch->device[MASTER]);
-	if (misdev & ATA_ATAPI_SLAVE && ch->device[SLAVE].driver)
-	    atapi_detach(&ch->device[SLAVE]);
-#endif
-	if (misdev & ATA_ATA_MASTER || misdev & ATA_ATAPI_MASTER) {
-	    if (ch->device[MASTER].param)
-		free(ch->device[MASTER].param, M_ATA);
-	    ch->device[MASTER].param = NULL;
-	}
-	if (misdev & ATA_ATA_SLAVE || misdev & ATA_ATAPI_SLAVE) {
-	    if (ch->device[SLAVE].param)
-		free(ch->device[SLAVE].param, M_ATA);
-	    ch->device[SLAVE].param = NULL;
-	}
-    }
-    if ((newdev = ~devices & ch->devices)) {
-	if (newdev & ATA_ATA_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_MASTER;
-	if (newdev & ATA_ATA_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY))
-		ch->devices &= ~ATA_ATA_SLAVE;
-	if (newdev & ATA_ATAPI_MASTER)
-	    if (ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_MASTER;
-	if (newdev & ATA_ATAPI_SLAVE)
-	    if (ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY))
-		ch->devices &= ~ATA_ATAPI_SLAVE;
-    }
-    newdev = ~devices & ch->devices;
-#ifdef DEV_ATADISK
-    if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver) {
-	ATA_UNLOCK_CH(ch);
-	ad_attach(&ch->device[SLAVE]);
-	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
-    }
-    else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver) {
-	ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY);
-	ad_reinit(&ch->device[SLAVE]);
-    }
-    if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver) {
-	ATA_UNLOCK_CH(ch);
-	ad_attach(&ch->device[MASTER]);
-	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
-    }
-    else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
-	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
-	ad_reinit(&ch->device[MASTER]);
-    }
-#endif
-#if DEV_ATAPIALL
-    if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver) {
-	ATA_UNLOCK_CH(ch);
-	atapi_attach(&ch->device[SLAVE]);
-	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
-    }
-    else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver) {
-	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
-	atapi_reinit(&ch->device[SLAVE]);
-    }
-    if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver) {
-	ATA_UNLOCK_CH(ch);
-	atapi_attach(&ch->device[MASTER]);
-	ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
-    }
-    else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
-	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
-	atapi_reinit(&ch->device[MASTER]);
-    }
-#endif
-#ifdef DEV_ATAPICAM
-    atapi_cam_reinit_bus(ch);
-#endif
-    printf("done\n");
-    ATA_UNLOCK_CH(ch);
-    ata_start(ch);
-    return 0;
-}
-
-static int
-ata_service(struct ata_channel *ch)
-{
-    /* do we have a SERVICE request from the drive ? */
-    if ((ch->status & (ATA_S_SERVICE|ATA_S_ERROR|ATA_S_DRQ)) == ATA_S_SERVICE) {
-#if 0 /* XXX */
-	ATA_IDX_OUTB(ch->r_bmio, ATA_BMSTAT_PORT,
-		 ch->dma->status(ch) | ATA_BMSTAT_INTERRUPT);
-#endif
-#ifdef DEV_ATADISK
-	if ((ATA_IDX_INB(ch, ATA_DRIVE) & ATA_SLAVE) == ATA_MASTER) {
-	    if ((ch->devices & ATA_ATA_MASTER) && ch->device[MASTER].driver)
-		return ad_service((struct ad_softc *)
-				  ch->device[MASTER].driver, 0);
-	}
-	else {
-	    if ((ch->devices & ATA_ATA_SLAVE) && ch->device[SLAVE].driver)
-		return ad_service((struct ad_softc *)
-				  ch->device[SLAVE].driver, 0);
-	}
-#endif
-    }
-    return ATA_OP_FINISHED;
+    for (ptr = buf; ptr < buf+len; ++ptr) 
+	if (!*ptr)
+	    *ptr = ' ';
+    for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
+	*ptr = 0;
 }
 
 static void
-ata_flush(struct ata_device *atadev)
+bpack(int8_t *src, int8_t *dst, int len)
 {
-    if (ata_command(atadev, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
-	ata_prtdev(atadev, "flushing device failed\n");
-}
+    int i, j, blank;
 
-static void
-ata_shutdown(void *arg, int howto)
-{
-    struct ata_channel *ch;
-    int ctlr;
-
-    /* flush cache on all devices */
-    for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
-	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
+    for (i = j = blank = 0 ; i < len; i++) {
+	if (blank && src[i] == ' ') continue;
+	if (blank && src[i] != ' ') {
+	    dst[j++] = src[i];
+	    blank = 0;
 	    continue;
-	ch->locking(ch, ATA_LF_LOCK);
-	if (ch->device[MASTER].param)
-	    ata_flush(&ch->device[MASTER]);
-	if (ch->device[SLAVE].param)
-	    ata_flush(&ch->device[SLAVE]);
-	ch->locking(ch, ATA_LF_UNLOCK);
-    }
-}
-
-int
-ata_wait(struct ata_device *atadev, u_int8_t mask)
-{
-    int timeout = 0;
-    
-    DELAY(1);
-    while (timeout < 5000000) { /* timeout 5 secs */
-	atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
-
-	/* if drive fails status, reselect the drive just to be sure */
-	if (atadev->channel->status == 0xff) {
-	    ata_prtdev(atadev, "no status, reselecting device\n");
-	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM|atadev->unit);
-	    DELAY(10);
-	    atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
-	    if (atadev->channel->status == 0xff)
-		return -1;
 	}
-
-	/* are we done ? */
-	if (!(atadev->channel->status & ATA_S_BUSY))
-	    break;	      
-
-	if (timeout > 1000) {
-	    timeout += 1000;
-	    DELAY(1000);
+	if (src[i] == ' ') {
+	    blank = 1;
+	    if (i == 0)
+		continue;
 	}
-	else {
-	    timeout += 10;
-	    DELAY(10);
-	}
-    }	 
-    if (atadev->channel->status & ATA_S_ERROR)
-	atadev->channel->error = ATA_IDX_INB(atadev->channel, ATA_ERROR);
-    if (timeout >= 5000000)	 
-	return -1;	    
-    if (!mask)	   
-	return (atadev->channel->status & ATA_S_ERROR);	 
-    
-    /* Wait 50 msec for bits wanted. */	   
-    timeout = 5000;
-    while (timeout--) {	  
-	atadev->channel->status = ATA_IDX_INB(atadev->channel, ATA_STATUS);
-	if ((atadev->channel->status & mask) == mask) {
-	    if (atadev->channel->status & ATA_S_ERROR)
-		atadev->channel->error=ATA_IDX_INB(atadev->channel, ATA_ERROR);
-	    return (atadev->channel->status & ATA_S_ERROR);	      
-	}
-	DELAY (10);	   
-    }	  
-    return -1;	    
-}   
-
-int
-ata_command(struct ata_device *atadev, u_int8_t command,
-	   u_int64_t lba, u_int16_t count, u_int16_t feature, int flags)
-{
-    int error = 0;
-#ifdef ATA_DEBUG
-    ata_prtdev(atadev, "ata_command: addr=%04lx, cmd=%02x, "
-	       "lba=%jd, count=%d, feature=%d, flags=%02x\n",
-	       rman_get_start(atadev->channel->r_io[ATA_DATA].res), 
-	       command, (intmax_t)lba, count, feature, flags);
-#endif
-
-    /* select device */
-    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);
-
-    /* disable interrupt from device */
-    if (atadev->channel->flags & ATA_QUEUED)
-	ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_IDS | ATA_A_4BIT);
-
-    /* ready to issue command ? */
-    if (ata_wait(atadev, 0) < 0) { 
-	ata_prtdev(atadev, "timeout sending command=%02x s=%02x e=%02x\n",
-		   command, atadev->channel->status, atadev->channel->error);
-	return -1;
+	dst[j++] = src[i];
     }
-
-    /* only use 48bit addressing if needed because of the overhead */
-    if ((lba > 268435455 || count > 256) && atadev->param &&
-	atadev->param->support.address48) {
-	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, (feature>>8) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, feature);
-	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, (count>>8) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, count & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, (lba>>24) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, lba & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>32) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>8) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>40) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>16) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_LBA | atadev->unit);
-
-	/* translate command into 48bit version */
-	switch (command) {
-	case ATA_C_READ:
-	    command = ATA_C_READ48; break;
-	case ATA_C_READ_MUL:
-	    command = ATA_C_READ_MUL48; break;
-	case ATA_C_READ_DMA:
-	    command = ATA_C_READ_DMA48; break;
-	case ATA_C_READ_DMA_QUEUED:
-	    command = ATA_C_READ_DMA_QUEUED48; break;
-	case ATA_C_WRITE:
-	    command = ATA_C_WRITE48; break;
-	case ATA_C_WRITE_MUL:
-	    command = ATA_C_WRITE_MUL48; break;
-	case ATA_C_WRITE_DMA:
-	    command = ATA_C_WRITE_DMA48; break;
-	case ATA_C_WRITE_DMA_QUEUED:
-	    command = ATA_C_WRITE_DMA_QUEUED48; break;
-	case ATA_C_FLUSHCACHE:
-	    command = ATA_C_FLUSHCACHE48; break;
-	default:
-	    ata_prtdev(atadev, "can't translate cmd to 48bit version\n");
-	    return -1;
-	}
-	atadev->channel->flags |= ATA_48BIT_ACTIVE;
-    }
-    else {
-	ATA_IDX_OUTB(atadev->channel, ATA_FEATURE, feature);
-	ATA_IDX_OUTB(atadev->channel, ATA_COUNT, count);
-	ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, lba & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_LSB, (lba>>8) & 0xff);
-	ATA_IDX_OUTB(atadev->channel, ATA_CYL_MSB, (lba>>16) & 0xff);
-	if (atadev->flags & ATA_D_USE_CHS)
-	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE,
-		     ATA_D_IBM | atadev->unit | ((lba>>24) & 0xf));
-	else
-	    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE,
-		     ATA_D_IBM | ATA_D_LBA | atadev->unit | ((lba>>24) &0xf));
-	atadev->channel->flags &= ~ATA_48BIT_ACTIVE;
-    }
-
-    switch (flags & ATA_WAIT_MASK) {
-    case ATA_IMMEDIATE:
-	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
-
-	/* enable interrupt */
-	if (atadev->channel->flags & ATA_QUEUED)
-	    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
-	break;
-
-    case ATA_WAIT_INTR:
-	atadev->channel->active |= ATA_WAIT_INTR;
-	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
-
-	/* enable interrupt */
-	if (atadev->channel->flags & ATA_QUEUED)
-	    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
-
-	if (tsleep(atadev->channel, PRIBIO, "atacmd", 10 * hz)) {
-	    ata_prtdev(atadev, "timeout waiting for interrupt\n");
-	    atadev->channel->active &= ~ATA_WAIT_INTR;
-	    error = -1;
-	}
-	break;
-    
-    case ATA_WAIT_READY:
-	atadev->channel->active |= ATA_WAIT_READY;
-	ATA_IDX_OUTB(atadev->channel, ATA_CMD, command);
-	if (ata_wait(atadev, ATA_S_READY) < 0) { 
-	    ata_prtdev(atadev, "timeout waiting for cmd=%02x s=%02x e=%02x\n",
-		       command, atadev->channel->status,atadev->channel->error);
-	    error = -1;
-	}
-	atadev->channel->active &= ~ATA_WAIT_READY;
-	break;
-    }
-    return error;
-}
-
-static void
-ata_enclosure_start(struct ata_device *atadev)
-{
-    ATA_IDX_INB(atadev->channel, ATA_DRIVE);	  
-    DELAY(1);
-    ATA_IDX_INB(atadev->channel, ATA_DRIVE);	  
-    DELAY(1);
-    ATA_IDX_INB(atadev->channel, ATA_CMD);	  
-    DELAY(1);
-    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
-    DELAY(1);
-    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
-    DELAY(1);
-    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
-    DELAY(1);
-    ATA_IDX_INB(atadev->channel, ATA_COUNT);
-    DELAY(1);
-    ATA_IDX_INB(atadev->channel, ATA_DRIVE);
-    DELAY(1);
-}
-
-static void
-ata_enclosure_end(struct ata_device *atadev)
-{
-    ATA_IDX_OUTB(atadev->channel, ATA_DRIVE, ATA_D_IBM | atadev->unit);    
-    DELAY(1);
-}
-
-static void
-ata_enclosure_chip_start(struct ata_device *atadev)
-{
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0b);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0a);
-    DELAY(25);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08);
-}
-
-static void
-ata_enclosure_chip_end(struct ata_device *atadev)
-{
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08);
-    DELAY(64);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0a);
-    DELAY(25);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x0b);
-    DELAY(64);
-}
-
-static u_int8_t
-ata_enclosure_chip_rdbit(struct ata_device *atadev)
-{
-    u_int8_t val;
-
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0);
-    DELAY(64);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x02);
-    DELAY(25);
-    val = ATA_IDX_INB(atadev->channel, ATA_SECTOR) & 0x01;
-    DELAY(38);
-    return val;
-}
-
-static void
-ata_enclosure_chip_wrbit(struct ata_device *atadev, u_int8_t data)
-{
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08 | (data & 0x01));
-    DELAY(64);
-    ATA_IDX_OUTB(atadev->channel, ATA_SECTOR, 0x08 | 0x02 | (data & 0x01));
-    DELAY(64);
-}
-
-static u_int8_t
-ata_enclosure_chip_rw(struct ata_device *atadev, int rw, u_int8_t val)
-{
-    int i;
-
-    if (rw) {
-	for (i = 0; i < 8; i++)
-	    ata_enclosure_chip_wrbit(atadev, (val & (0x80 >> i)) ? 1 : 0);
-    }
-    else {
-	for (i = 0; i < 8; i++)
-	    val = (val << 1) | ata_enclosure_chip_rdbit(atadev);
-    }
-    ata_enclosure_chip_wrbit(atadev, 0);
-    return val;
-}
-
-static u_int8_t
-ata_enclosure_sensor(struct ata_device *atadev, 
-		     int rw, u_int8_t idx, u_int8_t data)
-{
-    ata_enclosure_start(atadev);
-    ata_enclosure_chip_start(atadev);
-    ata_enclosure_chip_rw(atadev, 1, 0x5a);
-    ata_enclosure_chip_rw(atadev, 1, idx);
-    if (rw) {
-	ata_enclosure_chip_rw(atadev, 1, data);
-    }
-    else {
-	ata_enclosure_chip_end(atadev);
-	ata_enclosure_chip_start(atadev);
-	ata_enclosure_chip_rw(atadev, 1, 0x5b);
-	data = ata_enclosure_chip_rw(atadev, 0, 0);
-    }
-    ata_enclosure_chip_end(atadev); 
-    ata_enclosure_end(atadev);
-    return data;
-}
-
-static int
-ata_enclosure_status(struct ata_device *atadev,
-		     int *fan, int *temp, int *v05, int *v12)
-{
-    u_int8_t id1, id2, cnt, div;
-    int error = ENXIO;
-
-    if (atadev->flags & ATA_D_ENC_PRESENT) {
-	atadev->channel->locking(atadev->channel, ATA_LF_LOCK);
-	ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
-	ata_enclosure_sensor(atadev, 1, 0x4e, 0);
-	id1 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
-	ata_enclosure_sensor(atadev, 1, 0x4e, 0x80);
-	id2 = ata_enclosure_sensor(atadev, 0, 0x4f, 0);
-	if (id1 == 0xa3 && id2 == 0x5c) {
-	    div = 1 << (((ata_enclosure_sensor(atadev, 0, 0x5d, 0)&0x20)>>3)+
-			((ata_enclosure_sensor(atadev, 0, 0x47, 0)&0x30)>>4)+1);
-	    cnt = ata_enclosure_sensor(atadev, 0, 0x28, 0);
-	    if (cnt == 0xff)
-		*fan = 0;
-	    else
-		*fan = 1350000 / cnt / div;
-	    ata_enclosure_sensor(atadev, 1, 0x4e, 0x01);
-	    *temp = (ata_enclosure_sensor(atadev, 0, 0x50, 0) * 10) +
-		    (ata_enclosure_sensor(atadev, 0, 0x50, 0) & 0x80 ? 5 : 0);
-	    *v05 = ata_enclosure_sensor(atadev, 0, 0x23, 0) * 27;
-	    *v12 = ata_enclosure_sensor(atadev, 0, 0x24, 0) * 61;
-	    error = 0;
-	}
-	ATA_UNLOCK_CH(atadev->channel);
-	atadev->channel->locking(atadev->channel, ATA_LF_UNLOCK);
-    }
-    return error;
-}
-    
-void
-ata_enclosure_print(struct ata_device *atadev)
-{
-    u_int8_t id, st;
-    int fan, temp, v05, v12;
-
-    atadev->channel->locking(atadev->channel, ATA_LF_LOCK);
-    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
-    ata_enclosure_start(atadev);
-    id = ATA_IDX_INB(atadev->channel, ATA_DRIVE);
-    DELAY(1);
-    st = ATA_IDX_INB(atadev->channel, ATA_COUNT);
-    DELAY(1);
-    ata_enclosure_end(atadev);
-    ATA_UNLOCK_CH(atadev->channel);
-    atadev->channel->locking(atadev->channel, ATA_LF_UNLOCK);
-
-    switch (id & 0x93) {
-    case 0x00:
-	ata_prtdev(atadev, "Universal enclosure");
-	break;
-    case 0x01:
-	ata_prtdev(atadev, "FastSwap enclosure");
-	break;
-    case 0x10:
-    case 0x11:
-	ata_prtdev(atadev, "SuperSwap enclosure");
-	break;
-    default:
-	atadev->flags &= ~ATA_D_ENC_PRESENT;
-	return;
-    }
-    atadev->flags |= ATA_D_ENC_PRESENT;
-
-    ata_enclosure_leds(atadev, ATA_LED_GREEN);
-    if (ata_enclosure_status(atadev, &fan, &temp, &v05, &v12))
-	printf(" detected\n");
-    else
-	printf(" [FAN:%drpm TEMP:%d.%01dC %d.%03dV %d.%03dV]\n",
-	       fan, temp/10, temp%10, v05/1000, v05%1000, v12/1000, v12%1000);
-}
-
-void
-ata_enclosure_leds(struct ata_device *atadev, u_int8_t color)
-{
-    if (atadev->flags & ATA_D_ENC_PRESENT) {
-	u_int8_t reg;
-
-	ata_enclosure_start(atadev);
-	reg = ATA_IDX_INB(atadev->channel, ATA_COUNT);	  
-	DELAY(1);
-	ATA_IDX_OUTB(atadev->channel, ATA_COUNT,
-		 (color & ATA_LED_MASK) | (reg & ~ATA_LED_MASK));	  
-	DELAY(1);
-	ata_enclosure_end(atadev);
-    }
-}
-
-static void
-ata_change_mode(struct ata_device *atadev, int mode)
-{
-    ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
-    atadev->setmode(atadev, mode);
-    ATA_UNLOCK_CH(atadev->channel);
-    ata_start(atadev->channel);
+    if (j < len) 
+	dst[j] = 0x00;
 }
 
 int
@@ -1465,13 +822,13 @@ ata_pmode(struct ata_params *ap)
 	if (ap->apiomodes & 0x01) 
 	    return ATA_PIO3;
     }	
-    if (ap->retired_piomode == 2)
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 2)
 	return ATA_PIO2;
-    if (ap->retired_piomode == 1)
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 1)
 	return ATA_PIO1;
-    if (ap->retired_piomode == 0)
+    if ((ap->retired_piomode & ATA_RETIRED_PIO_MASK) == 0)
 	return ATA_PIO0;
-    if (ap->support_dma)
+    if (ap->capabilities1 & ATA_SUPPORT_DMA)
 	return ATA_PIO4;
     return ATA_PIO0; 
 } 
@@ -1485,7 +842,7 @@ ata_wmode(struct ata_params *ap)
 	return ATA_WDMA1;
     if (ap->mwdmamodes & 0x01)
 	return ATA_WDMA0;
-    if (ap->support_dma)
+    if (ap->capabilities1 & ATA_SUPPORT_DMA)
 	return ATA_WDMA2;
     return -1;
 }
@@ -1528,50 +885,6 @@ ata_limit_mode(struct ata_device *atadev, int mode, int maxmode)
 	return min(mode, ata_pmode(atadev->param));
 
     return mode;
-}
-
-static void
-bswap(int8_t *buf, int len) 
-{
-    u_int16_t *ptr = (u_int16_t*)(buf + len);
-
-    while (--ptr >= (u_int16_t*)buf)
-	*ptr = ntohs(*ptr);
-} 
-
-static void
-btrim(int8_t *buf, int len)
-{ 
-    int8_t *ptr;
-
-    for (ptr = buf; ptr < buf+len; ++ptr) 
-	if (!*ptr)
-	    *ptr = ' ';
-    for (ptr = buf + len - 1; ptr >= buf && *ptr == ' '; --ptr)
-	*ptr = 0;
-}
-
-static void
-bpack(int8_t *src, int8_t *dst, int len)
-{
-    int i, j, blank;
-
-    for (i = j = blank = 0 ; i < len; i++) {
-	if (blank && src[i] == ' ') continue;
-	if (blank && src[i] != ' ') {
-	    dst[j++] = src[i];
-	    blank = 0;
-	    continue;
-	}
-	if (src[i] == ' ') {
-	    blank = 1;
-	    if (i == 0)
-		continue;
-	}
-	dst[j++] = src[i];
-    }
-    if (j < len) 
-	dst[j] = 0x00;
 }
 
 static void

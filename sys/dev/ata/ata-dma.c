@@ -36,10 +36,11 @@
 #include <sys/malloc.h> 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 #include <sys/bus.h>
-#include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <dev/pci/pcivar.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/ata-pci.h>
 
@@ -67,7 +68,7 @@ int
 ata_dmainit(struct ata_channel *ch)
 {
     if (!(ch->dma = 
-	malloc(sizeof(struct ata_dma_data), M_ATADMA, M_NOWAIT | M_ZERO)))
+	malloc(sizeof(struct ata_dma), M_ATADMA, M_NOWAIT | M_ZERO)))
 	return ENOMEM;
     ch->dma->alloc = ata_dmaalloc;
     ch->dma->free = ata_dmafree;
@@ -75,6 +76,7 @@ ata_dmainit(struct ata_channel *ch)
     ch->dma->start = ata_dmastart;
     ch->dma->stop = ata_dmastop;
     ch->dma->alignment = 2;
+    ch->dma->max_iosize = 64*1024;
     return 0;
 }
 
@@ -98,9 +100,10 @@ ata_dmaalloc(struct ata_channel *ch)
 	if (bus_dma_tag_create(NULL, 1, 0,
 			       BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
 			       NULL, NULL, MAXCTLDMASZ, ATA_DMA_ENTRIES,
-			       BUS_SPACE_MAXSIZE_32BIT, 0, busdma_lock_mutex,
-			       &Giant, &ch->dma->dmatag)) {
-	    printf("DMA tag allocation failed, disabling DMA\n");
+			       BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+			       &ch->dma->dmatag)) {
+	    ata_printf(ch, -1, 
+		       "WARNING - DMA tag allocation failed, disabling DMA\n");
 	}
     }
     if (!ch->dma->cdmatag) {
@@ -108,8 +111,8 @@ ata_dmaalloc(struct ata_channel *ch)
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXTABSZ, 1, MAXTABSZ,
-					BUS_DMA_ALLOCNOW, busdma_lock_mutex,
-					&Giant, &ch->dma->cdmatag)))
+					BUS_DMA_ALLOCNOW, NULL, NULL,
+					&ch->dma->cdmatag)))
 	    return error;
     }
     if (!ch->dma->ddmatag) {
@@ -117,8 +120,8 @@ ata_dmaalloc(struct ata_channel *ch)
 					BUS_SPACE_MAXADDR_32BIT,
 					BUS_SPACE_MAXADDR, NULL, NULL,
 					MAXPHYS, ATA_DMA_ENTRIES, MAXSEGSZ,
-					BUS_DMA_ALLOCNOW, busdma_lock_mutex,
-					&Giant, &ch->dma->ddmatag)))
+					BUS_DMA_ALLOCNOW, NULL, NULL,
+					&ch->dma->ddmatag)))
 	    return error;
     }
     if (!ch->dma->mdmatab) {
@@ -211,12 +214,17 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 
     if (((uintptr_t)data & (ch->dma->alignment - 1)) ||
 	(count & (ch->dma->alignment - 1))) {
-	ata_prtdev(atadev, "non aligned DMA transfer attempted\n");
+	ata_prtdev(atadev, "FAILURE - non aligned DMA transfer attempted\n");
 	return -1;
     }
-
     if (!count) {
-	ata_prtdev(atadev, "zero length DMA transfer attempted\n");
+	ata_prtdev(atadev, "FAILURE - zero length DMA transfer attempted\n");
+	return -1;
+    }
+    if (count > ch->dma->max_iosize) {
+	ata_prtdev(atadev,
+		   "FAILURE - oversized DMA transfer attempted %d > %d\n",
+		   count, ch->dma->max_iosize);
 	return -1;
     }
     return 0;
@@ -232,12 +240,10 @@ ata_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
 
     cba.dmatab = ch->dma->dmatab;
     bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_PREWRITE);
-
     if (bus_dmamap_load(ch->dma->ddmatag, ch->dma->ddmamap, data, count,
 			ata_dmasetupd_cb, &cba, 0) || cba.error)
 	return -1;
 
-    bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_POSTWRITE);
     bus_dmamap_sync(ch->dma->ddmatag, ch->dma->ddmamap,
 		    dir ? BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 
@@ -248,10 +254,13 @@ ata_dmastart(struct ata_channel *ch, caddr_t data, int32_t count, int dir)
 int
 ata_dmastop(struct ata_channel *ch)
 {
+    bus_dmamap_sync(ch->dma->cdmatag, ch->dma->cdmamap, BUS_DMASYNC_POSTWRITE);
+
     bus_dmamap_sync(ch->dma->ddmatag, ch->dma->ddmamap,
 		    (ch->dma->flags & ATA_DMA_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ch->dma->ddmatag, ch->dma->ddmamap);
+
     ch->dma->flags = 0;
     return 0;
 }

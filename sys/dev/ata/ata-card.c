@@ -35,6 +35,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/taskqueue.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -45,8 +46,6 @@
 #include <dev/pccard/pccarddevs.h>
 
 static const struct pccard_product ata_pccard_products[] = {
-	/* NetBSD has a few others that need to migrate into pccarddevs */
-	/* XXX */
 	PCMCIA_CARD(FREECOM, PCCARDIDE, 0),
 	PCMCIA_CARD(EXP, EXPMULTIMEDIA, 0),
 	PCMCIA_CARD(IODATA, CBIDE2, 0),
@@ -72,7 +71,7 @@ ata_pccard_match(device_t dev)
     if (fcn == PCCARD_FUNCTION_DISK)
 	return (0);
 
-    /* Match other devices here, primarily cdrom/dvd rom */
+    /* match other devices here, primarily cdrom/dvd rom */
     if ((pp = pccard_product_lookup(dev, ata_pccard_products,
       sizeof(ata_pccard_products[0]), NULL)) != NULL) {
 	if (pp->pp_name)
