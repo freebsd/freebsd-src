@@ -1,4 +1,4 @@
-<!-- $Id: relnotes.sgml,v 1.17 1996/11/23 18:26:30 max Exp $ -->
+<!-- $Id: relnotes.sgml,v 1.18 1996/11/26 12:03:20 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -36,8 +36,8 @@
 
 	  In addition to the base distributions, FreeBSD offers a
 	  new ported software collection with hundreds of commonly
-	  sought-after programs. At the end of November 96 there were
-	  690 ports ! The list of ports ranges from
+	  sought-after programs. At the beginning of December 96 there were
+	  more than 700 ports ! The list of ports ranges from
 	  http (WWW) servers, to games, languages, editors and
 	  almost everything in between. The entire ports collection
 	  requires only 10MB of storage, all ports being expressed
