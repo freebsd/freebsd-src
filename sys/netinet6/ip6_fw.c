@@ -975,8 +975,8 @@ check_ip6fw_mbuf(struct mbuf *m)
 {
 	/* Check length */
 	if (m->m_len != sizeof(struct ip6_fw)) {
-		dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
-		    (int)sizeof(struct ip6_fw)));
+		dprintf(("%s len=%d, want %zu\n", err_prefix, m->m_len,
+		    sizeof(struct ip6_fw)));
 		return (NULL);
 	}
 	return(check_ip6fw_struct(mtod(m, struct ip6_fw *)));
@@ -1192,8 +1192,8 @@ ip6_fw_ctl(int stage, struct mbuf **mm)
 	}
 	if (stage == IPV6_FW_DEL) {
 		if (m->m_len != sizeof(struct ip6_fw)) {
-			dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
-			    (int)sizeof(struct ip6_fw)));
+			dprintf(("%s len=%d, want %zu\n", err_prefix, m->m_len,
+			    sizeof(struct ip6_fw)));
 			error = EINVAL;
 		} else if (mtod(m, struct ip6_fw *)->fw_number == (u_short)-1) {
 			dprintf(("%s can't delete rule 65535\n", err_prefix));
