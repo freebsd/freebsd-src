@@ -1808,6 +1808,8 @@ addaliasu(nvp, nvp_rdev)
 	if (nvp->v_type != VCHR)
 		panic("addaliasu on non-special vnode");
 	dev = udev2dev(nvp_rdev);
+	if (dev == NODEV)
+		return (nvp);
 	/*
 	 * Check to see if we have a bdevvp vnode with no associated
 	 * filesystem. If so, we want to associate the filesystem of
