@@ -579,6 +579,7 @@ dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_pci.c	optional tdfx pci
 dev/twe/twe.c		optional twe
 dev/twe/twe_freebsd.c	optional twe
+dev/tx/if_tx.c		optional tx
 dev/txp/if_txp.c	optional txp
 #
 # USB support
@@ -1266,7 +1267,6 @@ pci/if_sk.c		optional sk
 pci/if_ste.c		optional ste
 pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
-pci/if_tx.c		optional tx
 pci/if_vr.c		optional vr
 pci/if_wb.c		optional wb
 pci/if_xl.c		optional xl
