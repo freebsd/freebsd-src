@@ -517,6 +517,7 @@
 .if "\\$1"libnetgraph" \&Netgraph User Library (libnetgraph, -lnetgraph)
 .if "\\$1"libposix1e" \&POSIX.1e Security API Library (libposix1e, -lposix1e)
 .if "\\$1"libskey" \&S/Key Password Control Table Access Library (libskey, -lskey)
+.if "\\$1"libusb" \&USB HID access routines library (libusb, -lusb)
 .if "\\$1"libutil" \&System Utilities Library (libutil, -lutil)
 .if "\\$1"libvgl" \&Video Graphics Library (libvgl, -lvgl)
 ..
