@@ -137,6 +137,7 @@ SUBDIR=	apply \
 	rusers \
 	rwall \
 	rwho \
+	sccs \
 	script \
 	sed \
 	shar \
