@@ -64,12 +64,6 @@ __FBSDID("$FreeBSD$");
 #define	INDENTNAMELEN	15
 #define	MAXLINELEN	80
 
-extern int ftsoptions;
-extern int dflag, iflag, nflag, sflag;
-extern u_int keys;
-extern char fullpath[MAXPATHLEN];
-extern int lineno;
-
 static gid_t gid;
 static uid_t uid;
 static mode_t mode;
