@@ -199,7 +199,6 @@ struct unrhdr {
 	struct mtx		*mtx;
 };
 
-static void print_unrhdr(struct unrhdr *uh);
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
@@ -311,7 +310,6 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 	uh->first = 0;
 	uh->last = 1 + (high - low);
 	check_unrhdr(uh, __LINE__);
-printf("NEW_UNRHDR %x-%x -> %p\n", low, high, uh);
 	return (uh);
 }
 
@@ -564,11 +562,8 @@ alloc_unrl(struct unrhdr *uh)
 	 * We can always allocate from the first list element, so if we have 
 	 * nothing on the list, we must have run out of unit numbers.
 	 */
-	if (up == NULL) {
-printf("Out of units %p\n", uh);
-print_unrhdr(uh);
+	if (up == NULL)
 		return (-1);
-	}
 
 	KASSERT(up->ptr != uh, ("UNR first element is allocated"));
 
@@ -730,6 +725,8 @@ free_unr(struct unrhdr *uh, u_int item)
 		Free(p2);
 }
 
+#ifndef _KERNEL	/* USERLAND test driver */
+
 /*
  * Simple stochastic test driver for the above functions
  */
@@ -777,8 +774,6 @@ print_unrhdr(struct unrhdr *uh)
 			x += NBITS;
 	}
 }
-
-#ifndef _KERNEL	/* USERLAND test driver */
 
 /* Number of unrs to test */
 #define NN	10000
