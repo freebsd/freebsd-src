@@ -129,18 +129,18 @@ They are:
 .Bl -tag -width UNVIS_VALIDPUSH
 .It Li \&0 (zero)
 Another character is necessary; nothing has been recognized yet.
-.It Dv  UNVIS_VALID
+.It Dv UNVIS_VALID
 A valid character has been recognized and is available at the location
 pointed to by cp.
-.It Dv  UNVIS_VALIDPUSH
+.It Dv UNVIS_VALIDPUSH
 A valid character has been recognized and is available at the location
 pointed to by cp; however, the character currently passed in should
 be passed in again.
-.It Dv  UNVIS_NOCHAR
+.It Dv UNVIS_NOCHAR
 A valid sequence was detected, but no character was produced.
 This
 return code is necessary to indicate a logical break between characters.
-.It Dv  UNVIS_SYNBAD
+.It Dv UNVIS_SYNBAD
 An invalid escape sequence was detected, or the decoder is in an
 unknown state.
 The decoder is placed into the starting state.
