@@ -60,29 +60,29 @@
 /*
  * Prototypes for SMBFS vnode operations
  */
-static int smbfs_create(struct vop_create_args *);
-static int smbfs_mknod(struct vop_mknod_args *);
-static int smbfs_open(struct vop_open_args *);
-static int smbfs_close(struct vop_close_args *);
-static int smbfs_access(struct vop_access_args *);
-static int smbfs_getattr(struct vop_getattr_args *);
-static int smbfs_setattr(struct vop_setattr_args *);
-static int smbfs_read(struct vop_read_args *);
-static int smbfs_write(struct vop_write_args *);
-static int smbfs_fsync(struct vop_fsync_args *);
-static int smbfs_remove(struct vop_remove_args *);
-static int smbfs_link(struct vop_link_args *);
-static int smbfs_lookup(struct vop_lookup_args *);
-static int smbfs_rename(struct vop_rename_args *);
-static int smbfs_mkdir(struct vop_mkdir_args *);
-static int smbfs_rmdir(struct vop_rmdir_args *);
-static int smbfs_symlink(struct vop_symlink_args *);
-static int smbfs_readdir(struct vop_readdir_args *);
-static int smbfs_strategy(struct vop_strategy_args *);
-static int smbfs_print(struct vop_print_args *);
-static int smbfs_pathconf(struct vop_pathconf_args *ap);
-static int smbfs_advlock(struct vop_advlock_args *);
-static int smbfs_getextattr(struct vop_getextattr_args *ap);
+static vop_create_t	smbfs_create;
+static vop_mknod_t	smbfs_mknod;
+static vop_open_t	smbfs_open;
+static vop_close_t	smbfs_close;
+static vop_access_t	smbfs_access;
+static vop_getattr_t	smbfs_getattr;
+static vop_setattr_t	smbfs_setattr;
+static vop_read_t	smbfs_read;
+static vop_write_t	smbfs_write;
+static vop_fsync_t	smbfs_fsync;
+static vop_remove_t	smbfs_remove;
+static vop_link_t	smbfs_link;
+static vop_lookup_t	smbfs_lookup;
+static vop_rename_t	smbfs_rename;
+static vop_mkdir_t	smbfs_mkdir;
+static vop_rmdir_t	smbfs_rmdir;
+static vop_symlink_t	smbfs_symlink;
+static vop_readdir_t	smbfs_readdir;
+static vop_strategy_t	smbfs_strategy;
+static vop_print_t	smbfs_print;
+static vop_pathconf_t	smbfs_pathconf;
+static vop_advlock_t	smbfs_advlock;
+static vop_getextattr_t	smbfs_getextattr;
 
 vop_t **smbfs_vnodeop_p;
 static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
