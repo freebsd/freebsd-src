@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Networks Associates Technology, Inc.
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,89 +31,56 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#12 $
+ * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#1 $
  */
 
-#ifndef _OPENPAM_IMPL_H_INCLUDED
-#define _OPENPAM_IMPL_H_INCLUDED
+#include <sys/param.h>
 
-#include <security/openpam.h>
+#include <pwd.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-extern const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES];
+#include <security/pam_appl.h>
+
+#include "openpam_impl.h"
 
 /*
- * Control flags
+ * OpenPAM extension
+ *
+ * Restore credentials
  */
-#define PAM_REQUIRED		1
-#define PAM_REQUISITE		2
-#define PAM_SUFFICIENT		3
-#define PAM_OPTIONAL		4
-#define PAM_NUM_CONTROLFLAGS	5
+
+int
+openpam_restore_cred(pam_handle_t *pamh)
+{
+	struct pam_saved_cred *scred;
+	int r;
+
+	r = pam_get_data(pamh, PAM_SAVED_CRED, (const void **)&scred);
+	if (r != PAM_SUCCESS)
+		return (r);
+	if (scred == NULL)
+		return (PAM_SYSTEM_ERR);
+	if (seteuid(scred->euid) == -1 ||
+	    setgroups(scred->ngroups, scred->groups) == -1 ||
+	    setegid(scred->egid) == -1)
+		return (PAM_SYSTEM_ERR);
+	pam_set_data(pamh, PAM_SAVED_CRED, NULL, NULL);
+	return (PAM_SUCCESS);
+}
 
 /*
- * Chains
+ * Error codes:
+ *
+ *	=pam_get_data
+ *	PAM_SYSTEM_ERR
  */
-#define PAM_AUTH		0
-#define PAM_ACCOUNT		1
-#define PAM_SESSION		2
-#define PAM_PASSWORD		3
-#define PAM_NUM_CHAINS		4
 
-typedef struct pam_chain pam_chain_t;
-struct pam_chain {
-	pam_module_t	*module;
-	int		 flag;
-	int		 optc;
-	char	       **optv;
-	pam_chain_t	*next;
-};
-
-typedef struct pam_data pam_data_t;
-struct pam_data {
-	char		*name;
-	void		*data;
-	void		(*cleanup)(pam_handle_t *, void *, int);
-	pam_data_t	*next;
-};
-
-struct pam_handle {
-	char		*service;
-
-	/* chains */
-	pam_chain_t	*chains[PAM_NUM_CHAINS];
-	pam_chain_t	*current;
-
-	/* items and data */
-	void		*item[PAM_NUM_ITEMS];
-	pam_data_t	*module_data;
-
-	/* environment list */
-	char	       **env;
-	int		 env_count;
-	int		 env_size;
-};
-
-#ifdef NGROUPS_MAX
-#define PAM_SAVED_CRED "pam_saved_cred"
-struct pam_saved_cred {
-	uid_t	 euid;
-	gid_t	 egid;
-	gid_t	 groups[NGROUPS_MAX];
-	int	 ngroups;
-};
-#endif
-
-#define PAM_OTHER	"other"
-
-int		openpam_dispatch(pam_handle_t *, int, int);
-int		openpam_findenv(pam_handle_t *, const char *, size_t);
-int		openpam_add_module(pam_handle_t *, int, int,
-				   const char *, int, const char **);
-void		openpam_clear_chains(pam_handle_t *);
-
-#ifdef OPENPAM_STATIC_MODULES
-pam_module_t   *openpam_static(const char *);
-#endif
-pam_module_t   *openpam_dynamic(const char *);
-
-#endif
+/**
+ * The =openpam_restore_cred function restores the credentials saved by
+ * =openpam_borrow_cred.
+ *
+ * >setegid
+ * >seteuid
+ * >setgroups
+ */

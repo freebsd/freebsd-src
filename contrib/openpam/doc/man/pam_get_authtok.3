@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_get_authtok.3#10 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_get_authtok.3#11 $
 .\"
-.Dd March 7, 2002
+.Dd April 8, 2002
 .Dt PAM_GET_AUTHTOK 3
 .Os
 .Sh NAME
@@ -44,9 +44,66 @@
 .Sh SYNOPSIS
 .In security/pam_appl.h
 .Ft int
-.Fn pam_get_authtok "pam_handle_t *pamh" "const char **authtok" "const char *prompt"
+.Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+function returns the cached authentication token,
+or prompts the user if no token is currently cached.  Either way, a
+pointer to the authentication token is stored in the location pointed
+to by the
+.Va authtok
+argument.
+.Pp
+The
+.Va item
+argument must have one of the following values:
+.Pp
+.Bd -literal
+	=PAM_AUTHTOK
+		Returns the current authentication token, or the new token
+		when changing authentication tokens.
+	=PAM_OLDAUTHTOK
+		Returns the previous authentication token when changing
+		authentication tokens.
+
+.Ed
+The
+.Va prompt
+argument specifies a prompt to use if no token is cached.
+.Ed
+If it is
+.Dv NULL ,
+the
+.Dv PAM_AUTHTOK_PROMPT
+or
+.Dv PAM_OLDAUTHTOK_PROMPT
+item,
+.Ed
+as appropriate, will be used.  If that item is also
+.Dv NULL ,
+a hardcoded
+.Ed
+default prompt will be used.
+
+.Ed
+If
+.Va item
+is set to
+.Dv PAM_AUTHTOK
+and there is a non-null
+.Dv PAM_OLDAUTHTOK
+.Ed
+item,
+.Nm
+will ask the user to confirm the new token by
+.Ed
+retyping it.  If there is a mismatch,
+.Nm
+will return
+.Ed
+.Dv PAM_TRY_AGAIN .
+
 .Sh RETURN VALUES
 The
 .Nm
@@ -58,9 +115,13 @@ Memory buffer error.
 Conversation failure.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
+.It Bq Er PAM_TRY_AGAIN
+Try again.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,
+.Xr pam_get_item 3 ,
+.Xr pam_get_user 3 ,
 .Xr pam_strerror 3
 .Sh STANDARDS
 The

@@ -13,18 +13,14 @@ These are some of OpenPAM's features:
      paper and in OSF-RFC 86.0; this corresponds to the full XSSO API
      except for mappings and secondary authentication.
 
-   - Extends the API with several useful and time-saving functions:
-     pam_error(), pam_get_authtok(), pam_info(), pam_prompt(),
-     pam_setenv(), pam_verror(), pam_vinfo(), pam_vprompt()
-
-   - Offers a number of time-saving convenience functions:
-     openpam_log(), openpam_ttyconv().
+   - Extends the API with several useful and time-saving functions.
 
    - Performs strict checking of return values from service modules.
 
    - Reads configuration from /etc/pam.d/, /usr/local/etc/pam.d/ and
      /etc/pam.conf, in that order; this will be made configurable in a
-     future release.Please direct bug reports and inquiries to
-     openpam@thinksec.com.
+     future release.
 
-$P4: //depot/projects/openpam/README#2 $
+Please direct bug reports and inquiries to openpam@thinksec.com.
+
+$P4: //depot/projects/openpam/README#3 $
