@@ -1,4 +1,4 @@
-/* $Id: $ */
+/* $Id: isp_pci.c,v 1.24.2.1 1999/07/03 00:00:22 mjacob Exp $ */
 /* release_6_2_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
@@ -114,7 +114,9 @@ static struct ispmdvec mdvec_2100 = {
 	0,			/* Irrelevant to the 2100 */
 	0
 };
+#endif
 
+#ifdef	ISP_DISABLE_2200_SUPPORT
 static struct ispmdvec mdvec_2200 = {
 	isp_pci_rd_reg,
 	isp_pci_wr_reg,
@@ -124,11 +126,11 @@ static struct ispmdvec mdvec_2200 = {
 	NULL,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
-	NULL,
-	0,
+	ISP2200_RISC_CODE,
+	ISP2200_CODE_LENGTH,
 	ISP2100_CODE_ORG,
+	ISP2200_RISC_CODE,
 	0,
-	0,			/* Irrelevant to the 2100 */
 	0
 };
 #endif
@@ -283,11 +285,13 @@ isp_pci_probe(pcici_t tag, pcidi_t type)
 		break;
 #endif
 #ifndef	ISP_DISABLE_2100_SUPPORT
-	case PCI_QLOGIC_ISP2200:
-		x = "Qlogic ISP 2200 PCI FC-AL Adapter";
-		break;
 	case PCI_QLOGIC_ISP2100:
 		x = "Qlogic ISP 2100 PCI FC-AL Adapter";
+		break;
+#endif
+#ifndef	ISP_DISABLE_2200_SUPPORT
+	case PCI_QLOGIC_ISP2200:
+		x = "Qlogic ISP 2200 PCI FC-AL Adapter";
 		break;
 #endif
 	default:
@@ -435,6 +439,8 @@ isp_pci_attach(pcici_t cfid, int unit)
 			linesz = 1;
 		}
 	}
+#endif
+#ifndef	ISP_DISABLE_2200_SUPPORT
 	if (data == PCI_QLOGIC_ISP2200) {
 		mdvp = &mdvec_2200;
 		basetype = ISP_HA_FC_2200;
