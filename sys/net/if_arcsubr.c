@@ -107,8 +107,6 @@ arc_output(ifp, m, dst, rt0)
 	struct sockaddr *dst;
 	struct rtentry *rt0;
 {
-	struct rtentry		*rt;
-	struct arccom		*ac;
 	struct arc_header	*ah;
 	int			error;
 	u_int8_t		atype, adst;
@@ -119,11 +117,6 @@ arc_output(ifp, m, dst, rt0)
 		return(ENETDOWN); /* m, m1 aren't initialized yet */
 
 	error = 0;
-	ac = (struct arccom *)ifp;
-
-	error = rt_check(&rt, &rt0, dst);
-	if (error)
-		goto bad;
 
 	switch (dst->sa_family) {
 #ifdef INET
@@ -136,8 +129,11 @@ arc_output(ifp, m, dst, rt0)
 			adst = arcbroadcastaddr; /* ARCnet broadcast address */
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
-		else if (!arpresolve(ifp, rt, m, dst, &adst))
-			return 0;	/* not resolved yet */
+		else {
+			error = arpresolve(ifp, rt0, m, dst, &adst);
+			if (error)
+				return (error == EWOULDBLOCK ? 0 : error);
+		}
 
 		atype = (ifp->if_flags & IFF_LINK0) ?
 			ARCTYPE_IP_OLD : ARCTYPE_IP;
@@ -172,13 +168,9 @@ arc_output(ifp, m, dst, rt0)
 #endif
 #ifdef INET6
 	case AF_INET6:
-#ifdef OLDIP6OUTPUT
-		if (!nd6_resolve(ifp, rt, m, dst, (u_char *)&adst))
-			return(0);	/* if not yet resolves */
-#else
-		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)&adst))
-			return(0); /* it must be impossible, but... */
-#endif /* OLDIP6OUTPUT */
+		error = nd6_storelladdr(ifp, rt0, m, dst, (u_char *)&adst);
+		if (error)
+			return (error);
 		atype = ARCTYPE_INET6;
 		break;
 #endif

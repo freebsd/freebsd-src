@@ -6,7 +6,7 @@ struct sockaddr_at;
 
 #ifdef _NET_IF_ARP_H_
 extern timeout_t	aarpprobe;
-extern int	aarpresolve	(struct arpcom *,
+extern int	aarpresolve	(struct ifnet *,
 					struct mbuf *,
 					struct sockaddr_at *,
 					u_char *);
