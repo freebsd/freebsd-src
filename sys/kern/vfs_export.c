@@ -93,6 +93,16 @@ vfs_hang_addrlist(mp, nep, argp)
 	struct domain *dom;
 	int error;
 
+	/*
+	 * XXX: This routine converts from a `struct xucred'
+	 * (argp->ex_anon) to a `struct ucred' (np->netc_anon).  This
+	 * operation is questionable; for example, what should be done
+	 * with fields like cr_uidinfo and cr_prison?  Currently, this
+	 * routine does not touch them (leaves them as NULL).
+	 */
+	if (argp->ex_anon.cr_version != XUCRED_VERSION)
+		return (EINVAL);
+
 	if (argp->ex_addrlen == 0) {
 		if (mp->mnt_flag & MNT_DEFEXPORTED)
 			return (EPERM);
