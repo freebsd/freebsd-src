@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.37 1994/02/24 00:18:04 hsu Exp $
+ *	$Id: machdep.c,v 1.38 1994/03/07 11:47:31 davidg Exp $
  */
 
 #include "npx.h"
@@ -96,6 +96,8 @@ static void initcpu(void);
 static int test_page(int *, int);
 
 extern int grow(struct proc *,int);
+const char machine[] = "PC-Class";
+const char *cpu_model;
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -325,6 +327,7 @@ identifycpu()
 	if (cpu >= 0 && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
 		printf("%s", i386_cpus[cpu].cpu_name);
 		cpu_class = i386_cpus[cpu].cpu_class;
+		cpu_model = i386_cpus[cpu].cpu_name;
 	} else {
 		printf("unknown cpu type %d\n", cpu);
 		panic("startup: bad cpu id");
