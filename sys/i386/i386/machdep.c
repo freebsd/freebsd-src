@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.173 1996/01/27 02:33:08 bde Exp $
+ *	$Id: machdep.c,v 1.174 1996/02/13 10:30:36 phk Exp $
  */
 
 #include "npx.h"
@@ -43,6 +43,7 @@
 #include "opt_sysvipc.h"
 #include "opt_ddb.h"
 #include "opt_bounce.h"
+#include "opt_machdep.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

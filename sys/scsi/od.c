@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.11 1996/01/05 20:12:42 wollman Exp $
+ *	$Id: od.c,v 1.12 1996/01/27 04:18:00 bde Exp $
  */
 
 /*
@@ -37,6 +37,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_scsi.h"
 
 #define SPLOD splbio
 #include <sys/types.h>
