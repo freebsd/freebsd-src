@@ -44,8 +44,11 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <sysexits.h>
 #include "y.tab.h"
 #include "config.h"
 
@@ -327,4 +330,66 @@ path(file)
 		(void) strcat(cp, file);
 	}
 	return (cp);
+}
+
+/*
+ * moveifchanged --
+ *	compare two files; rename if changed.
+ */
+void
+moveifchanged(const char *from_name, const char *to_name)
+{
+	char *p, *q;
+	int changed;
+	size_t tsize;
+	struct stat from_sb, to_sb;
+	int from_fd, to_fd;
+
+	changed = 0;
+
+	if ((from_fd = open(from_name, O_RDONLY)) < 0)
+		err(EX_OSERR, "moveifchanged open(%s)", from_name);
+
+	if ((to_fd = open(to_name, O_RDONLY)) < 0)
+		changed++;
+
+	if (!changed && fstat(from_fd, &from_sb) < 0)
+		err(EX_OSERR, "moveifchanged fstat(%s)", from_name);
+
+	if (!changed && fstat(to_fd, &to_sb) < 0)
+		err(EX_OSERR, "moveifchanged fstat(%s)", to_name);
+
+	if (!changed && from_sb.st_size != to_sb.st_size)
+		changed++;
+
+	tsize = (size_t)from_sb.st_size;
+
+	if (!changed) {
+		p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
+		if ((long)p == -1)
+			err(EX_OSERR, "mmap %s", from_name);
+		q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
+		if ((long)q == -1)
+			err(EX_OSERR, "mmap %s", to_name);
+
+		changed = memcmp(p, q, tsize);
+		munmap(p, tsize);
+		munmap(q, tsize);
+	}
+	if (changed) {
+		if (rename(from_name, to_name) < 0)
+			err(EX_OSERR, "rename(%s, %s)", from_name, to_name);
+	} else {
+		if (unlink(from_name) < 0)
+			err(EX_OSERR, "unlink(%s, %s)", from_name);
+	}
+
+#ifdef DIAG
+	if (changed)
+		printf("CHANGED! rename (%s, %s)\n", from_name, to_name);
+	else
+		printf("SAME! unlink (%s)\n", from_name);
+#endif
+
+	return;
 }
