@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed May  2 09:36:02 2001]
+ *      last edit-date: [Thu May  3 17:15:00 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -60,7 +60,7 @@ find_active_entry_by_driver(int drivertype, int driverunit)
 		
 		if(isvalidtime(cep) == 0)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "find_active_entry_by_driver: entry %d, time not valid!", i)));
+			DBGL(DL_VALID, (log(LL_DBG, "find_active_entry_by_driver: entry %d, time not valid!", i)));
 			continue;
 		}
 		
