@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.201 1996/01/10 08:51:08 phk Exp $
+#	$Id: Makefile,v 1.202 1996/01/11 20:28:40 phk Exp $
 #
 # How to roll a release:
 #
@@ -48,7 +48,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed but doFS.sh.
 BOOTMFSSIZE=		1200
-MFSINODE=		50000
+MFSINODE=		40000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -335,7 +335,7 @@ release.8: write_mfs_in_kernel
 	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/mfsfd/stand ZIP=true
+		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
@@ -360,7 +360,6 @@ release.8: write_mfs_in_kernel
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
-
 	rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
@@ -535,12 +534,16 @@ doKERNEL:
 doMFSKERN:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
+	rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	cd ${.CURDIR}/../sys/i386/conf && \
 		fgrep -v SYSV GENERIC | \
 		fgrep -v pty | \
 		fgrep -v PROCFS | \
-		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
-		echo "options  MFS" >> BOOTMFS
+		sed 's/GENERIC/BOOTMFS/g' | \
+		sed '/maxusers/s/10/4/' > BOOTMFS && \
+		echo "options  MFS" >> BOOTMFS && \
+		echo "options  NFS_NOSERVER" >> BOOTMFS &&
+		echo 'options  "MAXCONS=4"' >> BOOTMFS 
 	echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
 		${.CURDIR}/../sys/i386/conf/BOOTMFS
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS

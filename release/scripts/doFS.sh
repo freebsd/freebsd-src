@@ -48,11 +48,11 @@ do
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
 		/dev/r${VNDEVICE} ${FSLABEL}
 
-	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}a
+	newfs -u 0 -c 8 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}a
 
 	mount /dev/${VNDEVICE}a ${MNT}
 
-	( cd ${FSPROTO} && find . -print | cpio -dump ${MNT} )
+	( set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT} )
 
 	set `df -i /mnt | tail -1`
 
@@ -69,11 +69,25 @@ do
 
 	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
 	echo ">>>     ${FSINODE} bytes/inode, $7 left"
+	echo ">>>   `expr ${FSSIZE} \* 1024 / ${FSINODE}`"
+	if [ $4 -gt 64 ] ; then
+		echo "Reducing size"
+		FSSIZE=`expr ${FSSIZE} - $4 + 8`
+		continue
+	fi
+	if [ $7 -gt 64 ] ; then
+		echo "Increasing bytes per inode"
+		FSINODE=`expr ${FSINODE} + 8192`
+		continue
+	fi
 	if [ $4 -gt 8 ] ; then
-		FSSIZE=`expr ${FSSIZE} - $4 + 7`
+		echo "Reducing size"
+		FSSIZE=`expr ${FSSIZE} - 4`
+		FSINODE=`expr ${FSINODE} - 1024`
 		continue
 	fi
 	if [ $7 -gt 32 ] ; then
+		echo "Increasing bytes per inode"
 		FSINODE=`expr ${FSINODE} + 8192`
 		continue
 	fi
