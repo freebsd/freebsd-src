@@ -101,6 +101,13 @@
     thus eliminating the need for an emulated floppy disk image on
     a bootable CDROM.</para>
 
+    <para arch="i386">The &os; boot loader is now capable of
+    booting from filesystems with 16K disk blocks (the old limit was
+    8K).</para>
+
+    <para arch="alpha">The &os; boot loader is now capable of
+    booting from filesystems with block sizes larger than 8K.</para>
+
     <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
@@ -623,17 +630,6 @@
     <para>&man.sysinstall.8; now enables Soft Updates by default on
     all filesystems it creates, except for the root
     filesystem.</para>
-
-    <para arch="alpha">Filesystems created from within
-    &man.sysinstall.8; continue to use the old default block and
-    fragment sizes of 8192 and 1024 bytes respectively, overriding the
-    &man.newfs.8; defaults.  The &man.newfs.8; default parameters were
-    changed in &os; &release.current; (see the <link
-    linkend="newfs-block-frag-sizes">corresponding release note</link>
-    in this document), but the &arch; bootstrap code assumes a block
-    size of 8192 bytes for the root filesystem.  This change ensures
-    that the parameters for the root filesystem are set correctly for
-    new installs.</para>
 
     <para>&man.sysinstall.8; has received updates for its
     <quote>auto</quote> partitioning mode which provide more
