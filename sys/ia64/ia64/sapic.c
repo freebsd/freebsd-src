@@ -61,7 +61,6 @@ sapic_read(struct sapic *sa, int which)
 
 	*(volatile u_int32_t *) (reg + SAPIC_IO_SELECT) = which;
 	ia64_mf();
-	ia64_mf_a();
 	return *(volatile u_int32_t *) (reg + SAPIC_IO_WINDOW);
 }
 
@@ -72,10 +71,8 @@ sapic_write(struct sapic *sa, int which, u_int32_t value)
 
 	*(volatile u_int32_t *) (reg + SAPIC_IO_SELECT) = which;
 	ia64_mf();
-	ia64_mf_a();
 	*(volatile u_int32_t *) (reg + SAPIC_IO_WINDOW) = value;
 	ia64_mf();
-	ia64_mf_a();
 }
 
 #ifdef DDB
