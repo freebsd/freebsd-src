@@ -50,9 +50,11 @@ __BEGIN_DECLS
 int	NgMkSockNode(const char *, int *, int *);
 int	NgNameNode(int, const char *, const char *, ...);
 int	NgSendMsg(int, const char *, int, int, const void *, size_t);
+int	NgSendAsciiMsg(int, const char *, const char *, ...);
 int	NgSendReplyMsg(int, const char *,
 		const struct ng_mesg *, const void *, size_t);
 int	NgRecvMsg(int, struct ng_mesg *, size_t, char *);
+int	NgRecvAsciiMsg(int, struct ng_mesg *, size_t, char *);
 int	NgSendData(int, const char *, const u_char *, size_t);
 int	NgRecvData(int, u_char *, size_t, char *);
 int	NgSetDebug(int);

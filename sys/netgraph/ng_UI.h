@@ -45,7 +45,7 @@
 
 /* Node type name and cookie */
 #define NG_UI_NODE_TYPE		"UI"
-#define NGM_UI_NODE_COOKIE	884639499
+#define NGM_UI_COOKIE		884639499
 
 /* Hook names */
 #define NG_UI_HOOK_DOWNSTREAM	"downstream"

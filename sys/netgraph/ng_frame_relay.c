@@ -151,7 +151,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ngfrm_rcvdata,
 	ngfrm_rcvdata,
-	ngfrm_disconnect
+	ngfrm_disconnect,
+	NULL
 };
 NETGRAPH_INIT(framerelay, &typestruct);
 
@@ -246,7 +247,7 @@ ngfrm_constructor(node_p *nodep)
 static int
 ngfrm_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p  sc = node->private;
+	const sc_p sc = node->private;
 	const char *cp;
 	char *eptr;
 	int dlci = 0;

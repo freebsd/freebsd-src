@@ -47,7 +47,8 @@ const struct ngcmd list_cmd = {
 	"Show information about all nodes",
 	"The list command shows information every node that currently"
 	" exists in the netgraph system. The optional -n argument limits"
-	" this list to only those nodes with a global name assignment."
+	" this list to only those nodes with a global name assignment.",
+	{ "ls" }
 };
 
 static int

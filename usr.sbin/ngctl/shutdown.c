@@ -45,7 +45,8 @@ const struct ngcmd shutdown_cmd = {
 	ShutdownCmd,
 	"shutdown <path>",
 	"Shutdown the node at <path>",
-	NULL
+	NULL,
+	{ "kill", "rmnode" }
 };
 
 static int

@@ -60,11 +60,15 @@ will enter interactive mode. Otherwise
 .Nm ngctl
 will execute the supplied command(s) and exit immediately.
 .Pp
-If the
-.Dv ng_socket.ko
-module is not installed in the kernel,
-.Nm ngctl
-will attempt to install it.
+Nodes can be created, removed, joined together, etc.
+ASCII formatted control messages can be sent to any node if that node
+supports binary/ASCII control message conversion.
+.Pp
+In interactive mode,
+.Nm
+will display any control messages and data packets received by the socket node.
+In the case of control messages, the message arguments are displayed in ASCII
+form if the originating node supports conversion.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -92,6 +96,7 @@ debug      Get/set debugging verbosity level
 help       Show command summary or get help on a command
 list       Show information about all nodes
 mkpeer     Create and connect a new node to an existing node
+msg        Send an ASCII formatted message to a node
 name       Assign a name to a node
 read       Read and execute commands from a file
 rmhook     Disconnect a node's hook
@@ -102,8 +107,9 @@ types      Show all installed node types
 quit       Exit program
 .Ed
 .Pp
+Some commands have aliases, e.g., ``ls'' is the same as ``list''.
 The ``help'' command displays the available
-commands, their usage, and a brief description.
+commands, their usage and aliases, and a brief description.
 .Sh EXIT VALUE
 The
 .Nm
@@ -117,5 +123,5 @@ Archie Cobbs <archie@whistle.com>
 .Sh HISTORY
 The
 .Em netgraph
-system was designed and first implemented at Whistle Communications, Inc.
-in a version FreeBSD 2.2 customized for the Whistle InterJet.
+system was designed and first implemented at Whistle Communications, Inc. in
+a version FreeBSD 2.2 customized for the Whistle InterJet.

@@ -67,6 +67,7 @@
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 #include <netgraph/ng_cisco.h>
 
 #define CISCO_MULTICAST         0x8f	/* Cisco multicast address */
@@ -105,7 +106,7 @@ struct protoent {
 struct cisco_priv {
 	u_long  local_seq;
 	u_long  remote_seq;
-	u_long  seq_retries;	/* how many times we've been here throwing out
+	u_long  seqRetries;	/* how many times we've been here throwing out
 				 * the same sequence number without ack */
 	node_p  node;
 	struct callout_handle handle;
@@ -131,6 +132,48 @@ static int	cisco_input(sc_p sc, struct mbuf *m, meta_p meta);
 static void	cisco_keepalive(void *arg);
 static int	cisco_send(sc_p sc, int type, long par1, long par2);
 
+/* Parse type for struct ng_cisco_ipaddr */
+static const struct ng_parse_struct_info
+	ng_cisco_ipaddr_type_info = NG_CISCO_IPADDR_TYPE_INFO;
+static const struct ng_parse_type ng_cisco_ipaddr_type = {
+	&ng_parse_struct_type,
+	&ng_cisco_ipaddr_type_info
+};
+
+/* Parse type for struct ng_async_stat */
+static const struct ng_parse_struct_info
+	ng_cisco_stats_type_info = NG_CISCO_STATS_TYPE_INFO;
+static const struct ng_parse_type ng_cisco_stats_type = {
+	&ng_parse_struct_type,
+	&ng_cisco_stats_type_info,
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_cisco_cmdlist[] = {
+	{
+	  NGM_CISCO_COOKIE,
+	  NGM_CISCO_SET_IPADDR,
+	  "setipaddr",
+	  &ng_cisco_ipaddr_type,
+	  NULL
+	},
+	{
+	  NGM_CISCO_COOKIE,
+	  NGM_CISCO_GET_IPADDR,
+	  "getipaddr",
+	  NULL,
+	  &ng_cisco_ipaddr_type
+	},
+	{
+	  NGM_CISCO_COOKIE,
+	  NGM_CISCO_GET_STATUS,
+	  "getstats",
+	  NULL,
+	  &ng_cisco_stats_type
+	},
+	{ 0 }
+};
+
 /* Node type */
 static struct ng_type typestruct = {
 	NG_VERSION,
@@ -144,7 +187,8 @@ static struct ng_type typestruct = {
 	NULL,
 	cisco_rcvdata,
 	cisco_rcvdata,
-	cisco_disconnect
+	cisco_disconnect,
+	ng_cisco_cmdlist
 };
 NETGRAPH_INIT(cisco, &typestruct);
 
@@ -237,7 +281,7 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
 			pos = sprintf(arg,
 			  "keepalive period: %d sec; ", KEEPALIVE_SECS);
 			pos += sprintf(arg + pos,
-			  "unacknowledged keepalives: %ld", sc->seq_retries);
+			  "unacknowledged keepalives: %ld", sc->seqRetries);
 			resp->header.arglen = pos + 1;
 			break;
 		    }
@@ -278,16 +322,16 @@ cisco_rcvmsg(node_p node, struct ng_mesg *msg,
 		    }
 		case NGM_CISCO_GET_STATUS:
 		    {
-			struct ngciscostat *stat;
+			struct ng_cisco_stats *stat;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*stat), M_NOWAIT);
 			if (!resp) {
 				error = ENOMEM;
 				break;
 			}
-			stat = (struct ngciscostat *) resp->data;
-			stat->seq_retries = sc->seq_retries;
-			stat->keepalive_period = KEEPALIVE_SECS;
+			stat = (struct ng_cisco_stats *)resp->data;
+			stat->seqRetries = sc->seqRetries;
+			stat->keepAlivePeriod = KEEPALIVE_SECS;
 			break;
 		    }
 		default:
@@ -445,7 +489,7 @@ cisco_input(sc_p sc, struct mbuf *m, meta_p meta)
 				sc->remote_seq = ntohl(p->par1);
 				if (sc->local_seq == ntohl(p->par2)) {
 					sc->local_seq++;
-					sc->seq_retries = 0;
+					sc->seqRetries = 0;
 				}
 				break;
 			case CISCO_ADDR_REQ:
@@ -508,7 +552,7 @@ cisco_keepalive(void *arg)
 	int s = splimp();
 
 	cisco_send(sc, CISCO_KEEPALIVE_REQ, sc->local_seq, sc->remote_seq);
-	sc->seq_retries++;
+	sc->seqRetries++;
 	splx(s);
 	sc->handle = timeout(cisco_keepalive, sc, hz * KEEPALIVE_SECS);
 }

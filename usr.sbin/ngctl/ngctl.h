@@ -58,12 +58,15 @@
 #include <netgraph/ng_socket.h>
 #include <netgraph/ng_message.h>
 
+#define MAX_CMD_ALIAS	8
+
 /* Command descriptors */
 struct ngcmd {
-	  int		(*func)(int ac, char **av);
-	  const char	*cmd;
-	  const char	*desc;
-	  const char	*help;
+	  int		(*func)(int ac, char **av);	/* command function */
+	  const char	*cmd;				/* command usage */
+	  const char	*desc;				/* description */
+	  const char	*help;				/* help text */
+	  const char	*aliases[MAX_CMD_ALIAS];	/* command aliases */
 };
 
 /* Command return values */
@@ -78,6 +81,7 @@ extern const struct ngcmd debug_cmd;
 extern const struct ngcmd help_cmd;
 extern const struct ngcmd list_cmd;
 extern const struct ngcmd mkpeer_cmd;
+extern const struct ngcmd msg_cmd;
 extern const struct ngcmd name_cmd;
 extern const struct ngcmd read_cmd;
 extern const struct ngcmd rmhook_cmd;

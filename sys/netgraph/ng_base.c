@@ -62,6 +62,7 @@
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
+#include <netgraph/ng_parse.h>
 
 /* List of all nodes */
 static LIST_HEAD(, ng_node) nodelist;
@@ -112,6 +113,179 @@ static	ng_ID_t nextID = 1;
 #define CHECK_DATA_MBUF(m)
 #endif
 
+
+/************************************************************************
+	Parse type definitions for generic messages
+************************************************************************/
+
+/* Handy structure parse type defining macro */
+#define DEFINE_PARSE_STRUCT_TYPE(lo, up, args)				\
+static const struct ng_parse_struct_info				\
+	ng_ ## lo ## _type_info = NG_GENERIC_ ## up ## _INFO args;	\
+static const struct ng_parse_type ng_generic_ ## lo ## _type = {	\
+	&ng_parse_struct_type,						\
+	&ng_ ## lo ## _type_info					\
+}
+
+DEFINE_PARSE_STRUCT_TYPE(mkpeer, MKPEER, ());
+DEFINE_PARSE_STRUCT_TYPE(connect, CONNECT, ());
+DEFINE_PARSE_STRUCT_TYPE(name, NAME, ());
+DEFINE_PARSE_STRUCT_TYPE(rmhook, RMHOOK, ());
+DEFINE_PARSE_STRUCT_TYPE(nodeinfo, NODEINFO, ());
+DEFINE_PARSE_STRUCT_TYPE(typeinfo, TYPEINFO, ());
+DEFINE_PARSE_STRUCT_TYPE(linkinfo, LINKINFO, (&ng_generic_nodeinfo_type));
+
+/* Get length of an array when the length is stored as a 32 bit
+   value immediately preceeding the array -- as with struct namelist
+   and struct typelist. */
+static int
+ng_generic_list_getLength(const struct ng_parse_type *type,
+	const u_char *start, const u_char *buf)
+{
+	return *((const u_int32_t *)(buf - 4));
+}
+
+/* Get length of the array of struct linkinfo inside a struct hooklist */
+static int
+ng_generic_linkinfo_getLength(const struct ng_parse_type *type,
+	const u_char *start, const u_char *buf)
+{
+	const struct hooklist *hl = (const struct hooklist *)start;
+
+	return hl->nodeinfo.hooks;
+}
+
+/* Array type for a variable length array of struct namelist */
+static const struct ng_parse_array_info ng_nodeinfoarray_type_info = {
+	&ng_generic_nodeinfo_type,
+	&ng_generic_list_getLength
+};
+static const struct ng_parse_type ng_generic_nodeinfoarray_type = {
+	&ng_parse_array_type,
+	&ng_nodeinfoarray_type_info
+};
+
+/* Array type for a variable length array of struct typelist */
+static const struct ng_parse_array_info ng_typeinfoarray_type_info = {
+	&ng_generic_typeinfo_type,
+	&ng_generic_list_getLength
+};
+static const struct ng_parse_type ng_generic_typeinfoarray_type = {
+	&ng_parse_array_type,
+	&ng_typeinfoarray_type_info
+};
+
+/* Array type for array of struct linkinfo in struct hooklist */
+static const struct ng_parse_array_info ng_generic_linkinfo_array_type_info = {
+	&ng_generic_linkinfo_type,
+	&ng_generic_linkinfo_getLength
+};
+static const struct ng_parse_type ng_generic_linkinfo_array_type = {
+	&ng_parse_array_type,
+	&ng_generic_linkinfo_array_type_info
+};
+
+DEFINE_PARSE_STRUCT_TYPE(typelist, TYPELIST, (&ng_generic_nodeinfoarray_type));
+DEFINE_PARSE_STRUCT_TYPE(hooklist, HOOKLIST,
+	(&ng_generic_nodeinfo_type, &ng_generic_linkinfo_array_type));
+DEFINE_PARSE_STRUCT_TYPE(listnodes, LISTNODES,
+	(&ng_generic_nodeinfoarray_type));
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist ng_generic_cmds[] = {
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_SHUTDOWN,
+	  "shutdown",
+	  NULL,
+	  NULL
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_MKPEER,
+	  "mkpeer",
+	  &ng_generic_mkpeer_type,
+	  NULL
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_CONNECT,
+	  "connect",
+	  &ng_generic_connect_type,
+	  NULL
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_NAME,
+	  "name",
+	  &ng_generic_name_type,
+	  NULL
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_RMHOOK,
+	  "rmhook",
+	  &ng_generic_rmhook_type,
+	  NULL
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_NODEINFO,
+	  "nodeinfo",
+	  NULL,
+	  &ng_generic_nodeinfo_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_LISTHOOKS,
+	  "listhooks",
+	  NULL,
+	  &ng_generic_hooklist_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_LISTNAMES,
+	  "listnames",
+	  NULL,
+	  &ng_generic_listnodes_type	/* same as NGM_LISTNODES */
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_LISTNODES,
+	  "listnodes",
+	  NULL,
+	  &ng_generic_listnodes_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_LISTTYPES,
+	  "listtypes",
+	  NULL,
+	  &ng_generic_typeinfo_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_TEXT_STATUS,
+	  "textstatus",
+	  NULL,
+	  &ng_parse_string_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_ASCII2BINARY,
+	  "ascii2binary",
+	  &ng_parse_ng_mesg_type,
+	  &ng_parse_ng_mesg_type
+	},
+	{
+	  NGM_GENERIC_COOKIE,
+	  NGM_BINARY2ASCII,
+	  "binary2ascii",
+	  &ng_parse_ng_mesg_type,
+	  &ng_parse_ng_mesg_type
+	},
+	{ 0 }
+};
 
 /************************************************************************
 			Node routines
@@ -1252,6 +1426,151 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			tp->numnodes = type->refs;
 			tl->numtypes++;
 		}
+		*resp = rp;
+		break;
+	    }
+
+	case NGM_BINARY2ASCII:
+	    {
+		int bufSize = 2000;	/* XXX hard coded constant */
+		const struct ng_parse_type *argstype;
+		const struct ng_cmdlist *c;
+		struct ng_mesg *rp, *binary, *ascii;
+
+		/* Data area must contain a valid netgraph message */
+		binary = (struct ng_mesg *)msg->data;
+		if (msg->header.arglen < sizeof(struct ng_mesg)
+		    || msg->header.arglen - sizeof(struct ng_mesg) 
+		      < binary->header.arglen) {
+			error = EINVAL;
+			break;
+		}
+
+		/* Get a response message with lots of room */
+		NG_MKRESPONSE(rp, msg, sizeof(*ascii) + bufSize, M_NOWAIT);
+		if (rp == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		ascii = (struct ng_mesg *)rp->data;
+
+		/* Copy binary message header to response message payload */
+		bcopy(binary, ascii, sizeof(*binary));
+
+		/* Find command by matching typecookie and command number */
+		for (c = here->type->cmdlist;
+		    c != NULL && c->name != NULL; c++) {
+			if (binary->header.typecookie == c->cookie
+			    && binary->header.cmd == c->cmd)
+				break;
+		}
+		if (c == NULL || c->name == NULL) {
+			for (c = ng_generic_cmds; c->name != NULL; c++) {
+				if (binary->header.typecookie == c->cookie
+				    && binary->header.cmd == c->cmd)
+					break;
+			}
+			if (c->name == NULL) {
+				FREE(rp, M_NETGRAPH);
+				error = ENOSYS;
+				break;
+			}
+		}
+
+		/* Convert command name to ASCII */
+		snprintf(ascii->header.cmdstr, sizeof(ascii->header.cmdstr),
+		    "%s", c->name);
+
+		/* Convert command arguments to ASCII */
+		argstype = (binary->header.flags & NGF_RESP) ?
+		    c->respType : c->mesgType;
+		if (argstype == NULL)
+			*ascii->data = '\0';
+		else {
+			if ((error = ng_unparse(argstype,
+			    (u_char *)binary->data,
+			    ascii->data, bufSize)) != 0) {
+				FREE(rp, M_NETGRAPH);
+				break;
+			}
+		}
+
+		/* Return the result as struct ng_mesg plus ASCII string */
+		bufSize = strlen(ascii->data) + 1;
+		ascii->header.arglen = bufSize;
+		rp->header.arglen = sizeof(*ascii) + bufSize;
+		*resp = rp;
+		break;
+	    }
+
+	case NGM_ASCII2BINARY:
+	    {
+		int bufSize = 2000;	/* XXX hard coded constant */
+		const struct ng_cmdlist *c;
+		const struct ng_parse_type *argstype;
+		struct ng_mesg *rp, *ascii, *binary;
+		int off;
+
+		/* Data area must contain at least a struct ng_mesg + '\0' */
+		ascii = (struct ng_mesg *)msg->data;
+		if (msg->header.arglen < sizeof(*ascii) + 1
+		    || ascii->header.arglen < 1
+		    || msg->header.arglen
+		      < sizeof(*ascii) + ascii->header.arglen) {
+			error = EINVAL;
+			break;
+		}
+		ascii->data[ascii->header.arglen - 1] = '\0';
+
+		/* Get a response message with lots of room */
+		NG_MKRESPONSE(rp, msg, sizeof(*binary) + bufSize, M_NOWAIT);
+		if (rp == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		binary = (struct ng_mesg *)rp->data;
+
+		/* Copy ASCII message header to response message payload */
+		bcopy(ascii, binary, sizeof(*ascii));
+
+		/* Find command by matching ASCII command string */
+		for (c = here->type->cmdlist;
+		    c != NULL && c->name != NULL; c++) {
+			if (strcmp(ascii->header.cmdstr, c->name) == 0)
+				break;
+		}
+		if (c == NULL || c->name == NULL) {
+			for (c = ng_generic_cmds; c->name != NULL; c++) {
+				if (strcmp(ascii->header.cmdstr, c->name) == 0)
+					break;
+			}
+			if (c->name == NULL) {
+				FREE(rp, M_NETGRAPH);
+				error = ENOSYS;
+				break;
+			}
+		}
+
+		/* Convert command name to binary */
+		binary->header.cmd = c->cmd;
+		binary->header.typecookie = c->cookie;
+
+		/* Convert command arguments to binary */
+		argstype = (binary->header.flags & NGF_RESP) ?
+		    c->respType : c->mesgType;
+		if (argstype == NULL)
+			bufSize = 0;
+		else {
+			if ((error = ng_parse(argstype, ascii->data,
+			    &off, (u_char *)binary->data, &bufSize)) != 0) {
+				FREE(rp, M_NETGRAPH);
+				break;
+			}
+		}
+
+		/* Return the result */
+		binary->header.arglen = bufSize;
+		rp->header.arglen = sizeof(*binary) + bufSize;
 		*resp = rp;
 		break;
 	    }

@@ -89,15 +89,15 @@
 
 /* Per-node private info */
 struct ngt_sc {
-	struct tty *tp;		/* Terminal device */
-	node_p  node;		/* Netgraph node */
-	hook_p  hook;		/* Netgraph hook */
-	struct mbuf *m;		/* Incoming data buffer */
-	struct mbuf *qhead, **qtail;	/* Queue of outgoing mbuf's */
-	short   qlen;		/* Length of queue */
-	short   hotchar;	/* Hotchar, or -1 if none */
-	u_int   flags;		/* Flags */
-	struct callout_handle chand;	/* See man timeout(9) */
+	struct	tty *tp;		/* Terminal device */
+	node_p	node;			/* Netgraph node */
+	hook_p	hook;			/* Netgraph hook */
+	struct	mbuf *m;		/* Incoming data buffer */
+	struct	mbuf *qhead, **qtail;	/* Queue of outgoing mbuf's */
+	short	qlen;			/* Length of queue */
+	short	hotchar;		/* Hotchar, or -1 if none */
+	u_int	flags;			/* Flags */
+	struct	callout_handle chand;	/* See man timeout(9) */
 };
 typedef struct ngt_sc *sc_p;
 
@@ -106,7 +106,7 @@ typedef struct ngt_sc *sc_p;
 #define FLG_DEBUG		0x0002
 
 /* Debugging */
-#ifdef DIAGNOSTICS
+#ifdef INVARIANTS
 #define QUEUECHECK(sc)							\
     do {								\
       struct mbuf	**mp;						\
@@ -173,6 +173,7 @@ static struct ng_type typestruct = {
 	ngt_rcvdata,
 	ngt_rcvdata,
 	ngt_disconnect,
+	NULL
 };
 NETGRAPH_INIT(tty, &typestruct);
 

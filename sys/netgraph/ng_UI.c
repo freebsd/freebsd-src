@@ -94,7 +94,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_UI_rcvdata,
 	ng_UI_rcvdata,
-	ng_UI_disconnect
+	ng_UI_disconnect,
+	NULL
 };
 NETGRAPH_INIT(UI, &typestruct);
 

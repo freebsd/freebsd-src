@@ -109,7 +109,8 @@ static struct ng_type typestruct = {
 	NULL,
 	nglmi_rcvdata,
 	nglmi_rcvdata,
-	nglmi_disconnect
+	nglmi_disconnect,
+	NULL
 };
 NETGRAPH_INIT(lmi, &typestruct);
 
