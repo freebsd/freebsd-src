@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
-#include <rune.h>
+#include <runetype.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -259,7 +259,7 @@ main(int ac, char *av[])
 	mapupper.map[x] = x;
 	maplower.map[x] = x;
     }
-    new_locale.__invalid_rune = _INVALID_RUNE;
+    new_locale.__invalid_rune = _CurrentRuneLocale->__invalid_rune;
     memcpy(new_locale.__magic, _RUNE_MAGIC_1, sizeof(new_locale.__magic));
 
     yyparse();
