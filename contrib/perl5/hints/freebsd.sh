@@ -115,20 +115,21 @@ case "$osvers" in
 	fi
 	cccdlflags='-DPIC -fpic'
 	;;
-3.0*)	objformat=`objformat`
-	if [ x$objformat = xelf ]; then
-	    libpth="/usr/lib /usr/local/lib"
-	    glibpth="/usr/lib /usr/local/lib"
-	    ldflags="-Wl,-E "
-	    lddlflags="-shared "
-	else
-	    if [ -e /usr/lib/aout ]; then
-		libpth="/usr/lib/aout /usr/local/lib /usr/lib"
-		glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
-	    fi
-	    lddlflags='-Bshareable'
-	fi
-	cccdlflags='-DPIC -fpic'
+3.*|4.0*)
+        objformat=`/usr/bin/objformat`
+        if [ x$objformat = xelf ]; then
+            libpth="/usr/lib /usr/local/lib"
+            glibpth="/usr/lib /usr/local/lib"
+            ldflags="-Wl,-E "
+            lddlflags="-shared "
+        else
+            if [ -e /usr/lib/aout ]; then
+            libpth="/usr/lib/aout /usr/local/lib /usr/lib"
+            glibpth="/usr/lib/aout /usr/local/lib /usr/lib"
+        fi
+        lddlflags='-Bshareable'
+        fi
+        cccdlflags='-DPIC -fpic'
         ;;
 
 *)	cccdlflags='-DPIC -fpic'
@@ -146,38 +147,91 @@ problem.  Try
 
 EOM
 
-# XXX EXPERIMENTAL  A.D.  03/09/1998
-# XXX This script UU/usethreads.cbu will get 'called-back' by Configure
-# XXX after it has prompted the user for whether to use threads.
-cat > UU/usethreads.cbu <<'EOSH'
-case "$usethreads" in
-$define)
-    case "$osvers" in  
-        3.0*) ldflags="-pthread $ldflags"
-              ;;
-        2.2*) if [ ! -r /usr/lib/libc_r ]; then
-                cat <<'EOM' >&4
-POSIX threads are not supported by default on FreeBSD $uname_r.  Follow the
-instructions in 'man pthread' to build and install the needed libraries.
-EOM
-                 exit 1
-              fi
-              set `echo X "$libswanted "| sed -e 's/ c / c_r /'`
-              shift
-              libswanted="$*"
-              # Configure will probably pick the wrong libc to use for nm
-              # scan.
-              # The safest quick-fix is just to not use nm at all.
-              usenm=false
-              ;;
-         *)   cat <<'EOM' >&4
-It is not known if FreeBSD $uname_r supports POSIX threads or not.  Consider
-upgrading to the latest STABLE release.
-EOM
-              exit 1
-              ;;
-    esac
+# From: Anton Berezin <tobez@plab.ku.dk>
+# To: perl5-porters@perl.org
+# Subject: [PATCH 5.005_54] Configure - hints/freebsd.sh signal handler type
+# Date: 30 Nov 1998 19:46:24 +0100
+# Message-ID: <864srhhvcv.fsf@lion.plab.ku.dk>
+
+signal_t='void'
+d_voidsig='define'
+
+# set libperl.so.X.X for 2.2.X
+case "$osvers" in
+2.2*)
+    # unfortunately this code gets executed before
+    # the equivalent in the main Configure so we copy a little
+    # from Configure XXX Configure should be fixed.
+    if $test -r $src/patchlevel.h;then
+       patchlevel=`awk '/define[ 	]+PATCHLEVEL/ {print $3}' $src/patchlevel.h`
+       subversion=`awk '/define[ 	]+SUBVERSION/ {print $3}' $src/patchlevel.h`
+    else
+       patchlevel=0
+       subversion=0
+    fi
+    libperl="libperl.so.$patchlevel.$subversion"
+    unset patchlevel
+    unset subversion
     ;;
 esac
-EOSH
-# XXX EXPERIMENTAL  --end of call-back
+
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+        lc_r=`/sbin/ldconfig -r|grep ':-lc_r'|awk '{print $NF}'`
+        case "$osvers" in  
+	2.2.8*|3.*|4.*)
+	      if [ ! -r "$lc_r" ]; then
+	      cat <<EOM >&4
+POSIX threads should be supported by FreeBSD $osvers --
+but your system is missing the shared libc_r.
+(/sbin/ldconfig -r doesn't find any).
+
+Consider using the latest STABLE release.
+EOM
+		 exit 1
+	      fi
+	      ldflags="-pthread $ldflags"
+	      ;;
+        2.2*)
+              cat <<EOM >&4
+POSIX threads are not supported well by FreeBSD $osvers.
+
+Please consider upgrading to at least FreeBSD 2.2.8,
+or preferably to 3.something.
+
+(While 2.2.7 does have pthreads, it has some problems
+ with the combination of threads and pipes and therefore
+ many Perl tests will either hang or fail.)
+EOM
+	      exit 1
+	      ;;
+	 *)   cat <<EOM >&4
+I did not know that FreeBSD $osvers supports POSIX threads.
+
+Feel free to tell perlbug@perl.com otherwise.
+EOM
+	      exit 1
+	      ;;
+	esac
+
+	set `echo X "$libswanted "| sed -e 's/ c / c_r /'`
+	shift
+	libswanted="$*"
+	# Configure will probably pick the wrong libc to use for nm scan.
+	# The safest quick-fix is just to not use nm at all...
+	usenm=false
+
+        case "$osvers" in
+        2.2.8*)
+            # ... but this does not apply for 2.2.8 - we know it's safe
+            libc="$lc_r"
+            usenm=true
+           ;;
+        esac
+
+        unset lc_r
+esac
+EOCBU

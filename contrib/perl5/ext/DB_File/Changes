@@ -203,3 +203,32 @@
 
 1.60
    Changed the test to check for full tied array support
+
+1.61 19th November 1998
+
+   Added a note to README about how to build Berkeley DB 2.x when
+   using HP-UX.
+   Minor modifications to get the module to build with DB 2.5.x
+   Fixed a typo in the definition of O_RDONLY, courtesy of Mark Kettenis.
+
+1.62 30th November 1998
+
+   Added hints/dynixptx.pl.
+   Fixed typemap -- 1.61 used PL_na instead of na
+
+1.63 19th December 1998
+
+   * Fix to allow DB 2.6.x to build with DB_File
+   * Documentation updated to use push,pop etc in the RECNO example &
+     to include the find_dup & del_dup methods.
+
+1.64 21st February 1999
+
+   * Tidied the 1.x to 2.x flag mapping code.
+   * Added a patch from Mark Kettenis <kettenis@wins.uva.nl> to fix a flag
+     mapping problem with O_RDONLY on the Hurd
+   * Updated the message that db-recno.t prints when tests 51, 53 or 55 fail.
+
+1.65 6th March 1999
+   * Fixed a bug in the recno PUSH logic.
+   * The BOOT version check now needs 2.3.4 when using Berkeley DB version 2

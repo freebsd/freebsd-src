@@ -1,57 +1,65 @@
 package Text::Wrap;
 
-use vars qw(@ISA @EXPORT @EXPORT_OK $VERSION $columns $debug);
-use strict;
-use Exporter;
+require Exporter;
 
-$VERSION = "97.02";
 @ISA = qw(Exporter);
-@EXPORT = qw(wrap);
-@EXPORT_OK = qw($columns $tabstop fill);
+@EXPORT = qw(wrap fill);
+@EXPORT_OK = qw($columns $break $huge);
 
-use Text::Tabs qw(expand unexpand $tabstop);
+$VERSION = 98.112902;
 
+use vars qw($VERSION $columns $debug $break $huge);
+use strict;
 
 BEGIN	{
-    $columns = 76;  # <= screen width
-    $debug = 0;
+	$columns = 76;  # <= screen width
+	$debug = 0;
+	$break = '\s';
+	$huge = 'wrap'; # alternatively: 'die'
 }
+
+use Text::Tabs qw(expand unexpand);
 
 sub wrap
 {
-    my ($ip, $xp, @t) = @_;
+	my ($ip, $xp, @t) = @_;
 
-    my @rv;
-    my $t = expand(join(" ",@t));
+	my $r = "";
+	my $t = expand(join(" ",@t));
+	my $lead = $ip;
+	my $ll = $columns - length(expand($ip)) - 1;
+	my $nll = $columns - length(expand($xp)) - 1;
+	my $nl = "";
+	my $remainder = "";
 
-    my $lead = $ip;
-    my $ll = $columns - length(expand($lead)) - 1;
-    my $nl = "";
-
-    $t =~ s/^\s+//;
-    while(length($t) > $ll) {
-	# remove up to a line length of things that
-	# aren't new lines and tabs.
-	if ($t =~ s/^([^\n]{0,$ll})(\s|\Z(?!\n))//) {
-	    my ($l,$r) = ($1,$2);
-	    $l =~ s/\s+$//;
-	    print "WRAP  $lead$l..($r)\n" if $debug;
-	    push @rv, unexpand($lead . $l), "\n";
-		
-	} elsif ($t =~ s/^([^\n]{$ll})//) {
-	    print "SPLIT $lead$1..\n" if $debug;
-	    push @rv, unexpand($lead . $1),"\n";
+	while ($t !~ /^\s*$/) {
+		if ($t =~ s/^([^\n]{0,$ll})($break|\Z(?!\n))//xm) {
+			$r .= unexpand($nl . $lead . $1);
+			$remainder = $2;
+		} elsif ($huge eq 'wrap' && $t =~ s/^([^\n]{$ll})//) {
+			$r .= unexpand($nl . $lead . $1);
+			$remainder = "\n";
+		} elsif ($huge eq 'die') {
+			die "couldn't wrap '$t'";
+		} else {
+			die "This shouldn't happen";
+		}
+			
+		$lead = $xp;
+		$ll = $nll;
+		$nl = "\n";
 	}
-	# recompute the leader
-	$lead = $xp;
-	$ll = $columns - length(expand($lead)) - 1;
-	$t =~ s/^\s+//;
-    } 
-    print "TAIL  $lead$t\n" if $debug;
-    push @rv, $lead.$t if $t ne "";
-    return join '', @rv;
-}
+	$r .= $remainder;
 
+	print "-----------$r---------\n" if $debug;
+
+	print "Finish up with '$lead', '$t'\n" if $debug;
+
+	$r .= $lead . $t if $t ne "";
+
+	print "-----------$r---------\n" if $debug;;
+	return $r;
+}
 
 sub fill 
 {
@@ -83,26 +91,32 @@ Text::Wrap - line wrapping to form simple paragraphs
 	use Text::Wrap
 
 	print wrap($initial_tab, $subsequent_tab, @text);
+	print fill($initial_tab, $subsequent_tab, @text);
 
-	use Text::Wrap qw(wrap $columns $tabstop fill);
+	use Text::Wrap qw(wrap $columns $huge);
 
 	$columns = 132;
-	$tabstop = 4;
-
-	print fill($initial_tab, $subsequent_tab, @text);
-	print fill("", "", `cat book`);
+	$huge = 'die';
+	$huge = 'wrap';
 
 =head1 DESCRIPTION
 
 Text::Wrap::wrap() is a very simple paragraph formatter.  It formats a
-single paragraph at a time by breaking lines at word boundries.
+single paragraph at a time by breaking lines at word boundaries.
 Indentation is controlled for the first line ($initial_tab) and
-all subsquent lines ($subsequent_tab) independently.  $Text::Wrap::columns
-should be set to the full width of your output device.
+all subsequent lines ($subsequent_tab) independently.  
+
+Lines are wrapped at $Text::Wrap::columns columns.  
+$Text::Wrap::columns should be set to the full width of your output device.
+
+When words that are longer than $columns are encountered, they
+are broken up.  Previous versions of wrap() die()ed instead.
+To restore the old (dying) behavior, set $Text::Wrap::huge to
+'die'.
 
 Text::Wrap::fill() is a simple multi-paragraph formatter.  It formats
 each paragraph separately and then joins them together when it's done.  It
-will destory any whitespace in the original text.  It breaks text into
+will destroy any whitespace in the original text.  It breaks text into
 paragraphs by looking for whitespace after a newline.  In other respects
 it acts like wrap().
 
@@ -111,15 +125,8 @@ it acts like wrap().
 	print wrap("\t","","This is a bit of text that forms 
 		a normal book-style paragraph");
 
-=head1 BUGS
-
-It's not clear what the correct behavior should be when Wrap() is
-presented with a word that is longer than a line.  The previous 
-behavior was to die.  Now the word is now split at line-length.
-
 =head1 AUTHOR
 
 David Muir Sharnoff <muir@idiom.com> with help from Tim Pierce and
-others. Updated by Jacqui Caren.
+many many others.  
 
-=cut

@@ -5,7 +5,7 @@ generates pod documentation for Config.pm from this file--please try to keep
 the formatting regular.]
 
 Mcc (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the Mcc program.  After Configure runs,
 	the value is reset to a plain "Mcc" and is not useful.
 
@@ -52,7 +52,7 @@ apiversion (patchlevel.U):
 	will retain binary compatibility.
 
 ar (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the ar program.  After Configure runs,
 	the value is reset to a plain "ar" and is not useful.
 
@@ -79,7 +79,7 @@ archobjs (Unix.U):
 	include os2/os2.obj.
 
 awk (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the awk program.  After Configure runs,
 	the value is reset to a plain "awk" and is not useful.
 
@@ -105,7 +105,7 @@ bison (Loc.U):
 	The value is a plain '' and is not useful.
 
 byacc (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the byacc program.  After Configure runs,
 	the value is reset to a plain "byacc" and is not useful.
 
@@ -129,7 +129,7 @@ castflags (d_castneg.U):
 		4 = couldn't cast in argument expression list
 
 cat (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the cat program.  After Configure runs,
 	the value is reset to a plain "cat" and is not useful.
 
@@ -153,6 +153,12 @@ ccdlflags (dlsrc.U):
 ccflags (ccflags.U):
 	This variable contains any additional C compiler flags desired by
 	the user.  It is up to the Makefile to use this.
+
+ccsymbols (Cppsym.U):
+	The variable contains the symbols defined by the C compiler alone.
+	The symbols defined by cpp or by cc when it calls cpp are not in
+	this list, see cppsymbols and cppccsymbols.
+	The list is a space-separated list of symbol=value tokens.
 
 cf_by (cf_who.U):
 	Login name of the person who ran the Configure script and answered the
@@ -184,7 +190,7 @@ clocktype (d_times.U):
 	included).
 
 comm (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the comm program.  After Configure runs,
 	the value is reset to a plain "comm" and is not useful.
 
@@ -199,7 +205,7 @@ contains (contains.U):
 	is primarily for the use of other Configure units.
 
 cp (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the cp program.  After Configure runs,
 	the value is reset to a plain "cp" and is not useful.
 
@@ -208,7 +214,7 @@ cpio (Loc.U):
 	The value is a plain '' and is not useful.
 
 cpp (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the cpp program.  After Configure runs,
 	the value is reset to a plain "cpp" and is not useful.
 
@@ -244,13 +250,25 @@ cppstdin (cppstdin.U):
 	It is primarily used by other Configure units that ask about
 	preprocessor symbols.
 
+cppsymbols (Cppsym.U):
+	The variable contains the symbols defined by the C preprocessor
+	alone.  The symbols defined by cc or by cc when it calls cpp are
+	not in this list, see ccsymbols and cppccsymbols.
+	The list is a space-separated list of symbol=value tokens.
+
+cppccsymbols (Cppsym.U):
+	The variable contains the symbols defined by the C compiler when
+	when it calls cpp.  The symbols defined by the cc alone or cpp
+	alone are not in this list, see ccsymbols and cppsymbols.
+	The list is a space-separated list of symbol=value tokens.
+
 cryptlib (d_crypt.U):
 	This variable holds -lcrypt or the path to a libcrypt.a archive if
 	the crypt() function is not defined in the standard C library. It is
 	up to the Makefile to use this.
 
 csh (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the csh program.  After Configure runs,
 	the value is reset to a plain "csh" and is not useful.
 
@@ -477,6 +495,14 @@ d_fsetpos (d_fsetpos.U):
 	This variable conditionally defines HAS_FSETPOS if fsetpos() is
 	available to set the file position indicator.
 
+d_fstatfs (d_statfs.U):
+	This variable conditionally defines the HAS_FSTATFS symbol, which
+	indicates to the C program that the fstatfs() routine is available.
+
+d_fstatvfs (d_statvfs.U):
+	This variable conditionally defines the HAS_FSTATVFS symbol, which
+	indicates to the C program that the fstatvfs() routine is available.
+
 d_ftime (d_ftime.U):
 	This variable conditionally defines the HAS_FTIME symbol, which indicates
 	that the ftime() routine exists.  The ftime() routine is basically
@@ -521,6 +547,11 @@ d_getlogin (d_getlogin.U):
 	This variable conditionally defines the HAS_GETLOGIN symbol, which
 	indicates to the C program that the getlogin() routine is available
 	to get the login name.
+
+d_getmntent (d_getmntent.U):
+	This variable conditionally defines the HAS_GETMNTENT symbol, which
+	indicates to the C program that the getmntent() routine is available
+	to iterate through mounted files.
 
 d_getnbyaddr (d_getnbyad.U):
 	This variable conditionally defines the HAS_GETNETBYADDR symbol, which
@@ -625,6 +656,11 @@ d_gnulibc (d_gnulibc.U):
 d_grpasswd (i_grp.U):
 	This variable conditionally defines GRPASSWD, which indicates
 	that struct group in <grp.h> contains gr_passwd.
+
+d_hasmntopt (d_hasmntopt.U):
+	This variable conditionally defines the HAS_HASMNTOPT symbol, which
+	indicates to the C program that the hasmntopt() routine is available
+	to query the mount options of file systems.
 
 d_htonl (d_htonl.U):
 	This variable conditionally defines HAS_HTONL if htonl() and its
@@ -1072,6 +1108,16 @@ d_statblks (d_statblks.U):
 	This variable conditionally defines USE_STAT_BLOCKS if this system
 	has a stat structure declaring st_blksize and st_blocks.
 
+d_statfsflags (d_statfs.U):
+	This variable conditionally defines the HAS_STRUCT_STATFS_FLAGS
+	symbol, which indicates to struct statfs from has f_flags member.
+	This kind of struct statfs is coming from sys/mount.h (BSD),
+	not from sys/statfs.h (SYSV).
+
+d_statvfs (d_statvfs.U):
+	This variable conditionally defines the HAS_STATVFS symbol, which
+	indicates to the C program that the statvfs() routine is available.
+
 d_stdio_cnt_lval (d_stdstdio.U):
 	This variable conditionally defines STDIO_CNT_LVALUE if the
 	FILE_cnt macro can be used as an lvalue.
@@ -1260,7 +1306,7 @@ d_xenix (Guess.U):
 	the C program that it runs under Xenix.
 
 date (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the date program.  After Configure runs,
 	the value is reset to a plain "date" and is not useful.
 
@@ -1307,12 +1353,12 @@ ebcdic (ebcdic.U):
 	See trnl.U
 
 echo (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the echo program.  After Configure runs,
 	the value is reset to a plain "echo" and is not useful.
 
 egrep (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the egrep program.  After Configure runs,
 	the value is reset to a plain "egrep" and is not useful.
 
@@ -1329,7 +1375,7 @@ exe_ext (Unix.U):
 	This is an old synonym for _exe.
 
 expr (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the expr program.  After Configure runs,
 	the value is reset to a plain "expr" and is not useful.
 
@@ -1340,7 +1386,7 @@ extensions (Extensions.U):
 	is available.
 
 find (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the find program.  After Configure runs,
 	the value is reset to a plain "find" and is not useful.
 
@@ -1361,6 +1407,11 @@ fpostype (fpostype.U):
 freetype (mallocsrc.U):
 	This variable contains the return type of free().  It is usually
 	void, but occasionally int.
+
+full_ar (Loc_ar.U):
+	This variable contains the full pathname to 'ar', whether or
+	not the user has specified 'portability'.  This is only used
+	in the Makefile.SH.
 
 full_csh (d_csh.U):
 	This variable contains the full pathname to 'csh', whether or
@@ -1387,7 +1438,7 @@ gidtype (gidtype.U):
 	of getgid().  Typically, it is the type of group ids in the kernel.
 
 grep (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the grep program.  After Configure runs,
 	the value is reset to a plain "grep" and is not useful.
 
@@ -1403,7 +1454,7 @@ groupstype (groupstype.U):
 	gidtype (gid_t), but sometimes it isn't.
 
 gzip (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the gzip program.  After Configure runs,
 	the value is reset to a plain "gzip" and is not useful.
 
@@ -1489,6 +1540,10 @@ i_locale (i_locale.U):
 	This variable conditionally defines the I_LOCALE symbol,
 	and indicates whether a C program should include <locale.h>.
 
+i_machcthr (i_machcthr.U):
+	This variable conditionally defines the I_MACH_CTHREADS symbol,
+	and indicates whether a C program should include <mach/cthreads.h>.
+
 i_malloc (i_malloc.U):
 	This variable conditionally defines the I_MALLOC symbol, and indicates
 	whether a C program should include <malloc.h>.
@@ -1500,6 +1555,10 @@ i_math (i_math.U):
 i_memory (i_memory.U):
 	This variable conditionally defines the I_MEMORY symbol, and indicates
 	whether a C program should include <memory.h>.
+
+i_mntent (i_mntent.U):
+	This variable conditionally defines the I_MNTENT symbol, and indicates
+	whether a C program should include <mntent.h>.
 
 i_ndbm (i_ndbm.U):
 	This variable conditionally defines the I_NDBM symbol, which
@@ -1580,6 +1639,10 @@ i_sysioctl (i_sysioctl.U):
 	indicates to the C program that <sys/ioctl.h> exists and should
 	be included.
 
+i_sysmount (i_sysmount.U):
+	This variable conditionally defines the I_SYSMOUNT symbol,
+	and indicates whether a C program should include <sys/mount.h>.
+
 i_sysndir (i_sysndir.U):
 	This variable conditionally defines the I_SYS_NDIR symbol, and indicates
 	whether a C program should include <sys/ndir.h>.
@@ -1605,6 +1668,14 @@ i_syssockio (i_sysioctl.U):
 i_sysstat (i_sysstat.U):
 	This variable conditionally defines the I_SYS_STAT symbol,
 	and indicates whether a C program should include <sys/stat.h>.
+
+i_sysstatfs (i_sysstatfs.U):
+	This variable conditionally defines the I_SYSSTATFS symbol,
+	and indicates whether a C program should include <sys/statfs.h>.
+
+i_sysstatvfs (i_sysstatvfs.U):
+	This variable conditionally defines the I_SYSSTATVFS symbol,
+	and indicates whether a C program should include <sys/statvfs.h>.
 
 i_systime (i_time.U):
 	This variable conditionally defines I_SYS_TIME, which indicates
@@ -1671,6 +1742,11 @@ i_vfork (i_vfork.U):
 	This variable conditionally defines the I_VFORK symbol, and indicates
 	whether a C program should include vfork.h.
 
+ignore_versioned_solibs (libs.U):
+	This variable should be non-empty if non-versioned shared
+	libraries (libfoo.so.x.y) are to be ignored (because they
+	cannot be linked against).
+
 incpath (usrinc.U):
 	This variable must preceed the normal include path to get hte
 	right one, as in "$incpath/usr/include" or "$incpath/usr/lib".
@@ -1722,6 +1798,11 @@ installsitelib (sitelib.U):
 	those systems using AFS. For extra portability, only this variable
 	should be used in makefiles.
 
+installusrbinperl (instubperl.U):
+	This variable tells whether Perl should be installed also as
+	/usr/bin/perl in addition to
+	$installbin/perl
+
 intsize (intsize.U):
 	This variable contains the value of the INTSIZE symbol, which
 	indicates to the C program how many bytes there are in an int.
@@ -1756,7 +1837,7 @@ ldflags (ccflags.U):
 	the user.  It is up to the Makefile to use this.
 
 less (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the less program.  After Configure runs,
 	the value is reset to a plain "less" and is not useful.
 
@@ -1788,7 +1869,7 @@ libswanted (Myinit.U):
 	ahead of ucb or bsd libraries for SVR4.
 
 line (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the line program.  After Configure runs,
 	the value is reset to a plain "line" and is not useful.
 
@@ -1801,7 +1882,7 @@ lkflags (ccflags.U):
 	the user.  It is up to the Makefile to use this.
 
 ln (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the ln program.  After Configure runs,
 	the value is reset to a plain "ln" and is not useful.
 
@@ -1845,7 +1926,7 @@ lpr (Loc.U):
 	The value is a plain '' and is not useful.
 
 ls (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the ls program.  After Configure runs,
 	the value is reset to a plain "ls" and is not useful.
 
@@ -1863,7 +1944,7 @@ mailx (Loc.U):
 	The value is a plain '' and is not useful.
 
 make (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the make program.  After Configure runs,
 	the value is reset to a plain "make" and is not useful.
 
@@ -1934,7 +2015,7 @@ mips_type (usrinc.U):
 	Possible values are "BSD 4.3" and "System V".
 
 mkdir (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the mkdir program.  After Configure runs,
 	the value is reset to a plain "mkdir" and is not useful.
 
@@ -1949,7 +2030,7 @@ modetype (modetype.U):
 	modes for system calls.
 
 more (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the more program.  After Configure runs,
 	the value is reset to a plain "more" and is not useful.
 
@@ -2006,7 +2087,7 @@ netdb_net_type (netdbtype.U):
 	This is only useful if you have getnetbyaddr(), naturally.
 
 nm (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the nm program.  After Configure runs,
 	the value is reset to a plain "nm" and is not useful.
 
@@ -2026,7 +2107,7 @@ nonxs_ext (Extensions.U):
 	in the package.  All of them will be built.
 
 nroff (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the nroff program.  After Configure runs,
 	the value is reset to a plain "nroff" and is not useful.
 
@@ -2086,7 +2167,7 @@ path_sep (Unix.U):
 	used to separate elements in the command shell search PATH.
 
 perl (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the perl program.  After Configure runs,
 	the value is reset to a plain "perl" and is not useful.
 
@@ -2099,7 +2180,7 @@ perlpath (perlpath.U):
 	shell scripts and in the "eval 'exec'" idiom.
 
 pg (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the pg program.  After Configure runs,
 	the value is reset to a plain "pg" and is not useful.
 
@@ -2172,7 +2253,7 @@ rd_nodata (nblock_io.U):
 	no data and an EOF.. Sigh!
 
 rm (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the rm program.  After Configure runs,
 	the value is reset to a plain "rm" and is not useful.
 
@@ -2197,9 +2278,16 @@ scriptdirexp (scriptdir.U):
 	at configuration time, for programs not wanting to bother with it.
 
 sed (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the sed program.  After Configure runs,
 	the value is reset to a plain "sed" and is not useful.
+
+selectminbits (selectminbits.U):
+	This variable holds the minimum number of bits operated by select.
+	That is, if you do select(n, ...), how many bits at least will be
+	cleared in the masks if some activity is detected.  Usually this
+	is either n or 32*ceil(n/32), especially many little-endians do
+	the latter.  This is only useful if you have select(), naturally.
 
 selecttype (selecttype.U):
 	This variable holds the type used for the 2nd, 3rd, and 4th
@@ -2208,7 +2296,7 @@ selecttype (selecttype.U):
 	have select(), naturally.
 
 sendmail (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the sendmail program.  After Configure runs,
 	the value is reset to a plain "sendmail" and is not useful.
 
@@ -2277,6 +2365,12 @@ sig_num (sig_name.U):
 	the value of the signal listed in the same place within the
 	sig_name list.
 
+sig_num_init (sig_name.U):
+	This variable holds the signal numbers, enclosed in double quotes and
+	separated by commas, suitable for use in the SIG_NUM definition 
+	below.  A "ZERO" is prepended to the list, and the list is 
+	terminated with a plain 0.
+
 signal_t (d_voidsig.U):
 	This variable holds the type of the signal handler (void or int).
 
@@ -2329,7 +2423,7 @@ socketlib (d_socket.U):
 	This variable has the names of any libraries needed for socket support.
 
 sort (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the sort program.  After Configure runs,
 	the value is reset to a plain "sort" and is not useful.
 
@@ -2440,12 +2534,12 @@ tbl (Loc.U):
 	The value is a plain '' and is not useful.
 
 tee (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the tee program.  After Configure runs,
 	the value is reset to a plain "tee" and is not useful.
 
 test (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the test program.  After Configure runs,
 	the value is reset to a plain "test" and is not useful.
 
@@ -2458,12 +2552,12 @@ timetype (d_time.U):
 	included). Anyway, the type Time_t should be used.
 
 touch (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the touch program.  After Configure runs,
 	the value is reset to a plain "touch" and is not useful.
 
 tr (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the tr program.  After Configure runs,
 	the value is reset to a plain "tr" and is not useful.
 
@@ -2482,12 +2576,12 @@ uidtype (uidtype.U):
 	ushort, or whatever type is used to declare user ids in the kernel.
 
 uname (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the uname program.  After Configure runs,
 	the value is reset to a plain "uname" and is not useful.
 
 uniq (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the uniq program.  After Configure runs,
 	the value is reset to a plain "uniq" and is not useful.
 
@@ -2574,7 +2668,7 @@ zcat (Loc.U):
 	The value is a plain '' and is not useful.
 
 zip (Loc.U):
-	This variable is be used internally by Configure to determine the
+	This variable is used internally by Configure to determine the
 	full pathname (if any) of the zip program.  After Configure runs,
 	the value is reset to a plain "zip" and is not useful.
 

@@ -13,6 +13,12 @@
 static void xs_init _((void));
 static PerlInterpreter *my_perl;
 
+#if defined (__MINT__) || defined (atarist)
+/* The Atari operating system doesn't have a dynamic stack.  The
+   stack size is determined from this value.  */
+long _stksize = 64 * 1024;
+#endif
+
 int
 main(int argc, char **argv, char **env)
 {

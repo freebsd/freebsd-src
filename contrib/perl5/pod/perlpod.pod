@@ -171,7 +171,8 @@ here and in commands:
 					(the quotes are optional)
 		    L</"sec">		ditto
 		same as above but only 'text' is used for output.
-		(Text can not contain the characters '|' or '>')
+		(Text can not contain the characters '/' and '|', 
+		and should contain matched '<' or '>')
 		    L<text|name>
 		    L<text|name/ident>
 		    L<text|name/"sec">
@@ -184,6 +185,8 @@ here and in commands:
     E<escape>   A named character (very similar to HTML escapes)
 		    E<lt>		A literal <
 		    E<gt>		A literal >
+		    E<sol>		A literal /
+		    E<verbar>		A literal |
 		    (these are optional except in other interior
 		     sequences and when preceded by a capital letter)
 		    E<n>		Character number n (probably in ASCII)

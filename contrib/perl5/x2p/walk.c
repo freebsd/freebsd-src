@@ -1,11 +1,14 @@
-/* $RCSfile: walk.c,v $$Revision: 4.1 $$Date: 92/08/07 18:29:31 $
+/* $RCSfile: walk.c,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:33:17 $
  *
  *    Copyright (c) 1991-1997, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log:	walk.c,v $
+ * $Log: walk.c,v $
+ * Revision 1.1.1.2  1999/05/02 14:33:17  markm
+ * Maintenance releace 3 of perl5.005. Includes support for threads.
+ *
  */
 
 #include "EXTERN.h"
@@ -133,7 +136,7 @@ walk(int useval, int level, register int node, int *numericptr, int minprec)
 	    if (saw_FS && !const_FS)
 		do_chop = TRUE;
 	    if (do_chop) {
-		str_cat(str,"chop;\t# strip record separator\n");
+		str_cat(str,"chomp;\t# strip record separator\n");
 		tab(str,level);
 	    }
 	    if (do_split)
@@ -190,7 +193,7 @@ walk(int useval, int level, register int node, int *numericptr, int minprec)
 		    i = 0;
 		    if (do_chop) {
 			i++;
-			str_cat(str,"chop;\t# strip record separator\n");
+			str_cat(str,"chomp;\t# strip record separator\n");
 			tab(str,level);
 		    }
 		    if (do_split && !(len & 1)) {

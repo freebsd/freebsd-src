@@ -113,10 +113,11 @@ aout_lib_ext='.a'
 aout_ar='ar'
 aout_plibext='.a'
 aout_lddlflags="-Zdll $ld_dll_optimize"
+# Cannot have 32000K stack: get SYS0170  ?!
 if [ $emxcrtrev -ge 50 ]; then 
-    aout_ldflags='-Zexe -Zsmall-conv -Zstack 32000'
+    aout_ldflags='-Zexe -Zsmall-conv -Zstack 16000'
 else
-    aout_ldflags='-Zexe -Zstack 32000'
+    aout_ldflags='-Zexe -Zstack 16000'
 fi
 
 # To get into config.sh:
@@ -249,15 +250,6 @@ nm_opt='-p'
 d_getprior='define'
 d_setprior='define'
 
-if [ "X$usethreads" = "X$define" ]; then
-    ccflags="-Zmt $ccflags"
-    cppflags="-Zmt $cppflags"  # Do we really need to set this?
-    aout_ccflags="-DUSE_THREADS $aout_ccflags"
-    aout_cppflags="-DUSE_THREADS $aout_cppflags"
-    aout_lddlflags="-Zmt $aout_lddlflags"
-    aout_ldflags="-Zmt $aout_ldflags"
-fi
-
 # The next two are commented. pdksh handles #!, extproc gives no path part.
 # sharpbang='extproc '
 # shsharp='false'
@@ -268,6 +260,21 @@ fi
 # Copy pod:
 
 cp ./README.os2 ./pod/perlos2.pod
+
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+	ccflags="-Zmt $ccflags"
+        cppflags="-Zmt $cppflags"  # Do we really need to set this?
+        aout_ccflags="-DUSE_THREADS $aout_ccflags"
+        aout_cppflags="-DUSE_THREADS $aout_cppflags"
+        aout_lddlflags="-Zmt $aout_lddlflags"
+        aout_ldflags="-Zmt $aout_ldflags"
+	;;
+esac
+EOCBU
 
 # Now install the external modules. We are in the ./hints directory.
 

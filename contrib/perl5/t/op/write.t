@@ -1,8 +1,8 @@
 #!./perl
 
-# $RCSfile: write.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:38 $
+# $RCSfile: write.t,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:32:23 $
 
-print "1..5\n";
+print "1..6\n";
 
 my $CAT = ($^O eq 'MSWin32') ? 'type' : 'cat';
 
@@ -166,4 +166,27 @@ for (0..10) {
 }
 print $was1 eq $mustbe ? "ok 4\n" : "not ok 4\n";
 print $was2 eq $mustbe ? "ok 5\n" : "not ok 5\n";
+
+$^A = '';
+
+# more test
+
+format OUT3 =
+^<<<<<<...
+$foo
+.
+
+open(OUT3, '>Op_write.tmp') || die "Can't create Op_write.tmp";
+
+$foo = 'fit          ';
+write(OUT3);
+close OUT3;
+
+$right =
+"fit\n";
+
+if (`$CAT Op_write.tmp` eq $right)
+    { print "ok 6\n"; unlink 'Op_write.tmp'; }
+else
+    { print "not ok 6\n"; }
 

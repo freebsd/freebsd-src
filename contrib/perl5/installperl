@@ -220,6 +220,11 @@ else {
     @corefiles = <*.h libperl*.*>;
     # AIX needs perl.exp installed as well.
     push(@corefiles,'perl.exp') if $^O eq 'aix';
+    if ($^O eq 'mpeix') {
+        # MPE needs mpeixish.h installed as well.
+        mkpath("$installarchlib/CORE/mpeix", 1, 0777);
+        push(@corefiles,'mpeix/mpeixish.h');
+    }
     # If they have built sperl.o...
     push(@corefiles,'sperl.o') if -f 'sperl.o';
 }
@@ -251,7 +256,8 @@ if (! $versiononly && ! samepath($installbin, '.') && ($^O ne 'dos') && ! $Is_VM
 
 my $mainperl_is_instperl = 0;
 
-if (!$versiononly && !$nonono && !$Is_W32 && !$Is_VMS && -t STDIN && -t STDERR
+if ($Config{installusrbinperl} eq 'define' &&
+    !$versiononly && !$nonono && !$Is_W32 && !$Is_VMS && -t STDIN && -t STDERR
 	&& -w $mainperldir && ! samepath($mainperldir, $installbin)) {
     my($usrbinperl)	= "$mainperldir/$perl$exe_ext";
     my($instperl)	= "$installbin/$perl$exe_ext";
@@ -327,7 +333,7 @@ if (! $versiononly) {
 
 # Install pod pages.  Where? I guess in $installprivlib/pod.
 
-if (! $versiononly || !($installprivlib =~ m/\Q$]/)) {
+unless ( $versiononly && !($installprivlib =~ m/\Q$]/)) {     # as line 200
     mkpath("${installprivlib}/pod", 1, 0777);
 
     # If Perl 5.003's perldiag.pod is there, rename it.
@@ -564,8 +570,6 @@ sub installlib {
 		and chmod($name =~ /\.(so|$dlext)$/o ? 0555 : 0444,
 			   "$installlib/$name");
 	}
-    } elsif (-d $_) {
-	mkpath("$installlib/$name", 1, 0777);
     }
 }
 

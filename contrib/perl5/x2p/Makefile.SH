@@ -27,17 +27,22 @@ esac
 echo "Extracting x2p/Makefile (with variable substitutions)"
 rm -f Makefile
 cat >Makefile <<!GROK!THIS!
-# $RCSfile: Makefile.SH,v $$Revision: 4.1 $$Date: 92/08/07 18:29:07 $
+# $RCSfile: Makefile.SH,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:32:57 $
 #
-# $Log:	Makefile.SH,v $
+# $Log: Makefile.SH,v $
+# Revision 1.1.1.2  1999/05/02 14:32:57  markm
+# Maintenance releace 3 of perl5.005. Includes support for threads.
+#
 
 CC = $cc
 BYACC = $byacc
 LDFLAGS = $ldflags
 SMALL = $small
 LARGE = $large $split
-mallocsrc = $mallocsrc
-mallocobj = $mallocobj
+# XXX Perl malloc temporarily unusable (declaration collisions with
+# stdlib.h)
+#mallocsrc = $mallocsrc
+#mallocobj = $mallocobj
 shellflags = $shellflags
 
 libs = $libs

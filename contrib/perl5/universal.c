@@ -106,24 +106,23 @@ sv_derived_from(SV *sv, char *name)
 
 #include "XSUB.h"
 
-static
 XS(XS_UNIVERSAL_isa)
 {
     dXSARGS;
     SV *sv;
     char *name;
+    STRLEN n_a;
 
     if (items != 2)
 	croak("Usage: UNIVERSAL::isa(reference, kind)");
 
     sv = ST(0);
-    name = (char *)SvPV(ST(1),PL_na);
+    name = (char *)SvPV(ST(1),n_a);
 
     ST(0) = boolSV(sv_derived_from(sv, name));
     XSRETURN(1);
 }
 
-static
 XS(XS_UNIVERSAL_can)
 {
     dXSARGS;
@@ -131,12 +130,13 @@ XS(XS_UNIVERSAL_can)
     char *name;
     SV   *rv;
     HV   *pkg = NULL;
+    STRLEN n_a;
 
     if (items != 2)
 	croak("Usage: UNIVERSAL::can(object-ref, method)");
 
     sv = ST(0);
-    name = (char *)SvPV(ST(1),PL_na);
+    name = (char *)SvPV(ST(1),n_a);
     rv = &PL_sv_undef;
 
     if(SvROK(sv)) {
@@ -158,7 +158,6 @@ XS(XS_UNIVERSAL_can)
     XSRETURN(1);
 }
 
-static
 XS(XS_UNIVERSAL_VERSION)
 {
     dXSARGS;
@@ -192,9 +191,11 @@ XS(XS_UNIVERSAL_VERSION)
         undef = "(undef)";
     }
 
-    if (items > 1 && (undef || (req = SvNV(ST(1)), req > SvNV(sv))))
+    if (items > 1 && (undef || (req = SvNV(ST(1)), req > SvNV(sv)))) {
+	STRLEN n_a;
 	croak("%s version %s required--this is only version %s",
-	      HvNAME(pkg), SvPV(ST(1),PL_na), undef ? undef : SvPV(sv,PL_na));
+	      HvNAME(pkg), SvPV(ST(1),n_a), undef ? undef : SvPV(sv,n_a));
+    }
 
     ST(0) = sv;
 

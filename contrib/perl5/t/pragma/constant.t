@@ -14,7 +14,7 @@ END { print @warnings }
 
 ######################### We start with some black magic to print on failure.
 
-BEGIN { $| = 1; print "1..39\n"; }
+BEGIN { $| = 1; print "1..46\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use constant;
 $loaded = 1;
@@ -139,3 +139,19 @@ test 37, @warnings &&
 
 test 38, @warnings == 0, "unexpected warning";
 test 39, $^W & 1, "Who disabled the warnings?";
+
+use constant CSCALAR	=> \"ok 40\n";
+use constant CHASH	=> { foo => "ok 41\n" };
+use constant CARRAY	=> [ undef, "ok 42\n" ];
+use constant CPHASH	=> [ { foo => 1 }, "ok 43\n" ];
+use constant CCODE	=> sub { "ok $_[0]\n" };
+
+print ${+CSCALAR};
+print CHASH->{foo};
+print CARRAY->[1];
+print CPHASH->{foo};
+eval q{ CPHASH->{bar} };
+test 44, scalar($@ =~ /^No such array/);
+print CCODE->(45);
+eval q{ CCODE->{foo} };
+test 46, scalar($@ =~ /^Constant is not a HASH/);

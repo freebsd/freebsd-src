@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq7 - Perl Language Issues ($Revision: 1.21 $, $Date: 1998/06/22 15:20:07 $)
+perlfaq7 - Perl Language Issues ($Revision: 1.1.1.2 $, $Date: 1999/05/02 14:27:51 $)
 
 =head1 DESCRIPTION
 
@@ -180,7 +180,7 @@ own module.  Make sure to change the names appropriately.
 
 	# if using RCS/CVS, this next line may be preferred,
 	# but beware two-digit versions.
-	$VERSION = do{my@r=q$Revision: 1.21 $=~/\d+/g;sprintf '%d.'.'%02d'x$#r,@r};
+	$VERSION = do{my@r=q$Revision: 1.1.1.2 $=~/\d+/g;sprintf '%d.'.'%02d'x$#r,@r};
 
 	@ISA         = qw(Exporter);
 	@EXPORT      = qw(&func1 &func2 &func3);
@@ -228,6 +228,10 @@ own module.  Make sure to change the names appropriately.
     END { }       # module clean-up code here (global destructor)
 
     1;            # modules must return true
+
+The h2xs program will create stubs for all the important stuff for you:
+
+  % h2xs -XA -n My::Module
 
 =head2 How do I create a class?
 
@@ -313,7 +317,7 @@ caller's scope.
 
 Variable suicide is when you (temporarily or permanently) lose the
 value of a variable.  It is caused by scoping through my() and local()
-interacting with either closures or aliased foreach() interator
+interacting with either closures or aliased foreach() iterator
 variables and subroutine arguments.  It used to be easy to
 inadvertently lose a variable's value this way, but now it's much
 harder.  Take this code:
@@ -344,7 +348,7 @@ reference to an existing or anonymous variable or function:
 
     func( \$some_scalar );
 
-    func( \$some_array  );
+    func( \@some_array  );
     func( [ 1 .. 10 ]   );
 
     func( \%some_hash   );
@@ -392,7 +396,7 @@ If you're planning on generating new filehandles, you could do this:
 To pass regexps around, you'll need to either use one of the highly
 experimental regular expression modules from CPAN (Nick Ing-Simmons's
 Regexp or Ilya Zakharevich's Devel::Regexp), pass around strings
-and use an exception-trapping eval, or else be be very, very clever.
+and use an exception-trapping eval, or else be very, very clever.
 Here's an example of how to pass in a string to be regexp compared:
 
     sub compare($$) {
@@ -484,7 +488,7 @@ could conceivably have several packages in that same file all
 accessing the same private variable, but another file with the same
 package couldn't get to it.
 
-See L<perlsub/"Peristent Private Variables"> for details.
+See L<perlsub/"Persistent Private Variables"> for details.
 
 =head2 What's the difference between dynamic and lexical (static) scoping?  Between local() and my()?
 
@@ -563,7 +567,7 @@ However, dynamic variables (aka global, local, or package variables)
 are effectively shallowly bound.  Consider this just one more reason
 not to use them.  See the answer to L<"What's a closure?">.
 
-=head2 Why doesn't "my($foo) = <FILE>;" work right?
+=head2 Why doesn't "my($foo) = E<lt>FILEE<gt>;" work right?
 
 C<my()> and C<local()> give list context to the right hand side
 of C<=>.  The E<lt>FHE<gt> read operation, like so many of Perl's
@@ -797,14 +801,39 @@ This can't go just anywhere.  You have to put a pod directive where
 the parser is expecting a new statement, not just in the middle
 of an expression or some other arbitrary yacc grammar production.
 
+=head2 How do I clear a package?
+
+Use this code, provided by Mark-Jason Dominus:
+
+    sub scrub_package {
+	no strict 'refs';
+	my $pack = shift;
+	die "Shouldn't delete main package" 
+	    if $pack eq "" || $pack eq "main";
+	my $stash = *{$pack . '::'}{HASH};
+	my $name;
+	foreach $name (keys %$stash) {
+	    my $fullname = $pack . '::' . $name;
+	    # Get rid of everything with that name.
+	    undef $$fullname;
+	    undef @$fullname;
+	    undef %$fullname;
+	    undef &$fullname;
+	    undef *$fullname;
+	}
+    }
+
+Or, if you're using a recent release of Perl, you can 
+just use the Symbol::delete_package() function instead.
+
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
+may be distributed only under the terms of Perl's Artistic Licence.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -814,3 +843,4 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
+

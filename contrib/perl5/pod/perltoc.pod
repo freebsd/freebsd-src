@@ -77,7 +77,7 @@ authors
 24/April/97, 23/April/97, 25/March/97, 18/March/97, 17/March/97 Version,
 Initial Release: 11/March/97
 
-=head2 perlfaq1 - General Questions About Perl ($Revision: 1.14 $, $Date:
+=head2 perlfaq1 - General Questions About Perl ($Revision: 1.1.1.2 $, $Date:
 1998/06/14 22:15:25 $)
 
 =item DESCRIPTION
@@ -118,8 +118,8 @@ Scheme, or Tcl?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq2 - Obtaining and Learning about Perl ($Revision: 1.24 $,
-$Date: 1998/07/20 23:40:28 $)
+=head2 perlfaq2 - Obtaining and Learning about Perl ($Revision: 1.1.1.2 $,
+$Date: 1999/05/02 14:28:41 $)
 
 =item DESCRIPTION
 
@@ -176,7 +176,7 @@ MacPerl, Perl5-Porters, NTPerl, Perl-Packrats
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq3 - Programming Tools ($Revision: 1.28 $, $Date: 1998/07/16
+=head2 perlfaq3 - Programming Tools ($Revision: 1.1.1.2 $, $Date: 1998/07/16
 22:08:49 $)
 
 =item DESCRIPTION
@@ -249,7 +249,7 @@ mean?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq4 - Data Manipulation ($Revision: 1.25 $, $Date: 1998/07/16
+=head2 perlfaq4 - Data Manipulation ($Revision: 1.1.1.2 $, $Date: 1998/07/16
 22:49:55 $)
 
 =item DESCRIPTION
@@ -444,7 +444,7 @@ array of hashes or arrays?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq5 - Files and Formats ($Revision: 1.24 $, $Date: 1998/07/05
+=head2 perlfaq5 - Files and Formats ($Revision: 1.1.1.2 $, $Date: 1998/07/05
 15:07:20 $)
 
 =item DESCRIPTION
@@ -526,7 +526,7 @@ protected files?  Isn't this a bug in Perl?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq6 - Regexps ($Revision: 1.22 $, $Date: 1998/07/16 14:01:07 $)
+=head2 perlfaq6 - Regexps ($Revision: 1.1.1.2 $, $Date: 1999/05/02 14:28:41 $)
 
 =item DESCRIPTION
 
@@ -587,7 +587,7 @@ file?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq7 - Perl Language Issues ($Revision: 1.21 $, $Date:
+=head2 perlfaq7 - Perl Language Issues ($Revision: 1.1.1.2 $, $Date:
 1998/06/22 15:20:07 $)
 
 =item DESCRIPTION
@@ -658,7 +658,7 @@ is in scope?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq8 - System Interaction ($Revision: 1.25 $, $Date: 1998/07/05
+=head2 perlfaq8 - System Interaction ($Revision: 1.1.1.2 $, $Date: 1998/07/05
 15:07:20 $)
 
 =item DESCRIPTION
@@ -782,7 +782,7 @@ search path?
 
 =item AUTHOR AND COPYRIGHT
 
-=head2 perlfaq9 - Networking ($Revision: 1.20 $, $Date: 1998/06/22 18:31:09
+=head2 perlfaq9 - Networking ($Revision: 1.1.1.2 $, $Date: 1998/06/22 18:31:09
 $)
 
 =item DESCRIPTION
@@ -1353,7 +1353,7 @@ $BASETIME, $^T, $WARNING, $^W, $EXECUTABLE_NAME, $^X, $ARGV, @ARGV, @INC,
 
 =item Private Variables via C<my()>
 
-=item Peristent Private Variables
+=item Persistent Private Variables
 
 =item Temporary Values via local()
 
@@ -2263,7 +2263,8 @@ C<http://www.connect.net/gbarr/cpan-test/>
 
 The djgpp environment for DOS, C<http://www.delorie.com/djgpp/>, The EMX
 environment for DOS, OS/2, etc.
-C<emx@iaehv.nl>,C<http://www.juge.com/bbs/Hobb.19.html>, Build instructions
+C<emx@iaehv.nl>,C<http://www.leo.org/pub/comp/os/os2/leo/gnu/emx+gcc/index.html>,
+C<ftp://hobbes.nmsu.edu/pub/os2/dev/emx>.  Build instructions
 for Win32, L<perlwin32>, The ActiveState Pages,
 C<http://www.activestate.com/>
 

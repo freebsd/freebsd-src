@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: fs.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:28 $
+# $RCSfile: fs.t,v $$Revision: 1.1.1.2 $$Date: 1999/05/02 14:29:37 $
 
 BEGIN {
     chdir 't' if -d 't';
@@ -9,24 +9,23 @@ BEGIN {
 
 use Config;
 
-$Is_Dosish = ($^O eq 'dos' or $^O eq 'os2');
+$Is_Dosish = ($^O eq 'MSWin32' or $^O eq 'dos' or
+	      $^O eq 'os2' or $^O eq 'mint');
 
-# avoid win32 (for now)
-do { print "1..0\n"; exit(0); } if $^O eq 'MSWin32';
-
-print "1..26\n";
+print "1..28\n";
 
 $wd = (($^O eq 'MSWin32') ? `cd` : `pwd`);
 chop($wd);
 
-if ($^O eq 'MSWin32') { `del tmp`; `mkdir tmp`; }
+if ($^O eq 'MSWin32') { `del tmp 2>nul`; `mkdir tmp`; }
 else {  `rm -f tmp 2>/dev/null; mkdir tmp 2>/dev/null`; }
 chdir './tmp';
 `/bin/rm -rf a b c x` if -x '/bin/rm';
 
 umask(022);
 
-if ((umask(0)&0777) == 022) {print "ok 1\n";} else {print "not ok 1\n";}
+if ($^O eq 'MSWin32') { print "ok 1 # skipped: bogus umask()\n"; }
+elsif ((umask(0)&0777) == 022) {print "ok 1\n";} else {print "not ok 1\n";}
 open(fh,'>x') || die "Can't create x";
 close(fh);
 open(fh,'>a') || die "Can't create a";
@@ -98,8 +97,9 @@ $foo = (utime 500000000,500000000 + $delta,'b');
 if ($foo == 1) {print "ok 16\n";} else {print "not ok 16 $foo\n";}
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
     $blksize,$blocks) = stat('b');
-if ($ino) {print "ok 17\n";} else {print "not ok 17\n";}
-if ($wd =~ m#/afs/# || $^O eq 'amigaos')
+if ($^O eq 'MSWin32') { print "ok 17 # skipped: bogus (stat)[1]\n"; }
+elsif ($ino) {print "ok 17\n";} else {print "not ok 17\n";}
+if ($wd =~ m#/afs/# || $^O eq 'amigaos' || $^O eq 'dos' || $^O eq 'MSWin32')
     {print "ok 18 # skipped: granularity of the filetime\n";}
 elsif ($atime == 500000000 && $mtime == 500000000 + $delta)
     {print "ok 18\n";}
@@ -113,7 +113,6 @@ if ($ino == 0) {print "ok 20\n";} else {print "not ok 20\n";}
 unlink 'c';
 
 chdir $wd || die "Can't cd back to $wd";
-rmdir 'tmp';
 
 unlink 'c';
 if ($^O ne 'MSWin32' and `ls -l perl 2>/dev/null` =~ /^l.*->/) {
@@ -156,4 +155,11 @@ else {
   if (-z "Iofs.tmp") {print "ok 26\n"} else {print "not ok 26\n"}
   close FH;
 }
-unlink "Iofs.tmp";
+
+# check if rename() works on directories
+rename 'tmp', 'tmp1' or print "not ";
+print "ok 27\n";
+-d 'tmp1' or print "not ";
+print "ok 28\n";
+
+END { rmdir 'tmp1'; unlink "Iofs.tmp"; }

@@ -89,7 +89,7 @@ $h_name if you import the fields.  Array references are available as
 regular array variables, so for example C<@{ $host_obj-E<gt>aliases()
 }> would be simply @h_aliases.
 
-The gethost() funtion is a simple front-end that forwards a numeric
+The gethost() function is a simple front-end that forwards a numeric
 argument to gethostbyaddr() by way of Socket::inet_aton, and the rest
 to gethostbyname().
 

@@ -1,5 +1,5 @@
 # This -*- perl -*- script makes the Makefile
-# $Id: Makefile.PL,v 1.1.1.1 1998/09/09 06:59:51 markm Exp $
+# $Id: Makefile.PL,v 1.3 1999/05/02 15:18:19 markm Exp $
 
 require 5.002;
 use ExtUtils::MakeMaker;
@@ -22,7 +22,7 @@ sub MY::libscan
 WriteMakefile(
 	VERSION_FROM	=> "SysV.pm",
 	NAME      	=> "IPC::SysV",
-	MAN3PODS	=> ' ',
+	MAN3PODS	=> {}, 	# Pods will be built by installman.
  
 	'dist'    	=> {COMPRESS => 'gzip -9f',
 			    SUFFIX   => 'gz', 

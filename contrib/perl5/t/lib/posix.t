@@ -97,5 +97,5 @@ print POSIX::strftime("ok 18 # %H:%M, on %D\n", localtime());
 
 $| = 0;
 # The following line assumes buffered output, which may be not true with EMX:
-print '@#!*$@(!@#$' unless $^O eq 'os2';
+print '@#!*$@(!@#$' unless ($^O eq 'os2' || $^O eq 'uwin' || $^O eq 'os390');
 _exit(0);

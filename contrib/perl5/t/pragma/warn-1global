@@ -12,12 +12,14 @@ EXPECT
 $a =+ 3 ;
 EXPECT
 Reversed += operator at - line 3.
+Name "main::a" used only once: possible typo at - line 3.
 ########
 #! perl -w
 # warnable code, warnings enabled via #! line
 $a =+ 3 ;
 EXPECT
 Reversed += operator at - line 3.
+Name "main::a" used only once: possible typo at - line 3.
 ########
 
 # warnable code, warnings enabled via compile time $^W
@@ -25,6 +27,7 @@ BEGIN { $^W = 1 }
 $a =+ 3 ;
 EXPECT
 Reversed += operator at - line 4.
+Name "main::a" used only once: possible typo at - line 4.
 ########
 
 # compile-time warnable code, warnings enabled via runtime $^W
@@ -149,3 +152,8 @@ Use of uninitialized value at - line 5.
 -e undef
 EXPECT
 Use of uninitialized value at - line 2.
+########
+BEGIN { $^W = 1 }
+for (@{[0]}) { "$_" }		# check warning isn't duplicated
+EXPECT
+Useless use of string in void context at - line 2.

@@ -465,7 +465,7 @@ include a C source file and a header file.  We'll also create a Makefile.PL
 in this directory.  Then we'll make sure that running make at the Mytest2
 level will automatically run this Makefile.PL file and the resulting Makefile.
 
-In the testlib directory, create a file mylib.h that looks like this:
+In the mylib directory, create a file mylib.h that looks like this:
 
 	#define TESTVAL	4
 

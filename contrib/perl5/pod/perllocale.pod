@@ -215,6 +215,8 @@ I<SEE ALSO> section).  If that fails, try the following command lines:
 
         ls /usr/lib/nls
 
+	ls /usr/share/locale
+
 and see whether they list something resembling these
 
         en_US.ISO8859-1     de_DE.ISO8859-1     ru_RU.ISO8859-5
@@ -225,18 +227,18 @@ and see whether they list something resembling these
         english.iso88591    german.iso88591     russian.iso88595
         english.roman8                          russian.koi8r
 
-Sadly, even though the calling interface for setlocale() has
-been standardized, names of locales and the directories where the
+Sadly, even though the calling interface for setlocale() has been
+standardized, names of locales and the directories where the
 configuration resides have not been.  The basic form of the name is
-I<language_country/territory>B<.>I<codeset>, but the latter parts after
-I<language> are not always present.  The I<language> and I<country> are
-usually from the standards B<ISO 3166> and B<ISO 639>, the two-letter
-abbreviations for the countries and the languages of the world,
-respectively.  The I<codeset> part often mentions some B<ISO 8859>
-character set, the Latin codesets.  For example, C<ISO 8859-1> is the
-so-called "Western codeset" that can be used to encode most Western
-European languages.  Again, there are several ways to write even the
-name of that one standard.  Lamentably.
+I<language_territory>B<.>I<codeset>, but the latter parts after
+I<language> are not always present.  The I<language> and I<country>
+are usually from the standards B<ISO 3166> and B<ISO 639>, the
+two-letter abbreviations for the countries and the languages of the
+world, respectively.  The I<codeset> part often mentions some B<ISO
+8859> character set, the Latin codesets.  For example, C<ISO 8859-1>
+is the so-called "Western European codeset" that can be used to encode
+most Western European languages adequately.  Again, there are several
+ways to write even the name of that one standard.  Lamentably.
 
 Two special locales are worth particular mention: "C" and "POSIX".
 Currently these are effectively the same locale: the difference is
@@ -276,10 +278,10 @@ The two quickest fixes are either to render Perl silent about any
 locale inconsistencies or to run Perl under the default locale "C".
 
 Perl's moaning about locale problems can be silenced by setting the
-environment variable PERL_BADLANG to a non-zero value, for example
-"1".  This method really just sweeps the problem under the carpet: you
-tell Perl to shut up even when Perl sees that something is wrong.  Do
-not be surprised if later something locale-dependent misbehaves.
+environment variable PERL_BADLANG to a zero value, for example "0".
+This method really just sweeps the problem under the carpet: you tell
+Perl to shut up even when Perl sees that something is wrong.  Do not
+be surprised if later something locale-dependent misbehaves.
 
 Perl can be run under the "C" locale by setting the environment
 variable LC_ALL to "C".  This method is perhaps a bit more civilized
@@ -330,7 +332,7 @@ Second, if using the listed commands you see something B<exactly>
 (prefix matches do not count and case usually counts) like "En_US"
 without the quotes, then you should be okay because you are using a
 locale name that should be installed and available in your system.
-In this case, see L<Fixing system locale configuration>.
+In this case, see L<Permanently fixing system locale configuration>.
 
 =head2 Permanently fixing your locale configuration
 
@@ -349,7 +351,7 @@ rules for matching locale names are a bit vague because
 standardization is weak in this area.  See again the L<Finding
 locales> about general rules.
 
-=head2 Permanently fixing system locale configuration
+=head2 Fixing system locale configuration
 
 Contact a system administrator (preferably your own) and report the exact
 error message you get, and ask them to read this same documentation you
@@ -710,7 +712,7 @@ case-mapping with C<\l>, C<\L>,C<\u> or C<\U>.
 
 =item B<In-memory formatting function> (sprintf()):
 
-Result is tainted if "use locale" is in effect.
+Result is tainted if C<use locale> is in effect.
 
 =item B<Output formatting functions> (printf() and write()):
 
@@ -785,9 +787,10 @@ of a match involving C<\w> while C<use locale> is in effect.
 A string that can suppress Perl's warning about failed locale settings
 at startup.  Failure can occur if the locale support in the operating
 system is lacking (broken) in some way--or if you mistyped the name of
-a locale when you set up your environment.  If this environment variable
-is absent, or has a value that does not evaluate to integer zero--that
-is, "0" or ""--Perl will complain about locale setting failures.
+a locale when you set up your environment.  If this environment
+variable is absent, or has a value that does not evaluate to integer
+zero--that is, "0" or ""-- Perl will complain about locale setting
+failures.
 
 B<NOTE>: PERL_BADLANG only gives you a way to hide the warning message.
 The message tells about some problem in your system's locale support,
@@ -805,6 +808,20 @@ for controlling an application's opinion on data.
 
 C<LC_ALL> is the "override-all" locale environment variable. If
 set, it overrides all the rest of the locale environment variables.
+
+=item LANGUAGE
+
+B<NOTE>: C<LANGUAGE> is a GNU extension, it affects you only if you
+are using the GNU libc.  This is the case if you are using e.g. Linux.
+If you are using "commercial" UNIXes you are most probably I<not>
+using GNU libc and you can ignore C<LANGUAGE>.
+
+However, in the case you are using C<LANGUAGE>: it affects the
+language of informational, warning, and error messages output by
+commands (in other words, it's like C<LC_MESSAGES>) but it has higher
+priority than L<LC_ALL>.  Moreover, it's not a single value but
+instead a "path" (":"-separated list) of I<languages> (not locales).
+See the GNU C<gettext> library documentation for more information.
 
 =item LC_CTYPE
 
@@ -854,7 +871,7 @@ always in force, even if the program environment suggested otherwise
 (see L<The setlocale function>).  By default, Perl still behaves this
 way for backward compatibility.  If you want a Perl application to pay
 attention to locale information, you B<must> use the S<C<use locale>>
-pragma (see L<The use locale Pragma>) to instruct it to do so.
+pragma (see L<The use locale pragma>) to instruct it to do so.
 
 Versions of Perl from 5.002 to 5.003 did use the C<LC_CTYPE>
 information if available; that is, C<\w> did understand what

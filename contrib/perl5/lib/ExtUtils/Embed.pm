@@ -1,4 +1,4 @@
-# $Id: Embed.pm,v 1.2501 $
+# $Id: Embed.pm,v 1.1.1.2 1999/05/02 14:25:22 markm Exp $
 require 5.002;
 
 package ExtUtils::Embed;
@@ -17,7 +17,7 @@ use vars qw(@ISA @EXPORT $VERSION
 	    );
 use strict;
 
-$VERSION = sprintf("%d.%02d", q$Revision: 1.2505 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.1.1.2 $ =~ /(\d+)\.(\d+)/);
 
 @ISA = qw(Exporter);
 @EXPORT = qw(&xsinit &ldopts 
@@ -416,7 +416,7 @@ This will print arguments for linking with B<libperl.a>, B<DynaLoader> and
 extensions found in B<$Config{static_ext}>.  This includes libraries
 found in B<$Config{libs}> and the first ModuleName.a library
 for each extension that is found by searching B<@INC> or the path 
-specifed by the B<-I> option.  
+specified by the B<-I> option.  
 In addition, when ModuleName.a is found, additional linker arguments
 are picked up from the B<extralibs.ld> file in the same directory.
 

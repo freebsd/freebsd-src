@@ -335,6 +335,9 @@ a(?:b|(c|e){1,2}?|d)+?(.)	ace	y	$1$2	ce
 ^(a(?(1)\1)){4}$	aaaaaaaaaa	y	$1	aaaa
 ^(a(?(1)\1)){4}$	aaaaaaaaa	n	-	-
 ^(a(?(1)\1)){4}$	aaaaaaaaaaa	n	-	-
+((a{4})+)	aaaaaaaaa	y	$1	aaaaaaaa
+(((aa){2})+)	aaaaaaaaaa	y	$1	aaaaaaaa
+(((a{2}){2})+)	aaaaaaaaaa	y	$1	aaaaaaaa
 (?:(f)(o)(o)|(b)(a)(r))*	foobar	y	$1:$2:$3:$4:$5:$6	f:o:o:b:a:r
 (?<=a)b	ab	y	$&	b
 (?<=a)b	cb	n	-	-
@@ -483,3 +486,6 @@ b\Z	a\nb\n	y	-	-
 b\z	a\nb\n	n	-	-
 b\Z	a\nb	y	-	-
 b\z	a\nb	y	-	-
+(^|x)(c)	ca	y	$2	c
+a*abc?xyz+pqr{3}ab{2,}xy{4,5}pq{0,6}AB{0,}zz	x	n	-	-
+round\(((?>[^()]+))\)	_I(round(xs * sz),1)	y	$1	xs * sz

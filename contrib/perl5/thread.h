@@ -35,6 +35,68 @@
 #  endif
 #endif
 
+#ifdef I_MACH_CTHREADS
+
+/* cthreads interface */
+
+/* #include <mach/cthreads.h> is in perl.h #ifdef I_MACH_CTHREADS */
+
+#define MUTEX_INIT(m)					\
+	STMT_START {					\
+		*m = mutex_alloc();			\
+		if (*m) {				\
+			mutex_init(*m);			\
+		} else {				\
+			croak("panic: MUTEX_INIT");	\
+		}					\
+	} STMT_END
+
+#define MUTEX_LOCK(m)		mutex_lock(*m)
+#define MUTEX_UNLOCK(m)		mutex_unlock(*m)
+#define MUTEX_DESTROY(m)				\
+	STMT_START {					\
+		mutex_free(*m);				\
+		*m = 0;					\
+	} STMT_END
+
+#define COND_INIT(c)					\
+	STMT_START {					\
+		*c = condition_alloc();			\
+		if (*c) {				\
+			condition_init(*c);		\
+		} else {				\
+			croak("panic: COND_INIT");	\
+		}					\
+	} STMT_END
+
+#define COND_SIGNAL(c)		condition_signal(*c)
+#define COND_BROADCAST(c)	condition_broadcast(*c)
+#define COND_WAIT(c, m)		condition_wait(*c, *m)
+#define COND_DESTROY(c)				\
+	STMT_START {				\
+		condition_free(*c);		\
+		*c = 0;				\
+	} STMT_END
+
+#define THREAD_CREATE(thr, f)	(thr->self = cthread_fork(f, thr), 0)
+#define THREAD_POST_CREATE(thr)
+
+#define THREAD_RET_TYPE		any_t
+#define THREAD_RET_CAST(x)	((any_t) x)
+
+#define DETACH(t)		cthread_detach(t->self)
+#define JOIN(t, avp)		(*(avp) = (AV *)cthread_join(t->self))
+
+#define SET_THR(thr)		cthread_set_data(cthread_self(), thr)
+#define THR			cthread_data(cthread_self())
+
+#define INIT_THREADS		cthread_init()
+#define YIELD			cthread_yield()
+#define ALLOC_THREAD_KEY
+#define SET_THREAD_SELF(thr)	(thr->self = cthread_self())
+
+#endif /* I_MACH_CTHREADS */
+
 #ifndef YIELD
 #  ifdef HAS_SCHED_YIELD
 #    define YIELD sched_yield()
@@ -45,12 +107,26 @@
 #  endif
 #endif
 
+#ifdef __hpux
+#  define MUTEX_INIT_NEEDS_MUTEX_ZEROED
+#endif
+
 #ifndef MUTEX_INIT
+#ifdef MUTEX_INIT_NEEDS_MUTEX_ZEROED
+    /* Temporary workaround, true bug is deeper. --jhi 1999-02-25 */
+#define MUTEX_INIT(m)						\
+    STMT_START {						\
+	Zero((m), 1, perl_mutex);                               \
+ 	if (pthread_mutex_init((m), pthread_mutexattr_default))	\
+	    croak("panic: MUTEX_INIT");				\
+    } STMT_END
+#else
 #define MUTEX_INIT(m)						\
     STMT_START {						\
 	if (pthread_mutex_init((m), pthread_mutexattr_default))	\
 	    croak("panic: MUTEX_INIT");				\
     } STMT_END
+#endif
 #define MUTEX_LOCK(m)				\
     STMT_START {				\
 	if (pthread_mutex_lock((m)))		\
@@ -138,6 +214,8 @@ struct perl_thread *getTHR _((void));
  * from thrsv which is cached in the per-interpreter structure.
  * Systems with very fast pthread_get_specific (which should be all systems
  * but unfortunately isn't) may wish to simplify to "...*thr = THR".
+ *
+ * The use of PL_threadnum should be safe here.
  */
 #ifndef dTHR
 #  define dTHR \
@@ -160,17 +238,27 @@ struct perl_thread *getTHR _((void));
  * try only locking them if there may be more than one thread in existence.
  * Systems with very fast mutexes (and/or slow conditionals) may wish to
  * remove the "if (threadnum) ..." test.
+ * XXX do NOT use C<if (PL_threadnum) ...> -- it sets up race conditions!
  */
-#define LOCK_SV_MUTEX			\
-    STMT_START {			\
-	if (PL_threadnum)			\
-	    MUTEX_LOCK(&PL_sv_mutex);	\
+#define LOCK_SV_MUTEX				\
+    STMT_START {				\
+	MUTEX_LOCK(&PL_sv_mutex);		\
     } STMT_END
 
-#define UNLOCK_SV_MUTEX			\
-    STMT_START {			\
-	if (PL_threadnum)			\
-	    MUTEX_UNLOCK(&PL_sv_mutex);	\
+#define UNLOCK_SV_MUTEX				\
+    STMT_START {				\
+	MUTEX_UNLOCK(&PL_sv_mutex);		\
+    } STMT_END
+
+/* Likewise for strtab_mutex */
+#define LOCK_STRTAB_MUTEX			\
+    STMT_START {				\
+	MUTEX_LOCK(&PL_strtab_mutex);	\
+    } STMT_END
+
+#define UNLOCK_STRTAB_MUTEX			\
+    STMT_START {				\
+	MUTEX_UNLOCK(&PL_strtab_mutex);	\
     } STMT_END
 
 #ifndef THREAD_RET_TYPE
@@ -223,6 +311,8 @@ typedef struct condpair {
 #define COND_DESTROY(c)
 #define LOCK_SV_MUTEX
 #define UNLOCK_SV_MUTEX
+#define LOCK_STRTAB_MUTEX
+#define UNLOCK_STRTAB_MUTEX
 
 #define THR
 /* Rats: if dTHR is just blank then the subsequent ";" throws an error */

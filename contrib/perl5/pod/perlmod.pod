@@ -228,7 +228,7 @@ a file called Some/Module.pm and start with this template:
         # set the version for version checking
         $VERSION     = 1.00;
         # if using RCS/CVS, this may be preferred
-        $VERSION = do { my @r = (q$Revision: 2.21 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
+        $VERSION = do { my @r = (q$Revision: 1.1.1.2 $ =~ /\d+/g); sprintf "%d."."%02d" x $#r, @r }; # must be all one line, for MakeMaker
 
         @ISA         = qw(Exporter);
         @EXPORT      = qw(&func1 &func2 &func4);
@@ -243,7 +243,7 @@ a file called Some/Module.pm and start with this template:
     # non-exported package globals go here
     use vars      qw(@more $stuff);
 
-    # initalize package globals, first exported ones
+    # initialize package globals, first exported ones
     $Var1   = '';
     %Hashit = ();
 

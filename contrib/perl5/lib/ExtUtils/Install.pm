@@ -1,7 +1,7 @@
 package ExtUtils::Install;
 
-$VERSION = substr q$Revision: 1.28 $, 10;
-# $Date: 1998/01/25 07:08:24 $
+$VERSION = substr q$Revision: 1.1.1.2 $, 10;
+# $Date: 1999/05/02 14:25:23 $
 
 use Exporter;
 use Carp ();
@@ -354,7 +354,7 @@ The argument is the value of MakeMaker's C<FULLEXT> key, like F<Tk/Canvas>.
 This function calls install() with the same arguments as the defaults 
 the MakeMaker would use.
 
-The argumement-less form is convenient for install scripts like
+The argument-less form is convenient for install scripts like
 
   perl -MExtUtils::Install -e install_default Tk/Canvas
 

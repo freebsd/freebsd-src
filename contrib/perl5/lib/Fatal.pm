@@ -111,11 +111,13 @@ EOS
     $code .= write_invocation($core, $call, $name, @protos);
     $code .= "}\n";
     print $code if $Debug;
-    $code = eval($code);
-    die if $@;
-    local($^W) = 0;   # to avoid: Subroutine foo redefined ...
-    no strict 'refs'; # to avoid: Can't use string (...) as a symbol ref ...
-    *{$sub} = $code;
+    {
+      no strict 'refs'; # to avoid: Can't use string (...) as a symbol ref ...
+      $code = eval("package $pkg; use Carp; $code");
+      die if $@;
+      local($^W) = 0;   # to avoid: Subroutine foo redefined ...
+      *{$sub} = $code;
+    }
 }
 
 1;

@@ -1432,7 +1432,7 @@ subscript, which can do weird things if you're expecting only one subscript.
 =item Stub found while resolving method `%s' overloading `%s' in package `%s'
 
 (P) Overloading resolution over @ISA tree may be broken by importing stubs.
-Stubs should never be implicitely created, but explicit calls to C<can>
+Stubs should never be implicitly created, but explicit calls to C<can>
 may break this.
 
 =item Too late for "B<-T>" option
