@@ -9,7 +9,7 @@ SUBDIR = 	${DOC_LANG}
 SUBDIR =	en_US.ISO_8859-1
 .endif
 
-DOC_PREFIX?=   /usr/doc
+RELN_ROOT?= ${.CURDIR}
 
 .if defined(SUPHOST)
 SUPFLAGS+=	-h ${SUPHOST}
@@ -33,4 +33,5 @@ update:
 	@echo "Error: Please define either SUP_UPDATE or CVS_UPDATE first."
 .endif
 
+.include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.subdir.mk"

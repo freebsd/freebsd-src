@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+RELN_ROOT?= ${.CURDIR}/..
+
 SUBDIR = relnotes
 SUBDIR+= hardware
 SUBDIR+= readme
@@ -8,5 +10,5 @@ SUBDIR+= installation
 
 COMPAT_SYMLINK = en
 
-DOC_PREFIX?= /usr/doc
+.include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"
