@@ -383,7 +383,7 @@ linux_sa_put(struct osockaddr *osa)
 
 /* Return 0 if IP_HDRINCL is set for the given socket. */
 static int
-linux_check_hdrincl(struct thread *td, int s)
+linux_check_hdrincl(struct thread *td, caddr_t *sg, int s)
 {
 	struct getsockopt_args /* {
 		int s;
@@ -393,13 +393,12 @@ linux_check_hdrincl(struct thread *td, int s)
 		int *avalsize;
 	} */ bsd_args;
 	int error;
-	caddr_t sg, val, valsize;
+	caddr_t val, valsize;
 	int size_val = sizeof val;
 	int optval;
 
-	sg = stackgap_init();
-	val = stackgap_alloc(&sg, sizeof(int));
-	valsize = stackgap_alloc(&sg, sizeof(int));
+	val = stackgap_alloc(sg, sizeof(int));
+	valsize = stackgap_alloc(sg, sizeof(int));
 
 	if ((error = copyout(&size_val, valsize, sizeof(size_val))))
 		return (error);
@@ -423,7 +422,7 @@ linux_check_hdrincl(struct thread *td, int s)
  * tweak endian-dependent fields in the IP packet.
  */
 static int
-linux_sendto_hdrincl(struct thread *td, struct sendto_args *bsd_args)
+linux_sendto_hdrincl(struct thread *td, caddr_t *sg, struct sendto_args *bsd_args)
 {
 /*
  * linux_ip_copysize defines how many bytes we should copy
@@ -433,7 +432,6 @@ linux_sendto_hdrincl(struct thread *td, struct sendto_args *bsd_args)
  */
 #define linux_ip_copysize	8
 
-	caddr_t sg;
 	struct ip *packet;
 	struct msghdr *msg;
 	struct iovec *iov;
@@ -455,10 +453,9 @@ linux_sendto_hdrincl(struct thread *td, struct sendto_args *bsd_args)
 	 * then use an iovec to glue it to the rest of the user packet
 	 * when calling sendmsg().
 	 */
-	sg = stackgap_init();
-	packet = (struct ip *)stackgap_alloc(&sg, linux_ip_copysize);
-	msg = (struct msghdr *)stackgap_alloc(&sg, sizeof(*msg));
-	iov = (struct iovec *)stackgap_alloc(&sg, sizeof(*iov)*2);
+	packet = (struct ip *)stackgap_alloc(sg, linux_ip_copysize);
+	msg = (struct msghdr *)stackgap_alloc(sg, sizeof(*msg));
+	iov = (struct iovec *)stackgap_alloc(sg, sizeof(*iov)*2);
 
 	/* Make a copy of the beginning of the packet to be sent */
 	if ((error = copyin(bsd_args->buf, packet, linux_ip_copysize)))
@@ -626,7 +623,8 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 		return (error);
 #endif /* __alpha__ */
 
-	error = linux_getsockaddr(&sa, linux_args.name, linux_args.namelen);
+	error = linux_getsockaddr(&sa, (struct osockaddr *)linux_args.name,
+	    linux_args.namelen);
 	if (error)
 		return (error);
 
@@ -930,9 +928,9 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 	bsd_args.to = (caddr_t) to;
 	bsd_args.tolen = (unsigned int) tolen;
 
-	if (linux_check_hdrincl(td, linux_args.s) == 0)
+	if (linux_check_hdrincl(td, &sg, linux_args.s) == 0)
 		/* IP_HDRINCL set, tweak the packet before sending */
-		return (linux_sendto_hdrincl(td, &bsd_args));
+		return (linux_sendto_hdrincl(td, &sg, &bsd_args));
 
 	return (sendto(td, &bsd_args));
 }
@@ -1053,6 +1051,9 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 			return (error);
 	}
 done:
+	bsd_args.s = linux_args.s;
+	bsd_args.msg = (caddr_t)nmsg;
+	bsd_args.flags = linux_args.flags;
 	return (sendmsg(td, &bsd_args));
 }
 
