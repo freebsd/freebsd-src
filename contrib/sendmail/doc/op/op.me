@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.607 2002/05/22 19:58:33 gshapiro Exp $
+.\"	$Id: op.me,v 8.609.2.2 2002/06/25 20:30:35 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -88,7 +88,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.607 $
+.Ve $Revision: 8.609.2.2 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -753,6 +753,12 @@ Notice: do not use the same key for
 .i sendmail
 invocations with different queue directories
 or different queue group declarations.
+Access to shared memory is not controlled by locks,
+i.e., there is a race condition when data in the shared memory is updated.
+However, since operation of
+.i sendmail
+does not rely on the data in the shared memory, this does not negatively
+influence the behavior.
 .sh 3 "/var/spool/clientmqueue"
 .pp
 The directory
@@ -1274,6 +1280,13 @@ the flag
 .b \-bP
 can be used to print the number of entries in the queue(s),
 provided a process updates the data.
+However, as explained earlier, the output might be slightly wrong,
+since access to the shared memory is not locked.
+For example,
+``unknown number of entries''
+might be shown.
+The internal counters are updated after each queue run
+to the correct value again.
 .sh 3 "Forcing the queue"
 .pp
 .i Sendmail
@@ -2769,6 +2782,34 @@ is still accepted.
 Notice that the MSP submits mail to the MTA via SMTP, and hence
 mail will be queued in the client queue in such a case.
 Therefore it is necessary to run the client mail queue periodically.
+.sh 2 "Resource Limits"
+.pp
+.i Sendmail
+has several parameters to control resource usage.
+Besides those mentionted in the previous section, there are at least
+.b MaxDaemonChildren ,
+.b ConnectionRateThrottle ,
+.b MaxQueueChildren ,
+and
+.b MaxRunnersPerQueue .
+The latter two limit the number of
+.i sendmail
+processes that operate on the queue.
+These are discussed in the section
+``Queue Group Declaration''.
+The former two can be used to limit the number of incoming connections.
+Their appropriate values depend on the host operating system and
+the hardware, e.g., amount of memory.
+In many situations it might be useful to set limits to prevent
+to have too many
+.i sendmail
+processes, however, these limits can be abused to mount a
+denial of service attack.
+For example, if
+.b MaxDaemonChildren=10
+then an attacker needs to open only 10 SMTP sessions to the server,
+leave them idle for most of the time,
+and no more connections will be accepted.
 .sh 2 "Delivery Mode"
 .pp
 There are a number of delivery modes that
@@ -6557,6 +6598,7 @@ If not set,
 is either "CC f" if the option
 .b \-G
 is used or "c u" otherwise.
+Note that only the the "CC", "c", "f", and "u" flags are checked.
 .ip DontBlameSendmail=\fIoption,option,...\fP
 [no short name]
 In order to avoid possible cracking attempts
@@ -7050,6 +7092,7 @@ The characters ``@,;:\e()[]'' are always added to this list.
 .ip NiceQueueRun
 [no short name]
 The priority of queue runners (nice(3)).
+This value must be greater or equal zero.
 .ip NoRecipientAction
 [no short name]
 The action to take when you receive a message that has no valid
@@ -8674,6 +8717,7 @@ Fields are:
 Flags for this queue group.
 .ip Nice
 The nice(2) increment for the queue group.
+This value must be greater or equal zero.
 .ip Interval
 The time between two queue runs.
 .ip Path
@@ -10627,7 +10671,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.607 $
+.\"Version $Revision: 8.609.2.2 $
 .\".ce 0
 .bp 3
 .ce
