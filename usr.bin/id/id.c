@@ -65,6 +65,8 @@ void	user __P((struct passwd *));
 struct passwd *
 	who __P((char *));
 
+int isgroups, iswhoami;
+
 int
 main(argc, argv)
 	int argc;
@@ -73,9 +75,23 @@ main(argc, argv)
 	struct group *gr;
 	struct passwd *pw;
 	int Gflag, Pflag, ch, gflag, id, nflag, pflag, rflag, uflag;
+	const char *myname;
 
 	Gflag = Pflag = gflag = nflag = pflag = rflag = uflag = 0;
-	while ((ch = getopt(argc, argv, "PGgnpru")) != -1)
+
+	myname = strrchr(argv[0], '/');
+	myname = (myname != NULL) ? myname + 1 : argv[0];
+	if (strcmp(myname, "groups") == 0) {
+		isgroups = 1;
+		Gflag = nflag = 1;
+	}
+	else if (strcmp(myname, "whoami") == 0) {
+		iswhoami = 1;
+		uflag = nflag = 1;
+	}
+
+	while ((ch = getopt(argc, argv,
+	    (isgroups || iswhoami) ? "" : "PGgnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;
@@ -104,6 +120,9 @@ main(argc, argv)
 		}
 	argc -= optind;
 	argv += optind;
+
+	if (iswhoami && argc > 0)
+		usage();
 
 	switch(Gflag + Pflag + gflag + pflag + uflag) {
 	case 1:
@@ -347,12 +366,18 @@ pline(pw)
 void
 usage()
 {
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: id [user]",
-		"       id -G [-n] [user]",
-		"       id -P [user]",
-		"       id -g [-nr] [user]",
-		"       id -p [user]",
-		"       id -u [-nr] [user]");
+
+	if (isgroups)
+		(void)fprintf(stderr, "usage: groups [user]\n");
+	else if (iswhoami)
+		(void)fprintf(stderr, "usage: whoami\n");
+	else
+		(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
+		    "usage: id [user]",
+		    "       id -G [-n] [user]",
+		    "       id -P [user]",
+		    "       id -g [-nr] [user]",
+		    "       id -p [user]",
+		    "       id -u [-nr] [user]");
 	exit(1);
 }
