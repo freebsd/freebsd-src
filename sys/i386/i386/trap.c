@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.40 1994/10/21 01:18:38 wollman Exp $
+ *	$Id: trap.c,v 1.41 1994/10/30 20:25:21 bde Exp $
  */
 
 /*
@@ -259,11 +259,17 @@ trap(frame)
 
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE) 
 			i = math_emulate(&frame);
-			if (i == 0) return;
+			if (i == 0) {
+				if (!(frame.tf_eflags & PSL_T))
+					return;
+				frame.tf_eflags &= ~PSL_T;
+				i = SIGTRAP;
+			}
+			/* else ucode = emulator_only_knows() XXX */
 #else	/* MATH_EMULATE || GPL_MATH_EMULATE */
-			panic("trap: math emulation necessary!");
-#endif	/* MATH_EMULATE || GPL_MATH_EMULATE */
+			i = SIGFPE;
 			ucode = FPE_FPU_NP_TRAP;
+#endif	/* MATH_EMULATE || GPL_MATH_EMULATE */
 			break;
 
 		case T_FPOPFLT:		/* FPU operand fetch fault */
