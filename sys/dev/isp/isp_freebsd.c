@@ -34,6 +34,9 @@
 #include <dev/isp/isp_ioctl.h>
 
 
+int isp_announced = 0;
+ispfwfunc *isp_get_firmware_p = NULL;
+
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
@@ -2075,7 +2078,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			}
 			cv_signal(&isp->isp_osinfo.kthread_cv);
 			isp_freeze_loopdown(isp, "isp_action(RQLATER)");
-			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
 			XS_SETERR(ccb, CAM_REQUEUE_REQ);
 			ISPLOCK_2_CAMLOCK(isp);
 			xpt_done(ccb);
