@@ -310,8 +310,8 @@ extern void	(*lease_updatetime) __P((int deltat));
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 #define VMIGHTFREE(vp) \
-	(!((vp)->v_flag & (VFREE|VDOOMED)) &&	\
-	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+	(!((vp)->v_flag & (VFREE|VDOOMED|VXLOCK)) &&	\
+	 LIST_EMPTY(&(vp)->v_cache_src) && !(vp)->v_usecount)
 
 #define	VSHOULDBUSY(vp)	\
 	(((vp)->v_flag & VFREE) && \
