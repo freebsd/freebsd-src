@@ -556,7 +556,7 @@ sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
 }
 
