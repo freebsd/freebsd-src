@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn fork
-function causes creation of a new process.
+system call causes creation of a new process.
 The new process (child process) is an exact copy of the
 calling process (parent process) except for the following:
 .Bl -bullet -offset indent
@@ -92,7 +92,7 @@ is set to indicate the error.
 .Sh ERRORS
 The
 .Fn fork
-function will fail and no child process will be created if:
+system call will fail and no child process will be created if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The system-imposed limit on the total
@@ -129,7 +129,7 @@ There is insufficient swap space for the new process.
 .Xr vfork 2 ,
 .Xr wait 2
 .Sh HISTORY
-A
+The
 .Fn fork
-function call appeared in
+function appeared in
 .At v6 .

@@ -41,7 +41,9 @@
 .Ft int
 .Fn poll "struct pollfd fds[]" "nfds_t nfds" "int timeout"
 .Sh DESCRIPTION
-.Fn Poll
+The
+.Fn poll
+system call
 examines a set of file descriptors to see if some of them are ready for
 I/O.
 The
@@ -128,7 +130,9 @@ is zero, then
 .Fn poll
 will return without blocking.
 .Sh RETURN VALUES
-.Fn Poll
+The
+.Fn poll
+system call
 returns the number of descriptors that are ready for I/O, or -1 if an
 error occured.  If the time limit expires,
 .Fn poll
@@ -136,7 +140,7 @@ returns 0.
 If
 .Fn poll
 returns with an error,
-including one due to an interrupted call,
+including one due to an interrupted system call,
 the
 .Fa fds
 array will be unmodified.
@@ -185,7 +189,7 @@ defined for compatibility with existing software.
 .Sh HISTORY
 The
 .Fn poll
-function call appeared in
+function appeared in
 .At V .
 This manual page and the core of the implementation was taken from
 .Nx .

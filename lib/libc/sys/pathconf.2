@@ -52,7 +52,7 @@ The
 .Fn pathconf
 and
 .Fn fpathconf
-functions provides a method for applications to determine the current
+system calls provide a method for applications to determine the current
 value of a configurable system limit or option variable associated
 with a pathname or file descriptor.
 .Pp
@@ -155,7 +155,7 @@ If any of the following conditions occur, the
 .Fn pathconf
 and
 .Fn fpathconf
-functions shall return -1 and set
+system calls shall return -1 and set
 .Va errno
 to the corresponding value.
 .Bl -tag -width Er
@@ -168,7 +168,9 @@ The implementation does not support an association of the variable
 name with the associated file.
 .El
 .Pp
-.Fn Pathconf
+The
+.Fn pathconf
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -187,7 +189,9 @@ An I/O error occurred while reading from or writing to the file system.
 .El
 .Pp
 .Bl -tag -width Er
-.Fn Fpathconf
+The
+.Fn fpathconf
+system call
 will fail if:
 .It Bq Er EBADF
 .Fa fd
@@ -202,5 +206,5 @@ The
 .Fn pathconf
 and
 .Fn fpathconf
-functions first appeared in
+system calls first appeared in
 .Bx 4.4 .

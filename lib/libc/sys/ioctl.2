@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn ioctl
-function manipulates the underlying device parameters of special files.
+system call manipulates the underlying device parameters of special files.
 In particular, many operating
 characteristics of character special files (e.g. terminals)
 may be controlled with
@@ -59,11 +59,11 @@ The argument
 must be an open file descriptor.
 .Pp
 The third argument to
-.Nm
+.Fn ioctl
 is traditionally named
 .Ar "char *argp" .
 Most uses of
-.Nm
+.Fn ioctl
 in
 .Fx 3.0
 however, require the third argument to be a
@@ -91,7 +91,9 @@ If an error has occurred, a value of -1 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
+The
 .Fn ioctl
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -121,7 +123,7 @@ points outside the process's allocated address space.
 .Xr intro 4 ,
 .Xr tty 4
 .Sh HISTORY
-An
+The
 .Fn ioctl
-function call appeared in
+function appeared in
 .At v7 .

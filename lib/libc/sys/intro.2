@@ -102,7 +102,7 @@ pathname was an empty string.
 .It Er 3 ESRCH Em "No such process" .
 No process could be found corresponding to that specified by the given
 process ID.
-.It Er 4 EINTR Em "Interrupted function call" .
+.It Er 4 EINTR Em "Interrupted system call" .
 An asynchronous signal (such as
 .Dv SIGINT
 or
@@ -110,7 +110,7 @@ or
 was caught by the process during the execution of an interruptible
 function.
 If the signal handler performs a normal return, the
-interrupted function call will seem to have returned the error condition.
+interrupted system call will seem to have returned the error condition.
 .It Er 5 EIO Em "Input/output error" .
 Some physical input or output error occurred.
 This error will not be reported until a subsequent operation on the same file
@@ -126,7 +126,7 @@ loaded on a drive.
 The number of bytes used for the argument and environment
 list of the new process exceeded the current limit
 of 65536 bytes
-.Pf ( Dv NCARGS
+.Dv ( NCARGS
 in
 .Aq Pa sys/param.h ) .
 .It Er 8 ENOEXEC Em "Exec format error" .
@@ -170,7 +170,7 @@ in a manner which would have conflicted with the request.
 An existing file was mentioned in an inappropriate context,
 for instance, as the new link name in a
 .Xr link 2
-function.
+system call.
 .It Er 18 EXDEV Em "Improper link" .
 A hard link to a file on another file system
 was attempted.
@@ -189,9 +189,10 @@ Some invalid argument was supplied.
 (For example,
 specifying an undefined signal to a
 .Xr signal 3
-or
+function
+or a
 .Xr kill 2
-function).
+system call).
 .It Er 23 ENFILE Em "Too many open files in system" .
 Maximum number of file descriptors allowable on the system
 has been reached and a requests for an open cannot be satisfied
@@ -201,7 +202,7 @@ until at least one has been closed.
 open files per process is 64.>
 The
 .Xr getdtablesize 2
-function will obtain the current limit.
+system call will obtain the current limit.
 .It Er 25 ENOTTY Em "Inappropriate ioctl for device" .
 A control function (see
 .Xr ioctl 2 )
@@ -230,7 +231,7 @@ on the file system.
 .It Er 29 ESPIPE Em "Illegal seek" .
 An
 .Xr lseek 2
-function was issued on a socket, pipe or
+system call was issued on a socket, pipe or
 .Tn FIFO .
 .It Er 30 EROFS Em "Read-only file system" .
 An attempt was made to modify a file or directory

@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn undelete
-function attempts to recover the deleted file named by
+system call attempts to recover the deleted file named by
 .Fa path .
 Currently, this works only when the named object
 is a whiteout in a union file system.
@@ -98,7 +98,7 @@ points outside the process's allocated address space.
 .Xr unlink 2 ,
 .Xr mount_unionfs 8
 .Sh HISTORY
-An
+The
 .Fn undelete
-function call first appeared in
+system call first appeared in
 .Bx 4.4 Lite .

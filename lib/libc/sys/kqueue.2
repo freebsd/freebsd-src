@@ -43,7 +43,9 @@
 .Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
 .Fn EV_SET "&kev" ident filter flags fflags data udata
 .Sh DESCRIPTION
+The
 .Fn kqueue
+system call
 provides a generic method of notifying the user when an event
 happens or a condition holds, based on the results of small
 pieces of kernel code termed filters.
@@ -69,7 +71,9 @@ Calling
 .Fn close
 on a file descriptor will remove any kevents that reference the descriptor.
 .Pp
+The
 .Fn kqueue
+system call
 creates a new kernel event queue and returns a descriptor.
 The queue is not inherited by a child created with
 .Xr fork 2 .
@@ -80,7 +84,9 @@ is called without the
 flag, then the descriptor table is shared,
 which will allow sharing of the kqueue between two processes.
 .Pp
+The
 .Fn kevent
+system call
 is used to register events with the queue, and return any pending
 events to the user.
 .Fa changelist
@@ -115,8 +121,9 @@ structure.  The same array may be used for the
 and
 .Fa eventlist .
 .Pp
+The
 .Fn EV_SET
-is a macro which is provided for ease of initializing a
+macro is provided for ease of initializing a
 kevent structure.
 .Pp
 The
@@ -272,12 +279,16 @@ be attached to,
 containing the udata value, and
 .Va sigev_notify
 set to SIGEV_KEVENT.
-When the aio_* function is called, the event will be registered
+When the
+.Fn aio_*
+system call is made, the event will be registered
 with the specified kqueue, and the
 .Va ident
 argument set to the
 .Fa struct aiocb
-returned by the aio_* function.
+returned by the
+.Fn aio_*
+system call.
 The filter returns under the same conditions as aio_error.
 .Pp
 Alternatively, a kevent structure may be initialized, with
@@ -294,7 +305,9 @@ and returns when one or more of the requested events occurs on the descriptor.
 The events to monitor are:
 .Bl -tag -width XXNOTE_RENAME
 .It NOTE_DELETE
+The
 .Fn unlink
+system call
 was called on the file referenced by the descriptor.
 .It NOTE_WRITE
 A write occurred on the file referenced by the descriptor.
@@ -378,12 +391,16 @@ contains the number of times the timeout has expired since the last call to
 This filter automatically sets the EV_CLEAR flag internally.
 .El
 .Sh RETURN VALUES
+The
 .Fn kqueue
+system call
 creates a new kernel event queue and returns a file descriptor.
 If there was an error creating the kernel event queue, a value of -1 is
 returned and errno set.
 .Pp
+The
 .Fn kevent
+system call
 returns the number of events placed in the
 .Fa eventlist ,
 up to the value given by
@@ -411,7 +428,7 @@ returns 0.
 .Sh ERRORS
 The
 .Fn kqueue
-function fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The kernel failed to allocate enough memory for the kernel queue.
@@ -423,7 +440,7 @@ The system file table is full.
 .Pp
 The
 .Fn kevent
-function fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EACCES
 The process does not have permission to register a filter.
@@ -460,7 +477,7 @@ The
 .Fn kqueue
 and
 .Fn kevent
-functions first appeared in
+system calls first appeared in
 .Fx 4.1 .
 .Sh AUTHORS
 The

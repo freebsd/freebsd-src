@@ -49,7 +49,9 @@
 .Fn FD_ISSET fd &fdset
 .Fn FD_ZERO &fdset
 .Sh DESCRIPTION
-.Fn Select
+The
+.Fn select
+system call
 examines the I/O descriptor sets whose addresses are passed in
 .Fa readfds ,
 .Fa writefds ,
@@ -71,7 +73,9 @@ On return,
 replaces the given descriptor sets
 with subsets consisting of those descriptors that are ready
 for the requested operation.
-.Fn Select
+The
+.Fn select
+system call
 returns the total number of ready descriptors in all the sets.
 .Pp
 The descriptor sets are stored as bit fields in arrays of integers.
@@ -123,7 +127,9 @@ and
 .Fa exceptfds
 may be given as nil pointers if no descriptors are of interest.
 .Sh RETURN VALUES
-.Fn Select
+The
+.Fn select
+system call
 returns the number of ready descriptors that are contained in
 the descriptor sets,
 or -1 if an error occurred.
@@ -133,7 +139,7 @@ returns 0.
 If
 .Fn select
 returns with an error,
-including one due to an interrupted call,
+including one due to an interrupted system call,
 the descriptor sets will be unmodified.
 .Sh ERRORS
 An error return from
@@ -189,11 +195,11 @@ allows systems to modify the original timeout in place.
 Thus, it is unwise to assume that the timeout value will be unmodified
 by the
 .Fn select
-call.
+system call.
 .Sh STANDARDS
 The
 .Fn select
-function and
+system call and
 .Fn FD_CLR ,
 .Fn FD_ISSET ,
 .Fn FD_SET ,
@@ -204,5 +210,5 @@ macros conform with
 .Sh HISTORY
 The
 .Fn select
-function call appeared in
+system call appeared in
 .Bx 4.2 .

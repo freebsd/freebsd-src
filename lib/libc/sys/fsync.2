@@ -45,14 +45,18 @@
 .Ft int
 .Fn fsync "int fd"
 .Sh DESCRIPTION
-.Fn Fsync
+The
+.Fn fsync
+system call
 causes all modified data and attributes of
 .Fa fd
 to be moved to a permanent storage device.
 This normally results in all in-core modified copies
 of buffers for the associated file to be written to a disk.
 .Pp
-.Fn Fsync
+The
+.Fn fsync
+system call
 should be used by programs that require a file to be
 in a known state, for example, in building a simple transaction
 facility.
@@ -79,5 +83,5 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh HISTORY
 The
 .Fn fsync
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn close
-call deletes a descriptor from the per-process object
+system call deletes a descriptor from the per-process object
 reference table.
 If this is the last reference to the underlying object, the
 object will be deactivated.
@@ -74,7 +74,7 @@ When a process exits,
 all associated file descriptors are freed, but since there is
 a limit on active descriptors per processes, the
 .Fn close
-function call
+system call
 is useful when a large quantity of file descriptors are being handled.
 .Pp
 When a process forks (see
@@ -106,7 +106,7 @@ which is to not close the descriptor.
 .Sh ERRORS
 The
 .Fn close
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa D
@@ -126,10 +126,10 @@ An interrupt was received.
 .Sh STANDARDS
 The
 .Fn close
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn close
-function call appeared in
+function appeared in
 .At v7 .

@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 The
 .Fn kldsym
-function returns the address of the symbol specified in
+system call returns the address of the symbol specified in
 .Fa data
 in the module specified by
 .Fa fileid .
@@ -91,7 +91,7 @@ and the size of the data it points to, respectively.
 .Sh ERRORS
 The
 .Fn kldsym
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Invalid value in
@@ -116,5 +116,5 @@ or the specified symbol could not be found.
 .Sh HISTORY
 The
 .Fn kldsym
-function first appeared in
+system call first appeared in
 .Fx 3.0 .

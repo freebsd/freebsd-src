@@ -51,7 +51,7 @@ The
 .Fn access
 and
 .Fn eaccess
-functions check the accessibility of the
+system calls check the accessibility of the
 file named by
 the
 .Fa path
@@ -80,12 +80,12 @@ section of
 .Pp
 The
 .Fn eaccess
-call uses
+system call uses
 the effective user ID and the group access list
 to authorize the request;
 the
 .Fn access
-call uses
+system call uses
 the real user ID in place of the effective user ID,
 the real group ID in place of the effective group ID,
 and the rest of the group access list.
@@ -130,7 +130,7 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn access
-call
+system call
 is a potential security hole due to race conditions and
 should never be used.
 Set-user-ID and set-group-ID applications should restore the
@@ -140,7 +140,7 @@ and perform actions directly rather than use
 to simulate access checks for the real user or group ID.
 The
 .Fn eaccess
-call
+system call
 likewise may be subject to races if used inappropriately.
 .Sh SEE ALSO
 .Xr chmod 2 ,
@@ -149,10 +149,10 @@ likewise may be subject to races if used inappropriately.
 .Sh STANDARDS
 The
 .Fn access
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-An
+The
 .Fn access
-function call appeared in
+function appeared in
 .At v7 .

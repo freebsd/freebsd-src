@@ -59,7 +59,7 @@ for
 bytes.
 The
 .Fn munlock
-call unlocks pages previously locked by one or more
+system call unlocks pages previously locked by one or more
 .Fn mlock
 calls.
 For both, the
@@ -73,7 +73,7 @@ The entire range must be allocated.
 .Pp
 After an
 .Fn mlock
-call, the indicated pages will cause neither a non-resident page
+system call, the indicated pages will cause neither a non-resident page
 nor address-translation fault until they are unlocked.
 They may still cause protection-violation faults or TLB-miss faults on
 architectures with software-managed TLBs.
@@ -110,7 +110,9 @@ These calls are only available to the super-user.
 If the call succeeds, all pages in the range become locked (unlocked);
 otherwise the locked status of all pages in the range remains unchanged.
 .Sh ERRORS
-.Fn Mlock
+The
+.Fn mlock
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
@@ -124,7 +126,9 @@ limit for locked memory.
 Some portion of the indicated address range is not allocated.
 There was an error faulting/mapping a page.
 .El
-.Fn Munlock
+The
+.Fn munlock
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
@@ -167,5 +171,5 @@ The
 .Fn mlock
 and
 .Fn munlock
-functions first appeared in
+system calls first appeared in
 .Bx 4.4 .

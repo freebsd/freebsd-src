@@ -56,13 +56,13 @@ defined in
 .Ao Pa sys/time.h Ac .
 The
 .Fn getitimer
-call returns the current value for the timer specified in
+system call returns the current value for the timer specified in
 .Fa which
 in the structure at
 .Fa value .
 The
 .Fn setitimer
-call sets a timer to the specified
+system call sets a timer to the specified
 .Fa value
 (returning the previous value of the timer if
 .Fa ovalue
@@ -149,9 +149,11 @@ compares two time values.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Getitimer
+The
+.Fn getitimer
 and
 .Fn setitimer
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
@@ -172,5 +174,5 @@ to be handled.
 .Sh HISTORY
 The
 .Fn getitimer
-function call appeared in
+system call appeared in
 .Bx 4.2 .

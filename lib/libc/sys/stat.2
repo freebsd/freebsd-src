@@ -54,7 +54,7 @@
 .Sh DESCRIPTION
 The
 .Fn stat
-function obtains information about the file pointed to by
+system call obtains information about the file pointed to by
 .Fa path .
 Read, write or execute
 permission of the named file is not required, but all directories
@@ -62,7 +62,7 @@ listed in the path name leading to the file must be searchable.
 .Pp
 The
 .Fn lstat
-function is like
+system call is like
 .Fn stat
 except in the case where the named file is a symbolic link,
 in which case
@@ -74,7 +74,7 @@ returns information about the file the link references.
 .Pp
 The
 .Fn fstat
-function obtains the same information about an open file
+system call obtains the same information about an open file
 known by the file descriptor
 .Fa fd .
 .Pp
@@ -218,7 +218,7 @@ The
 .Fn stat
 and
 .Fn lstat
-functions will fail if:
+system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EACCES
 Search permission is denied for a component of the path prefix.
@@ -247,7 +247,7 @@ represented correctly in the structure pointed to by
 .Bl -tag -width Er
 The
 .Fn fstat
-function will fail if:
+system call will fail if:
 .It Bq Er EBADF
 .Fa fd
 is not a valid open file descriptor.
@@ -279,16 +279,16 @@ The
 .Fn stat
 and
 .Fn fstat
-function calls are expected to conform to
+system calls are expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn stat
-and a
+and
 .Fn fstat
-function call appeared in
+system calls appeared in
 .At v7 .
-A
+The
 .Fn lstat
-function call appeared in
+system call appeared in
 .Bx 4.2 .

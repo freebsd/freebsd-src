@@ -66,7 +66,9 @@ for example when
 .Xr su 1
 is used).
 .Pp
+The
 .Fn getlogin_r
+function
 provides the same service as
 .Fn getlogin
 except the caller must provide the buffer
@@ -78,10 +80,12 @@ to hold the result.  The buffer should be at least
 .Dv MAXLOGNAME
 bytes in length.
 .Pp
+The
 .Fn setlogin
+system call
 sets the login name of the user associated with the current session to
 .Fa name .
-This call is restricted to the super-user, and
+This system call is restricted to the super-user, and
 is normally used only when a new session is being created on behalf
 of the named user
 (for example, at login time, or when a remote shell is invoked).
@@ -100,8 +104,8 @@ Making a
 system call is the
 .Em ONLY
 way to do this.  The
-.Fn daemon
-library call calls
+.Xr daemon 3
+function calls
 .Fn setsid
 which is an ideal way of detaching from a controlling terminal and
 forking into the background.
@@ -116,7 +120,7 @@ sufficient.
 .Pp
 Once a parent process does a
 .Fn setsid
-call, it is acceptable for some child of that process to then do a
+system call, it is acceptable for some child of that process to then do a
 .Fn setlogin
 even though it is not the session leader, but beware that ALL processes
 in the session will change their login name at the same time, even the
@@ -136,7 +140,9 @@ succeeds, it returns a pointer to a null-terminated string in a static buffer,
 or
 .Dv NULL
 if the name has not been set.
+The
 .Fn getlogin_r
+function
 returns zero if successful, or the error number upon failure.
 .Pp
 .Rv -std setlogin
@@ -180,7 +186,7 @@ Portable programs should probably still make this check.
 .Sh HISTORY
 The
 .Fn getlogin
-function first appeared in
+system call first appeared in
 .Bx 4.4 .
 The return value of
 .Fn getlogin_r
@@ -189,8 +195,12 @@ was changed from earlier versions of
 to be conformant with
 .St -p1003.1-96 .
 .Sh STANDARDS
+The
 .Fn getlogin
+system call
 and
+the
 .Fn getlogin_r
+function
 conform to
 .St -p1003.1-96 .

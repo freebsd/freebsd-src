@@ -50,7 +50,7 @@
 .Sh DESCRIPTION
 The
 .Fn sigpending
-function returns a mask of the signals pending for delivery
+system call returns a mask of the signals pending for delivery
 to the calling process in the location indicated by
 .Fa set .
 Signals may be pending because they are currently masked,
@@ -59,7 +59,9 @@ normally detectable).
 .Sh RETURN VALUES
 .Rv -std sigpending
 .Sh ERRORS
+The
 .Fn sigpending
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
@@ -73,5 +75,5 @@ argument specified an invalid address.
 .Sh STANDARDS
 The
 .Fn sigpending
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .

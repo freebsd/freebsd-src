@@ -61,12 +61,16 @@ Otherwise,
 .Fa dev
 is ignored.
 .Pp
-.Fn Mknod
+The
+.Fn mknod
+system call
 requires super-user privileges.
 .Sh RETURN VALUES
 .Rv -std mknod
 .Sh ERRORS
-.Fn Mknod
+The
+.Fn mknod
+system call
 will fail and the file will be not created if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -118,7 +122,7 @@ is not supported.
 .Xr stat 2 ,
 .Xr umask 2
 .Sh HISTORY
-A
+The
 .Fn mknod
-function call appeared in
+function appeared in
 .At v6 .

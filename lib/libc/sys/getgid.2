@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Fn getgid
-function returns the real group ID of the calling process,
+system call returns the real group ID of the calling process,
 .Fn getegid
 returns the effective group ID of the calling process.
 .Pp
@@ -69,7 +69,7 @@ The
 .Fn getgid
 and
 .Fn getegid
-functions are always successful, and no return value is reserved to
+system calls are always successful, and no return value is reserved to
 indicate an error.
 .Sh SEE ALSO
 .Xr getuid 2 ,
@@ -81,5 +81,5 @@ The
 .Fn getgid
 and
 .Fn getegid
-function calls are expected to conform to
+system calls are expected to conform to
 .St -p1003.1-90 .

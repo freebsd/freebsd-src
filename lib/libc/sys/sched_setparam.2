@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn sched_setparam
-function sets the scheduling parameters of the process specified by
+system call sets the scheduling parameters of the process specified by
 .Fa pid
 to the values specified by the
 .Fa sched_param
@@ -58,7 +58,7 @@ Higher numerical values for the priority represent higher priorities.
 .Pp
 In this implementation, if the value of
 .Fa pid
-is negative the function will fail.
+is negative the system call will fail.
 .Pp
 If a process specified by
 .Fa pid
@@ -105,7 +105,7 @@ lower than any actual realtime priority.
 .Pp
 The
 .Fn sched_getparam
-function will return the scheduling parameters of a process specified
+system call will return the scheduling parameters of a process specified
 by
 .Fa pid
 in the
@@ -130,7 +130,7 @@ If
 is zero, the scheduling parameters for the calling process will be
 returned.  In this implementation, the
 .Fa sched_getparam
-function will fail if
+system call will fail if
 .Fa pid
 is negative.
 .Sh RETURN VALUES
@@ -167,5 +167,5 @@ The
 .Fn sched_setparam
 and
 .Fn sched_getparam
-functions conform to
+system calls conform to
 .St -p1003.1b-93 .

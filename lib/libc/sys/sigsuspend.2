@@ -45,7 +45,9 @@
 .Ft int
 .Fn sigsuspend "const sigset_t *sigmask"
 .Sh DESCRIPTION
-.Fn Sigsuspend
+The
+.Fn sigsuspend
+system call
 temporarily changes the blocked signal mask to the set to which
 .Fa sigmask
 points,
@@ -66,7 +68,7 @@ with the previous mask returned by
 .Sh RETURN VALUES
 The
 .Fn sigsuspend
-function
+system call
 always terminates by being interrupted, returning -1 with
 .Va errno
 set to
@@ -77,6 +79,6 @@ set to
 .Xr sigsetops 3
 .Sh STANDARDS
 The
-.Fn sigsupend
-function call is expected to conform to
+.Fn sigsuspend
+system call is expected to conform to
 .St -p1003.1-90 .

@@ -67,7 +67,7 @@ May be set only with
 .Dv RFPROC .
 A helper function is provided to assist with this problem and will cause
 the new process to run on the provided stack.  See
-.Fn rfork_thread 3
+.Xr rfork_thread 3
 for information.
 .It RFSIGSHARE
 If set, the kernel will force sharing the sigacts structure between the
@@ -93,10 +93,14 @@ the return value is zero.
 Process id's range from 1 to the maximum integer
 .Ft ( int )
 value.
-.Fn Rfork
+The
+.Fn rfork
+system call
 will sleep, if necessary, until required process resources are available.
 .Pp
-.Fn Fork
+The
+.Fn fork
+system call
 can be implemented as a call to
 .Fn rfork "RFFDG | RFPROC"
 but isn't for backwards compatibility.
@@ -111,7 +115,9 @@ variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Rfork
+The
+.Fn rfork
+system call
 will fail and no child process will be created if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
@@ -165,10 +171,10 @@ contains a working
 .Fn clone
 call that utilizes RFMEM.
 The
-.Fn rfork_thread
-library call can often be used instead of
+.Xr rfork_thread 3
+function can often be used instead of
 .Fn clone .
 .Sh HISTORY
 The
 .Fn rfork
-function call first appeared in Plan9.
+function first appeared in Plan9.

@@ -46,7 +46,9 @@
 .Ft int
 .Fn getsockname "int s" "struct sockaddr *name" "socklen_t *namelen"
 .Sh DESCRIPTION
-.Fn Getsockname
+The
+.Fn getsockname
+system call
 returns the current
 .Fa name
 for the specified socket.  The
@@ -91,5 +93,5 @@ returns a zero length name.
 .Sh HISTORY
 The
 .Fn getsockname
-function call appeared in
+system call appeared in
 .Bx 4.2 .

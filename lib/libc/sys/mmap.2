@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn mmap
-function causes the pages starting at
+system call causes the pages starting at
 .Fa addr
 and continuing for at most
 .Fa len
@@ -186,7 +186,7 @@ while reading a large file sequentially, e.g. using
 .Pp
 The
 .Xr fsync 2
-function will flush all dirty data and metadata associated with a file,
+system call will flush all dirty data and metadata associated with a file,
 including dirty NOSYNC VM data, to physical media.
 The
 .Xr sync 8
@@ -233,7 +233,7 @@ address returned by the call.
 .Pp
 The
 .Xr close 2
-function does not unmap pages, see
+system call does not unmap pages, see
 .Xr munmap 2
 for further information.
 .Pp
@@ -254,7 +254,9 @@ is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Mmap
+The
+.Fn mmap
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EACCES

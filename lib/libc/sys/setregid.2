@@ -60,19 +60,18 @@ ID in place of the -1 parameter.
 .Pp
 The
 .Fn setregid
-function was intended to allow swapping
+system call was intended to allow swapping
 the real and effective group IDs
 in set-group-ID programs to temporarily relinquish the set-group-ID value.
-This function did not work correctly,
+This system call did not work correctly,
 and its purpose is now better served by the use of the
-.Fn setegid
-function (see
-.Xr setuid 2 ) .
+.Xr setegid 2
+system call.
 .Pp
 When setting the real and effective group IDs to the same value,
 the standard
 .Fn setgid
-function is preferred.
+system call is preferred.
 .Sh RETURN VALUES
 .Rv -std setregid
 .Sh ERRORS

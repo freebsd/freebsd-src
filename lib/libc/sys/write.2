@@ -53,21 +53,27 @@
 .Ft ssize_t
 .Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
 .Sh DESCRIPTION
-.Fn Write
+The
+.Fn write
+system call
 attempts to write
 .Fa nbytes
 of data to the object referenced by the descriptor
 .Fa d
 from the buffer pointed to by
 .Fa buf .
-.Fn Writev
+The
+.Fn writev
+system call
 performs the same action, but gathers the output data
 from the
 .Fa iovcnt
 buffers specified by the members of the
 .Fa iov
 array: iov[0], iov[1], ..., iov[iovcnt\|-\|1].
-.Fn Pwrite
+The
+.Fn pwrite
+system call
 performs the same function, but writes to the specified position in
 the file without modifying the file pointer.
 .Pp
@@ -88,7 +94,9 @@ Each
 .Fa iovec
 entry specifies the base address and length of an area
 in memory from which data should be written.
-.Fn Writev
+The
+.Fn writev
+system call
 will always write a complete area before proceeding
 to the next.
 .Pp
@@ -130,10 +138,12 @@ is returned.  Otherwise a -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Write ,
+The
+.Fn write ,
 .Fn writev ,
 and
 .Fn pwrite
+system calls
 will fail and the file pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -212,7 +222,7 @@ The mbuf pool has been completely exhausted when writing to a socket.
 .Pp
 The
 .Fn pwrite
-call may also return the following errors:
+system call may also return the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The specified file offset is invalid.
@@ -228,26 +238,24 @@ The file descriptor is associated with a pipe, socket, or FIFO.
 .Sh STANDARDS
 The
 .Fn write
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 The
 .Fn writev
 and
 .Fn pwrite
-functions are expected to conform to
+system calls are expected to conform to
 .St -xpg4.2 .
 .Sh HISTORY
 The
 .Fn pwrite
-function call
-appeared in
+function appeared in
 .At V.4 .
 The
 .Fn writev
-function call
-appeared in
+system call appeared in
 .Bx 4.2 .
-A
+The
 .Fn write
-function call appeared in
+function appeared in
 .At v6 .

@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn kill
-function sends the signal given by
+system call sends the signal given by
 .Fa sig
 to
 .Fa pid ,
@@ -108,7 +108,9 @@ This is a variant of
 .Sh RETURN VALUES
 .Rv -std kill
 .Sh ERRORS
-.Fn Kill
+The
+.Fn kill
+system call
 will fail and no signal will be sent if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -136,10 +138,10 @@ of the group could not be signaled.
 .Sh STANDARDS
 The
 .Fn kill
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn kill
-function call appeared in
+function appeared in
 .At v7 .
