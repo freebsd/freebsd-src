@@ -251,6 +251,31 @@ gctl_dump(struct gctl_req *req)
 	}
 }
 
+int
+gctl_set_param(struct gctl_req *req, const char *param, void *ptr, int len)
+{
+	int i, error;
+	struct gctl_req_arg *ap;
+
+	for (i = 0; i < req->narg; i++) {
+		ap = &req->arg[i];
+		if (strcmp(param, ap->name))
+			continue;
+		if (!(ap->flag & GCTL_PARAM_WR)) {
+			gctl_error(req, "No write access %s argument", param);
+			return (EINVAL);
+		}
+		if (ap->len != len) {
+			gctl_error(req, "Wrong length %s argument", param);
+			return (EINVAL);
+		}
+		error = copyout(ptr, ap->value, len);
+		return (error);
+	}
+	gctl_error(req, "Missing %s argument", param);
+	return (EINVAL);
+}
+
 void *
 gctl_get_param(struct gctl_req *req, const char *param, int *len)
 {
