@@ -72,46 +72,50 @@ routines provide the following functionality:
 .Bl -tag -width "copyoutstr()"
 .It Fn copyin
 Copies
-.Pa len
+.Fa len
 bytes of data from the user-space address
-.Pa uaddr
+.Fa uaddr
 to the kernel-space address
-.Pa kaddr .
+.Fa kaddr .
 .It Fn copyout
 Copies
-.Pa len
+.Fa len
 bytes of data from the kernel-space address
-.Pa kaddr
+.Fa kaddr
 to the user-space address
-.Pa uaddr .
+.Fa uaddr .
 .It Fn copystr
 Copies a NUL-terminated string, at most
-.Pa len
+.Fa len
 bytes long, from kernel-space address
-.Pa kfaddr
+.Fa kfaddr
 to kernel-space address
-.Pa kdaddr .
+.Fa kdaddr .
 The number of bytes actually copied, including the terminating
 NUL, is returned in
-.Pa *done
-(if
-.Pa done
+.Fa *done
+.Po
+if
+.Fa done
 is
-.No non- Ns Dv NULL Ns ).
+.No non- Ns Dv NULL
+.Pc .
 .It Fn copyinstr
 Copies a NUL-terminated string, at most
-.Pa len
+.Fa len
 bytes long, from user-space address
-.Pa uaddr
+.Fa uaddr
 to kernel-space address
-.Pa kaddr .
+.Fa kaddr .
 The number of bytes actually copied, including the terminating
 NUL, is returned in
-.Pa *done
-(if
-.Pa done
+.Fa *done
+.Po
+if
+.Fa done
 is
-.No non- Ns Dv NULL Ns ).
+.No non- Ns Dv NULL Ns
+.Pc .
 .\" .It Fn copyoutstr
 .\" Copies a NUL-terminated string, at most
 .\" bytes long, from kernel-space address
@@ -138,7 +142,7 @@ and
 functions return
 .Er ENAMETOOLONG
 if the string is longer than
-.Pa len
+.Fa len
 bytes.
 .Sh SEE ALSO
 .Xr fetch 9 ,
