@@ -104,54 +104,35 @@ AES_decrypt(cipherInstance *ci, keyInstance *ki, void *in, void *out, u_int len)
  * significantly help an attack on other kkeys and in particular does not
  * weaken or compromised the mkey.
  *
- * We do this by cherry-picking characters out of the mkey, feeding these to
- * MD5 with the sector offset in the middle and using the MD5 hash as kkey.
+ * First we MD5 hash the sectornumber with the salt from the lock sector.
+ * The salt prevents the precalculation and statistical analysis of the MD5
+ * output which would be possible if we only gave it the sectornumber.
  *
- * The MD5 only acts as a "diode" against brute-force reversal, it offsers no
- * protection if the input to MD5 is predictable or insufficiently uncorrelated
- * from sector to sector.
+ * The MD5 hash is used to pick out 16 bytes from the masterkey, which
+ * are then hashed with MD5 together with the sector number.
  *
- * The amount of entropy in a sector number is very low, and the amount of
- * entropy between two sector numbers is even lower, (only slightly higher than
- * one bit), so we rely heavily on the mkey to make the cherry picking non-
- * linear and irreversible.
- *
- * This strong dependency on the mkey is very desirable, but the low amount
- * of entropy from the sector number means that the algorithm is vulnerable
- * to mkeys which has a lumpy histogram of byte values or little entropy.
- *
- * If you read this comment in order to find a weak spot or the best way to
- * attack GBDE, you have probably come to the right place.  Good luck.
+ * The resulting MD5 hash is the kkey.
  */
 
 static void
 g_bde_kkey(struct g_bde_softc *sc, keyInstance *ki, int dir, off_t sector)
 {
-	u_int u, v, w, t;
+	u_int t;
 	MD5_CTX ct;
-	u_char buf[16], c;
+	u_char buf[16];
 
 	MD5Init(&ct);
-	w = sector /= sc->sectorsize;
-	v = w % 211;	/* A prime slightly smaller than G_BDE_MKEYLEN */
-	u = w % 19;	/* A small prime */
-	for (t = 0; t < G_BDE_SKEYLEN; t++) {
-		u %= G_BDE_MKEYLEN;
-		v %= G_BDE_MKEYLEN;
-		c = sc->key.key[u] ^ sc->key.key[v];
-		MD5Update(&ct, &c, 1);
-		v += c + t;
-		u += sc->key.key[c];
-		if (w & 1)
-			v += 13;	/* A small prime */
-		else
-			u += 131;	/* A prime roughly G_BDE_MKEYLEN / 2 */
-		w >>= 1;
-		if (t == G_BDE_SKEYLEN / 2)
+	MD5Update(&ct, sc->key.salt, 8);
+	MD5Update(&ct, (void *)&sector, sizeof sector);
+	MD5Update(&ct, sc->key.salt + 8, 8);
+	MD5Final(buf, &ct);
+
+	MD5Init(&ct);
+	for (t = 0; t < 16; t++) {
+		MD5Update(&ct, &sc->key.mkey[buf[t]], 1);
+		if (t == 8)
 			MD5Update(&ct, (void *)&sector, sizeof sector);
 	}
-	w = v = u - 0;
-	MD5Update(&ct, (void *)&sector, sizeof sector);
 	MD5Final(buf, &ct);
 	bzero(&ct, sizeof ct);
 	AES_makekey(ki, dir, G_BDE_KKEYBITS, buf);
