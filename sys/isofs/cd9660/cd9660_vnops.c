@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.22 1995/11/20 03:57:50 dyson Exp $
+ * $Id: cd9660_vnops.c,v 1.23 1995/12/03 17:14:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -558,6 +558,7 @@ cd9660_readdir(ap)
 	int endsearch;
 	struct iso_directory_record *ep;
 	u_short elen;
+	int namlen;
 	int reclen;
 	int isoflags;
 	struct iso_mnt *imp;
@@ -619,8 +620,6 @@ cd9660_readdir(ap)
 			(bp->b_un.b_addr + entryoffsetinblock);
 
 		reclen = isonum_711 (ep->length);
-		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
-				      &ep->date[6]: ep->flags);
 		if (reclen == 0) {
 			/* skip to next block, if any */
 			idp->curroff = roundup (idp->curroff,
@@ -640,21 +639,24 @@ cd9660_readdir(ap)
 			break;
 		}
 
+		namlen = isonum_711 (ep->name_len);
+		if (reclen < ISO_DIRECTORY_RECORD_SIZE + namlen) {
+			error = EINVAL;
+			/* illegal entry, stop */
+			break;
+		}
+
 		/* XXX: be more intelligent if we can */
 		idp->current.d_type = DT_UNKNOWN;
 
-		idp->current.d_namlen = isonum_711 (ep->name_len);
+		idp->current.d_namlen = namlen;
+		isoflags = isonum_711(imp->iso_ftype == ISO_FTYPE_HIGH_SIERRA?
+				      &ep->date[6]: ep->flags);
 		if (isoflags & 2)
 			isodirino(&idp->current.d_fileno,ep,imp);
 		else
 			idp->current.d_fileno = dbtob(bp->b_blkno) +
 				idp->curroff;
-
-		if (reclen < ISO_DIRECTORY_RECORD_SIZE + idp->current.d_namlen) {
-			error = EINVAL;
-			/* illegal entry, stop */
-			break;
-		}
 
 		idp->curroff += reclen;
 		/*
