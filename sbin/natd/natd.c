@@ -1379,7 +1379,7 @@ void SetupPortRedirect (const char* parms)
 	int             i;
 	struct alias_link *link = NULL;
 
-	strcpy (buf, parms);
+	strlcpy (buf, parms, sizeof(buf));
 /*
  * Extract protocol.
  */
@@ -1510,7 +1510,7 @@ SetupProtoRedirect(const char* parms)
 	char*		protoName;
 	struct protoent *protoent;
 
-	strcpy (buf, parms);
+	strlcpy (buf, parms, sizeof(buf));
 /*
  * Extract protocol.
  */
@@ -1564,7 +1564,7 @@ void SetupAddressRedirect (const char* parms)
 	char*		serverPool;
 	struct alias_link *link;
 
-	strcpy (buf, parms);
+	strlcpy (buf, parms, sizeof(buf));
 /*
  * Extract local address.
  */
