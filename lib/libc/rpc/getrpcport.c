@@ -29,9 +29,8 @@
  * Mountain View, California  94043
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *sccsid = "@(#)getrpcport.c 1.3 87/08/11 SMI";
+static char *sccsid2 = "@(#)getrpcport.c 1.3 87/08/11 SMI";
 static char *sccsid = "@(#)getrpcport.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
