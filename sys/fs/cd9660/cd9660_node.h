@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.h	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_node.h,v 1.2 1994/08/02 07:41:22 davidg Exp $
  */
 
 /*
@@ -138,6 +138,10 @@ void cd9660_defattr __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *));
 void cd9660_deftstamp __P((struct iso_directory_record *,
 			struct iso_node *, struct buf *));
+int cd9660_tstamp_conv7 __P((char *pi, struct timespec *pu));
+int cd9660_tstamp_conv17 __P((unsigned char *pi, struct timespec *pu));
+void isodirino __P((ino_t *inump, struct iso_directory_record *isodir,
+		    struct iso_mnt *imp));
 #ifdef	ISODEVMAP
 struct iso_dnode *iso_dmap __P((dev_t, ino_t, int));
 void iso_dunmap __P((dev_t));
