@@ -57,7 +57,8 @@ char	*f_filename;	/*    -f: file to fetch */
 int	 H_flag;	/*    -H: use high port */
 char	*h_hostname;	/*    -h: host to fetch from */
 int	 l_flag;	/*    -l: link rather than copy file: URLs */
-int	 m_flag;	/* -[Mm]: set local timestamp to remote timestamp */
+int	 m_flag;	/* -[Mm]: mirror mode */
+int	 n_flag;	/*    -n: do not preserve modification time */
 int	 o_flag;	/*    -o: specify output file */
 int	 o_directory;	/*        output file is a directory */
 char	*o_filename;	/*        name of output file */
@@ -274,8 +275,6 @@ fetch(char *URL, char *path)
 	url->offset = sb.st_size;
     } else if (m_flag && us.size != -1 && stat(path, &sb) != -1) {
 	/* output to file, mirror mode */
-	warnx(" local: %lld bytes, mtime %ld", sb.st_size, sb.st_mtime);
-	warnx("remote: %lld bytes, mtime %ld", us.size, us.mtime);
 	if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 	    return 0;
 	if ((of = fopen(path, "w")) == NULL) {
@@ -373,7 +372,7 @@ fetch(char *URL, char *path)
     }
     
     /* Set mtime of local file */
-    if (m_flag && us.size != -1 && !o_stdout) {
+    if (!n_flag && us.size != -1 && !o_stdout) {
 	struct timeval tv[2];
 	
 	tv[0].tv_sec = (long)us.atime;
@@ -381,6 +380,13 @@ fetch(char *URL, char *path)
 	tv[0].tv_usec = tv[1].tv_usec = 0;
 	if (utimes(path, tv))
 	    warn("%s: utimes()", path);
+    }
+    
+    /* check the file size */
+    if (us.size != -1 && count < us.size) {
+	warnx("%s appears to be truncated: %lld/%lld bytes",
+	      path, count, us.size);
+	goto failure;
     }
     
  success:
@@ -490,7 +496,7 @@ main(int argc, char *argv[])
 	    m_flag = 1;
 	    break;
 	case 'n':
-	    m_flag = 0;
+	    n_flag = 1;
 	    break;
 	case 'P':
 	case 'p':
@@ -594,7 +600,7 @@ main(int argc, char *argv[])
     }
 
     /* check if output is to a tty (for progress report) */
-    v_tty = isatty(STDOUT_FILENO);
+    v_tty = isatty(STDERR_FILENO);
     r = 0;
 
     while (argc) {
