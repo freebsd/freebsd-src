@@ -497,7 +497,7 @@ ep_if_start(ifp)
 
 startagain:
     /* Sneak a peek at the next packet */
-    m = ifp->if_snd.ifq_head;
+    IF_DEQUEUE(&ifp->if_snd, m);
     if (m == 0) {
 	return;
     }
@@ -514,8 +514,7 @@ startagain:
     if (len + pad > ETHER_MAX_LEN) {
 	/* packet is obviously too large: toss it */
 	++ifp->if_oerrors;
-	IF_DEQUEUE(&ifp->if_snd, m);
-	m_freem(m);
+	m_freem(top);
 	goto readcheck;
     }
     if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
@@ -524,13 +523,12 @@ startagain:
 	/* make sure */
 	if (inw(BASE + EP_W1_FREE_TX) < len + pad + 4) {
 	    ifp->if_flags |= IFF_OACTIVE;
+	    IF_PREPEND(&ifp->if_snd, top);
 	    return;
 	}
     } else {
 	outw(BASE + EP_COMMAND, SET_TX_AVAIL_THRESH | EP_THRESH_DISABLE);
     }
-
-    IF_DEQUEUE(&ifp->if_snd, m);
 
     s = splhigh();
 
@@ -538,7 +536,7 @@ startagain:
     outw(BASE + EP_W1_TX_PIO_WR_1, 0x0);	/* Second dword meaningless */
 
     if (EP_FTST(sc, F_ACCESS_32_BITS)) {
-        for (top = m; m != 0; m = m->m_next) {
+        for (m = top; m != 0; m = m->m_next) {
 	    if (m->m_len > 3)
 	    	outsl(BASE + EP_W1_TX_PIO_WR_1,
 			mtod(m, caddr_t), m->m_len / 4);
@@ -547,7 +545,7 @@ startagain:
 			mtod(m, caddr_t) + (m->m_len & (~3)), m->m_len & 3);
 	}
     } else {
-        for (top = m; m != 0; m = m->m_next) {
+        for (m = top; m != 0; m = m->m_next) {
 	    if (m->m_len > 1)
 	    	outsw(BASE + EP_W1_TX_PIO_WR_1,
 			mtod(m, caddr_t), m->m_len / 2);
