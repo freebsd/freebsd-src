@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.3 1994/10/02 08:19:13 davidg Exp $
+ *	$Id: ps.c,v 1.4 1994/10/02 08:33:31 davidg Exp $
  */
 
 #ifndef lint
@@ -381,9 +381,10 @@ saveuser(ki)
 {
 	struct pstats pstats;
 	struct usave *usp;
+	struct user *u_addr = (struct user *)USRSTACK;
 
 	usp = &ki->ki_u;
-	if (kvm_read(kd, (u_long)&KI_PROC(ki)->p_addr->u_stats,
+	if (kvm_uread(kd, KI_PROC(ki), &u_addr->u_stats,
 	    (char *)&pstats, sizeof(pstats)) == sizeof(pstats)) {
 		/*
 		 * The u-area might be swapped out, and we can't get
