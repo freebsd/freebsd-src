@@ -41,6 +41,7 @@
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 #define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
+#define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
 typedef int callback_t(EFI_MEMORY_DESCRIPTOR*, int, void*);
 
@@ -203,6 +204,7 @@ dumpsys(struct dumperinfo *di)
 {
 	Elf64_Ehdr ehdr;
 	uint64_t dumpsize;
+	off_t hdrgap;
 	size_t hdrsz;
 	int error;
 
@@ -233,6 +235,7 @@ dumpsys(struct dumperinfo *di)
 	hdrsz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
 	fileofs = MD_ALIGN(hdrsz);
 	dumpsize += fileofs;
+	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
 	/* Determine dump offset on device. */
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
@@ -258,7 +261,15 @@ dumpsys(struct dumperinfo *di)
 	if (error < 0)
 		goto fail;
 	buf_flush(di);
-	dumplo += MD_ALIGN(hdrsz);
+
+	/*
+	 * All headers are written using blocked I/O, so we know the
+	 * current offset is (still) block aligned. Skip the alignement
+	 * in the file to have the segment contents aligned at page
+	 * boundary. We cannot use MD_ALIGN on dumplo, because we don't
+	 * care and may very well be unaligned within the dump device.
+	 */
+	dumplo += hdrgap;
 
 	/* Dump region data (updates dumplo) */
 	error = foreach_region(cb_dumpdata, di);
