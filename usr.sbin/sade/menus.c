@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.45 1996/02/02 06:44:02 jkh Exp $
+ * $Id: menus.c,v 1.46 1996/03/21 06:32:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -889,6 +889,8 @@ the other keymaps below.",
 	DMENU_SET_VARIABLE,	 "keymap=german.cp850", 0, 0, dmenuVarCheck	},
       { "German ISO",		"German ISO keymap",
 	DMENU_SET_VARIABLE,	 "keymap=german.iso", 0, 0, dmenuVarCheck	},
+      { "Japanese 106",		"Japanese 106 keymap",
+	DMENU_SET_VARIABLE,	 "keymap=jp.106", 0, 0, dmenuVarCheck	},
       { "Russian CP866",	"Russian Code Page 866 keymap",
 	DMENU_SET_VARIABLE,	 "keymap=ru.cp866", 0, 0, dmenuVarCheck		},
       { "Russian KOI8",		"Russian koi8 keymap",
