@@ -18,6 +18,5 @@ uucp:*:66:
 xten:*:67:xten
 dialer:*:68:
 network:*:69:
-www:*:80:
 nogroup:*:65533:
 nobody:*:65534:
