@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.3 1994/08/02 07:46:42 davidg Exp $
+ * $Id: route.h,v 1.4 1994/08/21 05:11:46 paul Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -95,9 +95,10 @@ struct rtentry {
 #define	rt_key(r)	((struct sockaddr *)((r)->rt_nodes->rn_key))
 #define	rt_mask(r)	((struct sockaddr *)((r)->rt_nodes->rn_mask))
 	struct	sockaddr *rt_gateway;	/* value */
+	/* XXX - rt_flags should be unified with rt_prflags */
 	short	rt_flags;		/* up/down?, host/net */
 	short	rt_refcnt;		/* # held references */
-	u_long	rt_use;			/* raw # packets forwarded */
+	u_long	rt_prflags;		/* protocol-specific flags */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface to use */
 	struct	sockaddr *rt_genmask;	/* for generation of cloned routes */
@@ -120,6 +121,8 @@ struct ortentry {
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 };
 
+#define rt_use rt_rmx.rmx_pksent
+
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
 #define	RTF_HOST	0x4		/* host entry (net otherwise) */
@@ -136,6 +139,7 @@ struct ortentry {
 #define RTF_PROTO2	0x4000		/* protocol specific routing flag */
 #define RTF_PROTO1	0x8000		/* protocol specific routing flag */
 
+#define RTPRF_WASCLONED	0x1		/* route generated through cloning */
 
 /*
  * Routing statistics.
