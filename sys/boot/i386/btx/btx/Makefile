@@ -19,8 +19,8 @@ btx: btx.o
 	objcopy -S -O binary btx.out ${.TARGET}
 .endif
 
-btx.o: btx.m4 btx.s
-	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btx.m4 btx.s) | \
+btx.o: btx.s
+	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btx.s) | \
 	   ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= btx btx.out btx.o
