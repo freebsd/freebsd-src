@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface
- *              $Revision: 4 $
+ *              $Revision: 5 $
  *
  *****************************************************************************/
 
@@ -235,7 +235,7 @@ AcpiGetTimerDuration (
     /* 
      * Compute Tick Delta:
      * -------------------
-     * Handle timer rollovers on 24- versus 32-bit timers.
+     * Handle (max one) timer rollovers on 24- versus 32-bit timers.
      */
     if (StartTicks < EndTicks)
     {
@@ -246,13 +246,18 @@ AcpiGetTimerDuration (
         /* 24-bit Timer */
         if (0 == AcpiGbl_FADT->TmrValExt)
         {
-            DeltaTicks = (0x00FFFFFF - StartTicks) + EndTicks;
+            DeltaTicks = (((0x00FFFFFF - StartTicks) + EndTicks) & 0x00FFFFFF);
         }
         /* 32-bit Timer */
         else 
         {
             DeltaTicks = (0xFFFFFFFF - StartTicks) + EndTicks;
         }
+    }
+    else
+    {
+        *TimeElapsed = 0;
+        return_ACPI_STATUS (AE_OK);
     }
 
     /* 

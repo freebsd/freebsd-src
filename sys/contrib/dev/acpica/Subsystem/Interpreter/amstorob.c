@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amstorob - AML Interpreter object store support, store to object
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 
@@ -160,6 +160,21 @@ AcpiAmlCopyBufferToBuffer (
     Length = SourceDesc->Buffer.Length;
 
     /*
+     * If target is a buffer of length zero, allocate a new
+     * buffer of the proper length
+     */
+    if (TargetDesc->Buffer.Length == 0)
+    {
+        TargetDesc->Buffer.Pointer = AcpiCmAllocate (Length);
+        if (!TargetDesc->Buffer.Pointer)
+        {
+            return (AE_NO_MEMORY);
+        }
+
+        TargetDesc->Buffer.Length = Length;
+    }
+ 
+    /*
      * Buffer is a static allocation,
      * only place what will fit in the buffer.
      */
@@ -171,7 +186,7 @@ AcpiAmlCopyBufferToBuffer (
         MEMCPY(TargetDesc->Buffer.Pointer, Buffer, Length);
     }
 
-    else
+    else 
     {
         /*
          * Truncate the source, copy only what will fit
@@ -179,7 +194,7 @@ AcpiAmlCopyBufferToBuffer (
         MEMCPY(TargetDesc->Buffer.Pointer, Buffer, TargetDesc->Buffer.Length);
 
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlStoreObjectToNode: Truncating src buffer from %X to %X\n",
+            ("AmlCopyBufferToBuffer: Truncating src buffer from %X to %X\n",
             Length, TargetDesc->Buffer.Length));
     }
 
@@ -244,12 +259,12 @@ AcpiAmlCopyStringToString (
         }
 
         TargetDesc->String.Pointer = AcpiCmAllocate (Length + 1);
-        TargetDesc->String.Length = Length;
-
         if (!TargetDesc->String.Pointer)
         {
             return (AE_NO_MEMORY);
         }
+        TargetDesc->String.Length = Length;
+
 
         MEMCPY(TargetDesc->String.Pointer, Buffer, Length);
     }
@@ -306,14 +321,14 @@ AcpiAmlCopyIntegerToIndexField (
                             sizeof (SourceDesc->Integer.Value));
 
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlStoreObjectToNode: IndexField: set data returned %s\n",
+            ("AmlCopyIntegerToIndexField: IndexField: set data returned %s\n",
             AcpiCmFormatException (Status)));
     }
 
     else
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlStoreObjectToNode: IndexField: set index returned %s\n",
+            ("AmlCopyIntegerToIndexField: IndexField: set index returned %s\n",
             AcpiCmFormatException (Status)));
     }
 
@@ -379,7 +394,7 @@ AcpiAmlCopyIntegerToBankField (
     else
     {
         DEBUG_PRINT (ACPI_INFO,
-            ("AmlStoreObjectToNode: BankField: set bakn returned %s\n",
+            ("AmlCopyIntegerToBankField: BankField: set bakn returned %s\n",
             AcpiCmFormatException (Status)));
     }
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rsdump - Functions do dump out the resource structures.
- *              $Revision: 15 $
+ *              $Revision: 16 $
  *
  ******************************************************************************/
 
@@ -1013,25 +1013,25 @@ AcpiRsDumpIrqList (
 
     if (AcpiDbgLevel & TRACE_RESOURCES && _COMPONENT & AcpiDbgLayer)
     {
-        PrtElement = (PCI_ROUTING_TABLE *)Buffer;
+        PrtElement = (PCI_ROUTING_TABLE *) Buffer;
 
         while (!Done)
         {
             AcpiOsPrintf ("\tPCI IRQ Routing Table structure %X.\n", Count++);
 
             AcpiOsPrintf ("\t\tAddress: %X\n",
-                        PrtElement->Data.Address);
+                        PrtElement->Address);
 
-            AcpiOsPrintf ("\t\tPin: %X\n", PrtElement->Data.Pin);
+            AcpiOsPrintf ("\t\tPin: %X\n", PrtElement->Pin);
 
-            AcpiOsPrintf ("\t\tSource: %s\n", PrtElement->Data.Source);
+            AcpiOsPrintf ("\t\tSource: %s\n", PrtElement->Source);
 
             AcpiOsPrintf ("\t\tSourceIndex: %X\n",
-                        PrtElement->Data.SourceIndex);
+                        PrtElement->SourceIndex);
 
             Buffer += PrtElement->Length;
 
-            PrtElement = (PCI_ROUTING_TABLE *)Buffer;
+            PrtElement = (PCI_ROUTING_TABLE *) Buffer;
 
             if(0 == PrtElement->Length)
             {

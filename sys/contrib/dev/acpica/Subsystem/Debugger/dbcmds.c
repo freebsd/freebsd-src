@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  ******************************************************************************/
 
@@ -994,5 +994,77 @@ AcpiDbSetScope (
 
     AcpiOsPrintf ("New scope: %s\n", ScopeBuf);
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDisplayResources
+ *
+ * PARAMETERS:  ObjectArg       - String with hex value of the object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: 
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDisplayResources (
+    NATIVE_CHAR             *ObjectArg)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_STATUS             Status;
+    ACPI_BUFFER             ReturnObj;
+    PCI_ROUTING_TABLE       *Prt;
+    UINT32                  i;
+
+
+    AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
+
+    /* Convert string to object pointer */
+
+    ObjDesc = (ACPI_OPERAND_OBJECT  *) STRTOUL (ObjectArg, NULL, 16);
+
+    /* Prepare for a return object of arbitrary size */
+
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiEvaluateObject (ObjDesc, "_PRT", NULL, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("Could not obtain _PRT: %s\n", AcpiCmFormatException (Status));
+        goto Cleanup;
+    }
+
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiGetIrqRoutingTable (ObjDesc, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiCmFormatException (Status));
+        goto Cleanup;
+    }
+
+    Prt = (PCI_ROUTING_TABLE *) Buffer;
+    i = 0;
+    while ((char *) Prt < (Buffer + ReturnObj.Length))
+    {
+        AcpiOsPrintf ("Prt[%d] Src=%s: Addr=%X\n", i, Prt->Source, Prt->Address);
+        i++;
+        Prt = (PCI_ROUTING_TABLE *) (((char *) Prt) + Prt->Length);
+    }
+
+Cleanup:
+
+    AcpiDbSetOutputDestination (DB_CONSOLE_OUTPUT);
+    return;
+
+}
+
+
+
+
 
 #endif /* ENABLE_DEBUGGER */
