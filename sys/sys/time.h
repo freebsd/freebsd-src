@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.18 1998/02/21 03:20:46 jb Exp $
+ * $Id: time.h,v 1.19 1998/02/25 02:14:14 bde Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -194,12 +194,18 @@ struct clockinfo {
 	int	profhz;		/* profiling clock frequency */
 };
 
+/* CLOCK_REALTIME and TIMER_ABSTIME are supposed to be in time.h */
+
+#ifndef CLOCK_REALTIME
 #define CLOCK_REALTIME	0
+#endif
 #define CLOCK_VIRTUAL	1
 #define CLOCK_PROF	2
 
 #define TIMER_RELTIME	0x0	/* relative timer */
+#ifndef TIMER_ABSTIME
 #define TIMER_ABSTIME	0x1	/* absolute timer */
+#endif
 
 #ifdef KERNEL
 extern struct timecounter *timecounter;

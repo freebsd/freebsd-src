@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.71 1998/02/11 04:57:24 jdp Exp $
+#	$Id: Makefile,v 1.72 1998/02/13 03:10:26 bde Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -14,7 +14,8 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	dlfcn.h elf.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h strhash.h histedit.h \
 	kvm.h limits.h link.h locale.h malloc.h memory.h mpool.h \
-	ndbm.h netdb.h nl_types.h nlist.h paths.h pthread.h pthread_np.h pwd.h \
+	ndbm.h netdb.h nl_types.h nlist.h \
+	paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
 	signal.h stab.h stddef.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h struct.h sysexits.h tar.h time.h timers.h ttyent.h unistd.h \
@@ -32,9 +33,15 @@ RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
 		auth_des.h des.h des_crypt.h
 
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
+
+# posix4/aio.h conflicts with dysons and isn't installed:
+PFILES=	mqueue.h posix4.h sched.h semaphore.h \
+		# aio.h
+
 LFILES=	errno.h fcntl.h poll.h syslog.h termios.h
 
-LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs pccard sys vm \
+LDIRS=	msdosfs net netns netatalk netinet netipx netkey nfs \
+		pccard posix4 sys vm \
 		# netccitt netiso
 
 LNOHEADERDIRS=	isofs ufs
@@ -87,6 +94,10 @@ beforeinstall: ${SHARED}
 .for i in ${MFILES}
 	ln -sf machine/$i ${DESTDIR}/usr/include/$i
 .endfor
+.for i in ${PFILES}
+	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
+.endfor
+
 
 copies:
 .for i in ${LDIRS} ${LNOHEADERDIRS} machine

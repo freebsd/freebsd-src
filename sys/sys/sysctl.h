@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.56 1997/09/07 05:27:26 bde Exp $
+ * $Id: sysctl.h,v 1.57 1997/09/07 16:53:52 bde Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -180,7 +180,16 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	CTL_HW		6		/* generic cpu/io */
 #define	CTL_MACHDEP	7		/* machine dependent */
 #define	CTL_USER	8		/* user-level */
+
+#ifdef POSIX4
+#define	CTL_POSIX4	9		/* user-level */
+#define	CTL_MAXID	10		/* number of valid top-level ids */
+
+#define CTL_POSIX4_NAME { "posix4", CTLTYPE_NODE },
+#else
 #define	CTL_MAXID	9		/* number of valid top-level ids */
+#define CTL_POSIX4_NAME
+#endif	/* POSIX4 */
 
 #define CTL_NAMES { \
 	{ 0, 0 }, \
@@ -192,6 +201,7 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "hw", CTLTYPE_NODE }, \
 	{ "machdep", CTLTYPE_NODE }, \
 	{ "user", CTLTYPE_NODE }, \
+	CTL_POSIX4_NAME \
 }
 
 /*

@@ -174,6 +174,113 @@ sysconf(name)
 	case _SC_2_UPE:
 		mib[0] = CTL_USER;
 		mib[1] = USER_POSIX2_UPE;
+		goto yesno;
+
+#ifdef POSIX4
+	/* POSIX.4 */
+
+	case _SC_ASYNCHRONOUS_IO:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_ASYNCHRONOUS_IO;
+		goto yesno;
+	case _SC_MAPPED_FILES:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MAPPED_FILES;
+		goto yesno;
+	case _SC_MEMLOCK:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MEMLOCK;
+		goto yesno;
+	case _SC_MEMLOCK_RANGE:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MEMLOCK_RANGE;
+		goto yesno;
+	case _SC_MEMORY_PROTECTION:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MEMORY_PROTECTION;
+		goto yesno;
+	case _SC_MESSAGE_PASSING:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MESSAGE_PASSING;
+		goto yesno;
+	case _SC_PRIORITIZED_IO:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_PRIORITIZED_IO;
+		goto yesno;
+	case _SC_PRIORITY_SCHEDULING:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_PRIORITY_SCHEDULING;
+		goto yesno;
+	case _SC_REALTIME_SIGNALS:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_REALTIME_SIGNALS;
+		goto yesno;
+	case _SC_SEMAPHORES:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SEMAPHORES;
+		goto yesno;
+	case _SC_FSYNC:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_FSYNC;
+		goto yesno;
+	case _SC_SHARED_MEMORY_OBJECTS:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SHARED_MEMORY_OBJECTS;
+		goto yesno;
+	case _SC_SYNCHRONIZED_IO:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SYNCHRONIZED_IO;
+		goto yesno;
+	case _SC_TIMERS:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_TIMERS;
+		goto yesno;
+	case _SC_AIO_LISTIO_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_AIO_LISTIO_MAX;
+		goto yesno;
+	case _SC_AIO_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_AIO_MAX;
+		goto yesno;
+	case _SC_AIO_PRIO_DELTA_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_AIO_PRIO_DELTA_MAX;
+		goto yesno;
+	case _SC_DELAYTIMER_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_DELAYTIMER_MAX;
+		goto yesno;
+	case _SC_MQ_OPEN_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_MQ_OPEN_MAX;
+		goto yesno;
+	case _SC_PAGESIZE:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_PAGESIZE;
+		goto yesno;
+	case _SC_RTSIG_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_RTSIG_MAX;
+		goto yesno;
+	case _SC_SEM_NSEMS_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SEM_NSEMS_MAX;
+		goto yesno;
+	case _SC_SEM_VALUE_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SEM_VALUE_MAX;
+		goto yesno;
+	case _SC_SIGQUEUE_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_SIGQUEUE_MAX;
+		goto yesno;
+	case _SC_TIMER_MAX:
+		mib[0] = CTL_POSIX4;
+		mib[1] = CTL_POSIX4_TIMER_MAX;
+		goto yesno;
+#endif /* POSIX4 */
+
 yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 			return (-1);
 		if (value == 0)

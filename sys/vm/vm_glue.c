@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.73 1998/02/06 12:14:22 eivind Exp $
+ * $Id: vm_glue.c,v 1.74 1998/02/09 06:11:24 eivind Exp $
  */
 
 #include "opt_rlimit.h"
@@ -425,7 +425,7 @@ retry:
 			/*
 			 * do not swapout a realtime process
 			 */
-			if (p->p_rtprio.type == RTP_PRIO_REALTIME)
+			if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type))
 				continue;
 
 			/*

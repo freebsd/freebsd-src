@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.14 1997/09/28 09:20:48 markm Exp $
+#	$Id: BSD.include.dist,v 1.15 1998/01/17 15:52:32 bde Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -34,6 +34,8 @@
     objc
     ..
     pccard
+    ..
+    posix4
     ..
     protocols
     ..
