@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id: calendar.birthday,v 1.6 1997/02/25 01:20:23 mpp Exp $
+ * $Id: calendar.birthday,v 1.7 1997/06/23 06:52:58 charnier Exp $
  */
 
 #ifndef _calendar_birthday_
@@ -229,6 +229,7 @@
 10/15	Pelham Grenville Wodehouse born, 1881
 10/16	Noah Webster born, 1758
 10/16	Oscar (Fingal O'Flahertie Wills) Wilde born in Dublin, 1854
+10/16	Dr. Jonathan B. Postel dies at age 55, 1998
 10/17	Richard Mentor Johnson born, 1780, 9th V.P. of U.S.
 10/21	Alfred Nobel born in Stockholm, 1833
 10/27	Gerald M. Weinberg born, 1933
@@ -269,5 +270,4 @@
 12/25	Isaac Newton (Sir) born in Grantham, England, 1642
 12/26	Chas. Babbage born, 1791
 12/28	John von Neumann born, 1903
-
 #endif /* !_calendar_birthday_ */
