@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.5 1995/12/29 15:28:54 bde Exp $
+ * $Id: profile.h,v 1.6 1996/01/01 17:11:21 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -45,6 +45,20 @@
  */
 #define	_MCOUNT_DECL void mcount
 #define	MCOUNT
+
+#ifdef GUPROF
+#define	CALIB_SCALE	1000
+#define	KCOUNT(p,index)	((p)->kcount[(index) \
+			 / (HISTFRACTION * sizeof(*(p)->kcount))])
+#define	MCOUNT_DECL(s)
+#define	MCOUNT_ENTER(s)
+#define	MCOUNT_EXIT(s)
+#define	PC_TO_I(p, pc)	((fptrint_t)(pc) - (fptrint_t)(p)->lowpc)
+#else
+#define	MCOUNT_DECL(s)	u_long s;
+#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
+#define	MCOUNT_EXIT(s)	(write_eflags(s))
+#endif /* GUPROF */
 
 #else /* !KERNEL */
 
@@ -73,15 +87,6 @@ mcount() \
 	_mcount(frompc, selfpc); \
 }
 #endif /* KERNEL */
-
-#ifdef KERNEL
-#define	CALIB_SCALE	1000
-#define	KCOUNT(p,index)	((p)->kcount[(index) \
-			 / (HISTFRACTION * sizeof(*(p)->kcount))])
-#define	MCOUNT_ENTER	{ save_eflags = read_eflags(); disable_intr(); }
-#define	MCOUNT_EXIT	(write_eflags(save_eflags))
-#define	PC_TO_I(p, pc)	((fptrint_t)(pc) - (fptrint_t)(p)->lowpc)
-#endif
 
 /* An unsigned integral type that can hold function pointers. */
 typedef	u_int	fptrint_t;
