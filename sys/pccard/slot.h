@@ -52,15 +52,18 @@ struct slot_ctrl {
 				/* ioctl to lower level */
 	void	(*mapirq) __P((struct slot *, int));
 				/* Map interrupt number */
+	void	(*resume) __P((struct slot *));
+				/* suspend/resume support */
 	int	extra;		/* Controller specific size */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
 	int	irqs;		/* IRQ's that are allowed */
+	u_int	*imask;		/* IRQ mask for the PCIC controller */
 	char	*name;		/* controller name */
+
 	/*
 	 *	The rest is maintained by the mainline PC-CARD code.
 	 */
-
 	struct slot_ctrl *next;	/* Allows linked list of controllers */
 	int	slots;		/* Slots available */
 };
