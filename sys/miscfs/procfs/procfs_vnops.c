@@ -262,6 +262,7 @@ procfs_ioctl(ap)
 	  break;
 	case PIOCGFL:
 	  *(unsigned int*)ap->a_data = (unsigned int)procp->p_pfsflags;
+	  break;
 	case PIOCSTATUS:
 	  psp = (struct procfs_status *)ap->a_data;
 	  psp->state = (procp->p_step == 0);
