@@ -283,12 +283,6 @@ ENTRY(cpu_switch, 0)
 	st8	[r14]=r4		// set r13->pc_curthread
 	mov	ar.k7=r4
 	;;
-// Julian's guess at settinghte thread state
-	add	r15=TD_STATE,r4
-	;;
-	mov	[r15]=TDS_RUNNING
-	;;
-// end of  julian's guess
 	add	r15=TD_PCB,r4
 	;;
 	ld8	r15=[r15]

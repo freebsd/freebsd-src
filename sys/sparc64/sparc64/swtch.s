@@ -109,9 +109,6 @@ ENTRY(cpu_switch)
 	stx	%o0, [PCPU(CURTHREAD)]
 	stx	%o1, [PCPU(CURPCB)]
 
-	mov	TDS_RUNNING, %o2
-	stw	%o2, [%o0 + TD_STATE]
-
 	SET(sched_lock, %o3, %o2)
 	stx	%o0, [%o2 + MTX_LOCK]
 

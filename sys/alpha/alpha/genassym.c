@@ -80,8 +80,6 @@ ASSYM(MTX_UNOWNED, MTX_UNOWNED);
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
-ASSYM(TD_STATE, offsetof(struct thread, td_state));
-ASSYM(TDS_RUNNING, TDS_RUNNING);
 
 ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 

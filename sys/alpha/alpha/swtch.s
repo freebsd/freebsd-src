@@ -127,9 +127,6 @@ Lcs1:	LDGP(pv)
 	mov	v0, s2				/* s2 = new thread */
 	ldq	s3, TD_MD_PCBPADDR(s2)		/* s3 = new pcbpaddr */
 
-	ldiq	t0, TDS_RUNNING
-	stl	t0, TD_STATE(s2)
-
 	/*
 	 * Check to see if we're switching to ourself.  If we are,
 	 * don't bother loading the new context.
