@@ -219,10 +219,10 @@ void
 g_confxml(void *p)
 {
 
+	g_topology_assert();
 	g_conf_specific(p, NULL, NULL, NULL, NULL);
 	wakeup(p);
 }
-
 
 void
 g_trace(int level, char *fmt, ...)
