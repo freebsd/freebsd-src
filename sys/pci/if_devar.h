@@ -1,3 +1,6 @@
+/*	$NetBSD: if_devar.h,v 1.21 1997/10/16 22:02:32 matt Exp $	*/
+/*	$Id$ */
+
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
  * All rights reserved.
@@ -21,13 +24,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_devar.h,v 1.2 1997/09/11 15:27:35 peter Exp $
+ * Id: if_devar.h,v 1.28 1997/07/03 16:55:07 thomas Exp
  */
 
 #if !defined(_DEVAR_H)
 #define _DEVAR_H
 
 #if defined(__NetBSD__)
+
+#include "rnd.h"
+#if NRND > 0
+#include <sys/rnd.h>
+#endif
+
 typedef bus_addr_t tulip_csrptr_t;
 
 #define TULIP_CSR_READ(sc, csr) \
@@ -233,6 +242,7 @@ typedef enum {
 
 typedef struct {
     enum {
+	TULIP_MEDIAINFO_NONE,
 	TULIP_MEDIAINFO_SIA,
 	TULIP_MEDIAINFO_GPR,
 	TULIP_MEDIAINFO_MII,
@@ -332,6 +342,7 @@ typedef enum {
     TULIP_21140_COGENT_EM100,		/* Cogent EM100 100 only */
     TULIP_21140_ZNYX_ZX34X,		/* ZNYX ZX342 10/100 */
     TULIP_21140_ASANTE,			/* AsanteFast 10/100 */
+    TULIP_21140_EN1207,			/* Accton EN2107 10/100 BNC */
     TULIP_21041_GENERIC			/* Generic 21041 card */
 } tulip_board_t;
 
@@ -540,6 +551,7 @@ struct _tulip_softc_t {
 #define	TULIP_HAVE_OKROM	0x00002000	/* ROM was recognized */
 #define	TULIP_HAVE_NOMEDIA	0x00004000	/* did not detect any media */
 #define	TULIP_HAVE_STOREFWD	0x00008000	/* have CMD_STOREFWD */
+#define	TULIP_HAVE_SIA100	0x00010000	/* has LS100 in SIA status */
     u_int32_t tulip_intrmask;	/* our copy of csr_intr */
     u_int32_t tulip_cmdmode;	/* our copy of csr_cmdmode */
     u_int32_t tulip_last_system_error : 3;	/* last system error (only value is TULIP_SYSTEMERROR is also set) */
@@ -661,6 +673,9 @@ struct _tulip_softc_t {
 #else
     tulip_desc_t tulip_rxdescs[TULIP_RXDESCS];
     tulip_desc_t tulip_txdescs[TULIP_TXDESCS];
+#endif
+#if defined(__NetBSD__) && NRND > 0
+    rndsource_element_t    tulip_rndsource;
 #endif
 };
 
