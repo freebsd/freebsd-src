@@ -140,6 +140,10 @@ struct nlist nl[] = {
 	{ "_rc_tty" },
 #define NRC (SNPTY+6)
 	{ "_nrc_tty" },
+#define CY  (SNPTY+7)
+	{ "_cy_tty" },
+#define NCY (SNPTY+8)
+	{ "_ncy_tty" },
 #endif
 	{ "" }
 };
@@ -802,6 +806,8 @@ ttymode()
 		ttytype(tty, "sio", SIO, NSIO);
 	if (nl[NRC].n_type != 0)
 		ttytype(tty, "rc", RC, NRC);
+	if (nl[NCY].n_type != 0)
+		ttytype(tty, "cy", CY, NCY);
 #endif
 	if (nl[SNPTY].n_type != 0)
 		ttytype(tty, "pty", SPTY, SNPTY);
@@ -835,15 +841,37 @@ struct {
 	int flag;
 	char val;
 } ttystates[] = {
+#ifdef TS_WOPEN
 	{ TS_WOPEN,	'W'},
+#endif
 	{ TS_ISOPEN,	'O'},
 	{ TS_CARR_ON,	'C'},
+#ifdef TS_CONNECTED
+	{ TS_CONNECTED,	'c'},
+#endif
 	{ TS_TIMEOUT,	'T'},
 	{ TS_FLUSH,	'F'},
 	{ TS_BUSY,	'B'},
+#ifdef TS_ASLEEP
 	{ TS_ASLEEP,	'A'},
+#endif
+#ifdef TS_SO_OLOWAT
+	{ TS_SO_OLOWAT,	'A'},
+#endif
+#ifdef TS_SO_OCOMPLETE
+	{ TS_SO_OCOMPLETE, 'a'},
+#endif
 	{ TS_XCLUDE,	'X'},
 	{ TS_TTSTOP,	'S'},
+#ifdef TS_CAR_OFLOW
+	{ TS_CAR_OFLOW,	'm'},
+#endif
+#ifdef TS_CTS_OFLOW
+	{ TS_CTS_OFLOW,	'o'},
+#endif
+#ifdef TS_DSR_OFLOW
+	{ TS_DSR_OFLOW,	'd'},
+#endif
 	{ TS_TBLOCK,	'K'},
 	{ TS_ASYNC,	'Y'},
 	{ TS_BKSL,	'D'},
@@ -851,9 +879,14 @@ struct {
 	{ TS_LNCH,	'L'},
 	{ TS_TYPEN,	'P'},
 	{ TS_CNTTB,	'N'},
-#ifdef __FreeBSD__
-	{ TS_SNOOP,     's'},
+#ifdef TS_CAN_BYPASS_L_RINT
 	{ TS_CAN_BYPASS_L_RINT, 'l'},
+#endif
+#ifdef TS_SNOOP
+	{ TS_SNOOP,     's'},
+#endif
+#ifdef TS_ZOMBIE
+	{ TS_ZOMBIE,	'Z'},
 #endif
 	{ 0,	       '\0'},
 };
