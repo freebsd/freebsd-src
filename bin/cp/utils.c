@@ -118,9 +118,6 @@ copy_file(entp, dne)
 
 	rval = 0;
 
-	if (vflag)
-		printf("%s -> %s\n",entp->fts_path, to.p_path);
-
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
 	 * trash memory on big files.  This is really a minor hack, but it
@@ -323,8 +320,9 @@ setfile(fs, fd)
 void
 usage()
 {
+
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i] [-p] [-v] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i] [-p] [-v] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-f | -i] [-pv] src target",
+"       cp [-R [-H | -L | -P]] [-f | -i] [-pv] src1 ... srcN directory");
 	exit(1);
 }
