@@ -1,4 +1,4 @@
-/*	$OpenBSD: pfctl_altq.c,v 1.77 2003/08/22 21:50:34 david Exp $	*/
+/*	$OpenBSD: pfctl_altq.c,v 1.83 2004/03/14 21:51:44 dhartmei Exp $	*/
 
 /*
  * Copyright (c) 2002
@@ -89,8 +89,6 @@ u_int32_t	 eval_bwspec(struct node_queue_bw *, u_int32_t);
 void		 print_hfsc_sc(const char *, u_int, u_int, u_int,
 		     const struct node_hfsc_sc *);
 
-static u_int32_t	 max_qid = 1;
-
 void
 pfaltq_store(struct pf_altq *a)
 {
@@ -165,14 +163,14 @@ void
 print_altq(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
 	struct node_queue_opt *qopts)
 {
-	if (a->qname[0] != '\0') {
+	if (a->qname[0] != 0) {
 		print_queue(a, level, bw, 0, qopts);
 		return;
 	}
 
 	printf("altq on %s ", a->ifname);
 
-	switch(a->scheduler) {
+	switch (a->scheduler) {
 	case ALTQT_CBQ:
 		if (!print_cbq_opts(a))
 			printf("cbq ");
@@ -272,6 +270,8 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 		else
 			size = 24;
 		size = size * getifmtu(pa->ifname);
+		if (size > 0xffff)
+			size = 0xffff;
 		pa->tbrsize = size;
 	}
 	return (errors);
@@ -421,8 +421,6 @@ eval_pfqueue_cbq(struct pfctl *pf, struct pf_altq *pa)
 
 	if (pa->parent[0] == 0)
 		opts->flags |= (CBQCLF_ROOTCLASS | CBQCLF_WRR);
-	else if (pa->qid == 0 && (opts->flags & CBQCLF_DEFCLASS) == 0)
-		pa->qid = ++max_qid;
 
 	cbq_compute_idletime(pf, pa);
 	return (0);
@@ -496,9 +494,12 @@ cbq_compute_idletime(struct pfctl *pf, struct pf_altq *pa)
 	minidle = -((double)opts->maxpktsize * (double)nsPerByte);
 
 	/* scale parameters */
-	maxidle = ((maxidle * 8.0) / nsPerByte) * pow(2.0, (double)RM_FILTER_GAIN);
-	offtime = (offtime * 8.0) / nsPerByte * pow(2.0, (double)RM_FILTER_GAIN);
-	minidle = ((minidle * 8.0) / nsPerByte) * pow(2.0, (double)RM_FILTER_GAIN);
+	maxidle = ((maxidle * 8.0) / nsPerByte) *
+	    pow(2.0, (double)RM_FILTER_GAIN);
+	offtime = (offtime * 8.0) / nsPerByte *
+	    pow(2.0, (double)RM_FILTER_GAIN);
+	minidle = ((minidle * 8.0) / nsPerByte) *
+	    pow(2.0, (double)RM_FILTER_GAIN);
 
 	maxidle = maxidle / 1000.0;
 	offtime = offtime / 1000.0;
@@ -506,10 +507,10 @@ cbq_compute_idletime(struct pfctl *pf, struct pf_altq *pa)
 
 	opts->minburst = minburst;
 	opts->maxburst = maxburst;
-	opts->ns_per_byte = (u_int) nsPerByte;
-	opts->maxidle = (u_int) fabs(maxidle);
+	opts->ns_per_byte = (u_int)nsPerByte;
+	opts->maxidle = (u_int)fabs(maxidle);
 	opts->minidle = (int)minidle;
-	opts->offtime = (u_int) fabs(offtime);
+	opts->offtime = (u_int)fabs(offtime);
 
 	return (0);
 }
@@ -604,9 +605,6 @@ eval_pfqueue_priq(struct pfctl *pf, struct pf_altq *pa)
 		}
 	}
 
-	if (pa->qid == 0)
-		pa->qid = ++max_qid;
-
 	return (0);
 }
 
@@ -676,13 +674,11 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 
 	if (pa->parent[0] == 0) {
 		/* root queue */
-		pa->qid = HFSC_ROOTCLASS_HANDLE;
 		opts->lssc_m1 = pa->ifbandwidth;
 		opts->lssc_m2 = pa->ifbandwidth;
 		opts->lssc_d = 0;
 		return (0);
-	} else if (pa->qid == 0)
-		pa->qid = ++max_qid;
+	}
 
 	LIST_INIT(&rtsc);
 	LIST_INIT(&lssc);
@@ -729,7 +725,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 		/* if the class has a real-time service curve, add it. */
 		if (opts->rtsc_m2 != 0 && altq->pq_u.hfsc_opts.rtsc_m2 != 0) {
 			sc.m1 = altq->pq_u.hfsc_opts.rtsc_m1;
-			sc.d  = altq->pq_u.hfsc_opts.rtsc_d;
+			sc.d = altq->pq_u.hfsc_opts.rtsc_d;
 			sc.m2 = altq->pq_u.hfsc_opts.rtsc_m2;
 			gsc_add_sc(&rtsc, &sc);
 		}
@@ -740,7 +736,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 		/* if the class has a link-sharing service curve, add it. */
 		if (opts->lssc_m2 != 0 && altq->pq_u.hfsc_opts.lssc_m2 != 0) {
 			sc.m1 = altq->pq_u.hfsc_opts.lssc_m1;
-			sc.d  = altq->pq_u.hfsc_opts.lssc_d;
+			sc.d = altq->pq_u.hfsc_opts.lssc_d;
 			sc.m2 = altq->pq_u.hfsc_opts.lssc_m2;
 			gsc_add_sc(&lssc, &sc);
 		}
@@ -749,7 +745,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 	/* check the real-time service curve.  reserve 20% of interface bw */
 	if (opts->rtsc_m2 != 0) {
 		sc.m1 = 0;
-		sc.d  = 0;
+		sc.d = 0;
 		sc.m2 = pa->ifbandwidth / 100 * 80;
 		if (!is_gsc_under_sc(&rtsc, &sc)) {
 			warnx("real-time sc exceeds the interface bandwidth");
@@ -760,7 +756,7 @@ eval_pfqueue_hfsc(struct pfctl *pf, struct pf_altq *pa)
 	/* check the link-sharing service curve. */
 	if (opts->lssc_m2 != 0) {
 		sc.m1 = parent->pq_u.hfsc_opts.lssc_m1;
-		sc.d  = parent->pq_u.hfsc_opts.lssc_d;
+		sc.d = parent->pq_u.hfsc_opts.lssc_d;
 		sc.m2 = parent->pq_u.hfsc_opts.lssc_m2;
 		if (!is_gsc_under_sc(&lssc, &sc)) {
 			warnx("link-sharing sc exceeds parent's sc");
@@ -1020,7 +1016,7 @@ gsc_add_seg(struct gen_sc *gsc, double x, double y, double d, double m)
 	else
 		x2 = x + d;
 	start = gsc_getentry(gsc, x);
-	end   = gsc_getentry(gsc, x2);
+	end = gsc_getentry(gsc, x2);
 	if (start == NULL || end == NULL)
 		return (-1);
 

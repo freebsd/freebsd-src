@@ -16,11 +16,13 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#include <sys/ioctl.h>
-#include <sys/types.h>
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
 
 #include <net/if.h>
 #include <net/bpf.h>
@@ -28,13 +30,13 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <pcap.h>
-#include <pcap-int.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pcap.h>
+#include <pcap-int.h>
 #include <syslog.h>
 #include <unistd.h>
 #include "pflogd.h"
@@ -70,7 +72,11 @@ priv_init(void)
 	int snaplen, ret;
 	struct passwd *pw;
 
+#ifdef __FreeBSD__
+	for (i = 1; i < NSIG; i++)
+#else
 	for (i = 1; i < _NSIG; i++)
+#endif
 		signal(i, SIG_DFL);
 
 	/* Create sockets */

@@ -41,6 +41,7 @@ BEGIN {
 	print "#include <net/ethernet.h>"
 	print "#include <net/if.h>"
 	print "#include <net/if_var.h>"
+	print "#include <net/pfvar.h>"
 	print "#include <net/route.h>"
 	print "#include <netatm/atm.h>"
 	print "#include <netatm/atm_if.h>"

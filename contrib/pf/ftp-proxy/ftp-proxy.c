@@ -1,4 +1,4 @@
-/*	$OpenBSD: ftp-proxy.c,v 1.33 2003/08/22 21:50:34 david Exp $ */
+/*	$OpenBSD: ftp-proxy.c,v 1.35 2004/03/14 21:51:44 dhartmei Exp $ */
 
 /*
  * Copyright (c) 1996-2001
@@ -151,6 +151,7 @@ char *Group;
 
 extern int Debug_Level;
 extern int Use_Rdns;
+extern in_addr_t Bind_Addr;
 extern char *__progname;
 
 typedef enum {
@@ -174,9 +175,8 @@ static void
 usage(void)
 {
 	syslog(LOG_NOTICE,
-	    "usage: %s [-AnrVw] [-D debuglevel] [-g group] %s %s",
-	    __progname, "[-m minport] [-M maxport] [-t timeout]",
-	    "[-u user]");
+	    "usage: %s [-AnrVw] [-a address] [-D debuglevel [-g group]"
+	    " [-M maxport] [-m minport] [-t timeout] [-u user]", __progname);
 	exit(EX_USAGE);
 }
 
@@ -976,9 +976,18 @@ main(int argc, char *argv[])
 	int use_tcpwrapper = 0;
 #endif /* LIBWRAP */
 
-	while ((ch = getopt(argc, argv, "D:g:m:M:t:u:AnVwr")) != -1) {
+	while ((ch = getopt(argc, argv, "a:D:g:m:M:t:u:AnVwr")) != -1) {
 		char *p;
 		switch (ch) {
+		case 'a':
+			if (!*optarg)
+				usage();
+			if ((Bind_Addr = inet_addr(optarg)) == INADDR_NONE) {
+				syslog(LOG_NOTICE,
+					"%s: invalid address", optarg);
+				usage();
+			}
+			break;
 		case 'A':
 			AnonFtpOnly = 1; /* restrict to anon usernames only */
 			break;
