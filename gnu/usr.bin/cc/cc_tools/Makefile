@@ -64,7 +64,7 @@ GENSRCS+=	gen$F.c
 CLEANFILES+=	gen$F
 .endfor
 
-.ORDER: genrtl.c genrtl.h print-rtl.o
+.ORDER: genrtl.c genrtl.h
 genrtl.c genrtl.h: gengenrtl
 	./gengenrtl genrtl.h genrtl.c
 
@@ -177,8 +177,8 @@ ${OBJS:Nbitmap.o:Ngenattr.o:Ngencheck.o:Ngencodes.o:Ngenconfig.o:Ngenflags.o:Nge
 # Filter out the headers that would cause problems (and a few more when it
 # is inconvenient to filter precisely).
 #
-bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o rtl.o: \
-    ${SRCS:M*.h:Ninsn-*.h}
+bitmap.o genattr.o gencodes.o genconfig.o genflags.o obstack.o print-rtl.o \
+    rtl.o: ${SRCS:M*.h:Ninsn-*.h}
 gencheck.o: gencheck.h ${SRCS:M*.h:Ngenrtl.h:Ntree-check.h:Ninsn-*.h}
 gengenrtl.o: ${SRCS:M*.h:Ngenrtl.h:Ninsn-*.h}
 .endif
