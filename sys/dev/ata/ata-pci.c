@@ -256,23 +256,30 @@ ata_pci_match(device_t dev)
 	return "Promise ATA100 controller";
 
     case 0x4d68105a:
-    case 0x6268105a: 
-	if (pci_get_devid(GRANDPARENT(dev)) == 0x00221011 &&
-	    pci_get_class(GRANDPARENT(dev)) == PCIC_BRIDGE) {
-	    static long start = 0, end = 0;
+    case 0x6268105a:
+	{
+	    uintptr_t devid = 0;
 
-	    /* we belive we are on a TX4, now do our (simple) magic */
-	    if (pci_get_slot(dev) == 1) {
-		bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
-		return "Promise TX4 ATA100 controller (channel 0+1)";
+	    /* test if we are behind the right type of bridge */
+	    if (!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
+			       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
+		devid == 0x00221011 &&
+		pci_get_class(GRANDPARENT(dev)) == PCIC_BRIDGE) {
+		static long start = 0, end = 0;
+
+		/* we belive we are on a TX4, now do our (simple) magic */
+		if (pci_get_slot(dev) == 1) {
+		    bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
+		    return "Promise TX4 ATA100 controller (channel 0+1)";
+		}
+		else if (pci_get_slot(dev) == 2 && start && end) {
+		    bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
+		    start = end = 0;
+		    return "Promise TX4 ATA100 controller (channel 2+3)";
+		}
+		else
+		    start = end = 0;
 	    }
-	    else if (pci_get_slot(dev) == 2 && start && end) {
-		bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
-		start = end = 0;
-		return "Promise TX4 ATA100 controller (channel 2+3)";
-	    }
-	    else
-		start = end = 0;
 	}
 	return "Promise TX2 ATA100 controller";
 
