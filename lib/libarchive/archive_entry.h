@@ -167,6 +167,21 @@ int	 archive_entry_acl_next_w(struct archive_entry *, int want_type,
 	     int *type, int *permset, int *tag, int *qual,
 	     const wchar_t **name);
 
+/*
+ * Construct a text-format ACL.  The flags argument is a bitmask that
+ * can include any of the following:
+ *
+ * ARCHIVE_ENTRY_ACL_TYPE_ACCESS - Include access entries.
+ * ARCHIVE_ENTRY_ACL_TYPE_DEFAULT - Include default entries.
+ * ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID - Include extra numeric ID field in
+ *    each ACL entry.  (As used by 'star'.)
+ * ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT - Include "default:" before each
+ *    default ACL entry.
+ */
+#define	ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID	1024
+#define	ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT	2048
+const wchar_t	*archive_entry_acl_text_w(struct archive_entry *, int flags);
+
 /* Return a count of entries matching 'want_type' */
 int	 archive_entry_acl_count(struct archive_entry *, int want_type);
 

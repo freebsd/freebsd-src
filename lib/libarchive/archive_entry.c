@@ -747,7 +747,7 @@ archive_entry_acl_reset(struct archive_entry *entry, int want_type)
 		entry->acl_state = ARCHIVE_ENTRY_ACL_USER_OBJ;
 	else
 		entry->acl_state = 0;
-	entry->acl_p = NULL;
+	entry->acl_p = entry->acl_head;
 	return (count);
 }
 
@@ -768,30 +768,34 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 	 * (reading from list), or an entry type (retrieve that type
 	 * from ae_stat.st_mode).
 	 */
-
 	if (entry->acl_state == 0)
 		return (ARCHIVE_WARN);
 
-	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0  &&
-	    entry->acl_state > 0) {
-		*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
-		*tag = entry->acl_state;
+	/* The first three access entries are special. */
+	if ((want_type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		switch (entry->acl_state) {
 		case ARCHIVE_ENTRY_ACL_USER_OBJ:
 			*permset = (entry->ae_stat.st_mode >> 6) & 7;
+			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+			*tag = ARCHIVE_ENTRY_ACL_USER_OBJ;
 			entry->acl_state = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
-			break;
+			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 			*permset = (entry->ae_stat.st_mode >> 3) & 7;
+			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+			*tag = ARCHIVE_ENTRY_ACL_GROUP_OBJ;
 			entry->acl_state = ARCHIVE_ENTRY_ACL_OTHER;
-			break;
+			return (ARCHIVE_OK);
 		case ARCHIVE_ENTRY_ACL_OTHER:
 			*permset = entry->ae_stat.st_mode & 7;
+			*type = ARCHIVE_ENTRY_ACL_TYPE_ACCESS;
+			*tag = ARCHIVE_ENTRY_ACL_OTHER;
 			entry->acl_state = -1;
 			entry->acl_p = entry->acl_head;
+			return (ARCHIVE_OK);
+		default:
 			break;
 		}
-		return (ARCHIVE_OK);
 	}
 
 	while (entry->acl_p != NULL && (entry->acl_p->type & want_type) == 0)
@@ -810,24 +814,19 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 }
 
 /*
- * Generate a text version of the ACL.  The format here varies
- * from POSIX.1e in a couple of useful ways:
- *
- *  * An additional colon-delimited field holds the numeric uid
- *    or gid.  For proper archiving, it is essential to have both
- *    the uname/gname and the uid/gid.
- *
- *  * You can request a single text holding both access and default
- *    entries.  In this case, each default entry is prefixed with
- *    "default:".
+ * Generate a text version of the ACL.  The flags parameter controls
+ * the style of the generated ACL.
  */
 const wchar_t *
-__archive_entry_acl_text_w(struct archive_entry *entry, int type)
+archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
 	int count;
 	int length;
 	const wchar_t *wname;
+	const wchar_t *prefix;
+	wchar_t separator;
 	struct ae_acl *ap;
+	int id;
 	wchar_t *wp;
 
 	if (entry->acl_text_w != NULL) {
@@ -835,14 +834,15 @@ __archive_entry_acl_text_w(struct archive_entry *entry, int type)
 		entry->acl_text_w = NULL;
 	}
 
+	separator = L',';
 	count = 0;
 	length = 0;
 	ap = entry->acl_head;
 	while (ap != NULL) {
-		if ((ap->type & type) != 0) {
+		if ((ap->type & flags) != 0) {
 			count++;
-			if (type & (ARCHIVE_ENTRY_ACL_TYPE_ACCESS |
-				ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
+			if ((flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT) &&
+			    (ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT))
 				length += 8; /* "default:" */
 			length += 5; /* tag name */
 			length += 1; /* colon */
@@ -858,7 +858,7 @@ __archive_entry_acl_text_w(struct archive_entry *entry, int type)
 		ap = ap->next;
 	}
 
-	if (count > 0 && ((type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
+	if (count > 0 && ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0)) {
 		length += 10; /* "user::rwx\n" */
 		length += 11; /* "group::rwx\n" */
 		length += 11; /* "other::rwx\n" */
@@ -870,7 +870,7 @@ __archive_entry_acl_text_w(struct archive_entry *entry, int type)
 	/* Now, allocate the string and actually populate it. */
 	wp = entry->acl_text_w = malloc(length * sizeof(wchar_t));
 	count = 0;
-	if ((type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 		append_entry_w(&wp, NULL, ARCHIVE_ENTRY_ACL_USER_OBJ, NULL,
 		    entry->ae_stat.st_mode & 0700, -1);
 		*wp++ = ',';
@@ -885,24 +885,39 @@ __archive_entry_acl_text_w(struct archive_entry *entry, int type)
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_ACCESS) != 0) {
 				wname = aes_get_wcs(&ap->name);
-				*wp++ = ',';
+				*wp++ = separator;
+				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+					id = ap->id;
+				else
+					id = -1;
 				append_entry_w(&wp, NULL, ap->tag, wname,
-				    ap->permset, ap->id);
+				    ap->permset, id);
 				count++;
 			}
 			ap = ap->next;
 		}
 	}
 
-	if ((type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+
+	if ((flags & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
+		if (flags & ARCHIVE_ENTRY_ACL_STYLE_MARK_DEFAULT)
+			prefix = L"default:";
+		else
+			prefix = NULL;
 		ap = entry->acl_head;
+		count = 0;
 		while (ap != NULL) {
 			if ((ap->type & ARCHIVE_ENTRY_ACL_TYPE_DEFAULT) != 0) {
 				wname = aes_get_wcs(&ap->name);
 				if (count > 0)
-					*wp++ = ',';
-				append_entry_w(&wp, L"default:", ap->tag,
-				    wname, ap->permset, ap->id);
+					*wp++ = separator;
+				if (flags & ARCHIVE_ENTRY_ACL_STYLE_EXTRA_ID)
+					id = ap->id;
+				else
+					id = -1;
+				append_entry_w(&wp, prefix, ap->tag,
+				    wname, ap->permset, id);
+				count ++;
 			}
 			ap = ap->next;
 		}
@@ -955,9 +970,10 @@ append_entry_w(wchar_t **wp, const wchar_t *prefix, int tag,
 	}
 	*wp += wcslen(*wp);
 	*(*wp)++ = L':';
-	if (wname != NULL)
+	if (wname != NULL) {
 		wcscpy(*wp, wname);
-	*wp += wcslen(*wp);
+		*wp += wcslen(*wp);
+	}
 	*(*wp)++ = L':';
 	*(*wp)++ = (perm & 0444) ? L'r' : L'-';
 	*(*wp)++ = (perm & 0222) ? L'w' : L'-';
@@ -989,8 +1005,6 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 	name_start = name_end = NULL;
 	namebuff = NULL;
 	namebuff_length = 0;
-
-	archive_entry_acl_clear(entry);
 
 	while (text != NULL  &&  *text != L'\0') {
 		next_field_w(&text, &start, &end, &sep);
