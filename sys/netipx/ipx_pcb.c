@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_pcb.c
  *
- * $Id: ipx_pcb.c,v 1.13 1997/10/28 15:58:56 bde Exp $
+ * $Id: ipx_pcb.c,v 1.14 1998/02/09 06:10:23 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -169,7 +169,6 @@ ipx_pcbconnect(ipxp, nam, p)
 			if (ro->ro_rt != NULL)
 				RTFREE(ro->ro_rt);
 			ro->ro_rt = NULL;
-			ipxp->ipxp_laddr.x_net = ipx_zeronet;
 		}
 	}/* else cached route is ok; do nothing */
 	ipxp->ipxp_lastdst = sipx->sipx_addr;

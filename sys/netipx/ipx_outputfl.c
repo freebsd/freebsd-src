@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.9 1997/07/01 00:22:49 bde Exp $
+ * $Id: ipx_outputfl.c,v 1.10 1998/02/09 06:10:21 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -118,7 +118,7 @@ gotif:
 	 * such a packet.
 	 */
 	if (dst->sipx_addr.x_host.c_host[0]&1) {
-		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
+		if ((ifp->if_flags & (IFF_BROADCAST | IFF_LOOPBACK)) == 0) {
 			error = EADDRNOTAVAIL;
 			goto bad;
 		}
@@ -126,6 +126,7 @@ gotif:
 			error = EACCES;
 			goto bad;
 		}
+		m0->m_flags |= M_BCAST;
 	}
 
 	if (htons(ipx->ipx_len) <= ifp->if_mtu) {
