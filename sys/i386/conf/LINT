@@ -1205,6 +1205,7 @@ device		stg0	at isa? port 0x140 irq 11
 #			support).
 #
 device		aac
+device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only

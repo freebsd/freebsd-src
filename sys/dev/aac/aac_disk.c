@@ -108,17 +108,17 @@ static driver_t aac_disk_driver = {
 	sizeof(struct aac_disk)
 };
 
+#define AAC_MAXIO	65536
+
 DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
 
 /* sysctl tunables */
-static unsigned int aac_iosize_max = 65536;	/* due to limits of the card */
+static unsigned int aac_iosize_max = AAC_MAXIO;	/* due to limits of the card */
 TUNABLE_INT("hw.aac.iosize_max", &aac_iosize_max);
 
 SYSCTL_DECL(_hw_aac);
 SYSCTL_UINT(_hw_aac, OID_AUTO, iosize_max, CTLFLAG_RD, &aac_iosize_max, 0,
 	    "Max I/O size per transfer to an array");
-
-#define AAC_MAXIO	65536
 
 /*
  * Handle open from generic layer.
