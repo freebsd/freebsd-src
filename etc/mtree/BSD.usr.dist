@@ -453,6 +453,8 @@
             ..
             la_LN.US-ASCII
             ..
+            lt_LT.ISO8859-13
+            ..
             lt_LT.ISO8859-4
             ..
             nl_BE.ISO8859-1
@@ -776,6 +778,8 @@
             la_LN.ISO8859-4
             ..
             la_LN.US-ASCII
+            ..
+            lt_LT.ISO8859-13
             ..
             lt_LT.ISO8859-4
             ..
