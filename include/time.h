@@ -98,6 +98,8 @@ void tzset __P((void));
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 char *timezone __P((int, int));
 void tzsetwall __P((void));
+time_t timelocal __P((struct tm * const));
+time_t timegm __P((struct tm * const));
 #endif /* neither ANSI nor POSIX */
 __END_DECLS
 
