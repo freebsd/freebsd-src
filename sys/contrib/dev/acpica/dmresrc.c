@@ -435,7 +435,7 @@ AcpiDmIsResourceDescriptor (
 
     /* The list must have a valid END_TAG */
 
-    if (ByteData[ByteCount-2] != (ACPI_RDESC_TYPE_END_TAG | 1))
+    if (ByteData[ByteCount-1] != (ACPI_RDESC_TYPE_END_TAG | 1))
     {
         return FALSE;
     }
