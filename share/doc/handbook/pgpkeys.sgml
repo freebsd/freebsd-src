@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.4 1996/05/27 02:33:13 ache Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.5 1996/06/01 19:08:39 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -176,5 +176,25 @@ c5tqjsfRcHqxqu2cHIXPiatWHjeT8ac6kn+ABu/u3RSJ/qHul9hXCM4G2GPiH5oC
 SBxFYwxx+frgF8m+peIinPPXkGsDt7fPKXxyyVm085p74M9nDK8bfeB0b4JB373K
 RhIG8pXauhAd9zrp2sxXH2RUSHF5NbH8iw72BA==
 =ekPo
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.rich</heading><p>
+
+<tscreen><verb>
+Rich Murphey &lt;rich@FreeBSD.org&gt;
+fingerprint = AF A0 60 C4 84 D6 0C 73  D1 EF C0 E9 9D 21 DB E4
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2
+
+mQCNAy97V+MAAAEEALiNM3FCwm3qrCe81E20UOSlNclOWfZHNAyOyj1ahHeINvo1
+FBF2Gd5Lbj0y8SLMno5yJ6P4F4r+x3jwHZrzAIwMs/lxDXRtB0VeVWnlj6a3Rezs
+wbfaTeSVyh5JohEcKdoYiMG5wjATOwK/NAwIPthB1RzRjnEeer3HI3ZYNEOpAAUR
+tCRSaWNoIE11cnBoZXkgPHJpY2hAbGFtcHJleS51dG1iLmVkdT6JAJUDBRAve15W
+vccjdlg0Q6kBAZTZBACcNd/LiVnMFURPrO4pVRn1sVQeokVX7izeWQ7siE31Iy7g
+Sb97WRLEYDi686osaGfsuKNA87Rm+q5F+jxeUV4w4szoqp60gGvCbD0KCB2hWraP
+/2s2qdVAxhfcoTin/Qp1ZWvXxFF7imGA/IjYIfB42VkaRYu6BwLEm3YAGfGcSw==
+=QoiM
 -----END PGP PUBLIC KEY BLOCK-----
 </verb></tscreen>
