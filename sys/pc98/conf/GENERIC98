@@ -124,6 +124,10 @@ device		sa0		# Sequential Access (tape etc)
 device		cd0		# CD
 device		pass0		# Passthrough device (direct SCSI access)
 
+# RAID controllers
+device		amr0		# AMI MegaRAID
+device		mlx0		# Mylex DAC960 family
+
 # Proprietary or custom CD-ROM Interfaces
 device		matcd0	at isa? port?
 
@@ -143,7 +147,7 @@ device		sc0	at isa?
 device		npx0	at nexus? port IO_NPX irq 8
 
 # Power management support (see LINT for more options)
-device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
+device		apm0    at nexus? disable flags 0x20 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
 #controller	card0
