@@ -2755,7 +2755,7 @@ rename(td, uap)
 int
 kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 {
-	struct mount *mp;
+	struct mount *mp = NULL;
 	struct vnode *tvp, *fvp, *tdvp;
 	struct nameidata fromnd, tond;
 	int error;
@@ -2847,12 +2847,12 @@ out:
 		vrele(fvp);
 	}
 	vrele(tond.ni_startdir);
-	vn_finished_write(mp);
 	ASSERT_VOP_UNLOCKED(fromnd.ni_dvp, "rename");
 	ASSERT_VOP_UNLOCKED(fromnd.ni_vp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_dvp, "rename");
 	ASSERT_VOP_UNLOCKED(tond.ni_vp, "rename");
 out1:
+	vn_finished_write(mp);
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
 	if (error == -1)
