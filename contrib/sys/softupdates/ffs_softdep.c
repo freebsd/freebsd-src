@@ -52,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.35 (McKusick) 5/6/99
- *	$Id: ffs_softdep.c,v 1.24 1999/03/02 06:38:07 mckusick Exp $
+ *	from: @(#)ffs_softdep.c	9.36 (McKusick) 5/6/99
+ *	$Id: ffs_softdep.c,v 1.25 1999/05/07 02:26:47 mckusick Exp $
  */
 
 /*
@@ -954,7 +954,7 @@ softdep_mount(devvp, mp, fs, cred)
 		brelse(bp);
 	}
 #ifdef DEBUG
-	if (!bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
+	if (bcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal))
 		printf("ffs_mountfs: superblock updated for soft updates\n");
 #endif
 	bcopy(&cstotal, &fs->fs_cstotal, sizeof cstotal);
@@ -1504,19 +1504,12 @@ setup_allocindir_phase2(bp, ip, aip)
 		newindirdep->ir_state = ATTACHED;
 		LIST_INIT(&newindirdep->ir_deplisthd);
 		LIST_INIT(&newindirdep->ir_donehd);
-#ifdef __FreeBSD__
 		if (bp->b_blkno == bp->b_lblkno) {
-#if 0 /* we know this happens.. research suggested.. */
-			printf("setup_allocindir_phase2: need bmap, blk %d\n",
-				bp->b_lblkno);
-#endif
 			VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
 				NULL, NULL);
 		}
-#endif /* __FreeBSD__ */
 		newindirdep->ir_savebp =
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
-		bp->b_flags |= B_XXX;
 		bcopy(bp->b_data, newindirdep->ir_savebp->b_data, bp->b_bcount);
 	}
 }
@@ -2016,7 +2009,6 @@ indir_trunc(ip, dbn, level, lbn, countp)
 		*countp += nblocks;
 	}
 	bp->b_flags |= B_INVAL | B_NOCACHE;
-	bp->b_flags &= ~B_XXX;
 	brelse(bp);
 	return (allerror);
 }
@@ -2665,7 +2657,6 @@ softdep_disk_io_initiation(bp)
 			 * dependency can be freed.
 			 */
 			if (LIST_FIRST(&indirdep->ir_deplisthd) == NULL) {
-				indirdep->ir_savebp->b_flags &= ~B_XXX;
 				indirdep->ir_savebp->b_flags |= B_INVAL | B_NOCACHE;
 				brelse(indirdep->ir_savebp);
 				/* inline expand WORKLIST_REMOVE(wk); */
@@ -3559,9 +3550,6 @@ softdep_fsync(vp)
 	struct fs *fs;
 	struct proc *p = CURPROC;		/* XXX */
 	int error, ret, flushparent;
-#ifndef __FreeBSD__
-	struct timeval tv;
-#endif
 	ino_t parentino;
 	ufs_lbn_t lbn;
 
@@ -3628,13 +3616,7 @@ softdep_fsync(vp)
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		if (flushparent) {
-#ifdef __FreeBSD__
-			error = UFS_UPDATE(pvp, 1);
-#else
-			tv = time;
-			error = UFS_UPDATE(pvp, &tv, &tv, 1);
-#endif
-			if (error) {
+			if ((error = UFS_UPDATE(pvp, 1)) != 0) {
 				vput(pvp);
 				return (error);
 			}
@@ -4018,9 +4000,6 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	struct inodedep *inodedep;
 	struct ufsmount *ump;
 	struct diradd *dap;
-#ifndef __FreeBSD__
-	struct timeval tv;
-#endif
 	struct vnode *vp;
 	int gotit, error = 0;
 	struct buf *bp;
@@ -4034,13 +4013,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		 */
 		if (dap->da_state & MKDIR_PARENT) {
 			FREE_LOCK(&lk);
-#ifdef __FreeBSD__
-			error = UFS_UPDATE(pvp, 1);
-#else
-			tv = time;
-			error = UFS_UPDATE(pvp, &tv, &tv, 1);
-#endif
-			if (error)
+			if ((error = UFS_UPDATE(pvp, 1)) != 0)
 				break;
 			ACQUIRE_LOCK(&lk);
 			/*
@@ -4114,12 +4087,7 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 			}
 			drain_output(vp, 0);
 		}
-#ifdef __FreeBSD__
 		error = UFS_UPDATE(vp, 1);
-#else
-		tv = time;
-		error = UFS_UPDATE(vp, &tv, &tv, 1);
-#endif
 		vput(vp);
 		if (error)
 			break;
@@ -4409,8 +4377,11 @@ void
 softdep_deallocate_dependencies(bp)
 	struct buf *bp;
 {
+
+	if ((bp->b_flags & B_ERROR) == 0)
+		panic("softdep_deallocate_dependencies: dangling deps");
 	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
-	panic("softdep_deallocate_dependencies: dangling deps");
+	panic("softdep_deallocate_dependencies: unrecovered I/O error");
 }
 
 /*
@@ -4421,6 +4392,7 @@ softdep_error(func, error)
 	char *func;
 	int error;
 {
+
 	/* XXX should do something better! */
 	printf("%s: got error %d while accessing filesystem\n", func, error);
 }
