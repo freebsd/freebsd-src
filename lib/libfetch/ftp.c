@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.1.1.1 1998/07/09 16:52:42 des Exp $
+ *	$Id: ftp.c,v 1.3 1998/07/11 21:29:08 des Exp $
  */
 
 /*
@@ -190,10 +190,10 @@ _ftp_cmd(FILE *f, char *fmt, ...)
 }
 
 /*
- * Retrieve file
+ * Transfer file
  */
 static FILE *
-_ftp_retrieve(FILE *cf, char *file, int pasv)
+_ftp_transfer(FILE *cf, char *oper, char *file, char *mode, int pasv)
 {
     struct sockaddr_in sin;
     int sd = -1, l;
@@ -252,7 +252,7 @@ _ftp_retrieve(FILE *cf, char *file, int pasv)
 	    goto sysouch;
 	
 	/* make the server initiate the transfer */
-	if (_ftp_cmd(cf, "RETR %s" ENDL, s) != FTP_OPEN_DATA_CONNECTION)
+	if (_ftp_cmd(cf, "%s %s" ENDL, oper, s) != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
     } else {
@@ -281,7 +281,7 @@ _ftp_retrieve(FILE *cf, char *file, int pasv)
 	    goto ouch;
 
 	/* make the server initiate the transfer */
-	if (_ftp_cmd(cf, "RETR %s" ENDL, s) != FTP_OPEN_DATA_CONNECTION)
+	if (_ftp_cmd(cf, "%s %s" ENDL, oper, s) != FTP_OPEN_DATA_CONNECTION)
 	    goto ouch;
 	
 	/* accept the incoming connection and go to town */
@@ -291,7 +291,7 @@ _ftp_retrieve(FILE *cf, char *file, int pasv)
 	sd = d;
     }
 
-    if ((df = fdopen(sd, "r")) == NULL)
+    if ((df = fdopen(sd, mode)) == NULL)
 	goto sysouch;
     return df;
 
@@ -303,33 +303,38 @@ ouch:
 }
 
 /*
- * Store file
- */
-static FILE *
-_ftp_store(FILE *cf, char *file, int pasv)
-{
-    fprintf(stderr, "_ftp_store: not implemented yet.\n");
-    
-    cf = cf;
-    file = file;
-    pasv = pasv;
-    return NULL;
-}
-
-/*
  * Log on to FTP server
  */
 static FILE *
 _ftp_connect(char *host, int port, char *user, char *pwd)
 {
-    int sd, e;
+    int sd, e, pp = FTP_DEFAULT_PORT;
+    char *p, *q;
     FILE *f;
 
-    /* establish control connection */
-    if ((sd = fetchConnect(host, port)) < 0) {
+    /* check for proxy */
+    if ((p = getenv("FTP_PROXY")) != NULL) {
+	if ((q = strchr(p, ':')) != NULL) {
+	    /* XXX check that it's a valid number */
+	    pp = atoi(q+1);
+	}
+	if (q)
+	    *q = 0;
+	sd = fetchConnect(p, pp);
+	if (q)
+	    *q = ':';
+    } else {
+	/* no proxy, go straight to target */
+	sd = fetchConnect(host, port);
+    }
+
+    /* check connection */
+    if (sd < 0) {
 	_ftp_syserr();
 	return NULL;
     }
+
+    /* streams make life easier */
     if ((f = fdopen(sd, "r+")) == NULL) {
 	_ftp_syserr();
 	goto ouch;
@@ -340,20 +345,32 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
 	goto fouch;
     
     /* send user name and password */
-    e = _ftp_cmd(f, "USER %s" ENDL, user);
-    if (e == FTP_NEED_PASSWORD)	/* server requested a password */
+    if (!user || !*user)
+	user = FTP_ANONYMOUS_USER;
+    e = p ? _ftp_cmd(f, "USER %s@%s@%d" ENDL, user, host, port)
+	  : _ftp_cmd(f, "USER %s" ENDL, user);
+    
+    /* did the server request a password? */
+    if (e == FTP_NEED_PASSWORD) {
+	if (!pwd || !*pwd)
+	    pwd = FTP_ANONYMOUS_PASSWORD;
 	e = _ftp_cmd(f, "PASS %s" ENDL, pwd);
-    if (e == FTP_NEED_ACCOUNT) /* server requested an account */
+    }
+
+    /* did the server request an account? */
+    if (e == FTP_NEED_ACCOUNT)
 	/* help! */ ;
-    if (e != FTP_LOGGED_IN) /* won't let us near the WaReZ */
+    
+    /* we should be done by now */
+    if (e != FTP_LOGGED_IN)
 	goto fouch;
 
     /* might as well select mode and type at once */
 #ifdef FTP_FORCE_STREAM_MODE
-    if (_ftp_cmd(f, "MODE S" ENDL) != FTP_OK)
+    if (_ftp_cmd(f, "MODE S" ENDL) != FTP_OK) /* default is S */
 	goto ouch;
 #endif
-    if (_ftp_cmd(f, "TYPE I" ENDL) != FTP_OK)
+    if (_ftp_cmd(f, "TYPE I" ENDL) != FTP_OK) /* default is A */
 	goto ouch;
 
     /* done */
@@ -390,18 +407,14 @@ _ftp_isconnected(url_t *url)
 	    && (url->port == cached_host.port));
 }
 
-FILE *
-fetchGetFTP(url_t *url, char *flags)
+/*
+ * FTP session
+ */
+static FILE *
+fetchXxxFTP(url_t *url, char *oper, char *mode, char *flags)
 {
     FILE *cf = NULL;
     int e;
-
-#ifdef DEFAULT_TO_ANONYMOUS
-    if (!url->user[0]) {
-	strcpy(url->user, FTP_ANONYMOUS_USER);
-	strcpy(url->pwd, FTP_ANONYMOUS_PASSWORD);
-    }
-#endif
 
     /* set default port */
     if (!url->port)
@@ -427,50 +440,22 @@ fetchGetFTP(url_t *url, char *flags)
     }
 
     /* initiate the transfer */
-    return _ftp_retrieve(cf, url->doc, (flags && strchr(flags, 'p')));
+    return _ftp_transfer(cf, oper, url->doc, mode, (flags && strchr(flags, 'p')));
 }
 
 /*
- * Upload a file.
- * Hmmm, that's almost an exact duplicate of the above...
+ * Itsy bitsy teeny weenie
  */
+FILE *
+fetchGetFTP(url_t *url, char *flags)
+{
+    return fetchXxxFTP(url, "RETR", "r", flags);
+}
+
 FILE *
 fetchPutFTP(url_t *url, char *flags)
 {
-    FILE *cf = NULL;
-    int e;
-   
-#ifdef DEFAULT_TO_ANONYMOUS
-    if (!url->user[0]) {
-	strcpy(url->user, FTP_ANONYMOUS_USER);
-	strcpy(url->pwd, FTP_ANONYMOUS_PASSWORD);
-    }
-#endif
-
-    /* set default port */
-    if (!url->port)
-	url->port = htons(FTP_DEFAULT_PORT);
-    
-    /* try to use previously cached connection */
-    if (_ftp_isconnected(url)) {
-	fprintf(cached_socket, "PWD" ENDL);
-	_ftp_chkerr(cached_socket, &e);
-	if (e > 0)
-	    cf = cached_socket;
-    }
-
-    /* connect to server */
-    if (!cf) {
-	cf = _ftp_connect(url->host, url->port, url->user, url->pwd);
-	if (!cf)
-	    return NULL;
-	if (cached_socket)
-	    _ftp_disconnect(cached_socket);
-	cached_socket = cf;
-	memcpy(&cached_host, url, sizeof(url_t));
-    }
-
-
-    /* initiate the transfer */
-    return _ftp_store(cf, url->doc, (flags && strchr(flags, 'p')));
+    if (flags && strchr(flags, 'a'))
+	return fetchXxxFTP(url, "APPE", "w", flags);
+    else return fetchXxxFTP(url, "STOR", "w", flags);
 }
