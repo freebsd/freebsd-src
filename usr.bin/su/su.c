@@ -520,10 +520,8 @@ chshell(char *sh)
 
 	r = 0;
 	setusershell();
-	do {
-		cp = getusershell();
-		r = strcmp(cp, sh);
-	} while (!r && cp != NULL);
+	while ((cp = getusershell()) != NULL && !r)
+	    r = (strcmp(cp, sh) == 0);
 	endusershell();
 	return r;
 }
