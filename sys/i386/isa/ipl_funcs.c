@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.24 1999/07/11 19:24:41 phk Exp $
+ *	$Id: ipl_funcs.c,v 1.25 1999/07/12 07:22:08 phk Exp $
  */
 
 #include <sys/types.h>
@@ -259,16 +259,7 @@ splx(unsigned ipl)
 	int unpend;
 #ifdef INTR_SPL
 	SPIN_VAR;
-#endif
 
-	if (!bsp_apic_ready) {
-		cpl = ipl;
-		if (ipending & ~ipl)
-			splz();
-		return;
-	}
-
-#ifdef INTR_SPL
 	for (;;) {
 		IFCPL_LOCK();
 		POSTCODE_HI(0xe);
