@@ -119,7 +119,8 @@ static char sccsid[] = "@(#)strtod.c	8.1 (Berkeley) 6/4/93";
  *	FLT_RADIX, FLT_ROUNDS, and DBL_MAX.
  */
 
-#if defined(__i386__) || defined(__ia64__) || defined(__alpha__)
+#if defined(__i386__) || defined(__ia64__) || defined(__alpha__) || \
+    defined(__sparc64__)
 #include <sys/types.h>
 #if BYTE_ORDER == BIG_ENDIAN
 #define IEEE_BIG_ENDIAN

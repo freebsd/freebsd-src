@@ -57,6 +57,10 @@
 #       define malloc_pageshift		13U
 #       define malloc_minsize		16U
 #   endif
+#   if defined(__sparc64__)
+#       define malloc_pageshift		13U
+#       define malloc_minsize		16U
+#   endif
 #   if !defined(__NETBSD_SYSCALLS)
 #       define HAS_UTRACE
 #   endif
