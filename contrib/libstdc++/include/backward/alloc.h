@@ -1,6 +1,6 @@
 // Backward-compat support -*- C++ -*-
 
-// Copyright (C) 2001 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2003, 2004 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -40,19 +40,13 @@
  * purpose.  It is provided "as is" without express or implied warranty.
  */
 
-#ifndef _CPP_BACKWARD_ALLOC_H
-#define _CPP_BACKWARD_ALLOC_H 1
+#ifndef _BACKWARD_ALLOC_H
+#define _BACKWARD_ALLOC_H 1
 
 #include "backward_warning.h"
 #include <bits/c++config.h>
-#include <bits/stl_alloc.h>
+#include <bits/allocator.h>
 
-using std::__malloc_alloc_template; 
-using std::__simple_alloc; 
-using std::__debug_alloc; 
-using std::__alloc; 
-using std::__single_client_alloc; 
 using std::allocator;
-using std::__default_alloc_template; 
 
-#endif 
+#endif

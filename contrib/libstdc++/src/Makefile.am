@@ -22,175 +22,161 @@
 ## Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307,
 ## USA.
 
-AUTOMAKE_OPTIONS = 1.3 cygnus
-MAINT_CHARSET = latin1
-
-mkinstalldirs = $(SHELL) $(toplevel_srcdir)/mkinstalldirs
+include $(top_srcdir)/fragment.am
 
 # Cross compiler support.
-CXX = @glibcpp_CXX@
-glibcpp_srcdir=@glibcpp_srcdir@
-glibcpp_builddir=@glibcpp_builddir@
-toolexecdir = @glibcpp_toolexecdir@
-toolexeclibdir = @glibcpp_toolexeclibdir@
 toolexeclib_LTLIBRARIES = libstdc++.la
 
 # Symbol versioning for shared libraries.
-if GLIBCPP_BUILD_VERSIONED_SHLIB
+if GLIBCXX_BUILD_VERSIONED_SHLIB
 version_arg = -Wl,--version-script=libstdc++-symbol.ver
-libstdc++-symbol.ver:  ${glibcpp_srcdir}/@SYMVER_MAP@
-	@LN_S@  ${glibcpp_srcdir}/@SYMVER_MAP@ ./libstdc++-symbol.ver || true
+version_dep = libstdc++-symbol.ver
+libstdc++-symbol.ver:  ${glibcxx_srcdir}/$(SYMVER_MAP)
+	cp ${glibcxx_srcdir}/$(SYMVER_MAP) ./libstdc++-symbol.ver
+	if test "x$(port_specific_symbol_files)" != x; then \
+	  sed -n '1,/DO NOT DELETE/p' $@ > tmp.top; \
+	  sed -n '/DO NOT DELETE/,$$p' $@ > tmp.bottom; \
+	  cat tmp.top $(port_specific_symbol_files) tmp.bottom > $@; \
+	  rm tmp.top tmp.bottom; \
+	fi
 else
 version_arg =
-libstdc++-symbol.ver:
+version_dep =
 endif
 
-# Compile flags that should be constant throughout the build, both for
-# SUBDIRS and for libstdc++-v3 in general.
-OPTIMIZE_CXXFLAGS = @OPTIMIZE_CXXFLAGS@
-
-# These bits are all figured out from configure. Look in acinclude.m4
-# or configure.in to see how they are set. See GLIBCPP_EXPORT_FLAGS
-CONFIG_CXXFLAGS = \
-	@SECTION_FLAGS@ @EXTRA_CXX_FLAGS@ 
-
-# Warning flags to use.
-WARN_CXXFLAGS = \
-	@WARN_FLAGS@ $(WERROR) -fdiagnostics-show-location=once
-
-# Use common includes from acinclude.m4/GLIBCPP_EXPORT_INCLUDES
-GLIBCPP_INCLUDES = @GLIBCPP_INCLUDES@
-LIBMATH_INCLUDES = @LIBMATH_INCLUDES@
-LIBSUPCXX_INCLUDES = @LIBSUPCXX_INCLUDES@
-LIBIO_INCLUDES = @LIBIO_INCLUDES@
-TOPLEVEL_INCLUDES = @TOPLEVEL_INCLUDES@
-
-INCLUDES = \
-	-nostdinc++ \
-	$(GLIBCPP_INCLUDES) \
-	$(LIBSUPCXX_INCLUDES) $(LIBIO_INCLUDES) $(LIBMATH_INCLUDES) \
-	$(TOPLEVEL_INCLUDES)
 
 # Source files linked in via configuration/make substitution for a
-# particular target.
-target_sources = \
+# particular host.
+host_sources = \
+	atomicity.cc \
 	codecvt_members.cc \
 	collate_members.cc \
 	ctype_members.cc \
 	messages_members.cc \
 	monetary_members.cc \
 	numeric_members.cc \
-	time_members.cc
+	time_members.cc 
 
-codecvt_members.cc: ${glibcpp_srcdir}/@CCODECVT_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CCODECVT_CC@ . || true
+codecvt_members.cc: ${glibcxx_srcdir}/$(CCODECVT_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CCODECVT_CC) . || true
 
-collate_members.cc: ${glibcpp_srcdir}/@CCOLLATE_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CCOLLATE_CC@ . || true
+collate_members.cc: ${glibcxx_srcdir}/$(CCOLLATE_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CCOLLATE_CC) . || true
 
-ctype_members.cc: ${glibcpp_srcdir}/@CCTYPE_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CCTYPE_CC@ . || true
+ctype_members.cc: ${glibcxx_srcdir}/$(CCTYPE_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CCTYPE_CC) . || true
 
-messages_members.cc: ${glibcpp_srcdir}/@CMESSAGES_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CMESSAGES_CC@ . || true
+messages_members.cc: ${glibcxx_srcdir}/$(CMESSAGES_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CMESSAGES_CC) . || true
 
-monetary_members.cc: ${glibcpp_srcdir}/@CMONEY_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CMONEY_CC@ . || true
+monetary_members.cc: ${glibcxx_srcdir}/$(CMONEY_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CMONEY_CC) . || true
 
-numeric_members.cc: ${glibcpp_srcdir}/@CNUMERIC_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CNUMERIC_CC@ . || true
+numeric_members.cc: ${glibcxx_srcdir}/$(CNUMERIC_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CNUMERIC_CC) . || true
 
-time_members.cc: ${glibcpp_srcdir}/@CTIME_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CTIME_CC@ . || true
+time_members.cc: ${glibcxx_srcdir}/$(CTIME_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CTIME_CC) . || true
+
+atomicity_file = ${glibcxx_srcdir}/$(ATOMICITY_SRCDIR)/atomicity.h
+atomicity.cc: ${atomicity_file}
+	$(LN_S) ${atomicity_file} ./atomicity.cc || true
 
 # Source files linked in via configuration/make substitution for a
-# particular target, but with ad hoc naming rules.
-target_sources_extra = \
+# particular host, but with ad hoc naming rules.
+host_sources_extra = \
 	basic_file.cc \
-	c++locale.cc 
+	c++locale.cc
 
-c++locale.cc: ${glibcpp_srcdir}/@CLOCALE_CC@
-	@LN_S@ ${glibcpp_srcdir}/@CLOCALE_CC@ ./$@ || true
+c++locale.cc: ${glibcxx_srcdir}/$(CLOCALE_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(CLOCALE_CC) ./$@ || true
 
-basic_file.cc: ${glibcpp_srcdir}/@BASIC_FILE_CC@
-	@LN_S@ ${glibcpp_srcdir}/@BASIC_FILE_CC@ ./$@ || true
+basic_file.cc: ${glibcxx_srcdir}/$(BASIC_FILE_CC)
+	$(LN_S) ${glibcxx_srcdir}/$(BASIC_FILE_CC) ./$@ || true
 
 # Sources present in the src directory.
 sources = \
-	bitset.cc \
+	allocator.cc \
 	codecvt.cc \
 	complex_io.cc \
-	concept-inst.cc \
 	ctype.cc \
-	ext-inst.cc \
-	fstream.cc \
-	fstream-inst.cc \
+	debug.cc \
+	debug_list.cc \
 	functexcept.cc \
-	globals.cc \
-	io-inst.cc \
+	globals_locale.cc \
+	globals_io.cc \
 	ios.cc \
-	istream-inst.cc \
+	ios_failure.cc \
+	ios_init.cc \
+	ios_locale.cc \
 	limits.cc \
+	list.cc \
 	locale.cc \
-	locale-inst.cc \
+	locale_init.cc \
+	locale_facets.cc \
 	localename.cc \
+	stdexcept.cc \
+	strstream.cc \
+	tree.cc \
+	allocator-inst.cc \
+	concept-inst.cc \
+	fstream-inst.cc \
+	ext-inst.cc \
+	io-inst.cc \
+	istream-inst.cc \
+	locale-inst.cc \
+	locale-misc-inst.cc \
 	misc-inst.cc \
 	ostream-inst.cc \
 	sstream-inst.cc \
-	stdexcept.cc \
-	stl-inst.cc \
 	streambuf-inst.cc \
 	string-inst.cc \
-	strstream.cc \
 	valarray-inst.cc \
-	vterminate.cc \
+	wlocale-inst.cc \
 	wstring-inst.cc \
-	${target_sources} \
-	${target_sources_extra}
+	${host_sources} \
+	${host_sources_extra}
 
 VPATH = $(top_srcdir)/src:$(top_srcdir)
 
 libstdc___la_SOURCES = $(sources)
 
 libstdc___la_LIBADD = \
-	$(top_builddir)/libmath/libmath.la @libio_la@ \
+	$(top_builddir)/libmath/libmath.la \
 	$(top_builddir)/libsupc++/libsupc++convenience.la
 
-libstdc___la_DEPENDENCIES = libstdc++-symbol.ver $(libstdc___la_LIBADD)
+libstdc___la_DEPENDENCIES = ${version_dep} $(libstdc___la_LIBADD)
 
 libstdc___la_LDFLAGS = \
-	-version-info @libtool_VERSION@ ${version_arg} \
-	-lm @LIBUNWIND_FLAG@ 
+	-version-info $(libtool_VERSION) ${version_arg} -lm 
 
 
 # Use special rules for the deprecated source files so that they find
 # deprecated include files.
-GLIBCPP_INCLUDE_DIR=@glibcpp_builddir@/include
+GLIBCXX_INCLUDE_DIR=$(glibcxx_builddir)/include
 strstream.lo: strstream.cc
-	$(LTCXXCOMPILE) -I$(GLIBCPP_INCLUDE_DIR)/backward -Wno-deprecated -c $<
+	$(LTCXXCOMPILE) -I$(GLIBCXX_INCLUDE_DIR)/backward -Wno-deprecated -c $<
 strstream.o: strstream.cc
-	$(CXXCOMPILE) -I$(GLIBCPP_INCLUDE_DIR)/backward -Wno-deprecated -c $<
+	$(CXXCOMPILE) -I$(GLIBCXX_INCLUDE_DIR)/backward -Wno-deprecated -c $<
 
 # Use special rules for the concept-checking instantiations so that all
 # the generated template functions are also instantiated.  Force the checks
 # to be on so that the instantiations are actually seen.
 concept-inst.lo: concept-inst.cc
-	$(LTCXXCOMPILE) -D_GLIBCPP_CONCEPT_CHECKS -fimplicit-templates -c $<
+	$(LTCXXCOMPILE) -D_GLIBCXX_CONCEPT_CHECKS -fimplicit-templates -c $<
 concept-inst.o: concept-inst.cc
-	$(CXXCOMPILE) -D_GLIBCPP_CONCEPT_CHECKS -fimplicit-templates -c $<
-
+	$(CXXCOMPILE) -D_GLIBCXX_CONCEPT_CHECKS -fimplicit-templates -c $<
 
 # AM_CXXFLAGS needs to be in each subdirectory so that it can be
 # modified in a per-library or per-sub-library way.  Need to manually
 # set this option because CONFIG_CXXFLAGS has to be after
 # OPTIMIZE_CXXFLAGS on the compile line so that -O2 can be overridden
-# as the occasion call for it. 
+# as the occasion calls for it.
 AM_CXXFLAGS = \
 	-fno-implicit-templates \
-	$(LIBSUPCXX_CXXFLAGS) \
 	$(WARN_CXXFLAGS) \
 	$(OPTIMIZE_CXXFLAGS) \
-	$(CONFIG_CXXFLAGS)  
+	$(CONFIG_CXXFLAGS)
 
 
 # libstdc++ libtool notes
@@ -212,7 +198,7 @@ AM_CXXFLAGS = \
 # CXXLINK, just after $(LIBTOOL), so that libtool doesn't have to
 # attempt to infer which configuration to use
 LTCXXCOMPILE = $(LIBTOOL) --tag CXX --mode=compile $(CXX) $(INCLUDES) \
-	       $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS) 
+	       $(AM_CPPFLAGS) $(CPPFLAGS) $(CXXFLAGS) $(AM_CXXFLAGS)
 
 # 3) We'd have a problem when building the shared libstdc++ object if
 # the rules automake generates would be used.  We cannot allow g++ to
@@ -221,38 +207,38 @@ LTCXXCOMPILE = $(LIBTOOL) --tag CXX --mode=compile $(CXX) $(INCLUDES) \
 # directory to configure libstdc++-v3 to use gcc as the C++
 # compilation driver.
 CXXLINK = $(LIBTOOL) --tag CXX --mode=link $(CXX) \
-	  @OPT_LDFLAGS@ @SECTION_LDFLAGS@ $(AM_CXXFLAGS) $(LDFLAGS) -o $@
+	  $(OPT_LDFLAGS) $(SECTION_LDFLAGS) $(AM_CXXFLAGS) $(LDFLAGS) -o $@
 
 
 # Added bits to build debug library.
-if GLIBCPP_BUILD_DEBUG
+if GLIBCXX_BUILD_DEBUG
 all-local: build_debug
 install-data-local: install_debug
 else
 all-local:
-install-data-local: 
+install-data-local:
 endif
 
 debugdir = debug
 
 # Build parallel set of debug objects here.
-stamp-debug: 
+stamp-debug:
 	if test ! -d ${debugdir}; then \
 	  mkdir -p ${debugdir}; \
 	  (cd ${debugdir}; \
 	  sed -e 's/top_builddir = \.\./top_builddir = ..\/../' \
 	      -e 's/srcdir = \.\./srcdir = ..\/../' \
-	      -e 's/glibcpp_basedir = \.\./glibcpp_basedir = ..\/../' \
+	      -e 's/glibcxx_basedir = \.\./glibcxx_basedir = ..\/../' \
 	      -e 's/all-local: build_debug/all-local:/' \
 	      -e 's/install-data-local: install_debug/install-data-local:/' \
 	  < ../Makefile > Makefile) ; \
 	fi; \
-	echo `date` > stamp-debug; 
+	echo `date` > stamp-debug;
 
 build_debug: stamp-debug
-	(cd ${debugdir} && $(MAKE) CXXFLAGS='@DEBUG_FLAGS@' all)
+	(cd ${debugdir} && $(MAKE) CXXFLAGS='$(DEBUG_FLAGS)' all)
 
 # Install debug library here.
-install_debug: 
+install_debug:
 	(cd ${debugdir} && $(MAKE) \
-	toolexeclibdir=@glibcpp_toolexeclibdir@/debug install)
+	toolexeclibdir=$(glibcxx_toolexeclibdir)/debug install)

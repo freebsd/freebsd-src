@@ -34,6 +34,57 @@
    we use the crude approximation.  We'll do better later.  */
 
 
+#ifndef HAVE_ACOSF
+float
+acosf(float x)
+{
+  return (float) acos(x);
+}
+#endif
+
+#ifndef HAVE_ACOSL
+long double
+acosl(long double x)
+{
+  return acos((double) x);
+}
+#endif
+
+
+#ifndef HAVE_ASINF
+float
+asinf(float x)
+{
+  return (float) asin(x);
+}
+#endif
+
+#ifndef HAVE_ASINL
+long double
+asinl(long double x)
+{
+  return asin((double) x);
+}
+#endif
+
+
+#ifndef HAVE_ATANF
+float
+atanf(float x)
+{
+  return (float) atan(x);
+}
+#endif
+
+#ifndef HAVE_ATANL
+long double
+atanl(long double x)
+{
+  return atan ((double) x);
+}
+#endif
+
+
 #ifndef HAVE_ATAN2F
 float
 atan2f(float x, float y)
@@ -47,6 +98,23 @@ long double
 atan2l(long double x, long double y)
 {
   return atan2((double) x, (double) y);
+}
+#endif
+
+
+#ifndef HAVE_CEILF
+float
+ceilf(float x)
+{
+  return (float) ceil(x);
+}
+#endif
+
+#ifndef HAVE_CEILL
+long double
+ceill(long double x)
+{
+  return ceil((double) x);
 }
 #endif
 
@@ -102,6 +170,74 @@ expl(long double x)
 #endif
 
 
+#ifndef HAVE_FLOORF
+float
+floorf(float x)
+{
+  return (float) floor(x);
+}
+#endif
+
+#ifndef HAVE_FLOORL
+long double
+floorl(long double x)
+{
+  return floor((double) x);
+}
+#endif
+
+
+#ifndef HAVE_FMODF
+float
+fmodf(float x, float y)
+{
+  return (float) fmod(x, y);
+}
+#endif
+
+#ifndef HAVE_FMODL
+long double
+fmodl(long double x, long double y)
+{
+  return fmod((double) x, (double) y);
+}
+#endif
+
+
+#ifndef HAVE_FREXPF
+float
+frexpf(float x, int *exp)
+{
+  return (float) frexp(x, exp);
+}
+#endif
+
+#ifndef HAVE_FREXPL
+long double
+frexpl(long double x, int *exp)
+{
+  return frexp((double) x, exp);
+}
+#endif
+
+
+#ifndef HAVE_SQRTF
+float
+sqrtf(float x)
+{
+  return (float) sqrt(x);
+}
+#endif
+
+#ifndef HAVE_SQRTL
+long double
+sqrtl(long double x)
+{
+  return  sqrt((double) x);
+}
+#endif
+
+
 /* Compute the hypothenuse of a right triangle with side x and y.  */
 #ifndef HAVE_HYPOTF
 float
@@ -141,6 +277,23 @@ hypotl(long double x, long double y)
 
 
 
+#ifndef HAVE_LDEXPF
+float
+ldexpf(float x, int exp)
+{
+  return (float) ldexp(x, exp);
+}
+#endif
+
+#ifndef HAVE_LDEXPL
+long double
+ldexpl(long double x, int exp)
+{
+  return ldexp((double) x, exp);
+}
+#endif
+
+
 #ifndef HAVE_LOGF
 float
 logf(float x)
@@ -171,6 +324,31 @@ long double
 log10l(long double x)
 {
   return log10((double) x);
+}
+#endif
+
+
+#ifndef HAVE_MODFF
+float
+modff(float x, float *iptr)
+{
+  double result, temp;
+
+  result = modf(x, &temp);
+  *iptr = (float) temp;
+  return (float) result;
+}
+#endif
+
+#ifndef HAVE_MODFL
+long double
+modfl(long double x, long double *iptr)
+{
+  double result, temp;
+
+  result = modf((double) x, &temp);
+  *iptr = temp;
+  return result;
 }
 #endif
 
@@ -222,23 +400,6 @@ long double
 sinhl(long double x)
 {
   return sinh((double) x);
-}
-#endif
-
-
-#ifndef HAVE_SQRTF
-float
-sqrtf(float x)
-{
-  return (float) sqrt(x);
-}
-#endif
-
-#ifndef HAVE_SQRTL
-long double
-sqrtl(long double x)
-{
-  return  sqrt((double) x);
 }
 #endif
 
