@@ -358,6 +358,31 @@ method in a manner consistent with the rest of the
 library,
 .Fn fetchPutHTTP
 is currently unimplemented.
+.Sh AUTHENTICATION
+Apart from setting the appropriate environment variables and
+specifying the user name and password in the URL or the
+.Vt struct url ,
+the calling program has the option of defining an authentication
+function with the following prototype:
+.Pp
+.Ft int
+.Fn myAuthMethod "struct url *u"
+.Pp
+The callback function should fill in the
+.Fa user
+and
+.Fa pwd
+fields in the provided
+.Vt struct url
+and return 0 on success, or any other value to indicate failure.
+.Pp
+To register the authentication callback, simply set
+.Va fetchAuthMethod
+to point at it.
+The callback will be used whenever a site requires authentication and
+the appropriate environment variables aren't set.
+.Pp
+This interface is experimental and may be subject to change.
 .Sh RETURN VALUES
 .Fn fetchParseURL
 returns a pointer to a
