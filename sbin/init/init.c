@@ -1059,7 +1059,7 @@ start_window_system(sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strcat(term, sp->se_type);
+		strncat(term, sp->se_type, sizeof(term) - 6);
 		env[0] = term;
 		env[1] = 0;
 	}
@@ -1121,7 +1121,7 @@ start_getty(sp)
 	if (sp->se_type) {
 		/* Don't use malloc after fork */
 		strcpy(term, "TERM=");
-		strcat(term, sp->se_type);
+		strncat(term, sp->se_type, sizeof(term) - 6);
 		env[0] = term;
 		env[1] = 0;
 	}
