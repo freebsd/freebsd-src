@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.10 1994/11/16 02:16:18 phk Exp $
+ * $Id: if.h,v 1.11 1994/12/13 22:31:44 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -164,6 +164,7 @@ struct ifnet {
 #define	if_iqdrops	if_data.ifi_iqdrops
 #define	if_noproto	if_data.ifi_noproto
 #define	if_lastchange	if_data.ifi_lastchange
+#define if_rawoutput(if, m, sa) if_output(if, m, sa, (struct rtentry *)0)
 
 #define	IFF_UP		0x1		/* interface is up */
 #define	IFF_BROADCAST	0x2		/* broadcast address valid */
