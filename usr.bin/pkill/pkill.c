@@ -1,4 +1,4 @@
-/*	$NetBSD: pkill.c,v 1.7 2004/02/15 17:03:30 soren Exp $	*/
+/*	$NetBSD: pkill.c,v 1.8 2005/03/02 15:31:44 abs Exp $	*/
 
 /*-
  * Copyright (c) 2002 The NetBSD Foundation, Inc.
@@ -533,13 +533,13 @@ makelist(struct listhead *head, enum listtype type, char *src)
 		case LT_USER:
 			if ((pw = getpwnam(sp)) == NULL)
 				errx(STATUS_BADUSAGE, "unknown user `%s'",
-				    optarg);
+				    sp);
 			li->li_number = pw->pw_uid;
 			break;
 		case LT_GROUP:
 			if ((gr = getgrnam(sp)) == NULL)
 				errx(STATUS_BADUSAGE, "unknown group `%s'",
-				    optarg);
+				    sp);
 			li->li_number = gr->gr_gid;
 			break;
 		case LT_TTY:
