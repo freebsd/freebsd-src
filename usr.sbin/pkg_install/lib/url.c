@@ -89,7 +89,7 @@ fileGetURL(const char *base, const char *spec)
     else
 	strcpy(fname, spec);
 
-    if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
+    if ((ftp = fetchGetURL(fname, Verbose ? "v" : "")) == NULL) {
 	printf("Error: FTP Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
 	return NULL;
