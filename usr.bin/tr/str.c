@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
+static const char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -61,9 +61,9 @@ static void	genseq __P((STR *));
 
 int
 next(s)
-	register STR *s;
+	STR *s;
 {
-	register int ch;
+	int ch;
 
 	switch (s->state) {
 	case EOS:
@@ -111,15 +111,17 @@ next(s)
 			return (next(s));
 		}
 		return (1);
+	default:
+		return (0);
 	}
 	/* NOTREACHED */
 }
 
 static int
 bracket(s)
-	register STR *s;
+	STR *s;
 {
-	register char *p;
+	char *p;
 
 	switch (s->str[1]) {
 	case ':':				/* "[:class:]" */
@@ -149,43 +151,43 @@ bracket(s)
 }
 
 typedef struct {
-	char *name;
+	const char *name;
 	int (*func) __P((int));
 	int *set;
 } CLASS;
 
 static CLASS classes[] = {
 #undef isalnum
-	{ "alnum",  isalnum,  },
+	{ "alnum",  isalnum,  NULL },
 #undef isalpha
-	{ "alpha",  isalpha,  },
+	{ "alpha",  isalpha,  NULL },
 #undef isblank
-	{ "blank",  isblank,  },
+	{ "blank",  isblank,  NULL },
 #undef iscntrl
-	{ "cntrl",  iscntrl,  },
+	{ "cntrl",  iscntrl,  NULL },
 #undef isdigit
-	{ "digit",  isdigit,  },
+	{ "digit",  isdigit,  NULL },
 #undef isgraph
-	{ "graph",  isgraph,  },
+	{ "graph",  isgraph,  NULL },
 #undef islower
-	{ "lower",  islower,  },
+	{ "lower",  islower,  NULL },
 #undef isprint
-	{ "print",  isprint,  },
+	{ "print",  isprint,  NULL },
 #undef ispunct
-	{ "punct",  ispunct,  },
+	{ "punct",  ispunct,  NULL },
 #undef isspace
-	{ "space",  isspace,  },
+	{ "space",  isspace,  NULL },
 #undef isupper
-	{ "upper",  isupper,  },
+	{ "upper",  isupper,  NULL },
 #undef isxdigit
-	{ "xdigit", isxdigit, },
+	{ "xdigit", isxdigit, NULL },
 };
 
 static void
 genclass(s)
 	STR *s;
 {
-	register int cnt, (*func) __P((int));
+	int cnt, (*func) __P((int));
 	CLASS *cp, tmp;
 	int *p;
 
@@ -211,7 +213,7 @@ static int
 c_class(a, b)
 	const void *a, *b;
 {
-	return (strcmp(((CLASS *)a)->name, ((CLASS *)b)->name));
+	return (strcmp(((const CLASS *)a)->name, ((const CLASS *)b)->name));
 }
 
 /*
@@ -301,9 +303,9 @@ genseq(s)
  */
 static int
 backslash(s)
-	register STR *s;
+	STR *s;
 {
-	register int ch, cnt, val;
+	int ch, cnt, val;
 
 	for (cnt = val = 0;;) {
 		ch = (u_char)*++s->str;
