@@ -669,7 +669,7 @@ $command $rc_flags $command_args"
 					# if the precmd failed and force
 					# isn't set, exit
 					#
-			if [ -n $_precmd ]; then
+			if [ -n "$_precmd" ]; then
 				eval $_precmd
 				_return=$?
 				[ $_return -ne 0 ] && [ -z "$rc_force" ] &&
