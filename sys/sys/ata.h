@@ -370,6 +370,7 @@ struct ata_cmd {
 #define ATARAIDSTATUS		11
 #define ATAENCSTAT		12
 #define ATAGMAXCHANNEL		13
+#define ATARAIDADDSPARE		14
 
     union {
 	struct {
@@ -391,6 +392,9 @@ struct ata_cmd {
 	    int			interleave;
 	    int			unit;
 	} raid_setup;
+	struct {
+	    int			disk;
+	} raid_spare;
 	struct raid_status {
 	    int			type;
 	    int			total_disks;
