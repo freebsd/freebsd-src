@@ -89,7 +89,7 @@ PATH_T to = { to.p_path, emptystring, "" };
 int fflag, iflag, nflag, pflag, vflag;
 static int Rflag, rflag;
 
-int info;
+volatile sig_atomic_t info;
 static void siginfo (int notused __unused);
 
 enum op { FILE_TO_FILE, FILE_TO_DIR, DIR_TO_DNE };
