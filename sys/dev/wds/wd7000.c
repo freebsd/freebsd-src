@@ -133,7 +133,6 @@
 
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/disklabel.h>
 
 #include <cam/cam.h>

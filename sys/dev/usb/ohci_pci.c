@@ -56,7 +56,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/proc.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
