@@ -854,11 +854,11 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    return;
 	}
 	printf("Total of %d blocks malloced, total memory: %d\n"
-	    "Maximum allocs: %8d, malloc table at 0x%08x\n",
+	    "Maximum allocs: %8d, malloc table at 0x%08lx\n",
 	    meminfo.mallocs,
 	    meminfo.total_malloced,
 	    meminfo.highwater,
-	    (int) meminfo.malloced);
+	    (unsigned long) meminfo.malloced);
 
 	printf("%d requests active, maximum %d active\n",
 	    vinum_conf.active,
@@ -872,11 +872,11 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		}
 		if (!(i & 63))
 		    printf("Block\tSequence\t  size\t  address\t  line\t\tfile\n\n");
-		printf("%6d\t%6d\t\t%6d\t0x%08x\t%6d\t\t%s\n",
+		printf("%6d\t%6d\t\t%6d\t0x%08lx\t%6d\t\t%s\n",
 		    i,
 		    malloced.seq,
 		    malloced.size,
-		    (int) malloced.address,
+		    (unsigned long) malloced.address,
 		    malloced.line,
 		    (char *) &malloced.file);
 	    }
