@@ -66,6 +66,9 @@ Support has been added for direct access to NTFS filesystems.
 1.3. USERLAND CHANGES
 ---------------------
 
+The base C/C++ compiler has been upgraded from GCC 2.7.2 to EGCS 1.1.2.
+This gives users full ISO C++ support.
+
 The timezone database has been updated to catch all of the recent changes
 in Europe, the former Soviet Union, and Central and South America.
 The timezone data files now contain a magic number allowing for easy
