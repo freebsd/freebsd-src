@@ -28,14 +28,27 @@
 .Os
 .Sh NAME
 .Nm eg
-.Nd Ethernet driver for 3Com 3c505 Ethernet boards
+.Nd Ethernet driver for 3Com 3c505 Etherlink+ Ethernet board
 .Sh SYNOPSIS
 .Cd "device eg0 at isa? port 0x310 net irq 5 vector egintr"
 .Sh DESCRIPTION
 The
 .Nm
 interface provides access to a 10 Mb/s Ethernet network via the
-3Com 3c505 Ethernet board. 
+3Com 3c505 board based on the Intel 82586 Ethernet chip. 
+.Sh DIAGNOSTICS
+.Bl -diag
+.It "eg%d: configure card command failed"
+For some reason, the driver could not initialize the card.  Please check
+the card's IRQ and I/O settings relative to those in the kernel
+configuration file.
+.El
+.Pp
+.Sh BUGS
+Uses the onboard firmware, which is not a good way to do it.
+Doesn't support DMA or high speeds.
+Currently the driver does not support multicast.
+The timeout interval can be quite long (16 seconds) for a 512k board.
 .Sh SEE ALSO
 .Xr ed 4 ,
 .Xr el 4 ,
@@ -44,3 +57,14 @@ interface provides access to a 10 Mb/s Ethernet network via the
 .Xr intro 4 ,
 .Xr le 4 ,
 .Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in 
+.Fx 2.0.5
+coming from NetBSD.
+.Sh AUTHORS
+The
+.Nm
+device driver was written by Dean Huxley.
+This manual page was written by James A. Jegers.
