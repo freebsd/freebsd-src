@@ -62,9 +62,12 @@ struct g_stat;
 struct thread;
 struct bio;
 struct sbuf;
+struct gctl_req;
 struct g_configargs;
 
 typedef int g_config_t (struct g_configargs *ca);
+typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
+typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
 typedef struct g_geom * g_taste_t (struct g_class *, struct g_provider *,
     int flags);
 #define G_TF_NORMAL		0
@@ -90,6 +93,8 @@ struct g_class {
 	const char		*name;
 	g_taste_t		*taste;
 	g_config_t		*config;
+	g_ctl_create_geom_t	*create_geom;
+	g_ctl_destroy_geom_t	*destroy_geom;
 	/*
 	 * The remaning elements are private and classes should use
 	 * the G_CLASS_INITIALIZER macro to initialize them.
@@ -425,6 +430,10 @@ struct gcfg_magicrw {
 	 * as above, only the other way.
 	 */
 
+
+/* geom_ctl.c */
+void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
+int gctl_error(struct gctl_req *req, const char *errtxt);
 
 /* geom_enc.c */
 uint16_t g_dec_be2(const u_char *p);
