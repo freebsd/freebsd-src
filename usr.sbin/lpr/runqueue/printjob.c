@@ -219,7 +219,7 @@ again:
 		errcnt = 0;
 	restart:
 		(void) lseek(lfd, pidoff, 0);
-		(void) sprintf(line, "%s\n", q->q_name);
+		(void) snprintf(line, sizeof(line), "%s\n", q->q_name);
 		i = strlen(line);
 		if (write(lfd, line, i) != i)
 			syslog(LOG_ERR, "%s: %s: %m", printer, LO);
@@ -266,7 +266,7 @@ again:
 			syslog(LOG_WARNING, "%s: job could not be %s (%s)", printer,
 				remote ? "sent to remote host" : "printed", q->q_name);
 			if (i == REPRINT) {
-				/* insure we don't attempt this job again */
+				/* ensure we don't attempt this job again */
 				(void) unlink(q->q_name);
 				q->q_name[0] = 'd';
 				(void) unlink(q->q_name);
@@ -332,7 +332,7 @@ printit(file)
 	 */
 	for (i = 0; i < 4; i++)
 		strcpy(fonts[i], ifonts[i]);
-	sprintf(&width[2], "%d", PW);
+	sprintf(&width[2], "%ld", PW);
 	strcpy(indent+2, "0");
 
 	/*
@@ -377,13 +377,17 @@ printit(file)
 	while (getline(cfp))
 		switch (line[0]) {
 		case 'H':
-			strcpy(fromhost, line+1);
-			if (class[0] == '\0')
-				strncpy(class, line+1, sizeof(class)-1);
+			strncpy(fromhost, line+1, sizeof(fromhost) - 1);
+			fromhost[sizeof(fromhost) - 1] = '\0';
+			if (class[0] == '\0') {
+				strncpy(class, line+1, sizeof(class) - 1);
+				class[sizeof(class) - 1] = '\0';
+			}
 			continue;
 
 		case 'P':
-			strncpy(logname, line+1, sizeof(logname)-1);
+			strncpy(logname, line+1, sizeof(logname) - 1);
+			logname[sizeof(logname) - 1] = '\0';
 			if (RS) {			/* restricted */
 				if (getpwnam(logname) == NULL) {
 					bombed = NOACCT;
@@ -407,21 +411,24 @@ printit(file)
 			continue;
 
 		case 'J':
-			if (line[1] != '\0')
-				strncpy(jobname, line+1, sizeof(jobname)-1);
-			else
+			if (line[1] != '\0') {
+				strncpy(jobname, line+1, sizeof(jobname) - 1);
+				jobname[sizeof(jobname) - 1] = '\0';
+			} else
 				strcpy(jobname, " ");
 			continue;
 
 		case 'C':
 			if (line[1] != '\0')
-				strncpy(class, line+1, sizeof(class)-1);
+				strncpy(class, line+1, sizeof(class) - 1);
 			else if (class[0] == '\0')
 				gethostname(class, sizeof(class));
+			class[sizeof(class) - 1] = '\0';
 			continue;
 
 		case 'T':	/* header title for pr */
-			strncpy(title, line+1, sizeof(title)-1);
+			strncpy(title, line+1, sizeof(title) - 1);
+			title[sizeof(title) - 1] = '\0';
 			continue;
 
 		case 'L':	/* identification line */
@@ -433,16 +440,21 @@ printit(file)
 		case '2':
 		case '3':
 		case '4':
-			if (line[1] != '\0')
-				strcpy(fonts[line[0]-'1'], line+1);
+			if (line[1] != '\0') {
+				strncpy(fonts[line[0]-'1'], line+1,
+				    50-1);
+				fonts[line[0]-'1'][50-1] = '\0';
+			}
 			continue;
 
 		case 'W':	/* page width */
-			strncpy(width+2, line+1, sizeof(width)-3);
+			strncpy(width+2, line+1, sizeof(width) - 3);
+			width[2+sizeof(width) - 3] = '\0';
 			continue;
 
 		case 'I':	/* indent amount */
-			strncpy(indent+2, line+1, sizeof(indent)-3);
+			strncpy(indent+2, line+1, sizeof(indent) - 3);
+			indent[2+sizeof(indent) - 3] = '\0';
 			continue;
 
 		default:	/* some file to print */
@@ -486,6 +498,8 @@ pass2:
 			continue;
 
 		case 'U':
+			if (strchr(line+1, '/'))
+				continue;
 			(void) unlink(line+1);
 		}
 	/*
@@ -709,7 +723,7 @@ start:
 	tof = 0;
 
 	/* Copy filter output to "lf" logfile */
-	if (fp = fopen(tempfile, "r")) {
+	if ((fp = fopen(tempfile, "r"))) {
 		while (fgets(buf, sizeof(buf), fp))
 			fputs(buf, stderr);
 		fclose(fp);
@@ -783,9 +797,9 @@ sendit(file)
 		} else if (line[0] == 'H') {
 			strcpy(fromhost, line+1);
 			if (class[0] == '\0')
-				strncpy(class, line+1, sizeof(class)-1);
+				strncpy(class, line+1, sizeof(class) - 1);
 		} else if (line[0] == 'P') {
-			strncpy(logname, line+1, sizeof(logname)-1);
+			strncpy(logname, line+1, sizeof(logname) - 1);
 			if (RS) {			/* restricted */
 				if (getpwnam(logname) == NULL) {
 					sendmail(line+1, NOACCT);
@@ -794,7 +808,7 @@ sendit(file)
 				}
 			}
 		} else if (line[0] == 'I') {
-			strncpy(indent+2, line+1, sizeof(indent)-3);
+			strncpy(indent+2, line+1, sizeof(indent) - 3);
 		} else if (line[0] >= 'a' && line[0] <= 'z') {
 			strcpy(last, line);
 			while (i = getline(cfp))
@@ -825,7 +839,7 @@ sendit(file)
 	 */
 	fseek(cfp, 0L, 0);
 	while (getline(cfp))
-		if (line[0] == 'U')
+		if (line[0] == 'U' && !strchr(line+1, '/'))
 			(void) unlink(line+1);
 	/*
 	 * clean-up in case another control file exists
@@ -1335,18 +1349,18 @@ init()
 		FF = DEFFF;
 	if (cgetnum(bp, "pw", &PW) < 0)
 		PW = DEFWIDTH;
-	sprintf(&width[2], "%d", PW);
+	sprintf(&width[2], "%ld", PW);
 	if (cgetnum(bp, "pl", &PL) < 0)
 		PL = DEFLENGTH;
-	sprintf(&length[2], "%d", PL);
+	sprintf(&length[2], "%ld", PL);
 	if (cgetnum(bp,"px", &PX) < 0)
 		PX = 0;
-	sprintf(&pxwidth[2], "%d", PX);
+	sprintf(&pxwidth[2], "%ld", PX);
 	if (cgetnum(bp, "py", &PY) < 0)
 		PY = 0;
-	sprintf(&pxlength[2], "%d", PY);
+	sprintf(&pxlength[2], "%ld", PY);
 	cgetstr(bp, "rm", &RM);
-	if (s = checkremote())
+	if ((s = checkremote()))
 		syslog(LOG_WARNING, s);
 
 	cgetstr(bp, "af", &AF);
@@ -1514,13 +1528,13 @@ static void
 openrem()
 {
 	register int i, n;
-	int resp, port;
+	int resp;
 
 	for (i = 1; ; i = i < 256 ? i << 1 : i) {
 		resp = -1;
 		pfd = getport(RM, 0);
 		if (pfd >= 0) {
-			(void) sprintf(line, "\2%s\n", RP);
+			(void) snprintf(line, sizeof(line), "\2%s\n", RP);
 			n = strlen(line);
 			if (write(pfd, line, n) == n &&
 			    (resp = response()) == '\0')

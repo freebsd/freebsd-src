@@ -200,11 +200,11 @@ upstat(msg)
 	char *msg;
 {
 	register int fd;
-	char statfile[BUFSIZ];
+	char statfile[MAXPATHLEN];
 
 	if (cgetstr(bp, "st", &ST) == -1)
 		ST = DEFSTAT;
-	(void) sprintf(statfile, "%s/%s", SD, ST);
+	(void) snprintf(statfile, sizeof(statfile), "%s/%s", SD, ST);
 	umask(0);
 	fd = open(statfile, O_WRONLY|O_CREAT, 0664);
 	if (fd < 0 || flock(fd, LOCK_EX) < 0) {
@@ -240,7 +240,8 @@ clean(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			cleanpr();
@@ -390,7 +391,8 @@ enable(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			enablepr();
@@ -458,7 +460,8 @@ disable(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			disablepr();
@@ -535,7 +538,8 @@ down(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			putmsg(argc - 2, argv + 2);
@@ -614,7 +618,7 @@ putmsg(argc, argv)
 	cp1 = buf;
 	while (--argc >= 0) {
 		cp2 = *argv++;
-		while ((*cp1++ = *cp2++))
+		while ((cp1 - buf) < sizeof(buf) && (*cp1++ = *cp2++))
 			;
 		cp1[-1] = ' ';
 	}
@@ -656,7 +660,8 @@ restart(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			abortpr(0);
@@ -701,7 +706,8 @@ startcmd(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			startpr(1);
@@ -770,7 +776,8 @@ status(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			prstat();
@@ -810,7 +817,7 @@ prstat()
 	if (cgetstr(bp, "st", &ST) == -1)
 		ST = DEFSTAT;
 	printf("%s:\n", printer);
-	(void) sprintf(line, "%s/%s", SD, LO);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, LO);
 	if (stat(line, &stbuf) >= 0) {
 		printf("\tqueuing is %s\n",
 			(stbuf.st_mode & 010) ? "disabled" : "enabled");
@@ -844,7 +851,7 @@ prstat()
 	}
 	(void) close(fd);
 	/* print out the contents of the status file, if it exists */
-	(void) sprintf(line, "%s/%s", SD, ST);
+	(void) snprintf(line, sizeof(line), "%s/%s", SD, ST);
 	fd = open(line, O_RDONLY);
 	if (fd >= 0) {
 		(void) flock(fd, LOCK_SH);
@@ -880,7 +887,8 @@ stop(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			stoppr();
@@ -1049,8 +1057,8 @@ doarg(job)
 	FILE *fp;
 
 	/*
-	 * Look for a job item consisting of system name, colon, number
-	 * (example: ucbarpa:114)
+	 * Look for a job item consisting of system name, colon, number 
+	 * (example: ucbarpa:114)  
 	 */
 	if ((cp = strchr(job, ':')) != NULL) {
 		machine = job;
@@ -1128,7 +1136,8 @@ up(argc, argv)
 		while (cgetnext(&bp, printcapdb) > 0) {
 			cp1 = prbuf;
 			cp2 = bp;
-			while ((c = *cp2++) && c != '|' && c != ':')
+			while ((c = *cp2++) && c != '|' && c != ':' &&
+			    (cp1 - prbuf) < sizeof(prbuf))
 				*cp1++ = c;
 			*cp1 = '\0';
 			startpr(2);

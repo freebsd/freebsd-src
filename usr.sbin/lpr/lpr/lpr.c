@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.17 1997/07/23 00:49:37 imp Exp $\n";
+	"\n$Id: lpr.c,v 1.18 1997/07/23 20:53:38 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -140,7 +140,7 @@ main(argc, argv)
 		signal(SIGTERM, cleanup);
 
 	name = argv[0];
-	gethostname(host, sizeof (host));
+	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);
 
 	errs = 0;
