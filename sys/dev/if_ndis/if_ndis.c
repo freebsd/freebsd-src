@@ -502,7 +502,7 @@ ndis_attach(dev)
 
 	/* Do media setup */
 	if (sc->ndis_80211) {
-		struct ieee80211com	*ic = (void *)ifp;
+		struct ieee80211com	*ic = (void *)&sc->ic;
 		ndis_80211_rates_ex	rates;
 		struct ndis_80211_nettype_list *ntl;
 		uint32_t		arg;
@@ -765,7 +765,7 @@ ndis_detach(dev)
 	if (!sc->ndis_80211)
 		ifmedia_removeall(&sc->ifmedia);
 
-	ndis_unload_driver((void *)ifp);
+	ndis_unload_driver(sc);
 
 	if (sc->ndis_iftype == PCIBus)
 		bus_dma_tag_destroy(sc->ndis_parent_tag);
@@ -849,7 +849,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 	int			i;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)(block->nmb_ifp);
+	sc = (struct ndis_softc *)(block->nmb_ifp->if_softc);
 	ifp = block->nmb_ifp;
 
 	for (i = 0; i < pktcnt; i++) {
@@ -927,7 +927,7 @@ ndis_txeof(adapter, packet, status)
 	struct mbuf		*m;
 
 	block = (ndis_miniport_block *)adapter;
-	sc = (struct ndis_softc *)block->nmb_ifp;
+	sc = (struct ndis_softc *)block->nmb_ifp->if_softc;
 	ifp = block->nmb_ifp;
 
 	m = packet->np_m0;
@@ -1051,7 +1051,7 @@ ndis_intr(arg)
 	mtx_unlock(&sc->ndis_intrmtx);
 
 	if ((is_our_intr || call_isr))
-		ndis_sched(ndis_intrtask, ifp, NDIS_SWI);
+		ndis_sched(ndis_intrtask, ifp->if_softc, NDIS_SWI);
 
 	return;
 }
@@ -1538,10 +1538,12 @@ ndis_setstate_80211(sc)
 			device_printf(sc->ndis_dev,
 			    "enable WEP failed: %d\n", rval);
 #ifndef IEEE80211_F_WEPON
+#if 0
 		if (ic->ic_wep_mode != IEEE80211_WEP_8021X &&
 		    ic->ic_wep_mode != IEEE80211_WEP_ON)
 			arg = NDIS_80211_PRIVFILT_ACCEPTALL;
 		else
+#endif
 #endif
 			arg = NDIS_80211_PRIVFILT_8021XWEP;
 		len = sizeof(arg);
@@ -1663,7 +1665,7 @@ ndis_setstate_80211(sc)
 static void
 ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 {
-        struct ieee80211com *ic = (void *)ifp;
+        struct ieee80211com *ic = &((struct ndis_softc *)ifp->if_softc)->ic;
         struct ieee80211_node *ni = NULL;
 
         imr->ifm_status = IFM_AVALID;
@@ -1705,7 +1707,7 @@ ndis_media_status(struct ifnet *ifp, struct ifmediareq *imr)
         case IEEE80211_MODE_11G:
                 imr->ifm_active |= IFM_MAKEMODE(IFM_IEEE80211_11G);
                 break;
-        case IEEE80211_MODE_TURBO:
+        case IEEE80211_MODE_TURBO_A:
                 imr->ifm_active |= IFM_MAKEMODE(IFM_IEEE80211_11A)
                                 |  IFM_IEEE80211_TURBO;
                 break;
