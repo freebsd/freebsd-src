@@ -103,7 +103,7 @@ g_bsd_ledec_disklabel(u_char *ptr, struct disklabel *d)
 	d->d_type = g_dec_le2(ptr + 4);
 	d->d_subtype = g_dec_le2(ptr + 6);
 	bcopy(ptr + 8, d->d_typename, 16);
-	bcopy(d->d_packname, ptr + 24, 16);
+	bcopy(ptr + 24, d->d_packname, 16);
 	d->d_secsize = g_dec_le4(ptr + 40);
 	d->d_nsectors = g_dec_le4(ptr + 44);
 	d->d_ntracks = g_dec_le4(ptr + 48);
