@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.15 1998/03/04 11:39:16 kato Exp $
+ *	$Id: specialreg.h,v 1.16 1998/10/06 13:16:26 kato Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -91,6 +91,63 @@
 #define	CPUID_PGE	0x2000
 #define	CPUID_MCA	0x4000
 #define	CPUID_CMOV	0x8000
+
+/*
+ * Model-specific registers for the i386 family
+ */
+#define MSR_P5_MC_ADDR		0x000
+#define MSR_P5_MC_TYPE		0x001
+#define MSR_TSC			0x010
+#define MSR_APICBASE		0x01b
+#define MSR_EBL_CR_POWERON	0x02a
+#define MSR_BIOS_UPDT_TRIG	0x079
+#define MSR_BIOS_SIGN		0x08b
+#define MSR_PERFCTR0		0x0c1
+#define MSR_PERFCTR1		0x0c2
+#define MSR_MTRRcap		0x0fe
+#define MSR_MCG_CAP		0x179
+#define MSR_MCG_STATUS		0x17a
+#define MSR_MCG_CTL		0x17b
+#define MSR_EVNTSEL0		0x186
+#define MSR_EVNTSEL1		0x187
+#define MSR_DEBUGCTLMSR		0x1d9
+#define MSR_LASTBRANCHFROMIP	0x1db
+#define MSR_LASTBRANCHTOIP	0x1dc
+#define MSR_LASTINTFROMIP	0x1dd
+#define MSR_LASTINTTOIP		0x1de
+#define MSR_ROB_CR_BKUPTMPDR6	0x1e0
+#define MSR_MTRRVarBase		0x200
+#define MSR_MTRR64kBase		0x250
+#define MSR_MTRR16kBase		0x258
+#define MSR_MTRR4kBase		0x268
+#define MSR_MTRRdefType		0x2ff
+#define MSR_MC0_CTL		0x400
+#define MSR_MC0_STATUS		0x401
+#define MSR_MC0_ADDR		0x402
+#define MSR_MC0_MISC		0x403
+#define MSR_MC1_CTL		0x404
+#define MSR_MC1_STATUS		0x405
+#define MSR_MC1_ADDR		0x406
+#define MSR_MC1_MISC		0x407
+#define MSR_MC2_CTL		0x408
+#define MSR_MC2_STATUS		0x409
+#define MSR_MC2_ADDR		0x40a
+#define MSR_MC2_MISC		0x40b
+#define MSR_MC4_CTL		0x40c
+#define MSR_MC4_STATUS		0x40d
+#define MSR_MC4_ADDR		0x40e
+#define MSR_MC4_MISC		0x40f
+#define MSR_MC3_CTL		0x410
+#define MSR_MC3_STATUS		0x411
+#define MSR_MC3_ADDR		0x412
+#define MSR_MC3_MISC		0x413
+
+/*
+ * Constants related to MTRRs
+ */
+#define MTRR_N64K		8	/* numbers of fixed-size entries */
+#define MTRR_N16K		16
+#define MTRR_N4K		64
 
 /*
  * Cyrix configuration registers, accessible as IO ports.
