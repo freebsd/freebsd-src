@@ -98,6 +98,7 @@ mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	switch (minor(dev)) {
 	case 14:
+		td->td_proc->p_md.md_iopl = 0;
 		td->td_frame->tf_eflags &= ~PSL_IOPL;
 	}
 	return (0);
@@ -125,6 +126,7 @@ mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		if (error != 0)
 			return (error);
 		td->td_frame->tf_eflags |= PSL_IOPL;
+		td->td_proc->p_md.md_iopl = PSL_IOPL;
 		break;
 	}
 	return (0);
