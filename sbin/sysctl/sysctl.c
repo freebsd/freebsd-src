@@ -71,11 +71,11 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-		"usage: sysctl [-bn] variable ...",
-		"       sysctl [-bn] -w variable=value ...",
-		"       sysctl [-bn] -a",
-		"       sysctl [-bn] -A",
-		"       sysctl [-bn] -X");
+		"usage: sysctl [-bNn] variable ...",
+		"       sysctl [-bNn] -w variable=value ...",
+		"       sysctl [-bNn] -a",
+		"       sysctl [-bNn] -A",
+		"       sysctl [-bNn] -X");
 	exit(1);
 }
 
