@@ -304,6 +304,7 @@ checkfilesys(char *filesys)
 		if (bkgrdflag) {
 			snprintf(snapname, sizeof snapname,
 			    "%s/.snap/fsck_snapshot", mntp->f_mntonname);
+			memset(&args, 0, sizeof args);
 			args.fspec = snapname;
 			while (mount("ffs", mntp->f_mntonname,
 			    mntp->f_flags | MNT_UPDATE | MNT_SNAPSHOT,
