@@ -37,7 +37,9 @@
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);
 static void isp_relsim(void *);
+static timeout_t isp_timeout;
 static void isp_action(struct cam_sim *, union ccb *);
+
 
 static struct ispsoftc *isplist = NULL;
 /* #define	ISP_LUN0_ONLY	1 */
@@ -1196,6 +1198,28 @@ isp_relsim(void *arg)
 }
 
 static void
+isp_timeout(void *arg)
+{
+	ISP_SCSI_XFER_T *xs = arg;
+	struct ispsoftc *isp = XS_ISP(xs);
+	u_int32_t handle;
+	int s = splcam();
+	/*
+	 * We've decide this command is dead. Make sure we're not trying
+	 * to kill a command that's already dead by getting it's handle.
+	 */
+	handle = isp_find_handle(isp, xs);
+	if (handle) {
+		isp_destroy_handle(isp, handle);
+		xpt_print_path(xs->ccb_h.path);
+		printf("watchdog timeout (handle 0x%x)\n", handle);
+		XS_SETERR(xs, CAM_CMD_TIMEOUT);
+		isp_done(xs);
+	}
+	(void) splx(s);
+}
+
+static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
 	int s, bus, tgt, error;
@@ -1265,6 +1289,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		switch (error) {
 		case CMD_QUEUED:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
+			if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
+				if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
+					ccb->ccb_h.timeout = 5 * 1000;
+				ccb->ccb_h.timeout_ch =
+				    timeout(isp_timeout, (caddr_t)ccb,
+				    (ccb->ccb_h.timeout * hz) / 1000);
+			}
 			break;
 		case CMD_RQLATER:
 			if (isp->isp_osinfo.simqfrozen == 0) {
@@ -1308,8 +1339,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 
 	case XPT_NOTIFY_ACK:		/* recycle notify ack */
-xpt_print_path(ccb->ccb_h.path);
-printf("notify ack\n");
 	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
@@ -1728,6 +1757,7 @@ isp_done(struct ccb_scsiio *sccb)
 		xpt_print_path(sccb->ccb_h.path);
 		printf("cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
+	untimeout(isp_timeout, (caddr_t)sccb, sccb->ccb_h.timeout_ch);
 	xpt_done((union ccb *) sccb);
 }
 
