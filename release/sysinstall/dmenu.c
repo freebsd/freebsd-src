@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.24 1996/08/01 10:58:50 jkh Exp $
+ * $Id: dmenu.c,v 1.26 1996/11/07 08:03:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,22 @@ dmenuSetVariable(dialogMenuItem *tmp)
 }
 
 int
+dmenuSetVariables(dialogMenuItem *tmp)
+{
+    char *cp1, *cp2;
+    char *copy = strdup((char *)tmp->data);
+
+    for (cp1 = copy; cp1 != NULL;) {
+	cp2 = index(cp1, ',');
+	if (cp2 != NULL) *cp2++ = '\0';
+	variable_set(cp1);
+	cp1 = cp2;
+    }
+    free(copy);
+    return DITEM_SUCCESS;
+}
+
+int
 dmenuToggleVariable(dialogMenuItem *tmp)
 {
     if (!variable_get((char *)tmp->data))
@@ -139,7 +155,7 @@ dmenuFlagCheck(dialogMenuItem *item)
 int
 dmenuVarCheck(dialogMenuItem *item)
 {
-    char *w, *cp, *cp2, tmp[256];
+    char *w, *cp, *cp2, *cp3, tmp[256];
 
     w = (char *)item->aux;
     if (!w)
@@ -149,6 +165,8 @@ dmenuVarCheck(dialogMenuItem *item)
     strncpy(tmp, w, 256);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
+	if ((cp3 = index(cp, ',')) != NULL)
+	    *cp3 = '\0';
         cp2 = getenv(tmp);
         if (cp2)
             return !strcmp(cp, cp2);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.1 1996/11/04 19:46:33 phk Exp $
+ * $Id: config.c,v 1.54 1996/11/07 08:03:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -335,13 +335,8 @@ configSaver(dialogMenuItem *self)
 int
 configSaverTimeout(dialogMenuItem *self)
 {
-    if (variable_get(VAR_BLANKTIME)) {
-	variable_unset(VAR_BLANKTIME);
-	return DITEM_SUCCESS | DITEM_REDRAW;
-    }
-    else
-	return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
-	    ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+    return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
+	    DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 int
@@ -380,7 +375,7 @@ configResolv(void)
     FILE *fp;
     char *cp, *dp, *hp;
 
-    if (!RunningAsInit && file_readable("/etc/resolv.conf"))
+    if (!RunningAsInit || file_readable("/etc/resolv.conf"))
 	return;
 
     if (Mkdir("/etc")) {
