@@ -76,6 +76,9 @@ char	*unargv(int argc, char *argv[]);
 void	hexdump(caddr_t region, size_t len);
 size_t	strlenout(vm_offset_t str);
 char	*strdupout(vm_offset_t str);
+void	kern_bzero(vm_offset_t dest, size_t len);
+int	kern_pread(int fd, vm_offset_t dest, size_t len, off_t off);
+void	*alloc_pread(int fd, off_t off, size_t len);
 
 /* bcache.c */
 int	bcache_init(u_int nblks, size_t bsize);
@@ -232,7 +235,19 @@ int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 
 /* MI module loaders */
 #ifdef __elfN
+/* Relocation types. */
+#define ELF_RELOC_REL	1
+#define ELF_RELOC_RELA	2
+
+struct elf_file;
+typedef Elf_Addr (symaddr_fn)(struct elf_file *ef, Elf_Word symidx);
+
 int	__elfN(loadfile)(char *filename, u_int64_t dest, struct preloaded_file **result);
+int	__elfN(obj_loadfile)(char *filename, u_int64_t dest,
+	    struct preloaded_file **result);
+int	__elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr,
+	    const void *reldata, int reltype, Elf_Addr relbase,
+	    Elf_Addr dataaddr, void *data, size_t len);
 #endif
 
 /*

@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include "btxv86.h"
 
 static int	elf64_exec(struct preloaded_file *amp);
+static int	elf64_obj_exec(struct preloaded_file *amp);
 
 struct file_format amd64_elf = { elf64_loadfile, elf64_exec };
+struct file_format amd64_elf_obj = { elf64_obj_loadfile, elf64_obj_exec };
 
 #define PG_V	0x001
 #define PG_RW	0x002
@@ -115,4 +117,10 @@ elf64_exec(struct preloaded_file *fp)
     __exec((void *)VTOP(amd64_tramp), modulep, kernend);
 
     panic("exec returned");
+}
+
+static int
+elf64_obj_exec(struct preloaded_file *fp)
+{
+	return (EFTYPE);
 }
