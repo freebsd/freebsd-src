@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: isp.c,v 1.9 1998/12/28 19:22:25 mjacob Exp $ */
+/* release_12_28_98_A+ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -128,7 +128,7 @@ isp_reset(isp)
 {
 	static char once = 1;
 	mbreg_t mbs;
-	int loops, i, dodnld = 1;
+	int loops, i, dodnld = 1, deadchip;
 	char *revname;
 
 	isp->isp_state = ISP_NILSTATE;
@@ -139,16 +139,26 @@ isp_reset(isp)
 	 * here.
 	 */
 	isp->isp_dblev = DFLT_DBLEVEL;
+	deadchip = ISP_READ(isp, HCCR) & HCCR_RESET;
+	if (deadchip) {
+		ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
+		if (ISP_READ(isp, HCCR) & HCCR_RESET) {
+			isp_dumpregs(isp, "still reset after release");
+			SYS_DELAY(1000);
+		} else {
+			deadchip = 1;
+		}
+	}
+
 	if (isp->isp_type & ISP_HA_FC) {
 		revname = "2100";
 	} else {
 		sdparam *sdp = isp->isp_param;
-
-		int rev = ISP_READ(isp, BIU_CONF0) & BIU_CONF0_HW_MASK;
-		switch (rev) {
+		i = ISP_READ(isp, BIU_CONF0) & BIU_CONF0_HW_MASK;
+		switch (i) {
 		default:
 			PRINTF("%s: unknown chip rev. 0x%x- assuming a 1020\n",
-			    isp->isp_name, rev);
+			    isp->isp_name, i);
 			/* FALLTHROUGH */
 		case 1:
 			revname = "1020";	
@@ -185,16 +195,20 @@ isp_reset(isp)
 		 * Try and figure out if we're connected to a differential bus.
 		 * You have to pause the RISC processor to read SXP registers.
 		 */
-		ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
-		i = 100;
-		while ((ISP_READ(isp, HCCR) & HCCR_PAUSE) == 0) {
-			SYS_DELAY(20);
-			if (--i == 0) {
-				PRINTF("%s: unable to pause RISC processor\n",
-				    isp->isp_name);
-				i = -1;
-				break;
+		if (deadchip == 0) {
+			ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
+			i = 100;
+			while ((ISP_READ(isp, HCCR) & HCCR_PAUSE) == 0) {
+				SYS_DELAY(20);
+				if (--i == 0) {
+					isp_dumpregs(isp,
+					    "cannot stop RISC processor");
+					i = -1;
+					break;
+				}
 			}
+		} else {
+			i = 0;
 		}
 		if (i > 0) {
 			if (isp->isp_bustype != ISP_BT_SBUS) {
@@ -229,9 +243,10 @@ isp_reset(isp)
 				sdp->isp_clock = 40;
 			}
 			/*
-			 * Restart processor
+			 * Restart processor, if necessary.
 			 */
-			ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
+			if (deadchip == 0)
+				ISP_WRITE(isp, HCCR, HCCR_CMD_RELEASE);
 		}
 		/*
 		 * Machine dependent clock (if set) overrides
@@ -249,7 +264,7 @@ isp_reset(isp)
 	 */
 	ISP_RESET0(isp);
 
-	if (once == 1) {
+	if (once == 1 && deadchip == 0) {
 		once = 0;
 		/*
 		 * Get the current running firmware revision out of the
@@ -269,6 +284,7 @@ isp_reset(isp)
 			    (((u_int16_t) mbs.param[1]) << 10) + mbs.param[2];
 		}
 	}
+
 
 	/*
 	 * Hit the chip over the head with hammer,
@@ -337,9 +353,21 @@ isp_reset(isp)
 	ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
 	SYS_DELAY(100);
 
+	/*
+	 * Establish some initial burst rate thingies
+	 * (only for the 1XX0 boards). This really should
+	 * be done later after fetching from NVRAM.
+	 */
 	if (isp->isp_type & ISP_HA_SCSI) {
-		ISP_SETBITS(isp, BIU_CONF1, isp->isp_mdvec->dv_conf1);
-		if (isp->isp_mdvec->dv_conf1 & BIU_BURST_ENABLE) {
+		u_int16_t conf1 = isp->isp_mdvec->dv_conf1;
+		/*
+		 * Busted FIFO. Turn off all but burst enables.
+		 */
+		if (isp->isp_type == ISP_HA_SCSI_1040A) {
+			conf1 &= BIU_BURST_ENABLE;
+		}
+		ISP_SETBITS(isp, BIU_CONF1, conf1);
+		if (conf1 & BIU_BURST_ENABLE) {
 			ISP_SETBITS(isp, CDMA_CONF, DMA_ENABLE_BURST);
 			ISP_SETBITS(isp, DDMA_CONF, DMA_ENABLE_BURST);
 		}
@@ -737,7 +765,7 @@ isp_fibre_init(isp)
 
 
 	icbp = (isp_icb_t *) fcp->isp_scratch;
-	bzero(icbp, sizeof (*icbp));
+	MEMZERO(icbp, sizeof (*icbp));
 
 	icbp->icb_version = ICB_VERSION1;
 #ifdef	ISP_TARGET_MODE
@@ -936,7 +964,7 @@ ispscsicmd(xs)
 		u_int8_t niptr;
 		ispmarkreq_t *marker = (ispmarkreq_t *) reqp;
 
-		bzero((void *) marker, sizeof (*marker));
+		MEMZERO((void *) marker, sizeof (*marker));
 		marker->req_header.rqs_entry_count = 1;
 		marker->req_header.rqs_entry_type = RQSTYPE_MARKER;
 		marker->req_modifier = SYNC_ALL;
@@ -963,7 +991,7 @@ ispscsicmd(xs)
 		iptr = niptr;
 	}
 
-	bzero((void *) reqp, UZSIZE);
+	MEMZERO((void *) reqp, UZSIZE);
 	reqp->req_header.rqs_entry_count = 1;
 	if (isp->isp_type & ISP_HA_FC) {
 		reqp->req_header.rqs_entry_type = RQSTYPE_T2RQS;
@@ -1030,7 +1058,7 @@ ispscsicmd(xs)
 #endif
 
 	}
-	bcopy((void *)XS_CDBP(xs), reqp->req_cdb, XS_CDBLEN(xs));
+	memcpy(reqp->req_cdb, XS_CDBP(xs), XS_CDBLEN(xs));
 
 	IDPRINTF(5, ("%s(%d.%d): START%d cmd 0x%x datalen %d\n", isp->isp_name,
 	    XS_TGT(xs), XS_LUN(xs), reqp->req_header.rqs_seqno,
@@ -1291,14 +1319,14 @@ isp_intr(arg)
 		XS_STS(xs) = sp->req_scsi_status & 0xff;
 		if (isp->isp_type & ISP_HA_SCSI) {
 			if (sp->req_state_flags & RQSF_GOT_SENSE) {
-				bcopy(sp->req_sense_data, XS_SNSP(xs),
+				memcpy(XS_SNSP(xs), sp->req_sense_data,
 					XS_SNSLEN(xs));
 				XS_SNS_IS_VALID(xs);
 			}
 		} else {
 			if (XS_STS(xs) == SCSI_CHECK) {
 				XS_SNS_IS_VALID(xs);
-				bcopy(sp->req_sense_data, XS_SNSP(xs),
+				memcpy(XS_SNSP(xs), sp->req_sense_data,
 					XS_SNSLEN(xs));
 				sp->req_state_flags |= RQSF_GOT_SENSE;
 			}
@@ -1318,8 +1346,9 @@ isp_intr(arg)
 		} else {
 			PRINTF("%s: unknown return %x\n", isp->isp_name,
 				sp->req_header.rqs_entry_type);
-			if (XS_NOERR(xs))
+			if (XS_NOERR(xs)) {
 				XS_SETERR(xs, HBA_BOTCH);
+			}
 		}
 		if (isp->isp_type & ISP_HA_SCSI) {
 			XS_RESID(xs) = sp->req_resid;
@@ -1663,7 +1692,7 @@ isp_handle_other_response(isp, sp, optrp)
 		}
 		PRINTF("%s: datalen %d cdb0=0x%x\n", isp->isp_name,
 		    at2->req_datalen, at2->req_cdb[0]);
-		bzero ((void *) ct2, sizeof (*ct2));
+		MEMZERO((void *) ct2, sizeof (*ct2));
 		ct2->req_header.rqs_entry_type = RQSTYPE_CTIO2;
 		ct2->req_header.rqs_entry_count = 1;
 		ct2->req_header.rqs_flags = 0;
@@ -1689,10 +1718,10 @@ isp_handle_other_response(isp, sp, optrp)
 			ct2->req_seg_count = 1;
 			if (at2->req_cdb[0] == 0x12) {
 				s = sizeof(tgtiqd);
-				bcopy((void *)tgtiqd, fcp->isp_scratch, s);
+				memcpy(fcp->isp_scratch, tgtiqd, s);
 			} else {
 				s = at2->req_datalen;
-				bzero(fcp->isp_scratch, s);
+				MEMZERO(fcp->isp_scratch, s);
 			}
 			ct2->req_m.mode0.req_dataseg[0].ds_base =
 			    fcp->isp_scdma;
@@ -1744,9 +1773,8 @@ isp_handle_other_response(isp, sp, optrp)
 				ct2->req_m.mode1.req_sense_len = 18;
 				ct2->req_m.mode1.req_scsi_status |=
 				    at2->req_scsi_status;
-				bcopy((void *)at2->req_sense,
-				    (void *)ct2->req_m.mode1.req_response,
-				    sizeof (at2->req_sense));
+				memcpy(ct2->req_m.mode1.req_response,
+				    at2->req_sense, sizeof (at2->req_sense));
 			}
 			break;
 		}
@@ -1798,7 +1826,7 @@ isp_handle_other_response(isp, sp, optrp)
 			PRINTF("%s: Request Queue Overflow other response\n",
 			    isp->isp_name);
 		} else {
-			bcopy(ireqp, reqp, reqsize);
+			memcpy(reqp, ireqp, reqsize);
 			ISP_WRITE(isp, INMAILBOX4, iptr);
 			isp->isp_reqidx = iptr;
 		}
@@ -1862,7 +1890,7 @@ isp_modify_lun(isp, lun, icnt, ccnt)
 		return (-1);
 	}
 
-	bzero((void *) ip, sizeof (*ip));
+	MEMZERO((void *) ip, sizeof (*ip));
 	ip->req_header.rqs_entry_type = RQSTYPE_ENABLE_LUN;
 	ip->req_header.rqs_entry_count = 1;
 	ip->req_header.rqs_seqno = isp->isp_seqno++;
@@ -1890,7 +1918,7 @@ isp_notify_ack(isp, ptrp)
 		na_entry_t _nas;
 	} un;
 
-	bzero((caddr_t)&un, sizeof (un));
+	MEMZERO((caddr_t)&un, sizeof (un));
 	un._nas.na_header.rqs_entry_type = RQSTYPE_NOTIFY_ACK;
 	un._nas.na_header.rqs_entry_count = 1;
 
@@ -1926,7 +1954,7 @@ isp_notify_ack(isp, ptrp)
 		PRINTF("%s: Request Queue Overflow For isp_notify_ack\n",
 		    isp->isp_name);
 	} else {
-		bcopy(ireqp, reqp, sizeof (un));
+		memcpy(reqp, ireqp, sizeof (un));
 		ISP_WRITE(isp, INMAILBOX4, iptr);
 		isp->isp_reqidx = iptr;
 	}
@@ -1981,8 +2009,7 @@ isp_handle_atio (isp, aep)
 
 
 		if (status & TGTSVALID) {
-			bcopy((caddr_t) aep->at_sense,
-			    (caddr_t) &cdp->cd_sensedata,
+			memcpy(&cdp->cd_sensedata, aep->at_sense,
 			    sizeof (cdp->cd_sensedata));
 			PRINTF("%s: Bus Phase Sequence error key 0x%x\n",
 			    isp->isp_name, cdp->cd_sensedata[2] & 0xf);
@@ -2023,7 +2050,7 @@ isp_handle_atio (isp, aep)
 		cdp->cd_lun = aep->at_lun;
 		cdp->cd_tagtype = aep->at_tag_type;
 		cdp->cd_tagval = aep->at_tag_val;
-		bcopy(aep->at_cdb, cdp->cd_cdb, 16);
+		memcpy(cdp->cd_cdb, aep->at_cdb, 16);
 		PRINTF("%s: CDB 0x%x itl %d/%d/%d\n", isp->isp_name,
 		    cdp->cd_cdb[0], cdp->cd_iid, cdp->cd_tgt, cdp->cd_lun);
 		(*isp->isp_tmd_newcmd)(isp, cdp);
@@ -2099,7 +2126,7 @@ isp_handle_atio2(isp, aep)
 		cdp->cd_iid = aep->at_iid;
 		cdp->cd_tgt = 0;
 		cdp->cd_lun = aep->at_lun;
-		bcopy(aep->at_cdb, cdp->cd_cdb, 16);
+		memcpy(cdp->cd_cdb, aep->at_cdb, 16);
 		cdp->cd_rxid = aep->at_rxid;
 		cdp->cp_origdlen = aep->at_datalen;
 		cdp->cp_totbytes = 0;
@@ -2296,8 +2323,17 @@ isp_parse_status(isp, sp, xs)
 		break;
 
 	case RQCS_QUEUE_FULL:
-		PRINTF("%s: internal queues full for target %d lun %d\n",
-		    isp->isp_name, XS_TGT(xs), XS_LUN(xs));
+		PRINTF("%s: internal queues full for target %d lun %d "
+		    "status 0x%x\n", isp->isp_name, XS_TGT(xs), XS_LUN(xs),
+		    XS_STS(xs));
+		/*
+		 * If QFULL or some other status byte is set, then this
+		 * isn't an error, per se.
+		 */
+		if (XS_STS(xs) != 0) {
+			XS_SETERR(xs, HBA_NOERROR);
+			return;
+		}
 		break;
 
 	case RQCS_PHASE_SKIPPED:
@@ -3196,9 +3232,9 @@ isp_read_nvram(isp)
 	if (isp->isp_type & ISP_HA_SCSI) {
 		sdparam *sdp = (sdparam *) isp->isp_param;
 
-		/* XXX CHECK THIS FOR SANITY XXX */
 		sdp->isp_fifo_threshold =
-			ISP_NVRAM_FIFO_THRESHOLD(nvram_data);
+			ISP_NVRAM_FIFO_THRESHOLD(nvram_data) |
+			(ISP_NVRAM_FIFO_THRESHOLD_128(nvram_data) << 2);
 
 		sdp->isp_initiator_id =
 			ISP_NVRAM_INITIATOR_ID(nvram_data);
@@ -3240,8 +3276,6 @@ isp_read_nvram(isp)
 		sdp->isp_tag_aging =
 			ISP_NVRAM_TAG_AGE_LIMIT(nvram_data);
 
-		/* XXX ISP_NVRAM_FIFO_THRESHOLD_128 XXX */
-
 		sdp->isp_selection_timeout =
 			ISP_NVRAM_SELECTION_TIMEOUT(nvram_data);
 
@@ -3250,6 +3284,12 @@ isp_read_nvram(isp)
 
 		sdp->isp_fast_mttr = ISP_NVRAM_FAST_MTTR_ENABLE(nvram_data);
 
+#if	0
+		PRINTF("%s: fifo_threshold = 0x%x cbena%d dbena%d\n",
+		    isp->isp_name, sdp->isp_fifo_threshold,
+		    sdp->isp_cmd_dma_burst_enable,
+		    sdp->isp_data_dma_burst_enabl);
+#endif
 		for (i = 0; i < 16; i++) {
 			sdp->isp_devparam[i].dev_enable =
 				ISP_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i);
