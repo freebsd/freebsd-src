@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.7 (Berkeley) 1/21/94
- * $Id: cdefs.h,v 1.5 1994/08/21 04:41:34 paul Exp $
+ * $Id: cdefs.h,v 1.6 1994/08/22 13:44:39 bde Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -57,7 +57,8 @@
  */
 #if defined(__STDC__) || defined(__cplusplus)
 #define	__P(protos)	protos		/* full-blown ANSI C */
-#define	__CONCAT(x,y)	x ## y
+#define	__CONCAT1(x,y)	x ## y
+#define	__CONCAT(x,y)	__CONCAT1(x,y)
 #define	__STRING(x)	#x
 
 #define	__const		const		/* define reserved names to standard */
