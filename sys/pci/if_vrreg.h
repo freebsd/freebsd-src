@@ -540,6 +540,7 @@ struct vr_softc {
 #define REV_ID_VT3065_A			0x40
 #define REV_ID_VT3065_B			0x41
 #define REV_ID_VT3065_C			0x42
+#define REV_ID_VT6102_APOLLO		0x74
 #define REV_ID_VT3106			0x80
 #define REV_ID_VT3106_J			0x80    /* 0x80-0x8F */
 #define REV_ID_VT3106_S			0x90    /* 0x90-0xA0 */
@@ -566,6 +567,9 @@ struct vr_softc {
 #define VR_PCI_MINLAT		0x0F
 #define VR_PCI_RESETOPT		0x48
 #define VR_PCI_EEPROM_DATA	0x4C
+#define VR_PCI_MODE		0x50
+
+#define VR_MODE3_MIION		0x04
 
 /* power management registers */
 #define VR_PCI_CAPID		0xDC /* 8 bits */
