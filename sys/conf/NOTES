@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.352 1997/07/20 05:27:59 bde Exp $
+#	$Id: LINT,v 1.353 1997/07/25 11:53:19 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -71,9 +71,6 @@ config		kernel	root on wd0 dumps on wd0
 # NAPIC sets the number of IO APICs on the motherboard, defaults to 1.
 # NINTR sets the total number of INTs provided by the motherboard.
 #
-# SMP_TIMER_NC is for motherboards that claim 8254 connectivity to the IO APIC,
-#  when in fact it is NOT connected.
-#
 # Notes:
 #
 #  An SMP kernel will ONLY run on an Intel MP spec. qualified motherboard.
@@ -89,7 +86,7 @@ options		SMP			# Symmetric MultiProcessor Kernel
 options		APIC_IO			# Symmetric (APIC) I/O
 
 # Optional, these are the defaults plus 1:
-options		NCPU=3			# number of CPUs
+options		NCPU=5			# number of CPUs
 options		NBUS=5			# number of busses
 options		NAPIC=2			# number of IO APICs
 options		NINTR=25		# number of INTs
@@ -97,12 +94,6 @@ options		NINTR=25		# number of INTs
 #
 # Rogue SMP hardware:
 #
-
-# Tyan Tomcat II:
-#options                SMP_TIMER_NC            # 8254 NOT connected to APIC
-
-# SuperMicro P6DNE:
-#options                SMP_TIMER_NC            # 8254 NOT connected to APIC
 
 # Bridged PCI cards:
 #
