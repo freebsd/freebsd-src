@@ -144,7 +144,6 @@ ohci_pci_attach(device_t self)
 {
 	device_t parent = device_get_parent(self);
 	ohci_softc_t *sc = device_get_softc(self);
-	device_t usbus;
 	int err;
 	int rid;
 	struct resource *res;
@@ -170,46 +169,48 @@ ohci_pci_attach(device_t self)
 				 RF_SHAREABLE | RF_ACTIVE);
 	if (res == NULL) {
 		device_printf(self, "could not allocate irq\n");
-		return ENOMEM;
+		err = ENOMEM;
+		goto bad1;
 	}
 
-	usbus = device_add_child(self, "usb", -1);
-	if (!usbus) {
+	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
+	if (!sc->sc_bus.bdev) {
 		device_printf(self, "could not add USB device\n");
-		return ENOMEM;
+		err = ENOMEM;
+		goto bad2;
 	}
-	device_set_ivars(usbus, sc);
+	device_set_ivars(sc->sc_bus.bdev, sc);
 
 	switch (pci_get_devid(self)) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
-		device_set_desc(usbus, ohci_device_aladdin_v);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_aladdin_v);
 		sprintf(sc->sc_vendor, "AcerLabs");
 		break;
 	case PCI_OHCI_DEVICEID_AMD756:
-		device_set_desc(usbus, ohci_device_amd756);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_amd756);
 		sprintf(sc->sc_vendor, "AMD");
 		break;
 	case PCI_OHCI_DEVICEID_FIRELINK:
-		device_set_desc(usbus, ohci_device_firelink);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_firelink);
 		sprintf(sc->sc_vendor, "OPTi");
 		break;
 	case PCI_OHCI_DEVICEID_NEC:
-		device_set_desc(usbus, ohci_device_nec);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_nec);
 		sprintf(sc->sc_vendor, "NEC");
 		break;
 	case PCI_OHCI_DEVICEID_USB0670:
-		device_set_desc(usbus, ohci_device_usb0670);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0670);
 		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
 	case PCI_OHCI_DEVICEID_USB0673:
-		device_set_desc(usbus, ohci_device_usb0673);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_usb0673);
 		sprintf(sc->sc_vendor, "CMDTECH");
 		break;
 	default:
 		if (bootverbose)
 			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
 				      pci_get_devid(self));
-		device_set_desc(usbus, ohci_device_generic);
+		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
 
@@ -217,40 +218,46 @@ ohci_pci_attach(device_t self)
 	if (intr == 0 || intr == 255) {
 		device_printf(self, "Invalid irq %d\n", intr);
 		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
-		device_delete_child(self, usbus);
-		return ENXIO;
+		err = ENXIO;
+		goto bad3;
 	}
 
 	err = BUS_SETUP_INTR(parent, self, res, INTR_TYPE_BIO,
 			     (driver_intr_t *) ohci_intr, sc, &ih);
 	if (err) {
 		device_printf(self, "could not setup irq, %d\n", err);
-		device_delete_child(self, usbus);
-		return err;
+		goto bad3;
 	}
 
-	sc->sc_bus.bdev = usbus;
 	err = ohci_init(sc);
 	if (!err)
 		err = device_probe_and_attach(sc->sc_bus.bdev);
 
 	if (err) {
-		device_printf(self, "init failed\n");
-
-		/* disable interrupts */
-		bus_space_write_4(sc->iot, sc->ioh,
-				  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
-
-		err = BUS_TEARDOWN_INTR(parent, self, res, ih);
-		if (err)
-			/* XXX or should we panic? */
-			device_printf(self, "could not tear down irq, %d\n",
-				      err);
-		device_delete_child(self, usbus);
-		return EIO;
+		device_printf(self, "USB init failed\n");
+		err = EIO;
+		goto bad4;
 	}
 
 	return 0;
+bad4:
+	/* disable interrupts that might have been switched on
+	 * in ohci_init
+	 */
+	bus_space_write_4(sc->iot, sc->ioh,
+			  OHCI_INTERRUPT_DISABLE, OHCI_ALL_INTRS);
+
+	err = BUS_TEARDOWN_INTR(parent, self, res, ih);
+	if (err)
+		/* XXX or should we panic? */
+		device_printf(self, "could not tear down irq, %d\n", err);
+bad3:
+	device_delete_child(self, sc->sc_bus.bdev);
+bad2:
+	bus_delete_resource(self, SYS_RES_IOPORT, 0);
+bad1:
+	bus_delete_resource(self, SYS_RES_MEMORY, PCI_CBMEM);
+	return err;
 }
 
 static device_method_t ohci_methods[] = {
