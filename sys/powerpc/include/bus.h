@@ -726,10 +726,17 @@ bus_space_set_region_stream_4(bus_space_tag_t tag, bus_space_handle_t bsh,
  * provide the flags to MI code.
  */
 
-#define bus_space_barrier(t, h, o, l, f)	\
-	((void)((void)(t), (void)(h), (void)(o), (void)(l), (void)(f)))
 #define	BUS_SPACE_BARRIER_READ	0x01		/* force read barrier */
 #define	BUS_SPACE_BARRIER_WRITE	0x02		/* force write barrier */
+
+static __inline void
+bus_space_barrier(bus_space_tag_t tag __unused,
+    bus_space_handle_t bsh __unused, bus_size_t offset __unused,
+    bus_size_t len __unused, int flags __unused)
+{
+	__asm __volatile("" : : : "memory");
+}
+
 
 #define	BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
 
