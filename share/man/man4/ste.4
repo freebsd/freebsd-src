@@ -54,8 +54,7 @@ structure and is very similar in operation, however its register
 layout is different.
 The ST201 has a 64-bit multicast hash filter
 and a single perfect filter entry for the station address.
-IT
-supports both 10 and 100Mbps speeds in either full or half duplex
+It supports both 10 and 100Mbps speeds in either full or half duplex
 using an MII transceiver.
 .Pp
 The
@@ -68,7 +67,7 @@ Enable autoselection of the media type and options.
 The user can manually override
 the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
-fine.
+file.
 .It 10baseT/UTP
 Set 10Mbps operation.
 The
@@ -131,7 +130,7 @@ the adapter back to the D0 (full power) state, but this may not be
 enough to return the driver to a fully operational condition.
 If
 you see this message at boot time and the driver fails to attach
-the device as a network interface, you will have to perform second
+the device as a network interface, you will have to perform a second
 warm boot to have the device properly configured.
 .Pp
 Note that this condition only occurs when warm booting from another
