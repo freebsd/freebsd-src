@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.60 1999/01/27 22:42:08 dillon Exp $
+ * $Id: union_vnops.c,v 1.61 1999/06/16 23:27:43 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -800,7 +800,6 @@ union_getattr(ap)
 	if ((vap != ap->a_vap) && (vap->va_type == VDIR))
 		ap->a_vap->va_nlink += vap->va_nlink;
 
-	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 	return (0);
 }
 
