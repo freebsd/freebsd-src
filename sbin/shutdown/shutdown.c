@@ -62,8 +62,6 @@ static char sccsid[] = "@(#)shutdown.c	8.2 (Berkeley) 2/16/94";
 #ifdef DEBUG
 #undef _PATH_NOLOGIN
 #define	_PATH_NOLOGIN	"./nologin"
-#undef _PATH_FASTBOOT
-#define	_PATH_FASTBOOT	"./fastboot"
 #endif
 
 #define	H		*60*60
@@ -83,12 +81,11 @@ struct interval {
 #undef S
 
 static time_t offset, shuttime;
-static int dofast, dohalt, doreboot, killflg, mbuflen;
+static int dohalt, doreboot, killflg, mbuflen;
 static char *nosync, *whom, mbuf[BUFSIZ];
 
 void badtime __P((void));
 void die_you_gravy_sucking_pig_dog __P((void));
-void doitfast __P((void));
 void finish __P((int));
 void getoffset __P((char *));
 void loop __P((void));
@@ -115,13 +112,10 @@ main(argc, argv)
 #endif
 	nosync = NULL;
 	readstdin = 0;
-	while ((ch = getopt(argc, argv, "-fhknr")) != EOF)
+	while ((ch = getopt(argc, argv, "-hknr")) != EOF)
 		switch (ch) {
 		case '-':
 			readstdin = 1;
-			break;
-		case 'f':
-			dofast = 1;
 			break;
 		case 'h':
 			dohalt = 1;
@@ -145,7 +139,7 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
-	if (dofast && nosync) {
+	if (nosync) {
 		(void)fprintf(stderr,
 		    "shutdown: incompatible switches -f and -n.\n");
 		usage();
@@ -332,8 +326,6 @@ die_you_gravy_sucking_pig_dog()
 		(void)printf("\rbut you'll have to do it yourself\r\n");
 		exit(0);
 	}
-	if (dofast)
-		doitfast();
 #ifdef DEBUG
 	if (doreboot)
 		(void)printf("reboot");
@@ -341,8 +333,6 @@ die_you_gravy_sucking_pig_dog()
 		(void)printf("halt");
 	if (nosync)
 		(void)printf(" no sync");
-	if (dofast)
-		(void)printf(" no fsck");
 	(void)printf("\nkill -HUP 1\n");
 #else
 	if (doreboot) {
@@ -433,19 +423,6 @@ getoffset(timearg)
 	}
 }
 
-#define	FSMSG	"fastboot file for fsck\n"
-void
-doitfast()
-{
-	int fastfd;
-
-	if ((fastfd = open(_PATH_FASTBOOT, O_WRONLY|O_CREAT|O_TRUNC,
-	    0664)) >= 0) {
-		(void)write(fastfd, FSMSG, sizeof(FSMSG) - 1);
-		(void)close(fastfd);
-	}
-}
-
 #define	NOMSG	"\n\nNO LOGINS: System going down at "
 void
 nolog()
@@ -487,6 +464,6 @@ badtime()
 void
 usage()
 {
-	fprintf(stderr, "usage: shutdown [-fhknr] shutdowntime [ message ]\n");
+	fprintf(stderr, "usage: shutdown [-hknr] shutdowntime [ message ]\n");
 	exit(1);
 }
