@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.208 1998/08/04 16:00:47 peter Exp $
+#	$Id: Makefile,v 1.209 1998/08/04 17:13:38 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -620,7 +620,6 @@ _aout_nm	= usr.bin/nm
 _aout_ranlib	= usr.bin/ranlib
 _aout_size	= usr.bin/size
 _aout_strip	= usr.bin/strip
-_objformat	= usr.bin/objformat
 .endif
 
 #
@@ -645,7 +644,7 @@ lib-tools:
 		${_aout_strip}		\
 		gnu/usr.bin/binutils	\
 		usr.bin/uudecode	\
-		${_objformat}
+		usr.bin/objformat
 	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install; \
