@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.10 1998/07/11 06:35:39 bde Exp $
+ *	$Id: fdc.h,v 1.11 1998/07/29 13:00:42 bde Exp $
  *
  */
 
@@ -56,6 +56,10 @@ struct fdc_data
 #define FDC_STAT_VALID	0x08
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
+#ifdef FDC_YE
+#define FDC_PCMCIA	0x40
+#define FDC_UNLOADED	0x80
+#endif
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;

@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.93 1998/12/03 20:06:01 dillon Exp $
+#	$Id: options.i386,v 1.94 1998/12/05 03:19:51 dillon Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -104,6 +104,7 @@ EISA_SLOTS		opt_eisa.h
 
 FDC_DEBUG			opt_fdc.h
 FDC_PRINT_BOGUS_CHIPTYPE	opt_fdc.h
+FDC_YE				opt_fdc.h
 
 # pcvt(4) has a bunch of options
 FAT_CURSOR		opt_pcvt.h
