@@ -19,3 +19,6 @@ CLEANFILES+=gdtoa_${src}
 gdtoa_${src}:
 	ln -sf ${.CURDIR}/../../contrib/gdtoa/${src} ${.TARGET}
 .endfor
+
+# XXX An ugly hack to disable warnings for gdtoa sources.
+CWARNFLAGS+=   ${.IMPSRC:Mgdtoa_*.c:C/^.+$/-w/}
