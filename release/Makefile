@@ -89,7 +89,7 @@ BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 KERNELS?=	GENERIC
 
-BOOT1=	etc/protocols etc/netconfig etc/defaults/rc.conf
+BOOT1=	etc/defaults/rc.conf
 
 # mountpoint for filesystems.
 MNT=			/mnt
@@ -534,8 +534,14 @@ release.8: write_mfs_in_kernel
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
+	( for F in netconfig protocols ; do \
+		sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
+		${RD}/trees/bin/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
+	  done )
 	grep -E '^(ftp|nameserver|domain|sunrpc|cmd|nfsd)[^-\w]' \
-	    ${.CURDIR}/../etc/services > ${RD}/mfsfd/stand/etc/services
+	    ${.CURDIR}/../etc/services | \
+	    sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
+	    > ${RD}/mfsfd/stand/etc/services
 	ln ${RD}/mfsfd/stand/etc/services ${RD}/mfsfd/etc/services
 	ln ${RD}/mfsfd/stand/etc/netconfig ${RD}/mfsfd/etc/netconfig
 	gzip -9c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
