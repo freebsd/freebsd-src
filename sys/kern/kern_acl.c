@@ -781,7 +781,7 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	mtx_lock(&Giant);
 	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
 	if (error == 0) {
-		error = vacl_get_acl(td, fp->f_data, uap->type, uap->aclp);
+		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -802,7 +802,7 @@ __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 	mtx_lock(&Giant);
 	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
 	if (error == 0) {
-		error = vacl_set_acl(td, fp->f_data, uap->type, uap->aclp);
+		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -867,7 +867,7 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 	mtx_lock(&Giant);
 	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
 	if (error == 0) {
-		error = vacl_delete(td, fp->f_data, uap->type);
+		error = vacl_delete(td, fp->f_vnode, uap->type);
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -932,7 +932,7 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	mtx_lock(&Giant);
 	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
 	if (error == 0) {
-		error = vacl_aclcheck(td, fp->f_data, uap->type, uap->aclp);
+		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
