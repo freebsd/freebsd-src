@@ -1,4 +1,5 @@
-# @(#)backward	7.17
+# @(#)backward	7.18
+
 # $FreeBSD$
 
 # This file provides links between current names for time zones
@@ -9,7 +10,9 @@ Link	America/Tijuana		America/Ensenada
 Link	America/Indianapolis	America/Fort_Wayne
 Link	America/Indiana/Knox	America/Knox_IN
 Link	America/St_Thomas	America/Virgin
+Link	Asia/Ashgabat		Asia/Ashkhabad
 Link	Asia/Jerusalem		Asia/Tel_Aviv
+Link	Asia/Thimphu		Asia/Thimbu
 Link	Asia/Ulaanbaatar	Asia/Ulan_Bator
 Link	Australia/Sydney	Australia/ACT
 Link	Australia/Sydney	Australia/Canberra

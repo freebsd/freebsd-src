@@ -1,4 +1,4 @@
-# @(#)zone.tab	1.18
+# @(#)zone.tab	1.20
 #
 # $FreeBSD$
 #
@@ -85,7 +85,7 @@ BR	+0249-06040	America/Boa_Vista	Roraima
 BR	-0308-06001	America/Manaus	Amazonas
 BR	-0934-06731	America/Porto_Acre	Acre
 BS	+2505-07721	America/Nassau
-BT	+2728+08939	Asia/Thimbu
+BT	+2728+08939	Asia/Thimphu
 BW	-2545+02555	Africa/Gaborone
 BY	+5354+02734	Europe/Minsk
 BZ	+1730-08812	America/Belize
@@ -249,6 +249,8 @@ MV	+0410+07330	Indian/Maldives
 MW	-1547+03500	Africa/Blantyre
 MX	+1924-09909	America/Mexico_City	Central Time - most locations
 MX	+2105-08646	America/Cancun	Central Time - Quintana Roo
+MX	+2058-08937	America/Merida	Central Time - Campeche, Yucatan
+MX	+2540-10019	America/Monterrey	Central Time - Coahuila, Durango, Nuevo Leon, Tamaulipas
 MX	+2313-10625	America/Mazatlan	Mountain Time - S Baja, Nayarit, Sinaloa
 MX	+2838-10605	America/Chihuahua	Mountain Time - Chihuahua
 MX	+2904-11058	America/Hermosillo	Mountain Standard Time - Sonora
@@ -332,7 +334,7 @@ TG	+0608+00113	Africa/Lome
 TH	+1345+10031	Asia/Bangkok
 TJ	+3835+06848	Asia/Dushanbe
 TK	-0922-17114	Pacific/Fakaofo
-TM	+3757+05823	Asia/Ashkhabad
+TM	+3757+05823	Asia/Ashgabat
 TN	+3648+01011	Africa/Tunis
 TO	-2110+17510	Pacific/Tongatapu
 TP	-0833+12535	Asia/Dili
@@ -351,7 +353,8 @@ UM	+2813-17722	Pacific/Midway	Midway Islands
 UM	+1917+16637	Pacific/Wake	Wake Island
 US	+404251-0740023	America/New_York	Eastern Time
 US	+421953-0830245	America/Detroit	Eastern Time - Michigan - most locations
-US	+381515-0854534	America/Louisville	Eastern Time - Louisville, Kentucky
+US	+381515-0854534	America/Louisville	Eastern Time - Kentucky - Louisville area
+US	+364947-0845057	America/Kentucky/Monticello	Eastern Time - Kentucky - Wayne County
 US	+394606-0860929	America/Indianapolis	Eastern Standard Time - Indiana - most locations
 US	+382232-0862041	America/Indiana/Marengo	Eastern Standard Time - Indiana - Crawford County
 US	+411745-0863730	America/Indiana/Knox	Eastern Standard Time - Indiana - Starke County
