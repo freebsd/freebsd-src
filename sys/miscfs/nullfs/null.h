@@ -62,6 +62,7 @@ struct null_node {
 #define	NULLTOV(xp) ((xp)->null_vnode)
 
 int nullfs_init(struct vfsconf *vfsp);
+int nullfs_uninit(struct vfsconf *vfsp);
 int null_node_create(struct mount *mp, struct vnode *target, struct vnode **vpp);
 int null_bypass(struct vop_generic_args *ap);
 
@@ -73,5 +74,16 @@ struct vnode *null_checkvp(struct vnode *vp, char *fil, int lno);
 #endif
 
 extern vop_t **null_vnodeop_p;
+extern struct lock null_hashlock;
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_NULLFSNODE);
+#endif
+
+#ifdef NULLFS_DEBUG
+#define NULLFSDEBUG(format, args...) printf(format ,## args)
+#else
+#define NULLFSDEBUG(format, args...)
+#endif /* NULLFS_DEBUG */
 
 #endif /* _KERNEL */
