@@ -31,10 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.46 1998/01/08 23:41:35 eivind Exp $
+ *	$Id: route.c,v 1.47 1998/02/04 22:33:03 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 #include "opt_inet.h"
 #include "opt_mrouting.h"
 

@@ -33,11 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.66 1997/12/15 02:18:24 tegge Exp $
+ *	$Id: swtch.s,v 1.67 1998/02/04 22:32:11 eivind Exp $
  */
 
 #include "npx.h"
-#include "opt_diagnostic.h"
 #include "opt_user_ldt.h"
 #include "opt_vm86.h"
 

@@ -31,10 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.68 1998/02/01 08:23:58 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.69 1998/02/04 22:33:33 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 #include "opt_quota.h"
 
 #include <sys/param.h>

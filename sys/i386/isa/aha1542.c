@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.72 1997/11/18 10:56:41 bde Exp $
+ *      $Id: aha1542.c,v 1.73 1998/02/04 22:32:16 eivind Exp $
  */
 
 /*
@@ -20,7 +20,6 @@
  */
 
 #include "aha.h"
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/buf.h>

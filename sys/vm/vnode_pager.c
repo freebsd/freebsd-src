@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.82 1998/02/04 22:34:03 eivind Exp $
+ *	$Id: vnode_pager.c,v 1.83 1998/02/05 03:32:49 dyson Exp $
  */
 
 /*
@@ -50,8 +50,6 @@
  *	Implement VOP_GETPAGES/PUTPAGES interface for filesystems. Will
  *	greatly re-simplify the vnode_pager.
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

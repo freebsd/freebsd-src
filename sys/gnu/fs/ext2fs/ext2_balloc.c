@@ -39,8 +39,6 @@
  *	@(#)ffs_balloc.c	8.4 (Berkeley) 9/23/93
  */
 
-#include "opt_diagnostic.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>

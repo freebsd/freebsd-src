@@ -31,10 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.7 (Berkeley) 5/17/95
- * $Id: ufs_ihash.c,v 1.13 1997/12/05 19:55:51 bde Exp $
+ * $Id: ufs_ihash.c,v 1.14 1998/02/04 22:33:35 eivind Exp $
  */
-
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

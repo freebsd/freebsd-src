@@ -36,10 +36,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.75 1998/01/31 19:28:28 julian Exp $
+ * $Id: ufs_vnops.c,v 1.76 1998/02/04 22:33:37 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 

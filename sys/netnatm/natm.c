@@ -36,8 +36,6 @@
  * natm.c: native mode ATM access (both aal0 and aal5).
  */
 
-#include "opt_diagnostic.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

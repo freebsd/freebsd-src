@@ -34,10 +34,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.48 1998/01/31 01:27:18 tegge Exp $
+ * $Id: nfs_bio.c,v 1.49 1998/02/04 22:33:13 eivind Exp $
  */
 
-#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

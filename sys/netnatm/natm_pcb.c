@@ -37,8 +37,6 @@
  * from trying to use each other's VCs.
  */
 
-#include "opt_diagnostic.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
