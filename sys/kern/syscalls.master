@@ -472,7 +472,7 @@
 333     STD     POSIX   { int sched_get_priority_min (int policy); }
 334     STD     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	STD	BSD	{ int utrace(const void *addr, size_t len); }
-336	STD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+336	COMPAT	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 337	STD	BSD	{ int kldsym(int fileid, int cmd, void *data); }
 338	STD	BSD	{ int jail(struct jail *jail); }
@@ -519,3 +519,35 @@
 			    const struct kevent *changelist, int nchanges, \
 			    struct kevent *eventlist, int nevents, \
 			    const struct timespec *timeout); }
+
+364	UNIMPL	NOHIDE	nosys
+365	UNIMPL	NOHIDE	nosys
+366	UNIMPL	NOHIDE	nosys
+367	UNIMPL	NOHIDE	nosys
+368	UNIMPL	NOHIDE	nosys
+369	UNIMPL	NOHIDE	nosys
+370	UNIMPL	NOHIDE	nosys
+371	UNIMPL	NOHIDE	nosys
+372	UNIMPL	NOHIDE	nosys
+373	UNIMPL	NOHIDE	nosys
+374	UNIMPL	NOHIDE	nosys
+375	UNIMPL	NOHIDE	nosys
+376	UNIMPL	NOHIDE	nosys
+377	UNIMPL	NOHIDE	nosys
+378	UNIMPL	NOHIDE	nosys
+379	UNIMPL	NOHIDE	nosys
+380	UNIMPL	NOHIDE	nosys
+381	UNIMPL	NOHIDE	nosys
+382	UNIMPL	NOHIDE	nosys
+383	UNIMPL	NOHIDE	nosys
+384	UNIMPL	NOHIDE	nosys
+385	UNIMPL	NOHIDE	nosys
+386	UNIMPL	NOHIDE	nosys
+387	UNIMPL	NOHIDE	nosys
+388	UNIMPL	NOHIDE	nosys
+389	UNIMPL	NOHIDE	nosys
+390	UNIMPL	NOHIDE	nosys
+391	UNIMPL	NOHIDE	nosys
+392	UNIMPL	NOHIDE	nosys
+393	STD	BSD	{ int sendfile(int fd, int s, off_t offset, size_t nbytes, \
+				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
