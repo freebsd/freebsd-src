@@ -50,16 +50,13 @@ __FBSDID("$FreeBSD$");
  * FreeBSD implementation by Paul Herman <pherman@frenchfries.net>
  */
 
-#if 0
-#include <stdio.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
 #include <pwd.h>
 #include "blowfish.h"
+#include "crypt.h"
 
 /* This implementation is adaptable to current computing power.
  * You can have up to 2^31 rounds which should be enough for some
@@ -71,20 +68,20 @@ __FBSDID("$FreeBSD$");
 #define BCRYPT_BLOCKS 6		/* Ciphertext blocks */
 #define BCRYPT_MINROUNDS 16	/* we have log2(rounds) in salt */
 
-char   *bcrypt_gensalt __P((u_int8_t));
+char   *bcrypt_gensalt(u_int8_t);
 
-static void encode_salt __P((char *, u_int8_t *, u_int16_t, u_int8_t));
-static void encode_base64 __P((u_int8_t *, u_int8_t *, u_int16_t));
-static void decode_base64 __P((u_int8_t *, u_int16_t, u_int8_t *));
+static void encode_salt(char *, u_int8_t *, u_int16_t, u_int8_t);
+static void encode_base64(u_int8_t *, u_int8_t *, u_int16_t);
+static void decode_base64(u_int8_t *, u_int16_t, const u_int8_t *);
 
 static char    encrypted[_PASSWORD_LEN];
 static char    gsalt[BCRYPT_MAXSALT * 4 / 3 + 1];
 static char    error[] = ":";
 
-const static u_int8_t Base64Code[] =
+static const u_int8_t Base64Code[] =
 "./ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-const static u_int8_t index_64[128] =
+static const u_int8_t index_64[128] =
 {
 	255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
 	255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -102,19 +99,11 @@ const static u_int8_t index_64[128] =
 };
 #define CHAR64(c)  ( (c) > 127 ? 255 : index_64[(c)])
 
-#ifdef __STDC__
 static void
-decode_base64(u_int8_t *buffer, u_int16_t len, u_int8_t *data)
-#else
-static void
-decode_base64(buffer, len, data)
-	u_int8_t *buffer;
-	u_int16_t len;
-	u_int8_t *data;
-#endif
+decode_base64(u_int8_t *buffer, u_int16_t len, const u_int8_t *data)
 {
 	u_int8_t *bp = buffer;
-	u_int8_t *p = data;
+	const u_int8_t *p = data;
 	u_int8_t c1, c2, c3, c4;
 	while (bp < buffer + len) {
 		c1 = CHAR64(*p);
@@ -124,7 +113,7 @@ decode_base64(buffer, len, data)
 		if (c1 == 255 || c2 == 255)
 			break;
 
-		*bp++ = (c1 << 2) | ((c2 & 0x30) >> 4);
+		*bp++ = (u_int8_t)((c1 << 2) | ((c2 & 0x30) >> 4));
 		if (bp >= buffer + len)
 			break;
 
@@ -145,17 +134,8 @@ decode_base64(buffer, len, data)
 	}
 }
 
-#ifdef __STDC__
 static void
 encode_salt(char *salt, u_int8_t *csalt, u_int16_t clen, u_int8_t logr)
-#else
-static void
-encode_salt(salt, csalt, clen, logr)
-	char   *salt;
-	u_int8_t *csalt;
-	u_int16_t clen;
-	u_int8_t logr;
-#endif
 {
 	salt[0] = '$';
 	salt[1] = BCRYPT_VERSION;
@@ -171,14 +151,8 @@ encode_salt(salt, csalt, clen, logr)
    seems sensible.
  */
 
-#ifdef __STDC__
 char *
 bcrypt_gensalt(u_int8_t log_rounds)
-#else
-char *
-bcrypt_gensalt(log_rounds)
-	u_int8_t log_rounds;
-#endif
 {
 	u_int8_t csalt[BCRYPT_MAXSALT];
 	u_int16_t i;
@@ -201,21 +175,19 @@ bcrypt_gensalt(log_rounds)
    i.e. $2$04$iwouldntknowwhattosayetKdJ6iFtacBqJdKe6aW7ou */
 
 char   *
-crypt_blowfish(key, salt)
-	const char   *key;
-	const char   *salt;
+crypt_blowfish(const char *key, const char *salt)
 {
 	blf_ctx state;
 	u_int32_t rounds, i, k;
 	u_int16_t j;
-	u_int8_t key_len, salt_len, logr, minor;
+	u_int8_t key_len, salt_len, logr, minr;
 	u_int8_t ciphertext[4 * BCRYPT_BLOCKS] = "OrpheanBeholderScryDoubt";
 	u_int8_t csalt[BCRYPT_MAXSALT];
 	u_int32_t cdata[BCRYPT_BLOCKS];
-	static char     *magic = "$2a$04$";
+	static const char     *magic = "$2a$04$";
                                    
 		/* Defaults */
-	minor = 'a';
+	minr = 'a';
 	logr = 4;
 	rounds = 1 << logr;
 
@@ -238,14 +210,14 @@ crypt_blowfish(key, salt)
 			 switch (salt[1]) {
 			 case 'a':
 				 /* 'ab' should not yield the same as 'abab' */
-				 minor = salt[1];
+				 minr = (u_int8_t)salt[1];
 				 salt++;
 				 break;
 			 default:
 				 return error;
 			 }
 		} else
-			 minor = 0;
+			 minr = 0;
 
 		/* Discard version + "$" identifier */
 		salt += 2;
@@ -255,7 +227,9 @@ crypt_blowfish(key, salt)
 			return error;
 
 		/* Computer power doesnt increase linear, 2^x should be fine */
-		if ((rounds = (u_int32_t) 1 << (logr = atoi(salt))) < BCRYPT_MINROUNDS)
+		logr = (u_int8_t)atoi(salt);
+		rounds = 1 << logr;
+		if (rounds < BCRYPT_MINROUNDS)
 			return error;
 
 		/* Discard num rounds + "$" identifier */
@@ -264,16 +238,16 @@ crypt_blowfish(key, salt)
 
 
 	/* We dont want the base64 salt but the raw data */
-	decode_base64(csalt, BCRYPT_MAXSALT, (u_int8_t *) salt);
+	decode_base64(csalt, BCRYPT_MAXSALT, salt);
 	salt_len = BCRYPT_MAXSALT;
-	key_len = strlen(key) + (minor >= 'a' ? 1 : 0);
+	key_len = (u_int8_t)(strlen(key) + (minr >= 'a' ? 1 : 0));
 
 	/* Setting up S-Boxes and Subkeys */
 	Blowfish_initstate(&state);
 	Blowfish_expandstate(&state, csalt, salt_len,
-	    (u_int8_t *) key, key_len);
+	    (const u_int8_t *) key, key_len);
 	for (k = 0; k < rounds; k++) {
-		Blowfish_expand0state(&state, (u_int8_t *) key, key_len);
+		Blowfish_expand0state(&state, (const u_int8_t *) key, key_len);
 		Blowfish_expand0state(&state, csalt, salt_len);
 	}
 
@@ -300,8 +274,8 @@ crypt_blowfish(key, salt)
 	i = 0;
 	encrypted[i++] = '$';
 	encrypted[i++] = BCRYPT_VERSION;
-	if (minor)
-		encrypted[i++] = minor;
+	if (minr)
+		encrypted[i++] = (int8_t)minr;
 	encrypted[i++] = '$';
 
 	snprintf(encrypted + i, 4, "%2.2u$", logr);
@@ -312,16 +286,8 @@ crypt_blowfish(key, salt)
 	return encrypted;
 }
 
-#ifdef __STDC__
 static void
 encode_base64(u_int8_t *buffer, u_int8_t *data, u_int16_t len)
-#else
-static void
-encode_base64(buffer, data, len)
-	u_int8_t *buffer;
-	u_int8_t *data;
-	u_int16_t len;
-#endif
 {
 	u_int8_t *bp = buffer;
 	u_int8_t *p = data;
@@ -349,6 +315,7 @@ encode_base64(buffer, data, len)
 	}
 	*bp = '\0';
 }
+
 #if 0
 void
 main()

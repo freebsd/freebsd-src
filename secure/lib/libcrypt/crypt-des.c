@@ -67,8 +67,10 @@ __FBSDID("$FreeBSD$");
 #include "crypt.h"
 
 /* We can't always assume gcc */
-#ifdef __GNUC__
+#if	defined(__GNUC__) && !defined(lint)
 #define INLINE inline
+#else
+#define INLINE
 #endif
 
 
@@ -80,7 +82,6 @@ static u_char	IP[64] = {
 };
 
 static u_char	inv_key_perm[64];
-static u_char	u_key_perm[56];
 static u_char	key_perm[56] = {
 	57, 49, 41, 33, 25, 17,  9,  1, 58, 50, 42, 34, 26, 18,
 	10,  2, 59, 51, 43, 35, 27, 19, 11,  3, 60, 52, 44, 36,
@@ -177,7 +178,7 @@ static u_int32_t	bits32[32] =
 static u_char	bits8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 
 static u_int32_t	saltbits;
-static long		old_salt;
+static u_int32_t	old_salt;
 static u_int32_t	*bits28, *bits24;
 static u_char		init_perm[64], final_perm[64];
 static u_int32_t	en_keysl[16], en_keysr[16];
@@ -215,7 +216,7 @@ ascii_to_bin(char ch)
 }
 
 static void
-des_init()
+des_init(void)
 {
 	int	i, j, b, k, inbit, obit;
 	u_int32_t	*p, *il, *ir, *fl, *fr;
@@ -242,15 +243,15 @@ des_init()
 		for (i = 0; i < 64; i++)
 			for (j = 0; j < 64; j++)
 				m_sbox[b][(i << 6) | j] =
-					(u_sbox[(b << 1)][i] << 4) |
-					u_sbox[(b << 1) + 1][j];
+					(u_char)((u_sbox[(b << 1)][i] << 4) |
+					u_sbox[(b << 1) + 1][j]);
 
 	/*
 	 * Set up the initial & final permutations into a useful form, and
 	 * initialise the inverted key permutation.
 	 */
 	for (i = 0; i < 64; i++) {
-		init_perm[final_perm[i] = IP[i] - 1] = i;
+		init_perm[final_perm[i] = IP[i] - 1] = (u_char)i;
 		inv_key_perm[i] = 255;
 	}
 
@@ -259,8 +260,7 @@ des_init()
 	 * compression permutation.
 	 */
 	for (i = 0; i < 56; i++) {
-		u_key_perm[i] = key_perm[i] - 1;
-		inv_key_perm[key_perm[i] - 1] = i;
+		inv_key_perm[key_perm[i] - 1] = (u_char)i;
 		inv_comp_perm[i] = 255;
 	}
 
@@ -268,7 +268,7 @@ des_init()
 	 * Invert the key compression permutation.
 	 */
 	for (i = 0; i < 48; i++) {
-		inv_comp_perm[comp_perm[i] - 1] = i;
+		inv_comp_perm[comp_perm[i] - 1] = (u_char)i;
 	}
 
 	/*
@@ -330,7 +330,7 @@ des_init()
 	 * handling the output of the S-box arrays setup above.
 	 */
 	for (i = 0; i < 32; i++)
-		un_pbox[pbox[i] - 1] = i;
+		un_pbox[pbox[i] - 1] = (u_char)i;
 
 	for (b = 0; b < 4; b++)
 		for (i = 0; i < 256; i++) {
@@ -345,7 +345,7 @@ des_init()
 }
 
 static void
-setup_salt(long salt)
+setup_salt(u_int32_t salt)
 {
 	u_int32_t	obit, saltbit;
 	int		i;
@@ -374,8 +374,8 @@ des_setkey(const char *key)
 	if (!des_initialised)
 		des_init();
 
-	rawkey0 = ntohl(*(u_int32_t *) key);
-	rawkey1 = ntohl(*(u_int32_t *) (key + 4));
+	rawkey0 = ntohl(*(const u_int32_t *) key);
+	rawkey1 = ntohl(*(const u_int32_t *) (key + 4));
 
 	if ((rawkey0 | rawkey1)
 	    && rawkey0 == old_rawkey0
@@ -562,23 +562,29 @@ do_des(	u_int32_t l_in, u_int32_t r_in, u_int32_t *l_out, u_int32_t *r_out, int 
 }
 
 static int
-des_cipher(const char *in, char *out, long salt, int count)
+des_cipher(const char *in, char *out, u_long salt, int count)
 {
 	u_int32_t	l_out, r_out, rawl, rawr;
 	int		retval;
+	union {
+		u_int32_t	*ui32;
+		const char	*c;
+	} trans;
 
 	if (!des_initialised)
 		des_init();
 
 	setup_salt(salt);
 
-	rawl = ntohl(*((u_int32_t *) in)++);
-	rawr = ntohl(*((u_int32_t *) in));
+	trans.c = in;
+	rawl = ntohl(*trans.ui32++);
+	rawr = ntohl(*trans.ui32);
 
 	retval = do_des(rawl, rawr, &l_out, &r_out, count);
 
-	*((u_int32_t *) out)++ = htonl(l_out);
-	*((u_int32_t *) out) = htonl(r_out);
+	trans.c = out;
+	*trans.ui32++ = htonl(l_out);
+	*trans.ui32 = htonl(r_out);
 	return(retval);
 }
 
@@ -588,22 +594,22 @@ crypt_des(const char *key, const char *setting)
 	int		i;
 	u_int32_t	count, salt, l, r0, r1, keybuf[2];
 	u_char		*p, *q;
-	static u_char	output[21];
+	static char	output[21];
 
 	if (!des_initialised)
 		des_init();
-
 
 	/*
 	 * Copy the key, shifting each character up by one bit
 	 * and padding with zeros.
 	 */
-	q = (u_char *) keybuf;
-	while (q - (u_char *) keybuf - 8) {
-		if ((*q++ = *key << 1))
+	q = (u_char *)keybuf;
+	while (q - (u_char *)keybuf - 8) {
+		*q++ = *key << 1;
+		if (*(q - 1))
 			key++;
 	}
-	if (des_setkey((u_char *) keybuf))
+	if (des_setkey((char *)keybuf))
 		return(NULL);
 
 	if (*setting == _PASSWORD_EFMT1) {
@@ -613,25 +619,25 @@ crypt_des(const char *key, const char *setting)
 		 *	key - unlimited characters
 		 */
 		for (i = 1, count = 0L; i < 5; i++)
-			count |= ascii_to_bin(setting[i]) << (i - 1) * 6;
+			count |= ascii_to_bin(setting[i]) << ((i - 1) * 6);
 
 		for (i = 5, salt = 0L; i < 9; i++)
-			salt |= ascii_to_bin(setting[i]) << (i - 5) * 6;
+			salt |= ascii_to_bin(setting[i]) << ((i - 5) * 6);
 
 		while (*key) {
 			/*
 			 * Encrypt the key with itself.
 			 */
-			if (des_cipher((u_char*)keybuf, (u_char*)keybuf, 0L, 1))
+			if (des_cipher((char *)keybuf, (char *)keybuf, 0L, 1))
 				return(NULL);
 			/*
 			 * And XOR with the next 8 characters of the key.
 			 */
-			q = (u_char *) keybuf;
-			while (q - (u_char *) keybuf - 8 && *key)
+			q = (u_char *)keybuf;
+			while (q - (u_char *)keybuf - 8 && *key)
 				*q++ ^= *key++ << 1;
 
-			if (des_setkey((u_char *) keybuf))
+			if (des_setkey((char *)keybuf))
 				return(NULL);
 		}
 		strncpy(output, setting, 9);
@@ -644,7 +650,7 @@ crypt_des(const char *key, const char *setting)
 		 * NUL in it.
 		 */
 		output[9] = '\0';
-		p = output + strlen(output);
+		p = (u_char *)output + strlen(output);
 	} else {
 		/*
 		 * "old"-style:
@@ -665,13 +671,13 @@ crypt_des(const char *key, const char *setting)
 		 */
 		output[1] = setting[1] ? setting[1] : output[0];
 
-		p = output + 2;
+		p = (u_char *)output + 2;
 	}
 	setup_salt(salt);
 	/*
 	 * Do it.
 	 */
-	if (do_des(0L, 0L, &r0, &r1, count))
+	if (do_des(0L, 0L, &r0, &r1, (int)count))
 		return(NULL);
 	/*
 	 * Now encode the result...
