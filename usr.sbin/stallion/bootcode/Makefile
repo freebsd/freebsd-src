@@ -10,6 +10,7 @@ CLEANFILES= 	${FILES}
 
 MAN4=	stl.4
 MLINKS=	stl.4 stli.4
+MANSUBDIR=/i386
 
 all: $(FILES)
 
