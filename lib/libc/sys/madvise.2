@@ -38,6 +38,8 @@
 .Nm madvise
 .Nd give advise about use of memory
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
 .Fn madvise "caddr_t addr" "int len" "int behav"
 .Sh DESCRIPTION
 The
