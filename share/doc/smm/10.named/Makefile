@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SRCDIR=	${.CURDIR}/../../../../contrib/bind/doc/bog
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 4/20/94
-#	$FreeBSD$
+#	$Id$
 
 VOLUME=	papers
 DOC=	nqnfs
