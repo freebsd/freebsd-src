@@ -329,7 +329,7 @@ acpi_thr_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	if (*count < CPU_MAX_SPEED)
-		return (ENOMEM);
+		return (E2BIG);
 
 	/* Return a list of valid settings for this driver. */
 	memset(sets, CPUFREQ_VAL_UNKNOWN, sizeof(*sets) * CPU_MAX_SPEED);
