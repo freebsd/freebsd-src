@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.26 1994/11/18 13:40:19 jkh Exp $
+ *	$Id: boot.c,v 1.27 1994/11/26 09:08:48 phk Exp $
  */
 
 
@@ -221,13 +221,19 @@ loadprog(howto)
 		addr += i;
 	}
 #endif	LOADSYMS
+
 	/********************************************************/
 	/* and note the end address of all this			*/
 	/********************************************************/
-
 	total = ((addr+sizeof(int)-1))&~(sizeof(int)-1);
 	printf("total=0x%x ", total);
-	bootdev = (MAKEBOOTDEV(maj, 0, 0, unit, part)) ;
+
+	/*
+	 * For backwards compatibility, use the previously-unused adaptor
+	 * and controller bitfields to hold the slice number.
+	 */
+	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
+
 	/****************************************************************/
 	/* copy that first page and overwrite any BIOS variables	*/
 	/****************************************************************/
