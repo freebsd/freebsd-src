@@ -3,6 +3,7 @@
 #include <sys/tty.h>
 #include <i386/include/pc/display.h>
 #include <i386/include/console.h>
+#include <i386/include/apm_bios.h>
 #include <i386/i386/cons.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
