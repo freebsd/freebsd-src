@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.9.3 (March 5, 1995)"
+#define FTP_VERSION "1.9.4 (April 15, 1995)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -460,23 +460,32 @@ int getuserinfo(void)
 		else
 			(void) Strncpy(uinfo.homedir, pw->pw_dir);
 		cp = getenv("MAIL");
-		if (cp == NULL)
-			cp = getenv("mail");
-		if (cp == NULL)
-			(void) sprintf(str, "/usr/spool/mail/%s", uinfo.username);
-		else
+		if (cp != NULL) {
 			(void) Strncpy(str, cp);
+		} else {
+			/* Check a few typical mail directories.
+			 * If we don't find it, too bad.  Checking for new mail
+			 * isn't very important anyway.
+			 */
+			(void) sprintf(str, "/usr/spool/mail/%s", uinfo.username);
+			if (access(str, 0) < 0) {
+				(void) sprintf(str, "/var/mail/%s", uinfo.username);
+			}
+		}
 		cp = str;
-
-		/*
-		 * mbox variable may be like MAIL=(28 /usr/mail/me /usr/mail/you),
-		 * so try to find the first mail path.
-		 */
-		while ((*cp != '/') && (*cp != 0))
-			cp++;
-		(void) Strncpy(mail_path, cp);
-		if ((cp = index(mail_path, ' ')) != NULL)
-			*cp = '\0';
+		if (access(cp, 0) < 0) {
+			mail_path[0] = 0;
+		} else {
+			/*
+			 * mbox variable may be like MAIL=(28 /usr/mail/me /usr/mail/you),
+			 * so try to find the first mail path.
+			 */
+			while ((*cp != '/') && (*cp != 0))
+				cp++;
+			(void) Strncpy(mail_path, cp);
+			if ((cp = index(mail_path, ' ')) != NULL)
+				*cp = '\0';
+		}
 		return (0);
 	} else {
 		PERROR("getuserinfo", "Could not get your passwd entry!");
