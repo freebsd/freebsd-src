@@ -102,10 +102,6 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 				fdc->rid_ctl = i;
 			}
 		}
-		if (min_start + 7 != max_start) {
-			device_printf(dev, "I/O to control range incorrect\n");
-			return (ENXIO);
-		}
 	}
 
 	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
