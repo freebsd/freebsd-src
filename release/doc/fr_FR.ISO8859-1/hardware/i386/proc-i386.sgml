@@ -2,48 +2,53 @@
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
 
-     $Id$
+     $Id: proc-i386.sgml,v 1.2 2002/09/28 23:23:21 eagle Exp $
      $FreeBSD$
      Original revision: 1.3
 -->
 <sect1>
-  <title>Supported Processors and Motherboards</title>
+  <title>Processeurs et carte m&egrave;res support&eacute;es</title>
 
-  <para>&os;/i386 runs on a wide variety of
-  <quote>IBM PC compatible</quote> machines.  Due to the wide range of
-  hardware available for this architecture, it is impossible to
-  exhaustively list all combinations of equipment supported by &os;.
-  Nevertheless, some general guidelines are presented here.</para>
+  <para>&os;/i386 fonctionne sur une large vari&eacute;t&eacute; de machines
+  <quote>compatible IBM PC</quote>. Du &agrave; la grande vari&eacute;t&eacute; de
+  mat&eacute;riel disponible sur cette architecture, il est impossible
+  d'&ecirc;tre exhaustif en listant l'ensemble des combinaisons
+  d'&eacute;quipement support&eacute; par &os. N&eacute;anmoins, quelques
+  directives g&eacute;n&eacute;rales sont pr&eacute;sent&eacute;es ici.</para>
 
-  <para>Almost all i386-compatible processors are supported.  All
-  Intel processors beginning with the 80386 are supported, including
-  the 80386, 80486, Pentium, Pentium Pro, Pentium II, Pentium III,
-  Pentium 4, and variants thereof, such as the Xeon and Celeron
-  processors.  (While technically supported, the use of the 80386SX is
-  specifically not recommended.)  All i386-compatible AMD processors
-  are also supported, including the Am486, Am5x86, K5, K6 (and variants),
-  Athlon (including Athlon-MP, Athlon-XP, Athlon-4, and Athlon Thunderbird), and Duron processors.  
-  The AMD &Eacute;lan SC520 embedded processor is supported.
-  The Transmeta Crusoe is recognized
-  and supported, as are i386-compatible processors from Cyrix and
+  <para>La plupart des processeurs compatible i386 sont
+  support&eacute;s. Tous les processeurs Intel, a partir du 80386 sont
+  support&eacute;s, cela inclu les processeurs 80386, 80486, Pentium,
+  Pentium Pro, Pentium II, Pentium III, Pentium 4, et leur variantes,
+  comme les processeurs Xeon et Celeron. (M&ecirc;me si le support technique
+  du 80386SX est effectif, il n'est pas recommand&eacute;.) Tous les
+  processeurs AMD compatible i386 sont aussi support&eacute;s, cela inclu
+  les processeurs Am486, Am5x86, K5, K6 (et variantes), Athlon
+  (incluant Athlon-MP, Athlon-XP, Athlon-4, et Athlon Thunderbird) et
+  Duron. Le processeur int&eacute;gr&eacute; AMD &Eacute;lan SC520  est aussi
+  support&eacute;. Le processeur Transmeta Crusoe est reconnu et
+  support&eacute; comme un processeur compatible i386 de Cyrix et
   NexGen.</para>
 
-  <para>There is a wide variety of motherboards available for this
-  architecture.  Motherboards using the ISA, VLB, EISA, AGP, and PCI
-  expansion busses are well-supported.  There is some limited support
-  for the MCA (<quote>MicroChannel</quote>) expansion bus used in the
-  IBM PS/2 line of PCs.</para>
+  <para>Il y a une grande variti&eacute; de carte m&egrave;res disponible pour
+  cette architecture. Les cartes m&egrave;res disposant de bus d'extension
+  ISA, VLB, EISA, AGP, et PCI sont support&eacute;s. Il y a un support
+  limit&eacute; du bus d'extension MCA (<quote>MicroChannel</quote>)
+  utilis&eacute; sur les PC s&eacute;ries IBM PS/2.</para>
 
-  <para>Symmetric multi-processor (SMP) systems are generally
-  supported by &os;, although in some cases, BIOS or motherboard bugs
-  may generate some problems.  Perusal of the archives of the &a.smp;
-  may yield some clues.</para>
+  <para>Les syst&egrave;mes multi-processeurs (SMP) sont
+  g&eacute;n&eacute;rallemetn support&eacute;s par &os, mais dans certains cas,
+  des bogues du aux cartes m&egrave;res ou au BIOS peuvent poser des
+  probl&egrave;mes. La lecture des archives de la liste &a.smp;
+  r&eacute;soudra certains probl&egrave;mes.</para>
 
-  <para>&os; will generally run on i386-based laptops, albeit with
-  varying levels of support for certain hardware features such as
-  sound, graphics, power management, and PCCARD expansion slots.
-  These features tend to vary in idiosyncratic ways between machines,
-  and frequently require special-case support in &os; to work around
-  hardware bugs or other oddities.  When in doubt, a search of the
-  archives of the &a.mobile; may be useful.</para>
+  <para>&os; fonctionne sur la majorit&eacute; des portables &agrave; base de
+  processeurs i386, avec un support vari&eacute; de certaines
+  fonctionnalit&eacute;s du mat&eacute;riel, comme le son, l'affichage, la
+  gestion d'&eacute;nergie et les ports d'extension PCCARD. Ces
+  fonctionnalit&eacute;s ont tendance &agrave; &ecirc;tre totalement
+  diff&eacute;rentes entre les machines, et requi&egrave;rent souvent un
+  support sp&eacute;cifique pour que &os; fonctionne correctement en
+  by-passant les bogues mat&eacute;riel. Dans le doute, une recherche dans
+  les archives de la liste  &a.mobile; est tr&egrave;s util.</para>
 </sect1>
