@@ -40,11 +40,13 @@ MAN3=	acl.3				\
 	cap_clear.3			\
 	cap_dup.3			\
 	cap_free.3			\
+	cap_from_text.3			\
 	cap_get_flag.3			\
 	cap_get_proc.3			\
 	cap_init.3			\
 	cap_set_flag.3			\
 	cap_set_proc.3			\
+	cap_to_text.3			\
 	posix1e.3
 
 MLINKS+=acl_delete.3 acl_delete_def_file.3	\
