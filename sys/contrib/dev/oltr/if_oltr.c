@@ -666,10 +666,6 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	iso88025_ifattach(ifp);
 
-#if (NBPFILTER > 0) || (__FreeBSD_version > 400000)
-	bpfattach(ifp, DLT_IEEE802, sizeof(struct iso88025_header));
-#endif
-
 	splx(s);
 	return;
 
@@ -1464,7 +1460,6 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 			}
 			ifp->if_ipackets++;
 
-			BPF_MTAP(ifp, m0);
 			iso88025_input(ifp, m0);
 		} else {	/* Receiver error */
 			if (ReceiveStatus != TRLLD_RCV_NO_DATA) {
