@@ -85,25 +85,41 @@ sortdeps(char **pkgs)
 int
 chkifdepends(const char *pkgname1, const char *pkgname2)
 {
-    char pkgdir[FILENAME_MAX];
+    char *cp1, *cp2;
     int errcode;
     struct reqr_by_entry *rb_entry;
     struct reqr_by_head *rb_list;
 
+    cp2 = strchr(pkgname2, ':');
+    if (cp2 != NULL)
+	*cp2 = '\0';
+    cp1 = strchr(pkgname1, ':');
+    if (cp1 != NULL)
+	*cp1 = '\0';
+
+    errcode = 0;
     /* Check that pkgname2 is actually installed */
-    snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, pkgname2);
-    if (!isdir(pkgdir))
-	return 0;
+    if (!isinstalledpkg(pkgname2))
+	goto exit;
 
     errcode = requiredby(pkgname2, &rb_list, FALSE, TRUE);
     if (errcode < 0)
-	return errcode;
+	goto exit;
 
-    STAILQ_FOREACH(rb_entry, rb_list, link)
-	if (strcmp(rb_entry->pkgname, pkgname1) == 0)	/* match */
-	    return 1;
+    errcode = 0;
+    STAILQ_FOREACH(rb_entry, rb_list, link) {
+	if (strcmp(rb_entry->pkgname, pkgname1) == 0) {	/* match */
+	    errcode = 1;
+	    break;
+	}
+    }
 
-    return 0;
+exit:
+    if (cp1 != NULL)
+	*cp1 = ':';
+    if (cp2 != NULL)
+	*cp2 = ':';
+    return errcode;
 }
 
 /*
@@ -126,7 +142,7 @@ int
 requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Boolean filter)
 {
     FILE *fp;
-    char fbuf[FILENAME_MAX], fname[FILENAME_MAX], pkgdir[FILENAME_MAX];
+    char fbuf[FILENAME_MAX], fname[FILENAME_MAX];
     int retval;
     struct reqr_by_entry *rb_entry;
     static struct reqr_by_head rb_list = STAILQ_HEAD_INITIALIZER(rb_list);
@@ -139,14 +155,14 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
 	free(rb_entry);
     }
 
-    snprintf(fname, sizeof(fname), "%s/%s", LOG_DIR, pkgname);
-    if (!isdir(fname)) {
+    if (!isinstalledpkg(pkgname)) {
 	if (strict == TRUE)
 	    warnx("no such package '%s' installed", pkgname);
 	return -1;
     }
 
-    snprintf(fname, sizeof(fname), "%s/%s", fname, REQUIRED_BY_FNAME);
+    snprintf(fname, sizeof(fname), "%s/%s/%s", LOG_DIR, pkgname,
+	     REQUIRED_BY_FNAME);
     fp = fopen(fname, "r");
     if (fp == NULL) {
 	/* Probably pkgname doesn't have any packages that depend on it */
@@ -159,8 +175,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
     while (fgets(fbuf, sizeof(fbuf), fp) != NULL) {
 	if (fbuf[strlen(fbuf) - 1] == '\n')
 	    fbuf[strlen(fbuf) - 1] = '\0';
-	snprintf(pkgdir, sizeof(pkgdir), "%s/%s", LOG_DIR, fbuf);
-	if (filter == TRUE && !isdir(pkgdir)) {
+	if (filter == TRUE && !isinstalledpkg(fbuf)) {
 	    if (strict == TRUE)
 		warnx("package '%s' is recorded in the '%s' but isn't "
 		      "actually installed", fbuf, fname);

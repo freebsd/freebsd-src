@@ -43,12 +43,15 @@ check_list(const char *home, Package *pkg)
 	case PLIST_CWD:
 	    where = p->name;
 	    break;
+
 	case PLIST_IGNORE:
 	    p = p->next;
 	    break;
+
 	case PLIST_SRC:
 	    there = p->name;
 	    break;
+
 	case PLIST_FILE:
 	    cp = NULL;
 	    sprintf(name, "%s/%s", there ? there : where, p->name);

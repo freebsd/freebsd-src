@@ -91,7 +91,7 @@ enum _plist_t {
     PLIST_CHOWN, PLIST_CHGRP, PLIST_COMMENT, PLIST_IGNORE,
     PLIST_NAME, PLIST_UNEXEC, PLIST_SRC, PLIST_DISPLAY,
     PLIST_PKGDEP, PLIST_MTREE, PLIST_DIR_RM, PLIST_IGNORE_INST,
-    PLIST_OPTION
+    PLIST_OPTION, PLIST_ORIGIN, PLIST_DEPORIGIN
 };
 typedef enum _plist_t plist_t;
 
@@ -113,6 +113,8 @@ typedef struct _plist *PackingList;
 
 struct _pack {
     struct _plist *head, *tail;
+    char *name;
+    char *origin;
     int fmtver_maj, fmtver_mnr;
 };
 typedef struct _pack Package;
@@ -193,6 +195,8 @@ int		pkg_perform(char **);
 
 /* Query installed packages */
 char		**matchinstalled(match_t, char **, int *);
+char		**matchbyorigin(const char *, int *);
+int		isinstalledpkg(const char *name);
 
 /* Dependencies */
 int		sortdeps(char **);

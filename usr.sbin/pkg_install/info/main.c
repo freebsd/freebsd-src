@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fgGhiIkl:LmopqrRst:vVW:x";
+static char Options[] = "acdDe:fgGhiIkl:LmoO:pqrRst:vVW:x";
 
 int	Flags		= 0;
 match_t	MatchType	= MATCH_GLOB;
@@ -36,6 +36,7 @@ Boolean Quiet		= FALSE;
 char *InfoPrefix	= (char *)(uintptr_t)"";
 char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
+char *LookUpOrigin	= NULL;
 struct which_head *whead;
 
 static void usage __P((void));
@@ -134,6 +135,12 @@ main(int argc, char **argv)
 	    Flags |= SHOW_ORIGIN;
 	    break;
 
+	case 'O':
+	    LookUpOrigin = strdup(optarg);
+	    if (LookUpOrigin == NULL)
+		err(2, NULL);
+	    break;
+
 	case 'V':
 	    Flags |= SHOW_FMTREV;
 	    break;
@@ -213,7 +220,7 @@ main(int argc, char **argv)
 
     /* If no packages, yelp */
     if (pkgs == start && MatchType != MATCH_ALL && !CheckPkg && 
-	TAILQ_EMPTY(whead))
+	TAILQ_EMPTY(whead) && LookUpOrigin == NULL)
 	warnx("missing package name(s)"), usage();
     *pkgs = NULL;
     return pkg_perform(start);
@@ -222,9 +229,11 @@ main(int argc, char **argv)
 static void
 usage()
 {
-    fprintf(stderr, "%s\n%s\n%s\n",
+    fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: pkg_info [-cdDfGiIkLmopqrRsvVx] [-e package] [-l prefix]",
-	"                [-t template] [-W filename] [pkg-name ...]",
+	"                [-t template] [pkg-name ...]",
+	"       pkg_info [-q] -W filename",
+	"       pkg_info [-q] -O origin",
 	"       pkg_info -a [flags]");
     exit(1);
 }

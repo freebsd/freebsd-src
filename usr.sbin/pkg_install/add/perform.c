@@ -232,24 +232,39 @@ pkg_do(char *pkg)
     }
 
     setenv(PKG_PREFIX_VNAME, (p = find_plist(&Plist, PLIST_CWD)) ? p->name : ".", 1);
-    /* Protect against old packages with bogus @name fields */
-    (const char *)PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+    /* Protect against old packages with bogus @name and origin fields */
+    if (Plist.name == NULL)
+	Plist.name = "anonymous";
+    if (Plist.origin == NULL)
+	Plist.origin = "anonymous/anonymous";
 
-    /* See if we're already registered */
-    sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
-    if (isdir(LogDir) && !Force) {
-	warnx("package `%s' already recorded as installed", PkgName);
+    /*
+     * See if we're already registered either with the same name (the same
+     * version) or some other version with the same origin.
+     */
+    if ((isinstalledpkg(Plist.name) ||
+         matchbyorigin(Plist.origin, NULL) != NULL) && !Force) {
+	warnx("package '%s' or its older version already installed",
+	      Plist.name);
 	code = 1;
 	goto success;	/* close enough for government work */
     }
 
     /* Now check the packing list for dependencies */
     for (p = Plist.head; p ; p = p->next) {
+	char *deporigin;
+
 	if (p->type != PLIST_PKGDEP)
 	    continue;
-	if (Verbose)
-	    printf("Package `%s' depends on `%s'.\n", PkgName, p->name);
-	if (vsystem("pkg_info -e %s", p->name)) {
+	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name : NULL;
+	if (Verbose) {
+	    printf("Package '%s' depends on '%s'", Plist.name, p->name);
+	    if (deporigin != NULL)
+		printf(" with '%s' origin", deporigin);
+	    printf(".\n");
+	}
+	if (!isinstalledpkg(p->name) &&
+	    !(deporigin != NULL && matchbyorigin(deporigin, NULL) != NULL)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
 	    if (!Fake) {
@@ -318,8 +333,8 @@ pkg_do(char *pkg)
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
-	    printf("Running requirements file first for %s..\n", PkgName);
-	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
+	    printf("Running requirements file first for %s..\n", Plist.name);
+	if (!Fake && vsystem("./%s %s INSTALL", REQUIRE_FNAME, Plist.name)) {
 	    warnx("package %s fails requirements %s", pkg_fullname,
 		   Force ? "installing anyway" : "- not installed");
 	    if (!Force) {
@@ -351,8 +366,8 @@ pkg_do(char *pkg)
     if (!NoInstall && fexists(pre_script)) {
 	vsystem("chmod +x %s", pre_script);	/* make sure */
 	if (Verbose)
-	    printf("Running pre-install for %s..\n", PkgName);
-	if (!Fake && vsystem("./%s %s %s", pre_script, PkgName, pre_arg)) {
+	    printf("Running pre-install for %s..\n", Plist.name);
+	if (!Fake && vsystem("./%s %s %s", pre_script, Plist.name, pre_arg)) {
 	    warnx("install script returned error status");
 	    unlink(pre_script);
 	    code = 1;
@@ -366,7 +381,7 @@ pkg_do(char *pkg)
 
     if (!Fake && fexists(MTREE_FNAME)) {
 	if (Verbose)
-	    printf("Running mtree for %s..\n", PkgName);
+	    printf("Running mtree for %s..\n", Plist.name);
 	p = find_plist(&Plist, PLIST_CWD);
 	if (Verbose)
 	    printf("mtree -U -f %s -d -e -p %s >%s\n", MTREE_FNAME, p ? p->name : "/", _PATH_DEVNULL);
@@ -380,8 +395,8 @@ pkg_do(char *pkg)
     if (!NoInstall && fexists(post_script)) {
 	vsystem("chmod +x %s", post_script);	/* make sure */
 	if (Verbose)
-	    printf("Running post-install for %s..\n", PkgName);
-	if (!Fake && vsystem("./%s %s %s", post_script, PkgName, post_arg)) {
+	    printf("Running post-install for %s..\n", Plist.name);
+	if (!Fake && vsystem("./%s %s %s", post_script, Plist.name, post_arg)) {
 	    warnx("install script returned error status");
 	    unlink(post_script);
 	    code = 1;
@@ -396,12 +411,7 @@ pkg_do(char *pkg)
 
 	if (getuid() != 0)
 	    warnx("not running as root - trying to record install anyway");
-	if (!PkgName) {
-	    warnx("no package name! can't record package, sorry");
-	    code = 1;
-	    goto success;	/* well, partial anyway */
-	}
-	sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
+	sprintf(LogDir, "%s/%s", LOG_DIR, Plist.name);
 	zapLogDir = 1;
 	if (Verbose)
 	    printf("Attempting to record package into %s..\n", LogDir);
@@ -440,24 +450,46 @@ pkg_do(char *pkg)
 	write_plist(&Plist, contfile);
 	fclose(contfile);
 	for (p = Plist.head; p ; p = p->next) {
+	    char *deporigin, **depnames;
+	    int i;
+
 	    if (p->type != PLIST_PKGDEP)
 		continue;
-	    if (Verbose)
-		printf("Attempting to record dependency on package '%s'\n", p->name);
-	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename(p->name),
-	    	    REQUIRED_BY_FNAME);
-	    contfile = fopen(contents, "a");
-	    if (!contfile)
-		warnx("can't open dependency file '%s'!\n"
-		       "dependency registration is incomplete", contents);
-	    else {
-		fprintf(contfile, "%s\n", PkgName);
-		if (fclose(contfile) == EOF)
-		    warnx("cannot properly close file %s", contents);
+	    deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name :
+							     NULL;
+	    if (Verbose) {
+		printf("Trying to record dependency on package '%s'", p->name);
+		if (deporigin != NULL)
+		    printf(" with '%s' origin", deporigin);
+		printf(".\n");
+	    }
+
+	    depnames = (deporigin != NULL) ? matchbyorigin(deporigin, NULL) :
+					     NULL;
+	    if (depnames == NULL) {
+		depnames = alloca(sizeof(*depnames) * 2);
+		depnames[0] = p->name;
+		depnames[1] = NULL;
+	    }
+	    for (i = 0; depnames[i] != NULL; i++) {
+		sprintf(contents, "%s/%s/%s", LOG_DIR, depnames[i],
+			REQUIRED_BY_FNAME);
+		if (strcmp(p->name, depnames[i]) != 0)
+		    warnx("warning: package '%s' requires '%s', but '%s' "
+			  "is installed", Plist.name, p->name, depnames[i]);
+		contfile = fopen(contents, "a");
+		if (!contfile)
+		    warnx("can't open dependency file '%s'!\n"
+			  "dependency registration is incomplete", contents);
+		else {
+		    fprintf(contfile, "%s\n", Plist.name);
+		    if (fclose(contfile) == EOF)
+			warnx("cannot properly close file %s", contents);
+		}
 	    }
 	}
 	if (Verbose)
-	    printf("Package %s registered in %s\n", PkgName, LogDir);
+	    printf("Package %s registered in %s\n", Plist.name, LogDir);
     }
 
     if ((p = find_plist(&Plist, PLIST_DISPLAY)) != NULL) {

@@ -152,7 +152,12 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 	    break;
 
 	case PLIST_PKGDEP:
-	    printf(Quiet ? "@pkgdep %s\n" : "\t%s\n", p->name);
+	    printf(Quiet ? "@pkgdep %s\n" : "Dependency: %s\n", p->name);
+	    break;
+
+	case PLIST_DEPORIGIN:
+	    printf(Quiet ? "@comment DEPORIGIN:%s\n" :
+		"\tdependency origin: %s\n", p->name);
 	    break;
 
 	case PLIST_MTREE:
@@ -167,6 +172,11 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 	    printf(Quiet ? "@option %s\n" :
 		"\tOption \"%s\" controlling package installation behaviour\n",
 		p->name);
+	    break;
+
+	case PLIST_ORIGIN:
+	    printf(Quiet ? "@comment ORIGIN:%s\n" :
+		"\tPackage origin: %s\n", p->name); 
 	    break;
 
 	default:
@@ -314,21 +324,17 @@ show_cksum(const char *title, Package *plist)
 void
 show_origin(const char *title, Package *plist)
 {
-    PackingList p;
 
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
-    for (p = plist->head; p != NULL; p = p->next)
-	if (p->type == PLIST_COMMENT && !strncmp(p->name, "ORIGIN:", 7)) {
-	    printf("%s\n", p->name + 7);
-	    break;
-	}
+    printf("%s\n", plist->origin != NULL ? plist->origin : "");
 }
 
 /* Show revision number of the packing list */
 void
 show_fmtrev(const char *title, Package *plist)
 {
+
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
     printf("%d.%d\n", plist->fmtver_maj, plist->fmtver_mnr);

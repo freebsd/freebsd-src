@@ -29,7 +29,7 @@ static const char rcsid[] =
 
 static int pkg_do(char *);
 static void sanity_check(char *);
-static void undepend(PackingList, char *);
+static void undepend(char *, char *);
 static char LogDir[FILENAME_MAX];
 
 
@@ -48,8 +48,18 @@ pkg_perform(char **pkgs)
 	    return 1;
 	    /* Not reached */
 
-	if (matched != NULL)
-	    pkgs = matched;
+	/*
+	 * Copy matched[] into pkgs[], because we'll need to use
+	 * matchinstalled() later on.
+	 */
+	if (matched != NULL) {
+	    pkgs = NULL;
+	    for (i = 0; matched[i] != NULL; i++) {
+		pkgs = realloc(pkgs, sizeof(*pkgs) * (i + 2));
+		pkgs[i] = strdup(matched[i]);
+	    }
+	    pkgs[i] = NULL;
+	}
 	else switch (MatchType) {
 	    case MATCH_GLOB:
 		break;
@@ -113,9 +123,9 @@ static int
 pkg_do(char *pkg)
 {
     FILE *cfile;
-    char home[FILENAME_MAX];
+    char *deporigin, **depnames, home[FILENAME_MAX];
     PackingList p;
-    int len;
+    int i, len;
     /* support for separate pre/post install scripts */
     int new_m = 0;
     char pre_script[FILENAME_MAX] = DEINSTALL_FNAME;
@@ -133,9 +143,7 @@ pkg_do(char *pkg)
     if (Plist.head)
 	free_plist(&Plist);
 
-    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
-
-    if (!fexists(LogDir)) {
+    if (!isinstalledpkg(pkg)) {
 	warnx("no such package '%s' installed", pkg);
 	return 1;
     }
@@ -144,6 +152,8 @@ pkg_do(char *pkg)
 	cleanup(0);
 	errx(2, __FUNCTION__ ": unable to get current working directory!");
     }
+
+    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
 
     if (chdir(LogDir) == FAIL) {
 	warnx("unable to change directory to %s! deinstall failed", LogDir);
@@ -288,10 +298,25 @@ pkg_do(char *pkg)
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
-	if (Verbose)
-	    printf("Attempting to remove dependency on package `%s'\n", p->name);
-	if (!Fake)
-	    undepend(p, pkg);
+	deporigin = (p->next->type == PLIST_DEPORIGIN) ? p->next->name :
+							 NULL;
+	if (Verbose) {
+	    printf("Trying to remove dependency on package '%s'", p->name);
+	    if (deporigin != NULL)
+		printf(" with '%s' origin", deporigin);
+	    printf(".\n");
+	}
+	if (!Fake) {
+	    depnames = (deporigin != NULL) ? matchbyorigin(deporigin, NULL) :
+					     NULL;
+	    if (depnames == NULL) {
+		depnames = alloca(sizeof(*depnames) * 2);
+		depnames[0] = p->name;
+		depnames[1] = NULL;
+	    }
+	    for (i = 0; depnames[i] != NULL; i++)
+		undepend(depnames[i], pkg);
+	}
     }
     return 0;
 }
@@ -313,7 +338,7 @@ cleanup(int sig)
 }
 
 static void
-undepend(PackingList p, char *pkgname)
+undepend(char *p, char *pkgname)
 {
     char fname[FILENAME_MAX], ftmp[FILENAME_MAX];
     FILE *fpwr;
@@ -322,10 +347,9 @@ undepend(PackingList p, char *pkgname)
     struct reqr_by_head *rb_list;
 
 
-    if (requiredby(p->name, &rb_list, Verbose, FALSE) <= 0)
+    if (requiredby(p, &rb_list, Verbose, FALSE) <= 0)
 	return;
-    snprintf(fname, sizeof(fname), "%s/%s/%s", LOG_DIR, p->name,
-	     REQUIRED_BY_FNAME);
+    snprintf(fname, sizeof(fname), "%s/%s/%s", LOG_DIR, p, REQUIRED_BY_FNAME);
     snprintf(ftmp, sizeof(ftmp), "%s.XXXXXX", fname);
     s = mkstemp(ftmp);
     if (s == -1) {
