@@ -714,7 +714,7 @@ post_stats:
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
-		if (ipflow_fastforward(m))
+		if (ip_fastforward(m))
 			return;
 		isr = NETISR_IP;
 		break;

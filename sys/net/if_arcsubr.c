@@ -543,14 +543,14 @@ arc_input(ifp, m)
 #ifdef INET
 	case ARCTYPE_IP:
 		m_adj(m, ARC_HDRNEWLEN);
-		if (ipflow_fastforward(m))
+		if (ip_fastforward(m))
 			return;
 		isr = NETISR_IP;
 		break;
 
 	case ARCTYPE_IP_OLD:
 		m_adj(m, ARC_HDRLEN);
-		if (ipflow_fastforward(m))
+		if (ip_fastforward(m))
 			return;
 		isr = NETISR_IP;
 		break;
