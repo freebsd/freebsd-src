@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.47 1998/10/08 17:07:44 kato Exp $
+#	$Id: GENERIC98,v 1.48 1998/10/08 17:16:30 kato Exp $
 
 # GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
@@ -28,6 +28,8 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		MFS			#Memory Filesystem
+options		MFS_ROOT		#MFS usable as root device, "MFS" req'ed
 options		NFS			#Network Filesystem
 options		NFS_ROOT		#NFS usable as root device, "NFS" req'ed
 options		MSDOSFS			#MSDOS Filesystem
