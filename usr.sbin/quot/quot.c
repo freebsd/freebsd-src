@@ -56,10 +56,25 @@ static const char rcsid[] =
 static char estimate;
 static char count;
 static char unused;
-static void (*func)();
+static void (*func)(int, struct fs *, char *);
 static long blocksize;
 static char *header;
 static int headerlen;
+
+static struct dinode *get_inode(int, struct fs *, ino_t);
+static int	virtualblocks(struct fs *, struct dinode *);
+static int	isfree(struct dinode *);
+static void	inituser(void);
+static void	usrrehash(void);
+static struct user *user(uid_t);
+static int	cmpusers(const void *, const void *);
+static void	uses(uid_t, daddr_t, time_t);
+static void	initfsizes(void);
+static void	dofsizes(int, struct fs *, char *);
+static void	douser(int, struct fs *, char *);
+static void	donames(int, struct fs *, char *);
+static void	usage(void);
+static void	quot(char *, char *);
 
 /*
  * Original BSD quot doesn't round to number of frags/blocks,
@@ -83,6 +98,7 @@ static int headerlen;
 
 static struct dinode *
 get_inode(fd,super,ino)
+	int fd;
 	struct fs *super;
 	ino_t ino;
 {
@@ -103,7 +119,7 @@ get_inode(fd,super,ino)
 			errx(1, "allocate inodes");
 		last = (ino / INOCNT(super)) * INOCNT(super);
 		if (lseek(fd, (off_t)ino_to_fsba(super, last) << super->fs_fshift, 0) < (off_t)0
-		    || read(fd,ip,INOSZ(super)) != INOSZ(super))
+		    || read(fd,ip,INOSZ(super)) != (ssize_t)INOSZ(super))
 			err(1, "read inodes");
 	}
 	
@@ -184,7 +200,7 @@ static int nusers;
 static void
 inituser()
 {
-	register i;
+	register int i;
 	register struct user *usr;
 	
 	if (!nusers) {
@@ -203,7 +219,7 @@ inituser()
 static void
 usrrehash()
 {
-	register i;
+	register int i;
 	register struct user *usr, *usrn;
 	struct user *svusr;
 	
@@ -226,7 +242,7 @@ user(uid)
 	uid_t uid;
 {
 	register struct user *usr;
-	register i;
+	register int i;
 	struct passwd *pwd;
 	
 	while (1) {
@@ -259,9 +275,13 @@ user(uid)
 }
 
 static int
-cmpusers(u1,u2)
-	struct user *u1, *u2;
+cmpusers(v1,v2)
+	const void *v1, *v2;
 {
+	const struct user *u1, *u2;
+	u1 = (const struct user *)v1;
+	u2 = (const struct user *)v2;
+
 	return u2->space - u1->space;
 }
 
@@ -308,7 +328,7 @@ static void
 initfsizes()
 {
 	register struct fsizes *fp;
-	register i;
+	register int i;
 	
 	for (fp = fsizes; fp; fp = fp->fsz_next) {
 		for (i = FSZCNT; --i >= 0;) {
@@ -320,6 +340,7 @@ initfsizes()
 
 static void
 dofsizes(fd,super,name)
+	int fd;
 	struct fs *super;
 	char *name;
 {
@@ -327,7 +348,7 @@ dofsizes(fd,super,name)
 	struct dinode *ip;
 	daddr_t sz, ksz;
 	struct fsizes *fp, **fsp;
-	register i;
+	register int i;
 	
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 #ifdef	COMPAT
@@ -393,13 +414,14 @@ dofsizes(fd,super,name)
 
 static void
 douser(fd,super,name)
+	int fd;
 	struct fs *super;
 	char *name;
 {
 	ino_t inode, maxino;
 	struct user *usr, *usrs;
 	struct dinode *ip;
-	register n;
+	register int n;
 	
 	maxino = super->fs_ncg * super->fs_ipg - 1;
 	for (inode = 0; inode < maxino; inode++) {
@@ -421,7 +443,7 @@ douser(fd,super,name)
 	for (usr = usrs, n = nusers; --n >= 0 && usr->count; usr++) {
 		printf("%5d",SIZE(usr->space));
 		if (count)
-			printf("\t%5d",usr->count);
+			printf("\t%5ld",usr->count);
 		printf("\t%-8s",usr->name);
 		if (unused)
 			printf("\t%5d\t%5d\t%5d",
@@ -435,6 +457,7 @@ douser(fd,super,name)
 
 static void
 donames(fd,super,name)
+	int fd;
 	struct fs *super;
 	char *name;
 {
@@ -449,8 +472,8 @@ donames(fd,super,name)
 		while ((c = getchar()) != EOF && c != '\n');
 	ungetc(c,stdin);
 	inode1 = -1;
-	while (scanf("%d",&inode) == 1) {
-		if (inode < 0 || inode > maxino) {
+	while (scanf("%u",&inode) == 1) {
+		if (inode > maxino) {
 			warnx("illegal inode %d",inode);
 			return;
 		}
@@ -498,7 +521,7 @@ quot(name,mp)
 {
 	int fd;
 	
-	get_inode(-1);		/* flush cache */
+	get_inode(-1, NULL, 0);		/* flush cache */
 	inituser();
 	initfsizes();
 	if ((fd = open(name,0)) < 0
@@ -517,12 +540,13 @@ quot(name,mp)
 	if (mp)
 		printf(" (%s)",mp);
 	putchar('\n');
-	(*func)(fd,superblock,name);
+	(*func)(fd,(struct fs *)superblock,name);
 	close(fd);
 }
 
 int
 main(argc,argv)
+	int argc;
 	char **argv;
 {
 	char all = 0;
