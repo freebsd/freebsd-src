@@ -189,11 +189,11 @@ noninc_search (dir, pchar)
 	  break;
 
 	case CTRL('W'):
-	  rl_unix_word_rubout ();
+	  rl_unix_word_rubout (1, c);
 	  break;
 
 	case CTRL('U'):
-	  rl_unix_line_discard ();
+	  rl_unix_line_discard (1, c);
 	  break;
 
 	case RETURN:

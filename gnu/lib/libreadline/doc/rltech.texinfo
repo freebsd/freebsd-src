@@ -44,6 +44,8 @@ in your own programs, this section is for you.
 @menu
 * Basic Behavior::	Using the default behavior of Readline.
 * Custom Functions::	Adding your own functions to Readline.
+* Readline Variables::			Variables accessible to custom
+					functions.
 * Readline Convenience Functions::	Functions which Readline supplies to
 					aid in writing your own
 * Custom Completers::	Supplanting or supplementing Readline's
@@ -230,6 +232,11 @@ to do something useful with both negative and positive arguments.
 At the very least, it should be aware that it can be passed a
 negative argument.
 
+@node Readline Variables
+@section Readline Variables
+
+These variables are available to function writers.
+
 @deftypevar {char *} rl_line_buffer
 This is the line gathered so far.  You are welcome to modify the
 contents of the line, but see @ref{Allowing Undoing}.
@@ -287,6 +294,11 @@ The stdio stream to which Readline performs output.
 @deftypevar {Function *} rl_startup_hook
 If non-zero, this is the address of a function to call just
 before @code{readline} prints the first prompt.
+@end deftypevar
+
+@deftypevar {Function *} rl_event_hook
+If non-zero, this is the address of a function to call periodically
+when readline is waiting for terminal input.
 @end deftypevar
 
 @node Readline Convenience Functions
@@ -422,6 +434,11 @@ perform any key bindings and variable assignments found
 (@pxref{Readline Init File}).
 @end deftypefun
 
+@deftypefun int rl_read_init_file (char *filename)
+Read keybindings and variable assignments from @var{filename}
+(@pxref{Readline Init File}).
+@end deftypefun
+
 @node Associating Function Names and Bindings
 @subsection Associating Function Names and Bindings
 
@@ -447,6 +464,17 @@ invoke @var{function} in the current keymap.
 @deftypefun {char **} rl_invoking_keyseqs_in_map (Function *function, Keymap map)
 Return an array of strings representing the key sequences used to
 invoke @var{function} in the keymap @var{map}.
+@end deftypefun
+
+@deftypefun void rl_function_dumper (int readable)
+Print the readline function names and the key sequences currently
+bound to them to @code{rl_outstream}.  If @var{readable} is non-zero,
+the list is formatted in such a way that it can be made part of an
+@code{inputrc} file and re-read.
+@end deftypefun
+
+@deftypefun void rl_list_funmap_names ()
+Print the names of all bindable Readline functions to @code{rl_outstream}.
 @end deftypefun
 
 @node Allowing Undoing
@@ -576,6 +604,22 @@ not a kill, a new kill ring slot is used.
 
 @node Utility Functions
 @subsection Utility Functions
+
+@deftypefun int rl_read_key ()
+Return the next character available.  This handles input inserted into
+the input stream via @var{pending input} (@pxref{Readline Variables})
+and @code{rl_stuff_char ()}, macros, and characters read from the keyboard.
+@end deftypefun
+
+@deftypefun int rl_stuff_char (int c)
+Insert @var{c} into the Readline input stream.  It will be "read"
+before Readline attempts to read characters from the terminal with
+@code{rl_read_key ()}.
+@end deftypefun
+
+@deftypefun int rl_initialize ()
+Initialize or re-initialize Readline's internal state.
+@end deftypefun
 
 @deftypefun int rl_reset_terminal (char *terminal_name)
 Reinitialize Readline's idea of the terminal settings using
@@ -869,6 +913,13 @@ The list of characters that signal a break between words for
 @code{rl_basic_word_break_characters}.
 @end deftypevar
 
+@deftypevar {char *} rl_completer_quote_characters
+List of characters which can be used to quote a substring of the line.
+Completion occurs on the entire substring, and within the substring
+@code{rl_completer_word_break_characters} are treated as any other character,
+unless they also appear within this list.
+@end deftypevar
+
 @deftypevar {char *} rl_special_prefixes
 The list of characters that are word break characters, but should be
 left in @var{text} when it is passed to the completion function.
@@ -909,13 +960,12 @@ re-arrange the list of matches as required, but each element deleted
 from the array must be freed.
 @end deftypevar
 
-@deftypevar {char *} rl_completer_quote_characters
-List of characters which can be used to quote a substring of the line.
-Completion occurs on the entire substring, and within the substring
-@code{rl_completer_word_break_characters} are treated as any other character,
-unless they also appear within this list.
+@deftypevar {Function *} rl_directory_completion_hook
+This function, if defined, is allowed to modify the directory portion
+of filenames Readline completes.  It is called with the address of a
+string (the current directory name) as an argument.  It could be used
+to expand symbolic links or shell variables in pathnames.
 @end deftypevar
-
 
 @node A Short Completion Example
 @subsection A Short Completion Example

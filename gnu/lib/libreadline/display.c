@@ -247,6 +247,9 @@ rl_expand_prompt (prompt)
     free (local_prompt_prefix);
   local_prompt = local_prompt_prefix = (char *)0;
 
+  if (prompt == 0 || *prompt == '\0')
+    return (0);
+
   p = strrchr (prompt, '\n');
   if (!p)
     {
