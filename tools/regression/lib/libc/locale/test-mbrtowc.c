@@ -86,6 +86,13 @@ main(int argc, char *argv[])
 	assert(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
 	assert(wc == L'z');
 
+	/* Check that mbrtowc() doesn't access the buffer when n == 0. */
+	wc = L'z';
+	memset(&s, 0, sizeof(s));
+	buf[0] = '\0';
+	assert(mbrtowc(&wc, buf, 0, &s) == (size_t)-2);
+	assert(wc == L'z');
+
 	/*
 	 * Japanese (EUC) locale.
 	 */
