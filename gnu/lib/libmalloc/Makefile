@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.2 1993/10/19 18:22:34 rich Exp $
+#	$Id: Makefile,v 1.3 1993/11/09 20:25:14 paul Exp $
 
-SHLIB_MAJOR=0
+SHLIB_MAJOR=1
 SHLIB_MINOR=0
 
 CFLAGS+= -I${.CURDIR}
