@@ -5181,6 +5181,9 @@ keyword is used,
 .Nm
 will refuse to negotiate a higher value.
 The maximum MTU can be set to 2048 at most.
+Note, it is necessary to use the
+.Dq maximum
+keyword to limit the MTU when using PPPoE.
 .Pp
 If no
 .Ar value
