@@ -121,7 +121,7 @@ getppid(td, uap)
 	return (0);
 }
 
-/* 
+/*
  * Get process group ID; note that POSIX getpgrp takes no parameter.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -503,6 +503,7 @@ setuid(td, uap)
 	mtx_lock(&Giant);
 	error = 0;
 	oldcred = p->p_ucred;
+
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
@@ -644,6 +645,7 @@ setgid(td, uap)
 	mtx_lock(&Giant);
 	error = 0;
 	oldcred = p->p_ucred;
+
 	/*
 	 * See if we have "permission" by POSIX 1003.1 rules.
 	 *
@@ -988,7 +990,7 @@ struct setresgid_args {
 	gid_t	sgid;
 };
 #endif
-/* 
+/*
  * MPSAFE
  */
 /* ARGSUSED */
@@ -1016,9 +1018,8 @@ setresgid(td, uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0) {
+	    (error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		goto done2;
-	}
 	newcred = crdup(oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
@@ -1223,7 +1224,7 @@ int
 suser_td(td)
 	struct thread *td;
 {
-	return suser_xxx(0, td->td_proc, 0);
+	return (suser_xxx(0, td->td_proc, 0));
 }
 
 /*
@@ -1557,7 +1558,7 @@ p_candebug(struct proc *p1, struct proc *p2)
 	 */
 	if ((p2->p_flag & P_INEXEC) != 0)
 		return (EAGAIN);
-	
+
 	return (0);
 }
 
