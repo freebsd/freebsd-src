@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mapper.c,v 1.12 1998/01/16 07:17:43 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -87,7 +87,7 @@ void			ask2 __P((u_int32 dst));
 int			retry_requests __P((Node *node));
 char *			inet_name __P((u_int32 addr));
 void			print_map __P((Node *node));
-char *			graph_name __P((u_int32 addr, char *buf));
+char *			graph_name __P((u_int32 addr, char *buf, int len));
 void			graph_edges __P((Node *node));
 void			elide_aliases __P((Node *node));
 void			graph_map __P((void));
@@ -192,8 +192,9 @@ log(severity, syserr, format, va_alist)
 	default:
 	    fmt[0] = '\0';
 	    if (severity == LOG_WARNING)
-		strcat(fmt, "warning - ");
-	    strncat(fmt, format, 80);
+		strcpy(fmt, "warning - ");
+	    strncat(fmt, format, sizeof(fmt)-strlen(fmt));
+	    fmt[sizeof(fmt)-1]='\0';
 	    vfprintf(stderr, fmt, ap);
 	    if (syserr == 0)
 		fprintf(stderr, "\n");
@@ -703,15 +704,23 @@ void print_map(node)
 }
 
 
-char *graph_name(addr, buf)
+char *graph_name(addr, buf, len)
     u_int32 addr;
     char *buf;
+    int len;
 {
     char *name;
 
-    if (show_names  &&  (name = inet_name(addr)))
-	strcpy(buf, name);
-    else
+    if (len < sizeof("255.255.255.255")) {
+	fprintf(stderr, 
+"Buffer too small in graph_name, provided %d bytes, but needed %d.\n", 
+	    len, sizeof("255.255.255.255"));
+	return NULL;
+    }
+    if (show_names  &&  (name = inet_name(addr))) {
+	strncpy(buf, name, len - 1);
+	buf[len - 1] = '\0';
+    } else
 	inet_fmt(addr, buf);
 
     return buf;
@@ -731,7 +740,7 @@ void graph_edges(node)
 	    printf("  %d {$ NP %d0 %d0 $} \"%s%s\" \n",
 		   (int) node->addr,
 		   node->addr & 0xFF, (node->addr >> 8) & 0xFF,
-		   graph_name(node->addr, name),
+		   graph_name(node->addr, name, sizeof(name)),
 		   node->u.interfaces ? "" : "*");
 	    for (ifc = node->u.interfaces; ifc; ifc = ifc->next)
 		for (nb = ifc->neighbors; nb; nb = nb->next) {

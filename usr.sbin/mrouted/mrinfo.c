@@ -61,7 +61,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: mrinfo.c,v 1.13 1997/09/30 06:15:08 charnier Exp $";
+    "$Id: mrinfo.c,v 1.14 1998/01/16 07:17:43 charnier Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -158,8 +158,9 @@ log(severity, syserr, format, va_alist)
 	default:
 		fmt[0] = '\0';
 		if (severity == LOG_WARNING)
-			strcat(fmt, "warning - ");
-		strncat(fmt, format, 80);
+			strcpy(fmt, "warning - ");
+		strncat(fmt, format, sizeof(fmt)-strlen(fmt));
+		fmt[sizeof(fmt)-1]='\0';
 		vfprintf(stderr, fmt, ap);
 		if (syserr == 0)
 			fprintf(stderr, "\n");

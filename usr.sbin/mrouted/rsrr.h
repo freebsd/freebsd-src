@@ -24,9 +24,10 @@
  * noted when applicable.
  */
 
-#define RSRR_SERV_PATH "/tmp/.rsrr_svr"
+#define RSRR_SERV_PATH "/var/run/rsrr_svr"
 /* Note this needs to be 14 chars for 4.3 BSD compatibility */
-#define RSRR_CLI_PATH "/tmp/.rsrr_cli"
+/* Note This appears to be unused */
+#define RSRR_CLI_PATH "/var/run/rsrr_cli"
 
 #define RSRR_MAX_LEN 2048
 #define RSRR_HEADER_LEN (sizeof(struct rsrr_header))

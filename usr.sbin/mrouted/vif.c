@@ -9,7 +9,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vif.c,v 1.12 1998/01/16 07:17:45 charnier Exp $";
 #endif /* not lint */
 
 #include "defs.h"
@@ -42,7 +42,7 @@ static void start_vif2 __P((vifi_t vifi));
 static void stop_vif __P((vifi_t vifi));
 static void age_old_hosts __P((void));
 static void send_probe_on_vif __P((struct uvif *v));
-static int info_version __P((char *p));
+static int info_version __P((char *p, int plen));
 static void DelVif __P((void *arg));
 static int SetTimer __P((int vifi, struct listaddr *g));
 static int DeleteTimer __P((int id));
@@ -876,7 +876,7 @@ accept_info_request(src, dst, p, datalen)
 	len = 0;
 	switch (*p) {
 	    case DVMRP_INFO_VERSION:
-		len = info_version(q);
+		len = info_version(q, RECV_BUF_SIZE-(q-(u_char *)send_buf));
 		break;
 
 	    case DVMRP_INFO_NEIGHBORS:
@@ -901,8 +901,9 @@ accept_info_request(src, dst, p, datalen)
  * Information response -- return version string
  */
 static int
-info_version(p)
+info_version(p, plen)
     char *p;
+    int plen;
 {
     int len;
     extern char versionstring[];
@@ -911,7 +912,8 @@ info_version(p)
     p++;	/* skip over length */
     *p++ = 0;	/* zero out */
     *p++ = 0;	/* reserved fields */
-    strcpy(p, versionstring);	/* XXX strncpy!!! */
+    strncpy(p, versionstring, plen - 4);
+    p[plen-5] = '\0';
 
     len = strlen(versionstring);
     return ((len + 3) / 4);
