@@ -22,7 +22,7 @@ CLEANFILES+=	index.so.${_dev}
 # Build index.so as a side-effect of building the paper.
 index.so.${_dev}: ${SRCS} ${EXTRA:Nindex.so.${_dev}}
 	sed -e 's:^\.so index\.so\.\\\*\[\.T\]$$::' vi.ref-patched | \
-	    ${ROFF} -U -z
+	    ${ROFF.${_dev}} -U -z
 	sed -e 's/MINUSSIGN/-/' \
 	    -e 's/DOUBLEQUOTE/""/' \
 	    -e "s/SQUOTE/'/" \

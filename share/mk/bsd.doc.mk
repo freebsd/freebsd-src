@@ -19,24 +19,23 @@
 PRINTERDEVICE?=	ascii
 
 BIB?=		bib
-EQN?=		eqn -T${PRINTERDEVICE}
 GREMLIN?=	grn
 GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
-.if ${PRINTERDEVICE} == "ascii"
-ROFF?=		groff -mtty-char ${TRFLAGS} ${MACROS} -o${PAGES}
-.else
-ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
-.endif
+.for _dev in ${PRINTERDEVICE:Mascii}
+ROFF.ascii?=	groff -Tascii ${TRFLAGS} -mtty-char ${MACROS} -o${PAGES}
+.endfor
+.for _dev in ${PRINTERDEVICE:Nascii}
+ROFF.${_dev}?=	groff -T${_dev} ${TRFLAGS} ${MACROS} -o${PAGES}
+.endfor
 SOELIM?=	soelim
 TBL?=		tbl
 
 DOC?=		paper
 LPR?=		lpr
 
-TRFLAGS+=	-T${PRINTERDEVICE}
 .if defined(USE_EQN)
 TRFLAGS+=	-e
 .endif
@@ -54,12 +53,17 @@ TRFLAGS+=	-t
 .endif
 
 DCOMPRESS_EXT?=	${COMPRESS_EXT}
-.if defined(NODOCCOMPRESS) || ${PRINTERDEVICE} == "html"
-DFILE=		${DOC}.${PRINTERDEVICE}
-.else
-DFILE=		${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
 DCOMPRESS_CMD?=	${COMPRESS_CMD}
+.for _dev in ${PRINTERDEVICE:Mhtml}
+DFILE.html=	${DOC}.html
+.endfor
+.for _dev in ${PRINTERDEVICE:Nhtml}
+.if defined(NODOCCOMPRESS)
+DFILE.${_dev}=	${DOC}.${_dev}
+.else
+DFILE.${_dev}=	${DOC}.${_dev}${DCOMPRESS_EXT}
 .endif
+.endfor
 
 PAGES?=		1-
 
@@ -76,33 +80,41 @@ COMPAT?=	-C
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
-all: ${DFILE}
+.for _dev in ${PRINTERDEVICE}
+all: ${DFILE.${_dev}}
+.endfor
 
 .if !target(print)
-print: ${DFILE}
+.for _dev in ${PRINTERDEVICE}
+print: ${DFILE.${_dev}}
+.endfor
+print:
+.for _dev in ${PRINTERDEVICE}
 .if defined(NODOCCOMPRESS)
-	${LPR} ${DFILE}
+	${LPR} ${DFILE.${_dev}}
 .else
-	${DCOMPRESS_CMD} -d ${DFILE} | ${LPR}
+	${DCOMPRESS_CMD} -d ${DFILE.${_dev}} | ${LPR}
 .endif
+.endfor
 .endif
 
-.if ${PRINTERDEVICE} != "ascii" && ${PRINTERDEVICE} != "ps"
-CLEANFILES+=	${DOC}.${PRINTERDEVICE} ${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
-.endif
+.for _dev in ${PRINTERDEVICE:Nascii:Nps:Nhtml}
+CLEANFILES+=	${DOC}.${_dev} ${DOC}.${_dev}${DCOMPRESS_EXT}
+.endfor
 CLEANFILES+=	${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
 		${DOC}.ps ${DOC}.ps${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
 
 realinstall:
-.if ${PRINTERDEVICE} == "html"
+.for _dev in ${PRINTERDEVICE:Mhtml}
 	cd ${SRCDIR}; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	    ${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
-.else
+.endfor
+.for _dev in ${PRINTERDEVICE:Nhtml}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
-.endif
+	    ${DFILE.${_dev}} ${DESTDIR}${BINDIR}/${VOLUME}
+.endfor
 
 spell: ${SRCS}
 	(cd ${.CURDIR}; spell ${SRCS} ) | sort | \
@@ -113,32 +125,51 @@ BINMODE=	444
 
 SRCDIR?=	${.CURDIR}
 
-.if !target(${DFILE})
 .if defined(EXTRA) && !empty(EXTRA)
 _stamp.extra: ${EXTRA}
 	touch ${.TARGET}
+.endif
+
 CLEANFILES+=	_stamp.extra
-${DFILE}: _stamp.extra
+.for _dev in ${PRINTERDEVICE:Nhtml}
+.if !target(${DFILE.${_dev}})
+.if target(_stamp.extra)
+${DFILE.${_dev}}: _stamp.extra
 .endif
-${DFILE}: ${SRCS}
-.if ${PRINTERDEVICE} == "html"
-	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
-	    document=${DOC} ${SRCS}
-.elif defined(NODOCCOMPRESS)
+${DFILE.${_dev}}: ${SRCS}
+.if defined(NODOCCOMPRESS)
 .if defined(CD_HACK)
-	(cd ${CD_HACK}; ${ROFF} ${.ALLSRC:N_stamp.extra}) > ${.TARGET}
+	(cd ${CD_HACK}; ${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra}) > ${.TARGET}
 .else
-	${ROFF} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
+	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} > ${.TARGET}
 .endif
 .else
 .if defined(CD_HACK)
-	(cd ${CD_HACK}; ${ROFF} ${.ALLSRC:N_stamp.extra}) | \
+	(cd ${CD_HACK}; ${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra}) | \
 	    ${DCOMPRESS_CMD} > ${.TARGET}
 .else
-	${ROFF} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}
+	${ROFF.${_dev}} ${.ALLSRC:N_stamp.extra} | ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .endif
 .endif
+.endfor
+
+.for _dev in ${PRINTERDEVICE:Mhtml}
+.if !target(${DFILE.html})
+.if target(_stamp.extra)
+${DFILE.html}: _stamp.extra
+.endif
+${DFILE.html}: ${SRCS}
+.if defined(MACROS) && !empty(MACROS)
+	cd ${SRCDIR}; ${UNROFF} ${MACROS} ${UNROFFFLAGS} \
+	    document=${DOC} ${SRCS}
+.else # unroff(1) requires a macro package as an argument
+	cd ${SRCDIR}; ${UNROFF} -ms ${UNROFFFLAGS} \
+	    document=${DOC} ${SRCS}
+.else
+.endif
+.endif
+.endfor
 
 DISTRIBUTION?=	doc
 
