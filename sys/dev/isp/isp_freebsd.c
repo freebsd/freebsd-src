@@ -148,7 +148,7 @@ isp_action(sim, ccb)
 {
 	int s, tgt, error;
 	struct ispsoftc *isp;
-	struct ccb_trans_settings *cts, set;
+	struct ccb_trans_settings *cts;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("isp_action\n"));
 	
