@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.486 1998/10/10 09:25:12 obrien Exp $
+#	$Id: LINT,v 1.487 1998/10/12 12:27:24 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1045,6 +1045,7 @@ device		sio0	at isa? port "IO_COM1" tty flags 0x10 irq 4 vector siointr
 #	0x20	force this unit to be the console (unless there is another
 #		higher priority console).  This replaces the COMCONSOLE option.
 #	0x40	reserve this unit for low level console operations.  Do not
+#		access the device in any normal way.
 #
 # PnP `flags' (set via userconfig using pnp x flags y)
 #	0x1	disable probing of this device.  Used to prevent your modem
