@@ -35,7 +35,7 @@
 .\"	@(#)chflags.1	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1995
+.Dd Mar 24, 2003
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -110,11 +110,16 @@ aliases for the above
 .Pp
 Putting the letters
 .Dq Ar no
-before an option causes the flag to be turned off.
+before or removing the letters
+.Dq Ar no
+from a keyword causes the flag to be cleared.
 For example:
-.Bl -tag -offset indent -width "nouchg"
+.Pp
+.Bl -tag -offset indent -width "nouchg" -compact
 .It Ar nouchg
-the immutable bit should be cleared
+clear the user immutable flag (owner or super-user only)
+.It Ar dump
+clear the nodump flag (owner or super-user only)
 .El
 .Pp
 Symbolic links do not have flags, so unless the
