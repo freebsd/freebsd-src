@@ -65,6 +65,10 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
+#ifdef PFIL_HOOKS
+#include <net/pfil.h>
+#endif
+
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
@@ -149,11 +153,6 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 #endif /* FAST_IPSEC */
 	struct ip_fw_args args;
 	int src_was_INADDR_ANY = 0;	/* as the name says... */
-#ifdef PFIL_HOOKS
-	struct packet_filter_hook *pfh;
-	struct mbuf *m1;
-	int rv;
-#endif /* PFIL_HOOKS */
 
 	args.eh = NULL;
 	args.rule = NULL;
@@ -741,20 +740,10 @@ spd_done:
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	m1 = m;
-	pfh = pfil_hook_get(PFIL_OUT, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
-	for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
-		if (pfh->pfil_func) {
-			rv = pfh->pfil_func(ip, hlen, ifp, 1, &m1);
-			if (rv) {
-				error = EHOSTUNREACH;
-				goto done;
-			}
-			m = m1;
-			if (m == NULL)
-				goto done;
-			ip = mtod(m, struct ip *);
-		}
+	error = pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT);
+	if (error != 0 || m == NULL)
+		goto done;
+	ip = mtod(m, struct ip *);
 #endif /* PFIL_HOOKS */
 
 	/*

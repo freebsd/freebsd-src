@@ -34,6 +34,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -113,11 +114,6 @@ ip6_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
-#ifdef PFIL_HOOKS
-	struct packet_filter_hook *pfh;
-	struct mbuf *m1;
-	int rv;
-#endif /* PFIL_HOOKS */
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
@@ -526,21 +522,13 @@ ip6_forward(m, srcrt)
 	/*
 	 * Run through list of hooks for output packets.
 	 */
-	m1 = m;
-	pfh = pfil_hook_get(PFIL_OUT, &inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
-	for (; pfh; pfh = pfh->pfil_link.tqe_next)
-		if (pfh->pfil_func) {
-			rv = pfh->pfil_func(ip6, sizeof(*ip6),
-					    rt->rt_ifp, 1, &m1);
-			if (rv) {
-				error = EHOSTUNREACH;
-				goto freecopy;
-			}
-			m = m1;
-			if (m == NULL)
-				goto freecopy;
-			ip6 = mtod(m, struct ip6_hdr *);
-		}
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT) != 0) {
+		error = EHOSTUNREACH;
+		goto freecopy;
+	}
+	if (m == NULL)
+		goto freecopy;
+	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* PFIL_HOOKS */
 
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);

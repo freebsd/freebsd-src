@@ -37,11 +37,6 @@
 #ifndef _SYS_PROTOSW_H_
 #define _SYS_PROTOSW_H_
 
-/*
- * For pfil_head structure.
- */
-#include <net/pfil.h>
-
 /* Forward declare these structures referenced from prototypes below. */
 struct mbuf;
 struct thread;
@@ -107,7 +102,6 @@ struct protosw {
 	pr_drain_t *pr_drain;		/* flush any excess space possible */
 
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
-	struct	pfil_head	pr_pfh;
 };
 /*#endif*/
 
