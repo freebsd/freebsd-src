@@ -282,6 +282,7 @@ ng_ether_detach(struct ifnet *ifp)
 	if (node == NULL)		/* no node (why not?), ignore */
 		return;
 	ng_rmnode(node);		/* break all links to other nodes */
+	node->flags |= NG_INVALID;
 	IFP2NG(ifp) = NULL;		/* detach node from interface */
 	priv = node->private;		/* free node private info */
 	bzero(priv, sizeof(*priv));
