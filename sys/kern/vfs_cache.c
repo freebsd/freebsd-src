@@ -279,10 +279,6 @@ cache_leaf_test(struct vnode *vp)
 /*
  * Lookup an entry in the cache
  *
- * We don't do this if the segment name is long, simply so the cache
- * can avoid holding long names (which would either waste space, or
- * add greatly to the complexity).
- *
  * Lookup is called with dvp pointing to the directory to search,
  * cnp pointing to the name of the entry being sought. If the lookup
  * succeeds, the vnode is returned in *vpp, and a status of -1 is
