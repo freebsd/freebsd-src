@@ -18,7 +18,7 @@
 #include <fcntl.h>
 #endif
 #include "libskey/md4.h"
-#include "libskey/skey.h"
+#include <skey.h>
 
 char *readpass();
 void usage();

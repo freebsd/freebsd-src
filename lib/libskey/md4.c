@@ -107,7 +107,7 @@
 #define gg(A,B,C,D,i,s)      A = rot((A + g(B,C,D) + X[i] + C2),s)
 #define hh(A,B,C,D,i,s)      A = rot((A + h(B,C,D) + X[i] + C3),s)
 
-void MDreverse __ARGS((unsigned long *X));
+void MDreverse __P((unsigned long *X));
 
 /* MDprint(MDp)
  * Print message digest buffer MDp as 32 hexadecimal digits.

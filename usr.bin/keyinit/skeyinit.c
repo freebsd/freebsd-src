@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <pwd.h>
-#include "libskey/skey.h"
+#include <skey.h>
 #include <stdio.h>
 #include <time.h>
 
