@@ -684,10 +684,10 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		fs->fs_maxcluster = lp = space;
 		for (i = 0; i < fs->fs_ncg; i++)
 			*lp++ = fs->fs_contigsumsize;
+		space = lp;
 	}
 	size = fs->fs_ncg * sizeof(u_int8_t);
 	fs->fs_contigdirs = (u_int8_t *)space;
-	space = (u_int8_t *)space + size;
 	bzero(fs->fs_contigdirs, size);
 	/* Compatibility for old filesystems 	   XXX */
 	if (fs->fs_avgfilesize <= 0)		/* XXX */
