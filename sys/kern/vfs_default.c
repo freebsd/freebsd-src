@@ -739,11 +739,11 @@ vfs_stduninit (vfsp)
 }
 
 int
-vfs_stdextattrctl(mp, cmd, filename_vp, namespace, attrname, p)
+vfs_stdextattrctl(mp, cmd, filename_vp, attrnamespace, attrname, p)
 	struct mount *mp;
 	int cmd;
 	struct vnode *filename_vp;
-	int namespace;
+	int attrnamespace;
 	const char *attrname;
 	struct proc *p;
 {

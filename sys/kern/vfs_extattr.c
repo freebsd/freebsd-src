@@ -3726,10 +3726,10 @@ extattrctl(p, uap)
 
 	if (SCARG(uap, attrname) != NULL) {
 		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
-		    SCARG(uap, namespace), attrname, p);
+		    SCARG(uap, attrnamespace), attrname, p);
 	} else {
 		error = VFS_EXTATTRCTL(mp, SCARG(uap, cmd), filename_vp,
-		    SCARG(uap, namespace), NULL, p);
+		    SCARG(uap, attrnamespace), NULL, p);
 	}
 
 	vn_finished_write(mp);
@@ -3801,7 +3801,7 @@ extattr_set_file(p, uap)
 		iov++;
 	}
 	cnt = auio.uio_resid;
-	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
 	    &auio, p->p_cred->pc_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
@@ -3868,7 +3868,7 @@ extattr_get_file(p, uap)
 		iov++;
 	}
 	cnt = auio.uio_resid;
-	error = VOP_GETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	error = VOP_GETEXTATTR(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
 	    &auio, p->p_cred->pc_ucred, p);
 	cnt -= auio.uio_resid;
 	p->p_retval[0] = cnt;
@@ -3904,7 +3904,7 @@ extattr_delete_file(p, uap)
 		NDFREE(&nd, 0);
 		return (error);
 	}
-	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, namespace), attrname,
+	error = VOP_SETEXTATTR(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
 	    NULL, p->p_cred->pc_ucred, p);
 	NDFREE(&nd, 0);
 	vn_finished_write(mp);

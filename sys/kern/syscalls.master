@@ -508,16 +508,16 @@
 354	STD	BSD	{ int __acl_aclcheck_fd(int filedes, acl_type_t type, \
 			    struct acl *aclp); }
 355	STD	BSD	{ int extattrctl(const char *path, int cmd, \
-			    const char *filename, int namespace, \
+			    const char *filename, int attrnamespace, \
 			    const char *attrname); }
 356	STD	BSD	{ int extattr_set_file(const char *path, \
-			    int namespace, const char *attrname, \
+			    int attrnamespace, const char *attrname, \
 			    struct iovec *iovp, unsigned iovcnt); }
 357	STD	BSD	{ int extattr_get_file(const char *path, \
-			    int namespace, const char *attrname, \
+			    int attrnamespace, const char *attrname, \
 			    struct iovec *iovp, unsigned iovcnt); }
 358	STD	BSD	{ int extattr_delete_file(const char *path, \
-			    int namespace, const char *attrname); }
+			    int attrnamespace, const char *attrname); }
 359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
 360	STD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 361	STD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }

@@ -340,7 +340,7 @@ struct vfsops {
 	int	(*vfs_uninit)	__P((struct vfsconf *));
 	int	(*vfs_extattrctl) __P((struct mount *mp, int cmd,
 					struct vnode *filename_vp,
-					int namespace, const char *attrname,
+					int attrnamespace, const char *attrname,
 					struct proc *p));
 };
 
@@ -455,7 +455,7 @@ int	vfs_stdvptofh __P((struct vnode *vp, struct fid *fhp));
 int	vfs_stdinit __P((struct vfsconf *));
 int	vfs_stduninit __P((struct vfsconf *));
 int	vfs_stdextattrctl __P((struct mount *mp, int cmd,
-	    struct vnode *filename_vp, int namespace, const char *attrname,
+	    struct vnode *filename_vp, int attrnamespace, const char *attrname,
 	    struct proc *p));
 
 /* XXX - these should be indirect functions!!! */
