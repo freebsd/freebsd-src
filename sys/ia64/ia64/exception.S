@@ -1292,7 +1292,6 @@ ENTRY(do_syscall, 0)
 	;;
 	mov	r23=ar.bsp		// calculate ndirty
 	;;
-	;;
 	st8	[r30]=r20,16		// save ar.bspstore
 	st8	[r31]=r21,16		// save ar.rnat
 	sub	r16=r23,r22		// bytes of dirty regs
