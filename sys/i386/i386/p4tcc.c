@@ -53,9 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 static u_int			p4tcc_percentage;
-static u_int			p4tcc_economy = 13;
-static u_int			p4tcc_performance = 100;
+static u_int			p4tcc_economy;
+static u_int			p4tcc_performance;
 static struct sysctl_ctx_list	p4tcc_sysctl_ctx;
+static struct sysctl_oid	*p4tcc_sysctl_tree;
 
 static struct {
 	u_short level;
@@ -73,7 +74,6 @@ static struct {
 };
 
 #define TCC_LEVELS	sizeof(tcc) / sizeof(tcc[0])
-#define	TCC_MAXPERF	100
 
 static u_short
 p4tcc_getperf(void)
@@ -97,8 +97,8 @@ p4tcc_setperf(u_int percentage)
 	int i;
 	u_int64_t msreg;
 
-	if (percentage > TCC_MAXPERF)
-		percentage = TCC_MAXPERF;
+	if (percentage > tcc[0].rlevel)
+		percentage = tcc[0].rlevel;
 	for (i = 0; i < TCC_LEVELS - 1; i++) {
 		if (percentage > tcc[i].level)
 			break;
@@ -175,8 +175,8 @@ p4tcc_profile_sysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	/* range check */
-	if (arg > TCC_MAXPERF)
-		arg = TCC_MAXPERF;
+	if (arg > tcc[0].rlevel)
+		arg = tcc[0].rlevel;
 
 	/* set new value and possibly switch */
 	*argp = arg;
@@ -203,37 +203,42 @@ setup_p4tcc(void *dummy __unused)
 	case 0x27:
 	case 0x29:
 		/* hang with 12.5 */
-		tcc[TCC_LEVELS - 1].reg = 2;
+		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2];
 		break;
 	case 0x07:	/* errata N44 and P18 */
 	case 0x0a:
 	case 0x12:
 	case 0x13:
 		/* hang at 12.5 and 25 */
-		tcc[TCC_LEVELS - 1].reg = 3;
-		tcc[TCC_LEVELS - 2].reg = 3;
+		tcc[TCC_LEVELS - 1] = tcc[TCC_LEVELS - 2] = tcc[TCC_LEVELS - 3];
 		break;
 	default:
 		break;
 	}
+
+	p4tcc_economy = tcc[TCC_LEVELS - 1].rlevel;
+	p4tcc_performance = tcc[0].rlevel;
 
 	p4tcc_percentage = p4tcc_getperf();
 	printf("Pentium 4 TCC support enabled, current performance %u%%\n",
 	    p4tcc_percentage);
 
 	sysctl_ctx_init(&p4tcc_sysctl_ctx);
+	p4tcc_sysctl_tree = SYSCTL_ADD_NODE(&p4tcc_sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw), OID_AUTO, "p4tcc", CTLFLAG_RD, 0,
+	    "Pentium 4 Ternal Control Circuitry support");
 	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
+	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
 	    "cpuperf", CTLTYPE_INT | CTLFLAG_RW,
 	    &p4tcc_percentage, 0, p4tcc_perf_sysctl, "I",
 	    "CPU performance in % of maximum");
 	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
+	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
 	    "cpuperf_performance", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
 	    &p4tcc_performance, 0, p4tcc_profile_sysctl, "I",
 	    "CPU performance in % of maximum in Performance mode");
 	SYSCTL_ADD_PROC(&p4tcc_sysctl_ctx,
-	    SYSCTL_STATIC_CHILDREN(_machdep), OID_AUTO,
+	    SYSCTL_CHILDREN(p4tcc_sysctl_tree), OID_AUTO,
 	    "cpuperf_economy", CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_RW,
 	    &p4tcc_economy, 0, p4tcc_profile_sysctl, "I",
 	    "CPU performance in % of maximum in Economy mode");
