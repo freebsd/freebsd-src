@@ -483,6 +483,7 @@ do_dup(td, type, old, new, retval)
 		error = fdalloc(td, new, &newfd);
 		if (error) {
 			FILEDESC_UNLOCK(fdp);
+			fdrop(fp, td);
 			return (error);
 		}
 	}
