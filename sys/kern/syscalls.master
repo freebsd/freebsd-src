@@ -548,7 +548,7 @@
 378	STD	BSD	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
 			    int flags); }
 379	STD	BSD	{ int kse_exit(void); }
-380	STD	BSD	{ int kse_wakeup(void *); }
+380	STD	BSD	{ int kse_wakeup(void); }
 381	STD	BSD	{ int kse_new(struct kse_mailbox * mbx, \
 			int new_grp_flag); }
 382	STD	BSD	{ int thread_wakeup(struct thread_mailbox *tmbx); }
