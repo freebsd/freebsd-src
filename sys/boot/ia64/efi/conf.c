@@ -53,11 +53,12 @@ static const char rcsid[] =
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
-/*	&efi_disk, */
+	&efifs_dev,
 	NULL
 };
 
 struct fs_ops *file_system[] = {
+	&efi_fsops,
 	&ufs_fsops,
 	&zipfs_fsops,
 	NULL
