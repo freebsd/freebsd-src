@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.10 1998/07/01 01:38:34 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.11 1998/07/06 08:29:47 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -271,16 +271,11 @@ div_output(so, m, addr, control)
 
 	/* Loopback avoidance */
 	if (sin) {
-		ip_divert_cookie = sin->sin_port;
-	} else {
-		ip_divert_cookie = 0;
-	}
-
-	if (sin) {
 		int	len = 0;
 		char	*c = sin->sin_zero;
 
-		sin->sin_port = 0;
+		ip_divert_cookie = sin->sin_port;
+
 		/*
 		 * Find receive interface with the given name or IP address.
 		 * The name is user supplied data so don't trust it's size or 
@@ -293,12 +288,16 @@ div_output(so, m, addr, control)
 		while (*c++ && (len++ < sizeof(sin->sin_zero)));
 		if ((len > 0) && (len < sizeof(sin->sin_zero)))
 			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
+	} else {
+		ip_divert_cookie = 0;
 	}
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
-		/* Don't allow both user specified and setsockopt options,
-		   and don't allow packet length sizes that will crash */
+		/*
+		 * Don't allow both user specified and setsockopt options,
+		 * and don't allow packet length sizes that will crash
+		 */
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
