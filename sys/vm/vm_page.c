@@ -1532,7 +1532,11 @@ retrylookup:
 			splx(s);
 			goto retrylookup;
 		} else {
+			vm_page_lock_queues();
+			if (allocflags & VM_ALLOC_WIRED)
+				vm_page_wire(m);
 			vm_page_busy(m);
+			vm_page_unlock_queues();
 			return m;
 		}
 	}
