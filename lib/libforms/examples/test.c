@@ -63,7 +63,7 @@ main()
 		{F_END, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	};
 
-	struct form form = {0, 3, field, 25, 80, 0, 0, 0};
+	struct form form = {0, 3, field, 24, 80, 0, 0, 0};
 	form.field = field;
 
 	initscr();
