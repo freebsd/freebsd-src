@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.21 1996/06/19 01:50:10 julian Exp $
+ * $Id: if_ethersubr.c,v 1.22 1996/08/04 10:54:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -810,14 +810,16 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 		case AF_IPX:
 			{
 			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+			struct arpcom *ac = (struct arpcom *) (ifp->if_softc);
 
 			if (ipx_nullhost(*ina))
 				ina->x_host =
-				    *(union ipx_host *) (sc->arpcom.ac_enaddr);
+				    *(union ipx_host *) 
+			            ac->ac_enaddr;
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) sc->arpcom.ac_enaddr,
-				      sizeof(sc->arpcom.ac_enaddr));
+				      (caddr_t) ac->ac_enaddr,
+				      sizeof(ac->ac_enaddr));
 			}
 
 			/*
@@ -834,14 +836,15 @@ ether_ioctl(struct ifnet *ifp, int command, caddr_t data)
 		case AF_NS:
 		{
 			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
+			struct arpcom *ac = (struct arpcom *) (ifp->if_softc);
 
 			if (ns_nullhost(*ina))
 				ina->x_host =
-				    *(union ns_host *) (sc->arpcom.ac_enaddr);
+				    *(union ns_host *) (ac->ac_enaddr);
 			else {
 				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) sc->arpcom.ac_enaddr,
-				      sizeof(sc->arpcom.ac_enaddr));
+				      (caddr_t) ac->ac_enaddr,
+				      sizeof(ac->ac_enaddr));
 			}
 
 			/*
