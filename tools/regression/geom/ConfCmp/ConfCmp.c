@@ -46,7 +46,7 @@
 #include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <err.h>
-#include "expat.h"
+#include <bsdxml.h>
 
 struct node {
 	LIST_HEAD(, node)	children;

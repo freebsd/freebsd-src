@@ -3,16 +3,16 @@
 PROG=	ConfCmp
 SRCS+=	ConfCmp.c
 SRCS+=	subr_sbuf.c
-VPATH+= /sys/kern
+
+.PATH:	../../../../sys/kern
+
 NOOBJ=	youbet
 WARNS=	5
 CFLAGS+=	 -g -W -Wall -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -static
 # Uncomment for ElectricFence
 #LDADD += -lefence -L/usr/local/lib
 
-# Stuff for XML
-LDADD += -L/usr/local/lib -lexpat
-CFLAGS += -I/usr/local/include/xml
+LDADD += -lbsdxml
 
 NOMAN=	yeah
 CLEANFILES	+= _*
