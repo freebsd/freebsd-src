@@ -123,6 +123,7 @@
 #define		socket				_socket
 #define		socketpair			_socketpair
 #define		wait4				_wait4
+#define		waitpid				_waitpid
 #define		write				_write
 #define		writev				_writev
 
@@ -156,7 +157,6 @@
 #define		system				_system
 #define		tcdrain				_tcdrain
 #define		wait				_wait
-#define		waitpid				_waitpid
 #endif
 
 #endif /* _NAMESPACE_H_ */
