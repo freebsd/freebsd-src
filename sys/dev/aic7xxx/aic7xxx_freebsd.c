@@ -43,7 +43,6 @@
 #endif
 
 #define ccb_scb_ptr spriv_ptr0
-#define ccb_ahc_ptr spriv_ptr1
 
 #ifdef AHC_DEBUG
 static int     ahc_debug = AHC_DEBUG;
@@ -265,14 +264,12 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 
 	ccb = scb->io_ctx;
 	LIST_REMOVE(scb, pending_links);
-	if (ccb->ccb_h.func_code == XPT_SCSI_IO
-	  && ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) == 0
-	   || ccb->csio.tag_action == CAM_TAG_ACTION_NONE)
-	  && (ahc->features & AHC_SCB_BTT) == 0) {
+	if ((scb->flags & SCB_UNTAGGEDQ) != 0) {
 		struct scb_tailq *untagged_q;
 
 		untagged_q = &ahc->untagged_queues[ccb->ccb_h.target_id];
 		TAILQ_REMOVE(untagged_q, scb, links.tqe);
+		scb->flags &= ~SCB_UNTAGGEDQ;
 		ahc_run_untagged_queue(ahc, untagged_q);
 	}
 
@@ -451,7 +448,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		 * So we can find the SCB when an abort is requested
 		 */
 		ccb->ccb_h.ccb_scb_ptr = scb;
-		ccb->ccb_h.ccb_ahc_ptr = ahc;
 
 		/*
 		 * Put all the arguments for the xfer in the scb
@@ -1052,7 +1048,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	scb = (struct scb *)arg;
 	ccb = scb->io_ctx;
-	ahc = (struct ahc_softc *)ccb->ccb_h.ccb_ahc_ptr;
+	ahc = scb->ahc_softc;
 
 	if (error != 0) {
 		if (error == EFBIG)
@@ -1215,6 +1211,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 		untagged_q = &(ahc->untagged_queues[ccb->ccb_h.target_id]);
 		TAILQ_INSERT_TAIL(untagged_q, scb, links.tqe);
+		scb->flags |= SCB_UNTAGGEDQ;
 		if (TAILQ_FIRST(untagged_q) != scb) {
 			ahc_unlock(ahc, &s);
 			return;
@@ -1397,7 +1394,7 @@ ahc_timeout(void *arg)
 	char	channel;
 
 	scb = (struct scb *)arg; 
-	ahc = (struct ahc_softc *)scb->io_ctx->ccb_h.ccb_ahc_ptr;
+	ahc = (struct ahc_softc *)scb->ahc_softc;
 
 	ahc_lock(ahc, &s);
 
@@ -1415,11 +1412,10 @@ ahc_timeout(void *arg)
 	/* Make sure the sequencer is in a safe location. */
 	ahc_clear_critical_section(ahc);
 
-	ahc_print_path(ahc, scb);
 	if ((scb->flags & SCB_ACTIVE) == 0) {
 		/* Previous timeout took care of me already */
-		printf("Timedout SCB %d handled by another timeout\n",
-		       scb->hscb->tag);
+		printf("%s: Timedout SCB already complete. "
+		       "Interrupts may not be functioning.\n", ahc_name(ahc));
 		unpause_sequencer(ahc);
 		ahc_unlock(ahc, &s);
 		return;
