@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/param.h>
-#include <sys/lock.h>
 #define _KERNEL
 #define KERNEL
 #if !defined(solaris) && !defined(linux) && !defined(__sgi)

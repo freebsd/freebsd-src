@@ -42,8 +42,6 @@ static char rcsid[] =
 
 #include "namespace.h"
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
 

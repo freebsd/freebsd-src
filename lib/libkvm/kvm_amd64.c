@@ -50,8 +50,6 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
