@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.18 1999/06/21 06:21:05 jkoshy Exp $";
+	"$Id: shutdown.c,v 1.19 1999/06/21 16:06:21 ru Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -420,7 +420,7 @@ getoffset(timearg)
 
 	/* handle hh:mm by getting rid of the colon */
 	for (p = timearg; *p; ++p)
-		if (!isascii(*p) || !isdigit(*p))
+		if (!isascii(*p) || !isdigit(*p)) {
 			if (*p == ':' && strlen(p) == 3) {
 				p[0] = p[1];
 				p[1] = p[2];
@@ -428,6 +428,7 @@ getoffset(timearg)
 			}
 			else
 				badtime();
+		}
 
 	unsetenv("TZ");					/* OUR timezone */
 	lt = localtime(&now);				/* current time val */
