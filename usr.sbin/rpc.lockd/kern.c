@@ -138,21 +138,19 @@ client_request(void)
 	owner.pid = getpid();
 	(void)gethostname(hostname, sizeof(hostname) - 1);
 
-reopen:
 	/* Open the fifo for reading. */
-	if ((fd = open(_PATH_LCKFIFO, O_RDONLY /* | O_NONBLOCK */)) < 0)
+	if ((fd = open(_PATH_LCKFIFO, O_RDONLY | O_NONBLOCK)) < 0)
 		syslog(LOG_ERR, "open: %s: %m", _PATH_LCKFIFO);
 
 	/* drop our root priviledges */
 	(void)lockd_seteuid(daemon_uid);
 
-	/* Set up the select. */
-	FD_ZERO(&rdset);
-
 	for (;;) {
 		/* Wait for contact... fifo's return EAGAIN when read with 
 		 * no data
 		 */
+		/* Set up the select. */
+		FD_ZERO(&rdset);
 		FD_SET(fd, &rdset);
 		(void)select(fd + 1, &rdset, NULL, NULL, NULL);
 
@@ -206,9 +204,6 @@ reopen:
 		} else if (nr != 0) {
 			syslog(LOG_ERR,
 			    "%s: discard %d bytes", _PATH_LCKFIFO, nr);
-		} if (nr == 0) {
-			close (fd);
-			goto reopen;
 		}
 	}
 
