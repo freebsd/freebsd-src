@@ -34,7 +34,7 @@
 
 #include <machine/stdarg.h>
 
-#include <dev/acpi/aml/aml_obj.h>
+#include <aml/aml_obj.h>
 
 struct aml_name {
 	char	name[4];

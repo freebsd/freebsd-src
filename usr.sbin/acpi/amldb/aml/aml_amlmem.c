@@ -33,9 +33,9 @@
 
 #include <sys/param.h>
 
-#include <dev/acpi/aml/aml_env.h>
-#include <dev/acpi/aml/aml_memman.h>
-#include <dev/acpi/aml/aml_name.h>
+#include <aml/aml_env.h>
+#include <aml/aml_memman.h>
+#include <aml/aml_name.h>
 
 MEMMAN_INITIALSTORAGE_DESC(struct aml_namestr, _aml_namestr_storage);
 MEMMAN_INITIALSTORAGE_DESC(struct aml_num, _aml_num_storage);

@@ -43,9 +43,9 @@
 
 #include <dev/acpi/acpireg.h>
 #include <dev/acpi/acpivar.h>
-#include <dev/acpi/aml/aml_common.h>
-#include <dev/acpi/aml/aml_region.h>
-#include <dev/acpi/aml/aml_name.h>
+#include <aml/aml_common.h>
+#include <aml/aml_region.h>
+#include <aml/aml_name.h>
 
 #ifndef ACPI_NO_OSDFUNC_INLINE
 #include <machine/acpica_osd.h>

@@ -33,7 +33,7 @@
 
 #include <sys/param.h>
 
-#include <dev/acpi/aml/aml_memman.h>
+#include <aml/aml_memman.h>
 
 #ifndef _KERNEL
 #include <stdlib.h>
