@@ -164,6 +164,9 @@ fwe_attach(device_t dev)
 	fwe->dma_ch = -1;
 
 	fwe->fd.fc = device_get_ivars(dev);
+	if (tx_speed < 0)
+		tx_speed = fwe->fd.fc->speed;
+
 	fwe->fd.dev = dev;
 	fwe->fd.post_explore = NULL;
 	fwe->eth_softc.fwe = fwe;
