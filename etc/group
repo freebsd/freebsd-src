@@ -13,5 +13,6 @@ guest:*:31:root
 nobody:*:39:
 uucp:*:66:
 ingres:*:74:ingres
+xten:*:100:xten
 dialer:*:117:
 nogroup:*:32766:
