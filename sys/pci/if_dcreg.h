@@ -486,6 +486,7 @@ struct dc_list_data {
 struct dc_chain_data {
 	struct mbuf		*dc_rx_chain[DC_RX_LIST_CNT];
 	struct mbuf		*dc_tx_chain[DC_TX_LIST_CNT];
+	struct mbuf		*dc_tx_mapping;
 	bus_dmamap_t		dc_rx_map[DC_RX_LIST_CNT];
 	bus_dmamap_t		dc_tx_map[DC_TX_LIST_CNT];
 	u_int32_t		*dc_sbuf;
