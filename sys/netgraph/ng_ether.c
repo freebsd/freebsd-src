@@ -73,6 +73,8 @@ struct private {
 	hook_p		upper;		/* upper hook connection */
 	hook_p		lower;		/* lower OR orphan hook connection */
 	u_char		lowerOrphan;	/* whether lower is lower or orphan */
+	u_char		autoSrcAddr;	/* always overwrite source address */
+	u_char		promisc;	/* promiscuous mode enabled */
 };
 typedef struct private *priv_p;
 
@@ -102,6 +104,17 @@ static ng_rcvdata_t	ng_ether_rcvdata;
 static ng_disconnect_t	ng_ether_disconnect;
 static int		ng_ether_mod_event(module_t mod, int event, void *data);
 
+/* Parse type for an Ethernet address. Slightly better than an array of
+   six int8's would be the more common colon-separated hex byte format. */
+static const struct ng_parse_fixedarray_info ng_ether_enaddr_type_info = {
+        &ng_parse_int8_type,
+        ETHER_ADDR_LEN
+};
+static const struct ng_parse_type ng_ether_enaddr_type = {
+        &ng_parse_fixedarray_type,
+        &ng_ether_enaddr_type_info
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ether_cmdlist[] = {
 	{
@@ -117,6 +130,27 @@ static const struct ng_cmdlist ng_ether_cmdlist[] = {
 	  "getifindex",
 	  NULL,
 	  &ng_parse_int32_type
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_GET_ENADDR,
+	  "getenaddr",
+	  NULL,
+	  &ng_ether_enaddr_type
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_SET_PROMISC,
+	  "setpromisc",
+	  &ng_parse_int32_type,
+	  NULL
+	},
+	{
+	  NGM_ETHER_COOKIE,
+	  NGM_ETHER_SET_AUTOSRC,
+	  "setautosrc",
+	  &ng_parse_int32_type,
+	  NULL
 	},
 	{ 0 }
 };
@@ -261,6 +295,7 @@ ng_ether_attach(struct ifnet *ifp)
 	node->private = priv;
 	priv->ifp = ifp;
 	IFP2NG(ifp) = node;
+	priv->autoSrcAddr = 1;
 
 	/* Try to give the node the same name as the interface */
 	if (ng_name_node(node, name) != 0) {
@@ -449,6 +484,38 @@ ng_ether_rcvmsg(node_p node, struct ng_mesg *msg,
 			}
 			*((u_int32_t *)resp->data) = priv->ifp->if_index;
 			break;
+		case NGM_ETHER_GET_ENADDR:
+			NG_MKRESPONSE(resp, msg, ETHER_ADDR_LEN, M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			bcopy((IFP2AC(priv->ifp))->ac_enaddr,
+			    resp->data, ETHER_ADDR_LEN);
+			break;
+		case NGM_ETHER_SET_PROMISC:
+		    {
+			u_char want;
+
+			if (msg->header.arglen != sizeof(u_int32_t)) {
+				error = EINVAL;
+				break;
+			}
+			want = !!*((u_int32_t *)msg->data);
+			if (want ^ priv->promisc) {
+				if ((error = ifpromisc(priv->ifp, want)) != 0)
+					break;
+				priv->promisc = want;
+			}
+			break;
+		    }
+		case NGM_ETHER_SET_AUTOSRC:
+			if (msg->header.arglen != sizeof(u_int32_t)) {
+				error = EINVAL;
+				break;
+			}
+			priv->autoSrcAddr = !!*((u_int32_t *)msg->data);
+			break;
 		default:
 			error = EINVAL;
 			break;
@@ -489,7 +556,6 @@ static int
 ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
-	struct ether_header *eh;
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
@@ -502,9 +568,12 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 		return (ENOBUFS);
 	}
 
-        /* drop in the MAC address */
-	eh = mtod(m, struct ether_header *);
-	bcopy((IFP2AC(priv->ifp))->ac_enaddr, eh->ether_shost, 6);
+	/* Drop in the MAC address if desired */
+	if (priv->autoSrcAddr) {
+		bcopy((IFP2AC(priv->ifp))->ac_enaddr,
+		    mtod(m, struct ether_header *)->ether_shost,
+		    ETHER_ADDR_LEN);
+	}
 
 	/* Send it on its way */
 	NG_FREE_META(meta);
@@ -546,8 +615,15 @@ ng_ether_rcv_upper(node_p node, struct mbuf *m, meta_p meta)
 static int
 ng_ether_rmnode(node_p node)
 {
+	const priv_p priv = node->private;
+
 	ng_cutlinks(node);
 	node->flags &= ~NG_INVALID;	/* bounce back to life */
+	if (priv->promisc) {		/* disable promiscuous mode */
+		(void)ifpromisc(priv->ifp, 0);
+		priv->promisc = 0;
+	}
+	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
 	return (0);
 }
 

@@ -57,6 +57,9 @@
 enum {
 	NGM_ETHER_GET_IFNAME = 1,	/* get the interface name */
 	NGM_ETHER_GET_IFINDEX,		/* get the interface global index # */
+	NGM_ETHER_GET_ENADDR,		/* get Ethernet address */
+	NGM_ETHER_SET_PROMISC,		/* enable/disable promiscuous mode */
+	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
 };
 
 #endif /* _NETGRAPH_NG_ETHER_H_ */
