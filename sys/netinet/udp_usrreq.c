@@ -1072,6 +1072,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	if (inp == 0) {
 		INP_INFO_WUNLOCK(&udbinfo);
 		m_freem(m);
+		if (control != NULL)
+			m_freem(control);
 		return EINVAL;
 	}
 	INP_LOCK(inp);
