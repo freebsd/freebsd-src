@@ -1,4 +1,4 @@
-/* $RCSfile: toke.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
+/* $RCSfile: toke.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:26 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: toke.c,v $
+ * Revision 1.2  1995/05/30 05:03:26  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -515,7 +518,7 @@ yylex()
     case '*':
 	if (expectterm) {
 	    check_uni();
-	    s = scanident(s,bufend,tokenbuf);
+	    s = scanident(s,bufend,tokenbuf,sizeof tokenbuf);
 	    yylval.stabval = stabent(tokenbuf,TRUE);
 	    TERM(STAR);
 	}
@@ -529,7 +532,7 @@ yylex()
 	if (expectterm) {
 	    if (!isALPHA(s[1]))
 		check_uni();
-	    s = scanident(s,bufend,tokenbuf);
+	    s = scanident(s,bufend,tokenbuf,sizeof tokenbuf);
 	    yylval.stabval = hadd(stabent(tokenbuf,TRUE));
 	    TERM(HSH);
 	}
@@ -647,12 +650,12 @@ yylex()
     case '$':
 	if (s[1] == '#' && (isALPHA(s[2]) || s[2] == '_')) {
 	    s++;
-	    s = scanident(s,bufend,tokenbuf);
+	    s = scanident(s,bufend,tokenbuf,sizeof tokenbuf);
 	    yylval.stabval = aadd(stabent(tokenbuf,TRUE));
 	    TERM(ARYLEN);
 	}
 	d = s;
-	s = scanident(s,bufend,tokenbuf);
+	s = scanident(s,bufend,tokenbuf,sizeof tokenbuf);
 	if (reparse) {		/* turn ${foo[bar]} into ($foo[bar]) */
 	  do_reparse:
 	    s[-1] = ')';
@@ -680,7 +683,7 @@ yylex()
 
     case '@':
 	d = s;
-	s = scanident(s,bufend,tokenbuf);
+	s = scanident(s,bufend,tokenbuf,sizeof tokenbuf);
 	if (reparse)
 	    goto do_reparse;
 	yylval.stabval = aadd(stabent(tokenbuf,TRUE));
@@ -1539,24 +1542,33 @@ char *what;
 }
 
 char *
-scanident(s,send,dest)
+scanident(s,send,dest,destlen)
 register char *s;
 register char *send;
 char *dest;
+STRLEN destlen;
 {
     register char *d;
+    register char *e;
     int brackets = 0;
 
     reparse = Nullch;
     s++;
     d = dest;
+    e = d + destlen - 3;	/* two-character token, ending NUL */
     if (isDIGIT(*s)) {
-	while (isDIGIT(*s))
-	    *d++ = *s++;
+	while (isDIGIT(*s)) {
+	    if (d >= e)
+		fatal("Identifier too long");
+            *d++ = *s++;
+	}
     }
     else {
-	while (isALNUM(*s) || *s == '\'')
+	while (isALNUM(*s) || *s == '\'') {
+	    if (d >= e)
+		fatal("Identifier too long");
 	    *d++ = *s++;
+	}
     }
     while (d > dest+1 && d[-1] == '\'')
 	d--,s--;
