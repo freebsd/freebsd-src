@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.14 1995/02/03 17:15:11 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.15 1995/02/22 01:43:24 gibbs Exp $
  */
 /*
  * TODO:
@@ -46,7 +46,7 @@
 #include <sys/user.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include <machine/cpufunc.h>
+#include <machine/clock.h>
 #include <i386/scsi/aic7xxx.h>
 
 #define PAGESIZ 4096  
@@ -68,6 +68,7 @@ void    ahc_free_scb();
 void	ahc_abort_scb __P((int unit, struct ahc_data *ahc, struct scb *scb));
 void    ahcminphys();
 struct  scb *ahc_scb_phys_kv();
+int	ahc_poll __P((int unit, int wait));
 u_int32 ahc_adapter_info();
 
 int  ahc_unit = 0;
@@ -360,7 +361,7 @@ struct scsi_device ahc_dev =
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
 #define		SEQINT    0x01
-#define		INT_PEND  SEQINT | SCSIINT | CMDCMPLT  /* For polling */
+#define		INT_PEND  (SEQINT | SCSIINT | CMDCMPLT)  /* For polling */
 
 /*
  * Hard Error (p. 3-53)
@@ -558,10 +559,10 @@ static struct {
         u_char errno;            
 	char *errmesg;
 } hard_error[] = {
-	ILLHADDR,  "Illegal Host Access",
-	ILLSADDR,  "Illegal Sequencer Address referrenced",
-	ILLOPCODE, "Illegal Opcode in sequencer program", 
-	PARERR,    "Sequencer Ram Parity Error",
+	{ ILLHADDR,  "Illegal Host Access" },
+	{ ILLSADDR,  "Illegal Sequencer Address referrenced" },
+	{ ILLOPCODE, "Illegal Opcode in sequencer program" },
+	{ PARERR,    "Sequencer Ram Parity Error" }
 };      
 
 
@@ -575,14 +576,14 @@ static struct {
 	short period; /* in ns */
 	char *rate;
 } ahc_syncrates[] = {
-	0x00,	100,	"10.0",
-	0x10,	125,	"8.0",
-	0x20,	150,	"6.67",
-	0x30,	175,	"5.7",
-	0x40,	200,	"5.0",
-	0x50,	225,	"4.4",
-	0x60,	250,	"4.0",
-	0x70,	275,	"3.6"
+	{ 0x00, 100, "10.0"  },
+	{ 0x10, 125,  "8.0"  },
+	{ 0x20, 150,  "6.67" },
+	{ 0x30, 175,  "5.7"  },
+	{ 0x40, 200,  "5.0"  },
+	{ 0x50, 225,  "4.4"  },
+	{ 0x60, 250,  "4.0"  },
+	{ 0x70, 275,  "3.6"  }
 };
 
 static int ahc_num_syncrates =
@@ -686,7 +687,6 @@ ahc_attach(unit)
 	int unit;
 {
         struct ahc_data *ahc = ahcdata[unit]; 
-	u_char flags;
 
         /*
          * fill in the prototype scsi_link.
@@ -720,7 +720,6 @@ ahc_send_scb( ahc, scb )
         struct ahc_data *ahc;
         struct scb *scb;
 {               
-        int old_scbptr;
         u_long iobase = ahc->baseport;
          
         PAUSE_SEQUENCER(ahc);
@@ -834,7 +833,6 @@ ahcintr(unit)
 			}
                     case MSG_SDTR:
 			{
-				int loc;
 				u_char scsi_id, offset, rate, targ_scratch;
 	                        /* 
 				 * Help the sequencer to translate the 
@@ -881,7 +879,6 @@ ahcintr(unit)
 			}
                     case MSG_WDTR:
 			{
-				int loc;
 				u_char scsi_id, scratch, bus_width;
 
 				bus_width = inb(ACCUM + iobase);
@@ -999,8 +996,7 @@ ahcintr(unit)
 			}
                     case BAD_STATUS:   
 			{
-			  int	scb_index, saved_scb_index;
-			  u_short seqaddr;
+			  int	scb_index;
 			
                           /* The sequencer will notify us when a command
                            * has an error that would be of interest to
@@ -1052,7 +1048,6 @@ ahcintr(unit)
 					struct scsi_sense *sc = &(scb->sense_cmd);
 					u_char control = scb->control;
 					u_char tcl = scb->target_channel_lun;
-					int i, active;
 #ifdef AHC_DEBUG
 					printf("ahc%d: target %d, lun %d "
 						"(%s%d) Sending Sense\n", unit
@@ -1233,7 +1228,7 @@ clear:
         }
 cmdcomplete:                         
         if (intstat & CMDCMPLT) { 
-                int   scb_index, saved_scb_index;
+                int   scb_index;
                          
                 do {    
                         scb_index = inb(QOUTFIFO + iobase);
@@ -1333,7 +1328,6 @@ ahc_init(unit)
 	printf("ahc%d: reading board settings\n", unit);
 
 	outb(HCNTRL + iobase, CHIPRST);
-	DELAY(100);
 	switch( ahc->type ) {
 	   case AHC_274:
 		printf("ahc%d: 274x ", unit);
@@ -1346,21 +1340,16 @@ ahc_init(unit)
 		ahc->maxscbs = 0x4;
 		break;
 	   case AHC_294:
-		{
-			#define DFTHRESH	0xc0
-			u_char threshold;
-			printf("ahc%d: 294x ", unit);
-			ahc->unpause = UNPAUSE_274X;
-			ahc->maxscbs = 0x10;
-			threshold = inb(DSPCISTATUS + iobase);
-			threshold |= DFTHRESH ;
-			outb(DSPCISTATUS + iobase, threshold);
-			/* XXX Hard coded SCSI ID for now */
-			outb(HA_SCSICONF + iobase, 0x07 | DFTHRESH);
-			/* In case we are a wide card */
-			outb(HA_SCSICONF + 1 + iobase, 0x07);
-			break;
-		}
+		printf("ahc%d: 294x ", unit);
+		ahc->unpause = UNPAUSE_274X;
+		ahc->maxscbs = 0x10;
+		#define DFTHRESH        3
+		outb(DSPCISTATUS + iobase, DFTHRESH << 6);
+		/* XXX Hard coded SCSI ID for now */
+		outb(HA_SCSICONF + iobase, 0x07 | (DFTHRESH << 6));
+		/* In case we are a wide card */
+		outb(HA_SCSICONF + 1 + iobase, 0x07);
+		break;
 	   default:
 	};
 
@@ -1396,7 +1385,7 @@ ahc_init(unit)
 	 * Number of SCBs that will be used. Rev E aic7770s and
 	 * aic7870s have 16.  The rest have 4.
 	 */
-	if(ahc->type & AHC_274 || ahc->type & AHC_284)
+	if(!(ahc->type & AHC_294))
 	{
 		/* 
 		 * See if we have a Rev E or higher
@@ -1457,19 +1446,6 @@ ahc_init(unit)
 		}
 	}
 
-	/*
-	 * Load the Sequencer program and Enable the adapter.
-	 * Place the aic7770 in fastmode which makes a big
-	 * difference when doing many small block transfers.
-         */
-	
-        printf("ahc%d: Downloading Sequencer Program...", unit);
-	ahc_loadseq(iobase);
-	printf("Done\n");
-        outb(SEQCTL + iobase, FASTMODE);
-	if (!(ahc->type & AHC_294))
-		outb(BCTL + iobase, ENABLE); 
-
 	/* Set the SCSI Id, SXFRCTL1, and SIMODE1, for both channes */
 	if( ahc->type & AHC_TWIN)
 	{
@@ -1527,7 +1503,7 @@ ahc_init(unit)
 	 */
 	if(!(ahc->type & AHC_WIDE))
 		ahc->needwdtr_orig = 0;
-        ahc->needsdtr = ahc->needsdtr_orig;
+	ahc->needsdtr = ahc->needsdtr_orig;
 	ahc->needwdtr = ahc->needwdtr_orig;
 	ahc->sdtrpending = 0;
 	ahc->wdtrpending = 0;
@@ -1540,6 +1516,20 @@ ahc_init(unit)
 	/* We don't have any busy targets right now */
 	outb( HA_ACTIVE0 + iobase, 0 );
 	outb( HA_ACTIVE1 + iobase, 0 );
+
+	/*
+	 * Load the Sequencer program and Enable the adapter.
+	 * Place the aic7770 in fastmode which makes a big
+	 * difference when doing many small block transfers.
+         */
+	
+        printf("ahc%d: Downloading Sequencer Program...", unit);
+	ahc_loadseq(iobase);
+	printf("Done\n");
+
+        outb(SEQCTL + iobase, FASTMODE);
+	if (!(ahc->type & AHC_294))
+		outb(BCTL + iobase, ENABLE); 
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO); 
@@ -1648,7 +1638,7 @@ ahc_scsi_cmd(xs)
 		scb->control |= SCB_TE;
 	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) | 
 				  ((u_long)xs->sc_link->fordriver & 0x08) |
-				  xs->sc_link->lun & 0x07;
+				  (xs->sc_link->lun & 0x07);
         scb->cmdlen = xs->cmdlen;
 	scb->cmdpointer = KVTOPHYS(xs->cmd);
         if (xs->datalen) {      /* should use S/G only if not zero length */
@@ -1910,7 +1900,6 @@ ahc_poll(int unit, int wait)
         u_long	iobase = ahc->baseport;
         u_long	stport = INTSTAT + iobase;  
 
-      retry:
         while (--wait) {
                 if (inb(stport) & INT_PEND)
                         break;
@@ -1986,8 +1975,6 @@ ahc_abort_scb( unit, ahc, scb )
 		 * If there's a message in progress, 
 		 * reset the bus and have all devices renegotiate.
 		 */
-		int i;
-		u_char flags;
 		if(scb->target_channel_lun & 0x08){
 			ahc->needsdtr |= (ahc->needsdtr_orig & 0xff00);
 			ahc->sdtrpending &= 0x00ff;
@@ -2035,7 +2022,7 @@ void
 ahc_timeout(void *arg1)
 {               
         struct scb *scb = (struct scb *)arg1;
-        int     unit, cur_scb_offset;
+        int     unit;
         struct ahc_data *ahc;
         int     s = splbio();
 
