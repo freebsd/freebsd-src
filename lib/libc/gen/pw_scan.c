@@ -104,7 +104,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			warnx("%s > max uid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
-	if (*ep != '\0' || ep == p) {
+	if (*ep != '\0') {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s uid is incorrect", p);
 		return (0);
@@ -130,7 +130,7 @@ __pw_scan(char *bp, struct passwd *pw, int flags)
 			warnx("%s > max gid value (%lu)", p, ULONG_MAX);
 		return (0);
 	}
-	if (*ep != '\0' || ep == p) {
+	if (*ep != '\0') {
 		if (flags & _PWSCAN_WARN)
 			warnx("%s gid is incorrect", p);
 		return (0);
