@@ -64,7 +64,7 @@ typedef struct mac_addr	Mac_addr;
 enum atm_vendor {
 	VENDOR_UNKNOWN,			/* Unknown vendor */
 	VENDOR_FORE,			/* FORE Systems, Inc. */
-	VENDOR_ENI			/* Efficient Networks, Inc. */
+	VENDOR_ENI,			/* Efficient Networks, Inc. */
 	VENDOR_IDT			/* Integrated Device Technology, Inc. */
 };
 typedef enum atm_vendor	Atm_vendor;
@@ -76,7 +76,7 @@ typedef enum atm_vendor	Atm_vendor;
 enum atm_vendapi {
 	VENDAPI_UNKNOWN,		/* Unknown interface */
 	VENDAPI_FORE_1,			/* FORE - 200 Series */
-	VENDAPI_ENI_1			/* ENI - Midway */
+	VENDAPI_ENI_1,			/* ENI - Midway */
 	VENDAPI_IDT_1			/* IDT - NICStAR */
 };
 typedef enum atm_vendapi	Atm_vendapi;
@@ -91,7 +91,7 @@ enum atm_device {
 	DEV_FORE_SBA200,		/* FORE SBA-200 */
 	DEV_FORE_PCA200E,		/* FORE PCA-200E */
 	DEV_FORE_ESA200E,		/* FORE ESA-200E */
-	DEV_ENI_155P			/* ENI-155p */
+	DEV_ENI_155P,			/* ENI-155p */
 	DEV_IDT_155			/* IDT NICStAR */
 };
 typedef enum atm_device	Atm_device;
@@ -118,7 +118,7 @@ enum atm_bus {
 	BUS_UNKNOWN,			/* Unknown bus type */
 	BUS_SBUS_B16,			/* SBus: 16 byte (4 word) max burst */
 	BUS_SBUS_B32,			/* SBus: 32 byte (8 word) max burst */
-	BUS_PCI				/* PCI */
+	BUS_PCI,			/* PCI */
 	BUS_EISA			/* EISA */
 };
 typedef enum atm_bus	Atm_bus;
