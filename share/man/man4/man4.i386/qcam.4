@@ -24,6 +24,9 @@ The
 driver can share the same port with the lpt driver, however it is
 reccommended that the lpt driver be configured for polled operation
 if this sharing is to be done.
+The auto-detection code for the camera is reported to
+be flakey at times.  Until this is resolved, it may be bypassed by
+by adding "flags 1" to your kernel configuration.
 .Sh IOCTLS
 The following 
 .Xr ioctl 2
@@ -63,7 +66,14 @@ The QuickCam reverse engineering project, http://www.crynwr.com/qcpc/
 The
 .Nm
 driver is new to
-.Tn FreeBSD .
+.Tn FreeBSD.
+.Sh BUGS
+The driver spin-waits in the kernel, which means on large transfers,
+the system will be chewing down a lot of time.  Doing full motion video
+at 320x240 is not reccomended until this is fixed.
+
+The driver's auto-detection code for finding a camera on a parallel port
+is not reliable on all hardware.  See the note above for bypass information.
 .Sh AUTHOR
 The
 .Nm
