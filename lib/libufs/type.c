@@ -111,6 +111,18 @@ ufs_disk_close(struct uufsd *disk)
 int
 ufs_disk_fillout(struct uufsd *disk, const char *name)
 {
+	if (ufs_disk_fillout_blank(disk, name) == -1) {
+		return -1;
+	}
+	if (sbread(disk) == -1) {
+		ERROR(disk, "could not read superblock to fill out disk");
+		return -1;
+	}
+}
+
+int
+ufs_disk_fillout_blank(struct uufsd *disk, const char *name)
+{
 	struct stat st;
 	struct fstab *fs;
 	const char *oname;
@@ -160,11 +172,6 @@ again:	if (stat(name, &st) < 0) {
 		disk->d_mine |= MINE_NAME;
 	}
 	disk->d_name = name;
-
-	if (sbread(disk) == -1) {
-		ERROR(disk, "could not read superblock to fill out disk");
-		return -1;
-	}
 
 	return 0;
 }
