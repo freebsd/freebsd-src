@@ -16,7 +16,7 @@
 	If needed, disable the use of ACPI with:
 
 	unset acpi_load
-	$hint.acpi.0.disabled="1"
+	set hint.acpi.0.disabled="1"
 
 ################################################################################
 # Tautoboot DBoot after a delay
