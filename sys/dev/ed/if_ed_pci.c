@@ -84,8 +84,10 @@ ed_pci_attach(device_t dev)
         int	error;
 
         error = ed_probe_Novell(dev, PCIR_BAR(0), flags);
-        if (error)
+        if (error) {
+                ed_release_resources(dev);
                 return (error);
+	}
 
         error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
         if (error) {
@@ -101,7 +103,8 @@ ed_pci_attach(device_t dev)
         }
 
 	error = ed_attach(dev);
-
+        if (error)
+                ed_release_resources(dev);
 	return (error);
 }
 
