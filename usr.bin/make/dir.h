@@ -55,6 +55,7 @@ typedef struct Path {
 } Path;
 
 void Dir_Init(void);
+void Dir_InitDot(void);
 void Dir_End(void);
 Boolean Dir_HasWildcards(char *);
 void Dir_Expand(char *, Lst, Lst);
