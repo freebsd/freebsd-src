@@ -32,7 +32,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 9, 1995
+.Dd January 23, 2001
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -158,7 +158,7 @@ function is also useful for fetching mib prefixes and then adding
 a final component.
 For example, to fetch process information
 for processes with pid's less than 100:
-
+.Pp
 .Bd -literal -offset indent -compact
 int i, mib[4];
 size_t len;
