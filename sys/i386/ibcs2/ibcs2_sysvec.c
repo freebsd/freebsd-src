@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.11 1998/11/15 15:33:51 bde Exp $
+ * $Id: ibcs2_sysvec.c,v 1.12 1998/12/14 18:53:47 dt Exp $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,6 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	NULL		/* we don't have a COFF coredump function */
 };
 
-#ifndef LKM
 /*
  * Create an "ibcs2" module that does nothing but allow checking for
  * the presence of the subsystem.
@@ -78,4 +77,3 @@ moduledata_t ibcs2_mod = {
 	0
 };
 DECLARE_MODULE(ibcs2, ibcs2_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
-#endif
