@@ -69,7 +69,10 @@ OBJCOPY?=	objcopy
 
 .if ${CC} == "icc"
 CFLAGS:=	${CFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
+.else
+WERROR?=	-Werror
 .endif
+CFLAGS+=	${WERROR}
 CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
