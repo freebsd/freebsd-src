@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.61 1996/04/20 21:29:25 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.62 1996/04/22 13:21:40 gibbs Exp $
  */
 /*
  * TODO:
@@ -198,7 +198,7 @@ static struct scsi_device ahc_dev =
 	do {								\
 		outb( SEQCTL + ahc->baseport, SEQRESET|FASTMODE );	\
 	} while (inb(SEQADDR0 + ahc->baseport) != 0 &&			\
-		 inb(SEQADDR1 + ahc->baseport != 0));			\
+		 inb(SEQADDR1 + ahc->baseport) != 0);			\
 									\
 	UNPAUSE_SEQUENCER(ahc);
 
