@@ -146,9 +146,6 @@ struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 
 #define MAXKEYS	(sizeof(keywrds)/sizeof(struct keyblk))
 
-extern int optind;
-extern char *optarg;
-
 #define MAXRECORD 50
 static struct position {
 	char *name;
