@@ -4,7 +4,7 @@
 
 \ $FreeBSD$
 
-hidden dup >search ficl-set-current
+hide
 
 : ?[if]   ( c-addr u -- c-addr u flag )
     2dup 2dup

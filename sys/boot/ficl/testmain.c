@@ -1,6 +1,6 @@
 /*
-** stub main for testing FICL
-** 
+** stub main for testing FICL under Win32
+** $Id: testmain.c,v 1.6 2000-06-17 07:43:50-07 jsadler Exp jsadler $
 */
 
 /* $FreeBSD$ */
