@@ -810,7 +810,6 @@ extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
 extern u_long ps_arg_cache_limit;
 extern int ps_argsopen;
-extern int ps_showallprocs;
 extern int sched_quantum;		/* Scheduling quantum in ticks. */
 
 LIST_HEAD(proclist, proc);
