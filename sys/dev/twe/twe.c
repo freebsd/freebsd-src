@@ -59,7 +59,7 @@ static int	twe_set_param(struct twe_softc *sc, int table_id, int param_id, int p
 					      void *data);
 static int	twe_init_connection(struct twe_softc *sc, int mode);
 static int	twe_wait_request(struct twe_request *tr);
-static int	twe_immediate_request(struct twe_request *tr);
+static int	twe_immediate_request(struct twe_request *tr, int usetmp);
 static void	twe_completeio(struct twe_request *tr);
 static void	twe_reset(struct twe_softc *sc);
 static int	twe_add_unit(struct twe_softc *sc, int unit);
@@ -475,7 +475,7 @@ twe_dump_blocks(struct twe_softc *sc, int unit,	u_int32_t lba, void *data, int n
     cmd->io.block_count = nblks;
     cmd->io.lba = lba;
 
-    error = twe_immediate_request(tr);
+    error = twe_immediate_request(tr, 0);
     if (error == 0)
 	if (twe_report_request(tr))
 	    error = EIO;
@@ -500,9 +500,25 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
     struct twe_request		*tr;
     u_int8_t			srid;
     int				s, error;
+#ifdef __amd64__
+    struct twe_paramcommand32	*tp32 = (struct twe_paramcommand32 *)addr;
+    struct twe_usercommand32	*tu32 = (struct twe_usercommand32 *)addr;
+    struct twe_paramcommand	tp_swab;
+    struct twe_usercommand	tu_swab;
+#endif
 
     error = 0;
     switch(ioctlcmd) {
+
+#ifdef __amd64__
+    case TWEIO_COMMAND32:
+	tu_swab.tu_command = tu32->tu_command;
+	tu_swab.tu_data = (void *)(uintptr_t)tu32->tu_data;
+	tu_swab.tu_size = tu32->tu_size;
+	tu = &tu_swab;
+	/* FALLTHROUGH */
+#endif
+
 	/* handle a command from userspace */
     case TWEIO_COMMAND:
 	/* get a request */
@@ -588,6 +604,16 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	splx(s);
 	break;
 
+#ifdef __amd64__
+    case TWEIO_GET_PARAM32:
+	tp_swab.tp_table_id = tp32->tp_table_id;
+	tp_swab.tp_param_id = tp32->tp_param_id;
+	tp_swab.tp_data = (void *)(uintptr_t)tp32->tp_data;
+	tp_swab.tp_size = tp32->tp_size;
+	tp = &tp_swab;
+	/* FALLTHROUGH */
+#endif
+
     case TWEIO_GET_PARAM:
 	if ((param = twe_get_param(sc, tp->tp_table_id, tp->tp_param_id, tp->tp_size, NULL)) == NULL) {
 	    twe_printf(sc, "TWEIO_GET_PARAM failed for 0x%x/0x%x/%d\n", 
@@ -604,6 +630,16 @@ twe_ioctl(struct twe_softc *sc, int ioctlcmd, void *addr)
 	    free(param, M_DEVBUF);
 	}
 	break;
+
+#ifdef __amd64__
+    case TWEIO_SET_PARAM32:
+	tp_swab.tp_table_id = tp32->tp_table_id;
+	tp_swab.tp_param_id = tp32->tp_param_id;
+	tp_swab.tp_data = (void *)(uintptr_t)tp32->tp_data;
+	tp_swab.tp_size = tp32->tp_size;
+	tp = &tp_swab;
+	/* FALLTHROUGH */
+#endif
 
     case TWEIO_SET_PARAM:
 	if ((data = malloc(tp->tp_size, M_DEVBUF, M_WAITOK)) == NULL) {
@@ -752,7 +788,7 @@ twe_get_param(struct twe_softc *sc, int table_id, int param_id, size_t param_siz
     /* submit the command and either wait or let the callback handle it */
     if (func == NULL) {
 	/* XXX could use twe_wait_request here if interrupts were enabled? */
-	error = twe_immediate_request(tr);
+	error = twe_immediate_request(tr, 1 /* usetmp */);
 	if (error == 0) {
 	    if (twe_report_request(tr))
 		goto err;
@@ -845,7 +881,7 @@ twe_set_param(struct twe_softc *sc, int table_id, int param_id, int param_size, 
     bcopy(data, param->data, param_size);
 
     /* XXX could use twe_wait_request here if interrupts were enabled? */
-    error = twe_immediate_request(tr);
+    error = twe_immediate_request(tr, 1 /* usetmp */);
     if (error == 0) {
 	if (twe_report_request(tr))
 	    error = EIO;
@@ -886,7 +922,7 @@ twe_init_connection(struct twe_softc *sc, int mode)
     cmd->initconnection.response_queue_pointer = 0;
 
     /* submit the command */
-    error = twe_immediate_request(tr);
+    error = twe_immediate_request(tr, 0 /* usetmp */);
     twe_release_request(tr);
 
     if (mode == TWE_INIT_MESSAGE_CREDITS)
@@ -924,20 +960,35 @@ twe_wait_request(struct twe_request *tr)
  * will work if they are not).
  */
 static int
-twe_immediate_request(struct twe_request *tr)
+twe_immediate_request(struct twe_request *tr, int usetmp)
 {
+    struct twe_softc *sc;
     int		error;
+    int		count = 0;
 
     debug_called(4);
 
-    tr->tr_flags |= TWE_CMD_IMMEDIATE;
+    sc = tr->tr_sc;
+
+    if (usetmp && (tr->tr_data != NULL)) {
+	tr->tr_flags |= TWE_CMD_IMMEDIATE;
+	if (tr->tr_length > MAXBSIZE)
+	    return (EINVAL);
+	bcopy(tr->tr_data, sc->twe_immediate, tr->tr_length);
+    }
     tr->tr_status = TWE_CMD_BUSY;
     if ((error = twe_map_request(tr)) != 0)
 	if (error != EBUSY)
 	    return(error);
-    while (tr->tr_status == TWE_CMD_BUSY){
-	twe_done(tr->tr_sc);
+
+    /* Wait up to 5 seconds for the command to complete */
+    while ((count++ < 5000) && (tr->tr_status == TWE_CMD_BUSY)){
+	DELAY(1000);
+	twe_done(sc);
     }
+    if (usetmp && (tr->tr_data != NULL))
+	bcopy(sc->twe_immediate, tr->tr_data, tr->tr_length);
+
     return(tr->tr_status != TWE_CMD_COMPLETE);
 }
 
