@@ -19,11 +19,10 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_changer.h,v 1.4 1993/08/21 20:01:53 rgrimes Exp $
+ *	$Id: scsi_changer.h,v 1.5 93/08/26 21:09:22 julian Exp Locker: julian $
  */
-
-#ifndef _SCSI_SCSI_CHANGER_H_
-#define _SCSI_SCSI_CHANGER_H_ 1
+#ifndef _SCSI_SCSI_CHANGER_H
+#define _SCSI_SCSI_CHANGER_H 1
 
 /*
  * SCSI command format
@@ -95,5 +94,5 @@ struct element_status_page
 	u_char rsvd;
 	u_char byte_count_of_descriptor_data[3];
 };
+#endif /*_SCSI_SCSI_CHANGER_H*/
 
-#endif /* _SCSI_SCSI_CHANGER_H_ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.11 1993/10/16 13:46:31 rgrimes Exp $
+ *	$Id: wd.c,v 1.12 1993/11/17 23:25:20 wollman Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -1137,7 +1137,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			auio.uio_segflg = 0;
 			auio.uio_offset =
 				fop->df_startblk * du->dk_dd.d_secsize;
-			error = physio(wdformat, &rwdbuf[unit], dev, B_WRITE,
+			error = physio(wdformat, &rwdbuf[unit], 0, dev, B_WRITE,
 				minphys, &auio);
 			fop->df_count -= auio.uio_resid;
 			fop->df_reg[0] = du->dk_status;

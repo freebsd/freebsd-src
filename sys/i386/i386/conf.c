@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.13 1993/10/26 22:25:20 nate Exp $
+ *	$Id: conf.c,v 1.14 1993/11/03 18:07:32 nate Exp $
  */
 
 #include "param.h"
@@ -124,20 +124,6 @@ int	chopen(),chclose(),chioctl();
 #define	chopen		enxio
 #define	chclose		enxio
 #define	chioctl		enxio
-#endif
-
-#include "sg.h"
-#if NSG > 0
-int	sgopen(),sgclose(),sgioctl(),sgstrategy();
-#define	sgdump		enxio
-#define	sgsize		NULL
-#else
-#define	sgopen		enxio
-#define	sgclose		enxio
-#define	sgstrategy	enxio
-#define	sgioctl		enxio
-#define	sgdump		enxio
-#define	sgsize		NULL
 #endif
 
 #include "wt.h"
@@ -377,6 +363,26 @@ extern	struct tty sio_tty[];
 #define	sio_tty		NULL
 #endif
 
+#include "su.h"
+#if NSU > 0
+int	suopen(),suclose(),suioctl();
+#define	susize		NULL
+#else
+#define	suopen		enxio
+#define	suclose		enxio
+#define	suioctl		enxio
+#define	susize		NULL
+#endif
+
+#include "uk.h"
+#if NUK > 0
+int	ukopen(),ukclose(),ukioctl();
+#else
+#define	ukopen		enxio
+#define	ukclose		enxio
+#define	ukioctl		enxio
+#endif
+
 struct cdevsw	cdevsw[] =
 {
 	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
@@ -433,9 +439,9 @@ struct cdevsw	cdevsw[] =
 	{ chopen,	chclose,	enxio,		enxio,		/*17*/
 	  chioctl,	enxio,		enxio,		NULL,	/* ch */
 	  enxio,	enxio,		enxio },
-	{ sgopen,	sgclose,	enodev,		enodev,		/*18*/
-	  sgioctl,	enodev,		nullop,		NULL,	/* scsi 'generic' */
-	  seltrue,	enodev,		sgstrategy },
+	{ suopen,	suclose,	enodev,		enodev,		/*18*/
+	  suioctl,	enodev,		nullop,		NULL,	/* scsi 'generic' */
+	  seltrue,	enodev,		enodev },
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  enodev,	nullop,		nullop,		NULL,	/* tw */
 	  twselect,	enodev,		enodev },
@@ -472,6 +478,9 @@ struct cdevsw	cdevsw[] =
 	{ sndopen,	sndclose,	sndread,	sndwrite,	/*30*/
   	  sndioctl,	enodev,		enodev,		NULL,	/* sound driver */
   	  sndselect,	enodev,		NULL },
+	{ ukopen,	ukclose,	enxio,          enxio,      	/*31*/
+	  ukioctl,	enxio,          enxio,          NULL,	/* unknown */
+	  enxio,        enxio,          enxio },		/* scsi */
 /*
  * If you need a cdev major number, please contact the FreeBSD team
  * by sending mail to `freebsd-hackers@freefall.cdrom.com'.
