@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: ypinit.sh,v 1.3 1997/11/10 20:48:54 wpaul Exp $
+#	$Id: ypinit.sh,v 1.1 1997/11/10 22:17:13 wpaul Exp $
 #
 # ypinit.sh - setup an master or slave server.
 # (Taken from OpenBSD and modified for FreeBSD.)
@@ -96,7 +96,7 @@ fi
 if [ -z "${DOMAIN}" ]; then
 	cat << \__no_domain 1>&2
 The local host's YP domain name has not been set.  Please set it with
-the domainname(8) command or pass the domain as an argument to ypinit(8).
+the domainname(1) command or pass the domain as an argument to ypinit(8).
 __no_domain
 
 	exit 1
@@ -107,7 +107,7 @@ HOST=`${HOSTNAME}`
 if [ -z "${HOST}" ]; then
 	cat << \__no_hostname 1>&2
 The local host's hostname has not been set.  Please set it with the
-hostname(8) command.
+hostname(1) command.
 __no_hostname
 
 	exit 1
