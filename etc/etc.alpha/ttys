@@ -50,6 +50,8 @@ ttyd0	"/usr/libexec/getty std.9600"	vt100	on secure
 ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
 ttyd3	"/usr/libexec/getty std.9600"	dialup	off secure
+# Dumb console
+dcons	"/usr/libexec/getty std.9600"	vt100	off secure
 # Pseudo terminals
 ttyp0	none			network
 ttyp1	none			network

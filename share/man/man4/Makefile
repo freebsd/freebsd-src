@@ -41,6 +41,8 @@ MAN=	aac.4 \
 	cue.4 \
 	da.4 \
 	dc.4 \
+	dcons.4 \
+	dcons_crom.4 \
 	ddb.4 \
 	de.4 \
 	devctl.4 \
