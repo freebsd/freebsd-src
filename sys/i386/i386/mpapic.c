@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.27 1997/08/21 04:53:27 smp Exp smp $
+ *	$Id: mpapic.c,v 1.26 1997/08/21 05:08:25 fsmp Exp $
  */
 
 #include "opt_smp.h"
@@ -462,8 +462,21 @@ apic_ipi(int dest_type, int vector, int delivery_mode)
 		if ((lapic.icr_lo & APIC_DELSTAT_MASK) == 0)
 			break;
 	}
+#ifdef needsattention
+/*
+ * XXX FIXME:
+ *      The above loop waits for the message to actually be delivered.
+ *      It breaks out after an arbitrary timout on the theory that it eventually
+ *      will be delivered and we will catch a real failure on the next entry to
+ *      this function, which would panic().
+ *      We could skip this wait entirely, EXCEPT it probably protects us from
+ *      other "less robust" routines that assume the message was delivered and
+ *      acted upon when this function returns.  TLB shootdowns are one such
+ *      "less robust" function.
+ */
 	if (x == 0)
 		printf("apic_ipi might be stuck\n");
+#endif
 #undef MAX_SPIN2
 #undef MAX_SPIN1
 #else
