@@ -41,6 +41,7 @@
 #include <sys/lock.h>
 #include <sys/dirent.h>
 #include <sys/extattr.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm_zone.h>
 
@@ -58,6 +59,10 @@
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
+
+static int ufs_extattr_sync = 0;
+SYSCTL_INT(_debug, OID_AUTO, ufs_extattr_sync, CTLFLAG_RW, &ufs_extattr_sync,
+    0, "");
 
 static int	ufs_extattr_valid_attrname(const char *attrname);
 static int	ufs_extattr_credcheck(struct vnode *vp,
@@ -1018,7 +1023,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
 	off_t	base_offset;
-	int	error = 0;
+	int	error = 0, ioflag;
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
@@ -1080,8 +1085,11 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 		vn_lock(attribute->uele_backing_vnode, 
 		    LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, p);
 
-	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio,
-	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
+	ioflag = IO_NODELOCKED;
+	if (ufs_extattr_sync)
+		ioflag |= IO_SYNC;
+	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio, ioflag,
+	    ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
@@ -1094,9 +1102,12 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	 * Write out user data.
 	 */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
-	
-	error = VOP_WRITE(attribute->uele_backing_vnode, uio,
-	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
+
+	ioflag = IO_NODELOCKED;
+	if (ufs_extattr_sync)
+		ioflag |= IO_SYNC;
+	error = VOP_WRITE(attribute->uele_backing_vnode, uio, ioflag,
+	    ump->um_extattr.uepm_ucred);
 
 vopunlock_exit:
 	uio->uio_offset = 0;
@@ -1123,7 +1134,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
 	off_t	base_offset;
-	int	error = 0;
+	int	error = 0, ioflag;
 
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)  
 		return (EROFS);
@@ -1211,8 +1222,11 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	local_aio.uio_offset = base_offset;
 	local_aio.uio_resid = sizeof(struct ufs_extattr_header);
 
-	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio,
-	    IO_NODELOCKED | IO_SYNC, ump->um_extattr.uepm_ucred);
+	ioflag = IO_NODELOCKED;
+	if (ufs_extattr_sync)
+		ioflag |= IO_SYNC;
+	error = VOP_WRITE(attribute->uele_backing_vnode, &local_aio, ioflag,
+	    ump->um_extattr.uepm_ucred);
 	if (error)
 		goto vopunlock_exit;
 
