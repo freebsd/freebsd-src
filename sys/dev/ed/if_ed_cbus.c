@@ -35,12 +35,10 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
-#ifdef PC98
 #include <sys/rman.h>
 #include <machine/resource.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
-#endif
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -50,57 +48,49 @@
 #include <isa/isavar.h>
 
 #include <dev/ed/if_edvar.h>
-#ifdef PC98
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_ed98.h>
 
-static int ed98_alloc_port	(device_t, int);
-static int ed98_alloc_memory	(device_t, int);
-static int ed_pio_testmem	(struct ed_softc *, int, int, int);
-static int ed_probe_SIC98	(device_t, int, int);
-static int ed_probe_CNET98	(device_t, int, int);
-static int ed_probe_CNET98EL	(device_t, int, int);
-static int ed_probe_NEC77	(device_t, int, int);
-static int ed_probe_NW98X	(device_t, int, int);
-static int ed_probe_SB98	(device_t, int, int);
-static int ed_probe_EZ98	(device_t, int, int);
-static int ed98_probe_Novell	(device_t, int, int);
-static int ed98_probe_generic8390	(struct ed_softc *);
-static void ed_reset_CNET98	(struct ed_softc *, int);
-static void ed_winsel_CNET98	(struct ed_softc *, u_short);
-static void ed_get_SB98		(struct ed_softc *);
-#endif
+static int ed98_alloc_port(device_t, int);
+static int ed98_alloc_memory(device_t, int);
+static int ed_pio_testmem(struct ed_softc *, int, int, int);
+static int ed_probe_SIC98(device_t, int, int);
+static int ed_probe_CNET98(device_t, int, int);
+static int ed_probe_CNET98EL(device_t, int, int);
+static int ed_probe_NEC77(device_t, int, int);
+static int ed_probe_NW98X(device_t, int, int);
+static int ed_probe_SB98(device_t, int, int);
+static int ed_probe_EZ98(device_t, int, int);
+static int ed98_probe_Novell(device_t, int, int);
+static int ed98_probe_generic8390(struct ed_softc *);
+static void ed_reset_CNET98(struct ed_softc *, int);
+static void ed_winsel_CNET98(struct ed_softc *, u_short);
+static void ed_get_SB98(struct ed_softc *);
 
-static int ed_isa_probe		(device_t);
-static int ed_isa_attach	(device_t);
+static int ed_cbus_probe(device_t);
+static int ed_cbus_attach(device_t);
 
 static struct isa_pnp_id ed_ids[] = {
-#ifdef PC98
 /* TODO - list up PnP boards for PC-98 */
 	{ 0,		NULL }
-#endif
 };
 
 static int
-ed_isa_probe(dev)
-	device_t dev;
+ed_cbus_probe(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error = 0;
 
-	bzero(sc, sizeof(struct ed_softc));
-#ifdef PC98
 	sc->type = ED_TYPE98(flags);
 #ifdef ED_DEBUG
-	device_printf(dev, "ed_isa_probe: sc->type=%x\n", sc->type);
-#endif
+	device_printf(dev, "ed_cbus_probe: sc->type=%x\n", sc->type);
 #endif
 
 	/* Check isapnp ids */
 	error = ISA_PNP_PROBE(device_get_parent(dev), dev, ed_ids);
 #ifdef ED_DEBUG
-	device_printf(dev, "ed_isa_probe: ISA_PNP_PROBE returns %d\n", error);
+	device_printf(dev, "ed_cbus_probe: ISA_PNP_PROBE returns %d\n", error);
 #endif
 
 	/* If the card had a PnP ID that didn't match any we know about */
@@ -115,9 +105,8 @@ ed_isa_probe(dev)
 
 	/* Heuristic probes */
 #ifdef ED_DEBUG
-	device_printf(dev, "ed_isa_probe: Heuristic probes start\n");
+	device_printf(dev, "ed_cbus_probe: Heuristic probes start\n");
 #endif
-#ifdef PC98
 	switch (sc->type) {
 	case ED_TYPE98_GENERIC:
 		/*
@@ -235,11 +224,10 @@ ed_isa_probe(dev)
 
 		break;
 	}
-#endif
 
 end:
 #ifdef ED_DEBUG
-	device_printf(dev, "ed_isa_probe: end, error=%d\n", error);
+	device_printf(dev, "ed_cbus_probe: end, error=%d\n", error);
 #endif
 	if (error == 0)
 		error = ed_alloc_irq(dev, 0, 0);
@@ -249,7 +237,7 @@ end:
 }
 
 static int
-ed_isa_attach(dev)
+ed_cbus_attach(dev)
 	device_t dev;
 {
 	struct ed_softc *sc = device_get_softc(dev);
@@ -257,13 +245,11 @@ ed_isa_attach(dev)
 	int error;
 
 	if (sc->port_used > 0) {
-#ifdef PC98
 		if (ED_TYPE98(flags) == ED_TYPE98_GENERIC) {
 			ed_alloc_port(dev, sc->port_rid, sc->port_used);
 		} else {
 			ed98_alloc_port(dev, sc->port_rid);
 		}
-#endif
 	}
 	if (sc->mem_used)
 		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
@@ -280,7 +266,6 @@ ed_isa_attach(dev)
 	return ed_attach(dev);
 }
 
-#ifdef PC98
 /*
  * Interrupt conversion table for EtherEZ98
  */
@@ -296,10 +281,7 @@ static uint16_t ed_EZ98_intr_val[] = {
 };
 
 static int
-ed_probe_EZ98(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_EZ98(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -472,9 +454,7 @@ static bus_addr_t ed98_asic_nc5098[] = {
  * Allocate a port resource with the given resource id.
  */
 static int
-ed98_alloc_port(dev, rid)
-	device_t dev;
-	int rid;
+ed98_alloc_port(device_t dev, int rid)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -688,8 +668,7 @@ ed98_alloc_memory(dev, rid)
  */
 
 static int
-ed98_probe_generic8390(sc)
-	struct ed_softc *sc;
+ed98_probe_generic8390(struct ed_softc *sc)
 {
 	u_char tmp = ed_nic_inb(sc, ED_P0_CR);
 #ifdef DIAGNOSTIC
@@ -706,10 +685,7 @@ ed98_probe_generic8390(sc)
 }
 
 static int
-ed98_probe_Novell(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed98_probe_Novell(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -850,10 +826,7 @@ ed98_probe_Novell(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for SIC-98 boards
  */
 static int
-ed_probe_SIC98(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_SIC98(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -931,20 +904,9 @@ ed_probe_SIC98(dev, port_rid, flags)
 	}
 	DELAY(100);
 
-	/*
-	 * clear interface memory, then sum to make sure its valid
-	 */
-	bzero(sc->mem_start, sc->mem_size);
-
-	for (i = 0; i < sc->mem_size; i++) {
-		if (sc->mem_start[i]) {
-			device_printf(dev, "failed to clear shared memory "
-				"at %x - check configuration\n",
-				kvtop(sc->mem_start + i));
-
-			return (ENXIO);
-		}
-	}
+	error = ed_clear_memory(dev);
+	if (error)
+		return (error);
 
 	sc->mem_shared = 1;
 	sc->mem_end = sc->mem_start + sc->mem_size;
@@ -971,9 +933,7 @@ ed_probe_SIC98(dev, port_rid, flags)
  * Contec C-NET(98) series support routines
  */
 static void
-ed_reset_CNET98(sc, flags)
-	struct ed_softc *sc;
-	int flags;
+ed_reset_CNET98(struct ed_softc *sc, int flags)
 {
 	u_int init_addr = ED_CNET98_INIT;
 	u_char tmp;
@@ -1021,11 +981,9 @@ ed_reset_CNET98(sc, flags)
 }
 
 static void
-ed_winsel_CNET98(sc, bank)
-	struct ed_softc *sc;
-	u_short bank;
+ed_winsel_CNET98(struct ed_softc *sc, u_short bank)
 {
-	u_char mem = (kvtop(sc->mem_start) >> 12) & 0xff;
+	u_char mem = (rman_get_start(sc->mem_res) >> 12) & 0xff;
 
 	/*
 	 * Disable window memory
@@ -1070,16 +1028,12 @@ ed_winsel_CNET98(sc, bank)
  * Probe and vendor-specific initialization routine for C-NET(98) boards
  */
 static int
-ed_probe_CNET98(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_CNET98(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
 	u_char tmp;
 	u_long conf_irq, junk;
-	int i;
 #ifdef DIAGNOSTIC
 	u_char tmp_s;
 #endif
@@ -1110,10 +1064,10 @@ ed_probe_CNET98(dev, port_rid, flags)
 
 #ifdef DIAGNOSTIC
 	/* Check window area address */
-	tmp_s = kvtop(sc->mem_start) >> 12;
+	tmp_s = rman_get_start(sc->mem_res) >> 12;
 	if (tmp_s < 0x80) {
-		device_printf(dev, "Please change window address(0x%x)\n",
-			kvtop(sc->mem_start));
+		device_printf(dev, "Please change window address(0x%lx)\n",
+		    rman_get_start(sc->mem_res));
 		return (ENXIO);
 	}
 
@@ -1121,8 +1075,9 @@ ed_probe_CNET98(dev, port_rid, flags)
 	tmp    = rman_get_start(sc->port_res) >> 12;
 	if ((tmp_s <= tmp) && (tmp < (tmp_s + 4))) {
 		device_printf(dev, "Please change iobase address(0x%lx) "
-			"or window address(0x%x)\n",
-	   		rman_get_start(sc->port_res), kvtop(sc->mem_start));
+		    "or window address(0x%lx)\n",
+		    rman_get_start(sc->port_res),
+		    rman_get_start(sc->mem_res));
 		return (ENXIO);
 	}
 #endif
@@ -1165,20 +1120,9 @@ ed_probe_CNET98(dev, port_rid, flags)
 	 */
 	ed_winsel_CNET98(sc, 0x4000);
 
-	/*
-	 * clear interface memory, then sum to make sure its valid
-	 */
-	bzero(sc->mem_start, sc->mem_size);
-
-	for (i = 0; i < sc->mem_size; i++) {
-		if (sc->mem_start[i]) {
-			device_printf(dev, "failed to clear shared memory "
-				"at %x - check configuration\n",
-				kvtop(sc->mem_start + i));
-
-			return (ENXIO);
-		}
-	}
+	error = ed_clear_memory(dev);
+	if (error)
+		return (error);
 
 	sc->mem_shared = 1;
 	sc->mem_end = sc->mem_start + sc->mem_size;
@@ -1241,10 +1185,7 @@ ed_probe_CNET98(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for C-NET(98)E/L boards
  */
 static int
-ed_probe_CNET98EL(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_CNET98EL(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1344,10 +1285,7 @@ ed_probe_CNET98EL(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for PC-9801-77 boards
  */
 static int
-ed_probe_NEC77(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_NEC77(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1403,10 +1341,7 @@ ed_probe_NEC77(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for EC/EP-98X boards
  */
 static int
-ed_probe_NW98X(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_NW98X(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1462,8 +1397,7 @@ ed_probe_NW98X(dev, port_rid, flags)
  * Read SB-9801 station address from Serial Two-Wire EEPROM
  */
 static void
-ed_get_SB98(sc)
-	struct ed_softc *sc;
+ed_get_SB98(struct ed_softc *sc)
 {
 	int i, j;
 	u_char mask, val;
@@ -1535,10 +1469,7 @@ ed_get_SB98(sc)
  * Probe and vendor-specific initialization routine for SB-9801 boards
  */
 static int
-ed_probe_SB98(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_SB98(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1647,11 +1578,7 @@ ed_probe_SB98(dev, port_rid, flags)
  * Test the ability to read and write to the NIC memory.
  */
 static int
-ed_pio_testmem(sc, page_offset, isa16bit, flags)
-	struct ed_softc *sc;
-	int page_offset;
-	int isa16bit;
-	int flags;
+ed_pio_testmem(struct ed_softc *sc, int page_offset, int isa16bit, int flags)
 {
 	u_long memsize;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
@@ -1674,11 +1601,10 @@ ed_pio_testmem(sc, page_offset, isa16bit, flags)
 	ed_nic_outb(sc, ED_P0_RCR, ED_RCR_MON);
 
 	/* Initialize DCR for byte/word operations */
-	if (isa16bit) {
+	if (isa16bit)
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-	} else {
+	else
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_FT1 | ED_DCR_LS);
-	}
 	ed_nic_outb(sc, ED_P0_PSTART, page_offset / ED_PAGE_SIZE);
 	ed_nic_outb(sc, ED_P0_PSTOP, (page_offset + memsize) / ED_PAGE_SIZE);
 #ifdef ED_DEBUG
@@ -1737,23 +1663,22 @@ ed_pio_testmem(sc, page_offset, isa16bit, flags)
 
 	return (1);
 }
-#endif	/* PC98 */
 
-static device_method_t ed_isa_methods[] = {
+static device_method_t ed_cbus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ed_isa_probe),
-	DEVMETHOD(device_attach,	ed_isa_attach),
+	DEVMETHOD(device_probe,		ed_cbus_probe),
+	DEVMETHOD(device_attach,	ed_cbus_attach),
 	DEVMETHOD(device_attach,	ed_detach),
 
 	{ 0, 0 }
 };
 
-static driver_t ed_isa_driver = {
+static driver_t ed_cbus_driver = {
 	"ed",
-	ed_isa_methods,
+	ed_cbus_methods,
 	sizeof(struct ed_softc)
 };
 
-DRIVER_MODULE(ed, isa, ed_isa_driver, ed_devclass, 0, 0);
+DRIVER_MODULE(ed, isa, ed_cbus_driver, ed_devclass, 0, 0);
 MODULE_DEPEND(ed, isa, 1, 1, 1);
 MODULE_DEPEND(ed, ether, 1, 1, 1);
