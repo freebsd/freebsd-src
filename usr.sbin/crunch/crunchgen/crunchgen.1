@@ -157,6 +157,8 @@ A list of library specifications to be included in the crunched binary link.
 Multiple
 .Nm libs
 lines can be specified.
+.It Nm buildopts Ar buildopts ...
+A list of build options to be added to every make target.
 .It Nm ln Ar progname linkname
 Causes the crunched binary to invoke
 .Ar progname
@@ -192,6 +194,8 @@ itself becomes the
 .Ar objdir .
 .It Nm special Ar progname Nm buildopts Ar buildopts
 Define a set of build options that should be added to make targets
+in addition to those specified using
+.Nm buildopts
 when processing
 .Ar progname .
 .It Nm special Ar progname Nm objs Ar object-file-name ...
