@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.2 1995/02/26 12:18:08 amurai Exp $
+ * $Id: vjcomp.c,v 1.3 1995/05/30 03:51:02 rgrimes Exp $
  *
  *  TODO:
  */
@@ -40,8 +40,7 @@ VjInit()
 }
 
 void
-SendPppFrame(pri, bp)
-int pri;
+SendPppFrame(bp)
 struct mbuf *bp;
 {
   int type;
@@ -74,7 +73,7 @@ struct mbuf *bp;
     }
   } else
     proto = PROTO_IP;
-  HdlcOutput(pri, proto, bp);
+  HdlcOutput(PRI_NORMAL, proto, bp);
 }
 
 static struct mbuf *
