@@ -35,8 +35,12 @@
  * designed to be compiled in the kernel and in a userland test
  * harness.  This is done by selectively including and excluding code
  * with several portions based on whether _KERNEL is defined.  It's a
- * little ugly, but very useful.  The testsuite and its revisions can
- * be found at http://people.freebsd.org/~orion/feedrate/ 
+ * little ugly, but exceedingly useful.  The testsuite and its
+ * revisions can be found at:
+ *		http://people.freebsd.org/~orion/feedrate/
+ *
+ * Special thanks to Ken Marx for exposing flaws in the code and for
+ * testing revisions.
  */
 
 #ifdef _KERNEL
@@ -45,22 +49,30 @@
 #include "feeder_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
-
 MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
 
 #define RATE_ASSERT(x, y) /* KASSERT(x,y) */
-
 #define RATE_TRACE(x...) /* printf(x) */
-
-#else /* _KERNEL */
-
-/* #define RATE_DEBUG */
-
-#include "test_rate_head.h"
 
 #endif /* _KERNEL */
 
-#define FEEDBUFSZ	8192
+/*****************************************************************************/
+/* All of the following coefficients are coupled.  They are chosen to be
+ * good in the operating space 4000-96000kHz work.  Decreasing the
+ * granularity increases the required buffer size and affects the gain
+ * values at different points in the space.  These values were found by
+ * running the test program with -p (probe) and some trial and error.
+ *
+ * ROUNDHZ	the granularity of sample rates (fits n*11025 and n*8000).
+ * FEEDBUFSZ	the amount of buffer space.
+ * MINGAIN	the minimum acceptable gain in coefficients search.
+ */
+#define ROUNDHZ			   25
+#define FEEDBUFSZ		 8192
+#define MINGAIN			   92
+
+#define RATEMIN 		 4000
+#define RATEMAX			96000
 
 struct feed_rate_info;
 
@@ -75,10 +87,8 @@ static int
 convert_stereo_down(struct feed_rate_info *info, 
 		    uint32_t src_ticks, uint32_t dst_ticks, int16_t *dst);
 
-
 struct feed_rate_info {
 	uint32_t src, dst;	/* source and destination rates */
-	int16_t *buffer;	/* input buffer */
 	uint16_t buffer_ticks;	/* number of available samples in buffer */
 	uint16_t buffer_pos;	/* next available sample in buffer */
 	uint16_t rounds; 	/* maximum number of cycle rounds w buffer */
@@ -90,24 +100,28 @@ struct feed_rate_info {
 	uint16_t channels;	/* 1 = mono, 2 = stereo */
 
 	rate_convert_method convert;
+    	int16_t  buffer[FEEDBUFSZ];
 };
 
-#define src_ticks_per_cycle(info) (info->dscale * info->rounds)
-
-#define dst_ticks_per_cycle(info) (info->sscale * info->rounds)
-
-#define bytes_per_tick(info) (info->channels * 2)
-
+#define bytes_per_sample		2
+#define src_ticks_per_cycle(info)	(info->dscale * info->rounds)
+#define dst_ticks_per_cycle(info)	(info->sscale * info->rounds)
+#define bytes_per_tick(info)		(info->channels * bytes_per_sample)
 #define src_bytes_per_cycle(info) 					      \
-        (src_ticks_per_cycle(info) * bytes_per_tick(info))
-
+        		(src_ticks_per_cycle(info) * bytes_per_tick(info))
 #define dst_bytes_per_cycle(info) 					      \
-        (dst_ticks_per_cycle(info) * bytes_per_tick(info))
+        		(dst_ticks_per_cycle(info) * bytes_per_tick(info))
 
 static uint32_t
-gcd(uint32_t n1, uint32_t n2)
+gcd(uint32_t x, uint32_t y)
 {
-	return n2 ? gcd(n2, n1 % n2) : n1;
+	uint32_t w;
+	while (y != 0) {
+		w = x % y;
+		x = y;
+		y = w;
+	}
+	return x;
 }
 
 static int
@@ -122,7 +136,6 @@ feed_rate_setup(struct pcm_feeder *f)
 	info->dscale = info->src / g;
 
 	info->alpha = 0;
-	info->channels = 2;
 	info->buffer_ticks = 0; 
 	info->buffer_pos = 0;
 
@@ -139,16 +152,24 @@ feed_rate_setup(struct pcm_feeder *f)
 	 * src_ticks_per_cycle here since it used by src_ticks_per_cycle.  
 	 */
 	info->rounds = 1;	
-	info->rounds = FEEDBUFSZ / 
-		(src_ticks_per_cycle(info) * bytes_per_tick(info)) - 1;
-
+	r = (FEEDBUFSZ - bytes_per_tick(info)) / 
+		(src_ticks_per_cycle(info) * bytes_per_tick(info));
+	if (r == 0) {
+		RATE_TRACE("Insufficient buffer space for conversion %d -> %d "
+			   "(%d < %d)\n", info->src, info->dst, FEEDBUFSZ,
+			   src_ticks_per_cycle(info) * bytes_per_tick(info));
+		return -1;
+	}
+	info->rounds = r;
+	
 	/*
 	 * Find scale and roll combination that allows us to trade 
 	 * costly divide operations in the main loop for multiply-rolls.
 	 */
-        for (l = 99; l > 90; l -= 3) {
-		for (mroll = 2; mroll < 16; mroll ++) {
+        for (l = 96; l >= MINGAIN; l -= 3) {
+		for (mroll = 0; mroll < 16; mroll ++) {
 			mscale = (1 << mroll) / info->sscale;
+
                         r = (mscale * info->sscale * 100) >> mroll;
                         if (r > l && r <= 100) {
                                 info->mscale = mscale;
@@ -162,22 +183,34 @@ feed_rate_setup(struct pcm_feeder *f)
                         }
                 }
         }
-	RATE_TRACE("Failed to find a converter within 90%% gain.");
+	
+	RATE_TRACE("Failed to find a converter within %d%% gain for "
+		   "%d to %d.\n", l, info->src, info->dst);
 
-        return -1;
+        return -2;
 }
 
 static int
 feed_rate_set(struct pcm_feeder *f, int what, int value)
 {
 	struct feed_rate_info *info = f->data;
-
+	int rvalue;
+	
+	if (value < RATEMIN || value > RATEMAX) {
+		return -1;
+	}
+	
+	rvalue = (value / ROUNDHZ) * ROUNDHZ;
+	if (value - rvalue > ROUNDHZ / 2) {
+	    rvalue += ROUNDHZ;
+	}
+	
 	switch(what) {
 	case FEEDRATE_SRC:
-		info->src = value;
+		info->src = rvalue;
 		break;
 	case FEEDRATE_DST:
-		info->dst = value;
+		info->dst = rvalue;
 		break;
 	default:
 		return -1;
@@ -210,16 +243,13 @@ feed_rate_init(struct pcm_feeder *f)
 	info = malloc(sizeof(*info), M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return ENOMEM;
-	info->buffer = malloc(FEEDBUFSZ, M_RATEFEEDER, M_NOWAIT | M_ZERO);
-	if (info->buffer == NULL) {
-		free(info, M_RATEFEEDER);
-		return ENOMEM;
-	}
+
 	info->src = DSP_DEFAULT_SPEED;
 	info->dst = DSP_DEFAULT_SPEED;
+	info->channels = 2;
 
 	f->data = info;
-	return feed_rate_setup(f);
+	return 0;
 }
 
 static int
@@ -228,8 +258,6 @@ feed_rate_free(struct pcm_feeder *f)
 	struct feed_rate_info *info = f->data;
 
 	if (info) {
-		if (info->buffer)
-			free(info->buffer, M_RATEFEEDER);
 		free(info, M_RATEFEEDER);
 	}
 	f->data = NULL;
@@ -238,9 +266,9 @@ feed_rate_free(struct pcm_feeder *f)
 
 static int
 convert_stereo_up(struct feed_rate_info *info, 
-		  uint32_t src_ticks, 
-		  uint32_t dst_ticks, 
-		  int16_t *dst)
+		  uint32_t		 src_ticks, 
+		  uint32_t		 dst_ticks, 
+		  int16_t		*dst)
 {
 	uint32_t max_dst_ticks;
 	int32_t alpha, dalpha, malpha, mroll, sp, dp, se, de, x, o;
@@ -269,7 +297,7 @@ convert_stereo_up(struct feed_rate_info *info,
 	dp = 0;
 	de = dst_ticks * 2;
 	/*
-	 * FYI: unrolling this loop manually does not help much here because
+	 * Unrolling this loop manually does not help much here because
 	 * of the alpha, malpha comparison.
 	 */
 	while (dp < de) {
@@ -294,9 +322,9 @@ convert_stereo_up(struct feed_rate_info *info,
 
 static int
 convert_stereo_down(struct feed_rate_info *info, 
-		    uint32_t src_ticks, 
-		    uint32_t dst_ticks, 
-		    int16_t *dst)
+		    uint32_t		   src_ticks, 
+		    uint32_t		   dst_ticks, 
+		    int16_t		  *dst)
 {
 	int32_t alpha, dalpha, malpha, mroll, sp, dp, se, de, x, o, m, 
 		mdalpha, mstep;
@@ -337,13 +365,13 @@ convert_stereo_down(struct feed_rate_info *info,
 		}
 	}
 
-	info->buffer_pos = sp / info->channels;
+	info->buffer_pos = sp / 2;
 	info->alpha = alpha / info->mscale;
 
 	RATE_ASSERT(info->buffer_pos <= info->buffer_ticks, 
 		    ("%s: Source overrun\n", __func__)); 
 
-	return dp / info->channels;
+	return dp / 2;
 }
 
 static int
@@ -363,7 +391,7 @@ feed_rate(struct pcm_feeder	*f,
 
 	while (done < count) {
 		/* Slurp in more data if input buffer is not full */
-		if (info->buffer_ticks < src_ticks_per_cycle(info)) {
+		while (info->buffer_ticks < src_ticks_per_cycle(info)) {
 			uint8_t *u8b;
 			int	 fetch;
 			fetch = src_bytes_per_cycle(info) - 
@@ -381,25 +409,30 @@ feed_rate(struct pcm_feeder	*f,
 				    ("%s: buffer overfilled (%d > %d).",
 				     __func__, info->buffer_ticks, 
 				 src_ticks_per_cycle(info)));
-			if (fetch == 0 && info->buffer_pos == info->buffer_ticks)
+			if (fetch == 0)
 				break;
 		}
 
 		/* Find amount of input buffer data that should be processed */
 		d_ticks = (count - done) / bytes_per_tick(info);
 		s_ticks = info->buffer_ticks - info->buffer_pos;
+		if (info->buffer_ticks != src_ticks_per_cycle(info)) {
+			if (s_ticks > 8)
+				s_ticks -= 8;
+			else
+				s_ticks = 0;
+		}
 
 		d_ticks = info->convert(info, s_ticks, d_ticks,
-					(uint16_t*)(b + done));
+					(int16_t*)(b + done));
 		if (d_ticks == 0)
 			break;
 		done += d_ticks * bytes_per_tick(info);
 
 		RATE_ASSERT(info->buffer_pos <= info->buffer_ticks,
 			    ("%s: buffer_ticks too big\n", __func__));
-
-		RATE_TRACE("%s: ticks %5d pos %d\n",
-		      __func__, info->buffer_ticks, info->buffer_pos);
+		RATE_TRACE("%s: ticks %5d pos %d\n", __func__,
+			   info->buffer_ticks, info->buffer_pos);
 
 		if (src_ticks_per_cycle(info) <= info->buffer_pos) {
 			/* End of cycle reached, copy last samples to start */
@@ -409,8 +442,8 @@ feed_rate(struct pcm_feeder	*f,
 			      bytes_per_tick(info));
 
 			RATE_ASSERT(info->alpha == 0,
-				    ("%s: completed cycle with alpha non-zero", 
-				     __func__, info->alpha));
+				    ("%s: completed cycle with "
+				     "alpha non-zero", __func__, info->alpha));
 			
 			info->buffer_pos = 0;
 			info->buffer_ticks = 0;
@@ -420,6 +453,10 @@ feed_rate(struct pcm_feeder	*f,
 	RATE_ASSERT(count >= done, 
 		    ("%s: generated too many bytes of data (%d > %d).",
 		     __func__, done, count));
+
+	if (done != count) {
+		RATE_TRACE("Only did %d of %d\n", done, count);
+	}
 
 	return done;
 }
@@ -439,9 +476,5 @@ static kobj_method_t feeder_rate_methods[] = {
 	{ 0, 0 }
 };
 FEEDER_DECLARE(feeder_rate, 2, NULL);
-
-#else /* _KERNEL */
-
-#include "test_rate_tail.h"
 
 #endif /* _KERNEL */
