@@ -46,7 +46,7 @@ stage0()
 {
 evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
-		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", 15, 75, 6, 6, welcome, selection))
+		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", 15, 75, 7, 7, welcome, selection))
 	ExitSysinstall();
 
     switch (atoi(selection)) {
@@ -79,7 +79,7 @@ evil_goto:
 	goto evil_goto;
 	break;
 
-    case 6:
+    case 7:
 	/* Be neat.. */
 	ExitSysinstall();
 	break;	/* hope not! :) */
