@@ -31,8 +31,6 @@
  * 6.3 : Scheduling services
  */
 
-#include "acpi.h"
-
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,8 +43,7 @@
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
 
-#include <sys/bus.h>
-
+#include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
@@ -151,11 +148,13 @@ acpi_task_thread_init(void)
     }
     return (err);
 }
-#endif
-#endif
+#endif /* ACPI_USE_THREADS */
+#endif /* __FreeBSD_version >= 500000 */
 
+/* This function is called in interrupt context. */
 ACPI_STATUS
-AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *Context)
+AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function,
+    void *Context)
 {
     struct acpi_task	*at;
     int pri;
@@ -163,12 +162,11 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (Function == NULL)
-	return_ACPI_STATUS(AE_BAD_PARAMETER);
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
 
-    at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT);	/* Interrupt Context */
+    at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT | M_ZERO);
     if (at == NULL)
-	return_ACPI_STATUS(AE_NO_MEMORY);
-    bzero(at, sizeof(*at));
+	return_ACPI_STATUS (AE_NO_MEMORY);
 
     at->at_function = Function;
     at->at_context = Context;
@@ -187,16 +185,17 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
 	break;
     default:
 	free(at, M_ACPITASK);
-	return_ACPI_STATUS(AE_BAD_PARAMETER);
+	return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
     TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
-#if __FreeBSD_version < 500000
-    taskqueue_enqueue(taskqueue_swi, (struct task *)at);
-#else
+#if __FreeBSD_version >= 500000
     taskqueue_enqueue(taskqueue_acpi, (struct task *)at);
+#else
+    taskqueue_enqueue(taskqueue_swi, (struct task *)at);
 #endif
-    return_ACPI_STATUS(AE_OK);
+
+    return_ACPI_STATUS (AE_OK);
 }
 
 static void
@@ -238,10 +237,6 @@ AcpiOsExecuteQueue(void *arg, int pending)
     return_VOID;
 }
 
-/*
- * We don't have any sleep granularity better than hz, so
- * make do with that.
- */
 void
 AcpiOsSleep(UINT32 Seconds, UINT32 Milliseconds)
 {
@@ -277,7 +272,8 @@ UINT32
 AcpiOsGetThreadId(void)
 {
     struct proc *p;
-    /* XXX do not add FUNCTION_TRACE here, results in recursive call */
+
+    /* XXX do not add ACPI_FUNCTION_TRACE here, results in recursive call. */
 
     p = curproc;
 #if __FreeBSD_version < 500000
@@ -285,5 +281,7 @@ AcpiOsGetThreadId(void)
 	p = &proc0;
 #endif
     KASSERT(p != NULL, ("%s: curproc is NULL!", __func__));
-    return(p->p_pid + 1);	/* can't return 0 */
+
+    /* Returning 0 is not allowed. */
+    return (p->p_pid + 1);
 }
