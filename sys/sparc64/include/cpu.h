@@ -72,13 +72,17 @@
 	{ "wall_cmos_clock", CTLTYPE_INT }, \
 }
 
+#ifdef _KERNEL
+
 void	fork_trampoline(void);
 
 static __inline u_int64_t
 get_cyclecount(void)
 {
 
-	return (rd(tick));
+	return (rdpr(tick));
 }
+
+#endif
 
 #endif /* !_MACHINE_CPU_H_ */
