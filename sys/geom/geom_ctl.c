@@ -381,6 +381,42 @@ gctl_destroy_geom(struct gctl_req *req)
 	return (error);
 }
 
+static int
+gctl_config_geom(struct gctl_req *req)
+{
+	struct g_class *mp;
+	struct g_geom *gp;
+	char *verb;
+	int error, vlen;
+
+	g_topology_assert();
+	mp = gctl_get_class(req);
+	if (mp == NULL)
+		return (gctl_error(req, "Class not found"));
+	if (mp->config_geom == NULL)
+		return (gctl_error(req, "Class has no config_geom method"));
+	gp = gctl_get_geom(req, mp);
+	if (gp == NULL)
+		return (gctl_error(req, "Geom not specified"));
+	if (gp->class != mp)
+		return (gctl_error(req, "Geom not of specificed class"));
+	verb = gctl_get_param(req, "verb", &vlen);
+	if (verb == NULL)
+		return (gctl_error(req, "Missing verb parameter"));
+	if (vlen < 2) {
+		g_free(verb);
+		return (gctl_error(req, "Too short verb parameter"));
+	}
+	if (verb[vlen - 1] != '\0') {
+		g_free(verb);
+		return (gctl_error(req, "Unterminated verb parameter"));
+	}
+	error = mp->config_geom(req, gp, verb);
+	g_free(verb);
+	g_topology_assert();
+	return (error);
+}
+
 /*
  * Handle ioctl from libgeom::geom_ctl.c
  */
@@ -425,6 +461,9 @@ g_ctl_ioctl_ctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *t
 		break;
 	case GCTL_DESTROY_GEOM:
 		error = gctl_destroy_geom(req);
+		break;
+	case GCTL_CONFIG_GEOM:
+		error = gctl_config_geom(req);
 		break;
 	default:
 		error = gctl_error(req, "XXX: TBD");
