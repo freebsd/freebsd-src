@@ -93,7 +93,7 @@ verify_response(Authctxt *authctxt, const char *response)
 			xfree(info);
 		}
 		/* if we received more prompts, we're screwed */
-		res = (numprompts != 0);
+		res = (res == 0 && numprompts == 0) ? 0 : -1;
 	}
 	device->free_ctx(authctxt->kbdintctxt);
 	authctxt->kbdintctxt = NULL;
