@@ -428,10 +428,9 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 		return (ENOENT);
 
 	/* If we have an unsorted lock-sequence, refuse */
-	if (gl->lsector[0] > gl->lsector[1] ||
-	    gl->lsector[1] > gl->lsector[2] ||
-	    gl->lsector[2] > gl->lsector[3])
-		return (EINVAL);
+	for (i = 0; i < G_BDE_MAXKEYS - 1; i++)
+		if (gl->lsector[i] >= gl->lsector[i + 1])
+			return (EINVAL);
 
 	/* Finally, find out which key was used by matching the byte offset */
 	for (i = 0; i < G_BDE_MAXKEYS; i++)
