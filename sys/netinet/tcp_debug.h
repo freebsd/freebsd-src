@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_debug.h,v 1.2 1994/08/02 07:48:56 davidg Exp $
  */
+
+#ifndef _NETINET_TCP_DEBUG_H_
+#define _NETINET_TCP_DEBUG_H_
 
 struct	tcp_debug {
 	n_time	td_time;
@@ -58,3 +61,5 @@ char	*tanames[] =
 #define	TCP_NDEBUG 100
 struct	tcp_debug tcp_debug[TCP_NDEBUG];
 int	tcp_debx;
+
+#endif

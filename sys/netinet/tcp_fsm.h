@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_fsm.h,v 1.2 1994/08/02 07:48:58 davidg Exp $
  */
+
+#ifndef _NETINET_TCP_FSM_H_
+#define _NETINET_TCP_FSM_H_
 
 /*
  * TCP FSM state definitions.
@@ -83,4 +86,6 @@ char *tcpstates[] = {
 	"ESTABLISHED",	"CLOSE_WAIT",	"FIN_WAIT_1",	"CLOSING",
 	"LAST_ACK",	"FIN_WAIT_2",	"TIME_WAIT",
 };
+#endif
+
 #endif

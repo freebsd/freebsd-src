@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.3 1994/08/02 07:48:28 davidg Exp $
+ * $Id: in_var.h,v 1.4 1994/08/18 22:35:29 wollman Exp $
  */
+
+#ifndef _NETINET_IN_VAR_H_
+#define _NETINET_IN_VAR_H_
 
 /*
  * Interface address, Internet version.  One of these structures
@@ -196,4 +199,6 @@ struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 void	in_delmulti __P((struct in_multi *));
 void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
 int	in_control __P((struct socket *, int, caddr_t, struct ifnet *));
+
+#endif
 #endif

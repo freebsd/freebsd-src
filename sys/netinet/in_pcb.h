@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: in_pcb.h,v 1.3 1994/08/02 07:48:20 davidg Exp $
  */
+
+#ifndef _NETINET_IN_PCB_H_
+#define _NETINET_IN_PCB_H_
 
 /*
  * Common structure pcb for internet protocol implementation.
@@ -86,4 +89,6 @@ void	 in_pcbnotify __P((struct inpcb *, struct sockaddr *,
 void	 in_rtchange __P((struct inpcb *, int));
 void	 in_setpeeraddr __P((struct inpcb *, struct mbuf *));
 void	 in_setsockaddr __P((struct inpcb *, struct mbuf *));
+#endif
+
 #endif
