@@ -68,7 +68,6 @@
 #include "spigot.h"
 #include "gp.h"
 #include "gsc.h"
-#include "joy.h"
 #include "cy.h"
 #include "dgb.h"
 #include "dgm.h"
@@ -137,7 +136,6 @@ extern struct isa_driver ctxdriver;
 extern struct isa_driver spigotdriver;
 extern struct isa_driver  gpdriver;
 extern struct isa_driver gscdriver;
-extern struct isa_driver joydriver;
 extern struct isa_driver  cydriver;
 extern struct isa_driver dgbdriver;
 extern struct isa_driver dgmdriver;
@@ -364,9 +362,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NSPIGOT > 0
 	{ INTR_TYPE_MISC, &spigotdriver },
-#endif
-#if NJOY > 0
-	{ INTR_TYPE_MISC, &joydriver },
 #endif
 
 };
