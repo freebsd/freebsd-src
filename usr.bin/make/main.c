@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.28 1998/11/14 16:15:04 dg Exp $";
+	"$Id: main.c,v 1.32 1999/07/31 20:53:01 hoek Exp $";
 #endif /* not lint */
 
 /*-
@@ -95,6 +95,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sysexits.h>
 #if __STDC__
 #include <stdarg.h>
 #else
@@ -136,6 +137,7 @@ Boolean			beSilent;	/* -s flag */
 Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
+Lst			envFirstVars;	/* (-E) vars to override from env */
 static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs __P((int, char **));
@@ -172,9 +174,9 @@ MainParseArgs(argc, argv)
 
 	optind = 1;	/* since we're called more than once */
 #ifdef REMOTE
-# define OPTFLAGS "BD:I:L:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:L:PSV:d:ef:ij:km:nqrstv"
 #else
-# define OPTFLAGS "BD:I:PSV:d:ef:ij:km:nqrstv"
+# define OPTFLAGS "BD:E:I:PSV:d:ef:ij:km:nqrstv"
 #endif
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
@@ -204,11 +206,18 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			Var_Append(MAKEFLAGS, "-B", VAR_GLOBAL);
 			break;
 #ifdef REMOTE
-		case 'L':
-			maxLocal = atoi(optarg);
+		case 'L': {
+			char *endptr;
+
+			maxLocal = strtol(optarg, &endptr, 10);
+			if (maxLocal < 0 || *endptr != '\0') {
+				errx(EX_USAGE,
+				    "illegal argument to -L -- %s", optarg);
+			}
 			Var_Append(MAKEFLAGS, "-L", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
+		}
 #endif
 		case 'P':
 			usePipes = FALSE;
@@ -271,6 +280,15 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
 		}
+		case 'E':
+			p = malloc(strlen(optarg) + 1);
+			if (!p)
+				Punt("make: cannot allocate memory.");
+			(void)strcpy(p, optarg);
+			(void)Lst_AtEnd(envFirstVars, (ClientData)p);
+			Var_Append(MAKEFLAGS, "-E", VAR_GLOBAL);
+			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
+			break;
 		case 'e':
 			checkEnvFirst = TRUE;
 			Var_Append(MAKEFLAGS, "-e", VAR_GLOBAL);
@@ -282,15 +300,22 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			ignoreErrors = TRUE;
 			Var_Append(MAKEFLAGS, "-i", VAR_GLOBAL);
 			break;
-		case 'j':
+		case 'j': {
+			char *endptr;
+
 			forceJobs = TRUE;
-			maxJobs = atoi(optarg);
+			maxJobs = strtol(optarg, &endptr, 10);
+			if (maxJobs <= 0 || *endptr != '\0') {
+				errx(EX_USAGE,
+				    "illegal argument to -j -- %s", optarg);
+			}
 #ifndef REMOTE
 			maxLocal = maxJobs;
 #endif
 			Var_Append(MAKEFLAGS, "-j", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
+		}
 		case 'k':
 			keepgoing = TRUE;
 			Var_Append(MAKEFLAGS, "-k", VAR_GLOBAL);
@@ -449,6 +474,7 @@ main(argc, argv)
 	char obpath[MAXPATHLEN + 1];
 	char cdpath[MAXPATHLEN + 1];
     	char *machine = getenv("MACHINE");
+	char *machine_arch = getenv("MACHINE_ARCH");
 	Lst sysMkPath;			/* Path of sys.mk */
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
@@ -528,6 +554,14 @@ main(argc, argv)
 #endif
 	}
 
+	if (!machine_arch) {
+#ifndef MACHINE_ARCH
+		machine_arch = "unknown";
+#else
+		machine_arch = MACHINE_ARCH;
+#endif
+	}
+
 	/*
 	 * The object directory location is determined using the
 	 * following order of preference:
@@ -575,6 +609,7 @@ main(argc, argv)
 
 	create = Lst_Init(FALSE);
 	makefiles = Lst_Init(FALSE);
+	envFirstVars = Lst_Init(FALSE);
 	printVars = FALSE;
 	variables = Lst_Init(FALSE);
 	beSilent = FALSE;		/* Print commands as executed */
@@ -626,9 +661,7 @@ main(argc, argv)
 	Var_Set(MAKEFLAGS, "", VAR_GLOBAL);
 	Var_Set("MFLAGS", "", VAR_GLOBAL);
 	Var_Set("MACHINE", machine, VAR_GLOBAL);
-#ifdef MACHINE_ARCH
-	Var_Set("MACHINE_ARCH", MACHINE_ARCH, VAR_GLOBAL);
-#endif
+	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL);
 
 	/*
 	 * First snag any flags out of the MAKE environment variable.
@@ -1273,7 +1306,7 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-f makefile]",
+"usage: make [-Beiknqrstv] [-D variable] [-d flags] [-E variable] [-f makefile]",
 "            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "            [variable=value] [target ...]");
 	exit(2);
