@@ -14,6 +14,7 @@ news
 man
 sshd
 bind
+proxy
 uucp
 pop
 www
