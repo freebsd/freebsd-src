@@ -394,6 +394,10 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		u = *(u_int *)data;
 		return (diskdumpconf(u, dev, dp));
 	}
+	if (cmd == DIOCGFRONTSTUFF) {
+		*(off_t *)data = 8192;	/* XXX: crude but enough) */
+		return (0);
+	}
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
 		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, td);
