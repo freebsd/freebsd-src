@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_types.h	8.2 (Berkeley) 4/20/94
- * $Id: if_types.h,v 1.2 1994/08/02 07:46:26 davidg Exp $
+ * $Id: if_types.h,v 1.3 1994/08/21 05:11:43 paul Exp $
  */
 
 #ifndef _NET_IF_TYPES_H_
@@ -55,7 +55,7 @@
 #define	IFT_ISO88026	0xa		/* MAN */
 #define	IFT_STARLAN	0xb
 #define	IFT_P10		0xc		/* Proteon 10MBit ring */
-#define	IFT_P80		0xd		/* Proteon 10MBit ring */
+#define	IFT_P80		0xd		/* Proteon 80MBit ring */
 #define	IFT_HY		0xe		/* Hyperchannel */
 #define	IFT_FDDI	0xf
 #define	IFT_LAPB	0x10
