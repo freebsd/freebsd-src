@@ -1079,14 +1079,11 @@ pmap_pinit(pmap)
 	while ((pml4pg = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
-	vm_page_lock_queues();
-	vm_page_flag_clear(pml4pg, PG_BUSY);
-	vm_page_unlock_queues();
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
 
 	if ((pml4pg->flags & PG_ZERO) == 0)
-		bzero(pmap->pm_pml4, PAGE_SIZE);
+		pagezero(pmap->pm_pml4);
 
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
@@ -1254,7 +1251,6 @@ _pmap_allocpte(pmap, ptepindex)
 	}
 
 	vm_page_lock_queues();
-	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
 
@@ -1424,7 +1420,6 @@ pmap_release(pmap_t pmap)
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I]);
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
-	vm_page_busy(m);
 	vm_page_free(m);
 	vm_page_unlock_queues();
 }
