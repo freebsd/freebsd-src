@@ -57,6 +57,8 @@ getttynam(tty)
 {
 	register struct ttyent *t;
 
+	if (strnchr(tty, "/dev/", 5) == 0)
+		tty += 5;
 	setttyent();
 	while ( (t = getttyent()) )
 		if (!strcmp(tty, t->ty_name))
@@ -96,6 +98,9 @@ getttyent()
 			break;
 	}
 
+#define	scmp(e)	!strncmp(p, e, sizeof(e) - 1) && isspace(p[sizeof(e) - 1])
+#define	vcmp(e)	!strncmp(p, e, sizeof(e) - 1) && p[sizeof(e) - 1] == '='
+
 	zapchar = 0;
 	tty.ty_name = p;
 	p = skip(p);
@@ -105,15 +110,19 @@ getttyent()
 		p = skip(p);
 		if (!*(tty.ty_type = p))
 			tty.ty_type = NULL;
-		else
+		else {
+			/* compatibility kludge: handle network/dialup specially */
+			if (scmp(_TTYS_DIALUP))
+				tty.ty_status |= TTY_DIALUP;
+			else if (scmp(_TTYS_NETWORK))
+				tty.ty_status |= TTY_NETWORK;
 			p = skip(p);
+		}
 	}
 	tty.ty_status = 0;
 	tty.ty_window = NULL;
 	tty.ty_group  = _TTYS_NOGROUP;
 
-#define	scmp(e)	!strncmp(p, e, sizeof(e) - 1) && isspace(p[sizeof(e) - 1])
-#define	vcmp(e)	!strncmp(p, e, sizeof(e) - 1) && p[sizeof(e) - 1] == '='
 	for (; *p; p = skip(p)) {
 		if (scmp(_TTYS_OFF))
 			tty.ty_status &= ~TTY_ON;
@@ -123,6 +132,10 @@ getttyent()
 			tty.ty_status |= TTY_SECURE;
 		else if (scmp(_TTYS_INSECURE))
 			tty.ty_status &= ~TTY_SECURE;
+		else if (scmp(_TTYS_DIALUP))
+			tty.ty_status |= TTY_DIALUP;
+		else if (scmp(_TTYS_NETWORK))
+			tty.ty_status |= TTY_NETWORK;
 		else if (vcmp(_TTYS_WINDOW))
 			tty.ty_window = value(p);
 		else if (vcmp(_TTYS_GROUP))
@@ -222,4 +235,30 @@ endttyent()
 		return (rval);
 	}
 	return (1);
+}
+
+static int
+isttystat(tty, flag)
+	const char *tty;
+	int flag;
+{
+	register struct ttyent *t;
+
+	return ((t = getttynam(tty)) == NULL) ? 0 : !!(t->ty_status & flag);
+}
+
+
+int
+isdialuptty(tty)
+	const char *tty;
+{
+
+	return isttystat(tty, TTY_DIALUP);
+}
+
+int isnettty(tty)
+	const char *tty;
+{
+
+	return isttystat(tty, TTY_NETWORK);
 }
