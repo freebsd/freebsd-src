@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.7 1998/10/25 15:31:26 abial Exp $
+#	$Id: PICOBSD,v 1.8 1998/11/03 21:12:19 des Exp $
 #
 
 machine		"i386"
@@ -86,7 +86,7 @@ pseudo-device	loop
 pseudo-device	ether
 #pseudo-device	tun	2
 #pseudo-device	vn
-#pseudo-device bpf	4
+#pseudo-device bpfilter	4
 pseudo-device ppp 	4
 pseudo-device	pty	16
 #pseudo-device	gzip		# Exec gzipped a.out's
