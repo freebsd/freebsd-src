@@ -151,7 +151,7 @@ static int exitstatus;
 static RILE *workptr;
 static struct stat workstat;
 
-mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.3 1995/10/28 21:50:36 peter Exp $")
+mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.4 1995/10/29 22:06:42 peter Exp $")
 {
     static char const cmdusage[] =
 	    "\nrcsdiff usage: rcsdiff -ksubst -q -rrev1 [-rrev2] -Vn -xsuff -zzone [diff options] file ...";
@@ -215,7 +215,7 @@ mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.3 1995/10/28 21:50:36 peter E
 		    /* fall into */
 	    case 'C': case 'F': case 'I': case 'L': case 'W':
 #if DIFF_L
-		    if (c == 'L'  &&  ++file_labels == 2)
+		    if (c == 'L'  &&  file_labels++ == 2)
 			faterror("too many -L options");
 #endif
 		    *dcp++ = c;
