@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.110 1995/02/14 19:20:26 sos Exp $
+ *	$Id: machdep.c,v 1.111 1995/02/15 12:27:01 davidg Exp $
  */
 
 #include "npx.h"
@@ -503,6 +503,7 @@ sendsig(catcher, sig, mask, code)
 	register struct proc *p = curproc;
 	register int *regs;
 	register struct sigframe *fp;
+	struct sigframe sf;
 	struct sigacts *psp = p->p_sigacts;
 	int oonstack;
 
@@ -555,34 +556,46 @@ sendsig(catcher, sig, mask, code)
 		else
 			sig = p->p_sysent->sv_sigsize + 1;
 	}
-	fp->sf_signum = sig;
-	fp->sf_code = code;
-	fp->sf_scp = &fp->sf_sc;
-	fp->sf_addr = (char *) regs[tERR];
-	fp->sf_handler = catcher;
+	sf.sf_signum = sig;
+	sf.sf_code = code;
+	sf.sf_scp = &fp->sf_sc;
+	sf.sf_addr = (char *) regs[tERR];
+	sf.sf_handler = catcher;
 
 	/* save scratch registers */
-	fp->sf_sc.sc_eax = regs[tEAX];
-	fp->sf_sc.sc_ebx = regs[tEBX];
-	fp->sf_sc.sc_ecx = regs[tECX];
-	fp->sf_sc.sc_edx = regs[tEDX];
-	fp->sf_sc.sc_esi = regs[tESI];
-	fp->sf_sc.sc_edi = regs[tEDI];
-	fp->sf_sc.sc_cs = regs[tCS];
-	fp->sf_sc.sc_ds = regs[tDS];
-	fp->sf_sc.sc_ss = regs[tSS];
-	fp->sf_sc.sc_es = regs[tES];
-	fp->sf_sc.sc_isp = regs[tISP];
+	sf.sf_sc.sc_eax = regs[tEAX];
+	sf.sf_sc.sc_ebx = regs[tEBX];
+	sf.sf_sc.sc_ecx = regs[tECX];
+	sf.sf_sc.sc_edx = regs[tEDX];
+	sf.sf_sc.sc_esi = regs[tESI];
+	sf.sf_sc.sc_edi = regs[tEDI];
+	sf.sf_sc.sc_cs = regs[tCS];
+	sf.sf_sc.sc_ds = regs[tDS];
+	sf.sf_sc.sc_ss = regs[tSS];
+	sf.sf_sc.sc_es = regs[tES];
+	sf.sf_sc.sc_isp = regs[tISP];
 
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	fp->sf_sc.sc_onstack = oonstack;
-	fp->sf_sc.sc_mask = mask;
-	fp->sf_sc.sc_sp = regs[tESP];
-	fp->sf_sc.sc_fp = regs[tEBP];
-	fp->sf_sc.sc_pc = regs[tEIP];
-	fp->sf_sc.sc_ps = regs[tEFLAGS];
+	sf.sf_sc.sc_onstack = oonstack;
+	sf.sf_sc.sc_mask = mask;
+	sf.sf_sc.sc_sp = regs[tESP];
+	sf.sf_sc.sc_fp = regs[tEBP];
+	sf.sf_sc.sc_pc = regs[tEIP];
+	sf.sf_sc.sc_ps = regs[tEFLAGS];
+
+	/*
+	 * Copy the sigframe out to the user's stack.
+	 */
+	if (copyout(&sf, fp, sizeof(struct sigframe)) != 0) {
+		/*
+		 * Something is wrong with the stack pointer.
+		 * ...Kill the process.
+		 */
+		sigexit(p, SIGILL);
+	};
+
 	regs[tESP] = (int)fp;
 	regs[tEIP] = (int)((struct pcb *)kstack)->pcb_sigc;
 	regs[tEFLAGS] &= ~PSL_VM;
