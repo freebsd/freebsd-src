@@ -169,7 +169,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
-FIXCRYPTO=	sbin/init bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
+FIXCRYPTO=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump 
 .if !defined(NO_SENDMAIL)
 FIXCRYPTO+=	usr.sbin/sendmail
 .endif
@@ -489,15 +489,6 @@ release.5:
 			echo "Done."; \
 		fi \
 	done \
-
-	# Create symlinks for the MD5-based crypt lib, too.  The
-	# automatically created links still point to the DES stuff,
-	# which went into its own distribution.
-	for i in ${RD}/trees/bin/usr/lib/libscrypt* ; do \
-		c=`echo $$i | sed -e 's/libscrypt/libcrypt/'` ; \
-		rm -f $$c ; \
-		ln -s `basename $$i` $$c ; \
-	done
 
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
