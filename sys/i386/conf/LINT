@@ -2263,6 +2263,12 @@ options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 pseudo-device	streams		# STREAMS network driver (required for svr4).
 
+# The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
+# controllers (SmartRAID V and VI and later).
+# These controllers require the CAM infrastructure.
+#
+device		asr
+
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
 # The DPT controllers are commonly re-licensed under other brand-names -
