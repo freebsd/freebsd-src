@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20050114:	p5	FreeBSD-EN-05:03.ipi
+	Avoid more than two pending IPI interrupt vectors per local
+	APIC as this may cause deadlocks.
+
 20050106:	p4	FreeBSD-EN-05:02.sk
 	Correct bugs in the sk(4) network driver that could result in
 	data corruption and system crashes on SMP systems.
