@@ -103,6 +103,7 @@ DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_devclass, 0, 0);
 static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(3COM, 3CRWE737A, 0),
 	PCMCIA_CARD(3COM, 3CRWE777A, 0),
+	PCMCIA_CARD(ACTIONTEC, HWC01170, 0),
 	PCMCIA_CARD(ADDTRON, AWP100, 0),
 	PCMCIA_CARD(BUFFALO, WLI_PCM_S11, 0),
 	PCMCIA_CARD(BUFFALO, WLI_CF_S11G, 0),
@@ -121,6 +122,7 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(INTERSIL, PRISM2, 0),
 	PCMCIA_CARD(IODATA2, WNB11PCM, 0),
 	PCMCIA_CARD(LINKSYS2, IWN, 0),
+	PCMCIA_CARD(LINKSYS2, IWN2, 0),
 	/* Now that we do PRISM detection, I don't think we need these - imp */
 	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NANOSPEED_PRISM2, 0),
 	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NEC_CMZ_RT_WP, 0),
