@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.8 1998/10/06 07:27:05 msmith Exp $
+ *	$Id: bootinfo.c,v 1.9 1998/10/07 02:39:05 msmith Exp $
  */
 
 #include <stand.h>
@@ -100,7 +100,6 @@ bi_getboothowto(char *kargs)
 		    active = 0;
 		    break;
 		}
-	    active = 0;
 	    cp++;
 	}
     }
