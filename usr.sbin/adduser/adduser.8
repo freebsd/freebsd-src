@@ -31,7 +31,7 @@
 .\" Bugs: sure (my english!)
 .\"   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: adduser.8,v 1.5 1995/01/09 11:26:30 jkh Exp $
+.\" $Id: adduser.8,v 1.5 1995/03/07 16:42:33 w Exp w $
 .\"
 
 .Dd Jan, 9, 1995
@@ -41,28 +41,55 @@
 .Nm adduser
 .Nd command for adding new users
 
+.Sh SYNOPSIS
+.Nm adduser
+    [-batch username [group[,group]...] [fullname] [password]]
+    [-check_only] [-config_create] [-dotdir dotdir] 
+    [-group login_group] [-h|-help] [-home home] 
+    [-message message_file] [-noconfig] [-shell shell] 
+    [-s|-silent|-q|-quit] [-uid uid_start] [-v|-verbose]
+
+
 .Sh DESCRIPTION
 .Nm Adduser 
-is a simple program for adding new users. Adduser checks
-the passwd, group and shell database files. It create a passwd/group entry,
-HOME directory, copies dotfiles and sends the new user a welcome message.
+is a simple program for adding new users. Adduser check
+passwd, group and shell database. It create passwd/group entry,
+HOME-directory, dotfiles and send new user a welcome message.
 
-.Sh RESTRICTIONS
+.Sh RESTRICTION
 .Bl -tag -width Ds -compact
 .It Sy username
-Login name may be only lowercase characters or digits.
+Login name. Only lowercase characters or digits.
 .It Sy fullname
-First and last name.
+Firstname and surname. 
 .Ql Pa \:
 not allowed.
 .It Sy shell
-Only valid shells from shell database. 
+Only valid shells from shell database or sliplogin and pppd
 .It Sy uid
-Automatically generated.
-.It Sy gid
-Automatically generated. Gid and uid are equal (if possible). Groupname
-is the same as username.
+Automatic generated or your choise. Less than 32000.
+.It Sy gid/login group
+Your choise or automatic generated. 
+.It Sy password
+If not empty password is encoded with crypt.
 .El
+
+.Sh UNIQ GROUP
+Perhaps your missing what *can* be done with this scheme that falls apart
+with most other schemes.  With each user in his/her own group the user can
+safely run with a umask of 002 and have files created in there home directory
+and not worry about others being able to read them.
+
+For a shared area you create a seperate uid/gid (like cvs or ncvs on freefall),
+you place each person that should be able to access this area into that new
+group.
+
+This model of uid/gid administration allows far greater flexibilty that lumping
+users into groups and having to muck with the umask when working in a shared
+area.
+
+I have been using this model for almost 10 years and found that it works
+for most situations, and has never gotten in the way.  (Rod Grimes)
 
 .Sh CONFIGURATION
 .Bl -tag -width Ds -compact
@@ -76,22 +103,19 @@ Parse command line options
 
 .Sh OPTIONS
 .Bl -tag -width Ds
-.It Fl help
-Print options and exit.
-.It Fl silent
-Few warnings, question, bug reports. 
-.It Fl verbose
-Many warnings and questions.  Recommended for novice users.
-.It Fl debug
-Debuging.
-.It Fl noconfig
-Do not read config file.
-.It Fl home Ar partition
-Default home partition where all users located.
-.It Fl shell Ar shell 
-Default shell for new users.
-.It Fl dotdir Ar directory
-Copy files from .Ar directory into the HOME directory of new users.
+.It Sy -batch username [group[,group]...] [fullname] [password]
+Batch mode.
+
+.It Sy -check_only
+Check /etc/passwd, /etc/group, /etc/shells and exit.
+
+.It Sy -create_config
+Create new config and message file and exit. 
+
+.It Sy -dotdir Ar directory
+Copy files from 
+.Ar directory 
+into the HOME-directory of new users.
 .Ql Pa dot.foo
 files renamed to 
 .Ql Pa .foo
@@ -99,19 +123,52 @@ Don't copy files if
 .Ar directory 
 equal with 
 .Ar no
-.It Fl message Ar file
+For security make a all files writable and readable for owner,
+don't allow group or world to write files and allow only owner
+to read/execute/write .rhost, .Xauthority, .kermrc, .netrc, Mail,
+prv, iscreen, term.
+
+.It Sy -group Ar login_group
+Login group. 
+.Ar USER
+mean use username as login group.
+
+.It Sy -help,-h,-?
+Print options and exit.
+
+.It Sy -home Ar partition
+Default home partition where all users located.
+
+.It Sy -message Ar file
 Send new users a welcome message.
 Don't send message if
 .Ar file 
 equal with
 .Ar no
-.It Fl create_conf
-Create new config and message file and exit. 
+
+.It Sy -noconfig
+Do not read config file.
+
+.It Sy -shell Ar shell 
+Default shell for new users.
+
+.It Sy -silent,-s,-quit,-q
+Few warnings, question, bugreports. 
+
+.It Sy -uid Ar uid
+Use uid's from 
+.Ar uid
+up.
+
+.It Sy -verbose,-v
+Many warning, question. Recommended for noivice users.
+
+
 
 .Sh FORMATS
 .Bl -tag -width Ds -compact
 .Ql Pa #
-is a commemt.  
+is a comment.  
 
 .P
 .It Sy config file
@@ -122,6 +179,29 @@ See /etc/adduser.conf for more details.
 Eval variables in this file. See /etc/adduser.message for more
 details.
 .El
+
+.Sh EXAMPLES
+.Pp
+$ adduser
+.Pp
+Start adduser in interactive mode.
+
+.Pp
+$ adduser -batch baerenklau guest,staff,baer 'Teddy II' qwerty7
+.Pp
+Create user 'baerenklau' and  login group 'baerenklau'. Invite user 
+baerenklau into groups guest, staff and baer. Realname (fullname) 
+is 'Teddy II'. Password is 'qwerty7' (don't use such password!). Create
+HOME directory '/home/baerenklau' and copy all files and directories 
+from /usr/share/skel to /home/baerenklau. Send user baerenklau 
+a welcome message.
+
+.Pp
+$ adduser -uid 5000 -group guest -message no -batch vehlefanz
+.Pp
+Create user 'vehlefanz'. Login group is guest. Uid is up to
+5000, for instance 5007. No other groups, no realname, no password.
+Do not send a welcome message.
 
 .Sh FILES
 .Bl -tag -width /etc/master.passwdxx -compact
