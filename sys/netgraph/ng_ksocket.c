@@ -749,12 +749,13 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				so->so_state &= ~SS_ISCONNECTING;
 				ERROUT(error);
 			}
-			if ((so->so_state & SS_ISCONNECTING) != 0)
+			if ((so->so_state & SS_ISCONNECTING) != 0) {
 				/* We will notify the sender when we connect */
 				priv->response_token = msg->header.token;
 				raddr = priv->response_addr = NGI_RETADDR(item);
 				priv->flags |= KSF_CONNECTING;
 				ERROUT(EINPROGRESS);
+			}
 			break;
 		    }
 
