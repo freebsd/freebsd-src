@@ -256,6 +256,7 @@ IPSTEALTH
 IPX			opt_ipx.h
 IPXIP			opt_ipx.h
 IPTUNNEL		opt_ipx.h
+LIBMCHAIN
 NCP			opt_ncp.h
 NETATALK		opt_atalk.h
 PPP_BSDCOMP		opt_ppp.h
