@@ -1,4 +1,4 @@
-/* set tab=4
+/*
  *	dump CIS tuples.
  */
 #include <stdio.h>
@@ -12,33 +12,31 @@
 
 #include "readcis.h"
 
-int	dump_pwr_desc(unsigned char *);
-void	print_ext_speed(unsigned char, int);
-void	dump_device_desc(unsigned char *p, int len, char *type);
-void	dump_info_v1(unsigned char *p, int len);
-void	dump_config_map(struct tuple *tp);
-void	dump_cis_config(struct tuple *tp);
-void	dump_other_cond(unsigned char *p);
-void	dump_func_ext(unsigned char *p, int len);
+int     dump_pwr_desc(unsigned char *);
+void    print_ext_speed(unsigned char, int);
+void    dump_device_desc(unsigned char *p, int len, char *type);
+void    dump_info_v1(unsigned char *p, int len);
+void    dump_config_map(struct tuple *tp);
+void    dump_cis_config(struct tuple *tp);
+void    dump_other_cond(unsigned char *p);
+void    dump_func_ext(unsigned char *p, int len);
 
 void
 dumpcis(struct cis *cp)
 {
-struct tuple *tp;
-struct tuple_list *tl;
-int count = 0, sz, ad, i;
-unsigned char *p;
+	struct tuple *tp;
+	struct tuple_list *tl;
+	int     count = 0, sz, ad, i;
+	unsigned char *p;
 
 	for (tl = cp->tlist; tl; tl = tl->next)
-		for (tp = tl->tuples; tp; tp = tp->next)
-			{
+		for (tp = tl->tuples; tp; tp = tp->next) {
 			printf("Tuple #%d, code = 0x%x (%s), length = %d\n",
-				++count, tp->code, tuple_name(tp->code), tp->length);
+			    ++count, tp->code, tuple_name(tp->code), tp->length);
 			p = tp->data;
 			sz = tp->length;
 			ad = 0;
-			while (sz > 0)
-				{
+			while (sz > 0) {
 				printf("    %03x: ", ad);
 				for (i = 0; i < ((sz < 16) ? sz : 16); i++)
 					printf(" %02x", p[i]);
@@ -46,38 +44,35 @@ unsigned char *p;
 				sz -= 16;
 				p += 16;
 				ad += 16;
-				}
-			switch(tp->code)
-				{
+			}
+			switch (tp->code) {
 			default:
 				break;
 			case CIS_MEM_COMMON:	/* 0x01 */
 				dump_device_desc(tp->data, tp->length, "Common");
 				break;
 			case CIS_CHECKSUM:	/* 0x10 */
-				if (tp->length == 5)
-					{
+				if (tp->length == 5) {
 					printf("\tChecksum from offset %d, length %d, value is 0x%x\n",
-						(short)((tp->data[1] << 8) | tp->data[0]),
-						(tp->data[3] << 8) | tp->data[2],
-						tp->data[4]);
-					}
-				else
+					    (short)((tp->data[1] << 8) | tp->data[0]),
+					    (tp->data[3] << 8) | tp->data[2],
+					    tp->data[4]);
+				} else
 					printf("\tIllegal length for checksum!\n");
 				break;
 			case CIS_LONGLINK_A:	/* 0x11 */
 				printf("\tLong link to attribute memory, address 0x%x\n",
-					(tp->data[3] << 24) |
-					(tp->data[2] << 16) |
-					(tp->data[1] << 8) |
-					tp->data[0]);
+				    (tp->data[3] << 24) |
+				    (tp->data[2] << 16) |
+				    (tp->data[1] << 8)  |
+				    tp->data[0]);
 				break;
 			case CIS_LONGLINK_C:	/* 0x12 */
 				printf("\tLong link to common memory, address 0x%x\n",
-					(tp->data[3] << 24) |
-					(tp->data[2] << 16) |
-					(tp->data[1] << 8) |
-					tp->data[0]);
+				    (tp->data[3] << 24) |
+				    (tp->data[2] << 16) |
+				    (tp->data[1] << 8)  |
+				    tp->data[0]);
 				break;
 				break;
 			case CIS_INFO_V1:	/* 0x15 */
@@ -110,12 +105,11 @@ unsigned char *p;
 				break;
 			case CIS_MANUF_ID:	/* 0x20 */
 				printf("\tPCMCIA ID = 0x%x, OEM ID = 0x%x\n",
-					(tp->data[1] << 8) | tp->data[0],
-					(tp->data[3] << 8) | tp->data[2]);
+				    (tp->data[1] << 8) | tp->data[0],
+				    (tp->data[3] << 8) | tp->data[2]);
 				break;
 			case CIS_FUNC_ID:	/* 0x21 */
-				switch(tp->data[0])
-					{
+				switch (tp->data[0]) {
 				default:
 					printf("\tUnknown function");
 					break;
@@ -143,69 +137,68 @@ unsigned char *p;
 				case 7:
 					printf("\tAIMS");
 					break;
-					}
+				}
 				printf("%s%s\n", (tp->data[1] & 1) ? " - POST initialize" : "",
-					(tp->data[1] & 2) ? " - Card has ROM" : "");
+				    (tp->data[1] & 2) ? " - Card has ROM" : "");
 				break;
 			case CIS_FUNC_EXT:	/* 0x22 */
 				dump_func_ext(tp->data, tp->length);
 				break;
 			case CIS_VERS_2:	/* 0x40 */
 				break;
-				}
 			}
+		}
 }
+
 /*
  *	Dump configuration map tuple.
  */
 void
 dump_config_map(struct tuple *tp)
 {
-unsigned char *p, x;
-int rlen, mlen;
-int	i;
-union {
-	unsigned long l;
-	unsigned char b[4];
-	}u;
+	unsigned char *p, x;
+	int     rlen, mlen;
+	int     i;
+	union {
+		unsigned long l;
+		unsigned char b[4];
+	} u;
 
-	rlen = (tp->data[0] & 3)+1;
-	mlen = ((tp->data[0] >> 2) & 3)+1;
+	rlen = (tp->data[0] & 3) + 1;
+	mlen = ((tp->data[0] >> 2) & 3) + 1;
 	u.l = 0;
 	p = tp->data + 2;
-	for (i = 0 ; i < rlen; i++)
+	for (i = 0; i < rlen; i++)
 		u.b[i] = *p++;
 	printf("\tReg len = %d, config register addr = 0x%lx, last config = 0x%x\n",
-		rlen, u.l, tp->data[1]);
+	    rlen, u.l, tp->data[1]);
 	if (mlen)
 		printf("\tRegisters: ");
-	for (i = 0; i < mlen; i++, p++)
-		{
+	for (i = 0; i < mlen; i++, p++) {
 		for (x = 0x1; x; x <<= 1)
 			printf("%c", x & *p ? 'X' : '-');
 		printf(" ");
-		}
+	}
 	printf("\n");
 }
+
 /*
  *	Dump a config entry.
  */
 void
 dump_cis_config(struct tuple *tp)
 {
-unsigned char *p, feat;
-int	i, j;
-char	c;
+	unsigned char *p, feat;
+	int     i, j;
+	char    c;
 
 	p = tp->data;
 	printf("\tConfig index = 0x%x%s\n", *p & 0x3F,
-		*p & 0x40 ? "(default)" : "");
-	if (*p & 0x80)
-		{
+	    *p & 0x40 ? "(default)" : "");
+	if (*p & 0x80) {
 		p++;
 		printf("\tInterface byte = 0x%x ", *p);
-		switch (*p & 0xF)
-			{
+		switch (*p & 0xF) {
 		default:
 			printf("(reserved)");
 			break;
@@ -222,31 +215,27 @@ char	c;
 		case 8:
 			printf("(custom)");
 			break;
-			}
+		}
 		c = ' ';
-		if (*p & 0x10)
-			{
+		if (*p & 0x10) {
 			printf(" BVD1/2 active");
 			c = ',';
-			}
-		if (*p & 0x20)
-			{
+		}
+		if (*p & 0x20) {
 			printf("%c card WP active", c);	/* Write protect */
 			c = ',';
-			}
-		if (*p & 0x40)
-			{
+		}
+		if (*p & 0x40) {
 			printf("%c +RDY/-BSY active", c);
 			c = ',';
-			}
+		}
 		if (*p & 0x80)
 			printf("%c wait signal supported", c);
 		printf("\n");
-		}
+	}
 	p++;
 	feat = *p++;
-	switch(feat & 3)
-		{
+	switch (feat & 3) {
 	case 0:
 		break;
 	case 1:
@@ -267,37 +256,32 @@ char	c;
 		printf("\tVpp2 pwr:\n");
 		p += dump_pwr_desc(p);
 		break;
-		}
-	if (feat & 0x4)
-		{
+	}
+	if (feat & 0x4) {
 		i = *p & 3;
 		j = (*p >> 2) & 7;
 		p++;
-		if (i != 3)
-			{
+		if (i != 3) {
 			printf("\tWait scale ");
 			print_ext_speed(*p, i);
 			while (*p & 0x80)
 				p++;
 			printf("\n");
-			}
-		if (j != 7)
-			{
+		}
+		if (j != 7) {
 			printf("\tRDY/BSY scale ");
 			print_ext_speed(*p, j);
 			while (*p & 0x80)
 				p++;
 			printf("\n");
-			}
 		}
-	if (feat & 0x8)
-		{
+	}
+	if (feat & 0x8) {
 		if (*p & 0x1F)
 			printf("\tCard decodes %d address lines", *p & 0x1F);
 		else
 			printf("\tCard provides address decode");
-		switch((*p >> 5) & 3)
-			{
+		switch ((*p >> 5) & 3) {
 		case 0:
 			break;
 		case 1:
@@ -309,17 +293,14 @@ char	c;
 		case 3:
 			printf(", full 8/16 Bit I/O");
 			break;
-			}
+		}
 		printf("\n");
-		if (*p & 0x80)
-			{
+		if (*p & 0x80) {
 			p++;
 			c = *p++;
-			for (i = 0; i <= (c & 0xF); i++)
-				{
+			for (i = 0; i <= (c & 0xF); i++) {
 				printf("\t\tI/O address # %d: ", i + 1);
-				switch ((c >> 4) & 3)
-					{
+				switch ((c >> 4) & 3) {
 				case 0:
 					break;
 				case 1:
@@ -331,55 +312,49 @@ char	c;
 					break;
 				case 3:
 					printf("block start = 0x%x",
-							(p[3] << 24) | (p[2] << 16) |
-							(p[1] << 8) | *p);
+					    (p[3] << 24) | (p[2] << 16) |
+					    (p[1] << 8) | *p);
 					p += 4;
 					break;
-					}
-				switch ((c >> 6) & 3)
-					{
+				}
+				switch ((c >> 6) & 3) {
 				case 0:
 					break;
 				case 1:
 					printf(" block length = 0x%x", *p++ + 1);
 					break;
 				case 2:
-					printf(" block length = 0x%x", ((p[1] << 8) | *p)+1);
+					printf(" block length = 0x%x", ((p[1] << 8) | *p) + 1);
 					p += 2;
 					break;
 				case 3:
 					printf(" block length = 0x%x",
-							((p[3] << 24) | (p[2] << 16) |
-							(p[1] << 8) | *p) + 1);
+					    ((p[3] << 24) | (p[2] << 16) |
+						(p[1] << 8) | *p) + 1);
 					p += 4;
 					break;
-					}
-				printf("\n");
 				}
+				printf("\n");
 			}
 		}
-/*
- *	IRQ descriptor
- */
-	if (feat & 0x10)
-		{
+	}
+
+	/* IRQ descriptor */
+	if (feat & 0x10) {
 		printf("\t\tIRQ modes:");
 		c = ' ';
-		if (*p & 0x20)
-			{
+		if (*p & 0x20) {
 			printf(" Level");
 			c = ',';
-			}
-		if (*p & 0x40)
-			{
+		}
+		if (*p & 0x40) {
 			printf("%c Pulse", c);
 			c = ',';
-			}
+		}
 		if (*p & 0x80)
 			printf("%c Shared", c);
 		printf("\n");
-		if (*p & 0x10)
-			{
+		if (*p & 0x10) {
 			i = p[0] | (p[1] << 8);
 			printf("\t\tIRQs: ");
 			if (*p & 1)
@@ -390,20 +365,17 @@ char	c;
 				printf(" BERR");
 			if (*p & 0x8)
 				printf(" VEND");
-			for ( j = 0; j < 16; j++)
+			for (j = 0; j < 16; j++)
 				if (i & (1 << j))
 					printf(" %d", j);
 			printf("\n");
 			p += 3;
-			}
-		else
-			{
+		} else {
 			printf("\t\tIRQ level = %d\n", *p & 0xF);
 			p++;
-			}
 		}
-	switch((feat >> 5) & 3)
-		{
+	}
+	switch ((feat >> 5) & 3) {
 	case 0:
 		break;
 	case 1:
@@ -412,20 +384,17 @@ char	c;
 		break;
 	case 2:
 		printf("\tMemory space address = 0x%x, length = 0x%x\n",
-				(p[3] << 8) | p[2],
-				(p[1] << 8) | p[0]);
+		    (p[3] << 8) | p[2],
+		    (p[1] << 8) | p[0]);
 		p += 4;
 		break;
-/*
- *	Memory descriptors.
- */
+
+	/* Memory descriptors. */
 	case 3:
 		c = *p++;
-		for (i = 0; i <= (c & 7); i++)
-			{
-			printf("\tMemory descriptor %d\n\t\t", i+1);
-			switch ((c >> 3) & 3)
-				{
+		for (i = 0; i <= (c & 7); i++) {
+			printf("\tMemory descriptor %d\n\t\t", i + 1);
+			switch ((c >> 3) & 3) {
 			case 0:
 				break;
 			case 1:
@@ -437,13 +406,12 @@ char	c;
 				break;
 			case 3:
 				printf(" blk length = 0x%x00",
-						(p[3] << 24) | (p[2] << 16) |
-						(p[1] << 8) | *p);
+				    (p[3] << 24) | (p[2] << 16) |
+				    (p[1] << 8) | *p);
 				p += 4;
 				break;
-				}
-			switch ((c >> 5) & 3)
-				{
+			}
+			switch ((c >> 5) & 3) {
 			case 0:
 				break;
 			case 1:
@@ -455,14 +423,13 @@ char	c;
 				break;
 			case 3:
 				printf(" card addr = 0x%x00",
-						(p[3] << 24) | (p[2] << 16) |
-						(p[1] << 8) | *p);
+				    (p[3] << 24) | (p[2] << 16) |
+				    (p[1] << 8) | *p);
 				p += 4;
 				break;
-				}
+			}
 			if (c & 0x80)
-				switch ((c >> 5) & 3)
-					{
+				switch ((c >> 5) & 3) {
 				case 0:
 					break;
 				case 1:
@@ -474,17 +441,16 @@ char	c;
 					break;
 				case 3:
 					printf(" host addr = 0x%x00",
-							(p[3] << 24) | (p[2] << 16) |
-							(p[1] << 8) | *p);
+					    (p[3] << 24) | (p[2] << 16) |
+					    (p[1] << 8) | *p);
 					p += 4;
 					break;
-					}
+				}
 			printf("\n");
-			}
-		break;
 		}
-	if (feat & 0x80)
-		{
+		break;
+	}
+	if (feat & 0x80) {
 		printf("\tMax twin cards = %d\n", *p & 7);
 		printf("\tMisc attr:");
 		if (*p & 0x8)
@@ -493,23 +459,22 @@ char	c;
 			printf(" (Read-only)");
 		if (*p & 0x20)
 			printf(" (Power down supported)");
-		if (*p & 0x80)
-			{
+		if (*p & 0x80) {
 			printf(" (Ext byte = 0x%x)", p[1]);
 			p++;
-			}
+		}
 		printf("\n");
 		p++;
-		}
+	}
 }
+
 /*
  *	dump_other_cond - Dump other conditions.
  */
 void
 dump_other_cond(unsigned char *p)
 {
-	if (p[0])
-		{
+	if (p[0]) {
 		printf("\t");
 		if (p[0] & 1)
 			printf("(MWAIT)");
@@ -518,78 +483,75 @@ dump_other_cond(unsigned char *p)
 		if (p[0] & 0x80)
 			printf(" (Extension bytes follow)");
 		printf("\n");
-		}
+	}
 }
+
 /*
  *	Dump power descriptor.
  */
 int
 dump_pwr_desc(unsigned char *p)
 {
-int	len = 1, i;
-unsigned char mask;
-char	**expp;
-static char *pname[] =
-      {	"Nominal operating supply voltage",
-	"Minimum operating supply voltage",
-	"Maximum operating supply voltage",
-	"Continuous supply current",
-	"Max current average over 1 second",
-	"Max current average over 10 ms",
-	"Power down supply current",
-	"Reserved"
+	int     len = 1, i;
+	unsigned char mask;
+	char  **expp;
+	static char *pname[] =
+	{"Nominal operating supply voltage",
+	 "Minimum operating supply voltage",
+	 "Maximum operating supply voltage",
+	 "Continuous supply current",
+	 "Max current average over 1 second",
+	 "Max current average over 10 ms",
+	 "Power down supply current",
+	 "Reserved"
 	};
-static char *vexp[] =
-	{ "10uV", "100uV", "1mV", "10mV", "100mV", "1V", "10V", "100V" };
-static char *cexp[] =
-	{ "10nA", "1uA", "10uA", "100uA", "1mA", "10mA", "100mA", "1A" };
-static char *mant[] =
-	{ "1", "1.2", "1.3", "1.5", "2", "2.5", "3", "3.5", "4", "4.5",
-	  "5", "5.5", "6", "7", "8", "9" };
+	static char *vexp[] =
+	{"10uV", "100uV", "1mV", "10mV", "100mV", "1V", "10V", "100V"};
+	static char *cexp[] =
+	{"10nA", "1uA", "10uA", "100uA", "1mA", "10mA", "100mA", "1A"};
+	static char *mant[] =
+	{"1", "1.2", "1.3", "1.5", "2", "2.5", "3", "3.5", "4", "4.5",
+	"5", "5.5", "6", "7", "8", "9"};
 
 	mask = *p++;
 	expp = vexp;
 	for (i = 0; i < 8; i++)
-		if (mask & (1 << i))
-			{
+		if (mask & (1 << i)) {
 			len++;
 			if (i >= 3)
 				expp = cexp;
 			printf("\t\t%s: ", pname[i]);
 			printf("%s x %s",
-				mant[(*p >> 3) & 0xF],
-				expp[*p & 7]);
-			while (*p & 0x80)
-				{
+			    mant[(*p >> 3) & 0xF],
+			    expp[*p & 7]);
+			while (*p & 0x80) {
 				len++;
 				p++;
 				printf(", ext = 0x%x", *p);
-				}
+			}
 			printf("\n");
 			p++;
-			}
-	return(len);
+		}
+	return (len);
 }
 
 void
 dump_device_desc(unsigned char *p, int len, char *type)
 {
-static char *un_name[] =
-	{ "512b", "2Kb", "8Kb", "32Kb",
-	"128Kb", "512Kb", "2Mb", "reserved"};
-static char *speed[] =
-	{ "No speed", "250nS", "200nS", "150nS",
-	  "100nS", "Reserved", "Reserved" };
-static char *dev[] =
-	{ "No device", "Mask ROM", "OTPROM", "UV EPROM",
-	  "EEPROM", "FLASH EEPROM", "SRAM", "DRAM",
-	  "Reserved", "Reserved", "Reserved", "Reserved",
-	  "Reserved", "Function specific", "Extended",
-	  "Reserved" };
-int count = 0;
+	static char *un_name[] =
+	{"512b", "2Kb", "8Kb", "32Kb", "128Kb", "512Kb", "2Mb", "reserved"};
+	static char *speed[] =
+	{"No speed", "250nS", "200nS", "150nS",
+	"100nS", "Reserved", "Reserved"};
+	static char *dev[] =
+	{"No device", "Mask ROM", "OTPROM", "UV EPROM",
+	 "EEPROM", "FLASH EEPROM", "SRAM", "DRAM",
+	 "Reserved", "Reserved", "Reserved", "Reserved",
+	 "Reserved", "Function specific", "Extended",
+	"Reserved"};
+	int     count = 0;
 
-	while (*p != 0xFF && len > 0)
-		{
+	while (*p != 0xFF && len > 0) {
 		unsigned char x;
 
 		x = *p++;
@@ -597,29 +559,26 @@ int count = 0;
 		if (count++ == 0)
 			printf("\t%s memory device information:\n", type);
 		printf("\t\tDevice number %d, type %s, WPS = %s\n",
-			count, dev[x >> 4], (x & 0x8) ? "ON" : "OFF");
-		if ((x & 7) == 7)
-			{
+		    count, dev[x >> 4], (x & 0x8) ? "ON" : "OFF");
+		if ((x & 7) == 7) {
 			len--;
-			if (*p)
-				{
+			if (*p) {
 				printf("\t\t");
 				print_ext_speed(*p, 0);
-				while (*p & 0x80)
-					{
+				while (*p & 0x80) {
 					p++;
 					len--;
-					}
 				}
-			p++;
 			}
-		else
+			p++;
+		} else
 			printf("\t\tSpeed = %s", speed[x & 7]);
 		printf(", Memory block size = %s, %d units\n",
-			un_name[*p & 7], (*p >> 3) + 1);
+		    un_name[*p & 7], (*p >> 3) + 1);
 		p++;
-		}
+	}
 }
+
 /*
  *	Print version info
  */
@@ -629,16 +588,14 @@ dump_info_v1(unsigned char *p, int len)
 	printf("\tVersion = %d.%d", p[0], p[1]);
 	p += 2;
 	printf(", Manuf = [%s],", p);
-	while (*p++)
-		;
+	while (*p++);
 	printf("card vers = [%s]\n", p);
-	while (*p++)
-		;
+	while (*p++);
 	printf("\tAddit. info = [%s]", p);
-	while (*p++)
-		;
+	while (*p++);
 	printf(",[%s]\n", p);
 }
+
 /*
  *	dump functional extension tuple.
  */
@@ -647,19 +604,16 @@ dump_func_ext(unsigned char *p, int len)
 {
 	if (len == 0)
 		return;
-	switch(p[0])
-		{
+	switch (p[0]) {
 	case 0:
 	case 8:
 	case 10:
-		if (len != 4)
-			{
+		if (len != 4) {
 			printf("\tWrong length for serial extension\n");
 			return;
-			}
+		}
 		printf("\tSerial interface extension:\n");
-		switch(p[1] & 0x1F)
-			{
+		switch (p[1] & 0x1F) {
 		default:
 			printf("\t\tUnkn device");
 			break;
@@ -672,12 +626,12 @@ dump_func_ext(unsigned char *p, int len)
 		case 2:
 			printf("\t\t16550 UART");
 			break;
-			}
+		}
 		printf(", Parity - %s%s%s%s",
-			(p[2] & 1) ? "Space," : "",
-			(p[2] & 2) ? "Mark," : "",
-			(p[2] & 4) ? "Odd," : "",
-			(p[2] & 8) ? "Even," : "");
+		    (p[2] & 1) ? "Space," : "",
+		    (p[2] & 2) ? "Mark," : "",
+		    (p[2] & 4) ? "Odd," : "",
+		    (p[2] & 8) ? "Even," : "");
 		printf("\n");
 		break;
 	case 1:
@@ -695,23 +649,24 @@ dump_func_ext(unsigned char *p, int len)
 	case 4:
 		printf("\tVoice services available:\n");
 		break;
-		}
+	}
 }
+
 /*
  *	print_ext_speed - Print extended speed.
  */
 void
 print_ext_speed(unsigned char x, int scale)
 {
-static char *mant[] =
-	{ "Reserved", "1.0", "1.2", "1.3", "1.5", "2.0", "2.5", "3.0",
-	  "3.5", "4.0", "4.5", "5.0", "5.5", "6.0", "7.0", "8.0" };
-static char *exp[] =
-	{ "1 ns", "10 ns", "100 ns", "1 us", "10 us", "100 us",
-	  "1 ms", "10 ms" };
-static char *scale_name[] =
-	{ "None", "10", "100", "1,000", "10,000", "100,000",
-	  "1,000,000", "10,000,000" };
+	static char *mant[] =
+	{"Reserved", "1.0", "1.2", "1.3", "1.5", "2.0", "2.5", "3.0",
+	"3.5", "4.0", "4.5", "5.0", "5.5", "6.0", "7.0", "8.0"};
+	static char *exp[] =
+	{"1 ns", "10 ns", "100 ns", "1 us", "10 us", "100 us",
+	"1 ms", "10 ms"};
+	static char *scale_name[] =
+	{"None", "10", "100", "1,000", "10,000", "100,000",
+	"1,000,000", "10,000,000"};
 
 	printf("Speed = %s x %s", mant[(x >> 3) & 0xF], exp[x & 7]);
 	if (scale)
