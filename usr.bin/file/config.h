@@ -8,7 +8,7 @@
 #define PACKAGE "file"
 
 /* Autoheader needs me */
-#define VERSION "4.10"
+#define VERSION "4.12"
 
 /* Define if builtin ELF support is enabled.  */
 #define BUILTIN_ELF 1
@@ -194,7 +194,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Version number of package */
-#define VERSION "4.10"
+#define VERSION "4.12"
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */
