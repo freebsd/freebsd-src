@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.22 1997/04/27 03:59:19 jkh Exp $
+#	$Id: rc.i386,v 1.23 1997/04/28 05:51:57 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -16,7 +16,7 @@ if [ "X${ibcs2_enable}" = X"YES" ]; then
 fi
 
 # Start the Linux binary emulation if requested.
-if [ "X${linux_aout_enable}" = X"YES" ]; then
+if [ "X${linux_enable}" = X"YES" ]; then
 	echo -n ' linux';		linux > /dev/null 2>&1
 fi
 
@@ -43,6 +43,11 @@ fi
 # keyrate
 if [ "X${keyrate}" != X"NO" ]; then
 	echo -n ' keyrate';	kbdcontrol <${kbddev} -r ${keyrate}
+fi
+
+# keybell
+if [ "X${keybell}" != X"NO" ]; then
+	echo -n ' keybell';	kbdcontrol <${kbddev} -b ${keybell}
 fi
 
 # bell style
