@@ -137,14 +137,20 @@ Pass2(FILE *fd)
 		    GETDATA(trash,cnt);
 		    if(!strcmp(sp->Key,"FN")) {
 			p = tempnam(TmpDir,"CTMclient");
-			i = ctm_edit(trash,cnt,name,p);
-			ret |= i;
-			if(i == 0 && strcmp(md5,MD5File(p))) {
+			j = ctm_edit(trash,cnt,name,p);
+			if(j) {
+			    fprintf(stderr,"  %s: %s edit returned %d.\n",
+				sp->Key,name,j);
+			    ret |= j;
+			    return ret;
+			} else if(strcmp(md5,MD5File(p))) {
 			    fprintf(stderr,"  %s: %s edit fails.\n",
 				sp->Key,name);
 			    ret |= 32;
+			    return ret;
 			}
 			unlink(p);
+			free(p);
 		    }
 		    
 		    break;

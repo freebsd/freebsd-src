@@ -15,5 +15,5 @@ SRCS=   	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
 		ctm_syntax.c ctm_ed.c
 LDADD+=		-lmd
 NOMAN=		1
-CFLAGS+=	-Wall
+CFLAGS+=	-Wall -g
 .include <bsd.prog.mk>

@@ -50,6 +50,7 @@ main(int argc, char **argv)
     
     while((c=getopt(argc,argv,"ab:B:cd:Fm:pPqr:R:T:Vv")) != -1) {
 	switch (c) {
+	    case 'c': CheckIt++;	break; /* Only check it */
 	    case 'p': Paranoid--;	break; /* Less Paranoid */
 	    case 'P': Paranoid++;	break; /* More Paranoid */
 	    case 'q': Verbose--;	break; /* Quiet */
@@ -159,6 +160,11 @@ Proc(char *filename)
 	f = popen(p,"r");
     }
 
+    if(CheckIt) {
+        fprintf(stderr,"All ok\n");
+	return 0;
+    }
+
     if((i=Pass3(f)))
 	return i;
 
@@ -169,5 +175,6 @@ Proc(char *filename)
 	Free(p);
     }
 
+    fprintf(stderr,"All ok\n");
     return 0;
 }

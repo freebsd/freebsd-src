@@ -83,47 +83,48 @@ Pass3(FILE *fd)
 		default: WRONG
 		}
 	    }
+	/* XXX This should go away.  Disallow trailing '/' */
 	j = strlen(name)-1;
 	if(name[j] == '/') name[j] = '\0';
+
 	fprintf(stderr,"> %s %s\n",sp->Key,name);
 	if(!strcmp(sp->Key,"FM") || !strcmp(sp->Key, "FS")) {
 	    i = open(name,O_WRONLY|O_CREAT|O_TRUNC,0644);
 	    if(i < 0) {
 		perror(name);
-		continue;
+		WRONG
 	    }
 	    if(cnt != write(i,trash,cnt)) {
 		perror(name);
-		continue;
+		WRONG
 	    }
 	    close(i);
 	    if(strcmp(md5,MD5File(name))) {
 		fprintf(stderr,"  %s %s MD5 didn't come out right\n",
 		   sp->Key,name);
-		continue;
+		WRONG
 	    }
 	    continue;
 	} 
 	if(!strcmp(sp->Key,"FE")) {
-	    ed = popen("ed","w");
+	    ed = popen("ed -s","w");
 	    if(!ed) {
 		WRONG
 	    }
-	    fprintf(ed,"e %s\n",name);
 	    if(cnt != fwrite(trash,1,cnt,ed)) {
 		perror(name);
 		pclose(ed);
-		continue;
+		WRONG
 	    }
 	    fprintf(ed,"w %s\n",name);
 	    if(pclose(ed)) {
 		perror("ed");
-		continue;
+		WRONG
 	    }
 	    if(strcmp(md5,MD5File(name))) {
 		fprintf(stderr,"  %s %s MD5 didn't come out right\n",
 		   sp->Key,name);
-		continue;
+		WRONG
 	    }
 	    continue;
 	}
@@ -132,8 +133,17 @@ Pass3(FILE *fd)
 	    strcat(buf,".ctm");
 	    i = ctm_edit(trash,cnt,name,buf);
 	    if(i) {
+		fprintf(stderr," %s %s Edit failed with code %d.\n",
+		    sp->Key,name,i);
+	        WRONG
 	    }
 	    rename(buf,name);
+	    if(strcmp(md5,MD5File(name))) {
+		fprintf(stderr," %s %s Edit failed MD5 check.\n",
+		    sp->Key,name);
+	        WRONG
+	    }
+	    continue;
 	}
 	if(!strcmp(sp->Key,"DM")) {
 	    if(0 > mkdir(name,0755)) {
@@ -142,7 +152,7 @@ Pass3(FILE *fd)
 	    }
 	    if(0 > stat(name,&st) || ((st.st_mode & S_IFMT) != S_IFDIR)) {
 		fprintf(stderr,"<%s> mkdir failed\n",name);
-		exit(1);
+		WRONG
 	    }
 	    continue;
 	} 
