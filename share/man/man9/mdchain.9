@@ -92,7 +92,7 @@ These functions are used to decompose mbuf chains to various data types.
 The
 .Vt mdchain
 structure is used as a working context
-and should be initialized via call of
+and should be initialized through a call of the
 .Fn mb_initm
 function.
 It has the following fields:
@@ -119,22 +119,22 @@ The
 .Fn md_append_record
 appends a new mbuf chain using
 .Va m_nextpkt
-field to form a signle linked list of mbuf chains.
-If
+field to form a single linked list of mbuf chains.
+If the
 .Va mdp->md_top
 field is
 .Dv NULL ,
-then this function behaves exactly as
+then this function behaves exactly as the
 .Fn md_initm
 function.
 .Pp
 The
 .Fn md_next_record
-extracts next mbuf chain and disposes current if any.
-For new mbuf chain it calls
+function extracts the next mbuf chain and disposes the current one, if any.
+For a new mbuf chain it calls the
 .Fn md_initm
 function.
-If there is no data left function returns
+If there is no data left the function returns
 .Dv ENOENT .
 .Pp
 All
@@ -158,23 +158,25 @@ argument specifies the method used to perform a copy,
 and can be one of the following:
 .Bl -tag -width "MB_MINLINE"
 .It Dv MB_MSYSTEM
-use
+Use the
 .Fn bcopy
-function
+function.
 .It Dv MB_MUSER
-use
+Use the
 .Xr copyin 9
-function
+function.
 .It Dv MB_MINLINE
-use an
+Use an
 .Dq inline
-loop which does not call any function
+loop which does not call any function.
 .El
 .Pp
 If
-.Ar target is
+.Ar target
+is
 .Dv NULL ,
-an actual copy is not performed and function just skips given number of bytes.
+an actual copy is not performed
+and the function just skips the given number of bytes.
 .Sh RETURN VALUES
 All
 .Ft int
@@ -183,7 +185,7 @@ otherwise an error code is returned.
 .Pp
 .Em Note :
 after failure of any function,
-a mbuf chain is left in the broken state and only the
+an mbuf chain is left in the broken state and only the
 .Fn md_done
 function can safely be called to destroy it.
 .Sh EXAMPLES
