@@ -40,8 +40,6 @@
 #ifndef _MACHINE_FRAME_H_
 #define _MACHINE_FRAME_H_ 1
 
-#include <sys/signal.h>
-
 /*
  * System stack frames.
  */
@@ -155,42 +153,6 @@ struct clockframe {
 	/* below only when crossing rings (e.g. user to kernel) */
 	int	cf_esp;
 	int	cf_ss;
-};
-
-/*
- * Signal frame, arguments passed to application signal handlers.
- */
-struct sigframe {
-	/* 
-	 * The first three members may be used by applications.
-	 */
-
-	register_t sf_signum;
-
-	/* 
-	 * Either 'int' for old-style FreeBSD handler or 'siginfo_t *'
-	 * pointing to sf_siginfo for SA_SIGINFO handlers. 
-	 */
-	register_t sf_arg2;
-
-	/* Points to sf_siginfo.si_sc. */
-	register_t sf_scp;
-
-	/* 
-	 * The following arguments are not constrained  by the 
-	 * function call protocol.
-	 * Applications are not supposed to access these members,
-	 * except using the pointers we provide in the first three
-	 * arguments. 
-	 */
-	char    *sf_addr;
-	union {
-		__siginfohandler_t *sf_action;
-		__sighandler_t     *sf_handler;
-	} sf_ahu;
-
-	/* In the SA_SIGINFO case, sf_arg2 points here. */
-	siginfo_t  sf_siginfo;
 };
 
 int	kdb_trap __P((int, int, struct trapframe *));

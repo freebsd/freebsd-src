@@ -32,8 +32,8 @@
 #define	_ALPHA_SIGNAL_H_
 
 typedef long	sig_atomic_t;
-
 #ifndef _ANSI_SOURCE
+
 /*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
@@ -44,7 +44,9 @@ typedef long	sig_atomic_t;
  * Note that sc_regs[] and sc_fpregs[]+sc_fpcr are inline
  * representations of 'struct reg' and 'struct fpreg', respectively.
  */
-struct  sigcontext {
+typedef unsigned int osigset_t;
+
+struct  osigcontext {
 	long	sc_onstack;             /* sigstack state to restore */
 	long	sc_mask;                /* signal mask to restore */
 	long	sc_pc;                  /* pc to restore */

@@ -138,6 +138,7 @@
 #include <alpha/alpha/db_instruction.h>
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
+#include <machine/sigframe.h>
 
 #ifdef SYSVSHM
 #include <sys/shm.h>
@@ -1161,11 +1162,11 @@ DELAY(int n)
  * frame pointer, it returns to the user
  * specified pc, psl.
  */
-void
-sendsig(sig_t catcher, int sig, int mask, u_long code)
+static void
+osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 {
 	struct proc *p = curproc;
-	siginfo_t *sip, ksi;
+	osiginfo_t *sip, ksi;
 	struct trapframe *frame;
 	struct sigacts *psp = p->p_sigacts;
 	int oonstack, fsize, rndfsize;
@@ -1174,6 +1175,7 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	oonstack = psp->ps_sigstk.ss_flags & SS_ONSTACK;
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
+
 	/*
 	 * Allocate and validate space for the signal handler
 	 * context. Note that if the stack is in P0 space, the
@@ -1182,33 +1184,23 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 * the space with a `brk'.
 	 */
 	if ((psp->ps_flags & SAS_ALTSTACK) && !oonstack &&
-	    (psp->ps_sigonstack & sigmask(sig))) {
-		sip = (siginfo_t *)((caddr_t)psp->ps_sigstk.ss_sp +
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sip = (osiginfo_t *)((caddr_t)psp->ps_sigstk.ss_sp +
 		    psp->ps_sigstk.ss_size - rndfsize);
 		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
 	} else
-		sip = (siginfo_t *)(alpha_pal_rdusp() - rndfsize);
+		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
+
 	(void)grow_stack(p, (u_long)sip);
-#ifdef DEBUG
-	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
-		    sig, &oonstack, sip);
-#endif
 	if (useracc((caddr_t)sip, fsize, B_WRITE) == 0) {
-#ifdef DEBUG
-		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
-			printf("sendsig(%d): useracc failed on sig %d\n",
-			    p->p_pid, sig);
-#endif
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		sig = sigmask(SIGILL);
-		p->p_sigignore &= ~sig;
-		p->p_sigcatch &= ~sig;
-		p->p_sigmask &= ~sig;
+		SIGACTION(p, SIGILL) = SIG_DFL;	
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
 		psignal(p, SIGILL);
 		return;
 	}
@@ -1217,7 +1209,7 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	ksi.si_sc.sc_onstack = oonstack;
-	ksi.si_sc.sc_mask = mask;
+	SIG2OSIG(*mask, ksi.si_sc.sc_mask);
 	ksi.si_sc.sc_pc = frame->tf_regs[FRAME_PC];
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];
 
@@ -1251,6 +1243,105 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	ksi.si_code = code;
 	ksi.si_value.sigval_ptr = NULL;				/* XXX */
 
+	/*
+	 * copy the frame out to userland.
+	 */
+	(void) copyout((caddr_t)&ksi, (caddr_t)sip, fsize);
+
+	/*
+	 * Set up the registers to return to sigcode.
+	 */
+	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
+	frame->tf_regs[FRAME_A0] = sig;
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig))
+		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
+	else
+		frame->tf_regs[FRAME_A1] = code;
+	frame->tf_regs[FRAME_A2] = (u_int64_t)&sip->si_sc;
+	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
+	alpha_pal_wrusp((unsigned long)sip);
+}
+
+void
+sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+{
+	struct proc *p;
+	struct trapframe *frame;
+	struct sigacts *psp;
+	struct sigframe sf, *sfp;
+	int rndfsize;
+
+	p = curproc;
+
+	if ((p->p_flag & P_NEWSIGSET) == 0) {
+		osendsig(catcher, sig, mask, code);
+		return;
+	}
+
+	frame = p->p_md.md_tf;
+	psp = p->p_sigacts;
+	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
+
+	/* save user context */
+	bzero(&sf, sizeof(struct sigframe));
+	sf.sf_uc.uc_sigmask = *mask;
+	sf.sf_uc.uc_stack = psp->ps_sigstk;
+	sf.sf_uc.uc_mcontext.mc_tf = *frame;
+
+	/*
+	 * Allocate and validate space for the signal handler
+	 * context. Note that if the stack is in P0 space, the
+	 * call to grow() is a nop, and the useracc() check
+	 * will fail if the process has not already allocated
+	 * the space with a `brk'.
+	 */
+	if ((psp->ps_flags & SAS_ALTSTACK) != 0 &&
+	    (psp->ps_sigstk.ss_flags & SS_ONSTACK) == 0 &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		sfp = (struct sigframe *)((caddr_t)psp->ps_sigstk.ss_sp +
+		    psp->ps_sigstk.ss_size - rndfsize);
+		psp->ps_sigstk.ss_flags |= SS_ONSTACK;
+	} else
+		sfp = (struct sigframe *)(alpha_pal_rdusp() - rndfsize);
+
+	(void)grow_stack(p, (u_long)sfp);
+#ifdef DEBUG
+	if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
+		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
+		       sig, &sf, sfp);
+#endif
+	if (useracc((caddr_t)sfp, sizeof(sf), B_WRITE) == 0) {
+#ifdef DEBUG
+		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
+			printf("sendsig(%d): useracc failed on sig %d\n",
+			       p->p_pid, sig);
+#endif
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
+		psignal(p, SIGILL);
+		return;
+	}
+
+	sf.sf_uc.uc_mcontext.mc_tf.tf_regs[FRAME_SP] = alpha_pal_rdusp();
+
+	/* save the floating-point state, if necessary, then copy it. */
+	if (p == fpcurproc) {
+		alpha_pal_wrfen(1);
+		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+		alpha_pal_wrfen(0);
+		fpcurproc = NULL;
+	}
+	sf.sf_uc.uc_mcontext.mc_ownedfp = p->p_md.md_flags & MDP_FPUSED;
+	bcopy(&p->p_addr->u_pcb.pcb_fp,
+	      (struct fpreg *)sf.sf_uc.uc_mcontext.mc_fpregs,
+	      sizeof(struct fpreg));
+	sf.sf_uc.uc_mcontext.mc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
 
 #ifdef COMPAT_OSF1
 	/*
@@ -1261,11 +1352,11 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	/*
 	 * copy the frame out to userland.
 	 */
-	(void) copyout((caddr_t)&ksi, (caddr_t)sip, fsize);
+	(void) copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf));
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
-		printf("sendsig(%d): sig %d sip %p code %lx\n", p->p_pid, sig,
-		    sip, code);
+		printf("sendsig(%d): sig %d sfp %p code %lx\n", p->p_pid, sig,
+		    sfp, code);
 #endif
 
 	/*
@@ -1273,13 +1364,19 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 */
 	frame->tf_regs[FRAME_PC] = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_regs[FRAME_A0] = sig;
-	if (p->p_sigacts->ps_siginfo & sigmask(sig))
-		frame->tf_regs[FRAME_A1] = (u_int64_t)sip;
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		frame->tf_regs[FRAME_A1] = (u_int64_t)&(sfp->sf_si);
+
+		/* Fill in POSIX parts */
+		sf.sf_si.si_signo = sig;
+		sf.sf_si.si_code = code;
+	}
 	else
 		frame->tf_regs[FRAME_A1] = code;
-	frame->tf_regs[FRAME_A2] = (u_int64_t)&sip->si_sc;
+
+	frame->tf_regs[FRAME_A2] = (u_int64_t)&(sfp->sf_uc);
 	frame->tf_regs[FRAME_T12] = (u_int64_t)catcher;	/* t12 is pv */
-	alpha_pal_wrusp((unsigned long)sip);
+	alpha_pal_wrusp((unsigned long)sfp);
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -1301,19 +1398,14 @@ sendsig(sig_t catcher, int sig, int mask, u_long code)
  * state to gain improper privileges.
  */
 int
-sigreturn(struct proc *p,
-	  struct sigreturn_args /* {
-		struct sigcontext *sigcntxp;
-	  } */ *uap)
+osigreturn(struct proc *p,
+	struct osigreturn_args /* {
+		struct osigcontext *sigcntxp;
+	} */ *uap)
 {
-	struct sigcontext *scp, ksc;
+	struct osigcontext *scp, ksc;
 
 	scp = uap->sigcntxp;
-#ifdef DEBUG
-	if (sigdebug & SDB_FOLLOW)
-	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, scp);
-#endif
-
 	if (ALIGN(scp) != (u_int64_t)scp)
 		return (EINVAL);
 
@@ -1334,7 +1426,18 @@ sigreturn(struct proc *p,
 		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
-	p->p_sigmask = ksc.sc_mask &~ sigcantmask;
+
+	/*
+	 * longjmp is still implemented by calling osigreturn. The new
+	 * sigmask is stored in sc_reserved, sc_mask is only used for
+	 * backward compatibility.
+	 */
+	if ((p->p_flag & P_NEWSIGSET) == 0) {
+		OSIG2SIG(ksc.sc_mask, p->p_sigmask);
+	}
+	else
+		p->p_sigmask = *((sigset_t *)(&ksc.sc_reserved[0]));
+	SIG_CANTMASK(p->p_sigmask);
 
 	set_regs(p, (struct reg *)ksc.sc_regs);
 	p->p_md.md_tf->tf_regs[FRAME_PC] = ksc.sc_pc;
@@ -1349,6 +1452,60 @@ sigreturn(struct proc *p,
 	bcopy((struct fpreg *)ksc.sc_fpregs, &p->p_addr->u_pcb.pcb_fp,
 	    sizeof(struct fpreg));
 	p->p_addr->u_pcb.pcb_fp_control = ksc.sc_fp_control;
+	return (EJUSTRETURN);
+}
+
+int
+sigreturn(struct proc *p,
+	struct sigreturn_args /* {
+		ucontext_t *sigcntxp;
+	} */ *uap)
+{
+	ucontext_t uc, *ucp;
+	struct pcb *pcb;
+
+	ucp = uap->sigcntxp;
+
+	if ((p->p_flag & P_NEWSIGSET) == 0)
+		return (osigreturn(p, (struct osigreturn_args *)uap));
+
+	pcb = &p->p_addr->u_pcb;
+
+#ifdef DEBUG
+	if (sigdebug & SDB_FOLLOW)
+	    printf("sigreturn: pid %d, scp %p\n", p->p_pid, ucp);
+#endif
+
+	if (ALIGN(ucp) != (u_int64_t)ucp)
+		return (EINVAL);
+
+	/*
+	 * Test and fetch the context structure.
+	 * We grab it all at once for speed.
+	 */
+	if (useracc((caddr_t)ucp, sizeof(ucontext_t), B_WRITE) == 0 ||
+	    copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
+		return (EINVAL);
+
+	/*
+	 * Restore the user-supplied information
+	 */
+	*p->p_md.md_tf = uc.uc_mcontext.mc_tf;
+	p->p_md.md_tf->tf_regs[FRAME_PS] |= ALPHA_PSL_USERSET;
+	p->p_md.md_tf->tf_regs[FRAME_PS] &= ~ALPHA_PSL_USERCLR;
+	pcb->pcb_hw.apcb_usp = p->p_md.md_tf->tf_regs[FRAME_SP];
+	alpha_pal_wrusp(pcb->pcb_hw.apcb_usp);
+
+	p->p_sigacts->ps_sigstk = uc.uc_stack;
+	p->p_sigmask = uc.uc_sigmask;
+	SIG_CANTMASK(p->p_sigmask);
+
+	/* XXX ksc.sc_ownedfp ? */
+	if (p == fpcurproc)
+		fpcurproc = NULL;
+	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
+	      &p->p_addr->u_pcb.pcb_fp, sizeof(struct fpreg));
+	p->p_addr->u_pcb.pcb_fp_control = uc.uc_mcontext.mc_fp_control;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
