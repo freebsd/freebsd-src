@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 
 static struct {
@@ -71,6 +72,7 @@ static struct {
 	{ "nouunlnk",		UF_NOUNLINK,	0 },
 	{ "nouunlink",		UF_NOUNLINK,	0 }
 };
+#define longestflaglen	12
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
 /*
@@ -82,10 +84,13 @@ char *
 fflagstostr(flags)
 	u_long flags;
 {
-	static char string[128];
+	char *string;
 	char *sp, *dp;
 	u_long setflags;
 	int i;
+
+	if ((string = (char *)malloc(nmappings * (longestflaglen + 1))) == NULL)
+		return (NULL);
 
 	setflags = flags;
 	dp = string;
