@@ -285,12 +285,11 @@ emu_settimer(struct sc_info *sc)
 			rate = tmp;
 	}
 
-	for (i = 0; i < 3; i++) {
-		rch = &sc->rch[i];
-		tmp = (rch->spd * sndbuf_getbps(rch->buffer)) / rch->blksz;
-		if (tmp > rate)
-			rate = tmp;
-	}
+	rch = &sc->rch[0];
+	tmp = (rch->spd * sndbuf_getbps(rch->buffer)) / rch->blksz;
+	if (tmp > rate)
+		rate = tmp;
+
 	RANGE(rate, 48, 9600);
 	sc->timerinterval = 48000 / rate;
 	emu_wr(sc, TIMER, sc->timerinterval & 0x03ff, 2);
