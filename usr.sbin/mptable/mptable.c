@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mptable.c,v 1.9 1997/09/25 06:47:33 charnier Exp $";
 #endif /* not lint */
 
 #define VMAJOR			2
@@ -46,16 +46,13 @@ static const char rcsid[] =
 #define EXTENDED_PROCESSING_READY
 #define OEM_PROCESSING_READY_NOT
 
+#include <sys/types.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/types.h>
-
-#include <machine/types.h>
-
 
 #define SEP_LINE \
 "\n-------------------------------------------------------------------------------\n"
