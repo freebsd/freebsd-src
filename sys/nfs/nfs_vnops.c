@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.37 1996/11/06 10:53:12 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.38 1996/12/13 21:29:07 wollman Exp $
  */
 
 /*
@@ -1606,9 +1606,10 @@ nfs_rename(ap)
 	/*
 	 * If the tvp exists and is in use, sillyrename it before doing the
 	 * rename of the new file over it.
+	 * XXX Can't sillyrename a directory.
 	 */
 	if (tvp && tvp->v_usecount > 1 && !VTONFS(tvp)->n_sillyrename &&
-		!nfs_sillyrename(tdvp, tvp, tcnp)) {
+		tvp->v_type != VDIR && !nfs_sillyrename(tdvp, tvp, tcnp)) {
 		vrele(tvp);
 		tvp = NULL;
 	}
