@@ -17,24 +17,11 @@ device driver supports Midway-based ATM interfaces including the
 Efficient Networks, Inc. ENI-155 and Adaptec ANA-59x0.
 Midway is an AAL5 SAR (Segmentation and Reassembly) chip.
 .Pp
-The driver only supports ATM PVCs.  SVC or ATM-ARP is not supported.
+For configuring the card for IP see
+.Xr natm 4 .
 .Pp
-To configure the card for IP, use something like:
-.Dl # ifconfig en0 128.252.200.1 netmask 0xffffff00 up
-To add a PVC to a host you must use the ``route'' command:
-.Dl # route add -iface <remote IP address> -link en0:z.0.x.y
-where x and y are the byte encoding of the VCI to use, and z is the
-byte encoding of the following flags.
-.Dl 0x01 (use AAL5),
-.Dl 0x02 (if using AAL5, use a LLCSNAP header)
-Thus, parameter 3 means AAL5 and LLC/SNAP encapsulation.
-Note that BPF works only with LLC/SNAP encapsulation.
-.Pp
-The device driver uses the
-.Xr utopia 4
-module for communication with the physical and ATM layer chip (SUNI/Lite).
-.Pp
-The following sysctls are recognized by the driver besides those implemented by
+The following sysctls are recognized by the driver additionally to those
+handled by
 .Xr utopia 4 :
 .Bl -tag -width XXX
 .It Cm hw.atm.enX.istats
@@ -45,18 +32,15 @@ with internal driver statistics.
 This is a bit map of debugging options.
 This variable is only available when the driver is compiled with debugging
 support.
-.EL
-.Sh EXAMPLES
-Suppose you have 2 hosts 128.252.200.1 and 128.252.200.2 connected
-by ATM through PVC # 201 (0xc9).
-To enable the link use the following commands:
-.Dl on host 128.252.200.1:
-.Dl	# ifconfig en0 128.252.200.1 netmask 0xffffff00 up
-.Dl	# route add -iface 128.252.200.2 -link en0:3.0.0.c9
+.El
 .Pp
-.Dl on host 128.252.200.2:
-.Dl	# ifconfig en0 128.252.200.2 netmask 0xffffff00 up
-.Dl	# route add -iface 128.252.200.1 -link en0:3.0.0.c9
+The driver supports the media options
+.Ar sdh ,
+.Ar noscramb
+and
+.Ar unassigned
+(see
+.Xr utopia 4 ).
 .Sh DIAGNOSTICS
 .Bd -literal
 en0 <Efficient Networks ENI-155p> rev 0 int a irq 5 on pci0:16
@@ -69,6 +53,8 @@ The driver extensively uses DMA on PCI.
 The first
 generation PCI chipsets do not work or exhibit poor performance.
 .Sh SEE ALSO
+.Xr natm 4 ,
+.Xr natmip 4 ,
 .Xr utopia 4 ,
 .Xr ifconfig 8 ,
 .Xr route 8
