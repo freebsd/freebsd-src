@@ -368,7 +368,7 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		ngmn_config(node, s, r);
 		resp->header.arglen = strlen(r) + 1;
 		NG_RESPOND_MSG(i, node, item, resp);
-		FREE(msg, M_NETGRAPH);
+		NG_FREE_MSG(msg);
 		return (0);
 	}
 	pos = 0;
