@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.9 1994/01/27 03:36:14 davidg Exp $
+ * 	$Id: pmap.h,v 1.10 1994/01/31 04:19:00 davidg Exp $
  */
 
 #ifndef	_PMAP_MACHINE_
@@ -115,8 +115,10 @@ unsigned int
 #define	PGEX_W		0x02	/* during a Write cycle */
 #define	PGEX_U		0x04	/* access from User mode (UPL) */
 
-typedef struct pde	pd_entry_t;	/* page directory entry */
-typedef struct pte	pt_entry_t;	/* Mach page table entry */
+/* typedef struct pde	pd_entry_t;	*/ /* page directory entry */
+/* typedef struct pte	pt_entry_t;	*/ /* Mach page table entry */
+typedef unsigned int *pd_entry_t;
+typedef unsigned int *pt_entry_t;
 
 /*
  * NKPDE controls the virtual space of the kernel, what ever is left, minus
@@ -145,18 +147,18 @@ typedef struct pte	pt_entry_t;	/* Mach page table entry */
 #define	KPTDI		(APTDPTDI-NKPDE)/* start of kernel virtual pde's */
 #define	PTDPTDI		(KPTDI-1)	/* ptd entry that points to ptd! */
 #define	KSTKPTDI	(PTDPTDI-1)	/* ptd entry for u./kernel&user stack */
-#define KSTKPTEOFF	(NBPG/sizeof(struct pde)-UPAGES) /* pte entry for kernel stack */
+#define KSTKPTEOFF	(NBPG/sizeof(pd_entry_t)-UPAGES) /* pte entry for kernel stack */
 
-#define PDESIZE		sizeof(struct pde) /* for assembly files */
-#define PTESIZE		sizeof(struct pte) /* for assembly files */
+#define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
+#define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
 
 /*
  * Address of current and alternate address space page table maps
  * and directories.
  */
 #ifdef KERNEL
-extern struct pte	PTmap[], APTmap[], Upte;
-extern struct pde	PTD[], APTD[], PTDpde, APTDpde, Upde;
+extern pt_entry_t PTmap[], APTmap[], Upte;
+extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
 extern pt_entry_t	*Sysmap;
 
 extern int	IdlePTD;	/* physical address of "Idle" state directory */
@@ -171,12 +173,12 @@ extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #define	vtopte(va)	(PTmap + i386_btop(va))
 #define	kvtopte(va)	vtopte(va)
 #define	ptetov(pt)	(i386_ptob(pt - PTmap)) 
-#define	vtophys(va)	(i386_ptob(vtopte(va)->pg_pfnum) | ((int)(va) & PGOFSET))
+#define	vtophys(va)	(((int) (*vtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 #define	ispt(va)	((va) >= UPT_MIN_ADDRESS && (va) <= KPT_MAX_ADDRESS)
 
 #define	avtopte(va)	(APTmap + i386_btop(va))
 #define	ptetoav(pt)	(i386_ptob(pt - APTmap)) 
-#define	avtophys(va)	(i386_ptob(avtopte(va)->pg_pfnum) | ((int)(va) & PGOFSET))
+#define	avtophys(va)	(((int) (*avtopte(va))&PG_FRAME) | ((int)(va) & PGOFSET))
 
 /*
  * macros to generate page directory/table indicies
@@ -252,7 +254,7 @@ extern void pmap_remove(struct pmap *, vm_offset_t, vm_offset_t);
 extern void pmap_protect(struct pmap *, vm_offset_t, vm_offset_t, vm_prot_t);
 extern void pmap_enter(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t);
 extern void pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
-extern inline struct pte *pmap_pte(pmap_t, vm_offset_t);
+extern inline pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
 extern vm_offset_t pmap_extract(pmap_t, vm_offset_t);
 extern void pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 extern void pmap_collect(pmap_t);
