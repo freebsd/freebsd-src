@@ -11,12 +11,21 @@
 # The following modules are built with their programs:
 # 07.lpd
 
-SUBDIR=	title contents 01.setup 02.config 03.fsck 04.quotas 05.fastfs \
-	06.nfs 11.timedop \
-	12.timed 18.net
+SUBDIR=	title \
+	contents \
+	01.setup \
+	02.config \
+	03.fsck \
+	04.quotas \
+	05.fastfs \
+	06.nfs \
+	${_08.sendmailop} \
+	11.timedop \
+	12.timed \
+	18.net
 
 .if !defined(NO_SENDMAIL)
-SUBDIR+=08.sendmailop 
+_08.sendmailop=	08.sendmailop 
 .endif
 
 .include <bsd.subdir.mk>
