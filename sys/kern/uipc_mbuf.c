@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.38 1999/02/16 10:49:49 dfr Exp $
+ *	$Id: uipc_mbuf.c,v 1.39 1999/04/12 10:07:15 des Exp $
  */
 
 #include <sys/param.h>
@@ -178,7 +178,7 @@ static struct kproc_desc mclalloc_kp = {
 	kproc_mclalloc,
 	&mclallocproc
 };
-SYSINIT_KT(mclallocproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
+SYSINIT(mclallocproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
 	   &mclalloc_kp);
 #endif
 

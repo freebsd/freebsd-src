@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.52 1999/06/26 02:46:05 mckusick Exp $
+ * $Id: vfs_aio.c,v 1.53 1999/06/30 15:33:36 peter Exp $
  */
 
 /*
@@ -236,7 +236,7 @@ static int aio_aqueue(struct proc *p, struct aiocb *job, int type) ;
 static void aio_physwakeup(struct buf *bp);
 static int aio_fphysio(struct proc *p, struct aiocblist *aiocbe, int type);
 static int aio_qphysio(struct proc *p, struct aiocblist *iocb);
-static void aio_daemon(const void *uproc);
+static void aio_daemon(void *uproc);
 
 SYSINIT(aio, SI_SUB_VFS, SI_ORDER_ANY, aio_onceonly, NULL);
 
@@ -598,7 +598,7 @@ aio_process(struct aiocblist *aiocbe)
  * but the setup (and address space mgmt) is done in this routine.
  */
 static void
-aio_daemon(const void *uproc)
+aio_daemon(void *uproc)
 {
 	int s;
 	struct aioproclist *aiop;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.32 1999/05/08 13:01:56 peter Exp $
+ *	$Id: kern_linker.c,v 1.33 1999/06/30 15:33:35 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -96,7 +96,6 @@ linker_file_sysinit(linker_file_t lf)
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
-    struct proc *p2;
     const moduledata_t *moddata;
     int error;
 
@@ -149,29 +148,8 @@ linker_file_sysinit(linker_file_t lf)
 	if ((*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
-	switch ((*sipp)->type) {
-	case SI_TYPE_DEFAULT:
-	    /* no special processing*/
-	    (*((*sipp)->func))((*sipp)->udata);
-	    break;
-
-	case SI_TYPE_KTHREAD:
-	    /* kernel thread*/
-	    if (fork1(&proc0, RFFDG|RFPROC|RFMEM, &p2))
-		panic("fork kernel thread");
-	    cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
-	    break;
-
-	case SI_TYPE_KPROCESS:
-	    /* kernel thread*/
-	    if (fork1(&proc0, RFFDG|RFPROC, &p2))
-		panic("fork kernel process");
-	    cpu_set_fork_handler(p2, (*sipp)->func, (*sipp)->udata);
-	    break;
-
-	default:
-	    panic ("linker_file_sysinit: unrecognized init type");
-	}
+	/* Call function */
+	(*((*sipp)->func))((*sipp)->udata);
     }
 }
 
@@ -221,15 +199,8 @@ linker_file_sysuninit(linker_file_t lf)
 	if ((*sipp)->subsystem == SI_SUB_DUMMY)
 	    continue;	/* skip dummy task(s)*/
 
-	switch ((*sipp)->type) {
-	case SI_TYPE_DEFAULT:
-	    /* no special processing*/
-	    (*((*sipp)->func))((*sipp)->udata);
-	    break;
-
-	default:
-	    panic("linker_file_sysuninit: unrecognized uninit type");
-	}
+	/* Call function */
+	(*((*sipp)->func))((*sipp)->udata);
     }
 }
 

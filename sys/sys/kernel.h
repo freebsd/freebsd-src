@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.54 1999/04/17 08:36:06 peter Exp $
+ * $Id: kernel.h,v 1.55 1999/05/06 13:42:25 peter Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -162,18 +162,6 @@ enum sysinit_elem_order {
 
 
 /*
- * System initialization call types; currently two are supported... one
- * to do a simple function call and one to cause a process to be started
- * by the kernel on the callers behalf.
- */
-typedef enum sysinit_elem_type {
-	SI_TYPE_DEFAULT		= 0x00000000,	/* No special processing*/
-	SI_TYPE_KTHREAD		= 0x00000001,	/* start kernel thread*/
-	SI_TYPE_KPROCESS	= 0x00000002	/* start kernel process*/
-} si_elem_t;
-
-
-/*
  * A system initialization call instance
  *
  * At the moment there is one instance of sysinit.  We probably do not
@@ -204,7 +192,6 @@ struct sysinit {
 	unsigned int	order;			/* init order within subsystem*/
 	sysinit_cfunc_t func;			/* function		*/
 	const void	*udata;			/* multiplexer/argument */
-	si_elem_t	type;			/* sysinit_elem_type*/
 };
 
 /*
@@ -224,13 +211,13 @@ struct sysinit {
 		subsystem,					\
 		order,						\
 		func,						\
-		ident,						\
-		SI_TYPE_DEFAULT					\
+		ident						\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
-	C_SYSINIT(uniquifier, subsystem, order, (sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
+	C_SYSINIT(uniquifier, subsystem, order,			\
+	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
 /*
  * Called on module unload: no special processing
@@ -239,52 +226,15 @@ struct sysinit {
 	static struct sysinit uniquifier ## _sys_uninit = {	\
 		subsystem,					\
 		order,						\
-		func, 						\
-		ident,						\
-		SI_TYPE_DEFAULT					\
+		func,						\
+		ident						\
 	};							\
 	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
 
 #define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
-	C_SYSUNINIT(uniquifier, subsystem, order, (sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
+	C_SYSUNINIT(uniquifier, subsystem, order,		\
+	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
-/*
- * Call 'fork()' before calling '(*func)(ident)';
- * for making a kernel 'thread' (or builtin process.)
- */
-#define	SYSINIT_KT(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_init = {	\
-		subsystem,					\
-		order,						\
-		func, 						\
-		ident,						\
-		SI_TYPE_KTHREAD					\
-	};							\
-	DATA_SET(sysinit_set,uniquifier ## _sys_init);
-
-#define	SYSINIT_KP(uniquifier, subsystem, order, func, ident)	\
-	static struct sysinit uniquifier ## _sys_init = {	\
-		subsystem,					\
-		order,						\
-		func,						\
-		ident,						\
-		SI_TYPE_KPROCESS				\
-	};							\
-	DATA_SET(sysinit_set,uniquifier ## _sys_init);
-
-
-/*
- * A kernel process descriptor; used to start "internal" daemons
- *
- * Note: global_procpp may be NULL for no global save area
- */
-struct kproc_desc {
-	char		*arg0;			/* arg 0 (for 'ps' listing)*/
-	void		(*func) __P((void));	/* "main" for kernel process*/
-	struct proc	**global_procpp;	/* ptr to proc ptr save area*/
-};
-
-void	kproc_start __P((const void *udata));
 void	sysinit_add __P((struct sysinit **set));
 
 /*
