@@ -3,7 +3,7 @@
 TARGET_TUPLE?=	sparc64-unknown-freebsd
 
 .if ${TARGET_ARCH} == "sparc64"
-NATIVE_EMULATION=	elf64_sparc
+NATIVE_EMULATION=	elf64_sparc_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
@@ -12,17 +12,11 @@ _sparc_path=	\"${TOOLS_PREFIX}/usr/lib\"
 _sparc_path=	\"/usr/cross/sparc-freebsd/usr/lib\"
 .endif
 
-EMS+=		${NATIVE_EMULATION}
+EMS+=		${NATIVE_EMULATION} elf64_sparc
 LDSCRIPTS+=	${NATIVE_EMULATION}.x ${NATIVE_EMULATION}.xbn ${NATIVE_EMULATION}.xn ${NATIVE_EMULATION}.xr \
 		${NATIVE_EMULATION}.xs ${NATIVE_EMULATION}.xu ${NATIVE_EMULATION}.xc ${NATIVE_EMULATION}.xsc
 SRCS+=		e${NATIVE_EMULATION}.c
 CLEANFILES+=	e${NATIVE_EMULATION}.c
-
-EMS+=		elf32_sparc
-LDSCRIPTS+=	elf32_sparc.x elf32_sparc.xbn elf32_sparc.xn elf32_sparc.xr \
-		elf32_sparc.xs elf32_sparc.xu elf32_sparc.xc elf32_sparc.xsc
-SRCS+=		eelf32_sparc.c
-CLEANFILES+=	eelf32_sparc.c
 
 e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
@@ -30,8 +24,20 @@ e${NATIVE_EMULATION}.c: emulparams/${NATIVE_EMULATION}.sh emultempl/elf32.em \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${NATIVE_EMULATION} "" ${NATIVE_EMULATION} ${TARGET_TUPLE}
 
-eelf32_sparc.c: emulparams/elf32_sparc.sh emultempl/elf32.em \
+.for BITS in 64 32
+
+EMS+=		elf${BITS}_sparc
+LDSCRIPTS+=	elf${BITS}_sparc.x elf${BITS}_sparc.xbn elf${BITS}_sparc.xn \
+		elf${BITS}_sparc.xr \
+		elf${BITS}_sparc.xs elf${BITS}_sparc.xu elf${BITS}_sparc.xc \
+		elf${BITS}_sparc.xsc
+SRCS+=		eelf${BITS}_sparc.c
+CLEANFILES+=	eelf${BITS}_sparc.c
+
+eelf${BITS}_sparc.c: emulparams/elf${BITS}_sparc.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${_sparc_path} \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
-	    elf32_sparc "" elf32_sparc ${TARGET_TUPLE}
+	    elf${BITS}_sparc "" elf${BITS}_sparc ${TARGET_TUPLE}
+
+.endfor	# BITS
