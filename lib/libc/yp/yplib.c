@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.11 1995/07/05 06:04:20 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.12 1995/09/02 04:16:21 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -45,6 +45,10 @@ static char *rcsid = "$Id: yplib.c,v 1.11 1995/07/05 06:04:20 wpaul Exp $";
 #include <rpc/xdr.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
+
+#ifndef YPBINDLOCK
+#define YPBINDLOCK "/var/run/ypbind.lock"
+#endif
 
 #ifndef BINDINGDIR
 #define BINDINGDIR "/var/yp/binding"
@@ -199,7 +203,7 @@ struct dom_binding **ypdb;
 	struct ypbind_resp ypbr;
 	struct timeval tv;
 	struct sockaddr_in clnt_sin;
-	int clnt_sock, fd, gpid;
+	int clnt_sock, lfd, fd, gpid;
 	CLIENT *client;
 	int new = 0, r;
 	int retries = 0;
@@ -234,6 +238,21 @@ struct dom_binding **ypdb;
 		ysd->dom_vers = 0;
 		new = 1;
 	}
+
+	if ((lfd = open(YPBINDLOCK, O_RDONLY)) == -1)
+		return(YPERR_YPBIND);
+	errno = 0;
+	switch (flock(lfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK) {
+	case 0:
+		close(lfd);
+		return (YPERR_YPBIND);
+		break;
+	case 1:
+	default:
+		close(lfd);
+		break;
+	}
+
 again:
 	retries++;
 	if (retries > MAX_RETRIES) {
@@ -865,7 +884,9 @@ char **dom;
 	if(dom)
 		*dom = _yp_domain;
 
-	if( yp_bind(_yp_domain)==0 )
+	if( yp_bind(_yp_domain)==0 ) {
+		yp_unbind(_yp_domain);
 		return 1;
+	}
 	return 0;
 }
