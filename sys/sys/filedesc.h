@@ -137,6 +137,8 @@ struct filedesc_to_leader {
 #define	FILEDESC_LOCKED(fd)	mtx_owned(&(fd)->fd_mtx)
 #define	FILEDESC_LOCK_ASSERT(fd, type)	mtx_assert(&(fd)->fd_mtx, (type))
 
+struct thread;
+
 int	closef(struct file *fp, struct thread *p);
 int	dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd,
 	    int mode, int error);
