@@ -480,16 +480,16 @@ in_lifaddr_ioctl(so, cmd, data, ifp, p)
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
 		/* address must be specified on ADD and DELETE */
-		if (iflr->addr.__ss_family != AF_INET)
+		if (iflr->addr.ss_family != AF_INET)
 			return EINVAL;
-		if (iflr->addr.__ss_len != sizeof(struct sockaddr_in))
+		if (iflr->addr.ss_len != sizeof(struct sockaddr_in))
 			return EINVAL;
 		/* XXX need improvement */
-		if (iflr->dstaddr.__ss_family
-		 && iflr->dstaddr.__ss_family != AF_INET)
+		if (iflr->dstaddr.ss_family
+		 && iflr->dstaddr.ss_family != AF_INET)
 			return EINVAL;
-		if (iflr->dstaddr.__ss_family
-		 && iflr->dstaddr.__ss_len != sizeof(struct sockaddr_in))
+		if (iflr->dstaddr.ss_family
+		 && iflr->dstaddr.ss_len != sizeof(struct sockaddr_in))
 			return EINVAL;
 		break;
 	default: /*shouldn't happen*/
@@ -511,11 +511,11 @@ in_lifaddr_ioctl(so, cmd, data, ifp, p)
 		bcopy(iflr->iflr_name, ifra.ifra_name,
 			sizeof(ifra.ifra_name));
 
-		bcopy(&iflr->addr, &ifra.ifra_addr, iflr->addr.__ss_len);
+		bcopy(&iflr->addr, &ifra.ifra_addr, iflr->addr.ss_len);
 
-		if (iflr->dstaddr.__ss_family) {	/*XXX*/
+		if (iflr->dstaddr.ss_family) {	/*XXX*/
 			bcopy(&iflr->dstaddr, &ifra.ifra_dstaddr,
-				iflr->dstaddr.__ss_len);
+				iflr->dstaddr.ss_len);
 		}
 
 		ifra.ifra_mask.sin_family = AF_INET;
