@@ -1066,9 +1066,6 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		/*
 		 * Enter it in the pmap...
 		 */
-		vm_page_lock_queues();
-		vm_page_flag_clear(dst_m, PG_ZERO);
-		vm_page_unlock_queues();
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
 		vm_page_lock_queues();
 		vm_page_flag_set(dst_m, PG_WRITEABLE);
