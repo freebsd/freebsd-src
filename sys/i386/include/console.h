@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991-1994 Søren Schmidt
+ * Copyright (c) 1991-1995 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,14 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.12 1994/10/01 02:56:07 davidg Exp $
+ *	$Id: console.h,v 1.13 1994/10/17 22:11:52 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
 #define	_CONSOLE_H_
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
+#include <sys/ioccom.h>
 
 #define KDGKBMODE 	_IOR('K',  6, int)
 #define KDSKBMODE 	_IO('K',  7)
@@ -57,14 +57,16 @@
 #define GIO_KEYMAP 	_IOR('k', 6, keymap_t)
 #define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
 
-#define GIO_ATTR	_IOR('a', 0, long)
-#define GIO_COLOR	_IOR('c', 0, long)
-#define CONS_CURRENT	_IOR('c', 1, long)
-#define CONS_GET	_IOR('c', 2, long)
-/* #define CONS_IO		_IO('c', 3, long) */
-#define CONS_BLANKTIME	_IOW('c', 4, long)
+#define GIO_ATTR	_IOR('a', 0, int)
+#define GIO_COLOR	_IOR('c', 0, int)
+#define CONS_CURRENT	_IOR('c', 1, int)
+#define CONS_GET	_IOR('c', 2, int)
+#define CONS_IO		_IO('c', 3, int)
+#define CONS_BLANKTIME	_IOW('c', 4, int)
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
+#define CONS_CURSORTYPE	_IOW('c', 7, int)
+#define CONS_BELLTYPE	_IOW('c', 8, int)
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
@@ -72,7 +74,7 @@
 #define PIO_FONT8x16	_IOW('c', 68, fnt16_t)
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
-#define CONS_GETVERS	_IOR('c', 74, long)
+#define CONS_GETVERS	_IOR('c', 74, int)
 
 #define VT_OPENQRY	_IOR('v', 1, int)
 #define VT_SETMODE	_IOW('v', 2, vtmode_t)	
@@ -89,11 +91,12 @@
 #define VT_AUTO		0		/* switching is automatic 	*/
 #define VT_PROCESS	1		/* switching controlled by prog */
 
-/* compatibility to old pccons & X386 */
+/* compatibility to old pccons & X386 about to go away */
+/*
 #define CONSOLE_X_MODE_ON	_IO('t', 121)
 #define CONSOLE_X_MODE_OFF	_IO('t', 122)
 #define CONSOLE_X_BELL		_IOW('t',123,int[2])
-
+*/
 struct vt_mode {
 	char	mode;
 	char	waitv;			/* not implemented yet 	SOS	*/
@@ -264,15 +267,22 @@ typedef struct ssaver ssaver_t;
 #define M_ENH_C80x25    22      /* ega enhanced color 80 columns */
 #define M_VGA_C40x25	23	/* vga 8x16 font on color */
 #define M_VGA_C80x25	24	/* vga 8x16 font on color */
-#define M_VGA_C80x50	30	/* vga 8x8 font on color */
 #define M_VGA_M80x25	25	/* vga 8x16 font on mono */
-#define M_VGA_M80x50	31	/* vga 8x8 font on color */
+
 #define M_VGA11		26	/* vga 640x480 2 colors */
 #define M_BG640x480	26
 #define M_VGA12		27	/* vga 640x480 16 colors */
 #define M_CG640x480	27
 #define M_VGA13		28	/* vga 640x200 256 colors */
 #define M_VGA_CG320	28
+
+#define M_VGA_C80x50	30	/* vga 8x8 font on color */
+#define M_VGA_M80x50	31	/* vga 8x8 font on color */
+#define M_VGA_C80x30	32	/* vga 8x16 font on color */
+#define M_VGA_M80x30	33	/* vga 8x16 font on color */
+#define M_VGA_C80x60	34	/* vga 8x8 font on color */
+#define M_VGA_M80x60	35	/* vga 8x8 font on color */
+
 #define M_ENH_B80x43	0x70	/* ega black & white 80x43 */
 #define M_ENH_C80x43	0x71	/* ega color 80x43 */
 #define M_HGC_P0	0xe0	/* hercules graphics - page 0 @ B0000 */
@@ -302,9 +312,13 @@ typedef struct ssaver ssaver_t;
 #define SW_MCAMODE    	_IO('S', M_MCA_MODE)
 #define SW_VGA_C40x25	_IO('S', M_VGA_C40x25)
 #define SW_VGA_C80x25	_IO('S', M_VGA_C80x25)
+#define SW_VGA_C80x30	_IO('S', M_VGA_C80x30)
 #define SW_VGA_C80x50	_IO('S', M_VGA_C80x50)
+#define SW_VGA_C80x60	_IO('S', M_VGA_C80x60)
 #define SW_VGA_M80x25	_IO('S', M_VGA_M80x25)
+#define SW_VGA_M80x30	_IO('S', M_VGA_M80x30)
 #define SW_VGA_M80x50	_IO('S', M_VGA_M80x50)
+#define SW_VGA_M80x60	_IO('S', M_VGA_M80x60)
 #define SW_VGA11	_IO('S', M_VGA11)
 #define SW_BG640x480	_IO('S', M_VGA11)
 #define SW_VGA12	_IO('S', M_VGA12)
