@@ -62,6 +62,7 @@ MAN=	aac.4 \
 	iicbb.4 \
 	iicbus.4 \
 	iicsmb.4 \
+	iir.4 \
 	inet.4 \
 	inet6.4 \
 	intpm.4 \
