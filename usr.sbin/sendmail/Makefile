@@ -5,34 +5,32 @@ MAINTAINER=	gshapiro@FreeBSD.org
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
-.PATH:	${SMDIR}
+.PATH: ${SMDIR}
 
 BINDIR=	/usr/libexec/sendmail
 
 PROG=	sendmail
-
-# Define the database format to use for aliases et al.
-DBMDEF=	-DNEWDB
-
-# If you don't want NIS alias/map support, comment out this line
-NIS=	-DNIS
-
-# Map extensions
-MAPS=	-DMAP_REGEX
-
-CFLAGS+=-I${SMDIR} -I${SENDMAIL_DIR}/include
-CFLAGS+=${DBMDEF} ${NIS} -DNETINET6 -DTCPWRAPPERS ${MAPS}
-
+MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
 SRCS=	alias.c arpadate.c bf_torek.c clock.c collect.c conf.c control.c \
 	convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c \
 	macro.c main.c map.c mci.c milter.c mime.c parseaddr.c queue.c \
 	readcf.c recipient.c savemail.c sfsasl.c shmticklib.c srvrsmtp.c \
 	stab.c stats.c sysexits.c timers.c trace.c udb.c usersmtp.c util.c \
 	version.c
+BINMODE=4555
+
+# Define the database format to use for aliases et al.
+DBMDEF=	-DNEWDB
+# If you don't want NIS alias/map support, comment out this line
+NIS=	-DNIS
+# Map extensions
+MAPS=	-DMAP_REGEX
+
+CFLAGS+= -I${SMDIR} -I${SENDMAIL_DIR}/include
+CFLAGS+= ${DBMDEF} ${NIS} -DNETINET6 -DTCPWRAPPERS ${MAPS}
+
 DPADD=	${LIBUTIL} ${LIBWRAP}
 LDADD=	-lutil -lwrap
-MAN=	mailq.1 newaliases.1 aliases.5 sendmail.8 
-BINMODE=4555
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)
 LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
@@ -44,8 +42,9 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
-.if exists(../../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && \
-	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && \
+	!defined(NOSECURE) && !defined(NO_OPENSSL) && \
+	!defined(RELEASE_CRUNCH)
 # STARTTLS support
 DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_O_T -D_FFR_TLS_1 -D_FFR_TLS_TOREK
