@@ -269,10 +269,55 @@ Edit number code marking begins here - earlier edits were during development.
 	assuming both host adapter types is not significant.
 	4-Jul-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
 
+<22>	Four external interface prototypes were altered by someone else.
+	I believe these changes are for making GCC and/or the linker shut-up
+	when building some other part of the system since matcd already
+	compiles -Wall with no warnings...
+	8-Sep-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<23>	This change implements the ioctls for preventing media removal
+	and allowing media removal.
+	Currently, these calls will work according to the following rules:
+			No "l" devs opened	Any "l" dev open
+	CDALLOW		accepted always		rejected always
+	CDPREVENT	accepted always		accepted always
+
+	One refinement might be to allow CDALLOW/CDPREVENT to always
+	work if UID 0 issued the ioctl, but that will wait for later.
+
+	I also made a change to the information that the toc_entry code
+	returns so that xcdplayer won't malfunction.  (It would not play
+	the last track on a non-mixed mode audio CD.)  Unlike cdplayer,
+	xcdplayer asks for track information one track at a time, and
+	calls for information on the lead-out track by its official
+	number (0xaa), rather than referring to the "after last" (n+1) track
+	as cdplayer does.  Anyway, this change should make both players
+	happy. 
+	16-Sep-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<24>	In Edit 15 when the extra devs were created for selective locking,
+	the door locking was broken if a non-locking dev on the drive is
+	closed.  The problem was caused by not tracking locked devs and
+	non-locking devs as being different partitions.   The change is to
+	simply use the locking dev bit to flag a set of shadow partitions
+	when it comes to lock operations.  All other operations treat the
+	locked and unlocked partitions as being identical.
+	18-Sep-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
+<25>	During work on Edit 23, I noted that on slow and very busy systems,
+	sometimes the driver would go to sleep forever.  The problem appears
+	to have been a race condition caused by doing separate timeout/sleep
+	calls without using SPL first.  The change here is to use tsleep
+	which provides the equivalent of timeout/sleep timeout/tsleep if the
+	last paremeter is tsleep is set to the time value that would have been
+	given to timeout.
+	I also fixed some duplicate location strings in the tsleep calls.
+	24-Sep-95  Frank Durda IV	bsdmail@nemesis.lonestar.org
+
 ---------------------------------------------------------------------------*/
 
 /*Match this format:		Version_dc(d)__dd-mmm-yy	*/
-static char	MATCDVERSION[]="Version  1(21)  4-Jul-95";
+static char	MATCDVERSION[]="Version  1(25) 18-Sep-95";
 
 /*	The following strings may not be changed*/
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
@@ -455,7 +500,7 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 #define		matcd_cdrive(dev)	(((minor(dev)) & 0x18) >> 3)
 #define		matcd_controller(dev)	(((minor(dev)) & 0x60) >> 5)
 #ifdef LOCKDRIVE			/*<15>*/
-#define		matcd_lockable(dev)	((minor(dev)) & 0x80)	/*<15>*/
+#define		matcd_lockable(dev)	(((minor(dev)) & 0x80) >> 5)/*<24>*/
 #endif /*LOCKDRIVE*/			/*<15>*/
 
 
@@ -477,10 +522,14 @@ static struct kern_devconf kdc_matcd[TOTALDRIVES] = { {	/*<12>*/
 	Entry points and other connections to/from kernel - see conf.c
 ---------------------------------------------------------------------------*/
 
-	int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p);
-	int	matcdclose(dev_t dev, int flags, int fmt, struct proc *p);
+	int	matcdopen(dev_t dev, int flags,		/*<22>*/
+			  int fmt, struct proc *p);	/*<22>*/
+	int	matcdclose(dev_t dev, int flags,	/*<22>*/
+			   int fmt, struct proc *p);	/*<22>*/
 	void	matcdstrategy(struct buf *bp);
-	int	matcdioctl(dev_t dev, int command, caddr_t addr, int flags, struct proc *p);
+	int	matcdioctl(dev_t dev, int command,	/*<22>*/
+			   caddr_t addr, int flags,	/*<22>*/
+			   struct proc *p);		/*<22>*/
 	int	matcdsize(dev_t dev);
 extern	int	hz;
 extern	int	matcd_probe(struct isa_device *dev);
@@ -504,7 +553,6 @@ static	void	matcd_blockread(int state);
 static	void	selectdrive(int port,int drive);
 static	void	doreset(int port,int cdrive);
 static	int	doprobe(int port,int cdrive);
-static	void	watchdog(int state, char * foo);
 static	void	lockbus(int controller, int ldrive);
 static	void	unlockbus(int controller, int ldrive);
 static	int	matcd_volinfo(int ldrive);
@@ -544,6 +592,8 @@ static	int	media_chk(struct matcd_data *cd,int errnum,
 			  int ldrive,int test);	/*<14>*/
 static	int	matcd_eject(int ldrive, int cdrive, int controller);/*<14>*/
 static	int	matcd_doorclose(int ldrive, int cdrive, int controller);/*<16>*/
+static	int	matcd_dlock(int ldrive, int cdrive,		/*<23>*/
+			    int controller, int action);	/*<23>*/
 static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
 		      int controller, int port);	/*<14>*/
 
@@ -558,9 +608,10 @@ static	int	docmd(char * cmd, int ldrive, int cdrive,	/*<14>*/
 <15>	If LOCKDRIVE is enabled, additional minor number devices allow
 <15>	the drive to be locked while being accessed.
 ---------------------------------------------------------------------------*/
-int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
+int	matcdopen(dev_t dev, int flags, int fmt,	/*<22>*/
+		  struct proc *p)			/*<22>*/
 {
-	int cdrive,ldrive,partition,controller;
+	int cdrive,ldrive,partition,controller,lock;	/*<24>*/
 	struct matcd_data *cd;
 	int	i,z,port;		/*<14>*/
 	unsigned char	cmd[MAXCMDSIZ];
@@ -576,6 +627,7 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	cdrive=matcd_cdrive(dev);
 	partition=matcd_partition(dev);
 	controller=matcd_controller(dev);
+	lock=matcd_lockable(dev);		/*<24>*/
 	cd= &matcd_data[ldrive];
 	port=cd->iobase;	/*and port#*/
 
@@ -605,7 +657,7 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	zero_cmd(cmd);
 	cmd[0]=NOP;			/*Test drive*/
 	matcd_slowcmd(port,ldrive,cdrive,cmd);
-	i=waitforit(10*TICKRES,DTEN,port,"matcdopen");
+	i=waitforit(10*TICKRES,DTEN,port,"matopen");
 	z=get_stat(port,ldrive);	/*Read status byte*/
 #ifdef DEBUGOPEN
 	printf("matcd%d Result of NOP is %x %x\n",ldrive,i,z);	/*<16>*/
@@ -711,7 +763,7 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 #endif /*DEBUGOPEN*/
 
 #ifdef LOCKDRIVE			/*<15>*/
-	if (cd->openflags==0 && matcd_lockable(dev)) {	/*<15>*/
+	if (cd->openflags==0 && lock) {	/*<24>*/
 		zero_cmd(cmd);
 		cmd[0]=LOCK;		/*Lock drive*/
 		cmd[1]=1;
@@ -719,7 +771,7 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		cd->flags |= MATCDLOCK;	/*<15>Drive is now locked*/
 	}
 #endif /*LOCKDRIVE*/
-	cd->openflags |= (1<<partition);/*Mark partition open*/
+	cd->openflags |= (1<<(partition+lock));/*<24>Mark partition open*/
 
 	if (partition==RAW_PART ||
 	    (partition < cd->dlabel.d_npartitions &&
@@ -729,7 +781,8 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 			cd->partflags[partition] |= MATCDREADRAW;
 		}
 #ifdef DEBUGOPEN
-		printf("matcd%d: Open is complete\n",ldrive);
+		printf("matcd%d: Open is complete - openflags %x\n",
+		       ldrive,cd->openflags);
 #endif /*DEBUGOPEN*/
 		return(0);
 	}
@@ -751,9 +804,10 @@ int	matcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 <15>	the drive.
 ---------------------------------------------------------------------------*/
 
-int matcdclose(dev_t dev, int flags, int fmt, struct proc *p)
+int matcdclose(dev_t dev, int flags, int fmt,		/*<22>*/
+	       struct proc *p)				/*<22>*/
 {
-	int	ldrive,cdrive,port,partition,controller;
+	int	ldrive,cdrive,port,partition,controller,lock;	/*<24>*/
 	struct matcd_data *cd;
 #ifdef LOCKDRIVE
 	unsigned char cmd[MAXCMDSIZ];
@@ -761,6 +815,7 @@ int matcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	ldrive=matcd_ldrive(dev);
 	cdrive=matcd_cdrive(dev);
+	lock=matcd_lockable(dev);		/*<24>*/
 	cd=matcd_data+ldrive;
 	port=cd->iobase;		/*and port#*/
 
@@ -773,22 +828,27 @@ int matcdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	partition = matcd_partition(dev);
 	controller=matcd_controller(dev);
 #ifdef DEBUGOPEN
-	printf("matcd%d: Close partition=%d\n", ldrive, partition);
+	printf("matcd%d: Close partition=%d flags %x openflags %x partflags %x\n",
+	       ldrive,partition,cd->flags,cd->openflags,
+	       cd->partflags[partition]);
 #endif /*DEBUGOPEN*/
 
 	if (!(cd->flags & MATCDINIT))
 		return(ENXIO);
 
 	cd->partflags[partition] &= ~(MATCDOPEN|MATCDREADRAW);
-	cd->openflags &= ~(1<<partition);
+	cd->openflags &= ~(1<<(partition+lock));
+	if (cd->openflags==0) {			/*<24>Really last close?*/
 #ifdef LOCKDRIVE
-	if (cd->openflags==0 && (cd->flags & MATCDLOCK)) {	/*<15>*/
-		zero_cmd(cmd);
-		cmd[0]=LOCK;		/*Unlock drive*/
-		docmd(cmd,ldrive,cdrive,controller,port);/*<14>Issue cmd*/
-	}
+		if (cd->flags & MATCDLOCK) {	/*<24>Was drive locked?*/
+			zero_cmd(cmd);		/*Yes, so unlock it*/
+			cmd[0]=LOCK;		/*Unlock drive*/
+			docmd(cmd,ldrive,cdrive,controller,port);
+		}
 #endif /*LOCKDRIVE*/
-	cd->flags &= ~(MATCDWARN|MATCDLOCK);	/*<15>Clear any warning flag*/
+		cd->flags &= ~(MATCDWARN|MATCDLOCK);	/*<15>*/
+						/*<15>Clear warning flag*/
+	}
 	return(0);
 }
 
@@ -960,7 +1020,8 @@ static void matcd_start(struct buf *dp)
 	things that don't fit into the block read scheme of things.
 ---------------------------------------------------------------------------*/
 
-int matcdioctl(dev_t dev, int command, caddr_t addr, int flags, struct proc *p)
+int matcdioctl(dev_t dev, int command, caddr_t addr,	/*<22>*/
+	       int flags, struct proc *p)		/*<22>*/
 {
 	struct	matcd_data *cd;
 	int	ldrive,cdrive,partition;
@@ -1023,6 +1084,14 @@ int matcdioctl(dev_t dev, int command, caddr_t addr, int flags, struct proc *p)
 
 	case	CDIOCEJECT:
 		return(matcd_eject(ldrive, cdrive, controller));
+
+	case	CDIOCALLOW:				/*<23>*/
+		return(matcd_dlock(ldrive, cdrive,	/*<23>*/
+		       controller,0));			/*<23>*/
+
+	case	CDIOCPREVENT:				/*<23>*/
+		return(matcd_dlock(ldrive, cdrive,	/*<23>*/
+		       controller, MATCDLOCK));		/*<23>*/
 
 #ifdef FULLDRIVER
 	case	CDIOCPLAYTRACKS:
@@ -1741,7 +1810,7 @@ static	int	matcd_volinfo(int ldrive)
 		zero_cmd(cmd);
 		cmd[0]=READDINFO;	/*Read Disc Info*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(10*TICKRES,DTEN,port,"volinfo");
+		i=waitforit(10*TICKRES,DTEN,port,"matvinf");
 		if (i) {		/*THIS SHOULD NOT HAPPEN*/
 			z=get_stat(port,ldrive);/*Read status byte*/
 			printf("matcd%d: command failed, status %x\n",
@@ -1769,8 +1838,7 @@ static	int	matcd_volinfo(int ldrive)
 #endif /*DEBUGOPEN*/
 			return(-1);
 		}
-		timeout((timeout_func_t)watchdog, (caddr_t)0,hz);/*<16>*/
-		tsleep((caddr_t)&nextcontroller, PRIBIO, "volinfo2", 0);/*<16>*/
+		tsleep((caddr_t)&nextcontroller, PRIBIO, "matvi2", hz);/*<25>*/
 		if ((--retry)==0) return(-1);
 #ifdef DEBUGOPEN
 		printf("matcd%d: Retrying",ldrive);
@@ -2083,7 +2151,7 @@ int docmd(char * cmd, int ldrive, int cdrive, int controller, int port)
 		DIAGOUT(DIAGPORT,0xD0);	/*Show where we are*/
 #endif /*DIAGPORT*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(80*TICKRES,DTEN,port,"cmd");
+		i=waitforit(80*TICKRES,DTEN,port,"matcmd");	/*<25>*/
 		z=get_stat(port,ldrive);/*Read status byte*/
 		if ((z & MATCD_ST_ERROR)==0) break;
 		i=chk_error(get_error(port,ldrive,cdrive));
@@ -2240,8 +2308,7 @@ int waitforit(int timelimit, int state, int port, char * where)
 	while (i<timelimit) {
 		j=inb(port+STATUS) & (STEN|DTEN);	/*Read status*/
 		if (j!=(STEN|DTEN)) break;
-		timeout((timeout_func_t)watchdog, (caddr_t)0,hz/100);
-		tsleep((caddr_t)&nextcontroller, PRIBIO, where, 0);
+		tsleep((caddr_t)&nextcontroller, PRIBIO, where, hz/100);/*<25>*/
 		i++;
 #ifdef DIAGPORT
 	DIAGOUT(DIAGPORT,0xE1+(diagloop++ * 0x100));	/*Show where we are*/
@@ -2255,20 +2322,6 @@ int waitforit(int timelimit, int state, int port, char * where)
 	printf("matcd: Timeout!");
 #endif /*DEBUGCMD*/
 	return(1);			/*Timeout occurred*/
-}
-
-
-/*---------------------------------------------------------------------------
-	watchdog - Gives us a heartbeat for things we are waiting on
----------------------------------------------------------------------------*/
-
-static void watchdog(int state, char * foo)
-{
-#ifdef DIAGPORT
-	DIAGOUT(DIAGPORT,0xF0);		/*Show where we are*/
-#endif /*DIAGPORT*/
-	wakeup((caddr_t)&nextcontroller);
-	return;
 }
 
 
@@ -2289,7 +2342,7 @@ void lockbus(int controller, int ldrive)
 		DIAGOUT(DIAGPORT,0xF1);	/*Show where we are*/
 #endif /*DIAGPORT*/
 		tsleep((caddr_t)&matcd_data->status, PRIBIO,
-		       "matcdopen", 0);
+		       "matlck", 0);		/*<25>*/
 	}
 	if_state[controller] |= BUSBUSY;	/*<18>It's ours NOW*/
 #ifdef DIAGPORT
@@ -2394,10 +2447,37 @@ int matcd_doorclose(int ldrive, int cdrive, int controller)
 	cmd[0]=DOORCLOSE;		/*Open Door*/
 	i=docmd(cmd,ldrive,cdrive,controller,port);	/*Issue command*/
 	cd->flags &= ~(MATCDLABEL|MATCDLOCK);	/*Mark vol info invalid*/
-	timeout((timeout_func_t)watchdog, (caddr_t)0,hz);
-	tsleep((caddr_t)&nextcontroller, PRIBIO, "doorclose", 0);
+	tsleep((caddr_t)&nextcontroller, PRIBIO, "matclos", hz);/*<25>*/
 	return(i);			/*Return result we got*/
 }
+
+
+/*---------------------------------------------------------------------------
+<23>	matcd_dlock - Honor/Reject drive tray requests
+---------------------------------------------------------------------------*/
+
+int matcd_dlock(int ldrive, int cdrive, int controller, int action)
+{
+	int	 i,port;		/*<23>*/
+	struct	matcd_data *cd;		/*<23>*/
+	unsigned	char	cmd[MAXCMDSIZ];		/*<23>*/
+
+	cd=&matcd_data[ldrive];		/*<23>*/
+	port=cd->iobase;		/*<23>Get I/O port base*/
+
+	zero_cmd(cmd);			/*<23>Initialize command buffer*/
+	cmd[0]=LOCK;			/*<23>Unlock drive*/
+
+	if (action) {			/*<23>They want to lock the door?*/
+		cd->flags |= MATCDLOCK;	/*<23>Remember we did this*/
+		cmd[1]=1;		/*<23>Lock Door command*/
+	} else {			/*<23>*/
+		cd->flags &= ~MATCDLOCK;/*<23>Remember we did this*/
+					/*<23>Unlock Door command*/
+	}				/*<23>*/
+	i=docmd(cmd,ldrive,cdrive,controller,port);	/*<23>Issue command*/
+	return(i);			/*<23>Return result we got*/
+}					/*<23>*/
 
 
 /*---------------------------------------------------------------------------
@@ -2457,7 +2537,7 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 		cmd[2]=trk+1;
 		lockbus(controller, ldrive);	/*Request bus*/
 		matcd_slowcmd(port,ldrive,cdrive,cmd);
-		i=waitforit(10*TICKRES,DTEN,port,"sense");
+		i=waitforit(10*TICKRES,DTEN,port,"mats1");	/*<25>*/
 		matcd_pread(port, 8, data);	/*Read data returned*/
 		z=get_stat(port,ldrive);	/*Read status byte*/
 		if ((z & MATCD_ST_ERROR)) {	/*Something went wrong*/
@@ -2483,7 +2563,7 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 		}
 	}
 	entries[trk].control=data[2];	/*Copy from last valid track*/
-	entries[trk].track=0xaa;	/*Lead-out*/
+	entries[trk].track=0xaa;	/*<23>Lead-out*/
 	entries[trk].addr.msf.unused=0;	/*Fill*/
 	entries[trk].addr.msf.minute=cd->volinfo.vol_msf[0];
 	entries[trk].addr.msf.second=cd->volinfo.vol_msf[1];
@@ -2496,7 +2576,9 @@ static int matcd_toc_entries(int ldrive, int cdrive, int controller,
 */
 
 	len=ioc_entry->data_len;	/*<17>*/
-	i=ioc_entry->starting_track - 1;/*<17>*/
+	i=ioc_entry->starting_track;	/*<23>What did they want?*/
+	if (i==0xaa) i=trk-1;		/*<23>Give them lead-out info*/
+	else i=ioc_entry->starting_track - 1;	/*<23>start where they asked*/
 	from = &entries[i];		/*<17>*/
 	to = ioc_entry->data;		/*<17>*/
 
@@ -2557,7 +2639,7 @@ static int matcd_read_subq(int ldrive, int cdrive, int controller,
 	subq.what.position.absaddr.msf.unused=0;
 	subq.what.position.reladdr.msf.unused=0;
 
-	i=waitforit(10*TICKRES,DTEN,port,"sense");
+	i=waitforit(10*TICKRES,DTEN,port,"mats2");	/*<25>*/
 	matcd_pread(port, 11, data);	/*Read data returned*/
 	z=get_stat(port,ldrive);	/*Read status byte*/
 	if ((z & MATCD_ST_ERROR)) {	/*Something went wrong*/
