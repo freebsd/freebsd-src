@@ -16,11 +16,11 @@
  *
  * From: Version 2.0, Fri Oct  6 20:39:21 MSK 1995
  *
- * $Id: if_sppp.h,v 1.8 1997/10/11 11:25:20 joerg Exp $
+ * $Id: if_sppp.h,v 1.9 1998/08/15 21:58:09 bde Exp $
  */
 
-#ifndef _NET_IF_HDLC_H_
-#define _NET_IF_HDLC_H_ 1
+#ifndef _NET_IF_SPPP_H
+#define _NET_IF_SPPP_H 1
 
 #define IDX_LCP 0		/* idx into state table */
 
@@ -159,4 +159,4 @@ int sppp_isempty (struct ifnet *ifp);
 void sppp_flush (struct ifnet *ifp);
 #endif
 
-#endif /* _NET_IF_HDLC_H_ */
+#endif /* _NET_IF_SPPP_H */

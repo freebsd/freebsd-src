@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.45 1998/10/06 21:12:45 joerg Exp $
+ * $Id: if_spppsubr.c,v 1.46 1998/12/04 22:54:52 archie Exp $
  */
 
 #include <sys/param.h>
@@ -651,12 +651,17 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		struct ip *ip = mtod (m, struct ip*);
 		struct tcphdr *tcp = (struct tcphdr*) ((long*)ip + ip->ip_hl);
 
-		if (! IF_QFULL (&sp->pp_fastq) &&
-		    ((ip->ip_tos & IPTOS_LOWDELAY) ||
-	    	    ((ip->ip_p == IPPROTO_TCP &&
-	    	    m->m_len >= sizeof (struct ip) + sizeof (struct tcphdr) &&
-	    	    (INTERACTIVE (ntohs (tcp->th_sport)))) ||
-	    	    INTERACTIVE (ntohs (tcp->th_dport)))))
+		if (IF_QFULL (&sp->pp_fastq))
+			;
+		else if (ip->ip_tos & IPTOS_LOWDELAY)
+			ifq = &sp->pp_fastq;
+		else if (m->m_len < sizeof *ip + sizeof *tcp)
+			;
+		else if (ip->ip_p != IPPROTO_TCP)
+			;
+		else if (INTERACTIVE (ntohs (tcp->th_sport)))
+			ifq = &sp->pp_fastq;
+		else if (INTERACTIVE (ntohs (tcp->th_dport)))
 			ifq = &sp->pp_fastq;
 	}
 #endif
