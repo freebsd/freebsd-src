@@ -334,6 +334,7 @@ i4b/layer1/i4b_dynalink.c	optional	isic	device-driver
 i4b/layer1/i4b_elsa_qs1i.c	optional	isic	device-driver
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic	device-driver
 i4b/layer1/i4b_siemens_isurf.c	optional	isic	device-driver
+libkern/arc4random.c		standard
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard
