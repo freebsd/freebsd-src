@@ -79,6 +79,7 @@ struct bsdtar {
 	struct gname_cache	*gname_cache;	/* for write.c */
 	struct links_cache	*links_cache;	/* for write.c */
 	struct matching		*matching;	/* for matching.c */
+	struct security		*security;	/* for read.c */
 	struct uname_cache	*uname_cache;	/* for write.c */
 };
 
