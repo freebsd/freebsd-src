@@ -2,7 +2,7 @@
 
 LIB=	ssh
 SRCS=	authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
-	cipher.c cipher-aes.o cipher-bf1.o cipher-ctr.o cipher-3des1.o \
+	cipher.c cipher-aes.c cipher-bf1.c cipher-ctr.c cipher-3des1.c \
 	compat.c compress.c crc32.c deattack.c fatal.c \
 	hostfile.c log.c match.c moduli.c mpaux.c nchan.c packet.c \
 	readpass.c rsa.c tildexpand.c ttymodes.c xmalloc.c atomicio.c \
