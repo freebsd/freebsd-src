@@ -1,3 +1,5 @@
+$Id$
+
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
 
@@ -7,101 +9,104 @@ If you intend the driver to be available, send email to the
 hackers@freebsd.org mailing list to see about having a number
 reserved for you.
 
+The most "complete" version of this will be the one in FreeBSD-current.
+(see http://www.freebsd.org/ or from ftp://ftp.cdrom.com/pub/FreeBSD/)
+
 blkdev	name		comments
-0	wd
-1	no
-2	fd
-3	wt
-4	sd
-5	st
-6	cd
-7	mcd
-8	lkm
-9	lkm
-10	lkm
-11	lkm
-12	lkm
-13	lkm
+0	wd		ST506 disk controller (with IDE extensions)
+1	??		unassigned?		
+2	fd		floppy disk
+3	wt		QIC-02/36 tape
+4	sd		SCSI "disk" type
+5	st		SCSI "tape" type
+6	cd		SCSI "cdrom" type
+7	mcd		Mitsumi CDROM interface
+8	lkm		assigned to Loadable Kernel modules
+9	lkm		assigned to Loadable Kernel modules
+10	lkm		assigned to Loadable Kernel modules
+11	lkm		assigned to Loadable Kernel modules
+12	lkm		assigned to Loadable Kernel modules
+13	lkm		assigned to Loadable Kernel modules
 14	??		reserved for local use
-15	vn
-16	scd
-17	matcd
-18	ata
-19	wcdb
-20	od
+15	vn		vnode disk device
+16	scd		Sony CDROM interface
+17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
+18	ata		"device independent" ATA/IDE driver
+19	wcdb		ATAPI CDROM client of "ata"
+20	od		SCSI "magneto-optical" disk
 
 chrdev	name		comments
-0	cn
-1	ctty
-2	mm
-3	wd
+0	cn		console
+1	ctty		/dev/tty
+2	mm		/dev/mem,kmem,etc
+3	wd		ST506 disk controller (with IDE extensions)
 4	swap		/dev/drum
-5	pts
-6	ptc
-7	log
-8	bqu
-9	fd
-10	wt
-11	spigot
-12	sc
-13	sd
-14	st
-15	cd
-16	lpt
-17	ch
-18	su
-19	tw
+5	pts		pseudo tty "tty" half
+6	ptc		pseudo tty "master" half
+7	log		system log
+8	bqu		B004 transputer board
+9	fd		floppy disk
+10	wt		QIC-02/36 tape
+11	spigot		Video capture?
+12	sc		syscons/pcvt virtual consoles
+13	sd		SCSI "disk type"
+14	st		SCSI "tape type"
+15	cd		SCSI "CDROM type"
+16	lpt		PC parallel printer port
+17	ch		SCSI changer
+18	su		SCSI universal type
+19	tw		X-10 power interface
 20	??		reserved for local use
-21	psm
+21	psm		PS/2 Mouse
 22	fd		(/dev/stdin etc)
-23	bpf
-24	pca
+23	bpf		Berkeley Packet Filter
+24	pca		PC speaker (/dev/pcaudio)
 25	??		was vat
-26	spkr
-27	mse
-28	sio
-29	mcd
-30	snd
-31	uk
-32	lkmc
-33	lkm
-34	lkm
-35	lkm
-36	lkm
-37	lkm
-38	lkm
-39	apm
-40	ctx		cortex
+26	spkr		PC speaker (/dev/spkr)
+27	mse		Microsoft bus-mouse
+28	sio		16450/16550 serial
+29	mcd		Mitsumi CDROM interface
+30	snd		sound driver system
+31	uk		SCSI "unknown device type"
+32	lkmc		Loadable Kernel Module Controller
+33	lkm		assigned to Loadable Kernel Modules
+34	lkm		assigned to Loadable Kernel Modules
+35	lkm		assigned to Loadable Kernel Modules
+36	lkm		assigned to Loadable Kernel Modules
+37	lkm		assigned to Loadable Kernel Modules
+38	lkm		assigned to Loadable Kernel Modules
+39	apm		Advanced Power Management
+40	ctx		Cortex
 41	??		was socksys
-42	cx		cronyx
-43	vn
+42	cx		Cronyx
+43	vn		vnode "disk" device
 44	gp		GPIB
-45	scd		sony cd
-46	matcd		SB cd
-47	gsc
-48	cy		cyclades
-49	ssc		scsi super
-50	crd		pcmcia
+45	scd		Sony CDROM interface
+46	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
+47	gsc		Genius Scanner
+48	cy		Cyclades
+49	ssc		SCSI super device
+50	crd		pcmcia cards
 51	joy		joystick
 52	tun		IP tunnel device
 53	snp		tty snoop
-54	nic
-55	isdn
-56	ity
-57	itel
-58	dgb		digiboard
-59	ispy
-60	nnic
-61	pt
-62	worm
-63	rc
-64	??		talisman
-65	sctarg		scsi target
-66	labpc
-67	meteor
-68	si		specialix
-69	wcd		atapi cd
-70	od
-71	asc
-72	???		stallion (see ungar)
+54	nic		ISDN system
+55	isdn		ISDN system
+56	ity		ISDN system
+57	itel		ISDN system
+58	dgb		Digiboard
+59	ispy		ISDN system
+60	nnic		ISDN system
+61	pt		SCSI "processor type"
+62	worm		SCSI "worm type"
+63	rc		Riscom/8 driver
+64	??		Talisman
+65	sctarg		SCSI target
+66	labpc		National Instruments LabPC
+67	meteor		Matrox Meteor video capture
+68	si		Specialix SI/XIO (peter@freebsd.org)
+69	wcd		ATAPI CDROM client of "ata"
+70	od		SCSI "magneto-optical disk type"
+71	asc		AmiScan driver
+72	stl		Stallion (gert@stallion.oz.au)
 73	qcam		quickcam
