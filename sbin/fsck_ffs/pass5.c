@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: pass5.c,v 1.11 1998/06/15 07:07:19 charnier Exp $";
+	"$Id: pass5.c,v 1.12 1998/06/28 19:23:02 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -324,7 +324,7 @@ pass5()
 						continue;
 					if (cg_inosused(cg)[i] & (1 << k))
 						continue;
-					pwarn("ALLOCATED INODE %d MARKED FREE",
+					pwarn("ALLOCATED INODE %d MARKED FREE\n",
 					    c * fs->fs_ipg + i * 8 + k);
 				}
 			}
@@ -337,7 +337,7 @@ pass5()
 						continue;
 					if (cg_blksfree(newcg)[i] & (1 << k))
 						continue;
-					pwarn("ALLOCATED FRAG %d MARKED FREE",
+					pwarn("ALLOCATED FRAG %d MARKED FREE\n",
 					    c * fs->fs_fpg + i * 8 + k);
 				}
 			}
