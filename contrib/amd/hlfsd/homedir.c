@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: homedir.c,v 1.2 1998/08/23 22:52:09 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -182,7 +182,7 @@ homedir(int userid)
    * to the parent upon SIGCHLD in interlock().
    *
    */
-  mypid = getpid();		/* for logging routines */
+  am_set_mypid();		/* for logging routines */
   if (seteuid(userid) < 0) {
     plog(XLOG_WARNING, "could not seteuid to %d: %m", userid);
     return linkval;

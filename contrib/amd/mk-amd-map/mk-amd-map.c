@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 1.4 1998/08/27 07:25:25 obrien Exp $
+ * $Id: mk-amd-map.c,v 1.5 1998/11/14 03:13:32 obrien Exp $
  */
 
 /*
@@ -51,10 +51,14 @@
 #include <am_defs.h>
 
 /* dummy variables */
-char hostname[MAXHOSTNAMELEN];
-int orig_umask, foreground, debug_flags;
+#if 0
+char *progname;
 pid_t mypid;
 serv_state amd_state;
+int foreground, orig_umask;
+int debug_flags;
+#endif
+char hostname[MAXHOSTNAMELEN];
 
 /* (libdb version 2) uses .db extensions but an old dbm API */
 /* check for libgdbm to distinguish it from linux systems */
