@@ -242,7 +242,7 @@ out:
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
 
-		wakeup((caddr_t) td->td_proc);	/* XXX for CTL_WAIT below ? */
+		wakeup(td->td_proc);	/* XXX for CTL_WAIT below ? */
 
 		break;
 
@@ -278,13 +278,13 @@ out:
 					(P_SHOULDSTOP(p)) &&
 					(p->p_flag & P_TRACED) &&
 					(p->p_pptr == td->td_proc))
-				error = msleep((caddr_t) p, &p->p_mtx,
+				error = msleep(p, &p->p_mtx,
 						PWAIT|PCATCH, "procfsx", 0);
 			if (error == 0 && !TRACE_WAIT_P(td->td_proc, p))
 				error = EBUSY;
 		} else {
 			while (error == 0 && P_SHOULDSTOP(p))
-				error = msleep((caddr_t) p, &p->p_mtx,
+				error = msleep(p, &p->p_mtx,
 						PWAIT|PCATCH, "procfs", 0);
 		}
 		PROC_UNLOCK(p);
