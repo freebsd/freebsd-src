@@ -31,18 +31,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.34 2001/12/09 05:10:03 guy Exp $ (LBL)
- *
  * $FreeBSD$
+ * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.45.2.4 2004/01/27 22:56:20 guy Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
 #define lib_pcap_h
 
+#ifdef WIN32
+#include <pcap-stdinc.h>
+#else /* WIN32 */
 #include <sys/types.h>
 #include <sys/time.h>
+#endif /* WIN32 */
 
-#include <net/bpf.h>
+#ifndef PCAP_DONT_INCLUDE_PCAP_BPF_H
+#include <pcap-bpf.h>
+#endif
 
 #include <stdio.h>
 
@@ -131,6 +136,9 @@ struct pcap_stat {
 	u_int ps_recv;		/* number of packets received */
 	u_int ps_drop;		/* number of packets dropped */
 	u_int ps_ifdrop;	/* drops by interface XXX not yet supported */
+#ifdef WIN32
+	u_int bs_capt;		/* number of packets that reach the application */
+#endif /* WIN32 */
 };
 
 /*
@@ -141,7 +149,7 @@ struct pcap_if {
 	char *name;		/* name to hand to "pcap_open_live()" */
 	char *description;	/* textual description of interface, or NULL */
 	struct pcap_addr *addresses;
-	u_int flags;		/* PCAP_IF_ interface flags */
+	bpf_u_int32 flags;	/* PCAP_IF_ interface flags */
 };
 
 #define PCAP_IF_LOOPBACK	0x00000001	/* interface is loopback */
@@ -161,8 +169,8 @@ typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 			     const u_char *);
 
 char	*pcap_lookupdev(char *);
-int	pcap_lookupnet(char *, bpf_u_int32 *, bpf_u_int32 *, char *);
-pcap_t	*pcap_open_live(char *, int, int, int, char *);
+int	pcap_lookupnet(const char *, bpf_u_int32 *, bpf_u_int32 *, char *);
+pcap_t	*pcap_open_live(const char *, int, int, int, char *);
 pcap_t	*pcap_open_dead(int, int);
 pcap_t	*pcap_open_offline(const char *, char *);
 void	pcap_close(pcap_t *);
@@ -170,6 +178,8 @@ int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_dispatch(pcap_t *, int, pcap_handler, u_char *);
 const u_char*
 	pcap_next(pcap_t *, struct pcap_pkthdr *);
+int 	pcap_next_ex(pcap_t *, struct pcap_pkthdr **, const u_char **);
+void	pcap_breakloop(pcap_t *);
 int	pcap_stats(pcap_t *, struct pcap_stat *);
 int	pcap_setfilter(pcap_t *, struct bpf_program *);
 int	pcap_getnonblock(pcap_t *, char *);
@@ -185,6 +195,9 @@ void	pcap_freecode(struct bpf_program *);
 int	pcap_datalink(pcap_t *);
 int	pcap_list_datalinks(pcap_t *, int **);
 int	pcap_set_datalink(pcap_t *, int);
+int	pcap_datalink_name_to_val(const char *);
+const char *pcap_datalink_val_to_name(int);
+const char *pcap_datalink_val_to_description(int);
 int	pcap_snapshot(pcap_t *);
 int	pcap_is_swapped(pcap_t *);
 int	pcap_major_version(pcap_t *);
@@ -195,17 +208,49 @@ FILE	*pcap_file(pcap_t *);
 int	pcap_fileno(pcap_t *);
 
 pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
+int	pcap_dump_flush(pcap_dumper_t *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
+FILE	*pcap_dump_file(pcap_dumper_t *);
 
 int	pcap_findalldevs(pcap_if_t **, char *);
 void	pcap_freealldevs(pcap_if_t *);
+
+const char *pcap_lib_version(void);
 
 /* XXX this guy lives in the bpf tree */
 u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
 int	bpf_validate(struct bpf_insn *f, int len);
 char	*bpf_image(struct bpf_insn *, int);
 void	bpf_dump(struct bpf_program *, int);
+
+#ifdef WIN32
+/*
+ * Win32 definitions
+ */
+
+int pcap_setbuff(pcap_t *p, int dim);
+int pcap_setmode(pcap_t *p, int mode);
+int pcap_sendpacket(pcap_t *p, u_char *buf, int size);
+int pcap_setmintocopy(pcap_t *p, int size);
+
+#ifdef WPCAP
+/* Include file with the wpcap-specific extensions */
+#include <Win32-Extensions.h>
+#endif
+
+#define MODE_CAPT 0
+#define MODE_STAT 1
+#define MODE_MON 2
+
+#else
+/*
+ * UN*X definitions
+ */
+
+int	pcap_get_selectable_fd(pcap_t *);
+
+#endif /* WIN32 */
 
 #ifdef __cplusplus
 }

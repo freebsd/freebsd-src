@@ -22,33 +22,40 @@
  * $FreeBSD$
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.71 2001/07/03 19:15:48 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/grammar.y,v 1.79.2.3 2004/03/28 21:45:32 fenner Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include <pcap-stdinc.h>
+#else /* WIN32 */
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
+#endif /* WIN32 */
+
 #include <stdlib.h>
 
+#ifndef WIN32
 #if __STDC__
 struct mbuf;
 struct rtentry;
 #endif
 
-#include <net/if.h>
-
 #include <netinet/in.h>
+#endif /* WIN32 */
 
 #include <stdio.h>
+#include <strings.h>
 
 #include "pcap-int.h"
 
 #include "gencode.h"
+#include "pf.h"
 #include <pcap-namedb.h>
 
 #ifdef HAVE_OS_PROTO_H
@@ -92,6 +99,7 @@ pcap_parse()
 	struct arth *a;
 	struct {
 		struct qual q;
+		int atmfieldtype;
 		struct block *b;
 	} blk;
 	struct block *rblk;
@@ -103,14 +111,18 @@ pcap_parse()
 %type	<a>	arth narth
 %type	<i>	byteop pname pnum relop irelop
 %type	<blk>	and or paren not null prog
-%type	<rblk>	other
+%type	<rblk>	other pfvar
+%type	<i>	atmtype atmmultitype
+%type	<blk>	atmfield
+%type	<blk>	atmfieldvalue atmvalue atmlistvalue
 
 %token  DST SRC HOST GATEWAY
-%token  NET MASK PORT LESS GREATER PROTO PROTOCHAIN BYTE
+%token  NET NETMASK PORT LESS GREATER PROTO PROTOCHAIN CBYTE
 %token  ARP RARP IP SCTP TCP UDP ICMP IGMP IGRP PIM VRRP
 %token  ATALK AARP DECNET LAT SCA MOPRC MOPDL
 %token  TK_BROADCAST TK_MULTICAST
 %token  NUM INBOUND OUTBOUND
+%token  PF_IFNAME PF_RSET PF_RNR PF_SRNR PF_REASON PF_ACTION
 %token  LINK
 %token	GEQ LEQ NEQ
 %token	ID EID HID HID6 AID
@@ -118,16 +130,19 @@ pcap_parse()
 %token  LEN
 %token  IPV6 ICMPV6 AH ESP
 %token	VLAN
-%token  ISO ESIS ISIS CLNP
+%token  ISO ESIS CLNP ISIS L1 L2 IIH LSP SNP CSNP PSNP 
 %token  STP
 %token  IPX
 %token  NETBEUI
+%token	LANE LLC METAC BCC SC ILMIC OAMF4EC OAMF4SC
+%token	OAM OAMF4 CONNECTMSG METACONNECT
+%token	VPI VCI
 
 %type	<s> ID
 %type	<e> EID
 %type	<e> AID
 %type	<s> HID HID6
-%type	<i> NUM
+%type	<i> NUM action reason
 
 %left OR AND
 %nonassoc  '!'
@@ -164,7 +179,7 @@ id:	  nid
 nid:	  ID			{ $$.b = gen_scode($1, $$.q = $<blk>0.q); }
 	| HID '/' NUM		{ $$.b = gen_mcode($1, NULL, $3,
 				    $$.q = $<blk>0.q); }
-	| HID MASK HID		{ $$.b = gen_mcode($1, $3, 0,
+	| HID NETMASK HID	{ $$.b = gen_mcode($1, $3, 0,
 				    $$.q = $<blk>0.q); }
 	| HID			{
 				  /* Decide how to parse HID based on proto */
@@ -239,6 +254,9 @@ rterm:	  head id		{ $$ = $2; }
 	| arth irelop arth	{ $$.b = gen_relation($2, $1, $3, 1);
 				  $$.q = qerr; }
 	| other			{ $$.b = $1; $$.q = qerr; }
+	| atmtype		{ $$.b = gen_atmtype_abbrev($1); $$.q = qerr; }
+	| atmmultitype		{ $$.b = gen_atmmulti_abbrev($1); $$.q = qerr; }
+	| atmfield atmvalue	{ $$.b = $2.b; $$.q = qerr; }
 	;
 /* protocol level qualifiers */
 pqual:	  pname
@@ -286,6 +304,13 @@ pname:	  LINK			{ $$ = Q_LINK; }
 	| ISO			{ $$ = Q_ISO; }
 	| ESIS			{ $$ = Q_ESIS; }
 	| ISIS			{ $$ = Q_ISIS; }
+	| L1			{ $$ = Q_ISIS_L1; }
+	| L2			{ $$ = Q_ISIS_L2; }
+	| IIH			{ $$ = Q_ISIS_IIH; }
+	| LSP			{ $$ = Q_ISIS_LSP; }
+	| SNP			{ $$ = Q_ISIS_SNP; }
+	| PSNP			{ $$ = Q_ISIS_PSNP; }
+	| CSNP			{ $$ = Q_ISIS_CSNP; }
 	| CLNP			{ $$ = Q_CLNP; }
 	| STP			{ $$ = Q_STP; }
 	| IPX			{ $$ = Q_IPX; }
@@ -295,12 +320,47 @@ other:	  pqual TK_BROADCAST	{ $$ = gen_broadcast($1); }
 	| pqual TK_MULTICAST	{ $$ = gen_multicast($1); }
 	| LESS NUM		{ $$ = gen_less($2); }
 	| GREATER NUM		{ $$ = gen_greater($2); }
-	| BYTE NUM byteop NUM	{ $$ = gen_byteop($3, $2, $4); }
+	| CBYTE NUM byteop NUM	{ $$ = gen_byteop($3, $2, $4); }
 	| INBOUND		{ $$ = gen_inbound(0); }
 	| OUTBOUND		{ $$ = gen_inbound(1); }
 	| VLAN pnum		{ $$ = gen_vlan($2); }
 	| VLAN			{ $$ = gen_vlan(-1); }
+	| pfvar			{ $$ = $1; }
 	;
+
+pfvar:	  PF_IFNAME ID		{ $$ = gen_pf_ifname($2); }
+	| PF_RSET ID		{ $$ = gen_pf_ruleset($2); }
+	| PF_RNR NUM		{ $$ = gen_pf_rnr($2); }
+	| PF_SRNR NUM		{ $$ = gen_pf_srnr($2); }
+	| PF_REASON reason	{ $$ = gen_pf_reason($2); }
+	| PF_ACTION action	{ $$ = gen_pf_action($2); }
+	;
+
+reason:	  NUM			{ $$ = $1; }
+	| ID			{ const char *reasons[] = PFRES_NAMES;
+				  int i;
+				  for (i = 0; reasons[i]; i++) {
+					  if (pcap_strcasecmp($1, reasons[i]) == 0) {
+						  $$ = i;
+						  break;
+					  }
+				  }
+				  if (reasons[i] == NULL)
+					  bpf_error("unknown PF reason");
+				}
+	;
+
+action:	  ID			{ if (pcap_strcasecmp($1, "pass") == 0 ||
+				      pcap_strcasecmp($1, "accept") == 0)
+					$$ = PF_PASS;
+				  else if (pcap_strcasecmp($1, "drop") == 0 ||
+				      pcap_strcasecmp($1, "block") == 0)
+					$$ = PF_DROP;
+				  else
+					  bpf_error("unknown PF action");
+				}
+	;
+
 relop:	  '>'			{ $$ = BPF_JGT; }
 	| GEQ			{ $$ = BPF_JGE; }
 	| '='			{ $$ = BPF_JEQ; }
@@ -334,5 +394,38 @@ byteop:	  '&'			{ $$ = '&'; }
 	;
 pnum:	  NUM
 	| paren pnum ')'	{ $$ = $2; }
+	;
+atmtype: LANE			{ $$ = A_LANE; }
+	| LLC			{ $$ = A_LLC; }
+	| METAC			{ $$ = A_METAC;	}
+	| BCC			{ $$ = A_BCC; }
+	| OAMF4EC		{ $$ = A_OAMF4EC; }
+	| OAMF4SC		{ $$ = A_OAMF4SC; }
+	| SC			{ $$ = A_SC; }
+	| ILMIC			{ $$ = A_ILMIC; }
+	;
+atmmultitype: OAM		{ $$ = A_OAM; }
+	| OAMF4			{ $$ = A_OAMF4; }
+	| CONNECTMSG		{ $$ = A_CONNECTMSG; }
+	| METACONNECT		{ $$ = A_METACONNECT; }
+	;
+	/* ATM field types quantifier */
+atmfield: VPI			{ $$.atmfieldtype = A_VPI; }
+	| VCI			{ $$.atmfieldtype = A_VCI; }
+	;
+atmvalue: atmfieldvalue
+	| relop NUM		{ $$.b = gen_atmfield_code($<blk>0.atmfieldtype, (u_int)$2, (u_int)$1, 0); }
+	| irelop NUM		{ $$.b = gen_atmfield_code($<blk>0.atmfieldtype, (u_int)$2, (u_int)$1, 1); }
+	| paren atmlistvalue ')' { $$.b = $2.b; $$.q = qerr; }
+	;
+atmfieldvalue: NUM {
+	$$.atmfieldtype = $<blk>0.atmfieldtype;
+	if ($$.atmfieldtype == A_VPI ||
+	    $$.atmfieldtype == A_VCI)
+		$$.b = gen_atmfield_code($$.atmfieldtype, (u_int) $1, BPF_JEQ, 0);
+	}
+	;
+atmlistvalue: atmfieldvalue
+	| atmlistvalue or atmfieldvalue { gen_or($1.b, $3.b); $$ = $3; }
 	;
 %%

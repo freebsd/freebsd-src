@@ -16,7 +16,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/nlpid.h,v 1.1 2000/10/28 09:30:22 guy Exp $ (Juniper)
+ * @(#) $Header: /tcpdump/master/libpcap/nlpid.h,v 1.2 2002/12/06 00:01:34 hannes Exp $ (Juniper)
  */
 
 /* Types missing from some systems */
@@ -36,6 +36,21 @@
 #ifndef	ISO10589_ISIS
 #define	ISO10589_ISIS		0x83
 #endif
+/*
+ * this does not really belong in the nlpid.h file
+ * however we need it for generating nice
+ * IS-IS related BPF filters
+ */
+#define ISIS_L1_LAN_IIH      15
+#define ISIS_L2_LAN_IIH      16
+#define ISIS_PTP_IIH         17
+#define ISIS_L1_LSP          18
+#define ISIS_L2_LSP          20
+#define ISIS_L1_CSNP         24
+#define ISIS_L2_CSNP         25
+#define ISIS_L1_PSNP         26
+#define ISIS_L2_PSNP         27
+
 #ifndef ISO8878A_CONS
 #define	ISO8878A_CONS		0x84
 #endif
