@@ -96,6 +96,14 @@ Set the block size for the tape unit.  Zero means variable-length
 blocks.
 .It Cm density
 Set the density for the tape unit.  For the density codes, see below.
+The density value could be given either numerically, or as a string,
+corresponding to the
+.Dq Reference
+field.  If the string is abbreviated, it will be resolved in the order
+shown in the table, and the first matching entry will be used.  If the
+given string and the resulting canonical density name do not match
+exactly, an informational message is printed about what the given
+string has been taken for.
 .It Cm eom
 Forward space to end of recorded medium
 (Count is ignored).
@@ -202,10 +210,12 @@ The
 .Nm mt
 command appeared in
 .Bx 4.3 .
-.Pp
+
 Extensions regarding the
 .Xr st 4
-driver appeared in 386BSD 0.1, and have been merged into the
+driver appeared in 386BSD 0.1 as a separate
+.Xr st 1
+command, and have been merged into the
 .Nm
 command in FreeBSD 2.1.
 .\" mt.1: mtio(4) missing

@@ -59,7 +59,8 @@ static char sccsid[] = "@(#)mt.c	8.1 (Berkeley) 6/6/93";
 #if defined(__FreeBSD__)
 /* c_flags */
 #define NEED_2ARGS	0x01
-#define ZERO_ALLOWED	0X02
+#define ZERO_ALLOWED	0x02
+#define IS_DENSITY	0x04
 #endif /* defined(__FreeBSD__) */
 
 struct commands {
@@ -83,7 +84,7 @@ struct commands {
 #if defined(__FreeBSD__)
 	{ "erase",	MTERASE, 0 },
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
-	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
 	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED },
 #endif /* defined(__FreeBSD__) */
@@ -96,6 +97,8 @@ void status __P((struct mtget *));
 void usage __P((void));
 #if defined (__FreeBSD__)
 void st_status (struct mtget *);
+int stringtodens (const char *s);
+const char *denstostring (int d);
 #endif /* defined (__FreeBSD__) */
 
 int
@@ -145,8 +148,21 @@ main(argc, argv)
 		mt_com.mt_op = comp->c_code;
 		if (*argv) {
 #if defined (__FreeBSD__)
-			/* allow for hex numbers; useful for density */
-			mt_com.mt_count = strtol(*argv, &p, 0);
+			if (!isdigit(**argv) &&
+			    comp->c_flags & IS_DENSITY) {
+				const char *dcanon;
+				mt_com.mt_count = stringtodens(*argv);
+				if (mt_com.mt_count == 0)
+					err("%s: unknown density", *argv);
+				dcanon = denstostring(mt_com.mt_count);
+				if (strcmp(dcanon, *argv) != 0)
+					printf(
+					"Using \"%s\" as an alias for %s\n",
+					       *argv, dcanon);
+				p = "";
+			} else
+				/* allow for hex numbers; useful for density */
+				mt_com.mt_count = strtol(*argv, &p, 0);
 #else
 			mt_com.mt_count = strtol(*argv, &p, 10);
 #endif /* defined(__FreeBSD__) */
@@ -335,32 +351,32 @@ struct densities {
 	int dens;
 	const char *name;
 } dens [] = {
-	{ 0x1,  "X3.22-1983  " },
-	{ 0x2,  "X3.39-1986  " },
-	{ 0x3,  "X3.54-1986  " },
-	{ 0x5,  "X3.136-1986 " },
-	{ 0x6,  "X3.157-1987 " },
-	{ 0x7,  "X3.116-1986 " },
-	{ 0x8,  "X3.158-1986 " },
-	{ 0x9,  "X3B5/87-099 " },
-	{ 0xA,  "X3B5/86-199 " },
-	{ 0xB,  "X3.56-1986  " },
-	{ 0xC,  "HI-TC1      " },
-	{ 0xD,  "HI-TC2      " },
-	{ 0xF,  "QIC-120     " },
-	{ 0x10, "QIC-150     " },
-	{ 0x11, "QIC-320     " },
-	{ 0x12, "QIC-1350    " },
+	{ 0x1,  "X3.22-1983" },
+	{ 0x2,  "X3.39-1986" },
+	{ 0x3,  "X3.54-1986" },
+	{ 0x5,  "X3.136-1986" },
+	{ 0x6,  "X3.157-1987" },
+	{ 0x7,  "X3.116-1986" },
+	{ 0x8,  "X3.158-1986" },
+	{ 0x9,  "X3B5/87-099" },
+	{ 0xA,  "X3B5/86-199" },
+	{ 0xB,  "X3.56-1986" },
+	{ 0xC,  "HI-TC1" },
+	{ 0xD,  "HI-TC2" },
+	{ 0xF,  "QIC-120" },
+	{ 0x10, "QIC-150" },
+	{ 0x11, "QIC-320" },
+	{ 0x12, "QIC-1350" },
 	{ 0x13, "X3B5/88-185A" },
-	{ 0x14, "X3.202-1991 " },
-	{ 0x15, "ECMA TC17   " },
-	{ 0x16, "X3.193-1990 " },
-	{ 0x17, "X3B5/91-174 " },
+	{ 0x14, "X3.202-1991" },
+	{ 0x15, "ECMA TC17" },
+	{ 0x16, "X3.193-1990" },
+	{ 0x17, "X3B5/91-174" },
 	{ 0, 0 }
 };
 
 const char *
-getdens(int d)
+denstostring(int d)
 {
 	static char buf[20];
 	struct densities *sd;
@@ -369,12 +385,24 @@ getdens(int d)
 		if (sd->dens == d)
 			break;
 	if (sd->dens == 0) {
-		sprintf(buf, "0x%02x        ", d);
+		sprintf(buf, "0x%02x", d);
 		return buf;
-	}
-	else
+	} else
 		return sd->name;
 }
+
+int
+stringtodens(const char *s)
+{
+	struct densities *sd;
+	size_t l = strlen(s);
+
+	for (sd = dens; sd->dens; sd++)
+		if (strncasecmp(sd->name, s, l) == 0)
+			break;
+	return sd->dens;
+}
+
 
 const char *
 getblksiz(int bs)
@@ -392,17 +420,17 @@ getblksiz(int bs)
 void
 st_status(struct mtget *bp)
 {
-	printf("Present Mode:   Density = %s Blocksize %s\n",
-	       getdens(bp->mt_density), getblksiz(bp->mt_blksiz));
+	printf("Present Mode:   Density = %-12s Blocksize %s\n",
+	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz));
 	printf("---------available modes---------\n");
-	printf("Mode 0:         Density = %s Blocksize %s\n",
-	       getdens(bp->mt_density0), getblksiz(bp->mt_blksiz0));
-	printf("Mode 1:         Density = %s Blocksize %s\n",
-	       getdens(bp->mt_density1), getblksiz(bp->mt_blksiz1));
-	printf("Mode 2:         Density = %s Blocksize %s\n",
-	       getdens(bp->mt_density2), getblksiz(bp->mt_blksiz2));
-	printf("Mode 3:         Density = %s Blocksize %s\n",
-	       getdens(bp->mt_density3), getblksiz(bp->mt_blksiz3));
+	printf("Mode 0:         Density = %-12s Blocksize %s\n",
+	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0));
+	printf("Mode 1:         Density = %-12s Blocksize %s\n",
+	       denstostring(bp->mt_density1), getblksiz(bp->mt_blksiz1));
+	printf("Mode 2:         Density = %-12s Blocksize %s\n",
+	       denstostring(bp->mt_density2), getblksiz(bp->mt_blksiz2));
+	printf("Mode 3:         Density = %-12s Blocksize %s\n",
+	       denstostring(bp->mt_density3), getblksiz(bp->mt_blksiz3));
 }
 
 #endif /* defined (__FreeBSD__) */
