@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)renice.c	8.1 (Berkeley) 6/9/93";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -179,7 +180,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n",
-"usage: renice [priority | [-n incr]] [[-p] pid ...] [[-g] pgrp ...]",
-"              [[-u] user ...]");
+"usage: renice priority     [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]",
+"       renice -n increment [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]");
 	exit(1);
 }
