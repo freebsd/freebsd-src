@@ -259,7 +259,7 @@ server_LocalOpen(struct bundle *bundle, const char *name, mode_t mask)
   ifsun.sun_family = AF_LOCAL;
   strcpy(ifsun.sun_path, name);
 
-  s = socket(PF_LOCAL, SOCK_STREAM, 0);
+  s = socket(AF_LOCAL, SOCK_STREAM, 0);
   if (s < 0) {
     log_Printf(LogERROR, "Local: socket: %s\n", strerror(errno));
     goto failed;
@@ -328,7 +328,7 @@ server_TcpOpen(struct bundle *bundle, u_short port)
     sin6->sin6_port = htons(port);
     sin6->sin6_len = (u_int8_t)sizeof ss;
     sz = sizeof *sin6;
-    s = socket(PF_INET6, SOCK_STREAM, 0);
+    s = socket(AF_INET6, SOCK_STREAM, 0);
   } else
 #endif
   {
@@ -337,7 +337,7 @@ server_TcpOpen(struct bundle *bundle, u_short port)
     sin->sin_len = (u_int8_t)sizeof ss;
     sin->sin_addr.s_addr = INADDR_ANY;
     sz = sizeof *sin;
-    s = socket(PF_INET, SOCK_STREAM, 0);
+    s = socket(AF_INET, SOCK_STREAM, 0);
   }
 
   if (s < 0) {

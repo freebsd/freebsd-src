@@ -84,7 +84,7 @@ tcp_OpenConnection(const char *name, char *host, char *port)
   }
   log_Printf(LogPHASE, "%s: Connecting to %s:%s/tcp\n", name, host, port);
 
-  sock = socket(PF_INET, SOCK_STREAM, 0);
+  sock = socket(AF_INET, SOCK_STREAM, 0);
   if (sock < 0)
     return -2;
 
