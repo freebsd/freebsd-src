@@ -471,9 +471,13 @@ again:
 	ke2 = FIRST_KSE_IN_KSEGRP(kg2);
 
 	/* Allocate and switch to an alternate kstack if specified. */
-	if (pages != 0)
+	if (pages != 0) {
+		mtx_lock(&Giant);
 		vm_thread_new_altkstack(td2, pages);
+		mtx_unlock(&Giant);
+	}
 
+	mtx_lock(&Giant);	/* XXX: for VREF() */
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
