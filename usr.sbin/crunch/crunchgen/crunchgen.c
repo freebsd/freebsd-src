@@ -318,7 +318,10 @@ void add_prog(char *progname)
 	if(!strcmp(p2->name, progname)) return;
 
     p2 = malloc(sizeof(prog_t));
-    if(p2) p2->name = strdup(progname);
+    if(p2) {
+	memset(p2, 0, sizeof(prog_t));
+	p2->name = strdup(progname);
+    }
     if(!p2 || !p2->name)
 	out_of_memory();
 
@@ -846,7 +849,10 @@ void add_string(strlst_t **listp, char *str)
 	if(!strcmp(p2->str, str)) return;
 
     p2 = malloc(sizeof(strlst_t));
-    if(p2) p2->str = strdup(str);
+    if(p2) {
+	memset(p2, 0, sizeof(strlst_t));
+	p2->str = strdup(str);
+    }
     if(!p2 || !p2->str)
 	out_of_memory();
 
