@@ -65,7 +65,7 @@ extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 static int		__setrunelocale(const char *);
 
-__warn_references(setrunelocale, "warning: setrunelocale() is deprecated. See setrunelocale(3).");
+__warn_references(setrunelocale, "warning: setrunelocale() is obsolete. See setrunelocale(3).");
 int
 setrunelocale(char *encoding)
 {
