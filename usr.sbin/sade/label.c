@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.12 1995/05/20 19:22:21 jkh Exp $
+ * $Id: label.c,v 1.13 1995/05/21 01:56:02 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,17 +181,21 @@ static PartInfo *
 new_part(char *mpoint, Boolean newfs, u_long size)
 {
     PartInfo *ret;
-    u_long divisor;
+    u_long target,divisor;
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
     strcpy(ret->newfs_cmd, "newfs");
-    for(divisor = 4096 ; divisor > 17*4 ; divisor--) {
-	if (!(size % divisor)) { 
-		sprintf(ret->newfs_cmd+strlen(ret->newfs_cmd)," -u %ld",divisor);
+    ret->newfs = newfs;
+    for(target = size; target; target--) {
+	for(divisor = 4096 ; divisor > 1023; divisor--) {
+	    if (!(target % divisor)) { 
+		sprintf(ret->newfs_cmd+strlen(ret->newfs_cmd),
+		    " -u %ld",divisor);
+		return ret;
+	    }
 	}
     }
-    ret->newfs = newfs;
     return ret;
 }
 
