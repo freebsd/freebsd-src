@@ -4,7 +4,7 @@
 
 DIRS!=	for i in *; do \
 	    if test -d $$i -a $$i != CVS -a \
-		$$i != smbfs; then \
+		$$i != ipfilter -a $$i != smbfs; then \
 		echo $$i; \
             fi; \
 	done
@@ -41,7 +41,7 @@ etc-examples:
 .endif
 
 .if ${SHARED} != "symlinks"
-SUBDIR=	smbfs
+SUBDIR=	ipfilter smbfs
 .endif
 
 .include <bsd.subdir.mk>
