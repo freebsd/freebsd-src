@@ -70,6 +70,7 @@ slice_wizard(Disk *d)
     char **cp,*cmds[200];
     int ncmd,i;
 
+    systemSuspendDialog();
     sprintf(myprompt,"%s> ", d->name);
     while(1) {
 	printf("--==##==--\n");
@@ -197,4 +198,5 @@ slice_wizard(Disk *d)
 	printf("\n");
 
     }
+    systemResumeDialog();
 }
