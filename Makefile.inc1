@@ -715,7 +715,9 @@ lib/libypclnt__L: lib/librpcsvc__L
 _generic_libs+=	lib
 
 .if !defined(NOCRYPT) && !defined(NOSECURE)
-_prebuild_libs+=	secure/lib/libcrypto
+.if !defined(NO_OPENSSL)
+_prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
+.endif
 .if !defined(NO_OPENSSH)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: secure/lib/libcrypto__L lib/libz__L
