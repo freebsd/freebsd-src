@@ -96,9 +96,9 @@ main(argc, argv)
 	    debug |= ANYDEBUG;
 #	    ifdef DEBUG
 		printf("[main] debug = %d\n", debug);
-#	    else not DEBUG
+#	    else /* not DEBUG */
 		printf("gprof: -d ignored\n");
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	    break;
 	case 'E':
 	    ++argv;
@@ -258,7 +258,7 @@ getpfile(filename)
 		printf( "[getpfile] frompc 0x%lx selfpc 0x%lx count %ld\n" ,
 			arc.raw_frompc , arc.raw_selfpc , arc.raw_count );
 	    }
-#	endif DEBUG
+#	endif /* DEBUG */
 	    /*
 	     *	add this arc
 	     */
@@ -330,7 +330,7 @@ openpfile(filename)
 		sampbytes , nsamples );
 	    printf( "[openpfile] sample rate %ld\n" , hz );
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     return(pfile);
 }
 
@@ -355,7 +355,7 @@ tally( rawp )
 	    printf( "[tally] arc from %s to %s traversed %ld times\n" ,
 		    parentp -> name , childp -> name , rawp -> raw_count );
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     addarc( parentp , childp , rawp -> raw_count );
 }
 
@@ -405,7 +405,7 @@ dumpsum( sumfile )
 		    printf( "[dumpsum] frompc 0x%lx selfpc 0x%lx count %ld\n" ,
 			    arc.raw_frompc , arc.raw_selfpc , arc.raw_count );
 		}
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	}
     }
     fclose( sfile );
@@ -538,7 +538,7 @@ asgnsamples()
 		printf( "[asgnsamples] pcl 0x%lx pch 0x%lx ccnt %.0f\n" ,
 			pcl , pch , ccnt );
 	    }
-#	endif DEBUG
+#	endif /* DEBUG */
 	totime += time;
 	for (j = j - 1; j < nname; j++) {
 	    svalue0 = nl[j].svalue;
@@ -564,7 +564,7 @@ asgnsamples()
 				svalue0, svalue1, nl[j].name,
 				overlap * time / scale, overlap);
 		    }
-#		endif DEBUG
+#		endif /* DEBUG */
 		nl[j].time += overlap * time / scale;
 	    }
 	}
@@ -573,7 +573,7 @@ asgnsamples()
 	if (debug & SAMPLEDEBUG) {
 	    printf("[asgnsamples] totime %f\n", totime);
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
 }
 
 
@@ -619,7 +619,7 @@ alignentries()
 			    nlp->svalue,
 			    nlp->svalue + OFFSET_OF_CODE / HISTORICAL_SCALE_2);
 		}
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	    nlp->svalue += OFFSET_OF_CODE / HISTORICAL_SCALE_2;
 	}
     }

@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lookup.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "gprof.h"
@@ -53,18 +57,18 @@ nllookup( address )
 	register int	probes;
 
 	probes = 0;
-#   endif DEBUG
+#   endif /* DEBUG */
     for ( low = 0 , high = nname - 1 ; low != high ; ) {
 #	ifdef DEBUG
 	    probes += 1;
-#	endif DEBUG
+#	endif /* DEBUG */
 	middle = ( high + low ) >> 1;
 	if ( nl[ middle ].value <= address && nl[ middle+1 ].value > address ) {
 #	    ifdef DEBUG
 		if ( debug & LOOKUPDEBUG ) {
 		    printf( "[nllookup] %d (%d) probes\n" , probes , nname-1 );
 		}
-#	    endif DEBUG
+#	    endif /* DEBUG */
 	    return &nl[ middle ];
 	}
 	if ( nl[ middle ].value > address ) {
@@ -78,7 +82,7 @@ nllookup( address )
 	    fprintf( stderr , "[nllookup] (%d) binary search fails\n" ,
 		nname-1 );
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     return 0;
 }
 
@@ -98,7 +102,7 @@ arclookup( parentp , childp )
 	    printf( "[arclookup] parent %s child %s\n" ,
 		    parentp -> name , childp -> name );
 	}
-#   endif DEBUG
+#   endif /* DEBUG */
     for ( arcp = parentp -> children ; arcp ; arcp = arcp -> arc_childlist ) {
 #	ifdef DEBUG
 	    if ( debug & LOOKUPDEBUG ) {
@@ -106,7 +110,7 @@ arclookup( parentp , childp )
 			arcp -> arc_parentp -> name ,
 			arcp -> arc_childp -> name );
 	    }
-#	endif DEBUG
+#	endif /* DEBUG */
 	if ( arcp -> arc_childp == childp ) {
 	    return arcp;
 	}
