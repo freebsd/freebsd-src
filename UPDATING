@@ -17,6 +17,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040630:
+	ACPI has been updated to disable known-bad BIOS revisions.  A message
+	will be printed on console indicating that ACPI has been disabled
+	automatically and that the user should use a newer BIOS, if possible.
+	If you think ACPI does work on your system and want to override
+	this (i.e., for testing), set hint.acpi.0.disabled="0" at the
+	loader prompt.
+
 20040623:
 	pf was updated to OpenBSD-stable 3.5 and pflogd(8) is priviledge
 	separated now. It uses the newly created "_pflogd" user/group
