@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.114 1998/10/08 21:03:41 msmith Exp $
+ *	$Id: locore.s,v 1.115 1998/10/09 23:36:25 peter Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -229,10 +229,10 @@ _pc98_system_parameter:
 	movb	$1,R(_bdb_exists)
 1:
 #endif
+#endif	/* PC98 */
 
 /* Tell the bios to warmboot next time */
 	movw	$0x1234,0x472
-#endif	/* PC98 */
 
 /* Set up a real frame in case the double return in newboot is executed. */
 	pushl	%ebp
