@@ -73,7 +73,7 @@
 # define AGG_MAXPLAYCH	4
 #endif
 
-#define AGG_BUFSIZ	4096
+#define AGG_BUFSIZ	0x4000 /* 0x1000, but gets underflows */
 
 
 /* -----------------------------
