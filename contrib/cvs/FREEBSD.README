@@ -40,3 +40,7 @@ that are suitable for public consumption should be submitted for inclusion
 in future releases.
 
 peter@freebsd.org - 20 Aug 1996
+
+Current local changes:
+  - CVS_LOCAL_BRANCH_NUM environment variable support for choosing the
+    magic branch number.  (for CVSup local-commit support)
