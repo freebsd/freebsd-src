@@ -21,7 +21,7 @@
 /* This thing should be set up to do byteordering correctly.  But... */
 
 #ifndef lint
-static char rcsid[] = "$Id: write.c,v 1.6 1994/12/23 22:36:22 nate Exp $";
+static char rcsid[] = "$Id: write.c,v 1.7 1995/05/30 04:46:40 rgrimes Exp $";
 #endif
 
 #include "as.h"
@@ -726,11 +726,13 @@ segT		segment; /* SEG_DATA or SEG_TEXT */
 						offset = lie->add->sy_frag->fr_address+ S_GET_VALUE(lie->add) + lie->addnum -
 						    (lie->sub->sy_frag->fr_address+ S_GET_VALUE(lie->sub));
 						if (offset <= -32768 || offset >= 32767) {
+#if 0
 							if (flagseen['K'])
 							    as_warn(".word %s-%s+%ld didn't fit",
 								    S_GET_NAME(lie->add),
 								    S_GET_NAME(lie->sub),
 								    lie->addnum);
+#endif
 							lie->added=1;
 							if (fragP->fr_subtype == 0) {
 								fragP->fr_subtype++;
@@ -1005,7 +1007,7 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 				}
 #endif	/* TC_I960 */
 #ifdef PIC
-				if (flagseen['k'] &&
+				if (picmode &&
 						S_IS_EXTERNAL(add_symbolP)) {
 					as_bad("Can't reduce difference of external symbols in PIC code");
 				}
@@ -1080,7 +1082,7 @@ segT this_segment_type; /* N_TYPE bits for segment. */
 					 * Do not fixup refs to global data
 					 * even if defined here.
 					 */
-					if (!flagseen['k'] ||
+					if (!picmode ||
 #ifdef TC_NS32K
 					   fixP->fx_pcrel ||
 #endif

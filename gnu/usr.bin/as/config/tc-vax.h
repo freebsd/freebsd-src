@@ -4,6 +4,7 @@
 
 #define TC_VAX 1
 
+#define LOCAL_LABELS_FB
 #define NO_LISTING
 
  /* use this to compare against gas-1.38 */

@@ -17,7 +17,7 @@
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   $Id: obj-aout.h,v 1.3 1994/12/23 22:37:34 nate Exp $
+   $Id: obj-aout.h,v 1.4 1995/05/30 04:47:04 rgrimes Exp $
  */
 
 
@@ -201,7 +201,7 @@ typedef struct nlist obj_symbol_type; /* Symbol table entry */
 #define EX_DYNAMIC			0x20
 #define EX_PIC				0x10
 #undef AOUT_FLAGS
-#define AOUT_FLAGS			(flagseen['k'] ? EX_PIC : 0)
+#define AOUT_FLAGS			(picmode ? EX_PIC : 0)
 
 #define H_GET_DYNAMIC(h)		(H_GET_FLAGS(h) & EX_DYNAMIC)
 

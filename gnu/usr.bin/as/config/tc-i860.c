@@ -1081,7 +1081,7 @@ char **argP;
 int *cntP;
 char ***vecP;
 {
-	return 1;
+	return 0;
 }
 
 #ifdef comment
@@ -1157,7 +1157,7 @@ relax_addressT segment_address_in_file;
 
  */
 
-int md_reloc_size = 12;
+const int md_reloc_size = 12;
 
 void tc_aout_fix_to_chars(where, fixP, segment_address_in_file)
 char *where;

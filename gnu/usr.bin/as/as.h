@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: as.h,v 1.3 1994/12/23 22:36:01 nate Exp $
+ * $Id: as.h,v 1.4 1995/05/30 04:46:02 rgrimes Exp $
  */
 
 #define GAS 1
@@ -294,6 +294,8 @@ COMMON char *
     out_file_name;			/* name of emitted object file */
 
 COMMON int	need_pass_2;	/* TRUE if we need a second pass. */
+
+COMMON int	picmode;	/* TRUE if "-k" or "-K" seen. */
 
 typedef struct {
 	char *	poc_name;	/* assembler mnemonic, lower case, no '.' */

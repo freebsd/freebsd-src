@@ -87,9 +87,9 @@ extern struct hash_control *po_hash;
 extern char *next_object_file_charP;
 
 #ifdef OBJ_COFF
-int md_reloc_size = sizeof(struct reloc);
+const int md_reloc_size = sizeof(struct reloc);
 #else /* OBJ_COFF */
-int md_reloc_size = sizeof(struct relocation_info);
+const int md_reloc_size = sizeof(struct relocation_info);
 #endif /* OBJ_COFF */
 
 /***************************

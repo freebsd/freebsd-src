@@ -47,7 +47,7 @@ const pseudo_typeS md_pseudo_table[] = {
 	{ 0,0,0 }
 };
 
-int  md_reloc_size ;
+const int  md_reloc_size ;
 
 const char EXP_CHARS[] = "eE";
 
