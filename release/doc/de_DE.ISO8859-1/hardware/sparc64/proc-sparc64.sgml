@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.8 2003/01/13 20:30:50 ue Exp $
-	basiert auf: 1.9
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.10 2003/02/08 07:43:14 ue Exp $
+	basiert auf: 1.11
 -->
 <sect1 id="support-sys">
   <title>Unterst&uuml;tzte Systeme</title>
@@ -16,13 +16,12 @@
   <para>SMP wird auf allen Systemen mit mehr als einem Prozessor
     unterst&uuml;tzt.</para>
 
-  <para>Wenn Sie ein System haben, da&szlig; nicht in dieser Liste
-    aufgef&uuml;hrt ist, konnten wir &os; noch nicht auf diesem System
-    testen, ist es durchaus m&ouml;glich, da&szlig; es von &os;
-    unterst&uuml;tzt wird.  Wenn Sie ein solches System haben, testen
-    Sie es bitte und teilen Sie <ulink
-    url="freebsd-sparc@freebsd.org">uns</ulink> das Ergebnis
-    mit.</para>
+    <para>Wenn Sie ein System haben, da&szlig; nicht in dieser Liste
+      aufgef&uuml;hrt ist, k&ouml;nnte das daran liegen, da&szlig;  es
+      noch mit &os; &release.current; getestet wurde.  Bitte probieren
+      Sie es aus und schicken Sie eine Mail mit Ihren Ergebnissen (und
+      Informationen dar&uuml;ber, welche Ger&auml;te unterst&uuml;tzt
+      werden und welche nicht) an die &a.sparc;.</para>
 
   <sect2>
     <title>Vollst&auml;ndig unterst&uuml;tzte Systeme</title>
@@ -49,6 +48,10 @@
 
       <listitem>
 	<para>Enterprise 420R</para>
+      </listitem>
+
+      <listitem>
+	<para>Enterprise 450</para>
       </listitem>
 
       <listitem>
@@ -131,6 +134,10 @@
 
     <itemizedlist>
       <listitem>
+	<para>Enterprise 3500</para>
+      </listitem>
+
+      <listitem>
 	<para>Enterprise 4500</para>
       </listitem>
 
@@ -158,10 +165,6 @@
     <itemizedlist>
       <listitem>
 	<para>Alle Systeme mit UltraSPARC III Prozessor(en).</para>
-      </listitem>
-
-      <listitem>
-	<para>Enterprise 450</para>
       </listitem>
 
       <listitem>
