@@ -1231,7 +1231,6 @@ hint.npx.0.irq="13"
 device		acpi
 options 	ACPI_DEBUG
 #!options	ACPI_NO_ENABLE_ON_BOOT
-#!options	ACPI_NO_OSDFUNC_INLINE
 options 	AML_DEBUG
 
 #

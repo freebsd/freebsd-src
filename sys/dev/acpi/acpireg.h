@@ -310,6 +310,9 @@ typedef UINT32				ACPI_STATUS;
 /*
  * ACPICA Osd family functions
  */
+#if defined(DIAGNOSTIC)
+#define ACPI_NO_OSDFUNC_INLINE
+#endif
 
 #ifdef ACPI_NO_OSDFUNC_INLINE
 ACPI_STATUS	 OsdMapMemory(void *, UINT32, void **);
