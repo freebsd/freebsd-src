@@ -131,7 +131,6 @@ world: upgrade_checks
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> ${OBJFORMAT} make world started on ${STARTTIME}"
 	@echo ">>> ${OBJFORMAT} make world completed on `LC_TIME=C date`"
 	@echo "--------------------------------------------------------------"
 
