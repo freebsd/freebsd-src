@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: linker.h,v 1.1 1997/05/07 16:05:45 dfr Exp $
+ *	$Id: linker.h,v 1.2 1997/11/20 20:07:59 bde Exp $
  */
 
 #ifndef _SYS_LINKER_H_
@@ -31,7 +31,9 @@
 
 #ifdef KERNEL
 
-#define M_LINKER	M_TEMP	/* XXX */
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_LINKER);
+#endif
 
 /*
  * Object representing a file which has been loaded by the linker.
@@ -198,4 +200,4 @@ __END_DECLS
 
 #endif
 
-#endif	/* !_SYS_KLD_H_ */
+#endif /* !_SYS_LINKER_H_ */
