@@ -600,7 +600,7 @@ restart:
 			snderr(EMSGSIZE);
 		if (space < resid + clen &&
 		    (atomic || space < so->so_snd.sb_lowat || space < clen)) {
-			if (so->so_state & SS_NBIO)
+			if ((so->so_state & SS_NBIO) || (flags & MSG_NBIO))
 				snderr(EWOULDBLOCK);
 			sbunlock(&so->so_snd);
 			error = sbwait(&so->so_snd);
@@ -898,7 +898,8 @@ restart:
 		}
 		if (uio->uio_resid == 0)
 			goto release;
-		if ((so->so_state & SS_NBIO) || (flags & MSG_DONTWAIT)) {
+		if ((so->so_state & SS_NBIO) ||
+		    (flags & (MSG_DONTWAIT|MSG_NBIO))) {
 			error = EWOULDBLOCK;
 			goto release;
 		}

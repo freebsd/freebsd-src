@@ -393,6 +393,7 @@ struct msghdr {
 #if __BSD_VISIBLE
 #define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
 #define	MSG_EOF		0x100		/* data completes connection */
+#define	MSG_NBIO	0x4000		/* FIONBIO mode, used by fifofs */
 #define MSG_COMPAT      0x8000		/* used in sendit() */
 #endif
 
