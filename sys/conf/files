@@ -81,13 +81,15 @@ contrib/dev/acpica/exconfig.c	 optional acpica
 contrib/dev/acpica/exconvrt.c	 optional acpica
 contrib/dev/acpica/excreate.c	 optional acpica
 contrib/dev/acpica/exdump.c	 optional acpica
-contrib/dev/acpica/exdyadic.c	 optional acpica
 contrib/dev/acpica/exfield.c	 optional acpica
 contrib/dev/acpica/exfldio.c	 optional acpica
 contrib/dev/acpica/exmisc.c	 optional acpica
-contrib/dev/acpica/exmonad.c	 optional acpica
 contrib/dev/acpica/exmutex.c	 optional acpica
 contrib/dev/acpica/exnames.c	 optional acpica
+contrib/dev/acpica/exoparg1.c	 optional acpica
+contrib/dev/acpica/exoparg2.c	 optional acpica
+contrib/dev/acpica/exoparg3.c	 optional acpica
+contrib/dev/acpica/exoparg6.c	 optional acpica
 contrib/dev/acpica/exprep.c	 optional acpica
 contrib/dev/acpica/exregion.c	 optional acpica
 contrib/dev/acpica/exresnte.c	 optional acpica
