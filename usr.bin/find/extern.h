@@ -87,6 +87,7 @@ exec_f	f_acl;
 exec_f	f_always_true;
 exec_f	f_closeparen;
 exec_f	f_delete;
+exec_f	f_depth;
 exec_f	f_empty;
 exec_f	f_exec;
 exec_f	f_expr;

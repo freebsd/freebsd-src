@@ -186,6 +186,11 @@ find_execute(PLAN *plan, char *paths[])
 		err(1, "ftsopen");
 
 	for (rval = 0; (entry = fts_read(tree)) != NULL;) {
+		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
+			if (fts_set(tree, entry, FTS_SKIP))
+				err(1, "%s", entry->fts_path);
+		}
+
 		switch (entry->fts_info) {
 		case FTS_D:
 			if (isdepth)
@@ -225,12 +230,6 @@ find_execute(PLAN *plan, char *paths[])
 		 * the work specified by the user on the command line.
 		 */
 		for (p = plan; p && (p->execute)(p, entry); p = p->next);
-
-		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
-			if (fts_set(tree, entry, FTS_SKIP))
-			err(1, "%s", entry->fts_path);
-			continue;
-		}
 	}
 	/* Finish any pending -exec ... {} + functions. */
 	for (p = plan; p != NULL; p = p->next)

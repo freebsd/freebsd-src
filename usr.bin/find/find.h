@@ -57,6 +57,7 @@ typedef	struct _plandata *creat_f(struct _option *, char ***);
 #define	F_TIME2_C	0x00000020	/* one of -newer?c */
 #define	F_TIME2_T	0x00000040	/* one of -newer?t */
 #define F_MAXDEPTH	F_TIME_A	/* maxdepth vs. mindepth */
+#define F_DEPTH		F_TIME_A	/* -depth n vs. -d */
 /* command line function modifiers */
 #define	F_EQUAL		0x00000000	/* [acm]min [acm]time inum links size */
 #define	F_LESSTHAN	0x00000100
@@ -86,6 +87,7 @@ typedef struct _plandata {
 			u_long _f_notflags;
 		} fl;
 		nlink_t _l_data;		/* link count */
+		short _d_data;			/* level depth (-1 to N) */
 		off_t _o_data;			/* file size */
 		time_t _t_data;			/* time value */
 		uid_t _u_data;			/* uid */
@@ -109,6 +111,7 @@ typedef struct _plandata {
 } PLAN;
 #define	a_data	p_un._a_data
 #define	c_data	p_un._c_data
+#define	d_data	p_un._d_data
 #define fl_flags	p_un.fl._f_flags
 #define fl_notflags	p_un.fl._f_notflags
 #define	g_data	p_un._g_data
