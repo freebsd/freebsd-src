@@ -5,6 +5,21 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000710:
+	/dev/random now has good entropy collection (from the keyboard
+	and sysmouse drivers). Please ensure that either `options
+	RANDOMDEV' is present in your kernel config file or that
+	`randomdev_load="YES"' is in your /boot/loader.conf. If you do
+	not have the /dev/random driver, OpenSSL (and consequently
+	lots of crypto tools (like SSH)) will fail with strange
+	errors. (see below, 20000624).
+
+20000709:
+	phk made the default options AJ.  This may slow things down
+	and uncover other latent bugs in the code.  If you need to run
+	at full speed, you can disable this by doing the following:
+		ln -s aj /etc/malloc.conf
+
 20000706:
 	libftpio's version was accidentally bumped a few days ago.  This
 	has been corrected.  You may need to remove /usr/lib/libftpio.so.6
