@@ -220,9 +220,7 @@ void devstat_start_transaction(struct devstat *ds);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
 			     devstat_tag_type tag_type,
 			     devstat_trans_flags flags);
-#ifndef _SYS_BIO_H_
 void devstat_end_transaction_bio(struct devstat *ds, struct bio *bp);
-#endif
 #endif
 
 #endif /* _DEVICESTAT_H */
