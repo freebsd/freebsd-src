@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.50 1995/01/31 11:41:46 dufault Exp $
+ *      $Id: sd.c,v 1.51 1995/03/01 22:24:45 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -47,6 +47,10 @@ u_int32 sdstrats, sdqueues;
 #define	SDOUTSTANDING	2
 #define	SD_RETRIES	4
 #define	MAXTRANSFER	8		/* 1 page at a time */
+
+#define SDUNITSHIFT          3
+#define SDUNIT(DEV)         SH3_UNIT(DEV)
+#define SDSETUNIT(DEV, U)   SH3SETUNIT((DEV), (U))
 
 #define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<SDUNITSHIFT)+part)))
 #define PARTITION(z)	(minor(z) & 0x07)
@@ -92,10 +96,12 @@ struct scsi_data {
 static int sdunit(dev_t dev) { return SDUNIT(dev); }
 static dev_t sdsetunit(dev_t dev, int unit) { return SDSETUNIT(dev, unit); }
 
-errval sd_open(dev_t dev, int flags, struct scsi_link *sc_link);
+errval sd_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link);
 errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-		struct scsi_link *sc_link);
-errval sd_close(dev_t dev, struct scsi_link *sc_link);
+		struct proc *p, struct scsi_link *sc_link);
+errval sd_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link);
 void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(sd)
@@ -111,6 +117,7 @@ struct scsi_device sd_switch =
 	{0, 0},
 	0,				/* Link flags */
 	sdattach,
+	"Direct-Access",
 	sdopen,
     sizeof(struct scsi_data),
 	T_DIRECT,
@@ -139,7 +146,6 @@ static struct kern_devconf kdc_sd_template = {
 	&kdc_scbus0,		/* XXX parent */
 	0,			/* parentdata */
 	DC_UNKNOWN,		/* not supported */
-	"SCSI disk"
 };
 
 static inline void
@@ -151,6 +157,7 @@ sd_registerdev(int unit)
 	if(!kdc) return;
 	*kdc = kdc_sd_template;
 	kdc->kdc_unit = unit;
+	kdc->kdc_description = sd_switch.desc;
 	dev_attach(kdc);
 	if(dk_ndrive < DK_NDRIVE) {
 		sprintf(dk_names[dk_ndrive], "sd%d", unit);
@@ -218,7 +225,8 @@ sdattach(struct scsi_link *sc_link)
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
 errval
-sd_open(dev_t dev, int flags, struct scsi_link *sc_link)
+sd_open(dev_t dev, int flags, int fmt, struct proc *p,
+struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
@@ -340,7 +348,8 @@ bad:
  * device.  Convenient now but usually a pain.
  */
 errval 
-sd_close(dev_t dev, struct scsi_link *sc_link)
+sd_close(dev_t dev, int flag, int fmt, struct proc *p,
+        struct scsi_link *sc_link)
 {
 	unsigned char unit, part;
 	struct scsi_data *sd;
@@ -586,7 +595,7 @@ bad:
  */
 errval 
 sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
-struct scsi_link *sc_link)
+struct proc *p, struct scsi_link *sc_link)
 {
 	/* struct sd_cmd_buf *args; */
 	errval  error = 0;
@@ -693,7 +702,7 @@ struct scsi_link *sc_link)
 
 	default:
 		if (part == RAWPART || SCSI_SUPER(dev) )
-			error = scsi_do_ioctl(dev, cmd, addr, flag, sc_link);
+			error = scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link);
 		else
 			error = ENOTTY;
 		break;
@@ -954,10 +963,7 @@ sdsize(dev_t dev)
 	if ((sd->flags & SDINIT) == 0)
 		return -1;
 	if (sd == 0 || (sd->flags & SDHAVELABEL) == 0) {
-		/* XXX: By rights sdopen should be called like:
-		 * sdopen(MAKESDDEV(major(dev), unit, RAWPART), FREAD, S_IFBLK, 0);
-		 */
-		val = sdopen(MAKESDDEV(major(dev), unit, RAWPART), FREAD);
+		val = sdopen(MAKESDDEV(major(dev), unit, RAWPART), FREAD, S_IFBLK, 0);
 		if (val != 0)
 			return -1;
 	}

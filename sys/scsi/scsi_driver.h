@@ -35,22 +35,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_ioctl.c,v 1.10 1995/01/19 12:41:36 dufault Exp $
+ * $Id: scsi_driver.h,v 1.1 1995/03/01 22:24:42 dufault Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_
 #define _SCSI__DRIVER_H_
 
+#include <sys/conf.h>
+
 struct kern_devconf;
 struct scsi_link;
 struct scsi_device;
 struct buf;
+struct proc;
 
-int scsi_goaway __P((struct kern_devconf *, int));
-int scsi_device_attach __P((struct scsi_link *));
-errval scsi_open __P((dev_t, int, struct scsi_device *));
-errval scsi_close __P((dev_t, struct scsi_device *));
-errval scsi_ioctl __P((dev_t, u_int32, caddr_t, int, struct scsi_device *));
+int  scsi_goaway __P((struct kern_devconf *, int));
+int  scsi_device_attach __P((struct scsi_link *));
+
+int  scsi_open __P((dev_t, int, int, struct proc *, struct scsi_device *));
+int  scsi_close __P((dev_t, int, int, struct proc *, struct scsi_device *));
+int  scsi_ioctl __P((dev_t, u_int32, caddr_t, int, struct proc *,
+      struct scsi_device *));
 void scsi_strategy __P((struct buf *, struct scsi_device *));
 void scsi_minphys __P((struct buf *, struct scsi_device *));
 
