@@ -18,6 +18,8 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "defs.h"
 #include "inferior.h"
 #include "regcache.h"
@@ -305,7 +307,7 @@ i386bsd_dr_set (int regnum, unsigned int value)
   /* For some mysterious reason, some of the reserved bits in the
      debug control register get set.  Mask these off, otherwise the
      ptrace call below will fail.  */
-  dbregs.dr7 &= ~(0x0000fc00);
+  dbregs.dr[7] &= ~(0x0000fc00);
 
   DBREG_DRX ((&dbregs), regnum) = value;
 
@@ -354,7 +356,7 @@ i386bsd_dr_get_status (void)
     return 0;
 #endif
 
-  return dbregs.dr6;
+  return dbregs.dr[6];
 }
 
 #endif /* PT_GETDBREGS */
