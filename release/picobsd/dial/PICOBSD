@@ -15,7 +15,6 @@ maxusers	3
 options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
-options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		MFS			#Memory Filesystem
 options		MD_ROOT			#Use MFS for root
 options		MSDOSFS			#MSDOS Filesystem
