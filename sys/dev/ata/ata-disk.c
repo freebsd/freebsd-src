@@ -41,6 +41,7 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cons.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/md_var.h>
@@ -86,6 +87,15 @@ static int ata_dma, ata_wc, ata_tags;
 TUNABLE_INT_DECL("hw.ata.ata_dma", 1, ata_dma);
 TUNABLE_INT_DECL("hw.ata.wc", 0, ata_wc);
 TUNABLE_INT_DECL("hw.ata.tags", 0, ata_tags);
+
+/* sysctl vars */
+SYSCTL_DECL(_hw_ata);
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RD, &ata_dma, 0,
+	   "ATA disk DMA mode control");
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_wc, CTLFLAG_RD, &ata_wc, 0,
+	   "ATA disk write caching");
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_tags, CTLFLAG_RD, &ata_tags, 0,
+	   "ATA disk tagged queuing support");
 
 /* defines */
 #define	AD_MAX_RETRIES	3
@@ -183,37 +193,11 @@ ad_attach(struct ata_softc *scp, int device)
     adp->dev = dev;
     bioq_init(&adp->queue);
 
-    if (bootverbose) {
-	ata_printf(scp, device, "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
-		   AD_PARAM->model, AD_PARAM->revision,
-		   ad_version(AD_PARAM->versmajor), device_get_unit(scp->dev),
-		   (adp->unit == ATA_MASTER) ? "master" : "slave");
-
-	ata_printf(scp, device, "%luMB (%u sectors), %u C, %u H, %u S, %u B\n",
-		   adp->total_secs / ((1024L*1024L)/DEV_BSIZE), adp->total_secs,
-		   adp->total_secs / (adp->heads * adp->sectors),
-		   adp->heads, adp->sectors, DEV_BSIZE);
-
-	ata_printf(scp, device, "%d secs/int, %d depth queue, %s%s\n", 
-		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
-		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-		   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
-
-	ata_printf(scp, device, "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
-		   ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
-		   ata_umode(AD_PARAM), AD_PARAM->cblid);
-
-    }
-
     /* if this disk belongs to an ATA RAID dont print the probe */
-    if (ar_probe(adp))
-	ata_printf(scp, device, "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
-	       adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
-	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
-	       adp->heads, adp->sectors, device_get_unit(scp->dev),
-	       (adp->unit == ATA_MASTER) ? "master" : "slave",
-	       (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
-	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+    if (!ar_probe(adp))
+	adp->flags |= AD_F_RAID_SUBDISK;
+    else
+	ad_print(adp, "");
 
     /* store our softc signalling we are ready to go */
     scp->dev_softc[ATA_DEV(device)] = adp;
@@ -226,6 +210,10 @@ ad_detach(struct ad_softc *adp, int flush)
     struct bio *bp;
 
     adp->flags |= AD_F_DETACHING;
+
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	printf("WARNING! detaching RAID subdisk, danger ahead\n");
+
     ata_printf(adp->controller, adp->unit, "removed from configuration\n");
     TAILQ_FOREACH(request, &adp->controller->ata_queue, chain) {
 	if (request->device != adp)
@@ -261,6 +249,8 @@ adopen(dev_t dev, int flags, int fmt, struct proc *p)
     struct ad_softc *adp = dev->si_drv1;
     struct disklabel *dl;
 
+    if (adp->flags & AD_F_RAID_SUBDISK)
+	return EBUSY;
     dl = &adp->disk.d_label;
     bzero(dl, sizeof *dl);
     dl->d_secsize = DEV_BSIZE;
@@ -941,6 +931,49 @@ ad_reinit(struct ad_softc *adp)
 		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
     else
 	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
+}
+
+void
+ad_print(struct ad_softc *adp, char *prepend) 
+{
+    if (prepend)
+	printf("%s", prepend);
+    if (bootverbose) {
+	ata_printf(adp->controller, adp->unit,
+		   "<%.40s/%.8s> ATA-%d disk at ata%d-%s\n", 
+		   AD_PARAM->model, AD_PARAM->revision,
+		   ad_version(AD_PARAM->versmajor), 
+		   device_get_unit(adp->controller->dev),
+		   (adp->unit == ATA_MASTER) ? "master" : "slave");
+
+	ata_printf(adp->controller, adp->unit,
+		   "%luMB (%u sectors), %u C, %u H, %u S, %u B\n",
+		   adp->total_secs / ((1024L*1024L)/DEV_BSIZE), adp->total_secs,
+		   adp->total_secs / (adp->heads * adp->sectors),
+		   adp->heads, adp->sectors, DEV_BSIZE);
+
+	ata_printf(adp->controller, adp->unit,
+		   "%d secs/int, %d depth queue, %s%s\n", 
+		   adp->transfersize / DEV_BSIZE, adp->num_tags + 1,
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+
+	ata_printf(adp->controller, adp->unit,
+		   "piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
+		   ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
+		   ata_umode(AD_PARAM), AD_PARAM->cblid);
+
+    }
+    else
+	ata_printf(adp->controller, adp->unit,
+		   "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s%s\n",
+		   adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
+		   AD_PARAM->model, adp->total_secs / (adp->heads*adp->sectors),
+		   adp->heads, adp->sectors,
+		   device_get_unit(adp->controller->dev),
+		   (adp->unit == ATA_MASTER) ? "master" : "slave",
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 }
 
 static int
