@@ -159,7 +159,6 @@ fdc_acpi_attach(device_t dev)
 			break;
 		default:
 			device_printf(dev, "invalid _FDE type %d\n", obj->Type);
-			error = ENXIO;
 			goto out;
 		}
 		error = fdc_acpi_probe_children(bus, dev, fde);
