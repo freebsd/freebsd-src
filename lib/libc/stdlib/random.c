@@ -29,22 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
+ *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)random.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 
-#ifdef COMPAT_WEAK_SEEDING
-#define USE_WEAK_SEEDING
-#define random orandom
-#define srandom osrandom
-#define initstate oinitstate
-#define setstate osetstate
-#endif
-
+#include <sys/time.h>          /* for srandomdev() */
+#include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>            /* for srandomdev() */
 
 /*
  * random.c:
@@ -84,6 +82,25 @@ static char sccsid[] = "@(#)random.c	8.1 (Berkeley) 6/4/93";
  * large deg, when the period of the shift register is the dominant factor.
  * With deg equal to seven, the period is actually much longer than the
  * 7*(2**7 - 1) predicted by this formula.
+ *
+ * Modified 28 December 1994 by Jacob S. Rosenberg.
+ * The following changes have been made:
+ * All references to the type u_int have been changed to unsigned long.
+ * All references to type int have been changed to type long.  Other
+ * cleanups have been made as well.  A warning for both initstate and
+ * setstate has been inserted to the effect that on Sparc platforms
+ * the 'arg_state' variable must be forced to begin on word boundaries.
+ * This can be easily done by casting a long integer array to char *.
+ * The overall logic has been left STRICTLY alone.  This software was
+ * tested on both a VAX and Sun SpacsStation with exactly the same
+ * results.  The new version and the original give IDENTICAL results.
+ * The new version is somewhat faster than the original.  As the
+ * documentation says:  "By default, the package runs with 128 bytes of
+ * state information and generates far better random numbers than a linear
+ * congruential generator.  If the amount of state information is less than
+ * 32 bytes, a simple linear congruential R.N.G. is used."  For a buffer of
+ * 128 bytes, this new version runs about 19 percent faster and for a 16
+ * byte buffer it is about 5 percent faster.
  */
 
 /*
@@ -124,8 +141,8 @@ static char sccsid[] = "@(#)random.c	8.1 (Berkeley) 6/4/93";
  */
 #define	MAX_TYPES	5		/* max number of types above */
 
-static int degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
-static int seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
+static long degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
+static long seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
 
 /*
  * Initially, everything is set up as if from:
@@ -190,9 +207,9 @@ static long *rptr = &randtbl[1];
  * the last element to see if the front and rear pointers have wrapped.
  */
 static long *state = &randtbl[1];
-static int rand_type = TYPE_3;
-static int rand_deg = DEG_3;
-static int rand_sep = SEP_3;
+static long rand_type = TYPE_3;
+static long rand_deg = DEG_3;
+static long rand_sep = SEP_3;
 static long *end_ptr = &randtbl[DEG_3 + 1];
 
 static inline long good_rand __P((long));
@@ -241,9 +258,9 @@ static inline long good_rand (x)
  */
 void
 srandom(x)
-	unsigned int x;
+	unsigned long x;
 {
-	register int i;
+	register long i;
 
 	if (rand_type == TYPE_0)
 		state[0] = x;
@@ -255,6 +272,51 @@ srandom(x)
 		rptr = &state[0];
 		for (i = 0; i < 10 * rand_deg; i++)
 			(void)random();
+	}
+}
+
+/*
+ * srandomdev:
+ *
+ * Many programs choose the seed value in a totally predictable manner.
+ * This often causes problems.  We seed the generator using the much more
+ * secure urandom(4) interface.  Note that this particular seeding
+ * procedure can generate states which are impossible to reproduce by
+ * calling srandom() with any value, since the succeeding terms in the
+ * state buffer are no longer derived from the LC algorithm applied to
+ * a fixed seed.
+ */
+void
+srandomdev()
+{
+	int fd, done;
+	size_t len;
+
+	if (rand_type == TYPE_0)
+		len = sizeof state[0];
+	else
+		len = rand_deg * sizeof state[0];
+
+	done = 0;
+	fd = open("/dev/urandom", O_RDONLY, 0);
+	if (fd >= 0) {
+		if (read(fd, (void *) state, len) == (ssize_t) len)
+			done = 1;
+		close(fd);
+	}
+
+	if (!done) {
+		struct timeval tv;
+		unsigned long junk;
+
+		gettimeofday(&tv, NULL);
+		srandom(getpid() ^ tv.tv_sec ^ tv.tv_usec ^ junk);
+		return;
+	}
+
+	if (rand_type != TYPE_0) {
+		fptr = &state[rand_sep];
+		rptr = &state[0];
 	}
 }
 
@@ -276,14 +338,19 @@ srandom(x)
  * setstate() so that it doesn't matter when initstate is called.
  *
  * Returns a pointer to the old state.
+ *
+ * Note: The Sparc platform requires that arg_state begin on a long
+ * word boundary; otherwise a bus error will occur. Even so, lint will
+ * complain about mis-alignment, but you should disregard these messages.
  */
 char *
 initstate(seed, arg_state, n)
-	unsigned int seed;		/* seed for R.N.G. */
+	unsigned long seed;		/* seed for R.N.G. */
 	char *arg_state;		/* pointer to state array */
-	int n;				/* # bytes of state info */
+	long n;				/* # bytes of state info */
 {
 	register char *ostate = (char *)(&state[-1]);
+	register long *long_arg_state = (long *) arg_state;
 
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
@@ -291,7 +358,7 @@ initstate(seed, arg_state, n)
 		state[-1] = MAX_TYPES * (rptr - state) + rand_type;
 	if (n < BREAK_0) {
 		(void)fprintf(stderr,
-		    "random: not enough state (%d bytes); ignored.\n", n);
+		    "random: not enough state (%ld bytes); ignored.\n", n);
 		return(0);
 	}
 	if (n < BREAK_1) {
@@ -315,13 +382,13 @@ initstate(seed, arg_state, n)
 		rand_deg = DEG_4;
 		rand_sep = SEP_4;
 	}
-	state = &(((long *)arg_state)[1]);	/* first location */
+	state = (long *) (long_arg_state + 1); /* first location */
 	end_ptr = &state[rand_deg];	/* must set end_ptr before srandom */
 	srandom(seed);
 	if (rand_type == TYPE_0)
-		state[-1] = rand_type;
+		long_arg_state[0] = rand_type;
 	else
-		state[-1] = MAX_TYPES*(rptr - state) + rand_type;
+		long_arg_state[0] = MAX_TYPES * (rptr - state) + rand_type;
 	return(ostate);
 }
 
@@ -339,14 +406,18 @@ initstate(seed, arg_state, n)
  * setstate() with the same state as the current state.
  *
  * Returns a pointer to the old state information.
+ *
+ * Note: The Sparc platform requires that arg_state begin on a long
+ * word boundary; otherwise a bus error will occur. Even so, lint will
+ * complain about mis-alignment, but you should disregard these messages.
  */
 char *
 setstate(arg_state)
-	char *arg_state;
+	char *arg_state;		/* pointer to state array */
 {
-	register long *new_state = (long *)arg_state;
-	register int type = new_state[0] % MAX_TYPES;
-	register int rear = new_state[0] / MAX_TYPES;
+	register long *new_state = (long *) arg_state;
+	register long type = new_state[0] % MAX_TYPES;
+	register long rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
 	if (rand_type == TYPE_0)
@@ -367,7 +438,7 @@ setstate(arg_state)
 		(void)fprintf(stderr,
 		    "random: state info corrupted; not changed.\n");
 	}
-	state = &new_state[1];
+	state = (long *) (new_state + 1);
 	if (rand_type != TYPE_0) {
 		rptr = &state[rear];
 		fptr = &state[(rear + rand_sep) % rand_deg];
@@ -396,18 +467,28 @@ setstate(arg_state)
 long
 random()
 {
-	long i;
+	register long i;
+	register long *f, *r;
 
-	if (rand_type == TYPE_0)
-		i = state[0] = good_rand(state[0]) & 0x7fffffff;
-	else {
-		*fptr += *rptr;
-		i = (*fptr >> 1) & 0x7fffffff;	/* chucking least random bit */
-		if (++fptr >= end_ptr) {
-			fptr = state;
-			++rptr;
-		} else if (++rptr >= end_ptr)
-			rptr = state;
+	if (rand_type == TYPE_0) {
+		i = state[0];
+		state[0] = i = (good_rand(i)) & 0x7fffffff;
+	} else {
+		/*
+		 * Use local variables rather than static variables for speed.
+		 */
+		f = fptr; r = rptr;
+		*f += *r;
+		i = (*f >> 1) & 0x7fffffff;	/* chucking least random bit */
+		if (++f >= end_ptr) {
+			f = state;
+			++r;
+		}
+		else if (++r >= end_ptr) {
+			r = state;
+		}
+
+		fptr = f; rptr = r;
 	}
 	return(i);
 }
