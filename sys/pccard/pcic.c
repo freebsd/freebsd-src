@@ -216,7 +216,7 @@ int			cmd;
  * case it should return an errno from errno.h).
  */
 int
-lkm_pcic(lkmtp, cmd, ver)
+pcic_mod(lkmtp, cmd, ver)
 struct lkm_table	*lkmtp;	
 int			cmd;
 int			ver;
