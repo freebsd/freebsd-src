@@ -1,9 +1,9 @@
 /*
  * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  *
- * Copyright (C) 1990, 1992 Specialix International,
+ * Copyright (C) 1990, 1992, 1998 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
- * Copyright (C) 1995, Peter Wemm <peter@haywire.dialix.com>
+ * Copyright (C) 1995, Peter Wemm <peter@netplex.com.au>
  *
  * Originally derived from:	SunOS 4.x version
  * Ported from BSDI version to FreeBSD by Peter Wemm.
@@ -30,13 +30,13 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.53.2.1 1998/03/02 05:54:02 peter Exp $
+ *	$Id: si.c,v 1.53.2.2 1998/03/21 19:23:28 peter Exp $
  */
 
 #ifndef lint
-static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
-                  si_copyright2[] =  "@(#) (C) Andy Rutter 1993",
-                  si_copyright3[] =  "@(#) (C) Peter Wemm 1995";
+static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International, 1990,1992,1998",
+		  si_copyright2[] =  "@(#) Copyright (C) Andy Rutter 1993",
+		  si_copyright3[] =  "@(#) Copyright (C) Peter Wemm 1995";
 #endif	/* not lint */
 
 #include <sys/param.h>
@@ -77,24 +77,31 @@ static const char si_copyright1[] =  "@(#) (C) Specialix International, 1990,199
 #include <pci/pcireg.h>
 #endif
 
+#include "eisa.h"
+#if NEISA > 0
+#include <i386/eisa/eisaconf.h>
+#include <i386/isa/icu.h>
+#endif
+
 #include "si.h"
 
 /*
  * This device driver is designed to interface the Specialix International
- * range of serial multiplexor cards (SI/XIO) to BSDI/386 on an ISA bus machine.
+ * SI, XIO and SX range of serial multiplexor cards to FreeBSD on an ISA,
+ * EISA or PCI bus machine.
  *
- * [ 10/22/97 - And also on PCI machines -NS ]
+ * The controller is interfaced to the host via dual port RAM
+ * and an interrupt.
  *
- * The controller is interfaced to the host via dual port ram
- * and a (programmable - SIHOST2) interrupt at IRQ 11,12 or 15.
+ * The code for the Host 1 (very old ISA cards) has not been tested.
  */
 
 #define	POLL		/* turn on poller to scan for lost interrupts */
 #define REALPOLL	/* on each poll, scan for work regardless */
 #define POLLHZ	(hz/10)	/* 10 times per second */
-#define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
-#define INT_COUNT 25000	/* max of 125 ints per second */
+#define INT_COUNT 25000		/* max of 125 ints per second */
+#define JET_INT_COUNT 100	/* max of 100 ints per second */
 #define RXINT_COUNT 1	/* one rxint per 10 milliseconds */
 
 enum si_mctl { GET, SET, BIS, BIC };
@@ -115,33 +122,45 @@ static int	siparam __P((struct tty *, struct termios *));
 static	int	siprobe __P((struct isa_device *id));
 static	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
-static	void	si_intr __P((int unit));
+static void	si_intr __P((int unit));
+static char *	si_modulename __P((int host_type, int uart_type));
 
 struct isa_driver sidriver =
 	{ siprobe, siattach, "si" };
 
-#if NPCI > 0
+static u_long sipcieisacount = 0;
 
-/*
- * NOTE! No checking is done to make sure that PCI and ISA unit numbers
- * don't collide. Surely something evil would result. Don't let it happen
- * to you.
- */
+#if NPCI > 0
 
 static char *sipciprobe __P((pcici_t, pcidi_t));
 static void sipciattach __P((pcici_t, int));
-
-static u_long sipcicount;
 
 static struct pci_device sipcidev = {
 	"si",
 	sipciprobe,
 	sipciattach,
-	&sipcicount,
+	&sipcieisacount,
 	NULL,
 };
 
 DATA_SET (pcidevice_set, sipcidev);
+
+#endif
+
+#if NEISA > 0
+
+static int si_eisa_probe __P((void));
+static int si_eisa_attach __P((struct eisa_device *ed));
+
+static struct eisa_driver si_eisa_driver = {
+	"si",
+	si_eisa_probe,
+	si_eisa_attach,
+	NULL,
+	&sipcieisacount,
+};
+
+DATA_SET(eisadriver_set, si_eisa_driver);
 
 #endif
 
@@ -154,7 +173,7 @@ static	d_stop_t	sistop;
 static	d_devtotty_t	sidevtotty;
 
 #define CDEV_MAJOR 68
-static struct cdevsw si_cdevsw = 
+static struct cdevsw si_cdevsw =
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
 	  siioctl,	sistop,		noreset,	sidevtotty,/* si */
 	  ttselect,	nommap,		NULL,	"si",	NULL,	-1 };
@@ -176,18 +195,22 @@ static int si_Nports;
 static int si_Nmodules;
 static int si_debug = 0;	/* data, not bss, so it's patchable */
 
+SYSCTL_INT(_machdep, OID_AUTO, si_debug, CTLFLAG_RW, &si_debug, 0, "");
+
 static struct tty *si_tty;
 
-/* where the firmware lives; defined in si_code.c and si_jet.c */
-/* old: si_code.c */
-extern int si_dsize;
-extern unsigned char si_download[];
-/* new: si_jet.c */
-extern int si3_dsize;
-extern unsigned char si3_download[];
-extern unsigned short si3_bootloadaddr;
-extern int si3_bsize;
-extern unsigned char si3_bootstrap[];
+/* where the firmware lives; defined in si2_z280.c and si3_t225.c */
+/* old: si2_z280.c */
+extern unsigned char si2_z280_download[];
+extern unsigned short si2_z280_downloadaddr;
+extern int si2_z280_dsize;
+/* new: si3_t225.c */
+extern unsigned char si3_t225_download[];
+extern unsigned short si3_t225_downloadaddr;
+extern int si3_t225_dsize;
+extern unsigned char si3_t225_bootstrap[];
+extern unsigned short si3_t225_bootloadaddr;
+extern int si3_t225_bsize;
 
 
 struct si_softc {
@@ -200,8 +223,10 @@ struct si_softc {
 	caddr_t		sc_maddr;	/* kvaddr of iomem */
 	int		sc_nport;	/* # ports on this card */
 	int		sc_irq;		/* copy of attach irq */
+#if NEISA > 0
 	int		sc_eisa_iobase;	/* EISA io port address */
-	int		sc_eisa_irqbits;
+	int		sc_eisa_irq;	/* EISA irq number */
+#endif
 #ifdef	DEVFS
 	struct {
 		void	*ttya;
@@ -260,16 +285,6 @@ static struct speedtab chartimes[] = {
 };
 static volatile int in_intr = 0;	/* Inside interrupt handler? */
 
-static int si_default_rate =	TTYDEF_SPEED;
-static int si_default_iflag =	0;
-static int si_default_oflag =	0;
-static int si_default_lflag =	0;
-#ifdef SI_DEF_HWFLOW
-static int si_default_cflag =	TTYDEF_CFLAG | CRTSCTS;
-#else
-static int si_default_cflag =	TTYDEF_CFLAG;
-#endif
-
 #ifdef POLL
 static int si_pollrate;			/* in addition to irq */
 static int si_realpoll;			/* poll HW on timer */
@@ -288,7 +303,7 @@ static void si_poll __P((void *));
 static char *si_type[] = {
 	"EMPTY",
 	"SIHOST",
-	"SI2",				/* MCA */
+	"SIMCA",		/* FreeBSD does not support Microchannel */
 	"SIHOST2",
 	"SIEISA",
 	"SIPCI",
@@ -334,11 +349,11 @@ int unit;
 		case 0x4000:
 			si_softc[unit].sc_type = SIPCI;
 			mapval = SIPCIBADR;
-		break;
+			break;
 		case 0x2000:
 			si_softc[unit].sc_type = SIJETPCI;
 			mapval = SIJETBADR;
-		break;
+			break;
 	}
 	if (!pci_map_mem(configid, mapval, &vaddr, &paddr))
 	{
@@ -368,6 +383,110 @@ int unit;
 }
 
 #endif
+
+#if NEISA > 0
+
+static const char *si_eisa_match __P((eisa_id_t id));
+
+static const char *
+si_eisa_match(id)
+	eisa_id_t id;
+{
+	if (id == SIEISADEVID)
+		return ("Specialix SI/XIO EISA host card");
+	return (NULL);
+}
+
+static int
+si_eisa_probe(void)
+{
+	struct eisa_device *ed = NULL;
+	int count, irq;
+
+	for (count=0; (ed = eisa_match_dev(ed, si_eisa_match)) != NULL; count++)
+	{
+		u_long port,maddr;
+
+		port = (ed->ioconf.slot * EISA_SLOT_SIZE) + SIEISABASE;
+		eisa_add_iospace(ed, port, SIEISAIOSIZE, RESVADDR_NONE);
+		maddr = (inb(port+1) << 24) | (inb(port) << 16);
+		irq  = ((inb(port+2) >> 4) & 0xf);
+		eisa_add_mspace(ed, maddr, SIEISA_MEMSIZE, RESVADDR_NONE);
+		eisa_add_intr(ed, irq);
+		eisa_registerdev(ed, &si_eisa_driver);
+		count++;
+	}
+	return count;
+}
+
+static int
+si_eisa_attach(ed)
+	struct eisa_device *ed;
+{
+	struct isa_device id;
+	resvaddr_t *maddr,*iospace;
+	u_int irq;
+	struct si_softc *sc;
+
+	sc = &si_softc[ed->unit];
+
+	sc->sc_type = SIEISA;
+	sc->sc_typename = si_type[sc->sc_type];
+
+	if ((iospace = ed->ioconf.ioaddrs.lh_first) == NULL) {
+		printf("si%d: no iospace??\n", ed->unit);
+		return -1;
+	}
+	sc->sc_eisa_iobase = iospace->addr;
+
+	irq  = ((inb(iospace->addr + 2) >> 4) & 0xf);
+	sc->sc_eisa_irq = irq;
+
+	if ((maddr = ed->ioconf.maddrs.lh_first) == NULL) {
+		printf("si%d: where am I??\n", ed->unit);
+		return -1;
+	}
+	eisa_reg_start(ed);
+	if (eisa_reg_iospace(ed, iospace)) {
+		printf("si%d: failed to register iospace 0x%x\n",
+			ed->unit, iospace);
+		return -1;
+	}
+	if (eisa_reg_mspace(ed, maddr)) {
+		printf("si%d: failed to register memspace 0x%x\n",
+			ed->unit, maddr);
+		return -1;
+	}
+	/*
+	 * We're cheating here a little bit. The argument to an ISA
+	 * interrupt routine is the unit number. The argument to a
+	 * EISA interrupt handler is a void *, but we're simply going
+	 * to be lazy and hand it the unit number.
+	 */
+	if (eisa_reg_intr(ed, irq, (void (*)(void *)) si_intr,
+		(void *)(ed->unit), &tty_imask, 1)) {
+		printf("si%d: failed to register interrupt %d\n",
+			ed->unit, irq);
+		return -1;
+	}
+	eisa_reg_end(ed);
+	if (eisa_enable_intr(ed, irq)) {
+		return -1;
+	}
+
+	/*
+	 * More cheating: We're going to dummy up a struct isa_device
+	 * and call the other attach routine. We don't really have to
+	 * fill in very much of the structure, since we filled in a
+	 * little of the soft state already.
+	 */
+	id.id_unit = ed->unit;
+	id.id_maddr = (caddr_t) pmap_mapdev(maddr->addr, SIEISA_MEMSIZE);
+	return (siattach(&id));
+}
+
+#endif
+
 
 /* Look for a valid board at the given mem addr */
 static int
@@ -414,9 +533,8 @@ siprobe(id)
 		return(0);
 	}
 
-
 	if (si_softc[id->id_unit].sc_typename) {
-		/* PCI has taken this unit, choose another */
+		/* EISA or PCI has taken this unit, choose another */
 		for (i=0; i < NSI; i++) {
 			if (si_softc[i].sc_typename == NULL) {
 				id->id_unit = i;
@@ -440,43 +558,6 @@ siprobe(id)
 		}
 	}
 
-#if NEISA > 0
-	/*
-	 * XXX this really sucks, it doesn't use the EISA probe stuff,
-	 * it just depends on knowing which slot the card is in.. -PW
-	 */
-	if (id->id_iobase > 0x0fff) {	/* EISA card */
-		int irq, port;
-		unsigned long base;
-		int eisa_irqs[] = { 0,IRQ1,IRQ2,IRQ3,IRQ4,IRQ5,IRQ6,IRQ7,
-			IRQ8,IRQ9,IRQ10,IRQ11,IRQ12,IRQ13,IRQ14,IRQ15 };
-
-		port = id->id_iobase;
-		base = (inb(port+1) << 24) | (inb(port) << 16);
-		irq  = ((inb(port+2) >> 4) & 0xf);
-
-		id->id_irq = eisa_irqs[irq];
-
-		DPRINT((0, DBG_AUTOBOOT,
-		    "si%d: EISA base %x, irq %x, id_irq %x, port %x\n",
-		    id->id_unit, base, irq, id->id_irq, port));
-
-		if ((id->id_irq&(IRQ1|IRQ2|IRQ8|IRQ13)) != 0)
-			goto bad_irq;
-
-		id->id_iobase &= 0xf000;
-		id->id_iosize  = 0x0fff;
-
-		type = EISA;
-		outb(p+2, (BYTE)irq << 4);
-
-		sc->sc_eisa_iobase = p;
-		sc->sc_eisa_irqbits = irq << 4;
-		ramsize = SIEISA_RAMSIZE;
-		goto got_card;
-	}
-#endif
-
 	/* Is there anything out there? (0x17 is just an arbitrary number) */
 	*maddr = 0x17;
 	if (*maddr != 0x17) {
@@ -488,7 +569,17 @@ fail:
 	}
 	/*
 	 * Let's look first for a JET ISA card, since that's pretty easy
+	 *
+	 * All jet hosts are supposed to have this string in the IDROM,
+	 * but it's not worth checking on self-IDing busses like PCI.
 	 */
+	{
+		unsigned char *jet_chk_str = "JET HOST BY KEV#";
+
+		for (i = 0; i < strlen(jet_chk_str); i++)
+			if (jet_chk_str[i] != *(maddr + SIJETIDSTR + 2 * i))
+				goto try_mk2;
+	}
 	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 		"si%d: JET first check - 0x%x\n",
 		id->id_unit, (*(maddr+SIJETIDBASE))));
@@ -515,7 +606,7 @@ fail:
 	 * Try for a MK II next (SIHOST2)
 	 */
 try_mk2:
-	for (i=SIPLSIG; i<SIPLSIG+8; i++)
+	for (i = SIPLSIG; i < SIPLSIG + 8; i++)
 		if ((*(maddr+i) & 7) != (~(BYTE)i & 7))
 			goto try_mk1;
 
@@ -544,7 +635,7 @@ try_mk1:
 		goto fail;
 	}
 
-	/* It must be an SIHOST (maybe?) - there must be a better way XXXX */
+	/* It must be an SIHOST (maybe?) - there must be a better way XXX */
 	type = SIHOST;
 	ramsize = SIHOST_RAMSIZE;
 
@@ -553,28 +644,28 @@ got_card:
 		id->id_unit, type));
 	/* Try the acid test */
 	ux = maddr + SIRAM;
-	for (i=0; i<ramsize; i++, ux++)
+	for (i = 0; i < ramsize; i++, ux++)
 		*ux = (BYTE)(i&0xff);
 	ux = maddr + SIRAM;
-	for (i=0; i<ramsize; i++, ux++) {
+	for (i = 0; i < ramsize; i++, ux++) {
 		if ((was = *ux) != (BYTE)(i&0xff)) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 				"si%d: match fail at phys 0x%x, was %x should be %x\n",
-				id->id_unit, paddr+i, was, i&0xff));
+				id->id_unit, paddr + i, was, i&0xff));
 			goto fail;
 		}
 	}
 
 	/* clear out the RAM */
 	ux = maddr + SIRAM;
-	for (i=0; i<ramsize; i++)
+	for (i = 0; i < ramsize; i++)
 		*ux++ = 0;
 	ux = maddr + SIRAM;
-	for (i=0; i<ramsize; i++) {
+	for (i = 0; i < ramsize; i++) {
 		if ((was = *ux++) != 0) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 				"si%d: clear fail at phys 0x%x, was %x\n",
-				id->id_unit, paddr+i, was));
+				id->id_unit, paddr + i, was));
 			goto fail;
 		}
 	}
@@ -585,7 +676,7 @@ got_card:
 	 */
 	switch (type) {
 	case SIHOST2:
-		if ((id->id_irq&(IRQ11|IRQ12|IRQ15)) == 0) {
+		if ((id->id_irq & (IRQ11|IRQ12|IRQ15)) == 0) {
 bad_irq:
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 				"si%d: bad IRQ value - %d\n",
@@ -595,33 +686,51 @@ bad_irq:
 		id->id_msize = SIHOST2_MEMSIZE;
 		break;
 	case SIHOST:
-		if ((id->id_irq&(IRQ11|IRQ12|IRQ15)) == 0) {
+		if ((id->id_irq & (IRQ11|IRQ12|IRQ15)) == 0) {
 			goto bad_irq;
 		}
 		id->id_msize = SIHOST_MEMSIZE;
 		break;
 	case SIJETISA:
-		if ((id->id_irq&(IRQ9|IRQ10|IRQ11|IRQ12|IRQ15)) == 0) {
+		if ((id->id_irq & (IRQ9|IRQ10|IRQ11|IRQ12|IRQ15)) == 0) {
 			goto bad_irq;
 		}
-		id->id_msize = SIJET_MEMSIZE;
+		id->id_msize = SIJETISA_MEMSIZE;
 		break;
-	case SIEISA:
-		id->id_msize = SIEISA_MEMSIZE;
-		break;
-	case SI2:		/* MCA */
+	case SIMCA:		/* MCA */
 	default:
 		printf("si%d: %s not supported\n", id->id_unit, si_type[type]);
 		return(0);
 	}
-	id->id_intr = (inthand2_t *)si_intr;
+	id->id_intr = (inthand2_t *)si_intr; /* set here instead of config */
 	si_softc[id->id_unit].sc_type = type;
 	si_softc[id->id_unit].sc_typename = si_type[type];
 	return(-1);	/* -1 == found */
 }
 
 /*
+ * We have to make an 8 bit version of bcopy, since some cards can't
+ * deal with 32 bit I/O
+ */
+#if 1
+static void
+si_bcopy(const void *src, void *dst, size_t len)
+{
+	while (len--)
+		*(((u_char *)dst)++) = *(((u_char *)src)++);
+}
+#else
+#define si_bcopy bcopy
+#endif
+
+
+/*
  * Attach the device.  Initialize the card.
+ *
+ * This routine also gets called by the EISA and PCI attach routines.
+ * It presumes that the softstate for the unit has had had its type field
+ * and the EISA specific stuff filled in, as well as the kernel virtual
+ * base address and the unit number of the isa_device struct.
  */
 static int
 siattach(id)
@@ -652,56 +761,67 @@ siattach(id)
 
 	maddr = sc->sc_maddr;
 
-	/*
-	 * OK, now lets download the firmware and try and boot the CPU..
-	 *
-	 * You can't use bcopy, since some cards won't take 32 bit writes.
-	 */
-	if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI))
-	{
-		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_download: nbytes %d\n",
-			id->id_unit, si3_dsize));
-		{
-			u_int i;
-			for (i=0;i<si3_dsize;i++)
-				maddr[i]=si3_download[i];
-		}
-		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_bootstrap: nbytes %d -> %x\n",
-			id->id_unit, si3_bsize, si3_bootloadaddr));
-		{
-			u_int i;
-			for (i=0;i<si3_bsize;i++)
-				maddr[i+si3_bootloadaddr]=si3_bootstrap[i];
-		}
-	}
-	else
-	{
-		DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
-			id->id_unit, si_dsize));
-		{
-			u_int i;
-			for (i=0;i<si_dsize;i++)
-				maddr[i]=si_download[i];
-		}
-	}
+	/* Stop the CPU first so it won't stomp around while we load */
 
 	switch (sc->sc_type) {
-	case SIEISA:
 #if NEISA > 0
-		/* modify the Z280 firmware to tell it that it's on an EISA */
-		*(maddr+0x42) = 1;
-		outb(sc->sc_eisa_iobase+2, sc->sc_eisa_irqbits | 4);
-		(void)inb(sc->sc_eisa_iobase+3); /* reset interrupt */
+		case SIEISA:
+			outb(sc->sc_eisa_iobase + 2, sc->sc_eisa_irq << 4);
 		break;
-#endif	/* fall-through if not EISA */
-	case SI2:
-		/*
-		 * must get around to converting the code for
-		 * these one day, if FreeBSD ever supports it.
-		 */
-		return 0;
+#endif
+#if NPCI > 0
+		case SIPCI:
+			*(maddr+SIPCIRESET) = 0;
+		break;
+		case SIJETPCI: /* fall through to JET ISA */
+#endif
+		case SIJETISA:
+			*(maddr+SIJETCONFIG) = 0;
+		break;
+		case SIHOST2:
+			*(maddr+SIPLRESET) = 0;
+		break;
+		case SIHOST:
+			*(maddr+SIRESET) = 0;
+		break;
+		default: /* this should never happen */
+			printf("si%d: unsupported configuration\n", unit);
+			return 0;
+		break;
+	}
+
+	/* OK, now lets download the download code */
+
+	if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI)) {
+		DPRINT((0, DBG_DOWNLOAD, "si%d: jet_download: nbytes %d\n",
+			id->id_unit, si3_t225_dsize));
+		si_bcopy(si3_t225_download, maddr + si3_t225_downloadaddr,
+			si3_t225_dsize);
+		DPRINT((0, DBG_DOWNLOAD,
+			"si%d: jet_bootstrap: nbytes %d -> %x\n",
+			id->id_unit, si3_t225_bsize, si3_t225_bootloadaddr));
+		si_bcopy(si3_t225_bootstrap, maddr + si3_t225_bootloadaddr,
+			si3_t225_bsize);
+	} else {
+		DPRINT((0, DBG_DOWNLOAD, "si%d: si_download: nbytes %d\n",
+			id->id_unit, si2_z280_dsize));
+		si_bcopy(si2_z280_download, maddr + si2_z280_downloadaddr,
+			si2_z280_dsize);
+	}
+
+	/* Now start the CPU */
+
+	switch (sc->sc_type) {
+#if NEISA > 0
+	case SIEISA:
+		/* modify the download code to tell it that it's on an EISA */
+		*(maddr + 0x42) = 1;
+		outb(sc->sc_eisa_iobase + 2, (sc->sc_eisa_irq << 4) | 4);
+		(void)inb(sc->sc_eisa_iobase + 3); /* reset interrupt */
+		break;
+#endif
 	case SIPCI:
-		/* modify the Z280 firmware to tell it that it's on a PCI */
+		/* modify the download code to tell it that it's on a PCI */
 		*(maddr+0x42) = 1;
 		*(maddr+SIPCIRESET) = 1;
 		*(maddr+SIPCIINTCL) = 0;
@@ -712,7 +832,23 @@ siattach(id)
 		break;
 	case SIJETISA:
 		*(maddr+SIJETRESET) = 0;
-		*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|(sc->sc_irq<<4);
+		switch (sc->sc_irq) {
+		case IRQ9:
+			*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|0x90;
+			break;
+		case IRQ10:
+			*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|0xa0;
+			break;
+		case IRQ11:
+			*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|0xb0;
+			break;
+		case IRQ12:
+			*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|0xc0;
+			break;
+		case IRQ15:
+			*(maddr+SIJETCONFIG) = SIJETBUSEN|SIJETIRQEN|0xf0;
+			break;
+		}
 		break;
 	case SIHOST:
 		*(maddr+SIRESET_CL) = 0;
@@ -733,6 +869,9 @@ siattach(id)
 		}
 		*(maddr+SIPLIRQCLR) = 0x10;
 		break;
+	default: /* this should _REALLY_ never happen */
+		printf("si%d: Uh, it was supported a second ago...\n", unit);
+		return 0;
 	}
 
 	DELAY(1000000);			/* wait around for a second */
@@ -749,10 +888,16 @@ siattach(id)
 		sc->sc_type = SIEMPTY;
 		return 0;
 	case 1:
-			/* set throttle to 125 intr per second */
-		regp->int_count = INT_COUNT;
-			/* rx intr max of 25 timer per second */
-		regp->rx_int_count = RXINT_COUNT;
+		if ((sc->sc_type == SIJETISA) || (sc->sc_type == SIJETPCI)) {
+			/* set throttle to 100 times per second */
+			regp->int_count = JET_INT_COUNT;
+			/* rx_intr_count is a NOP in Jet */
+		} else {
+			/* set throttle to 125 times per second */
+			regp->int_count = INT_COUNT;
+			/* rx intr max of 25 times per second */
+			regp->rx_int_count = RXINT_COUNT;
+		}
 		regp->int_pending = 0;		/* no intr pending */
 		regp->int_scounter = 0;	/* reset counter */
 		break;
@@ -764,7 +909,7 @@ siattach(id)
 			si_type[sc->sc_type]);
 		return 0;
 	default:
-		printf("si%d: Z280 version error - initstat %x\n",
+		printf("si%d: download code version error - initstat %x\n",
 			unit, regp->initstat);
 		return 0;
 	}
@@ -777,29 +922,60 @@ siattach(id)
 	modp = (struct si_module *)(maddr + 0x80);
 	for (;;) {
 		DPRINT((0, DBG_DOWNLOAD, "si%d: ccb addr 0x%x\n", unit, modp));
-		switch (modp->sm_type & (~MMASK)) {
-		case M232:
-		case M422:
+		switch (modp->sm_type) {
+		case TA4:
 			DPRINT((0, DBG_DOWNLOAD,
-				"si%d: Found 232/422 module, %d ports\n",
-				unit, (int)(modp->sm_type & MMASK)));
-
-			/* this is a firmware issue */
-			if (nport == SI_MAXPORTPERCARD) {
-				printf("si%d: extra ports ignored\n", unit);
-				continue;
-			}
-
-			x = modp->sm_type & MMASK;
-			nport += x;
-			si_Nports += x;
-			si_Nmodules++;
+				"si%d: Found old TA4 module, 4 ports\n",
+				unit));
+			x = 4;
+			break;
+		case TA8:
+			DPRINT((0, DBG_DOWNLOAD,
+				"si%d: Found old TA8 module, 8 ports\n",
+				unit));
+			x = 8;
+			break;
+		case TA4_ASIC:
+			DPRINT((0, DBG_DOWNLOAD,
+				"si%d: Found ASIC TA4 module, 4 ports\n",
+				unit));
+			x = 4;
+			break;
+		case TA8_ASIC:
+			DPRINT((0, DBG_DOWNLOAD,
+				"si%d: Found ASIC TA8 module, 8 ports\n",
+				unit));
+			x = 8;
+			break;
+		case MTA:
+			DPRINT((0, DBG_DOWNLOAD,
+				"si%d: Found CD1400 module, 8 ports\n",
+				unit));
+			x = 8;
+			break;
+		case SXDC:
+			DPRINT((0, DBG_DOWNLOAD,
+				"si%d: Found SXDC module, 8 ports\n",
+				unit));
+			x = 8;
 			break;
 		default:
 			printf("si%d: unknown module type %d\n",
 				unit, modp->sm_type);
-			break;
+			goto try_next;
 		}
+
+		/* this was limited in firmware and is also a driver issue */
+		if ((nport + x) > SI_MAXPORTPERCARD) {
+			printf("si%d: extra ports ignored\n", unit);
+			goto try_next;
+		}
+
+		nport += x;
+		si_Nports += x;
+		si_Nmodules++;
+
+try_next:
 		if (modp->sm_next == 0)
 			break;
 		modp = (struct si_module *)
@@ -831,47 +1007,64 @@ mem_fail:
 	pp = sc->sc_ports;
 	nmodule = 0;
 	modp = (struct si_module *)(maddr + 0x80);
-	uart_type = 1000;	 /* arbitary, > uchar_max */
+	uart_type = 1000;	/* arbitary, > uchar_max */
 	for (;;) {
-		switch (modp->sm_type & (~MMASK)) {
-		case M232:
-		case M422:
-			nmodule++;
-			nport = (modp->sm_type & MMASK);
-			ccbp = (struct si_channel *)((char *)modp+0x100);
-			if (uart_type == 1000)
-				uart_type = ccbp->type;
-			for (x = 0; x < nport; x++, pp++, ccbp++) {
-				pp->sp_ccb = ccbp;	/* save the address */
-				pp->sp_tty = tp++;
-				pp->sp_pend = IDLE_CLOSE;
-				pp->sp_state = 0;	/* internal flag */
-				pp->sp_dtr_wait = 3 * hz;
-				pp->sp_iin.c_iflag = si_default_iflag;
-				pp->sp_iin.c_oflag = si_default_oflag;
-				pp->sp_iin.c_cflag = si_default_cflag;
-				pp->sp_iin.c_lflag = si_default_lflag;
-				termioschars(&pp->sp_iin);
-				pp->sp_iin.c_ispeed = pp->sp_iin.c_ospeed =
-					si_default_rate;
-				pp->sp_iout = pp->sp_iin;
-			}
+		switch (modp->sm_type) {
+		case TA4:
+			nport = 4;
+			break;
+		case TA8:
+			nport = 8;
+			break;
+		case TA4_ASIC:
+			nport = 4;
+			break;
+		case TA8_ASIC:
+			nport = 8;
+			break;
+		case MTA:
+			nport = 8;
+			break;
+		case SXDC:
+			nport = 8;
 			break;
 		default:
-			break;
+			goto try_next2;
 		}
+		nmodule++;
+		ccbp = (struct si_channel *)((char *)modp + 0x100);
+		if (uart_type == 1000)
+			uart_type = ccbp->type;
+		else if (uart_type != ccbp->type)
+			printf("si%d: Warning: module %d mismatch! (%d%s != %d%s)\n",
+			    unit, nmodule,
+			    ccbp->type, si_modulename(sc->sc_type, ccbp->type),
+			    uart_type, si_modulename(sc->sc_type, uart_type));
+
+		for (x = 0; x < nport; x++, pp++, ccbp++) {
+			pp->sp_ccb = ccbp;	/* save the address */
+			pp->sp_tty = tp++;
+			pp->sp_pend = IDLE_CLOSE;
+			pp->sp_state = 0;	/* internal flag */
+			pp->sp_dtr_wait = 3 * hz;
+			pp->sp_iin.c_iflag = TTYDEF_IFLAG;
+			pp->sp_iin.c_oflag = TTYDEF_OFLAG;
+			pp->sp_iin.c_cflag = TTYDEF_CFLAG;
+			pp->sp_iin.c_lflag = TTYDEF_LFLAG;
+			termioschars(&pp->sp_iin);
+			pp->sp_iin.c_ispeed = pp->sp_iin.c_ospeed =
+				TTYDEF_SPEED;;
+			pp->sp_iout = pp->sp_iin;
+		}
+try_next2:
 		if (modp->sm_next == 0) {
-			char *typestr = "";
-			if (uart_type == 0)
-				typestr = " - XIO";
-			else if (uart_type == 1)
-				typestr = " - SI";
-			printf("si%d: card: %s, ports: %d, modules: %d (type: %d%s)\n",
+			printf("si%d: card: %s, ports: %d, modules: %d, type: %d%s\n",
 				unit,
 				sc->sc_typename,
 				sc->sc_nport,
 				nmodule,
-				uart_type, typestr);
+				uart_type,
+				si_modulename(sc->sc_type, uart_type));
 			break;
 		}
 		modp = (struct si_module *)
@@ -1164,8 +1357,8 @@ sihardclose(pp)
 	ccbp = pp->sp_ccb;			/* Find control block */
 	if (tp->t_cflag & HUPCL
 	    || (!pp->sp_active_out
-	        && !(ccbp->hi_ip & IP_DCD)
-	        && !(pp->sp_iin.c_cflag && CLOCAL))
+		&& !(ccbp->hi_ip & IP_DCD)
+		&& !(pp->sp_iin.c_cflag && CLOCAL))
 	    || !(tp->t_state & TS_ISOPEN)) {
 
 		(void) si_modem(pp, BIC, TIOCM_DTR|TIOCM_RTS);
@@ -1388,7 +1581,8 @@ siioctl(dev, cmd, data, flag, p)
 	 * that require the port to be in a quiescent state.
 	 */
 	switch (cmd) {
-	case TIOCSETAW: case TIOCSETAF:
+	case TIOCSETAW:
+	case TIOCSETAF:
 	case TIOCDRAIN:
 #ifdef COMPAT_43
 	case TIOCSETP:
@@ -1585,15 +1779,15 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	/* these next three use a different structure */
 	case TCSI_PORT:
 		SUCHECK;
-		bcopy(xpp, &sps->tc_siport, sizeof(sps->tc_siport));
+		si_bcopy(xpp, &sps->tc_siport, sizeof(sps->tc_siport));
 		break;
 	case TCSI_CCB:
 		SUCHECK;
-		bcopy((char *)xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
+		si_bcopy((char *)xpp->sp_ccb, &sps->tc_ccb, sizeof(sps->tc_ccb));
 		break;
 	case TCSI_TTY:
 		SUCHECK;
-		bcopy(xpp->sp_tty, &sps->tc_tty, sizeof(sps->tc_tty));
+		si_bcopy(xpp->sp_tty, &sps->tc_tty, sizeof(sps->tc_tty));
 		break;
 	default:
 		error = EINVAL;
@@ -1631,6 +1825,7 @@ siparam(tp, t)
 	DPRINT((pp, DBG_PARAM, "OFLAG 0x%x CFLAG 0x%x IFLAG 0x%x LFLAG 0x%x\n",
 		oflag, cflag, iflag, lflag));
 
+	/* XXX - if Jet host and SXDC module, use extended baud rates */
 
 	/* if not hung up.. */
 	if (t->c_ospeed != 0) {
@@ -1643,7 +1838,6 @@ siparam(tp, t)
 		if (ospeed < 0 || ispeed < 0)
 			return (EINVAL);
 	}
-
 
 	oldspl = spltty();
 
@@ -1768,8 +1962,8 @@ siparam(tp, t)
 	} else {
 		/*
 		 * If the previous speed was 0, may need to re-enable
-	 	 * the modem signals
-	 	 */
+		 * the modem signals
+		 */
 		(void) si_modem(pp, SET, TIOCM_DTR|TIOCM_RTS);
 	}
 
@@ -1906,6 +2100,7 @@ si_poll(void *nothing)
 		if (sc->sc_type == SIEMPTY)
 			continue;
 		regp = (struct si_reg *)sc->sc_maddr;
+
 		/*
 		 * See if there has been a pending interrupt for 2 seconds
 		 * or so. The test (int_scounter >= 200) won't correspond
@@ -1948,6 +2143,7 @@ out:
  */
 
 static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
+static BYTE si_txbuf[SI_BUFFERSIZE];	/* output staging area */
 
 static void
 si_intr(int unit)
@@ -1966,9 +2162,11 @@ si_intr(int unit)
 	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "si_intr(%d)\n", unit));
 	if (in_intr) {
 		if (unit < 0)	/* should never happen */
-			return;
-		printf("si%d: Warning interrupt handler re-entered\n",
-			unit);
+			printf("si%d: Warning poll entered during interrupt\n",
+				unit);
+		else
+			printf("si%d: Warning interrupt handler re-entered\n",
+				unit);
 		return;
 	}
 	in_intr = 1;
@@ -1977,8 +2175,11 @@ si_intr(int unit)
 	 * When we get an int we poll all the channels and do ALL pending
 	 * work, not just the first one we find. This allows all cards to
 	 * share the same vector.
+	 *
+	 * XXX - But if we're sharing the vector with something that's NOT
+	 * a SI/XIO/SX card, we may be making more work for ourselves.
 	 */
-	for (card=0; card < NSI; card++) {
+	for (card = 0; card < NSI; card++) {
 		sc = &si_softc[card];
 		if (sc->sc_type == SIEMPTY)
 			continue;
@@ -1987,7 +2188,7 @@ si_intr(int unit)
 		 * First, clear the interrupt
 		 */
 		switch(sc->sc_type) {
-		case SIHOST :
+		case SIHOST:
 			maddr = sc->sc_maddr;
 			((volatile struct si_reg *)maddr)->int_pending = 0;
 							/* flag nothing pending */
@@ -2000,24 +2201,26 @@ si_intr(int unit)
 			*(maddr+SIPLIRQCLR) = 0x00;
 			*(maddr+SIPLIRQCLR) = 0x10;
 			break;
+#if NPCI > 0
 		case SIPCI:
 			maddr = sc->sc_maddr;
 			((volatile struct si_reg *)maddr)->int_pending = 0;
 			*(maddr+SIPCIINTCL) = 0x0;
 			break;
-		case SIJETPCI:
+		case SIJETPCI:	/* fall through to JETISA case */
+#endif
 		case SIJETISA:
 			maddr = sc->sc_maddr;
 			((volatile struct si_reg *)maddr)->int_pending = 0;
 			*(maddr+SIJETINTCL) = 0x0;
 			break;
-		case SIEISA:
 #if NEISA > 0
+		case SIEISA:
 			maddr = sc->sc_maddr;
 			((volatile struct si_reg *)maddr)->int_pending = 0;
-			(void)inb(sc->sc_eisa_iobase+3);
+			(void)inb(sc->sc_eisa_iobase + 3);
 			break;
-#endif	/* fall through if not EISA kernel */
+#endif
 		case SIEMPTY:
 		default:
 			continue;
@@ -2027,10 +2230,10 @@ si_intr(int unit)
 		/*
 		 * check each port
 		 */
-		for (pp=sc->sc_ports,port=0; port < sc->sc_nport; pp++,port++) {
+		for (pp = sc->sc_ports, port=0; port < sc->sc_nport;
+		     pp++, port++) {
 			ccbp = pp->sp_ccb;
 			tp = pp->sp_tty;
-
 
 			/*
 			 * See if a command has completed ?
@@ -2053,7 +2256,7 @@ si_intr(int unit)
 				default:
 					pp->sp_pend = ccbp->hi_stat;
 				}
-	 		}
+			}
 
 			/*
 			 * Continue on if it's closed
@@ -2068,8 +2271,7 @@ si_intr(int unit)
 			si_modem_state(pp, tp, ccbp->hi_ip);
 
 			/*
-			 * Check to see if there's we should 'receive'
-			 * characters.
+			 * Check to see if we should 'receive' characters.
 			 */
 			if (tp->t_state & TS_CONNECTED &&
 			    tp->t_state & TS_ISOPEN)
@@ -2141,7 +2343,7 @@ si_intr(int unit)
 
 				DPRINT((pp, DBG_INTR, "\tsingle copy\n"));
 				z = ccbp->hi_rxbuf + op;
-				bcopy((caddr_t)z, si_rxbuf, n);
+				si_bcopy((caddr_t)z, si_rxbuf, n);
 
 				op += n;
 			} else {
@@ -2149,11 +2351,12 @@ si_intr(int unit)
 
 				DPRINT((pp, DBG_INTR, "\tdouble part 1 %d\n", x));
 				z = ccbp->hi_rxbuf + op;
-				bcopy((caddr_t)z, si_rxbuf, x);
+				si_bcopy((caddr_t)z, si_rxbuf, x);
 
-				DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n", n-x));
+				DPRINT((pp, DBG_INTR, "\tdouble part 2 %d\n",
+					n - x));
 				z = ccbp->hi_rxbuf;
-				bcopy((caddr_t)z, si_rxbuf+x, n-x);
+				si_bcopy((caddr_t)z, si_rxbuf + x, n - x);
 
 				op += n;
 			}
@@ -2286,19 +2489,16 @@ si_start(tp)
 		}
 		amount = min(nchar, (255 - (BYTE)count));
 		ipos = (unsigned int)ccbp->hi_txipos;
+		n = q_to_b(&tp->t_outq, si_txbuf, amount);
 		/* will it fit in one lump? */
-		if ((SI_BUFFERSIZE - ipos) >= amount) {
-			n = q_to_b(&tp->t_outq,
-				(char *)&ccbp->hi_txbuf[ipos], amount);
+		if ((SI_BUFFERSIZE - ipos) >= n) {
+			si_bcopy(si_txbuf, (char *)&ccbp->hi_txbuf[ipos], n);
 		} else {
-			n = q_to_b(&tp->t_outq,
-				(char *)&ccbp->hi_txbuf[ipos],
-				SI_BUFFERSIZE-ipos);
-			if (n == SI_BUFFERSIZE-ipos) {
-				n += q_to_b(&tp->t_outq,
-					(char *)&ccbp->hi_txbuf[0],
-					amount - (SI_BUFFERSIZE-ipos));
-			}
+			si_bcopy(si_txbuf, (char *)&ccbp->hi_txbuf[ipos],
+				SI_BUFFERSIZE - ipos);
+			si_bcopy(si_txbuf + (SI_BUFFERSIZE - ipos),
+				(char *)&ccbp->hi_txbuf[0],
+				n - (SI_BUFFERSIZE - ipos));
 		}
 		ccbp->hi_txipos += n;
 		count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
@@ -2422,7 +2622,7 @@ sistop(tp, rw)
 }
 
 /*
- * Issue a command to the Z280 host card CPU.
+ * Issue a command to the host card CPU.
  */
 
 static void
@@ -2549,10 +2749,10 @@ si_dprintf(pp, flags, fmt, va_alist)
 
 	if ((pp == NULL && (si_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (si_debug&flags)))) {
-	    	if (pp != NULL)
-	    		printf("%ci%d(%d): ", 's',
-	    			(int)SI_CARD(pp->sp_tty->t_dev),
-	    			(int)SI_PORT(pp->sp_tty->t_dev));
+		if (pp != NULL)
+			printf("%ci%d(%d): ", 's',
+				(int)SI_CARD(pp->sp_tty->t_dev),
+				(int)SI_PORT(pp->sp_tty->t_dev));
 		va_start(ap, fmt);
 		vprintf(fmt, ap);
 		va_end(ap);
@@ -2564,30 +2764,71 @@ si_mctl2str(cmd)
 	enum si_mctl cmd;
 {
 	switch (cmd) {
-	case GET:	return("GET");
-	case SET:	return("SET");
-	case BIS:	return("BIS");
-	case BIC:	return("BIC");
+	case GET:
+		return("GET");
+	case SET:
+		return("SET");
+	case BIS:
+		return("BIS");
+	case BIC:
+		return("BIC");
 	}
 	return("BAD");
 }
 
 #endif	/* DEBUG */
 
-
+static char *
+si_modulename(host_type, uart_type)
+	int host_type, uart_type;
+{
+	switch (host_type) {
+	/* Z280 based cards */
+#if NEISA > 0
+	case SIEISA: 
+#endif
+	case SIHOST2:  
+	case SIHOST:
+#if NPCI > 0
+	case SIPCI:
+#endif
+		switch (uart_type) {
+		case 0:
+			return(" (XIO)");
+		case 1:
+			return(" (SI)");
+		}
+		break;
+	/* T225 based hosts */
+#if NPCI > 0
+	case SIJETPCI:
+#endif
+	case SIJETISA:
+		switch (uart_type) {
+		case 0:
+			return(" (SI)");
+		case 40:
+			return(" (XIO)");
+		case 80:
+			return(" (SX)");
+		}
+		break;
+	}
+	return("");
+}
 
 static si_devsw_installed = 0;
 
-static void 	si_drvinit(void *unused)
+static void 
+si_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! si_devsw_installed ) {
+	if (!si_devsw_installed) {
 		dev = makedev(CDEV_MAJOR, 0);
 		cdevsw_add(&dev,&si_cdevsw, NULL);
 		si_devsw_installed = 1;
-    	}
+	}
 }
 
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
-
