@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ipcs.c,v 1.4 1995/07/12 19:10:17 bde Exp $
+ *	$Id: ipcs.c,v 1.5 1996/05/30 02:18:44 pst Exp $
  */
 
 #include <stdio.h>
@@ -321,7 +321,7 @@ main(argc, argv)
 			struct shmid_ds *xshmids;
 
 			kvm_read(kd, symbols[X_SHMSEGS].n_value, &shmsegs, sizeof(shmsegs));
-			xshmids = malloc(sizeof(struct shmid_ds) * msginfo.msgmni);
+			xshmids = malloc(sizeof(struct shmid_ds) * shminfo.shmmni);
 			kvm_read(kd, (u_long) shmsegs, xshmids, sizeof(struct shmid_ds) *
 			    shminfo.shmmni);
 
