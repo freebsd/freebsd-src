@@ -273,7 +273,7 @@ For_Run(int lineno)
 		Var_Set(var, val, VAR_GLOBAL);
 
 		DEBUGF(FOR, ("--- %s = %s\n", var, val));
-		str = Buf_Peel(Var_Subst(var, (char *)Buf_GetAll(buf, NULL),
+		str = Buf_Peel(Var_Subst(var, Buf_Data(buf),
 		    VAR_GLOBAL, FALSE));
 
 		Parse_FromString(str, lineno);

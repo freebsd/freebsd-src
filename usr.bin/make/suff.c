@@ -1160,7 +1160,7 @@ SuffExpandVariables(GNode *parent, GNode *child, Lst *members)
 
 	DEBUGF(SUFF, ("Expanding \"%s\"...", child->name));
 	buf = Var_Subst(NULL, child->name, parent, TRUE);
-	cp = Buf_GetAll(buf, NULL);
+	cp = Buf_Data(buf);
 
 	if (child->type & OP_ARCHV) {
 		/*

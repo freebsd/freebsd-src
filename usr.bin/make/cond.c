@@ -630,10 +630,7 @@ do_string_compare:
 			}
 		    }
 
-		    Buf_AddByte(buf, (Byte)0);
-
-		    string = (char *)Buf_GetAll(buf, (size_t *)NULL);
-		    Buf_Destroy(buf, FALSE);
+		    string = Buf_Peel(buf);
 
 		    DEBUGF(COND, ("lhs = \"%s\", rhs = \"%s\", op = %.2s\n",
 			   lhs, string, op));
