@@ -352,6 +352,7 @@ fbattach(device_t dev)
 #define FB_UNIT(dev)	minor(dev)
 #define FB_MKMINOR(unit) (u)
 
+#if experimental
 static d_open_t		fbopen;
 static d_close_t	fbclose;
 static d_read_t		fbread;
@@ -376,6 +377,7 @@ static struct cdevsw fb_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	0,
 };
+#endif
 
 
 static int
@@ -384,7 +386,6 @@ fb_modevent(module_t mod, int type, void *data)
 
 	switch (type) { 
 	case MOD_LOAD: 
-		cdevsw_add(&fb_cdevsw);
 		break; 
 	case MOD_UNLOAD: 
 		printf("fb module unload - not possible for this module type\n"); 
@@ -438,6 +439,7 @@ fb_detach(dev_t dev, video_adapter_t *adp, struct cdevsw *cdevsw)
 	return 0;
 }
 
+#if experimental
 static int
 fbopen(dev_t dev, int flag, int mode, struct thread *td)
 {
@@ -512,7 +514,6 @@ fbmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 					  offset, paddr, nprot);
 }
 
-#if experimental
 DEV_DRIVER_MODULE(fb, ???, fb_driver, fb_devclass, fb_cdevsw, 0, 0);
 #endif
 
