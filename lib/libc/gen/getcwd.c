@@ -94,7 +94,7 @@ getcwd(pt, size)
 	/*
 	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
 	 * Should always be enough (it's 340 levels).  If it's not, allocate
-	 * as necessary.  Special * case the first stat, it's ".", not "..".
+	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
 	if ((up = malloc(upsize = 1024 - 4)) == NULL)
 		goto err;
@@ -229,10 +229,14 @@ notfound:
 		errno = save_errno ? save_errno : ENOENT;
 	/* FALLTHROUGH */
 err:
+	save_errno = errno;
+
 	if (ptsize)
 		free(pt);
 	if (dir)
 		(void) closedir(dir);
 	free(up);
+
+	errno = save_errno;
 	return (NULL);
 }
