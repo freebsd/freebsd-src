@@ -39,6 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: list.c,v 1.20 1999/10/12 05:40:49 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -90,8 +91,9 @@ vinum_list(int argc, char *argv[], char *argv0[])
     int i;
     enum objecttype type;
 
-    if (sflag & (!verbose))				    /* just summary stats, */
-	printf("Object\t\t  Reads\t\tBytes\tAverage\tRecover\t Writes\t\tBytes\tAverage\t  Mblock  Mstripe\n\n");
+    if (sflag & (!vflag))				    /* just summary stats, */
+	printf("Object\t\t  Reads\t\tBytes\tAverage\tRecover\t Writes"
+	    "\t\tBytes\tAverage\t  Mblock  Mstripe\n\n");
     if (argc == 0)
 	listconfig();					    /* list everything */
     else {
@@ -137,7 +139,7 @@ vinum_ldi(int driveno, int recurse)
 
     get_drive_info(&drive, driveno);
     if (drive.state != drive_unallocated) {
-	if (verbose) {
+	if (vflag) {
 	    printf("Drive %s:\tDevice %s\n",
 		drive.label.name,
 		drive.devicename);
@@ -161,6 +163,9 @@ vinum_ldi(int driveno, int recurse)
 		printf("\t\tLast error: %s\n", strerror(drive.lasterror));
 	    else
 		printf("\t\tLast error: none\n");
+	    printf("\t\tActive requests:\t%d\n\t\tMaximum active:\t\t%d\n",
+		drive.active,
+		drive.maxactive);
 	    if (Verbose) {				    /* print the free list */
 		int fe;					    /* freelist entry */
 		struct drive_freelist freelist;
@@ -191,15 +196,13 @@ vinum_ldi(int driveno, int recurse)
 		drive.devicename,
 		drive.sectors_available * DEV_BSIZE / MEGABYTE,
 		(drive.label.drive_size / MEGABYTE));
-	    if (drive.label.drive_size == 0)
-		printf("\n");				    /* can't print percentages */
-	    else
-		printf(" (%d%%)\n",
+	    if (drive.label.drive_size != 0)
+		printf(" (%d%%)",
 		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
 			/ (drive.label.drive_size - (DATASTART * DEV_BSIZE))));
 	}
 	if (sflag) {
-	    if (verbose || Verbose) {
+	    if (vflag || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    drive.reads,
 		    drive.bytes_read,
@@ -221,11 +224,10 @@ vinum_ldi(int driveno, int recurse)
 		    printf("\t\t");
 		printf("%7qd\t%15qd\t", drive.writes, drive.bytes_written);
 		if (drive.writes != 0)
-		    printf("%7qd\n", drive.bytes_written / drive.writes);
-		else
-		    printf("\n");
+		    printf("%7qd", drive.bytes_written / drive.writes);
 	    }
 	}
+	printf("\n");
     }
 }
 
@@ -259,7 +261,7 @@ vinum_lvi(int volno, int recurse)
 {
     get_volume_info(&vol, volno);
     if (vol.state != volume_unallocated) {
-	if (verbose) {
+	if (vflag) {
 	    printf("Volume %s:\tSize: %qd bytes (%qd MB)\n"
 		"\t\tState: %s\n\t\tFlags: %s%s%s\n",
 		vol.name,
@@ -283,7 +285,7 @@ vinum_lvi(int volno, int recurse)
 		vol.plexes,
 		roughlength(vol.size << DEV_BSHIFT, 0));
 	if (sflag) {
-	    if (verbose || Verbose) {
+	    if (vflag || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    vol.reads,
 		    vol.recovered_reads,
@@ -340,7 +342,7 @@ vinum_lvi(int volno, int recurse)
 			}
 		    }
 		}
-		if (verbose == 0)			    /* not verbose, but recursive */
+		if (vflag == 0)				    /* not verbose, but recursive */
 		    printf("\n");			    /* leave a line at the end of each hierarchy */
 	    }
 	}
@@ -377,7 +379,7 @@ vinum_lpi(int plexno, int recurse)
 {
     get_plex_info(&plex, plexno);
     if (plex.state != plex_unallocated) {
-	if (verbose) {
+	if (vflag) {
 	    printf("Plex %s:\tSize:\t%9qd bytes (%qd MB)\n\t\tSubdisks: %8d\n",
 		plex.name,
 		(long long) plex.length * DEV_BSIZE,
@@ -405,7 +407,7 @@ vinum_lpi(int plexno, int recurse)
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
-	} else if (!sflag) {
+	} else if (!sflag) {				    /* non-verbose list */
 	    char *org = "";				    /* organization */
 
 	    switch (plex.organization) {
@@ -422,7 +424,7 @@ vinum_lpi(int plexno, int recurse)
 		org = "R5";
 		break;
 	    }
-	    printf("P %-18s %2s State: %s\tSubdisks: %5d\tSize: %s\n",
+	    printf("P %-18s %2s State: %s\tSubdisks: %5d\tSize: %s",
 		plex.name,
 		org,
 		plex_state(plex.state),
@@ -430,7 +432,7 @@ vinum_lpi(int plexno, int recurse)
 		roughlength(plex.length << DEV_BSHIFT, 0));
 	}
 	if (sflag) {
-	    if (verbose || Verbose) {
+	    if (vflag || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    plex.reads,
 		    plex.bytes_read,
@@ -499,6 +501,7 @@ vinum_lpi(int plexno, int recurse)
 		    vinum_lsi(sd.sdno, 0);
 		}
 	}
+	printf("\n");
     }
 }
 
@@ -532,7 +535,7 @@ vinum_lsi(int sdno, int recurse)
 {
     get_sd_info(&sd, sdno);
     if (sd.state != sd_unallocated) {
-	if (verbose) {
+	if (vflag) {
 	    printf("Subdisk %s:\n\t\tSize: %16qd bytes (%qd MB)\n\t\tState: %s\n",
 		sd.name,
 		(long long) sd.sectors * DEV_BSIZE,
@@ -553,6 +556,15 @@ vinum_lsi(int sdno, int recurse)
 		    "\t\tRevive interval:\t%10d seconds\n",
 		    roughlength(sd.revive_blocksize, 0),
 		    sd.revive_interval);
+	    }
+	    if (sd.state == sd_initializing) {
+		printf("\t\tInitialize pointer:\t%s (%d%%)\n",
+		    roughlength(sd.initialized << DEV_BSHIFT, 0),
+		    (int) (((u_int64_t) (sd.initialized * 100)) / sd.sectors));
+		printf("\t\tInitialize blocksize:\t%s\n"
+		    "\t\tInitialize interval:\t%10d seconds\n",
+		    roughlength(sd.init_blocksize, 0),
+		    sd.init_interval);
 	    }
 	    get_drive_info(&drive, sd.driveno);
 	    if (sd.driveoffset < 0)
@@ -578,7 +590,7 @@ vinum_lsi(int sdno, int recurse)
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	}
 	if (sflag) {
-	    if (verbose || Verbose) {
+	    if (vflag || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    sd.reads,
 		    sd.bytes_read,
@@ -607,7 +619,7 @@ vinum_lsi(int sdno, int recurse)
 	}
 	if (recurse)
 	    vinum_ldi(sd.driveno, recurse);
-	if (verbose)
+	if (vflag)
 	    printf("\n");				    /* make it more readable */
     }
 }
@@ -651,22 +663,22 @@ listconfig()
 	perror("Can't get vinum config");
 	return;
     }
-    printf("%3d drives\n", vinum_conf.drives_used);
+    printf("%d drives:\n", vinum_conf.drives_used);
     if (vinum_conf.drives_used > 0) {
 	vinum_ld(0, NULL, NULL);
 	printf("\n");
     }
-    printf("%3d volumes\n", vinum_conf.volumes_used);
+    printf("%d volumes:\n", vinum_conf.volumes_used);
     if (vinum_conf.volumes_used > 0) {
 	vinum_lv(0, NULL, NULL);
 	printf("\n");
     }
-    printf("%3d plexes\n", vinum_conf.plexes_used);
+    printf("%d plexes:\n", vinum_conf.plexes_used);
     if (vinum_conf.plexes_used > 0) {
 	vinum_lp(0, NULL, NULL);
 	printf("\n");
     }
-    printf("%3d subdisks\n", vinum_conf.subdisks_used);
+    printf("%d subdisks:\n", vinum_conf.subdisks_used);
     if (vinum_conf.subdisks_used > 0)
 	vinum_ls(0, NULL, NULL);
 }
@@ -710,7 +722,10 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	meminfo.highwater,
 	(int) meminfo.malloced);
 
-    if (verbose && (!Verbose))
+    printf("%d requests active, maximum %d active\n",
+	vinum_conf.active,
+	vinum_conf.maxactive);
+    if (vflag && (!Verbose))
 	for (i = 0; i < meminfo.mallocs; i++) {
 	    malloced.seq = i;
 	    if (ioctl(superdev, VINUM_MALLOCINFO, &malloced) < 0) {
