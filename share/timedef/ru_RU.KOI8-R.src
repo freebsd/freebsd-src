@@ -66,12 +66,12 @@
 %a %e %b %X %Y
 #
 # am
-# (two spaces)
+#
   
 #
 # pm
 #
-ÐÐ
+
 #
 # date_fmt
 #
@@ -99,3 +99,8 @@
 # EF_fmt
 #
 %e %B
+#
+# ampm_fmt
+#
+
+# EOF
