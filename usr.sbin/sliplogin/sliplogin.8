@@ -147,11 +147,11 @@ Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
 this amount of time,
 .Nm startslip
 closes the line and exits.
-Default value is no timeout (zero).
+The default value is no timeout (zero).
 .It Ar outfill
 Set SLIP "out fill" timeout in seconds. It forces at least one FRAME_END
-to be sent during this timeout, which is necessary for the "keep alive"
-timeout on the remote other side.
+to be sent during this time period, which is necessary for the "keep alive"
+timeout on the remote side.
 The default value is no timeout (zero).
 .It Ar slunit
 Set the SLIP unit number directly. Use with caution, because no check is made
