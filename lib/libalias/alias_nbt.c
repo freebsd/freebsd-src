@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *  TODO:
- *       oClean up. 
+ *       oClean up.
  *       oConsidering for word alignment for other platform.
  */
 
@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 /* Includes */
 #include <ctype.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
@@ -114,7 +114,7 @@ static void PrintRcode( u_char rcode )  {
 		default:
 			printf("\n?%c?=%0x\n", '?', rcode );
 
-	}	
+	}
 }
 #endif
 
@@ -143,7 +143,7 @@ static u_char *AliasHandleName ( u_char *p, char *pmax ) {
 			compress = 1;
 		else
 			compress = 0;
-		
+
 	 	/* Get next length field */
 		p = (u_char *)(p + (*p & 0x3f) + 1);
 		if ((char *)p > pmax) {
@@ -184,7 +184,7 @@ static u_char *AliasHandleName ( u_char *p, char *pmax ) {
 	return ((u_char *)p);
 }
 
-/* 
+/*
  * NetBios Datagram Handler (IP/UDP)
  */
 #define DGM_DIRECT_UNIQ		0x10
@@ -205,7 +205,7 @@ int AliasHandleUdpNbt(
     NbtDataHeader 	*ndh;
     u_char		*p = NULL;
     char		*pmax;
-        
+
     /* Calculate data length of UDP packet */
     uh =  (struct udphdr *) ((char *) pip + (pip->ip_hl << 2));
     pmax = (char *)uh + ntohs( uh->uh_ulen );
@@ -328,9 +328,9 @@ typedef struct {
 } NBTNsRNB;
 
 static u_char *
-AliasHandleResourceNB( 
+AliasHandleResourceNB(
     NBTNsResource *q,
-    char *pmax, 
+    char *pmax,
 							   NBTArguments  *nbtarg)
 {
 	NBTNsRNB	*nb;
@@ -397,7 +397,7 @@ typedef struct {
 } NBTNsResourceA;
 
 static u_char *
-AliasHandleResourceA( 
+AliasHandleResourceA(
     NBTNsResource *q,
     char *pmax,
 						 	  NBTArguments  *nbtarg)
@@ -454,8 +454,8 @@ typedef struct {
 } NBTNsResourceNULL;
 
 static u_char *
-AliasHandleResourceNULL( 
-    NBTNsResource *q, 
+AliasHandleResourceNULL(
+    NBTNsResource *q,
     char *pmax,
 						 	     NBTArguments  *nbtarg)
 {
@@ -487,7 +487,7 @@ AliasHandleResourceNULL(
 }
 
 static u_char *
-AliasHandleResourceNS( 
+AliasHandleResourceNS(
     NBTNsResource *q,
     char *pmax,
 						 	     NBTArguments  *nbtarg)
@@ -543,10 +543,10 @@ AliasHandleResourceNBSTAT(
 
 static u_char *
 AliasHandleResource(
-    u_short count, 
+    u_short count,
 							NBTNsResource *q,
     char *pmax,
-    NBTArguments  
+    NBTArguments
     *nbtarg)
 {
 	while ( count != 0 ) {
@@ -562,45 +562,45 @@ AliasHandleResource(
 		/* Type and Class filed */
 		switch ( ntohs(q->type) ) {
 			case RR_TYPE_NB:
-				q = (NBTNsResource *)AliasHandleResourceNB( 
+				q = (NBTNsResource *)AliasHandleResourceNB(
 				    q,
 				    pmax,
-				    nbtarg 
+				    nbtarg
 				);
 				break;
-			case RR_TYPE_A: 
-				q = (NBTNsResource *)AliasHandleResourceA( 
-				    q, 
-				    pmax, 
+			case RR_TYPE_A:
+				q = (NBTNsResource *)AliasHandleResourceA(
+				    q,
+				    pmax,
 				    nbtarg
 				);
 				break;
 			case RR_TYPE_NS:
-				q = (NBTNsResource *)AliasHandleResourceNS( 
+				q = (NBTNsResource *)AliasHandleResourceNS(
 				    q,
-				    pmax, 
-				    nbtarg 
+				    pmax,
+				    nbtarg
 				);
 				break;
 			case RR_TYPE_NULL:
-				q = (NBTNsResource *)AliasHandleResourceNULL( 
-				    q, 
-				    pmax, 
-				    nbtarg 
+				q = (NBTNsResource *)AliasHandleResourceNULL(
+				    q,
+				    pmax,
+				    nbtarg
 				);
 				break;
 			case RR_TYPE_NBSTAT:
 				q = (NBTNsResource *)AliasHandleResourceNBSTAT(
 				    q,
-				    pmax, 
+				    pmax,
 				    nbtarg
 				);
 				break;
-			default: 
+			default:
 #ifdef DEBUG
 				printf(
-				    "\nUnknown Type of Resource %0x\n", 
-				    ntohs(q->type) 
+				    "\nUnknown Type of Resource %0x\n",
+				    ntohs(q->type)
 				);
 #endif
 				break;
@@ -625,7 +625,7 @@ int AliasHandleUdpNbtNS(
 	char		*pmax;
 	NBTArguments    nbtarg;
 
-	/* Set up Common Parameter */	
+	/* Set up Common Parameter */
 	nbtarg.oldaddr	=	*alias_address;
 	nbtarg.oldport	=	*alias_port;
 	nbtarg.newaddr	=	*original_address;
@@ -643,7 +643,7 @@ int AliasHandleUdpNbtNS(
 
 #ifdef DEBUG
     printf(" [%s] ID=%02x, op=%01x, flag=%02x, rcode=%01x, qd=%04x"
-	   ", an=%04x, ns=%04x, ar=%04x, [%d]-->", 
+	   ", an=%04x, ns=%04x, ar=%04x, [%d]-->",
 		nsh->dir ? "Response": "Request",
 		nsh->nametrid,
 		nsh->opcode,
@@ -662,8 +662,8 @@ int AliasHandleUdpNbtNS(
 	p = AliasHandleQuestion(
 	    ntohs(nsh->qdcount),
 	    (NBTNsQuestion *)p,
-	    pmax, 
-	    &nbtarg 
+	    pmax,
+	    &nbtarg
 	);
 	}
 
@@ -672,18 +672,18 @@ int AliasHandleUdpNbtNS(
 	p = AliasHandleResource(
 	    ntohs(nsh->ancount),
 	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
+	    pmax,
+	    &nbtarg
 	);
 	}
 
 	/* Authority Resource Recodrs */
 	if (ntohs(nsh->nscount) !=0 ) {
 	p = AliasHandleResource(
-	    ntohs(nsh->nscount), 
+	    ntohs(nsh->nscount),
 	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
+	    pmax,
+	    &nbtarg
 	);
 	}
 
@@ -692,8 +692,8 @@ int AliasHandleUdpNbtNS(
 	p = AliasHandleResource(
 	    ntohs(nsh->arcount),
 	    (NBTNsResource *)p,
-	    pmax, 
-	    &nbtarg 
+	    pmax,
+	    &nbtarg
 	);
 	}
 
