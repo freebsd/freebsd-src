@@ -26,8 +26,8 @@ of the text.
     2.4 PacketAliasSetMode()
     2.5 PacketAliasSetFWBase()
 3. Packet Handling
-    3.1 PacketAliasOut()
-    3.2 PacketAliasIn()
+    3.1 PacketAliasIn()
+    3.2 PacketAliasOut()
 4. Port and Address Redirection
     4.1 PacketAliasRedirectPort()
     4.2 PacketAliasRedirectAddr()
@@ -325,7 +325,7 @@ them with PacketAliasFragmentIn().
 .Ss 3.2 PacketAliasOut()
 
 .Ft int
-.Fn PacketAliasIn "char *buffer" "int maxpacketsize"
+.Fn PacketAliasOut "char *buffer" "int maxpacketsize"
 
 An outgoing packet coming from the local network
 to a remote machine is aliased by this function.
