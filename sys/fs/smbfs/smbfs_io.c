@@ -185,6 +185,12 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	struct smb_cred scred;
 	int error, lks;
 
+	/*
+	 * Protect against method which is not supported for now
+	 */
+	if (uiop->uio_segflg == UIO_NOCOPY)
+		return EOPNOTSUPP;
+
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
 		SMBFSERR("vn types other than VREG or VDIR are unsupported !\n");
 		return EIO;
