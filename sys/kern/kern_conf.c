@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.24 1998/06/07 17:11:32 dfr Exp $
+ * $Id: kern_conf.c,v 1.25 1998/06/25 11:27:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -50,56 +50,6 @@ struct cdevsw 	*cdevsw[NUMCDEV];
 int	nchrdev = NUMCDEV;
 
 static void	cdevsw_make __P((struct bdevsw *from));
-static int	isdisk __P((dev_t dev, int type));
-
-/*
- * Routine to determine if a device is a disk.
- *
- * KLUDGE XXX add flags to cdevsw entries for disks XXX
- * A minimal stub routine can always return 0.
- */
-static int
-isdisk(dev, type)
-	dev_t dev;
-	int type;
-{
-
-	switch (major(dev)) {
-	case 15:		/* VBLK: vn, VCHR: cd */
-		return (1);
-	case 0:			/* wd */
-	case 2:			/* fd */
-	case 4:			/* sd */
-	case 6:			/* cd */
-	case 7:			/* mcd */
-	case 16:		/* scd */
-	case 17:		/* matcd */
-	case 18:		/* ata */
-	case 19:		/* wcd */
-	case 20:		/* od */
-	case 22:		/* gd */
-		if (type == VBLK)
-			return (1);
-		return (0);
-	case 3:			/* wd */
-	case 9:			/* fd */
-	case 13:		/* sd */
-	case 29:		/* mcd */
-	case 43:		/* vn */
-	case 45:		/* scd */
-	case 46:		/* matcd */
-	case 69:		/* wcd */
-	case 70:		/* od */
-	case 78:		/* gd */
-		if (type == VCHR)
-			return (1);
-		/* fall through */
-	default:
-		return (0);
-	}
-	/* NOTREACHED */
-}
-
 
 /*
  * Routine to convert from character to block device number.
@@ -202,16 +152,7 @@ void
 bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
 {
 	dev_t dev;
-	/*
-	 * XXX hack alert.
-	 */
-	if (isdisk(makedev(bdev, 0), VBLK) &&
-	    (bdevsw->d_flags & D_TYPEMASK) != D_DISK) {
-	    printf("bdevsw_add_generic: adding D_DISK flag for device %d\n",
-		   bdev);
-	    bdevsw->d_flags &= ~D_TYPEMASK;
-	    bdevsw->d_flags |= D_DISK;
-	}
+
 	cdevsw_make(bdevsw);
 	dev = makedev(cdev, 0);
 	cdevsw_add(&dev, bdevsw->d_cdev, NULL);
@@ -251,14 +192,6 @@ bdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		/*
-		 * XXX hack alert.
-		 */
-		if (isdisk(data->bdev, VBLK) && data->bdevsw->d_flags != D_DISK) {
-			printf("bdevsw_module_handler: adding D_DISK flag for device %d\n",
-			       major(data->bdev));
-			data->bdevsw->d_flags = D_DISK;
-		}
 		cdevsw_make(data->bdevsw);
 		if (error = cdevsw_add(&data->cdev, data->bdevsw->d_cdev, NULL))
 			return error;
@@ -269,7 +202,7 @@ bdevsw_module_handler(module_t mod, modeventtype_t what, void* arg)
 	case MOD_UNLOAD:
 		if (error = cdevsw_add(&data->cdev, NULL, NULL))
 			return error;
-		if (error = cdevsw_add(&data->bdev, NULL, NULL))
+		if (error = bdevsw_add(&data->bdev, NULL, NULL))
 			return error;
 		break;
 	}
