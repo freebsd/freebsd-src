@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.46 1996/06/12 17:09:31 jkh Exp $
+ * $Id: devices.c,v 1.47 1996/06/13 17:07:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -141,8 +141,8 @@ deviceTry(char *name, char *try)
     fd = open(try, O_RDWR);
     if (fd > 0)
 	return fd;
-    else if (errno == EACCES)
-	return 0;
+    if (errno == EBUSY)
+	return -1;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
     fd = open(try, O_RDWR);
     return fd;
@@ -229,6 +229,7 @@ deviceGetAll(void)
 	switch(device_names[i].type) {
 	case DEVICE_TYPE_CDROM:
 	    fd = deviceTry(device_names[i].name, try);
+	    msgDebug("Try for %s returns errno %d\n", device_names[i].name, errno);
 	    if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
 		if (fd >= 0) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
