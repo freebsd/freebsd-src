@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.20 1998/04/07 00:53:48 brian Exp $
+ * $Id: ip.c,v 1.38.2.21 1998/04/07 23:45:52 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -94,7 +94,7 @@ PortMatch(int op, u_short pport, u_short rport)
 static int
 FilterCheck(struct ip *pip, struct filter *filter)
 {
-  int gotinfo, cproto, estab, n, len, didname;
+  int gotinfo, cproto, estab, syn, finrst, n, len, didname;
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *ih;
@@ -104,7 +104,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
   char dbuff[100];
 
   if (fp->action) {
-    cproto = gotinfo = estab = didname = 0;
+    cproto = gotinfo = estab = syn = finrst = didname = 0;
     sport = dport = 0;
     for (n = 0; n < MAXFILTERS; n++) {
       if (fp->action) {
@@ -129,7 +129,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		cproto = P_ICMP;
 		ih = (struct icmp *) ptop;
 		sport = ih->icmp_type;
-		estab = -1;
+		estab = syn = finrst = -1;
                 if (LogIsKept(LogDEBUG))
 		  snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
 		break;
@@ -138,7 +138,7 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		uh = (struct udphdr *) ptop;
 		sport = ntohs(uh->uh_sport);
 		dport = ntohs(uh->uh_dport);
-		estab = -1;
+		estab = syn = finrst = -1;
                 if (LogIsKept(LogDEBUG))
 		  snprintf(dbuff, sizeof dbuff, "sport = %d, dport = %d",
                            sport, dport);
@@ -149,6 +149,8 @@ FilterCheck(struct ip *pip, struct filter *filter)
 		sport = ntohs(th->th_sport);
 		dport = ntohs(th->th_dport);
 		estab = (th->th_flags & TH_ACK);
+		syn = (th->th_flags & TH_SYN);
+		finrst = (th->th_flags & (TH_FIN|TH_RST));
                 if (LogIsKept(LogDEBUG) && !estab)
 		  snprintf(dbuff, sizeof dbuff,
                            "flags = %02x, sport = %d, dport = %d",
@@ -160,8 +162,9 @@ FilterCheck(struct ip *pip, struct filter *filter)
               if (LogIsKept(LogDEBUG)) {
                 if (estab != -1) {
                   len = strlen(dbuff);
-                  snprintf(dbuff + len, sizeof dbuff - len, ", estab = %d",
-                           estab);
+                  snprintf(dbuff + len, sizeof dbuff - len,
+                           ", estab = %d, syn = %d, finrst = %d",
+                           estab, syn, finrst);
                 }
 	        LogPrintf(LogDEBUG, " Filter: proto = %s, %s\n",
                           filter_Proto2Nam(cproto), dbuff);
@@ -190,12 +193,12 @@ FilterCheck(struct ip *pip, struct filter *filter)
 
 	    if (cproto == fp->proto) {
 	      if ((fp->opt.srcop == OP_NONE ||
-		   PortMatch(fp->opt.srcop, sport, fp->opt.srcport))
-		  &&
+		   PortMatch(fp->opt.srcop, sport, fp->opt.srcport)) &&
 		  (fp->opt.dstop == OP_NONE ||
-		   PortMatch(fp->opt.dstop, dport, fp->opt.dstport))
-		  &&
-		  (fp->opt.estab == 0 || estab)) {
+		   PortMatch(fp->opt.dstop, dport, fp->opt.dstport)) &&
+		  (fp->opt.estab == 0 || estab) &&
+		  (fp->opt.syn == 0 || syn) &&
+		  (fp->opt.finrst == 0 || finrst)) {
 		return (fp->action);
 	      }
 	    }

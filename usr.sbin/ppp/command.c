@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.60 1998/04/14 23:17:01 brian Exp $
+ * $Id: command.c,v 1.131.2.61 1998/04/16 00:25:53 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -497,7 +497,7 @@ static int
 ShowVersion(struct cmdargs const *arg)
 {
   static char VarVersion[] = "PPP Version 2.0-beta";
-  static char VarLocalVersion[] = "$Date: 1998/04/14 23:17:01 $";
+  static char VarLocalVersion[] = "$Date: 1998/04/16 00:25:53 $";
 
   prompt_Printf(arg->prompt, "%s - %s \n", VarVersion, VarLocalVersion);
   return 0;
@@ -1315,7 +1315,9 @@ static struct cmdtab const SetCommands[] = {
   {"escape", NULL, SetEscape, LOCAL_AUTH | LOCAL_CX,
   "Set escape characters", "set escape hex-digit ..."},
   {"filter", NULL, SetFilter, LOCAL_AUTH,
-  "Set packet filters", "set filter in|out|dial|alive ..."},
+  "Set packet filters", "set filter alive|dial|in|out rule-no permit|deny "
+  "[src_addr[/width]] [dst_addr[/width]] [tcp|udp|icmp [src [lt|eq|gt port]] "
+  "[dst [lt|eq|gt port]] [estab] [syn] [finrst]]"},
   {"hangup", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",

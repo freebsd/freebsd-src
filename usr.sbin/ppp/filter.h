@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.11.2.3 1998/04/03 19:25:01 brian Exp $
+ * $Id: filter.h,v 1.11.2.4 1998/04/07 00:53:40 brian Exp $
  *
  *	TODO:
  */
@@ -60,7 +60,9 @@ struct filterent {
     u_short srcport;
     short dstop;
     u_short dstport;
-    int estab;
+    unsigned estab : 1;
+    unsigned syn : 1;
+    unsigned finrst : 1;
   } opt;
 };
 

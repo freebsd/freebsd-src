@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.15 1998/04/11 21:50:47 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.16 1998/04/16 00:26:15 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -178,8 +178,10 @@ zero.
 .Sh GETTING STARTED
 When you first run
 .Nm
-you may need to deal with some initial configuration details.  First,
-your kernel should include a tunnel device (the GENERIC kernel includes
+you may need to deal with some initial configuration details.
+.Bl -bullet
+.It
+Your kernel must include a tunnel device (the GENERIC kernel includes
 one by default).  If it doesn't, or if you require more than one tun
 interface, you'll need to rebuild your kernel with the following line in
 your kernel configuration file:
@@ -191,7 +193,8 @@ where
 is the maximum number of
 .Em PPP
 connections you wish to support.
-Second, check your
+.It
+Check your
 .Pa /dev
 directory for the tunnel device entries
 .Pa /dev/tunN ,
@@ -201,7 +204,22 @@ represents the number of the tun device, starting at zero.
 If they don't exist, you can create them by running "sh ./MAKEDEV tunN".
 This will create tun devices 0 through
 .Ar N .
-Last of all, create a log file.
+.It
+Make sure that your system has a group named
+.Dq network
+in the
+.Pa /etc/group
+file and that that group contains the names of all users expected to use
+.Nm ppp .
+Refer to the
+.Xr group 5
+manual page for details.  Each of these uses must also be given access
+using the
+.Dq allow users
+command in
+.Pa /etc/ppp/ppp.conf .
+.It
+Create a log file.
 .Nm Ppp
 uses 
 .Xr syslog 3
@@ -216,7 +234,9 @@ file:
 .Ed
 .Pp
 Make sure you use actual TABs here.  If you use spaces, the line will be
-silently ignored.
+silently ignored by
+.Xr syslogd 8 .
+.Pp
 It is possible to have more than one
 .Em PPP
 log file by creating a link to the
@@ -229,7 +249,7 @@ executable:
 and using
 .Bd -literal -offset indent
 !ppp0
-*.* /var/log/ppp0.log
+*.*<TAB>/var/log/ppp0.log
 .Ed
 .Pp
 in
@@ -240,6 +260,20 @@ signal to
 .Xr syslogd 8
 after altering
 .Pa /etc/syslog.conf .
+.It
+Although not strictly relevent to
+.Nm ppp Ns No s
+operation, you should configure your resolver so that it works correctly.
+This can be done by configuring a local DNS
+.Pq using Xr named 8
+or by adding the correct
+.Sq nameserver
+lines to the file
+.Pa /etc/resolv.conf .
+Refer to the
+.Xr resolv.conf 5
+manual page for details.
+.El
 .Sh MANUAL DIALING
 In the following examples, we assume that your machine name is
 .Dv awfulhak .
@@ -298,19 +332,48 @@ When the peer starts to talk in
 detects this automatically and returns to command mode.
 .Bd -literal -offset indent
 ppp ON awfulhak>
+Ppp ON awfulhak>
+PPp ON awfulhak>
 PPP ON awfulhak>
 .Ed
+.Pp
+If it does not, it's possible that the peer is waiting for your end to
+start negotiating.  To force
+.Nm
+to start sending PPP configuration packets to the peer, use the
+.Dq ~p
+command to enter packet mode.
 .Pp
 You are now connected!  Note that
 .Sq PPP
 in the prompt has changed to capital letters to indicate that you have
-a peer connection.  The show command can be used to see how things are
-going:
+a peer connection.  If only some of the three Ps go uppercase, wait 'till
+either everything is uppercase or lowercase.  If they revert to lowercase,
+it means that
+.Nm
+couldn't successfully negotiate with the peer.  This is probably because
+your PAP or CHAP authentication name or key is incorrect.  A good first step
+for troubleshooting at this point would be to
+.Dq set log local phase .
+Refer to the
+.Dq set log
+command description below for further details.
+.Pp
+When the link is established, the show command can be used to see how
+things are going:
 .Bd -literal -offset indent
+PPP ON awfulhak> show modem
+* Modem related information is shown here *
+PPP ON awfulhak> show ccp
+* CCP (compression) related information is shown here *
 PPP ON awfulhak> show lcp
-* LCP related information is shown here *
+* LCP (line control) related information is shown here *
 PPP ON awfulhak> show ipcp
-* IPCP related information is shown here *
+* IPCP (IP) related information is shown here *
+PPP ON awfulhak> show link
+* Link (high level) related information is shown here *
+PPP ON awfulhak> show bundle
+* Logical (high level) connection related information is shown here *
 .Ed
 .Pp
 At this point, your machine has a host route to the peer.  This means
@@ -332,6 +395,12 @@ use the keyword
 in place of
 .Sq HISADDR .
 This will create a direct route on the tun interface.
+If it fails due to an existing route, you can overwrite the existing
+route using
+.Bd -literal -offset indent
+PPP ON awfulhak> add! default HISADDR
+.Ed
+.Pp
 You can now use your network applications (ping, telnet, ftp etc.)
 in other windows on your machine.
 Refer to the
@@ -345,7 +414,7 @@ See the example definitions in
 .Pa /etc/ppp/ppp.conf
 is pretty simple).
 Each line contains one comment, inclusion, label or command:
-.Bl -bullet -compact
+.Bl -bullet
 .It
 A line starting with a
 .Pq Dq #
@@ -473,8 +542,6 @@ command to define the remote peers IP address. (refer to
 .Pa /etc/ppp/ppp.conf.sample )
 .Bd -literal -offset indent
 # ppp -auto pmdemand
-...
-#
 .Ed
 .Pp
 When
@@ -484,33 +551,26 @@ or
 is specified,
 .Nm
 runs as a daemon but you can still configure or examine its
-configuration by using the diagnostic port as follows (this
-can be done in
-.Fl background
-and
-.Fl direct
-mode too):
+configuration by using the
+.Dq set server
+command in
+.Pa /etc/ppp/ppp.conf ,
+.Pq for example, Dq set server 3000 mypasswd
+and connecting to the diagnostic port as follows:
 .Bd -literal -offset indent
-# pppctl -v 3000 show ipcp
+# pppctl 3000
 Password:
-IPCP [Opened]
-  his side: xxxx
-  ....
+PPP ON awfulhak> show who
+tcp (127.0.0.1:1028) *
 .Ed
 .Pp
-Currently,
-.Xr telnet 1
-may also be used to talk interactively.
-.Pp
-In order to achieve this, you must use the
-.Dq set server
-command as described below.  It is possible to retrospectively make a running
+The
+.Dq show who
+command lists users that are currently connected to
 .Nm
-program listen on a diagnostic port by configuring
-.Pa /etc/ppp/ppp.secret ,
-and sending it a
-.Dv USR1
-signal.
+itself.  If the diagnostic socket is closed or changed to a different
+socket, all connections are immediately dropped.
+.Pp
 In
 .Fl auto
 mode, when an outgoing packet is detected,
@@ -647,30 +707,25 @@ to enable a
 .Xr getty 8
 on the port where the modem is attached.
 For example:
+.Pp
 .Dl ttyd1  "/usr/libexec/getty std.38400" dialup on secure
+.Pp
 Don't forget to send a
 .Dv HUP
 signal to the
 .Xr init 8
 process to start the
-.Xr getty 8 .
-.Dl # kill -HUP 1
-.It
-Prepare an account for the incoming user.
-.Bd -literal
-ppp:xxxx:66:66:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
-.Ed
+.Xr getty 8 :
 .Pp
+.Dl # kill -HUP 1
 .It
 Create a
 .Pa /usr/local/bin/ppplogin
 file with the following contents:
 .Bd -literal -offset indent
-#!/bin/sh -p
-exec /usr/sbin/ppp -direct
+#! /bin/sh
+exec /usr/sbin/ppp -direct incoming
 .Ed
-.Pp
-(You can specify a label name for further control.)
 .Pp
 Direct mode
 .Pq Fl direct
@@ -678,11 +733,25 @@ lets
 .Nm
 work with stdin and stdout.  You can also use
 .Xr pppctl 8
-or
-.Xr telnet 1
 to connect to a configured diagnostic port, in the same manner as with
 client-side
 .Nm ppp .
+.Pp
+Here, the
+.Ar incoming
+label must be set up in
+.Pa /etc/ppp/ppp.conf .
+.It
+Prepare an account for the incoming user.
+.Bd -literal
+ppp:xxxx:66:66:PPP Login User:/home/ppp:/usr/local/bin/ppplogin
+.Ed
+.Pp
+Refer to the manual entries for
+.Xr adduser 8
+and
+.Xr vipw 8
+for details.
 .It
 Optional support for Microsoft's IPCP Name Server and NetBIOS
 Name Server negotiation can be enabled use
@@ -697,45 +766,61 @@ file.
 .El
 .Pp
 .Sh RECEIVING INCOMING PPP CONNECTIONS (Method 2)
-This method differs in that it recommends the use of 
-.Em mgetty+sendfax
-to handle the modem connections.  The latest versions (0.99 and higher)
-can be compiled with the
-.Dq AUTO_PPP
-option to allow detection of clients speaking
-.Em PPP
-to the login prompt.
-Follow these steps:
+This method differs in that we use
+.Nm ppp
+to authenticate the connection rather than
+.Xr login 1 :
 .Bl -enum
 .It
-Get, configure, and install mgetty+sendfax v0.99 or later making
-sure you have used the AUTO_PPP option.
-.It
-Edit
-.Pa /etc/ttys
-to enable a mgetty on the port where the modem is attached.  For
-example:
-.Dl cuaa1  "/usr/local/sbin/mgetty -s 57600"       dialup on
-.It
-Prepare an account for the incoming user.
+Configure your default section in
+.Pa /etc/gettytab
+with automatic ppp recognition by specifying the
+.Dq pp
+capability:
 .Bd -literal
-Pfred:xxxx:66:66:Fred's PPP:/home/ppp:/etc/ppp/ppp-dialup
+default:\\
+	:pp=/usr/local/bin/ppplogin:\\
+	.....
+.Ed
+.It
+Configure your serial device(s), enable a
+.Xr getty 8
+and create
+.Pa /usr/local/bin/ppplogin
+as in the first three steps for method 1 above.
+.It
+Add either
+.Dq enable chap
+or
+.Dq enable pap
+.Pq or both
+to
+.Pa /etc/ppp/ppp.conf
+under the
+.Sq incoming
+label (or whatever label
+.Pa ppplogin
+uses).
+.It
+Create an entry in
+.Pa /etc/ppp/ppp.secret
+for each incoming user:
+.Bd -literal
+Pfred<TAB>xxxx
+Pgeorge<TAB>yyyy
 .Ed
 .Pp
-.It
-Examine the files
-.Pa /etc/ppp/sample.ppp-dialup ,
-.Pa /etc/ppp/sample.ppp-pap-dialup
-and
-.Pa /etc/ppp/ppp.conf.sample
-for ideas.
-.Pa /etc/ppp/ppp-pap-dialup
-is supposed to be called from
-.Pa /usr/local/etc/mgetty+sendfax/login.conf
-from a line like
-.Dl /AutoPPP/ -     -       /etc/ppp/ppp-pap-dialup
-.El
+Now, as soon as
+.Xr getty 8
+detects a ppp connection (by recognising the HDLC frame headers), it runs
+.Dq /usr/local/bin/ppplogin .
 .Pp
+It is
+.Em VITAL
+that either PAP or CHAP are enabled as above.  If they are not, you are
+allowing anybody to establish ppp session with your machine
+.Em without
+a password, opening yourself up to all sorts of potential attacks.
 .Sh AUTHENTICATING INCOMING CONNECTIONS
 Normally, the receiver of a connection requires that the peer
 authenticates themself.  This may be done using
@@ -937,39 +1022,89 @@ filter, the
 filter and the
 .Em alive
 filter.  Here are the basics:
-.Bl -bullet -compact
+.Bl -bullet
 .It
 A filter definition has the following syntax:
-set filter name rule-no action [src_addr/src_width] [dst_addr/dst_width]
-[proto [src [lt|eq|gt] port ]] [dst [lt|eq|gt] port] [estab]
+.Pp
+set filter
+.Ar name
+.Ar rule-no
+.Ar action
+.Op Ar src_addr Ns Op / Ns Ar width
+.Op Ar dst_addr Ns Op / Ns Ar width
+[
+.Ar proto
+.Op src Op Ar cmp No Ar port
+.Op dst Op Ar cmp No Ar port
+.Op estab
+.Op syn
+.Op finrst
+]
 .Bl -enum
 .It
-.Sq name
+.Ar Name
 should be one of
-.Em in ,
-.Em out ,
-.Em dial
+.Sq in ,
+.Sq out ,
+.Sq dial
 or
-.Em alive .
+.Sq alive .
 .It
-There are two actions:
-.Sq permit
+.Ar Rule-no
+is a numeric value between
+.Sq 0
 and
+.Sq 19
+specifying the rule number.  Rules are specified in numeric order according to
+.Ar rule-no ,
+but only if rule
+.Sq 0
+is defined.
+.It
+.Ar Action
+is either
+.Sq permit
+or
 .Sq deny .
 If a given packet
 matches the rule, the associated action is taken immediately.
 .It
-.Sq src_width
+.Op Ar src_addr Ns Op / Ns Ar width
 and
-.Sq dst_width
-work like a netmask to represent an address range.
+.Op Ar dst_addr Ns Op / Ns Ar width
+are the source and destination IP number specifications.  If
+.Op / Ns Ar width
+is specified, it gives the number of relevent netmask bits,
+allowing the specification of an address range.
 .It
-.Sq proto
-must be one of icmp, udp or tcp.
+.Ar Proto
+must be one of
+.Sq icmp ,
+.Sq udp
+or
+.Sq tcp .
 .It
-.Sq port number
-can be specified by number and service name from
+.Ar Cmp
+is one of
+.Sq \&lt ,
+.Sq \&eq
+or
+.Sq \&gt ,
+meaning less-than, equal and greater-than respectively.
+.Ar Port
+can be specified as a numeric port or by service name from
 .Pa /etc/services .
+.It
+The
+.Sq estab ,
+.Sq syn ,
+and
+.Sq finrst
+flags are only allowed when
+.Ar proto
+is set to
+.Sq tcp ,
+and represent the TH_ACK, TH_SYN and TH_FIN or TH_RST TCP flags respectively.
 .El
 .Pp
 .It
@@ -981,7 +1116,7 @@ If no rule is matched to a packet, that packet will be discarded
 (blocked).
 .It
 Use
-.Dq set filter name -1
+.Dq set filter Ar name No -1
 to flush all rules.
 .El
 .Pp
@@ -1017,10 +1152,11 @@ session to be
 closed, the
 .Nm
 program itself remains running.  Another trigger packet will cause it to
-attempt to reestablish the link.
+attempt to re-establish the link.
 .Sh PREDICTOR-1 and DEFLATE COMPRESSION
-This version supports CCP and either Predictor type 1 or deflate compression
-based on the current IETF-draft specs. As a default behaviour,
+.Nm Ppp
+supports both Predictor type 1 and deflate compression.
+By default,
 .Nm
 will attempt to use (or be willing to accept) both compression protocols
 when the peer agrees
@@ -1039,6 +1175,22 @@ by using only one of
 and
 .Dq deny deflate
 .Pq assuming that the peer supports both algorithms .
+.Pp
+By default, when negotiating DEFLATE,
+.Nm
+will use a window size of 15.  Refer to the
+.Dq set deflate
+command if you wish to change this behaviour.
+.Pp
+A special algorithm called DEFLATE24 is also available, and is disabled
+and denied by default.  This is exactly the same as DEFLATE except that
+it uses CCP ID 24 to negotiate.  This allows
+.Nm
+to successfully negotiate DEFLATE with
+.Nm pppd
+version 2.3.*.
+.Nm Pppd
+should be fixed.
 .Sh CONTROLLING IP ADDRESS
 .Nm
 uses IPCP to negotiate IP addresses. Each side of the connection
@@ -1089,6 +1241,7 @@ set ifaddr 192.244.177.38 192.244.177.2 255.255.255.255 0.0.0.0
 .Ed
 .Pp
 The above specification means:
+.Pp
 .Bl -bullet -compact
 .It
 I will first suggest that my IP address should be 0.0.0.0, but I
@@ -1112,6 +1265,7 @@ user to specify IP address more loosely:
 .Pp
 A number followed by a slash (/) represent the number of bits significant in
 the IP address.  The above example signifies that:
+.Pp
 .Bl -bullet -compact
 .It
 I'd like to use 192.244.177.38 as my address if it is possible, but I'll
@@ -1303,7 +1457,7 @@ be ignored as it is less restrictive than the default mask for your
 An example for a connection where you don't know your IP number or your
 ISPs IP number would be:
 .Bd -literal -offset indent
-set ifaddr 10.10.10.10/0 10.10.11.11/0 0.0.0.0 0.0.0.0
+set ifaddr 10.0.0.1/0 10.0.0.2/0 0.0.0.0 0.0.0.0
 .Ed
 .Pp
 .It
@@ -1323,7 +1477,7 @@ This tells
 .Nm
 to delete all non-direct routing entries for the tun interface that
 .Nm
-is running on, then to add a default route to 10.10.11.11.  If you're
+is running on, then to add a default route to 10.0.0.2.  If you're
 not using
 .Fl auto
 mode, this isn't necessary as
@@ -2240,7 +2394,7 @@ This option is similar to the
 .Dq set accmap
 option above.  It allows the user to specify a set of characters that
 will be `escaped' as they travel across the link.
-.It set filter dial|alive|in|out Ar "rule-no action [src_addr/src_width] [dst_addr/dst_width] [proto [src [lt|eq|gt] port ]] [dst [lt|eq|gt] port] [estab]"
+.It set filter dial|alive|in|out rule-no permit|deny Ar "[src_addr/width] [dst_addr/width] [proto [src [lt|eq|gt port]] [dst [lt|eq|gt port]] [estab] [syn] [finrst]]"
 .Nm Ppp
 supports four filter sets.  The
 .Em alive
@@ -2651,7 +2805,7 @@ automatically enables Packet Mode and goes back into command mode.
 .El
 .Pp
 .Sh MORE DETAILS
-.Bl -bullet -compact
+.Bl -bullet
 .It
 Read the example configuration files.  They are a good source of information.
 .It
@@ -2663,6 +2817,15 @@ Use
 and
 .Dq set ? <var>
 to get online information about what's available.
+.It
+The following urls contain useful information:
+.Bl -bullet -compact
+.It
+http://www.FreeBSD.org/FAQ/userppp.html
+.It
+http://www.FreeBSD.org/handbook/userppp.html
+.El
+.Pp
 .El
 .Pp
 .Sh FILES
@@ -2722,27 +2885,32 @@ Get port number if port number is using service name.
 .El
 .Pp
 .Sh SEE ALSO
+.Xr adduser 8 ,
 .Xr at 1 ,
 .Xr chat 8 ,
 .Xr crontab 5 ,
 .Xr ftp 1 ,
 .Xr getty 8 ,
+.Xr group 5 ,
 .Xr gzip 1 ,
 .Xr inetd 8 ,
 .Xr init 8 ,
 .Xr login 1 ,
+.Xr named 8 ,
 .Xr passwd 5 ,
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
 .Xr route 8 ,
+.Xr resolv.conf 5 ,
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
 .Xr syslogd 8 ,
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
 .Xr traceroute 8 ,
-.Xr uucplock 3
+.Xr uucplock 3 ,
+.Xr vipw 8
 .Sh HISTORY
 This program was originally written by Toshiharu OHNO (tony-o@iij.ad.jp),
 and was submitted to FreeBSD-2.0.5 by Atsushi Murai (amurai@spec.co.jp).

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.22.2.14 1998/04/07 00:53:39 brian Exp $
+ * $Id: filter.c,v 1.22.2.15 1998/04/14 23:17:05 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -110,10 +110,12 @@ ParseAddr(struct ipcp *ipcp, int argc, char const *const *argv,
       LogPrintf(LogWARN, "ParseAddr: bad mask width.\n");
       return (0);
     }
-  } else {
-    /* if width is not given, assume whole 32 bits are meaningfull */
+  } else if (paddr->s_addr == INADDR_ANY)
+    /* An IP of 0.0.0.0 without a width is anything */
+    bits = 0;
+  else
+    /* If a valid IP is given without a width, assume 32 bits */
     bits = 32;
-  }
 
   if (pwidth)
     *pwidth = bits;
@@ -198,12 +200,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
               struct filterent *tgt)
 {
   tgt->opt.srcop = tgt->opt.dstop = OP_NONE;
-  tgt->opt.estab = 0;
-
-  if (argc == 0) {
-    /* permit/deny all tcp traffic */
-    return (1);
-  }
+  tgt->opt.estab = tgt->opt.syn = tgt->opt.finrst = 0;
 
   if (argc >= 3 && !strcmp(*argv, "src")) {
     tgt->opt.srcop = filter_Nam2Op(argv[1]);
@@ -216,9 +213,8 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
       return (0);
     argc -= 3;
     argv += 3;
-    if (argc == 0)
-      return (1);
   }
+
   if (argc >= 3 && !strcmp(argv[0], "dst")) {
     tgt->opt.dstop = filter_Nam2Op(argv[1]);
     if (tgt->opt.dstop == OP_NONE) {
@@ -230,20 +226,25 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
       return (0);
     argc -= 3;
     argv += 3;
-    if (argc == 0)
-      return (1);
   }
-  if (argc == 1 && proto == P_TCP) {
-    if (!strcmp(*argv, "estab")) {
-      tgt->opt.estab = 1;
-      return (1);
-    }
-    LogPrintf(LogWARN, "ParseUdpOrTcp: estab is expected: %s\n", *argv);
-    return (0);
-  }
-  if (argc > 0)
+
+  if (proto == P_TCP)
+    for (; argc > 0; argc--, argv++)
+      if (!strcmp(*argv, "estab"))
+        tgt->opt.estab = 1;
+      else if (!strcmp(*argv, "syn"))
+        tgt->opt.syn = 1;
+      else if (!strcmp(*argv, "finrst"))
+        tgt->opt.finrst = 1;
+      else
+        break;
+
+  if (argc > 0) {
     LogPrintf(LogWARN, "ParseUdpOrTcp: bad src/dst port syntax: %s\n", *argv);
-  return (0);
+    return 0;
+  }
+
+  return 1;
 }
 
 static int
@@ -362,7 +363,9 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
             filter_Op2Nam(filterdata.opt.srcop), filterdata.opt.srcport);
   LogPrintf(LogDEBUG, "Parse: dst:  %s (%d)\n",
             filter_Op2Nam(filterdata.opt.dstop), filterdata.opt.dstport);
-  LogPrintf(LogDEBUG, "Parse: estab: %d\n", filterdata.opt.estab);
+  LogPrintf(LogDEBUG, "Parse: estab: %u\n", filterdata.opt.estab);
+  LogPrintf(LogDEBUG, "Parse: syn: %u\n", filterdata.opt.syn);
+  LogPrintf(LogDEBUG, "Parse: finrst: %u\n", filterdata.opt.finrst);
 
   if (val)
     *ofp = filterdata;
@@ -385,8 +388,11 @@ SetFilter(struct cmdargs const *arg)
     filter = &arg->bundle->filter.dial;
   else if (!strcmp(arg->argv[arg->argn], "alive"))
     filter = &arg->bundle->filter.alive;
-  else
+  else {
+    LogPrintf(LogWARN, "SetFilter: %s: Invalid filter name.\n",
+              arg->argv[arg->argn]);
     return -1;
+  }
 
   Parse(&arg->bundle->ncp.ipcp, arg->argc - arg->argn - 1,
         arg->argv + arg->argn + 1, filter->rule);
@@ -427,7 +433,10 @@ doShowFilter(struct filterent *fp, struct prompt *prompt)
 		  fp->opt.dstport);
 	if (fp->opt.estab)
 	  prompt_Printf(prompt, " estab");
-
+	if (fp->opt.syn)
+	  prompt_Printf(prompt, " syn");
+	if (fp->opt.finrst)
+	  prompt_Printf(prompt, " finrst");
       }
       prompt_Printf(prompt, "\n");
     }
