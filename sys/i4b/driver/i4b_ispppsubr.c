@@ -4294,7 +4294,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 			" failed, error=%d\n", SPP_ARGS(ifp), error);
 		}
 #else
-#if __FreeBSD_version >= 500023
+#if __FreeBSD_version >= 450000
 		struct in_ifaddr *ia = ifatoia(ifa);
 #endif
 		/* delete old route */
@@ -4307,7 +4307,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 
 		/* set new address */
 		si->sin_addr.s_addr = htonl(src);
-#if __FreeBSD_version >= 500023
+#if __FreeBSD_version >= 450000
 		LIST_REMOVE(ia, ia_hash);
 		LIST_INSERT_HEAD(INADDR_HASH(si->sin_addr.s_addr), ia, ia_hash);
 #endif
