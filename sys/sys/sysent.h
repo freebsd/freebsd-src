@@ -30,16 +30,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysent.h,v 1.3 1995/02/14 19:23:20 sos Exp $
+ *	$Id: sysent.h,v 1.4 1995/03/16 18:16:29 bde Exp $
  */
 
 #ifndef _SYS_SYSENT_H_
 #define _SYS_SYSENT_H_ 1
 
+typedef	int	sy_call_t __P((/* struct proc *, bogusly_various *, int * */));
+
 struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */
-	int	(*sy_call)();	/* implementing function */
+	sy_call_t *sy_call;	/* implementing function */
 };
+
+struct image_params;
 
 struct sysentvec {
 	int		sv_size;	/* number of entries */
@@ -49,7 +53,8 @@ struct sysentvec {
 	int		*sv_sigtbl;	/* signal translation table */
 	int		sv_errsize;	/* size of signal translation table */
 	int 		*sv_errtbl;	/* errno translation table */
-	int		(*sv_fixup)();	/* stack fixup function */
+	int		(*sv_fixup) __P((int **, struct image_params *));
+					/* stack fixup function */
 };
 
 #ifdef KERNEL
