@@ -15,7 +15,7 @@
 
 extern char plname[PL_NSIZ], pl_character[PL_CSIZ];
 extern struct permonst mons[CMNUM+2];
-extern char genocided[], fut_geno[];
+extern char genocided[60], fut_geno[];
 
 int (*afternmv)();
 int (*occupation)();
@@ -234,7 +234,7 @@ char *argv[];
 				}
 				*gp = 0;
 			} else
-				(void) strcpy(genocided, sfoo);
+				(void) strncpy(genocided, sfoo, sizeof(genocided)-1);
 			(void) strcpy(fut_geno, genocided);
 		}
 	}

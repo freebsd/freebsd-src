@@ -1,6 +1,7 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.options.c - version 1.0.3 */
 
+#include <stdlib.h>
 #include "config.h"
 #include "hack.h"
 extern char *eos();
@@ -8,7 +9,6 @@ extern char *eos();
 initoptions()
 {
 	register char *opts;
-	extern char *getenv();
 
 	flags.time = flags.nonews = flags.notombstone = flags.end_own =
 	flags.standout = flags.nonull = FALSE;
