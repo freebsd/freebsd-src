@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: kernfs.5,v 1.3 1997/03/07 03:28:02 jmg Exp $
+.\"	$Id: kernfs.5,v 1.4 1998/03/12 07:30:48 charnier Exp $
 .\"
 .Dd December 14, 1996
 .Dt kernfs 5
@@ -46,10 +46,10 @@ The kernel file system, or
 provides access to information on the currently running kernel.
 It is normally mounted on
 .Pa /kern .
-The file system includes several regular file which can be
+The file system includes several regular files which can be
 read, and some of which can also be written.
-The contents of the files in in a machine-independent format,
-either a string, or and integer in decial ASCII.  A trailing
+The contents of the files are in a machine-independent format,
+either a string or an integer in decimal ASCII.  A trailing
 newline character is added when a number is returned.
 .Pp
 The mount point contains the following  files:
@@ -64,11 +64,11 @@ The kernel copyright message.
 The current hostname, with a trailing newline.  The
 current hostname can be changed by writing to this file.
 A trailing newline will be stripped from the hostname being
-wirtten.
+written.
 .It Pa hz
 The frequency of the system clock (decimal ASCII).
 .It Pa  loadavg
-the 1, 5 and 15 minute load averages in kernel fixed-point
+The 1, 5 and 15 minute load averages in kernel fixed-point
 format.  The final integer is the fix-point scaling factor.
 All numbers are in decimal ASCII.
 .It Pa pagesize
@@ -83,7 +83,7 @@ can be used to create a new
 mount point.
 .Pa /kern/root
 will then refer to the system global root, not the current
-process root.  Not currently enabled..
+process root.  Not currently enabled.
 .It Pa rootdev
 The root device.  Not currently enabled.
 .It Pa rrootdev
