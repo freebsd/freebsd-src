@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
-.\"	$Id$
+.\"	$Id: fs.5,v 1.6 1997/03/07 03:28:00 jmg Exp $
 .\"
 .Dd April 19, 1994
 .Dt FS 5
@@ -40,8 +40,12 @@
 .Nm inode
 .Nd format of file system volume
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
+.Fd #include <sys/param.h>
 .Fd #include <ufs/ffs/fs.h>
+.Pp
+.Fd #include <sys/types.h>
+.Fd #include <sys/lock.h>
+.Fd #include <ufs/ufs/quota.h>
 .Fd #include <ufs/ufs/inode.h>
 .Sh DESCRIPTION
 The files
@@ -361,7 +365,7 @@ each current directory, each mounted-on file,
 text file, and the root.
 An inode is `named' by its device/i-number pair.
 For further information, see the include file
-.Aq Pa sys/inode.h .
+.Aq Pa ufs/ufs/inode.h .
 .Sh HISTORY
 A super-block structure named filsys appeared in
 .At v6 .
