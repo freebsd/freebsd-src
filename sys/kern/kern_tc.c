@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.76 1998/07/04 19:29:15 phk Exp $
+ * $Id: kern_clock.c,v 1.77 1998/07/11 07:45:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -279,23 +279,6 @@ tvtohz(tv)
 	if (ticks > INT_MAX)
 		ticks = INT_MAX;
 	return (ticks);
-}
-
-
-/*
- * Compute number of hz until specified time.  Used to
- * compute third argument to timeout() from an absolute time.
- */
-int
-hzto(tv)
-	struct timeval *tv;
-{
-	struct timeval t2;
-
-	getmicrotime(&t2);
-	t2.tv_sec = tv->tv_sec - t2.tv_sec;
-	t2.tv_usec = tv->tv_usec - t2.tv_usec;
-	return (tvtohz(&t2));
 }
 
 /*
