@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: envelope.c,v 8.279 2001/12/10 19:56:04 ca Exp $")
+SM_RCSID("@(#)$Id: envelope.c,v 8.281 2002/02/06 19:54:54 ca Exp $")
 
 /*
 **  NEWENVELOPE -- fill in a new envelope
@@ -1030,8 +1030,13 @@ setsender(from, e, delimptr, delimchar, internal)
 			/* if the user already given fullname don't redefine */
 			if (FullName == NULL)
 				FullName = macvalue('x', e);
-			if (FullName != NULL && FullName[0] == '\0')
-				FullName = NULL;
+			if (FullName != NULL)
+			{
+				if (FullName[0] == '\0')
+					FullName = NULL;
+				else
+					FullName = newstr(FullName);
+			}
 		}
 
 		if (e->e_from.q_user[0] != '\0' &&

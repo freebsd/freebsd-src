@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.57 2001/11/20 18:47:49 ca Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.63 2002/02/07 01:16:13 msk Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 
@@ -111,6 +111,7 @@ smfi_chgheader(ctx, headerf, hdridx, headerv)
 	free(buf);
 	return r;
 }
+
 /*
 **  SMFI_ADDRCPT -- send an additional recipient to the MTA
 **
@@ -139,6 +140,7 @@ smfi_addrcpt(ctx, rcpt)
 	len = strlen(rcpt) + 1;
 	return mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_ADDRCPT, rcpt, len);
 }
+
 /*
 **  SMFI_DELRCPT -- send a recipient to be removed to the MTA
 **
@@ -167,6 +169,7 @@ smfi_delrcpt(ctx, rcpt)
 	len = strlen(rcpt) + 1;
 	return mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_DELRCPT, rcpt, len);
 }
+
 /*
 **  SMFI_REPLACEBODY -- send a body chunk to the MTA
 **
@@ -210,6 +213,7 @@ smfi_replacebody(ctx, bodyp, bodylen)
 	}
 	return MI_SUCCESS;
 }
+
 #if _FFR_QUARANTINE
 /*
 **  SMFI_QUARANTINE -- quarantine an envelope
@@ -430,18 +434,20 @@ smfi_setmlreply(ctx, rcode, xcode, va_alist)
 
 		tl = strlen(txt);
 		if (tl > MAXREPLYLEN)
-			return MI_FAILURE;
+			break;
 
 		/* this text, reply codes, \r\n */
 		len += tl + 2 + rlen;
 		if (++args > MAXREPLIES)
-			return MI_FAILURE;
+			break;
 
 		/* XXX check also for unprintable chars? */
 		if (strpbrk(txt, "\r\n") != NULL)
-			return MI_FAILURE;
+			break;
 	}
 	SM_VA_END(ap);
+	if (txt != NULL)
+		return MI_FAILURE;
 
 	/* trailing '\0' */
 	++len;
@@ -493,6 +499,7 @@ smfi_setpriv(ctx, privatedata)
 	ctx->ctx_privdata = privatedata;
 	return MI_SUCCESS;
 }
+
 /*
 **  SMFI_GETPRIV -- get private data
 **
@@ -511,6 +518,7 @@ smfi_getpriv(ctx)
 		return NULL;
 	return ctx->ctx_privdata;
 }
+
 /*
 **  SMFI_GETSYMVAL -- get the value of a macro
 **
@@ -574,3 +582,31 @@ smfi_getsymval(ctx, symname)
 	}
 	return NULL;
 }
+
+#if _FFR_SMFI_PROGRESS
+/*
+**  SMFI_PROGRESS -- send "progress" message to the MTA to prevent premature
+**		     timeouts during long milter-side operations
+**
+**	Parameters:
+**		ctx -- Opaque context structure
+**
+**	Return value:
+**		MI_SUCCESS/MI_FAILURE
+*/
+
+int
+smfi_progress(ctx)
+	SMFICTX *ctx;
+{
+	struct timeval timeout;
+
+	if (ctx == NULL)
+		return MI_FAILURE;
+
+	timeout.tv_sec = ctx->ctx_timeout;
+	timeout.tv_usec = 0;
+
+	return mi_wr_cmd(ctx->ctx_sd, &timeout, SMFIR_PROGRESS, NULL, 0);
+}
+#endif /* _FFR_SMFI_PROGRESS */

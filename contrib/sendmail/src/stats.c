@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stats.c,v 8.52 2001/11/21 13:39:14 gshapiro Exp $")
+SM_RCSID("@(#)$Id: stats.c,v 8.54 2002/03/19 00:23:28 gshapiro Exp $")
 
 #include <sendmail/mailstats.h>
 
@@ -65,10 +65,16 @@ markstats(e, to, type)
 		Stat.stat_cr++;
 		break;
 
+	  case STATS_CONNECT:
+		if (to == NULL)
+			Stat.stat_cf++;
+		else
+			Stat.stat_ct++;
+		break;
+
 	  case STATS_NORMAL:
 		if (to == NULL)
 		{
-			Stat.stat_cf++;
 			if (e->e_from.q_mailer != NULL)
 			{
 				Stat.stat_nf[e->e_from.q_mailer->m_mno]++;
@@ -78,7 +84,6 @@ markstats(e, to, type)
 		}
 		else
 		{
-			Stat.stat_ct++;
 			Stat.stat_nt[to->q_mailer->m_mno]++;
 			Stat.stat_bt[to->q_mailer->m_mno] += KBYTES(e->e_msgsize);
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.603 2001/12/31 19:46:38 gshapiro Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 8.611 2002/03/18 23:08:50 gshapiro Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1
@@ -154,6 +154,9 @@ getrequests(e)
 	char status[MAXLINE];
 	SOCKADDR sa;
 	SOCKADDR_LEN_T len = sizeof sa;
+#if _FFR_QUEUE_RUN_PARANOIA
+	time_t lastrun;
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 # if NETUNIX
 	extern int ControlSocket;
 # endif /* NETUNIX */
@@ -388,7 +391,28 @@ getrequests(e)
 
 			curdaemon = -1;
 			if (doqueuerun())
+			{
 				(void) runqueue(true, false, false, false);
+#if _FFR_QUEUE_RUN_PARANOIA
+				lastrun = now;
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
+			}
+#if _FFR_QUEUE_RUN_PARANOIA
+			else if (QueueIntvl > 0 &&
+				 lastrun + QueueIntvl + 60 < now)
+			{
+
+				/*
+				**  set lastrun unconditionally to avoid
+				**  calling checkqueuerunner() all the time.
+				**  That's also why we currently ignore the
+				**  result of the function call.
+				*/
+
+				(void) checkqueuerunner();
+				lastrun = now;
+			}
+#endif /* _FFR_QUEUE_RUN_PARANOIA */
 
 			if (t <= 0)
 			{
@@ -759,6 +783,7 @@ getrequests(e)
 				macdefine(&BlankEnvelope.e_macro, A_PERM,
 					macid("{client_resolve}"), "OK");
 			sm_setproctitle(true, e, "startup with %s", p);
+			markstats(e, NULL, STATS_CONNECT);
 
 			if ((inchannel = sm_io_open(SmFtStdiofd,
 						    SM_TIME_DEFAULT,
@@ -2504,6 +2529,9 @@ gothostent:
 		else
 			save_errno = errno;
 
+		/* couldn't connect.... figure out why */
+		(void) close(s);
+
 		/* if running demand-dialed connection, try again */
 		if (DialDelay > 0 && firstconnect &&
 		    bitnset(M_DIALDELAY, mci->mci_mailer->m_flags))
@@ -2515,9 +2543,6 @@ gothostent:
 			(void) sleep(DialDelay);
 			continue;
 		}
-
-		/* couldn't connect.... figure out why */
-		(void) close(s);
 
 		if (LogLevel > 13)
 			sm_syslog(LOG_INFO, e->e_id,
@@ -2980,6 +3005,8 @@ restart_daemon()
 #ifdef SIGUSR1
 	SM_NOOP_SIGNAL(SIGUSR1, ousr1);
 #endif /* SIGUSR1 */
+
+	/* Turn back on signals */
 	sm_allsignals(false);
 
 	(void) execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.868 2001/12/29 04:54:38 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.876 2002/02/27 23:49:52 ca Exp $")
 
 
 #if NETINET || NETINET6
@@ -326,10 +326,15 @@ main(argc, argv, envp)
 
 #ifdef SIGUSR1
 	/* Only allow root (or non-set-*-ID binaries) to use SIGUSR1 */
-	if (extraprivs)
+	if (!extraprivs)
 	{
 		/* arrange to dump state on user-1 signal */
 		(void) sm_signal(SIGUSR1, sigusr1);
+	}
+	else
+	{
+		/* ignore user-1 signal */
+		(void) sm_signal(SIGUSR1, SIG_IGN);
 	}
 #endif /* SIGUSR1 */
 
@@ -389,7 +394,8 @@ main(argc, argv, envp)
 		switch (j)
 		{
 		  case 'b':	/* operations mode */
-			switch (j = *optarg)
+			j = (optarg == NULL) ? ' ' : *optarg;
+			switch (j)
 			{
 			  case MD_DAEMON:
 			  case MD_FGDAEMON:
@@ -544,13 +550,6 @@ main(argc, argv, envp)
 	j = 0;
 	for (av = argv; *av != NULL; )
 		j += strlen(*av++) + 1;
-	if (j < 0 || j > SM_ARG_MAX)
-	{
-		syserr("!Arguments too long");
-
-		/* NOTREACHED */
-		return EX_USAGE;
-	}
 	SaveArgv = (char **) xalloc(sizeof (char *) * (argc + 1));
 	CommandLineArgs = xalloc(j);
 	p = CommandLineArgs;
@@ -2179,7 +2178,10 @@ main(argc, argv, envp)
 				**  increment the work counter.
 				*/
 
-				runqueueevent(qgrp);
+				for (i = 0; i < NumQueue && Queue[i] != NULL;
+				     i++)
+					Queue[i]->qg_nextrun = (time_t) -1;
+				Queue[qgrp]->qg_nextrun = 0;
 				(void) run_work_group(Queue[qgrp]->qg_wgrp,
 						      false, Verbose,
 						      queuepersistent, false);
@@ -3537,6 +3539,7 @@ drop_privileges(to_real_uid)
 		RunAsUserName = RealUserName;
 		RunAsUid = RealUid;
 		RunAsGid = RealGid;
+		EffGid = RunAsGid;
 	}
 
 	/* make sure no one can grab open descriptors for secret files */
@@ -3620,20 +3623,19 @@ drop_privileges(to_real_uid)
 	/* fiddle with uid */
 	if (to_real_uid || RunAsUid != 0)
 	{
-		uid_t euid = geteuid();
+		uid_t euid;
 
 		/*
 		**  Try to setuid(RunAsUid).
 		**  euid must be RunAsUid,
-		**  ruid must be RunAsUid unless it's the MSP and the euid
-		**  wasn't 0 and we didn't have to drop privileges to the
-		**  real uid.
+		**  ruid must be RunAsUid unless (e|r)uid wasn't 0
+		**	and we didn't have to drop privileges to the real uid.
 		*/
 
 		if (setuid(RunAsUid) < 0 ||
-		    (getuid() != RunAsUid  &&
-		     (!UseMSP || euid == 0 || to_real_uid )) ||
-		    geteuid() != RunAsUid)
+		    geteuid() != RunAsUid ||
+		    (getuid() != RunAsUid &&
+		     (to_real_uid || geteuid() == 0 || getuid() == 0)))
 		{
 #if HASSETREUID
 			/*
@@ -3642,7 +3644,7 @@ drop_privileges(to_real_uid)
 			**  setuid() to drop the saved-uid as well.
 			*/
 
-			if (euid == RunAsUid)
+			if (geteuid() == RunAsUid)
 			{
 				if (setreuid(RunAsUid, -1) < 0)
 				{
@@ -3665,6 +3667,7 @@ drop_privileges(to_real_uid)
 				rval = EX_OSERR;
 			}
 		}
+		euid = geteuid();
 		if (RunAsUid != 0 && setuid(0) == 0)
 		{
 			/*
