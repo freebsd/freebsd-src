@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)routed.8	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: routed.8,v 1.8 1997/02/22 14:33:12 peter Exp $
 .\"
 .Dd June 1, 1996
 .Dt ROUTED 8
@@ -199,11 +199,6 @@ currently chosen router dies.
 If all discovered routers disappear,
 the daemon resumes listening to RIP responses.
 .Pp
-While using Router Discovery (which happens by default when
-the system has a single network interface and a Router Discovery Advertisement
-is received), there is a single default route and a variable number of
-redirected host routes in the kernel table.
-.Pp
 The Router Discovery standard requires that advertisements
 have a default "lifetime" of 30 minutes.  That means should
 something happen, a client can be without a good route for
@@ -222,7 +217,9 @@ is received), there is a single default route and a variable number of
 redirected host routes in the kernel table.
 On a host with more than one network interface,
 this default route will be via only one of the interfaces.
-Thus, multi-homed hosts running with \f3\-q\f1 might need
+Thus, multi-homed hosts running with
+.Fl q
+might need
 .Cm no_rdisc
 described below.
 .Pp
@@ -420,7 +417,7 @@ Such entries are only required when both routers may learn of routes
 to the same destination.
 .Pp
 The
-.Em /etc/gateways
+.Pa /etc/gateways
 file is comprised of a series of lines, each in
 one of the following formats or consist of parameters described below:
 .Pp
@@ -461,7 +458,7 @@ or
 or
 .Xr named 8 ,
 must have been started before
-.Xr routed Ns .)
+.Nm routed Ns .)
 .Pp
 .Ar mask
 is an optional number between 1 and 32 indicating the netmask associated
@@ -544,7 +541,7 @@ Except that a
 is required, this keyword is similar to
 .Cm passwd .
 To protect the secrets, this parameter setting is valid only in the
-.Em /etc/gateways
+.Pa /etc/gateways
 file and only when that file is readable only by UID 0.
 .It Cm no_ag
 turns off aggregation of subnets in RIPv1 and RIPv2 responses.
