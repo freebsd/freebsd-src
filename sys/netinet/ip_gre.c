@@ -44,7 +44,6 @@
  */
 
 #include "opt_inet.h"
-#include "opt_ns.h"
 #include "opt_atalk.h"
 
 #include <sys/param.h>
@@ -74,11 +73,6 @@
 #include <machine/in_cksum.h>
 #else
 #error ip_gre input without IP?
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
 #endif
 
 #ifdef NETATALK
@@ -181,11 +175,6 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 		case WCCP_PROTOCOL_TYPE: /* we are in ip_input */
 			isr = NETISR_IP; 	
 			break;
-#ifdef NS
-		case ETHERTYPE_NS:
-			isr = NETISR_NS;
-			break;
-#endif
 #ifdef NETATALK
 		case ETHERTYPE_ATALK:
 			isr = NETISR_ATALK1;

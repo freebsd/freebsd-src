@@ -45,9 +45,6 @@
 #include <netipx/ipx.h>
 #endif
 
-#define AF_NETBIOS	AF_NS		/* XXX: should go to socket.h */
-#define PF_NETBIOS	AF_NETBIOS
-
 #define	NBPROTO_TCPSSN	1		/* NETBIOS session over TCP */
 #define	NBPROTO_IPXSSN	11		/* NETBIOS over IPX */
 

@@ -37,7 +37,7 @@ DGEN=	conf \
 	fs/specfs fs/umapfs fs/unionfs \
 	hp hp/dev hp/hpux \
 	kern libkern \
-	net netccitt netinet netiso netns nfs scripts sys \
+	net netinet nfs scripts sys \
 	ufs ufs/ffs ufs/lfs ufs/ufs \
 	vm
 

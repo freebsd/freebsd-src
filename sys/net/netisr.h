@@ -54,7 +54,6 @@
  */
 #define	NETISR_POLL	0		/* polling callback, must be first */
 #define	NETISR_IP	2		/* same as AF_INET */
-#define	NETISR_NS	6		/* same as AF_NS */
 #define	NETISR_AARP	15		/* Appletalk ARP */
 #define	NETISR_ATALK2	16		/* Appletalk phase 2 */
 #define	NETISR_ATALK1	17		/* Appletalk phase 1 */

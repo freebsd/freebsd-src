@@ -356,8 +356,6 @@ options 	COMPILING_LINT
 #
 # Protocol families:
 #  Only the INET (Internet) family is officially supported in FreeBSD.
-#  Source code for the NS (Xerox Network Service) is provided for amusement
-#  value.
 #
 options 	INET			#Internet communications protocols
 options 	INET6			#IPv6 communications protocols
@@ -386,10 +384,6 @@ options 	IPTUNNEL		#IP in IPX encapsulation (not available)
 
 options 	NETATALK		#Appletalk communications protocols
 options 	NETATALKDEBUG		#Appletalk debugging
-
-# These are currently broken but are shipped due to interest.
-#options 	NS			#Xerox NS protocols
-#options 	NSIP			#XNS over IP
 
 #
 # SMB/CIFS requester
