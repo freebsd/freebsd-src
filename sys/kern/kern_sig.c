@@ -2080,7 +2080,11 @@ issignal(td)
 			return (0);
 		sig = sig_ffs(&sigpending);
 
-		_STOPEVENT(p, S_SIG, sig);
+		if (p->p_stops & S_SIG) {
+			mtx_unlock(&ps->ps_mtx);
+			stopevent(p, S_SIG, sig);
+			mtx_lock(&ps->ps_mtx);
+		}
 
 		/*
 		 * We should see pending but ignored signals
@@ -2296,7 +2300,11 @@ postsig(sig)
 		ktrpsig(sig, action, td->td_pflags & TDP_OLDMASK ?
 		    &td->td_oldsigmask : &td->td_sigmask, 0);
 #endif
-	_STOPEVENT(p, S_SIG, sig);
+	if (p->p_stops & S_SIG) {
+		mtx_unlock(&ps->ps_mtx);
+		stopevent(p, S_SIG, sig);
+		mtx_lock(&ps->ps_mtx);
+	}
 
 	if (!(td->td_flags & TDF_SA && td->td_mailbox) &&
 	    action == SIG_DFL) {
