@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.65 1995/11/04 08:47:27 jkh Exp $
+ * $Id: install.c,v 1.71.2.66 1995/11/04 11:08:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -579,7 +579,19 @@ installFilesystems(char *str)
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    /* First, create and/or mount the root device */
+    if (swapdev) {
+	/* As the very first thing, try to get ourselves some swap space */
+	sprintf(dname, "/dev/%s", swapdev->name);
+	i = swapon(dname);
+	if (!i)
+	    msgNotify("Added %s as initial swap device", dname);
+	else
+	    msgConfirm("WARNING!  Unable to add %s as a swap device: %s\n"
+		       "This may cause the installation to fail at some point\n"
+		       "if you don't have a lot of memory.", dname, strerror(errno));
+    }
+
+    /* Next, create and/or mount the root device */
     sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 
     if (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname)) {
@@ -665,10 +677,12 @@ installFilesystems(char *str)
 			char fname[80];
 			int i;
 
+			if (c2 == swapdev)
+			    continue;
 			sprintf(fname, "/mnt/dev/%s", c2->name);
 			i = swapon(fname);
 			if (!i)
-			    msgNotify("Added %s as a swap device", fname);
+			    msgNotify("Added %s as an additional swap device", fname);
 			else {
 			    dialog_clear();
 			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
