@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.9 1996/10/29 08:36:19 asami Exp $
+ *	$Id: clock.c,v 1.10 1996/10/30 22:39:48 asami Exp $
  */
 
 /*
@@ -168,7 +168,10 @@ static 	u_char	timer1_state;
 #endif
 static	u_char	timer2_state;
 static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
-int		rtc_inb __P((void));
+#ifdef PC98
+int rtc_inb __P((void));
+void rtc_outb __P((int));
+#endif
 
 #if defined(I586_CPU) || defined(I686_CPU)
 static	void	set_i586_ctr_freq(u_int i586_freq, u_int i8254_freq);
