@@ -208,6 +208,9 @@ struct _kwinfo {
 };
 #define NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
 
+const char *boguslocales[] = { "UTF-8", "la_LN." };
+#define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
+
 int
 main(int argc, char *argv[])
 {
@@ -373,6 +376,8 @@ init_locales_list(void)
 {
 	DIR *dirp;
 	struct dirent *dp;
+	size_t i;
+	int bogus;
 
 	/* why call this function twice ? */
 	if (locales != NULL)
@@ -396,7 +401,12 @@ init_locales_list(void)
 	while ((dp = readdir(dirp)) != NULL) {
 		if (*(dp->d_name) == '.')
 			continue;		/* exclude "." and ".." */
-		sl_add(locales, strdup(dp->d_name));
+		for (bogus = i = 0; i < NBOGUS; i++)
+			if (strncmp(dp->d_name, boguslocales[i],
+			    strlen(boguslocales[i])) == 0)
+				bogus = 1;
+		if (!bogus)
+			sl_add(locales, strdup(dp->d_name));
 	}
 	closedir(dirp);
 
