@@ -2675,6 +2675,38 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	}
 }	
 
+#ifdef SMP
+
+/*
+ *	pmap_zpi_switchin*()
+ *
+ *	These functions allow us to avoid doing IPIs alltogether in certain
+ *	temporary page-mapping situations (page zeroing).  Instead to deal
+ *	with being preempted and moved onto a different cpu we invalidate
+ *	the page when the scheduler switches us in.  This does not occur
+ *	very often so we remain relatively optimal with very little effort.
+ */
+static void
+pmap_zpi_switchin12(void)
+{
+	invlpg((u_int)CADDR1);
+	invlpg((u_int)CADDR2);
+}
+
+static void
+pmap_zpi_switchin2(void)
+{
+	invlpg((u_int)CADDR2);
+}
+
+static void
+pmap_zpi_switchin3(void)
+{
+	invlpg((u_int)CADDR3);
+}
+
+#endif
+
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
  *	the page into KVM and using bzero to clear its contents.
@@ -2688,13 +2720,19 @@ pmap_zero_page(vm_page_t m)
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
-	pmap_invalidate_page(kernel_pmap, (vm_offset_t)CADDR2);
+#ifdef SMP
+	curthread->td_switchin = pmap_zpi_switchin2;
+#endif
+	invlpg((u_int)CADDR2);
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686)
 		i686_pagezero(CADDR2);
 	else
 #endif
 		bzero(CADDR2, PAGE_SIZE);
+#ifdef SMP
+	curthread->td_switchin = NULL;
+#endif
 	*CMAP2 = 0;
 }
 
@@ -2713,13 +2751,19 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	if (*CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	*CMAP2 = PG_V | PG_RW | phys | PG_A | PG_M;
-	pmap_invalidate_page(kernel_pmap, (vm_offset_t)CADDR2);
+#ifdef SMP
+	curthread->td_switchin = pmap_zpi_switchin2;
+#endif
+	invlpg((u_int)CADDR2);
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
 		i686_pagezero(CADDR2);
 	else
 #endif
 		bzero((char *)CADDR2 + off, size);
+#ifdef SMP
+	curthread->td_switchin = NULL;
+#endif
 	*CMAP2 = 0;
 }
 
@@ -2738,13 +2782,19 @@ pmap_zero_page_idle(vm_page_t m)
 	if (*CMAP3)
 		panic("pmap_zero_page: CMAP3 busy");
 	*CMAP3 = PG_V | PG_RW | phys | PG_A | PG_M;
-	invlpg((vm_offset_t)CADDR3);	/* SMP: local cpu only */
+#ifdef SMP
+	curthread->td_switchin = pmap_zpi_switchin3;
+#endif
+	invlpg((u_int)CADDR3);
 #if defined(I686_CPU)
 	if (cpu_class == CPUCLASS_686)
 		i686_pagezero(CADDR3);
 	else
 #endif
 		bzero(CADDR3, PAGE_SIZE);
+#ifdef SMP
+	curthread->td_switchin = NULL;
+#endif
 	*CMAP3 = 0;
 }
 
@@ -2764,13 +2814,20 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 		panic("pmap_copy_page: CMAP2 busy");
 	*CMAP1 = PG_V | VM_PAGE_TO_PHYS(src) | PG_A;
 	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(dst) | PG_A | PG_M;
-	/*
-	 * XXX we "know" that CADDR2 immediately follows CADDR1 and use
-	 * that to save an IPI on SMP systems.
-	 */
-	pmap_invalidate_range(kernel_pmap, (vm_offset_t)CADDR1,
-	    (vm_offset_t)CADDR2 + PAGE_SIZE);
+#ifdef I386_CPU
+	invltlb();
+#else
+#ifdef SMP
+	curthread->td_switchin = pmap_zpi_switchin12;
+#endif
+	invlpg((u_int)CADDR1);
+	invlpg((u_int)CADDR2);
+#endif
 	bcopy(CADDR1, CADDR2, PAGE_SIZE);
+
+#ifdef SMP
+	curthread->td_switchin = NULL;
+#endif
 	*CMAP1 = 0;
 	*CMAP2 = 0;
 }
