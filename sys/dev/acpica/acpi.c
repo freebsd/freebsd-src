@@ -42,6 +42,7 @@
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
+#include <sys/linker.h>
 #include <sys/power.h>
 
 #include <machine/clock.h>
@@ -50,6 +51,8 @@
 #include <isa/isavar.h>
 
 #include "acpi.h"
+
+#include <dev/acpica/acpica_support.h>
 
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
@@ -205,6 +208,7 @@ acpi_identify(driver_t *driver, device_t parent)
 {
     device_t			child;
     int				error;
+    caddr_t			acpi_dsdt, p;
 #ifdef ENABLE_DEBUGGER
     char			*debugpoint = getenv("debug.acpi.debugger");
 #endif
@@ -247,6 +251,19 @@ acpi_identify(driver_t *driver, device_t parent)
     if (debugpoint && !strcmp(debugpoint, "tables"))
 	acpi_EnterDebugger();
 #endif
+
+    if ((acpi_dsdt = preload_search_by_type("acpi_dsdt")) != NULL) {
+        if ((p = preload_search_info(acpi_dsdt, MODINFO_ADDR)) != NULL) {
+	    error = AcpiSetDsdtTablePtr(*(void **)p);
+            if (error != AE_OK) {
+		printf("ACPI: DSDT overriding failed: %s\n",
+		       AcpiFormatException(error));
+	    } else {
+		printf("ACPI: DSDT was overridden.\n");
+	    }
+        }
+    }
+
     if ((error = AcpiLoadTables()) != AE_OK) {
 	printf("ACPI: table load failed: %s\n", AcpiFormatException(error));
 	return_VOID;
@@ -391,6 +408,9 @@ acpi_attach(device_t dev)
     SYSCTL_ADD_PROC(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "suspend_state", CTLTYPE_STRING | CTLFLAG_RW,
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
+    SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
+	OID_AUTO, "s4bios", CTLFLAG_RD | CTLFLAG_RW,
+	&sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "verbose", CTLFLAG_RD | CTLFLAG_RW,
 	&sc->acpi_verbose, 0, "verbose mode");
