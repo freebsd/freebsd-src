@@ -81,7 +81,6 @@ struct eisa_device {
 };
 
 
-/* Global variable, so UserConfig can change it. */
 #define MAX_COL		79
 #ifndef EISA_SLOTS
 #define EISA_SLOTS 10   /* PCI clashes with higher ones.. fix later */
