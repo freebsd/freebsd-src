@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/ptrace.h>
 #include <machine/reg.h>
 #include <machine/frame.h>
+#include <sys/param.h>
+#include <sys/user.h>
 #include "gdbcore.h"
 #include "value.h"
 #include "inferior.h"
@@ -91,8 +93,17 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   register int cregno;
   register int addr;
   int bad_reg = -1;
-  int offset = -reg_addr & (core_reg_size - 1);
+  int offset;
+  struct user *tmp_uaddr;
 
+  /* 
+   * First get virtual address of user structure. Then calculate offset.
+   */
+  memcpy(&tmp_uaddr,
+	 &((struct user *) core_reg_sect)->u_kproc.kp_proc.p_addr,
+	 sizeof(tmp_uaddr));
+  offset = -reg_addr - (int) tmp_uaddr;
+  
   for (regno = 0; regno < NUM_REGS; regno++)
     {
       cregno = tregmap[regno];
