@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.49 1998/03/15 13:35:42 kato Exp $
+ *	$Id: clock.c,v 1.50 1998/03/17 08:42:18 kato Exp $
  */
 
 /*
@@ -270,6 +270,12 @@ clkintr(struct clockframe frame)
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			timer0_prescaler_count -= hardclock_max_count;
+#ifdef FIXME
+			/*
+			 * XXX: This magic doesn't work, but It shouldn't be 
+			 * needed now anyway since we will not be able to 
+			 * aquire the i8254 if it is used for timecounting.
+			 */
 			/*
 			 * See microtime.s for this magic.
 			 */
@@ -293,6 +299,7 @@ clkintr(struct clockframe frame)
 #endif
 			if (time.tv_usec >= 1000000)
 				time.tv_usec -= 1000000;
+#endif
 			hardclock(&frame);
 			setdelayed();
 			timer0_max_count = hardclock_max_count;
@@ -1096,7 +1103,7 @@ inittodr(time_t base)
 
 	sec += tz.tz_minuteswest * 60 + (wall_cmos_clock ? adjkerntz : 0);
 
-	y = time.tv_sec - sec;
+	y = time_second - sec;
 	if (y <= -2 || y >= 2) {
 		/* badly off, adjust it */
 		s = splclock();
@@ -1128,7 +1135,7 @@ resettodr()
 		return;
 
 	s = splclock();
-	tm = time.tv_sec;
+	tm = time_second;
 	splx(s);
 
 #ifdef PC98
