@@ -991,7 +991,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		nfsm_adj(mb, len - tlen, tlen - cnt);
 	if (v3) {
 		*tl++ = txdr_unsigned(cnt);
-		if (len < reqlen)
+		if (cnt < reqlen)
 			*tl++ = nfs_true;
 		else
 			*tl++ = nfs_false;
