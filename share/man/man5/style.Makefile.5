@@ -55,6 +55,9 @@ comes next if needed, and is spelled
 with a single
 .Tn ASCII
 space after a colon.
+Do not use the
+.Va VPATH
+variable.
 .It
 Special variables (i.e.,
 .Va LIB , SRCS , MLINKS ,
@@ -118,12 +121,18 @@ so it does not get lost in a sea of
 statements as
 .Va WARNS
 is an important thing.
+The usage of
+.Va WARNS
+is spelled
+.Dq Li "WARNS?=	" .
+so that it may be overriden on the command-line or in
+.Pa /etc/make.conf .
 .It
-Unconditional
 .Dq Li "NO_WERROR= yes"
 should not be used,
 it defeats the purpose of
 .Va WARNS .
+It should only be used on the command-line and in special circomstances.
 .It
 .Va CFLAGS
 is spelled
@@ -144,6 +153,12 @@ often affect conditional compilation,
 and
 .Fl I Ns 's
 tend to be quite long.
+Split long
+.Va CFLAGS
+settings between the
+.Fl D Ns 's
+and
+.Fl I Ns 's.
 .It
 Do not use GCCisms (such as
 .Fl g
@@ -164,6 +179,17 @@ A lack of whitespace is also allowed for very long variable names.
 .It
 .Ic .include Aq Pa bsd.*.mk
 goes last.
+.It
+Do not use anachronisms like
+.Va $<
+and
+.Va $@ .
+Instead use
+.Cm ${.IMPSRC}
+or
+.Cm ${.ALLSRC}
+and
+.Cm ${.TARGET}
 .El
 .Pp
 The desire to express a logical grouping often means not obeying some of the
