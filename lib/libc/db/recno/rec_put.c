@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -167,8 +169,14 @@ einval:		errno = EINVAL;
 	if ((status = __rec_iput(t, nrec - 1, &fdata, flags)) != RET_SUCCESS)
 		return (status);
 
-	if (flags == R_SETCURSOR)
+	switch (flags) {
+	case R_IAFTER:
+		nrec++;
+		break;
+	case R_SETCURSOR:
 		t->bt_cursor.rcursor = nrec;
+		break;
+	}
 	
 	F_SET(t, R_MODIFIED);
 	return (__rec_ret(t, NULL, nrec, key, NULL));
