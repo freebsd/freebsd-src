@@ -68,8 +68,8 @@ rtable_init(void **table)
 			    dom->dom_rtoffset);
 }
 
-void
-route_init()
+static void
+route_init(void)
 {
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 	rtable_init((void **)rt_tables);
