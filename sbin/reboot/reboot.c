@@ -164,7 +164,7 @@ main(int argc, char *argv[])
 	(void)signal(SIGHUP, SIG_IGN);
 
 	/* Send a SIGTERM first, a chance to save the buffers. */
-	if (kill(-1, SIGTERM) == -1)
+	if (kill(-1, SIGTERM) == -1 && errno != ESRCH)
 		err(1, "SIGTERM processes");
 
 	/*
