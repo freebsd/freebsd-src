@@ -63,9 +63,8 @@ ENTRY(rfork_thread)
 	/*
 	 * Prepare and execute the thread creation syscall
 	 */
-	pushl	12(%ebp)
 	pushl	8(%ebp)
-	pushl	%esi
+	pushl	$0
 	leal	SYS_rfork, %eax
 	KERNCALL
 	jb 	2f
@@ -91,16 +90,17 @@ ENTRY(rfork_thread)
 	movl	%esi,%esp
 	popl	%eax 
 	call	*%eax
-	addl	$12, %esp
+	addl	$4, %esp
 
 	/*
 	 * Exit system call
 	 */
 	pushl	%eax
+	pushl	$0
 #ifdef SYS_exit
-	pushl	$SYS_exit
+	leal	SYS_exit, %eax
 #else
-	pushl	$SYS_sys_exit
+	leal	SYS_sys_exit, %eax
 #endif
 	KERNCALL
 
