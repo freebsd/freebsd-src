@@ -6,8 +6,8 @@ SRCS=	ftpd.c ftpcmd.c logwtmp.c popen.c skey-stuff.c
 
 CFLAGS+=-DSETPROCTITLE -DSKEY -DSTATS
 
-LDADD=	-lcrypt -lskey -lmd
-DPADD=	${LIBCRYPT} ${LIBSKEY} ${LIBMD}
+LDADD=	-lskey -lmd -lcrypt
+DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} 
 
 CLEANFILES+=ftpcmd.c y.tab.h
 
