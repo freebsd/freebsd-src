@@ -118,6 +118,47 @@ ondemand:
  add default HISADDR
  enable dns
 
+# An on-demand dialup example using an external Terminal Adapter (TA)
+# that supports multi-link ppp itself.
+#
+# This may be specific to the AETHRA TA.
+#
+TA:
+ set phone 12345678	# Replace this with your ISPs phone number
+
+ set authname somename	# Replace these with your login name & password.
+ set authkey somepasswd	# This profile assumes you're using PAP or CHAP.
+
+ enable lqr
+ set reconnect 3 5
+ set redial 3 10
+ set lqrperiod 45
+ disable pred1 deflate mppe
+ deny pred1 deflate mppe
+
+ set dial "ABORT BUSY ABORT NO\\sCARRIER TIMEOUT 5 \"\" ATB41CL2048 \
+           OK-AT-OK ATB40&J3E1Q0 OK \\dATDT\\T TIMEOUT 40 CONNECT"
+ set login
+ set logout
+ set hangup
+
+ set timeout 60 300	# The minimum charge period is 5 minutes, so don't
+			# hangup before then
+
+ set device /dev/cuaa0	# Or whatever
+ set speed 115200	# Use as high a speed as possible
+
+ enable dns		# Ask the peer what to put in resolv.conf
+
+ # Take a wild guess at an IP number and let the other side decide
+ set ifaddr 172.16.0.1/0 212.0.0.0/0 0 0
+ add! default hisaddr
+
+ set mru 1504			# Some extra room for the MP header
+
+ set server /tmp/ppp-TA "" 0177	# The diagnostic port (-rw-------)
+
+
 #                          Example segments
 #
 # The following lines may be included as part of your configuration
