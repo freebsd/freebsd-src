@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cbcp.c,v 1.12 1999/05/08 11:06:10 brian Exp $
+ *	$Id: cbcp.c,v 1.13 1999/06/02 15:58:53 brian Exp $
  */
 
 #include <sys/param.h>
@@ -356,11 +356,20 @@ cbcp_AdjustResponse(struct cbcp *cbcp, struct cbcp_data *data)
 
   switch (data->type) {
     case CBCP_NONUM:
+      if (cbcp->p->dl->cfg.callback.opmask & CALLBACK_BIT(CALLBACK_NONE))
+        /*
+         * if ``none'' is a configured callback possibility
+         * (ie, ``set callback cbcp none''), go along with the callees
+         * request
+         */
+        cbcp->fsm.type = CBCP_NONUM;
+
       /*
-       * If the callee offers no callback, we send our desired response
-       * anyway.  This is what Win95 does - although I can't find this
-       * behaviour documented in the spec....
+       * Otherwise, we send our desired response anyway.  This seems to be
+       * what Win95 does - although I can't find this behaviour documented
+       * in the CBCP spec....
        */
+
       return 1;
 
     case CBCP_CLIENTNUM:
@@ -701,7 +710,14 @@ cbcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
                    cbcp->fsm.id, head->id);
         cbcp->fsm.id = head->id;
       }
-      if (cbcp->fsm.state == CBCP_RESPSENT) {
+      if (cbcp->fsm.type == CBCP_NONUM) {
+        /*
+         * Don't change state in case the peer doesn't get our ACK,
+         * just bring the layer up.
+         */
+        timer_Stop(&cbcp->fsm.timer);
+        datalink_NCPUp(cbcp->p->dl);
+      } else if (cbcp->fsm.state == CBCP_RESPSENT) {
         timer_Stop(&cbcp->fsm.timer);
         datalink_CBCPComplete(cbcp->p->dl);
         log_Printf(LogPHASE, "%s: CBCP: Peer will dial back\n", p->dl->name);
