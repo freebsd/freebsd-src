@@ -207,7 +207,7 @@ The supported IP options are:
 The absence of a particular option may be denoted
 with a ``!''.
 .It established
-Matches packets that do not have the SYN bit set.
+Matches packets that have the RST or ACK bits set.
 TCP packets only.
 .It setup
 Matches packets that have the SYN bit set but no ACK bit.
