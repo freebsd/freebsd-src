@@ -289,10 +289,11 @@ single_block_read:
 					printf("A+");
 				else
 					printf("A");
-				printf("(%lld,%ld,%lld,%d) ",
-				    (intmax_t)rbp->b_lblkno, rbp->b_bcount,
+				printf("(%jd,%jd,%jd,%jd) ",
+				    (intmax_t)rbp->b_lblkno,
+				    (intmax_t)rbp->b_bcount,
 				    (intmax_t)(rbp->b_lblkno - origblkno),
-				    seqcount);
+				    (intmax_t)seqcount);
 			}
 #endif
 
