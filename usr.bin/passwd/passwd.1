@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: passwd.1,v 1.10 1998/10/09 06:38:33 markm Exp $
+.\"	$Id: passwd.1,v 1.11 1998/11/30 22:41:58 billf Exp $
 .\"
 .Dd June 6, 1993
 .Dt PASSWD 1
@@ -80,7 +80,7 @@ is used to update the password databases.
 .Pp
 .El
 When changing local or NIS password, the next password change date
-is set according to "passwordperiod" capability in the user's
+is set according to "passwordtime" capability in the user's
 login class.
 .Pp
 To change another user's Kerberos password, one must first

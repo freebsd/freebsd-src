@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id: login.conf.5,v 1.14 1998/02/14 16:12:53 steve Exp $
+.\" $Id: login.conf.5,v 1.15 1998/02/21 23:29:59 fenner Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -306,7 +306,7 @@ devices in the group.
 If both lists are given and are non-empty, the user is restricted to those
 devices allowed by ttys.allow that are not available by ttys.deny.
 .Sh ACCOUNTING LIMITS
-.Bl -column passwordperiod indent indent
+.Bl -column host.accounted indent indent
 .Sy Name	Type	Notes	Description
 .It accounted	bool	false	Enable session time accounting for all users
 in this class.
@@ -323,7 +323,9 @@ login sessions will be accounted.
 login session accounting is exempted.
 .It idletime	time		Maximum idle time before logout.
 .It monthtime 	time		Maximum login time per month.
-.It passwordtime	time		Time for password expiry.
+.It passwordtime	time		Used by
+.Xr passwd 1
+to set next password expiry date.
 .It refreshtime 	time		New time allowed on account refresh.
 .It refreshperiod	str		How often account time is refreshed.
 .It sessiontime 	time		Maximum login time per session.
