@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.4 1997/09/01 00:51:48 bde Exp $
+ *	$Id: ppbconf.h,v 1.5 1997/09/01 18:39:37 bde Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -59,6 +59,7 @@
 #define AUTOFEED	0x02
 #define nINIT		0x04
 #define SELECTIN	0x08
+#define IRQENABLE	0x10
 #define PCD		0x20
 
 /*
