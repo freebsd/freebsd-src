@@ -1078,29 +1078,26 @@ extpacket:
 }
 /*
  * Routine to copy from device local memory into mbufs.
+ * Note that `off' argument is offset into first mbuf of target chain from
+ * which to begin copying the data to.
  */
 struct mbuf *
-m_devget(char *buf, int totlen, int off0, struct ifnet *ifp,
+m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	 void (*copy)(char *from, caddr_t to, u_int len))
 {
 	struct mbuf *m;
 	struct mbuf *top = 0, **mp = &top;
-	int off = off0, len;
-	char *cp;
-	char *epkt;
+	int len;
 
-	cp = buf;
-	epkt = cp + totlen;
-	if (off) {
-		cp += off + 2 * sizeof(u_short);
-		totlen -= 2 * sizeof(u_short);
-	}
+	if (off < 0 || off > MHLEN)
+		return (NULL);
+
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = totlen;
-	m->m_len = MHLEN;
+	len = MHLEN;
 
 	while (totlen > 0) {
 		if (top) {
@@ -1109,37 +1106,35 @@ m_devget(char *buf, int totlen, int off0, struct ifnet *ifp,
 				m_freem(top);
 				return (NULL);
 			}
-			m->m_len = MLEN;
+			len = MLEN;
 		}
-		len = min(totlen, epkt - cp);
-		if (len >= MINCLSIZE) {
+		if (totlen + off >= MINCLSIZE) {
 			MCLGET(m, M_DONTWAIT);
 			if (m->m_flags & M_EXT)
-				m->m_len = len = min(len, MCLBYTES);
-			else
-				len = m->m_len;
+				len = MCLBYTES;
 		} else {
 			/*
 			 * Place initial small packet/header at end of mbuf.
 			 */
-			if (len < m->m_len) {
-				if (top == NULL && len +
-				    max_linkhdr <= m->m_len)
-					m->m_data += max_linkhdr;
-				m->m_len = len;
-			} else
-				len = m->m_len;
+			if (top == NULL && totlen + off + max_linkhdr <= len) {
+				m->m_data += max_linkhdr;
+				len -= max_linkhdr;
+			}
 		}
+		if (off) {
+			m->m_data += off;
+			len -= off;
+			off = 0;
+		}
+		m->m_len = len = min(totlen, len);
 		if (copy)
-			copy(cp, mtod(m, caddr_t), (unsigned)len);
+			copy(buf, mtod(m, caddr_t), (unsigned)len);
 		else
-			bcopy(cp, mtod(m, caddr_t), (unsigned)len);
-		cp += len;
+			bcopy(buf, mtod(m, caddr_t), (unsigned)len);
+		buf += len;
 		*mp = m;
 		mp = &m->m_next;
 		totlen -= len;
-		if (cp == epkt)
-			cp = buf;
 	}
 	return (top);
 }

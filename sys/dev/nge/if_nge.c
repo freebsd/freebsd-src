@@ -1278,8 +1278,8 @@ static void nge_rxeof(sc)
 		 * only gigE chip I know of with alignment constraints
 		 * on receive buffers. RX buffers must be 64-bit aligned.
 		 */
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    total_len + ETHER_ALIGN, 0, ifp, NULL);
+		m0 = m_devget(mtod(m, char *), total_len, ETHER_ALIGN, ifp,
+		    NULL);
 		nge_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
 			printf("nge%d: no receive buffers "
@@ -1288,7 +1288,6 @@ static void nge_rxeof(sc)
 			ifp->if_ierrors++;
 			continue;
 		}
-		m_adj(m0, ETHER_ALIGN);
 		m = m0;
 
 		ifp->if_ipackets++;

@@ -989,14 +989,13 @@ static void sf_rxeof(sc)
 			continue;
 		}
 
-		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
-		    cur_rx->sf_len + ETHER_ALIGN, 0, ifp, NULL);
+		m0 = m_devget(mtod(m, char *), cur_rx->sf_len, ETHER_ALIGN,
+		    ifp, NULL);
 		sf_newbuf(sc, desc, m);
 		if (m0 == NULL) {
 			ifp->if_ierrors++;
 			continue;
 		}
-		m_adj(m0, ETHER_ALIGN);
 		m = m0;
 
 		eh = mtod(m, struct ether_header *);
