@@ -2459,7 +2459,7 @@ pmap_remove_pages(pmap, sva, eva)
 		return;
 	}
 #endif
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
@@ -2521,6 +2521,7 @@ pmap_remove_pages(pmap, sva, eva)
 	}
 	pmap_invalidate_all(pmap);
 	PMAP_UNLOCK(pmap);
+	vm_page_unlock_queues();
 }
 
 /*

@@ -2620,7 +2620,6 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	struct l2_bucket *l2b;
 	pt_entry_t *pte, tpte;
 	pv_entry_t pv, npv;
-	int s;
 	vm_page_t m;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
@@ -2630,7 +2629,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	}
 #endif
 
-	s = splvm();
+	vm_page_lock_queues();
 	for(pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 		if (pv->pv_va >= eva || pv->pv_va < sva) {
 			npv = TAILQ_NEXT(pv, pv_plist);
@@ -2675,8 +2674,8 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
 		pmap_free_pv_entry(pv);
 	}
-	splx(s);
 	pmap_invalidate_tlb_all(pmap);
+	vm_page_unlock_queues();
 }
 
 
