@@ -1188,7 +1188,6 @@ nfs_nmcancelreqs(nmp)
 	splx(s);
 
 	for (i = 0; i < 30; i++) {
-		tsleep(&lbolt, PSOCK, "nfscancel", 0);
 		s = splnet();
 		TAILQ_FOREACH(req, &nfs_reqq, r_chain) {
 			if (nmp == req->r_nmp)
@@ -1197,6 +1196,7 @@ nfs_nmcancelreqs(nmp)
 		splx(s);
 		if (req == NULL)
 			return (0);
+		tsleep(&lbolt, PSOCK, "nfscancel", 0);
 	}
 	return (EBUSY);
 }
@@ -1228,6 +1228,9 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct proc *p)
 	sigset_t tmpset;
 
 	if (rep && (rep->r_flags & R_SOFTTERM))
+		return (EINTR);
+	/* Terminate all requests while attempting to unmount. */
+	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNT)
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
