@@ -25,16 +25,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2000
+.Dd January 28, 2001
 .Dt sbuf 9
 .Os FreeBSD
 .Sh NAME
 .Nm sbuf_new ,
+.Nm sbuf_clear ,
 .Nm sbuf_setpos ,
 .Nm sbuf_cat ,
 .Nm sbuf_cpy ,
 .Nm sbuf_printf ,
 .Nm sbuf_putc ,
+.Nm sbuf_overflowed ,
 .Nm sbuf_finish ,
 .Nm sbuf_data ,
 .Nm sbuf_len ,
@@ -43,9 +45,11 @@
 .Sh SYNOPSIS
 .Fd #include <sys/sbuf.h>
 .Ft int
-.Fn sbuf_new "struct sbuf *s" "char *buf" "size_t length" "int flags"
+.Fn sbuf_new "struct sbuf *s" "char *buf" "int length" "int flags"
+.Ft void
+.Fn sbuf_clear "struct sbuf *s"
 .Ft int
-.Fn sbuf_setpos "struct sbuf *s" "size_t pos"
+.Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
 .Fn sbuf_cat "struct sbuf *s" "char *str"
 .Ft int
@@ -55,10 +59,12 @@
 .Ft int
 .Fn sbuf_putc "struct sbuf *s" "int c"
 .Ft int
+.Fn sbuf_overflowed "struct sbuf *s"
+.Ft void
 .Fn sbuf_finish "struct sbuf *s"
 .Ft char *
 .Fn sbuf_data "struct sbuf *s"
-.Ft size_t
+.Ft int
 .Fn sbuf_len "struct sbuf *s"
 .Ft void
 .Fn sbuf_delete "struct sbuf *s"
@@ -102,6 +108,12 @@ it must point to an array of at least
 characters.
 .Pp
 The
+.Fn sbuf_clear
+function invalidates the contents of the
+.Fa sbuf
+and resets its position to zero.
+.Pp
+The
 .Fn sbuf_setpos
 function sets the
 .Fa sbuf Ns 's
@@ -129,6 +141,8 @@ This is equivalent to calling
 with a fresh
 .Fa sbuf
 or one which position has been reset to zero with
+.Fn sbuf_clear
+or
 .Fn sbuf_setpos .
 .Pp
 The
@@ -149,6 +163,12 @@ to the
 at the current position.
 .Pp
 The
+.Fn sbuf_overflowed
+function returns a non-zero value if the
+.Fa sbuf
+overflowed.
+.Pp
+The
 .Fn sbuf_finish
 function null-terminates the
 .Fa sbuf
@@ -165,8 +185,9 @@ The
 .Fn sbuf_data
 and
 .Fn sbuf_len
-functions return the actual string and its length, respectively, and
-only work on a finished and non-overflowed
+functions return the actual string and its length, respectively;
+.Fn sbuf_data
+only works on a finished
 .Fa sbuf .
 .Pp
 Finally, the
@@ -178,12 +199,14 @@ and frees its storage buffer if it was allocated by
 .Sh NOTES
 If an operation caused an
 .Fa sbuf
-to overflow, most subsequent operations (including
-.Fn sbuf_finish )
-on it will fail until the
-.Fa sbuf Ns 's
-position is reset to a value between 0 and one less than the size of
-its storage buffer using
+to overflow, most subsequent operations on it will fail until the
+.Fa sbuf
+is finished using
+.Fn sbuf_finish
+or reset using
+.Fn sbuf_clear ,
+or its position is reset to a value between 0 and one less than the
+size of its storage buffer using
 .Fn sbuf_setpos ,
 or it is reinitialized to a sufficiently short string using
 .Fn sbuf_cpy .
@@ -200,17 +223,19 @@ was invalid, and zero otherwise.
 .Fn sbuf_cat ,
 .Fn sbuf_cpy ,
 .Fn sbuf_printf ,
-.Fn sbuf_putc ,
 and
-.Fn sbuf_finish
+.Fn sbuf_putc
 all return \-1 if the buffer overflowed, and zero otherwise.
+.Pp
+.Fn sbuf_overflowed
+returns a non-zero value if the buffer overflowed, and zero otherwise.
 .Pp
 .Fn sbuf_data
 and
 .Fn sbuf_len
 return
 .Dv NULL
-and 0, respectively, if the buffer overflowed.
+and \-1, respectively, if the buffer overflowed.
 .Sh SEE ALSO
 .Xr printf 3 ,
 .Xr strcat 3 ,
@@ -228,6 +253,8 @@ family of functions was designed by
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
 and implemented by
 .An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org .
+Additional improvements were suggested by
+.An Justin T. Gibbs Aq gibbs@FreeBSD.org .
 .Pp
 This manual page was written by
 .An Dag-Erling Co\(:idan Sm\(/orgrav .
