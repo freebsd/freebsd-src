@@ -35,7 +35,7 @@
 #if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strncmp.c	8.1 (Berkeley) 6/4/93";
-__RCSID("$NetBSD$");
+__RCSID("$NetBSD: wcsncmp.c,v 1.3 2001/01/05 12:13:13 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
 __FBSDID("$FreeBSD$");
