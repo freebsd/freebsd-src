@@ -1842,21 +1842,32 @@ ttycheckoutq(struct tty *tp, int wait)
 {
 	int hiwat, s;
 	sigset_t oldmask;
+	struct proc *p = curproc;
 
 	hiwat = tp->t_ohiwat;
 	SIGEMPTYSET(oldmask);
 	s = spltty();
-	if (wait)
-		oldmask = curproc->p_siglist;
+	if (wait) {
+		PROC_LOCK(p);
+		oldmask = p->p_siglist;
+		PROC_UNLOCK(p);
+	}
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
 			ttstart(tp);
 			if (tp->t_outq.c_cc <= hiwat)
 				break;
-			if (!(wait && SIGSETEQ(curproc->p_siglist, oldmask))) {
+			if (!wait) {
 				splx(s);
 				return (0);
 			}
+			PROC_LOCK(p);
+			if (!SIGSETEQ(p->p_siglist, oldmask)) {
+				PROC_UNLOCK(p);
+				splx(s);
+				return (0);
+			}
+			PROC_UNLOCK(p);
 			SET(tp->t_state, TS_SO_OLOWAT);
 			tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", hz);
 		}
