@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.44 1998/09/08 10:42:24 jkh Exp $";
+	"$Id: perform.c,v 1.45 1998/09/11 07:26:57 jkh Exp $";
 #endif
 
 /*
@@ -45,6 +45,8 @@ pkg_perform(char **pkgs)
     FILE *pkg_in, *fp;
     Package plist;
     int len;
+    char *suf;
+    int compress;
 
     /* Preliminary setup */
     sanity_check();
@@ -63,10 +65,24 @@ pkg_perform(char **pkgs)
     }
     plist.head = plist.tail = NULL;
 
-    /* chop suffix off if already specified */
+    /* chop suffix off if already specified, remembering if we want to compress  */
     len = strlen(pkg);
-    if (len > 4 && !strcmp(&pkg[len - 4], ".tgz"))
-	pkg[len - 4] = '\0';
+    if (len > 4)
+	if (!strcmp(&pkg[len - 4], ".tgz")) {
+	    compress = TRUE;
+	    pkg[len - 4] = '\0';
+	}
+	else if (!strcmp(&pkg[len - 4], ".tar")) {
+	    compress = FALSE;
+	    pkg[len - 4] = '\0';
+	}
+	else
+	    /* default is to compress packages */
+	    compress = TRUE;
+    if (compress)
+	suf = "tgz";
+    else
+	suf = "tar";
 
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
@@ -176,7 +192,7 @@ pkg_perform(char **pkgs)
     }
 
     /* And stick it into a tar ball */
-    make_dist(home, pkg, "tgz", &plist);
+    make_dist(home, pkg, suf, &plist);
 
     /* Cleanup */
     free(Comment);
