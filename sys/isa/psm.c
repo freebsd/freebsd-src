@@ -896,12 +896,12 @@ psmidentify(driver_t *driver, device_t parent)
     bus_set_resource(psm, SYS_RES_IRQ, KBDC_RID_AUX, irq, 1);
 }
 
-#define endprobe(v)	{   if (bootverbose) 				\
+#define endprobe(v)	do {   if (bootverbose)				\
 				--verbose;   				\
                             kbdc_set_device_mask(sc->kbdc, mask);	\
 			    kbdc_lock(sc->kbdc, FALSE);			\
 			    return (v);	     				\
-			}
+			} while (0)
 
 static int
 psmprobe(device_t dev)
