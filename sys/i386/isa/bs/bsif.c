@@ -94,7 +94,7 @@ bs_adapter_info(unit)
 	return (1);
 }
 
-struct scsi_adapter pc98texa55bs = {
+static struct scsi_adapter pc98texa55bs = {
 	bs_scsi_cmd,
 	bs_scsi_minphys,
 	bs_target_open,
