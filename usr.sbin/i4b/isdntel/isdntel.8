@@ -24,10 +24,11 @@
 .\"
 .\"	last edit-date: [Sat Dec  5 18:16:19 1998]
 .\"	
-.\"	$Id: isdntel.8,v 1.6 1998/12/05 18:03:58 hm Exp $
+.\"	$Id: isdntel.8,v 1.1 1998/12/27 21:47:07 phk Exp $
 .\"
 .Dd July 11, 1998
-.Dt isdntel 8
+.Dt ISDNTEL 8
+.Os
 .Sh NAME
 .Nm isdntel
 .Nd isdn4bsd telephone answering management utility
@@ -81,14 +82,15 @@ when there is no keyboard activity.
 .Pp
 The screen output should be obvious. If in doubt, consult the source.
 .Sh SEE ALSO
+.Xr i4btel 4 ,
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8
-.Xr isdnd.rc 5
-.Xr i4btel 4
 
 .Sh BUGS
 Still two or more left.
 
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-utility and this manual page were written by Hellmuth Michaelis (hm@kts.org)
+utility and this manual page were written by
+.An Hellmuth Michaelis Aq hm@kts.org .

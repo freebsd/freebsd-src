@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.acct.5,v 1.6 1998/12/05 18:03:18 hm Exp $ 
+.\"	$Id: isdnd.acct.5,v 1.1 1998/12/27 21:47:01 phk Exp $ 
 .\"
 .\"	last edit-date: [Sat Dec  5 18:09:33 1998]
 .\"
 .Dd September 11, 1998
-.Dt isdnd.acct 5
+.Dt ISDND.ACCT 5
+.Os
 .Sh NAME
 .Nm isdnd.acct
 .Nd isdn4bsd ISDN management daemon accounting file format
@@ -83,7 +84,6 @@ is the number of seconds the connection lasted.
 and
 .Em OUTBYTES
 is the (optional) number of bytes that were transferred.
-
 .Sh FILES
 .Bl -tag -width /var/log/isdnd.acct -compact
 .It Pa /var/log/isdnd.acct

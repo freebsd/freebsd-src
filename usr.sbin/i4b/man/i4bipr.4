@@ -22,12 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4bipr.4,v 1.8 1998/12/05 18:06:06 hm Exp $
+.\"	$Id: i4bipr.4,v 1.1 1998/12/27 21:47:13 phk Exp $
 .\"
 .\"	last edit-date: [Sat Dec  5 18:38:34 1998]
 .\"
 .Dd July 6, 1998
-.Dt i4bipr 4
+.Dt I4BIPR 4
+.Os
 .Sh NAME
 .Nm i4bipr
 .Nd isdn4bsd IP over ISDN B-channel network driver
@@ -87,12 +88,12 @@ and
 for
 .Em link0 .
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 4 ,
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8
-.Xr isdnd.rc 5
-.Xr bpf 4
-.Xr tcpdump 1
-.Sh AUTHOR
+.Sh AUTHORS
 The
 .Nm
-device driver and this manpage were written by Hellmuth Michaelis. He can be
-contacted at hm@kts.org.
+device driver and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org
