@@ -318,18 +318,26 @@ pmap_pde(pmap_t pmap, vm_offset_t va)
 
 /* Return a pointer to the PT slot that corresponds to a VA */
 static __inline pt_entry_t *
+pmap_pde_to_pte(pd_entry_t *pde, vm_offset_t va)
+{
+	pt_entry_t *pte;
+
+	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
+	return (&pte[pmap_pte_index(va)]);
+}
+
+/* Return a pointer to the PT slot that corresponds to a VA */
+static __inline pt_entry_t *
 pmap_pte(pmap_t pmap, vm_offset_t va)
 {
 	pd_entry_t *pde;
-	pt_entry_t *pte;
 
 	pde = pmap_pde(pmap, va);
 	if (pde == NULL || (*pde & PG_V) == 0)
 		return NULL;
 	if ((*pde & PG_PS) != 0)	/* compat with i386 pmap_pte() */
 		return ((pt_entry_t *)pde);
-	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
-	return (&pte[pmap_pte_index(va)]);
+	return (pmap_pde_to_pte(pde, va));
 }
 
 
@@ -337,7 +345,6 @@ static __inline pt_entry_t *
 pmap_pte_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *ptepde)
 {
 	pd_entry_t *pde;
-	pt_entry_t *pte;
 
 	pde = pmap_pde(pmap, va);
 	if (pde == NULL || (*pde & PG_V) == 0)
@@ -345,8 +352,7 @@ pmap_pte_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *ptepde)
 	*ptepde = *pde;
 	if ((*pde & PG_PS) != 0)	/* compat with i386 pmap_pte() */
 		return ((pt_entry_t *)pde);
-	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
-	return (&pte[pmap_pte_index(va)]);
+	return (pmap_pde_to_pte(pde, va));
 }
 
 
@@ -1630,9 +1636,9 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (va_next > eva)
 			va_next = eva;
 
-		for (; sva != va_next; sva += PAGE_SIZE) {
-			pte = pmap_pte(pmap, sva);
-			if (pte == NULL || *pte == 0)
+		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
+			if (*pte == 0)
 				continue;
 			anyvalid = 1;
 			if (pmap_remove_pte(pmap, pte, sva, ptpaddr))
@@ -1722,6 +1728,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t ptpaddr, *pde;
+	pt_entry_t *pte;
 	int anychanged;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
@@ -1777,14 +1784,11 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		if (va_next > eva)
 			va_next = eva;
 
-		for (; sva != va_next; sva += PAGE_SIZE) {
+		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
+		    sva += PAGE_SIZE) {
 			pt_entry_t obits, pbits;
-			pt_entry_t *pte;
 			vm_page_t m;
 
-			pte = pmap_pte(pmap, sva);
-			if (pte == NULL)
-				continue;
 retry:
 			obits = pbits = *pte;
 			if (pbits & PG_MANAGED) {
