@@ -413,7 +413,8 @@ linprocfs_domtab(PFS_FILL_ARGS)
 static int
 linprocfs_dostat(PFS_FILL_ARGS)
 {
-	int name[2], olen, plen;
+	unsigned int olen, plen;
+	int name[2];
 	int i, ncpu;
 
 	name[0] = CTL_HW;
