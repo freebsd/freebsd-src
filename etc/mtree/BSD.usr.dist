@@ -155,6 +155,8 @@
             ..
             cvsup
             ..
+            drivers
+            ..
             etc
 	    ..
 	    find_interface
