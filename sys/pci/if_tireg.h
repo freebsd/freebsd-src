@@ -135,7 +135,7 @@
  */
 #define TI_FIRMWARE_MAJOR		0xc
 #define TI_FIRMWARE_MINOR		0x3
-#define TI_FIRMWARE_FIX			0x14
+#define TI_FIRMWARE_FIX			0x15
 
 /*
  * Miscelaneous Local Control register.
