@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.50 1997/05/06 06:38:46 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.51 1997/05/06 16:21:18 pds Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/06 06:38:46 $</date>
+<date>$Date: 1997/05/06 16:21:18 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -2874,35 +2874,64 @@ disk        fd1   at fdc0 drive 1
 	<url url="http://www.freebsd.org/cgi/cvsweb.cgi" name="CVS Repository">:
 
 	<itemize>
-	<item><bf/RELENG_2_1_0/    AKA 2.1-stable AKA "2.1 branch"</item>
-	<item><bf/RELENG_2_2/      AKA 2.2-stable AKA "2.2 branch"</item>
-	<item><bf/HEAD/            AKA -current AKA 3.0-current</item>
+	<item><bf/RELENG_2_1_0/    AKA <bf/2.1-stable/ AKA <bf/"2.1 branch"/</item>
+	<item><bf/RELENG_2_2/      AKA <bf/2.2-stable/ AKA <bf/"2.2 branch"/</item>
+	<item><bf/HEAD/            AKA <bf/-current/ AKA <bf/3.0-current/</item>
 	</itemize>
 
-	<p><bf/HEAD/ is not an branch actual tag, like the other two, it's
-	simply a symbolic constant for "the current, non-branched development
-	stream" which we, of course, map to whatever's "-current" at the time.
+	<p><bf/HEAD/ is not an actual branch tag, like the other two, it's
+	simply a symbolic constant for
+	<em/"the current, non-branched development stream"/
+	which we simply refer to as <bf/-current/.
 
-	Right now, -current is the 3.0 development stream and the 2.2 branch
-	forked off of -current in November 1996. 2.1.0 departed -current in
-	September of 1994, IIRC.
+	Right now, <bf/-current/ is the 3.0 development stream and the
+	<bf/2.2-stable/ branch, <bf/RELENG_2_2/, forked off from
+	<bf/-current/ in November 1996.
 
-	Now SNAPs are made from -current, that is to say 3.0, and they happen
+	The <bf/2.1-stable/ branch, <bf/RELENG_2_1_0/,departed -current in
+	September of 1994.
+
+	<itemize>
+	<item><bf/Fine, so what are SNAPshots?/
+
+	<p>"SNAPs" are made from -current, that is to say 3.0, and they happen
 	infrequently, basically whenever I feel like doing one (e.g. I or
 	someone else wants something tested), and this generally doesn't
-	happen more than 3-4 times a year.
+	happen more than 3-4 times a year.</item>
 
-	The ftp://releng22.freebsd.org/pub/FreeBSD machine is a special case,
-	created just for the 2.2 branch and used to build a full 2.2 branch
-	release *every day* from wherever the RELENG_2_2 tag happens to be
-	pointing at the time.  If the release build succeeds, the release is
-	moved into the anonymous FTP area there.  If it fails, jkh gets a
-	mail telling him "Hey, somebody broke the 2.2 branch! Bad
-	hacker! No cola!" and he goes to investigate.  The 2.2 branch is not
-	supposed to break since people are only supposed to be committing bug
-	fixes and well-tested enhancements to that branch, nothing experimental
+	<item><bf/And what constitutes a full "RELEASE" then?/
+
+	<p>A full release generally occurs along a branch, divorced from
+	the <bf/-current/ mainline and its associated instabilities as people
+	work on new mechanisms or generally do renovation on FreeBSD.  A
+	release, unless it's perhaps the very first one on a new branch,
+	is meant to be of slightly better and more tested stuff, and the
+	release date is chosen to coincide with a point in time when the
+	sources are the most stable, following ALPHA and BETA test periods
+	along the branch (during which time the addition of new functionality
+	is discouraged and the testing of existing functionality strongly
+	encouraged). </item>
+
+	<item><bf/Makes sense so far - so, what's a "RELENG?" release?/
+
+	<p>The RELENG releases are a new thing, sort of a "release of the day"
+	mechanism which is automated and set to run along a given branch,
+	in the current case that being <bf/RELENG_2_2/.
+
+	The URL <url url="ftp://releng22.freebsd.org/pub/FreeBSD"
+	name="ftp://releng22.freebsd.org/pub/FreeBSD"> points to a machine
+	which builds a full 2.2 branch release <em/every day/ from wherever
+	the RELENG_2_2 tag happens to be pointing at 3am.  If the new
+	build succeeds, the release is moved into the anonymous FTP area
+	for transfer by others.  If it fails, jkh gets a mail telling him
+	"Hey, somebody broke the 2.2 branch! Bad hacker, no caffeine!"
+	and he goes off to investigate.  The 2.2 branch is not supposed to
+	break since people are only supposed to be committing bug fixes and
+	well-tested enhancements to that branch, nothing experimental
 	or untried (sometimes they do anyway, but hey - this is a
 	volunteer-driven project and we try to take that in stride :-).
+	</item>
+	</itemize>
       </sect1>
 
       <sect1>
