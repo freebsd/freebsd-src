@@ -1337,7 +1337,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	}
 	if (udmamode >= 2) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
-				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
 		ata_prtdev(atadev, "%s setting up UDMA2 mode on Acard chip\n",
 			   (error) ? "failed" : "success");
