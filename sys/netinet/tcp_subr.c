@@ -2155,3 +2155,101 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	return (0);
 }
 #endif /* TCP_SIGNATURE */
+
+static int
+sysctl_drop(SYSCTL_HANDLER_ARGS)
+{
+	/* addrs[0] is a foreign socket, addrs[1] is a local one. */
+	struct sockaddr_storage addrs[2];
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	struct sockaddr_in *fin, *lin;
+#ifdef INET6
+	struct sockaddr_in6 *fin6, *lin6;
+	struct in6_addr f6, l6;
+#endif
+	int error;
+
+	inp = NULL;
+	fin = lin = NULL;
+#ifdef INET6
+	fin6 = lin6 = NULL;
+#endif
+	error = 0;
+
+	if (req->oldptr != NULL || req->oldlen != 0)
+		return (EINVAL);
+	if (req->newptr == NULL)
+		return (EPERM);
+	if (req->newlen < sizeof(addrs))
+		return (ENOMEM);
+	error = SYSCTL_IN(req, &addrs, sizeof(addrs));
+	if (error)
+		return (error);
+
+	switch (addrs[0].ss_family) {
+#ifdef INET6
+	case AF_INET6:
+		fin6 = (struct sockaddr_in6 *)&addrs[0];
+		lin6 = (struct sockaddr_in6 *)&addrs[1];
+		if (fin6->sin6_len != sizeof(struct sockaddr_in6) ||
+		    lin6->sin6_len != sizeof(struct sockaddr_in6))
+			return (EINVAL);
+		if (IN6_IS_ADDR_V4MAPPED(&fin6->sin6_addr)) {
+			if (!IN6_IS_ADDR_V4MAPPED(&lin6->sin6_addr))
+				return (EINVAL);
+			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[0]);
+			in6_sin6_2_sin_in_sock((struct sockaddr *)&addrs[1]);
+			fin = (struct sockaddr_in *)&addrs[0];
+			lin = (struct sockaddr_in *)&addrs[1];
+			break;
+		}
+		error = in6_embedscope(&f6, fin6, NULL, NULL);
+		if (error)
+			return (EINVAL);
+		error = in6_embedscope(&l6, lin6, NULL, NULL);
+		if (error)
+			return (EINVAL);
+		break;
+#endif
+	case AF_INET:
+		fin = (struct sockaddr_in *)&addrs[0];
+		lin = (struct sockaddr_in *)&addrs[1];
+		if (fin->sin_len != sizeof(struct sockaddr_in) ||
+		    lin->sin_len != sizeof(struct sockaddr_in))
+			return (EINVAL);
+		break;
+	default:
+		return (EINVAL);
+	}
+	INP_INFO_WLOCK(&tcbinfo);
+	switch (addrs[0].ss_family) {
+#ifdef INET6
+	case AF_INET6:
+		inp = in6_pcblookup_hash(&tcbinfo, &f6, fin6->sin6_port,
+		    &l6, lin6->sin6_port, 0, NULL);
+		break;
+#endif
+	case AF_INET:
+		inp = in_pcblookup_hash(&tcbinfo, fin->sin_addr, fin->sin_port,
+		    lin->sin_addr, lin->sin_port, 0, NULL);
+		break;
+	}
+	if (inp != NULL) {
+		INP_LOCK(inp);
+		if ((tp = intotcpcb(inp)) &&
+		    ((inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
+			tp = tcp_drop(tp, ECONNABORTED);
+			if (tp != NULL)
+				INP_UNLOCK(inp);
+		} else
+			INP_UNLOCK(inp);
+	} else
+		error = ESRCH;
+	INP_INFO_WUNLOCK(&tcbinfo);
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
+    CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
+    0, sysctl_drop, "", "Drop TCP connection");

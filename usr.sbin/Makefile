@@ -159,6 +159,7 @@ SUBDIR=	ac \
 	syslogd \
 	tcpdchk \
 	tcpdmatch \
+	tcpdrop \
 	tcpdump \
 	timed \
 	traceroute \
