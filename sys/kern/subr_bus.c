@@ -1388,9 +1388,11 @@ resource_find(const char *name, int unit, const char *resname,
 int
 resource_int_value(const char *name, int unit, const char *resname, int *result)
 {
-	int error;
+	struct config_resource tmpres;
 	struct config_resource *res;
+	int error;
 
+	res = &tmpres;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_INT)
@@ -1403,9 +1405,11 @@ int
 resource_long_value(const char *name, int unit, const char *resname,
 		    long *result)
 {
-	int error;
+	struct config_resource tmpres;
 	struct config_resource *res;
+	int error;
 
+	res = &tmpres;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_LONG)
@@ -1418,9 +1422,11 @@ int
 resource_string_value(const char *name, int unit, const char *resname,
 		      char **result)
 {
-	int error;
+	struct config_resource tmpres;
 	struct config_resource *res;
+	int error;
 
+	res = &tmpres;
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_STRING)
