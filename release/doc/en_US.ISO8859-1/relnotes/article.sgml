@@ -89,7 +89,7 @@
     that they can modify. &merged;</para>
 
     <para arch="i386">The &os; boot loader now supports a
-    <option>-p</option> flag to force the kernel will pause after each
+    <option>-p</option> flag to force the kernel to pause after each
     line of output during the probing phase. &merged;</para>
 
     <para>Support for USB devices was added to the
@@ -282,8 +282,8 @@
     <para>Idle zeroing of pages can be enabled with the
     <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
 
-    <para arch="i386">The load addresses of kernels has been exported to the
-    symbol table and various hard-coded constants removed so that
+    <para arch="i386">The load addresses of kernels are now exported to the
+    symbol table and various hard-coded constants have been removed so that
     utilities such as &man.ps.1; can work with kernels compiled at
     different addresses. &merged;</para>
 
@@ -299,7 +299,7 @@
     securelevel.</para>
 
     <para arch="alpha">A <varname>MAXMEM</varname> kernel option,
-    along with the <varname>hw.physmem</varname> environment, can be
+    along with the <varname>hw.physmem</varname> environment variable, can be
     used to artificially reduce the memory size of a machine for
     testing (or other purposes). &merged;</para>
 
@@ -342,7 +342,8 @@
     <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
     <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
     <varname>MAXSSIZ</varname>, and <varname>SGROWSIZ</varname> are
-    all loader tunables. &merged;</para>
+    all loader tunables (<varname>kern.maxtsiz</varname>,
+    <varname>kern.maxdfldsiz</varname>, etc.). &merged;</para>
 
     <para>The system load average computation now adds some jitter to
     the timing of samples, in order to avoid synchronization with
@@ -463,7 +464,7 @@
       interrupt moderation. &merged;</para>
 
       <para>The &man.de.4; driver now performs round-robin arbitration
-      between transmit and receive unit of the 21143, instead of
+      between the transmit and receive units of the 21143, instead of
       giving priority to the receive unit.  This gives a 10&ndash;15%
       performance improvement in the forwarding rate under heavy
       load. &merged;</para>
@@ -557,7 +558,9 @@
 
       <para arch="i386">The sbni driver, for supporting the Granch
       SBNI12 series of ISA and PCI point-to-point communications
-      interfaces, has been added. &merged;</para>
+      interfaces, has been added.  The <port>sysutil/sbniconfig</port>
+      port in the &os; Ports Collection can be used for configuring
+      these devices. &merged;</para>
 
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
@@ -597,7 +600,7 @@
       checksum offloading for NICs implementing this feature, such as
       the 3C905B, 3C905C, and 3C980C. &merged;</para>
 
-      <para>A bug in the &man.xl.4; driver, related to stats overflow
+      <para>A bug in the &man.xl.4; driver, related to statistics overflow
       interrupt handling, was causing slowdowns at medium to high
       packet rates; this has been fixed. &merged;</para>
 
@@ -844,7 +847,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       CD-R drives, which are supported by &man.cdrecord.1; (a part of 
       <port>sysutils/cdrtools</port> in the Ports Collection. &merged;</para>
 
-      <para>The ciss driver, for devices utilizing the Common
+      <para arch="i386">The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
       supports the Compaq SmartRAID 5* family of RAID controllers
       (5300, 532, 5i). &merged;</para>
@@ -972,7 +975,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">smbfs (CIFS) support in kernel has been added.
       The userland programs &man.smbutil.1; and &man.mount.smbfs.8;
       can be used to work with SMB shares.  Note that
-      &man.mount.smbfs.8; will automatically load the smbfs
+      &man.mount.smbfs.8; will automatically load the <filename>smbfs.ko</filename>
       module into the kernel, even if <literal>LIBMCHAIN</literal> and
       <literal>LIBICONV</literal> were not compiled into the kernel.
       &merged;</para>
@@ -1004,7 +1007,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       always supported). &merged;</para>
 
       <para>A number of bugs in the filesystem code, discovered
-      through the use of a filesystem test tool, have been fixed.
+      through the use of the <application>fsx</application> filesystem test tool, have been fixed.
       Under certain circumstances (primarily related to use of NFS),
       these bugs could cause data corruption or kernel panics. &merged;</para>
 
@@ -1926,7 +1929,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The default number of cylinders per group in &man.newfs.8;
     is now computed to be the maximum allowable given the current
     filesystem parameters.  It can be overridden with the
-    <option>-c</option>.  Formerly, the default was fixed at 16.  This
+    <option>-c</option> option.  Formerly, the default was fixed at 16.  This
     change leads to better &man.fsck.8; performance and reduced
     fragmentation. &merged;</para>
 
@@ -2177,7 +2180,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     output. &merged;</para>
 
     <para>&man.syslogd.8; now has the ability to bind to a specific
-    address--as opposed to using every available one--via the
+    address (as opposed to using every available one) via the
     <option>-b</option> option. &merged;</para>
 
     <para>&man.tail.1; now has the ability to work on files longer
