@@ -202,6 +202,10 @@ ensure octal interpretation.
 .Bl -column minpasswordlen indent indent
 .Sy Name	Type	Notes	Description
 .It minpasswordlen	number	6	The minimum length a local password may be.
+.It passwd_format	string	md5	The encryption format that new or
+changed passwords will use.
+Valid values include "md5" and "des".
+NIS clients using a non-FreeBSD NIS server should probably use "des".
 .\" .It approve	program 	Program to approve login.
 .It mixpasswordcase	bool	true	Whether
 .Xr passwd 1
