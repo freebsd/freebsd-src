@@ -70,19 +70,6 @@ struct clockframe {
 #define	CLKF_PC(framep)		TRAPF_PC(&(framep)->cf_tf)
 
 /*
- * Give a profiling tick to the current process when the user profiling
- * buffer pages are invalid.  On the hp300, request an ast to send us
- * through trap, marking the proc as needing a profiling tick.
- */
-#define	need_proftick(p) do {						\
-	mtx_lock_spin(&sched_lock);					\
-	(p)->p_sflag |= PS_OWEUPC;					\
-	aston((p));							\
-	mtx_unlock_spin(&sched_lock);					\
-} while (0)
-
-
-/*
  * CTL_MACHDEP definitions.
  */
 #define	CPU_CONSDEV		1	/* dev_t: console terminal device */
