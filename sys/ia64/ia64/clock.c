@@ -353,7 +353,7 @@ inittodr(base)
 			deltat = -deltat;
 		if (deltat < 2 * SECDAY)
 			return;
-		printf("WARNING: clock %s %d days",
+		printf("WARNING: clock %s %ld days",
 		    ts.tv_sec < base ? "lost" : "gained", deltat / SECDAY);
 	}
 bad:
