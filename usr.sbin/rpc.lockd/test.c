@@ -314,11 +314,15 @@ int main(int argc, char **argv)
     exit(1);
   }
 
+
   clnt_control(cli, CLGET_TIMEOUT, &tim);
   printf("Default timeout was %d.%d\n", tim.tv_sec, tim.tv_usec);
   tim.tv_usec = -1;
   tim.tv_sec = -1;
   clnt_control(cli, CLSET_TIMEOUT, &tim);
+  clnt_control(cli, CLGET_TIMEOUT, &tim);
+  printf("timeout now %d.%d\n", tim.tv_sec, tim.tv_usec);
+ 
 
   arg.cookie.n_len = 4;
   arg.cookie.n_bytes = "hello";
