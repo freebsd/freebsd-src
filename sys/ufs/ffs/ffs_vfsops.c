@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.21.4.2 1996/06/11 05:17:34 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.21.4.3 1996/06/12 03:42:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -84,8 +84,6 @@ struct vfsops ufs_vfsops = {
 };
 
 VFS_SET(ufs_vfsops, ufs, MOUNT_UFS, 0);
-
-extern u_long nextgennumber;
 
 /*
  * Called by main() when ufs is going to be mounted as root.
@@ -463,7 +461,10 @@ ffs_mountfs(devvp, mp, p)
 	}
 	mp->mnt_data = (qaddr_t)ump;
 	mp->mnt_stat.f_fsid.val[0] = (long)dev;
-	mp->mnt_stat.f_fsid.val[1] = MOUNT_UFS;
+	if (fs->fs_id[0] != 0 && fs->fs_id[1] != 0)
+		mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
+	else
+		mp->mnt_stat.f_fsid.val[1] = MOUNT_UFS;
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	mp->mnt_flag |= MNT_LOCAL;
 	ump->um_mountp = mp;
@@ -859,9 +860,7 @@ restart:
 	 * already have one. This should only happen on old filesystems.
 	 */
 	if (ip->i_gen == 0) {
-		if (++nextgennumber < (u_long)time.tv_sec)
-			nextgennumber = time.tv_sec;
-		ip->i_gen = nextgennumber;
+		ip->i_gen = random() / 2 + 1;
 		if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
 			ip->i_flag |= IN_MODIFIED;
 	}

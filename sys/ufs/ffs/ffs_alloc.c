@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.13 1995/05/11 19:26:48 rgrimes Exp $
+ * $Id: ffs_alloc.c,v 1.14 1995/05/30 08:14:57 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -51,8 +51,6 @@
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
-
-extern u_long nextgennumber;
 
 static daddr_t	ffs_alloccg __P((struct inode *, int, daddr_t, int));
 static daddr_t	ffs_alloccgblk __P((struct fs *, struct cg *, daddr_t));
@@ -543,9 +541,8 @@ ffs_valloc(ap)
 	/*
 	 * Set up a new generation number for this inode.
 	 */
-	if (++nextgennumber < (u_long)time.tv_sec)
-		nextgennumber = time.tv_sec;
-	ip->i_gen = nextgennumber;
+	if (ip->i_gen == 0 || ++(ip->i_gen) == 0)
+		ip->i_gen = random() / 2 + 1;
 	return (0);
 noinodes:
 	ffs_fserr(fs, ap->a_cred->cr_uid, "out of inodes");

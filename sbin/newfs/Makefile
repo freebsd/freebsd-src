@@ -5,7 +5,7 @@ SRCS=	dkcksum.c getmntopts.c newfs.c mkfs.c
 MAN8=	newfs.8
 
 MOUNT=	${.CURDIR}/../mount
-CFLAGS+=-DMFS -I${MOUNT}
+CFLAGS+=-DMFS -DFSIRAND -I${MOUNT}
 .PATH:	${MOUNT} ${.CURDIR}/../disklabel
 
 LINKS=	${BINDIR}/newfs ${BINDIR}/mount_mfs
