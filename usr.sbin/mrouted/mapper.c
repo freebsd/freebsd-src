@@ -826,7 +826,7 @@ u_int32 host_addr(name)
     struct hostent *e = gethostbyname(name);
     int addr;
 
-    if (e)
+    if (e && e->h_length == sizeof(addr))
 	memcpy(&addr, e->h_addr_list[0], e->h_length);
     else {
 	addr = inet_addr(name);
