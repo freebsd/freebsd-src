@@ -29,26 +29,19 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/proc.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 
-#include <vm/vm.h>
-
-#include <i386/ibcs2/ibcs2_types.h>
-#include <i386/ibcs2/ibcs2_fcntl.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_stat.h>
 #include <i386/ibcs2/ibcs2_statfs.h>
 #include <i386/ibcs2/ibcs2_proto.h>
-#include <i386/ibcs2/ibcs2_ustat.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utsname.h>
 
