@@ -94,19 +94,6 @@ Lst_Remove(Lst *list, LstNode *ln)
     }
 
     /*
-     * Sequential access stuff. If the node we're removing is the current
-     * node in the list, reset the current node to the previous one. If the
-     * previous one was non-existent (prevPtr == NULL), we set the
-     * end to be Unknown, since it is.
-     */
-    if (list->isOpen && (list->curPtr == ln)) {
-	list->curPtr = list->prevPtr;
-	if (list->curPtr == NULL) {
-	    list->atEnd = LstUnknown;
-	}
-    }
-
-    /*
      * the only way firstPtr can still point to ln is if ln is the last
      * node on the list. The list is, therefore, empty and is marked as such
      */
