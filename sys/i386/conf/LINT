@@ -1007,12 +1007,11 @@ options		KBDIO_DEBUG=2
 options		MSGMNB=2049
 options		MSGMNI=41
 options		MSGSEG=2049
-options		MSGSSZ=9
+options		MSGSSZ=16
 options		MSGTQL=41
 options		NBUF=512
 options		NMBCLUSTERS=1024
 options		PSM_ACCEL=1
-options		PSM_CHECKSYNC
 options		PSM_DEBUG=1
 options		PSM_EMULATION
 options		"SCSI_2_DEF"
