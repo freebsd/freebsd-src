@@ -99,12 +99,12 @@ extern u_long	extint_call;
 static ih_func_t	intr_stray_handler;
 static ih_func_t	sched_ithd;
 
-static void		(*irq_enable)(int);
-static void		(*irq_disable)(int);
+static void		(*irq_enable)(uintptr_t);
+static void		(*irq_disable)(uintptr_t);
 
 void
-intr_init(void (*handler)(void), int nirq, void (*irq_e)(int),
-    void (*irq_d)(int))
+intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
+    void (*irq_d)(uintptr_t))
 {
 	int		i;
 	u_int32_t	msr;

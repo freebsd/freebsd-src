@@ -57,7 +57,7 @@
 
 #define	MAX_STRAY_LOG	5
 
-typedef void (*mask_fn)(int vector);
+typedef void (*mask_fn)(uintptr_t vector);
 
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
@@ -81,19 +81,7 @@ intr_register_source(struct intsrc *isrc)
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
-	/*
-	 * Ok, so this is kind of a nasty optimization that only works
-	 * because sizeof(int) == sizeof(void *) on i386.  If we passed
-	 * in the actual vector to ithread_create and then used wrapper
-	 * functions for disable_intsrc and enable_intsrc, then we'd
-	 * have to go lookup in the table everytime we enabled/disabled
-	 * the interrupt source.  That involves looking at a lock, etc.
-	 * and is just ugly.  Instead, we cast the pointer to the intsrc
-	 * to an int (yuck) and pass in the actual PIC methods meaning
-	 * that when we enable/disable an interrupt we call the PIC
-	 * methods directly.
-	 */
-	error = ithread_create(&isrc->is_ithread, (intptr_t)isrc, 0,
+	error = ithread_create(&isrc->is_ithread, (uintptr_t)isrc, 0,
 	    (mask_fn)isrc->is_pic->pic_disable_source,
 	    (mask_fn)isrc->is_pic->pic_enable_source, "irq%d:", vector);
 	if (error)

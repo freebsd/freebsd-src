@@ -515,7 +515,7 @@ cia_attach(device_t dev)
 }
 
 static void
-cia_disable_intr(int vector)
+cia_disable_intr(uintptr_t vector)
 {
 	int irq;
 
@@ -526,7 +526,7 @@ cia_disable_intr(int vector)
 }
 
 static void
-cia_enable_intr(int vector)
+cia_enable_intr(uintptr_t vector)
 {
 	int irq;
 

@@ -304,13 +304,13 @@ mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 }
 
 static void
-mcpcia_disable_intr_vec(int vector)
+mcpcia_disable_intr_vec(uintptr_t vector)
 {
 	int mid, irq;
 	struct mcpcia_softc *sc = mcpcia_root;
 
 	if (vector < MCPCIA_VEC_PCI) {
-		printf("EISA disable (0x%x)\n", vector);
+		printf("EISA disable (0x%lx)\n", vector);
 		return;
 	}
 
@@ -324,7 +324,7 @@ mcpcia_disable_intr_vec(int vector)
 		tmp &= (MCPCIA_VECWIDTH_PER_MCPCIA - 1);
 		slot = tmp / MCPCIA_VECWIDTH_PER_SLOT;
 		if (slot < 2 || slot > 5) {
-			printf("Bad slot (%d) for vector %x\n", slot, vector);
+			printf("Bad slot (%d) for vector %lx\n", slot, vector);
 			return;
 		}
 		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
@@ -338,7 +338,7 @@ mcpcia_disable_intr_vec(int vector)
 		sc = sc->next;
 	}
 	if (sc == NULL) {
-		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
+		panic("couldn't find MCPCIA softc for vector 0x%lx", vector);
 	}
 	mtx_lock_spin(&icu_lock);
 	mcpcia_disable_intr(sc, irq);
@@ -346,13 +346,13 @@ mcpcia_disable_intr_vec(int vector)
 }
 
 static void
-mcpcia_enable_intr_vec(int vector)
+mcpcia_enable_intr_vec(uintptr_t vector)
 {
 	int mid, irq;
 	struct mcpcia_softc *sc = mcpcia_root;
 
 	if (vector < MCPCIA_VEC_PCI) {
-		printf("EISA ensable (0x%x)\n", vector);
+		printf("EISA ensable (0x%lx)\n", vector);
 		return;
 	}
 
@@ -366,7 +366,7 @@ mcpcia_enable_intr_vec(int vector)
 		tmp &= (MCPCIA_VECWIDTH_PER_MCPCIA - 1);
 		slot = tmp / MCPCIA_VECWIDTH_PER_SLOT;
 		if (slot < 2 || slot > 5) {
-			printf("Bad slot (%d) for vector %x\n", slot, vector);
+			printf("Bad slot (%d) for vector %lx\n", slot, vector);
 			return;
 		}
 		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
@@ -380,7 +380,7 @@ mcpcia_enable_intr_vec(int vector)
 		sc = sc->next;
 	}
 	if (sc == NULL) {
-		panic("couldn't find MCPCIA softc for vector 0x%x", vector);
+		panic("couldn't find MCPCIA softc for vector 0x%lx", vector);
 	}
 	mtx_lock_spin(&icu_lock);
 	mcpcia_enable_intr(sc, irq);

@@ -31,9 +31,10 @@
 
 extern struct mtx icu_lock;
 
-int	alpha_setup_intr(const char *name, int vector, driver_intr_t handler,
-	    void *arg, enum intr_type flags, void **cookiep,
-	    volatile long *cntp, void (*disable)(int), void (*enable)(int));
+int	alpha_setup_intr(const char *name, uintptr_t vector,
+	    driver_intr_t handler, void *arg, enum intr_type flags,
+	    void **cookiep, volatile long *cntp,
+	    void (*disable)(uintptr_t), void (*enable)(uintptr_t));
 int	alpha_teardown_intr(void *cookie);
 void	alpha_dispatch_intr(void *frame, unsigned long vector);
 

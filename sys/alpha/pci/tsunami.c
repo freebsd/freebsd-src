@@ -308,7 +308,7 @@ tsunami_attach(device_t dev)
 }
 
 static void
-tsunami_disable_intr_vec(int vector)
+tsunami_disable_intr_vec(uintptr_t vector)
 {
 	int irq;
 
@@ -319,7 +319,7 @@ tsunami_disable_intr_vec(int vector)
 }
 
 static void
-tsunami_enable_intr_vec(int vector)
+tsunami_enable_intr_vec(uintptr_t vector)
 {
 	int irq;
 

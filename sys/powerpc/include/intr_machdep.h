@@ -40,7 +40,7 @@ struct intr_handler {
 	u_int		ih_flags;
 };
 
-void	intr_init(void (*)(void), int, void (*)(int), void (*)(int));
+void	intr_init(void (*)(void), int, void (*)(uintptr_t), void (*)(uintptr_t));
 void	intr_setup(u_int, ih_func_t *, void *, u_int);
 int	inthand_add(const char *, u_int, void (*)(void *), void *, int,
 	    void **);
