@@ -559,7 +559,8 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 	const struct traffics	*trafp;
 	char	*cp;
 	u_long	v;
-	int	buf_len, s;
+	ssize_t buf_len;
+	int s;
 
 	/*
 	 * Initialize opcode and flags
@@ -577,29 +578,23 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 	}
 	bzero(air.air_int_intf, sizeof(air.air_int_intf));
 	strcpy(air.air_int_intf, argv[0]);
-	buf_len = sizeof(struct air_int_rsp);
 	air.air_opcode = AIOCS_INF_INT;
-	buf_len = do_info_ioctl(&air, buf_len);
-	if (buf_len < 0) {
-		fprintf(stderr, "%s: ", prog);
+	buf_len = do_info_ioctl(&air, sizeof(struct air_int_rsp));
+	if (buf_len == -1) {
 		switch (errno) {
 		case ENOPROTOOPT:
 		case EOPNOTSUPP:
-			perror("Internal error");
-			break;
+			err(1, "Internal error");
 		case ENXIO:
-			fprintf(stderr, "%s is not an ATM device\n",
-					argv[0]);
-			break;
+			errx(1, "%s is not an ATM device", argv[0]);
 		default:
-			perror("ioctl (AIOCINFO)");
-			break;
+			err(1, "ioctl (AIOCINFO)");
 		}
-		exit(1);
 	}
 	int_info = (struct air_int_rsp *)(void *)air.air_buf_addr;
 	strcpy(apr.aar_pvc_intf, argv[0]);
-	argc--; argv++;
+	argc--;
+	argv++;
 
 	/*
 	 * Validate vpi/vci values
@@ -769,35 +764,30 @@ pvc_add(int argc, char **argv, const struct cmd *cmdp)
 		sock_error(errno);
 	}
 	if (ioctl(s, AIOCADD, (caddr_t)&apr) < 0) {
-		fprintf(stderr, "%s: ", prog);
 		switch (errno) {
 		case EPROTONOSUPPORT:
 		case ENOPROTOOPT:
-			perror("Internal error");
-			break;
+			err(1, "Internal error");
 		case EINVAL:
-			fprintf(stderr, "Invalid parameter\n");
-			break;
+			errx(1, "Invalid parameter");
 		case EEXIST:
-			fprintf(stderr, "PVC already exists\n");
+			errx(1, "PVC already exists");
 			break;
 		case ENETDOWN:
-			fprintf(stderr, "ATM network is inoperable\n");
+			errx(1, "ATM network is inoperable");
 			break;
 		case ENOMEM:
-			fprintf(stderr, "Kernel memory exhausted\n");
+			errx(1, "Kernel memory exhausted");
 			break;
 		case EPERM:
-			fprintf(stderr, "Must be super user to use add subcommand\n");
+			errx(1, "Must be super user to use add subcommand");
 			break;
 		case ERANGE:
-			fprintf(stderr, "Invalid VPI or VCI value\n");
+			errx(1, "Invalid VPI or VCI value");
 			break;
 		default:
-			perror("ioctl (AIOCADD) add PVC");
-			break;
+			err(1, "ioctl (AIOCADD) add PVC");
 		}
-		exit(1);
 	}
 	(void)close(s);
 }

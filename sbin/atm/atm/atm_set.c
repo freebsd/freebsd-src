@@ -79,7 +79,10 @@ __RCSID("@(#) $FreeBSD$");
 void
 set_arpserver(int argc, char **argv, const struct cmd *cmdp __unused)
 {
-	int			i, len, prefix_len = 0, rc, s;
+	int			rc, s;
+	u_int i;
+	ssize_t len;
+	size_t prefix_len = 0;
 	char			*intf;
 	Atm_addr		server;
 	struct sockaddr_in	*lis;
@@ -138,12 +141,11 @@ set_arpserver(int argc, char **argv, const struct cmd *cmdp __unused)
 		 * with the network interface and insert them into the
 		 * list of permitted LIS prefixes.
 		 */
-		len = sizeof(struct air_netif_rsp);
 		bzero(&air, sizeof(air));
 		air.air_opcode = AIOCS_INF_NIF;
 		strcpy(air.air_int_intf, intf);
-		len = do_info_ioctl(&air, len);
-		if (len < 0) {
+		len = do_info_ioctl(&air, sizeof(struct air_netif_rsp));
+		if (len == -1) {
 			fprintf(stderr, "%s: ", prog);
 			switch (errno) {
 			case ENOPROTOOPT:
@@ -371,7 +373,8 @@ set_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 	struct atmsetreq	anr;
 	char			str[16];
 	char			*cp;
-	int			nifs, s;
+	int			s;
+	u_long nifs;
 
 	/*
 	 * Set IOCTL opcode
@@ -402,8 +405,9 @@ set_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 	/*
 	 * Validate interface count
 	 */
-	nifs = (int) strtol(argv[0], &cp, 0);
-	if ((*cp != '\0') || (nifs < 0) || (nifs > MAX_NIFS)) {
+	errno = 0;
+	nifs = strtoul(argv[0], &cp, 0);
+	if (errno != 0 || *cp != '\0' || nifs > MAX_NIFS) {
 		fprintf(stderr, "%s: Invalid interface count\n", prog);
 		exit(1);
 	}
@@ -412,7 +416,7 @@ set_netif(int argc, char **argv, const struct cmd *cmdp __unused)
 	/*
 	 * Make sure the resulting name won't be too long
 	 */
-	sprintf(str, "%d", nifs - 1);
+	sprintf(str, "%lu", nifs - 1);
 	if ((strlen(str) + strlen(anr.asr_nif_pref)) >
 			sizeof(anr.asr_nif_intf) - 1) {
 		fprintf(stderr, "%s: Network interface prefix too long\n", prog);
