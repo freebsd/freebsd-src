@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.90 1998/10/25 19:02:48 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.91 1998/10/27 11:47:08 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -972,7 +972,7 @@ loop:
 		ip = VTOI(vp);
 		if ((vp->v_type == VNON) || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-		    ((vp->v_dirtyblkhd.lh_first == NULL) || (waitfor == MNT_LAZY))) {
+		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || (waitfor == MNT_LAZY))) {
 			simple_unlock(&vp->v_interlock);
 			continue;
 		}

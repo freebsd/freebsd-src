@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.51 1998/09/07 11:50:19 bde Exp $
+ * $Id: ffs_vnops.c,v 1.52 1998/09/24 15:02:46 luoqi Exp $
  */
 
 #include <sys/param.h>
@@ -146,8 +146,8 @@ ffs_fsync(ap)
 loop:
 	s = splbio();
 loop2:
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		/* 
 		 * First time through on a synchronous call,
 		 * or if it's already scheduled, skip to the next 
@@ -228,7 +228,7 @@ loop2:
 			return (error);
 		s = splbio();
 
-		if (vp->v_dirtyblkhd.lh_first) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			/*
 			 * Block devices associated with filesystems may
 			 * have new I/O requests posted for them even if

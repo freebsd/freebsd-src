@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
+ *	$Id: devfs_vnops.c,v 1.61 1998/09/30 20:33:46 sos Exp $
  */
 
 
@@ -1655,8 +1655,8 @@ devfs_fsync(struct vop_fsync_args *ap)
 	 */
 loop:
 	s = splbio();
-	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
-		nbp = bp->b_vnbufs.le_next;
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_BUSY))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -1678,7 +1678,7 @@ loop:
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "spfsyn", 0);
 		}
 #ifdef DIAGNOSTIC
-		if (vp->v_dirtyblkhd.lh_first) {
+		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			vprint("devfs_fsync: dirty", vp);
 			splx(s);
 			goto loop;

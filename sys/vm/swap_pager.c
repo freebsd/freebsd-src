@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.101 1998/09/04 08:06:56 dfr Exp $
+ * $Id: swap_pager.c,v 1.102 1998/10/13 08:24:42 dg Exp $
  */
 
 /*
@@ -1382,7 +1382,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		bp = spc->spc_bp;
 		bzero(bp, sizeof *bp);
 		bp->b_spc = spc;
-		bp->b_vnbufs.le_next = NOLIST;
+		bp->b_xflags = 0;
 		bp->b_data = (caddr_t) kva;
 	} else {
 		spc = NULL;

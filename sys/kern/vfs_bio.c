@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.182 1998/10/29 11:04:22 dg Exp $
+ * $Id: vfs_bio.c,v 1.183 1998/10/30 14:53:54 dg Exp $
  */
 
 /*
@@ -179,7 +179,7 @@ bufinit()
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
-		bp->b_vnbufs.le_next = NOLIST;
+		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
 		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_EMPTY], bp, b_freelist);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -421,7 +421,7 @@ bwrite(struct buf * bp)
 	return (0);
 }
 
-__inline void
+void
 vfs_bio_need_satisfy(void) {
 	++numfreebuffers;
 	if (!needsbuffer)
