@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.57 1997/09/22 23:59:14 brian Exp $
+ * $Id: modem.c,v 1.58 1997/09/23 22:07:51 brian Exp $
  *
  *  TODO:
  */
@@ -552,7 +552,7 @@ OpenModem(int mode)
   mbits = 0;
   dev_is_modem = isatty(modem) || DEV_IS_SYNC;
   if (DEV_IS_SYNC)
-    sleep(1);
+    nointr_sleep(1);
   if (dev_is_modem && !DEV_IS_SYNC) {
     tcgetattr(modem, &rstio);
     modemios = rstio;
@@ -685,7 +685,7 @@ HangupModem(int flag)
     }
     tcsetattr(modem, TCSANOW, &tio);
 #endif
-    sleep(1);
+    nointr_sleep(1);
   }
 
   /*
