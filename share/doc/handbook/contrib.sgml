@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.48 1996/02/01 06:55:17 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.49 1996/02/05 16:10:48 phk Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -167,6 +167,7 @@
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
+	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
 	  <item>Dave Burgess &lt;burgess@hrd769.brooks.af.mil&gt;
 	  <item>Dave Chapeskie &lt;dchapes@zeus.leitch.com&gt;
