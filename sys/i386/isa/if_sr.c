@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: if_sr.c,v 1.6 1997/02/22 09:36:35 peter Exp $
  */
 
 /*
@@ -1304,6 +1304,14 @@ srioctl(struct ifnet *ifp, int cmd, caddr_t data)
 		default:
 			sc->ifsppp.pp_flags = PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
+
+			/*
+			 * Shortcut the sppp tls/tlf actions to
+			 * up/down events since our lower layer is
+			 * always ready.
+			 */
+			sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+			sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
 		}
 
 		sc->attached = sc->protocol;
@@ -1487,7 +1495,15 @@ sr_up(struct sr_softc *sc)
 		default:
 			sc->ifsppp.pp_flags = PP_KEEPALIVE;
 			sppp_attach(&sc->ifsppp.pp_if);
-		}
+	
+			/*
+			 * Shortcut the sppp tls/tlf actions to
+			 * up/down events since our lower layer is
+			 * always ready.
+			 */
+			sc->ifsppp.pp_tls = sc->ifsppp.pp_up;
+			sc->ifsppp.pp_tlf = sc->ifsppp.pp_down;
+	}
 
 		sc->attached = sc->protocol;
 	}
