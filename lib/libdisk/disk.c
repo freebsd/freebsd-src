@@ -420,6 +420,7 @@ assignToDisk(void *arg, XMLToken t, u_int *slice, u_int64_t v)
 	return 0;
 }
 
+#ifdef __i386__
 /*
  * Callback to collect partition-related data.
  */
@@ -451,6 +452,7 @@ assignToPartition(void *arg, XMLToken t, u_int *part, u_int64_t v)
 	}
 	return 0;
 }
+#endif /* __i386__ */
 #undef N
 
 struct disk *
