@@ -139,13 +139,13 @@ main.4: 	xor %dx,%dx			# Partition:drive
 # ahead and load up the first 16 sectors (boot1 + boot2) from that.  When
 # we read it in, we conveniently use 0x8c00 as our transfer buffer.  Thus,
 # boot1 ends up at 0x8c00, and boot2 starts at 0x8c00 + 0x200 = 0x8e00.
-# The first part of boot2 is boot2.ldr, which is 0x200 bytes of zeros.
+# The first part of boot2 is the disklabel, which is 0x200 bytes of zeros.
 # The second part is BTX, which is thus loaded into 0x9000, which is where
 # it also runs from.  The boot2.bin binary starts right after the end of
 # BTX, so we have to figure out where the start of it is and then move the
 # binary to 0xb000.  Normally, BTX clients start at MEM_USR, or 0xa000, but
 # when we use btxld create boot2, we use an entry point of 0x1000.  That
-# entry point is relative, to MEM_USR, thus boot2.bin starts at 0xb000.
+# entry point is relative to MEM_USR; thus boot2.bin starts at 0xb000.
 # 
 main.5: 	mov %dx,MEM_ARG			# Save args
 		movb $0x10,%dh			# Sector count
