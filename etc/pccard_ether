@@ -1,14 +1,16 @@
 #!/bin/sh -
 #
-#	$Id:$
+#	$Id: pccard_ether,v 1.9 1998/09/02 01:34:56 brian Exp $
 #
 # pccard_ether interfacename [ifconfig option]
 #
 # example: pccard_ether ep0 -link0
 #
 
-# Suck in the /etc/rc.conf variables
-if [ -f /etc/rc.conf ]; then
+# Suck in the configuration variables
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 

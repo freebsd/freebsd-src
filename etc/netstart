@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.51 1997/05/18 20:11:44 jkh Exp $
+#	$Id: netstart,v 1.52 1997/07/05 19:35:45 pst Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # This file is NOT called by any of the other scripts - it has been
@@ -10,7 +10,9 @@
 #
 
 # If there is a global system configuration file, suck it in.
-if [ -f /etc/rc.conf ]; then
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 

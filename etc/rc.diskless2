@@ -3,9 +3,10 @@
 
 # If there is a global system configuration file, suck it in.
 #
-
-if [ -f /etc/rc.conf ]; then
-        . /etc/rc.conf
+if [ -f /etc/defaults/rc.conf ]; then
+	. /etc/defaults/rc.conf
+elif [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
 fi
 
 mount_mfs -s ${var_run_sectors:=2048} -T qp120at dummy /var/run
