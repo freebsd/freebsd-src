@@ -379,7 +379,8 @@ release.3:
 	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/bin/boot/${kernel}
 .endfor
 	# Install a standard boot kernel+modules
-	cp -Rp ${RD}/kernels/GENERIC ${RD}/trees/bin/boot/kernel
+	mkdir -p ${RD}/trees/bin/boot/kernel
+	cp -Rp ${RD}/kernels/GENERIC/* ${RD}/trees/bin/boot/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
