@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.109.2.28 1998/05/15 10:16:20 bde Exp $
+#	$Id: Makefile,v 1.109.2.29 1998/05/29 06:06:08 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -595,6 +595,13 @@ libraries:
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endif
 
+# Exclude perl from the build-tools if NOPERL is defined.
+.if defined(NOPERL)
+_perl=
+.else
+_perl=	gnu/usr.bin/perl/perl
+.endif
+
 #
 # build-tools - build and install any other tools needed to complete the
 # compile and install.
@@ -628,7 +635,7 @@ build-tools:
 		gnu/usr.bin/gzip	\
 		gnu/usr.bin/man/makewhatis	\
 		gnu/usr.bin/patch	\
-		gnu/usr.bin/perl/perl	\
+		${_perl}		\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo     \
 		usr.bin/basename	\
