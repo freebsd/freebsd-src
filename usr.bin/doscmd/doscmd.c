@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.c,v 2.3 1996/04/08 19:32:30 bostic Exp
  *
- * $Id: doscmd.c,v 1.10 1997/03/18 02:36:55 msmith Exp $
+ * $Id: doscmd.c,v 1.1 1997/08/09 01:42:41 dyson Exp $
  */
 
 #include <sys/types.h>
@@ -96,9 +96,6 @@ static char 	*envs[256];
 static char	*dos_path = 0;
 char		cmdname[256];	/* referenced from dos.c */
 
-/* high memory mapfile */
-static char *memfile = "/tmp/doscmd.XXXXXX";
-
 static struct i386_vm86_args vm86;
 static struct vm86_init_args kargs;
 
@@ -116,7 +113,6 @@ main(int argc, char **argv)
     int fd;
     int i;    
     char buffer[4096];
-    int mfd;
     FILE *fp;
 
 
@@ -142,29 +138,7 @@ main(int argc, char **argv)
 	setbuf (stdout, NULL);
     }
 
-    mfd = mkstemp(memfile);
-
-    if (mfd < 0) {
-	fprintf(stderr, "memfile: %s\n", strerror(errno));
-	fprintf(stderr, "High memory will not be mapped\n");
-    } else {
-	caddr_t add;
-
-	unlink(memfile);
-
-	mfd = squirrel_fd(mfd);
-
-	lseek(mfd, 64 * 1024 - 1, 0);
-	write(mfd, "", 1);
-	add = mmap((caddr_t)0x000000, 64 * 1024,
-		   PROT_EXEC | PROT_READ | PROT_WRITE,
-		   MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-		   mfd, 0);
-	add = mmap((caddr_t)0x100000, 64 * 1024,
-		   PROT_EXEC | PROT_READ | PROT_WRITE,
-		   MAP_FILE | MAP_FIXED | MAP_INHERIT | MAP_SHARED,
-		   mfd, 0);
-    }
+    initHMA();
 
     /* This needs to happen before the executable is loaded */
     mem_init();
@@ -594,6 +568,9 @@ do_args(int argc, char *argv[])
 	    break;
 	case 'R':
 	    debug_flags |= D_REDIR;
+	    break;
+	case 'X':
+	    debug_flags |= D_XMS;
 	    break;
 	case 'L':
 	    debug_flags |= D_PRINTER;

@@ -29,7 +29,7 @@
  *
  *	BSDI doscmd.h,v 2.3 1996/04/08 19:32:32 bostic Exp
  *
- * $Id: doscmd.h,v 1.9 1996/09/23 09:59:25 miff Exp $
+ * $Id: doscmd.h,v 1.1 1997/08/09 01:43:09 dyson Exp $
  */
 
 
@@ -106,6 +106,7 @@ extern int	debug_flags;
 #define	D_TRAPS3	0x0200000
 #define	D_DEBUGIN	0x0400000
 #define D_DOSCALL	0x0800000	/* MS-DOS function results */
+#define D_XMS		0x1000000	/* XMS calls */
 
 #define	TTYF_ECHO	0x00000001
 #define	TTYF_ECHONL	0x00000003
@@ -230,6 +231,9 @@ extern void	printer_timeout(int printer, char *time_out);
 
 /* xms.c */
 extern int	int2f_43(regcontext_t *REGS);
+extern void	get_raw_extmemory_info(regcontext_t *REGS);
+extern void	initHMA(void);
+extern u_long	xms_maxsize;
 
 /****************************** dirty below here ******************************/
 
