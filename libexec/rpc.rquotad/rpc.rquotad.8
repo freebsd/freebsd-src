@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: rpc.rquotad.8,v 1.4 1997/03/14 06:09:04 mpp Exp $
+.\"	$Id: rpc.rquotad.8,v 1.1.1.1.2.1 1997/03/14 06:10:09 mpp Exp $
 .\"
 .Dd June 22, 1994
 .Dt RPC.RQUOTAD 8
@@ -38,24 +38,26 @@
 .Sh SYNOPSIS
 .Nm /usr/libexec/rpc.rquotad
 .Sh DESCRIPTION
-.Nm rpc.rquotad
+.Nm Rpc.rquotad
 is a
 .Xr rpc 3
 server which returns quotas for a user of a local filesystem
 which is NFS-mounted onto a remote machine. 
-.Xr quota 1
+.Xr Quota 1
 uses the results to display user quotas for remote filesystems.
-.Nm rpc.rquotad
+.Nm Rpc.rquotad
 is normally invoked by
 .Xr inetd 8 .
 .Pp
-.Nm rpc.rquotad
-uses an RPC protocol defined in
+.Nm Rpc.rquotad
+uses an
+.Tn RPC
+protocol defined in
 .Pa /usr/include/rpcsvc/rquota.x .
 .Sh BUGS
 .Bx 4.4
 and
-.Tn FreeBSD
+.Bx Free
 support group quotas but the rquota protocol does not.
 .Sh SEE ALSO
 .Xr quota 1
