@@ -5248,17 +5248,17 @@ tulip_pci_attach(device_t dev)
     rid = PCI_CBIO;
     res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 			     0, ~0, 1, RF_ACTIVE);
-    if (!res)
-	return ENXIO;
-    csr_base = rman_get_start(res);
 #else
     rid = PCI_CBMA;
     res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 			     0, ~0, 1, RF_ACTIVE);
+#endif
     if (!res)
 	return ENXIO;
-    csr_base = (vm_offset_t) rman_get_virtual(res);
-#endif
+    sc->tulip_csrs_bst = rman_get_bustag(res);
+    sc->tulip_csrs_bsh = rman_get_bushandle(res);
+    csr_base = 0;
+
     tulips[unit] = sc;
 
     tulip_initcsrs(sc, csr_base + csroffset, csrsize);
