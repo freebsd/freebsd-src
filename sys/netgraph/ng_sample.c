@@ -121,9 +121,9 @@ NETGRAPH_INIT(xxx, &typestruct);
 
 /* Information we store for each hook on each node */
 struct XXX_hookinfo {
-	int     dlci;		/* The DLCI it represents, -1 == downstream */
-	int     channel;	/* The channel representing this DLCI */
-	hook_p  hook;
+	int	dlci;		/* The DLCI it represents, -1 == downstream */
+	int	channel;	/* The channel representing this DLCI */
+	hook_p	hook;
 };
 
 /* Information we store for each node */
@@ -269,7 +269,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
-	case NGM_XXX_COOKIE: 
+	case NGM_XXX_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_XXX_GET_STATUS:
 		    {
@@ -322,7 +322,7 @@ ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
  * If we want, we may decide to force this data to be queued and reprocessed
  * at the netgraph NETISR time.
  * We would do that by setting the HK_QUEUE flag on our hook. We would do that
- * in the connect() method. 
+ * in the connect() method.
  */
 static int
 ng_xxx_rcvdata(hook_p hook, item_p item )
@@ -344,7 +344,7 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 			 * the front here */
 			/* M_PREPEND(....)	; */
 			/* mtod(m, xxxxxx)->dlci = dlci; */
-			NG_FWD_NEW_DATA(error, item, 
+			NG_FWD_NEW_DATA(error, item,
 				xxxp->downstream_hook.hook, m);
 			xxxp->packets_out++;
 		} else {
@@ -435,8 +435,8 @@ ng_xxx_shutdown(node_p node)
 		NG_NODE_SET_PRIVATE(node, NULL);
 		NG_NODE_UNREF(privdata->node);
 		FREE(privdata, M_NETGRAPH);
-		return (0);   
-        }
+		return (0);
+	}
 	NG_NODE_REVIVE(node);		/* tell ng_rmnode() we will persist */
 #endif /* PERSISTANT_NODE */
 	return (0);
@@ -467,7 +467,7 @@ ng_xxx_connect(hook_p hook)
 
 	if (NG_HOOK_PRIVATE(hook)) {
 		int dlci;
-		/* 
+		/*
 		 * If it's dlci 1023, requeue it so that it's handled
 		 * at a lower priority. This is how a node decides to
 		 * defer a data message.
