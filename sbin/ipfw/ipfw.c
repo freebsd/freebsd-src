@@ -400,7 +400,7 @@ show_ipfw(struct ip_fw *chain)
 			for ( ; p->s != NULL ; p++)
 				if (chain->limit_mask & p->x)
 					printf(" %s", p->s);
-					printf(" %d", chain->conn_limit);
+			printf(" %d", chain->conn_limit);
 			break ;
 		}
 	}
@@ -1997,38 +1997,39 @@ add(int ac, char *av[])
 			rule.fw_flg |= IP_FW_F_IN;
 			av++; ac--;
 		} else if (!strncmp(*av,"limit",strlen(*av))) {
-		    /* keep-state rules used to limit number of connections. */
-		    rule.fw_flg |= IP_FW_F_KEEP_S;
-		    rule.dyn_type = DYN_LIMIT ;
-		    rule.limit_mask = 0 ;
-		    av++; ac--;
-		    for (; ac >1 ;) {
-			struct _s_x *p = limit_masks;
-			for ( ; p->s != NULL ; p++)
-			    if (!strncmp(*av, p->s, strlen(*av))) {
-				rule.limit_mask |= p->x ;
-				av++; ac-- ;
+			/* dyn. rule used to limit number of connections. */
+			rule.fw_flg |= IP_FW_F_KEEP_S;
+			rule.dyn_type = DYN_LIMIT ;
+			rule.limit_mask = 0 ;
+			av++; ac--;
+			for (; ac >1 ;) {
+			    struct _s_x *p = limit_masks;
+			    for ( ; p->s != NULL ; p++)
+				if (!strncmp(*av, p->s, strlen(*av))) {
+				    rule.limit_mask |= p->x ;
+				    av++; ac-- ;
+				    break ;
+				}
+			    if (p->s == NULL)
 				break ;
-			    }
-			if (p->s == NULL)
-			    break ;
-		    }
-		    if (rule.limit_mask == 0)
-			errx(EX_USAGE, "missing limit mask");
-		    if (ac < 1)
-			errx(EX_USAGE, "limit needs mask and # of connections");
-		    rule.conn_limit = atoi(*av);
-		    if (rule.conn_limit == 0)
-			errx(EX_USAGE, "limit: limit must be >0");
-		    av++; ac--;
+			}
+			if (ac < 1)
+			    errx(EX_USAGE,
+				"limit needs mask and # of connections");
+			rule.conn_limit = atoi(*av);
+			if (rule.conn_limit == 0)
+			    errx(EX_USAGE, "limit: limit must be >0");
+			if (rule.limit_mask == 0)
+			    errx(EX_USAGE, "missing limit mask");
+			av++; ac--;
 		} else if (!strncmp(*av, "keep-state", strlen(*av))) {
 			u_long type;
 			rule.fw_flg |= IP_FW_F_KEEP_S;
 
 			av++; ac--;
 			if (ac > 0 && (type = atoi(*av)) != 0) {
-			    rule.dyn_type = type;
-			    av++; ac--;
+				rule.dyn_type = type;
+				av++; ac--;
 			}
 		} else if (!strncmp(*av, "bridged", strlen(*av))) {
 			rule.fw_flg |= IP_FW_BRIDGED;
