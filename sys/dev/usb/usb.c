@@ -64,6 +64,7 @@
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
 
+#define USBCORE
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -179,8 +180,6 @@ USB_DECLARE_DRIVER_INIT(usb,
 			DEVMETHOD(device_resume, bus_generic_resume),
 			DEVMETHOD(device_shutdown, bus_generic_shutdown)
 			);
-
-MODULE_VERSION(usb, 1);
 
 USB_MATCH(usb)
 {

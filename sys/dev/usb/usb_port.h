@@ -299,7 +299,7 @@ __CONCAT(dname,_detach)(self, flags) \
 #define PWR_RESUME 0
 #define PWR_SUSPEND 1
 
-#define USB_DECLARE_DRIVER_INIT(dname, init...) \
+#define USB_DECLARE_DRIVER_INIT2(dname, init...) \
 Static device_probe_t __CONCAT(dname,_match); \
 Static device_attach_t __CONCAT(dname,_attach); \
 Static device_detach_t __CONCAT(dname,_detach); \
@@ -318,8 +318,17 @@ Static driver_t __CONCAT(dname,_driver) = { \
         #dname, \
         __CONCAT(dname,_methods), \
         sizeof(struct __CONCAT(dname,_softc)) \
-}; \
-MODULE_DEPEND(dname, usb, 1, 1, 1)
+}
+
+#ifdef USBCORE
+#define USB_DECLARE_DRIVER_INIT(dname, init...) \
+	USB_DECLARE_DRIVER_INIT2(dname, init); \
+	MODULE_VERSION(usb, 1)
+#else
+#define USB_DECLARE_DRIVER_INIT(dname, init...) \
+	USB_DECLARE_DRIVER_INIT2(dname, init); \
+	MODULE_DEPEND(dname, usb, 1, 1, 1)
+#endif
 
 #define METHODS_NONE			{0,0}
 #define USB_DECLARE_DRIVER(dname)	USB_DECLARE_DRIVER_INIT(dname, METHODS_NONE)
