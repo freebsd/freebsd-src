@@ -230,16 +230,6 @@ vop_revoke {
 };
 
 #
-# XXX - not used
-#
-vop_mmap {
-	IN struct vnode *vp;
-	IN int fflags;
-	IN struct ucred *cred;
-	IN struct proc *p;
-};
-
-#
 #% fsync	vp	L L L
 #
 vop_fsync {

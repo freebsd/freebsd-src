@@ -85,7 +85,6 @@ static int	union_lookup1 __P((struct vnode *udvp, struct vnode **dvp,
 				   struct componentname *cnp));
 static int	union_mkdir __P((struct vop_mkdir_args *ap));
 static int	union_mknod __P((struct vop_mknod_args *ap));
-static int	union_mmap __P((struct vop_mmap_args *ap));
 static int	union_open __P((struct vop_open_args *ap));
 static int	union_pathconf __P((struct vop_pathconf_args *ap));
 static int	union_print __P((struct vop_print_args *ap));
@@ -1208,21 +1207,6 @@ union_revoke(ap)
 }
 
 static int
-union_mmap(ap)
-	struct vop_mmap_args /* {
-		struct vnode *a_vp;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *ovp = OTHERVP(ap->a_vp);
-
-	ap->a_vp = ovp;
-	return (VCALL(ovp, VOFFSET(vop_mmap), ap));
-}
-
-static int
 union_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -1969,7 +1953,6 @@ static struct vnodeopv_entry_desc union_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) union_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) union_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) union_mknod },
-	{ &vop_mmap_desc,		(vop_t *) union_mmap },
 	{ &vop_open_desc,		(vop_t *) union_open },
 	{ &vop_pathconf_desc,		(vop_t *) union_pathconf },
 	{ &vop_poll_desc,		(vop_t *) union_poll },
