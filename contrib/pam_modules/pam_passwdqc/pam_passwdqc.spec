@@ -1,8 +1,8 @@
-# $Id: pam_passwdqc.spec,v 1.9 2002/02/06 22:36:40 mci Exp $
+# $Id: pam_passwdqc.spec,v 1.11 2002/04/16 16:56:52 solar Exp $
 
 Summary: Pluggable password "quality check".
 Name: pam_passwdqc
-Version: 0.4
+Version: 0.5
 Release: owl1
 License: relaxed BSD and (L)GPL-compatible
 Group: System Environment/Base
@@ -35,6 +35,10 @@ rm -rf $RPM_BUILD_ROOT
 /lib/security/pam_passwdqc.so
 
 %changelog
+* Tue Apr 16 2002 Solar Designer <solar@owl.openwall.com>
+- 0.5: preliminary OpenPAM (FreeBSD-current) support in the code and related
+code cleanups (thanks to Dag-Erling Smorgrav).
+
 * Thu Feb 07 2002 Michail Litvak <mci@owl.openwall.com>
 - Enforce our new spec file conventions.
 
