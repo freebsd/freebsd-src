@@ -192,7 +192,8 @@ struct cdevsw {
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
 	u_int		d_flags;
-	int		d_bmaj;
+	/* This following field is deprecated.  Please don't initialize */
+	int		d_XXXbmaj;
 };
 
 /*
