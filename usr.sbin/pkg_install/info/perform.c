@@ -191,6 +191,8 @@ pkg_do(char *pkg)
 	/* Start showing the package contents */
 	if (!Quiet)
 	    printf("%sInformation for %s:\n\n", InfoPrefix, pkg);
+	else if (QUIET)
+	    printf("%s%s:", InfoPrefix, pkg);
 	if (Flags & SHOW_COMMENT)
 	    show_file("Comment:\n", COMMENT_FNAME);
 	if (Flags & SHOW_REQUIRE)
