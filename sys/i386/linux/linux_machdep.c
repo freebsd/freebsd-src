@@ -602,9 +602,7 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 }
 
 int
-linux_modify_ldt(td, uap)
-	struct thread *td;
-	struct linux_modify_ldt_args *uap;
+linux_modify_ldt(struct thread *td, struct linux_modify_ldt_args *uap)
 {
 	int error;
 	caddr_t sg;
@@ -734,9 +732,7 @@ linux_sigsuspend(struct thread *td, struct linux_sigsuspend_args *args)
 }
 
 int
-linux_rt_sigsuspend(td, uap)
-	struct thread *td;
-	struct linux_rt_sigsuspend_args *uap;
+linux_rt_sigsuspend(struct thread *td, struct linux_rt_sigsuspend_args *uap)
 {
 	l_sigset_t lmask;
 	sigset_t sigmask;

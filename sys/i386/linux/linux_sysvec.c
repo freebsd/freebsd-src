@@ -233,12 +233,10 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
              
 	pos = *stack_base + (imgp->argc + imgp->envc + 2);  
     
-	if (args->trace) {
+	if (args->trace)
 		AUXARGS_ENTRY(pos, AT_DEBUG, 1);
-	}
-	if (args->execfd != -1) {
+	if (args->execfd != -1)
 		AUXARGS_ENTRY(pos, AT_EXECFD, args->execfd);
-	}       
 	AUXARGS_ENTRY(pos, AT_PHDR, args->phdr);
 	AUXARGS_ENTRY(pos, AT_PHENT, args->phent);
 	AUXARGS_ENTRY(pos, AT_PHNUM, args->phnum);
@@ -505,9 +503,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
  * a machine fault.
  */
 int
-linux_sigreturn(td, args)
-	struct thread *td;
-	struct linux_sigreturn_args *args;
+linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 {
 	struct proc *p = td->td_proc;
 	struct l_sigframe frame;
@@ -544,9 +540,8 @@ linux_sigreturn(td, args)
 	 * bit at worst causes one more or one less debugger trap, so
 	 * allowing it is fairly harmless.
 	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF))
     		return(EINVAL);
-	}
 
 	/*
 	 * Don't allow users to load a valid privileged %cs.  Let the
@@ -602,9 +597,7 @@ linux_sigreturn(td, args)
  * a machine fault.
  */
 int
-linux_rt_sigreturn(td, args)
-	struct thread *td;
-	struct linux_rt_sigreturn_args *args;
+linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 {
 	struct proc *p = td->td_proc;
 	struct l_ucontext uc;
@@ -645,9 +638,8 @@ linux_rt_sigreturn(td, args)
 	 * bit at worst causes one more or one less debugger trap, so
 	 * allowing it is fairly harmless.
 	 */
-	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF))
     		return(EINVAL);
-	}
 
 	/*
 	 * Don't allow users to load a valid privileged %cs.  Let the
@@ -777,8 +769,7 @@ linux_aout_coredump(struct thread *td, struct vnode *vp, off_t limit)
 static int	exec_linux_imgact_try(struct image_params *iparams);
 
 static int
-exec_linux_imgact_try(imgp)
-    struct image_params *imgp;
+exec_linux_imgact_try(struct image_params *imgp)
 {
     const char *head = (const char *)imgp->image_header;
     int error = -1;
