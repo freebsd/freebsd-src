@@ -63,6 +63,7 @@ fseek(fp, offset, whence)
 	int whence;
 {
 	int ret;
+	int serrno = errno;
 
 	/* make sure stdio is set up */
 	if (!__sdidinit)
@@ -71,6 +72,8 @@ fseek(fp, offset, whence)
 	FLOCKFILE(fp);
 	ret = _fseeko(fp, (off_t)offset, whence, 1);
 	FUNLOCKFILE(fp);
+	if (ret == 0)
+		errno = serrno;
 	return (ret);
 }
 
@@ -81,6 +84,7 @@ fseeko(fp, offset, whence)
 	int whence;
 {
 	int ret;
+	int serrno = errno;
 
 	/* make sure stdio is set up */
 	if (!__sdidinit)
@@ -89,6 +93,8 @@ fseeko(fp, offset, whence)
 	FLOCKFILE(fp);
 	ret = _fseeko(fp, offset, whence, 0);
 	FUNLOCKFILE(fp);
+	if (ret == 0)
+		errno = serrno;
 	return (ret);
 }
 
