@@ -686,6 +686,8 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
 {
 	struct l_new_utsname utsname;
 	char *osrelease, *osname;
+	int name[2];
+	int error, plen, olen;
 
 #ifdef DEBUG
 	if (ldebug(newuname))
@@ -697,7 +699,14 @@ linux_newuname(struct proc *p, struct linux_newuname_args *args)
 
 	bzero(&utsname, sizeof(utsname));
 	strncpy(utsname.sysname, osname, LINUX_MAX_UTSNAME-1);
-	strncpy(utsname.nodename, hostname, LINUX_MAX_UTSNAME-1);
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_HOSTNAME;
+	olen = LINUX_MAX_UTSNAME-1;
+	error = kernel_sysctl(p, name, 2, utsname.nodename, &olen, NULL, 0, &plen);
+	if (error)
+		strncpy(utsname.nodename, hostname, LINUX_MAX_UTSNAME-1);
+
 	strncpy(utsname.release, osrelease, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.version, version, LINUX_MAX_UTSNAME-1);
 	strncpy(utsname.machine, machine, LINUX_MAX_UTSNAME-1);
