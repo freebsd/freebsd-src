@@ -61,13 +61,12 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.35 1997/04/26 11:46:23 peter Exp $
+ * $Id: vm_kern.c,v 1.36 1997/05/29 02:57:22 peter Exp $
  */
 
 /*
  *	Kernel memory management.
  */
-#include "opt_smp_privpages.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -100,10 +99,6 @@ vm_map_t mb_map=0;
 int mb_map_full=0;
 vm_map_t io_map=0;
 vm_map_t phys_map=0;
-#if defined(SMP) && defined(SMP_PRIVPAGES)
-vm_map_t ppage_map=0;
-#endif
-
 
 /*
  *	kmem_alloc_pageable:

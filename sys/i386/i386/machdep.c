@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.248 1997/06/15 02:02:27 wollman Exp $
+ *	$Id: machdep.c,v 1.249 1997/06/15 02:24:06 wollman Exp $
  */
 
 #include "apm.h"
@@ -358,23 +358,6 @@ again:
 				(16*ARG_MAX), TRUE);
 	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(maxproc*UPAGES*PAGE_SIZE), FALSE);
-
-#if defined(SMP) && defined(SMP_PRIVPAGES)
-	/* Per-cpu pages.. (the story so far is... subject to change)
-	 * ========= For the per-cpu data page ========
-	 * 1 private data page
-	 * 1 PDE	(per-cpu PTD entry page)
-	 * 1 PT		(per-cpu page table page)
-	 * ============ For the idle loop =============
-	 * 2 UPAGEs	(per-cpu idle procs)
-	 * 1 PTD	(for per-cpu equiv of IdlePTD)
-	 * ============================================
-	 * = total of 6 pages per cpu.  The BSP reuses the ones allocated
-	 * by locore.s during boot to remove special cases at runtime.
-	 */
-	ppage_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(NCPU*6*PAGE_SIZE), FALSE);
-#endif
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
