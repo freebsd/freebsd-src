@@ -46,11 +46,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
-
-#include <vm/vm.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
