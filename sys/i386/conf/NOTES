@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.362 1997/09/04 23:03:09 yokota Exp $
+#	$Id: LINT,v 1.363 1997/09/09 12:40:53 jmg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -368,6 +368,13 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
 # logged packets to the system logger.  IPFIREWALL_VERBOSE_LIMIT
 # limits the number of times a matching entry can be logged.
+# IPFIREWALL_DEFAULT_TO_ACCEPT causes the default rule (at boot) to
+# allow everything.  Use with care, if a cracker can crash your
+# firewall machine, they can get to your protected machines.  However,
+# if you are using it as an as-needed filter for specific problems as
+# they arise, then this may be for you.  Changing the default to 'allow'
+# means that you won't get stuck if the kernel and /sbin/ipfw binary get
+# out of sync.
 #
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
@@ -379,6 +386,7 @@ options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
 options		"IPFIREWALL_VERBOSE_LIMIT=100" #limit verbosity
+options		IPFIREWALL_DEFAULT_TO_ACCEPT #allow everything by defalt
 options		IPDIVERT		#divert sockets
 options		TCPDEBUG
 
