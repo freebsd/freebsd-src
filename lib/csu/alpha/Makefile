@@ -1,13 +1,11 @@
 #
-#	$Id: Makefile,v 1.7 1999/01/09 21:50:56 jdp Exp $
+#	$Id: Makefile,v 1.8 1999/04/09 05:56:23 jdp Exp $
 #
-
-RTLDDIR=	${.CURDIR}/../../../libexec/rtld-elf
 
 SRCS=		crt1.c crtbegin.c crtend.c
 OBJS=		crt1.o crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
-CFLAGS+=	-Wall -Wno-unused -I${RTLDDIR}/${MACHINE_ARCH} -I${RTLDDIR}
+CFLAGS+=	-Wall -Wno-unused
 NOMAN=		true
 NOPIC=		true
 NOPROFILE=	true
