@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.7 1998/10/16 03:55:00 peter Exp $
+ *	$Id: link_elf.c,v 1.8 1998/10/25 17:44:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,13 +57,6 @@ static int	link_elf_search_symbol(linker_file_t, caddr_t value,
 
 static void	link_elf_unload_file(linker_file_t);
 static void	link_elf_unload_module(linker_file_t);
-
-/*
- * The file representing the currently running kernel.  This contains
- * the global symbol table.
- */
-
-linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_elf_class_ops = {
     link_elf_load_module,
@@ -738,10 +731,11 @@ load_dependancies(linker_file_t lf)
     /*
      * All files are dependant on /kernel.
      */
-    linker_kernel_file->refs++;
-    linker_file_add_dependancy(lf, linker_kernel_file);
+    if (linker_kernel_file) {
+	linker_kernel_file->refs++;
+	linker_file_add_dependancy(lf, linker_kernel_file);
+    }
 
-    
     for (dp = ef->dynamic; dp->d_tag != DT_NULL; dp++) {
 	if (dp->d_tag == DT_NEEDED) {
 	    name = ef->strtab + dp->d_un.d_val;
