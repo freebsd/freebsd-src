@@ -52,7 +52,6 @@
 
 static l_open_t		l_noopen;
 static l_close_t	l_noclose;
-static l_ioctl_t	l_nullioctl;
 static l_rint_t		l_norint;
 static l_start_t	l_nostart;
 
@@ -198,7 +197,7 @@ l_nostart(tp)
  * Do nothing specific version of line
  * discipline specific ioctl command.
  */
-static int
+int
 l_nullioctl(tp, cmd, data, flags, p)
 	struct tty *tp;
 	u_long cmd;
