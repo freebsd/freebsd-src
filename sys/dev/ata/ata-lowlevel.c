@@ -359,6 +359,9 @@ ata_interrupt(void *data)
 		    min((request->bytecount - request->donecount),
 			request->transfersize);
 
+		/* clear interrupt seen flag as we need to wait again */
+		request->flags &= ~ATA_R_INTR_SEEN;
+
 		/* if data write command, output the data */
 		if (request->flags & ATA_R_WRITE) {
 
@@ -510,19 +513,15 @@ ata_interrupt(void *data)
 	break;
     }
 
-    /* if we timed out, we hold on to the channel, ata_reinit() will unlock */
-    if (request->flags & ATA_R_TIMEOUT) {
-	ata_finish(request);
-	return;
+    /* if we timed out the unlocking of the ATA channel is done later */
+    if (!(request->flags & ATA_R_TIMEOUT)) {
+	ch->running = NULL;
+	ATA_UNLOCK_CH(ch);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
 
     /* schedule completition for this request */
     ata_finish(request);
-
-    /* unlock the ATA channel for new work */
-    ch->running = NULL;
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
 }
 
 /* must be called with ATA channel locked */
@@ -646,10 +645,6 @@ ata_reset(struct ata_channel *ch)
 	DELAY(100000);
     }	
 
-    /* enable interrupt */
-    DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
-
     if (stat0 & ATA_S_BUSY)
 	mask &= ~0x01;
     if (stat1 & ATA_S_BUSY)
@@ -733,6 +728,9 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	ata_prtdev(atadev, "timeout sending command=%02x\n", command);
 	return -1;
     }
+
+    /* enable interrupt */
+    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
     if ((lba > 268435455 || count > 256) && atadev->param && 

@@ -1153,7 +1153,7 @@ acd_start(struct ata_device *atadev)
     request->timeout = (ccb[0] == ATAPI_WRITE_BIG) ? 60 : 30;
     request->retries = 2;
     request->callback = acd_done;
-    request->flags = ATA_R_SKIPSTART | ATA_R_ATAPI;
+    request->flags = ATA_R_ATAPI;
     if (request->device->mode >= ATA_DMA)
 	request->flags |= ATA_R_DMA;
     switch (bp->bio_cmd) {

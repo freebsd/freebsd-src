@@ -135,7 +135,6 @@
 #define		ATA_BMCMD_START_STOP	0x01
 #define		ATA_BMCMD_WRITE_READ	0x08
 
-#define ATA_BMCTL_PORT			0x09
 #define ATA_BMDEVSPEC_0			0x0a
 #define ATA_BMSTAT_PORT			0x0b
 #define		ATA_BMSTAT_ACTIVE	0x01
@@ -195,7 +194,6 @@ struct ata_request {
 #define		ATA_R_ORDERED		0x0100
 #define		ATA_R_IMMEDIATE		0x0200
 #define		ATA_R_REQUEUE		0x0400
-#define		ATA_R_SKIPSTART		0x0800
 
 #define		ATA_R_DEBUG		0x1000
 
@@ -206,6 +204,7 @@ struct ata_request {
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int				result;		/* result error code */
     struct task			task;		/* task management */
+    struct bio			*bio;		/* bio for this request */
     TAILQ_ENTRY(ata_request)	sequence;	/* sequence management */
     TAILQ_ENTRY(ata_request)	chain;		/* list management */
 };

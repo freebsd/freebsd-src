@@ -149,7 +149,7 @@ ata_generic_intr(void *data)
     for (unit = 0; unit < 2; unit++) {
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ch->dma) {
+	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 	    if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -250,7 +250,7 @@ ata_acard_intr(void *data)
 	    continue;
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
-	if (ch->dma) {
+	if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 	    int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 	    if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1107,7 +1107,7 @@ ata_promise_ident(device_t dev)
     if ((idx->cfg2 & PRTX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
 		       GRANDPARENT(dev), PCI_IVAR_DEVID, &devid) &&
-	devid == ATA_DEC_21150) {
+	((devid == ATA_DEC_21150) || (devid == ATA_DEC_21150_1))) {
 	static long start = 0, end = 0;
 
 	if (pci_get_slot(dev) == 1) {
@@ -1196,6 +1196,7 @@ ata_promise_chipinit(device_t dev)
 	}
 	break;
     }
+
     ctlr->setmode = ata_promise_setmode;
     return 0;
 }
@@ -1212,8 +1213,8 @@ ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
     }
     ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
     ch->r_io[ATA_ALTSTAT].offset = 0x238 + (ch->unit << 7);
-    ch->r_io[ATA_BMCTL_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMCTL_PORT].offset = 0x260 + (ch->unit << 7);
+    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCMD_PORT].offset = 0x260 + (ch->unit << 7);
     ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
     ch->r_io[ATA_BMDTP_PORT].offset = 0x244 + (ch->unit << 7);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
@@ -1242,7 +1243,7 @@ ata_promise_old_intr(void *data)
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 	if (ATA_INL(ctlr->r_io1, 0x1c) & (ch->unit ? 0x00004000 : 0x00000400)) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1269,7 +1270,7 @@ ata_promise_tx2_intr(void *data)
 	    continue;
 	ATA_IDX_OUTB(ch, ATA_BMDEVSPEC_0, 0x0b);
 	if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_1) & 0x20) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
@@ -1357,7 +1358,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
    
     case PRMIO:
 	if (mode > ATA_UDMA2 &&
-	    (ATA_IDX_INL(atadev->channel, ATA_BMCTL_PORT) & 0x01000000)) {
+	    (ATA_IDX_INL(atadev->channel, ATA_BMCMD_PORT) & 0x01000000)) {
 	    ata_prtdev(atadev,
 		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
 	    mode = ATA_UDMA2;
@@ -1445,8 +1446,8 @@ static int
 ata_promise_mio_dmastart(struct ata_channel *ch)
 {
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
-    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
-		 (ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x000000c0) |
+    ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
+		 (ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x000000c0) |
 		 ((ch->dma->flags & ATA_DMA_READ) ? 0x00000080 : 0x000000c0));
     return 0;
 }
@@ -1454,8 +1455,8 @@ ata_promise_mio_dmastart(struct ata_channel *ch)
 static int
 ata_promise_mio_dmastop(struct ata_channel *ch)
 {
-    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
-		 ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x00000080);
+    ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
+		 ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x00000080);
     return 0;
 }
 
@@ -1743,7 +1744,7 @@ ata_sii_intr(void *data)
 	if (!(ch = ctlr->interrupt[unit].argument))
 	    continue;
 	if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x08) {
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if (!(bmstat & ATA_BMSTAT_INTERRUPT))
@@ -1772,7 +1773,7 @@ ata_cmd_intr(void *data)
 	     (ch->unit ? 0x08 : 0x04))) {
 	    pci_write_config(device_get_parent(ch->dev), 0x71,
 			     reg71 & ~(ch->unit ? 0x04 : 0x08), 1);
-	    if (ch->dma) {
+	    if (ch->dma && (ch->dma->flags & ATA_DMA_ACTIVE)) {
 		int bmstat = ATA_IDX_INB(ch, ATA_BMSTAT_PORT) & ATA_BMSTAT_MASK;
 
 		if ((bmstat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=

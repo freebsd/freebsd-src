@@ -88,6 +88,7 @@ struct ata_pci_controller {
 #define ATA_CYPRESS_82C693	0xc6931080
 
 #define ATA_DEC_21150		0x00221011
+#define ATA_DEC_21150_1		0x00231011
 
 #define ATA_HIGHPOINT_ID	0x1103
 #define ATA_HPT366		0x00041103
@@ -244,7 +245,6 @@ struct ata_pci_controller {
 #define PRNEW		1
 #define PRTX		2
 #define PRMIO		3
-#define PRIDX		4
 #define PRTX4		0x01
 #define PRSX4K		0x02
 #define PRSX6K		0x04
