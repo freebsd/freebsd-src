@@ -27,13 +27,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: crt0.c,v 1.18 1995/09/27 23:13:33 nate Exp $
+ *	$Id: crt0.c,v 1.20 1995/10/29 09:49:21 phk Exp $
  */
 
 #include <sys/param.h>
-#ifdef UGLY_LOCALE_HACK
-#include <locale.h>
-#endif
 #include <stdlib.h>
 
 #ifdef DYNAMIC
@@ -89,9 +86,6 @@ static struct ld_entry	*ld_entry;
 static void		__do_dynamic_link ();
 #endif /* DYNAMIC */
 
-#ifdef UGLY_LOCALE_HACK
-extern void		_startup_setlocale __P((int, const char *));
-#endif
 int			_callmain();
 int			errno;
 static char		empty[1];
@@ -186,11 +180,6 @@ asm("eprol:");
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
 #endif /* MCRT0 */
-
-#ifdef UGLY_LOCALE_HACK
-	if (getenv("ENABLE_STARTUP_LOCALE") != NULL)
-		_startup_setlocale(LC_ALL, "");
-#endif /* UGLY_LOCALE_HACK */
 
 asm ("__callmain:");		/* Defined for the benefit of debuggers */
 	exit(main(kfp->kargc, argv, environ));
