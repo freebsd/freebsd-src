@@ -141,7 +141,6 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    buf[6] != 'L' || buf[7] != '1')
 			break;
 
-
 		for (i = 0; i < 16; i++) {
 			v = g_dec_le2(buf + 512 + 10 + i * 32);
 			u = g_dec_le2(buf + 512 + 14 + i * 32);
