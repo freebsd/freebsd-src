@@ -97,16 +97,16 @@ _thread_gc(pthread_addr_t arg)
 		 */
 		_thread_kern_sig_undefer();
 
+		/* No stack of thread structure to free yet: */
+		p_stack = NULL;
+		pthread_cln = NULL;
+
 		/*
 		 * Lock the garbage collector mutex which ensures that
 		 * this thread sees another thread exit:
 		 */
 		if (pthread_mutex_lock(&_gc_mutex) != 0)
 			PANIC("Cannot lock gc mutex");
-
-		/* No stack of thread structure to free yet: */
-		p_stack = NULL;
-		pthread_cln = NULL;
 
 		/*
 		 * Enter a loop to search for the first dead thread that
@@ -242,7 +242,7 @@ _thread_gc(pthread_addr_t arg)
 		 */
 		if (p_stack != NULL)
 			free(p_stack);
-		if (pthread_cln != NULL)
+		if (pthread_cln != NULL) {
 			if (pthread_cln->name != NULL) {
 				/* Free the thread name string. */
 				free(pthread_cln->name);
@@ -252,6 +252,7 @@ _thread_gc(pthread_addr_t arg)
 			 * structure.
 			 */
 			free(pthread_cln);
+		}
 	}
 	return (NULL);
 }
