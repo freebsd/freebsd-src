@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: disks.c,v 1.31.2.53 1997/02/07 04:25:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,7 +83,11 @@ print_chunks(Disk *d)
 		   "a more likely geometry.  If this geometry is incorrect or you\n"
 		   "are unsure as to whether or not it's correct, please consult\n"
 		   "the Hardware Guide in the Documentation submenu or use the\n"
-		   " (G)eometry command to change it now.",
+		   "(G)eometry command to change it now.\n\n"
+		   "Remember: you need to enter whatever your BIOS thinks the\n"
+		   "geometry were!  For IDE, that's what you have told in the BIOS\n"
+		   "setup, for SCSI, it's the translation mode your controller is\n"
+		   "using.  Do NOT use a ``physical geometry''.",
 	  d->bios_cyl, d->bios_hd, d->bios_sect, d->name);
 	Sanitize_Bios_Geom(d);
     }
@@ -258,6 +262,8 @@ diskPartition(Device *dev, Disk *d)
 			       "and possibly some IDE drives (e.g. drives running under the\n"
 			       "control of sort of disk manager).  SCSI drives are considerably\n"
 			       "less at risk.\n\n"
+			       "If, on the other hand, your goal is a dedicated FreeBSD machine\n"
+			       "and nothing else, this option is for you.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 	    }
 	    if (rv == -1)

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.81 1997/03/21 05:04:37 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.82 1997/03/29 06:44:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,6 +39,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,11 +56,11 @@
 
 /* Different packages we depend on - update this when package version change! */
 #define PACKAGE_GATED	"gated-3.5b3"
-#define PACKAGE_APACHE	"apache-1.1.1"
-#define PACKAGE_NETCON	"commerce/netcon/bsd60"
+#define PACKAGE_APACHE	"apache-1.2b8"
+#define PACKAGE_NETCON	"commerce/netcon/bsd61"
 #define PACKAGE_PCNFSD	"pcnfsd-93.02.16"
-#define PACKAGE_SAMBA	"samba-1.9.15p8"
-#define PACKAGE_LYNX	"lynx-2.6"
+#define PACKAGE_SAMBA	"samba-1.9.16p11"
+#define PACKAGE_LYNX	"lynx-2.7.1"
 
 /* device limits */
 #define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
@@ -314,6 +315,7 @@ typedef struct _devPriv {
 
 
 /*** Externs ***/
+extern jmp_buf		BailOut;		/* Used to get the heck out */
 extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/

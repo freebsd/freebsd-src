@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: variable_load.c,v 1.1 1997/03/19 10:09:28 jkh Exp $
+ * $Id: variable_load.c,v 1.1.4.1 1997/03/29 06:44:54 jkh Exp $
  *
  * Copyright (c) 1997
  *	Paul Traina.  All rights reserved.
@@ -63,12 +63,14 @@ variableLoad(dialogMenuItem * self)
     /* Try to open the floppy drive if we can do that first */
     if (DITEM_STATUS(mediaSetFloppy(NULL)) == DITEM_FAILURE) {
 	msgConfirm("Unable to set media device to floppy.");
-	return DITEM_FAILURE | what;
+	what |= DITEM_FAILURE;
+	goto terminate_device;
     }
 
     if (!mediaDevice->init(mediaDevice)) {
 	msgConfirm("Unable to mount floppy filesystem.");
-	return DITEM_FAILURE | what;
+	what |= DITEM_FAILURE;
+	goto terminate_device;
     }
 
     fp = mediaDevice->get(mediaDevice, cp, TRUE);
@@ -94,7 +96,7 @@ terminate_file:
     fclose(fp);
 
 terminate_device:
-    mediaDevice->shutdown(mediaDevice);
+    mediaClose();
 
     return what;
 }

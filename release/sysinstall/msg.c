@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: msg.c,v 1.29.2.20 1997/02/07 04:26:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -192,7 +192,6 @@ msgConfirm(char *fmt, ...)
     use_helpline(NULL);
     use_helpfile(NULL);
     if (OnVTY) {
-	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
@@ -233,7 +232,6 @@ msgYesNo(char *fmt, ...)
     use_helpline(NULL);
     use_helpfile(NULL);
     if (OnVTY) {
-	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
@@ -261,7 +259,6 @@ msgGetInput(char *buf, char *fmt, ...)
     else
 	input_buffer[0] = '\0';
     if (OnVTY) {
-	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
