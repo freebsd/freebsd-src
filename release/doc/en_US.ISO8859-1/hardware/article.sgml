@@ -1588,7 +1588,7 @@
     <para arch="i386">Broadcom BCM4401 based Fast Ethernet adapters
       (&man.bfe.4; driver)</para>
 
-    <para arch="i386,pc98">RealTek RTL8139C+, RTL8169, RTL8169S and
+    <para arch="alpha,i386,pc98">RealTek RTL8139C+, RTL8169, RTL8169S and
       RTL8110S based PCI Fast Ethernet and Gigabit Ethernet
       controllers (&man.re.4; driver)</para>
 
