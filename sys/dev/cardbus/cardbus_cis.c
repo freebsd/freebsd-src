@@ -75,9 +75,6 @@ struct tuple_callbacks {
 static int decode_tuple_generic(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info);
-static int decode_tuple_nothing(device_t cbdev, device_t child, int id,
-    int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
-    struct tuple_callbacks *info);
 static int decode_tuple_copy(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
     struct tuple_callbacks *info);
@@ -157,9 +154,6 @@ struct cardbus_quirk cardbus_quirks[] = {
 	{ 0 }
 };
 
-static struct cis_tupleinfo *cisread_buf;
-static int ncisread_buf;
-
 /*
  * Handler functions for various CIS tuples
  */
@@ -184,38 +178,6 @@ decode_tuple_generic(device_t cbdev, device_t child, int id,
 		}
 		printf("\n");
 	}
-	return (0);
-}
-
-static int
-decode_tuple_nothing(device_t cbdev, device_t child, int id,
-    int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
-    struct tuple_callbacks *info)
-{
-	return (0);
-}
-
-static int
-decode_tuple_copy(device_t cbdev, device_t child, int id,
-    int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
-    struct tuple_callbacks *info)
-{
-	struct cis_tupleinfo *tmpbuf;
-
-	tmpbuf = malloc(sizeof(struct cis_tupleinfo) * (ncisread_buf+1),
-	    M_DEVBUF, M_WAITOK);
-	if (ncisread_buf > 0) {
-		memcpy(tmpbuf, cisread_buf,
-		    sizeof(struct cis_tupleinfo) * ncisread_buf);
-		free(cisread_buf, M_DEVBUF);
-	}
-	cisread_buf = tmpbuf;
-
-	cisread_buf[ncisread_buf].id = id;
-	cisread_buf[ncisread_buf].len = len;
-	cisread_buf[ncisread_buf].data = malloc(len, M_DEVBUF, M_WAITOK);
-	memcpy(cisread_buf[ncisread_buf].data, tupledata, len);
-	ncisread_buf++;
 	return (0);
 }
 
@@ -1053,77 +1015,6 @@ cardbus_pickup_maps(device_t cbdev, device_t child)
 			cardbus_add_map(cbdev, child, q->arg1);
 		}
 	}
-}
-
-int
-cardbus_cis_read(device_t cbdev, device_t child, uint8_t id,
-    struct cis_tupleinfo **buff, int *nret)
-{
-	struct tuple_callbacks cisread_callbacks[] = {
-		MAKETUPLE(NULL,			nothing),
-		/* first entry will be overwritten */
-		MAKETUPLE(NULL,			nothing),
-		MAKETUPLE(DEVICE,		nothing),
-		MAKETUPLE(LONG_LINK_CB,		unhandled),
-		MAKETUPLE(INDIRECT,		unhandled),
-		MAKETUPLE(CONFIG_CB,		nothing),
-		MAKETUPLE(CFTABLE_ENTRY_CB,	nothing),
-		MAKETUPLE(LONGLINK_MFC,		unhandled),
-		MAKETUPLE(BAR,			nothing),
-		MAKETUPLE(PWR_MGMNT,		nothing),
-		MAKETUPLE(EXTDEVICE,		nothing),
-		MAKETUPLE(CHECKSUM,		nothing),
-		MAKETUPLE(LONGLINK_A,		unhandled),
-		MAKETUPLE(LONGLINK_C,		unhandled),
-		MAKETUPLE(LINKTARGET,		nothing),
-		MAKETUPLE(NO_LINK,		nothing),
-		MAKETUPLE(VERS_1,		nothing),
-		MAKETUPLE(ALTSTR,		nothing),
-		MAKETUPLE(DEVICE_A,		nothing),
-		MAKETUPLE(JEDEC_C,		nothing),
-		MAKETUPLE(JEDEC_A,		nothing),
-		MAKETUPLE(CONFIG,		nothing),
-		MAKETUPLE(CFTABLE_ENTRY,	nothing),
-		MAKETUPLE(DEVICE_OC,		nothing),
-		MAKETUPLE(DEVICE_OA,		nothing),
-		MAKETUPLE(DEVICE_GEO,		nothing),
-		MAKETUPLE(DEVICE_GEO_A,		nothing),
-		MAKETUPLE(MANFID,		nothing),
-		MAKETUPLE(FUNCID,		nothing),
-		MAKETUPLE(FUNCE,		nothing),
-		MAKETUPLE(SWIL,			nothing),
-		MAKETUPLE(VERS_2,		nothing),
-		MAKETUPLE(FORMAT,		nothing),
-		MAKETUPLE(GEOMETRY,		nothing),
-		MAKETUPLE(BYTEORDER,		nothing),
-		MAKETUPLE(DATE,			nothing),
-		MAKETUPLE(BATTERY,		nothing),
-		MAKETUPLE(ORG,			nothing),
-		MAKETUPLE(END,			end),
-		MAKETUPLE(GENERIC,		nothing),
-	};
-	int ret;
-
-	cisread_callbacks[0].id = id;
-	cisread_callbacks[0].name = "COPY";
-	cisread_callbacks[0].func = decode_tuple_copy;
-	ncisread_buf = 0;
-	cisread_buf = NULL;
-	ret = cardbus_parse_cis(cbdev, child, cisread_callbacks);
-
-	*buff = cisread_buf;
-	*nret = ncisread_buf;
-	return (ret);
-}
-
-void
-cardbus_cis_free(device_t cbdev, struct cis_tupleinfo *buff, int *nret)
-{
-	int i;
-	for (i = 0; i < *nret; i++)
-		free(buff[i].data, M_DEVBUF);
-	if (*nret > 0)
-		free(buff, M_DEVBUF);
 }
 
 int
