@@ -57,8 +57,7 @@ static __inline caddr_t
 stackgap_init()
 {
 #define szsigcode ((caddr_t)(esigcode - sigcode))
-	return (caddr_t)(ALIGN(((caddr_t)PS_STRINGS)
-			 + sizeof(struct ps_strings)));
+	return (caddr_t)(ALIGN(((caddr_t)PS_STRINGS) - SPARE_USRSPACE));
 }
 
 
