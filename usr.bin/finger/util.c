@@ -244,7 +244,7 @@ palloc()
 {
 	PERSON *p;
 
-	if ((p = malloc((u_int) sizeof(PERSON))) == NULL)
+	if ((p = malloc(sizeof(PERSON))) == NULL)
 		err(1, NULL);
 	return(p);
 }
@@ -255,7 +255,7 @@ walloc(pn)
 {
 	WHERE *w;
 
-	if ((w = malloc((u_int) sizeof(WHERE))) == NULL)
+	if ((w = malloc(sizeof(WHERE))) == NULL)
 		err(1, NULL);
 	if (pn->whead == NULL)
 		pn->whead = pn->wtail = w;

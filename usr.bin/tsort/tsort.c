@@ -106,7 +106,7 @@ int debug, longest, quiet;
 void	 add_arc(char *, char *);
 int	 find_cycle(NODE *, NODE *, int, int);
 NODE	*get_node(char *);
-void	*grow_buf(void *, int);
+void	*grow_buf(void *, size_t);
 void	 remove_node(NODE *);
 void	 clear_cycle(void);
 void	 tsort(void);
@@ -192,9 +192,9 @@ main(argc, argv)
 void *
 grow_buf(bp, size)
 	void *bp;
-	int size;
+	size_t size;
 {
-	if ((bp = realloc(bp, (u_int)size)) == NULL)
+	if ((bp = realloc(bp, size)) == NULL)
 		err(1, NULL);
 	return (bp);
 }
@@ -335,8 +335,8 @@ tsort()
 			 */
 			for (cnt = 0, n = graph; n != NULL; n = n->n_next)
 				++cnt;
-			cycle_buf = malloc((u_int)sizeof(NODE *) * cnt);
-			longest_cycle = malloc((u_int)sizeof(NODE *) * cnt);
+			cycle_buf = malloc(sizeof(NODE *) * cnt);
+			longest_cycle = malloc(sizeof(NODE *) * cnt);
 			if (cycle_buf == NULL || longest_cycle == NULL)
 				err(1, NULL);
 		}

@@ -122,8 +122,8 @@ parallel(char **argv)
 	char buf[_POSIX2_LINE_MAX + 1];
 
 	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
-		if (!(lp = (LIST *)malloc((u_int)sizeof(LIST))))
-			errx(1, "%s", strerror(ENOMEM));
+		if ((lp = malloc(sizeof(LIST))) == NULL)
+			err(1, NULL);
 		if (p[0] == '-' && !p[1])
 			lp->fp = stdin;
 		else if (!(lp->fp = fopen(p, "r")))
