@@ -623,12 +623,20 @@ vfs_vmio_release(bp)
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
-		if (m->flags & PG_WANTED) {
-			m->flags &= ~PG_WANTED;
-			wakeup(m);
+		while ((m->flags & PG_BUSY) || (m->busy != 0)) {
+			m->flags |= PG_WANTED;
+			tsleep(m, PVM, "vmiorl", 0);
 		}
+			
 		vm_page_unwire(m);
-		if (m->wire_count == 0 && (m->flags & PG_BUSY) == 0) {
+			
+		if (m->wire_count == 0) {
+
+			if (m->flags & PG_WANTED) {
+				m->flags &= ~PG_WANTED;
+				wakeup(m);
+			}
+
 			if (m->valid) {
 				if(m->dirty == 0)
 					vm_page_test_dirty(m);
@@ -639,14 +647,12 @@ vfs_vmio_release(bp)
 					(cnt.v_free_count < cnt.v_free_min)) {
 					if ((m->dirty == 0) &&
 						(m->hold_count == 0) &&
-						(m->flags & PG_BUSY) == 0 &&
 						(m->busy == 0))
 						vm_page_cache(m);
 					else
 						vm_page_deactivate(m);
 				}
 			} else if ((m->hold_count == 0) &&
-				((m->flags & PG_BUSY) == 0) &&
 				(m->busy == 0)) {
 				vm_page_protect(m, VM_PROT_NONE);
 				vm_page_free(m);
