@@ -2980,6 +2980,9 @@
 .  nr doc-reg-Bl 1
 .  while (\n[doc-reg-Bl] <= \n[.$]) \{\
 .    ds doc-arg\n[doc-reg-Bl] "\$[\n[doc-reg-Bl]]
+.    \" dummy type and space so that doc-save-global-vars() doesn't warn
+.    nr doc-type\n[doc-reg-Bl] 0
+.    ds doc-space\n[doc-reg-Bl]
 .    nr doc-reg-Bl +1
 .  \}
 .
@@ -3011,7 +3014,7 @@
 .
 .de doc-Bl-usage
 .  tm1 "Usage: .Bl {-hang | -ohang | -tag | -diag | -inset}
-.  tm1 "             [-width <string>] [-xwidth <command>]
+.  tm1 "             [-width <string>]
 .  tm1 "             [-offset <string>] [-compact]
 .  tm1 "       .Bl -column [-offset <string>] <string1> <string2> ...
 .  tm1 "       .Bl {-item | -enum [-nested] | -bullet | -hyphen | -dash}
@@ -3074,56 +3077,25 @@
 .  el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-width" \{\
 .    nr doc-arg-ptr +1
 .    ds doc-tag-width-stack\n[doc-list-depth] TagwidtH
+.
+.    ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
+.    substring doc-str-dBla 1 2
+.    ie .\*[doc-str-dBla] \{\
+.      ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
+.      substring doc-str-dBla 2
+.      doc-first-parameter \*[doc-str-dBla]
+.      doc-get-width "\*[doc-str-dfp]
+.      doc-get-arg-type "\*[doc-str-dfp]
+.      ie (\n[doc-arg-type] == 1) \
+.        nr doc-reg-dBla1 1
+.      el \
+.        nr doc-reg-dBla1 0
+.    \}
+.    el \
+.      nr doc-reg-dBla1 0
 .    ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
 .
-.    \" test whether argument is a valid numeric expression
-.    nr doc-reg-dBla1 0
-.    if \B(\*[doc-str-dBla]) \{\
-.      \" disable warnings related to scaling indicators (32)
-.      nr doc-reg-dBla2 \n[.warn]
-.      warn (\n[.warn] - (\n[.warn] / 32 % 2 * 32))
-.
-.      \" values without a scaling indicator are taken as strings;
-.      \" we test whether the parameter string with and without the last
-.      \" character yields identical numerical results (ignoring the
-.      \" scaling indicator)
-.      ds doc-str-dBla1 "\*[doc-str-dBla]
-.      substring doc-str-dBla1 1 -1
-.      if \B(\*[doc-str-dBla1]) \{\
-.        nr doc-reg-dBla3 (;(\*[doc-str-dBla]))
-.        nr doc-reg-dBla4 (\*[doc-str-dBla1])
-.        if (\n[doc-reg-dBla3] == \n[doc-reg-dBla4]) \
-.          nr doc-reg-dBla1 1
-.      \}
-.
-.      \" enable all warnings again
-.      warn \n[doc-reg-dBla2]
-.    \}
-.
-.    ie \n[doc-reg-dBla1] \
-.      nr doc-list-indent-stack\n[doc-list-depth] (\*[doc-str-dBla])
-.    el \{\
-.      doc-get-arg-width \n[doc-arg-ptr]
-.      ie (\n[doc-width] == 2) \{\
-.        \" if the width parameter is a macro, use the macro's
-.        \" width as specified in doc-common
-.        doc-get-arg-type \*[doc-str-dBla]
-.        ie (\n[doc-arg-type] == 1) \
-.          nr doc-list-indent-stack\n[doc-list-depth] \n[\*[doc-str-dBla]]
-.        el \
-.          nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
-.      \}
-.      el \
-.        nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
-.  \}\}
-.
-.  el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-xwidth" \{\
-.    nr doc-arg-ptr +1
-.    ds doc-tag-width-stack\n[doc-list-depth] TagwidtH
-.
-.    ds doc-str-dBla \*[doc-arg\n[doc-arg-ptr]]
-.    substring doc-str-dBla 1 2
-.    if .\*[doc-str-dBla] \{\
+.    ie \n[doc-reg-dBla1] \{\
 .      \" execute string in a box to get the width of the diversion
 .      ds doc-str-dBla \*[doc-arg\n[doc-arg-ptr]]
 .      doc-save-global-vars
@@ -3139,9 +3111,49 @@
 .      box
 .      doc-restore-global-vars
 .      doc-get-width \h'\n[dl]u'
+.      nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
 .    \}
-.    nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
-.  \}
+.    el \{\
+.      \" test whether argument is a valid numeric expression
+.      nr doc-reg-dBla1 0
+.      if \B(\*[doc-str-dBla]) \{\
+.        \" disable warnings related to scaling indicators (32)
+.        nr doc-reg-dBla2 \n[.warn]
+.        warn (\n[.warn] - (\n[.warn] / 32 % 2 * 32))
+.
+.        \" values without a scaling indicator are taken as strings;
+.        \" we test whether the parameter string with and without the last
+.        \" character yields identical numerical results (ignoring the
+.        \" scaling indicator)
+.        ds doc-str-dBla1 "\*[doc-str-dBla]
+.        substring doc-str-dBla1 1 -1
+.        if \B(\*[doc-str-dBla1]) \{\
+.          nr doc-reg-dBla3 (;(\*[doc-str-dBla]))
+.          nr doc-reg-dBla4 (\*[doc-str-dBla1])
+.          if (\n[doc-reg-dBla3] == \n[doc-reg-dBla4]) \
+.            nr doc-reg-dBla1 1
+.        \}
+.
+.        \" enable all warnings again
+.        warn \n[doc-reg-dBla2]
+.      \}
+.
+.      ie \n[doc-reg-dBla1] \
+.        nr doc-list-indent-stack\n[doc-list-depth] (\*[doc-str-dBla])
+.      el \{\
+.        doc-get-arg-width \n[doc-arg-ptr]
+.        ie (\n[doc-width] == 2) \{\
+.          \" if the width parameter is a macro, use the macro's
+.          \" width as specified in doc-common
+.          doc-get-arg-type \*[doc-str-dBla]
+.          ie (\n[doc-arg-type] == 1) \
+.            nr doc-list-indent-stack\n[doc-list-depth] \n[\*[doc-str-dBla]]
+.          el \
+.            nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
+.        \}
+.        el \
+.          nr doc-list-indent-stack\n[doc-list-depth] (\n[doc-width]u * \n[doc-fixed-width]u)
+.  \}\}\}
 .
 .  el \{ .ie "\*[doc-arg\n[doc-arg-ptr]]"-offset" \{\
 .    nr doc-arg-ptr +1
@@ -3185,14 +3197,49 @@
 .  \}\}\}
 .  el \
 .    nr doc-reg-dBla 0
-.  \}\}\}\}
+.  \}\}\}
 .
 .  \" not a known keyword, so it specifies the width of the next column
 .  \" (if it is a column list)
 .  if !\n[doc-reg-dBla] \{\
 .    ie "\*[doc-list-type-stack\n[doc-list-depth]]"column-list" \{\
 .      nr doc-num-columns +1
-.      ds doc-arg\n[doc-num-columns] "\*[doc-arg\n[doc-arg-ptr]]
+.      ds doc-str-dBla \*[doc-arg\n[doc-arg-ptr]]
+.      substring doc-str-dBla 1 2
+.      ie .\*[doc-str-dBla] \{\
+.        ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
+.        substring doc-str-dBla 2
+.        doc-first-parameter \*[doc-str-dBla]
+.        doc-get-width "\*[doc-str-dfp]
+.        doc-get-arg-type "\*[doc-str-dfp]
+.        ie (\n[doc-arg-type] == 1) \
+.          nr doc-reg-dBla1 1
+.        el \
+.          nr doc-reg-dBla1 0
+.      \}
+.      el \
+.        nr doc-reg-dBla1 0
+.      ds doc-str-dBla "\*[doc-arg\n[doc-arg-ptr]]
+.
+.      ie \n[doc-reg-dBla1] \{\
+.        \" execute string in a box to get the width of the diversion
+.        ds doc-str-dBla \*[doc-arg\n[doc-arg-ptr]]
+.        doc-save-global-vars
+.        doc-reset-args
+.        box doc-box-dBla
+.        ev doc-env-dBla
+.        evc 0
+.        in 0
+.        nf
+.        nop \*[doc-str-dBla]
+.        br
+.        ev
+.        box
+.        doc-restore-global-vars
+.        ds doc-arg\n[doc-num-columns] "\h'\n[dl]u'
+.      \}
+.      el \
+.        ds doc-arg\n[doc-num-columns] "\*[doc-arg\n[doc-arg-ptr]]
 .    \}
 .    el \{\
 .      tmc mdoc warning: Unknown keyword `\*[doc-arg\n[doc-arg-ptr]]'
