@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.153 1998/04/08 20:04:36 sos Exp $
+ *	$Id: wd.c,v 1.154 1998/04/09 17:46:45 sos Exp $
  */
 
 /* TODO:
@@ -1574,7 +1574,7 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 		outb(wdc + wd_cyl_lo, cylinder);
 		outb(wdc + wd_cyl_hi, cylinder >> 8);
 		outb(wdc + wd_sdh, WDSD_IBM | (du->dk_unit << 4) | head);
-		if (head &= WDSD_LBA)
+		if (head & WDSD_LBA)
 			outb(wdc + wd_sector, sector);
 		else
 			outb(wdc + wd_sector, sector + 1);
