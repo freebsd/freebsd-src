@@ -1002,7 +1002,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
-	mtx_init(&clock_lock, "clk", MTX_SPIN);
+	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
 	mtx_lock(&Giant);
 
 	/*
