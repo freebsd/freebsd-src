@@ -46,6 +46,7 @@ node
 .Op Fl a
 .Op Fl d
 .Op Fl l
+.Op Fl n
 .Ar path
 .Op Ar hookname
 .Sh DESCRIPTION
@@ -65,18 +66,27 @@ is assumed.
 At this point all data written to standard input is sent
 to the node and all data received from the node is relayed
 to standard output.
+.Nm
+exits when
+.Dv EOF
+is detected on standard input.
 .Pp
 The options are as follows:
 .Pp
 .Bl -tag -width indent
 .It Fl a
-Output each read packet in
-.Tn ASCII .
+Output each packet read in human-readable decoded
+.Tn ASCII
+form instead of raw binary.
 .It Fl d
 Increase the debugging verbosity level.
 .It Fl l
 Loops all received data back to the hook in addition to writing it
 to standard output.
+.It Fl n
+Don't attempt to read any data from standard input.
+.Nm
+will continue reading from the node until stopped by a signal.
 .El
 .Sh BUGS
 Although all input is read in unbuffered mode, 
@@ -84,7 +94,7 @@ there's no way to control the packetization of the input.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr netgraph 3 ,
-.Xr ngctl 8 .
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Em netgraph
@@ -92,5 +102,5 @@ system was designed and first implemented at Whistle Communications, Inc.
 in a version of
 .Fx 2.2
 customized for the Whistle InterJet.
-.Sh AUTHOR
+.Sh AUTHORS
 .An Archie Cobbs Aq archie@whistle.com
