@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.5 1995/08/05 23:08:17 ache Exp $
+ *	$Id: date.c,v 1.6 1995/10/23 20:26:53 ache Exp $
  */
 
 #ifndef lint
@@ -210,7 +210,7 @@ setthetime(p)
 
 	/* convert broken-down time to GMT clock time */
 	if ((tval = mktime(lt)) == -1)
-		badformat();
+		errx(1, "nonexistent time");
 
 	/* set the time */
 	if (nflag || netsettime(tval)) {
