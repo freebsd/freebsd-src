@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.25 1999/04/09 18:46:48 bde Exp $
+# $Id: Makefile,v 1.26 1999/04/11 04:11:27 bde Exp $
 #
 
 #
@@ -17,9 +17,9 @@ CFLAGS+=	-I.
 
 .include "../Makefile.inc"
 
-CFLAGS+=	-I${GCCDIR}/objc
-
 .PATH: ${GCCDIR} ${GCCDIR}/cp
+
+CFLAGS+=	-I${GCCDIR}/objc
 
 #-----------------------------------------------------------------------
 # insn-* gunk
@@ -46,6 +46,18 @@ GENSRCS+=	gen$i.c
 CLEANFILES+=	gen$i
 .endfor
 
+.for i in attrtab
+build-tools: gen$i
+
+gen$i: gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o bitmap.o
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+
+GENSRCS+=	gen$i.c
+CLEANFILES+=	gen$i
+.endfor
+
+SRCS+=		bitmap.c obstack.c print-rtl.c rtl.c rtlanal.c
+
 .for i in check genrtl
 build-tools: gen$i
 
@@ -57,22 +69,11 @@ CLEANFILES+=	gen$i
 .endfor
 
 .ORDER: genrtl.c genrtl.h
-genrtl.h genrtl.c: gengenrtl
+genrtl.c genrtl.h: gengenrtl
 	./gengenrtl genrtl.h genrtl.c
 
 GENSRCS+=	genrtl.c genrtl.h
 
-.for i in attrtab
-build-tools: gen$i
-
-gen$i: gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o bitmap.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
-
-GENSRCS+=	gen$i.c
-CLEANFILES+=	gen$i
-.endfor
-
-SRCS+=		bitmap.c print-rtl.c rtl.c rtlanal.c obstack.c
 #-----------------------------------------------------------------------
 # C hash codes
 c-gperf.h: c-parse.gperf
@@ -88,7 +89,7 @@ hash.h: gxx.gperf
 GENSRCS+=	hash.h
 
 #-----------------------------------------------------------------------
-# common parser stuff
+# Common parser stuff.
 
 tree-check.h: gencheck
 	./gencheck > ${.TARGET}
@@ -127,15 +128,19 @@ CLEANFILES+=	objc-parse.y		# insurance
 #-----------------------------------------------------------------------
 # the host/target compiler config.
 
-COMMONHDRS=	config.h hconfig.h options.h specs.h tconfig.h tm.h multilib.h
+COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h tm.h
 GENSRCS+=	${COMMONHDRS}
 
 config.h hconfig.h:
 	echo '#include "auto-host.h"' > ${.TARGET}
 	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' >> ${.TARGET}
 
-tconfig.h:
-	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
+multilib.h:
+	echo 'static char *multilib_raw[] = { \
+	    "aout maout;", "elf !maout;", NULL };' > ${.TARGET}
+	echo 'static char *multilib_matches_raw[] = { \
+	    "maout maout;", "melf melf;", NULL };' >> ${.TARGET}
+	echo 'static char *multilib_extra = "";' >> ${.TARGET}
 
 options.h:
 	echo '#include "cp/lang-options.h"' > ${.TARGET}
@@ -144,6 +149,9 @@ options.h:
 specs.h:
 	echo '#include "cp/lang-specs.h"' > ${.TARGET}
 	#echo '#include "f/lang-specs.h"'    >> ${.TARGET}
+
+tconfig.h:
+	echo '#include "${MACHINE_ARCH}/xm-${MACHINE_ARCH}.h"' > ${.TARGET}
 
 tm.h:
 	echo '#include "${MACHINE_ARCH}/${MACHINE_ARCH}.h"' > ${.TARGET}
@@ -154,11 +162,6 @@ tm.h:
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"' >> ${.TARGET}
 .endif
-
-multilib.h: genmultilib
-	echo 'static char *multilib_raw[] = {"aout maout;", "elf !maout;", NULL};' > multilib.h
-	echo 'static char *multilib_matches_raw[] = {"maout maout;", "melf melf;", NULL};' >> multilib.h
-	echo 'static char *multilib_extra = "";' >> multilib.h
 
 #-----------------------------------------------------------------------
 # General things.
