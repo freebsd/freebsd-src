@@ -39,8 +39,6 @@
 
 #include "opt_user_ldt.h"
 
-#include <stddef.h>
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/assym.h>

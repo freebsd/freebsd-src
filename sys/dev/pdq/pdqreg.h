@@ -33,7 +33,6 @@
 #ifndef _PDQREG_H
 #define	_PDQREG_H
 
-#include <stddef.h>
 #if defined(PDQTEST) && !defined(PDQ_NDEBUG)
 #include <assert.h>
 #define	PDQ_ASSERT	assert
