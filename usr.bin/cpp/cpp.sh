@@ -36,14 +36,14 @@
 # SUCH DAMAGE.
 #
 #	From: @(#)cpp.sh	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: cpp.sh,v 1.2 1994/08/05 21:08:10 wollman Exp $
 #
 # Transitional front end to CCCP to make it behave like (Reiser) CCP:
 #	specifies -traditional
 #	doesn't search gcc-include
 #
 PATH=/usr/bin:/bin
-CPP=/usr/libexec/gcpp
+CPP=/usr/libexec/cpp
 ALST="-traditional -D__GNUC__ -$ "
 NSI=no
 OPTS=""
