@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.12 1996/10/28 11:34:47 phk Exp $
+ * $Id: kern_conf.c,v 1.12.2.1 1996/12/14 14:40:58 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -163,7 +163,11 @@ int TTYPE##_add(dev_t *descrip,						\
 ADDENTRY(bdevsw, nblkdev,bdevsw_ALLOCSTART)
 ADDENTRY(cdevsw, nchrdev,cdevsw_ALLOCSTART)
 
-/* Maybe the author might indicate what the f*@# tehis is for? */
+/*
+ * Since the bdevsw struct for a disk contains all the information
+ * needed to create a cdevsw entry, these two routines do that, rather
+ * than specifying it by hand.
+ */
 
 void
 cdevsw_make(struct bdevsw *from)
