@@ -44,7 +44,7 @@ options		WITNESS
 
 options		POWERMAC
 
-device		pci
+device		pci	1		#Unit count is for ahc/ahd
 device		loop
 device		ether
 device		miibus
