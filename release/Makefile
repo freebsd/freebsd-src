@@ -11,7 +11,7 @@
 #
 # Please note: the md(4) driver must be compiled into your kernel
 # or available as a kld(4)-style kernel module,
-# otherwise the target 'release.8' and possibly others will fail.
+# otherwise the target 'release.9' and possibly others will fail.
 #
 # Note:  "/some/dir" cannot reside on a filesystem mounted with
 # the "nodev" option, otherwise the chrooted "buildworld" will likely
@@ -432,6 +432,10 @@ release.1:
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
+	touch release.2
+
+# Build and install crypto, krb4 and krb5 distributions.
+release.3:
 	# Handle some grief caused by the munition braindeadness.
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${WORLD_FLAGS} -DNO_MAKEDB_RUN -DNOCRYPT \
@@ -450,10 +454,10 @@ release.2:
 	    buildworld distributeworld DISTDIR=${RD}/trees
 .endif
 	-chflags -R noschg ${RD}/trees
-	touch release.2
+	touch release.3
 
 # Make and install the generic kernel(s).
-release.3:
+release.4:
 .for kernel in ${KERNELS}
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_WERROR -DNO_MODULES \
@@ -469,11 +473,11 @@ release.3:
 	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
 	    reinstallkernel -DINSTALL_DEBUG \
 	    DESTDIR=${RD}/trees/base
-	touch release.3
+	touch release.4
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
-release.4:
+release.5:
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 .for j in ${CRUNCH_TARGETS}
@@ -489,12 +493,12 @@ release.4:
 	cd ${j}_crunch; ${WMAKE} -f ${j}_crunch.mk all
 	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
 .endfor
-	touch release.4
+	touch release.5
 
 #
 # --==## Fix up the distributions. ##==--
 #
-release.5:
+release.6:
 	# Create any "synthetic dists" now.
 	@for i in ${DISTRIBUTIONS}; do \
 		if [ -f ${.CURDIR}/scripts/$${i}-make.sh ]; then \
@@ -507,12 +511,12 @@ release.5:
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
-	touch release.5
+	touch release.6
 
 #
 # --==## Package up the tarballs from assembled trees ##==--
 #
-release.6:
+release.7:
 	rm -rf ${RD}/dists
 	mkdir -p ${RD}/dists
 	@for i in ${DISTRIBUTIONS} ; \
@@ -537,13 +541,13 @@ release.6:
 			cat krb5/CHECKSUM.MD5 >> crypto/CHECKSUM.MD5 && \
 			rm -r krb5; \
 		fi )
-	touch release.6
+	touch release.7
 
 
 #
 # --==## Make source dists ##==--
 #
-release.7:
+release.8:
 .if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
@@ -576,7 +580,7 @@ release.7:
 	(cd ${RD}/dists/src; rm -f CHECKSUM.MD5; md5 * > CHECKSUM.MD5)
 	@echo "src distribution is finished."
 .endif
-	touch release.7
+	touch release.8
 
 # Complete the bootfd
 #
@@ -591,7 +595,7 @@ release.7:
 #               +----------------------+---------------------------------+
 #
 
-release.8:
+release.9:
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
@@ -676,12 +680,12 @@ release.8:
 .endif
 	@rm mfsroot mfsroot.gz
 	@echo "Regular and MFS boot floppies made."
-	touch release.8
+	touch release.9
 
 #
 # --==## Create a fixit floppy ##==--
 #
-release.9:
+release.10:
 	@echo "Making fixit floppy."
 	@rm -rf ${RD}/fixitfd
 	@mkdir ${RD}/fixitfd
@@ -711,7 +715,7 @@ release.9:
 .else
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
 .endif
-	touch release.9
+	touch release.10
 
 #
 # --==## Setup a suitable ftp-area ##==--
@@ -873,8 +877,8 @@ doTARBALL:
 		   md5 * > CHECKSUM.MD5) \
 	)
 
-doRELEASE:  release.1 release.2 ${DOCREL} release.3 release.4 release.5 \
-		release.6 release.7 release.8 release.9
+doRELEASE:  release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
+		release.6 release.7 release.8 release.9 release.10
 	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
@@ -884,12 +888,12 @@ floppies:
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 
 boot.flp:
-	@rm -f release.4 release.8
-	@cd ${.CURDIR} && ${MAKE} release.4 release.8 CRUNCH_TARGETS=boot
+	@rm -f release.5 release.9
+	@cd ${.CURDIR} && ${MAKE} release.5 release.9 CRUNCH_TARGETS=boot
 
 fixit.flp:
-	@rm -f release.4 release.9
-	@cd ${.CURDIR} && ${MAKE} release.4 release.9 CRUNCH_TARGETS=fixit
+	@rm -f release.5 release.10
+	@cd ${.CURDIR} && ${MAKE} release.5 release.10 CRUNCH_TARGETS=fixit
 
 installCRUNCH:
 .if !defined(CRUNCH)
