@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)sys_term.c	8.4+1 (Berkeley) 5/30/95";
 #endif
 
 extern char *altlogin;
+int cleanopen(char *line);
+void scrub_env(void);
 
 #if defined(CRAY) || defined(__hpux)
 # define PARENT_DOES_UTMP
@@ -74,6 +76,8 @@ char	utmpf[] = "/etc/utmp";
 # else /* PARENT_DOES_UTMP */
 char	wtmpf[]	= "/etc/wtmp";
 # endif /* PARENT_DOES_UTMP */
+
+#include <libutil.h>
 
 # ifdef CRAY
 #include <tmpdir.h>
@@ -1074,7 +1078,7 @@ extern void utmp_sig_notify P((int));
  * that is necessary.  The return value is a file descriptor
  * for the slave side.
  */
-	int
+	void
 getptyslave()
 {
 	register int t = -1;
@@ -1397,7 +1401,6 @@ startslave(host, autologin, autoname)
 {
 	register int i;
 	long time();
-	char name[256];
 #ifdef	NEWINIT
 	extern char *ptyip;
 	struct init_request request;
@@ -1530,7 +1533,7 @@ init_env()
 	char **envp;
 
 	envp = envinit;
-	if (*envp = getenv("TZ"))
+	if ((*envp = getenv("TZ")))
 		*envp++ -= 3;
 #if	defined(CRAY) || defined(__hpux)
 	else
@@ -1555,7 +1558,6 @@ start_login(host, autologin, name)
 	int autologin;
 	char *name;
 {
-	register char *cp;
 	register char **argv;
 	char **addarg(), *user;
 	extern char *getenv();
@@ -1742,7 +1744,7 @@ start_login(host, autologin, name)
 # endif
 	} else
 #endif
-	if (user = getenv("USER")) {
+	if ((user = getenv("USER"))) {
 	if (strchr(user, '-')) {
 			syslog(LOG_ERR, "tried to pass user \"%s\" to login",
 			       user);
@@ -1834,6 +1836,7 @@ addarg(argv, val)
  * Remove a few things from the environment that
  * don't need to be there.
  */
+	void
 scrub_env()
 {
 	register char **cpp, **cpp2;

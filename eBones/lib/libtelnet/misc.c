@@ -32,10 +32,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "misc.h"
+#include "auth.h"
+#include "encrypt.h"
 
 char *RemoteHostName;
 char *LocalHostName;

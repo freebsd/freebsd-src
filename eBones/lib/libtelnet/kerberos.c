@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
+static const char sccsid[] = "@(#)kerberos.c	8.3 (Berkeley) 5/30/95";
 #endif /* not lint */
 
 /*
@@ -81,8 +81,6 @@ extern auth_debug_mode;
 
 static unsigned char str_data[1024] = { IAC, SB, TELOPT_AUTHENTICATION, 0,
 			  		AUTHTYPE_KERBEROS_V4, };
-static unsigned char str_name[1024] = { IAC, SB, TELOPT_AUTHENTICATION,
-					TELQUAL_NAME, };
 
 #define	KRB_AUTH	0		/* Authentication data follows */
 #define	KRB_REJECT	1		/* Rejected (reason might follow) */
@@ -162,9 +160,6 @@ kerberos4_send(ap)
 	Authenticator *ap;
 {
 	KTEXT_ST auth;
-#ifdef	ENCRYPTION
-	Block enckey;
-#endif	/* ENCRYPTION */
 	char instance[INST_SZ];
 	char *realm;
 	char *krb_realmofhost();
@@ -182,7 +177,7 @@ kerberos4_send(ap)
 
 	memset(instance, 0, sizeof(instance));
 
-	if (realm = krb_get_phost(RemoteHostName))
+	if ((realm = krb_get_phost(RemoteHostName)))
 		strncpy(instance, realm, sizeof(instance));
 
 	instance[sizeof(instance)-1] = '\0';
@@ -193,11 +188,11 @@ kerberos4_send(ap)
 		printf("Kerberos V4: no realm for %s\r\n", RemoteHostName);
 		return(0);
 	}
-	if (r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L)) {
+	if ((r = krb_mk_req(&auth, KRB_SERVICE_NAME, instance, realm, 0L))) {
 		printf("mk_req failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
-	if (r = krb_get_cred(KRB_SERVICE_NAME, instance, realm, &cred)) {
+	if ((r = krb_get_cred(KRB_SERVICE_NAME, instance, realm, &cred))) {
 		printf("get_cred failed: %s\r\n", krb_err_txt[r]);
 		return(0);
 	}
@@ -283,8 +278,8 @@ kerberos4_is(ap, data, cnt)
 			printf("\r\n");
 		}
 		instance[0] = '*'; instance[1] = 0;
-		if (r = krb_rd_req(&auth, KRB_SERVICE_NAME,
-				   instance, 0, &adat, "")) {
+		if ((r = krb_rd_req(&auth, KRB_SERVICE_NAME,
+				   instance, 0, &adat, ""))) {
 			if (auth_debug_mode)
 				printf("Kerberos failed him as %s\r\n", name);
 			Data(ap, KRB_REJECT, (void *)krb_err_txt[r], -1);
