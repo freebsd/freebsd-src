@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: apic_vector.s,v 1.33 1998/09/04 23:03:04 luoqi Exp $
+ *	$Id: apic_vector.s,v 1.34 1998/09/06 22:41:41 tegge Exp $
  */
 
 
@@ -682,7 +682,7 @@ _Xcpuast:
 	btrl	%eax, _checkstate_pending_ast
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
-	jz	2f
+	jnc	2f
 	movl	$1, CNAME(want_resched)
 	lock
 	incl	CNAME(want_resched_cnt)
