@@ -281,7 +281,7 @@ _worldtmp:
 	mkdir -p ${WORLDTMP}/usr/include/${_dir}
 .endfor
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.for _dir in lib include include/sys
+.for _dir in lib include/sys
 	mkdir -p ${WORLDTMP}/legacy/usr/${_dir}
 .endfor
 _legacy:
