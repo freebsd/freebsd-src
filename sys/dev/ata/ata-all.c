@@ -181,8 +181,7 @@ DRIVER_MODULE(ata, isa, ata_isa_driver, ata_devclass, 0, 0);
 static const char *
 ata_pcimatch(device_t dev)
 {
-    if (pci_get_class(dev) != PCIC_STORAGE ||
-	(pci_get_subclass(dev) != PCIS_STORAGE_IDE))
+    if (pci_get_class(dev) != PCIC_STORAGE)
 	return NULL;
 
     switch (pci_get_devid(dev)) {
