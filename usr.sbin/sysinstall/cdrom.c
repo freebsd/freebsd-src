@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.29 1996/12/12 08:33:35 jkh Exp $
+ * $Id: cdrom.c,v 1.30 1996/12/12 16:55:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -107,7 +107,8 @@ mediaInitCDROM(Device *dev)
 	cdromMounted = CD_ALREADY_MOUNTED;
     if (!dontRead && (DITEM_STATUS(attr_parse_file(cd_attr, "/cdrom/cdrom.inf")) == DITEM_FAILURE ||
 	!(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME)))) {
-	unmount("/cdrom", MNT_FORCE);
+	if (cdromMounted != CD_ALREADY_MOUNTED)
+	    unmount("/cdrom", MNT_FORCE);
 	if (!cp)
 	    msgConfirm("Unable to find a /cdrom/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
@@ -120,7 +121,8 @@ mediaInitCDROM(Device *dev)
 		       "(%s).\n\n"
 		       "If this is intentional, then please visit the Options editor\n"
 		       "to set the boot floppy version string to match that of the CD\n"
-		       "before selecting it as an installation media to avoid this warning", cp, variable_get(VAR_RELNAME));
+		       "before selecting it as an installation media.", cp, variable_get(VAR_RELNAME));
+	return FALSE;
     }
     msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
     return TRUE;
