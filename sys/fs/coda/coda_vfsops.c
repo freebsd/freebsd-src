@@ -297,9 +297,6 @@ coda_root(vfsp, vpp)
     ViceFid VFid;
  
     ENTRY;
-
-
-    ENTRY;
     MARK_ENTRY(CODA_ROOT_STATS);
     result = NULL;
     
