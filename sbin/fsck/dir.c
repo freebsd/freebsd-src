@@ -52,7 +52,7 @@ static const char rcsid[] =
 #include "fsck.h"
 
 char	*lfname = "lost+found";
-int	lfmode = 01777;
+int	lfmode = 0700;
 struct	dirtemplate emptydir = { 0, DIRBLKSIZ };
 struct	dirtemplate dirhead = {
 	0, 12, DT_DIR, 1, ".",
