@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.17 1997/03/11 12:31:56 peter Exp $";
+	"$Id: mount_nfs.c,v 1.18 1997/03/29 03:32:39 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -139,7 +139,7 @@ struct nfs_args nfsdefargs = {
 	0,
 	(u_char *)0,
 	0,
-	0,
+	NFSMNT_RESVPORT,
 	NFS_WSIZE,
 	NFS_RSIZE,
 	NFS_READDIRSIZE,
