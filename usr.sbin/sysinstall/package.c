@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.21 1995/10/27 02:12:58 jkh Exp $
+ * $Id: package.c,v 1.22 1995/10/27 03:07:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,6 +83,12 @@ package_extract(Device *dev, char *name)
     }
 
     ret = RET_FAIL;
+    /* Make a couple of paranoid locations for temp files to live if user specified none */
+    if (!variable_get("PKG_TMPDIR")) {
+	Mkdir("/usr/tmp", NULL);
+	Mkdir("/var/tmp", NULL);
+    }
+
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     msgNotify("Adding %s\nfrom %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
@@ -94,8 +100,11 @@ package_extract(Device *dev, char *name)
 		    if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
 				!strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
 			dialog_clear();
-			msgConfirm("An error occurred while trying to pkg_add %s.\n"
-				   "Please check debugging screen for possible further details.", name);
+			if (!variable_get(VAR_NO_CONFIRM))
+			    msgConfirm("An error occurred while trying to pkg_add %s.\n"
+				       "Please check debugging screen for possible further details.", name);
+			else
+			    msgNotify("An error occurred while trying to pkg_add %s.", name);
 		    }
 		    else {
 			msgNotify("Package %s added successfully!", name);
@@ -104,18 +113,24 @@ package_extract(Device *dev, char *name)
 		}
 		else {
 		    dialog_clear();
-		    msgConfirm("The package specified (%s) has no CONTENTS file.  This means\n"
-			       "that there was either a media error of some sort or the package\n"
-			       "file itself is corrupted.\n"
-			       "You may wish to look into this and try again.", name);
+		    if (!variable_get(VAR_NO_CONFIRM))
+			msgConfirm("The package specified (%s) has no CONTENTS file.  This means\n"
+				   "that there was either a media error of some sort or the package\n"
+				   "file itself is corrupted.\n"
+				   "You may wish to look into this and try again.", name);
+		    else
+			msgNotify("The package specified (%s) has no CONTENTS file.  Skipping.", name);
 		}
 	    }
 	    else {
 		ret = RET_FAIL;
-		msgConfirm("Unable to extract the contents of package %s.  This means\n"
-			   "that there was either a media error of some sort or the package\n"
-			   "file itself is corrupted.\n"
-			   "You may wish to look into this and try again.", name);
+		if (!variable_get(VAR_NO_CONFIRM))
+		    msgConfirm("Unable to extract the contents of package %s.  This means\n"
+			       "that there was either a media error of some sort or the package\n"
+			       "file itself is corrupted.\n"
+			       "You may wish to look into this and try again.", name);
+		else
+		    msgNotify("Unable to extract the contents of package %s.  Skipping.", name);
 	    }
 	    if (chdir(where) == -1)
 		msgFatal("Unable to get back to where I was before, Jojo! (That was: %s)", where);

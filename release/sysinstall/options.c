@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.25 1995/10/26 08:56:06 jkh Exp $
+ * $Id: options.c,v 1.26 1995/11/03 12:02:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -52,7 +52,7 @@ varCheck(Option opt)
     if (opt.aux)
 	cp = variable_get((char *)opt.aux);
     if (!cp)
-	return "NO";
+	return "<not set>";
     return cp;
 }
 
@@ -105,6 +105,7 @@ mediaCheck(Option opt)
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
 #define RETRY_PROMPT	"Please specify the number of times to retry an FTP request:"
+#define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 
 static Option Options[] = {
 { "NFS Secure",		"NFS server talks only on a secure port",
@@ -133,6 +134,8 @@ static Option Options[] = {
       OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
+{ "Package Temp",	"The directory where package temporary files should go",
+      OPT_IS_VAR,	PKG_PROMPT,		"PKG_TMPDIR",		varCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
       OPT_IS_FUNC,	installVarDefaults,	0,			resetLogo	},
 { NULL },

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.8 1995/10/27 03:59:31 jkh Exp $
+ * $Id: doc.c,v 1.9 1995/11/04 08:47:22 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -23,7 +23,7 @@ docBrowser(char *junk)
 {
     char *browser = variable_get(VAR_BROWSER_PACKAGE);
 
-    if (!strstr(variable_get(SYSTEM_STATE), "install")) {
+    if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
 	msgConfirm("This option may only be used after the system is installed, sorry!");
 	return RET_FAIL;
     }

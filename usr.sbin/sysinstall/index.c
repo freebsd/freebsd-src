@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.15 1995/10/22 01:32:44 jkh Exp $
+ * $Id: index.c,v 1.17 1995/10/22 17:39:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -270,11 +270,13 @@ index_init(PkgNodePtr top, PkgNodePtr plist)
     top->name = "Package Selection";
     top->type = PLACE;
     top->desc = fetch_desc(top->name);
+    top->data = NULL;
 
     plist->next = plist->kids = NULL;
     plist->name = "Package Targets";
     plist->type = PLACE;
     plist->desc = fetch_desc(plist->name);
+    plist->data = NULL;
 }
 
 void
@@ -439,7 +441,6 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     char result[127];
     Boolean hasPackages;
 
-    curr = max = 0;
     hasPackages = FALSE;
     nitems = NULL;
 
@@ -464,6 +465,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     dialog_clear();
     while (1) {
 	n = 0;
+	curr = max = 0;
 	kp = top->kids;
 	if (!hasPackages && kp && kp->name && plist) {
 	    nitems = item_add_pair(nitems, "UP", "<RETURN TO PREVIOUS MENU>", &curr, &max);
@@ -491,18 +493,17 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	else	/* It's a categories menu */
 	    rval = dialog_menu(top->name, top->desc, -1, -1, n > MAX_MENU ? MAX_MENU : n, n,
 			       (unsigned char **)nitems, result, pos, scroll);
-	items_free(nitems, &curr, &max);
 	if (!rval && plist && strcmp(result, "UP")) {
 	    for (kp = top->kids; kp; kp = kp->next) {
 		if (kp->type == PACKAGE) {
 		    sp = index_search(plist, kp->name, NULL);
 		    if (is_selected_in(kp->name, result)) {
 			if (!sp) {
-			    PkgNodePtr n = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
+			    PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
 
-			    *n = *kp;
-			    n->next = plist->kids;
-			    plist->kids = n;
+			    *np = *kp;
+			    np->next = plist->kids;
+			    plist->kids = np;
 			    standout();
 			    mvprintw(23, 0, "Selected packages were added to selection list\n", kp->name);
 			    standend();
@@ -547,6 +548,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	}
 	else {
 	    dialog_clear();
+	    items_free(nitems, &curr, &max);
 	    return rval ? RET_FAIL : RET_SUCCESS;
 	}
     }
