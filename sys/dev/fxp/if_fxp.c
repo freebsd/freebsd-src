@@ -170,9 +170,6 @@ static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
 static void		fxp_intr(void *xsc);
-static __inline void	fxp_intr_body(struct fxp_softc *sc,
-				u_int8_t statack, int count);
-
 static void 		fxp_init(void *xsc);
 static void 		fxp_tick(void *xsc);
 static void		fxp_powerstate_d0(device_t dev);
@@ -1160,6 +1157,7 @@ static void
 fxp_intr(void *xsc)
 {
 	struct fxp_softc *sc = xsc;
+	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
 
 	if (sc->suspended) {
@@ -1180,14 +1178,6 @@ fxp_intr(void *xsc)
 		 * First ACK all the interrupts in this pass.
 		 */
 		CSR_WRITE_1(sc, FXP_CSR_SCB_STATACK, statack);
-		fxp_intr_body(sc, statack, -1);
-	}
-}
-
-static __inline void
-fxp_intr_body(struct fxp_softc *sc, u_int8_t statack, int count)
-{
-	struct ifnet *ifp = &sc->sc_if;
 
 		/*
 		 * Free any finished transmit mbuf chains.
@@ -1295,6 +1285,7 @@ rcvloop:
 				fxp_scb_cmd(sc, FXP_SCB_COMMAND_RU_START);
 			}
 		}
+	}
 }
 
 /*
