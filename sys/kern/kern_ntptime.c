@@ -281,7 +281,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		return (error);
 	s = splclock();
 	if (modes & MOD_FREQUENCY) {
-		L_LINT(time_freq, ntv.freq / SCALE_PPM);
+		time_freq = (ntv.freq * 1000LL) << 16;
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
 #endif /* PPS_SYNC */
