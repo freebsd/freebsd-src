@@ -401,6 +401,12 @@ acd_describe(struct acd_softc *cdp)
 	else if (cdp->cap.eject)
 	    printf("ejectable");
 
+	if (cdp->cap.lock)
+	    printf(cdp->cap.locked ? ", locked" : ", unlocked");
+	if (cdp->cap.prevent)
+	    printf(", lock protected");
+	printf("\n");
+
 	if (cdp->cap.mech != MST_MECH_CHANGER) {
 	    ata_printf(cdp->atp->controller, cdp->atp->unit, "Medium: ");
 	    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
@@ -448,12 +454,8 @@ acd_describe(struct acd_softc *cdp)
 		    printf("unknown (0x%x)", cdp->cap.medium_type); break;
 		}
 	    }
+	    printf("\n");
 	}
-	if (cdp->cap.lock)
-	    printf(cdp->cap.locked ? ", locked" : ", unlocked");
-	if (cdp->cap.prevent)
-	    printf(", lock protected");
-	printf("\n");
     }
     else {
 	char chg[32];
@@ -1686,7 +1688,7 @@ acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
     
     case DVD_SEND_RPC:
 	length = 8;
-	d.data[0] = ai.region;
+	d.data[0] = ai->region;
 	break;
 
     default:
