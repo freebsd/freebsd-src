@@ -1179,6 +1179,7 @@ ffs_vget(mp, ino, flags, vpp)
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
+	fs = ump->um_fs;
 
 	/*
 	 * We do not lock vnode creation as it is believed to be too
@@ -1201,7 +1202,10 @@ ffs_vget(mp, ino, flags, vpp)
 	ip = uma_zalloc(uma_inode, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
-	error = getnewvnode("ufs", mp, &ffs_vnodeops, &vp);
+	if (fs->fs_magic == FS_UFS1_MAGIC)
+		error = getnewvnode("ufs", mp, &ffs_vnodeops1, &vp);
+	else
+		error = getnewvnode("ufs", mp, &ffs_vnodeops2, &vp);
 	if (error) {
 		*vpp = NULL;
 		uma_zfree(uma_inode, ip);
@@ -1211,7 +1215,6 @@ ffs_vget(mp, ino, flags, vpp)
 	/*
 	 * FFS supports recursive locking.
 	 */
-	fs = ump->um_fs;
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_data = ip;
 	vp->v_bufobj.bo_bsize = fs->fs_bsize;
@@ -1281,7 +1284,10 @@ ffs_vget(mp, ino, flags, vpp)
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	error = ufs_vinit(mp, &ffs_fifoops, &vp);
+	if (ip->i_ump->um_fstype == UFS1)
+		error = ufs_vinit(mp, &ffs_fifoops1, &vp);
+	else
+		error = ufs_vinit(mp, &ffs_fifoops2, &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;
