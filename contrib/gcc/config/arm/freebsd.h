@@ -1,27 +1,45 @@
 /* Definitions for StrongARM running FreeBSD using the ELF format
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2004 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to
+   the Free Software Foundation, 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
+
+#undef  SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS \
+  { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
 
 #undef  SUBTARGET_CPP_SPEC
 #define SUBTARGET_CPP_SPEC FBSD_CPP_SPEC
+
+#undef	LINK_SPEC
+#define LINK_SPEC "							\
+  %{p:%nconsider using `-pg' instead of `-p' with gprof(1) }		\
+  %{Wl,*:%*}								\
+  %{v:-V}								\
+  %{assert*} %{R*} %{rpath*} %{defsym*}					\
+  %{shared:-Bshareable %{h*} %{soname*}}				\
+  %{!shared:								\
+    %{!static:								\
+      %{rdynamic:-export-dynamic}					\
+      %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
+    %{static:-Bstatic}}							\
+  %{symbolic:-Bsymbolic}"
 
 
 /************************[  Target stuff  ]***********************************/
@@ -46,9 +64,6 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  SUBTARGET_CPU_DEFAULT
 #define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
-
-#undef  ARM_OS_NAME
-#define ARM_OS_NAME "FreeBSD"
 
 #undef  TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");

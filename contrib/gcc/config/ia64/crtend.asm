@@ -33,7 +33,10 @@ __DTOR_END__:
 __JCR_END__:
 	data8	0
 
-#ifndef HAVE_INITFINI_ARRAY
+#ifdef HAVE_INITFINI_ARRAY
+	.global __do_global_ctors_aux
+	.hidden	__do_global_ctors_aux
+#else /* !HAVE_INITFINI_ARRAY */
 /*
  * Fragment of the ELF _init routine that invokes our dtor cleanup.
  *
@@ -49,7 +52,7 @@ __JCR_END__:
  */
 .section .init,"ax","progbits"
 	{ .mlx
-	  movl r2 = @pcrel(__do_global_ctors_aux# - 16)
+	  movl r2 = @pcrel(__do_global_ctors_aux - 16)
 	}
 	{ .mii
 	  mov r3 = ip
@@ -65,63 +68,48 @@ __JCR_END__:
 #endif /* !HAVE_INITFINI_ARRAY */
 
 .text
-	.align 16
-#ifdef HAVE_INITFINI_ARRAY
-	/* This is referenced from crtbegin.o.  */
-	.globl __do_global_ctors_aux#
-	.type __do_global_ctors_aux#,@function
-	.hidden __do_global_ctors_aux#
-#endif
-	.proc __do_global_ctors_aux#
+	.align 32
+	.proc __do_global_ctors_aux
 __do_global_ctors_aux:
+	.prologue
 	/*
 		for (loc0 = __CTOR_END__-1; *p != -1; --p)
 		  (*p) ();
 	*/
-	{ .mlx
-	  alloc loc4 = ar.pfs, 0, 5, 0, 0
-	  movl loc0 = @gprel(__CTOR_END__# - 8)
-	  ;;
-	}
-	{ .mmi
-	  add loc0 = loc0, gp
-	  mov loc1 = b0
-	  ;;
-	}
-	{
-	  .mmi
-	  ld8 loc3 = [loc0], -8
-	  mov loc2 = gp
-	  ;;
-	}
-	{ .mfb
-	  cmp.eq p6, p0 = -1, loc3
-(p6)	  br.cond.spnt.few 2f
-	}
-0:
-	{ .mmi
-	  ld8 r15 = [loc3], 8
-	  ;;
-	  ld8 gp = [loc3]
-	  mov b6 = r15
-	}
-	{ .mfb
-	  ld8 loc3 = [loc0], -8
-	  br.call.sptk.many b0 = b6
-	  ;;
-	}
-	{ .mfb
-	  cmp.ne p6, p0 = -1, loc3
-(p6)	  br.cond.sptk.few 0b
-	}
-2:
-	{ .mii
-	  mov gp = loc2
-	  mov b0 = loc1
-	  mov ar.pfs = loc4
-	}
-	{ .bbb
-	  br.ret.sptk.many b0
-	  ;;
-	}
-	.endp __do_global_ctors_aux#
+	.save ar.pfs, r34
+	alloc loc2 = ar.pfs, 0, 5, 0, 0
+	movl loc0 = @gprel(__CTOR_END__ - 8)
+	;;
+
+	add loc0 = loc0, gp
+	;;
+	ld8 loc3 = [loc0], -8
+	.save rp, loc1
+	mov loc1 = rp
+	.body
+	;;
+
+	cmp.eq p6, p0 = -1, loc3
+	mov loc4 = gp
+(p6)	br.cond.spnt.few .exit
+
+.loop:	ld8 r15 = [loc3], 8
+	;;
+	ld8 gp = [loc3]
+	mov b6 = r15
+
+	ld8 loc3 = [loc0], -8
+	nop 0
+	br.call.sptk.many rp = b6
+	;;
+
+	cmp.ne p6, p0 = -1, loc3
+	nop 0
+(p6)	br.cond.sptk.few .loop
+
+.exit:	mov gp = loc3
+	mov rp = loc1
+	mov ar.pfs = loc2
+
+	br.ret.sptk.many rp
+	.endp __do_global_ctors_aux

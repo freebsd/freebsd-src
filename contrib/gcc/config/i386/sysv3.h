@@ -1,20 +1,20 @@
 /* Definitions for Intel 386 running system V.
    Copyright (C) 1988, 1996, 2000, 2002 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -45,11 +45,6 @@ Boston, MA 02111-1307, USA.  */
 /* Writing `int' for a bit-field forces int alignment for the structure.  */
 
 #define PCC_BITFIELD_TYPE_MATTERS 1
-
-/* Don't write a `.optim' pseudo; this assembler doesn't handle them.  */
-
-#undef ASM_FILE_START_1
-#define ASM_FILE_START_1(FILE)
 
 /* We want to be able to get DBX debugging information via -gstabs.  */
 
@@ -89,7 +84,7 @@ Boston, MA 02111-1307, USA.  */
       bss_section ();					\
     ASM_OUTPUT_ALIGN ((FILE), align == -1 ? 2 : align);	\
     ASM_OUTPUT_LABEL ((FILE), (NAME));			\
-    fprintf ((FILE), "\t.set .,.+%u\n", (ROUNDED));	\
+    fprintf ((FILE), "\t.set .,.+%u\n", (int)(ROUNDED));\
   } while (0)
 
 /* Define a few machine-specific details of the implementation of

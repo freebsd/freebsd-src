@@ -35,19 +35,6 @@ extern void __clear_cache (char *, char *);
 extern void __eprintf (const char *, const char *, unsigned int, const char *)
   __attribute__ ((__noreturn__));
 
-struct bb;
-extern void __bb_exit_func (void);
-extern void __bb_init_func (struct bb *);
-extern void __bb_fork_func (void);
-
-#if LONG_TYPE_SIZE == GCOV_TYPE_SIZE
-typedef long gcov_type;
-#else
-typedef long long gcov_type;
-#endif
-
-extern gcov_type *__bb_find_arc_counters (void);
-
 struct exception_descriptor;
 extern short int __get_eh_table_language (struct exception_descriptor *);
 extern short int __get_eh_table_version (struct exception_descriptor *);
@@ -82,15 +69,15 @@ typedef unsigned int UQItype	__attribute__ ((mode (QI)));
 typedef		 int HItype	__attribute__ ((mode (HI)));
 typedef unsigned int UHItype	__attribute__ ((mode (HI)));
 #if MIN_UNITS_PER_WORD > 1
-/* These typedefs are usually forbidden on dsp's with UNITS_PER_WORD 1 */
+/* These typedefs are usually forbidden on dsp's with UNITS_PER_WORD 1.  */
 typedef 	 int SItype	__attribute__ ((mode (SI)));
 typedef unsigned int USItype	__attribute__ ((mode (SI)));
 #if LONG_LONG_TYPE_SIZE > 32
-/* These typedefs are usually forbidden on archs with UNITS_PER_WORD 2 */
+/* These typedefs are usually forbidden on archs with UNITS_PER_WORD 2.  */
 typedef		 int DItype	__attribute__ ((mode (DI)));
 typedef unsigned int UDItype	__attribute__ ((mode (DI)));
 #if MIN_UNITS_PER_WORD > 4
-/* These typedefs are usually forbidden on archs with UNITS_PER_WORD 4 */
+/* These typedefs are usually forbidden on archs with UNITS_PER_WORD 4.  */
 typedef		 int TItype	__attribute__ ((mode (TI)));
 typedef unsigned int UTItype	__attribute__ ((mode (TI)));
 #endif
@@ -203,7 +190,6 @@ typedef int word_type __attribute__ ((mode (__word__)));
 #define __lshrdi3	__NDW(lshr,3)
 #define __ashldi3	__NDW(ashl,3)
 #define __ashrdi3	__NDW(ashr,3)
-#define __ffsdi2	__NDW(ffs,2)
 #define __cmpdi2	__NDW(cmp,2)
 #define __ucmpdi2	__NDW(ucmp,2)
 #define __udivmoddi4	__NDW(udivmod,4)
@@ -223,6 +209,17 @@ typedef int word_type __attribute__ ((mode (__word__)));
 #define __fixunstfSI	__NW(fixunstf,)
 #define __fixunsdfSI	__NW(fixunsdf,)
 #define __fixunssfSI	__NW(fixunssf,)
+
+#define __ffsSI2	__NW(ffs,2)
+#define __clzSI2	__NW(clz,2)
+#define __ctzSI2	__NW(ctz,2)
+#define __popcountSI2	__NW(popcount,2)
+#define __paritySI2	__NW(parity,2)
+#define __ffsDI2	__NDW(ffs,2)
+#define __clzDI2	__NDW(clz,2)
+#define __ctzDI2	__NDW(ctz,2)
+#define __popcountDI2	__NDW(popcount,2)
+#define __parityDI2	__NDW(parity,2)
 
 extern DWtype __muldi3 (DWtype, DWtype);
 extern DWtype __divdi3 (DWtype, DWtype);
@@ -244,7 +241,6 @@ extern DWtype __negdi2 (DWtype);
 extern DWtype __lshrdi3 (DWtype, word_type);
 extern DWtype __ashldi3 (DWtype, word_type);
 extern DWtype __ashrdi3 (DWtype, word_type);
-extern DWtype __ffsdi2 (DWtype);
 
 /* __udiv_w_sdiv is static inline when building other libgcc2 portions.  */
 #if (!defined(L_udivdi3) && !defined(L_divdi3) && \

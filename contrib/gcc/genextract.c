@@ -1,6 +1,6 @@
 /* Generate code from machine description to extract operands from insn as rtl.
-   Copyright (C) 1987, 1991, 1992, 1993, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1992, 1993, 1997, 1998, 1999, 2000, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,8 +20,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "errors.h"
 #include "insn-config.h"
@@ -29,7 +31,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 
 /* This structure contains all the information needed to describe one
-   set of extractions methods.  Each method may be used by more than 
+   set of extractions methods.  Each method may be used by more than
    one pattern if the operands are in the same place.
 
    The string for each operand describes that path to the operand and
@@ -93,14 +95,13 @@ static int dupnums[MAX_DUP_OPERANDS];
 
 static struct code_ptr *peepholes;
 
-static void gen_insn PARAMS ((rtx));
-static void walk_rtx PARAMS ((rtx, const char *));
-static void print_path PARAMS ((const char *));
-static void record_insn_name PARAMS ((int, const char *));
+static void gen_insn (rtx);
+static void walk_rtx (rtx, const char *);
+static void print_path (const char *);
+static void record_insn_name (int, const char *);
 
 static void
-gen_insn (insn)
-     rtx insn;
+gen_insn (rtx insn)
 {
   int i;
   struct extraction *p;
@@ -128,7 +129,7 @@ gen_insn (insn)
 	walk_rtx (XVECEXP (insn, 1, i), path);
       }
 
-  link = (struct code_ptr *) xmalloc (sizeof (struct code_ptr));
+  link = xmalloc (sizeof (struct code_ptr));
   link->insn_code = insn_code_number;
 
   /* See if we find something that already had this extraction method.  */
@@ -163,7 +164,7 @@ gen_insn (insn)
 
   /* Otherwise, make a new extraction method.  */
 
-  p = (struct extraction *) xmalloc (sizeof (struct extraction));
+  p = xmalloc (sizeof (struct extraction));
   p->op_count = op_count;
   p->dup_count = dup_count;
   p->next = extractions;
@@ -179,9 +180,7 @@ gen_insn (insn)
 }
 
 static void
-walk_rtx (x, path)
-     rtx x;
-     const char *path;
+walk_rtx (rtx x, const char *path)
 {
   RTX_CODE code;
   int i;
@@ -220,11 +219,11 @@ walk_rtx (x, path)
       duplocs[dup_count] = xstrdup (path);
       dupnums[dup_count] = XINT (x, 0);
       dup_count++;
-      
-      newpath = (char *) xmalloc (depth + 2);
+
+      newpath = xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
-      
+
       for (i = XVECLEN (x, 1) - 1; i >= 0; i--)
         {
 	  newpath[depth] = (code == MATCH_OP_DUP ? '0' : 'a') + i;
@@ -232,12 +231,12 @@ walk_rtx (x, path)
         }
       free (newpath);
       return;
-      
+
     case MATCH_OPERATOR:
       oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
-      newpath = (char *) xmalloc (depth + 2);
+      newpath = xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
 
@@ -253,7 +252,7 @@ walk_rtx (x, path)
       oplocs[XINT (x, 0)] = xstrdup (path);
       op_count = MAX (op_count, XINT (x, 0) + 1);
 
-      newpath = (char *) xmalloc (depth + 2);
+      newpath = xmalloc (depth + 2);
       strcpy (newpath, path);
       newpath[depth + 1] = 0;
 
@@ -273,7 +272,7 @@ walk_rtx (x, path)
       break;
     }
 
-  newpath = (char *) xmalloc (depth + 2);
+  newpath = xmalloc (depth + 2);
   strcpy (newpath, path);
   newpath[depth + 1] = 0;
 
@@ -304,8 +303,7 @@ walk_rtx (x, path)
    evaluate to the rtx at that point.  */
 
 static void
-print_path (path)
-     const char *path;
+print_path (const char *path)
 {
   int len = strlen (path);
   int i;
@@ -321,7 +319,7 @@ print_path (path)
   /* We first write out the operations (XEXP or XVECEXP) in reverse
      order, then write "insn", then the indices in forward order.  */
 
-  for (i = len - 1; i >=0 ; i--)
+  for (i = len - 1; i >= 0 ; i--)
     {
       if (ISLOWER(path[i]))
 	printf ("XVECEXP (");
@@ -330,7 +328,7 @@ print_path (path)
       else
 	abort ();
     }
-  
+
   printf ("pat");
 
   for (i = 0; i < len; i++)
@@ -344,12 +342,9 @@ print_path (path)
     }
 }
 
-extern int main PARAMS ((int, char **));
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   rtx desc;
   int i;
@@ -375,6 +370,8 @@ from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
   printf ("#include \"system.h\"\n");
+  printf ("#include \"coretypes.h\"\n");
+  printf ("#include \"tm.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"insn-config.h\"\n");
   printf ("#include \"recog.h\"\n");
@@ -384,15 +381,16 @@ from the machine description file `md'.  */\n\n");
      of any missing operand whose numbers are skipped by a given pattern.  */
   printf ("static rtx junk ATTRIBUTE_UNUSED;\n");
 
-  printf ("void\ninsn_extract (insn)\n");
-  printf ("     rtx insn;\n");
+  printf ("void\ninsn_extract (rtx insn)\n");
   printf ("{\n");
   printf ("  rtx *ro = recog_data.operand;\n");
   printf ("  rtx **ro_loc = recog_data.operand_loc;\n");
   printf ("  rtx pat = PATTERN (insn);\n");
   printf ("  int i ATTRIBUTE_UNUSED;\n\n");
-  printf ("  memset (ro, 0, sizeof (*ro) * MAX_RECOG_OPERANDS);\n");
-  printf ("  memset (ro_loc, 0, sizeof (*ro_loc) * MAX_RECOG_OPERANDS);\n");
+#ifdef ENABLE_CHECKING
+  printf ("  memset (ro, 0xab, sizeof (*ro) * MAX_RECOG_OPERANDS);\n");
+  printf ("  memset (ro_loc, 0xab, sizeof (*ro_loc) * MAX_RECOG_OPERANDS);\n");
+#endif
   printf ("  switch (INSN_CODE (insn))\n");
   printf ("    {\n");
   printf ("    case -1:\n");
@@ -416,8 +414,7 @@ from the machine description file `md'.  */\n\n");
 
       else if (GET_CODE (desc) == DEFINE_PEEPHOLE)
 	{
-	  struct code_ptr *link
-	    = (struct code_ptr *) xmalloc (sizeof (struct code_ptr));
+	  struct code_ptr *link = xmalloc (sizeof (struct code_ptr));
 
 	  link->insn_code = insn_code_number;
 	  link->next = peepholes;
@@ -454,7 +451,7 @@ from the machine description file `md'.  */\n\n");
 	  else
 	    printf ("    case %d:\n", i);
 	}
-      
+
       for (i = 0; i < p->op_count; i++)
 	{
 	  if (p->oplocs[i] == 0)
@@ -494,8 +491,7 @@ from the machine description file `md'.  */\n\n");
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
 const char *
-get_insn_name (code)
-     int code ATTRIBUTE_UNUSED;
+get_insn_name (int code ATTRIBUTE_UNUSED)
 {
   if (code < insn_name_ptr_size)
     return insn_name_ptr[code];
@@ -504,9 +500,7 @@ get_insn_name (code)
 }
 
 static void
-record_insn_name (code, name)
-     int code;
-     const char *name;
+record_insn_name (int code, const char *name)
 {
   static const char *last_real_name = "insn";
   static int last_real_code = 0;
@@ -516,9 +510,8 @@ record_insn_name (code, name)
     {
       int new_size;
       new_size = (insn_name_ptr_size ? insn_name_ptr_size * 2 : 512);
-      insn_name_ptr =
-	(char **) xrealloc (insn_name_ptr, sizeof(char *) * new_size);
-      memset (insn_name_ptr + insn_name_ptr_size, 0, 
+      insn_name_ptr = xrealloc (insn_name_ptr, sizeof(char *) * new_size);
+      memset (insn_name_ptr + insn_name_ptr_size, 0,
 	      sizeof(char *) * (new_size - insn_name_ptr_size));
       insn_name_ptr_size = new_size;
     }
@@ -533,6 +526,6 @@ record_insn_name (code, name)
       last_real_name = new = xstrdup (name);
       last_real_code = code;
     }
-  
+
   insn_name_ptr[code] = new;
-}  
+}

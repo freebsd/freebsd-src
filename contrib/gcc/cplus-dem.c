@@ -1,6 +1,6 @@
 /* Demangler for GNU C++
    Copyright 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
    Written by James Clark (jjc@jclark.uucp)
    Rewritten by Fred Fish (fnf@cygnus.com) for ARM and Lucid demangling
    Modified by Satish Pai (pai@apollo.hp.com) for HP demangling
@@ -1073,7 +1073,7 @@ ada_demangle (mangled, option)
 /* This function performs most of what cplus_demangle use to do, but
    to be able to demangle a name with a B, K or n code, we need to
    have a longer term memory of what types have been seen. The original
-   now intializes and cleans up the squangle code info, while internal
+   now initializes and cleans up the squangle code info, while internal
    calls go directly to this routine to avoid resetting that info. */
 
 static char *
@@ -1438,6 +1438,7 @@ demangle_signature (work, mangled, declp)
 	      {
 		string_append (&s, SCOPE_STRING (work));
 		string_prepends (declp, &s);
+		string_delete (&s);
 	      }
 	    oldmangled = NULL;
 	    expect_func = 1;
@@ -1517,7 +1518,6 @@ demangle_signature (work, mangled, declp)
 	    {
 	      /* Read the return type. */
 	      string return_type;
-	      string_init (&return_type);
 
 	      (*mangled)++;
 	      success = do_type (work, mangled, &return_type);
@@ -1797,31 +1797,34 @@ demangle_integral_value (work, mangled, s)
 
       success = 0;
 
-      /* Negative numbers are indicated with a leading `m'.  */
-      if (**mangled == 'm')
-	{
-	  string_appendn (s, "-", 1);
-	  (*mangled)++;
-	}
-      else if (mangled[0][0] == '_' && mangled[0][1] == 'm')
-	{
-	  /* Since consume_count_with_underscores does not handle the
-	     `m'-prefix we must do it here, using consume_count and
-	     adjusting underscores: we have to consume the underscore
-	     matching the prepended one.  */
-	  multidigit_without_leading_underscore = 1;
-	  string_appendn (s, "-", 1);
-	  (*mangled) += 2;
-	}
-      else if (**mangled == '_')
-	{
-	  /* Do not consume a following underscore;
-	     multidigit_without_leading_underscore will consume what should be
-	     consumed.  */
-	  leave_following_underscore = 1;
+      if (**mangled == '_')
+        {
+	  if (mangled[0][1] == 'm')
+	    {
+	      /* Since consume_count_with_underscores does not handle the
+		 `m'-prefix we must do it here, using consume_count and
+		 adjusting underscores: we have to consume the underscore
+		 matching the prepended one.  */
+	      multidigit_without_leading_underscore = 1;
+	      string_appendn (s, "-", 1);
+	      (*mangled) += 2;
+	    }
+	  else
+	    {
+	      /* Do not consume a following underscore;
+	         consume_count_with_underscores will consume what
+	         should be consumed.  */
+	      leave_following_underscore = 1;
+	    }
 	}
       else
 	{
+	  /* Negative numbers are indicated with a leading `m'.  */
+	  if (**mangled == 'm')
+	  {
+	    string_appendn (s, "-", 1);
+	    (*mangled)++;
+	  }
 	  /* Since consume_count_with_underscores does not handle
 	     multi-digit numbers that do not start with an underscore,
 	     and this number can be an integer template parameter,
@@ -1862,7 +1865,7 @@ demangle_integral_value (work, mangled, s)
 	  /* All is well.  */
 	  success = 1;
 	}
-    }
+      }
 
   return success;
 }
@@ -2040,13 +2043,10 @@ demangle_template (work, mangled, tname, trawname, is_type, remember)
   const char *start;
   int is_java_array = 0;
   string temp;
-  int bindex = 0;
 
   (*mangled)++;
   if (is_type)
     {
-      if (remember)
-	bindex = register_Btype (work);
       start = *mangled;
       /* get template name */
       if (**mangled == 'z')
@@ -2223,7 +2223,10 @@ demangle_template (work, mangled, tname, trawname, is_type, remember)
     }
 
   if (is_type && remember)
-    remember_Btype (work, tname->b, LEN_STRING (tname), bindex);
+    {
+      const int bindex = register_Btype (work);
+      remember_Btype (work, tname->b, LEN_STRING (tname), bindex);
+    }
 
   /*
     if (work -> static_type)
@@ -2315,6 +2318,7 @@ demangle_arm_hp_template (work, mangled, n, declp)
   if (HP_DEMANGLING && ((*mangled)[n] == 'X'))
     {
       char *start_spec_args = NULL;
+      int hold_options;
 
       /* First check for and omit template specialization pseudo-arguments,
          such as in "Spec<#1,#1.*>" */
@@ -2327,10 +2331,16 @@ demangle_arm_hp_template (work, mangled, n, declp)
       string_init (&arg);
       if (work->temp_start == -1) /* non-recursive call */
         work->temp_start = declp->p - declp->b;
+
+      /* We want to unconditionally demangle parameter types in
+	 template parameters.  */
+      hold_options = work->options;
+      work->options |= DMGL_PARAMS;
+
       string_append (declp, "<");
       while (1)
         {
-          string_clear (&arg);
+          string_delete (&arg);
           switch (**mangled)
             {
               case 'T':
@@ -2373,21 +2383,29 @@ demangle_arm_hp_template (work, mangled, n, declp)
       string_delete (&arg);
       if (**mangled == '_')
         (*mangled)++;
+      work->options = hold_options;
       return;
     }
   /* ARM template? (Also handles HP cfront extensions) */
   else if (arm_pt (work, *mangled, n, &p, &args))
     {
+      int hold_options;
       string type_str;
 
       string_init (&arg);
       string_appendn (declp, *mangled, p - *mangled);
       if (work->temp_start == -1)  /* non-recursive call */
 	work->temp_start = declp->p - declp->b;
+
+      /* We want to unconditionally demangle parameter types in
+	 template parameters.  */
+      hold_options = work->options;
+      work->options |= DMGL_PARAMS;
+
       string_append (declp, "<");
       /* should do error checking here */
       while (args < e) {
-	string_clear (&arg);
+	string_delete (&arg);
 
 	/* Check for type or literal here */
 	switch (*args)
@@ -2402,6 +2420,7 @@ demangle_arm_hp_template (work, mangled, n, declp)
 	      goto cfront_template_args_done;
             string_append (&arg, "(");
             string_appends (&arg, &type_str);
+            string_delete (&type_str);
             string_append (&arg, ")");
             if (*args != 'L')
               goto cfront_template_args_done;
@@ -2426,7 +2445,10 @@ demangle_arm_hp_template (work, mangled, n, declp)
 
               /* Fail if we didn't make any progress: prevent infinite loop. */
               if (args == old_args)
-                return;
+		{
+		  work->options = hold_options;
+		  return;
+		}
             }
 	  }
 	string_appends (declp, &arg);
@@ -2437,6 +2459,7 @@ demangle_arm_hp_template (work, mangled, n, declp)
       if (args >= e)
 	--declp->p; /* remove extra comma */
       string_append (declp, ">");
+      work->options = hold_options;
     }
   else if (n>10 && strncmp (*mangled, "_GLOBAL_", 8) == 0
 	   && (*mangled)[9] == 'N'
@@ -3359,6 +3382,7 @@ demangle_qualified (work, mangled, result, isfuncname, append)
             }
           else
             {
+              string_delete (&last_name);
               success = do_type (work, mangled, &last_name);
               if (!success)
                 break;
@@ -3501,10 +3525,8 @@ do_type (work, mangled, result)
   string decl;
   const char *remembered_type;
   int type_quals;
-  string btype;
   type_kind_t tk = tk_none;
 
-  string_init (&btype);
   string_init (&decl);
   string_init (result);
 
@@ -3622,6 +3644,7 @@ do_type (work, mangled, result)
 		string temp;
 		do_type (work, mangled, &temp);
 		string_prepends (&decl, &temp);
+		string_delete (&temp);
 	      }
 	    else if (**mangled == 't')
 	      {
@@ -3632,7 +3655,7 @@ do_type (work, mangled, result)
 		if (success)
 		  {
 		    string_prependn (&decl, temp.b, temp.p - temp.b);
-		    string_clear (&temp);
+		    string_delete (&temp);
 		  }
 		else
 		  break;
@@ -3812,10 +3835,7 @@ demangle_fund_type (work, mangled, result)
   int success = 1;
   char buf[10];
   unsigned int dec = 0;
-  string btype;
   type_kind_t tk = tk_integral;
-
-  string_init (&btype);
 
   /* First pick off any type qualifiers.  There can be more than one.  */
 
@@ -3988,8 +4008,11 @@ demangle_fund_type (work, mangled, result)
       }
     case 't':
       {
+        string btype;
+        string_init (&btype);
         success = demangle_template (work, mangled, &btype, 0, 1, 1);
         string_appends (result, &btype);
+        string_delete (&btype);
         break;
       }
     default:
@@ -4191,12 +4214,9 @@ do_arg (work, mangled, result)
      do not want to add additional types to the back-referenceable
      type vector when processing a repeated type.  */
   if (work->previous_argument)
-    string_clear (work->previous_argument);
+    string_delete (work->previous_argument);
   else
-    {
-      work->previous_argument = (string*) xmalloc (sizeof (string));
-      string_init (work->previous_argument);
-    }
+    work->previous_argument = (string*) xmalloc (sizeof (string));
 
   if (!do_type (work, mangled, work->previous_argument))
     return 0;
@@ -4560,7 +4580,10 @@ demangle_nested_args (work, mangled, declp)
 
   /* Restore the previous_argument field.  */
   if (work->previous_argument)
-    string_delete (work->previous_argument);
+    {
+      string_delete (work->previous_argument);
+      free ((char *) work->previous_argument);
+    }
   work->previous_argument = saved_previous_argument;
   --work->forgetting_types;
   work->nrepeats = saved_nrepeats;

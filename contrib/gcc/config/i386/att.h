@@ -2,20 +2,20 @@
    Copyright (C) 1988, 1996, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -45,18 +45,7 @@ do								\
 } while (0)
 
 /* Output at beginning of assembler file.  */
-/* The .file command should always begin the output.  */
-#undef ASM_FILE_START
-#define ASM_FILE_START(FILE)						\
-  do {									\
-	output_file_directive (FILE, main_input_filename);		\
-	if (ix86_asm_dialect == ASM_INTEL)				\
-	  fputs ("\t.intel_syntax\n", FILE);				\
-  } while (0)
-
-/* Do use .optim by default on this machine.  */
-#undef ASM_FILE_START_1
-#define ASM_FILE_START_1(FILE) fprintf (FILE, "\t.optim\n")
+#define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
 
 /* This is how to output an assembler line
    that says to advance the location counter
@@ -69,7 +58,7 @@ do								\
    that says to advance the location counter by SIZE bytes.  */
 
 #define ASM_OUTPUT_SKIP(FILE,SIZE)  \
-  fprintf ((FILE), "\t.set .,.+%u\n", (SIZE))
+  fprintf ((FILE), "\t.set .,.+%u\n", (int)(SIZE))
 
 /* Can't use ASM_OUTPUT_SKIP in text section; it doesn't leave 0s.  */
 
@@ -89,13 +78,6 @@ do								\
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(BUF,PREFIX,NUMBER)	\
   sprintf ((BUF), "%s%s%ld", LOCAL_LABEL_PREFIX, (PREFIX), (long)(NUMBER))
-
-/* This is how to output an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  fprintf (FILE, "%s%s%d:\n", LOCAL_LABEL_PREFIX, PREFIX, NUM)
 
 /* The prefix to add to user-visible assembler symbols.  */
 

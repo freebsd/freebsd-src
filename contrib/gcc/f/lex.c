@@ -1,5 +1,5 @@
 /* Implementation of Fortran lexer
-   Copyright (C) 1995, 1996, 1997, 1998, 2001, 2002
+   Copyright (C) 1995, 1996, 1997, 1998, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
@@ -219,11 +219,6 @@ ffelex_append_to_token_ (char c)
       ffelex_token_->size <<= 1;
       assert (ffelex_token_->length < ffelex_token_->size);
     }
-#ifdef MAP_CHARACTER
-Sorry, MAP_CHARACTER is not going to work as expected in GNU Fortran,
-please contact fortran@gnu.org if you wish to fund work to
-port g77 to non-ASCII machines.
-#endif
   ffelex_token_->text[ffelex_token_->length++] = c;
 }
 
@@ -699,7 +694,13 @@ ffelex_cfelex_ (ffelexToken *xtoken, FILE *finput, int c)
 	      register unsigned bytes_used = (p - q);
 
 	      buffer_length *= 2;
-	      q = (char *)xrealloc (q, buffer_length);
+	      if (q == &buff[0])
+		{
+		  q = xmalloc (buffer_length);
+		  memcpy (q, buff, bytes_used);
+		}
+	      else
+		q = xrealloc (q, buffer_length);
 	      p = &q[bytes_used];
 	      r = &q[buffer_length];
 	    }
@@ -726,7 +727,7 @@ ffelex_cfelex_ (ffelexToken *xtoken, FILE *finput, int c)
 	{
 	  bool done = FALSE;
 	  int use_d = 0;
-	  int d;
+	  int d = 0;
 
 	  switch (c)
 	    {
@@ -759,7 +760,13 @@ ffelex_cfelex_ (ffelexToken *xtoken, FILE *finput, int c)
 		  register unsigned bytes_used = (p - q);
 
 		  buffer_length = bytes_used * 2;
-		  q = (char *)xrealloc (q, buffer_length);
+		  if (q == &buff[0])
+		    {
+		      q = xmalloc (buffer_length);
+		      memcpy (q, buff, bytes_used);
+		    }
+		  else
+		    q = xrealloc (q, buffer_length);
 		  p = &q[bytes_used];
 		  r = &q[buffer_length];
 		}
@@ -788,7 +795,7 @@ ffelex_cfelex_ (ffelexToken *xtoken, FILE *finput, int c)
 }
 
 static void
-ffelex_file_pop_ (const char *input_filename)
+ffelex_file_pop_ (const char *filename)
 {
   if (input_file_stack->next)
     {
@@ -796,7 +803,7 @@ ffelex_file_pop_ (const char *input_filename)
       input_file_stack = p->next;
       free (p);
       input_file_stack_tick++;
-      (*debug_hooks->end_source_file) (input_file_stack->line);
+      (*debug_hooks->end_source_file) (input_file_stack->location.line);
     }
   else
     error ("#-lines for entering and leaving files don't match");
@@ -804,27 +811,26 @@ ffelex_file_pop_ (const char *input_filename)
   /* Now that we've pushed or popped the input stack,
      update the name in the top element.  */
   if (input_file_stack)
-    input_file_stack->name = input_filename;
+    input_file_stack->location.file = filename;
 }
 
 static void
-ffelex_file_push_ (int old_lineno, const char *input_filename)
+ffelex_file_push_ (int old_lineno, const char *filename)
 {
-  struct file_stack *p
-    = (struct file_stack *) xmalloc (sizeof (struct file_stack));
+  struct file_stack *p = xmalloc (sizeof (struct file_stack));
 
-  input_file_stack->line = old_lineno;
+  input_file_stack->location.line = old_lineno;
   p->next = input_file_stack;
-  p->name = input_filename;
+  p->location.file = filename;
   input_file_stack = p;
   input_file_stack_tick++;
 
-  (*debug_hooks->start_source_file) (0, input_filename);
+  (*debug_hooks->start_source_file) (0, filename);
 
   /* Now that we've pushed or popped the input stack,
      update the name in the top element.  */
   if (input_file_stack)
-    input_file_stack->name = input_filename;
+    input_file_stack->location.file = filename;
 }
 
 /* Prepare to finish a statement-in-progress by sending the current
@@ -834,7 +840,7 @@ ffelex_file_push_ (int old_lineno, const char *input_filename)
    typical fixed-form cases.  */
 
 static void
-ffelex_prepare_eos_ ()
+ffelex_prepare_eos_ (void)
 {
   if (ffelex_token_->type != FFELEX_typeNONE)
     {
@@ -883,7 +889,7 @@ ffelex_prepare_eos_ ()
 }
 
 static void
-ffelex_finish_statement_ ()
+ffelex_finish_statement_ (void)
 {
   if ((ffelex_number_of_tokens_ == 0)
       && (ffelex_token_->type == FFELEX_typeNONE))
@@ -928,7 +934,7 @@ ffelex_get_directive_line_ (char **text, FILE *finput)
 
   if (buffer_length == 0)
     {
-      directive_buffer = (char *)xmalloc (128);
+      directive_buffer = xmalloc (128);
       buffer_length = 128;
     }
 
@@ -944,8 +950,7 @@ ffelex_get_directive_line_ (char **text, FILE *finput)
 	  register unsigned bytes_used = (p - directive_buffer);
 
 	  buffer_length *= 2;
-	  directive_buffer
-	    = (char *)xrealloc (directive_buffer, buffer_length);
+	  directive_buffer = xrealloc (directive_buffer, buffer_length);
 	  p = &directive_buffer[bytes_used];
 	  buffer_limit = &directive_buffer[buffer_length];
 	}
@@ -997,22 +1002,6 @@ ffelex_get_directive_line_ (char **text, FILE *finput)
 
    Returns the next character unhandled, which is always newline or EOF.  */
 
-#if defined HANDLE_PRAGMA
-/* Local versions of these macros, that can be passed as function pointers.  */
-static int
-pragma_getc ()
-{
-  return getc (finput);
-}
-
-static void
-pragma_ungetc (arg)
-     int arg;
-{
-  ungetc (arg, finput);
-}
-#endif /* HANDLE_PRAGMA */
-
 static int
 ffelex_hash_ (FILE *finput)
 {
@@ -1041,46 +1030,9 @@ ffelex_hash_ (FILE *finput)
 	      && ((c = getc (finput)) == ' ' || c == '\t' || c == '\n'
 		  || c == EOF))
 	    {
-#if 0	/* g77 doesn't handle pragmas, so ignores them FOR NOW. */
-	      static char buffer [128];
-	      char * buff = buffer;
-
-	      /* Read the pragma name into a buffer.
-		 ISSPACE() may evaluate its argument more than once!  */
-	      while (((c = getc (finput)), ISSPACE(c)))
-		continue;
-
-	      do
-		{
-		  * buff ++ = c;
-		  c = getc (finput);
-		}
-	      while (c != EOF && ! ISSPACE (c) && c != '\n'
-		     && buff < buffer + 128);
-
-	      pragma_ungetc (c);
-
-	      * -- buff = 0;
-#ifdef HANDLE_PRAGMA
-	      if (HANDLE_PRAGMA (pragma_getc, pragma_ungetc, buffer))
-		goto skipline;
-#endif /* HANDLE_PRAGMA */
-#ifdef HANDLE_GENERIC_PRAGMAS
-	      if (handle_generic_pragma (buffer))
-		goto skipline;
-#endif /* !HANDLE_GENERIC_PRAGMAS */
-
-	      /* Issue a warning message if we have been asked to do so.
-		 Ignoring unknown pragmas in system header file unless
-		 an explcit -Wunknown-pragmas has been given. */
-	      if (warn_unknown_pragmas > 1
-		  || (warn_unknown_pragmas && ! in_system_header))
-		warning ("ignoring pragma: %s", token_buffer);
-#endif /* 0 */
 	      goto skipline;
 	    }
 	}
-
       else if (c == 'd')
 	{
 	  if (getc (finput) == 'e'
@@ -1096,7 +1048,7 @@ ffelex_hash_ (FILE *finput)
 	      c = ffelex_get_directive_line_ (&text, finput);
 
 	      if (debug_info_level == DINFO_LEVEL_VERBOSE)
-		(*debug_hooks->define) (lineno, text);
+		(*debug_hooks->define) (input_line, text);
 
 	      goto skipline;
 	    }
@@ -1115,7 +1067,7 @@ ffelex_hash_ (FILE *finput)
 	      c = ffelex_get_directive_line_ (&text, finput);
 
 	      if (debug_info_level == DINFO_LEVEL_VERBOSE)
-		(*debug_hooks->undef) (lineno, text);
+		(*debug_hooks->undef) (input_line, text);
 
 	      goto skipline;
 	    }
@@ -1193,8 +1145,7 @@ ffelex_hash_ (FILE *finput)
   if ((token != NULL)
       && (ffelex_token_type (token) == FFELEX_typeNUMBER))
     {
-      int old_lineno = lineno;
-      const char *old_input_filename = input_filename;
+      location_t old_loc = input_location;
       ffewhereFile wf;
 
       /* subtract one, because it is the following line that
@@ -1207,7 +1158,7 @@ ffelex_hash_ (FILE *finput)
       if (c == '\n' || c == EOF)
 	{
 	  /* No more: store the line number and check following line.  */
-	  lineno = l;
+	  input_line = l;
 	  if (!ffelex_kludge_flag_)
 	    {
 	      ffewhere_file_set (NULL, TRUE, (ffewhereLineNumber) l);
@@ -1230,7 +1181,7 @@ ffelex_hash_ (FILE *finput)
 	  goto skipline;
 	}
 
-      lineno = l;
+      input_line = l;
 
       if (ffelex_kludge_flag_)
 	input_filename = ggc_strdup (ffelex_token_text (token));
@@ -1260,7 +1211,7 @@ ffelex_hash_ (FILE *finput)
 	    {
 	      /* Update the name in the top element of input_file_stack.  */
 	      if (input_file_stack)
-		input_file_stack->name = input_filename;
+		input_file_stack->location.file = input_filename;
 
 	      if (token != NULL)
 		ffelex_token_kill (token);
@@ -1280,15 +1231,15 @@ ffelex_hash_ (FILE *finput)
 
 	  if (ffelex_kludge_flag_)
 	    {
-	      lineno = 1;
-	      input_filename = old_input_filename;
+	      input_line = 1;
+	      input_filename = old_loc.file;
 	      error ("use `#line ...' instead of `# ...' in first line");
 	    }
 
 	  if (num == 1)
 	    {
 	      /* Pushing to a new file.  */
-	      ffelex_file_push_ (old_lineno, input_filename);
+	      ffelex_file_push_ (old_loc.line, input_filename);
 	    }
 	  else if (num == 2)
 	    {
@@ -1324,8 +1275,8 @@ ffelex_hash_ (FILE *finput)
 	   || (c != '\n' && c != EOF))
 	  && ffelex_kludge_flag_)
 	{
-	  lineno = 1;
-	  input_filename = old_input_filename;
+	  input_line = 1;
+	  input_filename = old_loc.file;
 	  error ("use `#line ...' instead of `# ...' in first line");
 	}
       if (c == '\n' || c == EOF)
@@ -1452,7 +1403,7 @@ ffelex_image_char_ (int c, ffewhereColumnNumber column)
 }
 
 static void
-ffelex_include_ ()
+ffelex_include_ (void)
 {
   ffewhereFile include_wherefile = ffelex_include_wherefile_;
   FILE *include_file = ffelex_include_file_;
@@ -1470,8 +1421,7 @@ ffelex_include_ ()
   ffewhereLineNumber linecount_current = ffelex_linecount_current_;
   ffewhereLineNumber linecount_offset
     = ffewhere_line_filelinenum (current_wl);
-  int old_lineno = lineno;
-  const char *old_input_filename = input_filename;
+  location_t old_loc = input_location;
 
   if (card_length != 0)
     {
@@ -1489,7 +1439,7 @@ ffelex_include_ ()
 
   ffewhere_file_set (include_wherefile, TRUE, 0);
 
-  ffelex_file_push_ (old_lineno, ffewhere_file_name (include_wherefile));
+  ffelex_file_push_ (old_loc.line, ffewhere_file_name (include_wherefile));
 
   if (ffelex_include_free_form_)
     ffelex_file_free (include_wherefile, include_file);
@@ -1504,16 +1454,12 @@ ffelex_include_ ()
 
   if (card_length != 0)
     {
-#ifdef REDUCE_CARD_SIZE_AFTER_BIGGY	/* Define if occasional large lines. */
-#error "need to handle possible reduction of card size here!!"
-#endif
       assert (ffelex_card_size_ >= card_length);	/* It shrunk?? */
       memcpy (ffelex_card_image_, card_image, card_length);
     }
   ffelex_card_image_[card_length] = '\0';
 
-  input_filename = old_input_filename;
-  lineno = old_lineno;
+  input_location = old_loc;
   ffelex_linecount_current_ = linecount_current;
   ffelex_current_wf_ = current_wf;
   ffelex_final_nontab_column_ = final_nontab_column;
@@ -1567,15 +1513,15 @@ ffelex_is_free_nonc_ctx_contin_ (ffewhereColumnNumber col)
 }
 
 static void
-ffelex_next_line_ ()
+ffelex_next_line_ (void)
 {
   ffelex_linecount_current_ = ffelex_linecount_next_;
   ++ffelex_linecount_next_;
-  ++lineno;
+  ++input_line;
 }
 
 static void
-ffelex_send_token_ ()
+ffelex_send_token_ (void)
 {
   ++ffelex_number_of_tokens_;
 
@@ -1649,14 +1595,13 @@ ffelex_swallow_tokens_ (ffelexToken t)
 }
 
 static ffelexToken
-ffelex_token_new_ ()
+ffelex_token_new_ (void)
 {
   ffelexToken t;
 
   ++ffelex_total_tokens_;
 
-  t = (ffelexToken) malloc_new_ks (malloc_pool_image (),
-				   "FFELEX token", sizeof (*t));
+  t = malloc_new_ks (malloc_pool_image (), "FFELEX token", sizeof (*t));
   t->id_ = ffelex_token_nextid_++;
   return t;
 }
@@ -1747,7 +1692,7 @@ ffelex_display_token (ffelexToken t)
    return FALSE.  */
 
 bool
-ffelex_expecting_character ()
+ffelex_expecting_character (void)
 {
   return (ffelex_raw_mode_ != 0);
 }
@@ -1787,7 +1732,7 @@ ffelex_file_fixed (ffewhereFile wf, FILE *f)
 
   assert (ffelex_handler_ != NULL);
 
-  lineno = 0;
+  input_line = 0;
   input_filename = ffewhere_file_name (wf);
   ffelex_current_wf_ = wf;
   disallow_continuation_line = TRUE;
@@ -1810,18 +1755,6 @@ ffelex_file_fixed (ffewhereFile wf, FILE *f)
   /* Come here directly when last line didn't clarify the continuation issue. */
 
  beginning_of_line_again:	/* :::::::::::::::::::: */
-
-#ifdef REDUCE_CARD_SIZE_AFTER_BIGGY	/* Define if occasional large lines. */
-  if (ffelex_card_size_ != FFELEX_columnINITIAL_SIZE_)
-    {
-      ffelex_card_image_
-	= malloc_resize_ks (malloc_pool_image (),
-			    ffelex_card_image_,
-			    FFELEX_columnINITIAL_SIZE_ + 9,
-			    ffelex_card_size_ + 9);
-      ffelex_card_size_ = FFELEX_columnINITIAL_SIZE_;
-    }
-#endif
 
  first_line:			/* :::::::::::::::::::: */
 
@@ -2977,7 +2910,7 @@ ffelex_file_free (ffewhereFile wf, FILE *f)
 
   assert (ffelex_handler_ != NULL);
 
-  lineno = 0;
+  input_line = 0;
   input_filename = ffewhere_file_name (wf);
   ffelex_current_wf_ = wf;
   continuation_line = FALSE;
@@ -3896,7 +3829,7 @@ ffelex_hash_kludge (FILE *finput)
 }
 
 void
-ffelex_init_1 ()
+ffelex_init_1 (void)
 {
   unsigned int i;
 
@@ -3977,7 +3910,7 @@ ffelex_init_1 ()
    Must be called while lexer is active, obviously.  */
 
 bool
-ffelex_is_names_expected ()
+ffelex_is_names_expected (void)
 {
   return ffelex_names_;
 }
@@ -3986,7 +3919,7 @@ ffelex_is_names_expected ()
    ffelex_linecount_current_.  */
 
 char *
-ffelex_line ()
+ffelex_line (void)
 {
   return ffelex_card_image_;
 }
@@ -3998,7 +3931,7 @@ ffelex_line ()
    Must be called while lexer is active, obviously.  */
 
 ffewhereColumnNumber
-ffelex_line_length ()
+ffelex_line_length (void)
 {
   return ffelex_card_length_;
 }
@@ -4007,7 +3940,7 @@ ffelex_line_length ()
    is current.  */
 
 ffewhereLineNumber
-ffelex_line_number ()
+ffelex_line_number (void)
 {
   return ffelex_linecount_current_;
 }
@@ -4442,7 +4375,7 @@ ffelex_token_new_character (const char *s, ffewhereLine l, ffewhereColumn c)
 /* Make a new EOF token right after end of file.  */
 
 ffelexToken
-ffelex_token_new_eof ()
+ffelex_token_new_eof (void)
 {
   ffelexToken t;
 

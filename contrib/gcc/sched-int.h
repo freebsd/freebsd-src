@@ -1,7 +1,7 @@
 /* Instruction scheduling pass.  This file contains definitions used
    internally in the scheduler.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -82,7 +82,7 @@ struct deps
      scheduling is done.  */
   rtx sched_before_next_call;
 
-  /* Used to keep post-call psuedo/hard reg movements together with
+  /* Used to keep post-call pseudo/hard reg movements together with
      the call.  */
   bool in_post_call_group_p;
 
@@ -126,32 +126,32 @@ struct sched_info
 {
   /* Add all insns that are initially ready to the ready list.  Called once
      before scheduling a set of insns.  */
-  void (*init_ready_list) PARAMS ((struct ready_list *));
+  void (*init_ready_list) (struct ready_list *);
   /* Called after taking an insn from the ready list.  Returns nonzero if
      this insn can be scheduled, nonzero if we should silently discard it.  */
-  int (*can_schedule_ready_p) PARAMS ((rtx));
+  int (*can_schedule_ready_p) (rtx);
   /* Return nonzero if there are more insns that should be scheduled.  */
-  int (*schedule_more_p) PARAMS ((void));
+  int (*schedule_more_p) (void);
   /* Called after an insn has all its dependencies resolved.  Return nonzero
      if it should be moved to the ready list or the queue, or zero if we
      should silently discard it.  */
-  int (*new_ready) PARAMS ((rtx));
+  int (*new_ready) (rtx);
   /* Compare priority of two insns.  Return a positive number if the second
      insn is to be preferred for scheduling, and a negative one if the first
      is to be preferred.  Zero if they are equally good.  */
-  int (*rank) PARAMS ((rtx, rtx));
+  int (*rank) (rtx, rtx);
   /* Return a string that contains the insn uid and optionally anything else
      necessary to identify this insn in an output.  It's valid to use a
      static buffer for this.  The ALIGNED parameter should cause the string
      to be formatted so that multiple output lines will line up nicely.  */
-  const char *(*print_insn) PARAMS ((rtx, int));
+  const char *(*print_insn) (rtx, int);
   /* Return nonzero if an insn should be included in priority
      calculations.  */
-  int (*contributes_to_priority) PARAMS ((rtx, rtx));
+  int (*contributes_to_priority) (rtx, rtx);
   /* Called when computing dependencies for a JUMP_INSN.  This function
-     should store the set of registers that must be considered as used
-     and the set of registers that must be considered as set by the jump.  */
-  void (*compute_jump_reg_dependencies) PARAMS ((rtx, regset, regset, regset));
+     should store the set of registers that must be considered as set by
+     the jump in the regset.  */
+  void (*compute_jump_reg_dependencies) (rtx, regset, regset, regset);
 
   /* The boundaries of the set of insns to be scheduled.  */
   rtx prev_head, next_tail;
@@ -167,6 +167,9 @@ struct sched_info
      has completed, e.g. if we're using it to initialize state for successor
      blocks in region scheduling.  */
   unsigned int use_cselib:1;
+
+  /* Maximum priority that has been assigned to an insn.  */
+  int sched_max_insns_priority;
 };
 
 extern struct sched_info *current_sched_info;
@@ -191,7 +194,7 @@ struct haifa_insn_data
   int priority;
 
   /* The number of incoming edges in the forward dependency graph.
-     As scheduling proceds, counts are decreased.  An insn moves to
+     As scheduling proceeds, counts are decreased.  An insn moves to
      the ready queue when its counter reaches zero.  */
   int dep_count;
 
@@ -261,6 +264,76 @@ extern struct haifa_insn_data *h_i_d;
 extern FILE *sched_dump;
 extern int sched_verbose;
 
+/* Exception Free Loads:
+
+   We define five classes of speculative loads: IFREE, IRISKY,
+   PFREE, PRISKY, and MFREE.
+
+   IFREE loads are loads that are proved to be exception-free, just
+   by examining the load insn.  Examples for such loads are loads
+   from TOC and loads of global data.
+
+   IRISKY loads are loads that are proved to be exception-risky,
+   just by examining the load insn.  Examples for such loads are
+   volatile loads and loads from shared memory.
+
+   PFREE loads are loads for which we can prove, by examining other
+   insns, that they are exception-free.  Currently, this class consists
+   of loads for which we are able to find a "similar load", either in
+   the target block, or, if only one split-block exists, in that split
+   block.  Load2 is similar to load1 if both have same single base
+   register.  We identify only part of the similar loads, by finding
+   an insn upon which both load1 and load2 have a DEF-USE dependence.
+
+   PRISKY loads are loads for which we can prove, by examining other
+   insns, that they are exception-risky.  Currently we have two proofs for
+   such loads.  The first proof detects loads that are probably guarded by a
+   test on the memory address.  This proof is based on the
+   backward and forward data dependence information for the region.
+   Let load-insn be the examined load.
+   Load-insn is PRISKY iff ALL the following hold:
+
+   - insn1 is not in the same block as load-insn
+   - there is a DEF-USE dependence chain (insn1, ..., load-insn)
+   - test-insn is either a compare or a branch, not in the same block
+     as load-insn
+   - load-insn is reachable from test-insn
+   - there is a DEF-USE dependence chain (insn1, ..., test-insn)
+
+   This proof might fail when the compare and the load are fed
+   by an insn not in the region.  To solve this, we will add to this
+   group all loads that have no input DEF-USE dependence.
+
+   The second proof detects loads that are directly or indirectly
+   fed by a speculative load.  This proof is affected by the
+   scheduling process.  We will use the flag  fed_by_spec_load.
+   Initially, all insns have this flag reset.  After a speculative
+   motion of an insn, if insn is either a load, or marked as
+   fed_by_spec_load, we will also mark as fed_by_spec_load every
+   insn1 for which a DEF-USE dependence (insn, insn1) exists.  A
+   load which is fed_by_spec_load is also PRISKY.
+
+   MFREE (maybe-free) loads are all the remaining loads. They may be
+   exception-free, but we cannot prove it.
+
+   Now, all loads in IFREE and PFREE classes are considered
+   exception-free, while all loads in IRISKY and PRISKY classes are
+   considered exception-risky.  As for loads in the MFREE class,
+   these are considered either exception-free or exception-risky,
+   depending on whether we are pessimistic or optimistic.  We have
+   to take the pessimistic approach to assure the safety of
+   speculative scheduling, but we can take the optimistic approach
+   by invoking the -fsched_spec_load_dangerous option.  */
+
+enum INSN_TRAP_CLASS
+{
+  TRAP_FREE = 0, IFREE = 1, PFREE_CANDIDATE = 2,
+  PRISKY_CANDIDATE = 3, IRISKY = 4, TRAP_RISKY = 5
+};
+
+#define WORST_CLASS(class1, class2) \
+((class1 > class2) ? class1 : class2)
+
 #ifndef __GNUC__
 #define __inline
 #endif
@@ -270,54 +343,55 @@ extern int sched_verbose;
 #endif
 
 /* Functions in sched-vis.c.  */
-extern void init_target_units PARAMS ((void));
-extern void insn_print_units PARAMS ((rtx));
-extern void init_block_visualization PARAMS ((void));
-extern void print_block_visualization PARAMS ((const char *));
-extern void visualize_scheduled_insns PARAMS ((int));
-extern void visualize_no_unit PARAMS ((rtx));
-extern void visualize_stall_cycles PARAMS ((int));
-extern void visualize_alloc PARAMS ((void));
-extern void visualize_free PARAMS ((void));
+extern void init_target_units (void);
+extern void insn_print_units (rtx);
+extern void init_block_visualization (void);
+extern void print_block_visualization (const char *);
+extern void visualize_scheduled_insns (int);
+extern void visualize_no_unit (rtx);
+extern void visualize_stall_cycles (int);
+extern void visualize_alloc (void);
+extern void visualize_free (void);
 
 /* Functions in sched-deps.c.  */
-extern void add_dependence PARAMS ((rtx, rtx, enum reg_note));
-extern void add_insn_mem_dependence PARAMS ((struct deps *, rtx *, rtx *, rtx,
-					     rtx));
-extern void sched_analyze PARAMS ((struct deps *, rtx, rtx));
-extern void init_deps PARAMS ((struct deps *));
-extern void free_deps PARAMS ((struct deps *));
-extern void init_deps_global PARAMS ((void));
-extern void finish_deps_global PARAMS ((void));
-extern void compute_forward_dependences PARAMS ((rtx, rtx));
-extern rtx find_insn_list PARAMS ((rtx, rtx));
-extern void init_dependency_caches PARAMS ((int));
-extern void free_dependency_caches PARAMS ((void));
+extern int add_dependence (rtx, rtx, enum reg_note);
+extern void add_insn_mem_dependence (struct deps *, rtx *, rtx *, rtx, rtx);
+extern void sched_analyze (struct deps *, rtx, rtx);
+extern void init_deps (struct deps *);
+extern void free_deps (struct deps *);
+extern void init_deps_global (void);
+extern void finish_deps_global (void);
+extern void add_forward_dependence (rtx, rtx, enum reg_note);
+extern void compute_forward_dependences (rtx, rtx);
+extern rtx find_insn_list (rtx, rtx);
+extern void init_dependency_caches (int);
+extern void free_dependency_caches (void);
 
 /* Functions in haifa-sched.c.  */
-extern void get_block_head_tail PARAMS ((int, rtx *, rtx *));
-extern int no_real_insns_p PARAMS ((rtx, rtx));
+extern int haifa_classify_insn (rtx);
+extern void get_block_head_tail (int, rtx *, rtx *);
+extern int no_real_insns_p (rtx, rtx);
 
-extern void rm_line_notes PARAMS ((rtx, rtx));
-extern void save_line_notes PARAMS ((int, rtx, rtx));
-extern void restore_line_notes PARAMS ((rtx, rtx));
-extern void rm_redundant_line_notes PARAMS ((void));
-extern void rm_other_notes PARAMS ((rtx, rtx));
+extern void rm_line_notes (rtx, rtx);
+extern void save_line_notes (int, rtx, rtx);
+extern void restore_line_notes (rtx, rtx);
+extern void rm_redundant_line_notes (void);
+extern void rm_other_notes (rtx, rtx);
 
-extern int insn_issue_delay PARAMS ((rtx));
-extern int set_priorities PARAMS ((rtx, rtx));
+extern int insn_issue_delay (rtx);
+extern int set_priorities (rtx, rtx);
 
-extern rtx sched_emit_insn PARAMS ((rtx));
-extern void schedule_block PARAMS ((int, int));
-extern void sched_init PARAMS ((FILE *));
-extern void sched_finish PARAMS ((void));
+extern rtx sched_emit_insn (rtx);
+extern void schedule_block (int, int);
+extern void sched_init (FILE *);
+extern void sched_finish (void);
 
-extern void ready_add PARAMS ((struct ready_list *, rtx));
+extern void ready_add (struct ready_list *, rtx);
 
 /* The following are exported for the benefit of debugging functions.  It
    would be nicer to keep them private to haifa-sched.c.  */
-extern int insn_unit PARAMS ((rtx));
-extern int insn_cost PARAMS ((rtx, rtx, rtx));
-extern rtx get_unit_last_insn PARAMS ((int));
-extern int actual_hazard_this_instance PARAMS ((int, int, rtx, int, int));
-extern void print_insn PARAMS ((char *, rtx, int));
+extern int insn_unit (rtx);
+extern int insn_cost (rtx, rtx, rtx);
+extern rtx get_unit_last_insn (int);
+extern int actual_hazard_this_instance (int, int, rtx, int, int);
+extern void print_insn (char *, rtx, int);

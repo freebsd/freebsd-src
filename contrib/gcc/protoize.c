@@ -1,6 +1,6 @@
 /* Protoize program - Original version by Ron Guilmette (rfg@segfault.us.com).
    Copyright (C) 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -21,6 +21,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "intl.h"
 #include "cppdefault.h"
 
@@ -46,11 +48,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #endif
 
 /* Macro to see if the paths match.  */
-#ifdef HAVE_DOS_BASED_FILE_SYSTEM
-#define IS_SAME_PATH(a,b) (strcasecmp (a, b) == 0)
-#else
-#define IS_SAME_PATH(a,b) (strcmp (a, b) == 0)
-#endif
+#define IS_SAME_PATH(a,b) (FILENAME_CMP (a, b) == 0)
 
 /* Suffix for aux-info files.  */
 #ifdef __MSDOS__
@@ -73,45 +71,43 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #define CPLUS_FILE_SUFFIX "C"
 #endif
 
-static void usage PARAMS ((void)) ATTRIBUTE_NORETURN;
-static void aux_info_corrupted PARAMS ((void)) ATTRIBUTE_NORETURN;
-static void declare_source_confusing PARAMS ((const char *)) ATTRIBUTE_NORETURN;
-static const char *shortpath PARAMS ((const char *, const char *));
-extern void fancy_abort PARAMS ((void)) ATTRIBUTE_NORETURN;
-static void notice PARAMS ((const char *, ...)) ATTRIBUTE_PRINTF_1;
-static char *savestring PARAMS ((const char *, unsigned int));
-static char *dupnstr PARAMS ((const char *, size_t));
-static const char *substr PARAMS ((const char *, const char * const));
-static int safe_read PARAMS ((int, PTR, int));
-static void safe_write PARAMS ((int, PTR, int, const char *));
-static void save_pointers PARAMS ((void));
-static void restore_pointers PARAMS ((void));
-static int is_id_char PARAMS ((int));
-static int in_system_include_dir PARAMS ((const char *));
-static int directory_specified_p PARAMS ((const char *));
-static int file_excluded_p PARAMS ((const char *));
-static char *unexpand_if_needed PARAMS ((const char *));
-static char *abspath PARAMS ((const char *, const char *));
-static int is_abspath PARAMS ((const char *));
-static void check_aux_info PARAMS ((int));
-static const char *find_corresponding_lparen PARAMS ((const char *));
-static int referenced_file_is_newer PARAMS ((const char *, time_t));
-static void save_def_or_dec PARAMS ((const char *, int));
-static void munge_compile_params PARAMS ((const char *));
-static int gen_aux_info_file PARAMS ((const char *));
-static void process_aux_info_file PARAMS ((const char *, int, int));
-static int identify_lineno PARAMS ((const char *));
-static void check_source PARAMS ((int, const char *));
-static const char *seek_to_line PARAMS ((int));
-static const char *forward_to_next_token_char PARAMS ((const char *));
-static void output_bytes PARAMS ((const char *, size_t));
-static void output_string PARAMS ((const char *));
-static void output_up_to PARAMS ((const char *));
-static int other_variable_style_function PARAMS ((const char *));
-static const char *find_rightmost_formals_list PARAMS ((const char *));
-static void do_cleaning PARAMS ((char *, const char *));
-static const char *careful_find_l_paren PARAMS ((const char *));
-static void do_processing PARAMS ((void));
+static void usage (void) ATTRIBUTE_NORETURN;
+static void aux_info_corrupted (void) ATTRIBUTE_NORETURN;
+static void declare_source_confusing (const char *) ATTRIBUTE_NORETURN;
+static const char *shortpath (const char *, const char *);
+extern void fancy_abort  (void) ATTRIBUTE_NORETURN;
+static void notice (const char *, ...) ATTRIBUTE_PRINTF_1;
+static char *savestring (const char *, unsigned int);
+static char *dupnstr (const char *, size_t);
+static int safe_read (int, void *, int);
+static void safe_write (int, void *, int, const char *);
+static void save_pointers (void);
+static void restore_pointers (void);
+static int is_id_char (int);
+static int in_system_include_dir (const char *);
+static int directory_specified_p (const char *);
+static int file_excluded_p (const char *);
+static char *unexpand_if_needed (const char *);
+static char *abspath (const char *, const char *);
+static void check_aux_info (int);
+static const char *find_corresponding_lparen (const char *);
+static int referenced_file_is_newer (const char *, time_t);
+static void save_def_or_dec (const char *, int);
+static void munge_compile_params (const char *);
+static int gen_aux_info_file (const char *);
+static void process_aux_info_file (const char *, int, int);
+static int identify_lineno (const char *);
+static void check_source (int, const char *);
+static const char *seek_to_line (int);
+static const char *forward_to_next_token_char (const char *);
+static void output_bytes (const char *, size_t);
+static void output_string (const char *);
+static void output_up_to (const char *);
+static int other_variable_style_function (const char *);
+static const char *find_rightmost_formals_list (const char *);
+static void do_cleaning (char *, const char *);
+static const char *careful_find_l_paren (const char *);
+static void do_processing (void);
 
 /* Look for these where the `const' qualifier is intentionally cast aside.  */
 #define NONCONST
@@ -138,11 +134,11 @@ static const char * const aux_info_suffix = AUX_INFO_SUFFIX;
 
 static const char * const save_suffix = SAVE_SUFFIX;
 
+#ifndef UNPROTOIZE
+
 /* String to attach to C filenames renamed to C++.  */
 
 static const char * const cplus_suffix = CPLUS_FILE_SUFFIX;
-
-#ifndef UNPROTOIZE
 
 /* File name of the file which contains descriptions of standard system
    routines.  Note that we never actually do anything with this file per se,
@@ -199,8 +195,8 @@ struct string_list
   struct string_list *next;
 };
 
-static struct string_list *string_list_cons PARAMS ((const char *,
-						     struct string_list *));
+static struct string_list *string_list_cons (const char *,
+					     struct string_list *);
 
 /* List of directories in which files should be converted.  */
 
@@ -225,9 +221,7 @@ struct string_list *exclude_list;
 static const char * const other_var_style = "stdarg";
 #else /* !defined (UNPROTOIZE) */
 static const char * const other_var_style = "varargs";
-/* Note that this is a string containing the expansion of va_alist.
-   But in `main' we discard all but the first token.  */
-static const char *varargs_style_indicator = STRINGX (va_alist);
+static const char *varargs_style_indicator = "va_alist";
 #endif /* !defined (UNPROTOIZE) */
 
 /* The following two types are used to create hash tables.  In this program,
@@ -247,29 +241,29 @@ typedef struct file_info_struct file_info;
 typedef struct f_list_chain_item_struct f_list_chain_item;
 
 #ifndef UNPROTOIZE
-static int is_syscalls_file PARAMS ((const file_info *));
-static void rename_c_file PARAMS ((const hash_table_entry *));
-static const def_dec_info *find_extern_def PARAMS ((const def_dec_info *,
-						    const def_dec_info *));
-static const def_dec_info *find_static_definition PARAMS ((const def_dec_info *));
-static void connect_defs_and_decs PARAMS ((const hash_table_entry *));
-static void add_local_decl PARAMS ((const def_dec_info *, const char *));
-static void add_global_decls PARAMS ((const file_info *, const char *));
+static int is_syscalls_file (const file_info *);
+static void rename_c_file (const hash_table_entry *);
+static const def_dec_info *find_extern_def (const def_dec_info *,
+					    const def_dec_info *);
+static const def_dec_info *find_static_definition (const def_dec_info *);
+static void connect_defs_and_decs (const hash_table_entry *);
+static void add_local_decl (const def_dec_info *, const char *);
+static void add_global_decls (const file_info *, const char *);
 #endif /* ! UNPROTOIZE */
-static int needs_to_be_converted PARAMS ((const file_info *));
-static void visit_each_hash_node PARAMS ((const hash_table_entry *,
-					  void (*)(const hash_table_entry *)));
-static hash_table_entry *add_symbol PARAMS ((hash_table_entry *, const char *));
-static hash_table_entry *lookup PARAMS ((hash_table_entry *, const char *));
-static void free_def_dec PARAMS ((def_dec_info *));
-static file_info *find_file PARAMS ((const char *, int));
-static void reverse_def_dec_list PARAMS ((const hash_table_entry *));
-static void edit_fn_declaration PARAMS ((const def_dec_info *, const char *));
-static int edit_formals_lists PARAMS ((const char *, unsigned int,
-				       const def_dec_info *));
-static void edit_fn_definition PARAMS ((const def_dec_info *, const char *));
-static void scan_for_missed_items PARAMS ((const file_info *));
-static void edit_file PARAMS ((const hash_table_entry *));
+static int needs_to_be_converted (const file_info *);
+static void visit_each_hash_node (const hash_table_entry *,
+				  void (*)(const hash_table_entry *));
+static hash_table_entry *add_symbol (hash_table_entry *, const char *);
+static hash_table_entry *lookup (hash_table_entry *, const char *);
+static void free_def_dec (def_dec_info *);
+static file_info *find_file (const char *, int);
+static void reverse_def_dec_list (const hash_table_entry *);
+static void edit_fn_declaration (const def_dec_info *, const char *);
+static int edit_formals_lists (const char *, unsigned int,
+			       const def_dec_info *);
+static void edit_fn_definition (const def_dec_info *, const char *);
+static void scan_for_missed_items (const file_info *);
+static void edit_file (const hash_table_entry *);
 
 /* In the struct below, note that the "_info" field has two different uses
    depending on the type of hash table we are in (i.e. either the filenames
@@ -511,24 +505,22 @@ static char * saved_repl_write_ptr;
 
 /* Translate and output an error message.  */
 static void
-notice VPARAMS ((const char *msgid, ...))
+notice (const char *msgid, ...)
 {
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, const char *, msgid);
-
+  va_list ap;
+  
+  va_start (ap, msgid);
   vfprintf (stderr, _(msgid), ap);
-  VA_CLOSE (ap);
+  va_end (ap);
 }
 
 
 /* Make a copy of a string INPUT with size SIZE.  */
 
 static char *
-savestring (input, size)
-     const char *input;
-     unsigned int size;
+savestring (const char *input, unsigned int size)
 {
-  char *output = (char *) xmalloc (size + 1);
+  char *output = xmalloc (size + 1);
   strcpy (output, input);
   return output;
 }
@@ -537,7 +529,7 @@ savestring (input, size)
    config.h can #define abort fancy_abort if you like that sort of thing.  */
 
 void
-fancy_abort ()
+fancy_abort (void)
 {
   notice ("%s: internal abort\n", pname);
   exit (FATAL_EXIT_CODE);
@@ -547,49 +539,20 @@ fancy_abort ()
    allocated area.  */
 
 static char *
-dupnstr (s, n)
-     const char *s;
-     size_t n;
+dupnstr (const char *s, size_t n)
 {
-  char *ret_val = (char *) xmalloc (n + 1);
+  char *ret_val = xmalloc (n + 1);
 
   strncpy (ret_val, s, n);
   ret_val[n] = '\0';
   return ret_val;
-}
-
-/* Return a pointer to the first occurrence of s2 within s1 or NULL if s2
-   does not occur within s1.  Assume neither s1 nor s2 are null pointers.  */
-
-static const char *
-substr (s1, s2)
-     const char *s1;
-     const char *const s2;
-{
-  for (; *s1 ; s1++)
-    {
-      const char *p1;
-      const char *p2;
-      int c;
-
-      for (p1 = s1, p2 = s2; (c = *p2); p1++, p2++)
-	if (*p1 != c)
-	  goto outer;
-      return s1;
-outer:
-      ;
-    }
-  return 0;
 }
 
 /* Read LEN bytes at PTR from descriptor DESC, for file FILENAME,
    retrying if necessary.  Return the actual number of bytes read.  */
 
 static int
-safe_read (desc, ptr, len)
-     int desc;
-     PTR ptr;
-     int len;
+safe_read (int desc, void *ptr, int len)
 {
   int left = len;
   while (left > 0) {
@@ -615,11 +578,7 @@ safe_read (desc, ptr, len)
    retrying if necessary, and treating any real error as fatal.  */
 
 static void
-safe_write (desc, ptr, len, out_fname)
-     int desc;
-     PTR ptr;
-     int len;
-     const char *out_fname;
+safe_write (int desc, void *ptr, int len, const char *out_fname)
 {
   while (len > 0) {
     int written = write (desc, ptr, len);
@@ -643,7 +602,7 @@ safe_write (desc, ptr, len, out_fname)
 /* Get setup to recover in case the edit we are about to do goes awry.  */
 
 static void
-save_pointers ()
+save_pointers (void)
 {
   saved_clean_read_ptr = clean_read_ptr;
   saved_repl_write_ptr = repl_write_ptr;
@@ -653,7 +612,7 @@ save_pointers ()
    too confusing in the source code we are trying to edit.  */
 
 static void
-restore_pointers ()
+restore_pointers (void)
 {
   clean_read_ptr = saved_clean_read_ptr;
   repl_write_ptr = saved_repl_write_ptr;
@@ -662,8 +621,7 @@ restore_pointers ()
 /* Return true if the given character is a valid identifier character.  */
 
 static int
-is_id_char (ch)
-     int ch;
+is_id_char (int ch)
 {
   return (ISIDNUM (ch) || (ch == '$'));
 }
@@ -672,7 +630,7 @@ is_id_char (ch)
    exit with nonzero status.  */
 
 static void
-usage ()
+usage (void)
 {
 #ifdef UNPROTOIZE
   notice ("%s: usage '%s [ -VqfnkN ] [ -i <istring> ] [ filename ... ]'\n",
@@ -689,12 +647,11 @@ usage ()
    include directories.  */
 
 static int
-in_system_include_dir (path)
-     const char *path;
+in_system_include_dir (const char *path)
 {
   const struct default_include *p;
 
-  if (! is_abspath (path))
+  if (! IS_ABSOLUTE_PATH (path))
     abort ();		/* Must be an absolutized filename.  */
 
   for (p = cpp_include_defaults; p->fname; p++)
@@ -712,7 +669,7 @@ in_system_include_dir (path)
 static int
 file_could_be_converted (const char *path)
 {
-  char *const dir_name = (char *) alloca (strlen (path) + 1);
+  char *const dir_name = alloca (strlen (path) + 1);
 
   if (access (path, R_OK))
     return 0;
@@ -816,8 +773,7 @@ file_normally_convertible (const char *path)
    file.  Return false otherwise.  */
 
 static int
-is_syscalls_file (fi_p)
-     const file_info *fi_p;
+is_syscalls_file (const file_info *fi_p)
 {
   char const *f = fi_p->hash_entry->symbol;
   size_t fl = strlen (f), sysl = sizeof (syscalls_filename) - 1;
@@ -836,8 +792,7 @@ is_syscalls_file (fi_p)
    by connect_defs_and_decs.  */
 
 static int
-needs_to_be_converted (file_p)
-     const file_info *file_p;
+needs_to_be_converted (const file_info *file_p)
 {
   const def_dec_info *ddp;
 
@@ -875,8 +830,7 @@ needs_to_be_converted (file_p)
    that should be converted.  */
 
 static int
-directory_specified_p (name)
-     const char *name;
+directory_specified_p (const char *name)
 {
   struct string_list *p;
 
@@ -902,8 +856,7 @@ directory_specified_p (name)
 /* Return 1 if the file named NAME should be excluded from conversion.  */
 
 static int
-file_excluded_p (name)
-     const char *name;
+file_excluded_p (const char *name)
 {
   struct string_list *p;
   int len = strlen (name);
@@ -920,12 +873,9 @@ file_excluded_p (name)
    STRING is the new element value, and REST holds the remaining elements.  */
 
 static struct string_list *
-string_list_cons (string, rest)
-     const char *string;
-     struct string_list *rest;
+string_list_cons (const char *string, struct string_list *rest)
 {
-  struct string_list *temp
-    = (struct string_list *) xmalloc (sizeof (struct string_list));
+  struct string_list *temp = xmalloc (sizeof (struct string_list));
 
   temp->next = rest;
   temp->name = string;
@@ -942,9 +892,8 @@ string_list_cons (string, rest)
    argument.  */
 
 static void
-visit_each_hash_node (hash_tab_p, func)
-     const hash_table_entry *hash_tab_p;
-     void (*func) PARAMS ((const hash_table_entry *));
+visit_each_hash_node (const hash_table_entry *hash_tab_p,
+		      void (*func) (const hash_table_entry *))
 {
   const hash_table_entry *primary;
 
@@ -965,9 +914,7 @@ visit_each_hash_node (hash_tab_p, func)
    called.  */
 
 static hash_table_entry *
-add_symbol (p, s)
-     hash_table_entry *p;
-     const char *s;
+add_symbol (hash_table_entry *p, const char *s)
 {
   p->hash_next = NULL;
   p->symbol = xstrdup (s);
@@ -982,9 +929,7 @@ add_symbol (p, s)
    hash table entry for the given name.  */
 
 static hash_table_entry *
-lookup (hash_tab_p, search_symbol)
-     hash_table_entry *hash_tab_p;
-     const char *search_symbol;
+lookup (hash_table_entry *hash_tab_p, const char *search_symbol)
 {
   int hash_value = 0;
   const char *search_symbol_char_p = search_symbol;
@@ -1004,7 +949,7 @@ lookup (hash_tab_p, search_symbol)
       if (!strcmp (p->symbol, search_symbol))
 	return p;
     }
-  p->hash_next = (hash_table_entry *) xmalloc (sizeof (hash_table_entry));
+  p->hash_next = xmalloc (sizeof (hash_table_entry));
   p = p->hash_next;
   return add_symbol (p, search_symbol);
 }
@@ -1015,10 +960,9 @@ lookup (hash_tab_p, search_symbol)
    stuff it pointed to.  */
 
 static void
-free_def_dec (p)
-     def_dec_info *p;
+free_def_dec (def_dec_info *p)
 {
-  free ((NONCONST PTR) p->ansi_decl);
+  free ((NONCONST void *) p->ansi_decl);
 
 #ifndef UNPROTOIZE
   {
@@ -1028,7 +972,7 @@ free_def_dec (p)
     for (curr = p->f_list_chain; curr; curr = next)
       {
 	next = curr->chain_next;
-	free ((NONCONST PTR) curr);
+	free ((NONCONST void *) curr);
       }
   }
 #endif /* !defined (UNPROTOIZE) */
@@ -1042,8 +986,7 @@ free_def_dec (p)
    return a pointer to the unexpanded copy.  Otherwise return NULL.  */
 
 static char *
-unexpand_if_needed (aux_info_line)
-     const char *aux_info_line;
+unexpand_if_needed (const char *aux_info_line)
 {
   static char *line_buf = 0;
   static int line_buf_size = 0;
@@ -1055,7 +998,7 @@ unexpand_if_needed (aux_info_line)
   if (line_buf == 0)
     {
       line_buf_size = 1024;
-      line_buf = (char *) xmalloc (line_buf_size);
+      line_buf = xmalloc (line_buf_size);
     }
 
   copy_p = line_buf;
@@ -1078,7 +1021,7 @@ unexpand_if_needed (aux_info_line)
 		  int offset = copy_p - line_buf;
 		  line_buf_size *= 2;
 		  line_buf_size += size;
-		  line_buf = (char *) xrealloc (line_buf, line_buf_size);
+		  line_buf = xrealloc (line_buf, line_buf_size);
 		  copy_p = line_buf + offset;
 		}
 	      strcpy (copy_p, unexp_p->contracted);
@@ -1095,7 +1038,7 @@ unexpand_if_needed (aux_info_line)
 	{
 	  int offset = copy_p - line_buf;
 	  line_buf_size *= 2;
-	  line_buf = (char *) xrealloc (line_buf, line_buf_size);
+	  line_buf = xrealloc (line_buf, line_buf_size);
 	  copy_p = line_buf + offset;
 	}
       *copy_p++ = *s++;
@@ -1105,27 +1048,13 @@ continue_outer: ;
     {
       int offset = copy_p - line_buf;
       line_buf_size *= 2;
-      line_buf = (char *) xrealloc (line_buf, line_buf_size);
+      line_buf = xrealloc (line_buf, line_buf_size);
       copy_p = line_buf + offset;
     }
   *copy_p++ = '\n';
   *copy_p = '\0';
 
   return (got_unexpanded ? savestring (line_buf, copy_p - line_buf) : 0);
-}
-
-/* Return 1 if pathname is absolute.  */
-
-static int
-is_abspath (path)
-     const char *path;
-{
-  return (IS_DIR_SEPARATOR (path[0])
-#ifdef HAVE_DOS_BASED_FILE_SYSTEM
-	  /* Check for disk name on MS-DOS-based systems.  */
-	  || (path[0] && path[1] == ':' && IS_DIR_SEPARATOR (path[2]))
-#endif
-	  );
 }
 
 /* Return the absolutized filename for the given relative
@@ -1139,14 +1068,11 @@ is_abspath (path)
    NULL.  */
 
 static char *
-abspath (cwd, rel_filename)
-     const char *cwd;
-     const char *rel_filename;
+abspath (const char *cwd, const char *rel_filename)
 {
   /* Setup the current working directory as needed.  */
   const char *const cwd2 = (cwd) ? cwd : cwd_buffer;
-  char *const abs_buffer
-    = (char *) alloca (strlen (cwd2) + strlen (rel_filename) + 2);
+  char *const abs_buffer = alloca (strlen (cwd2) + strlen (rel_filename) + 2);
   char *endp = abs_buffer;
   char *outp, *inp;
 
@@ -1156,7 +1082,7 @@ abspath (cwd, rel_filename)
   {
     const char *src_p;
 
-    if (! is_abspath (rel_filename))
+    if (! IS_ABSOLUTE_PATH (rel_filename))
       {
 	src_p = cwd2;
 	while ((*endp++ = *src_p++))
@@ -1258,9 +1184,7 @@ abspath (cwd, rel_filename)
    subpart of the original filename is actually a symbolic link.  */
 
 static const char *
-shortpath (cwd, filename)
-     const char *cwd;
-     const char *filename;
+shortpath (const char *cwd, const char *filename)
 {
   char *rel_buffer;
   char *rel_buf_p;
@@ -1270,7 +1194,7 @@ shortpath (cwd, filename)
   size_t filename_len = strlen (filename);
 
   path_p = abspath (cwd, filename);
-  rel_buf_p = rel_buffer = (char *) xmalloc (filename_len);
+  rel_buf_p = rel_buffer = xmalloc (filename_len);
 
   while (*cwd_p && IS_SAME_PATH_CHAR (*cwd_p, *path_p))
     {
@@ -1347,9 +1271,7 @@ shortpath (cwd, filename)
    That is probably a bug in AIX, but might as well avoid the warning.  */
 
 static file_info *
-find_file (filename, do_not_stat)
-     const char *filename;
-     int do_not_stat;
+find_file (const char *filename, int do_not_stat)
 {
   hash_table_entry *hash_entry_p;
 
@@ -1359,7 +1281,7 @@ find_file (filename, do_not_stat)
   else
     {
       struct stat stat_buf;
-      file_info *file_p = (file_info *) xmalloc (sizeof (file_info));
+      file_info *file_p = xmalloc (sizeof (file_info));
 
       /* If we cannot get status on any given source file, give a warning
 	 and then just set its time of last modification to infinity.  */
@@ -1390,7 +1312,7 @@ find_file (filename, do_not_stat)
    messed up.  */
 
 static void
-aux_info_corrupted ()
+aux_info_corrupted (void)
 {
   notice ("\n%s: fatal error: aux info file corrupted at line %d\n",
 	  pname, current_aux_info_lineno);
@@ -1401,8 +1323,7 @@ aux_info_corrupted ()
 /* Check to see that a condition is true.  This is kind of like an assert.  */
 
 static void
-check_aux_info (cond)
-     int cond;
+check_aux_info (int cond)
 {
   if (! cond)
     aux_info_corrupted ();
@@ -1413,8 +1334,7 @@ check_aux_info (cond)
    return a pointer to it.  */
 
 static const char *
-find_corresponding_lparen (p)
-     const char *p;
+find_corresponding_lparen (const char *p)
 {
   const char *q;
   int paren_depth;
@@ -1440,9 +1360,7 @@ find_corresponding_lparen (p)
    file was created.  If so, return nonzero, else return zero.  */
 
 static int
-referenced_file_is_newer (l, aux_info_mtime)
-     const char *l;
-     time_t aux_info_mtime;
+referenced_file_is_newer (const char *l, time_t aux_info_mtime)
 {
   const char *p;
   file_info *fi_p;
@@ -1461,7 +1379,7 @@ referenced_file_is_newer (l, aux_info_mtime)
 #endif
 	   )
       p++;
-    filename = (char *) alloca ((size_t) (p - filename_start) + 1);
+    filename = alloca ((size_t) (p - filename_start) + 1);
     strncpy (filename, filename_start, (size_t) (p - filename_start));
     filename[p-filename_start] = '\0';
   }
@@ -1492,13 +1410,11 @@ referenced_file_is_newer (l, aux_info_mtime)
    pertaining to this particular function name.  */
 
 static void
-save_def_or_dec (l, is_syscalls)
-     const char *l;
-     int is_syscalls;
+save_def_or_dec (const char *l, int is_syscalls)
 {
   const char *p;
   const char *semicolon_p;
-  def_dec_info *def_dec_p = (def_dec_info *) xmalloc (sizeof (def_dec_info));
+  def_dec_info *def_dec_p = xmalloc (sizeof (def_dec_info));
 
 #ifndef UNPROTOIZE
   def_dec_p->written = 0;
@@ -1523,7 +1439,7 @@ save_def_or_dec (l, is_syscalls)
 #endif
 	   )
       p++;
-    filename = (char *) alloca ((size_t) (p - filename_start) + 1);
+    filename = alloca ((size_t) (p - filename_start) + 1);
     strncpy (filename, filename_start, (size_t) (p - filename_start));
     filename[p-filename_start] = '\0';
 
@@ -1653,8 +1569,7 @@ save_def_or_dec (l, is_syscalls)
       const char *left_paren_p = find_corresponding_lparen (p);
 #ifndef UNPROTOIZE
       {
-	f_list_chain_item *cip
-	  = (f_list_chain_item *) xmalloc (sizeof (f_list_chain_item));
+	f_list_chain_item *cip = xmalloc (sizeof (f_list_chain_item));
 
 	cip->formals_list
 	  = dupnstr (left_paren_p + 1, (size_t) (p - (left_paren_p+1)));
@@ -1696,7 +1611,7 @@ save_def_or_dec (l, is_syscalls)
     /* p now points to the leftmost character of the function name.  */
 
     {
-      char *fn_string = (char *) alloca (past_fn - p + 1);
+      char *fn_string = alloca (past_fn - p + 1);
 
       strncpy (fn_string, p, (size_t) (past_fn - p));
       fn_string[past_fn-p] = '\0';
@@ -1887,13 +1802,12 @@ save_def_or_dec (l, is_syscalls)
    and adding '-aux-info AUXFILE -S  -o /dev/null INFILE' at the end.  */
 
 static void
-munge_compile_params (params_list)
-     const char *params_list;
+munge_compile_params (const char *params_list)
 {
   /* Build up the contents in a temporary vector
      that is so big that to has to be big enough.  */
   const char **temp_params
-    = (const char **) alloca ((strlen (params_list) + 8) * sizeof (char *));
+    = alloca ((strlen (params_list) + 8) * sizeof (char *));
   int param_count = 0;
   const char *param;
   struct stat st;
@@ -1962,8 +1876,7 @@ munge_compile_params (params_list)
 
   /* Make a copy of the compile_params in heap space.  */
 
-  compile_params
-    = (const char **) xmalloc (sizeof (char *) * (param_count+1));
+  compile_params = xmalloc (sizeof (char *) * (param_count+1));
   memcpy (compile_params, temp_params, sizeof (char *) * param_count);
 }
 
@@ -1973,8 +1886,7 @@ munge_compile_params (params_list)
    The result is a boolean indicating success.  */
 
 static int
-gen_aux_info_file (base_filename)
-     const char *base_filename;
+gen_aux_info_file (const char *base_filename)
 {
   if (!input_file_name_index)
     munge_compile_params ("");
@@ -2036,14 +1948,11 @@ gen_aux_info_file (base_filename)
    Save all of the important stuff for later.  */
 
 static void
-process_aux_info_file (base_source_filename, keep_it, is_syscalls)
-     const char *base_source_filename;
-     int keep_it;
-     int is_syscalls;
+process_aux_info_file (const char *base_source_filename, int keep_it,
+		       int is_syscalls)
 {
   size_t base_len = strlen (base_source_filename);
-  char * aux_info_filename
-    = (char *) alloca (base_len + strlen (aux_info_suffix) + 1);
+  char * aux_info_filename = alloca (base_len + strlen (aux_info_suffix) + 1);
   char *aux_info_base;
   char *aux_info_limit;
   char *aux_info_relocated_name;
@@ -2264,7 +2173,7 @@ start_over: ;
       continue;
     aux_info_second_line = p;
     aux_info_relocated_name = 0;
-    if (! is_abspath (invocation_filename))
+    if (! IS_ABSOLUTE_PATH (invocation_filename))
       {
 	/* INVOCATION_FILENAME is relative;
 	   append it to BASE_SOURCE_FILENAME's dir.  */
@@ -2368,13 +2277,12 @@ start_over: ;
    function implements the -C option.  */
 
 static void
-rename_c_file (hp)
-     const hash_table_entry *hp;
+rename_c_file (const hash_table_entry *hp)
 {
   const char *filename = hp->symbol;
   int last_char_index = strlen (filename) - 1;
-  char *const new_filename = (char *) alloca (strlen (filename)
-	                                      + strlen (cplus_suffix) + 1);
+  char *const new_filename = alloca (strlen (filename)
+				     + strlen (cplus_suffix) + 1);
 
   /* Note that we don't care here if the given file was converted or not.  It
      is possible that the given file was *not* converted, simply because there
@@ -2411,8 +2319,7 @@ rename_c_file (hp)
    order here.  */
 
 static void
-reverse_def_dec_list (hp)
-     const hash_table_entry *hp;
+reverse_def_dec_list (const hash_table_entry *hp)
 {
   file_info *file_p = hp->fip;
   def_dec_info *prev = NULL;
@@ -2453,9 +2360,7 @@ reverse_def_dec_list (hp)
    contains all of the correct prototypes for system functions.  */
 
 static const def_dec_info *
-find_extern_def (head, user)
-     const def_dec_info *head;
-     const def_dec_info *user;
+find_extern_def (const def_dec_info *head, const def_dec_info *user)
 {
   const def_dec_info *dd_p;
   const def_dec_info *extern_def_p = NULL;
@@ -2584,11 +2489,11 @@ find_extern_def (head, user)
 	      {
 		/* Why copy this string into `needed' at all?
 		   Why not just use user->ansi_decl without copying?  */
-		char *needed = (char *) alloca (strlen (user->ansi_decl) + 1);
+		char *needed = alloca (strlen (user->ansi_decl) + 1);
 	        char *p;
 
 	        strcpy (needed, user->ansi_decl);
-	        p = (NONCONST char *) substr (needed, user->hash_entry->symbol)
+	        p = strstr (needed, user->hash_entry->symbol)
 	            + strlen (user->hash_entry->symbol) + 2;
 		/* Avoid having ??? in the string.  */
 		*p++ = '?';
@@ -2616,8 +2521,7 @@ find_extern_def (head, user)
    from the def_dec_info record pointer which is passed in.  */
 
 static const def_dec_info *
-find_static_definition (user)
-     const def_dec_info *user;
+find_static_definition (const def_dec_info *user)
 {
   const def_dec_info *head = user->hash_entry->ddip;
   const def_dec_info *dd_p;
@@ -2666,8 +2570,7 @@ find_static_definition (user)
    more details.  */
 
 static void
-connect_defs_and_decs (hp)
-     const hash_table_entry *hp;
+connect_defs_and_decs (const hash_table_entry *hp)
 {
   const def_dec_info *dd_p;
   const def_dec_info *extern_def_p = NULL;
@@ -2791,8 +2694,7 @@ connect_defs_and_decs (hp)
    original source line number that the given pointer points into.  */
 
 static int
-identify_lineno (clean_p)
-     const char *clean_p;
+identify_lineno (const char *clean_p)
 {
   int line_num = 1;
   const char *scan_p;
@@ -2806,8 +2708,7 @@ identify_lineno (clean_p)
 /* Issue an error message and give up on doing this particular edit.  */
 
 static void
-declare_source_confusing (clean_p)
-     const char *clean_p;
+declare_source_confusing (const char *clean_p)
 {
   if (!quiet_flag)
     {
@@ -2827,9 +2728,7 @@ declare_source_confusing (clean_p)
    converting this particular source file.  */
 
 static void
-check_source (cond, clean_p)
-     int cond;
-     const char *clean_p;
+check_source (int cond, const char *clean_p)
 {
   if (!cond)
     declare_source_confusing (clean_p);
@@ -2851,8 +2750,7 @@ check_source (cond, clean_p)
    of the in-core cleaned buffer again.  */
 
 static const char *
-seek_to_line (n)
-     int n;
+seek_to_line (int n)
 {
   if (n < last_known_line_number)
     abort ();
@@ -2871,8 +2769,7 @@ seek_to_line (n)
    to the next non-whitespace character which follows it.  */
 
 static const char *
-forward_to_next_token_char (ptr)
-     const char *ptr;
+forward_to_next_token_char (const char *ptr)
 {
   for (++ptr; ISSPACE ((const unsigned char)*ptr);
        check_source (++ptr < clean_text_limit, 0))
@@ -2885,14 +2782,12 @@ forward_to_next_token_char (ptr)
    buffer ultimately go through here.  */
 
 static void
-output_bytes (str, len)
-     const char *str;
-     size_t len;
+output_bytes (const char *str, size_t len)
 {
   if ((repl_write_ptr + 1) + len >= repl_text_limit)
     {
       size_t new_size = (repl_text_limit - repl_text_base) << 1;
-      char *new_buf = (char *) xrealloc (repl_text_base, new_size);
+      char *new_buf = xrealloc (repl_text_base, new_size);
 
       repl_write_ptr = new_buf + (repl_write_ptr - repl_text_base);
       repl_text_base = new_buf;
@@ -2906,8 +2801,7 @@ output_bytes (str, len)
    the current output buffer.  */
 
 static void
-output_string (str)
-     const char *str;
+output_string (const char *str)
 {
   output_bytes (str, strlen (str));
 }
@@ -2932,8 +2826,7 @@ output_string (str)
    byte pointed to by the argument pointer `p'.  */
 
 static void
-output_up_to (p)
-     const char *p;
+output_up_to (const char *p)
 {
   size_t copy_length = (size_t) (p - clean_read_ptr);
   const char *copy_start = orig_text_base+(clean_read_ptr-clean_text_base)+1;
@@ -2952,15 +2845,14 @@ output_up_to (p)
    otherwise.  */
 
 static int
-other_variable_style_function (ansi_header)
-     const char *ansi_header;
+other_variable_style_function (const char *ansi_header)
 {
 #ifdef UNPROTOIZE
 
   /* See if we have a stdarg function, or a function which has stdarg style
      parameters or a stdarg style return type.  */
 
-  return substr (ansi_header, "...") != 0;
+  return strstr (ansi_header, "...") != 0;
 
 #else /* !defined (UNPROTOIZE) */
 
@@ -2974,7 +2866,7 @@ other_variable_style_function (ansi_header)
     {
       const char *candidate;
 
-      if ((candidate = substr (p, varargs_style_indicator)) == 0)
+      if ((candidate = strstr (p, varargs_style_indicator)) == 0)
 	return 0;
       else
 	if (!is_id_char (candidate[-1]) && !is_id_char (candidate[len]))
@@ -2991,9 +2883,8 @@ other_variable_style_function (ansi_header)
    below.  */
 
 static void
-edit_fn_declaration (def_dec_p, clean_text_p)
-     const def_dec_info *def_dec_p;
-     const char *volatile clean_text_p;
+edit_fn_declaration (const def_dec_info *def_dec_p,
+		     const char *volatile clean_text_p)
 {
   const char *start_formals;
   const char *end_formals;
@@ -3207,10 +3098,8 @@ edit_fn_declaration (def_dec_p, clean_text_p)
    function doesn't match the one expected).  */
 
 static int
-edit_formals_lists (end_formals, f_list_count, def_dec_p)
-     const char *end_formals;
-     unsigned int f_list_count;
-     const def_dec_info *def_dec_p;
+edit_formals_lists (const char *end_formals, unsigned int f_list_count,
+		    const def_dec_info *def_dec_p)
 {
   const char *start_formals;
   int depth;
@@ -3318,8 +3207,7 @@ edit_formals_lists (end_formals, f_list_count, def_dec_p)
    definition header.  */
 
 static const char *
-find_rightmost_formals_list (clean_text_p)
-     const char *clean_text_p;
+find_rightmost_formals_list (const char *clean_text_p)
 {
   const char *end_formals;
 
@@ -3436,9 +3324,7 @@ find_rightmost_formals_list (clean_text_p)
    parameter type checking.  */
 
 static void
-add_local_decl (def_dec_p, clean_text_p)
-     const def_dec_info *def_dec_p;
-     const char *clean_text_p;
+add_local_decl (const def_dec_info *def_dec_p, const char *clean_text_p)
 {
   const char *start_of_block;
   const char *function_to_edit = def_dec_p->hash_entry->symbol;
@@ -3543,9 +3429,7 @@ add_local_decl (def_dec_p, clean_text_p)
    and then insert the new explicit declaration at that point in the file.  */
 
 static void
-add_global_decls (file_p, clean_text_p)
-     const file_info *file_p;
-     const char *clean_text_p;
+add_global_decls (const file_info *file_p, const char *clean_text_p)
 {
   const def_dec_info *dd_p;
   const char *scan_p;
@@ -3634,9 +3518,7 @@ add_global_decls (file_p, clean_text_p)
    separate routine above.  */
 
 static void
-edit_fn_definition (def_dec_p, clean_text_p)
-     const def_dec_info *def_dec_p;
-     const char *clean_text_p;
+edit_fn_definition (const def_dec_info *def_dec_p, const char *clean_text_p)
 {
   const char *end_formals;
   const char *function_to_edit = def_dec_p->hash_entry->symbol;
@@ -3778,9 +3660,7 @@ edit_fn_definition (def_dec_p, clean_text_p)
    into whitespace.  Also, whiteout string and character literals.  */
 
 static void
-do_cleaning (new_clean_text_base, new_clean_text_limit)
-     char *new_clean_text_base;
-     const char *new_clean_text_limit;
+do_cleaning (char *new_clean_text_base, const char *new_clean_text_limit)
 {
   char *scan_p;
   int non_whitespace_since_newline = 0;
@@ -3884,8 +3764,7 @@ regular:
    and return a pointer to it.  */
 
 static const char *
-careful_find_l_paren (p)
-     const char *p;
+careful_find_l_paren (const char *p)
 {
   const char *q;
   int paren_depth;
@@ -3923,8 +3802,7 @@ careful_find_l_paren (p)
    I will probably try to do this in a later version though.  */
 
 static void
-scan_for_missed_items (file_p)
-     const file_info *file_p;
+scan_for_missed_items (const file_info *file_p)
 {
   static const char *scan_p;
   const char *limit = clean_text_limit - 3;
@@ -3981,7 +3859,7 @@ scan_for_missed_items (file_p)
 		    goto not_missed;
 
 		  {
-		    char *func_name = (char *) alloca (id_length + 1);
+		    char *func_name = alloca (id_length + 1);
 		    static const char * const stmt_keywords[]
 		      = { "if", "else", "do", "while", "for", "switch", "case", "return", 0 };
 		    const char * const *stmt_keyword;
@@ -4039,8 +3917,7 @@ scan_for_missed_items (file_p)
    preprocessing directives make the editing a whole lot easier.  */
 
 static void
-edit_file (hp)
-     const hash_table_entry *hp;
+edit_file (const hash_table_entry *hp)
 {
   struct stat stat_buf;
   const file_info *file_p = hp->fip;
@@ -4105,12 +3982,12 @@ edit_file (hp)
 
   /* Allocate a buffer to hold the original text.  */
 
-  orig_text_base = new_orig_text_base = (char *) xmalloc (orig_size + 2);
+  orig_text_base = new_orig_text_base = xmalloc (orig_size + 2);
   orig_text_limit = new_orig_text_limit = new_orig_text_base + orig_size;
 
   /* Allocate a buffer to hold the cleaned-up version of the original text.  */
 
-  clean_text_base = new_clean_text_base = (char *) xmalloc (orig_size + 2);
+  clean_text_base = new_clean_text_base = xmalloc (orig_size + 2);
   clean_text_limit = new_clean_text_limit = new_clean_text_base + orig_size;
   clean_read_ptr = clean_text_base - 1;
 
@@ -4120,7 +3997,7 @@ edit_file (hp)
      buffer can be expanded later as needed.  */
 
   repl_size = orig_size + (orig_size >> 2) + 4096;
-  repl_text_base = (char *) xmalloc (repl_size + 2);
+  repl_text_base = xmalloc (repl_size + 2);
   repl_text_limit = repl_text_base + repl_size - 1;
   repl_write_ptr = repl_text_base - 1;
 
@@ -4178,7 +4055,7 @@ edit_file (hp)
   {
     int clean_file;
     size_t clean_size = orig_text_limit - orig_text_base;
-    char *const clean_filename = (char *) alloca (strlen (convert_filename) + 6 + 1);
+    char *const clean_filename = alloca (strlen (convert_filename) + 6 + 1);
 
     /* Open (and create) the clean file.  */
 
@@ -4278,7 +4155,7 @@ edit_file (hp)
   if (!nosave_flag)
     {
       char *new_filename
-	= (char *) xmalloc (strlen (convert_filename) + strlen (save_suffix) + 2);
+	= xmalloc (strlen (convert_filename) + strlen (save_suffix) + 2);
 
       strcpy (new_filename, convert_filename);
 #ifdef __MSDOS__
@@ -4379,7 +4256,7 @@ edit_file (hp)
    in the command line.  */
 
 static void
-do_processing ()
+do_processing (void)
 {
   const char * const *base_pp;
   const char * const * const end_pps
@@ -4405,8 +4282,8 @@ do_processing ()
   if (nondefault_syscalls_dir)
     {
       syscalls_absolute_filename
-	= (char *) xmalloc (strlen (nondefault_syscalls_dir) + 1
-	                    + sizeof (syscalls_filename));
+	= xmalloc (strlen (nondefault_syscalls_dir) + 1
+		   + sizeof (syscalls_filename));
       strcpy (syscalls_absolute_filename, nondefault_syscalls_dir);
     }
   else
@@ -4417,10 +4294,10 @@ do_processing ()
 	  default_syscalls_dir = standard_exec_prefix;
 	}
       syscalls_absolute_filename
-	= (char *) xmalloc (strlen (default_syscalls_dir) + 0
-			    + strlen (target_machine) + 1
-			    + strlen (target_version) + 1
-	                    + sizeof (syscalls_filename));
+	= xmalloc (strlen (default_syscalls_dir) + 0
+		   + strlen (target_machine) + 1
+		   + strlen (target_version) + 1
+		   + sizeof (syscalls_filename));
       strcpy (syscalls_absolute_filename, default_syscalls_dir);
       strcat (syscalls_absolute_filename, target_machine);
       strcat (syscalls_absolute_filename, "/");
@@ -4504,12 +4381,10 @@ static const struct option longopts[] =
   {0, 0, 0, 0}
 };
 
-extern int main PARAMS ((int, char **const));
+extern int main (int, char **const);
 
 int
-main (argc, argv)
-     int argc;
-     char **const argv;
+main (int argc, char **const argv)
 {
   int longind;
   int c;
@@ -4625,7 +4500,7 @@ main (argc, argv)
   /* Now actually make a list of the base source filenames.  */
 
   base_source_filenames
-    = (const char **) xmalloc ((n_base_source_files + 1) * sizeof (char *));
+    = xmalloc ((n_base_source_files + 1) * sizeof (char *));
   n_base_source_files = 0;
   for (; optind < argc; optind++)
     {

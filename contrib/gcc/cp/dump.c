@@ -2,42 +2,40 @@
    Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Mark Mitchell <mark@codesourcery.com>
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "tree.h"
 #include "cp-tree.h"
 #include "tree-dump.h"
 
-static void dump_access
-  PARAMS ((dump_info_p, tree));
+static void dump_access (dump_info_p, tree);
 
-static void dump_op
-  PARAMS ((dump_info_p, tree));
+static void dump_op (dump_info_p, tree);
 
 /* Dump a representation of the accessibility information associated
    with T.  */
 
 static void
-dump_access (di, t)
-     dump_info_p di;
-     tree t;
+dump_access (dump_info_p di, tree t)
 {
   if (TREE_PROTECTED(t))
     dump_string (di, "protected");
@@ -51,9 +49,7 @@ dump_access (di, t)
    operator associated with node t.  */
 
 static void
-dump_op (di, t)
-     dump_info_p di;
-     tree t;
+dump_op (dump_info_p di, tree t)
 {
   switch (DECL_OVERLOADED_OPERATOR_P (t)) {
     case NEW_EXPR:
@@ -206,10 +202,8 @@ dump_op (di, t)
   }
 }
 
-int
-cp_dump_tree (dump_info, t)
-     void *dump_info;
-     tree t;
+bool
+cp_dump_tree (void* dump_info, tree t)
 {
   enum tree_code code;
   dump_info_p di = (dump_info_p) dump_info;
@@ -220,7 +214,7 @@ cp_dump_tree (dump_info, t)
   if (DECL_P (t))
     {
       if (DECL_LANG_SPECIFIC (t) && DECL_LANGUAGE (t) != lang_cplusplus)
-	dump_string (di, language_to_string (DECL_LANGUAGE (t), 0));
+	dump_string (di, language_to_string (DECL_LANGUAGE (t)));
     }
 
   switch (code)
@@ -229,48 +223,43 @@ cp_dump_tree (dump_info, t)
       if (IDENTIFIER_OPNAME_P (t))
 	{
 	  dump_string (di, "operator");
-	  return 1;
+	  return true;
 	}
       else if (IDENTIFIER_TYPENAME_P (t))
 	{
 	  dump_child ("tynm", TREE_TYPE (t));
-	  return 1;
-	}
-      else if (t == anonymous_namespace_name)
-	{
-	  dump_string (di, "unnamed");
-	  return 1;
+	  return true;
 	}
       break;
 
-    case POINTER_TYPE:
-      if (TYPE_PTRMEM_P (t))
-	{
-	  dump_string (di, "ptrmem");
-	  dump_child ("ptd", TYPE_PTRMEM_POINTED_TO_TYPE (t));
-	  dump_child ("cls", TYPE_PTRMEM_CLASS_TYPE (t));
-	  return 1;
-	}
-      break;
+    case OFFSET_TYPE:
+      dump_string (di, "ptrmem");
+      dump_child ("ptd", TYPE_PTRMEM_POINTED_TO_TYPE (t));
+      dump_child ("cls", TYPE_PTRMEM_CLASS_TYPE (t));
+      return true;
 
     case RECORD_TYPE:
-    case UNION_TYPE:
       if (TYPE_PTRMEMFUNC_P (t))
 	{
 	  dump_string (di, "ptrmem");
 	  dump_child ("ptd", TYPE_PTRMEM_POINTED_TO_TYPE (t));
 	  dump_child ("cls", TYPE_PTRMEM_CLASS_TYPE (t));
-	  return 1;
+	  return true;
 	}
+      /* Fall through.  */
 
+    case UNION_TYPE:
       /* Is it a type used as a base? */
       if (TYPE_CONTEXT (t) && TREE_CODE (TYPE_CONTEXT (t)) == TREE_CODE (t)
 	  && CLASSTYPE_AS_BASE (TYPE_CONTEXT (t)) == t)
 	{
 	  dump_child ("bfld", TYPE_CONTEXT (t));
-	  return 1;
+	  return true;
 	}
       
+      if (! IS_AGGR_TYPE (t))
+	break;
+
       dump_child ("vfld", TYPE_VFIELD (t));
       if (CLASSTYPE_TEMPLATE_SPECIALIZATION(t))
         dump_string(di, "spec");
@@ -325,21 +314,29 @@ cp_dump_tree (dump_info, t)
 	    dump_string (di, "destructor");
 	  if (DECL_CONV_FN_P (t))
 	    dump_string (di, "conversion");
-	  if (DECL_GLOBAL_CTOR_P (t) || DECL_GLOBAL_DTOR_P (t))
-	    {
-	      if (DECL_GLOBAL_CTOR_P (t))
-		dump_string (di, "global init");
-	      if (DECL_GLOBAL_DTOR_P (t))
-		dump_string (di, "global fini");
-	    }
+	  if (DECL_GLOBAL_CTOR_P (t))
+	    dump_string (di, "global init");
+	  if (DECL_GLOBAL_DTOR_P (t))
+	    dump_string (di, "global fini");
 	  if (DECL_FRIEND_PSEUDO_TEMPLATE_INSTANTIATION (t))
 	    dump_string (di, "pseudo tmpl");
 	}
       else
 	{
+	  tree virt = THUNK_VIRTUAL_OFFSET (t);
+	  
 	  dump_string (di, "thunk");
-	  dump_int (di, "dlta", THUNK_DELTA (t));
-	  dump_child ("vcll", THUNK_VCALL_OFFSET (t));
+	  if (DECL_THIS_THUNK_P (t))
+	    dump_string (di, "this adjusting");
+	  else
+	    {
+	      dump_string (di, "result adjusting");
+	      if (virt)
+		virt = BINFO_VPTR_FIELD (virt);
+	    }
+	  dump_int (di, "fixd", THUNK_FIXED_OFFSET (t));
+	  if (virt)
+	    dump_int (di, "virt", tree_low_cst (virt, 0));
 	  dump_child ("fn", DECL_INITIAL (t));
 	}
       break;

@@ -1,6 +1,6 @@
 /* Generate code from machine description to perform peephole optimizations.
    Copyright (C) 1987, 1989, 1992, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   1999, 2000, 2003 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,8 +20,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "errors.h"
 #include "gensupport.h"
@@ -51,14 +53,13 @@ static int n_operands;
 
 static int insn_code_number = 0;
 
-static void gen_peephole PARAMS ((rtx));
-static void match_rtx PARAMS ((rtx, struct link *, int));
-static void print_path PARAMS ((struct link *));
-static void print_code PARAMS ((RTX_CODE));
+static void gen_peephole (rtx);
+static void match_rtx (rtx, struct link *, int);
+static void print_path (struct link *);
+static void print_code (RTX_CODE);
 
 static void
-gen_peephole (peep)
-     rtx peep;
+gen_peephole (rtx peep)
 {
   int ninsns = XVECLEN (peep, 0);
   int i;
@@ -66,9 +67,6 @@ gen_peephole (peep)
   n_operands = 0;
 
   printf ("  insn = ins1;\n");
-#if 0
-  printf ("  want_jump = 0;\n");
-#endif
 
   for (i = 0; i < ninsns; i++)
     {
@@ -84,13 +82,8 @@ gen_peephole (peep)
 
 	  printf ("  if (GET_CODE (insn) == CODE_LABEL\n\
       || GET_CODE (insn) == BARRIER)\n    goto L%d;\n",
-  		  insn_code_number);
+		  insn_code_number);
 	}
-
-#if 0
-      printf ("  if (GET_CODE (insn) == JUMP_INSN)\n");
-      printf ("    want_jump = JUMP_LABEL (insn);\n");
-#endif
 
       printf ("  pat = PATTERN (insn);\n");
 
@@ -115,15 +108,6 @@ gen_peephole (peep)
 
   printf ("  PATTERN (ins1) = gen_rtx_PARALLEL (VOIDmode, gen_rtvec_v (%d, operands));\n", n_operands);
 
-#if 0
-  printf ("  if (want_jump && GET_CODE (ins1) != JUMP_INSN)\n");
-  printf ("    {\n");
-  printf ("      rtx insn2 = emit_jump_insn_before (PATTERN (ins1), ins1);\n");
-  printf ("      delete_related_insns (ins1);\n");
-  printf ("      ins1 = ins2;\n");
-  printf ("    }\n");
-#endif
-
   /* Record this define_peephole's insn code in the insn,
      as if it had been recognized to match this.  */
   printf ("  INSN_CODE (ins1) = %d;\n",
@@ -141,10 +125,7 @@ gen_peephole (peep)
 }
 
 static void
-match_rtx (x, path, fail_label)
-     rtx x;
-     struct link *path;
-     int fail_label;
+match_rtx (rtx x, struct link *path, int fail_label)
 {
   RTX_CODE code;
   int i;
@@ -254,7 +235,7 @@ match_rtx (x, path, fail_label)
     case ADDRESS:
       match_rtx (XEXP (x, 0), path, fail_label);
       return;
-      
+
     default:
       break;
     }
@@ -341,8 +322,7 @@ match_rtx (x, path, fail_label)
    evaluate to the rtx at that point.  */
 
 static void
-print_path (path)
-     struct link *path;
+print_path (struct link *path)
 {
   if (path == 0)
     printf ("pat");
@@ -361,20 +341,17 @@ print_path (path)
 }
 
 static void
-print_code (code)
-     RTX_CODE code;
+print_code (RTX_CODE code)
 {
   const char *p1;
   for (p1 = GET_RTX_NAME (code); *p1; p1++)
     putchar (TOUPPER(*p1));
 }
 
-extern int main PARAMS ((int, char **));
+extern int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   rtx desc;
 
@@ -393,6 +370,8 @@ from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
   printf ("#include \"system.h\"\n");
+  printf ("#include \"coretypes.h\"\n");
+  printf ("#include \"tm.h\"\n");
   printf ("#include \"insn-config.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"tm_p.h\"\n");
@@ -407,7 +386,7 @@ from the machine description file `md'.  */\n\n");
   printf ("extern rtx peep_operand[];\n\n");
   printf ("#define operands peep_operand\n\n");
 
-  printf ("rtx\npeephole (ins1)\n     rtx ins1;\n{\n");
+  printf ("rtx\npeephole (rtx ins1)\n{\n");
   printf ("  rtx insn ATTRIBUTE_UNUSED, x ATTRIBUTE_UNUSED, pat ATTRIBUTE_UNUSED;\n\n");
 
   /* Early out: no peepholes for insns followed by barriers.  */
@@ -453,8 +432,7 @@ from the machine description file `md'.  */\n\n");
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
 const char *
-get_insn_name (code)
-     int code ATTRIBUTE_UNUSED;
+get_insn_name (int code ATTRIBUTE_UNUSED)
 {
   return NULL;
 }

@@ -1,22 +1,22 @@
-/* Definitions of target machine for GNU compiler, for ELF on NetBSD/sparc
+/* Definitions of target machine for GCC, for ELF on NetBSD/sparc
    and NetBSD/sparc64.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003 Free Software Foundation, Inc.
    Contributed by Matthew Green (mrg@eterna.com.au).
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -26,9 +26,9 @@ Boston, MA 02111-1307, USA.  */
       NETBSD_OS_CPP_BUILTINS_ELF();			\
       if (TARGET_ARCH64)				\
 	{						\
-	  NETBSD_OS_CPP_BUILTINS_LP64();		\
 	  builtin_define ("__sparc64__");		\
 	  builtin_define ("__sparc_v9__");		\
+	  builtin_define ("__sparcv9");			\
 	}						\
       else						\
 	builtin_define ("__sparc");			\
@@ -39,9 +39,6 @@ Boston, MA 02111-1307, USA.  */
 /* Make sure these are undefined.  */
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
-
-/* Make sure this is undefined.  */
-#undef CPP_PREDEFINES
 
 /* CPP defines used by all NetBSD targets.  */
 #undef CPP_SUBTARGET_SPEC
@@ -69,13 +66,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX  "."
 
-/* This is how to output a definition of an internal numbered label where
-   PREFIX is the class of label and NUM is the number within the class.  */
-
-#undef  ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  fprintf (FILE, ".L%s%d:\n", PREFIX, NUM)
-
 /* This is how to output a reference to an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.  */
 
@@ -96,30 +86,17 @@ Boston, MA 02111-1307, USA.  */
 #define USER_LABEL_PREFIX ""
 
 #undef ASM_SPEC
-#define ASM_SPEC "%{fpic:-K PIC} %{fPIC:-K PIC} %{V} %{v:%{!V:-V}} \
+#define ASM_SPEC "%{fpic|fPIC|fpie|fPIE:-K PIC} %{V} %{v:%{!V:-V}} \
 %{mlittle-endian:-EL} \
 %(asm_cpu) %(asm_arch) %(asm_relax)"
 
 #undef STDC_0_IN_SYSTEM_HEADERS
 
 /* Attempt to enable execute permissions on the stack.  */
-#define TRANSFER_FROM_TRAMPOLINE NETBSD_ENABLE_EXECUTE_STACK
+#define ENABLE_EXECUTE_STACK NETBSD_ENABLE_EXECUTE_STACK
 
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (%s)", TARGET_NAME);
-
-/*
- * Clean up afterwards generic SPARC ELF configuration.
- */
-
-/* FIXME: Aren't these supposed to be available for SPARC ELF?  */
-#undef MULDI3_LIBCALL
-#undef DIVDI3_LIBCALL
-#undef UDIVDI3_LIBCALL
-#undef MODDI3_LIBCALL
-#undef UMODDI3_LIBCALL
-#undef INIT_SUBTARGET_OPTABS  
-#define INIT_SUBTARGET_OPTABS  
 
 /* Below here exists the merged NetBSD/sparc & NetBSD/sparc64 compiler
    description, allowing one to build 32 bit or 64 bit applications

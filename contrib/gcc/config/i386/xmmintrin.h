@@ -1,19 +1,19 @@
-/* Copyright (C) 2002, 2003 Free Software Foundation, Inc.
+/* Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
 
-   This file is part of GNU CC.
+   This file is part of GCC.
 
-   GNU CC is free software; you can redistribute it and/or modify
+   GCC is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
-   GNU CC is distributed in the hope that it will be useful,
+   GCC is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU CC; see the file COPYING.  If not, write to
+   along with GCC; see the file COPYING.  If not, write to
    the Free Software Foundation, 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
@@ -37,12 +37,11 @@
 /* We need type definitions from the MMX header file.  */
 #include <mmintrin.h>
 
-/* The data type indended for user use.  */
+/* The data type intended for user use.  */
 typedef int __m128 __attribute__ ((__mode__(__V4SF__)));
 
-/* Internal data types for implementing the instrinsics.  */
+/* Internal data types for implementing the intrinsics.  */
 typedef int __v4sf __attribute__ ((__mode__(__V4SF__)));
-typedef int __v4si __attribute__ ((__mode__(__V4SI__)));
 
 /* Create a selector for use with the SHUFPS instruction.  */
 #define _MM_SHUFFLE(fp3,fp2,fp1,fp0) \
@@ -890,19 +889,9 @@ _mm_set_ps1 (float __F)
 
 /* Create the vector [Z Y X W].  */
 static __inline __m128
-_mm_set_ps (float __Z, float __Y, float __X, float __W)
+_mm_set_ps (const float __Z, const float __Y, const float __X, const float __W)
 {
-  union {
-    float __a[4];
-    __m128 __v;
-  } __u;
-
-  __u.__a[0] = __W;
-  __u.__a[1] = __X;
-  __u.__a[2] = __Y;
-  __u.__a[3] = __Z;
-
-  return __u.__v;
+  return (__v4sf) {__W, __X, __Y, __Z};
 }
 
 /* Create the vector [W X Y Z].  */
@@ -1192,7 +1181,7 @@ _mm_stream_ps (float *__P, __m128 __A)
   __builtin_ia32_movntps (__P, (__v4sf)__A);
 }
 
-/* Guarantees that every preceeding store is globally visible before
+/* Guarantees that every preceding store is globally visible before
    any subsequent store.  */
 static __inline void
 _mm_sfence (void)

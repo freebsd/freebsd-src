@@ -19,11 +19,11 @@ TARGET_LIBGCC2_CFLAGS =
 
 fp-bit.c: $(srcdir)/config/fp-bit.c
 	echo '#define FLOAT' > fp-bit.c
-	echo '#include "frv/frv-abi.h"' >> fp-bit.c
+	echo '#include "config/frv/frv-abi.h"' >> fp-bit.c
 	cat $(srcdir)/config/fp-bit.c >> fp-bit.c
 
 dp-bit.c: $(srcdir)/config/fp-bit.c
-	echo '#include "frv/frv-abi.h"' > dp-bit.c
+	echo '#include "config/frv/frv-abi.h"' > dp-bit.c
 	cat $(srcdir)/config/fp-bit.c >> dp-bit.c
 
 cmovh.c: $(srcdir)/config/frv/cmovh.c
@@ -90,4 +90,4 @@ MULTILIB_EXCEPTIONS	= mcpu=frv/mno-pack* mcpu=simple/mno-pack*
 LIBGCC = stmp-multilib
 INSTALL_LIBGCC = install-multilib
 
-EXTRA_HEADERS = $(srcdir)/config/frv/frv-asm.h $(srcdir)/config/frv/media.h
+EXTRA_HEADERS = $(srcdir)/config/frv/frv-asm.h

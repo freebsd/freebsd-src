@@ -1,5 +1,6 @@
 /* Basic error reporting routines.
-   Copyright (C) 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -37,14 +38,14 @@ int have_error = 0;
 /* Print a warning message - output produced, but there may be problems.  */
 
 void
-warning VPARAMS ((const char *format, ...))
+warning (const char *format, ...)
 {
-  VA_OPEN (ap, format);
-  VA_FIXEDARG (ap, const char *, format);
+  va_list ap;
 
+  va_start (ap, format);
   fprintf (stderr, "%s: warning: ", progname);
   vfprintf (stderr, format, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   fputc('\n', stderr);
 }
 
@@ -52,14 +53,14 @@ warning VPARAMS ((const char *format, ...))
 /* Print an error message - we keep going but the output is unusable.  */
 
 void
-error VPARAMS ((const char *format, ...))
+error (const char *format, ...)
 {
-  VA_OPEN (ap, format);
-  VA_FIXEDARG (ap, const char *, format);
+  va_list ap;
 
+  va_start (ap, format);
   fprintf (stderr, "%s: ", progname);
   vfprintf (stderr, format, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   fputc('\n', stderr);
 
   have_error = 1;
@@ -69,14 +70,14 @@ error VPARAMS ((const char *format, ...))
 /* Fatal error - terminate execution immediately.  Does not return.  */
 
 void
-fatal VPARAMS ((const char *format, ...))
+fatal (const char *format, ...)
 {
-  VA_OPEN (ap, format);
-  VA_FIXEDARG (ap, const char *, format);
+  va_list ap;
 
+  va_start (ap, format);
   fprintf (stderr, "%s: ", progname);
   vfprintf (stderr, format, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   fputc('\n', stderr);
   exit (FATAL_EXIT_CODE);
 }
@@ -84,14 +85,14 @@ fatal VPARAMS ((const char *format, ...))
 /* Similar, but say we got an internal error.  */
 
 void
-internal_error VPARAMS ((const char *format, ...))
+internal_error (const char *format, ...)
 {
-  VA_OPEN (ap, format);
-  VA_FIXEDARG (ap, const char *, format);
+  va_list ap;
 
+  va_start (ap, format);
   fprintf (stderr, "%s: Internal error: ", progname);
   vfprintf (stderr, format, ap);
-  VA_CLOSE (ap);
+  va_end (ap);
   fputc ('\n', stderr);
   exit (FATAL_EXIT_CODE);
 }
@@ -103,8 +104,7 @@ internal_error VPARAMS ((const char *format, ...))
    version if for the gen* programs and so needn't handle subdirectories.  */
 
 const char *
-trim_filename (name)
-     const char *name;
+trim_filename (const char *name)
 {
   static const char this_file[] = __FILE__;
   const char *p = name, *q = this_file;
@@ -114,11 +114,7 @@ trim_filename (name)
     p++, q++;
 
   /* Now go backwards until the previous directory separator.  */
-  while (p > name && p[-1] != DIR_SEPARATOR
-#ifdef DIR_SEPARATOR_2
-	 && p[-1] != DIR_SEPARATOR_2
-#endif
-	 )
+  while (p > name && !IS_DIR_SEPARATOR (p[-1]))
     p--;
 
   return p;
@@ -128,10 +124,7 @@ trim_filename (name)
    This file is used only by build programs, so we're not as polite as
    the version in diagnostic.c.  */
 void
-fancy_abort (file, line, func)
-     const char *file;
-     int line;
-     const char *func;
+fancy_abort (const char *file, int line, const char *func)
 {
   internal_error ("abort in %s, at %s:%d", func, file, line);
 }

@@ -1,5 +1,5 @@
 /* params.c - Run-time parameters.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
    Written by Mark Mitchell <mark@codesourcery.com>.
 
 This file is part of GCC.
@@ -23,6 +23,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "params.h"
 #include "toplev.h"
 
@@ -38,15 +40,11 @@ static size_t num_compiler_params;
 /* Add the N PARAMS to the current list of compiler parameters.  */
 
 void
-add_params (params, n)
-     const param_info params[];
-     size_t n;
+add_params (const param_info params[], size_t n)
 {
   /* Allocate enough space for the new parameters.  */
-  compiler_params =
-    ((param_info *)
-     xrealloc (compiler_params,
-	       (num_compiler_params + n) * sizeof (param_info)));
+  compiler_params = xrealloc (compiler_params,
+			      (num_compiler_params + n) * sizeof (param_info));
   /* Copy them into the table.  */
   memcpy (compiler_params + num_compiler_params,
 	  params,
@@ -58,9 +56,7 @@ add_params (params, n)
 /* Set the VALUE associated with the parameter given by NAME.  */
 
 void
-set_param_value (name, value)
-     const char *name;
-     int value;
+set_param_value (const char *name, int value)
 {
   size_t i;
 

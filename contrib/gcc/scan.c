@@ -1,5 +1,5 @@
 /* Utility functions for scan-decls and fix-header programs.
-   Copyright (C) 1993, 1994, 1998, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1998, 2002, 2003 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -15,8 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "scan.h"
 
 int lineno = 1;
@@ -24,9 +26,7 @@ int source_lineno = 1;
 sstring source_filename;
 
 void
-make_sstring_space (str, count)
-     sstring *str;
-     int count;
+make_sstring_space (sstring *str, int count)
 {
   int cur_pos = str->ptr - str->base;
   int cur_size = str->limit - str->base;
@@ -41,9 +41,7 @@ make_sstring_space (str, count)
 }
 
 void
-sstring_append (dst, src)
-     sstring *dst;
-     sstring *src;
+sstring_append (sstring *dst, sstring *src)
 {
   char *d, *s;
   int count = SSTRING_LENGTH (src);
@@ -57,10 +55,7 @@ sstring_append (dst, src)
 }
 
 int
-scan_ident (fp, s, c)
-     FILE *fp;
-     sstring *s;
-     int c;
+scan_ident (FILE *fp, sstring *s, int c)
 {
   s->ptr = s->base;
   if (ISIDST (c))
@@ -79,10 +74,7 @@ scan_ident (fp, s, c)
 }
 
 int
-scan_string (fp, s, init)
-     FILE *fp;
-     sstring *s;
-     int init;
+scan_string (FILE *fp, sstring *s, int init)
 {
   int c;
 
@@ -114,9 +106,7 @@ scan_string (fp, s, init)
 /* Skip horizontal white spaces (spaces, tabs, and C-style comments).  */
 
 int
-skip_spaces (fp, c)
-     FILE *fp;
-     int c;
+skip_spaces (FILE *fp, int c)
 {
   for (;;)
     {
@@ -152,10 +142,7 @@ skip_spaces (fp, c)
 }
 
 int
-read_upto (fp, str, delim)
-     FILE *fp;
-     sstring *str;
-     int delim;
+read_upto (FILE *fp, sstring *str, int delim)
 {
   int ch;
 
@@ -172,9 +159,7 @@ read_upto (fp, str, delim)
 }
 
 int
-get_token (fp, s)
-     FILE *fp;
-     sstring *s;
+get_token (FILE *fp, sstring *s)
 {
   int c;
 
@@ -242,9 +227,7 @@ get_token (fp, s)
 }
 
 unsigned int
-hashstr (str, len)
-     const char *str;
-     unsigned int len;
+hashstr (const char *str, unsigned int len)
 {
   unsigned int n = len;
   unsigned int r = 0;

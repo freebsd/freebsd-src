@@ -19,6 +19,11 @@ Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>  /* for EOF */
 #include "libiberty.h"
+#include "safe-ctype.h" /* for HOST_CHARSET_ASCII */
+
+#if EOF != -1
+ #error "hex.c requires EOF == -1"
+#endif
 
 /*
 
@@ -39,12 +44,18 @@ or zero if it is not.  Note that the value you pass will be cast to
 
 @end deftypefn
 
-@deftypefn Extension int hex_value (int @var{c})
+@deftypefn Extension unsigned int hex_value (int @var{c})
 
 Returns the numeric equivalent of the given character when interpreted
 as a hexidecimal digit.  The result is undefined if you pass an
 invalid hex digit.  Note that the value you pass will be cast to
 @code{unsigned char} within the macro.
+
+The @code{hex_value} macro returns @code{unsigned int}, rather than
+signed @code{int}, to make it easier to use in parsing addresses from
+hex dump files: a signed @code{int} would be sign-extended when
+converted to a wider unsigned type --- like @code{bfd_vma}, on some
+systems.
 
 @end deftypefn
 
@@ -56,11 +67,9 @@ invalid hex digit.  Note that the value you pass will be cast to
 
 
 /* Are we ASCII? */
-#if '\n' == 0x0A && ' ' == 0x20 && '0' == 0x30 \
-  && 'A' == 0x41 && 'a' == 0x61 && '!' == 0x21 \
-  && EOF == -1
+#if HOST_CHARSET == HOST_CHARSET_ASCII
 
-const char _hex_value[_hex_array_size] =
+const unsigned char _hex_value[_hex_array_size] =
 {
   _hex_bad, _hex_bad, _hex_bad, _hex_bad,   /* NUL SOH STX ETX */
   _hex_bad, _hex_bad, _hex_bad, _hex_bad,   /* EOT ENQ ACK BEL */
@@ -139,7 +148,7 @@ const char _hex_value[_hex_array_size] =
 
 #else
 
-char _hex_value[_hex_array_size];
+unsigned char _hex_value[_hex_array_size];
 
 #endif /* not ASCII */
 

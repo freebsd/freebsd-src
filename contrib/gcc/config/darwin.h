@@ -1,22 +1,22 @@
 /* Target definitions for Darwin (Mac OS X) systems.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 2000, 2001, 2002
+   Copyright (C) 1989, 1990, 1991, 1992, 1993, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -186,13 +186,16 @@ Boston, MA 02111-1307, USA.  */
 #define LINK_COMMAND_SPEC "\
 %{!fdump=*:%{!fsyntax-only:%{!precomp:%{!c:%{!M:%{!MM:%{!E:%{!S:\
     %{!Zdynamiclib:%(linker)}%{Zdynamiclib:/usr/bin/libtool} \
+    %{!Zdynamiclib:-arch %(darwin_arch)} \
+    %{Zdynamiclib:-arch_only %(darwin_arch)} \
     %l %X %{d} %{s} %{t} %{Z} \
     %{!Zdynamiclib:%{A} %{e*} %{m} %{N} %{n} %{r} %{u*} %{x} %{z}} \
     %{@:-o %f%u.out}%{!@:%{o*}%{!o:-o a.out}} \
     %{!Zdynamiclib:%{!A:%{!nostdlib:%{!nostartfiles:%S}}}} \
-    %{L*} %(link_libgcc) %o %{!nostdlib:%{!nodefaultlibs:%G %L}} \
+    %{L*} %(link_libgcc) %o %{fprofile-arcs|fprofile-generate:-lgcov} \
+    %{!nostdlib:%{!nodefaultlibs:%G %L}} \
     %{!A:%{!nostdlib:%{!nostartfiles:%E}}} %{T*} %{F*} \
-    %{!--help:%{!no-c++filt|c++filt:| c++filt3 }} }}}}}}}}"
+    %{!--help:%{!no-c++filt|c++filt:| c++filt }} }}}}}}}}"
 
 /* Please keep the random linker options in alphabetical order (modulo
    'Z' and 'no' prefixes).  Options that can only go to one of libtool
@@ -243,7 +246,7 @@ Boston, MA 02111-1307, USA.  */
    %{Zmulti_module:-multi_module} %{Zsingle_module:-single_module} \
    %{Zmultiply_defined*:-multiply_defined %*} \
    %{Zmultiplydefinedunused*:-multiply_defined_unused %*} \
-   %{prebind} %{noprebind} %{prebind_all_twolevel_modules} \
+   %{prebind} %{noprebind} %{nofixprebinding} %{prebind_all_twolevel_modules} \
    %{read_only_relocs} \
    %{sectcreate*} %{sectorder*} %{seg1addr*} %{segprot*} %{seg_addr_table*} \
    %{Zseg_addr_table_filename*:-seg_addr_table_filename %*} \
@@ -286,9 +289,6 @@ Boston, MA 02111-1307, USA.  */
    to put anything in ENDFILE_SPEC.  */
 /* #define ENDFILE_SPEC "" */
 
-#undef	DOLLARS_IN_IDENTIFIERS
-#define DOLLARS_IN_IDENTIFIERS 2
-
 /* We use Dbx symbol format.  */
 
 #define DBX_DEBUGGING_INFO 1
@@ -312,7 +312,7 @@ do { text_section ();							\
 
 /* Our profiling scheme doesn't LP labels and counter words.  */
 
-#define NO_PROFILE_COUNTERS
+#define NO_PROFILE_COUNTERS	1
 
 #undef	INIT_SECTION_ASM_OP
 #define INIT_SECTION_ASM_OP
@@ -328,24 +328,14 @@ do { text_section ();							\
 
 /* Don't output a .file directive.  That is only used by the assembler for
    error reporting.  */
+#undef	TARGET_ASM_FILE_START_FILE_DIRECTIVE
+#define TARGET_ASM_FILE_START_FILE_DIRECTIVE false
 
-#undef	ASM_FILE_START
-#define ASM_FILE_START(FILE)
-
-#undef	ASM_FILE_END
-#define ASM_FILE_END(FILE)					\
-  do {								\
-    machopic_finish (asm_out_file);                             \
-    if (strcmp (lang_hooks.name, "GNU C++") == 0)		\
-      {								\
-	constructor_section ();					\
-	destructor_section ();					\
-	ASM_OUTPUT_ALIGN (FILE, 1);				\
-      }								\
-  } while (0)
+#undef  TARGET_ASM_FILE_END
+#define TARGET_ASM_FILE_END darwin_file_end
 
 #define ASM_OUTPUT_SKIP(FILE,SIZE)  \
-  fprintf (FILE, "\t.space %d\n", SIZE)
+  fprintf (FILE, "\t.space "HOST_WIDE_INT_PRINT_UNSIGNED"\n", SIZE)
 
 /* Give ObjC methods pretty symbol names.  */
 
@@ -368,19 +358,19 @@ do { text_section ();							\
 #undef ASM_DECLARE_OBJECT_NAME
 #define ASM_DECLARE_OBJECT_NAME(FILE, NAME, DECL)			\
   do {									\
-    const char *xname = NAME;                                           \
-    if (GET_CODE (XEXP (DECL_RTL (DECL), 0)) != SYMBOL_REF)             \
-      xname = IDENTIFIER_POINTER (DECL_NAME (DECL));                    \
-    if ((TREE_STATIC (DECL)                                             \
-	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))               \
-        || DECL_INITIAL (DECL))                                         \
-      machopic_define_name (xname);                                     \
-    if ((TREE_STATIC (DECL)                                             \
-	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))               \
-        || DECL_INITIAL (DECL))                                         \
-      (* targetm.encode_section_info) (DECL, false);			\
-    ASM_OUTPUT_LABEL (FILE, xname);                                     \
-    /* Darwin doesn't support zero-size objects, so give them a 	\
+    const char *xname = NAME;						\
+    if (GET_CODE (XEXP (DECL_RTL (DECL), 0)) != SYMBOL_REF)		\
+      xname = IDENTIFIER_POINTER (DECL_NAME (DECL));			\
+    if ((TREE_STATIC (DECL)						\
+	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))		\
+        || DECL_INITIAL (DECL))						\
+      machopic_define_name (xname);					\
+    if ((TREE_STATIC (DECL)						\
+	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))		\
+        || DECL_INITIAL (DECL))						\
+      (* targetm.encode_section_info) (DECL, DECL_RTL (DECL), false);	\
+    ASM_OUTPUT_LABEL (FILE, xname);					\
+    /* Darwin doesn't support zero-size objects, so give them a	\
        byte.  */							\
     if (tree_low_cst (DECL_SIZE_UNIT (DECL), 1) == 0)			\
       assemble_zeros (1);						\
@@ -398,7 +388,7 @@ do { text_section ();							\
     if ((TREE_STATIC (DECL)                                             \
 	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))               \
         || DECL_INITIAL (DECL))                                         \
-      (* targetm.encode_section_info) (DECL, false);			\
+      (* targetm.encode_section_info) (DECL, DECL_RTL (DECL), false);	\
     ASM_OUTPUT_LABEL (FILE, xname);                                     \
     /* Avoid generating stubs for functions we've just defined by	\
        outputting any required stub name label now.  */			\
@@ -421,7 +411,9 @@ do { text_section ();							\
 #define ASM_OUTPUT_LABELREF(FILE,NAME)					     \
   do {									     \
        const char *xname = darwin_strip_name_encoding (NAME);		     \
-       if (xname[0] == '&' || xname[0] == '*')				     \
+       if (! strcmp (xname, "<pic base>"))				     \
+         machopic_output_function_base_name(FILE);                           \
+       else if (xname[0] == '&' || xname[0] == '*')			     \
          {								     \
            int len = strlen (xname);					     \
 	   if (len > 6 && !strcmp ("$stub", xname + len - 5))		     \
@@ -466,12 +458,12 @@ do { text_section ();							\
   do {									\
     fputs (".lcomm ", (FILE));						\
     assemble_name ((FILE), (NAME));					\
-    fprintf ((FILE), ",%u,%u\n", (SIZE),				\
+    fprintf ((FILE), ","HOST_WIDE_INT_PRINT_UNSIGNED",%u\n", (SIZE),	\
 	     floor_log2 ((ALIGN) / BITS_PER_UNIT));			\
     if ((DECL) && ((TREE_STATIC (DECL)					\
 	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))		\
         || DECL_INITIAL (DECL)))					\
-      (* targetm.encode_section_info) (DECL, false);			\
+      (* targetm.encode_section_info) (DECL, DECL_RTL (DECL), false);	\
     if ((DECL) && ((TREE_STATIC (DECL)					\
 	 && (!DECL_COMMON (DECL) || !TREE_PUBLIC (DECL)))		\
         || DECL_INITIAL (DECL)))					\
@@ -488,9 +480,9 @@ do { text_section ();							\
 
 #undef	SECTION_FUNCTION
 #define SECTION_FUNCTION(FUNCTION, SECTION, DIRECTIVE, OBJC)		\
-extern void FUNCTION PARAMS ((void));					\
+extern void FUNCTION (void);						\
 void									\
-FUNCTION ()								\
+FUNCTION (void)								\
 {									\
   if (in_section != SECTION)						\
     {									\
@@ -518,18 +510,21 @@ FUNCTION ()								\
   in_objc_symbols, in_objc_module_info,			\
   in_objc_protocol, in_objc_string_object,		\
   in_objc_constant_string_object,			\
+  in_objc_image_info,					\
   in_objc_class_names, in_objc_meth_var_names,		\
-  in_objc_meth_var_types, in_objc_cls_refs, 		\
+  in_objc_meth_var_types, in_objc_cls_refs,		\
   in_machopic_nl_symbol_ptr,				\
   in_machopic_lazy_symbol_ptr,				\
   in_machopic_symbol_stub,				\
+  in_machopic_symbol_stub1,				\
   in_machopic_picsymbol_stub,				\
+  in_machopic_picsymbol_stub1,				\
   in_darwin_exception, in_darwin_eh_frame,		\
   num_sections
 
 #undef	EXTRA_SECTION_FUNCTIONS
 #define EXTRA_SECTION_FUNCTIONS			\
-static void objc_section_init PARAMS ((void));	\
+static void objc_section_init (void);		\
 SECTION_FUNCTION (const_section,		\
                   in_const,			\
                   ".const", 0)			\
@@ -605,6 +600,10 @@ SECTION_FUNCTION (objc_string_object_section,	\
 SECTION_FUNCTION (objc_constant_string_object_section,	\
 		  in_objc_constant_string_object,	\
 		  ".section __OBJC, __cstring_object", 1)	\
+/* Fix-and-Continue image marker.  */		\
+SECTION_FUNCTION (objc_image_info_section,	\
+                  in_objc_image_info,		\
+                  ".section __OBJC, __image_info", 1)	\
 SECTION_FUNCTION (objc_class_names_section,	\
 		in_objc_class_names,		\
 		".objc_class_names", 1)	\
@@ -620,16 +619,22 @@ SECTION_FUNCTION (objc_cls_refs_section,	\
 						\
 SECTION_FUNCTION (machopic_lazy_symbol_ptr_section,	\
 		in_machopic_lazy_symbol_ptr,		\
-		".lazy_symbol_pointer", 0)      	\
+		".lazy_symbol_pointer", 0)	\
 SECTION_FUNCTION (machopic_nl_symbol_ptr_section,	\
 		in_machopic_nl_symbol_ptr,		\
-		".non_lazy_symbol_pointer", 0)      	\
+		".non_lazy_symbol_pointer", 0)	\
 SECTION_FUNCTION (machopic_symbol_stub_section,		\
 		in_machopic_symbol_stub,		\
-		".symbol_stub", 0)      		\
+		".symbol_stub", 0)		\
+SECTION_FUNCTION (machopic_symbol_stub1_section,	\
+		in_machopic_symbol_stub1,		\
+		".section __TEXT,__symbol_stub1,symbol_stubs,pure_instructions,16", 0)\
 SECTION_FUNCTION (machopic_picsymbol_stub_section,	\
 		in_machopic_picsymbol_stub,		\
-		".picsymbol_stub", 0)      		\
+		".picsymbol_stub", 0)		\
+SECTION_FUNCTION (machopic_picsymbol_stub1_section,	\
+		in_machopic_picsymbol_stub1,		\
+		".section __TEXT,__picsymbolstub1,symbol_stubs,pure_instructions,32", 0)\
 SECTION_FUNCTION (darwin_exception_section,		\
 		in_darwin_exception,			\
 		".section __DATA,__gcc_except_tab", 0)	\
@@ -638,7 +643,7 @@ SECTION_FUNCTION (darwin_eh_frame_section,		\
 		".section __TEXT,__eh_frame", 0)	\
 							\
 static void					\
-objc_section_init ()				\
+objc_section_init (void)			\
 {						\
   static int been_here = 0;			\
 						\
@@ -655,7 +660,7 @@ objc_section_init ()				\
       objc_cls_refs_section ();			\
       objc_class_section ();			\
       objc_meta_class_section ();		\
-          /* shared, hot -> cold */    		\
+          /* shared, hot -> cold */		\
       objc_cls_meth_section ();			\
       objc_inst_meth_section ();		\
       objc_protocol_section ();			\
@@ -678,9 +683,9 @@ objc_section_init ()				\
 #define TARGET_ASM_SELECT_RTX_SECTION machopic_select_rtx_section
 
 #define ASM_DECLARE_UNRESOLVED_REFERENCE(FILE,NAME)			\
-    do { 								\
+    do {								\
 	 if (FILE) {							\
-	   if (flag_pic)						\
+	   if (MACHOPIC_INDIRECT)					\
 	     fprintf (FILE, "\t.lazy_reference ");			\
 	   else								\
 	     fprintf (FILE, "\t.reference ");				\
@@ -693,7 +698,7 @@ objc_section_init ()				\
     do {								\
 	 if (FILE) {							\
 	   fprintf (FILE, "\t");					\
-	   assemble_name (FILE, NAME); 					\
+	   assemble_name (FILE, NAME);					\
 	   fprintf (FILE, "=0\n");					\
 	   (*targetm.asm_out.globalize_label) (FILE, NAME);		\
 	 }								\
@@ -703,16 +708,16 @@ objc_section_init ()				\
 #define GLOBAL_ASM_OP ".globl "
 #define TARGET_ASM_GLOBALIZE_LABEL darwin_globalize_label
 
+/* Emit an assembler directive to set visibility for a symbol.  Used
+   to support visibility attribute and Darwin's private extern
+   feature. */
+#undef TARGET_ASM_ASSEMBLE_VISIBILITY
+#define TARGET_ASM_ASSEMBLE_VISIBILITY darwin_assemble_visibility
+
+
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)	\
   sprintf (LABEL, "*%s%ld", PREFIX, (long)(NUM))
-
-/* This is how to output an internal numbered label where PREFIX is
-   the class of label and NUM is the number within the class.  */
-
-#undef ASM_OUTPUT_INTERNAL_LABEL
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE,PREFIX,NUM)	\
-  fprintf (FILE, "%s%d:\n", PREFIX, NUM)
 
 /* Since we have a separate readonly data section, define this so that
    jump tables end up in text rather than data.  */
@@ -733,9 +738,10 @@ enum machopic_addr_class {
 
 /* Macros defining the various PIC cases.  */
 
-#define MACHOPIC_INDIRECT      (flag_pic)
-#define MACHOPIC_JUST_INDIRECT (flag_pic == 1)
-#define MACHOPIC_PURE          (flag_pic == 2)
+#define MACHO_DYNAMIC_NO_PIC_P	(TARGET_DYNAMIC_NO_PIC)
+#define MACHOPIC_INDIRECT	(flag_pic || MACHO_DYNAMIC_NO_PIC_P)
+#define MACHOPIC_JUST_INDIRECT	(flag_pic == 1 || MACHO_DYNAMIC_NO_PIC_P)
+#define MACHOPIC_PURE		(flag_pic == 2 && ! MACHO_DYNAMIC_NO_PIC_P)
 
 #undef TARGET_ENCODE_SECTION_INFO
 #define TARGET_ENCODE_SECTION_INFO  darwin_encode_section_info
@@ -801,7 +807,7 @@ enum machopic_addr_class {
 #define TARGET_ASM_EXCEPTION_SECTION darwin_exception_section
 
 #define TARGET_ASM_EH_FRAME_SECTION darwin_eh_frame_section
-  
+
 #undef ASM_PREFERRED_EH_DATA_FORMAT
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)  \
   (((CODE) == 2 && (GLOBAL) == 1) \
@@ -813,12 +819,12 @@ enum machopic_addr_class {
 
 #define TARGET_TERMINATE_DW2_EH_FRAME_INFO false
 
-#define DARWIN_REGISTER_TARGET_PRAGMAS(PFILE)				\
-  do {									\
-    cpp_register_pragma (PFILE, 0, "mark", darwin_pragma_ignore);	\
-    cpp_register_pragma (PFILE, 0, "options", darwin_pragma_options);	\
-    cpp_register_pragma (PFILE, 0, "segment", darwin_pragma_ignore);	\
-    cpp_register_pragma (PFILE, 0, "unused", darwin_pragma_unused);	\
+#define DARWIN_REGISTER_TARGET_PRAGMAS()			\
+  do {								\
+    c_register_pragma (0, "mark", darwin_pragma_ignore);	\
+    c_register_pragma (0, "options", darwin_pragma_options);	\
+    c_register_pragma (0, "segment", darwin_pragma_ignore);	\
+    c_register_pragma (0, "unused", darwin_pragma_unused);	\
   } while (0)
 
 #undef ASM_APP_ON

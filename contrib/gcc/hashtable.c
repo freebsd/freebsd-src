@@ -1,5 +1,5 @@
 /* Hash tables.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2003 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -30,39 +30,16 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
    existing entry with a potential new one.  Also, the ability to
    delete members from the table has been removed.  */
 
-static unsigned int calc_hash PARAMS ((const unsigned char *, unsigned int));
-static void ht_expand PARAMS ((hash_table *));
-
-/* Let particular systems override the size of a chunk.  */
-#ifndef OBSTACK_CHUNK_SIZE
-#define OBSTACK_CHUNK_SIZE 0
-#endif
-  /* Let them override the alloc and free routines too.  */
-#ifndef OBSTACK_CHUNK_ALLOC
-#define OBSTACK_CHUNK_ALLOC xmalloc
-#endif
-#ifndef OBSTACK_CHUNK_FREE
-#define OBSTACK_CHUNK_FREE free
-#endif
-
-/* Initialize an obstack.  */
-void
-gcc_obstack_init (obstack)
-     struct obstack *obstack;
-{
-  _obstack_begin (obstack, OBSTACK_CHUNK_SIZE, 0,
-		  (void *(*) PARAMS ((long))) OBSTACK_CHUNK_ALLOC,
-		  (void (*) PARAMS ((void *))) OBSTACK_CHUNK_FREE);
-}
+static unsigned int calc_hash (const unsigned char *, size_t);
+static void ht_expand (hash_table *);
+static double approx_sqrt (double);
 
 /* Calculate the hash of the string STR of length LEN.  */
 
 static unsigned int
-calc_hash (str, len)
-     const unsigned char *str;
-     unsigned int len;
+calc_hash (const unsigned char *str, size_t len)
 {
-  unsigned int n = len;
+  size_t n = len;
   unsigned int r = 0;
 #define HASHSTEP(r, c) ((r) * 67 + ((c) - 113));
 
@@ -76,20 +53,21 @@ calc_hash (str, len)
 /* Initialize an identifier hashtable.  */
 
 hash_table *
-ht_create (order)
-     unsigned int order;
+ht_create (unsigned int order)
 {
   unsigned int nslots = 1 << order;
   hash_table *table;
 
-  table = (hash_table *) xmalloc (sizeof (hash_table));
-  memset (table, 0, sizeof (hash_table));
+  table = xcalloc (1, sizeof (hash_table));
 
   /* Strings need no alignment.  */
-  gcc_obstack_init (&table->stack);
+  _obstack_begin (&table->stack, 0, 0,
+		  (void *(*) (long)) xmalloc,
+		  (void (*) (void *)) free);
+
   obstack_alignment_mask (&table->stack) = 0;
 
-  table->entries = (hashnode *) xcalloc (nslots, sizeof (hashnode));
+  table->entries = xcalloc (nslots, sizeof (hashnode));
   table->nslots = nslots;
   return table;
 }
@@ -97,8 +75,7 @@ ht_create (order)
 /* Frees all memory associated with a hash table.  */
 
 void
-ht_destroy (table)
-     hash_table *table;
+ht_destroy (hash_table *table)
 {
   obstack_free (&table->stack, NULL);
   free (table->entries);
@@ -114,11 +91,8 @@ ht_destroy (table)
    CPP_ALLOCED and the item is assumed to be at the top of the
    obstack.  */
 hashnode
-ht_lookup (table, str, len, insert)
-     hash_table *table;
-     const unsigned char *str;
-     unsigned int len;
-     enum ht_lookup_option insert;
+ht_lookup (hash_table *table, const unsigned char *str, size_t len,
+	   enum ht_lookup_option insert)
 {
   unsigned int hash = calc_hash (str, len);
   unsigned int hash2;
@@ -128,31 +102,46 @@ ht_lookup (table, str, len, insert)
 
   sizemask = table->nslots - 1;
   index = hash & sizemask;
-
-  /* hash2 must be odd, so we're guaranteed to visit every possible
-     location in the table during rehashing.  */
-  hash2 = ((hash * 17) & sizemask) | 1;
   table->searches++;
 
-  for (;;)
+  node = table->entries[index];
+ 
+  if (node != NULL)
     {
-      node = table->entries[index];
-
-      if (node == NULL)
-	break;
-
-      if (node->hash_value == hash && HT_LEN (node) == len
-          && !memcmp (HT_STR (node), str, len))
+      if (node->hash_value == hash
+	  && HT_LEN (node) == (unsigned int) len
+	  && !memcmp (HT_STR (node), str, len))
 	{
 	  if (insert == HT_ALLOCED)
 	    /* The string we search for was placed at the end of the
 	       obstack.  Release it.  */
-	    obstack_free (&table->stack, (PTR) str);
+	    obstack_free (&table->stack, (void *) str);
 	  return node;
 	}
 
-      index = (index + hash2) & sizemask;
-      table->collisions++;
+      /* hash2 must be odd, so we're guaranteed to visit every possible
+	 location in the table during rehashing.  */
+      hash2 = ((hash * 17) & sizemask) | 1;
+
+      for (;;)
+	{
+	  table->collisions++;
+	  index = (index + hash2) & sizemask;
+	  node = table->entries[index];
+	  if (node == NULL)
+	    break;
+
+	  if (node->hash_value == hash
+	      && HT_LEN (node) == (unsigned int) len
+	      && !memcmp (HT_STR (node), str, len))
+	    {
+	      if (insert == HT_ALLOCED)
+	      /* The string we search for was placed at the end of the
+		 obstack.  Release it.  */
+		obstack_free (&table->stack, (void *) str);
+	      return node;
+	    }
+	}
     }
 
   if (insert == HT_NO_INSERT)
@@ -161,7 +150,7 @@ ht_lookup (table, str, len, insert)
   node = (*table->alloc_node) (table);
   table->entries[index] = node;
 
-  HT_LEN (node) = len;
+  HT_LEN (node) = (unsigned int) len;
   node->hash_value = hash;
   if (insert == HT_ALLOC)
     HT_STR (node) = obstack_copy0 (&table->stack, str, len);
@@ -178,14 +167,13 @@ ht_lookup (table, str, len, insert)
 /* Double the size of a hash table, re-hashing existing entries.  */
 
 static void
-ht_expand (table)
-     hash_table *table;
+ht_expand (hash_table *table)
 {
   hashnode *nentries, *p, *limit;
   unsigned int size, sizemask;
 
   size = table->nslots * 2;
-  nentries = (hashnode *) xcalloc (size, sizeof (hashnode));
+  nentries = xcalloc (size, sizeof (hashnode));
   sizemask = size - 1;
 
   p = table->entries;
@@ -196,19 +184,18 @@ ht_expand (table)
 	unsigned int index, hash, hash2;
 
 	hash = (*p)->hash_value;
-	hash2 = ((hash * 17) & sizemask) | 1;
 	index = hash & sizemask;
 
-	for (;;)
+	if (nentries[index])
 	  {
-	    if (! nentries[index])
+	    hash2 = ((hash * 17) & sizemask) | 1;
+	    do
 	      {
-		nentries[index] = *p;
-		break;
+		index = (index + hash2) & sizemask;
 	      }
-
-	    index = (index + hash2) & sizemask;
+	    while (nentries[index]);
 	  }
+	nentries[index] = *p;
       }
   while (++p < limit);
 
@@ -220,10 +207,7 @@ ht_expand (table)
 /* For all nodes in TABLE, callback CB with parameters TABLE->PFILE,
    the node, and V.  */
 void
-ht_forall (table, cb, v)
-     hash_table *table;
-     ht_cb cb;
-     const PTR v;
+ht_forall (hash_table *table, ht_cb cb, const void *v)
 {
   hashnode *p, *limit;
 
@@ -241,8 +225,7 @@ ht_forall (table, cb, v)
 /* Dump allocation statistics to stderr.  */
 
 void
-ht_dump_statistics (table)
-     hash_table *table;
+ht_dump_statistics (hash_table *table)
 {
   size_t nelts, nids, overhead, headers;
   size_t total_bytes, longest, sum_of_squares;
@@ -271,7 +254,7 @@ ht_dump_statistics (table)
 	nids++;
       }
   while (++p < limit);
-      
+
   nelts = table->nelements;
   overhead = obstack_memory_used (&table->stack) - total_bytes;
   headers = table->nslots * sizeof (hashnode);
@@ -306,9 +289,8 @@ ht_dump_statistics (table)
 
 /* Return the approximate positive square root of a number N.  This is for
    statistical reports, not code generation.  */
-double
-approx_sqrt (x)
-     double x;
+static double
+approx_sqrt (double x)
 {
   double s, d;
 

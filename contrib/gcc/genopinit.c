@@ -1,6 +1,6 @@
 /* Generate code to initialize optabs from machine description.
-   Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -20,8 +20,10 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
 
-#include "hconfig.h"
+#include "bconfig.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "rtl.h"
 #include "errors.h"
 #include "gensupport.h"
@@ -57,32 +59,33 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    upper-case forms of the comparison, respectively.  */
 
 static const char * const optabs[] =
-{ "extendtab[$B][$A][0] = CODE_FOR_$(extend$a$b2$)",
-  "extendtab[$B][$A][1] = CODE_FOR_$(zero_extend$a$b2$)",
-  "fixtab[$A][$B][0] = CODE_FOR_$(fix$F$a$I$b2$)",
-  "fixtab[$A][$B][1] = CODE_FOR_$(fixuns$F$a$b2$)",
-  "fixtrunctab[$A][$B][0] = CODE_FOR_$(fix_trunc$F$a$I$b2$)",
-  "fixtrunctab[$A][$B][1] = CODE_FOR_$(fixuns_trunc$F$a$I$b2$)",
-  "floattab[$B][$A][0] = CODE_FOR_$(float$I$a$F$b2$)",
-  "floattab[$B][$A][1] = CODE_FOR_$(floatuns$I$a$F$b2$)",
+{ "sext_optab->handlers[$B][$A].insn_code = CODE_FOR_$(extend$a$b2$)",
+  "zext_optab->handlers[$B][$A].insn_code = CODE_FOR_$(zero_extend$a$b2$)",
+  "sfix_optab->handlers[$B][$A].insn_code = CODE_FOR_$(fix$F$a$I$b2$)",
+  "ufix_optab->handlers[$B][$A].insn_code = CODE_FOR_$(fixuns$F$a$b2$)",
+  "sfixtrunc_optab->handlers[$B][$A].insn_code = CODE_FOR_$(fix_trunc$F$a$I$b2$)",
+  "ufixtrunc_optab->handlers[$B][$A].insn_code = CODE_FOR_$(fixuns_trunc$F$a$I$b2$)",
+  "sfloat_optab->handlers[$B][$A].insn_code = CODE_FOR_$(float$I$a$F$b2$)",
+  "ufloat_optab->handlers[$B][$A].insn_code = CODE_FOR_$(floatuns$I$a$F$b2$)",
+  "trunc_optab->handlers[$B][$A].insn_code = CODE_FOR_$(trunc$a$b2$)",
   "add_optab->handlers[$A].insn_code = CODE_FOR_$(add$P$a3$)",
-  "addv_optab->handlers[(int) $A].insn_code =\n\
-    add_optab->handlers[(int) $A].insn_code = CODE_FOR_$(add$F$a3$)",
-  "addv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(addv$I$a3$)",
+  "addv_optab->handlers[$A].insn_code =\n\
+    add_optab->handlers[$A].insn_code = CODE_FOR_$(add$F$a3$)",
+  "addv_optab->handlers[$A].insn_code = CODE_FOR_$(addv$I$a3$)",
   "sub_optab->handlers[$A].insn_code = CODE_FOR_$(sub$P$a3$)",
-  "subv_optab->handlers[(int) $A].insn_code =\n\
-    sub_optab->handlers[(int) $A].insn_code = CODE_FOR_$(sub$F$a3$)",
-  "subv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(subv$I$a3$)",
+  "subv_optab->handlers[$A].insn_code =\n\
+    sub_optab->handlers[$A].insn_code = CODE_FOR_$(sub$F$a3$)",
+  "subv_optab->handlers[$A].insn_code = CODE_FOR_$(subv$I$a3$)",
   "smul_optab->handlers[$A].insn_code = CODE_FOR_$(mul$P$a3$)",
-  "smulv_optab->handlers[(int) $A].insn_code =\n\
-    smul_optab->handlers[(int) $A].insn_code = CODE_FOR_$(mul$F$a3$)",
-  "smulv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(mulv$I$a3$)",
+  "smulv_optab->handlers[$A].insn_code =\n\
+    smul_optab->handlers[$A].insn_code = CODE_FOR_$(mul$F$a3$)",
+  "smulv_optab->handlers[$A].insn_code = CODE_FOR_$(mulv$I$a3$)",
   "umul_highpart_optab->handlers[$A].insn_code = CODE_FOR_$(umul$a3_highpart$)",
   "smul_highpart_optab->handlers[$A].insn_code = CODE_FOR_$(smul$a3_highpart$)",
   "smul_widen_optab->handlers[$B].insn_code = CODE_FOR_$(mul$a$b3$)$N",
   "umul_widen_optab->handlers[$B].insn_code = CODE_FOR_$(umul$a$b3$)$N",
   "sdiv_optab->handlers[$A].insn_code = CODE_FOR_$(div$a3$)",
-  "sdivv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(div$V$I$a3$)",
+  "sdivv_optab->handlers[$A].insn_code = CODE_FOR_$(div$V$I$a3$)",
   "udiv_optab->handlers[$A].insn_code = CODE_FOR_$(udiv$I$a3$)",
   "sdivmod_optab->handlers[$A].insn_code = CODE_FOR_$(divmod$a4$)",
   "udivmod_optab->handlers[$A].insn_code = CODE_FOR_$(udivmod$a4$)",
@@ -103,26 +106,40 @@ static const char * const optabs[] =
   "smax_optab->handlers[$A].insn_code = CODE_FOR_$(max$F$a3$)",
   "umin_optab->handlers[$A].insn_code = CODE_FOR_$(umin$I$a3$)",
   "umax_optab->handlers[$A].insn_code = CODE_FOR_$(umax$I$a3$)",
+  "pow_optab->handlers[$A].insn_code = CODE_FOR_$(pow$a3$)",
+  "atan2_optab->handlers[$A].insn_code = CODE_FOR_$(atan2$a3$)",
   "neg_optab->handlers[$A].insn_code = CODE_FOR_$(neg$P$a2$)",
-  "negv_optab->handlers[(int) $A].insn_code =\n\
-    neg_optab->handlers[(int) $A].insn_code = CODE_FOR_$(neg$F$a2$)",
-  "negv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(negv$I$a2$)",
+  "negv_optab->handlers[$A].insn_code =\n\
+    neg_optab->handlers[$A].insn_code = CODE_FOR_$(neg$F$a2$)",
+  "negv_optab->handlers[$A].insn_code = CODE_FOR_$(negv$I$a2$)",
   "abs_optab->handlers[$A].insn_code = CODE_FOR_$(abs$P$a2$)",
-  "absv_optab->handlers[(int) $A].insn_code =\n\
-    abs_optab->handlers[(int) $A].insn_code = CODE_FOR_$(abs$F$a2$)",
-  "absv_optab->handlers[(int) $A].insn_code = CODE_FOR_$(absv$I$a2$)",
+  "absv_optab->handlers[$A].insn_code =\n\
+    abs_optab->handlers[$A].insn_code = CODE_FOR_$(abs$F$a2$)",
+  "absv_optab->handlers[$A].insn_code = CODE_FOR_$(absv$I$a2$)",
   "sqrt_optab->handlers[$A].insn_code = CODE_FOR_$(sqrt$a2$)",
+  "floor_optab->handlers[$A].insn_code = CODE_FOR_$(floor$a2$)",
+  "ceil_optab->handlers[$A].insn_code = CODE_FOR_$(ceil$a2$)",
+  "round_optab->handlers[$A].insn_code = CODE_FOR_$(round$a2$)",
+  "trunc_optab->handlers[$A].insn_code = CODE_FOR_$(trunc$a2$)",
+  "nearbyint_optab->handlers[$A].insn_code = CODE_FOR_$(nearbyint$a2$)",
   "sin_optab->handlers[$A].insn_code = CODE_FOR_$(sin$a2$)",
   "cos_optab->handlers[$A].insn_code = CODE_FOR_$(cos$a2$)",
   "exp_optab->handlers[$A].insn_code = CODE_FOR_$(exp$a2$)",
   "log_optab->handlers[$A].insn_code = CODE_FOR_$(log$a2$)",
+  "tan_optab->handlers[$A].insn_code = CODE_FOR_$(tan$a2$)",
+  "atan_optab->handlers[$A].insn_code = CODE_FOR_$(atan$a2$)",
   "strlen_optab->handlers[$A].insn_code = CODE_FOR_$(strlen$a$)",
   "one_cmpl_optab->handlers[$A].insn_code = CODE_FOR_$(one_cmpl$a2$)",
   "ffs_optab->handlers[$A].insn_code = CODE_FOR_$(ffs$a2$)",
+  "clz_optab->handlers[$A].insn_code = CODE_FOR_$(clz$a2$)",
+  "ctz_optab->handlers[$A].insn_code = CODE_FOR_$(ctz$a2$)",
+  "popcount_optab->handlers[$A].insn_code = CODE_FOR_$(popcount$a2$)",
+  "parity_optab->handlers[$A].insn_code = CODE_FOR_$(parity$a2$)",
   "mov_optab->handlers[$A].insn_code = CODE_FOR_$(mov$a$)",
   "movstrict_optab->handlers[$A].insn_code = CODE_FOR_$(movstrict$a$)",
   "cmp_optab->handlers[$A].insn_code = CODE_FOR_$(cmp$a$)",
   "tst_optab->handlers[$A].insn_code = CODE_FOR_$(tst$a$)",
+  "addcc_optab->handlers[$A].insn_code = CODE_FOR_$(add$acc$)",
   "bcc_gen_fctn[$C] = gen_$(b$c$)",
   "setcc_gen_code[$C] = CODE_FOR_$(s$c$)",
   "movcc_gen_code[$A] = CODE_FOR_$(mov$acc$)",
@@ -133,13 +150,17 @@ static const char * const optabs[] =
   "reload_in_optab[$A] = CODE_FOR_$(reload_in$a$)",
   "reload_out_optab[$A] = CODE_FOR_$(reload_out$a$)",
   "movstr_optab[$A] = CODE_FOR_$(movstr$a$)",
-  "clrstr_optab[$A] = CODE_FOR_$(clrstr$a$)" };
+  "clrstr_optab[$A] = CODE_FOR_$(clrstr$a$)",
+  "cmpstr_optab[$A] = CODE_FOR_$(cmpstr$a$)",
+  "cmpmem_optab[$A] = CODE_FOR_$(cmpmem$a$)",
+  "vec_set_optab->handlers[$A].insn_code = CODE_FOR_$(vec_set$a$)",
+  "vec_extract_optab->handlers[$A].insn_code = CODE_FOR_$(vec_extract$a$)",
+  "vec_init_optab->handlers[$A].insn_code = CODE_FOR_$(vec_init$a$)" };
 
-static void gen_insn PARAMS ((rtx));
+static void gen_insn (rtx);
 
 static void
-gen_insn (insn)
-     rtx insn;
+gen_insn (rtx insn)
 {
   const char *name = XSTR (insn, 0);
   int m1 = 0, m2 = 0, op = 0;
@@ -212,9 +233,9 @@ gen_insn (insn)
 	      case 'b':
 		/* This loop will stop at the first prefix match, so
                    look through the modes in reverse order, in case
-                   EXTRA_CC_MODES was used and CC is a prefix of the
+                   there are extra CC modes and CC is a prefix of the
                    CC modes (as it should be).  */
-		for (i = ((int) MAX_MACHINE_MODE) - 1; i >= 0; i--)
+		for (i = (MAX_MACHINE_MODE) - 1; i >= 0; i--)
 		  {
 		    for (p = GET_MODE_NAME(i), q = np; *p; p++, q++)
 		      if (TOLOWER (*p) != *q)
@@ -288,16 +309,15 @@ gen_insn (insn)
 	      putchar (TOLOWER (*np));
 	    break;
 	  case 'A':
-	    printf ("(int) %smode", GET_MODE_NAME(m1));
+	    printf ("%smode", GET_MODE_NAME(m1));
 	    break;
 	  case 'B':
-	    printf ("(int) %smode", GET_MODE_NAME(m2));
+	    printf ("%smode", GET_MODE_NAME(m2));
 	    break;
 	  case 'c':
 	    printf ("%s", GET_RTX_NAME(op));
 	    break;
 	  case 'C':
-	    printf ("(int) ");
 	    for (np = GET_RTX_NAME(op); *np; np++)
 	      putchar (TOUPPER (*np));
 	    break;
@@ -307,12 +327,10 @@ gen_insn (insn)
   printf (";\n");
 }
 
-extern int main PARAMS ((int, char **));
+extern int main (int, char **);
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   rtx desc;
 
@@ -329,6 +347,8 @@ from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
   printf ("#include \"system.h\"\n");
+  printf ("#include \"coretypes.h\"\n");
+  printf ("#include \"tm.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"flags.h\"\n");
   printf ("#include \"insn-config.h\"\n");
@@ -337,7 +357,12 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"optabs.h\"\n");
   printf ("#include \"reload.h\"\n\n");
 
-  printf ("void\ninit_all_optabs ()\n{\n");
+  printf ("void\ninit_all_optabs (void)\n{\n");
+
+  puts ("\
+#ifdef FIXUNS_TRUNC_LIKE_FIX_TRUNC\n\
+  int i, j;\n\
+#endif\n");
 
   /* Read the machine description.  */
 
@@ -353,7 +378,17 @@ from the machine description file `md'.  */\n\n");
 	gen_insn (desc);
     }
 
-  printf ("}\n");
+  puts ("\
+\n\
+#ifdef FIXUNS_TRUNC_LIKE_FIX_TRUNC\n\
+  /* This flag says the same insns that convert to a signed fixnum\n\
+     also convert validly to an unsigned one.  */\n\
+  for (i = 0; i < NUM_MACHINE_MODES; i++)\n\
+    for (j = 0; j < NUM_MACHINE_MODES; j++)\n\
+      ufixtrunc_optab->handlers[i][j].insn_code\n\
+      = sfixtrunc_optab->handlers[i][j].insn_code;\n\
+#endif\n\
+}");
 
   fflush (stdout);
   return (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
@@ -361,8 +396,7 @@ from the machine description file `md'.  */\n\n");
 
 /* Define this so we can link with print-rtl.o to get debug_rtx function.  */
 const char *
-get_insn_name (code)
-     int code ATTRIBUTE_UNUSED;
+get_insn_name (int code ATTRIBUTE_UNUSED)
 {
   return NULL;
 }
