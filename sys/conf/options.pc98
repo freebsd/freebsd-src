@@ -201,6 +201,13 @@ LINE30			opt_syscons.h
 DEV_NPX			opt_npx.h
 DEV_APM			opt_apm.h
 
+# SMB/CIFS requester
+NETSMB
+NETSMBCRYPTO
+
+# SMB/CIFS filesystem
+SMBFS
+
 # -------------------------------
 # EOF
 # -------------------------------
