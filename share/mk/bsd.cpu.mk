@@ -43,7 +43,7 @@ CPUTYPE = athlon
 #	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon"
+.  if ${CPUTYPE} == "athlon-mp" || ${CPUTYPE} == "athlon-xp" || ${CPUTYPE} == "athlon-4" || ${CPUTYPE} == "athlon-tbird" || ${CPUTYPE} == "athlon"
 _CPUCFLAGS = -march=${CPUTYPE}
 .  elif ${CPUTYPE} == "k6-3" || ${CPUTYPE} == "k6-2" || ${CPUTYPE} == "k6"
 _CPUCFLAGS = -march=${CPUTYPE}
