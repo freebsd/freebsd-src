@@ -62,22 +62,21 @@ main(int argc, char *argv[])
 	FTSENT *p;
 	u_long clear, set;
 	long val;
-	int Hflag, Lflag, Pflag, Rflag, ch, fts_options, oct, rval;
+	int Hflag, Lflag, Rflag, ch, fts_options, oct, rval;
 	char *flags, *ep;
 
-	Hflag = Lflag = Pflag = Rflag = 0;
+	Hflag = Lflag = Rflag = 0;
 	while ((ch = getopt(argc, argv, "HLPR")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
-			Lflag = Pflag = 0;
+			Lflag = 0;
 			break;
 		case 'L':
 			Lflag = 1;
-			Hflag = Pflag = 0;
+			Hflag = 0;
 			break;
 		case 'P':
-			Pflag = 1;
 			Hflag = Lflag = 0;
 			break;
 		case 'R':
