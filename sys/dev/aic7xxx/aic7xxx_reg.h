@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx_reg.h,v 1.5 1996/01/29 03:12:06 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.6 1996/03/10 07:02:32 gibbs Exp $
  */
 
 /*
@@ -424,10 +424,6 @@
 						 * when we were expecting
 						 * another msgin byte.
 						 */
-#define			PARITY_ERROR	0xe1	/*
-						 * Sequencer detected a parity
-						 * error.
-						 */
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -705,9 +701,11 @@
 					 * head of list of SCBs awaiting
 					 * selection
 					 */
-#define WAITING_SCBT		0x058	/*
-					 * tail of list of SCBs awaiting
-					 * selection
+#define QCNTMASK		0x058	/*
+					 * Mask of bits to test against
+					 * when looking at the Queue Count
+					 * registers.  Works around a bug
+					 * on aic7850 chips. 
 					 */
 #define	COMP_SCBCOUNT		0x059
 #define		SCB_LIST_NULL	0xff
