@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.48 1999/04/11 09:22:17 markm Exp $";
+	"$Id: inetd.c,v 1.49 1999/05/11 12:50:14 des Exp $";
 #endif /* not lint */
 
 /*
@@ -146,8 +146,8 @@ static const char rcsid[] =
 #ifndef LIBWRAP_DENY_SEVERITY
 # define LIBWRAP_DENY_SEVERITY LOG_WARNING
 #endif
-int allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
-int deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
+int allow_severity;
+int deny_severity;
 #endif
 
 #ifdef LOGIN_CAP
@@ -344,8 +344,6 @@ main(argc, argv, envp)
 	int tmpint, ch, dofork;
 	pid_t pid;
 	char buf[50];
-	struct  sockaddr_in peer;
-	int i;
 #ifdef LOGIN_CAP
 	login_cap_t *lc = NULL;
 #endif
@@ -353,6 +351,9 @@ main(argc, argv, envp)
 	struct request_info req;
 	int denied;
 	char *service = NULL;
+#else
+	struct  sockaddr_in peer;
+	int i;
 #endif
 
 
@@ -538,6 +539,7 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
+#ifndef LIBWRAP
 			    if (log) {
 				i = sizeof peer;
 				if (getpeername(ctrl, (struct sockaddr *)
@@ -552,11 +554,16 @@ main(argc, argv, envp)
 					sep->se_service,
 					inet_ntoa(peer.sin_addr));
 			    }
+#endif
 		    } else
 			    ctrl = sep->se_fd;
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
 #ifdef LIBWRAP_INTERNAL
+		    /*
+		     * When builtins are wrapped, avoid a minor optimization
+		     * that breaks hosts_options(5) twist.
+		     */
 		    dofork = 1;
 #else
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
@@ -624,21 +631,13 @@ main(argc, argv, envp)
 #endif
 			    if (sep->se_accept
 				&& sep->se_socktype == SOCK_STREAM) {
-				request_init(&req,
-				    RQ_DAEMON, sep->se_server_name ?
-					sep->se_server_name : sep->se_service,
-					RQ_FILE, ctrl, NULL);
+				service = sep->se_server_name ?
+				    sep->se_server_name : sep->se_service;
+				request_init(&req, RQ_DAEMON, service, RQ_FILE, ctrl, NULL);
 				fromhost(&req);
+				deny_severity = LIBWRAP_DENY_FACILITY|LIBWRAP_DENY_SEVERITY;
+				allow_severity = LIBWRAP_ALLOW_FACILITY|LIBWRAP_ALLOW_SEVERITY;
 				denied = !hosts_access(&req);
-				if (denied || log) {
-				    sp = getservbyport(sep->se_ctrladdr.sin_port, sep->se_proto);
-				    if (sp == NULL) {
-					(void)snprintf(buf, sizeof buf, "%d",
-					   ntohs(sep->se_ctrladdr.sin_port));
-					service = buf;
-				    } else
-					service = sp->s_name;
-				}
 				if (denied) {
 				    syslog(deny_severity,
 				        "refused connection from %.500s, service %s (%s)",
@@ -746,8 +745,9 @@ main(argc, argv, envp)
 #endif
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
-				_exit(EX_OSERR);
 			    }
+			    if (dofork)
+				_exit(0);
 		    }
 		    if (sep->se_accept && sep->se_socktype == SOCK_STREAM)
 			    close(ctrl);
@@ -911,6 +911,7 @@ void config()
 			SWAP(sep->se_class, new->se_class);
 #endif
 			SWAP(sep->se_server, new->se_server);
+			SWAP(sep->se_server_name, new->se_server_name);
 			for (i = 0; i < MAXARGV; i++)
 				SWAP(sep->se_argv[i], new->se_argv[i]);
 			sigsetmask(omask);
