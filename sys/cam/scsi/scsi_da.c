@@ -228,8 +228,12 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Sony Memory Stick adapter MSAC-US1,
 		 * does not support READ_6 commands only READ_10. It also does
 		 * not support sync cache (0x35).
+		 * Sony PCG-C1VJ Internal Memory Stick Slot (MSC-U01) also
+		 * has this quirk.  Make all sony MS* products use this
+		 * quirk.  Reported by: TERAMOTO Masahiro
+		 * <teramoto@comm.eng.osaka-u.ac.jp> (PR 23378).
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MSAC-US1", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "MS*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	},
 	{
