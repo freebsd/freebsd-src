@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.13 1994/10/04 03:05:09 davidg Exp $
+ * $Id: vm_pageout.c,v 1.14 1994/10/05 09:02:53 davidg Exp $
  */
 
 /*
@@ -110,7 +110,6 @@ extern int swap_pager_ready();
 
 #define VM_PAGEOUT_PAGE_COUNT 8
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
-static vm_offset_t vm_space_needed;
 int vm_pageout_req_do_stats;
 
 int	vm_page_max_wired = 0;	/* XXX max # of wired pages system-wide */
@@ -192,9 +191,11 @@ vm_pageout_clean(m, sync)
 	pageout_count = 1;
 	ms[0] = m;
 
-	if (pager = object->pager) {
+	pager = object->pager;
+	if (pager) {
 		for (i = 1; i < vm_pageout_page_count; i++) {
-			if (ms[i] = vm_page_lookup(object, offset+i*NBPG)) {
+			ms[i] = vm_page_lookup(object, offset+i*NBPG);
+			if (ms[i]) {
 				if (( ((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
 					|| ( (ms[i]->flags & (PG_CLEAN|PG_BUSY)) == 0 && sync == VM_PAGEOUT_FORCE))
 					&& (ms[i]->wire_count == 0)
@@ -340,7 +341,6 @@ vm_pageout_object_deactivate_pages(map, object, count)
 {
 	register vm_page_t	p, next;
 	int rcount;
-	int s;
 	int dcount;
 
 	dcount = 0;
@@ -467,7 +467,7 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 			vm_pageout_map_deactivate_pages(tmpm, tmpe, count, freeer);
 			tmpe = tmpe->next;
 		};
-	} else if (obj = entry->object.vm_object) {
+	} else if ((obj = entry->object.vm_object) != 0) {
 		*count -= (*freeer)(map, obj, *count);
 	}
 	lock_read_done(&map->lock);
@@ -483,12 +483,11 @@ vm_pageout_scan()
 {
 	vm_page_t	m;
 	int		page_shortage, maxscan, maxlaunder;
-	int		pages_freed, free, nproc;
+	int		pages_freed;
 	int		desired_free;
 	vm_page_t	next;
 	struct proc	*p;
 	vm_object_t	object;
-	int		s;
 	int		force_wakeup = 0;
 	int		cache_size, orig_cache_size;
 
@@ -555,7 +554,6 @@ morefree:
 	 * is swapped out -- deactivate pages 
 	 */
 
-rescanproc1:
 	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
 		vm_offset_t size;
 		int overage;
@@ -687,9 +685,10 @@ rescan1:
 			 *	cleaning operation.
 			 */
 
-			if (written = vm_pageout_clean(m,0)) {
+			written = vm_pageout_clean(m,0);
+			if (written) 
 				maxlaunder -= written;
-			}
+
 			if (!next)
 				break;
 			/*
@@ -799,15 +798,12 @@ rescan1:
 void
 vm_pageout()
 {
-	extern swiopend;
-	static int nowakeup;
 	(void) spl0();
 
 	/*
 	 *	Initialize some paging parameters.
 	 */
 
-vmretry:
 	cnt.v_free_min = 12;
 	/*
 	 * free_reserved needs to include enough for the largest
