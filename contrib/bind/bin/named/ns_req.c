@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_req.c	4.47 (Berkeley) 7/1/91";
-static const char rcsid[] = "$Id: ns_req.c,v 8.168 2002/04/30 03:43:52 marka Exp $";
+static const char rcsid[] = "$Id: ns_req.c,v 8.169 2002/05/12 23:41:52 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -560,6 +560,8 @@ ns_req(u_char *msg, int msglen, int buflen, struct qstream *qsp,
 		hp->arcount = htons(0);
 		cp = msg + HFIXEDSZ;
 		cp += ns_skiprr(cp, msg + msglen, ns_s_qd, ntohs(hp->qdcount));
+		ns_name_rollback(cp, (const u_char **)dnptrs,
+				 (const u_char **)dnptrs_end);
 		if (opt > 0) {
 			n = ns_add_opt(msg, cp, buflen_orig, 0,
 				       rcode, EDNS_MESSAGE_SZ, 0, NULL, 0);
