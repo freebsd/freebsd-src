@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.227 1999/02/04 13:45:14 bde Exp $
+ *	$Id: sio.c,v 1.228 1999/02/04 15:24:29 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -854,6 +854,9 @@ sioattach(isdp)
 #ifdef COM_ESP
 	Port_t		*espp;
 #endif
+#ifdef COM_MULTIPORT
+	struct isa_device	*idev;
+#endif
 	Port_t		iobase;
 	int		s;
 	int		unit;
@@ -1032,8 +1035,9 @@ determined_type: ;
 		if (unit == COM_MPMASTER(isdp))
 			printf(" master");
 		printf(")");
-		com->no_irq = find_isadev(isa_devtab_tty, &siodriver,
-					  COM_MPMASTER(isdp))->id_irq == 0;
+		idev = find_isadev(isa_devtab_tty, &siodriver,
+				   COM_MPMASTER(isdp));  
+		com->no_irq = (idev == NULL || idev->id_irq == 0);
 	 }
 #endif /* COM_MULTIPORT */
 	if (unit == comconsole)
