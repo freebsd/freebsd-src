@@ -52,7 +52,7 @@
 #endif
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_access.c,v 1.1 1996/04/13 07:27:13 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_access.c,v 1.7 1996/04/28 04:38:47 wpaul Exp $";
 #endif
 
 extern int debug;
@@ -213,7 +213,7 @@ int yp_access(map, rqstp)
 {
 	struct sockaddr_in *rqhost;
 	int status = 0;
-	unsigned long oldaddr;
+	static unsigned long oldaddr = 0;
 #ifndef TCP_WRAPPER
 	struct securenet *tmp;
 #endif

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.7 1996/04/27 17:50:18 wpaul Exp wpaul $
+ *	$Id: yp_dblookup.c,v 1.9 1996/05/01 02:33:52 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -45,6 +45,10 @@
 #include <paths.h>
 #include <rpcsvc/yp.h>
 #include "yp_extern.h"
+
+#ifndef lint
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.9 1996/05/01 02:33:52 wpaul Exp $";
+#endif
 
 int ypdb_debug = 0;
 int yp_errno = YP_TRUE;
@@ -85,7 +89,11 @@ void yp_init_dbs()
 	return;
 }
 
-static inline void yp_flush(i)
+/*
+ * Zorch a single entry in the dbent table and release
+ * all its resources.
+ */
+static __inline void yp_flush(i)
 	register int i;
 {
 	(void)(dbs[i]->dbp->close)(dbs[i]->dbp);
@@ -101,8 +109,6 @@ static inline void yp_flush(i)
 
 /*
  * Close all databases and erase all database names.
- * Don't free the memory allocated for each DB entry though: we
- * can just reuse it later.
  */
 void yp_flush_all()
 {
@@ -122,15 +128,13 @@ void yp_flush_all()
  * a new entry when all our slots are already filled, we have to kick
  * out the entry in the last slot to make room.
  */
-static inline void yp_add_db(dbp, name, size)
+static __inline void yp_add_db(dbp, name, size)
 	DB *dbp;
 	char *name;
 	int size;
 {
 	register int i;
 	register struct dbent *tmp;
-	static int count = 0;
-
 
 	tmp = dbs[LASTDB];
 
@@ -147,15 +151,9 @@ static inline void yp_add_db(dbp, name, size)
 	}
 
 	/*
-	 * Add the new entry. We allocate memory for the dbent
-	 * structure if we need it. We shoudly only end up calling
-	 * malloc(2) MAXDB times. Once all the slots are filled, we
-	 * hold onto the memory and recycle it.
+	 * Allocate a new entry.
 	 */
 	if (dbs[0] == NULL) {
-		count++;
-		if (ypdb_debug)
-			yp_error("allocating new DB member (%d)", count);
 		dbs[0] = (struct dbent *)malloc(sizeof(struct dbent));
 		bzero((char *)dbs[0], sizeof(struct dbent));
 	}
@@ -192,9 +190,10 @@ static inline void yp_add_db(dbp, name, size)
  *   array so that it will be easier to find if another request for
  *   the same database comes in later.
  */
-static inline DB *yp_find_db(name, key, size)
+static __inline DB *yp_find_db(name, key, size)
 	char *name;
 	char *key;
+	int size;
 {
 	register int i, j;
 	register struct dbent *tmp;
@@ -237,7 +236,9 @@ DB *yp_open_db_cache(domain, map, key, size)
 	DB *dbp = NULL;
 	char buf[MAXPATHLEN + 2];
 
-	snprintf(buf, sizeof(buf), "%s/%s", domain, map);
+	strcpy(buf, domain);
+	strcat(buf, "/");
+	strcat(buf, map);
 
 	if ((dbp = yp_find_db((char *)&buf, key, size)) != NULL) {
 		return(dbp);
