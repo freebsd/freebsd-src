@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.63 1998/07/25 15:52:10 alex Exp $
+ *	$Id: mount.h,v 1.64 1998/09/02 17:03:49 bde Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -357,6 +357,8 @@ struct vfsops {
 				    int *exflagsp, struct ucred **credanonp));
 	int	(*vfs_vptofh)	__P((struct vnode *vp, struct fid *fhp));
 	int	(*vfs_init)	__P((struct vfsconf *));
+	int	(*vfs_uninit)	__P((struct vfsconf *));
+	struct sysctl_oid *vfs_oid;
 };
 
 #define VFS_MOUNT(MP, PATH, DATA, NDP, P) \
