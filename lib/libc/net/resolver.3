@@ -179,7 +179,10 @@ environment variable.  Network daemons should set this option.
 .It Dv RES_USE_INET6
 Enables support for IPv6-only applications.
 This causes IPv4 addresses to be returned as an IPv4 mapped address.
-For example, 10.1.1.1 will be returned as ::ffff:10.1.1.1.
+For example,
+.Li 10.1.1.1
+will be returned as
+.Li ::ffff:10.1.1.1 .
 The option is meaningful with certain kernel configuration only.
 .It Dv RES_USE_EDNS0
 Enables support for OPT pseudo-RR for EDNS0 extension.
