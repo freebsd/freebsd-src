@@ -380,7 +380,9 @@ le_attach(
 	   ether_sprintf(sc->le_ac.ac_enaddr));
 
     ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+#ifdef MULTICAST
     ifp->if_flags  |= IFF_MULTICAST;
+#endif /* MULTICAST */
 
     ifp->if_output = ether_output;
     ifp->if_ioctl = le_ioctl;
@@ -594,6 +596,7 @@ le_ioctl(
 	    break;
 	}
 
+#ifdef MULTICAST
 	case SIOCADDMULTI:
 	case SIOCDELMULTI: {
 	    /*
@@ -612,6 +615,7 @@ le_ioctl(
 	    break;
 	}
 
+#endif /* MULTICAST */
 
 	default: {
 	    error = EINVAL;
@@ -688,8 +692,10 @@ static void
 le_multi_filter(
     le_softc_t *sc)
 {
+#ifdef MULTICAST
     struct ether_multistep step;
     struct ether_multi *enm;
+#endif
 #ifdef ISO
     extern char all_es_snpa[];
 #endif
@@ -709,6 +715,7 @@ le_multi_filter(
     le_multi_op(sc, all_es_snpa, TRUE);
 #endif
 
+#ifdef MULTICAST
     ETHER_FIRST_MULTI(step, &sc->le_ac, enm);
     if (enm != NULL)
 	sc->le_flags |= IFF_MULTICAST;
@@ -722,6 +729,7 @@ le_multi_filter(
 	sc->le_flags &= ~LE_BRDCSTONLY;
     }
     sc->le_flags &= ~IFF_ALLMULTI;
+#endif
 }
 
 static void
