@@ -472,7 +472,7 @@ ibsad (int handle, int sad)
 
 	io.__ident = __ID_IBSAD;
 	io.handle = handle;
-	io.sad = v;
+	io.sad = sad;
 	io.__field = __F_HANDLE | __F_SAD;
 	return (__ibsubmit(&io));
 }
