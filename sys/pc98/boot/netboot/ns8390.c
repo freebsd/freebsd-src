@@ -462,7 +462,7 @@ eth_transmit(d,t,s,p)
 #ifdef INCLUDE_3COM
         if (eth_vendor == VENDOR_3COM) {
                 bcopy(d, eth_bmem, 6);                             /* dst */
-                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE);  /* src */
+                bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
                 *(eth_bmem+12) = t>>8;                             /* type */
                 *(eth_bmem+13) = t;
                 bcopy(p, eth_bmem+14, s);
@@ -494,7 +494,7 @@ eth_transmit(d,t,s,p)
 		(void)outb(0x5f,0);
 #endif
 		bcopy(d, eth_bmem, 6);				   /* dst */
-		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_SIZE);  /* src */
+		bcopy(eth_node_addr, eth_bmem+6, ETHER_ADDR_LEN);  /* src */
 		*(eth_bmem+12) = t>>8;				   /* type */
 		*(eth_bmem+13) = t;
 		bcopy(p, eth_bmem+14, s);
@@ -692,11 +692,10 @@ eth_poll()
 /**************************************************************************
 ETH_PIO_READ - Read a frame via Programmed I/O
 **************************************************************************/
-eth_pio_read(src, dst, cnt, init)
+eth_pio_read(src, dst, cnt)
 	unsigned short src;
 	unsigned char *dst;
 	unsigned short cnt;
-	int init;
 {
 	if (cnt & 1) cnt++;
 	outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_RD2 |
@@ -723,11 +722,10 @@ eth_pio_read(src, dst, cnt, init)
 /**************************************************************************
 ETH_PIO_WRITE - Write a frame via Programmed I/O
 **************************************************************************/
-eth_pio_write(src, dst, cnt, init)
+eth_pio_write(src, dst, cnt)
 	unsigned char *src;
 	unsigned short dst;
 	unsigned short cnt;
-	int init;
 {
 	outb(eth_nic_base + D8390_P0_COMMAND, D8390_COMMAND_RD2 |
 		D8390_COMMAND_STA);
