@@ -1,5 +1,5 @@
 /*
- * draft-ietf-secsh-architecture-04.txt
+ * draft-ietf-secsh-architecture-05.txt
  *
  *   Transport layer protocol:
  *
@@ -28,6 +28,7 @@
  *
  *     192-255  Local extensions
  */
+/* RCSID("$OpenBSD: ssh2.h,v 1.3 2000/05/15 07:03:12 markus Exp $"); */
 
 /* transport layer: generic */
 
@@ -88,6 +89,7 @@
 #define SSH2_DISCONNECT_PROTOCOL_ERROR			2
 #define SSH2_DISCONNECT_KEY_EXCHANGE_FAILED		3
 #define SSH2_DISCONNECT_HOST_AUTHENTICATION_FAILED	4
+#define SSH2_DISCONNECT_RESERVED			4
 #define SSH2_DISCONNECT_MAC_ERROR			5
 #define SSH2_DISCONNECT_COMPRESSION_ERROR		6
 #define SSH2_DISCONNECT_SERVICE_NOT_AVAILABLE		7
@@ -95,6 +97,10 @@
 #define SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE		9
 #define SSH2_DISCONNECT_CONNECTION_LOST			10
 #define SSH2_DISCONNECT_BY_APPLICATION			11
+#define SSH2_DISCONNECT_TOO_MANY_CONNECTIONS		12
+#define SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER		13
+#define SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE	14
+#define SSH2_DISCONNECT_ILLEGAL_USER_NAME		15
 
 /* misc */
 

@@ -91,12 +91,17 @@ struct Kex {
 };
 
 Buffer	*kex_init(char *myproposal[PROPOSAL_MAX]);
+void
+kex_exchange_kexinit(
+    Buffer *my_kexinit, Buffer *peer_kexint,
+    char *peer_proposal[PROPOSAL_MAX]);
+Kex *
+kex_choose_conf(char *cprop[PROPOSAL_MAX],
+    char *sprop[PROPOSAL_MAX], int server);
+int	kex_derive_keys(Kex *k, unsigned char *hash, BIGNUM *shared_secret);
+void	packet_set_kex(Kex *k);
 int	dh_pub_is_valid(DH *dh, BIGNUM *dh_pub);
 DH	*dh_new_group1();
-Kex 	*kex_choose_conf(char *cprop[PROPOSAL_MAX], char *sprop[PROPOSAL_MAX], int server);
-int	kex_derive_keys(Kex *k, unsigned char *hash, BIGNUM *shared_secret);
-void	bignum_print(BIGNUM *b);
-void	packet_set_kex(Kex *k);
 
 unsigned char *
 kex_hash(

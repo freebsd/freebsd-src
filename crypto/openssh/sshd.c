@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshd.c,v 1.115 2000/05/03 10:21:49 markus Exp $");
+RCSID("$OpenBSD: sshd.c,v 1.118 2000/05/25 20:45:20 markus Exp $");
 
 #include "xmalloc.h"
 #include "rsa.h"
@@ -258,21 +258,6 @@ key_regeneration_alarm(int sig)
 	errno = save_errno;
 }
 
-char *
-chop(char *s)
-{
-	char *t = s;
-	while (*t) {
-		if(*t == '\n' || *t == '\r') {
-			*t = '\0';
-			return s;
-		}
-		t++;
-	}
-	return s;
-
-}
-
 void
 sshd_exchange_identification(int sock_in, int sock_out)
 {
@@ -400,9 +385,12 @@ void
 destroy_sensitive_data(void)
 {
 	/* Destroy the private and public keys.  They will no longer be needed. */
-	RSA_free(public_key);
-	RSA_free(sensitive_data.private_key);
-	RSA_free(sensitive_data.host_key);
+	if (public_key)
+		RSA_free(public_key);
+	if (sensitive_data.private_key)
+		RSA_free(sensitive_data.private_key);
+	if (sensitive_data.host_key)
+		RSA_free(sensitive_data.host_key);
 	if (sensitive_data.dsa_host_key != NULL)
 		key_free(sensitive_data.dsa_host_key);
 }
@@ -1161,7 +1149,6 @@ do_ssh2_kex()
 	int payload_len, dlen;
 	int slen;
 	unsigned int klen, kout;
-	char *ptr;
 	unsigned char *signature = NULL;
 	unsigned char *server_host_key_blob = NULL;
 	unsigned int sbloblen;
@@ -1173,7 +1160,6 @@ do_ssh2_kex()
 	unsigned char *hash;
 	Kex *kex;
 	char *cprop[PROPOSAL_MAX];
-	char *sprop[PROPOSAL_MAX];
 
 /* KEXINIT */
 
@@ -1181,46 +1167,15 @@ do_ssh2_kex()
 		myproposal[PROPOSAL_ENC_ALGS_CTOS] =
 		myproposal[PROPOSAL_ENC_ALGS_STOC] = options.ciphers;
 	}
-
-	debug("Sending KEX init.");
-
-	for (i = 0; i < PROPOSAL_MAX; i++)
-		sprop[i] = xstrdup(myproposal[i]);
-	server_kexinit = kex_init(sprop);
-	packet_start(SSH2_MSG_KEXINIT);
-	packet_put_raw(buffer_ptr(server_kexinit), buffer_len(server_kexinit));	
-	packet_send();
-	packet_write_wait();
-
-	debug("done");
-
-	packet_read_expect(&payload_len, SSH2_MSG_KEXINIT);
-
-	/*
-	 * save raw KEXINIT payload in buffer. this is used during
-	 * computation of the session_id and the session keys.
-	 */
+	server_kexinit = kex_init(myproposal);
 	client_kexinit = xmalloc(sizeof(*client_kexinit));
 	buffer_init(client_kexinit);
-	ptr = packet_get_raw(&payload_len);
-	buffer_append(client_kexinit, ptr, payload_len);
 
-	/* skip cookie */
-	for (i = 0; i < 16; i++)
-		(void) packet_get_char();
-	/* save kex init proposal strings */
-	for (i = 0; i < PROPOSAL_MAX; i++) {
-		cprop[i] = packet_get_string(NULL);
-		debug("got kexinit string: %s", cprop[i]);
-	}
-
-	i = (int) packet_get_char();
-	debug("first kex follow == %d", i);
-	i = packet_get_int();
-	debug("reserved == %d", i);
-
-	debug("done read kexinit");
-	kex = kex_choose_conf(cprop, sprop, 1);
+	/* algorithm negotiation */
+	kex_exchange_kexinit(server_kexinit, client_kexinit, cprop);
+	kex = kex_choose_conf(cprop, myproposal, 1);
+	for (i = 0; i < PROPOSAL_MAX; i++)
+		xfree(cprop[i]);
 
 /* KEXDH */
 

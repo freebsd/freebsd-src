@@ -28,13 +28,14 @@
  */
 
 #include "includes.h"
-RCSID("$Id: kex.c,v 1.6 2000/05/08 17:42:25 markus Exp $");
+RCSID("$Id: kex.c,v 1.7 2000/05/25 20:45:20 markus Exp $");
 
 #include "ssh.h"
 #include "ssh2.h"
 #include "xmalloc.h"
 #include "buffer.h"
 #include "bufaux.h"
+#include "packet.h"
 #include "cipher.h"
 #include "compat.h"
 
@@ -49,15 +50,17 @@ RCSID("$Id: kex.c,v 1.6 2000/05/08 17:42:25 markus Exp $");
 
 #include "kex.h"
 
+#define KEX_COOKIE_LEN	16
+
 Buffer *
 kex_init(char *myproposal[PROPOSAL_MAX])
 {
-	char c = 0;
-	unsigned char cookie[16];
+	int first_kex_packet_follows = 0;
+	unsigned char cookie[KEX_COOKIE_LEN];
 	u_int32_t rand = 0;
 	int i;
 	Buffer *ki = xmalloc(sizeof(*ki));
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < KEX_COOKIE_LEN; i++) {
 		if (i % 4 == 0)
 			rand = arc4random();
 		cookie[i] = rand & 0xff;
@@ -67,9 +70,53 @@ kex_init(char *myproposal[PROPOSAL_MAX])
 	buffer_append(ki, (char *)cookie, sizeof cookie);
 	for (i = 0; i < PROPOSAL_MAX; i++)
 		buffer_put_cstring(ki, myproposal[i]);
-	buffer_append(ki, &c, 1); /* boolean   first_kex_packet_follows */
-	buffer_put_int(ki, 0);    /* uint32    0 (reserved for future extension) */
+	buffer_put_char(ki, first_kex_packet_follows);
+	buffer_put_int(ki, 0);				/* uint32 reserved */
 	return ki;
+}
+
+/* send kexinit, parse and save reply */
+void
+kex_exchange_kexinit(
+    Buffer *my_kexinit, Buffer *peer_kexint,
+    char *peer_proposal[PROPOSAL_MAX])
+{
+	int i;
+	char *ptr;
+	int plen;
+
+	debug("send KEXINIT");
+	packet_start(SSH2_MSG_KEXINIT);
+	packet_put_raw(buffer_ptr(my_kexinit), buffer_len(my_kexinit));	
+	packet_send();
+	packet_write_wait();
+	debug("done");
+
+	/*
+	 * read and save raw KEXINIT payload in buffer. this is used during
+	 * computation of the session_id and the session keys.
+	 */
+	debug("wait KEXINIT");
+	packet_read_expect(&plen, SSH2_MSG_KEXINIT);
+	ptr = packet_get_raw(&plen);
+	buffer_append(peer_kexint, ptr, plen);
+
+	/* parse packet and save algorithm proposal */
+	/* skip cookie */
+	for (i = 0; i < KEX_COOKIE_LEN; i++)
+		packet_get_char();
+	/* extract kex init proposal strings */
+	for (i = 0; i < PROPOSAL_MAX; i++) {
+		peer_proposal[i] = packet_get_string(NULL);
+		debug("got kexinit: %s", peer_proposal[i]);
+	}
+	/* first kex follow / reserved */
+	i = packet_get_char();
+	debug("first kex follow: %d ", i);
+	i = packet_get_int();
+	debug("reserved: %d ", i);
+	packet_done();
+	debug("done");
 }
 
 /* diffie-hellman-group1-sha1 */
@@ -131,12 +178,6 @@ dh_new_group1()
 			fatal("dh_new_group1: too many bad keys: giving up");
 	} while (!dh_pub_is_valid(dh, dh->pub_key));
 	return dh;
-}
-
-void
-bignum_print(BIGNUM *b)
-{
-	BN_print_fp(stderr,b);
 }
 
 void
@@ -246,10 +287,13 @@ char *
 get_match(char *client, char *server)
 {
 	char *sproposals[MAX_PROP];
-	char *p;
+	char *c, *s, *p, *ret;
 	int i, j, nproposals;
 
-	for ((p = strtok(server, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
+	c = xstrdup(client);
+	s = xstrdup(server);
+
+	for ((p = strtok(s, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
 		if (i < MAX_PROP)
 			sproposals[i] = p;
 		else
@@ -257,11 +301,18 @@ get_match(char *client, char *server)
 	}
 	nproposals = i;
 
-	for ((p = strtok(client, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
-		for (j = 0; j < nproposals; j++)
-			if (strcmp(p, sproposals[j]) == 0)
-				return xstrdup(p);
+	for ((p = strtok(c, SEP)), i=0; p; (p = strtok(NULL, SEP)), i++) {
+		for (j = 0; j < nproposals; j++) {
+			if (strcmp(p, sproposals[j]) == 0) {
+				ret = xstrdup(p);
+				xfree(c);
+				xfree(s);
+				return ret;
+			}
+		}
 	}
+	xfree(c);
+	xfree(s);
 	return NULL;
 }
 void
@@ -355,7 +406,6 @@ choose_hostkeyalg(Kex *k, char *client, char *server)
 Kex *
 kex_choose_conf(char *cprop[PROPOSAL_MAX], char *sprop[PROPOSAL_MAX], int server)
 {
-	int i;
 	int mode;
 	int ctos;				/* direction: if true client-to-server */
 	int need;
@@ -383,10 +433,6 @@ kex_choose_conf(char *cprop[PROPOSAL_MAX], char *sprop[PROPOSAL_MAX], int server
 	choose_kex(k, cprop[PROPOSAL_KEX_ALGS], sprop[PROPOSAL_KEX_ALGS]);
 	choose_hostkeyalg(k, cprop[PROPOSAL_SERVER_HOST_KEY_ALGS],
 	    sprop[PROPOSAL_SERVER_HOST_KEY_ALGS]);
-	for (i = 0; i < PROPOSAL_MAX; i++) {
-		xfree(cprop[i]);
-		xfree(sprop[i]);
-	}
 	need = 0;
 	for (mode = 0; mode < MODE_MAX; mode++) {
 	    if (need < k->enc[mode].key_len)
@@ -396,9 +442,7 @@ kex_choose_conf(char *cprop[PROPOSAL_MAX], char *sprop[PROPOSAL_MAX], int server
 	    if (need < k->mac[mode].key_len)
 		    need = k->mac[mode].key_len;
 	}
-	/* need runden? */
-#define WE_NEED 32
-	k->we_need = WE_NEED;
+	/* XXX need runden? */
 	k->we_need = need;
 	return k;
 }
