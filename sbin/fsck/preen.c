@@ -206,12 +206,13 @@ finddisk(name)
 	register char *p;
 	size_t len;
 
-	for (len = strlen(name), p = name + len - 1; p >= name; --p)
-		if (isdigit(*p)) {
-			len = p - name + 1;
-			break;
-		}
-
+	p = strrchr(name, '/');
+	p = p == NULL ? name : p + 1;
+	while (*p != '\0' && !isdigit((u_char)*p))
+		p++;
+	while (isdigit((u_char)*p))
+		p++;
+	len = (size_t)(p - name);
 	for (dk = disks, dkp = &disks; dk; dkp = &dk->next, dk = dk->next) {
 		if (strncmp(dk->name, name, len) == 0 &&
 		    dk->name[len] == 0)
