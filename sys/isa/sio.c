@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.245 1999/05/30 16:52:48 phk Exp $
+ *	$Id: sio.c,v 1.246 1999/05/31 06:57:31 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -2858,7 +2858,7 @@ siocnprobe(cp)
 				siocniobase = iobase;
 				siocnunit = unit;
 			}
-			if (COM_DEBUGGER(flags)) {
+			if (COM_DEBUGGER(flags) && !COM_LLCONSOLE(flags)) {
 				printf("sio%d: gdb debugging port\n", unit);
 				siogdbiobase = iobase;
 				siogdbunit = unit;
