@@ -24,6 +24,7 @@ static const char rcsid[] =
 
 #include <dialog.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void
 dialog_notify(char *msg)
