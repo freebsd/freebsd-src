@@ -1,9 +1,10 @@
 /*
+ * Copyright (c) 2002, 2003 Tony Finch <dot@dotat.at>
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
- * Dave Yost. Support for #if and #elif was added by Tony Finch.
+ * Dave Yost. It was rewritten to support ANSI C by Tony Finch.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,18 +38,19 @@
 #include <sys/cdefs.h>
 
 #ifndef lint
+#if 0
 static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-
+#endif
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.148 2003/01/20 12:05:41 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.160 2003/07/01 15:21:25 fanf2 Exp $");
 #endif
+#endif /* not lint */
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
-#endif
 #endif
 
 /*
@@ -199,6 +201,7 @@ static int              exitstat;		/* program exit status */
 
 static void             addsym(bool, bool, char *);
 static void             debug(const char *, ...);
+static void             done(void);
 static void             error(const char *);
 static int              findsym(const char *);
 static void             flushline(bool);
@@ -284,33 +287,29 @@ main(int argc, char *argv[])
 		errx(2, "can only do one file");
 	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
 		filename = *argv;
-		if ((input = fopen(filename, "r")) != NULL) {
-			process();
-			(void) fclose(input);
-		} else
-			err(2, "can't open %s", *argv);
+		input = fopen(filename, "r");
+		if (input == NULL)
+			err(2, "can't open %s", filename);
 	} else {
 		filename = "[stdin]";
 		input = stdin;
-		process();
 	}
-
-	exit(exitstat);
+	process();
+	abort(); /* bug */
 }
 
 static void
 usage(void)
 {
 	fprintf(stderr, "usage: unifdef [-cdeklst]"
-	    " [[-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym]] ... [file]\n");
+	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
 	exit(2);
 }
 
 /*
  * A state transition function alters the global #if processing state
  * in a particular way. The table below is indexed by the current
- * processing state and the type of the current line. A NULL entry
- * indicate that processing is complete.
+ * processing state and the type of the current line.
  *
  * Nesting is handled by keeping a stack of states; some transition
  * functions increase or decrease the depth. They also maintain the
@@ -383,7 +382,7 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
 /* IS_OUTSIDE */
 { Itrue, Ifalse,Fpass, Ftrue, Ffalse,Eelif, Eelif, Eelif, Eelse, Eendif,
   Oiffy, Oiffy, Fpass, Oif,   Oif,   Eelif, Eelif, Eelif, Eelse, Eendif,
-  print, NULL },
+  print, done },
 /* IS_FALSE_PREFIX */
 { Idrop, Idrop, Fdrop, Fdrop, Fdrop, Mpass, Strue, Sfalse,Selse, Dendif,
   Idrop, Idrop, Fdrop, Fdrop, Fdrop, Mpass, Eioccc,Eioccc,Eioccc,Eioccc,
@@ -428,6 +427,13 @@ static state_fn * const trans_table[IS_COUNT][LT_COUNT] = {
 /*
  * State machine utility functions
  */
+static void
+done(void)
+{
+	if (incomment)
+		error("EOF in comment");
+	exit(exitstat);
+}
 static void
 ignoreoff(void)
 {
@@ -482,26 +488,21 @@ static void
 process(void)
 {
 	Linetype lineval;
-	state_fn *trans;
 
 	for (;;) {
 		linenum++;
 		lineval = getline();
-		trans = trans_table[ifstate[depth]][lineval];
-		if (trans == NULL)
-			break;
-		trans();
+		trans_table[ifstate[depth]][lineval]();
 		debug("process %s -> %s depth %d",
 		    linetype_name[lineval],
 		    ifstate_name[ifstate[depth]], depth);
 	}
-	if (incomment)
-		error("EOF in comment");
 }
 
 /*
  * Parse a line and determine its type. We keep the preprocessor line
- * parser state between calls in a global variable.
+ * parser state between calls in the global variable linestate, with
+ * help from skipcomment().
  */
 static Linetype
 getline(void)
@@ -587,7 +588,9 @@ getline(void)
 }
 
 /*
- * These are the operators that are supported by the expression evaluator.
+ * These are the binary operators that are supported by the expression
+ * evaluator. Note that if support for division is added then we also
+ * need short-circuiting booleans because of divide-by-zero.
  */
 static int op_lt(int a, int b) { return (a < b); }
 static int op_gt(int a, int b) { return (a > b); }
@@ -698,8 +701,10 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 		}
 		cp = skipsym(cp);
 		keepthis = false;
-	} else
+	} else {
+		debug("eval%d bad expr", ops - eval_ops);
 		return (LT_IF);
+	}
 
 	*cpp = cp;
 	debug("eval%d = %d", ops - eval_ops, *valp);
@@ -753,24 +758,28 @@ ifeval(const char **cpp)
 	debug("eval %s", *cpp);
 	keepthis = killconsts ? false : true;
 	ret = eval_table(eval_ops, &val, cpp);
+	debug("eval = %d", val);
 	return (keepthis ? LT_IF : ret);
 }
 
 /*
  * Skip over comments and stop at the next character position that is
- * not whitespace. Between calls we keep the comment state in a global
- * variable, and we also make a note when we get a proper end-of-line.
+ * not whitespace. Between calls we keep the comment state in the
+ * global variable incomment, and we also adjust the global variable
+ * linestate when we see a newline.
  * XXX: doesn't cope with the buffer splitting inside a state transition.
  */
 static const char *
 skipcomment(const char *cp)
 {
 	if (text || ignoring[depth]) {
-		while (isspace((unsigned char)*cp))
-			cp += 1;
+		for (; isspace((unsigned char)*cp); cp++)
+			if (*cp == '\n')
+				linestate = LS_START;
 		return (cp);
 	}
 	while (*cp != '\0')
+		/* don't reset to LS_START after a line continuation */
 		if (strncmp(cp, "\\\n", 2) == 0)
 			cp += 2;
 		else switch (incomment) {
@@ -829,8 +838,7 @@ skipcomment(const char *cp)
 				incomment = C_COMMENT;
 			continue;
 		default:
-			/* bug */
-			abort();
+			abort(); /* bug */
 		}
 	return (cp);
 }
