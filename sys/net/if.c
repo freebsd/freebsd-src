@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.35 1996/07/30 19:16:58 wollman Exp $
+ * $Id: if.c,v 1.36 1996/08/07 04:09:05 julian Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@ SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
 
 
 int	ifqmaxlen = IFQ_MAXLEN;
-struct	ifnet *ifnet;
+struct	ifnethead ifnet;	/* depend on static init XXX */
 
 /*
  * Network interface utility routines.
@@ -84,7 +84,7 @@ ifinit(dummy)
 {
 	register struct ifnet *ifp;
 
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 		if (ifp->if_snd.ifq_maxlen == 0)
 			ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_slowtimo(0);
@@ -105,15 +105,17 @@ if_attach(ifp)
 	unsigned socksize, ifasize;
 	int namelen, masklen;
 	char workbuf[64];
-	register struct ifnet **p = &ifnet;
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
 	static int if_indexlim = 8;
+	static int inited;
 
+	if (!inited) {
+		TAILQ_INIT(&ifnet);
+		inited = 1;
+	}
 
-	while (*p)
-		p = &((*p)->if_next);
-	*p = ifp;
+	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
 	ifp->if_index = ++if_index;
 	microtime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
@@ -176,7 +178,7 @@ ifa_ifwithaddr(addr)
 
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 	    for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
 		if (ifa->ifa_addr->sa_family != addr->sa_family)
 			continue;
@@ -199,7 +201,7 @@ ifa_ifwithdstaddr(addr)
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
 
-	for (ifp = ifnet; ifp; ifp = ifp->if_next)
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 	    if (ifp->if_flags & IFF_POINTOPOINT)
 		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
@@ -229,7 +231,7 @@ ifa_ifwithnet(addr)
 	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
 		return (ifnet_addrs[sdl->sdl_index - 1]);
 	}
-	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
 			register char *cp, *cp2, *cp3;
 
@@ -406,7 +408,7 @@ if_slowtimo(arg)
 	register struct ifnet *ifp;
 	int s = splimp();
 
-	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
@@ -448,7 +450,7 @@ ifunit(name)
 	if (*cp != '\0')
 		return 0;	/* no trailing garbage allowed */
 	*ep = 0;
-	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
+	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		if (bcmp(ifp->if_name, name, len))
 			continue;
 		if (unit == ifp->if_unit)
@@ -680,13 +682,13 @@ ifconf(cmd, data)
 	caddr_t data;
 {
 	register struct ifconf *ifc = (struct ifconf *)data;
-	register struct ifnet *ifp = ifnet;
+	register struct ifnet *ifp = ifnet.tqh_first;
 	register struct ifaddr *ifa;
 	struct ifreq ifr, *ifrp;
 	int space = ifc->ifc_len, error = 0;
 
 	ifrp = ifc->ifc_req;
-	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_next) {
+	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_link.tqe_next) {
 		char workbuf[64];
 		int ifnlen;
 
