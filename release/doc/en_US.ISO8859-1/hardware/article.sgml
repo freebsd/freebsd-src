@@ -769,7 +769,7 @@
     </para>
 
     <para arch="i386">SCSI adapters utilizing the Command Interface
-    for SCSI-3 Support (ciss driver)
+    for SCSI-3 Support (&man.ciss.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
@@ -777,7 +777,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Intel Integrated RAID Controllers (iir driver)
+    <para arch="i386">Intel Integrated RAID Controllers (&man.iir.4; driver)
       <itemizedlist>
         <listitem>
 	  <para>Intel RAID Controller SRCMR</para>
@@ -811,7 +811,7 @@
     </para>
 
     <para arch="i386">PCI SCSI host adapters using the Tekram
-	TRM-S1040 SCSI chipset (trm driver)
+	TRM-S1040 SCSI chipset (&man.trm.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>Tekram DC395U/UW/F</para>
