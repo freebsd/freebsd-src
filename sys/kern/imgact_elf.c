@@ -910,10 +910,10 @@ struct sseg_closure {
 
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
-static void each_writable_segment(struct proc *, segment_callback, void *);
+static void each_writable_segment(struct thread *, segment_callback, void *);
 static int __elfN(corehdr)(struct thread *, struct vnode *, struct ucred *,
     int, void *, size_t);
-static void __elfN(puthdr)(struct proc *, void *, size_t *, int);
+static void __elfN(puthdr)(struct thread *, void *, size_t *, int);
 static void __elfN(putnote)(void *, size_t *, const char *, int,
     const void *, size_t);
 
@@ -922,11 +922,10 @@ extern int osreldate;
 int
 __elfN(coredump)(td, vp, limit)
 	struct thread *td;
-	register struct vnode *vp;
+	struct vnode *vp;
 	off_t limit;
 {
-	register struct proc *p = td->td_proc;
-	register struct ucred *cred = td->td_ucred;
+	struct ucred *cred = td->td_ucred;
 	int error = 0;
 	struct sseg_closure seginfo;
 	void *hdr;
@@ -935,7 +934,7 @@ __elfN(coredump)(td, vp, limit)
 	/* Size the program segments. */
 	seginfo.count = 0;
 	seginfo.size = 0;
-	each_writable_segment(p, cb_size_segment, &seginfo);
+	each_writable_segment(td, cb_size_segment, &seginfo);
 
 	/*
 	 * Calculate the size of the core file header area by making
@@ -943,7 +942,7 @@ __elfN(coredump)(td, vp, limit)
 	 * size is calculated.
 	 */
 	hdrsize = 0;
-	__elfN(puthdr)(p, (void *)NULL, &hdrsize, seginfo.count);
+	__elfN(puthdr)(td, (void *)NULL, &hdrsize, seginfo.count);
 
 	if (hdrsize + seginfo.size >= limit)
 		return (EFAULT);
@@ -1036,11 +1035,12 @@ cb_size_segment(entry, closure)
  * caller-supplied data.
  */
 static void
-each_writable_segment(p, func, closure)
-	struct proc *p;
+each_writable_segment(td, func, closure)
+	struct thread *td;
 	segment_callback func;
 	void *closure;
 {
+	struct proc *p = td->td_proc;
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry;
 
@@ -1103,13 +1103,12 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 	size_t hdrsize;
 	void *hdr;
 {
-	struct proc *p = td->td_proc;
 	size_t off;
 
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
 	off = 0;
-	__elfN(puthdr)(p, hdr, &off, numsegs);
+	__elfN(puthdr)(td, hdr, &off, numsegs);
 
 	/* Write it to the core file. */
 	return (vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
@@ -1118,7 +1117,7 @@ __elfN(corehdr)(td, vp, cred, numsegs, hdr, hdrsize)
 }
 
 static void
-__elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
+__elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 {
 	struct {
 		prstatus_t status;
@@ -1128,8 +1127,11 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 	prstatus_t *status;
 	prfpregset_t *fpregset;
 	prpsinfo_t *psinfo;
-	struct thread *first, *thr;
+	struct proc *p;
+	struct thread *thr;
 	size_t ehoff, noteoff, notesz, phoff;
+
+	p = td->td_proc;
 
 	ehoff = *off;
 	*off += sizeof(Elf_Ehdr);
@@ -1169,22 +1171,16 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 	    sizeof *psinfo);
 
 	/*
-	 * We want to start with the registers of the initial thread in the
-	 * process so that the .reg and .reg2 pseudo-sections created by bfd
-	 * will be identical to the .reg/$PID and .reg2/$PID pseudo-sections.
-	 * This makes sure that any tool that only looks for .reg and .reg2
-	 * and not for .reg/$PID and .reg2/$PID will behave the same as
-	 * before. The first thread is the thread with an ID equal to the
-	 * process' ID.
-	 * Note that the initial thread may already be gone. In that case
-	 * 'first' is NULL.
+	 * For backward compatibility, we dump the registers of the current
+	 * thread (as passed to us in td) first and set pr_pid to the PID of
+	 * the process.  We then dump the other threads, but with pr_pid set
+	 * to the TID of the thread itself. This has two advantages:
+	 * 1) We preserve the meaning of pr_pid for as much as is possible.
+	 * 2) The debugger will select the current thread as its initial
+	 *    "thread", which is likely what we want.
 	 */
-	thr = first = TAILQ_FIRST(&p->p_threads);
-	while (first != NULL && first->td_tid > PID_MAX)
-		first = TAILQ_NEXT(first, td_plist);
-	if (first != NULL)
-		thr = first;
-	do {
+	thr = td;
+	while (thr != NULL) {
 		if (dst != NULL) {
 			status->pr_version = PRSTATUS_VERSION;
 			status->pr_statussz = sizeof(prstatus_t);
@@ -1192,7 +1188,7 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 			status->pr_fpregsetsz = sizeof(fpregset_t);
 			status->pr_osreldate = osreldate;
 			status->pr_cursig = p->p_sig;
-			status->pr_pid = thr->td_tid;
+			status->pr_pid = (thr == td) ? p->p_pid : thr->td_tid;
 			fill_regs(thr, &status->pr_reg);
 			fill_fpregs(thr, fpregset);
 		}
@@ -1200,12 +1196,14 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 		    sizeof *status);
 		__elfN(putnote)(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
 		    sizeof *fpregset);
+
 		/* XXX allow for MD specific notes. */
-		thr = (thr == first) ? TAILQ_FIRST(&p->p_threads) :
+
+		thr = (thr == td) ? TAILQ_FIRST(&p->p_threads) :
 		    TAILQ_NEXT(thr, td_plist);
-		if (thr == first && thr != NULL)
+		if (thr == td)
 			thr = TAILQ_NEXT(thr, td_plist);
-	} while (thr != NULL);
+	}
 
 	notesz = *off - noteoff;
 
@@ -1266,7 +1264,7 @@ __elfN(puthdr)(struct proc *p, void *dst, size_t *off, int numsegs)
 		/* All the writable segments from the program. */
 		phc.phdr = phdr;
 		phc.offset = *off;
-		each_writable_segment(p, cb_put_phdr, &phc);
+		each_writable_segment(td, cb_put_phdr, &phc);
 	}
 }
 
