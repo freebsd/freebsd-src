@@ -70,6 +70,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1052,8 +1053,11 @@ hme_start(struct ifnet *ifp)
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m);
 			break;
-		} else
+		} else {
 			enq = 1;
+			if (ifp->if_bpf)
+				bpf_mtap(ifp, m);
+		}
 	}
 
 	if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC || error == -1)
