@@ -11,12 +11,8 @@
 
 /* ??? Maybe this should be in sysv4.h?  */
 #define CPP_PREDEFINES "\
--D__ia64 -D__ia64__ -D__linux -D__linux__ -D_LONGLONG -Dlinux -Dunix \
--D__LP64__ -D__ELF__ -Asystem=linux -Acpu=ia64 -Amachine=ia64"
-
-/* ??? ia64 gas doesn't accept standard svr4 assembler options?  */
-#undef ASM_SPEC
-#define ASM_SPEC "-x %{mconstant-gp} %{mauto-pic}"
+  -D__gnu_linux__ -D__linux -D__linux__ -D_LONGLONG \
+  -Dlinux -Dunix -Asystem=linux"
 
 /* Need to override linux.h STARTFILE_SPEC, since it has crtbeginT.o in.  */
 #undef STARTFILE_SPEC
@@ -46,13 +42,7 @@
       %{static:-static}}"
 
 
-#define DONT_USE_BUILTIN_SETJMP
 #define JMP_BUF_SIZE  76
-
-/* Output any profiling code before the prologue.  */
-
-#undef PROFILE_BEFORE_PROLOGUE
-#define PROFILE_BEFORE_PROLOGUE 1
 
 /* Override linux.h LINK_EH_SPEC definition.
    Signalize that because we have fde-glibc, we don't need all C shared libs
@@ -98,10 +88,16 @@
       (CONTEXT)->pfs_loc = &(sc_->sc_ar_pfs);				\
       (CONTEXT)->lc_loc = &(sc_->sc_ar_lc);				\
       (CONTEXT)->unat_loc = &(sc_->sc_ar_unat);				\
+      (CONTEXT)->br_loc[0] = &(sc_->sc_br[0]);				\
+      (CONTEXT)->bsp = sc_->sc_ar_bsp;					\
       (CONTEXT)->pr = sc_->sc_pr;					\
       (CONTEXT)->psp = sc_->sc_gr[12];					\
+      (CONTEXT)->gp = sc_->sc_gr[1];					\
+      /* Signal frame doesn't have an associated reg. stack frame 	\
+         other than what we adjust for below.	  */			\
+      (FS) -> no_reg_stack_frame = 1;					\
 									\
-      /* Don't touch the branch registers.  The kernel doesn't		\
+      /* Don't touch the branch registers o.t. b0.  The kernel doesn't	\
 	 pass the preserved branch registers in the sigcontext but	\
 	 leaves them intact, so there's no need to do anything		\
 	 with them here.  */						\

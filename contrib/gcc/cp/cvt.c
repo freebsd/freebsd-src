@@ -267,7 +267,7 @@ cp_convert_to_pointer (type, expr, force)
     }
 
   if (type_unknown_p (expr))
-    return instantiate_type (type, expr, itf_complain);
+    return instantiate_type (type, expr, tf_error | tf_warning);
 
   error ("cannot convert `%E' from type `%T' to type `%T'",
 	    expr, intype, type);
@@ -478,7 +478,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
     {
       expr = instantiate_type (type, expr, 
 			       (flags & LOOKUP_COMPLAIN)
-	                       ? itf_complain : itf_none);
+	                       ? tf_error | tf_warning : tf_none);
       if (expr == error_mark_node)
 	return error_mark_node;
 
@@ -836,7 +836,7 @@ convert_to_void (expr, implicit)
         tree new_op1 = convert_to_void (op1, implicit);
         tree new_op2 = convert_to_void (op2, implicit);
         
-	expr = build (COND_EXPR, void_type_node,
+	expr = build (COND_EXPR, TREE_TYPE (new_op1),
 		      TREE_OPERAND (expr, 0), new_op1, new_op2);
         break;
       }
@@ -852,6 +852,7 @@ convert_to_void (expr, implicit)
 	    tree t = build (COMPOUND_EXPR, TREE_TYPE (new_op1),
 			    TREE_OPERAND (expr, 0), new_op1);
 	    TREE_SIDE_EFFECTS (t) = TREE_SIDE_EFFECTS (expr);
+	    TREE_NO_UNUSED_WARNING (t) = TREE_NO_UNUSED_WARNING (expr);
 	    expr = t;
 	  }
 

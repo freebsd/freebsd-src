@@ -1,5 +1,5 @@
 /* stu.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -301,6 +301,7 @@ ffestu_sym_end_transition (ffesymbol s)
       if (sa & FFESYMBOL_attrsADJUSTABLE)
 	{			/* Not actually in any dummy list! */
 	  if (ffe_is_pedantic ()
+	      /* xgettext:no-c-format */
 	      && ffebad_start_msg ("Local adjustable symbol `%A' at %0",
 				   FFEBAD_severityPEDANTIC))
 	    {

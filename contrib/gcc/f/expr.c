@@ -1,5 +1,6 @@
 /* expr.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996, 1997, 1998, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997, 1998, 2001, 2002
+   Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -9608,6 +9609,7 @@ ffeexpr_exprstack_push_unary_ (ffeexprExpr_ e)
 	  <= FFEEXPR_operatorprecedenceLOWARITH_)
       && (e->u.operator.prec <= FFEEXPR_operatorprecedenceLOWARITH_))
     {
+      /* xgettext:no-c-format */
       ffebad_start_msg ("Two arithmetic operators in a row at %0 and %1 -- use parentheses",
 			ffe_is_pedantic ()
 			? FFEBAD_severityPEDANTIC
@@ -9657,6 +9659,7 @@ ffeexpr_exprstack_push_binary_ (ffeexprExpr_ e)
       && (e->u.operator.prec
 	  < ffeexpr_stack_->exprstack->previous->u.operator.prec))
     {
+      /* xgettext:no-c-format */
       ffebad_start_msg ("Operator at %0 has lower precedence than that at %1 -- use parentheses", FFEBAD_severityWARNING);
       ffebad_here (0,
 	 ffelex_token_where_line (ffeexpr_stack_->exprstack->previous->token),
@@ -10517,6 +10520,7 @@ ffeexpr_reduced_eqop2_ (ffebld reduced, ffeexprExpr_ l, ffeexprExpr_ op,
   if ((lbt == FFEINFO_basictypeLOGICAL)
       && (rbt == FFEINFO_basictypeLOGICAL))
     {
+      /* xgettext:no-c-format */
       if (ffebad_start_msg ("Use .EQV./.NEQV. instead of .EQ./.NE. at %0 for LOGICAL operands at %1 and %2",
 			    FFEBAD_severityFATAL))
 	{
@@ -10887,6 +10891,7 @@ ffeexpr_reduced_power_ (ffebld reduced, ffeexprExpr_ l, ffeexprExpr_ op,
 	}
       if (rkt == FFEINFO_kindtypeINTEGER4)
 	{
+	  /* xgettext:no-c-format */
 	  ffebad_start_msg ("Unsupported operand for ** at %1 -- converting to default INTEGER",
 			    FFEBAD_severityWARNING);
 	  ffebad_here (0, ffelex_token_where_line (r->token), ffelex_token_where_column (r->token));
@@ -16489,10 +16494,8 @@ ffeexpr_sym_impdoitem_ (ffesymbol sp, ffelexToken t)
 				   FFETARGET_charactersizeNONE));
   ffesymbol_signal_unreported (s);
 
-  if (((ffesymbol_basictype (sp) != FFEINFO_basictypeINTEGER)
+  if ((ffesymbol_basictype (sp) != FFEINFO_basictypeINTEGER)
        && (ffesymbol_basictype (sp) != FFEINFO_basictypeANY))
-      || ((ffesymbol_kindtype (sp) != FFEINFO_kindtypeINTEGERDEFAULT)
-	  && (ffesymbol_kindtype (sp) != FFEINFO_kindtypeANY)))
     ffesymbol_error (s, t);
 
   return s;

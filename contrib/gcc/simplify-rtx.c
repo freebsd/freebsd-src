@@ -99,7 +99,8 @@ static rtx neg_const_int PARAMS ((enum machine_mode, rtx));
 static int simplify_plus_minus_op_data_cmp PARAMS ((const void *,
 						    const void *));
 static rtx simplify_plus_minus		PARAMS ((enum rtx_code,
-						 enum machine_mode, rtx, rtx));
+						 enum machine_mode, rtx,
+						 rtx, int));
 static void check_fold_consts		PARAMS ((PTR));
 #if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
 static void simplify_unary_real		PARAMS ((PTR));
@@ -137,23 +138,20 @@ simplify_gen_binary (code, mode, op0, op1)
 
   /* If this simplifies, do it.  */
   tem = simplify_binary_operation (code, mode, op0, op1);
-
   if (tem)
     return tem;
 
-  /* Handle addition and subtraction of CONST_INT specially.  Otherwise,
-     just form the operation.  */
+  /* Handle addition and subtraction specially.  Otherwise, just form
+     the operation.  */
 
-  if (GET_CODE (op1) == CONST_INT
-      && GET_MODE (op0) != VOIDmode
-      && (code == PLUS || code == MINUS))
+  if (code == PLUS || code == MINUS)
     {
-      if (code == MINUS)
-	op1 = neg_const_int (mode, op1);
-      return plus_constant (op0, INTVAL (op1));
+      tem = simplify_plus_minus (code, mode, op0, op1, 1);
+      if (tem)
+	return tem;
     }
-  else
-    return gen_rtx_fmt_ee (code, mode, op0, op1);
+
+  return gen_rtx_fmt_ee (code, mode, op0, op1);
 }
 
 /* If X is a MEM referencing the constant pool, return the real value.
@@ -528,8 +526,10 @@ simplify_unary_operation (code, mode, op, op_mode)
 	  break;
 
 	case ZERO_EXTEND:
+	  /* When zero-extending a CONST_INT, we need to know its
+             original mode.  */
 	  if (op_mode == VOIDmode)
-	    op_mode = mode;
+	    abort ();
 	  if (GET_MODE_BITSIZE (op_mode) == HOST_BITS_PER_WIDE_INT)
 	    {
 	      /* If we were really extending the mode,
@@ -587,7 +587,8 @@ simplify_unary_operation (code, mode, op, op_mode)
 
   /* We can do some operations on integer CONST_DOUBLEs.  Also allow
      for a DImode operation on a CONST_INT.  */
-  else if (GET_MODE (trueop) == VOIDmode && width <= HOST_BITS_PER_INT * 2
+  else if (GET_MODE (trueop) == VOIDmode
+	   && width <= HOST_BITS_PER_WIDE_INT * 2
 	   && (GET_CODE (trueop) == CONST_DOUBLE
 	       || GET_CODE (trueop) == CONST_INT))
     {
@@ -631,8 +632,10 @@ simplify_unary_operation (code, mode, op, op_mode)
 	  break;
 
 	case ZERO_EXTEND:
-	  if (op_mode == VOIDmode
-	      || GET_MODE_BITSIZE (op_mode) > HOST_BITS_PER_WIDE_INT)
+	  if (op_mode == VOIDmode)
+	    abort ();
+
+	  if (GET_MODE_BITSIZE (op_mode) > HOST_BITS_PER_WIDE_INT)
 	    return 0;
 
 	  hv = 0;
@@ -1147,7 +1150,7 @@ simplify_binary_operation (code, mode, op0, op1)
 		      && GET_CODE (XEXP (op0, 0)) == PLUS)
 		  || (GET_CODE (op1) == CONST
 		      && GET_CODE (XEXP (op1, 0)) == PLUS))
-	      && (tem = simplify_plus_minus (code, mode, op0, op1)) != 0)
+	      && (tem = simplify_plus_minus (code, mode, op0, op1, 0)) != 0)
 	    return tem;
 	  break;
 
@@ -1284,7 +1287,7 @@ simplify_binary_operation (code, mode, op0, op1)
 		      && GET_CODE (XEXP (op0, 0)) == PLUS)
 		  || (GET_CODE (op1) == CONST
 		      && GET_CODE (XEXP (op1, 0)) == PLUS))
-	      && (tem = simplify_plus_minus (code, mode, op0, op1)) != 0)
+	      && (tem = simplify_plus_minus (code, mode, op0, op1, 0)) != 0)
 	    return tem;
 
 	  /* Don't let a relocatable value get a negative coeff.  */
@@ -1723,7 +1726,12 @@ simplify_binary_operation (code, mode, op0, op1)
 
    Rather than test for specific case, we do this by a brute-force method
    and do all possible simplifications until no more changes occur.  Then
-   we rebuild the operation.  */
+   we rebuild the operation. 
+
+   If FORCE is true, then always generate the rtx.  This is used to 
+   canonicalize stuff emitted from simplify_gen_binary.  Note that this
+   can still fail if the rtx is too complex.  It won't fail just because
+   the result is not 'simpler' than the input, however.  */
 
 struct simplify_plus_minus_op_data
 {
@@ -1744,10 +1752,11 @@ simplify_plus_minus_op_data_cmp (p1, p2)
 }
 
 static rtx
-simplify_plus_minus (code, mode, op0, op1)
+simplify_plus_minus (code, mode, op0, op1, force)
      enum rtx_code code;
      enum machine_mode mode;
      rtx op0, op1;
+     int force;
 {
   struct simplify_plus_minus_op_data ops[8];
   rtx result, tem;
@@ -1781,7 +1790,7 @@ simplify_plus_minus (code, mode, op0, op1)
 	    case PLUS:
 	    case MINUS:
 	      if (n_ops == 7)
-		return 0;
+		return NULL_RTX;
 
 	      ops[n_ops].op = XEXP (this_op, 1);
 	      ops[n_ops].neg = (this_code == MINUS) ^ this_neg;
@@ -1799,9 +1808,18 @@ simplify_plus_minus (code, mode, op0, op1)
 	      break;
 
 	    case CONST:
-	      ops[i].op = XEXP (this_op, 0);
-	      input_consts++;
-	      changed = 1;
+	      if (n_ops < 7
+		  && GET_CODE (XEXP (this_op, 0)) == PLUS
+		  && CONSTANT_P (XEXP (XEXP (this_op, 0), 0))
+		  && CONSTANT_P (XEXP (XEXP (this_op, 0), 1)))
+		{
+		  ops[i].op = XEXP (XEXP (this_op, 0), 0);
+		  ops[n_ops].op = XEXP (XEXP (this_op, 0), 1);
+		  ops[n_ops].neg = this_neg;
+		  n_ops++;
+		  input_consts++;
+		  changed = 1;
+		}
 	      break;
 
 	    case NOT:
@@ -1833,8 +1851,13 @@ simplify_plus_minus (code, mode, op0, op1)
   while (changed);
 
   /* If we only have two operands, we can't do anything.  */
-  if (n_ops <= 2)
+  if (n_ops <= 2 && !force)
     return NULL_RTX;
+
+  /* Count the number of CONSTs we didn't split above.  */
+  for (i = 0; i < n_ops; i++)
+    if (GET_CODE (ops[i].op) == CONST)
+      input_consts++;
 
   /* Now simplify each pair of operands until nothing changes.  The first
      time through just simplify constants against each other.  */
@@ -1936,8 +1959,9 @@ simplify_plus_minus (code, mode, op0, op1)
      sure we count a CONST as two operands.  If we have the same
      number of operands, but have made more CONSTs than before, this
      is also an improvement, so accept it.  */
-  if (n_ops + n_consts > input_ops
-      || (n_ops + n_consts == input_ops && n_consts <= input_consts))
+  if (!force
+      && (n_ops + n_consts > input_ops
+          || (n_ops + n_consts == input_ops && n_consts <= input_consts)))
     return NULL_RTX;
 
   /* Put a non-negated operand first.  If there aren't any, make all

@@ -1,5 +1,5 @@
 /* Default initializers for a generic GCC target.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -164,6 +164,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define TARGET_SET_DEFAULT_TYPE_ATTRIBUTES default_set_default_type_attributes
 #define TARGET_INSERT_ATTRIBUTES default_insert_attributes
 #define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P default_function_attribute_inlinable_p
+#define TARGET_MS_BITFIELD_LAYOUT_P default_ms_bitfield_layout_p
 
 /* In builtins.c.  */
 #define TARGET_INIT_BUILTINS default_init_builtins
@@ -173,6 +174,9 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifndef TARGET_SECTION_TYPE_FLAGS
 #define TARGET_SECTION_TYPE_FLAGS default_section_type_flags
 #endif
+
+/* In hook.c.  */
+#define TARGET_CANNOT_MODIFY_JUMPS_P hook_void_bool_false
 
 /* The whole shebang.  */
 #define TARGET_INITIALIZER			\
@@ -186,9 +190,13 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
   TARGET_SET_DEFAULT_TYPE_ATTRIBUTES,		\
   TARGET_INSERT_ATTRIBUTES,			\
   TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P,	\
+  TARGET_MS_BITFIELD_LAYOUT_P,			\
   TARGET_INIT_BUILTINS,				\
   TARGET_EXPAND_BUILTIN,			\
   TARGET_SECTION_TYPE_FLAGS,			\
   TARGET_HAVE_NAMED_SECTIONS,			\
-  TARGET_HAVE_CTORS_DTORS			\
+  TARGET_HAVE_CTORS_DTORS,			\
+  TARGET_CANNOT_MODIFY_JUMPS_P			\
 }
+
+#include "hooks.h"

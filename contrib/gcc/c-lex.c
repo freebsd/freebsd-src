@@ -85,7 +85,8 @@ static int ignore_escape_flag;
 
 static void parse_float		PARAMS ((PTR));
 static tree lex_number		PARAMS ((const char *, unsigned int));
-static tree lex_string		PARAMS ((const char *, unsigned int, int));
+static tree lex_string		PARAMS ((const unsigned char *, unsigned int,
+					 int));
 static tree lex_charconst	PARAMS ((const cpp_token *));
 static void update_header_times	PARAMS ((const char *));
 static int dump_one_header	PARAMS ((splay_tree_node, void *));
@@ -239,7 +240,7 @@ cb_ident (pfile, line, str)
   if (! flag_no_ident)
     {
       /* Convert escapes in the string.  */
-      tree value = lex_string ((const char *)str->text, str->len, 0);
+      tree value = lex_string (str->text, str->len, 0);
       ASM_OUTPUT_IDENT (asm_out_file, TREE_STRING_POINTER (value));
     }
 #endif
@@ -271,10 +272,12 @@ cb_file_change (pfile, new_map)
 	main_input_filename = new_map->to_file;
       else
 	{
-	  lineno = SOURCE_LINE (new_map - 1, new_map->from_line - 1);
+          int included_at = SOURCE_LINE (new_map - 1, new_map->from_line - 1);
+
+	  lineno = included_at;
 	  push_srcloc (new_map->to_file, 1);
 	  input_file_stack->indent_level = indent_level;
-	  (*debug_hooks->start_source_file) (lineno, new_map->to_file);
+	  (*debug_hooks->start_source_file) (included_at, new_map->to_file);
 #ifndef NO_IMPLICIT_EXTERN_C
 	  if (c_header_level)
 	    ++c_header_level;
@@ -807,8 +810,8 @@ c_lex (value)
 
     case CPP_STRING:
     case CPP_WSTRING:
-      *value = lex_string ((const char *)tok->val.str.text,
-			   tok->val.str.len, tok->type == CPP_WSTRING);
+      *value = lex_string (tok->val.str.text, tok->val.str.len,
+			   tok->type == CPP_WSTRING);
       break;
 
       /* These tokens should not be visible outside cpplib.  */
@@ -1297,14 +1300,14 @@ lex_number (str, len)
 
 static tree
 lex_string (str, len, wide)
-     const char *str;
+     const unsigned char *str;
      unsigned int len;
      int wide;
 {
   tree value;
   char *buf = alloca ((len + 1) * (wide ? WCHAR_BYTES : 1));
   char *q = buf;
-  const char *p = str, *limit = str + len;
+  const unsigned char *p = str, *limit = str + len;
   unsigned int c;
   unsigned width = wide ? WCHAR_TYPE_SIZE
 			: TYPE_PRECISION (char_type_node);
@@ -1320,7 +1323,7 @@ lex_string (str, len, wide)
       wchar_t wc;
       int char_len;
 
-      char_len = local_mbtowc (&wc, p, limit - p);
+      char_len = local_mbtowc (&wc, (const char *) p, limit - p);
       if (char_len == -1)
 	{
 	  warning ("ignoring invalid multibyte character");
@@ -1344,8 +1347,7 @@ lex_string (str, len, wide)
 	    mask = ((unsigned int) 1 << width) - 1;
 	  else
 	    mask = ~0;
-	  c = cpp_parse_escape (parse_in, (const unsigned char **) &p,
-				(const unsigned char *) limit,
+	  c = cpp_parse_escape (parse_in, &p, limit,
 				mask, flag_traditional);
 	}
 	
@@ -1405,7 +1407,7 @@ lex_charconst (token)
      const cpp_token *token;
 {
   HOST_WIDE_INT result;
-  tree value;
+  tree type, value;
   unsigned int chars_seen;
  
   result = cpp_interpret_charconst (parse_in, token, warn_multichar,
@@ -1413,7 +1415,7 @@ lex_charconst (token)
   if (token->type == CPP_WCHAR)
     {
       value = build_int_2 (result, 0);
-      TREE_TYPE (value) = wchar_type_node;
+      type = wchar_type_node;
     }
   else
     {
@@ -1425,10 +1427,24 @@ lex_charconst (token)
       /* In C, a character constant has type 'int'.
  	 In C++ 'char', but multi-char charconsts have type 'int'.  */
       if (c_language == clk_cplusplus && chars_seen <= 1)
- 	TREE_TYPE (value) = char_type_node;
+	type = char_type_node;
       else
- 	TREE_TYPE (value) = integer_type_node;
+	type = integer_type_node;
     }
- 
+
+  /* cpp_interpret_charconst issues a warning if the constant
+     overflows, but if the number fits in HOST_WIDE_INT anyway, it
+     will return it un-truncated, which may cause problems down the
+     line.  So set the type to widest_integer_literal_type, call
+     convert to truncate it to the proper type, then clear
+     TREE_OVERFLOW so we don't get a second warning.
+
+     FIXME: cpplib's assessment of overflow may not be accurate on a
+     platform where the final type can change at (compiler's) runtime.  */
+
+  TREE_TYPE (value) = widest_integer_literal_type_node;
+  value = convert (type, value);
+  TREE_OVERFLOW (value) = 0;
+
   return value;
 }
