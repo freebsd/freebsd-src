@@ -2283,8 +2283,9 @@ inmem(struct vnode * vp, daddr_t blkno)
 		return 1;
 	if (vp->v_mount == NULL)
 		return 0;
-	if (VOP_GETVOBJECT(vp, &obj) != 0 || vp->v_object == NULL)
-		return 0;
+	obj = vp->v_object;
+	if (obj == NULL)
+		return (0);
 
 	size = PAGE_SIZE;
 	if (size > vp->v_mount->mnt_stat.f_iosize)
@@ -2448,7 +2449,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	struct bufobj *bo;
 	int s;
 	int error;
-	struct vm_object *vmo;
 
 	CTR3(KTR_BUF, "getblk(%p, %ld, %d)", vp, (long)blkno, size);
 	ASSERT_VOP_LOCKED(vp, "getblk");
@@ -2607,8 +2607,7 @@ loop:
 
 		bsize = bo->bo_bsize;
 		offset = blkno * bsize;
-		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) &&
-		    vp->v_object != NULL;
+		vmio = vp->v_object != NULL;
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
 
@@ -2668,10 +2667,9 @@ loop:
 				printf("getblk: VMIO on vnode type %d\n",
 					vp->v_type);
 #endif
-			VOP_GETVOBJECT(vp, &vmo);
-			KASSERT(vmo == bp->b_bufobj->bo_object,
+			KASSERT(vp->v_object == bp->b_bufobj->bo_object,
 			    ("ARGH! different b_bufobj->bo_object %p %p %p\n",
-			    bp, vmo, bp->b_bufobj->bo_object));
+			    bp, vp->v_object, bp->b_bufobj->bo_object));
 		} else {
 			bp->b_flags &= ~B_VMIO;
 			KASSERT(bp->b_bufobj->bo_object == NULL,
@@ -3229,8 +3227,8 @@ bufdone(struct buf *bp)
 			panic("biodone: zero vnode ref count");
 		}
 
-		if (vp->v_object == NULL)
-			panic("biodone: vnode is not setup for merged cache");
+		KASSERT(vp->v_object != NULL,
+			("biodone: vnode %p has no vm_object", vp));
 #endif
 
 		foff = bp->b_offset;
