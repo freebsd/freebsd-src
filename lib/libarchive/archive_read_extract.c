@@ -74,12 +74,21 @@ struct fixup_entry {
 #define	FIXUP_TIMES	2
 #define	FIXUP_FFLAGS	4
 
+struct bucket {
+	char	*name;
+	int	 hash;
+	id_t	 id;
+};
+
 struct extract {
 	mode_t			 umask;
 	mode_t			 default_dir_mode;
 	struct archive_string	 create_parent_dir;
 	struct fixup_entry	*fixup_list;
 	struct fixup_entry	*current_fixup;
+
+	struct bucket ucache[127];
+	struct bucket gcache[127];
 
 	/*
 	 * Cached stat data from disk for the current entry.
@@ -113,6 +122,7 @@ static int	extract_fifo(struct archive *, struct archive_entry *, int);
 static int	extract_file(struct archive *, struct archive_entry *, int);
 static int	extract_hard_link(struct archive *, struct archive_entry *, int);
 static int	extract_symlink(struct archive *, struct archive_entry *, int);
+static unsigned int	hash(const char *);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
 static int	create_parent_dir(struct archive *, const char *, int flags);
@@ -1193,23 +1203,44 @@ set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
 #endif
 
 /*
- * XXX The following gid/uid lookups can be a performance bottleneck.
- * Some form of caching would probably be very effective, though
- * I have concerns about staleness.
+ * The following routines do some basic caching of uname/gname lookups.
+ * All such lookups go through these routines, including ACL conversions.
+ *
+ * TODO: Provide an API for clients to override these routines.
  */
 static gid_t
 lookup_gid(struct archive *a, const char *gname, gid_t gid)
 {
 	struct group	*grent;
+	struct extract *extract;
+	int h;
+	struct bucket *b;
+	int cache_size;
 
-	(void)a; /* UNUSED */
+	extract = a->extract;
+	cache_size = sizeof(extract->gcache) / sizeof(extract->gcache[0]);
 
-	/* Look up gid from gname. */
-	if (gname != NULL  &&  *gname != '\0') {
-		grent = getgrnam(gname);
-		if (grent != NULL)
-			gid = grent->gr_gid;
-	}
+	/* If no gname, just use the gid provided. */
+	if (gname == NULL || *gname == '\0')
+		return (gid);
+
+	/* Try to find gname in the cache. */
+	h = hash(gname);
+	b = &extract->gcache[h % cache_size ];
+	if (b->name != NULL && b->hash == h && strcmp(gname, b->name) == 0)
+		return ((gid_t)b->id);
+
+	/* Free the cache slot for a new entry. */
+	if (b->name != NULL)
+		free(b->name);
+	b->name = strdup(gname);
+	/* Note: If strdup fails, that's okay; we just won't cache. */
+	b->hash = h;
+	grent = getgrnam(gname);
+	if (grent != NULL)
+		gid = grent->gr_gid;
+	b->id = gid;
+
 	return (gid);
 }
 
@@ -1217,16 +1248,52 @@ static uid_t
 lookup_uid(struct archive *a, const char *uname, uid_t uid)
 {
 	struct passwd	*pwent;
+	struct extract *extract;
+	int h;
+	struct bucket *b;
+	int cache_size;
 
-	(void)a; /* UNUSED */
+	extract = a->extract;
+	cache_size = sizeof(extract->ucache) / sizeof(extract->ucache[0]);
 
-	/* Look up uid from uname. */
-	if (uname != NULL  &&  *uname != '\0') {
-		pwent = getpwnam(uname);
-		if (pwent != NULL)
-			uid = pwent->pw_uid;
-	}
+	/* If no uname, just use the uid provided. */
+	if (uname == NULL || *uname == '\0')
+		return (uid);
+
+	/* Try to find uname in the cache. */
+	h = hash(uname);
+	b = &extract->ucache[h % cache_size ];
+	if (b->name != NULL && b->hash == h && strcmp(uname, b->name) == 0)
+		return ((uid_t)b->id);
+
+	/* Free the cache slot for a new entry. */
+	if (b->name != NULL)
+		free(b->name);
+	b->name = strdup(uname);
+	/* Note: If strdup fails, that's okay; we just won't cache. */
+	b->hash = h;
+	pwent = getpwnam(uname);
+	if (pwent != NULL)
+		uid = pwent->pw_uid;
+	b->id = uid;
+
 	return (uid);
+}
+
+static unsigned int
+hash(const char *p)
+{
+  /* A 32-bit version of Peter Weinberger's (PJW) hash algorithm,
+     as used by ELF for hashing function names. */
+  unsigned g,h = 0;
+  while(*p != '\0') {
+    h = ( h << 4 ) + *p++;
+    if (( g = h & 0xF0000000 )) {
+      h ^= g >> 24;
+      h &= 0x0FFFFFFF;
+    }
+  }
+  return h;
 }
 
 void
