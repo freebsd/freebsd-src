@@ -6,8 +6,11 @@
 .Nd controlling utility for IP firewall
 .Sh SYNOPSIS
 .Nm ipfw
+.Op Fl q
 .Oo
-.Fl q
+.Fl p Ar preproc
+.Op Fl D Ar macro Ns Op Ns =value
+.Op Fl U Ar macro
 .Oc
 file
 .Nm ipfw
@@ -57,6 +60,32 @@ If used as shown in the first synopsis line, the
 will be read line by line and applied as arguments to the 
 .Nm
 command.
+.Pp
+Optionally, a preprocessor can be specified using
+.Fl p Ar preproc
+where
+.Ar file
+is to be piped through.  Useful preprocessors include
+.Xr cpp 1
+and
+.Xr m4 1 .
+If
+.Ar preproc
+doesn't start with a slash as its first character, the usual
+.Ev PATH
+name search is performed.  Care should be taken with this in environments
+where not all filesystems are mounted (yet) by the time
+.Nm
+is being run (e. g. since they are mounted over NFS).  Once
+.Fl p
+has been specified, optional
+.Fl D
+and
+.Fl U
+specifcations can follow and will be passed on to the preprocessor.
+This allows for flexible configuration files (like conditionalizing
+them on the local hostname) and the use of macros to centralize
+frequently required arguments like IP addresses.
 .Pp
 The
 .Nm
@@ -515,6 +544,8 @@ This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
 .Pp
 .Dl ipfw divert 5000 all from 192.168.2.0/24 to any in
 .Sh SEE ALSO
+.Xr cpp 1 ,
+.Xr m4 1 ,
 .Xr divert 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
