@@ -45,13 +45,13 @@ DUMMY(getresgid16);
 #define	CAST_NOCHG(x)	(x == 0xFFFF) ? -1 : x;
 
 int
-linux_chown16(struct thread *td, struct linux_chown16_args *args)
+linux_chown16(struct proc *p, struct linux_chown16_args *args)
 {
 	struct chown_args bsd;
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
 	if (ldebug(chown16))
@@ -62,17 +62,17 @@ linux_chown16(struct thread *td, struct linux_chown16_args *args)
 	bsd.path = args->path;
 	bsd.uid = CAST_NOCHG(args->uid);
 	bsd.gid = CAST_NOCHG(args->gid);
-	return (chown(td, &bsd));
+	return (chown(p, &bsd));
 }
 
 int
-linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
+linux_lchown16(struct proc *p, struct linux_lchown16_args *args)
 {
 	struct lchown_args bsd;
 	caddr_t sg;
 
 	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, args->path);
+	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
 	if (ldebug(lchown16))
@@ -83,11 +83,11 @@ linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 	bsd.path = args->path;
 	bsd.uid = CAST_NOCHG(args->uid);
 	bsd.gid = CAST_NOCHG(args->gid);
-	return (lchown(td, &bsd));
+	return (lchown(p, &bsd));
 }
 
 int
-linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
+linux_setgroups16(struct proc *p, struct linux_setgroups16_args *args)
 {
 	struct ucred *newcred, *oldcred;
 	l_gid16_t linux_gidset[NGROUPS];
@@ -100,7 +100,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 #endif
 
 	ngrp = args->gidsetsize;
-	oldcred = td->td_proc->p_ucred;
+	oldcred = p->p_ucred;
 
 	/*
 	 * cr_groups[0] holds egid. Setting the whole set from
@@ -133,14 +133,14 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	else
 		newcred->cr_ngroups = 1;
 
-	setsugid(td->td_proc);
-	td->td_proc->p_ucred = newcred;
+	setsugid(p);
+	p->p_ucred = newcred;
 	crfree(oldcred);
 	return (0);
 }
 
 int
-linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
+linux_getgroups16(struct proc *p, struct linux_getgroups16_args *args)
 {
 	struct ucred *cred;
 	l_gid16_t linux_gidset[NGROUPS];
@@ -152,7 +152,7 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 		printf(ARGS(getgroups16, "%d, *"), args->gidsetsize);
 #endif
 
-	cred = td->td_proc->p_ucred;
+	cred = p->p_ucred;
 	bsd_gidset = cred->cr_groups;
 	bsd_gidsetsz = cred->cr_ngroups - 1;
 
@@ -163,7 +163,7 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 	 */
 
 	if ((ngrp = args->gidsetsize) == 0) {
-		td->td_retval[0] = bsd_gidsetsz;
+		p->p_retval[0] = bsd_gidsetsz;
 		return (0);
 	}
 
@@ -181,12 +181,12 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
 	if (error)
 		return (error);
 
-	td->td_retval[0] = ngrp;
+	p->p_retval[0] = ngrp;
 	return (0);
 }
 
 /*
- * The FreeBSD native getgid(2) and getuid(2) also modify td->td_retval[1]
+ * The FreeBSD native getgid(2) and getuid(2) also modify p->p_retval[1]
  * when COMPAT_43 or COMPAT_SUNOS is defined. This globbers registers that
  * are assumed to be preserved. The following lightweight syscalls fixes
  * this. See also linux_getpid(2), linux_getgid(2) and linux_getuid(2) in
@@ -197,93 +197,93 @@ linux_getgroups16(struct thread *td, struct linux_getgroups16_args *args)
  */
 
 int
-linux_getgid16(struct thread *td, struct linux_getgid16_args *args)
+linux_getgid16(struct proc *p, struct linux_getgid16_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_rgid;
+	p->p_retval[0] = p->p_cred->p_rgid;
 	return (0);
 }
 
 int
-linux_getuid16(struct thread *td, struct linux_getuid16_args *args)
+linux_getuid16(struct proc *p, struct linux_getuid16_args *args)
 {
 
-	td->td_retval[0] = td->td_proc->p_ucred->cr_ruid;
+	p->p_retval[0] = p->p_cred->p_ruid;
 	return (0);
 }
 
 int
-linux_getegid16(struct thread *td, struct linux_getegid16_args *args)
+linux_getegid16(struct proc *p, struct linux_getegid16_args *args)
 {
 	struct getegid_args bsd;
 
-	return (getegid(td, &bsd));
+	return (getegid(p, &bsd));
 }
 
 int
-linux_geteuid16(struct thread *td, struct linux_geteuid16_args *args)
+linux_geteuid16(struct proc *p, struct linux_geteuid16_args *args)
 {
 	struct geteuid_args bsd;
 
-	return (geteuid(td, &bsd));
+	return (geteuid(p, &bsd));
 }
 
 int
-linux_setgid16(struct thread *td, struct linux_setgid16_args *args)
+linux_setgid16(struct proc *p, struct linux_setgid16_args *args)
 {
 	struct setgid_args bsd;
 
 	bsd.gid = args->gid;
-	return (setgid(td, &bsd));
+	return (setgid(p, &bsd));
 }
 
 int
-linux_setuid16(struct thread *td, struct linux_setuid16_args *args)
+linux_setuid16(struct proc *p, struct linux_setuid16_args *args)
 {
 	struct setuid_args bsd;
 
 	bsd.uid = args->uid;
-	return (setuid(td, &bsd));
+	return (setuid(p, &bsd));
 }
 
 int
-linux_setregid16(struct thread *td, struct linux_setregid16_args *args)
+linux_setregid16(struct proc *p, struct linux_setregid16_args *args)
 {
 	struct setregid_args bsd;
 
 	bsd.rgid = CAST_NOCHG(args->rgid);
 	bsd.egid = CAST_NOCHG(args->egid);
-	return (setregid(td, &bsd));
+	return (setregid(p, &bsd));
 }
 
 int
-linux_setreuid16(struct thread *td, struct linux_setreuid16_args *args)
+linux_setreuid16(struct proc *p, struct linux_setreuid16_args *args)
 {
 	struct setreuid_args bsd;
 
 	bsd.ruid = CAST_NOCHG(args->ruid);
 	bsd.euid = CAST_NOCHG(args->euid);
-	return (setreuid(td, &bsd));
+	return (setreuid(p, &bsd));
 }
 
 int
-linux_setresgid16(struct thread *td, struct linux_setresgid16_args *args)
+linux_setresgid16(struct proc *p, struct linux_setresgid16_args *args)
 {
 	struct setresgid_args bsd;
 
 	bsd.rgid = CAST_NOCHG(args->rgid);
 	bsd.egid = CAST_NOCHG(args->egid);
 	bsd.sgid = CAST_NOCHG(args->sgid);
-	return (setresgid(td, &bsd));
+	return (setresgid(p, &bsd));
 }
 
 int
-linux_setresuid16(struct thread *td, struct linux_setresuid16_args *args)
+linux_setresuid16(struct proc *p, struct linux_setresuid16_args *args)
 {
 	struct setresuid_args bsd;
 
 	bsd.ruid = CAST_NOCHG(args->ruid);
 	bsd.euid = CAST_NOCHG(args->euid);
 	bsd.suid = CAST_NOCHG(args->suid);
-	return (setresuid(td, &bsd));
+	return (setresuid(p, &bsd));
 }
