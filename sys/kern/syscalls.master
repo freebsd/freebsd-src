@@ -584,3 +584,9 @@
 406	MNOSTD	BSD	{ int ksem_unlink(const char *name); }
 407	MNOSTD	BSD	{ int ksem_getvalue(semid_t id, int *val); }
 408	MNOSTD	BSD	{ int ksem_destroy(semid_t id); }
+409	UNIMPL	BSD	__mac_get_pid
+410	UNIMPL	BSD	__mac_get_link
+411	UNIMPL	BSD	__mac_set_link
+412	UNIMPL	BSD	extattr_set_link
+413	UNIMPL	BSD	extattr_get_link
+414	UNIMPL	BSD	extattr_delete_link
