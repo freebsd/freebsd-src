@@ -102,7 +102,6 @@ isab_probe(device_t dev)
     case 0x71988086:	/* Intel 82443MX */
     case 0x24108086:	/* Intel 82801AA (ICH) */
     case 0x24208086:	/* Intel 82801AB (ICH0) */
-    case 0x24408086:	/* Intel 82801BA (ICH2) */
     case 0x00061004:	/* VLSI 82C593 */
     case 0x05861106:	/* VIA 82C586 */
     case 0x05961106:	/* VIA 82C596 PCI-ISA */
