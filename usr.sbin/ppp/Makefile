@@ -1,27 +1,33 @@
-#	$Id: Makefile,v 1.9.2.16 1998/06/07 17:10:22 brian Exp $
+#	$Id: Makefile,v 1.50 1998/10/22 02:32:48 brian Exp $
 
 PROG=	ppp
-SRCS=	arp.c async.c auth.c ccp.c chap.c chat.c command.c deflate.c \
-	defs.c filter.c fsm.c hdlc.c id.c ip.c ipcp.c iplist.c lcp.c \
-	log.c lqr.c main.c mbuf.c modem.c os.c pap.c phase.c \
-	pred.c route.c server.c sig.c slcompress.c systems.c throughput.c \
-	timer.c tun.c vars.c vjcomp.c
+SRCS=	arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c command.c \
+	datalink.c deflate.c defs.c filter.c fsm.c hdlc.c id.c iface.c ip.c \
+	ipcp.c iplist.c lcp.c link.c log.c lqr.c main.c mbuf.c modem.c \
+	mp.c pap.c physical.c pred.c probe.c prompt.c route.c server.c \
+	sig.c slcompress.c systems.c throughput.c timer.c tun.c vjcomp.c
 CFLAGS+=-Wall
-LDADD+= -lmd -lcrypt -lutil -lz
-DPADD+= ${LIBMD} ${LIBCRYPT} ${LIBUTIL} ${LIBZ}
-MAN8=	ppp.8
+LDADD+= -lutil -lz
+DPADD+=	${LIBUTIL} ${LIBZ}
 BINMODE=4554
 BINOWN=	root
 BINGRP=	network
+MAN8=	ppp.8
+LDADD+=	-lmd -lcrypt
+DPADD+= ${LIBMD} ${LIBCRYPT}
 
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
 .endif
 
-.if defined(NOALIAS) || defined(RELEASE_CRUNCH)
+.if defined(NOALIAS)
 CFLAGS+=-DNOALIAS
 .else
-SRCS+=	alias_cmd.c loadalias.c
+.if !defined(RELEASE_CRUNCH)
+SRCS+=	alias_cmd.c
+LDADD+=	-lalias
+DPADD+= ${LIBALIAS}
+.endif
 .endif
 
 .if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
@@ -35,10 +41,11 @@ DPADD+= ${LIBDES}
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because the crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
-SRCS+=	alias_cmd.c loadalias.c chap_ms.c
-chap_ms.o alias_cmd.o loadalias.o:
-	>null_$*.c
-	cc -c -o $@ null_$*.c
+CFLAGS+=-DNOALIAS
+SRCS+=	alias_cmd.c chap_ms.c
+chap_ms.o alias_cmd.o:
+	>null_${.PREFIX}.c
+	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
 
 .include <bsd.prog.mk>

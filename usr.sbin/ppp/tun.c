@@ -23,44 +23,56 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: tun.c,v 1.10 1998/10/22 02:32:50 brian Exp $
  */
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/socket.h>		/* For IFF_ defines */
+#include <net/if.h>		/* For IFF_ defines */
 #include <netinet/in.h>
-#include <net/if.h>
+#include <net/if_types.h>
 #include <net/if_tun.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
-#include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
 
-#include "command.h"
 #include "mbuf.h"
 #include "log.h"
+#include "timer.h"
+#include "lqr.h"
 #include "hdlc.h"
 #include "defs.h"
-#include "loadalias.h"
-#include "vars.h"
+#include "fsm.h"
+#include "throughput.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "filter.h"
+#include "descriptor.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "mp.h"
+#include "bundle.h"
 #include "tun.h"
 
 void
-tun_configure(int mtu, int speed)
+tun_configure(struct bundle *bundle, int mtu)
 {
   struct tuninfo info;
 
-  info.type = 23;
+  memset(&info, '\0', sizeof info);
+  info.type = IFT_PPP;
   info.mtu = mtu;
-  if (VarPrefMTU != 0 && VarPrefMTU < mtu)
-    info.mtu = VarPrefMTU;
-  info.baudrate = speed;
+  info.baudrate = bundle->ifSpeed;
 #ifdef __OpenBSD__                                           
   info.flags = IFF_UP|IFF_POINTOPOINT;                             
 #endif
-  if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
-    LogPrintf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
+  if (ioctl(bundle->dev.fd, TUNSIFINFO, &info) < 0)
+    log_Printf(LogERROR, "tun_configure: ioctl(TUNSIFINFO): %s\n",
 	      strerror(errno));
 }

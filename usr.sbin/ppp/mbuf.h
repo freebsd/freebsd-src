@@ -15,19 +15,19 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.2.6.2 1997/08/25 00:34:33 brian Exp $
+ * $Id: mbuf.h,v 1.14 1998/08/21 18:10:15 brian Exp $
  *
  *	TODO:
  */
 
 struct mbuf {
-  u_char *base;			/* pointer to top of buffer space */
-  short size;			/* size allocated from base */
-  short offset;			/* offset to start position */
+  short size;			/* size allocated (excluding header) */
+  short offset;			/* offset from header end to start position */
   short cnt;			/* available byte count in buffer */
-  short type;
+  short type;			/* MB_* below */
   struct mbuf *next;		/* link to next mbuf */
   struct mbuf *pnext;		/* link to next packet */
+  /* buffer space is malloc()d directly after the header */
 };
 
 struct mqueue {
@@ -36,25 +36,31 @@ struct mqueue {
   int qlen;
 };
 
-#define MBUF_CTOP(bp)   (bp->base + bp->offset)
+#define MBUF_CTOP(bp)		((u_char *)((bp)+1) + (bp)->offset)
+#define CONST_MBUF_CTOP(bp)	((const u_char *)((bp)+1) + (bp)->offset)
 
 #define MB_ASYNC	1
 #define MB_FSM		2
-#define MB_HDLCOUT	3
-#define MB_IPIN		4
-#define MB_ECHO		5
-#define MB_LQR		6
-#define MB_MODEM	7
-#define MB_VJCOMP	8
-#define	MB_LOG		9
+#define MB_CBCP		3
+#define MB_HDLCOUT	4
+#define MB_IPIN		5
+#define MB_ECHO		6
+#define MB_LQR		7
+#define MB_LINK		8
+#define MB_VJCOMP	9
 #define	MB_IPQ		10
-#define	MB_MAX		MB_IPQ
+#define	MB_MP		11
+#define	MB_MAX		MB_MP
 
-extern int plength(struct mbuf *);
-extern struct mbuf *mballoc(int, int);
-extern struct mbuf *mbfree(struct mbuf *);
-extern void pfree(struct mbuf *);
-extern void mbwrite(struct mbuf *, u_char *, int);
-extern struct mbuf *mbread(struct mbuf *, u_char *, int);
-extern void LogMemory(void);
-extern int ShowMemMap(struct cmdargs const *);
+struct cmdargs;
+
+extern int mbuf_Length(struct mbuf *);
+extern struct mbuf *mbuf_Alloc(int, int);
+extern struct mbuf *mbuf_FreeSeg(struct mbuf *);
+extern void mbuf_Free(struct mbuf *);
+extern void mbuf_Write(struct mbuf *, u_char *, int);
+extern struct mbuf *mbuf_Read(struct mbuf *, u_char *, int);
+extern void mbuf_Log(void);
+extern int mbuf_Show(struct cmdargs const *);
+extern void mbuf_Enqueue(struct mqueue *, struct mbuf *);
+extern struct mbuf *mbuf_Dequeue(struct mqueue *);

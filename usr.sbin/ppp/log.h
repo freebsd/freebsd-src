@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: log.h,v 1.23 1998/08/09 15:34:11 brian Exp $
  */
 
 #define LogMIN		(1)
 #define LogASYNC	(1)	/* syslog(LOG_INFO, ....)	 */
-#define LogCARRIER	(2)
+#define LogCBCP		(2)
 #define LogCCP		(3)
 #define LogCHAT		(4)
 #define LogCOMMAND	(5)
@@ -38,10 +38,10 @@
 #define LogID0		(9)
 #define LogIPCP		(10)
 #define LogLCP		(11)
-#define LogLINK		(12)
-#define LogLQM		(13)
-#define LogPHASE	(14)
-#define LogTCPIP	(15)
+#define LogLQM		(12)
+#define LogPHASE	(13)
+#define LogTCPIP	(14)
+#define LogTIMER	(15)	/* syslog(LOG_DEBUG, ....)	 */
 #define LogTUN		(16)	/* If set, tun%d is output with each message */
 #define LogMAXCONF	(16)
 #define LogWARN		(17)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
@@ -49,20 +49,48 @@
 #define LogALERT	(19)	/* syslog(LOG_ALERT, ....)	 */
 #define LogMAX		(19)
 
+struct mbuf;
+struct cmdargs;
+struct prompt;
+struct server;
+struct datalink;
+
 /* The first int arg for all of the following is one of the above values */
-extern const char *LogName(int);
-extern void LogKeep(int);
-extern void LogKeepLocal(int);
-extern void LogDiscard(int);
-extern void LogDiscardLocal(int);
-extern void LogDiscardAll(void);
-extern void LogDiscardAllLocal(void);
-#define LOG_KEPT_SYSLOG (1)	/* Results of LogIsKept() */
-#define LOG_KEPT_LOCAL  (2)	/* Results of LogIsKept() */
-extern int LogIsKept(int);
-extern void LogOpen(const char *);
-extern void LogSetTun(int);
-extern void LogClose(void);
-extern void LogPrintf(int, const char *,...);
-extern void LogDumpBp(int, const char *, const struct mbuf *);
-extern void LogDumpBuff(int, const char *, const u_char *, int);
+extern const char *log_Name(int);
+extern void log_Keep(int);
+extern void log_KeepLocal(int, u_long *);
+extern void log_Discard(int);
+extern void log_DiscardLocal(int, u_long *);
+extern void log_DiscardAll(void);
+extern void log_DiscardAllLocal(u_long *);
+#define LOG_KEPT_SYSLOG (1)	/* Results of log_IsKept() */
+#define LOG_KEPT_LOCAL  (2)	/* Results of log_IsKept() */
+extern int log_IsKept(int);
+extern int log_IsKeptLocal(int, u_long);
+extern void log_Open(const char *);
+extern void log_SetTun(int);
+extern void log_Close(void);
+#ifdef __GNUC__
+extern void log_Printf(int, const char *,...)
+            __attribute__ ((format (printf, 2, 3)));
+extern void log_WritePrompts(struct datalink *, const char *, ...)
+            __attribute__ ((format (printf, 2, 3)));
+#else
+extern void log_Printf(int, const char *,...);
+extern void log_WritePrompts(struct datalink *, const char *, ...);
+#endif
+extern void log_DumpBp(int, const char *, const struct mbuf *);
+extern void log_DumpBuff(int, const char *, const u_char *, int);
+extern int log_ShowLevel(struct cmdargs const *);
+extern int log_SetLevel(struct cmdargs const *);
+extern int log_ShowWho(struct cmdargs const *);
+
+extern int log_PromptListChanged;
+extern void log_RegisterPrompt(struct prompt *);
+extern void log_UnRegisterPrompt(struct prompt *);
+extern void log_DestroyPrompts(struct server *);
+extern void log_DisplayPrompts(void);
+extern void log_ActivatePrompt(struct prompt *);
+extern void log_DeactivatePrompt(struct prompt *);
+extern void log_SetTtyCommandMode(struct datalink *);
+extern struct prompt *log_PromptList(void);
