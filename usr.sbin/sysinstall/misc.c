@@ -206,7 +206,7 @@ safe_realloc(void *orig, size_t size)
 
     if (size <= 0)
 	msgFatal("Invalid realloc size of %ld!", (long)size);
-    ptr = realloc(orig, size);
+    ptr = reallocf(orig, size);
     if (!ptr)
 	msgFatal("Out of memory!");
     return ptr;
@@ -243,7 +243,7 @@ item_add(dialogMenuItem *list, char *prompt, char *title,
 
     if (*curr == *max) {
 	*max += 20;
-	list = (dialogMenuItem *)realloc(list, sizeof(dialogMenuItem) * *max);
+	list = (dialogMenuItem *)safe_realloc(list, sizeof(dialogMenuItem) * *max);
     }
     d = &list[(*curr)++];
     bzero(d, sizeof(*d));
