@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.10 1999/03/23 04:54:59 grog Exp $ */
+/* $Id: commands.c,v 1.6 1999/03/23 03:40:07 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -488,24 +488,56 @@ vinum_start(int argc, char *argv[], char *arg0[])
 	    if (type == invalid_object)
 		fprintf(stderr, "Can't find object: %s\n", argv[index]);
 	    else {
-		message->index = object;		    /* pass object number */
-		message->type = type;			    /* and type of object */
-		message->state = object_up;
-		message->force = 0;			    /* don't force it, use a larger hammer */
-		ioctl(superdev, VINUM_SETSTATE, message);
-		if (reply.error != 0) {
-		    if ((reply.error == EAGAIN)		    /* we're reviving */
-		    &&(type == sd_object))
-			continue_revive(object);
+		int doit = 0;				    /* set to 1 if we pass our tests */
+		switch (type) {
+		case drive_object:
+		    fprintf(stderr, "Can't start a drive: %s\n", argv[index]);
+		    break;
+
+		case sd_object:
+		    if (sd.state == sd_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", sd.name);
 		    else
-			fprintf(stderr,
-			    "Can't start %s: %s (%d)\n",
-			    argv[index],
-			    reply.msg[0] ? reply.msg : strerror(reply.error),
-			    reply.error);
+			doit = 1;
+		    break;
+
+		case plex_object:
+		    if (plex.state == plex_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", plex.name);
+		    else
+			doit = 1;
+		    break;
+
+		case volume_object:
+		    if (vol.state == volume_up)		    /* already up */
+			fprintf(stderr, "%s is already up\n", vol.name);
+		    else
+			doit = 1;
+		    break;
+
+		default:
 		}
-		if (Verbose)
-		    vinum_li(object, type);
+
+		if (doit) {
+		    message->index = object;		    /* pass object number */
+		    message->type = type;		    /* and type of object */
+		    message->state = object_up;
+		    message->force = 0;			    /* don't force it, use a larger hammer */
+		    ioctl(superdev, VINUM_SETSTATE, message);
+		    if (reply.error != 0) {
+			if ((reply.error == EAGAIN)	    /* we're reviving */
+			&&(type == sd_object))
+			    continue_revive(object);
+			else
+			    fprintf(stderr,
+				"Can't start %s: %s (%d)\n",
+				argv[index],
+				reply.msg[0] ? reply.msg : strerror(reply.error),
+				reply.error);
+		    }
+		    if (Verbose)
+			vinum_li(object, type);
+		}
 	    }
 	}
     }
