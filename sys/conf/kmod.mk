@@ -137,10 +137,12 @@ ${PROG}: ${FULLPROG}
 	${OBJCOPY} --strip-debug ${FULLPROG} ${PROG}
 .endif
 
+.if ${MACHINE_ARCH} != amd64
 ${FULLPROG}: ${KMOD}.kld
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld
 .if !defined(DEBUG_FLAGS)
 	${OBJCOPY} --strip-debug ${.TARGET}
+.endif
 .endif
 
 EXPORT_SYMS?=	NO
@@ -148,7 +150,11 @@ EXPORT_SYMS?=	NO
 CLEANFILES+=	${.OBJDIR}/export_syms
 .endif
 
+.if ${MACHINE_ARCH} != amd64
 ${KMOD}.kld: ${OBJS}
+.else
+${FULLPROG}: ${OBJS}
+.endif
 	${LD} ${LDFLAGS} -r -d -o ${.TARGET} ${OBJS}
 .if defined(EXPORT_SYMS)
 .if ${EXPORT_SYMS} != YES
@@ -163,6 +169,9 @@ ${KMOD}.kld: ${OBJS}
 		${.OBJDIR}/export_syms | \
 	xargs -J% ${OBJCOPY} % ${.TARGET}
 .endif
+.endif
+.if !defined(DEBUG_FLAGS) && ${MACHINE_ARCH} == amd64
+	${OBJCOPY} --strip-debug ${.TARGET}
 .endif
 
 _ILINKS=@ machine
