@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.160 1999/03/18 21:50:52 brian Exp $
+.\" $Id: ppp.8,v 1.161 1999/03/18 21:53:56 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -247,7 +247,9 @@ exits with a non-zero result.
 .It Fl direct
 This is used for receiving incoming connections.
 .Nm
-ignores the ``set device'' line and uses descriptor 0 as the link.
+ignores the
+.Dq set device
+line and uses descriptor 0 as the link.
 .Pp
 If callback is configured,
 .Nm
@@ -568,7 +570,7 @@ PPP ON awfulhak>               # We've agreed IP numbers
 You are now connected!  Note that
 .Sq PPP
 in the prompt has changed to capital letters to indicate that you have
-a peer connection.  If only some of the three Ps go uppercase, wait 'till
+a peer connection.  If only some of the three Ps go uppercase, wait until
 either everything is uppercase or lowercase.  If they revert to lowercase,
 it means that
 .Nm
@@ -634,7 +636,10 @@ in other windows or terminals on your machine.  If you wish to reuse
 the current terminal, you can put
 .Nm
 into the background using your standard shell suspend and background
-commands (usually ^Z followed by ``bg'').
+commands (usually
+.Dq ^Z
+followed by
+.Dq bg ) .
 .Pp
 Refer to the
 .Sx PPP COMMAND LIST
@@ -811,7 +816,7 @@ command in
 .Pq for example, Dq set server +3000 mypasswd
 and connecting to the diagnostic port as follows:
 .Bd -literal -offset indent
-# pppctl 3000	(assuming tun0 - see the ``set server'' description)
+.No # pppctl 3000	(assuming tun0)
 Password:
 PPP ON awfulhak> show who
 tcp (127.0.0.1:1028) *
@@ -1602,14 +1607,17 @@ The routing table entry will have a netmask of 0xffffffff.
 .Pp
 This is all fine when each side has a pre-determined IP address, however
 it is often the case that one side is acting as a server which controls
-all IP addresses and the other side should obey the direction from it.
-In order to allow more flexible behaviour, `ifaddr' variable allows the
-user to specify IP address more loosely:
+all IP addresses and the other side should go along with it.  In order
+to allow more flexible behaviour, the
+.Dq set ifaddr
+command allows the user to specify IP addresses more loosely:
 .Pp
 .Dl set ifaddr 192.244.177.38/24 192.244.177.2/20
 .Pp
-A number followed by a slash (/) represent the number of bits significant in
-the IP address.  The above example signifies that:
+A number followed by a slash
+.Pq Dq /
+represents the number of bits significant in the IP address.  The above
+example means:
 .Pp
 .Bl -bullet -compact
 .It
@@ -1754,14 +1762,13 @@ Expect "HELLO".
 .Pp
 The
 .Dq set authkey
-command is logged specially (when using
+command is logged specially.  When
 .Ar command
-logging) so that the actual password is not compromised
-(it is logged as
-.Sq ******** Ns
-), and the '\\P' is logged when
+or
 .Ar chat
-logging is active rather than the actual password.
+logging is enabled, the actual password is not logged;
+.Sq ******** Ns
+is logged instead.
 .Pp
 Login scripts vary greatly between ISPs.  If you're setting one up
 for the first time,
@@ -1952,7 +1959,11 @@ The default is
 .Pp
 If The first argument to
 .Dq set log Op local
-begins with a '+' or a '-' character, the current log levels are
+begins with a
+.Sq +
+or a
+.Sq -
+character, the current log levels are
 not cleared, for example:
 .Bd -literal -offset indent
 PPP ON awfulhak> set log phase
@@ -3164,8 +3175,11 @@ For the XON/XOFF scenario, use
 This sets the authentication key (or password) used in client mode
 PAP or CHAP negotiation to the given value.  It also specifies the
 password to be used in the dial or login scripts in place of the
-'\\P' sequence, preventing the actual password from being logged.  If
+.Sq \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\P
+sequence, preventing the actual password from being logged.  If
 .Ar command
+or
+.Ar chat
 logging is in effect,
 .Ar value
 is logged as
@@ -3674,7 +3688,9 @@ If no arguments are given, the endpoint discriminator is reset.
 This option is similar to the
 .Dq set accmap
 option above.  It allows the user to specify a set of characters that
-will be `escaped' as they travel across the link.
+will be
+.Sq escaped
+as they travel across the link.
 .It set filter dial|alive|in|out Ar rule-no Xo
 .No permit|deny
 .Oo Ar src_addr Ns Op / Ns Ar width
