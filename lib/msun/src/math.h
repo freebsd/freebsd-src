@@ -113,7 +113,10 @@ extern const union __nan_un {
 #define	isunordered(x, y)	(isnan(x) || isnan(y))
 #endif /* __MATH_BUILTIN_RELOPS */
 
-#define	signbit(x)	__signbit(x)
+#define	signbit(x)					\
+    ((sizeof (x) == sizeof (float)) ? __signbitf(x)	\
+    : (sizeof (x) == sizeof (double)) ? __signbit(x)	\
+    : __signbitl(x))
 
 typedef	__double_t	double_t;
 typedef	__float_t	float_t;
@@ -215,6 +218,8 @@ int	__isnormalf(float) __pure2;
 int	__isnormal(double) __pure2;
 int	__isnormall(long double) __pure2;
 int	__signbit(double) __pure2;
+int	__signbitf(float) __pure2;
+int	__signbitl(long double) __pure2;
 
 double	acos(double);
 double	asin(double);
