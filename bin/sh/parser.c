@@ -253,15 +253,14 @@ andor() {
 
 STATIC union node *
 pipeline() {
-	union node *n1, *pipenode, *notnode;
+	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate = 0;
+	int negate;
 
+	negate = 0;
 	TRACE(("pipeline: entered\n"));
-	while (readtoken() == TNOT) {
-		TRACE(("pipeline: TNOT recognized\n"));
+	while (readtoken() == TNOT)
 		negate = !negate;
-	}
 	tokpushback++;
 	n1 = command();
 	if (readtoken() == TPIPE) {
@@ -282,12 +281,12 @@ pipeline() {
 	}
 	tokpushback++;
 	if (negate) {
-		notnode = (union node *)stalloc(sizeof(struct nnot));
-		notnode->type = NNOT;
-		notnode->nnot.com = n1;
-		n1 = notnode;
-	}
-	return n1;
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n1;
+		return n2;
+	} else
+		return n1;
 }
 
 
@@ -298,7 +297,7 @@ command() {
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t;
+	int t, negate = 0;
 
 	checkkwd = 2;
 	redir = NULL;
@@ -310,6 +309,12 @@ command() {
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
+	}
+	tokpushback++;
+
+	while (readtoken() == TNOT) {
+		TRACE(("command: TNOT recognized\n"));
+		negate = !negate;
 	}
 	tokpushback++;
 
@@ -485,7 +490,8 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TWORD:
 	case TRP:
 		tokpushback++;
-		return simplecmd(rpp, redir);
+		n1 = simplecmd(rpp, redir);
+		goto checkneg;
 	default:
 		synexpect(-1);
 	}
@@ -507,7 +513,16 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		}
 		n1->nredir.redirect = redir;
 	}
-	return n1;
+
+checkneg:
+	if (negate) {
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n1;
+		return n2;
+	}
+	else
+		return n1;
 }
 
 
@@ -517,7 +532,8 @@ simplecmd(rpp, redir)
 	{
 	union node *args, **app;
 	union node **orig_rpp = rpp;
-	union node *n = NULL;
+	union node *n = NULL, *n2;
+	int negate = 0;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -532,6 +548,12 @@ simplecmd(rpp, redir)
 	 * the function name and the open parenthesis.
 	 */
 	orig_rpp = rpp;
+
+	while (readtoken() == TNOT) {
+		TRACE(("command: TNOT recognized\n"));
+		negate = !negate;
+	}
+	tokpushback++;
 
 	for (;;) {
 		if (readtoken() == TWORD) {
@@ -556,7 +578,7 @@ simplecmd(rpp, redir)
 #endif
 			n->type = NDEFUN;
 			n->narg.next = command();
-			return n;
+			goto checkneg;
 		} else {
 			tokpushback++;
 			break;
@@ -569,7 +591,16 @@ simplecmd(rpp, redir)
 	n->ncmd.backgnd = 0;
 	n->ncmd.args = args;
 	n->ncmd.redirect = redir;
-	return n;
+
+checkneg:
+	if (negate) {
+		n2 = (union node *)stalloc(sizeof (struct nnot));
+		n2->type = NNOT;
+		n2->nnot.com = n;
+		return n2;
+	}
+	else
+		return n;
 }
 
 STATIC union node *
@@ -727,7 +758,7 @@ readtoken() {
 			}
 		}
 out:
-		checkkwd = 0;
+		checkkwd = (t == TNOT) ? savecheckkwd : 0;
 	}
 #ifdef DEBUG
 	if (!alreadyseen)
