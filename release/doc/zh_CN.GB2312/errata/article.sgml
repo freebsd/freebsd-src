@@ -19,8 +19,8 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "5.3-RELEASE">
-<!ENTITY release.bugfix.next "5.4-RELEASE">
+<!ENTITY release.bugfix "5.4-RELEASE">
+<!ENTITY release.bugfix.next "5.5-RELEASE">
 ]>
 
 <article>
