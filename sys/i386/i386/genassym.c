@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.23 1995/01/25 21:40:13 bde Exp $
+ *	$Id: genassym.c,v 1.24 1995/02/14 06:00:17 phk Exp $
  */
 
 #include <stdio.h>
@@ -78,8 +78,6 @@ main()
 	struct sigframe *sigf = (struct sigframe *)0;
 	struct bootinfo *bootinfo = (struct bootinfo *)0;
 
-	/* XXX should use %p to print pointers.  About 80 lines are wrong. */
-	/* YF - fixed */
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
 	printf("#define\tP_FORW %p\n", &p->p_forw);
 	printf("#define\tP_BACK %p\n", &p->p_back);
