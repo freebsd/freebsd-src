@@ -3,9 +3,10 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: boot-overview.sgml,v 1.1 1995/04/27 08:50:46 roberto Exp $
--->
-<!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
+     $Id: booting.sgml,v 1.1 1995/04/28 19:48:56 jfieber Exp $
+
+
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 
   <article>
 
@@ -19,6 +20,15 @@
       </abstract>
 
     <toc>
+-->
+
+    <chapt><heading>Booting FreeBSD on a PC</heading>
+
+       <p><em>Contributed by &a.phk;. v1.1, April 26th.</em>
+    
+        Booting FreeBSD is essentially a three step: Load the kernel,
+        determine the root filesystem and initialize user-land things. This
+        leads to some interesting possibilities shown below.
 
     <sect>Loading a kernel
       <p>
@@ -160,6 +170,6 @@
             This is particular interesting since you can boot from a write-
             protected floppy, but still write to your root filesystem...
         </descrip>
-  </article>
+
 
 
