@@ -900,8 +900,10 @@ debug()
 {
 	case ${rc_debug} in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
+		if [ -x /usr/bin/logger ]; then
+			logger "$0: INFO: $*"
+		fi
         	echo 1>&2 "$0: DEBUG: $*"
-		return
 		;;
 	esac
 }
