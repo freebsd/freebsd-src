@@ -1025,7 +1025,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	struct pargs *pa;
+	struct pargs *pa, *newpa;
 	int error = 0;
 
 	if (namelen != 1) 
@@ -1039,12 +1039,12 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		PROC_UNLOCK(p);
 		return (0);
 	}
-	PROC_UNLOCK(p);
 
-	if (req->newptr && curproc != p)
+	if (req->newptr && curproc != p) {
+		PROC_UNLOCK(p);
 		return (EPERM);
+	}
 
-	PROC_LOCK(p);
 	pa = p->p_args;
 	pargs_hold(pa);
 	PROC_UNLOCK(p);
@@ -1055,24 +1055,22 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (req->newptr == NULL)
 		return (error);
 
-	PROC_LOCK(p);
-	pa = p->p_args;
-	p->p_args = NULL;
-	PROC_UNLOCK(p);
-	pargs_drop(pa);
-
 	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
 		return (error);
 
-	pa = pargs_alloc(req->newlen);
-	error = SYSCTL_IN(req, pa->ar_args, req->newlen);
-	if (!error) {
-		PROC_LOCK(p);
-		p->p_args = pa;
-		PROC_UNLOCK(p);
-	} else
-		pargs_free(pa);
-	return (error);
+	newpa = pargs_alloc(req->newlen);
+	error = SYSCTL_IN(req, newpa->ar_args, req->newlen);
+	if (error) {
+		pargs_free(newpa);
+		return (error);
+	}
+
+	PROC_LOCK(p);
+	pa = p->p_args;
+	p->p_args = newpa;
+	PROC_UNLOCK(p);
+	pargs_drop(pa);
+	return (0);
 }
 
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
