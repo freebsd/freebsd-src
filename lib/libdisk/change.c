@@ -81,6 +81,13 @@ void
 All_FreeBSD(struct disk *d, int force_all)
 {
 	struct chunk *c;
+	int type;
+
+#ifdef PC98
+	type = 0x494;
+#else
+	type = 0xa5;
+#endif
 
     again:
 	for (c = d->chunks->part; c; c = c->next)
@@ -91,10 +98,10 @@ All_FreeBSD(struct disk *d, int force_all)
 	c = d->chunks;
 	if (force_all) {
 		Sanitize_Bios_Geom(d);
-		Create_Chunk(d, c->offset, c->size, freebsd, 0x494,
+		Create_Chunk(d, c->offset, c->size, freebsd, type,
 		    CHUNK_FORCE_ALL, "FreeBSD");
 	} else {
-		Create_Chunk(d, c->offset, c->size, freebsd, 0x494, 0,
+		Create_Chunk(d, c->offset, c->size, freebsd, type, 0,
 		    "FreeBSD");
 	}
 }
