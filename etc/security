@@ -40,9 +40,10 @@ separator () {
 }
 
 catmsgs() {
-  [ -f $LOG/messages.0.gz ] && zcat $LOG/messages.0.gz
-  [ -f $LOG/messages.0 ] && cat $LOG/messages.0
-  [ -f $LOG/messages ] && cat $LOG/messages
+	find $LOG -name 'messages.*' -mtime -2 |
+	    sort -t. -r -n +1 -2 |
+	    xargs zcat -f
+	[ -f $LOG/messages ] && cat $LOG/messages
 }
 
 sflag=FALSE ignore=
