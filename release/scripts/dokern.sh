@@ -54,6 +54,10 @@ sed	-e '/	pci$/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
@@ -75,6 +79,10 @@ sed	-e '/pty/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
 	-e '/atapist/d' \
+	-e '/lpt/d' \
+	-e '/ppi/d' \
+	-e '/uhid/d' \
+	-e '/ulpt/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
