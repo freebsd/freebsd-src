@@ -302,7 +302,7 @@ vfs_busy(mp, flags, interlkp, td)
 		 * wakeup needs to be done is at the release of the
 		 * exclusive lock at the end of dounmount.
 		 */
-		msleep((caddr_t)mp, interlkp, PVFS, "vfs_busy", 0);
+		msleep(mp, interlkp, PVFS, "vfs_busy", 0);
 		return (ENOENT);
 	}
 	lkflags = LK_SHARED | LK_NOPAUSE;
@@ -985,7 +985,7 @@ vwakeup(bp)
 			panic("vwakeup: neg numoutput");
 		if ((vp->v_numoutput == 0) && (vp->v_flag & VBWAIT)) {
 			vp->v_flag &= ~VBWAIT;
-			wakeup((caddr_t) &vp->v_numoutput);
+			wakeup(&vp->v_numoutput);
 		}
 	}
 }
@@ -1013,7 +1013,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		s = splbio();
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-			error = tsleep((caddr_t)&vp->v_numoutput,
+			error = tsleep(&vp->v_numoutput,
 			    slpflag | (PRIBIO + 1), "vinvlbuf", slptimeo);
 			if (error) {
 				splx(s);
@@ -1750,8 +1750,7 @@ vget(vp, flags, td)
 #endif
 		} else {
 			vp->v_flag |= VXWANT;
-			msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
-			    "vget", 0);
+			msleep(vp, &vp->v_interlock, PINOD | PDROP, "vget", 0);
 			return (ENOENT);
 		}
 	}
@@ -2196,7 +2195,7 @@ vclean(vp, flags, td)
 	vp->v_vxproc = NULL;
 	if (vp->v_flag & VXWANT) {
 		vp->v_flag &= ~VXWANT;
-		wakeup((caddr_t) vp);
+		wakeup(vp);
 	}
 }
 
@@ -2223,7 +2222,7 @@ vop_revoke(ap)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
+		msleep(vp, &vp->v_interlock, PINOD | PDROP,
 		    "vop_revokeall", 0);
 		return (0);
 	}
@@ -2292,8 +2291,7 @@ vgonel(vp, td)
 	 */
 	if (vp->v_flag & VXLOCK) {
 		vp->v_flag |= VXWANT;
-		msleep((caddr_t)vp, &vp->v_interlock, PINOD | PDROP,
-		    "vgone", 0);
+		msleep(vp, &vp->v_interlock, PINOD | PDROP, "vgone", 0);
 		return;
 	}
 

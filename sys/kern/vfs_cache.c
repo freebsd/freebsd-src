@@ -172,7 +172,7 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 		LIST_FOREACH(ncp, ncpp, nc_hash) {
 			count++;
 		}
-		error = SYSCTL_OUT(req, (caddr_t)&count, sizeof(count));
+		error = SYSCTL_OUT(req, &count, sizeof(count));
 		if (error)
 			return (error);
 	}
@@ -210,16 +210,16 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	}
 	n_nchash = nchash + 1;
 	pct = (used * 100 * 100) / n_nchash;
-	error = SYSCTL_OUT(req, (caddr_t)&n_nchash, sizeof(n_nchash));
+	error = SYSCTL_OUT(req, &n_nchash, sizeof(n_nchash));
 	if (error)
 		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&used, sizeof(used));
+	error = SYSCTL_OUT(req, &used, sizeof(used));
 	if (error)
 		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&maxlength, sizeof(maxlength));
+	error = SYSCTL_OUT(req, &maxlength, sizeof(maxlength));
 	if (error)
 		return (error);
-	error = SYSCTL_OUT(req, (caddr_t)&pct, sizeof(pct));
+	error = SYSCTL_OUT(req, &pct, sizeof(pct));
 	if (error)
 		return (error);
 	return (0);
