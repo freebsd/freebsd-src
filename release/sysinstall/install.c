@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.34 1997/03/08 12:56:13 jkh Exp $
+ * $Id: install.c,v 1.134.2.35 1997/03/08 16:16:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -592,6 +592,15 @@ installNovice(dialogMenuItem *self)
 	systemExecute("passwd root");
 	restorescr(w);
     }
+
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to register your FreeBSD system at this time?\n\n"
+		  "PLEASE take just 5 minutes to do this - if we're ever to get any\n"
+		  "significant base of commercial software for FreeBSD, we need to\n"
+		  "be able to provide more information about the size of our user base.\n"
+		  "This is where your registration can really help us, and you can also\n"
+		  "sign up for the new FreeBSD newsletter (its free!) at the same time."))
+	configRegister(NULL);
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 

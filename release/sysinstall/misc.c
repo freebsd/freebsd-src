@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.22.2.7 1997/02/18 04:39:17 jkh Exp $
+ * $Id: misc.c,v 1.22.2.8 1997/02/19 17:12:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -361,7 +361,7 @@ openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int heigh
 	/* Setup a nice screen for us to splat stuff onto */
 	draw_box(win, y, x, height, width, dialog_attr, border_attr);
 	wattrset(win, dialog_attr);
-	mvwaddstr(win, y, x + 20, title);
+	mvwaddstr(win, y, x + (COLS - strlen(title)) / 2, title);
     }
     return win;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.27 1997/02/23 15:07:42 jkh Exp $
+ * $Id: config.c,v 1.51.2.28 1997/03/08 12:56:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -444,6 +444,12 @@ configSaverTimeout(dialogMenuItem *self)
 {
     return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver") ?
 	    DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
+}
+
+int
+configRegister(dialogMenuItem *self)
+{
+    return DITEM_STATUS(registerOpenDialog()) | DITEM_RESTORE;
 }
 
 int
