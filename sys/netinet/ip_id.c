@@ -1,6 +1,6 @@
 /* $OpenBSD: ip_id.c,v 1.2 1999/08/26 13:37:01 provos Exp $ */
 
-/*
+/*-
  * Copyright 1998 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *

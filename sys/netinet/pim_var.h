@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998-2000
  * University of Southern California/Information Sciences Institute.
  * All rights reserved.

@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 /*	$KAME: ip_ecn.c,v 1.12 2002/01/07 11:34:47 kjc Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1999 WIDE Project.
  * All rights reserved.
  *

@@ -1,7 +1,8 @@
-
 /*
  * ng_bridge.h
- *
+ */
+
+/*-
  * Copyright (c) 2000 Whistle Communications, Inc.
  * All rights reserved.
  * 

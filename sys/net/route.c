@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1980, 1986, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *

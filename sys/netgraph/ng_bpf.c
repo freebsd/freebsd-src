@@ -1,7 +1,8 @@
-
 /*
  * ng_bpf.c
- *
+ */
+
+/*-
  * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
  * 

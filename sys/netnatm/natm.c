@@ -1,5 +1,5 @@
 /*	$NetBSD: natm.c,v 1.5 1996/11/09 03:26:26 chuck Exp $	*/
-/*
+/*-
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
  * All rights reserved.
