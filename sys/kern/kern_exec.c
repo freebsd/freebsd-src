@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21.4.3 1996/04/08 01:28:09 davidg Exp $
+ *	$Id: kern_exec.c,v 1.21.4.4 1996/05/31 08:04:07 peter Exp $
  */
 
 #include <sys/param.h>
@@ -54,7 +54,7 @@ static int exec_check_permissions(struct image_params *);
 /*
  * Exported to userland via sysctl..
  */
-int exec_ps_strings = PS_STRINGS;
+struct ps_strings *exec_ps_strings = PS_STRINGS;
 int exec_usrstack = USRSTACK;
 
 /*
