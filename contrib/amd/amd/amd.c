@@ -225,7 +225,7 @@ init_global_options(void)
   gopt.arch = HOST_ARCH;
 
   /* automounter temp dir */
-  gopt.auto_dir = "/a";
+  gopt.auto_dir = "/.amd_mnt";
 
   /* cluster name */
   gopt.cluster = NULL;
