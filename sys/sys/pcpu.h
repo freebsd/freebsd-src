@@ -45,7 +45,8 @@ struct thread;
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
- * macros defined in <machine/pcpu.h>.
+ * macros defined in <machine/pcpu.h>.  Machine dependent fields are
+ * defined in the PCPU_MD_FIELDS macro defined in <machine/pcpu.h>.
  */
 struct pcpu {
 	struct thread	*pc_curthread;		/* Current thread */
