@@ -157,20 +157,12 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
 static void identifycpu __P((void));
 
-static vm_offset_t buffer_sva, buffer_eva;
-vm_offset_t clean_sva, clean_eva;
-static vm_offset_t pager_sva, pager_eva;
+struct kva_md_info kmi;
 
 static void
 cpu_startup(dummy)
 	void *dummy;
 {
-	unsigned int i;
-	caddr_t v;
-	vm_offset_t maxaddr;
-	vm_size_t size = 0;
-	vm_offset_t firstaddr;
-	vm_offset_t minaddr;
 
 	/*
 	 * Good {morning,afternoon,evening,night}.
@@ -198,6 +190,9 @@ cpu_startup(dummy)
 		}
 	}
 
+	vm_ksubmap_init(&kmi);
+
+#if 0
 	/*
 	 * Calculate callout wheel size
 	 */
@@ -235,20 +230,36 @@ again:
 	valloc(callwheel, struct callout_tailq, callwheelsize);
 
 	/*
+	 * Discount the physical memory larger than the size of kernel_map
+	 * to avoid eating up all of KVA space.
+	 */
+	if (kernel_map->first_free == NULL) {
+		printf("Warning: no free entries in kernel_map.\n");
+		physmem_est = physmem;
+	} else
+		physmem_est = min(physmem, btoc(kernel_map->max_offset -
+		    kernel_map->min_offset));
+
+	/*
 	 * The nominal buffer size (and minimum KVA allocation) is BKVASIZE.
 	 * For the first 64MB of ram nominally allocate sufficient buffers to
 	 * cover 1/4 of our ram.  Beyond the first 64MB allocate additional
-	 * buffers to cover 1/20 of our ram over 64MB.
+	 * buffers to cover 1/20 of our ram over 64MB. When auto-sizing
+	 * the buffer cache we limit the eventual kva reservation to
+	 * maxbcache bytes.
 	 */
 
 	if (nbuf == 0) {
 		int factor = 4 * BKVASIZE / PAGE_SIZE;
 
 		nbuf = 50;
-		if (physmem > 1024)
-			nbuf += min((physmem - 1024) / factor, 16384 / factor);
-		if (physmem > 16384)
-			nbuf += (physmem - 16384) * 2 / (factor * 5);
+		if (physmem_est > 1024)
+			nbuf += min((physmem_est - 1024) / factor,
+			    16384 / factor);
+		if (physmem_est > 16384)
+			nbuf += (physmem_est - 16384) * 2 / (factor * 5);
+		if (maxbcache && nbuf > maxbcache / BKVASIZE)
+			nbuf = maxbcache / BKVASIZE;
 	}
 	nswbuf = max(min(nbuf/4, 64), 16);
 
@@ -305,6 +316,7 @@ again:
 	}
 
 	mtx_init(&callout_lock, "callout", MTX_SPIN | MTX_RECURSE);
+#endif
 
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
