@@ -43,11 +43,51 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <rpc/rpc.h>
 #include <syslog.h>
+#include <vis.h>
 #include <netdb.h>	/* for gethostbyname()		*/
 
 #include "statd.h"
 
-/* sm_stat_1 --------------------------------------------------------------- */
+/* sm_check_hostname -------------------------------------------------------- */
+/*
+ * Purpose: Check `mon_name' member of sm_name struct to ensure that the array
+ * consists only of printable characters.
+ *
+ * Returns: TRUE if hostname is good. FALSE if hostname contains binary or
+ * otherwise non-printable characters.
+ *
+ * Notes: Will syslog(3) to warn of corrupt hostname.
+ */
+
+int sm_check_hostname(struct svc_req *req, char *arg)
+{
+  int len, dstlen, ret;
+  struct sockaddr_in *claddr;
+  char *dst;
+
+  len = strlen(arg);
+  dstlen = (4 * len) + 1;
+  dst = malloc(dstlen);
+  claddr = svc_getcaller(req->rq_xprt);
+  ret = 1;
+
+  if (claddr == NULL || dst == NULL)
+  {
+    ret = 0;
+  }
+  else if (strvis(dst, arg, VIS_WHITE) != len)
+  {
+    syslog(LOG_ERR,
+	"sm_stat: client %s hostname %s contained invalid characters.",
+	inet_ntoa(claddr->sin_addr),
+	dst);
+    ret = 0;
+  }
+  free(dst);
+  return (ret);
+}
+
+/*  sm_stat_1 --------------------------------------------------------------- */
 /*
    Purpose:	RPC call to enquire if a host can be monitored
    Returns:	TRUE for any hostname that can be looked up to give
@@ -57,16 +97,25 @@ static const char rcsid[] =
 struct sm_stat_res *sm_stat_1_svc(sm_name *arg, struct svc_req *req)
 {
   static sm_stat_res res;
+  static int err;
 
-  if (debug) syslog(LOG_DEBUG, "stat called for host %s", arg->mon_name);
-
-  if (gethostbyname(arg->mon_name)) res.res_stat = stat_succ;
-  else
-  { 
-    syslog(LOG_ERR, "invalid hostname to sm_stat: %s", arg->mon_name);
+  err = 1;
+  if ((err = sm_check_hostname(req, arg->mon_name)) == 0)
+  {
     res.res_stat = stat_fail;
   }
-
+  if (err != 0)
+  {
+    if (debug)
+	    syslog(LOG_DEBUG, "stat called for host %s", arg->mon_name);
+    if (gethostbyname(arg->mon_name))
+	    res.res_stat = stat_succ;
+    else
+    {
+      syslog(LOG_ERR, "invalid hostname to sm_stat: %s", arg->mon_name);
+      res.res_stat = stat_fail;
+    }
+  }
   res.state = status_info->ourState;
   return (&res);
 }
@@ -84,49 +133,56 @@ struct sm_stat_res *sm_mon_1_svc(mon *arg, struct svc_req *req)
 {
   static sm_stat_res res;
   HostInfo *hp;
+  static int err;
   MonList *lp;
 
-  if (debug)
+  if ((err = sm_check_hostname(req, arg->mon_id.mon_name)) == 0)
   {
-    syslog(LOG_DEBUG, "monitor request for host %s", arg->mon_id.mon_name);
-    syslog(LOG_DEBUG, "recall host: %s prog: %d ver: %d proc: %d",
+    res.res_stat = stat_fail;
+  }
+
+  if (err != 0)
+  {
+    if (debug)
+    {
+      syslog(LOG_DEBUG, "monitor request for host %s", arg->mon_id.mon_name);
+      syslog(LOG_DEBUG, "recall host: %s prog: %d ver: %d proc: %d",
       arg->mon_id.mon_name, arg->mon_id.my_id.my_name,
       arg->mon_id.my_id.my_prog, arg->mon_id.my_id.my_vers,
       arg->mon_id.my_id.my_proc);
-  }
-
-  res.res_stat = stat_fail;	/* Assume fail until set otherwise	*/
-  res.state = status_info->ourState;
-
-  /* Find existing host entry, or create one if not found		*/
-  /* If find_host() fails, it will have logged the error already.	*/
-  if (!gethostbyname(arg->mon_id.mon_name))
-  {
-    syslog(LOG_ERR, "Invalid hostname to sm_mon: %s", arg->mon_id.mon_name);
-  }
-  else if ((hp = find_host(arg->mon_id.mon_name, TRUE)))
-  {
-    lp = (MonList *)malloc(sizeof(MonList));
-    if (!lp)
-    {
-      syslog(LOG_ERR, "Out of memory");
     }
-    else
+    res.res_stat = stat_fail;  /* Assume fail until set otherwise      */
+    res.state = status_info->ourState;
+  
+    /* Find existing host entry, or create one if not found            */
+    /* If find_host() fails, it will have logged the error already.    */
+    if (!gethostbyname(arg->mon_id.mon_name))
     {
-      strncpy(lp->notifyHost, arg->mon_id.my_id.my_name, SM_MAXSTRLEN);
-      lp->notifyProg = arg->mon_id.my_id.my_prog;
-      lp->notifyVers = arg->mon_id.my_id.my_vers;
-      lp->notifyProc = arg->mon_id.my_id.my_proc;
-      memcpy(lp->notifyData, arg->priv, sizeof(lp->notifyData));
+      syslog(LOG_ERR, "Invalid hostname to sm_mon: %s", arg->mon_id.mon_name);
+    }
+    else if ((hp = find_host(arg->mon_id.mon_name, TRUE)))
+    {
+      lp = (MonList *)malloc(sizeof(MonList));
+      if (!lp)
+      {
+        syslog(LOG_ERR, "Out of memory");
+      }
+      else
+      {
+        strncpy(lp->notifyHost, arg->mon_id.my_id.my_name, SM_MAXSTRLEN);
+        lp->notifyProg = arg->mon_id.my_id.my_prog;
+        lp->notifyVers = arg->mon_id.my_id.my_vers;
+        lp->notifyProc = arg->mon_id.my_id.my_proc;
+        memcpy(lp->notifyData, arg->priv, sizeof(lp->notifyData));
 
-      lp->next = hp->monList;
-      hp->monList = lp;
-      sync_file();
+        lp->next = hp->monList;
+        hp->monList = lp;
+        sync_file();
 
-      res.res_stat = stat_succ;	/* Report success			*/
+        res.res_stat = stat_succ;      /* Report success                       */
+      }
     }
   }
-
   return (&res);
 }
 
