@@ -7,4 +7,4 @@ as there are no non-linux glide progs for freebsd yet. You can, however,
 compile both of them statically into the kernel using:
 device tdfx
 options COMPAT_LINUX
-options LINUX_TDFX
+options TDFX_LINUX
