@@ -31,7 +31,9 @@ CLEANFILES=	freebsd.cf freebsd.submit.cf
 # Warning!  If set, this causes 'make install' to always copy it
 # over /etc/mail/sendmail.cf!!!
 # Caveat emptor!  Be sure you want this before you enable it.
-.if defined(SENDMAIL_MC)
+.if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
+.error Both SENDMAIL_MC and SENDMAIL_CF cannot be set.
+.elif defined(SENDMAIL_MC)
 INSTALL_CF=	${SENDMAIL_MC:T:R}.cf
 ALL+=		${INSTALL_CF}
 CLEANFILES+=	${SENDMAIL_MC:T:R}.cf
@@ -60,12 +62,7 @@ ${mc:T:R}.cf: ${mc}
 
 all: ${ALL}
 
-install distribution:
-.if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
-	@echo ">>> ERROR: Both SENDMAIL_MC and SENDMAIL_CF cannot be set"
-	@false
-.endif
-.if make(distribution)
+distribution:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${.CURDIR}/freebsd.mc freebsd.cf ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -74,26 +71,24 @@ install distribution:
 	    ${SMDIR}/helpfile ${DESTDIR}/etc/mail
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 640 \
 	    /dev/null ${DESTDIR}/var/log/sendmail.st
-.endif
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    freebsd.cf ${DEST_CF}
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    freebsd.submit.cf ${DEST_SUBMIT_CF}
+
+install:
 .if defined(INSTALL_CF) && ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${INSTALL_CF} ${DEST_CF}
-.elif make(distribution)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-	    freebsd.cf ${DEST_CF}
 .endif
-.if defined(SENDMAIL_ADDITIONAL_CF) && make(install)
+.if defined(SENDMAIL_ADDITIONAL_CF)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
-.if !defined(SENDMAIL_SET_USER_ID)
-.if defined(INSTALL_SUBMIT_CF) && ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
+.if !defined(SENDMAIL_SET_USER_ID) && \
+    defined(INSTALL_SUBMIT_CF) && ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
-.elif make(distribution)
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    freebsd.submit.cf ${DEST_SUBMIT_CF}
-.endif
 .endif
 
 .include <bsd.prog.mk>
