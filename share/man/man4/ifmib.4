@@ -88,7 +88,9 @@ A management application searching for a particular interface should
 start with row 1 and continue through the table row-by-row until the
 desired interface is found, or the interface count is reached.
 Note that the table may be sparse, i.e. a given row may not exist,
-indicated by an errno of
+indicated by an
+.Va errno
+of
 .Er ENOENT .
 Such an error should be ignored, and the next row should be checked.
 .Pp
