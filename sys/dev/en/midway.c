@@ -46,32 +46,6 @@
  *   I would also like to thank Werner for promptly answering email and being
  *   generally helpful.
  */
-/*
- *  1997/12/02 kjc
- *    new features added:
- *	- support vc/vp shaping
- *	- integrate IPv6 support.
- *	- support pvc shadow interface
- *	  (initial work on per-pvc-interface for ipv6 was done
- *	  by Katsushi Kobayashi <ikob@cc.uec.ac.jp> of the WIDE Project,
- *	  extensively modified by kjc.)
- *    code cleanup:
- *	- remove WMAYBE related code.  ENI WMAYBE DMA doen't work.
- *	- drop support of FreeBSD-2.1.x and FreeBSD-3.0-SNAP-970124.
- *	- remove updating if_lastchange for every packet.
- *	- BPF related code is moved to midway.c as it should be.
- *	  (bpfwrite should work if atm_pseudohdr and LLC/SNAP are
- *	  prepended.)
- *	- BPF link type is changed to DLT_ATM_RFC1483.
- *	  BPF now understands only LLC/SNAP!! (because bpf can't
- *	  handle variable link header length.)
- *	  It is recommended to use LLC/SNAP instead of NULL
- *	  encapsulation for various reasons.  (BPF, IPv6,
- *	  interoperability, etc.)
- *	- altq queue implementation is moved from the driver internal
- *	  queue to if_snd.
- *	- AFMAP related code cleanup.
- */
 
 #undef	EN_DEBUG
 #undef	EN_DEBUG_RANGE		/* check ranges on en_read/en_write's? */
@@ -135,6 +109,12 @@
 #include "en.h"
 #include "opt_inet.h"
 #include "opt_natm.h"
+#include "opt_ddb.h"
+/* enable DDBHOOK when DDB is available */
+#undef	EN_DDBHOOK
+#ifdef DDB
+#define	EN_DDBHOOK	1
+#endif
 #endif
 
 #if NEN > 0 || !defined(__FreeBSD__)
@@ -146,6 +126,7 @@
 #include <sys/device.h>
 #endif
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/proc.h>
@@ -315,14 +296,6 @@ STATIC INLINE	int en_sz2b __P((int)) __attribute__ ((unused));
 STATIC INLINE	void en_write __P((struct en_softc *, u_int32_t,
 		    u_int32_t)) __attribute__ ((unused));
 
-#ifdef ATM_PVCEXT
-static int en_txctl __P((struct en_softc *, int, int, int));
-static int en_pvctx __P((struct en_softc *, struct pvctxreq *));
-static int en_pvctxget __P((struct en_softc *, struct pvctxreq *));
-static int en_pcr2txspeed __P((int));
-static int en_txspeed2pcr __P((int));
-#endif
-
 /*
  * macros/inline
  */
@@ -450,10 +423,8 @@ u_int32_t r;
 {
 
 #ifdef EN_DEBUG_RANGE
-  if (r > MID_MAXOFF || (r % 4)) {
-    printf("en_read out of range, r=0x%x\n", r);
-    panic("en_read");
-  }
+  if (r > MID_MAXOFF || (r % 4))
+    panic("en_read out of range, r=0x%x", r);
 #endif
 
   return(bus_space_read_4(sc->en_memt, sc->en_base, r));
@@ -471,10 +442,8 @@ u_int32_t r, v;
 
 {
 #ifdef EN_DEBUG_RANGE
-  if (r > MID_MAXOFF || (r % 4)) {
-    printf("en_write out of range, r=0x%x\n", r);
-    panic("en_write");
-  }
+  if (r > MID_MAXOFF || (r % 4))
+    panic("en_write out of range, r=0x%x", r);
 #endif
 
   bus_space_write_4(sc->en_memt, sc->en_base, r, v);
@@ -1260,34 +1229,6 @@ caddr_t data;
 	    break;
 #endif /* SIOCSIFMTU */
 
-#ifdef ATM_PVCEXT
-	case SIOCSPVCTX:
-		if ((error = suser(curproc)) == 0)
-			error = en_pvctx(sc, (struct pvctxreq *)data);
-		break;
-
-	case SIOCGPVCTX:
-		error = en_pvctxget(sc, (struct pvctxreq *)data);
-		break;
-
-	case SIOCSPVCSIF:
-		do {
-			struct ifnet *shadow;
-		    
-			if ((error = suser(curproc)) != 0)
-				break;
-		    
-			if ((shadow = pvc_attach(ifp)) != NULL) {
-				snprintf(ifr->ifr_name, sizeof(ifr->ifr_name),
-				    "%s%d", shadow->if_name, shadow->if_unit);
-			}
-			else
-				error = ENOBUFS;
-		} while (0);
-		break;
-
-#endif /* ATM_PVCEXT */
-
 	default: 
 	    error = EINVAL;
 	    break;
@@ -2019,6 +1960,7 @@ int chan;
   struct en_launch launch;
   int datalen = 0, dtqneed, len, ncells;
   u_int8_t *cp;
+  struct ifnet *ifp;
 
 #ifdef EN_DEBUG
   printf("%s: tx%d: starting...\n", sc->sc_dev.dv_xname, chan);
@@ -2162,7 +2104,9 @@ again:
    */
 
   EN_COUNT(sc->launch);
-  sc->enif.if_opackets++;
+  ifp = &sc->enif;
+  ifp->if_opackets++;
+  
   if ((launch.atm_flags & EN_OBHDR) == 0) {
     EN_COUNT(sc->lheader);
     /* store tbd1/tbd2 in host byte order */
@@ -2177,7 +2121,7 @@ again:
   en_txlaunch(sc, chan, &launch);
 
 #if NBPFILTER > 0
-  if (sc->enif.if_bpf) {
+  if (ifp->if_bpf) {
       /*
        * adjust the top of the mbuf to skip the pseudo atm header
        * (and TBD, if present) before passing the packet to bpf,
@@ -2190,7 +2134,7 @@ again:
       launch.t->m_data += size;
       launch.t->m_len -= size;
 
-      BPF_MTAP(&sc->enif, launch.t);
+      BPF_MTAP(ifp, launch.t);
 
       launch.t->m_data -= size;
       launch.t->m_len += size;
@@ -2592,6 +2536,7 @@ void *arg;
   struct en_softc *sc = (struct en_softc *) arg;
   struct mbuf *m;
   struct atm_pseudohdr ah;
+  struct ifnet *ifp;
   u_int32_t reg, kick, val, mask, chip, vci, slot, dtq, drq;
   int lcv, idx, need_softserv = 0;
 
@@ -2613,7 +2558,11 @@ void *arg;
 	sc->sc_dev.dv_xname, reg, MID_INTBITS);
 #ifdef EN_DEBUG
 #ifdef DDB
+#ifdef __FreeBSD__
+    Debugger("en: unexpected error");
+#else
     Debugger();
+#endif
 #endif	/* DDB */
     sc->enif.if_flags &= ~IFF_RUNNING; /* FREEZE! */
 #else
@@ -2726,10 +2675,9 @@ void *arg;
           m = NULL;
         } else {
 	  IF_DEQUEUE(&sc->rxslot[slot].indma, m);
-	  if (!m) {
-	    printf("%s: lost mbuf in slot %d!\n", sc->sc_dev.dv_xname, slot);
-	    panic("enintr: drqsync");
-	  }
+	  if (!m)
+	    panic("enintr: drqsync: %s: lost mbuf in slot %d!",
+		  sc->sc_dev.dv_xname, slot);
         }
 	/* do something with this mbuf */
 	if (sc->rxslot[slot].oth_flags & ENOTHER_DRAIN) {  /* drain? */
@@ -2757,14 +2705,16 @@ void *arg;
 		sc->sc_dev.dv_xname, slot, sc->rxslot[slot].atm_vci, m,
 		EN_DQ_LEN(drq), sc->rxslot[slot].rxhand);
 #endif
+
+	  ifp = &sc->enif;
+	  ifp->if_ipackets++;
+
 #if NBPFILTER > 0
-	  if (sc->enif.if_bpf)
-	    BPF_MTAP(&sc->enif, m);
-#endif /* NBPFILTER > 0 */
+	  if (ifp->if_bpf)
+	    BPF_MTAP(ifp, m);
+#endif
 
-	  sc->enif.if_ipackets++;
-
-	  atm_input(&sc->enif, &ah, m, sc->rxslot[slot].rxhand);
+	  atm_input(ifp, &ah, m, sc->rxslot[slot].rxhand);
 	}
 
       }
@@ -2954,7 +2904,7 @@ defer:					/* defer processing */
     llc = (aal5 && (sc->rxslot[slot].atm_flags & ATM_PH_LLCSNAP)) ? 1 : 0;
     rbd = EN_READ(sc, cur);
     if (MID_RBD_ID(rbd) != MID_RBD_STDID) 
-      panic("en_service: id mismatch\n");
+      panic("en_service: id mismatch");
 
     if (rbd & MID_RBD_T) {
       mlen = 0;			/* we've got trash */
@@ -2967,6 +2917,8 @@ defer:					/* defer processing */
       mlen = MID_RBD_SIZE + MID_CHDR_SIZE + MID_ATMDATASZ; /* 1 cell (ick!) */
       fill = 0;
     } else {
+      struct ifnet *ifp;
+
       tlen = (MID_RBD_CNT(rbd) * MID_ATMDATASZ) + MID_RBD_SIZE;
       pdu = cur + tlen - MID_PDU_SIZE;
       if (pdu >= stop)
@@ -2974,12 +2926,25 @@ defer:					/* defer processing */
       pdu = EN_READ(sc, pdu);	/* get PDU in correct byte order */
       fill = tlen - MID_RBD_SIZE - MID_PDU_LEN(pdu);
       if (fill < 0 || (rbd & MID_RBD_CRCERR) != 0) {
-        printf("%s: %s, dropping frame\n", sc->sc_dev.dv_xname,
-	    (rbd & MID_RBD_CRCERR) ? "CRC error" : "invalid AAL5 PDU length");
-        printf("%s: got %d cells (%d bytes), AAL5 len is %d bytes (pdu=0x%x)\n",
- 	  sc->sc_dev.dv_xname, MID_RBD_CNT(rbd), tlen - MID_RBD_SIZE,
- 		MID_PDU_LEN(pdu), pdu);
+	static int first = 1;
+
+	if (first) {
+	  printf("%s: %s, dropping frame\n", sc->sc_dev.dv_xname,
+		 (rbd & MID_RBD_CRCERR) ?
+		 "CRC error" : "invalid AAL5 PDU length");
+	  printf("%s: got %d cells (%d bytes), AAL5 len is %d bytes (pdu=0x%x)\n",
+		 sc->sc_dev.dv_xname, MID_RBD_CNT(rbd),
+		 tlen - MID_RBD_SIZE, MID_PDU_LEN(pdu), pdu);
+#ifndef EN_DEBUG
+	  printf("CRC error report disabled from now on!\n");
+	  first = 0;
+#endif
+	}
 	fill = tlen;
+
+	ifp = &sc->enif;
+	ifp->if_ierrors++;
+
       }
       mlen = tlen - fill;
     }
@@ -3480,235 +3445,5 @@ int unit, addr, len;
   return(0);
 }
 #endif
-
-#ifdef ATM_PVCEXT
-/*
- * ATM PVC extention: shaper control and pvc shadow interfaces
- */
-
-/* txspeed conversion derived from linux drivers/atm/eni.c
-   by Werner Almesberger, EPFL LRC */
-static const int pre_div[] = { 4,16,128,2048 };
-
-static int en_pcr2txspeed(pcr)
-	int pcr;
-{
-	int pre, res, div;
-
-	if (pcr == 0 || pcr > 347222)
-		pre = res = 0;	/* max rate */
-	else {
-		for (pre = 0; pre < 3; pre++)
-			if (25000000/pre_div[pre]/64 <= pcr)
-				break;
-		div = pre_div[pre]*(pcr);
-#if 1
-		/*
-		 * the shaper value should be rounded down,
-		 * instead of rounded up.
-		 * (which means "res" should be rounded up.)
-		 */
-		res = (25000000 + div -1)/div - 1;
-#else
-		res = 25000000/div-1;
-#endif
-		if (res < 0)
-			res = 0;
-		if (res > 63)
-			res = 63;
-	}
-	return ((pre << 6) + res);
-}
-
-static int en_txspeed2pcr(txspeed)
-	int txspeed;
-{
-	int pre, res, pcr;
-
-	pre = (txspeed >> 6) & 0x3;
-	res = txspeed & 0x3f;
-	pcr = 25000000 / pre_div[pre] / (res+1);
-	return (pcr);
-}
-
-/*
- * en_txctl selects a hardware transmit channel and sets the shaper value.
- * en_txctl should be called after enabling the vc by en_rxctl
- * since it assumes a transmit channel is already assigned by en_rxctl
- * to the vc.
- */
-static int en_txctl(sc, vci, joint_vci, pcr)
-	struct en_softc *sc;
-	int vci;
-	int joint_vci;
-	int pcr;
-{
-	int txspeed, txchan, c, s;
-
-	if (pcr)
-		txspeed = en_pcr2txspeed(pcr);
-	else
-		txspeed = 0;
-
-	s = splimp();
-	txchan = sc->txvc2slot[vci];
-	sc->txslot[txchan].nref--;
-    
-	/* select a slot */
-	if (joint_vci != 0)
-		/* use the same channel */
-		txchan = sc->txvc2slot[joint_vci];
-	if (pcr == 0)
-		txchan = 0;
-	else {
-		for (c = 1, txchan = 1; c < EN_NTX; c++) {
-			if (sc->txslot[c].nref < sc->txslot[txchan].nref)
-				txchan = c;
-			if (sc->txslot[txchan].nref == 0)
-				break;
-		}
-	}
-	sc->txvc2slot[vci] = txchan;
-	sc->txslot[txchan].nref++;
-
-	/* set the shaper parameter */
-	sc->txspeed[vci] = (u_int8_t)txspeed;
-
-	splx(s);
-#ifdef EN_DEBUG
-	printf("VCI:%d PCR set to %d, tx channel %d\n", vci, pcr, txchan);
-	if (joint_vci != 0)
-		printf("  slot shared with VCI:%d\n", joint_vci);
-#endif
-	return (0);
-}
-
-static int en_pvctx(sc, pvcreq)
-	struct en_softc *sc;
-	struct pvctxreq *pvcreq;
-{
-	struct ifnet *ifp;
-	struct atm_pseudoioctl api;
-	struct atm_pseudohdr *pvc_aph, *pvc_joint;
-	int vci, joint_vci, pcr;
-	int error = 0;
-
-	/* check vpi:vci values */
-	pvc_aph = &pvcreq->pvc_aph;
-	pvc_joint = &pvcreq->pvc_joint;
-
-	vci = ATM_PH_VCI(pvc_aph);
-	joint_vci = ATM_PH_VCI(pvc_joint);
-	pcr = pvcreq->pvc_pcr;
-
-	if (ATM_PH_VPI(pvc_aph) != 0 || vci >= MID_N_VC ||
-	    ATM_PH_VPI(pvc_joint) != 0 || joint_vci >= MID_N_VC)
-		return (EADDRNOTAVAIL);
-
-	if ((ifp = ifunit(pvcreq->pvc_ifname)) == NULL)
-		return (ENXIO);
-
-	if (pcr < 0) {
-		/* negative pcr means disable the vc. */
-		if (sc->rxvc2slot[vci] == RX_NONE)
-			/* already disabled */
-			return 0;
-
-		ATM_PH_FLAGS(&api.aph) = 0;
-		ATM_PH_VPI(&api.aph) = 0;
-		ATM_PH_SETVCI(&api.aph, vci);
-		api.rxhand = NULL;
-
-		error = en_rxctl(sc, &api, 0);
-		
-		if (error == 0 && &sc->enif != ifp) {
-			/* clear vc info of shadow interface */
-			ATM_PH_SETVCI(&api.aph, 0);
-			pvc_setaph(ifp, &api.aph);
-		}
-		return (error);
-	}
-
-	if (&sc->enif == ifp) {
-		/* called for an en interface */
-		if (sc->rxvc2slot[vci] == RX_NONE) {
-			/* vc is not active */
-			printf("%s%d: en_pvctx: rx not active! vci=%d\n",
-			       ifp->if_name, ifp->if_unit, vci);
-			return (EINVAL);
-		}
-	}
-	else {
-		/* called for a shadow interface */
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
-			printf("en_pvctx: if %s is not point-to-point!\n",
-			       pvcreq->pvc_ifname);
-			return (EINVAL);
-		}
-    		snprintf(pvcreq->pvc_ifname, sizeof(pvcreq->pvc_ifname),
-		    "%s%d", sc->enif.if_name, sc->enif.if_unit);
-		
-		ATM_PH_FLAGS(&api.aph) = ATM_PH_PVCSIF |
-			(ATM_PH_FLAGS(pvc_aph) & (ATM_PH_AAL5|ATM_PH_LLCSNAP));
-		ATM_PH_VPI(&api.aph) = 0;
-		ATM_PH_SETVCI(&api.aph, vci);
-		api.rxhand = ifp;
-		pvc_setaph(ifp, &api.aph);
-
-		if (sc->rxvc2slot[vci] == RX_NONE) {
-			/* vc is not active, enable rx */
-			error = en_rxctl(sc, &api, 1);
-			if (error)
-				return error;
-		}
-		else {
-			/* vc is already active, update aph in softc */
-			sc->rxslot[sc->rxvc2slot[vci]].atm_flags =
-				ATM_PH_FLAGS(&api.aph);
-		}
-
-	}
-
-	error = en_txctl(sc, vci, joint_vci, pcr);
-
-	if (error == 0) {
-		if (sc->txspeed[vci] != 0)
-			pvcreq->pvc_pcr = en_txspeed2pcr(sc->txspeed[vci]);
-		else
-			pvcreq->pvc_pcr = 0;
-	}
-
-	return error;
-}
-
-static int en_pvctxget(sc, pvcreq)
-	struct en_softc *sc;
-	struct pvctxreq *pvcreq;
-{
-	struct atm_pseudohdr *pvc_aph;
-	int vci, slot;
-
-	pvc_aph = &pvcreq->pvc_aph;
-	vci = ATM_PH_VCI(pvc_aph);
-
-	if ((slot = sc->rxvc2slot[vci]) == RX_NONE) {
-		/* vc is not active */
-		ATM_PH_FLAGS(pvc_aph) = 0;
-		pvcreq->pvc_pcr = -1;
-	}
-	else {
-		ATM_PH_FLAGS(pvc_aph) = sc->rxslot[slot].atm_flags;
-		ATM_PH_VPI(pvc_aph) = 0;
-		ATM_PH_SETVCI(pvc_aph, vci);
-		if (sc->txspeed[vci])
-			pvcreq->pvc_pcr = en_txspeed2pcr(sc->txspeed[vci]);
-		else
-			pvcreq->pvc_pcr = 0;
-	}
-
-	return (0);
-}
-
-#endif /* ATM_PVCEXT */
 
 #endif /* NEN > 0 || !defined(__FreeBSD__) */
