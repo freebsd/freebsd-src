@@ -144,10 +144,11 @@ int umassdebug = UDMASS_ALL;
 #define DEVNAME_SIM	"umass-"
 
 #define UMASS_MAX_TRANSFER_SIZE		65536
-/* The transfer speed determines the timeout value */
 #define UMASS_DEFAULT_TRANSFER_SPEED	150	/* in kb/s, conservative est. */
 #define UMASS_FLOPPY_TRANSFER_SPEED	20
 #define UMASS_ZIP100_TRANSFER_SPEED	650
+
+#define UMASS_TIMEOUT			5000 /* msecs */
 
 /* CAM specific definitions */
 
@@ -391,7 +392,6 @@ struct umass_softc {
 	struct scsi_sense	cam_scsi_sense;
 
 	int			transfer_speed;		/* in kb/s */
-	int			timeout;		/* in msecs */
 };
 
 #ifdef UMASS_DEBUG
@@ -625,14 +625,6 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface)
 			USBDEVNAME(sc->sc_dev), id->bInterfaceProtocol));
 		return(UMATCH_NONE);
 	}
-
-	/* The timeout is based on the maximum expected transfer size
-	 * divided by the expected transfer speed.
-	 * We multiply by 4 to make sure a busy system doesn't make things
-	 * fail.
-	 */
-	sc->timeout = 4 * (1000 * UMASS_MAX_TRANSFER_SIZE / sc->transfer_speed);
-	sc->timeout += 1;	/* add some leeway for spin up of a drive */
 
 	return(UMATCH_DEVCLASS_DEVSUBCLASS_DEVPROTO);
 }
@@ -913,8 +905,8 @@ umass_setup_transfer(struct umass_softc *sc, usbd_pipe_handle pipe,
 
 	/* Initialiase a USB transfer and then schedule it */
 
-	(void) usbd_setup_xfer(xfer, pipe, (void *) sc, buffer, buflen,
-			flags, sc->timeout, sc->state);
+	(void) usbd_setup_xfer(xfer, pipe, (void *) sc, buffer, buflen, flags,
+			UMASS_TIMEOUT, sc->state);
 
 	err = usbd_transfer(xfer);
 	if (err && err != USBD_IN_PROGRESS) {
@@ -938,8 +930,7 @@ umass_setup_ctrl_transfer(struct umass_softc *sc, usbd_device_handle dev,
 	/* Initialiase a USB control transfer and then schedule it */
 
 	(void) usbd_setup_default_xfer(xfer, dev, (void *) sc,
-			sc->timeout, req, buffer, buflen,
-			flags, sc->state);
+			UMASS_TIMEOUT, req, buffer, buflen, flags, sc->state);
 
 	err = usbd_transfer(xfer);
 	if (err && err != USBD_IN_PROGRESS) {
