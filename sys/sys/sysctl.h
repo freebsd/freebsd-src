@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.7 1994/09/14 22:49:29 ache Exp $
+ * $Id: sysctl.h,v 1.8 1994/09/16 00:50:02 ache Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -131,7 +131,7 @@ struct ctlname {
 #define KERN_DOMAINNAME		22	/* string: YP domain name */
 #define KERN_UPDATEINTERVAL	23	/* int: update process sleep time */
 #define KERN_OSRELDATE		24	/* int: OS release date */
-#define KERN_MAXID              25      /* number of valid kern ids */
+#define KERN_MAXID		25	/* number of valid kern	ids */
 
 #define CTL_KERN_NAMES { \
 	{ 0, 0 }, \
@@ -239,17 +239,6 @@ struct kinfo_proc {
 	{ "disknames", CTLTYPE_STRUCT }, \
 	{ "diskstats", CTLTYPE_STRUCT }, \
 	{ "floatingpoint", CTLTYPE_INT }, \
-}
-
-/*
- * CTL_MACHDEP definitions
- */
-#define	CPU_ADJKERNTZ		1	/* int:	timezone offset	for resettodr()	*/
-#define	CPU_MAXID		2	/* number of valid machdep ids */
-
-#define	CTL_MACHDEP_NAMES { \
-	{ 0, 0 }, \
-	{ "adjkerntz", CTLTYPE_INT }, \
 }
 
 /*
