@@ -611,7 +611,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = td;
 
-	vn_lock(backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY, td);
+	vn_lock(backing_vnode, LK_SHARED | LK_RETRY, td);
 	error = VOP_READ(backing_vnode, &auio, IO_NODELOCKED,
 	    ump->um_extattr.uepm_ucred);
 
@@ -671,7 +671,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 
 	LIST_REMOVE(uele, uele_entries);
 
-	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_NOPAUSE | LK_RETRY,
+	vn_lock(uele->uele_backing_vnode, LK_SHARED | LK_RETRY,
 	    td);
 	ASSERT_VOP_LOCKED(uele->uele_backing_vnode, "ufs_extattr_disable");
 	VOP_UNLOCK(uele->uele_backing_vnode, 0, td);
@@ -874,7 +874,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	 */
 	if (attribute->uele_backing_vnode != vp)
 		vn_lock(attribute->uele_backing_vnode, LK_SHARED |
-		    LK_NOPAUSE | LK_RETRY, td);
+		    LK_RETRY, td);
 
 	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
 	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
@@ -1084,7 +1084,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	 */
 	if (attribute->uele_backing_vnode != vp)
 		vn_lock(attribute->uele_backing_vnode, 
-		    LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
+		    LK_EXCLUSIVE LK_RETRY, td);
 
 	ioflag = IO_NODELOCKED;
 	if (ufs_extattr_sync)
@@ -1181,7 +1181,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	 */
 	if (attribute->uele_backing_vnode != vp)
 		vn_lock(attribute->uele_backing_vnode,
-		    LK_EXCLUSIVE | LK_NOPAUSE | LK_RETRY, td);
+		    LK_EXCLUSIVE | LK_RETRY, td);
 
 	error = VOP_READ(attribute->uele_backing_vnode, &local_aio,
 	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
