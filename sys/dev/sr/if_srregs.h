@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_srregs.h,v 1.1 1996/07/05 18:49:22 jhay Exp $
+ * $FreeBSD$
  */
 #ifndef _IF_SRREGS_H_
 #define _IF_SRREGS_H_

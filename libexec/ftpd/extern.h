@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 4/4/94
- *	$Id: extern.h,v 1.4 1996/09/22 21:53:21 wosch Exp $
+ *	$FreeBSD$
  */
 
 void	blkfree __P((char **));

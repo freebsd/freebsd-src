@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: popen.c,v 1.4 1996/09/22 21:53:32 wosch Exp $
+ *	$FreeBSD$
  */
 
 #if 0

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.31 1996/05/24 01:39:50 dyson Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

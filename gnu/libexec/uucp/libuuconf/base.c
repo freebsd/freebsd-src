@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_base_rcsid[] = "$Id: base.c,v 1.5 1995/06/21 19:21:36 ian Rel $";
+const char _uuconf_base_rcsid[] = "$FreeBSD$";
 #endif
 
 /* This turns a cmdtab_offset table into a uuconf_cmdtab table.  Each

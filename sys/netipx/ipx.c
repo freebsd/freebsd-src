@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx.c
  *
- * $Id: ipx.c,v 1.4 1996/03/11 15:13:46 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

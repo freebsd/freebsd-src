@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_pw_tkt.c,v 4.6 89/01/13 18:19:11 steiner Exp $
- *	$Id: get_pw_tkt.c,v 1.3 1995/07/18 16:38:37 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_pw_tkt.c,v 1.3 1995/07/18 16:38:37 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

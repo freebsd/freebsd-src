@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1995/04/12 00:48:01 jtc Exp $
+#	$FreeBSD$
 
 PROG =	rpc.sprayd
 SRCS =	sprayd.c

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/03/28 19:22:43 phk Exp $
+#	$FreeBSD$
 #
 
 MPROG=	fbsdboot.exe

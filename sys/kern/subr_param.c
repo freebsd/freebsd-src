@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.19 1996/05/10 19:28:32 wollman Exp $
+ * $FreeBSD$
  */
 
 #include "opt_sysvipc.h"

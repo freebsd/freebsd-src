@@ -186,7 +186,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(utilId, "$Id: rcsutil.c,v 1.3 1995/10/28 21:49:57 peter Exp $")
+libId(utilId, "$FreeBSD$")
 
 #if !has_memcmp
 	int

@@ -36,7 +36,7 @@
  *
  *	@(#)pt_exec.c	8.1 (Berkeley) 6/5/93
  *
- * $Id: pt_exec.c,v 1.1 1992/05/25 21:43:09 jsp Exp jsp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.12 1996/10/28 11:34:47 phk Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

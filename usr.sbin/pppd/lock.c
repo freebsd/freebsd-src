@@ -4,7 +4,7 @@
  * This code is derived from chat.c.
  */
 
-static char rcsid[] = "$Id: lock.c,v 1.2 1994/09/25 02:32:04 wollman Exp $";
+static char rcsid[] = "$FreeBSD$";
 
 #include <stdio.h>
 #include <string.h>

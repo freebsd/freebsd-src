@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.29 1996/08/31 16:52:22 bde Exp $
+ *	$FreeBSD$
  */
 
 #include "opt_rlimit.h"

@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.19 1996/07/02 01:40:52 dyson Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$FreeBSD$
 
 DISTRIBUTION=	krb
 

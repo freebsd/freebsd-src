@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcmp.c,v 1.2 1994/08/02 07:44:33 davidg Exp $
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>

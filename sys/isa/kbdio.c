@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kbdio.c,v 1.2 1996/12/01 19:05:44 sos Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

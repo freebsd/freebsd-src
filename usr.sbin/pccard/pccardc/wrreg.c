@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: wrreg.c,v 1.4 1996/04/18 04:24:58 nate Exp $
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <stdlib.h>

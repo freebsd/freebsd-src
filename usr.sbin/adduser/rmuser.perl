@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
-#	$Id: rmuser.perl,v 1.2 1996/12/07 21:25:12 ache Exp $
+#	$FreeBSD$
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}

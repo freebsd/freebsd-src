@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
+#	$FreeBSD$
 
 MAN1=	sgmlfmt.1
 

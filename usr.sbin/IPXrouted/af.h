@@ -36,7 +36,7 @@
  *
  *	@(#)af.h	8.1 (Berkeley) 6/5/93
  *
- *	$Id: af.h,v 1.3 1995/10/11 18:57:09 jhay Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: clnt.h,v 1.4 1996/01/30 23:31:48 mpp Exp $
+ *	$FreeBSD$
  */
 
 /*

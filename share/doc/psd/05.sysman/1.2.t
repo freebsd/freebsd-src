@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.2.t	8.1 (Berkeley) 6/8/93
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .sh "Memory management\(dg
 .NH 3

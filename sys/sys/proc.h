@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.29 1996/10/12 16:11:58 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_PROC_H_

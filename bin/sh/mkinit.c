@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkinit.c,v 1.6 1996/09/01 10:20:50 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

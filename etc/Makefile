@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.146 1996/12/28 18:00:17 peter Exp $
+#	$FreeBSD$
 
 # -rw-r--r--
 BINOWN= root

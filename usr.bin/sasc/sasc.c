@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id:$
+ * $FreeBSD$
  */
 
 #include <stdlib.h>

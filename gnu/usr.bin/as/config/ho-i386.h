@@ -17,7 +17,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: ho-i386.h,v 1.1 1993/11/03 00:53:21 paul Exp $
+ * $FreeBSD$
  */
 
 

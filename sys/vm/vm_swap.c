@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.39 1996/07/12 04:12:25 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

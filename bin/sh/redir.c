@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: redir.c,v 1.5 1996/09/01 10:21:36 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

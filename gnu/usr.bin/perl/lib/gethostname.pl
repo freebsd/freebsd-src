@@ -4,7 +4,7 @@
 # Written 13-Feb-96 by Jörg Wunsch, interface business GmbH Dresden.
 # Placed in the public domain.
 #
-# $Id: gethostname.pl,v 1.1 1996/02/13 13:17:49 joerg Exp $
+# $FreeBSD$
 #
 
 package gethostname;

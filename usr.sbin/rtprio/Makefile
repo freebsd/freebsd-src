@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.5 (Berkeley) 5/11/90
-#	$Id: Makefile,v 1.2 1994/10/02 04:48:18 davidg Exp $
+#	$FreeBSD$
 
 BINDIR=/usr/sbin
 PROG=	rtprio

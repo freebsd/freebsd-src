@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.28 1996/08/20 07:17:49 smpatel Exp $
+	$FreeBSD$
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.23 1996/06/12 03:49:35 asami Exp $
+#	$FreeBSD$
 
 # XXX present but broken: ip_mroute_mod mfs
 SUBDIR=	atapi ccd cd9660 coff fdesc ibcs2 if_disc if_ppp if_sl if_tun \

@@ -1,4 +1,4 @@
-$Id: FEATURES,v 2.1 1993/12/28 08:34:43 vixie Exp $
+$FreeBSD$
 
 Features of Vixie's cron relative to BSD 4.[23] and SysV crons:
 

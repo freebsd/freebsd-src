@@ -88,7 +88,7 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith.y,v 1.3 1996/09/01 10:19:38 peter Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

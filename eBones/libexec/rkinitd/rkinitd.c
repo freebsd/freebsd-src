@@ -1,13 +1,13 @@
 /* 
- * $Id: rkinitd.c,v 1.1 1993/12/10 18:54:19 dglo Exp gibbs $
- * $Source: /usr/src/eBones/rkinitd/RCS/rkinitd.c,v $
- * $Author: dglo $
+ * $FreeBSD$
+ * $Source: /home/ncvs/src/eBones/libexec/rkinitd/rkinitd.c,v $
+ * $Author: gibbs $
  *
  * This is the main source file for rkinit
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$Id: rkinitd.c,v 1.1 1993/12/10 18:54:19 dglo Exp gibbs $";
+static char *rcsid = "$FreeBSD$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

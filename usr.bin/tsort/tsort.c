@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tsort.c,v 1.3 1996/06/10 16:12:43 phk Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 3.8.1.1 1996/08/09 22:46:16 fenner Exp $
+ * $FreeBSD$
  */
 
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: telnetd.c,v 1.7 1996/09/22 21:55:46 wosch Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith_lex.l,v 1.6 1996/12/14 06:19:08 steve Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

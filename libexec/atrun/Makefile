@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1995/08/21 12:34:16 ache Exp $
+#	$FreeBSD$
 
 MAINSRC= ${.CURDIR}/../../usr.bin/at
 

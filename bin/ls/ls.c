@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.10 1996/08/27 21:51:48 adam Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.11 1995/12/14 08:21:33 phk Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _MACHINE_FRAME_H_

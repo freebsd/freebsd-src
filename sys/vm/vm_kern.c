@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.28 1996/11/17 02:38:29 dyson Exp $
+ * $FreeBSD$
  */
 
 /*

@@ -1,5 +1,5 @@
 /*	from Id: if_pppvar.h,v 1.1 1994/12/15 22:28:09 paulus Exp	*/
-/*	$Id: if_pppvar.h,v 1.4 1996/02/06 18:51:13 wollman Exp $	*/
+/*	$FreeBSD$	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *

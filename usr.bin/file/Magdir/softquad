@@ -2,7 +2,7 @@
 #------------------------------------------------------------------------------
 # softquad:  file(1) magic for SoftQuad Publishing Software
 #
-# $Id: softquad,v 1.9 1995/01/21 21:09:00 christos Exp $
+# $FreeBSD$
 # Author/Editor and RulesBuilder
 #
 # XXX - byte order?

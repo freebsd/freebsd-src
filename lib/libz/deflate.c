@@ -47,7 +47,7 @@
  *
  */
 
-/* $Id: deflate.c,v 1.15 1996/07/24 13:40:58 me Exp $ */
+/* $FreeBSD$ */
 
 #include "deflate.h"
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.9 1996/11/29 16:22:22 dyson Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _MACHINE_ENDIAN_H_

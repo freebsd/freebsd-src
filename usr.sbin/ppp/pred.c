@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.6 1996/05/11 20:48:41 phk Exp $
+ * $FreeBSD$
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm

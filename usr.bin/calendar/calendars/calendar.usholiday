@@ -1,7 +1,7 @@
 /*
  * USA holiday
  *
- * $Id: calendar.usholiday,v 1.3 1996/01/29 00:33:01 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_usholiday_

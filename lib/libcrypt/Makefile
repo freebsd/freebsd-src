@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.6 1994/11/14 06:44:45 bde Exp $
+# $FreeBSD$
 #
 
 LCRYPTBASE= 	libcrypt

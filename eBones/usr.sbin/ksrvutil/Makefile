@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 PROG=	ksrvutil
 SRCS=	ksrvutil.c

@@ -10,7 +10,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.h,v 1.4 1995/05/30 07:58:08 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 extern u_long	apm_version;

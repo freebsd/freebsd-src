@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1996/10/24 18:03:53 markm Exp $
+# $FreeBSD$
 #
 
 LIB=	mp

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.77 1996/11/14 15:55:21 jkh Exp $
+ *	$FreeBSD$
  *
  *		originally from: locore.s, by William F. Jolitz
  *

@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.72 1996/12/14 09:57:04 joerg Exp $
+ *      $FreeBSD$
  */
 
 #include "opt_scsi.h"

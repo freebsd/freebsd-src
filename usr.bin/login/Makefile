@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $Id: Makefile,v 1.13 1995/05/30 06:31:25 rgrimes Exp $
+# $FreeBSD$
 
 PROG=	login
 MAN1=	login.1

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_addstr_rcsid[] = "$Id: addstr.c,v 1.7 1995/06/21 19:21:26 ian Rel $";
+const char _uuconf_addstr_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <errno.h>

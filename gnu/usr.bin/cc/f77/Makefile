@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1994/10/25 14:36:49 ljo Exp $
+# $FreeBSD$
 #
 
 PROG =	f77

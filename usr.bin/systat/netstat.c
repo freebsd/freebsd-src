@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: netstat.c,v 1.5 1996/10/28 19:08:13 wollman Exp $";
+	"$FreeBSD$";
 #endif /* not lint */
 
 /*

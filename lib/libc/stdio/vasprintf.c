@@ -24,7 +24,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id: vasprintf.c,v 1.2 1996/06/22 10:34:01 jraynard Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>

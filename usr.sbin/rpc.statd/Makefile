@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1996/04/01 05:36:03 peter Exp $
+#	$FreeBSD$
 
 PROG =	rpc.statd
 SRCS =	file.c sm_inter_svc.c statd.c procs.c

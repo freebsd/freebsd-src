@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	= qcam_mod

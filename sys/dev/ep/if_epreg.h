@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.17 1996/09/08 10:44:10 phk Exp $
+ *  $FreeBSD$
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select

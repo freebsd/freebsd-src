@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: status_w.h,v 1.2 1994/04/29 21:34:27 gclarkii Exp $
+ *    $FreeBSD$
  *
  */
 

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)ar.1	8.1 (Berkeley) 6/29/93
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .TH AR 1 "June 29, 1993"
 .AT 3

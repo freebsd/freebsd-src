@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.2 (Berkeley) 3/5/91
-#	$Id: Makefile,v 1.6 1995/09/14 04:11:14 gibbs Exp $
+#	$FreeBSD$
 
 PROG=	kstash
 CFLAGS+=-DKERBEROS -DDEBUG

@@ -493,10 +493,13 @@ X                  not scan the uucico log.
 X
 X
 #if !defined(lint)
-static char rcsid[] = "$Id: autopoll.c,v 2.8 1994/04/14 17:22:54 kdburg Rel $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 X
-/* $Log: autopoll.c,v $
+/* $Log: uupoll.shar,v $
+ * Revision 1.2  1995/08/19 21:24:34  ache
+ * Commit delta: current -> 1.06 + FreeBSD configuration
+ *
 X * Revision 2.8  1994/04/14  17:22:54  kdburg
 X * corrected misspelled AT_OPTION
 X *
@@ -1628,8 +1631,11 @@ sed 's/^X//' << 'SHAR_EOF' > 'uupoll/conf.h' &&
 #ifndef CONF
 X  #define CONF
 X
-/* $Id: conf.h,v 1.9 1994/04/14 17:24:58 kdburg Rel $ */
-/* $Log: conf.h,v $
+/* $FreeBSD$ */
+/* $Log: uupoll.shar,v $
+ * Revision 1.2  1995/08/19 21:24:34  ache
+ * Commit delta: current -> 1.06 + FreeBSD configuration
+ *
 X * Revision 1.9  1994/04/14  17:24:58  kdburg
 X * added comment to the AT_OPTION
 X *
@@ -1986,10 +1992,13 @@ X                - No alias expansion is done on the given names.
 */
 X
 #if !defined(lint)
-static char rcsid[] = "$Id: uupoll.c,v 2.7 1994/04/14 17:22:04 kdburg Rel $";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 X
-/* $Log: uupoll.c,v $
+/* $Log: uupoll.shar,v $
+ * Revision 1.2  1995/08/19 21:24:34  ache
+ * Commit delta: current -> 1.06 + FreeBSD configuration
+ *
 X * Revision 2.7  1994/04/14  17:22:04  kdburg
 X * major rework done
 X *

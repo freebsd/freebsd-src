@@ -1,5 +1,5 @@
 #	@(#)Makefile	1.1 (Berkeley) 6/6/93
-#	$Id$
+#	$FreeBSD$
 
 PROG=	ktrace
 SRCS=	ktrace.c subr.c

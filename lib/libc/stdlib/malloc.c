@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.18 1996/10/29 20:35:39 phk Exp $
+ * $FreeBSD$
  *
  */
 

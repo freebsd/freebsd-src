@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.45 1996/11/29 14:32:30 bde Exp $
+ *	$FreeBSD$
  */
 
 #include "opt_cpu.h"

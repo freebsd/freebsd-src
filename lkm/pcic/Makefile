@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.3 1995/10/15 14:33:17 phk Exp $
+#       $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../sys/pccard
 KMOD=   pcic_mod

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.10 1996/01/05 18:31:51 wollman Exp $
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"

@@ -1,4 +1,4 @@
-.\"	$Id$
+.\"	$FreeBSD$
 .\"
 .NC "NSAP Addresses & Routing"
 .sh 1 "OSI Address Formats"

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: der: rd_req.c,v 4.16 89/03/22 14:52:06 jtkohl Exp $
- *	$Id: rd_req.c,v 1.3 1995/07/18 16:39:33 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: rd_req.c,v 1.3 1995/07/18 16:39:33 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

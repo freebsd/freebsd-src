@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_term.c,v 1.14 1996/09/22 21:55:42 wosch Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

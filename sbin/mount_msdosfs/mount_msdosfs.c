@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.4 1996/05/13 17:56:34 wollman Exp $";
+	"$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/cdefs.h>

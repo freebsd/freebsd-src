@@ -26,7 +26,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ccp.c,v 1.3 1995/10/31 21:29:19 peter Exp $";
+static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <syslog.h>

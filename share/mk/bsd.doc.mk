@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.27 1996/12/19 22:40:43 mpp Exp $
+#	$FreeBSD$
 
 PRINTERDEVICE?=	ascii
 

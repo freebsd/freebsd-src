@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)login	8.2 (Berkeley) 5/4/95
-#	$Id: login,v 1.2 1994/09/24 02:58:38 davidg Exp $
+#	$FreeBSD$
 
 # replaces the login builtin in the BSD shell
 login () exec login "$@"

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *     $Id: div_small.s,v 1.3 1994/06/10 07:44:08 rich Exp $
+ *     $FreeBSD$
  *
  */
 

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.h,v 1.5 1995/11/24 13:52:56 bde Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _DDB_DB_ACCESS_H_

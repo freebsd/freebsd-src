@@ -1,5 +1,5 @@
 /* 
- * $Id: rkinit_private.h,v 1.1 1995/09/15 06:19:14 gibbs Exp $
+ * $FreeBSD$
  *
  * Header file for rkinit library and server internal use
  */

@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_sin.c,v 1.5 1994/08/31 04:45:22 davidg Exp $
+ *     $FreeBSD$
  *
  */
 

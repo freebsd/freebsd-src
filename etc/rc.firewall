@@ -1,6 +1,6 @@
 ############
 # Setup system for firewall service.
-# $Id: rc.firewall,v 1.5 1996/08/19 15:34:29 wosch Exp $
+# $FreeBSD$
 
 ############
 #

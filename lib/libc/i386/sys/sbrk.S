@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sbrk.S,v 1.3 1995/10/04 15:58:57 phk Exp $
+ *	$FreeBSD$
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sbrk.S,v 1.3 1995/10/04 15:58:57 phk Exp $"
+	.asciz "$FreeBSD$"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

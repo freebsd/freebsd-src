@@ -4,7 +4,7 @@
 #
 # rmgroup - delete a Unix group
 #
-# $Id: rmgroup.sh,v 1.1 1996/10/30 20:41:17 wosch Exp wosch $
+# $FreeBSD$
 
 PATH=/bin:/usr/bin; export PATH
 db=/etc/group

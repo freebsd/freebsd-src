@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: create_auth_reply.c,v 4.10 89/01/13 17:47:38 steiner Exp $
- *	$Id: create_auth_reply.c,v 1.3 1995/07/18 16:38:06 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$Id: create_auth_reply.c,v 1.3 1995/07/18 16:38:06 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mdXhl.c,v 1.7 1996/07/24 20:55:38 phk Exp $
+ * $FreeBSD$
  *
  */
 

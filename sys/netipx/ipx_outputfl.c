@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_outputfl.c
  *
- * $Id: ipx_outputfl.c,v 1.3 1995/11/04 09:03:07 julian Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.19 1996/08/24 03:35:13 peter Exp $
+ * $FreeBSD$
  */
 
 #include "opt_ktrace.h"

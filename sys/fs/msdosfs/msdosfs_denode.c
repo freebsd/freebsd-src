@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.17 1996/06/12 03:37:42 davidg Exp $ */
+/*	$FreeBSD$ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-

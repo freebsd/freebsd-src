@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 PROG=	ifinfo
 SRCS=	ifinfo.c rfc1650.c

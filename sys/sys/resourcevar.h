@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id: resourcevar.h,v 1.7 1996/03/11 02:20:13 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_

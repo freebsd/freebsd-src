@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.7 1995/12/07 12:45:06 davidg Exp $
+ *	$FreeBSD$
  */
 
 /*

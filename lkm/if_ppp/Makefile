@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.3 1995/04/15 17:36:53 ats Exp $
+#       $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../sys/net
 KMOD=   if_ppp_mod

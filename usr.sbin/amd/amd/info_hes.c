@@ -37,7 +37,7 @@
  *
  *	@(#)info_hes.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: info_hes.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

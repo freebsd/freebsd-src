@@ -169,4 +169,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id: README.386BSD,v 1.6 1996/07/09 02:28:17 julian Exp $
+$FreeBSD$

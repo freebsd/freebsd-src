@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw.h,v 1.3 1996/12/21 15:35:42 davidn Exp $
+ *	$FreeBSD$
  */
 
 #include <stdio.h>

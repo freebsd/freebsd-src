@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 1.7 1996/11/11 03:49:57 fenner Exp $
+ * $FreeBSD$
  */
 
 

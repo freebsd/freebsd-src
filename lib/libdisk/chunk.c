@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.15 1995/06/11 19:29:32 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

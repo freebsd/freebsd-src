@@ -2,7 +2,7 @@
  *
  * Real bummers unite !
  *
- * $Id:$
+ * $FreeBSD$
  */
 
 #include "ntp_stdlib.h"

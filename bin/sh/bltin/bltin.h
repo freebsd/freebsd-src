@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)bltin.h	8.2 (Berkeley) 5/4/95
- *	$Id: bltin.h,v 1.5 1996/09/01 10:22:13 peter Exp $
+ *	$FreeBSD$
  */
 
 /*

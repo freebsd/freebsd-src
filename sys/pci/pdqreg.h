@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqreg.h,v 1.2 1995/05/30 08:13:15 rgrimes Exp $
+ * $FreeBSD$
  *
  * $Log: pdqreg.h,v $
+ * Revision 1.3  1996/01/30 22:59:59  mpp
+ * Fix a bunch of spelling errors in the comment fields of
+ * a bunch of system include files.
+ *
  * Revision 1.2  1995/05/30 08:13:15  rgrimes
  * Remove trailing whitespace.
  *

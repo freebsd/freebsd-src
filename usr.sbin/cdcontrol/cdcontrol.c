@@ -17,7 +17,7 @@
  *              New eject algorithm.
  *              Some code style reformatting.
  *
- * $Id: cdcontrol.c,v 1.12 1996/02/09 01:16:23 ache Exp $
+ * $FreeBSD$
  */
 
 #include <ctype.h>

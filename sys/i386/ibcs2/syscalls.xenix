@@ -1,4 +1,4 @@
-	$Id: syscalls.xenix,v 1.1 1995/10/10 07:59:29 swallace Exp $
+	$FreeBSD$
 
 #include <sys/types.h>
 #include <sys/param.h>

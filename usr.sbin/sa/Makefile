@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1994/09/26 21:22:55 davidg Exp $
+#	$FreeBSD$
 
 PROG=	sa
 MAN8=	sa.8

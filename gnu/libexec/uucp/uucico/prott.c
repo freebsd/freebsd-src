@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char prott_rcsid[] = "$Id: prott.c,v 1.29 1995/06/21 19:15:36 ian Rel $";
+const char prott_rcsid[] = "$FreeBSD$";
 #endif
 
 #include "uudefs.h"

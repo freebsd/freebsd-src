@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.9 1996/11/12 23:10:24 se Exp $
+**  $FreeBSD$
 **
 **  Names for PCI configuration space registers.
 **

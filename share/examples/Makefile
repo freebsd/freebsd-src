@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1996/09/06 06:30:57 jkh Exp $
+#	$FreeBSD$
 #
 # Doing a make install builds /usr/share/examples
 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.4 1995/09/07 21:37:50 markm Exp $
+ * $FreeBSD$
  */
 
 /*

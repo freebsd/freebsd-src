@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/03/31 21:16:56 wollman Exp $
+#	$FreeBSD$
 
 PROG=	map-mbone
 

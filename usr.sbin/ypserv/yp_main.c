@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_main.c,v 1.11 1996/12/30 15:32:43 peter Exp $
+ *	$FreeBSD$
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yp_main.c,v 1.11 1996/12/30 15:32:43 peter Exp $";
+static const char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;

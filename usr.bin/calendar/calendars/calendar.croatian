@@ -1,7 +1,7 @@
 /*
  * Croatian calendar files
  *
- * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_croatian_

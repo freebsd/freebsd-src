@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_l2.c,v 1.5 1994/06/10 07:44:38 rich Exp $
+ *     $FreeBSD$
  *
  */
 

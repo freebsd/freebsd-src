@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_phost.c,v 4.6 89/01/23 09:25:40 jtkohl Exp $
- *	$Id: get_phost.c,v 1.3 1995/07/18 16:38:35 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_phost.c,v 1.3 1995/07/18 16:38:35 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 

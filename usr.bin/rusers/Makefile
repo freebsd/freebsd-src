@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/11/10 03:47:23 smace Exp $
+#	$FreeBSD$
 
 PROG = rusers
 MAN1 = rusers.1

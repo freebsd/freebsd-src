@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_errstr_rcsid[] = "$Id: errstr.c,v 1.5 1995/06/21 19:22:17 ian Rel $";
+const char _uuconf_errstr_rcsid[] = "$FreeBSD$";
 #endif
 
 static char *zeprint_num P((char *zbuf, size_t cbuf, int ival));

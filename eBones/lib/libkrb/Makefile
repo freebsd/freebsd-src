@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.13 1996/06/24 04:22:27 jkh Exp $
+#	$FreeBSD$
 
 LIB=	krb
 SHLIB_MINOR=   1

@@ -37,7 +37,7 @@
  *
  *	@(#)sfs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: sfs_ops.c,v 5.2.2.1 1992/02/09 15:09:04 jsp beta $
+ * $FreeBSD$
  *
  */
 

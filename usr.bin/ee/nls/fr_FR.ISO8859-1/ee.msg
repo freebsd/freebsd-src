@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $
-$ $Id: ee.msg,v 1.2 1996/05/27 21:00:06 joerg Exp $
+$ $FreeBSD$
 $ 
 $set 1
 $quote "

@@ -4,7 +4,7 @@
  * Machine Description : TAHOE.
  *
  *	from: conf-bsdtahoe.h,v 4.0 89/08/30 11:06:53 jtkohl Exp $
- *	$Id: conf-bsdtahoe.h,v 1.3 1995/07/18 16:36:14 mark Exp $
+ *	$FreeBSD$
  */
 
 #define	TAHOE

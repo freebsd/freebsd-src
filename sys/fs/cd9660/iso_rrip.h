@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_rrip.h	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $FreeBSD$
  */
 
 

@@ -25,7 +25,7 @@
 
 #include "uucp.h"
 #if USE_RCS_ID
-char uusnap_rcsid[] = "$Id: uusnap.c,v 1.9 92/05/05 22:51:50 hwr Exp Locker: hwr $";
+char uusnap_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

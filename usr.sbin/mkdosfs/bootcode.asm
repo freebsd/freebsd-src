@@ -11,7 +11,7 @@
 ;;; (This is written in as86 syntax.  as86 is part of Bruce Evans'
 ;;; bcc package.)
 ;;;
-;;; $Id$
+;;; $FreeBSD$
 ;;; 
 ;;; This code must be linked to address 0x7c00 in order to function
 ;;; correctly (the BIOS boot address).

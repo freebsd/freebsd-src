@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.26 1996/09/11 19:22:21 phk Exp $
+#	$FreeBSD$
   
 SUBDIR=	biosboot kzipboot netboot rawboot
 

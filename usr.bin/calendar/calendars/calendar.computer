@@ -1,7 +1,7 @@
 /*
  * Computer
  *
- * $Id: calendar.computer,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _calendar_computer_

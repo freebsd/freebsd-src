@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.24 1996/12/29 15:06:52 wosch Exp $
+# $FreeBSD$
 
 
 # read variables

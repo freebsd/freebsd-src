@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.5 1996/10/09 19:47:38 bde Exp $
+ *	$FreeBSD$
  */
 
 #include "opt_cpu.h"

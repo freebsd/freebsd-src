@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.9 1996/10/06 19:39:08 jkh Exp $
+ * $FreeBSD$
  *
  */
 #include "fsm.h"
@@ -29,7 +29,7 @@
 #include "defs.h"
 
 char VarVersion[] = "Version 0.94";
-char VarLocalVersion[] = "$Date: 1996/10/06 19:39:08 $";
+char VarLocalVersion[] = "$Date: 1996/12/22 17:09:16 $";
 
 /*
  * Order of conf option is important. See vars.h.

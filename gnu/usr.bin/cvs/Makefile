@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1995/12/10 22:58:29 peter Exp $
+#	$FreeBSD$
 
 SUBDIR = lib cvs contrib cvsbug doc tools
 

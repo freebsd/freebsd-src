@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_in_tkt.c,v 4.12 89/07/18 16:32:56 jtkohl Exp $
- *	$Id: get_in_tkt.c,v 1.3 1995/07/18 16:38:30 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_in_tkt.c,v 1.3 1995/07/18 16:38:30 mark Exp $";
+"$FreeBSD$";
 #endif /* lint */
 #endif
 
@@ -89,8 +89,8 @@ krb_get_pw_in_tkt(user,instance,realm,service,sinstance,life,password)
 
 #ifdef NOENCRYPTION
 /*
- * $Source: /usr/cvs/src/eBones/krb/get_in_tkt.c,v $
- * $Author: mark $
+ * $Source: /home/ncvs/src/eBones/lib/libkrb/get_in_tkt.c,v $
+ * $Author: markm $
  *
  * Copyright 1985, 1986, 1987, 1988 by the Massachusetts Institute
  * of Technology.

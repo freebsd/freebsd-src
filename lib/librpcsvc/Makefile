@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.5 1996/06/05 03:54:43 wpaul Exp $
+#	$FreeBSD$
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 

@@ -15,7 +15,7 @@
 
 # The current directory and ./RCS must be readable, writable, and searchable.
 
-#	$Id: rcstest,v 5.14 1995/06/16 06:19:24 eggert Exp $
+#	$FreeBSD$
 
 
 #    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

@@ -1,7 +1,7 @@
 #
 # /etc/locate.rc -  command script for updatedb(8)
 #
-# $Id: locate.rc,v 1.1 1996/08/14 00:22:30 wosch Exp $
+# $FreeBSD$
 
 #
 # All commented values are the defaults

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 #include <stdio.h>
 #include <sys/param.h>
 #include <sys/buf.h>

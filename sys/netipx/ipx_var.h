@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_var.h
  *
- * $Id: ipx_var.h,v 1.2 1995/10/31 23:36:40 julian Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETIPX_IPX_VAR_H_

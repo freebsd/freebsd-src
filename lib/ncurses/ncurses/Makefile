@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.18 1996/08/30 01:58:36 peter Exp $
+# $FreeBSD$
 
 LIB=    ncurses
 SHLIB_MAJOR= 3

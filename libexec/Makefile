@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.21 1996/11/03 17:00:12 markm Exp $
+#	$FreeBSD$
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey mknetid named-xfer revnetgroup rexecd rlogind \

@@ -1,7 +1,7 @@
 /*
  * deutscher Kalender
  *
- * $Id: calendar.all,v 1.1 1996/01/29 00:34:11 wosch Exp $
+ * $FreeBSD$
  */
 
 #ifndef _de_DE_ISO_8859_1_all_

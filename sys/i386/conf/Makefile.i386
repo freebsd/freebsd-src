@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.90 1996/11/06 14:56:11 bde Exp $
+#	$FreeBSD$
 #
 # Makefile for FreeBSD
 #

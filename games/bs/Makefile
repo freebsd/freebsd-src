@@ -1,4 +1,4 @@
-#       $Id$
+#       $FreeBSD$
 
 PROG=   bs
 MAN6=   bs.6

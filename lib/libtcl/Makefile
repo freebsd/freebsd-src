@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 1996/12/30 01:11:26 max Exp $
+# $FreeBSD$
 #
 # This file is generated automatically, do not edit it here!
 #

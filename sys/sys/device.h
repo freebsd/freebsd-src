@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device.h	8.2 (Berkeley) 2/17/94
- * $Id: device.h,v 1.3 1995/07/29 11:42:44 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_DEVICE_H_

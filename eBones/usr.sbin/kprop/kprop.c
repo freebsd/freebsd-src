@@ -10,7 +10,7 @@
 #if 0
 #ifndef	lint
 static char rcsid_kprop_c[] =
-"$Id: kprop.c,v 1.4 1995/10/05 21:30:00 gibbs Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

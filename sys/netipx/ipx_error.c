@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.c
  *
- * $Id: ipx_error.c,v 1.4 1995/12/16 02:14:32 bde Exp $
+ * $FreeBSD$
  */
 
 #include <sys/param.h>

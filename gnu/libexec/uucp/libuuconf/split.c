@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_split_rcsid[] = "$Id: split.c,v 1.5 1995/06/21 19:24:09 ian Rel $";
+const char _uuconf_split_rcsid[] = "$FreeBSD$";
 #endif
 
 #include <ctype.h>

@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.17 1996/09/06 23:06:40 phk Exp $ */
+/* $FreeBSD$ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 

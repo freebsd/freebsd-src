@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.9 1996/12/19 19:42:26 bde Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_FILE_H_

@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: reboot.S,v 1.1 1994/08/05 01:18:48 wollman Exp $
+ *	$FreeBSD$
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$FreeBSD$"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

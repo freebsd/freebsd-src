@@ -7,13 +7,13 @@
  * access to a local account
  *
  *	from: kuserok.c,v 4.5 89/01/23 09:25:21 jtkohl Exp $
- *	$Id: kuserok.c,v 1.3 1995/07/18 16:39:07 mark Exp $
+ *	$FreeBSD$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: kuserok.c,v 1.3 1995/07/18 16:39:07 mark Exp $";
+"$FreeBSD$";
 #endif	lint
 #endif
 

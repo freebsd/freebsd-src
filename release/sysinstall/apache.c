@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: apache.c,v 1.29 1996/12/09 08:22:09 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Coranth Gryphon.  All rights reserved.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.83 1996/09/10 08:32:01 bde Exp $
+ *	$FreeBSD$
  */
 
 /*

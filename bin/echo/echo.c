@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: echo.c,v 1.3 1995/08/31 17:25:55 jkh Exp $
+ *	$FreeBSD$
  */
 
 #ifndef lint

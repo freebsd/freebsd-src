@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.6 1996/06/10 20:13:00 jraynard Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif
 
 /*

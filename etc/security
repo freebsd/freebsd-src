@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.15 1996/10/12 04:51:09 nate Exp $
+#	$FreeBSD$
 #
 PATH=/sbin:/bin:/usr/bin
 LC_ALL=C; export LC_ALL

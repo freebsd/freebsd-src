@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:33:55  rpd
- *	$Id: README.MACH,v 1.3 1993/10/16 19:11:26 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 ********NOTE: This is not all relevant to the 386BSD version**********

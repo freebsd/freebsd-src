@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1995/08/29 14:04:39 ache Exp $
+#	$FreeBSD$
 
 PROG=	ft
 MAN8=	ft.8

@@ -1,7 +1,7 @@
 /* install-info -- create Info directory entry(ies) for an Info file.
    Copyright (C) 1996 Free Software Foundation, Inc.
 
-$Id: install-info.c 1.1 Sun, 12 Jan 1997 00:21:13 -0800 jmacd $
+$FreeBSD$
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -1,4 +1,4 @@
-#	$Id$
+#	$FreeBSD$
 
 VOLUME=	psd/26.rpcrfc
 SRCS=	rpc.rfc.ms

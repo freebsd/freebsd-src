@@ -6,7 +6,7 @@
  * Machine-type definitions: VAX
  *
  *	from: conf-bsdvax.h,v 4.0 89/01/23 09:58:12 jtkohl Exp $
- *	$Id: conf-bsdvax.h,v 1.3 1995/07/18 16:36:15 mark Exp $
+ *	$FreeBSD$
  */
 
 #define VAX

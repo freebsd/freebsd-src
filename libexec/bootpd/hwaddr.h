@@ -1,7 +1,7 @@
 /* 
  * hwaddr.h
  *
- *	$Id$
+ *	$FreeBSD$
  */
 
 #ifndef	HWADDR_H

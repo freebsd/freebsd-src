@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1 1994/09/21 23:27:07 wollman Exp $
+#       $FreeBSD$
 
 .PATH:  ${.CURDIR}/../../sys/nfs
 KMOD=   nfs_mod

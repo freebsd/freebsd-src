@@ -12,7 +12,7 @@
 static char rcsid_ksrvutil_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/ksrvutil.c,v 4.1 89/09/26 09:33:49 jtkohl Exp ";
 static const char rcsid[] =
-	"$Id: ksrvutil.c,v 1.5 1995/09/07 21:38:40 markm Exp $";
+	"$FreeBSD$";
 #endif	lint
 #endif
 

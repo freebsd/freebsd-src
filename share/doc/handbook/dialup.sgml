@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.14 1996/11/28 18:09:26 jfieber Exp $
+     $FreeBSD$
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 

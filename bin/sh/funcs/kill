@@ -33,7 +33,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)kill	8.2 (Berkeley) 5/4/95
-#	$Id: kill,v 1.2 1994/09/24 02:58:36 davidg Exp $
+#	$FreeBSD$
 
 # Convert job names to process ids and then run /bin/kill.
 

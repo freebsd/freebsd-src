@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.30 1996/03/11 02:13:32 hsu Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SYS_CONF_H_

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: restart.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
+ * $FreeBSD$
  *
  */
 

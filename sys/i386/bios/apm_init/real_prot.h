@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- *	$Id: real_prot.h,v 1.3 1995/05/30 07:58:16 rgrimes Exp $
+ *	$FreeBSD$
  */
 
 /*

@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.45 1996/10/27 06:30:43 peter Exp $
+#	$FreeBSD$
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
