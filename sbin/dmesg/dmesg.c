@@ -50,8 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <limits.h>
 #include <locale.h>
 #include <nlist.h>
 #include <stdio.h>
@@ -76,11 +78,11 @@ int
 main(int argc, char *argv[])
 {
 	struct msgbuf *bufp, cur;
-	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q;
+	char *bp, *ep, *memf, *nextp, *nlistf, *p, *q, *visbp;
 	kvm_t *kd;
 	size_t buflen, bufpos;
-	int all, ch, pri;
-	char buf[5];
+	long pri;
+	int all, ch;
 
 	all = 0;
 	(void) setlocale(LC_CTYPE, "");
@@ -104,15 +106,18 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (memf == NULL && nlistf == NULL) {
-		/* Running kernel. Use sysctl to get an unwrapped buffer. */
+		/*
+		 * Running kernel.  Use sysctl.  This gives an unwrapped
+		 * buffer as a side effect.
+		 */
 		if (sysctlbyname("kern.msgbuf", NULL, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
-		if ((bp = malloc(buflen)) == NULL)
+		if ((bp = malloc(buflen + 2)) == NULL)
 			errx(1, "malloc failed");
 		if (sysctlbyname("kern.msgbuf", bp, &buflen, NULL, 0) == -1)
 			err(1, "sysctl kern.msgbuf");
 	} else {
-		/* Read in kernel message buffer, do sanity checks. */
+		/* Read in kernel message buffer and do sanity checks. */
 		kd = kvm_open(nlistf, memf, NULL, O_RDONLY, "dmesg");
 		if (kd == NULL)
 			exit (1);
@@ -126,9 +131,9 @@ main(int argc, char *argv[])
 		if (cur.msg_magic != MSG_MAGIC)
 			errx(1, "kernel message buffer has different magic "
 			    "number");
-		bp = malloc(cur.msg_size);
-		if (!bp)
+		if ((bp = malloc(cur.msg_size + 2)) == NULL)
 			errx(1, "malloc failed");
+
 		/* Unwrap the circular buffer to start from the oldest data. */
 		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
 		if (kvm_read(kd, (long)&cur.msg_ptr[bufpos], bp,
@@ -142,6 +147,17 @@ main(int argc, char *argv[])
 	}
 
 	/*
+	 * Ensure that the buffer ends with a newline and a \0 to avoid
+	 * complications below.  We left space above.
+	 */
+	if (buflen == 0 || bp[buflen - 1] != '\n')
+		bp[buflen++] = '\n';
+	bp[buflen] = '\0';
+
+	if ((visbp = malloc(4 * buflen + 1)) == NULL)
+		errx(1, "malloc failed");
+
+	/*
 	 * The message buffer is circular, but has been unwrapped so that
 	 * the oldest data comes first.  The data will be preceded by \0's
 	 * if the message buffer was not full.
@@ -150,42 +166,29 @@ main(int argc, char *argv[])
 	ep = &bp[buflen];
 	if (*p == '\0') {
 		/* Strip leading \0's */
-		while (p != ep && *p == '\0')
+		while (*p == '\0')
 			p++;
 	} else if (!all) {
 		/* Skip the first line, since it is probably incomplete. */
-		p = memchr(p, '\n', ep - p);
-		if (p == NULL)
-			p = ep;
-		else
-			p++;
+		p = memchr(p, '\n', ep - p) + 1;
 	}
-	for (; p != ep; p = nextp) {
-		nextp = memchr(p, '\n', ep - p);
-		if (nextp == NULL)
-			nextp = ep;
-		else
-			nextp++;
+	for (; p < ep; p = nextp) {
+		nextp = memchr(p, '\n', ep - p) + 1;
+
 		/* Skip ^<[0-9]+> syslog sequences. */
 		if (*p == '<') {
-			pri = 0;
-			for (q = p + 1; q != ep && *q >= '0' && *q <= '9'; q++)
-				pri = pri * 10 + (*q - '0');
-			if (q != ep && *q == '>' && q != p + 1) {
+			errno = 0;
+			pri = strtol(p + 1, &q, 10);
+			if (*q == '>' && pri >= 0 && pri < INT_MAX &&
+			    errno == 0) {
 				if (LOG_FAC(pri) != LOG_KERN && !all)
 					continue;
 				p = q + 1;
 			}
 		}
-		for (; p != nextp; p++) {
-			(void)vis(buf, *p, 0, 0);
-			if (buf[1] == 0)
-				(void)putchar(buf[0]);
-			else
-				(void)printf("%s", buf);
-		}
-		if (nextp == ep && ep[-1] != '\n')
-			(void)putchar('\n');
+
+		(void)strvisx(visbp, p, nextp - p, 0);
+		(void)printf("%s", visbp);
 	}
 	exit(0);
 }
