@@ -1071,6 +1071,9 @@ COMMON ITEMS:
 		adjkerntz -i		# if CMOS is wall time
 	Also, when doing a major release upgrade, it is required that
 	you boot into single user mode to do the installworld.
+	For the 4.x -> 5.0 upgrade, you will also see many messages about
+	needing to recompile your userland.  These are harmless and can
+	be ignored while you proceed to the next step.
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the
