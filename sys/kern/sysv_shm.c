@@ -528,8 +528,13 @@ shmget_allocate_segment(p, uap, mode)
 	 * We make sure that we have allocated a pager before we need
 	 * to.
 	 */
+#ifdef SHM_PHYS_BACKED
+	shm_handle->shm_object =
+		vm_pager_allocate(OBJT_PHYS, 0, size, VM_PROT_DEFAULT, 0);
+#else
 	shm_handle->shm_object =
 		vm_pager_allocate(OBJT_SWAP, 0, size, VM_PROT_DEFAULT, 0);
+#endif
 	vm_object_clear_flag(shm_handle->shm_object, OBJ_ONEMAPPING);
 	vm_object_set_flag(shm_handle->shm_object, OBJ_NOSPLIT);
 
