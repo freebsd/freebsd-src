@@ -138,3 +138,13 @@ application     |      |          |          |    X     |  X     |
 geom_slice.h is special in that it documents a "library" for implementing
 a specific kind of class, and consequently does not appear in the above
 matrix.
+-----------------------------------------------------------------------
+Removable media.
+
+In general, the theory is that a drive creates the provider when it has
+a media and destroys it when the media disappears.
+
+In a more realistic world, we will allow a provider to be opened medialess
+(set any sectorsize and a mediasize==0) in order to allow operations like
+open/close tray etc.
+
