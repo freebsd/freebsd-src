@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.71 1994/11/17 10:07:45 jkh Exp $
+# $Id: bsd.port.mk,v 1.72 1994/11/17 15:46:27 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -473,7 +473,9 @@ clean: pre-clean
 	@echo "===>  Cleaning for ${DISTNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
 		${BUILD_COOKIE} ${PATCH_COOKIE}
+.if !defined(NO_WRKDIR)
 	@rm -rf ${WRKDIR}
+.endif
 .endif
 
 # No pre-targets for depend or tags.  It would be silly.
