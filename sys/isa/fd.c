@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.9 1993/12/04 16:13:18 ats Exp $
+ *	$Id: fd.c,v 1.13 1993/12/16 04:28:42 ache Exp $
  *
  */
 
@@ -79,7 +79,7 @@ struct fd_type {
 	int	heads;			/* number of heads	     */
 };
 
-#define NUMTYPES 6
+#define NUMTYPES 9
 
 /* This defines must match fd_types */
 #define FD_1440         0
@@ -88,16 +88,22 @@ struct fd_type {
 #define FD_360          3
 #define FD_720in1440    4
 #define FD_720in1200 FD_720in1440
-#define FD_1722in1440   5
+#define FD_1720in1440   5
+#define FD_800in1200    6
+#define FD_1440in1200   7
+#define FD_1460in1200   8
 
 struct fd_type fd_types[NUMTYPES] =
 {
- 	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44 meg HD 3.5in floppy    */
-	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /* 1.2 meg HD floppy           */
-	{ 9,2,0xFF,0x23,40,720,2,1,2 },	/* 360k floppy in 1.2meg drive */
-	{ 9,2,0xFF,0x2A,40,720,1,1,2 },	/* 360k floppy in DD drive     */
-	{ 9,2,0xFF,0x20,80,1440,1,1,2 }, /* 720k floppy in HD drive     */
-	{ 21,2,0xFF,0x0C,82,3444,1,0,2 }, /* 1.722M floppy in HD 3.5in drive */
+	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44M in HD 3.5in  drive */
+	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /*  1.2M in HD 5.25in drive */
+	{ 9,2,0xFF,0x23,40,720,2,1,2 },   /*  360K in HD 5.25in drive */
+	{ 9,2,0xFF,0x2A,40,720,1,1,2 },   /*  360K in DD 5.25in drive */
+	{ 9,2,0xFF,0x20,80,1440,1,1,2 },  /*  720K in HD 3.5in  drive */
+	{ 21,2,0xFF,0x0C,82,3444,1,0,2 }, /* 1.72M in HD 3.5in  drive */
+	{ 10,2,0xFF,0x2E,80,1600,1,1,2 }, /*  800K in HD 5.25in drive */
+	{ 18,2,0xFF,0x02,80,2880,1,0,2 }, /* 1.44M in HD 5.25in drive */
+	{ 18,2,0xFF,0x02,82,2952,1,0,2 }, /* 1.46M in HD 5.25in drive */
 };
 
 #define DRVS_PER_CTLR 2
@@ -546,11 +552,14 @@ Fdopen(dev, flags)
 			case FD_1200:
 				if (   type != FD_720in1200
 				    && type != FD_360in1200
+				    && type != FD_800in1200
+				    && type != FD_1440in1200
+				    && type != FD_1460in1200
 				   )
 					return(ENXIO);
 				break;
 			case FD_1440:
-				if (   type != FD_1722in1440
+				if (   type != FD_1720in1440
 				    && type != FD_720in1440
 				   )
 					return(ENXIO);
