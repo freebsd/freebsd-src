@@ -79,13 +79,15 @@ struct __hack
 do {										\
     struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;		\
     struct eventhandler_entry *_ep = TAILQ_FIRST(&(_el->el_entries));		\
+    struct eventhandler_entry *_en;						\
 										\
     if (_el->el_flags & EHE_INITTED) {						\
 	mtx_enter(&_el->el_mutex, MTX_DEF);					\
 	while (_ep != NULL) {							\
+	    _en = TAILQ_NEXT(_ep, ee_link);					\
 	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
 								 ## args); 	\
-	    _ep = TAILQ_NEXT(_ep, ee_link);					\
+	    _ep = _en;								\
 	}									\
 	mtx_exit(&_el->el_mutex, MTX_DEF);					\
     }										\
@@ -115,16 +117,17 @@ struct __hack
 #define EVENTHANDLER_INVOKE(name, args...)					\
 do {										\
     struct eventhandler_list *_el;						\
-    struct eventhandler_entry *_ep;						\
+    struct eventhandler_entry *_ep, *_en;					\
 										\
     if (((_el = eventhandler_find_list(#name)) != NULL) && 			\
 	(_el->el_flags & EHE_INITTED)) {					\
 	mtx_enter(&_el->el_mutex, MTX_DEF);					\
-	for (_ep = TAILQ_FIRST(&(_el->el_entries));				\
-	     _ep != NULL;							\
-	     _ep = TAILQ_NEXT(_ep, ee_link)) {					\
+	_ep = TAILQ_FIRST(&(_el->el_entries));					\
+	while (_ep != NULL) {							\
+	    _en = TAILQ_NEXT(_ep, ee_link);					\
 	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , 	\
 								 ## args); 	\
+	    _ep = _en;								\
 	}									\
 	mtx_exit(&_el->el_mutex, MTX_DEF);					\
     }										\
@@ -169,6 +172,7 @@ EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
 /* Idle process event */
 typedef void (*idle_eventhandler_t) __P((void *, int));
 
+#define IDLE_PRI_FIRST		10000
 #define IDLE_PRI_LAST		20000
 EVENTHANDLER_FAST_DECLARE(idle_event, idle_eventhandler_t);
 
