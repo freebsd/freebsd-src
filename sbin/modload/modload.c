@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.3 1994/09/18 04:12:13 davidg Exp $
+ *	$Id: modload.c,v 1.4 1994/09/22 22:35:53 wollman Exp $
  */
 
 #include <stdio.h>
@@ -147,7 +147,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int c;
-	char *kname = _PATH_UNIX;
+	char *kname = (char *)getbootfile();
 	char *entry = DFLT_ENTRY;
 	char *post = NULL;
 	char *out = NULL;
