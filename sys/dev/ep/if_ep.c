@@ -8,7 +8,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
  * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software withough specific prior written permission
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -22,62 +22,56 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.7 1994/02/03 11:51:06 davidg Exp $
+ *	$Id: if_ep.c,v 1.8 1994/03/15 01:58:22 wollman Exp $
  */
-/*
- * TODO:
- *	Multi-509 configs.
- *	don't pass unit into epstop.
- *	epintr returns an int for magnum. 0=not for me. 1=for me. -1=whoknows?
- *	deallocate mbufs when ifconfig'd down.
- */
+
 #include "ep.h"
 #if NEP > 0
 
 #include "bpfilter.h"
 
-#include "sys/param.h"
+#include <sys/param.h>
 #if defined(__FreeBSD__)
-#include "sys/systm.h"
-#include "sys/kernel.h"
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #endif
-#include "sys/mbuf.h"
-#include "sys/socket.h"
-#include "sys/ioctl.h"
-#include "sys/errno.h"
-#include "sys/syslog.h"
+#include <sys/mbuf.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
+#include <sys/syslog.h>
 #if defined(__NetBSD__)
-#include "sys/select.h"
+#include <sys/select.h>
 #endif
 
-#include "net/if.h"
-#include "net/if_dl.h"
-#include "net/if_types.h"
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <net/if_types.h>
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
-#include "machine/pio.h"
+#include <machine/pio.h>
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
-#include "i386/isa/if_epreg.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
+#include <i386/isa/if_epreg.h>
 
 #define ETHER_MIN_LEN	64
 #define ETHER_MAX_LEN	1518
@@ -90,12 +84,13 @@ struct ep_softc {
 	struct arpcom arpcom;		/* Ethernet common part		*/
 	short   ep_io_addr;		/* i/o bus address		*/
 	char    ep_connectors;		/* Connectors on this card.	*/
-#define MAX_MBS  4			/* # of mbufs we keep around	*/
+#define MAX_MBS  8			/* # of mbufs we keep around	*/
 	struct mbuf *mb[MAX_MBS];	/* spare mbuf storage.		*/
 	int     next_mb;		/* Which mbuf to use next. 	*/
 	int     last_mb;		/* Last mbuf.			*/
 	int     tx_start_thresh;	/* Current TX_start_thresh.	*/
 	caddr_t bpf;			/* BPF  "magic cookie"		*/
+	char	bus32bit;		/* 32bit access possible	*/
 }       ep_softc[NEP];
 
 static int epprobe __P((struct isa_device *));
@@ -104,7 +99,8 @@ static int epioctl __P((struct ifnet * ifp, int, caddr_t));
 
 void epinit __P((int));
 void epintr __P((int));
-void epmbufqueue __P((caddr_t, int));
+void epmbuffill __P((caddr_t, int));
+void epmbufempty __P((struct ep_softc *));
 void epread __P((struct ep_softc *));
 void epreset __P((int));
 void epstart __P((struct ifnet *));
@@ -274,7 +270,7 @@ epinit(unit)
 		return;
 
 	s = splimp();
-	while (inb(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
 		;
 
 	GO_WINDOW(0);
@@ -350,7 +346,7 @@ epinit(unit)
 	 */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
-	epmbufqueue((caddr_t)sc, 0);
+	epmbuffill((caddr_t)sc, 0);
 
 	epstart(ifp);
 
@@ -421,10 +417,19 @@ startagain:
 	outw(BASE + EP_W1_TX_PIO_WR_1, 0xffff);	/* Second dword meaningless */
 
 	for (top = m; m != 0; m = m->m_next) {
-		outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len/2);
-		if (m->m_len & 1)
-			outb(BASE + EP_W1_TX_PIO_WR_1,
-			    *(mtod(m, caddr_t) + m->m_len - 1));
+		if (sc->bus32bit) {
+			outsl(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t),
+			    m->m_len/4);
+			if (m->m_len & 3)
+				outsb(BASE + EP_W1_TX_PIO_WR_1,
+				    mtod(m, caddr_t) + m->m_len/4,
+				    m->m_len & 3);
+		} else {
+			outsw(BASE + EP_W1_TX_PIO_WR_1, mtod(m, caddr_t), m->m_len/2);
+			if (m->m_len & 1)
+				outb(BASE + EP_W1_TX_PIO_WR_1,
+			    	*(mtod(m, caddr_t) + m->m_len - 1));
+		}
 	}
 	while (pad--)
 		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
@@ -658,7 +663,7 @@ epread(sc)
 				if (m == 0)
 					goto out;
 			} else {
-				timeout(epmbufqueue, (caddr_t)sc, 0);
+				timeout(epmbuffill, (caddr_t)sc, 0);
 				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			}
 			if (totlen >= MINCLSIZE)
@@ -667,11 +672,22 @@ epread(sc)
 			mcur->m_next = m;
 			lenthisone = min(totlen, M_TRAILINGSPACE(m));
 		}
-		insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
-		    lenthisone / 2);
-		m->m_len += lenthisone;
-		if (lenthisone & 1)
-			*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+		if (sc->bus32bit) {
+			insl(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
+			    lenthisone / 4);
+			m->m_len += (lenthisone & ~3);
+			if (lenthisone & 3)
+				insb(BASE + EP_W1_RX_PIO_RD_1,
+				    mtod(m, caddr_t) + m->m_len,
+				    lenthisone & 3);
+			m->m_len += (lenthisone & 3);
+		} else {
+			insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
+			    lenthisone / 2);
+			m->m_len += lenthisone;
+			if (lenthisone & 1)
+				*(mtod(m, caddr_t) + m->m_len - 1) = inb(BASE + EP_W1_RX_PIO_RD_1);
+		}
 		totlen -= lenthisone;
 	}
 	if (off) {
@@ -679,15 +695,17 @@ epread(sc)
 		sc->mb[sc->next_mb] = 0;
 		if (top == 0) {
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
-			if (top == 0)
+			if (top == 0) {
+				top = m0;
 				goto out;
+			}
 		} else {
 			/* Convert one of our saved mbuf's */
 			sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			top->m_data = top->m_pktdat;
 			top->m_flags = M_PKTHDR;
 		}
-		insw(BASE + EP_W1_RX_PIO_RD_1, mtod(m, caddr_t) + m->m_len,
+		insw(BASE + EP_W1_RX_PIO_RD_1, mtod(top, caddr_t),
 		    sizeof(struct ether_header));
 		top->m_next = m0;
 		top->m_len = sizeof(struct ether_header);
@@ -700,7 +718,7 @@ epread(sc)
 
 	top->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-	while (inb(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
 		;
 	++sc->arpcom.ac_if.if_ipackets;
 #if NBPFILTER > 0
@@ -728,12 +746,11 @@ epread(sc)
 	return;
 
 out:	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-	while (inb(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
 		;
 	if (top)
 		m_freem(top);
 
-	return;
 }
 
 
@@ -789,6 +806,7 @@ epioctl(ifp, cmd, data)
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 			ifp->if_flags &= ~IFF_RUNNING;
 			epstop(ifp->if_unit);
+			epmbufempty(sc);
 			break;
 		}
 		if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
@@ -815,7 +833,6 @@ epreset(unit)
 	epstop(unit);
 	epinit(unit);
 	splx(s);
-	return;
 }
 
 void
@@ -838,7 +855,7 @@ epstop(unit)
 
 	outw(BASE + EP_COMMAND, RX_DISABLE);
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
-	while (inb(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
+	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS)
 		;
 	outw(BASE + EP_COMMAND, TX_DISABLE);
 	outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
@@ -848,7 +865,6 @@ epstop(unit)
 	outw(BASE + EP_COMMAND, SET_RD_0_MASK);
 	outw(BASE + EP_COMMAND, SET_INTR_MASK);
 	outw(BASE + EP_COMMAND, SET_RX_FILTER);
-	return;
 }
 
 
@@ -937,24 +953,42 @@ is_eeprom_busy(is)
 }
 
 void
-epmbufqueue(sp, dummy_arg)
+epmbuffill(sp, dummy_arg)
 	caddr_t sp;
 	int dummy_arg;
 {
 	struct ep_softc *sc = (struct ep_softc *)sp;
-	int     i;
+	int     s, i;
 
-	if (sc->mb[sc->last_mb])
-		return;
+	s = splimp();
 	i = sc->last_mb;
 	do {
-		MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
-		if (!sc->mb[i])
+		if(sc->mb[i] == NULL)
+			MGET(sc->mb[i], M_DONTWAIT, MT_DATA);
+		if(sc->mb[i] == NULL)
 			break;
 		i = (i + 1) % MAX_MBS;
 	} while (i != sc->next_mb);
 	sc->last_mb = i;
-	return;
+	splx(s);
+}
+
+static void
+epmbufempty(sc)
+	struct ep_softc *sc;
+{
+	int s, i;
+
+	s = splimp();
+	for (i = 0; i<MAX_MBS; i++) {
+		if (sc->mb[i]) {
+			m_freem(sc->mb[i]);
+			sc->mb[i] = NULL;
+		}
+	}
+	sc->last_mb = sc->next_mb = 0;
+	untimeout(epmbuffill, sc);
+	splx(s);
 }
 
 #endif /* NEP > 0 */
