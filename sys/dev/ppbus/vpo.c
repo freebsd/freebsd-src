@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.9 1998/12/07 21:58:16 archie Exp $
+ *	$Id: vpo.c,v 1.10 1999/01/09 18:05:46 nsouch Exp $
  *
  */
 
@@ -50,6 +50,8 @@
 #ifdef	KERNEL
 #include <sys/kernel.h>
 #endif /*KERNEL */
+
+#include "opt_vpo.h"
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/vpoio.h>

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.c,v 1.2 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: ppb_msq.c,v 1.3 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 #include <machine/stdarg.h>
@@ -272,9 +272,19 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			xfer = mode2xfer(dev, mi->opcode);
 
 			/* figure out if we should use ieee1284 code */
-			if (!xfer->loop)
-				panic("%s: IEEE1284 code not supported",
-					__FUNCTION__);
+			if (!xfer->loop) {
+				if (mi->opcode == MS_OP_PUT) {
+					if ((error = ppb->ppb_link->adapter->write(
+						ppb->ppb_link->adapter_unit,
+						(char *)mi->arg[0].p,
+						mi->arg[1].i, 0)))
+							goto error;
+
+					INCR_PC;
+					goto next;
+				} else
+					panic("%s: IEEE1284 read not supported", __FUNCTION__);
+			}
 
 			/* XXX should use ppb_MS_init_msq() */
 			initxfer[0].arg[0].p = mi->arg[0].p;
@@ -309,10 +319,12 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			 * is unknown here
 			 */
 			if ((error = ppb->ppb_link->adapter->exec_microseq(
-						dev->id_unit, &mi)))
+						ppb->ppb_link->adapter_unit,
+						&mi)))
 				goto error;
 			break;
 		}
+	next:
 	}
 error:
 	return (error);

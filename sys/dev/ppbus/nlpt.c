@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.10 1998/09/20 14:41:54 nsouch Exp $
+ *	$Id: nlpt.c,v 1.11 1998/12/04 22:00:33 archie Exp $
  */
 
 /*
@@ -81,7 +81,10 @@
 #endif /*KERNEL*/
 
 #include <dev/ppbus/ppbconf.h>
+#include <dev/ppbus/ppb_1284.h>
 #include <dev/ppbus/nlpt.h>
+
+#include "opt_nlpt.h"
 
 #ifndef NLPT_DEBUG
 #define nlprintf(args)
@@ -99,6 +102,7 @@ static int volatile nlptflag = 1;
 #define	LPTOUTMAX	1	/* maximal timeout 1 s */
 #define	LPPRI		(PZERO+8)
 #define	BUFSIZE		1024
+#define	BUFSTATSIZE	32
 
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
@@ -163,11 +167,12 @@ DATA_SET(ppbdriver_set, nlptdriver);
 static	d_open_t	nlptopen;
 static	d_close_t	nlptclose;
 static	d_write_t	nlptwrite;
+static	d_read_t	nlptread;
 static	d_ioctl_t	nlptioctl;
 
 #define CDEV_MAJOR 16
 static struct cdevsw nlpt_cdevsw = 
-	{ nlptopen,	nlptclose,	noread,		nlptwrite,	/*16*/
+	{ nlptopen,	nlptclose,	nlptread,	nlptwrite,	/*16*/
 	  nlptioctl,	nullstop,	nullreset,	nodevtotty,	/* lpt */
 	  seltrue,	nommap,		nostrat,	LPT_NAME,	NULL,	-1 };
 
@@ -175,6 +180,9 @@ static int
 lpt_request_ppbus(struct lpt_data *sc, int how)
 {
 	int error;
+
+	if (sc->sc_state & HAVEBUS)
+		return (0);
 
 	/* we have the bus only if the request succeded */
 	if ((error = ppb_request_bus(&sc->lpt_dev, how)) == 0)
@@ -186,13 +194,10 @@ lpt_request_ppbus(struct lpt_data *sc, int how)
 static int
 lpt_release_ppbus(struct lpt_data *sc)
 {
-	int error;
+	ppb_release_bus(&sc->lpt_dev);
+	sc->sc_state &= ~HAVEBUS;
 
-	/* we do not have the bus only if the request succeeded */
-	if ((error = ppb_release_bus(&sc->lpt_dev)) == 0)
-		sc->sc_state &= ~HAVEBUS;
-
-	return (error);
+	return (0);
 }
 
 /*
@@ -439,7 +444,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct lpt_data *sc;
 
 	int s;
-	int trys;
+	int trys, err;
 	u_int unit = LPTUNIT(minor(dev));
 
 	if ((unit >= nlpt))
@@ -462,9 +467,8 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if ((sc->sc_state & HAVEBUS) == 0 &&
-			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
-		return (EINTR);
+	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+		return (err);
 
 	s = spltty();
 	nlprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
@@ -526,6 +530,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	sc->sc_state = OPEN;
 	sc->sc_inbuf = geteblk(BUFSIZE);
+	sc->sc_statbuf = geteblk(BUFSTATSIZE);
 	sc->sc_xfercnt = 0;
 	splx(s);
 
@@ -559,8 +564,7 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
-	if ((sc->sc_state & HAVEBUS) == 0 &&
-		(err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR)))
+	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
 		return (err);
 
 	sc->sc_state &= ~OPEN;
@@ -577,6 +581,7 @@ nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
 
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 	brelse(sc->sc_inbuf);
+	brelse(sc->sc_statbuf);
 
 end_close:
 	/* release the bus anyway */
@@ -649,6 +654,40 @@ nlpt_pushbytes(struct lpt_data *sc)
 }
 
 /*
+ * nlptread --retrieve printer status in IEEE1284 NIBBLE mode
+ */
+
+static int
+nlptread(dev_t dev, struct uio *uio, int ioflag)
+{
+	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
+	int error = 0, len;
+
+	if ((error = ppb_1284_negociate(&sc->lpt_dev, PPB_NIBBLE, 0)))
+		return (error);
+
+	/* read data in an other buffer, read/write may be simultaneous */
+	len = 0;
+	while (uio->uio_resid) {
+		if ((error = ppb_1284_read(&sc->lpt_dev, PPB_NIBBLE,
+				sc->sc_statbuf->b_data, min(BUFSTATSIZE,
+				uio->uio_resid), &len))) {
+			goto error;
+		}
+
+		if (!len)
+			goto error;		/* no more data */
+
+		if ((error = uiomove(sc->sc_statbuf->b_data, len, uio)))
+			goto error;
+	}
+
+error:
+	ppb_1284_terminate(&sc->lpt_dev);
+	return (error);
+}
+
+/*
  * nlptwrite --copy a line from user space to a local buffer, then call
  * putc to get the chars moved to the output queue.
  *
@@ -660,6 +699,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
+        u_int	unit = LPTUNIT(minor(dev));
 	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
 
 	if(sc->sc_flags & LP_BYPASS) {
@@ -668,16 +708,36 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 	}
 
 	/* request the ppbus only if we don't have it already */
-	if ((sc->sc_state & HAVEBUS) == 0 &&
-			lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
-		return (EINTR);
+	if (err = lpt_request_ppbus(sc, PPB_WAIT|PPB_INTR))
+		return (err);
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
 		sc->sc_cp = sc->sc_inbuf->b_data ;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
-		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
+
+		if (sc->sc_irq & LP_ENABLE_EXT) {
+			/* try any extended mode */
+			err = ppb_write(&sc->lpt_dev, sc->sc_cp,
+							sc->sc_xfercnt, 0);
+			switch (err) {
+			case 0:
+				/* if not all data was sent, we could rely
+				 * on polling for the last bytes */
+				sc->sc_xfercnt = 0;
+				break;
+			case EINTR:
+				sc->sc_state |= INTERRUPTED;	
+				return(err);
+			case EINVAL:
+				/* advanced mode not avail */
+				log(LOG_NOTICE, LPT_NAME "%d: advanced mode not avail, polling\n", unit);
+				break;
+			default:
+				return(err);
+			}
+		} else while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
 			nlprintf(("i"));
 			/* if the printer is ready for a char, */
 			/* give it one */
@@ -695,6 +755,7 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 					return(err);
 				}
 		}
+
 		/* check to see if we must do a polled write */
 		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
 			nlprintf(("p"));
@@ -809,15 +870,35 @@ nlptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 			 * this gets syslog'd.
 			 */
 			old_sc_irq = sc->sc_irq;
-			if(*(int*)data == 0)
+			switch(*(int*)data) {
+			case 0:
 				sc->sc_irq &= (~LP_ENABLE_IRQ);
-			else
+				break;
+			case 1:
+				sc->sc_irq &= (~LP_ENABLE_EXT);
 				sc->sc_irq |= LP_ENABLE_IRQ;
+				break;
+			case 2:
+				/* classic irq based transfer and advanced
+				 * modes are in conflict
+				 */
+				sc->sc_irq &= (~LP_ENABLE_IRQ);
+				sc->sc_irq |= LP_ENABLE_EXT;
+				break;
+			case 3:
+				sc->sc_irq &= (~LP_ENABLE_EXT);
+				break;
+			default:
+				break;
+			}
+				
 			if (old_sc_irq != sc->sc_irq )
-				log(LOG_NOTICE, LPT_NAME "%d: switched to %s mode\n",
+				log(LOG_NOTICE, LPT_NAME "%d: switched to %s %s mode\n",
 					unit,
 					(sc->sc_irq & LP_ENABLE_IRQ)?
-					"interrupt-driven":"polled");
+					"interrupt-driven":"polled",
+					(sc->sc_irq & LP_ENABLE_EXT)?
+					"extended":"standard");
 		} else /* polled port */
 			error = EOPNOTSUPP;
 		break;

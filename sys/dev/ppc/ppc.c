@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.12 1998/12/07 21:58:22 archie Exp $
+ *	$Id: ppc.c,v 1.13 1998/12/30 00:37:42 hoek Exp $
  *
  */
 #include "ppc.h"
@@ -48,6 +48,11 @@
 #include <dev/ppbus/ppb_msq.h>
 
 #include <i386/isa/ppcreg.h>
+
+#include "opt_ppc.h"
+
+#define LOG_PPC(function, ppc, string) \
+		if (bootverbose) printf("%s: %s\n", function, string)
 
 static int	ppcprobe(struct isa_device *);
 static int	ppcattach(struct isa_device *);
@@ -130,6 +135,9 @@ static int ppc_exec_microseq(int, struct ppb_microseq **);
 static int ppc_generic_setmode(int, int);
 static int ppc_smclike_setmode(int, int);
 
+static int ppc_read(int, char *, int, int);
+static int ppc_write(int, char *, int, int);
+
 static struct ppb_adapter ppc_smclike_adapter = {
 
 	0,	/* no intr handler, filled by chipset dependent code */
@@ -138,7 +146,7 @@ static struct ppb_adapter ppc_smclike_adapter = {
 
 	ppc_exec_microseq,
 
-	ppc_smclike_setmode,
+	ppc_smclike_setmode, ppc_read, ppc_write,
 
 	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
 	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
@@ -155,7 +163,7 @@ static struct ppb_adapter ppc_generic_adapter = {
 
 	ppc_exec_microseq,
 
-	ppc_generic_setmode,
+	ppc_generic_setmode, ppc_read, ppc_write,
 
 	ppc_outsb_epp, ppc_outsw_epp, ppc_outsl_epp,
 	ppc_insb_epp, ppc_insw_epp, ppc_insl_epp,
@@ -173,8 +181,11 @@ ppc_ecp_sync(int unit) {
 	struct ppc_data *ppc = ppcdata[unit];
 	int i, r;
 
+	if (!(ppc->ppc_avm & PPB_ECP))
+		return;
+
 	r = r_ecr(ppc);
-	if ((r & 0xe0) != 0x80)
+	if ((r & 0xe0) != PPC_ECR_EPP)
 		return;
 
 	for (i = 0; i < 100; i++) {
@@ -190,13 +201,115 @@ ppc_ecp_sync(int unit) {
 	return;
 }
 
-static void
-ppcintr(int unit)
+/*
+ * ppc_detect_fifo()
+ *
+ * Detect parallel port FIFO
+ */
+static int
+ppc_detect_fifo(struct ppc_data *ppc)
 {
-	/* call directly upper code */
-	ppb_intr(&ppcdata[unit]->ppc_link);
+	char ecr_sav;
+	char ctr_sav, ctr, cc;
+	short i;
+	
+	/* save registers */
+	ecr_sav = r_ecr(ppc);
+	ctr_sav = r_ctr(ppc);
 
-	return;
+	/* enter ECP configuration mode, no interrupt, no DMA */
+	w_ecr(ppc, 0xf4);
+
+	/* read PWord size - transfers in FIFO mode must be PWord aligned */
+	ppc->ppc_pword = (r_cnfgA(ppc) & PPC_PWORD_MASK);
+
+	/* XXX 16 and 32 bits implementations not supported */
+	if (ppc->ppc_pword != PPC_PWORD_8) {
+		LOG_PPC(__FUNCTION__, ppc, "PWord not supported");
+		goto error;
+	}
+
+	w_ecr(ppc, 0x34);		/* byte mode, no interrupt, no DMA */
+	ctr = r_ctr(ppc);
+	w_ctr(ppc, ctr | PCD);		/* set direction to 1 */
+
+	/* enter ECP test mode, no interrupt, no DMA */
+	w_ecr(ppc, 0xd4);
+
+	/* flush the FIFO */
+	for (i=0; i<1024; i++) {
+		if (r_ecr(ppc) & PPC_FIFO_EMPTY)
+			break;
+		cc = r_fifo(ppc);
+	}
+
+	if (i >= 1024) {
+		LOG_PPC(__FUNCTION__, ppc, "can't flush FIFO");
+		goto error;
+	}
+
+	/* enable interrupts, no DMA */
+	w_ecr(ppc, 0xd0);
+
+	/* determine readIntrThreshold
+	 * fill the FIFO until serviceIntr is set
+	 */
+	for (i=0; i<1024; i++) {
+		w_fifo(ppc, (char)i);
+		if (!ppc->ppc_rthr && (r_ecr(ppc) & PPC_SERVICE_INTR)) {
+			/* readThreshold reached */
+			ppc->ppc_rthr = i+1;
+		}
+		if (r_ecr(ppc) & PPC_FIFO_FULL) {
+			ppc->ppc_fifo = i+1;
+			break;
+		}
+	}
+
+	if (i >= 1024) {
+		LOG_PPC(__FUNCTION__, ppc, "can't fill FIFO");
+		goto error;
+	}
+
+	w_ecr(ppc, 0xd4);		/* test mode, no interrupt, no DMA */
+	w_ctr(ppc, ctr & ~PCD);		/* set direction to 0 */
+	w_ecr(ppc, 0xd0);		/* enable interrupts */
+
+	/* determine writeIntrThreshold
+	 * empty the FIFO until serviceIntr is set
+	 */
+	for (i=ppc->ppc_fifo; i>0; i--) {
+		if (r_fifo(ppc) != (char)(ppc->ppc_fifo-i)) {
+			LOG_PPC(__FUNCTION__, ppc, "invalid data in FIFO");
+			goto error;
+		}
+		if (r_ecr(ppc) & PPC_SERVICE_INTR) {
+			/* writeIntrThreshold reached */
+			ppc->ppc_wthr = ppc->ppc_fifo - i+1;
+		}
+		/* if FIFO empty before the last byte, error */
+		if (i>1 && (r_ecr(ppc) & PPC_FIFO_EMPTY)) {
+			LOG_PPC(__FUNCTION__, ppc, "data lost in FIFO");
+			goto error;
+		}
+	}
+
+	/* FIFO must be empty after the last byte */
+	if (!(r_ecr(ppc) & PPC_FIFO_EMPTY)) {
+		LOG_PPC(__FUNCTION__, ppc, "can't empty the FIFO");
+		goto error;
+	}
+	
+	w_ctr(ppc, ctr_sav);
+	w_ecr(ppc, ecr_sav);
+
+	return (0);
+
+error:
+	w_ctr(ppc, ctr_sav);
+	w_ecr(ppc, ecr_sav);
+
+	return (EINVAL);
 }
 
 static int
@@ -654,6 +767,13 @@ config:
 		ppc->ppc_avm = chipset_mode;
 	}
 
+	/* set FIFO threshold to 16 */
+	if (ppc->ppc_avm & PPB_ECP) {
+		/* select CRA */
+		outb(csr, 0xa);
+		outb(cio, 16);
+	}
+
 end_detect:
 
 	if (bootverbose)
@@ -884,14 +1004,14 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 
 	if (!chipset_mode) {
 		/* first, check for ECP */
-		w_ecr(ppc, 0x20);
-		if ((r_ecr(ppc) & 0xe0) == 0x20) {
+		w_ecr(ppc, PPC_ECR_PS2);
+		if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
 			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
 			if (bootverbose)
 				printf(" ECP SPP");
 
 			/* search for SMC style ECP+EPP mode */
-			w_ecr(ppc, 0x80);
+			w_ecr(ppc, PPC_ECR_EPP);
 		}
 
 		/* try to reset EPP timeout bit */
@@ -911,7 +1031,7 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 			}
 		} else {
 			/* restore to standard mode */
-			w_ecr(ppc, 0x0);
+			w_ecr(ppc, PPC_ECR_STD);
 		}
 
 		/* XXX try to detect NIBBLE and PS2 modes */
@@ -977,6 +1097,10 @@ ppc_detect(struct ppc_data *ppc, int chipset_mode) {
 			}
 		}
 	}
+
+	/* configure/detect ECP FIFO */
+	if ((ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_flags & 0x80))
+		ppc_detect_fifo(ppc);
 
 	return (0);
 }
@@ -1202,6 +1326,244 @@ ppc_exec_microseq(int unit, struct ppb_microseq **p_msq)
 	/* unreached */
 }
 
+static void
+ppcintr(int unit)
+{
+	struct ppc_data *ppc = ppcdata[unit];
+	char ctr, ecr;
+
+	ctr = r_ctr(ppc);
+	ecr = r_ecr(ppc);
+
+#ifdef PPC_DEBUG
+		printf("!");
+#endif
+
+	/* don't use ecp mode with IRQENABLE set */
+	if (ctr & IRQENABLE) {
+		/* call upper code */
+		ppb_intr(&ppc->ppc_link);
+		return;
+	}
+
+	if (ctr & nFAULT) {
+		if  (ppc->ppc_irqstat & PPC_IRQ_nFAULT) {
+
+			w_ecr(ppc, ecr | PPC_nFAULT_INTR);
+			ppc->ppc_irqstat &= ~PPC_IRQ_nFAULT;
+		} else {
+			/* call upper code */
+			ppb_intr(&ppc->ppc_link);
+			return;
+		}
+	}
+
+	if (ppc->ppc_irqstat & PPC_IRQ_DMA) {
+		/* disable interrupts (should be done by hardware though) */
+		w_ecr(ppc, ecr | PPC_SERVICE_INTR);
+		ppc->ppc_irqstat &= ~PPC_IRQ_DMA;
+		ecr = r_ecr(ppc);
+
+		/* check if DMA completed */
+		if ((ppc->ppc_avm & PPB_ECP) && (ecr & PPC_ENABLE_DMA)) {
+#ifdef PPC_DEBUG
+			printf("a");
+#endif
+			/* stop DMA */
+			w_ecr(ppc, ecr & ~PPC_ENABLE_DMA);
+			ecr = r_ecr(ppc);
+
+			if (ppc->ppc_dmastat == PPC_DMA_STARTED) {
+#ifdef PPC_DEBUG
+				printf("d");
+#endif
+				isa_dmadone(
+					ppc->ppc_dmaflags,
+					ppc->ppc_dmaddr,
+					ppc->ppc_dmacnt,
+					ppc->ppc_dmachan);
+
+				ppc->ppc_dmastat = PPC_DMA_COMPLETE;
+
+				/* wakeup the waiting process */
+				wakeup((caddr_t)ppc);
+			}
+		}
+	} else if (ppc->ppc_irqstat & PPC_IRQ_FIFO) {
+
+		/* classic interrupt I/O */
+		ppc->ppc_irqstat &= ~PPC_IRQ_FIFO;
+
+	}
+
+	return;
+}
+
+static int
+ppc_read(int unit, char *buf, int len, int mode)
+{
+	return (EINVAL);
+}
+
+/*
+ * Call this function if you want to send data in any advanced mode
+ * of your parallel port: FIFO, DMA
+ *
+ * If what you want is not possible (no ECP, no DMA...),
+ * EINVAL is returned
+ */
+static int
+ppc_write(int unit, char *buf, int len, int how)
+{
+	struct ppc_data	*ppc = ppcdata[unit];
+	char ecr, ecr_sav, ctr, ctr_sav;
+	int s, error = 0;
+	int spin;
+
+#ifdef PPC_DEBUG
+	printf("w");
+#endif
+
+	ecr_sav = r_ecr(ppc);
+	ctr_sav = r_ctr(ppc);
+
+	/*
+	 * Send buffer with DMA, FIFO and interrupts
+	 */
+	if (ppc->ppc_avm & PPB_ECP) {
+
+	    if (ppc->ppc_dmachan >= 0) {
+
+		/* byte mode, no intr, no DMA, dir=0, flush fifo
+		 */
+		ecr = PPC_ECR_STD | PPC_DISABLE_INTR;
+		w_ecr(ppc, ecr);
+
+		/* disable nAck interrupts */
+		ctr = r_ctr(ppc);
+		ctr &= ~IRQENABLE;
+		w_ctr(ppc, ctr);
+
+		ppc->ppc_dmaflags = 0;
+		ppc->ppc_dmaddr = (caddr_t)buf;
+		ppc->ppc_dmacnt = (u_int)len;
+
+		switch (ppc->ppc_mode) {
+		case PPB_COMPATIBLE:
+			/* compatible mode with FIFO, no intr, DMA, dir=0 */
+			ecr = PPC_ECR_FIFO | PPC_DISABLE_INTR | PPC_ENABLE_DMA;
+			break;
+		case PPB_ECP:
+			ecr = PPC_ECR_ECP | PPC_DISABLE_INTR | PPC_ENABLE_DMA;
+			break;
+		default:
+			error = EINVAL;
+			goto error;
+		}
+
+		w_ecr(ppc, ecr);
+		ecr = r_ecr(ppc);
+
+		/* enter splhigh() not to be preempted
+		 * by the dma interrupt, we may miss
+		 * the wakeup otherwise
+		 */
+		s = splhigh();
+
+		ppc->ppc_dmastat = PPC_DMA_INIT;
+
+		/* enable interrupts */
+		ecr &= ~PPC_SERVICE_INTR;
+		ppc->ppc_irqstat = PPC_IRQ_DMA;
+		w_ecr(ppc, ecr);
+
+		isa_dmastart(
+			ppc->ppc_dmaflags,
+			ppc->ppc_dmaddr,
+			ppc->ppc_dmacnt,
+			ppc->ppc_dmachan);
+#ifdef PPC_DEBUG
+		printf("s%d", ppc->ppc_dmacnt);
+#endif
+		ppc->ppc_dmastat = PPC_DMA_STARTED;
+
+		/* Wait for the DMA completed interrupt. We hope we won't
+		 * miss it, otherwise a signal will be necessary to unlock the
+		 * process.
+		 */
+		do {
+			/* release CPU */
+			error = tsleep((caddr_t)ppc,
+				PPBPRI | PCATCH, "ppcdma", 0);
+
+		} while (error == EWOULDBLOCK);
+
+		splx(s);
+
+		if (error) {
+#ifdef PPC_DEBUG
+			printf("i");
+#endif
+			/* stop DMA */
+			isa_dmadone(
+				ppc->ppc_dmaflags, ppc->ppc_dmaddr,
+				ppc->ppc_dmacnt, ppc->ppc_dmachan);
+
+			/* no dma, no interrupt, flush the fifo */
+			w_ecr(ppc, PPC_ECR_RESET);
+
+			ppc->ppc_dmastat = PPC_DMA_INTERRUPTED;
+			goto error;
+		}
+
+		/* wait for an empty fifo */
+		while (!(r_ecr(ppc) & PPC_FIFO_EMPTY)) {
+
+			for (spin=100; spin; spin--)
+				if (r_ecr(ppc) & PPC_FIFO_EMPTY)
+					goto fifo_empty;
+#ifdef PPC_DEBUG
+			printf("Z");
+#endif
+			error = tsleep((caddr_t)ppc, PPBPRI | PCATCH, "ppcfifo", hz/100);
+			if (error != EWOULDBLOCK) {
+#ifdef PPC_DEBUG
+				printf("I");
+#endif
+				/* no dma, no interrupt, flush the fifo */
+				w_ecr(ppc, PPC_ECR_RESET);
+
+				ppc->ppc_dmastat = PPC_DMA_INTERRUPTED;
+				error = EINTR;
+				goto error;
+			}
+		}
+
+fifo_empty:
+		/* no dma, no interrupt, flush the fifo */
+		w_ecr(ppc, PPC_ECR_RESET);
+
+	    } else
+		error = EINVAL;			/* XXX we should FIFO and
+						 * interrupts */
+	} else
+		error = EINVAL;
+
+error:
+
+	/* PDRQ must be kept unasserted until nPDACK is
+	 * deasserted for a minimum of 350ns (SMC datasheet)
+	 *
+	 * Consequence may be a FIFO that never empty
+	 */
+	DELAY(1);
+
+	w_ecr(ppc, ecr_sav);
+	w_ctr(ppc, ctr_sav);
+
+	return (error);
+}
+
 /*
  * Configure current operating mode
  */
@@ -1209,32 +1571,34 @@ static int
 ppc_generic_setmode(int unit, int mode)
 {
 	struct ppc_data *ppc = ppcdata[unit];
-
-	/* back to compatible mode, XXX don't know yet what to do here */
-	if (mode == 0) {
-		ppc->ppc_mode = PPB_COMPATIBLE;
-		return (0);
-	}
+	u_char ecr = 0;
 
 	/* check if mode is available */
-	if (!(ppc->ppc_avm & mode))
-		return (EOPNOTSUPP);
+	if (mode && !(ppc->ppc_avm & mode))
+		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
 	if (ppc->ppc_avm & PPB_ECP) {
+		/* return to byte mode (keeping direction bit),
+		 * no interrupt, no DMA to be able to change to
+		 * ECP
+		 */
+		w_ecr(ppc, PPC_ECR_RESET);
+		ecr = PPC_DISABLE_INTR;
 
-		/* XXX disable DMA, enable interrupts */
 		if (mode & PPB_EPP)
-			return (EOPNOTSUPP);
-		else if (mode & PPB_PS2)
-			/* select PS2 mode with ECP */
-			w_ecr(ppc, 0x20);
+			return (EINVAL);
 		else if (mode & PPB_ECP)
 			/* select ECP mode */
-			w_ecr(ppc, 0x60);
+			ecr |= PPC_ECR_ECP;
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			ecr |= PPC_ECR_PS2;
 		else
-			/* select standard parallel port mode */
-			w_ecr(ppc, 0x00);
+			/* select COMPATIBLE/NIBBLE mode */
+			ecr |= PPC_ECR_STD;
+
+		w_ecr(ppc, ecr);
 	}
 
 	ppc->ppc_mode = mode;
@@ -1242,41 +1606,49 @@ ppc_generic_setmode(int unit, int mode)
 	return (0);
 }
 
+/*
+ * The ppc driver is free to choose options like FIFO or DMA
+ * if ECP mode is available.
+ *
+ * The 'RAW' option allows the upper drivers to force the ppc mode
+ * even with FIFO, DMA available.
+ */
 int
 ppc_smclike_setmode(int unit, int mode)
 {
 	struct ppc_data *ppc = ppcdata[unit];
-
-	/* back to compatible mode, XXX don't know yet what to do here */
-	if (mode == 0) {
-		ppc->ppc_mode = PPB_COMPATIBLE;
-		return (0);
-	}
+	u_char ecr = 0;
 
 	/* check if mode is available */
-	if (!(ppc->ppc_avm & mode))
-		return (EOPNOTSUPP);
+	if (mode && !(ppc->ppc_avm & mode))
+		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
 	if (ppc->ppc_avm & PPB_ECP) {
+		/* return to byte mode (keeping direction bit),
+		 * no interrupt, no DMA to be able to change to
+		 * ECP or EPP mode
+		 */
+		w_ecr(ppc, PPC_ECR_RESET);
+		ecr = PPC_DISABLE_INTR;
 
-		/* XXX disable DMA, enable interrupts */
 		if (mode & PPB_EPP)
 			/* select EPP mode */
-			w_ecr(ppc, 0x80);
-		else if (mode & PPB_PS2)
-			/* select PS2 mode with ECP */
-			w_ecr(ppc, 0x20);
+			ecr |= PPC_ECR_EPP;
 		else if (mode & PPB_ECP)
 			/* select ECP mode */
-			w_ecr(ppc, 0x60);
+			ecr |= PPC_ECR_ECP;
+		else if (mode & PPB_PS2)
+			/* select PS2 mode with ECP */
+			ecr |= PPC_ECR_PS2;
 		else
-			/* select standard parallel port mode */
-			w_ecr(ppc, 0x00);
+			/* select COMPATIBLE/NIBBLE mode */
+			ecr |= PPC_ECR_STD;
+
+		w_ecr(ppc, ecr);
 	}
 
 	ppc->ppc_mode = mode;
-
 
 	return (0);
 }
@@ -1314,8 +1686,9 @@ ppcprobe(struct isa_device *dvp)
 		if((next_bios_ppc < BIOS_MAX_PPC) &&
 				(*(BIOS_PORTS+next_bios_ppc) != 0) ) {
 			dvp->id_iobase = *(BIOS_PORTS+next_bios_ppc++);
-			printf("ppc: parallel port found at 0x%x\n",
-							dvp->id_iobase);
+			if (bootverbose)
+				printf("ppc: parallel port found at 0x%x\n",
+					dvp->id_iobase);
 		} else
 			return (0);
 	}
@@ -1351,6 +1724,8 @@ ppcprobe(struct isa_device *dvp)
 	if (!(dvp->id_flags & 0x20))
 		ppc->ppc_irq = ffs(dvp->id_irq) - 1;
 
+	ppc->ppc_dmachan = dvp->id_drq;
+
 	ppcdata[ppc->ppc_unit] = ppc;
 	nppc ++;
 
@@ -1384,6 +1759,11 @@ ppcattach(struct isa_device *isdp)
 		ppc_modes[ppc->ppc_mode], (PPB_IS_EPP(ppc->ppc_mode)) ?
 			ppc_epp_protocol[ppc->ppc_epp] : "");
 
+	if (ppc->ppc_fifo)
+		printf("ppc%d: FIFO with %d/%d/%d bytes threshold\n",
+			ppc->ppc_unit, ppc->ppc_fifo, ppc->ppc_wthr,
+			ppc->ppc_rthr);
+
 	isdp->id_ointr = ppcintr;
 
 	/*
@@ -1396,6 +1776,13 @@ ppcattach(struct isa_device *isdp)
 
 	ppc->ppc_link.ppbus = ppbus;
 	ppbus->ppb_link = &ppc->ppc_link;
+
+	if ((ppc->ppc_avm & PPB_ECP) && (ppc->ppc_dmachan > 0)) {
+
+		/* acquire the DMA channel forever */
+		isa_dma_acquire(ppc->ppc_dmachan);
+		isa_dmainit(ppc->ppc_dmachan, 1024);	/* nlpt.BUFSIZE */
+	}
 
 	/*
 	 * Probe the ppbus and attach devices found.

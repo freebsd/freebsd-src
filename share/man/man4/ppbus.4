@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998, Nicolas Souchu
+.\" Copyright (c) 1998, 1999 Nicolas Souchu
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@ Parallel port bus system
 .Cd "device nlpt0 at ppbus?"
 .Cd "device plip0 at ppbus?"
 .Cd "device ppi0 at ppbus?"
+.Cd "device pps0 at ppbus?"
+.Cd "device lpbb0 at ppbus?"
 .Sh DESCRIPTION
 The
 .Em ppbus
@@ -68,6 +70,8 @@ and non-standard software:
 .It Sy vpo Ta "VPI0 parallel to Adaptec AIC-7110 SCSI controller driver."
 It uses standard and non-standard parallel port accesses
 .It Sy ppi Ta "Parallel port interface for general I/O"
+.It Sy pps Ta "Pulse per second Timing Interface"
+.It Sy lpbb Ta "Philips official parallel port I2C bit-banging interface"
 .El
 .Ss Porting existing drivers
 .Pp
@@ -155,6 +159,50 @@ standard parallel port.
 Some manufacturers, like SMC, have implemented chipsets that support mixed
 modes. With such chipsets, mode switching is available at any time by
 accessing the extended control register.
+.Sh IEEE1284-1994 Standard
+.Ss Background
+This standard is also named "IEEE Standard Signaling Method for a
+Bidirectional Parallel Peripheral Interface for Personal Computers". It
+defines a signaling method for asynchroneous, fully interlocked, bidirectional
+parallel communications between hosts and printers or other peripherals. It
+also specifies a format for a peripheral identification string and a method of
+returning this string to the host outside of the bidirectional data stream.
+.Pp
+This standard is architecture independent and only specifiy dialog handshake
+at signal level. One should refer to any architecture specific document in
+order to manipulate machine dependent registers, mapped memory or whatelse
+to control these signals.
+.Pp
+The IEEE1284 protocol is fully oriented with all supported parallel port
+modes. The computer acts as master and the peripheral as slave.
+.Pp
+Any transfer is defined as a finite state automate. It allows software to
+properly manage the fully interlocked scheme of the signaling method.
+The compatible mode is supported "as is" without any negociation because it
+is compatible. Any other mode must be firstly negociated by the host to check
+it is supported by the peripheral, then to enter one of the forward idle
+states.
+.Pp
+At any time, the slave may want to send data to the host. This is only
+possible from forward idle states (nibble, byte, ecp...). So, the
+host must have previously negociated to permit the peripheral to
+request transfer. Interrupt lines may be dedicated to the requesting signals
+to prevent time consuming polling methods.
+.Pp
+But peripheral requests are only a hint to the master host. If the host
+accepts the transfer, it must firstly negociate the reverse mode and then
+starts the transfer. At any time during reverse transfer, the host may
+terminate the transfer or the slave may drive wires to signal that no more
+data is available.
+.Ss Implementation
+IEEE1284 Standard support has been implemented at the top of the ppbus system
+as a set of procedures that perform high level functions like negociation,
+termination, transfer in any mode without bothering you with low level
+caracteristics of the stantdard.
+.Pp
+IEEE1284 interacts with the ppbus system as least as possible. That means
+you still have to request the ppbus when you want to access it, the negociate
+function doesn't do it for you. And of course, release it later.
 .Sh ARCHITECTURE
 .Ss adapter, ppbus and device layers
 First, there is the

@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lptcontrol.c,v 1.6 1997/09/25 06:36:29 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -53,10 +53,12 @@ static const char rcsid[] =
 #define IRQ_INVALID	-1
 #define DO_POLL		0
 #define USE_IRQ		1
+#define USE_EXT_MODE	2
+#define USE_STD_MODE	3
 
 static void usage()
 {
-	fprintf(stderr, "usage: lptcontrol -i | -p  [-u <unit no.>]\n");
+	fprintf(stderr, "usage: lptcontrol -i | -p | -s | -e [-u <unit no.>]\n");
 	exit(1);
 }
 
@@ -89,10 +91,12 @@ int main (int argc, char * argv[])
 	int		irq_status = IRQ_INVALID;
 	char		* unit = DEFAULT_UNIT;
 
-	while((opt = getopt(argc, argv, "ipu:")) != -1)
+	while((opt = getopt(argc, argv, "ipesu:")) != -1)
 		switch(opt) {
 		case 'i': irq_status = USE_IRQ; break;
 		case 'p': irq_status = DO_POLL; break;
+		case 'e': irq_status = USE_EXT_MODE; break;
+		case 's': irq_status = USE_STD_MODE; break;
 		case 'u': unit = optarg;
 			  if(!isdigit(*unit))
 				usage();
