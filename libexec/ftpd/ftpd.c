@@ -2042,9 +2042,9 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, off_t filesize, int isreg)
 			off_t offset;
 			int err;
 
-			err = cnt = offset = 0;
+			cnt = offset = 0;
 
-			while (err != -1 && filesize > 0) {
+			while (filesize > 0) {
 				err = sendfile(filefd, netfd, offset, 0,
 					(struct sf_hdtr *) NULL, &cnt, 0);
 				/*
