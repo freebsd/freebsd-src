@@ -235,14 +235,23 @@ SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 
 /*
  * Allow override of whether methods execute in parallel or not.
- * Default to serial behavior as this fixes some AE_ALREADY_EXISTS errors
- * and matches the MS interpreter.
+ * Enable this for serial behavior, which fixes "AE_ALREADY_EXISTS"
+ * errors for AML that really can't handle parallel method execution.
+ * It is off by default since this breaks recursive methods and
+ * some IBMs use such code.
  */
-static int acpi_serialize_methods = 1;
+static int acpi_serialize_methods;
 TUNABLE_INT("hw.acpi.serialize_methods", &acpi_serialize_methods);
 
-/* Allow override of whether to support the _OSI method. */
-static int acpi_osi_method;
+/*
+ * Allow override of whether to support the _OSI method.  This allows us
+ * to claim compatibility with various MS OSs without changing the value
+ * we report for _OS.  This is enabled by default since it fixes some
+ * problems with interrupt routing although it can be disabled if it
+ * causes problems.  See the definition of "AcpiGbl_ValidOsiStrings" for
+ * a list of systems we claim.
+ */
+static int acpi_osi_method = 1;
 TUNABLE_INT("hw.acpi.osi_method", &acpi_osi_method);
 
 /*
