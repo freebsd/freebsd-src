@@ -119,19 +119,11 @@ namespace std
     basic_ostream<_CharT, _Traits>::operator<<(__streambuf_type* __sbin)
     {
       sentry __cerb(*this);
-      if (__cerb)
+      if (__cerb && __sbin)
 	{
 	  try
 	    {
-	      streamsize __xtrct = 0;
-	      if (__sbin)
-		{
-		  __streambuf_type* __sbout = this->rdbuf();
-		  __xtrct = __copy_streambufs(*this, __sbin, __sbout);
-		}
-	      else
-		this->setstate(ios_base::badbit);
-	      if (!__xtrct)
+	      if (!__copy_streambufs(*this, __sbin, this->rdbuf()))
 		this->setstate(ios_base::failbit);
 	    }
 	  catch(exception& __fail)
@@ -143,6 +135,8 @@ namespace std
 		__throw_exception_again;
 	    }
 	}
+      else if (!__sbin)
+	this->setstate(ios_base::badbit);
       return *this;
     }
 
@@ -480,7 +474,8 @@ namespace std
 	      streamsize __len = 1;
 	      if (__w > __len)
 		{
-		  __pad(__out, __out.fill(), __pads, &__c, __w, __len, false);
+		  __pad<_CharT, _Traits>::_S_pad(__out, __out.fill(), __pads, 
+						 &__c, __w, __len, false);
 		  __len = __w;
 		}
 	      __out.write(__pads, __len);
@@ -515,7 +510,8 @@ namespace std
 	      streamsize __len = 1;
 	      if (__w > __len)
 		{
-		  __pad(__out, __out.fill(), __pads, &__c, __w, __len, false);
+		  __pad<char, _Traits>::_S_pad(__out, __out.fill(), __pads, 
+					       &__c, __w, __len, false);
 		  __len = __w;
 		}
 	      __out.write(__pads, __len);
@@ -539,7 +535,7 @@ namespace std
     {
       typedef basic_ostream<_CharT, _Traits> __ostream_type;
       typename __ostream_type::sentry __cerb(__out);
-      if (__cerb)
+      if (__cerb && __s)
 	{
 	  try 
 	    {
@@ -548,7 +544,8 @@ namespace std
 	      streamsize __len = static_cast<streamsize>(_Traits::length(__s));
 	      if (__w > __len)
 		{
-		  __pad(__out, __out.fill(), __pads, __s, __w, __len, false);
+		  __pad<_CharT, _Traits>::_S_pad(__out, __out.fill(), __pads, 
+						 __s, __w, __len, false);
 		  __s = __pads;
 		  __len = __w;
 		}
@@ -564,6 +561,8 @@ namespace std
 		__throw_exception_again;
 	    }
 	}
+      else if (!__s)
+	__out.setstate(ios_base::badbit);
       return __out;
     }
 
@@ -575,14 +574,14 @@ namespace std
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
 // 167.  Improper use of traits_type::length()
 // Note that this is only in 'Review' status.
-      typedef char_traits<char>		     __ctraits_type;
+      typedef char_traits<char>		     __traits_type;
 #endif
       typename __ostream_type::sentry __cerb(__out);
-      if (__cerb)
+      if (__cerb && __s)
 	{
-	  size_t __clen = __ctraits_type::length(__s);
+	  size_t __clen = __traits_type::length(__s);
 	  _CharT* __ws = static_cast<_CharT*>(__builtin_alloca(sizeof(_CharT) * (__clen + 1)));
-	  for (size_t  __i = 0; __i <= __clen; ++__i)
+	  for (size_t  __i = 0; __i < __clen; ++__i)
 	    __ws[__i] = __out.widen(__s[__i]);
 	  _CharT* __str = __ws;
 	  
@@ -594,7 +593,8 @@ namespace std
 	      
 	      if (__w > __len)
 		{
-		  __pad(__out, __out.fill(), __pads, __ws, __w, __len, false);
+		  __pad<_CharT, _Traits>::_S_pad(__out, __out.fill(), __pads, 
+						 __ws, __w, __len, false);
 		  __str = __pads;
 		  __len = __w;
 		}
@@ -610,6 +610,8 @@ namespace std
 		__throw_exception_again;
 	    }
 	}
+      else if (!__s)
+	__out.setstate(ios_base::badbit);
       return __out;
     }
 
@@ -620,16 +622,18 @@ namespace std
     {
       typedef basic_ostream<char, _Traits> __ostream_type;
       typename __ostream_type::sentry __cerb(__out);
-      if (__cerb)
+      if (__cerb && __s)
 	{
 	  try 
 	    {
 	      streamsize __w = __out.width();
 	      char* __pads = static_cast<char*>(__builtin_alloca(__w));
 	      streamsize __len = static_cast<streamsize>(_Traits::length(__s));
+
 	      if (__w > __len)
 		{
-		  __pad(__out, __out.fill(), __pads, __s, __w, __len, false);
+		  __pad<char, _Traits>::_S_pad(__out, __out.fill(), __pads, 
+						 __s, __w, __len, false);
 		  __s = __pads;
 		  __len = __w;
 		}
@@ -645,6 +649,8 @@ namespace std
 		__throw_exception_again;
 	    }
 	}
+      else if (!__s)
+	__out.setstate(ios_base::badbit);
       return __out;
     }
 
@@ -667,7 +673,8 @@ namespace std
 #endif
 	  if (__w > __len)
 	    {
-	      __pad(__out, __out.fill(), __pads, __s, __w, __len, false);
+	      __pad<_CharT, _Traits>::_S_pad(__out, __out.fill(), __pads, __s, 
+					     __w, __len, false);
 	      __s = __pads;
 	      __len = __w;
 	    }
@@ -693,6 +700,7 @@ namespace std
   extern template ostream& operator<<(ostream&, const unsigned char*);
   extern template ostream& operator<<(ostream&, const signed char*);
 
+#ifdef _GLIBCPP_USE_WCHAR_T
   extern template class basic_ostream<wchar_t>;
   extern template wostream& endl(wostream&);
   extern template wostream& ends(wostream&);
@@ -701,4 +709,5 @@ namespace std
   extern template wostream& operator<<(wostream&, char);
   extern template wostream& operator<<(wostream&, const wchar_t*);
   extern template wostream& operator<<(wostream&, const char*);
+#endif
 } // namespace std
