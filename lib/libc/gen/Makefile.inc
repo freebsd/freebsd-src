@@ -9,7 +9,8 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	clock.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirname.c disklabel.c \
 	dlfcn.c drand48.c erand48.c err.c errlst.c \
-	exec.c fmtcheck.c fnmatch.c fstab.c ftok.c fts.c getbootfile.c getbsize.c \
+	exec.c fmtcheck.c fnmatch.c fstab.c ftok.c fts.c \
+	getbootfile.c getbsize.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getobjformat.c getosreldate.c getpagesize.c \
@@ -19,15 +20,14 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	lockf.c lrand48.c mrand48.c msgctl.c \
 	msgget.c msgrcv.c msgsnd.c nice.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
-	pause.c popen.c psignal.c pw_scan.c pwcache.c raise.c readdir.c rewinddir.c \
-	posixshm.c \
-	readpassphrase.c \
+	pause.c popen.c posixshm.c psignal.c pw_scan.c pwcache.c \
+	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
-	setdomainname.c sethostname.c setjmperr.c setmode.c setprogname.c \
-	setproctitle.c \
+	setdomainname.c sethostname.c setjmperr.c setmode.c \
+	setproctitle.c setprogname.c \
 	shmat.c shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c stringlist.c strtofflags.c \
-	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c swapcontext.c \
+	swapcontext.c sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c ttyname.c \
 	ttyslot.c ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c \
 	wait.c wait3.c waitpid.c
@@ -38,8 +38,8 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 .endif
 
 .if ${LIB} == "c"
-MAN+=	alarm.3 arc4random.3 clock.3 \
-	basename.3 \
+MAN+=	alarm.3 arc4random.3
+	basename.3 clock.3 \
 	confstr.3 ctermid.3 daemon.3 \
 	devname.3 directory.3 dirname.3 dladdr.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 fmtcheck.3 fnmatch.3 frexp.3 ftok.3 fts.3 \
@@ -99,7 +99,6 @@ MLINKS+=getvfsent.3 endvfsent.3 getvfsent.3 getvfsbytype.3 \
 MLINKS+=glob.3 globfree.3
 MLINKS+=isinf.3 isnan.3 isinf.3 isnanf.3
 MLINKS+=popen.3 pclose.3
-MLINKS+=psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
 MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
@@ -107,7 +106,6 @@ MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
 	rand48.3 mrand48.3 rand48.3 nrand48.3 rand48.3 seed48.3 \
 	rand48.3 srand48.3
 MLINKS+=scandir.3 alphasort.3
-MLINKS+=strtofflags.3 fflagstostr.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
 	setjmp.3 siglongjmp.3 setjmp.3 sigsetjmp.3
@@ -118,6 +116,7 @@ MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigismember.3
 MLINKS+=stringlist.3 sl_add.3 stringlist.3 sl_find.3 \
 	stringlist.3 sl_free.3 stringlist.3 sl_init.3
+MLINKS+=strtofflags.3 fflagstostr.3
 MLINKS+=sysctl.3 sysctlbyname.3 sysctl.3 sysctlnametomib.3
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
