@@ -95,6 +95,8 @@ static device_method_t firewire_methods[] = {
 	DEVMETHOD(device_probe,		firewire_match),
 	DEVMETHOD(device_attach,	firewire_attach),
 	DEVMETHOD(device_detach,	firewire_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* Bus interface */
@@ -104,7 +106,6 @@ static device_method_t firewire_methods[] = {
 	{ 0, 0 }
 };
 char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
-u_int maxrec[6]={512,1024,2048,4096,8192,0};
 
 #define MAX_GAPHOP  16
 u_int gap_cnt[] = {1, 1, 4, 6, 9, 12, 14, 17,
@@ -330,7 +331,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	struct tcode_info *info;
 
 	if(xfer == NULL) return EINVAL;
-	if(xfer->send.len > fc->maxrec){
+	if(xfer->send.len > MAXREC(fc->maxrec)){
 		printf("send.len > maxrec\n");
 		return EINVAL;
 	}
@@ -367,8 +368,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		return EINVAL;
 	}
 	if(!(xferq->queued < xferq->maxq)){
-		printf("%s:Discard a packet (queued=%d)\n",
-			device_get_nameunit(fc->dev), xferq->queued);
+		device_printf(fc->bdev, "Discard a packet (queued=%d)\n",
+			xferq->queued);
 		return EINVAL;
 	}
 
@@ -492,7 +493,6 @@ firewire_attach( device_t dev )
 
 	fc = (struct firewire_comm *)device_get_softc(pa);
 	sc->fc = fc;
-	sc->fc->dev = dev;
 
 	unitmask = UNIT2MIN(device_get_unit(dev));
 
@@ -521,6 +521,13 @@ firewire_attach( device_t dev )
 	sc->dev[i] = d;
 #endif
 	sc->fc->timeouthandle = timeout((timeout_t *)sc->fc->timeout, (void *)sc->fc, hz * 10);
+
+	callout_init(&sc->fc->busprobe_callout
+#if __FreeBSD_version >= 500000
+						, /* mpsafe? */ 0);
+#else
+						);
+#endif
 
 	/* Locate our children */
 	bus_generic_probe(dev);
@@ -1161,7 +1168,7 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 		self_id++;
 		fc->topology_map->self_id_count ++;
 	}
-	printf("%s: %d nodes", device_get_nameunit(fc->dev), fc->max_node + 1);
+	device_printf(fc->bdev, "%d nodes", fc->max_node + 1);
 	/* CRC */
 	fc->topology_map->crc = fw_crc16(
 			(u_int32_t *)&fc->topology_map->generation,
@@ -1204,7 +1211,8 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 		}
 	}else{
 		fc->status = FWBUSMGRDONE;
-		printf("%s: BMR = %x\n", device_get_nameunit(fc->dev), CSRARC(fc, BUS_MGR_ID));
+		device_printf(fc->bdev, "BMR = %x\n",
+				CSRARC(fc, BUS_MGR_ID));
 	}
 	free(buf, M_DEVBUF);
 #if 1
@@ -1214,7 +1222,8 @@ void fw_sidrcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int off)
 	}
 #endif
 #if 1
-	timeout((timeout_t *)fw_bus_probe, (void *)fc, hz/4);
+	callout_reset(&fc->busprobe_callout, hz/4,
+			(void *)fw_bus_probe, (void *)fc);
 #else
 	fw_bus_probe(fc);
 #endif
@@ -1341,7 +1350,7 @@ loop:
 			TAILQ_INSERT_BEFORE(tfwdev, fwdev, link);
 		}
 
-		device_printf(fc->dev, "New %s device ID:%08x%08x\n",
+		device_printf(fc->bdev, "New %s device ID:%08x%08x\n",
 			linkspeed[fwdev->speed],
 			fc->ongoeui.hi, fc->ongoeui.lo);
 
@@ -1629,22 +1638,23 @@ fw_attach_dev(struct firewire_comm *fc)
 	device_t *devlistp;
 	int devcnt;
 	struct firewire_dev_comm *fdc;
+	u_int32_t spec, ver;
 
 	for(fwdev = TAILQ_FIRST(&fc->devices); fwdev != NULL;
 			fwdev = TAILQ_NEXT(fwdev, link)){
 		if(fwdev->status == FWDEVINIT){
-			fwdev->spec = getcsrdata(fwdev, CSRKEY_SPEC);
-			if(fwdev->spec == 0)
+			spec = getcsrdata(fwdev, CSRKEY_SPEC);
+			if(spec == 0)
 				continue;
-			fwdev->ver = getcsrdata(fwdev, CSRKEY_VER);
-			if(fwdev->ver == 0)
+			ver = getcsrdata(fwdev, CSRKEY_VER);
+			if(ver == 0)
 				continue;
 			fwdev->maxrec = (fwdev->csrrom[2] >> 12) & 0xf;
 
-			device_printf(fc->dev, "Device ");
-			switch(fwdev->spec){
+			device_printf(fc->bdev, "Device ");
+			switch(spec){
 			case CSRVAL_ANSIT10:
-				switch(fwdev->ver){
+				switch(ver){
 				case CSRVAL_T10SBP2:
 					printf("SBP-II");
 					break;
@@ -1653,7 +1663,7 @@ fw_attach_dev(struct firewire_comm *fc)
 				}
 				break;
 			case CSRVAL_1394TA:
-				switch(fwdev->ver){
+				switch(ver){
 				case CSR_PROTAVC:
 					printf("AV/C");
 					break;
@@ -1694,7 +1704,7 @@ fw_attach_dev(struct firewire_comm *fc)
 			printf("\n");
 		}
 	}
-	err = device_get_children(fc->dev, &devlistp, &devcnt);
+	err = device_get_children(fc->bdev, &devlistp, &devcnt);
 	if( err != 0 )
 		return;
 	for( i = 0 ; i < devcnt ; i++){
@@ -1841,7 +1851,11 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 		bind = fw_bindlookup(fc, ntohs(fp->mode.rreqq.dest_hi),
 			ntohl(fp->mode.rreqq.dest_lo));
 		if(bind == NULL){
+#if __FreeBSD_version >= 500000
 			printf("Unknown service addr 0x%08x:0x%08x tcode=%x\n",
+#else
+			printf("Unknown service addr 0x%08x:0x%08lx tcode=%x\n",
+#endif
 				ntohs(fp->mode.rreqq.dest_hi),
 				ntohl(fp->mode.rreqq.dest_lo),
 				fp->mode.common.tcode);
@@ -1911,8 +1925,8 @@ fw_rcv(struct firewire_comm* fc, caddr_t buf, u_int len, u_int sub, u_int off, u
 		case FWACT_CH:
 			if(fc->ir[bind->xfer->sub]->queued >=
 				fc->ir[bind->xfer->sub]->maxq){
-				printf("%s:Discard a packet %x %d\n",
-					device_get_nameunit(fc->dev),
+				device_printf(fc->bdev,
+					"Discard a packet %x %d\n",
 					bind->xfer->sub,
 					fc->ir[bind->xfer->sub]->queued);
 				goto err;
@@ -2011,8 +2025,8 @@ fw_try_bmr_callback(struct fw_xfer *xfer)
 	rfp = (struct fw_pkt *)xfer->recv.buf;
 	CSRARC(fc, BUS_MGR_ID)
 		= fc->set_bmr(fc, ntohl(rfp->mode.lres.payload[0]) & 0x3f);
-	printf("%s: new bus manager %d ",
-		device_get_nameunit(fc->dev), CSRARC(fc, BUS_MGR_ID));
+	device_printf(fc->bdev, "new bus manager %d ",
+		CSRARC(fc, BUS_MGR_ID));
 	if((htonl(rfp->mode.lres.payload[0]) & 0x3f) == fc->nodeid){
 		printf("(me)\n");
 /* If I am bus manager, optimize gapcount */

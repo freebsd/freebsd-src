@@ -89,6 +89,7 @@ struct fw_reg_req_t{
 	unsigned long data;
 };
 
+#define MAXREC(x)	(2 << (x))
 #define FWPMAX_S400 (2048 + 20)	/* MAXREC plus space for control data */
 #define FWMAXQUEUE 128
 
@@ -544,7 +545,6 @@ struct fw_crom_buf {
 #define	FW_SBINDADDR	_IOWR('S', 3, struct fw_asybindreq)
 #define	FW_CBINDADDR	_IOWR('S', 4, struct fw_asybindreq)
 #define	FW_GTPMAP	_IOR('S', 5, struct fw_topology_map)
-#define	FW_GSPMAP	_IOW('S', 6, struct fw_speed_map *)
 #define	FW_GCROM	_IOWR('S', 7, struct fw_crom_buf)
 
 #define FWOHCI_RDREG	_IOWR('S', 80, struct fw_reg_req_t)

@@ -35,22 +35,25 @@
  */
 #define		PCI_CBMEM		0x10
 
-#define		FW_VENDORID_NEC		0x1033
-#define		FW_VENDORID_TI		0x104c
-#define		FW_VENDORID_SONY	0x104d
-#define		FW_VENDORID_VIA		0x1106
-#define		FW_VENDORID_RICOH	0x1180
-#define		FW_VENDORID_APPLE	0x106b
-#define		FW_VENDORID_LUCENT	0x11c1
+#define		FW_VENDORID_NEC		(0x1033 << 16)
+#define		FW_VENDORID_TI		(0x104c << 16)
+#define		FW_VENDORID_SONY	(0x104d << 16)
+#define		FW_VENDORID_VIA		(0x1106 << 16)
+#define		FW_VENDORID_RICOH	(0x1180 << 16)
+#define		FW_VENDORID_APPLE	(0x106b << 16)
+#define		FW_VENDORID_LUCENT	(0x11c1 << 16)
 
 #define		FW_DEVICE_UPD861	0x0063
 #define		FW_DEVICE_TITSB22	0x8009
 #define		FW_DEVICE_TITSB23	0x8019
 #define		FW_DEVICE_TITSB26	0x8020
 #define		FW_DEVICE_TITSB43	0x8021
+#define		FW_DEVICE_TITSB43A	0x8023
+#define		FW_DEVICE_TIPCI4450	0x8011
+#define		FW_DEVICE_TIPCI4410A	0x8017
 #define		FW_DEVICE_CX3022	0x8039
 #define		FW_DEVICE_VT6306	0x3044
-#define		FW_DEVICE_R5C552	0x1180
+#define		FW_DEVICE_R5C552	0x0552
 #define		FW_DEVICE_PANGEA	0x0030
 #define		FW_DEVICE_UNINORTH	0x0031
 #define		FW_DEVICE_FW322		0x5811
@@ -169,13 +172,14 @@ struct ohci_registers {
 	fwohcireg_t	dummy1[3];	/* dummy 0x44-0x4c */
 	fwohcireg_t	hcc_cntl_set;	/* HCC control set 0x50 */
 	fwohcireg_t	hcc_cntl_clr;	/* HCC control clr 0x54 */
-#define	OHCI_HCC_BIGEND	(1 << 30)
-#define	OHCI_HCC_PRPHY	(1 << 23)
-#define	OHCI_HCC_PHYEN	(1 << 22)
-#define	OHCI_HCC_LPS	(1 << 19)
-#define	OHCI_HCC_POSTWR	(1 << 18)
-#define	OHCI_HCC_LINKEN	(1 << 17)
-#define	OHCI_HCC_RESET	(1 << 16)
+#define	OHCI_HCC_BIBIV	(1 << 31)	/* BIBimage Valid */
+#define	OHCI_HCC_BIGEND	(1 << 30)	/* noByteSwapData */
+#define	OHCI_HCC_PRPHY	(1 << 23)	/* programPhyEnable */
+#define	OHCI_HCC_PHYEN	(1 << 22)	/* aPhyEnhanceEnable */
+#define	OHCI_HCC_LPS	(1 << 19)	/* LPS */
+#define	OHCI_HCC_POSTWR	(1 << 18)	/* postedWriteEnable */
+#define	OHCI_HCC_LINKEN	(1 << 17)	/* linkEnable */
+#define	OHCI_HCC_RESET	(1 << 16)	/* softReset */
 	fwohcireg_t	dummy2[2];	/* dummy 0x58-0x5c */
 	fwohcireg_t	dummy3[1];	/* dummy 0x60 */
 	fwohcireg_t	sid_buf;	/* self id buffer 0x64 */

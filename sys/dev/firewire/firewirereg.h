@@ -47,8 +47,10 @@ typedef	struct proc fw_proc;
 struct fw_device{
 	u_int16_t dst;
 	struct fw_eui64 eui;
+#if 0
 	u_int32_t spec;
 	u_int32_t ver;
+#endif
 	u_int8_t speed;
 	u_int8_t maxrec;
 	u_int8_t nport;
@@ -223,7 +225,7 @@ struct firewire_comm{
 	u_int32_t *config_rom;
 	struct fw_topology_map *topology_map;
 	struct fw_speed_map *speed_map;
-	struct callout_handle tlhandle;
+	struct callout busprobe_callout;
 	struct callout_handle bmrhandle;
 	struct callout_handle timeouthandle;
 	struct callout_handle retry_probe_handle;
