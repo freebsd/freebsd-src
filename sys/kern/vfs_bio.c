@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.210 1999/05/06 20:00:26 phk Exp $
+ * $Id: vfs_bio.c,v 1.211 1999/05/12 22:30:50 peter Exp $
  */
 
 /*
@@ -1475,8 +1475,7 @@ dosleep:
 		else
 			flags = VFS_BIO_NEED_ANY;
 
-		if (rushjob < syncdelay / 2)
-			++rushjob;
+		(void) speedup_syncer();
 		needsbuffer |= flags;
 		while (needsbuffer & flags) {
 			if (tsleep(&needsbuffer, (PRIBIO + 4) | slpflag,

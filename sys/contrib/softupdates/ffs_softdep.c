@@ -52,8 +52,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.38 (McKusick) 5/13/99
- *	$Id: ffs_softdep.c,v 1.28 1999/05/14 01:26:46 mckusick Exp $
+ *	from: @(#)ffs_softdep.c	9.40 (McKusick) 6/15/99
+ *	$Id: ffs_softdep.c,v 1.29 1999/05/22 04:43:04 julian Exp $
  */
 
 /*
@@ -201,7 +201,7 @@ static	int inodedep_lookup __P((struct fs *, ino_t, int, struct inodedep **));
 static	int pagedep_lookup __P((struct inode *, ufs_lbn_t, int,
 	    struct pagedep **));
 static	void pause_timer __P((void *));
-static	int checklimit __P((long *, int));
+static	int request_cleanup __P((int, int));
 static	void add_to_worklist __P((struct worklist *));
 
 /*
@@ -449,11 +449,12 @@ static int tickdelay = 2;	/* number of ticks to pause during slowdown */
 static int proc_waiting;	/* tracks whether we have a timeout posted */
 static struct proc *filesys_syncer; /* proc of filesystem syncer process */
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
+#define FLUSH_INODES	1
 static int req_clear_remove;	/* syncer process flush some freeblks */
+#define FLUSH_REMOVE	2
 /*
  * runtime statistics
  */
-static int stat_rush_requests;	/* number of times I/O speeded up */
 static int stat_blk_limit_push;	/* number of times block limit neared */
 static int stat_ino_limit_push;	/* number of times inode limit neared */
 static int stat_blk_limit_hit;	/* number of times block slowdown imposed */
@@ -468,7 +469,6 @@ static int stat_dir_entry;	/* bufs redirtied as dir entry cannot write */
 #if defined(__FreeBSD__)
 SYSCTL_INT(_debug, OID_AUTO, max_softdeps, CTLFLAG_RW, &max_softdeps, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, tickdelay, CTLFLAG_RW, &tickdelay, 0, "");
-SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0, "");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_push, CTLFLAG_RW, &stat_blk_limit_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, ino_limit_push, CTLFLAG_RW, &stat_ino_limit_push, 0,"");
 SYSCTL_INT(_debug, OID_AUTO, blk_limit_hit, CTLFLAG_RW, &stat_blk_limit_hit, 0, "");
@@ -480,7 +480,6 @@ SYSCTL_INT(_debug, OID_AUTO, dir_entry, CTLFLAG_RW, &stat_dir_entry, 0, "");
 #else /* !__FreeBSD__ */
 struct ctldebug debug20 = { "max_softdeps", &max_softdeps };
 struct ctldebug debug21 = { "tickdelay", &tickdelay };
-struct ctldebug debug22 = { "rush_requests", &stat_rush_requests };
 struct ctldebug debug23 = { "blk_limit_push", &stat_blk_limit_push };
 struct ctldebug debug24 = { "ino_limit_push", &stat_ino_limit_push };
 struct ctldebug debug25 = { "blk_limit_hit", &stat_blk_limit_hit };
@@ -535,8 +534,8 @@ softdep_process_worklist(matchmnt)
 	int matchcnt;
 
 	/*
-	 * Record the process identifier of our caller so that we can
-	 * give this process preferential treatment in checklimit below.
+	 * Record the process identifier of our caller so that we can give
+	 * this process preferential treatment in request_cleanup below.
 	 */
 	filesys_syncer = p;
 	matchcnt = 0;
@@ -828,7 +827,11 @@ top:
 		*inodedeppp = NULL;
 		return (0);
 	}
-	if (firsttry && checklimit(&num_inodedep, 1) == 1) {
+	/*
+	 * If we are over our limit, try to improve the situation.
+	 */
+	if (num_inodedep > max_softdeps && firsttry && speedup_syncer() == 0 &&
+	    request_cleanup(FLUSH_INODES, 1)) {
 		firsttry = 0;
 		goto top;
 	}
@@ -1577,7 +1580,11 @@ softdep_setup_freeblocks(ip, length)
 	fs = ip->i_fs;
 	if (length != 0)
 		panic("softde_setup_freeblocks: non-zero length");
-	(void) checklimit(&num_freeblks, 0);
+	/*
+	 * If we are over our limit, try to improve the situation.
+	 */
+	if (num_freeblks > max_softdeps / 2 && speedup_syncer() == 0)
+		(void) request_cleanup(FLUSH_REMOVE, 0);
 	num_freeblks += 1;
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
 		M_FREEBLKS, M_WAITOK);
@@ -1811,9 +1818,13 @@ softdep_freefile(pvp, ino, mode)
 	struct freefile *freefile;
 
 	/*
+	 * If we are over our limit, try to improve the situation.
+	 */
+	if (num_freefile > max_softdeps / 2 && speedup_syncer() == 0)
+		(void) request_cleanup(FLUSH_REMOVE, 0);
+	/*
 	 * This sets up the inode de-allocation dependency.
 	 */
-	(void) checklimit(&num_freefile, 0);
 	num_freefile += 1;
 	MALLOC(freefile, struct freefile *, sizeof(struct freefile),
 		M_FREEFILE, M_WAITOK);
@@ -3774,7 +3785,6 @@ softdep_sync_metadata(ap)
 	waitfor = MNT_NOWAIT;
 top:
 	if (getdirtybuf(&TAILQ_FIRST(&vp->v_dirtyblkhd), MNT_WAIT) == 0) {
-		drain_output(vp, 1);
 		FREE_LOCK(&lk);
 		return (0);
 	}
@@ -4189,38 +4199,18 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
  * many dependencies in progress.
  */
 static int
-checklimit(resource, islocked)
-	long *resource;
+request_cleanup(resource, islocked)
+	int resource;
 	int islocked;
 {
 	struct callout_handle handle;
 	struct proc *p = CURPROC;
-	int s;
 
-	/*
-	 * If we are under our limit, just proceed.
-	 */
-	if (*resource < max_softdeps)
-		return (0);
 	/*
 	 * We never hold up the filesystem syncer process.
 	 */
 	if (p == filesys_syncer)
 		return (0);
-	/*
-	 * Our first approach is to speed up the syncer process.
-	 * We never push it to speed up more than half of its
-	 * normal turn time, otherwise it could take over the cpu.
-	 */
-	s = splhigh();
-	if (filesys_syncer->p_wchan == &lbolt)
-		setrunnable(filesys_syncer);
-	splx(s);
-	if (rushjob < syncdelay / 2) {
-		rushjob += 1;
-		stat_rush_requests += 1;
-		return (0);
-	}
 	/*
 	 * If we are resource constrained on inode dependencies, try
 	 * flushing some dirty inodes. Otherwise, we are constrained
@@ -4228,15 +4218,23 @@ checklimit(resource, islocked)
 	 * with removal dependencies. We would like to do the cleanup
 	 * here, but we probably hold an inode locked at this point and 
 	 * that might deadlock against one that we try to clean. So,
-	 * the best that we can do is request the syncer daemon (kick
-	 * started above) to do the cleanup for us.
+	 * the best that we can do is request the syncer daemon to do
+	 * the cleanup for us.
 	 */
-	if (resource == &num_inodedep) {
+	switch (resource) {
+
+	case FLUSH_INODES:
 		stat_ino_limit_push += 1;
 		req_clear_inodedeps = 1;
-	} else {
+		break;
+
+	case FLUSH_REMOVE:
 		stat_blk_limit_push += 1;
 		req_clear_remove = 1;
+		break;
+
+	default:
+		panic("request_cleanup: unknown type");
 	}
 	/*
 	 * Hopefully the syncer daemon will catch up and awaken us.
@@ -4256,10 +4254,16 @@ checklimit(resource, islocked)
 		untimeout(pause_timer, NULL, handle);
 		proc_waiting = 0;
 	} else {
-		if (resource == &num_inodedep)
+		switch (resource) {
+
+		case FLUSH_INODES:
 			stat_ino_limit_hit += 1;
-		else
+			break;
+
+		case FLUSH_REMOVE:
 			stat_blk_limit_hit += 1;
+			break;
+		}
 	}
 	if (islocked == 0)
 		FREE_LOCK(&lk);
@@ -4267,7 +4271,7 @@ checklimit(resource, islocked)
 }
 
 /*
- * Awaken processes pausing in checklimit and clear proc_waiting
+ * Awaken processes pausing in request_cleanup and clear proc_waiting
  * to indicate that there is no longer a timer running.
  */
 void
