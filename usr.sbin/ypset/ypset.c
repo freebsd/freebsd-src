@@ -83,7 +83,7 @@ char *dom, *server;
 		errx(1, "can't find address for %s", server);
 	} else
 		bcopy (&server_addr,
-		       *(u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
+		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
 		       sizeof (server_addr));
 
 /*	strncpy(ypsd.ypsetdom_domain, dom, sizeof ypsd.ypsetdom_domain); */
