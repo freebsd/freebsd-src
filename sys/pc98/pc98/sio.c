@@ -161,7 +161,6 @@
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
-#include <i386/isa/ic/i8251.h>
 #else
 #include <isa/isareg.h>
 #endif
@@ -182,11 +181,12 @@
 #include <isa/sioreg.h>
 
 #ifdef COM_ESP
-#include <i386/isa/ic/esp.h>
+#include <dev/ic/esp.h>
 #endif
-#include <i386/isa/ic/ns16550.h>
+#include <dev/ic/ns16550.h>
 #ifdef PC98
-#include <i386/isa/ic/rsa.h>
+#include <dev/ic/i8251.h>
+#include <dev/ic/rsa.h>
 #endif
 
 #ifndef __i386__
