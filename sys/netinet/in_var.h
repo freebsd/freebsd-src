@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: in_var.h,v 1.26 1997/04/27 20:01:06 wollman Exp $
+ *	$Id: in_var.h,v 1.27 1997/09/07 05:26:43 bde Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
@@ -211,6 +211,7 @@ do { \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)
 
+struct	route;
 struct	in_multi *in_addmulti __P((struct in_addr *, struct ifnet *));
 void	in_delmulti __P((struct in_multi *));
 int	in_control __P((struct socket *, int, caddr_t, struct ifnet *,
@@ -219,6 +220,9 @@ void	in_rtqdrain __P((void));
 void	ip_input __P((struct mbuf *));
 int	in_ifadown __P((struct ifaddr *ifa));
 void	in_ifscrub __P((struct ifnet *, struct in_ifaddr *));
+int	ipflow_fastforward __P((struct mbuf *));
+void	ipflow_create __P((const struct route *, struct mbuf *));
+void	ipflow_slowtimo __P((void));
 
 #endif /* KERNEL */
 

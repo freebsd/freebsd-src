@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.81 1998/04/15 17:46:51 bde Exp $
+ *	$Id: ip_fw.c,v 1.82 1998/04/21 18:54:53 julian Exp $
  */
 
 /*
@@ -36,6 +36,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
