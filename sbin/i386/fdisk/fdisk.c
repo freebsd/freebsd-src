@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.28 1999/01/22 11:54:17 rnordier Exp $";
+	"$Id: fdisk.c,v 1.29 1999/06/27 19:29:15 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -120,6 +120,7 @@ typedef struct cmd {
 static int B_flag  = 0;		/* replace boot code */
 static int a_flag  = 0;		/* set active partition */
 static char *b_flag = NULL;	/* path to boot code */
+static int e_flag  = 0;		/* use entire disk for FreeBSD */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
 static int t_flag  = 0;		/* test only, if f_flag is given */
@@ -215,7 +216,7 @@ main(int argc, char *argv[])
 {
 	int	c, i;
 
-	while ((c = getopt(argc, argv, "Bab:f:ituv1234")) != -1)
+	while ((c = getopt(argc, argv, "Bab:ef:ituv1234")) != -1)
 		switch (c) {
 		case 'B':
 			B_flag = 1;
@@ -225,6 +226,9 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			b_flag = optarg;
+			break;
+		case 'e':
+			e_flag = 1;
 			break;
 		case 'f':
 			f_flag = optarg;
@@ -288,6 +292,27 @@ main(int argc, char *argv[])
 
 	printf("******* Working on device %s *******\n",disk);
 
+	if (e_flag)
+	{
+		struct dos_partition *partp;
+
+		read_s0();
+		reset_boot();
+		partp = (struct dos_partition *) (&mboot.parts[0]);
+		partp->dp_typ = DOSPTYP_386BSD;
+		partp->dp_flag = ACTIVE;
+		partp->dp_start = dos_sectors;
+		partp->dp_size = disksecs - dos_sectors;
+
+		dos(partp->dp_start, partp->dp_size, 
+		    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
+		dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
+		    &partp->dp_ecyl, &partp->dp_esect, &partp->dp_ehd);
+		if (v_flag)
+			print_s0(-1);
+		write_s0();
+		exit(0);
+	}
 	if (f_flag)
 	{
 	    if (read_s0() || i_flag)
@@ -623,7 +648,7 @@ struct stat 	st;
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
 	if ((fd = open(disk,
-	    a_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+	    a_flag || e_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
 		warnx("can't open device %s", disk);
@@ -717,16 +742,16 @@ write_s0()
 	 * needed if the disklabel protected area also protects
 	 * sector 0. (e.g. empty disk)
 	 */
-	flag = 1;
 #ifdef NOT_NOW
+	flag = 1;
 	if (ioctl(fd, DIOCWLABEL, &flag) < 0)
 		warn("ioctl DIOCWLABEL");
 #endif
 	if (write_disk(0, (char *) mboot.bootinst) == -1) {
-		warnx("can't write fdisk partition table");
+		warn("can't write fdisk partition table");
 		return -1;
-	flag = 0;
 #ifdef NOT_NOW
+	flag = 0;
 	(void) ioctl(fd, DIOCWLABEL, &flag);
 #endif
 	}

@@ -1,4 +1,4 @@
-.\"	$Id: $
+.\"	$Id: fdisk.8,v 1.14 1999/06/27 19:29:14 rnordier Exp $
 .\"
 .Dd October 4, 1996
 .Dt FDISK 8
@@ -8,7 +8,7 @@
 .Nd PC partition table maintenance program
 .Sh SYNOPSIS
 .Nm fdisk
-.Op Fl Baitu
+.Op Fl Baeitu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -50,11 +50,6 @@ table.  The second is used to write a partition table using a
 and is designed to be used by other scripts/programs.
 .Pp
 Options are:
-.It Fl B
-Reinitialize the boot code contained in sector 0 of the disk.  Ignored
-if
-.Fl f
-is given.
 .It Fl a
 Change the active partition only.  Ignored if
 .Fl f
@@ -62,6 +57,13 @@ is given.
 .It Fl b Ar bootcode
 Get the boot code from the file
 .Ar bootcode .
+.It Fl B
+Reinitialize the boot code contained in sector 0 of the disk.  Ignored
+if
+.Fl f
+is given.
+.It Fl e
+Initialize the contents of sector 0 with one FreeBSD slice covering the entire disk.
 .It Fl f Ar configfile
 Set partition values using the file
 .Ar configfile .
