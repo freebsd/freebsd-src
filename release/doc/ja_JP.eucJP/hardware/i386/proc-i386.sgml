@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.2
+    Original revision: 1.3
 -->
 <sect1>
   <title>対応プロセッサおよびマザーボード</title>
@@ -16,7 +16,9 @@
     80386 以降の Intel プロセッサすべてに対応しています
     (技術的には 80386SX にも対応しているのですが、
     このプロセッサでの利用は推奨されていません)。
-    Am486, Am5x86, K5, K6, Athlon, Duron プロセッサを含む、
+    Am486, Am5x86, K5, K6 (およびその仲間),
+    Athlon (Athlon-MP, Athlon-XP, Athlon-4, Athlon Thunderbird を含む),
+    Duron プロセッサを含む、
     i386 互換の AMD プロセッサにも対応しています。
     その他、Transmeta Crusoe, Cyrix 製, NexGen 製の i386
     互換プロセッサも正しく認識し、利用可能です。</para>
