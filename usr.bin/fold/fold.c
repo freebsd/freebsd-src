@@ -49,7 +49,6 @@ static char sccsid[] = "@(#)fold.c	8.1 (Berkeley) 6/6/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <err.h>
 #include <limits.h>
 #include <locale.h>
@@ -57,11 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	DEFLINEWIDTH	80
 
 void fold(int);
-static int newpos(int, int);
+static int newpos(int, wint_t);
 static void usage(void);
 
 int bflag;			/* Count bytes, not columns */
@@ -141,64 +142,66 @@ usage(void)
 void
 fold(int width)
 {
-	static char *buf;
+	static wchar_t *buf;
 	static int buf_max;
-	int ch, col, i, indx, space;
+	int col, i, indx, space;
+	wint_t ch;
 
 	col = indx = 0;
-	while ((ch = getchar()) != EOF) {
+	while ((ch = getwchar()) != WEOF) {
 		if (ch == '\n') {
-			if (indx != 0)
-				fwrite(buf, 1, indx, stdout);
-			putchar('\n');
+			wprintf(L"%.*ls\n", indx, buf);
 			col = indx = 0;
 			continue;
 		}
 		if ((col = newpos(col, ch)) > width) {
 			if (sflag) {
 				i = indx;
-				while (--i >= 0 && !isblank((unsigned char)buf[i]))
+				while (--i >= 0 && !iswblank(buf[i]))
 					;
 				space = i;
 			}
 			if (sflag && space != -1) {
 				space++;
-				fwrite(buf, 1, space, stdout);
-				memmove(buf, buf + space, indx - space);
+				wprintf(L"%.*ls\n", space, buf);
+				wmemmove(buf, buf + space, indx - space);
 				indx -= space;
 				col = 0;
 				for (i = 0; i < indx; i++)
-					col = newpos(col,
-					    (unsigned char)buf[i]);
+					col = newpos(col, buf[i]);
 			} else {
-				fwrite(buf, 1, indx, stdout);
+				wprintf(L"%.*ls\n", indx, buf);
 				col = indx = 0;
 			}
-			putchar('\n');
 			col = newpos(col, ch);
 		}
 		if (indx + 1 > buf_max) {
 			buf_max += LINE_MAX;
-			if ((buf = realloc(buf, buf_max)) == NULL)
+			buf = realloc(buf, sizeof(*buf) * buf_max);
+			if (buf == NULL)
 				err(1, "realloc()");
 		}
 		buf[indx++] = ch;
 	}
 
 	if (indx != 0)
-		fwrite(buf, 1, indx, stdout);
+		wprintf(L"%.*ls", indx, buf);
 }
 
 /*
  * Update the current column position for a character.
  */
 static int
-newpos(int col, int ch)
+newpos(int col, wint_t ch)
 {
+	char buf[MB_LEN_MAX];
+	size_t len;
+	int w;
 
-	if (bflag)
-		++col;
-	else
+	if (bflag) {
+		len = wcrtomb(buf, ch, NULL);
+		col += len;
+	} else
 		switch (ch) {
 		case '\b':
 			if (col > 0)
@@ -211,8 +214,8 @@ newpos(int col, int ch)
 			col = (col + 8) & ~7;
 			break;
 		default:
-			if (isprint(ch))
-				++col;
+			if ((w = wcwidth(ch)) > 0)
+				col += w;
 			break;
 		}
 
