@@ -449,13 +449,12 @@ void configure_network()
 /* sighup_handler() is invoked when carrier drops, eg. before redial. */
 void sighup_handler()
 {
-	int ttydisc = TTYDISC;
-
 	if(exiting) return;
 again:
+	acquire_line(); /* reopen dead line */
+
 	/* invoke a shell for redial_cmd or punt. */
 	if (redial_cmd) {
-		acquire_line();
 		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
@@ -489,18 +488,6 @@ again:
 		} else
 			setup_line(0);
 	} else {
-#if 0
-		/*
-		 * XXX should do this except we are called from main() via
-		 * kill(getpid(), SIGHUP).  Ick.
-		 */
-		syslog(LOG_NOTICE, "SIGHUP on %s (sl%d); exiting", dev, unit);
-		exit_handler(0);
-#endif
-		if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
-			syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
-			exit_handler(1);
-		}
 		setup_line(0);  /* restore ospeed from hangup (B0) */
 		/* If modem control, just wait for carrier before attaching.
 		   If no modem control, just fall through immediately. */
