@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.46 1995/12/07 12:45:55 davidg Exp $
+ *      $Id: bt742a.c,v 1.47 1995/12/10 13:38:22 phk Exp $
  */
 
 /*
@@ -1295,7 +1295,6 @@ bt_init(unit)
 	bt->bt_mbx.tmbo = &bt->bt_mbx.mbo[0];
 	bt->bt_mbx.tmbi = &bt->bt_mbx.mbi[0];
 	bt_inquire_setup_information(unit, &info);
-
 
 	/*
 	 * Note that we are going and return (to probe)

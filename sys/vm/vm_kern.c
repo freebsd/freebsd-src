@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.18 1995/12/07 12:48:13 davidg Exp $
+ * $Id: vm_kern.c,v 1.19 1995/12/10 14:52:09 bde Exp $
  */
 
 /*
@@ -181,7 +181,9 @@ kmem_alloc(map, size)
 	for (i = 0; i < size; i += PAGE_SIZE) {
 		vm_page_t mem;
 
-		while ((mem = vm_page_alloc(kernel_object, offset + i, (VM_ALLOC_NORMAL|VM_ALLOC_ZERO))) == NULL) {
+		while ((mem = vm_page_alloc(kernel_object,
+			OFF_TO_IDX(offset + i),
+			(VM_ALLOC_NORMAL|VM_ALLOC_ZERO))) == NULL) {
 			VM_WAIT;
 		}
 		if ((mem->flags & PG_ZERO) == 0)
@@ -332,7 +334,7 @@ kmem_malloc(map, size, waitflag)
 	 * pulling it off the active queue to prevent pageout.
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_alloc(kmem_object, offset + i,
+		m = vm_page_alloc(kmem_object, OFF_TO_IDX(offset + i),
 			(waitflag == M_NOWAIT) ? VM_ALLOC_INTERRUPT : VM_ALLOC_SYSTEM);
 
 		/*
@@ -343,7 +345,8 @@ kmem_malloc(map, size, waitflag)
 		if (m == NULL) {
 			while (i != 0) {
 				i -= PAGE_SIZE;
-				m = vm_page_lookup(kmem_object, offset + i);
+				m = vm_page_lookup(kmem_object,
+					OFF_TO_IDX(offset + i));
 				vm_page_free(m);
 			}
 			vm_map_delete(map, addr, addr + size);
@@ -372,7 +375,7 @@ kmem_malloc(map, size, waitflag)
 	 * splimp...)
 	 */
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_lookup(kmem_object, offset + i);
+		m = vm_page_lookup(kmem_object, OFF_TO_IDX(offset + i));
 		pmap_kenter(addr + i, VM_PAGE_TO_PHYS(m));
 	}
 	vm_map_unlock(map);

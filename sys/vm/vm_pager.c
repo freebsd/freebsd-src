@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.18 1995/11/20 12:19:19 phk Exp $
+ * $Id: vm_pager.c,v 1.19 1995/12/07 12:48:26 davidg Exp $
  */
 
 /*
@@ -162,7 +162,7 @@ vm_pager_allocate(type, handle, size, prot, off)
 	void *handle;
 	vm_size_t size;
 	vm_prot_t prot;
-	vm_offset_t off;
+	vm_ooffset_t off;
 {
 	struct pagerops *ops;
 
@@ -204,7 +204,7 @@ vm_pager_put_pages(object, m, count, sync, rtvals)
 boolean_t
 vm_pager_has_page(object, offset, before, after)
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_pindex_t offset;
 	int *before;
 	int *after;
 {

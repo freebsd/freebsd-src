@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.27 1995/11/20 12:19:49 phk Exp $
+ * $Id: vm_map.c,v 1.28 1995/12/07 12:48:15 davidg Exp $
  */
 
 /*
@@ -329,7 +329,7 @@ vm_map_entry_create(map)
 			vm_page_t m;
 
 			m = vm_page_alloc(kmem_object,
-			        mapvm - vm_map_min(kmem_map),
+			        OFF_TO_IDX(mapvm - vm_map_min(kmem_map)),
 				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 			if (m) {
 				int newentries;
@@ -502,7 +502,7 @@ int
 vm_map_insert(map, object, offset, start, end)
 	vm_map_t map;
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_ooffset_t offset;
 	vm_offset_t start;
 	vm_offset_t end;
 {
@@ -553,9 +553,7 @@ vm_map_insert(map, object, offset, start, end)
 		    (prev_entry->wired_count == 0)) {
 
 			if (vm_object_coalesce(prev_entry->object.vm_object,
-				NULL,
-				prev_entry->offset,
-				(vm_offset_t) 0,
+				OFF_TO_IDX(prev_entry->offset),
 				(vm_size_t) (prev_entry->end
 				    - prev_entry->start),
 				(vm_size_t) (end - prev_entry->end))) {
@@ -765,7 +763,7 @@ int
 vm_map_find(map, object, offset, addr, length, find_space)
 	vm_map_t map;
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_ooffset_t offset;
 	vm_offset_t *addr;	/* IN/OUT */
 	vm_size_t length;
 	boolean_t find_space;
@@ -1322,13 +1320,13 @@ vm_map_pageable(map, start, end, new_pageable)
 
 						vm_object_shadow(&entry->object.vm_object,
 						    &entry->offset,
-						    (vm_size_t) (entry->end
+						    OFF_TO_IDX(entry->end
 							- entry->start));
 						entry->needs_copy = FALSE;
 					} else if (entry->object.vm_object == NULL) {
 						entry->object.vm_object =
-						    vm_object_allocate(OBJT_DEFAULT, (vm_size_t) (entry->end
-							- entry->start));
+						    vm_object_allocate(OBJT_DEFAULT,
+							OFF_TO_IDX(entry->end - entry->start));
 						entry->offset = (vm_offset_t) 0;
 					}
 				}
@@ -1443,7 +1441,7 @@ vm_map_clean(map, start, end, syncio, invalidate)
 	vm_map_entry_t entry;
 	vm_size_t size;
 	vm_object_t object;
-	vm_offset_t offset;
+	vm_ooffset_t offset;
 
 	vm_map_lock_read(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -1501,9 +1499,15 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     idea.
 			 */
 			if (current->protection & VM_PROT_WRITE)
-		   	    	vm_object_page_clean(object, offset, offset + size, syncio, TRUE);
+		   	    	vm_object_page_clean(object,
+					OFF_TO_IDX(offset),
+					OFF_TO_IDX(offset + size),
+					syncio, TRUE);
 			if (invalidate)
-				vm_object_page_remove(object, offset, offset + size, FALSE);
+				vm_object_page_remove(object,
+					OFF_TO_IDX(offset),
+					OFF_TO_IDX(offset + size),
+					FALSE);
 		}
 		start += size;
 	}
@@ -1627,12 +1631,12 @@ vm_map_delete(map, start, end)
 		 */
 
 		if (object == kernel_object || object == kmem_object)
-			vm_object_page_remove(object, entry->offset,
-			    entry->offset + (e - s), FALSE);
+			vm_object_page_remove(object, OFF_TO_IDX(entry->offset),
+			    OFF_TO_IDX(entry->offset + (e - s)), FALSE);
 		else if (!map->is_main_map)
 			vm_object_pmap_remove(object,
-			    entry->offset,
-			    entry->offset + (e - s));
+			    OFF_TO_IDX(entry->offset),
+			    OFF_TO_IDX(entry->offset + (e - s)));
 		else
 			pmap_remove(map->pmap, s, e);
 
@@ -1736,6 +1740,8 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 	vm_map_t src_map, dst_map;
 	register vm_map_entry_t src_entry, dst_entry;
 {
+	vm_pindex_t temp_pindex;
+
 	if (src_entry->is_sub_map || dst_entry->is_sub_map)
 		return;
 
@@ -1759,9 +1765,9 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 		pmap_remove(dst_map->pmap, dst_entry->start, dst_entry->end);
 	else
 		vm_object_pmap_remove(dst_entry->object.vm_object,
-		    dst_entry->offset,
-		    dst_entry->offset +
-		    (dst_entry->end - dst_entry->start));
+		    OFF_TO_IDX(dst_entry->offset),
+		    OFF_TO_IDX(dst_entry->offset +
+		    (dst_entry->end - dst_entry->start)));
 
 	if (src_entry->wired_count == 0) {
 
@@ -1789,21 +1795,21 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 				    src_entry->protection & ~VM_PROT_WRITE);
 			} else {
 				vm_object_pmap_copy(src_entry->object.vm_object,
-				    src_entry->offset,
-				    src_entry->offset + (src_entry->end
-					- src_entry->start));
+				    OFF_TO_IDX(src_entry->offset),
+				    OFF_TO_IDX(src_entry->offset + (src_entry->end
+					- src_entry->start)));
 			}
 		}
 		/*
 		 * Make a copy of the object.
 		 */
+		temp_pindex = OFF_TO_IDX(dst_entry->offset);
 		vm_object_copy(src_entry->object.vm_object,
-		    src_entry->offset,
-		    (vm_size_t) (src_entry->end -
-			src_entry->start),
+		    OFF_TO_IDX(src_entry->offset),
 		    &dst_entry->object.vm_object,
-		    &dst_entry->offset,
+		    &temp_pindex,
 		    &src_needs_copy);
+		dst_entry->offset = IDX_TO_OFF(temp_pindex);
 		/*
 		 * If we didn't get a copy-object now, mark the source map
 		 * entry so that a shadow will be created to hold its changed
@@ -1950,14 +1956,14 @@ vmspace_fork(vm1)
  */
 int
 vm_map_lookup(var_map, vaddr, fault_type, out_entry,
-    object, offset, out_prot, wired, single_use)
+    object, pindex, out_prot, wired, single_use)
 	vm_map_t *var_map;	/* IN/OUT */
 	register vm_offset_t vaddr;
 	register vm_prot_t fault_type;
 
 	vm_map_entry_t *out_entry;	/* OUT */
 	vm_object_t *object;	/* OUT */
-	vm_offset_t *offset;	/* OUT */
+	vm_pindex_t *pindex;	/* OUT */
 	vm_prot_t *out_prot;	/* OUT */
 	boolean_t *wired;	/* OUT */
 	boolean_t *single_use;	/* OUT */
@@ -2095,7 +2101,7 @@ RetryLookup:;
 			vm_object_shadow(
 			    &entry->object.vm_object,
 			    &entry->offset,
-			    (vm_size_t) (entry->end - entry->start));
+			    OFF_TO_IDX(entry->end - entry->start));
 
 			entry->needs_copy = FALSE;
 
@@ -2120,7 +2126,7 @@ RetryLookup:;
 			goto RetryLookup;
 		}
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
-		    (vm_size_t) (entry->end - entry->start));
+		    OFF_TO_IDX(entry->end - entry->start));
 		entry->offset = 0;
 		lock_write_to_read(&share_map->lock);
 	}
@@ -2129,7 +2135,7 @@ RetryLookup:;
 	 * copy-on-write or empty, it has been fixed up.
 	 */
 
-	*offset = (share_offset - entry->start) + entry->offset;
+	*pindex = OFF_TO_IDX((share_offset - entry->start) + entry->offset);
 	*object = entry->object.vm_object;
 
 	/*

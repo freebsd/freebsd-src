@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.30 1995/12/03 12:18:35 bde Exp $
+ * $Id: vm_mmap.c,v 1.31 1995/12/07 12:48:19 davidg Exp $
  */
 
 /*
@@ -244,7 +244,7 @@ mmap(p, uap, retval)
 		}
 	}
 	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
-	    flags, handle, (vm_offset_t) uap->pos);
+	    flags, handle, uap->pos);
 	if (error == 0)
 		*retval = (int) addr;
 	return (error);
@@ -605,7 +605,7 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	vm_prot_t prot, maxprot;
 	register int flags;
 	caddr_t handle;		/* XXX should be vp */
-	vm_offset_t foff;
+	vm_ooffset_t foff;
 {
 	boolean_t fitit;
 	vm_object_t object;
@@ -708,7 +708,8 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 	 * "Pre-fault" resident pages.
 	 */
 	if ((type == OBJT_VNODE) && (map->pmap != NULL)) {
-		pmap_object_init_pt(map->pmap, *addr, object, foff, size);
+		pmap_object_init_pt(map->pmap, *addr,
+			object, (vm_pindex_t) OFF_TO_IDX(foff), size);
 	}
 
 	/*

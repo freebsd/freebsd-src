@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
- * $Id: specdev.h,v 1.5 1995/11/09 08:16:12 bde Exp $
+ * $Id: specdev.h,v 1.6 1995/11/21 12:54:02 bde Exp $
  */
 
 /*
@@ -89,7 +89,10 @@ int	spec_lookup __P((struct vop_lookup_args *));
 int	spec_open __P((struct vop_open_args *));
 int	spec_close __P((struct vop_close_args *));
 #define spec_access ((int (*) __P((struct  vop_access_args *)))spec_ebadf)
+/*
 #define spec_getattr ((int (*) __P((struct  vop_getattr_args *)))spec_ebadf)
+*/
+int	spec_getattr __P((struct  vop_getattr_args *));
 #define spec_setattr ((int (*) __P((struct  vop_setattr_args *)))spec_ebadf)
 int	spec_read __P((struct vop_read_args *));
 int	spec_write __P((struct vop_write_args *));

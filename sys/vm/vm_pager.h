@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.9 1995/07/29 11:44:30 bde Exp $
+ * $Id: vm_pager.h,v 1.10 1995/11/20 12:19:16 phk Exp $
  */
 
 /*
@@ -50,11 +50,11 @@ TAILQ_HEAD(pagerlst, vm_object);
 
 struct pagerops {
 	void (*pgo_init) __P((void));		/* Initialize pager. */
-	vm_object_t (*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_offset_t));	/* Allocate pager. */
+	vm_object_t (*pgo_alloc) __P((void *, vm_size_t, vm_prot_t, vm_ooffset_t));	/* Allocate pager. */
 	void (*pgo_dealloc) __P((vm_object_t));	/* Disassociate. */
 	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
 	int (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, boolean_t, int *)); /* Put (write) page. */
-	boolean_t (*pgo_haspage) __P((vm_object_t, vm_offset_t, int *, int *)); /* Does pager have page? */
+	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
 	void (*pgo_sync) __P((void));
 };
 
@@ -78,11 +78,11 @@ struct pagerops {
 extern vm_map_t pager_map;
 extern int pager_map_size;
 
-vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_size_t, vm_prot_t, vm_offset_t));
+vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_size_t, vm_prot_t, vm_ooffset_t));
 void vm_pager_bufferinit __P((void));
 void vm_pager_deallocate __P((vm_object_t));
 int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
-boolean_t vm_pager_has_page __P((vm_object_t, vm_offset_t, int *, int *));
+boolean_t vm_pager_has_page __P((vm_object_t, vm_pindex_t, int *, int *));
 void vm_pager_init __P((void));
 vm_object_t vm_pager_object_lookup __P((struct pagerlst *, void *));
 vm_offset_t vm_pager_map_pages __P((vm_page_t *, int, boolean_t));

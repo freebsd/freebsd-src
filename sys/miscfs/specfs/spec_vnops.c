@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.21 1995/12/07 12:47:17 davidg Exp $
+ * $Id: spec_vnops.c,v 1.22 1995/12/08 11:17:52 julian Exp $
  */
 
 #include <sys/param.h>
@@ -365,7 +365,8 @@ spec_write(ap)
 			}
 			error = uiomove((char *)bp->b_data + on, n, uio);
 			if (n + on == bsize) {
-				bawrite(bp);
+				/* bawrite(bp); */
+				cluster_write(bp, 0);
 			} else
 				bdwrite(bp);
 		} while (error == 0 && uio->uio_resid > 0 && n != 0);
@@ -750,7 +751,7 @@ spec_getpages(ap)
 	/*
 	 * Calculate the size of the transfer.
 	 */
-	blkno = (ap->a_m[0]->offset + ap->a_offset) / DEV_BSIZE;
+	blkno = (IDX_TO_OFF(ap->a_m[0]->pindex) + ap->a_offset) / DEV_BSIZE;
 
 	/*
 	 * Round up physical size for real devices.
@@ -839,3 +840,33 @@ spec_getpages(ap)
 		printf("spec_getpages: I/O read error\n");
 	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
 }
+
+/* ARGSUSED */
+int
+spec_getattr(ap)
+	struct vop_getattr_args /* {
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	register struct vnode *vp = ap->a_vp;
+	register struct vattr *vap = ap->a_vap;
+	struct partinfo dpart;
+
+	bzero(vap, sizeof (*vap));
+
+	if (vp->v_type == VBLK)
+		vap->va_blocksize = BLKDEV_IOSIZE;
+	else if (vp->v_type == VCHR)
+		vap->va_blocksize = MAXBSIZE;
+
+	if ((*bdevsw[major(vp->v_rdev)].d_ioctl)(vp->v_rdev, DIOCGPART,
+	    (caddr_t)&dpart, FREAD, ap->a_p) == 0) {
+		vap->va_bytes = (u_quad_t) dpart.disklab->d_partitions[minor(vp->v_rdev)].p_size * DEV_BSIZE;
+		vap->va_size = vap->va_bytes;
+	}
+	return (0);
+}
+
