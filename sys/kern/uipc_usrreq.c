@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/domain.h>
 #include <sys/fcntl.h>
@@ -731,6 +733,10 @@ unp_connect(so, nam, td)
 		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
 		    sizeof(unp->unp_peercred));
 		unp->unp_flags |= UNP_HAVEPC;
+#ifdef MAC
+		mac_set_socket_peer_from_socket(so, so3);
+		mac_set_socket_peer_from_socket(so3, so);
+#endif
 
 		so2 = so3;
 	}

@@ -35,6 +35,7 @@
  */
 
 #include "opt_inet.h"
+#include "opt_mac.h"
 #include "opt_zero.h"
 
 #include <sys/param.h>
@@ -42,6 +43,7 @@
 #include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/domain.h>
@@ -143,6 +145,9 @@ soalloc(waitok)
 		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
 		++numopensockets;
+#ifdef MAC
+		mac_init_socket(so);
+#endif
 	}
 	return so;
 }
@@ -190,6 +195,9 @@ socreate(dom, aso, type, proto, cred, td)
 	so->so_type = type;
 	so->so_cred = crhold(cred);
 	so->so_proto = prp;
+#ifdef MAC
+	mac_create_socket(td->td_ucred, so);
+#endif
 	soref(so);
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
@@ -237,6 +245,9 @@ sodealloc(struct socket *so)
 			FREE(so->so_accf->so_accept_filter_str, M_ACCF);
 		FREE(so->so_accf, M_ACCF);
 	}
+#endif
+#ifdef MAC
+	mac_destroy_socket(so);
 #endif
 	crfree(so->so_cred);
 	/* sx_destroy(&so->so_sxlock); */
