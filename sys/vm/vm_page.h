@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.63 1999/07/22 06:04:17 alc Exp $
+ * $Id: vm_page.h,v 1.64 1999/07/31 18:31:00 alc Exp $
  */
 
 /*
@@ -179,10 +179,16 @@ struct vm_page {
 #define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
 #endif
 
-#if defined(PQ_MEDIUMCACHE) || !defined(PQ_L2_SIZE)
+#if defined(PQ_MEDIUMCACHE)
 #define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
+#endif
+
+#if !defined(PQ_L2_SIZE)
+#define PQ_PRIME1 9	/* Produces a good PQ_L2_SIZE/3 + PQ_PRIME1 */
+#define PQ_PRIME2 5	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 32	/* 512KB or smaller, 4-way set-associative cache */
 #endif
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
