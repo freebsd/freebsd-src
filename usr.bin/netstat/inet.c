@@ -142,8 +142,14 @@ protopr(off, name)
 		if (istcp) {
 			if (tcpcb.t_state < 0 || tcpcb.t_state >= TCP_NSTATES)
 				printf(" %d", tcpcb.t_state);
-			else
+                      else {
 				printf(" %s", tcpstates[tcpcb.t_state]);
+#if defined(TF_NEEDSYN) && defined(TF_NEEDSYN)
+                              /* Show T/TCP `hidden state' */
+                              if (tcpcb.t_flags & (TF_NEEDSYN|TF_NEEDFIN))
+                                      putchar('*');
+#endif /* defined(TF_NEEDSYN) && defined(TF_NEEDSYN) */
+                      }
 		}
 		putchar('\n');
 		prev = next;
