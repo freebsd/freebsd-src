@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.19 1996/01/05 18:31:48 wollman Exp $
+ * $Id: ffs_inode.c,v 1.20 1996/01/19 03:59:12 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -115,15 +115,15 @@ ffs_update(ap)
 	 */
 	tv_sec = time.tv_sec;
 	if (ip->i_flag & IN_ACCESS)
-		ip->i_atime.ts_sec =
+		ip->i_atime.tv_sec =
 		    (ap->a_access == &time ? tv_sec : ap->a_access->tv_sec);
 	if (ip->i_flag & IN_UPDATE) {
-		ip->i_mtime.ts_sec =
+		ip->i_mtime.tv_sec =
 		    (ap->a_modify == &time ? tv_sec : ap->a_modify->tv_sec);
 		ip->i_modrev++;
 	}
 	if (ip->i_flag & IN_CHANGE)
-		ip->i_ctime.ts_sec = tv_sec;
+		ip->i_ctime.tv_sec = tv_sec;
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE);
 	fs = ip->i_fs;
 	/*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.7 1995/11/05 23:35:56 dyson Exp $
+ * $Id: inode.h,v 1.8 1996/01/30 23:02:15 mpp Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -155,15 +155,15 @@ struct indir {
 	if ((ip)->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) {	\
 		(ip)->i_flag |= IN_MODIFIED;				\
 		if ((ip)->i_flag & IN_ACCESS)				\
-			(ip)->i_atime.ts_sec				\
+			(ip)->i_atime.tv_sec				\
 			= ((t1) == &time ? tv_sec : (t1)->tv_sec);	\
 		if ((ip)->i_flag & IN_UPDATE) {				\
-			(ip)->i_mtime.ts_sec				\
+			(ip)->i_mtime.tv_sec				\
 			= ((t2) == &time ? tv_sec : (t2)->tv_sec);	\
 			(ip)->i_modrev++;				\
 		}							\
 		if ((ip)->i_flag & IN_CHANGE)				\
-			(ip)->i_ctime.ts_sec = tv_sec;			\
+			(ip)->i_ctime.tv_sec = tv_sec;			\
 		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
 	}								\
 }

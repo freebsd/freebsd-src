@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.33 1996/01/25 00:45:37 bde Exp $
+ * $Id: nfs_vnops.c,v 1.34 1996/07/16 10:19:45 dfr Exp $
  */
 
 /*
@@ -483,18 +483,18 @@ nfs_open(ap)
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
 			if (error)
 				return (error);
-			np->n_mtime = vattr.va_mtime.ts_sec;
+			np->n_mtime = vattr.va_mtime.tv_sec;
 		} else {
 			error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_p);
 			if (error)
 				return (error);
-			if (np->n_mtime != vattr.va_mtime.ts_sec) {
+			if (np->n_mtime != vattr.va_mtime.tv_sec) {
 				if (vp->v_type == VDIR)
 					np->n_direofoffset = 0;
 				if ((error = nfs_vinvalbuf(vp, V_SAVE,
 					ap->a_cred, ap->a_p, 1)) == EINTR)
 					return (error);
-				np->n_mtime = vattr.va_mtime.ts_sec;
+				np->n_mtime = vattr.va_mtime.tv_sec;
 			}
 		}
 	}
@@ -634,8 +634,8 @@ nfs_setattr(ap)
 	 * Disallow write attempts if the filesystem is mounted read-only.
 	 */
 	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
-	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
-	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
+	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
 	    (vp->v_mount->mnt_flag & MNT_RDONLY))
 		return (EROFS);
 	if (vap->va_size != VNOVAL) {
@@ -644,8 +644,8 @@ nfs_setattr(ap)
  			return (EISDIR);
  		case VCHR:
  		case VBLK:
-			if (vap->va_mtime.ts_sec == VNOVAL &&
-			    vap->va_atime.ts_sec == VNOVAL &&
+			if (vap->va_mtime.tv_sec == VNOVAL &&
+			    vap->va_atime.tv_sec == VNOVAL &&
 			    vap->va_mode == (u_short)VNOVAL &&
 			    vap->va_uid == (uid_t)VNOVAL &&
 			    vap->va_gid == (gid_t)VNOVAL)
@@ -671,8 +671,8 @@ nfs_setattr(ap)
  			np->n_size = np->n_vattr.va_size = vap->va_size;
  			vnode_pager_setsize(vp, (u_long)np->n_size);
   		};
-  	} else if ((vap->va_mtime.ts_sec != VNOVAL ||
-		vap->va_atime.ts_sec != VNOVAL) &&
+  	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
+		vap->va_atime.tv_sec != VNOVAL) &&
 		vp->v_type == VREG &&
   		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 		 ap->a_p, 1)) == EINTR)
@@ -740,8 +740,8 @@ nfs_setattrrpc(vp, vap, cred, procp)
 			nfsm_build(tl, u_long *, NFSX_UNSIGNED);
 			*tl = nfs_false;
 		}
-		if (vap->va_atime.ts_sec != VNOVAL) {
-			if (vap->va_atime.ts_sec != time.tv_sec) {
+		if (vap->va_atime.tv_sec != VNOVAL) {
+			if (vap->va_atime.tv_sec != time.tv_sec) {
 				nfsm_build(tl, u_long *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_atime, tl);
@@ -753,8 +753,8 @@ nfs_setattrrpc(vp, vap, cred, procp)
 			nfsm_build(tl, u_long *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV3SATTRTIME_DONTCHANGE);
 		}
-		if (vap->va_mtime.ts_sec != VNOVAL) {
-			if (vap->va_mtime.ts_sec != time.tv_sec) {
+		if (vap->va_mtime.tv_sec != VNOVAL) {
+			if (vap->va_mtime.tv_sec != time.tv_sec) {
 				nfsm_build(tl, u_long *, 3 * NFSX_UNSIGNED);
 				*tl++ = txdr_unsigned(NFSV3SATTRTIME_TOCLIENT);
 				txdr_nfsv3time(&vap->va_mtime, tl);
@@ -862,7 +862,7 @@ nfs_lookup(ap)
 		if (!error) {
 			if (vpid == newvp->v_id) {
 			   if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, cnp->cn_proc)
-			    && vattr.va_ctime.ts_sec == VTONFS(newvp)->n_ctime) {
+			    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
 				nfsstats.lookupcache_hits++;
 				if (cnp->cn_nameiop != LOOKUP &&
 				    (flags & ISLASTCN))
@@ -957,7 +957,7 @@ nfs_lookup(ap)
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
 	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN))) {
-		np->n_ctime = np->n_vattr.va_ctime.ts_sec;
+		np->n_ctime = np->n_vattr.va_ctime.tv_sec;
 		cache_enter(dvp, newvp, cnp);
 	}
 	*vpp = newvp;
@@ -1205,7 +1205,7 @@ nfs_writerpc(vp, uiop, cred, iomode, must_commit)
 		} else
 		    nfsm_loadattr(vp, (struct vattr *)0);
 		if (wccflag)
-		    VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime.ts_sec;
+		    VTONFS(vp)->n_mtime = VTONFS(vp)->n_vattr.va_mtime.tv_sec;
 		m_freem(mrep);
 		tsiz -= len;
 	}
@@ -2012,7 +2012,7 @@ nfs_readdir(ap)
 				return (0);
 			}
 		} else if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_procp) == 0 &&
-			np->n_mtime == vattr.va_mtime.ts_sec) {
+			np->n_mtime == vattr.va_mtime.tv_sec) {
 			nfsstats.direofcache_hits++;
 			return (0);
 		}
@@ -3243,8 +3243,8 @@ nfsspec_read(ap)
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	np->n_atim.ts_sec = time.tv_sec;
-	np->n_atim.ts_nsec = time.tv_usec * 1000;
+	np->n_atim.tv_sec = time.tv_sec;
+	np->n_atim.tv_nsec = time.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3266,8 +3266,8 @@ nfsspec_write(ap)
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	np->n_mtim.ts_sec = time.tv_sec;
-	np->n_mtim.ts_nsec = time.tv_usec * 1000;
+	np->n_mtim.tv_sec = time.tv_sec;
+	np->n_mtim.tv_nsec = time.tv_usec * 1000;
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3322,8 +3322,8 @@ nfsfifo_read(ap)
 	 * Set access flag.
 	 */
 	np->n_flag |= NACC;
-	np->n_atim.ts_sec = time.tv_sec;
-	np->n_atim.ts_nsec = time.tv_usec * 1000;
+	np->n_atim.tv_sec = time.tv_sec;
+	np->n_atim.tv_nsec = time.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap));
 }
 
@@ -3345,8 +3345,8 @@ nfsfifo_write(ap)
 	 * Set update flag.
 	 */
 	np->n_flag |= NUPD;
-	np->n_mtim.ts_sec = time.tv_sec;
-	np->n_mtim.ts_nsec = time.tv_usec * 1000;
+	np->n_mtim.tv_sec = time.tv_sec;
+	np->n_mtim.tv_nsec = time.tv_usec * 1000;
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap));
 }
 
@@ -3370,12 +3370,12 @@ nfsfifo_close(ap)
 
 	if (np->n_flag & (NACC | NUPD)) {
 		if (np->n_flag & NACC) {
-			np->n_atim.ts_sec = time.tv_sec;
-			np->n_atim.ts_nsec = time.tv_usec * 1000;
+			np->n_atim.tv_sec = time.tv_sec;
+			np->n_atim.tv_nsec = time.tv_usec * 1000;
 		}
 		if (np->n_flag & NUPD) {
-			np->n_mtim.ts_sec = time.tv_sec;
-			np->n_mtim.ts_nsec = time.tv_usec * 1000;
+			np->n_mtim.tv_sec = time.tv_sec;
+			np->n_mtim.tv_nsec = time.tv_usec * 1000;
 		}
 		np->n_flag |= NCHG;
 		if (vp->v_usecount == 1 &&
