@@ -644,7 +644,7 @@ swi_net(void *dummy)
 	}
 #ifdef DEVICE_POLLING
 	if (pollmore)
-		ether_pollmore();
+		netisr_pollmore();
     }
 #endif
 }

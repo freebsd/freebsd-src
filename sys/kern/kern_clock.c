@@ -70,9 +70,7 @@
 #endif
 
 #ifdef DEVICE_POLLING
-#include <net/netisr.h>		/* for NETISR_POLL */
- 
-extern void ether_poll1(void);
+extern void init_device_poll(void);
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
@@ -147,7 +145,7 @@ initclocks(dummy)
 	cpu_initclocks();
 
 #ifdef DEVICE_POLLING
-	register_netisr(NETISR_POLL, ether_poll1);
+	init_device_poll();
 #endif
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
@@ -222,7 +220,7 @@ hardclock(frame)
 
 	tc_windup();
 #ifdef DEVICE_POLLING
-	hardclock_device_poll();
+	hardclock_device_poll();	/* this is very short and quick */
 #endif /* DEVICE_POLLING */
 
 	/*
