@@ -31,13 +31,8 @@
 #include <paths.h>
 #include <string.h>
 
-#if 0
-#include <sys/mlxio.h>
-#include <sys/mlxreg.h>
-#else
-#include "../sys/dev/mlx/mlxio.h"
-#include "../sys/dev/mlx/mlxreg.h"
-#endif
+#include <dev/mlx/mlxio.h>
+#include <dev/mlx/mlxreg.h>
 
 #include "mlxcontrol.h"
 
