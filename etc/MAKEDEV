@@ -77,7 +77,11 @@
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
 #
+# PC-CARD (previously called PCMCIA) support
+#	card*	PC-CARD slots
+#
 # Special purpose devices:
+#	apm	Advanced Power Management BIOS
 #	bpf*	packet filter
 #	speaker	pc speaker
 #	tw*	xten power controller
@@ -94,7 +98,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.112 1996/01/31 15:02:51 mpp Exp $
+#	$Id: MAKEDEV,v 1.113 1996/02/02 19:25:15 pst Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -952,10 +956,20 @@ gsc*)
 	;;
 
 apm*)
-	rm -f apm0
-	mknod apm0 c 39 0
-	chown root.operator apm0
-	chmod 660 apm0
+	rm -f apm
+	chr=39
+	mknod apm c $chr 0
+	chown root.operator apm
+	chmod 660 apm
+	;;
+
+card*)
+	unit=`expr $i : 'card\(.*\)'
+	chr=50
+	rm -f card$unit
+	mknod card$unit c $chr $unit
+	chmod 644 card$unit
+	chown root.wheel card$unit
 	;;
 
 ttyx?|ttyy?|ttyz?)
