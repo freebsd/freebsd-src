@@ -139,11 +139,28 @@ static int RSA_eay_public_encrypt(int flen, unsigned char *from,
 	
 	if ((rsa->_method_mod_n == NULL) && (rsa->flags & RSA_FLAG_CACHE_PUBLIC))
 		{
-		if ((rsa->_method_mod_n=BN_MONT_CTX_new()) != NULL)
-			if (!BN_MONT_CTX_set(rsa->_method_mod_n,rsa->n,ctx))
-			    goto err;
+		BN_MONT_CTX* bn_mont_ctx;
+		if ((bn_mont_ctx=BN_MONT_CTX_new()) == NULL)
+			goto err;
+		if (!BN_MONT_CTX_set(bn_mont_ctx,rsa->n,ctx))
+			{
+			BN_MONT_CTX_free(bn_mont_ctx);
+			goto err;
+			}
+		if (rsa->_method_mod_n == NULL) /* other thread may have finished first */
+			{
+			CRYPTO_w_lock(CRYPTO_LOCK_RSA);
+			if (rsa->_method_mod_n == NULL)
+				{
+				rsa->_method_mod_n = bn_mont_ctx;
+				bn_mont_ctx = NULL;
+				}
+			CRYPTO_w_unlock(CRYPTO_LOCK_RSA);
+			}
+		if (bn_mont_ctx)
+			BN_MONT_CTX_free(bn_mont_ctx);
 		}
-
+		
 	if (!rsa->meth->bn_mod_exp(&ret,&f,rsa->e,rsa->n,ctx,
 		rsa->_method_mod_n)) goto err;
 
@@ -370,11 +387,28 @@ static int RSA_eay_public_decrypt(int flen, unsigned char *from,
 	/* do the decrypt */
 	if ((rsa->_method_mod_n == NULL) && (rsa->flags & RSA_FLAG_CACHE_PUBLIC))
 		{
-		if ((rsa->_method_mod_n=BN_MONT_CTX_new()) != NULL)
-			if (!BN_MONT_CTX_set(rsa->_method_mod_n,rsa->n,ctx))
-			    goto err;
+		BN_MONT_CTX* bn_mont_ctx;
+		if ((bn_mont_ctx=BN_MONT_CTX_new()) == NULL)
+			goto err;
+		if (!BN_MONT_CTX_set(bn_mont_ctx,rsa->n,ctx))
+			{
+			BN_MONT_CTX_free(bn_mont_ctx);
+			goto err;
+			}
+		if (rsa->_method_mod_n == NULL) /* other thread may have finished first */
+			{
+			CRYPTO_w_lock(CRYPTO_LOCK_RSA);
+			if (rsa->_method_mod_n == NULL)
+				{
+				rsa->_method_mod_n = bn_mont_ctx;
+				bn_mont_ctx = NULL;
+				}
+			CRYPTO_w_unlock(CRYPTO_LOCK_RSA);
+			}
+		if (bn_mont_ctx)
+			BN_MONT_CTX_free(bn_mont_ctx);
 		}
-
+		
 	if (!rsa->meth->bn_mod_exp(&ret,&f,rsa->e,rsa->n,ctx,
 		rsa->_method_mod_n)) goto err;
 
@@ -410,32 +444,66 @@ err:
 
 static int RSA_eay_mod_exp(BIGNUM *r0, BIGNUM *I, RSA *rsa)
 	{
-	BIGNUM r1,m1;
+	BIGNUM r1,m1,vrfy;
 	int ret=0;
 	BN_CTX *ctx;
 
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 	BN_init(&m1);
 	BN_init(&r1);
+	BN_init(&vrfy);
 
 	if (rsa->flags & RSA_FLAG_CACHE_PRIVATE)
 		{
 		if (rsa->_method_mod_p == NULL)
 			{
-			if ((rsa->_method_mod_p=BN_MONT_CTX_new()) != NULL)
-				if (!BN_MONT_CTX_set(rsa->_method_mod_p,rsa->p,
-						     ctx))
-					goto err;
+			BN_MONT_CTX* bn_mont_ctx;
+			if ((bn_mont_ctx=BN_MONT_CTX_new()) == NULL)
+				goto err;
+			if (!BN_MONT_CTX_set(bn_mont_ctx,rsa->p,ctx))
+				{
+				BN_MONT_CTX_free(bn_mont_ctx);
+				goto err;
+				}
+			if (rsa->_method_mod_p == NULL) /* other thread may have finished first */
+				{
+				CRYPTO_w_lock(CRYPTO_LOCK_RSA);
+				if (rsa->_method_mod_p == NULL)
+					{
+					rsa->_method_mod_p = bn_mont_ctx;
+					bn_mont_ctx = NULL;
+					}
+				CRYPTO_w_unlock(CRYPTO_LOCK_RSA);
+				}
+			if (bn_mont_ctx)
+				BN_MONT_CTX_free(bn_mont_ctx);
 			}
+
 		if (rsa->_method_mod_q == NULL)
 			{
-			if ((rsa->_method_mod_q=BN_MONT_CTX_new()) != NULL)
-				if (!BN_MONT_CTX_set(rsa->_method_mod_q,rsa->q,
-						     ctx))
-					goto err;
+			BN_MONT_CTX* bn_mont_ctx;
+			if ((bn_mont_ctx=BN_MONT_CTX_new()) == NULL)
+				goto err;
+			if (!BN_MONT_CTX_set(bn_mont_ctx,rsa->q,ctx))
+				{
+				BN_MONT_CTX_free(bn_mont_ctx);
+				goto err;
+				}
+			if (rsa->_method_mod_q == NULL) /* other thread may have finished first */
+				{
+				CRYPTO_w_lock(CRYPTO_LOCK_RSA);
+				if (rsa->_method_mod_q == NULL)
+					{
+					rsa->_method_mod_q = bn_mont_ctx;
+					bn_mont_ctx = NULL;
+					}
+				CRYPTO_w_unlock(CRYPTO_LOCK_RSA);
+				}
+			if (bn_mont_ctx)
+				BN_MONT_CTX_free(bn_mont_ctx);
 			}
 		}
-
+		
 	if (!BN_mod(&r1,I,rsa->q,ctx)) goto err;
 	if (!rsa->meth->bn_mod_exp(&m1,&r1,rsa->dmq1,rsa->q,ctx,
 		rsa->_method_mod_q)) goto err;
@@ -464,10 +532,19 @@ static int RSA_eay_mod_exp(BIGNUM *r0, BIGNUM *I, RSA *rsa)
 	if (!BN_mul(&r1,r0,rsa->q,ctx)) goto err;
 	if (!BN_add(r0,&r1,&m1)) goto err;
 
+	if (rsa->e && rsa->n)
+		{
+		if (!rsa->meth->bn_mod_exp(&vrfy,r0,rsa->e,rsa->n,ctx,NULL)) goto err;
+		if (BN_cmp(I, &vrfy) != 0)
+			{
+			if (!rsa->meth->bn_mod_exp(r0,I,rsa->d,rsa->n,ctx,NULL)) goto err;
+			}
+		}
 	ret=1;
 err:
 	BN_clear_free(&m1);
 	BN_clear_free(&r1);
+	BN_clear_free(&vrfy);
 	BN_CTX_free(ctx);
 	return(ret);
 	}

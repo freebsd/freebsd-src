@@ -10,7 +10,6 @@ PROG=	openssl
 MAINTAINER=	kris
 
 LDADD=	-lssl -lcrypto
-MAN1=	openssl.1
 MLINKS=	openssl.1 ssl.8
 
 CFLAGS+= -DMONOLITH -I${.CURDIR}

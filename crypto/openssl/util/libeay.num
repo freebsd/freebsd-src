@@ -301,8 +301,8 @@ EVP_des_ede_cfb                         308	EXIST::FUNCTION:DES
 EVP_des_ede_ofb                         309	EXIST::FUNCTION:DES
 EVP_des_ofb                             310	EXIST::FUNCTION:DES
 EVP_desx_cbc                            311	EXIST::FUNCTION:DES
-EVP_dss                                 312	EXIST::FUNCTION:DSA
-EVP_dss1                                313	EXIST::FUNCTION:DSA
+EVP_dss                                 312	EXIST::FUNCTION:DSA,SHA
+EVP_dss1                                313	EXIST::FUNCTION:DSA,SHA
 EVP_enc_null                            314	EXIST::FUNCTION:
 EVP_get_cipherbyname                    315	EXIST::FUNCTION:
 EVP_get_digestbyname                    316	EXIST::FUNCTION:
@@ -779,7 +779,7 @@ des_ede3_cfb64_encrypt                  786	EXIST::FUNCTION:DES
 des_ede3_ofb64_encrypt                  787	EXIST::FUNCTION:DES
 des_enc_read                            788	EXIST::FUNCTION:DES
 des_enc_write                           789	EXIST::FUNCTION:DES
-des_encrypt                             790	EXIST::FUNCTION:DES
+des_encrypt1                            790	EXIST::FUNCTION:DES
 des_encrypt2                            791	EXIST::FUNCTION:DES
 des_encrypt3                            792	EXIST::FUNCTION:DES
 des_fcrypt                              793	EXIST::FUNCTION:DES
@@ -926,7 +926,7 @@ PKCS7_add_signature                     938	EXIST::FUNCTION:
 PKCS7_cert_from_signer_info             939	EXIST::FUNCTION:
 PKCS7_get_signer_info                   940	EXIST::FUNCTION:
 EVP_delete_alias                        941	NOEXIST::FUNCTION:
-EVP_mdc2                                942	EXIST::FUNCTION:
+EVP_mdc2                                942	EXIST::FUNCTION:MDC2
 PEM_read_bio_RSAPublicKey               943	EXIST::FUNCTION:RSA
 PEM_write_bio_RSAPublicKey              944	EXIST::FUNCTION:RSA
 d2i_RSAPublicKey_bio                    945	EXIST::FUNCTION:RSA
@@ -1870,3 +1870,6 @@ X509_keyid_set1                         2460	EXIST::FUNCTION:
 BIO_next                                2461	EXIST::FUNCTION:
 DSO_METHOD_vms                          2462	EXIST::FUNCTION:
 BIO_f_linebuffer                        2463	EXIST:VMS:FUNCTION:
+BN_bntest_rand                          2464	EXIST::FUNCTION:
+OPENSSL_issetugid                       2465	EXIST::FUNCTION:
+BN_rand_range                           2466	EXIST::FUNCTION:

@@ -36,7 +36,7 @@ MAINTAINER=	kris
 
 # base sources
 SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_dbg.c \
-	tmdiff.c
+	tmdiff.c uid.c
 
 # asn1
 
@@ -234,15 +234,16 @@ SRCS+=	v3_akey.c v3_alt.c v3_bcons.c v3_bitst.c v3_conf.c v3_cpols.c \
 	v3_int.c v3_lib.c v3_pku.c v3_prn.c v3_purp.c v3_skey.c \
 	v3_sxnet.c v3_utl.c v3err.c
 
-POD1+=	apps/CA.pl.pod apps/asn1parse.pod apps/ca.pod apps/ciphers.pod \
-	apps/config.pod apps/crl.pod apps/crl2pkcs7.pod apps/dgst.pod \
-	apps/dhparam.pod apps/dsa.pod apps/dsaparam.pod apps/enc.pod \
-	apps/gendsa.pod apps/genrsa.pod apps/nseq.pod apps/openssl.pod \
-	apps/passwd.pod apps/pkcs12.pod apps/pkcs7.pod apps/pkcs8.pod \
-	apps/rand.pod apps/req.pod apps/rsa.pod apps/rsautl.pod \
-	apps/s_client.pod apps/s_server.pod apps/sess_id.pod \
-	apps/smime.pod apps/speed.pod apps/spkac.pod apps/verify.pod \
-	apps/version.pod apps/x509.pod
+POD1+=	apps/CA.pl.pod apps/asn1parse.pod apps/ca.pod \
+	apps/ciphers.pod apps/config.pod apps/crl.pod \
+	apps/crl2pkcs7.pod apps/dgst.pod apps/dhparam.pod apps/dsa.pod \
+	apps/dsaparam.pod apps/enc.pod apps/gendsa.pod apps/genrsa.pod \
+	apps/nseq.pod apps/openssl.pod apps/passwd.pod apps/pkcs12.pod \
+	apps/pkcs7.pod apps/pkcs8.pod apps/rand.pod apps/req.pod \
+	apps/rsa.pod apps/rsautl.pod apps/s_client.pod \
+	apps/s_server.pod apps/sess_id.pod apps/smime.pod \
+	apps/speed.pod apps/spkac.pod apps/verify.pod apps/version.pod \
+	apps/x509.pod
 
 POD3+=	crypto/BIO_ctrl.pod crypto/BIO_f_base64.pod \
 	crypto/BIO_f_buffer.pod crypto/BIO_f_cipher.pod \
@@ -300,27 +301,47 @@ POD3+=	crypto/BIO_ctrl.pod crypto/BIO_f_base64.pod \
 	crypto/ripemd.pod crypto/rsa.pod crypto/sha.pod \
 	crypto/threads.pod
 
-POD3+=	ssl/SSL_CIPHER_get_name.pod ssl/SSL_CTX_free.pod \
-	ssl/SSL_CTX_new.pod ssl/SSL_CTX_set_cipher_list.pod \
-	ssl/SSL_CTX_set_ssl_version.pod ssl/SSL_SESSION_free.pod \
-	ssl/SSL_accept.pod ssl/SSL_clear.pod ssl/SSL_connect.pod \
-	ssl/SSL_free.pod ssl/SSL_get_ciphers.pod \
+POD3+=	ssl/SSL_CIPHER_get_name.pod \
+	ssl/SSL_CTX_add_extra_chain_cert.pod \
+	ssl/SSL_CTX_add_session.pod ssl/SSL_CTX_flush_sessions.pod \
+	ssl/SSL_CTX_free.pod ssl/SSL_CTX_get_ex_new_index.pod \
+	ssl/SSL_CTX_get_verify_mode.pod \
+	ssl/SSL_CTX_load_verify_locations.pod ssl/SSL_CTX_new.pod \
+	ssl/SSL_CTX_sess_set_cache_size.pod \
+	ssl/SSL_CTX_sess_set_get_cb.pod ssl/SSL_CTX_sessions.pod \
+	ssl/SSL_CTX_set_cipher_list.pod \
+	ssl/SSL_CTX_set_client_CA_list.pod \
+	ssl/SSL_CTX_set_default_passwd_cb.pod \
+	ssl/SSL_CTX_set_options.pod \
+	ssl/SSL_CTX_set_session_cache_mode.pod \
+	ssl/SSL_CTX_set_session_id_context.pod \
+	ssl/SSL_CTX_set_ssl_version.pod ssl/SSL_CTX_set_timeout.pod \
+	ssl/SSL_CTX_set_verify.pod ssl/SSL_CTX_use_certificate.pod \
+	ssl/SSL_SESSION_free.pod ssl/SSL_SESSION_get_ex_new_index.pod \
+	ssl/SSL_SESSION_get_time.pod ssl/SSL_accept.pod \
+	ssl/SSL_clear.pod ssl/SSL_connect.pod ssl/SSL_free.pod \
+	ssl/SSL_get_ciphers.pod ssl/SSL_get_client_CA_list.pod \
 	ssl/SSL_get_current_cipher.pod ssl/SSL_get_error.pod \
-	ssl/SSL_get_fd.pod ssl/SSL_get_peer_cert_chain.pod \
+	ssl/SSL_get_ex_data_X509_STORE_CTX_idx.pod \
+	ssl/SSL_get_ex_new_index.pod ssl/SSL_get_fd.pod \
+	ssl/SSL_get_peer_cert_chain.pod \
 	ssl/SSL_get_peer_certificate.pod ssl/SSL_get_rbio.pod \
 	ssl/SSL_get_session.pod ssl/SSL_get_verify_result.pod \
-	ssl/SSL_library_init.pod ssl/SSL_new.pod ssl/SSL_pending.pod \
-	ssl/SSL_read.pod ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod \
-	ssl/SSL_set_session.pod ssl/SSL_set_verify_result.pod \
-	ssl/SSL_shutdown.pod ssl/SSL_write.pod ssl/ssl.pod
+	ssl/SSL_library_init.pod ssl/SSL_load_client_CA_file.pod \
+	ssl/SSL_new.pod ssl/SSL_pending.pod ssl/SSL_read.pod \
+	ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod ssl/SSL_set_session.pod \
+	ssl/SSL_set_verify_result.pod ssl/SSL_shutdown.pod \
+	ssl/SSL_write.pod ssl/d2i_SSL_SESSION.pod ssl/ssl.pod \
+	ssl/SSL_CTX_sess_number.pod ssl/SSL_CTX_set_mode.pod \
+	ssl/SSL_get_version.pod ssl/SSL_set_connect_state.pod \
+	ssl/SSL_set_shutdown.pod
 
 .if defined(WANT_OPENSSL_MANPAGES)
 .for section in 1 3
 .for pod in ${POD${section}}
 .for target in ${pod:T:S/.pod/.${section}/g}
-MAN${section}+= ${target}
+MAN+= ${target}
 CLEANFILES+= ${target}
-all-man: ${target}
 ${target}: ${LCRYPTO_SRC}/../doc/${pod}
 	pod2man ${LCRYPTO_SRC}/../doc/${pod} > ${target}
 .endfor
@@ -328,7 +349,7 @@ ${target}: ${LCRYPTO_SRC}/../doc/${pod}
 .endfor
 .endif
 
-MAN3+=	des_crypt.3
+MAN+=	des_crypt.3
 
 MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_read_2password.3 des_crypt.3 des_string_to_key.3 \
@@ -346,6 +367,17 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CRYPTO_HDRS} openssl/evp.h openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
+	ln -fs openssl/des.h ${DESTDIR}/usr/include/des.h
+
+afterinstall:
+.if !defined(NOPIC)
+SYMLINKS+=	lib${LIB}.so.${SHLIB_MAJOR} ${LIBDIR}/libdes.so.3
+SYMLINKS+=	lib${LIB}.so.${SHLIB_MAJOR} ${LIBDIR}/libdes.so
+.endif
+SYMLINKS+=	lib${LIB}.a ${LIBDIR}/libdes.a
+.if !defined(NOPROFILE)
+SYMLINKS+=	lib${LIB}_p.a ${LIBDIR}/libdes_p.a
+.endif
 
 .include <bsd.lib.mk>
 
@@ -359,25 +391,3 @@ CLEANFILES+=	${SRCS:M*.pl:S/.pl$/.cmt/} ${SRCS:M*.pl:S/.pl$/.s/}
 	tr -d "'" < ${.ALLSRC} > ${.TARGET}
 .endif
 
-afterinstall:
-.if !defined(NOPIC)
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	rm -f libdes.so.3; \
-	ln -sf lib${LIB}.so.${SHLIB_MAJOR} libdes.so.3;
-.endif
-.if !defined(NOPIC) && ${OBJFORMAT} == elf
-	@cd ${DESTDIR}${SHLIBDIR}; \
-	rm -f libdes.so; \
-	ln -sf lib${LIB}.so libdes.so
-.endif
-	@cd  ${DESTDIR}${LIBDIR}; \
-	rm -f libdes.a; \
-	ln -sf lib${LIB}.a libdes.a
-	@cd  ${DESTDIR}${INCDIR}; \
-	rm -f des.h; \
-	ln -sf openssl/des.h
-.if !defined(NOPROFILE)
-	@cd  ${DESTDIR}${LIBDIR}; \
-	rm -f libdes_p.a; \
-	ln -sf lib${LIB}_p.a libdes_p.a
-.endif
