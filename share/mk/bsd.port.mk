@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.4 1994/08/21 15:04:03 jkh Exp $
+# $Id: bsd.port.mk,v 1.5 1994/08/21 16:37:09 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -111,9 +111,9 @@ build: configure
 # This is done with a .configure because configures are often expensive,
 # and you don't want it done again gratuitously when you're trying to get
 # a make of the whole tree to work.
-configure: ${.CURDIR}/.configure_done
+configure: extract ${.CURDIR}/.configure_done
 
-${.CURDIR}/.configure_done: extract
+${.CURDIR}/.configure_done:
 	@echo "===>  Configuring for ${DISTNAME}"
 	@if [ -d ${PATCHDIR} ]; then \
 		echo "===>  Applying patches for ${DISTNAME}" ; \
