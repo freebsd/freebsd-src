@@ -102,7 +102,7 @@ time_t timenow;
 #define MIN_PID         5
 #define MAX_PID		99999	/* was lower, see /usr/include/sys/proc.h */
 char hostname[MAXHOSTNAMELEN];	/* hostname */
-char *daytime;			/* timenow in human readable form */
+char daytime[16];		/* timenow in human readable form */
 
 static struct conf_entry *parse_file(char **files);
 static char *sob(char *p);
@@ -238,7 +238,7 @@ PRS(int argc, char **argv)
 	char *p;
 
 	timenow = time((time_t *) 0);
-	daytime = ctime(&timenow) + 4;
+	(void)strncpy(daytime, ctime(&timenow) + 4, 15);
 	daytime[15] = '\0';
 
 	/* Let's get our hostname */
