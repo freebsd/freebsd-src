@@ -95,8 +95,10 @@ eth_probe()
 		chksum = 0;
 		/* Check for WD/SMC card by checking ethernet address */
 		if (inb(eth_asic_base+8) != 0) continue;
-		if (inb(eth_asic_base+9) != 0) continue;
-		if (inb(eth_asic_base+10) != 0xC0) continue;
+		if (inb(eth_asic_base+9) != 0xE0) {
+			if (inb(eth_asic_base+9) != 0) continue;
+			if (inb(eth_asic_base+10) != 0xC0) continue;
+		}
 		for (i=8; i<16; i++)
 			chksum += inb(i+eth_asic_base);
 		if ((chksum & 0x00FF) == 0x00FF)

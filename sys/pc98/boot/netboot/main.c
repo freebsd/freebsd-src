@@ -304,7 +304,7 @@ cfg_done:
 		printf("Bad executable format!\n");
 		longjmp(jmp_bootmenu, 1);
 	}
-	loadpoint = (char *)0x100000;
+	loadpoint = (char *)(head.a_entry & 0x00FFFFFF);
 	offset = N_TXTOFF(head);
 	printf("text=0x%X, ",head.a_text);
 #ifdef	PC98
@@ -358,7 +358,9 @@ POLLKBD - Check for Interrupt from keyboard
 **************************************************************************/
 pollkbd()
 {
+#ifndef SECURE_BOOT
 	if (iskey() && (getchar() == ESC)) longjmp(jmp_bootmenu,1);
+#endif
 }
 
 /**************************************************************************
@@ -654,6 +656,34 @@ decode_rfc1048(p)
 			case RFC1048_HOSTNAME:
 				bcopy(p+2, &nfsdiskless.my_hostnam, TAG_LEN(p));
 				hostnamelen = (TAG_LEN(p) + 3) & ~3;
+				break;
+			case RFC1048_ROOT_PATH: /* XXX check len */
+				bootp_string("rootfs", p);
+				break;
+			case RFC1048_SWAP_PATH:
+				bootp_string("swapfs", p);
+				break;
+			case RFC1048_SWAP_LEN: /* T129 */
+				sprintf(config_buffer+strlen(config_buffer),
+				    "swapsize %d\n", ntohl(*(long *)(p+2)) );
+				break;
+			case 130:       /* root mount options */
+				bootp_string("rootopts", p);
+				break;
+			case 131:       /* swap mount options */
+				bootp_string("swapopts", p);
+				break;
+			case 132:       /* any other options */
+			case 133:
+			case 134:
+			case 135:
+			case 136:
+			case 137:
+			case 138:
+			case 139:
+			case 140:
+			case 141:
+				bootp_string("", p);
 				break;
 			case RFC1048_ROOT_PATH: /* XXX check len */
 				bootp_string("rootfs", p);
