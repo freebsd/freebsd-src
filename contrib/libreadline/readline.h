@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Readline.h -- the names of functions callable from within readline. */
 
 /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
@@ -7,7 +8,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -18,9 +19,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
-
-/* $FreeBSD$ */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #if !defined (_READLINE_H_)
 #define _READLINE_H_
@@ -194,7 +193,7 @@ extern int rl_noninc_reverse_search __P((int, int));
 extern int rl_noninc_forward_search_again __P((int, int));
 extern int rl_noninc_reverse_search_again __P((int, int));
 
-/* Not available unless readline is compiled -DPAREN_MATCHING. */
+/* Bindable command used when inserting a matching close character. */
 extern int rl_insert_close __P((int, int));
 
 /* Not available unless READLINE_CALLBACKS is defined. */
@@ -302,7 +301,15 @@ extern int rl_read_init_file __P((char *));
 extern int rl_parse_and_bind __P((char *));
 
 /* Functions for manipulating keymaps. */
+extern Keymap rl_make_bare_keymap __P((void));
+extern Keymap rl_copy_keymap __P((Keymap));
+extern Keymap rl_make_keymap __P((void));
+extern void rl_discard_keymap __P((Keymap));
+
+extern Keymap rl_get_keymap_by_name __P((char *));
 extern char *rl_get_keymap_name __P((Keymap));
+extern void rl_set_keymap __P((Keymap));
+extern Keymap rl_get_keymap __P((void));
 extern void rl_set_keymap_from_edit_mode __P((void));
 extern char *rl_get_keymap_name_from_edit_mode __P((void));
 
@@ -325,11 +332,12 @@ extern int rl_modifying __P((int, int));
 /* Functions for redisplay. */
 extern void rl_redisplay __P((void));
 extern int rl_on_new_line __P((void));
+extern int rl_on_new_line_with_prompt __P((void));
 extern int rl_forced_update_display __P((void));
 extern int rl_clear_message __P((void));
 extern int rl_reset_line_state __P((void));
 
-#if defined (__STDC__) && defined (USE_VARARGS) && defined (PREFER_STDARG)
+#if (defined (__STDC__) || defined (__cplusplus)) && defined (USE_VARARGS) && defined (PREFER_STDARG)
 extern int rl_message (const char *, ...);
 #else
 extern int rl_message ();
@@ -399,6 +407,9 @@ extern char *filename_completion_function __P((char *, int));
 /* The version of this incarnation of the readline library. */
 extern char *rl_library_version;
 
+/* True if this is real GNU readline. */
+extern int rl_gnu_readline_p;
+
 /* The name of the calling program.  You should initialize this to
    whatever was in argv[0].  It is used when parsing conditionals. */
 extern char *rl_readline_name;
@@ -461,6 +472,15 @@ extern Keymap rl_binding_keymap;
    if the only thing typed on an otherwise-blank line is something bound to
    rl_newline. */
 extern int rl_erase_empty_line;
+
+/* If non-zero, the application has already printed the prompt (rl_prompt)
+   before calling readline, so readline should not output it the first time
+   redisplay is done. */
+extern int rl_already_prompted;
+
+/* A non-zero value means to read only this many characters rather than
+   up to a character bound to accept-line. */
+extern int rl_num_chars_to_read;
 
 /* Variables to control readline signal handling. */
 /* If non-zero, readline will install its own signal handlers for
@@ -606,7 +626,7 @@ extern int rl_inhibit_completion;
 
 #if !defined (savestring)
 #define savestring rl_savestring
-extern char *savestring ();	/* XXX backwards compatibility */
+extern char *savestring __P((char *));	/* XXX backwards compatibility */
 #endif
 
 #ifdef __cplusplus
