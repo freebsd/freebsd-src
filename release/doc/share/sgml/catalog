@@ -1,0 +1,8 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Release-specific --
+
+  -- $FreeBSD$ --
+
+PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
+       "release.ent"
+
