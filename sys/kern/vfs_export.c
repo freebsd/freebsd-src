@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.90 1997/08/04 07:43:28 dyson Exp $
+ * $Id: vfs_subr.c,v 1.91 1997/08/16 19:15:08 wollman Exp $
  */
 
 /*
@@ -62,6 +62,8 @@
 #include <sys/domain.h>
 #include <sys/mbuf.h>
 #include <sys/dirent.h>
+
+#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
