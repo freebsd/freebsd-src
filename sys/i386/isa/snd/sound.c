@@ -641,7 +641,7 @@ sndwrite(dev_t i_dev, struct uio * buf, int flag)
  */
 
 static int
-sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
+sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 {
     int ret = ENOSYS, dev, unit ;
     snddev_info *d;
