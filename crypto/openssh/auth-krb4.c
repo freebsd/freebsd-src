@@ -141,7 +141,7 @@ int
 krb4_init(uid_t uid)
 {
 	static int cleanup_registered = 0;
-	char *tkt_root = TKT_ROOT;
+	const char *tkt_root = TKT_ROOT;
 	struct stat st;
 	int fd;
 
@@ -188,19 +188,20 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	KTEXT_ST reply;
 	char instance[INST_SZ];
 	int r, s;
+	socklen_t slen;
 	u_int cksum;
 	Key_schedule schedule;
 	struct sockaddr_in local, foreign;
 
 	s = packet_get_connection_in();
 
-	r = sizeof(local);
+	slen = sizeof(local);
 	memset(&local, 0, sizeof(local));
-	if (getsockname(s, (struct sockaddr *) & local, &r) < 0)
+	if (getsockname(s, (struct sockaddr *) & local, &slen) < 0)
 		debug("getsockname failed: %.100s", strerror(errno));
-	r = sizeof(foreign);
+	slen = sizeof(foreign);
 	memset(&foreign, 0, sizeof(foreign));
-	if (getpeername(s, (struct sockaddr *) & foreign, &r) < 0) {
+	if (getpeername(s, (struct sockaddr *) & foreign, &slen) < 0) {
 		debug("getpeername failed: %.100s", strerror(errno));
 		fatal_cleanup();
 	}
