@@ -72,6 +72,7 @@ extern int	union_getattr __P((struct vop_getattr_args *ap));
 extern int	union_inactive __P((struct vop_inactive_args *ap));
 extern int	union_ioctl __P((struct vop_ioctl_args *ap));
 extern int	union_islocked __P((struct vop_islocked_args *ap));
+extern int	union_lease __P((struct vop_lease_args *ap));
 extern int	union_link __P((struct vop_link_args *ap));
 extern int	union_lock __P((struct vop_lock_args *ap));
 extern int	union_lookup __P((struct vop_lookup_args *ap));
@@ -90,6 +91,7 @@ extern int	union_readlink __P((struct vop_readlink_args *ap));
 extern int	union_reclaim __P((struct vop_reclaim_args *ap));
 extern int	union_remove __P((struct vop_remove_args *ap));
 extern int	union_rename __P((struct vop_rename_args *ap));
+extern int	union_revoke __P((struct vop_revoke_args *ap));
 extern int	union_rmdir __P((struct vop_rmdir_args *ap));
 extern int	union_seek __P((struct vop_seek_args *ap));
 extern int	union_select __P((struct vop_select_args *ap));
@@ -97,6 +99,7 @@ extern int	union_setattr __P((struct vop_setattr_args *ap));
 extern int	union_strategy __P((struct vop_strategy_args *ap));
 extern int	union_symlink __P((struct vop_symlink_args *ap));
 extern int	union_unlock __P((struct vop_unlock_args *ap));
+extern int	union_whiteout __P((struct vop_whiteout_args *ap));
 extern int	union_write __P((struct vop_read_args *ap));
 
 static void

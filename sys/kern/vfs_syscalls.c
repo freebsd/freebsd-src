@@ -65,11 +65,9 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 
-/* see if this is needed XXX JH
 #ifdef UNION
 #include <miscfs/union/union.h>
 #endif
-*/
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -2498,9 +2496,6 @@ unionread:
 
 #ifdef UNION
 {
-	extern int (**union_vnodeop_p)();
-	extern struct vnode *union_dircache __P((struct vnode*, struct proc*));
-
 	if ((SCARG(uap, count) == auio.uio_resid) &&
 	    (vp->v_op == union_vnodeop_p)) {
 		struct vnode *lvp;
@@ -2612,9 +2607,6 @@ unionread:
 
 #ifdef UNION
 {
-	extern int (**union_vnodeop_p)();
-	extern struct vnode *union_dircache __P((struct vnode*, struct proc*));
-
 	if ((SCARG(uap, count) == auio.uio_resid) &&
 	    (vp->v_op == union_vnodeop_p)) {
 		struct vnode *lvp;
