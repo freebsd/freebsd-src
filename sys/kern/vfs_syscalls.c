@@ -75,21 +75,21 @@
 #include <vm/vm_zone.h>
 #include <vm/vm_page.h>
 
-static int change_dir __P((struct nameidata *ndp, struct thread *td));
-static void checkdirs __P((struct vnode *olddp, struct vnode *newdp));
-static int chroot_refuse_vdir_fds __P((struct filedesc *fdp));
-static int getutimes __P((const struct timeval *, struct timespec *));
-static int setfown __P((struct thread *td, struct vnode *, uid_t, gid_t));
-static int setfmode __P((struct thread *td, struct vnode *, int));
-static int setfflags __P((struct thread *td, struct vnode *, int));
-static int setutimes __P((struct thread *td, struct vnode *,
-    const struct timespec *, int));
-static int vn_access __P((struct vnode *vp, int user_flags, struct ucred *cred,
-    struct thread *td));
+static int change_dir(struct nameidata *ndp, struct thread *td);
+static void checkdirs(struct vnode *olddp, struct vnode *newdp);
+static int chroot_refuse_vdir_fds(struct filedesc *fdp);
+static int getutimes(const struct timeval *, struct timespec *);
+static int setfown(struct thread *td, struct vnode *, uid_t, gid_t);
+static int setfmode(struct thread *td, struct vnode *, int);
+static int setfflags(struct thread *td, struct vnode *, int);
+static int setutimes(struct thread *td, struct vnode *,
+    const struct timespec *, int);
+static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
+    struct thread *td);
 
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
 
-int (*union_dircheckp) __P((struct thread *td, struct vnode **, struct file *));
+int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
 
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0, "");
 

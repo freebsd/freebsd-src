@@ -50,7 +50,7 @@
 volatile u_int stopped_cpus;
 volatile u_int started_cpus;
 
-void (*cpustop_restartfunc) __P((void));
+void (*cpustop_restartfunc)(void);
 int mp_ncpus;
 
 volatile int smp_started;

@@ -89,17 +89,17 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 
 u_short ip_id;
 
-static struct mbuf *ip_insertoptions __P((struct mbuf *, struct mbuf *, int *));
-static struct ifnet *ip_multicast_if __P((struct in_addr *, int *));
+static struct mbuf *ip_insertoptions(struct mbuf *, struct mbuf *, int *);
+static struct ifnet *ip_multicast_if(struct in_addr *, int *);
 static void	ip_mloopback
-	__P((struct ifnet *, struct mbuf *, struct sockaddr_in *, int));
+	(struct ifnet *, struct mbuf *, struct sockaddr_in *, int);
 static int	ip_getmoptions
-	__P((struct sockopt *, struct ip_moptions *));
-static int	ip_pcbopts __P((int, struct mbuf **, struct mbuf *));
+	(struct sockopt *, struct ip_moptions *);
+static int	ip_pcbopts(int, struct mbuf **, struct mbuf *);
 static int	ip_setmoptions
-	__P((struct sockopt *, struct ip_moptions **));
+	(struct sockopt *, struct ip_moptions **);
 
-int	ip_optcopy __P((struct ip *, struct ip *));
+int	ip_optcopy(struct ip *, struct ip *);
 
 
 extern	struct protosw inetsw[];

@@ -148,8 +148,8 @@ static int	tcp_isn_reseed_interval = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
 
-static void	tcp_cleartaocache __P((void));
-static void	tcp_notify __P((struct inpcb *, int));
+static void	tcp_cleartaocache(void);
+static void	tcp_notify(struct inpcb *, int);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -998,7 +998,7 @@ tcp_ctlinput(cmd, sa, vip)
 	struct in_addr faddr;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
+	void (*notify)(struct inpcb *, int) = tcp_notify;
 	tcp_seq icmp_seq;
 	int s;
 
@@ -1057,7 +1057,7 @@ tcp6_ctlinput(cmd, sa, d)
 	void *d;
 {
 	struct tcphdr th;
-	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
+	void (*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	struct ip6ctlparam *ip6cp = NULL;

@@ -61,12 +61,12 @@
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
 struct oshmctl_args;
-static int oshmctl __P((struct thread *td, struct oshmctl_args *uap));
+static int oshmctl(struct thread *td, struct oshmctl_args *uap);
 
-static int shmget_allocate_segment __P((struct thread *td,
-    struct shmget_args *uap, int mode));
-static int shmget_existing __P((struct thread *td, struct shmget_args *uap,
-    int mode, int segnum));
+static int shmget_allocate_segment(struct thread *td,
+    struct shmget_args *uap, int mode);
+static int shmget_existing(struct thread *td, struct shmget_args *uap,
+    int mode, int segnum);
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *shmcalls[] = {
@@ -93,18 +93,18 @@ struct shmmap_state {
 	int shmid;
 };
 
-static void shm_deallocate_segment __P((struct shmid_ds *));
-static int shm_find_segment_by_key __P((key_t));
-static struct shmid_ds *shm_find_segment_by_shmid __P((int));
-static struct shmid_ds *shm_find_segment_by_shmidx __P((int));
-static int shm_delete_mapping __P((struct proc *p, struct shmmap_state *));
-static void shmrealloc __P((void));
-static void shminit __P((void));
-static int sysvshm_modload __P((struct module *, int, void *));
-static int shmunload __P((void));
-static void shmexit_myhook __P((struct proc *p));
-static void shmfork_myhook __P((struct proc *p1, struct proc *p2));
-static int sysctl_shmsegs __P((SYSCTL_HANDLER_ARGS));
+static void shm_deallocate_segment(struct shmid_ds *);
+static int shm_find_segment_by_key(key_t);
+static struct shmid_ds *shm_find_segment_by_shmid(int);
+static struct shmid_ds *shm_find_segment_by_shmidx(int);
+static int shm_delete_mapping(struct proc *p, struct shmmap_state *);
+static void shmrealloc(void);
+static void shminit(void);
+static int sysvshm_modload(struct module *, int, void *);
+static int shmunload(void);
+static void shmexit_myhook(struct proc *p);
+static void shmfork_myhook(struct proc *p1, struct proc *p2);
+static int sysctl_shmsegs(SYSCTL_HANDLER_ARGS);
 
 /*
  * Tuneable values.

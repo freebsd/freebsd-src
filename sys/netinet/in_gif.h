@@ -35,8 +35,8 @@
 
 #define GIF_TTL		30
 
-void in_gif_input __P((struct mbuf *, int off));
-int in_gif_output __P((struct ifnet *, int, struct mbuf *, struct rtentry *));
-int gif_encapcheck4 __P((const struct mbuf *, int, int, void *));
+void in_gif_input(struct mbuf *, int off);
+int in_gif_output(struct ifnet *, int, struct mbuf *, struct rtentry *);
+int gif_encapcheck4(const struct mbuf *, int, int, void *);
 
 #endif /*_NETINET_IN_GIF_H_*/

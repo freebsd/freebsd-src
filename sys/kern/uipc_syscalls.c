@@ -77,15 +77,15 @@ SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL)
 static struct sf_buf *sf_buf_alloc(void);
 static void sf_buf_free(caddr_t addr, void *args);
 
-static int sendit __P((struct thread *td, int s, struct msghdr *mp, int flags));
-static int recvit __P((struct thread *td, int s, struct msghdr *mp,
-		       caddr_t namelenp));
+static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
+static int recvit(struct thread *td, int s, struct msghdr *mp,
+		       caddr_t namelenp);
   
-static int accept1 __P((struct thread *td, struct accept_args *uap, int compat));
-static int getsockname1 __P((struct thread *td, struct getsockname_args *uap,
-			     int compat));
-static int getpeername1 __P((struct thread *td, struct getpeername_args *uap,
-			     int compat));
+static int accept1(struct thread *td, struct accept_args *uap, int compat);
+static int getsockname1(struct thread *td, struct getsockname_args *uap,
+			     int compat);
+static int getpeername1(struct thread *td, struct getpeername_args *uap,
+			     int compat);
 
 /*
  * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the

@@ -655,7 +655,7 @@ in_pcbnotifyall(head, faddr, errno, notify)
 	struct inpcbhead *head;
 	struct in_addr faddr;
 	int errno;
-	void (*notify) __P((struct inpcb *, int));
+	void (*notify)(struct inpcb *, int);
 {
 	struct inpcb *inp, *ninp;
 	int s;

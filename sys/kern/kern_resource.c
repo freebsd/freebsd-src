@@ -59,7 +59,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-static int donice __P((struct proc *curp, struct proc *chgp, int n));
+static int donice(struct proc *curp, struct proc *chgp, int n);
 
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
@@ -67,7 +67,7 @@ static struct mtx uihashtbl_mtx;
 static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
 static u_long uihash;		/* size of hash table - 1 */
 
-static struct uidinfo	*uilookup __P((uid_t uid));
+static struct uidinfo	*uilookup(uid_t uid);
 
 /*
  * Resource controls and accounting.

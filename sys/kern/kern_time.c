@@ -64,11 +64,11 @@ struct timezone tz;
  * timers when they expire.
  */
 
-static int	nanosleep1 __P((struct thread *td, struct timespec *rqt,
-		    struct timespec *rmt));
-static int	settime __P((struct proc *, struct timeval *));
-static void	timevalfix __P((struct timeval *));
-static void	no_lease_updatetime __P((int));
+static int	nanosleep1(struct thread *td, struct timespec *rqt,
+		    struct timespec *rmt);
+static int	settime(struct proc *, struct timeval *);
+static void	timevalfix(struct timeval *);
+static void	no_lease_updatetime(int);
 
 static void 
 no_lease_updatetime(deltat)
@@ -76,7 +76,7 @@ no_lease_updatetime(deltat)
 {
 }
 
-void (*lease_updatetime) __P((int))  = no_lease_updatetime;
+void (*lease_updatetime)(int)  = no_lease_updatetime;
 
 static int
 settime(p, tv)

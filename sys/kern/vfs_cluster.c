@@ -64,10 +64,10 @@ SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
 static MALLOC_DEFINE(M_SEGMENT, "cluster_save buffer", "cluster_save buffer");
 
 static struct cluster_save *
-	cluster_collectbufs __P((struct vnode *vp, struct buf *last_bp));
+	cluster_collectbufs(struct vnode *vp, struct buf *last_bp);
 static struct buf *
-	cluster_rbuild __P((struct vnode *vp, u_quad_t filesize, daddr_t lbn,
-			 daddr64_t blkno, long size, int run, struct buf *fbp));
+	cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
+			 daddr64_t blkno, long size, int run, struct buf *fbp);
 
 static int write_behind = 1;
 SYSCTL_INT(_vfs, OID_AUTO, write_behind, CTLFLAG_RW, &write_behind, 0,

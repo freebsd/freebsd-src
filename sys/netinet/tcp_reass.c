@@ -130,13 +130,13 @@ struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
 
-static void	 tcp_dooptions __P((struct tcpopt *, u_char *, int, int));
-static void	 tcp_pulloutofband __P((struct socket *,
-		     struct tcphdr *, struct mbuf *, int));
-static int	 tcp_reass __P((struct tcpcb *, struct tcphdr *, int *,
-				struct mbuf *));
-static void	 tcp_xmit_timer __P((struct tcpcb *, int));
-static int	 tcp_newreno __P((struct tcpcb *, struct tcphdr *));
+static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
+static void	 tcp_pulloutofband(struct socket *,
+		     struct tcphdr *, struct mbuf *, int);
+static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
+				struct mbuf *);
+static void	 tcp_xmit_timer(struct tcpcb *, int);
+static int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6

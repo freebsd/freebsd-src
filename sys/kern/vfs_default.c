@@ -65,8 +65,8 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_zone.h>
 
-static int	vop_nolookup __P((struct vop_lookup_args *));
-static int	vop_nostrategy __P((struct vop_strategy_args *));
+static int	vop_nolookup(struct vop_lookup_args *);
+static int	vop_nostrategy(struct vop_strategy_args *);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't

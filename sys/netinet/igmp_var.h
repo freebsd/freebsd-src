@@ -85,12 +85,12 @@ struct igmpstat {
  */
 #define IGMP_AGE_THRESHOLD			540
 
-void	igmp_init __P((void));
-void	igmp_input __P((struct mbuf *, int));
-void	igmp_joingroup __P((struct in_multi *));
-void	igmp_leavegroup __P((struct in_multi *));
-void	igmp_fasttimo __P((void));
-void	igmp_slowtimo __P((void));
+void	igmp_init(void);
+void	igmp_input(struct mbuf *, int);
+void	igmp_joingroup(struct in_multi *);
+void	igmp_leavegroup(struct in_multi *);
+void	igmp_fasttimo(void);
+void	igmp_slowtimo(void);
 
 SYSCTL_DECL(_net_inet_igmp);
 
