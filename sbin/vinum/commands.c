@@ -504,8 +504,33 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		case plex_object:
 		    if (plex.state == plex_up)		    /* already up */
 			fprintf(stderr, "%s is already up\n", plex.name);
-		    else
-			doit = 1;
+		    else {
+			int sdno;
+
+			for (sdno = 0; sdno < plex.subdisks; sdno++) {
+			    get_plex_sd_info(&sd, object, sdno);
+			    if ((sd.state >= sd_empty)
+				&& (sd.state <= sd_stale)) { /* candidate for init */
+				message->index = sd.sdno;   /* pass object number */
+				message->type = sd_object;  /* it's a subdisk */
+				message->state = object_up;
+				message->force = 0;	    /* don't force it, use a larger hammer */
+				ioctl(superdev, VINUM_SETSTATE, message);
+				if (reply.error != 0) {
+				    if (reply.error == EAGAIN) /* we're reviving */
+					continue_revive(sd.sdno);
+				    else
+					fprintf(stderr,
+					    "Can't start %s: %s (%d)\n",
+					    argv[index],
+					    reply.msg[0] ? reply.msg : strerror(reply.error),
+					    reply.error);
+				}
+				if (Verbose)
+				    vinum_lsi(sd.sdno, 0);
+			    }
+			}
+		    }
 		    break;
 
 		case volume_object:
@@ -555,6 +580,7 @@ vinum_stop(int argc, char *argv[], char *arg0[])
 	int fileid = 0;					    /* ID of Vinum kld */
 
 	close(superdev);				    /* we can't stop if we have vinum open */
+	sleep(1);					    /* wait for the daemon to let go */
 	fileid = kldfind(VINUMMOD);
 	if ((fileid < 0)				    /* no go */
 	||(kldunload(fileid) < 0))
