@@ -220,7 +220,7 @@ pcic_isa_chip_intr_establish(pch, pf, ipl, fct, arg)
 	pccard_chipset_handle_t pch;
 	struct pccard_function *pf;
 	int ipl;
-	int (*fct) __P((void *));
+	int (*fct) (void *);
 	void *arg;
 {
 #define IST_LEVEL 1
