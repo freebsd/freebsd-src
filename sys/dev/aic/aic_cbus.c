@@ -82,6 +82,7 @@ static bus_addr_t aicport_100[AIC_ISA_PORTSIZE] = {
 
 static struct isa_pnp_id aic_ids[] = {
         { 0xa180a3b8,   "NEC PC9801-100"},
+        {0}
 };
 #endif
 
