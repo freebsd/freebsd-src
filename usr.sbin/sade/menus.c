@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.31 1995/05/26 08:41:46 jkh Exp $
+ * $Id: menus.c,v 1.32 1995/05/26 11:21:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -640,21 +640,21 @@ When you're done, select Cancel",
     "Press F1 for more information on these options",
     "configure.hlp",
     { { "Add User",	"Add users to the system",
-	DMENU_SYSTEM_COMMAND, "adduser", 0, 0		},
+	DMENU_SYSTEM_COMMAND, "adduser", 0, 0			},
       { "Networking",	"Configure additional network devices",
-	DMENU_CALL, 	tcpDeviceSelect, 0, 0		},
+	DMENU_CALL, 	tcpDeviceSelect, 0, 0			},
       { "Time Zone",	"Set which time zone you're in",
-	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0		},
+	DMENU_SYSTEM_COMMAND, "tzsetup", 0, 0			},
       { "Packages",	"Install extra FreeBSD packaged software",
-	DMENU_CALL,	configPackages, 0, 0		},
+	DMENU_CALL,	configPackages, 0, 0			},
       { "Ports",	"Enable the FreeBSD Ports Collection from CD",
 	DMENU_CALL,	configPorts, 0, 1			},
       { "Root Password", "Set the system manager's password",
-	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0	},
+	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0		},
       { "Screen",	"Customize system console behavior",
-	DMENU_SUBMENU, &MenuSyscons, 0, 0		},
+	DMENU_SUBMENU, &MenuSyscons, 0, 0			},
       { "Sysconfig",	"Edit the system configuration file (with vi)",
-	DMENU_SYSTEM_COMMAND, "vi /etc/sysconfig", 0, 0	},
+	DMENU_SYSTEM_COMMAND, "vi /etc/sysconfig", 0, 0		},
       { "XFree86",	"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config", 0, 0 },
       { NULL } },
@@ -667,7 +667,7 @@ DMenu MenuSyscons = {
 number of configuration options which may be set according to\n\
 your preference.  When you are done setting configuration options,\n\
 select Cancel.",
-    NULL,
+    "Configure your screen saver settings",
     NULL,
     { { "blank", "Screen-blanking saver",
 	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
