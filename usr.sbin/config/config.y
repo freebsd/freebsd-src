@@ -133,6 +133,9 @@ Config_spec:
 		} else if (!strcmp($2, "ia64")) {
 			machine = MACHINE_IA64;
 			machinename = "ia64";
+		} else if (!strcmp($2, "powerpc")) {
+			machine = MACHINE_POWERPC;
+			machinename = "powerpc";
 		} else
 			yyerror("Unknown machine type");
 	      } |
