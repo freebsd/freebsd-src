@@ -1374,12 +1374,6 @@ pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 	    ("pmap_object_init_pt: non-device object"));
 }
 
-void
-pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
-{
-	/* XXX */
-}
-
 /*
  * Change the wiring attribute for a map/virtual-address pair.
  * The mapping must already exist in the pmap.
@@ -1721,6 +1715,19 @@ pmap_is_modified(vm_page_t m)
 		if ((tp->tte_data & TD_W) != 0)
 			return (TRUE);
 	}
+	return (FALSE);
+}
+
+/*
+ *	pmap_is_prefaultable:
+ *
+ *	Return whether or not the specified virtual address is elgible
+ *	for prefault.
+ */
+boolean_t
+pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
+{
+
 	return (FALSE);
 }
 
