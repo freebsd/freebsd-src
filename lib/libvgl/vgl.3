@@ -25,24 +25,90 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
 .\" $FreeBSD$
-
-.Dd August 13, 1997
+.Dd October 28, 1999
 .Dt VGL 3
-.Os FreeBSD 3
+.Os FreeBSD 3.0
 .Sh NAME
-.Nm vgl
-.Nd Video Graphics Library functions
+.Nm VGLBitmapCopy ,
+.Nm VGLBitmapPutChar ,
+.Nm VGLBitmapString ,
+.Nm VGLBlankDisplay ,
+.Nm VGLBox ,
+.Nm VGLCheckSwitch ,
+.Nm VGLClear ,
+.Nm VGLEllipse ,
+.Nm VGLEnd ,
+.Nm VGLFilledBox ,
+.Nm VGLFilledEllipse ,
+.Nm VGLInit ,
+.Nm VGLLine ,
+.Nm VGLMouseInit ,
+.Nm VGLMouseMode ,
+.Nm VGLMouseSetImage ,
+.Nm VGLMouseSetStdImage ,
+.Nm VGLMouseStatus ,
+.Nm VGLSetBorder ,
+.Nm VGLSetPalette ,
+.Nm VGLSetPaletteIndex ,
+.Nm VGLTextSetFontFile
+.Nd Video Graphics Library functions (libvgl)
 .Sh SYNOPSIS
 .Fd #include <vgl.h>
-
+.Ft int
+.Fn VGLInit "int mode"
+.Ft void 
+.Fn VGLEnd "void"
+.Ft void 
+.Fn VGLCheckSwitch "void"
+.Ft int 
+.Fn VGLTextSetFontFile "char *filename"
+.Ft int 
+.Fn VGLMouseInit "int mode"
+.Ft void 
+.Fn VGLMouseMode "int mode"
+.Ft int 
+.Fn VGLMouseStatus "int *x" "int *y" "char *buttons"
+.Ft void 
+.Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
+.Ft void 
+.Fn VGLMouseSetStdImage "void"
+.Ft void 
+.Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Ft void 
+.Fn VGLBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Ft void 
+.Fn VGLFilledBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
+.Ft void 
+.Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
+.Ft void 
+.Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
+.Ft int 
+.Fn VGLBitmapCopy "VGLBitmap *src" "int srcx" "int srcy" "VGLBitmap *dst" "int dstx" "int dsty" "int width" "int hight"
+.Ft void 
+.Fn VGLBitmapPutChar "VGLBitmap *Object" "int x" "int y" "byte ch" "byte fgcol" "byte bgcol" "int fill" "int dir"
+.Ft void 
+.Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "byte fgcol" "byte bgcol" "int fill" "int dir"
+.Ft void 
+.Fn VGLClear "VGLBitmap *object" "byte color"
+.Ft void
+.Fn VGLSetPalette "byte *red" "byte *green" "byte *blue"
+.Ft void 
+.Fn VGLSetPaletteIndex "byte color" "byte red" "byte green" "byte blue"
+.Ft void 
+.Fn VGLSetBorder "byte color"
+.Ft void 
+.Fn VGLBlankDisplay "int blank"
 .Sh DESCRIPTION
-Libvgl is a library that enables the programmer access to the graphics
+.Nm Libvgl
+is a library that enables the programmer access to the graphics
 modes supported by the console driver (syscons). The library takes care of
 programming the actual video hardware, and provides a number of simple
 functions to do various graphic operations. There is also support for a
-mouse via the standard mouse system in FreeBSD, see
-.Fn moused
-, including the ability to transparently have a mouse pointer superimposed on
+mouse via the standard mouse system in
+.Fx ,
+see
+.Xr mouse 4 ,
+including the ability to transparently have a mouse pointer superimposed on
 the graphic image currently being worked on. 
 The library takes care of screen switching by storing the current image in
 memory before switching to another virtual console, and restoring when the
@@ -50,165 +116,113 @@ user switches back. This allows several graphic applications at once, but
 on different virtual consoles.
 
 Below is a short description of the various functions:
-
-.Sh AUTHORS
-.An Søren Schmidt Aq sos@FreeBSD.org
-
-.Sh FUNCTIONS
-
-.Ft int 
-.Fn VGLInit "int mode"
-
-Initialize the library and set up the graphic mode
+.Pp
+.Fn VGLInit
+initialize the library and set up the graphic mode
 .Em mode .
-
-
-.Ft void 
-.Fn VGLEnd "void"
-
-Terminate graphic mode, and restore the screenmode that was active before
+.Pp
+.Fn VGLEnd
+terminate graphic mode, and restore the screenmode that was active before
 .Fn VGLInit
 was called.
-
-
-.Ft void 
-.Fn VGLCheckSwitch "void"
-
-If the program goes into longer periods of processing without doing
+.Pp
+.Fn VGLCheckSwitch
+if the program goes into longer periods of processing without doing
 any graphics output, calling this function occasionally will allow 
 the system to switch screens.
-
-
-.Ft int 
-.Fn VGLTextSetFontFile "char *filename"
-
-Instruct the char/string functions to use the font in file
+.Pp
+.Fn VGLTextSetFontFile 
+instruct the char/string functions to use the font in file
 .Em filename
 instead of the builtin font.
-
-
-.Ft int 
-.Fn VGLMouseInit "int mode"
-
-Initialize the mouse. The optional on-screen mouse pointer is shown if the
+.Pp
+.Fn VGLMouseInit 
+initialize the mouse. The optional on-screen mouse pointer is shown if the
 argument is 
 .Em VGL_MOUSESHOW .
-
-
-.Ft void 
-.Fn VGLMouseMode "int mode"
-
-Either shows the mouse pointer if the argument is
-.Em VGL_MOUSESHOW
-, or hides the mouse pointer if the argument is
+.Pp
+.Fn VGLMouseMode
+either shows the mouse pointer if the argument is
+.Em VGL_MOUSESHOW ,
+or hides the mouse pointer if the argument is
 .Em VGL_MOUSEHIDE .
-
-
-.Ft int 
-.Fn VGLMouseStatus "int *x" "int *y" "char *buttons"
-
-Returns the current mouse pointer coordinates and button state in
-.Em x, y
-, buttons. The return value reflects if the mouse pointer 
+.Pp
+.Fn VGLMouseStatus
+returns the current mouse pointer coordinates and button state in
+.Em x , y ,
+buttons. The return value reflects if the mouse pointer 
 is currently shown on screen or not.
-
-
-.Ft void 
-.Fn VGLMouseSetImage "VGLBitmap *AndMask" "VGLBitmap *OrMask"
-
-With this function it is possible to change the image of the mouse pointer
+.Pp
+.Fn VGLMouseSetImage
+with this function it is possible to change the image of the mouse pointer
 on screen.
-
-
-.Ft void 
-.Fn VGLMouseSetStdImage "void"
-
-This function restores the mouse pointer to the standard arrow.
-
-
-.Ft void 
-.Fn VGLLine "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
-
-Draw a line from
-.Em x1, y1
+.Pp
+.Fn VGLMouseSetStdImage
+this function restores the mouse pointer to the standard arrow.
+.Pp
+.Fn VGLLine 
+draw a line from
+.Em x1 , y1
 to
-.Em x2, y2
+.Em x2 , y2
 in color
 .Em color .
-
-
-.Ft void 
-.Fn VGLBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
-
-Draw a box with upper left hand corner at
-.Em x1, y1
+.Pp
+.Fn VGLBox
+draw a box with upper left hand corner at
+.Em x1 , y1
 and lower right hand corner at
-.Em x2, y2
+.Em x2 , y2
 in color
 .Em color .
-
-
-.Ft void 
-.Fn VGLFilledBox "VGLBitmap *object" "int x1" "int y1" "int x2" "int y2" "byte color"
-
-Draw a filled (solid) box with upper left hand corner at
-.Em x1, y1
+.Pp
+.Fn VGLFilledBox
+draw a filled (solid) box with upper left hand corner at
+.Em x1 , y1
 and lower right hand corner at
-.Em x2, y2
+.Em x2 , y2
 in color
 .Em color .
-
-
-.Ft void 
-.Fn VGLEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
-
-Draw an ellipse centered at 
-.Em xc, yc
+.Pp
+.Fn VGLEllipse 
+draw an ellipse centered at 
+.Em xc , yc
 make it 
 .Em a
 pixels wide, and 
 .Em b
 pixels high in color
 .Em color .
-
-
-.Ft void 
-.Fn VGLFilledEllipse "VGLBitmap *object" "int xc" "int yc" "int a" "int b" "byte color"
-
-Draw a filled (solid) ellipse centered at 
-.Em xc, yc
+.Pp
+.Fn VGLFilledEllipse
+draw a filled (solid) ellipse centered at 
+.Em xc , yc
 make it 
 .Em a
 pixels wide, and 
 .Em b
 pixels high in color
 .Em color .
-
-
-.Ft int 
-.Fn VGLBitmapCopy "VGLBitmap *src" "int srcx" "int srcy" "VGLBitmap *dst" "int dstx" "int dsty" "int width" "int hight"
-
-Copy a rectangle of pixels from bitmap
+.Pp
+.Fn VGLBitmapCopy
+copy a rectangle of pixels from bitmap
 .Em src
 upper left hand corner at 
-.Em srcx, srcy
+.Em srcx , srcy
 to bitmap
 .Em dst
 at 
-.Em dstx, dsty
+.Em dstx , dsty
 of the size
-.Em width, height .
-
-
-.Ft void 
-.Fn VGLBitmapPutChar "VGLBitmap *Object" "int x" "int y" "byte ch" "byte fgcol" "byte bgcol" "int fill" "int dir"
-
-Write the character
+.Em width , height .
+.Pp
+.Fn VGLBitmapPutChar
+write the character
 .Em ch
 at position
-.Em x, y
+.Em x , y
 in foreground color 
-.Em fgcol.
+.Em fgcol .
 If 
 .Em fill
 is != 0, use the color
@@ -216,17 +230,14 @@ is != 0, use the color
 as background otherwise the background is transparent.
 The character is drawn in the direction specified by the argument
 .Em dir .
-
-
-.Ft void 
-.Fn VGLBitmapString "VGLBitmap *Object" "int x" "int y" "char *str" "byte fgcol" "byte bgcol" "int fill" "int dir"
-
-Write the string
+.Pp
+.Fn VGLBitmapString
+write the string
 .Em str
 at position
-.Em x, y
+.Em x , y
 in foreground color 
-.Em fgcol.
+.Em fgcol .
 If 
 .Em fill
 is != 0, use the color
@@ -234,47 +245,34 @@ is != 0, use the color
 as background otherwise the background is transparent.
 The string is drawn in the direction specified by the argument
 .Em dir .
-
-.Ft void 
-.Fn VGLClear "VGLBitmap *object" "byte color"
-
-Clears the entire bitmap to color
+.Pp
+.Fn VGLClear
+clears the entire bitmap to color
 .Em color .
-
-
-.Ft void 
-.Fn VGLSetPalette "byte *red" "byte *green" "byte *blue"
-
-This function sets the palette used, the arguments
-.Em red, green, blue
+.Pp
+.Fn VGLSetPalette
+this function sets the palette used, the arguments
+.Em red , green , blue
 should point to byte arrays of 256 positions each.
-
-
-.Ft void 
-.Fn VGLSetPaletteIndex "byte color" "byte red" "byte green" "byte blue"
-
-Set the palette index 
+.Pp
+.Fn VGLSetPaletteIndex
+set the palette index 
 .Em color
 to the specified RGB value.
-
-
-.Ft void 
-.Fn VGLSetBorder "byte color"
-
-Set the border color to color
+.Pp
+.Fn VGLSetBorder
+set the border color to color
 .Em color .
-
-
-.Ft void 
-.Fn VGLBlankDisplay "int blank"
-
-Blank the display if the argment
+.Pp
+.Fn VGLBlankDisplay
+blank the display if the argment
 .Em blank
 != 0. This can be done to shut off the screen during display updates that
 the user should first see when it's done.
-
-
+.Sh AUTHORS
+.An Søren Schmidt Aq sos@FreeBSD.org
 .Sh HISTORY
 The 
-.Nm
-library appeared in FreeBSD 3.0
+.Nm vgl
+library appeared in
+.Fx 3.0
