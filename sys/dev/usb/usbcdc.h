@@ -41,16 +41,30 @@
 #ifndef _USBCDC_H_
 #define _USBCDC_H_
 
-#define UDESCSUB_CDC_HEADER	0
-#define UDESCSUB_CDC_CM		1 /* Call Management */
-#define UDESCSUB_CDC_ACM	2 /* Abstract Control Model */
-#define UDESCSUB_CDC_DLM	3 /* Direct Line Management */
-#define UDESCSUB_CDC_TRF	4 /* Telephone Ringer */
-#define UDESCSUB_CDC_TCLSR	5 /* Telephone Call ... */
-#define UDESCSUB_CDC_UNION	6
-#define UDESCSUB_CDC_CS		7 /* Country Selection */
-#define UDESCSUB_CDC_TOM	8 /* Telephone Operational Modes */
-#define UDESCSUB_CDC_USBT	9 /* USB Terminal */
+#define UDESCSUB_CDC_HEADER	0x00	/* Header */
+#define UDESCSUB_CDC_CM		0x01	/* Call Management */
+#define UDESCSUB_CDC_ACM	0x02	/* Abstract Control Model */
+#define UDESCSUB_CDC_DLM	0x03	/* Direct Line Management */
+#define UDESCSUB_CDC_TRF	0x04	/* Telephone Ringer */
+#define UDESCSUB_CDC_TCLSR	0x05	/* Tel. Call and Line State Rep. Cap. */
+#define UDESCSUB_CDC_UNION	0x06	/* Union */
+#define UDESCSUB_CDC_CS		0x07	/* Country Selection */
+#define UDESCSUB_CDC_TOM	0x08	/* Telephone Operational Modes */
+#define UDESCSUB_CDC_USBT	0x09	/* USB Terminal */
+#define UDESCSUB_CDC_NCT	0x0a	/* Network Channel Terminal */
+#define UDESCSUB_CDC_PU		0x0b	/* Protocol Unit */
+#define UDESCSUB_CDC_EU		0x0c	/* Extention Unit */
+#define UDESCSUB_CDC_MCM	0x0d	/* Multi-Channel Management */
+#define UDESCSUB_CDC_CCM	0x0e	/* CAPI Control Management */
+#define UDESCSUB_CDC_EN		0x0f	/* Ethernet Networking */
+#define UDESCSUB_CDC_AN		0x10	/* ATM Networking */
+
+
+typedef struct {
+	uByte		bLength;
+	uByte		bDescriptorType;
+	uByte		bDescriptorSubtype;
+} usb_cdc_generic_descriptor_t;
 
 typedef struct {
 	uByte		bLength;
