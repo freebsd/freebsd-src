@@ -1142,9 +1142,9 @@ chgsbsize(uip, hiwat, to, max)
 		return (0);
 	}
 	uip->ui_sbsize = new;
-	*hiwat = to;
-	if (uip->ui_sbsize < 0)
-		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	UIDINFO_UNLOCK(uip);
+	*hiwat = to;
+	if (new < 0)
+		printf("negative sbsize for uid = %d\n", uip->ui_uid);
 	return (1);
 }
