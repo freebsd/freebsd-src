@@ -748,7 +748,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	case HOOK_INDEX_VJC_VJIP:
 		if (priv->conf.enableCompression
 		    && priv->hooks[HOOK_INDEX_COMPRESS] != NULL) {
-			if ((m = ng_ppp_addproto(m, proto, 1)) == NULL) {
+			if ((m = ng_ppp_addproto(m, proto, 0)) == NULL) {
 				NGI_M(item) = NULL;
 				NG_FREE_ITEM(item);
 				return (ENOBUFS);
