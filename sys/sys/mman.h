@@ -37,14 +37,17 @@
 #ifndef _SYS_MMAN_H_
 #define _SYS_MMAN_H_
 
-#include <sys/_posix.h>
+#include <sys/cdefs.h>
+#include <sys/_types.h>
 
+#if __BSD_VISIBLE
 /*
  * Inheritance for minherit()
  */
 #define INHERIT_SHARE	0
 #define INHERIT_COPY	1
 #define INHERIT_NONE	2
+#endif
 
 /*
  * Protections are chosen from these bits, or-ed together
@@ -62,6 +65,7 @@
 #define	MAP_PRIVATE	0x0002		/* changes are private */
 #define	MAP_COPY	MAP_PRIVATE	/* Obsolete */
 
+#if __BSD_VISIBLE
 /*
  * Other flags
  */
@@ -75,18 +79,24 @@
 #define	MAP_NOSYNC	 0x0800 /* page to but do not sync underlying file */
 
 /*
+ * Mapping type
+ */
+#define	MAP_FILE	 0x0000	/* map from file (default) */
+#define	MAP_ANON	 0x1000	/* allocated from memory, swap space */
+
+/*
  * Extended flags
  */
 #define	MAP_NOCORE	 0x00020000 /* dont include these pages in a coredump */
+#endif /* __BSD_VISIBLE */
 
-#ifdef _P1003_1B_VISIBLE
+#if __POSIX_VISIBLE >= 199309
 /*
  * Process memory locking
  */
 #define MCL_CURRENT	0x0001	/* Lock only current memory */
 #define MCL_FUTURE	0x0002	/* Lock all future memory as well */
-
-#endif /* _P1003_1B_VISIBLE */
+#endif
 
 /*
  * Error return from mmap()
@@ -100,13 +110,7 @@
 #define MS_ASYNC	0x0001	/* return immediately */
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
-
-/*
- * Mapping type
- */
-#define	MAP_FILE	0x0000	/* map from file (default) */
-#define	MAP_ANON	0x1000	/* allocated from memory, swap space */
-
+#if __BSD_VISIBLE
 /*
  * Advice to madvise
  */
@@ -129,19 +133,44 @@
 #define	MINCORE_MODIFIED	 0x4 /* Page has been modified by us */
 #define	MINCORE_REFERENCED_OTHER 0x8 /* Page has been referenced */
 #define	MINCORE_MODIFIED_OTHER	0x10 /* Page has been modified */
+#endif /* __BSD_VISIBLE */
+
+/*
+ * XXX missing POSIX_MADV_* macros, POSIX_TYPED_MEM_* macros, and
+ * posix_typed_mem_info structure.
+ */
+
+#ifndef _MODE_T_DECLARED
+typedef	__mode_t	mode_t;
+#define	_MODE_T_DECLARED
+#endif
+
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
 
 #ifndef _KERNEL
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
-#ifdef _P1003_1B_VISIBLE
-int	mlockall(int);
-int	munlockall(void);
-int	shm_open(const char *, int, mode_t);
-int	shm_unlink(const char *);
-#endif /* _P1003_1B_VISIBLE */
+/*
+ * XXX not yet implemented: posix_madvise(), posix_mem_offset(),
+ * posix_typed_mem_get_info(), posix_typed_mem_open().
+ */
+#if __BSD_VISIBLE
+int	madvise(void *, size_t, int);
+int	mincore(const void *, size_t, char *);
+int	minherit(void *, size_t, int);
+#endif
 int	mlock(const void *, size_t);
+#if __POSIX_VISIBLE >= 199309
+int	mlockall(int);
+#endif
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
 void *	mmap(void *, size_t, int, int, int, off_t);
@@ -149,14 +178,16 @@ void *	mmap(void *, size_t, int, int, int, off_t);
 int	mprotect(const void *, size_t, int);
 int	msync(void *, size_t, int);
 int	munlock(const void *, size_t);
+#if __POSIX_VISIBLE >= 199309
+int	munlockall(void);
+#endif
 int	munmap(void *, size_t);
-#ifndef _POSIX_SOURCE
-int	madvise(void *, size_t, int);
-int	mincore(const void *, size_t, char *);
-int	minherit(void *, size_t, int);
+#if __POSIX_VISIBLE >= 199309
+int	shm_open(const char *, int, mode_t);
+int	shm_unlink(const char *);
 #endif
 __END_DECLS
 
 #endif /* !_KERNEL */
 
-#endif
+#endif /* !_SYS_MMAN_H_ */
