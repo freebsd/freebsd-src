@@ -401,4 +401,10 @@
 		  Update tuner code so Tuner FM radio support to use correct
 		  datasheet values.
 
+2.01  27 Sep 1999 Roger Hardiman <roger@freebsd.org>
+                  Add Dynalink Magic TView for Craig <crh@outpost.co.nz>
+                  Add Leadtek Winfast 2000 for Peter Wemm <peter@netplex.com.au>
+                  There is no audio support on these 2 cards yet.
+                  Tidy up a few tables with tabs and PLL selection code.
+                  Restore Video Highway Xtreme PLL code.
 
