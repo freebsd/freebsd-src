@@ -72,15 +72,16 @@ struct open_disk {
     int			od_sec;
     int			od_boff;		/* block offset from beginning of BIOS disk */
     int			od_flags;
-#define	BD_MODEMASK	0x3
-#define BD_MODEINT13	0x0
-#define BD_MODEEDD1	0x1
-#define BD_MODEEDD3	0x2
-#define BD_FLOPPY	(1<<2)
+#define BD_MODEINT13		0x0000
+#define BD_MODEEDD1		0x0001
+#define BD_MODEEDD3		0x0002
+#define		BD_MODEMASK		0x0003
+#define BD_FLOPPY		0x0004
+#define BD_LABELOK		0x0008
+#define BD_PARTTABOK		0x0010
     struct disklabel		od_disklabel;
-    struct dos_partition	od_parttab[NDOSPART];	/* XXX needs to grow for extended partitions */
-#define BD_LABELOK	(1<<3)
-#define BD_PARTTABOK	(1<<4)
+    int				od_nslices;	/* slice count */
+    struct dos_partition	od_slicetab[MAX_SLICES];
 };
 
 /*
@@ -99,15 +100,20 @@ static struct bdinfo
 static int nbdinfo = 0;
 
 static int	bd_getgeom(struct open_disk *od);
-static int	bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest);
+static int	bd_read(struct open_disk *od, daddr_t dblk, int blks,
+		    caddr_t dest);
 
 static int	bd_int13probe(struct bdinfo *bd);
 
-static void	bd_printslice(struct open_disk *od, int offset, char *prefix);
+static void	bd_printslice(struct open_disk *od, struct dos_partition *dp,
+		    char *prefix);
+static void	bd_printbsdslice(struct open_disk *od, int offset, char *prefix);
 
 static int	bd_init(void);
-static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
+static int	bd_strategy(void *devdata, int flag, daddr_t dblk,
+		    size_t size, void *buf, size_t *rsize);
+static int	bd_realstrategy(void *devdata, int flag, daddr_t dblk,
+		    size_t size, void *buf, size_t *rsize);
 static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 static void	bd_print(int verbose);
@@ -125,7 +131,8 @@ struct devsw biosdisk = {
 
 static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
 static void	bd_closedisk(struct open_disk *od);
-static int	bd_bestslice(struct dos_partition *dptr);
+static int	bd_bestslice(struct open_disk *od);
+static void	bd_checkextended(struct open_disk *od, int slicenum);
 
 /*
  * Translate between BIOS device numbers and our private unit numbers.
@@ -182,7 +189,7 @@ bd_init(void)
 
 	    if (bdinfo[nbdinfo].bd_flags & BD_FLOPPY){
 		/* available 1.44MB access? */
-		if (*(u_char *)PTOV(0xA15AE) & (1<<(unit & 0xf))){
+		if (*(u_char *)PTOV(0xA15AE) & (1<<(unit & 0xf))) {
 		    /* boot media 1.2MB FD? */
 		    if ((*(u_char *)PTOV(0xA1584) & 0xf0) != 0x90)
 		        bdinfo[nbdinfo].bd_unit = 0x30 + (unit & 0xf);
@@ -229,10 +236,9 @@ bd_int13probe(struct bdinfo *bd)
 
 #ifdef PC98
     int addr;
-    if (bd->bd_flags & BD_FLOPPY){
+    if (bd->bd_flags & BD_FLOPPY) {
 	addr = 0xa155c;
-    }
-    else {
+    } else {
 	if ((bd->bd_unit & 0xf0) == 0x80)
 	    addr = 0xa155d;
 	else
@@ -290,15 +296,18 @@ bd_print(int verbose)
 
 	    /* Do we have a partition table? */
 	    if (od->od_flags & BD_PARTTABOK) {
-		dptr = &od->od_parttab[0];
+		dptr = &od->od_slicetab[0];
 
 		/* Check for a "truly dedicated" disk */
 #ifdef PC98
-		for (j = 0; j < NDOSPART; j++) {
+		for (j = 0; j < od->od_nslices; j++) {
 		    switch(dptr[j].dp_mid) {
 		    case DOSMID_386BSD:
 		        sprintf(line, "      disk%ds%d", i, j + 1);
-			bd_printslice(od, dptr[j].dp_scyl * od->od_hds * od->od_sec + dptr[j].dp_shd * od->od_sec + dptr[j].dp_ssect, line);
+			bd_printbsdslice(od,
+			    dptr[j].dp_scyl * od->od_hds * od->od_sec +
+			    dptr[j].dp_shd * od->od_sec + dptr[j].dp_ssect,
+			    line);
 			break;
 		    default:
 		    }
@@ -308,43 +317,13 @@ bd_print(int verbose)
 		    (dptr[3].dp_start == 0) &&
 		    (dptr[3].dp_size == 50000)) {
 		    sprintf(line, "      disk%d", i);
-		    bd_printslice(od, 0, line);
+		    bd_printbsdslice(od, 0, line);
 		} else {
-		    for (j = 0; j < NDOSPART; j++) {
-			switch(dptr[j].dp_typ) {
-			case DOSPTYP_386BSD:
-			    sprintf(line, "      disk%ds%d", i, j + 1);
-			    bd_printslice(od, dptr[j].dp_start, line);
-			    break;
-			case 0x00:		/* unused partition */
-			    break;
-			case 0x01:
-			    sprintf(line, "      disk%ds%d: FAT-12\n", i,
-				    j + 1);
-			    pager_output(line);
-			    break;
-			case 0x04:
-			case 0x06:
-			case 0x0e:
-			    sprintf(line, "      disk%ds%d: FAT-16\n", i,
-				    j + 1);
-			    pager_output(line);
-			    break;
-			case 0x0b:
-			case 0x0c:
-			    sprintf(line, "      disk%ds%d: FAT-32\n", i,
-				    j + 1);
-			    pager_output(line);
-			    break;
-			default:
-			    sprintf(line, "      disk%ds%d: Unknown fs: 0x%x\n",
-				    i, j + 1, dptr[j].dp_typ);
-			    pager_output(line);
-			    break;
-			}
-		    }
-		    
-		}
+		    for (j = 0; j < od->od_nslices; j++) {
+		        sprintf(line, "      disk%ds%d", i, j + 1);
+			bd_printslice(od, &dptr[j], line);
+                    }
+                }
 #endif
 	    }
 	    bd_closedisk(od);
@@ -352,8 +331,57 @@ bd_print(int verbose)
     }
 }
 
+/*
+ * Print information about slices on a disk
+ */
+#ifndef PC98
 static void
-bd_printslice(struct open_disk *od, int offset, char *prefix)
+bd_printslice(struct open_disk *od, struct dos_partition *dp, char *prefix)
+{
+	char line[80];
+
+	switch (dp->dp_typ) {
+	case DOSPTYP_386BSD:
+		bd_printbsdslice(od, dp->dp_start, prefix);
+		return;
+	case DOSPTYP_LINSWP:
+		sprintf(line, "%s: Linux swap %.6dMB (%d - %d)\n", prefix,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
+		break;
+	case DOSPTYP_LINUX:
+		/*
+		 * XXX
+		 * read the superblock to confirm this is an ext2fs partition?
+		 */
+		sprintf(line, "%s: ext2fs  %.6dMB (%d - %d)\n", prefix,
+		    dp->dp_size / 2048,  /* 512-byte sector assumption */
+		    dp->dp_start, dp->dp_start + dp->dp_size);
+		break;
+	case 0x00:				/* unused partition */
+	case DOSPTYP_EXT:
+		return;
+	case 0x01:
+		sprintf(line, "%s: FAT-12\n", prefix);
+		break;
+	case 0x04:
+	case 0x06:
+	case 0x0e:
+		sprintf(line, "%s: FAT-16\n", prefix);
+		break;
+	case 0x0b:
+	case 0x0c:
+		sprintf(line, "%s: FAT-32\n", prefix);
+		break;
+	default:
+		sprintf(line, "%s: Unknown fs: 0x%x\n", prefix, dp->dp_typ);
+	}
+	pager_output(line);
+}
+#endif
+
+static void
+bd_printbsdslice(struct open_disk *od, int offset, char *prefix)
 {
     char		line[80];
     u_char		buf[BIOSDISK_SECSIZE];
@@ -426,7 +454,6 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     int				sector, slice, i;
     int				error;
     u_char			buf[BUFSIZE];
-    daddr_t			pref_slice[4];
 
     if (dev->d_kind.biosdisk.unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -444,6 +471,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     od->od_unit = bdinfo[od->od_dkunit].bd_unit;
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
+    od->od_nslices = 0;
     error = 0;
     DEBUG("open '%s', unit 0x%x slice %d partition %c",
 	     i386_fmtdev(dev), dev->d_kind.biosdisk.unit, 
@@ -497,9 +525,19 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	goto out;
     }
 #endif
-    bcopy(buf + DOSPARTOFF, &od->od_parttab, sizeof(struct dos_partition) * NDOSPART);
-    dptr = &od->od_parttab[0];
+
+    /*
+     * copy the partition table, then pick up any extended partitions.
+     */
+    bcopy(buf + DOSPARTOFF, &od->od_slicetab,
+      sizeof(struct dos_partition) * NDOSPART);
+    od->od_nslices = NDOSPART;		/* extended slices start here */
+#ifndef PC98
+    for (i = 0; i < NDOSPART; i++)
+        bd_checkextended(od, i);
+#endif
     od->od_flags |= BD_PARTTABOK;
+    dptr = &od->od_slicetab[0];
 
     /* Is this a request for the whole disk? */
     if (dev->d_kind.biosdisk.slice == -1) {
@@ -507,31 +545,54 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 	goto unsliced;
     }
 
-    /* Try to auto-detect the best slice; this should always give a slice number */
-    if (dev->d_kind.biosdisk.slice == 0)
-	dev->d_kind.biosdisk.slice = bd_bestslice(dptr);
-
-    switch (dev->d_kind.biosdisk.slice) {
-    case -1:
-	error = ENOENT;
-	goto out;
-    case 0:
-	sector = 0;
-	goto unsliced;
-    default:
-	break;
+    /*
+     * if a slice number was supplied but not found, this is an error.
+     */
+    if (dev->d_kind.biosdisk.slice > 0) {
+        slice = dev->d_kind.biosdisk.slice - 1;
+        if (slice >= od->od_nslices) {
+            DEBUG("slice %d not found", slice);
+	    error = ENOENT;
+	    goto out;
+        }
     }
 
+#ifndef PC98
+    /*
+     * Check for the historically bogus MBR found on true dedicated disks
+     */
+    if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
+      (dptr[3].dp_start == 0) &&
+      (dptr[3].dp_size == 50000)) {
+        sector = 0;
+        goto unsliced;
+    }
+#endif
+
+    /* Try to auto-detect the best slice; this should always give a slice number */
+    if (dev->d_kind.biosdisk.slice == 0) {
+	slice = bd_bestslice(od);
+        if (slice == -1) {
+	    error = ENOENT;
+            goto out;
+        }
+        dev->d_kind.biosdisk.slice = slice;
+    }
+
+    dptr = &od->od_slicetab[0];
     /*
      * Accept the supplied slice number unequivocally (we may be looking
      * at a DOS partition).
      */
     dptr += (dev->d_kind.biosdisk.slice - 1);	/* we number 1-4, offsets are 0-3 */
 #ifdef PC98
-    sector = dptr->dp_scyl * od->od_hds * od->od_sec + dptr->dp_shd * od->od_sec + dptr->dp_ssect;
+    sector = dptr->dp_scyl * od->od_hds * od->od_sec +
+	dptr->dp_shd * od->od_sec + dptr->dp_ssect;
     {
-	int end = dptr->dp_ecyl * od->od_hds * od->od_sec + dptr->dp_ehd * od->od_sec + dptr->dp_esect;
-	DEBUG("slice entry %d at %d, %d sectors", dev->d_kind.biosdisk.slice - 1, sector, end-sector);
+	int end = dptr->dp_ecyl * od->od_hds * od->od_sec +
+	    dptr->dp_ehd * od->od_sec + dptr->dp_esect;
+	DEBUG("slice entry %d at %d, %d sectors",
+	      dev->d_kind.biosdisk.slice - 1, sector, end-sector);
     }
 #else
     sector = dptr->dp_start;
@@ -600,104 +661,144 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     return(error);
 }
 
+#ifndef PC98
+static void
+bd_checkextended(struct open_disk *od, int slicenum)
+{
+	u_char buf[BIOSDISK_SECSIZE];
+	struct dos_partition *dp;
+	u_int base;
+	int i, start, end;
+
+	dp = &od->od_slicetab[slicenum];
+	start = od->od_nslices;
+
+	if (dp->dp_size == 0)
+		goto done;
+	if (dp->dp_typ != DOSPTYP_EXT)
+		goto done;
+	if (bd_read(od, dp->dp_start, 1, buf))
+		goto done;
+	if ((buf[0x1fe] != 0x55) || (buf[0x1ff] != 0xaa)) {
+		DEBUG("no magic in extended table");
+		goto done;
+	}
+	base = dp->dp_start;
+	dp = (struct dos_partition *)(&buf[DOSPARTOFF]);
+	for (i = 0; i < NDOSPART; i++, dp++) {
+		if (dp->dp_size == 0)
+			continue;
+		if (od->od_nslices == MAX_SLICES)
+			goto done;
+		dp->dp_start += base;
+		bcopy(dp, &od->od_slicetab[od->od_nslices], sizeof(*dp));
+		od->od_nslices++;
+	}
+	end = od->od_nslices;
+
+	/*
+	 * now, recursively check the slices we just added
+	 */
+	for (i = start; i < end; i++)
+		bd_checkextended(od, i);
+done:
+	return;
+}
+#endif
 
 /*
  * Search for a slice with the following preferences:
  *
  * 1: Active FreeBSD slice
  * 2: Non-active FreeBSD slice
- * 3: Active FAT/FAT32 slice
- * 4: non-active FAT/FAT32 slice
+ * 3: Active Linux slice
+ * 4: non-active Linux slice
+ * 5: Active FAT/FAT32 slice
+ * 6: non-active FAT/FAT32 slice
  */
-#define PREF_FBSD_ACT	0
-#define PREF_FBSD	1
-#define PREF_DOS_ACT	2
-#define PREF_DOS	3
-#define PREF_NONE	4
+#define PREF_RAWDISK	0
+#define PREF_FBSD_ACT	1
+#define PREF_FBSD	2
+#define PREF_LINUX_ACT	3
+#define PREF_LINUX	4
+#define PREF_DOS_ACT	5
+#define PREF_DOS	6
+#define PREF_NONE	7
 
+/*
+ * slicelimit is in the range 0 .. NDOSPART
+ */
 static int
-bd_bestslice(struct dos_partition *dptr)
+bd_bestslice(struct open_disk *od)
 {
-    int		i;
-    int		preflevel, pref;
-
+	struct dos_partition *dp;
+	int pref, preflevel;
+	int i, prefslice;
 	
-#ifndef PC98	
-    /*
-     * Check for the historically bogus MBR found on true dedicated disks
-     */
-    if ((dptr[3].dp_typ == DOSPTYP_386BSD) &&
-	(dptr[3].dp_start == 0) &&
-	(dptr[3].dp_size == 50000)) 
-	return(0);
-#endif
+	prefslice = 0;
+	preflevel = PREF_NONE;
 
-    preflevel = PREF_NONE;
-    pref = -1;
-    
-    /* 
-     * XXX No support here for 'extended' slices
-     */
-    for (i = 0; i < NDOSPART; i++) {
+	dp = &od->od_slicetab[0];
+	for (i = 0; i < od->od_nslices; i++, dp++) {
 #ifdef PC98
-	switch(dptr[i].dp_mid & 0x7f) {
-	case DOSMID_386BSD & 0x7f:		/* FreeBSD */
-	    if ((dptr[i].dp_mid & 0x80) && (preflevel > PREF_FBSD_ACT)) {
-		pref = i;
-		preflevel = PREF_FBSD_ACT;
-	    } else if (preflevel > PREF_FBSD) {
-		pref = i;
-		preflevel = PREF_FBSD;
-	    }
-	    break;
-	    
-	    case 0x11:				/* DOS/Windows */
-	    case 0x20:
-	    case 0x21:
-	    case 0x22:
-	    case 0x23:
-	    case 0x63:
-	    if ((dptr[i].dp_mid & 0x80) && (preflevel > PREF_DOS_ACT)) {
-		pref = i;
-		preflevel = PREF_DOS_ACT;
-	    } else if (preflevel > PREF_DOS) {
-		pref = i;
-		preflevel = PREF_DOS;
-	    }
-	    break;
-	}
+		switch(dp->dp_mid & 0x7f) {
+		case DOSMID_386BSD & 0x7f:		/* FreeBSD */
+			if ((dp->dp_mid & 0x80) &&
+			    (preflevel > PREF_FBSD_ACT)) {
+				pref = i;
+				preflevel = PREF_FBSD_ACT;
+			} else if (preflevel > PREF_FBSD) {
+				pref = i;
+				preflevel = PREF_FBSD;
+			}
+			break;
+
+		case 0x11:				/* DOS/Windows */
+		case 0x20:
+		case 0x21:
+		case 0x22:
+		case 0x23:
+		case 0x63:
+			if ((dp->dp_mid & 0x80) &&
+			    (preflevel > PREF_DOS_ACT)) {
+				pref = i;
+				preflevel = PREF_DOS_ACT;
+			} else if (preflevel > PREF_DOS) {
+				pref = i;
+				preflevel = PREF_DOS;
+			}
+			break;
+		}
 #else
-	switch(dptr[i].dp_typ) {
-	case DOSPTYP_386BSD:			/* FreeBSD */
-	    if ((dptr[i].dp_flag & 0x80) && (preflevel > PREF_FBSD_ACT)) {
-		pref = i;
-		preflevel = PREF_FBSD_ACT;
-	    } else if (preflevel > PREF_FBSD) {
-		pref = i;
-		preflevel = PREF_FBSD;
-	    }
-	    break;
-	    
-	case 0x01:				/* DOS/Windows */
-	case 0x04:
-	case 0x06:
-	case 0x0b:
-	case 0x0c:
-	case 0x0e:
-	    if ((dptr[i].dp_flag & 0x80) && (preflevel > PREF_DOS_ACT)) {
-		pref = i;
-		preflevel = PREF_DOS_ACT;
-	    } else if (preflevel > PREF_DOS) {
-		pref = i;
-		preflevel = PREF_DOS;
-	    }
-	    break;
-	}
+		switch (dp->dp_typ) {
+		case DOSPTYP_386BSD:		/* FreeBSD */
+			pref = dp->dp_flag & 0x80 ? PREF_FBSD_ACT : PREF_FBSD;
+			break;
+
+		case DOSPTYP_LINUX:
+			pref = dp->dp_flag & 0x80 ? PREF_LINUX_ACT : PREF_LINUX;
+			break;
+    
+		case 0x01:		/* DOS/Windows */
+		case 0x04:
+		case 0x06:
+		case 0x0b:
+		case 0x0c:
+		case 0x0e:
+			pref = dp->dp_flag & 0x80 ? PREF_DOS_ACT : PREF_DOS;
+			break;
+
+		default:
+		        pref = PREF_NONE;
+		}
+		if (pref < preflevel) {
+			preflevel = pref;
+			prefslice = i + 1;
+		}
 #endif
-    }
-    return(pref + 1);	/* slices numbered 1-4 */
+	}
+	return (prefslice);
 }
- 
 
 static int 
 bd_close(struct open_file *f)
@@ -929,8 +1030,7 @@ bd_getgeom(struct open_disk *od)
 	od->od_cyl = 79;
 	od->od_hds = 2;
 	od->od_sec = (od->od_unit & 0xf0) == 0x30 ? 18 : 15;
-    }
-    else {
+    } else {
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x1b;
 	v86.eax = 0x8400 | od->od_unit;
@@ -1082,7 +1182,7 @@ bd_getdev(struct i386_devdesc *dev)
 	if ((biosdev & 0xf0) == 0xa0)
 	    unit = bdinfo[dev->d_kind.biosdisk.unit].bd_da_unit;
 	else
-            unit = biosdev & 0xf;
+	    unit = biosdev & 0xf;
 #else
 	unit = (biosdev & 0x7f) - unitofs;					/* allow for #wd compenstation in da case */
 #endif
