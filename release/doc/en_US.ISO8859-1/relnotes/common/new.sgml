@@ -366,6 +366,9 @@
 
     <para>A local root exploit in &man.sendmail.8; has been closed
     (see security advisory FreeBSD-SA-01:57).</para>
+
+    <para>A remote root vulnerability in &man.lpd.8; has been closed
+    (see security advisory FreeBSD-SA-01:58).</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
