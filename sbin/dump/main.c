@@ -117,7 +117,7 @@ main(argc, argv)
 		usage();
 
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "0123456789B:b:cd:f:h:ns:T:uWw")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789aB:b:cd:f:h:ns:T:uWw")) != -1)
 		switch (ch) {
 		/* dump level */
 		case '0': case '1': case '2': case '3': case '4':
@@ -482,7 +482,7 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: dump [-0123456789cnu] [-B records] [-b blocksize] [-d density] [-f file]\n            [-h level] [-s feet] [-T date] filesystem\n");
+	(void)fprintf(stderr, "usage: dump [-0123456789acnu] [-B records] [-b blocksize] [-d density] [-f file]\n            [-h level] [-s feet] [-T date] filesystem\n");
 	(void)fprintf(stderr, "       dump [-W | -w]\n");
 	exit(1);
 }
@@ -584,7 +584,6 @@ obsolete(argcp, argvp)
 
 	for (flags = 0; *ap; ++ap) {
 		switch (*ap) {
-		case 'a':
 		case 'B':
 		case 'b':
 		case 'd':
