@@ -7,19 +7,23 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: inflate.c,v 1.3 1994/10/11 11:29:11 csgr Exp $
+ * $Id: inflate.c,v 1.4 1994/10/22 11:40:28 phk Exp $
  *
  *
  */
 
 #include <sys/param.h>
 #include <sys/inflate.h>
+#ifdef KERNEL
 #include <sys/systm.h>
+#endif
 #include <sys/mman.h>
 #include <sys/malloc.h>
 
+#ifdef KERNEL
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
+#endif
 
 /* needed to make inflate() work */
 #define	uch u_char
@@ -27,9 +31,16 @@
 #define	ulg u_long
 
 /* Stuff to make inflate() work */
+#ifdef KERNEL
 #define memzero(dest,len)      bzero(dest,len)
+#endif
 #define NOMEMCPY
+#ifdef KERNEL
 #define FPRINTF printf
+#else
+extern void putstr (char *);
+#define FPRINTF putstr
+#endif
 
 #define FLUSH(x,y) {						\
 	int foo = (*x->gz_output)(x->gz_private,x->gz_slide,y);	\
@@ -38,6 +49,11 @@
 	}
 
 static const int qflag = 0;
+
+#ifndef KERNEL /* want to use this file in kzip also */
+extern unsigned char *malloc (int, int, int);
+extern void free (void*, int);
+#endif
 
 /*
  * This came from unzip-5.12.  I have changed it the flow to pass
@@ -430,7 +446,12 @@ huft_build(glbl, b, n, s, d, e, t, m)
 
 	/* Generate counts for each bit length */
 	el = n > 256 ? b[256] : BMAX;	/* set length of EOB code, if any */
+#ifdef KERNEL
 	memzero((char *) c, sizeof(c));
+#else
+	for (i = 0; i < BMAX+1; i++)
+		c [i] = 0;
+#endif
 	p = b;
 	i = n;
 	do {
@@ -847,7 +868,6 @@ inflate_dynamic(glbl)
 		if (nl > 286 || nd > 30)
 #endif
 		return 1;	/* bad lengths */
-
 	/* read in bit-length-code lengths */
 	for (j = 0; j < nb; j++) {
 		NEEDBITS(glbl, 3)
@@ -979,7 +999,6 @@ inflate_block(glbl, e)
 		return inflate_stored(glbl);
 	if (t == 1)
 		return inflate_fixed(glbl);
-
 	/* bad block type */
 	return 2;
 }
@@ -1019,21 +1038,24 @@ xinflate(glbl)
 	return 0;
 }
 
-
 /* Nobody uses this - why not? */
 int
 inflate(glbl)
 	struct inflate *glbl;
 {
 	int             i;
+#ifdef KERNEL
 	u_char		*p = NULL;
 
 	if (!glbl->gz_slide)
 		p = glbl->gz_slide = malloc(GZ_WSIZE, M_GZIP, M_WAITOK);
-
+#endif
 	if (!glbl->gz_slide)
+#ifdef KERNEL
 		return(ENOMEM);
-
+#else
+		return 3; /* kzip expects 3 */
+#endif
 	i = xinflate(glbl);
 
 	if (glbl->gz_fixed_td != (struct huft *) NULL) {
@@ -1044,11 +1066,12 @@ inflate(glbl)
 		huft_free(glbl, glbl->gz_fixed_tl);
 		glbl->gz_fixed_tl = (struct huft *) NULL;
 	}
+#ifdef KERNEL
 	if (p == glbl->gz_slide) {
 		free(glbl->gz_slide, M_GZIP);
 		glbl->gz_slide = NULL;
 	}
-
+#endif
 	return i;
 }
 /* ----------------------- END INFLATE.C */
