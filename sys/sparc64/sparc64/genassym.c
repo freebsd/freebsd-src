@@ -134,6 +134,7 @@ ASSYM(KTR_CT8, KTR_CT8);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
+ASSYM(KTR_CPU, offsetof(struct ktr_entry, ktr_cpu));
 ASSYM(KTR_PARM1, offsetof(struct ktr_entry, ktr_parm1));
 ASSYM(KTR_PARM2, offsetof(struct ktr_entry, ktr_parm2));
 ASSYM(KTR_PARM3, offsetof(struct ktr_entry, ktr_parm3));
@@ -178,8 +179,7 @@ ASSYM(IQE_VEC, offsetof(struct iqe, iqe_vec));
 ASSYM(IQE_FUNC, offsetof(struct iqe, iqe_func));
 ASSYM(IQE_ARG, offsetof(struct iqe, iqe_arg));
 
-ASSYM(ILA_LEVEL, offsetof(struct ipi_level_args, ila_level));
-
+ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_TLB, offsetof(struct ipi_tlb_args, ita_tlb));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
@@ -277,8 +277,5 @@ ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
 ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
-
-ASSYM(UPA_CR_MID_SHIFT, UPA_CR_MID_SHIFT);
-ASSYM(UPA_CR_MID_SIZE, UPA_CR_MID_SIZE);
 
 ASSYM(UT_MAX, UT_MAX);

@@ -57,13 +57,8 @@ struct cpu_start_args {
 	struct	tte csa_ttes[PCPU_PAGES];
 };
 
-struct ipi_level_args {
-	u_int	ila_count;
-	u_int	ila_level;
-};
-
 struct ipi_tlb_args {
-	u_int	ita_count;
+	u_int	ita_mask;
 	u_long	ita_tlb;
 	struct	pmap *ita_pmap;
 	u_long	ita_start;
@@ -74,6 +69,7 @@ struct ipi_tlb_args {
 struct pcpu;
 
 void	cpu_mp_bootstrap(struct pcpu *pc);
+void	cpu_mp_shutdown(void);
 
 void	cpu_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2);
 void	cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
@@ -116,11 +112,11 @@ ipi_tlb_context_demap(struct pmap *pm)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = smp_cpus;
+	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
 	    (u_long)ita);
-	return (&ita->ita_count);
+	return (&ita->ita_mask);
 }
 
 static __inline void *
@@ -134,12 +130,12 @@ ipi_tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = smp_cpus;
+	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_tlb = tlb;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_page_demap, (u_long)ita);
-	return (&ita->ita_count);
+	return (&ita->ita_mask);
 }
 
 static __inline void *
@@ -153,26 +149,24 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	if ((cpus = (pm->pm_active & PCPU_GET(other_cpus))) == 0)
 		return (NULL);
 	ita = &ipi_tlb_args;
-	ita->ita_count = smp_cpus;
+	ita->ita_mask = cpus | PCPU_GET(cpumask);
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
 	ita->ita_end = end;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_range_demap, (u_long)ita);
-	return (&ita->ita_count);
+	return (&ita->ita_mask);
 }
 
 static __inline void
 ipi_wait(void *cookie)
 {
-#if 0
-	u_int *count;
+	u_int *volatile mask;
 
-	if ((count = cookie) != NULL) {
-		atomic_subtract_int(count, 1);
-		while (*count != 0)
+	if ((mask = cookie) != NULL) {
+		atomic_clear_int(mask, PCPU_GET(cpumask));
+		while (*mask != 0)
 			;
 	}
-#endif
 }
 
 #endif
