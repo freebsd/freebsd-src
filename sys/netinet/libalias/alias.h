@@ -6,6 +6,8 @@
 
     This software is placed into the public domain with no restrictions
     on its distribution.
+
+    $Id$
 */
 
 
@@ -69,6 +71,12 @@ struct alias_link;
     PacketAliasFragmentIn(char *, char *);
 
 /* Miscellaneous Functions */
+    extern void
+    PacketAliasSetTarget(struct in_addr addr);
+
+    extern int
+    PacketAliasCheckNewLink(void);
+
     extern u_short
     PacketAliasInternetChecksum(u_short *, int);
 
