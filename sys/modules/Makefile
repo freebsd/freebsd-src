@@ -17,6 +17,7 @@ SUBDIR=	accf_data \
 	aio \
 	amr \
 	an \
+	ath \
 	aue \
 	axe \
 	bge \
@@ -172,6 +173,7 @@ SUBDIR+=3dfx \
 	apm \
 	ar \
 	arcnet \
+	ath_hal \
 	awi \
 	bktr \
 	coff \
