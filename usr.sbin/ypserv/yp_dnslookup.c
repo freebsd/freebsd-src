@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.8 1997/01/12 08:18:17 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.3.2.1 1997/01/14 01:33:55 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.8 1997/01/12 08:18:17 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.3.2.1 1997/01/14 01:33:55 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -315,16 +315,19 @@ static void yp_send_dns_reply(q, buf)
  */
 void yp_prune_dnsq()
 {
-	register struct circleq_dnsentry *q;
+	register struct circleq_dnsentry *q, *n;
 
-	for (q = qhead.cqh_first; q != (void *)&qhead; q = q->links.cqe_next) {
+	q = qhead.cqh_first;
+	while(q != (void *)&qhead) {
 		q->ttl--;
+		n = q->links.cqe_next;
 		if (!q->ttl) {
 			CIRCLEQ_REMOVE(&qhead, q, links);
 			free(q->name);
 			free(q);
 			pending--;
 		}
+		q = n;
 	}
 
 	if (pending < 0)
@@ -470,6 +473,7 @@ ypstat yp_async_lookup_name(rqstp, name)
 	if (debug)
 		yp_error("Queueing async DNS name lookup (%d)", q->id);
 
+	yp_prune_dnsq();
 	return(YP_TRUE);
 }
 
@@ -534,5 +538,6 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	if (debug)
 		yp_error("Queueing async DNS address lookup (%d)", q->id);
 
+	yp_prune_dnsq();
 	return(YP_TRUE);
 }
