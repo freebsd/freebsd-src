@@ -281,10 +281,11 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     
     /* 
      * There isn't an interrupt, so we have to look at _PRS to get one.
-     * Get the set of allowed interrupts from the _PRS resource indexed by SourceIndex.
+     * Get the set of allowed interrupts from the _PRS resource indexed
+     * by SourceIndex.
      */
     if (prsbuf.Pointer == NULL) {
-	device_printf(pcib, "device has no routed interrupt and no _PRS on PCI interrupt link device\n");
+	device_printf(pcib, "no routed irq and no _PRS on irq link device\n");
 	goto out;
     }
 
@@ -294,30 +295,28 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
      * future, we might use these for priority but this is good enough for
      * now until BIOS vendors actually mean something by using them.
      */
-    for (i = prt->SourceIndex; ; i++) {
+    prsres = NULL;
+    for (i = prt->SourceIndex; prsres == NULL; i++) {
 	if (ACPI_FAILURE(acpi_FindIndexedResource(&prsbuf, i, &prsres))) {
 	    device_printf(pcib, "_PRS lacks IRQ resource, routing failed\n");
 	    goto out;
 	}
 	switch (prsres->Id) {
 	case ACPI_RSTYPE_IRQ:
+	    NumberOfInterrupts = prsres->Data.Irq.NumberOfInterrupts;
+	    Interrupts = prsres->Data.Irq.Interrupts;
+	    break;
 	case ACPI_RSTYPE_EXT_IRQ:
+	    NumberOfInterrupts = prsres->Data.ExtendedIrq.NumberOfInterrupts;
+	    Interrupts = prsres->Data.ExtendedIrq.Interrupts;
 	    break;
 	case ACPI_RSTYPE_START_DPF:
+	    prsres = NULL;
 	    continue;
 	default:
 	    device_printf(pcib, "_PRS has invalid type %d\n", prsres->Id);
 	    goto out;
 	}
-    }
-
-    /* set variables based on resource type */
-    if (prsres->Id == ACPI_RSTYPE_IRQ) {
-	NumberOfInterrupts = prsres->Data.Irq.NumberOfInterrupts;
-	Interrupts = prsres->Data.Irq.Interrupts;
-    } else {
-	NumberOfInterrupts = prsres->Data.ExtendedIrq.NumberOfInterrupts;
-	Interrupts = prsres->Data.ExtendedIrq.Interrupts;
     }
 
     /* there has to be at least one interrupt available */
@@ -327,15 +326,15 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     }
 
     /*
-     * Pick an interrupt to use.  Note that a more scientific approach than just
-     * taking the first one available would be desirable.
+     * Pick an interrupt to use.  Note that a more scientific approach than
+     * just taking the first one available would be desirable.
      *
-     * The PCI BIOS $PIR table offers "preferred PCI interrupts", but ACPI doesn't
-     * seem to offer a similar mechanism, so picking a "good" interrupt here is a
-     * difficult task.
+     * The PCI BIOS $PIR table offers "preferred PCI interrupts", but ACPI
+     * doesn't seem to offer a similar mechanism, so picking a "good"
+     * interrupt here is a difficult task.
      *
-     * Build a resource buffer and pass it to AcpiSetCurrentResources to route the
-     * new interrupt.
+     * Build a resource buffer and pass it to AcpiSetCurrentResources to
+     * route the new interrupt.
      */
     device_printf(pcib, "possible interrupts:");
     for (i = 0; i < NumberOfInterrupts; i++)
