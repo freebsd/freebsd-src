@@ -60,7 +60,7 @@ on to the file system tree at the point
 This command is normally executed by
 .Xr mount 8 .
 It implements the NFSv4 protocol as described in RFC 3530,
-.%T "NFS version 4 Protocol."
+.%T "NFS version 4 Protocol" .
 .Pp
 If the server becomes unresponsive while an NFSv4 file system is
 mounted, any new or outstanding file operations on that file system
@@ -84,7 +84,7 @@ Set the readdir read size to the specified value.
 The value should normally
 be a multiple of
 .Dv DIRBLKSIZ
-that is <= the read size for the mount.
+that is \[<=] the read size for the mount.
 .It Fl N
 Do
 .Em not
@@ -102,7 +102,8 @@ The default is a retry count of zero, which means to keep retrying
 forever.
 There is a 60 second delay between each attempt.
 .It Fl T
-Use TCP transport. This is the default.
+Use TCP transport.
+This is the default.
 .It Fl U
 Force the mount protocol to use UDP transport.
 This is not supported by the version 4 protocol and is provided only for
@@ -121,7 +122,9 @@ Useful for
 where the file system mount is not critical to multiuser operation.
 .It Fl i
 Make the mount interruptible, which implies that file system calls that
-are delayed due to an unresponsive server will fail with EINTR when a
+are delayed due to an unresponsive server will fail with
+.Er EINTR
+when a
 termination signal is posted for the process.
 .It Fl o
 Options are specified with a
@@ -131,11 +134,13 @@ See the
 .Xr mount 8
 man page for possible options and their meanings.
 The following NFS specific options are also available:
-.Bl -tag -width indent
+.Pp
+.Bl -tag -width indent -compact
 .It Cm port Ns = Ns Aq Ar port_number
 Use specified port number for NFSv4 requests.
 The default is to use port 2049.
 Set this to 0 to query the portmapper for the NFSv4 port.
+.Pp
 .It Cm acregmin Ns = Ns Aq Ar seconds
 .It Cm acregmax Ns = Ns Aq Ar seconds
 .It Cm acdirmin Ns = Ns Aq Ar seconds
@@ -146,12 +151,13 @@ These four values determine the upper and lower bounds of the timeouts for
 .Dq directory
 attributes and
 .Dq regular
-(ie: everything else).
+(i.e., everything else).
 The default values are 3 -> 60 seconds
 for regular files, and 30 -> 60 seconds for directories.
 The algorithm to calculate the timeout is based on the age of the file.
 The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.Pp
 .It Cm noinet4 , noinet6
 Disables
 .Dv AF_INET
@@ -193,5 +199,6 @@ Set the retransmit timeout count for soft mounts to the specified value.
 .Xr nfsiod 8
 .Sh BUGS
 This version of the NFSv4 client, while functional, is a long way
-from compliance with RFC 3530. It lacks lock state, reboot recovery,
-delegation, gss, and many other mandatory items from the RFC.
+from compliance with RFC 3530.
+It lacks lock state, reboot recovery,
+delegation, GSS, and many other mandatory items from the RFC.
