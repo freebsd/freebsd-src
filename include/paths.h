@@ -62,6 +62,7 @@
 #define	_PATH_IFCONFIG	"/sbin/ifconfig"
 #define	_PATH_KMEM	"/dev/kmem"
 #define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
+#define	_PATH_LOCALE	"/usr/share/locale"
 #define	_PATH_LOGIN	"/usr/bin/login"
 #define	_PATH_MAILDIR	"/var/mail"
 #define	_PATH_MAN	"/usr/share/man"
