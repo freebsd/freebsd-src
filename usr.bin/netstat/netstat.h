@@ -61,7 +61,6 @@ int	af;		/* address family */
 int	kread __P((u_long addr, char *buf, int size));
 char	*plural __P((int));
 char	*plurales __P((int));
-void	trimdomain __P((char *));
 
 void	protopr __P((u_long, char *, int));
 void	tcp_stats __P((u_long, char *));
