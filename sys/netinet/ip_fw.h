@@ -299,6 +299,7 @@ struct ip_fw {
 	u_int16_t	cmd_len;	/* # of 32-bit words in cmd	*/
 	u_int16_t	rulenum;	/* rule number			*/
 	u_int8_t	set;		/* rule set (0..31)		*/
+#define	RESVD_SET	31	/* set for default and persistent rules */
 	u_int8_t	_pad;		/* padding			*/
 
 	/* These fields are present in all rules.			*/

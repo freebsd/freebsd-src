@@ -92,8 +92,10 @@
 /*
  * set_disable contains one bit per set value (0..31).
  * If the bit is set, all rules with the corresponding set
- * are disabled. Set 31 is reserved for the default rule
+ * are disabled. Set RESVD_SET(31) is reserved for the default rule
+ * and rules that are not deleted by the flush command,
  * and CANNOT be disabled.
+ * Rules in set RESVD_SET can only be deleted explicitly.
  */
 static u_int32_t set_disable;
 
@@ -2173,24 +2175,28 @@ delete_rule(struct ip_fw **head, struct ip_fw *prev, struct ip_fw *rule)
 }
 
 /*
- * Deletes all rules from a chain (including the default rule
- * if the second argument is set).
+ * Deletes all rules from a chain (except rules in set RESVD_SET
+ * unless kill_default = 1).
  * Must be called at splimp().
  */
 static void
 free_chain(struct ip_fw **chain, int kill_default)
 {
-	struct ip_fw *rule;
+	struct ip_fw *prev, *rule;
 
 	flush_rule_ptrs(); /* more efficient to do outside the loop */
-
-	while ( (rule = *chain) != NULL &&
-	    (kill_default || rule->rulenum != IPFW_DEFAULT_RULE) )
-		delete_rule(chain, NULL, rule);
+	for (prev = NULL, rule = *chain; rule ; )
+		if (kill_default || rule->set != RESVD_SET)
+			rule = delete_rule(chain, prev, rule);
+		else {
+			prev = rule;
+			rule = rule->next;
+		}
 }
 
 /**
  * Remove all rules with given number, and also do set manipulation.
+ * Assumes chain != NULL && *chain != NULL.
  *
  * The argument is an u_int32_t. The low 16 bit are the rule or set number,
  * the next 8 bits are the new set, the top 8 bits are the command:
@@ -2204,9 +2210,9 @@ free_chain(struct ip_fw **chain, int kill_default)
 static int
 del_entry(struct ip_fw **chain, u_int32_t arg)
 {
-	struct ip_fw *prev, *rule;
+	struct ip_fw *prev = NULL, *rule = *chain;
 	int s;
-	u_int16_t rulenum;
+	u_int16_t rulenum;	/* rule or old_set */
 	u_int8_t cmd, new_set;
 
 	rulenum = arg & 0xffff;
@@ -2215,13 +2221,13 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	if (cmd > 4)
 		return EINVAL;
-	if (new_set > 30)
+	if (new_set > RESVD_SET)
 		return EINVAL;
 	if (cmd == 0 || cmd == 2) {
-		if (rulenum == IPFW_DEFAULT_RULE)
+		if (rulenum >= IPFW_DEFAULT_RULE)
 			return EINVAL;
 	} else {
-		if (rulenum > 30)
+		if (rulenum > RESVD_SET)	/* old_set */
 			return EINVAL;
 	}
 
@@ -2230,9 +2236,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 		/*
 		 * locate first rule to delete
 		 */
-		for (prev = NULL, rule = *chain;
-		    rule && rule->rulenum < rulenum;
-		     prev = rule, rule = rule->next)
+		for (; rule->rulenum < rulenum; prev = rule, rule = rule->next)
 			;
 		if (rule->rulenum != rulenum)
 			return EINVAL;
@@ -2243,7 +2247,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 		 * rules. prev remains the same throughout the cycle.
 		 */
 		flush_rule_ptrs();
-		while (rule && rule->rulenum == rulenum)
+		while (rule->rulenum == rulenum)
 			rule = delete_rule(chain, prev, rule);
 		splx(s);
 		break;
@@ -2251,7 +2255,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 	case 1:	/* delete all rules with given set number */
 		s = splimp();
 		flush_rule_ptrs();
-		for (prev = NULL, rule = *chain; rule ; )
+		while (rule->rulenum < IPFW_DEFAULT_RULE)
 			if (rule->set == rulenum)
 				rule = delete_rule(chain, prev, rule);
 			else {
@@ -2263,7 +2267,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 2:	/* move rules with given number to new set */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->rulenum == rulenum)
 				rule->set = new_set;
 		splx(s);
@@ -2271,7 +2275,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 3: /* move rules with given set number to new set */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->set == rulenum)
 				rule->set = new_set;
 		splx(s);
@@ -2279,7 +2283,7 @@ del_entry(struct ip_fw **chain, u_int32_t arg)
 
 	case 4: /* swap two sets */
 		s = splimp();
-		for (rule = *chain; rule ; rule = rule->next)
+		for (; rule->rulenum < IPFW_DEFAULT_RULE; rule = rule->next)
 			if (rule->set == rulenum)
 				rule->set = new_set;
 			else if (rule->set == new_set)
@@ -2690,7 +2694,7 @@ ipfw_ctl(struct sockopt *sopt)
 		else if (size == 2*sizeof(u_int32_t)) /* set enable/disable */
 			set_disable =
 			    (set_disable | rule_buf[0]) & ~rule_buf[1] &
-			    ~(1<<31); /* set 31 always enabled */
+			    ~(1<<RESVD_SET); /* set RESVD_SET always enabled */
 		else
 			error = EINVAL;
 		break;
@@ -2777,7 +2781,7 @@ ipfw_init(void)
 	default_rule.act_ofs = 0;
 	default_rule.rulenum = IPFW_DEFAULT_RULE;
 	default_rule.cmd_len = 1;
-	default_rule.set = 31;
+	default_rule.set = RESVD_SET;
 
 	default_rule.cmd[0].len = 1;
 	default_rule.cmd[0].opcode =
