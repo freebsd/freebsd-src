@@ -196,6 +196,7 @@ done:
 	    duration);
 	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
+	printf("approx waits/sec:  %lld\n", waited / duration);
 	printf("approx wait rate:  %lld\n", waited / send_calls);
 
 	return (0);
