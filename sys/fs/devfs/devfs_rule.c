@@ -630,7 +630,6 @@ devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_dirent *de)
 	struct devfs_rule *dr = &dk->dk_rule;
 	char *pname;
 	dev_t dev;
-	int plen;
 
 	dev = devfs_rule_getdev(de);
 	if (dev != NULL)
@@ -640,20 +639,7 @@ devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_dirent *de)
 		return (0);
 	KASSERT(pname != NULL, ("devfs_rule_matchpath: NULL pname"));
 
-	/*
-	 * XXX: Interpret dr_pathptrn as a real pattern (support '*',
-	 * '?', and perhaps brace expansion).  For now, we only
-	 * support one trailing asterisk.
-	 */
-	plen = strlen(dr->dr_pathptrn);
-	if (dr->dr_pathptrn[plen - 1] == '*') {
-		if (strlen(pname) >= plen - 1 &&
-		    strncmp(dr->dr_pathptrn, pname, plen - 1) == 0)
-			return (1);
-	} else
-		if (strcmp(dr->dr_pathptrn, pname) == 0)
-			return (1);
-	return (0);
+	return (fnmatch(dr->dr_pathptrn, pname, 0) == 0);
 }
 
 /*
