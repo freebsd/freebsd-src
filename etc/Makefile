@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.53 1994/02/23 15:36:05 rgrimes Exp $
+#	$Id: Makefile,v 1.54 1994/03/07 00:42:56 rgrimes Exp $
 
 NOOBJ=	noobj
 
@@ -40,11 +40,13 @@ MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
 MDEC+=		usr/mdec/bootwd usr/mdec/wdboot
 #
-KC_DIRS=	dev mnt bin sbin
+KC_DIRS=	bin dev mnt sbin
 KC_FILES=	${COPYRIGHT}
 KC_FILES+=	bin/sh					# XXX Crunch is broken!
+KC_FILES+=	sbin/mount sbin/mount_isofs		# XXX Crunch is broken!
 KC_LINKS=	bin/[ bin/cp bin/echo bin/test
-KC_LINKS+=	sbin/fsck sbin/halt sbin/init sbin/mount sbin/umount
+KC_LINKS+=	sbin/fsck sbin/halt sbin/init
+KC_LINKS+=	sbin/umount
 #
 FILESYSTEM_DIRS=	bin dev etc mnt proc sbin usr usr/bin usr/mdec usr/sbin
 FILESYSTEM_TREES=	dev
@@ -219,7 +221,7 @@ kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 kcopy-floppy:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
 		/usr/mdec/fdboot /usr/mdec/bootfd
-	newfs -b 4096 -c 80 -f 512 -i 16384 -m 0 -o space \
+	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
 	chown root.wheel ${MOUNT}/.
@@ -229,8 +231,8 @@ kcopy-floppy:
 	(cd ${MOUNT}/dev; \
 	    sh ${DESTDIR}/dev/MAKEDEV std; \
 	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 wd0 sd0 sd1; \
-	    rm -rf fd0?* rfd0?*;)
+	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 wd1 sd0 sd1 cd0 mcd0; \
+	    rm -rf fd0?* rfd0?* fd1?* rfd1?*;)
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
@@ -265,6 +267,40 @@ kcopy_bt.flp:
 		bs=15b count=160
 	gzip --no-name -9 -c ${RELEASEDIR}/floppies/kcopy_bt.flp \
 		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz
+
+cdins-floppy:
+	${MAKE} kcopy-floppy
+	mkdir ${MOUNT}/cdrom
+	chown root.wheel ${MOUNT}/cdrom
+	chmod 755 ${MOUNT}/cdrom
+	install -c -o root -g wheel -m 755 etc.i386/cdinst1.profile \
+	    ${MOUNT}/.profile
+	install -c -o root -g wheel -m 755 etc.i386/cdinst1.install \
+	    ${MOUNT}/install
+	
+cdins_ah.flp:
+	${MAKE} cdins-floppy
+	(cd ../sys/compile/GENERICAH; \
+	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_ah.flp \
+		bs=15b count=160
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_ah.flp \
+		>${RELEASEDIR}/floppies/cdins_ah.flp.gz
+
+cdins_bt.flp:
+	${MAKE} cdins-floppy
+	(cd ../sys/compile/GENERICBT; \
+	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	df -ik ${MOUNT}
+	umount /dev/${FLOPPY}
+	fsck /dev/r${FLOPPY}
+	dd if=/dev/r${FLOPPY} of=${RELEASEDIR}/floppies/cdins_bt.flp \
+		bs=15b count=160
+	gzip --no-name -9 -c ${RELEASEDIR}/floppies/cdins_bt.flp \
+		>${RELEASEDIR}/floppies/cdins_bt.flp.gz
 
 filesyst.flp:
 	disklabel -w -r ${FLOPPY} ${FLOPPY_TYPE} \
@@ -499,11 +535,11 @@ distrib-dirs:
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
-floppies: kcopy_ah.flp kcopy_bt.flp filesyst.flp \
-	  cpio.flp
+floppies:	kcopy_ah.flp kcopy_bt.flp filesyst.flp cpio.flp \
+		cdins_ah.flp cdins_bt.flp
 
-release: release-dirs distribution kcopy-kernels floppies \
-	 bin-tarball des-tarball
+release:	release-dirs distribution kcopy-kernels floppies \
+		bin-tarball des-tarball
 	
 release-dirs:
 	rm -rf ${RELEASEDIR}/filesys
