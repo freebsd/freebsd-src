@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.12 1998/11/06 02:18:57 peter Exp $
+ *	$Id: kern_module.c,v 1.13 1999/01/09 14:59:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -301,8 +301,7 @@ modstat(struct proc* p, struct modstat_args* uap)
     if (version == sizeof(struct module_stat)) {
 	if (error = copyout(&mod->data, &stat->data, sizeof(mod->data)))
 	    goto out;
-    } else
-	printf("kldstat: v1 request\n");
+    }
 
     p->p_retval[0] = 0;
 
