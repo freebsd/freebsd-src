@@ -92,12 +92,12 @@ struct cfattach ohci_pci_ca = {
 
 #define PCI_INTERFACE_MASK      0x0000ff00
 #define PCI_INTERFACE_SHIFT     8
-#define PCI_INTERFACE(d)        (((d)>>8)&PCI_INTERFACE_MASK)
-#define PCI_SUBCLASS(d)         ((d)&PCI_SUBCLASS_MASK)
-#define PCI_CLASS(d)            ((d)&PCI_CLASS_MASK)
+#define PCI_INTERFACE(d)        (((d) >> 8) & 0xff)
+#define PCI_SUBCLASS(d)         ((d) & PCI_SUBCLASS_MASK)
+#define PCI_CLASS(d)            ((d) & PCI_CLASS_MASK)
 
-#define PCI_VENDOR(d)           ((d)&0xffff)
-#define PCI_DEVICE(d)           (((d)>>8)&0xffff)
+#define PCI_VENDOR(d)           ((d) & 0xffff)
+#define PCI_DEVICE(d)           (((d) >> 8) & 0xffff)
 
 #define PCI_OHCI_BASE_REG	0x10
 
@@ -140,9 +140,9 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
         u_int32_t class;
 
 	class = pci_conf_read(config_id, PCI_CLASS_REG);
-	if (   PCI_CLASS(class)     == PCI_CLASS_SERIALBUS
-	    && PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB
-	    && PCI_INTERFACE(class) == PCI_INTERFACE_OHCI)
+	if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
+	    && (PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB)
+	    && (PCI_INTERFACE(class) == PCI_INTERFACE_OHCI))
 		return("OHCI Host Controller");
 
 	return NULL;	/* dunno */
@@ -251,7 +251,7 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	{
 		printf("usb%d: OHCI version %d%d, interrupting at %d\n", unit,
 		/* XXX is this correct? Does the correct version show up? */
-			(rev&0xf0)>>8, rev&0x0f,
+			(rev & 0xf0) >> 8, rev & 0x0f,
 			(int)pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff);
 	}
 
