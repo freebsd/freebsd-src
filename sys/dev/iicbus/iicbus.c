@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.5 1998/11/22 22:01:42 nsouch Exp $
+ *	$Id: iicbus.c,v 1.6 1998/12/07 21:58:16 archie Exp $
  *
  */
 
@@ -73,14 +73,14 @@ struct iicbus_device {
 
 /*
  * list of known devices
+ *
+ * XXX only one smb driver should exist for each I2C interface
  */
 struct iicbus_device iicbus_children[] = {
 	{ "iicsmb", IICBUS_DRIVER_CLASS, "I2C to SMB bridge" },
-	{ "iic", IICBUS_DEVICE_CLASS, "PCF8574 I2C to 8 bits parallel i/o", 64},
-	{ "iic", IICBUS_DEVICE_CLASS, "PCF8584 as slave", PCF_MASTER_ADDRESS },
-	{ "ic", IICBUS_DEVICE_CLASS, "network interface", PCF_MASTER_ADDRESS },
+	{ "iic", IICBUS_DRIVER_CLASS, "I2C general purpose I/O" },
 #if 0
-	{ "iic", IICBUS_DRIVER_CLASS, "General Call", I2C_GENERAL_CALL },
+	{ "ic", IICBUS_DEVICE_CLASS, "network interface", PCF_MASTER_ADDRESS },
 #endif
 	{ NULL, 0 }
 };
@@ -121,10 +121,12 @@ static driver_t iicbus_driver = {
 static int
 iicbus_probe(device_t dev)
 {
-	/* always present if probed */
+	device_set_desc(dev, "Philips I2C bus");
+
 	return (0);
 }
 
+#if 0
 static int 
 iic_probe_device(device_t dev, u_char addr)
 {
@@ -145,6 +147,7 @@ iic_probe_device(device_t dev, u_char addr)
 
 	return (0);
 }
+#endif
 
 /*
  * We add all the devices which we know about.
@@ -155,10 +158,15 @@ iicbus_attach(device_t dev)
 {
 	struct iicbus_device *iicdev;
 	device_t child;
-	int addr;
 
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
+	/* device probing is meaningless since the bus is supposed to be
+	 * hot-plug. Moreover, some I2C chips do not appreciate random
+	 * accesses like stop after start to fast, reads for less than
+	 * x bytes...
+	 */
+#if 0
 	printf("Probing for devices on iicbus%d:", device_get_unit(dev));
 
 	/* probe any devices */
@@ -168,21 +176,27 @@ iicbus_attach(device_t dev)
 		}
 	}
 	printf("\n");
+#endif
 
 	/* attach known devices */
 	for (iicdev = iicbus_children; iicdev->iicd_name; iicdev++) {
 		switch (iicdev->iicd_class) {
 		case IICBUS_DEVICE_CLASS:
 			/* check if the devclass exists */
-			if (devclass_find(iicdev->iicd_name) &&
-				iic_probe_device(dev, iicdev->iicd_addr))
+			if (devclass_find(iicdev->iicd_name))
 				iicdev->iicd_alive = 1;
+			else if (bootverbose)
+				printf("iicbus: %s devclass not found\n",
+					iicdev->iicd_name);
 			break;
 
 		case IICBUS_DRIVER_CLASS:
 			/* check if the devclass exists */
-    			if (!devclass_find(iicdev->iicd_name))
+    			if (devclass_find(iicdev->iicd_name))
 				iicdev->iicd_alive = 1;
+			else if (bootverbose)
+				printf("iicbus: %s devclass not found\n",
+					iicdev->iicd_name);
 			break;
 
 		default:
@@ -272,4 +286,3 @@ iicbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
 DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(iicbus, bti2c, iicbus_driver, iicbus_devclass, 0, 0);
-DRIVER_MODULE(iicbus, smbtx, iicbus_driver, iicbus_devclass, 0, 0);
