@@ -181,58 +181,32 @@ ENTRY(break_sigtramp, 0)
 END(break_sigtramp)
 
 ENTRY(epc_sigtramp, 0)
-{	.mib
-	mov		ar.rsc=0
-	cmp.ne		p15,p0=0,gp
-	cover
-	;;
-}
-{	.mmi
-	flushrs
-(p15)	invala
-	add		r16=16+UC_MCONTEXT+MC_SPECIAL,sp
-	;;
-}
-{	.mmi
-	mov		r17=ar.bsp
-	mov		r18=ar.rnat
-	add		r14=14*8,r16
-	;;
-}
-{	.mmi
-(p15)	mov		ar.bspstore=gp
-	ld8		r19=[r14],-9*8		// cfm
-	add		r15=6*8,r16
-	;;
-}
-{	.mmi
-	st8		[r14]=r17,8*8		// bspstore
-	st8		[r15]=r18,8*8		// rnat
-	dep		r19=r19,r19,7,7
-	;;
-}
-{	.mmi
-	st8		[r14]=r0		// ndirty
-	st8		[r15]=r19		// cfm
-	nop		0
-	;;
-}
-{	.mmi
-	alloc		r14=ar.pfs, 0, 0, 3, 0
-	mov		ar.rsc=15
-	mov		out0=r8
-	;;
-}
 {	.mmi
 	ld8		r16=[r10],8		// function address
+	mov		ar.rsc=0
+	cmp.ne		p15,p0=0,gp
 	;;
-	ld8		gp=[r10]		// function's gp value
+}
+{	.mmi
+(p15)	invala
+(p15)	mov		ar.bspstore=gp
 	mov		b7=r16
 	;;
 }
-{	.mib
+{	.mmb
+	alloc		r14=ar.pfs, 0, 0, 3, 0
+	mov		ar.rsc=15
+	nop		0
+	;;
+}
+{	.mii
+	ld8		gp=[r10]		// function's gp value
+	mov		out0=r8
 	mov		out1=r9
+}
+{	.mfb
 	add		out2=16,sp
+	nop		0
 	br.call.sptk	rp=b7
 	;;
 }
