@@ -73,7 +73,7 @@ size is 4096).
 .Pp
 VM buffers also keep track of a byte-granular dirty range and valid range.
 This feature is normally only used by the NFS subsystem.
-I'm not sure why it
+I am not sure why it
 is used at all, actually, since we have DEV_BSIZE valid/dirty granularity
 within the VM buffer.
 If a buffer dirty operation creates a 'hole',
