@@ -51,6 +51,6 @@ rwall(host, msg)
 	char *msg;
 {
 	return (callrpc(host, WALLPROG, WALLVERS, WALLPROC_WALL,
-			xdr_wrapstring, (char *) &msg,
-			xdr_void, (char *) NULL));
+			(xdrproc_t)xdr_wrapstring, (char *) &msg,
+			(xdrproc_t)xdr_void, (char *) NULL));
 }

@@ -76,7 +76,8 @@ _yppasswd(char *oldpass, struct x_passwd *newpw)
 	}
 
 	rval = callrpc(server, YPPASSWDPROG, YPPASSWDVERS, YPPASSWDPROC_UPDATE,
-		       xdr_yppasswd, (char *)&yppasswd, xdr_int, (char *)&result);
+		       (xdrproc_t)xdr_yppasswd, (char *)&yppasswd,
+		       (xdrproc_t)xdr_int, (char *)&result);
 
 	free(server);
 	if (rval || result)
