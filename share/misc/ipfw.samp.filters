@@ -1,58 +1,58 @@
 # A bit of background is needed here.
 #
-#   - nahanni is the name of my machine on my local ethernet.  My local
+#   - nahanni is the name of my machine on my local Ethernet.  My local
 #     network is a subnet of a class C network.  This subnet has 29 bits for
 #     for the network address and 3 bits for the host address.  Consequently,
 #     "nahanni/29" matches anything on my local network.
 #
-#   - avalon is a (pseudonym) for a machine out on the internet that I trust
+#   - avalon is a (pseudonym) for a machine out on the interned that I trust
 #     completely.
 #
-#   - zona is the name of my end of the ppp link to my old place of work.
+#   - zona is the name of my end of the PPP link to my old place of work.
 #     This name corresponds to an IP address on their class C network.
 #     Consequently, "zona/24" matches any IP address on their network.
 #
-#   - xnahanni is my end of my ppp link to the university (i.e. the Internet).
+#   - xnahanni is my end of my PPP link to the university (i.e. the Internet).
 #
-#   - dab-nahanni is my end of the ppp link to my new place of work.  They
+#   - dab-nahanni is my end of the PPP link to my new place of work.  They
 #     have a class B network so "dab-nahanni/16" matches any IP address on
 #     their network.
 
 # Start from scratch.
 
-ipfirewall flush
+ipfw flush
 
 # Basic accept filters to provide local sanity.
 # These are the IP addresses of the interfaces on my local machine.
-# The first is an ethernet interface.  The rest are ppp interfaces.
+# The first is an Ethernet interface.  The rest are PPP interfaces.
 
-ipfirewall addb accept all from nahanni to 0/0
-ipfirewall addb accept all from xnahanni to 0/0
-# handled below:  ipfirewall addb accept all from zona to 0/0
-# handled below:  ipfirewall addb accept all from dab-nahanni to 0/0
+ipfw addf accept all from nahanni to 0/0
+ipfw addf accept all from xnahanni to 0/0
+# handled below:  ipfw addf accept all from zona to 0/0
+# handled below:  ipfw addf accept all from dab-nahanni to 0/0
 
 # Trust my local network.
 
-ipfirewall addb accept all from nahanni/29 to 0/0
+ipfw addf accept all from nahanni/29 to 0/0
 
 # Allow anything from avalon.
 
-ipfirewall addb accept all from avalon to 0/0
+ipfw addf accept all from avalon to 0/0
 
 # Allow anything from our old work (they have a class C network so /24 is appropriate).
-# This also allows anything from zona (our end of the work ppp link).
+# This also allows anything from zona (our end of the work PPP link).
 
-ipfirewall addb accept all from zona/24 to 0/0
+ipfw addf accept all from zona/24 to 0/0
 
-# Allow anything from the new work (and from our end of the ppp link to the
+# Allow anything from the new work (and from our end of the PPP link to the
 # new place of work).
 
-ipfirewall addb accept all from dab-nahanni/16 to 0/0
+ipfw addf accept all from dab-nahanni/16 to 0/0
 
 # Allow me to contact any external UDP service and others to contact a few
 # of my special udp services.
 
-ipfirewall addb accept udp from 0/0 to 0/0 900:5000 domain bootp talk ntalk route
+ipfw addf accept udp from 0/0 to 0/0 900:5000 domain bootp talk ntalk route
 
 # Allow me to contact other services available on untrusted hosts.
 # This one is a bit tricky.  We allow packets from any foreign port number
@@ -70,12 +70,12 @@ ipfirewall addb accept udp from 0/0 to 0/0 900:5000 domain bootp talk ntalk rout
 # allowing outsiders to connect to services in this range doesn't constitute
 # a security hole.
 
-ipfirewall addb accept tcp from 0/0 to 0/0 900:5000
+ipfw addf accept tcp from 0/0 to 0/0 900:5000
 
 # Allow others to contact X-servers on my local network.
 # Depend on xhosts to protect things.
 
-ipfirewall addb accept tcp from 0/0 to nahanni/29 6000
+ipfw addf accept tcp from 0/0 to nahanni/29 6000
 
 # Allow others to connect to a few basic services.
 # We don't actually run the auth service.  Allowing it means that others
@@ -87,8 +87,8 @@ ipfirewall addb accept tcp from 0/0 to nahanni/29 6000
 # via the Internet but I receive my e-mail via uucp. If you get your e-mail
 # via the Internet then you'll have to add smtp to the list of ports to allow.
 
-ipfirewall addb accept tcp from 0/0 to 0/0 daytime time nameserver auth
+ipfw addf accept tcp from 0/0 to 0/0 daytime time nameserver auth
 
 # Allow icmp stuff from anywhere (this isn't described in the README - sorry).
 
-ipfirewall addb accept icmp from 0/0 to 0/0
+ipfw addf accept icmp from 0/0 to 0/0
