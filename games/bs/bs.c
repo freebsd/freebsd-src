@@ -27,7 +27,6 @@
 #define strchr	index
 #endif /* !A_UNDERLINE */
 
-static bool checkplace();
 
 /*
  * Constants for tuning the random-fire algorithm. It prefers moves that
@@ -94,14 +93,7 @@ static char name[40];
 static char dftname[] = "stranger";
 
 /* direction constants */
-#define E	0
-#define SE	1
-#define S	2
-#define SW	3
-#define W	4
-#define NW	5
-#define N	6
-#define NE	7
+enum directions { E, SE, S, SW, W, NW, N, NE };
 static int xincr[8] = {1,  1,  0, -1, -1, -1,  0,  1};
 static int yincr[8] = {0,  1,  1,  1,  0, -1, -1, -1};
 
@@ -112,11 +104,11 @@ static int cury = (BDEPTH / 2);
 typedef struct
 {
     char *name;		/* name of the ship type */
-    unsigned hits;	/* how many times has this ship been hit? */
+    unsigned int hits;	/* how many times has this ship been hit? */
     char symbol;	/* symbol for game purposes */
     char length;	/* length of ship */
     char x, y;		/* coordinates of ship start point */
-    char dir;		/* direction of `bow' */
+    enum directions dir;/* direction of `bow' */
     bool placed;	/* has it been placed on the board? */
 }
 ship_t;
@@ -148,6 +140,10 @@ static int plywon=0, cpuwon=0;		/* How many games has each won? */
 static int salvo, blitz, closepack;
 
 #define	PR	(void)addstr
+
+static bool checkplace __P((int, ship_t *, int));
+static int getcoord __P((int));
+int playagain __P((void));
 
 static void uninitgame(sig)
 /* end the game, either normally or due to signal */
@@ -187,18 +183,18 @@ static void announceopts()
 
 static void intro()
 {
-    extern char *getlogin();
     char *tmpname;
 
     srandomdev();
 
+    tmpname = getlogin();
     (void) signal(SIGINT,uninitgame);
     (void) signal(SIGINT,uninitgame);
     (void) signal(SIGIOT,uninitgame);		/* for assert(3) */
     if(signal(SIGQUIT,SIG_IGN) != SIG_IGN)
 	(void)signal(SIGQUIT,uninitgame);
 
-    if(tmpname = getlogin())
+    if(tmpname != '\0')
     {
 	(void)strcpy(name,tmpname);
 	name[0] = toupper(name[0]);
@@ -407,8 +403,6 @@ static void initgame()
 
     ss = (ship_t *)NULL;
     do {
-	extern char *strchr();
-	static char getcoord();
 	char c, docked[SHIPTYPES + 2], *cp = docked;
 
 	/* figure which ships still wait to be placed */
@@ -612,7 +606,7 @@ int y, x;
     int	collide;
 
     /* anything on the square */
-    if (collide = IS_SHIP(board[b][x][y]))
+    if ((collide = IS_SHIP(board[b][x][y])) != 0)
 	return(collide);
 
     /* anything on the neighbors */
@@ -780,6 +774,7 @@ static int plyturn()
     bool hit;
     char *m;
 
+    m = NULL;
     prompt(1, "Where do you want to shoot? ");
     for (;;)
     {
@@ -796,11 +791,12 @@ static int plyturn()
     hits[PLAYER][curx][cury] = hit ? MARK_HIT : MARK_MISS;
     cgoto(cury, curx);
 #ifdef A_COLOR
-    if (has_colors())
+    if (has_colors()) {
 	if (hit)
 	    attron(COLOR_PAIR(COLOR_RED));
 	else
 	    attron(COLOR_PAIR(COLOR_GREEN));
+    }
 #endif /* A_COLOR */
     (void) addch((chtype)hits[PLAYER][curx][cury]);
 #ifdef A_COLOR
@@ -928,20 +924,24 @@ int	x, y;
     bool hit, sunk;
     ship_t *ss;
 
+    ss = NULL;
     hits[COMPUTER][x][y] = (hit = (board[PLAYER][x][y])) ? MARK_HIT : MARK_MISS;
     (void) mvprintw(PROMPTLINE, 0,
 	"I shoot at %c%d. I %s!", y + 'A', x, hit ? "hit" : "miss");
-    if (sunk = (hit && (ss = hitship(x, y))))
+    ss = hitship(x, y);
+    sunk = hit && ss;
+    if (sunk)
 	(void) printw(" I've sunk your %s", ss->name);
     (void)clrtoeol();
 
     pgoto(y, x);
 #ifdef A_COLOR
-    if (has_colors())
+    if (has_colors()) {
 	if (hit)
 	    attron(COLOR_PAIR(COLOR_RED));
 	else
 	    attron(COLOR_PAIR(COLOR_GREEN));
+    }
 #endif /* A_COLOR */
     (void)addch((chtype)(hit ? SHOWHIT : SHOWSPLASH));
 #ifdef A_COLOR
@@ -1080,6 +1080,7 @@ static bool cputurn()
     return(hit);
 }
 
+int
 playagain()
 {
     int j;
@@ -1185,6 +1186,7 @@ int who;
     return(shots);
 }
 
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -1236,6 +1238,8 @@ char *argv[];
     } while
 	(playagain());
     uninitgame();
+    /*NOTREACHED*/
+    exit(0);
     /*NOTREACHED*/
 }
 
