@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.6 1995/05/07 05:58:56 jkh Exp $
+ * $Id: disks.c,v 1.7 1995/05/07 22:07:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -198,6 +198,7 @@ new_part(char *mpoint, Boolean newfs)
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
     strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
+    strcpy(ret->newfs_cmd, "newfs");
     ret->newfs = newfs;
     return ret;
 }
@@ -257,6 +258,18 @@ get_partition_type(void)
     }
     return PART_NONE;
 }
+
+static void
+getNewfsCmd(PartInfo *p)
+{
+    char *val;
+
+    val = msgGetInput(p->newfs_cmd,
+		      "Please enter the newfs command and options you'd like to use in\ncreating this file system.");
+    if (val)
+	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
+}
+
 
 #define MAX_MOUNT_NAME	12
 
@@ -322,8 +335,10 @@ print_fbsd_chunks(void)
 	    memset(onestr, ' ', PART_OFF - 1);
 	    onestr[PART_OFF - 1] = '\0';
 	    /* Go for two columns */
-	    if (prow == (CHUNK_PART_START_ROW + CHUNK_COLUMN_MAX))
+	    if (prow == (CHUNK_PART_START_ROW + CHUNK_COLUMN_MAX)) {
 		pcol = PART_OFF;
+		prow = CHUNK_PART_START_ROW;
+	    }
 	    else
 		pcol = 0;
 	    memcpy(onestr + PART_PART_COL, fbsd_chunk_info[i].c->name,
@@ -517,8 +532,28 @@ partition_disks(struct disk **disks)
 	    }
 	    break;
 
+	case 'N':	/* Set newfs options */
+	    if (fbsd_chunk_info[current_chunk].c->private &&
+		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs)
+		getNewfsCmd(fbsd_chunk_info[current_chunk].c->private);
+	    else
+		msg = "newfs options not applicable for this partition";
+	    break;
+
+	case 'T':	/* Toggle newfs state */
+	    if (fbsd_chunk_info[current_chunk].c->private)
+		((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs = !((PartInfo *)fbsd_chunk_info[current_chunk].c->private)->newfs;
+	    else
+		msg = "Set a mount point first.";
+	    break;
+
 	case 27:	/* ESC */
 	    partitioning = FALSE;
+	    break;
+
+	default:
+	    beep();
+	    msg = "Type F1 or ? for help";
 	    break;
 	}
     }
