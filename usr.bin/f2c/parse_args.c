@@ -62,6 +62,7 @@ this software.
 #include "parse.h"
 #include <math.h>	     /* For atof */
 #include <ctype.h>
+#include "defs.h"
 
 #define MAX_INPUT_SIZE 1000
 
@@ -432,10 +433,10 @@ char *prefix, *string;
 	    case P_FILE:
 	    case P_OLD_FILE:
 	    case P_NEW_FILE:
-		*store = str;
 		if (str == NULL)
 		    fprintf (stderr, "%s: Missing argument after '%s%s'\n",
 			    this_program, prefix, string);
+		*store = copys(str);
 		length = str ? strlen (str) : 0;
 		break;
 	    case P_CHAR:

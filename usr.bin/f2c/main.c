@@ -95,11 +95,13 @@ char *halign, *ohalign;
 int krparens = NO;
 int hsize;	/* for padding under -h */
 int htype;	/* for wr_equiv_init under -h */
+char *o_coutput = 0;
 
 #define f2c_entry(swit,count,type,store,size) \
 	p_entry ("-", swit, 0, count, type, store, size)
 
 static arg_info table[] = {
+    f2c_entry ("o", P_ONE_ARG, P_STRING, &o_coutput, YES),
     f2c_entry ("w66", P_NO_ARGS, P_INT, &ftn66flag, YES),
     f2c_entry ("w", P_NO_ARGS, P_INT, &nowarnflag, YES),
     f2c_entry ("66", P_NO_ARGS, P_INT, &no66flag, YES),
@@ -453,13 +455,20 @@ char **argv;
 	initkey();
 	if (file_name && *file_name) {
 		if (debugflag != 1) {
-			coutput = c_name(file_name,'c');
+		        if (!o_coutput)
+			  coutput = c_name(file_name,'c');
+			else
+			  coutput = o_coutput;
 			if (Castargs1 >= 2)
 				proto_fname = c_name(file_name,'P');
 			}
 		cdfilename = coutput;
 		if (skipC)
 			coutput = 0;
+		if (coutput[0] == '-'){
+		        c_output = stdout;
+			coutput = 0;
+		      }
 		else if (!(c_output = fopen(coutput, textwrite))) {
 			file_name = coutput;
 			coutput = 0;	/* don't delete read-only .c file */
