@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Justin T. Gibbs.
+ * Copyright (c) 1997, 1998 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.8 1998/09/15 10:03:42 gibbs Exp $
+ *      $Id: busdma_machdep.c,v 1.9 1998/09/29 09:06:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -219,8 +219,14 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			dmat->ref_count--;
 			if (dmat->ref_count == 0) {
 				free(dmat, M_DEVBUF);
-			}
-			dmat = parent;
+				/*
+				 * Last reference count, so
+				 * release our reference
+				 * count on our parent.
+				 */
+				dmat = parent;
+			} else
+				dmat = NULL;
 		}
 	}
 	return (0);
@@ -280,7 +286,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 			}
 		}
 	} else {
-		*mapp = &nobounce_dmamap;
+		*mapp = NULL;
 	}
 	if (error == 0)
 		dmat->map_count++;
@@ -314,7 +320,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
 	/* If we succeed, no mapping/bouncing will be required */
-	*mapp = &nobounce_dmamap;
+	*mapp = NULL;
 
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
@@ -348,7 +354,9 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != &nobounce_dmamap)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	free(vaddr, M_DEVBUF);
+	/* XXX There is no "contigfree" and "free" doesn't work */
+	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem))
+		free(vaddr, M_DEVBUF);
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
@@ -371,6 +379,9 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t      *sg;
 	int			seg;
 	int			error;
+
+	if (map == NULL)
+		map = &nobounce_dmamap;
 
 	error = 0;
 	/*
