@@ -221,8 +221,8 @@ init_hard:
                 errno = 0;
                 irq = (unsigned char)strtol(av[4], '\0', 0);
                 /* XXX DEBUG ISA-specific */
-                if ((errno != 0) || (irq < 1) || (irq > 15)) {
-                    fprintf(stderr, "Usage: assign com[1-4] path addr irq\n");
+                if ((errno != 0) || (irq < 2) || (irq > 7)) {
+                    fprintf(stderr, "Usage: assign com[1-4] path addr irq[2-7]\n");
                     quit(1);
                 }
                 init_com(port, av[2], addr, irq);

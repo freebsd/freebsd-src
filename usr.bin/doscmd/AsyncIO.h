@@ -35,17 +35,13 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
-void	_RegisterIO(int, void (*)(void *, regcontext_t *),
-		    void *, void (*)(void *));
-void	_AssociateIO(int, int);
-void	_DeAssociateIO(int, int);
-void	_LockIO(int);
-int	_UnlockIO(int);
-int	_LevelIO(int);
-int	_DetachIO(int);
-int	_EndIO(int, int);
-void	_BlockIO(void);
-void	_UnblockIO(void);
+enum {
+	AS_RD = 1,
+	AS_WR = 2
+};			
+
+void	_RegisterIO(int, void (*)(int, int, void *, regcontext_t *),
+    void *, void (*)(void *));
 #if defined(__cplusplus)
 }
 #endif

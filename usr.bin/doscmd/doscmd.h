@@ -202,11 +202,14 @@ extern int	i386dis(unsigned short, unsigned short,
     unsigned char *, char *, int);
 
 /* int.c */
-extern void	softint(int intnum);
-extern void	hardint(int intnum);
-
-extern void	delay_interrupt(int intnum, void (*func)(int));
-extern void	resume_interrupt(void);
+void	init_ints(void);
+int	isinhardint(int);
+void	softint(int);
+void	hardint(int);
+void	resume_interrupt(void);
+void	unpend(int);
+void	send_eoi(void);
+void	set_eoir(int, void (*)(void *), void *);
 
 /* int10.c */
 extern void	int10(regcontext_t *);
@@ -300,9 +303,4 @@ extern void	initHMA(void);
 extern void	xms_init(void);
 extern u_long	xms_maxsize;
 
-/****************************** dirty below here *****************************/
-
-extern u_long	pending[];		/* pending interrupts */
-extern int	n_pending;
-
-extern int nmice;
+/****************************** dirty below here *****************************/extern int nmice;

@@ -69,9 +69,6 @@ int		timer_disable = 0;
 struct timeval	boot_time;
 unsigned long	*ivec = (unsigned long *)0;
 
-u_long	pending[256];			/* pending interrupts */
-int	n_pending;
-
 #ifndef USE_VM86
 #define PRB_V86_FORMAT  0x4242
 
@@ -118,6 +115,14 @@ main(int argc, char **argv)
     regcontext_t *REGS = (regcontext_t *)&uc.uc_mcontext;
     int fd;
     int i;    
+    sigset_t sigset;
+    
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGIO);
+    sigaddset(&sigset, SIGALRM);
+    sigprocmask(SIG_BLOCK, &sigset, 0);
+
+    init_ints();
 
     debugf = stderr;
     /* XXX should only be for tty mode */
@@ -194,9 +199,6 @@ main(int argc, char **argv)
 	}
     }
 #endif
-    for (i = 0; i < 256; i++)
-        pending[i] = 0;
-    n_pending = 0;
 
     if (booting) {			/* are we booting? */
 	setup_boot(REGS);
