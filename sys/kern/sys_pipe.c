@@ -469,7 +469,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 		goto unlocked_error;
 
 #ifdef MAC
-	error = mac_check_pipe_op(active_cred, rpipe, MAC_OP_PIPE_READ);
+	error = mac_check_pipe_read(active_cred, rpipe);
 	if (error)
 		goto locked_error;
 #endif
@@ -885,7 +885,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		return (EPIPE);
 	}
 #ifdef MAC
-	error = mac_check_pipe_op(active_cred, wpipe, MAC_OP_PIPE_WRITE);
+	error = mac_check_pipe_write(active_cred, wpipe);
 	if (error) {
 		PIPE_UNLOCK(rpipe);
 		return (error);
@@ -1233,7 +1233,7 @@ pipe_poll(fp, events, active_cred, td)
 	wpipe = rpipe->pipe_peer;
 	PIPE_LOCK(rpipe);
 #ifdef MAC
-	error = mac_check_pipe_op(active_cred, rpipe, MAC_OP_PIPE_POLL);
+	error = mac_check_pipe_poll(active_cred, rpipe);
 	if (error)
 		goto locked_error;
 #endif
@@ -1289,7 +1289,7 @@ pipe_stat(fp, ub, active_cred, td)
 	int error;
 
 	/* XXXMAC: Pipe should be locked for this check. */
-	error = mac_check_pipe_op(active_cred, pipe, MAC_OP_PIPE_STAT);
+	error = mac_check_pipe_stat(active_cred, pipe);
 	if (error)
 		return (error);
 #endif
