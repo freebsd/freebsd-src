@@ -14,4 +14,4 @@
 static char sccsid[] = "@(#)version.c	8.9.3.1 (Berkeley) 2/4/1999";
 #endif /* not lint */
 
-char	Version[] = "8.9.3p2";
+char	Version[] = "8.9.3p3";
