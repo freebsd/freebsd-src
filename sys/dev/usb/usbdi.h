@@ -115,6 +115,12 @@ typedef void (*usbd_callback) __P((usbd_request_handle, usbd_private_handle,
 #define USBD_NO_TIMEOUT 0
 #define USBD_DEFAULT_TIMEOUT 5000 /* ms = 5 s */
 
+#if defined(__FreeBSD__)
+#define USB_CDEV_MAJOR 108
+
+extern struct cdevsw usb_cdevsw;
+#endif
+
 usbd_status usbd_open_pipe
 	__P((usbd_interface_handle iface, u_int8_t address,
 	     u_int8_t flags, usbd_pipe_handle *pipe));
