@@ -938,7 +938,7 @@ do_rand(tree)
 NODE *tree;
 {
 	if (firstrand) {
-		(void) initstate((unsigned) 1, state, sizeof state);
+		(void) initstate((unsigned long) 1, state, sizeof state);
 		srandom(1);
 		firstrand = 0;
 	}
@@ -954,7 +954,7 @@ NODE *tree;
 	long ret = save_seed;	/* SVR4 awk srand returns previous seed */
 
 	if (firstrand)
-		(void) initstate((unsigned) 1, state, sizeof state);
+		(void) initstate((unsigned long) 1, state, sizeof state);
 	else
 		(void) setstate(state);
 
