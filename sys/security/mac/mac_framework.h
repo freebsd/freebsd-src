@@ -76,9 +76,11 @@
  * mb_type.  These structures will move to mac_biba.h once we have dymamic
  * labels exposed to userland.
  */
+#define	MAC_BIBA_MAX_COMPARTMENTS	256
 struct mac_biba_element {
 	u_short	mbe_type;
 	u_short	mbe_grade;
+	u_char	mbe_compartments[MAC_BIBA_MAX_COMPARTMENTS >> 3];
 };
 
 /*
@@ -100,9 +102,11 @@ struct mac_biba {
  * current mm_type.  These structures will move to mac_mls.h once we have
  * dynamic labels exposed to userland.
  */
+#define	MAC_MLS_MAX_COMPARTMENTS	256
 struct mac_mls_element {
 	u_short	mme_type;
 	u_short	mme_level;
+	u_char	mme_compartments[MAC_MLS_MAX_COMPARTMENTS >> 3];
 };
 
 /*

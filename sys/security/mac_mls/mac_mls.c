@@ -101,10 +101,24 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
 TUNABLE_INT("security.mac.mls.revocation_enabled", &revocation_enabled);
 
+static int	max_compartments = MAC_MLS_MAX_COMPARTMENTS;
+SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
+    &max_compartments, 0, "Maximum compartments the policy supports");
+
 static int	mac_mls_slot;
 #define	SLOT(l)	((struct mac_mls *)LABEL_TO_SLOT((l), mac_mls_slot).l_ptr)
 
 MALLOC_DEFINE(M_MACMLS, "mls label", "MAC/MLS labels");
+
+static __inline int
+mls_bit_set_empty(u_char *set) {
+	int i;
+
+	for (i = 0; i < MAC_MLS_MAX_COMPARTMENTS >> 3; i++)
+		if (set[i] != 0)
+			return (0);
+	return (1);
+}
 
 static struct mac_mls *
 mls_alloc(int flag)
@@ -139,6 +153,7 @@ static int
 mac_mls_dominate_element(struct mac_mls_element *a,
     struct mac_mls_element *b)
 {
+	int bit;
 
 	switch(a->mme_type) {
 	case MAC_MLS_TYPE_EQUAL:
@@ -169,6 +184,11 @@ mac_mls_dominate_element(struct mac_mls_element *a,
 			return (0);
 
 		case MAC_MLS_TYPE_LEVEL:
+			for (bit = 1; bit <= MAC_MLS_MAX_COMPARTMENTS; bit++)
+				if (!MAC_MLS_BIT_TEST(bit,
+				    a->mme_compartments) &&
+				    MAC_MLS_BIT_TEST(bit, b->mme_compartments))
+					return (0);
 			return (a->mme_level >= b->mme_level);
 
 		default:
@@ -298,7 +318,9 @@ mac_mls_valid(struct mac_mls *mac_mls)
 		case MAC_MLS_TYPE_EQUAL:
 		case MAC_MLS_TYPE_HIGH:
 		case MAC_MLS_TYPE_LOW:
-			if (mac_mls->mm_single.mme_level != 0)
+			if (mac_mls->mm_single.mme_level != 0 ||
+			    !MAC_MLS_BIT_SET_EMPTY(
+			    mac_mls->mm_single.mme_compartments))
 				return (EINVAL);
 			break;
 
@@ -318,7 +340,9 @@ mac_mls_valid(struct mac_mls *mac_mls)
 		case MAC_MLS_TYPE_EQUAL:
 		case MAC_MLS_TYPE_HIGH:
 		case MAC_MLS_TYPE_LOW:
-			if (mac_mls->mm_rangelow.mme_level != 0)
+			if (mac_mls->mm_rangelow.mme_level != 0 ||
+			    !MAC_MLS_BIT_SET_EMPTY(
+			    mac_mls->mm_rangelow.mme_compartments))
 				return (EINVAL);
 			break;
 
@@ -333,7 +357,9 @@ mac_mls_valid(struct mac_mls *mac_mls)
 		case MAC_MLS_TYPE_EQUAL:
 		case MAC_MLS_TYPE_HIGH:
 		case MAC_MLS_TYPE_LOW:
-			if (mac_mls->mm_rangehigh.mme_level != 0)
+			if (mac_mls->mm_rangehigh.mme_level != 0 ||
+			    !MAC_MLS_BIT_SET_EMPTY(
+			    mac_mls->mm_rangehigh.mme_compartments))
 				return (EINVAL);
 			break;
 
@@ -354,28 +380,42 @@ mac_mls_valid(struct mac_mls *mac_mls)
 
 static void
 mac_mls_set_range(struct mac_mls *mac_mls, u_short typelow,
-    u_short levellow, u_short typehigh, u_short levelhigh)
+    u_short levellow, u_char *compartmentslow, u_short typehigh,
+    u_short levelhigh, u_char *compartmentshigh)
 {
 
 	mac_mls->mm_rangelow.mme_type = typelow;
 	mac_mls->mm_rangelow.mme_level = levellow;
+	if (compartmentslow != NULL)
+		memcpy(mac_mls->mm_rangelow.mme_compartments,
+		    compartmentslow,
+		    sizeof(mac_mls->mm_rangelow.mme_compartments));
 	mac_mls->mm_rangehigh.mme_type = typehigh;
 	mac_mls->mm_rangehigh.mme_level = levelhigh;
+	if (compartmentshigh != NULL)
+		memcpy(mac_mls->mm_rangehigh.mme_compartments,
+		    compartmentshigh,
+		    sizeof(mac_mls->mm_rangehigh.mme_compartments));
 	mac_mls->mm_flags |= MAC_MLS_FLAG_RANGE;
 }
 
 static void
-mac_mls_set_single(struct mac_mls *mac_mls, u_short type, u_short level)
+mac_mls_set_single(struct mac_mls *mac_mls, u_short type, u_short level,
+    u_char *compartments)
 {
 
 	mac_mls->mm_single.mme_type = type;
 	mac_mls->mm_single.mme_level = level;
+	if (compartments != NULL)
+		memcpy(mac_mls->mm_single.mme_compartments, compartments,
+		    sizeof(mac_mls->mm_single.mme_compartments));
 	mac_mls->mm_flags |= MAC_MLS_FLAG_SINGLE;
 }
 
 static void
 mac_mls_copy_range(struct mac_mls *labelfrom, struct mac_mls *labelto)
 {
+
 	KASSERT((labelfrom->mm_flags & MAC_MLS_FLAG_RANGE) != 0,
 	    ("mac_mls_copy_range: labelfrom not range"));
 
@@ -499,7 +539,7 @@ mac_mls_create_devfs_device(dev_t dev, struct devfs_dirent *devfs_dirent,
 		mls_type = MAC_MLS_TYPE_EQUAL;
 	else
 		mls_type = MAC_MLS_TYPE_LOW;
-	mac_mls_set_single(mac_mls, mls_type, 0);
+	mac_mls_set_single(mac_mls, mls_type, 0, NULL);
 }
 
 static void
@@ -509,7 +549,7 @@ mac_mls_create_devfs_directory(char *dirname, int dirnamelen,
 	struct mac_mls *mac_mls;
 
 	mac_mls = SLOT(label);
-	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0);
+	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0, NULL);
 }
 
 static void
@@ -568,9 +608,9 @@ mac_mls_create_root_mount(struct ucred *cred, struct mount *mp,
 
 	/* Always mount root as high integrity. */
 	mac_mls = SLOT(fslabel);
-	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0);
+	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0, NULL);
 	mac_mls = SLOT(mntlabel);
-	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0);
+	mac_mls_set_single(mac_mls, MAC_MLS_TYPE_LOW, 0, NULL);
 }
 
 static void
@@ -776,8 +816,8 @@ mac_mls_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 	else
 		level = MAC_MLS_TYPE_LOW;
 
-	mac_mls_set_single(dest, level, 0);
-	mac_mls_set_range(dest, level, 0, level, 0);
+	mac_mls_set_single(dest, level, 0, NULL);
+	mac_mls_set_range(dest, level, 0, NULL, level, 0, NULL);
 }
 
 static void
@@ -838,7 +878,7 @@ mac_mls_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
 
 	dest = SLOT(mbuflabel);
 
-	mac_mls_set_single(dest, MAC_MLS_TYPE_EQUAL, 0);
+	mac_mls_set_single(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 
 static void
@@ -966,8 +1006,9 @@ mac_mls_create_proc0(struct ucred *cred)
 
 	dest = SLOT(&cred->cr_label);
 
-	mac_mls_set_single(dest, MAC_MLS_TYPE_EQUAL, 0);
-	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, MAC_MLS_TYPE_HIGH, 0);
+	mac_mls_set_single(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH,
+	    0, NULL);
 }
 
 static void
@@ -977,8 +1018,9 @@ mac_mls_create_proc1(struct ucred *cred)
 
 	dest = SLOT(&cred->cr_label);
 
-	mac_mls_set_single(dest, MAC_MLS_TYPE_LOW, 0);
-	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, MAC_MLS_TYPE_HIGH, 0);
+	mac_mls_set_single(dest, MAC_MLS_TYPE_LOW, 0, NULL);
+	mac_mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH,
+	    0, NULL);
 }
 
 static void
