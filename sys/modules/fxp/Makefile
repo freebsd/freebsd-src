@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1999/04/16 21:52:27 peter Exp $
 
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
@@ -17,12 +17,12 @@ opt_bdg.h:
 	touch opt_bdg.h
 
 device_if.h: $S/kern/makedevops.pl $S/kern/device_if.m
-	perl5 $S/kern/makedevops.pl -h $S/kern/device_if.m
+	perl $S/kern/makedevops.pl -h $S/kern/device_if.m
 
 bus_if.h: $S/kern/makedevops.pl $S/kern/bus_if.m
-	perl5 $S/kern/makedevops.pl -h $S/kern/bus_if.m
+	perl $S/kern/makedevops.pl -h $S/kern/bus_if.m
 
 pci_if.h: $S/kern/makedevops.pl $S/pci/pci_if.m
-	perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m
+	perl $S/kern/makedevops.pl -h $S/pci/pci_if.m
 
 .include <bsd.kmod.mk>
