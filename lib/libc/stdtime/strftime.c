@@ -78,6 +78,7 @@ _fmt(format, t, pt, ptlim)
 	const char *const ptlim;
 {
 	int Ealternative, Oalternative;
+	struct lc_time_T *tptr = __get_current_time_locale();
 
 	for ( ; *format; ++format) {
 		if (*format == '%') {
@@ -90,24 +91,24 @@ label:
 				break;
 			case 'A':
 				pt = _add((t->tm_wday < 0 || t->tm_wday > 6) ?
-					"?" : Locale->weekday[t->tm_wday],
+					"?" : tptr->weekday[t->tm_wday],
 					pt, ptlim);
 				continue;
 			case 'a':
 				pt = _add((t->tm_wday < 0 || t->tm_wday > 6) ?
-					"?" : Locale->wday[t->tm_wday],
+					"?" : tptr->wday[t->tm_wday],
 					pt, ptlim);
 				continue;
 			case 'B':
 				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ? 
-					"?" : (Oalternative ? Locale->alt_month :
-					Locale->month)[t->tm_mon],
+					"?" : (Oalternative ? tptr->alt_month :
+					tptr->month)[t->tm_mon],
 					pt, ptlim);
 				continue;
 			case 'b':
 			case 'h':
 				pt = _add((t->tm_mon < 0 || t->tm_mon > 11) ?
-					"?" : Locale->mon[t->tm_mon],
+					"?" : tptr->mon[t->tm_mon],
 					pt, ptlim);
 				continue;
 			case 'C':
@@ -161,12 +162,12 @@ label:
 			case 'f':
 				if (!Ealternative)
 					break;
-				pt = _fmt(Locale->Ef_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->Ef_fmt, t, pt, ptlim);
 				continue;
 			case 'F':
 				if (!Ealternative)
 					break;
-				pt = _fmt(Locale->EF_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->EF_fmt, t, pt, ptlim);
 				continue;
 			case 'H':
 				pt = _conv(t->tm_hour, "%02d", pt, ptlim);
@@ -225,8 +226,8 @@ label:
 				continue;
 			case 'p':
 				pt = _add((t->tm_hour >= 12) ?
-					Locale->pm :
-					Locale->am,
+					tptr->pm :
+					tptr->am,
 					pt, ptlim);
 				continue;
 			case 'R':
@@ -378,10 +379,10 @@ label:
 				pt = _conv(t->tm_wday, "%d", pt, ptlim);
 				continue;
 			case 'X':
-				pt = _fmt(Locale->X_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->X_fmt, t, pt, ptlim);
 				continue;
 			case 'x':
-				pt = _fmt(Locale->x_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->x_fmt, t, pt, ptlim);
 				continue;
 			case 'y':
 				pt = _conv((t->tm_year + TM_YEAR_BASE) % 100,
@@ -417,7 +418,7 @@ label:
 				};
 				continue;
 			case '+':
-				pt = _fmt(Locale->date_fmt, t, pt, ptlim);
+				pt = _fmt(tptr->date_fmt, t, pt, ptlim);
 				continue;
 			case '%':
 			/*
