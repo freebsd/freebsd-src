@@ -74,22 +74,25 @@ static struct cdevsw random_cdevsw = {
 static dev_t random_dev;
 static dev_t urandom_dev;
 
-/* Buffer used by uiomove(9) */
-static void *random_buf;
-
 SYSCTL_NODE(_kern, OID_AUTO, random, CTLFLAG_RW, 0, "Random Number Generator");
 SYSCTL_NODE(_kern_random, OID_AUTO, yarrow, CTLFLAG_RW, 0, "Yarrow Parameters");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, gengateinterval, CTLFLAG_RW, &random_state.gengateinterval, 10, "Generator Gate Interval");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, bins, CTLFLAG_RW, &random_state.bins, 10, "Execution time tuner");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, fastthresh, CTLFLAG_RW, &random_state.pool[0].thresh, 100, "Fast pool reseed threshhold");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowthresh, CTLFLAG_RW, &random_state.pool[1].thresh, 100, "Slow pool reseed threshhold");
-SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowoverthresh, CTLFLAG_RW, &random_state.slowoverthresh, 2, "Slow pool over-threshhold reseed count");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, gengateinterval, CTLFLAG_RW,
+	&random_state.gengateinterval, 10, "Generator Gate Interval");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, bins, CTLFLAG_RW,
+	&random_state.bins, 10, "Execution time tuner");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, fastthresh, CTLFLAG_RW,
+	&random_state.pool[0].thresh, 100, "Fast pool reseed threshhold");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowthresh, CTLFLAG_RW,
+	&random_state.pool[1].thresh, 100, "Slow pool reseed threshhold");
+SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowoverthresh, CTLFLAG_RW,
+	&random_state.slowoverthresh, 2, "Slow pool over-threshhold reseed");
 
 static int
 random_read(dev_t dev, struct uio *uio, int flag)
 {
 	u_int c, ret;
 	int error = 0;
+	void *random_buf;
 
 	c = min(uio->uio_resid, PAGE_SIZE);
 	random_buf = (void *)malloc(c, M_TEMP, M_WAITOK);
@@ -106,6 +109,7 @@ random_write(dev_t dev, struct uio *uio, int flag)
 {
 	u_int c;
 	int error = 0;
+	void *random_buf;
 
 	random_buf = (void *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
 	while (uio->uio_resid > 0) {
