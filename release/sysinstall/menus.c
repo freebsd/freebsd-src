@@ -1351,7 +1351,7 @@ DMenu MenuNetworking = {
       { " Ntpdate",	"Select a clock-synchronization server",
 	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
       { " router",	"Select routing daemon (default: routed)",
-	dmenuVarCheck,	configRouter, NULL, "router_enable" },
+	dmenuVarCheck,	configRouter, NULL, "router_enable=YES" },
       { " Rwhod",	"This machine wants to run the rwho daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
       { " Anon FTP",	"This machine wishes to allow anonymous FTP.",
