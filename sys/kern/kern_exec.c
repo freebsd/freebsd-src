@@ -744,20 +744,16 @@ exec_map_first_page(imgp)
 	VOP_GETVOBJECT(imgp->vp, &object);
 	VM_OBJECT_LOCK(object);
 	ma[0] = vm_page_grab(object, 0, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-	vm_page_lock_queues();
 	if ((ma[0]->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
-		vm_page_unlock_queues();
 		initial_pagein = VM_INITIAL_PAGEIN;
 		if (initial_pagein > object->size)
 			initial_pagein = object->size;
 		for (i = 1; i < initial_pagein; i++) {
 			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
+				if (ma[i]->valid)
+					break;
 				vm_page_lock_queues();
 				if ((ma[i]->flags & PG_BUSY) || ma[i]->busy) {
-					vm_page_unlock_queues();
-					break;
-				}
-				if (ma[i]->valid) {
 					vm_page_unlock_queues();
 					break;
 				}
@@ -773,22 +769,23 @@ exec_map_first_page(imgp)
 		initial_pagein = i;
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
-		vm_page_lock_queues();
 		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) ||
 		    (ma[0]->valid == 0)) {
 			if (ma[0]) {
+				vm_page_lock_queues();
 				pmap_remove_all(ma[0]);
 				vm_page_free(ma[0]);
+				vm_page_unlock_queues();
 			}
-			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(object);
 			return (EIO);
 		}
 	}
-	VM_OBJECT_UNLOCK(object);
+	vm_page_lock_queues();
 	vm_page_wire(ma[0]);
 	vm_page_wakeup(ma[0]);
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(object);
 
 	pmap_qenter((vm_offset_t)imgp->image_header, ma, 1);
 	imgp->firstpage = ma[0];
