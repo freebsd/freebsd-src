@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.29 1997/05/01 22:55:58 ache Exp $
+# $Id: adduser.perl,v 1.30 1997/05/01 23:23:06 ache Exp $
 
 
 # read variables
@@ -397,8 +397,8 @@ sub new_users_class {
     local($def) = @_;
     local($class);
 
-    $class = &confirm_list("Enter login class:", 1, $def, ($def, "no"));
-    $class = "" if $class eq "no";
+    $class = &confirm_list("Enter login class:", 1, $def, ($def, "default"));
+    $class = "" if $class eq "default";
     return $class;
 }
 
