@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.134 1996/01/25 07:21:36 phk Exp $
+ *	$Id: sio.c,v 1.135 1996/02/25 21:10:54 bde Exp $
  */
 
 #include "sio.h"
@@ -1055,19 +1055,23 @@ determined_type: ;
 #ifdef DEVFS
 		/* devsw, minor, type, uid, gid, perm, fmt, ... */
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-		unit, DV_CHR, 0, 0, 0600, "ttyd%n", unit);
+		unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyd%n", unit);
 	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600, "ttyid%n", unit);
+		unit | CONTROL_INIT_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyid%n", unit);
 	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600, "ttyld%n", unit);
+		unit | CONTROL_LOCK_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyld%n", unit);
 	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660, "cuaa%n", unit);
+		unit | CALLOUT_MASK, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuaa%n", unit);
 	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660,
-		"cuaia%n", unit);
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuaia%n", unit);
 	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660,
-		"cuala%n", unit);
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuala%n", unit);
 #endif
 	return (1);
 }

@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.29 1995/12/22 15:02:22 bde Exp $
+ *	$Id: cy.c,v 1.30 1996/01/25 07:21:29 phk Exp $
  */
 
 #include "cy.h"
@@ -518,7 +518,6 @@ sioattach(isdp)
 	cy_addr		cy_iobase;
 	dev_t		dev;
 	cy_addr		iobase;
-	char		name [32];
 	int		ncyu;
 	int		unit;
 
@@ -598,24 +597,24 @@ sioattach(isdp)
 	dev = makedev(CDEV_MAJOR, 0);
 	cdevsw_add(&dev, &sio_cdevsw, NULL);
 #ifdef DEVFS
-		/* path, name, devsw, minor, type, uid, gid, perm */
 	com->devfs_token_ttyd = devfs_add_devswf(&sio_cdevsw,
-		unit, DV_CHR, 0, 0, 0600, "ttyc%n", unit);
+		unit, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyc%n", unit);
 	com->devfs_token_ttyi = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0600,
-		"ttyic%n", unit);
+		unit | CONTROL_INIT_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttyic%n", unit);
 	com->devfs_token_ttyl = devfs_add_devswf(&sio_cdevsw,
-		unit | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0600,
-		"ttylc%n", unit);
+		unit | CONTROL_LOCK_STATE, DV_CHR,
+		UID_ROOT, GID_WHEEL, 0600, "ttylc%n", unit);
 	com->devfs_token_cuaa = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK, DV_CHR, 0, 0, 0660,
-		"cuac%n", unit);
+		unit | CALLOUT_MASK, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuac%n", unit);
 	com->devfs_token_cuai = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR, 0, 0, 0660,
-		"cuaic%n", unit);
+		unit | CALLOUT_MASK | CONTROL_INIT_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cuaic%n", unit);
 	com->devfs_token_cual = devfs_add_devswf(&sio_cdevsw,
-		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR, 0, 0, 0660,
-		"cualc%n", unit);
+		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
+		UID_UUCP, GID_DIALER, 0660, "cualc%n", unit);
 #endif
 		}
 	}
