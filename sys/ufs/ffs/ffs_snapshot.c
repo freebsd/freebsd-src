@@ -983,15 +983,19 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	ufs1_daddr_t blkno;
 	struct inode *ip;
 	ino_t inum;
+	int acctit;
 
 	ip = VTOI(vp);
 	inum = ip->i_number;
+	if (lblkno == -1)
+		acctit = 0;
+	else
+		acctit = 1;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
-		if (lblkno != -1 && expungetype == BLK_SNAP &&
-		    blkno != BLK_SNAP)
+		if (acctit && expungetype == BLK_SNAP && blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
@@ -1254,15 +1258,19 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	ufs2_daddr_t blkno;
 	struct inode *ip;
 	ino_t inum;
+	int acctit;
 
 	ip = VTOI(vp);
 	inum = ip->i_number;
+	if (lblkno == -1)
+		acctit = 0;
+	else
+		acctit = 1;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
-		if (lblkno != -1 && expungetype == BLK_SNAP &&
-		    blkno != BLK_SNAP)
+		if (acctit && expungetype == BLK_SNAP && blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
