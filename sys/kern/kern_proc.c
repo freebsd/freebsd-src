@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.4 1994/08/18 22:35:03 wollman Exp $
+ * $Id: kern_proc.c,v 1.5 1994/09/01 05:12:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
+#include <sys/signalvar.h>
 
 struct prochd qs[NQS];		/* as good a place as any... */
 struct prochd rtqs[NQS];	/* Space for REALTIME queues too */
@@ -102,7 +103,7 @@ chgproccnt(uid, diff)
 			return (uip->ui_proccnt);
 		if (uip->ui_proccnt < 0)
 			panic("chgproccnt: procs < 0");
-		if (uiq = uip->ui_next)
+		if ((uiq = uip->ui_next))
 			uiq->ui_prev = uip->ui_prev;
 		*uip->ui_prev = uiq;
 		FREE(uip, M_PROC);
@@ -114,7 +115,7 @@ chgproccnt(uid, diff)
 		panic("chgproccnt: lost user");
 	}
 	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
-	if (uiq = *uipp)
+	if ((uiq = *uipp))
 		uiq->ui_prev = &uip->ui_next;
 	uip->ui_next = uiq;
 	uip->ui_prev = uipp;

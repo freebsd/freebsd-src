@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.9 1994/09/01 11:20:11 davidg Exp $
+ * $Id: init_main.c,v 1.10 1994/09/13 14:46:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -124,11 +124,9 @@ main(framep)
 {
 	register struct proc *p;
 	register struct filedesc0 *fdp;
-	register struct pdevinit *pdev;
 	register int i;
 	int s, rval[2];
 	extern int (*mountroot) __P((void));
-	extern struct pdevinit pdevinit[];
 	extern void roundrobin __P((void *));
 	extern void schedcpu __P((void *));
 	extern struct sysentvec aout_sysvec;

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.7 1994/08/24 11:50:36 sos Exp $
+ *	$Id: imgact_aout.c,v 1.8 1994/09/24 21:36:50 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -51,7 +51,7 @@ exec_aout_imgact(iparams)
 	struct vmspace *vmspace = iparams->proc->p_vmspace;
 	unsigned long vmaddr, virtual_offset, file_offset;
 	unsigned long bss_size;
-	int error, len;
+	int error;
 	extern struct sysentvec aout_sysvec;
 
 	/*

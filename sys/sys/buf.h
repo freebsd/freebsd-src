@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.5 1994/08/06 09:15:33 davidg Exp $
+ * $Id: buf.h,v 1.6 1994/08/18 22:35:40 wollman Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -187,27 +187,33 @@ extern TAILQ_HEAD(swqueue, buf) bswlist;
 extern struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 __BEGIN_DECLS
-void	allocbuf __P((struct buf *, int));
-void	bawrite __P((struct buf *));
-void	bdwrite __P((struct buf *));
-void	biodone __P((struct buf *));
-int	biowait __P((struct buf *));
+void	bufinit __P((void));
+void	bremfree __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
 	    struct ucred *, struct buf **));
 int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **));
-void	brelse __P((struct buf *));
-void	bufinit __P((void));
 int	bwrite __P((struct buf *));
+void	bdwrite __P((struct buf *));
+void	bawrite __P((struct buf *));
+void	brelse __P((struct buf *));
+struct buf *getnewbuf __P((int slpflag, int slptimeo));
+struct buf *incore __P((struct vnode *, daddr_t));
+struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
+struct buf *geteblk __P((int));
+void	allocbuf __P((struct buf *, int));
+int	biowait __P((struct buf *));
+void	biodone __P((struct buf *));
+
 void	cluster_callback __P((struct buf *));
 int	cluster_read __P((struct vnode *, u_quad_t, daddr_t, long,
 	    struct ucred *, struct buf **));
 void	cluster_write __P((struct buf *, u_quad_t));
-struct buf *getblk __P((struct vnode *, daddr_t, int, int, int));
-struct buf *geteblk __P((int));
-struct buf *getnewbuf __P((int slpflag, int slptimeo));
-struct buf *incore __P((struct vnode *, daddr_t));
 u_int	minphys __P((struct buf *bp));
+void	vwakeup __P((struct buf *bp));
+void	brelvp __P((struct buf *bp));
+void	bgetvp __P((struct vnode *vp,struct buf *bp));
+void	reassignbuf __P((struct buf *bp,struct vnode *newvp));
 __END_DECLS
 #endif
 #endif /* !_SYS_BUF_H_ */

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_synch.c,v 1.3 1994/08/02 07:42:17 davidg Exp $
+ * $Id: kern_synch.c,v 1.4 1994/09/01 05:12:41 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -334,7 +334,7 @@ tsleep(ident, priority, wmesg, timo)
 	 */
 	if (catch) {
 		p->p_flag |= P_SINTR;
-		if (sig = CURSIG(p)) {
+		if ((sig = CURSIG(p))) {
 			if (p->p_wchan)
 				unsleep(p);
 			p->p_stat = SRUN;

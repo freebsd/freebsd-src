@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.4 1994/09/02 14:04:39 davidg Exp $
+ * $Id: sys_generic.c,v 1.5 1994/09/02 15:06:39 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -103,7 +103,7 @@ read(p, uap, retval)
 		ktriov = aiov;
 #endif
 	cnt = uap->nbyte;
-	if (error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred))
+	if ((error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred)))
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -162,7 +162,7 @@ readv(p, uap, retval)
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
-	if (error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen))
+	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
@@ -183,7 +183,7 @@ readv(p, uap, retval)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if (error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred))
+	if ((error = (*fp->f_ops->fo_read)(fp, &auio, fp->f_cred)))
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -222,7 +222,6 @@ write(p, uap, retval)
 	struct uio auio;
 	struct iovec aiov;
 	long cnt, error = 0;
-	int i;
 #ifdef KTRACE
 	struct iovec ktriov;
 #endif
@@ -247,7 +246,7 @@ write(p, uap, retval)
 		ktriov = aiov;
 #endif
 	cnt = uap->nbyte;
-	if (error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred)) {
+	if ((error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -310,7 +309,7 @@ writev(p, uap, retval)
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
-	if (error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen))
+	if ((error = copyin((caddr_t)uap->iovp, (caddr_t)iov, iovlen)))
 		goto done;
 	auio.uio_resid = 0;
 	for (i = 0; i < uap->iovcnt; i++) {
@@ -331,7 +330,7 @@ writev(p, uap, retval)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if (error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred)) {
+	if ((error = (*fp->f_ops->fo_write)(fp, &auio, fp->f_cred))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -430,7 +429,7 @@ ioctl(p, uap, retval)
 	switch (com) {
 
 	case FIONBIO:
-		if (tmp = *(int *)data)
+		if ((tmp = *(int *)data))
 			fp->f_flag |= FNONBLOCK;
 		else
 			fp->f_flag &= ~FNONBLOCK;
@@ -438,7 +437,7 @@ ioctl(p, uap, retval)
 		break;
 
 	case FIOASYNC:
-		if (tmp = *(int *)data)
+		if ((tmp = *(int *)data))
 			fp->f_flag |= FASYNC;
 		else
 			fp->f_flag &= ~FASYNC;
@@ -558,7 +557,7 @@ retry:
 	s = splhigh();
 	/* this should be timercmp(&time, &atv, >=) */
 	if (uap->tv && (time.tv_sec > atv.tv_sec ||
-	    time.tv_sec == atv.tv_sec && time.tv_usec >= atv.tv_usec)) {
+	    (time.tv_sec == atv.tv_sec && time.tv_usec >= atv.tv_usec))) {
 		splx(s);
 		goto done;
 	}

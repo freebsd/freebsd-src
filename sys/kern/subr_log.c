@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: subr_log.c,v 1.3 1994/08/02 07:42:29 davidg Exp $
  */
 
 /*
@@ -120,8 +120,8 @@ logread(dev, uio, flag)
 			return (EWOULDBLOCK);
 		}
 		logsoftc.sc_state |= LOG_RDWAIT;
-		if (error = tsleep((caddr_t)mbp, LOG_RDPRI | PCATCH,
-		    "klog", 0)) {
+		if ((error = tsleep((caddr_t)mbp, LOG_RDPRI | PCATCH,
+		    "klog", 0))) {
 			splx(s);
 			return (error);
 		}
@@ -181,7 +181,7 @@ logwakeup()
 	if (logsoftc.sc_state & LOG_ASYNC) {
 		if (logsoftc.sc_pgid < 0)
 			gsignal(-logsoftc.sc_pgid, SIGIO); 
-		else if (p = pfind(logsoftc.sc_pgid))
+		else if ((p = pfind(logsoftc.sc_pgid)))
 			psignal(p, SIGIO);
 	}
 	if (logsoftc.sc_state & LOG_RDWAIT) {
