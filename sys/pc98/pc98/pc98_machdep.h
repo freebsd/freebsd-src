@@ -31,9 +31,8 @@
 void	pc98_init_dmac __P((void));
 void	pc98_getmemsize __P((void));
 
-struct disk_parms;
-struct scsi_link;
-int	sd_bios_parms __P((struct disk_parms *, struct scsi_link *));
+struct	ccb_calc_geometry;
+int	scsi_da_bios_params __P((struct ccb_calc_geometry *));
 
 #define	PC98_VECTOR_SIZE			(0x400)
 #define	PC98_SYSTEM_PARAMETER_SIZE		(0x230)
