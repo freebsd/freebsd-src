@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id: df.c,v 1.17 1997/08/07 21:31:00 steve Exp $";
+	"$Id: df.c,v 1.18 1997/10/12 13:55:43 joerg Exp $";
 #endif
 #endif /* not lint */
 
@@ -84,7 +84,7 @@ main(argc, argv)
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
 	long mntsize;
-	int ch, err, i, maxwidth, width, rv;
+	int ch, err, i, maxwidth, rv, width;
 	char *mntpt, **vfslist;
 
 	vfslist = NULL;
@@ -316,11 +316,11 @@ ufs_df(file, maxwidth)
 
 	if ((rfd = open(file, O_RDONLY)) < 0) {
 		warn("%s", file);
-		return 1;
+		return (1);
 	}
 	if (bread((off_t)SBOFF, &sblock, SBSIZE) == 0) {
 		(void)close(rfd);
-		return 1;
+		return (1);
 	}
 	sfsp = &statfsbuf;
 	sfsp->f_type = 1;
@@ -342,7 +342,7 @@ ufs_df(file, maxwidth)
 	memmove(&sfsp->f_mntfromname[0], file, MNAMELEN);
 	prtstat(sfsp, maxwidth);
 	(void)close(rfd);
-	return 0;
+	return (0);
 }
 
 int
