@@ -40,3 +40,4 @@ int isa_setup_intr(device_t dev, device_t child,
 		   driver_intr_t *intr, void *arg, void **cookiep);
 int isa_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie);
+intrmask_t isa_irq_mask(void);
