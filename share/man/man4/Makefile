@@ -145,7 +145,7 @@ MAN4=	aac.4 \
 	sysmouse.4 \
 	tap.4 \
 	tcp.4 \
-   tdfx.4 \
+	tdfx.4 \
 	termios.4 \
 	ti.4 \
 	tl.4 \
@@ -165,7 +165,6 @@ MAN4=	aac.4 \
 	uscanner.4 \
 	vga.4 \
 	vinum.4 \
-	vn.4 \
 	vpo.4 \
 	vr.4 \
 	wb.4 \
@@ -183,6 +182,7 @@ MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=lp.4 plip.4
+MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=netintro.4 networking.4
 MLINKS+=pcm.4 snd.4

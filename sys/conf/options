@@ -55,7 +55,6 @@ GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS
 HW_WDOG
 KTRACE
-MD_NSECT	opt_md.h
 MD_ROOT		opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFS_ROOT	opt_mfs.h
