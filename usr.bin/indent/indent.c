@@ -91,6 +91,7 @@ main(int argc, char **argv)
     int         squest;		/* when this is positive, we have seen a ?
 				 * without the matching : in a <c>?<s>:<s>
 				 * construct */
+    int		use_tabs;	/* true if using tabs to indent to var name */
     const char *t_ptr;		/* used for copying tokens */
     int         type_code;	/* the type of token, returned by lexi */
 
@@ -905,11 +906,8 @@ check_type:
 	    prefix_blankline_requested = 0;
 	    for (i = 0; token[i++];);	/* get length of token */
 
-	    /*
-	     * dec_ind = e_code - s_code + (ps.decl_indent>i ? ps.decl_indent
-	     * : i);
-	     */
 	    dec_ind = ps.decl_indent > 0 ? ps.decl_indent : i;
+	    use_tabs = ps.decl_indent > 0;
 	    goto copy_id;
 
 	case ident:		/* got an identifier or constant */
@@ -929,10 +927,12 @@ check_type:
 
 			    startpos = e_code - s_code;
 			    pos = startpos;
-			    while ((pos & ~7) + 8 <= dec_ind) {
-				CHECK_SIZE_CODE;
-				*e_code++ = '\t';
-				pos = (pos & ~7) + 8;
+			    if (use_tabs) {
+				while ((pos & ~7) + 8 <= dec_ind) {
+				    CHECK_SIZE_CODE;
+				    *e_code++ = '\t';
+				    pos = (pos & ~7) + 8;
+				}
 			    }
 			    while (pos < dec_ind) {
 				CHECK_SIZE_CODE;
