@@ -467,9 +467,9 @@ again:
 	 * Start by zeroing the section of proc that is zero-initialized,
 	 * then copy the section that is copied directly from the parent.
 	 */
-	td2 = thread_alloc();
-	ke2 = &p2->p_kse;
-	kg2 = &p2->p_ksegrp;
+	td2 = FIRST_THREAD_IN_PROC(p2);
+	kg2 = FIRST_KSEGRP_IN_PROC(p2);
+	ke2 = FIRST_KSE_IN_KSEGRP(kg2);
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
@@ -477,10 +477,8 @@ again:
 	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
 	bzero(&ke2->ke_startzero,
 	    (unsigned) RANGEOF(struct kse, ke_startzero, ke_endzero));
-#if 0 /* bzero'd by the thread allocator */
 	bzero(&td2->td_startzero,
 	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
-#endif
 	bzero(&kg2->kg_startzero,
 	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
 
@@ -498,17 +496,6 @@ again:
 	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
 #undef RANGEOF
 
-	/*
-	 * XXXKSE Theoretically only the running thread would get copied 
-	 * Others in the kernel would be 'aborted' in the child.
-	 * i.e return E*something*
-	 * On SMP we would have to stop them running on
-	 * other CPUs! (set a flag in the proc that stops
-	 * all returns to userland until completed)
-	 * This is wrong but ok for 1:1.
-	 */
-	proc_linkup(p2, kg2, ke2, td2);
-
 	/* Set up the thread as an active thread (as if runnable). */
 	TAILQ_REMOVE(&kg2->kg_iq, ke2, ke_kgrlist);
 	kg2->kg_idle_kses--;
@@ -516,8 +503,6 @@ again:
 	ke2->ke_thread = td2;
 	td2->td_kse = ke2;
 	td2->td_flags &= ~TDF_UNBOUND; /* For the rest of this syscall. */
-
-	/* note.. XXXKSE no pcb or u-area yet */
 
 	/*
 	 * Duplicate sub-structures as needed.
@@ -622,10 +607,8 @@ again:
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
-	LIST_INIT(&td2->td_contested); /* XXXKSE only 1 thread? */
 
 	callout_init(&p2->p_itcallout, 0);
-	callout_init(&td2->td_slpcallout, 1); /* XXXKSE */
 
 #ifdef KTRACE
 	/*
@@ -680,19 +663,6 @@ again:
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	PROC_UNLOCK(p2);
 	sx_xunlock(&proctree_lock);
-
-	/*
-	 * XXXKSE: In KSE, there would be a race here if one thread was
-	 * dieing due to a signal (or calling exit1() for that matter) while
-	 * another thread was calling fork1().  Not sure how KSE wants to work
-	 * around that.  The problem is that up until the point above, if p1
-	 * gets killed, it won't find p2 in its list in order for it to be
-	 * reparented.  Alternatively, we could add a new p_flag that gets set
-	 * before we reparent all the children that we check above and just
-	 * use init as our parent if that if that flag is set.  (Either that
-	 * or abort the fork if the flag is set since our parent died trying
-	 * to fork us (which is evil)).
-	 */
 
 	KASSERT(newprocsig == NULL, ("unused newprocsig"));
 	if (newsigacts != NULL)
