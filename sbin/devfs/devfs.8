@@ -25,8 +25,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dt DEVFS 8
 .Dd July 1, 2002
+.Dt DEVFS 8
 .Os
 .Sh NAME
 .Nm devfs
@@ -34,7 +34,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl m Ar mount-point
-.Cm keyword
+.Ar keyword
 .Ar argument ...
 .Sh DESCRIPTION
 The
@@ -106,17 +106,20 @@ The rule has the number
 .Ar rulenum
 if it is explicitly specified;
 otherwise, the rule number is automatically determined by the kernel.
-.It Cm rule apply Ar rulenum | Ar rulespec
+.It Cm rule apply Ar rulenum | rulespec
 Apply rule number
 .Ar rulenum
 or the rule described by
 .Ar rulespec
 to the mount-point.
-Rules that are "applied" have their conditions checked against all nodes
+Rules that are
+.Dq applied
+have their conditions checked against all nodes
 in the mount-point, and the actions taken if they match.
 .It Cm rule applyset
 Apply all the rules in the ruleset to the mount-point
-(see above for the definition of "apply").
+(see above for the definition of
+.Dq apply ) .
 .It Cm rule del Ar rulenum
 Delete rule number
 .Ar rulenum
@@ -141,10 +144,10 @@ Rules have two parts: the conditions and the actions.
 The conditions determine which DEVFS nodes the rule matches,
 and the actions determine what should be done when a rule matches a node.
 For example, a rule can be written that sets the GID to
-.Li games
+.Dq Li games
 for all devices with major number 53.
 If the first token of a rule specification is a single dash
-.Pq Dq - ,
+.Pq Sq Fl ,
 rules are read from the standard input and the rest of the specification
 is ignored.
 .Pp
@@ -165,9 +168,9 @@ pattern.
 Matches any node that is of type
 .Ar devtype .
 Valid types are
-.Li disk , mem , tape
+.Cm disk , mem , tape
 and
-.Li tty .
+.Cm tty .
 .El
 .Pp
 The following actions are recognized.
@@ -236,22 +239,22 @@ When the system boots,
 the only ruleset that exists is ruleset number 0;
 since the latter may not be modified, we have to create another ruleset
 before adding rules.
-Note that since most of the following examples don't specify
+Note that since most of the following examples do not specify
 .Fl m ,
 the operations are performed on
 .Pa /dev
 (this only matters for things that might change the properties of nodes).
 .Pp
-.Dl devfs ruleset 10
+.Dl "devfs ruleset 10"
 .Pp
 Specify that ruleset 10 should be the current ruleset for
 .Pa /dev
 (if it does not already exist, it is created).
 .Pp
-.Dl devfs rule add path speaker mode 666
+.Dl "devfs rule add path speaker mode 666"
 .Pp
 Add a rule that causes all nodes that have a path that matches
-"speaker"
+.Dq Li speaker
 (this is only
 .Pa /dev/speaker )
 to have the file mode 666 (read and write for all).
@@ -266,7 +269,7 @@ the rule is added
 .Pa atspeaker
 module is loaded after the above rule is added).
 .Pp
-.Dl devfs rule applyset
+.Dl "devfs rule applyset"
 .Pp
 Apply all the rules in the current ruleset to all the existing nodes.
 E.g., if the above rule was added after
@@ -280,16 +283,17 @@ as rule rule prescribes.
 (Quoting the argument to
 .Cm path
 is often necessary to disable the shell's globbing features.)
-For all devices with a path that matches "snp*",
+For all devices with a path that matches
+.Dq Li snp* ,
 set the file more to 660, and the GID to
-.Li snoopers .
+.Dq Li snoopers .
 This permits users in the
-.Li snoopers
+.Dq Li snoopers
 group to use the
 .Xr snp 4
 devices.
 .Pp
-.Dl devfs rule -s 20 add major 53 group games
+.Dl "devfs rule -s 20 add major 53 group games"
 .Pp
 Add a rule to ruleset number 20.
 Since this ruleset is not the current ruleset for any mount-points,
@@ -297,34 +301,34 @@ this rule is never applied automatically (unless ruleset 20 becomes
 a current ruleset for some mount-point at a later time).
 However, it can be applied explicitly, as such:
 .Pp
-.Dl devfs -m /my/jail/dev rule -s 20 applyset
+.Dl "devfs -m /my/jail/dev rule -s 20 applyset"
 .Pp
 This will apply all rules in ruleset number 20 to the DEVFS mount on
 .Pa /my/jail/dev .
-It doesn't matter that ruleset 20 is not the current ruleset for that
+It does not matter that ruleset 20 is not the current ruleset for that
 mount-point; the rules are applied regardless.
 .Pp
-.Dl devfs rule apply hide
+.Dl "devfs rule apply hide"
 .Pp
 Since this rule has no conditions, the action
 .Pq Cm hide
 will be applied to all nodes.
-Since hiding all nodes isn't very useful, we can undo like so:
+Since hiding all nodes is not very useful, we can undo like so:
 .Pp
-.Dl devfs rule apply unhide
+.Dl "devfs rule apply unhide"
 .Pp
 which applies
 .Cm unhide
 to all the nodes,
 causing them to reappear.
 .Pp
-.Dl cat my_rules | devfs rule -s 10 add -
+.Dl "cat my_rules | devfs rule -s 10 add -"
 .Pp
 Add all the rules from the file
 .Pa my_rules
 to ruleset 10.
 .Pp
-.Dl devfs rule -s 20 show | devfs rule -s 10 add -
+.Dl "devfs rule -s 20 show | devfs rule -s 10 add -"
 .Pp
 Since
 .Cm show
