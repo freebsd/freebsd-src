@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)lpdchar.c	8.1 (Berkeley) 6/6/93";
  *	Character set for line printer daemon
  */
 #include "lp.local.h"
+#include "extern.h"
 
 #define c_______ 0
 #define c______1 01

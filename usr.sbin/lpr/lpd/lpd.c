@@ -79,6 +79,7 @@ static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <netdb.h>
 #include <unistd.h>
@@ -493,7 +494,6 @@ chkhost(f)
 	register struct hostent *hp;
 	register FILE *hostf;
 	int first = 1;
-	extern char *inet_ntoa();
 
 	f->sin_port = ntohs(f->sin_port);
 	if (f->sin_family != AF_INET || f->sin_port >= IPPORT_RESERVED)

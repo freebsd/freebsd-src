@@ -35,5 +35,8 @@
 
 #include <sys/cdefs.h>
 
+extern char scnkey[][HEIGHT];	/* in lpdchar.c */
+extern char fromb[];
+
 void       printjob __P((void));
 void       recvjob __P((void));

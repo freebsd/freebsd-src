@@ -56,12 +56,6 @@ static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 /*
  * Stuff for handling lprm specifications
  */
-extern char	*user[];		/* users to process */
-extern int	users;			/* # of users in user array */
-extern int	requ[];			/* job number of spool entries */
-extern int	requests;		/* # of spool requests */
-extern char	*person;		/* name of person doing lprm */
-
 static char	root[] = "root";
 static int	all = 0;		/* eliminate all files (root only) */
 static int	cur_daemon;		/* daemon's pid */
