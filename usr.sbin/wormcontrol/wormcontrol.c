@@ -156,13 +156,11 @@ main(int argc, char **argv)
 			err(EX_IOERR, "ioctl(WORMIOFIXATION)");
 	}
 	else if (eq(argv[0], "blank")) {
-#define CDRIOCBLANK     _IO('c',100)    /* Blank a CDRW disc */
 		if (ioctl(fd, CDRIOCBLANK) == -1)
 			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
 	}
 	else if (eq(argv[0], "nextwriteable")) {
 		int addr;
-#define CDRIOCNEXTWRITEABLEADDR _IOR('c',101,int)
 		if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) == -1)
 			err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
 		printf("%d\n", addr);
