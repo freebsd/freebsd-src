@@ -207,7 +207,7 @@ splitfs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	sf->tot_pos += nread;
 	sf->file_pos += nread;
 	totread += nread;
-	buf += nread;
+	buf = (char *)buf + nread;
 
 	if (totread < size) {				/* EOF */
 	    if (sf->curfile == (sf->filesc - 1))	/* Last slice */
