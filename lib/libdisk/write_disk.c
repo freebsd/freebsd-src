@@ -354,6 +354,9 @@ Write_Disk(struct disk *d1)
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
 	write_block(fd,WHERE(0,d1),mbr);
+	if (d1->bootmgr && d1->bootmgr_size > 512)
+	  for(i = 1; i * 512 <= d1->bootmgr_size; i++)
+	    write_block(fd,WHERE(i,d1),&d1->bootmgr[i * 512]);
 #endif
 #endif
 
