@@ -78,7 +78,6 @@ static int __ftw_core(const char *dir, void *func, int descr, int flags,
     const char *paths[2];
     int ftw_flag, func_ret;
     struct FTW ftw_st;
-    int skip_entry;
     __ftw_func_t ftw_func;
     __nftw_func_t nftw_func;
     int saved_errno;
@@ -120,15 +119,11 @@ static int __ftw_core(const char *dir, void *func, int descr, int flags,
     /* The main loop. Is it not nifty? Worship the loop. */
 
     while ((entry = fts_read(hierarchy))) {
-        skip_entry = 0;
-
         switch (entry->fts_info) {
 
             case FTS_D:
                 if ((MODE_NFTW != mode) || !(flags & FTW_DEPTH)) {
                     ftw_flag = FTW_D;
-                } else {
-                    skip_entry = 1;
                 }
                 break;
 
@@ -161,8 +156,6 @@ static int __ftw_core(const char *dir, void *func, int descr, int flags,
             case FTS_DP:
                 if ((MODE_NFTW == mode) && (flags & FTW_DEPTH)) {
                     ftw_flag = FTW_D;
-                } else {
-                    skip_entry = 1;
                 }
                 break;
 
@@ -171,8 +164,7 @@ static int __ftw_core(const char *dir, void *func, int descr, int flags,
                  * type to call with, so cowardice seems the better part of
                  * guessing.
                  */
-
-                skip_entry = 1;
+		break;
         }
 
         if (MODE_FTW == mode) {
