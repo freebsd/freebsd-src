@@ -136,8 +136,8 @@
 
 #include <sys/queue.h>
 
-typedef unsigned int *pd_entry_t;
-typedef unsigned int *pt_entry_t;
+typedef u_int32_t pd_entry_t;
+typedef u_int32_t pt_entry_t;
 
 #define PDESIZE		sizeof(pd_entry_t) /* for assembly files */
 #define PTESIZE		sizeof(pt_entry_t) /* for assembly files */
@@ -147,8 +147,9 @@ typedef unsigned int *pt_entry_t;
  * and directories.
  */
 #ifdef _KERNEL
-extern pt_entry_t PTmap[], APTmap[], Upte;
-extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
+extern pt_entry_t PTmap[], APTmap[];
+extern pd_entry_t PTD[], APTD[];
+extern pd_entry_t PTDpde, APTDpde;
 
 extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
 #endif
