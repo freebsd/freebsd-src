@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.22 1997/03/24 11:23:21 bde Exp $ */
+/* $Id: ccd.c,v 1.23 1997/05/01 19:18:40 sos Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -97,8 +97,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <sys/proc.h>
-#include <sys/errno.h>
-#include <sys/dkstat.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
@@ -110,10 +108,8 @@
 #undef KERNEL			/* XXX */
 #include <sys/disk.h>
 #define KERNEL
-#include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
-#include <sys/dkbad.h>
 
 #include <sys/ccdvar.h>
 
