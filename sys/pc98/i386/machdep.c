@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.14 1996/12/01 16:34:25 bde Exp $
+ *	$Id: machdep.c,v 1.15 1996/12/04 04:20:27 asami Exp $
  */
 
 #include "npx.h"
@@ -289,9 +289,9 @@ again:
 	if (nbuf == 0) {
 		nbuf = 30;
 		if( physmem > 1024)
-			nbuf += min((physmem - 1024) / 12, 1024);
+			nbuf += min((physmem - 1024) / 6, 2048);
 	}
-	nswbuf = min(nbuf, 128);
+	nswbuf = max(min(nbuf/4, 128), 16);
 
 	valloc(swbuf, struct buf, nswbuf);
 	valloc(buf, struct buf, nbuf);
@@ -329,7 +329,7 @@ again:
 
 #ifdef BOUNCE_BUFFERS
 	clean_map = kmem_suballoc(kernel_map, &clean_sva, &clean_eva,
-			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) +
+			(3*nbuf*DFLTBSIZE/2) + (nswbuf*MAXPHYS) +
 				maxbkva + pager_map_size, TRUE);
 	io_map = kmem_suballoc(clean_map, &minaddr, &maxaddr, maxbkva, FALSE);
 #else
@@ -337,7 +337,7 @@ again:
 			(nbuf*MAXBSIZE) + (nswbuf*MAXPHYS) + pager_map_size, TRUE);
 #endif
 	buffer_map = kmem_suballoc(clean_map, &buffer_sva, &buffer_eva,
-				(nbuf*MAXBSIZE), TRUE);
+				(3*nbuf*DFLTBSIZE/2), TRUE);
 	pager_map = kmem_suballoc(clean_map, &pager_sva, &pager_eva,
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
@@ -428,7 +428,6 @@ again:
 			       max_head, max_head + 1,
 			       max_sector, max_sector);
 		}
-		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
 }
 
@@ -665,8 +664,7 @@ sigreturn(p, uap, retval)
 		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
-	p->p_sigmask = scp->sc_mask &~
-	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
+	p->p_sigmask = scp->sc_mask & ~sigcantmask;
 	regs[tEBP] = scp->sc_fp;
 	regs[tESP] = scp->sc_sp;
 	regs[tEIP] = scp->sc_pc;
@@ -979,6 +977,7 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+	struct isa_device *idp;
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 	int	pagesinbase, pagesinext;
