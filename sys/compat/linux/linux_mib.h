@@ -31,13 +31,13 @@
 #ifndef _LINUX_MIB_H_
 #define _LINUX_MIB_H_
 
-void	linux_get_osname	(struct proc *p, char *dst);
-int	linux_set_osname	(struct proc *p, char *osname);
+void	linux_get_osname(struct proc *p, char *dst);
+int	linux_set_osname(struct proc *p, char *osname);
 
-void	linux_get_osrelease	(struct proc *p, char *dst);
-int	linux_set_osrelease	(struct proc *p, char *osrelease);
+void	linux_get_osrelease(struct proc *p, char *dst);
+int	linux_set_osrelease(struct proc *p, char *osrelease);
 
-int	linux_get_oss_version	(struct proc *p);
-int	linux_set_oss_version	(struct proc *p, int oss_version);
+int	linux_get_oss_version(struct proc *p);
+int	linux_set_oss_version(struct proc *p, int oss_version);
 
 #endif /* _LINUX_MIB_H_ */
