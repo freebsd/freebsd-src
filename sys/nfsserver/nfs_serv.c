@@ -3687,6 +3687,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		}
 
 		s = splbio();
+		VI_LOCK(vp);
 		while (cnt > 0) {
 			struct buf *bp;
 
@@ -3700,16 +3701,18 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 * should not be set if B_INVAL is set there could be
 			 * a race here since we haven't locked the buffer).
 			 */
-			if ((bp = incore(vp, lblkno)) != NULL &&
+			if ((bp = gbincore(vp, lblkno)) != NULL &&
 			    (bp->b_flags & (B_DELWRI|B_INVAL)) == B_DELWRI) {
-				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-					BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL);
+				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
+				    LK_INTERLOCK, VI_MTX(vp)) == ENOLCK) {
+					VI_LOCK(vp);
 					continue; /* retry */
 				}
 				bremfree(bp);
 				bp->b_flags &= ~B_ASYNC;
 				BUF_WRITE(bp);
 				++nfs_commit_miss;
+				VI_LOCK(vp);
 			}
 			++nfs_commit_blks;
 			if (cnt < iosize)
@@ -3717,6 +3720,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			cnt -= iosize;
 			++lblkno;
 		}
+		VI_UNLOCK(vp);
 		splx(s);
 	}
 
