@@ -232,7 +232,7 @@ initfs()
 		fs_current->qfpathname = malloc(sizeof(char) * (strlen(qfpathname) + 1));
 		strcpy(fs_current->qfpathname, qfpathname);
 
-		stat(qfpathname, &st);
+		stat(fs_current->fs_file, &st);
 		fs_current->st_dev = st.st_dev;
 
 		fs_next = fs_current;
