@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.29 1996/06/12 05:07:26 gpalmer Exp $
+ * $Id: kern_descrip.c,v 1.30 1996/06/17 16:54:03 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -619,13 +619,15 @@ fdavail(p, n)
 {
 	register struct filedesc *fdp = p->p_fd;
 	register struct file **fpp;
-	register int i, lim;
+	register int i, lim, last;
 
 	lim = min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
+
+	last = min(fdp->fd_nfiles, lim);
 	fpp = &fdp->fd_ofiles[fdp->fd_freefile];
-	for (i = fdp->fd_nfiles - fdp->fd_freefile; --i >= 0; fpp++)
+	for (i = last - fdp->fd_freefile; --i >= 0; fpp++)
 		if (*fpp == NULL && --n <= 0)
 			return (1);
 	return (0);
