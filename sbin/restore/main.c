@@ -61,6 +61,7 @@ static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/7/94";
 
 int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
+int	dokerberos = 0;
 char	command = '\0';
 long	dumpnum = 1;
 long	volno = 0;
@@ -95,7 +96,12 @@ main(argc, argv)
 	if ((inputdev = getenv("TAPE")) == NULL)
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "b:cdf:himNRrs:tvxy")) != EOF)
+#ifdef KERBEROS
+#define	optlist "b:cdf:hikmNRrs:tvxy"
+#else
+#define	optlist "b:cdf:himNRrs:tvxy"
+#endif
+	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
 		case 'b':
 			/* Change default tape blocksize. */
@@ -118,6 +124,11 @@ main(argc, argv)
 		case 'h':
 			hflag = 0;
 			break;
+#ifdef KERBEROS
+		case 'k':
+			dokerberos = 1;
+			break;
+#endif
 		case 'i':
 		case 'R':
 		case 'r':
@@ -277,11 +288,11 @@ static void
 usage()
 {
 	(void)fprintf(stderr, "usage:\t%s%s%s%s%s",
-	    "restore tfhsvy [file ...]\n",
-	    "\trestore xfhmsvy [file ...]\n",
-	    "\trestore ifhmsvy\n",
-	    "\trestore rfsvy\n",
-	    "\trestore Rfsvy\n");
+	    "restore tfhksvy [file ...]\n",
+	    "\trestore xfhkmsvy [file ...]\n",
+	    "\trestore ifhkmsvy\n",
+	    "\trestore rfksvy\n",
+	    "\trestore Rfksvy\n");
 	done(1);
 }
 

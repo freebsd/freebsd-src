@@ -24,8 +24,10 @@ MLINKS+=dump.8 rdump.8
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_EBONES)
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
+CFLAGS+=-DKERBEROS
 SRCS+=	krcmd.c kcmd.c
 LDADD+=	-lkrb -ldes
+DISTRIBUTION=	krb
 .endif
 
 .include <bsd.prog.mk>
