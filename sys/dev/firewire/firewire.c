@@ -984,14 +984,14 @@ fw_xfer_done(struct fw_xfer *xfer)
 		return;
 	}
 
+	if (xfer->fc == NULL)
+		panic("fw_xfer_done: why xfer->fc is NULL?");
+
 	if (xfer->fc->status != FWBUSRESET)
 		xfer->act.hand(xfer);
 	else {
 		printf("fw_xfer_done: pending\n");
-		if (xfer->fc != NULL)
-			STAILQ_INSERT_TAIL(&xfer->fc->pending, xfer, link);
-		else
-			panic("fw_xfer_done: why xfer->fc is NULL?");
+		STAILQ_INSERT_TAIL(&xfer->fc->pending, xfer, link);
 	}
 }
 
