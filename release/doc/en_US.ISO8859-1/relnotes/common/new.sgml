@@ -291,7 +291,9 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
+      <para arch="i386">&new.521; <filename>cdboot</filename> now works around a
+	BIOS problem observed on some systems when booting from USB
+	CDROM drives.</para>
 
       <!-- Above this line, order boot loader changes by keyword-->
 
@@ -312,6 +314,10 @@
 
       <para>A bug in the &man.bge.4; driver that prevented it from
 	working correctly at 10 Mbps has been fixed.</para>
+
+      <para arch="sparc64">&new.521; The &man.dc.4; driver now supports sparc64
+	Davicom cards that store their MAC address in
+	OpenFirmware.</para>
 
       <para>The &man.em.4; driver now has support for tuning
         the interrupt delays using sysctl tunables
@@ -343,6 +349,9 @@
 
       <para>&man.sk.4; now supports SK-9521 V2.0 and 3COM 3C940 based Gigabit
         Ethernet NICs. &merged;</para>
+
+      <para>&new.521; Several bugs related to multicast and promiscuous mode
+	handling in the &man.sk.4; driver have been fixed.</para>
 
       <para>A new &man.utopia.4; driver supports 25MBit/sec,
 	155MBit/sec and 622MBit/sec ATM physical layer configuration,
@@ -562,6 +571,9 @@
 	<literal>UDF_ICONV</literal> kernel options,
 	respectively.</para>
 
+      <para>&new.521; A bug in GEOM that could result in I/O hangs in some rare
+	cases has been fixed.</para>
+
       <para>Some off-by-one errors in the smbfs that prevented it from
 	working correctly with 15-character NetBIOS names have been fixed.</para>
 
@@ -599,6 +611,10 @@
  	University of Michigan's Citi NFSv4 client implementation.
  	More information can be found in the &man.mount.nfs4.8; and
  	&man.idmapd.8; manual pages.</para>
+
+      <para>&new.521; A panic in the NFSv4 client has been fixed; this occurred
+        when attempting operations against an NFSv3/NFSv2-only
+        server.</para>
 
     </sect3>
 
@@ -765,6 +781,11 @@
     <para>The &man.nologin.8; program has been reimplemented in C (it
       was formerly a shell script).</para>
 
+    <para>&new.521; A bugfix has been applied to NSS support, which fixes
+      problems when using third-party NSS modules (such as <filename
+      role="package">net/nss_ldap</filename>) and groups with large
+      membership lists.</para>
+
     <para>The &man.rc.conf.5; variable <varname>ntpd_flags</varname> for
       &man.ntpd.8; now includes <option>-f /var/db/ntpd.drift</option>
       by default.</para>
@@ -852,6 +873,13 @@
     <para><application>BIND</application> has been updated from 8.3.4
       to 8.3.7. &merged;</para>
 
+    <para>&new.521; Two security fixes for <application>CVS</application> (one
+      related to pserver operation and the other dealing with
+      malformed module requests) have been backported from later
+      versions.  One side effect of this update is that running
+      pserver as <username>root</username> (a configuration that was
+      already unsupported and insecure) no longer works.</para>
+
     <para><application>GCC</application> has been updated from 3.2.2 to
       a 3.3.3 pre-release snapshot from 6 November 2003.
 
@@ -912,6 +940,13 @@
       <filename><makevar>PORTSDIR</makevar>/Template</filename>.
       This allows old ports (which contain old versions
       of these scripts) to build on newer architectures like ia64 and amd64.</para>
+
+    <para>&new.521; The <filename
+      role="package">sysutils/kdeadmin3</filename> port and package
+      have been updated to version 3.1.4_1.  This update fixes a bug in the
+      <application>KUser</application> application that could cause
+      the <username>root</username> user to be deleted from the
+      password file</para>
 
   </sect2>
 
