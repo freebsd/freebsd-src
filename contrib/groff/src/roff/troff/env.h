@@ -275,7 +275,7 @@ public:
   void interrupt();
   void spread() { spread_flag = 1; }
   void possibly_break_line(int start_here = 0, int forced = 0);
-  void do_break();			// .br
+  void do_break(int spread = 0);	// .br
   void final_break();
   void add_html_tag_eol();
   void add_html_tag(const char *);
@@ -345,6 +345,5 @@ void init_environments();
 void read_hyphen_file(const char *name);
 
 extern int break_flag;
-extern int compatible_flag;
 extern symbol default_family;
 extern int translate_space_to_dummy;

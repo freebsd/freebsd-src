@@ -33,6 +33,7 @@ protected:
   vunits vertical_position;
   vunits high_water_mark;
 public:
+  int no_space_mode;
   vunits marked_place;
   diversion(symbol s = NULL_SYMBOL);
   virtual ~diversion();
@@ -101,7 +102,6 @@ class top_level_diversion : public diversion {
   int ejecting_page;		// Is the current page being ejected?
 public:
   int before_first_page;
-  int no_space_mode;
   top_level_diversion();
   void output(node *nd, int retain_size, vunits vs, vunits post_vs,
 	      hunits width);

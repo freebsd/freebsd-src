@@ -181,9 +181,9 @@ public:
 };
 
 struct width_list {
-  width_list *next;
   hunits width;
   hunits sentence_width;
+  width_list *next;
   width_list(hunits, hunits);
   width_list(width_list *);
 };

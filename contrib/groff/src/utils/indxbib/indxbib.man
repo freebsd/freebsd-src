@@ -1,5 +1,5 @@
-.ig \"-*- nroff -*-
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+.ig
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -205,3 +205,7 @@ Temporary file.
 .BR @g@refer (@MAN1EXT@),
 .BR lkbib (@MAN1EXT@),
 .BR @g@lookbib (@MAN1EXT@)
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:
