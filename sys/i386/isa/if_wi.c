@@ -292,7 +292,7 @@ static int wi_pccard_attach(device_t dev)
 	    sizeof(WI_DEFAULT_IBSS) - 1);
 
 	sc->wi_portnum = WI_DEFAULT_PORT;
-	sc->wi_ptype = WI_PORTTYPE_ADHOC;
+	sc->wi_ptype = WI_PORTTYPE_BSS;
 	sc->wi_ap_density = WI_DEFAULT_AP_DENSITY;
 	sc->wi_rts_thresh = WI_DEFAULT_RTS_THRESH;
 	sc->wi_tx_rate = WI_DEFAULT_TX_RATE;
