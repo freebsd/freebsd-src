@@ -659,7 +659,7 @@ asr_probe(device_t tag)
 	id = (pci_get_device(tag) << 16) | pci_get_vendor(tag);
 	if ((id == 0xA5011044) || (id == 0xA5111044)) {
 		device_set_desc(tag, "Adaptec Caching SCSI RAID");
-		return (-10);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 } /* asr_probe */

@@ -84,7 +84,7 @@ ar_pci_probe(device_t device)
 	switch(type) {
 	case 0x5012114f:
 		device_set_desc(device, "Digi SYNC/570i-PCI 2 port");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 		break;
 	case 0x5010114f:
 		printf("Digi SYNC/570i-PCI 2 port (mapped below 1M)\n");
@@ -92,7 +92,7 @@ ar_pci_probe(device_t device)
 		break;
 	case 0x5013114f:
 		device_set_desc(device, "Digi SYNC/570i-PCI 4 port");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 		break;
 	case 0x5011114f:
 		printf("Digi SYNC/570i-PCI 4 port (mapped below 1M)\n");
