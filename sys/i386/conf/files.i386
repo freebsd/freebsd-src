@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.79 1995/02/09 09:47:11 jkh Exp $
+#	$Id: files.i386,v 1.80 1995/02/11 05:43:44 jkh Exp $
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
@@ -143,7 +143,7 @@ i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
-gnu/i386/scd.c			optional	scd	device-driver
+gnu/i386/isa/scd.c		optional	scd	device-driver
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
