@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.3 1998/09/04 09:19:19 jb Exp $
+#	$Id: Makefile.inc0,v 1.4 1998/09/04 21:19:37 jb Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -29,8 +29,9 @@ MAKE=	make -m ${.CURDIR}/share/mk -f Makefile.inc1
 #
 # These are the backend targets.
 #
-BKTGTS=	all clean cleandepend cleanobj depend distribute everything includes \
-	installmost install most obj update afterdistribute
+BKTGTS= all clean cleandepend cleanobj depend distribute everything \
+	hierarchy includes installmost install most obj update \
+	afterdistribute
 
 #
 # A generic rule for the backend targets.
