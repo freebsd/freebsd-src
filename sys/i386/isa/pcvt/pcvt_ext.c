@@ -71,6 +71,13 @@
 
 static int  s3testwritable( void );
 
+static int  et4000_col( int );
+static int  wd90c11_col( int );
+static int  tri9000_col( int );
+static int  v7_1024i_col( int );
+static int  s3_928_col( int );
+static int  cl_gd542x_col( int );
+
 /* storage to save video timing values of 80 columns text mode */
 static union {
 	u_char generic[11];
