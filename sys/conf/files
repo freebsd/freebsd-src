@@ -4,6 +4,11 @@
 # limitations in config: backslash-newline doesn't work in strings, and
 # dependency lines other than the first are silently ignored.
 #
+acpi_quirks.h		standard					   \
+	dependency	"$S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
+	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
+	no-obj no-implicit-rule						   \
+	clean		"acpi_quirks.h"
 aicasm				optional ahc				   \
 	dependency 	"$S/dev/aic7xxx/aicasm/*.[chyl]"		   \
 	compile-with	"CC=${CC} ${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
