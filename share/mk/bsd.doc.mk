@@ -1,5 +1,19 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.35 1997/03/08 23:46:49 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.36 1997/04/04 01:25:32 mpp Exp $
+#
+# The include file <bsd.doc.mk> handles installing BSD troff documents.
+# <bsd.prog.mk> includes the include files <bsd.dep.mk> and <bsd.obj.mk>.
+#
+#
+# +++ variables +++
+#
+# LPR		Printer command. [lpr]
+#
+# 	[incomplete]
+#
+# +++ targets +++
+#
+# 	[incomplete]
 
 PRINTERDEVICE?=	ascii
 
@@ -24,6 +38,7 @@ SOELIMPPARGS=	${SOELIMPPARGS2:S/\\'/'/g}
 TBL?=		tbl
 
 DOC?=		paper
+LPR?=		lpr
 
 TRFLAGS+=	-T${PRINTERDEVICE}
 .if defined(USE_EQN)
@@ -72,9 +87,9 @@ all:	${DFILE}
 .if !target(print)
 print: ${DFILE}
 .if defined(NODOCCOMPRESS)
-	lpr ${DFILE}
+	${LPR} ${DFILE}
 .else
-	${DCOMPRESS_CMD} -d ${DFILE} | lpr
+	${DCOMPRESS_CMD} -d ${DFILE} | ${LPR}
 .endif
 .endif
 
