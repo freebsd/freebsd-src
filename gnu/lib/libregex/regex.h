@@ -30,16 +30,23 @@
 #endif
 
 
+/* The following two types have to be signed and unsigned integer type
+   wide enough to hold a value of a pointer.  For most ANSI compilers
+   ptrdiff_t and size_t should be likely OK.  Still size of these two
+   types is 2 for Microsoft C.  Ugh... */
+typedef long s_reg_t;
+typedef unsigned long active_reg_t;
+
 /* The following bits are used to determine the regexp syntax we
    recognize.  The set/not-set meanings are chosen so that Emacs syntax
    remains the value 0.  The bits are given in alphabetical order, and
    the definitions shifted by one from the previous bit; thus, when we
    add or remove a bit, only one other definition need change.  */
-typedef unsigned reg_syntax_t;
+typedef unsigned long reg_syntax_t;
 
 /* If this bit is not set, then \ inside a bracket expression is literal.
    If set, then such a \ quotes the following character.  */
-#define RE_BACKSLASH_ESCAPE_IN_LISTS (1)
+#define RE_BACKSLASH_ESCAPE_IN_LISTS (1L)
 
 /* If this bit is not set, then + and ? are operators, and \+ and \? are
      literals. 
@@ -130,6 +137,10 @@ typedef unsigned reg_syntax_t;
    If not set, then an unmatched ) is invalid.  */
 #define RE_UNMATCHED_RIGHT_PAREN_ORD (RE_NO_EMPTY_RANGES << 1)
 
+/* If this bit is set, do not process the GNU regex operators.
+   IF not set, then the GNU regex operators are recognized. */
+#define RE_NO_GNU_OPS (RE_UNMATCHED_RIGHT_PAREN_ORD << 1)
+
 /* This global variable defines the particular regexp syntax to use (for
    some interfaces).  When a regexp is compiled, the syntax used is
    stored in the pattern buffer, so changing this does not affect
@@ -146,10 +157,13 @@ extern reg_syntax_t re_syntax_options;
   (RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DOT_NOT_NULL			\
    | RE_NO_BK_PARENS            | RE_NO_BK_REFS				\
    | RE_NO_BK_VBAR               | RE_NO_EMPTY_RANGES			\
-   | RE_UNMATCHED_RIGHT_PAREN_ORD)
+   | RE_UNMATCHED_RIGHT_PAREN_ORD | RE_NO_GNU_OPS)
+
+#define RE_SYNTAX_GNU_AWK 						\
+  (RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS)
 
 #define RE_SYNTAX_POSIX_AWK 						\
-  (RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS)
+  (RE_SYNTAX_GNU_AWK | RE_NO_GNU_OPS)
 
 #define RE_SYNTAX_GREP							\
   (RE_BK_PLUS_QM              | RE_CHAR_CLASSES				\
@@ -205,7 +219,8 @@ extern reg_syntax_t re_syntax_options;
 #ifdef RE_DUP_MAX
 #undef RE_DUP_MAX
 #endif
-#define RE_DUP_MAX ((1 << 15) - 1) 
+/* if sizeof(int) == 2, then ((1 << 15) - 1) overflows  */
+#define RE_DUP_MAX  (0x7fff)
 
 
 /* POSIX `cflags' bits (i.e., information for `regcomp').  */
@@ -389,7 +404,7 @@ typedef struct
    unfortunately clutters up the declarations a bit, but I think it's
    worth it.  */
 
-#if __STDC__
+#ifdef __STDC__
 
 #define _RE_ARGS(args) args
 
@@ -407,7 +422,7 @@ extern reg_syntax_t re_set_syntax _RE_ARGS ((reg_syntax_t syntax));
    and syntax given by the global `re_syntax_options', into the buffer
    BUFFER.  Return NULL if successful, and an error string if not.  */
 extern const char *re_compile_pattern
-  _RE_ARGS ((const char *pattern, int length,
+  _RE_ARGS ((const char *pattern, size_t length,
              struct re_pattern_buffer *buffer));
 
 
