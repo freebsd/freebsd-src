@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: vidconsole.c,v 1.2 1998/09/17 23:52:10 msmith Exp $
  */
 
 #include <stand.h>
@@ -97,7 +97,7 @@ vidc_getchar(void)
 	v86.addr = 0x16;
 	v86.eax = 0x0;
 	v86int();
-	return(v86.eax);
+	return(v86.eax & 0xff);
     } else {
 	return(-1);
     }

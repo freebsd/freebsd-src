@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.7 1998/09/28 20:07:39 peter Exp $
+ *	$Id: biosdisk.c,v 1.8 1998/09/28 20:08:34 peter Exp $
  */
 
 /*
@@ -41,6 +41,7 @@
 
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#include <sys/reboot.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
@@ -49,6 +50,12 @@
 #define BIOSDISK_SECSIZE	512
 #define BUFSIZE			(1 * BIOSDISK_SECSIZE)
 #define	MAXBDDEV		MAXDEV
+
+#define DT_ATAPI		0x10		/* disk type for ATAPI floppies */
+#define WDMAJOR			0		/* major numbers for devices we frontend for */
+#define WFDMAJOR		1
+#define FDMAJOR			2
+#define DAMAJOR			4
 
 #ifdef DISK_DEBUG
 # define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
@@ -70,15 +77,28 @@ struct open_disk {
 #define BD_MODEEDD1	0x1
 #define BD_MODEEDD3	0x2
 #define BD_FLOPPY	(1<<2)
-    u_char		od_buf[BUFSIZE];	/* transfer buffer (do we want/need this?) */
+    struct disklabel		od_disklabel;
+    struct dos_partition	od_parttab;
+#define BD_LABELOK	(1<<3)
+#define BD_PARTTABOK	(1<<4)
 };
+
+/*
+ * List of BIOS devices, translation from disk unit number to
+ * BIOS unit number.
+ */
+static struct bdinfo
+{
+    int		bd_unit;		/* BIOS unit number */
+    int		bd_flags;
+    int		bd_type;		/* BIOS 'drive type' (floppy only) */
+} bdinfo [MAXBDDEV];
+static int nbdinfo = 0;
 
 static int	bd_getgeom(struct open_disk *od);
 static int	bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest);
 
-static int	bd_edd3probe(int unit);
-static int	bd_edd1probe(int unit);
-static int	bd_int13probe(int unit);
+static int	bd_int13probe(struct bdinfo *bd);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
@@ -95,16 +115,30 @@ struct devsw biosdisk = {
     noioctl
 };
 
+static int	bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev);
+static void	bd_closedisk(struct open_disk *od);
+
 /*
- * List of BIOS devices, translation from disk unit number to
- * BIOS unit number.
+ * Translate between BIOS device numbers and our private unit numbers.
  */
-static struct 
+int
+bd_bios2unit(int biosdev)
 {
-    int		bd_unit;		/* BIOS unit number */
-    int		bd_flags;
-} bdinfo [MAXBDDEV];
-static int nbdinfo = 0;
+    int		i;
+    
+    for (i = 0; i < nbdinfo; i++)
+	if (bdinfo[i].bd_unit == biosdev)
+	    return(i);
+    return(-1);
+}
+
+int
+bd_unit2bios(int unit)
+{
+    if ((unit >= 0) && (unit < nbdinfo))
+	return(bdinfo[unit].bd_unit);
+    return(-1);
+}
 
 /*    
  * Quiz the BIOS for disk devices, save a little info about them.
@@ -120,18 +154,13 @@ bd_init(void)
     /* sequence 0, 0x80 */
     for (base = 0; base <= 0x80; base += 0x80) {
 	for (unit = base; (nbdinfo < MAXBDDEV); unit++) {
-	    bdinfo[nbdinfo].bd_unit = -1;
+	    bdinfo[nbdinfo].bd_unit = unit;
 	    bdinfo[nbdinfo].bd_flags = (unit < 0x80) ? BD_FLOPPY : 0;
-	    
-	    if (bd_edd3probe(unit)) {
-		bdinfo[nbdinfo].bd_flags |= BD_MODEEDD3;
-	    } else if (bd_edd1probe(unit)) {
-		bdinfo[nbdinfo].bd_flags |= BD_MODEEDD1;
-	    } else if (bd_int13probe(unit)) {
-		bdinfo[nbdinfo].bd_flags |= BD_MODEINT13;
-	    } else {
+
+	    /* XXX add EDD probes */
+	    if (!bd_int13probe(&bdinfo[nbdinfo]))
 		break;
-	    }
+
 	    /* XXX we need "disk aliases" to make this simpler */
 	    printf("BIOS drive %c: is disk%d\n", 
 		   (unit < 0x80) ? ('A' + unit) : ('C' + unit - 0x80), nbdinfo);
@@ -142,40 +171,26 @@ bd_init(void)
     return(0);
 }
 
-/* 
- * Try to detect a device supported by an Enhanced Disk Drive 3.0-compliant BIOS
- */
-static int
-bd_edd3probe(int unit)
-{
-    return(0);		/* XXX not implemented yet */
-}
-
-/* 
- * Try to detect a device supported by an Enhanced Disk Drive 1.1-compliant BIOS
- */
-static int
-bd_edd1probe(int unit)
-{
-    return(0);		/* XXX not implemented yet */
-}
-
 /*
  * Try to detect a device supported by the legacy int13 BIOS
  */
 
 static int
-bd_int13probe(int unit)
+bd_int13probe(struct bdinfo *bd)
 {
+
     v86.ctl = V86_FLAGS;
     v86.addr = 0x13;
     v86.eax = 0x800;
-    v86.edx = unit;
+    v86.edx = bd->bd_unit;
     v86int();
     
-    if (!(v86.efl & 0x1) &&			/* carry clear */
-	((v86.edx & 0xff) > (unit & 0x7f)))	/* unit # OK */
+    if (!(v86.efl & 0x1) &&				/* carry clear */
+	((v86.edx & 0xff) > (bd->bd_unit & 0x7f))) {	/* unit # OK */
+	bd->bd_flags |= BD_MODEINT13;
+	bd->bd_type = v86.ebx & 0xff;
 	return(1);
+    }
     return(0);
 }
 
@@ -193,11 +208,29 @@ static int
 bd_open(struct open_file *f, void *vdev)
 {
     struct i386_devdesc		*dev = (struct i386_devdesc *)vdev;
-    struct dos_partition	*dptr;
     struct open_disk		*od;
+    int				error;
+
+    if ((error = bd_opendisk(&od, dev)))
+	return(error);
+    
+    /*
+     * Save our context
+     */
+    ((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data = od;
+    DEBUG("open_disk %p, partition at 0x%x", od, od->od_boff);
+    return(0);
+}
+
+static int
+bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
+{
+    struct dos_partition	*dptr;
     struct disklabel		*lp;
+    struct open_disk		*od;
     int				sector, slice, i;
     int				error;
+    u_char			buf[BUFSIZE];
 
     if (dev->d_kind.biosdisk.unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
@@ -236,7 +269,7 @@ bd_open(struct open_file *f, void *vdev)
     /*
      * Find the slice in the DOS slice table.
      */
-    if (bd_read(od, 0, 1, od->od_buf)) {
+    if (bd_read(od, 0, 1, buf)) {
 	DEBUG("error reading MBR");
 	error = EIO;
 	goto out;
@@ -245,7 +278,7 @@ bd_open(struct open_file *f, void *vdev)
     /* 
      * Check the slice table magic.
      */
-    if ((od->od_buf[0x1fe] != 0x55) || (od->od_buf[0x1ff] != 0xaa)) {
+    if ((buf[0x1fe] != 0x55) || (buf[0x1ff] != 0xaa)) {
 	/* If a slice number was explicitly supplied, this is an error */
 	if (dev->d_kind.biosdisk.slice > 0) {
 	    DEBUG("no slice table/MBR (no magic)");
@@ -255,7 +288,9 @@ bd_open(struct open_file *f, void *vdev)
 	sector = 0;
 	goto unsliced;		/* may be a floppy */
     }
-    dptr = (struct dos_partition *) & od->od_buf[DOSPARTOFF];
+    bcopy(buf + DOSPARTOFF, &od->od_parttab, sizeof(struct dos_partition));
+    dptr = &od->od_parttab;
+    od->od_flags |= BD_PARTTABOK;
 
     /* 
      * XXX No support here for 'extended' slices
@@ -299,12 +334,15 @@ bd_open(struct open_file *f, void *vdev)
 	DEBUG("opening raw slice");
     } else {
 	
-	if (bd_read(od, sector + LABELSECTOR, 1, od->od_buf)) {
+	if (bd_read(od, sector + LABELSECTOR, 1, buf)) {
 	    DEBUG("error reading disklabel");
 	    error = EIO;
 	    goto out;
 	}
-	lp = (struct disklabel *) (od->od_buf + LABELOFFSET);
+	DEBUG("copy %d bytes of label from %p to %p", sizeof(struct disklabel), buf + LABELOFFSET, &od->od_disklabel);
+	bcopy(buf + LABELOFFSET, &od->od_disklabel, sizeof(struct disklabel));
+	lp = &od->od_disklabel;
+	od->od_flags |= BD_LABELOK;
 
 	if (lp->d_magic != DISKMAGIC) {
 	    DEBUG("no disklabel");
@@ -326,23 +364,29 @@ bd_open(struct open_file *f, void *vdev)
 	
 	od->od_boff = lp->d_partitions[dev->d_kind.biosdisk.partition].p_offset;
     }
-    /*
-     * Save our context
-     */
-    ((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data = od;
-    DEBUG("open_disk %p, partition at 0x%x", od, od->od_boff);
-
+    
  out:
-    if (error)
+    if (error) {
 	free(od);
+    } else {
+	*odp = od;	/* return the open disk */
+    }
     return(error);
 }
+
 
 static int 
 bd_close(struct open_file *f)
 {
     struct open_disk	*od = (struct open_disk *)(((struct i386_devdesc *)(f->f_devdata))->d_kind.biosdisk.data);
 
+    bd_closedisk(od);
+    return(0);
+}
+
+static void
+bd_closedisk(struct open_disk *od)
+{
     DEBUG("open_disk %p", od);
 #if 0
     /* XXX is this required? (especially if disk already open...) */
@@ -350,7 +394,6 @@ bd_close(struct open_file *f)
 	delay(3000000);
 #endif
     free(od);
-    return(0);
 }
 
 static int 
@@ -520,4 +563,46 @@ bd_getgeom(struct open_disk *od)
 
     DEBUG("unit 0x%x geometry %d/%d/%d", od->od_unit, od->od_cyl, od->od_hds, od->od_sec);
     return(0);
+}
+
+/*
+ * Return a suitable dev_t value for (dev)
+ */
+int
+bd_getdev(struct i386_devdesc *dev)
+{
+    struct open_disk		*od;
+    int				biosdev;
+    int 			major;
+
+    biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
+    if (biosdev == -1)				/* not a BIOS device */
+	return(-1);
+    if (bd_opendisk(&od, dev) != 0)		/* oops, not a viable device */
+	return(-1);
+
+    if (biosdev < 0x80) {
+	/* floppy (or emulated floppy) or ATAPI device */
+	if (bdinfo[dev->d_kind.biosdisk.unit].bd_type == DT_ATAPI) {
+	    /* is an ATAPI disk */
+	    major = WFDMAJOR;
+	} else {
+	    /* is a floppy disk */
+	    major = FDMAJOR;
+	}
+    } else {
+	/* harddisk */
+	if ((od->od_flags & BD_LABELOK) && (od->od_disklabel.d_type == DTYPE_SCSI)) {
+	    /* label OK, disk labelled as SCSI */
+	    major = DAMAJOR;
+	} else {
+	    /* assume an IDE disk */
+	    major = WDMAJOR;
+	}
+    }
+    return(MAKEBOOTDEV(major,
+		       (dev->d_kind.biosdisk.slice + 1) >> 4, 	/* XXX slices may be wrong here */
+		       (dev->d_kind.biosdisk.slice + 1) & 0xf, 
+		       biosdev & 0x7f,				/* XXX allow/compute shift for da when wd present */
+		       dev->d_kind.biosdisk.partition));
 }
