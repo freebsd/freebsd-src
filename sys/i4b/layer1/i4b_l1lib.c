@@ -26,18 +26,16 @@
  *
  *	i4b_l1lib.c - general useful L1 procedures
  *	------------------------------------------
- *
  *	$Id: i4b_l1lib.c,v 1.3 2000/05/29 15:41:41 hm Exp $
- *
- * $FreeBSD$
- *
  *      last edit-date: [Mon May 29 15:24:21 2000]
  *
  *---------------------------------------------------------------------------*/
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
-
 
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_trace.h>

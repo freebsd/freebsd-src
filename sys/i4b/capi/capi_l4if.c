@@ -23,9 +23,10 @@
  * SUCH DAMAGE.
  *
  * capi/capi_l4if.c	The CAPI i4b L4/device interface.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -26,14 +26,14 @@
  *
  *	i4btrc - device driver for trace data read device
  *	---------------------------------------------------
- *
  *	last edit-date: [Sun Mar 17 09:52:51 2002]
- *
- * $FreeBSD$
  *
  *	NOTE: the code assumes that SPLI4B >= splimp !
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "i4btrc.h"
 

@@ -32,13 +32,12 @@
  *
  *	i4b_ifpi2_pci.c: AVM Fritz!Card PCI hardware driver
  *	--------------------------------------------------
- *
  *	$Id$
  *
- * $FreeBSD$
- *
- *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
@@ -77,7 +76,6 @@
 
 /* prototypes */
 static void avma1pp2_disable(device_t);
-
 static void avma1pp2_intr(void *);
 static void hscx_write_reg(int, u_int, struct l1_softc *);
 static u_char hscx_read_reg(int, struct l1_softc *);

@@ -26,14 +26,13 @@
  *
  *	i4b_ifpi_isac.c - i4b Fritz PCI ISAC handler
  *	--------------------------------------------
- *
  *	$Id: i4b_ifpi_isac.c,v 1.3 2000/05/29 15:41:41 hm Exp $ 
- *
- * $FreeBSD$
- *
  *      last edit-date: [Mon May 29 15:22:52 2000]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
@@ -41,7 +40,6 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 
