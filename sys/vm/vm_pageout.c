@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.121 1998/03/30 09:56:58 phk Exp $
+ * $Id: vm_pageout.c,v 1.122 1998/06/02 05:39:13 dyson Exp $
  */
 
 /*
@@ -722,7 +722,7 @@ rescan0:
 		 */
 		if (m->dirty == 0) {
 			vm_page_test_dirty(m);
-		} else if (m->dirty != 0) {
+		} else {
 			m->dirty = VM_PAGE_BITS_ALL;
 		}
 
