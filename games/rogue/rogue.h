@@ -34,9 +34,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)rogue.h	8.1 (Berkeley) 5/31/93
+ * $FreeBSD$
  */
 
+#include <curses.h>
 #include <string.h>
+
 /*
  * rogue.h
  *
@@ -469,20 +472,3 @@ struct rogue_time {
 	short second;	/* 0 - 59 */
 };
 
-#ifdef CURSES
-struct _win_st {
-	short _cury, _curx;
-	short _maxy, _maxx;
-};
-
-typedef struct _win_st WINDOW;
-
-extern int LINES, COLS;
-extern WINDOW *curscr;
-extern char *CL;
-
-char *md_gdtcf();
-
-#else
-#include <curses.h>
-#endif
