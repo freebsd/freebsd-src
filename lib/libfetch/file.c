@@ -70,7 +70,7 @@ fetchPutFile(struct url *u, char *flags)
 {
     FILE *f;
     
-    if (flags && strchr(flags, 'a'))
+    if (CHECK_FLAG('a'))
 	f = fopen(u->doc, "a");
     else
 	f = fopen(u->doc, "w+");

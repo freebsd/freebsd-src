@@ -74,7 +74,7 @@ fetchXGet(struct url *URL, struct url_stat *us, char *flags)
 {
     int direct;
 
-    direct = (flags && strchr(flags, 'd'));
+    direct = CHECK_FLAG('d');
     if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchXGetFile(URL, us, flags);
     else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
@@ -106,7 +106,7 @@ fetchPut(struct url *URL, char *flags)
 {
     int direct;
 
-    direct = (flags && strchr(flags, 'd'));
+    direct = CHECK_FLAG('d');
     if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchPutFile(URL, flags);
     else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
@@ -128,7 +128,7 @@ fetchStat(struct url *URL, struct url_stat *us, char *flags)
 {
     int direct;
 
-    direct = (flags && strchr(flags, 'd'));
+    direct = CHECK_FLAG('d');
     if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchStatFile(URL, us, flags);
     else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
@@ -150,7 +150,7 @@ fetchList(struct url *URL, char *flags)
 {
     int direct;
 
-    direct = (flags && strchr(flags, 'd'));
+    direct = CHECK_FLAG('d');
     if (strcasecmp(URL->scheme, SCHEME_FILE) == 0)
 	return fetchListFile(URL, flags);
     else if (strcasecmp(URL->scheme, SCHEME_HTTP) == 0)
