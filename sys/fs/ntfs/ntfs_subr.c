@@ -961,7 +961,7 @@ ntfs_ntlookupfile(
 			error = ntfs_vgetex(ntmp->ntm_mountp,
 				   iep->ie_number, attrtype, attrname,
 				   LK_EXCLUSIVE, VG_DONTLOADIN | VG_DONTVALIDFN,
-				   curproc, &nvp);
+				   curthread, &nvp);
 
 			/* free the buffer returned by ntfs_ntlookupattr() */
 			if (attrname) {
