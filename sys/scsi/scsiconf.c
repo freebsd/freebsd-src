@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.9 1994/09/28 20:16:40 se Exp $
+ *      $Id: scsiconf.c,v 1.10 1994/10/08 22:26:38 phk Exp $
  */
 
 #include <sys/types.h>
@@ -900,4 +900,15 @@ selectdev(qualifier, type, remov, manu, model, rev)
 #endif
 	}
 	return (bestmatch);
+}
+
+int
+scsi_externalize(struct scsi_link *sl, void *userp, size_t *lenp)
+{
+	if(*lenp < sizeof *sl)
+		return ENOMEM;
+
+	*lenp -= sizeof *sl;
+
+	return copyout(sl, userp, sizeof *sl);
 }
