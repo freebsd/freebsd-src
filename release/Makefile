@@ -541,7 +541,7 @@ release.4:
 	    DESTDIR=${RD}/trees/base; \
 	cd ${.CURDIR}/..; \
 	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
-	    reinstallkernel.debug \
+	    reinstallkernel -DINSTALL_DEBUG \
 	    DESTDIR=${RD}/trees/base
 	touch ${.TARGET}
 
