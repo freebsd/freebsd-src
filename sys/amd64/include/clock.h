@@ -8,40 +8,35 @@
 #define	_MACHINE_CLOCK_H_
 
 #ifdef I586_CPU
-	/*
-	 * This resets the CPU cycle counter to zero, to make our
-	 * job easier in microtime().  Some fancy ifdefs could speed
-	 * this up for Pentium-only kernels.
-	 * We want this to be done as close as possible to the actual
-	 * timer incrementing in hardclock(), because there is a window
-	 * between the two where the value is no longer valid.  Experimentation
-	 * may reveal a good precompensation to apply in microtime().
-	 */
+
+#define I586_CYCLECTR(x) \
+	__asm __volatile(".byte 0x0f, 0x31" : "=A" (x))
+
+/*
+ * When we update the clock, we also update this bias value which is
+ * automatically subtracted in microtime().  We assume that CPU_THISTICKLEN()
+ * has been called at some point in the past, so that an appropriate value is
+ * set up in i586_last_tick.  (This works even if we are not being called
+ * from hardclock because hardclock will have run before and will made the
+ * call.)
+ */
 #define CPU_CLOCKUPDATE(otime, ntime) \
 	do { \
 	if(pentium_mhz) { \
-		__asm __volatile("cli\n" \
-				 "movl (%2),%%eax\n" \
-				 "movl %%eax,(%1)\n" \
-				 "movl 4(%2),%%eax\n" \
-				 "movl %%eax,4(%1)\n" \
-				 "movl $0x10,%%ecx\n" \
-				 "xorl %%eax,%%eax\n" \
-				 "movl %%eax,%%edx\n" \
-				 ".byte 0x0f, 0x30\n" \
-				 "sti\n" \
-				 "#%0%1%2" \
-				 : "=m"(*otime)	/* no outputs */ \
-				 : "c"(otime), "b"(ntime) /* fake input */ \
-				 : "ax", "cx", "dx"); \
+		disable_intr(); \
+		i586_ctr_bias = i586_last_tick; \
+		*(otime) = *(ntime); \
+		enable_intr(); \
 	} else { \
 		*(otime) = *(ntime); \
 	} \
 	} while(0)
 
+#define	CPU_THISTICKLEN(dflt) cpu_thisticklen(dflt)
 #else
 #define CPU_CLOCKUPDATE(otime, ntime) \
 		(*(otime) = *(ntime))
+#define CPU_THISTICKLEN(dflt) dflt
 #endif
 
 #if defined(KERNEL) && !defined(LOCORE)
@@ -57,6 +52,8 @@ extern int	adjkerntz;
 extern int	disable_rtc_set;
 #ifdef I586_CPU
 extern int	pentium_mhz;
+extern long long i586_last_tick;
+extern long long i586_ctr_bias;
 #endif
 extern int 	timer0_max_count;
 extern u_int 	timer0_overflow_threshold;
@@ -67,6 +64,24 @@ void	calibrate_cyclecounter __P((void));
 #endif
 void	clkintr __P((struct clockframe frame));
 void	rtcintr __P((struct clockframe frame));
+
+#ifdef I586_CPU
+static __inline u_long 
+cpu_thisticklen(u_long dflt)
+{
+	long long old;
+	long rv;
+	
+	if (pentium_mhz) {
+		old = i586_last_tick;
+		I586_CYCLECTR(i586_last_tick);
+		rv = (i586_last_tick - old) / pentium_mhz;
+	} else {
+		rv = dflt;
+	}
+	return rv;
+}
+#endif
 
 /*
  * Driver to clock driver interface.
