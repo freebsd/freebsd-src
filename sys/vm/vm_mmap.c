@@ -465,7 +465,6 @@ ommap(p, uap)
 #define	OMAP_COPY	0x0020
 #define	OMAP_SHARED	0x0010
 #define	OMAP_FIXED	0x0100
-#define	OMAP_INHERIT	0x0800
 
 	nargs.addr = uap->addr;
 	nargs.len = uap->len;
@@ -481,8 +480,6 @@ ommap(p, uap)
 		nargs.flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
 		nargs.flags |= MAP_FIXED;
-	if (uap->flags & OMAP_INHERIT)
-		nargs.flags |= MAP_INHERIT;
 	nargs.fd = uap->fd;
 	nargs.pos = uap->pos;
 	return (mmap(p, &nargs));
@@ -1227,7 +1224,7 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	/*
 	 * Shared memory is also shared with children.
 	 */
-	else if (flags & (MAP_SHARED|MAP_INHERIT)) {
+	else if (flags & MAP_SHARED) {
 		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
 		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
