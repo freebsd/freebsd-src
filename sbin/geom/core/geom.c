@@ -425,6 +425,7 @@ run_command(int argc, char *argv[])
 		gctl_ro_param(req, "version", sizeof(*version), version);
 	parse_arguments(cmd, req, &argc, &argv);
 
+	bzero(buf, sizeof(buf));
 	if (cmd->gc_func != NULL) {
 		unsigned flags;
 
@@ -432,7 +433,6 @@ run_command(int argc, char *argv[])
 		cmd->gc_func(req, flags);
 		errstr = req->error;
 	} else {
-		bzero(buf, sizeof(buf));
 		gctl_rw_param(req, "output", sizeof(buf), buf);
 		errstr = gctl_issue(req);
 	}
@@ -443,7 +443,7 @@ run_command(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 	}
-	if (*buf != '\0')
+	if (buf[0] != '\0')
 		printf("%s", buf);
 	gctl_free(req);
 	if (verbose)
