@@ -56,6 +56,7 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
 # Miscellaneous options.
+GEOM		opt_geom.h
 COMPAT_43	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
 COMPILING_LINT	opt_global.h
