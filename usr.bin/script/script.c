@@ -66,7 +66,7 @@ static const char rcsid[] =
 FILE	*fscript;
 int	master, slave;
 int	child;
-char	*fname;
+const char	*fname;
 int	qflg;
 
 struct	termios tt;
@@ -232,7 +232,7 @@ void
 doshell(av)
 	char **av;
 {
-	char *shell;
+	const char *shell;
 
 	shell = getenv("SHELL");
 	if (shell == NULL)
