@@ -422,7 +422,7 @@ proc0_post(void *dummy __unused)
 		p->p_runtime.frac = 0;
 	}
 	sx_sunlock(&allproc_lock);
-	microuptime(PCPU_PTR(switchtime));
+	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
 	/*
