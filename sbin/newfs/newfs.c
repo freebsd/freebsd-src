@@ -109,10 +109,11 @@ void	fatal();
 /*
  * Cylinder groups may have up to many cylinders. The actual
  * number used depends upon how much information can be stored
- * on a single cylinder. The default is to use 16 cylinders
- * per group.
+ * on a single cylinder. The default is to use 22 cylinders
+ * per group, which seems to be the largest value allowed given
+ * all the other default values.
  */
-#define	DESCPG		16	/* desired fs_cpg */
+#define	DESCPG		22	/* desired fs_cpg */
 
 /*
  * Once upon a time...
