@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dset.c,v 1.12 1998/06/08 06:44:05 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -242,14 +242,14 @@ main(ac, av)
 			if (buf1.id_id != 0)
 				if (verbose)
 					printf(
-  "kernel: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
+  "kernel: id=%u io=%X irq=%d drq=%d maddr=%p msize=%d flags=%X enabled=%X \n",
 	buf1.id_id, buf1.id_iobase, buf1.id_irq, buf1.id_drq,
 	buf1.id_maddr, buf1.id_msize, buf1.id_flags, buf1.id_enabled);
 
 			if (buf.id_id != 0)
 				if (verbose)
 					printf(
-  "file: id=%u io=%X irq=%d drq=%d maddr=%X msize=%d flags=%X enabled=%X \n",
+  "file: id=%u io=%X irq=%d drq=%d maddr=%p msize=%d flags=%X enabled=%X \n",
 	buf.id_id, buf.id_iobase, buf.id_irq, buf.id_drq,
 	buf.id_maddr, buf.id_msize, buf.id_flags, buf.id_enabled);
 
@@ -397,7 +397,7 @@ main(ac, av)
 				if (new_ov[i].vendor_id > 0)
 				    printf(" 0x%08x", new_ov[i].vendor_id);
 				if (new_ov[i].flags > 0)
-				    printf(" flags 0x%08x", new_ov[i].flags);
+				    printf(" flags 0x%08lx", new_ov[i].flags);
 				if (maxp >=0) {
 				    int j;
 				    printf(" port 0x%x", new_ov[i].port[0]);
@@ -406,9 +406,9 @@ main(ac, av)
 				}
 				if (maxm >=0) {
 				    int j;
-				    printf(" mem 0x%x", new_ov[i].mem[0].base);
+				    printf(" mem 0x%lx", new_ov[i].mem[0].base);
 				    for(j=1;j<=maxm;j++)
-					printf(" 0x%x", new_ov[i].mem[j].base);
+					printf(" 0x%lx", new_ov[i].mem[j].base);
 				}
 				printf("\n");
 			    }
