@@ -70,15 +70,13 @@ __emul_insn(struct utrapframe *uf)
 	case IOP_LDST:
 		switch (IF_F3_OP3(insn)) {
 		case INS3_LDQF:
-			rd = IF_F3_RD(insn);
-			rd = (rd & ~3) | ((rd & 1) << 5);
+			rd = INSFPdq_RN(IF_F3_RD(insn));
 			addr = (u_long *)__emul_f3_memop_addr(uf, insn);
 			__fpu_setreg64(rd, addr[0]);
 			__fpu_setreg64(rd + 2, addr[1]);
 			break;
 		case INS3_STQF:
-			rd = IF_F3_RD(insn);
-			rd = (rd & ~3) | ((rd & 1) << 5);
+			rd = INSFPdq_RN(IF_F3_RD(insn));
 			addr = (u_long *)__emul_f3_memop_addr(uf, insn);
 			addr[0] = __fpu_getreg64(rd);
 			addr[1] = __fpu_getreg64(rd + 2);

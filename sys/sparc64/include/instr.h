@@ -459,6 +459,9 @@
 #define	INSFP2_FCMP		0x050	/* s, d, q */
 #define	INSFP2_FCMPE		0x054	/* s, d, q */
 
+/* Decode 5-bit register field into 6-bit number (for doubles and quads). */
+#define	INSFPdq_RN(rn)		(((rn) & ~1) | (((rn) & 1) << 5))
+
 /* IMPLDEP1 for Sun UltraSparc */
 #define	IIDP1_EDGE8		0x00
 #define	IIDP1_EDGE8L		0x02

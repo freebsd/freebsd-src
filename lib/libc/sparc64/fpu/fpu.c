@@ -186,24 +186,62 @@ __fpu_dumpfpn(struct fpn *fp)
 }
 #endif
 
+static int opmask[] = {0, 0, 1, 3};
+
+/* Decode 5 bit register field depending on the type. */
+#define	RN_DECODE(tp, rn) \
+	((tp == FTYPE_DBL || tp == FTYPE_EXT ? INSFPdq_RN((rn)) : (rn)) & \
+	    ~opmask[tp])
+
+/* Operand size in 32-bit registers. */
+#define	OPSZ(tp)	((tp) == FTYPE_LNG ? 2 : (1 << (tp)))
+
+/*
+ * Helper for forming the below case statements. Build only the op3 and opf
+ * field of the instruction, these are the only ones that need to match.
+ */
+#define	FOP(op3, opf) \
+	((op3) << IF_F3_OP3_SHIFT | (opf) << IF_F3_OPF_SHIFT)
+
+/*
+ * Implement a move operation for all supported operand types. The additional
+ * nand and xor parameters will be applied to the upper 32 bit word of the
+ * source operand. This allows to implement fabs and fneg (for fp operands
+ * only!) using this functions, too, by passing (1 << 31) for one of the
+ * parameters, and 0 for the other.
+ */
 static void
-__fpu_mov(struct fpemu *fe, int type, int rd, int rs1, int rs2)
+__fpu_mov(struct fpemu *fe, int type, int rd, int rs2, u_int32_t nand,
+    u_int32_t xor)
 {
+	u_int64_t tmp64;
+	u_int32_t *p32;
 	int i;
 
-	i = 1 << type;
-	__fpu_setreg(rd++, rs1);
-	while (--i)
-		__fpu_setreg(rd++, __fpu_getreg(++rs2));
+	if (type == FTYPE_INT || type == FTYPE_SNG)
+		__fpu_setreg(rd, (__fpu_getreg(rs2) & ~nand) ^ xor);
+	else {
+		/*
+		 * Need to use the double versions to be able to access
+		 * the upper 32 fp registers.
+		 */
+		for (i = 0; i < OPSZ(type); i += 2, rd += 2, rs2 += 2) {
+			tmp64 = __fpu_getreg64(rs2);
+			if (i == 0)
+				tmp64 = (tmp64 & ~((u_int64_t)nand << 32)) ^
+				    ((u_int64_t)xor << 32);
+			__fpu_setreg64(rd, tmp64);
+		}
+	}
 }
 
 static __inline void
-__fpu_ccmov(struct fpemu *fe, int type, int rd, int rs1, int rs2,
+__fpu_ccmov(struct fpemu *fe, int type, int rd, int rs2,
     u_int32_t insn, int fcc)
 {
 
 	if (IF_F4_COND(insn) == fcc)
-		__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+		__fpu_mov(fe, type, rd, rs2, 0, 0);
 }
 
 static int
@@ -230,15 +268,6 @@ __fpu_cmpck(struct fpemu *fe)
 	return (0);
 }
 
-static int opmask[] = {0, 0, 1, 3};
-
-/*
- * Helper for forming the below case statements. Build only the op3 and opf
- * field of the instruction, these are the only that need to match.
- */
-#define	FOP(op3, opf) \
-	((op3) << IF_F3_OP3_SHIFT | (opf) << IF_F3_OPF_SHIFT)
-
 /*
  * Execute an FPU instruction (one that runs entirely in the FPU; not
  * FBfcc or STF, for instance).  On return, fe->fe_fs->fs_fsr will be
@@ -254,6 +283,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	int opf, rs1, rs2, rd, type, mask, cx, cond;
 	u_long reg, fsr;
 	u_int space[4];
+	int i;
 
 	/*
 	 * `Decode' and execute instruction.  Start with no exceptions.
@@ -263,13 +293,12 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	opf = insn & (IF_MASK(IF_F3_OP3_SHIFT, IF_F3_OP3_BITS) |
 	    IF_MASK(IF_F3_OPF_SHIFT + 2, IF_F3_OPF_BITS - 2));
 	type = IF_F3_OPF(insn) & 3;
-	mask = opmask[type];
-	rs1 = IF_F3_RS1(insn) & ~mask;
-	rs2 = IF_F3_RS2(insn) & ~mask;
-	rd = IF_F3_RD(insn) & ~mask;
+	rs1 = RN_DECODE(type, IF_F3_RS1(insn));
+	rs2 = RN_DECODE(type, IF_F3_RS2(insn));
+	rd = RN_DECODE(type, IF_F3_RD(insn));
 	cond = 0;
 #ifdef notdef
-	if ((rs1 | rs2 | rd) & mask)
+	if ((rs1 | rs2 | rd) & opmask[type])
 		return (SIGILL);
 #endif
 	fsr = fe->fe_fsr;
@@ -277,58 +306,54 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 	fe->fe_cx = 0;
 	switch (opf) {
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_FCC(0))):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
-		    FSR_GET_FCC0(fsr));
+		__fpu_ccmov(fe, type, rd, rs2, insn, FSR_GET_FCC0(fsr));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_FCC(1))):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
-		    FSR_GET_FCC1(fsr));
+		__fpu_ccmov(fe, type, rd, rs2, insn, FSR_GET_FCC1(fsr));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_FCC(2))):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
-		    FSR_GET_FCC2(fsr));
+		__fpu_ccmov(fe, type, rd, rs2, insn, FSR_GET_FCC2(fsr));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_FCC(3))):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
-		    FSR_GET_FCC3(fsr));
+		__fpu_ccmov(fe, type, rd, rs2, insn, FSR_GET_FCC3(fsr));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_ICC)):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
+		__fpu_ccmov(fe, type, rd, rs2, insn,
 		    (tstate & TSTATE_ICC_MASK) >> TSTATE_ICC_SHIFT);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_CC(IFCC_XCC)):
-		__fpu_ccmov(fe, type, rd, __fpu_getreg(rs2), rs2, insn,
+		__fpu_ccmov(fe, type, rd, rs2, insn,
 		    (tstate & TSTATE_XCC_MASK) >> (TSTATE_XCC_SHIFT));
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_Z)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg == 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_LEZ)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg <= 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_LZ)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg < 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_NZ)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg != 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_GZ)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg > 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FMOV_RC(IRCOND_GEZ)):
 		reg = __emul_fetch_reg(uf, IF_F4_RS1(insn));
 		if (reg >= 0)
-			__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+			__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop2, INSFP2_FCMP):
 		__fpu_explode(fe, &fe->fe_f1, type, rs1);
@@ -341,13 +366,13 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		__fpu_compare(fe, 1, IF_F3_CC(insn));
 		return (__fpu_cmpck(fe));
 	case FOP(INS2_FPop1, INSFP1_FMOV):	/* these should all be pretty obvious */
-		__fpu_mov(fe, type, rd, __fpu_getreg(rs2), rs2);
+		__fpu_mov(fe, type, rd, rs2, 0, 0);
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FNEG):
-		__fpu_mov(fe, type, rd, __fpu_getreg(rs2) ^ (1 << 31), rs2);
+		__fpu_mov(fe, type, rd, rs2, 0, (1 << 31));
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FABS):
-		__fpu_mov(fe, type, rd, __fpu_getreg(rs2) & ~(1 << 31), rs2);
+		__fpu_mov(fe, type, rd, rs2, (1 << 31), 0);
 		return (0);
 	case FOP(INS2_FPop1, INSFP1_FSQRT):
 		__fpu_explode(fe, &fe->fe_f1, type, rs2);
@@ -384,8 +409,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		 * Recalculate rd (the old type applied for the source regs
 		 * only, the target one has a different size).
 		 */
-		mask = opmask[type];
-		rd = IF_F3_RD(insn) & ~mask;
+		rd = RN_DECODE(type, IF_F3_RD(insn));
 		fp = __fpu_mul(fe);
 		break;
 	case FOP(INS2_FPop1, INSFP1_FxTOs):
@@ -395,8 +419,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		__fpu_explode(fe, fp = &fe->fe_f1, type, rs2);
 		/* sneaky; depends on instruction encoding */
 		type = (IF_F3_OPF(insn) >> 2) & 3;
-		mask = opmask[type];
-		rd = IF_F3_RD(insn) & ~mask;
+		rd = RN_DECODE(type, IF_F3_RD(insn));
 		break;
 	case FOP(INS2_FPop1, INSFP1_FTOx):
 		__fpu_explode(fe, fp = &fe->fe_f1, type, rs2);
@@ -411,8 +434,7 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		__fpu_explode(fe, fp = &fe->fe_f1, type, rs2);
 		/* sneaky; depends on instruction encoding */
 		type = (IF_F3_OPF(insn) >> 2) & 3;
-		mask = opmask[type];
-		rd = IF_F3_RD(insn) & ~mask;
+		rd = RN_DECODE(type, IF_F3_RD(insn));
 		break;
 	default:
 		return (SIGILL);
@@ -438,12 +460,12 @@ __fpu_execute(struct utrapframe *uf, struct fpemu *fe, u_int32_t insn, u_long ts
 		fsr |= (cx << FSR_CEXC_SHIFT) | (cx << FSR_AEXC_SHIFT);
 	}
 	fe->fe_fsr = fsr;
-	__fpu_setreg(rd, space[0]);
-	if (type >= FTYPE_DBL || type == FTYPE_LNG) {
-		__fpu_setreg(rd + 1, space[1]);
-		if (type > FTYPE_DBL) {
-			__fpu_setreg(rd + 2, space[2]);
-			__fpu_setreg(rd + 3, space[3]);
+	if (type == FTYPE_INT || type == FTYPE_SNG)
+		__fpu_setreg(rd, space[0]);
+	else {
+		for (i = 0; i < OPSZ(type); i += 2) {
+			__fpu_setreg64(rd + i, ((u_int64_t)space[i] << 32) |
+			    space[i + 1]);
 		}
 	}
 	return (0);	/* success */
