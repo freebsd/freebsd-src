@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)limits.h	8.2 (Berkeley) 1/4/94
+ *	$Id$
  */
 
 #ifndef _LIMITS_H_
@@ -73,6 +74,8 @@
 #endif 
 
 #include <machine/limits.h>
+#if !defined(_ANSI_SOURCE)
 #include <sys/syslimits.h>
+#endif
 
 #endif /* !_LIMITS_H_ */
