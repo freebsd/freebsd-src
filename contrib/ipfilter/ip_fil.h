@@ -519,8 +519,8 @@ extern	int	iplioctl __P((dev_t, int, int *, int, cred_t *, int *));
 extern	int	iplopen __P((dev_t *, int, int, cred_t *));
 extern	int	iplclose __P((dev_t, int, int, cred_t *));
 extern	int	ipfsync __P((void));
-extern	int	ipfr_fastroute __P((qif_t *, ip_t *, mblk_t *, mblk_t **,
-				   fr_info_t *, frdest_t *));
+extern	int	ipfr_fastroute __P((ip_t *, mblk_t *, mblk_t **,
+				    fr_info_t *, frdest_t *));
 extern	void	copyin_mblk __P((mblk_t *, size_t, size_t, char *));
 extern	void	copyout_mblk __P((mblk_t *, size_t, size_t, char *));
 extern	int	fr_qin __P((queue_t *, mblk_t *));

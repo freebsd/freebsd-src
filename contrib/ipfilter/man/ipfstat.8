@@ -100,8 +100,10 @@ protocol number. If this option is not specified, state entries for any
 protocol are specified.
 .TP
 .B \-s
-Show packet/flow state information (statistics) and held state information (in
-the kernel) if any is present.
+Show packet/flow state information (statistics only).
+.TP
+.B \-sl
+Show held state information (in the kernel) if any is present (no statistics).
 .TP
 .BR \-S \0<addrport>
 This option is only valid in combination with \fB\-t\fP. Limit the state top

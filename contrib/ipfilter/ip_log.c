@@ -26,7 +26,11 @@
 #   endif
 #  endif
 # else
-#  include <osreldate.h>
+#  ifdef KLD_MODULE
+#   include <sys/osreldate.h>
+#  else
+#   include <osreldate.h>
+#  endif
 # endif
 #endif
 #ifdef  IPFILTER_LOG

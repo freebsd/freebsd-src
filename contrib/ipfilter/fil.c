@@ -10,14 +10,6 @@ static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
 static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 
-#if defined(_KERNEL) && defined(__FreeBSD_version) && \
-    (__FreeBSD_version >= 400019) 
-# define CSUM_DELAY_DATA
-#endif 
-#if defined(_KERNEL) && defined(__FreeBSD_version) && \ 
-    (__FreeBSD_version >= 400000) && !defined(KLD_MODULE)
-#include "opt_inet6.h"
-#endif
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -29,6 +21,14 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #endif
 #if (defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD_version) && \
     (__FreeBSD_version >= 220000)
+# if (__FreeBSD_version >= 400000)
+#  ifndef KLD_MODULE
+#   include "opt_inet6.h"
+#  endif
+#  if (__FreeBSD_version == 400019)
+#   define CSUM_DELAY_DATA
+#  endif
+# endif
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -119,10 +119,8 @@ extern	kmutex_t	ipf_rw;
 # if SOLARIS
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, \
 							   ip, qif)
-#  define	SEND_RESET(ip, qif, if, fin)	send_reset(fin, ip, qif)
 # else /* SOLARIS */
 #  define	FR_NEWAUTH(m, fi, ip, qif)	fr_newauth((mb_t *)m, fi, ip)
-#  define	SEND_RESET(ip, qif, if, fin)	send_reset(fin, ip)
 # endif /* SOLARIS || __sgi */
 #endif /* _KERNEL */
 
@@ -663,8 +661,11 @@ void *m;
 		 * Just log this packet...
 		 */
 		passt = fr->fr_flags;
-		if ((passt & FR_CALLNOW) && fr->fr_func)
-			passt = (*fr->fr_func)(passt, ip, fin);
+#if (BSD >= 199306) && (defined(_KERNEL) || defined(KERNEL))
+		if (securelevel <= 0)
+#endif
+			if ((passt & FR_CALLNOW) && fr->fr_func)
+				passt = (*fr->fr_func)(passt, ip, fin);
 		fin->fin_fr = fr;
 #ifdef  IPFILTER_LOG
 		if ((passt & FR_LOGMASK) == FR_LOG) {
@@ -969,8 +970,11 @@ int out;
 			pass &= ~(FR_LOGFIRST|FR_LOG);
 	}
 
-	if (fr && fr->fr_func && !(pass & FR_CALLNOW))
-		pass = (*fr->fr_func)(pass, ip, fin);
+#if (BSD >= 199306) && (defined(_KERNEL) || defined(KERNEL))
+	if (securelevel <= 0)
+#endif
+		if (fr && fr->fr_func && !(pass & FR_CALLNOW))
+			pass = (*fr->fr_func)(pass, ip, fin);
 
 	/*
 	 * Only count/translate packets which will be passed on, out the
@@ -979,10 +983,10 @@ int out;
 	if (out && (pass & FR_PASS)) {
 #ifdef	USE_INET6
 		if (v == 6)
-			list = ipacct6[0][fr_active];
+			list = ipacct6[1][fr_active];
 		else
 #endif
-			list = ipacct[0][fr_active];
+			list = ipacct[1][fr_active];
 		if ((fin->fin_fr = list) &&
 		    (fr_scanlist(FR_NOMATCH, ip, fin, m) & FR_ACCOUNT)) {
 			ATOMIC_INCL(frstats[1].fr_acct);
@@ -1127,11 +1131,11 @@ logit:
 
 		if (((pass & FR_FASTROUTE) && !out) ||
 		    (fdp->fd_ifp && fdp->fd_ifp != (struct ifnet *)-1)) {
-			if (ipfr_fastroute(qif, ip, m, mp, fin, fdp) == 0)
+			if (ipfr_fastroute(ip, m, mp, fin, fdp) == 0)
 				m = *mp = NULL;
 		}
 		if (mc)
-			ipfr_fastroute(qif, ip, mc, mp, fin, &fr->fr_dif);
+			ipfr_fastroute(ip, mc, mp, fin, &fr->fr_dif);
 	}
 # endif /* !SOLARIS */
 	return (pass & FR_PASS) ? 0 : error;
@@ -1363,7 +1367,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.8 2000/05/22 10:26:09 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.18 2000/07/19 13:13:40 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1811,6 +1815,7 @@ void frsync()
 		ip_natsync(ifp);
 		ip_statesync(ifp);
 	}
+	ip_natsync((struct ifnet *)-1);
 # endif
 
 	WRITE_ENTER(&ipf_mutex);

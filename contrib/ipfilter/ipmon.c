@@ -209,11 +209,11 @@ static void init_tabs()
 		if (s->s_proto == NULL)
 			continue;
 		else if (!strcmp(s->s_proto, "tcp")) {
-			port = s->s_port;
+			port = ntohs(s->s_port);
 			name = s->s_name;
 			tab = tcp_ports;
 		} else if (!strcmp(s->s_proto, "udp")) {
-			port = s->s_port;
+			port = ntohs(s->s_port);
 			name = s->s_name;
 			tab = udp_ports;
 		} else
@@ -401,6 +401,10 @@ int	blen;
 		strcpy(t, "NAT:RDR ");
 	else if (nl->nl_type == NL_EXPIRE)
 		strcpy(t, "NAT:EXPIRE ");
+	else if (nl->nl_type == NL_NEWBIMAP)
+		strcpy(t, "NAT:BIMAP ");
+	else if (nl->nl_type == NL_NEWBLOCK)
+		strcpy(t, "NAT:MAPBLOCK ");
 	else
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);
