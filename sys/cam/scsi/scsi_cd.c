@@ -254,7 +254,7 @@ static struct cdevsw cd_cdevsw = {
 	/* open */	cdopen,
 	/* close */	cdclose,
 	/* read */	physread,
-	/* write */	nowrite,
+	/* write */	physwrite,
 	/* ioctl */	cdioctl,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
@@ -628,7 +628,7 @@ cdregister(struct cam_periph *periph, void *arg)
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
 			  DEVSTAT_PRIORITY_CD);
 	disk_create(periph->unit_number, &softc->disk,
-		    DSO_NOLABELS | DSO_ONESLICE,
+		    DSO_ONESLICE | DSO_COMPATLABEL,
 		    &cd_cdevsw, &cddisk_cdevsw);
 
 	/*
@@ -727,6 +727,7 @@ cdregister(struct cam_periph *periph, void *arg)
 					STAILQ_INSERT_TAIL(&nchanger->chluns,
 							  nsoftc,changer_links);
 				}
+				xpt_free_path(path);
 			} else if (status == CAM_REQ_CMP)
 				xpt_free_path(path);
 			else {
@@ -833,6 +834,7 @@ cdregister(struct cam_periph *periph, void *arg)
 
 				STAILQ_INSERT_TAIL(&nchanger->chluns,
 						   nsoftc, changer_links);
+				xpt_free_path(path);
 			} else if (status == CAM_REQ_CMP)
 				xpt_free_path(path);
 			else {
