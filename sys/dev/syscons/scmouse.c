@@ -75,8 +75,10 @@ typedef struct old_mouse_info {
 #ifndef SC_NO_SYSMOUSE
 
 /* local variables */
+#ifndef SC_NO_CUTPASTE
 static int		cut_buffer_size;
 static u_char		*cut_buffer;
+#endif
 
 /* local functions */
 static void set_mouse_pos(scr_stat *scp);
@@ -770,10 +772,10 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		}
 	    }
 
+#ifndef SC_NO_CUTPASTE
 	    if (ISGRAPHSC(cur_scp) || (cut_buffer == NULL))
 		break;
 
-#ifndef SC_NO_CUTPASTE
 	    if ((mouse->operation == MOUSE_ACTION) && f) {
 		/* process button presses */
 		if (cur_scp->mouse_buttons & MOUSE_BUTTON1DOWN)
@@ -825,10 +827,10 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		}
 	    }
 
+#ifndef SC_NO_CUTPASTE
 	    if (ISGRAPHSC(cur_scp) || (cut_buffer == NULL))
 		break;
 
-#ifndef SC_NO_CUTPASTE
 	    switch (mouse->u.event.id) {
 	    case MOUSE_BUTTON1DOWN:
 	        switch (mouse->u.event.value % 4) {
