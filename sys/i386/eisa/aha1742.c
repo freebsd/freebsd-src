@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.54 1996/06/12 05:02:39 gpalmer Exp $
+ *      $Id: aha1742.c,v 1.55 1996/09/06 23:06:54 phk Exp $
  */
 
 #include <sys/types.h>
@@ -274,7 +274,7 @@ static struct ecb *
 		ahb_ecb_phys_kv __P((struct ahb_data *ahb, physaddr ecb_phys));
 static int	ahb_init __P((struct ahb_data *ahb));
 static void	ahbintr __P((void *arg));
-static char	*ahbmatch __P((eisa_id_t type));
+static const char *ahbmatch __P((eisa_id_t type));
 static void	ahbminphys __P((struct buf *bp));
 static int	ahb_poll __P((struct ahb_data *ahb, int wait));
 #ifdef AHBDEBUG
@@ -435,7 +435,7 @@ ahb_send_immed(struct ahb_data *ahb, int target, u_long cmd)
 	splx(s);
 }
 
-static	char *
+static const char *
 ahbmatch(type)     
 	eisa_id_t type;
 {                         
@@ -583,7 +583,12 @@ ahb_attach(e_dev)
 	int	unit = e_dev->unit;
 	struct	ahb_data *ahb;
 	resvaddr_t *iospace;
-	int	irq = ffs(e_dev->ioconf.irq) - 1;
+	int	irq;
+
+	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+		return (-1);
+
+	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
 	iospace = e_dev->ioconf.ioaddrs.lh_first;
 

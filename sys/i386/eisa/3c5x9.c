@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.6 1996/10/12 17:34:25 bde Exp $
+ *	$Id: 3c5x9.c,v 1.10 1997/09/21 21:35:21 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -79,9 +79,9 @@ static struct eisa_driver ep_eisa_driver = {
 
 DATA_SET (eisadriver_set, ep_eisa_driver);
 
-static char   *ep_match __P((eisa_id_t type));
+static const char *ep_match __P((eisa_id_t type));
 
-static  char*
+static const char*
 ep_match(type)
 	eisa_id_t type;
 {
@@ -182,12 +182,16 @@ ep_eisa_attach(e_dev)
 	struct ep_softc *sc;
 	struct ep_board *epb;
 	int unit = e_dev->unit;
-	int irq = ffs(e_dev->ioconf.irq) - 1;
+	int irq;
 	resvaddr_t *ioport;
 	resvaddr_t *eisa_ioport;
 	u_char level_intr;
 	int i;
 
+	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+		return -1;
+
+	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 	/*
 	 * The addresses are sorted in increasing order
 	 * so we know the port to pass to the core ep

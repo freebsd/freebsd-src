@@ -51,8 +51,6 @@
 #include <netns/ns_if.h>
 #endif
 
-#include <machine/clock.h>
-
 #include <i386/eisa/eisaconf.h>
 
 #include <dev/vx/if_vxreg.h>
@@ -68,11 +66,11 @@
 #define VX_RESOURCE_CONFIG		0x0008
 
 
-static char *vx_match __P((eisa_id_t type));
+static const char *vx_match __P((eisa_id_t type));
 static int vx_eisa_probe __P((void));
 static int vx_eisa_attach __P((struct eisa_device *));
 
-struct eisa_driver vx_eisa_driver = {
+static struct eisa_driver vx_eisa_driver = {
     "vx",
     vx_eisa_probe,
     vx_eisa_attach,
@@ -82,7 +80,7 @@ struct eisa_driver vx_eisa_driver = {
 
 DATA_SET(eisadriver_set, vx_eisa_driver);
 
-static char*
+static const char*
 vx_match(type)
     eisa_id_t       type;
 {
@@ -136,10 +134,15 @@ vx_eisa_attach(e_dev)
 {
     struct vx_softc *sc;
     int             unit = e_dev->unit;
-    int             irq = ffs(e_dev->ioconf.irq) - 1;
+    int             irq;
     resvaddr_t     *ioport;
     resvaddr_t     *eisa_ioport;
     u_char          level_intr;
+
+    if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
+	return (-1);
+
+    irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
 
     ioport = e_dev->ioconf.ioaddrs.lh_first;
 
@@ -165,7 +168,7 @@ vx_eisa_attach(e_dev)
 
     level_intr = FALSE;
 
-    if (eisa_reg_intr(e_dev, irq, (void *) vxintr, (void *) sc, &net_imask,
+    if (eisa_reg_intr(e_dev, irq, (void (*)(void *)) vxintr, (void *) sc, &net_imask,
 		       /* shared == */ level_intr)) {
 	vxfree(sc);
 	return -1;
@@ -178,7 +181,7 @@ vx_eisa_attach(e_dev)
 
     if (eisa_enable_intr(e_dev, irq)) {
 	vxfree(sc);
-	eisa_release_intr(e_dev, irq, (void *) vxintr);
+	eisa_release_intr(e_dev, irq, (void (*)(void *)) vxintr);
 	return -1;
     }
     return 0;
