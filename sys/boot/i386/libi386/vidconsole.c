@@ -49,6 +49,10 @@ static int	vidc_ischar(void);
 static int	vidc_started;
 
 #ifdef TERM_EMU
+#define MAXARGS		8
+#define DEFAULT_FGCOLOR	7
+#define DEFAULT_BGCOLOR	0
+
 void		end_term(void);
 void		bail_out(int c);
 void		vidc_term_emu(int c);
@@ -56,17 +60,12 @@ void		get_pos(void);
 void		curs_move(int x, int y);
 void		write_char(int c, int fg, int bg);
 void		scroll_up(int rows, int fg, int bg);
-int		pow10(int i);
-void		AB(void);
-void		AF(void);
 void		CD(void);
 void		CM(void);
 void		HO(void);
-void		ME(void);
 
-static int	args[2],argc,br;
-static int	fg,bg,dig;
-static int	fg_c,bg_c,curx,cury;
+static int	args[MAXARGS], argc;
+static int	fg_c, bg_c, curx, cury;
 static int	esc;
 #endif
 
@@ -112,8 +111,8 @@ vidc_init(int arg)
     end_term();
     get_pos();
     curs_move(curx, cury);
-    fg_c = 7;
-    bg_c = 0;
+    fg_c = DEFAULT_FGCOLOR;
+    bg_c = DEFAULT_BGCOLOR;
 #endif
     for (i = 0; i < 10 && vidc_ischar(); i++)
 	(void)vidc_getchar();
@@ -265,42 +264,12 @@ write_char(int c, int fgcol, int bgcol)
     v86int();
 }
 
-/* Calculate power of 10 */
-int
-pow10(int i)
-{
-    int res = 1;
-
-    while (i-- > 0) {
-	res *= 10;
-    }
-    return res;
-}
-
 /**************************************************************/
 /*
  * Screen manipulation functions. They use accumulated data in
  * args[] and argc variables.
  *
  */
-
-/* Set background color */
-void
-AB(void)
-{
-
-    bg_c = args[0];
-    end_term();
-}
-
-/* Set foreground color */
-void
-AF(void)
-{
-
-    fg_c = args[0];
-    end_term();
-}
 
 /* Clear display from current position to end of screen */
 void
@@ -356,16 +325,6 @@ HO(void)
     CM();
 }
 
-/* Exit attribute mode (reset fore/back-ground colors to defaults) */
-void
-ME(void)
-{
-
-    fg_c = 7;
-    bg_c = 0;
-    end_term();
-}
-
 /* Clear internal state of the terminal emulation code */
 void
 end_term(void)
@@ -373,30 +332,21 @@ end_term(void)
 
     esc = 0;
     argc = -1;
-    fg = bg = br = 0;
-    args[0] = args[1] = 0;
-    dig = 0;
 }
 
 /* Gracefully exit ESC-sequence processing in case of misunderstanding */
 void
 bail_out(int c)
 {
-    char buf[6],*ch;
+    char buf[16], *ch;
+    int i;
 
-    if (esc)
+    if (esc) {
 	vidc_rawputchar('\033');
-    if (br)
-	vidc_rawputchar('[');
-    if (argc > -1) {
-	sprintf(buf, "%d", args[0]);
-	ch = buf;
-	while (*ch)
-	    vidc_rawputchar(*ch++);
-		
-	if (argc > 0) {
-	    vidc_rawputchar(';');
-	    sprintf(buf, "%d", args[1]);
+	if (esc != '\033')
+	    vidc_rawputchar(esc);
+	for (i = 0; i <= argc; ++i) {
+	    sprintf(buf, "%d", args[i]);
 	    ch = buf;
 	    while (*ch)
 		vidc_rawputchar(*ch++);
@@ -406,112 +356,127 @@ bail_out(int c)
     end_term();
 }
 
+static void
+get_arg(c)
+{
+
+    if (argc < 0)
+	argc = 0;
+    args[argc] *= 10;
+    args[argc] += c - '0';
+}
+
 /* Emulate basic capabilities of cons25 terminal */
 void
 vidc_term_emu(int c)
 {
+    static int ansi_col[] = {
+	0, 4, 2, 6, 1, 5, 3, 7,
+    };
+    int t;
+    int i;
 
-    if (!esc) {
-	if (c == '\033') {
-	    esc = 1;
-	} else {
+    switch (esc) {
+    case 0:
+	switch (c) {
+	case '\033':
+	    esc = c;
+	    break;
+	default:
 	    vidc_rawputchar(c);
+	    break;
 	}
-	return;
-    }
+	break;
 
-    /* Do ESC sequences processing */
-    switch (c) {
     case '\033':
-	/* ESC in ESC sequence - error */
-	bail_out(c);
-	break;
-    case '[':
-	/* Check if it's first char after ESC */
-        if (argc < 0) {
-            br = 1;
-        } else {
+	switch (c) {
+	case '[':
+	    esc = c;
+	    args[0] = 0;
+	    argc = -1;
+	    break;
+	default:
 	    bail_out(c);
-        }
+	    break;
+	}
 	break;
-    case 'H':
-	/* Emulate \E[H (cursor home) and 
-	 * \E%d;%dH (cursor absolute move) */
-	if (br) {
-	    switch (argc) {
-	    case -1:
+
+    case '[':
+	switch (c) {
+	case ';':
+	    if (argc < 0)	/* XXX */
+		argc = 0;
+	    else if (argc + 1 >= MAXARGS)
+		bail_out(c);
+	    else
+		args[++argc] = 0;
+	    break;
+	case 'H':
+	    if (argc < 0)
 		HO();
-		break;
-	    case 1:
-		if (fg)
-		    args[0] += pow10(dig)*3;
-		if (bg)
-		    args[0] += pow10(dig)*4;
+	    else if (argc == 1)
 		CM();
-		break;
-	    default:
+	    else
 		bail_out(c);
-	    }
-	} else bail_out(c);
-	break;
-    case 'J':
-	/* Emulate \EJ (clear to end of screen) */
-	if (br && argc < 0) {
-	    CD();
-	} else bail_out(c);
-	break;
-    case ';':
-	/* perhaps args separator */
-	if (br && (argc > -1)) {
-	    argc++;
-	} else bail_out(c);
-	break;
-    case 'm':
-	/* Change char attributes */
-	if (br) {
-	    switch (argc) {
-	    case -1:
-		ME();
-		break;
-	    case 0:
-		if (fg)
-		    AF();
-		else
-		    AB();
-		break;
-	    default:
+	    break;
+	case 'J':
+	    if (argc < 0)
+		CD();
+	    else
 		bail_out(c);
+	    break;
+	case 'm':
+	    if (argc < 0) {
+		fg_c = DEFAULT_FGCOLOR;
+		bg_c = DEFAULT_BGCOLOR;
 	    }
-	} else bail_out(c);
+	    for (i = 0; i <= argc; ++i) {
+		switch (args[i]) {
+		case 0:		/* back to normal */
+		    fg_c = DEFAULT_FGCOLOR;
+		    bg_c = DEFAULT_BGCOLOR;
+		    break;
+		case 1:		/* bold */
+		    fg_c |= 0x8;
+		    break;
+		case 4:		/* underline */
+		case 5:		/* blink */
+		    bg_c |= 0x8;
+		    break;
+		case 7:		/* reverse */
+		    t = fg_c;
+		    fg_c = bg_c;
+		    bg_c = t;
+		    break;
+		case 30: case 31: case 32: case 33:
+		case 34: case 35: case 36: case 37:
+		    fg_c = ansi_col[args[i] - 30];
+		    break;
+		case 39:	/* normal */
+		    fg_c = DEFAULT_FGCOLOR;
+		    break;
+		case 40: case 41: case 42: case 43:
+		case 44: case 45: case 46: case 47:
+		    bg_c = ansi_col[args[i] - 40];
+		    break;
+		case 49:	/* normal */
+		    bg_c = DEFAULT_BGCOLOR;
+		    break;
+		}
+	    }
+	    end_term();
+	    break;
+	default:
+	    if (isdigit(c))
+		get_arg(c);
+	    else
+		bail_out(c);
+	    break;
+	}
 	break;
+
     default:
-	if (isdigit(c)) {
-	    /* Carefully collect numeric arguments */
-	    /* XXX this is ugly. */
-	    if (br) {
-	        if (argc == -1) {
-	     	    argc = 0;
-		    args[argc] = 0;
-		    dig = 0;
-		    /* in case we're in error... */
-		    if (c == '3') {
-			fg = 1;
-			return;
-		    }
-		    if (c == '4') {
-			bg = 1;
-			return;
-		    }
-	     	    args[argc] = (int)(c - '0');
-		    dig = 1;
-	     	    args[argc + 1] = 0;
-	    	} else {
-		    args[argc] = args[argc]*10 + (int)(c - '0');
-		    if (argc == 0)
-			dig++;
-	    	}
-	    } else bail_out(c);
-	} else bail_out(c);
+	bail_out(c);
 	break;
     }
 }
