@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.40 1998/07/13 09:53:02 bde Exp $ */
+/* $Id: scd.c,v 1.41 1999/01/12 01:29:45 eivind Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -1569,7 +1569,7 @@ scd_toc_entry (int unit, struct ioc_read_toc_single_entry *te)
 }
 
 
-static scd_devsw_installed = 0;
+static int scd_devsw_installed;
 
 static void 	scd_drvinit(void *unused)
 {

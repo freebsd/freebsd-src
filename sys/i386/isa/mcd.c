@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.100 1998/07/13 09:53:01 bde Exp $
+ *	$Id: mcd.c,v 1.101 1998/10/22 05:58:39 bde Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -1849,7 +1849,7 @@ mcd_resume(int unit)
 }
 
 
-static mcd_devsw_installed = 0;
+static int mcd_devsw_installed;
 
 static void 	mcd_drvinit(void *unused)
 {
