@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.64 1995/05/28 20:28:13 jkh Exp $
+ * $Id: install.c,v 1.65 1995/05/28 23:12:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,6 +200,7 @@ installInitial(void)
     msgDebug("Sticking a potentially helpful shell over on the 4th screen\n");
     if (!fork()) {
 	int i, fd;
+	extern int login_tty(int);
 
 	for (i = 0; i < 64; i++)
 	    close(i);
@@ -207,6 +208,10 @@ installInitial(void)
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
+	if (login_tty(fd)==-1) {
+	    msgConfirm("Can't set controlling terminal");
+	    exit(1);
+	}
 	execlp("sh", "-sh", 0);
 	exit(1);
     }

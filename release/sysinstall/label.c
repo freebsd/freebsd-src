@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.28 1995/05/28 20:28:15 jkh Exp $
+ * $Id: label.c,v 1.29 1995/05/28 23:12:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -348,11 +348,9 @@ print_label_chunks(void)
 	    }
 	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
-	    if (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT) {
-		if (label_chunk_info[i].c->private != NULL)
-		    mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
-		else
-		    mountpoint = " ";
+	    if (label_chunk_info[i].c->private
+		&& (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT)) {
+		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
 		if (label_chunk_info[i].type == PART_FAT)
 		    newfs = "DOS";
 		else

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.38 1995/05/26 21:00:43 jkh Exp $
+ * $Id: system.c,v 1.39 1995/05/28 09:36:06 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -105,9 +105,7 @@ systemShutdown(void)
 	int fd, on = 1;
 
 	/* Put the console back */
-	fd = open("/dev/ttyv0", O_RDONLY);
-	if (fd != -1)
-	    ioctl(fd, TIOCCONS, &on);
+	ioctl(0, VT_RELDISP, 1);
 	reboot(RB_HALT);
     }
     else
