@@ -162,19 +162,6 @@
 # Conflicts with other entries [BABYL]
 #0	string		BA		PC bitmap array data
 
-# JPEG images
-# SunOS 5.5.1 had
-#
-#	0	string		\377\330\377\340	JPEG file
-#	0	string		\377\330\377\356	JPG file
-#
-# both of which turn into "JPEG image data" here.
-#
-0	beshort		0xffd8		JPEG image data
->6	string		JFIF		\b, JFIF standard
-# HSI is Handmade Software's proprietary JPEG encoding scheme
-0	string		hsi1		JPEG image data, HSI proprietary
-
 # XPM icons (Greg Roelofs, newt@uchicago.edu)
 # note possible collision with C/REXX entry in c-lang; currently commented out
 0	string		/*\ XPM\ */	X pixmap image text
@@ -274,3 +261,60 @@
 
 # DICOM medical imaging data
 128	string	DICM			DICOM medical imaging data
+
+# XWD - X-Windows Dump file.
+#   As described in /usr/X11R6/include/X11/XWDFile.h
+#   used by the xwd program.
+#   Bradford Castalia, idaeim, 1/01
+4	belong	7			XWD X-Widows Dump image data
+>100	string	>\0			\b, "%s"
+>16	belong	x			\b, %dx
+>20	belong	x			\b%dx
+>12	belong	x			\b%d
+
+# PDS - Planetary Data System
+#   These files use Parameter Value Language in the header section.
+#   Unfortunately, there is no certain magic, but the following
+#   strings have been found to be most likely.
+0	string	NJPL1I00		PDS (JPL) image data
+2	string	NJPL1I			PDS (JPL) image data
+0	string	CCSD3ZF			PDS (CCSD) image data
+2	string	CCSD3Z			PDS (CCSD) image data
+0	string	PDS_			PDS image data
+0	string	LBLSIZE=		PDS (VICAR) image data
+
+0	string		GSTIm		GNU SmallTalk image file
+
+# pM8x: ATARI STAD compressed bitmap format
+#
+# from Oskar Schirmer <schirmer@scara.com> Feb 2, 2001
+# p M 8 5/6 xx yy zz data...
+# Atari ST STAD bitmap is always 640x400, bytewise runlength compressed.
+# bytes either run horizontally (pM85) or vertically (pM86). yy is the
+# most frequent byte, xx and zz are runlength escape codes, where xx is
+# used for runs of yy.
+#
+0	string	pM85		Atari ST STAD bitmap image data (hor)
+>5	byte	0x00		(white background)
+>5	byte	0xFF		(black background)
+0	string	pM86		Atari ST STAD bitmap image data (vert)
+>5	byte	0x00		(white background)
+>5	byte	0xFF		(black background)
+
+# SGI RICE image file <mpruett@sgi.com>
+0	beshort	0x5249		RICE image
+>2	beshort	x		v%d
+>4	beshort	x		(%d x
+>6	beshort	x		%d)
+>8	beshort	0		8 bit
+>8	beshort	1		10 bit
+>8	beshort	2		12 bit
+>8	beshort	3		13 bit
+>10	beshort	0		4:2:2
+>10	beshort	1		4:2:2:4
+>10	beshort	2		4:4:4
+>10	beshort	3		4:4:4:4
+>12	beshort	1		RGB
+>12	beshort	2		CCIR601
+>12	beshort	3		RP175
+>12	beshort	4		YUV

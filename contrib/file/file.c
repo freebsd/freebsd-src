@@ -56,14 +56,14 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.55 2000/08/05 19:00:12 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.58 2001/07/22 21:04:15 christos Exp $")
 #endif	/* lint */
 
 
 #ifdef S_IFLNK
-# define USAGE  "Usage: %s [-bciknvzL] [-f namefile] [-m magicfiles] file...\n"
+# define USAGE  "Usage: %s [-bciknsvzL] [-f namefile] [-m magicfiles] file...\n"
 #else
-# define USAGE  "Usage: %s [-bciknvz] [-f namefile] [-m magicfiles] file...\n"
+# define USAGE  "Usage: %s [-bciknsvz] [-f namefile] [-m magicfiles] file...\n"
 #endif
 
 #ifndef MAGIC
@@ -89,7 +89,7 @@ int			/* Misc globals				*/
 
 struct  magic *magic;	/* array of magic entries		*/
 
-const char *magicfile;	/* where magic be found 		*/
+const char *magicfile = 0;	/* where the magic is		*/
 const char *default_magicfile = MAGIC;
 
 char *progname;		/* used throughout 			*/
@@ -97,6 +97,7 @@ int lineno;		/* line number in the magic file	*/
 
 
 static void	unwrap		__P((char *fn));
+static void	usage		__P((void));
 #if 0
 static int	byteconv4	__P((int, int, int));
 static short	byteconv2	__P((int, int, int));
@@ -113,8 +114,9 @@ main(argc, argv)
 	char *argv[];
 {
 	int c;
-	int check = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
-	char *mime;
+	int action = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
+	char *mime, *home, *usermagic;
+	struct stat sb;
 
 #ifdef LC_CTYPE
 	setlocale(LC_CTYPE, ""); /* makes islower etc work for other langs */
@@ -125,24 +127,39 @@ main(argc, argv)
 	else
 		progname = argv[0];
 
-	if (!(magicfile = getenv("MAGIC")))
-		magicfile = default_magicfile;
+	magicfile = default_magicfile;
+	if ((usermagic = getenv("MAGIC")) != NULL)
+		magicfile = usermagic;
+	else
+		if (home = getenv("HOME")) {
+			if ((usermagic = malloc(strlen(home) + 8)) != NULL) {
+				(void)strcpy(usermagic, home);
+				(void)strcat(usermagic, "/.magic");
+				if (stat(usermagic, &sb)<0) 
+					free(usermagic);
+				else
+					magicfile = usermagic;
+			}
+		}
 
-	while ((c = getopt(argc, argv, "bcdf:ikm:nsvzL")) != EOF)
+	while ((c = getopt(argc, argv, "bcdf:ikm:nsvzCL")) != EOF)
 		switch (c) {
 		case 'b':
 			++bflag;
 			break;
 		case 'c':
-			++check;
+			action = CHECK;
+			break;
+		case 'C':
+			action = COMPILE;
 			break;
 		case 'd':
 			++debug;
 			break;
 		case 'f':
 			if (!app) {
-				ret = apprentice(magicfile, check);
-				if (check)
+				ret = apprentice(magicfile, action);
+				if (action)
 					exit(ret);
 				app = 1;
 			}
@@ -151,7 +168,7 @@ main(argc, argv)
 			break;
 		case 'i':
 			iflag++;
-			if ((mime = malloc(strlen(magicfile) + 5)) != NULL) {
+			if ((mime = malloc(strlen(magicfile) + 6)) != NULL) {
 				(void)strcpy(mime, magicfile);
 				(void)strcat(mime, ".mime");
 				magicfile = mime;
@@ -190,21 +207,19 @@ main(argc, argv)
 		}
 
 	if (errflg) {
-		(void) fprintf(stderr, USAGE, progname);
-		exit(2);
+		usage();
 	}
 
 	if (!app) {
-		ret = apprentice(magicfile, check);
-		if (check)
+		ret = apprentice(magicfile, action);
+		if (action)
 			exit(ret);
 		app = 1;
 	}
 
 	if (optind == argc) {
 		if (!didsomefiles) {
-			(void)fprintf(stderr, USAGE, progname);
-			exit(2);
+			usage();
 		}
 	}
 	else {
@@ -450,4 +465,12 @@ tryit(buf, nb, zflag)
 	/* abandon hope, all ye who remain here */
 	ckfputs("data", stdout);
 		return '\0';
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, USAGE, progname);
+	(void)fprintf(stderr, "Usage: %s -C [-m magic]\n", progname);
+	exit(1);
 }

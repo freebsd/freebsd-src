@@ -197,7 +197,7 @@
 >10	leshort		0x0000			stripped
 0	belong&0377777777	043200507	NetBSD/alpha core
 >12	string			>\0		from '%s'
->32	belong			!0		(signal %d)
+>32	lelong			!0		(signal %d)
 
 0	belong&0377777777	043400413	NetBSD/mips demand paged
 >0	byte			&0x80		
@@ -223,9 +223,9 @@
 
 0	belong&0377777777	043600413	NetBSD/arm32 demand paged
 >0	byte			&0x80
->>20	lelong			<8192		shared library
->>20	lelong			=8192		dynamically linked executable
->>20	lelong			>8192		dynamically linked executable
+>>20	lelong			<4096		shared library
+>>20	lelong			=4096		dynamically linked executable
+>>20	lelong			>4096		dynamically linked executable
 >0	byte			^0x80		executable
 >16	lelong			>0		not stripped
 0	belong&0377777777	043600410	NetBSD/arm32 pure
@@ -239,6 +239,8 @@
 >>20	lelong			!0		executable
 >>20	lelong			=0		object file
 >16	lelong			>0		not stripped
-0	belong&0377777777	043600507	NetBSD/arm32 core
+# NetBSD/arm26 has always used ELF objects, but it shares a core file
+# format with NetBSD/arm32.
+0	belong&0377777777	043600507	NetBSD/arm core
 >12	string			>\0		from '%s'
 >32	lelong			!0		(signal %d)
