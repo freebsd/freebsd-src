@@ -61,8 +61,9 @@ SRCS+=	regerror.c regexp.c regsub.c
 
 MAN3+=	regexp/regexp.3
 
-MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regsub.3 \
-	regexp.3 regerror.3
+# XXX name clash with libc
+# MLINKS+=regexp.3 regcomp.3 regexp.3 regexec.3 regexp.3 regerror.3
+MLINKS+=regexp.3 regsub.3
 
 # SysV compat sources
 SRCS+=	ftok.c
