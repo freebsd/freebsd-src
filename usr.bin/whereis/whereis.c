@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -367,6 +368,8 @@ main(int argc, char **argv)
 	regmatch_t matches[2];
 	regoff_t rlen;
 	FILE *p;
+
+	setlocale(LC_ALL, "");
 
 	scanopts(argc, argv);
 	defaults();
