@@ -156,39 +156,15 @@ kernel: buildkernel installkernel
 
 #
 # Perform a few tests to determine if the installed tools are adequate
-# for building the world. These are for older systems (prior to 2.2.5).
-#
-# From 2.2.5 onwards, the installed tools will pass these upgrade tests,
-# so the normal make world is capable of doing what is required to update
-# the system to current.
+# for building the world.
 #
 upgrade_checks:
-	@cd ${.CURDIR}; \
-	if ! make -m ${.CURDIR}/share/mk -Dnotdef test >/dev/null 2>&1; then \
-		make make; \
-	fi
-	@cd ${.CURDIR}; \
-	if make -V .CURDIR:C/.// 2>&1 >/dev/null | \
-	    grep -q "Unknown modifier 'C'"; then \
-		make make; \
-	fi
-
-#
-# A simple test target used as part of the test to see if make supports
-# the -m argument.  Also test that make will only evaluate a conditional
-# as far as is necessary to determine its value.
-#
-test:
-.if defined(notdef)
-.undef notdef
-.if defined(notdef) && ${notdef:U}
-.endif
-.endif
+	@(cd ${.CURDIR}/tools/regression/usr.bin/make && make 2>/dev/null) || \
+	(cd ${.CURDIR} && make make)
 
 #
 # Upgrade the installed make to the current version using the installed
-# headers, libraries and build tools. This is required on installed versions
-# prior to 2.2.5 in which the installed make doesn't support the -m argument.
+# headers, libraries and tools.
 #
 make:
 	@echo
