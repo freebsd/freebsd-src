@@ -236,7 +236,6 @@ vm_proc_new(struct proc *p)
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -328,7 +327,6 @@ vm_proc_swapin(struct proc *p)
 		m->valid = VM_PAGE_BITS_ALL;
 		vm_page_wire(m);
 		vm_page_wakeup(m);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
 	vm_page_unlock_queues();
 	up = (vm_offset_t)p->p_uarea;

@@ -980,7 +980,6 @@ pmap_new_thread(struct thread *td)
 
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 	pmap_qenter(ks, ma, KSTACK_PAGES);
@@ -1078,7 +1077,6 @@ pmap_swapin_thread(td)
 		vm_page_lock_queues();
 		vm_page_wire(m);
 		vm_page_wakeup(m);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		vm_page_unlock_queues();
 	}
 	pmap_qenter(ks, ma, KSTACK_PAGES);
