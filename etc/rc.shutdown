@@ -34,10 +34,12 @@ case ${entropy_file} in
 *)
 	echo "Writing entropy file."
 	rm -f ${entropy_file}
+	oumask=`umask`
+	umask 077
 	touch ${entropy_file} && \
-		chmod 600 ${entropy_file} && \
 		dd if=/dev/random of=${entropy_file} \
 		   bs=4096 count=1 2> /dev/null
+	umask ${oumask}
 	;;
 esac
 
