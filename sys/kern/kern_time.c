@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.21 1997/02/22 09:39:13 peter Exp $
+ * $Id: kern_time.c,v 1.22 1997/03/22 08:03:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 
@@ -56,6 +57,217 @@ struct timezone tz;
  */
 
 static void	timevalfix __P((struct timeval *));
+static int	settime __P((struct timeval *));
+
+static int
+settime(tv)
+	struct timeval *tv;
+{
+	struct timeval delta;
+	struct proc *p;
+	int s;
+
+	/*
+	 * Must not set clock backwards in secure mode
+	 */
+	delta.tv_sec = tv->tv_sec - time.tv_sec;
+	delta.tv_usec = tv->tv_usec - time.tv_usec;
+	timevalfix(&delta);
+	if (delta.tv_sec < 0 && securelevel > 1)
+		return (EPERM);
+#ifdef notyet
+	if (delta.tv_sec < 86400 && securelevel > 0)
+		return (EPERM);
+#endif
+
+	s = splclock();
+	/*
+	 * Recalculate delta directly to minimize clock interrupt
+	 * latency.  Fix it after the ipl has been lowered.
+	 */
+	delta.tv_sec = tv->tv_sec - time.tv_sec;
+	delta.tv_usec = tv->tv_usec - time.tv_usec;
+	time = *tv;
+	/*
+	 * XXX should arrange for microtime() to agree with *tv if
+	 * it is called now.  As it is, it may add up to about
+	 * `tick' unwanted usec.
+	 * Another problem is that clock interrupts may occur at
+	 * other than multiples of `tick'.  It's not worth fixing
+	 * this here, since the problem is also caused by tick
+	 * adjustments.
+	 */
+	(void) splsoftclock();
+	timevaladd(&boottime, &delta);
+	timevaladd(&runtime, &delta);
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
+		if (timerisset(&p->p_realtimer.it_value))
+			timevaladd(&p->p_realtimer.it_value, &delta);
+#ifdef NFS
+	lease_updatetime(delta.tv_sec);
+#endif
+	splx(s);
+	resettodr();
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct clock_gettime_args {
+	clockid_t clock_id;
+	struct	timespec *tp;
+};
+#endif
+/* ARGSUSED */
+int
+clock_gettime(p, uap, retval)
+	struct proc *p;
+	struct clock_gettime_args *uap;
+	register_t *retval;
+{
+	clockid_t clock_id;
+	struct timeval atv;
+	struct timespec ats;
+
+	clock_id = SCARG(uap, clock_id);
+	if (clock_id != CLOCK_REALTIME)
+		return (EINVAL);
+
+	microtime(&atv);
+	TIMEVAL_TO_TIMESPEC(&atv, &ats);
+
+	return copyout(&ats, SCARG(uap, tp), sizeof(ats));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct clock_settime_args {
+	clockid_t clock_id;
+	const struct	timespec *tp;
+};
+#endif
+/* ARGSUSED */
+int
+clock_settime(p, uap, retval)
+	struct proc *p;
+	struct clock_settime_args *uap;
+	register_t *retval;
+{
+	clockid_t clock_id;
+	struct timeval atv;
+	struct timespec ats;
+	int error;
+
+	if ((error = suser(p->p_ucred, &p->p_acflag)) != 0)
+		return (error);
+
+	clock_id = SCARG(uap, clock_id);
+	if (clock_id != CLOCK_REALTIME)
+		return (EINVAL);
+
+	if ((error = copyin(SCARG(uap, tp), &ats, sizeof(ats))) != 0)
+		return (error);
+
+	TIMESPEC_TO_TIMEVAL(&atv, &ats);
+	if ((error = settime(&atv)))
+		return (error);
+
+	return 0;
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct clock_getres_args {
+	clockid_t clock_id;
+	struct	timespec *tp;
+};
+#endif
+int
+clock_getres(p, uap, retval)
+	struct proc *p;
+	struct clock_getres_args *uap;
+	register_t *retval;
+{
+	clockid_t clock_id;
+	struct timespec ts;
+	int error = 0;
+
+	clock_id = SCARG(uap, clock_id);
+	if (clock_id != CLOCK_REALTIME)
+		return (EINVAL);
+
+	if (SCARG(uap, tp)) {
+		ts.tv_sec = 0;
+		ts.tv_nsec = 1000000000 / hz;
+
+		error = copyout(&ts, SCARG(uap, tp), sizeof (ts));
+	}
+
+	return error;
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct nanosleep_args {
+	struct	timespec *rqtp;
+	struct	timespec *rmtp;
+};
+#endif
+/* ARGSUSED */
+int
+nanosleep(p, uap, retval)
+	struct proc *p;
+	struct nanosleep_args *uap;
+	register_t *retval;
+{
+	static int nanowait;
+	struct timespec rqt;
+	struct timespec rmt;
+	struct timeval atv, utv;
+	int error, s, timo;
+
+	error = copyin((caddr_t)SCARG(uap, rqtp), (caddr_t)&rqt,
+		       sizeof(struct timespec));
+	if (error)
+		return (error);
+
+	TIMESPEC_TO_TIMEVAL(&atv, &rqt)
+	if (itimerfix(&atv))
+		return (EINVAL);
+
+	s = splclock();
+	timevaladd(&atv, &time);
+	timo = hzto(&atv);
+	/* 
+	 * Avoid inadvertantly sleeping forever
+	 */
+	if (timo == 0)
+		timo = 1;
+	splx(s);
+
+	error = tsleep(&nanowait, PWAIT | PCATCH, "nanosleep", timo);
+	if (error == ERESTART)
+		error = EINTR;
+	if (error == EWOULDBLOCK)
+		error = 0;
+
+	if (SCARG(uap, rmtp)) {
+		int error;
+
+		s = splclock();
+		utv = time;
+		splx(s);
+
+		timevalsub(&atv, &utv);
+		if (atv.tv_sec < 0)
+			timerclear(&atv);
+
+		TIMEVAL_TO_TIMESPEC(&atv, &rmt);
+		error = copyout((caddr_t)&rmt, (caddr_t)SCARG(uap, rmtp),
+			sizeof(rmt));
+		if (error)
+			return (error);
+	}
+
+	return error;
+}
+
 
 #ifndef _SYS_SYSPROTO_H_
 struct gettimeofday_args {
@@ -113,38 +325,8 @@ settimeofday(p, uap, retval)
 	if (uap->tzp &&
 	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz))))
 		return (error);
-	if (uap->tv) {
-		s = splclock();
-		/*
-		 * Calculate delta directly to minimize clock interrupt
-		 * latency.  Fix it after the ipl has been lowered.
-		 */
-		delta.tv_sec = atv.tv_sec - time.tv_sec;
-		delta.tv_usec = atv.tv_usec - time.tv_usec;
-		time = atv;
-		/*
-		 * XXX should arrange for microtime() to agree with atv if
-		 * it is called now.  As it is, it may add up to about
-		 * `tick' unwanted usec.
-		 * Another problem is that clock interrupts may occur at
-		 * other than multiples of `tick'.  It's not worth fixing
-		 * this here, since the problem is also caused by tick
-		 * adjustments.
-		 */
-		(void) splsoftclock();
-		timevalfix(&delta);
-		timevaladd(&boottime, &delta);
-		timevaladd(&runtime, &delta);
-		/* re-use 'p' */
-		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
-			if (timerisset(&p->p_realtimer.it_value))
-				timevaladd(&p->p_realtimer.it_value, &delta);
-#		ifdef NFS
-			lease_updatetime(delta.tv_sec);
-#		endif
-		splx(s);
-		resettodr();
-	}
+	if (uap->tv && (error = settime(&atv)))
+		return (error);
 	if (uap->tzp)
 		tz = atz;
 	return (0);
