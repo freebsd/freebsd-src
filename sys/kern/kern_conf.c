@@ -159,6 +159,7 @@ int
 unit2minor(int unit)
 {
 
+	KASSERT(unit <= 0xffffff, ("Invalid unit (%d) in unit2minor", unit));
 	return ((unit & 0xff) | ((unit << 8) & ~0xffff));
 }
 
