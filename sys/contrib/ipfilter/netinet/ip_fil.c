@@ -504,15 +504,9 @@ int ipl_disable()
 int ipldetach()
 # endif
 {
-<<<<<<< ip_fil.c
-	int s, i = FR_INQUE|FR_OUTQUE;
-#if defined(NETBSD_PF) && \
-    ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
-=======
 	int s, i;
 #if defined(NETBSD_PF) && \
     ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
->>>>>>> 1.1.1.17
 	int error = 0;
 # if __NetBSD_Version__ >= 105150000
         struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);

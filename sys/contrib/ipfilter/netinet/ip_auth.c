@@ -298,15 +298,9 @@ ip_t *ip;
 	cv_signal(&ipfauthwait);
 #else
 # if defined(BSD) && !defined(sparc) && (BSD >= 199306)
-<<<<<<< ip_auth.c
-	if (!fin->fin_out) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
-=======
 	if (fin->fin_out == 0) {
 		ip->ip_len = htons(ip->ip_len);
 		ip->ip_off = htons(ip->ip_off);
->>>>>>> 1.1.1.11
 	}
 # endif
 	fr_authpkts[i] = m;
