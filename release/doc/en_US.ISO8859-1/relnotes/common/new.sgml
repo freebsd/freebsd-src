@@ -2144,6 +2144,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       program.  They are used by error-reporting routines to produce
       consistent output. &merged;</para>
 
+    <para>&man.gifconfig.8; is obsolete and has been removed.  Its
+      functionality is now handled by the <option>tunnel</option> and
+      <option>deletetunnel</option> commands of
+      &man.ifconfig.8;.</para>
+
     <para>&man.gprof.1; now has a <option>-K</option> option to enable
       dynamic symbol resolution from the currently-running kernel.
       With this change, properly-compiled KLD modules are now able to
@@ -2668,6 +2673,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para role="historic">&man.pr.1; now supports the <option>-f</option> and
       <option>-p</option> flags to pause output going to a
       terminal. &merged;</para>
+
+    <para>&man.prefix.8; is obsolete and has been removed.  Its
+      functionality is provided by the <option>eui64</option> command
+      to &man.ifconfig.8;.</para>
 
     <para role="historic">The <option>-W</option> option to &man.ps.1; (to extract
       information from a specified swap device) has been useless for
@@ -3380,8 +3389,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  &man.gifconfig.8;. &merged;</para>
 
 	<para role="historic">&man.ifconfig.8; can now perform the functions of
-	  &man.prefix.8;.  &man.prefix.8; is now a shell script for
-	  partial backwards compatibility. &merged;</para>
+	  &man.prefix.8;. &merged;</para>
 
 	<para role="historic">&man.ndp.8; now implements garbage collection for stale
 	  NDP entries, as described in RFC 2461 (Neighbor Discovery
