@@ -243,12 +243,12 @@ dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
 dev/ppbus/vpoio.c	optional vpo
 dev/randomdev/harvest.c	standard
-dev/randomdev/randomdev.c	optional randomdev
-dev/randomdev/yarrow.c	optional randomdev
-dev/randomdev/hash.c	optional randomdev
-crypto/blowfish/bf_cbc.c	optional randomdev
-crypto/blowfish/bf_enc.c	optional randomdev
-crypto/blowfish/bf_skey.c	optional randomdev
+dev/randomdev/randomdev.c	optional random
+dev/randomdev/yarrow.c	optional random
+dev/randomdev/hash.c	optional random
+crypto/blowfish/bf_cbc.c	optional random
+crypto/blowfish/bf_enc.c	optional random
+crypto/blowfish/bf_skey.c	optional random
 dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci
