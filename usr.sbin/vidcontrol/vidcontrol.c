@@ -73,10 +73,10 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: vidcontrol [-b color] [-c appearance] [-d] [-f [size] file] [-g geometry]",
-"                  [-i adapter | mode] [-l screen_map] [-L] [-m on | off]",
-"                  [-M char] [-p] [-P] [-r foreground background] [-s number]",
-"                  [-t N | off] [-x] [mode] [foreground [background]] [show]");
+"usage: vidcontrol [-CdLPpx] [-b color] [-c appearance] [-f [size] file]",
+"                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
+"                  [-m on | off] [-M char] [-r foreground background] [-s num]",
+"                  [-t N | off] [mode] [foreground [background]] [show]");
 	exit(1);
 }
 
@@ -714,6 +714,28 @@ dump_screen(int mode)
 	return;
 }
 
+void
+set_history(char *opt)
+{
+	int size;
+
+	size = atoi(opt);
+	if ((*opt == '\0') || size < 0) {
+		warnx("argument must be a positive number");
+		return;
+	}
+	if (ioctl(0, CONS_HISTORY, &size) == -1)
+		warn("setting history buffer size");
+}
+
+void
+clear_history()
+{
+
+	if (ioctl(0, CONS_CLRHIST) == -1)
+		warn("clear history buffer");
+}
+
 int
 main(int argc, char **argv)
 {
@@ -727,68 +749,74 @@ main(int argc, char **argv)
 		/* Not reached */
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:c:df:g:i:l:LM:m:pPr:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:Cc:df:g:h:i:l:LM:m:pPr:s:t:x")) != -1)
 		switch(opt) {
-			case 'b':
-				set_border_color(optarg);
-				break;
-			case 'c':
-				set_cursor_type(optarg);
-				break;
-			case 'd':
-				print_scrnmap();
-				break;
-			case 'f':
-				type = optarg;
-				font = nextarg(argc, argv, &optind, 'f', 0);
-				if (font == NULL) {
-					type = NULL;
-					font = optarg;
-				}
-				load_font(type, font);
-				break;
-			case 'g':
-				if (sscanf(optarg, "%dx%d", &vesa_cols,
-					   &vesa_rows) != 2) {
-					warnx("incorrect geometry: %s", optarg);
-					usage();
-				}
-				break;
-			case 'i':
-				show_info(optarg);
-				break;
-			case 'l':
-				load_scrnmap(optarg);
-				break;
-			case 'L':
-				load_default_scrnmap();
-				break;
-			case 'M':
-				set_mouse_char(optarg);
-				break;
-			case 'm':
-				set_mouse(optarg);
-				break;
-			case 'p':
-				dump_screen(DUMP_RAW);
-				break;
-			case 'P':
-				dump_screen(DUMP_TXT);
-				break;
-			case 'r':
-				set_reverse_colors(argc, argv, &optind);
-				break;
-			case 's':
-				set_console(optarg);
-				break;
-			case 't':
-				set_screensaver_timeout(optarg);
-				break;
-			case 'x':
-				hex = 1;
-				break;
-			default:
+		case 'b':
+			set_border_color(optarg);
+			break;
+		case 'C':
+			clear_history();
+			break;
+		case 'c':
+			set_cursor_type(optarg);
+			break;
+		case 'd':
+			print_scrnmap();
+			break;
+		case 'f':
+			type = optarg;
+			font = nextarg(argc, argv, &optind, 'f', 0);
+			if (font == NULL) {
+				type = NULL;
+				font = optarg;
+			}
+			load_font(type, font);
+			break;
+		case 'g':
+			if (sscanf(optarg, "%dx%d", &vesa_cols,
+			    &vesa_rows) != 2) {
+				warnx("incorrect geometry: %s", optarg);
 				usage();
+			}
+			break;
+		case 'h':
+			set_history(optarg);
+			break;
+		case 'i':
+			show_info(optarg);
+			break;
+		case 'l':
+			load_scrnmap(optarg);
+			break;
+		case 'L':
+			load_default_scrnmap();
+			break;
+		case 'M':
+			set_mouse_char(optarg);
+			break;
+		case 'm':
+			set_mouse(optarg);
+			break;
+		case 'p':
+			dump_screen(DUMP_RAW);
+			break;
+		case 'P':
+			dump_screen(DUMP_TXT);
+			break;
+		case 'r':
+			set_reverse_colors(argc, argv, &optind);
+			break;
+		case 's':
+			set_console(optarg);
+			break;
+		case 't':
+			set_screensaver_timeout(optarg);
+			break;
+		case 'x':
+			hex = 1;
+			break;
+		default:
+			usage();
 		}
 	video_mode(argc, argv, &optind);
 	set_normal_colors(argc, argv, &optind);
