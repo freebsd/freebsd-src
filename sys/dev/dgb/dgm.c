@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.2 1998/08/05 20:19:03 brian Exp $
+ *	$Id: dgm.c,v 1.3 1998/08/12 17:38:09 bde Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -392,7 +392,7 @@ dgmprobe(dev)
 		sc->altpin=0;
 
 	/* left 24 bits only (ISA address) */
-	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
+	sc->pmem=((intptr_t)(void *)dev->id_maddr & 0xFFFFFF); 
 	
 	DPRINT4(DB_INFO,"dgm%d: port 0x%x mem 0x%lx\n",unit,sc->port,sc->pmem);
 

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.14 1997/11/06 19:28:46 phk Exp $
+ *	$Id: ibcs2_xenix.c,v 1.15 1998/06/02 05:39:07 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -168,7 +168,8 @@ xenix_utsname(struct proc *p, struct xenix_utsname_args *uap)
 	ibcs2_sco_uname.sysorigin = 0xFFFF;
 	ibcs2_sco_uname.sysoem = 0xFFFF;
 	ibcs2_sco_uname.numcpu = 1;
-	return copyout((caddr_t)&ibcs2_sco_uname, (caddr_t)uap->addr,
+	return copyout((caddr_t)&ibcs2_sco_uname,
+		       (caddr_t)(void *)(intptr_t)uap->addr,
 		       sizeof(struct ibcs2_sco_utsname));
 }
 

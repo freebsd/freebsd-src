@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.18 1998/04/15 17:45:29 bde Exp $
+ * $Id: istallion.c,v 1.19 1998/06/07 17:10:42 dfr Exp $
  */
 
 /*****************************************************************************/
@@ -3391,13 +3391,14 @@ static int stli_startbrd(stlibrd_t *brdp)
 	brdp->hostoffset = hdrp->hostp - CDK_CDKADDR;
 	brdp->slaveoffset = hdrp->slavep - CDK_CDKADDR;
 	brdp->bitsize = (nrdevs + 7) / 8;
-	memp = (volatile cdkmem_t *) hdrp->memp;
-	if (((unsigned long) memp) > brdp->memsize) {
+	memp = (volatile cdkmem_t *) (void *) (uintptr_t) hdrp->memp;
+	if (((uintptr_t) (void *) memp) > brdp->memsize) {
 		printf("STALLION: corrupted shared memory region?\n");
 		rc = EIO;
 		goto stli_donestartup;
 	}
-	memp = (volatile cdkmem_t *) EBRDGETMEMPTR(brdp, (unsigned long) memp);
+	memp = (volatile cdkmem_t *) EBRDGETMEMPTR(brdp,
+						   (uintptr_t) (void *) memp);
 	if (memp->dtype != TYP_ASYNCTRL) {
 		printf("STALLION: no slave control device found\n");
 		rc = EIO;

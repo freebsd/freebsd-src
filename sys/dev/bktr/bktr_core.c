@@ -3056,7 +3056,7 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
   /*     must be Blue.                                                      */
   start_skip = 0;
   if (( pf->type == METEOR_PIXTYPE_RGB ) && ( pf->Bpp == 3 ))
-	  switch ( ((u_long) *target_buffer) % 4 ) {
+	  switch ( ((uintptr_t) (void *) *target_buffer) % 4 ) {
 	  case 2 : start_skip = 4 ; break;
 	  case 1 : start_skip = 8 ; break;
 	  }
@@ -3079,7 +3079,7 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 
      *(*dma_prog)++ = operation | flag  | (width * pixel_width - skip);
      if (operation != OP_SKIP ) 
-	 *(*dma_prog)++ = (u_long)  *target_buffer;
+	 *(*dma_prog)++ = (uintptr_t) (void *) *target_buffer;
 
      *target_buffer += width * pixel_width;
      bktr->current_col += width;
@@ -3110,7 +3110,7 @@ static bool_t split(bktr_reg_t * bktr, volatile u_long **dma_prog, int width ,
 	*(*dma_prog)++ = operation  | flag |
 	      (width * pixel_width / 2 - skip);
 	if (operation != OP_SKIP ) 
-	      *(*dma_prog)++ = (u_long ) *target_buffer ;
+	      *(*dma_prog)++ = (uintptr_t) (void *) *target_buffer ;
 	*target_buffer +=  (width * pixel_width / 2) ;
 
 	if ( operation == OP_WRITE )

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.57 1998/07/05 23:10:21 julian Exp $
+ *	$Id: devfs_vnops.c,v 1.58 1998/07/30 17:40:44 bde Exp $
  */
 
 
@@ -428,8 +428,8 @@ DBPRINT(("getattr\n"));
 	vap->va_nlink = file_node->links;
 	vap->va_uid = file_node->uid;
 	vap->va_gid = file_node->gid;
-	vap->va_fsid = (long)file_node->dvm;
-	vap->va_fileid = (long)file_node;
+	vap->va_fsid = (intptr_t)(void *)file_node->dvm;
+	vap->va_fileid = (intptr_t)(void *)file_node;
 	vap->va_size = file_node->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
 	/*
@@ -1135,7 +1135,7 @@ DBPRINT(("readdir\n"));
 		switch(nodenumber)
 		{
 		case	0:
-			dirent.d_fileno = (unsigned long int)dir_node;
+			dirent.d_fileno = (uintptr_t)(void *)dir_node;
 			name = ".";
 			dirent.d_namlen = 1;
 			dirent.d_type = DT_DIR;
@@ -1143,16 +1143,15 @@ DBPRINT(("readdir\n"));
 		case	1:
 			if(dir_node->by.Dir.parent)
 				dirent.d_fileno
-				 = (unsigned long int)dir_node->by.Dir.parent;
+				 = (uintptr_t)(void *)dir_node->by.Dir.parent;
 			else
-				dirent.d_fileno = (unsigned long int)dir_node;
+				dirent.d_fileno = (uintptr_t)(void *)dir_node;
 			name = "..";
 			dirent.d_namlen = 2;
 			dirent.d_type = DT_DIR;
 			break;
 		default:
-			dirent.d_fileno =
-				(unsigned long int)name_node->dnp;
+			dirent.d_fileno = (uintptr_t)(void *)name_node->dnp;
 			dirent.d_namlen = strlen(name_node->name);
 			name = name_node->name;
 			switch(name_node->dnp->type) {

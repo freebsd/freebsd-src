@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.8 1998/07/15 02:32:11 bde Exp $
+ *	$Id: link_aout.c,v 1.9 1998/08/12 08:44:21 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -476,7 +476,7 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 			linker_sym_t* sym, long* diffp)
 {
 	aout_file_t af = lf->priv;
-	u_long off = (u_long) value;
+	u_long off = (uintptr_t) (void *) value;
 	u_long diff = off;
 	struct nzlist* sp;
 	struct nzlist* ep;

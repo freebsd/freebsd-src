@@ -522,7 +522,7 @@ alloc_dmap(int dev, int chan, struct dma_buffparms * dmap)
      * performs the phys address computation.
      */
 
-    dmap->raw_buf_phys = (u_long) tmpbuf;
+    dmap->raw_buf_phys = (uintptr_t) tmpbuf;
     for (i = 0; i < audio_devs[dev]->buffsize; i++)   *tmpbuf++ = 0x80; 
 
 }

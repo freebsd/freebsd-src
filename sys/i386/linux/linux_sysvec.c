@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.30 1998/06/07 17:11:27 dfr Exp $
+ *  $Id: linux_sysvec.c,v 1.31 1998/07/29 16:43:00 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -126,11 +126,11 @@ linux_fixup(long **stack_base, struct image_params *imgp)
 	argv = *stack_base;
 	envp = *stack_base + (imgp->argc + 1);
 	(*stack_base)--;
-	**stack_base = (long)envp;
+	**stack_base = (intptr_t)(void *)envp;
 	(*stack_base)--;
-	**stack_base = (long)argv;
+	**stack_base = (intptr_t)(void *)argv;
 	(*stack_base)--;
-	**stack_base = (long)imgp->argc;
+	**stack_base = imgp->argc;
 	return 0;
 }
 
