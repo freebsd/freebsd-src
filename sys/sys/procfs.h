@@ -65,7 +65,7 @@ typedef struct prstatus {
     gregset_t	pr_reg;		/* General purpose registers (1) */
 } prstatus_t;
 
-typedef gregset_t prgregset_t;
+typedef gregset_t prgregset_t[1];
 typedef fpregset_t prfpregset_t;
 
 #define PRFNAMESZ	16	/* Maximum command length saved */
