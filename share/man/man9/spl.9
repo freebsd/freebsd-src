@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: spl.9,v 1.4 1997/03/21 20:14:14 mpp Exp $
+.\" $Id: spl.9,v 1.5 1997/04/13 14:49:09 bde Exp $
 .\" "
 .Dd July 21, 1996
 .Os
@@ -45,28 +45,28 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
-.Ft int
+.Ft intrmask_t
 .Fn splbio "void"
-.Ft int
+.Ft intrmask_t
 .Fn splclock "void"
-.Ft int
+.Ft intrmask_t
 .Fn splhigh "void"
-.Ft int
+.Ft intrmask_t
 .Fn splimp "void"
-.Ft int
+.Ft intrmask_t
 .Fn splnet "void"
-.Ft int
+.Ft intrmask_t
 .Fn splsoftclock "void"
-.Ft int
+.Ft intrmask_t
 .Fn splsofttty "void"
-.Ft int
+.Ft intrmask_t
 .Fn splstatclock "void"
-.Ft int
+.Ft intrmask_t
 .Fn spltty "void"
 .Ft void
 .Fn spl0 "void"
 .Ft void
-.Fn splx "int ipl"
+.Fn splx "intrmask_t ipl"
 .Sh DESCRIPTION
 The
 .Fn spl
