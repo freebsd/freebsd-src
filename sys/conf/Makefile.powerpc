@@ -38,8 +38,10 @@ _OS!=uname
 .if ${_OS} != "FreeBSD"
 CWARNFLAGS=-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 	   -Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual
-COPTS+= -D__ELF__ -D__FreeBSD__ -msoft-float
+COPTS+= -D__ELF__ -D__FreeBSD__
 .endif
+
+COPTS+= -msoft-float
 
 %BEFORE_DEPEND
 
