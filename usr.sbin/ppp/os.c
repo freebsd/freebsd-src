@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.7.2.13 1997/08/31 23:02:42 brian Exp $
+ * $Id: os.c,v 1.7.2.14 1997/09/03 00:42:15 brian Exp $
  *
  */
 #include "fsm.h"
@@ -233,13 +233,16 @@ void
 OsLinkdown()
 {
   char *s;
+  int Level;
 
   if (linkup) {
+    FsmDown(&CcpFsm);	/* CCP must come down */
+
     s = (char *) inet_ntoa(peer_addr);
-    if (LogIsKept(LogLINK))
-      LogPrintf(LogLINK, "OsLinkdown: %s\n", s);
-    else
-      LogPrintf(LogLCP, "OsLinkdown: %s\n", s);
+    Level = LogIsKept(LogLINK) ? LogLINK : LogIPCP;
+    LogPrintf(Level, "OsLinkdown: %s\n", s);
+
+    FsmDown(&IpcpFsm);	/* IPCP must come down */
 
     if (!(mode & MODE_AUTO))
       DeleteIfRoutes(0);

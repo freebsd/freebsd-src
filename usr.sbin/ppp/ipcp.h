@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.8 1997/08/19 01:10:22 brian Exp $
+ * $Id: ipcp.h,v 1.4.2.3 1997/08/25 00:34:28 brian Exp $
  *
  *	TODO:
  */
@@ -76,5 +76,7 @@ extern struct in_addr nbns_entries[2];
 
 extern void IpcpInit(void);
 extern void IpcpDefAddress(void);
+extern int IpcpOctetsIn(void);
+extern int IpcpOctetsOut(void);
 
 #endif
