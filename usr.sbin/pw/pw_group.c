@@ -123,7 +123,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			if (rc == -1)
 				err(EX_IOERR, "group '%s' not available (NIS?)", grp->gr_name);
 			else if (rc != 0) {
-				warnc(rc, "group update");
+				warn("group update");
 				return EX_IOERR;
 			}
 			pw_log(cnf, mode, W_GROUP, "%s(%ld) removed", a_name->val, (long) gid);
@@ -249,7 +249,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		if (rc == -1)
 			warnx("group '%s' not available (NIS?)", grp->gr_name);
 		else
-			warnc(rc, "group update");
+			warn("group update");
 		return EX_IOERR;
 	}
 	/* grp may have been invalidated */
@@ -299,7 +299,8 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		 */
 		SETGRENT();
 		while ((grp = GETGRENT()) != NULL)
-			if (grp->gr_gid >= (int) cnf->min_gid && grp->gr_gid <= (int) cnf->max_gid)
+			if ((gid_t)grp->gr_gid >= (gid_t)cnf->min_gid &&
+                            (gid_t)grp->gr_gid <= (gid_t)cnf->max_gid)
 				bm_setbit(&bm, grp->gr_gid - cnf->min_gid);
 		ENDGRENT();
 

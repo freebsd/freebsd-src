@@ -35,6 +35,9 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include "pw.h"
 
+#if !defined(_PATH_YP)
+#define	_PATH_YP	"/var/yp/"
+#endif
 const char     *Modes[] = {
   "add", "del", "mod", "show", "next",
   NULL};
@@ -181,7 +184,7 @@ main(int argc, char *argv[])
 
 	while ((ch = getopt(argc, argv, opts[which][mode])) != -1) {
 		if (ch == '?')
-			errx(EX_USAGE, NULL);
+			errx(EX_USAGE, "unknown switch");
 		else
 			addarg(&arglist, ch, optarg);
 		optarg = NULL;
