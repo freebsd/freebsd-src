@@ -323,10 +323,8 @@ __buf_free(hashp, do_free, to_disk)
 		}
 		/* Check if we are freeing stuff */
 		if (do_free) {
-			if (bp->page) {
-				(void)memset(bp->page, 0, hashp->BSIZE);
+			if (bp->page)
 				free(bp->page);
-			}
 			BUF_REMOVE(bp);
 			free(bp);
 			bp = LRU;
