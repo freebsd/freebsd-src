@@ -118,7 +118,6 @@ main (argc, argv)
   int status = 0;
   char *nextarg;
   char *tmp;
-  extern int optind;
   extern char *mkprogname ();
   char *is_section ();
   char **get_section_list ();
@@ -305,8 +304,6 @@ man_getopt (argc, argv)
   register char *p;
   register char *end;
   register char **mp;
-  extern char *optarg;
-  extern int getopt ();
   extern void downcase ();
   extern char *manpath ();
 
