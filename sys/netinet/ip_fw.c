@@ -1643,8 +1643,8 @@ resetlog_entry(struct ip_fw *frwl)
 			    "ipfw: Entry %d logging count reset.\n",
 			    frwl->fw_number);
 		else
-			log(LOG_SECURITY | LOG_NOTICE, "
-			    ipfw: All logging counts cleared.\n");
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ipfw: All logging counts cleared.\n");
 	}
 
 	return (0);
