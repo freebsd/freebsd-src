@@ -1736,6 +1736,9 @@ wi_ioctl(ifp, command, data)
 		}
 #ifdef WICACHE
 		else if (wreq.wi_type == WI_RID_ZERO_CACHE) {
+			error = suser(td);
+			if (error)
+				break;
 			sc->wi_sigitems = sc->wi_nextitem = 0;
 		} else if (wreq.wi_type == WI_RID_READ_CACHE) {
 			char *pt = (char *)&wreq.wi_val;
