@@ -803,6 +803,8 @@ got_match:
 					*m = 0;
 					break;
 				}
+				if (tcp->th_flags & TH_SYN)
+					ack++;
 				seq = 0;
 				flags = TH_RST|TH_ACK;
 			}
