@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.165 1998/03/15 04:52:58 bde Exp $
+#	$Id: Makefile,v 1.166 1998/03/16 11:58:46 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -208,7 +208,8 @@ XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
 		CC='cc -nostdinc'	# XXX -nostdlib
 
 # used to compile and install 'make' in temporary build tree
-IBMAKE=	${BMAKEENV} ${MAKE} DESTDIR=${WORLDTMP}
+MAKETMP=	${WORLDTMP}/make
+IBMAKE=	${BMAKEENV} MAKEOBJDIR=${MAKETMP} ${MAKE} DESTDIR=${WORLDTMP}
 # bootstrap make
 BMAKE=	${BMAKEENV} ${WORLDTMP}/usr/bin/${MAKE} DESTDIR=${WORLDTMP}
 # cross make used for compilation
@@ -237,16 +238,14 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Making make"
 	@echo "--------------------------------------------------------------"
-	mkdir -p ${WORLDTMP}/usr/bin
-.if !defined(NOCLEAN) || !defined(NOOBJDIR)
+	mkdir -p ${WORLDTMP}/usr/bin ${MAKETMP}
+	( \
 	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${CLEANDIR} ${OBJDIR}
-.endif
-	cd ${.CURDIR}/usr.bin/make && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} depend && \
+		MAKEOBJDIRPREFIX= && unset MAKEOBJDIRPREFIX && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all && \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install && \
-		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean cleandepend
+		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
+	)
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -698,6 +697,7 @@ build-tools:
 		usr.bin/vgrind		\
 		usr.bin/vi		\
 		usr.bin/wc		\
+		usr.bin/xargs		\
 		usr.bin/yacc		\
 		usr.sbin/chown		\
 		usr.sbin/mtree		\
