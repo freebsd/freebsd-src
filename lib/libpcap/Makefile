@@ -1,41 +1,41 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.12 1996/08/30 01:59:46 peter Exp $
+# $Id: Makefile,v 1.12.2.1 1997/10/26 22:48:31 jkh Exp $
 
 LIB=    pcap
-SRCS=	pcap-bpf.c \
+SRCS=	grammar.c tokdefs.h pcap-bpf.c \
         pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
-        grammar.y scanner.l
+        scanner.c
 MAN3=	pcap.3
-CLEANFILES+= lex.yy.c tokdefs.h grammar.c scanner.c
+CLEANFILES+= tokdefs.h grammar.c scanner.c y.tab.c y.tab.h
 
 DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	-DHAVE_ETHER_HOSTTON=1 -DHAVE_STRERROR=1 \
 	-DHAVE_SOCKADDR_SA_LEN=1 -DLBL_ALIGN=1 
 
-CFLAGS+=-Wall -I. -I${.CURDIR} -Dyylval=pcap_lval -Dlint ${DEFS}
+CFLAGS+=-I. -Dyylval=pcap_lval ${DEFS}
 
 SHLIB_MAJOR=2
-SHLIB_MINOR=1
+SHLIB_MINOR=2
 
 #
 # Magic to grab sources out of src/contrib
 #
 PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
-CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl
+CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl -I${PCAP_DISTDIR}/bpf
 .PATH:	${PCAP_DISTDIR}
 .PATH:	${PCAP_DISTDIR}/bpf/net
 
 beforeinstall:
-.for i in pcap.h pcap-namedb.h
+.for i in pcap.h pcap-int.h pcap-namedb.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${PCAP_DISTDIR}/$i \
 		${DESTDIR}/usr/include
 .endfor
 
-scanner.o: tokdefs.h
-
 .ORDER: grammar.c tokdefs.h
-tokdefs.h: grammar.c
-	mv -f y.tab.h tokdefs.h
+tokdefs.h grammar.c: grammar.y
+	${YACC} ${YACCFLAGS} -d ${PCAP_DISTDIR}/grammar.y
+	mv y.tab.c grammar.c
+	mv y.tab.h tokdefs.h
 
 .include <bsd.lib.mk>
