@@ -92,10 +92,10 @@ feed_rate_init(struct pcm_feeder *f)
 {
 	struct feed_rate_info *info;
 
-	info = malloc(sizeof(*info), M_RATEFEEDER, M_WAITOK | M_ZERO);
+	info = malloc(sizeof(*info), M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return ENOMEM;
-	info->buffer = malloc(FEEDBUFSZ, M_RATEFEEDER, M_WAITOK | M_ZERO);
+	info->buffer = malloc(FEEDBUFSZ, M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info->buffer == NULL) {
 		free(info, M_RATEFEEDER);
 		return ENOMEM;
