@@ -63,6 +63,7 @@ void	 lstarted(KINFO *, VARENT *);
 void	 maxrss(KINFO *, VARENT *);
 void	 lockname(KINFO *, VARENT *);
 void	 mwchan(KINFO *, VARENT *);
+void	 nwchan(KINFO *, VARENT *);
 void	 pagein(KINFO *, VARENT *);
 void	 parsefmt(const char *, int);
 void	 pcpu(KINFO *, VARENT *);
