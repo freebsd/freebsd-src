@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Tim J. Robbins
+.\" Copyright (c) 2002-2004 Tim J. Robbins
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2002
+.Dd April 8, 2004
 .Dt MBSINIT 3
 .Os
 .Sh NAME
@@ -53,12 +53,15 @@ is
 .Dv NULL
 or describes an initial conversion state,
 otherwise it returns zero.
+.Sh SEE ALSO
+.Xr mbrlen 3 ,
+.Xr mbrtowc 3 ,
+.Xr mbsrtowcs 3 ,
+.Xr multibyte 3 ,
+.Xr wcrtomb 3 ,
+.Xr wcsrtombs 3
 .Sh STANDARDS
 The
 .Fn mbsinit
 function conforms to
 .St -isoC-99 .
-.Sh BUGS
-The current implementation does not support shift states;
-.Fn mbsinit
-always returns non-zero.
