@@ -884,15 +884,13 @@ inet6_makenetandmask(sin6, plen)
 			if (!memcmp(&sin6->sin6_addr.s6_addr[8],
 				    &in6.s6_addr[8], 8))
 				plen = "64";
-			else
-				plen = "128";
 		}
 	}
 
-	if (plen) {
-		rtm_addrs |= RTA_NETMASK;
-		return prefixlen(plen);
-	}
+	if (!plen || strcmp(plen, "128") == 0)
+		return 1;
+	rtm_addrs |= RTA_NETMASK;
+	(void)prefixlen(plen);
 	return 0;
 }
 #endif
@@ -1029,8 +1027,7 @@ getaddr(which, s, hpp)
 		if (q != NULL)
 			*q++ = '/';
 		if (which == RTA_DST)
-			if (inet6_makenetandmask(&su->sin6, q) == -1)
-				return (1);
+			return (inet6_makenetandmask(&su->sin6, q));
 		return (0);
 	}
 #endif /* INET6 */
