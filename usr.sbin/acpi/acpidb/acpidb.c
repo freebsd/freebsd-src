@@ -159,8 +159,8 @@ aml_simulate_prompt(char *msg, ACPI_INTEGER def_val)
 	if (msg != NULL) {
 		printf("%s", msg);
 	}
-	printf("(default: 0x%x ", val);
-	printf(" / %u) >>", val);
+	printf("(default: 0x%x ", (uint32_t)val);
+	printf(" / %u) >>", (uint32_t)val);
 	fflush(stdout);
 
 	bzero(buf, sizeof buf);
@@ -238,7 +238,7 @@ aml_simulation_regdump(const char *dumpfile)
 	}
 	while (!TAILQ_EMPTY(&RegionContentList)) {
 		rc = TAILQ_FIRST(&RegionContentList);
-		fprintf(fp, "%d	0x%x	0x%x\n",
+		fprintf(fp, "%d	0x%jx	0x%x\n",
 		    rc->regtype, rc->addr, rc->value);
 		TAILQ_REMOVE(&RegionContentList, rc, links);
 		free(rc);
@@ -261,11 +261,11 @@ aml_vm_space_handler(
 	ACPI_INTEGER		*Value,
 	int			Prompt)
 {
-	int		state;
-	UINT8		val;
-	ACPI_INTEGER	value, i;
-	char		msg[256];
-	static char	*space_names[] = {
+	int			state;
+	UINT8			val;
+	ACPI_INTEGER		value, i;
+	char			msg[256];
+	static const char	*space_names[] = {
 		"SYSTEM_MEMORY", "SYSTEM_IO", "PCI_CONFIG",
 		"EC", "SMBUS", "CMOS", "PCI_BAR_TARGET"};
 
@@ -282,7 +282,7 @@ aml_vm_space_handler(
 		}
 		*Value = value;
 		if (Prompt) {
-			sprintf(msg, "[read (%s, %2d, 0x%x)]",
+			sprintf(msg, "[read (%s, %2d, 0x%jx)]",
 				space_names[SpaceID], BitWidth, Address);
 			*Value = aml_simulate_prompt(msg, value);
 			if (*Value != value) {
@@ -296,7 +296,7 @@ aml_vm_space_handler(
 	case ACPI_WRITE:
 		value = *Value;
 		if (Prompt) {
-			sprintf(msg, "[write(%s, %2d, 0x%x)]",
+			sprintf(msg, "[write(%s, %2d, 0x%jx)]",
 				space_names[SpaceID], BitWidth, Address);
 			value = aml_simulate_prompt(msg, *Value);
 		}
@@ -321,9 +321,7 @@ aml_vm_space_handler_##name (					\
 	UINT32			Function,			\
 	ACPI_PHYSICAL_ADDRESS	Address,			\
 	UINT32			BitWidth,			\
-	ACPI_INTEGER		*Value,				\
-	void			*HandlerContext,		\
-	void			*RegionContext)			\
+	ACPI_INTEGER		*Value)				\
 {								\
 	return (aml_vm_space_handler(id, Function, Address,	\
 		BitWidth, Value, aml_debug_prompt));		\
@@ -347,11 +345,10 @@ static int
 load_dsdt(const char *dsdtfile)
 {
 	char			filetmp[PATH_MAX];
-	u_int8_t		*code, *amlptr;
+	u_int8_t		*code;
 	struct stat		 sb;
 	int			 fd, fd2;
 	int			 error;
-	ACPI_TABLE_HEADER	*tableptr;
 
 	fd = open(dsdtfile, O_RDONLY, 0);
 	if (fd == -1) {
@@ -396,49 +393,49 @@ load_dsdt(const char *dsdtfile)
 	 */
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_SYSTEM_MEMORY,
-			aml_vm_space_handler_system_memory,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_system_memory,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise SystemMemory handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_SYSTEM_IO,
-			aml_vm_space_handler_system_io,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_system_io,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise SystemIO handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_PCI_CONFIG,
-			aml_vm_space_handler_pci_config,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_pci_config,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise PciConfig handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_EC,
-			aml_vm_space_handler_ec,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_ec,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise EC handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_SMBUS,
-			aml_vm_space_handler_smbus,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_smbus,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise SMBUS handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_CMOS,
-			aml_vm_space_handler_cmos,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_cmos,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise CMOS handler: %d\n", error);
 		return (-1);
 	}
 	if ((error = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
 			ACPI_ADR_SPACE_PCI_BAR_TARGET,
-			aml_vm_space_handler_pci_bar_target,
+			(ACPI_ADR_SPACE_HANDLER)aml_vm_space_handler_pci_bar_target,
 			NULL, NULL)) != AE_OK) {
 		fprintf(stderr, "could not initialise PCI BAR TARGET handler: %d\n", error);
 		return (-1);
