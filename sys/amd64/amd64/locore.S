@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.14 1994/01/31 04:39:37 davidg Exp $
+ *	$Id: locore.s,v 1.15 1994/02/01 04:08:54 davidg Exp $
  */
 
 /*
@@ -51,7 +51,6 @@
 #include "machine/pte.h"			/* page table entry definitions */
 #include "errno.h"				/* error return codes */
 #include "machine/specialreg.h"			/* x86 special registers */
-#include "i386/isa/debug.h"			/* BDE debugging macros */
 #include "machine/cputypes.h"			/* x86 cpu type definitions */
 #include "syscall.h"				/* system call numbers */
 #include "machine/asmacros.h"			/* miscellaneous asm macros */
@@ -123,7 +122,7 @@ _proc0paddr:	.long	0			/* address of proc 0 address space */
 
 #ifdef BDE_DEBUGGER
 	.globl	_bdb_exists			/* flag to indicate BDE debugger is available */
-_bde_exists:	.long	0
+_bdb_exists:	.long	0
 #endif
 
 	.globl	tmpstk
@@ -140,10 +139,10 @@ tmpstk:
  * btext: beginning of text section.
  * Also the entry point (jumped to directly from the boot blocks).
  */
-ENTRY(btext)
+NON_GPROF_ENTRY(btext)
 	movw	$0x1234,0x472			/* warm boot */
 	jmp	1f
-	.space	0x500				/* skip over warm boot shit */
+	.org	0x500				/* space for BIOS variables */
 
 	/*
 	 * pass parameters on stack (howto, bootdev, unit, cyloffset, esym)
@@ -182,7 +181,7 @@ ENTRY(btext)
         andl    $1,%eax
         push    %ecx
         popfl
-      
+
         cmpl    $0,%eax
         jne     1f
         movl    $CPU_386,_cpu-KERNBASE
@@ -217,7 +216,7 @@ ENTRY(btext)
 	movl	$_end-KERNBASE,%ecx
 	addl	$NBPG-1,%ecx			/* page align up */
 	andl	$~(NBPG-1),%ecx
-	movl	%ecx,%esi			/* esi=start of tables */
+	movl	%ecx,%esi			/* esi = start of free memory */
 	movl	%ecx,_KERNend-KERNBASE		/* save end of kernel */
 
 /* clear bss */
@@ -296,7 +295,7 @@ ENTRY(btext)
 	shrl	$PGSHIFT,%ecx
 	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
 	fillkpt
-#endif
+#endif /* KGDB || BDE_DEBUGGER */
 
 /* now initialize the page dir, upages, p0stack PT, and page tables */
 
@@ -309,7 +308,7 @@ ENTRY(btext)
 	addl	%esi,%ebx			/* address of page directory */
 	addl	$((1+UPAGES+1)*NBPG),%ebx	/* offset to kernel page tables */
 	fillkpt
-	
+
 /* map I/O memory map */
 
 	movl    _KPTphys-KERNBASE,%ebx		/* base of kernel page tables */
@@ -397,7 +396,7 @@ ENTRY(btext)
 
 	addl	$2*6,%esp
 	popal
-#endif
+#endif /* BDE_DEBUGGER */
 
 	/* load base of page directory and enable mapping */
 	movl	%esi,%eax			/* phys address of ptd in proc 0 */
@@ -436,7 +435,7 @@ begin: /* now running relocated at KERNBASE where the system is linked to run */
 	movl	$_gdt+8*9,%eax			/* adjust slots 9-17 */
 	movl	$9,%ecx
 reloc_gdt:
-	movb	$0xfe,7(%eax)			/* top byte of base addresses, was 0, */
+	movb	$KERNBASE>>24,7(%eax)		/* top byte of base addresses, was 0, */
 	addl	$8,%eax				/* now KERNBASE>>24 */
 	loop	reloc_gdt
 
@@ -444,7 +443,7 @@ reloc_gdt:
 	je	1f
 	int	$3
 1:
-#endif
+#endif /* BDE_DEBUGGER */
 
 	/*
 	 * Skip over the page tables and the kernel stack
@@ -494,7 +493,7 @@ lretmsg1:
 	.asciz	"lret: toinit\n"
 
 
-#define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
+#define	LCALL(x,y)	.byte 0x9a ; .long y ; .word x
 /*
  * Icode is copied out to process 1 and executed in user mode:
  *	execve("/sbin/init", argv, envp); exit(0);
@@ -551,4 +550,3 @@ NON_GPROF_ENTRY(sigcode)
 	.globl	_szsigcode
 _szsigcode:
 	.long	_szsigcode-_sigcode
-

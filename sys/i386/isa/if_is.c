@@ -483,7 +483,7 @@ is_init(unit)
 	/* Address not known */
  	if (ifp->if_addrlist == (struct ifaddr *)0) return;
 
-	s = splnet();
+	s = splimp();
 
 	/* 
 	 * Lance must be stopped
@@ -984,7 +984,7 @@ is_ioctl(ifp, cmd, data)
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
-	s = splnet();
+	s = splimp();
 
 	switch (cmd) {
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.4 1994/02/01 04:09:07 davidg Exp $
+ *	$Id: support.s,v 1.5 1994/03/07 11:47:32 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -278,7 +278,6 @@ ENTRY(fillw)
 
 /* filli(pat, base, cnt) */
 ENTRY(filli)
-filli:
 	pushl	%edi
 	movl	8(%esp),%eax
 	movl	12(%esp),%edi
@@ -365,7 +364,7 @@ ENTRY(bcopyx)
 	cmpl	$2,%eax
 	je	bcopyw				/* not _bcopyw, to avoid multiple mcounts */
 	cmpl	$4,%eax
-	je	bcopy
+	je	bcopy				/* XXX the shared ret's break mexitcount */
 	jmp	bcopyb
 
 /*
@@ -491,6 +490,12 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	movl	%edi,%eax
 	addl	%ebx,%eax
 	jc	copyout_fault
+/*
+ * XXX STOP USING VM_MAXUSER_ADDRESS.
+ * It is an end address, not a max, so every time it is used correctly it
+ * looks like there is an off by one error, and of course it caused an off
+ * by one error in several places.
+ */
 	cmpl	$VM_MAXUSER_ADDRESS,%eax
 	ja	copyout_fault
 
@@ -551,7 +556,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 	rep
 	movsl
 	movb	%bl,%cl
-	andb	$3,%cl				/* XXX can we trust the rest of %ecx on clones? */
+	andb	$3,%cl
 	rep
 	movsb
 
@@ -613,12 +618,10 @@ copyin_fault:
 	ret
 
 /*
- * fu{byte,sword,word} : fetch a byte(sword, word) from user memory
+ * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
  */
 ALTENTRY(fuiword)
 ENTRY(fuword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -628,8 +631,6 @@ ENTRY(fuword)
 	ret
 
 ENTRY(fusword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -640,8 +641,6 @@ ENTRY(fusword)
 
 ALTENTRY(fuibyte)
 ENTRY(fubyte)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -659,15 +658,10 @@ fusufault:
 	ret
 
 /*
- * su{byte,sword,word}: write a byte(word, longword) to user memory
- */
-/*
- * we only have to set the right segment selector.
+ * su{byte,sword,word}: write a byte (word, longword) to user memory
  */
 ALTENTRY(suiword)
 ENTRY(suword)
-	movl	__udatasel,%ax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -676,9 +670,10 @@ ENTRY(suword)
 
 #if defined(I486_CPU) || defined(I586_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
-	jne	2f
+	jne	2f				/* we only have to set the right segment selector */
 #endif /* I486_CPU || I586_CPU */
 
+	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
@@ -707,8 +702,6 @@ ENTRY(suword)
 	ret
 
 ENTRY(susword)
-	movl	__udatasel,%eax
-	movl	%ax,%gs
 	movl	_curpcb,%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx
@@ -720,6 +713,7 @@ ENTRY(susword)
 	jne	2f
 #endif /* I486_CPU || I586_CPU */
 
+	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
@@ -843,7 +837,7 @@ ENTRY(copyoutstr)
 	movl	$NBPG,%ecx
 	subl	%eax,%ecx			/* ecx = NBPG - (src % NBPG) */
 	cmpl	%ecx,%edx
-	jge	3f
+	jae	3f
 	movl	%edx,%ecx			/* ecx = min(ecx, edx) */
 3:
 	orl	%ecx,%ecx
@@ -916,8 +910,6 @@ ENTRY(copyinstr)
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
-	movl	__udatasel,%eax
-	movl	%ax,%gs
 	incl	%edx
 
 1:
@@ -1133,4 +1125,3 @@ ENTRY(longjmp)
 	xorl	%eax,%eax			/* return(1); */
 	incl	%eax
 	ret
-
