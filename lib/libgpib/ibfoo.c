@@ -199,14 +199,14 @@ ibeos (int handle, int eos)
 }
 
 int
-ibeot (int handle, int v)
+ibeot (int handle, int eot)
 {
 	struct ibfoo_iocarg io;
 
 	io.__ident = __ID_IBEOT;
 	io.handle = handle;
-	io.v = v;
-	io.__field = __F_HANDLE | __F_V;
+	io.eot = eot;
+	io.__field = __F_HANDLE | __F_EOT;
 	return (__ibsubmit(&io));
 }
 
