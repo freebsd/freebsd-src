@@ -316,11 +316,6 @@ pst_timeout(struct pst_request *request)
 	mtx_unlock(&request->psc->iop->mtx);
 	return;
     }
-    if (dumping)
-	request->timeout_handle.callout = NULL;
-    else
-	request->timeout_handle =
-	    timeout((timeout_t*)pst_timeout, request, 10 * hz);
     if (pst_rw(request)) {
 	iop_free_mfa(request->psc->iop, request->mfa);
 	biofinish(request->bp, NULL, EIO);
