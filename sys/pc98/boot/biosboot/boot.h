@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.12 1997/09/01 10:38:32 kato Exp $
+ *	$Id: boot.h,v 1.13 1997/12/05 11:50:39 kato Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,7 @@ extern char *name;
 extern struct fs *fs;
 extern struct inode inode;
 extern int dosdev, unit, slice, part, maj, boff, poff;
-extern unsigned long tw_chars;
+extern unsigned tw_chars;
 extern int loadflags;
 extern struct disklabel disklabel;
 
