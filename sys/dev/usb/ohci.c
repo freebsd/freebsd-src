@@ -1084,7 +1084,10 @@ char *ohci_cc_strs[] = {
 	"DATA_UNDERRUN",
 	"BUFFER_OVERRUN",
 	"BUFFER_UNDERRUN",
+	"reserved",
+	"reserved",
 	"NOT_ACCESSED",
+	"NOT_ACCESSED"
 };
 #endif
 
