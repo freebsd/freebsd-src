@@ -275,6 +275,20 @@ network_pass1() {
 		;;
 	esac
 
+	# Re-Sync ipfilter
+	#
+	case ${ipfilter_enable} in
+	[Yy][Ee][Ss])
+		${ipfilter_program:-/sbin/ipf -y}
+		;;
+	*)
+		case ${ipnat_enable} in
+		[Yy][Ee][Ss])
+			${ipfilter_program:-/sbin/ipf -y}
+			;;
+		esac
+	esac
+
 	# Initialize IP filtering using ipfw
 	#
 	if /sbin/ipfw -q flush > /dev/null 2>&1; then
