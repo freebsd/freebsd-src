@@ -89,7 +89,7 @@ static const char rcsid[] =
 } while (0)
 
 static int	 asciicode(void);
-static int	 escape(char *);
+static int	 escape(char *, int);
 static int	 getchr(void);
 static int	 getdouble(double *);
 static int	 getint(int *);
@@ -143,7 +143,7 @@ main(argc, argv)
 	skip1 = "#-+ 0";
 	skip2 = "0123456789";
 
-	chopped = escape(fmt = format = *argv);	/* backslash interpretation */
+	chopped = escape(fmt = format = *argv, 1);/* backslash interpretation */
 	rval = 0;
 	gargv = ++argv;
 	for (;;) {
@@ -230,7 +230,7 @@ next:		for (start = fmt;; ++fmt) {
 				warnx2("%s", strerror(ENOMEM), NULL);
 				return (1);
 			}
-			getout = escape(p);
+			getout = escape(p, 0);
 			*(fmt - 1) = 's';
 			PF(start, p);
 			*(fmt - 1) = 'b';
@@ -325,8 +325,9 @@ mkquad(str, ch)
 }
 
 static int
-escape(fmt)
+escape(fmt, percent)
 	register char *fmt;
+	int percent;
 {
 	register char *store;
 	register int value, c;
@@ -378,7 +379,7 @@ escape(fmt)
 				value += *fmt - '0';
 			}
 			--fmt;
-			if (value == '%') {
+			if (percent && value == '%') {
 				*store++ = '%';
 				*store = '%';
 			} else
