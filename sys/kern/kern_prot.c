@@ -1407,7 +1407,7 @@ int
 p_cansignal(struct proc *p1, struct proc *p2, int signum)
 {
 	int error;
-	
+
 	if (p1 == p2)
 		return (0);
 
@@ -1577,7 +1577,7 @@ crget()
 {
 	register struct ucred *cr;
 
-	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK|M_ZERO);
+	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	cr->cr_ref = 1;
 	mtx_init(&cr->cr_mtx, "ucred", MTX_DEF);
 	return (cr);
