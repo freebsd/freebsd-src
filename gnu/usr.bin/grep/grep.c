@@ -343,6 +343,7 @@ static int out_line;		/* Print line numbers. */
 static int out_byte;		/* Print byte offsets. */
 static int out_before;		/* Lines of leading context. */
 static int out_after;		/* Lines of trailing context. */
+static int count_matches;       /* print a count of matching lines */
 
 /* Internal variables to keep track of byte count, context, etc. */
 static size_t totalcc;		/* Total character count before bufbeg. */
@@ -589,6 +590,9 @@ grep(fd)
 	  nlines += grepbuf(beg, lim);
 	  if (pending)
 	    prpending(lim);
+	  /* optimization */
+	  if (nlines && out_quiet && !count_matches)
+	    return(nlines);
 	}
       i = 0;
       beg = lim;
@@ -659,7 +663,7 @@ main(argc, argv)
 {
   char *keys;
   size_t keycc, oldcc, keyalloc;
-  int keyfound, count_matches, no_filenames, list_files, suppress_errors;
+  int keyfound, no_filenames, list_files, suppress_errors;
   int opt, cc, desc, count, status;
   FILE *fp;
   extern char *optarg;
