@@ -213,6 +213,7 @@ axe_miibus_readreg(device_ptr_t dev, int phy, int reg)
 	if (sc->axe_dying)
 		return(0);
 
+#ifdef notdef
 	/*
 	 * The chip tells us the MII address of any supported
 	 * PHYs attached to the chip, so only read from those.
@@ -222,6 +223,9 @@ axe_miibus_readreg(device_ptr_t dev, int phy, int reg)
 		return (0);
 
 	if (sc->axe_phyaddrs[1] != AXE_NOPHY && phy != sc->axe_phyaddrs[1])
+		return (0);
+#endif
+	if (sc->axe_phyaddrs[0] != 0xFF && sc->axe_phyaddrs[0] != phy)
 		return (0);
 
 	AXE_LOCK(sc);
@@ -234,6 +238,9 @@ axe_miibus_readreg(device_ptr_t dev, int phy, int reg)
 		printf("axe%d: read PHY failed\n", sc->axe_unit);
 		return(-1);
 	}
+
+	if (val)
+		sc->axe_phyaddrs[0] = phy;
 
 	return (val);
 }
@@ -377,7 +384,7 @@ axe_reset(struct axe_softc *sc)
 		return;
 
 	if (usbd_set_config_no(sc->axe_udev, AXE_CONFIG_NO, 1) ||
-	    usbd_device2interface_handle(sc->axe_udev, 0 /*AXE_IFACE_IDX*/,
+	    usbd_device2interface_handle(sc->axe_udev, AXE_IFACE_IDX,
 	    &sc->axe_iface)) {
 		printf("axe%d: getting interface handle failed\n",
 		    sc->axe_unit);
@@ -426,7 +433,6 @@ USB_ATTACH(axe)
 	int			i;
 
 	bzero(sc, sizeof(struct axe_softc));
-	sc->axe_iface = uaa->iface;
 	sc->axe_udev = uaa->device;
 	sc->axe_dev = self;
 	sc->axe_unit = device_get_unit(self);
@@ -437,7 +443,14 @@ USB_ATTACH(axe)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	id = usbd_get_interface_descriptor(uaa->iface);
+	if (usbd_device2interface_handle(uaa->device,
+	    AXE_IFACE_IDX, &sc->axe_iface)) {
+		printf("axe%d: getting interface handle failed\n",
+		    sc->axe_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
+
+	id = usbd_get_interface_descriptor(sc->axe_iface);
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	device_set_desc_copy(self, devinfo);
@@ -445,7 +458,7 @@ USB_ATTACH(axe)
 
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
-		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
+		ed = usbd_interface2endpoint_descriptor(sc->axe_iface, i);
 		if (!ed) {
 			printf("axe%d: couldn't get ep %d\n",
 			    sc->axe_unit, i);
@@ -477,6 +490,12 @@ USB_ATTACH(axe)
 	 */
 	axe_cmd(sc, AXE_CMD_READ_IPG012, 0, 0, (void *)&sc->axe_ipgs);
 	axe_cmd(sc, AXE_CMD_READ_PHYID, 0, 0, (void *)&sc->axe_phyaddrs);
+
+	/*
+	 * Work around broken adapters that appear to lie about
+	 * their PHY addresses.
+	 */
+	sc->axe_phyaddrs[0] = sc->axe_phyaddrs[1] = 0xFF;
 
 	/*
 	 * An ASIX chip was detected. Inform the world.
