@@ -46,13 +46,25 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 	ssize_t wvret, num = 0;
 	off_t	n, nwritten = 0;
 
-	/* Write the headers if any. */
+	/*
+	 * Write the headers if any.
+	 * If some data is written but not all we must return here.
+	 */
 	if ((hdtr != NULL) && (hdtr->headers != NULL)) {
 		if ((wvret = writev(s, hdtr->headers, hdtr->hdr_cnt)) == -1) {
 			ret = -1;
 			goto ERROR;
-		} else
+		} else {
+			int i;
+			ssize_t hdrtot;
+
 			nwritten += wvret;
+
+			for (i = 0, hdrtot = 0; i < hdtr->hdr_cnt; i++)
+				hdrtot += hdtr->headers[i].iov_len;
+			if (wvret < hdrtot)
+				goto SHORT_WRITE;
+		}
 	}
 	
 	/* Lock the descriptors. */
@@ -85,7 +97,18 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 
 	/* Check if file operations are to block */
 	blocking = ((_thread_fd_table[s]->flags & O_NONBLOCK) == 0);
-	
+
+	/*
+	 * Emulate sendfile(2) weirdness, sendfile doesn't actually send
+	 * nbytes of the file, it really sends (nbytes - headers_size) of
+	 * the file.  If (nbytes - headers_size) == 0 we just send trailers.
+	 */	
+	if (nbytes != 0) {
+		nbytes -= nwritten;
+		if (nbytes <= 0)
+			goto ERROR_2;
+	}
+
 	/*
 	 * Loop while no error occurs and until the expected number of bytes are
 	 * written.
@@ -95,11 +118,24 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 		ret = _thread_sys_sendfile(fd, s, offset + num, nbytes - num,
 		    NULL, &n, flags);
 
+		/*
+		 * We have to handle the sideways return path of sendfile.
+		 *
+		 * If the result is 0, we're done.
+		 * If the result is anything else check the errno.
+		 * If the errno is not EGAIN return the error.
+		 * Otherwise, take into account how much
+		 * sendfile may have written for us because sendfile can
+		 * return EAGAIN even though it has written data.
+		 *
+		 * We don't clear 'ret' because the sendfile(2) syscall
+		 * would not have either.
+		 */
 		if (ret == 0) {
 			/* Writing completed. */
 			num += n;
 			break;
-		} else if ((blocking) && (ret == -1) && (errno == EAGAIN)) {
+		} else if ((ret == -1) && (errno == EAGAIN)) {
 			/*
 			 * Some bytes were written but there are still more to
 			 * write.
@@ -108,6 +144,15 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 			/* Update the count of bytes written. */
 			num += n;
 
+			/*
+			 * If we're not blocking then return.
+			 */
+			if (!blocking)
+				goto SHORT_WRITE;
+
+			/*
+			 * Otherwise wait on the fd.
+			 */
 			_thread_run->data.fd.fd = fd;
 			_thread_kern_set_timeout(NULL);
 
@@ -142,6 +187,7 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 				nwritten += wvret;
 		}
 	}
+  SHORT_WRITE:
 	if (sbytes != NULL) {
 		/*
 		 * Number of bytes written in headers/trailers, plus in the main
