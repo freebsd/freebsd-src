@@ -57,7 +57,7 @@ static char sccsid[] = "@(#)telnet.c	8.2 (Berkeley) 12/15/93";
 #include "general.h"
 
 
-#define	strip(x)	((x)&0x7f)
+#define	strip(x)	((my_want_state_is_wont(TELOPT_BINARY)) ? ((x)&0x7f) : (x))
 
 static unsigned char	subbuffer[SUBBUFSIZE],
 			*subpointer, *subend;	 /* buffer for sub-options */
@@ -104,7 +104,8 @@ int
 	donelclchars,	/* the user has set "localchars" */
 	donebinarytoggle,	/* the user has put us in binary */
 	dontlecho,	/* do we suppress local echoing right now? */
-	globalmode;
+	globalmode,
+	clienteof = 0;
 
 char *prompt = 0;
 
@@ -2097,9 +2098,9 @@ Scheduler(block)
     ttyout = ring_full_count(&ttyoring);
 
 #if	defined(TN3270)
-    ttyin = ring_empty_count(&ttyiring) && (shell_active == 0);
+    ttyin = ring_empty_count(&ttyiring) && (clienteof == 0) && (shell_active == 0);
 #else	/* defined(TN3270) */
-    ttyin = ring_empty_count(&ttyiring);
+    ttyin = ring_empty_count(&ttyiring) && (clienteof == 0);
 #endif	/* defined(TN3270) */
 
 #if	defined(TN3270)
