@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.12 1997/05/28 04:45:13 wpaul Exp $
+ *	$Id: svc.h,v 1.13 1998/01/16 11:46:01 bde Exp $
  */
 
 /*
@@ -264,11 +264,13 @@ extern int svc_maxfd;
 extern fd_set svc_fdset;
 #define svc_fds svc_fdset.fds_bits[0]	/* compatibility */
 
+#ifndef KERNEL
 /*
  * a small program implemented by the svc_rpc implementation itself;
  * also see clnt.h for protocol numbers.
  */
 extern void rpctest_service();
+#endif
 
 __BEGIN_DECLS
 extern void	svc_getreq	__P((int));
