@@ -160,9 +160,11 @@ rfork(td, uap)
 	int error;
 	struct proc *p2;
 
-	/* mask kernel only flags out of the user flags */
+	/* Don't allow kernel only flags. */
+	if ((uap->flags & RFKERNELONLY) != 0)
+		return (EINVAL);
 	mtx_lock(&Giant);
-	error = fork1(td, uap->flags & ~RFKERNELONLY, &p2);
+	error = fork1(td, uap->flags, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
