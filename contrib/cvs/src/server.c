@@ -4718,15 +4718,17 @@ check_repository_password (username, password, repository, host_user_ptr)
     /* If found_it != 0, then linebuf contains the information we need. */
     if (found_it)
     {
-	char *found_password, *host_user_tmp;
+	char *found_password, *host_user_tmp = NULL;
 
 	strtok (linebuf, ":");
 	found_password = strtok (NULL, ": \n");
-	host_user_tmp = strtok (NULL, ": \n");
+	if (found_password)
+	    host_user_tmp = strtok (NULL, ": \n");
 	if (host_user_tmp == NULL)
             host_user_tmp = username;
 
-	if (strcmp (found_password, crypt (password, found_password)) == 0)
+	if (found_passwd == NULL || *found_passwd == '\0' ||
+	    strcmp (found_password, crypt (password, found_password)) == 0)
         {
             /* Give host_user_ptr permanent storage. */
             *host_user_ptr = xstrdup (host_user_tmp);
@@ -4764,7 +4766,10 @@ check_password (username, password, repository)
        password file.  If so, that's enough to authenticate with.  If
        not, we'll check /etc/passwd. */
 
-    rc = check_repository_password (username, password, repository,
+    if (require_real_user)
+	rc = 0;		/* "not found" */
+    else
+	rc = check_repository_password (username, password, repository,
 				    &host_user);
 
     if (rc == 2)
