@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id: wcd.c,v 1.57 1998/07/04 22:30:18 julian Exp $
+ * $Id: wcd.c,v 1.58 1998/09/08 20:57:47 sos Exp $
  */
 
 #include "wdc.h"
@@ -29,6 +29,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
+#include <sys/devicestat.h>
 #include <sys/disklabel.h>
 #include <sys/cdio.h>
 #include <sys/conf.h>
@@ -253,6 +254,7 @@ struct wcd {
 	char description[80];           /* Device description */
 	struct changer *changer_info;	/* changer info */
 	int slot;			/* this lun's slot number */
+	struct devstat device_stats;	/* devstat parameters */
 #ifdef	DEVFS
 	void	*ra_devfs_token;
 	void	*rc_devfs_token;
@@ -328,6 +330,13 @@ wcd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "wcd%dc", lun);
 #endif
+	/*
+	 * Export the unit to the devstat interface.
+	 */
+	devstat_add_entry(&ptr->device_stats, "wcd", 
+			  lun, SECSIZE,
+			  DEVSTAT_NO_ORDERED_TAGS,
+			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE);
 	return ptr;
 }
 
@@ -637,6 +646,9 @@ static void wcd_start (struct wcd *t)
 		return;
 	}
 
+	/* Tell devstat we are starting on the transaction */
+	devstat_start_transaction(&t->device_stats);
+
 	wcd_select_slot(t);
 
 	/* We have a buf, now we should make a command
@@ -661,6 +673,12 @@ static void wcd_done (struct wcd *t, struct buf *bp, int resid,
 		bp->b_flags |= B_ERROR;
 	} else
 		bp->b_resid = resid;
+
+	/* Tell devstat we have finished with the transaction */
+	devstat_end_transaction(&t->device_stats,
+				bp->b_bcount - bp->b_resid,
+				DEVSTAT_TAG_NONE,
+				(bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
 	biodone (bp);
 	wcd_start (t);
 }
