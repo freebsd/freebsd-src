@@ -9,22 +9,28 @@ SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 PROG=	smrsh
 SRCS=	smrsh.c
 MAN=	smrsh.8
-CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
+CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include -I.
 
-.if exists(${.OBJDIR}/../../lib/libsmutil)
-LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
+.if exists(${.OBJDIR}/../../lib/libsm)
+LIBSMDIR:=	${.OBJDIR}/../../lib/libsm
 .else
-LIBSMUTILDIR!=	cd ${.CURDIR}/../../lib/libsmutil; make -V .OBJDIR
+LIBSMDIR!=	cd ${.CURDIR}/../../lib/libsm; make -V .OBJDIR
 .endif
-LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
+LIBSM:=		${LIBSMDIR}/libsm.a
 
-DPADD=	${LIBSMUTIL}
-LDADD=	${LIBSMUTIL}
+DPADD=	${LIBSM}
+LDADD=	${LIBSM}
+
+SRCS+=	sm_os.h
+CLEANFILES+=sm_os.h
 
 # User customizations to the sendmail build environment
 CFLAGS+=${SENDMAIL_CFLAGS}
 DPADD+=${SENDMAIL_DPADD}
 LDADD+=${SENDMAIL_LDADD}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
+
+sm_os.h:
+	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h
 
 .include <bsd.prog.mk>
