@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.182
+    Original revision: 1.22.2.184
 -->
 
 <articleinfo>
@@ -123,8 +123,8 @@
       <port>emulators/linux_base-7</port> (RedHat 7.X エミュレーション) 
       の実現に必要なカーネル機能に対応しました.</para>
 
-    <para><varname>hw.physmem</varname>
-      環境変数に加えて <varname>MAXMEM</varname>
+    <para arch="alpha">ローダから変更できる変数 <varname>hw.physmem</varname>
+      および <varname>MAXMEM</varname>
       カーネルオプションが追加されました.
       これは試験目的などに利用されるもので,
       マシンに搭載されているメモリサイズを人為的に減らすことができます.</para>
@@ -551,6 +551,15 @@
 
     <para>&man.arp.8; が,
       各 ARP エントリに対応するインターフェイス名を表示するようになりました.</para>
+
+    <para arch="i386">インストールフロッピに簡易版の &man.camcontrol.8;
+      が含まれるようになりました.
+      (たとえば <quote>緊急のホログラフィックシェル</quote> から)
+      これを使い, 起動後にデバイスを再スキャンしたり,
+      SCSI バスに接続されたデバイスを表示したりすることが可能です.
+      またこれにはもう一つ, Adaptec APA-1460 のような
+      &man.aic.4; ベースの PCMCIA SCSI アダプタに接続されたデバイスを,
+      インストール中にアタッチして使うことができるようになるという利点もあります.</para>
 
     <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.</para>
 
