@@ -580,6 +580,7 @@ dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
 dev/usb/ohci.c		optional ohci
+dev/usb/ucom.c		optional ucom
 dev/usb/udbp.c		optional udbp
 dev/usb/ufm.c		optional ufm
 dev/usb/ugen.c		optional ugen
@@ -591,8 +592,10 @@ dev/usb/ulpt.c		optional ulpt
 dev/usb/umass.c		optional umass
 dev/usb/umodem.c	optional umodem
 dev/usb/ums.c		optional ums
+dev/usb/uplcom.c	optional uplcom ucom
 dev/usb/urio.c		optional urio
 dev/usb/uscanner.c	optional uscanner
+dev/usb/uvscom.c	optional uvscom ucom
 dev/usb/usb.c		optional usb
 dev/usb/usb_ethersubr.c	optional usb
 #dev/usb/usb_mem.c	optional usb
