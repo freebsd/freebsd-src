@@ -92,7 +92,13 @@ Int_Open_Disk(const char *name, u_long size)
 	}
 
 	memset(&dl, 0, sizeof dl);
-	ioctl(fd, DIOCGDINFO, &dl);
+	if (ioctl(fd, DIOCGDINFO, &dl) < 0) {
+#ifdef DEBUG
+		warn("DIOCGDINFO(%s) failed", device);
+#endif
+		close(fd);
+		return 0;
+	}
 	i = ioctl(fd, DIOCGSLICEINFO, &ds);
 	if (i < 0) {
 #ifdef DEBUG
@@ -129,8 +135,13 @@ Int_Open_Disk(const char *name, u_long size)
 		}
 	}
 	free (buf);
-	if (sector_size > MAX_SEC_SIZE)
+	if (sector_size > MAX_SEC_SIZE) {
+#ifdef DEBUG
+		warn("Int_Open_Disk: could not determine sector size, "
+		     "calculated %u, max %u\n", sector_size, MAX_SEC_SIZE);
+#endif
 		return NULL; /* could not determine sector size */
+	}
 
 #ifdef PC98
 	p = (unsigned char*)read_block(fd, 1, sector_size);
@@ -508,20 +519,31 @@ Disk_Names()
     static char **disks;
     int error;
     size_t listsize;
-    char *disklist, **dp;
+    char *disklist;
 
     disks = malloc(sizeof *disks * (1 + MAX_NO_DISKS));
+    if (disks == NULL)
+	    return NULL;
     memset(disks,0,sizeof *disks * (1 + MAX_NO_DISKS));
     error = sysctlbyname("kern.disks", NULL, &listsize, NULL, 0);
     if (!error) {
 	    disklist = (char *)malloc(listsize);
+	    if (disklist == NULL) {
+		    free(disks);
+		    return NULL;
+	    }
 	    memset(disklist, 0, listsize);
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
-	    if (error) 
+	    if (error) {
+		    free(disklist);
+		    free(disks);
 		    return NULL;
-	    disk_cnt = 0;
-	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && 
-			 disk_cnt < MAX_NO_DISKS; disk_cnt++, dp++);
+	    }
+	    for (disk_cnt = 0; disk_cnt < MAX_NO_DISKS; disk_cnt++) {
+		    disks[disk_cnt] = strsep(&disklist, " ");
+		    if (disks[disk_cnt] == NULL)
+			    break;
+											    }
     } else {
     warn("kern.disks sysctl not available");
     disk_cnt = 0;
