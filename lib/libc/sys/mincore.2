@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
+.\"	$Id$
 .\"
 .Dd June 9, 1993
 .Dt MINCORE 2
@@ -53,10 +54,10 @@ in the character array
 with a value of 1 meaning
 that the page is in-core.
 .Sh SEE ALSO
-.Xr msync 2 ,
-.Xr munmap 2 ,
-.Xr mprotect 2 ,
 .Xr madvise 2 ,
+.Xr mprotect 2 ,
+.Xr msync 2 ,
+.Xr munmap 2
 .Sh HISTORY
 The
 .Fn mincore
