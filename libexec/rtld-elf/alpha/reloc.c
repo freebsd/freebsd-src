@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.3 1998/05/01 08:39:27 dfr Exp $
+ *      $Id: reloc.c,v 1.1 1998/09/04 19:03:57 dfr Exp $
  */
 
 /*
@@ -206,7 +206,7 @@ reloc_plt(Obj_Entry *obj, bool bind_now)
 	if (bind_now) {
 	    /* Fully resolve procedure addresses now */
 	    for (rela = obj->pltrela;  obj->pltrela != NULL && rela < relalim;
-		rel++) {
+		rela++) {
 		Elf_Addr *where = (Elf_Addr *) (obj->relocbase +
 		    rela->r_offset);
 		const Elf_Sym *def;
