@@ -249,25 +249,6 @@ __fpgetsticky(void)
 	return (_ex);
 }
 
-/* Note that this should really be called fpresetsticky() */
-static __inline__ fp_except_t
-__fpsetsticky(fp_except_t _m)
-{
-	unsigned _env[7];
-	unsigned int _mxcsr;
-	fp_except_t _p;
-
-	__fnstenv(_env);
-	_p = _env[FP_STKY_REG] & _m;
-	__stmxcsr(&_mxcsr);
-	_p |= _mxcsr & SSE_STKY_FLD;
-	_env[FP_STKY_REG] &= ~_m;
-	__fldenv(_env);
-	_mxcsr &= ~_m;
-	__ldmxcsr(&_mxcsr);
-	return (_p);
-}
-
 #endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE__ && !__cplusplus */
 
 #if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) \
@@ -280,7 +261,6 @@ __fpsetsticky(fp_except_t _m)
 #define	fpgetmask()	__fpgetmask()
 #define	fpsetmask(_m)	__fpsetmask(_m)
 #define	fpgetsticky()	__fpgetsticky()
-#define	fpsetsticky(_m)	__fpsetsticky(_m)
 
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
