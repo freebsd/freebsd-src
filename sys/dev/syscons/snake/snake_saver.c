@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: snake_saver.c,v 1.1 1995/02/22 13:48:07 sos Exp $
  */
 
 #include <sys/param.h>
@@ -93,7 +93,8 @@ snake_saver(int blank)
 		if (scrn_blanked) {
 			set_border(scp->border);
 			scrn_blanked = 0;
-			scp->status |= UPDATE_SCREEN;
+			scp->start = 0;
+			scp->end = scp->xsize * scp->ysize;
 		}
 	}
 }
