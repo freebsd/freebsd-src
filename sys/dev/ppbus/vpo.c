@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.4 1997/09/01 00:51:52 bde Exp $
+ *	$Id: vpo.c,v 1.6 1998/08/03 19:14:31 msmith Exp $
  *
  */
 
@@ -60,6 +60,8 @@ struct vpo_data {
 	int vpo_stat;
 	int vpo_count;
 	int vpo_error;
+
+	int vpo_isplus;
 
 	struct ppb_status vpo_status;
 	struct vpo_sense vpo_sense;
@@ -162,7 +164,10 @@ vpoprobe(struct ppb_data *ppb)
 	/* low level probe */
 	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
 
-	if (!(dev = vpoio_probe(ppb, &vpo->vpo_io))) {
+	if ((dev = imm_probe(ppb, &vpo->vpo_io))) {
+		vpo->vpo_isplus = 1;
+
+	} else if (!(dev = vpoio_probe(ppb, &vpo->vpo_io))) {
 		free(vpo, M_DEVBUF);
 		return (NULL);
 	}
@@ -183,8 +188,13 @@ vpoattach(struct ppb_device *dev)
 	struct vpo_data *vpo = vpodata[dev->id_unit];
 
 	/* low level attachment */
-	if (!vpoio_attach(&vpo->vpo_io))
-		return (0);
+	if (vpo->vpo_isplus) {
+		if (!imm_attach(&vpo->vpo_io))
+			return (0);
+	} else {
+		if (!vpoio_attach(&vpo->vpo_io))
+			return (0);
+	}
 
 	vpo->sc_link.adapter_unit = vpo->vpo_unit;
 	vpo->sc_link.adapter_targ = VP0_INITIATOR;
@@ -202,7 +212,8 @@ vpoattach(struct ppb_device *dev)
 	scbus->adapter_link = &vpo->sc_link;
 
 	/* all went ok */
-	printf("vpo%d: <Iomega PPA-3/VPI0 SCSI controller>\n", dev->id_unit);
+	printf("vpo%d: <Iomega PPA-3/VPI0/IMM SCSI controller>\n",
+		dev->id_unit);
 
 	scsi_attachdevs(scbus);
 
@@ -231,10 +242,17 @@ vpo_intr(struct vpo_data *vpo, struct scsi_xfer *xs)
 	if (xs->datalen && !(xs->flags & SCSI_DATA_IN))
 		bcopy(xs->data, vpo->vpo_buffer, xs->datalen);
 
-	errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-		xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
-		vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat, &vpo->vpo_count,
-		&vpo->vpo_error);
+	if (vpo->vpo_isplus) {
+		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
+			xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
+			vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat,
+			&vpo->vpo_count, &vpo->vpo_error);
+	} else {
+		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
+			xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
+			vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat,
+			&vpo->vpo_count, &vpo->vpo_error);
+	}
 
 #ifdef VP0_DEBUG
 	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
@@ -269,12 +287,23 @@ vpo_intr(struct vpo_data *vpo, struct scsi_xfer *xs)
 		vpo->vpo_sense.cmd.length = sizeof(xs->sense);
 		vpo->vpo_sense.cmd.control = 0;
 
-		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-			xs->sc_link->target, (char *)&vpo->vpo_sense.cmd,
-			sizeof(vpo->vpo_sense.cmd),
-			(char *)&xs->sense, sizeof(xs->sense),
-			&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
-			&vpo->vpo_error);
+		if (vpo->vpo_isplus) {
+			errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
+				xs->sc_link->target,
+				(char *)&vpo->vpo_sense.cmd,
+				sizeof(vpo->vpo_sense.cmd),
+				(char *)&xs->sense, sizeof(xs->sense),
+				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
+				&vpo->vpo_error);
+		} else {
+			errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
+				xs->sc_link->target,
+				(char *)&vpo->vpo_sense.cmd,
+				sizeof(vpo->vpo_sense.cmd),
+				(char *)&xs->sense, sizeof(xs->sense),
+				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
+				&vpo->vpo_error);
+		}
 
 		if (errno)
 			/* connection to ppbus interrupted */

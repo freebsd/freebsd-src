@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.6 1998/06/07 19:44:21 phk Exp $
+ *	$Id: ppbconf.h,v 1.7 1998/08/03 19:14:31 msmith Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -51,6 +51,8 @@
 
 #define PPB_IS_EPP(mode) (mode & PPB_EPP)
 #define PPB_IN_EPP_MODE(dev) (PPB_IS_EPP (ppb_get_mode (dev)))
+#define PPB_IN_NIBBLE_MODE(dev) (ppb_get_mode (dev) & PPB_NIBBLE)
+#define PPB_IN_PS2_MODE(dev) (ppb_get_mode (dev) & PPB_PS2)
 
 #define n(flags) (~(flags) & (flags))
 
@@ -76,7 +78,7 @@
 #define TIMEOUT		0x01
 #define nFAULT		0x08
 #define SELECT		0x10
-#define ERROR		0x20
+#define PERROR		0x20
 #define nACK		0x40
 #define nBUSY		0x80
 
@@ -115,7 +117,6 @@ struct ppb_status {
 
 union ppb_insarg {
 	int	i;
-	char	c;
 	void	*p;
 	int	(* f)(void *, char *);
 };
@@ -214,6 +215,8 @@ struct ppb_link {
 	int adapter_unit;			/* unit of the adapter */
 	int base;				/* base address of the port */
 	int id_irq;				/* != 0 if irq enabled */
+	int accum;				/* microseq accum */
+	char *ptr;				/* current buffer pointer */
 
 #define EPP_1_9		0x0			/* default */
 #define EPP_1_7		0x1

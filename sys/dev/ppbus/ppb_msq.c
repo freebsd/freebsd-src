@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.c,v 1.1.2.4 1998/06/16 23:35:51 son Exp $
+ *	$Id: ppb_msq.c,v 1.1.2.3 1998/06/14 14:36:26 son Exp $
  *
  */
 #include <machine/stdarg.h>
@@ -215,7 +215,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 			break;
 
 		case MS_TYP_CHA:
-			msq[ins].arg[arg].c = va_arg(p_list, char);
+			msq[ins].arg[arg].i = (int)va_arg(p_list, char);
 			break;
 
 		case MS_TYP_PTR:
@@ -303,7 +303,8 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 			break;
 
                 case MS_OP_RET:
-			*ret = mi->arg[0].i;		/* return code */
+			if (ret)
+				*ret = mi->arg[0].i;	/* return code */
 			return (0);
                         break;
 
@@ -320,7 +321,8 @@ ppb_MS_microseq(struct ppb_device *dev, struct ppb_microseq *msq, int *ret)
 		}
 	}
 error:
-	*ret = error;
+	if (ret)
+		*ret = error;
 	return (0);
 }
 

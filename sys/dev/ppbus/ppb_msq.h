@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_msq.h,v 1.1.2.6 1998/06/17 00:37:12 son Exp $
+ *	$Id: ppb_msq.h,v 1.1.2.7 1998/06/20 19:03:47 son Exp $
  *
  */
 #ifndef __PPB_MSQ_H
@@ -73,8 +73,8 @@
 #define MS_OP_RET       10	/* ret <retcode>			*/
 #define MS_OP_C_CALL	11	/* c_call <function>, <parameter>	*/
 #define MS_OP_PTR	12	/* ptr <pointer>			*/
-#define MS_RESERVED_1	13	/* reserved				*/
-#define MS_RESERVED_2	14	/* reserved				*/
+#define MS_OP_ADELAY	13	/* adelay <val>				*/
+#define MS_OP_BRSTAT	14	/* brstat <mask>, <mask>, <offset>	*/
 #define MS_OP_SUBRET	15	/* subret <code>			*/
 #define MS_OP_CALL	16	/* call <microsequence>			*/
 #define MS_OP_RASSERT_P	17	/* rassert_p <iter>, <reg>		*/
@@ -88,7 +88,11 @@
 #define MS_FETCH_ALL	0xff
 
 /* undefined parameter value */
-#define MS_UNKNOWN	0
+#define MS_NULL		0
+#define MS_UNKNOWN	MS_NULL
+
+/* predifined parameters */
+#define MS_ACCUM	-1	/* use accum previously set by MS_OP_SET */
 
 /* these are register numbers according to our PC-like parallel port model */
 #define MS_REG_DTR	0x0
@@ -121,9 +125,12 @@
 #define MS_SASS(byte) MS_RASSERT(MS_REG_STR,byte)
 #define MS_CASS(byte) MS_RASSERT(MS_REG_CTR,byte)
 
-#define MS_SET(offset)		{ MS_OP_SET, { offset } }
+#define MS_SET(accum)		{ MS_OP_SET, { accum } }
 #define MS_BRSET(mask,offset)	{ MS_OP_BRSET, { mask, offset } }
 #define MS_DBRA(offset)		{ MS_OP_DBRA, { offset } }
+#define MS_BRCLEAR(mask,offset)	{ MS_OP_BRCLEAR, { mask, offset } }
+#define MS_BRSTAT(mask_set,mask_clr,offset) \
+			{ MS_OP_BRSTAT, { mask_set, mask_clr, offset } }
 
 /* C function or submicrosequence call */
 #define MS_C_CALL(function,parameter) \
@@ -137,7 +144,10 @@
 #define MS_GET(ptr,len) { MS_OP_GET, { ptr, len } }
 
 /* delay in microseconds */
-#define MS_DELAY(delay) { MS_OP_DELAY, { delay } }
+#define MS_DELAY(udelay) { MS_OP_DELAY, { udelay } }
+
+/* asynchroneous delay in ms */
+#define MS_ADELAY(mdelay) { MS_OP_ADELAY, { mdelay } }
 
 /* return from submicrosequence execution or microseqence execution */
 #define MS_SUBRET(code)	{ MS_OP_SUBRET,	{ code } }
