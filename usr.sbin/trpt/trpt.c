@@ -43,13 +43,6 @@ static char sccsid[] = "@(#)trpt.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 #include <sys/queue.h>
-#if BSD >= 199103
-#define NEWVM
-#endif
-#ifndef NEWVM
-#include <machine/pte.h>
-#include <sys/vmmac.h>
-#endif
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #define PRUREQUESTS
@@ -87,18 +80,9 @@ struct nlist nl[] = {
 	{ "_tcp_debug" },
 #define	N_TCP_DEBX	1
 	{ "_tcp_debx" },
-#ifndef NEWVM
-#define	N_SYSMAP	2
-	{ "_Sysmap" },
-#define	N_SYSSIZE	3
-	{ "_Syssize" },
-#endif
 	{ "" },
 };
 
-#ifndef NEWVM
-static struct pte *Sysmap;
-#endif
 static caddr_t tcp_pcbs[TCP_NDEBUG];
 static n_time ntime;
 static int aflag, kflag, memf, follow, sflag, tflag;
@@ -176,23 +160,8 @@ main(argc, argv)
 		exit(2);
 	}
 	if (kflag) {
-#ifdef NEWVM
 		fputs("trpt: can't do core files yet\n", stderr);
 		exit(1);
-#else
-		off_t off;
-
-		Sysmap = (struct pte *)
-		   malloc((u_int)(nl[N_SYSSIZE].n_value * sizeof(struct pte)));
-		if (!Sysmap) {
-			fputs("trpt: can't get memory for Sysmap.\n", stderr);
-			exit(1);
-		}
-		off = nl[N_SYSMAP].n_value & ~KERNBASE;
-		(void)lseek(memf, off, L_SET);
-		(void)read(memf, (char *)Sysmap,
-		    (int)(nl[N_SYSSIZE].n_value * sizeof(struct pte)));
-#endif
 	}
 	(void)klseek(memf, (off_t)nl[N_TCP_DEBX].n_value, L_SET);
 	if (read(memf, (char *)&tcp_debx, sizeof(tcp_debx)) !=
@@ -405,11 +374,5 @@ klseek(fd, base, off)
 {
 	off_t lseek();
 
-#ifndef NEWVM
-	if (kflag) {	/* get kernel pte */
-		base &= ~KERNBASE;
-		base = ctob(Sysmap[btop(base)].pg_pfnum) + (base & PGOFSET);
-	}
-#endif
 	(void)lseek(fd, base, off);
 }
