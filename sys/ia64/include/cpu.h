@@ -120,7 +120,6 @@ struct trapframe;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 
-void	ast __P((struct trapframe *));
 int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
 void	child_return __P((struct proc *p));
