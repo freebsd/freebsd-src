@@ -89,25 +89,38 @@ static char sccsid[] = "@(#)locate.code.c	8.1 (Berkeley) 6/6/93";
 
 #define	BGBUFSIZE	(NBG * 2)	/* size of bigram buffer */
 
-char buf1[MAXPATHLEN + 1] = " ";
-char buf2[MAXPATHLEN + 1];
+u_char buf1[MAXPATHLEN] = " ";	
+u_char buf2[MAXPATHLEN];
 char bigrams[BGBUFSIZE + 1] = { 0 };
+
+#define LOOKUP 1
+#ifdef LOOKUP
+#define BGINDEX(x) (big[(u_int)*x][(u_int)*(x+1)])
+typedef u_char bg_t;
+bg_t big[UCHAR_MAX][UCHAR_MAX];
+
+#else
+#define BGINDEX(x) bgindex(x)
+typedef int bg_t;
+#endif
 
 int	bgindex __P((char *));
 void	usage __P((void));
+extern int optind;
+extern int optopt;
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *cp, *oldpath, *path;
+	register u_char *cp, *oldpath, *path;
 	int ch, code, count, diffcount, oldcount;
 	FILE *fp;
+	register int i, j;
 
 	while ((ch = getopt(argc, argv, "")) != EOF)
 		switch(ch) {
-		case '?':
 		default:
 			usage();
 		}
@@ -126,27 +139,38 @@ main(argc, argv)
 		err(1, "stdout");
 	(void)fclose(fp);
 
+#ifdef LOOKUP
+	/* init lookup table */
+	for (i = 0; i < UCHAR_MAX; i++)
+	    	for (j = 0; j < UCHAR_MAX; j++) 
+			big[i][j] = (bg_t)-1;
+
+	for (cp = bigrams, i = 0; *cp != NULL; i += 2, cp += 2)
+	        big[(int)*cp][(int)*(cp + 1)] = (bg_t)i;
+#endif
+
 	oldpath = buf1;
 	path = buf2;
 	oldcount = 0;
-	while (fgets(path, sizeof(buf2) - 1, stdin) != NULL) {
-		/* Truncate newline. */
-		cp = path + strlen(path) - 1;
-		if (cp > path && *cp == '\n')
-			*cp = '\0';
+	while (fgets(path, sizeof(buf2), stdin) != NULL) {
+
+	    	/* skip empty lines */
+		if (*path == '\n')
+			continue;
 
 		/* Squelch characters that would botch the decoding. */
 		for (cp = path; *cp != NULL; cp++) {
-			if ((u_char)*cp >= PARITY)
-				*cp &= PARITY-1;
-			if (*cp <= SWITCH)
+			/* chop newline */
+			if (*cp == '\n')
+				*cp = NULL;
+			/* range */
+			else if (*cp < ASCII_MIN || *cp > ASCII_MAX)
 				*cp = '?';
 		}
 
 		/* Skip longest common prefix. */
-		for (cp = path; *cp == *oldpath; cp++, oldpath++)
-			if (*oldpath == NULL)
-				break;
+		for (cp = path; *cp == *oldpath && *cp; cp++, oldpath++);
+
 		count = cp - path;
 		diffcount = count - oldcount + OFFSET;
 		oldcount = count;
@@ -164,7 +188,7 @@ main(argc, argv)
 					err(1, "stdout");
 				break;
 			}
-			if ((code = bgindex(cp)) < 0) {
+			if ((code = BGINDEX(cp)) == (bg_t)-1) {
 				if (putchar(*cp++) == EOF ||
 				    putchar(*cp++) == EOF)
 					err(1, "stdout");
@@ -189,6 +213,7 @@ main(argc, argv)
 	exit(0);
 }
 
+#ifndef LOOKUP
 int
 bgindex(bg)			/* Return location of bg in bigrams or -1. */
 	char *bg;
@@ -202,6 +227,7 @@ bgindex(bg)			/* Return location of bg in bigrams or -1. */
 			break;
 	return (*p == NULL ? -1 : --p - bigrams);
 }
+#endif /* !LOOKUP */
 
 void
 usage()
