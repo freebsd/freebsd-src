@@ -317,10 +317,6 @@ sub new_users_name {
 
     while(1) {
 	$name = &confirm_list("Enter username", 1, $usernameregexp, "");
-	if (length($name) > 16) {
-	    warn "Username is longer than 16 chars\a\n";
-	    next;
-	}
 	last if (&new_users_name_valid($name));
     }
     return $name;
@@ -331,6 +327,9 @@ sub new_users_name_valid {
 
     if ($name eq $usernameregexp) { # user/admin just pressed <Return>
 	warn "Please enter a username\a\n";
+	return 0;
+    } elsif (length($name) > 16) {
+	warn "Username is longer than 16 characters.\a\n";
 	return 0;
     } elsif ($name =~ /[:\n]/) {
 	warn "Username cannot contain colon or newline characters.\a\n";
