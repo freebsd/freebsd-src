@@ -555,7 +555,9 @@ NESTED(copyout, 3, 16, ra, 0, 0)
 	END(copyout)
 
 LEAF(copyerr, 0)
-	LDGP(pv)
+	ldq	t0, curproc
+	ldq	t0, P_ADDR(t0)
+	stq	zero, U_PCB_ONFAULT(t0)		/* reset fault handler.	     */
 	ldq	ra, (16-8)(sp)			/* restore ra.		     */
 	lda	sp, 16(sp)			/* kill stack frame.	     */
 	ldiq	v0, EFAULT			/* return EFAULT.	     */
