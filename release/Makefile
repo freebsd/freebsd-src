@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.81 1998/03/06 23:06:20 jkh Exp $
+#	$Id: Makefile,v 1.246.2.82 1998/03/10 17:29:23 jkh Exp $
 #
 # How to roll a release:
 #
@@ -474,6 +474,8 @@ ftp.1:
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	cp ${.CURDIR}/ABOUT.TXT ${FD}/ABOUT.TXT
+	cp ${.CURDIR}/ERRATA.TXT ${FD}/ERRATA.TXT
+	cp ${.CURDIR}/LAYOUT.TXT ${FD}/LAYOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
@@ -505,10 +507,13 @@ cdrom.1:
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
+	cp ${.CURDIR}/ERRATA.TXT ${CD_DISC1}/ERRATA.TXT
+	cp ${.CURDIR}/LAYOUT.TXT ${CD_DISC1}/LAYOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
+	cp ${.CURDIR}/sysinstall/help/trouble.hlp ${CD_DISC1}/TROUBLE.TXT
 .if !defined(NOPORTS)
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 	  mkdir -p ${CD_DISC1}/ports && \

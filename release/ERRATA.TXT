@@ -1,0 +1,58 @@
+This file contains post-release ERRATA for 2.2.6 and should always
+be considered the definitive place to look *first* before reporting
+a problem with this release.  This file will also be periodically
+updated as new issues are reported so even if you've checked this
+file recently, check it again before filing a bug report.  Any
+changes to this file are also automatically emailed to:
+
+	freebsd-stable@freebsd.org
+
+For 2.2.6 security advisories, see:
+
+	ftp://ftp.freebsd.org/pub/FreeBSD/CERT/
+
+For the latest information.
+
+---- Security Advisories:
+
+Current active security advisories for 2.2.6:	None
+
+---- System Update Information:
+
+o  Root mountpoint change which effect those upgrading via "make world"
+   or a FreeBSD 2.2.6 upgrade.
+
+Fix:  2.2.6 introduces a change in the naming of the device from
+which the root filesystem is mounted.  This change affects all systems,
+however user intervention is only required for systems undergoing an
+upgrade installation.
+
+Previously, the root filesystem was always mounted from the
+compatability slice, while other partitions on the same disk were
+mounted from their true slice.  This might, for example, have resulted
+in an /etc/fstab file like:
+
+# Device      Mountpoint      FStype  Options         Dump    Pass#
+/dev/wd0s2b   none            swap    sw              0       0
+/dev/wd0a     /               ufs     rw              1       1
+/dev/wd0s2f   /local0         ufs     rw              1       1
+/dev/wd0s2e   /usr            ufs     rw              1       1
+
+For FreeBSD 2.2.6 and later, this format changes so that the device for
+'/' is consistent with others, ie.
+
+# Device      Mountpoint      FStype  Options         Dump    Pass#
+/dev/wd0s2b   none            swap    sw              0       0
+/dev/wd0s2a   /               ufs     rw              1       1
+/dev/wd0s2f   /local0         ufs     rw              1       1
+/dev/wd0s2e   /usr            ufs     rw              1       1
+
+
+If /etc/fstab is not updated manually in this case, the system will
+issue a warning message whenever / is mounted (normally at startup)
+indicating the change that must be made.  In addition, trouble may be
+experienced if the root filesystem is not correctly unmounted, whereby
+the root filesystem will not be marked clean at the next reboot.
+
+This change should be made as soon as the upgraded system has been
+successfully rebooted.
