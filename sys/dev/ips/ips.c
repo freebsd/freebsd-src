@@ -37,6 +37,8 @@ static d_open_t ips_open;
 static d_close_t ips_close;
 static d_ioctl_t ips_ioctl;
 
+MALLOC_DEFINE(M_IPSBUF, "ipsbuf","IPS driver buffer");
+
 static struct cdevsw ips_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_NEEDGIANT,
@@ -170,13 +172,13 @@ static int ips_add_waiting_command(ips_softc_t *sc, int (*callback)(ips_command_
 	unsigned long memflags = 0;
 	if(IPS_NOWAIT_FLAG & flags)
 		memflags = M_NOWAIT;
-	waiter = malloc(sizeof(ips_wait_list_t), M_DEVBUF, memflags);
+	waiter = malloc(sizeof(ips_wait_list_t), M_IPSBUF, memflags);
 	if(!waiter)
 		return ENOMEM;
 	mask = splbio();
 	if(sc->state & IPS_OFFLINE){
 		splx(mask);
-		free(waiter, M_DEVBUF);
+		free(waiter, M_IPSBUF);
 		return EIO;
 	}
 	command = SLIST_FIRST(&sc->free_cmd_list);
@@ -186,7 +188,7 @@ static int ips_add_waiting_command(ips_softc_t *sc, int (*callback)(ips_command_
 		splx(mask);
 		clear_ips_command(command);
 		bzero(command->command_buffer, IPS_COMMAND_LEN);
-		free(waiter, M_DEVBUF);
+		free(waiter, M_IPSBUF);
 		command->arg = data;
 		return callback(command);
 	}
@@ -221,7 +223,7 @@ static void ips_run_waiting_command(ips_softc_t *sc)
 	bzero(command->command_buffer, IPS_COMMAND_LEN);
 	command->arg = waiter->data;
 	callback = waiter->callback;
-	free(waiter, M_DEVBUF);
+	free(waiter, M_IPSBUF);
 	callback(command);
 	return;	
 }
