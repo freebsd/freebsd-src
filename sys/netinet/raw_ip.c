@@ -326,15 +326,20 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 /*
  * Raw IP socket option processing.
  *
- * Note that access to all of the IP administrative functions here is
- * implicitly protected by suser() as gaining access to a raw socket
- * requires either that the thread pass a suser() check, or that it be
- * passed a raw socket by another thread that has passed a suser() check.
- * If FreeBSD moves to a more fine-grained access control mechanism,
- * additional checks will need to be placed here if the raw IP attachment
- * check is not equivilent the the check required for these
- * administrative operations; in some cases, these checks are already
- * present.
+ * IMPORTANT NOTE regarding access control: Traditionally, raw sockets could
+ * only be created by a privileged process, and as such, socket option
+ * operations to manage system properties on any raw socket were allowed to
+ * take place without explicit additional access control checks.  However,
+ * raw sockets can now also be created in jail(), and therefore explicit
+ * checks are now required.  Likewise, raw sockets can be used by a process
+ * after it gives up privilege, so some caution is required.  For options
+ * passed down to the IP layer via ip_ctloutput(), checks are assumed to be
+ * performed in ip_ctloutput() and therefore no check occurs here.
+ * Unilaterally checking suser() here breaks normal IP socket option
+ * operations on raw sockets.
+ *
+ * When adding new socket options here, make sure to add access control
+ * checks here as necessary.
  */
 int
 rip_ctloutput(struct socket *so, struct sockopt *sopt)
@@ -345,18 +350,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (sopt->sopt_level != IPPROTO_IP)
 		return (EINVAL);
 
-	/*
-	 * Even though super-user is required to create a raw socket, the
-	 * calling cred could be prison root. If so we want to restrict the
-	 * access to IP_HDRINCL only.
-	 */
-	if (sopt->sopt_name != IP_HDRINCL) {
-		error = suser(curthread);
-		if (error != 0)
-			return (error);
-	}
 	error = 0;
-
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
@@ -369,6 +363,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_GET:
 		case IP_FW_TABLE_GETSIZE:
 		case IP_FW_TABLE_LIST:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
@@ -376,6 +373,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case IP_DUMMYNET_GET:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
@@ -394,6 +394,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT_API_CONFIG:
 		case MRT_ADD_BW_UPCALL:
 		case MRT_DEL_BW_UPCALL:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			error = ip_mrouter_get ? ip_mrouter_get(so, sopt) :
 				EOPNOTSUPP;
 			break;
@@ -425,6 +428,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_ADD:
 		case IP_FW_TABLE_DEL:
 		case IP_FW_TABLE_FLUSH:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			if (ip_fw_ctl_ptr != NULL)
 				error = ip_fw_ctl_ptr(sopt);
 			else
@@ -434,6 +440,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			if (ip_dn_ctl_ptr != NULL)
 				error = ip_dn_ctl_ptr(sopt);
 			else
@@ -441,15 +450,24 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break ;
 
 		case IP_RSVP_ON:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			error = ip_rsvp_init(so);
 			break;
 
 		case IP_RSVP_OFF:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			error = ip_rsvp_done();
 			break;
 
 		case IP_RSVP_VIF_ON:
 		case IP_RSVP_VIF_OFF:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			error = ip_rsvp_vif ?
 				ip_rsvp_vif(so, sopt) : EINVAL;
 			break;
@@ -466,6 +484,9 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT_API_CONFIG:
 		case MRT_ADD_BW_UPCALL:
 		case MRT_DEL_BW_UPCALL:
+			error = suser(curthread);
+			if (error != 0)
+				return (error);
 			error = ip_mrouter_set ? ip_mrouter_set(so, sopt) :
 					EOPNOTSUPP;
 			break;
