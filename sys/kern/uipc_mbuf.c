@@ -72,6 +72,7 @@ int	m_defragbytes;
 int	m_defraguseless;
 int	m_defragfailure;
 int	m_defragrandomfailures;
+int	m_clreflimithits;
 #endif
 
 int	nmbclusters;
@@ -107,9 +108,12 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragfailure, CTLFLAG_RD,
 	   &m_defragfailure, 0, "");
 SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 	   &m_defragrandomfailures, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, m_clreflimithits, CTLFLAG_RD,
+	   &m_clreflimithits, 0, "");
 #endif
 
 static void	m_reclaim __P((void));
+static struct mbuf *m_clreflimit(struct mbuf *m0, int how);
 
 #ifndef NMBCLUSTERS
 #define NMBCLUSTERS	(512 + maxusers * 16)
@@ -862,6 +866,7 @@ m_copym(m, off0, len, wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
+	top = m_clreflimit(top, wait);
 	if (top == 0)
 		MCFail++;
 	return (top);
@@ -943,6 +948,7 @@ m_copypacket(m, how)
 
 		m = m->m_next;
 	}
+	top = m_clreflimit(top, how);
 	return top;
 nospace:
 	m_freem(top);
@@ -1301,6 +1307,7 @@ extpacket:
 	m->m_len = len;
 	n->m_next = m->m_next;
 	m->m_next = 0;
+	n = m_clreflimit(n, wait);
 	return (n);
 }
 /*
@@ -1585,4 +1592,40 @@ nospace:
 	if (m_final)
 		m_freem(m_final);
 	return (NULL);
+}
+
+#define MAX_CLREFCOUNT	32
+
+/*
+ * Ensure that the number of mbuf cluster references stays less than our
+ * desired amount by making a new copy of the entire chain.
+ *
+ * If a reference count has already gone negative, panic.
+ */
+static struct mbuf *
+m_clreflimit(struct mbuf *m0, int how)
+{
+	struct mbuf *m;
+	int maxrefs = 0;
+
+	for (m = m0; m != NULL; m = m->m_next) {
+		if ((m->m_flags & M_EXT) && (m->m_ext.ext_ref == NULL)) {
+			maxrefs = max(maxrefs,
+				mclrefcnt[mtocl(m->m_ext.ext_buf)]);
+		}
+	}
+
+	if (maxrefs < 0)
+		panic("m_clreflimit detected a negative ref count.");
+
+	if (maxrefs < MAX_CLREFCOUNT)
+		return (m0);
+
+	m_clreflimithits++;
+	m = m_defrag(m0, how);
+	/* Avoid returning NULL at all costs, m_split won't like it. */
+	if (m == NULL)
+		return (m0);
+	else
+		return (m);
 }
