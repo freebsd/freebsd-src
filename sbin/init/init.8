@@ -109,7 +109,10 @@ disks for mounted filesystems,
 .Pa /dev/mem ,
 and
 .Pa /dev/kmem
-may not be opened for writing.
+may not be opened for writing;
+kernel modules (see
+.Xr kld 4 )
+may not be loaded or unloaded.
 .It Ic 2
 Highly secure mode \- same as secure mode, plus disks may not be
 opened for writing (except by
@@ -367,6 +370,7 @@ system shutdown commands
 .Xr sh 1 ,
 .Xr dummynet 4 ,
 .Xr ipfirewall 4 ,
+.Xr kld 4 ,
 .Xr ttys 5 ,
 .Xr crash 8 ,
 .Xr getty 8 ,
