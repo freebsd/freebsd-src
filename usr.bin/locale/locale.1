@@ -1,7 +1,7 @@
 .\"
 .\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -10,7 +10,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,7 +22,7 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
 .\"
 .Dd June 20, 2003
@@ -33,7 +33,7 @@
 .Nd get locale-specific information
 .Sh SYNOPSIS
 .Nm
-.Op Fl a | Fl m
+.Op Fl a | m
 .Nm
 .Op Fl ck
 .Op Ar keyword ...
@@ -46,19 +46,20 @@ the standard output.
 When
 .Nm
 is invoked without arguments, it will print out a summary of the current
-locale environment depending on environment variable settings and
-internal status. 
+locale environment, subject to the environment settings and
+internal status.
 .Pp
 When
 .Nm
-is invoked with arguments and no options specified, it will print out
-.Em keyword Ns No 's
-value determined using the current locale settings.
+is invoked with the
+.Ar keyword
+arguments, and no options are specified, it will print out the
+values of all keywords specified, using the current locale settings.
 .Pp
 The following options are available:
-.Bl -tag -width indent 
+.Bl -tag -width indent
 .It Fl a
-Write names of all available locales.
+Print names of all available locales.
 While looking for locales,
 .Nm
 will respect the
@@ -66,29 +67,29 @@ will respect the
 environment variable, and use it instead of the system's default locale
 directory.
 .It Fl m
-Write names of all available charmaps.
+Print names of all available charmaps.
 .It Fl k
-Write the name and value of the selected keywords.
+Print the names and values of all selected keywords.
 .It Fl c
-Write the category name for the selected keywords.
+Print the category name for all selected keywords.
 .El
 .Sh IMPLEMENTATION DETAILS
-Special (FreeBSD specific) keyword
-.Ar list
-can be used to retrieve human readable list of available keywords.
+The special
+.Pf ( Fx
+specific) keyword
+.Cm list
+can be used to retrieve the human readable list of all available keywords.
 .Sh DIAGNOSTICS
-The
-.Nm
-utility exits 0 on success, and >0 if an error occurs.
+.Ex -std
 .Sh BUGS
 Since
 .Fx
 does not support
-.Em charmap Ns No s
+.Em charmap Ns s
 in their
-.Em POSIX
+.Tn POSIX
 meaning,
 .Nm
 emulates the
-.Ar m
-option via CODESETs listing of all available locales.
+.Fl m
+option using the CODESETs listing of all available locales.
