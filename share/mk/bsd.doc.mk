@@ -6,13 +6,42 @@
 #
 # +++ variables +++
 #
-# LPR		Printer command. [lpr]
+# DCOMPRESS_CMD	Program to compress troff documents.  Output is to stdout.
+#		[${COMPRESS_CMD}]
 #
-# 	[incomplete]
+# DESTDIR	Change the tree where the documents get installed.  [not set]
 #
-# +++ targets +++
+# DOC		Document name.  [paper]
 #
-# 	[incomplete]
+# EXTRA		Extra files (not SRCS) that make up the document.  [not set]
+#
+# LPR		Printer command.  [lpr]
+#
+# MACROS	Macro packages used to build the document.  [not set]
+#
+# NODOCCOMPRESS	If you do not want formatted troff documents to be
+#		compressed when they are installed.  [not set]
+#
+# PRINTERDEVICE	Indicates which output formats will be generated
+#		(ascii, ps, html).  [ascii]
+#
+# SRCDIR	Directory where source files live.  [${.CURDIR}]
+#
+# SRCS		List of source files.  [not set]
+#
+# TRFLAGS	Additional flags to groff(1).  [not set]
+#
+# USE_EQN	If set, preprocess with eqn(1).  [not set]
+#
+# USE_PIC	If set, preprocess with pic(1).  [not set]
+#
+# USE_REFER	If set, preprocess with refer(1).  [not set]
+#
+# USE_SOELIM	If set, preprocess with soelim(1).  [not set]
+#
+# USE_TBL	If set, preprocess with tbl(1).  [not set]
+#
+# VOLUME	Volume the document belongs to.  [not set]
 
 .include <bsd.init.mk>
 
