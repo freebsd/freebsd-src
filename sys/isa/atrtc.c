@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.50 1996/01/16 06:35:40 ache Exp $
+ *	$Id: clock.c,v 1.51 1996/01/30 18:56:47 wollman Exp $
  */
 
 /*
@@ -101,8 +101,11 @@ long long	i586_ctr_bias;
 long long	i586_last_tick;
 unsigned long	i586_avg_tick;
 #endif
+#ifdef PROFILE
 u_int	stat_imask = SWI_CLOCK_MASK;
+#else
 int 	timer0_max_count;
+#endif
 u_int 	timer0_overflow_threshold;
 u_int 	timer0_prescaler_count;
 
@@ -235,6 +238,7 @@ release_timer2()
 	return 0;
 }
 
+#ifdef PROFILE
 /*
  * This routine receives statistical clock interrupts from the RTC.
  * As explained above, these occur at 128 interrupts per second.
@@ -267,7 +271,8 @@ DDB_printrtc(void)
 	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
 	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
 }
-#endif
+#endif /* DDB */
+#endif /* PROFILE */
 
 static int
 getit(void)
@@ -506,8 +511,10 @@ resettodr()
 	tm = time.tv_sec;
 	splx(s);
 
+#ifdef PROFILE
 	/* Disable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
+#endif
 
 	/* Calculate local time	to put in RTC */
 
@@ -543,8 +550,10 @@ resettodr()
 	writertc(RTC_MONTH, bin2bcd(m + 1));            /* Write back Month   */
 	writertc(RTC_DAY, bin2bcd(tm + 1));             /* Write back Month Day */
 
+#ifdef PROFILE
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
+#endif
 }
 
 /*
@@ -555,8 +564,10 @@ cpu_initclocks()
 {
 	int diag;
 
+#ifdef PROFILE
 	stathz = RTC_NOPROFRATE;
 	profhz = RTC_PROFRATE;
+#endif
 
 	/* Finish initializing 8253 timer 0. */
 	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0,
@@ -579,19 +590,23 @@ cpu_initclocks()
 	diag = rtcin(RTC_DIAG);
 	if (diag != 0)
 		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+#ifdef PROFILE
 	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0,
 		      /* XXX */ (inthand2_t *)rtcintr, &stat_imask,
 		      /* unit */ 0);
 	INTREN(IRQ8);
 	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
+#endif
 }
 
 void
 setstatclockrate(int newhz)
 {
+#ifdef PROFILE
 	if (newhz == RTC_PROFRATE)
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
 	else
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 	writertc(RTC_STATUSA, rtc_statusa);
+#endif
 }
