@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.10.2.1 1996/04/27 06:57:54 asami Exp $ */
+/* $Id: ccd.c,v 1.12 1996/05/13 09:17:42 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -211,7 +211,9 @@ int	numccd = 0;
  * This is to avoid violating its disklabel area when it starts at the
  * beginning of the slice.
  */
+#if !defined(CCD_OFFSET)
 #define CCD_OFFSET 16
+#endif
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
