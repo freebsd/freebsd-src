@@ -117,6 +117,16 @@ typedef	char *		caddr_t;	/* core address */
 typedef	__const char *	c_caddr_t;	/* core address, pointer to const */
 typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 
+#ifndef _BLKSIZE_T_DECLARED
+typedef	__blksize_t	blksize_t;
+#define	_BLKSIZE_T_DECLARED
+#endif
+
+#ifndef _BLKCNT_T_DECLARED
+typedef	__blkcnt_t	blkcnt_t;
+#define	_BLKCNT_T_DECLARED
+#endif
+
 #ifndef _CLOCK_T_DECLARED
 typedef	__clock_t	clock_t;
 #define	_CLOCK_T_DECLARED

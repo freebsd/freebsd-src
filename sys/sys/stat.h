@@ -41,7 +41,15 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-/* XXX missing blkcnt_t, blksize_t. */
+#ifndef _BLKSIZE_T_DECLARED
+typedef	__blksize_t	blksize_t;
+#define	_BLKSIZE_T_DECLARED
+#endif
+
+#ifndef _BLKCNT_T_DECLARED
+typedef	__blkcnt_t	blkcnt_t;
+#define	_BLKCNT_T_DECLARED
+#endif
 
 #ifndef _DEV_T_DECLARED
 typedef	__dev_t		dev_t;
@@ -134,15 +142,15 @@ struct stat {
 	struct	timespec st_ctimespec;	/* time of last file status change */
 #else
 	time_t	  st_atime;		/* time of last access */
-	long	  st_atimensec;		/* nsec of last access */
+	long	  __st_atimensec;	/* nsec of last access */
 	time_t	  st_mtime;		/* time of last data modification */
-	long	  st_mtimensec;		/* nsec of last data modification */
+	long	  __st_mtimensec;	/* nsec of last data modification */
 	time_t	  st_ctime;		/* time of last file status change */
-	long	  st_ctimensec;		/* nsec of last file status change */
+	long	  __st_ctimensec;	/* nsec of last file status change */
 #endif
 	off_t	  st_size;		/* file size, in bytes */
-	__int64_t st_blocks;		/* blocks allocated for file */
-	__uint32_t st_blksize;		/* optimal blocksize for I/O */
+	blkcnt_t st_blocks;		/* blocks allocated for file */
+	blksize_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	__uint32_t st_gen;		/* file generation number */
 	__int32_t st_lspare;
@@ -179,8 +187,8 @@ struct nstat {
 	struct	timespec st_mtimespec;	/* time of last data modification */
 	struct	timespec st_ctimespec;	/* time of last file status change */
 	off_t	  st_size;		/* file size, in bytes */
-	__int64_t st_blocks;		/* blocks allocated for file */
-	__uint32_t st_blksize;		/* optimal blocksize for I/O */
+	blkcnt_t st_blocks;		/* blocks allocated for file */
+	blksize_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	__uint32_t st_gen;		/* file generation number */
 	struct timespec st_birthtimespec; /* time of file creation */
@@ -250,7 +258,7 @@ struct nstat {
 #define	S_ISLNK(m)	(((m) & 0170000) == 0120000)	/* symbolic link */
 #define	S_ISSOCK(m)	(((m) & 0170000) == 0140000)	/* socket */
 #endif
-#if __XSI_VISIBLE
+#if __BSD_VISIBLE
 #define	S_ISWHT(m)	(((m) & 0170000) == 0160000)	/* whiteout */
 #endif
 
@@ -312,11 +320,15 @@ int	lchflags(const char *, int);
 int	lchmod(const char *, mode_t);
 #endif
 #if __POSIX_VISIBLE >= 200112
-int	lstat(const char *, struct stat *);
+int	lstat(const char * __restrict, struct stat * __restrict);
 #endif
 int	mkdir(const char *, mode_t);
 int	mkfifo(const char *, mode_t);
-int	stat(const char *, struct stat *);
+#if !defined(_MKNOD_DECLARED) && __XSI_VISIBLE
+int	mknod(const char *, mode_t, dev_t);
+#define	_MKNOD_DECLARED
+#endif
+int	stat(const char * __restrict, struct stat * __restrict);
 mode_t	umask(mode_t);
 __END_DECLS
 #endif /* !_KERNEL */
