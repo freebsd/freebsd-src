@@ -164,6 +164,28 @@ struct kg_sched {
 #define kg_runtime		kg_sched->skg_runtime
 #define kg_slptime		kg_sched->skg_slptime
 
+#define SLOT_RELEASE(kg)						\
+do {									\
+	kg->kg_avail_opennings++; 					\
+	CTR3(KTR_RUNQ, "kg %p(%d) Slot released (->%d)",		\
+	kg,								\
+	kg->kg_concurrency,						\
+	 kg->kg_avail_opennings);					\
+	/*KASSERT((kg->kg_avail_opennings <= kg->kg_concurrency),	\
+	    ("slots out of whack")); */					\
+} while (0)
+
+#define SLOT_USE(kg)							\
+do {									\
+	kg->kg_avail_opennings--; 					\
+	CTR3(KTR_RUNQ, "kg %p(%d) Slot used (->%d)",			\
+	kg,								\
+	kg->kg_concurrency,						\
+	 kg->kg_avail_opennings);					\
+	/*KASSERT((kg->kg_avail_opennings >= 0),			\
+	    ("slots out of whack"));*/ 					\
+} while (0)
+
 
 static struct kse kse0;
 static struct kg_sched kg_sched0;
@@ -1149,9 +1171,9 @@ schedinit(void)
 	/*
 	 * Set up the scheduler specific parts of proc0.
 	 */
-	ksegrp0.kg_sched = &kg_sched0;
 	proc0.p_sched = NULL; /* XXX */
-	thread0.td_kse = &kse0;
+	ksegrp0.kg_sched = &kg_sched0;
+	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
 	kse0.ke_oncpu = NOCPU; /* wrong.. can we use PCPU(cpuid) yet? */
 	kse0.ke_state = KES_THREAD;
@@ -1238,15 +1260,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	td->td_pflags &= ~TDP_OWEPREEMPT;
 
 	/*
-	 * If we bring in a thread, 
-	 * then account for it as if it had been added to the run queue and then chosen.
-	 */
-	if (newtd) {
-		newtd->td_ksegrp->kg_avail_opennings--;
-		newtd->td_kse->ke_flags |= KEF_DIDRUN;
-        	TD_SET_RUNNING(newtd);
-	}
-	/*
 	 * If the KSE has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
@@ -1255,7 +1268,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			TD_SET_CAN_RUN(td);
 		} else {
 			/* We are ending our run so make our slot available again */
-			td->td_ksegrp->kg_avail_opennings++;
+			SLOT_RELEASE(td->td_ksegrp);
 			if (TD_IS_RUNNING(td)) {
 				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 				/*
@@ -1278,9 +1291,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			}
 		}
 	}
-	if (newtd != NULL)
+	if (newtd != NULL) {
+		SLOT_USE(newtd->td_ksegrp);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
-	else
+	} else
 		newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);
@@ -1773,7 +1787,7 @@ sched_add_internal(struct thread *td, int preemptive)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
-	td->td_ksegrp->kg_avail_opennings--;
+	SLOT_USE(td->td_ksegrp);
 	ke->ke_ksegrp->kg_runq_threads++;
 	ke->ke_state = KES_ONRUNQ;
 
@@ -1801,7 +1815,7 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 
 	ke->ke_state = KES_THREAD;
-	td->td_ksegrp->kg_avail_opennings++;
+	SLOT_RELEASE(td->td_ksegrp);
 	ke->ke_ksegrp->kg_runq_threads--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);

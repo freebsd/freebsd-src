@@ -372,7 +372,7 @@ setrunqueue(struct thread *td, int flags)
 		sched_rem(tda);
 		tda = kg->kg_last_assigned =
 		    TAILQ_PREV(tda, threadqueue, td_runq);
-		kg->kg_avail_opennings++;
+		SLOT_RELEASE(kg);
 	}
 
 	/*
@@ -820,6 +820,7 @@ void
 sched_init_concurrency(struct ksegrp *kg)
 {
 
+	CTR1(KTR_RUNQ,"kg %p init slots and concurrency to 1", kg);
 	kg->kg_concurrency = 1;
 	kg->kg_avail_opennings = 1;
 }
@@ -836,7 +837,11 @@ void
 sched_set_concurrency(struct ksegrp *kg, int concurrency)
 {
 
-	/* Handle the case for a declining concurrency */
+	CTR4(KTR_RUNQ,"kg %p set concurrency to %d, slots %d -> %d",
+	    kg,
+	    concurrency,
+	    kg->kg_avail_opennings,
+	    kg->kg_avail_opennings + (concurrency - kg->kg_concurrency));
 	kg->kg_avail_opennings += (concurrency - kg->kg_concurrency);
 	kg->kg_concurrency = concurrency;
 }
@@ -854,7 +859,7 @@ void
 sched_thread_exit(struct thread *td)
 {
 
-	td->td_ksegrp->kg_avail_opennings++;
+	SLOT_RELEASE(td->td_ksegrp);
 	slot_fill(td->td_ksegrp);
 }
 
