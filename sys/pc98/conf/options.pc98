@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.57 1998/03/10 12:48:57 kato Exp $
+#	$Id: options.pc98,v 1.58 1998/03/17 09:10:51 kato Exp $
 BOUNCEPAGES		opt_bounce.h
 DISABLE_PSE
 USER_LDT
@@ -119,6 +119,9 @@ PCVT_SCANSET		opt_pcvt.h
 PCVT_SCREENSAVER	opt_pcvt.h
 PCVT_USEKBDSEC		opt_pcvt.h
 PCVT_VT220KEYB		opt_pcvt.h
+# give bktr an opt_bktr.h file
+OVERRIDE_TUNER		opt_bktr.h
+
 
 # bs driver options
 SCSI_BOUNCE_SIZE	opt_bs.h
