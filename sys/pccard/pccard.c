@@ -43,12 +43,12 @@
 #include <sys/malloc.h>
 #include <sys/devconf.h>
 
-#include <pccard/card.h>
-#include <pccard/slot.h>
-
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+
+#include <pccard/card.h>
+#include <pccard/slot.h>
 
 
 extern struct kern_devconf kdc_cpu0;
