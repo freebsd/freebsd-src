@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.89 1999/05/11 19:54:59 phk Exp $
+ * $Id: systm.h,v 1.90 1999/05/31 20:42:41 dt Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -314,5 +314,5 @@ udev_t dev2udev(dev_t x);
 dev_t udev2dev(udev_t x, int b);
 int uminor(udev_t dev);
 int umajor(udev_t dev);
-udev_t umakedev(int x, int y);
+udev_t makeudev(int x, int y);
 #endif /* !_SYS_SYSTM_H_ */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c  8.8 (Berkeley) 7/31/95
- * $Id: nfs_serv.c,v 1.79 1999/06/23 04:44:11 julian Exp $
+ * $Id: nfs_serv.c,v 1.80 1999/06/30 04:29:13 julian Exp $
  */
 
 /*
@@ -1875,7 +1875,7 @@ nfsrv_mknod(nfsd, slp, procp, mrq)
 		nfsm_dissect(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		major = fxdr_unsigned(u_int32_t, *tl++);
 		minor = fxdr_unsigned(u_int32_t, *tl);
-		vap->va_rdev = umakedev(major, minor);
+		vap->va_rdev = makeudev(major, minor);
 	}
 
 	/*
