@@ -188,15 +188,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
 	/* Shortcut to OK? */
 	if (toupper(key) == okButton) {
 	    if (ditems && result && ditems[OK_BUTTON].fire) {
-		WINDOW *w;
-		int x;
-
-		w = dupwin(newscr);
-		x = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		touchwin(w);
-		wrefresh(w);
-		delwin(w);
-		if (x == DITEM_FAILURE)
+		if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
 		    continue;
 		else
 		    delwin(dialog);
@@ -210,15 +202,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
 	/* Shortcut to cancel? */
 	else if (toupper(key) == cancelButton) {
 	    if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-		WINDOW *w;
-		int x;
-
-		w = dupwin(newscr);
-		x = ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]);
-		touchwin(w);
-		wrefresh(w);
-		delwin(w);
-		if (x == DITEM_FAILURE)
+		if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
 		    continue;
 	    }
 	    delwin(dialog);
@@ -375,15 +359,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
 	case '\n':
 	    if (!button) {
 		if (ditems && ditems[scroll + choice].fire) {
-		    WINDOW *w;
-		    int x;
-
-		    w = dupwin(newscr);
-		    x = ditems[scroll + choice].fire(&ditems[scroll + choice]);
-		    touchwin(w);
-		    wrefresh(w);
-		    delwin(w);
-		    if (x == DITEM_FAILURE)
+		    if (ditems[scroll + choice].fire(&ditems[scroll + choice]) == DITEM_FAILURE)
 			continue;
 		}
 		else if (result)
