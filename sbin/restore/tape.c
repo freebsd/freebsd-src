@@ -87,6 +87,7 @@ static char	lnkbuf[MAXPATHLEN + 1];
 static int	pathlen;
 
 int		Bcvt;		/* Swap Bytes */
+int		oldinofmt;	/* FreeBSD 1 inode format needs cvt */
 
 #define	FLUSHTAPEBUF()	blkcnt = ntrec + 1
 
@@ -1086,6 +1087,8 @@ gethead(struct s_spcl *buf)
 
 	case TS_TAPE:
 		if (buf->c_magic == NFS_MAGIC) {
+			if ((buf->c_flags & NFS_DR_NEWINODEFMT) == 0)
+				oldinofmt = 1;
 			buf->c_date = _time32_to_time(buf->c_old_date);
 			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
 			buf->c_tapea = buf->c_old_tapea;
@@ -1116,6 +1119,14 @@ gethead(struct s_spcl *buf)
 	default:
 		panic("gethead: unknown inode type %d\n", buf->c_type);
 		break;
+	}
+	/*
+	 * If we're restoring a filesystem with the old (FreeBSD 1)
+	 * format inodes, copy the uid/gid to the new location
+	 */
+	if (oldinofmt) {
+		buf->c_uid = buf->c_spare1[1];
+		buf->c_gid = buf->c_spare1[2];
 	}
 	buf->c_magic = FS_UFS2_MAGIC;
 	tapeaddr = buf->c_tapea;

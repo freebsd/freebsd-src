@@ -60,6 +60,7 @@ extern time_t	dumpdate;	/* time that this dump was made */
 extern char	command;	/* opration being performed */
 extern FILE	*terminal;	/* file descriptor for the terminal input */
 extern int	Bcvt;		/* need byte swapping on inodes and dirs */
+extern int	oldinofmt;	/* reading tape with FreeBSD 1 format inodes */
 
 /*
  * Each file in the file system is described by one of these entries
@@ -146,3 +147,5 @@ typedef struct rstdirdesc RST_DIR;
 
 #define GOOD 1
 #define FAIL 0
+
+#define NFS_DR_NEWINODEFMT	0x2	/* Tape uses 4.4 BSD inode format */
