@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.47 1998/03/08 09:58:22 julian Exp $
+ * $Id: buf.h,v 1.48 1998/03/16 01:55:33 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -106,7 +106,6 @@ struct buf {
 	struct	vnode *b_vp;		/* Device vnode. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
-	int	b_generation;	/* Generation count of buffer */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	int	b_validoff;		/* Offset in buffer of valid region. */
@@ -162,6 +161,8 @@ struct buf {
 #define B_VMIO		0x20000000	/* VMIO flag */
 #define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
 #define B_BOUNCE	0x80000000	/* bounce buffer flag */
+
+#define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
 typedef struct buf_queue_head {
 	TAILQ_HEAD(, buf) queue;
