@@ -35,9 +35,11 @@
  */
 
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -159,6 +161,9 @@ icmp_error(n, type, code, dest, destifp)
 	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		goto freeit;
+#ifdef MAC
+	mac_create_mbuf_netlayer(n, m);
+#endif
 	icmplen = min(oiplen + 8, oip->ip_len);
 	if (icmplen < sizeof(struct ip))
 		panic("icmp_error: bad length");
