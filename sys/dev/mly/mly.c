@@ -153,19 +153,19 @@ DRIVER_MODULE(mly, pci, mly_pci_driver, mly_devclass, 0, 0);
 #define MLY_CDEV_MAJOR  158
 
 static struct cdevsw mly_cdevsw = {
-    mly_user_open,
-    mly_user_close,
-    noread,
-    nowrite,
-    mly_user_ioctl,
-    nopoll,
-    nommap,
-    nostrategy,
-    "mly",
-    MLY_CDEV_MAJOR,
-    nodump,
-    nopsize,
-    0
+	/* open */	mly_user_open,
+	/* close */	mly_user_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	mly_user_ioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"mly",
+	/* maj */	MLY_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0
 };
 
 /********************************************************************************
