@@ -166,6 +166,7 @@ spec_open(ap)
 	dev_t bdev, dev = vp->v_rdev;
 	int error;
 	struct cdevsw *dsw;
+	const char *cp;
 
 	/*
 	 * Don't allow open if fs is mounted -nodev.
@@ -255,6 +256,14 @@ spec_open(ap)
 	if (vn_isdisk(vp)) {
 		if (!dev->si_bsize_phys)
 			dev->si_bsize_phys = DEV_BSIZE;
+	}
+	if ((dsw->d_flags & D_DISK) == 0) {
+		cp = devtoname(dev);
+		if (*cp == '#' && (dsw->d_flags & D_NAGGED) == 0) {
+			printf("WARNING: driver %s should register devices with make_dev() (dev_t = \"%s\")\n",
+			    dsw->d_name, cp);
+			dsw->d_flags |= D_NAGGED;	
+		}
 	}
 	return (error);
 }
