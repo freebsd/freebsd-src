@@ -380,7 +380,7 @@ sub update_group_file {
     chown($group_uid, $group_gid, $new_group_file) ||
 	print STDERR "\n${whoami}: Warning: could not set owner/group of new group file to ${group_uid}/${group_gid} ($!)\n\rContinuing, but please check ownership of $group_file!\n";
     while ($i = <GROUP>) {
-	if (!($i =~ /$login_name/)) {
+	if (!($i =~ /\Q$login_name\E/)) {
 	    # Line doesn't contain any references to the user, so just add it
 	    # to the new file
 	    print NEW_GROUP $i;
