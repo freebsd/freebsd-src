@@ -76,7 +76,6 @@ static int	ed_ioctl	__P((struct ifnet *, u_long, caddr_t));
 static void	ed_start	__P((struct ifnet *));
 static void	ed_reset	__P((struct ifnet *));
 static void	ed_watchdog	__P((struct ifnet *));
-static void	ed_stop		__P((struct ed_softc *));
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_long *));
 
@@ -1719,7 +1718,7 @@ ed_reset(ifp)
 /*
  * Take interface offline.
  */
-static void
+void
 ed_stop(sc)
 	struct ed_softc *sc;
 {

@@ -102,6 +102,7 @@ int	ed_probe_Novell_generic	__P((device_t, int, int));
 int	ed_probe_HP_pclanp	__P((device_t));
 
 int	ed_attach		__P((struct ed_softc *, int, int));
+void	ed_stop			__P((struct ed_softc *));
 
 driver_intr_t	edintr;
 
