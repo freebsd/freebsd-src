@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.18 1998/05/10 19:04:06 hoek Exp $";
+	"$Id: newsyslog.c,v 1.19 1998/05/10 21:13:29 hoek Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -83,6 +83,7 @@ struct conf_entry {
         int     hours;          /* Hours between log trimming */
         int     permissions;    /* File permissions on the log */
         int     flags;          /* Flags (CE_COMPACT & CE_BINARY)  */
+	int     sig;            /* Signal to send */
         struct conf_entry       *next; /* Linked list pointer */
 };
 
@@ -108,7 +109,7 @@ static char *missing_field(char *p,char *errline);
 static void do_entry(struct conf_entry *ent);
 static void PRS(int argc,char **argv);
 static void usage();
-static void dotrim(char *log,char *pid_file,int numdays,int falgs,int perm, int owner_uid,int group_gid);
+static void dotrim(char *log,char *pid_file,int numdays,int falgs,int perm,int owner_uid,int group_gid,int sig);
 static int log_trim(char *log);
 static void compress_log(char *log);
 static int sizefile(char *file);
@@ -181,7 +182,7 @@ static void do_entry(ent)
 					pid_file = NULL;
 			}
                         dotrim(ent->log, pid_file, ent->numlogs,
-			    ent->flags, ent->permissions, ent->uid, ent->gid);
+			    ent->flags, ent->permissions, ent->uid, ent->gid, ent->sig);
                 } else {
                         if (verbose)
                                 printf("--> skipping\n");
@@ -374,15 +375,40 @@ static struct conf_entry *parse_file()
 		  q = NULL;
 		else {
 		  q = parse = sob(++parse); /* Optional field */
-		  *(parse = son(parse)) = '\0';
+                  parse = son(parse);
+		  if (!*parse)
+                    eol = 1;
+                  *parse = '\0';
 		}
 
 		working->pid_file = NULL;
 		if (q && *q) {
 			if (*q == '/')
 				working->pid_file = strdup(q);
+			else if (isdigit(*q))
+				goto got_sig;
                         else
-			   errx(1, "illegal pid file in config file:\n%s", q);
+			   errx(1, "illegal pid file or signal number in config file:\n%s", errline);
+		}
+
+		if (eol)
+		  q = NULL;
+		else {
+		  q = parse = sob(++parse); /* Optional field */
+		  *(parse = son(parse)) = '\0';
+		}
+
+		working->sig = SIGHUP;
+		if (q && *q) {
+			if (isdigit(*q)) {
+			got_sig:
+				working->sig = atoi(q);
+			} else {
+			err_sig:
+			   errx(1, "illegal signal number in config file:\n%s", errline);
+			}
+			if (working->sig < 1 || working->sig >= NSIG)
+				goto err_sig;
 		}
 
                 free(errline);
@@ -401,7 +427,7 @@ static char *missing_field(p,errline)
         return(p);
 }
 
-static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
+static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid,sig)
         char    *log;
 	char    *pid_file;
         int     numdays;
@@ -409,6 +435,7 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
         int     perm;
         int     owner_uid;
         int     group_gid;
+	int     sig;
 {
         char    file1 [MAXPATHLEN+1], file2 [MAXPATHLEN+1];
         char    zfile1[MAXPATHLEN+1], zfile2[MAXPATHLEN+1];
@@ -504,8 +531,8 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
 	if (pid) {
 		if (noaction) {
 			notified = 1;
-			printf("kill -HUP %d\n", (int)pid);
-		} else if (kill(pid,SIGHUP))
+			printf("kill -%d %d\n", sig, (int)pid);
+		} else if (kill(pid,sig))
 			warn("can't notify daemon, pid %d", (int)pid);
 		else {
 			notified = 1;
