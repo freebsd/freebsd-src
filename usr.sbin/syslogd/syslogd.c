@@ -439,6 +439,7 @@ main(argc, argv)
 #define SUN_LEN(unp) (strlen((unp)->sun_path) + 2)
 #endif
 	for (i = 0; i < nfunix; i++) {
+		(void)unlink(funixn[i]);
 		memset(&sunx, 0, sizeof(sunx));
 		sunx.sun_family = AF_UNIX;
 		(void)strlcpy(sunx.sun_path, funixn[i], sizeof(sunx.sun_path));
