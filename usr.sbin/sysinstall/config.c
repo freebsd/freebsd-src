@@ -1046,6 +1046,7 @@ configEtcTtys(dialogMenuItem *self)
 		 "configuration.\n\n"
 		 "To load /etc/ttys in the editor, select [Yes], otherwise, [No].")) {
     } else {
+	configTtys();
 	sprintf(cmd, "%s /etc/ttys", variable_get(VAR_EDITOR));
 	dialog_clear();
 	systemExecute(cmd);
