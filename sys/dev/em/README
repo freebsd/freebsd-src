@@ -2,7 +2,7 @@ $FreeBSD$
 FreeBSD* Driver for the Intel(R) PRO/1000 Family of Adapters
 ============================================================
 
-February 5, 2003
+April 13, 2003
 
 
 Contents
@@ -65,6 +65,8 @@ release:
 
    82546       PRO/1000 MF Dual Port Server Adapter A91620-xxx
 
+   82546EB     PRO/1000 MT Quad Port Server Adapter C11227-xxx 
+
 
 
 To verify your Intel adapter is supported, find the board ID number on the
@@ -126,7 +128,7 @@ name of the driver tar file.
 
         cp if_em* /usr/src/sys/dev/em
 
-        cp Makefile /usr/src/sys/modules/em
+        cp Makefile.kernel /usr/src/sys/modules/em/Makefile
 
    Edit the /usr/src/sys/conf/files.i386 file, and add the following lines:
 
