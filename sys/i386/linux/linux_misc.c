@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.39 1998/07/10 22:30:01 jkh Exp $
+ *  $Id: linux_misc.c,v 1.40 1998/07/29 16:43:00 bde Exp $
  */
 
 #include <sys/param.h>
@@ -67,36 +67,31 @@ linux_alarm(struct proc *p, struct linux_alarm_args *args)
     int s;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): alarm(%d)\n", p->p_pid, args->secs);
+    printf("Linux-emul(%ld): alarm(%u)\n", (long)p->p_pid, args->secs);
 #endif
+    if (args->secs > 100000000)
+	return EINVAL;
     it.it_value.tv_sec = (long)args->secs;
     it.it_value.tv_usec = 0;
     it.it_interval.tv_sec = 0;
     it.it_interval.tv_usec = 0;
-    s = splclock(); /* XXX Still needed ? */
+    s = splsoftclock();
     old_it = p->p_realtimer;
-    getmicrotime(&tv);
+    getmicrouptime(&tv);
     if (timevalisset(&old_it.it_value))
-	if (timevalcmp(&old_it.it_value, &tv, <))
-	    timevalclear(&old_it.it_value);
-	else
-	    timevalsub(&old_it.it_value, &tv);
-    splx(s);
-    if (itimerfix(&it.it_value) || itimerfix(&it.it_interval))
-	return EINVAL;
-    s = splclock(); /* XXX Still needed ? */
-    if (timevalisset(&p->p_realtimer.it_value))
-	    untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
-    getmicrotime(&tv);
-    if (timevalisset(&it.it_value)) {
+	untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+    if (it.it_value.tv_sec != 0) {
+	p->p_ithandle = timeout(realitexpire, (caddr_t)p, tvtohz(&it.it_value));
 	timevaladd(&it.it_value, &tv);
-	p->p_ithandle = timeout(realitexpire, (caddr_t)p, hzto(&it.it_value));
     }
     p->p_realtimer = it;
     splx(s);
-    if (old_it.it_value.tv_usec)
-	old_it.it_value.tv_sec++;
-    p->p_retval[0] = old_it.it_value.tv_sec;
+    if (timevalcmp(&old_it.it_value, &tv, >)) {
+	timevalsub(&old_it.it_value, &tv);
+	if (old_it.it_value.tv_usec != 0)
+	    old_it.it_value.tv_sec++;
+	p->p_retval[0] = old_it.it_value.tv_sec;
+    }
     return 0;
 }
 
