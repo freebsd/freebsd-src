@@ -34,7 +34,7 @@
 .Nm zinit ,
 .Nm zalloc ,
 .Nm zfree
-.Nd Zone allocator
+.Nd zone allocator
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <vm/vm_zone.h>
@@ -117,7 +117,7 @@ up, the initialization of the zone is completed by calling
 The first argument to
 .Fn zbootinit
 is a pointer to a static
-.Fa struct vm_zone
+.Vt "struct vm_zone"
 to initialize.
 The second and third are the name of the zone and the size of the
 items it will hold.
@@ -133,7 +133,7 @@ are the same as for
 .Fa zinit ,
 with the addition of a pointer to the zone to initialize, and a
 pointer to a
-.Fa struct vm_object
+.Vt "struct vm_object"
 from which to allocate pages in the
 .Dv ZONE_INTERRUPT
 case.
@@ -158,13 +158,13 @@ is inability to preallocate address space for an interrupt-safe zone.
 The
 .Fn zinit
 function returns a pointer to a fully initialized
-.Fa struct vm_zone ,
+.Vt "struct vm_zone" ,
 or
 .Dv NULL
 if it was unable to
 .Fn malloc
 a
-.Fa struct vm_zone
+.Vt "struct vm_zone"
 or the
 .Dv ZONE_INTERRUPT
 flag was specified and
