@@ -189,6 +189,8 @@ extern u_int16_t ip_divert_cookie;
 
 extern struct sockaddr_in *ip_fw_fwd_addr;
 
+void	in_delayed_cksum(struct mbuf *m);
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */
