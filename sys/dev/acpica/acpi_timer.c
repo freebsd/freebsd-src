@@ -31,11 +31,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#if __FreeBSD_version >= 500000
 #include <sys/timetc.h>
-#else
-#include <sys/time.h>
-#endif
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -63,12 +59,12 @@ static u_int	acpi_timer_frequency = 14318182 / 4;
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
-static unsigned	acpi_timer_get_timecount(struct timecounter *tc);
-static unsigned	acpi_timer_get_timecount_safe(struct timecounter *tc);
+static u_int	acpi_timer_get_timecount(struct timecounter *tc);
+static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
 static void	acpi_timer_test(void);
 
-static uint32_t read_counter(void);
+static u_int	read_counter(void);
 static int	test_counter(void);
 
 static device_method_t acpi_timer_methods[] = {
@@ -90,20 +86,20 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
 MODULE_DEPEND(acpi_timer, acpi, 1, 1, 1);
 
 static struct timecounter acpi_timer_timecounter = {
-	acpi_timer_get_timecount_safe,
-	0,
-	0xffffff,
-	0,
-	"ACPI",
-	1000
+	.tc_get_timecount =	acpi_timer_get_timecount_safe,
+	.tc_poll_pps =		0,
+	.tc_counter_mask =	0,
+	.tc_frequency =		0,
+	.tc_name =		"ACPI",
+	.tc_quality =		1000
 };
 
-static uint32_t
+static u_int
 read_counter()
 {
     bus_space_handle_t bsh;
     bus_space_tag_t bst;
-    u_int32_t tv;
+    uint32_t tv;
 
     bsh = rman_get_bushandle(acpi_timer_reg);
     bst = rman_get_bustag(acpi_timer_reg);
@@ -117,7 +113,7 @@ read_counter()
 static int
 test_counter()
 {
-    u_int	last, this;
+    uint32_t	last, this;
     int		min, max, n, delta;
 
     min = 10000000;
@@ -125,7 +121,7 @@ test_counter()
     last = read_counter();
     for (n = 0; n < N; n++) {
 	this = read_counter();
-	delta = (this - last) & 0xffffff;
+	delta = acpi_TimerDelta(this, last);
 	if (delta > max)
 	    max = delta;
 	else if (delta < min)
@@ -164,7 +160,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 
     if (acpi_disabled("timer") || AcpiGbl_FADT == NULL)
 	return_VOID;
-    
+
     if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
 	device_printf(parent, "could not add acpi_timer0\n");
 	return_VOID;
@@ -183,12 +179,16 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 		      rtype == SYS_RES_IOPORT ? "port" : "mem", rstart);
 	return_VOID;
     }
+    if (AcpiGbl_FADT->TmrValExt != 0)
+	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
+    else
+	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
+    acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     if (testenv("debug.acpi.timer_test"))
 	acpi_timer_test();
 
-    acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     j = 0;
-    for(i = 0; i < 10; i++)
+    for (i = 0; i < 10; i++)
 	j += test_counter();
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
@@ -224,7 +224,7 @@ acpi_timer_attach(device_t dev)
 /*
  * Fetch current time value from reliable hardware.
  */
-static unsigned
+static u_int
 acpi_timer_get_timecount(struct timecounter *tc)
 {
     return (read_counter());
@@ -234,10 +234,10 @@ acpi_timer_get_timecount(struct timecounter *tc)
  * Fetch current time value from hardware that may not correctly
  * latch the counter.
  */
-static unsigned
+static u_int
 acpi_timer_get_timecount_safe(struct timecounter *tc)
 {
-    unsigned u1, u2, u3;
+    u_int u1, u2, u3;
 
     u2 = read_counter();
     u3 = read_counter();
@@ -281,12 +281,12 @@ SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq, CTLTYPE_INT | CTLFLAG_RW,
 static void
 acpi_timer_test(void)
 {
-    u_int32_t	u1, u2, u3;
-    
+    uint32_t u1, u2, u3;
+
     u1 = read_counter();
     u2 = read_counter();
     u3 = read_counter();
-    
+
     device_printf(acpi_timer_dev, "timer test in progress, reboot to quit.\n");
     for (;;) {
 	/*
@@ -304,87 +304,3 @@ acpi_timer_test(void)
 	u3 = read_counter();
     }
 }
-
-/*
- * Chipset workaround driver hung off PCI.
- *
- * Some ACPI timers are known or believed to suffer from implementation
- * problems which can lead to erroneous values being read from the timer.
- *
- * Since we can't trust unknown chipsets, we default to a timer-read
- * routine which compensates for the most common problem (as detailed
- * in the excerpt from the Intel PIIX4 datasheet below).
- *
- * When we detect a known-functional chipset, we disable the workaround
- * to improve speed.
- *
- * ] 20. ACPI Timer Errata
- * ]
- * ]   Problem: The power management timer may return improper result when
- * ]   read. Although the timer value settles properly after incrementing,
- * ]   while incrementing there is a 3nS window every 69.8nS where the
- * ]   timer value is indeterminate (a 4.2% chance that the data will be
- * ]   incorrect when read). As a result, the ACPI free running count up
- * ]   timer specification is violated due to erroneous reads.  Implication:
- * ]   System hangs due to the "inaccuracy" of the timer when used by
- * ]   software for time critical events and delays.
- * ]
- * ] Workaround: Read the register twice and compare.
- * ] Status: This will not be fixed in the PIIX4 or PIIX4E, it is fixed
- * ] in the PIIX4M.
- *
- * The counter is in other words not latched to the PCI bus clock when
- * read.  Notice the workaround isn't:  We need to read until we have
- * three monotonic samples and then use the middle one, otherwise we are
- * not protected against the fact that the bits can be wrong in two
- * directions.  If we only cared about monosity two reads would be enough.
- */
-
-#if 0
-static int	acpi_timer_pci_probe(device_t dev);
-
-static device_method_t acpi_timer_pci_methods[] = {
-    DEVMETHOD(device_probe,	acpi_timer_pci_probe),
-    {0, 0}
-};
-
-static driver_t acpi_timer_pci_driver = {
-    "acpi_timer_pci",
-    acpi_timer_pci_methods,
-    0,
-};
-
-devclass_t acpi_timer_pci_devclass;
-DRIVER_MODULE(acpi_timer_pci, pci, acpi_timer_pci_driver,
-	      acpi_timer_pci_devclass, 0, 0);
-
-/*
- * Look at PCI devices going past; if we detect one we know contains
- * a functional ACPI timer device, enable the faster timecounter read
- * routine.
- */
-static int
-acpi_timer_pci_probe(device_t dev)
-{
-    int vendor, device, revid;
-    
-    vendor = pci_get_vendor(dev);
-    device = pci_get_device(dev);
-    revid  = pci_get_revid(dev);
-    
-    /* Detect the PIIX4M and i440MX, respectively */
-    if ((vendor == 0x8086 && device == 0x7113 && revid >= 0x03)	||
-	(vendor == 0x8086 && device == 0x719b)) {
-
-	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
-	acpi_timer_timecounter.tc_name = "ACPI-fast";
-	if (bootverbose) {
-	    device_printf(acpi_timer_dev,"functional ACPI timer detected, "
-			  "enabling fast timecount interface\n");
-	}
-    }
-
-    /* We never match anything */
-    return (ENXIO);
-}
-#endif
