@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: ppp-user
-# REQUIRE: network1
+# REQUIRE: network1 isdnd
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
