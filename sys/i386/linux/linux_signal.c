@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.11 1998/07/29 16:43:00 bde Exp $
+ *  $Id: linux_signal.c,v 1.12 1998/08/15 22:29:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,7 @@ linux_to_bsd_sigset(linux_sigset_t mask) {
     int b, l;
     sigset_t new = 0;
 
-    for (l = 1; l <= LINUX_NSIG; l++) {
+    for (l = 1; l < LINUX_NSIG; l++) {
 	if (mask & (1 << (l - 1))) {
 	    if ((b = linux_to_bsd_signal[l]))
 		new |= (1 << (b - 1));
@@ -57,7 +57,7 @@ bsd_to_linux_sigset(sigset_t mask) {
     int b, l;
     sigset_t new = 0;
 
-    for (b = 1; b <= NSIG; b++) {
+    for (b = 1; b < NSIG; b++) {
 	if (mask & (1 << (b - 1))) {
 	    if ((l = bsd_to_linux_signal[b]))
 		new |= (1 << (l - 1));
@@ -116,7 +116,8 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
     printf("Linux-emul(%ld): sigaction(%d, %p, %p)\n",
 	(long)p->p_pid, args->sig, (void *)args->nsa, (void *)args->osa);
 #endif
-
+    if (args->sig <= 0 || args->sig >= LINUX_NSIG)
+	return EINVAL;
     if (args->osa)
 	osa = (struct sigaction *)stackgap_alloc(&sg, sizeof(struct sigaction));
 
@@ -156,6 +157,8 @@ linux_signal(struct proc *p, struct linux_signal_args *args)
     printf("Linux-emul(%ld): signal(%d, %p)\n",
 	(long)p->p_pid, args->sig, (void *)args->handler);
 #endif
+    if (args->sig <= 0 || args->sig >= LINUX_NSIG)
+	return EINVAL;
     sg = stackgap_init();
     nsa = stackgap_alloc(&sg, sizeof *nsa);
     osa = stackgap_alloc(&sg, sizeof *osa);
@@ -307,6 +310,8 @@ linux_kill(struct proc *p, struct linux_kill_args *args)
     printf("Linux-emul(%d): kill(%d, %d)\n", 
 	   p->p_pid, args->pid, args->signum);
 #endif
+    if (args->signum <= 0 || args->signum >= LINUX_NSIG)
+	return EINVAL;
     tmp.pid = args->pid;
     tmp.signum = linux_to_bsd_signal[args->signum];
     return kill(p, &tmp);
