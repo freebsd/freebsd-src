@@ -26,7 +26,7 @@
 #include "defs.h"
 #include <netinet/in.h>
 #include "timeout.h"
-#include <sys/cdefs.h>
+#include "cdefs.h"
 
 /*
  *  State of machine
