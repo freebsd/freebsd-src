@@ -124,6 +124,12 @@ static int	pccard_setup_intr(device_t dev, device_t child,
 static int	pccard_teardown_intr(device_t dev, device_t child,
 		    struct resource *r, void *cookie);
 
+static const struct pccard_product *
+pccard_do_product_lookup(device_t bus, device_t dev,
+			 const struct pccard_product *tab, size_t ent_size,
+			 pccard_product_match_fn matchfn);
+
+
 static int
 pccard_ccr_read(struct pccard_function *pf, int ccr)
 {
@@ -276,9 +282,10 @@ pccard_detach_card(device_t dev, int flags)
 	return (0);
 }
 
-const struct pccard_product *
-pccard_product_lookup(device_t dev, const struct pccard_product *tab,
-    size_t ent_size, pccard_product_match_fn matchfn)
+static const struct pccard_product *
+pccard_do_product_lookup(device_t bus, device_t dev,
+			 const struct pccard_product *tab, size_t ent_size,
+			 pccard_product_match_fn matchfn)
 {
 	const struct pccard_product *ent;
 	int matches;
@@ -1255,6 +1262,7 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
 	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
 	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
+	DEVMETHOD(card_do_product_lookup, pccard_do_product_lookup),
 
 	{ 0, 0 }
 };

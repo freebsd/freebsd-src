@@ -27,6 +27,7 @@
 #
 
 #include <sys/bus.h>
+#include <dev/pccard/pccardvar.h>
 
 INTERFACE card;
 
@@ -196,6 +197,13 @@ METHOD int compat_do_attach {
 	device_t dev;
 } DEFAULT null_do_attach;
 
+METHOD struct pccard_product * do_product_lookup {
+	device_t bus;
+	device_t dev;
+	const struct pccard_product *tab;
+	size_t ent_size;
+	pccard_product_match_fn matchfn;
+}
 #
 # Helper method for the above.  When a compatibility driver is converted,
 # one must write a match routine.  This routine is unused on OLDCARD but
