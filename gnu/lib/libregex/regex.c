@@ -4847,6 +4847,7 @@ re_exec (s)
 /* POSIX.2 functions.  Don't define these for Emacs.  */
 
 #ifndef emacs
+#if !NO_POSIX_COMPAT
 
 /* regcomp takes a regular expression as a string and compiles it.
 
@@ -5088,6 +5089,7 @@ regfree (preg)
   preg->translate = NULL;
 }
 
+#endif /* !NO_POSIX_COMPAT */
 #endif /* not emacs  */
 
 /*
