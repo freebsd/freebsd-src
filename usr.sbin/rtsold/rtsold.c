@@ -1,3 +1,5 @@
+/*	$KAME: rtsold.c,v 1.26 2000/08/13 18:17:15 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -48,11 +50,13 @@
 #include <errno.h>
 #include <err.h>
 #include <stdarg.h>
+#include <ifaddrs.h>
 #include "rtsold.h"
 
 struct ifinfo *iflist;
 struct timeval tm_max =	{0x7fffffff, 0x7fffffff};
-int dflag;
+int aflag = 0;
+int dflag = 0;
 static int log_upto = 999;
 static int fflag = 0;
 
@@ -99,6 +103,7 @@ static void TIMEVAL_SUB __P((struct timeval *a, struct timeval *b,
 
 static void rtsold_set_dump_file __P((void));
 static void usage __P((char *progname));
+static char **autoifprobe __P((void));
 
 int
 main(argc, argv)
@@ -121,35 +126,60 @@ main(argc, argv)
 	if (argv0 && argv0[strlen(argv0) - 1] != 'd') {
 		fflag = 1;
 		once = 1;
-		opts = "dD";
+		opts = "adD";
 	} else
-		opts = "dDfm1";
+		opts = "adDfm1";
 
 	while ((ch = getopt(argc, argv, opts)) != -1) {
-		switch(ch) {
-		 case 'd':
-			 dflag = 1;
-			 break;
-		 case 'D':
-			 dflag = 2;
-			 break;
-		 case 'f':
-			 fflag = 1;
-			 break;
-		 case 'm':
-			 mobile_node = 1;
-			 break;
-		 case '1':
-			 once = 1;
-			 break;
-		 default:
-			 usage(argv0);
+		switch (ch) {
+		case 'a':
+			aflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
+			break;
+		case 'D':
+			dflag = 2;
+			break;
+		case 'f':
+			fflag = 1;
+			break;
+		case 'm':
+			mobile_node = 1;
+			break;
+		case '1':
+			once = 1;
+			break;
+		default:
+			usage(argv0);
+			/*NOTREACHED*/
 		}
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc == 0)
+
+	if (aflag) {
+		int i;
+
+		if (argc != 0) {
+			usage(argv0);
+			/*NOTREACHED*/
+		}
+
+		argv = autoifprobe();
+		if (!argv) {
+			errx(1, "could not autoprobe interface");
+			/*NOTREACHED*/
+		}
+
+		for (i = 0; argv[i]; i++)
+			;
+		argc = i;
+	}
+	if (argc == 0) {
 		usage(argv0);
+		/*NOTREACHED*/
+	}
 
 	/* set log level */
 	if (dflag == 0)
@@ -174,31 +204,44 @@ main(argc, argv)
 	/* warn if accept_rtadv is down */
 	if (!getinet6sysctl(IPV6CTL_ACCEPT_RTADV))
 		warnx("kernel is configured not to accept RAs");
+	/* warn if forwarding is up */
+	if (getinet6sysctl(IPV6CTL_FORWARDING))
+		warnx("kernel is configured as a router, not a host");
 
 	/* initialization to dump internal status to a file */
-	if (signal(SIGUSR1, (void *)rtsold_set_dump_file) < 0)
+	if (signal(SIGUSR1, (void *)rtsold_set_dump_file) < 0) {
 		errx(1, "failed to set signal for dump status");
+		/*NOTREACHED*/
+	}
 
 	/*
 	 * Open a socket for sending RS and receiving RA.
 	 * This should be done before calling ifinit(), since the function
 	 * uses the socket.
 	 */
-	if ((s = sockopen()) < 0)
+	if ((s = sockopen()) < 0) {
 		errx(1, "failed to open a socket");
+		/*NOTREACHED*/
+	}
 
 	/* configuration per interface */
-	if (ifinit())
+	if (ifinit()) {
 		errx(1, "failed to initilizatoin interfaces");
+		/*NOTREACHED*/
+	}
 	while (argc--) {
-		if (ifconfig(*argv))
+		if (ifconfig(*argv)) {
 			errx(1, "failed to initialize %s", *argv);
+			/*NOTREACHED*/
+		}
 		argv++;
 	}
 
 	/* setup for probing default routers */
-	if (probe_init())
+	if (probe_init()) {
 		errx(1, "failed to setup for probing routers");
+		/*NOTREACHED*/
+	}
 
 	if (!fflag)
 		daemon(0, 0);		/* act as a daemon */
@@ -210,7 +253,7 @@ main(argc, argv)
 
 		if ((fp = fopen(pidfilename, "w")) == NULL)
 			warnmsg(LOG_ERR, __FUNCTION__,
-				"failed to open a log file(%s)",
+				"failed to open a log file(%s): %s",
 				pidfilename, strerror(errno));
 		else {
 			fprintf(fp, "%d\n", pid);
@@ -432,7 +475,7 @@ rtsol_check_timer()
 				       "state = %d", ifinfo->ifname,
 				       ifinfo->state);
 
-			switch(ifinfo->state) {
+			switch (ifinfo->state) {
 			case IFS_DOWN:
 			case IFS_TENTATIVE:
 				/* interface_up returns 0 on success */
@@ -510,8 +553,8 @@ rtsol_check_timer()
 		TIMEVAL_SUB(&rtsol_timer, &now, &returnval);
 
 	if (dflag > 1)
-		warnmsg(LOG_DEBUG, __FUNCTION__, "New timer is %d:%08d",
-		       returnval.tv_sec, returnval.tv_usec);
+		warnmsg(LOG_DEBUG, __FUNCTION__, "New timer is %ld:%08ld",
+			(long)returnval.tv_sec, (long)returnval.tv_usec);
 
 	return(&returnval);
 }
@@ -630,10 +673,13 @@ rtsold_set_dump_file()
 static void
 usage(char *progname)
 {
-	if (progname && progname[strlen(progname) - 1] != 'd')
-		fprintf(stderr, "usage: rtsol [-dD] interfaces\n");
-	else
-		fprintf(stderr, "usage: rtsold [-dDfm1] interfaces\n");
+	if (progname && progname[strlen(progname) - 1] != 'd') {
+		fprintf(stderr, "usage: rtsol [-dD] interfaces...\n");
+		fprintf(stderr, "usage: rtsol [-dD] -a\n");
+	} else {
+		fprintf(stderr, "usage: rtsold [-adDfm1] interfaces...\n");
+		fprintf(stderr, "usage: rtsold [-dDfm1] -a\n");
+	}
 	exit(1);
 }
 
@@ -659,7 +705,67 @@ warnmsg(priority, func, msg, va_alist)
 		}
 	} else {
 		snprintf(buf, sizeof(buf), "<%s> %s", func, msg);
-		vsyslog(priority, buf, ap);
+		msg = buf;
+		vsyslog(priority, msg, ap);
 	}
 	va_end(ap);
+}
+
+static char **
+autoifprobe()
+{
+#ifndef HAVE_GETIFADDRS
+	errx(1, "-a is not available with the configuration");
+#else
+	static char ifname[IFNAMSIZ + 1];
+	static char *argv[2];
+	struct ifaddrs *ifap, *ifa, *target;
+
+	if (getifaddrs(&ifap) != 0)
+		return NULL;
+
+	target = NULL;
+	/* find an ethernet */
+	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+		if ((ifa->ifa_flags & IFF_UP) == 0)
+			continue;
+		if ((ifa->ifa_flags & IFF_POINTOPOINT) != 0)
+			continue;
+		if ((ifa->ifa_flags & IFF_LOOPBACK) != 0)
+			continue;
+		if ((ifa->ifa_flags & IFF_MULTICAST) == 0)
+			continue;
+
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+
+		if (target && strcmp(target->ifa_name, ifa->ifa_name) == 0)
+			continue;
+
+		if (!target)
+			target = ifa;
+		else {
+			/* if we find multiple candidates, failure. */
+			if (dflag > 1)
+				warnx("multiple interfaces found");
+			target = NULL;
+			break;
+		}
+	}
+
+	if (target) {
+		strncpy(ifname, target->ifa_name, sizeof(ifname) - 1);
+		ifname[sizeof(ifname) - 1] = '\0';
+		argv[0] = ifname;
+		argv[1] = NULL;
+
+		if (dflag > 0)
+			warnx("probing %s", argv[0]);
+	}
+	freeifaddrs(ifap);
+	if (target)
+		return argv;
+	else
+		return (char **)NULL;
+#endif
 }
