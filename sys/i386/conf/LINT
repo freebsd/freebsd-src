@@ -894,6 +894,14 @@ options 	CLK_USE_TSC_CALIBRATION
 # type.  For example, if you wire a disk as "da3" then the first
 # non-wired disk will be assigned da4.
 
+# Wiring devices down to a specific controller instance requires that you
+# declare the controller instance.  On other words, if you plan to wire a
+# device to ahc0, you need to declare the ahc0 device as well as the ahc
+# device as so:
+
+# device ahc
+# device ahc0
+
 # The syntax for wiring down devices is:
 
 # device	scbus0 at ahc0		# Single bus device
