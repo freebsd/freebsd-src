@@ -1,4 +1,4 @@
-/* $RCSfile: util.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:10 $
+/* $RCSfile: util.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:55 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,15 +6,18 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: util.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:55  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:30:10  nate
  * PERL!
  *
  * Revision 4.0.1.1  91/06/07  12:20:35  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0  91/03/20  01:58:25  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include <stdio.h>
@@ -103,7 +106,7 @@ register int len;
 {
     register char *dest = to;
 
-    if (from != Nullch) 
+    if (from != Nullch)
 	for (len--; len && (*dest++ = *from++); len--) ;
     *dest = '\0';
     return to;
@@ -234,7 +237,7 @@ char *nam, *val;
 #else
 	    char **tmpenv = Null(char **);
 #endif /* lint */
-    
+
 	    firstsetenv = FALSE;
 	    for (j=0; j<i; j++)		/* copy environment */
 		tmpenv[j] = environ[j];

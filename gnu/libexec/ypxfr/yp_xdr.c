@@ -15,40 +15,40 @@ struct {
         char *data;
 } *xdr_ypall_callback;
 
-bool_t           
+bool_t
 __xdr_ypstat(XDR *xdrs, ypstat *objp)
 {
- 
+
          if (!xdr_enum(xdrs, (enum_t *)objp)) {
                  return (FALSE);
          }
         return (TRUE);
 }
 
-bool_t           
+bool_t
 __xdr_valdat(XDR *xdrs, valdat *objp)
 {
- 
+
          if (!xdr_bytes(xdrs, (char **)&objp->valdat_val, (u_int *)&objp->valdat_len, YPMAXRECORD)) {
                  return (FALSE);
          }
         return (TRUE);
-}        
+}
 
-bool_t         
+bool_t
 __xdr_keydat(XDR *xdrs, keydat *objp)
 {
- 
+
          if (!xdr_bytes(xdrs, (char **)&objp->keydat_val, (u_int *)&objp->keydat_len, YPMAXRECORD)) {
                  return (FALSE);
          }
         return (TRUE);
-} 
+}
 
 bool_t
 __xdr_ypresp_key_val(XDR *xdrs, ypresp_key_val *objp)
 {
- 
+
          if (!__xdr_ypstat(xdrs, &objp->stat)) {
                  return (FALSE);
          }
@@ -139,7 +139,7 @@ __xdr_ypresp_all(XDR *xdrs, ypresp_all *objp)
            }
         }
 #endif
-           
+
       return(TRUE);
    }
 }

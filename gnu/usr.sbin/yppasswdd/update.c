@@ -1,4 +1,4 @@
-/* 
+/*
  * yppasswdd
  * Copyright 1994 Olaf Kirch, <okir@monad.swb.de>
  *
@@ -87,7 +87,7 @@ yppasswdproc_pwupdate_1(yppasswd *yppw, struct svc_req *rqstp)
 
     /* Check if the user exists
      */
-    if (!(pw = getpwnam(yppw->newpw.pw_name))) {        
+    if (!(pw = getpwnam(yppw->newpw.pw_name))) {
         syslog ( LOG_WARNING, "%s failed", logbuf );
         syslog ( LOG_WARNING, "User not in password file." );
         return (&res);

@@ -272,7 +272,7 @@ psymtab_to_symtab (pst)
 
   /* If it has not yet been read in, read it.  */
   if (!pst->readin)
-    { 
+    {
       (*pst->read_symtab) (pst);
     }
 
@@ -311,7 +311,7 @@ entry_point_address()
   return symfile_objfile ? symfile_objfile->ei.entry_point : 0;
 }
 
-/* Remember the lowest-addressed loadable section we've seen.  
+/* Remember the lowest-addressed loadable section we've seen.
    This function is called via bfd_map_over_sections.  */
 
 #if 0 	/* Not used yet */
@@ -330,7 +330,7 @@ find_lowest_section (abfd, sect, obj)
   else if (bfd_section_vma (abfd, *lowest) >= bfd_section_vma (abfd, sect))
     *lowest = sect;		/* A lower loadable section */
 }
-#endif 
+#endif
 
 /* Process a symbol file, as either the main file or as a dynamically
    loaded file.
@@ -362,7 +362,7 @@ syms_from_objfile (objfile, addr, mainline, verbo)
      if an error occurs during symbol reading.  */
   old_chain = make_cleanup (free_objfile, objfile);
 
-  if (mainline) 
+  if (mainline)
     {
       /* We will modify the main symbol table, make sure that all its users
 	 will be cleaned up if an error occurs during symbol reading.  */
@@ -493,7 +493,7 @@ syms_from_objfile (objfile, addr, mainline, verbo)
 /* Perform required actions after either reading in the initial
    symbols for a new objfile, or mapping in the symbols from a reusable
    objfile. */
-   
+
 void
 new_symfile_objfile (objfile, mainline, verbo)
      struct objfile *objfile;
@@ -589,7 +589,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
 	  gdb_flush (gdb_stdout);
 	}
       syms_from_objfile (objfile, addr, mainline, from_tty);
-    }      
+    }
 
   /* We now have at least a partial symbol table.  Check to see if the
      user requested that all symbols be read on initial access via either
@@ -620,7 +620,7 @@ symbol_file_add (name, from_tty, addr, mainline, mapped, readnow)
     }
 
   new_symfile_objfile (objfile, mainline, from_tty);
-      
+
   /* Getting new symbols may change our opinion about what is
      frameless.  */
 
@@ -737,7 +737,7 @@ static void
 set_initial_language ()
 {
   struct partial_symtab *pst;
-  enum language lang = language_unknown;  	
+  enum language lang = language_unknown;
 
   pst = find_main_psymtab ();
   if (pst != NULL)
@@ -888,15 +888,15 @@ generic_load (filename, from_tty)
     }
   old_cleanups = make_cleanup (bfd_close, loadfile_bfd);
 
-  if (!bfd_check_format (loadfile_bfd, bfd_object)) 
+  if (!bfd_check_format (loadfile_bfd, bfd_object))
     {
       error ("\"%s\" is not an object file: %s", filename,
 	     bfd_errmsg (bfd_get_error ()));
     }
-  
-  for (s = loadfile_bfd->sections; s; s = s->next) 
+
+  for (s = loadfile_bfd->sections; s; s = s->next)
     {
-      if (s->flags & SEC_LOAD) 
+      if (s->flags & SEC_LOAD)
 	{
 	  bfd_size_type size;
 
@@ -956,7 +956,7 @@ add_symbol_file_command (args, from_tty)
   char *arg;
   int readnow = 0;
   int mapped = 0;
-  
+
   dont_repeat ();
 
   if (args == NULL)
@@ -1037,7 +1037,7 @@ add_shared_symbol_files_command  (args, from_tty)
   ADD_SHARED_SYMBOL_FILES (args, from_tty);
 #else
   error ("This command is not available in this configuration of GDB.");
-#endif  
+#endif
 }
 
 /* Re-read symbols if a symbol-file has changed.  */
@@ -1165,7 +1165,7 @@ reread_symbols ()
 				      xmalloc, free);
 	  if (build_objfile_section_table (objfile))
 	    {
-	      error ("Can't find the file sections in `%s': %s", 
+	      error ("Can't find the file sections in `%s': %s",
 		     objfile -> name, bfd_errmsg (bfd_get_error ()));
 	    }
 
@@ -1226,8 +1226,8 @@ deduce_language_from_filename (filename)
      char *filename;
 {
   char *c;
-  
-  if (0 == filename) 
+
+  if (0 == filename)
     ; /* Get default */
   else if (0 == (c = strrchr (filename, '.')))
     ; /* Get default. */
@@ -1316,7 +1316,7 @@ allocate_psymtab (filename, objfile)
   psymtab -> objfile = objfile;
   psymtab -> next = objfile -> psymtabs;
   objfile -> psymtabs = psymtab;
-  
+
   return (psymtab);
 }
 
@@ -1343,7 +1343,7 @@ clear_symtab_users ()
 
    This function is run after symbol reading, or from a cleanup.
    If an old symbol table was obsoleted, the old symbol table
-   has been blown away, but the other GDB data structures that may 
+   has been blown away, but the other GDB data structures that may
    reference it have not yet been cleared or re-directed.  (The old
    symtab was zapped, and the cleanup queued, in free_named_symtab()
    below.)
@@ -1595,7 +1595,7 @@ add_psymbol_to_list (name, namelength, namespace, class, list, val, language,
       extend_psymbol_list (list,objfile);
     }
   psym = list->next++;
-  
+
   SYMBOL_NAME (psym) =
     (char *) obstack_alloc (&objfile->psymbol_obstack, namelength + 1);
   memcpy (SYMBOL_NAME (psym), name, namelength);
@@ -1629,7 +1629,7 @@ add_psymbol_addr_to_list (name, namelength, namespace, class, list, val,
       extend_psymbol_list (list,objfile);
     }
   psym = list->next++;
-  
+
   SYMBOL_NAME (psym) =
     (char *) obstack_alloc (&objfile->psymbol_obstack, namelength + 1);
   memcpy (SYMBOL_NAME (psym), name, namelength);
@@ -1648,7 +1648,7 @@ void
 _initialize_symfile ()
 {
   struct cmd_list_element *c;
-  
+
   c = add_cmd ("symbol-file", class_files, symbol_file_command,
    "Load symbol table from executable file FILE.\n\
 The `file' command can also load symbol tables, as well as setting the file\n\

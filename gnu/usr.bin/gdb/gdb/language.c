@@ -86,7 +86,7 @@ set_type_range PARAMS ((void));
 /* Forward declaration */
 extern const struct language_defn unknown_language_defn;
 extern char *warning_pre_print;
-  
+
 /* The current (default at startup) state of type and range checking.
     (If the modes are set to "auto", though, these are changed based
     on the default language at startup, and then again based on the
@@ -196,7 +196,7 @@ set_language_command (ignore, from_tty)
     }
   }
 
-  /* Reset the language (esp. the global string "language") to the 
+  /* Reset the language (esp. the global string "language") to the
      correct values. */
   err_lang=savestring(language,strlen(language));
   make_cleanup (free, err_lang);	/* Free it after error */

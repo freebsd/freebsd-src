@@ -119,13 +119,13 @@ end_arglist PARAMS ((void));
 extern char *
 copy_name PARAMS ((struct stoken));
 
-extern void 
+extern void
 push_type PARAMS ((enum type_pieces));
 
 extern void
 push_type_int PARAMS ((int));
 
-extern enum type_pieces 
+extern enum type_pieces
 pop_type PARAMS ((void));
 
 extern int

@@ -178,7 +178,7 @@ build_signature_pointer_or_reference_type (to_type, constp, volatilep, refp)
     else
       {
 	tree sig_tbl_type = cp_build_type_variant (to_type, 1, 0);
-	
+
 	sptr = build_lang_field_decl (FIELD_DECL,
 				      get_identifier (SIGNATURE_SPTR_NAME),
 				      build_pointer_type (sig_tbl_type));
@@ -308,7 +308,7 @@ build_member_function_pointer (member)
   int namlen = IDENTIFIER_LENGTH (DECL_ASSEMBLER_NAME (member));
   char *name;
   tree entry;
-  
+
   name = (char *) alloca (namlen + sizeof (SIGNATURE_FIELD_NAME) + 2);
   sprintf (name, SIGNATURE_FIELD_NAME_FORMAT, namstr);
 
@@ -348,7 +348,7 @@ append_signature_fields (list_of_fieldlists)
   tree mfptr;
   tree last_mfptr;
   tree mfptr_list = NULL_TREE;
-	      
+
   /* For signatures it should actually be only a list with one element.  */
   for (l = list_of_fieldlists; l; l = TREE_CHAIN (l))
     {
@@ -563,7 +563,7 @@ build_signature_table_constructor (sig_ty, rhs)
 	    last_rhs_field = rhs_field;
 	  else
 	    offset_p = 0;
-	  
+
 	  tbl_entry = build_component_ref (rhs, DECL_NAME (rhs_field),
 					   NULL_TREE, 1);
 	}
@@ -923,7 +923,7 @@ build_signature_method_call (basetype, instance, function, parms)
 			     NULL_TREE, 1);
   pfn = build_component_ref (tbl_entry, get_identifier (SIGTABLE_PFN_NAME),
 			     NULL_TREE, 1);
-  TREE_TYPE (pfn) = build_pointer_type (TREE_TYPE (function)); 
+  TREE_TYPE (pfn) = build_pointer_type (TREE_TYPE (function));
 
   if (IS_DEFAULT_IMPLEMENTATION (function))
     {

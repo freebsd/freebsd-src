@@ -134,7 +134,7 @@ ixswait (ipid, zreport)
 	}
     }
 #endif /* ! HAVE_WAIT4 */
-#endif /* ! HAVE_WAITPID */  
+#endif /* ! HAVE_WAITPID */
 
   DEBUG_MESSAGE2 (DEBUG_EXECUTE, "%s %d",
 		  WIFEXITED (istat) ? "Exit status" : "Signal",

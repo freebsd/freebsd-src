@@ -27,9 +27,9 @@ what you give them.   Help stamp out software-hoarding!  */
  *
  *	Nov 1983, Mike@BRL, Added support for 4.1C/4.2 BSD.
  *
- * This is a very fast storage allocator.  It allocates blocks of a small 
+ * This is a very fast storage allocator.  It allocates blocks of a small
  * number of different sizes, and keeps free lists of each size.  Blocks
- * that don't exactly fit are passed up to the next larger size.  In this 
+ * that don't exactly fit are passed up to the next larger size.  In this
  * implementation, the available sizes are (2^n)-4 (or -16) bytes long.
  * This is designed for use in a program that uses vast quantities of
  * memory, but bombs when it runs out.  To make it a little better, it
@@ -297,21 +297,21 @@ morecore (nu)			/* ask system for more memory */
   if (warnfunction)
     switch (warnlevel)
       {
-      case 0: 
+      case 0:
 	if (siz > (lim_data / 4) * 3)
 	  {
 	    warnlevel++;
 	    (*warnfunction) ("Warning: past 75% of memory limit");
 	  }
 	break;
-      case 1: 
+      case 1:
 	if (siz > (lim_data / 20) * 17)
 	  {
 	    warnlevel++;
 	    (*warnfunction) ("Warning: past 85% of memory limit");
 	  }
 	break;
-      case 2: 
+      case 2:
 	if (siz > (lim_data / 20) * 19)
 	  {
 	    warnlevel++;
@@ -691,31 +691,31 @@ malloc_mem_used ()
   int size_used;
 
   size_used = 0;
-  
+
   for (i = 0; i < 30; i++)
     {
       int allocation_size = 1 << (i + 3);
       struct mhead *p;
-      
+
       size_used += nmalloc[i] * allocation_size;
     }
 
   return size_used;
 }
 
-int 
+int
 malloc_mem_free ()
 {
   int i;
   int size_unused;
 
   size_unused = 0;
-  
+
   for (i = 0; i < 30; i++)
     {
       int allocation_size = 1 << (i + 3);
       struct mhead *p;
-      
+
       for (p = nextf[i]; p ; p = CHAIN (p))
 	size_unused += allocation_size;
     }
@@ -736,7 +736,7 @@ malloc_mem_free ()
 get_lim_data ()
 {
   extern long ulimit ();
-    
+
 #ifdef ULIMIT_BREAK_VALUE
   lim_data = ULIMIT_BREAK_VALUE;
 #else

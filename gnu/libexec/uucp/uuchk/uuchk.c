@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.52 1994/05/02 03:43:02 ian Rel $";
+const char uuchk_rcsid[] = "$Id: uuchk.c,v 1.2 1994/05/07 18:13:37 ache Exp $";
 #endif
 
 #include "getopt.h"
@@ -112,7 +112,7 @@ main (argc, argv)
 		  zKprogram, VERSION);
 	  exit (EXIT_SUCCESS);
 	  /*NOTREACHED*/
-	  
+
 	case 1:
 	  /* --help.  */
 	  ukhelp ();
@@ -279,7 +279,7 @@ ukshow (qsys, puuconf)
 	    printf (" Call out");
 	  else
 	    printf (" This alternate applies when calling");
-	  
+
 	  if (qsys->uuconf_zport != NULL || qsys->uuconf_qport != NULL)
 	    {
 	      printf (" using ");
@@ -514,7 +514,7 @@ ukshow (qsys, puuconf)
 	    printf (" %s", *pz);
 	  printf ("\n");
 	}
-	  
+
       if (qsys->uuconf_pzforward_to != NULL)
 	{
 	  printf (" May forward to");
@@ -522,7 +522,7 @@ ukshow (qsys, puuconf)
 	    printf (" %s", *pz);
 	  printf ("\n");
 	}
-	  
+
       if (qsys->uuconf_zprotocols != NULL)
 	printf (" Will use protocols %s\n", qsys->uuconf_zprotocols);
       else

@@ -61,7 +61,7 @@ struct value
 	int regnum;
       } location;
     /* Describes offset of a value within lval a structure in bytes.  */
-    int offset;	
+    int offset;
     /* Only used for bitfields; number of bits contained in them.  */
     int bitsize;
     /* Only used for bitfields; position of start of field.
@@ -114,11 +114,11 @@ typedef struct value *value_ptr;
 #define VALUE_TYPE(val) (val)->type
 #define VALUE_LAZY(val) (val)->lazy
 /* VALUE_CONTENTS and VALUE_CONTENTS_RAW both return the address of
-   the gdb buffer used to hold a copy of the contents of the lval.  
+   the gdb buffer used to hold a copy of the contents of the lval.
    VALUE_CONTENTS is used when the contents of the buffer are needed --
-   it uses value_fetch_lazy() to load the buffer from the process being 
-   debugged if it hasn't already been loaded.  VALUE_CONTENTS_RAW is 
-   used when data is being stored into the buffer, or when it is 
+   it uses value_fetch_lazy() to load the buffer from the process being
+   debugged if it hasn't already been loaded.  VALUE_CONTENTS_RAW is
+   used when data is being stored into the buffer, or when it is
    certain that the contents of the buffer are valid.  */
 #define VALUE_CONTENTS_RAW(val) ((char *) (val)->aligner.contents)
 #define VALUE_CONTENTS(val) ((void)(VALUE_LAZY(val) && value_fetch_lazy(val)),\
@@ -307,7 +307,7 @@ extern value_ptr value_subscript PARAMS ((value_ptr array, value_ptr idx));
 extern value_ptr value_from_vtable_info PARAMS ((value_ptr arg,
 						 struct type *type));
 
-extern value_ptr value_being_returned PARAMS ((struct type *valtype, 
+extern value_ptr value_being_returned PARAMS ((struct type *valtype,
 					       char retbuf[REGISTER_BYTES],
 					       int struct_return));
 

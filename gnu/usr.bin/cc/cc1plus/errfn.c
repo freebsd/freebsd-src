@@ -17,7 +17,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
-   
+
 #include "config.h"
 #include "tree.h"
 #include <ctype.h>
@@ -64,13 +64,13 @@ cp_thing (errfn, atarg1, format, arglist)
   ARGSINIT
 
   fmt = STRDUP(format);
-  
+
   for (f = fmt, arg = 0; *f; ++f)
     {
       cp_printer * function;
       int alternate;
       int maybe_here;
-      
+
       /* ignore text */
       if (*f != '%') continue;
 
@@ -124,7 +124,7 @@ cp_thing (errfn, atarg1, format, arglist)
 	  char *p;
 
 	  if (arg >= NARGS) abort ();
-	  
+
 	  if (maybe_here && atarg1)
 	    atarg = args[arg];
 

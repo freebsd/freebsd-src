@@ -99,7 +99,7 @@ cplus_expand_expr (exp, target, tmode, modifier)
 	   as is building the call which will perform the
 	   initialization.  It is left here to show the choices that
 	   exist for C++.  */
-	   
+
 	if (TREE_CODE (func) == ADDR_EXPR
 	    && TREE_CODE (TREE_OPERAND (func, 0)) == FUNCTION_DECL
 	    && DECL_CONSTRUCTOR_P (TREE_OPERAND (func, 0)))

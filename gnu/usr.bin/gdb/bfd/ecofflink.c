@@ -271,7 +271,7 @@ add_memory_shuffle (ainfo, head, tail, data, size)
      unsigned long size;
 {
   struct shuffle *n;
-     
+
   n = (struct shuffle *) obstack_alloc (&ainfo->memory,
 					sizeof (struct shuffle));
   if (!n)
@@ -365,7 +365,7 @@ bfd_ecoff_debug_free (handle, output_bfd, output_debug, output_swap, info)
      struct bfd_link_info *info;
 {
   struct accumulate *ainfo = (struct accumulate *) handle;
-  
+
   bfd_hash_table_free (&ainfo->fdr_hash.table);
 
   if (! info->relocateable)

@@ -51,7 +51,7 @@ class token {
     TOKEN_RIGHT_BRACE,
     TOKEN_SPACE,		// ` ' -- ordinary space
     TOKEN_SPECIAL,		// a special character -- \' \` \- \(xx
-    TOKEN_SPREAD,		// \p -- break and spread output line 
+    TOKEN_SPREAD,		// \p -- break and spread output line
     TOKEN_TAB,			// tab
     TOKEN_TRANSPARENT,		// \!
     TOKEN_EOF			// end of file
@@ -114,12 +114,12 @@ void interpolate_number_reg(symbol, int);
 const char *asciify(int c);
 
 inline int token::newline()
-{ 
-  return type == TOKEN_NEWLINE; 
+{
+  return type == TOKEN_NEWLINE;
 }
 
 inline int token::space()
-{ 
+{
   return type == TOKEN_SPACE;
 }
 
@@ -149,7 +149,7 @@ inline int token::page_ejector()
 inline unsigned char token::ch()
 {
   return type == TOKEN_CHAR ? c : 0;
-} 
+}
 
 inline int token::eof()
 {

@@ -134,7 +134,7 @@ DESCRIPTION
         type which modifies the bottom two bytes of a four byte word
         would not touch the first byte pointed to in a big endian
         world.
-	
+
 	o <<addend>>
 
 	The <<addend>> is a value provided by the back end to be added (!)

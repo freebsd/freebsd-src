@@ -110,7 +110,7 @@ compute_hash (map)
 			h->name = map->dvi_names[c][s];
 			h->position = c;
 		}
-	
+
 }
 
 int

@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -57,8 +57,8 @@ public:
   Complex&         operator *= (const Complex& y);
   Complex&         operator *= (double y);
 
-  Complex&         operator /= (const Complex& y); 
-  Complex&         operator /= (double y); 
+  Complex&         operator /= (const Complex& y);
+  Complex&         operator /= (double y);
 
   void             error(const char* msg) const;
 };
@@ -83,7 +83,7 @@ Complex   pow(const Complex& x, int p);
 Complex   pow(const Complex& x, const Complex& p);
 Complex   pow(const Complex& x, double y);
 Complex   sqrt(const Complex& x);
-   
+
 istream&  operator >> (istream& s, Complex& x);
 ostream&  operator << (ostream& s, const Complex& x);
 
@@ -99,42 +99,42 @@ inline Complex::Complex(double r, double i) :re(r), im(i) {}
 
 inline Complex::~Complex() {}
 
-inline Complex&  Complex::operator =  (const Complex& y) 
-{ 
-  re = y.real(); im = y.imag(); return *this; 
-} 
+inline Complex&  Complex::operator =  (const Complex& y)
+{
+  re = y.real(); im = y.imag(); return *this;
+}
 
 inline Complex&  Complex::operator += (const Complex& y)
-{ 
-  re += y.real();  im += y.imag(); return *this; 
+{
+  re += y.real();  im += y.imag(); return *this;
 }
 
 inline Complex&  Complex::operator += (double y)
-{ 
-  re += y; return *this; 
+{
+  re += y; return *this;
 }
 
 inline Complex&  Complex::operator -= (const Complex& y)
-{ 
-  re -= y.real();  im -= y.imag(); return *this; 
+{
+  re -= y.real();  im -= y.imag(); return *this;
 }
 
 inline Complex&  Complex::operator -= (double y)
-{ 
-  re -= y; return *this; 
+{
+  re -= y; return *this;
 }
 
 inline Complex&  Complex::operator *= (const Complex& y)
-{  
+{
   double r = re * y.real() - im * y.imag();
-  im = re * y.imag() + im * y.real(); 
-  re = r; 
-  return *this; 
+  im = re * y.imag() + im * y.real();
+  re = r;
+  return *this;
 }
 
 inline Complex&  Complex::operator *= (double y)
-{  
-  re *=  y; im *=  y; return *this; 
+{
+  re *=  y; im *=  y; return *this;
 }
 
 
@@ -202,7 +202,7 @@ inline Complex  operator - (double x, const Complex& y)
 
 inline Complex  operator * (const Complex& x, const Complex& y)
 {
-  return Complex(x.real() * y.real() - x.imag() * y.imag(), 
+  return Complex(x.real() * y.real() - x.imag() * y.imag(),
                  x.real() * y.imag() + x.imag() * y.real());
 }
 

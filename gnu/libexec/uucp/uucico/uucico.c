@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uucico_rcsid[] = "$Id: uucico.c,v 1.2 1994/05/07 18:14:02 ache Exp $";
+const char uucico_rcsid[] = "$Id: uucico.c,v 1.3 1994/05/25 20:14:52 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -333,7 +333,7 @@ main (argc, argv)
 	  else
 	    uusage ();
 	  break;
-    
+
 	case 's':
 	  /* Set system name  */
 	  zsystem = optarg;
@@ -1339,7 +1339,7 @@ fdo_call (qdaemon, qstat, qdialer, pfcalled, pterr)
 	    ulog_uuconf (LOG_ERROR, puuconf, iuuconf);
 	    return FALSE;
 	  }
-      }	    
+      }
 
     zsend = zbufalc (strlen (qdaemon->zlocalname) + 70);
     if (! qsys->uuconf_fsequence)
@@ -1907,7 +1907,7 @@ faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn, pzsystem)
 	    }
 	  else
 	    qdialer = qport->uuconf_u.uuconf_smodem.uuconf_qdialer;
-	}	  
+	}
       else if (qport->uuconf_ttype == UUCONF_PORTTYPE_TCP
 	       || (qport->uuconf_ttype == UUCONF_PORTTYPE_TLI
 		   && (qport->uuconf_ireliable
@@ -2195,7 +2195,7 @@ faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn, pzsystem)
 	     getopt, which is distributed with the program anyhow.  */
 	  optind = 0;
 	  opterr = 0;
-	  
+
 	  while ((iopt = getopt (pzset - paz, paz,
 				 "N::p:Q:RU:v:x:")) != EOF)
 	    {
@@ -2427,7 +2427,7 @@ faccept_call (puuconf, zconfig, fuuxqt, zlogin, qconn, pzsystem)
       uaccept_call_cleanup (puuconf, &ssys, qport, &sport, zloc);
       return FALSE;
     }
-    
+
   /* The master will now send back the selected protocol.  */
   zstr = zget_uucp_cmd (qconn, TRUE);
   if (zstr == NULL)
@@ -2757,7 +2757,7 @@ zget_uucp_cmd (qconn, frequired)
   while ((ctimeout = (int) (iendtime - ixsysdep_time ((long *) NULL))) > 0)
     {
       int b;
-      
+
       b = breceive_char (qconn, ctimeout, frequired);
       /* Now b == -1 on timeout, -2 on error.  */
       if (b < 0)
@@ -2873,7 +2873,7 @@ static char *
 zget_typed_line (qconn)
      struct sconnection *qconn;
 {
-  static boolean flastcr; 
+  static boolean flastcr;
   char *zalc;
   size_t calc;
   size_t cgot;
@@ -2897,7 +2897,7 @@ zget_typed_line (qconn)
   while (TRUE)
     {
       int b;
-      
+
       b = breceive_char (qconn, CTIMEOUT, FALSE);
 
       /* Now b == -1 on timeout, -2 on error.  */

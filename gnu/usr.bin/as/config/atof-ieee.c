@@ -1,24 +1,24 @@
 /* atof_ieee.c - turn a Flonum into an IEEE floating point number
    Copyright (C) 1987, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: atof-ieee.c,v 1.3 1993/10/02 20:58:25 pk Exp $";
+static char rcsid[] = "$Id: atof-ieee.c,v 1.2 1993/11/03 00:53:04 paul Exp $";
 #endif
 
 #include "as.h"
@@ -86,14 +86,14 @@ static int
 int number_of_bits;
 {
 	int return_value;
-	
+
 	if (!littlenums_left)
 	    return(0);
 	if (number_of_bits >= bits_left_in_littlenum) {
 		return_value  = mask[bits_left_in_littlenum] & *littlenum_pointer;
 		number_of_bits -= bits_left_in_littlenum;
 		return_value <<= number_of_bits;
-		
+
 		if (--littlenums_left) {
 			bits_left_in_littlenum = LITTLENUM_NUMBER_OF_BITS - number_of_bits;
 			--littlenum_pointer;
@@ -161,27 +161,27 @@ LITTLENUM_TYPE *words;	/* Build the binary here. */
 	int precision; /* Number of 16-bit words in the format. */
 	long exponent_bits;
 	FLONUM_TYPE save_gen_flonum;
-	
+
 	/* We have to save the generic_floating_point_number because it
 	   contains storage allocation about the array of LITTLENUMs
 	   where the value is actually stored.  We will allocate our
 	   own array of littlenums below, but have to restore the global
 	   one on exit.  */
 	save_gen_flonum = generic_floating_point_number;
-	
+
 	return_value = str;
 	generic_floating_point_number.low	= bits + MAX_PRECISION;
 	generic_floating_point_number.high	= NULL;
 	generic_floating_point_number.leader	= NULL;
 	generic_floating_point_number.exponent	= NULL;
 	generic_floating_point_number.sign	= '\0';
-	
+
 	/* Use more LittleNums than seems */
 	/* necessary: the highest flonum may have */
 	/* 15 leading 0 bits, so could be useless. */
-	
+
 	memset(bits, '\0', sizeof(LITTLENUM_TYPE) * MAX_PRECISION);
-	
+
 	switch (what_kind) {
 	case 'f':
 	case 'F':
@@ -190,7 +190,7 @@ LITTLENUM_TYPE *words;	/* Build the binary here. */
 		precision = F_PRECISION;
 		exponent_bits = 8;
 		break;
-		
+
 	case 'd':
 	case 'D':
 	case 'r':
@@ -198,7 +198,7 @@ LITTLENUM_TYPE *words;	/* Build the binary here. */
 		precision = D_PRECISION;
 		exponent_bits = 11;
 		break;
-		
+
 	case 'x':
 	case 'X':
 	case 'e':
@@ -206,32 +206,32 @@ LITTLENUM_TYPE *words;	/* Build the binary here. */
 		precision = X_PRECISION;
 		exponent_bits = 15;
 		break;
-		
+
 	case 'p':
 	case 'P':
-		
+
 		precision = P_PRECISION;
 		exponent_bits = -1;
 		break;
-		
+
 	default:
 		make_invalid_floating_point_number(words);
 		return(NULL);
 	}
-	
+
 	generic_floating_point_number.high = generic_floating_point_number.low + precision - 1 + GUARD;
-	
+
 	if (atof_generic(&return_value, ".", EXP_CHARS, &generic_floating_point_number)) {
 		/* as_bad("Error converting floating point number (Exponent overflow?)"); */
 		make_invalid_floating_point_number(words);
 		return(NULL);
 	}
 	gen_to_words(words, precision, exponent_bits);
-	
+
 	/* Restore the generic_floating_point_number's storage alloc
 	   (and everything else).  */
 	generic_floating_point_number = save_gen_flonum;
-	
+
 	return(return_value);
 }
 
@@ -242,7 +242,7 @@ int precision;
 long exponent_bits;
 {
 	int return_value = 0;
-	
+
 	long exponent_1;
 	long exponent_2;
 	long exponent_3;
@@ -250,7 +250,7 @@ long exponent_bits;
 	int exponent_skippage;
 	LITTLENUM_TYPE word1;
 	LITTLENUM_TYPE *lp;
-	
+
 	if (generic_floating_point_number.low > generic_floating_point_number.leader) {
 		/* 0.0e0 seen. */
 		if (generic_floating_point_number.sign == '+')
@@ -260,7 +260,7 @@ long exponent_bits;
 		memset(&words[1], '\0', sizeof(LITTLENUM_TYPE) * (precision - 1));
 		return(return_value);
 	}
-	
+
 	/* NaN:  Do the right thing */
 	if (generic_floating_point_number.sign == 0) {
 		if (precision == F_PRECISION) {
@@ -322,23 +322,23 @@ long exponent_bits;
 	/* Forget leading zeros, forget 1st bit. */
 	exponent_4 = exponent_3 + ((1 << (exponent_bits - 1)) - 2);
 	/* Offset exponent. */
-	
+
 	lp = words;
-	
+
 	/* Word 1. Sign, exponent and perhaps high bits. */
 	word1 = (generic_floating_point_number.sign == '+') ? 0 : (1 << (LITTLENUM_NUMBER_OF_BITS - 1));
-	
+
 	/* Assume 2's complement integers. */
 	if (exponent_4 < 1 && exponent_4 >= -62) {
 		int prec_bits;
 		int num_bits;
-		
+
 		unget_bits(1);
 		num_bits = -exponent_4;
 		prec_bits = LITTLENUM_NUMBER_OF_BITS * precision - (exponent_bits + 1 + num_bits);
 		if (precision == X_PRECISION && exponent_bits == 15)
 		    prec_bits -= LITTLENUM_NUMBER_OF_BITS + 1;
-		
+
 		if (num_bits >= LITTLENUM_NUMBER_OF_BITS - exponent_bits) {
 			/* Bigger than one littlenum */
 			num_bits -= (LITTLENUM_NUMBER_OF_BITS - 1) - exponent_bits;
@@ -378,14 +378,14 @@ long exponent_bits;
 		}
 		while (lp < words + precision)
 		    *lp++ = next_bits(LITTLENUM_NUMBER_OF_BITS);
-		
+
 		/* Round the mantissa up, but don't change the number */
 		if (next_bits(1)) {
 			--lp;
 			if (prec_bits > LITTLENUM_NUMBER_OF_BITS) {
 				int n = 0;
 				int tmp_bits;
-				
+
 				n = 0;
 				tmp_bits = prec_bits;
 				while (tmp_bits > LITTLENUM_NUMBER_OF_BITS) {
@@ -396,7 +396,7 @@ long exponent_bits;
 				}
 				if (tmp_bits > LITTLENUM_NUMBER_OF_BITS || (lp[n] & mask[tmp_bits]) != mask[tmp_bits]) {
 					unsigned long carry;
-					
+
 					for (carry = 1; carry && (lp >= words); lp --) {
 						carry = *lp + carry;
 						*lp = carry;
@@ -406,13 +406,13 @@ long exponent_bits;
 			} else if ((*lp & mask[prec_bits]) != mask[prec_bits])
 			    lp++;
 		}
-		
+
 		return return_value;
 	} else 	if (exponent_4 & ~ mask[exponent_bits]) {
 		/*
 		 * Exponent overflow. Lose immediately.
 		 */
-		
+
 		/*
 		 * We leave return_value alone: admit we read the
 		 * number, but return a floating exception
@@ -424,20 +424,20 @@ long exponent_bits;
 		word1 |=  (exponent_4 << ((LITTLENUM_NUMBER_OF_BITS - 1) - exponent_bits))
 		    | next_bits ((LITTLENUM_NUMBER_OF_BITS - 1) - exponent_bits);
 	}
-	
+
 	*lp++ = word1;
-	
+
 	/* X_PRECISION is special: it has 16 bits of zero in the middle,
 	   followed by a 1 bit. */
 	if (exponent_bits == 15 && precision == X_PRECISION) {
 		*lp++ = 0;
 		*lp++ = 1 << (LITTLENUM_NUMBER_OF_BITS) | next_bits(LITTLENUM_NUMBER_OF_BITS - 1);
 	}
-	
+
 	/* The rest of the words are just mantissa bits. */
 	while (lp < words + precision)
 	    *lp++ = next_bits(LITTLENUM_NUMBER_OF_BITS);
-	
+
 	if (next_bits(1)) {
 		unsigned long carry;
 		/*
@@ -448,7 +448,7 @@ long exponent_bits;
 		 * highest-order bit of the lowest-order word flips.
 		 * Is that clear?
 		 */
-		
+
 		/* #if (sizeof(carry)) < ((sizeof(bits[0]) * BITS_PER_CHAR) + 2)
 		   Please allow at least 1 more bit in carry than is in a LITTLENUM.
 		   We need that extra bit to hold a carry during a LITTLENUM carry
@@ -484,7 +484,7 @@ long x;
 {
 	char buf[20];
 	char *bufp;
-	
+
 	sprintf(buf,"%ld",x);
 	bufp = &buf[0];
 	if (atof_generic(&bufp, ".", EXP_CHARS, &generic_floating_point_number))
@@ -501,7 +501,7 @@ FLONUM_TYPE *gen;
 	double dv;
 	float fv;
 	static char sbuf[40];
-	
+
 	if (gen) {
 		f = generic_floating_point_number;
 		generic_floating_point_number = *gen;
@@ -512,11 +512,11 @@ FLONUM_TYPE *gen;
 	gen_to_words(&arr[0], 2, 8);
 	memcpy(&fv, &arr[0], sizeof(float));
 	sprintf(sbuf + strlen(sbuf), "%x %x %.12g\n", arr[0], arr[1], fv);
-	
+
 	if (gen) {
 		generic_floating_point_number = f;
 	}
-	
+
 	return(sbuf);
 }
 #endif

@@ -266,4 +266,4 @@ initialize_info_keymaps ()
   map['w'].function = info_toggle_wrap;
 }
 
-  
+

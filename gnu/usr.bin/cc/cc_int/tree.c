@@ -141,7 +141,7 @@ char *momentary_function_firstobj;
 int all_types_permanent;
 
 /* Stack of places to restore the momentary obstack back to.  */
-   
+
 struct momentary_level
 {
   /* Pointer back to previous such level.  */
@@ -869,7 +869,7 @@ make_node (code)
 	 PARM_DECLs of top-level functions do not have this problem.  However,
 	 we allocate them where we put the FUNCTION_DECL for languauges such as
 	 Ada that need to consult some flags in the PARM_DECLs of the function
-	 when calling it. 
+	 when calling it.
 
 	 See comment in restore_tree_status for why we can't put this
 	 in function_obstack.  */
@@ -1165,7 +1165,7 @@ get_identifier (text)
 
   hi &= (1 << HASHBITS) - 1;
   hi %= MAX_HASH_TABLE;
-  
+
   /* Search table for identifier */
   for (idp = hash_table[hi]; idp; idp = TREE_CHAIN (idp))
     if (IDENTIFIER_LENGTH (idp) == len
@@ -1224,7 +1224,7 @@ set_identifier_size (size)
 
 /* Return a newly constructed INTEGER_CST node whose constant value
    is specified by the two ints LOW and HI.
-   The TREE_TYPE is set to `int'. 
+   The TREE_TYPE is set to `int'.
 
    This function should be used via the `build_int_2' macro.  */
 
@@ -1545,7 +1545,7 @@ real_twop (expr)
 }
 
 /* Nonzero if EXP is a constant or a cast of a constant.  */
- 
+
 int
 really_constant_p (exp)
      tree exp;
@@ -1979,7 +1979,7 @@ save_expr (expr)
   /* If the tree evaluates to a constant, then we don't want to hide that
      fact (i.e. this allows further folding, and direct checks for constants).
      However, a read-only object that has side effects cannot be bypassed.
-     Since it is no problem to reevaluate literals, we just return the 
+     Since it is no problem to reevaluate literals, we just return the
      literal node. */
 
   if (TREE_CONSTANT (t) || (TREE_READONLY (t) && ! TREE_SIDE_EFFECTS (t))
@@ -2252,7 +2252,7 @@ substitute_in_type (t, f, r)
 
 	    /* If this is an anonymous field and the type of this field is
 	       a UNION_TYPE or RECORD_TYPE with no elements, ignore it.  If
-	       the type just has one element, treat that as the field. 
+	       the type just has one element, treat that as the field.
 	       But don't do this if we are processing a QUAL_UNION_TYPE.  */
 	    if (TREE_CODE (t) != QUAL_UNION_TYPE && DECL_NAME (new_field) == 0
 		&& (TREE_CODE (TREE_TYPE (new_field)) == UNION_TYPE
@@ -2437,7 +2437,7 @@ stabilize_reference_1 (e)
       /* Constants need no processing.  In fact, we should never reach
 	 here.  */
       return e;
-      
+
     case '2':
       /* Division is slow and tends to be compiled with jumps,
 	 especially the division by powers of 2 that is often
@@ -2460,7 +2460,7 @@ stabilize_reference_1 (e)
     default:
       abort ();
     }
-  
+
   TREE_TYPE (result) = TREE_TYPE (e);
   TREE_READONLY (result) = TREE_READONLY (e);
   TREE_SIDE_EFFECTS (result) = TREE_SIDE_EFFECTS (e);
@@ -3621,7 +3621,7 @@ build_complex_type (component_type)
    OP must have integer, real or enumeral type.  Pointers are not allowed!
 
    There are some cases where the obvious value we could return
-   would regenerate to OP if converted to OP's type, 
+   would regenerate to OP if converted to OP's type,
    but would not extend like OP to wider types.
    If FOR_TYPE indicates such extension is contemplated, we eschew such values.
    For example, if OP is (unsigned short)(signed char)-1,
@@ -4029,7 +4029,7 @@ get_set_constructor_bits (init, buffer, bit_size)
   for (i = 0; i < bit_size; i++)
     buffer[i] = 0;
 
-  for (vals = TREE_OPERAND (init, 1); 
+  for (vals = TREE_OPERAND (init, 1);
        vals != NULL_TREE; vals = TREE_CHAIN (vals))
     {
       if (TREE_CODE (TREE_VALUE (vals)) != INTEGER_CST

@@ -169,7 +169,7 @@ struct option long_options[] =
   {"gzip", 0, 0, 'z'},
   {"ungzip", 0, 0, 'z'},
   {"use-compress-program", 1, 0, 18},
-    
+
 
   {"same-permissions", 0, &f_use_protection, 1},
   {"sparse", 0, &f_sparse_files, 1},
@@ -201,7 +201,7 @@ main (argc, argv)
   tar = argv[0];		/* JF: was "tar" Set program name */
   filename_terminator = '\n';
   errors = 0;
- 
+
   options (argc, argv);
 
   if (!n_argv)
@@ -1182,12 +1182,12 @@ again:
 	      if (strcmp(p, nlp->name) == 0) {
 		  /* remove the current entry, since we found a match */
 		  /* use brute force, this code is a mess anyway */
-		  if (namelist->next == NULL) { 
+		  if (namelist->next == NULL) {
 		      /* the list contains one element */
 		      free(namelist);
 		      namelist = NULL;
 		  } else {
-		      if (nlp == namelist) { 
+		      if (nlp == namelist) {
 			  /* the first element is the one */
 			  tmpnlp = namelist->next;
 			  free(namelist);
@@ -1203,11 +1203,11 @@ again:
 		  }
 		  /* set a boolean to decide wether we started with a  */
 		  /* non-empty  namelist, that was emptied */
-		  nlpsfreed = 1;	
+		  nlpsfreed = 1;
 	      }
-	  } 
+	  }
 	  return 1;		/* We got a match */
-	      
+
 	}
     }
 

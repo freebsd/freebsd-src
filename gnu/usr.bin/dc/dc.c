@@ -1,4 +1,4 @@
-/* 
+/*
  * `dc' desk calculator utility.
  *
  * Copyright (C) 1984, 1993 Free Software Foundation, Inc.

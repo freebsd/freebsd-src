@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: input-scrub.c,v 1.2 1993/11/03 00:51:51 paul Exp $";
+static char rcsid[] = "$Id: input-scrub.c,v 1.3 1994/12/23 22:36:05 nate Exp $";
 #endif
 
 #include <errno.h>		/* Need this to make errno declaration right */
@@ -321,7 +321,7 @@ bump_line_counters ()
  * do_scrub_next_char).
  * If the fname is NULL, we don't change the current logical file name.
  */
-void 
+void
 new_logical_line (fname, line_number)
      char *fname;		/* DON'T destroy it! We point to it! */
      int line_number;
@@ -344,7 +344,7 @@ new_logical_line (fname, line_number)
  * namep should be char * const *, but there are compilers which screw
  * up declarations like that, and it's easier to avoid it.
  */
-void 
+void
 as_where (namep, linep)
      char **namep;
      unsigned int *linep;
@@ -399,7 +399,7 @@ as_howmuch (stream)
     }
 }
 
-static void 
+static void
 as_1_char (c, stream)
      unsigned int c;
      FILE *stream;

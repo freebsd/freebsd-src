@@ -1,4 +1,4 @@
-/* AUTOMATICALLY GENERATED; DO NOT EDIT! */ 
+/* AUTOMATICALLY GENERATED; DO NOT EDIT! */
 #include <sys/types.h>
 #ifndef _G_config_h
 #define _G_config_h

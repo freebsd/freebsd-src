@@ -1997,7 +1997,7 @@ assign_file_positions_except_relocs (abfd, dosyms)
 	      hdr->sh_offset = -1;
 	      continue;
 	    }
-	  
+
 	  off = assign_file_position_for_section (hdr, off, true);
 	}
     }
@@ -4143,7 +4143,7 @@ elf_link_add_object_symbols (abfd, info)
       strindex = bfd_add_to_strtab (abfd,
 				    elf_hash_table (info)->dynstr,
 				    name);
-      
+
       if (strindex == (unsigned long) -1)
 	goto error_return;
       if (! elf_add_dynamic_entry (info, DT_NEEDED, strindex))
@@ -5330,7 +5330,7 @@ elf_bfd_final_link (abfd, info)
 	{
 	  if (*rel_hash == NULL)
 	    continue;
-	      
+
 	  BFD_ASSERT ((*rel_hash)->indx >= 0);
 
 	  if (rel_hdr->sh_entsize == sizeof (Elf_External_Rel))

@@ -2800,7 +2800,7 @@ case 149:
 {   static char p[]="/\\s+/";
 			    char *oldend = bufend;
 			    ARG *oldarg = yylval.arg;
-			    
+
 			    bufend=p+5;
 			    (void)scanpat(p);
 			    bufend=oldend;

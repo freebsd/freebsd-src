@@ -141,7 +141,7 @@ readonly_error (arg, string, soft)
   else if (TREE_CODE (arg) == RESULT_DECL)
     (*fn) ("%s of read-only named return value `%s'",
 	   string, lang_printable_name (arg));
-  else	       
+  else
     (*fn) ("%s of read-only location", string);
 }
 
@@ -292,7 +292,7 @@ ack (s, v, v2)
      HOST_WIDE_INT v2;
 {
   extern char * progname;
-  
+
   if (input_filename)
     fprintf (stderr, "%s:%d: ", input_filename, lineno);
   else
@@ -301,7 +301,7 @@ ack (s, v, v2)
   fprintf (stderr, s, v, v2);
   fprintf (stderr, "\n");
 }
-  
+
 /* There are times when the compiler can get very confused, confused
    to the point of giving up by aborting, simply because of previous
    input errors.  It is much better to have the user go back and
@@ -354,7 +354,7 @@ my_friendly_abort (i)
 	}
       else
 	error ("confused by earlier errors, bailing out");
-      
+
       exit (34);
     }
   ++abortcount;
@@ -560,7 +560,7 @@ store_init_value (decl, init)
       else
 	{
 	  /* We get here with code like `int a (2);' */
-	     
+
 	  if (TREE_CHAIN (init) != NULL_TREE)
 	    {
 	      pedwarn ("initializer list being treated as compound expression");
@@ -1278,7 +1278,7 @@ build_x_arrow (datum)
 					  types_memoized);
 	    }
 	  last_rval = rval;
-	}     
+	}
       if (TREE_CODE (TREE_TYPE (last_rval)) == REFERENCE_TYPE)
 	last_rval = convert_from_reference (last_rval);
     }
@@ -1350,7 +1350,7 @@ build_m_component_ref (datum, component)
       cp_error ("which is of non-aggregate type `%T'", objtype);
       return error_mark_node;
     }
-  
+
   if (! comptypes (TYPE_METHOD_BASETYPE (type), objtype, 0))
     {
       cp_error ("member type `%T::' incompatible with object type `%T'",
@@ -1408,9 +1408,9 @@ build_functional_cast (exp, parms)
 
   /* Prepare to evaluate as a call to a constructor.  If this expression
      is actually used, for example,
-	 
+
      return X (arg1, arg2, ...);
-	 
+
      then the slot being initialized will be filled in.  */
 
   if (name == NULL_TREE)
@@ -1461,14 +1461,14 @@ build_functional_cast (exp, parms)
     /* The following assertion fails in cases where we are initializing
        a static member variable of a particular instance of a template
        class with a call to a constructor of the given instance, as in:
-       
+
        TMPL<int> object = TMPL<int>();
-       
+
        Curiously, the assertion does not fail if we do the same thing
        for a static member of a non-template class, as in:
-       
+
        T object = T();
-       
+
        I can't see why we should care here whether or not the initializer
        expression involves a call to `new', so for the time being, it
        seems best to just avoid doing this assertion.  */
@@ -1510,7 +1510,7 @@ enum_name_string (value, type)
 #if 0
 /* Print out a language-specific error message for
    (Pascal) case or (C) switch statements.
-   CODE tells what sort of message to print. 
+   CODE tells what sort of message to print.
    TYPE is the type of the switch index expression.
    NEW is the new value that we were trying to add.
    OLD is the old value that stopped us from adding it.  */

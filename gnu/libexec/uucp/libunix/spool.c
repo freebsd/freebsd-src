@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char spool_rcsid[] = "$Id: spool.c,v 1.8 1994/01/30 21:09:20 ian Rel $";
+const char spool_rcsid[] = "$Id: spool.c,v 1.2 1994/05/07 18:11:24 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -287,7 +287,7 @@ zsfind_file (zsimple, zsystem, bgrade)
       {
 	size_t c;
 	boolean ftruncated;
-      
+
 	/* D.LOCAL in D.LOCAL/, others in D./.  If BSD43, D.LOCALX in
 	   D.LOCALX/.  */
 	ftruncated = TRUE;
@@ -336,7 +336,7 @@ zsfind_file (zsimple, zsystem, bgrade)
 	char *zfree;
 	const char *zdir;
 	char *zret;
-      
+
 	/* D.LOCALX in D.LOCALX/, D.LOCAL in D.LOCAL/, others in D./.  */
 	ftruncated = TRUE;
 	if (strncmp (zsimple + 2, zSlocalname, strlen (zSlocalname)) == 0)
@@ -380,7 +380,7 @@ zsfind_file (zsimple, zsystem, bgrade)
 	    zfree = NULL;
 	    zdir = "D.";
 	  }
-      
+
 	zret = zsappend4 ("sys",
 			  (fsultrix_has_spool (zsystem)
 			   ? zsystem

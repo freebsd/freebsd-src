@@ -2940,7 +2940,7 @@ case 308:
     break;}
 case 309:
 #line 1550 "c-parse.y"
-{ 
+{
 		  /* Start the loop.  Doing this after parsing
 		     all the expressions ensures we will end the loop.  */
 		  expand_start_loop_continue_elsewhere (1);
@@ -3072,7 +3072,7 @@ case 325:
 #line 1665 "c-parse.y"
 {
 	    /* The value returned by this action is  */
-	    /*      1 if everything is OK */ 
+	    /*      1 if everything is OK */
 	    /*      0 in case of error or already bound iterator */
 
 	    yyval.itype = 0;

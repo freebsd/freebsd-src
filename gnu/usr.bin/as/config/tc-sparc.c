@@ -1,24 +1,24 @@
 /* tc-sparc.c -- Assemble for the SPARC
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-sparc.c,v 1.2 1993/12/12 17:02:13 jkh Exp $";
+static char rcsid[] = "$Id: tc-sparc.c,v 1.3 1994/12/23 22:37:40 nate Exp $";
 #endif
 
 #define cypress 1234
@@ -182,48 +182,48 @@ static void s_reserve() {
 	int size;
 	int temp;
 	symbolS *symbolP;
-	
+
 	name = input_line_pointer;
 	c = get_symbol_end();
 	p = input_line_pointer;
 	*p = c;
 	SKIP_WHITESPACE();
-	
+
 	if (*input_line_pointer != ',') {
 		as_bad("Expected comma after name");
 		ignore_rest_of_line();
 		return;
 	}
-	
+
 	++input_line_pointer;
-	
+
 	if ((size = get_absolute_expression()) < 0) {
 		as_bad("BSS length (%d.) <0! Ignored.", size);
 		ignore_rest_of_line();
 		return;
 	} /* bad length */
-	
+
 	*p = 0;
 	symbolP = symbol_find_or_make(name);
 	*p = c;
-	
+
 	if (strncmp(input_line_pointer, ",\"bss\"", 6) != 0) {
 		as_bad("bad .reserve segment: `%s'", input_line_pointer);
 		return;
 	} /* if not bss */
-	
+
 	input_line_pointer += 6;
 	SKIP_WHITESPACE();
-	
+
 	if (*input_line_pointer == ',') {
 		++input_line_pointer;
-		
+
 		SKIP_WHITESPACE();
 		if (*input_line_pointer == '\n') {
 			as_bad("Missing alignment");
 			return;
 		}
-		
+
 		align = get_absolute_expression();
 		if (align > max_alignment){
 			align = max_alignment;
@@ -238,23 +238,23 @@ static void s_reserve() {
 #else
 		record_alignment(SEG_BSS, align);
 #endif
-		
+
 		/* convert to a power of 2 alignment */
 		for (temp = 0; (align & 1) == 0; align >>= 1, ++temp) ;;
-		
+
 		if (align != 1) {
 			as_bad("Alignment not a power of 2");
 			ignore_rest_of_line();
 			return;
 		} /* not a power of two */
-		
+
 		align = temp;
-		
+
 		/* Align */
 		align = ~((~0) << align);	/* Convert to a mask */
 		local_bss_counter = (local_bss_counter + align) & (~align);
 	} /* if has optional alignment */
-	
+
 	if (S_GET_OTHER(symbolP) == 0
 	    && S_GET_DESC(symbolP) == 0
 	    && ((S_GET_SEGMENT(symbolP) == SEG_BSS
@@ -268,7 +268,7 @@ static void s_reserve() {
 		as_warn("Ignoring attempt to re-define symbol from %d. to %d.",
 			S_GET_VALUE(symbolP), local_bss_counter);
 	} /* if not redefining */
-	
+
 	demand_empty_rest_of_line();
 	return;
 } /* s_reserve() */
@@ -279,7 +279,7 @@ static void s_common() {
 	register char *p;
 	register int temp;
 	register symbolS *	symbolP;
-	
+
 	name = input_line_pointer;
 	c = get_symbol_end();
 	/* just after name is now '\0' */
@@ -332,7 +332,7 @@ static void s_common() {
 } /* s_common() */
 
 static void s_seg() {
-	
+
 	if (strncmp(input_line_pointer, "\"text\"", 6) == 0) {
 		input_line_pointer += 6;
 		s_text();
@@ -369,7 +369,7 @@ static void s_data1() {
 
 static void s_proc() {
 	extern char is_end_of_line[];
-	
+
 	while (!is_end_of_line[*input_line_pointer]) {
 		++input_line_pointer;
 	}
@@ -390,18 +390,18 @@ s_empty()
 	demand_empty_rest_of_line();
 	return;
 } /* s_empty() */
-  
+
 /* This function is called once, at assembler startup time.  It should
    set up all the tables, etc. that the MD part of the assembler will need. */
 void md_begin() {
 	register char *retval = NULL;
 	int lose = 0;
 	register unsigned int i = 0;
-	
+
 	op_hash = hash_new();
 	if (op_hash == NULL)
 	    as_fatal("Virtual memory exhausted");
-	
+
 	while (i < NUMOPCODES) {
 		const char *name = sparc_opcodes[i].name;
 		retval = hash_insert(op_hash, name, &sparc_opcodes[i]);
@@ -421,10 +421,10 @@ void md_begin() {
 		    } while (i < NUMOPCODES
 			     && !strcmp(sparc_opcodes[i].name, name));
 	}
-	
+
 	if (lose)
 	    as_fatal("Broken assembler.  No assembly attempted.");
-	
+
 	for (i = '0'; i < '8'; ++i)
 	    octal[i] = 1;
 	for (i = '0'; i <= '9'; ++i)
@@ -449,10 +449,10 @@ char *str;
 {
 	char *toP;
 	int rsd;
-	
+
 	know(str);
 	sparc_ip(str);
-	
+
 	/* See if "set" operand is absolute and small; skip sethi if so. */
 	if (special_case == SPECIAL_CASE_SET && the_insn.exp.X_seg == SEG_ABSOLUTE) {
 		if (the_insn.exp.X_add_number >= -(1<<12)
@@ -464,11 +464,11 @@ char *str;
 			the_insn.reloc = NO_RELOC;	/* No longer relocated */
 		}
 	}
-	
+
 	toP = frag_more(4);
 	/* put out the opcode */
 	md_number_to_chars(toP, the_insn.opcode, 4);
-	
+
 	/* put out the symbol-dependent stuff */
 	if (the_insn.reloc != NO_RELOC) {
 		fix_new(frag_now,              /* which frag */
@@ -482,7 +482,7 @@ char *str;
 			the_insn.exp.X_got_symbol);
 	}
 	switch (special_case) {
-		
+
 	case SPECIAL_CASE_SET:
 		special_case = 0;
 		know(the_insn.reloc == RELOC_HI22 ||
@@ -505,7 +505,7 @@ char *str;
 			the_insn.reloc==RELOC_BASE22?RELOC_BASE10:RELOC_LO10,
 			the_insn.exp.X_got_symbol);
 		return;
-		
+
 	case SPECIAL_CASE_FDIV:
 		/* According to information leaked from Sun, the "fdiv" instructions
 		   on early SPARC machines would produce incorrect results sometimes.
@@ -519,10 +519,10 @@ char *str;
 		the_insn.opcode = 0x81A00020 | (rsd << 25) | rsd;  /* fmovs dest,dest */
 		md_number_to_chars(toP, the_insn.opcode, 4);
 		return;
-		
+
 	case 0:
 		return;
-		
+
 	default:
 		as_fatal("md_assemble: failed sanity check.");
 	}
@@ -541,23 +541,23 @@ char *str;
 	unsigned int mask = 0;
 	int match = 0;
 	int comma = 0;
-	
+
 	for (s = str; islower(*s) || (*s >= '0' && *s <= '3'); ++s)
 	    ;
 	switch (*s) {
-		
+
 	case '\0':
 		break;
-		
+
 	case ',':
 		comma = 1;
-		
+
 		/*FALLTHROUGH */
-		
+
 	case ' ':
 		*s++ = '\0';
 		break;
-		
+
 	default:
 		as_bad("Unknown opcode: `%s'", str);
 		exit(1);
@@ -574,49 +574,49 @@ char *str;
 		opcode = insn->match;
 		memset(&the_insn, '\0', sizeof(the_insn));
 		the_insn.reloc = NO_RELOC;
-		
+
 		/*
 		 * Build the opcode, checking as we go to make
 		 * sure that the operands match
 		 */
 		for (args = insn->args; ; ++args) {
 			switch (*args) {
-				
+
 			case 'M':
 			case 'm':
 				if (strncmp(s, "%asr", 4) == 0) {
 					s += 4;
-					
+
 					if (isdigit(*s)) {
 						long num = 0;
-						
+
 						while (isdigit(*s)) {
 							num = num*10 + *s-'0';
 							++s;
 						}
-						
+
 						if (num < 16 || 31 < num) {
 							error_message = ": asr number must be between 15 and 31";
 							goto error;
 						} /* out of range */
-						
+
 						opcode |= (*args == 'M' ? RS1(num) : RD(num));
 						continue;
 					} else {
 						error_message = ": expecting %asrN";
 						goto error;
 					} /* if %asr followed by a number. */
-					
+
 				} /* if %asr */
 				break;
-				
-				
+
+
 			case '\0':  /* end of args */
 				if (*s == '\0') {
 					match = 1;
 				}
 				break;
-				
+
 			case '+':
 				if (*s == '+') {
 					++s;
@@ -626,7 +626,7 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case '[':   /* these must match exactly */
 			case ']':
 			case ',':
@@ -634,7 +634,7 @@ char *str;
 				if (*s++ == *args)
 				    continue;
 				break;
-				
+
 			case '#':   /* must be at least one digit */
 				if (isdigit(*s++)) {
 					while (isdigit(*s)) {
@@ -643,14 +643,14 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case 'C':   /* coprocessor state register */
 				if (strncmp(s, "%csr", 4) == 0) {
 					s += 4;
 					continue;
 				}
 				break;
-				
+
 			case 'b':    /* next operand is a coprocessor register */
 			case 'c':
 			case 'D':
@@ -665,22 +665,22 @@ char *str;
 						mask -= '0';
 					}
 					switch (*args) {
-						
+
 					case 'b':
 						opcode |= mask << 14;
 						continue;
-						
+
 					case 'c':
 						opcode |= mask;
 						continue;
-						
+
 					case 'D':
 						opcode |= mask << 25;
 						continue;
 					}
 				}
 				break;
-				
+
 			case 'r':   /* next operand must be a register */
 			case 's':
 			case '1':
@@ -689,49 +689,49 @@ char *str;
 			case 'x':
 				if (*s++ == '%') {
 					switch (c = *s++) {
-						
+
 					case 'f':   /* frame pointer */
 						if (*s++ == 'p') {
 							mask = 0x1e;
 							break;
 						}
 						goto error;
-						
+
 					case 'g':   /* global register */
 						if (isoctal(c = *s++)) {
 							mask = c - '0';
 							break;
 						}
 						goto error;
-						
+
 					case 'i':   /* in register */
 						if (isoctal(c = *s++)) {
 							mask = c - '0' + 24;
 							break;
 						}
 						goto error;
-						
+
 					case 'l':   /* local register */
 						if (isoctal(c = *s++)) {
 							mask= (c - '0' + 16) ;
 							break;
 						}
 						goto error;
-						
+
 					case 'o':   /* out register */
 						if (isoctal(c = *s++)) {
 							mask= (c - '0' + 8) ;
 							break;
 						}
 						goto error;
-						
+
 					case 's':   /* stack pointer */
 						if (*s++ == 'p') {
 							mask= 0xe;
 							break;
 						}
 						goto error;
-						
+
 					case 'r': /* any register */
 						if (!isdigit(c = *s++)) {
 							goto error;
@@ -748,7 +748,7 @@ char *str;
 						}
 						mask= c;
 						break;
-						
+
 					case 'x':
 						opcode |= (mask << 25) | mask;
 						continue;
@@ -761,19 +761,19 @@ char *str;
 					 * it goes in the opcode.
 					 */
 					switch (*args) {
-						
+
 					case '1':
 						opcode |= mask << 14;
 						continue;
-						
+
 					case '2':
 						opcode |= mask;
 						continue;
-						
+
 					case 'd':
 						opcode |= mask << 25;
 						continue;
-						
+
 					case 'r':
 						opcode |= (mask << 25) | (mask << 14);
 						continue;
@@ -783,32 +783,32 @@ char *str;
 					}
 				}
 				break;
-				
+
 			case 'e': /* next operand is a floating point register */
 			case 'v':
 			case 'V':
-				
+
 			case 'f':
 			case 'B':
 			case 'R':
-				
+
 			case 'g':
 			case 'H':
 			case 'J': {
 				char format;
-				
+
 				if (*s++ == '%'
-				    
+
 				    && ((format = *s) == 'f')
-				    
+
 				    && isdigit(*++s)) {
-					
-					
-					
+
+
+
 					for (mask = 0; isdigit(*s); ++s) {
 						mask = 10 * mask + (*s - '0');
 					} /* read the number */
-					
+
 					if ((*args == 'u'
 					     || *args == 'v'
 					     || *args == 'B'
@@ -816,7 +816,7 @@ char *str;
 					    && (mask & 1)) {
 						break;
 					} /* register must be even numbered */
-					
+
 					if ((*args == 'U'
 					     || *args == 'V'
 					     || *args == 'R'
@@ -824,7 +824,7 @@ char *str;
 					    && (mask & 3)) {
 						break;
 					} /* register must be multiple of 4 */
-					
+
 					if (format == 'f') {
 						if (mask >= 32) {
 							error_message = ": There are only 32 f registers; [0-31]";
@@ -832,40 +832,40 @@ char *str;
 						} /* on error */
 					} /* if not an 'f' register. */
 				} /* on error */
-				
+
 				switch (*args) {
-					
+
 				case 'v':
 				case 'V':
 				case 'e':
 					opcode |= RS1(mask);
 					continue;
-					
-					
+
+
 				case 'f':
 				case 'B':
 				case 'R':
 					opcode |= RS2(mask);
 					continue;
-					
+
 				case 'g':
 				case 'H':
 				case 'J':
 					opcode |= RD(mask);
 					continue;
 				} /* pack it in. */
-				
+
 				know(0);
 				break;
 			} /* float arg */
-				
+
 			case 'F':
 				if (strncmp(s, "%fsr", 4) == 0) {
 					s += 4;
 					continue;
 				}
 				break;
-				
+
 			case 'h': /* high 22 bits */
 				/*
 				 * In the case of a `set' pseudo instruction
@@ -876,12 +876,12 @@ char *str;
 				else
 					the_insn.reloc = RELOC_22;
 				goto immediate;
-				
+
 			case 'l': /* 22 bit PC relative immediate */
 				the_insn.reloc = RELOC_WDISP22;
 				the_insn.pcrel = 1;
 				goto immediate;
-				
+
 			case 'L': /* 30 bit immediate */
 				the_insn.reloc =
 #ifdef PIC
@@ -890,16 +890,16 @@ char *str;
 					RELOC_WDISP30;
 				the_insn.pcrel = 1;
 				goto immediate;
-				
+
 			case 'n': /* 22 bit immediate */
 				the_insn.reloc = RELOC_22;
 				goto immediate;
-				
+
 			case 'i':   /* 13 bit immediate */
 				the_insn.reloc = RELOC_13;
-				
+
 				/*FALLTHROUGH */
-				
+
 			immediate:
 				if (*s == ' ')
 				    s++;
@@ -920,18 +920,18 @@ char *str;
 				   will still have created U entries in the
 				   symbol table for the 'symbols' in the input
 				   string.  Try not to create U symbols for
-				   registers, etc. */ 
+				   registers, etc. */
 				{
 					/* This stuff checks to see if the
 					   expression ends in +%reg If it does,
 					   it removes the register from the
 					   expression, and re-sets 's' to point
 					   to the right place */
-					
+
 					char *s1;
-					
+
 					for (s1 = s; *s1 && *s1 != ',' && *s1 != ']'; s1++) ;;
-					
+
 					if (s1 != s && isdigit(s1[-1])) {
 						if (s1[-2] == '%' && s1[-3] == '+') {
 							s1 -= 3;
@@ -990,51 +990,51 @@ char *str;
 #endif
 				s = expr_end;
 				continue;
-				
+
 			case 'a':
 				if (*s++ == 'a') {
 					opcode |= ANNUL;
 					continue;
 				}
 				break;
-				
+
 			case 'A': {
 				char *push = input_line_pointer;
 				expressionS e;
-				
+
 				input_line_pointer = s;
-				
+
 				if (expression(&e) == SEG_ABSOLUTE) {
 					opcode |= e.X_add_number << 5;
 					s = input_line_pointer;
 					input_line_pointer = push;
 					continue;
 				} /* if absolute */
-				
+
 				break;
 			} /* alternate space */
-				
+
 			case 'p':
 				if (strncmp(s, "%psr", 4) == 0) {
 					s += 4;
 					continue;
 				}
 				break;
-				
+
 			case 'q':   /* floating point queue */
 				if (strncmp(s, "%fq", 3) == 0) {
 					s += 3;
 					continue;
 				}
 				break;
-				
+
 			case 'Q':   /* coprocessor queue */
 				if (strncmp(s, "%cq", 3) == 0) {
 					s += 3;
 					continue;
 				}
 				break;
-				
+
 			case 'S':
 				if (strcmp(str, "set") == 0) {
 					special_case = SPECIAL_CASE_SET;
@@ -1044,25 +1044,25 @@ char *str;
 					continue;
 				}
 				break;
-				
+
 			case 't':
 				if (strncmp(s, "%tbr", 4) != 0)
 				    break;
 				s += 4;
 				continue;
-				
+
 			case 'w':
 				if (strncmp(s, "%wim", 4) != 0)
 				    break;
 				s += 4;
 				continue;
-				
+
 			case 'y':
 				if (strncmp(s, "%y", 2) != 0)
 				    break;
 				s += 2;
 				continue;
-				
+
 			default:
 				as_fatal("sparc_ip: failed sanity check.");
 			} /* switch on arg code */
@@ -1083,14 +1083,14 @@ char *str;
 		} else {
 			if (insn->architecture > current_architecture) {
 				if (!architecture_requested || warn_on_bump) {
-					
+
 					if (warn_on_bump) {
 						as_warn("architecture bumped from \"%s\" to \"%s\" on \"%s\"",
 							architecture_pname[current_architecture],
 							architecture_pname[insn->architecture],
 							str);
 					} /* if warning */
-					
+
 					current_architecture = insn->architecture;
 				} else {
 					as_bad("architecture mismatch on \"%s\" (\"%s\").  current architecture is \"%s\"",
@@ -1101,10 +1101,10 @@ char *str;
 				} /* if bump ok else error */
 			} /* if architecture higher */
 		} /* if no match */
-		
+
 		break;
 	} /* forever looking for a match */
-	
+
 	the_insn.opcode = opcode;
 #if DEBUG_SPARC
 	if (flagseen['D'])
@@ -1118,11 +1118,11 @@ char *str;
 {
 	char *save_in;
 	segT seg;
-	
+
 	save_in = input_line_pointer;
 	input_line_pointer = str;
 	switch (seg = expression(&the_insn.exp)) {
-		
+
 	case SEG_ABSOLUTE:
 	case SEG_TEXT:
 	case SEG_DATA:
@@ -1132,7 +1132,7 @@ char *str;
 	case SEG_BIG:
 	case SEG_ABSENT:
 		break;
-		
+
 	default:
 		the_insn.error = "bad segment";
 		expr_end = input_line_pointer;
@@ -1149,7 +1149,7 @@ char *str;
 /*
   This is identical to the md_atof in m68k.c.  I think this is right,
   but I'm not sure.
-  
+
   Turn a string in input_line_pointer into a floating point constant of type
   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
   emitted is stored in *sizeP. An error message is returned, or NULL on OK.
@@ -1168,33 +1168,33 @@ int *sizeP;
 	LITTLENUM_TYPE *wordP;
 	char *t;
 	char *atof_ieee();
-	
+
 	switch (type) {
-		
+
 	case 'f':
 	case 'F':
 	case 's':
 	case 'S':
 		prec = 2;
 		break;
-		
+
 	case 'd':
 	case 'D':
 	case 'r':
 	case 'R':
 		prec = 4;
 		break;
-		
+
 	case 'x':
 	case 'X':
 		prec = 6;
 		break;
-		
+
 	case 'p':
 	case 'P':
 		prec = 6;
 		break;
-		
+
 	default:
 		*sizeP=0;
 		return "Bad call to MD_ATOF()";
@@ -1218,9 +1218,9 @@ char *buf;
 long val;
 int n;
 {
-	
+
 	switch (n) {
-		
+
 	case 4:
 		*buf++ = val >> 24;
 		*buf++ = val >> 16;
@@ -1229,7 +1229,7 @@ int n;
 	case 1:
 		*buf = val;
 		break;
-		
+
 	default:
 		as_fatal("md_number_to_chars: failed sanity check.");
 	}
@@ -1292,9 +1292,9 @@ long val;
 
 	assert(fixP->fx_size == 4);
 	assert(fixP->fx_r_type < NO_RELOC);
-	
+
 	fixP->fx_addnumber = val;	/* Remember value for emit_reloc */
-	
+
 	/*
 	 * This is a hack.  There should be a better way to
 	 * handle this.
@@ -1302,7 +1302,7 @@ long val;
 	if (fixP->fx_r_type == RELOC_WDISP30 && fixP->fx_addsy) {
 		val += fixP->fx_where + fixP->fx_frag->fr_address;
 	}
-	
+
 	switch (fixP->fx_r_type) {
 
 		/* Michael Bloom <mb@ttidca.tti.com> says...  [This] change was
@@ -1330,7 +1330,7 @@ long val;
 			buf[3] = 0;
 		}
 		break;
-		
+
 	case RELOC_JMP_TBL:
 		if (!fixP->fx_addsy) {
 			val = (val >>= 2) + 1;
@@ -1346,13 +1346,13 @@ long val;
 	case RELOC_WDISP30:
 		val = (val >>= 2) + 1;
 		reloc_check(val, 30, fixP);
-						  
+
 		buf[0] |= (val >> 24) & 0x3f;
 		buf[1]= (val >> 16);
 		buf[2] = val >> 8;
 		buf[3] = val;
 		break;
-		
+
 	case RELOC_WDISP22:
 		val = (val >>= 2) + 1;
 		reloc_check(val, 22, fixP);
@@ -1439,7 +1439,7 @@ long val;
 	case RELOC_JMP_SLOT:
 	case RELOC_RELATIVE:
 #endif
-		
+
 	case NO_RELOC:
 	default:
 		as_bad("bad relocation type: 0x%02x", fixP->fx_r_type);
@@ -1459,7 +1459,7 @@ symbolS *to_symbol;
 } /* md_create_short_jump() */
 
 /* Translate internal representation of relocation info to target format.
-   
+
    On sparc: first 4 bytes are normal unsigned long address, next three
    bytes are index, most sig. byte first.  Byte 7 is broken up with
    bit 7 as external, bits 6 & 5 unused, and the lower
@@ -1477,9 +1477,9 @@ relax_addressT segment_address_in_file;
 #ifdef PIC
 	int kflag = 0;
 #endif
-	
+
 	know(fixP->fx_addsy);
-	
+
 	if (!S_IS_DEFINED(fixP->fx_addsy)) {
 		r_extern = 1;
 		r_index = fixP->fx_addsy->sy_number;
@@ -1511,23 +1511,23 @@ relax_addressT segment_address_in_file;
 		}
 #endif
 	}
-	
+
 	/* this is easy */
 	md_number_to_chars(where,
 			   r_address = fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	/* now the fun stuff */
 	where[4] = (r_index >> 16) & 0x0ff;
 	where[5] = (r_index >> 8) & 0x0ff;
 	where[6] = r_index & 0x0ff;
 	where[7] = ((r_extern << 7)  & 0x80) | (0 & 0x60) | (fixP->fx_r_type & 0x1F);
-	
+
 	/* Also easy */
 	if (fixP->fx_addsy->sy_frag) {
 		r_addend = fixP->fx_addsy->sy_frag->fr_address;
 	}
-	
+
 	if (fixP->fx_pcrel) {
 #ifdef PIC
 		if (fixP->fx_gotsy) {
@@ -1544,9 +1544,9 @@ relax_addressT segment_address_in_file;
 #endif
 			r_addend = fixP->fx_addnumber;
 	}
-	
+
 	md_number_to_chars(&where[8], r_addend, 4);
-	
+
 	return;
 } /* tc_aout_fix_to_chars() */
 
@@ -1582,7 +1582,7 @@ segT segtype;
 static void print_insn(insn)
 struct sparc_it *insn;
 {
-	
+
 	if (insn->error) {
 		fprintf(stderr, "ERROR: %s\n", insn->error);
 	}
@@ -1634,14 +1634,14 @@ relax_addressT segment_address_in_file;
 	register symbolS *symbolP;
 	extern char *next_object_file_charP;
 	/*    long add_number; */
-	
+
 	memset((char *) &ri, '\0', sizeof(ri));
 	for (; fixP; fixP = fixP->fx_next) {
-		
+
 		if (fixP->fx_r_type >= NO_RELOC) {
 			as_fatal("fixP->fx_r_type = %d\n", fixP->fx_r_type);
 		}
-		
+
 		if ((symbolP = fixP->fx_addsy) != NULL) {
 			ri.r_address = fixP->fx_frag->fr_address +
 			    fixP->fx_where - segment_address_in_file;
@@ -1662,7 +1662,7 @@ relax_addressT segment_address_in_file;
 			} else {
 				ri.r_addend = fixP->fx_addnumber;
 			}
-			
+
 			md_ri_to_chars(next_object_file_charP, &ri);
 			next_object_file_charP += md_reloc_size;
 		}
@@ -1692,7 +1692,7 @@ relax_addressT segment_address_in_file;
  *
  *		If an architecture is specified, all instructions must match
  *		that architecture.  Any higher level instructions are flagged
- *		as errors. 
+ *		as errors.
  *
  *		if both an architecture and -bump are specified, the
  *		architecture starts at the specified level, but bumps are
@@ -1706,19 +1706,19 @@ char ***vecP;
 {
 	char *p;
 	const char **arch;
-	
+
 	if (!strcmp(*argP,"bump")){
 		warn_on_bump = 1;
-		
+
 	} else if (**argP == 'A'){
 		p = (*argP) + 1;
-		
+
 		for (arch = architecture_pname; *arch != NULL; ++arch){
 			if (strcmp(p, *arch) == 0){
 				break;
 			} /* found a match */
 		} /* walk the pname table */
-		
+
 		if (*arch == NULL){
 			as_bad("unknown architecture: %s", p);
 		} else {

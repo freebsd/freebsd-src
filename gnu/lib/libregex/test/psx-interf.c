@@ -7,7 +7,7 @@
 
 #define ERROR_CODE_LENGTH 20
 #define TEST_ERRBUF_SIZE 15
- 
+
 
 void test_compile ();
 
@@ -64,50 +64,50 @@ init_pattern_buffer (pattern_buffer_ptr)
 
 
 void
-test_compile (valid_pattern, error_code_expected, pattern, 
+test_compile (valid_pattern, error_code_expected, pattern,
 	      pattern_buffer_ptr, cflags)
     unsigned valid_pattern;
     int error_code_expected;
     const char *pattern;
     regex_t *pattern_buffer_ptr;
     int cflags;
-{    
+{
   int error_code_returned;
   boolean error = false;
   char errbuf[TEST_ERRBUF_SIZE];
-  
+
   init_pattern_buffer (pattern_buffer_ptr);
   error_code_returned = regcomp (pattern_buffer_ptr, pattern, cflags);
 
   if (valid_pattern && error_code_returned)
     {
       printf ("\nShould have been a valid pattern but wasn't.\n");
-      regerror (error_code_returned, pattern_buffer_ptr, errbuf, 
+      regerror (error_code_returned, pattern_buffer_ptr, errbuf,
 	        TEST_ERRBUF_SIZE);
       printf ("%s", errbuf);
       error = true;
     }
-    
+
   if (!valid_pattern && !error_code_returned)
     {
       printf ("\n\nInvalid pattern compiled as valid:\n");
       error = true;
     }
- 
+
   if (error_code_returned != error_code_expected)
     {
       char expected_error_string[ERROR_CODE_LENGTH];
       char returned_error_string[ERROR_CODE_LENGTH];
-      
-      get_error_string (error_code_expected, expected_error_string), 
+
+      get_error_string (error_code_expected, expected_error_string),
       get_error_string (error_code_returned, returned_error_string);
-      
-      printf ("  Expected error code %s but got `%s'.\n", 
+
+      printf ("  Expected error code %s but got `%s'.\n",
               expected_error_string, returned_error_string);
 
       error = true;
     }
-  
+
   if (error)
     print_pattern_info (pattern, pattern_buffer_ptr);
 }
@@ -121,7 +121,7 @@ test_nsub (sub_count, pattern, cflags)
 
 {
   regex_t pattern_buffer;
-  
+
   test_compile (1, 0, pattern, &pattern_buffer, cflags);
 
   if (pattern_buffer.re_nsub != sub_count)
@@ -132,7 +132,7 @@ instead.\n", sub_count, pattern_buffer.re_nsub);
 
   regfree (&pattern_buffer);
 }
-  
+
 
 static void
 test_regcomp ()
@@ -140,9 +140,9 @@ test_regcomp ()
   regex_t pattern_buffer;
   int cflags = 0;
 
-  
+
   printf ("\nStarting regcomp tests.\n");
-  
+
   cflags = 0;
   test_compile (0, REG_ESUBREG, "\\(a\\)\\2", &pattern_buffer, cflags);
   test_compile (0, REG_EBRACE, "a\\{", &pattern_buffer, cflags);
@@ -160,7 +160,7 @@ test_regcomp ()
   test_nsub (1, "(a)", cflags);
   test_nsub (2, "((a))", cflags);
   test_nsub (2, "(a)(b)", cflags);
-  
+
   cflags = REG_EXTENDED | REG_NOSUB;
   test_nsub (1, "(a)", cflags);
 
@@ -197,13 +197,13 @@ test_pmatch (pattern, string, nmatch, pmatch, correct_pmatch, cflags)
   unsigned this_match;
   int error_code_returned;
   boolean found_nonmatch = false;
-  
+
   test_compile (1, 0, pattern, &pattern_buffer, cflags);
   error_code_returned = regexec (&pattern_buffer, string, nmatch, pmatch, 0);
-  
+
   if (error_code_returned == REG_NOMATCH)
     printf ("Matching failed in test_pmatch.\n");
-  else    
+  else
     {
       for (this_match = 0; this_match < nmatch; this_match++)
         {
@@ -213,7 +213,7 @@ test_pmatch (pattern, string, nmatch, pmatch, correct_pmatch, cflags)
                 printf ("\n");
 
              printf ("Pmatch start %d wrong: was %d when should have \
-been %d.\n", this_match, pmatch[this_match].rm_so, 
+been %d.\n", this_match, pmatch[this_match].rm_so,
 		      correct_pmatch[this_match].rm_so);
               found_nonmatch = true;
             }
@@ -223,7 +223,7 @@ been %d.\n", this_match, pmatch[this_match].rm_so,
                 printf ("\n");
 
               printf ("Pmatch end   %d wrong: was %d when should have been \
-%d.\n", this_match, pmatch[this_match].rm_eo, 
+%d.\n", this_match, pmatch[this_match].rm_eo,
                        correct_pmatch[this_match].rm_eo);
               found_nonmatch = true;
             }
@@ -258,12 +258,12 @@ test_eflags (must_match_bol, must_match_eol, pattern, string, cflags, eflags)
   error_code_returned = regexec (&pattern_buffer, string, 0, 0, eflags);
 
   if (error_code_returned == REG_NOMATCH)
-    {  
+    {
       /* If wasn't true that both 1) the anchored part of the pattern
          had to match this string and 2) this string was a proper
 	 substring...  */
 
-      if (!( (must_match_bol && (eflags & REG_NOTBOL)) 
+      if (!( (must_match_bol && (eflags & REG_NOTBOL))
 	     || (must_match_eol && (eflags & REG_NOTEOL)) ))
         {
           printf ("\nEflags test failed:  didn't match when should have.\n");
@@ -271,7 +271,7 @@ test_eflags (must_match_bol, must_match_eol, pattern, string, cflags, eflags)
 	}
     }
   else  /* We got a match.  */
-    {  
+    {
       /* If wasn't true that either 1) the anchored part of the pattern
          didn't have to match this string or 2) this string wasn't a
          proper substring...  */
@@ -313,7 +313,7 @@ test_ignore_case (should_match, pattern, string, cflags)
   error_code_returned = regexec (&pattern_buffer, string, 0, 0, 0);
 
   if (should_match && error_code_returned == REG_NOMATCH)
-    {  
+    {
       printf ("\nIgnore-case test failed:\n");
       printf ("  The string to match was:  `%s'.\n", string);
       print_pattern_info (pattern, &pattern_buffer);
@@ -340,7 +340,7 @@ test_newline (should_match, pattern, string, cflags)
   error_code_returned = regexec (&pattern_buffer, string, 0, 0, 0);
 
   if (should_match && error_code_returned == REG_NOMATCH)
-    {  
+    {
       printf ("\nNewline test failed:\n");
       printf ("  The string to match was:  `%s'.\n", string);
       print_pattern_info (pattern, &pattern_buffer);
@@ -370,12 +370,12 @@ test_posix_match (should_match, pattern, string, cflags)
   error_code_returned = regexec (&pattern_buffer, string, 0, 0, 0);
 
   if (should_match && error_code_returned == REG_NOMATCH)
-    {  
+    {
       printf ("\nShould have matched but didn't:\n");
       was_error = true;
     }
   else if (!should_match && error_code_returned != REG_NOMATCH)
-    {  
+    {
       printf ("\nShould not have matched but did:\n");
       was_error = true;
     }
@@ -397,23 +397,23 @@ test_regexec ()
   regmatch_t correct_pmatch[3];
   int cflags = 0;
   int eflags = 0;
-    
+
   printf ("\nStarting regexec tests.\n");
 
   cflags = REG_NOSUB;    /* shouldn't look at any of pmatch.  */
   test_pmatch ("a", "a", 0, pmatch, correct_pmatch, cflags);
-    
+
   /* Ask for less `pmatch'es than there are pattern subexpressions.
      (Shouldn't look at pmatch[2].  */
   cflags = REG_EXTENDED;
   fill_pmatch (correct_pmatch, 0, 1, 0, 1, 100, 101);
   test_pmatch ("((a))", "a", 2, pmatch, correct_pmatch, cflags);
-    
+
   /* Ask for same number of `pmatch'es as there are pattern subexpressions.  */
   cflags = REG_EXTENDED;
   fill_pmatch(correct_pmatch, 0, 1, 0, 1, -1, -1);
   test_pmatch ("(a)", "a", 2, pmatch, correct_pmatch, cflags);
-    
+
   /* Ask for more `pmatch'es than there are pattern subexpressions.  */
   cflags = REG_EXTENDED;
   fill_pmatch (correct_pmatch, 0, 1, -1, -1, -1, -1);
@@ -487,7 +487,7 @@ test_regexec ()
 
   test_newline (true, "^a", "\na", cflags);
   test_newline (true, "a$", "a\n", cflags);
-  
+
   /* Now test normal behavior.  */
   cflags = REG_EXTENDED;
   test_newline (true, "\n", "\n", cflags);
@@ -508,11 +508,11 @@ test_regexec ()
   /* Test that matches whole string only.  */
   cflags = 0;
   test_posix_match (true, "a", "a", cflags);
-  
+
   /* Tests that match substrings.  */
   test_posix_match (true, "a", "ab", cflags);
   test_posix_match (true, "b", "ab", cflags);
-  
+
   /* Test that doesn't match.  */
   test_posix_match (false, "a", "b", cflags);
 
@@ -528,8 +528,8 @@ test_error_code_message (error_code, expected_error_message)
   char returned_error_message[TEST_ERRBUF_SIZE];
   char error_code_string[ERROR_CODE_LENGTH];
   size_t expected_error_message_length = strlen (expected_error_message) + 1;
-  size_t returned_error_message_length = regerror (error_code, 0, 
-					             returned_error_message, 
+  size_t returned_error_message_length = regerror (error_code, 0,
+					             returned_error_message,
 	                                             TEST_ERRBUF_SIZE);
 
   if (returned_error_message_length != expected_error_message_length)
@@ -543,14 +543,14 @@ message  `%s':\n", expected_error_message);
 	      expected_error_message_length, returned_error_message_length);
     }
 
-  if (strncmp (expected_error_message, returned_error_message, 
+  if (strncmp (expected_error_message, returned_error_message,
 	       TEST_ERRBUF_SIZE - 1) != 0)
     {
-      
-      get_error_string (error_code, error_code_string), 
+
+      get_error_string (error_code, error_code_string),
       printf ("\n\n  With error code %s (%d), expected error message:\n",
       	      error_code_string, error_code);
-                    
+
       printf ("    `%s'\n", expected_error_message);
       printf ("  but got:\n");
       printf ("    `%s'\n", returned_error_message);
@@ -565,21 +565,21 @@ test_error_code_allocation (error_code, expected_error_message)
 {
   char *returned_error_message = NULL;
   char error_code_string[ERROR_CODE_LENGTH];
-  size_t returned_error_message_length = regerror (error_code, 0, 
-					             returned_error_message, 
+  size_t returned_error_message_length = regerror (error_code, 0,
+					             returned_error_message,
 	                                             (size_t)0);
 
   returned_error_message = xmalloc (returned_error_message_length + 1);
-    
-  regerror (error_code, 0, returned_error_message, 
+
+  regerror (error_code, 0, returned_error_message,
 	    returned_error_message_length);
-  
+
   if (strcmp (expected_error_message, returned_error_message) != 0)
     {
-      get_error_string (error_code, error_code_string), 
-      
-      printf ("\n\n  Testing error code allocation,\n"); 
-      printf ("with error code %s (%d), expected error message:\n", 
+      get_error_string (error_code, error_code_string),
+
+      printf ("\n\n  Testing error code allocation,\n");
+      printf ("with error code %s (%d), expected error message:\n",
 	       error_code_string, error_code);
       printf ("    `%s'\n", expected_error_message);
       printf ("  but got:\n");
@@ -591,18 +591,18 @@ test_error_code_allocation (error_code, expected_error_message)
 static void
 test_regerror ()
 {
-  test_error_code_message (REG_NOMATCH, "No match"); 
+  test_error_code_message (REG_NOMATCH, "No match");
   test_error_code_message (REG_BADPAT, "Invalid regular expression");
-  test_error_code_message (REG_ECOLLATE, "Invalid collation character"); 
-  test_error_code_message (REG_ECTYPE, "Invalid character class name"); 
-  test_error_code_message (REG_EESCAPE, "Trailing backslash"); 
-  test_error_code_message (REG_ESUBREG, "Invalid back reference"); 
-  test_error_code_message (REG_EBRACK, "Unmatched [ or [^"); 
-  test_error_code_message (REG_EPAREN, "Unmatched ( or \\("); 
-  test_error_code_message (REG_EBRACE, "Unmatched \\{"); 
-  test_error_code_message (REG_BADBR, "Invalid content of \\{\\}"); 
-  test_error_code_message (REG_ERANGE, "Invalid range end"); 
-  test_error_code_message (REG_ESPACE, "Memory exhausted"); 
+  test_error_code_message (REG_ECOLLATE, "Invalid collation character");
+  test_error_code_message (REG_ECTYPE, "Invalid character class name");
+  test_error_code_message (REG_EESCAPE, "Trailing backslash");
+  test_error_code_message (REG_ESUBREG, "Invalid back reference");
+  test_error_code_message (REG_EBRACK, "Unmatched [ or [^");
+  test_error_code_message (REG_EPAREN, "Unmatched ( or \\(");
+  test_error_code_message (REG_EBRACE, "Unmatched \\{");
+  test_error_code_message (REG_BADBR, "Invalid content of \\{\\}");
+  test_error_code_message (REG_ERANGE, "Invalid range end");
+  test_error_code_message (REG_ESPACE, "Memory exhausted");
   test_error_code_message (REG_BADRPT, "Invalid preceding regular expression");
   test_error_code_message (REG_EEND, "Premature end of regular expression");
   test_error_code_message (REG_ESIZE, "Regular expression too big");
@@ -615,10 +615,10 @@ test_posix_interface ()
 {
   printf ("\nStarting POSIX interface tests.\n");
   t = posix_interface_test;
-  
+
   test_regcomp ();
   test_regexec ();
   test_regerror ();
-  
+
   printf ("\nFinished POSIX interface tests.\n");
 }

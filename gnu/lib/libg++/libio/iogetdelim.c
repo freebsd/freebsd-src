@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1994 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free

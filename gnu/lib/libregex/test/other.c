@@ -6,7 +6,7 @@ void
 test_others ()
 {
   struct re_registers regs;
-  
+
   printf ("\nStarting non-POSIX tests.\n");
   t = other_test;
 
@@ -19,17 +19,17 @@ test_others ()
   TEST_REGISTERS ("(a*)*ab", "ab", 0, 2, 0, 0, -1, -1);
   test_match ("(a*)*", "");
   TEST_REGISTERS ("(a*)*ab", "ab", 0, 0, 0, 0, -1, -1);
-  
+
   /* This tests finding the highest and lowest active registers.  */
   test_match ("(a(b)c(d(e)f)g)h(i(j)k(l(m)n)o)\\1\\2\\3\\4\\5\\6\\7\\8",
               "abcdefghijklmnoabcdefgbdefeijklmnojlmnm");
 
   /* Test that \< and \> match at the beginning and end of the string.  */
   test_match ("\\<abc\\>", "abc");
-  
+
   /* May as well test \` and \' while we're at it.  */
   test_match ("\\`abc\\'", "abc");
-  
+
 #if 0
   /* Test backreferencing and the fastmap -- which doesn't work.  */
   test_fastmap ("(a)*\\1", "a", 0, 0);
@@ -37,9 +37,9 @@ test_others ()
 
   /* But at least we shouldn't search improperly.  */
   test_search_return (-1, "(a)\\1", "");
-  
+
   re_set_syntax (RE_SYNTAX_EMACS);
-  
+
   MATCH_SELF("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
   MATCH_SELF ("a^");
   MATCH_SELF ("a^b");
@@ -70,7 +70,7 @@ test_others ()
   test_match ("a|{1}", "a");
   test_match ("a|{1}", "{1}");
   test_match ("({1})", "{1}");
-  
+
   test_match ("\\{", "{");
 
 
@@ -94,7 +94,7 @@ test_others ()
 
   /* Test grouping.  */
   re_set_syntax (RE_NO_BK_PARENS);
-  
+
   test_match ("()", "");
   test_fastmap ("()", "", 0, 0);
   TEST_REGISTERS ("()", "", 0, 0, 0, 0, -1, -1);
@@ -106,22 +106,22 @@ test_others ()
 
   test_match ("(((((((((())))))))))", "");
   test_fastmap ("(((((((((())))))))))", "", 0, 0);
-  
+
   test_match ("()*", "");
   TEST_REGISTERS ("()*", "", 0, 0, 0, 0, -1, -1);  /* empty string */
   test_match ("(())*", "");
 
   re_set_syntax (RE_CONTEXT_INDEP_OPS);
   test_match ("*", "");
-  
+
   re_set_syntax (RE_INTERVALS | RE_CONTEXT_INDEP_OPS | RE_NO_BK_BRACES);
   test_match ("{1}", "");		/* Should remain an interval.  */
   MATCH_SELF ("{1");			/* Not a valid interval.  */
-  
+
   re_set_syntax (RE_NEWLINE_ALT);
   test_match ("a\nb", "a");
   test_match ("a\nb", "b");
-  
+
   re_set_syntax (RE_NO_BK_VBAR | RE_NO_BK_PARENS);
   test_match ("^a", "a");
   test_match ("(^a)", "a");
@@ -129,11 +129,11 @@ test_others ()
   test_match ("a$", "a");
   test_match ("(a$)", "a");
   test_match ("a$|b", "a");
-  
+
   /* You should be able to have empty alternatives if RE_NO_EMPTY_ALTS
      isn't set.  */
   re_set_syntax (RE_NO_BK_VBAR | RE_NO_BK_PARENS);
-  
+
   test_match ("|", "");
   test_match ("^|a", "");
   test_match ("^|a", "a");
@@ -293,8 +293,8 @@ test_others ()
 
   test_case_fold ("[!-`]", "A");
   test_case_fold ("[!-`]", "a");
-  
-  re_set_syntax (RE_CONTEXT_INDEP_OPS | RE_NO_BK_VBAR | RE_NO_BK_PARENS 
+
+  re_set_syntax (RE_CONTEXT_INDEP_OPS | RE_NO_BK_VBAR | RE_NO_BK_PARENS
                  | RE_NO_BK_BRACES | RE_INTERVALS);
   valid_nonposix_pattern ("()^a");
   valid_nonposix_pattern ("()\\1^a");
@@ -319,24 +319,24 @@ test_others ()
   TEST_SEARCH ("^(^a)", "ab", 0, 2);
   TEST_SEARCH ("(a$)$", "ba", 0, 2);
   test_match ("a|$b", "$b");
-  
+
   /* Mike's curiosity item.  */
   re_set_syntax (RE_NO_BK_VBAR | RE_NO_BK_PARENS);
   test_all_registers ("(foo|foobar)(foo|bar)*\\1(foo|bar)*",
   		      "foobarfoobar", "",
-    0, 12,  0, 3,  3, 6,  9, 12,  -1, -1,   -1, -1,   -1, -1,   -1, -1,  
+    0, 12,  0, 3,  3, 6,  9, 12,  -1, -1,   -1, -1,   -1, -1,   -1, -1,
     -1, -1,   -1, -1);
 
   /* Another one from Mike.  */
   test_match ("(foo|foobarfoo)(bar)*", "foobarfoo");
-  
+
   /* And another.  */
   test_match("(foo|foobar)(bar|barfoo)?\\1", "foobarfoobar");
-  
+
   re_set_syntax (RE_NO_BK_PARENS | RE_INTERVALS | RE_NO_BK_VBAR
                  | RE_NO_BK_BRACES);  /* xx get new ones from ext.*/
   test_match ("((a{0,}{0,0}()\\3\\b\\B\\<\\>\\`\\')|b)*", "bb");
-  test_all_registers ("((a{0,}{0,0}()\\3\\b\\B\\<\\>\\`\\')|b)*", "", "bb", 
+  test_all_registers ("((a{0,}{0,0}()\\3\\b\\B\\<\\>\\`\\')|b)*", "", "bb",
     0, 2, 1, 2, -1, -1,  -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1);
 
@@ -349,11 +349,11 @@ test_others ()
           /* See generic_test.c and extended_test.c for more search
              tests. xx Not sure all these tests are represented in the
              search tests.  */
-          
+
   re_set_syntax (RE_NO_BK_PARENS | RE_NO_BK_VBAR);
-  valid_nonposix_pattern 
+  valid_nonposix_pattern
     ("(((((((((((((((((((((((((((((((((^a)))))))))))))))))))))))))))))))))");
-  valid_nonposix_pattern 
+  valid_nonposix_pattern
     ("(((((((((((((((((((((((((((((((((a$)))))))))))))))))))))))))))))))))");
   valid_nonposix_pattern ("\\b\\B\\<\\>\\`\\'^a");
   valid_nonposix_pattern ("a$\\b\\B\\<\\>\\`\\'");
@@ -413,7 +413,7 @@ test_others ()
      RE_CONTEXT_INDEP_OPS.  */
 
   re_set_syntax (RE_CONTEXT_INDEP_OPS | RE_CONTEXT_INVALID_OPS
-                 | RE_NO_BK_VBAR | RE_NO_BK_PARENS 
+                 | RE_NO_BK_VBAR | RE_NO_BK_PARENS
                  | RE_NO_BK_BRACES | RE_INTERVALS);
   INVALID_PATTERN ("*");
   INVALID_PATTERN ("^*");
@@ -440,9 +440,9 @@ test_others ()
      are undefined as of draft 11.2.  */
 
   /* You can't have empty alternatives if RE_NO_EMPTY_ALTS is set.  */
-  
+
   re_set_syntax (RE_NO_BK_VBAR | RE_NO_BK_PARENS | RE_NO_EMPTY_ALTS);
-  
+
   INVALID_PATTERN ("|");
   INVALID_PATTERN ("^|a");
   INVALID_PATTERN ("a|");
@@ -463,7 +463,7 @@ test_others ()
 #endif
 
   /* Test grouping.  */
-  test_match ("()", "a");			
+  test_match ("()", "a");
 
   /* Test backslashed intervals that are CONTEXTly invalid if have
      nothing on which to operate.  */
@@ -476,13 +476,13 @@ test_others ()
 
   re_set_syntax (RE_BK_PLUS_QM);
   INVALID_PATTERN ("a*\\");
-  
+
   re_set_syntax (0);
   INVALID_PATTERN ("a*\\");
-  
+
   re_set_syntax (RE_BACKSLASH_ESCAPE_IN_LISTS);
   INVALID_PATTERN ("[\\");
-  
+
 #if 0
   /* Empty groups are always ok now.  (13 Sep 92)  */
   re_set_syntax (RE_NO_BK_VBAR | RE_NO_BK_PARENS | RE_NO_EMPTY_GROUPS);

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char cusub_rcsid[] = "$Id: cusub.c,v 1.19 1994/01/30 21:09:20 ian Rel $";
+const char cusub_rcsid[] = "$Id: cusub.c,v 1.2 1994/05/07 18:10:14 ache Exp $";
 #endif
 
 #include "uudefs.h"
@@ -410,7 +410,7 @@ cscu_escape (pbcmd, zlocalname)
       usysdep_start_catch ();
       alarm (1);
     }
-      
+
   c = 0;
 
   while (TRUE)
@@ -426,7 +426,7 @@ cscu_escape (pbcmd, zlocalname)
 	  b = ']';
 	  write (1, &b, 1);
 	}
-	  
+
       if (c <= 0)
 	c = read (0, pbcmd, 1);
       if (c >= 0 || errno != EINTR)
@@ -437,7 +437,7 @@ cscu_escape (pbcmd, zlocalname)
 	  return c;
 	}
     }
-}  
+}
 
 /* A SIGALRM handler which does nothing but send a signal to the child
    process and schedule another alarm.  POSIX.1 permits kill and alarm
@@ -715,7 +715,7 @@ uscu_child (qconn, opipe)
 	      cwrite -= c;
 	      zbuf += c;
 	    }
-	}	    
+	}
       else
 	{
 	  /* On some systems apparently read will return 0 until
@@ -788,7 +788,7 @@ fsysdep_terminal_raw (flocalecho)
     }
 
   fSterm = TRUE;
-  
+
   sSterm_new = sSterm_orig;
 
 #if HAVE_BSD_TTY
@@ -1158,7 +1158,7 @@ fsysdep_shell (qconn, zcmd, tcmd)
     aidescs[0] = oread;
   if (tcmd == SHELL_STDOUT_TO_PORT || tcmd == SHELL_STDIO_ON_PORT)
     aidescs[1] = owrite;
-    
+
   ipid = ixsspawn (azargs, aidescs, FALSE, TRUE, (const char *) NULL,
 		   FALSE, FALSE, (const char *) NULL,
 		   (const char *) NULL, (const char *) NULL);

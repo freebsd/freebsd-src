@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.22 1994/03/29 01:09:32 ian Rel $";
+const char uuconv_rcsid[] = "$Id: uuconv.c,v 1.2 1994/05/07 18:14:06 ache Exp $";
 #endif
 
 #include "getopt.h"
@@ -395,7 +395,7 @@ main (argc, argv)
 				     piportfn, (pointer) eport, &sport);
 	break;
       }
-	
+
     if (iret != UUCONF_NOT_FOUND)
       uvuuconf_error (pinput, iret);
 
@@ -740,7 +740,7 @@ uvwrite_chat (e, q, qlast, zprefix, fforce)
 	  || qlast->uuconf_pzfail != q->uuconf_pzfail))
     for (pz = q->uuconf_pzfail; *pz != NULL; pz++)
       fprintf (e, "%schat-fail %s\n", zprefix, *pz);
-      
+
   if (qlast == NULL || qlast->uuconf_fstrip != q->uuconf_fstrip)
     {
       sprintf (ab, "%schat-strip", zprefix);
@@ -924,7 +924,7 @@ uvwrite_taylor_system (e, q)
 
       if (CHANGED (uuconf_qproto_params))
 	uvwrite_proto_params (e, q->uuconf_qproto_params, "");
-      
+
       uvwrite_chat (e, &q->uuconf_scalled_chat,
 		    (qlast == NULL
 		     ? (struct uuconf_chat *) NULL
@@ -1064,7 +1064,7 @@ uvwrite_v2_system (e, q)
 			  && q->uuconf_zphone != NULL)
 			{
 			  char **pzc;
-			  
+
 			  fprintf (e, " %s", q->uuconf_zphone);
 			  pzc = q->uuconf_schat.uuconf_pzchat;
 			  if (pzc != (char **) &_uuconf_unset
@@ -1142,7 +1142,7 @@ uvwrite_hdb_system (e, qsys)
 			  && q->uuconf_zphone != NULL)
 			{
 			  char **pzc;
-			  
+
 			  fprintf (e, " %s", q->uuconf_zphone);
 			  pzc = q->uuconf_schat.uuconf_pzchat;
 			  if (pzc != (char **) &_uuconf_unset
@@ -1312,7 +1312,7 @@ fvperm_array_cmp (pz1, pz2)
       break;
 
   return *pz1 == NULL && *pz2 == NULL;
-}      
+}
 
 /* Add a Permissions entry to a global list, combining entries where
    possible.  */
@@ -1502,7 +1502,7 @@ uvwrite_perm_array (e, pzarg, zcmd, pccol)
     return;
 
   c = strlen (zcmd) + 1;
-  
+
   for (pz = pzarg; *pz != NULL; pz++)
     c += strlen (*pz) + 1;
 
@@ -2001,7 +2001,7 @@ uvwrite_taylor_dialer (e, qdialer, zprefix)
     qdialer->uuconf_sabort.uuconf_ctimeout = -1;
   if (qdialer->uuconf_sabort.uuconf_fstrip)
     qdialer->uuconf_sabort.uuconf_fstrip = -1;
-  
+
   uvwrite_chat (e, &qdialer->uuconf_schat, (struct uuconf_chat *) NULL,
 		zprefix, FALSE);
   if (qdialer->uuconf_zdialtone != NULL

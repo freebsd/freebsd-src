@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char chat_rcsid[] = "$Id: chat.c,v 1.42 1994/01/30 21:02:56 ian Rel $";
+const char chat_rcsid[] = "$Id: chat.c,v 1.2 1994/05/07 18:08:33 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -926,7 +926,7 @@ fcsend (qconn, puuconf, z, qsys, qdial, zphone, ftranslate, fstrip)
 	  break;
 #endif
 	}
-      
+
       if (fsend)
 	{
 	  fquote = fcsend_debug (fquote, (size_t) 1, &bsend);
@@ -1190,7 +1190,7 @@ fcprogram (qconn, puuconf, pzprogram, qsys, qdial, zphone, zport, ibaud)
 	  *pzarg = zbufcpy (*pz);
 	  continue;
 	}
-      
+
       *pzarg = NULL;
       zto = NULL;
       calc = 0;

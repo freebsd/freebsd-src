@@ -75,7 +75,7 @@ esysdep_open_send (qsys, zfile, fcheck, zuser)
   struct stat s;
   openfile_t e;
   int o;
-  
+
   if (fsysdep_directory (zfile))
     {
       ulog (LOG_ERROR, "%s: is a directory", zfile);
@@ -148,7 +148,7 @@ zsysdep_receive_temp (qsys, zto, ztemp, frestart)
     return zsappend3 (".Temp", qsys->uuconf_zname, ztemp);
   else
     return zstemp_file (qsys);
-}  
+}
 
 /* The number of seconds in one week.  We must cast to long for this
    to be calculated correctly on a machine with 16 bit ints.  */

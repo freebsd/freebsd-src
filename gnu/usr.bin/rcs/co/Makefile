@@ -1,5 +1,5 @@
 PROG=	co
-SRCS=	co.c 
+SRCS=	co.c
 CFLAGS+= -I${.CURDIR}/../lib
 LDADD=  ${LIBRCS}
 DPADD=	${LIBRCS}

@@ -19,7 +19,7 @@ License along with libiberty; see the file COPYING.LIB.  If
 not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
-/* Set the current signal mask to the set provided, and return the 
+/* Set the current signal mask to the set provided, and return the
    previous value */
 
 #define _POSIX_SOURCE
@@ -33,7 +33,7 @@ DEFUN(sigsetmask,(set),
 {
     sigset_t new;
     sigset_t old;
-    
+
     sigemptyset (&new);
     if (set != 0) {
       abort();	/* FIXME, we don't know how to translate old mask to new */

@@ -73,7 +73,7 @@ static struct target_ops *
 find_default_run_target PARAMS ((char *));
 
 /* Pointer to array of target architecture structures; the size of the
-   array; the current index into the array; the allocated size of the 
+   array; the current index into the array; the allocated size of the
    array.  */
 struct target_ops **target_structs;
 unsigned target_struct_size;
@@ -142,7 +142,7 @@ add_target (t)
 {
   if (t->to_magic != OPS_MAGIC)
     {
-      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n", 
+      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n",
 	t->to_shortname);
       abort();
     }
@@ -157,7 +157,7 @@ add_target (t)
     {
       target_struct_allocsize *= 2;
       target_structs = (struct target_ops **)
-	  xrealloc ((char *) target_structs, 
+	  xrealloc ((char *) target_structs,
 		    target_struct_allocsize * sizeof (*target_structs));
     }
   target_structs[target_struct_size++] = t;
@@ -309,7 +309,7 @@ cleanup_target (t)
      the struct definition, but not all the places that initialize one.  */
   if (t->to_magic != OPS_MAGIC)
     {
-      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n", 
+      fprintf_unfiltered(gdb_stderr, "Magic number of %s target struct wrong\n",
 	t->to_shortname);
       abort();
     }
@@ -398,7 +398,7 @@ push_target (t)
   return prev != 0;
 }
 
-/* Remove a target_ops vector from the stack, wherever it may be. 
+/* Remove a target_ops vector from the stack, wherever it may be.
    Return how many times it was removed (0 or 1 unless bug).  */
 
 int
@@ -578,14 +578,14 @@ target_write_memory (memaddr, myaddr, len)
 {
   return target_xfer_memory (memaddr, myaddr, len, 1);
 }
- 
+
 /* Move memory to or from the targets.  Iterate until all of it has
    been moved, if necessary.  The top target gets priority; anything
    it doesn't want, is offered to the next one down, etc.  Note the
    business with curlen:  if an early target says "no, but I have a
    boundary overlapping this xfer" then we shorten what we offer to
    the subsequent targets so the early guy will get a chance at the
-   tail before the subsequent ones do. 
+   tail before the subsequent ones do.
 
    Result is 0 or errno value.  */
 
@@ -654,7 +654,7 @@ target_info (args, from_tty)
 {
   struct target_ops *t;
   int has_all_mem = 0;
-  
+
   if (symfile_objfile != NULL)
     printf_unfiltered ("Symbols from \"%s\".\n", symfile_objfile->name);
 
@@ -687,7 +687,7 @@ target_preopen (from_tty)
   dont_repeat();
 
   if (target_has_execution)
-    {   
+    {
       if (query ("A program is being debugged already.  Kill it? "))
         target_kill ();
       else
@@ -799,9 +799,9 @@ find_core_target ()
   struct target_ops **t;
   struct target_ops *runable = NULL;
   int count;
-  
+
   count = 0;
-  
+
   for (t = target_structs; t < target_structs + target_struct_size;
        ++t)
     {
@@ -815,7 +815,7 @@ find_core_target ()
 	  ++count;
 	}
     }
-  
+
   return(count == 1 ? runable : NULL);
 }
 
@@ -1155,7 +1155,7 @@ target_signal_to_host (oursig)
     case TARGET_SIGNAL_USR2: return SIGUSR2;
 #endif
 #if defined (SIGCHLD) || defined (SIGCLD)
-    case TARGET_SIGNAL_CHLD: 
+    case TARGET_SIGNAL_CHLD:
 #if defined (SIGCHLD)
       return SIGCHLD;
 #else
@@ -1297,7 +1297,7 @@ normal_pid_to_str (pid)
   return buf;
 }
 
-static char targ_desc[] = 
+static char targ_desc[] =
     "Names of targets and files being debugged.\n\
 Shows the entire stack of targets currently in use (including the exec-file,\n\
 core-file, and process, if any), as well as the symbol file name.";

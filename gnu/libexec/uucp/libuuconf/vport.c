@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.7 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_vport_rcsid[] = "$Id: vport.c,v 1.2 1994/05/07 18:13:22 ache Exp $";
 #endif
 
 #include <errno.h>
@@ -100,9 +100,9 @@ uuconf_v2_find_port (pglobal, zname, ibaud, ihighbaud, pifn, pinfo, qport)
 	}
 
       /* An entry in L-devices is
-	 
+
 	 type device dial-device baud dialer
-	 
+
 	 The type (normally "ACU") is treated as the name.  */
 
       /* If there aren't enough entries, ignore the line; this

@@ -1,23 +1,23 @@
 /*
- * main.c -- Expression tree constructors and main program for gawk. 
+ * main.c -- Expression tree constructors and main program for gawk.
  */
 
-/* 
+/*
  * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
- * 
+ *
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
- * 
+ *
  * GAWK is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GAWK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GAWK; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -67,7 +67,7 @@ char *CONVFMT;
 
 /*
  * The parse tree and field nodes are stored here.  Parse_end is a dummy item
- * used to free up unneeded fields without freeing the program being run 
+ * used to free up unneeded fields without freeing the program being run
  */
 int errcount = 0;	/* error counter, used by yyerror() */
 
@@ -176,7 +176,7 @@ char **argv;
 	/* Set up the special variables */
 	/*
 	 * Note that this must be done BEFORE arg parsing else -F
-	 * breaks horribly 
+	 * breaks horribly
 	 */
 	init_vars();
 
@@ -553,7 +553,7 @@ load_environ()
 	NODE **aptr;
 	register int i;
 
-	ENVIRON_node = install("ENVIRON", 
+	ENVIRON_node = install("ENVIRON",
 			node(Nnull_string, Node_var, (NODE *) NULL));
 	for (i = 0; environ[i]; i++) {
 		static char nullstr[] = "";
@@ -782,7 +782,7 @@ gawk_name(filespec)
 char *filespec;
 {
 	char *p;
-	
+
 #ifdef VMS	/* "device:[root.][directory.subdir]GAWK.EXE;n" -> "GAWK" */
 	char *q;
 

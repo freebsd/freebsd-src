@@ -12,7 +12,7 @@ cescape (z)
      char *z;
 {
   char *zto, *zfrom;
-  
+
   zto = z;
   zfrom = z;
   while (*zfrom != '\0')

@@ -11,7 +11,7 @@
  *    940616 pen@signum.se	Major cleanups.
  *    940713 pen@signum.se	Added SunOS 4 prototypes.
  *
- * 	$Id$ 
+ * 	$Id: yp_xdr.c,v 1.1 1995/01/31 08:58:57 wpaul Exp $
  */
 
 #include "system.h"
@@ -227,12 +227,12 @@ __xdr_ypresp_all(XDR *xdrs, ypresp_all *objp)
 
 		return FALSE;
 	    }
-	    
+
 	    if (!__xdr_ypresp_key_val(xdrs, &objp->ypresp_all_u.val))
 	    {
 		if (__xdr_ypall_cb.u.close != NULL)
 		    (*(__xdr_ypall_cb.u.close))(__xdr_ypall_cb.data);
-		
+
 		__xdr_ypall_cb.data = NULL;
 
 		return FALSE;
@@ -244,32 +244,32 @@ __xdr_ypresp_all(XDR *xdrs, ypresp_all *objp)
 
 		if (__xdr_ypall_cb.u.close != NULL)
 		    (*(__xdr_ypall_cb.u.close))(__xdr_ypall_cb.data);
-		
+
 		__xdr_ypall_cb.data = NULL;
-		
+
 		if (!xdr_bool(xdrs, &objp->more))
 		    return FALSE;
-		
+
 		return TRUE;
 	    }
 
 	    if ((*__xdr_ypall_cb.u.encode)(&objp->ypresp_all_u.val,
 					 __xdr_ypall_cb.data) == YP_NOKEY)
 		objp->more = FALSE;
-	}	
+	}
     }
-    
+
 #ifdef NOTYET /* This code isn't needed in the server */
     else if (xdrs->x_op == XDR_DECODE)
     {
 	int more = 0;
 
-	
+
 	while (1)
 	{
 	    if (!xdr_bool(xdrs, &objp->more))
 		return FALSE;
-	
+
 	    switch (objp->more)
 	    {
 	      case TRUE:
@@ -280,10 +280,10 @@ __xdr_ypresp_all(XDR *xdrs, ypresp_all *objp)
 		    more = (*__xdr_ypall_callback->foreach.decoder)
 			(&objp->ypresp_all_u.val, __xdr_ypall_callback->data);
 		break;
-		
+
 	      case FALSE:
 		return TRUE;
-		
+
 	      default:
 		return FALSE;
 	    }
@@ -314,7 +314,7 @@ __xdr_ypmaplist(XDR *xdrs, ypmaplist *objp)
 	return FALSE;
 
     if (!xdr_pointer(xdrs, (char **)&objp->next, sizeof(ypmaplist),
-		     (xdrproc_t)__xdr_ypmaplist)) 
+		     (xdrproc_t)__xdr_ypmaplist))
 	return FALSE;
 
     return TRUE;
@@ -387,12 +387,12 @@ __xdr_ypbind_resp(XDR *xdrs, ypbind_resp *objp)
 	if (!xdr_u_int(xdrs, &objp->ypbind_resp_u.ypbind_error))
 	    return FALSE;
 	break;
-	
+
       case YPBIND_SUCC_VAL:
 	if (!__xdr_ypbind_binding(xdrs, &objp->ypbind_resp_u.ypbind_bindinfo))
 	    return FALSE;
 	break;
-	
+
       default:
 	return FALSE;
     }

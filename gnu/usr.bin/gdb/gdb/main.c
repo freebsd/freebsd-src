@@ -87,7 +87,7 @@ main (argc, argv)
   int dirsize;
   /* Number of elements used.  */
   int ndir;
-  
+
   struct stat homebuf, cwdbuf;
   char *homedir, *homeinit;
 
@@ -370,7 +370,7 @@ For more information, type \"help\" from within GDB, or consult the\n\
 GDB manual (available as on-line info or a printed manual).\n", gdb_stdout);
       exit (0);
     }
-    
+
   if (!quiet)
     {
       /* Print all the junk at the top, with trailing "..." if we are about
@@ -410,15 +410,15 @@ GDB manual (available as on-line info or a printed manual).\n", gdb_stdout);
 	 need them if homedir is set.  Make sure that they are
 	 zero in case one of them fails (this guarantees that they
 	 won't match if either exists).  */
-      
+
       memset (&homebuf, 0, sizeof (struct stat));
       memset (&cwdbuf, 0, sizeof (struct stat));
-      
+
       stat (homeinit, &homebuf);
       stat (gdbinit, &cwdbuf); /* We'll only need this if
 				       homedir was set.  */
     }
-  
+
   /* Now perform all the actions indicated by the arguments.  */
   if (cdarg != NULL)
     {
@@ -488,7 +488,7 @@ GDB manual (available as on-line info or a printed manual).\n", gdb_stdout);
 
   /* Read the .gdbinit file in the current directory, *if* it isn't
      the same as the $HOME/.gdbinit file (it should exist, also).  */
-  
+
   if (!homedir
       || memcmp ((char *) &homebuf, (char *) &cwdbuf, sizeof (struct stat)))
     if (!inhibit_gdbinit && access (gdbinit, R_OK) == 0)

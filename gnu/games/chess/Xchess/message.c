@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.4 $ on $Date: 86/11/26 12:10:22 $
- *           $Source: /users/faustus/xchess/RCS/message.c,v $
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:14 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/message.c,v $
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.
@@ -38,7 +38,7 @@ void
 message_init(win)
 	windata *win;
 {
-	TxtGrab(win->display, win->messagewin, "xchess", win->medium, 
+	TxtGrab(win->display, win->messagewin, "xchess", win->medium,
 			win->textback.pixel, win->textcolor.pixel,
 				win->cursorcolor.pixel);
 	TxtAddFont(win->display, win->messagewin, 1, win->large, win->textcolor.pixel);

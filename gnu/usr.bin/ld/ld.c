@@ -32,9 +32,9 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.25 1995/03/06 08:00:23 phk Exp $
+ *	$Id: ld.c,v 1.26 1995/03/10 19:41:50 davidg Exp $
  */
-   
+
 /* Define how to initialize system-dependent header fields.  */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ int	force_executable;
 
 /* 1 => assign space to common symbols even if `relocatable_output'.  */
 int	force_common_definition;
- 
+
 /* 1 => assign jmp slots to text symbols in shared objects even if non-PIC */
 int	force_alias_definition;
 
@@ -214,7 +214,7 @@ int	text_start_alignment;
  * This prevents text_start from being set later to default values.
  */
 int	T_flag_specified;
- 
+
 /*
  * Nonzero if -Tdata was specified in the command line.
  * This prevents data_start from being set later to default values.
@@ -404,7 +404,7 @@ main(argc, argv)
  * Analyze a command line argument. Return 0 if the argument is a filename.
  * Return 1 if the argument is a option complete in itself. Return 2 if the
  * argument is a option which uses an argument.
- * 
+ *
  * Thus, the value is the number of consecutive arguments that are part of
  * options.
  */
@@ -606,7 +606,7 @@ set_element_prefixed_p(name)
 /*
  * Record an option and arrange to act on it later. ARG should be the
  * following command argument, which may or may not be used by this option.
- * 
+ *
  * The `l' and `A' options are ignored here since they actually specify input
  * files.
  */
@@ -792,7 +792,7 @@ decode_option(swt, arg)
  * Call FUNCTION on each input file entry. Do not call for entries for
  * libraries; instead, call once for each library member that is being
  * loaded.
- * 
+ *
  * FUNCTION receives two arguments: the entry, and ARG.
  */
 
@@ -844,7 +844,7 @@ each_file(function, arg)
  * Call FUNCTION on each input file entry until it returns a non-zero value.
  * Return this value. Do not call for entries for libraries; instead, call
  * once for each library member that is being loaded.
- * 
+ *
  * FUNCTION receives two arguments: the entry, and ARG.  It must be a function
  * returning unsigned long (though this can probably be fudged).
  */
@@ -1233,7 +1233,7 @@ read_file_symbols(entry)
 		if (SARMAG != read(fd, armag, SARMAG) ||
 		    strncmp (armag, ARMAG, SARMAG))
 			errx(1,
-			     "%s: malformed input file (not rel or archive)",	
+			     "%s: malformed input file (not rel or archive)",
 			     get_file_name(entry));
 		entry->flags |= E_IS_LIBRARY;
 		search_library(fd, entry);
@@ -1320,7 +1320,7 @@ enter_file_symbols(entry)
  * Enter one global symbol in the hash table. LSP points to the `struct
  * localsymbol' from the file that describes the global symbol.  NAME is the
  * symbol's name. ENTRY is the file entry for the file the symbol comes from.
- * 
+ *
  * LSP is put on the chain of all such structs that refer to the same symbol.
  * This chain starts in the `refs' for symbols from relocatable objects. A
  * backpointer to the global symbol is kept in LSP.
@@ -1430,7 +1430,7 @@ enter_global_ref(lsp, name, entry)
 
 	if (sp == dynamic_symbol || sp == got_symbol) {
 		if (type != (N_UNDF | N_EXT) && !(entry->flags & E_JUST_SYMS))
-			errx(1,"Linker reserved symbol %s defined as type %x ",	
+			errx(1,"Linker reserved symbol %s defined as type %x ",
 				name, type);
 		return;
 	}
@@ -1608,11 +1608,11 @@ contains_symbol(entry, np)
 /*
  * Having entered all the global symbols and found the sizes of sections of
  * all files to be linked, make all appropriate deductions from this data.
- * 
+ *
  * We propagate global symbol values from definitions to references. We compute
  * the layout of the output file and where each input file's contents fit
  * into it.
- * 
+ *
  * This is now done in several stages.
  *
  * 1) All global symbols are examined for definitions in relocatable (.o)
@@ -2062,7 +2062,7 @@ consider_relocation(entry, dataseg)
 			 * pass2() and during actual relocation. We convert
 			 * the type back to something real again when writing
 			 * out the symbols.
-			 * 
+			 *
 			 */
 			lsp = &entry->symbols[reloc->r_symbolnum];
 			sp = lsp->symbol;

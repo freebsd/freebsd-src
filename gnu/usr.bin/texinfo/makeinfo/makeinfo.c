@@ -3342,7 +3342,7 @@ cm_asterisk ()
   close_single_paragraph ();
 #if !defined (ASTERISK_NEW_PARAGRAPH)
   cm_noindent ();
-#endif /* ASTERISK_NEW_PARAGRAPH */  
+#endif /* ASTERISK_NEW_PARAGRAPH */
 }
 
 /* Insert ellipsis. */
@@ -4275,7 +4275,7 @@ validate_file (filename, tag_table)
 	  tags = tags->next_ent;
 	  continue;
 	}
-	
+
       /* If this node has a Next, then make sure that the Next exists. */
       if (tags->next)
 	{

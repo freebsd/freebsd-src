@@ -121,7 +121,7 @@ main (argc, argv)
       funs_filename = "/dev/null";
       doc_filename = "/dev/null";
     }
-  
+
   funs_stream = must_fopen (funs_filename, "w");
   doc_stream = must_fopen (doc_filename, "w");
 

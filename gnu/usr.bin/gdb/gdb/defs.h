@@ -64,7 +64,7 @@ quit PARAMS ((void));
 #define QUIT { if (quit_flag) quit (); }
 
 /* Command classes are top-level categories into which commands are broken
-   down for "help" purposes.  
+   down for "help" purposes.
    Notes on classes: class_alias is for alias commands which are not
    abbreviations of the original command.  class-pseudo is for commands
    which are not really commands nor help topics ("stop").  */
@@ -85,7 +85,7 @@ enum command_class
    be forward declared to satisfy opaque references before their
    actual definition, needs to be here. */
 
-enum language 
+enum language
 {
    language_unknown, 		/* Language not known */
    language_auto,		/* Placeholder for automatic setting */
@@ -565,7 +565,7 @@ extern int kernel_writablecore;
 
 extern int longest_to_int PARAMS ((LONGEST));
 
-/* Assorted functions we can declare, now that const and volatile are 
+/* Assorted functions we can declare, now that const and volatile are
    defined.  */
 
 extern char *
@@ -715,7 +715,7 @@ psignal PARAMS ((unsigned, const char *));
    the ANSI standard.  So we can just duplicate them here without conflict,
    since they must be the same in all conforming ANSI environments.  If
    these cause problems, then the environment is not ANSI conformant. */
-   
+
 #ifdef __STDC__
 #include <stddef.h>
 #endif

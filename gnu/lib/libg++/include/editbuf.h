@@ -39,9 +39,9 @@ typedef /*unsigned*/ char buf_char;
 
 // Logical pos from start of buffer (does not count gap).
 typedef long buf_index;
-			
+
 // Pos from start of buffer, possibly including gap_size.
-typedef long buf_offset; 
+typedef long buf_offset;
 
 #if 0
 struct buf_cookie {

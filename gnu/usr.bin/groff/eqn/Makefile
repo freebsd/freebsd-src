@@ -3,7 +3,7 @@
 PROG=		eqn
 SRCS=		main.cc lex.cc  box.cc limit.cc list.cc over.cc text.cc\
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
-OBJS=		eqn.o 
+OBJS=		eqn.o
 CFLAGS+=	-I. -I${.CURDIR}/../include
 LDADD+=		${LIBGROFF}
 DPADD+=		${LIBGROFF}

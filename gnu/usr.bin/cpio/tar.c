@@ -297,14 +297,14 @@ read_in_tar_header (file_hdr, in_des)
 	  /* If a POSIX tar header has a valid linkname it's always supposed
 	     to set typeflag to be LNKTYPE.  System V.4 tar seems to
 	     be broken, and for device files with multiple links it
-	     puts the name of the link into linkname, but leaves typeflag 
+	     puts the name of the link into linkname, but leaves typeflag
 	     as CHRTYPE, BLKTYPE, FIFOTYPE, etc.  */
 	  file_hdr->c_tar_linkname = stash_tar_linkname (tar_hdr->linkname);
 
 	  /* Does POSIX say that the filesize must be 0 for devices?  We
 	     assume so, but HPUX's POSIX tar sets it to be 1 which causes
 	     us problems (when reading an archive we assume we can always
-	     skip to the next file by skipping filesize bytes).  For 
+	     skip to the next file by skipping filesize bytes).  For
 	     now at least, it's easier to clear filesize for devices,
 	     rather than check everywhere we skip in copyin.c.  */
 	  file_hdr->c_filesize = 0;

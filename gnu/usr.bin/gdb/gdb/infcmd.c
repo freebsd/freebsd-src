@@ -38,7 +38,7 @@ continue_command PARAMS ((char *, int));
 static void
 until_next_command PARAMS ((int));
 
-static void 
+static void
 until_command PARAMS ((char *, int));
 
 static void
@@ -638,7 +638,7 @@ until_next_command (from_tty)
   CORE_ADDR pc;
   struct symbol *func;
   struct symtab_and_line sal;
- 
+
   clear_proceed_status ();
 
   frame = get_current_frame ();
@@ -649,34 +649,34 @@ until_next_command (from_tty)
 
   pc = read_pc ();
   func = find_pc_function (pc);
-  
+
   if (!func)
     {
       struct minimal_symbol *msymbol = lookup_minimal_symbol_by_pc (pc);
-      
+
       if (msymbol == NULL)
 	error ("Execution is not within a known function.");
-      
+
       step_range_start = SYMBOL_VALUE_ADDRESS (msymbol);
       step_range_end = pc;
     }
   else
     {
       sal = find_pc_line (pc, 0);
-      
+
       step_range_start = BLOCK_START (SYMBOL_BLOCK_VALUE (func));
       step_range_end = sal.end;
     }
-  
+
   step_over_calls = 1;
   step_frame_address = FRAME_FP (frame);
-  
+
   step_multi = 0;		/* Only one call to proceed */
-  
+
   proceed ((CORE_ADDR) -1, TARGET_SIGNAL_DEFAULT, 1);
 }
 
-static void 
+static void
 until_command (arg, from_tty)
      char *arg;
      int from_tty;
@@ -752,7 +752,7 @@ finish_command (arg, from_tty)
       value_type = TYPE_TARGET_TYPE (SYMBOL_TYPE (function));
       if (!value_type)
 	fatal ("internal: finish_command: function has no target type");
-      
+
       if (TYPE_CODE (value_type) == TYPE_CODE_VOID)
 	return;
 
@@ -779,7 +779,7 @@ program_info (args, from_tty)
 {
   bpstat bs = stop_bpstat;
   int num = bpstat_num (&bs);
-  
+
   if (!target_has_execution)
     {
       printf_filtered ("The program being debugged is not being run.\n");
@@ -866,7 +866,7 @@ set_environment_command (arg, from_tty)
   if (p != 0 && val != 0)
     {
       /* We have both a space and an equals.  If the space is before the
-	 equals, walk forward over the spaces til we see a nonspace 
+	 equals, walk forward over the spaces til we see a nonspace
 	 (possibly the equals). */
       if (p > val)
 	while (*val == ' ')
@@ -973,7 +973,7 @@ const char * const reg_names[] = REGISTER_NAMES;
    is required, (eg, for MIPS or Pyramid 90x, which both have
    lots of regs), or there is an existing convention for showing
    all the registers, define the macro DO_REGISTERS_INFO(regnum, fp)
-   to provide that format.  */  
+   to provide that format.  */
 
 #if !defined (DO_REGISTERS_INFO)
 
@@ -1088,7 +1088,7 @@ registers_info (addr_exp, fpregs)
     }
 
   do
-    {      
+    {
       if (addr_exp[0] == '$')
 	addr_exp++;
       end = addr_exp;
@@ -1239,13 +1239,13 @@ void
 _initialize_infcmd ()
 {
   struct cmd_list_element *c;
-  
+
   add_com ("tty", class_run, tty_command,
 	   "Set terminal for future runs of program being debugged.");
 
   add_show_from_set
     (add_set_cmd ("args", class_run, var_string_noescape, (char *)&inferior_args,
-		  
+
 "Set arguments to give program being debugged when it is started.\n\
 Follow this command with any number of args, to be passed to the program.",
 		  &setlist),
@@ -1262,7 +1262,7 @@ environment to be given to the program.", &showlist);
   add_prefix_cmd ("unset", no_class, unset_command,
 		  "Complement to certain \"set\" commands",
 		  &unsetlist, "unset ", 0, &cmdlist);
-  
+
   c = add_cmd ("environment", class_run, unset_environment_command,
 	      "Cancel environment variable VAR for the program.\n\
 This does not affect the program until the next \"run\" command.",
@@ -1276,7 +1276,7 @@ VALUES of environment variables are uninterpreted strings.\n\
 This does not affect the program until the next \"run\" command.",
 	   &setlist);
   c->completer = noop_completer;
- 
+
   add_com ("path", class_files, path_command,
        "Add directory DIR(s) to beginning of search path for object files.\n\
 $cwd in the path means the current working directory.\n\
@@ -1341,7 +1341,7 @@ Argument N means do this N times (or till program stops for another reason).");
 or a specified line or address or function (same args as break command).\n\
 Execution will also stop upon exit from the current stack frame.");
   add_com_alias ("u", "until", class_run, 1);
-  
+
   add_com ("jump", class_run, jump_command,
 	   "Continue program being debugged at specified line or address.\n\
 Give as argument either LINENUM or *ADDR, where ADDR is an expression\n\

@@ -668,7 +668,7 @@ window_delete_window (window)
     window_to_fix = prev;
   else
     window_to_fix = windows;
-    
+
   if (window_to_fix->first_row > window->first_row)
     {
       int diff;
@@ -1218,7 +1218,7 @@ free_echo_area ()
   echo_area_node = (NODE *)NULL;
   window_set_node_of_window (the_echo_area, echo_area_node);
 }
-  
+
 /* Clear the echo area, removing any message that is already present.
    The echo area is cleared immediately. */
 void

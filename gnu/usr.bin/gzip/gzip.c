@@ -39,13 +39,13 @@ static char  *license_msg[] = {
  * example, foo.txt -> foo.tgz (.tgz must be reserved as shorthand for
  * tar.gz). Similarly, foo.dir and foo.doc would both be mapped to foo.dgz.
  * I also considered 12345678.txt -> 12345txt.gz but this truncates the name
- * too heavily. There is no ideal solution given the MSDOS 8+3 limitation. 
+ * too heavily. There is no ideal solution given the MSDOS 8+3 limitation.
  *
  * For the meaning of all compilation flags, see comments in Makefile.in.
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: gzip.c,v 0.24 1993/06/24 10:52:07 jloup Exp $";
+static char rcsid[] = "$Id: gzip.c,v 1.3 1993/10/14 00:32:48 nate Exp $";
 #endif
 
 #include <ctype.h>
@@ -804,7 +804,7 @@ local void treat_file(iname)
     if (!save_orig_name) save_orig_name = !no_name;
 
     if (verbose) {
-	fprintf(stderr, "%s:\t%s", ifname, (int)strlen(ifname) >= 15 ? 
+	fprintf(stderr, "%s:\t%s", ifname, (int)strlen(ifname) >= 15 ?
 		"" : ((int)strlen(ifname) >= 7 ? "\t" : "\t\t"));
     }
 
@@ -1654,7 +1654,7 @@ local void treat_dir(dir)
     int      len;
 
     dirp = opendir(dir);
-    
+
     if (dirp == NULL) {
 	fprintf(stderr, "%s: %s unreadable\n", progname, dir);
 	exit_code = ERROR;
@@ -1675,7 +1675,7 @@ local void treat_dir(dir)
      ** think it's worth it. -- Dave Mack
      ** (An other alternative might be two passes to avoid depth-first.)
      */
-    
+
     while ((dp = readdir(dirp)) != NULL) {
 
 	if (strequ(dp->d_name,".") || strequ(dp->d_name,"..")) {

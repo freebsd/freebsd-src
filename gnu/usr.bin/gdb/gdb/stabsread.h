@@ -88,7 +88,7 @@ struct header_file
 {
 
   /* Name of header file */
-  
+
   char *name;
 
   /* Numeric code distinguishing instances of one header file that produced

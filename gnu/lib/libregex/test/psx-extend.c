@@ -13,15 +13,15 @@ test_posix_extended ()
 
   printf ("\nStarting POSIX extended tests.\n");
   t = posix_extended_test;
-  
-  re_set_syntax (RE_SYNTAX_POSIX_MINIMAL_EXTENDED);  
+
+  re_set_syntax (RE_SYNTAX_POSIX_MINIMAL_EXTENDED);
 
   test_posix_generic ();
 
   printf ("\nContinuing POSIX extended tests.\n");
 
   /* Grouping tests that differ from basic's.  */
-  
+
   test_should_match = true;
   MATCH_SELF ("a)");
 
@@ -74,8 +74,8 @@ test_posix_extended ()
   MATCH_SELF ("a{}");
   MATCH_SELF ("a{-1");
   MATCH_SELF ("a{-1}");
-  MATCH_SELF ("a{0");            
-  MATCH_SELF ("a{0,"); 
+  MATCH_SELF ("a{0");
+  MATCH_SELF ("a{0,");
   MATCH_SELF (concat ("a{", dup_max_plus_one));
   MATCH_SELF (concat (concat ("a{", dup_max_plus_one), ","));
   MATCH_SELF ("a{1,0");
@@ -83,7 +83,7 @@ test_posix_extended ()
   MATCH_SELF ("a{0,1");
   test_match ("[a{0,1}]", "}");
   test_match ("a{1,3}{-1}", "aaa{-1}");
-  test_match (concat ("a{1,3}{", dup_max_plus_one), 
+  test_match (concat ("a{1,3}{", dup_max_plus_one),
 	      concat ("aaa{", dup_max_plus_one));
   test_match ("a{1,3}{2,1}", "aaa{2,1}");
   test_match ("a{1,3}{1,2", "aaa{1,2");
@@ -96,7 +96,7 @@ test_posix_extended ()
   test_match ("a??", "a");
   test_match ("a?*", "a");
   test_match ("a?+", "a");
-  
+
   test_match ("a{2}?", "");
   test_match ("a{2}?", "aa");
   test_match ("a{2}+", "aa");
@@ -104,21 +104,21 @@ test_posix_extended ()
 
   test_match ("a{1}?*", "");
   test_match ("a{1}?*", "aa");
-  
-  test_match ("(a?){0,3}b", "aaab"); 
-  test_fastmap ("(a?){0,3}b", "ab", 0, 0); 
-  test_match ("(a+){0,3}b", "b"); 
-  test_fastmap ("(a+){0,3}b", "ab", 0, 0); 
+
+  test_match ("(a?){0,3}b", "aaab");
+  test_fastmap ("(a?){0,3}b", "ab", 0, 0);
+  test_match ("(a+){0,3}b", "b");
+  test_fastmap ("(a+){0,3}b", "ab", 0, 0);
   test_match ("(a+){0,3}b", "ab");
-  test_fastmap ("(a+){0,3}b", "ab", 0, 0); 
-  test_match ("(a+){1,3}b", "aaab"); 
+  test_fastmap ("(a+){0,3}b", "ab", 0, 0);
+  test_match ("(a+){1,3}b", "aaab");
   test_match ("(a?){1,3}b", "aaab");
 
   test_match ("\\\\{1}", "\\");				/* Extended only.  */
 
   test_match ("(a?)?", "a");
   test_match ("(a?b)?c", "abc");
-  test_match ("(a+)*b", "b"); 
+  test_match ("(a+)*b", "b");
 						/* Alternatives.  */
   test_match ("a|b", "a");
   test_match ("a|b", "b");
@@ -132,7 +132,7 @@ test_posix_extended ()
   test_match ("(a|b|c)", "c");
 
   test_match ("(a|b|c)*", "abccba");
-  
+
   test_match ("(a(b*))|c", "a");	/* xx do registers.  */
   test_match ("(a(b*))|c", "ab");
   test_match ("(a(b*))|c", "c");
@@ -140,7 +140,7 @@ test_posix_extended ()
   test_fastmap ("(a+?*|b)", "ab", 0, 0);
   test_match ("(a+?*|b)", "b");
   TEST_REGISTERS ("(a+?*|b)", "b", 0, 1, 0, 1, -1, -1);
-  
+
   test_fastmap ("(a+?*|b)*", "ab", 0, 0);
   test_match ("(a+?*|b)*", "bb");
   TEST_REGISTERS ("(a+?*|b)*", "bb", 0, 2, 1, 2, -1, -1);
@@ -165,7 +165,7 @@ test_posix_extended ()
   test_fastmap ("(a+?*|b)c", "abc", 0, 0);
   test_match ("(a+?*|b)c", "bc");
   TEST_REGISTERS ("(a+?*|b)c", "bc", 0, 2, 0, 1, -1, -1);
-  
+
   test_fastmap ("(a+?*|b)*c", "abc", 0, 0);
   test_match ("(a+?*|b)*c", "bbc");
   TEST_REGISTERS ("(a+?*|b)*c", "bbc", 0, 3, 1, 2, -1, -1);
@@ -189,12 +189,12 @@ test_posix_extended ()
 
   test_fastmap ("((a{0,}\\b\\<)|b)", "ab", 0, 0);
   test_match ("((a{0,}\\b\\<)|b)", "b");
-  TEST_REGISTERS ("((a{0,}\\b\\<)|b)", "b", 
+  TEST_REGISTERS ("((a{0,}\\b\\<)|b)", "b",
     0, 1, 0, 1, 0, 0);
 
   test_fastmap ("((a{0,}\\b\\<)|b)*", "ab", 0, 0);
   test_match ("((a{0,}\\b\\<)|b)*", "b");
-  TEST_REGISTERS ("((a{0,}\\b\\<)|b)*", "b", 
+  TEST_REGISTERS ("((a{0,}\\b\\<)|b)*", "b",
     0, 1, 0, 1, 0, 0);
 
   test_fastmap ("((a+?*{0,1}\\b\\<)|b)", "ab", 0, 0);
@@ -251,7 +251,7 @@ test_posix_extended ()
 
 
 				/* `*' after group.  */
-  test_match ("(a*|b*)*c", "c");	
+  test_match ("(a*|b*)*c", "c");
   TEST_REGISTERS ("(a*|b*)*c", "c", 0, 1, 0, 0, -1, -1);
 
   test_match ("(a*|b*)*c", "ac");
@@ -279,8 +279,8 @@ test_posix_extended ()
   test_match ("(a*|b*)c", "aac");
   TEST_REGISTERS ("(a*|b*)c", "aac", 0, 3, 0, 2, -1, -1);
 
-  /* Same as above, but with no `*'s in alternatives. 
-  
+  /* Same as above, but with no `*'s in alternatives.
+
   test_match ("(a|b)*c", "c");		/* `*' after group.  */
   TEST_REGISTERS ("(a|b)*c", "c", 0, 1, -1, -1, -1, -1);
 
@@ -298,7 +298,7 @@ test_posix_extended ()
   TEST_REGISTERS ("(a*|b*)c", "bbc", 0, 3, 0, 2, -1, -1);
 
   /* Complicated second alternative.  */
-  
+
   test_match ("(a*|(b*)*)*c", "bc");
   TEST_REGISTERS ("(a*|(b*)*)*c", "bc", 0, 2, 0, 1, 0, 1);
 
@@ -335,9 +335,9 @@ test_posix_extended ()
   valid_pattern ("(^$)");
 
       /* These are the same (but valid) as those (invalid) in other_test.c.  */
-  valid_pattern 
+  valid_pattern
     ("(((((((((((((((((((((((((((((((((a^)))))))))))))))))))))))))))))))))");
-  valid_pattern 
+  valid_pattern
     ("((((((((((((((((((((((((((((((((($a)))))))))))))))))))))))))))))))))");
   valid_pattern ("\\(^a\\)");
   valid_pattern ("a\\|^b");
@@ -724,7 +724,7 @@ test_posix_extended ()
   valid_pattern ("(^a)(b|^c)|^d");
   valid_pattern ("(^a)(b|c^)|^d");
   valid_pattern ("(^a)(b|c)^|^d");
-  
+
   valid_pattern ("(a)(b$|c$)d$");
   valid_pattern ("(a)(b|$c)$|d$");
   valid_pattern ("(a)($b|c)$|d$");
@@ -1003,11 +1003,11 @@ test_posix_extended ()
   TEST_SEARCH ("^(a)(b|c)|^d", "abe", 0, 3);
   TEST_SEARCH ("^(a)(b|c)|^d", "ace", 0, 3);
   TEST_SEARCH ("^(a)(b|c)|^d", "df", 0, 2);
-  
+
   TEST_SEARCH ("(^a)(b|c)|^d", "abe", 0, 3);
   TEST_SEARCH ("(^a)(b|c)|^d", "ace", 0, 3);
   TEST_SEARCH ("(^a)(b|c)|^d", "df", 0, 2);
-  
+
   TEST_SEARCH ("(a)(b|c)$|d$", "fab", 0, 3);
   TEST_SEARCH ("(a)(b|c)$|d$", "fac", 0, 3);
   TEST_SEARCH ("(a)(b|c)$|d$", "fd", 0, 2);
@@ -1027,11 +1027,11 @@ test_posix_extended ()
   TEST_SEARCH ("^d|^(b|c)(a)", "df", 0, 2);
   TEST_SEARCH ("^d|^(b|c)(a)", "baf", 0, 3);
   TEST_SEARCH ("^d|^(b|c)(a)", "caf", 0, 3);
-  
+
   TEST_SEARCH ("^d|(^b|^c)(a)", "df", 0, 2);
   TEST_SEARCH ("^d|(^b|^c)(a)", "baf", 0, 3);
   TEST_SEARCH ("^d|(^b|^c)(a)", "caf", 0, 3);
-  
+
   TEST_SEARCH ("d$|(b|c)(a$)", "fd", 0, 2);
   TEST_SEARCH ("d$|(b|c)(a$)", "fba", 0, 3);
   TEST_SEARCH ("d$|(b|c)(a$)", "fca", 0, 3);
@@ -1112,13 +1112,13 @@ test_posix_extended ()
   test_match ("(fooq|foo)(qbarx|bar)", "fooqbarx");
 
   /* Take first alternative that does the longest match.  */
-  test_all_registers ("(fooq|(foo)|(fo))((qbarx)|(oqbarx)|bar)", "fooqbarx", 
-    "", 0, 8,  0, 3,  0, 3,  -1, -1,  3, 8,  3, 8,  -1, -1,  -1, -1, -1, -1,  
+  test_all_registers ("(fooq|(foo)|(fo))((qbarx)|(oqbarx)|bar)", "fooqbarx",
+    "", 0, 8,  0, 3,  0, 3,  -1, -1,  3, 8,  3, 8,  -1, -1,  -1, -1, -1, -1,
     -1, -1);
 
   test_match ("(fooq|foo)*qbar", "fooqbar");
   test_match ("(fooq|foo)*(qbar)", "fooqbar");
-  test_match ("(fooq|foo)*(qbar)*", "fooqbar"); 
+  test_match ("(fooq|foo)*(qbar)*", "fooqbar");
 
   test_match ("(fooq|fo|o)*qbar", "fooqbar");
   test_match ("(fooq|fo|o)*(qbar)", "fooqbar");

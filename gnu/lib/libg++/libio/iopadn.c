@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -40,7 +40,7 @@ _IO_padn(fp, pad, count)
   const char *padptr;
   register int i;
   _IO_size_t written = 0, w;
-  
+
   if (pad == ' ')
     padptr = blanks;
   else if (pad == '0')
@@ -57,7 +57,7 @@ _IO_padn(fp, pad, count)
       if (w != PADSIZE)
 	return written;
     }
-      
+
   if (i > 0)
     {
       w = _IO_sputn(fp, padptr, i);

@@ -10,7 +10,7 @@
  * Modification history:
  *    940716 pen@signum.se      Change "ypreq_key" to "ypreq_nokey" for FIRST.
  *
- *	$Id$
+ *	$Id: yp.h,v 1.1 1995/01/31 08:58:55 wpaul Exp $
  */
 
 #ifndef _YP_H_RPCGEN
@@ -40,13 +40,13 @@ enum ypstat {
 	YP_VERS = -8
 };
 typedef enum ypstat ypstat;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypstat(XDR *, ypstat*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypstat(XDR *, ypstat*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypstat();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 enum ypxfrstat {
@@ -68,69 +68,69 @@ enum ypxfrstat {
 	YPXFR_REFUSED = -14
 };
 typedef enum ypxfrstat ypxfrstat;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypxfrstat(XDR *, ypxfrstat*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypxfrstat(XDR *, ypxfrstat*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypxfrstat();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef char *domainname;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_domainname(XDR *, domainname*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_domainname(XDR *, domainname*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_domainname();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef char *mapname;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_mapname(XDR *, mapname*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_mapname(XDR *, mapname*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_mapname();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef char *peername;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_peername(XDR *, peername*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_peername(XDR *, peername*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_peername();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef struct {
 	u_int keydat_len;
 	char *keydat_val;
 } keydat;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_keydat(XDR *, keydat*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_keydat(XDR *, keydat*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_keydat();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef struct {
 	u_int valdat_len;
 	char *valdat_val;
 } valdat;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_valdat(XDR *, valdat*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_valdat(XDR *, valdat*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_valdat();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypmap_parms {
@@ -140,13 +140,13 @@ struct ypmap_parms {
 	peername peer;
 };
 typedef struct ypmap_parms ypmap_parms;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypmap_parms(XDR *, ypmap_parms*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypmap_parms(XDR *, ypmap_parms*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypmap_parms();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypreq_key {
@@ -155,13 +155,13 @@ struct ypreq_key {
 	keydat key;
 };
 typedef struct ypreq_key ypreq_key;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypreq_key(XDR *, ypreq_key*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypreq_key(XDR *, ypreq_key*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypreq_key();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypreq_nokey {
@@ -169,13 +169,13 @@ struct ypreq_nokey {
 	mapname map;
 };
 typedef struct ypreq_nokey ypreq_nokey;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypreq_nokey(XDR *, ypreq_nokey*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypreq_nokey(XDR *, ypreq_nokey*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypreq_nokey();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypreq_xfr {
@@ -185,13 +185,13 @@ struct ypreq_xfr {
 	u_int port;
 };
 typedef struct ypreq_xfr ypreq_xfr;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypreq_xfr(XDR *, ypreq_xfr*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypreq_xfr(XDR *, ypreq_xfr*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypreq_xfr();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_val {
@@ -199,13 +199,13 @@ struct ypresp_val {
 	valdat val;
 };
 typedef struct ypresp_val ypresp_val;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_val(XDR *, ypresp_val*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_val(XDR *, ypresp_val*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_val();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_key_val {
@@ -214,13 +214,13 @@ struct ypresp_key_val {
 	valdat val;
 };
 typedef struct ypresp_key_val ypresp_key_val;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_key_val(XDR *, ypresp_key_val*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_key_val(XDR *, ypresp_key_val*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_key_val();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_master {
@@ -228,13 +228,13 @@ struct ypresp_master {
 	peername peer;
 };
 typedef struct ypresp_master ypresp_master;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_master(XDR *, ypresp_master*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_master(XDR *, ypresp_master*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_master();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_order {
@@ -242,13 +242,13 @@ struct ypresp_order {
 	u_int ordernum;
 };
 typedef struct ypresp_order ypresp_order;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_order(XDR *, ypresp_order*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_order(XDR *, ypresp_order*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_order();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 typedef struct
@@ -269,13 +269,13 @@ struct ypresp_all {
 	} ypresp_all_u;
 };
 typedef struct ypresp_all ypresp_all;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_all(XDR *, ypresp_all*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_all(XDR *, ypresp_all*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_all();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_xfr {
@@ -283,13 +283,13 @@ struct ypresp_xfr {
 	ypxfrstat xfrstat;
 };
 typedef struct ypresp_xfr ypresp_xfr;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_xfr(XDR *, ypresp_xfr*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_xfr(XDR *, ypresp_xfr*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_xfr();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypmaplist {
@@ -297,13 +297,13 @@ struct ypmaplist {
 	struct ypmaplist *next;
 };
 typedef struct ypmaplist ypmaplist;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypmaplist(XDR *, ypmaplist*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypmaplist(XDR *, ypmaplist*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypmaplist();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypresp_maplist {
@@ -311,13 +311,13 @@ struct ypresp_maplist {
 	ypmaplist *maps;
 };
 typedef struct ypresp_maplist ypresp_maplist;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypresp_maplist(XDR *, ypresp_maplist*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypresp_maplist(XDR *, ypresp_maplist*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypresp_maplist();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 enum yppush_status {
@@ -339,13 +339,13 @@ enum yppush_status {
 	YPPUSH_REFUSED = -14
 };
 typedef enum yppush_status yppush_status;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_yppush_status(XDR *, yppush_status*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_yppush_status(XDR *, yppush_status*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_yppush_status();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct yppushresp_xfr {
@@ -353,13 +353,13 @@ struct yppushresp_xfr {
 	yppush_status status;
 };
 typedef struct yppushresp_xfr yppushresp_xfr;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_yppushresp_xfr(XDR *, yppushresp_xfr*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_yppushresp_xfr(XDR *, yppushresp_xfr*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_yppushresp_xfr();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 enum ypbind_resptype {
@@ -367,13 +367,13 @@ enum ypbind_resptype {
 	YPBIND_FAIL_VAL = 2
 };
 typedef enum ypbind_resptype ypbind_resptype;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypbind_resptype(XDR *, ypbind_resptype*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypbind_resptype(XDR *, ypbind_resptype*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypbind_resptype();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypbind_binding {
@@ -381,13 +381,13 @@ struct ypbind_binding {
 	char ypbind_binding_port[2];
 };
 typedef struct ypbind_binding ypbind_binding;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypbind_binding(XDR *, ypbind_binding*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypbind_binding(XDR *, ypbind_binding*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypbind_binding();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 struct ypbind_resp {
@@ -398,13 +398,13 @@ struct ypbind_resp {
 	} ypbind_resp_u;
 };
 typedef struct ypbind_resp ypbind_resp;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypbind_resp(XDR *, ypbind_resp*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypbind_resp(XDR *, ypbind_resp*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypbind_resp();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 #define YPBIND_ERR_ERR 1
 #define YPBIND_ERR_NOSERV 2
@@ -416,13 +416,13 @@ struct ypbind_setdom {
 	u_int ypsetdom_vers;
 };
 typedef struct ypbind_setdom ypbind_setdom;
-#ifdef __cplusplus 
+#ifdef __cplusplus
 extern "C" bool_t __xdr_ypbind_setdom(XDR *, ypbind_setdom*);
-#elif __STDC__ 
+#elif __STDC__
 extern  bool_t __xdr_ypbind_setdom(XDR *, ypbind_setdom*);
-#else /* Old Style C */ 
+#else /* Old Style C */
 bool_t __xdr_ypbind_setdom();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 
 #define YPPROG ((u_long)100004)
@@ -504,7 +504,7 @@ extern  ypresp_order * ypproc_order_2_svc(ypreq_nokey *, struct svc_req *);
 extern  ypresp_maplist * ypproc_maplist_2(domainname *, CLIENT *);
 extern  ypresp_maplist * ypproc_maplist_2_svc(domainname *, struct svc_req *);
 
-#else /* Old Style C */ 
+#else /* Old Style C */
 #define YPPROC_NULL ((u_long)0)
 extern  void * ypproc_null_2();
 extern  void * ypproc_null_2_svc();
@@ -541,7 +541,7 @@ extern  ypresp_order * ypproc_order_2_svc();
 #define YPPROC_MAPLIST ((u_long)11)
 extern  ypresp_maplist * ypproc_maplist_2();
 extern  ypresp_maplist * ypproc_maplist_2_svc();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 #define YPPUSH_XFRRESPPROG ((u_long)0x40000000)
 #define YPPUSH_XFRRESPVERS ((u_long)1)
@@ -562,14 +562,14 @@ extern  void * yppushproc_null_1_svc(void *, struct svc_req *);
 extern  yppushresp_xfr * yppushproc_xfrresp_1(void *, CLIENT *);
 extern  yppushresp_xfr * yppushproc_xfrresp_1_svc(void *, struct svc_req *);
 
-#else /* Old Style C */ 
+#else /* Old Style C */
 #define YPPUSHPROC_NULL ((u_long)0)
 extern  void * yppushproc_null_1();
 extern  void * yppushproc_null_1_svc();
 #define YPPUSHPROC_XFRRESP ((u_long)1)
 extern  yppushresp_xfr * yppushproc_xfrresp_1();
 extern  yppushresp_xfr * yppushproc_xfrresp_1_svc();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 #define YPBINDPROG ((u_long)100007)
 #define YPBINDVERS ((u_long)2)
@@ -596,7 +596,7 @@ extern  ypbind_resp * ypbindproc_domain_2_svc(domainname *, struct svc_req *);
 extern  void * ypbindproc_setdom_2(ypbind_setdom *, CLIENT *);
 extern  void * ypbindproc_setdom_2_svc(ypbind_setdom *, struct svc_req *);
 
-#else /* Old Style C */ 
+#else /* Old Style C */
 #define YPBINDPROC_NULL ((u_long)0)
 extern  void * ypbindproc_null_2();
 extern  void * ypbindproc_null_2_svc();
@@ -606,6 +606,6 @@ extern  ypbind_resp * ypbindproc_domain_2_svc();
 #define YPBINDPROC_SETDOM ((u_long)2)
 extern  void * ypbindproc_setdom_2();
 extern  void * ypbindproc_setdom_2_svc();
-#endif /* Old Style C */ 
+#endif /* Old Style C */
 
 #endif /* !_YP_H_RPCGEN */

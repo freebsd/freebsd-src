@@ -10,7 +10,7 @@ test_berk_search (pattern, string)
     char *string;
 {
   const char *return_value = re_comp (pattern);
-  
+
   if (return_value != 0)
     {
       printf ("This didn't compile: `%s'.\n", pattern);

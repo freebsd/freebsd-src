@@ -735,9 +735,9 @@ extract_archive ()
 
       if (!f_modified)
 	{
-	  tmp = ((struct saved_dir_info *) 
+	  tmp = ((struct saved_dir_info *)
 		 ck_malloc (sizeof (struct saved_dir_info)));
-	  tmp->path = (char *) ck_malloc (strlen (skipcrud 
+	  tmp->path = (char *) ck_malloc (strlen (skipcrud
 						  + current_file_name) + 1);
 	  strcpy (tmp->path, skipcrud + current_file_name);
 	  tmp->mode = hstat.st_mode;
@@ -889,7 +889,7 @@ extract_sparse_file (fd, sizeleft, totalsize, name)
 	}
       else if (count != written)
 	{
-	  msg ("could only write %d of %d bytes to file %s", count, 
+	  msg ("could only write %d of %d bytes to file %s", count,
 	       totalsize, name);
 	  skip_file ((long) (*sizeleft));
 	}
@@ -910,7 +910,7 @@ extract_sparse_file (fd, sizeleft, totalsize, name)
 }
 
 /* Set back the utime and mode for all the extracted directories. */
-void 
+void
 restore_saved_dir_info ()
 {
   struct utimbuf acc_upd_times;

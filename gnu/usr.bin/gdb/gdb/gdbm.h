@@ -23,7 +23,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
                 Western Washington University
                 Bellingham, WA 98226
         phone:  (206) 676-3035
-       
+
 *************************************************************************/
 
 /* Parameters to gdbm_open for READERS, WRITERS, and WRITERS who

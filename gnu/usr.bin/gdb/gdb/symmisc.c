@@ -47,16 +47,16 @@ FILE *std_err;
 
 /* Prototypes for local functions */
 
-static void 
+static void
 dump_symtab PARAMS ((struct objfile *, struct symtab *, GDB_FILE *));
 
-static void 
+static void
 dump_psymtab PARAMS ((struct objfile *, struct partial_symtab *, GDB_FILE *));
 
-static void 
+static void
 dump_msymbols PARAMS ((struct objfile *, GDB_FILE *));
 
-static void 
+static void
 dump_objfile PARAMS ((struct objfile *));
 
 static int
@@ -128,7 +128,7 @@ free_symtab (s)
       /* Free the blockvector itself.  */
       mfree (s -> objfile -> md, (PTR) bv);
       /* Also free the linetable.  */
-      
+
     case free_linetable:
       /* Everything will be freed either by our `free_ptr'
 	 or by some other symtab, except for our linetable.
@@ -152,7 +152,7 @@ free_symtab (s)
 
 #if MAINTENANCE_CMDS
 
-static void 
+static void
 dump_objfile (objfile)
      struct objfile *objfile;
 {
@@ -208,8 +208,8 @@ dump_objfile (objfile)
 }
 
 /* Print minimal symbols from this objfile.  */
- 
-static void 
+
+static void
 dump_msymbols (objfile, outfile)
      struct objfile *objfile;
      GDB_FILE *outfile;
@@ -217,7 +217,7 @@ dump_msymbols (objfile, outfile)
   struct minimal_symbol *msymbol;
   int index;
   char ms_type;
-  
+
   fprintf_filtered (outfile, "\nObject file %s:\n\n", objfile -> name);
   if (objfile -> minimal_symbol_count == 0)
     {
@@ -345,7 +345,7 @@ dump_psymtab (objfile, psymtab, outfile)
   fprintf_filtered (outfile, "\n");
 }
 
-static void 
+static void
 dump_symtab (objfile, symtab, outfile)
      struct objfile *objfile;
      struct symtab *symtab;
@@ -464,7 +464,7 @@ Arguments missing: an output file name and an optional symbol file name");
 
   filename = tilde_expand (filename);
   make_cleanup (free, filename);
-  
+
   outfile = gdb_fopen (filename, FOPEN_WT);
   if (outfile == 0)
     perror_with_name (filename);
@@ -669,7 +669,7 @@ maintenance_print_psymbols (args, from_tty)
 
   filename = tilde_expand (filename);
   make_cleanup (free, filename);
-  
+
   outfile = gdb_fopen (filename, FOPEN_WT);
   if (outfile == 0)
     perror_with_name (filename);
@@ -814,7 +814,7 @@ maintenance_print_msymbols (args, from_tty)
 
   filename = tilde_expand (filename);
   make_cleanup (free, filename);
-  
+
   outfile = gdb_fopen (filename, FOPEN_WT);
   if (outfile == 0)
     perror_with_name (filename);
@@ -938,7 +938,7 @@ block_depth (block)
      struct block *block;
 {
   register int i = 0;
-  while ((block = BLOCK_SUPERBLOCK (block)) != NULL) 
+  while ((block = BLOCK_SUPERBLOCK (block)) != NULL)
     {
       i++;
     }

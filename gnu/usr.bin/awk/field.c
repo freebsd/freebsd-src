@@ -2,22 +2,22 @@
  * field.c - routines for dealing with fields and record parsing
  */
 
-/* 
+/*
  * Copyright (C) 1986, 1988, 1989, 1991, 1992, 1993 the Free Software Foundation, Inc.
- * 
+ *
  * This file is part of GAWK, the GNU implementation of the
  * AWK Progamming Language.
- * 
+ *
  * GAWK is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * GAWK is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with GAWK; see the file COPYING.  If not, write to
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -305,7 +305,7 @@ NODE *n;
 	*end = ' ';	/* sentinel character */
 	for (; nf < up_to; scan++) {
 		/*
-		 * special case:  fs is single space, strip leading whitespace 
+		 * special case:  fs is single space, strip leading whitespace
 		 */
 		while (scan < end && (*scan == ' ' || *scan == '\t'))
 			scan++;
@@ -466,7 +466,7 @@ Func_ptr *assign;	/* this field is on the LHS of an assign */
 		     save_FS, FS_regexp, set_field, (NODE *)NULL);
 
 		/*
-		 * if we reached the end of the record, set NF to the number of 
+		 * if we reached the end of the record, set NF to the number of
 		 * fields so far.  Note that requested might actually refer to
 		 * a field that is beyond the end of the record, but we won't
 		 * set NF to that value at this point, since this is only a

@@ -1,4 +1,4 @@
-/* $RCSfile: eval.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:36 $
+/* $RCSfile: eval.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: eval.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:36  nate
  * PERL!
  *
@@ -18,7 +21,7 @@
  * patch20: dbmclose(%array) didn't work
  * patch20: added ... as variant on ..
  * patch20: O_PIPE conflicted with Atari
- * 
+ *
  * Revision 4.0.1.3  91/11/05  17:15:21  lwall
  * patch11: prepared for ctype implementations that don't define isascii()
  * patch11: various portability fixes
@@ -28,7 +31,7 @@
  * patch11: a last statement outside any block caused occasional core dumps
  * patch11: missing arguments caused core dump in -D8 code
  * patch11: eval 'stuff' now optimized to eval {stuff}
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:07:23  lwall
  * patch4: new copyright notice
  * patch4: length($`), length($&), length($') now optimized to avoid string copy
@@ -37,14 +40,14 @@
  * patch4: added $^P variable to control calling of perldb routines
  * patch4: taintchecks could improperly modify parent in vfork()
  * patch4: many, many itty-bitty portability fixes
- * 
+ *
  * Revision 4.0.1.1  91/04/11  17:43:48  lwall
  * patch1: fixed failed fork to return undef as documented
  * patch1: reduced maximum branch distance in eval.c
- * 
+ *
  * Revision 4.0  91/03/20  01:16:48  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -1242,8 +1245,8 @@ register int sp;
 		lstr = (struct lstring*)str;
 		str->str_magic = st[1];
 		st[1]->str_rare = 's';
-		lstr->lstr_offset = tmps - str_get(st[1]); 
-		lstr->lstr_len = anum; 
+		lstr->lstr_offset = tmps - str_get(st[1]);
+		lstr->lstr_len = anum;
 	    }
 	}
 	break;

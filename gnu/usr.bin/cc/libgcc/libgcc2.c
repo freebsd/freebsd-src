@@ -1187,10 +1187,10 @@ asm ("___builtin_saveregs:");
 	*/
 
 	asm ("	fst.q	%f8,  0(%sp)"); /* save floating regs (f8-f15)  */
-	asm ("	fst.q	%f12,16(%sp)"); 
+	asm ("	fst.q	%f12,16(%sp)");
 
 	asm ("	st.l	%r16,32(%sp)"); /* save integer regs (r16-r27) */
-	asm ("	st.l	%r17,36(%sp)"); 
+	asm ("	st.l	%r17,36(%sp)");
 	asm ("	st.l	%r18,40(%sp)");
 	asm ("	st.l	%r19,44(%sp)");
 	asm ("	st.l	%r20,48(%sp)");
@@ -1256,9 +1256,9 @@ asm ("___builtin_saveregs:");
 	*/
 
 	asm ("	fst.q	f8,  0(sp)");
-	asm ("	fst.q	f12,16(sp)"); 
+	asm ("	fst.q	f12,16(sp)");
 	asm ("	st.l	r16,32(sp)");
-	asm ("	st.l	r17,36(sp)"); 
+	asm ("	st.l	r17,36(sp)");
 	asm ("	st.l	r18,40(sp)");
 	asm ("	st.l	r19,44(sp)");
 	asm ("	st.l	r20,48(sp)");
@@ -1327,7 +1327,7 @@ asm ("___builtin_saveregs:");
 	asm ("	adds	80,sp,r16");  /* return address of the __va_ctl.  */
 	asm ("	bri	r1");
 	asm ("	mov	r30,sp");
-				/* recover stack and pass address to start 
+				/* recover stack and pass address to start
 				   of data.  */
 #endif /* not __PARAGON__ */
 #endif /* not __svr4__ */
@@ -1621,7 +1621,7 @@ __builtin_new (size_t sz)
       (*__new_handler) ();
       p = (void *) malloc (sz);
     }
-  
+
   return p;
 }
 #endif /* L_op_new */
@@ -1738,7 +1738,7 @@ void
 __clear_cache (beg, end)
      char *beg, *end;
 {
-#ifdef CLEAR_INSN_CACHE 
+#ifdef CLEAR_INSN_CACHE
   CLEAR_INSN_CACHE (beg, end);
 #else
 #ifdef INSN_CACHE_SIZE
@@ -1802,7 +1802,7 @@ __clear_cache (beg, end)
   /* Compute the cache alignment of the place to stop clearing.  */
 #if 0  /* This is not needed for gcc's purposes.  */
   /* If the block to clear is bigger than a cache plane,
-     we clear the entire cache, and OFFSET is already correct.  */ 
+     we clear the entire cache, and OFFSET is already correct.  */
   if (end < beg + INSN_CACHE_PLANE_SIZE)
 #endif
     offset = (((int) (end + INSN_CACHE_LINE_WIDTH - 1)
@@ -1848,8 +1848,8 @@ __clear_cache (beg, end)
 
 /* Jump to a trampoline, loading the static chain address.  */
 
-#ifdef TRANSFER_FROM_TRAMPOLINE 
-TRANSFER_FROM_TRAMPOLINE 
+#ifdef TRANSFER_FROM_TRAMPOLINE
+TRANSFER_FROM_TRAMPOLINE
 #endif
 
 #if defined (NeXT) && defined (__MACH__)
@@ -1885,7 +1885,7 @@ __enable_execute_stack (addr)
 #else
   __clear_cache ((int) addr, (int) eaddr);
 #endif
-} 
+}
 
 #endif /* defined (NeXT) && defined (__MACH__) */
 
@@ -1931,7 +1931,7 @@ __enable_execute_stack ()
   int save_errno;
   static unsigned long lowest = USRSTACK;
   unsigned long current = (unsigned long) &save_errno & -NBPC;
-  
+
   /* Ignore errno being set. memctl sets errno to EINVAL whenever the
      address is seen as 'negative'. That is the case with the stack.   */
 
@@ -2085,7 +2085,7 @@ extern void __do_global_dtors ();
 extern void _cleanup ();
 extern void _exit () __attribute__ ((noreturn));
 
-void 
+void
 exit (status)
      int status;
 {

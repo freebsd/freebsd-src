@@ -61,7 +61,7 @@ struct rip {
 #define	rip_nets	ripun.ru_nets
 #define	rip_tracefile	ripun.ru_tracefile
 };
- 
+
 /*
  * Packet types.
  */

@@ -134,7 +134,7 @@ glob_pattern_p (pattern)
       case ']':
 	if (open)
 	  return 1;
-	continue;      
+	continue;
 
       case '\\':
 	if (*p++ == '\0')
@@ -198,7 +198,7 @@ glob_match (pattern, text, dot_special)
 	  register char c1 = *t++;
 	  int invert;
 	  char *cp1 = p;
-	  
+
 	  if (c1 == '\0')
 	    return 0;
 
@@ -227,7 +227,7 @@ glob_match (pattern, text, dot_special)
 		  p = cp1;
 		  goto breakbracket;
 		}
-	      
+
 	      c = *p++;
 
 	      if (c == '-')
@@ -371,14 +371,14 @@ glob_vector (pat, dir)
 	  goto lost;
 	}
 #endif /* SHELL */
-	  
+
       dp = readdir (d);
       if (dp == NULL)
 	break;
       if (REAL_DIR_ENTRY (dp)
 	  && glob_match (pat, dp->d_name, noglob_dot_filenames))
 	{
-#ifdef ALLOCA_MISSING	  
+#ifdef ALLOCA_MISSING
 	  nextlink = (struct globval *) malloc (sizeof (struct globval));
 #else
 	  nextlink = (struct globval *) alloca (sizeof (struct globval));

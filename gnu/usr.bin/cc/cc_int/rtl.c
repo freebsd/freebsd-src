@@ -158,7 +158,7 @@ char *rtx_format[] = {
    that rtx code.  See rtl.def for documentation on the defined classes.  */
 
 char rtx_class[] = {
-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   CLASS, 
+#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   CLASS,
 #include "rtl.def"		/* rtl expressions are defined here */
 #undef DEF_RTL_EXPR
 };
@@ -301,7 +301,7 @@ copy_rtx (orig)
   copy->volatil = orig->volatil;
   copy->unchanging = orig->unchanging;
   copy->integrated = orig->integrated;
-  
+
   format_ptr = GET_RTX_FORMAT (GET_CODE (copy));
 
   for (i = 0; i < GET_RTX_LENGTH (GET_CODE (copy)); i++)
@@ -387,7 +387,7 @@ copy_most_rtx (orig, may_share)
   copy->volatil = orig->volatil;
   copy->unchanging = orig->unchanging;
   copy->integrated = orig->integrated;
-  
+
   format_ptr = GET_RTX_FORMAT (GET_CODE (copy));
 
   for (i = 0; i < GET_RTX_LENGTH (GET_CODE (copy)); i++)
@@ -490,7 +490,7 @@ read_skip_spaces (infile)
 	  c = getc (infile);
 	  if (c != '*')
 	    dump_and_abort ('*', c, infile);
-	  
+
 	  prevc = 0;
 	  while (c = getc (infile))
 	    {
@@ -643,7 +643,7 @@ read_rtx (infile)
 	    break;
  	  }
 	/* Now process the vector.  */
-  
+
       case 'E':
 	{
 	  register struct rtx_list *next_rtx, *rtx_list_link;

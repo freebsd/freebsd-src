@@ -143,7 +143,7 @@ XFormatFontName (fontName, fontNameAttributes, fontNameString)
 		return False; \
 	while (*f) \
 		if ((*name++ = *f++) == '-') \
-			return False; 
+			return False;
 #define PutHyphen()\
 	if (--left < 0) \
 		return False; \

@@ -407,7 +407,7 @@ struct fixup_replacement
   rtx new;
   struct fixup_replacement *next;
 };
-   
+
 /* Forward declarations.  */
 
 static struct temp_slot *find_temp_slot_from_address  PROTO((rtx));
@@ -637,7 +637,7 @@ get_frame_size ()
 
 /* Allocate a stack slot of SIZE bytes and return a MEM rtx for it
    with machine mode MODE.
-   
+
    ALIGN controls the amount of alignment for the address of the slot:
    0 means according to MODE,
    -1 means use BIGGEST_ALIGNMENT and round size to multiple of that,
@@ -852,7 +852,7 @@ assign_stack_temp (mode, size, keep)
 
       p = best_p;
     }
-	      
+
   /* If we still didn't find one, make a new temporary.  */
   if (p == 0)
     {
@@ -940,7 +940,7 @@ combine_temp_slots ()
 	prev_p = p;
     }
 
-  /* Free all the RTL made by plus_constant.  */ 
+  /* Free all the RTL made by plus_constant.  */
   rtx_free (free_pointer);
 }
 
@@ -969,7 +969,7 @@ find_temp_slot_from_address (x)
 
   return 0;
 }
-      
+
 /* Indicate that NEW is an alternate way of refering to the temp slot
    that previous was known by OLD.  */
 
@@ -1185,7 +1185,7 @@ put_var_into_stack (decl)
 
   if (output_bytecode)
     return;
-  
+
   context = decl_function_context (decl);
 
   /* Get the current rtl used for this object and it's original mode.  */
@@ -1478,7 +1478,7 @@ fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel)
 		  PATTERN (insn) = replace_rtx (PATTERN (insn),
 						call_dest, temp);
 		}
-	      
+
 	      if (GET_CODE (insn) == CALL_INSN
 		  && GET_CODE (PATTERN (insn)) == SET)
 		call_dest = SET_DEST (PATTERN (insn));
@@ -1497,7 +1497,7 @@ fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel)
 		 a list of struct fixup_replacements.  If fixup_var_refs_1
 		 needs to allocate pseudos or replacement MEMs (for SUBREGs),
 		 it will record them in this list.
-		 
+
 		 If it allocated a pseudo for any replacement, we copy into
 		 it here.  */
 
@@ -1564,7 +1564,7 @@ fixup_var_refs_insns (var, promoted_mode, unsignedp, insn, toplevel)
 }
 
 /* VAR is a MEM that used to be a pseudo register with mode PROMOTED_MODE.
-   See if the rtx expression at *LOC in INSN needs to be changed.  
+   See if the rtx expression at *LOC in INSN needs to be changed.
 
    REPLACEMENTS is a pointer to a list head that starts out zero, but may
    contain a list of original rtx's and replacements. If we find that we need
@@ -1594,7 +1594,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
     case MEM:
       if (var == x)
 	{
-	  /* If we already have a replacement, use it.  Otherwise, 
+	  /* If we already have a replacement, use it.  Otherwise,
 	     try to fix up this address in case it is invalid.  */
 
 	  replacement = find_fixup_replacement (replacements, var);
@@ -1608,7 +1608,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 
 	  /* Unless we are forcing memory to register or we changed the mode,
 	     we can leave things the way they are if the insn is valid.  */
-	     
+
 	  INSN_CODE (insn) = -1;
 	  if (! flag_force_mem && GET_MODE (x) == promoted_mode
 	      && recog_memoized (insn) >= 0)
@@ -1729,7 +1729,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 	  return;
 	}
       break;
-	      
+
     case SUBREG:
       if (SUBREG_REG (x) == var)
 	{
@@ -1746,7 +1746,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 	    }
 
 	  /* If this SUBREG makes VAR wider, it has become a paradoxical
-	     SUBREG with VAR in memory, but these aren't allowed at this 
+	     SUBREG with VAR in memory, but these aren't allowed at this
 	     stage of the compilation.  So load VAR into a pseudo and take
 	     a SUBREG of that pseudo.  */
 	  if (GET_MODE_SIZE (GET_MODE (x)) > GET_MODE_SIZE (GET_MODE (var)))
@@ -1768,7 +1768,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 	      *loc = replacement->new;
 	      return;
 	    }
-	  
+
 	  replacement->new = *loc = fixup_memory_subreg (x, insn, 0);
 
 	  INSN_CODE (insn) = -1;
@@ -1802,7 +1802,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 			   insn);
 	  break;
 	}
-	  
+
       {
 	rtx dest = SET_DEST (x);
 	rtx src = SET_SRC (x);
@@ -1883,10 +1883,10 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 		    INSN_CODE (insn) = -1;
 		    XEXP (outerdest, 0) = newmem;
 		    XEXP (outerdest, 2) = GEN_INT (pos);
-		    
+
 		    if (recog_memoized (insn) >= 0)
 		      return;
-		    
+
 		    /* Otherwise, restore old position.  XEXP (x, 0) will be
 		       restored later.  */
 		    XEXP (outerdest, 2) = old_pos;
@@ -1950,7 +1950,7 @@ fixup_var_refs_1 (var, promoted_mode, loc, insn, replacements)
 	       copy SET_SRC (x) to SET_DEST (x) in some way.  So
 	       we generate the move and see whether it requires more
 	       than one insn.  If it does, we emit those insns and
-	       delete INSN.  Otherwise, we an just replace the pattern 
+	       delete INSN.  Otherwise, we an just replace the pattern
 	       of INSN; we have already verified above that INSN has
 	       no other function that to do X.  */
 
@@ -2098,7 +2098,7 @@ fixup_memory_subreg (x, insn, uncritical)
    If X itself is a (SUBREG (MEM ...) ...), return the replacement expression.
    Otherwise return X, with its contents possibly altered.
 
-   If any insns must be emitted to compute NEWADDR, put them before INSN. 
+   If any insns must be emitted to compute NEWADDR, put them before INSN.
 
    UNCRITICAL is as in fixup_memory_subreg.  */
 
@@ -2381,7 +2381,7 @@ static int out_arg_offset;
 /* The bottom of the stack points to the actual arguments.  If
    REG_PARM_STACK_SPACE is defined, this includes the space for the register
    parameters.  However, if OUTGOING_REG_PARM_STACK space is not defined,
-   stack space for register parameters is not pushed by the caller, but 
+   stack space for register parameters is not pushed by the caller, but
    rather part of the fixed stack areas and hence not included in
    `current_function_outgoing_args_size'.  Nevertheless, we must allow
    for it when allocating stack dynamic objects.  */
@@ -2469,7 +2469,7 @@ instantiate_decls (fndecl, valid_only)
   for (decl = DECL_ARGUMENTS (fndecl); decl; decl = TREE_CHAIN (decl))
     {
       instantiate_decl (DECL_RTL (decl), int_size_in_bytes (TREE_TYPE (decl)),
-			valid_only);	
+			valid_only);
       instantiate_decl (DECL_INCOMING_RTL (decl),
 			int_size_in_bytes (TREE_TYPE (decl)), valid_only);
     }
@@ -2578,7 +2578,7 @@ instantiate_decl (x, size, valid_only)
    is not valid.
 
    Return 1 if we either had nothing to do or if we were able to do the
-   needed replacement.  Return 0 otherwise; we only return zero if 
+   needed replacement.  Return 0 otherwise; we only return zero if
    EXTRA_INSNS is zero.
 
    We first try some simple transformations to avoid the creation of extra
@@ -2790,12 +2790,12 @@ instantiate_virtual_regs_1 (loc, object, extra_insns)
       /* Most cases of MEM that convert to valid addresses have already been
 	 handled by our scan of regno_reg_rtx.  The only special handling we
 	 need here is to make a copy of the rtx to ensure it isn't being
-	 shared if we have to change it to a pseudo. 
+	 shared if we have to change it to a pseudo.
 
 	 If the rtx is a simple reference to an address via a virtual register,
 	 it can potentially be shared.  In such cases, first try to make it
 	 a valid address, which can also be shared.  Otherwise, copy it and
-	 proceed normally. 
+	 proceed normally.
 
 	 First check for common cases that need no processing.  These are
 	 usually due to instantiation already being done on a previous instance
@@ -3104,7 +3104,7 @@ assign_parms (fndecl, second_time)
   tree fnargs = DECL_ARGUMENTS (fndecl);
   /* This is used for the arg pointer when referring to stack args.  */
   rtx internal_arg_pointer;
-  /* This is a dummy PARM_DECL that we used for the function result if 
+  /* This is a dummy PARM_DECL that we used for the function result if
      the function returns a structure.  */
   tree function_result_decl = 0;
   int nparmregs = list_length (fnargs) + LAST_VIRTUAL_REGISTER + 1;
@@ -3165,7 +3165,7 @@ assign_parms (fndecl, second_time)
       TREE_CHAIN (function_result_decl) = fnargs;
       fnargs = function_result_decl;
     }
-			       
+
   parm_reg_stack_loc = (rtx *) oballoc (nparmregs * sizeof (rtx));
   bzero ((char *) parm_reg_stack_loc, nparmregs * sizeof (rtx));
 
@@ -3645,7 +3645,7 @@ assign_parms (fndecl, second_time)
 #endif /* FUNCTION_ARG_CALLEE_COPIES */
 
 	  /* In any case, record the parm's desired stack location
-	     in case we later discover it must live in the stack. 
+	     in case we later discover it must live in the stack.
 
 	     If it is a COMPLEX value, store the stack location for both
 	     halves.  */
@@ -3782,7 +3782,7 @@ assign_parms (fndecl, second_time)
 
 	  DECL_RTL (parm) = stack_parm;
 	}
-      
+
       /* If this "parameter" was the place where we are receiving the
 	 function's incoming structure pointer, set up the result.  */
       if (parm == function_result_decl)
@@ -3827,13 +3827,13 @@ assign_parms (fndecl, second_time)
   current_function_args_size
     = ((current_function_args_size + STACK_BYTES - 1)
        / STACK_BYTES) * STACK_BYTES;
-#endif  
+#endif
 
 #ifdef ARGS_GROW_DOWNWARD
   current_function_arg_offset_rtx
     = (stack_args_size.var == 0 ? GEN_INT (-stack_args_size.constant)
-       : expand_expr (size_binop (MINUS_EXPR, stack_args_size.var,	
-				  size_int (-stack_args_size.constant)),   
+       : expand_expr (size_binop (MINUS_EXPR, stack_args_size.var,
+				  size_int (-stack_args_size.constant)),
 		      NULL_RTX, VOIDmode, 0));
 #else
   current_function_arg_offset_rtx = ARGS_SIZE_RTX (stack_args_size);
@@ -3922,7 +3922,7 @@ promoted_input_arg (regno, pmode, punsignedp)
    initial offset is not affected by this rounding, while the size always
    is and the starting offset may be.  */
 
-/*  offset_ptr will be negative for ARGS_GROW_DOWNWARD case; 
+/*  offset_ptr will be negative for ARGS_GROW_DOWNWARD case;
     initial_offset_ptr is positive because locate_and_pad_parm's
     callers pass in the total size of args so far as
     initial_offset_ptr. arg_size_ptr is always positive.*/
@@ -4003,7 +4003,7 @@ locate_and_pad_parm (passed_mode, type, in_regs, fndecl,
   else
     {
       arg_size_ptr->constant = (- initial_offset_ptr->constant -
-				offset_ptr->constant); 
+				offset_ptr->constant);
     }
 #else /* !ARGS_GROW_DOWNWARD */
   pad_to_arg_alignment (initial_offset_ptr, boundary);
@@ -4036,14 +4036,14 @@ pad_to_arg_alignment (offset_ptr, boundary)
      int boundary;
 {
   int boundary_in_bytes = boundary / BITS_PER_UNIT;
-  
+
   if (boundary > BITS_PER_UNIT)
     {
       if (offset_ptr->var)
 	{
 	  offset_ptr->var  =
 #ifdef ARGS_GROW_DOWNWARD
-	    round_down 
+	    round_down
 #else
 	    round_up
 #endif
@@ -4216,7 +4216,7 @@ lookup_static_chain (decl)
 
   if (context == 0)
     return 0;
-  
+
   /* We treat inline_function_decl as an alias for the current function
      because that is the inline function whose vars, types, etc.
      are being merged into the current function.
@@ -4505,7 +4505,7 @@ reorder_blocks (block_vector, top_block, insns)
 	      block = copy_node (block);
 	    BLOCK_SUBBLOCKS (block) = 0;
 	    TREE_ASM_WRITTEN (block) = 1;
-	    BLOCK_SUPERCONTEXT (block) = current_block; 
+	    BLOCK_SUPERCONTEXT (block) = current_block;
 	    BLOCK_CHAIN (block) = BLOCK_SUBBLOCKS (current_block);
 	    BLOCK_SUBBLOCKS (current_block) = block;
 	    current_block = block;
@@ -4549,7 +4549,7 @@ all_blocks (block, vector)
      tree *vector;
 {
   int n_blocks = 1;
-  tree subblocks; 
+  tree subblocks;
 
   TREE_ASM_WRITTEN (block) = 0;
   /* Record this block.  */
@@ -5111,7 +5111,7 @@ expand_function_start (subr, parms_have_cleanups)
 }
 
 /* Generate RTL for the end of the current function.
-   FILENAME and LINE are the current position in the source file. 
+   FILENAME and LINE are the current position in the source file.
 
    It is up to language-specific callers to do cleanups for parameters--
    or else, supply 1 for END_BINDINGS and we will call expand_end_bindings.  */

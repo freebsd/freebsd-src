@@ -1,5 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 
@@ -44,15 +44,15 @@ protected:
   re_registers*      reg;
 
 public:
-                     Regex(const char* t, 
-                           int fast = 0, 
-                           int bufsize = 40, 
+                     Regex(const char* t,
+                           int fast = 0,
+                           int bufsize = 40,
                            const char* transtable = 0);
 
                     ~Regex();
 
   int                match(const char* s, int len, int pos = 0) const;
-  int                search(const char* s, int len, 
+  int                search(const char* s, int len,
                             int& matchlen, int startpos = 0) const;
   int                match_info(int& start, int& length, int nth = 0) const;
 

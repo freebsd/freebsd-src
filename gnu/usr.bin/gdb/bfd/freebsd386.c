@@ -91,7 +91,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Text segment offset. */
 #define	N_TXTOFF(ex) \
 	(N_MAGIC(ex) == ZMAGIC ? PAGE_SIZE : (N_MAGIC(ex) == QMAGIC || \
-	N_GETMAGIC_NET(ex) == ZMAGIC) ? 0 : EXEC_BYTES_SIZE) 
+	N_GETMAGIC_NET(ex) == ZMAGIC) ? 0 : EXEC_BYTES_SIZE)
 
 /* Data segment offset. */
 #define	N_DATOFF(ex) \

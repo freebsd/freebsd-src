@@ -329,7 +329,7 @@ zsysdep_data_file_name (qsys, zlocalname, bgrade, fxqt, ztname, zdname,
      char *zdname;
      char *zxname;
 {
-  return zsfile_name ('D', qsys->uuconf_zname, zlocalname, bgrade, fxqt, 
+  return zsfile_name ('D', qsys->uuconf_zname, zlocalname, bgrade, fxqt,
 		      ztname, zdname, zxname);
 }
 

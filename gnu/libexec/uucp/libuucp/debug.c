@@ -137,7 +137,7 @@ cdebug_char (z, ichar)
   *z++ = b;
   *z = '\0';
   return 2;
-}      
+}
 
 /* Display a buffer when debugging.  */
 
@@ -162,7 +162,7 @@ udebug_buffer (zhdr, zbuf, clen)
       *z++ = '.';
     }
   *z = '\0';
-  
+
   ulog (LOG_DEBUG, "%s %lu \"%s\"", zhdr, (unsigned long) clen, zalc);
 
   ubuffree (zalc);

@@ -1,18 +1,18 @@
 /* subsegs.c - subsegments -
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: subsegs.c,v 1.2 1993/11/03 00:52:19 paul Exp $";
+static char rcsid[] = "$Id: subsegs.c,v 1.3 1995/03/02 20:29:18 nate Exp $";
 #endif
 
 #include "as.h"
@@ -89,7 +89,7 @@ void
 	know(SEG_MAXIMUM_ORDINAL == SEG_REGISTER );
 	/*  know(segment_name(SEG_MAXIMUM_ORDINAL + 1)[0] == 0);*/
 #endif
-	
+
 	obstack_begin(&frags, 5000);
 	frchain_root = NULL;
 	frchain_now = NULL;		/* Warn new_subseg() that we are booting. */
@@ -97,7 +97,7 @@ void
 	/* It won't be used=> is ok if obstack... */
 	/* pads the end of it for alignment. */
 	frag_now=(fragS *)obstack_alloc(&frags,SIZEOF_STRUCT_FRAG);
-	memset(frag_now,  SIZEOF_STRUCT_FRAG, 0); 
+	memset(frag_now,  SIZEOF_STRUCT_FRAG, 0);
 	/* This 1st frag will not be in any frchain. */
 	/* We simply give subseg_new somewhere to scribble. */
 	now_subseg = 42;		/* Lie for 1st call to subseg_new. */
@@ -113,7 +113,7 @@ void
 	subseg_new(SEG_DATA, 0);	/* .data 0 */
 	data0_frchainP = frchain_now;
 #endif
-	
+
 }
 
 /*
@@ -183,7 +183,7 @@ register subsegT	subseg;
 		    frchainS *newP;	/* address of new frchain */
 		    register fragS *former_last_fragP;
 		    register fragS *new_fragP;
-		    
+
 		    if (frag_now)		/* If not bootstrapping. */
 			{
 				frag_now->fr_fix = obstack_next_free(& frags) - frag_now->fr_literal;
@@ -194,7 +194,7 @@ register subsegT	subseg;
 		     * subsegments a lot. Hence we would have much fewer frag_wanes().
 		     */
 		    {
-			    
+
 			    obstack_finish( &frags);
 			    /*
 			     * If we don't do the above, the next object we put on obstack frags
@@ -252,7 +252,7 @@ register subsegT	subseg;
 				 * This should be the only code that creates a frchainS.
 				 */
 				newP=(frchainS *)obstack_alloc(&frags,sizeof(frchainS));
-				memset(newP, sizeof(frchainS), 0); 
+				memset(newP, sizeof(frchainS), 0);
 				/* This begines on a good boundary */
 				/* because a obstack_done() preceeded  it. */
 				/* It implies an obstack_done(), so we */

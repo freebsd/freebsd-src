@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char conn_rcsid[] = "$Id: conn.c,v 1.13 1994/03/24 01:41:02 ian Rel $";
+const char conn_rcsid[] = "$Id: conn.c,v 1.2 1994/05/07 18:08:38 ache Exp $";
 #endif
 
 #include <ctype.h>
@@ -234,7 +234,7 @@ fconn_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
     qdialer = &sdialer;
   if (ptdialerfound == NULL)
     ptdialerfound = &tfound;
-      
+
   qdialer->uuconf_zname = NULL;
   *ptdialerfound = DIALERFOUND_FALSE;
 

@@ -75,7 +75,7 @@ float_handler PARAMS ((int));
 static void
 init_signals PARAMS ((void));
 
-static void 
+static void
 set_verbose PARAMS ((char *, int, struct cmd_list_element *));
 
 static void
@@ -514,7 +514,7 @@ execute_user_command (c, args)
 {
   register struct command_line *cmdlines;
   struct cleanup *old_chain;
-  
+
   if (args)
     error ("User-defined commands cannot take arguments.");
 
@@ -552,12 +552,12 @@ execute_command (p, from_tty)
   /* This can happen when command_line_input hits end of file.  */
   if (p == NULL)
       return;
-  
+
   while (*p == ' ' || *p == '\t') p++;
   if (*p)
     {
       char *arg;
-      
+
       c = lookup_cmd (&p, cmdlist, "", 0, 1);
       /* Pass null arg rather than an empty one.  */
       arg = *p ? p : 0;
@@ -657,7 +657,7 @@ dont_repeat ()
 /* Read a line from the stream "instream" without command line editing.
 
    It prints PRROMPT once at the start.
-   Action is compatible with "readline", e.g. space for the result is 
+   Action is compatible with "readline", e.g. space for the result is
    malloc'd and should be freed by the caller.
 
    A NULL return means end of file.  */
@@ -678,7 +678,7 @@ gdb_readline (prrompt)
       fputs_unfiltered (prrompt, gdb_stdout);
       gdb_flush (gdb_stdout);
     }
-  
+
   result = (char *) xmalloc (result_size);
 
   while (1)
@@ -1457,7 +1457,7 @@ read_command_lines ()
       if (p == NULL)
 	/* Treat end of file like "end".  */
 	break;
-      
+
       /* Remove leading and trailing blanks.  */
       while (*p == ' ' || *p == '\t') p++;
       p1 = p + strlen (p);
@@ -1672,7 +1672,7 @@ define_command (comname, from_tty)
   c = lookup_cmd (&tem, cmdlist, "", -1, 1);
   if (c && !STREQ (comname, c->name))
     c = 0;
-    
+
   if (c)
     {
       if (c->class == class_user || c->class == class_alias)
@@ -1705,7 +1705,7 @@ define_command (comname, from_tty)
 
   comname = savestring (comname, strlen (comname));
 
-  /* If the rest of the commands will be case insensitive, this one 
+  /* If the rest of the commands will be case insensitive, this one
      should behave in the same manner. */
   for (tem = comname; *tem; tem++)
     if (isupper(*tem)) *tem = tolower(*tem);
@@ -2147,7 +2147,7 @@ show_commands (args, from_tty)
   /* The next command we want to display is the next one that we haven't
      displayed yet.  */
   num += Hist_print;
-  
+
   /* If the user repeats this command with return, it should do what
      "show commands +" does.  This is unnecessary if arg is null,
      because "show commands +" is not useful after "show commands".  */
@@ -2200,7 +2200,7 @@ int info_verbose = 0;		/* Default verbose msgs off */
 
 /* Called by do_setshow_command.  An elaborate joke.  */
 /* ARGSUSED */
-static void 
+static void
 set_verbose (args, from_tty, c)
      char *args;
      int from_tty;
@@ -2208,7 +2208,7 @@ set_verbose (args, from_tty, c)
 {
   char *cmdname = "verbose";
   struct cmd_list_element *showcmd;
-  
+
   showcmd = lookup_cmd_1 (&cmdname, showlist, NULL, 1);
 
   if (info_verbose)
@@ -2295,7 +2295,7 @@ static void
 init_main ()
 {
   struct cmd_list_element *c;
-  
+
 #ifdef DEFAULT_PROMPT
   prompt = savestring (DEFAULT_PROMPT, strlen(DEFAULT_PROMPT));
 #else
@@ -2310,7 +2310,7 @@ init_main ()
   command_editing_p = 1;
   history_expansion_p = 0;
   write_history_p = 0;
-  
+
   /* Setup important stuff for command line editing.  */
   rl_completion_entry_function = (int (*)()) symbol_completion_function;
   rl_completer_word_break_characters = gdb_completer_word_break_characters;
@@ -2359,7 +2359,7 @@ until the next time it is started.", &cmdlist);
 	   "Set gdb's prompt",
 	   &setlist),
      &showlist);
-  
+
   add_com ("echo", class_support, echo_command,
 	   "Print a constant string.  Give string as argument.\n\
 C escape sequences may be used in the argument.\n\
@@ -2405,7 +2405,7 @@ when gdb is started.", &cmdlist);
   add_show_from_set (c, &showlist);
   c->function.sfunc = set_verbose;
   set_verbose (NULL, 0, c);
-  
+
   add_show_from_set
     (add_set_cmd ("editing", class_support, var_boolean, (char *)&command_editing_p,
 	   "Set editing of command lines as they are typed.\n\

@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: cond.c,v 1.1 1993/11/03 00:51:20 paul Exp $";
+static char rcsid[] = "$Id: cond.c,v 1.2 1994/12/23 22:36:03 nate Exp $";
 #endif
 
 #include "as.h"
@@ -49,7 +49,7 @@ static void initialize_cframe PARAMS ((struct conditional_frame *cframe));
 
 static struct conditional_frame *current_cframe = NULL;
 
-void 
+void
 s_ifdef (arg)
      int arg;
 {
@@ -79,7 +79,7 @@ s_ifdef (arg)
   return;
 }				/* s_ifdef() */
 
-void 
+void
 s_if (arg)
      int arg;
 {
@@ -106,7 +106,7 @@ s_if (arg)
   return;
 }				/* s_if() */
 
-void 
+void
 s_endif (arg)
      int arg;
 {
@@ -126,7 +126,7 @@ s_endif (arg)
   return;
 }				/* s_endif() */
 
-void 
+void
 s_else (arg)
      int arg;
 {
@@ -161,7 +161,7 @@ s_else (arg)
   return;
 }				/* s_else() */
 
-void 
+void
 s_ifeqs (arg)
      int arg;
 {
@@ -170,14 +170,14 @@ s_ifeqs (arg)
   return;
 }				/* s_ifeqs() */
 
-void 
+void
 s_end (arg)
      int arg;
 {
   return;
 }				/* s_end() */
 
-int 
+int
 ignore_input ()
 {
   /* We cannot ignore certain pseudo ops.  */
@@ -196,7 +196,7 @@ ignore_input ()
   return ((current_cframe != NULL) && (current_cframe->ignoring));
 }				/* ignore_input() */
 
-static void 
+static void
 initialize_cframe (cframe)
      struct conditional_frame *cframe;
 {

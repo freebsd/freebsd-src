@@ -37,6 +37,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcssyn.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.8  1991/08/19  03:13:55  eggert
  * Tune.
  *
@@ -78,27 +81,27 @@ Report problems and direct all questions to:
  *
  * Revision 4.6  89/05/01  15:13:32  narten
  * changed copyright header to reflect current distribution rules
- * 
+ *
  * Revision 4.5  88/08/09  19:13:21  eggert
  * Allow cc -R; remove lint.
- * 
+ *
  * Revision 4.4  87/12/18  11:46:16  narten
  * more lint cleanups (Guy Harris)
- * 
+ *
  * Revision 4.3  87/10/18  10:39:36  narten
  * Updating version numbers. Changes relative to 1.1 actually relative to
  * 4.1
- * 
+ *
  * Revision 1.3  87/09/24  14:00:49  narten
- * Sources now pass through lint (if you ignore printf/sprintf/fprintf 
+ * Sources now pass through lint (if you ignore printf/sprintf/fprintf
  * warnings)
- * 
+ *
  * Revision 1.2  87/03/27  14:22:40  jenkins
  * Port to suns
- * 
+ *
  * Revision 4.1  83/03/28  11:38:49  wft
  * Added parsing and printing of default branch.
- * 
+ *
  * Revision 3.6  83/01/15  17:46:50  wft
  * Changed readdelta() to initialize selector and log-pointer.
  * Changed puttree to check for selector==DELETE; putdtext() uses DELNUMFORM.
@@ -133,7 +136,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(synId, "$Id: rcssyn.c,v 5.8 1991/08/19 03:13:55 eggert Exp $")
+libId(synId, "$Id: rcssyn.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
 
 /* forward */
 static char const *getkeyval P((char const*,enum tokens,int));

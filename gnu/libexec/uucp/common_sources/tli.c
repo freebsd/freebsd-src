@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tli_rcsid[] = "$Id: tli.c,v 1.15 1994/01/30 20:59:40 ian Rel $";
+const char tli_rcsid[] = "$Id: tli.c,v 1.2 1994/05/07 18:09:03 ache Exp $";
 #endif
 
 #if HAVE_TLI
@@ -147,7 +147,7 @@ ztlierror ()
   if (t_errno < 0 || t_errno >= t_nerr)
     return "Unknown TLI error";
   return t_errlist[t_errno];
-} 
+}
 
 /* Initialize a TLI connection.  This may be called with qconn->qport
    NULL, when opening standard input as a TLI connection.  */
@@ -230,7 +230,7 @@ ftli_push (qconn)
     qsysdep->ftli = FALSE;
 
 #endif /* defined (I_PUSH) */
-  
+
   return TRUE;
 }
 
@@ -330,7 +330,7 @@ ftli_open (qconn, ibaud, fwait)
   zservaddr = qconn->qport->uuconf_u.uuconf_stli.uuconf_zservaddr;
   if (zservaddr == NULL)
     ulog (LOG_FATAL, "Can't run as TLI server; no server address");
-      
+
   zfreeaddr = zbufcpy (zservaddr);
   qtbind->addr.len = cescape (zfreeaddr);
   if (qtbind->addr.len > qtbind->addr.maxlen)
@@ -364,7 +364,7 @@ ftli_open (qconn, ibaud, fwait)
       onew = t_open (zdevice, O_RDWR, (struct t_info *) NULL);
       if (onew < 0)
 	ulog (LOG_FATAL, "t_open (%s): %s", zdevice, ztlierror ());
-	  
+
       if (fcntl (onew, F_SETFD,
 		 fcntl (onew, F_GETFD, 0) | FD_CLOEXEC) < 0)
 	ulog (LOG_FATAL, "fcntl (FD_CLOEXEC): %s", strerror (errno));
@@ -410,7 +410,7 @@ ftli_open (qconn, ibaud, fwait)
 	      ulog (LOG_ERROR, "fork: %s", strerror (errno));
 	      _exit (EXIT_FAILURE);
 	    }
-	      
+
 	  if (ipid != 0)
 	    _exit (EXIT_SUCCESS);
 
@@ -524,7 +524,7 @@ ftli_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
 	  pzdialer += 2;
 	}
     }
-  
+
   if (zaddr == NULL)
     {
       ulog (LOG_ERROR, "No address for TLI connection");
@@ -566,7 +566,7 @@ ftli_dial (qconn, puuconf, qsys, zphone, qdialer, ptdialerfound)
 
   /* We've connected to the remote.  Push any desired modules.  */
   if (! ftli_push (qconn))
-    return FALSE;      
+    return FALSE;
 
   /* Handle the rest of the dialer sequence.  */
   if (pzdialer != NULL && *pzdialer != NULL)

@@ -1,4 +1,4 @@
-/* $RCSfile: str.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: str.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
@@ -14,7 +17,7 @@
  *
  * Revision 4.0.1.6  92/06/11  21:14:21  lwall
  * patch34: quotes containing subscripts containing variables didn't parse right
- * 
+ *
  * Revision 4.0.1.5  92/06/08  15:40:43  lwall
  * patch20: removed implicit int declarations on functions
  * patch20: Perl now distinguishes overlapped copies from non-overlapped
@@ -24,27 +27,27 @@
  * patch20: "$var{$foo'bar}" didn't scan subscript correctly
  * patch20: a splice on non-existent array elements could dump core
  * patch20: running taintperl explicitly now does checks even if $< == $>
- * 
+ *
  * Revision 4.0.1.4  91/11/05  18:40:51  lwall
  * patch11: $foo .= <BAR> could overrun malloced memory
  * patch11: \$ didn't always make it through double-quoter to regexp routines
  * patch11: prepared for ctype implementations that don't define isascii()
- * 
+ *
  * Revision 4.0.1.3  91/06/10  01:27:54  lwall
  * patch10: $) and $| incorrectly handled in run-time patterns
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:58:13  lwall
  * patch4: new copyright notice
  * patch4: taint check on undefined string could cause core dump
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:15:30  lwall
  * patch1: fixed undefined environ problem
  * patch1: substr($ENV{"PATH"},0,0) = "/foo:" didn't modify environment
  * patch1: $foo .= <BAR> could cause core dump for certain lengths of $foo
- * 
+ *
  * Revision 4.0  91/03/20  01:39:55  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -503,7 +506,7 @@ str_new(len)
 STRLEN len;
 {
     register STR *str;
-    
+
     if (freestrroot) {
 	str = freestrroot;
 	freestrroot = str->str_magic;
@@ -815,9 +818,9 @@ int append;
       screamer:
 	while (--cnt >= 0) {			/* this */	/* eat */
 	    if ((*bp++ = *ptr++) == newline)	/* really */	/* dust */
-		goto thats_all_folks;		/* screams */	/* sed :-) */ 
+		goto thats_all_folks;		/* screams */	/* sed :-) */
 	}
-	
+
 	if (shortbuffered) {			/* oh well, must extend */
 	    cnt = shortbuffered;
 	    shortbuffered = 0;
@@ -1023,7 +1026,7 @@ STR *src;
 		s++;
 	    s = scanident(s,send,tokenbuf);
 	    if (*t == '@' &&
-	      (!(stab = stabent(tokenbuf,FALSE)) || 
+	      (!(stab = stabent(tokenbuf,FALSE)) ||
 		 (*s == '{' ? !stab_xhash(stab) : !stab_xarray(stab)) )) {
 		str_ncat(str,"@",1);
 		s = ++t;

@@ -47,7 +47,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    Tying is represented with "quantity numbers".
    A non-tied register is given a new quantity number.
    Tied registers have the same quantity number.
-   
+
    We have provision to exempt registers, even when they are contained
    within the block, that can be tied to others that are not contained in it.
    This is so that global_alloc could process them both and tie them then.
@@ -335,7 +335,7 @@ alloc_qty_for_scratch (scratch, n, insn, insn_code_num, insn_number)
       {
       case '=':  case '+':  case '?':
       case '#':  case '&':  case '!':
-      case '*':  case '%':  
+      case '*':  case '%':
       case '0':  case '1':  case '2':  case '3':  case '4':
       case 'm':  case '<':  case '>':  case 'V':  case 'o':
       case 'E':  case 'F':  case 'G':  case 'H':
@@ -370,7 +370,7 @@ alloc_qty_for_scratch (scratch, n, insn, insn_code_num, insn_number)
 
   class = GENERAL_REGS;
 #endif
-  
+
 
   qty = next_qty++;
 
@@ -689,7 +689,7 @@ memref_used_between_p (memref, start, end)
 
    Search forward to see if SRC dies before either it or DEST is modified,
    but don't scan past the end of a basic block.  If so, we can replace SRC
-   with DEST and let SRC die in INSN. 
+   with DEST and let SRC die in INSN.
 
    This will reduce the number of registers live in that range and may enable
    DEST to be tied to SRC, thus often saving one register in addition to a
@@ -933,7 +933,7 @@ optimize_reg_copy_2 (insn, dest, src)
 	break;
     }
 }
-	      
+
 /* Find registers that are equivalent to a single value throughout the
    compilation (either because they can be referenced in memory or are set once
    from a single constant).  Lower their priority for a register.
@@ -1044,7 +1044,7 @@ update_equiv_regs ()
 	 a register used only in one basic block from a MEM.  If so, and the
 	 MEM remains unchanged for the life of the register, add a REG_EQUIV
 	 note.  */
-	 
+
       note = find_reg_note (insn, REG_EQUIV, NULL_RTX);
 
       if (note == 0 && reg_basic_block[regno] >= 0
@@ -1252,7 +1252,7 @@ block_alloc (b)
 		    continue;
 
 		  /* Likewise if each alternative has some operand that
-		     must match operand zero.  In that case, skip any 
+		     must match operand zero.  In that case, skip any
 		     operand that doesn't list operand 0 since we know that
 		     the operand always conflicts with operand 0.  We
 		     ignore commutatity in this case to keep things simple.  */
@@ -1289,7 +1289,7 @@ block_alloc (b)
 			   || (r1 == recog_operand[i] && must_match_0 >= 0)
 #endif
 			   );
-		      
+
 		      if (GET_CODE (r1) == REG || GET_CODE (r1) == SUBREG)
 			win = combine_regs (r1, r0, may_save_copy,
 					    insn_number, insn, 0);
@@ -1397,7 +1397,7 @@ block_alloc (b)
 		alloc_qty_for_scratch (recog_operand[i], i, insn,
 				       insn_code_number, insn_number);
 
-	  /* If this is an insn that has a REG_RETVAL note pointing at a 
+	  /* If this is an insn that has a REG_RETVAL note pointing at a
 	     CLOBBER insn, we have reached the end of a REG_NO_CONFLICT
 	     block, so clear any register number that combined within it.  */
 	  if ((note = find_reg_note (insn, REG_RETVAL, NULL_RTX)) != 0
@@ -1421,7 +1421,7 @@ block_alloc (b)
 
   /* Now every register that is local to this basic block
      should have been given a quantity, or else -1 meaning ignore it.
-     Every quantity should have a known birth and death.  
+     Every quantity should have a known birth and death.
 
      Order the qtys so we assign them registers in order of the
      number of suggested registers they need so we allocate those with
@@ -1473,8 +1473,8 @@ block_alloc (b)
 	qty_phys_reg[q] = -1;
     }
 
-  /* Order the qtys so we assign them registers in order of 
-     decreasing length of life.  Normally call qsort, but if we 
+  /* Order the qtys so we assign them registers in order of
+     decreasing length of life.  Normally call qsort, but if we
      have only a very small number of quantities, sort them ourselves.  */
 
   for (i = 0; i < next_qty; i++)
@@ -1521,7 +1521,7 @@ block_alloc (b)
 	{
 	  if (N_REG_CLASSES > 1)
 	    {
-	      qty_phys_reg[q] = find_free_reg (qty_min_class[q], 
+	      qty_phys_reg[q] = find_free_reg (qty_min_class[q],
 					       qty_mode[q], q, 0, 0,
 					       qty_birth[q], qty_death[q]);
 	      if (qty_phys_reg[q] >= 0)
@@ -1651,7 +1651,7 @@ qty_sugg_compare (q1, q2)
 
   if (sugg1 != sugg2)
     return sugg1 - sugg2;
-  
+
   return pri2 - pri1;
 }
 
@@ -1683,7 +1683,7 @@ qty_sugg_compare_1 (q1, q2)
 
   if (sugg1 != sugg2)
     return sugg1 - sugg2;
-  
+
   if (pri1 != pri2)
     return pri2 - pri1;
 
@@ -1711,10 +1711,10 @@ qty_sugg_compare_1 (q1, q2)
    MAY_SAVE_COPYCOPY is non-zero if this insn is simply copying USEDREG to
    SETREG or if the input and output must share a register.
    In that case, we record a hard reg suggestion in QTY_PHYS_COPY_SUGG.
-   
+
    There are elaborate checks for the validity of combining.  */
 
-   
+
 static int
 combine_regs (usedreg, setreg, may_save_copy, insn_number, insn, already_dead)
      rtx usedreg, setreg;
@@ -1975,7 +1975,7 @@ reg_is_born (reg, birth)
      int birth;
 {
   register int regno;
-     
+
   if (GET_CODE (reg) == SUBREG)
     regno = REGNO (SUBREG_REG (reg)) + SUBREG_WORD (reg);
   else
@@ -2053,7 +2053,7 @@ wipe_dead_reg (reg, output_p)
      (but actually we test only the first of the block for holding MODE)
    and still free between insn BORN_INDEX and insn DEAD_INDEX,
    and return the number of the first of them.
-   Return -1 if such a block cannot be found. 
+   Return -1 if such a block cannot be found.
    If QTY crosses calls, insist on a register preserved by calls,
    unless ACCEPT_CALL_CLOBBERED is nonzero.
 
@@ -2177,7 +2177,7 @@ find_free_reg (class, mode, qty, accept_call_clobbered, just_try_suggested,
   /* If we are just trying suggested register, we have just tried copy-
      suggested registers, and there are arithmetic-suggested registers,
      try them.  */
-  
+
   /* If it would be profitable to allocate a call-clobbered register
      and save and restore it around calls, do that.  */
   if (just_try_suggested && qty_phys_num_copy_sugg[qty] != 0
@@ -2298,7 +2298,7 @@ no_conflict_p (insn, r0, r1)
 	    && ! find_reg_note (p, REG_NO_CONFLICT, r1))
 	  return 0;
       }
-      
+
   return ok;
 }
 

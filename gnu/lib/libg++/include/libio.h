@@ -1,4 +1,4 @@
-/* 
+/*
 Copyright (C) 1993 Free Software Foundation
 
 This file is part of the GNU IO Library.  This library is free
@@ -185,21 +185,21 @@ struct _IO_FILE {
   char *_IO_save_end; /* Pointer to end of non-current get area. */
 
   struct _IO_marker *_markers;
-  
+
   struct _IO_FILE *_chain;
-  
+
   struct _IO_jump_t *_jumps; /* Jump table */
-  
+
   int _fileno;
   int _blksize;
   _IO_off_t _offset;
-  
+
 #define __HAVE_COLUMN /* temporary */
   /* 1+column number of pbase(); 0 is unknown. */
   unsigned short _cur_column;
   char _unused;
   char _shortbuf[1];
-  
+
   /*  char* _save_gptr;  char* _save_egptr; */
 };
 

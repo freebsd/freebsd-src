@@ -449,18 +449,18 @@ process_copy_in ()
 	{
 	  struct new_cpio_header *h;
 	  h = &file_hdr;
-	  fprintf (stderr, 
+	  fprintf (stderr,
 		"magic = 0%o, ino = %d, mode = 0%o, uid = %d, gid = %d\n",
 		h->c_magic, h->c_ino, h->c_mode, h->c_uid, h->c_gid);
-	  fprintf (stderr, 
+	  fprintf (stderr,
 		"nlink = %d, mtime = %d, filesize = %d, dev_maj = 0x%x\n",
 		h->c_nlink, h->c_mtime, h->c_filesize, h->c_dev_maj);
-	  fprintf (stderr, 
+	  fprintf (stderr,
 	        "dev_min = 0x%x, rdev_maj = 0x%x, rdev_min = 0x%x, namesize = %d\n",
 		h->c_dev_min, h->c_rdev_maj, h->c_rdev_min, h->c_namesize);
-	  fprintf (stderr, 
+	  fprintf (stderr,
 		"chksum = %d, name = \"%s\", tar_linkname = \"%s\"\n",
-		h->c_chksum, h->c_name, 
+		h->c_chksum, h->c_name,
 		h->c_tar_linkname ? h->c_tar_linkname : "(null)" );
 
 	}
@@ -570,7 +570,7 @@ process_copy_in ()
 		  skip_padding (in_file_des, file_hdr.c_filesize);
 		  continue;	/* Go to the next file.  */
 		}
-	      else if (S_ISDIR (file_stat.st_mode) 
+	      else if (S_ISDIR (file_stat.st_mode)
 			? rmdir (file_hdr.c_name)
 			: unlink (file_hdr.c_name))
 		{
@@ -617,7 +617,7 @@ process_copy_in ()
 		     but GNU cpio version 2.0-2.2 didn't do that, so we
 		     still have to check for links here (and also in case
 		     the archive was created and later appeneded to). */
-		  link_res = link_to_maj_min_ino (file_hdr.c_name, 
+		  link_res = link_to_maj_min_ino (file_hdr.c_name,
 				file_hdr.c_dev_maj, file_hdr.c_dev_maj,
 				file_hdr.c_ino);
 		  if (link_res == 0)
@@ -631,7 +631,7 @@ process_copy_in ()
 		  && archive_format != arf_ustar)
 		{
 		  int link_res;
-		  link_res = link_to_maj_min_ino (file_hdr.c_name, 
+		  link_res = link_to_maj_min_ino (file_hdr.c_name,
 				file_hdr.c_dev_maj, file_hdr.c_dev_maj,
 				file_hdr.c_ino);
 		  if (link_res == 0)
@@ -642,7 +642,7 @@ process_copy_in ()
 		    }
 		}
 	      else if ((archive_format == arf_tar || archive_format == arf_ustar)
-		       && file_hdr.c_tar_linkname && 
+		       && file_hdr.c_tar_linkname &&
 		       file_hdr.c_tar_linkname[0] != '\0')
 		{
 		  int	link_res;
@@ -725,8 +725,8 @@ process_copy_in ()
 		  if (file_hdr.c_nlink > 1 && (archive_format == arf_newascii
 		      || archive_format == arf_crcascii) )
 		    {
-		      /* (see comment above for how the newc and crc formats 
-			 store multiple links).  Now that we have the data 
+		      /* (see comment above for how the newc and crc formats
+			 store multiple links).  Now that we have the data
 			 for this file, create any other links to it which
 			 we defered.  */
 		      create_defered_links (&file_hdr);
@@ -758,7 +758,7 @@ process_copy_in ()
 		     the name before creating it.  */
 		  cdf_char = strlen (file_hdr.c_name) - 1;
 		  if ( (cdf_char > 0) &&
-		       (file_hdr.c_mode & 04000) && 
+		       (file_hdr.c_mode & 04000) &&
 		       (file_hdr.c_name [cdf_char] == '+') )
 		    {
 		      file_hdr.c_name [cdf_char] = '\0';
@@ -815,14 +815,14 @@ process_copy_in ()
 		  && archive_format != arf_ustar)
 		{
 		  int link_res;
-		  link_res = link_to_maj_min_ino (file_hdr.c_name, 
+		  link_res = link_to_maj_min_ino (file_hdr.c_name,
 				file_hdr.c_dev_maj, file_hdr.c_dev_maj,
 				file_hdr.c_ino);
 		  if (link_res == 0)
 		    break;
 		}
 	      else if (archive_format == arf_ustar &&
-		       file_hdr.c_tar_linkname && 
+		       file_hdr.c_tar_linkname &&
 		       file_hdr.c_tar_linkname [0] != '\0')
 		{
 		  int	link_res;
@@ -841,7 +841,7 @@ process_copy_in ()
 		    }
 		  break;
 		}
-	      
+
 	      res = mknod (file_hdr.c_name, file_hdr.c_mode,
 			makedev (file_hdr.c_rdev_maj, file_hdr.c_rdev_min));
 	      if (res < 0 && create_dir_flag)
@@ -1134,10 +1134,10 @@ skip_padding (in_file_des, offset)
 }
 
 
-/* The newc and crc formats store multiply linked copies of the same file 
-   in the archive only once.  The actual data is attached to the last link 
-   in the archive, and the other links all have a filesize of 0.  When a 
-   file in the archive has multiple links and a filesize of 0, its data is 
+/* The newc and crc formats store multiply linked copies of the same file
+   in the archive only once.  The actual data is attached to the last link
+   in the archive, and the other links all have a filesize of 0.  When a
+   file in the archive has multiple links and a filesize of 0, its data is
    probably "attatched" to another file in the archive, so we can't create
    it right away.  We have to "defer" creating it until we have created
    the file that has the data "attatched" to it.  We keep a list of the
@@ -1223,11 +1223,11 @@ create_final_defers ()
   struct utimbuf times;		/* For setting file times.  */
   /* Initialize this in case it has members we don't know to set.  */
   bzero (&times, sizeof (struct utimbuf));
-  
+
   for (d = deferments; d != NULL; d = d->next)
     {
       d = deferments;
-      link_res = link_to_maj_min_ino (d->header.c_name, 
+      link_res = link_to_maj_min_ino (d->header.c_name,
 		    d->header.c_dev_maj, d->header.c_dev_maj,
 		    d->header.c_ino);
       if (link_res == 0)

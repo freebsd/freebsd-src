@@ -296,7 +296,7 @@ proceed (addr, siggnal, step)
 
 #ifdef PREPARE_TO_PROCEED
   /* In a multi-threaded task we may select another thread and then continue.
-     
+
      In this case the thread that stopped at a breakpoint will immediately
      cause another stop, if it is not stepped over first. On the other hand,
      if (ADDR != -1) we only want to single step over the breakpoint if we did
@@ -506,7 +506,7 @@ wait_for_inferior ()
 	  target_terminal_ours ();	/* Must do this before mourn anyway */
 	  annotate_exited (w.value.integer);
 	  if (w.value.integer)
-	    printf_filtered ("\nProgram exited with code 0%o.\n", 
+	    printf_filtered ("\nProgram exited with code 0%o.\n",
 			     (unsigned int)w.value.integer);
 	  else
 	    printf_filtered ("\nProgram exited normally.\n");
@@ -653,7 +653,7 @@ wait_for_inferior ()
       if (one_stepped)
 	single_step (0);	/* This actually cleans up the ss */
 #endif /* NO_SINGLE_STEP */
-      
+
       /* If PC is pointing at a nullified instruction, then step beyond
 	 it so that the user won't be confused when GDB appears to be ready
 	 to execute it. */
@@ -669,7 +669,7 @@ wait_for_inferior ()
 
 #ifdef HAVE_STEPPABLE_WATCHPOINT
       /* It may not be necessary to disable the watchpoint to stop over
-	 it.  For example, the PA can (with some kernel cooperation) 
+	 it.  For example, the PA can (with some kernel cooperation)
 	 single step over a watchpoint without disabling the watchpoint.  */
       if (STOPPED_BY_WATCHPOINT (w))
 	{
@@ -723,7 +723,7 @@ wait_for_inferior ()
       random_signal = 0;
       stopped_by_random_signal = 0;
       breakpoints_failed = 0;
-      
+
       /* Look at the cause of the stop, and decide what to do.
 	 The alternatives are:
 	 1) break; to really stop and return to the debugger,
@@ -731,14 +731,14 @@ wait_for_inferior ()
 	 (set another_trap to 1 to single step once)
 	 3) set random_signal to 1, and the decision between 1 and 2
 	 will be made according to the signal handling tables.  */
-      
+
       /* First, distinguish signals caused by the debugger from signals
 	 that have to do with the program's own actions.
 	 Note that breakpoint insns may cause SIGTRAP or SIGILL
 	 or SIGEMT, depending on the operating system version.
 	 Here we detect when a SIGILL or SIGEMT is really a breakpoint
 	 and change it to SIGTRAP.  */
-      
+
       if (stop_signal == TARGET_SIGNAL_TRAP
 	  || (breakpoints_inserted &&
 	      (stop_signal == TARGET_SIGNAL_ILL
@@ -820,9 +820,9 @@ wait_for_inferior ()
 	{
 	  /* Signal not for debugging purposes.  */
 	  int printed = 0;
-	  
+
 	  stopped_by_random_signal = 1;
-	  
+
 	  if (signal_print[stop_signal])
 	    {
 	      printed = 1;
@@ -1195,7 +1195,7 @@ step_over_function:
 	  {
 	    /* Set a special breakpoint after the return */
 	    struct symtab_and_line sr_sal;
-	    sr_sal.pc = 
+	    sr_sal.pc =
 	      ADDR_BITS_REMOVE
 		(SAVED_PC_AFTER_CALL (get_current_frame ()));
 	    sr_sal.symtab = NULL;
@@ -1299,7 +1299,7 @@ step_into_function:
 
 	 Optimize by setting the stepping range to the line.
 	 (We might not be in the original line, but if we entered a
-	 new line in mid-statement, we continue stepping.  This makes 
+	 new line in mid-statement, we continue stepping.  This makes
 	 things like for(;;) statements work better.)  */
 
       if (stop_func_end && sal.end >= stop_func_end)
@@ -1419,7 +1419,7 @@ step_into_function:
 	     (this is only used on the 88k).  */
 
           if (!bpstat_explains_signal (stop_bpstat)
-	      && (stop_signal != TARGET_SIGNAL_CHLD) 
+	      && (stop_signal != TARGET_SIGNAL_CHLD)
               && !stopped_by_random_signal)
             SHIFT_INST_REGS();
 #endif /* SHIFT_INST_REGS */
@@ -1459,7 +1459,7 @@ normal_stop ()
      DECR_PC_AFTER_BREAK */
   if (target_has_execution && get_current_frame())
     (get_current_frame ())->pc = read_pc ();
-  
+
   if (breakpoints_failed)
     {
       target_terminal_ours_for_output ();
@@ -1859,7 +1859,7 @@ save_inferior_status (inf_status, restore_stack_info)
   inf_status->step_over_calls = step_over_calls;
   inf_status->stop_after_trap = stop_after_trap;
   inf_status->stop_soon_quietly = stop_soon_quietly;
-  /* Save original bpstat chain here; replace it with copy of chain. 
+  /* Save original bpstat chain here; replace it with copy of chain.
      If caller's caller is walking the chain, they'll be happier if we
      hand them back the original chain when restore_i_s is called.  */
   inf_status->stop_bpstat = stop_bpstat;
@@ -1867,7 +1867,7 @@ save_inferior_status (inf_status, restore_stack_info)
   inf_status->breakpoint_proceeded = breakpoint_proceeded;
   inf_status->restore_stack_info = restore_stack_info;
   inf_status->proceed_to_finish = proceed_to_finish;
-  
+
   memcpy (inf_status->stop_registers, stop_registers, REGISTER_BYTES);
 
   read_register_bytes (0, inf_status->registers, REGISTER_BYTES);
@@ -2001,7 +2001,7 @@ This allows you to set a list of commands to be run each time execution\n\
 of the program stops.", &cmdlist);
 
   numsigs = (int)TARGET_SIGNAL_LAST;
-  signal_stop = (unsigned char *)    
+  signal_stop = (unsigned char *)
     xmalloc (sizeof (signal_stop[0]) * numsigs);
   signal_print = (unsigned char *)
     xmalloc (sizeof (signal_print[0]) * numsigs);

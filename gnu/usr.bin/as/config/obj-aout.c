@@ -1,18 +1,18 @@
 /* a.out object file format
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as
    published by the Free Software Foundation; either version 2,
    or (at your option) any later version.
-   
+
    GAS is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
    the GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
@@ -87,7 +87,7 @@ const pseudo_typeS obj_pseudo_table[] = {
 	{ "stabn",	obj_aout_stab,		'n'	}, /* stabs */
 	{ "stabs",	obj_aout_stab,		's'	}, /* stabs */
 #endif /* IGNORE_DEBUG */
-	
+
 	/* coff debug pseudos (ignored) */
 	{ "def",	s_ignore, 0 },
 	{ "dim",	s_ignore, 0 },
@@ -101,13 +101,13 @@ const pseudo_typeS obj_pseudo_table[] = {
 	{ "type",	s_type, 0 },
 	{ "val",	s_ignore, 0 },
 	{ "version",	s_ignore, 0 },
-	
+
 	/* stabs-in-coff (?) debug pseudos (ignored) */
 	{ "optim",	s_ignore, 0 }, /* For sun386i cc (?) */
-	
+
 	/* other stuff */
 	{ "ABORT",      s_abort,		0 },
-	
+
 	{ NULL}	/* end sentinel */
 }; /* obj_pseudo_table */
 
@@ -130,7 +130,7 @@ relax_addressT segment_address_in_file;
 			*where += md_reloc_size;
 		} /* if there is an add symbol */
 	} /* for each fix */
-	
+
 	return;
 } /* obj_emit_relocations() */
 
@@ -169,7 +169,7 @@ object_headers *headers;
 
 	md_number_to_chars(*where, headers->header.a_trsize, 4); *where += 4;
 	md_number_to_chars(*where, headers->header.a_drsize, 4); *where += 4;
-	
+
 #ifdef TE_SEQUENT
 	memset(*where, '\0', 3 * 2 * 4); *where += 3 * 2 * 4; /* global descriptor table? */
 	md_number_to_chars(*where, 0, 4); *where += 4; /* shdata - length of initialized shared data */
@@ -206,7 +206,7 @@ symbolS *symbolP;
 	md_number_to_chars((char *)&(S_GET_OFFSET(symbolP)), S_GET_OFFSET(symbolP), sizeof(S_GET_OFFSET(symbolP)));
 	md_number_to_chars((char *)&(S_GET_DESC(symbolP)), S_GET_DESC(symbolP), sizeof(S_GET_DESC(symbolP)));
 	md_number_to_chars((char *)&(S_GET_VALUE(symbolP)), S_GET_VALUE(symbolP), sizeof(S_GET_VALUE(symbolP)));
-	
+
 	append(where, (char *)&symbolP->sy_symbol, sizeof(obj_symbol_type));
 } /* obj_symbol_to_chars() */
 
@@ -215,7 +215,7 @@ char **where;
 symbolS *symbol_rootP;
 {
 	symbolS *	symbolP;
-	
+
 	/*
 	 * Emit all symbols left in the symbol chain.
 	 */
@@ -223,10 +223,10 @@ symbolS *symbol_rootP;
 		/* Used to save the offset of the name. It is used to point
 		   to the string in memory but must be a file offset. */
 		register char *temp;
-		
+
 		temp = S_GET_NAME(symbolP);
 		S_SET_OFFSET(symbolP, symbolP->sy_name_offset);
-		
+
 		/*
 		 * Put aux info in lower four bits of `n_other' field
 		 * Do this only now, because things like S_IS_DEFINED()
@@ -238,7 +238,7 @@ symbolS *symbol_rootP;
 		/* Any symbol still undefined and is not a dbg symbol is made N_EXT. */
 		if (!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP))
 			S_SET_EXTERNAL(symbolP);
-		
+
 		if (S_GET_TYPE(symbolP) == N_SIZE) {
 			expressionS	*exp = (expressionS*)symbolP->sy_sizexp;
 			long		size = 0;
@@ -320,7 +320,7 @@ int what;
 	int length;
 	int goof; /* TRUE if we have aborted. */
 	long longint;
-	
+
 	/*
 	 * Enter with input_line_pointer pointing past .stabX and any following
 	 * whitespace.
@@ -337,7 +337,7 @@ int what;
 		}
 	} else
 	    string = "";
-	
+
 	/*
 	 * Input_line_pointer->after ','.  String->symbol name.
 	 */
@@ -352,20 +352,20 @@ int what;
 			S_SET_VALUE(symbolP, obstack_next_free(&frags) - frag_now->fr_literal);
 			symbolP->sy_frag = frag_now;
 			break;
-			
+
 		case 'n':
 			symbolP->sy_frag = &zero_address_frag;
 			break;
-			
+
 		case 's':
 			symbolP->sy_frag = & zero_address_frag;
 			break;
-			
+
 		default:
 			BAD_CASE(what);
 			break;
 		}
-		
+
 		if (get_absolute_expression_and_terminator(&longint) == ',')
 		    symbolP->sy_symbol.n_type = saved_type = longint;
 		else {
@@ -374,7 +374,7 @@ int what;
 			input_line_pointer --; /* Backup over a non-',' char. */
 		}
 	}
-	
+
 	if (!goof) {
 		if (get_absolute_expression_and_terminator(&longint) == ',')
 		    S_SET_OTHER(symbolP, longint);
@@ -384,7 +384,7 @@ int what;
 			input_line_pointer--; /* Backup over a non-',' char. */
 		}
 	}
-	
+
 	if (!goof) {
 		S_SET_DESC(symbolP, get_absolute_expression());
 		if (what == 's' || what == 'n') {
@@ -396,27 +396,27 @@ int what;
 			}
 		}
 	}
-	
+
 	if ((!goof) && (what == 's' || what == 'n')) {
 		pseudo_set(symbolP);
 		symbolP->sy_symbol.n_type = saved_type;
 	}
 #ifndef NO_LISTING
-	if (listing && !goof) 
+	if (listing && !goof)
 	    {
-		    if (symbolP->sy_symbol.n_type == N_SLINE) 
+		    if (symbolP->sy_symbol.n_type == N_SLINE)
 			{
-				
+
 				listing_source_line(symbolP->sy_symbol.n_desc);
 			}
 		    else if (symbolP->sy_symbol.n_type == N_SO
-			     || symbolP->sy_symbol.n_type == N_SOL) 
+			     || symbolP->sy_symbol.n_type == N_SOL)
 			{
 				listing_source_file(string);
-			}			  
+			}
 	    }
-#endif  
-	
+#endif
+
 	if (goof)
 	    ignore_rest_of_line();
 	else
@@ -429,7 +429,7 @@ static void obj_aout_desc() {
 	register char *p;
 	register symbolS *symbolP;
 	register int temp;
-	
+
 	/*
 	 * Frob invented at RMS' request. Set the n_desc of a symbol.
 	 */
@@ -464,46 +464,46 @@ object_headers *headers;
 	symbolS *symbolP;
 	symbolS **symbolPP;
 	int symbol_number = 0;
-	
+
 	/* JF deal with forward references first... */
 	for (symbolP = symbol_rootP; symbolP; symbolP = symbol_next(symbolP)) {
 		if (symbolP->sy_forward) {
 			S_SET_VALUE(symbolP, S_GET_VALUE(symbolP)
 				    + S_GET_VALUE(symbolP->sy_forward)
 				    + symbolP->sy_forward->sy_frag->fr_address);
-			
+
 			symbolP->sy_forward=0;
 		} /* if it has a forward reference */
 	} /* walk the symbol chain */
-	
+
 	tc_crawl_symbol_chain(headers);
-	
+
 	symbolPP = &symbol_rootP;	/*->last symbol chain link. */
 	while ((symbolP  = *symbolPP) != NULL) {
 		if (flagseen['R'] && (S_GET_SEGMENT(symbolP) == SEG_DATA)) {
 			S_SET_SEGMENT(symbolP, SEG_TEXT);
 		} /* if pusing data into text */
-		
+
 		S_SET_VALUE(symbolP, S_GET_VALUE(symbolP) + symbolP->sy_frag->fr_address);
-		
+
 		/* OK, here is how we decide which symbols go out into the
 		   brave new symtab.  Symbols that do are:
-		   
+
 		   * symbols with no name (stabd's?)
 		   * symbols with debug info in their N_TYPE
 		   * symbols marked "forceout" (to force out local `L'
 						symbols in PIC code)
-		   
+
 		   Symbols that don't are:
 		   * symbols that are registers
 		   * symbols with \1 as their 3rd character (numeric labels)
 		   * "local labels" as defined by S_LOCAL_NAME(name)
 		   if the -L switch was passed to gas.
-		   
+
 		   All other symbols are output.  We complain if a deleted
 		   symbol was marked external. */
-		
-		
+
+
 		if (!S_IS_REGISTER(symbolP)
 		    && (!S_GET_NAME(symbolP)
 			|| S_IS_DEBUG(symbolP)
@@ -526,7 +526,7 @@ object_headers *headers;
 #endif
 		    ) {
 			symbolP->sy_number = symbol_number++;
-			
+
 			/* The + 1 after strlen account for the \0 at the
 			   end of each string */
 			if (!S_IS_STABD(symbolP)) {
@@ -585,14 +585,14 @@ object_headers *headers;
 			) {
 				as_bad("Local symbol %s never defined.", decode_local_label_name(S_GET_NAME(symbolP)));
 			} /* oops. */
-			
+
 			/* Unhook it from the chain */
 			*symbolPP = symbol_next(symbolP);
 		} /* if this symbol should be in the output */
 	} /* for each symbol */
-	
+
 	H_SET_SYMBOL_TABLE_SIZE(headers, symbol_number);
-	
+
 	return;
 } /* obj_crawl_symbol_chain() */
 
@@ -604,7 +604,7 @@ void obj_emit_strings(where)
 char **where;
 {
 	symbolS *symbolP;
-	
+
 #ifdef CROSS_COMPILE
 	/* Gotta do md_ byte-ordering stuff for string_byte_count first - KWK */
 	md_number_to_chars(*where, string_byte_count, sizeof(string_byte_count));
@@ -612,13 +612,13 @@ char **where;
 #else /* CROSS_COMPILE */
 	append (where, (char *)&string_byte_count, (unsigned long)sizeof(string_byte_count));
 #endif /* CROSS_COMPILE */
-	
+
 	for (symbolP = symbol_rootP; symbolP; symbolP = symbol_next(symbolP)) {
 		if (S_GET_NAME(symbolP))
 		    append(&next_object_file_charP, S_GET_NAME(symbolP),
 			   (unsigned long)(strlen (S_GET_NAME(symbolP)) + 1));
 	} /* walk symbol chain */
-	
+
 	return;
 } /* obj_emit_strings() */
 
@@ -632,7 +632,7 @@ object_headers *headers;
 		   AOUT_VERSION);
 
 	H_SET_ENTRY_POINT(headers, 0);
-		
+
 	tc_aout_pre_write_hook(headers);
 	return;
 } /* obj_pre_write_hook() */

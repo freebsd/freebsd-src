@@ -1,6 +1,6 @@
-#define inline 
+#define inline
 
-/* 
+/*
 Copyright (C) 1989 Free Software Foundation
     written by Doug Lea (dl@oswego.edu)
 
@@ -19,7 +19,7 @@ GNU CC General Public License.   A copy of this license is
 supposed to have been given to you along with GNU CC so you
 can know your rights and responsibilities.  It should be in a
 file named COPYING.  Among other things, the copyright notice
-and this notice must be preserved on all copies.  
+and this notice must be preserved on all copies.
 */
 
 
@@ -92,7 +92,7 @@ and this notice must be preserved on all copies.
            avoid wasted iterations due to (1).
 */
 
-/* 
+/*
   A version of malloc/free/realloc tuned for C++ applications.
 
   Here's what you probably want to know first:
@@ -101,11 +101,11 @@ and this notice must be preserved on all copies.
   and usually substantially less memory-wasteful than BSD/GNUemacs malloc.
 
   Generally, it is slower (by perhaps 20%) than bsd-style malloc
-  only when bsd malloc would waste a great deal of space in 
+  only when bsd malloc would waste a great deal of space in
   fragmented blocks, which this malloc recovers; or when, by
   chance or design, nearly all requests are near the bsd malloc
   power-of-2 allocation bin boundaries, and as many chunks are
-  used as are allocated. 
+  used as are allocated.
 
   It uses more space than bsd malloc only when, again by chance
   or design, only bsdmalloc bin-sized requests are malloced, or when
@@ -117,8 +117,8 @@ and this notice must be preserved on all copies.
   deal with bsdmalloc's characteristics. But even here, the
   performance differences are slight.
 
- 
-  This malloc, like any other, is a compromised design. 
+
+  This malloc, like any other, is a compromised design.
 
 
   Chunks of memory are maintained using a `boundary tag' method as
@@ -135,7 +135,7 @@ and this notice must be preserved on all copies.
   Available chunks are kept in doubly linked lists. The lists are
   maintained in an array of bins using a power-of-two method, except
   that instead of 32 bins (one for each 1 << i), there are 128: each
-  power of two is split in quarters. The use of very fine bin sizes 
+  power of two is split in quarters. The use of very fine bin sizes
   closely approximates the use of one bin per actually used size,
   without necessitating the overhead of locating such bins. It is
   especially desirable in common C++ applications where large numbers
@@ -169,8 +169,8 @@ and this notice must be preserved on all copies.
   on fronts of lists. All remaindered or consolidated chunks are
   placed on the rear. Correspondingly, searching within a bin
   starts at the front, but finding victims is from the back. All
-  of this approximates  the  effect of having 2 kinds of lists per 
-  bin: returned chunks vs unallocated chunks, but without the overhead 
+  of this approximates  the  effect of having 2 kinds of lists per
+  bin: returned chunks vs unallocated chunks, but without the overhead
   of maintaining 2 lists.)
 
   Deallocation (free) consists only of placing the chunk on
@@ -203,14 +203,14 @@ and this notice must be preserved on all copies.
   The checks are fast enough to be made non-optional.
 
   The overwriting of parts of freed memory with the freelist pointers
-  can also be very effective (albeit in an annoying way) in helping 
+  can also be very effective (albeit in an annoying way) in helping
   users track down dangling pointers.
 
   User overwriting of freed space will often result in crashes
   within malloc or free.
-  
+
   These routines are also tuned to C++ in that free(0) is a noop and
-  a failed malloc automatically calls (*new_handler)(). 
+  a failed malloc automatically calls (*new_handler)().
 
   malloc(0) returns a pointer to something of the minimum allocatable size.
 
@@ -276,7 +276,7 @@ extern void abort();
 
 /* A good multiple to call sbrk with */
 
-#define SBRK_UNIT 4096 
+#define SBRK_UNIT 4096
 
 
 
@@ -334,13 +334,13 @@ typedef struct malloc_bin* mbinptr;
 
 static inline unsigned int request2size(unsigned int request)
 {
-  return  (request == 0) ?  MINSIZE : 
-    ((request + MALLOC_MIN_OVERHEAD + MALLOC_ALIGN_MASK) 
+  return  (request == 0) ?  MINSIZE :
+    ((request + MALLOC_MIN_OVERHEAD + MALLOC_ALIGN_MASK)
       & ~(MALLOC_ALIGN_MASK));
 }
 
 
-static inline int aligned_OK(void* m)  
+static inline int aligned_OK(void* m)
 {
   return ((unsigned int)(m) & (MALLOC_ALIGN_MASK)) == 0;
 }
@@ -355,9 +355,9 @@ static inline int aligned_OK(void* m)
 
 #define MAXBIN 120   /* 1 more than needed for 32 bit addresses */
 
-#define FIRSTBIN (&(av[0])) 
+#define FIRSTBIN (&(av[0]))
 
-static struct malloc_bin  av[MAXBIN] = 
+static struct malloc_bin  av[MAXBIN] =
 {
   { { 0, &(av[0].hd),  &(av[0].hd) }, 0 },
   { { 0, &(av[1].hd),  &(av[1].hd) }, 0 },
@@ -545,7 +545,7 @@ static void do_free_stats(const mchunkptr p)
 {
   ++n_frees;
   freed_mem += (p->size & ~(INUSE));
-}        
+}
 
 #endif
 
@@ -557,7 +557,7 @@ static void do_free_stats(const mchunkptr p)
 static unsigned int gcd(unsigned int a, unsigned int b)
 {
   unsigned int tmp;
-  
+
   if (b > a)
   {
     tmp = a; a = b; b = tmp;
@@ -591,7 +591,7 @@ static inline unsigned int lcm(unsigned int x, unsigned int y)
 #define set_inuse(p)   ((p)->size |= INUSE)
 #define clear_inuse(b) ((p)->size &= ~INUSE)
 
-  
+
 /* operations on  malloc_chunk addresses */
 
 
@@ -616,18 +616,18 @@ static inline void set_size(mchunkptr p, unsigned int sz)
 
 /* conversion from malloc headers to user pointers, and back */
 
-static inline void* chunk2mem(mchunkptr p) 
-{ 
+static inline void* chunk2mem(mchunkptr p)
+{
   void *mem;
   set_inuse(p);
-mem =  (void*)((char*)(p) + SIZE_SZ); 
+mem =  (void*)((char*)(p) + SIZE_SZ);
   return mem;
 }
 
 /* xxxx my own */
-mchunkptr sanity_check(void* mem) 
-{ 
-  mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ); 
+mchunkptr sanity_check(void* mem)
+{
+  mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ);
 
   /* a quick sanity check */
   unsigned int sz = p->size & ~(INUSE);
@@ -640,9 +640,9 @@ mchunkptr sanity_check(void* mem)
 
 
 
-static inline mchunkptr mem2chunk(void* mem) 
-{ 
-  mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ); 
+static inline mchunkptr mem2chunk(void* mem)
+{
+  mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ);
 
   /* a quick sanity check */
   unsigned int sz = p->size & ~(INUSE);
@@ -691,15 +691,15 @@ static inline void split(mchunkptr p, unsigned int offset)
     mchunkptr h  = &(bn->hd);                       /* its head */
     mchunkptr b  = h->bk;                           /* old back element */
     mchunkptr t = (mchunkptr)((char*)(p) + offset); /* remaindered chunk */
-    
+
     /* set size */
     t->size = *((int*)((char*)(t) + room    - SIZE_SZ)) = room;
 
     /* link up */
     t->bk = b;  t->fd = h;  h->bk = b->fd = t;
-    
+
     /* adjust maxbin (h == b means was empty) */
-    if (h == b && bn > malloc_maxbin) malloc_maxbin = bn; 
+    if (h == b && bn > malloc_maxbin) malloc_maxbin = bn;
 
     /* adjust size of chunk to be returned */
     p->size = *((int*)((char*)(p) + offset  - SIZE_SZ)) = offset;
@@ -721,7 +721,7 @@ static inline void consollink(mchunkptr p)
 
   p->bk = b;  p->fd = h;  h->bk = b->fd = p;
 
-  if (h == b && bn > malloc_maxbin) malloc_maxbin = bn; 
+  if (h == b && bn > malloc_maxbin) malloc_maxbin = bn;
 
   UPDATE_STATS(++n_avail);
 }
@@ -737,7 +737,7 @@ static inline void frontlink(mchunkptr p)
 
   p->bk = h;  p->fd = f;  f->bk = h->fd = p;
 
-  if (h == f && bn > malloc_maxbin) malloc_maxbin = bn;  
+  if (h == f && bn > malloc_maxbin) malloc_maxbin = bn;
 
   bn->dirty = 1;
 
@@ -770,11 +770,11 @@ static mchunkptr malloc_from_sys(unsigned nb)
   mchunkptr p;
   unsigned int sbrk_size;
   int* ip;
-  
+
   /* Minimally, we need to pad with enough space */
   /* to place dummy size/use fields to ends if needed */
 
-  sbrk_size = ((nb + SBRK_UNIT - 1 + SIZE_SZ + SIZE_SZ) 
+  sbrk_size = ((nb + SBRK_UNIT - 1 + SIZE_SZ + SIZE_SZ)
                / SBRK_UNIT) * SBRK_UNIT;
 
   ip = (int*)(sbrk(sbrk_size));
@@ -789,8 +789,8 @@ static mchunkptr malloc_from_sys(unsigned nb)
   UPDATE_STATS ((++n_sbrks, sbrked_mem += sbrk_size));
 
 
-  if (last_sbrk_end != &ip[-1]) 
-  {                             
+  if (last_sbrk_end != &ip[-1])
+  {
     /* It's either first time through or someone else called sbrk. */
     /* Arrange end-markers at front & back */
 
@@ -802,14 +802,14 @@ static mchunkptr malloc_from_sys(unsigned nb)
     /* Note we can get away with only 1 word, not MINSIZE overhead here */
 
     *ip++ = SIZE_SZ | INUSE;
-    
+
     p = (mchunkptr)ip;
-    set_size(p,sbrk_size - (SIZE_SZ + SIZE_SZ)); 
-    
+    set_size(p,sbrk_size - (SIZE_SZ + SIZE_SZ));
+
   }
-  else 
+  else
   {
-    mchunkptr l;  
+    mchunkptr l;
 
     /* We can safely make the header start at end of prev sbrked chunk. */
     /* We will still have space left at the end from a previous call */
@@ -822,7 +822,7 @@ static mchunkptr malloc_from_sys(unsigned nb)
     /* Even better, maybe we can merge with last fragment: */
 
     l = prev_chunk(p);
-    if (!inuse(l))  
+    if (!inuse(l))
     {
       unlink(l);
       set_size(l, p->size + l->size);
@@ -861,7 +861,7 @@ static mchunkptr malloc_find_space(unsigned int nb)
 
   /* first, re-adjust max used bin */
 
-  while (malloc_maxbin >= FIRSTBIN && 
+  while (malloc_maxbin >= FIRSTBIN &&
          malloc_maxbin->hd.bk == &(malloc_maxbin->hd))
   {
     malloc_maxbin->dirty = 0;
@@ -895,7 +895,7 @@ static mchunkptr malloc_find_space(unsigned int nb)
           p = t;
           UPDATE_STATS (++n_consol);
         }
-        
+
         while (!inuse(t = next_chunk(p))) /* consolidate forward */
         {
           if (!consolidated) { consolidated = 1; unlink(p); }
@@ -957,7 +957,7 @@ void* malloc(unsigned int bytes)
     {
       mchunkptr nextp = p->fd;       /* save, in case of relinks */
       int consolidated = 0;          /* only unlink/relink if consolidated */
-      
+
       mchunkptr t;
 
       while (!inuse(t = prev_chunk(p))) /* consolidate backward */
@@ -969,7 +969,7 @@ void* malloc(unsigned int bytes)
         p = t;
         UPDATE_STATS (++n_consol);
       }
-      
+
       while (!inuse(t = next_chunk(p))) /* consolidate forward */
       {
         if (!consolidated) { consolidated = 1; unlink(p); }
@@ -978,7 +978,7 @@ void* malloc(unsigned int bytes)
         set_size(p, p->size + t->size);
         UPDATE_STATS (++n_consol);
       }
-      
+
       if (consolidated)
       {
         if (p->size >= nb)
@@ -1017,7 +1017,7 @@ void* malloc(unsigned int bytes)
  found:   /* Use what we found */
 
   unlink(p);
-  split(p, nb); 
+  split(p, nb);
   UPDATE_STATS(do_malloc_stats(p));
   return chunk2mem(p);
 }
@@ -1049,7 +1049,7 @@ void cfree(void *mem)
 {
   free(mem);
 }
- 
+
 
 unsigned int malloc_usable_size(void* mem)
 {
@@ -1057,7 +1057,7 @@ unsigned int malloc_usable_size(void* mem)
     return 0;
   else
   {
-    mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ); 
+    mchunkptr p = (mchunkptr)((char*)(mem) - SIZE_SZ);
     unsigned int sz = p->size & ~(INUSE);
     if (p->size == sz || sz != *((int*)((char*)(p) + sz - SIZE_SZ)))
       return 0;
@@ -1070,7 +1070,7 @@ unsigned int malloc_usable_size(void* mem)
 
 void* realloc(void* mem, unsigned int bytes)
 {
-  if (mem == 0) 
+  if (mem == 0)
     return malloc(bytes);
   else
   {
@@ -1081,7 +1081,7 @@ void* realloc(void* mem, unsigned int bytes)
     mchunkptr    nxt;
 
     UPDATE_STATS((++n_reallocs, requested_mem += bytes-oldsize));
-    
+
     /* try to expand (even if already big enough), to clean up chunk */
 
     while (!inuse(nxt = next_chunk(p)))
@@ -1160,7 +1160,7 @@ void* memalign(unsigned int alignment, unsigned int bytes)
       /* and we've malloc'd enough total room */
 
       ap = (mchunkptr)( (int)(ap) + align );
-      gap += align;    
+      gap += align;
     }
 
     if (gap + nb > p->size) /* can't happen unless chunk sizes corrupted */
@@ -1179,7 +1179,7 @@ void* memalign(unsigned int alignment, unsigned int bytes)
 
   /* also give back spare room at the end */
 
-  split(p, nb); 
+  split(p, nb);
   UPDATE_STATS(do_malloc_stats(p));
   return chunk2mem(p);
 
@@ -1196,7 +1196,7 @@ void* valloc(unsigned int bytes)
   if (malloc_pagesize == 0) malloc_pagesize = getpagesize();
   return memalign (malloc_pagesize, bytes);
 }
-    
+
 
 void malloc_stats()
 {
@@ -1216,23 +1216,23 @@ void malloc_stats()
   if (n_mallocs != 0)
   fprintf(stderr, "mallocs   = %10u total size = %10u\tave = %10u\n",
           n_mallocs, malloced_mem, malloced_mem/n_mallocs);
-  
+
   if (n_frees != 0)
   fprintf(stderr, "frees     = %10u total size = %10u\tave = %10u\n",
           n_frees, freed_mem, freed_mem/n_frees);
-  
+
   if (n_mallocs-n_frees != 0)
   fprintf(stderr, "in use    = %10u total size = %10u\tave = %10u\n",
-          n_mallocs-n_frees, malloced_mem-freed_mem, 
+          n_mallocs-n_frees, malloced_mem-freed_mem,
           (malloced_mem-freed_mem) / (n_mallocs-n_frees));
 
   if (max_inuse != 0)
   fprintf(stderr, "max in use= %10u total size = %10u\tave = %10u\n",
           max_inuse, max_used_mem, max_used_mem / max_inuse);
-  
+
   if (n_avail != 0)
   fprintf(stderr, "available = %10u total size = %10u\tave = %10u\n",
-          n_avail, sbrked_mem - (malloced_mem-freed_mem), 
+          n_avail, sbrked_mem - (malloced_mem-freed_mem),
           (sbrked_mem - (malloced_mem-freed_mem)) / n_avail);
 
   if (n_sbrks != 0)
@@ -1246,13 +1246,13 @@ void malloc_stats()
 
   if (nm != 0)
   {
-    fprintf(stderr, "chunks scanned per malloc = %6.3f\n", 
+    fprintf(stderr, "chunks scanned per malloc = %6.3f\n",
             n_malloc_chunks / nm);
-    fprintf(stderr, "bins scanned per malloc   = %6.3f\n", 
+    fprintf(stderr, "bins scanned per malloc   = %6.3f\n",
             n_malloc_bins / nm);
-    fprintf(stderr, "splits per malloc         = %6.3f\n", 
+    fprintf(stderr, "splits per malloc         = %6.3f\n",
             n_split / nm);
-    fprintf(stderr, "consolidations per malloc = %6.3f\n", 
+    fprintf(stderr, "consolidations per malloc = %6.3f\n",
             n_consol / nm);
   }
 
@@ -1282,7 +1282,7 @@ void malloc_stats()
   }
 }
 #endif /* MALLOC_STATS */
- 
+
 #endif /* NO_LIBGXX_MALLOC */
 
 

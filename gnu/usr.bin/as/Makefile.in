@@ -212,17 +212,17 @@ config.status:
 
 app.o : app.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 as.o : as.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 atof-generic.o : atof-generic.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 bignum-copy.o : bignum-copy.c as.h host.h \
   targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 cond.o : cond.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
@@ -230,72 +230,72 @@ cond.o : cond.c as.h host.h targ-env.h obj-format.h \
 debug.o : debug.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  subsegs.h 
+  subsegs.h
 expr.o : expr.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 
-flo-const.o : flo-const.c flonum.h bignum.h 
+flo-const.o : flo-const.c flonum.h bignum.h
 flo-copy.o : flo-copy.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
-flonum-mult.o : flonum-mult.c flonum.h bignum.h 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+flonum-mult.o : flonum-mult.c flonum.h bignum.h
 frags.o : frags.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  subsegs.h  
+  subsegs.h
 hash.o : hash.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
-  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h 
-hex-value.o : hex-value.c 
+  write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
+hex-value.o : hex-value.c
 input-file.o : input-file.c as.h host.h \
    targ-env.h obj-format.h targ-cpu.h \
    struc-symbol.h write.h flonum.h bignum.h expr.h \
-  frags.h hash.h read.h symbols.h tc.h obj.h input-file.h 
+  frags.h hash.h read.h symbols.h tc.h obj.h input-file.h
 input-scrub.o : input-scrub.c /usr/include/errno.h /usr/include/sys/errno.h \
   as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  input-file.h 
+  input-file.h
 listing.o : listing.c as.h host.h targ-env.h flonum.h bignum.h \
   listing.h obj-format.h targ-cpu.h struc-symbol.h write.h expr.h \
   frags.h hash.h read.h symbols.h tc.h obj.h input-file.h
 messages.o : messages.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
-obstack.o : obstack.c  
+obstack.o : obstack.c
 output-file.o : output-file.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  output-file.h 
+  output-file.h
 read.o : read.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h
 
-strstr.o : strstr.c   
+strstr.o : strstr.c
 subsegs.o : subsegs.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  subsegs.h  
+  subsegs.h
 symbols.o : symbols.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-   subsegs.h 
-version.o : version.c 
+   subsegs.h
+version.o : version.c
 write.o : write.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h  struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h symbols.h tc.h obj.h \
-  subsegs.h  output-file.h 
+  subsegs.h  output-file.h
 xmalloc.o : xmalloc.c
-xrealloc.o : xrealloc.c 
+xrealloc.o : xrealloc.c
 atof-targ.o : atof-targ.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
-  symbols.h tc.h obj.h 
+  symbols.h tc.h obj.h
 obj-format.o : obj-format.c as.h host.h targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
-  symbols.h tc.h obj.h  
+  symbols.h tc.h obj.h
 targ-cpu.o : targ-cpu.c targ-env.h obj-format.h \
   targ-cpu.h struc-symbol.h \
   write.h flonum.h bignum.h expr.h frags.h hash.h read.h \
@@ -306,7 +306,7 @@ targ-cpu.o : targ-cpu.c targ-env.h obj-format.h \
 doc: $(srcdir)/as.info
 
 $(srcdir)/as.info: $(srcdir)/doc/as.texinfo
-	(cd doc; make as.info; mv as.info $srcdir)	
+	(cd doc; make as.info; mv as.info $srcdir)
 
 clean:
 	(cd doc ; $(MAKE) clean)
@@ -348,7 +348,7 @@ uninstall:
 
 tags TAGS: force
 	etags $(REAL_HEADERS) $(REAL_SOURCES) $(srcdir)/config/*.[hc] $(srcdir)/README $(srcdir)/Makefile.in
-	
+
 bootstrap: as.new force
 	$(MAKE) stage1
 	$(MAKE) CC="$(CC)" CFLAGS="-O -Bstage1/ $(CFLAGS)" libdir=$(libdir) ALLOCA= as.new

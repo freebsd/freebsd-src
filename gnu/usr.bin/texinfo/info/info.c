@@ -200,7 +200,7 @@ main (argc, argv)
       info_short_help ();
       exit (0);
     }
-  
+
   /* If the user hasn't specified a path for Info files, default that path
      now. */
   if (!infopath)

@@ -31,7 +31,7 @@ SECTION
 	<<bfd_cache_lookup>>, which runs around and makes sure that
 	the required BFD is open. If not, then it chooses a file to
 	close, closes it and opens the one wanted, returning its file
-	handle. 
+	handle.
 
 */
 
@@ -78,19 +78,19 @@ bfd *bfd_last_cache;
 /*
   INTERNAL_FUNCTION
   	bfd_cache_lookup
- 
+
   DESCRIPTION
  	Check to see if the required BFD is the same as the last one
  	looked up. If so, then it can use the stream in the BFD with
  	impunity, since it can't have changed since the last lookup;
  	otherwise, it has to perform the complicated lookup function.
- 
+
   .#define bfd_cache_lookup(x) \
   .    ((x)==bfd_last_cache? \
   .      (FILE*)(bfd_last_cache->iostream): \
   .       bfd_cache_lookup_worker(x))
- 
- 
+
+
  */
 
 /* Insert a BFD into the cache.  */
@@ -312,14 +312,14 @@ DESCRIPTION
 	quick answer.  Find a file descriptor for @var{abfd}.  If
 	necessary, it open it.  If there are already more than
 	<<BFD_CACHE_MAX_OPEN>> files open, it tries to close one first, to
-	avoid running out of file descriptors.  
+	avoid running out of file descriptors.
 */
 
 FILE *
 bfd_cache_lookup_worker (abfd)
      bfd *abfd;
 {
-  if (abfd->my_archive) 
+  if (abfd->my_archive)
     abfd = abfd->my_archive;
 
   if (abfd->iostream != NULL)

@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.4 1994/02/25 21:46:04 phk Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.5 1995/01/12 22:09:40 hsu Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,10 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.5  1995/01/12  22:09:40  hsu
+ * Fix bug that created new files even when running in -C check mode.
+ * Reviewed by: phk
+ *
  * Revision 1.4  1994/02/25  21:46:04  phk
  * added the -C/-check again.
  *
@@ -25,83 +29,83 @@ char rcsid[] =
  *
  * Revision 2.0.2.0  90/05/01  22:17:50  davison
  * patch12u: unidiff support added
- * 
+ *
  * Revision 2.0.1.6  88/06/22  20:46:39  lwall
  * patch12: rindex() wasn't declared
- * 
+ *
  * Revision 2.0.1.5  88/06/03  15:09:37  lwall
  * patch10: exit code improved.
  * patch10: better support for non-flexfilenames.
- * 
+ *
  * Revision 2.0.1.4  87/02/16  14:00:04  lwall
  * Short replacement caused spurious "Out of sync" message.
- * 
+ *
  * Revision 2.0.1.3  87/01/30  22:45:50  lwall
  * Improved diagnostic on sync error.
  * Moved do_ed_script() to pch.c.
- * 
+ *
  * Revision 2.0.1.2  86/11/21  09:39:15  lwall
  * Fuzz factor caused offset of installed lines.
- * 
+ *
  * Revision 2.0.1.1  86/10/29  13:10:22  lwall
  * Backwards search could terminate prematurely.
- * 
+ *
  * Revision 2.0  86/09/17  15:37:32  lwall
  * Baseline for netwide release.
- * 
+ *
  * Revision 1.5  86/08/01  20:53:24  lwall
  * Changed some %d's to %ld's.
  * Linted.
- * 
+ *
  * Revision 1.4  86/08/01  19:17:29  lwall
  * Fixes for machines that can't vararg.
  * Added fuzz factor.
  * Generalized -p.
  * General cleanup.
- * 
+ *
  * 85/08/15 van%ucbmonet@berkeley
  * Changes for 4.3bsd diff -c.
  *
  * Revision 1.3  85/03/26  15:07:43  lwall
  * Frozen.
- * 
+ *
  * Revision 1.2.1.9  85/03/12  17:03:35  lwall
  * Changed pfp->_file to fileno(pfp).
- * 
+ *
  * Revision 1.2.1.8  85/03/12  16:30:43  lwall
  * Check i_ptr and i_womp to make sure they aren't null before freeing.
  * Also allow ed output to be suppressed.
- * 
+ *
  * Revision 1.2.1.7  85/03/12  15:56:13  lwall
  * Added -p option from jromine@uci-750a.
- * 
+ *
  * Revision 1.2.1.6  85/03/12  12:12:51  lwall
  * Now checks for normalness of file to patch.
- * 
+ *
  * Revision 1.2.1.5  85/03/12  11:52:12  lwall
  * Added -D (#ifdef) option from joe@fluke.
- * 
+ *
  * Revision 1.2.1.4  84/12/06  11:14:15  lwall
  * Made smarter about SCCS subdirectories.
- * 
+ *
  * Revision 1.2.1.3  84/12/05  11:18:43  lwall
  * Added -l switch to do loose string comparison.
- * 
+ *
  * Revision 1.2.1.2  84/12/04  09:47:13  lwall
  * Failed hunk count not reset on multiple patch file.
- * 
+ *
  * Revision 1.2.1.1  84/12/04  09:42:37  lwall
  * Branch for sdcrdcf changes.
- * 
+ *
  * Revision 1.2  84/11/29  13:29:51  lwall
  * Linted.  Identifiers uniqified.  Fixed i_ptr malloc() bug.  Fixed
  * multiple calls to mktemp().  Will now work on machines that can only
  * read 32767 chars.  Added -R option for diffs with new and old swapped.
  * Various cosmetic changes.
- * 
+ *
  * Revision 1.1  84/11/09  17:03:58  lwall
  * Initial revision
- * 
+ *
  */
 
 #include "INTERN.h"
@@ -214,7 +218,7 @@ char **argv;
     Argc = argc;
     Argv = argv;
     get_some_switches();
-    
+
     /* make sure we clean up /tmp in case of disaster */
     set_signals(0);
 
@@ -226,27 +230,27 @@ char **argv;
 
 	if (outname == Nullch)
 	    outname = savestr(filearg[0]);
-    
+
 	/* for ed script just up and do it and exit */
 	if (diff_type == ED_DIFF) {
 	    do_ed_script();
 	    continue;
 	}
-    
+
 	/* initialize the patched file */
 	if (!skip_rest_of_patch)
 	    init_output(TMPOUTNAME);
-    
+
 	/* initialize reject file */
 	init_reject(TMPREJNAME);
-    
+
 	/* find out where all the lines are */
 	if (!skip_rest_of_patch)
 	    scan_input(filearg[0]);
-    
+
 	/* from here on, open no standard i/o files, because malloc */
 	/* might misfire and we can't catch it easily */
-    
+
 	/* apply each hunk of patch */
 	hunk = 0;
 	failed = 0;
@@ -356,13 +360,13 @@ char **argv;
 	    rejfp = Nullfp;
 	    continue;
 	}
-    
+
 	assert(hunk);
-    
+
 	/* finish spewing out the new file */
 	if (!skip_rest_of_patch)
 	    spew_output();
-	
+
 	/* and put the output where desired */
 	ignore_signals();
 	if (!skip_rest_of_patch) {
@@ -630,7 +634,7 @@ LINENUM fuzz;
     Reg2 LINENUM offset;
     LINENUM pat_lines = pch_ptrn_lines();
     Reg3 LINENUM max_pos_offset = input_lines - first_guess
-				- pat_lines + 1; 
+				- pat_lines + 1;
     Reg4 LINENUM max_neg_offset = first_guess - last_frozen_line - 1
 				+ pch_context();
 
@@ -706,7 +710,7 @@ abort_hunk()
 	    fprintf(rejfp, "%c %s", pch_char(i), pfetch(i));
 	    break;
 	default:
-	    fatal1("fatal internal error in abort_hunk\n"); 
+	    fatal1("fatal internal error in abort_hunk\n");
 	}
     }
 }
@@ -731,7 +735,7 @@ LINENUM where;
     where--;
     while (pch_char(new) == '=' || pch_char(new) == '\n')
 	new++;
-    
+
     while (old <= lastline) {
 	if (pch_char(old) == '-') {
 	    copy_till(where + old - 1);

@@ -1,4 +1,4 @@
-/* $RCSfile: form.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:36 $
+/* $RCSfile: form.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: form.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:36  nate
  * PERL!
  *
@@ -16,19 +19,19 @@
  * patch20: removed implicit int declarations on funcions
  * patch20: form feed for formats is now specifiable via $^L
  * patch20: Perl now distinguishes overlapped copies from non-overlapped
- * 
+ *
  * Revision 4.0.1.2  91/11/05  17:18:43  lwall
  * patch11: formats didn't fill their fields as well as they could
  * patch11: ^ fields chopped hyphens on line break
  * patch11: # fields could write outside allocated memory
- * 
+ *
  * Revision 4.0.1.1  91/06/07  11:07:59  lwall
  * patch4: new copyright notice
  * patch4: default top-of-form format is now FILEHANDLE_TOP
- * 
+ *
  * Revision 4.0  91/03/20  01:19:23  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 #include "EXTERN.h"

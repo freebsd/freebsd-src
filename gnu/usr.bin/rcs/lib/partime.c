@@ -21,6 +21,9 @@
  */
 
 /* $Log: partime.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.6  1991/08/19  03:13:55  eggert
  * Update timezones.
  *
@@ -48,21 +51,21 @@
  *
  * Revision 1.4  89/05/01  14:48:46  narten
  * fixed #ifdef DEBUG construct
- * 
+ *
  * Revision 1.3  88/08/28  14:53:40  eggert
  * Remove unportable "#endif XXX"s.
- * 
+ *
  * Revision 1.2  87/03/27  14:21:53  jenkins
  * Port to suns
- * 
+ *
  * Revision 1.1  82/05/06  11:38:26  wft
  * Initial revision
- * 
+ *
  */
 
 #include "rcsbase.h"
 
-libId(partId, "$Id: partime.c,v 5.6 1991/08/19 03:13:55 eggert Exp $")
+libId(partId, "$Id: partime.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
 
 #define given(v) (0 <= (v))
 #define TMNULL (-1) /* Items not given are given this value */
@@ -510,7 +513,7 @@ register struct token *tkp;
 	    }
 #else
 		return(0);
-#endif	
+#endif
 	cp = tkp->tcp;
 
 #ifdef DEBUG

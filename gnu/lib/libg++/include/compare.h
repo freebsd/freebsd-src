@@ -1,6 +1,6 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-/* 
+/*
 Copyright (C) 1988 Free Software Foundation
     written by Doug Lea (dl@rocky.oswego.edu)
 

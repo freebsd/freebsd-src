@@ -219,7 +219,7 @@ static int in_nonparm_insns;
 
 /* Subroutine for `save_for_inline{copying,nocopy}'.  Performs initialization
    needed to save FNDECL's insns and info for future inline expansion.  */
-   
+
 static rtx
 initialize_for_inline (fndecl, min_labelno, max_labelno, max_reg, copy)
      tree fndecl;
@@ -327,7 +327,7 @@ initialize_for_inline (fndecl, min_labelno, max_labelno, max_reg, copy)
 /* Subroutine for `save_for_inline{copying,nocopy}'.  Finishes up the
    things that must be done to make FNDECL expandable as an inline function.
    HEAD contains the chain of insns to which FNDECL will expand.  */
-   
+
 static void
 finish_inline (fndecl, head)
      tree fndecl;
@@ -386,7 +386,7 @@ save_for_inline_copying (fndecl)
   int max_uid;
   rtx first_nonparm_insn;
 
-  /* Make and emit a return-label if we have not already done so. 
+  /* Make and emit a return-label if we have not already done so.
      Do this before recording the bounds on label numbers. */
 
   if (return_label == 0)
@@ -796,7 +796,7 @@ save_constants (px)
  again:
   x = *px;
 
-  /* If this is a CONST_DOUBLE, don't try to fix things up in 
+  /* If this is a CONST_DOUBLE, don't try to fix things up in
      CONST_DOUBLE_MEM, because this is an infinite recursion.  */
   if (GET_CODE (x) == CONST_DOUBLE)
     return;
@@ -808,7 +808,7 @@ save_constants (px)
       RTX_INTEGRATED_P (new) = 1;
 
       /* If the MEM was in a different mode than the constant (perhaps we
-	 were only looking at the low-order part), surround it with a 
+	 were only looking at the low-order part), surround it with a
 	 SUBREG so we can save both modes.  */
 
       if (GET_MODE (x) != const_mode)
@@ -981,7 +981,7 @@ copy_for_inline (orig)
 	 it is possible for unshare_all_rtl to copy the address, into memory
 	 that won't be saved.  Although the MEM can safely be shared, and
 	 won't be copied there, the address itself cannot be shared, and may
-	 need to be copied. 
+	 need to be copied.
 
 	 There are also two exceptions with constants: The first is if the
 	 constant is a LABEL_REF or the sum of the LABEL_REF
@@ -1310,7 +1310,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 	      || (GET_CODE (arg_vals[i]) == SUBREG)))
 	arg_vals[i] = copy_to_mode_reg (GET_MODE (loc), arg_vals[i]);
     }
-	
+
   /* Allocate the structures we use to remap things.  */
 
   map = (struct inline_remap *) alloca (sizeof (struct inline_remap));
@@ -1554,7 +1554,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
     {
       if (! structure_value_addr || ! aggregate_value_p (DECL_RESULT (fndecl)))
 	abort ();
-  
+
       /* Pass the function the address in which to return a structure value.
 	 Note that a constructor can cause someone to call us with
 	 STRUCTURE_VALUE_ADDR, but the initialization takes place
@@ -1950,7 +1950,7 @@ integrate_decl_tree (let, level, map)
 
   if (level > 0)
     pushlevel (0);
-  
+
   for (t = BLOCK_VARS (let); t; t = TREE_CHAIN (t))
     {
       tree d;
@@ -2088,7 +2088,7 @@ copy_rtx_and_substitute (orig, map)
 	      start_sequence ();
 	      loc = assign_stack_temp (BLKmode, size, 1);
 	      loc = XEXP (loc, 0);
-	      /* When arguments grow downward, the virtual incoming 
+	      /* When arguments grow downward, the virtual incoming
 		 args pointer points to the top of the argument block,
 		 so the remapped location better do the same. */
 #ifdef ARGS_GROW_DOWNWARD
@@ -2198,7 +2198,7 @@ copy_rtx_and_substitute (orig, map)
 	{
 	  rtx constant = get_pool_constant (orig);
 	  if (GET_CODE (constant) == LABEL_REF)
-	    return XEXP (force_const_mem (Pmode, 
+	    return XEXP (force_const_mem (Pmode,
 					  copy_rtx_and_substitute (constant,
 								   map)),
 			 0);
@@ -2535,7 +2535,7 @@ subst_constants (loc, insn, map)
 	  /* We can't call subst_constants on &SUBREG_REG (x) because any
 	     constant or SUBREG wouldn't be valid inside our SUBEG.  Instead,
 	     see what is inside, try to form the new SUBREG and see if that is
-	     valid.  We handle two cases: extracting a full word in an 
+	     valid.  We handle two cases: extracting a full word in an
 	     integral mode and extracting the low part.  */
 	  subst_constants (&inner, NULL_RTX, map);
 
@@ -2638,7 +2638,7 @@ subst_constants (loc, insn, map)
     }
 
   format_ptr = GET_RTX_FORMAT (code);
-  
+
   /* If the first operand is an expression, save its mode for later.  */
   if (*format_ptr == 'e')
     op0_mode = GET_MODE (XEXP (x, 0));

@@ -1,24 +1,24 @@
 /* as.h - global header file
    Copyright (C) 1987, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS, the GNU Assembler.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $Id: as.h,v 1.2 1993/11/03 00:51:11 paul Exp $
+ * $Id: as.h,v 1.3 1994/12/23 22:36:01 nate Exp $
  */
 
 #define GAS 1
@@ -206,15 +206,15 @@ typedef enum _relax_state {
 	rs_fill, /* Variable chars to be repeated fr_offset times. Fr_symbol
 		    unused. Used with fr_offset == 0 for a constant length
 		    frag. */
-	
+
 	rs_align, /* Align: Fr_offset: power of 2. 1 variable char: fill
 		     character. */
-	
+
 	rs_org,	/* Org: Fr_offset, fr_symbol: address. 1 variable char: fill
 		   character. */
-	
+
 	rs_machine_dependent,
-	
+
 #ifndef WORKING_DOT_WORD
 	rs_broken_word,		/* JF: gunpoint */
 #endif
@@ -242,16 +242,16 @@ typedef unsigned long relax_addressT;/* Enough bits for address. */
  * of the 1st char of a frag is generally not known until after relax().
  * Many things at assembly time describe an address by {object-file-address
  * of a particular frag}+offset.
- 
+
  BUG: it may be smarter to have a single pointer off to various different
- notes for different frag kinds. See how code pans 
+ notes for different frag kinds. See how code pans
  */
 struct frag			/* a code fragment */
 {
 	unsigned long fr_address; /* Object file address. */
 	struct frag *fr_next;	/* Chain forward; ascending address order. */
 	/* Rooted in frch_root. */
-	
+
 	long fr_fix;	/* (Fixed) number of chars we know we have. */
 	/* May be 0. */
 	long fr_var;	/* (Variable) number of chars after above. */

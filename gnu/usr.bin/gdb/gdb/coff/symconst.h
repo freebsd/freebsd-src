@@ -36,7 +36,7 @@
 #define magicSym2	0x1992
 
 /* Language codes */
-#define langC		0	
+#define langC		0
 #define langPascal	1
 #define langFortran	2
 #define	langAssembler	3	/* one Assembley inst might map to many mach */
@@ -80,7 +80,7 @@
 #define scVariant	20	/* Variant record */
 #define scSUndefined	21	/* small undefined(external) data */
 #define scInit		22	/* .init section symbol */
-#define scBasedVar	23	/* Fortran or PL/1 ptr based var */ 
+#define scBasedVar	23	/* Fortran or PL/1 ptr based var */
 #define scXData         24      /* exception handling data */
 #define scPData         25      /* Procedure section */
 #define scFini          26      /* .fini section */

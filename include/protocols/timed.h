@@ -56,14 +56,14 @@ struct tsp {
 
 #define	tsp_time	tsp_u.tspu_time
 #define	tsp_hopcnt	tsp_u.tspu_hopcnt
- 
+
 /*
  * Command types.
  */
 #define	TSP_ANY			0	/* match any types */
 #define	TSP_ADJTIME		1	/* send adjtime */
 #define	TSP_ACK			2	/* generic acknowledgement */
-#define	TSP_MASTERREQ		3	/* ask for master's name */ 
+#define	TSP_MASTERREQ		3	/* ask for master's name */
 #define	TSP_MASTERACK		4	/* acknowledge master request */
 #define	TSP_SETTIME		5	/* send network time */
 #define	TSP_MASTERUP		6	/* inform slaves that master is up */
@@ -90,8 +90,8 @@ struct tsp {
 
 #ifdef TSPTYPES
 char *tsptype[TSPTYPENUMBER] =
-  { "ANY", "ADJTIME", "ACK", "MASTERREQ", "MASTERACK", "SETTIME", "MASTERUP", 
-  "SLAVEUP", "ELECTION", "ACCEPT", "REFUSE", "CONFLICT", "RESOLVE", "QUIT", 
+  { "ANY", "ADJTIME", "ACK", "MASTERREQ", "MASTERACK", "SETTIME", "MASTERUP",
+  "SLAVEUP", "ELECTION", "ACCEPT", "REFUSE", "CONFLICT", "RESOLVE", "QUIT",
   "DATE", "DATEREQ", "DATEACK", "TRACEON", "TRACEOFF", "MSITE", "MSITEREQ",
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
 #endif

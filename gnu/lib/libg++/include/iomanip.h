@@ -42,10 +42,10 @@ template<class TP> class smanip; // TP = Type Param
 
 template<class TP> class sapp {
     ios& (*_f)(ios&, TP);
-public: 
+public:
     sapp(ios& (*f)(ios&, TP)) : _f(f) {}
     //
-    smanip<TP> operator()(TP a) 
+    smanip<TP> operator()(TP a)
       { return smanip<TP>(_f, a); }
 };
 
@@ -55,7 +55,7 @@ template <class TP> class smanip {
 public:
     smanip(ios& (*f)(ios&, TP), TP a) : _f(f), _a(a) {}
     //
-    friend 
+    friend
       istream& operator>>(istream& i, const smanip<TP>& m);
     friend
       ostream& operator<<(ostream& o, const smanip<TP>& m);
@@ -85,11 +85,11 @@ extern template ostream& operator<<(ostream&, const smanip<ios::fmtflags>&);
 //	Input-Stream Manipulators
 //-----------------------------------------------------------------------------
 //
-template<class TP> class imanip; 
+template<class TP> class imanip;
 
 template<class TP> class iapp {
     istream& (*_f)(istream&, TP);
-public: 
+public:
     iapp(istream& (*f)(istream&,TP)) : _f(f) {}
     //
     imanip<TP> operator()(TP a)
@@ -102,7 +102,7 @@ template <class TP> class imanip {
 public:
     imanip(istream& (*f)(istream&, TP), TP a) : _f(f), _a(a) {}
     //
-    friend 
+    friend
       istream& operator>>(istream& i, const imanip<TP>& m)
 	{ return (*m._f)( i, m._a); }
 };
@@ -112,11 +112,11 @@ public:
 //	Output-Stream Manipulators
 //-----------------------------------------------------------------------------
 //
-template<class TP> class omanip; 
+template<class TP> class omanip;
 
 template<class TP> class oapp {
     ostream& (*_f)(ostream&, TP);
-public: 
+public:
     oapp(ostream& (*f)(ostream&,TP)) : _f(f) {}
     //
     omanip<TP> operator()(TP a)
@@ -141,7 +141,7 @@ public:
 
 //
 // Macro to define an iomanip function, with one argument
-// The underlying function is `__iomanip_<name>' 
+// The underlying function is `__iomanip_<name>'
 //
 #define __DEFINE_IOMANIP_FN1(type,param,function)         \
 	extern ios& __iomanip_##function (ios&, param); \

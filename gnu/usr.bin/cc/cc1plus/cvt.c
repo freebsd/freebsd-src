@@ -112,7 +112,7 @@ cp_convert_to_pointer (type, expr)
 {
   register tree intype = TREE_TYPE (expr);
   register enum tree_code form = TREE_CODE (intype);
-  
+
   if (form == POINTER_TYPE)
     {
       intype = TYPE_MAIN_VARIANT (intype);
@@ -214,7 +214,7 @@ convert_to_pointer_force (type, expr)
 {
   register tree intype = TREE_TYPE (expr);
   register enum tree_code form = TREE_CODE (intype);
-  
+
   if (integer_zerop (expr))
     {
       if (type == TREE_TYPE (null_pointer_node))
@@ -429,7 +429,7 @@ build_up_reference (type, arg, flags, checkconst)
       if (targ == current_class_decl)
 	{
 	  error ("address of `this' not available");
-/* #if 0 */	  
+/* #if 0 */
 	  /* This code makes the following core dump the compiler on a sun4,
 	     if the code below is used.
 
@@ -468,7 +468,7 @@ build_up_reference (type, arg, flags, checkconst)
 	  break;
 /* #else */
 	  return error_mark_node;
-/* #endif */	  
+/* #endif */
 	}
 #endif
       /* Fall through.  */
@@ -629,7 +629,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
 	{
 	  tree ttl = TREE_TYPE (reftype);
 	  tree ttr;
-	  
+
 	  if (form == REFERENCE_TYPE)
 	    ttr = TREE_TYPE (TREE_TYPE (expr));
 	  else
@@ -700,7 +700,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
 	  && (comptypes (TREE_TYPE (intype), type, -1)))
 	cp_warning ("casting `%T' to `%T' does not dereference pointer",
 		    intype, reftype);
-	  
+
       rval = build_unary_op (ADDR_EXPR, expr, 0);
       if (rval != error_mark_node)
 	rval = convert_force (build_pointer_type (TREE_TYPE (reftype)), rval);
@@ -711,7 +711,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
     {
       tree rval_as_conversion = NULL_TREE;
       tree rval_as_ctor = NULL_TREE;
-      
+
       if (IS_AGGR_TYPE (intype)
 	  && (rval = build_type_conversion (CONVERT_EXPR, type, expr, 1)))
 	{
@@ -720,7 +720,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
 
 	  rval_as_conversion = build_up_reference (reftype, rval, flags, 1);
 	}
-      
+
       /* Definitely need to go through a constructor here.  */
       if (TYPE_HAS_CONSTRUCTOR (type)
 	  && ! CLASSTYPE_ABSTRACT_VIRTUALS (type)
@@ -778,7 +778,7 @@ convert_to_reference (reftype, expr, convtype, flags, decl)
 	  rval = convert (type, expr);
 	  if (rval == error_mark_node)
 	    return error_mark_node;
-	  
+
 	  rval = build_up_reference (reftype, rval, flags, 1);
 	}
 
@@ -1190,7 +1190,7 @@ cp_convert (type, expr, convtype, flags)
   /* Trivial conversion: cv-qualifiers do not matter on rvalues.  */
   if (TYPE_MAIN_VARIANT (type) == TYPE_MAIN_VARIANT (TREE_TYPE (e)))
     return fold (build1 (NOP_EXPR, type, e));
-  
+
   if (code == VOID_TYPE && (convtype & CONV_STATIC))
     return build1 (CONVERT_EXPR, type, e);
 
@@ -1342,7 +1342,7 @@ cp_convert (type, expr, convtype, flags)
 	  cp_error ("in conversion to type `%T'", type);
 	  return error_mark_node;
 	}
-      
+
       if (conversion && ctor)
 	{
 	  error ("both constructor and type conversion operator apply");
@@ -1370,15 +1370,15 @@ cp_convert (type, expr, convtype, flags)
 		 particular instance of a template class with a
 		 call to a constructor of the given instance, as
 		 in:
-		 
+
 		 TMPL<int> object = TMPL<int>();
-		 
+
 		 Curiously, the assertion does not fail if we do
 		 the same thing for a static member of a
 		 non-template class, as in:
-		 
+
 		 T object = T();
-		 
+
 		 I can't see why we should care here whether or not
 		 the initializer expression involves a call to
 		 `new', so for the time being, it seems best to

@@ -155,7 +155,7 @@ mmalloc_attach (fd, baseaddr)
    Note that we have to update the file descriptor number in the malloc-
    descriptor read from the file to match the current valid one, before
    trying to map the file in, and again after a successful mapping and
-   after we've switched over to using the mapped in malloc descriptor 
+   after we've switched over to using the mapped in malloc descriptor
    rather than the temporary one on the stack.
 
    Once we've switched over to using the mapped in malloc descriptor, we

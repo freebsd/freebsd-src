@@ -27,9 +27,9 @@ GetLine(dw, Buffer, Length)
 	int	Length;
 {
 	int 	i = 0, c;
-	
+
 	Length--;		     /* Save room for final '\0' */
-	
+
 	while (DviGetC (dw, &c) != EOF) {
 		if (Buffer && i < Length)
 			Buffer[i++] = c;
@@ -41,7 +41,7 @@ GetLine(dw, Buffer, Length)
 	if (Buffer)
 		Buffer[i] = '\0';
 	return Buffer;
-} 
+}
 
 char *
 GetWord(dw, Buffer, Length)
@@ -50,7 +50,7 @@ GetWord(dw, Buffer, Length)
 	int	Length;
 {
 	int 	i = 0, c;
-	
+
 	Length--;			    /* Save room for final '\0' */
 	while (DviGetC(dw, &c) == ' ' || c == '\n')
 		;
@@ -65,7 +65,7 @@ GetWord(dw, Buffer, Length)
 	if (Buffer)
 		Buffer[i] = '\0';
 	return Buffer;
-} 
+}
 
 GetNumber(dw)
 	DviWidget	dw;
@@ -90,7 +90,7 @@ GetNumber(dw)
 		DviUngetC(dw, c);
 	return i;
 }
-	
+
 /*
 Local Variables:
 c-indent-level: 8

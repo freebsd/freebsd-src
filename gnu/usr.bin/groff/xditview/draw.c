@@ -102,7 +102,7 @@ FlushCharCache (dw)
 		XDrawText (XtDisplay (dw), XtWindow (dw), dw->dvi.normal_GC,
 			   dw->dvi.cache.start_x, dw->dvi.cache.start_y,
 			   dw->dvi.cache.cache, dw->dvi.cache.index + 1);
-	}	
+	}
 	dw->dvi.cache.index = 0;
 	dw->dvi.cache.max = DVI_TEXT_CACHE_SIZE;
 #if 0
@@ -135,7 +135,7 @@ Word (dw)
     :\
 	(fi)->max_bounds.width\
 )
- 
+
 
 static
 int charExists (fi, c)
@@ -161,7 +161,7 @@ DoCharacter (dw, c, wid)
 	register XFontStruct	*font;
 	register XTextItem	*text;
 	int	x, y;
-	
+
 	x = XPos(dw);
 	y = YPos(dw);
 
@@ -176,7 +176,7 @@ DoCharacter (dw, c, wid)
 #endif
 	    ))
 		return;
-	
+
 	if (y != dw->dvi.cache.y
 	    || dw->dvi.cache.char_index >= DVI_CHAR_CACHE_SIZE) {
 		FlushCharCache (dw);
@@ -362,7 +362,7 @@ PutNumberedCharacter (dw, c)
 		dw->dvi.device_font
 			= QueryDeviceFont (dw, dw->dvi.device_font_number);
 	}
-	
+
 	if (dw->dvi.device_font == 0
 	    || !device_code_width (dw->dvi.device_font,
 				   dw->dvi.state->font_size, c, &wid))
@@ -398,14 +398,14 @@ setGC (dw)
 	DviWidget	dw;
 {
 	int desired_line_width;
-	
+
 	if (dw->dvi.line_thickness < 0)
 		desired_line_width = (int)(((double)dw->dvi.device_resolution
 					    * dw->dvi.state->font_size)
 					   / (10.0*72.0*dw->dvi.sizescale));
 	else
 		desired_line_width = dw->dvi.line_thickness;
-	
+
 	if (desired_line_width != dw->dvi.line_width) {
 		XGCValues values;
 		values.line_width = DeviceToX(dw, desired_line_width);
@@ -422,7 +422,7 @@ setFillGC (dw)
 	DviWidget	dw;
 {
 	int fill_type;
-	
+
 	if (dw->dvi.fill == DVI_FILL_MAX)
 		fill_type = DVI_FILL_BLACK;
 	else if (dw->dvi.fill == 0)
@@ -528,11 +528,11 @@ DrawArc (dw, x0, y0, x1, y1)
 		return;
 	angle1 = (int)(atan2 ((double)y0, (double)-x0)*180.0*64.0/M_PI);
 	angle2 = (int)(atan2 ((double)-y1, (double)x1)*180.0*64.0/M_PI);
-	
+
 	angle2 -= angle1;
 	if (angle2 < 0)
 		angle2 += 64*360;
-	
+
 	AdjustCacheDeltas (dw);
 	setGC (dw);
 
@@ -551,9 +551,9 @@ DrawPolygon (dw, v, n)
 	XPoint *p;
 	int i;
 	int dx, dy;
-	
+
 	n /= 2;
-	
+
 	AdjustCacheDeltas (dw);
 	setGC (dw);
 	p = (XPoint *)XtMalloc((n + 2)*sizeof(XPoint));
@@ -583,11 +583,11 @@ DrawFilledPolygon (dw, v, n)
 	XPoint *p;
 	int i;
 	int dx, dy;
-	
+
 	n /= 2;
 	if (n < 2)
 		return;
-	
+
 	AdjustCacheDeltas (dw);
 	setFillGC (dw);
 	p = (XPoint *)XtMalloc((n + 1)*sizeof(XPoint));
@@ -633,10 +633,10 @@ flattenCurve(points, pointi, x2, y2, x3, y3, x4, y4)
 
 	x1 = points[*pointi - 1].x;
 	y1 = points[*pointi - 1].y;
-	
+
 	dx = x4 - x1;
 	dy = y4 - y1;
-	
+
 	n1 = dy*(x2 - x1) - dx*(y2 - y1);
 	n2 = dy*(x3 - x1) - dx*(y3 - y1);
 	if (n1 < 0)
@@ -670,7 +670,7 @@ DrawSpline (dw, v, n)
 	int i;
 	int pointi;
 	XPoint points[POINTS_MAX];
-	
+
 	if (n == 0 || (n & 1) != 0)
 		return;
 	AdjustCacheDeltas (dw);
@@ -683,12 +683,12 @@ DrawSpline (dw, v, n)
 	sy = oy;
 	tx = sx + DeviceToX (dw, dx);
 	ty = sy + DeviceToX (dw, dy);
-	
+
 	pointi = 0;
-	
+
 	appendPoint (points, &pointi, sx, sy);
 	appendPoint (points, &pointi, (sx + tx)/2, (sy + ty)/2);
-	
+
 	for (i = 2; i < n; i += 2) {
 		int ux = ox + DeviceToX (dw, dx += v[i]);
 		int uy = oy + DeviceToX (dw, dy += v[i+1]);
@@ -701,9 +701,9 @@ DrawSpline (dw, v, n)
 		tx = ux;
 		ty = uy;
 	}
-	
+
 	appendPoint (points, &pointi, tx, ty);
-	
+
 	XDrawLines (XtDisplay (dw), XtWindow (dw), dw->dvi.normal_GC,
 		   points, pointi, CoordModeOrigin);
 }

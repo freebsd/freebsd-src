@@ -162,7 +162,7 @@ States for Tahoe address relaxing.
 	Always, 1 byte opcode, then displacement/absolute.
 	If word or longword, change opcode to brw or jmp.
 
-	
+
 2.	TAHOE_WIDTH_CONDITIONAL_JUMP (?)
 	J<cond> where <cond> is a simple flag test.
 	Format: "b?"
@@ -355,7 +355,7 @@ md_begin()
   struct tot *tP;
   char *errorval = "";
   int synthetic_too = 1; /* If 0, just use real opcodes. */
-  
+
   if ((op_hash = hash_new())){
     for (tP= totstrs; *tP->name && !*errorval; tP++){
       errorval = hash_insert (op_hash, tP->name, &tP->detail);
@@ -389,7 +389,7 @@ md_parse_option (argP, cntP, vecP)
   switch (**argP){
   case 'a':
     as_warn("The -a option doesn't exits. (Dispite what the man page says!");
-    
+
   case 'J':
     as_warn("JUMPIFY (-J) not implemented, use psuedo ops instead.");
     break;
@@ -517,7 +517,7 @@ md_ri_to_chars (ri_p, ri)
 
   /* This is easy */
   md_number_to_chars (the_bytes, ri.r_address, sizeof(ri.r_address));
-  
+
   /* now the fun stuff */
   the_bytes[4] = (ri.r_symbolnum >> 16) & 0x0ff;
   the_bytes[5] = (ri.r_symbolnum >> 8) & 0x0ff;
@@ -546,20 +546,20 @@ relax_addressT segment_address_in_file;
 	 * In: length of relocation (or of address) in chars: 1, 2 or 4.
 	 * Out: GNU LD relocation length code: 0, 1, or 2.
 	 */
-	
+
 	static unsigned char nbytes_r_length[] = { 42, 0, 1, 42, 2 };
 	long r_symbolnum;
-	
+
 	know(fixP->fx_addsy != NULL);
-	
+
 	md_number_to_chars(where,
 			   fixP->fx_frag->fr_address + fixP->fx_where - segment_address_in_file,
 			   4);
-	
+
 	r_symbolnum = (S_IS_DEFINED(fixP->fx_addsy)
 		       ? S_GET_TYPE(fixP->fx_addsy)
 		       : fixP->fx_addsy->sy_number);
-	
+
 	where[4] = (r_symbolnum >> 16) & 0x0ff;
 	where[5] = (r_symbolnum >> 8) & 0x0ff;
 	where[6] = r_symbolnum & 0x0ff;
@@ -741,7 +741,7 @@ object_headers *headers;
   register char *addressP;	/* -> _var to change. */
   register char *opcodeP;	/* -> opcode char(s) to change. */
   register short int length_code; /* 2=long 1=word 0=byte */
-  register short int extension = 0;	/* Size of relaxed address. 
+  register short int extension = 0;	/* Size of relaxed address.
 				   Added to fr_fix: incl. ALL var chars. */
   register symbolS *symbolP;
   register long int where;
@@ -788,7 +788,7 @@ object_headers *headers;
     *addressP = target_address - (address_of_var + 1);
     extension = 1;
     break;
-    
+
   case ENCODE_RELAX (STATE_CONDITIONAL_BRANCH, STATE_WORD):
     *opcodeP ^= 0x10;          /* Reverse sense of test. */
     *addressP++ = 3; /* Jump over word branch */
@@ -796,7 +796,7 @@ object_headers *headers;
     md_number_to_chars (addressP, target_address - (address_of_var + 4), 2);
     extension = 4;
     break;
-    
+
   case ENCODE_RELAX (STATE_CONDITIONAL_BRANCH, STATE_LONG):
     *opcodeP ^= 0x10;          /* Reverse sense of test. */
     *addressP++ = 6;
@@ -810,13 +810,13 @@ object_headers *headers;
     *addressP = target_address - (address_of_var + 1);
     extension = 1;
     break;
-    
+
   case ENCODE_RELAX (STATE_ALWAYS_BRANCH, STATE_WORD):
     *opcodeP = TAHOE_BRW;
     md_number_to_chars (addressP, target_address - (address_of_var + 2), 2);
     extension = 2;
     break;
-    
+
   case ENCODE_RELAX (STATE_ALWAYS_BRANCH, STATE_LONG):
     *opcodeP = TAHOE_JMP;
     *addressP++ = TAHOE_PC_REL_LONG;
@@ -828,7 +828,7 @@ object_headers *headers;
     md_number_to_chars (addressP, target_address - (address_of_var + 2), 2);
     extension = 2;
     break;
-    
+
   case ENCODE_RELAX (STATE_BIG_REV_BRANCH, STATE_LONG):
     *opcodeP ^= 0x10;
     *addressP++ = 0;
@@ -843,7 +843,7 @@ object_headers *headers;
     md_number_to_chars (addressP, target_address - (address_of_var + 2), 2);
     extension = 2;
     break;
-    
+
   case ENCODE_RELAX (STATE_BIG_NON_REV_BRANCH, STATE_LONG):
     *addressP++ = 0;
     *addressP++ = 2;
@@ -1034,7 +1034,7 @@ tip_op (optex,topP)
     com_width = (width == 'b' ? 1 :
 		 (width == 'w' ? 2 :
 		  (width == 'l' ? 4 : 0)));
-      
+
   *optex = '\0';                /* This is kind of a back stop for all
 				   the searches to fail on if needed.*/
   if (*point == '*') {		/* A dereference? */
@@ -1052,7 +1052,7 @@ tip_op (optex,topP)
    * The default is 'w' as an offset, so that's what I use.
    * Stick with `, it does the same, and isn't ambig.
    */
-     
+
   if (*point != '\0' && ((point[1] == '^') || (point[1] == '`')))
     switch(*point){
     case 'b':
@@ -1088,18 +1088,18 @@ tip_op (optex,topP)
 
   if(end != point)		/* Null string? */
     end--;
-  
+
   if (end > point && *end == ' ' && end[-1] != '\'')
     end--;			/* Hop white space */
-  
+
   /* Is this an index reg. */
   if ((*end == ']') && (end[-1] != '\'')){
     temp = end;
-    
+
     /* Find opening brace. */
     for(--end;(*end != '[' && end != point);end--)
       ;
-    
+
     /* If I found the opening brace, get the index register number. */
     if (*end == '['){
       tp = end + 1;		/* tp should point to the start of a reg. */
@@ -1129,11 +1129,11 @@ tip_op (optex,topP)
   /* register in parens? */
   if ((*end == ')') && (end[-1] != '\'')){
     temp = end;
-    
+
     /* Find opening paren. */
     for(--end;(*end != '(' && end != point);end--)
       ;
-    
+
     /* If I found the opening paren, get the register number. */
     if (*end == '('){
       tp = end + 1;
@@ -1150,7 +1150,7 @@ tip_op (optex,topP)
       end = point;		/* Force all the rest of the tests to fail. */
     }
   }
-  
+
   /* Pre decrement? */
   if (*end == '-'){
     if (dec_inc != ' '){
@@ -1167,7 +1167,7 @@ tip_op (optex,topP)
    * Everything between point and end is the 'expression', unless it's
    * a register name.
    */
-  
+
   c = end[1];
   end[1] = '\0';
 
@@ -1179,7 +1179,7 @@ tip_op (optex,topP)
     point = tp;
     imreg = -1;
   }
-  
+
   if (imreg != -1 && reg != -1)
     op_bad = "I parsed 2 registers in this operand.";
 
@@ -1257,7 +1257,7 @@ tip_op (optex,topP)
   }
 
   end[1] = c;
-  
+
   /* I'm done, so restore optex */
   *optex = segfault;
 
@@ -1304,15 +1304,15 @@ tip_op (optex,topP)
 	op_bad = "For quad access, the register must be even and < 14.";
       else if (call_width)
 	op_bad = "You can't cast a direct register.";
-      
+
       if (*op_bad == '\0'){
 	/* No errors, check for warnings */
 	if (width == 'q' && imreg == 12)
 	  as_warn("Using reg 14 for quadwords can tromp the FP register.");
-      
+
 	reg = imreg;
       }
-      
+
       /* We know: imm = -1 */
     }else if (dec_inc == '-'){
       /* -(SP) */
@@ -1401,7 +1401,7 @@ tip_op (optex,topP)
       }
     }
   }
-  
+
   /*
    * At this point, all the errors we can do have be checked for.
    * We can build the 'top'. */
@@ -1563,7 +1563,7 @@ md_assemble (instruction_string)
 
   /* Decode the operand. */
   tip(&t, instruction_string);
-  
+
   /*
    * Check to see if this operand decode properly.
    * Notice that we haven't made any frags yet.
@@ -1589,7 +1589,7 @@ md_assemble (instruction_string)
 	   Legality of indexed mode already checked: it is OK */
 	FRAG_APPEND_1_CHAR(0x40 + operandP->top_ndx);
       }				/* if(top_ndx>=0) */
-      
+
       /* Here to make main operand frag(s). */
       this_add_number = expP->X_add_number;
       this_add_symbol = expP->X_add_symbol;
@@ -1663,12 +1663,12 @@ md_assemble (instruction_string)
 	  /* to_seg != now_seg && to_seg != seg_unknown (still in branch)
 	     In other words, I'm jumping out of my segment so extend the
 	     branches to jumps, and let GAS fix them. */
-	  
+
 	  /* These are "branches" what will always be branches around a jump
 	     to the correct addresss in real life.
 	     If to_seg is SEG_ABSOLUTE, just encode the branch in,
 	     else let GAS fix the address. */
-	  
+
 	  switch (operandP->top_width){
 	    /* The theory:
 	       For SEG_ABSOLUTE, then mode is ABSOLUTE_ADDR, jump
@@ -1764,14 +1764,14 @@ md_assemble (instruction_string)
 	case TAHOE_AUTO_INC_DEFERRED:
 	  FRAG_APPEND_1_CHAR(operandP->top_mode);
 	  break;
-	  
+
 	  /* Numbered Register only access. Only thing needed is the
 	     mode + Register number */
 	case TAHOE_DIRECT_REG:
 	case TAHOE_REG_DEFERRED:
 	  FRAG_APPEND_1_CHAR(operandP->top_mode + operandP->top_reg);
 	  break;
-	  
+
 	  /* An absolute address. It's size is always 5 bytes.
 	     (mode_type + 4 byte address). */
 	case TAHOE_ABSOLUTE_ADDR:
@@ -1780,7 +1780,7 @@ md_assemble (instruction_string)
 	  *p = TAHOE_ABSOLUTE_ADDR;
 	  md_number_to_chars(p+1,this_add_number,4);
 	  break;
-	  
+
 	  /* Immediate data. If the size isn't known, then it's an address
 	     + and offset, which is 4 bytes big. */
 	case TAHOE_IMMEDIATE:
@@ -1814,7 +1814,7 @@ md_assemble (instruction_string)
 	    }
 	  }
 	  break;
-	  
+
 	  /* Distance from the PC. If the size isn't known, we have to relax
 	     into it. The difference between this and disp(sp) is that
 	     this offset is pc_rel, and disp(sp) isn't.
@@ -1824,7 +1824,7 @@ md_assemble (instruction_string)
 	case TAHOE_DISP_REL_DEFERRED:
 	  operandP->top_reg = PC_REG;
 	  pc_rel = 1;
-	  
+
 	  /* Register, plus a displacement mode. Save the register number,
 	     and weather its deffered or not, and relax the size if it isn't
 	     known. */
@@ -1844,7 +1844,7 @@ md_assemble (instruction_string)
 	  if ((dispsize == 0 && !pc_rel) ||
 	      (to_seg != now_seg && !is_undefined && to_seg != SEG_ABSOLUTE))
 	    dispsize = 4;
-	  
+
 	  if (dispsize == 0){
 	    /*
 	     * We have a SEG_UNKNOWN symbol, or the size isn't cast.

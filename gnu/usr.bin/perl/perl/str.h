@@ -1,4 +1,4 @@
-/* $RCSfile: str.h,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:39 $
+/* $RCSfile: str.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,26 +6,29 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: str.h,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:39  nate
  * PERL!
  *
  * Revision 4.0.1.4  92/06/08  15:41:45  lwall
  * patch20: fixed confusion between a *var's real name and its effective name
  * patch20: removed implicit int declarations on functions
- * 
+ *
  * Revision 4.0.1.3  91/11/05  18:41:47  lwall
  * patch11: random cleanup
  * patch11: solitary subroutine references no longer trigger typo warnings
- * 
+ *
  * Revision 4.0.1.2  91/06/07  11:58:33  lwall
  * patch4: new copyright notice
- * 
+ *
  * Revision 4.0.1.1  91/04/12  09:16:12  lwall
  * patch1: you may now use "die" and "caller" in a signal handler
- * 
+ *
  * Revision 4.0  91/03/20  01:40:04  lwall
  * 4.0 baseline.
- * 
+ *
  */
 
 struct string {

@@ -39,7 +39,7 @@ struct callinfo
   struct argtype retvaltype;	/* Type of return value */
   struct argtype argtypes[1];	/* Argument types */
 };
-  
+
 /* Structure describing a bytecode function.  If this changes, we also
    need to change expand_function_end () in bc-trans.c  */
 struct bytecode

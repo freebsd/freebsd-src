@@ -1,5 +1,5 @@
 /***************************************************************
- * 
+ *
  * Program:	help.c
  * Author:	Marc van Kempen
  * Desc:	get help
@@ -16,7 +16,7 @@
  * responsible for the proper functioning of this software, nor does
  * the author assume any responsibility for damages incurred with
  * its use.
- * 
+ *
  ***************************************************************/
 
 #include <stdlib.h>
@@ -111,7 +111,7 @@ display_helpfile(void)
 
     return;
 } /* display_helpfile() */
-    
+
 
 /******************************************************************
  *
@@ -121,7 +121,7 @@ display_helpfile(void)
 
 void
 use_helpline(char *hline)
-/* 
+/*
  * desc: set the helpline to printed in dialogs
  */
 {
@@ -177,7 +177,7 @@ get_helpline(void)
     } else {
         hlp = NULL;
     }
-    
+
     return(hlp);
 } /* get_helpline() */
 

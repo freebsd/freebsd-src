@@ -52,7 +52,7 @@ void
 c_type_print_base PARAMS ((struct type *, GDB_FILE *, int, int));
 
 
-/* Print a description of a type in the format of a 
+/* Print a description of a type in the format of a
    typedef for the current language.
    NEW is the new name for a type TYPE. */
 
@@ -156,7 +156,7 @@ cp_type_print_method_args (args, prefix, varstring, staticp, stream)
       while (1)
 	{
 	  type_print (args[i++], "", stream, 0);
-	  if (!args[i]) 
+	  if (!args[i])
 	    {
 	      fprintf_filtered (stream, " ...");
 	      break;
@@ -170,7 +170,7 @@ cp_type_print_method_args (args, prefix, varstring, staticp, stream)
     }
   fprintf_filtered (stream, ")");
 }
-  
+
 /* If TYPE is a derived type, then print out derivation information.
    Print only the actual base classes of this type, not the base classes
    of the base classes.  I.E.  for the derivation hierarchy:
@@ -374,14 +374,14 @@ c_type_print_varspec_suffix (type, stream, show, passed_a_ptr, demangled_args)
     case TYPE_CODE_ARRAY:
       if (passed_a_ptr)
 	fprintf_filtered (stream, ")");
-      
+
       fprintf_filtered (stream, "[");
       if (TYPE_LENGTH (type) > 0 && TYPE_LENGTH (TYPE_TARGET_TYPE (type)) > 0)
 	fprintf_filtered (stream, "%d",
 			  (TYPE_LENGTH (type)
 			   / TYPE_LENGTH (TYPE_TARGET_TYPE (type))));
       fprintf_filtered (stream, "]");
-      
+
       c_type_print_varspec_suffix (TYPE_TARGET_TYPE (type), stream, 0, 0, 0);
       break;
 
@@ -487,7 +487,7 @@ c_type_print_base (type, stream, show, level)
     }
 
   check_stub_type (type);
-	  
+
   switch (TYPE_CODE (type))
     {
     case TYPE_CODE_ARRAY:
@@ -530,7 +530,7 @@ c_type_print_base (type, stream, show, level)
       else if (show > 0 || TYPE_TAG_NAME (type) == NULL)
 	{
 	  cp_type_print_derivation_info (stream, type);
-	  
+
 	  fprintf_filtered (stream, "{\n");
 	  if ((TYPE_NFIELDS (type) == 0) && (TYPE_NFN_FIELDS (type) == 0))
 	    {

@@ -2,7 +2,7 @@
  * $XConsortium: DviP.h,v 1.5 89/07/22 19:44:08 keith Exp $
  */
 
-/* 
+/*
  * DviP.h - Private definitions for Dvi widget
  */
 
@@ -51,7 +51,7 @@ extern DviClassRec dviClassRec;
 
 /***************************************
  *
- *  Instance (widget) structure 
+ *  Instance (widget) structure
  *
  **************************************/
 

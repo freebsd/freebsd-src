@@ -47,7 +47,7 @@ static char *current_demangling_style_string;
 
 /* List of supported demangling styles.  Contains the name of the style as
    seen by the user, and the enum value that corresponds to that style. */
-   
+
 static const struct demangler
 {
   char *demangling_style_name;

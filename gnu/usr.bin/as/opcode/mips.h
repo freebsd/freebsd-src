@@ -122,7 +122,7 @@ struct mips_opcode
 #define op_o16(x, y) ((x << 26) | (y << 16))
 #define op_bc(x, y, z) ((x << 26) | (y << 21) | (z << 16))
 
-struct mips_opcode mips_opcodes[] = 
+struct mips_opcode mips_opcodes[] =
 {
 /* These first opcodes are special cases of the ones in the comments */
   {"nop",	0,		0xffffffff,	     /*li*/	"", 0},

@@ -20,9 +20,9 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.2 $ on $Date: 86/11/26 12:10:38 $
- *           $Source: /users/faustus/xchess/RCS/popup.c,v $
- * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group 
+/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:13 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/popup.c,v $
+ * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	 faustus@cad.berkeley.edu, ucbvax!faustus
  * Permission is granted to modify and re-distribute this code in any manner
  * as long as this notice is preserved.  All standard disclaimers apply.
@@ -75,7 +75,7 @@ pop_question(win, text)
 	XMapRaised(win->display, w);
 	XSetFont(win->display, DefaultGC(win->display, 0),
 		 win->medium->fid);
-	
+
 	for (i = 0, s = text; i < nlines - 4; i++) {
 		for (t = s, j = 0; *t && (*t != '\n'); t++, j++)
 			;

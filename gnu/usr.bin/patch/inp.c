@@ -1,15 +1,19 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.2 1995/01/12 22:09:39 hsu Exp $
  *
  * $Log: inp.c,v $
+ * Revision 1.2  1995/01/12  22:09:39  hsu
+ * Fix bug that created new files even when running in -C check mode.
+ * Reviewed by: phk
+ *
  * Revision 1.1.1.1  1993/06/19  14:21:52  paul
  * b-maked patch-2.10
  *
  * Revision 2.0.1.1  88/06/03  15:06:13  lwall
  * patch10: made a little smarter about sccs files
- * 
+ *
  * Revision 2.0  86/09/17  15:37:02  lwall
  * Baseline for netwide release.
- * 
+ *
  */
 
 #include "EXTERN.h"
@@ -210,7 +214,7 @@ char *filename;
 	free((char *)i_womp);
 	return FALSE;
     }
-    
+
     /* now scan the buffer and build pointer array */
 
     iline = 1;
@@ -223,7 +227,7 @@ char *filename;
 
     /* now check for revision, if any */
 
-    if (revision != Nullch) { 
+    if (revision != Nullch) {
 	if (!rev_in_string(i_womp)) {
 	    if (force) {
 		if (verbose)
@@ -369,7 +373,7 @@ char *string;
     if (strnEQ(string,revision,patlen) && isspace(string[patlen]))
 	return TRUE;
     for (s = string; *s; s++) {
-	if (isspace(*s) && strnEQ(s+1, revision, patlen) && 
+	if (isspace(*s) && strnEQ(s+1, revision, patlen) &&
 		isspace(s[patlen+1] )) {
 	    return TRUE;
 	}

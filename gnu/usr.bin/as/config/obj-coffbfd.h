@@ -1,18 +1,18 @@
 /* coff object file format
    Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
-   
+
    This file is part of GAS.
-   
+
    GAS is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2, or (at your option)
    any later version.
-   
+
    GAS is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
@@ -43,7 +43,7 @@
 #else
 help me
 #endif
-    
+
 #if 0
     /* Define some processor dependent values according to the processor we are
        on. */
@@ -80,15 +80,15 @@ help me
 
 #else
 you lose
-#endif 
-    
 #endif
-    
+
+#endif
+
 #ifndef OBJ_COFF_MAX_AUXENTRIES
 #define OBJ_COFF_MAX_AUXENTRIES 1
 #endif /* OBJ_COFF_MAX_AUXENTRIES */
-    
-    
+
+
     extern const segT  N_TYPE_seg[];
 
 /* Magic number of paged executable. */
@@ -104,11 +104,11 @@ you lose
 
 /* Symbol table entry data type */
 
-typedef struct 
+typedef struct
 {
 	struct internal_syment  ost_entry; /* Basic symbol */
 	union internal_auxent ost_auxent[OBJ_COFF_MAX_AUXENTRIES]; /* Auxiliary entry. */
-	
+
 	unsigned int ost_flags; /* obj_coff internal use only flags */
 } obj_symbol_type;
 
@@ -118,7 +118,7 @@ typedef struct
 #endif
 /* Symbol table macros and constants */
 
-/* Possible and usefull section number in symbol table 
+/* Possible and usefull section number in symbol table
  * The values of TEXT, DATA and BSS may not be portable.
  */
 
@@ -169,7 +169,7 @@ typedef struct
 /* The zeroes if symbol name is longer than 8 chars */
 #define S_GET_ZEROES(s)		((s)->sy_symbol.ost_entry.n_zeroes)
 /* The value of the symbol */
-#define S_GET_VALUE(s)		((unsigned) ((s)->sy_symbol.ost_entry.n_value))	
+#define S_GET_VALUE(s)		((unsigned) ((s)->sy_symbol.ost_entry.n_value))
 /* The numeric value of the segment */
 #define S_GET_SEGMENT(s)   s_get_segment(s)
 /* The data type */
@@ -446,7 +446,7 @@ typedef struct {
 
 struct lineno_list
 {
-	
+
 	struct bfd_internal_lineno line;
 	char* frag;			/* Frag to which the line number is related */
 	struct lineno_list* next;	/* Forward chain pointer */
@@ -477,7 +477,7 @@ void EXFUN(stack_delete,(stack *st));
 
 
 void EXFUN(c_section_header,(
-			     
+
 			     struct internal_scnhdr *header,
 			     char *name,
 			     long core_address,

@@ -971,7 +971,7 @@ bc_emit_trampoline (callinfo)
   static int n;
 
   sprintf (mylab, "*LB%d", n++);
-  
+
   BC_EMIT_TRAMPOLINE (trampoline, callinfo);
 
   seg_defsym (bytecode, mylab);

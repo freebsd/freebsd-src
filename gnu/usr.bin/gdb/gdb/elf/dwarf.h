@@ -211,7 +211,7 @@ enum dwarf_fundamental_type {
     FT_boolean		= 0x0015,  /* breaks "classic" svr4 SDB */
     FT_ext_prec_complex	= 0x0016,  /* breaks "classic" svr4 SDB */
     FT_label		= 0x0017,
-  
+
     /* GNU extensions
        The low order byte must indicate the size (in bytes) for the type.
        All of these types will probably break "classic" svr4 SDB */
