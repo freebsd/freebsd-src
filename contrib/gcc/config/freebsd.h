@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.8 1999/04/22 17:45:01 obrien Exp $ */
+/* $Id: freebsd.h,v 1.9 1999/04/27 15:43:56 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -30,26 +30,13 @@ Boston, MA 02111-1307, USA.  */
 #undef NO_IMPLICIT_EXTERN_C
 #define NO_IMPLICIT_EXTERN_C
 
-/* This defines which switch letters take arguments.  On svr4, most of
+/* This defines which switch letters take arguments.  On FreeBSD, most of
    the normal cases (defined in gcc.c) apply, and we also have -h* and
-   -z* options (for the linker).  We have a slightly different mix.  We
-   have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
+   -z* options (for the linker) (comming from svr4).
+   We also have -R (alias --rpath), no -z, --soname (-h), --assert etc. */
 
 #define FBSD_SWITCH_TAKES_ARG(CHAR) \
-  (   (CHAR) == 'D' \
-   || (CHAR) == 'U' \
-   || (CHAR) == 'o' \
-   || (CHAR) == 'e' \
-   || (CHAR) == 'T' \
-   || (CHAR) == 'u' \
-   || (CHAR) == 'I' \
-   || (CHAR) == 'm' \
-   || (CHAR) == 'x' \
-   || (CHAR) == 'L' \
-   || (CHAR) == 'A' \
-   || (CHAR) == 'V' \
-   || (CHAR) == 'B' \
-   || (CHAR) == 'b' \
+  (DEFAULT_SWITCH_TAKES_ARG (CHAR) \
    || (CHAR) == 'h' \
    || (CHAR) == 'z' /* ignored by ld */ \
    || (CHAR) == 'R')
