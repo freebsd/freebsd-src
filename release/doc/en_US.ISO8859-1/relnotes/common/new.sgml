@@ -1926,7 +1926,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     provides increased performance, at the expense of some wasted disk
     space. &merged;</para>
 
-    <para>&man.newsyslog.8; now has the ability to ability to compress
+    <para>&man.newsyslog.8; now has the ability to compress
     log files using &man.bzip2.1;. &merged;</para>
 
     <para><application>NFS</application> now works over IPv6.</para>
