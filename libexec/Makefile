@@ -6,6 +6,8 @@ SUBDIR=	atrun bootpd bootpgw comsat fingerd ftpd getNAME getty lfs_cleanerd \
 
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+=telnetd
+.else
+SUBDIR+= ../secure/libexec/telnetd
 .endif
 
 # Present but disabled: kpasswdd
