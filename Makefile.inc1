@@ -780,7 +780,7 @@ _yacc=		usr.bin/yacc
 .endif
 
 .if !defined(NO_RESCUE) && \
-    ${BOOTSTRAPPING} < 502128
+    ${BOOTSTRAPPING} < 600008
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
