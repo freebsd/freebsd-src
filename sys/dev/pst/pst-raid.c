@@ -72,15 +72,15 @@ static struct cdevsw pst_cdevsw = {
 static struct cdevsw pstdisk_cdevsw;
 
 struct pst_softc {
-    struct iop_softc *iop;
-    struct i2o_lct_entry *lct;
-    struct i2o_bsa_device *info;
-    dev_t device;
-    struct devstat stats;
-    struct disk disk;
-    struct bio_queue_head queue;
-    struct mtx mtx;
-    int outstanding;
+    struct iop_softc		*iop;
+    struct i2o_lct_entry	*lct;
+    struct i2o_bsa_device	*info;
+    dev_t			device;
+    struct devstat		stats;
+    struct disk			disk;
+    struct bio_queue_head	queue;
+    struct mtx			mtx;
+    int				outstanding;
 };
 
 struct pst_request {
@@ -254,7 +254,7 @@ pst_start(struct pst_softc *psc)
 		request->timeout_handle.callout = NULL;
 	    else
 		request->timeout_handle =
-		    timeout((timeout_t*)pst_timeout, request, 20 * hz);
+		    timeout((timeout_t*)pst_timeout, request, 10 * hz);
 	    bioq_remove(&psc->queue, bp);
 	    devstat_start_transaction(&psc->stats);
 	    if (pst_rw(request)) {
