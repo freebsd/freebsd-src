@@ -10,9 +10,10 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/random.h>
 #include <sys/libkern.h>
 #include <sys/time.h>
-#include <sys/random.h>
 
 #define	ARC4_MAXRUNS 16384
 #define	ARC4_RESEED_SECONDS 300
@@ -45,10 +46,12 @@ arc4_randomstir (void)
 	u_int8_t key[256];
 	int r, n;
 
-	/* Reseed from random device.  This technically isn't
-	   reseeding, as we're not throwing away the old state. */
+	/*
+	 * XXX read_random() returns unsafe numbers if the entropy
+	 * device is not loaded -- MarkM.
+	 */
 	r = read_random_unlimited(key, ARC4_KEYBYTES);
-	/* if r == 0 || -1, just use what was on the stack */
+	/* If r == 0 || -1, just use what was on the stack. */
 	if (r > 0)
 	{
 		for (n = r; n < sizeof(key); n++)
@@ -82,11 +85,10 @@ arc4_init(void)
 	arc4_randomstir();
 	arc4_initialized = 1;
 
-	/* Now, throw away the first N words out output, as suggested
-	 * in the paper "Weaknesses in the Key Scheduling Algorithm
-	 * of RC4" by Fluher, Mantin, and Shamir.
-	 *
-	 * (N = 256 in our case.)
+	/*
+	 * Throw away the first N words of output, as suggested in the
+	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
+	 * by Fluher, Mantin, and Shamir.  (N = 256 in our case.)
 	 */
 	for (n = 0; n < 256*4; n++)
 		arc4_randbyte();
@@ -119,9 +121,7 @@ arc4random(void)
 	if (!arc4_initialized)
 		arc4_init();
 
-	/* Get current time. */
 	getmicrotime(&tv_now);
-	
 	if ((++arc4_numruns > ARC4_MAXRUNS) || 
 	    (tv_now.tv_sec > arc4_tv_nextreseed.tv_sec))
 	{
