@@ -223,12 +223,12 @@ printjob(pp)
 	if ((tempfd = mkstemp(tempstderr)) == -1) {
 		syslog(LOG_ERR, "%s: mkstemp(%s): %m", pp->printer,
 		       tempstderr);
-		exit(-1);
+		exit(1);
 	}
 	if ((i = fchmod(tempfd, 0664)) == -1) {
 		syslog(LOG_ERR, "%s: fchmod(%s): %m", pp->printer,
 		       tempstderr);
-		exit(-1);
+		exit(1);
 	}
 	/* lpd doesn't need it to be open, it just needs it to exist */
 	close(tempfd);
