@@ -35,9 +35,28 @@
 #include <sys/ioctl.h>
 #include <sys/sysproto.h>
 #include <net/if.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <i386/ibcs2/ibcs2_socksys.h>
 #include <i386/ibcs2/ibcs2_util.h>
+
+/* Local structures */
+struct getipdomainname_args {
+        char    *ipdomainname;
+        int     len;
+};
+
+struct setipdomainname_args {
+        char    *ipdomainname;
+        int     len;
+};
+
+/* Local prototypes */
+static int ibcs2_getipdomainname __P((struct proc *,
+				      struct getipdomainname_args *, int *));
+static int ibcs2_setipdomainname __P((struct proc *,
+				      struct setipdomainname_args *, int *));
 
 /*
  * iBCS2 socksys calls.
@@ -102,9 +121,9 @@ ibcs2_socksys(p, uap, retval)
 	case SOCKSYS_SELECT:
 		return select(p, passargs, retval);
 	case SOCKSYS_GETIPDOMAIN:
-		return getdomainname(p, passargs, retval);
+		return ibcs2_getipdomainname(p, passargs, retval);
 	case SOCKSYS_SETIPDOMAIN:
-		return setdomainname(p, passargs, retval);
+		return ibcs2_setipdomainname(p, passargs, retval);
 	case SOCKSYS_ADJTIME:
 		return adjtime(p, passargs, retval);
 	case SOCKSYS_SETREUID:
@@ -127,4 +146,73 @@ ibcs2_socksys(p, uap, retval)
 		return EINVAL;
 	}
 	/* NOTREACHED */
+}
+
+/* ARGSUSED */
+static int
+ibcs2_getipdomainname(p, uap, retval)
+        struct proc *p;
+        struct getipdomainname_args *uap;
+        int *retval;
+{
+	char hname[MAXHOSTNAMELEN], *dptr;
+	int len;
+
+	/* Get the domain name */
+	strcpy(hname, hostname);
+	dptr = index(hname, '.');
+	if ( dptr )
+		dptr++;
+	else
+		/* Make it effectively an empty string */
+		dptr = hname + strlen(hname);
+	
+	len = strlen(dptr) + 1;
+	if ((u_int)uap->len > len + 1)
+		uap->len = len + 1;
+	return (copyout((caddr_t)dptr, (caddr_t)uap->ipdomainname, uap->len));
+}
+
+/* ARGSUSED */
+static int
+ibcs2_setipdomainname(p, uap, retval)
+        struct proc *p;
+        struct setipdomainname_args *uap;
+        int *retval;
+{
+	char hname[MAXHOSTNAMELEN], *ptr;
+	int error, sctl[2], hlen;
+
+	if ((error = suser(p->p_ucred, &p->p_acflag)))
+		return (error);
+
+	/* W/out a hostname a domain-name is nonsense */
+	if ( strlen(hostname) == 0 )
+		return EINVAL;
+
+	/* Get the host's unqualified name (strip off the domain) */
+	strcpy(hname, hostname);
+	ptr = index(hname, '.');
+	if ( ptr != NULL ) {
+		ptr++;
+		*ptr = '\0';
+	} else
+		strcat(hname, ".");
+
+	/* Set ptr to the end of the string so we can append to it */
+	hlen = strlen(hname);
+	ptr = hname + hlen;
+        if ((u_int)uap->len > (sizeof (hname) - hlen - 1))
+                return EINVAL;
+
+	/* Append the ipdomain to the end */
+	error = copyin((caddr_t)uap->ipdomainname, ptr, uap->len);
+	if (error)
+		return (error);
+
+	/* 'sethostname' with the new information */
+	sctl[0] = CTL_KERN;
+        sctl[1] = KERN_HOSTNAME;
+ 	hlen = strlen(hname) + 1;
+        return (kernel_sysctl(p, sctl, 2, 0, 0, hname, hlen, 0));
 }
