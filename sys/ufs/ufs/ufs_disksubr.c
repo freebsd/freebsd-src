@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.34 1998/02/20 13:37:40 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.35 1998/07/28 18:25:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,9 @@ bufqdisksort(bufq, bp)
 {
 	struct buf *bq;
 	struct buf *bn;
+	struct buf *be;
 	
+	be = TAILQ_LAST(&bufq->queue, buf_queue);
 	/*
 	 * If the queue is empty or we are an
 	 * ordered transaction, then it's easy.
@@ -86,38 +88,62 @@ bufqdisksort(bufq, bp)
 		 * we can only insert after the insert
 		 * point.
 		 */
-		bq = TAILQ_NEXT(bufq->insert_point, b_act);
-		if (bq == NULL) {
-			bufq_insert_tail(bufq, bp);
-			return;
-		}
-	}
+		bq = bufq->insert_point;
+	} else {
 
-	/*
-	 * If we lie before the first (currently active) request, then we
-	 * must add ourselves to the second request list.
-	 */
-	if (bp->b_pblkno < bq->b_pblkno) {
-
-		bq = bufq->switch_point;
 		/*
-		 * If we are starting a new secondary list, then it's easy.
+		 * If we lie before the last removed (currently active)
+		 * request, and are not inserting ourselves into the
+		 * "locked" portion of the list, then we must add ourselves
+		 * to the second request list.
 		 */
-		if (bq == NULL) {
-			bufq->switch_point = bp;
-			bufq_insert_tail(bufq, bp);
-			return;
-		}
-		if (bp->b_pblkno < bq->b_pblkno) {
-			bufq->switch_point = bp;
-			TAILQ_INSERT_BEFORE(bq, bp, b_act);
-			return;
+		if (bp->b_pblkno < bufq->last_pblkno) {
+
+			bq = bufq->switch_point;
+			/*
+			 * If we are starting a new secondary list,
+			 * then it's easy.
+			 */
+			if (bq == NULL) {
+				bufq->switch_point = bp;
+				bufq_insert_tail(bufq, bp);
+				return;
+			}
+			/*
+			 * If we lie ahead of the current switch point,
+			 * insert us before the switch point and move
+			 * the switch point.
+			 */
+			if (bp->b_pblkno < bq->b_pblkno) {
+				bufq->switch_point = bp;
+				TAILQ_INSERT_BEFORE(bq, bp, b_act);
+				return;
+			}
+		} else {
+			if (bufq->switch_point != NULL)
+				be = TAILQ_PREV(bufq->switch_point,
+						buf_queue, b_act);
+			/*
+			 * If we lie between last_pblkno and bq,
+			 * insert before bq.
+			 */
+			if (bp->b_pblkno < bq->b_pblkno) {
+				TAILQ_INSERT_BEFORE(bq, bp, b_act);
+				return;
+			}
 		}
 	}
+
 	/*
-	 * Request is at/after the current request...
-	 * sort in the first request list.
+	 * Request is at/after our current position in the list.
+	 * Optimize for sequential I/O by seeing if we go at the tail.
 	 */
+	if (bp->b_pblkno > be->b_pblkno) {
+		TAILQ_INSERT_AFTER(&bufq->queue, be, bp, b_act);
+		return;
+	}
+
+	/* Otherwise, insertion sort */
 	while ((bn = TAILQ_NEXT(bq, b_act)) != NULL) {
 		
 		/*
