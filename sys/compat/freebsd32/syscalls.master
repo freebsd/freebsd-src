@@ -50,13 +50,13 @@
 2	MNOPROTO { int fork(void); }
 3	MNOPROTO { ssize_t read(int fd, void *buf, size_t nbyte); }
 4	MNOPROTO { ssize_t write(int fd, const void *buf, size_t nbyte); }
-5	NOPROTO	{ int open(char *path, int flags, int mode); }
+5	MNOPROTO { int open(char *path, int flags, int mode); }
 6	MNOPROTO { int close(int fd); }
 7	MSTD	{ int freebsd32_wait4(int pid, int *status, int options, \
 		    struct rusage32 *rusage); }
 8	OBSOL	old creat
-9	NOPROTO	{ int link(char *path, char *link); }
-10	NOPROTO	{ int unlink(char *path); }
+9	MNOPROTO { int link(char *path, char *link); }
+10	MNOPROTO { int unlink(char *path); }
 11	OBSOL	execv
 12	NOPROTO	{ int chdir(char *path); }
 13	NOPROTO	{ int fchdir(int fd); }
@@ -68,9 +68,9 @@
 		    long bufsize, int flags); }
 19	OBSOL	olseek
 20	MNOPROTO { pid_t getpid(void); }
-21	NOPROTO	{ int mount(char *type, char *path, int flags, \
+21	MNOPROTO { int mount(char *type, char *path, int flags, \
 		    caddr_t data); }
-22	NOPROTO	{ int unmount(char *path, int flags); }
+22	MNOPROTO { int unmount(char *path, int flags); }
 23	MNOPROTO { int setuid(uid_t uid); }
 24	MNOPROTO { uid_t getuid(void); }
 25	MNOPROTO { uid_t geteuid(void); }
@@ -531,7 +531,7 @@
 375	UNIMPL	nfsclnt
 376	NOPROTO	{ int eaccess(char *path, int flags); }
 377	UNIMPL	afs_syscall
-378	NOPROTO	{ int nmount(struct iovec *iovp, unsigned int iovcnt, \
+378	MNOPROTO { int nmount(struct iovec *iovp, unsigned int iovcnt, \
 		    int flags); }
 379	NOPROTO	{ int kse_exit(void); }
 380	NOPROTO	{ int kse_wakeup(struct kse_mailbox *mbx); }
@@ -546,7 +546,7 @@
 389	UNIMPL	__mac_set_file
 390	NOPROTO	{ int kenv(int what, const char *name, char *value, int len); }
 391	NOPROTO	{ int lchflags(const char *path, int flags); }
-392	NOPROTO	{ int uuidgen(struct uuid *store, int count); }
+392	MNOPROTO { int uuidgen(struct uuid *store, int count); }
 393	MSTD	{ int freebsd32_sendfile(int fd, int s, u_int32_t offsetlo, \
 		    u_int32_t offsethi, size_t nbytes, struct sf_hdtr *hdtr, \
 		    off_t *sbytes, int flags); }
@@ -575,7 +575,7 @@
 413	UNIMPL	extattr_get_link
 414	UNIMPL	extattr_delete_link
 415	UNIMPL	__mac_execve
-416	STD { int freebsd32_sigaction(int sig, struct sigaction32 *act, \
+416	MSTD { int freebsd32_sigaction(int sig, struct sigaction32 *act, \
 		    struct sigaction32 *oact); }
 417	MSTD { int freebsd32_sigreturn( \
 		    const struct freebsd32_ucontext *sigcntxp); }
@@ -619,3 +619,4 @@
 451	UNIMPL	getaudit_addr
 452	UNIMPL	setaudit_addr
 453	UNIMPL	auditctl
+454	UNIMPL	_umtx_op
