@@ -23,6 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
