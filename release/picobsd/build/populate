@@ -1,7 +1,9 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.4 1998/09/07 19:00:15 abial Exp $
+#	$Id: populate,v 1.5 1998/09/19 21:44:42 abial Exp $
 #
+
+. ../Version
 
 pwd=`pwd`
 
@@ -20,13 +22,19 @@ then
 fi
 if [ "${TYPE}" = "router" ]
 then
-	cp ../lang/mfs.rc.${LANGUAGE} /mnt/etc/oinit.rc
+	cat ../lang/mfs.rc.${LANGUAGE}| \
+		sed -e "s/@VER@/${VER}/g" > \
+		/mnt/etc/oinit.rc
 else
-	cp ../lang/mfs.rc.${LANGUAGE} /mnt/etc/rc
+	cat ../lang/mfs.rc.${LANGUAGE} | \
+		sed -e "s/@VER@/${VER}/g" > \
+		/mnt/etc/rc
 	cp login.conf /mnt/etc/login.conf
 	cp ../lang/reboot.${LANGUAGE} /mnt/stand/reboot
 	ln -f /mnt/stand/reboot /mnt/stand/shutdown
-	cp ../lang/README.${LANGUAGE} /mnt/README
+	cat ../lang/README.${LANGUAGE} | \
+		sed -e "s/@VER@/${VER}/g" > \
+		/mnt/README
 fi
 cp ../lang/update.${LANGUAGE} /mnt/stand/update
 if [ "${TYPE}" = "dial" ]

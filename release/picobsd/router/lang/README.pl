@@ -1,6 +1,6 @@
 1998.07.12, Warszawa
 
-			PicoBSD 0.4 (wersja ROUTER)
+			PicoBSD @VER@ (wersja ROUTER)
 			-------------------------
 
 Co to jest PicoBSD?

@@ -1,5 +1,5 @@
 #
-# $Id: PICOBSD,v 1.2 1998/09/02 14:15:54 abial Exp $
+# $Id: PICOBSD,v 1.3 1998/09/19 21:44:57 abial Exp $
 #
 
 machine		"i386"
@@ -14,7 +14,7 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
-options		BOOTP
+#options		BOOTP
 options		MFS
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
