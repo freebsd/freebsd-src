@@ -1,8 +1,8 @@
 /* cmds.c */
 
 /*  $RCSfile: cmds.c,v $
- *  $Revision: 14020.14 $
- *  $Date: 93/07/09 11:31:53 $
+ *  $Revision: 1.1.1.1 $
+ *  $Date: 1994/09/22 23:45:33 $
  */
 
 #include "sys.h"
@@ -37,7 +37,7 @@
 
 /* cmds.c globals */
 #ifdef PASSIVEMODE
-int					passivemode = 1;
+int					passivemode;			/* no reverse FTP connections */
 #endif
 int					curtype;			/* file transfer type */
 char				*typeabbrs = "abiet";
@@ -594,6 +594,7 @@ int mget(int argc, char **argv)
 	char *cp;
 	longstring local;
 	Sig_t oldintr;
+	int errs;
 
 	if (argc < 2)
 		argv = re_makeargv("(remote-files) ", &argc);
@@ -604,7 +605,7 @@ int mget(int argc, char **argv)
 	activemcmd = 1;
 	oldintr = Signal(SIGINT, mabort);
 	(void) setjmp(jabort);
-	while ((cp = remglob(argv)) != NULL) {
+	while ((cp = remglob(argv, &errs)) != NULL) {
 		if (*cp == '\0') {
 			activemcmd = 0;
 			continue;
@@ -621,19 +622,22 @@ int mget(int argc, char **argv)
 	}
 	(void) Signal(SIGINT,oldintr);
 	activemcmd = 0;
+	if (!errs)
 	return NOERR;
+	else
+		return CMDERR;
 }	/* mget */
 
 
 
 
-char *remglob(char *argv[])
+char *remglob(char *argv[], int *errs)
 {
 	static FILE			*ftemp = NULL;
 	int					oldverbose, i;
 	char				*cp, *mode;
 	static string		tmpname, str;
-	int					result, errs;
+	int					result;
 
 	if (!activemcmd) {
 xx:
@@ -647,7 +651,7 @@ xx:
 	if (ftemp == NULL) {
 		(void) tmp_name(tmpname);
 		oldverbose = verbose, verbose = V_QUIET;
-		errs = 0;
+		*errs = 0;
 		for (mode = "w", i=1; argv[i] != NULL; i++, mode = "a") {
 			result = recvrequest ("NLST", tmpname, argv[i], mode);
 			if (i == 1)
@@ -658,11 +662,11 @@ xx:
 					(strpbrk(argv[i], globchars) != NULL) ? "No match" :
 						"No such file"
 				);
-				errs++;
+				++(*errs);
 			}
 		}
               verbose = oldverbose;
-		if (errs == (i - 1)) {
+		if (*errs == (i - 1)) {
 			/* Every pattern was in error, so we can't try anything. */
 			(void) unlink(tmpname);		/* Shouldn't be there anyway. */
 			return NULL;
@@ -876,6 +880,7 @@ int mdelete(int argc, char **argv)
 	char *cp;
 	Sig_t oldintr;
 	string str;
+	int errs;
 
 	if (argc < 2)
 		argv = re_makeargv("(remote-files) ", &argc);
@@ -886,7 +891,7 @@ int mdelete(int argc, char **argv)
 	activemcmd = 1;
 	oldintr = Signal(SIGINT, mabort);
 	(void) setjmp(jabort);
-	while ((cp = remglob(argv)) != NULL) {
+	while ((cp = remglob(argv, &errs)) != NULL) {
 		if (*cp == '\0') {
 			activemcmd = 0;
 			continue;
@@ -903,6 +908,8 @@ int mdelete(int argc, char **argv)
 	}
 	(void) Signal(SIGINT, oldintr);
 	activemcmd = 0;
+	if (errs > 0)
+		return CMDERR;
 	return NOERR;
 }	/* mdelete */
 
@@ -1282,9 +1289,12 @@ int rmthelp(int argc, char **argv)
 /*ARGSUSED*/
 int quit(int argc, char **argv)
 {
-	close_up_shop();
+	int rc;
+
+	/* slightly kludge.  argc == -1 means failure from some other caller */
+	rc = close_up_shop() || argc == -1;
 	trim_log();
-	exit(0);
+	exit(rc);
 }	/* quit */
 
 
@@ -1331,19 +1341,22 @@ int disconnect(int argc, char **argv)
 
 
 
-void
+int
 close_up_shop(void)
 {
 	static int only_once = 0;
+	int rcode = 0;
+
 	if (only_once++ > 0)
-		return;
+		return (0);
 	if (connected)
 		(void) disconnect(0, NULL);
-	WriteRecentSitesFile();
+	rcode = WriteRecentSitesFile();
 	if (logf != NULL) {
 		(void) fclose(logf);
 		logf = NULL;
 	}
+	return rcode;
 }	/* close_up_shop */
 
 

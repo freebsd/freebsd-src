@@ -399,6 +399,7 @@ void CheckRemoteSystemType(int force_binary)
 void ColonMode(OpenOptions *openopt)
 {
 	int tmpverbose;
+	int cmdstatus;
 
 	/* How do we tell if colonmodepath is a file or a directory?
 	 * We first try cd'ing to the path first.  If we can, then it
@@ -437,15 +438,15 @@ void ColonMode(OpenOptions *openopt)
 		
 		/* get() also handles 'more'. */
 		if (openopt->ftpcat)
-			(void) get(margc, margv);
+			cmdstatus = get(margc, margv);
 		else
-			(void) mget(margc, margv);
+			cmdstatus = mget(margc, margv);
 
 		/* If we were invoked from the command line, quit
 		 * after we got this file.
 		 */
 		if (eventnumber == 0L) {
-			(void) quit(0, NULL);
+			(void) quit(cmdstatus == CMDERR ? -1 : 0, NULL);
 		}
 	}
 	verbose = tmpverbose;

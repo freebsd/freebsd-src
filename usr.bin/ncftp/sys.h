@@ -398,12 +398,10 @@ extern int errno;
 #	endif
 #endif	/* BSDi */
 
-#ifdef __386BSD__
-#       ifdef __FreeBSD__
+#ifdef __FreeBSD__
 #               define System "FreeBSD"
 #               define GZCAT "/usr/bin/gzcat"
 #		define HAS_DOMAINNAME 1
-#       endif
 #       include <sys/types.h>
 #       include <sys/param.h>   /* this two for BSD definition */
 				/* to avoid redefinition of it to 1 */
@@ -415,7 +413,7 @@ extern int errno;
 #endif
 
 #ifdef BSD
-#	ifndef __386BSD__
+#	ifndef __FreeBSD__
 #		ifndef SYSDIRH
 #			define SYSDIRH 1
 #		endif

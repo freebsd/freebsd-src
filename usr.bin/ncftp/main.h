@@ -22,7 +22,7 @@ int init_arrays(void);
 void init_transfer_buffer(void);
 void init_prompt(void);
 void lostpeer SIG_PARAMS;
-void cmdscanner(int top);
+int cmdscanner(int top);
 char *strprompt(void);
 void makeargv(void);
 char *slurpstring(void);
