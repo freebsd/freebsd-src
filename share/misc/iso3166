@@ -1,4 +1,4 @@
-#	$Id: iso3166,v 1.3 1997/02/22 13:56:07 peter Exp $
+#	$Id: iso3166,v 1.4 1997/10/28 15:45:09 wollman Exp $
 #
 # ISO 3166 country codes
 # Ths includes many places that are not legally independent countries,
@@ -12,7 +12,9 @@
 # names were capitalized, and most parenthetical designations have
 # been deleted unless necessary to distinguish two counties.
 #
-# Latest change: Thu Aug  7 17:59:51 MET DST 1997
+# In 1998, a new code was reserved for Palestine.  Unfortunately,
+# no reference that we can find gives its three-digit numeric
+# identifier; it is shown as 999 below.
 #
 # two	three	number	name
 AF	AFG	004	Afghanistan
@@ -179,6 +181,7 @@ NO	NOR	578	Norway
 OM	OMN	512	Oman
 PK	PAK	586	Pakistan
 PW	PLW	585	Palau
+PS	PSE	999	Palestine
 PA	PAN	591	Panama
 PG	PNG	598	Papua-New Guinea
 PY	PRY	600	Paraguay
