@@ -652,7 +652,7 @@ mincore(p, uap, retval)
 		/*
 		 * ignore submaps (for now) or null objects
 		 */
-		if (current->is_a_map || current->is_sub_map ||
+		if ((current->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) ||
 			current->object.vm_object == NULL)
 			continue;
 		

@@ -1365,7 +1365,7 @@ _vm_object_in_map(map, object, entry)
 			}
 			tmpe = tmpe->next;
 		}
-	} else if (entry->is_sub_map || entry->is_a_map) {
+	} else if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
 		tmpm = entry->object.share_map;
 		tmpe = tmpm->header.next;
 		entcount = tmpm->nentries;

@@ -104,18 +104,28 @@ struct vm_map_entry {
 	vm_offset_t end;		/* end address */
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
+	u_char eflags;			/* map entry flags */
+#if 0
 	u_char is_a_map:1,		/* Is "object" a map? */
 	 is_sub_map:1,			/* Is "object" a submap? */
 	 copy_on_write:1,		/* is data copy-on-write */
 	 needs_copy:1,			/* does object need to be copied */
 	 nofault:1,			/* should never fault */
 	 user_wired:1;			/* wired by user */
+#endif
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 };
+
+#define MAP_ENTRY_IS_A_MAP		0x1
+#define MAP_ENTRY_IS_SUB_MAP		0x2
+#define MAP_ENTRY_COW			0x4
+#define MAP_ENTRY_NEEDS_COPY		0x8
+#define MAP_ENTRY_NOFAULT		0x10
+#define MAP_ENTRY_USER_WIRED		0x20
 
 /*
  *	Maps are doubly-linked lists of map entries, kept sorted
