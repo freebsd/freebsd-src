@@ -447,8 +447,9 @@ mpp		218/tcp	   #Netix Message Posting Protocol
 mpp		218/udp	   #Netix Message Posting Protocol
 uarps		219/tcp	   #Unisys ARPs
 uarps		219/udp	   #Unisys ARPs
-imap3		220/tcp	   #Interactive Mail Access Protocol v3
-imap3		220/udp	   #Interactive Mail Access Protocol v3
+#imap3@220 was never used and never should have been allocated. See PR 46294.
+#imap3		220/tcp	   #Interactive Mail Access Protocol v3
+#imap3		220/udp	   #Interactive Mail Access Protocol v3
 fln-spx		221/tcp	   #Berkeley rlogind with SPX auth
 fln-spx		221/udp	   #Berkeley rlogind with SPX auth
 rsh-spx		222/tcp	   #Berkeley rshd with SPX auth
@@ -1039,8 +1040,9 @@ philips-vc	583/tcp	   #Philips Video-Conferencing
 philips-vc	583/udp	   #Philips Video-Conferencing
 keyserver	584/tcp
 keyserver	584/udp
-imap4-ssl	585/tcp	   #IMAP4+SSL (use of 585 is not recommended,
-imap4-ssl	585/udp	   #		use 993 instead)
+#imap4-ssl@585 never should have been allocated. See PR 46294.
+#imap4-ssl	585/tcp	   #IMAP4+SSL (use of 585 is not recommended,
+#imap4-ssl	585/udp	   #		use 993 instead)
 password-chg	586/tcp
 password-chg	586/udp
 submission	587/tcp
