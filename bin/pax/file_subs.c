@@ -716,8 +716,8 @@ set_ftime(fnm, mtime, atime, frc)
 	static struct timeval tv[2] = {{0L, 0L}, {0L, 0L}};
 	struct stat sb;
 
-	tv[0].tv_sec = (long)atime;
-	tv[1].tv_sec = (long)mtime;
+	tv[0].tv_sec = atime;
+	tv[1].tv_sec = mtime;
 	if (!frc && (!patime || !pmtime)) {
 		/*
 		 * if we are not forcing, only set those times the user wants
@@ -725,9 +725,9 @@ set_ftime(fnm, mtime, atime, frc)
 		 */
 		if (lstat(fnm, &sb) == 0) {
 			if (!patime)
-				tv[0].tv_sec = (long)sb.st_atime;
+				tv[0].tv_sec = sb.st_atime;
 			if (!pmtime)
-				tv[1].tv_sec = (long)sb.st_mtime;
+				tv[1].tv_sec = sb.st_mtime;
 		} else
 			syswarn(0,errno,"Unable to obtain file stats %s", fnm);
 	}
