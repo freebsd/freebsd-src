@@ -695,6 +695,13 @@ bwrite(struct buf * bp)
 
 	bp->b_vp->v_numoutput++;
 	vfs_busy_pages(bp, 1);
+
+	/*
+	 * Normal bwrites pipeline writes
+	 */
+	bp->b_runningbufspace = bp->b_bufsize;
+	runningbufspace += bp->b_runningbufspace;
+
 	if (curproc != PCPU_GET(idleproc))
 		curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
@@ -2935,9 +2942,6 @@ void
 vfs_busy_pages(struct buf * bp, int clear_modify)
 {
 	int i, bogus;
-
-	bp->b_runningbufspace = bp->b_bufsize;
-	runningbufspace += bp->b_runningbufspace;
 
 	if (bp->b_flags & B_VMIO) {
 		struct vnode *vp = bp->b_vp;

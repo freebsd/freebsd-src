@@ -2869,6 +2869,9 @@ again:
 			 * NOTE: we are not clearing B_DONE here, so we have
 			 * to do it later on in this routine if we intend to 
 			 * initiate I/O on the bp.
+			 *
+			 * Note: to avoid loopback deadlocks, we do not
+			 * assign b_runningbufspace.
 			 */
 			if (wcred == NULL)
 				wcred = bp->b_wcred;
@@ -3142,7 +3145,12 @@ nfs_writebp(bp, force, procp)
 	curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 
+	/*
+	 * Note: to avoid loopback deadlocks, we do not
+	 * assign b_runningbufspace.
+	 */
 	vfs_busy_pages(bp, 1);
+
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
