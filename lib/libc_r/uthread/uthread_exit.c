@@ -49,7 +49,7 @@ void _exit(int status)
 	itimer.it_interval.tv_usec = 0;
 	itimer.it_value.tv_sec     = 0;
 	itimer.it_value.tv_usec    = 0;
-	setitimer(ITIMER_VIRTUAL, &itimer, NULL);
+	setitimer(_ITIMER_SCHED_TIMER, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
 	_thread_sys_close(_thread_kern_pipe[0]);
@@ -127,11 +127,24 @@ pthread_exit(void *status)
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
+
+	/*
+	 * Guard against preemption by a scheduling signal.  A change of
+	 * thread state modifies the waiting and priority queues.
+	 */
+	_thread_kern_sched_defer();
+
 	/* Check if there are any threads joined to this one: */
 	while ((pthread = _thread_queue_deq(&(_thread_run->join_queue))) != NULL) {
 		/* Wake the joined thread and let it detach this thread: */
 		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
+
+	/*
+	 * Reenable preemption and yield if a scheduling signal
+	 * occurred while in the critical region.
+	 */
+	_thread_kern_sched_undefer();
 
 	/*
 	 * Lock the garbage collector mutex to ensure that the garbage
