@@ -55,6 +55,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
+#include <svr4/svr4.h>
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_util.h>
 #include <svr4/svr4_socket.h>

@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#include "opt_global.h"
+#include "opt_svr4.h"
+
 #if !defined(_SVR4_H)
 #define _SVR4_H
 

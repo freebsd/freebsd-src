@@ -79,6 +79,7 @@
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 
+#include <svr4/svr4.h>
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_resource.h>
 #include <svr4/svr4_signal.h>
