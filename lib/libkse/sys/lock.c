@@ -45,7 +45,6 @@
 void
 _lock_destroy(struct lock *lck)
 {
-
 	if ((lck != NULL) && (lck->l_head != NULL)) {
 		free(lck->l_head);
 		lck->l_head = NULL;
@@ -57,7 +56,6 @@ int
 _lock_init(struct lock *lck, enum lock_type ltype,
     lock_handler_t *waitfunc, lock_handler_t *wakeupfunc)
 {
-
 	if (lck == NULL)
 		return (-1);
 	else if ((lck->l_head = malloc(sizeof(struct lockreq))) == NULL)
@@ -76,9 +74,26 @@ _lock_init(struct lock *lck, enum lock_type ltype,
 }
 
 int
+_lock_reinit(struct lock *lck, enum lock_type ltype,
+    lock_handler_t *waitfunc, lock_handler_t *wakeupfunc)
+{
+	if (lck == NULL)
+		return (-1);
+	else if (lck->l_head == NULL)
+		return (_lock_init(lck, ltype, waitfunc, wakeupfunc));
+	else {
+		lck->l_head->lr_locked = 0;
+		lck->l_head->lr_watcher = NULL;
+		lck->l_head->lr_owner = NULL;
+		lck->l_head->lr_active = 1;
+		lck->l_tail = lck->l_head;
+	}
+	return (0);
+}
+
+int
 _lockuser_init(struct lockuser *lu, void *priv)
 {
-
 	if (lu == NULL)
 		return (-1);
 	else if ((lu->lu_myreq == NULL) &&
@@ -97,10 +112,36 @@ _lockuser_init(struct lockuser *lu, void *priv)
 	return (0);
 }
 
+int
+_lockuser_reinit(struct lockuser *lu, void *priv)
+{
+	if (lu == NULL)
+		return (-1);
+	/*
+	 * All lockusers keep their watch request and drop their
+	 * own (lu_myreq) request.  Their own request is either
+	 * some other lockuser's watch request or is the head of
+	 * the lock.
+	 */
+	lu->lu_myreq = lu->lu_watchreq;
+	if (lu->lu_myreq == NULL)
+		return (_lockuser_init(lu, priv));
+	else {
+		lu->lu_myreq->lr_locked = 1;
+		lu->lu_myreq->lr_watcher = NULL;
+		lu->lu_myreq->lr_owner = lu;
+		lu->lu_myreq->lr_active = 0;
+		lu->lu_watchreq = NULL;
+		lu->lu_priority = 0;
+		lu->lu_private = priv;
+		lu->lu_private2 = NULL;
+	}
+	return (0);
+}
+
 void
 _lockuser_destroy(struct lockuser *lu)
 {
-
 	if ((lu != NULL) && (lu->lu_myreq != NULL))
 		free(lu->lu_myreq);
 }
@@ -124,21 +165,19 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 	if (lck == NULL || lu == NULL || lck->l_head == NULL)
 		return;
 #endif
-	if ((lck->l_type & LCK_PRIORITY) == 0)
-		atomic_swap_ptr(&lck->l_head, lu->lu_myreq, &lu->lu_watchreq);
-	else {
+	if ((lck->l_type & LCK_PRIORITY) != 0) {
 		LCK_ASSERT(lu->lu_myreq->lr_locked == 1);
 		LCK_ASSERT(lu->lu_myreq->lr_watcher == NULL);
 		LCK_ASSERT(lu->lu_myreq->lr_owner == lu);
 		LCK_ASSERT(lu->lu_watchreq == NULL);
 
 		lu->lu_priority = prio;
-		/*
-		 * Atomically swap the head of the lock request with
-		 * this request.
-		 */
-		atomic_swap_ptr(&lck->l_head, lu->lu_myreq, &lu->lu_watchreq);
 	}
+	/*
+	 * Atomically swap the head of the lock request with
+	 * this request.
+	 */
+	atomic_swap_ptr(&lck->l_head, lu->lu_myreq, &lu->lu_watchreq);
 
 	if (lu->lu_watchreq->lr_locked != 0) {
 		atomic_store_rel_ptr(&lu->lu_watchreq->lr_watcher, lu);
