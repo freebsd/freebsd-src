@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <err.h>
 
 /*
  * lptest -- line printer test program (and other devices).
@@ -75,11 +76,13 @@ main(int argc, char **argv)
 			fc = ' ';
 		nc = fc;
 		for (j = 0; j < len; j++) {
-			putchar(nc);
+			if (putchar(nc) == EOF)
+				err(1, "Write error");
 			if (++nc == 0177)
 				nc = ' ';
 		}
-		putchar('\n');
+		if (putchar('\n') == EOF)
+			err(1, "Write error");
 	}
 	(void) fflush(stdout);
 	exit(0);
