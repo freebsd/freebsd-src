@@ -1303,13 +1303,9 @@ auth_pam(struct passwd **ppw, const char *pass)
 
 	if (rval == 0) {
 		e = pam_acct_mgmt(pamh, 0);
-		if (e == PAM_NEW_AUTHTOK_REQD) {
-			e = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
-			if (e != PAM_SUCCESS) {
-				syslog(LOG_ERR, "pam_chauthtok: %s", pam_strerror(pamh, e));
-				rval = 1;
-			}
-		} else if (e != PAM_SUCCESS) {
+		if (e != PAM_SUCCESS) {
+			syslog(LOG_ERR, "pam_acct_mgmt: %s",
+						pam_strerror(pamh, e));
 			rval = 1;
 		}
 	}
