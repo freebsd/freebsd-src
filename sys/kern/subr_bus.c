@@ -855,6 +855,18 @@ device_get_softc(device_t dev)
     return dev->softc;
 }
 
+void
+device_set_softc(device_t dev, void *softc)
+{
+    if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
+	free(dev->softc, M_BUS);
+    dev->softc = softc;
+    if (dev->softc)
+        dev->flags |= DF_EXTERNALSOFTC;
+    else
+        dev->flags &= ~DF_EXTERNALSOFTC;
+}
+
 void *
 device_get_ivars(device_t dev)
 {
@@ -976,7 +988,7 @@ device_set_driver(device_t dev, driver_t *driver)
     if (dev->driver == driver)
 	return 0;
 
-    if (dev->softc) {
+    if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
 	free(dev->softc, M_BUS);
 	dev->softc = NULL;
     }
@@ -984,13 +996,15 @@ device_set_driver(device_t dev, driver_t *driver)
     dev->driver = driver;
     if (driver) {
 	kobj_init((kobj_t) dev, (kobj_class_t) driver);
-	dev->softc = malloc(driver->size, M_BUS, M_NOWAIT);
-	if (!dev->softc) {
-	    kobj_init((kobj_t) dev, &null_class);
-	    dev->driver = NULL;
-	    return ENOMEM;
+	if (!(dev->flags & DF_EXTERNALSOFTC)) {
+	    dev->softc = malloc(driver->size, M_BUS, M_NOWAIT);
+	    if (!dev->softc) {
+	        kobj_init((kobj_t) dev, &null_class);
+	        dev->driver = NULL;
+	        return ENOMEM;
+	    }
+	    bzero(dev->softc, driver->size);
 	}
-	bzero(dev->softc, driver->size);
     } else
 	kobj_init((kobj_t) dev, &null_class);
     return 0;
