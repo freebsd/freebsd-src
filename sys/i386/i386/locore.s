@@ -445,10 +445,10 @@ _osigcode:
 _esigcode:
 
 	.data
-	.globl	_szsigcode, _oszsigcode
+	.globl	_szsigcode, _szosigcode
 _szsigcode:
 	.long	_esigcode-_sigcode
-_oszsigcode:
+_szosigcode:
 	.long	_esigcode-_osigcode
 	.text
 
