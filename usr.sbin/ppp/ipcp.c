@@ -370,7 +370,7 @@ ipcp_WriteDNS(struct ipcp *ipcp)
   mask = umask(022);
   if ((fp = ID0fopen(_PATH_RESCONF, "w")) != NULL) {
     umask(mask);
-    if (ipcp->ns.resolv_nons);
+    if (ipcp->ns.resolv_nons)
       fputs(ipcp->ns.resolv_nons, fp);
     paddr = inet_ntoa(ipcp->ns.dns[0]);
     log_Printf(LogIPCP, "Primary nameserver set to %s\n", paddr);
