@@ -206,6 +206,7 @@ struct pmap {
 	LIST_ENTRY(pmap) 	pm_list;	/* List of all pmaps */
 };
 
+#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
 #define pmap_resident_count(pmap) (pmap)->pm_stats.resident_count
 
 typedef struct pmap	*pmap_t;
