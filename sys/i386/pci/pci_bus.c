@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcib_private.h>
 #include <isa/isavar.h>
+#ifdef CPU_ELAN
+#include <machine/md_var.h>
+#endif
 #include <machine/legacyvar.h>
 #include <machine/pci_cfgreg.h>
 
