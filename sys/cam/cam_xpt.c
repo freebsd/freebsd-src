@@ -2764,6 +2764,7 @@ xpt_action(union ccb *start_ccb)
 		start_ccb->csio.sense_resid = 0;
 		start_ccb->csio.resid = 0;
 		/* FALLTHROUGH */
+	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	{
 		struct cam_path *path;
@@ -2874,7 +2875,6 @@ xpt_action(union ccb *start_ccb)
 		 */
 		/* FALLTHROUGH */
 	}
-	case XPT_RESET_DEV:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_EN_LUN:
 	case XPT_IMMED_NOTIFY:
