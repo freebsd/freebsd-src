@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id: c89.sh,v 1.1.1.1 1997/09/17 20:44:53 joerg Exp $
+#	$Id: c89.sh,v 1.2 1997/09/18 20:55:50 joerg Exp $
 #
 # This is the Posix.2 mandated C compiler.  Basically, a hook to the
 # cc(1) command.
@@ -35,6 +35,8 @@ usage()
        [-L directory ...] [-o outfile] [-O] [-s] [-U name ...] operand ..." 1>&2
 	exit 64
 }
+
+_PARAMS="$@"
 
 while getopts "cD:EgI:L:o:OsU:" opt
 do
@@ -47,11 +49,25 @@ do
 	esac
 done
 
-if [ $(($OPTIND - 1)) = $# ]
+shift $(($OPTIND - 1))
+
+if [ $# = "0" ]
 then
 	echo "Missing operand" 1>&2
 	usage
 fi
 
-exec cc -ansi -pedantic -trigraphs "$@"
+while [ $# != "0" ]
+do
+	case $1 in
+	-l* | *.a | *.c | *.o)
+		shift
+		;;
+	*)
+		echo "Invalid operand" 1>&2
+		usage
+		;;
+	esac
+done
 
+exec cc -ansi -pedantic -D_ANSI_SOURCE $_PARAMS
