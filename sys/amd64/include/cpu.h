@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- *	$Id: cpu.h,v 1.20 1995/05/04 07:50:06 davidg Exp $
+ *	$Id: cpu.h,v 1.21 1995/07/16 10:33:28 phk Exp $
  */
 
 #ifndef _MACHINE_CPU_H_
@@ -54,8 +54,8 @@
 
 #define	cpu_exec(p)	/* nothing */
 #define cpu_swapin(p)	/* nothing */
-#define cpu_setstack(p, ap)		(p)->p_md.md_regs[SP] = ap
-#define cpu_set_init_frame(p, fp)	(p)->p_md.md_regs = fp
+#define cpu_setstack(p, ap)		((p)->p_md.md_regs[SP] = (ap))
+#define cpu_set_init_frame(p, fp)	((p)->p_md.md_regs = (fp))
 
 #define	CLKF_USERMODE(framep)	(ISPL((framep)->cf_cs) == SEL_UPL)
 #define CLKF_INTR(framep)	(intr_nesting_level >= 2)
@@ -112,10 +112,10 @@ struct cpu_nameclass {
  * CTL_MACHDEP definitions.
  */
 #define CPU_CONSDEV		1	/* dev_t: console terminal device */
-#define	CPU_ADJKERNTZ		2	/* int:	timezone offset	for resettodr()	*/
-#define	CPU_DISRTCSET		3	/* int:	disable	resettodr() call */
-#define CPU_BOOTINFO            4       /* struct: bootinfo */
-#define CPU_MAXID               5       /* number of valid machdep ids */
+#define	CPU_ADJKERNTZ		2	/* int: timezone offset for resettodr() */
+#define	CPU_DISRTCSET		3	/* int: disable resettodr() call */
+#define CPU_BOOTINFO		4	/* struct: bootinfo */
+#define CPU_MAXID		5	/* number of valid machdep ids */
 
 #define CTL_MACHDEP_NAMES { \
 	{ 0, 0 }, \
