@@ -124,17 +124,6 @@ time_t mktime(struct tm *);
 size_t strftime(char *, size_t, const char *, const struct tm *);
 time_t time(time_t *);
 
-#if __BSD_VISIBLE			/* XXX what are these? */
-time_t _time32_to_time(__int32_t t32);
-__int32_t _time_to_time32(time_t t);
-time_t _time64_to_time(__int64_t t64);
-__int64_t _time_to_time64(time_t t);
-long _time_to_long(time_t t);
-time_t _long_to_time(long tlong);
-int _time_to_int(time_t t);
-time_t _int_to_time(int tint);
-#endif /* not ANSI */
-
 #if __POSIX_VISIBLE
 void tzset(void);
 
