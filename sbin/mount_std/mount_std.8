@@ -42,7 +42,6 @@
 .Sh NAME
 .Nm mount_std ,
 .Nm mount_fdesc ,
-.Nm mount_kernfs ,
 .Nm mount_linprocfs ,
 .Nm mount_procfs
 .Nd mount
@@ -61,7 +60,6 @@ the filesystem.  The
 .Nm
 command currently supports the following filesystems:
 .Nm fdesc ,
-.Nm kernfs ,
 .Nm linprocfs
 and
 .Nm procfs .
@@ -121,7 +119,6 @@ command.
 Refer to the following manual pages for detailed information
 on these file system:
 .Xr fdesc 5 ,
-.Xr kernfs 5 ,
 .Xr linprocfs 5
 and
 .Xr procfs 5 .
@@ -145,7 +142,6 @@ loadable module for it was found.
 .Xr getvfsbyname 3 ,
 .Xr fdesc 5 ,
 .Xr fstab 5 ,
-.Xr kernfs 5 ,
 .Xr linprocfs 5 ,
 .Xr procfs 5 ,
 .Xr mount 8
@@ -159,8 +155,7 @@ utility first appeared in
 Loadable filesystem modules first appeared in
 .Fx 2.0 .
 The
-.Dq fdesc ,
-.Dq kernfs ,
+.Dq fdesc
 and
 .Dq procfs
 filesystem types first appeared in

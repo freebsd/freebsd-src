@@ -687,8 +687,6 @@ miscfs/deadfs/dead_vnops.c	standard
 miscfs/fdesc/fdesc_vfsops.c	optional fdesc
 miscfs/fdesc/fdesc_vnops.c	optional fdesc
 miscfs/fifofs/fifo_vnops.c	standard
-miscfs/kernfs/kernfs_vfsops.c	optional kernfs
-miscfs/kernfs/kernfs_vnops.c	optional kernfs
 miscfs/nullfs/null_subr.c	optional nullfs
 miscfs/nullfs/null_vfsops.c	optional nullfs
 miscfs/nullfs/null_vnops.c	optional nullfs

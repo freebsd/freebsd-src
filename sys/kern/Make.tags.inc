@@ -34,7 +34,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/miscfs/deadfs/*.[ch] \
 	${SYS}/miscfs/fdesc/*.[ch] \
 	${SYS}/miscfs/fifofs/*.[ch] \
-	${SYS}/miscfs/kernfs/*.[ch] \
 	${SYS}/miscfs/nullfs/*.[ch] \
 	${SYS}/miscfs/portal/*.[ch] \
 	${SYS}/miscfs/procfs/*.[ch] \
@@ -98,7 +97,6 @@ COMMDIR2= ${SYS}/contrib/softupdates \
 	${SYS}/miscfs/deadfs \
 	${SYS}/miscfs/fdesc \
 	${SYS}/miscfs/fifofs \
-	${SYS}/miscfs/kernfs \
 	${SYS}/miscfs/nullfs \
 	${SYS}/miscfs/portal \
 	${SYS}/miscfs/procfs \

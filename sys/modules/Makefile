@@ -39,7 +39,6 @@ SUBDIR=	accf_data \
 	ipfw \
 	ispfw \
 	joy \
-	kernfs \
 	kue \
 	lge \
 	libiconv \

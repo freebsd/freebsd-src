@@ -87,7 +87,6 @@
 /usr/src/sbin/mount/mount.8
 /usr/src/sbin/mount_cd9660/mount_cd9660.8
 /usr/src/sbin/mount_fdesc/mount_fdesc.8
-/usr/src/sbin/mount_kernfs/mount_kernfs.8
 /usr/src/sbin/mount_lfs/mount_lfs.8
 /usr/src/sbin/i386/mount_msdos/mount_msdos.8
 /usr/src/sbin/mount_nfs/mount_nfs.8
