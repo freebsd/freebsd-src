@@ -13,7 +13,7 @@
 ## ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 ## SOFTWARE.
 
-# $Id: Makefile,v 8.20 1997/06/19 03:22:09 halley Exp $
+# $Id: Makefile,v 8.21 1998/04/14 00:39:03 halley Exp $
 
 DESTDIR=
 CC= cc
@@ -70,7 +70,7 @@ depend: ${SRCS}
 ${DESTDIR}${DESTEXEC}:
 	mkdir -p ${DESTDIR}${DESTEXEC}
 
-install: ${DESTDIR}${DESTSBIN} ${PROG}
+install: ${DESTDIR}${DESTEXEC} ${PROG}
 	${INSTALL} ${STRIP} -c -m 755 ${PROG} ${DESTDIR}${DESTEXEC}/${PROG}
 
 links: FRC

@@ -23,6 +23,7 @@ options {
   [ deallocate-on-exit <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ fake-iquery <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ fetch-glue <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
+  [ host-statistics <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ multiple-cnames <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ notify <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
   [ recursion <VAR><A HREF="docdef.html">yes_or_no</A></VAR>; ]
@@ -135,6 +136,12 @@ records it doesn't have when constructing the additional data section of
 a response.  <CODE>fetch-glue no</CODE> can be used in conjunction with
 <CODE>recursion no</CODE> to prevent the server's cache from growing or
 becoming corrupted (at the cost of requiring more work from the client).
+
+<DT><CODE>host-statistics</CODE>
+<DD>
+If <CODE>yes</CODE>, then statistics are kept for every host that the
+the nameserver interacts with.  The default is <CODE>no</CODE>.  <I>Note:</I>
+turning on <CODE>host-statistics</CODE> can consume huge amounts of memory.
 
 <DT><CODE>multiple-cnames</CODE>
 <DD>
@@ -456,7 +463,7 @@ of all.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.9 1998/03/21 01:02:59 halley Exp $
+Last Updated: $Id: options.html,v 1.10 1998/05/05 19:50:28 halley Exp $
 </ADDRESS>
 </BODY>
 </HTML>
