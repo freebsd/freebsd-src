@@ -379,6 +379,9 @@
 	  </itemizedlist>
 	</para>
 
+      <para><application>OpenSSL</application> has been updated to
+	0.9.6e.</para>
+
       <para><application>sendmail</application> has been updated 
 	from version 8.12.3 to version 8.12.5.</para>
 
