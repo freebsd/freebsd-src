@@ -71,24 +71,6 @@ static struct isa_pnp_id pcic_ids[] = {
 int	pcic_isa_probe(device_t dev);
 int	pcic_isa_attach(device_t dev);
 
-static struct pccard_chip_functions pcic_isa_functions = {
-	pcic_chip_mem_alloc,
-	pcic_chip_mem_free,
-	pcic_chip_mem_map,
-	pcic_chip_mem_unmap,
-
-	pcic_chip_io_alloc,
-	pcic_chip_io_free,
-	pcic_chip_io_map,
-	pcic_chip_io_unmap,
-
-	pcic_isa_chip_intr_establish,
-	pcic_isa_chip_intr_disestablish,
-
-	pcic_chip_socket_enable,
-	pcic_chip_socket_disable,
-};
-
 int
 pcic_isa_probe(device_t dev)
 {

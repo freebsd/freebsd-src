@@ -56,10 +56,6 @@
 #include <dev/pcic/i82365reg.h>
 #include <dev/pcic/i82365var.h>
 
-#ifdef __FreeBSD__
-#define delay(x) DELAY(x)
-#endif
-
 #ifdef PCICDEBUG
 int	pcic_debug = 0;
 #define	DPRINTF(arg) if (pcic_debug) printf arg;
@@ -87,27 +83,26 @@ static void	pcic_attach_socket(device_t, struct pcic_handle *);
 static void	pcic_init_socket(struct pcic_handle *);
 
 #if XXX
-int	pcic_submatch __P((struct device *, struct cfdata *, void *));
-int	pcic_print  __P((void *arg, const char *pnp));
+int	pcic_submatch (struct device *, struct cfdata *, void *);
 #endif
-int	pcic_intr_socket __P((struct pcic_handle *));
+int	pcic_intr_socket (struct pcic_handle *);
 
-void	pcic_attach_card __P((struct pcic_handle *));
-void	pcic_detach_card __P((struct pcic_handle *, int));
-void	pcic_deactivate_card __P((struct pcic_handle *));
+void	pcic_attach_card (struct pcic_handle *);
+void	pcic_detach_card (struct pcic_handle *, int);
+void	pcic_deactivate_card (struct pcic_handle *);
 
-void	pcic_chip_do_mem_map __P((struct pcic_handle *, int));
-void	pcic_chip_do_io_map __P((struct pcic_handle *, int));
+void	pcic_chip_do_mem_map (struct pcic_handle *, int);
+void	pcic_chip_do_io_map (struct pcic_handle *, int);
 
-void	pcic_create_event_thread __P((void *));
-void	pcic_event_thread __P((void *));
+void	pcic_create_event_thread (void *);
+void	pcic_event_thread (void *);
 
-void	pcic_queue_event __P((struct pcic_handle *, int));
+void	pcic_queue_event (struct pcic_handle *, int);
 
-static void	pcic_wait_ready __P((struct pcic_handle *));
+static void	pcic_wait_ready (struct pcic_handle *);
 
-static u_int8_t st_pcic_read __P((struct pcic_handle *, int));
-static void st_pcic_write __P((struct pcic_handle *, int, u_int8_t));
+static u_int8_t st_pcic_read (struct pcic_handle *, int);
+static void st_pcic_write (struct pcic_handle *, int, u_int8_t);
 
 int
 pcic_ident_ok(ident)
@@ -373,6 +368,7 @@ pcic_attach_socket(device_t dev, struct pcic_handle *h)
 	 * XXX be BAD.
 	 */
 	device_add_child(dev, NULL, -1);
+	device_set_ivars(dev, h);
 
 	/* if there's actually a pccard device attached, initialize the slot */
 	/* XXX WE SHOULD MOVE THIS TO CHILD ATTACHED */
@@ -613,40 +609,6 @@ pcic_submatch(parent, cf, aux)
 }
 #endif
 
-#if XXX
-int
-pcic_print(arg, pnp)
-	void *arg;
-	const char *pnp;
-{
-	struct pccardbus_attach_args *paa = arg;
-	struct pcic_handle *h = (struct pcic_handle *) paa->pch;
-
-	/* Only "pccard"s can attach to "pcic"s... easy. */
-	if (pnp)
-		printf("pccard at %s", pnp);
-
-	switch (h->sock) {
-	case C0SA:
-		printf(" controller 0 socket 0");
-		break;
-	case C0SB:
-		printf(" controller 0 socket 1");
-		break;
-	case C1SA:
-		printf(" controller 1 socket 0");
-		break;
-	case C1SB:
-		printf(" controller 1 socket 1");
-		break;
-	default:
-		panic("unknown pcic socket");
-	}
-
-	return (UNCONF);
-}
-#endif
-
 int
 pcic_intr(arg)
 	void *arg;
@@ -790,12 +752,9 @@ pcic_deactivate_card(h)
 }
 
 int 
-pcic_chip_mem_alloc(pch, size, pcmhp)
-	pccard_chipset_handle_t pch;
-	bus_size_t size;
-	struct pccard_mem_handle *pcmhp;
+pcic_chip_mem_alloc(struct pcic_handle *h, bus_size_t size, 
+    struct pccard_mem_handle *pcmhp)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	bus_space_handle_t memh;
 	bus_addr_t addr;
 	bus_size_t sizepg;
@@ -839,11 +798,8 @@ pcic_chip_mem_alloc(pch, size, pcmhp)
 }
 
 void 
-pcic_chip_mem_free(pch, pcmhp)
-	pccard_chipset_handle_t pch;
-	struct pccard_mem_handle *pcmhp;
+pcic_chip_mem_free(struct pcic_handle *h, struct pccard_mem_handle *pcmhp)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	struct pcic_softc *sc = (struct pcic_softc *)(h->ph_parent);
 
 	sc->subregionmask |= pcmhp->mhandle;
@@ -906,9 +862,7 @@ static struct mem_map_index_st {
 };
 
 void 
-pcic_chip_do_mem_map(h, win)
-	struct pcic_handle *h;
-	int win;
+pcic_chip_do_mem_map(struct pcic_handle *h, int win)
 {
 	int reg;
 
@@ -944,7 +898,7 @@ pcic_chip_do_mem_map(h, win)
 	reg |= (mem_map_index[win].memenable | PCIC_ADDRWIN_ENABLE_MEMCS16);
 	pcic_write(h, PCIC_ADDRWIN_ENABLE, reg);
 
-	delay(100);
+	DELAY(100);
 
 #ifdef PCICDEBUG
 	{
@@ -964,16 +918,10 @@ pcic_chip_do_mem_map(h, win)
 }
 
 int 
-pcic_chip_mem_map(pch, kind, card_addr, size, pcmhp, offsetp, windowp)
-	pccard_chipset_handle_t pch;
-	int kind;
-	bus_addr_t card_addr;
-	bus_size_t size;
-	struct pccard_mem_handle *pcmhp;
-	bus_addr_t *offsetp;
-	int *windowp;
+pcic_chip_mem_map(struct pcic_handle *h, int kind, bus_addr_t card_addr,
+    bus_size_t size, struct pccard_mem_handle *pcmhp, bus_addr_t *offsetp,
+    int *windowp)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	bus_addr_t busaddr;
 	long card_offset;
 	int i, win;
@@ -1034,11 +982,8 @@ pcic_chip_mem_map(pch, kind, card_addr, size, pcmhp, offsetp, windowp)
 }
 
 void 
-pcic_chip_mem_unmap(pch, window)
-	pccard_chipset_handle_t pch;
-	int window;
+pcic_chip_mem_unmap(struct pcic_handle *h, int window)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	int reg;
 
 	if (window >= (sizeof(mem_map_index) / sizeof(mem_map_index[0])))
@@ -1052,14 +997,9 @@ pcic_chip_mem_unmap(pch, window)
 }
 
 int 
-pcic_chip_io_alloc(pch, start, size, align, pcihp)
-	pccard_chipset_handle_t pch;
-	bus_addr_t start;
-	bus_size_t size;
-	bus_size_t align;
-	struct pccard_io_handle *pcihp;
+pcic_chip_io_alloc(struct pcic_handle *h, bus_addr_t start, bus_size_t size,
+    bus_size_t align, struct pccard_io_handle *pcihp)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 	bus_addr_t ioaddr;
@@ -1102,9 +1042,7 @@ pcic_chip_io_alloc(pch, start, size, align, pcihp)
 }
 
 void 
-pcic_chip_io_free(pch, pcihp)
-	pccard_chipset_handle_t pch;
-	struct pccard_io_handle *pcihp;
+pcic_chip_io_free(struct pcic_handle *h, struct pccard_io_handle *pcihp)
 {
 	bus_space_tag_t iot = pcihp->iot;
 	bus_space_handle_t ioh = pcihp->ioh;
@@ -1163,9 +1101,7 @@ static struct io_map_index_st {
 };
 
 void 
-pcic_chip_do_io_map(h, win)
-	struct pcic_handle *h;
-	int win;
+pcic_chip_do_io_map(struct pcic_handle *h, int win)
 {
 	int reg;
 
@@ -1193,15 +1129,9 @@ pcic_chip_do_io_map(h, win)
 }
 
 int 
-pcic_chip_io_map(pch, width, offset, size, pcihp, windowp)
-	pccard_chipset_handle_t pch;
-	int width;
-	bus_addr_t offset;
-	bus_size_t size;
-	struct pccard_io_handle *pcihp;
-	int *windowp;
+pcic_chip_io_map(struct pcic_handle *h, int width, bus_addr_t offset,
+    bus_size_t size, struct pccard_io_handle *pcihp, int *windowp)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	bus_addr_t ioaddr = pcihp->addr + offset;
 	int i, win;
 #ifdef PCICDEBUG
@@ -1249,11 +1179,8 @@ pcic_chip_io_map(pch, width, offset, size, pcihp, windowp)
 }
 
 void 
-pcic_chip_io_unmap(pch, window)
-	pccard_chipset_handle_t pch;
-	int window;
+pcic_chip_io_unmap(struct pcic_handle *h, int window)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	int reg;
 
 	if (window >= (sizeof(io_map_index) / sizeof(io_map_index[0])))
@@ -1267,15 +1194,14 @@ pcic_chip_io_unmap(pch, window)
 }
 
 static void
-pcic_wait_ready(h)
-	struct pcic_handle *h;
+pcic_wait_ready(struct pcic_handle *h)
 {
 	int i;
 
 	for (i = 0; i < 10000; i++) {
 		if (pcic_read(h, PCIC_IF_STATUS) & PCIC_IF_STATUS_READY)
 			return;
-		delay(500);
+		DELAY(500);
 #ifdef PCICDEBUG
 		if (pcic_debug) {
 			if ((i>5000) && (i%100 == 99))
@@ -1291,10 +1217,8 @@ pcic_wait_ready(h)
 }
 
 void
-pcic_chip_socket_enable(pch)
-	pccard_chipset_handle_t pch;
+pcic_chip_socket_enable(struct pcic_handle *h)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
 	int cardtype, reg, win;
 
 	/* this bit is mostly stolen from pcic_attach_card */
@@ -1307,7 +1231,7 @@ pcic_chip_socket_enable(pch)
 	 * wait 300ms until power fails (Tpf).  Then, wait 100ms since
 	 * we are changing Vcc (Toff).
 	 */
-	delay((300 + 100) * 1000);
+	DELAY((300 + 100) * 1000);
 
 #ifdef VADEM_POWER_HACK
 	bus_space_write_1(sc->iot, sc->ioh, PCIC_REG_INDEX, 0x0e);
@@ -1331,7 +1255,7 @@ pcic_chip_socket_enable(pch)
 	 * some machines require some more time to be settled
 	 * (300ms is added here).
 	 */
-	delay((100 + 20 + 300) * 1000);
+	DELAY((100 + 20 + 300) * 1000);
 
 	pcic_write(h, PCIC_PWRCTL, PCIC_PWRCTL_DISABLE_RESETDRV | PCIC_PWRCTL_OE
 			   | PCIC_PWRCTL_PWR_ENABLE);
@@ -1340,7 +1264,7 @@ pcic_chip_socket_enable(pch)
 	/*
 	 * hold RESET at least 10us.
 	 */
-	delay(10);
+	DELAY(10);
 
 	/* clear the reset flag */
 
@@ -1348,7 +1272,7 @@ pcic_chip_socket_enable(pch)
 
 	/* wait 20ms as per pc card standard (r2.01) section 4.3.6 */
 
-	delay(20000);
+	DELAY(20000);
 
 	/* wait for the chip to finish initializing */
 
@@ -1393,11 +1317,8 @@ pcic_chip_socket_enable(pch)
 }
 
 void
-pcic_chip_socket_disable(pch)
-	pccard_chipset_handle_t pch;
+pcic_chip_socket_disable(struct pcic_handle *h)
 {
-	struct pcic_handle *h = (struct pcic_handle *) pch;
-
 	DPRINTF(("pcic_chip_socket_disable\n"));
 
 	/* power down the socket */
@@ -1407,13 +1328,11 @@ pcic_chip_socket_disable(pch)
 	/*
 	 * wait 300ms until power fails (Tpf).
 	 */
-	delay(300 * 1000);
+	DELAY(300 * 1000);
 }
 
 static u_int8_t
-st_pcic_read(h, idx)
-     struct pcic_handle *h;
-     int idx;
+st_pcic_read(struct pcic_handle *h, int idx)
 {
 	if (idx != -1) {
 		bus_space_write_1(h->ph_bus_t, h->ph_bus_h, PCIC_REG_INDEX, 
@@ -1423,10 +1342,7 @@ st_pcic_read(h, idx)
 }
 
 static void
-st_pcic_write(h, idx, data)
-     struct pcic_handle *h;
-     int idx;
-     u_int8_t data;
+st_pcic_write(struct pcic_handle *h, int idx, u_int8_t data)
 {
 	if (idx != -1) {
 		bus_space_write_1(h->ph_bus_t, h->ph_bus_h, PCIC_REG_INDEX, 
@@ -1439,11 +1355,64 @@ st_pcic_write(h, idx, data)
 int pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	return bus_generic_activate_resource(dev, child, type, rid, r);
+	int err;
+	int sz;
+	int win;
+	bus_addr_t off;
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+
+	sz = rman_get_end(r) - rman_get_start(r) + 1;
+	switch (type) {
+	case SYS_RES_IOPORT:
+		err = pcic_chip_io_alloc(h, rman_get_start(r), sz, 0,
+		    &h->io[rid]);
+		if (err)
+			return err;
+		err = pcic_chip_io_map(h, 0, 0, sz, &h->io[rid], &win);
+		if (err) {
+			pcic_chip_io_free(h, &h->io[rid]);
+			return err;
+		}
+		break;
+	case SYS_RES_IRQ:
+		/* XXX */
+		break;
+	case SYS_RES_MEMORY: 
+		err = pcic_chip_mem_alloc(h, sz, &h->mem[rid]);
+		if (err)
+			return err;
+		err = pcic_chip_mem_map(h, 0, 0, sz, &h->mem[rid], &off, &win);
+		if (err) {
+			pcic_chip_mem_free(h, &h->mem[rid]);
+			return err;
+		}
+		break;
+	default:
+		break;
+	}
+	err = bus_generic_activate_resource(dev, child, type, rid, r);
+	return (err);
 }
 
 int pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	return bus_generic_deactivate_resource(dev, child, type, rid, r);
+	struct pcic_handle *h = (struct pcic_handle *) device_get_ivars(dev);
+	int err = 0;
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		pcic_chip_io_unmap(h, rid);
+		pcic_chip_io_free(h, &h->io[rid]);
+	case SYS_RES_IRQ:
+		/* XXX */
+		break;
+	case SYS_RES_MEMORY: 
+		pcic_chip_mem_unmap(h, rid);
+		pcic_chip_mem_free(h, &h->mem[rid]);
+	default:
+		break;
+	}
+	err = bus_generic_deactivate_resource(dev, child, type, rid, r);
+	return (err);
 }

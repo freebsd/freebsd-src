@@ -65,7 +65,7 @@ struct cis_state {
 	struct pccard_function *pf;
 };
 
-int	pccard_parse_cis_tuple __P((struct pccard_tuple *, void *));
+int	pccard_parse_cis_tuple(struct pccard_tuple *, void *);
 
 void
 pccard_read_cis(sc)
@@ -99,7 +99,7 @@ pccard_read_cis(sc)
 int
 pccard_scan_cis(dev, fct, arg)
 	struct device *dev;
-	int (*fct) __P((struct pccard_tuple *, void *));
+	int (*fct)(struct pccard_tuple *, void *);
 	void *arg;
 {
 	struct pccard_softc *sc = (struct pccard_softc *) dev;
