@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.72 1999/04/05 22:37:54 obrien Exp $
+#	$Id: Makefile.inc1,v 1.73 1999/04/11 21:48:09 des Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -34,56 +34,56 @@ SUBDIR=
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
-.if exists(share/info)
+.if exists(${.CURDIR}/share/info)
 SUBDIR+= share/info
 .endif
 
 # We must do include and lib early so that the perl *.ph generation
 # works correctly as it uses the header files installed by this.
-.if exists(include)
+.if exists(${.CURDIR}/include)
 SUBDIR+= include
 .endif
-.if exists(lib)
+.if exists(${.CURDIR}/lib)
 SUBDIR+= lib
 .endif
 
-.if exists(bin)
+.if exists(${.CURDIR}/bin)
 SUBDIR+= bin
 .endif
-.if exists(games) && !defined(NOGAMES)
+.if exists(${.CURDIR}/games) && !defined(NOGAMES)
 SUBDIR+= games
 .endif
-.if exists(gnu)
+.if exists(${.CURDIR}/gnu)
 SUBDIR+= gnu
 .endif
-.if exists(kerberosIV) && exists(crypto) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS4)
+.if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
+    !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 SUBDIR+= kerberosIV
 .endif
-.if exists(libexec)
+.if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
 .endif
-.if exists(sbin)
+.if exists(${.CURDIR}/sbin)
 SUBDIR+= sbin
 .endif
-.if exists(share) && !defined(NOSHARE)
+.if exists(${.CURDIR}/share) && !defined(NOSHARE)
 SUBDIR+= share
 .endif
-.if exists(sys)
+.if exists(${.CURDIR}/sys)
 SUBDIR+= sys
 .endif
-.if exists(usr.bin)
+.if exists(${.CURDIR}/usr.bin)
 SUBDIR+= usr.bin
 .endif
-.if exists(usr.sbin)
+.if exists(${.CURDIR}/usr.sbin)
 SUBDIR+= usr.sbin
 .endif
-.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 SUBDIR+= secure
 .endif
 
 # etc must be last for "distribute" to work
-.if exists(etc)
+.if exists(${.CURDIR}/etc)
 SUBDIR+= etc
 .endif
 
@@ -91,7 +91,7 @@ SUBDIR+= etc
 # rebuilt before you do them.
 .if defined(LOCAL_DIRS)
 .for _DIR in ${LOCAL_DIRS}
-.if exists(${_DIR}) & exists(${_DIR}/Makefile)
+.if exists(${.CURDIR}/${_DIR}) & exists(${.CURDIR}/${_DIR}/Makefile)
 SUBDIR+= ${_DIR}
 .endif
 .endfor
@@ -524,10 +524,11 @@ includes:
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
-.if exists(secure) && !defined(NOCRYPT)
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT)
 	cd ${.CURDIR}/secure/lib/libdes;	${MAKE} beforeinstall
 .endif
-.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+.if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS4)
 	cd ${.CURDIR}/kerberosIV/lib/libacl;	${MAKE} beforeinstall
 	cd ${.CURDIR}/kerberosIV/lib/libkadm;	${MAKE} beforeinstall
 	cd ${.CURDIR}/kerberosIV/lib/libkafs;	${MAKE} beforeinstall
@@ -644,7 +645,7 @@ lib-tools:
 # Some libraries are built conditionally and/or are in inconsistently
 # named directories:
 #
-.if exists(lib/csu/${MACHINE_ARCH}.pcc)
+.if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}.pcc)
 _csu=lib/csu/${MACHINE_ARCH}.pcc
 .elif ${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "elf"
 _csu=lib/csu/i386-elf
