@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.24 1996/01/03 21:42:00 wollman Exp $
+ * $Id: kern_exit.c,v 1.25 1996/01/04 20:28:46 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -62,13 +62,8 @@
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
 #include <sys/filedesc.h>
-
-#ifdef SYSVSHM
 #include <sys/shm.h>
-#endif
-#ifdef SYSVSEM
 #include <sys/sem.h>
-#endif
 
 #include <machine/cpu.h>
 #ifdef COMPAT_43
@@ -145,16 +140,15 @@ exit1(p, rv)
 	 */
 	fdfree(p);
 
-#ifdef SYSVSEM
+	/*
+	 * XXX Shutdown SYSV semaphores
+	 */
 	semexit(p);
-#endif
 
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
-#ifdef SYSVSHM
 	if (vm->vm_shm)
 		shmexit(p);
-#endif
 	/*
 	 * Release user portion of address space.
 	 * This releases references to vnodes,
