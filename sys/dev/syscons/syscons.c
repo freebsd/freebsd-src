@@ -25,11 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.137 1995/12/10 15:54:55 bde Exp $
+ *  $Id: syscons.c,v 1.138 1995/12/14 22:03:03 bde Exp $
  */
 
 #include "sc.h"
 #include "apm.h"
+#include "opt_ddb.h"
+
 #if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>

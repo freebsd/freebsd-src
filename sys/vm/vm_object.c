@@ -61,12 +61,13 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.60 1995/12/14 09:55:03 phk Exp $
+ * $Id: vm_object.c,v 1.61 1996/01/04 18:32:31 davidg Exp $
  */
 
 /*
  *	Virtual memory object module.
  */
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

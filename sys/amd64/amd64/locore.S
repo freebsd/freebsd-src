@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.58 1995/12/25 14:40:49 davidg Exp $
+ *	$Id: locore.s,v 1.59 1995/12/28 21:01:54 davidg Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  *			Bruce Evans, Wolfgang Solfrank, and many others.
  */
 
+#include "opt_ddb.h"
 #include "assym.s"			/* system definitions */
 #include <machine/psl.h>		/* processor status longword defs */
 #include <machine/pte.h>		/* page table entry definitions */

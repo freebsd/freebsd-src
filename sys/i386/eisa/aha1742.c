@@ -14,12 +14,13 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.44 1995/12/10 13:33:47 phk Exp $
+ *      $Id: aha1742.c,v 1.45 1995/12/14 23:26:53 bde Exp $
  */
 
 #include <sys/types.h>
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
+#include "opt_ddb.h"
 #include "ahb.h"
 #include <sys/param.h>
 #include <sys/kernel.h>

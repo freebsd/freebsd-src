@@ -67,6 +67,8 @@
  *---------------------------------------------------------------------------*/
 
 #include "vt.h"
+#include "opt_ddb.h"
+
 #if NVT > 0
 
 #include "pcvt_hdr.h"		/* global include */

@@ -31,13 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id: ffs_subr.c,v 1.5 1995/09/04 00:20:55 dyson Exp $
+ * $Id: ffs_subr.c,v 1.6 1995/12/17 21:09:31 phk Exp $
  */
 
 #include <sys/param.h>
 #include <ufs/ffs/fs.h>
 
 #ifdef KERNEL
+#include "opt_ddb.h"
+
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <ufs/ffs/ffs_extern.h>

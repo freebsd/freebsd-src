@@ -41,6 +41,7 @@
 #include "npx.h"
 #include "isa.h"
 #include "opt_sysvipc.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
