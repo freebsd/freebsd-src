@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -14,6 +15,9 @@
 
 /* Define if you have the lstat function. */
 #define HAVE_LSTAT 1
+
+/* Define if you have the memmove function. */
+#define HAVE_MEMMOVE 1
 
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
