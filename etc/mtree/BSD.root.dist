@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.14 1994/08/29 01:35:53 paul Exp $
+#	$Id: BSD.root.dist,v 1.15 1994/09/09 13:35:57 rgrimes Exp $
 #
 
 # top-level files are owned by root.wheel
@@ -17,8 +17,6 @@ dev	type=dir
 ..
 
 etc	type=dir
-	config	type=dir
-	..
 	mtree	type=dir
 	..
 	namedb	type=dir
