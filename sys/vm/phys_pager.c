@@ -147,7 +147,9 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 			vm_page_zero_fill(m[i]);
 		vm_page_flag_set(m[i], PG_ZERO);
 		/* Switch off pv_entries */
+		vm_page_lock_queues();
 		vm_page_unmanage(m[i]);
+		vm_page_unlock_queues();
 		m[i]->valid = VM_PAGE_BITS_ALL;
 		m[i]->dirty = 0;
 		/* The requested page must remain busy, the others not. */
