@@ -743,7 +743,7 @@ vs_sm_up(sp, rp, count, scmd, smp)
 	if (!SMAP_CACHE(smp) && vs_line(sp, smp, NULL, NULL))
 		return (1);
 	rp->lno = smp->lno;
-	rp->cno = smp->c_sboff;
+	rp->cno = smp->c_scoff == 255 ? 0 : smp->c_sboff;
 	return (0);
 }
 
@@ -958,7 +958,7 @@ vs_sm_down(sp, rp, count, scmd, smp)
 	if (!SMAP_CACHE(smp) && vs_line(sp, smp, NULL, NULL))
 		return (1);
 	rp->lno = smp->lno;
-	rp->cno = smp->c_sboff;
+	rp->cno = smp->c_scoff == 255 ? 0 : smp->c_sboff;
 	return (0);
 }
 
