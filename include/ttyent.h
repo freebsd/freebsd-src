@@ -44,7 +44,7 @@
 #define	_TTYS_INSECURE	"insecure"
 #define	_TTYS_WINDOW	"window"
 #define	_TTYS_GROUP	"group"
-#define _TTYS_NOGROUP	"none"
+#define	_TTYS_NOGROUP	"none"
 #define	_TTYS_DIALUP	"dialup"
 #define	_TTYS_NETWORK	"network"
 
@@ -70,7 +70,7 @@ struct ttyent *getttynam __P((const char *));
 int setttyent __P((void));
 int endttyent __P((void));
 int isdialuptty __P((const char *));
-int isnettty __P((const char *));
+int isnetworktty __P((const char *));
 __END_DECLS
 
 #endif /* !_TTYENT_H_ */
