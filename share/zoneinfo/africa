@@ -1,4 +1,4 @@
-# @(#)africa	7.34
+# @(#)africa	7.36
 
 # $FreeBSD$
 
@@ -12,7 +12,7 @@
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -57,7 +57,7 @@
 # I invented the following abbreviations; corrections are welcome!
 #	 2:00	WAST	West Africa Summer Time
 #	 2:30	BEAT	British East Africa Time (no longer used)
-#	 2:45	BEAUT	British East Africa Unified Time (no longer used)
+#	 2:44:45 BEAUT	British East Africa Unified Time (no longer used)
 #	 3:00	CAST	Central Africa Summer Time (no longer used)
 #	 3:00	SAST	South Africa Summer Time (no longer used)
 #	 3:00	EAT	East Africa Time
@@ -103,7 +103,7 @@ Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 # Angola
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
-			0:52:04	-	LMT	1911 May 26 # Luanda Mean Time?
+			0:52:04	-	AOT	1911 May 26 # Angola Time
 			1:00	-	WAT
 
 # Benin
@@ -278,7 +278,7 @@ Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
 Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
 			3:00	-	EAT	1930
 			2:30	-	BEAT	1940
-			2:45	-	BEAUT	1960
+			2:44:45	-	BEAUT	1960
 			3:00	-	EAT
 
 # Lesotho
@@ -289,9 +289,9 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 			2:00	-	SAST
 
 # Liberia
-# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
+# From Paul Eggert <eggert@twinsun.com> (2001-07-17):
 # In 1972 Liberia was the last country to switch
-# from a UTC offset that was not a multiple of 15 minutes.
+# from a UTC offset that was not a multiple of 15 or 20 minutes.
 # Howse reports that it was in honor of their president's birthday.
 # Shanks reports the date as May 1, whereas Howse reports Jan; go with Shanks.
 # For Liberia before 1972, Shanks reports -0:44, whereas Howse and Whitman
@@ -483,6 +483,12 @@ Zone	Africa/Dakar	-1:09:44 -	LMT	1912
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
 			4:00	-	SCT	# Seychelles Time
+# From Paul Eggert (2001-05-30):
+# Aldabra, Farquhar, and Desroches, originally dependencies of the
+# Seychelles, were transferred to the British Indian Ocean Territory
+# in 1965 and returned to Seychelles control in 1976.  We don't know
+# whether this affected their time zone, so omit this for now.
+# Possibly the islands were uninhabited.
 
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -544,7 +550,7 @@ Zone	Africa/Mbabane	2:04:24 -	LMT	1903 Mar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Dar_es_Salaam 2:37:08 -	LMT	1931
 			3:00	-	EAT	1948
-			2:45	-	BEAUT	1961
+			2:44:45	-	BEAUT	1961
 			3:00	-	EAT
 
 # Togo
@@ -587,7 +593,7 @@ Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
 Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 			3:00	-	EAT	1930
 			2:30	-	BEAT	1948
-			2:45	-	BEAUT	1957
+			2:44:45	-	BEAUT	1957
 			3:00	-	EAT
 
 # Zambia
