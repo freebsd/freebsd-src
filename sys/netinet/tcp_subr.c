@@ -680,6 +680,18 @@ tcp_close(tp)
 			tcpstat.tcps_cachedssthresh++;
 		}
 	}
+	rt = inp->inp_route.ro_rt;
+	if (rt) {
+		/* 
+		 * mark route for deletion if no information is
+		 * cached.
+		 */
+		if ((tp->t_flags & TF_LQ_OVERFLOW) &&
+		    ((rt->rt_rmx.rmx_locks & RTV_RTT) == 0)){
+			if (rt->rt_rmx.rmx_rtt == 0)
+				rt->rt_flags |= RTF_DELCLONE;
+		}
+	}
     no_valid_rt:
 	/* free the reassembly queue, if any */
 	while((q = LIST_FIRST(&tp->t_segq)) != NULL) {
