@@ -59,7 +59,6 @@
 #endif
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/dkbad.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
@@ -84,8 +83,6 @@ static void free_ds_labeldevs __P((struct diskslices *ssp, int slice));
 #endif
 static void partition_info __P((char *sname, int part, struct partition *pp));
 static void slice_info __P((char *sname, struct diskslice *sp));
-static void set_ds_bad __P((struct diskslices *ssp, int slice,
-			    struct dkbad_intern *btp));
 static void set_ds_label __P((struct diskslices *ssp, int slice,
 			      struct disklabel *lp));
 static void set_ds_labeldevs __P((dev_t dev, struct diskslices *ssp));
@@ -143,7 +140,6 @@ clone_label(lp)
  * if needed, and signal errors or early completion.
  *
  * XXX TODO:
- *	o Do bad sector remapping.  May need to split buffer.
  *	o Split buffers that are too big for the device.
  *	o Check for overflow.
  *	o Finish cleaning this up.
@@ -204,16 +200,6 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		pp = &lp->d_partitions[dkpart(bp->b_dev)];
 		endsecno = pp->p_size;
 		slicerel_secno = pp->p_offset + secno;
-		if (sp->ds_bad != NULL && ds_debug) {
-			daddr_t	newsecno;
-
-			newsecno = transbad144(sp->ds_bad, slicerel_secno);
-			if (newsecno != slicerel_secno)
-				printf(
-			    "dscheck(%s): should map bad sector %ld -> %ld\n",
-				    devtoname(bp->b_dev),
-				    (long)slicerel_secno, (long)newsecno);
-		}
 	}
 
 	/* overwriting disk label ? */
@@ -358,10 +344,6 @@ dsgone(sspp)
 
 	for (slice = 0, ssp = *sspp; slice < ssp->dss_nslices; slice++) {
 		sp = &ssp->dss_slices[slice];
-		if (sp->ds_bad != NULL) {
-			free(sp->ds_bad, M_DEVBUF);
-			set_ds_bad(ssp, slice, (struct dkbad_intern *)NULL);
-		}
 #ifdef DEVFS
 		if (sp->ds_bdev != NULL)
 			devfs_remove_dev(sp->ds_bdev);
@@ -375,7 +357,7 @@ dsgone(sspp)
 }
 
 /*
- * For the "write" commands (DIOCSBAD, DIOCSDINFO and DIOCWDINFO), this
+ * For the "write" commands (DIOCSDINFO and DIOCWDINFO), this
  * is subject to the same restriction as dsopen().
  */
 int
@@ -426,20 +408,6 @@ dsioctl(dev, cmd, data, flags, sspp)
 	case DIOCGSLICEINFO:
 		bcopy(ssp, data, (char *)&ssp->dss_slices[ssp->dss_nslices] -
 				 (char *)ssp);
-		return (0);
-
-	case DIOCSBAD:
-		if ((ssp->dss_oflags & DSO_BAD144) == 0)
-			return (ENODEV);
-		if (slice == WHOLE_DISK_SLICE)
-			return (ENODEV);
-		if (!(flags & FWRITE))
-			return (EBADF);
-		if (lp == NULL)
-			return (EINVAL);
-		if (sp->ds_bad != NULL)
-			free(sp->ds_bad, M_DEVBUF);
-		set_ds_bad(ssp, slice, internbad144((struct dkbad *)data, lp));
 		return (0);
 
 	case DIOCSDINFO:
@@ -699,7 +667,6 @@ dsopen(dev, mode, flags, sspp, lp)
 	struct diskslices **sspp;
 	struct disklabel *lp;
 {
-	struct dkbad *btp;
 	dev_t	dev1;
 	int	error;
 	struct disklabel *lp1;
@@ -831,29 +798,9 @@ dsopen(dev, mode, flags, sspp, lp)
 			continue;
 		}
 		if (lp1->d_flags & D_BADSECT) {
-			if ((flags & DSO_BAD144) == 0) {
-				log(LOG_ERR,
-				    "%s: bad sector table not supported\n",
-				    sname);
-				continue;
-			}
-			btp = malloc(sizeof *btp, M_DEVBUF, M_WAITOK);
-			TRACE(("readbad144\n"));
-			msg = readbad144(dev1, lp1, btp);
-			if (msg != NULL) {
-				log(LOG_ERR,
-				    "%s: cannot find bad sector table (%s)\n",
-				    sname, msg);
-				free(btp, M_DEVBUF);
-				free(lp1, M_DEVBUF);
-				continue;
-			}
-			set_ds_bad(ssp, slice, internbad144(btp, lp1));
-			free(btp, M_DEVBUF);
-			if (sp->ds_bad == NULL) {
-				free(lp1, M_DEVBUF);
-				continue;
-			}
+			log(LOG_ERR, "%s: bad sector table not supported\n",
+			    sname);
+			continue;
 		}
 		set_ds_label(ssp, slice, lp1);
 		set_ds_labeldevs(dev1, ssp);
@@ -1062,26 +1009,6 @@ slice_info(sname, sp)
 {
 	printf("%s: start %lu, end %lu, size %lu\n", sname,
 	       sp->ds_offset, sp->ds_offset + sp->ds_size - 1, sp->ds_size);
-}
-
-/*
- * Most changes to ds_bad, ds_label and ds_wlabel are made using the
- * following functions to ensure coherency of the compatibility slice
- * with the first BSD slice.  The openmask fields are _not_ shared and
- * the other fields (ds_offset and ds_size) aren't changed after they
- * are initialized.
- */
-static void
-set_ds_bad(ssp, slice, btp)
-	struct diskslices *ssp;
-	int	slice;
-	struct dkbad_intern *btp;
-{
-	ssp->dss_slices[slice].ds_bad = btp;
-	if (slice == COMPATIBILITY_SLICE)
-		ssp->dss_slices[ssp->dss_first_bsd_slice].ds_bad = btp;
-	else if (slice == ssp->dss_first_bsd_slice)
-		ssp->dss_slices[COMPATIBILITY_SLICE].ds_bad = btp;
 }
 
 static void

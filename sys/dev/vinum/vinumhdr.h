@@ -61,7 +61,6 @@
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
-#include <sys/dkbad.h>
 #include <sys/queue.h>
 #ifdef KERNEL
 #include <machine/setjmp.h>

@@ -49,7 +49,6 @@ struct	diskslice {
 	int	ds_subtype;		/* sub slice type */
 	u_char	ds_name[16];		/* slice name */
 #endif
-	struct dkbad_intern *ds_bad;	/* bad sector table, if any */
 	struct disklabel *ds_label;	/* BSD label, if any */
 	void	*ds_bdev;		/* devfs token for whole slice */
 	void	*ds_cdev;		/* devfs token for raw whole slice */
@@ -85,9 +84,7 @@ struct diskslices {
 /* Flags for dsopen(). */
 #define	DSO_NOLABELS	1
 #define	DSO_ONESLICE	2
-#define	DSO_BAD144	4
 
-#define	dsgetbad(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_bad)
 #define	dsgetlabel(dev, ssp)	(ssp->dss_slices[dkslice(dev)].ds_label)
 
 struct buf;

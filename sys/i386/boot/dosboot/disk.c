@@ -32,9 +32,6 @@
 #define bcopy(a,b,c)	memcpy(b,a,c)
 
 #include "boot.h"
-#ifdef DO_BAD144
-#include "dkbad.h"
-#endif
 #include "disklabe.h"
 #include "diskslic.h"
 
@@ -48,11 +45,6 @@
 static char i_buf[BPS];
 #define I_ADDR		((void *) i_buf)	/* XXX where all reads go */
 
-#ifdef DO_BAD144
-struct dkbad dkb;
-int do_bad144;
-long bsize;
-#endif
 
 static int spt, spc;
 
@@ -66,7 +58,6 @@ extern int biosread(int dev, int track, int head, int sector, int cnt, unsigned 
 struct	disklabel disklabel;
 
 static void Bread(int dosdev, long sector);
-static long badsect(int dosdev, long sector);
 
 unsigned long get_diskinfo(int drive)
 {
@@ -152,55 +143,6 @@ int devopen(void)
 		}
 
 		boff = dl->d_partitions[part].p_offset;
-#ifdef DO_BAD144
-		bsize = dl->d_partitions[part].p_size;
-		do_bad144 = 0;
-		if (dl->d_flags & D_BADSECT) {
-		    /* this disk uses bad144 */
-		    int i;
-		    long dkbbnum;
-		    struct dkbad *dkbptr;
-
-		    /* find the first readable bad sector table */
-		    /* some of this code is copied from ufs/ufs_disksubr.c */
-		    /* including the bugs :-( */
-		    /* read a bad sector table */
-
-#define BAD144_PART	2	/* XXX scattered magic numbers */
-#define BSD_PART	0	/* XXX should be 2 but bad144.c uses 0 */
-		    if (dl->d_partitions[BSD_PART].p_offset != 0)
-			    dkbbnum = dl->d_partitions[BAD144_PART].p_offset
-				      + dl->d_partitions[BAD144_PART].p_size;
-		    else
-			    dkbbnum = dl->d_secperunit;
-		    dkbbnum -= dl->d_nsectors;
-
-		    if (dl->d_secsize > DEV_BSIZE)
-		      dkbbnum *= dl->d_secsize / DEV_BSIZE;
-		    else
-		      dkbbnum /= DEV_BSIZE / dl->d_secsize;
-		    i = 0;
-		    do_bad144 = 0;
-		    do {
-			/* XXX: what if the "DOS sector" < 512 bytes ??? */
-			Bread(dosdev, dkbbnum + i);
-			dkbptr = (struct dkbad *) I_ADDR;
-/* XXX why is this not in <sys/dkbad.h> ??? */
-#define DKBAD_MAGIC 0x4321
-			if (dkbptr->bt_mbz == 0 &&
-			        dkbptr->bt_flag == DKBAD_MAGIC) {
-			    dkb = *dkbptr;	/* structure copy */
-			    do_bad144 = 1;
-			    break;
-			}
-			i += 2;
-		    } while (i < 10 && (u_long) i < dl->d_nsectors);
-		    if (!do_bad144)
-		      printf("Bad badsect table\n");
-		    else
-		      printf("Using bad144 bad sector at %ld\n", dkbbnum+i);
-		}
-#endif
 	}
 	return 0;
 }
@@ -211,7 +153,7 @@ void devread(void)
 	int dosdev = (int) inode.i_dev;
 	for (offset = 0; offset < cnt; offset += BPS)
 	{
-		Bread(dosdev, badsect(dosdev, sector++));
+		Bread(dosdev, sector++);
 		bcopy(I_ADDR, iodest+offset, BPS);
 	}
 }
@@ -249,57 +191,4 @@ static void Bread(int dosdev, long sector)
 		ra_end = sector + nsec;
 	}
 	bcopy(ra_buf + (sector - ra_first) * BPS, I_ADDR, BPS);
-}
-
-static long badsect(int dosdev, long sector)
-{
-#ifdef DO_BAD144
-	int i;
-
-	if (do_bad144) {
-	    u_short cyl;
-	    u_short head;
-	    u_short sec;
-	    long newsec;
-	    struct disklabel *dl = &disklabel;
-
-	    /* XXX */
-	    /* from wd.c */
-	    /* bt_cyl = cylinder number in sorted order */
-	    /* bt_trksec is actually (head << 8) + sec */
-
-	    /* only remap sectors in the partition */
-	    if (sector < boff || sector >= boff + bsize) {
-		goto no_remap;
-	    }
-
-	    cyl = (u_short) (sector / dl->d_secpercyl);
-	    head = (u_short) ((sector % dl->d_secpercyl) / dl->d_nsectors);
-	    sec = (u_short) (sector % dl->d_nsectors);
-	    sec = (head<<8) + sec;
-
-	    /* now, look in the table for a possible bad sector */
-	    for (i=0; i<126; i++) {
-		if (dkb.bt_bad[i].bt_cyl == cyl) {
-		    /* found same cylinder */
-		    if (dkb.bt_bad[i].bt_trksec == sec) {
-			/* FOUND! */
-			break;
-		    }
-		} else if (dkb.bt_bad[i].bt_cyl > cyl) {
-		    i = 126;
-		    break;
-		}
-	    }
-	    if (i == 126) {
-		/* didn't find bad sector */
-		goto no_remap;
-	    }
-	    /* otherwise find replacement sector */
-	    newsec = dl->d_secperunit - dl->d_nsectors - i -1;
-	    return newsec;
-	}
-      no_remap:
-#endif
-	return sector;
 }
