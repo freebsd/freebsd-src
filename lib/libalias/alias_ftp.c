@@ -181,7 +181,7 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 
 	/* Return if data length is too short. */
 	if (dlen < 18)
-		return 0;
+		return (0);
 
 	addr = port = octet = 0;
 	state = -4;
@@ -192,25 +192,25 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 			if (ch == 'P')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -3:
 			if (ch == 'O')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -2:
 			if (ch == 'R')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -1:
 			if (ch == 'T')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 
 		case 0:
@@ -228,7 +228,7 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 				octet = ch - '0';
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 2:
 		case 4:
@@ -240,7 +240,7 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 				addr = (addr << 8) + octet;
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 10:
 		case 12:
@@ -250,7 +250,7 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 				port = (port << 8) + octet;
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		}
 	}
@@ -258,9 +258,9 @@ ParseFtpPortCommand(struct libalias *la, char *sptr, int dlen)
 	if (state == 13) {
 		la->true_addr.s_addr = htonl(addr);
 		la->true_port = port;
-		return 1;
+		return (1);
 	} else
-		return 0;
+		return (0);
 }
 
 static int
@@ -276,7 +276,7 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 
 	/* Return if data length is too short. */
 	if (dlen < 18)
-		return 0;
+		return (0);
 
 	addr = port = octet = 0;
 	delim = '|';		/* XXX gcc -Wuninitialized */
@@ -288,25 +288,25 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 			if (ch == 'E')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -3:
 			if (ch == 'P')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -2:
 			if (ch == 'R')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -1:
 			if (ch == 'T')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 
 		case 0:
@@ -319,13 +319,13 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 			if (ch == '1')	/* IPv4 address */
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case 2:
 			if (ch == delim)
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case 3:
 		case 5:
@@ -335,7 +335,7 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 				octet = ch - '0';
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 4:
 		case 6:
@@ -347,14 +347,14 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 				addr = (addr << 8) + octet;
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 11:
 			if (isdigit(ch)) {
 				port = ch - '0';
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 12:
 			if (isdigit(ch))
@@ -362,7 +362,7 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 			else if (ch == delim)
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		}
 	}
@@ -370,9 +370,9 @@ ParseFtpEprtCommand(struct libalias *la, char *sptr, int dlen)
 	if (state == 13) {
 		la->true_addr.s_addr = htonl(addr);
 		la->true_port = port;
-		return 1;
+		return (1);
 	} else
-		return 0;
+		return (0);
 }
 
 static int
@@ -388,7 +388,7 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 
 	/* Return if data length is too short. */
 	if (dlen < 17)
-		return 0;
+		return (0);
 
 	addr = port = octet = 0;
 
@@ -400,19 +400,19 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 			if (ch == '2')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -2:
 			if (ch == '2')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -1:
 			if (ch == '7')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 
 		case 0:
@@ -429,7 +429,7 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 				octet = ch - '0';
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 2:
 		case 4:
@@ -441,7 +441,7 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 				addr = (addr << 8) + octet;
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 10:
 		case 12:
@@ -451,7 +451,7 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 				port = (port << 8) + octet;
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		}
 	}
@@ -459,9 +459,9 @@ ParseFtp227Reply(struct libalias *la, char *sptr, int dlen)
 	if (state == 13) {
 		la->true_port = port;
 		la->true_addr.s_addr = htonl(addr);
-		return 1;
+		return (1);
 	} else
-		return 0;
+		return (0);
 }
 
 static int
@@ -475,7 +475,7 @@ ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 
 	/* Return if data length is too short. */
 	if (dlen < 11)
-		return 0;
+		return (0);
 
 	port = 0;
 	delim = '|';		/* XXX gcc -Wuninitialized */
@@ -488,19 +488,19 @@ ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 			if (ch == '2')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -2:
 			if (ch == '2')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case -1:
 			if (ch == '9')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 
 		case 0:
@@ -516,14 +516,14 @@ ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 			if (ch == delim)
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case 4:
 			if (isdigit(ch)) {
 				port = ch - '0';
 				state++;
 			} else
-				return 0;
+				return (0);
 			break;
 		case 5:
 			if (isdigit(ch))
@@ -531,22 +531,22 @@ ParseFtp229Reply(struct libalias *la, char *sptr, int dlen)
 			else if (ch == delim)
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		case 6:
 			if (ch == ')')
 				state++;
 			else
-				return 0;
+				return (0);
 			break;
 		}
 	}
 
 	if (state == 7) {
 		la->true_port = port;
-		return 1;
+		return (1);
 	} else
-		return 0;
+		return (0);
 }
 
 static void

@@ -149,23 +149,23 @@ IpMask(int nbits, struct in_addr *mask)
 	u_int imask;
 
 	if (nbits < 0 || nbits > 32)
-		return -1;
+		return (-1);
 
 	imask = 0;
 	for (i = 0; i < nbits; i++)
 		imask = (imask >> 1) + 0x80000000;
 	mask->s_addr = htonl(imask);
 
-	return 0;
+	return (0);
 }
 
 static int
 IpAddr(char *s, struct in_addr *addr)
 {
 	if (inet_aton(s, addr) == 0)
-		return -1;
+		return (-1);
 	else
-		return 0;
+		return (0);
 }
 
 static int
@@ -182,14 +182,14 @@ IpPort(char *s, int proto, int *port)
 		else if (proto == IPPROTO_UDP)
 			se = getservbyname(s, "udp");
 		else
-			return -1;
+			return (-1);
 
 		if (se == NULL)
-			return -1;
+			return (-1);
 
 		*port = (u_int) ntohs(se->s_port);
 	}
-	return 0;
+	return (0);
 }
 
 void
@@ -270,7 +270,7 @@ RuleNumberDelete(struct libalias *la, int rule_index)
 		ptr = ptr_next;
 	}
 
-	return err;
+	return (err);
 }
 
 static void
@@ -471,13 +471,13 @@ ProxyCheck(struct libalias *la, struct ip *pip,
 				if ((*proxy_server_port = ptr->server_port) == 0)
 					*proxy_server_port = dst_port;
 				*proxy_server_addr = ptr->server_addr;
-				return ptr->proxy_type;
+				return (ptr->proxy_type);
 			}
 		}
 		ptr = ptr->next;
 	}
 
-	return 0;
+	return (0);
 }
 
 void
@@ -550,7 +550,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 	cmd += strspn(cmd, " \t");
 	cmd_len = strlen(cmd);
 	if (cmd_len > (sizeof(buffer) - 1))
-		return -1;
+		return (-1);
 	strcpy(buffer, cmd);
 
 /* Convert to lower case */
@@ -609,7 +609,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 			else if (strcmp(token, "dst") == 0)
 				state = STATE_READ_DST;
 			else
-				return -1;
+				return (-1);
 			break;
 
 		case STATE_READ_TYPE:
@@ -620,7 +620,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 			else if (strcmp(token, "no_encode") == 0)
 				proxy_type = PROXY_TYPE_ENCODE_NONE;
 			else
-				return -1;
+				return (-1);
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -642,17 +642,17 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				if (*p != ':') {
 					err = IpAddr(token, &server_addr);
 					if (err)
-						return -1;
+						return (-1);
 				} else {
 					*p = ' ';
 
 					n = sscanf(token, "%s %s", s, str_server_port);
 					if (n != 2)
-						return -1;
+						return (-1);
 
 					err = IpAddr(s, &server_addr);
 					if (err)
-						return -1;
+						return (-1);
 				}
 			}
 			state = STATE_READ_KEYWORD;
@@ -661,7 +661,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 		case STATE_READ_RULE:
 			n = sscanf(token, "%d", &rule_index);
 			if (n != 1 || rule_index < 0)
-				return -1;
+				return (-1);
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -671,15 +671,15 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				int rule_to_delete;
 
 				if (token_count != 2)
-					return -1;
+					return (-1);
 
 				n = sscanf(token, "%d", &rule_to_delete);
 				if (n != 1)
-					return -1;
+					return (-1);
 				err = RuleNumberDelete(la, rule_to_delete);
 				if (err)
-					return -1;
-				return 0;
+					return (-1);
+				return (0);
 			}
 
 		case STATE_READ_PROTO:
@@ -688,7 +688,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 			else if (strcmp(token, "udp") == 0)
 				proto = IPPROTO_UDP;
 			else
-				return -1;
+				return (-1);
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -708,7 +708,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 					IpMask(32, &mask);
 					err = IpAddr(token, &addr);
 					if (err)
-						return -1;
+						return (-1);
 				} else {
 					int nbits;
 					char s[sizeof(buffer)];
@@ -716,15 +716,15 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 					*p = ' ';
 					n = sscanf(token, "%s %d", s, &nbits);
 					if (n != 2)
-						return -1;
+						return (-1);
 
 					err = IpAddr(s, &addr);
 					if (err)
-						return -1;
+						return (-1);
 
 					err = IpMask(nbits, &mask);
 					if (err)
-						return -1;
+						return (-1);
 				}
 
 				if (state == STATE_READ_SRC) {
@@ -739,7 +739,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 			break;
 
 		default:
-			return -1;
+			return (-1);
 			break;
 		}
 
@@ -766,7 +766,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 		err = IpPort(str_port, proto, &proxy_port);
 		if (err)
-			return -1;
+			return (-1);
 	} else {
 		proxy_port = 0;
 	}
@@ -776,19 +776,19 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 		err = IpPort(str_server_port, proto, &server_port);
 		if (err)
-			return -1;
+			return (-1);
 	} else {
 		server_port = 0;
 	}
 
 /* Check that at least the server address has been defined */
 	if (server_addr.s_addr == 0)
-		return -1;
+		return (-1);
 
 /* Add to linked list */
 	proxy_entry = malloc(sizeof(struct proxy_entry));
 	if (proxy_entry == NULL)
-		return -1;
+		return (-1);
 
 	proxy_entry->proxy_type = proxy_type;
 	proxy_entry->rule_index = rule_index;
@@ -803,5 +803,5 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 	RuleAdd(la, proxy_entry);
 
-	return 0;
+	return (0);
 }
