@@ -37,6 +37,10 @@
  * Breakpoint.
  */
 
+#ifndef BKPT_INST_TYPE
+#define BKPT_INST_TYPE int
+#endif
+
 struct db_breakpoint {
 	vm_map_t map;			/* in this map */
 	db_addr_t address;		/* set here */
@@ -45,7 +49,7 @@ struct db_breakpoint {
 	int	flags;			/* flags: */
 #define	BKPT_SINGLE_STEP	0x2	    /* to simulate single step */
 #define	BKPT_TEMP		0x4	    /* temporary */
-	int	bkpt_inst;		/* saved instruction at bkpt */
+	BKPT_INST_TYPE bkpt_inst;	/* saved instruction at bkpt */
 	struct db_breakpoint *link;	/* link in in-use or free chain */
 };
 typedef struct db_breakpoint *db_breakpoint_t;
