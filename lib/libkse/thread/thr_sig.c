@@ -463,7 +463,11 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	ucp->uc_stack = curthread->sigstk;
 	ucp->uc_stack.ss_flags = (curthread->sigstk.ss_flags & SS_DISABLE)
 		? SS_DISABLE : ((onstack) ? SS_ONSTACK : 0);
-	ucp->uc_sigmask = sigmask;
+	if (curthread->oldsigmask) {
+		ucp->uc_sigmask = *(curthread->oldsigmask);
+		curthread->oldsigmask = NULL;
+	} else
+		ucp->uc_sigmask = sigmask;
 	shi.sigfunc = sigfunc;
 	shi.sig = sig;
 	shi.sa_flags = sa_flags;
