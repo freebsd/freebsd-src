@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.30 1998/05/08 18:50:24 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.31 1998/05/10 09:26:21 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2321,9 +2321,20 @@ If
 .Dq value
 does not begin with
 .Pa /dev/ ,
-it must be of the format
+it must either begin with an exclaimation mark
+.Pq Dq \&!
+or be of the format
 .Dq host:port .
-If this is the case,
+.Pp
+If it begins with an exclaimation mark, the rest of the device name is
+treated as a program name, and that program is executed when the device
+is opened.  Standard input, output and error are fed back to
+.Nm
+and are read and written as if they were a regular device.
+.Pp
+If a
+.Dq host:port
+pair is given,
 .Nm
 will attempt to connect to the given
 .Dq host
@@ -2331,7 +2342,9 @@ on the given
 .Dq port .
 Refer to the section on
 .Em PPP OVER TCP
-above for further details.  If multiple
+above for further details.
+.Pp
+If multiple
 .Dq values
 are specified,
 .Nm

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.68 1998/05/08 01:15:14 brian Exp $
+ * $Id: modem.c,v 1.77.2.69 1998/05/12 17:34:29 brian Exp $
  *
  *  TODO:
  */
@@ -39,6 +39,7 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #ifdef __OpenBSD__
 #include <util.h>
@@ -515,7 +516,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	if (modem_lock(modem, bundle->unit) != -1) {
 	  modem->fd = ID0open(modem->name.full, O_RDWR | O_NONBLOCK);
 	  if (modem->fd < 0) {
-	    log_Printf(LogERROR, "%s: Open(\"%s\"): %s\n",
+	    log_Printf(LogPHASE, "%s: Open(\"%s\"): %s\n",
                       modem->link.name, modem->name.full, strerror(errno));
 	    modem_Unlock(modem);
 	  } else {
@@ -524,6 +525,55 @@ modem_Open(struct physical *modem, struct bundle *bundle)
                       modem->link.name, modem->name.full);
 	  }
 	}
+      } else if (*modem->name.full == '!') {
+        /* PPP via an external program */
+        /*
+         * XXX: Fix me - this should be another sort of link (similar to a
+         * physical
+         */
+        int fids[2];
+
+        modem->name.base = modem->name.full + 1;
+        if (pipe(fids) < 0)
+          log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
+	             strerror(errno));
+        else {
+          int stat;
+          pid_t pid;
+
+          stat = fcntl(fids[0], F_GETFL, 0);
+          if (stat > 0) {
+            stat |= O_NONBLOCK;
+            fcntl(fids[0], F_SETFL, stat);
+          }
+          switch ((pid = fork())) {
+            case -1:
+              log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
+	                 strerror(errno));
+              break;
+            case  0:
+              close(fids[0]);
+              timer_TermService();
+
+              fids[1] = fcntl(fids[1], F_DUPFD, 3);
+              dup2(fids[1], STDIN_FILENO);
+              dup2(fids[1], STDOUT_FILENO);
+              dup2(fids[1], STDERR_FILENO);
+              setuid(geteuid());
+              if (fork())
+                exit(127);
+              execlp(modem->name.base, modem->name.base, NULL);
+              fprintf(stderr, "execvp failed: %s: %s\n", modem->name.base,
+                      strerror(errno));
+              exit(127);
+              break;
+            default:
+              close(fids[1]);
+              modem->fd = fids[0];
+              waitpid(pid, &stat, 0);
+              break;
+          }
+        }
       } else {
 	/* PPP over TCP */
         /*
@@ -538,21 +588,20 @@ modem_Open(struct physical *modem, struct bundle *bundle)
 	  if (*host && *port) {
 	    modem->fd = OpenConnection(modem->link.name, host, port);
 	    *cp = ':';		/* Don't destroy name.full */
-	    if (modem->fd < 0)
-	      return (-1);
-	    modem_Found(modem, bundle);
-	    log_Printf(LogDEBUG, "%s: Opened socket %s\n", modem->link.name,
-                      modem->name.full);
+	    if (modem->fd >= 0) {
+	      modem_Found(modem, bundle);
+	      log_Printf(LogDEBUG, "%s: Opened socket %s\n", modem->link.name,
+                         modem->name.full);
+            }
 	  } else {
 	    *cp = ':';		/* Don't destroy name.full */
 	    log_Printf(LogERROR, "%s: Invalid host:port: \"%s\"\n",
                       modem->link.name, modem->name.full);
-	    return (-1);
 	  }
 	} else {
-	  log_Printf(LogERROR, "%s: Device (%s) must begin with a '/' or be a"
-                    " host:port pair\n", modem->link.name, modem->name.full);
-	  return (-1);
+	  log_Printf(LogERROR, "%s: Device (%s) must begin with a '/',"
+                     " a '!' or be a host:port pair\n", modem->link.name,
+                     modem->name.full);
 	}
       }
     }
