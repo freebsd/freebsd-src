@@ -24,72 +24,54 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Code cleanup, bug-fix and extension
+ * by Tatsumi Hosokawa <hosokawa@mt.cs.keio.ac.jp>
+ */
+
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardc.c,v 1.7 1998/02/26 14:36:01 hosokawa Exp $";
+	"$Id$";
 #endif /* not lint */
 
+#include <ctype.h>
 #include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
 
-typedef int (*main_t)(int, char **);
-
-#define DECL(foo) int foo(int, char**);
-DECL(beep_main);
-DECL(dumpcis_main);
-DECL(enabler_main);
-DECL(help_main);
-DECL(pccardmem_main);
-DECL(rdattr_main);
-DECL(rdmap_main);
-DECL(rdreg_main);
-DECL(wrattr_main);
-DECL(wrreg_main);
-
-struct {
-	char   *name;
-	main_t  func;
-	char   *help;
-} subcommands[] = {
-	{ "beep", beep_main, "Beep type" },
-	{ "dumpcis", dumpcis_main, "Prints CIS for all cards" },
-	{ "enabler", enabler_main, "Device driver enabler" },
-	{ "help", help_main, "Prints command summary" },
-	{ "pccardmem", pccardmem_main, "Allocate memory for pccard driver" },
-	{ "rdattr", rdattr_main, "Read attribute memory" },
-	{ "rdmap", rdmap_main, "Read pcic mappings" },
-	{ "rdreg", rdreg_main, "Read pcic register" },
-	{ "wrattr", wrattr_main, "Write byte to attribute memory" },
-	{ "wrreg", wrreg_main, "Write pcic register" },
-	{ 0, 0 }
-};
+#include <pccard/cardinfo.h>
 
 int
-main(int argc, char **argv)
+beep_main(argc, argv)
+	int     argc;
+	char   *argv[];
 {
-	int     i;
+	int     fd, newstat, valid = 1;
+	char    name[64], *p;
 
-	for (i = 0; argc > 1 && subcommands[i].name; i++) {
-		if (!strcmp(argv[1], subcommands[i].name)) {
-			argv[1] = argv[0];
-			return (*subcommands[i].func) (argc - 1, argv + 1);
+	if (argc != 2)
+		valid = 0;
+	if (valid) {
+		for (p = argv[1]; *p; p++) {
+			if (!isdigit(*p)) {
+				valid = 0;
+				break;
+			}
 		}
 	}
-	if (argc > 1)
-		warnx("unknown subcommand");
-	return help_main(argc, argv);
-}
+	if (!valid)
+		errx(1, "Usage: %s beep newstat", argv[0]);
 
-int
-help_main(int argc, char **argv)
-{
-	int     i;
-
-	fprintf(stderr, "usage: pccardc <subcommand> <arg> ...\n");
-	fprintf(stderr, "subcommands:\n");
-	for (i = 0; subcommands[i].name; i++)
-		fprintf(stderr, "\t%s\n\t\t%s\n",
-		    subcommands[i].name, subcommands[i].help);
-	return 1;
+	sscanf(argv[1], "%d", &newstat);
+	sprintf(name, CARD_DEVICE, 0);
+	fd = open(name, O_RDWR);
+	if (fd < 0)
+		err(1, "%s", name);
+	if (ioctl(fd, PIOCSBEEP, &newstat) < 0)
+		err(1, "ioctl (PIOCSBEEP)");
+	return 0;
 }

@@ -1,11 +1,11 @@
 #
 #	pccardc Makefile
 #
-#	$Id: Makefile,v 1.6 1997/02/22 16:08:35 peter Exp $
+#	$Id: Makefile,v 1.7 1998/02/26 14:36:00 hosokawa Exp $
 #
 PROG=	pccardc
 NOMAN=	noman
-SRCS=	dumpcis.c enabler.c pccardc.c pccardmem.c printcis.c \
+SRCS=	beep.c dumpcis.c enabler.c pccardc.c pccardmem.c printcis.c \
 	rdattr.c rdmap.c rdreg.c readcis.c wrattr.c wrreg.c
 
 CFLAGS+=	-I${.CURDIR}/../pccardd
