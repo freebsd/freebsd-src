@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
-.\"	$Id: newfs.8,v 1.19 1998/11/28 09:59:40 rnordier Exp $
+.\"	$Id: newfs.8,v 1.21 1999/03/10 21:59:01 grog Exp $
 .\"
 .Dd May 3, 1995
 .Dt NEWFS 8
@@ -162,15 +162,21 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl b Ar block-size
-The block size of the file system, in bytes.  
+The block size of the file system, in bytes.  It must be a power of 2.  The
+default size is 8192 bytes, and the smallest allowable size is 4096 bytes.
 .It Fl c Ar #cylinders/group
-The number of cylinders per cylinder group in a file system.
-The default value is 16.
+The number of cylinders per cylinder group in a file system.  The default value
+is 16.  The maximum value is dependent on a number of other parameters, in
+particular the block size.  The best way to find the maximum value for a
+specific file system is to attempt to specify a value which is far too large:
+.Nm
+will print out the maximum value.
 .It Fl d Ar rotdelay
-Specify the expected time (in milliseconds) to service a transfer
-completion interrupt and initiate a new transfer on the same disk.
-The default is 0 milliseconds.
-See
+This parameter once specified the minimum time in milliseconds required to
+initiate another disk transfer on the same cylinder.  It was used in determining
+the rotationally optimal layout for disk blocks within a file.  Modern disks
+with read/write-behind achieve higher performance with this feature disabled, so
+this value should be left at the default value of 0 milliseconds.  See
 .Xr tunefs 8
 for more details on how to set this option.
 .ne 1i
@@ -183,13 +189,19 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl f Ar frag-size
-The fragment size of the file system in bytes.
+The fragment size of the file system in bytes.  It must be a power of two
+ranging in value between
+.Ar blocksize/8
+and
+.Ar blocksize .
 The default is 1024 bytes.
 .It Fl i Ar number of bytes per inode
 Specify the density of inodes in the file system.
 The default is to create an inode for every (4 * frag-size) bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
+One inode is required for each distinct file, so this value effectively
+specifies the average file size on the file system.
 .It Fl m Ar free space \&%
 The percentage of space reserved from normal users; the minimum free
 space threshold.
@@ -203,9 +215,14 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl n Ar number of distinguished rotational positions
-Determine how many rotational time slots there are in one revolution of
-the disk. Defaults to 1, which essentially disables the rotational position
-table.
+UFS has the ability to keep track of the availability of blocks at different
+rotational positions, so that it could lay out the data to be picked up with
+minimum rotational latency.  This parameter specifies the default number of
+rotational positions to distinguish.
+.Pp
+Nowadays this value should be set to 1 (which essentially disables the
+rotational position table) because modern drives with read-ahead and
+write-behind do better without the rotational position table.
 .It Fl o Ar optimization\ preference
 .Pq ``space'' or ``time''
 The file system can either be instructed to try to minimize the time spent
@@ -218,7 +235,12 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl s Ar size
-The size of the file system in sectors.
+The size of the file system in sectors.  This value defaults to the size of the
+raw partition specified in
+.Ar special 
+(in other words,
+.Nm
+will use the entire partition for the file system).
 .It Fl v
 Specify that the disk does not contain any partitions, and that
 .Nm
@@ -246,6 +268,8 @@ Used to describe perturbations in the media format to compensate for
 a slow controller.
 Track skew is the offset of sector 0 on track N relative to sector 0
 on track N-1 on the same cylinder.
+This option is of historical importance only; modern controllers are always fast
+enough to handle operations back-to-back.
 .It Fl l Ar hardware sector interleave
 Used to describe perturbations in the media format to compensate for
 a slow controller.
@@ -254,14 +278,19 @@ specified as the denominator of the ratio:
 .Dl sectors read/sectors passed over
 Thus an interleave of 1/1 implies contiguous layout, while 1/2 implies
 logical sector 0 is separated by one sector from logical sector 1.
+This option is of historical importance only; the physical sector layout of
+modern disks is not visible from outside.
 .It Fl p Ar spare sectors per track
 Spare sectors (bad sector replacements) are physical sectors that occupy
 space at the end of each track.
 They are not counted as part of the sectors/track
 .Pq Fl u
 since they are not available to the file system for data allocation.
+This option is of historical importance only.  Modern disks perform their own
+bad sector allocation.
 .It Fl r Ar revolutions/minute
-The speed of the disk in revolutions per minute.
+The speed of the disk in revolutions per minute.  This value is no longer of
+interest, since all the parameters which depend on it are usually disabled.
 .ne 1i
 .It Fl t Ar #tracks/cylinder
 The number of tracks/cylinder available for data allocation by the file
@@ -284,6 +313,8 @@ They are deducted from the sectors/track
 .Pq Fl u
 of the last track of each cylinder since they are not available to the file
 system for data allocation.
+This option is of historical importance only.  Modern disks perform their own
+bad sector allocation.
 .El
 .Pp
 The options to the
