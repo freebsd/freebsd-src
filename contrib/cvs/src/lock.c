@@ -709,7 +709,6 @@ lock_obtained (repos)
 static int lock_filesdoneproc PROTO ((void *callerdat, int err,
 				      char *repository, char *update_dir,
 				      List *entries));
-static int fsortcmp PROTO((const Node * p, const Node * q));
 
 /*
  * Create a list of repositories to lock
@@ -736,17 +735,6 @@ lock_filesdoneproc (callerdat, err, repository, update_dir, entries)
     if (p->key == NULL || addnode (lock_tree_list, p) != 0)
 	freenode (p);
     return (err);
-}
-
-/*
- * compare two lock list nodes (for sort)
- */
-static int
-fsortcmp (p, q)
-    const Node *p;
-    const Node *q;
-{
-    return (strcmp (p->key, q->key));
 }
 
 void

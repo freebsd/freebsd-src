@@ -1197,7 +1197,7 @@ serve_modified (arg)
     }
 
     {
-	int status = change_mode (arg, mode_text);
+	int status = change_mode (arg, mode_text, 0);
 	free (mode_text);
 	if (status)
 	{
@@ -3358,12 +3358,13 @@ server_modtime (finfo, vers_ts)
 /* See server.h for description.  */
 
 void
-server_updated (finfo, vers, updated, file_info, checksum)
+server_updated (finfo, vers, updated, mode, checksum, filebuf)
     struct file_info *finfo;
     Vers_TS *vers;
     enum server_updated_arg4 updated;
-    struct stat *file_info;
+    mode_t mode;
     unsigned char *checksum;
+    struct buffer *filebuf;
 {
     if (noexec)
     {
@@ -3382,25 +3383,43 @@ server_updated (finfo, vers, updated, file_info, checksum)
     if (entries_line != NULL && scratched_file == NULL)
     {
 	FILE *f;
-	struct stat sb;
 	struct buffer_data *list, *last;
 	unsigned long size;
 	char size_text[80];
 
-	if ( CVS_STAT (finfo->file, &sb) < 0)
+	if (filebuf != NULL)
 	{
-	    if (existence_error (errno))
+	    size = buf_length (filebuf);
+	    if (mode == (mode_t) -1)
+		error (1, 0, "\
+CVS server internal error: no mode in server_updated");
+	}
+	else
+	{
+	    struct stat sb;
+
+	    if ( CVS_STAT (finfo->file, &sb) < 0)
 	    {
-		/*
-		 * If we have a sticky tag for a branch on which the
-		 * file is dead, and cvs update the directory, it gets
-		 * a T_CHECKOUT but no file.  So in this case just
-		 * forget the whole thing.  */
-		free (entries_line);
-		entries_line = NULL;
-		goto done;
+		if (existence_error (errno))
+		{
+		    /* If we have a sticky tag for a branch on which
+		       the file is dead, and cvs update the directory,
+		       it gets a T_CHECKOUT but no file.  So in this
+		       case just forget the whole thing.  */
+		    free (entries_line);
+		    entries_line = NULL;
+		    goto done;
+		}
+		error (1, errno, "reading %s", finfo->fullname);
 	    }
-	    error (1, errno, "reading %s", finfo->fullname);
+	    size = sb.st_size;
+	    if (mode == (mode_t) -1)
+	    {
+		/* FIXME: When we check out files the umask of the
+		   server (set in .bashrc if rsh is in use) affects
+		   what mode we send, and it shouldn't.  */
+		mode = sb.st_mode;
+	    }
 	}
 
 	if (checksum != NULL)
@@ -3469,21 +3488,14 @@ server_updated (finfo, vers, updated, file_info, checksum)
         {
 	    char *mode_string;
 
-	    /* FIXME: When we check out files the umask of the server
-	       (set in .bashrc if rsh is in use) affects what mode we
-	       send, and it shouldn't.  */
-	    if (file_info != NULL)
-	        mode_string = mode_to_string (file_info->st_mode);
-	    else
-	        mode_string = mode_to_string (sb.st_mode);
+	    mode_string = mode_to_string (mode);
 	    buf_output0 (protocol, mode_string);
 	    buf_output0 (protocol, "\n");
 	    free (mode_string);
 	}
 
 	list = last = NULL;
-	size = 0;
-	if (sb.st_size > 0)
+	if (size > 0)
 	{
 	    /* Throughout this section we use binary mode to read the
 	       file we are sending.  The client handles any line ending
@@ -3496,10 +3508,18 @@ server_updated (finfo, vers, updated, file_info, checksum)
 		 * might be computable somehow; using 100 here is just
 		 * a first approximation.
 		 */
-		&& sb.st_size > 100)
+		&& size > 100)
 	    {
 		int status, fd, gzip_status;
 		pid_t gzip_pid;
+
+		/* Callers must avoid passing us a buffer if
+                   file_gzip_level is set.  We could handle this case,
+                   but it's not worth it since this case never arises
+                   with a current client and server.  */
+		if (filebuf != NULL)
+		    error (1, 0, "\
+CVS server internal error: unhandled case in server_updated");
 
 		fd = CVS_OPEN (finfo->file, O_RDONLY | OPEN_BINARY, 0);
 		if (fd < 0)
@@ -3523,15 +3543,14 @@ server_updated (finfo, vers, updated, file_info, checksum)
 		/* Prepending length with "z" is flag for using gzip here.  */
 		buf_output0 (protocol, "z");
 	    }
-	    else
+	    else if (filebuf == NULL)
 	    {
 		long status;
 
-		size = sb.st_size;
 		f = CVS_FOPEN (finfo->file, "rb");
 		if (f == NULL)
 		    error (1, errno, "reading %s", finfo->fullname);
-		status = buf_read_file (f, sb.st_size, &list, &last);
+		status = buf_read_file (f, size, &list, &last);
 		if (status == -2)
 		    (*protocol->memory_error) (protocol);
 		else if (status != 0)
@@ -3545,7 +3564,13 @@ server_updated (finfo, vers, updated, file_info, checksum)
 	sprintf (size_text, "%lu\n", size);
 	buf_output0 (protocol, size_text);
 
-	buf_append_data (protocol, list, last);
+	if (filebuf == NULL)
+	    buf_append_data (protocol, list, last);
+	else
+	{
+	    buf_append_buffer (protocol, filebuf);
+	    buf_free (filebuf);
+	}
 	/* Note we only send a newline here if the file ended with one.  */
 
 	/*
@@ -3558,6 +3583,7 @@ server_updated (finfo, vers, updated, file_info, checksum)
 	if ((updated == SERVER_UPDATED
 	     || updated == SERVER_PATCHED
 	     || updated == SERVER_RCS_DIFF)
+	    && filebuf != NULL
 	    /* But if we are joining, we'll need the file when we call
 	       join_file.  */
 	    && !joining ())
@@ -5611,7 +5637,7 @@ this client does not support writing binary files to stdout");
 	   I assume that what they are talking about can also be helped
 	   by flushing the stream before changing the mode.  */
 	fflush (stdout);
-	oldmode = _setmode (_fileno (stdout), _O_BINARY);
+	oldmode = _setmode (_fileno (stdout), OPEN_BINARY);
 	if (oldmode < 0)
 	    error (0, errno, "failed to setmode on stdout");
 #endif
@@ -5626,7 +5652,7 @@ this client does not support writing binary files to stdout");
 	}
 #ifdef USE_SETMODE_STDOUT
 	fflush (stdout);
-	if (_setmode (_fileno (stdout), oldmode) != _O_BINARY)
+	if (_setmode (_fileno (stdout), oldmode) != OPEN_BINARY)
 	    error (0, errno, "failed to setmode on stdout");
 #endif
     }
