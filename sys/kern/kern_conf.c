@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.40 1999/05/18 13:14:43 luoqi Exp $
+ * $Id: kern_conf.c,v 1.41 1999/05/31 11:27:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -188,6 +188,12 @@ minor(dev_t x)
 	uintptr_t i = (uintptr_t)x;
 
 	return(i & 0xffff00ff);
+}
+
+dev_t
+makebdev(int x, int y)
+{
+	return (makedev(x, y));
 }
 
 dev_t
