@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: match.c,v 1.4 1999/11/24 19:53:48 markus Exp $");
+RCSID("$Id: match.c,v 1.5 2000/03/23 22:15:33 markus Exp $");
 
 #include "ssh.h"
 
@@ -79,4 +79,63 @@ match_pattern(const char *s, const char *pattern)
 		pattern++;
 	}
 	/* NOTREACHED */
+}
+
+/*
+ * Tries to match the host name (which must be in all lowercase) against the
+ * comma-separated sequence of subpatterns (each possibly preceded by ! to
+ * indicate negation).  Returns true if there is a positive match; zero
+ * otherwise.
+ */
+
+int
+match_hostname(const char *host, const char *pattern, unsigned int len)
+{
+	char sub[1024];
+	int negated;
+	int got_positive;
+	unsigned int i, subi;
+
+	got_positive = 0;
+	for (i = 0; i < len;) {
+		/* Check if the subpattern is negated. */
+		if (pattern[i] == '!') {
+			negated = 1;
+			i++;
+		} else
+			negated = 0;
+
+		/*
+		 * Extract the subpattern up to a comma or end.  Convert the
+		 * subpattern to lowercase.
+		 */
+		for (subi = 0;
+		     i < len && subi < sizeof(sub) - 1 && pattern[i] != ',';
+		     subi++, i++)
+			sub[subi] = isupper(pattern[i]) ? tolower(pattern[i]) : pattern[i];
+		/* If subpattern too long, return failure (no match). */
+		if (subi >= sizeof(sub) - 1)
+			return 0;
+
+		/* If the subpattern was terminated by a comma, skip the comma. */
+		if (i < len && pattern[i] == ',')
+			i++;
+
+		/* Null-terminate the subpattern. */
+		sub[subi] = '\0';
+
+		/* Try to match the subpattern against the host name. */
+		if (match_pattern(host, sub)) {
+			if (negated)
+				return 0;	/* Fail */
+			else
+				got_positive = 1;
+		}
+	}
+
+	/*
+	 * Return success if got a positive match.  If there was a negative
+	 * match, we have already returned zero and never get here.
+	 */
+	return got_positive;
 }

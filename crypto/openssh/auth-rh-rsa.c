@@ -15,7 +15,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: auth-rh-rsa.c,v 1.10 1999/11/24 19:53:43 markus Exp $");
+RCSID("$Id: auth-rh-rsa.c,v 1.11 2000/03/23 22:15:33 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"
@@ -23,21 +23,28 @@ RCSID("$Id: auth-rh-rsa.c,v 1.10 1999/11/24 19:53:43 markus Exp $");
 #include "uidswap.h"
 #include "servconf.h"
 
+#include <ssl/rsa.h>
+#include <ssl/dsa.h>
+#include "key.h"
+#include "hostfile.h"
+
 /*
  * Tries to authenticate the user using the .rhosts file and the host using
  * its host key.  Returns true if authentication succeeds.
  */
 
 int 
-auth_rhosts_rsa(struct passwd *pw, const char *client_user,
-		BIGNUM *client_host_key_e, BIGNUM *client_host_key_n)
+auth_rhosts_rsa(struct passwd *pw, const char *client_user, RSA *client_host_key)
 {
 	extern ServerOptions options;
 	const char *canonical_hostname;
 	HostStatus host_status;
-	BIGNUM *ke, *kn;
+	Key *client_key, *found;
 
 	debug("Trying rhosts with RSA host authentication for %.100s", client_user);
+
+	if (client_host_key == NULL)
+		return 0;
 
 	/* Check if we would accept it using rhosts authentication. */
 	if (!auth_rhosts(pw, client_user))
@@ -45,15 +52,17 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user,
 
 	canonical_hostname = get_canonical_hostname();
 
-	debug("Rhosts RSA authentication: canonical host %.900s",
-	      canonical_hostname);
+	debug("Rhosts RSA authentication: canonical host %.900s", canonical_hostname);
+
+	/* wrap the RSA key into a 'generic' key */
+	client_key = key_new(KEY_RSA);
+	BN_copy(client_key->rsa->e, client_host_key->e);
+	BN_copy(client_key->rsa->n, client_host_key->n);
+	found = key_new(KEY_RSA);
 
 	/* Check if we know the host and its host key. */
-	ke = BN_new();
-	kn = BN_new();
 	host_status = check_host_in_hostfile(SSH_SYSTEM_HOSTFILE, canonical_hostname,
-			   		     client_host_key_e, client_host_key_n,
-					     ke, kn);
+	    client_key, found);
 
 	/* Check user host file unless ignored. */
 	if (host_status != HOST_OK && !options.ignore_user_known_hosts) {
@@ -73,14 +82,13 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user,
 			/* XXX race between stat and the following open() */
 			temporarily_use_uid(pw->pw_uid);
 			host_status = check_host_in_hostfile(user_hostfile, canonical_hostname,
-							     client_host_key_e, client_host_key_n,
-							     ke, kn);
+			    client_key, found);
 			restore_uid();
 		}
 		xfree(user_hostfile);
 	}
-	BN_free(ke);
-	BN_free(kn);
+	key_free(client_key);
+	key_free(found);
 
 	if (host_status != HOST_OK) {
 		debug("Rhosts with RSA host authentication denied: unknown or invalid host key");
@@ -90,7 +98,7 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user,
 	/* A matching host key was found and is known. */
 
 	/* Perform the challenge-response dialog with the client for the host key. */
-	if (!auth_rsa_challenge_dialog(client_host_key_e, client_host_key_n)) {
+	if (!auth_rsa_challenge_dialog(client_host_key)) {
 		log("Client on %.800s failed to respond correctly to host authentication.",
 		    canonical_hostname);
 		return 0;
@@ -101,7 +109,7 @@ auth_rhosts_rsa(struct passwd *pw, const char *client_user,
 	 */
 
 	verbose("Rhosts with RSA host authentication accepted for %.100s, %.100s on %.700s.",
-		pw->pw_name, client_user, canonical_hostname);
+	   pw->pw_name, client_user, canonical_hostname);
 	packet_send_debug("Rhosts with RSA host authentication accepted.");
 	return 1;
 }
