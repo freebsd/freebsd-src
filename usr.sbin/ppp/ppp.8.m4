@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd 20 September 1995
+.Dd September 20, 1995
 .Dt PPP 8
 .Os
 .Sh NAME
