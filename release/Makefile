@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.362 1998/07/16 10:15:53 jkh Exp $
+#	$Id: Makefile,v 1.363 1998/07/19 05:31:35 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -72,7 +72,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 BOOTMFSSIZE=		1440
 MFSINODE=		8000
 FIXITINODE=		2000
-BOOTINODE=		120000
+BOOTINODE=		140000
 
 VNDEVICE?=		vn0
 
