@@ -219,6 +219,14 @@ The object-intrinsic functions
 and
 .Fn _fini
 are called with no arguments, and are not expected to return values.
+.Sh NOTES
+ELF executables need to be linked
+using the
+.Fl export-dynamic
+option to
+.Xr ld 1
+for symbols defined in the executable to become visible to 
+.Fn dlsym .
 .Sh ERRORS
 .Fn dlopen
 and
