@@ -5,6 +5,11 @@ FILES=	fortunes fortunes2 startrek zippy
 BLDS=	fortunes.dat fortunes2.dat startrek.dat zippy.dat \
 	fortunes-o fortunes-o.dat
 
+# Pass all new entries by ${MAINTAINER} to preserve some semblance of
+# humor in the fortune files.  What's funny to you on 6 beers may not
+# be funny to anyone else.
+MAINTAINER=	jkh
+
 # TO AVOID INSTALLING THE POTENTIALLY OFFENSIVE FORTUNES, COMMENT OUT THE
 # THREE LINES AND UNCOMMENT THE FOURTH LINE.
 
