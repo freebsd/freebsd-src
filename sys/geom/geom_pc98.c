@@ -155,16 +155,15 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			u = g_dec_le2(buf + 512 + 14 + i * 32);
 			if (u == 0)
 				continue;
-			printf("Index: %d\n", i);
 			g_hexdump(buf+512 + i * 32, 32);
 			start = v * fwsect * fwhead * sectorsize;
 			length = (1 + u - v) * fwsect * fwhead * sectorsize;
-			printf("c%d - c%d (%jx - %jx) = %s\n",
-			     v, u, (uintmax_t)start, (uintmax_t)length, buf + 512 + 16 + i * 32);
 			npart++;
+			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
 			    start, length,
 			    "%ss%d", pp->name, 1 + i);
+			g_topology_unlock();
 			g_error_provider(pp2, 0);
 		}
 		break;

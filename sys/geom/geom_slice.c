@@ -226,6 +226,62 @@ g_slice_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_cons
 	}
 }
 
+int
+g_slice_config(struct g_geom *gp, int index, int how, off_t offset, off_t length, char *fmt, ...)
+{
+	struct g_provider *pp;
+	struct g_slicer *gsp;
+	struct g_slice *gsl;
+	va_list ap;
+	struct sbuf *sb;
+	int error, acc;
+
+	g_trace(G_T_TOPOLOGY, "g_slice_config()");
+	g_topology_assert();
+	gsp = gp->softc;
+	error = 0;
+	if (index >= gsp->nslice)
+		return(EINVAL);
+	gsl = &gsp->slices[index];
+	pp = gsl->provider;
+	if (pp != NULL)
+		acc = pp->acr + pp->acw + pp->ace;
+	else
+		acc = 0;
+	if (acc != 0 && how != G_SLICE_CONFIG_FORCE) {
+		if (length < gsl->length)
+			return(EBUSY);
+		if (offset != gsl->offset)
+			return(EBUSY);
+	}
+	/* XXX: check offset + length <= MEDIASIZE */
+	if (how == G_SLICE_CONFIG_CHECK)
+		return (0);
+	gsl->length = length;
+	gsl->offset = offset;
+	if (length != 0 && pp != NULL)
+		return (0);
+	if (length == 0 && pp == NULL)
+		return (0);
+	if (length == 0 && pp != NULL) {
+		g_orphan_provider(pp, ENXIO);
+		gsl->provider = NULL;
+		gsp->nprovider--;
+		return (0);
+	}
+	va_start(ap, fmt);
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sbuf_vprintf(sb, fmt, ap);
+	sbuf_finish(sb);
+	pp = g_new_providerf(gp, sbuf_data(sb));
+	pp->index = index;
+	gsl->provider = pp;
+	gsp->nprovider++;
+	g_error_provider(pp, 0);
+	sbuf_delete(sb);
+	return(0);
+}
+
 struct g_provider *
 g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char *fmt, ...)
 {
@@ -235,7 +291,7 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char 
 	struct sbuf *sb;
 
 	g_trace(G_T_TOPOLOGY, "g_slice_addslice()");
-	g_topology_lock();
+	g_topology_assert();
 	gsp = gp->softc;
 	va_start(ap, fmt);
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
@@ -248,7 +304,6 @@ g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char 
 	gsp->slices[index].offset = offset;
 	gsp->slices[index].provider = pp;
 	sbuf_delete(sb);
-	g_topology_unlock();
 	return(pp);
 }
 

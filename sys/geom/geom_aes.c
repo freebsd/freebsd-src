@@ -317,6 +317,7 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	}
 	buf = NULL;
+	g_topology_unlock();
 	while (1) {
 		if (gp->rank != 2)
 			break;
@@ -370,11 +371,14 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 				*p++ = u >> 24;
 			}
 		}
+		g_topology_lock();
 		pp = g_new_providerf(gp, gp->name);
 		pp->mediasize = mediasize - sectorsize;
 		g_error_provider(pp, 0);
+		g_topology_unlock();
 		break;
 	}
+	g_topology_lock();
 	if (buf)
 		g_free(buf);
 	g_access_rel(cp, -1, 0, 0);

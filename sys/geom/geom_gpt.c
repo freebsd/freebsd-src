@@ -220,9 +220,11 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		bcopy(ent, gs->part[i], hdr->hdr_entsz);
 		ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
 		    ? 's' : 'p';
+		g_topology_lock();
 		(void)g_slice_addslice(gp, i, ent->ent_lba_start * secsz,
 		    (ent->ent_lba_end - ent->ent_lba_start + 1ULL) * secsz,
 		    "%s%c%d", gp->name, ps, i + 1);
+		g_topology_unlock();
 		npart++;
 	}
 
