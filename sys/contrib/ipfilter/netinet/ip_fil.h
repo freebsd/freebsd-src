@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.0.2.39.2.4 1997/11/12 10:50:02 darrenr Exp $
+ * $Id: ip_fil.h,v 2.0.2.39.2.10 1997/12/03 10:02:30 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -94,10 +94,10 @@ typedef	struct	fr_ip	{
 	u_short	fi_auth;
 } fr_ip_t;
 
-#define	FI_OPTIONS	0x01
-#define	FI_TCPUDP	0x02	/* TCP/UCP implied comparison involved */
-#define	FI_FRAG		0x04
-#define	FI_SHORT	0x08
+#define	FI_OPTIONS	(FF_OPTIONS >> 24)
+#define	FI_TCPUDP	(FF_TCPUDP >> 24)	/* TCP/UCP implied comparison*/
+#define	FI_FRAG		(FF_FRAG >> 24)
+#define	FI_SHORT	(FF_SHORT >> 24)
 
 typedef	struct	fr_info	{
 	struct	fr_ip	fin_fi;
@@ -381,7 +381,7 @@ extern	int	ipf_log __P((void));
 extern	void	ipfr_fastroute __P((ip_t *, fr_info_t *, frdest_t *));
 extern	struct	ifnet *get_unit __P((char *));
 # define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
-# if defined(__NetBSD__) || defined(__OpenBSD__)
+# if defined(__NetBSD__) || defined(__OpenBSD__) || (_BSDI_VERSION >= 199701)
 extern	int	iplioctl __P((dev_t, u_long, caddr_t, int));
 # else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int));
@@ -423,7 +423,11 @@ extern	int	iplread __P((dev_t, struct uio *, cred_t *));
 # else /* SOLARIS */
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
-extern	int	send_reset __P((struct tcpiphdr *));
+#  ifdef	linux
+extern	int	send_reset __P((tcpiphdr_t *, struct ifnet *));
+#  else
+extern	int	send_reset __P((tcpiphdr_t *));
+#  endif
 extern	void	ipfr_fastroute __P((mb_t *, fr_info_t *, frdest_t *));
 extern	size_t	mbufchainlen __P((mb_t *));
 #  ifdef	__sgi
@@ -442,7 +446,7 @@ extern	int	iplidentify __P((char *));
 #   endif
 #   if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 220000) || \
       (NetBSD >= 199511)
-#    ifdef	__NetBSD__
+#    if defined(__NetBSD__) || (_BSDI_VERSION >= 199701)
 extern	int	iplioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 #    else
 extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct proc *));
@@ -491,12 +495,12 @@ extern	int	iplread(struct inode *, struct file *, char *, int);
 #endif
 
 extern	int	ipldetach __P((void));
-extern	u_short	fr_tcpsum __P((mb_t *, ip_t *, tcphdr_t *));
+extern	u_short	fr_tcpsum __P((mb_t *, ip_t *, tcphdr_t *, int));
 #define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
 extern	int	fr_scanlist __P((int, ip_t *, fr_info_t *, void *));
 extern	u_short	ipf_cksum __P((u_short *, int));
 extern	int	fr_copytolog __P((int, char *, int));
-extern	void	frflush __P((int, caddr_t));
+extern	void	frflush __P((int, int *));
 extern	frgroup_t *fr_addgroup __P((u_short, frentry_t *, int, int));
 extern	frgroup_t *fr_findgroup __P((u_short, u_32_t, int, int, frgroup_t ***));
 extern	void	fr_delgroup __P((u_short, u_32_t, int, int));

@@ -1,5 +1,6 @@
 /*
- * Simple FTP transparent proxy for in-kernel.
+ * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
+ * code.
  */
 
 #define	isdigit(x)	((x) >= '0' && (x) <= '9')
@@ -10,6 +11,29 @@
 #define	IPF_MAXPORTLEN	30
 
 
+int ippr_ftp_init __P((fr_info_t *, ip_t *, tcphdr_t *,
+		       ap_session_t *, nat_t *));
+int ippr_ftp_in __P((fr_info_t *, ip_t *, tcphdr_t *,
+		       ap_session_t *, nat_t *));
+int ippr_ftp_out __P((fr_info_t *, ip_t *, tcphdr_t *,
+		       ap_session_t *, nat_t *));
+u_short ipf_ftp_atoi __P((char **));
+
+
+int ippr_ftp_init __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
+    nat_t *));
+int ippr_ftp_in __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
+    nat_t *));
+int ippr_ftp_out __P((fr_info_t *, ip_t *, tcphdr_t *, ap_session_t *,
+    nat_t *));
+
+u_short ipf_ftp_atoi __P((char **));
+
+
+
+/*
+ * FTP application proxy initialization.
+ */
 int ippr_ftp_init(fin, ip, tcp, aps, nat)
 fr_info_t *fin;
 ip_t *ip;
@@ -30,13 +54,18 @@ tcphdr_t *tcp;
 ap_session_t *aps;
 nat_t *nat;
 {
-	int	ch = 0;
 	u_long	sum1, sum2;
+	short sel;
 
-	if (tcp->th_dport != aps->aps_dport) {
+	if (tcp->th_sport == aps->aps_dport) {
 		sum2 = (u_long)ntohl(tcp->th_ack);
-		if (aps->aps_seqoff && (sum2 > aps->aps_after)) {
-			sum1 = (u_long)aps->aps_seqoff;
+		sel = aps->aps_sel;
+		if ((aps->aps_after[!sel] > aps->aps_after[sel]) &&
+			(sum2 > aps->aps_after[!sel])) {
+			sel = aps->aps_sel = !sel; /* switch to other set */
+		}
+		if (aps->aps_seqoff[sel] && (sum2 > aps->aps_after[sel])) {
+			sum1 = (u_long)aps->aps_seqoff[sel];
 			tcp->th_ack = htonl(sum2 - sum1);
 			return 2;
 		}
@@ -45,6 +74,12 @@ nat_t *nat;
 }
 
 
+/*
+ * ipf_ftp_atoi - implement a version of atoi which processes numbers in
+ * pairs separated by commas (which are expected to be in the range 0 - 255),
+ * returning a 16 bit number combining either side of the , as the MSB and
+ * LSB.
+ */
 u_short ipf_ftp_atoi(ptr)
 char **ptr;
 {
@@ -75,42 +110,38 @@ tcphdr_t *tcp;
 ap_session_t *aps;
 nat_t *nat;
 {
-	register u_long	sum1, sum2, sumd;
+	register u_long	sum1, sum2;
 	char	newbuf[IPF_MAXPORTLEN+1];
-	char	portbuf[IPF_MAXPORTLEN+1], *s, c;
-	int	ch = 0, off = (ip->ip_hl << 2) + (tcp->th_off << 2), len;
+	char	portbuf[IPF_MAXPORTLEN+1], *s;
+	int	ch = 0, off = (ip->ip_hl << 2) + (tcp->th_off << 2);
 	u_int	a1, a2, a3, a4;
 	u_short	a5, a6;
-	int	olen, dlen, nlen, inc = 0, blen;
+	int	olen, dlen, nlen = 0, inc = 0;
 	tcphdr_t tcph, *tcp2 = &tcph;
 	void	*savep;
 	nat_t	*ipn;
 	struct	in_addr	swip;
+	mb_t *m = *(mb_t **)fin->fin_mp;
+
 #if	SOLARIS
-	mblk_t *m1, *m = *(mblk_t **)fin->fin_mp;
+	mb_t *m1;
 
-	dlen = m->b_wptr - m->b_rptr - off;
-	blen = m->b_datap->db_lim - m->b_datap->db_base;
+	/* skip any leading M_PROTOs */
+	while(m && (MTYPE(m) != M_DATA))
+		m = m->b_cont;
+	PANIC((!m),("ippr_ftp_out: no M_DATA"));
+
+	dlen = msgdsize(m) - off;
 	bzero(portbuf, sizeof(portbuf));
-	copyout_mblk(m, off, portbuf, MIN(sizeof(portbuf), dlen));
+	copyout_mblk(m, off, MIN(sizeof(portbuf), dlen), portbuf);
 #else
-	struct mbuf *m1, *m = *(struct mbuf **)fin->fin_mp;
-
-	dlen = m->m_len - off;
-# if BSD >= 199306
-	blen = (MLEN - m->m_len) - (m->m_data - m->m_dat);
-# else
-	blen = (MLEN - m->m_len) - m->m_off;
-# endif
-	if (blen < 0)
-		panic("blen < 0 - size of mblk/mbuf wrong");
+	dlen = mbufchainlen(m) - off;
 	bzero(portbuf, sizeof(portbuf));
 	m_copydata(m, off, MIN(sizeof(portbuf), dlen), portbuf);
 #endif
 	portbuf[IPF_MAXPORTLEN] = '\0';
-	len = MIN(32, dlen);
 
-	if ((len < IPF_MINPORTLEN) || strncmp(portbuf, "PORT ", 5))
+	if ((dlen < IPF_MINPORTLEN) || strncmp(portbuf, "PORT ", 5))
 		goto adjust_seqack;
 
 	/*
@@ -149,30 +180,48 @@ nat_t *nat;
 		a1, a2, a3, a4, a5, a6);
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
-	if (tcp->th_seq > aps->aps_after) {
-		aps->aps_after = ntohl(tcp->th_seq) + dlen;
-		aps->aps_seqoff += inc;
-	}
 #if SOLARIS
-	if (inc && dlen)
-		if ((inc < 0) || (blen >= dlen)) {
-			bcopy(m->b_rptr + off,
-			      m->b_rptr + off + aps->aps_seqoff, dlen);
-		}
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
-	m1->b_wptr += inc;
-	copyin_mblk(m, off, newbuf, strlen(newbuf));
+	if (inc > 0) {
+		mblk_t *nm;
+
+		/* alloc enough to keep same trailer space for lower driver */
+		nm = allocb(nlen + m1->b_datap->db_lim - m1->b_wptr, BPRI_MED);
+		PANIC((!nm),("ippr_ftp_out: allocb failed"));
+
+		nm->b_band = m1->b_band;
+		nm->b_wptr += nlen;
+
+		m1->b_wptr -= olen;
+		PANIC((m1->b_wptr < m1->b_rptr),("ippr_ftp_out: cannot handle fragmented data block"));
+
+		linkb(m1, nm);
+	} else {
+		m1->b_wptr += inc;
+	}
+	copyin_mblk(m, off, nlen, newbuf);
 #else
-	if (inc && dlen)
-		if ((inc < 0) || (blen >= dlen)) {
-			bcopy((char *)ip + off,
-			      (char *)ip + off + aps->aps_seqoff, dlen);
-		}
-	m->m_len += inc;
+	if (inc < 0)
+		m_adj(m, inc);
+	/* the mbuf chain will be extended if necessary by m_copyback() */
 	m_copyback(m, off, nlen, newbuf);
 #endif
-	ip->ip_len += inc;
+	if (inc) {
+#if SOLARIS || defined(__sgi)
+		sum1 = ip->ip_len;
+		sum2 = ip->ip_len + inc;
+
+		/* Because ~1 == -2, We really need ~1 == -1 */
+		if (sum1 > sum2)
+			sum2--;
+		sum2 -= sum1;
+		sum2 = (sum2 & 0xffff) + (sum2 >> 16);
+
+		fix_outcksum(&ip->ip_sum, sum2);
+#endif
+		ip->ip_len += inc;
+	}
 	ch = 1;
 
 	/*
@@ -181,24 +230,40 @@ nat_t *nat;
 	 */
 	savep = fin->fin_dp;
 	fin->fin_dp = (char *)tcp2;
+	bzero((char *)tcp2, sizeof(*tcp2));
 	tcp2->th_sport = htons(a5 << 8 | a6);
 	tcp2->th_dport = htons(20);
 	swip = ip->ip_src;
 	ip->ip_src = nat->nat_inip;
 	if ((ipn = nat_new(nat->nat_ptr, ip, fin, IPN_TCP, NAT_OUTBOUND)))
 		ipn->nat_age = fr_defnatage;
+	(void) fr_addstate(ip, fin, FR_INQUE|FR_PASS|FR_QUICK|FR_KEEPSTATE);
 	ip->ip_src = swip;
 	fin->fin_dp = (char *)savep;
 
 adjust_seqack:
 	if (tcp->th_dport == aps->aps_dport) {
 		sum2 = (u_long)ntohl(tcp->th_seq);
-		if (aps->aps_seqoff && (sum2 > aps->aps_after)) {
-			sum1 = (u_long)aps->aps_seqoff;
-			tcp->th_seq = htonl(sum2 + sum1);
-			ch = 1;
+		off = aps->aps_sel;
+		if ((aps->aps_after[!off] > aps->aps_after[off]) &&
+			(sum2 > aps->aps_after[!off])) {
+			off = aps->aps_sel = !off; /* switch to other set */
+		}
+		if (aps->aps_seqoff[off]) {
+			sum1 = (u_long)aps->aps_after[off] -
+			       aps->aps_seqoff[off];
+			if (sum2 > sum1) {
+				sum1 = (u_long)aps->aps_seqoff[off];
+				sum2 += sum1;
+				tcp->th_seq = htonl(sum2);
+				ch = 1;
+			}
+		}
+
+		if (inc && (sum2 > aps->aps_after[!off])) {
+			aps->aps_after[!off] = sum2 + nlen - 1;
+			aps->aps_seqoff[!off] = aps->aps_seqoff[off] + inc;
 		}
 	}
-
 	return ch ? 2 : 0;
 }
