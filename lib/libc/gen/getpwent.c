@@ -749,14 +749,21 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 		  return 0;
 	}
 
-	sprintf(mastermap,"%s",map);
-
 	if (_gotmaster == YP_HAVE_MASTER)
 		sprintf(mastermap,"master.%s", map);
+	else
+		sprintf(mastermap,"%s",map);
 
 	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name),
-		    &result, &resultlen))
-		return 0;
+		    &result, &resultlen)) {
+		if (_gotmaster != YP_HAVE_MASTER)
+			return 0;
+		sprintf(mastermap,"%s",map);
+		if (yp_match(_pw_yp_domain, (char *)&mastermap,
+			     name, strlen(name), &result, &resultlen))
+			return 0;
+		_gotmaster = YP_HAVE_NONE;
+	}
 
 	if (!_pw_stepping_yp) {
 		s = strchr(result, ':');
