@@ -227,7 +227,7 @@ to enable ipfw event logging.
 This is equivalent to the IPFIREWALL_VERBOSE kernel option.
 .It Va natd_program
 .Pq Vt str
-path to
+Path to
 .Xr natd 8 .
 .It Va natd_enable
 .Pq Vt bool
@@ -629,14 +629,14 @@ and
 .Pa /etc/rc.conf.local
 .It Va fsck_y_enable
 .Pq Vt bool
-if set to
+If set to
 .Dq YES ,
 .Xr fsck 8
 will be run with the -y flag if the initial preen
 of the filesystems fails.
 .It Va background_fsck
 .Pq Vt bool
-if set to
+If set to
 .Dq YES ,
 the system will attempt to run
 .Xr fsck 8
@@ -656,7 +656,7 @@ Path to
 .Pa /usr/sbin/syslogd ) .
 .It Va syslogd_flags
 .Pq Vt str
-if syslogd_enable is set to
+If syslogd_enable is set to
 .Dq YES ,
 these are the flags to pass to
 .Xr syslogd 8 .
@@ -675,7 +675,7 @@ Path to
 .Pa /usr/sbin/inetd ) .
 .It Va inetd_flags
 .Pq Vt str
-if inetd_enable is set to
+If inetd_enable is set to
 .Dq YES ,
 these are the flags to pass to
 .Xr inetd 8 .
@@ -688,13 +688,13 @@ run the
 daemon.
 .It Va named_program
 .Pq Vt str
-path to
+Path to
 .Xr named 8
 (default
 .Pa /usr/sbin/named ) .
 .It Va named_flags
 .Pq Vt str
-if
+If
 .Va named_enable
 is set to
 .Dq YES ,
@@ -853,7 +853,7 @@ and also an NFS server, run
 at boot time.
 .It Va portmap_program
 .Pq Vt str
-path to
+Path to
 .Xr rpcbind 8
 (default
 .Pa /usr/sbin/rpcbind ) .
@@ -915,7 +915,7 @@ is set to
 .Dq YES .
 .It Va timed_enable
 .Pq Vt boot
-if
+If
 .Dq YES
 then run the
 .Xr timed 8
@@ -947,7 +947,7 @@ from some standard reference.  An option to set this up initially
 program when the system is first installed.
 .It Va ntpdate_program
 .Pq Vt str
-path to
+Path to
 .Xr ntpdate 8
 (default
 .Pa /usr/sbin/ntpdate ) .
@@ -969,7 +969,7 @@ then run the
 command at boot time.
 .It Va xntpd_program
 .Pq Vt str
-path to
+Path to
 .Xr ntpd 8
 (default
 .Pa /usr/sbin/ntpd ) .
@@ -1489,13 +1489,13 @@ then run the
 daemon at system boot time.
 .It Va cron_program
 .Pq Vt str
-path to
+Path to
 .Xr cron 8
 (default
 .Pa /usr/sbin/cron ) .
 .It Va cron_flags
 .Pq Vt str
-if
+If
 .Va cron_enable
 is set to
 .Dq YES ,
@@ -1503,7 +1503,7 @@ these are the flags to pass to
 .Xr cron 8 .
 .It Va lpd_program
 .Pq Vt str
-path to
+Path to
 .Xr lpd 8
 (default
 .Pa /usr/sbin/lpd ) .
