@@ -96,7 +96,7 @@ static const char rcsid[] =
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
 
-#define	PHDR_LEN	sizeof(struct timeval)
+#define	PHDR_LEN	((int)sizeof(struct timeval))
 #define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
@@ -727,7 +727,7 @@ main(argc, argv)
  */
 void
 stopit(sig)
-	int sig;
+	int sig __unused;
 {
 
 	finish_up = 1;
@@ -1097,7 +1097,7 @@ tvsub(out, in)
 
 static void
 status(sig)
-	int sig;
+	int sig __unused;
 {
 
 	siginfo_p = 1;
