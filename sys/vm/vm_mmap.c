@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.48 1996/07/28 02:54:09 davidg Exp $
+ * $Id: vm_mmap.c,v 1.49 1996/07/30 03:08:12 dyson Exp $
  */
 
 /*
@@ -565,8 +565,8 @@ madvise(p, uap, retval)
 	 * Since this routine is only advisory, we default to conservative
 	 * behavior.
 	 */
-	start = round_page((vm_offset_t) uap->addr);
-	end = trunc_page((vm_offset_t) uap->addr + uap->len);
+	start = trunc_page((vm_offset_t) uap->addr);
+	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
 	map = &p->p_vmspace->vm_map;
 	pmap = &p->p_vmspace->vm_pmap;
