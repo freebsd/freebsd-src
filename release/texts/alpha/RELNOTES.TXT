@@ -53,6 +53,17 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+An emulator for Tru64 (aka DEC OSF/1) binaries has been added.
+
+Support for the following platforms has been added:
+        AlphaServer 1000 (1000A untested)
+        Compaq Professional Workstation XP900, XP1000, AlphaServer DS10
+        AlphaServer DS20 (single CPU only)
+
+Device support on Alpha is greatly improved.  ATA drives are now vis1ble, and
+available as boot devices on platforms which support it.  Sound,
+floppy, and other ISA drivers are now known to work.
+
 NFS has been immensely improved with bug fixes and performance tuning
 
 Support for more than 32 signals has been added.
@@ -190,29 +201,17 @@ as part of the FreeBSD Auditing Project.
 
 2. Supported Configurations
 ---------------------------
-FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
-based PC's, ranging from 386sx to Pentium class machines (though the
-386sx is not recommended).  Support for generic IDE or ESDI drive
-configurations, various SCSI controller, network and serial cards is
-also provided.
 
-What follows is a list of all peripherals currently known to work with
-FreeBSD.  Other configurations may also work, we have simply not as yet
-received confirmation of this.
-
+For an extensive overview of supported Alpha machines/mainboards please refer
+to the HARDWARE.TXT file.
 
 2.1. Disk Controllers
 ---------------------
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
 IDE
 ATA
 
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
-Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
-EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
 Adaptec 152x series ISA SCSI controllers
@@ -256,8 +255,6 @@ SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
 
 QLogic 1020, 1040, 1040B, 1080 and 1240 SCSI Host Adapters.
 QLogic 2100 Fibre Channel Adapters (private loop only).
-
-DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
 With all supported SCSI controllers, full support is provided for
 SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
@@ -445,7 +442,7 @@ Winbond W89C940, Surecom NE-34, VIA VT86C926.
 3Com 3C507 Etherlink 16/TP
 
 3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
-and EISA (Fast) Etherlink III / (Fast) Etherlink XL
+(Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3c980/3c980B Fast Etherlink XL server adapter
 
@@ -514,7 +511,7 @@ SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
 ONboard 4/16 and Brumby.
 
-Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
+Specialix SI/XIO/SX ISA, PCI serial expansion cards/modules.
 
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards. (snd driver)
