@@ -379,8 +379,8 @@ sltioctl(tp, cmd, data, flag, p)
 				if (   nc->sc_if.if_unit == *(u_int *)data
 				    && nc->sc_ttyp == NULL
 				   ) {
-					MALLOC(tmpnc, sizeof *tmpnc, M_TEMP,
-						M_NOWAIT);
+					tmpnc = malloc(sizeof *tmpnc, M_TEMP,
+						       M_NOWAIT);
 					if (tmpnc == NULL) {
 						splx(s);
 						return (ENOMEM);
@@ -390,7 +390,7 @@ sltioctl(tp, cmd, data, flag, p)
 					nc->sc_if = tmpnc->sc_if;
 					tmpnc->sc_if = sc->sc_if;
 					*sc = *tmpnc;
-					FREE(tmpnc, M_TEMP);
+					free(tmpnc, M_TEMP);
 					if (sc->sc_if.if_flags & IFF_UP) {
 						if_down(&sc->sc_if);
 						if (!(nc->sc_if.if_flags & IFF_UP))
