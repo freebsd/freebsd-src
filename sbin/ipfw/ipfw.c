@@ -57,38 +57,30 @@ u_short		flags=0;			/* New entry flags 	   */
 
 #define CH_FW		"f" /* of "firewall" for chains in zero/flush       */
 #define CH_AC		"a" /* of "accounting" for chain in zero/flush/list */
-#define CH_BLK		"b" /* of "blocking" for chain in list 	            */
-#define CH_FWD		"f" /* of "forwarding" for chain in list            */
 
 char	action_tab[][MAXSTR]={
-"addb",
-#define A_ADDB 		0
-"delb",
-#define A_DELB 		1
-"chkb",
-#define A_CHKB		2
 "addf",
-#define A_ADDF		3
-"delf",	
-#define A_DELF		4
+#define A_ADDF 		0
+"delf",
+#define A_DELF 		1
 "chkf",
-#define A_CHKF		5
+#define A_CHKF		2
 "adda",
-#define A_ADDA		6
+#define A_ADDA		3
 "dela",
-#define A_DELA		7
+#define A_DELA		4
 "clr",
-#define A_CLRA		8
+#define A_CLRA		5
 "f",
-#define A_FLUSH		9
+#define A_FLUSH		6
 "z",
-#define A_ZERO		10
+#define A_ZERO		7 
 "l",
-#define A_LIST		11
+#define A_LIST		8 
 "p",
-#define A_POLICY	12
+#define A_POLICY	9 
 "",
-#define A_NONE		13
+#define A_NONE		10
 };
 
 
@@ -130,11 +122,9 @@ char	proto_tab[][MAXSTR]={
 };
 
 struct nlist nlf[]={
-#define N_BCHAIN 	0
-	{ "_ip_fw_blk_chain" },
-#define N_FCHAIN 	1
-	{ "_ip_fw_fwd_chain" },
-#define N_POLICY 	2
+#define N_FCHAIN 	0
+	{ "_ip_fw_chain" },
+#define N_POLICY 	1
 	{ "_ip_fw_policy" },
 	"" ,
 };
@@ -372,8 +362,7 @@ struct ip_fw b,*btmp;
      		exit(1);
 	}
 
-if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK)) 
-              || !strncmp(*av,CH_FWD,strlen(CH_FWD))) {
+if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
 	if (kvm_nlist(kd,nlf)<0 || nlf[0].n_type==0) {
 		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
 						progname,getbootfile());
@@ -381,19 +370,9 @@ if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))
     	}
 }
 
-if (*av==NULL || !strncmp(*av,CH_BLK,strlen(CH_BLK))) {
-	kvm_read(kd,(u_long)nlf[N_BCHAIN].n_value,&b,sizeof(struct ip_fw));
-	printf("Blocking chain entries:\n");
-	while(b.fw_next!=NULL) {
-		btmp=b.fw_next;
-		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
-		show_ipfw(&b,FW);
-	}
-}
-
-if (*av==NULL || !strncmp(*av,CH_FWD,strlen(CH_FWD))) {
+if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
 	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
-	printf("Forwarding chain entries:\n");
+	printf("FireWall chain entries:\n");
 	while(b.fw_next!=NULL) {
 		btmp=b.fw_next;
 		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
@@ -852,24 +831,12 @@ struct ip_fw	frwl;
 	}
 
     switch(get_num(*av,action_tab)) {
-			case A_ADDB:
-				ctl=IP_FW_ADD_BLK;
-				int_t=FW;
-				break;
-			case A_DELB:
-				ctl=IP_FW_DEL_BLK;
-				int_t=FW;
-				break;
-			case A_CHKB:
-				int_t=FW;
-				is_check=1;
-				break;
 			case A_ADDF:
-				ctl=IP_FW_ADD_FWD;
+				ctl=IP_FW_ADD;
 				int_t=FW;
 				break;
 			case A_DELF:
-				ctl=IP_FW_DEL_FWD;
+				ctl=IP_FW_DEL;
 				int_t=FW;
 				break;
 			case A_CHKF:
