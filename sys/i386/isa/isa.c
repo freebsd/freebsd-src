@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.50.4.1 1996/01/04 08:54:12 gibbs Exp $
+ *	$Id: isa.c,v 1.50.4.2 1996/01/13 10:46:49 davidg Exp $
  */
 
 /*
@@ -920,6 +920,7 @@ update_intr_masks(void)
 		if (intr==2) continue;
 		maskptr = intr_mptr[intr];
 		if (!maskptr) continue;
+		*maskptr |= 1 << intr;
 		mask = *maskptr;
 		if (mask != intr_mask[intr]) {
 #if 0
