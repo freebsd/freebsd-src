@@ -3,9 +3,24 @@
 
 DIR=	psd/06.Clang
 SRCS=	Clang.ms
-MACROS=	-msU
+MACROS=	-ms
+GROFF=	groff
+
+all: paper.ps paper.ascii
 
 paper.ps: ${SRCS}
-	${TBL} ${SRCS} | ${ROFF} > ${.TARGET}
+	${TBL} ${SRCS} | ${GROFF} ${MACROS} - > ${.TARGET}
+
+paper.ascii: ${SRCS}
+	${TBL} ${SRCS} | ${ROFF} ${MACROS} - > ${.TARGET}
+
+paper.ascii.gz: paper.ascii
+paper.ps.gz: paper.ps
+
+paper.ascii.gz paper.ps.gz:
+	gzip -f ${.TARGET:.gz=}
+
+clean:
+	rm -f paper.* *.spell errs Errs make.out Make.log *~
 
 .include <bsd.doc.mk>
