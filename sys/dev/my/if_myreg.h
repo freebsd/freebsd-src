@@ -374,6 +374,9 @@ struct my_softc {
 
 };
 
+/* Add by Surfer 2001/12/2 */
+#define	MY_LOCK(_sc)		/*mtx_lock(&(_sc)->my_mtx)*/
+#define	MY_UNLOCK(_sc)		/*mtx_unlock(&(_sc)->my_mtx)*/
 
 /*
  * register space access macros

@@ -176,6 +176,8 @@ my_send_cmd_to_phy(struct my_softc * sc, int opcode, int regad)
 	int             i;
 	int             mask, data;
 
+	MY_LOCK(sc);
+
 	/* enable MII output */
 	miir = CSR_READ_4(sc, MY_MANAGEMENT);
 	miir &= 0xfffffff0;
@@ -215,6 +217,8 @@ my_send_cmd_to_phy(struct my_softc * sc, int opcode, int regad)
 		if (mask == 0x2 && opcode == MY_OP_READ)
 			miir &= ~MY_MASK_MIIR_MII_WRITE;
 	}
+
+	MY_UNLOCK(sc);
 	return miir;
 }
 
@@ -224,6 +228,8 @@ my_phy_readreg(struct my_softc * sc, int reg)
 {
 	long            miir;
 	int             mask, data;
+
+	MY_LOCK(sc);
 
 	if (sc->my_info->my_did == MTD803ID)
 		data = CSR_READ_2(sc, MY_PHYBASE + reg * 2);
@@ -257,6 +263,7 @@ my_phy_readreg(struct my_softc * sc, int reg)
 		CSR_WRITE_4(sc, MY_MANAGEMENT, miir);
 	}
 
+	MY_UNLOCK(sc);
 	return (u_int16_t) data;
 }
 
@@ -266,6 +273,8 @@ my_phy_writereg(struct my_softc * sc, int reg, int data)
 {
 	long            miir;
 	int             mask;
+
+	MY_LOCK(sc);
 
 	if (sc->my_info->my_did == MTD803ID)
 		CSR_WRITE_2(sc, MY_PHYBASE + reg * 2, data);
@@ -295,7 +304,7 @@ my_phy_writereg(struct my_softc * sc, int reg, int data)
 		miir &= ~MY_MASK_MIIR_MII_MDC;
 		CSR_WRITE_4(sc, MY_MANAGEMENT, miir);
 	}
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -343,6 +352,8 @@ my_setmulti(struct my_softc * sc)
 	u_int32_t       rxfilt;
 	int             mcnt = 0;
 
+	MY_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	rxfilt = CSR_READ_4(sc, MY_TCRRCR);
@@ -352,6 +363,9 @@ my_setmulti(struct my_softc * sc)
 		CSR_WRITE_4(sc, MY_TCRRCR, rxfilt);
 		CSR_WRITE_4(sc, MY_MAR0, 0xFFFFFFFF);
 		CSR_WRITE_4(sc, MY_MAR1, 0xFFFFFFFF);
+
+		MY_UNLOCK(sc);
+
 		return;
 	}
 	/* first, zot all the existing hash bits */
@@ -377,7 +391,7 @@ my_setmulti(struct my_softc * sc)
 	CSR_WRITE_4(sc, MY_MAR0, hashes[0]);
 	CSR_WRITE_4(sc, MY_MAR1, hashes[1]);
 	CSR_WRITE_4(sc, MY_TCRRCR, rxfilt);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -389,6 +403,8 @@ my_autoneg_xmit(struct my_softc * sc)
 {
 	u_int16_t       phy_sts = 0;
 
+	MY_LOCK(sc);
+
 	my_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
 	DELAY(500);
 	while (my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
@@ -397,6 +413,7 @@ my_autoneg_xmit(struct my_softc * sc)
 	phy_sts |= PHY_BMCR_AUTONEGENBL | PHY_BMCR_AUTONEGRSTR;
 	my_phy_writereg(sc, PHY_BMCR, phy_sts);
 
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -411,6 +428,8 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 	u_int16_t       ability2 = 0;
 	struct ifnet   *ifp;
 	struct ifmedia *ifm;
+
+	MY_LOCK(sc);
 
 	ifm = &sc->ifmedia;
 	ifp = &sc->arpcom.ac_if;
@@ -428,6 +447,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 			printf("my%d: autonegotiation not supported\n",
 			    sc->my_unit);
 		ifm->ifm_media = IFM_ETHER | IFM_10_T | IFM_HDX;
+		MY_UNLOCK(sc);
 		return;
 	}
 #endif
@@ -451,12 +471,14 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 		 */
 		if (sc->my_cdata.my_tx_head != NULL) {
 			sc->my_want_auto = 1;
+			MY_UNLOCK(sc);
 			return;
 		}
 		my_autoneg_xmit(sc);
 		ifp->if_timer = 5;
 		sc->my_autoneg = 1;
 		sc->my_want_auto = 0;
+		MY_UNLOCK(sc);
 		return;
 	case MY_FLAG_DELAYTIMEO:
 		ifp->if_timer = 0;
@@ -464,6 +486,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 		break;
 	default:
 		printf("my%d: invalid autoneg flag: %d\n", sc->my_unit, flag);
+		MY_UNLOCK(sc);
 		return;
 	}
 
@@ -560,6 +583,7 @@ my_autoneg_mii(struct my_softc * sc, int flag, int verbose)
 		sc->my_tx_pend = 0;
 		my_start(ifp);
 	}
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -572,6 +596,7 @@ my_getmode_mii(struct my_softc * sc)
 	u_int16_t       bmsr;
 	struct ifnet   *ifp;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	bmsr = my_phy_readreg(sc, PHY_BMSR);
 	if (bootverbose)
@@ -656,6 +681,7 @@ my_getmode_mii(struct my_softc * sc)
 		ifmedia_add(&sc->ifmedia, IFM_ETHER | IFM_AUTO, 0, NULL);
 		sc->ifmedia.ifm_media = IFM_ETHER | IFM_AUTO;
 	}
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -668,6 +694,7 @@ my_setmode_mii(struct my_softc * sc, int media)
 	u_int16_t       bmcr;
 	struct ifnet   *ifp;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	/*
 	 * If an autoneg session is in progress, stop it.
@@ -714,7 +741,7 @@ my_setmode_mii(struct my_softc * sc, int media)
 	}
 	my_phy_writereg(sc, PHY_BMCR, bmcr);
 	my_setcfg(sc, bmcr);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -728,6 +755,7 @@ my_setcfg(struct my_softc * sc, int bmcr)
 {
 	int             i, restart = 0;
 
+	MY_LOCK(sc);
 	if (CSR_READ_4(sc, MY_TCRRCR) & (MY_TE | MY_RE)) {
 		restart = 1;
 		MY_CLRBIT(sc, MY_TCRRCR, (MY_TE | MY_RE));
@@ -753,7 +781,7 @@ my_setcfg(struct my_softc * sc, int bmcr)
 		MY_CLRBIT(sc, MY_TCRRCR, MY_FD);
 	if (restart)
 		MY_SETBIT(sc, MY_TCRRCR, MY_TE | MY_RE);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -762,6 +790,7 @@ my_reset(struct my_softc * sc)
 {
 	register int    i;
 
+	MY_LOCK(sc);
 	MY_SETBIT(sc, MY_BCR, MY_SWR);
 	for (i = 0; i < MY_TIMEOUT; i++) {
 		DELAY(10);
@@ -773,7 +802,7 @@ my_reset(struct my_softc * sc)
 
 	/* Wait a little while for the chip to get its brains in order. */
 	DELAY(1000);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -828,6 +857,8 @@ my_attach(device_t dev)
 
 	}
 	bzero(sc, sizeof(struct my_softc));
+	/*mtx_init(&sc->my_mtx, device_get_nameunit(dev), MTX_DEF | MTX_RECURSE);*/
+	MY_LOCK(sc);
 
 	/*
 	 * Map control/status registers.
@@ -861,6 +892,7 @@ my_attach(device_t dev)
 			error = ENXIO;
 			goto fail;
 		}
+		  
 		sc->my_btag = I386_BUS_SPACE_IO;
 #endif
 	} else {
@@ -1027,7 +1059,13 @@ my_attach(device_t dev)
 	at_shutdown(my_shutdown, sc, SHUTDOWN_POST_SYNC);
 	shutdownhook_establish(my_shutdown, sc);
 #endif
+	 
+	MY_UNLOCK(sc);
+	return (0);
+
 fail:
+	MY_UNLOCK(sc);
+	/*mtx_destroy(&sc->my_mtx);*/
 	splx(s);
 	return (error);
 }
@@ -1041,6 +1079,7 @@ my_detach(device_t dev)
 
 	s = splimp();
 	sc = device_get_softc(dev);
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	my_stop(sc);
@@ -1057,9 +1096,9 @@ my_detach(device_t dev)
 	contigfree(sc->my_cdata.my_rx_buf, MY_RXBUFLEN + 32, M_DEVBUF);
 #endif
 	free(sc, M_DEVBUF);
-
+	MY_UNLOCK(sc);
 	splx(s);
-
+	/*mtx_destroy(&sc->my_mtx);*/
 	return (0);
 }
 
@@ -1074,6 +1113,7 @@ my_list_tx_init(struct my_softc * sc)
 	struct my_list_data *ld;
 	int             i;
 
+	MY_LOCK(sc);
 	cd = &sc->my_cdata;
 	ld = sc->my_ldata;
 	for (i = 0; i < MY_TX_LIST_CNT; i++) {
@@ -1086,7 +1126,7 @@ my_list_tx_init(struct my_softc * sc)
 	}
 	cd->my_tx_free = &cd->my_tx_chain[0];
 	cd->my_tx_tail = cd->my_tx_head = NULL;
-
+	MY_UNLOCK(sc);
 	return (0);
 }
 
@@ -1102,6 +1142,7 @@ my_list_rx_init(struct my_softc * sc)
 	struct my_list_data *ld;
 	int             i;
 
+	MY_LOCK(sc);
 	cd = &sc->my_cdata;
 	ld = sc->my_ldata;
 	for (i = 0; i < MY_RX_LIST_CNT; i++) {
@@ -1120,7 +1161,7 @@ my_list_rx_init(struct my_softc * sc)
 		}
 	}
 	cd->my_rx_head = &cd->my_rx_chain[0];
-
+	MY_UNLOCK(sc);
 	return (0);
 }
 
@@ -1132,6 +1173,7 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 {
 	struct mbuf    *m_new = NULL;
 
+	MY_LOCK(sc);
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
 		printf("my%d: no memory for rx list -- packet dropped!\n",
@@ -1149,7 +1191,7 @@ my_newbuf(struct my_softc * sc, struct my_chain_onefrag * c)
 	c->my_ptr->my_data = vtophys(mtod(m_new, caddr_t));
 	c->my_ptr->my_ctl = (MCLBYTES - 1) << MY_RBSShift;
 	c->my_ptr->my_status = MY_OWNByNIC;
-
+	MY_UNLOCK(sc);
 	return (0);
 }
 
@@ -1167,6 +1209,7 @@ my_rxeof(struct my_softc * sc)
 	int             total_len = 0;
 	u_int32_t       rxstat;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	while (!((rxstat = sc->my_cdata.my_rx_head->my_ptr->my_status)
 	    & MY_OWNByNIC)) {
@@ -1231,7 +1274,7 @@ my_rxeof(struct my_softc * sc)
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
 	}
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1246,6 +1289,7 @@ my_txeof(struct my_softc * sc)
 	struct my_chain *cur_tx;
 	struct ifnet   *ifp;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
@@ -1286,6 +1330,7 @@ my_txeof(struct my_softc * sc)
 	if (CSR_READ_4(sc, MY_TCRRCR) & MY_Enhanced) {
 		ifp->if_collisions += (CSR_READ_4(sc, MY_TSR) & MY_NCRMask);
 	}
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1297,6 +1342,7 @@ my_txeoc(struct my_softc * sc)
 {
 	struct ifnet   *ifp;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 	if (sc->my_cdata.my_tx_head == NULL) {
@@ -1311,7 +1357,7 @@ my_txeoc(struct my_softc * sc)
 			CSR_WRITE_4(sc, MY_TXPDR, 0xFFFFFFFF);
 		}
 	}
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1323,11 +1369,12 @@ my_intr(void *arg)
 	u_int32_t       status;
 
 	sc = arg;
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
-
-	if (!(ifp->if_flags & IFF_UP))
+	if (!(ifp->if_flags & IFF_UP)) {
+		MY_UNLOCK(sc);
 		return;
-
+	}
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, MY_IMR, 0x00000000);
 
@@ -1371,7 +1418,7 @@ my_intr(void *arg)
 	CSR_WRITE_4(sc, MY_IMR, MY_INTRS);
 	if (ifp->if_snd.ifq_head != NULL)
 		my_start(ifp);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1386,6 +1433,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	int             total_len;
 	struct mbuf    *m, *m_new = NULL;
 
+	MY_LOCK(sc);
 	/* calculate the total tx pkt length */
 	total_len = 0;
 	for (m = m_head; m != NULL; m = m->m_next)
@@ -1426,7 +1474,7 @@ my_encap(struct my_softc * sc, struct my_chain * c, struct mbuf * m_head)
 	c->my_mbuf = m_head;
 	c->my_lastdesc = 0;
 	MY_TXNEXT(c) = vtophys(&c->my_nextdesc->my_ptr->my_frag[0]);
-
+	MY_UNLOCK(sc);
 	return (0);
 }
 
@@ -1444,9 +1492,10 @@ my_start(struct ifnet * ifp)
 	struct my_chain *cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
-
+	MY_LOCK(sc);
 	if (sc->my_autoneg) {
 		sc->my_tx_pend = 1;
+		MY_UNLOCK(sc);
 		return;
 	}
 	/*
@@ -1454,6 +1503,7 @@ my_start(struct ifnet * ifp)
 	 */
 	if (sc->my_cdata.my_tx_free->my_mbuf != NULL) {
 		ifp->if_flags |= IFF_OACTIVE;
+		MY_UNLOCK(sc);
 		return;
 	}
 	start_tx = sc->my_cdata.my_tx_free;
@@ -1483,9 +1533,10 @@ my_start(struct ifnet * ifp)
 	/*
 	 * If there are no packets queued, bail.
 	 */
-	if (cur_tx == NULL)
+	if (cur_tx == NULL) {
+		MY_UNLOCK(sc);
 		return;
-
+	}
 	/*
 	 * Place the request for the upload interrupt in the last descriptor
 	 * in the chain. This way, if we're chaining several packets at once,
@@ -1504,7 +1555,7 @@ my_start(struct ifnet * ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	ifp->if_timer = 5;
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1516,9 +1567,11 @@ my_init(void *xsc)
 	int             s;
 	u_int16_t       phy_bmcr = 0;
 
-	if (sc->my_autoneg)
+	MY_LOCK(sc);
+	if (sc->my_autoneg) {
+		MY_UNLOCK(sc);
 		return;
-
+	}
 	s = splimp();
 	if (sc->my_pinfo != NULL)
 		phy_bmcr = my_phy_readreg(sc, PHY_BMCR);
@@ -1551,6 +1604,7 @@ my_init(void *xsc)
 		    sc->my_unit);
 		my_stop(sc);
 		(void)splx(s);
+		MY_UNLOCK(sc);
 		return;
 	}
 	/* Init TX descriptors. */
@@ -1599,7 +1653,7 @@ my_init(void *xsc)
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 	(void)splx(s);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1614,16 +1668,17 @@ my_ifmedia_upd(struct ifnet * ifp)
 	struct ifmedia *ifm;
 
 	sc = ifp->if_softc;
+	MY_LOCK(sc);
 	ifm = &sc->ifmedia;
-
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER) {
+		MY_UNLOCK(sc);
 		return (EINVAL);
-
+	}
 	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
 		my_autoneg_mii(sc, MY_FLAG_SCHEDDELAY, 1);
 	else
 		my_setmode_mii(sc, ifm->ifm_media);
-
+	MY_UNLOCK(sc);
 	return (0);
 }
 
@@ -1638,7 +1693,7 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 	u_int16_t advert = 0, ability = 0;
 
 	sc = ifp->if_softc;
-
+	MY_LOCK(sc);
 	ifmr->ifm_active = IFM_ETHER;
 	if (!(my_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
 #if 0				/* this version did not support 1000M, */
@@ -1653,6 +1708,8 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_FDX;
 		else
 			ifmr->ifm_active |= IFM_HDX;
+
+		MY_UNLOCK(sc);
 		return;
 	}
 	ability = my_phy_readreg(sc, PHY_LPAR);
@@ -1664,12 +1721,11 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 		if (ability2 & PHY_1000SR_1000BTXFULL) {
 			advert = 0;
 			ability = 0;
-			ifmr->ifm_active = IFM_ETHER | IFM_1000_TX | IFM_FDX;
-
-		} else if (ability & PHY_1000SR_1000BTXHALF) {
+	  		ifmr->ifm_active = IFM_ETHER|IFM_1000_TX|IFM_FDX;
+	  	} else if (ability & PHY_1000SR_1000BTXHALF) {
 			advert = 0;
 			ability = 0;
-			ifmr->ifm_active = IFM_ETHER | IFM_1000_TX | IFM_HDX;
+			ifmr->ifm_active = IFM_ETHER|IFM_1000_TX|IFM_HDX;
 		}
 	}
 #endif
@@ -1683,7 +1739,7 @@ my_ifmedia_sts(struct ifnet * ifp, struct ifmediareq * ifmr)
 		ifmr->ifm_active = IFM_ETHER | IFM_10_T | IFM_FDX;
 	else if (advert & PHY_ANAR_10BTHALF && ability & PHY_ANAR_10BTHALF)
 		ifmr->ifm_active = IFM_ETHER | IFM_10_T | IFM_HDX;
-
+	MY_UNLOCK(sc);
 	return;
 }
 
@@ -1695,7 +1751,7 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	int             s, error = 0;
 
 	s = splimp();
-
+	MY_LOCK(sc);
 	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
@@ -1722,7 +1778,7 @@ my_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 		error = EINVAL;
 		break;
 	}
-
+	MY_UNLOCK(sc);
 	(void)splx(s);
 	return (error);
 }
@@ -1733,9 +1789,10 @@ my_watchdog(struct ifnet * ifp)
 	struct my_softc *sc;
 
 	sc = ifp->if_softc;
-
+	MY_LOCK(sc);
 	if (sc->my_autoneg) {
 		my_autoneg_mii(sc, MY_FLAG_DELAYTIMEO, 1);
+		MY_UNLOCK(sc);
 		return;
 	}
 	ifp->if_oerrors++;
@@ -1748,7 +1805,7 @@ my_watchdog(struct ifnet * ifp)
 	my_init(sc);
 	if (ifp->if_snd.ifq_head != NULL)
 		my_start(ifp);
-
+	MY_LOCK(sc);
 	return;
 }
 
@@ -1762,6 +1819,7 @@ my_stop(struct my_softc * sc)
 	register int    i;
 	struct ifnet   *ifp;
 
+	MY_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
@@ -1793,7 +1851,7 @@ my_stop(struct my_softc * sc)
 	bzero((char *)&sc->my_ldata->my_tx_list,
 	    sizeof(sc->my_ldata->my_tx_list));
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
-
+	MY_UNLOCK(sc);
 	return;
 }
 
