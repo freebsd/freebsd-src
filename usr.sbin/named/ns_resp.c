@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static char rcsid[] = "$Id: ns_resp.c,v 1.4 1995/10/23 11:11:53 peter Exp $";
+static char rcsid[] = "$Id: ns_resp.c,v 1.5 1996/01/07 05:48:38 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -944,10 +944,10 @@ ns_resp(msg, msglen)
 	 */
 	if ((!restart || !cname) && qp->q_cmsglen && ancount) {
 		dprintf(1, (ddt, "Cname second pass\n"));
-		newmsglen = qp->q_cmsglen;
+		newmsglen = MIN(PACKETSZ, qp->q_cmsglen);
 		bcopy(qp->q_cmsg, newmsg, newmsglen);
 	} else {
-		newmsglen = msglen;
+		newmsglen = MIN(PACKETSZ, msglen);
 		bcopy(msg, newmsg, newmsglen);
 	}
 	hp = (HEADER *) newmsg;
