@@ -122,22 +122,19 @@ __stdcall static void ntoskrnl_init_lock(kspin_lock *);
 __stdcall static void dummy(void);
 __stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 
-static struct mtx ntoskrnl_interlock;
+static struct mtx *ntoskrnl_interlock;
+extern struct mtx_pool *ndis_mtxpool;
 
 int
 ntoskrnl_libinit()
 {
-	mtx_init(&ntoskrnl_interlock, "ntoskrnllock", "ntoskrnl interlock",
-	    MTX_DEF | MTX_RECURSE);
-
+	ntoskrnl_interlock = mtx_pool_alloc(ndis_mtxpool);
 	return(0);
 }
 
 int
 ntoskrnl_libfini()
 {
-	mtx_destroy(&ntoskrnl_interlock);
-
 	return(0);
 }
 
@@ -412,11 +409,7 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (mtx == NULL)
-                return;
-	mtx_init(mtx, "ndisnplook", "ndis lookaside lock",
-	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+	mtx = mtx_pool_alloc(ndis_mtxpool);
 	lookaside->nll_obsoletelock = (kspin_lock)mtx;
 
 	return;
@@ -426,8 +419,6 @@ __stdcall static void
 ntoskrnl_delete_lookaside(lookaside)
 	paged_lookaside_list   *lookaside;
 {
-	mtx_destroy((struct mtx *)lookaside->nll_obsoletelock);
-	free((struct mtx *)lookaside->nll_obsoletelock, M_DEVBUF);
 	return;
 }
 
@@ -456,11 +447,7 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	else
 		lookaside->nll_l.gl_freefunc = freefunc;
 
-	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (mtx == NULL)
-                return;
-	mtx_init(mtx, "ndisnplook", "ndis lookaside lock",
-	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
+	mtx = mtx_pool_alloc(ndis_mtxpool);
 	lookaside->nll_obsoletelock = (kspin_lock)mtx;
 
 	return;
@@ -470,8 +457,6 @@ __stdcall static void
 ntoskrnl_delete_nplookaside(lookaside)
 	npaged_lookaside_list   *lookaside;
 {
-	mtx_destroy((struct mtx *)lookaside->nll_obsoletelock);
-	free((struct mtx *)lookaside->nll_obsoletelock, M_DEVBUF);
 	return;
 }
 
@@ -492,11 +477,11 @@ ntoskrnl_push_slist(/*head, entry*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
-	mtx_lock(&ntoskrnl_interlock);
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
 	oldhead = head->slh_list.slh_next;
 	entry->sl_next = head->slh_list.slh_next;
 	head->slh_list.slh_next = entry;
-	mtx_unlock(&ntoskrnl_interlock);
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
 	return(oldhead);
 }
 
@@ -508,11 +493,11 @@ ntoskrnl_pop_slist(/*head*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (head));
 
-	mtx_lock(&ntoskrnl_interlock);
+	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
 	first = head->slh_list.slh_next;
 	if (first != NULL)
 		head->slh_list.slh_next = first->sl_next;
-	mtx_unlock(&ntoskrnl_interlock);
+	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
 	return(first);
 }
 
@@ -526,11 +511,11 @@ ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
-	mtx_lock((struct mtx *)*lock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
 	oldhead = head->slh_list.slh_next;
 	entry->sl_next = head->slh_list.slh_next;
 	head->slh_list.slh_next = entry;
-	mtx_unlock((struct mtx *)*lock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
 	return(oldhead);
 }
 
@@ -543,11 +528,11 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (lock));
 
-	mtx_lock((struct mtx *)*lock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
 	first = head->slh_list.slh_next;
 	if (first != NULL)
 		head->slh_list.slh_next = first->sl_next;
-	mtx_unlock((struct mtx *)*lock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
 	return(first);
 }
 
@@ -558,7 +543,8 @@ ntoskrnl_lock_dpc(/*lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_lock((struct mtx *)*lock);
+	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
+
 	return;
 }
 
@@ -569,7 +555,8 @@ ntoskrnl_unlock_dpc(/*lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	mtx_unlock((struct mtx *)*lock);
+	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+
 	return;
 }
 
@@ -635,7 +622,7 @@ __stdcall static void
 ntoskrnl_init_lock(lock)
 	kspin_lock		*lock;
 {
-	*lock = (kspin_lock)&ntoskrnl_interlock;
+	*lock = (kspin_lock)mtx_pool_alloc(ndis_mtxpool);
 
 	return;
 }

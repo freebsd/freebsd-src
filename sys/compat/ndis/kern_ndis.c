@@ -151,7 +151,8 @@ ndis_status_func(adapter, status, sbuf, slen)
 	ndis_miniport_block	*block;
 	block = adapter;
 
-	device_printf (block->nmb_dev, "status: %x\n", status);
+	if (block->nmb_ifp->if_flags & IFF_DEBUG)
+		device_printf (block->nmb_dev, "status: %x\n", status);
 	return;
 }
 
@@ -162,7 +163,8 @@ ndis_statusdone_func(adapter)
 	ndis_miniport_block	*block;
 	block = adapter;
 	
-	device_printf (block->nmb_dev, "status complete\n");
+	if (block->nmb_ifp->if_flags & IFF_DEBUG)
+		device_printf (block->nmb_dev, "status complete\n");
 	return;
 }
 
@@ -201,7 +203,8 @@ ndis_resetdone_func(adapter, status, addressingreset)
 	ndis_miniport_block	*block;
 	block = adapter;
 
-	device_printf (block->nmb_dev, "reset done...\n");
+	if (block->nmb_ifp->if_flags & IFF_DEBUG)
+		device_printf (block->nmb_dev, "reset done...\n");
 	return;
 }
 
