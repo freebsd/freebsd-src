@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.54 1998/07/13 09:52:59 bde Exp $
+ *	$Id: if_ie.c,v 1.55 1998/08/10 14:27:32 bde Exp $
  */
 
 /*
@@ -325,8 +325,8 @@ static struct ie_softc {
 	u_short	 irq_encoded;	/* encoded interrupt on IEE16 */
 }	ie_softc[NIE];
 
-#define MK_24(base, ptr) ((caddr_t)((u_long)ptr - (u_long)base))
-#define MK_16(base, ptr) ((u_short)(u_long)MK_24(base, ptr))
+#define MK_24(base, ptr) ((caddr_t)((uintptr_t)ptr - (uintptr_t)base))
+#define MK_16(base, ptr) ((u_short)(uintptr_t)MK_24(base, ptr))
 
 #define PORT ie_softc[unit].port
 #define MEM  ie_softc[unit].iomem
@@ -1633,9 +1633,10 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 
 	s = splimp();
 
-	realbase = (u_long) where + size - (1 << 24);
+	realbase = (uintptr_t) where + size - (1 << 24);
 
-	scp = (volatile struct ie_sys_conf_ptr *) (realbase + IE_SCP_ADDR);
+	scp = (volatile struct ie_sys_conf_ptr *) (uintptr_t)
+	      (realbase + IE_SCP_ADDR);
 	bzero((char *) scp, sizeof *scp);
 
 	/*
@@ -1652,7 +1653,8 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 
 	scp->ie_bus_use = ie_softc[unit].bus_use;	/* 8-bit or 16-bit */
 	scp->ie_iscp_ptr = (caddr_t) ((volatile caddr_t) iscp -
-				      (volatile caddr_t) realbase);
+				      (volatile caddr_t) (volatile uintptr_t)
+				      realbase);
 
 	iscp->ie_busy = 1;
 	iscp->ie_scb_offset = MK_16(realbase, scb) + 256;
@@ -1670,11 +1672,13 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 	 * Now relocate the ISCP to its real home, and reset the controller
 	 * again.
 	 */
-	iscp = (void *) Align((caddr_t) (realbase + IE_SCP_ADDR -
-					 sizeof(struct ie_int_sys_conf_ptr)));
+	iscp = (void *) Align((caddr_t) (uintptr_t)
+			      (realbase + IE_SCP_ADDR -
+			       sizeof(struct ie_int_sys_conf_ptr)));
 	bzero((char *) iscp, sizeof *iscp);	/* ignore cast-qual */
 
-	scp->ie_iscp_ptr = (caddr_t) ((caddr_t) iscp - (caddr_t) realbase);
+	scp->ie_iscp_ptr = (caddr_t) ((caddr_t) iscp -
+				      (caddr_t) (uintptr_t) realbase);
 	/* ignore cast-qual */
 
 	iscp->ie_busy = 1;
@@ -1690,7 +1694,7 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 		return (0);
 	}
 	ie_softc[unit].iosize = size;
-	ie_softc[unit].iomem = (caddr_t) realbase;
+	ie_softc[unit].iomem = (caddr_t) (uintptr_t) realbase;
 
 	ie_softc[unit].iscp = iscp;
 	ie_softc[unit].scb = scb;

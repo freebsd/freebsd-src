@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_pci.c,v 1.1 1998/04/22 18:10:34 mjacob Exp $ */
+/* $Id: isp_pci.c,v 1.2 1998/07/13 09:53:09 bde Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -126,10 +126,10 @@ typedef int bus_space_tag_t;
 typedef u_long bus_space_handle_t;
 #define	bus_space_read_2(st, sh, offset)	\
 	(st == I386_BUS_SPACE_IO)? \
-		inw((u_int16_t)sh + offset) : *((u_int16_t *) sh)
+		inw((u_int16_t)sh + offset) : *((u_int16_t *)(uintptr_t)sh)
 #define	bus_space_write_2(st, sh, offset, val)	\
 	if (st == I386_BUS_SPACE_IO) outw((u_int16_t)sh + offset, val); else \
-		*((u_int16_t *) sh) = val
+		*((u_int16_t *)(uintptr_t)sh) = val
 
 
 struct isp_pcisoftc {
