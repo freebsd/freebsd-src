@@ -73,7 +73,7 @@ static	ns_dbt			*_nsmap = NULL;
 #define NSELEMSPERCHUNK		8
 
 
-int	_nscmp __P((const void *, const void *));
+int	_nscmp(const void *, const void *);
 
 
 int
@@ -140,7 +140,7 @@ _nsdbtget(name)
 	ns_dbt		 dbt;
 
 	extern	FILE 	*_nsyyin;
-	extern	int	 _nsyyparse __P((void));
+	extern	int	 _nsyyparse(void);
 
 	dbt.name = name;
 

@@ -76,7 +76,7 @@ static struct rpcdata {
 #endif
 } *rpcdata;
 
-static	struct rpcent *interpret __P((char *val, size_t len));
+static	struct rpcent *interpret(char *val, size_t len);
 
 #ifdef	YP
 static int	__yp_nomap = 0;
@@ -85,7 +85,7 @@ extern int _yp_check(char **);
 
 #define	RPCDB	"/etc/rpc"
 
-static struct rpcdata *_rpcdata __P((void));
+static struct rpcdata *_rpcdata(void);
 
 static struct rpcdata *
 _rpcdata()

@@ -143,7 +143,7 @@ int
 heapsort(vbase, nmemb, size, compar)
 	void *vbase;
 	size_t nmemb, size;
-	int (*compar) __P((const void *, const void *));
+	int (*compar)(const void *, const void *);
 {
 	int cnt, i, j, l;
 	char tmp, *tmp1, *tmp2;

@@ -73,14 +73,14 @@ static struct svc_raw_private {
 
 extern mutex_t	svcraw_lock;
 
-static enum xprt_stat svc_raw_stat __P((SVCXPRT *));
-static bool_t svc_raw_recv __P((SVCXPRT *, struct rpc_msg *));
-static bool_t svc_raw_reply __P((SVCXPRT *, struct rpc_msg *));
-static bool_t svc_raw_getargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static bool_t svc_raw_freeargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static void svc_raw_destroy __P((SVCXPRT *));
-static void svc_raw_ops __P((SVCXPRT *));
-static bool_t svc_raw_control __P((SVCXPRT *, const u_int, void *));
+static enum xprt_stat svc_raw_stat(SVCXPRT *);
+static bool_t svc_raw_recv(SVCXPRT *, struct rpc_msg *);
+static bool_t svc_raw_reply(SVCXPRT *, struct rpc_msg *);
+static bool_t svc_raw_getargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_raw_freeargs(SVCXPRT *, xdrproc_t, caddr_t);
+static void svc_raw_destroy(SVCXPRT *);
+static void svc_raw_ops(SVCXPRT *);
+static bool_t svc_raw_control(SVCXPRT *, const u_int, void *);
 
 char *__rpc_rawcombuf = NULL;
 

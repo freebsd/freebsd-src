@@ -45,12 +45,12 @@
 #include <unistd.h>
 #include "setlocale.h"
 
-extern int		_none_init __P((_RuneLocale *));
-extern int		_UTF2_init __P((_RuneLocale *));
-extern int		_EUC_init __P((_RuneLocale *));
-extern int		_BIG5_init __P((_RuneLocale *));
-extern int		_MSKanji_init __P((_RuneLocale *));
-extern _RuneLocale      *_Read_RuneMagi __P((FILE *));
+extern int		_none_init(_RuneLocale *);
+extern int		_UTF2_init(_RuneLocale *);
+extern int		_EUC_init(_RuneLocale *);
+extern int		_BIG5_init(_RuneLocale *);
+extern int		_MSKanji_init(_RuneLocale *);
+extern _RuneLocale      *_Read_RuneMagi(FILE *);
 
 int
 setrunelocale(encoding)

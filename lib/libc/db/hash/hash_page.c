@@ -76,14 +76,14 @@ __FBSDID("$FreeBSD$");
 #include "page.h"
 #include "extern.h"
 
-static u_int32_t	*fetch_bitmap __P((HTAB *, int));
-static u_int32_t	 first_free __P((u_int32_t));
-static int	 open_temp __P((HTAB *));
-static u_int16_t	 overflow_page __P((HTAB *));
-static void	 putpair __P((char *, const DBT *, const DBT *));
-static void	 squeeze_key __P((u_int16_t *, const DBT *, const DBT *));
+static u_int32_t	*fetch_bitmap(HTAB *, int);
+static u_int32_t	 first_free(u_int32_t);
+static int	 open_temp(HTAB *);
+static u_int16_t	 overflow_page(HTAB *);
+static void	 putpair(char *, const DBT *, const DBT *);
+static void	 squeeze_key(u_int16_t *, const DBT *, const DBT *);
 static int	 ugly_split
-		    __P((HTAB *, u_int32_t, BUFHEAD *, BUFHEAD *, int, int));
+(HTAB *, u_int32_t, BUFHEAD *, BUFHEAD *, int, int);
 
 #define	PAGE_INIT(P) { \
 	((u_int16_t *)(P))[0] = 0; \

@@ -62,8 +62,8 @@
 #include "fpu_emu.h"
 #include "fpu_extern.h"
 
-static int round __P((struct fpemu *, struct fpn *));
-static int toinf __P((struct fpemu *, int));
+static int round(struct fpemu *, struct fpn *);
+static int toinf(struct fpemu *, int);
 
 /*
  * Round a number (algorithm from Motorola MC68882 manual, modified for

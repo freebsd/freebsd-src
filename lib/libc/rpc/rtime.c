@@ -59,12 +59,12 @@
 static const char rcsid[] = "$FreeBSD$";
 #endif
 
-extern int _rpc_dtablesize __P(( void ));
+extern int _rpc_dtablesize( void );
 
 #define NYEARS	(unsigned long)(1970 - 1900)
 #define TOFFSET (unsigned long)(60*60*24*(365*NYEARS + (NYEARS/4)))
 
-static void do_close __P(( int ));
+static void do_close( int );
 
 int
 rtime(addrp, timep, timeout)

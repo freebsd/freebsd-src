@@ -57,8 +57,8 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/rpc.h>
 #include "un-namespace.h"
 
-static void accepted __P((enum accept_stat, struct rpc_err *));
-static void rejected __P((enum reject_stat, struct rpc_err *));
+static void accepted(enum accept_stat, struct rpc_err *);
+static void rejected(enum reject_stat, struct rpc_err *);
 
 /* * * * * * * * * * * * * * XDR Authentication * * * * * * * * * * * */
 

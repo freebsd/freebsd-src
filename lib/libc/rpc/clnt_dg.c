@@ -67,16 +67,16 @@ static char sccsid[] = "@(#)clnt_dg.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #define	RPC_MAX_BACKOFF		30 /* seconds */
 
 
-static struct clnt_ops *clnt_dg_ops __P((void));
-static bool_t time_not_ok __P((struct timeval *));
+static struct clnt_ops *clnt_dg_ops(void);
+static bool_t time_not_ok(struct timeval *);
 static enum clnt_stat clnt_dg_call __P((CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
 					xdrproc_t, caddr_t, struct timeval));
-static void clnt_dg_geterr __P((CLIENT *, struct rpc_err *));
-static bool_t clnt_dg_freeres __P((CLIENT *, xdrproc_t, caddr_t));
-static void clnt_dg_abort __P((CLIENT *));
-static bool_t clnt_dg_control __P((CLIENT *, u_int, char *));
-static void clnt_dg_destroy __P((CLIENT *));
-static int __rpc_timeval_to_msec __P((struct timeval *));
+static void clnt_dg_geterr(CLIENT *, struct rpc_err *);
+static bool_t clnt_dg_freeres(CLIENT *, xdrproc_t, caddr_t);
+static void clnt_dg_abort(CLIENT *);
+static bool_t clnt_dg_control(CLIENT *, u_int, char *);
+static void clnt_dg_destroy(CLIENT *);
+static int __rpc_timeval_to_msec(struct timeval *);
 
 
 

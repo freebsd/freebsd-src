@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "page.h"
 #include "extern.h"
 
-static BUFHEAD *newbuf __P((HTAB *, u_int32_t, BUFHEAD *));
+static BUFHEAD *newbuf(HTAB *, u_int32_t, BUFHEAD *);
 
 /* Unlink B from its place in the lru */
 #define BUF_REMOVE(B) { \

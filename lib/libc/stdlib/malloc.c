@@ -250,7 +250,7 @@ static int malloc_utrace;
 
 struct ut { void *p; size_t s; void *r; };
 
-void utrace __P((struct ut *, int));
+void utrace(struct ut *, int);
 
 #define UTRACE(a, b, c) \
 	if (malloc_utrace) \

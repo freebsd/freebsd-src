@@ -82,7 +82,7 @@ static struct svc_callout {
 	rpcprog_t	    sc_prog;
 	rpcvers_t	    sc_vers;
 	char		   *sc_netid;
-	void		    (*sc_dispatch) __P((struct svc_req *, SVCXPRT *));
+	void		    (*sc_dispatch)(struct svc_req *, SVCXPRT *);
 } *svc_head;
 
 extern rwlock_t svc_lock;
@@ -158,7 +158,7 @@ svc_reg(xprt, prog, vers, dispatch, nconf)
 	SVCXPRT *xprt;
 	const rpcprog_t prog;
 	const rpcvers_t vers;
-	void (*dispatch) __P((struct svc_req *, SVCXPRT *));
+	void (*dispatch)(struct svc_req *, SVCXPRT *);
 	const struct netconfig *nconf;
 {
 	bool_t dummy;
@@ -265,7 +265,7 @@ svc_register(xprt, prog, vers, dispatch, protocol)
 	SVCXPRT *xprt;
 	u_long prog;
 	u_long vers;
-	void (*dispatch) __P((struct svc_req *, SVCXPRT *));
+	void (*dispatch)(struct svc_req *, SVCXPRT *);
 	int protocol;
 {
 	struct svc_callout *prev;

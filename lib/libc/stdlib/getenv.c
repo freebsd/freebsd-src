@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <string.h>
 
-inline char *__findenv __P((const char *, int *));
+inline char *__findenv(const char *, int *);
 
 /*
  * __findenv --

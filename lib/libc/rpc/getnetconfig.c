@@ -123,9 +123,9 @@ struct netconfig_vars {
 #define NC_INVALID	0
 
 
-static int *__nc_error __P((void));
-static int parse_ncp __P((char *, struct netconfig *));
-static struct netconfig *dup_ncp __P((struct netconfig *));
+static int *__nc_error(void);
+static int parse_ncp(char *, struct netconfig *);
+static struct netconfig *dup_ncp(struct netconfig *);
 
 
 static FILE *nc_file;		/* for netconfig db */

@@ -43,9 +43,9 @@ static char sccsid[] = "@(#)table.c	8.1 (Berkeley) 6/27/93";
 #include <ctype.h>
 #include <rune.h>
 
-extern rune_t	_none_sgetrune __P((const char *, size_t, char const **));
-extern int	_none_sputrune __P((rune_t, char *, size_t, char **));
-extern int	_none_init __P((char *, char **));
+extern rune_t	_none_sgetrune(const char *, size_t, char const **);
+extern int	_none_sputrune(rune_t, char *, size_t, char **);
+extern int	_none_init(char *, char **);
 
 _RuneLocale _DefaultRuneLocale = {
     _RUNE_MAGIC_1,
