@@ -128,7 +128,7 @@ card "3Com Corporation" "3C589D"
 	remove	/sbin/ifconfig ep0 delete
 
 # 3Com Fast Etherlink 3C574TX
-card "3Com" "3C574-TX Fast EtherLink PC Ca"
+card "3Com" "3C574-TX Fast EtherLink PC Card"
 	config	0x1 "ep0" ? 0x1
 	insert	echo 3Com Fast Etherlink 3C574TX inserted
 	insert	/etc/pccard_ether ep0
