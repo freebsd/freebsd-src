@@ -72,7 +72,8 @@ _compat=	compat
 _libtelnet=	libtelnet
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL) \
+    && !defined(NOSECURE)
 _libmp=		libmp
 .endif
 
