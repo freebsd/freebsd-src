@@ -58,10 +58,10 @@ Each entry in the data base
 is used to describe one class of terminals.
 .Pp
 There is a default terminal class,
-.Em default ,
+.Va default ,
 that is used to set global defaults for all other classes.
 (That is, the
-.Em default
+.Va default
 entry is read, then the entry for the class required
 is used to override particular settings.)
 .Sh CAPABILITIES
@@ -69,10 +69,10 @@ Refer to
 .Xr termcap 5
 for a description of the file layout.
 The
-.Em default
+.Va default
 column below lists defaults obtained if there is
 no entry in the table obtained, nor one in the special
-.Em default
+.Va default
 table.
 .Bl -column Name Type /usr/bin/login
 .It Sy "Name	Type	Default	Description
@@ -90,7 +90,11 @@ table.
 .It "co	bool	false	console - add"
 .Ql \en
 after login prompt
-.It "ct	num	10	chat timeout for ac/ic scripts"
+.It "ct	num	10	chat timeout for"
+.Va \&ac
+and
+.Va \&ic
+scripts
 .It "dc	num	0	chat debug bitmask"
 .It "de	num	0	delay secs and flush input before writing first prompt"
 .It "df	str	%+	the" Xr strftime 3 "format used for \&%d in the banner message"
@@ -99,7 +103,7 @@ after login prompt
 .It "dx	bool	false	set"
 .Dv DECCTLQ
 .It "ec	bool	false	leave echo"
-.Tn OFF
+.Em OFF
 .It "ep	bool	false	terminal uses even parity"
 .It "er	str" Ta So Li ^? Sc Ta
 .No "erase character"
@@ -115,7 +119,7 @@ character
 .It "fl	str" Ta So Li ^O Sc Ta
 .No "output flush character"
 .It "hc	bool	false	do"
-.Tn NOT
+.Em NOT
 hangup line on last close
 .It "he	str" Ta Dv NULL Ta
 .No "hostname editing string"
@@ -158,9 +162,10 @@ hangup line on last close
 .It "pe	bool	false	use printer (hard copy) erase algorithm"
 .It "pf	num	0	delay"
 between first prompt and following flush (seconds)
-.It "pp	str	unused	PPP authentication program"
-.It "pl	bool	false	don't detect PPP sequence, but start PPP login"
-program referenced by pp automatically
+.It "pl	bool	false	start PPP login program unconditionally if"
+.Va \&pp
+is specified
+.It "pp	str	unused	PPP login program"
 .It "ps	bool	false	line connected to a"
 .Tn MICOM
 port selector
@@ -168,9 +173,10 @@ port selector
 .No "quit character"
 .It "rp	str" Ta So Li ^R Sc Ta
 .No "line retype character"
-.It "rt	num	unused	ring timeout when using ac"
+.It "rt	num	unused	ring timeout when using"
+.Va \&ac
 .It "rw	bool	false	do"
-.Tn NOT
+.Em NOT
 use raw for input, use cbreak
 .It "sp	num	unused	line speed (input and output)"
 .It "su	str" Ta So Li ^Z Sc Ta
@@ -183,7 +189,7 @@ use raw for input, use cbreak
 .It "we	str" Ta So Li ^W Sc Ta
 .No "word erase character"
 .It "xc	bool	false	do
-.Tn NOT
+.Em NOT
 echo control chars as
 .Ql ^X
 .It "xf	str" Ta So Li ^S Sc Ta Dv XOFF
@@ -217,39 +223,40 @@ are derived from the boolean flags specified.
 If the derivation should prove inadequate,
 any (or all) of these three may be overridden
 with one of the
-.Em \&c0 ,
-.Em \&c1 ,
-.Em \&c2 ,
-.Em \&i0 ,
-.Em \&i1 ,
-.Em \&i2 ,
-.Em \&l0 ,
-.Em \&l1 ,
-.Em \&l2 ,
-.Em \&o0 ,
-.Em \&o1 ,
+.Va \&c0 ,
+.Va \&c1 ,
+.Va \&c2 ,
+.Va \&i0 ,
+.Va \&i1 ,
+.Va \&i2 ,
+.Va \&l0 ,
+.Va \&l1 ,
+.Va \&l2 ,
+.Va \&o0 ,
+.Va \&o1 ,
 or
-.Em \&o2
+.Va \&o2
 numeric specifications, which can be used to specify
 (usually in octal, with a leading '0')
 the exact values of the flags.
 These flags correspond to the termios
-.Em c_cflag ,
-.Em c_iflag ,
-.Em c_lflag ,
+.Va c_cflag ,
+.Va c_iflag ,
+.Va c_lflag ,
 and
-.Em c_oflag
-fields, respectively. Each these sets must be completely specified to be
-effective.
+.Va c_oflag
+fields, respectively.
+Each these sets must be completely specified to be effective.
 The
-.Em \&f0 ,
-.Em \&f1 ,
+.Va \&f0 ,
+.Va \&f1 ,
 and
-.Em \&f2
+.Va \&f2
 are excepted for backwards compatibility with a previous incarnation of
-the TTY sub-system. In these flags the bottom 16 bits of the (32 bits)
+the TTY sub-system.
+In these flags the bottom 16 bits of the (32 bits)
 value contain the sgttyb
-.Em sg_flags
+.Va sg_flags
 field, while the top 16 bits represent the local mode word.
 .Pp
 Should
@@ -257,8 +264,9 @@ Should
 receive a null character
 (presumed to indicate a line break)
 it will restart using the table indicated by the
-.Em nx
-entry. If there is none, it will re-use its original table.
+.Va \&nx
+entry.
+If there is none, it will re-use its original table.
 .Pp
 Delays are specified in milliseconds, the nearest possible
 delay available in the tty driver will be used.
@@ -267,17 +275,17 @@ with values 0, 1, 2, and 3 are interpreted as
 choosing that particular delay algorithm from the driver.
 .Pp
 The
-.Em \&cl
+.Va \&cl
 screen clear string may be preceded by a (decimal) number
 of milliseconds of delay required (a la termcap).
 This delay is simulated by repeated use of the pad character
-.Em \&pc .
+.Va \&pc .
 .Pp
 The initial message, login message, and initial file;
-.Em \&im ,
-.Em \&lm
+.Va \&im ,
+.Va \&lm
 and
-.Em \&if
+.Va \&if
 may include any of the following character sequences, which expand to
 information about the environment in which
 .Xr getty 8
@@ -286,26 +294,26 @@ is running.
 .Bl -tag -offset indent -width \&%xxxxxxxxxxxxxx
 .It \&%d
 The current date and time formatted according to the
-.Em \&Lo
+.Va \&Lo
 and
-.Em \&df
+.Va \&df
 strings.
 .It \&%h
 The hostname of the machine, which is normally obtained from the
 system using
 .Xr gethostname 3 ,
 but may also be overridden by the
-.Em \&hn
+.Va \&hn
 table entry.
 In either case it may be edited with the
-.Em \&he
+.Va \&he
 string.
 A '@' in the
-.Em \&he
+.Va \&he
 string causes one character from the real hostname to
 be copied to the final hostname.
 A '#' in the
-.Em \&he
+.Va \&he
 string causes the next character of the real hostname
 to be skipped.
 Each character that
@@ -326,24 +334,24 @@ character.
 .Pp
 When getty execs the login process, given
 in the
-.Em \&lo
+.Va \&lo
 string (usually
 .Dq Pa /usr/bin/login ) ,
 it will have set
 the environment to include the terminal type, as indicated
 by the
-.Em \&tt
+.Va \&tt
 string (if it exists).
 The
-.Em \&ev
+.Va \&ev
 string, can be used to enter additional data into
 the environment.
 It is a list of comma separated strings, each of which
 will presumably be of the form
-.Em name=value .
+.Li name=value .
 .Pp
 If a non-zero timeout is specified, with
-.Em \&to ,
+.Va \&to ,
 then getty will exit within the indicated
 number of seconds, either having
 received a login name and passed control
@@ -355,15 +363,15 @@ This may be useful to hangup dial in lines.
 Output from
 .Xr getty 8
 is even parity unless
-.Em \&op
+.Va \&op
 or
-.Em \&np
+.Va \&np
 is specified.
 The
-.Em \&op
+.Va \&op
 string
 may be specified with
-.Em \&ap
+.Va \&ap
 to allow any parity on input, but generate odd parity output.
 Note: this only applies while getty is being run,
 terminal driver limitations prevent a more complete
@@ -373,11 +381,21 @@ does not check parity of input characters in
 .Dv RAW
 mode.
 .Pp
-If
-.Em \&pp
-string is specified and a PPP link bring up sequence is recognized,
-getty will invoke the program referenced by the pp option.  This
-can be used to handle incoming PPP calls.
+If a
+.Va \&pp
+string is specified and a PPP link bring-up sequence is recognized,
+getty will invoke the program referenced by the
+.Va \&pp
+option.
+This can be used to handle incoming PPP calls.
+If the
+.Va \&pl
+option is true as well,
+.Xr getty 8
+will skip the user name prompt and the PPP detection phase, and will
+invoke the program specified by
+.Va \&pp
+instantly.
 .Pp
 .Nm Getty
 provides some basic intelligent modem handling by providing a chat
@@ -433,7 +451,7 @@ Hexadecimal values are, at most, 2 hex digits long, and octal
 values are a maximum of 3 octal digits.
 .Pp
 The
-.Em \&ic
+.Va \&ic
 chat sequence is used to initialize a modem or similar device.
 A typical example of an init chat script for a modem with a
 hayes compatible command set might look like this:
@@ -470,10 +488,11 @@ like:
 This causes the modem to answer the call via the "ATA" command,
 then scans input for a "CONNECT" string.
 If this is received before a
-.Em \&ct timeout, then a normal login sequence commences.
+.Va \&ct
+timeout, then a normal login sequence commences.
 .Pp
 The
-.Em \&ct
+.Va \&ct
 capability specifies a timeout for all send and expect strings.
 This timeout is set individually for each expect wait and send
 string and must be at least as long as the time it takes for
@@ -482,7 +501,7 @@ modem (usually around 10 seconds).
 .Pp
 In most situations, you will want to flush any additional
 input after the connection has been detected, and the
-.Em \&de
+.Va \&de
 capability may be used to do that, as well as delay for a
 short time after the connection has been established during
 which all of the connection data has been sent by the modem.
@@ -508,7 +527,7 @@ of the delay algorithms are not implemented.
 The terminal driver should support sane delay settings.
 .Pp
 The
-.Em \&he
+.Va \&he
 capability is stupid.
 .Pp
 The
