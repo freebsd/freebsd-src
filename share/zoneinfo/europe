@@ -1,4 +1,4 @@
-# @(#)europe	7.74
+# @(#)europe	7.78
 
 # $FreeBSD$
 
@@ -137,6 +137,9 @@
 # <a href="http://www.the-times.co.uk/news/pages/tim/2000/05/18/x-timcrtcrt01011.html">
 # Summer Time Arrives Early, The Times (2000-05-18)
 # </a>
+# A monument was erected in 1927 to Willett, in an open space in a 45-acre wood
+# near Chiselhurst, Kent that was purchased by popular subscription and open
+# to the public.
 
 # From Paul Eggert (1996-09-03):
 # The OED Supplement says that the English originally said ``Daylight Saving''
@@ -166,15 +169,14 @@
 # main SHAEF archives held in the US National Archives, SHAEF/5252/8/516)
 # agree that the usage is BDST (this appears in a message dated 17 Feb 1945).
 
-# From Joseph S. Meyers (2000-08-10):
+# From Joseph S. Myers (2000-10-03):
 # On 18th April 1941, Sir Stephen Tallents of the BBC wrote to Sir
 # Alexander Maxwell of the Home Office asking whether there was any
 # official designation; the reply of the 21st was that there wasn't
 # but he couldn't think of anything better than the "Double British
 # Summer Time" that the BBC had been using informally.
-# I've put a copy of the Home Office letter at
+# http://student.cusu.cam.ac.uk/~jsm28/british-time/bbc-19410418.png
 # http://student.cusu.cam.ac.uk/~jsm28/british-time/ho-19410421.png
-# and the BBC letter may follow if I get permission from the BBC.
 
 # From Sir Alexander Maxwell in the above-mentioned letter (1941-04-21):
 # [N]o official designation has as far as I know been adopted for the time
@@ -219,7 +221,7 @@
 # Actually, that date saw the usual switch to summer time.
 # Standard time was not changed until 1968-10-27 (the clocks didn't change).
 #
-# Here is another incorrect claim by Shanks: 
+# Here is another incorrect claim by Shanks:
 #     * Jersey, Guernsey, and the Isle of Man did not switch from GMT
 #	to daylight saving time until 1921 Apr 3, when they began to
 #	conform with Great Britain.
@@ -405,6 +407,11 @@ Rule	EU	1978	only	-	Oct	 1	 1:00u	0	-
 Rule	EU	1979	1995	-	Sep	lastSun	 1:00u	0	-
 Rule	EU	1981	max	-	Mar	lastSun	 1:00u	1:00	S
 Rule	EU	1996	max	-	Oct	lastSun	 1:00u	0	-
+# The most recent directive covers the years starting in 2002.  See:
+# <a href="http://europa.eu.int/eur-lex/en/lif/dat/2000/en_300L0084.html"
+# Directive 2000/84/EC of the European Parliament and of the Council
+# of 19 January 2001 on summer-time arrangements.
+# </a>
 
 # W-Eur differs from EU only in that W-Eur uses standard time.
 Rule	W-Eur	1977	1980	-	Apr	Sun>=1	 1:00s	1:00	S
@@ -588,7 +595,7 @@ Zone	Europe/Minsk	1:50:16 -	LMT	1880
 # Thanks to Pascal Delmoitie <pascal@belnet.be> for these references.
 # The 1918 rules are listed for completeness; they apply to unoccupied Belgium.
 # Assume Brussels switched to WET in 1918 when the armistice took effect.
-# 
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Belgium	1918	only	-	Mar	 9	 0:00s	1:00	S
 Rule	Belgium	1918	1919	-	Oct	Sat>=1	23:00s	0	-
@@ -770,7 +777,7 @@ Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28 # Pituffik air base
 # But what this could mean for Estonia's chances of joining the European
 # Union are still unclear.  In 1994, the EU declared summer time compulsory
 # for all member states until 2001.  Brussels has yet to decide what to do
-# after that. 
+# after that.
 
 # From Mart Oruaas (2000-01-29):
 # Regulation no. 301 (1999-10-12) obsoletes previous regulation
@@ -811,6 +818,19 @@ Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			2:00	EU	EE%sT
 
 # France
+
+# From Ciro Discepolo (2000-12-20):
+#
+# Henri Le Corre, Regimes Horaires pour le monde entier, Editions
+# Traditionnelles - Paris 2 books, 1993
+#
+# Gabriel, Traite de l'heure dans le monde, Guy Tredaniel editeur,
+# Paris, 1991
+#
+# Francoise Gauquelin, Problemes de l'heure resolus en astrologie,
+# Guy tredaniel, Paris 1987
+
+
 #
 # Shanks seems to use `24:00' ambiguously; we resolve it with Whitman.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -847,8 +867,14 @@ Rule	France	1938	only	-	Mar	26	23:00s	1:00	S
 Rule	France	1939	only	-	Apr	15	23:00s	1:00	S
 Rule	France	1939	only	-	Nov	18	23:00s	0	-
 Rule	France	1940	only	-	Feb	25	 2:00	1:00	S
-# The French rules for 1941-1944 were not used in Paris,
-# but were used in other places (e.g. Monaco).
+# The French rules for 1941-1944 were not used in Paris, but Shanks writes
+# that they were used in Monaco and in many French locations.
+# Le Corre writes that the upper limit of the free zone was Arneguy, Orthez,
+# Mont-de-Marsan, Bazas, Langon, Lamotte-Montravel, Marouil, La
+# Rochefoucault, Champagne-Mouton, La Roche-Posay, La Haye-Decartes,
+# Loches, Montrichard, Vierzon, Bourges, Moulins, Digoin,
+# Paray-le-Monial, Montceau-les-Mines, Chalons-sur-Saone, Arbois,
+# Dole, Morez, St-Claude, and Collognes (Haute-Savioe).
 Rule	France	1941	only	-	May	 5	 0:00	2:00	M # Midsummer
 # Shanks says this transition occurred at Oct 6 1:00,
 # but go with Denis.Excoffier@ens.fr (1997-12-12),
@@ -873,9 +899,11 @@ Rule	France	1976	only	-	Sep	26	 1:00	0	-
 # on PMT-0:09:21 until 1978-08-09, when the time base finally switched to UTC.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Paris	0:09:21 -	LMT	1891 Mar 15  0:01
-			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
-# Shanks gives 1940 Jun 14 0:00; go with Excoffier's 14/6/40 22hUT.
+			0:09:21	-	PMT	1911 Mar 11  0:01  # Paris MT
+# Shanks gives 1940 Jun 14 0:00; go with Excoffier and Le Corre.
 			0:00	France	WE%sT	1940 Jun 14 23:00
+# Le Corre says Paris stuck with occupied-France time after the liberation;
+# go with Shanks.
 			1:00	C-Eur	CE%sT	1944 Aug 25
 			0:00	France	WE%sT	1945 Sep 16  3:00
 			1:00	France	CE%sT	1977
@@ -1050,9 +1078,16 @@ Zone Atlantic/Reykjavik	-1:27:24 -	LMT	1837
 
 # Italy
 #
+# From Paul Eggert (2001-03-06):
+# Sicily and Sardinia each had their own time zones from 1866 to 1893,
+# called ``Palermo Time'' (+0053) and ``Cagliari Time'' (+0038).
+# During World War II, German-controlled Italy used German time.
+# But these events all occurred before the 1970 cutoff,
+# so record only the time in Rome.
+#
 # From Paul Eggert (1996-05-06):
 # For Italian DST we have three sources: Shanks, Whitman, and F. Pollastri
-# <a href="http://pisolo.cstv.to.cnr.it/toi/uk/ienitlt.html">
+# <a href="http://toi.iriti.cnr.it/uk/ienitlt.html">
 # Day-light Saving Time in Italy (1996-03-14)
 # </a>
 # (`FP' below), taken from an Italian National Electrotechnical Institute
@@ -1166,6 +1201,20 @@ Link	Europe/Rome	Europe/San_Marino
 # The Regulations of the Cabinet of Ministers of the Rep. of Latvia of
 # 29-Feb-2000 (#79)</a>, in Latvian for subscribers only).
 
+# <a href="http://www.rferl.org/newsline/2001/01/3-CEE/cee-030101.html">
+# From RFE/RL Newsline (2001-01-03), noted after a heads-up by Rives McDow:
+# </a>
+# The Latvian government on 2 January decided that the country will
+# institute daylight-saving time this spring, LETA reported.
+# Last February the three Baltic states decided not to turn back their
+# clocks one hour in the spring....
+# Minister of Economy Aigars Kalvitis noted that Latvia had too few
+# daylight hours and thus decided to comply with a draft European
+# Commission directive that provides for instituting daylight-saving
+# time in EU countries between 2002 and 2006. The Latvian government
+# urged Lithuania and Estonia to adopt a similar time policy, but it
+# appears that they will not do so....
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Latvia	1989	1996	-	Mar	lastSun	 2:00s	1:00	S
 Rule	Latvia	1989	1996	-	Sep	lastSun	 2:00s	0	-
@@ -1183,7 +1232,8 @@ Zone	Europe/Riga	1:36:24	-	LMT	1880
 			2:00	1:00	EEST	1989 Sep lastSun 2:00s
 			2:00	Latvia	EE%sT	1997 Jan 21
 			2:00	EU	EE%sT	2000 Feb 29
-			2:00	-	EET
+			2:00	-	EET	2001
+			2:00	EU	EE%sT
 
 # Liechtenstein
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1208,7 +1258,7 @@ Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
 # as decided by the national government on Wednesday....
 # The Lithuanian government also announced plans to consider a
 # motion to give up shifting to summer time in spring, as it was
-# already done by Estonia. 
+# already done by Estonia.
 
 # From the <a href="http://www.tourism.lt/informa/ff.htm">
 # Fact File, Lithuanian State Department of Tourism
@@ -1286,6 +1336,18 @@ Zone	Europe/Malta	0:58:04 -	LMT	1893 Nov  2	# Valletta
 			1:00	EU	CE%sT
 
 # Moldova
+
+# From Paul Eggert (2001-02-11):
+# A previous version of this database followed Shanks, who writes that
+# Tiraspol switched to Moscow time on 1992-01-19 at 02:00.
+# However, this is most likely an error, as Moldova declared independence
+# on 1991-08-27 (the 1992-01-19 date is that of a Russian decree).
+# In early 1992 there was large-scale interethnic violence in the area
+# and it's possible that some Russophones continued to observe Moscow time.
+# But moldavizolit@tirastel.md and mk@tirastel.md separately reported via
+# Jesper Norgaard that as of 2001-01-24 Tiraspol was like Chisinau.
+# The Tiraspol entry has therefore been removed for now.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Chisinau	1:55:20 -	LMT	1880
 			1:55	-	CMT	1918 Feb 15 # Chisinau MT
@@ -1300,15 +1362,6 @@ Zone	Europe/Chisinau	1:55:20 -	LMT	1880
 			2:00	E-Eur	EE%sT	1997
 # See Romania commentary for the guessed 1997 transition to EU rules.
 			2:00	EU	EE%sT
-Zone	Europe/Tiraspol	1:58:32	-	LMT	1880
-			1:55	-	CMT	1918 Feb 15 # Chisinau MT
-			1:44:24	-	BMT	1931 Jul 24 # Bucharest MT
-			2:00	Romania	EE%sT	1940 Aug 15
-			2:00	1:00	EEST	1941 Jul 17
-			1:00	C-Eur	CE%sT	1944 Aug 24
-			3:00	Russia	MSK/MSD	1991 Mar 31 2:00
-			2:00	Russia	EE%sT	1992 Jan 19 2:00
-			3:00	Russia	MSK/MSD
 
 # Monaco
 # Shanks gives 0:09 for Paris Mean Time; go with Howse's more precise 0:09:21.
@@ -1322,37 +1375,33 @@ Zone	Europe/Monaco	0:29:32 -	LMT	1891 Mar 15
 # Netherlands
 # Howse writes that the Netherlands' railways used GMT between 1892 and 1940,
 # but for other purposes the Netherlands used Amsterdam mean time.
+# The data before 1945 is taken from
+# <http://www.phys.uu.nl/~vgent/wettijd/wettijd.htm>.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-# Shanks gives 1916 Apr 30 24:00 and 1916 Oct 1 00:00; go with Whitman.
-Rule	Neth	1916	only	-	May	 1	2:00s	1:00	NST	# Netherlands Summer Time
-Rule	Neth	1916	only	-	Oct	 2	2:00s	0	AMT	# Amsterdam Mean Time
+Rule	Neth	1916	only	-	May	 1	0:00	1:00	NST	# Netherlands Summer Time
+Rule	Neth	1916	only	-	Oct	 1	0:00	0	AMT	# Amsterdam Mean Time
 Rule	Neth	1917	only	-	Apr	16	2:00s	1:00	NST
 Rule	Neth	1917	only	-	Sep	17	2:00s	0	AMT
-# Whitman gives 1918 Apr 14, 1918 Oct 31, and 1921 Sep 28; go with Shanks.
 Rule	Neth	1918	1921	-	Apr	Mon>=1	2:00s	1:00	NST
-Rule	Neth	1918	1921	-	Sep	Mon>=24	2:00s	0	AMT
-Rule	Neth	1922	only	-	Mar	26	2:00s	1:00	NST
-# Whitman gives 1939 Oct 1; go with Shanks.
+Rule	Neth	1918	1921	-	Sep	lastSun	2:00s	0	AMT
+Rule	Neth	1922	only	-	Mar	lastSun	2:00s	1:00	NST
 Rule	Neth	1922	1936	-	Oct	Sun>=2	2:00s	0	AMT
-Rule	Neth	1923	only	-	Jun	 1	2:00s	1:00	NST
-Rule	Neth	1924	only	-	Mar	30	2:00s	1:00	NST
-# Whitman gives 1925 Apr 5; go with Shanks.
-Rule	Neth	1925	only	-	Jun	 5	2:00s	1:00	NST
-# For 1926 through 1930 Whitman gives Apr 15; go with Shanks.
+Rule	Neth	1923	only	-	Jun	Fri>=1	2:00s	1:00	NST
+Rule	Neth	1924	only	-	Mar	lastSun	2:00s	1:00	NST
+Rule	Neth	1925	only	-	Jun	Fri>=1	2:00s	1:00	NST
 Rule	Neth	1926	1931	-	May	15	2:00s	1:00	NST
 Rule	Neth	1932	only	-	May	22	2:00s	1:00	NST
 Rule	Neth	1933	1936	-	May	15	2:00s	1:00	NST
 Rule	Neth	1937	only	-	May	22	2:00s	1:00	NST
 Rule	Neth	1937	only	-	Jul	 1	0:00	1:00	S
 Rule	Neth	1937	1939	-	Oct	Sun>=2	2:00s	0	-
-# Whitman gives 1939 Apr 15 and 1940 Apr 19; go with Shanks.
 Rule	Neth	1938	1939	-	May	15	2:00s	1:00	S
 Rule	Neth	1945	only	-	Apr	 2	2:00s	1:00	S
-Rule	Neth	1945	only	-	May	20	2:00s	0	-
+Rule	Neth	1945	only	-	Sep	16	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Europe/Amsterdam	0:19:28 -	LMT	1892 May
 			0:19:28	Neth	%s	1937 Jul
-			0:20	Neth	NE%sT	1940 May 16 0:40
+			0:20	Neth	NE%sT	1940 May 17 0:00
 			1:00	C-Eur	CE%sT	1945 Apr  2 2:00
 			1:00	Neth	CE%sT	1977
 			1:00	EU	CE%sT
@@ -1582,6 +1631,13 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 # According to a friend of mine who rode the Trans-Siberian Railroad from
 # Moscow to Irkutsk in 1995, public air and rail transport in Russia ...
 # still follows Moscow time, no matter where in Russia it is located.
+#
+# For Grozny, Chechnya, we have the following story from
+# John Daniszewski, "Scavengers in the Rubble", Los Angeles Times (2001-02-07):
+# News--often false--is spread by word of mouth.  A rumor that it was
+# time to move the clocks back put this whole city out of sync with
+# the rest of Russia for two weeks--even soldiers stationed here began
+# enforcing curfew at the wrong time.
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Europe/Kaliningrad	 1:22:00 - 	LMT	1893 Apr
