@@ -88,8 +88,8 @@ configuration file.
 With this option set,
 .Nm
 will detach and become a daemon, accepting connections on the FTP port and
-forking children processes to handle them. This is lower overhead than
-starting
+forking children processes to handle them.
+This is lower overhead than starting
 .Nm
 from
 .Xr inetd 8
@@ -156,10 +156,11 @@ is not specified, accept IPv4 connection via AF_INET socket.
 .It Fl A
 Allow only anonymous ftp access.
 .It Fl r
-Put server in read-only mode. All commands which may modify the local 
-filesystem is disabled.
+Put server in read-only mode.
+All commands which may modify the local filesystem are disabled.
 .It Fl E
-Disable the EPSV command. This is usefull for servers behind older FireWalls.
+Disable the EPSV command.
+This is useful for servers behind older firewalls.
 .El
 .Pp
 The file
@@ -245,7 +246,7 @@ SITE request.
 .It Sy Request Ta Sy Description
 .It UMASK Ta change umask, e.g. ``SITE UMASK 002''
 .It IDLE Ta set idle-timer, e.g. ``SITE IDLE 60''
-.It CHMOD Ta "change mode of a file [RW], e.g. ``SITE CHMOD 755 filename'' "
+.It CHMOD Ta "change mode of a file [RW], e.g. ``SITE CHMOD 755 filename''"
 .It HELP Ta give help information
 .El
 .Pp
@@ -283,13 +284,15 @@ and not have a null password.
 In this case a password must be provided by the client before any
 file operations may be performed.
 If the user has an S/Key key, the response from a successful USER
-command will include an S/Key challenge. The client may choose to respond
-with a PASS command giving either a standard password or an S/Key
-one-time password. The server will automatically determine which type of
-password it has been given and attempt to authenticate accordingly. See
+command will include an S/Key challenge.
+The client may choose to respond with a PASS command giving either
+a standard password or an S/Key one-time password.
+The server will automatically determine which type of
+password it has been given and attempt to authenticate accordingly.
+See
 .Xr key 1
-for more information on S/Key authentication. S/Key is a Trademark of
-Bellcore.
+for more information on S/Key authentication.
+S/Key is a Trademark of Bellcore.
 .It
 The login name must not appear in the file
 .Pa /etc/ftpusers .
