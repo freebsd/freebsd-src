@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from the Stanford/CMU enet packet filter,
@@ -40,7 +40,7 @@
 
 #if !(defined(lint) || defined(KERNEL))
 static const char rcsid[] =
-    "@(#) $Header: bpf_filter.c,v 1.31 96/12/11 20:18:39 leres Exp $ (LBL)";
+    "@(#) $Header: bpf_filter.c,v 1.33 97/04/26 13:37:18 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -507,7 +507,7 @@ bpf_validate(f, len)
 			register int from = i + 1;
 
 			if (BPF_OP(p->code) == BPF_JA) {
-				if (from + p->k >= len)
+				if (from + p->k >= (unsigned)len)
 					return 0;
 			}
 			else if (from + p->jt >= len || from + p->jf >= len)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 1994, 1995, 1996
+ * Copyright (c) 1993, 1994, 1995, 1996, 1998
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: pcap-bpf.c,v 1.28 96/12/10 23:14:56 leres Exp $ (LBL)";
+    "@(#) $Header: pcap-bpf.c,v 1.31 98/07/12 13:14:55 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>			/* optionally get BSD define */
@@ -184,6 +184,14 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		sprintf(ebuf, "kernel bpf filter out of date");
 		goto bad;
 	}
+	v = 32768;	/* XXX this should be a user-accessible hook */
+	/* Ignore the return value - this is because the call fails on
+	 * BPF systems that don't have kernel malloc.  And if the call
+	 * fails, it's no big deal, we just continue to use the standard
+	 * buffer size.
+	 */
+	(void) ioctl(fd, BIOCSBLEN, (caddr_t)&v);
+
 	(void)strncpy(ifr.ifr_name, device, sizeof(ifr.ifr_name));
 	if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) < 0) {
 		sprintf(ebuf, "%s: %s", device, pcap_strerror(errno));
@@ -194,6 +202,19 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		sprintf(ebuf, "BIOCGDLT: %s", pcap_strerror(errno));
 		goto bad;
 	}
+#if _BSDI_VERSION - 0 >= 199510
+	/* The SLIP and PPP link layer header changed in BSD/OS 2.1 */
+	switch (v) {
+
+	case DLT_SLIP:
+		v = DLT_SLIP_BSDOS;
+		break;
+
+	case DLT_PPP:
+		v = DLT_PPP_BSDOS;
+		break;
+	}
+#endif
 	p->linktype = v;
 
 	/* set timeout */

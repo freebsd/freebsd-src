@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.68 96/09/26 21:53:37 leres Exp $ (LBL)
+# @(#) $Header: Makefile.in,v 1.72 97/06/30 13:56:14 leres Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -70,7 +70,7 @@ YACC = @V_YACC@
 PSRC =	pcap-@V_PCAP@.c
 CSRC =	pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c
-GENSRC = scanner.c grammar.c
+GENSRC = scanner.c grammar.c version.c
 
 SRC =	$(PSRC) $(CSRC) $(GENSRC)
 
@@ -89,6 +89,8 @@ TAGFILES = \
 	$(SRC) $(HDR) $(TAGHDR)
 
 CLEANFILES = $(OBJ) libpcap.a $(GENSRC) $(GENHDR) lex.yy.c
+
+all: libpcap.a
 
 libpcap.a: $(OBJ)
 	@rm -f $@
@@ -111,17 +113,26 @@ grammar.o: grammar.c
 	@rm -f $@
 	$(CC) $(CFLAGS) -Dyylval=pcap_lval -c grammar.c
 
+version.o: version.c
+version.c: $(srcdir)/VERSION
+	@rm -f $@
+	sed -e 's/.*/char pcap_version[] = "&";/' $(srcdir)/VERSION > $@
+
 install: force
-	$(INSTALL) -m 444 -o bin -g bin libpcap.a $(DESTDIR)$(LIBDEST)
+	$(INSTALL) -m 444 -o bin -g bin libpcap.a $(DESTDIR)$(LIBDEST)/libpcap.a
 	$(RANLIB) $(DESTDIR)$(LIBDEST)/libpcap.a
 
 install-incl: force
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.h $(DESTDIR)$(INCLDEST)
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap-namedb.h $(DESTDIR)$(INCLDEST)
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/net/bpf.h $(DESTDIR)$(INCLDEST)/net
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.h \
+	    $(DESTDIR)$(INCLDEST)/pcap.h
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap-namedb.h \
+	    $(DESTDIR)$(INCLDEST)/pcap-namedb.h
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/net/bpf.h \
+	    $(DESTDIR)$(INCLDEST)/net/bpf.h
 
 install-man: force
-	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.3 $(DESTDIR)$(MANDEST)/man3
+	$(INSTALL) -m 444 -o bin -g bin $(srcdir)/pcap.3 \
+	    $(DESTDIR)$(MANDEST)/man3/pcap.3
 
 clean:
 	rm -f $(CLEANFILES)
