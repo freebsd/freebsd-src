@@ -1086,7 +1086,7 @@ static void ifParen(FICL_VM *pVM)
     }
     else 
     {                           /* take branch (to else/endif/begin) */
-        vmBranchRelative(pVM, (int)(*pVM->ip));
+        vmBranchRelative(pVM, *(int*)(pVM->ip));
     }
 
     return;
