@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.46 1997/07/25 03:13:46 brian Exp $
+ * $Id: ipfw.c,v 1.47 1997/08/08 14:36:28 alex Exp $
  *
  */
 
@@ -1200,9 +1200,13 @@ main(ac, av)
 			sprintf(linename, "Line %d", lineno);
 			args[0] = linename;
 
+			if (*buf == '#')
+				continue;
 			for (i = 1, a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
+			if (i == 1)
+				continue;
 			if (i == MAX_ARGS)
 				errx(1, "%s: too many arguments", linename);
 			args[i] = NULL;
