@@ -105,7 +105,7 @@ svr4_getcontext(td, uc, mask, oonstack)
 	struct sigaltstack *sf;
 #endif
 
-	PROC_LOCK(td->td_proc);
+	PROC_LOCK(p);
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
 	psp = p->p_sigacts;
 	sf = &p->p_sigstk;
@@ -163,7 +163,7 @@ svr4_getcontext(td, uc, mask, oonstack)
 	s->ss_size = 16384;
 	s->ss_flags = 0;
 #endif
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Set the signal mask
@@ -201,11 +201,11 @@ svr4_setcontext(td, uc)
 	struct sigaltstack *sf;
 	sigset_t mask;
 
-	PROC_LOCK(td->td_proc);
+	PROC_LOCK(p);
 #if defined(DONE_MORE_SIGALTSTACK_WORK)
-	psp = td->td_proc->p_sigacts;
+	psp = p->p_sigacts;
 #endif
-	sf = &td->td_proc->p_sigstk;
+	sf = &p->p_sigstk;
 
 	/*
 	 * XXX:
@@ -295,7 +295,7 @@ svr4_setcontext(td, uc)
 		SIG_CANTMASK(mask);
 		p->p_sigmask = mask;
 	}
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 
 	return 0; /*EJUSTRETURN;*/
 }
@@ -438,7 +438,7 @@ svr4_sendsig(catcher, sig, mask, code)
 	} else {
 		fp = (struct svr4_sigframe *)tf->tf_esp - 1;
 	}
-	PROC_UNLOCK(td->td_proc);
+	PROC_UNLOCK(p);
 
 	/* 
 	 * Build the argument list for the signal handler.
@@ -472,7 +472,7 @@ svr4_sendsig(catcher, sig, mask, code)
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
 		 */
-		PROC_LOCK(td->td_proc);
+		PROC_LOCK(p);
 		sigexit(td, SIGILL);
 		/* NOTREACHED */
 	}
