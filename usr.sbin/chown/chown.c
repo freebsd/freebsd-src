@@ -69,7 +69,7 @@ void	usage __P((void));
 
 uid_t uid;
 gid_t gid;
-int Rflag, ischown, fflag, hflag;
+int Rflag, ischown, fflag, hflag, vflag;
 char *gname, *myname;
 
 int
@@ -183,11 +183,17 @@ main(argc, argv)
 			if (lchown(p->fts_accpath, uid, gid) && !fflag) {
 				chownerr(p->fts_path);
 				rval = 1;
+			} else {
+			    	if (vflag)
+					(void)printf("%s\n", p->fts_accpath);
 			}
 		} else {
 			if (chown(p->fts_accpath, uid, gid) && !fflag) {
 				chownerr(p->fts_path);
 				rval = 1;
+			} else {
+			    	if (vflag)
+					(void)printf("%s\n", p->fts_accpath);
 			}
 		}
 	}
@@ -266,8 +272,8 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: chown [-R [-H | -L | -P]] [-f] [-h] owner[:group] file ...",
-	    "       chown [-R [-H | -L | -P]] [-f] [-h] :group file ...",
-	    "       chgrp [-R [-H | -L | -P]] [-f] [-h] group file ...");
+	    "usage: chown [-R [-H | -L | -P]] [-f] [-h] [-v] owner[:group] file ...",
+	    "       chown [-R [-H | -L | -P]] [-f] [-h] [-v] :group file ...",
+	    "       chgrp [-R [-H | -L | -P]] [-f] [-h] [-v] group file ...");
 	exit(1);
 }
