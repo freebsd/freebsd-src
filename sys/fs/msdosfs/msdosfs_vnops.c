@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.77 1998/10/31 15:31:24 peter Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.78 1998/11/21 00:20:24 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -610,10 +610,10 @@ msdosfs_read(ap)
 			return (error);
 		}
 		error = uiomove(bp->b_data + on, (int) n, uio);
-		if (!isadir)
-			dep->de_flag |= DE_ACCESS;
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n != 0);
+	if (!isadir && !(vp->v_mount->mnt_flag & MNT_NOATIME))
+		dep->de_flag |= DE_ACCESS;
 	return (error);
 }
 
