@@ -221,7 +221,8 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 			 * If (*grp == CHAR_MAX) then no more grouping
 			 * should be performed.
 			 */
-			if (needgrp && ndig == *grp && *grp != CHAR_MAX) {
+			if (needgrp && ndig == *grp && *grp != CHAR_MAX
+					&& sval > 9) {
 				*--cp = thousep;
 				ndig = 0;
 				/*
@@ -291,7 +292,8 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
 			 * If (*grp == CHAR_MAX) then no more grouping
 			 * should be performed.
 			 */
-			if (needgrp && *grp != CHAR_MAX && ndig == *grp) {
+			if (needgrp && *grp != CHAR_MAX && ndig == *grp
+					&& sval > 9) {
 				*--cp = thousep;
 				ndig = 0;
 				/*
