@@ -2808,3 +2808,4 @@ si_drvinit(void *unused)
 }
 
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)
+
