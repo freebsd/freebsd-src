@@ -32,28 +32,14 @@
 #	/etc/rc.isdn - isdn4bsd startup script
 #	--------------------------------------
 #
-#	last edit-date: [Mon Mar  8 12:15:56 1999]
-#
 #---------------------------------------------------------------------------
 
 case ${isdn_enable} in
 [Yy][Ee][Ss])
 	echo -n 'ISDN subsystem setup:'
 
-	# Terminal type for fullscreen mode, default to syscons driver
-	#
-	isdn_ttype=cons25
-
-	# Check for pcvt driver (VT100/VT220 emulator)
-	#
-	if [ -x /usr/sbin/ispcvt ]; then
-		if /usr/sbin/ispcvt; then
-			isdn_ttype=pcvt25
-		fi
-	fi
-
 	case ${isdn_flags} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
 		isdn_flags=''
 		;;
 	esac
