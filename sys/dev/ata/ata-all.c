@@ -531,7 +531,7 @@ ata_boot_attach(void)
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
     }
-    ar_attach();
+    atar_attach();
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     /* then the atapi devices */

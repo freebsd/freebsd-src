@@ -704,6 +704,12 @@ uhci_dumpregs(uhci_softc_t *sc)
 		     UREAD2(sc, UHCI_PORTSC2)));
 }
 
+Static void
+uhci_dump_ii(uhci_intr_info_t *ii)
+{
+	printf("Fill me in");
+}
+
 void
 uhci_dump_td(uhci_soft_td_t *p)
 {
