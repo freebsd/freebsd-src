@@ -55,7 +55,7 @@
 #include "opt_ddb.h"
 
 #ifdef DDB
-static void	ext2_checkoverlap __P((struct buf *, struct inode *));
+void	ext2_checkoverlap __P((struct buf *, struct inode *));
 #endif
 
 /*
@@ -93,7 +93,7 @@ ext2_blkatoff(vp, offset, res, bpp)
 }
 
 #ifdef DDB
-static void
+void
 ext2_checkoverlap(bp, ip)
 	struct buf *bp;
 	struct inode *ip;
