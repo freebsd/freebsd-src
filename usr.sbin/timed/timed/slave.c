@@ -76,7 +76,7 @@ slave()
 	struct sockaddr_in taddr;
 	char tname[MAXHOSTNAMELEN];
 	struct tsp *msg, to;
-	struct timeval ntime, wait;
+	struct timeval ntime, wait, tmptv;
 	time_t tsp_time_sec;
 	struct tsp *answer;
 	int timeout();
@@ -280,7 +280,9 @@ loop:
 			}
 
 			setmaster(msg);
-			timevalsub(&ntime, &msg->tsp_time, &otime);
+ 			tmptv.tv_sec = msg->tsp_time.tv_sec;
+ 			tmptv.tv_usec = msg->tsp_time.tv_usec;
+			timevalsub(&ntime, &tmptv, &otime);
 			if (ntime.tv_sec < MAXADJ && ntime.tv_sec > -MAXADJ) {
 				/*
 				 * do not change the clock if we can adjust it
@@ -295,7 +297,7 @@ loop:
 				logwtmp(&otime, &msg->tsp_time);
 #else
 				logwtmp("|", "date", "");
-				(void)settimeofday(&msg->tsp_time, 0);
+ 				(void)settimeofday(&tmptv, 0);
 				logwtmp("{", "date", "");
 #endif /* sgi */
 				syslog(LOG_NOTICE,
