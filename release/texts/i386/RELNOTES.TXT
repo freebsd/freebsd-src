@@ -53,6 +53,9 @@ The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
 The fxp(4) driver now requires a "device miibus" entry in the kernel
 configuration file.
 
+The an(4) driver has received a few bug fixes; promiscuous mode now
+works, and it can be configured before being brought "up".
+
 smbfs (CIFS) support in kernel has been added.
 
 TCP now has RFC 1323 extensions enabled by default in rc.conf(5).
