@@ -94,6 +94,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
 
   first = 1;
   strcpy(instr, result);
+  wattrset(dialog, dialog_attr);
+
   while (key != ESC) {
 
     if (button == -1) {    /* Input box selected */
