@@ -41,7 +41,8 @@ struct read_file_data {
 	int	 fd;
 	size_t	 block_size;
 	void	*buffer;
-	char	 filename[1];
+	mode_t	 st_mode;  /* Mode bits for opened file. */
+	char	 filename[1]; /* Must be last! */
 };
 
 static int	file_close(struct archive *, void *);
@@ -54,13 +55,13 @@ archive_read_open_file(struct archive *a, const char *filename,
 {
 	struct read_file_data *mine;
 
-	if (filename == NULL) {
+	if (filename == NULL || filename[0] == '\0') {
 		mine = malloc(sizeof(*mine));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
 		}
-		mine->filename[0] = 0;
+		mine->filename[0] = '\0';
 	} else {
 		mine = malloc(sizeof(*mine) + strlen(filename));
 		if (mine == NULL) {
@@ -82,18 +83,21 @@ file_open(struct archive *a, void *client_data)
 	struct stat st;
 
 	mine->buffer = malloc(mine->block_size);
-	if (*mine->filename != 0)
+	if (mine->filename[0] != '\0')
 		mine->fd = open(mine->filename, O_RDONLY);
 	else
-		mine->fd = 0;
+		mine->fd = 0; /* Fake "open" for stdin. */
 	if (mine->fd < 0) {
 		archive_set_error(a, errno, "Failed to open '%s'",
 		    mine->filename);
 		return (ARCHIVE_FATAL);
 	}
 	if (fstat(mine->fd, &st) == 0) {
+		/* Set dev/ino of archive file so extract won't overwrite. */
 		a->skip_file_dev = st.st_dev;
 		a->skip_file_ino = st.st_ino;
+		/* Remember mode so close can decide whether to flush. */
+		mine->st_mode = st.st_mode;
 	} else {
 		archive_set_error(a, errno, "Can't stat '%s'",
 		    mine->filename);
@@ -118,7 +122,28 @@ file_close(struct archive *a, void *client_data)
 	struct read_file_data *mine = client_data;
 
 	(void)a; /* UNUSED */
-	if (mine->fd >= 0)
+
+	/*
+	 * Sometimes, we should flush the input before closing.
+	 *   Regular files: faster to just close without flush.
+	 *   Devices: must not flush (user might need to
+	 *      read the "next" item on a non-rewind device).
+	 *   Pipes and sockets:  must flush (otherwise, the
+	 *      program feeding the pipe or socket may complain).
+	 * Here, I flush everything except for regular files and
+	 * device nodes.
+	 */
+	if (!S_ISREG(mine->st_mode)
+	    && !S_ISCHR(mine->st_mode)
+	    && !S_ISBLK(mine->st_mode)) {
+		ssize_t bytesRead;
+		do {
+			bytesRead = read(mine->fd, mine->buffer,
+			    mine->block_size);
+		} while (bytesRead > 0);
+	}
+	/* If a named file was opened, then it needs to be closed. */
+	if (mine->filename[0] != '\0')
 		close(mine->fd);
 	if (mine->buffer != NULL)
 		free(mine->buffer);
