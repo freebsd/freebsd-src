@@ -93,13 +93,7 @@ static KTimeout_ret	atm_timexp(void *);
 static struct atm_time	*atm_timeq = NULL;
 static struct atm_time	atm_compactimer = {0, 0};
 
-static struct sp_info	atm_stackq_pool = {
-	"Service stack queue pool",	/* si_name */
-	sizeof(struct stackq_entry),	/* si_blksiz */
-	10,				/* si_blkcnt */
-	10				/* si_maxallow */
-};
-
+static uma_zone_t atm_stackq_zone;
 
 /*
  * Initialize ATM kernel
@@ -135,6 +129,12 @@ atm_initialize()
 	if (atm_attributes_zone == NULL)
 		panic("atm_initialize: unable to allocate attributes pool");
 	uma_zone_set_max(atm_attributes_zone, 100);
+
+	atm_stackq_zone = uma_zcreate("atm stackq", sizeof(struct stackq_entry),
+	    (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	if (atm_stackq_zone == NULL)
+		panic("atm_initialize: unable to allocate stackq pool");
+	uma_zone_set_max(atm_stackq_zone, 10);
 
 	register_netisr(NETISR_ATM, atm_intr);
 
@@ -747,7 +747,7 @@ atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	/*
 	 * Get a new queue entry for this call
 	 */
-	sqp = (struct stackq_entry *)atm_allocate(&atm_stackq_pool);
+	sqp = uma_zalloc(atm_stackq_zone, 0);
 	if (sqp == NULL) {
 		(void) splx(s);
 		return (ENOMEM);
@@ -862,7 +862,7 @@ atm_stack_drain()
 				atm_stackq_head = qnext;
 			if (qnext == NULL)
 				atm_stackq_tail = qprev;
-			atm_free((caddr_t)sqp);
+			uma_zfree(atm_stackq_zone, sqp);
 			sqp = qnext;
 		}
 	} while (cnt > 0);
