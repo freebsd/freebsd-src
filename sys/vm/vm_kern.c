@@ -198,8 +198,6 @@ kmem_alloc(map, size)
 
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
 				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		if ((mem->flags & PG_ZERO) == 0)
-			pmap_zero_page(mem);
 		mem->valid = VM_PAGE_BITS_ALL;
 		vm_page_lock_queues();
 		vm_page_unmanage(mem);

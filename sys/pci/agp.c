@@ -524,8 +524,6 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		VM_OBJECT_UNLOCK(mem->am_obj);
-		if ((m->flags & PG_ZERO) == 0)
-			pmap_zero_page(m);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
 
 		/*

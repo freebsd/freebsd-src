@@ -1460,6 +1460,8 @@ retrylookup:
 			return NULL;
 		goto retrylookup;
 	}
+	if (allocflags & VM_ALLOC_ZERO && (m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
 
 	return m;
 }
