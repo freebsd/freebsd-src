@@ -521,30 +521,20 @@ ktrwrite(vp, kth, uio)
  * more permissions than the caller.  KTRFAC_ROOT signifies that
  * root previously set the tracing status on the target process, and
  * so, only root may further change it.
- *
- * XXX: These checks are stronger than for ptrace()
- * XXX: This check should be p_can(... P_CAN_DEBUG ...);
- *
- * TODO: check groups.  use caller effective gid.
  */
 static int
 ktrcanset(callp, targetp)
 	struct proc *callp, *targetp;
 {
-	struct ucred *callcr = callp->p_ucred;
-	struct ucred *targetcr = targetp->p_ucred;
 
-	if (prison_check(callcr, targetcr))
+	if (targetp->p_traceflag & KTRFAC_ROOT &&
+	    suser_xxx(NULL, callp, PRISON_ROOT))
 		return (0);
-	if ((callcr->cr_uid == targetcr->cr_ruid &&
-	     targetcr->cr_ruid == targetcr->cr_svuid &&
-	     callcr->cr_rgid == targetcr->cr_rgid &&	/* XXX */
-	     targetcr->cr_rgid == targetcr->cr_svgid &&
-	     (targetp->p_traceflag & KTRFAC_ROOT) == 0) ||
-	     !suser_xxx(callcr, NULL, PRISON_ROOT))
-		return (1);
 
-	return (0);
+	if (p_candebug(callp, targetp) != 0)
+		return (0);
+
+	return (1);
 }
 
 #endif /* KTRACE */

@@ -263,7 +263,7 @@ procfs_domem(curp, p, pfs, uio)
  	 * All in all, quite yucky.
  	 */
  
- 	if (p_can(curp, p, P_CAN_DEBUG, NULL) &&
+ 	if (p_candebug(curp, p) &&
 	    !(uio->uio_rw == UIO_READ &&
 	      procfs_kmemaccess(curp)))
  		return EPERM;

@@ -99,7 +99,7 @@ getpriority(curp, uap)
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
-			if (p_can(curp, p, P_CAN_SEE, NULL) == 0)
+			if (p_cansee(curp, p) == 0)
 				low = p->p_nice;
 			PROC_UNLOCK(p);
 		}
@@ -113,7 +113,7 @@ getpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if (!p_can(curp, p, P_CAN_SEE, NULL) && p->p_nice < low)
+			if (!p_cansee(curp, p) && p->p_nice < low)
 				low = p->p_nice;
 		}
 		break;
@@ -124,7 +124,7 @@ getpriority(curp, uap)
 			uap->who = curp->p_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list)
-			if (!p_can(curp, p, P_CAN_SEE, NULL) &&
+			if (!p_cansee(curp, p) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_nice < low)
 				low = p->p_nice;
@@ -165,7 +165,7 @@ setpriority(curp, uap)
 			p = pfind(uap->who);
 			if (p == 0)
 				break;
-			if (p_can(curp, p, P_CAN_SEE, NULL) == 0)
+			if (p_cansee(curp, p) == 0)
 				error = donice(curp, p, uap->prio);
 			PROC_UNLOCK(p);
 		}
@@ -180,7 +180,7 @@ setpriority(curp, uap)
 		else if ((pg = pgfind(uap->who)) == NULL)
 			break;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
-			if (!p_can(curp, p, P_CAN_SEE, NULL)) {
+			if (!p_cansee(curp, p)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
@@ -194,7 +194,7 @@ setpriority(curp, uap)
 		sx_slock(&allproc_lock);
 		LIST_FOREACH(p, &allproc, p_list)
 			if (p->p_ucred->cr_uid == uap->who &&
-			    !p_can(curp, p, P_CAN_SEE, NULL)) {
+			    !p_cansee(curp, p)) {
 				error = donice(curp, p, uap->prio);
 				found++;
 			}
@@ -216,7 +216,7 @@ donice(curp, chgp, n)
 {
 	int	error;
 
-	if ((error = p_can(curp, chgp, P_CAN_SCHED, NULL)))
+	if ((error = p_cansched(curp, chgp)))
 		return (error);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
@@ -263,13 +263,13 @@ rtprio(curp, uap)
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
-		if ((error = p_can(curp, p, P_CAN_SEE, NULL)))
+		if ((error = p_cansee(curp, p)))
 			break;
 		pri_to_rtp(&p->p_pri, &rtp);
 		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
 		break;
 	case RTP_SET:
-		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)) ||
+		if ((error = p_cansched(curp, p)) ||
 		    (error = copyin(uap->rtp, &rtp, sizeof(struct rtprio))))
 			break;
 		/* disallow setting rtprio in most cases if not superuser */

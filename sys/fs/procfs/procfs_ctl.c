@@ -119,7 +119,7 @@ procfs_control(curp, p, op)
 	 * debug.
 	 */
 	if (op != PROCFS_CTL_DETACH &&
-	    ((error = p_can(curp, p, P_CAN_DEBUG, NULL))))
+	    ((error = p_candebug(curp, p))))
 		return (error);
 
 	/*

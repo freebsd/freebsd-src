@@ -151,7 +151,7 @@ getpgid(p, uap)
 	else {
 		if ((pt = pfind(uap->pid)) == NULL)
 			return ESRCH;
-		if ((error = p_can(p, pt, P_CAN_SEE, NULL))) {
+		if ((error = p_cansee(p, pt))) {
 			PROC_UNLOCK(pt);
 			return (error);
 		}
@@ -183,7 +183,7 @@ getsid(p, uap)
 	else {
 		if ((pt = pfind(uap->pid)) == NULL)
 			return ESRCH;
-		if ((error = p_can(p, pt, P_CAN_SEE, NULL))) {
+		if ((error = p_cansee(p, pt))) {
 			PROC_UNLOCK(pt);
 			return (error);
 		}
@@ -370,7 +370,7 @@ setpgid(curp, uap)
 				PROC_UNLOCK(targp);
 			return (ESRCH);
 		}
-		if ((error = p_can(curproc, targp, P_CAN_SEE, NULL))) {
+		if ((error = p_cansee(curproc, targp))) {
 			PROC_UNLOCK(targp);
 			return (error);
 		}
@@ -1086,13 +1086,10 @@ u_cansee(struct ucred *u1, struct ucred *u2)
 	return (0);
 }
 
-static int
-p_cansee(struct proc *p1, struct proc *p2, int *privused)
+int
+p_cansee(struct proc *p1, struct proc *p2)
 {
 
-	/* XXX: privused is going away, so don't do that here. */
-	if (privused != NULL)
-		*privused = 0;
 	/* Wrap u_cansee() for all functionality. */
 	return (u_cansee(p1->p_ucred, p2->p_ucred));
 }
@@ -1167,13 +1164,10 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
         return (0);
 }
 
-static int
-p_cansched(struct proc *p1, struct proc *p2, int *privused)
+int
+p_cansched(struct proc *p1, struct proc *p2)
 {
 	int error;
-
-	if (privused != NULL)
-		*privused = 0;
 
 	if (p1 == p2)
 		return (0);
@@ -1186,30 +1180,21 @@ p_cansched(struct proc *p1, struct proc *p2, int *privused)
 	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid)
 		return (0);
 
-	if (!suser_xxx(0, p1, PRISON_ROOT)) {
-		if (privused != NULL)
-			*privused = 1;
+	if (!suser_xxx(0, p1, PRISON_ROOT))
 		return (0);
-	}
 
 #ifdef CAPABILITIES
-	if (!cap_check_xxx(0, p1, CAP_SYS_NICE, PRISON_ROOT)) {
-		if (privused != NULL)
-			*privused = 1;
+	if (!cap_check_xxx(0, p1, CAP_SYS_NICE, PRISON_ROOT))
 		return (0);
-	}
 #endif
 
 	return (EPERM);
 }
 
-static int
-p_candebug(struct proc *p1, struct proc *p2, int *privused)
+int
+p_candebug(struct proc *p1, struct proc *p2)
 {
 	int error;
-
-	if (privused != NULL)
-		*privused = 0;
 
 	if (p1 == p2)
 		return (0);
@@ -1222,12 +1207,9 @@ p_candebug(struct proc *p1, struct proc *p2, int *privused)
 	if (p1->p_ucred->cr_uid != p2->p_ucred->cr_uid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid ||
 	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid ||
-	    p2->p_flag & P_SUGID) {
+	    p2->p_flag & P_SUGID)
 		if ((error = suser_xxx(0, p1, PRISON_ROOT)))
 			return (error);
-		if (privused != NULL)
-			*privused = 1;
-	}
 
 	/* can't trace init when securelevel > 0 */
 	if (securelevel > 0 && p2->p_pid == 1)
@@ -1235,27 +1217,6 @@ p_candebug(struct proc *p1, struct proc *p2, int *privused)
 
 	return (0);
 }
-
-int
-p_can(struct proc *p1, struct proc *p2, int operation,
-    int *privused)
-{
-
-	switch(operation) {   
-	case P_CAN_SEE:
-		return (p_cansee(p1, p2, privused));
-  
-	case P_CAN_SCHED:
-		return (p_cansched(p1, p2, privused));
-
-	case P_CAN_DEBUG:
-		return (p_candebug(p1, p2, privused));
-
-	default:
-		panic("p_can: invalid operation");
-	}
-}
-
 
 /*
  * Allocate a zeroed cred structure.
