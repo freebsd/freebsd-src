@@ -309,7 +309,7 @@ ENTRY(fork_trampoline)
 
 #ifdef IA32
 	.data
-	.align	4
+	.p2align 4
 	.text
 	SUPERALIGN_TEXT
 
@@ -317,7 +317,7 @@ ENTRY(fork_trampoline)
 #endif
 
 	.data
-	.align	4
+	.p2align 4
 	.text
 	SUPERALIGN_TEXT
 MCOUNT_LABEL(bintr)
@@ -326,7 +326,7 @@ MCOUNT_LABEL(bintr)
 
 #ifdef DEV_ATPIC
 	.data
-	.align	4
+	.p2align 4
 	.text
 	SUPERALIGN_TEXT
 
