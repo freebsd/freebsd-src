@@ -421,6 +421,7 @@ patm_tx_pad(struct patm_softc *sc, struct mbuf *m0)
 			return (m0);
 	}
 	pad = 48 - plen % 48;
+	m0->m_pkthdr.len += pad;
 	if (M_WRITABLE(last)) {
 		if (M_TRAILINGSPACE(last) >= pad) {
 			bzero(last->m_data + last->m_len, pad);
