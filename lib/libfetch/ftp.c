@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.10 1998/12/16 15:29:03 des Exp $
+ *	$Id: ftp.c,v 1.11 1998/12/18 14:32:48 des Exp $
  */
 
 /*
@@ -506,4 +506,15 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
 ouch:
     _ftp_seterr(e);
     return -1;
+}
+
+/*
+ * List a directory
+ */
+extern void warnx(char *, ...);
+struct url_ent *
+fetchListFTP(struct url *url, char *flags)
+{
+    warnx("fetchListFTP(): not implemented");
+    return NULL;
 }

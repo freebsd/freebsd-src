@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: common.c,v 1.3 1998/12/16 10:24:52 des Exp $
+ *	$Id: common.c,v 1.4 1998/12/18 14:32:48 des Exp $
  */
 
 #include <sys/param.h>
@@ -239,4 +239,46 @@ _fetch_connect(char *host, int port, int verbose)
     }
 
     return sd;
+}
+
+
+/*** Directory-related utility functions *************************************/
+
+int
+_fetch_add_entry(struct url_ent **p, int *size, int *len,
+		 char *name, struct url_stat *stat)
+{
+    struct url_ent *tmp;
+
+    if (*p == NULL) {
+#define INITIAL_SIZE 8
+	if ((*p = malloc(INITIAL_SIZE * sizeof **p)) == NULL) {
+	    errno = ENOMEM;
+	    _fetch_syserr();
+	    return -1;
+	}
+	*size = INITIAL_SIZE;
+	*len = 0;
+#undef INITIAL_SIZE
+    }
+    
+    if (*len >= *size - 1) {
+	tmp = realloc(*p, *size * 2 * sizeof **p);
+	if (tmp == NULL) {
+	    errno = ENOMEM;
+	    _fetch_syserr();
+	    return -1;
+	}
+	*size *= 2;
+	*p = tmp;
+    }
+
+    tmp = *p + *len;
+    snprintf(tmp->name, MAXPATHLEN, "%s", name);
+    bcopy(stat, &tmp->stat, sizeof *stat);
+
+    (*len)++;
+    (++tmp)->name[0] = 0;
+
+    return 0;
 }
