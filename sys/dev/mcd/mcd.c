@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.34 1994/12/21 15:17:59 ache Exp $
+ *	$Id: mcd.c,v 1.35 1994/12/24 13:24:00 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -126,6 +126,7 @@ struct mcd_data {
 	char	*name;
 	short	config;
 	short	flags;
+	u_char	read_command;
 	short	status;
 	int	blksize;
 	u_long	disksize;
@@ -680,6 +681,7 @@ mcd_probe(struct isa_device *dev)
 		outb(port+MCD_CTRL, M_PICKLE);
 		mcd_data[unit].flags |= MCDNEWMODEL;
 	}
+	mcd_data[unit].read_command = MCD_CMDSINGLESPEEDREAD;
 	switch (stbytes[1]) {
 	case 'M':
 		if (mcd_data[unit].flags & MCDNEWMODEL)	{
@@ -697,6 +699,7 @@ mcd_probe(struct isa_device *dev)
 	case 'D':
 		mcd_data[unit].type = MCD_TYPE_FX001D;
 		mcd_data[unit].name = "Mitsumi FX001D";
+		mcd_data[unit].read_command = MCD_CMDDOUBLESPEEDREAD;
 		break;
 	default:
 		mcd_data[unit].type = MCD_TYPE_UNKNOWN;
@@ -752,7 +755,7 @@ mcd_getstat(int unit,int sflg)
 	if (sflg)
 		outb(port+mcd_command, MCD_CMDGETSTAT);
 	i = mcd_getreply(unit,DELAY_GETREPLY);
-	if (i<0) return -1;
+	if (i<0	|| (i &	MCD_ST_CMDCHECK)) return -1;
 
 	cd->status = i;
 
@@ -917,6 +920,7 @@ loop:
 
 	case MCD_S_BEGIN1:
 		/* get status */
+retry_status:
 		outb(com_port, MCD_CMDGETSTAT);
 		mbx->count = RDELAY_WAITSTAT;
 		timeout((timeout_func_t)mcd_doread,
@@ -931,6 +935,8 @@ loop:
 				return;
 			}
 			cd->status = inb(port+mcd_status) & 0xFF;
+			if (cd->status & MCD_ST_CMDCHECK)
+				goto retry_status;
 			if (mcd_setflags(unit,cd) < 0)
 				goto changed;
 			MCD_TRACE("got WAITSTAT delay=%d\n",
@@ -940,7 +946,7 @@ loop:
 				printf("mcd%d: audio is active\n",unit);
 				goto readerr;
 			}
-
+retry_mode:
 			/* to check for raw/cooked mode */
 			if (cd->flags & MCDREADRAW) {
 				rm = MCD_MD_RAW;
@@ -979,6 +985,10 @@ loop:
 			return;
 		}
 		cd->status = inb(port+mcd_status) & 0xFF;
+		if (cd->status & MCD_ST_CMDCHECK) {
+			cd->curr_mode =	MCD_MD_UNKNOWN;
+			goto retry_mode;
+		}
 		if (mcd_setflags(unit,cd) < 0)
 			goto changed;
 		cd->curr_mode = mbx->mode;
@@ -998,10 +1008,10 @@ nextblock:
 
 		/* build parameter block */
 		hsg2msf(blknum,rbuf.start_msf);
-
+retry_read:
 		/* send the read command */
 		disable_intr();
-		mcd_put(com_port,MCD_CMDREAD2);
+		mcd_put(com_port,cd->read_command);
 		mcd_put(com_port,rbuf.start_msf[0]);
 		mcd_put(com_port,rbuf.start_msf[1]);
 		mcd_put(com_port,rbuf.start_msf[2]);
@@ -1062,6 +1072,8 @@ nextblock:
 			}
 			if (!(k & MFL_STATUS_NOT_AVAIL)) {
 				cd->status = inb(port+mcd_status) & 0xFF;
+				if (cd->status & MCD_ST_CMDCHECK)
+					goto retry_read;
 				if (mcd_setflags(unit,cd) < 0)
 					goto changed;
 			}
@@ -1448,7 +1460,7 @@ mcd_play(int unit, struct mcd_read2 *pb)
 	for(retry=0; retry<MCD_RETRYS; retry++) {
 
 		disable_intr();
-		outb(com_port, MCD_CMDREAD2);
+		outb(com_port, MCD_CMDSINGLESPEEDREAD);
 		outb(com_port, pb->start_msf[0]);
 		outb(com_port, pb->start_msf[1]);
 		outb(com_port, pb->start_msf[2]);
