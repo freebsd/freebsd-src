@@ -208,6 +208,7 @@ fgcmd(int argc __unused, char **argv)
 	pgrp = jp->ps[0].pid;
 	tcsetpgrp(ttyfd, pgrp);
 	restartjob(jp);
+	jp->foreground = 1;
 	INTOFF;
 	status = waitforjob(jp, (int *)NULL);
 	INTON;
@@ -228,6 +229,7 @@ bgcmd(int argc, char **argv)
 		if (jp->state == JOBDONE)
 			continue;
 		restartjob(jp);
+		jp->foreground = 0;
 		fmtstr(s, 64, "[%d] ", jp - jobtab + 1);
 		out1str(s);
 		out1str(jp->ps[0].cmd);
@@ -633,6 +635,7 @@ makejob(union node *node __unused, int nprocs)
 	jp->used = 1;
 	jp->changed = 0;
 	jp->nprocs = 0;
+	jp->foreground = 0;
 #if JOBS
 	jp->jobctl = jobctl;
 	jp->next = NULL;
@@ -813,6 +816,7 @@ forkshell(struct job *jp, union node *n, int mode)
 		ps->cmd = nullstr;
 		if (iflag && rootshell && n)
 			ps->cmd = commandtext(n);
+		jp->foreground = mode == FORK_FG;
 #if JOBS
 		setcurjob(jp);
 #endif
@@ -906,6 +910,7 @@ dowait(int block, struct job *job)
 	int done;
 	int stopped;
 	int sig;
+	int i;
 
 	in_dowait++;
 	TRACE(("dowait(%d) called\n", block));
@@ -967,8 +972,24 @@ dowait(int block, struct job *job)
 			else
 				sig = WTERMSIG(status);
 		}
-		if (sig != 0 && sig != SIGINT && sig != SIGPIPE)
-			showjob(thisjob, pid, 0, 1);
+		if (sig != 0 && sig != SIGINT && sig != SIGPIPE) {
+			if (jp->foreground) {
+#if JOBS
+				if (WIFSTOPPED(status)) 
+					i = WSTOPSIG(status);
+				else
+#endif
+					i = WTERMSIG(status);
+				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
+					out1str(sys_siglist[i & 0x7F]);
+				else
+					out1fmt("Signal %d", i & 0x7F);
+				if (WCOREDUMP(status))
+					out1str(" (core dumped)");
+				out1c('\n');
+			} else
+				showjob(thisjob, pid, 0, 1);
+		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
 		if (thisjob)
