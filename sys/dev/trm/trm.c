@@ -434,7 +434,7 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	if (nseg != 0) {
 		PSEG			psg;
 		bus_dma_segment_t	*end_seg;
-		bus_dmasync_op_t	op;
+		int			op;
 
 		/* Copy the segments into our SG list */
 		end_seg = dm_segs + nseg;
@@ -2504,7 +2504,7 @@ trm_SRBdone(PACB pACB, PDCB pDCB, PSRB pSRB)
 	target_id  = pSRB->pccb->ccb_h.target_id;
 	target_lun = pSRB->pccb->ccb_h.target_lun;
 	if ((pccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		bus_dmasync_op_t op;
+		int op;
 		if ((pccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;
 		else
