@@ -409,7 +409,7 @@ acd_describe(struct acd_softc *cdp)
 	if (cdp->changer_info)
 	    sprintf(changer, " with %d CD changer", cdp->changer_info->slots);
 
-	printf("acd%d: %s%s <%.40s> at ata%d as %s mode %s\n",
+	printf("acd%d: %s%s <%.40s> at ata%d-%s using %s\n",
 	       cdp->lun, (cdp->cap.write_dvdr) ? "DVD-R" : 
 			  (cdp->cap.write_dvdram) ? "DVD-RAM" : 
 			   (cdp->cap.write_cdrw) ? "CD-RW" :
@@ -1094,8 +1094,12 @@ acd_start(struct acd_softc *cdp)
 	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
 
     if (bp->b_flags & B_READ) {
-	ccb[0] = ATAPI_READ_CD;
-	ccb[9] = 0x10;	/* read user data only */
+	if (cdp->block_size == 2048)
+	    ccb[0] = ATAPI_READ_BIG;
+	else {
+	    ccb[0] = ATAPI_READ_CD;
+	    ccb[9] = 0x10;
+	}
     }
     else
 	ccb[0] = ATAPI_WRITE_BIG;
