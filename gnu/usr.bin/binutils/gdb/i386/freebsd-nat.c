@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* Native-dependent code for BSD Unix running on i386's, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
 
@@ -345,20 +346,9 @@ i386_float_info ()
   uaddr = (char *)&U_FPSTATE(u) - (char *)&u;
   if (inferior_pid != 0 && core_bfd == NULL) 
     {
-      int *ip;
-      
-      rounded_addr = uaddr & -sizeof (int);
-      rounded_size = (((uaddr + sizeof (struct fpstate)) - uaddr) +
-		      sizeof (int) - 1) / sizeof (int);
-      skip = uaddr - rounded_addr;
-      
-      ip = (int *)buf;
-      for (i = 0; i < rounded_size; i++) 
-	{
-	  *ip++ = ptrace (PT_READ_U, inferior_pid, (caddr_t)rounded_addr, 0);
-	  rounded_addr += sizeof (int);
-	}
-      fpstatep = (struct fpstate *)(buf + skip);
+      int pid = inferior_pid & ((1 << 17) - 1);	/* XXX extract pid from tid */
+      ptrace(PT_GETFPREGS, pid, &buf[0], sizeof(struct fpreg));
+      fpstatep = (struct fpstate *)&buf[0];
     } 
   else 
     fpstatep = &pcb_savefpu;
