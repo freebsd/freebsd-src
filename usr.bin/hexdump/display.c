@@ -150,9 +150,11 @@ print(pr, bp)
 			bcopy(bp, &f8, sizeof(f8));
 			(void)printf(pr->fmt, f8);
 			break;
-		case sizeof(long double):
-			bcopy(bp, &ldbl, sizeof(ldbl));
-			(void)printf(pr->fmt, ldbl);
+		default:
+			if (pr->bcnt == sizeof(long double)) {
+				bcopy(bp, &ldbl, sizeof(ldbl));
+				(void)printf(pr->fmt, ldbl);
+			}
 			break;
 		}
 		break;
@@ -259,6 +261,8 @@ get()
 		 * block and set the end flag.
 		 */
 		if (!length || (ateof && !next((char **)NULL))) {
+			if (odmode && address < skip)
+				errx(1, "cannot skip past end of input");
 			if (need == blocksize)
 				return((u_char *)NULL);
 			if (vflag != ALL && 
