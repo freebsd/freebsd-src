@@ -339,7 +339,7 @@
 
 /* The code will use one of the following functions when detaching
    from a terminal.  One of these must exist.  */
-#define HAVE_SETPGRP 1
+#define HAVE_SETPGRP 0
 #define HAVE_SETSID 1
 
 /* If you do not specify the local node name in the main configuration
