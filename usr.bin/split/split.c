@@ -309,6 +309,7 @@ newfile()
 static void
 usage()
 {
-	errx(EX_USAGE,
-"usage: split [-b byte_count] [-l line_count] [-p pattern] [file [prefix]]");
+	(void)fprintf(stderr,
+"usage: split [-b byte_count] [-l line_count] [-p pattern] [file [prefix]]\n");
+	exit(EX_USAGE);
 }
