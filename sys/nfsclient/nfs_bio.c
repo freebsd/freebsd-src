@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.46 1998/01/06 05:21:38 dyson Exp $
+ * $Id: nfs_bio.c,v 1.47 1998/01/25 06:24:09 dyson Exp $
  */
 
 
@@ -377,6 +377,9 @@ again:
 		    bp->b_flags |= B_READ;
 		    vfs_busy_pages(bp, 0);
 		    error = nfs_doio(bp, cred, p);
+		    if (error) {
+			    brelse(bp);
+		    }
 		    while (error == NFSERR_BAD_COOKIE) {
 			nfs_invaldir(vp);
 			error = nfs_vinvalbuf(vp, 0, cred, p, 1);
@@ -404,9 +407,9 @@ again:
 				}
 			    }
 			}
-			if (error)
-			    return (error);
 		    }
+		    if (error)
+			    return (error);
 		}
 
 		/*
