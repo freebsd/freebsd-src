@@ -249,3 +249,69 @@ code and installed the updated utilities, do the following:
    it and run `./doit'. You may want to check out each of the
    three subtests individually first: doit1 - andrew benchmarks,
    doit2 - copy and removal of /etc, doit3 - find from /.
+
+====
+Additional notes from Feb 13
+
+hen removing huge directories of files, it is possible to get
+the incore state arbitrarily far ahead of the disk. Maintaining
+all the associated depedency information can exhaust the kernel
+malloc arena. To avoid this senario, I have put some limits on
+the soft update code so that it will not be allowed to rampage
+through all of the kernel memory. I enclose below the relevant
+patches to vnode.h and vfs_subr.c (which allow the soft update
+code to speed up the filesystem syncer process). I have also
+included the diffs for ffs_softdep.c. I hope to make a pass over
+ffs_softdep.c to isolate the differences with my standard version
+so that these diffs are less painful to incorporate.
+
+Since I know you like to play with tuning, I have put the relevant
+knobs on sysctl debug variables. The tuning knobs can be viewed
+with `sysctl debug' and set with `sysctl -w debug.<name>=value'.
+The knobs are as follows:
+
+        debug.max_softdeps - limit on any given resource
+        debug.tickdelay - ticks to delay before allocating
+        debug.max_limit_hit - number of times tickdelay imposed
+        debug.rush_requests - number of rush requests to filesystem syncer
+
+The max_softdeps limit is derived from vnodesdesired which in
+turn is sized based on the amount of memory on the machine.
+When the limit is hit, a process requesting a resource first
+tries to speed up the filesystem syncer process. Such a
+request is recorded as a rush_request. After syncdelay / 2 
+unserviced rush requests (typically 15) are in the filesystem
+syncers queue (i.e., it is more than 15 seconds behind in its 
+work), the process requesting the memory is put to sleep for
+tickdelay seconds. Such a delay is recorded in max_limit_hit.
+Following this delay it is granted its memory without further
+delay. I have tried the following experiments in which I
+delete an MH directory containing 16,703 files:
+
+Run #                   1               2               3
+
+max_softdeps         4496            4496            4496
+tickdelay        100 == 1 sec   20 == 0.2 sec   2 == 0.02 sec
+max_limit_hit    16 == 16 sec   27 == 5.4 sec   203 == 4.1 sec
+rush_requests         147             102              93
+run time             57 sec          46 sec          45 sec
+I/O's                 781             859             936
+
+When run with no limits, it completes in 40 seconds. So, the
+time spent in delay is directly added to the bottom line.
+Shortening the tick delay does cut down the total running time,
+but at the expense of generating more total I/O operations
+due to the rush orders being sent to the filesystem syncer.
+Although the number of rush orders decreases with a shorter
+tick delay, there are more requests in each order, hence the
+increase in I/O count. Also, although the I/O count does rise
+with a shorter delay, it is still at least an order of magnitude 
+less than without soft updates. Anyway, you may want to play
+around with these value to see what works best and to see if
+you can get an insight into how best to tune them. If you get
+out of memory panic's, then you have max_softdeps set too high.
+The max_limit_hit and rush_requests show be reset to zero
+before each run. The minimum legal value for tickdelay is 2
+(if you set it below that, the code will use 2).
+
+
