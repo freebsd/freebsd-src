@@ -153,7 +153,30 @@ sysctl_register_oid(struct sysctl_oid *oidp)
 void
 sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
-	SLIST_REMOVE(oidp->oid_parent, oidp, sysctl_oid, oid_link);
+	struct sysctl_oid *p;
+	int error;
+
+	error = ENOENT;
+	if (oidp->oid_number == OID_AUTO) {
+		error = EINVAL;
+	} else {
+		SLIST_FOREACH(p, oidp->oid_parent, oid_link) {
+			if (p == oidp) {
+				SLIST_REMOVE(oidp->oid_parent, oidp,
+				    sysctl_oid, oid_link);
+				error = 0;
+				break;
+			}
+		}
+	}
+
+	/* 
+	 * This can happen when a module fails to register and is
+	 * being unloaded afterwards.  It should not be a panic()
+	 * for normal use.
+	 */
+	if (error)
+		printf("%s: failed to unregister sysctl\n", __func__);
 }
 
 /* Initialize a new context to keep track of dynamically added sysctls. */
