@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfs_subr.h,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $ 
- *  $Id: $
+ *  $Id: cfs_subr.h,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
  */
 
@@ -36,8 +36,8 @@ void  cfs_free(struct cnode *cp);
 struct cnode *cfs_find(ViceFid *fid);
 void cfs_flush(enum dc_status dcstat);
 void cfs_testflush(void);
-int  cfs_checkunmounting(struct mount *mp);
-int  cfs_cacheprint(struct mount *whoIam);
+void cfs_checkunmounting(struct mount *mp);
+void cfs_cacheprint(struct mount *whoIam);
 void cfs_debugon(void);
 void cfs_debugoff(void);
 int  cfs_kill(struct mount *whoIam, enum dc_status dcstat);
