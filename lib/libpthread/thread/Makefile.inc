@@ -29,7 +29,7 @@ SRCS+= \
 	uthread_attr_setscope.c \
 	uthread_attr_setstackaddr.c \
 	uthread_attr_setstacksize.c \
-	uthread_autoinit.cc \
+	uthread_autoinit.c \
 	uthread_bind.c \
 	uthread_cancel.c \
 	uthread_cap_get_fd.c \
