@@ -34,6 +34,8 @@
 .Nm pthread_attr_destroy ,
 .Nm pthread_attr_setstacksize ,
 .Nm pthread_attr_getstacksize ,
+.Nm pthread_attr_setguardsize ,
+.Nm pthread_attr_getguardsize ,
 .Nm pthread_attr_setstackaddr ,
 .Nm pthread_attr_getstackaddr ,
 .Nm pthread_attr_setdetachstate ,
@@ -59,6 +61,10 @@
 .Fn pthread_attr_setstacksize "pthread_attr_t *attr" "size_t stacksize"
 .Ft int
 .Fn pthread_attr_getstacksize "const pthread_attr_t *attr" "size_t *stacksize"
+.Ft int
+.Fn pthread_attr_setguardsize "pthread_attr_t *attr" "size_t guardsize"
+.Ft int
+.Fn pthread_attr_getguardsize "const pthread_attr_t *attr" "size_t *guardsize"
 .Ft int
 .Fn pthread_attr_setstackaddr "pthread_attr_t *attr" "void *stackaddr"
 .Ft int
