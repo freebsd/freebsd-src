@@ -18,5 +18,8 @@ SUBDIR+=	compat22
 .if defined(COMPAT3X) || defined(RELEASEDIR)
 SUBDIR+=	compat3x
 .endif
+.if defined(COMPAT4X) || defined(RELEASEDIR)
+SUBDIR+=	compat4x
+.endif
 
 .include <bsd.subdir.mk>
