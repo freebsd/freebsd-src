@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.32 1996/04/28 00:37:36 jkh Exp $
+ * $Id: msg.c,v 1.33 1996/05/16 11:47:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,7 +82,7 @@ msgInfo(char *fmt, ...)
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
 	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
-	attrset(A_REVERSE);
+	attrset(A_NORMAL);
 	clrtoeol();
 	attrset(attrs);
 	return;
@@ -99,16 +99,11 @@ msgInfo(char *fmt, ...)
 	    break;
     }
     line[80] = '\0';
-    attrset(A_REVERSE);
+    attrset(item_attr);
     mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, line);
     attrset(attrs);
     move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 79);
     refresh();
-    if (OnVTY) {
-	if (isDebug())
-	    msgDebug("Information: `%s'\n", errstr);
-	msgInfo(NULL);
-    }
 }
 
 /* Whack up a warning on the status line */

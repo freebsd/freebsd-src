@@ -55,7 +55,6 @@ set_termcap(void)
 	    on = 1;
 	    i = ioctl(DebugFD, TIOCCONS, (char *)&on);
 	    msgDebug("ioctl(%d, TIOCCONS, NULL) = %d (%s)\n", DebugFD, i, !i ? "success" : strerror(errno));
-	    OnVTY = TRUE;
 	}
 	if (ColorDisplay) {
 	    if (!term) {
@@ -73,6 +72,7 @@ set_termcap(void)
 		    return -1;
 	    }
 	}
+	OnVTY = TRUE;
     }
     return 0;
 }
