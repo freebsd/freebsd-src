@@ -166,6 +166,8 @@ Int_Open_Disk(const char *name)
 		exit (0);
 	}
 
+	if (s == 0)
+		return (NULL);
 	d->sector_size = s;
 	len /= s;	/* media size in number of sectors. */
 
@@ -481,6 +483,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 {
 #if !defined(__ia64__)
 #ifdef PC98
+	if (d->sector_size == 0)
+		return;
 	if (bootipl_size % d->sector_size != 0)
 		return;
 	if (d->bootipl)
@@ -509,6 +513,8 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 		memcpy(d->bootmenu, bootmenu, bootmenu_size);
 	}
 #else
+	if (d->sector_size == 0)
+		return;
 	if (s % d->sector_size != 0)
 		return;
 	if (d->bootmgr)
