@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.153 1995/05/02 13:49:01 jkh Exp $
+# $Id: bsd.port.mk,v 1.154 1995/05/04 13:14:16 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -55,6 +55,8 @@
 #				  PATCH_SITES (see above).  They will automatically be
 #				  uncompressed before patching if the names end with
 #				  ".gz" or ".Z".
+# PATCH_PRFX	- Filename prefix for distribution patches (default: none)
+#				  typically ${DISTNAME}/ or foo-
 # PKGNAME		- Name of the package file to create if the DISTNAME 
 #				  isn't really relevant for the port/package
 #				  (default: ${DISTNAME}).
@@ -275,10 +277,17 @@ MASTER_SITE_OVERRIDE=  ftp://freebsd.cdrom.com/pub/FreeBSD/FreeBSD-current/ports
 # sites for distfiles, add them to this list.
 .if !defined(MASTER_SITE_OVERRIDE)
 MASTER_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/
-PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/
+PATCH_SITES+=	ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/distfiles/${PATCH_PRFX}
 .else
 MASTER_SITES=	${MASTER_SITE_OVERRIDE}
-PATCH_SITES=	${MASTER_SITE_OVERRIDE}
+PATCH_SITES=	${MASTER_SITE_OVERRIDE}${PATCH_PRFX}
+.endif
+
+.if defined(PATCH_PRFX)
+PATCHDIST!=	echo ${PATCH_PRFX} | sed 's|^\(.*\)/$$|/\1|'
+PATCHDIST:=	${DISTDIR}${PATCHDIST}
+.else
+PATCHDIST:=	${DISTDIR}
 .endif
 
 # Derived names so that they're easily overridable.
@@ -416,7 +425,8 @@ do-fetch:
 	    fi \
 	 done)
 .if defined(PATCHFILES)
-	@(cd ${DISTDIR}; \
+	@if [ ! -d ${PATCHDIST} ]; then mkdir -p ${PATCHDIST}; fi
+	@(cd ${PATCHDIST}; \
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
 			${ECHO_MSG} ">> $$file doesn't seem to exist on this system."; \
@@ -428,7 +438,7 @@ do-fetch:
 			done; \
 			if [ ! -f $$file -a ! -f `basename $$file` ]; then \
 				${ECHO_MSG} ">> Couldn't fetch it - please try to retreive this";\
-				${ECHO_MSG} ">> port manually into ${DISTDIR} and try again."; \
+				${ECHO_MSG} ">> port manually into ${PATCHDIST} and try again."; \
 				exit 1; \
 			fi; \
 	    fi \
@@ -466,7 +476,7 @@ do-patch:
 .if defined(PATCHFILES)
 	@${ECHO_MSG} "===>  Applying distributed patches for ${PKGNAME}"
 .if defined(PATCH_DEBUG)
-	@(cd ${DISTDIR}; \
+	@(cd ${PATCHDIST}; \
 	  for i in ${PATCHFILES}; do \
 		${ECHO_MSG} "===>   Applying distributed patch $$i" ; \
 		case $$i in \
@@ -479,7 +489,7 @@ do-patch:
 		esac; \
 	  done)
 .else
-	@(cd ${DISTDIR}; \
+	@(cd ${PATCHDIST}; \
 	  for i in ${PATCHFILES}; do \
 		case $$i in \
 			*.Z|*.gz) \
@@ -817,12 +827,12 @@ fetch-list:
 	 for file in ${PATCHFILES}; do \
 		if [ ! -f $$file -a ! -f `basename $$file` ]; then \
 			for site in ${PATCH_SITES}; do \
-				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} '||' ; \
+				echo -n ${NCFTP} ${NCFTPFLAGS} $${site}$${file} ${PATCH_PRFX}$${file} '||' ; \
 					break; \
 			done; \
 			echo "echo $${file} not fetched" ; \
 		fi \
-	done)
+	 done)
 .endif
 .endif
 
@@ -833,9 +843,9 @@ makesum: fetch
 	@if [ ! -d ${FILESDIR} ]; then mkdir -p ${FILESDIR}; fi
 	@if [ -f ${MD5_FILE} ]; then rm -f ${MD5_FILE}; fi
 	@(cd ${DISTDIR}; \
-	for file in ${DISTFILES} ${PATCHFILES}; do \
+	 for file in ${DISTFILES} ${PATCHFILES:S|^|${PATCH_PRFX}|}; do \
 		${MD5} $$file >> ${MD5_FILE}; \
-	done)
+	 done)
 .endif
 
 .if !target(checksum)
@@ -844,7 +854,7 @@ checksum: fetch
 		${ECHO_MSG} ">> No MD5 checksum file."; \
 	else \
 		(cd ${DISTDIR}; OK=""; \
-		for file in ${DISTFILES} ${PATCHFILES}; do \
+		  for file in ${DISTFILES} ${PATCHFILES:S|^|${PATCH_PRFX}|}; do \
 			CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 			CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
 			if [ "$$CKSUM2" = "" ]; then \
@@ -854,12 +864,12 @@ checksum: fetch
 				${ECHO_MSG} ">> Checksum mismatch for $$file"; \
 				exit 1; \
 			fi; \
-			done; \
-			if [ "$$OK" = "" ]; then \
-				${ECHO_MSG} "Checksums OK."; \
-			else \
-				${ECHO_MSG} "Checksums OK for files that have them."; \
-   	     fi) ; \
+		  done; \
+		  if [ "$$OK" = "" ]; then \
+			${ECHO_MSG} "Checksums OK."; \
+		  else \
+			${ECHO_MSG} "Checksums OK for files that have them."; \
+		  fi) ; \
 	fi
 .endif
 
