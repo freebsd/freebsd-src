@@ -706,7 +706,10 @@ atapi_cmd2str(u_int8_t cmd)
     case 0x4b: return ("PAUSE");
     case 0x48: return ("PLAY_TRACK");
     case 0xa1: return ("BLANK_CMD");
+    case 0xa3: return ("SEND_KEY");
+    case 0xa4: return ("REPORT_KEY");
     case 0xa5: return ("PLAY_BIG");
+    case 0xad: return ("READ_DVD_STRUCTURE");
     case 0xb4: return ("PLAY_CD");
     case 0xbd: return ("MECH_STATUS");
     case 0xbe: return ("READ_CD");

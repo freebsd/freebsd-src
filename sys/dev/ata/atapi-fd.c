@@ -142,7 +142,7 @@ afd_sense(struct afd_softc *fdp)
     if (error)
 	return error;
     bcopy(buffer, &fdp->header, sizeof(struct afd_header));
-    bcopy(buffer+sizeof(struct afd_header), &fdp->cap, 
+    bcopy(buffer + sizeof(struct afd_header), &fdp->cap, 
 	  sizeof(struct afd_cappage));
     if (fdp->cap.page_code != ATAPI_REWRITEABLE_CAP_PAGE)
 	return 1;   
@@ -207,16 +207,14 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (afd_sense(fdp))
 	printf("afd%d: sense media type failed\n", fdp->lun);
 
-    /* build disklabel and initilize slice tables */
     label = &fdp->disk.d_label;
     bzero(label, sizeof *label);
     label->d_secsize = fdp->cap.sector_size;
     label->d_nsectors = fdp->cap.sectors;  
     label->d_ntracks = fdp->cap.heads;
     label->d_ncylinders = fdp->cap.cylinders;
-    label->d_secpercyl = fdp->cap.heads * fdp->cap.sectors;
+    label->d_secpercyl = fdp->cap.sectors * fdp->cap.heads;
     label->d_secperunit = label->d_secpercyl * fdp->cap.cylinders;
-
     return 0;
 }
 

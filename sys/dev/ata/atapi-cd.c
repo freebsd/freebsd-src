@@ -39,6 +39,7 @@
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
 #include <sys/wormio.h>
+#include <sys/dvdio.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
@@ -87,6 +88,9 @@ static int32_t acd_open_track(struct acd_softc *, struct wormio_prepare_track *)
 static int32_t acd_close_track(struct acd_softc *);
 static int32_t acd_close_disk(struct acd_softc *);
 static int32_t acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
+static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
+static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
+static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
 static int32_t acd_eject(struct acd_softc *, int32_t);
 static int32_t acd_blank(struct acd_softc *);
 static int32_t acd_prevent_allow(struct acd_softc *, int32_t);
@@ -279,7 +283,11 @@ acd_describe(struct acd_softc *cdp)
 	printf("%s CD-RW", comma ? "," : ""); comma = 1;
     }
     if (cdp->cap.cd_da) {
-	printf("%s CD-DA", comma ? "," : ""); comma = 1;
+	if (cdp->cap.cd_da_stream)
+	    printf("%s CD-DA stream", comma ? "," : "");
+	else
+	    printf("%s CD-DA", comma ? "," : "");
+	comma = 1;
     }
     if (cdp->cap.read_dvdrom) {
 	printf("%s DVD-ROM", comma ? "," : ""); comma = 1;
@@ -984,6 +992,27 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	error = acd_blank(cdp);
 	break;
 
+    case DVDIOCREPORTKEY:
+	if (!cdp->cap.read_dvdrom)
+	    error = EINVAL;
+	else
+	    error = acd_report_key(cdp, (struct dvd_authinfo *)addr);
+	break;
+
+    case DVDIOCSENDKEY:
+	if (!cdp->cap.read_dvdrom)
+	    error = EINVAL;
+	else
+	    error = acd_send_key(cdp, (struct dvd_authinfo *)addr);
+	break;
+
+    case DVDIOCREADSTRUCTURE:
+	if (!cdp->cap.read_dvdrom)
+	    error = EINVAL;
+	else
+	    error = acd_read_structure(cdp, (struct dvd_struct *)addr);
+	break;
+
     default:
 	error = ENOTTY;
     }
@@ -1380,6 +1409,252 @@ acd_read_track_info(struct acd_softc *cdp,
     return 0;
 }
 
+static int
+acd_report_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
+{
+    struct {
+	u_int16_t length;
+	u_char reserved[2];
+	u_char data[12];
+    } d;
+    u_int32_t lba = 0;
+    int32_t error;
+    int16_t length;
+    int8_t ccb[16];
+
+    printf("dvd_report_key: format=0x%x\n", ai->format);
+
+    switch (ai->format) {
+    case DVD_REPORT_AGID:
+    case DVD_REPORT_ASF:
+    case DVD_REPORT_RPC:
+	length = 8;
+	break;
+    case DVD_REPORT_KEY1:
+	length = 12;
+	break;
+    case DVD_REPORT_TITLE_KEY:
+	length = 12;
+	lba = ai->lba;
+	break;
+    case DVD_REPORT_CHALLENGE:
+	length = 16;
+	break;
+    case DVD_INVALIDATE_AGID:
+	length = 0;
+	break;
+    default:
+	return EINVAL;
+    }
+
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_REPORT_KEY;
+    ccb[2] = (lba >> 24) & 0xff;
+    ccb[3] = (lba >> 16) & 0xff;
+    ccb[4] = (lba >> 8) & 0xff;
+    ccb[5] = lba & 0xff;
+    ccb[8] = (length >> 8) & 0xff;
+    ccb[9] = length & 0xff;
+    ccb[10] = (ai->agid << 6) | ai->format;
+    bzero(&d, sizeof(d));
+    d.length = htons(length - 2);
+    error = atapi_queue_cmd(cdp->atp, ccb, &d, length,
+			    (ai->format == DVD_INVALIDATE_AGID) ? 0 : A_READ,
+			    10, NULL, NULL, NULL);
+    if (error)
+	return error;
+
+    switch (ai->format) {
+    case DVD_REPORT_AGID:
+	ai->agid = d.data[3] >> 6;
+	break;
+    
+    case DVD_REPORT_CHALLENGE:
+	bcopy(&d.data[0], &ai->keychal[0], 10);
+	break;
+    
+    case DVD_REPORT_KEY1:
+	bcopy(&d.data[0], &ai->keychal[0], 5);
+	break;
+    
+    case DVD_REPORT_TITLE_KEY:
+	ai->cpm = (d.data[0] >> 7);
+	ai->cp_sec = (d.data[0] >> 6) & 0x1;
+	ai->cgms = (d.data[0] >> 4) & 0x3;
+	bcopy(&d.data[1], &ai->keychal[0], 5);
+	break;
+    
+    case DVD_REPORT_ASF:
+	ai->asf = d.data[3] & 1;
+	break;
+    
+    case DVD_REPORT_RPC:
+	ai->reg_type = (d.data[0] >> 6);
+	ai->vend_rsts = (d.data[0] >> 3) & 0x7;
+	ai->user_rsts = d.data[0] & 0x7;
+	break;
+    
+    case DVD_INVALIDATE_AGID:
+	break;
+
+    default:
+	return EINVAL;
+    }
+    return 0;
+}
+
+static int
+acd_send_key(struct acd_softc *cdp, struct dvd_authinfo *ai)
+{
+    struct {
+	u_int16_t length;
+	u_char reserved[2];
+	u_char data[12];
+    } d;
+    int16_t length;
+    int8_t ccb[16];
+
+    printf("dvd_send_key: format=0x%x\n", ai->format);
+
+    bzero(&d, sizeof(d));
+
+    switch (ai->format) {
+    case DVD_SEND_CHALLENGE:
+	length = 16;
+	bcopy(ai->keychal, &d.data[0], 10);
+	break;
+
+    case DVD_SEND_KEY2:
+	length = 12;
+	bcopy(&ai->keychal[0], &d.data[0], 5);
+	break;
+    
+    case DVD_SEND_RPC:
+	length = 8;
+	break;
+
+    default:
+	return EINVAL;
+    }
+
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_SEND_KEY;
+    ccb[8] = (length >> 8) & 0xff;
+    ccb[9] = length & 0xff;
+    ccb[10] = (ai->agid << 6) | ai->format;
+    d.length = htons(length - 2);
+    return atapi_queue_cmd(cdp->atp, ccb, &d, length, 0, 10, NULL, NULL, NULL);
+}
+
+static int
+acd_read_structure(struct acd_softc *cdp, struct dvd_struct *s)
+{
+    struct {
+	u_int16_t length;
+	u_char reserved[2];
+	u_char data[2048];
+    } d;
+    u_int16_t length;
+    int32_t error = 0;
+    int8_t ccb[16];
+
+    printf("dvd_read_structure: format=0x%x\n", s->format);
+
+    bzero(&d, sizeof(d));
+
+    switch(s->format) {
+    case DVD_STRUCT_PHYSICAL:
+	length = 21;
+	break;
+
+    case DVD_STRUCT_COPYRIGHT:
+	length = 8;
+	break;
+
+    case DVD_STRUCT_DISCKEY:
+	length = 2052;
+	break;
+
+    case DVD_STRUCT_BCA:
+	length = 192;
+	break;
+
+    case DVD_STRUCT_MANUFACT:
+	length = 2052;
+	break;
+
+    case DVD_STRUCT_DDS:
+    case DVD_STRUCT_PRERECORDED:
+    case DVD_STRUCT_UNIQUEID:
+    case DVD_STRUCT_LIST:
+    case DVD_STRUCT_CMI:
+    case DVD_STRUCT_RMD_LAST:
+    case DVD_STRUCT_RMD_RMA:
+    case DVD_STRUCT_DCB:
+	return ENOSYS;
+
+    default:
+	return EINVAL;
+    }
+
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_READ_STRUCTURE;
+    ccb[6] = s->layer_num;
+    ccb[7] = s->format;
+    ccb[8] = (length >> 8) & 0xff;
+    ccb[9] = length & 0xff;
+    ccb[10] = s->agid << 6;
+    d.length = htons(length - 2);
+    error = atapi_queue_cmd(cdp->atp, ccb, &d, length, A_READ, 30,
+			    NULL, NULL, NULL);
+    if (error)
+	return error;
+
+    switch (s->format) {
+    case DVD_STRUCT_PHYSICAL: {
+	struct dvd_layer *layer = (struct dvd_layer *)&s->data[0];
+
+	layer->book_type = d.data[0] >> 4;
+	layer->book_version = d.data[0] & 0xf;
+	layer->disc_size = d.data[1] >> 4;
+	layer->max_rate = d.data[1] & 0xf;
+	layer->nlayers = (d.data[2] >> 5) & 3;
+	layer->track_path = (d.data[2] >> 4) & 1;
+	layer->layer_type = d.data[2] & 0xf;
+	layer->linear_density = d.data[3] >> 4;
+	layer->track_density = d.data[3] & 0xf;
+	layer->start_sector = d.data[5] << 16 | d.data[6] << 8 | d.data[7];
+	layer->end_sector = d.data[9] << 16 | d.data[10] << 8 | d.data[11];
+	layer->end_sector_l0 = d.data[13] << 16 | d.data[14] << 8 | d.data[15];
+	layer->bca = d.data[16] >> 7;
+	break;
+    }
+
+    case DVD_STRUCT_COPYRIGHT:
+	s->cpst = d.data[0];
+	s->rmi = d.data[0];
+	break;
+
+    case DVD_STRUCT_DISCKEY:
+	bcopy(&d.data[0], &s->data[0], 2048);
+	break;
+
+    case DVD_STRUCT_BCA:
+	s->length = ntohs(d.length);
+	bcopy(&d.data[0], &s->data[0], s->length);
+	break;
+
+    case DVD_STRUCT_MANUFACT:
+	s->length = ntohs(d.length);
+	bcopy(&d.data[0], &s->data[0], s->length);
+	break;
+		
+    default:
+	return EINVAL;
+    }
+    return 0;
+}
+
 static int32_t 
 acd_eject(struct acd_softc *cdp, int32_t close)
 {
@@ -1485,3 +1760,4 @@ acd_set_speed(struct acd_softc *cdp, int32_t speed)
 
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL, NULL);
 }
+
