@@ -987,7 +987,7 @@ ng_bridge_timeout(void *arg)
 	/* If node was shut down, this is the final lingering timeout */
 	s = splnet();
 	if (NG_NODE_NOT_VALID(node)) {
-		FREE(priv, M_NETGRAPH);
+		FREE(priv, M_NETGRAPH_BRIDGE);
 		NG_NODE_SET_PRIVATE(node, NULL);
 		NG_NODE_UNREF(node);
 		splx(s);
