@@ -188,6 +188,7 @@ __elfN(get_brandinfo)(const Elf_Ehdr *hdr, const char *interp)
 static int
 __elfN(check_header)(const Elf_Ehdr *hdr)
 {
+	Elf_Brandinfo *bi;
 	int i;
 
 	if (!IS_ELF(*hdr) ||
@@ -201,7 +202,8 @@ __elfN(check_header)(const Elf_Ehdr *hdr)
 	 */
 
 	for (i = 0; i < MAX_BRANDS; i++) {
-		if (elf_brand_list[i]->machine == hdr->e_machine)
+		bi = elf_brand_list[i];
+		if (bi != NULL && bi->machine == hdr->e_machine)
 			break;
 	}
 	if (i == MAX_BRANDS)
