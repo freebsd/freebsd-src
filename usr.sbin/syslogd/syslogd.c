@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: syslogd.c,v 1.27 1997/10/20 12:55:49 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -1668,11 +1668,13 @@ p_open(prog, pid)
 		/* we are royally screwed anyway */
 		return -1;
 
-	mask = sigmask(SIGALRM) | sigmask(SIGHUP);
-	sigprocmask(SIG_BLOCK, &omask, &mask);
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGALRM);
+	sigaddset(&mask, SIGHUP);
+	sigprocmask(SIG_BLOCK, &mask, &omask);
 	switch ((*pid = fork())) {
 	case -1:
-		sigprocmask(SIG_SETMASK, 0, &omask);
+		sigprocmask(SIG_SETMASK, &omask, 0);
 		close(nulldesc);
 		return -1;
 
@@ -1691,7 +1693,7 @@ p_open(prog, pid)
 		 */
 		signal(SIGALRM, SIG_IGN);
 		signal(SIGHUP, SIG_IGN);
-		sigprocmask(SIG_SETMASK, 0, &omask);
+		sigprocmask(SIG_SETMASK, &omask, 0);
 		signal(SIGPIPE, SIG_DFL);
 		signal(SIGQUIT, SIG_DFL);
 		signal(SIGALRM, SIG_DFL);
@@ -1707,7 +1709,7 @@ p_open(prog, pid)
 		_exit(255);
 	}
 
-	sigprocmask(SIG_SETMASK, 0, &omask);
+	sigprocmask(SIG_SETMASK, &omask, 0);
 	close(nulldesc);
 	close(pfd[0]);
 	/*
