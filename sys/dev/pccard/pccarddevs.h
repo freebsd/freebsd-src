@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.23 2001/11/19 06:27:33 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.24 2001/11/28 08:33:12 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.146 2001/11/18 04:25:43 mrg Exp $ */
+/* $NetBSD: pcmciadevs,v 1.150 2001/11/27 03:25:16 enami Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
@@ -197,6 +197,9 @@
 #define	PCMCIA_CIS_BUFFALO_WLI_PCM_S11	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_BUFFALO_WLI_PCM_S11	0x0305
 #define	PCMCIA_STR_BUFFALO_WLI_PCM_S11	"BUFFALO AirStation 11Mbps WLAN"
+#define	PCMCIA_CIS_BUFFALO_WLI_CF_S11G	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_BUFFALO_WLI_CF_S11G	0x030b
+#define	PCMCIA_STR_BUFFALO_WLI_CF_S11G	"BUFFALO AirStation 11Mbps CF WLAN"
 
 /* Compaq Products */
 #define	PCMCIA_CIS_COMPAQ_NC5004	{ NULL, NULL, NULL, NULL }
@@ -293,6 +296,9 @@
 #define	PCMCIA_CIS_IBM_TROPIC	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_IBM_TROPIC	0x001e
 #define	PCMCIA_STR_IBM_TROPIC	"IBM Token Ring 4/16"
+#define	PCMCIA_CIS_IBM_SCSI	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_IBM_SCSI	0x0026
+#define	PCMCIA_STR_IBM_SCSI	"IBM SCSI PCMCIA"
 #define	PCMCIA_CIS_IBM_PORTABLE_CDROM	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_IBM_PORTABLE_CDROM	0x002d
 #define	PCMCIA_STR_IBM_PORTABLE_CDROM	"IBM PCMCIA Portable CD-ROM Drive"
