@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sysctl.c,v 1.12 1997/02/22 16:13:58 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -85,7 +85,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabnwX")) != EOF) {
+	while ((ch = getopt(argc, argv, "AabnwX")) != -1) {
 		switch (ch) {
 		case 'A': Aflag = 1; break;
 		case 'a': aflag = 1; break;

@@ -120,7 +120,7 @@ main(int argc, char *argv[])
 		all_info = 0;
 		goto finish_option;
 	}
-	while ((c = getopt(argc, argv, "ablszd:")) != EOF) {
+	while ((c = getopt(argc, argv, "ablszd:")) != -1) {
 		switch (c) {
 		case 'a':
 			ac_status = 1;

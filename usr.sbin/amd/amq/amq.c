@@ -37,7 +37,7 @@
  *
  *	@(#)amq.c	8.1 (Berkeley) 6/7/93
  *
- * $Id: amq.c,v 1.4 1997/02/22 16:02:07 peter Exp $
+ * $Id: amq.c,v 1.5 1997/03/22 23:12:08 joerg Exp $
  *
  */
 
@@ -54,7 +54,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: amq.c,v 1.4 1997/02/22 16:02:07 peter Exp $";
+static char rcsid[] = "$Id: amq.c,v 1.5 1997/03/22 23:12:08 joerg Exp $";
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif /* not lint */
 
@@ -310,7 +310,7 @@ char *argv[];
 	/*
 	 * Parse arguments
 	 */
-	while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:")) != EOF)
+	while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:")) != -1)
 	switch (opt_ch) {
 	case 'f':
 		flush_flag = 1;

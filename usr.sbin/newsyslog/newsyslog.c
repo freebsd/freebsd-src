@@ -25,11 +25,11 @@ provided "as is" without express or implied warranty.
  *              keeping the a specified number of backup files around.
  *
  *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
- *      $Author: jkh $
+ *      $Author: peter $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: newsyslog.c,v 1.9 1997/02/22 16:08:26 peter Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -212,7 +212,7 @@ static void PRS(argc,argv)
 	}
 
         optind = 1;             /* Start options parsing */
-        while ((c=getopt(argc,argv,"nrvf:t:")) != EOF)
+        while ((c=getopt(argc,argv,"nrvf:t:")) != -1)
                 switch (c) {
                 case 'n':
                         noaction++; /* This implies needroot as off */

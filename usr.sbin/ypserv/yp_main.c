@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yp_main.c,v 1.14 1997/02/22 16:15:12 peter Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: yp_main.c,v 1.14 1997/02/22 16:15:12 peter Exp $";
 #endif /* not lint */
 int _rpcpmstart;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -224,7 +224,7 @@ main(argc, argv)
 	int asize = sizeof (saddr);
 	int ch;
 
-	while ((ch = getopt(argc, argv, "hdnp:")) != EOF) {
+	while ((ch = getopt(argc, argv, "hdnp:")) != -1) {
 		switch(ch) {
 		case 'd':
 			debug = ypdb_debug = 1;
