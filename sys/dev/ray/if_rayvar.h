@@ -283,3 +283,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 		__FUNCTION__ , __LINE__ , ##args);			\
 } } while (0)
 #endif /* RAY_RECERR */
+
+#ifndef RAY_MAP_CM
+#define RAY_MAP_CM(sc)
+#endif /* RAY_MAP_CM */

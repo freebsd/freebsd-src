@@ -227,8 +227,6 @@
  */
 #define RAY_CM_RID		2	/* pccardd abuses windows 0 and 1 */
 #define RAY_AM_RID		3	/* pccardd abuses windows 0 and 1 */
-#define RAY_NEED_CM_REMAPPING	0	/* Needed until pccard maps more than one memory area */
-#define RAY_NEED_AM_REMAPPING	0	/* Needed until pccard maps more than one memory area */
 #define RAY_COM_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define RAY_TX_TIMEOUT		(hz/2)	/* Timeout for rescheduling TX */
 /*
@@ -269,7 +267,6 @@
 #include <dev/ray/if_raymib.h>
 #include <dev/ray/if_raydbg.h>
 #include <dev/ray/if_rayvar.h>
-#include <dev/ray/if_ray_oldcard.h>
 
 /*
  * Prototyping
@@ -388,6 +385,11 @@ ray_probe(device_t dev)
 	error = ray_res_alloc_cm(sc);
 	if (error)
 		return (error);
+	error = ray_res_alloc_am(sc);
+	if (error) {
+		ray_res_release(sc);
+		return (error);
+	}
 	RAY_MAP_CM(sc);
 	SRAM_READ_REGION(sc, RAY_ECF_TO_HOST_BASE, ep,
 	    sizeof(sc->sc_ecf_startup));
@@ -3543,7 +3545,8 @@ ray_dump_mbuf(struct ray_softc *sc, struct mbuf *m, char *s)
 	u_int i;
 	char p[17];
 
-	RAY_PRINTF(sc, "%s", s);
+	RAY_PRINTF(sc, "\nm0->data\t0x%p\nm_pkthdr.len\t%d\nm_len\t%d",
+	    mtod(m, u_int8_t *), m->m_pkthdr.len, m->m_len);
 	i = 0;
 	bzero(p, 17);
 	for (; m; m = m->m_next) {
