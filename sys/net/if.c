@@ -1749,7 +1749,8 @@ if_addmulti(ifp, sa, retifma)
 	s = splimp();
 	TAILQ_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 	splx(s);
-	*retifma = ifma;
+	if (retifma != NULL)
+		*retifma = ifma;
 
 	if (llsa != 0) {
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
