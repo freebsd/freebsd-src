@@ -491,43 +491,37 @@ audio_init (long mem_start)
 
 #ifdef ALLOW_SELECT
 int
-audio_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+audio_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
   int             l;
   char           *dmabuf;
+  int		  revents = 0;
 
   dev = dev >> 4;
 
-  switch (sel_type)
-    {
-    case SEL_IN:
-      if (audio_mode[dev] != AM_READ &&	/* Wrong direction */
-	  audio_mode[dev] != AM_NONE)
-	return 0;
+  if (events & (POLLIN | POLLRDNORM)) {
+    if (audio_mode[dev] == AM_READ ||	/* Right direction */
+	audio_mode[dev] == AM_NONE)
 
-      if (DMAbuf_getrdbuffer (dev, &dmabuf, &l,
-			      1 /* Don't block */ ) >= 0)
-	return 1;		/* We have data */
+      if (DMAbuf_getrdbuffer (dev, &dmabuf, &l, 1 /* Don't block */ ) >= 0)
+	revents |= events & (POLLIN | POLLRDNORM); /* We have data */
+      else
+	revents |= DMAbuf_poll (dev, file, events, wait);
 
-      return DMAbuf_select (dev, file, sel_type, wait);
-      break;
+  }
 
-    case SEL_OUT:
-      if (audio_mode[dev] != AM_WRITE &&	/* Wrong direction */
-	  audio_mode[dev] != AM_NONE)
-	return 0;
+  if (events & (POLLOUT | POLLWRNORM)) {
+    if (audio_mode[dev] == AM_WRITE ||	/* Right direction */
+	audio_mode[dev] == AM_NONE)
 
       if (wr_buff_no[dev] != -1)
-	return 1;		/* There is space in the current buffer */
+	revents |= events & (POLLOUT | POLLWRNORM); /* There is space in the current buffer */
+      else
+	revents |= DMAbuf_poll (dev, file, events, wait);
 
-      return DMAbuf_select (dev, file, sel_type, wait);
-      break;
+  }
 
-    case SEL_EX:
-      return 0;
-    }
-
-  return 0;
+  return (revents);
 }
 
 #endif /* ALLOW_SELECT */

@@ -418,45 +418,25 @@ MIDIbuf_ioctl (int dev, struct fileinfo *file,
 
 #ifdef ALLOW_SELECT
 int
-MIDIbuf_select (int dev, struct fileinfo *file, int sel_type, select_table * wait)
+MIDIbuf_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
+  int revents = 0;
+
   dev = dev >> 4;
 
-  switch (sel_type)
-    {
-    case SEL_IN:
-      if (!DATA_AVAIL (midi_in_buf[dev]))
-	{
-#if defined(__FreeBSD__)
-	  selrecord(wait, &selinfo[dev]);
-#else
-	  input_sleep_flag[dev].mode = WK_SLEEP;
-	  select_wait (&input_sleeper[dev], wait);
-#endif
-	  return 0;
-	}
-      return 1;
-      break;
+  if (events & (POLLIN | POLLRDNORM))
+    if (!DATA_AVAIL (midi_in_buf[dev]))
+      selrecord(wait, &selinfo[dev]);
+    else
+      revents |= events & (POLLIN | POLLRDNORM);
 
-    case SEL_OUT:
-      if (SPACE_AVAIL (midi_out_buf[dev]))
-	{
-#if defined(__FreeBSD__)
-	  selrecord(wait, &selinfo[dev]);
-#else
-	  midi_sleep_flag[dev].mode = WK_SLEEP;
-	  select_wait (&midi_sleeper[dev], wait);
-#endif
-	  return 0;
-	}
-      return 1;
-      break;
+  if (events & (POLLOUT | POLLWRNORM))
+    if (SPACE_AVAIL (midi_out_buf[dev]))
+      selrecord(wait, &selinfo[dev]);
+    else
+      revents |= events & (POLLOUT | POLLWRNORM);
 
-    case SEL_EX:
-      return 0;
-    }
-
-  return 0;
+  return revents;
 }
 
 #endif /* ALLOW_SELECT */
