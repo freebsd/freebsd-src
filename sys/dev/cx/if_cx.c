@@ -2117,6 +2117,15 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	}
 
 	if (c->mode == M_ASYNC) {
+#if __FreeBSD_version >= 502113
+		error = ttyioctl (dev, cmd, data, flag, td);
+		disc_optim (&d->tty, &d->tty.t_termios);
+		if (error != ENOTTY) {
+			if (error)
+			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
+			return error;
+		}
+#else
 #if __FreeBSD_version >= 500000
 		error = (*linesw[d->tty.t_line].l_ioctl) (&d->tty, cmd, data, flag, td);
 #else
@@ -2135,6 +2144,7 @@ static int cx_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 			CX_DEBUG2 (d, ("ttioctl: 0x%lx, error %d\n", cmd, error));
 			return error;
 		}
+#endif
 	}
 
 	switch (cmd) {

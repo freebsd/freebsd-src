@@ -971,15 +971,9 @@ ubser_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 	if (sc->sc_dying)
 		return (EIO);
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
-        if (error >= 0) {
+	error = ttyioctl(dev, cmd, data, flag, p);
+        if (error != ENOTTY) {
 		DPRINTF(("ubser_ioctl: l_ioctl: error = %d\n", error));
-		return (error);
-	}
-
-	error = ttioctl(tp, cmd, data, flag);
-	if (error >= 0) {
-		DPRINTF(("ubser_ioctl: ttioctl: error = %d\n", error));
 		return (error);
 	}
 

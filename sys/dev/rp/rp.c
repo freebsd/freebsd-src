@@ -1320,21 +1320,14 @@ rpioctl(dev, cmd, data, flag, td)
 
 	t = &tp->t_termios;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if(error != ENOIOCTL) {
+	error = ttyioctl(dev, cmd, data, flag, td);
+	rp_disc_optim(tp, &tp->t_termios);
+	if(error != ENOTTY)
 		return(error);
-	}
 	oldspl = spltty();
 
 	flags = rp->rp_channel.TxControl[3];
 
-	error = ttioctl(tp, cmd, data, flag);
-	flags = rp->rp_channel.TxControl[3];
-	rp_disc_optim(tp, &tp->t_termios);
-	if(error != ENOIOCTL) {
-		splx(oldspl);
-		return(error);
-	}
 	switch(cmd) {
 	case TIOCSBRK:
 		sSendBreak(&rp->rp_channel);

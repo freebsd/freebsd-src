@@ -528,12 +528,8 @@ zsttyioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	sc = dev->si_drv1;
 	tp = dev->si_tty;
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flags, td);
-	if (error != ENOIOCTL)
-		return (error);
-
-	error = ttioctl(tp, cmd, data, flags);
-	if (error != ENOIOCTL)
+	error = ttyioctl(dev, cmd, data, flags, td);
+	if (error != ENOTTY)
 		return (error);
 
 	error = 0;

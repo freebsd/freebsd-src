@@ -1207,12 +1207,9 @@ rcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 
 	rc = DEV_TO_RC(dev);
 	tp = &rc->rc_tp;
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
-	if (error != ENOIOCTL)
-		return (error);
-	error = ttioctl(tp, cmd, data, flag);
+	error = ttyioctl(dev, cmd, data, flag, td);
 	disc_optim(tp, &tp->t_termios, rc);
-	if (error != ENOIOCTL)
+	if (error != ENOTTY)
 		return (error);
 	s = spltty();
 
