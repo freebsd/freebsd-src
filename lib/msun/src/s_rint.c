@@ -34,22 +34,13 @@ static char rcsid[] = "$FreeBSD$";
  * assigned and returned.  Use long double even in the !__STDC__ case in
  * case this is compiled with gcc -traditional.
  */
-#ifdef __STDC__
 static const long double
-#else
-static long double
-#endif
 TWO52[2]={
   4.50359962737049600000e+15, /* 0x43300000, 0x00000000 */
  -4.50359962737049600000e+15, /* 0xC3300000, 0x00000000 */
 };
 
-#ifdef __STDC__
 	double __generic_rint(double x)
-#else
-	double __generic_rint(x)
-	double x;
-#endif
 {
 	int32_t i0,j0,sx;
 	u_int32_t i,i1;

@@ -62,17 +62,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static double pone(double), qone(double);
-#else
-static double pone(), qone();
-#endif
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 huge    = 1e300,
 one	= 1.0,
 invsqrtpi=  5.64189583547756279280e-01, /* 0x3FE20DD7, 0x50429B6D */
@@ -88,18 +80,9 @@ s03  =  1.17718464042623683263e-06, /* 0x3EB3BFF8, 0x333F8498 */
 s04  =  5.04636257076217042715e-09, /* 0x3E35AC88, 0xC97DFF2C */
 s05  =  1.23542274426137913908e-11; /* 0x3DAB2ACF, 0xCFB97ED8 */
 
-#ifdef __STDC__
 static const double zero    = 0.0;
-#else
-static double zero    = 0.0;
-#endif
 
-#ifdef __STDC__
 	double __ieee754_j1(double x)
-#else
-	double __ieee754_j1(x)
-	double x;
-#endif
 {
 	double z, s,c,ss,cc,r,u,v,y;
 	int32_t hx,ix;
@@ -140,22 +123,14 @@ static double zero    = 0.0;
 	return(x*0.5+r/s);
 }
 
-#ifdef __STDC__
 static const double U0[5] = {
-#else
-static double U0[5] = {
-#endif
  -1.96057090646238940668e-01, /* 0xBFC91866, 0x143CBC8A */
   5.04438716639811282616e-02, /* 0x3FA9D3C7, 0x76292CD1 */
  -1.91256895875763547298e-03, /* 0xBF5F55E5, 0x4844F50F */
   2.35252600561610495928e-05, /* 0x3EF8AB03, 0x8FA6B88E */
  -9.19099158039878874504e-08, /* 0xBE78AC00, 0x569105B8 */
 };
-#ifdef __STDC__
 static const double V0[5] = {
-#else
-static double V0[5] = {
-#endif
   1.99167318236649903973e-02, /* 0x3F94650D, 0x3F4DA9F0 */
   2.02552581025135171496e-04, /* 0x3F2A8C89, 0x6C257764 */
   1.35608801097516229404e-06, /* 0x3EB6C05A, 0x894E8CA6 */
@@ -163,12 +138,7 @@ static double V0[5] = {
   1.66559246207992079114e-11, /* 0x3DB25039, 0xDACA772A */
 };
 
-#ifdef __STDC__
 	double __ieee754_y1(double x)
-#else
-	double __ieee754_y1(x)
-	double x;
-#endif
 {
 	double z, s,c,ss,cc,u,v;
 	int32_t hx,ix,lx;
@@ -226,11 +196,7 @@ static double V0[5] = {
  *	| pone(x)-1-R/S | <= 2  ** ( -60.06)
  */
 
-#ifdef __STDC__
 static const double pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#else
-static double pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#endif
   0.00000000000000000000e+00, /* 0x00000000, 0x00000000 */
   1.17187499999988647970e-01, /* 0x3FBDFFFF, 0xFFFFFCCE */
   1.32394806593073575129e+01, /* 0x402A7A9D, 0x357F7FCE */
@@ -238,11 +204,7 @@ static double pr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
   3.87474538913960532227e+03, /* 0x40AE457D, 0xA3A532CC */
   7.91447954031891731574e+03, /* 0x40BEEA7A, 0xC32782DD */
 };
-#ifdef __STDC__
 static const double ps8[5] = {
-#else
-static double ps8[5] = {
-#endif
   1.14207370375678408436e+02, /* 0x405C8D45, 0x8E656CAC */
   3.65093083420853463394e+03, /* 0x40AC85DC, 0x964D274F */
   3.69562060269033463555e+04, /* 0x40E20B86, 0x97C5BB7F */
@@ -250,11 +212,7 @@ static double ps8[5] = {
   3.08042720627888811578e+04, /* 0x40DE1511, 0x697A0B2D */
 };
 
-#ifdef __STDC__
 static const double pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#else
-static double pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#endif
   1.31990519556243522749e-11, /* 0x3DAD0667, 0xDAE1CA7D */
   1.17187493190614097638e-01, /* 0x3FBDFFFF, 0xE2C10043 */
   6.80275127868432871736e+00, /* 0x401B3604, 0x6E6315E3 */
@@ -262,11 +220,7 @@ static double pr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
   5.17636139533199752805e+02, /* 0x40802D16, 0xD052D649 */
   5.28715201363337541807e+02, /* 0x408085B8, 0xBB7E0CB7 */
 };
-#ifdef __STDC__
 static const double ps5[5] = {
-#else
-static double ps5[5] = {
-#endif
   5.92805987221131331921e+01, /* 0x404DA3EA, 0xA8AF633D */
   9.91401418733614377743e+02, /* 0x408EFB36, 0x1B066701 */
   5.35326695291487976647e+03, /* 0x40B4E944, 0x5706B6FB */
@@ -274,11 +228,7 @@ static double ps5[5] = {
   1.50404688810361062679e+03, /* 0x40978030, 0x036F5E51 */
 };
 
-#ifdef __STDC__
 static const double pr3[6] = {
-#else
-static double pr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
-#endif
   3.02503916137373618024e-09, /* 0x3E29FC21, 0xA7AD9EDD */
   1.17186865567253592491e-01, /* 0x3FBDFFF5, 0x5B21D17B */
   3.93297750033315640650e+00, /* 0x400F76BC, 0xE85EAD8A */
@@ -286,11 +236,7 @@ static double pr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
   9.10550110750781271918e+01, /* 0x4056C385, 0x4D2C1837 */
   4.85590685197364919645e+01, /* 0x4048478F, 0x8EA83EE5 */
 };
-#ifdef __STDC__
 static const double ps3[5] = {
-#else
-static double ps3[5] = {
-#endif
   3.47913095001251519989e+01, /* 0x40416549, 0xA134069C */
   3.36762458747825746741e+02, /* 0x40750C33, 0x07F1A75F */
   1.04687139975775130551e+03, /* 0x40905B7C, 0x5037D523 */
@@ -298,11 +244,7 @@ static double ps3[5] = {
   1.03787932439639277504e+02, /* 0x4059F26D, 0x7C2EED53 */
 };
 
-#ifdef __STDC__
 static const double pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#else
-static double pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#endif
   1.07710830106873743082e-07, /* 0x3E7CE9D4, 0xF65544F4 */
   1.17176219462683348094e-01, /* 0x3FBDFF42, 0xBE760D83 */
   2.36851496667608785174e+00, /* 0x4002F2B7, 0xF98FAEC0 */
@@ -310,11 +252,7 @@ static double pr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
   1.76939711271687727390e+01, /* 0x4031B1A8, 0x177F8EE2 */
   5.07352312588818499250e+00, /* 0x40144B49, 0xA574C1FE */
 };
-#ifdef __STDC__
 static const double ps2[5] = {
-#else
-static double ps2[5] = {
-#endif
   2.14364859363821409488e+01, /* 0x40356FBD, 0x8AD5ECDC */
   1.25290227168402751090e+02, /* 0x405F5293, 0x14F92CD5 */
   2.32276469057162813669e+02, /* 0x406D08D8, 0xD5A2DBD9 */
@@ -322,18 +260,9 @@ static double ps2[5] = {
   8.36463893371618283368e+00, /* 0x4020BAB1, 0xF44E5192 */
 };
 
-#ifdef __STDC__
 	static double pone(double x)
-#else
-	static double pone(x)
-	double x;
-#endif
 {
-#ifdef __STDC__
 	const double *p,*q;
-#else
-	double *p,*q;
-#endif
 	double z,r,s;
         int32_t ix;
 	GET_HIGH_WORD(ix,x);
@@ -359,11 +288,7 @@ static double ps2[5] = {
  *	| qone(x)/s -0.375-R/S | <= 2  ** ( -61.13)
  */
 
-#ifdef __STDC__
 static const double qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#else
-static double qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
-#endif
   0.00000000000000000000e+00, /* 0x00000000, 0x00000000 */
  -1.02539062499992714161e-01, /* 0xBFBA3FFF, 0xFFFFFDF3 */
  -1.62717534544589987888e+01, /* 0xC0304591, 0xA26779F7 */
@@ -371,11 +296,7 @@ static double qr8[6] = { /* for x in [inf, 8]=1/[0,0.125] */
  -1.18498066702429587167e+04, /* 0xC0C724E7, 0x40F87415 */
  -4.84385124285750353010e+04, /* 0xC0E7A6D0, 0x65D09C6A */
 };
-#ifdef __STDC__
 static const double qs8[6] = {
-#else
-static double qs8[6] = {
-#endif
   1.61395369700722909556e+02, /* 0x40642CA6, 0xDE5BCDE5 */
   7.82538599923348465381e+03, /* 0x40BE9162, 0xD0D88419 */
   1.33875336287249578163e+05, /* 0x4100579A, 0xB0B75E98 */
@@ -384,11 +305,7 @@ static double qs8[6] = {
  -2.94490264303834643215e+05, /* 0xC111F969, 0x0EA5AA18 */
 };
 
-#ifdef __STDC__
 static const double qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#else
-static double qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
-#endif
  -2.08979931141764104297e-11, /* 0xBDB6FA43, 0x1AA1A098 */
  -1.02539050241375426231e-01, /* 0xBFBA3FFF, 0xCB597FEF */
  -8.05644828123936029840e+00, /* 0xC0201CE6, 0xCA03AD4B */
@@ -396,11 +313,7 @@ static double qr5[6] = { /* for x in [8,4.5454]=1/[0.125,0.22001] */
  -1.37319376065508163265e+03, /* 0xC09574C6, 0x6931734F */
  -2.61244440453215656817e+03, /* 0xC0A468E3, 0x88FDA79D */
 };
-#ifdef __STDC__
 static const double qs5[6] = {
-#else
-static double qs5[6] = {
-#endif
   8.12765501384335777857e+01, /* 0x405451B2, 0xFF5A11B2 */
   1.99179873460485964642e+03, /* 0x409F1F31, 0xE77BF839 */
   1.74684851924908907677e+04, /* 0x40D10F1F, 0x0D64CE29 */
@@ -409,11 +322,7 @@ static double qs5[6] = {
  -4.71918354795128470869e+03, /* 0xC0B26F2E, 0xFCFFA004 */
 };
 
-#ifdef __STDC__
 static const double qr3[6] = {
-#else
-static double qr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
-#endif
  -5.07831226461766561369e-09, /* 0xBE35CFA9, 0xD38FC84F */
  -1.02537829820837089745e-01, /* 0xBFBA3FEB, 0x51AEED54 */
  -4.61011581139473403113e+00, /* 0xC01270C2, 0x3302D9FF */
@@ -421,11 +330,7 @@ static double qr3[6] = {/* for x in [4.547,2.8571]=1/[0.2199,0.35001] */
  -2.28244540737631695038e+02, /* 0xC06C87D3, 0x4718D55F */
  -2.19210128478909325622e+02, /* 0xC06B66B9, 0x5F5C1BF6 */
 };
-#ifdef __STDC__
 static const double qs3[6] = {
-#else
-static double qs3[6] = {
-#endif
   4.76651550323729509273e+01, /* 0x4047D523, 0xCCD367E4 */
   6.73865112676699709482e+02, /* 0x40850EEB, 0xC031EE3E */
   3.38015286679526343505e+03, /* 0x40AA684E, 0x448E7C9A */
@@ -434,11 +339,7 @@ static double qs3[6] = {
  -1.35201191444307340817e+02, /* 0xC060E670, 0x290A311F */
 };
 
-#ifdef __STDC__
 static const double qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#else
-static double qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
-#endif
  -1.78381727510958865572e-07, /* 0xBE87F126, 0x44C626D2 */
  -1.02517042607985553460e-01, /* 0xBFBA3E8E, 0x9148B010 */
  -2.75220568278187460720e+00, /* 0xC0060484, 0x69BB4EDA */
@@ -446,11 +347,7 @@ static double qr2[6] = {/* for x in [2.8570,2]=1/[0.3499,0.5] */
  -4.23253133372830490089e+01, /* 0xC04529A3, 0xDE104AAA */
  -2.13719211703704061733e+01, /* 0xC0355F36, 0x39CF6E52 */
 };
-#ifdef __STDC__
 static const double qs2[6] = {
-#else
-static double qs2[6] = {
-#endif
   2.95333629060523854548e+01, /* 0x403D888A, 0x78AE64FF */
   2.52981549982190529136e+02, /* 0x406F9F68, 0xDB821CBA */
   7.57502834868645436472e+02, /* 0x4087AC05, 0xCE49A0F7 */
@@ -459,18 +356,9 @@ static double qs2[6] = {
  -4.95949898822628210127e+00, /* 0xC013D686, 0xE71BE86B */
 };
 
-#ifdef __STDC__
 	static double qone(double x)
-#else
-	static double qone(x)
-	double x;
-#endif
 {
-#ifdef __STDC__
 	const double *p,*q;
-#else
-	double *p,*q;
-#endif
 	double  s,r,z;
 	int32_t ix;
 	GET_HIGH_WORD(ix,x);

@@ -25,12 +25,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-#ifdef __STDC__
 	float log10f(float x)		/* wrapper log10f */
-#else
-	float log10f(x)			/* wrapper log10f */
-	float x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_log10f(x);

@@ -45,11 +45,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const double
-#else
-static double
-#endif
 half =  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
 S1  = -1.66666666666666324348e-01, /* 0xBFC55555, 0x55555549 */
 S2  =  8.33333333332248946124e-03, /* 0x3F811111, 0x1110F8A6 */
@@ -58,12 +54,7 @@ S4  =  2.75573137070700676789e-06, /* 0x3EC71DE3, 0x57B1FE7D */
 S5  = -2.50507602534068634195e-08, /* 0xBE5AE5E6, 0x8A2B9CEB */
 S6  =  1.58969099521155010221e-10; /* 0x3DE5D93A, 0x5ACFD57C */
 
-#ifdef __STDC__
 	double __kernel_sin(double x, double y, int iy)
-#else
-	double __kernel_sin(x, y, iy)
-	double x,y; int iy;		/* iy=0 if y is zero */
-#endif
 {
 	double z,r,v;
 	int32_t ix;

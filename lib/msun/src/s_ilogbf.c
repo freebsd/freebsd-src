@@ -20,12 +20,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	int ilogbf(float x)
-#else
-	int ilogbf(x)
-	float x;
-#endif
 {
 	int32_t hx,ix;
 

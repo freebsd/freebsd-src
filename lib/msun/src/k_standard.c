@@ -27,11 +27,7 @@ static char rcsid[] = "$FreeBSD$";
 #undef fflush
 #endif	/* !defined(_USE_WRITE) */
 
-#ifdef __STDC__
 static const double zero = 0.0;	/* used as const */
-#else
-static double zero = 0.0;	/* used as const */
-#endif
 
 /*
  * Standard conformance (non-IEEE) on exception cases.
@@ -81,12 +77,7 @@ static double zero = 0.0;	/* used as const */
  */
 
 
-#ifdef __STDC__
 	double __kernel_standard(double x, double y, int type)
-#else
-	double __kernel_standard(x,y,type)
-	double x,y; int type;
-#endif
 {
 	struct exception exc;
 #ifndef HUGE_VAL	/* this is the only routine that uses HUGE_VAL */

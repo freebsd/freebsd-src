@@ -29,11 +29,7 @@ static char rcsid[] = "$FreeBSD$";
 /*
  * Table of constants for 2/pi, 396 Hex digits (476 decimal) of 2/pi
  */
-#ifdef __STDC__
 static const int32_t two_over_pi[] = {
-#else
-static int32_t two_over_pi[] = {
-#endif
 0xA2, 0xF9, 0x83, 0x6E, 0x4E, 0x44, 0x15, 0x29, 0xFC,
 0x27, 0x57, 0xD1, 0xF5, 0x34, 0xDD, 0xC0, 0xDB, 0x62,
 0x95, 0x99, 0x3C, 0x43, 0x90, 0x41, 0xFE, 0x51, 0x63,
@@ -60,11 +56,7 @@ static int32_t two_over_pi[] = {
 
 /* This array is like the one in e_rem_pio2.c, but the numbers are
    single precision and the last 8 bits are forced to 0.  */
-#ifdef __STDC__
 static const int32_t npio2_hw[] = {
-#else
-static int32_t npio2_hw[] = {
-#endif
 0x3fc90f00, 0x40490f00, 0x4096cb00, 0x40c90f00, 0x40fb5300, 0x4116cb00,
 0x412fed00, 0x41490f00, 0x41623100, 0x417b5300, 0x418a3a00, 0x4196cb00,
 0x41a35c00, 0x41afed00, 0x41bc7e00, 0x41c90f00, 0x41d5a000, 0x41e23100,
@@ -83,11 +75,7 @@ static int32_t npio2_hw[] = {
  * pio2_3t:  pi/2 - (pio2_1+pio2_2+pio2_3)
  */
 
-#ifdef __STDC__
 static const float
-#else
-static float
-#endif
 zero =  0.0000000000e+00, /* 0x00000000 */
 half =  5.0000000000e-01, /* 0x3f000000 */
 two8 =  2.5600000000e+02, /* 0x43800000 */
@@ -99,12 +87,7 @@ pio2_2t =  6.0770999344e-11, /* 0x2e85a308 */
 pio2_3  =  6.0770943833e-11, /* 0x2e85a300 */
 pio2_3t =  6.1232342629e-17; /* 0x248d3132 */
 
-#ifdef __STDC__
 	int32_t __ieee754_rem_pio2f(float x, float *y)
-#else
-	int32_t __ieee754_rem_pio2f(x,y)
-	float x,y[];
-#endif
 {
 	float z,w,t,r,fn;
 	float tx[3];

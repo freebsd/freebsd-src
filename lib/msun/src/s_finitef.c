@@ -25,12 +25,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	int finitef(float x)
-#else
-	int finitef(x)
-	float x;
-#endif
 {
 	int32_t ix;
 	GET_FLOAT_WORD(ix,x);

@@ -26,12 +26,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math_private.h"
 
 
-#ifdef __STDC__
 	float asinf(float x)		/* wrapper asinf */
-#else
-	float asinf(x)			/* wrapper asinf */
-	float x;
-#endif
 {
 #ifdef _IEEE_LIBM
 	return __ieee754_asinf(x);

@@ -23,12 +23,7 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 	double __generic_logb(double x)
-#else
-	double __generic_logb(x)
-	double x;
-#endif
 {
 	int32_t lx,ix;
 	EXTRACT_WORDS(ix,lx,x);

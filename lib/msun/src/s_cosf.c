@@ -20,18 +20,9 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float one=1.0;
-#else
-static float one=1.0;
-#endif
 
-#ifdef __STDC__
 	float cosf(float x)
-#else
-	float cosf(x)
-	float x;
-#endif
 {
 	float y[2],z=0.0;
 	int32_t n,ix;

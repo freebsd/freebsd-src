@@ -20,28 +20,15 @@ static char rcsid[] = "$FreeBSD$";
 #include "math.h"
 #include "math_private.h"
 
-#ifdef __STDC__
 static const float
-#else
-static float
-#endif
 two25      =  3.3554432000e+07, /* 0x4c000000 */
 ivln10     =  4.3429449201e-01, /* 0x3ede5bd9 */
 log10_2hi  =  3.0102920532e-01, /* 0x3e9a2080 */
 log10_2lo  =  7.9034151668e-07; /* 0x355427db */
 
-#ifdef __STDC__
 static const float zero   =  0.0;
-#else
-static float zero   =  0.0;
-#endif
 
-#ifdef __STDC__
 	float __ieee754_log10f(float x)
-#else
-	float __ieee754_log10f(x)
-	float x;
-#endif
 {
 	float y,z;
 	int32_t i,k,hx;
