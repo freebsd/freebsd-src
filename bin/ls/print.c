@@ -92,10 +92,10 @@ static int	colortype __P((mode_t));
 #define TERA_2_SZ (TERA_SZ(1024ULL))
 #define PETA_2_SZ (PETA_SZ(1024ULL))
 
-unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
+unsigned long long vals_base2[] = { 1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ };
 
 typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
-static unit_t   unit_adjust __P((off_t *));
+static unit_t unit_adjust __P((off_t *));
 
 int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
@@ -294,7 +294,7 @@ printcol(dp)
 			if ((base += numrows) >= num)
 				break;
 			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
-			    <= endcol){
+			    <= endcol) {
 				(void)putchar(f_notabs ? ' ' : '\t');
 				chcnt = cnt;
 			}
@@ -451,38 +451,38 @@ colortype(mode)
 	mode_t mode;
 {
 	switch(mode & S_IFMT) {
-	      case S_IFDIR:
+	case S_IFDIR:
 		if (mode & S_IWOTH)
-		    if (mode & S_ISTXT)
-			printcolor(C_WSDIR);
-		    else
-			printcolor(C_WDIR);
+			if (mode & S_ISTXT)
+				printcolor(C_WSDIR);
+			else
+				printcolor(C_WDIR);
 		else
-		    printcolor(C_DIR);
+			printcolor(C_DIR);
 		return(1);
-	      case S_IFLNK:
+	case S_IFLNK:
 		printcolor(C_LNK);
 		return(1);
-	      case S_IFSOCK:
+	case S_IFSOCK:
 		printcolor(C_SOCK);
 		return(1);
-	      case S_IFIFO:
+	case S_IFIFO:
 		printcolor(C_FIFO);
 		return(1);
-	      case S_IFBLK:
+	case S_IFBLK:
 		printcolor(C_BLK);
 		return(1);
-	      case S_IFCHR:
+	case S_IFCHR:
 		printcolor(C_CHR);
 		return(1);
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		if (mode & S_ISUID)
-		    printcolor(C_SUID);
+			printcolor(C_SUID);
 		else if (mode & S_ISGID)
-		    printcolor(C_SGID);
+			printcolor(C_SGID);
 		else
-		    printcolor(C_EXEC);
+			printcolor(C_EXEC);
 		return(1);
 	}
 	return(0);
@@ -601,22 +601,22 @@ printsize(width, bytes)
  */
 unit_t
 unit_adjust(val)
-       off_t *val;
+	off_t *val;
 {
-       double abval;
-       unit_t unit;
-       unsigned int unit_sz;
+	double abval;
+	unit_t unit;
+	unsigned int unit_sz;
 
-       abval = fabs(*val);
+	abval = fabs(*val);
 
-       unit_sz = abval ? ilogb(abval) / 10 : 0;
+	unit_sz = abval ? ilogb(abval) / 10 : 0;
 
-       if (unit_sz >= UNIT_MAX) {
-               unit = NONE;
-       } else {
-               unit = unitp[unit_sz];
-               *val /= (double)vals_base2[unit_sz];
-       }
+	if (unit_sz >= UNIT_MAX) {
+		unit = NONE;
+	} else {
+		unit = unitp[unit_sz];
+		*val /= (double)vals_base2[unit_sz];
+	}
 
-       return (unit);
+	return (unit);
 }
