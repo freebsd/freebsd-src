@@ -55,9 +55,7 @@ SRCS=		\
 	strupr.c		\
 	roken.h
 
-NOPIC=		yes
-
-install:
+INCLUDES= roken.h
 
 .include <bsd.lib.mk>
 
