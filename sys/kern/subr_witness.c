@@ -170,6 +170,16 @@ int	witness_ddb = 0;
 #endif
 TUNABLE_INT("debug.witness_ddb", &witness_ddb);
 SYSCTL_INT(_debug, OID_AUTO, witness_ddb, CTLFLAG_RW, &witness_ddb, 0, "");
+
+/*
+ * When DDB is enabled and witness_trace is set to 1, it will cause the system
+ * to print a stack trace:
+ *	- a lock heirarchy violation occurs
+ *	- locks are held when going to sleep.
+ */
+int	witness_trace = 1;
+TUNABLE_INT("debug.witness_trace", &witness_trace);
+SYSCTL_INT(_debug, OID_AUTO, witness_trace, CTLFLAG_RW, &witness_trace, 0, "");
 #endif /* DDB */
 
 #ifdef WITNESS_SKIPSPIN
@@ -717,8 +727,12 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 
 out:
 #ifdef DDB
-	if (witness_ddb && go_into_ddb)
-		Debugger(__func__);
+	if (go_into_ddb) {
+		if (witness_trace)
+			backtrace();
+		if (witness_ddb)
+			Debugger(__func__);
+	}
 #endif /* DDB */
 	w->w_file = file;
 	w->w_line = line;
