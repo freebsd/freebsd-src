@@ -247,10 +247,10 @@ parsefmt(const char *p)
 		if (cp == NULL || !(v = findvar(cp)))
 			continue;
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		vent->var = malloc(sizeof(*vent->var));
 		if (vent->var == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		memcpy(vent->var, v, sizeof(*vent->var));
 		vent->next = NULL;
 		if (vhead == NULL)
