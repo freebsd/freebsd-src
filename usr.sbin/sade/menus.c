@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.206 1999/05/21 07:10:35 roberto Exp $
+ * $Id: menus.c,v 1.207 1999/06/09 09:18:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1346,12 +1346,6 @@ DMenu MenuNTP = {
       { "U.S. Midwest",		"ncar.ucar.edu (WWVB clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=ncar.ucar.edu" },
-      { "U.S. Pacific",		"chantry.hawaii.net (WWV/H clock)",
-	dmenuVarsCheck,	dmenuSetVariables, NULL, 
-	"ntpdate_enable=YES,ntpdate_flags=chantry.hawaii.net" },
-      { "U.S. Southwest",	"shorty.chpc.utexas.edu (WWV clock)",
-	dmenuVarsCheck,	dmenuSetVariables, NULL, 
-	"ntpdate_enable=YES,ntpdate_flags=shorty.chpc.utexas.edu" },
       { NULL } },
 };
 
