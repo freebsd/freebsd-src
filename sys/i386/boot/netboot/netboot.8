@@ -1,0 +1,90 @@
+.\"	$Id:$
+.Dd May 5, 1997
+.Dt NETBOOT 8
+.\".Os BSD 4
+.Sh NAME
+.Nm netboot
+.Nd Allows remote booting of the operating system
+.Sh SYNOPSIS
+.Nm
+.It Fl b
+is used for booting the operating system over a network card. The
+program is either loaded into a ROM, or run from DOS.
+.Pp
+.Sh DESCRIPTION
+.Nm
+loads parameters such as IP addresses, kernel name and filesystem
+names from a bootp server, tries to mount the specified root and swap
+filesystems,
+loads the specified kernel from the root filesystem using NFSv2, and
+then gives control to the kernel.
+.Pp
+The bootp server must be configured appropriately. An example
+configuration for /etc/bootptab is the following:
+.Bd -literal
+  .default:\\
+	:sm=255.255.255.0:\\
+	:gw=your.gateway.ip:\\
+	:ds=your.nameserver.ip:\\
+	:hn:ht=1:vm=rfc1048:\\
+	:sw=server.ip:\\
+	:rp="rootfs.ip:/rootfs/path":\\
+	:T128="swapfs.ip:/swapfs/path":\\
+	:T129=swapsize:\\
+	:T130="root,mount,options":\\
+	:T131="swap,mount,options":
+  .client01:bf="kernel.300":ha=00400530d6d9:tc=.default:
+  .client02:bf="kernel.280":ha=00400530d6d3:tc=.default:
+.Ed
+.Pp
+For a precise description of the bootptab parameters, see
+bootptab (5) .
+.Pp
+The
+.Nm
+code uses options as follows.
+.Pp
+sm indicates the subnet mask.
+.Pp
+gw is the ip address of the gateway.
+.Pp
+ds is the ip address of the name server.
+.Pp
+hn instructs the bootp server to send the hostname in the reply.
+.Pp
+ht=1 indicates that the hardware is ethernet.
+.Pp
+vm=rfc1048 indicates the use of rfc1048 extensions.
+.Pp
+sw indicates the ip address of the NFS server, and is used for both
+the root filesystem and the swap filesystem server. It is optional in
+that it can be overridden from what is specified in the "rp" and "T128"
+options.
+.Pp
+rp specifies the path to the root partition. Optionally, the IP
+address of the server can be specified, followed by a :
+.Pp
+T128 specifies the path to the swap partition. Optionally, the IP
+address of the server can be specified, followed by a : . The
+actual swapfile is a file named swap.X.Y.Z.T where X.Y.Z.T is the
+IP address of the client. In both "rp" and "T128" options
+the sequence %I can be used which is replaced with the IP address of
+the client. The swap partition is optional. If specified, the swap
+file must exist and have at least the size specified with T129.
+.Pp
+T129 specifies the size of the swap file, in KB. Must be specified as
+a hexadecimal number. This argument is optional.
+.Pp
+T130 specified root mount options (e.g. soft,intr,tcp, ...).
+.Pp
+T131 specified swap mount options.
+.Pp
+bf is the name of the kernel. If not specified, it defaults to
+"kernel".
+
+.Sh SEE ALSO
+.Xr bootd 8 ,
+.Xr bootptab 5
+.Sh BUGS
+The T130 and T131 options are still unsupported.
+
