@@ -31,7 +31,7 @@
  * 09/28/93 Released version 1.0
  * 09/93 Original developed by Gordon W. Ross <gwr@mc.com>
  *
- *	$Id$
+ *	$Id: bootptest.c,v 1.4 1997/02/22 14:21:20 peter Exp $
  */
 
 char *usage = "bootptest [-h] server-name [vendor-data-template-file]";
@@ -503,7 +503,7 @@ ipaddr_string(ina)
 	u_char *p;
 
 	p = (u_char *) ina;
-	sprintf(b, "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
+	snprintf(b, sizeof(b), "%d.%d.%d.%d", p[0], p[1], p[2], p[3]);
 	return (b);
 }
 
