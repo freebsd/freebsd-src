@@ -33,6 +33,8 @@
 
 #define PPS_NAME	"pps"		/* our official name */
 
+#define PRVERBOSE(arg...)	if (bootverbose) printf(##arg);
+
 struct pps_data {
 	struct	ppb_device pps_dev;	
 	struct	pps_state pps[9];
@@ -90,40 +92,58 @@ ppstry(device_t ppbus, int send, int expect)
 
 	ppb_wdtr(ppbus, send);
 	i = ppb_rdtr(ppbus);
-	printf("S: %02x E: %02x G: %02x\n", send, expect, i);
+	PRVERBOSE("S: %02x E: %02x G: %02x\n", send, expect, i);
 	return (i != expect);
 }
 
 static int
 ppsprobe(device_t ppsdev)
 {
-	struct pps_data *sc;
-	dev_t dev;
-	device_t ppbus;
-	int unit, i;
-
 	device_set_desc(ppsdev, "Pulse per second Timing Interface");
 
-	sc = DEVTOSOFTC(ppsdev);
-	bzero(sc, sizeof(struct pps_data));
-	sc->ppsdev = ppsdev;
-	ppbus = sc->ppbus = device_get_parent(ppsdev);
+	return (0);
+}
+
+static int
+ppsattach(device_t dev)
+{
+	struct pps_data *sc = DEVTOSOFTC(dev);
+	device_t ppbus = device_get_parent(dev);
+	int irq, zero = 0;
+	dev_t d;
+	int unit, i;
+
+	bzero(sc, sizeof(struct pps_data)); /* XXX doesn't newbus do this? */
+
+	/* retrieve the ppbus irq */
+	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
+
+	if (irq > 0) {
+		/* declare our interrupt handler */
+		sc->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
+		    &zero, irq, irq, 1, RF_SHAREABLE);
+	}
+	/* interrupts seem mandatory */
+	if (sc->intr_resource == NULL)
+		return (ENXIO);
+
+	sc->ppsdev = dev;
+	sc->ppbus = ppbus;
 	unit = device_get_unit(ppbus);
-	dev = make_dev(&pps_cdevsw, unit,
+	d = make_dev(&pps_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%d", unit);
-	sc->devs[0] = dev;
+	sc->devs[0] = d;
 	sc->pps[0].ppscap = PPS_CAPTUREASSERT | PPS_ECHOASSERT;
-	dev->si_drv1 = sc;
-	dev->si_drv2 = (void*)0;
+	d->si_drv1 = sc;
+	d->si_drv2 = (void*)0;
 	pps_init(&sc->pps[0]);
 
-	if (ppb_request_bus(ppbus, ppsdev, PPB_DONTWAIT))
+	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT))
 		return (0);
-
 
 	do {
 		i = ppb_set_mode(sc->ppbus, PPB_EPP);
-		printf("EPP: %d %d\n", i, PPB_IN_EPP_MODE(sc->ppbus));
+		PRVERBOSE("EPP: %d %d\n", i, PPB_IN_EPP_MODE(sc->ppbus));
 		if (i == -1)
 			break;
 		i = 0;
@@ -139,7 +159,7 @@ ppsprobe(device_t ppsdev)
 
 		i = IRQENABLE | PCD | STROBE | nINIT | SELECTIN;
 		ppb_wctr(ppbus, i);
-		printf("CTR = %02x (%02x)\n", ppb_rctr(ppbus), i);
+		PRVERBOSE("CTR = %02x (%02x)\n", ppb_rctr(ppbus), i);
 		if (ppstry(ppbus, 0x00, 0x00))
 			break;
 		if (ppstry(ppbus, 0x55, 0x00))
@@ -151,45 +171,24 @@ ppsprobe(device_t ppsdev)
 
 		i = IRQENABLE | PCD | nINIT | SELECTIN;
 		ppb_wctr(ppbus, i);
-		printf("CTR = %02x (%02x)\n", ppb_rctr(ppbus), i);
+		PRVERBOSE("CTR = %02x (%02x)\n", ppb_rctr(ppbus), i);
 		ppstry(ppbus, 0x00, 0xff);
 		ppstry(ppbus, 0x55, 0xff);
 		ppstry(ppbus, 0xaa, 0xff);
 		ppstry(ppbus, 0xff, 0xff);
 
 		for (i = 1; i < 9; i++) {
-			dev = make_dev(&pps_cdevsw, unit + 0x10000 * i,
-			    UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%db%d", unit, i - 1);
-			sc->devs[i] = dev;
+			d = make_dev(&pps_cdevsw, unit + 0x10000 * i,
+			  UID_ROOT, GID_WHEEL, 0644, PPS_NAME "%db%d", unit, i - 1);
+			sc->devs[i] = d;
 			sc->pps[i].ppscap = PPS_CAPTUREASSERT | PPS_CAPTURECLEAR;
-			dev->si_drv1 = sc;
-			dev->si_drv2 = (void*)i;
+			d->si_drv1 = sc;
+			d->si_drv2 = (void*)i;
 			pps_init(&sc->pps[i]);
 		}
 	} while (0);
 	i = ppb_set_mode(sc->ppbus, PPB_COMPATIBLE);
-	ppb_release_bus(ppbus, ppsdev);
-	return (0);
-}
-
-static int
-ppsattach(device_t dev)
-{
-	struct pps_data *sc = DEVTOSOFTC(dev);
-	device_t ppbus = sc->ppbus;
-	int irq, zero = 0;
-
-	/* retrieve the ppbus irq */
-	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
-
-	if (irq > 0) {
-		/* declare our interrupt handler */
-		sc->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
-				       &zero, irq, irq, 1, RF_SHAREABLE);
-	}
-	/* interrupts seem mandatory */
-	if (sc->intr_resource == 0)
-		return (ENXIO);
+	ppb_release_bus(ppbus, dev);
 
 	return (0);
 }
@@ -217,7 +216,7 @@ ppsopen(dev_t dev, int flags, int fmt, struct thread *td)
 		}
 
 		i = ppb_set_mode(sc->ppbus, PPB_PS2);
-		printf("EPP: %d %d\n", i, PPB_IN_EPP_MODE(sc->ppbus));
+		PRVERBOSE("EPP: %d %d\n", i, PPB_IN_EPP_MODE(sc->ppbus));
 
 		i = IRQENABLE | PCD | nINIT | SELECTIN;
 		ppb_wctr(ppbus, i);
