@@ -1,4 +1,4 @@
-<!-- $Id: kerneldebug.sgml,v 1.7 1996/01/31 14:26:11 mpp Exp $ -->
+<!-- $Id: kerneldebug.sgml,v 1.8 1996/01/31 19:02:59 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Kernel Debugging<label id="kerneldebug"></heading>
@@ -36,7 +36,7 @@
   done by default, however.</em>
 
   When the kernel has been built make a copy of it, say
-  <tt>kernel.debug</tt>, and then run <tt>strip -x</tt> on the
+  <tt>kernel.debug</tt>, and then run <tt>strip -d</tt> on the
   original. Install the original as normal.  You may also install
   the unstripped kernel, but symbol table lookup time for some
   programs will drastically increase, and since
