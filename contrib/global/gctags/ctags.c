@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-	"$Id: ctags.c,v 1.1.1.2 1997/12/15 23:08:35 cwt Exp $";
+	"$Id: ctags.c,v 1.1.1.3 1998/02/02 05:38:07 cwt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <limits.h>
