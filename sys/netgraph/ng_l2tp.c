@@ -819,13 +819,13 @@ ng_l2tp_recv_lower(node_p node, item_p item)
 		offset = ntohs(offset);
 
 		/* Trim offset padding */
-		if (offset <= 2 || offset > m->m_pkthdr.len) {
+		if ((2+offset) > m->m_pkthdr.len) {
 			priv->stats.recvInvalid++;
 			NG_FREE_ITEM(item);
 			NG_FREE_M(m);
 			return (EINVAL);
 		}
-		m_adj(m, offset);
+		m_adj(m, 2+offset);
 	}
 
 	/* Handle control packets */
