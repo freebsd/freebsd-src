@@ -1245,6 +1245,8 @@ ansoft-lm-1	1083/tcp   #Anasoft License Manager
 ansoft-lm-1	1083/udp   #Anasoft License Manager
 ansoft-lm-2	1084/tcp   #Anasoft License Manager
 ansoft-lm-2	1084/udp   #Anasoft License Manager
+webobjects	1085/tcp   #Web Objects
+webobjects	1085/udp   #Web Objects
 kpop		1109/tcp   #Unofficial
 kpop		1109/udp   #Unofficial
 nfsd-status	1110/tcp   #Cluster status info
