@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: af.c,v 1.4 1995/10/11 18:57:05 jhay Exp $
+ * $Id: af.c,v 1.1 1995/10/26 21:28:13 julian Exp $
  */
 
 #ifndef lint
@@ -194,10 +194,12 @@ struct sockaddr_ipx *sipx;
 {
 	register u_short *s = sipx->sipx_addr.x_host.s_host;
 
+	if ((s[0]==0x0000) && (s[1]==0x0000) && (s[2]==0x0000))
+		return (0);
 	if ((s[0]==0xffff) && (s[1]==0xffff) && (s[2]==0xffff))
 		return (0);
-	else
-		return (1);
+
+	return (1);
 }
 
 void
