@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.20 1998/05/02 21:57:49 brian Exp $
+ *	$Id: mp.c,v 1.1.2.21 1998/05/03 22:13:12 brian Exp $
  */
 
 #include <sys/types.h>
@@ -94,10 +94,10 @@ peerid_Equal(const struct peerid *p1, const struct peerid *p2)
 }
 
 static u_int32_t
-inc_seq(struct mp *mp, u_int32_t seq)
+inc_seq(unsigned is12bit, u_int32_t seq)
 {
   seq++;
-  if (mp->peer_is12bit) {
+  if (is12bit) {
     if (seq & 0xfffff000)
       seq = 0;
   } else if (seq & 0xff000000)
@@ -394,7 +394,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
          * packets that have already been received.
          */
 
-        mp->seq.next_in = seq = h.seq + 1;
+        mp->seq.next_in = seq = inc_seq(mp->local_is12bit, h.seq);
         last = NULL;
         q = mp->inbufs;
       } else
@@ -457,12 +457,12 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         hdlc_DecodePacket(mp->bundle, proto, q, &mp->link);
       }
 
-      mp->seq.next_in = seq = h.seq + 1;
+      mp->seq.next_in = seq = inc_seq(mp->local_is12bit, h.seq);
       last = NULL;
       q = mp->inbufs;
     } else {
       /* Look for the next fragment */
-      seq++;
+      seq = inc_seq(mp->local_is12bit, seq);
       last = q;
       q = q->pnext;
     }
@@ -473,16 +473,15 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
     last = NULL;
     for (q = mp->inbufs; q; last = q, q = q->pnext) {
       mp_ReadHeader(mp, q, &h);
-      if (h.seq > mh.seq) {
-        /* Our received fragment fits in before this one, so link it in */
-        if (last)
-          last->pnext = m;
-        else
-          mp->inbufs = m;
-        m->pnext = q;
+      if (h.seq > mh.seq)
         break;
-      }
     }
+    /* Our received fragment fits in here */
+    if (last)
+      last->pnext = m;
+    else
+      mp->inbufs = m;
+    m->pnext = q;
   }
 }
 
@@ -510,7 +509,7 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, int begin, int end)
   if (log_IsKept(LogDEBUG))
     log_Printf(LogDEBUG, "MP[frag %d]: Send %d bytes on link `%s'\n",
               mp->out.seq, mbuf_Length(mo), l->name);
-  mp->out.seq = inc_seq(mp, mp->out.seq);
+  mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
   hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
 }

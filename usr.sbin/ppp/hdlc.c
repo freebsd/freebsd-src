@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.31 1998/05/01 19:24:37 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.32 1998/05/03 11:24:13 brian Exp $
  *
  *	TODO:
  */
@@ -599,7 +599,8 @@ hdlc_ReportTime(void *v)
 
   if (memcmp(&hdlc->laststats, &hdlc->stats, sizeof hdlc->stats)) {
     log_Printf(LogPHASE,
-              "HDLC errors -> FCS: %u, ADDR: %u, COMD: %u, PROTO: %u\n",
+              "%s: HDLC errors -> FCS: %u, ADDR: %u, COMD: %u, PROTO: %u\n",
+              hdlc->lqm.owner->fsm.link->name,
 	      hdlc->stats.badfcs - hdlc->laststats.badfcs,
               hdlc->stats.badaddr - hdlc->laststats.badaddr,
               hdlc->stats.badcommand - hdlc->laststats.badcommand,

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.15 1998/04/28 01:25:46 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.16 1998/05/01 19:26:11 brian Exp $
  *
  *  TODO:
  */
@@ -59,7 +59,7 @@ vj_SendFrame(struct link *l, struct mbuf * bp, struct bundle *bundle)
   u_short proto;
   u_short cproto = bundle->ncp.ipcp.peer_compproto >> 16;
 
-  log_Printf(LogDEBUG, "vj_SendFrame: proto = %x\n",
+  log_Printf(LogDEBUG, "vj_SendFrame: COMPPROTO = %x\n",
             bundle->ncp.ipcp.peer_compproto);
   if (((struct ip *) MBUF_CTOP(bp))->ip_p == IPPROTO_TCP
       && cproto == PROTO_VJCOMP) {
