@@ -90,6 +90,7 @@ static void	gem_setladrf(struct gem_softc *);
 struct mbuf	*gem_get(struct gem_softc *, int, int);
 static void	gem_eint(struct gem_softc *, u_int);
 static void	gem_rint(struct gem_softc *);
+static void	gem_rint_timeout(void *);
 static void	gem_tint(struct gem_softc *);
 #ifdef notyet
 static void	gem_power(int, void *);
@@ -299,6 +300,7 @@ gem_attach(sc)
 #endif
 
 	callout_init(&sc->sc_tick_ch, 0);
+	callout_init(&sc->sc_rx_ch, 0);
 	return (0);
 
 	/*
@@ -1392,6 +1394,14 @@ gem_tint(sc)
 	gem_start(ifp);
 }
 
+static void
+gem_rint_timeout(arg)
+	void *arg;
+{
+
+	gem_rint((struct gem_softc *)arg);
+}
+
 /*
  * Receive interrupt.
  */
@@ -1408,6 +1418,7 @@ gem_rint(sc)
 	u_int64_t rxstat;
 	int i, len;
 
+	callout_stop(&sc->sc_rx_ch);
 	DPRINTF(sc, ("%s: gem_rint\n", device_get_name(sc->sc_dev)));
 	CTR1(KTR_GEM, "%s: gem_rint", device_get_name(sc->sc_dev));
 	/*
@@ -1427,11 +1438,16 @@ gem_rint(sc)
 		rxstat = GEM_DMA_READ(sc, sc->sc_rxdescs[i].gd_flags);
 
 		if (rxstat & GEM_RD_OWN) {
-			printf("gem_rint: completed descriptor "
-				"still owned %d\n", i);
 			/*
-			 * We have processed all of the receive buffers.
+			 * The descriptor is still marked as owned, although
+			 * it is supposed to have completed. This has been
+			 * observed on some machines. Just exiting here
+			 * might leave the packet sitting around until another
+			 * one arrives to trigger a new interrupt, which is
+			 * generally undesirable, so set up a timeout.
 			 */
+			callout_reset(&sc->sc_rx_ch, GEM_RXOWN_TICKS,
+			    gem_rint_timeout, sc);
 			break;
 		}
 
