@@ -330,6 +330,7 @@ extern devclass_t firewire_devclass;
 #define BIO_READ B_READ
 #define BIO_WRITE B_WRITE
 #define MIN(a,b) (((a)<(b))?(a):(b))
+#define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
 MALLOC_DECLARE(M_FW);
