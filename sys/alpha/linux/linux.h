@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.15 1997/06/02 06:28:03 msmith Exp $
+ *	$Id: linux.h,v 1.16 1997/06/02 06:45:17 msmith Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -417,6 +417,15 @@ struct trapframe;
 #define LINUX_SHM_RDONLY	0x1000
 #define LINUX_SHM_RND		0x2000
 #define LINUX_SHM_REMAP		0x4000
+
+/* semctl Command Definitions. */
+#define	LINUX_GETPID		11
+#define	LINUX_GETVAL		12
+#define	LINUX_GETALL		13
+#define	LINUX_GETNCNT		14
+#define	LINUX_GETZCNT		15
+#define	LINUX_SETVAL		16
+#define	LINUX_SETALL		17
 
 /* Socket defines */
 #define LINUX_SOCKET 		1

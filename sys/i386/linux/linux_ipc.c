@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.10 1997/02/22 09:38:22 peter Exp $
+ *  $Id: linux_ipc.c,v 1.11 1997/08/10 18:15:20 sos Exp $
  */
 
 
@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/sem.h>
 #include <sys/shm.h>
 
 #include <i386/linux/linux.h>
@@ -85,6 +86,17 @@ bsd_to_linux_ipc_perm(struct ipc_perm *bpp, struct linux_ipc_perm *lpp)
     lpp->seq = bpp->seq;
 }
 
+struct linux_semid_ds {
+	struct linux_ipc_perm	sem_perm;
+	linux_time_t		sem_otime;
+	linux_time_t		sem_ctime;
+	void			*sem_base;
+	void			*sem_pending;
+	void			*sem_pending_last;
+	void			*undo;
+	ushort			sem_nsems;
+};
+
 struct linux_shmid_ds {
     struct linux_ipc_perm shm_perm;
     int shm_segsz;
@@ -98,6 +110,26 @@ struct linux_shmid_ds {
     void *private2;
     void *private3;
 };
+
+static void
+linux_to_bsd_semid_ds(struct linux_semid_ds *lsp, struct semid_ds *bsp)
+{
+    linux_to_bsd_ipc_perm(&lsp->sem_perm, &bsp->sem_perm);
+    bsp->sem_otime = lsp->sem_otime;
+    bsp->sem_ctime = lsp->sem_ctime;
+    bsp->sem_nsems = lsp->sem_nsems;
+    bsp->sem_base = lsp->sem_base;
+}
+
+static void
+bsd_to_linux_semid_ds(struct semid_ds *bsp, struct linux_semid_ds *lsp)
+{
+	bsd_to_linux_ipc_perm(&bsp->sem_perm, &lsp->sem_perm);
+	lsp->sem_otime = bsp->sem_otime;
+	lsp->sem_ctime = bsp->sem_ctime;
+	lsp->sem_nsems = bsp->sem_nsems;
+	lsp->sem_base = bsp->sem_base;
+}
 
 static void
 linux_to_bsd_shmid_ds(struct linux_shmid_ds *lsp, struct shmid_ds *bsp)
@@ -130,19 +162,119 @@ bsd_to_linux_shmid_ds(struct shmid_ds *bsp, struct linux_shmid_ds *lsp)
 static int
 linux_semop(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+	struct semop_args /* {
+	int	semid;
+	struct	sembuf *sops;
+	int		nsops;
+	} */ bsd_args;
+
+	bsd_args.semid = args->arg1;
+	bsd_args.sops = (struct sembuf *)args->ptr;
+	bsd_args.nsops = args->arg2;
+	return semop(p, &bsd_args, retval);
 }
 
 static int
 linux_semget(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+	struct semget_args /* {
+	key_t	key;
+	int		nsems;
+	int		semflg;
+	} */ bsd_args;
+
+	bsd_args.key = args->arg1;
+	bsd_args.nsems = args->arg2;
+	bsd_args.semflg = args->arg3;
+	return semget(p, &bsd_args, retval);
 }
 
 static int
 linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+	struct linux_semid_ds	linux_semid;
+	struct semid_ds	bsd_semid;
+	struct __semctl_args /* {
+	int		semid;
+	int		semnum;
+	int		cmd;
+	union	semun *arg;
+	} */ bsd_args;
+	int	error;
+	caddr_t sg, unptr, dsp, ldsp;
+
+	sg = stackgap_init();
+	bsd_args.semid = args->arg1;
+	bsd_args.semnum = args->arg2;
+	bsd_args.cmd = args->arg3;
+	bsd_args.arg = (union semun *)args->ptr;
+
+	switch (args->arg3) {
+	case LINUX_IPC_RMID:
+		bsd_args.cmd = IPC_RMID;
+		break;
+	case LINUX_GETNCNT:
+		bsd_args.cmd = GETNCNT;
+		break;
+	case LINUX_GETPID:
+		bsd_args.cmd = GETPID;
+		break;
+	case LINUX_GETVAL:
+		bsd_args.cmd = GETVAL;
+		break;
+	case LINUX_GETZCNT:
+		bsd_args.cmd = GETZCNT;
+		break;
+	case LINUX_SETVAL:
+		bsd_args.cmd = SETVAL;
+		break;
+	case LINUX_IPC_SET:
+		bsd_args.cmd = IPC_SET;
+		error = copyin(args->ptr, &ldsp, sizeof(ldsp));
+		if (error)
+			return error;
+		error = copyin(ldsp, (caddr_t)&linux_semid, sizeof(linux_semid));
+		if (error)
+			return error;
+		linux_to_bsd_semid_ds(&linux_semid, &bsd_semid);
+		unptr = stackgap_alloc(&sg, sizeof(union semun));
+		dsp = stackgap_alloc(&sg, sizeof(struct semid_ds));
+		error = copyout((caddr_t)&bsd_semid, dsp, sizeof(bsd_semid));
+		if (error)
+			return error;
+		error = copyout((caddr_t)&dsp, unptr, sizeof(dsp));
+		if (error)
+			return error;
+		bsd_args.arg = (union semun *)unptr;
+		return __semctl(p, &bsd_args, retval);
+	case LINUX_IPC_STAT:
+		bsd_args.cmd = IPC_STAT;
+		unptr = stackgap_alloc(&sg, sizeof(union semun *));
+		dsp = stackgap_alloc(&sg, sizeof(struct semid_ds));
+		error = copyout((caddr_t)&dsp, unptr, sizeof(dsp));
+		if (error)
+			return error;
+		bsd_args.arg = (union semun *)unptr;
+		error = __semctl(p, &bsd_args, retval);
+		if (error)
+			return error;
+		error = copyin(dsp, (caddr_t)&bsd_semid, sizeof(bsd_semid));
+		if (error)
+			return error;
+		bsd_to_linux_semid_ds(&bsd_semid, &linux_semid);
+		error = copyin(args->ptr, &ldsp, sizeof(ldsp));
+		if (error)
+			return error;
+		return copyout((caddr_t)&linux_semid, ldsp, sizeof(linux_semid));
+	case LINUX_GETALL:
+		/* FALLTHROUGH */
+	case LINUX_SETALL:
+		/* FALLTHROUGH */
+	default:
+		uprintf("LINUX: 'ipc' typ=%d not implemented\n", args->what);
+		return EINVAL;
+	}
+	return __semctl(p, &bsd_args, retval);
 }
 
 static int
