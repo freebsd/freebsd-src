@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.13 1995/12/07 12:46:47 davidg Exp $
+ * $Id: kern_proc.c,v 1.14 1995/12/14 08:31:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -464,6 +464,8 @@ fill_eproc(p, ep)
 		ep->e_pgid = p->p_pgrp->pg_id;
 		ep->e_jobc = p->p_pgrp->pg_jobc;
 	}
+	if (ep->e_sess)
+		bcopy(ep->e_sess->s_login, ep->e_login, sizeof(ep->e_login));
 	if ((p->p_flag & P_CONTROLT) &&
 	    (ep->e_sess != NULL) &&
 	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
