@@ -31,10 +31,22 @@
  * SUCH DAMAGE.
  *
  *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
- * $Id: libkern.h,v 1.7 1995/04/23 08:05:25 bde Exp $
+ * $Id: libkern.h,v 1.8 1995/11/09 20:20:00 phk Exp $
  */
 
+#ifndef _SYS_LIBKERN_H_
+#define	_SYS_LIBKERN_H_
+
 #include <sys/types.h>
+
+/* BCD conversions. */
+extern u_char const	bcd2bin_data[];
+extern u_char const	bin2bcd_data[];
+extern char const	hex2ascii_data[];
+
+#define	bcd2bin(bcd)	(bcd2bin_data[bcd])
+#define	bin2bcd(bin)	(bin2bcd_data[bin])
+#define	hex2ascii(hex)	(hex2ascii_data[hex])
 
 static __inline int imax(int a, int b) { return (a > b ? a : b); }
 static __inline int imin(int a, int b) { return (a < b ? a : b); }
@@ -53,6 +65,8 @@ int	 bcmp __P((const void *, const void *, size_t));
 int	 ffs __P((int));
 #endif
 int	 locc __P((int, char *, u_int));
+void	 qsort __P((void *base, size_t nmemb, size_t size,
+		    int (*compar)(const void *, const void *)));
 u_long	 random __P((void));
 char	*rindex __P((const char *, int));
 int	 scanc __P((u_int, u_char *, u_char *, int));
@@ -63,5 +77,5 @@ char	*strcpy __P((char *, const char *));
 size_t	 strlen __P((const char *));
 int	 strncmp __P((const char *, const char *, size_t));
 char	*strncpy __P((char *, const char *, size_t));
-void	 qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));
 
+#endif /* !_SYS_LIBKERN_H_ */
