@@ -1,9 +1,9 @@
 dnl
-dnl $Id: broken-realloc.m4,v 1.1 2000/07/15 18:05:36 joda Exp $
+dnl $Id: broken-realloc.m4,v 1.1.12.1 2004/04/01 07:27:32 joda Exp $
 dnl
 dnl Test for realloc that doesn't handle NULL as first parameter
 dnl
-AC_DEFUN(rk_BROKEN_REALLOC, [
+AC_DEFUN([rk_BROKEN_REALLOC], [
 AC_CACHE_CHECK(if realloc if broken, ac_cv_func_realloc_broken, [
 ac_cv_func_realloc_broken=no
 AC_TRY_RUN([

@@ -1326,9 +1326,11 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef gid_t
 
-/* Define as `__inline' if that's what the C compiler calls it, or to nothing
-   if it is not supported. */
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
 #undef inline
+#endif
 
 /* Define this to what the type mode_t should be. */
 #undef mode_t

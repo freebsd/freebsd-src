@@ -1,9 +1,9 @@
-dnl $Id: check-type-extra.m4,v 1.2 1999/03/01 09:52:23 joda Exp $
+dnl $Id: check-type-extra.m4,v 1.2.34.1 2004/04/01 07:27:33 joda Exp $
 dnl
 dnl ac_check_type + extra headers
 
 dnl AC_CHECK_TYPE_EXTRA(TYPE, DEFAULT, HEADERS)
-AC_DEFUN(AC_CHECK_TYPE_EXTRA,
+AC_DEFUN([AC_CHECK_TYPE_EXTRA],
 [AC_REQUIRE([AC_HEADER_STDC])dnl
 AC_MSG_CHECKING(for $1)
 AC_CACHE_VAL(ac_cv_type_$1,

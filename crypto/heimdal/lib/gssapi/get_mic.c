@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: get_mic.c,v 1.21 2003/03/16 18:02:04 lha Exp $");
+RCSID("$Id: get_mic.c,v 1.21.2.1 2003/09/18 22:05:12 lha Exp $");
 
 static OM_uint32
 mic_des
@@ -280,6 +280,10 @@ OM_uint32 gss_get_mic
   case KEYTYPE_DES3 :
       ret = mic_des3 (minor_status, context_handle, qop_req,
 		      message_buffer, message_token, key);
+      break;
+  case KEYTYPE_ARCFOUR:
+      ret = _gssapi_get_mic_arcfour (minor_status, context_handle, qop_req,
+				     message_buffer, message_token, key);
       break;
   default :
       *minor_status = KRB5_PROG_ETYPE_NOSUPP;

@@ -1,11 +1,11 @@
-dnl $Id: krb-readline.m4,v 1.5 2002/08/29 02:22:32 assar Exp $
+dnl $Id: krb-readline.m4,v 1.5.6.1 2004/04/01 07:27:34 joda Exp $
 dnl
 dnl Tests for readline functions
 dnl
 
 dnl el_init
 
-AC_DEFUN(KRB_READLINE,[
+AC_DEFUN([KRB_READLINE],[
 AC_FIND_FUNC_NO_LIBS(el_init, edit, [], [], [$LIB_tgetent])
 if test "$ac_cv_func_el_init" = yes ; then
 	AC_CACHE_CHECK(for four argument el_init, ac_cv_func_el_init_four,[

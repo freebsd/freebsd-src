@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken-common.h,v 1.51 2002/09/09 13:41:12 joda Exp $ */
+/* $Id: roken-common.h,v 1.51.6.1 2004/01/15 18:15:05 lha Exp $ */
 
 #ifndef __ROKEN_COMMON_H__
 #define __ROKEN_COMMON_H__
@@ -172,7 +172,7 @@
 #define EAI_NOERROR	0	/* no error */
 #endif
 
-#ifndef EAI_ADDRFAMILY
+#ifndef EAI_NONAME
 
 #define EAI_ADDRFAMILY	1	/* address family for nodename not supported */
 #define EAI_AGAIN	2	/* temporary failure in name resolution */
@@ -186,7 +186,7 @@
 #define EAI_SOCKTYPE   10	/* ai_socktype not supported */
 #define EAI_SYSTEM     11	/* system error returned in errno */
 
-#endif /* EAI_ADDRFAMILY */
+#endif /* EAI_NONAME */
 
 /* flags for getaddrinfo() */
 

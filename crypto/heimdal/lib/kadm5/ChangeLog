@@ -1,3 +1,19 @@
+2003-12-30  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* chpass_s.c: from 1.14->1.15:
+	(change): fix same-password-again by decrypting keys and setting
+	an error code. From: Buck Huppmann <buckh@pobox.com>
+	
+2003-12-21  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* init_c.c: 1.47->1.48: (_kadm5_c_init_context): catch errors from
+	strdup and other krb5_ functions
+	
+2003-08-15  Love Hörnquist Åstrand <lha@it.su.se>
+
+	* ipropd_slave.c: 1.27->1.28: (receive_everything): switch close
+	and rename From: Alf Wachsmann <alfw@SLAC.Stanford.EDU>
+	
 2003-04-16  Love Hörnquist Åstrand <lha@it.su.se>
 
 	* send_recv.c: check return values from krb5_data_alloc

@@ -1,3 +1,282 @@
+2004-04-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Release 0.6.1
+
+2004-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos4.c: 1.46: stop the client from renewing tickets
+	into the future From: Jeffrey Hutzelman <jhutz@cmu.edu>
+	
+2004-03-10  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/fcache.c: 1.43: (fcc_store_cred): NULL terminate
+	krb5_config_get_bool_default' arglist
+	
+2004-03-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/krb5.conf.5: 1.44: document
+	[libdefaults]fcc-mit-ticketflags=boolean 1.43: don't use path's in
+	first .Nm, it confuses some locate.updatedb, use FILES section to
+	describe where the file is instead.
+	
+	* lib/krb5/fcache.c (fcc_store_cred): default to use old format
+	
+	* lib/krb5/fcache.c: 1.42: (fcc_store_cred): use
+	[libdefaults]fcc-mit-ticketflags=boolean to decide what format to
+	write the fcc in. Default to mit format (aka heimdal 0.7 format)
+	1.41: (_krb5_xlock): handle that everything was ok, and don't put
+	an error in the error strings then
+	
+	* lib/krb5/store.c: 1.43: add _krb5_store_creds_heimdal_0_7 and
+	_krb5_store_creds_heimdal_pre_0_7 that store the creds in just
+	that format make krb5_store_creds default to mit format 1.42:
+	(krb5_ret_creds): Runtime detect the what is the higher bits of
+	the bitfield 1.41: (krb5_store_creds): add disabled code that
+	store the ticket flags in reverse order (bitswap32): new function
+	1.40: (krb5_ret_creds): if the higher ticket flags are set, its a
+	mit cache, reverse the bits, bug pointed out by Sergio Gelato
+	<Sergio.Gelato@astro.su.se>
+	
+	delta modfied to not change the behavior of krb5_store_creds
+	
+2004-03-07  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/mk_safe.c (krb5_mk_safe): fix assignment of usec2
+	
+2004-03-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/mcache.c: patch based on 1.17 and 1.18 but with
+	threading code pulled out;
+	
+	1.18: (mcc_get_principal): also check for primary_principal ==
+	NULL now that that isn't used as dead flag 1.17: don't overload
+	the primary_principal == NULL as dead since that doesn't always
+	work Based on patch from Jeffrey Hutzelman <jhutz@cmu.edu>, but
+	tweek by me
+
+	* lib/krb5/crypto.c: 1.94: (decrypt_internal_special): do not not
+	modify the original data test case from Ronnie Sahlberg
+	<ronnie_sahlberg@ozemail.com.au>
+
+2004-02-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/verify_krb5_conf.c: 1.22->1.23: (check_host): don't
+	check for EAI_NODATA, because its depricated in RFC3493 Pointed
+	out by Hajimu UMEMOTO <ume@mahoroba.org> on heimdal-discuss
+	
+	* lib/krb5/eai_to_heim_errno.c: 1.3->1.4: EAI_ADDRFAMILY and
+	EAI_NODATA is deprecated in RFC3493
+
+2004-02-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/asn1/der_length.c: 1.16: Fix len_unsigned for certain
+	negative integers, it got the length wrong, fix from Panasas, Inc.
+	
+	* lib/asn1/der_locl.h: 1.5: add _heim_len_unsigned, _heim_len_int
+	
+2004-01-26  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/asn1/gen_length.c: 1.14: (length_type): TSequenceOf: add up
+	the size of all the elements, don't use just the size of the last
+	element.
+
+	* lib/krb5/fcache.c: 1.40: (_krb5_xlock): catch EINVAL and assume
+	that it means that the filesystem doesn't support locking 1.39:
+	(_krb5_xlock): fix compile error in last commit 1.38: internally
+	export x{,un}lock and thus prefix them with _krb5_
+	
+2004-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kuser/kinit.c: 1.106: (renew_validate): if renewable_flag and
+	not time specifed, use "1 month"
+	1.105: make -9 work again
+
+2004-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/get_for_creds.c: 1.36: (add_addrs): don't increase
+	addr->len until in contains interesting data, use right iteration
+	counter when clearing the addresses 1.39: krb5_princ_realm ->
+	krb5_principal_get_realm 1.38: (krb5_get_forwarded_creds): use
+	KRB5_AUTH_CONTEXT_DO_TIME if we want timestamp in forwarded
+	krb-cred 1.39: (krb5_get_forwarded_creds): If tickets are
+	address-less, forward address-less tickets.  1.40:
+	(krb5_get_forwarded_creds): try to handle errors better for
+	previous commit 1.41: (add_addrs): don't add same address multiple
+	times
+	
+	* lib/krb5/get_cred.c: 1.96->1.97: rename get_krbtgt to
+	_krb5_get_krbtgt and export it
+
+2003-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos5.c: part of 1.146->1.147: handle NULL client/server
+	names
+
+2003-12-03  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/crypto.c: 1.90->1.91: require cipher-text to be padded
+	to padsize 1.91->1.92: (decrypt_internal_derived): move up padsize
+	check to avoid memory leak
+	
+2003-12-01  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kuser/kinit.c: 1.103->1.104: (main): return the return value
+	from simple_execvp
+
+2003-10-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/transited.c: 1.13->1.14: (krb5_domain_x500_encode):
+	always zero out encoding to make sure it have a defined value on
+	failure
+
+	* lib/krb5/transited.c: 1.12->1.13: (krb5_domain_x500_encode): if
+	num_realms == 0, set encoding and return (avoids malloc(0)) check
+	return value from malloc
+	
+2003-10-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* doc/setup.texi: 1.35->1.36: spelling
+	
+	* kdc/kdc_locl.h: 1.58->1.59: add flag to always check transited
+	policy
+
+	* doc/setup.texi: 1.27->1.35: many changes
+	
+	* lib/krb5/get_cred.c: 1.95->1.96: get capath info from [capaths]
+	section
+
+	* lib/krb5/rd_req.c: 1.50->1.51: (krb5_decrypt_ticket): try to
+	verify transited realms, unless the transited-policy-checked flag
+	is set
+
+	* lib/krb5/transited.c:
+	1.12: (krb5_domain_x500_decode): set *num_realms to zero not num_realms
+	1.11: (krb5_domain_x500_decode): handle zero length tr data;
+	(krb5_check_transited): new function that does more useful stuff
+
+	* kdc/kdc.8: 1.23->1.24: document enforce-transited-policy
+	
+	* kdc/config.c: 1.47->1.48: add flag to always check transited
+	policy
+
+	* kdc/kerberos5.c:
+	1.150: (fix_transited_encoding): also verify with policy,
+	unless asked not to
+	1.151: always check transited policy if flag set either globally
+	(on principal part of patch not pulled up)
+	1.152: (fix_transited_encoding): set transited type
+	1.153: (fix_transited_encoding): always print cross-realm information
+
+2003-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/config_file.c: 1.48->1.49:
+	(krb5_config_parse_file_debug): punt if there is binding before a
+	section declaration.
+	Bug found by Arkadiusz Miskiewicz <arekm@pld-linux.org>
+
+	* kdc/kaserver.c: 1.21->1.23:
+	(do_getticket): if times data is shorter then 8 bytes, request is
+	malformed.
+	(do_authenticate): if request length is less then 8 bytes, its a
+	bad request and fail. Pointed out by Marco Foglia <marco@foglia.org>
+
+2003-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/verify_krb5_conf.c: 1.17->1.18: add missing " within
+	#if 0 From: stefan sokoll <stefansokoll@yahoo.de>
+	
+2003-09-19  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/rd_req.c:
+	1.47->1.48: (krb5_rd_req): allow caller to pass in a key
+	in the auth_context, they way processes that doesn't use the
+	keytab can still pass in the key of the service (matches behavior
+	of MIT Kerberos).
+	
+2003-09-18  Love Hörnquist Åstrand  <lha@it.su.se>
+	
+	* lib/krb5/crypto.c: 
+	1.87->1.88: (usage2arcfour): simplify, only
+	include special cases From: Luke Howard <lukeh@PADL.COM>
+	1.86->1.87: (arcfour_checksum_p): return true when is arcfour,
+	not when its not pointed out by Luke Howard
+	1.82->1.83: Do the arcfour checksum mapping for
+	krb5_create_checksum and krb5_verify_checksum, From: Luke Howard
+	<lukeh@PADL.COM>
+	1.81->1.82: (hmac): make it return an error
+	when out of memory, update callsites to either return error or use
+	krb5_abortx
+	(krb5_hmac): expose hmac
+	* lib/krb5/mk_req_ext.c: 1.26->1.27: (krb5_mk_req_internal):
+	when using arcfour-hmac-md5, use an unkeyed checksum
+	(rsa-md5), since Microsoft calculates the keyed checksum with
+	the subkey of the authenticator.
+
+	* lib/krb5/get_cred.c:
+	1.93->1.94 (init_tgs_req): make generation of subkey
+	optional on configuration parameter
+	[realms]realm={tgs_require_subkey=bool}
+	defaults to off. The RFC1510 weakly defines the correct behavior,
+	so old DCE secd apparently required the subkey to be there, and MS
+	will use it when its there. But the request isn't encrypted in the
+	subkey, so you get to choose if you want to talk to a MS mdc or a
+	old DCE secd.
+
+	partly 1.91->1.92: (init_tgs_req): in case of error, don't
+	free in	the req_body addresses since they where pass in by caller
+
+	lib/krb5/get_in_tkt.c:
+	1.108->1.1.09: (krb5_get_in_tkt): for compatibility with with
+	the mit implemtation, don't free `creds' argument when done, its up
+	the the caller to do that, also allow a NULL ccache.
+
+	* doc/ack.texi
+	1.16->1.17: update Luke Howard email address
+
+	* lib/hdb/hdb-ldap.c:
+	1.13->1.14: code rewrite from Luke Howard <lukeh@PADL.COM>
+	1.12->1.13: (LDAP_store): log what principal/dn failed
+	1.11->1.12: use int2HDBFlags/HDBFlags2int
+	From: Alberto Patino <jalbertop@aranea.com.mx>, 
+	Luke Howard <lukeh@PADL.COM>
+	Pointed out by Andrew Bartlett of Samba
+	1.10->1.11: (LDAP__connect): bind sasl "EXTERNAL" to ldap connection
+	(LDAP_store): remove superfluous argument to asprintf
+	From Alberto Patino <jalbertop@aranea.com.mx>
+
+	* lib/krb5/krb5.h:
+	1.214->1.2015: add KEYTYPE_ARCFOUR_56
+	
+2003-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/config_file.c: fix prototypes Fredrik Ljungberg
+	<flag@pobox.se>
+	
+2003-09-11  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/hdb_locl.h: 1.18->1.19: include <limits.h> for ULONG_MAX
+	noted by Wissler Magnus <M.Wissler@abalon.se> on heimdal-discuss
+	
+2003-08-29  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/hdb/db3.c: 1.8->1.9: patch for working with DB4 on
+	heimdal-discuss From: Luke Howard <lukeh@PADL.COM> 1.9->1.10: try
+	to include more db headers
+	
+2003-08-25  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/connect.c: 1.92->1.93 (handle_tcp): handle recvfrom
+	returning 0 (connection closed) 1.91->1.92: (grow_descr):
+	increment the size after we succeed to allocate the space
+	
+2003-08-15  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/principal.c: 1.83->1.85: (unparse_name): len can't be
+	zero, so, don't check for that
+	(unparse_name): make sure there are space for a NUL, set *name to NULL
+	when there is a failure (so caller can't get hold of a freed
+	pointer)
+
 2003-05-08  Johan Danielsson  <joda@ratatosk.pdc.kth.se>
 
 	* Release 0.6

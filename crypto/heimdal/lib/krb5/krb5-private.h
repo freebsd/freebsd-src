@@ -43,6 +43,13 @@ _krb5_get_int (
 	unsigned long */*value*/,
 	size_t /*size*/);
 
+krb5_error_code
+_krb5_get_krbtgt (
+	krb5_context /*context*/,
+	krb5_ccache /*id*/,
+	krb5_realm /*realm*/,
+	krb5_creds **/*cred*/);
+
 time_t
 _krb5_krb_life_to_time (
 	int /*start*/,
@@ -65,5 +72,31 @@ _krb5_put_int (
 	void */*buffer*/,
 	unsigned long /*value*/,
 	size_t /*size*/);
+
+krb5_error_code
+_krb5_store_creds_heimdal_0_7 (
+	krb5_storage */*sp*/,
+	krb5_creds */*creds*/);
+
+krb5_error_code
+_krb5_store_creds_heimdal_pre_0_7 (
+	krb5_storage */*sp*/,
+	krb5_creds */*creds*/);
+
+krb5_error_code
+_krb5_store_creds_internal (
+	krb5_storage */*sp*/,
+	krb5_creds */*creds*/,
+	int /*v0_6*/);
+
+int
+_krb5_xlock (
+	krb5_context /*context*/,
+	int /*fd*/,
+	krb5_boolean /*exclusive*/,
+	const char */*filename*/);
+
+int
+_krb5_xunlock (int /*fd*/);
 
 #endif /* __krb5_private_h__ */

@@ -1,4 +1,4 @@
-@c $Id: setup.texi,v 1.27 2003/03/30 21:43:00 lha Exp $
+@c $Id: setup.texi,v 1.27.2.2 2003/10/21 21:37:56 lha Exp $
 
 @node Setting up a realm, Things in search for a better place, Building and Installing, Top
 
@@ -15,6 +15,9 @@
 * Slave Servers::               
 * Incremental propagation::     
 * Salting::
+* Cross realm::
+* Transit policy::
+* Setting up DNS::
 @end menu
 
 A
@@ -61,12 +64,12 @@ In this manual, names of sections and bindings will be given as strings
 separated by slashes (@samp{/}). The @samp{other-var} variable will thus
 be @samp{section1/a-subsection/other-var}.
 
-For in-depth information about the contents of the config file, refer to
+For in-depth information about the contents of the configuration file, refer to
 the @file{krb5.conf} manual page. Some of the more important sections
 are briefly described here.
 
 The @samp{libdefaults} section contains a list of library configuration
-parameters, such as the default realm and the timeout for kdc
+parameters, such as the default realm and the timeout for KDC
 responses. The @samp{realms} section contains information about specific
 realms, such as where they hide their KDC. This section serves the same
 purpose as the Kerberos 4 @file{krb.conf} file, but can contain more
@@ -74,7 +77,7 @@ information. Finally the @samp{domain_realm} section contains a list of
 mappings from domains to realms, equivalent to the Kerberos 4
 @file{krb.realms} file.
 
-To continue with the realm setup, you will have to create a config file,
+To continue with the realm setup, you will have to create a configuration file,
 with contents similar to the following.
 
 @example
@@ -82,7 +85,8 @@ with contents similar to the following.
         default_realm = MY.REALM
 [realms]
         MY.REALM = @{
-                kdc = my.kdc
+                kdc = my.kdc my.slave.kdc
+                kdc = my.third.kdc
         @}
 [domain_realm]
         .my.domain = MY.REALM
@@ -91,14 +95,19 @@ with contents similar to the following.
 
 If you use a realm name equal to your domain name, you can omit the
 @samp{libdefaults}, and @samp{domain_realm}, sections. If you have a
-SRV-record for your realm, or your kerberos server has CNAME called
+SRV-record for your realm, or your Kerberos server has CNAME called
 @samp{kerberos.my.realm}, you can omit the @samp{realms} section too.
 
 @node Creating the database, keytabs, Configuration file, Setting up a realm
 @section Creating the database
 
-The database library will look for the database in @file{/var/heimdal},
-so you should probably create that directory.
+The database library will look for the database in the directory
+@file{/var/heimdal}, so you should probably create that directory.
+Make sure the directory have restrictive permissions.
+
+@example
+# mkdir /var/heimdal
+@end example
 
 The keys of all the principals are stored in the database.  If you
 choose to, these can be encrypted with a master key.  You do not have to
@@ -193,11 +202,11 @@ Version  Type             Principal
 
 Heimdal can be configured to support 524, Kerberos 4 or kaserver. All
 theses services are default turned off. Kerberos 4 support also
-depends on if Kerberos 4 support is compiled in with heimdal.
+depends on if Kerberos 4 support is compiled in with Heimdal.
 
 @subsection 524
 
-524 is a service that allows the kdc to convert Kerberos 5 tickets to
+524 is a service that allows the KDC to convert Kerberos 5 tickets to
 Kerberos 4 tickets for backward compatibility. See also Using 2b
 tokens with AFS in @xref{Things in search for a better place}.
 
@@ -224,7 +233,7 @@ Kerberos 4 can be turned on by adding this to the configuration file
 @subsection kaserver
 
 Kaserver is a Kerberos 4 that is used in AFS, the protocol have some
-features over plain Kerberos 4, but like kerberos 4 only use single
+features over plain Kerberos 4, but like Kerberos 4 only use single
 DES too.
 
 You should only enable Kerberos 4 support if you have a need for for
@@ -252,7 +261,7 @@ kerberos-adm stream     tcp     nowait  root /usr/heimdal/libexec/kadmind kadmin
 You might need to add @samp{kerberos-adm} to your @file{/etc/services}
 as 749/tcp.
 
-Access to the admin server is controlled by an acl-file, (default
+Access to the administration server is controlled by an acl-file, (default
 @file{/var/heimdal/kadmind.acl}.) The lines in the access file, has the
 following syntax:
 @smallexample
@@ -277,7 +286,7 @@ The patters are of the same type as those used in shell globbing, see
 In the example below @samp{lha/admin} can change every principal in the
 database. @samp{jimmy/admin} can only modify principals that belong to
 the realm @samp{E.KTH.SE}. @samp{mille/admin} is working at the
-helpdesk, so he should only be able to change the passwords for single
+help desk, so he should only be able to change the passwords for single
 component principals (ordinary users). He will not be able to change any
 @samp{/admin} principal.
 
@@ -356,8 +365,9 @@ to the slaves, running
 @pindex hpropd
 @code{hpropd} processes.
 
-Every slave needs a keytab with a principal,
-@samp{hprop/@var{hostname}}.  Add that with the
+Every slave needs a database directory, the master key (if it was used
+for the database) and a keytab with the principal
+@samp{hprop/@var{hostname}}.  Add the principal with the
 @pindex ktutil
 @code{ktutil} command and start
 @pindex hpropd
@@ -365,6 +375,7 @@ Every slave needs a keytab with a principal,
 
 @example
 slave# ktutil get -p foo/admin hprop/`hostname`
+slave# mkdir /var/heimdal
 slave# hpropd
 @end example
 
@@ -447,7 +458,7 @@ master# /usr/heimdal/libexec/ipropd-master &
 slave#  /usr/heimdal/libexec/ipropd-slave master &
 @end example
 
-@node Salting, , Incremental propagation, Setting up a realm
+@node Salting, Cross realm, Incremental propagation, Setting up a realm
 @section Salting
 @cindex Salting
 
@@ -476,7 +487,7 @@ The syntax of @code{[kadmin]default_keys} is
 @samp{[etype:]salt-type[:salt-string]}. @samp{etype} is the encryption
 type (des, des3, arcfour), @code{salt-type} is the type of salt (pw-salt
 or afs3-salt), and the salt-string is the string that will be used as
-salt (remember that if the salt is appened/prepended, the empty salt ""
+salt (remember that if the salt is appended/prepended, the empty salt ""
 is the same thing as no salt at all).
 
 Common types of salting includes
@@ -498,3 +509,156 @@ string (same as no salt).
 the cell appended to the password.
 
 @end itemize
+
+@node Cross realm, Transit policy , Salting, Setting up a realm
+@section Cross realm
+@cindex Cross realm
+
+Suppose you are residing in the realm @samp{MY.REALM}, how do you
+authenticate to a server in @samp{OTHER.REALM}? Having valid tickets in
+@samp{MY.REALM} allows you to communicate with kerberised services in that
+realm. However, the computer in the other realm does not have a secret
+key shared with the Kerberos server in your realm.
+
+It is possible to add a share keys between two realms that trust each
+other. When a client program, such as @code{telnet} or @code{ssh},
+finds that the other computer is in a different realm, it will try to
+get a ticket granting ticket for that other realm, but from the local
+Kerberos server. With that ticket granting ticket, it will then obtain
+service tickets from the Kerberos server in the other realm.
+
+For a two way trust between @samp{MY.REALM} and @samp{OTHER.REALM}
+add the following principals to each realm. The principals should be
+@samp{krbtgt/OTHER.REALM@@MY.REALM} and
+@samp{krbtgt/MY.REALM@@OTHER.REALM} in @samp{MY.REALM}, and
+@samp{krbtgt/MY.REALM@@OTHER.REALM} and
+@samp{krbtgt/OTHER.REALM@@MY.REALM}in @samp{OTHER.REALM}.
+
+In Kerberos 5 the trust can be one configured to be one way. So that
+users from @samp{MY.REALM} can authenticate to services in
+@samp{OTHER.REALM}, but not the opposite. In the example above, the
+@samp{krbtgt/MY.REALM@@OTHER.REALM} then should be removed.
+
+The two principals must have the same key, key version number, and the
+same set of encryption types. Remember to transfer the two keys in a
+safe manner.
+
+@example
+@cartouche
+vr$ klist
+Credentials cache: FILE:/tmp/krb5cc_913.console
+        Principal: lha@@E.KTH.SE
+
+  Issued           Expires          Principal                   
+May  3 13:55:52  May  3 23:55:54  krbtgt/E.KTH.SE@@E.KTH.SE      
+
+vr$ telnet -l lha hummel.it.su.se
+Trying 2001:6b0:5:1095:250:fcff:fe24:dbf...
+Connected to hummel.it.su.se.
+Escape character is '^]'.
+Waiting for encryption to be negotiated...
+[ Trying mutual KERBEROS5 (host/hummel.it.su.se@@SU.SE)... ]
+[ Kerberos V5 accepts you as ``lha@@E.KTH.SE'' ]
+Encryption negotiated.
+Last login: Sat May  3 14:11:47 from vr.l.nxs.se
+hummel$ exit
+
+vr$ klist
+Credentials cache: FILE:/tmp/krb5cc_913.console
+        Principal: lha@@E.KTH.SE
+
+  Issued           Expires          Principal                   
+May  3 13:55:52  May  3 23:55:54  krbtgt/E.KTH.SE@@E.KTH.SE      
+May  3 13:55:56  May  3 23:55:54  krbtgt/SU.SE@@E.KTH.SE         
+May  3 14:10:54  May  3 23:55:54  host/hummel.it.su.se@@SU.SE    
+
+@end cartouche
+@end example
+
+@node Transit policy, Setting up DNS , Cross realm, Setting up a realm
+@section Transit policy
+@cindex Transit policy
+
+If you want to use cross realm authentication through an intermediate
+realm it must be explicitly allowed by either the KDCs or the server
+receiving the request. This is done in @file{krb5.conf} in the
+@code{[capaths]} section.
+
+When the ticket transits through a realm to another realm, the
+destination realm adds its peer to the "transited-realms" field in the
+ticket. The field is unordered, this is since there is no way to know if
+know if one of the transited-realms changed the order of the list.
+
+The syntax for @code{[capaths]} section:
+
+@example
+@cartouche
+[capaths]
+        CLIENT-REALM = @{
+                SERVER-REALM = PERMITTED-CROSS-REALMS ...
+        @}
+@end cartouche
+@end example
+
+The realm @code{STACKEN.KTH.SE} allows clients from @code{SU.SE} and
+@code{DSV.SU.SE} to cross in. Since @code{STACKEN.KTH.SE} only have
+direct cross realm with @code{KTH.SE}, and @code{DSV.SU.SE} only have direct cross
+realm with @code{SU.SE} they need to use both @code{SU.SE} and
+@code{KTH.SE} as transit realms.
+
+@example
+@cartouche
+[capaths]
+	SU.SE = @{
+                    STACKEN.KTH.SE = KTH.SE
+	@}
+	DSV.SU.SE = @{
+                    STACKEN.KTH.SE = SU.SE KTH.SE
+	@}
+
+@end cartouche
+@end example
+
+@c To test the cross realm configuration, use:
+@c    kmumble transit-check client server transit-realms ...
+
+@node Setting up DNS, , Transit policy, Setting up a realm
+@section Setting up DNS
+@cindex Setting up DNS
+
+If there is information about where to find the KDC or kadmind for a
+realm in the @file{krb5.conf} for a realm, that information will be
+preferred and DNS will not be queried.
+
+Heimdal will try to use DNS to find the KDCs for a realm. First it
+will try to find @code{SRV} resource record (RR) for the realm. If no
+SRV RRs are found, it will fall back to looking for a @code{A} RR for
+a machine named kerberos.REALM, and then kerberos-1.REALM, etc
+
+Adding this information to DNS makes the client have less
+configuration (in the common case, no configuration) and allows the
+system administrator to change the number of KDCs and on what machines
+they are running without caring about clients.
+
+The backside of using DNS that the client might be fooled to use the
+wrong server if someone fakes DNS replies/data, but storing the IP
+addresses of the KDC on all the clients makes it very hard to change
+the infrastructure.
+
+Example of the configuration for the realm @code{EXAMPLE.COM},
+
+@example
+
+$ORIGIN example.com.
+_kerberos._tcp          SRV     10 1 88 kerberos.example.com.
+_kerberos._udp          SRV     10 1 88 kerberos.example.com.
+_kerberos._tcp          SRV     10 1 88 kerberos-1.example.com.
+_kerberos._udp          SRV     10 1 88 kerberos-1.example.com.
+_kpasswd._udp           SRV     10 1 464 kerberos.example.com.
+_kerberos-adm._tcp	SRV	10 1 749 kerberos.example.com.
+
+@end example
+
+More information about DNS SRV resource records can be found in
+RFC-2782 (A DNS RR for specifying the location of services (DNS SRV)).
+

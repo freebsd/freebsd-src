@@ -1,4 +1,4 @@
-@c $Id: ack.texi,v 1.16 2003/03/15 14:21:41 lha Exp $
+@c $Id: ack.texi,v 1.16.2.1 2003/09/18 20:46:05 lha Exp $
 
 @node  Acknowledgments, , Migration, Top
 @comment  node-name,  next,  previous,  up
@@ -39,7 +39,7 @@ Bugfixes, documentation, encouragement, and code has been contributed by:
 @item Marc Horowitz
 @email{marc@@cygnus.com}
 @item Luke Howard
-@email{lukeh@@xedoc.com.au}
+@email{lukeh@@PADL.COM}
 @item Brandon S. Allbery KF8NH
 @email{allbery@@kf8nh.apk.net}
 @item Jun-ichiro itojun Hagino

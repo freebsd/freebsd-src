@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)ftpd.8	8.2 (Berkeley) 4/19/94
 .\"
-.Dd April 19, 1997
+.Dd July 19, 2003
 .Dt FTPD 8
 .Os BSD 4.2
 .Sh NAME
@@ -47,6 +47,7 @@
 .Op Fl p Ar port
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
+.Op Fl -gss-bindings
 .Op Fl u Ar default umask
 .Op Fl B | Fl -builtin-ls
 .Op Fl -good-chars= Ns Ar string
@@ -99,6 +100,8 @@ Debugging information is written to the syslog using LOG_FTP.
 .It Fl g
 Anonymous users will get a umask of
 .Ar umask .
+.It Fl -gss-bindings
+require the peer to use GSS-API bindings (ie make sure IP addresses match).
 .It Fl i
 Open a socket and wait for a connection. This is mainly used for
 debugging when ftpd isn't started by inetd.

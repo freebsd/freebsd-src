@@ -32,7 +32,7 @@
  */
 
 #include "kuser_locl.h"
-RCSID("$Id: kinit.c,v 1.90.4.1 2003/05/08 18:58:37 lha Exp $");
+RCSID("$Id: kinit.c,v 1.90.4.4 2004/01/13 10:13:55 lha Exp $");
 
 int forwardable_flag	= -1;
 int proxiable_flag	= -1;
@@ -290,10 +290,13 @@ do_524init(krb5_context context, krb5_ccache ccache,
 	krb5_cc_get_principal(context, ccache, &client);
 	memset(&in_creds, 0, sizeof(in_creds));
 	ret = get_server(context, client, server, &in_creds.server);
-	krb5_free_principal(context, client);
-	if(ret)
+	if(ret) {
+	    krb5_free_principal(context, client);
 	    return ret;
+	}
+	in_creds.client = client;
 	ret = krb5_get_credentials(context, 0, ccache, &in_creds, &real_creds);
+	krb5_free_principal(context, client);
 	krb5_free_principal(context, in_creds.server);
 	if(ret)
 	    return ret;
@@ -425,15 +428,15 @@ get_new_tickets(krb5_context context,
 	krb5_get_init_creds_opt_set_address_list (&opt, &no_addrs);
     }
 
+    if (renew_life == NULL && renewable_flag)
+	renew_life = "1 month";
     if(renew_life) {
 	renew = parse_time (renew_life, "s");
 	if (renew < 0)
 	    errx (1, "unparsable time: %s", renew_life);
 
 	krb5_get_init_creds_opt_set_renew_life (&opt, renew);
-    } else if (renewable_flag == 1)
-	krb5_get_init_creds_opt_set_renew_life (&opt, 1 << 30);
-
+    }
 
     if(ticket_life != 0)
 	krb5_get_init_creds_opt_set_tkt_life (&opt, ticket_life);
@@ -690,16 +693,18 @@ main (int argc, char **argv)
     if(do_afslog && k_hasafs())
 	krb5_afslog(context, ccache, NULL, NULL);
     if(argc > 1) {
-	simple_execvp(argv[1], argv+1);
+	ret = simple_execvp(argv[1], argv+1);
 	krb5_cc_destroy(context, ccache);
 #ifdef KRB4
 	dest_tkt();
 #endif
 	if(k_hasafs())
 	    k_unlog();
-    } else 
+    } else {
 	krb5_cc_close (context, ccache);
+	ret = 0;
+    }
     krb5_free_principal(context, principal);
     krb5_free_context (context);
-    return 0;
+    return ret;
 }

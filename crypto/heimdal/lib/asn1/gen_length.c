@@ -33,7 +33,7 @@
 
 #include "gen_locl.h"
 
-RCSID("$Id: gen_length.c,v 1.11 2001/09/25 13:39:26 assar Exp $");
+RCSID("$Id: gen_length.c,v 1.11.6.1 2004/01/26 09:26:10 lha Exp $");
 
 static void
 length_primitive (const char *typename,
@@ -126,8 +126,12 @@ length_type (const char *name, const Type *t, const char *variable)
 		 variable, variable);
 
 	fprintf (codefile, "for(i = (%s)->len - 1; i >= 0; --i){\n", name);
+	fprintf (codefile, "int oldret = %s;\n"
+		 "%s = 0;\n", variable, variable);
 	asprintf (&n, "&(%s)->val[i]", name);
 	length_type(n, t->subtype, variable);
+	fprintf (codefile, "%s += oldret;\n",
+		 variable);
 	fprintf (codefile, "}\n");
 
 	fprintf (codefile,

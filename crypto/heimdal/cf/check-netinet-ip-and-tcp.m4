@@ -1,11 +1,11 @@
 dnl
-dnl $Id: check-netinet-ip-and-tcp.m4,v 1.3 2000/07/18 10:33:02 joda Exp $
+dnl $Id: check-netinet-ip-and-tcp.m4,v 1.3.12.1 2004/04/01 07:27:33 joda Exp $
 dnl
 
 dnl extra magic check for netinet/{ip.h,tcp.h} because on irix 6.5.3
 dnl you have to include standards.h before including these files
 
-AC_DEFUN(CHECK_NETINET_IP_AND_TCP,
+AC_DEFUN([CHECK_NETINET_IP_AND_TCP],
 [
 AC_CHECK_HEADERS(standards.h)
 for i in netinet/ip.h netinet/tcp.h; do

@@ -1,8 +1,8 @@
-dnl $Id: check-xau.m4,v 1.3 1999/05/14 01:17:06 assar Exp $
+dnl $Id: check-xau.m4,v 1.3.34.1 2004/04/01 07:27:33 joda Exp $
 dnl
 dnl check for Xau{Read,Write}Auth and XauFileName
 dnl
-AC_DEFUN(AC_CHECK_XAU,[
+AC_DEFUN([AC_CHECK_XAU],[
 save_CFLAGS="$CFLAGS"
 CFLAGS="$X_CFLAGS $CFLAGS"
 save_LIBS="$LIBS"
