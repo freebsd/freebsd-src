@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1998/03/21 12:12:55 bde Exp $
+#	$Id: Makefile,v 1.16 1999/07/30 19:15:16 mpp Exp $
 
 .include "../Makefile.inc"
 
@@ -8,8 +8,8 @@ TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 
-MAN7=		groff_ms.7 me.7 
-MLINKS=		groff_ms.7 ms.7 me.7 groff_me.7
+MAN7=           groff_ms.7 me.7 msafer.7
+MLINKS=         groff_ms.7 ms.7 me.7 groff_me.7 msafer.7 groff_msafer.7
 LINKS=          ${TMACDIR}/tmac.andoc ${TMACDIR}/tmac.an
 
 CLEANFILES=	${MAN7} ${MDOCFILES} ${STRIPFILES} tmac.groff_an
