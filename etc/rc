@@ -268,7 +268,16 @@ esac
 umount -a >/dev/null 2>&1
 
 # Mount everything except nfs filesystems.
-mount -a -t nonfs
+if [ -z "${networkfs_types}" ]; then
+	networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL'
+fi
+mount_excludes='no'
+for i in ${networkfs_types}; do
+	fstype=${i%:*}
+	mount_excludes="${mount_excludes}${fstype},"
+done
+mount_excludes=${mount_excludes%,}
+mount -a -t ${mount_excludes}
 
 case $? in
 0)
@@ -407,6 +416,11 @@ case ${ipv6_enable} in
 esac
 
 # Mount NFS filesystems if present in /etc/fstab
+#
+# XXX When the vfsload() issues with nfsclient support and related sysctls
+# have been resolved, this block can be removed, and the condition that
+# skips nfs in the following block (for "other network filesystems") can
+# be removed.
 case "`mount -d -a -t nfs 2> /dev/null`" in
 *mount_nfs*)
 	# Handle absent nfs client support
@@ -429,6 +443,23 @@ case "`mount -d -a -t nfs 2> /dev/null`" in
 	esac
 	;;
 esac
+
+# Mount other network filesystems if present in /etc/fstab
+for i in ${networkfs_types}; do
+	fstype=${i%:*}
+	fsdecr=${i#*:}
+
+	if [ "${fstype}" = "nfs" ]; then
+		continue
+	fi
+	case "`mount -d -a -t ${fstype}`" in
+	*mount_${fstype}*)
+	       echo -n "Mounting ${fsdecr} file systems:"
+	       mount -a -t ${fstype}
+	       echo '.'
+	       ;;
+	esac
+done
 
 # Whack the pty perms back into shape.
 #
