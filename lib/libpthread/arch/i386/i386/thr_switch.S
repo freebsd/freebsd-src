@@ -34,9 +34,17 @@ __FBSDID("$FreeBSD$");
 #define	MC_SIZE			640	/* sizeof mcontext_t */
 #define	UC_MC_OFFSET		16	/* offset to mcontext from ucontext */
 #define	UC_MC_LEN_OFFSET	96	/* offset to mc_len from mcontext */
-#define	MC_FP_REGS_OFFSET	96	/* offset to FP regs from mcontext */
+#define	MC_FPREGS_OFFSET	96	/* offset to FP regs from mcontext */
 #define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
+#define	MC_FPFMT_OFFSET		84	/* offset to mc_fpformat from mcontext */
+#define MC_FPFMT_NODEV		0x10000
+#define MC_FPFMT_387		0x10001
+#define	MC_FPFMT_XMM		0x10002
 #define	MC_OWNEDFP_OFFSET	88	/* offset to mc_ownedfp from mcontext */
+#define	MC_OWNEDFP_NONE 	0x20000
+#define	MC_OWNEDFP_FPU  	0x20001
+#define	MC_OWNEDFP_PCB  	0x20002
+
 
 /*
  * int _thread_switch(kse_thr_mailbox *td, thread_mailbox **curthreadp);
@@ -60,7 +68,7 @@ ENTRY(_thread_switch)
 	 * From here on, we don't touch the old stack.
 	 */
 	addl	$UC_MC_OFFSET, %edx	/* add offset to mcontext */
-	movl	4(%edx), %gs
+	/*movl	4(%edx), %gs*/		/* we don't touch %gs */
 	movl	8(%edx), %fs
 	movl	12(%edx), %es
 	movl	16(%edx), %ds
@@ -72,13 +80,21 @@ ENTRY(_thread_switch)
 	subl	$4, %esp		/* leave space for the return address */
 	movl	60(%edx), %eax		/* put return address at top of stack */
 	movl	%eax, (%esp)
-	cmpl	$0, MC_OWNEDFP_OFFSET(%edx) /* are FP regs valid? */
-	jz	3f
-	frstor	MC_FP_REGS_OFFSET(%edx) /* restore FP regs */
-	jmp	4f
-3:	fninit
+	cmpl	$MC_OWNEDFP_FPU, MC_OWNEDFP_OFFSET(%edx)
+	je	4f
+	cmpl	$MC_OWNEDFP_PCB, MC_OWNEDFP_OFFSET(%edx)
+	jne	6f
+4:	cmpl	$MC_FPFMT_387, MC_FPFMT_OFFSET(%edx)
+	jne	5f
+	frstor	MC_FPREGS_OFFSET(%edx) /* restore 387 FP regs */
+	jmp	7f
+5:	cmpl	$MC_FPFMT_XMM, MC_FPFMT_OFFSET(%edx)
+	jne	6f
+	fxrstor	MC_FPREGS_OFFSET(%edx) /* restore XMM/SSE FP regs */
+	jmp	7f
+6:	fninit
 	fldcw	MC_FP_CW_OFFSET(%edx)
-4:	movl	48(%edx), %eax		/* restore ax, bx, cx, dx */
+7:	movl	48(%edx), %eax		/* restore ax, bx, cx, dx */
 	pushl	68(%edx)		/* flags on stack */
 	pushl	36(%edx)		/* %ebx on stack */
 	pushl	44(%edx)		/* %ecx on stack */
