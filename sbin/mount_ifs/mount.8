@@ -228,6 +228,15 @@ to execute the equivalent of:
 .Bd -literal -offset indent
 /sbin/mount_mfs -o nosuid -N -s 4000 /dev/dk0b /tmp
 .Ed
+.Pp
+Additional options specific to filesystem types
+which are not internally known
+(see the description of the
+.Fl t
+option below)
+may be described in the manual pages for the associated
+.Pa /sbin/mount_ Ns Sy XXX
+utilities.
 .It Fl p
 Print mount information in fstab format.
 Implies also the
@@ -274,9 +283,9 @@ and
 If the type is not one of the internally known types,
 .Nm
 will attempt to execute a program in
-.Pa /sbin/mount_ Ns Em XXX
+.Pa /sbin/mount_ Ns Sy XXX
 where
-.Em XXX
+.Sy XXX
 is replaced by the type name.
 For example, nfs filesystems are mounted by the program
 .Pa /sbin/mount_nfs .
@@ -321,10 +330,6 @@ option.
 Verbose mode.
 .It Fl w
 The file system object is to be read and write.
-.Pp
-The options specific to NFS filesystems are described in the
-.Xr mount_nfs 8
-manual page.
 .Sh DIAGNOSTICS
 Various, most of them are self-explanatory.
 .Pp
