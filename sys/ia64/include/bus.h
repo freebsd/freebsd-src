@@ -940,6 +940,10 @@ typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
  *	nsegments:	Number of discontinuities allowed in maps.
  *	maxsegsz:	Maximum size of a segment in the map.
  *	flags:		Bus DMA flags.
+ *	lockfunc:	An optional function to handle driver-defined lock
+ *			operations.
+ *	lockfuncarg:	An argument that will be passed to lockfunc in addition
+ *			to the lock operation.
  *	dmat:		A pointer to set to a valid dma tag should the return
  *			value of this function indicate success.
  */
