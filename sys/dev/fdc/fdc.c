@@ -181,6 +181,8 @@ struct fd_data {
 	struct	devstat device_stats;
 	eventhandler_tag clonetag;
 	dev_t	masterdev;
+#define NCLONEDEVS	10	/* must match the table below */
+	dev_t	clonedevs[NCLONEDEVS];
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -832,8 +834,9 @@ static int
 fdc_attach(device_t dev)
 {
 	struct	fdc_data *fdc;
-	int	i, error, dunit;
 	const char *name, *dname;
+	device_t *children;
+	int	i, error, dunit, nchildren;
 
 	fdc = device_get_softc(dev);
 	error = fdc_alloc_resources(fdc);
@@ -875,7 +878,17 @@ fdc_attach(device_t dev)
 	while ((resource_find_match(&i, &dname, &dunit, "at", name)) == 0)
 		fdc_add_child(dev, dname, dunit);
 
-	return (bus_generic_attach(dev));
+	if ((error = bus_generic_attach(dev)) != 0)
+		return (error);
+
+	/* Now remove all children not successfully probed (if any). */
+	if ((error = device_get_children(dev, &children, &nchildren)) != 0)
+		return (error);
+	for (i = 0; i < nchildren; i++)
+		if (!device_is_alive(children[i]))
+			device_delete_child(dev, children[i]);
+
+	return (0);
 }
 
 static int
@@ -949,14 +962,10 @@ static struct {
 	int minor;
 	int link;
 } fd_suffix[] = {
-	{ "a",		0,	1 },
-	{ "b",		0,	1 },
-	{ "c",		0,	1 },
-	{ "d",		0,	1 },
-	{ "e",		0,	1 },
-	{ "f",		0,	1 },
-	{ "g",		0,	1 },
-	{ "h",		0,	1 },
+	/*
+	 * Genuine clone devices must come first, and their number must
+	 * match NCLONEDEVS above.
+	 */
 	{ ".1720",	1,	0 },
 	{ ".1480",	2,	0 },
 	{ ".1440",	3,	0 },
@@ -967,15 +976,24 @@ static struct {
 	{ ".360",	8,	0 },
 	{ ".640",	9,	0 },
 	{ ".1232",	10,	0 },
+	{ "a",		0,	1 },
+	{ "b",		0,	1 },
+	{ "c",		0,	1 },
+	{ "d",		0,	1 },
+	{ "e",		0,	1 },
+	{ "f",		0,	1 },
+	{ "g",		0,	1 },
+	{ "h",		0,	1 },
 	{ 0, 0 }
 };
 static void
-fd_clone (void *arg, char *name, int namelen, dev_t *dev)
+fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
+	struct	fd_data *fd;
 	int u, d, i;
 	char *n;
-	dev_t pdev;
 
+	fd = (struct fd_data *)arg;
 	if (*dev != NODEV)
 		return;
 	if (dev_stdclone(name, &n, "fd", &u) != 2)
@@ -991,9 +1009,9 @@ fd_clone (void *arg, char *name, int namelen, dev_t *dev)
 	if (fd_suffix[i].link == 0) {
 		*dev = make_dev(&fd_cdevsw, (u << 6) + d,
 			UID_ROOT, GID_OPERATOR, 0640, name);
+		fd->clonedevs[i] = *dev;
 	} else {
-		pdev = makedev(fd_cdevsw.d_maj, (u << 6) + d);
-		*dev = make_dev_alias(pdev, name);
+		*dev = make_dev_alias(fd->masterdev, name);
 	}
 }
 
@@ -1148,15 +1166,18 @@ fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
 	static	int cdevsw_add_done;
+	int i;
 
 	if (!cdevsw_add_done) {
 		cdevsw_add(&fd_cdevsw);	/* XXX */
 		cdevsw_add_done = 1;
 	}
 	fd = device_get_softc(dev);
-	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
+	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
 	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
+	for (i = 0; i < NCLONEDEVS; i++)
+		fd->clonedevs[i] = NODEV;
 	devstat_add_entry(&fd->device_stats, device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1168,14 +1189,17 @@ static int
 fd_detach(device_t dev)
 {
 	struct	fd_data *fd;
+	int i;
 
 	fd = device_get_softc(dev);
+	untimeout(fd_turnoff, fd, fd->toffhandle);
 	devstat_remove_entry(&fd->device_stats);
 	destroy_dev(fd->masterdev);
+	for (i = 0; i < NCLONEDEVS; i++)
+		if (fd->clonedevs[i] != NODEV)
+			destroy_dev(fd->clonedevs[i]);
 	cdevsw_remove(&fd_cdevsw);
-	/* XXX need to destroy cloned devs as well */
 	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
-	untimeout(fd_turnoff, fd, fd->toffhandle);
 
 	return (0);
 }
