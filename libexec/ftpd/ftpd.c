@@ -1697,7 +1697,7 @@ store(char *name, char *mode, int unique)
 	data = -1;
 	pdata = -1;
 done:
-	LOGBYTES(*mode == 'w' ? "put" : "append", name, byte_count);
+	LOGBYTES(*mode == 'a' ? "append" : "put", name, byte_count);
 	(*closefunc)(fout);
 	return;
 err:
