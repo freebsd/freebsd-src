@@ -329,19 +329,6 @@ null_bypass(struct vop_generic_args *ap)
 	return (error);
 }
 
-static int
-null_close(struct vop_close_args *ap)
-{
-	int retval;
-	struct vnode *vp;
-
-	vp = ap->a_vp;
-	retval = null_bypass(&ap->a_gen);
-	if (retval == 0)
-		vp->v_object = NULL;
-	return (retval);
-}
-
 /*
  * We have to carry on the locking protocol on the null layer vnodes
  * as we progress through the tree. We also have to enforce read-only
@@ -709,6 +696,7 @@ null_inactive(struct vop_inactive_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 
+	vp->v_object = NULL;
 	VOP_UNLOCK(vp, 0, td);
 
 	/*
@@ -754,18 +742,6 @@ null_print(struct vop_print_args *ap)
 }
 
 /*
- * We have nothing to destroy and this operation shouldn't be bypassed.
- */
-static int
-null_destroyvobject(struct vop_destroyvobject_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-
-	vp->v_object = NULL;
-	return (0);
-}
-
-/*
  * Global vfs data structures
  */
 struct vop_vector null_vnodeops = {
@@ -773,8 +749,6 @@ struct vop_vector null_vnodeops = {
 
 	.vop_access =		null_access,
 	.vop_bmap =		VOP_EOPNOTSUPP,
-	.vop_close =		null_close,
-	.vop_destroyvobject =	null_destroyvobject,
 	.vop_getattr =		null_getattr,
 	.vop_getwritemount =	vop_stdgetwritemount,
 	.vop_inactive =		null_inactive,
