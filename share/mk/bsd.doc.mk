@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.44 1998/05/06 18:44:00 bde Exp $
+#	$Id: bsd.doc.mk,v 1.45 1998/08/02 13:50:23 bde Exp $
 #
 # The include file <bsd.doc.mk> handles installing BSD troff documents.
 #
@@ -14,8 +14,11 @@
 #
 # 	[incomplete]
 
+.if !target(__initialized__)
+__initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
+.endif
 .endif
 
 PRINTERDEVICE?=	ascii

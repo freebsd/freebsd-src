@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.49 1998/06/09 02:55:40 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.50 1998/07/29 14:19:48 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -81,8 +81,11 @@
 MODLOAD?=	/sbin/modload
 MODUNLOAD?=	/sbin/modunload
 
+.if !target(__initialized__)
+__initialized__:
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
+.endif
 .endif
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
