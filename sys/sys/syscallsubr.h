@@ -42,7 +42,6 @@ struct msqid_ds;
 struct rlimit;
 struct rusage;
 struct sockaddr;
-struct kill_args;
 struct stat;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
@@ -70,7 +69,6 @@ int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
-int	kern_kill(struct thread *, struct kill_args *, int);
 int	kern_lchown(struct thread *td, char *path, enum uio_seg pathseg,
 	    int uid, int gid);
 int	kern_link(struct thread *td, char *path, char *link,

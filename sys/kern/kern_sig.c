@@ -82,8 +82,7 @@ __FBSDID("$FreeBSD$");
 
 static int	coredump(struct thread *);
 static char	*expand_name(const char *, uid_t, pid_t);
-static int	killpg1(struct thread *td, int sig, int pgid, int all,
-		        int pedantic);
+static int	killpg1(struct thread *td, int sig, int pgid, int all);
 static int	issignal(struct thread *p);
 static int	sigprop(int sig);
 static void	stop(struct proc *);
@@ -1300,9 +1299,9 @@ kern_sigaltstack(struct thread *td, stack_t *ss, stack_t *oss)
  * cp is calling process.
  */
 static int
-killpg1(td, sig, pgid, all, pedantic)
+killpg1(td, sig, pgid, all)
 	register struct thread *td;
-	int sig, pgid, all, pedantic;
+	int sig, pgid, all;
 {
 	register struct proc *p;
 	struct pgrp *pgrp;
@@ -1320,7 +1319,7 @@ killpg1(td, sig, pgid, all, pedantic)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig, pedantic) == 0) {
+			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1345,12 +1344,12 @@ killpg1(td, sig, pgid, all, pedantic)
 		}
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
-			PROC_LOCK(p);
+			PROC_LOCK(p);	      
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM) {
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig, pedantic) == 0) {
+			if (p_cansignal(td, p, sig) == 0) {
 				nfound++;
 				if (sig)
 					psignal(p, sig);
@@ -1377,16 +1376,6 @@ kill(td, uap)
 	register struct thread *td;
 	register struct kill_args *uap;
 {
-
-	return kern_kill(td, uap, 1);
-}
-
-int
-kern_kill(td, uap, pedantic)
-	struct thread *td;
-	struct kill_args *uap;
-	int pedantic;
-{
 	register struct proc *p;
 	int error;
 
@@ -1399,7 +1388,7 @@ kern_kill(td, uap, pedantic)
 			if ((p = zpfind(uap->pid)) == NULL)
 				return (ESRCH);
 		}
-		error = p_cansignal(td, p, uap->signum, pedantic);
+		error = p_cansignal(td, p, uap->signum);
 		if (error == 0 && uap->signum)
 			psignal(p, uap->signum);
 		PROC_UNLOCK(p);
@@ -1407,11 +1396,11 @@ kern_kill(td, uap, pedantic)
 	}
 	switch (uap->pid) {
 	case -1:		/* broadcast signal */
-		return (killpg1(td, uap->signum, 0, 1, pedantic));
+		return (killpg1(td, uap->signum, 0, 1));
 	case 0:			/* signal own process group */
-		return (killpg1(td, uap->signum, 0, 0, pedantic));
+		return (killpg1(td, uap->signum, 0, 0));
 	default:		/* negative explicit process group */
-		return (killpg1(td, uap->signum, -uap->pid, 0, pedantic));
+		return (killpg1(td, uap->signum, -uap->pid, 0));
 	}
 	/* NOTREACHED */
 }
@@ -1435,7 +1424,7 @@ okillpg(td, uap)
 
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
-	return (killpg1(td, uap->signum, uap->pgid, 0, 1));
+	return (killpg1(td, uap->signum, uap->pgid, 0));
 }
 #endif /* COMPAT_43 */
 
