@@ -290,25 +290,23 @@ inserted(void *arg)
 
 	slt->state = filled;
 	/*
-	 *	Enable 5V to the card so that the CIS can be read.
-	 */
-	slt->pwr.vcc = -1;
-	slt->pwr.vpp = -1;
-
-	/*
 	 * Disable any pending timeouts for this slot, and explicitly
 	 * power it off right now.  Then, re-enable the power using
 	 * the (possibly new) power settings.
 	 */
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	power_off_slot(slt);
+
+	/*
+	 *	Enable 5V to the card so that the CIS can be read.  Well,
+	 * enable the most natural voltage so that the CIS can be read.
+	 */
+	slt->pwr.vcc = -1;
+	slt->pwr.vpp = -1;
 	slt->ctrl->power(slt);
 
 	printf("pccard: card inserted, slot %d\n", slt->slotnum);
 	pccard_insert_beep();
-	/*
-	 *	Now start resetting the card.
-	 */
 	slt->ctrl->reset(slt);
 }
 
