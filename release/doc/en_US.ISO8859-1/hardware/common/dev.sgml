@@ -1387,38 +1387,6 @@
     (&man.el.4; driver)</para>
 
     <para arch="i386,pc98,alpha,sparc64">3Com Etherlink XL-based NICs (&man.xl.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>3C900/905/905B/905C PCI</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C555/556/556B MiniPCI</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C450-TX HomeConnect adapter</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3c980/3c980B Fast Etherlink XL server adapter</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3cSOHO100-TX OfficeConnect adapter</para>
-        </listitem>
-        <listitem arch="i386,alpha">
-	  <para>3C575TX/575B/XFE575BT/575C/656/656B/656C (Cardbus)</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Optiplex GX1 on-board 3C918</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell On-board 3C920</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Precision on-board 3C905B</para>
-        </listitem>
-        <listitem arch="i386">
-	  <para>Dell Latitude laptop docking station embedded 3C905-TX</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">3Com 3C59X series NICs (&man.vx.4; driver)
@@ -1426,11 +1394,6 @@
 
     <para arch="i386">Crystal Semiconductor CS89x0-based NICs 
     (&man.cs.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>IBM Etherjet ISA</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Megahertz X-Jack Ethernet PC-Card CC-10BT (&man.sn.4;
@@ -1861,17 +1824,6 @@
 
     <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
       802.11a/b/g network interfaces (&man.ath.4; driver)
-      <itemizedlist>
-	<listitem>
-          <para>D-Link DWL-AB650, DWL-AG520, DWL-AG650</para>
-	</listitem>
-	<listitem>
-          <para>Linksys WMP55AG, WPC51AB, WPC55AG</para>
-	</listitem>
-	<listitem>
-          <para>Netgear WAB501, WAG511</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
   </sect2>
@@ -1881,11 +1833,6 @@
 
     <para arch="i386">Granch SBNI12 point-to-point communications
     adapters (&man.sbni.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>SBNI12-XX and SBNI12D-XX ISA and PCI</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Granch SBNI16 SHDSL modems (&man.sbsh.4;
@@ -1902,25 +1849,6 @@
     <para arch="i386">LAN Media Corp WAN adapters based on the DEC
       <quote>Tulip</quote> Fast Ethernet controller (&man.lmc.4;
       driver)
-
-      <itemizedlist>
-        <listitem>
-	  <para>LMC1000 Synchronous Serial Interface adapter</para>
-        </listitem>
-
-        <listitem>
-	  <para>LMC1200 T1/E1 WAN adapter</para>
-        </listitem>
-
-        <listitem>
-	  <para>LMC5200 High Speed Synchronous Interface (HSSI)
-	    adapter</para>
-        </listitem>
-
-        <listitem>
-	  <para>LMC5245 DS3 WAN adapter</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
   </sect2>
