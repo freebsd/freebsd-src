@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.47 1997/11/21 11:37:02 bde Exp $
+ * $Id: proc.h,v 1.48 1997/11/24 15:15:20 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -318,8 +318,6 @@ int	leavepgrp __P((struct proc *p));
 void	mi_switch __P((void));
 void	procinit __P((void));
 void	resetpriority __P((struct proc *));
-void	roundrobin __P((void *));
-void	schedcpu __P((void *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
