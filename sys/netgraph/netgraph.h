@@ -50,8 +50,9 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-
+/* debugging options */
 #define NETGRAPH_DEBUG 
+#define NG_SEPARATE_MALLOC	/* make modules use their own malloc types */
 
 /*
  * This defines the in-kernel binary interface version.

@@ -61,6 +61,12 @@
 #include <netgraph/ng_ppp.h>
 #include <netgraph/ng_vjc.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
+#else
+#define M_NETGRAPH_PPP M_NETGRAPH
+#endif
+
 #define PROT_VALID(p)		(((p) & 0x0101) == 0x0001)
 #define PROT_COMPRESSABLE(p)	(((p) & 0xff00) == 0x0000)
 
@@ -382,7 +388,7 @@ ng_ppp_constructor(node_p node)
 	int i;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_PPP, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -805,7 +811,7 @@ ng_ppp_shutdown(node_p node)
 	/* Take down netgraph node */
 	ng_ppp_frag_reset(node);
 	bzero(priv, sizeof(*priv));
-	FREE(priv, M_NETGRAPH);
+	FREE(priv, M_NETGRAPH_PPP);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
@@ -1149,7 +1155,7 @@ ng_ppp_mp_input(node_p node, int linkNum, item_p item)
 	}
 
 	/* Allocate a new frag struct for the queue */
-	MALLOC(frag, struct ng_ppp_frag *, sizeof(*frag), M_NETGRAPH, M_NOWAIT);
+	MALLOC(frag, struct ng_ppp_frag *, sizeof(*frag), M_NETGRAPH_PPP, M_NOWAIT);
 	if (frag == NULL) {
 		NG_FREE_M(m);
 		NG_FREE_META(meta);
@@ -1170,7 +1176,7 @@ ng_ppp_mp_input(node_p node, int linkNum, item_p item)
 			link->stats.dupFragments++;
 			NG_FREE_M(frag->data);
 			NG_FREE_META(frag->meta);
-			FREE(frag, M_NETGRAPH);
+			FREE(frag, M_NETGRAPH_PPP);
 			return (EINVAL);
 		}
 	}
@@ -1247,7 +1253,7 @@ ng_ppp_get_packet(node_p node, struct mbuf **mp, meta_p *metap)
 			tail = tail->m_next;
 		if (qent->last)
 			qnext = NULL;
-		FREE(qent, M_NETGRAPH);
+		FREE(qent, M_NETGRAPH_PPP);
 		priv->qlen--;
 	}
 	*mp = m;
@@ -1297,7 +1303,7 @@ ng_ppp_frag_trim(node_p node)
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
 			NG_FREE_META(qent->meta);
-			FREE(qent, M_NETGRAPH);
+			FREE(qent, M_NETGRAPH_PPP);
 			priv->qlen--;
 			removed = 1;
 		}
@@ -1363,7 +1369,7 @@ ng_ppp_frag_process(node_p node)
 		TAILQ_REMOVE(&priv->frags, qent, f_qent);
 		NG_FREE_M(qent->data);
 		NG_FREE_META(qent->meta);
-		FREE(qent, M_NETGRAPH);
+		FREE(qent, M_NETGRAPH_PPP);
 		priv->qlen--;
 
 		/* Process queue again */
@@ -1441,7 +1447,7 @@ ng_ppp_frag_checkstale(node_p node)
 			TAILQ_REMOVE(&priv->frags, qent, f_qent);
 			NG_FREE_M(qent->data);
 			NG_FREE_META(qent->meta);
-			FREE(qent, M_NETGRAPH);
+			FREE(qent, M_NETGRAPH_PPP);
 			priv->qlen--;
 		}
 
@@ -2036,7 +2042,7 @@ ng_ppp_frag_reset(node_p node)
 		qnext = TAILQ_NEXT(qent, f_qent);
 		NG_FREE_M(qent->data);
 		NG_FREE_META(qent->meta);
-		FREE(qent, M_NETGRAPH);
+		FREE(qent, M_NETGRAPH_PPP);
 	}
 	TAILQ_INIT(&priv->frags);
 	priv->qlen = 0;

@@ -67,6 +67,12 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_bpf.h>
 
+#ifdef NG_SEPARATE_MALLOC
+MALLOC_DEFINE(M_NETGRAPH_BPF, "netgraph_bpf", "netgraph bpf node ");
+#else
+#define M_NETGRAPH_BPF M_NETGRAPH
+#endif
+
 #define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
 #define ERROUT(x)	do { error = (x); goto done; } while (0)
@@ -233,7 +239,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	int error;
 
 	/* Create hook private structure */
-	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH_BPF, M_NOWAIT | M_ZERO);
 	if (hip == NULL)
 		return (ENOMEM);
 	hip->hook = hook;
@@ -242,7 +248,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Attach the default BPF program */
 	if ((error = ng_bpf_setprog(hook, &ng_bpf_default_prog)) != 0) {
-		FREE(hip, M_NETGRAPH);
+		FREE(hip, M_NETGRAPH_BPF);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 		return (error);
 	}
@@ -391,7 +397,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	/* Need to put packet in contiguous memory for bpf */
 	if (m->m_next != NULL) {
 		if (totlen > sizeof(buf)) {
-			MALLOC(data, u_char *, totlen, M_NETGRAPH, M_NOWAIT);
+			MALLOC(data, u_char *, totlen, M_NETGRAPH_BPF, M_NOWAIT);
 			if (data == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOMEM);
@@ -406,7 +412,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	/* Run packet through filter */
 	len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
 	if (needfree)
-		FREE(data, M_NETGRAPH);
+		FREE(data, M_NETGRAPH_BPF);
 
 	/* See if we got a match and find destination hook */
 	if (len > 0) {
@@ -457,9 +463,9 @@ ng_bpf_disconnect(hook_p hook)
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 
 	KASSERT(hip != NULL, ("%s: null info", __FUNCTION__));
-	FREE(hip->prog, M_NETGRAPH);
+	FREE(hip->prog, M_NETGRAPH_BPF);
 	bzero(hip, sizeof(*hip));
-	FREE(hip, M_NETGRAPH);
+	FREE(hip, M_NETGRAPH_BPF);
 	NG_HOOK_SET_PRIVATE(hook, NULL);			/* for good measure */
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
@@ -488,14 +494,14 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 
 	/* Make a copy of the program */
 	size = NG_BPF_HOOKPROG_SIZE(hp0->bpf_prog_len);
-	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH, M_NOWAIT);
+	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH_BPF, M_NOWAIT);
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
 
 	/* Free previous program, if any, and assign new one */
 	if (hip->prog != NULL)
-		FREE(hip->prog, M_NETGRAPH);
+		FREE(hip->prog, M_NETGRAPH_BPF);
 	hip->prog = hp;
 	return (0);
 }
