@@ -1162,11 +1162,7 @@ ndis_getstate_80211(sc)
 	if (!(ifp->if_flags & IFF_UP))
 		return;
 
-	len = sizeof(arg);
-	rval = ndis_get_info(sc, OID_GEN_MEDIA_CONNECT_STATUS,
-	    (void *)&arg, &len);
-
-	if (arg == nmc_connected)
+	if (sc->ndis_link)
 		ic->ic_state = IEEE80211_S_RUN;
 	else
 		ic->ic_state = IEEE80211_S_ASSOC;
