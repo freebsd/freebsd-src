@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.3 (Berkeley) 1/21/94
- * $Id: conf.h,v 1.14 1995/05/14 03:00:03 davidg Exp $
+ * $Id: conf.h,v 1.15 1995/05/30 08:14:14 rgrimes Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -62,7 +62,7 @@ typedef int d_psize_t __P((dev_t));
 typedef int d_read_t __P((dev_t, struct uio *, int));
 typedef int d_write_t __P((dev_t, struct uio *, int));
 typedef int d_rdwr_t __P((dev_t, struct uio *, int));
-typedef int d_stop_t __P((struct tty *, int));
+typedef void d_stop_t __P((struct tty *, int));
 typedef int d_reset_t __P((int));
 typedef int d_select_t __P((dev_t, int, struct proc *));
 typedef int d_mmap_t __P((dev_t, int, int));
