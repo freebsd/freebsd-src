@@ -63,7 +63,7 @@ Saturday
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %b %e %X %Y
 #
 # am
 #
@@ -75,7 +75,7 @@ PM
 #
 # date_fmt
 #
-%a %Ef %X %Z %Y
+%a %b %e %X %Z %Y
 #
 # Long months names (alternative)
 #

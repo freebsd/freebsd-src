@@ -60,7 +60,7 @@ Sobota
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %e %b %X %Y
 #
 # am
 #
@@ -72,7 +72,7 @@ Sobota
 #
 # date_fmt
 #
-%a %Ef %X %Y %Z
+%a %e %b %X %Y %Z
 #
 # Long months names (alternative)
 #

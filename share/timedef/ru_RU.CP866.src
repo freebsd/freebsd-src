@@ -63,7 +63,7 @@
 #
 # c_fmt
 #
-%a %Ef %X %Y
+%a %e %b %X %Y
 #
 # am
 # (two spaces)
@@ -75,7 +75,7 @@
 #
 # date_fmt
 #
-%a %Ef %Y %X %Z
+%a %e %b %Y %X %Z
 #
 # Long month names in alternative form
 #
