@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.83 1998/09/30 11:44:29 jkh Exp $
+ * $Id: system.c,v 1.84 1998/09/30 13:36:53 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -223,7 +223,13 @@ systemHelpFile(char *file, char *buf)
     snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp.gz", file);
     if (file_readable(buf)) 
 	return expand(buf);
+    snprintf(buf, FILENAME_MAX, "/stand/help/%s.TXT.gz", file);
+    if (file_readable(buf)) 
+	return expand(buf);
     snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.hlp", file);
+    if (file_readable(buf))
+	return buf;
+    snprintf(buf, FILENAME_MAX, "/usr/src/release/sysinstall/help/%s.TXT", file);
     if (file_readable(buf))
 	return buf;
     return NULL;
