@@ -111,6 +111,7 @@ static vop_setlabel_t	devfs_setlabel;
 static vop_symlink_t	devfs_symlink;
 
 extern struct vop_vector devfs_vnodeops;
+extern struct vop_vector devfs_specops;
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
@@ -1401,7 +1402,7 @@ static struct vop_vector devfs_vnodeops = {
 	.vop_symlink =		devfs_symlink,
 };
 
-struct vop_vector devfs_specops = {
+static struct vop_vector devfs_specops = {
 	.vop_default =		&default_vnodeops,
 	.vop_access =		devfs_access,
 	.vop_advlock =		devfs_advlock,
