@@ -115,7 +115,7 @@ u_int natm_sookbytes = 0;		/* # of bytes ok */
 #endif
 
 
-void natm_init()
+static void natm_init()
 
 {
   LIST_INIT(&natm_pcbs);
