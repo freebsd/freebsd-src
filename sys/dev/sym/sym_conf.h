@@ -5,10 +5,9 @@
  *  Copyright (C) 1999-2000  Gerard Roudier <groudier@club-internet.fr>
  *
  *  This driver also supports the following Symbios/LSI PCI-SCSI chips:
- *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895.
+ *	53C810A, 53C825A, 53C860, 53C875, 53C876, 53C885, 53C895,
+ *	53C810,  53C815,  53C825 and the 53C1510D is 53C8XX mode.
  *
- *  but does not support earlier chips as the following ones:
- *	53C810, 53C815, 53C825.
  *  
  *  This driver for FreeBSD-CAM is derived from the Linux sym53c8xx driver.
  *  Copyright (C) 1998-1999  Gerard Roudier
@@ -67,6 +66,11 @@
  */
 
 /*
+ *  Also support early NCR 810, 815 and 825 chips.
+ */
+#define SYM_CONF_GENERIC_SUPPORT
+
+/*
  *  Use Normal IO instead of MMIO.
  */
 /* #define SYM_CONF_IOMAPPED */
@@ -115,7 +119,7 @@
  *  Support for NVRAM.
  */
 #define SYM_CONF_NVRAM_SUPPORT
-/* #define SYM_CONF_DEBUG_SUPPORT */
+/* #define SYM_CONF_NVRAM_SUPPORT */
 
 /*
  *  Support for Immediate Arbitration.
@@ -272,10 +276,11 @@
  *  driver are configured.
  *
  *  Bits are to be coded as follows:
- *    1  ->  810a, 860
- *    2  ->  825a, 875, 885, 895
- *    4  ->  895a, 896, 1510d
- *    8  ->  1010
+ *    0x01  ->  810a, 860
+ *    0x02  ->  825a, 875, 885, 895
+ *    0x04  ->  895a, 896, 1510d
+ *    0x08  ->  1010
+ *    0x40  ->  810, 815, 825
  *
  *  For example, value 5 tells the driver to claim support 
  *  for 810a, 860, 895a, 896 and 1510d with low priority, 
