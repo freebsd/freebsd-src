@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.18 1998/04/11 07:40:47 jb Exp $";
+		"$Id: vfprintf.c,v 1.19 1998/05/08 05:10:32 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -1182,7 +1182,7 @@ __grow_type_table (nextarg, typetable, tablesize)
 		bcopy (oldtable, *typetable, *tablesize);
 	} else {
 		*typetable = (unsigned char *)
-		    realloc (typetable, sizeof (unsigned char) * newsize);
+		    reallocf (typetable, sizeof (unsigned char) * newsize);
 
 	}
 	memset (&typetable [*tablesize], T_UNUSED, (newsize - *tablesize));

@@ -73,7 +73,7 @@ setenv(name, value, rewrite)
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
 		if (alloced) {			/* just increase size */
-			environ = (char **)realloc((char *)environ,
+			environ = (char **)reallocf((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
 			if (!environ)
 				return (-1);

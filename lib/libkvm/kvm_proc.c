@@ -370,8 +370,10 @@ _kvm_realloc(kd, p, n)
 {
 	void *np = (void *)realloc(p, n);
 
-	if (np == 0)
+	if (np == 0) {
+		free(p);
 		_kvm_err(kd, kd->program, "out of memory");
+	}
 	return (np);
 }
 

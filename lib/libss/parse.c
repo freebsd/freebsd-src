@@ -31,7 +31,7 @@ enum parse_mode { WHITESPACE, TOKEN, QUOTED_STRING };
  *              Series of pointers to parsed tokens.
  */
 
-#define NEW_ARGV(old,n) (char **)realloc((char *)old,\
+#define NEW_ARGV(old,n) (char **)reallocf((char *)old,\
 					 (unsigned)(n+2)*sizeof(char*))
 
 char **ss_parse (sci_idx, line_ptr, argc_ptr)

@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_auth.c,v 1.7 1997/05/10 18:55:37 davidn Exp $
+ *	$Id: login_auth.c,v 1.8 1997/07/19 04:47:05 davidn Exp $
  */
 
 #include <sys/types.h>
@@ -393,7 +393,7 @@ auth_mkvalue(const char *value)
 	    }
 	}
 	*p = '\0';
-	big = realloc(big, strlen(big) + 1);
+	big = reallocf(big, strlen(big) + 1);
     }
     return big;
 }
