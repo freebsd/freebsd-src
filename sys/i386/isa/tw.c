@@ -1165,4 +1165,4 @@ static void 	tw_drvinit(void *unused)
 SYSINIT(twdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,tw_drvinit,NULL)
 
 
-#endif NTW
+#endif /* NTW */
