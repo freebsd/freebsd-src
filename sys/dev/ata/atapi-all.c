@@ -287,7 +287,8 @@ atapi_transfer(struct atapi_request *request)
 	ata_prtdev(atadev, "failure to send ATAPI packet command\n");
 
     if (request->flags & ATPR_F_DMA_USED)
-	ata_dmastart(atadev, request->flags & ATPR_F_READ);
+	ata_dmastart(atadev, request->data, request->bytecount,
+		     request->flags & ATPR_F_READ);
 
     /* command interrupt device ? just return */
     if (atadev->param->drq_type == ATAPI_DRQT_INTR)

@@ -278,7 +278,7 @@ void ata_dmafree(struct ata_device *);
 void ata_dmafreetags(struct ata_channel *);
 void ata_dmainit(struct ata_device *, int, int, int);
 int ata_dmasetup(struct ata_device *, caddr_t, int32_t);
-void ata_dmastart(struct ata_device *, int);
+int ata_dmastart(struct ata_device *, caddr_t, int32_t, int);
 int ata_dmastatus(struct ata_channel *);
 int ata_dmadone(struct ata_device *);
 

@@ -794,7 +794,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	/* make sure eventual UDMA mode from the BIOS is disabled */
 	pci_write_config(parent, channel ? 0x7b : 0x73, 
 			 pci_read_config(parent, channel ? 0x7b : 0x73, 1) &
-			 		 ~(device ? 0xca : 0x53), 1);
+					 ~(device ? 0xca : 0x53), 1);
 	/* FALLTHROUGH */
 
     case 0x06461095:	/* CMD 646 ATA controller */
@@ -1261,11 +1261,6 @@ int
 ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 {
     struct ata_channel *ch = atadev->channel;
-    struct ata_dmastate *ds = &atadev->dmastate;
-    struct ata_dmasetup_data_cb_args cba;
-
-    if (ds->flags & ATA_DS_ACTIVE)
-	    panic("ata_dmasetup: transfer active on this device!");
 
     if (((uintptr_t)data & ch->alignment) || (count & ch->alignment)) {
 	ata_prtdev(atadev, "non aligned DMA transfer attempted\n");
@@ -1276,29 +1271,34 @@ ata_dmasetup(struct ata_device *atadev, caddr_t data, int32_t count)
 	ata_prtdev(atadev, "zero length DMA transfer attempted\n");
 	return -1;
     }
-
-    cba.dmatab = ds->dmatab;
-    if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
-			ata_dmasetupd_cb, &cba, 0) || cba.error)
-    ds->flags = ATA_DS_ACTIVE;
-    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
-
     return 0;
 }
 
-void
-ata_dmastart(struct ata_device *atadev, int dir)
+int
+ata_dmastart(struct ata_device *atadev, caddr_t data, int32_t count, int dir)
 {
-    struct ata_channel *ch;
-    struct ata_dmastate *ds;
+    struct ata_channel *ch = atadev->channel;
+    struct ata_dmastate *ds = &atadev->dmastate;
+    struct ata_dmasetup_data_cb_args cba;
 
-    ch = atadev->channel;
-    ds = &atadev->dmastate;
+    if (ds->flags & ATA_DS_ACTIVE)
+	    panic("ata_dmasetup: transfer active on this device!");
+
+    cba.dmatab = ds->dmatab;
+    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_PREWRITE);
+    if (bus_dmamap_load(ds->ddmatag, ds->ddmamap, data, count,
+			ata_dmasetupd_cb, &cba, 0) || cba.error)
+	return -1;
+
+    bus_dmamap_sync(ds->cdmatag, ds->cdmamap, BUS_DMASYNC_POSTWRITE);
     bus_dmamap_sync(ds->ddmatag, ds->ddmamap, dir ? BUS_DMASYNC_PREREAD :
 		    BUS_DMASYNC_PREWRITE);
+
+    ch->flags |= ATA_DMA_ACTIVE;
+    ds->flags = ATA_DS_ACTIVE;
     if (dir)
 	    ds->flags |= ATA_DS_READ;
-    ch->flags |= ATA_DMA_ACTIVE;
+
     ATA_OUTL(ch->r_bmio, ATA_BMDTP_PORT, ds->mdmatab);
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, dir ? ATA_BMCMD_WRITE_READ : 0);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
@@ -1306,6 +1306,7 @@ ata_dmastart(struct ata_device *atadev, int dir)
 	  (ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR)));
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 	 ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) | ATA_BMCMD_START_STOP);
+    return 0;
 }
 
 int
@@ -1320,14 +1321,15 @@ ata_dmadone(struct ata_device *atadev)
     bus_dmamap_sync(ds->ddmatag, ds->ddmamap, (ds->flags & ATA_DS_READ) != 0 ?
 		    BUS_DMASYNC_POSTREAD : BUS_DMASYNC_POSTWRITE);
     bus_dmamap_unload(ds->ddmatag, ds->ddmamap);
+
     ATA_OUTB(ch->r_bmio, ATA_BMCMD_PORT, 
 		ATA_INB(ch->r_bmio, ATA_BMCMD_PORT) & ~ATA_BMCMD_START_STOP);
-    ch->flags &= ~ATA_DMA_ACTIVE;
     error = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
     ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, 
 	     error | ATA_BMSTAT_INTERRUPT | ATA_BMSTAT_ERROR);
+    ch->flags &= ~ATA_DMA_ACTIVE;
     ds->flags = 0;
-    return error & ATA_BMSTAT_MASK;
+    return (error & ATA_BMSTAT_MASK);
 }
 
 int
