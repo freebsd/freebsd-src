@@ -73,10 +73,14 @@ dofs_md () {
 
 	trap "umount ${MNT}; mdconfig -d -u ${MDDEVICE}" EXIT
 
-	${DISKLABEL} ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
-	newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
-
-	mount /dev/${MDDEVICE}c ${MNT}
+	if [ "x${DISKLABEL}" != "x" ] ; then
+		${DISKLABEL} ${MACHINE} -w ${BOOT} ${MDDEVICE} ${FSLABEL}
+		newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}c
+		mount /dev/${MDDEVICE}c ${MNT}
+	else
+		newfs -O1 -i ${FSINODE} -o space -m 0 /dev/${MDDEVICE}
+		mount /dev/${MDDEVICE} ${MNT}
+	fi
 }
 
 rm -f ${FSIMG}
