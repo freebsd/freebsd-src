@@ -64,6 +64,48 @@ extern int	__isthreaded;
 #define	FUNLOCKFILE(fp)		if (__isthreaded) _funlockfile(fp)
 
 /*
+ * Indexes into the pthread jump table.
+ *
+ * Warning! If you change this type, you must also change the threads
+ * libraries that reference it (libc_r, libpthread).
+ */
+typedef enum {
+	PJT_COND_BROADCAST,
+	PJT_COND_DESTROY,
+	PJT_COND_INIT,
+	PJT_COND_SIGNAL,
+	PJT_COND_WAIT,
+	PJT_GETSPECIFIC,
+	PJT_KEY_CREATE,
+	PJT_KEY_DELETE,
+	PJT_MAIN_NP,
+	PJT_MUTEX_DESTROY,
+	PJT_MUTEX_INIT,
+	PJT_MUTEX_LOCK,
+	PJT_MUTEX_TRYLOCK,
+	PJT_MUTEX_UNLOCK,
+	PJT_MUTEXATTR_DESTROY,
+	PJT_MUTEXATTR_INIT,
+	PJT_MUTEXATTR_SETTYPE,
+	PJT_ONCE,
+	PJT_RWLOCK_DESTROY,
+	PJT_RWLOCK_INIT,
+	PJT_RWLOCK_RDLOCK,
+	PJT_RWLOCK_TRYRDLOCK,
+	PJT_RWLOCK_TRYWRLOCK,
+	PJT_RWLOCK_UNLOCK,
+	PJT_RWLOCK_WRLOCK,
+	PJT_SELF,
+	PJT_SETSPECIFIC,
+	PJT_SIGMASK,
+	PJT_MAX
+} pjt_index_t;
+
+typedef int (*pthread_func_t)();
+
+extern pthread_func_t __thr_jtable[][];
+
+/*
  * This is a pointer in the C run-time startup code. It is used
  * by getprogname() and setprogname().
  */

@@ -31,6 +31,9 @@
 
 /*
  * Adjust names so that headers declare "hidden" names.
+ *
+ * README: When modifying this file don't forget to make the appropriate
+ *         changes in un-namespace.h!!!
  */
 
 /*
@@ -76,10 +79,12 @@
 #define		nanosleep			_nanosleep
 #define		open				_open
 #define		poll				_poll
-#define		pthread_cond_signal		_pthread_cond_signal
 #define		pthread_cond_broadcast		_pthread_cond_broadcast
-#define		pthread_cond_wait		_pthread_cond_wait
+#define		pthread_cond_destroy		_pthread_cond_destroy
 #define		pthread_cond_init		_pthread_cond_init
+#define		pthread_cond_signal		_pthread_cond_signal
+#define		pthread_cond_timedwait		_pthread_cond_timedwait
+#define		pthread_cond_wait		_pthread_cond_wait
 #define		pthread_exit			_pthread_exit
 #define		pthread_getspecific		_pthread_getspecific
 #define		pthread_key_create		_pthread_key_create
@@ -90,13 +95,16 @@
 #define		pthread_mutex_lock		_pthread_mutex_lock
 #define		pthread_mutex_trylock		_pthread_mutex_trylock
 #define		pthread_mutex_unlock		_pthread_mutex_unlock
-#define		pthread_mutexattr_init		_pthread_mutexattr_init
 #define		pthread_mutexattr_destroy	_pthread_mutexattr_destroy
+#define		pthread_mutexattr_init		_pthread_mutexattr_init
 #define		pthread_mutexattr_settype	_pthread_mutexattr_settype
 #define		pthread_once			_pthread_once
+#define		pthread_rwlock_destroy		_pthread_rwlock_destroy
 #define		pthread_rwlock_init		_pthread_rwlock_init
 #define		pthread_rwlock_rdlock		_pthread_rwlock_rdlock
 #define		pthread_rwlock_wrlock		_pthread_rwlock_wrlock
+#define		pthread_rwlock_tryrdlock	_pthread_rwlock_tryrdlock
+#define		pthread_rwlock_trywrlock	_pthread_rwlock_trywrlock
 #define		pthread_rwlock_unlock		_pthread_rwlock_unlock
 #define		pthread_self			_pthread_self
 #define		pthread_setspecific		_pthread_setspecific
@@ -135,9 +143,6 @@
 #define		msync				_msync
 #define		nfssvc				_nfssvc
 #define		pause				_pause
-#define		pthread_rwlock_destroy		_pthread_rwlock_destroy
-#define		pthread_rwlock_tryrdlock	_pthread_rwlock_tryrdlock
-#define		pthread_rwlock_trywrlock	_pthread_rwlock_trywrlock
 #define		pthread_rwlockattr_init		_pthread_rwlockattr_init
 #define		pthread_rwlockattr_destroy	_pthread_rwlockattr_destroy
 #define		sched_yield			_sched_yield
