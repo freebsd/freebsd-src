@@ -53,9 +53,11 @@
 .Ft int
 .Fn kse_release "struct timespec *timeout"
 .Ft int
-.Fn kse_wakeup "struct kse_mailbox *mbx"
+.Fn kse_switchin "mcontext_t *mcp" "long val" "long *loc"
 .Ft int
 .Fn kse_thr_interrupt "struct kse_thr_mailbox *tmbx"
+.Ft int
+.Fn kse_wakeup "struct kse_mailbox *mbx"
 .Sh DESCRIPTION
 These system calls implement kernel support for multi-threaded processes.
 .\"
@@ -284,6 +286,16 @@ blocked thread becomes runnable, or the timeout expires.
 If successful,
 .Fn kse_release
 does not return to the caller.
+.Pp
+The
+.Fn kse_switchin
+system call can be used by the UTS, when it has selected a new thread,
+to switch to the context of that thread.
+The use of
+.Fn kse_switchin
+is machine dependent.
+Some platforms do not need a system call to switch to a new context,
+while others require its use in particular cases.
 .Pp
 The
 .Fn kse_wakeup
