@@ -405,7 +405,7 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	s = splnet();
 	inp = sotoinpcb(so);
-	/* in_pcbbind assumes that the nam is a sockaddr_in
+	/* in_pcbbind assumes that nam is a sockaddr_in
 	 * and in_pcbbind requires a valid address. Since divert
 	 * sockets don't we need to make sure the address is
 	 * filled in properly.
