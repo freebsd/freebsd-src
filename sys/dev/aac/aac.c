@@ -72,7 +72,7 @@ static int	aac_map_command(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
 static void	aac_bio_complete(struct aac_command *cm);
-static int	aac_wait_command(struct aac_command *cm, int timeout);
+static int	aac_wait_command(struct aac_command *cm);
 static void	aac_command_thread(struct aac_softc *sc);
 
 /* Command Buffer Management */
@@ -1035,19 +1035,17 @@ aac_bio_complete(struct aac_command *cm)
  * Submit a command to the controller, return when it completes.
  * XXX This is very dangerous!  If the card has gone out to lunch, we could
  *     be stuck here forever.  At the same time, signals are not caught
- *     because there is a risk that a signal could wakeup the tsleep before
- *     the card has a chance to complete the command.  The passed in timeout
- *     is ignored for the same reason.  Since there is no way to cancel a
- *     command in progress, we should probably create a 'dead' queue where
- *     commands go that have been interrupted/timed-out/etc, that keeps them
- *     out of the free pool.  That way, if the card is just slow, it won't
- *     spam the memory of a command that has been recycled.
+ *     because there is a risk that a signal could wakeup the sleep before
+ *     the card has a chance to complete the command.  Since there is no way
+ *     to cancel a command that is in progress, we can't protect against the
+ *     card completing a command late and spamming the command and data
+ *     memory.  So, we are held hostage until the command completes.
  */
 static int
-aac_wait_command(struct aac_command *cm, int timeout)
+aac_wait_command(struct aac_command *cm)
 {
 	struct aac_softc *sc;
-	int error = 0;
+	int error;
 
 	debug_called(2);
 
@@ -1057,9 +1055,7 @@ aac_wait_command(struct aac_command *cm, int timeout)
 	cm->cm_queue = AAC_ADAP_NORM_CMD_QUEUE;
 	aac_enqueue_ready(cm);
 	aac_startio(sc);
-	while (!(cm->cm_flags & AAC_CMD_COMPLETED) && (error != EWOULDBLOCK)) {
-		error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
-	}
+	error = msleep(cm, &sc->aac_io_lock, PRIBIO, "aacwait", 0);
 	return(error);
 }
 
@@ -2547,7 +2543,7 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	/*
 	 * Pass the FIB to the controller, wait for it to complete.
 	 */
-	if ((error = aac_wait_command(cm, 30)) != 0) {	/* XXX user timeout? */
+	if ((error = aac_wait_command(cm)) != 0) {
 		device_printf(sc->aac_dev,
 			      "aac_wait_command return %d\n", error);
 		goto out;
