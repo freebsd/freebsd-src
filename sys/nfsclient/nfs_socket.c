@@ -232,8 +232,8 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		s = splnet();
 		SOCK_LOCK(so);
 		while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
-			(void) tsleep((caddr_t)&so->so_timeo, PSOCK,
-				"nfscon", 2 * hz);
+			(void) msleep((caddr_t)&so->so_timeo, SOCK_MTX(so),
+			    PSOCK, "nfscon", 2 * hz);
 			if ((so->so_state & SS_ISCONNECTING) &&
 			    so->so_error == 0 && rep &&
 			    (error = nfs_sigintr(nmp, rep,
