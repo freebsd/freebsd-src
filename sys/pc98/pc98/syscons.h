@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.18 1997/10/02 09:14:33 kato Exp $
+ *	$Id: syscons.h,v 1.19 1997/10/23 09:26:30 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -198,6 +198,7 @@ typedef struct scr_stat {
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
+	u_char	 	initial_mode;		/* initial mode */
 	u_char	 	mode;			/* mode */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
