@@ -19,8 +19,8 @@
 # Which version of config(8) is required.
 %VERSREQ=	300009
 
+KERNEL?=	kernel
 KERNFORMAT?=	elf
-
 STD8X16FONT?=	iso
 
 .if exists(./@/.)
@@ -45,7 +45,7 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 # Use the default object format for genassym, etc.
-GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -UKERNEL
 
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
@@ -69,9 +69,6 @@ PROF+=	-mprofiler-epilogue
 NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
-DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
-DRIVER_S= ${CC} -c -x ${ASM_CFLAGS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} $<
 
 GEN_CFILES= ${I386}/i386/genassym.c
@@ -85,7 +82,7 @@ SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 .if ${CFLAGS:M-g} == ""
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
-SYSTEM_LD_HEAD= @echo loading ${.TARGET}; rm -f ${.TARGET}
+
 .if ${KERNFORMAT} == aout || ${KERNFORMAT} == aoutkld
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
 SYSTEM_LD= @${LD} -aout -Bforcedynamic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -113,9 +110,28 @@ SYSTEM_DEP+= $S/i386/conf/kernel.script
 
 %MFILES
 
-%LOAD
-
 %CLEAN
+
+all:   ${KERNEL}
+
+.if !defined(DEBUG)
+FULLKERNEL=	${KERNEL}
+.else
+FULLKERNEL=	${KERNEL}.debug
+${KERNEL}:	${FULLKERNEL}
+.if ${KERNFORMAT} == "elf"
+	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
+.else
+	cp ${FULLKERNEL} ${KERNEL}
+	strip -d ${KERNEL}
+.endif
+.endif
+
+${FULLKERNEL}: ${BEFORE_DEPEND} ${SYSTEM_DEP} vers.o
+	@rm -f ${.TARGET}
+	@echo linking ${.TARGET}
+	${SYSTEM_LD}
+	${SYSTEM_LD_TAIL}
 
 .if !exists(.depend)
 ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
@@ -123,8 +139,8 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 
 clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs genassym gensetdefs \
-	      kernel linterrs makelinks param.c setdef[01].c setdefs.h \
-	      symbols.exclude symbols.sort tags \
+	      ${KERNEL} ${FULLKERNEL} linterrs makelinks param.c \
+	      setdef[01].c setdefs.h symbols.exclude symbols.sort tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
@@ -163,7 +179,6 @@ setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
 setdef0.c setdef1.c setdefs.h: ${OBJS}
-	@echo generating linker set emulation glue for ELF
 	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
@@ -180,7 +195,6 @@ genassym: genassym.o
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
-# XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	rm -f .newdep
 	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES}
@@ -194,9 +208,9 @@ cleandepend:
 	rm -f .depend
 
 links:
-	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \
+	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
 	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	echo ${CFILES:Nswapkernel.c} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks && rm -f dontlink
@@ -207,9 +221,9 @@ tags:
 	rm -f tags1
 	sed -e 's,      ../,    ,' tags > tags1
 
-install:
-	@if [ ! -f kernel ] ; then \
-		echo "You must first build your kernel before trying to install." ; \
+install install.debug:
+	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
+		echo "You must first build a kernel first." ; \
 		exit 1 ; \
 	fi
 .if ${KERNFORMAT} == "elf" && !defined(FORCE)
@@ -222,18 +236,23 @@ install:
 		exit 1 ; \
 	fi
 .endif
-.if exists(${DESTDIR}/kernel)
-	-chflags noschg ${DESTDIR}/kernel
-	mv ${DESTDIR}/kernel ${DESTDIR}/kernel.old
+.if exists(${DESTDIR}/${KERNEL})
+	-chflags noschg ${DESTDIR}/${KERNEL}
+	mv ${DESTDIR}/${KERNEL} ${DESTDIR}/${KERNEL}.old
 .endif
 	PATH=$${PATH}:/sbin:/usr/sbin; \
-	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/kernel ] ; then \
-		sysctl -w kern.bootfile=${DESTDIR}/kernel.old ; \
-		if [ -f /var/db/kvm_kernel.db ] ; then \
-			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
+		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
+		if [ -f /var/db/kvm_${KERNEL}.db ] ; then \
+			mv -f /var/db/kvm_${KERNEL}.db /var/db/kvm_${KERNEL}.old
 		fi \
 	fi
-	install -c -m 555 -o root -g wheel -fschg kernel ${DESTDIR}/
+	install -c -m 555 -o root -g wheel -fschg \
+		${KERNEL}${.TARGET:S/install//} ${DESTDIR}/${KERNEL}
+
+reinstall reinstall.debug:
+	install -c -m 555 -o root -g wheel -fschg \
+		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
 
 config.o:
 	${NORMAL_C}
