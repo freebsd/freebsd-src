@@ -213,8 +213,8 @@ daemon.
 .Pq Vt str
 Set the delay before starting
 .Xr dhclient 8
-in
-.Xr pccard_ether 8
+in the
+.Pa /etc/pccard_ether
 script.
 This defaults to 5 seconds to work around a bug in the
 .Xr ed 4
@@ -854,7 +854,7 @@ Each interface should also be configured by a general
 .Va ifconfig_ Ns Aq Ar interface
 setting.
 Refer to
-.Xr spppconfig 8
+.Xr spppcontrol 8
 for more information about available options.
 .It Va ppp_enable
 .Pq Vt bool
