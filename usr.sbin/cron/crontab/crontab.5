@@ -15,7 +15,7 @@
 .\" * Paul Vixie          <paul@vix.com>          uunet!decwrl!vixie!paul
 .\" */
 .\"
-.\" $Id: crontab.5,v 1.8 1998/03/23 08:21:36 charnier Exp $
+.\" $Id: crontab.5,v 1.9 1999/07/27 16:39:02 n_hibma Exp $
 .\" 
 .Dd January 24, 1994
 .Dt CRONTAB 5
@@ -223,3 +223,15 @@ feature can be turned off and no mail will be sent at all (SysV can't do this
 either).
 .Sh AUTHORS
 .An Paul Vixie Aq paul@vix.com
+.Sh BUGS
+If you're in one of the 70-odd countries that observe Daylight
+Savings Time, jobs scheduled during the rollback or advance will be
+affected.  In general, it's not a good idea to schedule jobs during
+this period. 
+.Pp
+For US timezones (except parts of IN, AZ, and HI) the time shift occurs at
+2AM local time.  For others, the output of the
+.Xr zdump 8
+program's verbose
+.Fl ( v )
+option can be used to determine the moment of time shift.
