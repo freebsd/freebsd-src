@@ -2523,8 +2523,6 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.
  */
-extern void	enable_sse(void);
-
 void
 ap_init(void)
 {
