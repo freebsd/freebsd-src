@@ -53,5 +53,5 @@ struct mdproc {
 #define MDP_UAC_NOPRINT	0x0010		/* Don't print unaligned traps */
 #define MDP_UAC_NOFIX	0x0020		/* Don't fixup unaligned traps */
 #define MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
-					   unalinged access */
+					   unaligned access */
 #define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
