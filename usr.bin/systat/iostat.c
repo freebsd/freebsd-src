@@ -1,4 +1,33 @@
 /*
+ * Copyright (c) 1998 Kenneth D. Merry.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id$
+ */
+/*
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -36,28 +65,19 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #endif not lint
 
 #include <sys/param.h>
-#include <sys/dkstat.h>
 #include <sys/buf.h>
+#include <sys/dkstat.h>
 
 #include <string.h>
 #include <stdlib.h>
 #include <nlist.h>
 #include <paths.h>
+#include <devstat.h>
 #include "systat.h"
 #include "extern.h"
 
 static struct nlist namelist[] = {
-#define X_DK_BUSY	0
-	{ "_dk_busy" },
-#define X_DK_TIME	1
-	{ "_dk_time" },
-#define X_DK_XFER	2
-	{ "_dk_xfer" },
-#define X_DK_WDS	3
-	{ "_dk_wds" },
-#define X_DK_SEEK	4
-	{ "_dk_seek" },
-#define X_CP_TIME	5
+#define X_CP_TIME	0
 	{ "_cp_time" },
 #ifdef vax
 #define X_MBDINIT	(X_CP_TIME+1)
@@ -72,26 +92,19 @@ static struct nlist namelist[] = {
 	{ "" },
 };
 
-static struct {
-	int	dk_busy;
-	long	cp_time[CPUSTATES];
-	long	*dk_time;
-	long	*dk_wds;
-	long	*dk_seek;
-	long	*dk_xfer;
-} s, s1;
+struct statinfo cur, last;
 
 static  int linesperregion;
 static  double etime;
 static  int numbers = 0;		/* default display bar graphs */
-static  int msps = 0;			/* default ms/seek shown */
+static  int kbpt = 0;			/* default ms/seek shown */
 
 static int barlabels __P((int));
-static void histogram __P((double, int, double));
+static void histogram __P((long double, int, double));
 static int numlabels __P((int));
+static int devstats __P((int, int, int));
 static int stats __P((int, int, int));
 static void stat1 __P((int, int));
-
 
 WINDOW *
 openiostat()
@@ -113,42 +126,61 @@ closeiostat(w)
 int
 initiostat()
 {
-	if (namelist[X_DK_BUSY].n_type == 0) {
-		if (kvm_nlist(kd, namelist)) {
-			nlisterr(namelist);
-			return(0);
-		}
-		if (namelist[X_DK_BUSY].n_type == 0) {
-			error("Disk init information isn't in namelist");
-			return(0);
-		}
-	}
-	if (! dkinit())
+	if (num_devices = getnumdevs() < 0)
 		return(0);
-	if (dk_ndrive) {
-#define	allocate(e, t) \
-    s./**/e = (t *)calloc(dk_ndrive, sizeof (t)); \
-    s1./**/e = (t *)calloc(dk_ndrive, sizeof (t));
-		allocate(dk_time, long);
-		allocate(dk_wds, long);
-		allocate(dk_seek, long);
-		allocate(dk_xfer, long);
-#undef allocate
+
+	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(cur.dinfo, sizeof(struct devinfo));
+	bzero(last.dinfo, sizeof(struct devinfo));
+	
+	/*
+	 * This value for maxshowdevs (100) is bogus.  I'm not sure exactly
+	 * how to calculate it, though.
+	 */
+	if (dsinit(100, &cur, &last, NULL) != 1)
+		return(0);
+
+	if (kvm_nlist(kd, namelist)) {
+       		nlisterr(namelist);
+		return(0);
 	}
+
 	return(1);
 }
 
 void
 fetchiostat()
 {
-	if (namelist[X_DK_BUSY].n_type == 0)
-		return;
-	NREAD(X_DK_BUSY, &s.dk_busy, sizeof(s.dk_busy));
-	NREAD(X_DK_TIME, s.dk_time, dk_ndrive * LONG);
-	NREAD(X_DK_XFER, s.dk_xfer, dk_ndrive * LONG);
-	NREAD(X_DK_WDS, s.dk_wds, dk_ndrive * LONG);
-	NREAD(X_DK_SEEK, s.dk_seek, dk_ndrive * LONG);
-	NREAD(X_CP_TIME, s.cp_time, sizeof s.cp_time);
+	struct devinfo *tmp_dinfo;
+
+	NREAD(X_CP_TIME, cur.cp_time, sizeof(cur.cp_time));
+	tmp_dinfo = last.dinfo;
+	last.dinfo = cur.dinfo;
+	cur.dinfo = tmp_dinfo;
+         
+	last.busy_time = cur.busy_time;
+
+	/*
+	 * Here what we want to do is refresh our device stats.
+	 * getdevs() returns 1 when the device list has changed.
+	 * If the device list has changed, we want to go through
+	 * the selection process again, in case a device that we
+	 * were previously displaying has gone away.
+	 */
+	switch (getdevs(&cur)) {
+	case -1:
+		errx(1, "%s", devstat_errbuf);
+		break;
+	case 1:
+		cmdiostat("refresh", NULL);
+		break;
+	default:
+		break;
+	}
+	num_devices = cur.dinfo->numdevs;
+	generation = cur.dinfo->generation;
+
 }
 
 #define	INSET	10
@@ -158,10 +190,6 @@ labeliostat()
 {
 	int row;
 
-	if (namelist[X_DK_BUSY].n_type == 0) {
-		error("No dk_busy defined.");
-		return;
-	}
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
 	mvwaddstr(wnd, row++, INSET,
@@ -182,11 +210,12 @@ numlabels(row)
 	int row;
 {
 	int i, col, regions, ndrives;
+	char tmpstr[10];
 
-#define COLWIDTH	14
+#define COLWIDTH	17
 #define DRIVESPERLINE	((wnd->maxx - INSET) / COLWIDTH)
-	for (ndrives = 0, i = 0; i < dk_ndrive; i++)
-		if (dk_select[i])
+	for (ndrives = 0, i = 0; i < num_devices; i++)
+		if (dev_select[i].selected)
 			ndrives++;
 	regions = howmany(ndrives, DRIVESPERLINE);
 	/*
@@ -200,15 +229,17 @@ numlabels(row)
 	if (linesperregion < 3)
 		linesperregion = 3;
 	col = INSET;
-	for (i = 0; i < dk_ndrive; i++)
-		if (dk_select[i] && dk_mspw[i] != 0.0) {
+	for (i = 0; i < num_devices; i++)
+		if (dev_select[i].selected) {
 			if (col + COLWIDTH >= wnd->maxx - INSET) {
 				col = INSET, row += linesperregion + 1;
 				if (row > wnd->maxy - (linesperregion + 1))
 					break;
 			}
-			mvwaddstr(wnd, row, col + 4, dr_name[i]);
-			mvwaddstr(wnd, row + 1, col, "bps tps msps");
+			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+				dev_select[i].unit_number);
+			mvwaddstr(wnd, row, col + 4, tmpstr);
+			mvwaddstr(wnd, row + 1, col, "  KB/t tps  MB/s ");
 			col += COLWIDTH;
 		}
 	if (col)
@@ -221,18 +252,22 @@ barlabels(row)
 	int row;
 {
 	int i;
+	char tmpstr[10];
 
 	mvwaddstr(wnd, row++, INSET,
 	    "/0   /5   /10  /15  /20  /25  /30  /35  /40  /45  /50");
-	linesperregion = 2 + msps;
-	for (i = 0; i < dk_ndrive; i++)
-		if (dk_select[i] && dk_mspw[i] != 0.0) {
+	linesperregion = 2 + kbpt;
+	for (i = 0; i < num_devices; i++)
+		if (dev_select[i].selected) {
 			if (row > wnd->maxy - linesperregion)
 				break;
-			mvwprintw(wnd, row++, 0, "%-4.4s  bps|", dr_name[i]);
+			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+				dev_select[i].unit_number);
+			mvwprintw(wnd, row++, 0, "%-5.5s MB/s|", 
+				  tmpstr);
 			mvwaddstr(wnd, row++, 0, "      tps|");
-			if (msps)
-				mvwaddstr(wnd, row++, 0, "     msps|");
+			if (kbpt)
+				mvwaddstr(wnd, row++, 0, "     KB/t|");
 		}
 	return (row);
 }
@@ -244,16 +279,11 @@ showiostat()
 	register long t;
 	register int i, row, col;
 
-	if (namelist[X_DK_BUSY].n_type == 0)
-		return;
-	for (i = 0; i < dk_ndrive; i++) {
-#define X(fld)	t = s.fld[i]; s.fld[i] -= s1.fld[i]; s1.fld[i] = t
-		X(dk_xfer); X(dk_seek); X(dk_wds); X(dk_time);
-	}
+#define X(fld)	t = cur.fld[i]; cur.fld[i] -= last.fld[i]; last.fld[i] = t
 	etime = 0;
 	for(i = 0; i < CPUSTATES; i++) {
 		X(cp_time);
-		etime += s.cp_time[i];
+		etime += cur.cp_time[i];
 	}
 	if (etime == 0.0)
 		etime = 1.0;
@@ -263,11 +293,11 @@ showiostat()
 		stat1(row++, i);
 	if (!numbers) {
 		row += 2;
-		for (i = 0; i < dk_ndrive; i++)
-			if (dk_select[i] && dk_mspw[i] != 0.0) {
+		for (i = 0; i < num_devices; i++)
+			if (dev_select[i].selected) {
 				if (row > wnd->maxy - linesperregion)
 					break;
-				row = stats(row, INSET, i);
+				row = devstats(row, INSET, i);
 			}
 		return;
 	}
@@ -276,8 +306,8 @@ showiostat()
 	wdeleteln(wnd);
 	wmove(wnd, row + 3, 0);
 	winsertln(wnd);
-	for (i = 0; i < dk_ndrive; i++)
-		if (dk_select[i] && dk_mspw[i] != 0.0) {
+	for (i = 0; i < num_devices; i++)
+		if (dev_select[i].selected) {
 			if (col + COLWIDTH >= wnd->maxx - INSET) {
 				col = INSET, row += linesperregion + 1;
 				if (row > wnd->maxy - (linesperregion + 1))
@@ -287,42 +317,47 @@ showiostat()
 				wmove(wnd, row + 3, 0);
 				winsertln(wnd);
 			}
-			(void) stats(row + 3, col, i);
+			(void) devstats(row + 3, col, i);
 			col += COLWIDTH;
 		}
 }
 
 static int
-stats(row, col, dn)
+devstats(row, col, dn)
 	int row, col, dn;
 {
-	double atime, words, xtime, itime;
+	long double transfers_per_second;
+	long double kb_per_transfer, mb_per_second;
+	long double busy_seconds;
+	int di;
+	
+	di = dev_select[dn].position;
 
-	atime = s.dk_time[dn];
-	atime /= hertz;
-	words = s.dk_wds[dn]*32.0;	/* number of words transferred */
-	xtime = dk_mspw[dn]*words;	/* transfer time */
-	itime = atime - xtime;		/* time not transferring */
-	if (xtime < 0)
-		itime += xtime, xtime = 0;
-	if (itime < 0)
-		xtime += itime, itime = 0;
+	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
+
+	if (compute_stats(&cur.dinfo->devices[di], &last.dinfo->devices[di],
+			  busy_seconds, NULL, NULL, NULL,
+			  &kb_per_transfer, &transfers_per_second,
+			  &mb_per_second, NULL, NULL) != 0)
+		errx(1, "%s", devstat_errbuf);
+
 	if (numbers) {
-		mvwprintw(wnd, row, col, "%3.0f%4.0f%5.1f",
-		    words / 512 / etime, s.dk_xfer[dn] / etime,
-		    s.dk_seek[dn] ? itime * 1000. / s.dk_seek[dn] : 0.0);
-		return (row);
+		mvwprintw(wnd, row, col, " %5.2Lf %3.0Lf %5.2Lf ",
+			 kb_per_transfer, transfers_per_second,
+			 mb_per_second);
+		return(row);
 	}
 	wmove(wnd, row++, col);
-	histogram(words / 512 / etime, 50, 1.0);
+	histogram(mb_per_second, 50, 1.0);
 	wmove(wnd, row++, col);
-	histogram(s.dk_xfer[dn] / etime, 50, 1.0);
-	if (msps) {
+	histogram(transfers_per_second, 50, 1.0);
+	if (kbpt) {
 		wmove(wnd, row++, col);
-		histogram(s.dk_seek[dn] ? itime * 1000. / s.dk_seek[dn] : 0,
-		   50, 1.0);
+		histogram(kb_per_transfer, 50, 1.0);
 	}
-	return (row);
+
+	return(row);
+
 }
 
 static void
@@ -334,17 +369,17 @@ stat1(row, o)
 
 	time = 0;
 	for (i = 0; i < CPUSTATES; i++)
-		time += s.cp_time[i];
+		time += cur.cp_time[i];
 	if (time == 0.0)
 		time = 1.0;
 	wmove(wnd, row, INSET);
 #define CPUSCALE	0.5
-	histogram(100.0 * s.cp_time[o] / time, 50, CPUSCALE);
+	histogram(100.0 * cur.cp_time[o] / time, 50, CPUSCALE);
 }
 
 static void
 histogram(val, colwidth, scale)
-	double val;
+	long double val;
 	int colwidth;
 	double scale;
 {
@@ -354,7 +389,7 @@ histogram(val, colwidth, scale)
 
 	k = MIN(v, colwidth);
 	if (v > colwidth) {
-		snprintf(buf, sizeof(buf), "%4.1f", val);
+		snprintf(buf, sizeof(buf), "%5.2Lf", val);
 		k -= strlen(buf);
 		while (k--)
 			waddch(wnd, 'X');
@@ -371,13 +406,13 @@ cmdiostat(cmd, args)
 	char *cmd, *args;
 {
 
-	if (prefix(cmd, "msps"))
-		msps = !msps;
+	if (prefix(cmd, "kbpt"))
+		kbpt = !kbpt;
 	else if (prefix(cmd, "numbers"))
 		numbers = 1;
 	else if (prefix(cmd, "bars"))
 		numbers = 0;
-	else if (!dkcmd(cmd, args))
+	else if (!dscmd(cmd, args, 100, &cur))
 		return (0);
 	wclear(wnd);
 	labeliostat();

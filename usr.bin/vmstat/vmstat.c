@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.23 1998/03/07 23:40:23 dyson Exp $";
+	"$Id: vmstat.c,v 1.24 1998/07/06 21:01:54 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,58 +74,51 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
+#include <devstat.h>
 
 struct nlist namelist[] = {
 #define	X_CPTIME	0
 	{ "_cp_time" },
-#define	X_DK_NDRIVE	1
-	{ "_dk_ndrive" },
-#define X_SUM		2
+#define X_SUM		1
 	{ "_cnt" },
-#define	X_BOOTTIME	3
+#define	X_BOOTTIME	2
 	{ "_boottime" },
-#define	X_DKXFER	4
-	{ "_dk_xfer" },
-#define X_HZ		5
+#define X_HZ		3
 	{ "_hz" },
-#define X_STATHZ	6
+#define X_STATHZ	4
 	{ "_stathz" },
-#define X_NCHSTATS	7
+#define X_NCHSTATS	5
 	{ "_nchstats" },
-#define	X_INTRNAMES	8
+#define	X_INTRNAMES	6
 	{ "_intrnames" },
-#define	X_EINTRNAMES	9
+#define	X_EINTRNAMES	7
 	{ "_eintrnames" },
-#define	X_INTRCNT	10
+#define	X_INTRCNT	8
 	{ "_intrcnt" },
-#define	X_EINTRCNT	11
+#define	X_EINTRCNT	9
 	{ "_eintrcnt" },
-#define	X_KMEMSTATISTICS	12
+#define	X_KMEMSTATISTICS	10
 	{ "_kmemstatistics" },
-#define	X_KMEMBUCKETS	13
+#define	X_KMEMBUCKETS	11
 	{ "_bucket" },
 #ifdef notyet
-#define	X_DEFICIT	14
+#define	X_DEFICIT	12
 	{ "_deficit" },
-#define	X_FORKSTAT	15
+#define	X_FORKSTAT	13
 	{ "_forkstat" },
-#define X_REC		16
+#define X_REC		14
 	{ "_rectime" },
-#define X_PGIN		17
+#define X_PGIN		15
 	{ "_pgintime" },
-#define	X_XSTATS	18
+#define	X_XSTATS	16
 	{ "_xstats" },
-#define X_END		19
+#define X_END		17
 #else
 #define X_END		14
 #endif
 #if defined(hp300) || defined(luna68k)
 #define	X_HPDINIT	(X_END)
 	{ "_hp_dinit" },
-#endif
-#if defined(i386)
-#define X_DK_NAMES	(X_END)
-	{ "_dk_names" },
 #endif
 #ifdef mips
 #define	X_SCSI_DINIT	(X_END)
@@ -148,14 +141,17 @@ struct nlist namelist[] = {
 	{ "" },
 };
 
-struct _disk {
-	long time[CPUSTATES];
-	long *xfer;
-} cur, last;
+struct statinfo cur, last;
+int num_devices, maxshowdevs, generation;
+struct device_selection *dev_select;
+int num_selected;
+struct devstat_match *matches;
+int num_matches = 0;
+int num_devices_specified, num_selections, select_generation;
+char **specified_devices;
+devstat_select_mode select_mode;
 
 struct	vmmeter sum, osum;
-char	**dr_name;
-int	*dr_select, dk_ndrive, ndrives;
 
 int	winlines = 20;
 
@@ -168,14 +164,13 @@ kvm_t *kd;
 #define	TIMESTAT	0x10
 #define	VMSTAT		0x20
 
-#include "names.c"			/* disk names -- machine dependent */
-
-void	cpustats(), dkstats(), dointr(), domem(), dosum();
+void	cpustats(), dointr(), domem(), dosum();
 void	dovmstat(), kread(), usage();
 #ifdef notyet
 void	dotimes(), doforkst();
 #endif
 void printhdr __P((void));
+static void devstats();
 
 int
 main(argc, argv)
@@ -187,10 +182,12 @@ main(argc, argv)
 	int reps;
 	char *memf, *nlistf;
         char errbuf[_POSIX2_LINE_MAX];
+	char *err_str;
 
 	memf = nlistf = NULL;
 	interval = reps = todo = 0;
-	while ((c = getopt(argc, argv, "c:fiM:mN:stw:")) != -1) {
+	maxshowdevs = 3;
+	while ((c = getopt(argc, argv, "c:fiM:mN:n:p:stw:")) != -1) {
 		switch (c) {
 		case 'c':
 			reps = atoi(optarg);
@@ -213,6 +210,16 @@ main(argc, argv)
 			break;
 		case 'N':
 			nlistf = optarg;
+			break;
+		case 'n':
+			maxshowdevs = atoi(optarg);
+			if (maxshowdevs < 0)
+				errx(1, "number of devices %d is < 0",
+				     maxshowdevs);
+			break;
+		case 'p':
+			if (buildmatch(optarg, &matches, &num_matches) != 0)
+				errx(1, "%s", devstat_errbuf);
 			break;
 		case 's':
 			todo |= SUMSTAT;
@@ -314,62 +321,64 @@ getdrivedata(argv)
 	char **argv;
 {
 	register int i;
-	register char **cp;
 	char buf[30];
 
-	kread(X_DK_NDRIVE, &dk_ndrive, sizeof(dk_ndrive));
-	if (dk_ndrive < 0)
-		errx(1, "dk_ndrive %d", dk_ndrive);
-	dr_select = calloc((size_t)dk_ndrive, sizeof(int));
-	dr_name = calloc((size_t)dk_ndrive, sizeof(char *));
-	for (i = 0; i < dk_ndrive; i++)
-		dr_name[i] = NULL;
-	cur.xfer = calloc((size_t)dk_ndrive, sizeof(long));
-	last.xfer = calloc((size_t)dk_ndrive, sizeof(long));
-	if (!read_names())
-		exit (1);
-	for (i = 0; i < dk_ndrive; i++)
-		if (dr_name[i] == NULL) {
-			(void)sprintf(buf, "??%d", i);
-			dr_name[i] = strdup(buf);
-		}
+	if ((num_devices = getnumdevs()) < 0)
+		errx(1, "%s", devstat_errbuf);
 
-	/*
-	 * Choose drives to be displayed.  Priority goes to (in order) drives
-	 * supplied as arguments, default drives.  If everything isn't filled
-	 * in and there are drives not taken care of, display the first few
-	 * that fit.
-	 */
-#define BACKWARD_COMPATIBILITY
-	for (ndrives = 0; *argv; ++argv) {
-#ifdef	BACKWARD_COMPATIBILITY
+	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(cur.dinfo, sizeof(struct devinfo));
+	bzero(last.dinfo, sizeof(struct devinfo));
+
+	if (getdevs(&cur) == -1)
+		errx(1, "%s", devstat_errbuf);
+
+	num_devices = cur.dinfo->numdevs;
+	generation = cur.dinfo->generation;
+
+	specified_devices = (char **)malloc(sizeof(char *));
+	for (num_devices_specified = 0; *argv; ++argv) {
 		if (isdigit(**argv))
 			break;
-#endif
-		for (i = 0; i < dk_ndrive; i++) {
-			if (strcmp(dr_name[i], *argv))
-				continue;
-			dr_select[i] = 1;
-			++ndrives;
-			break;
-		}
+		num_devices_specified++;
+		specified_devices = (char **)realloc(specified_devices,
+						     sizeof(char *) *
+						     num_devices_specified);
+		specified_devices[num_devices_specified - 1] = *argv;
 	}
-	for (i = 0; i < dk_ndrive && ndrives < 4; i++) {
-		if (dr_select[i])
-			continue;
-		for (cp = defdrives; *cp; cp++)
-			if (strcmp(dr_name[i], *cp) == 0) {
-				dr_select[i] = 1;
-				++ndrives;
-				break;
-			}
-	}
-	for (i = 0; i < dk_ndrive && ndrives < 4; i++) {
-		if (dr_select[i])
-			continue;
-		dr_select[i] = 1;
-		++ndrives;
-	}
+	dev_select = NULL;
+
+	/*
+	 * People are generally only interested in disk statistics when
+	 * they're running vmstat.  So, that's what we're going to give
+	 * them if they don't specify anything by default.  We'll also give
+	 * them any other random devices in the system so that we get to
+	 * maxshowdevs devices, if that many devices exist.  If the user
+	 * specifies devices on the command line, either through a pattern
+	 * match or by naming them explicitly, we will give the user only
+	 * those devices.
+	 */
+	if ((num_devices_specified == 0) && (num_matches == 0)) {
+		if (buildmatch("da", &matches, &num_matches) != 0)
+			errx(1, "%s", devstat_errbuf);
+
+		select_mode = DS_SELECT_ADD;
+	} else
+		select_mode = DS_SELECT_ONLY;
+
+	/*
+	 * At this point, selectdevs will almost surely indicate that the
+	 * device list has changed, so we don't look for return values of 0
+	 * or 1.  If we get back -1, though, there is an error.
+	 */
+	if (selectdevs(&dev_select, &num_selected, &num_selections,
+		       &select_generation, generation, cur.dinfo->devices,
+		       num_devices, matches, num_matches, specified_devices,
+		       num_devices_specified, select_mode,
+		       maxshowdevs, 0) == -1)
+		errx(1, "%s", devstat_errbuf);
+
 	return(argv);
 }
 
@@ -397,6 +406,7 @@ dovmstat(interval, reps)
 {
 	struct vmtotal total;
 	time_t uptime, halfuptime;
+	struct devinfo *tmp_dinfo;
 	void needhdr();
 	int mib[2], size;
 
@@ -409,11 +419,63 @@ dovmstat(interval, reps)
 	if (!hz)
 		kread(X_HZ, &hz, sizeof(hz));
 
+	/*
+	 * Make sure that the userland devstat version matches the kernel
+	 * devstat version.  If not, exit and print a message informing 
+	 * the user of his mistake.
+	 */
+	if (checkversion() < 0)
+		errx(1, "%s", devstat_errbuf);
+
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)
 			printhdr();
-		kread(X_CPTIME, cur.time, sizeof(cur.time));
-		kread(X_DKXFER, cur.xfer, sizeof(*cur.xfer) * dk_ndrive);
+		kread(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
+
+		tmp_dinfo = last.dinfo;
+		last.dinfo = cur.dinfo;
+		cur.dinfo = tmp_dinfo;
+		last.busy_time = cur.busy_time;
+
+		/*
+		 * Here what we want to do is refresh our device stats.
+		 * getdevs() returns 1 when the device list has changed.
+		 * If the device list has changed, we want to go through
+		 * the selection process again, in case a device that we
+		 * were previously displaying has gone away.
+		 */
+		switch (getdevs(&cur)) {
+		case -1:
+			errx(1, "%s", devstat_errbuf);
+			break;
+		case 1: {
+			int retval;
+
+			num_devices = cur.dinfo->numdevs;
+			generation = cur.dinfo->generation;
+
+			retval = selectdevs(&dev_select, &num_selected,
+					    &num_selections, &select_generation,
+					    generation, cur.dinfo->devices,
+					    num_devices, matches, num_matches,
+					    specified_devices,
+					    num_devices_specified, select_mode,
+					    maxshowdevs, 0);
+			switch (retval) {
+			case -1:
+				errx(1, "%s", devstat_errbuf);
+				break;
+			case 1:
+				printhdr();
+				break;
+			default:
+				break;
+			}
+		}
+		default:
+			break;
+		}
+
 		kread(X_SUM, &sum, sizeof(sum));
 		size = sizeof(total);
 		mib[0] = CTL_VM;
@@ -442,7 +504,7 @@ dovmstat(interval, reps)
 		    (u_long)rate(sum.v_tfree - osum.v_tfree));
 		(void)printf("%3lu ",
 		    (u_long)rate(sum.v_pdpages - osum.v_pdpages));
-		dkstats();
+		devstats();
 		(void)printf("%4lu %4lu %3lu ",
 		    (u_long)rate(sum.v_intr - osum.v_intr),
 		    (u_long)rate(sum.v_syscall - osum.v_syscall),
@@ -471,17 +533,23 @@ printhdr()
 {
 	register int i;
 
-	(void)printf(" procs      memory     page%*s", 20, "");
-	if (ndrives > 1)
+	(void)printf(" procs      memory     page%*s", 19, "");
+	if (num_selected > 1)
 		(void)printf("disks %*s  faults      cpu\n",
-		   ndrives * 3 - 6, "");
+		   ((num_selected < maxshowdevs) ? num_selected :
+		    maxshowdevs ) * 4 - 7, "");
+	else if (num_selected == 1)
+		(void)printf("disk faults      cpu\n");
 	else
-		(void)printf("%*s  faults      cpu\n", ndrives * 3, "");
+		(void)printf("%*s  faults      cpu\n", num_selected * 4, "");
+
 	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
-	for (i = 0; i < dk_ndrive; i++)
-		if (dr_select[i])
-			(void)printf("%c%c ", dr_name[i][0],
-			    dr_name[i][strlen(dr_name[i]) - 1]);
+	for (i = 0; i < num_devices; i++)
+		if ((dev_select[i].selected)
+		 && (dev_select[i].selected <= maxshowdevs))
+			(void)printf("%c%c%d ", dev_select[i].device_name[0],
+				     dev_select[i].device_name[1],
+				     dev_select[i].unit_number);
 	(void)printf("  in   sy  cs us sy id\n");
 	hdrcnt = winlines - 2;
 }
@@ -624,32 +692,39 @@ doforkst()
 }
 #endif
 
-void
-dkstats()
+static void
+devstats()
 {
 	register int dn, state;
-	double etime;
+	long double transfers_per_second;
+	long double busy_seconds;
 	long tmp;
-
-	for (dn = 0; dn < dk_ndrive; ++dn) {
-		tmp = cur.xfer[dn];
-		cur.xfer[dn] -= last.xfer[dn];
-		last.xfer[dn] = tmp;
-	}
-	etime = 0;
+	
 	for (state = 0; state < CPUSTATES; ++state) {
-		tmp = cur.time[state];
-		cur.time[state] -= last.time[state];
-		last.time[state] = tmp;
-		etime += cur.time[state];
+		tmp = cur.cp_time[state];
+		cur.cp_time[state] -= last.cp_time[state];
+		last.cp_time[state] = tmp;
 	}
-	if (etime == 0)
-		etime = 1;
-	etime /= hz;
-	for (dn = 0; dn < dk_ndrive; ++dn) {
-		if (!dr_select[dn])
+
+	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
+
+	for (dn = 0; dn < num_devices; dn++) {
+		int di;
+
+		if ((dev_select[dn].selected == 0)
+		 || (dev_select[dn].selected > maxshowdevs))
 			continue;
-		(void)printf("%2.0f ", cur.xfer[dn] / etime);
+
+		di = dev_select[dn].position;
+
+		if (compute_stats(&cur.dinfo->devices[di],
+				  &last.dinfo->devices[di], busy_seconds,
+				  NULL, NULL, NULL,
+				  NULL, &transfers_per_second, NULL,
+				  NULL, NULL) != 0)
+			errx(1, "%s", devstat_errbuf);
+
+		printf("%3.0Lf ", transfers_per_second);
 	}
 }
 
@@ -661,14 +736,16 @@ cpustats()
 
 	total = 0;
 	for (state = 0; state < CPUSTATES; ++state)
-		total += cur.time[state];
+		total += cur.cp_time[state];
 	if (total)
 		pct = 100 / total;
 	else
 		pct = 0;
-	(void)printf("%2.0f ", (cur.time[CP_USER] + cur.time[CP_NICE]) * pct);
-	(void)printf("%2.0f ", (cur.time[CP_SYS] + cur.time[CP_INTR]) * pct);
-	(void)printf("%2.0f", cur.time[CP_IDLE] * pct);
+	(void)printf("%2.0f ", (cur.cp_time[CP_USER] +
+				cur.cp_time[CP_NICE]) * pct);
+	(void)printf("%2.0f ", (cur.cp_time[CP_SYS] +
+				cur.cp_time[CP_INTR]) * pct);
+	(void)printf("%2.0f", cur.cp_time[CP_IDLE] * pct);
 }
 
 void

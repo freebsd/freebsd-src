@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.25 1998/06/09 04:17:29 imp Exp $";
+	"$Id: vmstat.c,v 1.26 1998/07/06 22:08:00 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -44,7 +44,6 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>
-#include <sys/dkstat.h>
 #include <sys/buf.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -52,6 +51,7 @@ static const char rcsid[] =
 #include <sys/uio.h>
 #include <sys/namei.h>
 #include <sys/sysctl.h>
+#include <sys/dkstat.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm_param.h>
@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 #include <utmp.h>
+#include <devstat.h>
 #include "systat.h"
 #include "extern.h"
 
@@ -73,11 +74,6 @@ static struct Info {
 	long	time[CPUSTATES];
 	struct	vmmeter Cnt;
 	struct	vmtotal Total;
-	long	*dk_time;
-	long	*dk_wds;
-	long	*dk_seek;
-	long	*dk_xfer;
-	int	dk_busy;
 	struct	nchstats nchstats;
 	long	nchcount;
 	long	*intrcnt;
@@ -86,6 +82,8 @@ static struct Info {
 	long	numvnodes;
 	long	freevnodes;
 } s, s1, s2, z;
+
+struct statinfo cur, last, run;
 
 #define	cnt s.Cnt
 #define oldcnt s1.Cnt
@@ -98,10 +96,11 @@ static	enum state { BOOT, TIME, RUN } state = TIME;
 static void allocinfo __P((struct Info *));
 static void copyinfo __P((struct Info *, struct Info *));
 static float cputime __P((int));
-static void dinfo __P((int, int));
+static void dinfo __P((int, int, struct statinfo *, struct statinfo *));
 static void getinfo __P((struct Info *, enum state));
 static void putint __P((int, int, int, int));
 static void putfloat __P((double, int, int, int, int, int));
+static void putlongdouble __P((long double, int, int, int, int, int));
 static int ucount __P((void));
 
 static	int ncpu;
@@ -147,31 +146,21 @@ static struct nlist namelist[] = {
 	{ "_cnt" },
 #define	X_BUFFERSPACE	2
 	{ "_bufspace" },
-#define	X_DK_BUSY	3
-	{ "_dk_busy" },
-#define	X_DK_TIME	4
-	{ "_dk_time" },
-#define	X_DK_XFER	5
-	{ "_dk_xfer" },
-#define	X_DK_WDS	6
-	{ "_dk_wds" },
-#define	X_DK_SEEK	7
-	{ "_dk_seek" },
-#define	X_NCHSTATS	8
+#define	X_NCHSTATS	3
 	{ "_nchstats" },
-#define	X_INTRNAMES	9
+#define	X_INTRNAMES	4
 	{ "_intrnames" },
-#define	X_EINTRNAMES	10
+#define	X_EINTRNAMES	5
 	{ "_eintrnames" },
-#define	X_INTRCNT	11
+#define	X_INTRCNT	6
 	{ "_intrcnt" },
-#define	X_EINTRCNT	12
+#define	X_EINTRCNT	7
 	{ "_eintrcnt" },
-#define	X_DESIREDVNODES	13
+#define	X_DESIREDVNODES	8
 	{ "_desiredvnodes" },
-#define	X_NUMVNODES	14
+#define	X_NUMVNODES	9
 	{ "_numvnodes" },
-#define	X_FREEVNODES	15
+#define	X_FREEVNODES	10
 	{ "_freevnodes" },
 	{ "" },
 };
@@ -200,13 +189,9 @@ static struct nlist namelist[] = {
 #define DISKROW		18	/* uses 5 rows and 50 cols (for 9 drives) */
 #define DISKCOL		 0
 
-#define	DRIVESPACE	 9	/* max # for space */
+#define	DRIVESPACE	 7	/* max # for space */
 
-#if DK_NDRIVE > DRIVESPACE
 #define	MAXDRIVES	DRIVESPACE	 /* max # to display */
-#else
-#define	MAXDRIVES	DK_NDRIVE	 /* max # to display */
-#endif
 
 int
 initkre()
@@ -225,21 +210,22 @@ initkre()
 			return(0);
 		}
 	}
-	if (! dkinit())
+
+	if (num_devices = getnumdevs() < 0) {
+		warnx("%s", devstat_errbuf);
 		return(0);
-	if (dk_ndrive && !once) {
-#define	allocate(e, t) \
-    s./**/e = (t *)calloc(dk_ndrive, sizeof (t)); \
-    s1./**/e = (t *)calloc(dk_ndrive, sizeof (t)); \
-    s2./**/e = (t *)calloc(dk_ndrive, sizeof (t)); \
-    z./**/e = (t *)calloc(dk_ndrive, sizeof (t));
-		allocate(dk_time, long);
-		allocate(dk_wds, long);
-		allocate(dk_seek, long);
-		allocate(dk_xfer, long);
-		once = 1;
-#undef allocate
 	}
+
+	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	run.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
+	bzero(cur.dinfo, sizeof(struct devinfo));
+	bzero(last.dinfo, sizeof(struct devinfo));
+	bzero(run.dinfo, sizeof(struct devinfo));
+
+	if (dsinit(MAXDRIVES, &cur, &last, &run) != 1)
+		return(0);
+
 	if (nintr == 0) {
 		nintr = (namelist[X_EINTRCNT].n_value -
 			namelist[X_INTRCNT].n_value) / sizeof (long);
@@ -341,15 +327,23 @@ labelkre()
 	mvprintw(NAMEIROW + 1, NAMEICOL,
 		"    Calls     hits    %%     hits    %%");
 	mvprintw(DISKROW, DISKCOL, "Discs");
-	mvprintw(DISKROW + 1, DISKCOL, "seeks");
-	mvprintw(DISKROW + 2, DISKCOL, "xfers");
-	mvprintw(DISKROW + 3, DISKCOL, " blks");
-	mvprintw(DISKROW + 4, DISKCOL, " msps");
+	mvprintw(DISKROW + 1, DISKCOL, "KB/t");
+	mvprintw(DISKROW + 2, DISKCOL, "tps");
+	mvprintw(DISKROW + 3, DISKCOL, "MB/s");
+	/*
+	 * For now, we don't support a fourth disk statistic.  So there's
+	 * no point in providing a label for it.  If someone can think of a
+	 * fourth useful disk statistic, there is room to add it.
+	 */
+	/* mvprintw(DISKROW + 4, DISKCOL, " msps"); */
 	j = 0;
-	for (i = 0; i < dk_ndrive && j < MAXDRIVES; i++)
-		if (dk_select[i]) {
-			mvprintw(DISKROW, DISKCOL + 5 + 5 * j,
-				" %4.4s", dr_name[j]);
+	for (i = 0; i < num_devices && j < MAXDRIVES; i++)
+		if (dev_select[i].selected) {
+			char tmpstr[80];
+			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+				dev_select[i].unit_number);
+			mvprintw(DISKROW, DISKCOL + 5 + 6 * j,
+				" %5.5s", tmpstr);
 			j++;
 		}
 	for (i = 0; i < nintr; i++) {
@@ -360,6 +354,7 @@ labelkre()
 }
 
 #define X(fld)	{t=s.fld[i]; s.fld[i]-=s1.fld[i]; if(state==TIME) s1.fld[i]=t;}
+#define Q(fld)	{t=cur.fld[i]; cur.fld[i]-=last.fld[i]; if(state==TIME) last.fld[i]=t;}
 #define Y(fld)	{t = s.fld; s.fld -= s1.fld; if(state == TIME) s1.fld = t;}
 #define Z(fld)	{t = s.nchstats.fld; s.nchstats.fld -= s1.nchstats.fld; \
 	if(state == TIME) s1.nchstats.fld = t;}
@@ -380,12 +375,10 @@ showkre()
 	int i, l, c;
 	static int failcnt = 0;
 
-	for (i = 0; i < dk_ndrive; i++) {
-		X(dk_xfer); X(dk_seek); X(dk_wds); X(dk_time);
-	}
 	etime = 0;
 	for(i = 0; i < CPUSTATES; i++) {
 		X(time);
+		Q(cp_time);
 		etime += s.time[i];
 	}
 	if (etime < 5.0) {	/* < 5 ticks - ignore this trash */
@@ -496,11 +489,24 @@ showkre()
 	PUTRATE(Cnt.v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
 	PUTRATE(Cnt.v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
 	mvprintw(DISKROW, DISKCOL + 5, "                              ");
-	for (i = 0, c = 0; i < dk_ndrive && c < MAXDRIVES; i++)
-		if (dk_select[i]) {
-			mvprintw(DISKROW, DISKCOL + 5 + 5 * c,
-				" %4.4s", dr_name[i]);
-			dinfo(i, ++c);
+	for (i = 0, c = 0; i < num_devices && c < MAXDRIVES; i++)
+		if (dev_select[i].selected) {
+			char tmpstr[80];
+			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+				dev_select[i].unit_number);
+			mvprintw(DISKROW, DISKCOL + 5 + 6 * c,
+				" %5.5s", tmpstr);
+			switch(state) {
+			case TIME:
+				dinfo(i, ++c, &cur, &last);
+				break;
+			case RUN:
+				dinfo(i, ++c, &cur, &run);
+				break;
+			case BOOT:
+				dinfo(i, ++c, &cur, NULL);
+				break;
+			}
 		}
 	putint(s.nchcount, NAMEIROW + 2, NAMEICOL, 9);
 	putint((nchtotal.ncs_goodhits + nchtotal.ncs_neghits),
@@ -519,11 +525,27 @@ int
 cmdkre(cmd, args)
 	char *cmd, *args;
 {
+	int retval;
 
 	if (prefix(cmd, "run")) {
+		retval = 1;
 		copyinfo(&s2, &s1);
+		switch (getdevs(&run)) {
+		case -1:
+			errx(1, "%s", devstat_errbuf);
+			break;
+		case 1:
+			num_devices = run.dinfo->numdevs;
+			generation = run.dinfo->generation;
+			retval = dscmd("refresh", NULL, MAXDRIVES, &cur);
+			if (retval == 2)
+				labelkre();
+			break;
+		default:
+			break;
+		}
 		state = RUN;
-		return (1);
+		return (retval);
 	}
 	if (prefix(cmd, "boot")) {
 		state = BOOT;
@@ -535,11 +557,32 @@ cmdkre(cmd, args)
 		return (1);
 	}
 	if (prefix(cmd, "zero")) {
-		if (state == RUN)
+		retval = 1;
+		if (state == RUN) {
 			getinfo(&s1, RUN);
-		return (1);
+			switch (getdevs(&run)) {
+			case -1:
+				errx(1, "%s", devstat_errbuf);
+				break;
+			case 1:
+				num_devices = run.dinfo->numdevs;
+				generation = run.dinfo->generation;
+				retval = dscmd("refresh",NULL, MAXDRIVES, &cur);
+				if (retval == 2)
+					labelkre();
+				break;
+			default:
+				break;
+			}
+		}
+		return (retval);
 	}
-	return (dkcmd(cmd, args));
+	retval = dscmd(cmd, args, MAXDRIVES, &cur);
+
+	if (retval == 2)
+		labelkre();
+
+	return(retval);
 }
 
 /* calculate number of users on the system */
@@ -617,24 +660,43 @@ putfloat(f, l, c, w, d, nz)
 }
 
 static void
+putlongdouble(f, l, c, w, d, nz)
+	long double f;
+	int l, c, w, d, nz;
+{
+	char b[128];
+
+	move(l, c);
+	if (nz && f == 0.0) {
+		while (--w >= 0)
+			addch(' ');
+		return;
+	}
+	sprintf(b, "%*.*Lf", w, d, f);
+	if (strlen(b) > w) {
+		while (--w >= 0)
+			addch('*');
+		return;
+	}
+	addstr(b);
+}
+
+static void
 getinfo(s, st)
 	struct Info *s;
 	enum state st;
 {
+	struct devinfo *tmp_dinfo;
 	int mib[2], size;
 	extern int errno;
 
 	NREAD(X_CPTIME, s->time, sizeof s->time);
+	NREAD(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
 	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
 	NREAD(X_BUFFERSPACE, &s->bufspace, sizeof(s->bufspace));
 	NREAD(X_DESIREDVNODES, &s->desiredvnodes, sizeof(s->desiredvnodes));
 	NREAD(X_NUMVNODES, &s->numvnodes, LONG);
 	NREAD(X_FREEVNODES, &s->freevnodes, LONG);
-	NREAD(X_DK_BUSY, &s->dk_busy, sizeof(s->dk_busy));
-	NREAD(X_DK_TIME, s->dk_time, dk_ndrive * LONG);
-	NREAD(X_DK_XFER, s->dk_xfer, dk_ndrive * LONG);
-	NREAD(X_DK_WDS, s->dk_wds, dk_ndrive * LONG);
-	NREAD(X_DK_SEEK, s->dk_seek, dk_ndrive * LONG);
 	NREAD(X_NCHSTATS, &s->nchstats, sizeof s->nchstats);
 	NREAD(X_INTRCNT, s->intrcnt, nintr * LONG);
 	size = sizeof(s->Total);
@@ -647,6 +709,24 @@ getinfo(s, st)
 	size = sizeof(ncpu);
 	if (sysctlbyname("hw.ncpu", &ncpu, &size, NULL, 0) < 0)
 		ncpu = 1;
+
+	tmp_dinfo = last.dinfo;
+	last.dinfo = cur.dinfo;
+	cur.dinfo = tmp_dinfo;
+
+	last.busy_time = cur.busy_time;
+	switch (getdevs(&cur)) {
+	case -1:
+		errx(1, "%s", devstat_errbuf);
+		break;
+	case 1:
+		num_devices = cur.dinfo->numdevs;
+		generation = cur.dinfo->generation;
+		cmdkre("refresh", NULL);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -663,45 +743,45 @@ static void
 copyinfo(from, to)
 	register struct Info *from, *to;
 {
-	long *time, *wds, *seek, *xfer;
 	long *intrcnt;
+	struct devinfo tmp_dinfo;
 
 	/*
 	 * time, wds, seek, and xfer are malloc'd so we have to
 	 * save the pointers before the structure copy and then
 	 * copy by hand.
 	 */
-	time = to->dk_time; wds = to->dk_wds; seek = to->dk_seek;
-	xfer = to->dk_xfer; intrcnt = to->intrcnt;
+	intrcnt = to->intrcnt;
 	*to = *from;
-	bcopy(from->dk_time, to->dk_time = time, dk_ndrive * sizeof (long));
-	bcopy(from->dk_wds, to->dk_wds = wds, dk_ndrive * sizeof (long));
-	bcopy(from->dk_seek, to->dk_seek = seek, dk_ndrive * sizeof (long));
-	bcopy(from->dk_xfer, to->dk_xfer = xfer, dk_ndrive * sizeof (long));
+
 	bcopy(from->intrcnt, to->intrcnt = intrcnt, nintr * sizeof (int));
 }
 
 static void
-dinfo(dn, c)
+dinfo(dn, c, now, then)
 	int dn, c;
+	struct statinfo *now, *then;
 {
-	double words, atime, itime, xtime;
+	long double transfers_per_second;
+	long double kb_per_transfer, mb_per_second;
+	long double busy_seconds;
+	int di;
 
-	c = DISKCOL + c * 5;
-	atime = s.dk_time[dn];
-	atime /= hertz;
-	words = s.dk_wds[dn]*32.0;	/* number of words transferred */
-	xtime = dk_mspw[dn]*words;	/* transfer time */
-	itime = atime - xtime;		/* time not transferring */
-	if (xtime < 0)
-		itime += xtime, xtime = 0;
-	if (itime < 0)
-		xtime += itime, itime = 0;
-	putint((int)((float)s.dk_seek[dn]/etime+0.5), DISKROW + 1, c, 5);
-	putint((int)((float)s.dk_xfer[dn]/etime+0.5), DISKROW + 2, c, 5);
-	putint((int)(words/etime/512.0 + 0.5), DISKROW + 3, c, 5);
-	if (s.dk_seek[dn])
-		putfloat(itime*1000.0/s.dk_seek[dn], DISKROW + 4, c, 5, 1, 1);
-	else
-		putint(0, DISKROW + 4, c, 5);
+	di = dev_select[dn].position;
+
+	busy_seconds = compute_etime(now->busy_time, then ?
+				     then->busy_time :
+				    then->dinfo->devices[di].dev_creation_time);
+
+	if (compute_stats(&now->dinfo->devices[di], then ?
+			  &then->dinfo->devices[di] : NULL, busy_seconds,
+			  NULL, NULL, NULL,
+			  &kb_per_transfer, &transfers_per_second,
+			  &mb_per_second, NULL, NULL) != 0)
+		errx(1, "%s", devstat_errbuf);
+
+	c = DISKCOL + c * 6;
+	putlongdouble(kb_per_transfer, DISKROW + 1, c, 5, 2, 0);
+	putlongdouble(transfers_per_second, DISKROW + 2, c, 5, 0, 0);
+	putlongdouble(mb_per_second, DISKROW + 3, c, 5, 2, 0);
 }
