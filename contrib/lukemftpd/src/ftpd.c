@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpd.c,v 1.147 2002/11/29 14:40:00 lukem Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $	*/
 
 /*
  * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
@@ -109,7 +109,7 @@ __COPYRIGHT(
 #if 0
 static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: ftpd.c,v 1.147 2002/11/29 14:40:00 lukem Exp $");
+__RCSID("$NetBSD: ftpd.c,v 1.150 2003/01/22 04:46:08 lukem Exp $");
 #endif
 #endif /* not lint */
 __FBSDID("$FreeBSD$");
@@ -686,8 +686,7 @@ user(const char *name)
 	} else
 		pw = sgetpwnam(name);
 
-	if (logging)
-		strlcpy(curname, name, sizeof(curname));
+	strlcpy(curname, name, sizeof(curname));
 
 			/* check user in /etc/ftpusers, and setup class */
 	permitted = checkuser(_PATH_FTPUSERS, curname, 1, 0, &class);
@@ -1650,7 +1649,7 @@ dataconn(const char *name, off_t size, const char *fmode)
 {
 	char sizebuf[32];
 	FILE *file;
-	int retry = 0, tos, keepalive;
+	int retry, tos, keepalive, conerrno;
 
 	file_size = size;
 	byte_count = 0;
@@ -1704,30 +1703,38 @@ dataconn(const char *name, off_t size, const char *fmode)
 	if (usedefault)
 		data_dest = his_addr;
 	usedefault = 1;
-	file = getdatasock(fmode);
-	if (file == NULL) {
-		char hbuf[NI_MAXHOST];
-		char pbuf[NI_MAXSERV];
+	retry = conerrno = 0;
+	do {
+		file = getdatasock(fmode);
+		if (file == NULL) {
+			char hbuf[NI_MAXHOST];
+			char pbuf[NI_MAXSERV];
 
-		if (getnameinfo((struct sockaddr *)&data_source.si_su,
-		    data_source.su_len, hbuf, sizeof(hbuf), pbuf, sizeof(pbuf),
-		    NI_NUMERICHOST | NI_NUMERICSERV))
-			strlcpy(hbuf, "?", sizeof(hbuf));
-		reply(425, "Can't create data socket (%s,%s): %s.",
-		      hbuf, pbuf, strerror(errno));
-		return (NULL);
-	}
-	data = fileno(file);
-	while (connect(data, (struct sockaddr *)&data_dest.si_su,
-	    data_dest.su_len) < 0) {
-		if (errno == EADDRINUSE && retry < swaitmax) {
-			sleep((unsigned) swaitint);
-			retry += swaitint;
-			continue;
+			if (getnameinfo((struct sockaddr *)&data_source.si_su,
+			    data_source.su_len, hbuf, sizeof(hbuf), pbuf,
+			    sizeof(pbuf), NI_NUMERICHOST | NI_NUMERICSERV))
+				strlcpy(hbuf, "?", sizeof(hbuf));
+			reply(425, "Can't create data socket (%s,%s): %s.",
+			      hbuf, pbuf, strerror(errno));
+			return (NULL);
 		}
-		perror_reply(425, "Can't build data connection");
+		data = fileno(file);
+		conerrno = 0;
+		if (connect(data, (struct sockaddr *)&data_dest.si_su,
+		    data_dest.su_len) == 0)
+			break;
+		conerrno = errno;
 		(void) fclose(file);
 		data = -1;
+		if (conerrno == EADDRINUSE) {
+			sleep((unsigned) swaitint);
+			retry += swaitint;
+		} else {
+			break;
+		}
+	} while (retry <= swaitmax);
+	if (conerrno != 0) {
+		perror_reply(425, "Can't build data connection");
 		return (NULL);
 	}
 	reply(150, "Opening %s mode data connection for '%s'%s.",
