@@ -40,8 +40,6 @@
  * $FreeBSD$
  */
 
-#define NETIF_DEBUG 1
-
 #ifndef _KERNEL	/* XXX - see <netinet/in.h> */
 #undef __IPADDR
 #define __IPADDR(x)	htonl((u_int32_t)(x))
