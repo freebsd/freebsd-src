@@ -226,15 +226,11 @@ char   		*shellPath = NULL,		  /* full pathname of
 
 
 static int  	maxJobs;    	/* The most children we can run at once */
-static int  	maxLocal;    	/* The most local ones we can have */
 STATIC int     	nJobs;	    	/* The number of children currently running */
-STATIC int	nLocal;    	/* The number of local children */
 STATIC Lst     	jobs;		/* The structures that describe them */
 STATIC Boolean	jobFull;    	/* Flag to tell when the job table is full. It
 				 * is set TRUE when (1) the total number of
-				 * running jobs equals the maximum allowed or
-				 * (2) a job can only be run locally, but
-				 * nLocal equals maxLocal */
+				 * running jobs equals the maximum allowed */
 #ifdef USE_KQUEUE
 static int	kqfd;		/* File descriptor obtained by kqueue() */
 #else
@@ -816,7 +812,6 @@ JobFinish(Job *job, int *status)
  	    Lst_AtEnd(jobs, (void *)job);
 	    nJobs += 1;
 	    DEBUGF(JOB, ("Process %d is continuing locally.\n", job->pid));
-	    nLocal += 1;
 	    if (nJobs == maxJobs) {
 		jobFull = TRUE;
 		DEBUGF(JOB, ("Job queue is full.\n"));
@@ -1178,7 +1173,6 @@ JobExec(Job *job, char **argv)
 #endif /* USE_KQUEUE */
 	}
 
-	nLocal += 1;
 	if (job->cmdFILE != NULL && job->cmdFILE != stdout) {
 	    (void) fclose(job->cmdFILE);
 	    job->cmdFILE = NULL;
@@ -1279,7 +1273,7 @@ JobRestart(Job *job)
 	JobMakeArgv(job, argv);
 
 	DEBUGF(JOB, ("Restarting %s...", job->node->name));
-	if (((nLocal >= maxLocal) && !(job->flags & JOB_SPECIAL))) {
+	if (((nJobs >= maxJobs) && !(job->flags & JOB_SPECIAL))) {
 	    /*
 	     * Can't be exported and not allowed to run locally -- put it
 	     * back on the hold queue and mark the table full
@@ -1302,14 +1296,14 @@ JobRestart(Job *job)
 	 * we don't know...
 	 */
 	DEBUGF(JOB, ("Resuming %s...", job->node->name));
-	if (((nLocal < maxLocal) ||
+	if (((nJobs < maxJobs) ||
 	    ((job->flags & JOB_SPECIAL) &&
-	     (maxLocal == 0))) &&
+	     (maxJobs == 0))) &&
 	   (nJobs != maxJobs))
 	{
 	    /*
 	     * If we haven't reached the concurrency limit already (or the
-	     * job must be run and maxLocal is 0), it's ok to resume it.
+	     * job must be run and maxJobs is 0), it's ok to resume it.
 	     */
 	    Boolean error;
 	    int status;
@@ -1595,13 +1589,12 @@ JobStart(GNode *gn, int flags, Job *previous)
 	}
     }
 
-    if ((nLocal >= maxLocal) && !(job->flags & JOB_SPECIAL) &&
-	(maxLocal != 0)) {
+    if ((nJobs >= maxJobs) && !(job->flags & JOB_SPECIAL) && (maxJobs != 0)) {
 	/*
 	 * We've hit the limit of concurrency, so put the job on hold until
 	 * some other job finishes. Note that the special jobs (.BEGIN,
 	 * .INTERRUPT and .END) may be run even when the limit has been reached
-	 * (e.g. when maxLocal == 0).
+	 * (e.g. when maxJobs == 0).
 	 */
 	jobFull = TRUE;
 
@@ -1609,7 +1602,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 	job->flags |= JOB_RESTART;
 	(void) Lst_AtEnd(stoppedJobs, (void *)job);
     } else {
-	if (nLocal >= maxLocal) {
+	if (nJobs >= maxJobs) {
 	    /*
 	     * If we're running this job locally as a special case (see above),
 	     * at least say the table is full.
@@ -1894,7 +1887,7 @@ Job_CatchChildren(Boolean block)
     /*
      * Don't even bother if we know there's no one around.
      */
-    if (nLocal == 0) {
+    if (nJobs == 0) {
 	return;
     }
 
@@ -1924,7 +1917,6 @@ Job_CatchChildren(Boolean block)
 	    nJobs -= 1;
 	    DEBUGF(JOB, ("Job queue is no longer full.\n"));
 	    jobFull = FALSE;
-	    nLocal -= 1;
 	}
 
 	JobFinish(job, &status);
@@ -2050,8 +2042,7 @@ Shell_Init(void)
 /*-
  *-----------------------------------------------------------------------
  * Job_Init --
- *	Initialize the process module, given a maximum number of jobs, and
- *	a maximum number of local jobs.
+ *	Initialize the process module, given a maximum number of jobs.
  *
  * Results:
  *	none
@@ -2061,16 +2052,14 @@ Shell_Init(void)
  *-----------------------------------------------------------------------
  */
 void
-Job_Init(int maxproc, int maxlocal)
+Job_Init(int maxproc)
 {
     GNode         *begin;     /* node for commands to do at the very start */
 
     jobs =  	  Lst_Init(FALSE);
     stoppedJobs = Lst_Init(FALSE);
     maxJobs = 	  maxproc;
-    maxLocal = 	  maxlocal;
     nJobs = 	  0;
-    nLocal = 	  0;
     jobFull = 	  FALSE;
 
     aborting = 	  0;
