@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)yp.8	1.0 (deraadt) 4/26/93
-.\"	$Id: yp.4,v 1.7.2.2 1997/03/11 17:42:37 wpaul Exp $
+.\"	$Id: yp.4,v 1.7.2.3 1997/10/31 23:40:53 max Exp $
 .\"
 .Dd April 5, 1993
 .Dt YP 4
@@ -52,14 +52,18 @@ and
 .Xr ethers 3 .
 The
 .Xr bootparamd 8
-daemon makes direct NIS library calls since there are no
-functions in the standard C library for reading bootparams. NIS
+daemon makes direct
+.Tn NIS
+library calls since there are no
+functions in the standard C library for reading bootparams.
+.Tn NIS
 support for the hosts, services and rpc databases is enabled by
 uncommenting the
-.Pa nis
+.Em nis
 line in
-.Pa /etc/host.conf.
-NIS support for the remaining services is
+.Pa /etc/host.conf .
+.Tn NIS
+support for the remaining services is
 activated by adding a special '+' entry to the appropriate file.
 .Pp
 The
@@ -71,39 +75,61 @@ if it has been initialized in
 and if the directory
 .Pa /var/yp
 exists (which it does in the default distribution). The default
-NIS domain must also be set with the
+.Tn NIS
+domain must also be set with the
 .Xr domainname 1
 command, which will happen automatically at system startup if it is
 specified in
-.Pa /etc/rc.conf.
+.Pa /etc/rc.conf .
 .Pp
-NIS is an RPC-based client/server system that allows a group of
-machines within an NIS
-.Em domain
-to share a common set of configuration files. This permits a system
-administrator to set up NIS client systems with only minimal configuration
+.Tn NIS
+is an
+.Tn RPC Ns -based
+client/server system that allows a group of
+machines within an
+.Tn NIS
+domain to share a common set of configuration files. This permits a system
+administrator to set up
+.Tn NIS
+client systems with only minimal configuration
 data and add, remove or modify configuration data from a single location.
 .Pp
-The canonical copies of all NIS information are stored on a single machine
+The canonical copies of all
+.Tn NIS
+information are stored on a single machine
 called the
-.Pa NIS master server .
+.Em Tn NIS master server .
 The databases used to store the information are called
-.Pa NIS maps.
-In FreeBSD, these maps are stored in
+.Em Tn NIS maps .
+In
+.Bx Free ,
+these maps are stored in
 .Pa /var/yp/[domainname]
 where
 .Pa [domainname]
-is the name of the NIS domain being served. A single NIS server can
+is the name of the
+.Tn NIS
+domain being served. A single
+.Tn NIS
+server can
 support several domains at once, therefore it is possible to have several
 such directories, one for each supported domain. Each domain will have
 its own independent set of maps.
 .Pp
-In FreeBSD, the NIS maps are Berkeley DB hashed database files (the
+In
+.Bx Free ,
+the
+.Tn NIS
+maps are Berkeley DB hashed database files (the
 same format used for the
 .Xr passwd 5
-database files). Other operating systems that support NIS use old-style
+database files). Other operating systems that support
+.Tn NIS
+use old-style
 ndbm databases instead (largely because Sun Microsystems originally based
-their NIS implementation on ndbm, and other vendors have simply licensed
+their
+.Tn NIS
+implementation on ndbm, and other vendors have simply licensed
 Sun's code rather than design their own implementation with a different
 database format). On these systems, the databases are generally split
 into
@@ -117,37 +143,61 @@ both pieces of information. This means that while you may have
 and
 .Pa passwd.byname.pag
 files on other operating systems (both of which are really parts of the
-same map), FreeBSD will have only one file called
+same map),
+.Bx Free
+will have only one file called
 .Pa passwd.byname .
 The difference in format is not significant: only the
-NIS server,
+.Tn NIS
+server,
 .Xr ypserv 8 ,
-and related tools need to know the database format of the NIS maps. Client
-NIS systems receive all NIS data in ASCII form.
+and related tools need to know the database format of the
+.Tn NIS
+maps. Client
+.Tn NIS
+systems receive all
+.Tn NIS
+data in
+.Tn ASCII
+form.
 .Pp
-There are three main types of NIS systems:
+There are three main types of
+.Tn NIS
+systems:
 .Bl -enum -offset indent
 .It
-.Pa NIS clients ,
-which query NIS servers for information.
+.Pa Tn NIS clients ,
+which query
+.Tn NIS
+servers for information.
 .It
-.Pa NIS master servers ,
-which maintain the canonical copies of all NIS maps.
+.Pa Tn NIS master servers ,
+which maintain the canonical copies of all
+.Tn NIS
+maps.
 .It
-.Pa NIS slave servers ,
-which maintain backup copies of NIS maps that are periodically
+.Pa Tn NIS slave servers ,
+which maintain backup copies of
+.Tn NIS
+maps that are periodically
 updated by the master.
 .El
 .Pp
-An NIS client establishes what is called a
+An
+.Tn NIS
+client establishes what is called a
 .Em binding
-to a particular NIS server using the
+to a particular
+.Tn NIS
+server using the
 .Xr ypbind 8
 daemon.
 .Xr Ypbind 8
 checks the system's default domain (as set by the
 .Xr domainname 1
-command) and begins broadcasting RPC requests on the local network.
+command) and begins broadcasting
+.Tn RPC
+requests on the local network.
 These requests specify the name of the domain for which
 .Xr ypbind 8
 is attempting to establish a binding. If a server that has been
@@ -158,7 +208,9 @@ which will record the server's address. If there are several servers
 available (a master and several slaves, for example),
 .Xr ypbind 8
 will use the address of the first one to respond. From that point
-on, the client system will direct all of its NIS requests to that server.
+on, the client system will direct all of its
+.Tn NIS
+requests to that server.
 .Xr Ypbind 8
 will occasionally ``ping'' the server to make sure it's still up
 and running. If it fails to receive a reply to one of its pings
@@ -167,11 +219,16 @@ within a reasonable amount of time,
 will mark the domain as unbound and begin broadcasting again in the
 hopes of locating another server.
 .Pp
-NIS master and slave servers handle all NIS requests with the
+.Tn NIS
+master and slave servers handle all
+.Tn NIS
+requests with the
 .Xr ypserv 8
 daemon.
 .Xr Ypserv 8
-is responsible for receiving incoming requests from NIS clients,
+is responsible for receiving incoming requests from
+.Tn NIS
+clients,
 translating the requested domain and map name to a path to the
 corresponding database file and transmitting data from the database
 back to the client. There is a specific set of requests that
@@ -184,7 +241,9 @@ within the standard C library:
 -- check the creation date of a particular map
 .It
 .Fn yp_master
--- obtain the name of the NIS master server for a given
+-- obtain the name of the
+.Tn NIS
+master server for a given
 map/domain
 .It
 .Fn yp_match
@@ -202,7 +261,9 @@ key/data pair immediately following it (the functions
 .Fn yp_first
 and
 .Fn yp_next
-can be used to do a sequential search of an NIS map)
+can be used to do a sequential search of an
+.Tn NIS
+map)
 .It
 .Fn yp_all
 -- retrieve the entire contents of a map
@@ -223,13 +284,17 @@ server. A slave server provides the exact same information as a master
 server: whenever the maps on the master server are updated, the new
 data should be propagated to the slave systems using the
 .Xr yppush 8
-command. The NIS Makefile (
-.Pa /var/yp/Makefile )
+command. The
+.Tn NIS
+Makefile
+.Pf ( Pa /var/yp/Makefile )
 will do this automatically if the administrator comments out the
 line which says
 .Em NOPUSH=true
 (NOPUSH is set to true by default because the default configuration is
-for a small network with only one NIS server). The
+for a small network with only one
+.Tn NIS
+server). The
 .Xr yppush 8
 command will initiate a transaction between the master and slave
 during which the slave will transfer the specified maps from the
@@ -242,18 +307,24 @@ automatically from within
 therefore it is not usually necessary for the administrator
 to use it directly. It can be run manually if
 desired, however.) Maintaining
-slave servers helps improve NIS performance on large
+slave servers helps improve
+.Tn NIS
+performance on large
 networks by:
 .Pp
 .Bl -bullet -offset indent
 .It
-Providing backup services in the event that the NIS master crashes
+Providing backup services in the event that the
+.Tn NIS
+master crashes
 or becomes unreachable
 .It
 Spreading the client load out over several machines instead of
 causing the master to become overloaded
 .It
-Allowing a single NIS domain to extend beyond
+Allowing a single
+.Tn NIS
+domain to extend beyond
 a local network (the
 .Xr ypbind 8
 daemon might not be able to locate a server automatically if it resides on
@@ -265,11 +336,18 @@ but this is sometimes inconvenient. This problem can be avoided simply by
 placing a slave server on the local network.)
 .El
 .Pp
-The FreeBSD
+The
+.Bx Free
 .Xr ypserv 8
 is specially designed to provided enhanced security (compared to
-other NIS implementations) when used exclusively with FreeBSD client
-systems. The FreeBSD password database system (which is derived directly
+other
+.Tn NIS
+implementations) when used exclusively with
+.Bx Free
+client
+systems. The
+.Bx Free
+password database system (which is derived directly
 from
 .Bx 4.4 )
 includes support for
@@ -277,11 +355,17 @@ includes support for
 The standard password database does not contain users' encrypted
 passwords: these are instead stored (along with other information)
 is a separate database which is accessible only by the super-user.
-If the encrypted password database were made available as an NIS
+If the encrypted password database were made available as an
+.Tn NIS
 map, this security feature would be totally disabled, since any user
-is allowed to retrieve NIS data.
+is allowed to retrieve
+.Tn NIS
+data.
 .Pp
-To help prevent this, FreeBSD's NIS server
+To help prevent this,
+.Bx Free Ns 's
+.Tn NIS
+server
 handles the shadow password maps (
 .Pa master.passwd.byname
 and
@@ -292,7 +376,7 @@ Since only the super-user is allowed to bind to a privileged port,
 the server assumes that all such requests come from privileged
 users. All other requests are denied: requests from non-privileged
 ports will receive only an error code from the server. Additionally,
-FreeBSD's
+.Bx Free Ns 's
 .Xr ypserv 8
 includes
 .Pa securenets
@@ -303,12 +387,14 @@ possible to recompile
 with support for Wietse Venema's tcp wrapper package instead of
 securenets.)
 .Pp
-While these enhancements provide better security than stock NIS,
+While these enhancements provide better security than stock
+.Tn NIS Ns ,
 they are by no means 100% effective. It is still possible for
 someone with access to your network to spoof the server into disclosing
 the shadow password maps.
 .Pp
-On the client side, FreeBSD's
+On the client side,
+.Bx Free Ns 's
 .Fn getpwent 3
 functions will automatically search for the
 .Pa master.passwd
@@ -318,25 +404,42 @@ expiration) will be decoded. If they aren't found, the standard
 .Pa passwd
 maps will be used instead.
 .Sh COMPATIBILITY
-Some systems, such as SunOS 4.x, need NIS to be running in order
+Some systems, such as SunOS 4.x, need
+.Tn NIS
+to be running in order
 for their hostname resolution functions (
 .Fn gethostbyname ,
 .Fn gethostbyaddr ,
 etc) to work properly. On these systems,
 .Xr ypserv 8
-performs DNS lookups when asked to return information about
+performs
+.Tn DNS
+lookups when asked to return information about
 a host that doesn't exist in its
 .Pa hosts.byname
 or
 .Pa hosts.byaddr
-maps. FreeBSD's resolver uses DNS by default (it can be made to use
-NIS, if desired), therefore its NIS server doesn't need to do DNS lookups
+maps.
+.Bx Free Ns 's
+resolver uses
+.Tn DNS
+by default (it can be made to use
+.Tn NIS Ns ,
+if desired), therefore its
+.Tn NIS
+server doesn't need to do
+.Tn DNS
+lookups
 by default. However,
 .Xr ypserv 8
-can be made to perform DNS lookups using one of two methods. The first
+can be made to perform
+.Tn DNS
+lookups using one of two methods. The first
 is to start the server with the
 .Fl d
-flag, which forces DNS lookups for all hosts.by* maps for all domains
+flag, which forces
+.Tn DNS
+lookups for all hosts.by* maps for all domains
 supported by the server. The second is to build the maps using the
 .Fl b
 flag with
@@ -345,41 +448,69 @@ This option causes
 .Xr yp_mkdb 8
 to add the YP_INTERDOMAIN entry to the map; when
 .Xr ypserv 8
-sees this, it will perform DNS lookups as needed just for this particular
-map. This provides the ability to allow DNS searches for some domains but
+sees this, it will perform
+.Tn DNS
+lookups as needed just for this particular
+map. This provides the ability to allow
+.Tn DNS
+searches for some domains but
 not others. The YP_INTERDOMAIN tag only has meaning for the hosts.by*
 maps: while you can add it to other maps, it will have no effect.
 .Pp
-The FreeBSD
+The
+.Bx Free
 .Xr ypserv 8
-also has support for handling NIS v1 clients. This is provided mainly
+also has support for handling
+.Tn NIS
+v1 clients. This is provided mainly
 to pacify the
 .Xr ypbind 8
-program supplied with Sun-derived NIS implementations which, in many
-cases, insist on establishing bindings for both NIS v1 and v2. The
-FreeBSD
+program supplied with Sun-derived
+.Tn NIS
+implementations which, in many
+cases, insist on establishing bindings for both
+.Tn NIS
+v1 and v2. The
+.Bx Free
 .Xr ypserv 8
-supports all NIS v1 procedures except those involved with transfering
+supports all
+.Tn NIS
+v1 procedures except those involved with transfering
 maps between master and slave servers. Consequently, while it can serve
-NIS v1 clients, it can not be used as an NIS v1 master or slave server
-in conjunction with NIS v1 servers from other vendors.
+.Tn NIS
+v1 clients, it can not be used as an
+.Tn NIS
+v1 master or slave server
+in conjunction with
+.Tn NIS
+v1 servers from other vendors.
 .Pp
 (Please see the
 .Xr ypserv 8
 manual page for a detailed description of these special features
 and flags.)
 .Sh BUGS
-While FreeBSD now has both NIS client and server capabilities,
+While
+.Bx Free
+now has both
+.Tn NIS
+client and server capabilities,
 it does not yet have support for
 .Xr ypupdated 8
 or the
 .Fn yp_update
-function. Both of these require secure RPC, which FreeBSD doesn't
+function. Both of these require secure
+.Tn RPC Ns ,
+which
+.Bx Free
+doesn't
 support yet either.
 .Pp
 The
 .Xr getprotoent 3
-functions do not yet have NIS support. Fortunately, this file
+functions do not yet have
+.Tn NIS
+support. Fortunately, this file
 doesn't need to be updated that often.
 .Pp
 Many more manual pages should be written, especially
@@ -387,12 +518,18 @@ Many more manual pages should be written, especially
 For the time being, seek out a local Sun machine and read the
 manuals for there.
 .Pp
-While FreeBSD has an
+While
+.Bx Free
+has an
 .Xr rpc.ypxfrd 8
-server, it is based on a 'proprietary' RPC protocol and is not
+server, it is based on a 'proprietary'
+.Tn RPC
+protocol and is not
 compatible with the ypxfrd server from SunOS. This is because Sun's
 ypxfrd protocol is not freely available. (Note that the Linux rpc.ypxfrd
-is based on the FreeBSD protocol.)
+is based on the
+.Bx Free
+protocol.)
 .Pp
 Neither Sun nor this author have found a clean way to handle
 the problems that occur when ypbind cannot find its server
@@ -400,11 +537,15 @@ upon bootup.
 .Sh HISTORY
 The
 .Nm YP
-client side subsystem was written from the ground up by Theo de Raadt
+client side subsystem was written from the ground up by
+.An Theo de Raadt
 to be compatible to Sun's implementation. Bug fixes, improvements
 and various tweaks too numerous to mention here were later added by
-Bill Paul. The server side subsystem was written from the ground up
-by Bill Paul (wpaul@ctr.columbia.edu) to also be compatible with Sun's
+.An Bill Paul Ns .
+The server side subsystem was written from the ground up
+by
+.An Bill Paul Aq wpaul@ctr.columbia.edu
+to also be compatible with Sun's
 implementation (except for rpc.ypxfrd, which is deliberately incompatible
 due to the fact that Sun's ypxfrd protocol is proprietary). No Sun code
 was referenced.
