@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: vacation.c	8.2 (Berkeley) 1/26/94";
 #endif
 static const char rcsid[] =
-	"$Id: vacation.c,v 1.12 1997/11/03 07:51:05 charnier Exp $";
+	"$Id: vacation.c,v 1.13 1998/10/13 14:52:32 des Exp $";
 #endif /* not lint */
 
 /*
@@ -62,8 +62,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <paths.h>
 
 /*
@@ -88,6 +90,7 @@ ALIAS *names;
 DB *db;
 
 char from[MAXLINE];
+void (*msglog)(int, const char *, ...) = &syslog;
 
 static int	isdelim		__P((int));
 static int	junkmail	__P((void));
@@ -99,6 +102,7 @@ static void	sendmessage	__P((char *));
 static void	setinterval	__P((time_t));
 static void	setreply	__P((void));
 static void	usage		__P((void));
+static void	debuglog	__P((int, const char *, ...));
 
 int
 main(argc, argv)
@@ -110,18 +114,23 @@ main(argc, argv)
 	struct passwd *pw;
 	ALIAS *cur;
 	time_t interval;
-	int ch, iflag, lflag;
+	int ch, iflag, lflag, mfail;
 
-	opterr = iflag = lflag = 0;
+	opterr = iflag = lflag = mfail = 0;
 	interval = -1;
-	while ((ch = getopt(argc, argv, "a:Iilr:")) != -1)
+	while ((ch = getopt(argc, argv, "a:dIilr:")) != -1) {
 		switch((char)ch) {
 		case 'a':			/* alias */
-			if (!(cur = (ALIAS *)malloc((u_int)sizeof(ALIAS))))
+			if (!(cur = (ALIAS *)malloc((u_int)sizeof(ALIAS)))) {
+				mfail++;
 				break;
+			}
 			cur->name = optarg;
 			cur->next = names;
 			names = cur;
+			break;
+		case 'd':			/* debug mode */
+			msglog = &debuglog;
 			break;
 		case 'I':			/* backward compatible */
 		case 'i':			/* init the database */
@@ -143,6 +152,16 @@ main(argc, argv)
 		default:
 			usage();
 		}
+	}
+
+	/* Only die on the above malloc failure here so that the
+	 * correct logging medium is used.
+	 */
+	if (mfail) {
+		msglog(LOG_ERR, "vacation: malloc failed\n");
+		exit(EX_TEMPFAIL);
+	}
+
 	argc -= optind;
 	argv += optind;
 
@@ -150,17 +169,17 @@ main(argc, argv)
 		if (!iflag && !lflag)
 			usage();
 		if (!(pw = getpwuid(getuid()))) {
-			syslog(LOG_ERR,
+			msglog(LOG_ERR,
 			    "vacation: no such user uid %u.\n", getuid());
 			exit(1);
 		}
 	}
 	else if (!(pw = getpwnam(*argv))) {
-		syslog(LOG_ERR, "vacation: no such user %s.\n", *argv);
+		msglog(LOG_ERR, "vacation: no such user %s.\n", *argv);
 		exit(1);
 	}
 	if (chdir(pw->pw_dir)) {
-		syslog(LOG_NOTICE,
+		msglog(LOG_NOTICE,
 		    "vacation: no such directory %s.\n", pw->pw_dir);
 		exit(1);
 	}
@@ -168,7 +187,7 @@ main(argc, argv)
 	db = dbopen(VDB, O_CREAT|O_RDWR | (iflag ? O_TRUNC : 0),
 	    S_IRUSR|S_IWUSR, DB_HASH, NULL);
 	if (!db) {
-		syslog(LOG_NOTICE, "vacation: %s: %s\n", VDB, strerror(errno));
+		msglog(LOG_NOTICE, "vacation: %s: %s\n", VDB, strerror(errno));
 		exit(1);
 	}
 
@@ -182,8 +201,10 @@ main(argc, argv)
 		exit(0);
 	}
 
-	if (!(cur = malloc((u_int)sizeof(ALIAS))))
-		exit(1);
+	if (!(cur = malloc((u_int)sizeof(ALIAS)))) {
+		msglog(LOG_ERR, "vacation: malloc failed\n");
+		exit(EX_TEMPFAIL);
+	}
 	cur->name = pw->pw_name;
 	cur->next = names;
 	names = cur;
@@ -263,7 +284,7 @@ findme:			for (cur = names; !tome && cur; cur = cur->next)
 	if (!tome)
 		exit(0);
 	if (!*from) {
-		syslog(LOG_NOTICE, "vacation: no initial \"From\" line.\n");
+		msglog(LOG_NOTICE, "vacation: no initial \"From\" line.\n");
 		exit(1);
 	}
 }
@@ -410,16 +431,16 @@ sendmessage(myname)
 
 	mfp = fopen(VMSG, "r");
 	if (mfp == NULL) {
-		syslog(LOG_NOTICE, "vacation: no ~%s/%s file.\n", myname, VMSG);
+		msglog(LOG_NOTICE, "vacation: no ~%s/%s file.\n", myname, VMSG);
 		exit(1);
 	}
 	if (pipe(pvect) < 0) {
-		syslog(LOG_ERR, "vacation: pipe: %s", strerror(errno));
+		msglog(LOG_ERR, "vacation: pipe: %s", strerror(errno));
 		exit(1);
 	}
 	i = fork();
 	if (i < 0) {
-		syslog(LOG_ERR, "vacation: fork: %s", strerror(errno));
+		msglog(LOG_ERR, "vacation: fork: %s", strerror(errno));
 		exit(1);
 	}
 	if (i == 0) {
@@ -428,7 +449,7 @@ sendmessage(myname)
 		close(pvect[1]);
 		close(fileno(mfp));
 		execl(_PATH_SENDMAIL, "sendmail", "-f", myname, "--", from, NULL);
-		syslog(LOG_ERR, "vacation: can't exec %s: %s",
+		msglog(LOG_ERR, "vacation: can't exec %s: %s",
 			_PATH_SENDMAIL, strerror(errno));
 		_exit(1);
 	}
@@ -444,7 +465,7 @@ sendmessage(myname)
 static void
 usage()
 {
-	syslog(LOG_NOTICE, "uid %u: usage: vacation [-i [-rinterval]] [-l] [-a alias] login\n",
+	msglog(LOG_NOTICE, "uid %u: usage: vacation [-d] [-i [-rinterval]] [-l] [-a alias] login\n",
 	    getuid());
 	exit(1);
 }
@@ -485,4 +506,19 @@ isdelim(c)
 	if (c == '_' || c == '-' || c == '.')
 		return(0);
 	return(1);
+}
+
+/*
+ * Append a message to the standard error for the convenience of end-users
+ * debugging without access to the syslog messages.
+ */
+static void
+debuglog(int i, const char *fmt, ...)
+{
+	va_list ap;
+
+	i = 0;			/* Printing syslog priority not implemented */
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
 }
