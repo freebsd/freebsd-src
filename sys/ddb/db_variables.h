@@ -22,27 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_variables.h,v $
- * Revision 1.1  1992/03/25  21:45:35  pace
- * Initial revision
  *
- * Revision 2.3  91/02/05  17:07:23  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:19:54  mrt]
- * 
- * Revision 2.2  90/08/27  21:53:40  dbg
- * 	Modularized typedef name.  Documented the calling sequence of
- * 	the (optional) access function of a variable.  Now the valuep
- * 	field can be made opaque, eg be an offset that fcn() resolves.
- * 	[90/08/20            af]
- * 
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90

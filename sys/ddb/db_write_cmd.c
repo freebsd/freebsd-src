@@ -22,32 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_write_cmd.c,v $
- * Revision 1.1  1992/03/25  21:45:42  pace
- * Initial revision
  *
- * Revision 2.4  91/02/05  17:07:35  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:20:19  mrt]
- * 
- * Revision 2.3  90/10/25  14:44:26  rwd
- * 	Changed db_write_cmd to print unsigned.
- * 	[90/10/19            rpd]
- * 
- * Revision 2.2  90/08/27  21:53:54  dbg
- * 	Set db_prev and db_next instead of explicitly advancing dot.
- * 	[90/08/22            dbg]
- * 	Reflected changes in db_printsym()'s calling seq.
- * 	[90/08/20            af]
- * 	Warn user if nothing was written.
- * 	[90/08/07            dbg]
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  *	Author: David B. Golub,  Carnegie Mellon University
  *	Date:	7/90

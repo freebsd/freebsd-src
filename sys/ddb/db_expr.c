@@ -22,33 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_expr.c,v $
- * Revision 1.1  1992/03/25  21:45:09  pace
- * Initial revision
  *
- * Revision 2.3  91/02/05  17:06:25  mrt
- * 	Changed to new Mach copyright
- * 	[91/01/31  16:17:46  mrt]
- * 
- * Revision 2.2  90/08/27  21:50:57  dbg
- * 	Use '..' instead of '$$' for db_prev.
- * 	Use '+' for db_next.
- * 	[90/08/22            dbg]
- * 
- * 	Allow repeated unary operators.
- * 	[90/08/20            dbg]
- * 
- * 	Reflected back rename of db_symbol_value->db_value_of_name
- * 	[90/08/20            af]
- * 	Reduce lint.
- * 	[90/08/07            dbg]
- * 	Created.
- * 	[90/07/25            dbg]
- * 
+ *	$Id$
  */
+
 /*
  *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	7/90
