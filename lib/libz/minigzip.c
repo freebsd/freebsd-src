@@ -48,6 +48,9 @@
 #  define GZ_SUFFIX "-gz"
 #  define fileno(file) file->__file
 #endif
+#if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
+#  include <unix.h> /* for fileno */
+#endif
 
 #ifndef WIN32 /* unlink already in stdio.h for WIN32 */
   extern int unlink OF((const char *));

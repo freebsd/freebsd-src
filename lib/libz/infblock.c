@@ -11,6 +11,10 @@
 
 struct inflate_codes_state {int dummy;}; /* for buggy compilers */
 
+/* simplify the use of the inflate_huft type with some defines */
+#define exop word.what.Exop
+#define bits word.what.Bits
+
 /* Table for deflate from PKZIP's appnote.txt. */
 local const uInt border[] = { /* Order of the bit length code lengths */
         16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
@@ -264,8 +268,8 @@ int r;
         t = s->sub.trees.bb;
         NEEDBITS(t)
         h = s->sub.trees.tb + ((uInt)b & inflate_mask[t]);
-        t = h->word.what.Bits;
-        c = h->more.Base;
+        t = h->bits;
+        c = h->base;
         if (c < 16)
         {
           DUMPBITS(t)
@@ -340,13 +344,6 @@ int r;
       {
         s->mode = TYPE;
         break;
-      }
-      if (k > 7)              /* return unused byte, if any */
-      {
-        Assert(k < 16, "inflate_codes grabbed too many bytes")
-        k -= 8;
-        n++;
-        p--;                    /* can always return one */
       }
       s->mode = DRY;
     case DRY:
