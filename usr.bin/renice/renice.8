@@ -40,22 +40,10 @@
 .Nd alter priority of running processes
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Ar priority |
-.Op Fl n Ar increment
-.Oc
-.Oo
-.Op Fl p
-.Ar pid ...
-.Oc
-.Oo
-.Op Fl g
-.Ar pgrp ...
-.Oc
-.Oo
-.Op Fl u
-.Ar user ...
-.Oc
+.Op Ar priority | Op Fl n Ar increment
+.Op Oo Fl p Oc Ar pid ...
+.Op Oo Fl g Oc Ar pgrp ...
+.Op Oo Fl u Oc Ar user ...
 .Sh DESCRIPTION
 .Nm Renice
 alters the
