@@ -45,7 +45,7 @@
 
 struct lock_class lock_class_sx = {
 	"sx",
-	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE
+	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE
 };
 
 void
@@ -57,7 +57,8 @@ sx_init(struct sx *sx, const char *description)
 	lock = &sx->sx_object;
 	lock->lo_class = &lock_class_sx;
 	lock->lo_name = description;
-	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE;
+	lock->lo_flags = LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE |
+	    LO_UPGRADABLE;
 	mtx_init(&sx->sx_lock, "sx backing lock",
 	    MTX_DEF | MTX_NOWITNESS | MTX_QUIET);
 	sx->sx_cnt = 0;
@@ -254,14 +255,12 @@ _sx_try_upgrade(struct sx *sx, const char *file, int line)
 	_SX_ASSERT_SLOCKED(sx, file, line);
 
 	if (sx->sx_cnt == 1) {
-		WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
-
 		sx->sx_cnt = -1;
 		sx->sx_xholder = curproc;
 
 		LOCK_LOG_TRY("XUPGRADE", &sx->sx_object, 0, 1, file, line);
-		WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK, file,
-		    line);
+		WITNESS_UPGRADE(&sx->sx_object, LOP_EXCLUSIVE | LOP_TRYLOCK,
+		    file, line);
 
 		mtx_unlock(&sx->sx_lock);
 		return (1);
@@ -280,7 +279,7 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	_SX_ASSERT_XLOCKED(sx, file, line);
 	MPASS(sx->sx_cnt == -1);
 
-	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
+	WITNESS_DOWNGRADE(&sx->sx_object, 0, file, line);
 
 	sx->sx_cnt = 1;
 	sx->sx_xholder = NULL;
@@ -288,7 +287,6 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
                 cv_broadcast(&sx->sx_shrd_cv);
 
 	LOCK_LOG_LOCK("XDOWNGRADE", &sx->sx_object, 0, 0, file, line);
-	WITNESS_LOCK(&sx->sx_object, 0, file, line);
 
 	mtx_unlock(&sx->sx_lock);
 }
