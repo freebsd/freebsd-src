@@ -1,9 +1,9 @@
-; $Id: TODO,v 1.6 1995/01/29 06:35:03 phk Exp $
+; $Id: TODO,v 1.7 1995/02/22 20:28:07 rgrimes Exp $
 
 ** To skip this preamble, search forward for the pattern `**'.
 
 This file contains a list of ideas that people have come up for "good
-things to do" in FreeBSD 2.0.  These aren't necessarily things on the
+things to do" in FreeBSD.  These aren't necessarily things on the
 fast-track, and in fact consist mostly of things that the core team is
 never going to find the time to do so, if most things here are going
 to happen at all, they'll happen when someone reading this list steps
@@ -13,7 +13,7 @@ That said, a lot of these ideas would be very nice to have and would
 add substantially to the perceived value of FreeBSD.  Some items on
 this list would add a LOT of value, for that matter, and are by no
 means trivial.  Take and fix an item with a (*) next to it and WC will
-even send you a free 2.0 CD for your troubles!  It's the least they
+even send you a free CD for your troubles!  It's the least they
 can do for all notable contributors.
 
 This is a also good place to look if you're keen for a little
@@ -40,8 +40,8 @@ If you start working on something from this list, we also suggest that
 you contact the email-address listed for more information and to
 provide some central coordination for your effort.  If the email
 address given is simply <foo> then the email address can be presumed
-to be <foo@freefall.cdrom.com>.  If no email address is listed, then
-simply send to <freebsd-hackers@freefall.cdrom.com>.
+to be <foo@FreeBSD.ORG>.  If no email address is listed, then
+simply send to <freebsd-hackers@FreeBSD.org>.
 
 Thanks!
 
@@ -51,8 +51,8 @@ Thanks!
 
 TASKID:	940820002
 TASK:	Add Linux/Crynwr compatible plip mode to lpt.c
-DETAIL: { Use IF_LLC0 as mode-flag.  Look at the crynwr packet-driver
-plip.asm (ftp::ftp.ftp.com) and the linux driver for reference. }
+DETAIL: { Look at the crynwr packet-driver plip.asm (ftp::ftp.ftp.com)
+and the linux driver for reference. }
 EMAIL:	<phk>
 CATS:	kernel networking
 GRADE:	ADVANCED
@@ -76,19 +76,10 @@ also requires some modification of existing drivers to support being used
 by PCMCIA cards.  This task is both really hard and comparatively easy;
 hard because it's a big job, easy because others have already gone much of
 the way and you have their work for reference. }
-EMAIL:	<jkh>
+EMAIL:	<phk>
 CATS:	kernel laptop
 GRADE:	ADVANCED
-STATUS:	OPEN (*)
-
-TASKID:	940820005
-TASK:	Salvage seagate.c driver from 1.1.5.1
-DETAIL: { We've got a seagate driver that could use a little cleanup and
-migration effort }
-EMAIL:	<jkh>
-CATS:	kernel scsi
-GRADE:	BEGINNER
-STATUS:	OPEN
+STATUS:	IN PROGRESS
 
 TASKID:	940820006
 TASK:	Add bootp/DHCP to the generic ethernet code.
@@ -106,16 +97,6 @@ DETAIL: { Cisco's products implement this.  Both master and slave side would be
 desirable. }
 EMAIL:	<phk>
 CATS:	kernel networking
-GRADE:	ADVANCED
-STATUS:	OPEN (*)
-
-TASKID:	940820009
-TASK:	Make a freebsd.com MS-DOS boot program
-DETAIL:	{ This program should be able to boot like the boot-blocks, that is
-find a FreeBSD-partition and load the kernel from there, but it should
-also be able to load the kernel from an optional MS-DOS file. }
-EMAIL:	<phk>
-CATS:	kernel DOS
 GRADE:	ADVANCED
 STATUS:	OPEN (*)
 
@@ -168,3 +149,4 @@ EMAIL:	<rgrimes, phk>
 CATS:	user
 GRADE:	INTERMEDIATE
 STATUS:	OPEN
+
