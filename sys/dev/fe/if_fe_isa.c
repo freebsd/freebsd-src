@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#include <i386/isa/ic/mb86960.h>
+#include <dev/fe/mb86960.h>
 #include <dev/fe/if_fereg.h>
 #include <dev/fe/if_fevar.h>
 

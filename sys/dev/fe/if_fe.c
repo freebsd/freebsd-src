@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <i386/isa/ic/mb86960.h>
+#include <dev/fe/mb86960.h>
 #include <dev/fe/if_fereg.h>
 #include <dev/fe/if_fevar.h>
 
@@ -220,9 +220,13 @@ fe_simple_probe (struct fe_softc const * sc,
 		 struct fe_simple_probe_struct const * sp)
 {
 	struct fe_simple_probe_struct const *p;
+	int8_t bits;
 
 	for (p  = sp; p->mask != 0; p++) {
-		if ((fe_inb(sc, p->port) & p->mask) != p->bits)
+	    bits = fe_inb(sc, p->port);
+ 	    printf("port %d, mask %x, bits %x read %x\n", p->port,
+	      p->mask, p->bits, bits);
+		if ((bits & p->mask) != p->bits)
 			return 0;
 	}
 	return 1;
