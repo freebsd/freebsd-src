@@ -88,20 +88,10 @@
   <title>What's New</title>
 
   <para>This section describes
-<![ %include.historic; [
-      the most user-visible new or changed features in &os;
-      since &release.prev;.
-      In general, changes described here are unique to the &release.branch;
-      branch unless specifically marked as &merged; features.
-]]>
-<![ %no.include.historic; [
-      many of the user-visible new or changed features in &os;
-      since &release.prev;.  It includes items that are unique to the
-      &release.branch; branch, as well as some features that may have been
-      recently merged to
-      other branches (after &os; &release.prev.historic;).  The latter
-      items are marked as &merged;.
-]]>
+    the most user-visible new or changed features in &os;
+    since &release.prev;.
+    In general, changes described here are unique to the &release.branch;
+    branch unless specifically marked as &merged; features.
   </para>
 
   <para>Typical release note items
@@ -494,6 +484,12 @@
       this is no longer maintained.  The entry had actually
       been commented out for a long time.</para>
 
+    <para arch="alpha,amd64,i386">A new kernel option
+      <literal>PREEMPTION</literal> has been added.
+      This allows the threads that are in the kernel to be preempted
+      by higher priority threads.  It helps with interactivity and
+      allows interrupt threads to run sooner rather than waiting.</para>
+
     <para arch="i386">The &man.psm.4; driver and &man.moused.8;
       now support the Synaptics TouchPad.</para>
 
@@ -525,8 +521,10 @@
     <para>The &man.ubser.4; device driver has been added to support
       BWCT console management serial adapters.</para>
 
-    <para>The ULE scheduler is now the default scheduler in the
-      <filename>GENERIC</filename> kernel.  For the average user,
+    <para>The ULE scheduler has been added as an additional scheduler.
+      Note that the conventional one, which is called 4BSD, is still used
+      as the default schedular in <filename>GENERIC</filename> kernel.
+      For the average user,
       interactivity is reported to be better in many cases.  This
       means less <quote>skipping</quote> and <quote>jerking</quote> in
       interactive applications while the machine is very busy.  This
@@ -538,12 +536,22 @@
       kernel locking continues, the scheduler will be able to make
       more efficient use of the available parallel resources.</para>
 
+    <para>&man.ucycom.4; driver has been added for
+      the Cypress CY7C637xx and CY7C640/1xx families of USB to RS232 bridges,
+      such as the one found in the DeLorme Earthmate USB GPS
+      receiver (which is the only device currently supported by this driver).
+      This driver is not complete because there is no support yet for flow
+      control and output.</para>
+
     <para>A linear search algorithm used in
       &man.vm.map.findspace.9; has been replaced with
       an O(log n) algorithm built into the map entry splay tree.
       This significantly reduces the overhead in &man.vm.map.findspace.9;
       for applications that &man.mmap.2; many hundreds or thousands
       of regions.</para>
+
+    <para>The loader tunable <varname>debug.witness_*</varname>
+      has been renamed to <varname>debug.witness.*</varname>.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -747,6 +755,11 @@
       <para>The &man.udav.4; driver has been added.  It provides
 	support for USB Ethernet adapters based on the Davicom DM9601
 	chipset.</para>
+
+      <para>&man.vge.4; driver, which supports
+	the VIA Networking Technologies
+	VT6122 gigabit Ethernet chip and integrated 10/100/1000 copper PHY,
+	has been added.</para>
 
       <para>The &man.vr.4; driver now supports &man.polling.4;.  &merged;</para>
 
@@ -1063,11 +1076,12 @@
 	The <devicename>midi</devicename> driver, which supports serial port
 	and several sound cards, has been removed.
 	More details can be found in related manual pages:
-	sound(4), &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	&man.snd.cs4281.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	&man.snd.es137x.4;, and &man.snd.solo.4;.</para>
+	&man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
+	&man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
+	&man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
+        &man.snd.sbc.4;, &man.snd.solo.4;, and &man.snd.uaudio.4;.</para>
 
-      <para>The sound(4) (formerly &man.pcm.4;) driver has been modified to read
+      <para>The &man.sound.4; (formerly &man.pcm.4;) driver has been modified to read
 	<filename>/boot/device.hints</filename> on startup, to allow setting
 	of default values for mixer channels.</para>
     </sect3>
@@ -1363,6 +1377,11 @@
       variable is explicitly changed in the sub-make's environment).
       This makes them also mostly un-overrideable
       in sub-makes except on the sub-make's command line.</para>
+
+    <para arch="i386">The &man.mkuzip.8;, which is a non-GPL
+      utility to compress filesystem images for use with
+      <literal>GEOM_UZIP</literal> &man.geom.4; module,
+      has been added.</para>
 
     <para>The &man.nearbyint.3; and
       &man.nearbyintf.3; C99 functions
