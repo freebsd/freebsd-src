@@ -165,10 +165,12 @@ installUpgrade(dialogMenuItem *self)
 
     variable_set2(SYSTEM_STATE, "upgrade", 0);
     dialog_clear();
-    systemDisplayHelp("UPGRADE");
 
-    if (msgYesNo("Given all that scary stuff you just read, are you sure you want to\n"
-		 "risk it all and proceed with this upgrade?") != 0)
+    if (msgYesNo("Before beginning a binary upgrade, please review the upgrade instructions,\n"
+		 "which are located in the \"Install\" document under the main documentation\n"
+		 "menu.  Given that you have read these instructions and understand the risks\n"
+		 "and precautions involved, are you sure that you want to proceed with\n"
+		 "this upgrade?") != 0)
 	return DITEM_FAILURE;
 
     if (!Dists) {
