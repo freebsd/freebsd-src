@@ -256,6 +256,7 @@ pccard_attach_card(device_t dev)
 		 */
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF,
 		    M_WAITOK | M_ZERO);
+		resource_list_init(&ivar->resources);
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
 		ivar->fcn = pf;
