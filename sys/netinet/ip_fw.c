@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.45 1996/07/10 19:44:23 julian Exp $
+ *	$Id: ip_fw.c,v 1.46 1996/07/14 21:12:52 alex Exp $
  */
 
 /*
@@ -93,6 +93,7 @@ static int	ip_fw_chk __P((struct ip **pip, int hlen, struct ifnet *rif,
 			       int dirport, struct mbuf **m));
 static int	ip_fw_ctl __P((int stage, struct mbuf **mm));
 
+static char err_prefix[] = "ip_fw_ctl:";
 
 /*
  * Returns 1 if the port is matched by the vector, 0 otherwise
@@ -415,8 +416,18 @@ ip_fw_chk(struct ip **pip, int hlen,
 		f_prt = f->fw_flg & IP_FW_F_KIND;
 		
 		/* If wildcard, match */
-		if (f_prt == IP_FW_F_ALL)
-			goto got_match;
+		if (f_prt == IP_FW_F_ALL) {
+			int pnum;
+
+			if (f->fw_nsp == 0)
+				goto got_match;
+			/* Look for a matching IP protocol */
+			for (pnum = 0; pnum < f->fw_nsp; pnum++)
+				if (ip->ip_p == f->fw_pts[pnum])
+					goto got_match;
+
+			continue;
+		}
 
 		/* If different, dont match */
 		if (prt != f_prt) 
@@ -501,7 +512,7 @@ got_match:
 	 */
 	if (dirport >= 0
 	    && (f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_DENY
-	    && (f_prt != IP_FW_F_ICMP)
+	    && (prt != IP_FW_F_ICMP)
 	    && (f->fw_flg & IP_FW_F_ICMPRPL)) {
 		if (f_prt == IP_FW_F_ALL)
 			icmp_error(*m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0L, 0);
@@ -524,7 +535,7 @@ add_entry(struct ip_fw_head *chainptr, struct ip_fw *frwl)
 	fwc = malloc(sizeof *fwc, M_IPFW, M_DONTWAIT);
 	ftmp = malloc(sizeof *ftmp, M_IPFW, M_DONTWAIT);
 	if (!fwc || !ftmp) {
-		dprintf(("ip_fw_ctl:  malloc said no\n"));
+		dprintf(("%s malloc said no\n", err_prefix));
 		if (fwc)  free(fwc, M_IPFW);
 		if (ftmp) free(ftmp, M_IPFW);
 		return (ENOSPC);
@@ -646,15 +657,15 @@ check_ipfw_struct(struct mbuf *m)
 	struct ip_fw *frwl;
 
 	if (m->m_len != sizeof(struct ip_fw)) {
-		dprintf(("ip_fw_ctl: len=%d, want %d\n", m->m_len,
+		dprintf(("%s len=%d, want %d\n", err_prefix, m->m_len,
 		    sizeof(struct ip_fw)));
 		return (NULL);
 	}
 	frwl = mtod(m, struct ip_fw *);
 
 	if ((frwl->fw_flg & ~IP_FW_F_MASK) != 0) {
-		dprintf(("ip_fw_ctl: undefined flag bits set (flags=%x)\n",
-		    frwl->fw_flg));
+		dprintf(("%s undefined flag bits set (flags=%x)\n",
+		    err_prefix, frwl->fw_flg));
 		return (NULL);
 	}
 
@@ -663,28 +674,32 @@ check_ipfw_struct(struct mbuf *m)
 		frwl->fw_flg |= IP_FW_F_IN | IP_FW_F_OUT;
 
 	if ((frwl->fw_flg & IP_FW_F_SRNG) && frwl->fw_nsp < 2) {
-		dprintf(("ip_fw_ctl: src range set but n_src_p=%d\n",
-		    frwl->fw_nsp));
+		dprintf(("%s src range set but n_src_p=%d\n",
+		    err_prefix, frwl->fw_nsp));
 		return (NULL);
 	}
 	if ((frwl->fw_flg & IP_FW_F_DRNG) && frwl->fw_ndp < 2) {
-		dprintf(("ip_fw_ctl: dst range set but n_dst_p=%d\n",
-		    frwl->fw_ndp));
+		dprintf(("%s dst range set but n_dst_p=%d\n",
+		    err_prefix, frwl->fw_ndp));
 		return (NULL);
 	}
 	if (frwl->fw_nsp + frwl->fw_ndp > IP_FW_MAX_PORTS) {
-		dprintf(("ip_fw_ctl: too many ports (%d+%d)\n",
-		    frwl->fw_nsp, frwl->fw_ndp));
+		dprintf(("%s too many ports (%d+%d)\n",
+		    err_prefix, frwl->fw_nsp, frwl->fw_ndp));
 		return (NULL);
+	}
+	if ((frwl->fw_flg & IP_FW_F_ALL) &&
+		(frwl->fw_flg & (IP_FW_F_SRNG | IP_FW_F_DRNG))) {
+		dprintf(("%s proto ranges not allowed", err_prefix));
 	}
 
 	/*
-	 *	ICMP and ALL protocols don't check port ranges
+	 *	ICMP protocol doesn't use port range
 	 */
-	if ((frwl->fw_flg & IP_FW_F_KIND) != IP_FW_F_TCP &&
-		(frwl->fw_flg & IP_FW_F_KIND) != IP_FW_F_UDP &&
+	if ((frwl->fw_flg & IP_FW_F_KIND) == IP_FW_F_ICMP &&
 		(frwl->fw_nsp || frwl->fw_ndp)) {
-		dprintf(("ip_fw_ctl: invalid protocol/port combination\n"));
+		dprintf(("%s port(s) specified for ICMP rule\n",
+		    err_prefix));
 		return(NULL);
 	}
 
@@ -695,7 +710,7 @@ check_ipfw_struct(struct mbuf *m)
 	 */
 	if ((frwl->fw_src.s_addr & (~frwl->fw_smsk.s_addr)) || 
 		(frwl->fw_dst.s_addr & (~frwl->fw_dmsk.s_addr))) {
-		dprintf(("ip_fw_ctl: rule never matches\n"));
+		dprintf(("%s rule never matches\n", err_prefix));
 		return(NULL);
 	}
 
@@ -751,7 +766,7 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 		return (error);
 	}
 	if (m == NULL) {
-		printf("ip_fw_ctl:  NULL mbuf ptr\n");
+		printf("%s NULL mbuf ptr\n", err_prefix);
 		return (EINVAL);
 	}
 
@@ -770,7 +785,7 @@ ip_fw_ctl(int stage, struct mbuf **mm)
 		if (m) (void)m_free(m);
 		return error;
 	}
-	dprintf(("ip_fw_ctl:  unknown request %d\n", stage));
+	dprintf(("%s unknown request %d\n", err_prefix, stage));
 	if (m) (void)m_free(m);
 	return (EINVAL);
 }
