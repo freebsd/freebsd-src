@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.310 1998/09/25 17:34:48 peter Exp $
+ *	$Id: machdep.c,v 1.311 1998/09/29 11:20:16 abial Exp $
  */
 
 #include "apm.h"
@@ -60,6 +60,7 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
@@ -1611,6 +1612,10 @@ init386(first)
 #ifdef VM86
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 #endif
+
+	/* Export kernel environment and module metadata information */
+	module_metadata = (caddr_t)bootinfo.bi_modulep;
+	kern_envp = (caddr_t)bootinfo.bi_envp;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
