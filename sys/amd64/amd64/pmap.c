@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.16 1994/01/31 23:47:27 davidg Exp $
+ *	$Id: pmap.c,v 1.17 1994/02/08 03:07:58 davidg Exp $
  */
 
 /*
@@ -990,8 +990,8 @@ pmap_remove_all(pa)
 	pv = pa_to_pvh(pa);
 	m = PHYS_TO_VM_PAGE(pa);
 
+	s = splimp();
 	while (pv->pv_pmap != NULL) {
-		s = splhigh();
 		pmap = pv->pv_pmap;
 		ptp = get_pt_entry(pmap);
 		va = i386_btop(pv->pv_va);
@@ -1017,8 +1017,8 @@ pmap_remove_all(pa)
 			pv->pv_pmap = NULL;
 		}
 		
-		splx(s);
 	}
+	splx(s);
 
 	tlbflush();
 }
