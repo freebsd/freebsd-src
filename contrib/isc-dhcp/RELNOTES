@@ -1,7 +1,7 @@
 		     Internet Software Consortium
 	   Dynamic Host Configuration Protocol Distribution
-		   Version 2, Beta 1, Patchlevel 18
-			    March 5, 1998
+		   Version 2, Beta 1, Patchlevel 27
+			    April 23, 1999
 
 			    Release Notes
 
@@ -52,6 +52,138 @@ well as a more sensible memory allocation strategy.  This release is
 running in producion at the ISC, but is not expected to be stable in
 the near future, and is intended for sites that are in a position to
 experiment, or for sites that desperately need the new features.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 26
+
+- Fix UDP/IP checksum code
+
+- Fix UDP payload length computation to prevent logging of spurious
+  errors.
+
+- Support compilation on MacOS X
+
+- Add support for some options that were added in RFC2132.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 25
+
+- Use the udp header's length rather than computing the length based
+  on the number of bytes received, because some broken relay agents
+  send packets with ip lengths that are longer than then sum of the ip
+  header size and the udp length.
+
+- Do path keyword substitution on unformatted manual pages before
+  installing them.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 24
+
+- D'oh!   Fix a really stupid mistake in hash.c.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 23
+
+- Support an always-reply-rfc1048 flag, which says to reply with an
+  RFC1048-style vendor extensions buffer even if the client didn't
+  send an RFC1048-style magic number.
+
+- Fix a null pointer dereference.
+
+- Use netmask from subnet if no netmask option specified.
+
+- IRIX support (thanks to Don Badrak).
+
+- Install unformatted manual pages on Linux.
+
+- Add note in README about zcat vs. gzcat on BSD/os.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 22
+
+- Test for lease before dereferencing it in dhcprequest.
+
+- Free the client parameter request list in dhcpnak if there is one. 
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 21
+
+- Fix a pasto in options.c that will cause a core dump whenever a
+  client sends in a request without a parameter request list.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 20
+
+- Actually do the client fix mentioned below - Patchlevel 20 only contained
+  half of the fix.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 19
+
+- Removed arp table clearing code from solaris client script.
+
+- Document Linux "protocol not configured" error more thoroughly.
+
+- Clean up some unused variables.
+
+- Add entry and exit hooks to all dhcp client scripts, along with a
+  make_resolv_conf function that can be redefined in the entry hooks.
+  Document this new feature set.
+
+- Fix client to take advantage of network APIs that allow it to
+  receive a unicast instead of requesting that the DHCP server
+  broadcast its response.
+
+- Add -pf flag to all daemons allowing user to specify PID file name
+  on command line.
+
+- Undo a previous change that attempted to be clever about testing
+  interface flags but wound up being stupid instead.
+
+- Enforce access control on DHCPREQUEST messages as well as
+  DHCPDISCOVER messages.
+
+	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 18
+
+- Support added for AIX 4.1.5.0 (and hopefully other versions).
+
+- Use /var/run instead of /etc on Digital Unix.
+
+- Change DHCP client exponential backoff code to back off more slowly,
+  so that it is more robust in lossy environments, at the expense of
+  being a bit less polite to the server.
+
+- Don't request a specific lease interval in the client unless the
+  user says to do so.
+
+- Don't print DHCPXXX in wrong xxx messages unless DEBUG is defined.
+
+- Fix handling of secs field.
+
+- Fix handling of append statement.
+
+- Fix documentation for append and prepend statements.
+
+- Fix server support for parameter request list and maximum message
+  size.
+
+- Parameterize more hardware types in discover_interfaces.   Check for
+  IFF_BROADCAST instead of !IFF_POINTOPOINT
+
+- Print kernel configuration warning message if we get EINVAL when
+  opening or configuring the Linux packet filter.
+
+- Fix a bug in UDP checksum code (thanks to John Nemeth for figuring
+  this out) and re-enable UDP checksumming.   This allows the client
+  to work with some buggy DHCP servers that can't handle zero
+  checksums in the UDP header - in particular, the one John's cable
+  modem ISP is using.
+
+- Don't report packet header checksum errors unless we see a lot of
+  them.   It's perfectly normal for some number of checksum errors to
+  occur.
+
+- Refer to the dhcpd.leases man page when printing an error message
+  prior to exiting because there's no lease database.
+
+- Add information to the README telling the reader how to get to the
+  manual pages.
+
+- Fix the server packet transmission code to unicast when it can.
+
+- Fix a typo in the dhcpd.conf manual page.
 
 	    CHANGES FROM VERSION 2.0 BETA 1 PATCHLEVEL 17
 

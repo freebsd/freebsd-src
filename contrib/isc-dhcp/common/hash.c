@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: hash.c,v 1.9.2.1 1998/06/25 21:11:29 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: hash.c,v 1.9.2.3 1999/04/09 17:39:41 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -67,23 +67,12 @@ static INLINE int do_hash (name, len, size)
 	register int accum = 0;
 	register unsigned char *s = name;
 	int i = len;
-	if (i) {
-		while (i--) {
-			/* Add the character in... */
-			accum += *s++;
-			/* Add carry back in... */
-			while (accum > 255) {
-				accum = (accum & 255) + (accum >> 8);
-			}
-		}
-	} else {
-		while (*s) {
-			/* Add the character in... */
-			accum += *s++;
-			/* Add carry back in... */
-			while (accum > 255) {
-				accum = (accum & 255) + (accum >> 8);
-			}
+	while (i--) {
+		/* Add the character in... */
+		accum += *s++;
+		/* Add carry back in... */
+		while (accum > 255) {
+			accum = (accum & 255) + (accum >> 8);
 		}
 	}
 	return accum % size;
@@ -100,6 +89,8 @@ void add_hash (table, name, len, pointer)
 
 	if (!table)
 		return;
+	if (!len)
+		len = strlen ((char *)name);
 
 	hashno = do_hash (name, len, table -> hash_count);
 	bp = new_hash_bucket ("add_hash");
@@ -125,6 +116,8 @@ void delete_hash_entry (table, name, len)
 
 	if (!table)
 		return;
+	if (!len)
+		len = strlen ((char *)name);
 
 	hashno = do_hash (name, len, table -> hash_count);
 
@@ -157,19 +150,15 @@ unsigned char *hash_lookup (table, name, len)
 
 	if (!table)
 		return (unsigned char *)0;
+
+	if (!len)
+		len = strlen ((char *)name);
+
 	hashno = do_hash (name, len, table -> hash_count);
 
-	if (len) {
-		for (bp = table -> buckets [hashno]; bp; bp = bp -> next) {
-			if (len == bp -> len
-			    && !memcmp (bp -> name, name, len))
-				return bp -> value;
-		}
-	} else {
-		for (bp = table -> buckets [hashno]; bp; bp = bp -> next)
-			if (!strcmp ((char *)bp -> name, (char *)name))
-				return bp -> value;
+	for (bp = table -> buckets [hashno]; bp; bp = bp -> next) {
+		if (len == bp -> len && !memcmp (bp -> name, name, len))
+			return bp -> value;
 	}
 	return (unsigned char *)0;
 }
-

@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: alloc.c,v 1.13.2.1 1998/11/24 22:17:15 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: alloc.c,v 1.13.2.2 1999/03/26 16:39:36 mellon Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -240,6 +240,8 @@ void free_lease_state (ptr, name)
 	struct lease_state *ptr;
 	char *name;
 {
+	if (ptr -> prl)
+		dfree (ptr -> prl, name);
 	ptr -> next = free_lease_states;
 	free_lease_states = ptr;
 }

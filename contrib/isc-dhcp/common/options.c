@@ -42,7 +42,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: options.c,v 1.26.2.3 1998/06/25 21:11:30 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: options.c,v 1.26.2.7 1999/03/30 02:57:47 mellon Exp $ Copyright (c) 1995, 1996, 1997, 1998 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #define DHCP_OPTION_DATA
@@ -119,7 +119,8 @@ void parse_option_buffer (packet, buffer, length)
 		/* If we haven't seen this option before, just make
 		   space for it and copy it there. */
 		if (!packet -> options [code].data) {
-			if (!(t = (unsigned char *)malloc (len + 1)))
+			if (!(t = ((unsigned char *)
+				   dmalloc (len + 1, "parse_option_buffer"))))
 				error ("Can't allocate storage for option %s.",
 				       dhcp_options [code].name);
 			/* Copy and NUL-terminate the option (in case it's an
@@ -132,10 +133,9 @@ void parse_option_buffer (packet, buffer, length)
 			/* If it's a repeat, concatenate it to whatever
 			   we last saw.   This is really only required
 			   for clients, but what the heck... */
-			t = (unsigned char *)
-				malloc (len
-					+ packet -> options [code].len
-					+ 1);
+			t = ((unsigned char *)
+			     dmalloc (len + packet -> options [code].len + 1,
+				      "parse_option_buffer"));
 			if (!t)
 				error ("Can't expand storage for option %s.",
 				       dhcp_options [code].name);
@@ -145,7 +145,8 @@ void parse_option_buffer (packet, buffer, length)
 				&s [2], len);
 			packet -> options [code].len += len;
 			t [packet -> options [code].len] = 0;
-			free (packet -> options [code].data);
+			dfree (packet -> options [code].data,
+			       "parse_option_buffer");
 			packet -> options [code].data = t;
 		}
 		s += len + 2;
@@ -157,13 +158,17 @@ void parse_option_buffer (packet, buffer, length)
    three seperate buffers if needed.  This allows us to cons up a set
    of vendor options using the same routine. */
 
-int cons_options (inpacket, outpacket, options, overload, terminate, bootpp)
+int cons_options (inpacket, outpacket, mms,
+		  options, overload, terminate, bootpp, prl, prl_len)
 	struct packet *inpacket;
 	struct dhcp_packet *outpacket;
+	int mms;
 	struct tree_cache **options;
 	int overload;	/* Overload flags that may be set. */
 	int terminate;
 	int bootpp;
+	u_int8_t *prl;
+	int prl_len;
 {
 	unsigned char priority_list [300];
 	int priority_len;
@@ -178,20 +183,28 @@ int cons_options (inpacket, outpacket, options, overload, terminate, bootpp)
 	   use up to the minimum IP MTU size (576 bytes). */
 	/* XXX if a BOOTP client specifies a max message size, we will
 	   honor it. */
-	if (inpacket && inpacket -> options [DHO_DHCP_MAX_MESSAGE_SIZE].data) {
-		main_buffer_size =
-			(getUShort (inpacket -> options
-				    [DHO_DHCP_MAX_MESSAGE_SIZE].data)
-			 - DHCP_FIXED_LEN);
-		/* Enforce a minimum packet size... */
-		if (main_buffer_size < (576 - DHCP_FIXED_LEN))
-			main_buffer_size = 576 - DHCP_FIXED_LEN;
-		if (main_buffer_size > sizeof buffer)
-			main_buffer_size = sizeof buffer;
-	} else if (bootpp)
+	if (!mms &&
+	    inpacket &&
+	    inpacket -> options [DHO_DHCP_MAX_MESSAGE_SIZE].data &&
+	    (inpacket -> options [DHO_DHCP_MAX_MESSAGE_SIZE].len >=
+	     sizeof (u_int16_t)))
+		mms = getUShort (inpacket -> options
+				 [DHO_DHCP_MAX_MESSAGE_SIZE].data);
+
+	/* If the client has provided a maximum DHCP message size,
+	   use that; otherwise, if it's BOOTP, only 64 bytes; otherwise
+	   use up to the minimum IP MTU size (576 bytes). */
+	/* XXX if a BOOTP client specifies a max message size, we will
+	   honor it. */
+	if (mms)
+		main_buffer_size = mms - DHCP_FIXED_LEN;
+	else if (bootpp)
 		main_buffer_size = 64;
 	else
 		main_buffer_size = 576 - DHCP_FIXED_LEN;
+
+	if (main_buffer_size > sizeof buffer)
+		main_buffer_size = sizeof buffer;
 
 	/* Preload the option priority list with mandatory options. */
 	priority_len = 0;
@@ -212,9 +225,17 @@ int cons_options (inpacket, outpacket, options, overload, terminate, bootpp)
 			prlen = (sizeof priority_list) - priority_len;
 
 		memcpy (&priority_list [priority_len],
-			inpacket -> options
-				[DHO_DHCP_PARAMETER_REQUEST_LIST].data, prlen);
+			(inpacket -> options
+			 [DHO_DHCP_PARAMETER_REQUEST_LIST].data), prlen);
 		priority_len += prlen;
+		prl = priority_list;
+	} else if (prl) {
+		if (prl_len + priority_len > sizeof priority_list)
+			prl_len = (sizeof priority_list) - priority_len;
+
+		memcpy (&priority_list [priority_len], prl, prl_len);
+		priority_len += prl_len;
+		prl = priority_list;
 	} else {
 		memcpy (&priority_list [priority_len],
 			dhcp_option_default_priority_list,
@@ -582,6 +603,7 @@ void do_packet (interface, packet, len, from_port, from, hfrom)
 	struct hardware *hfrom;
 {
 	struct packet tp;
+	int i;
 
 	if (packet -> hlen > sizeof packet -> chaddr) {
 		note ("Discarding packet with invalid hlen.");
@@ -605,5 +627,11 @@ void do_packet (interface, packet, len, from_port, from, hfrom)
 		dhcp (&tp);
 	else
 		bootp (&tp);
+
+	/* Free the data associated with the options. */
+	for (i = 0; i < 256; i++) {
+		if (tp.options [i].len && tp.options [i].data)
+			dfree (tp.options [i].data, "do_packet");
+	}
 }
 
