@@ -630,8 +630,14 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 
     if (dst == BDG_DROP) { /* this should not happen */
 	printf("xx bdg_forward for BDG_DROP\n");
-	m_freem(*m0) ;
-	*m0 = NULL ;
+#ifdef DUMMYNET
+	if ((*m0)->m_type == MT_DUMMYNET)
+		/* XXX: Shouldn't have to be doing this. */
+		m_freem((*m0)->m_next);
+	else
+#endif
+		m_freem(*m0);
+	*m0 = NULL;
 	return 0;
     }
     if (dst == BDG_LOCAL) { /* this should not happen as well */
@@ -757,7 +763,15 @@ bdg_forward(struct mbuf **m0, struct ether_header *const eh, struct ifnet *dst)
 	    /*
 	     * pass the pkt to dummynet. Need to include m, dst, rule.
 	     * Dummynet consumes the packet in all cases.
+	     * Also need to prepend the ethernet header.
 	     */
+	    M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+	    if (m == NULL) {
+		if (canfree)
+			*m0 = NULL;
+		return ENOBUFS;
+	    }
+	    bcopy(eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    dummynet_io((off & 0xffff), DN_TO_BDG_FWD, m, dst, NULL, 0, rule, 0);
 	    if (canfree) /* dummynet has consumed the original one */
 		*m0 = NULL ;
