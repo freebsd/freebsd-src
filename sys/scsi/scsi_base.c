@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.29 1995/05/30 08:13:27 rgrimes Exp $
+ *      $Id: scsi_base.c,v 1.29.4.1 1995/10/10 00:42:00 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -46,10 +46,10 @@ struct scsi_xfer *next_free_xs;
 struct scsi_xfer *
 get_xs(sc_link, flags)
 	struct	scsi_link *sc_link;	/* who to charge the xs to */
-	u_int32	flags;			/* if this call can sleep */
+	u_int32_t	flags;			/* if this call can sleep */
 {
 	struct	scsi_xfer *xs;
-	u_int32	s;
+	u_int32_t	s;
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("get_xs\n"));
 	s = splbio();
@@ -92,7 +92,7 @@ void
 free_xs(xs, sc_link, flags)
 	struct scsi_xfer *xs;
 	struct scsi_link *sc_link;	/* who to credit for returning it */
-	u_int32 flags;
+	u_int32_t flags;
 {
 	xs->next = next_free_xs;
 	next_free_xs = xs;
@@ -117,15 +117,15 @@ free_xs(xs, sc_link, flags)
 /*
  * Find out from the device what its capacity is.
  */
-u_int32
+u_int32_t
 scsi_read_capacity(sc_link, blk_size, flags)
 	struct scsi_link *sc_link;
-	u_int32 *blk_size;
-	u_int32 flags;
+	u_int32_t *blk_size;
+	u_int32_t flags;
 {
 	struct scsi_read_cap_data rdcap;
 	struct scsi_read_capacity scsi_cmd;
-	u_int32 size;
+	u_int32_t size;
 
 	/*
 	 * make up a scsi command and ask the scsi driver to do
@@ -201,7 +201,7 @@ scsi_target_mode(sc_link, on_off)
 errval
 scsi_test_unit_ready(sc_link, flags)
 	struct scsi_link *sc_link;
-	u_int32 flags;
+	u_int32_t flags;
 {
 	struct scsi_test_unit_ready scsi_cmd;
 
@@ -225,7 +225,7 @@ scsi_test_unit_ready(sc_link, flags)
 errval
 scsi_change_def(sc_link, flags)
 	struct scsi_link *sc_link;
-	u_int32 flags;
+	u_int32_t flags;
 {
 	struct scsi_changedef scsi_cmd;
 
@@ -252,7 +252,7 @@ errval
 scsi_inquire(sc_link, inqbuf, flags)
 	struct scsi_link *sc_link;
 	struct scsi_inquiry_data *inqbuf;
-	u_int32 flags;
+	u_int32_t flags;
 {
 	struct scsi_inquiry scsi_cmd;
 
@@ -277,7 +277,7 @@ scsi_inquire(sc_link, inqbuf, flags)
 errval
 scsi_prevent(sc_link, type, flags)
 	struct scsi_link *sc_link;
-	u_int32 type, flags;
+	u_int32_t type, flags;
 {
 	struct scsi_prevent scsi_cmd;
 
@@ -301,7 +301,7 @@ scsi_prevent(sc_link, type, flags)
 errval
 scsi_start_unit(sc_link, flags)
 	struct scsi_link *sc_link;
-	u_int32 flags;
+	u_int32_t flags;
 {
 	struct scsi_start_stop scsi_cmd;
 
@@ -326,8 +326,8 @@ scsi_start_unit(sc_link, flags)
 errval
 scsi_stop_unit(sc_link, eject, flags)
 	struct scsi_link *sc_link;
-	u_int32 eject;
-	u_int32 flags;
+	u_int32_t eject;
+	u_int32_t flags;
 {
 	struct scsi_start_stop scsi_cmd;
 
@@ -440,17 +440,17 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
     retries, timeout, bp, flags)
 	struct scsi_link *sc_link;
 	struct scsi_generic *scsi_cmd;
-	u_int32 cmdlen;
+	u_int32_t cmdlen;
 	u_char *data_addr;
-	u_int32 datalen;
-	u_int32 retries;
-	u_int32 timeout;
+	u_int32_t datalen;
+	u_int32_t retries;
+	u_int32_t timeout;
 	struct buf *bp;
-	u_int32 flags;
+	u_int32_t flags;
 {
 	struct scsi_xfer *xs;
 	errval  retval;
-	u_int32 s;
+	u_int32_t s;
 
 	/*
 	 * Illegal command lengths will wedge host adapter software.
@@ -463,8 +463,8 @@ scsi_scsi_cmd(sc_link, scsi_cmd, cmdlen, data_addr, datalen,
 			return EFAULT;
 		else
 		{
-			static u_int8 sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
-			u_int8 size = sizes[((scsi_cmd->opcode) >> 5)];
+			static u_int8_t sizes[] = {6, 10, 10, 0, 0, 12, 0, 0 };
+			u_int8_t size = sizes[((scsi_cmd->opcode) >> 5)];
 			if (size && (size != cmdlen))
 				return EIO;
 		}
@@ -740,6 +740,7 @@ sc_err1(xs)
 		return sc_done(xs, SCSIRET_DO_RETRY);
 
 		/* fall through */
+	case XS_SELTIMEOUT:
 	case XS_DRIVER_STUFFUP:
 		return sc_done(xs, EIO);
 
@@ -782,8 +783,8 @@ void scsi_sense_print(xs)
 {
 	struct scsi_sense_data_new *sense;
 	struct scsi_sense_extended *ext;
-	u_int32 key;
-	u_int32 info;
+	u_int32_t key;
+	u_int32_t info;
 	int asc, ascq;
 
 	/* This sense key text now matches what is in the SCSI spec
@@ -913,8 +914,8 @@ scsi_interpret_sense(xs)
 {
 	struct scsi_sense_data *sense;
 	struct scsi_link *sc_link = xs->sc_link;
-	u_int32 key;
-	u_int32 silent;
+	u_int32_t key;
+	u_int32_t silent;
 	errval  errcode;
 	int error_code;
 
@@ -929,7 +930,7 @@ scsi_interpret_sense(xs)
 #ifdef	SCSIDEBUG
 	if (sc_link->flags & SDEV_DB1) {
 
-		u_int32 count = 0;
+		u_int32_t count = 0;
 		printf("code%x valid%x ",
 		    sense->error_code & SSD_ERRCODE,
 		    sense->error_code & SSD_ERRCODE_VALID ? 1 : 0);
@@ -1089,7 +1090,7 @@ scsi_interpret_sense(xs)
  */
 void
 scsi_uto3b(val, bytes)
-	u_int32	val;
+	u_int32_t	val;
 	u_char	*bytes;
 {
 	*bytes++ = (val & 0xff0000) >> 16;
@@ -1097,43 +1098,43 @@ scsi_uto3b(val, bytes)
 	*bytes = val & 0xff;
 }
 
-u_int32
+u_int32_t
 scsi_3btou(bytes)
 	u_char *bytes;
 {
-	u_int32 rc;
+	u_int32_t rc;
 	rc = (*bytes++ << 16);
 	rc += (*bytes++ << 8);
 	rc += *bytes;
 	return rc;
 }
 
-int32
+int32_t
 scsi_3btoi(bytes)
 	u_char *bytes;
 {
-	u_int32 rc = scsi_3btou(bytes);
+	u_int32_t rc = scsi_3btou(bytes);
 
 	if (rc & 0x00800000)
 		rc |= 0xff000000;
 
-	return (int32) rc;
+	return (int32_t) rc;
 }
 
 void
 scsi_uto2b(val, bytes)
-	u_int32	val;
+	u_int32_t	val;
 	u_char	*bytes;
 {
 	*bytes++ = (val & 0xff00) >> 8;
 	*bytes =    val & 0xff;
 }
 
-u_int32
+u_int32_t
 scsi_2btou(bytes)
 	u_char *bytes;
 {
-	u_int32 rc;
+	u_int32_t rc;
 	rc  = (*bytes++ << 8);
 	rc +=  *bytes;
 	return rc;
@@ -1141,7 +1142,7 @@ scsi_2btou(bytes)
 
 void
 scsi_uto4b(val, bytes)
-	u_int32	val;
+	u_int32_t	val;
 	u_char	*bytes;
 {
 	*bytes++ = (val & 0xff000000) >> 24;
@@ -1150,11 +1151,11 @@ scsi_uto4b(val, bytes)
 	*bytes =    val & 0xff;
 }
 
-u_int32
+u_int32_t
 scsi_4btou(bytes)
 	u_char *bytes;
 {
-	u_int32 rc;
+	u_int32_t rc;
 	rc  = (*bytes++ << 24);
 	rc += (*bytes++ << 16);
 	rc += (*bytes++ << 8);
@@ -1279,9 +1280,9 @@ show_scsi_cmd(struct scsi_xfer *xs)
 void
 show_mem(address, num)
 	unsigned char *address;
-	u_int32 num;
+	u_int32_t num;
 {
-	u_int32 y;
+	u_int32_t y;
 	printf("------------------------------");
 	for (y = 0; y < num; y += 1) {
 		if (!(y % 16))

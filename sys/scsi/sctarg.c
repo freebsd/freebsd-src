@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.3 1995/05/30 08:13:49 rgrimes Exp $
+ *      $Id: sctarg.c,v 1.3.4.1 1995/07/22 04:25:09 davidg Exp $
  */
 
 /*
@@ -62,7 +62,7 @@ struct scsi_data {
 
 errval sctarg_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link);
-void sctargstart(u_int32 unit, u_int32 unused_flags);
+void sctargstart(u_int32_t unit, u_int32_t unused_flags);
 errval sctarg_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
 void sctarg_strategy(struct buf *bp, struct scsi_link *sc_link);
@@ -158,8 +158,8 @@ struct scsi_link *sc_link)
  */
 void
 sctargstart(unit, unused_flags)
-	u_int32	unit;
-	u_int32	unused_flags;
+	u_int32_t	unit;
+	u_int32_t	unused_flags;
 {
 	struct scsi_link *sc_link = SCSI_LINK(&sctarg_switch, unit);
 	struct scsi_data *sctarg = sc_link->sd;
@@ -174,7 +174,7 @@ sctargstart(unit, unused_flags)
 		u_char	control;
 	} cmd;
 
-	u_int32 flags;
+	u_int32_t flags;
 
 	SC_DEBUG(sc_link, SDEV_DB2, ("sctargstart "));
 	/*
@@ -234,7 +234,7 @@ sctarg_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
 	unsigned char unit;
-	u_int32 opri;
+	u_int32_t opri;
 	struct scsi_data *sctarg;
 
 	unit = minor((bp->b_dev));

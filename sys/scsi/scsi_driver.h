@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.3 1995/04/14 15:10:34 dufault Exp $
+ * $Id: scsi_driver.h,v 1.4 1995/05/30 08:13:39 rgrimes Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_
@@ -56,7 +56,7 @@ int  scsi_device_attach __P((struct scsi_link *));
 
 int  scsi_open __P((dev_t, int, int, struct proc *, struct scsi_device *));
 int  scsi_close __P((dev_t, int, int, struct proc *, struct scsi_device *));
-int  scsi_ioctl __P((dev_t, u_int32, caddr_t, int, struct proc *,
+int  scsi_ioctl __P((dev_t, u_int32_t, caddr_t, int, struct proc *,
       struct scsi_device *));
 void scsi_strategy __P((struct buf *, struct scsi_device *));
 void scsi_minphys __P((struct buf *, struct scsi_device *));
