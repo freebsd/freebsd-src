@@ -1360,6 +1360,7 @@ ffs_blkfree(ip, bno, size)
  * Verify allocation of a block or fragment. Returns true if block or
  * fragment is allocated, false if it is free.
  */
+int
 ffs_checkblk(ip, bno, size)
 	struct inode *ip;
 	ufs_daddr_t bno;
@@ -1374,21 +1375,17 @@ ffs_checkblk(ip, bno, size)
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0) {
 		printf("bsize = %d, size = %d, fs = %s\n",
 		    fs->fs_bsize, size, fs->fs_fsmnt);
-		panic("checkblk: bad size");
+		panic("ffs_checkblk: bad size");
 	}
 	if ((u_int)bno >= fs->fs_size)
-		panic("checkblk: bad block %d", bno);
+		panic("ffs_checkblk: bad block %d", bno);
 	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
 		(int)fs->fs_cgsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
-		return;
-	}
+	if (error)
+		panic("ffs_checkblk: cg bread failed");
 	cgp = (struct cg *)bp->b_data;
-	if (!cg_chkmagic(cgp)) {
-		brelse(bp);
-		return;
-	}
+	if (!cg_chkmagic(cgp))
+		panic("ffs_checkblk: cg magic mismatch");
 	bno = dtogd(fs, bno);
 	if (size == fs->fs_bsize) {
 		free = ffs_isblock(fs, cg_blksfree(cgp), fragstoblks(fs, bno));
@@ -1398,7 +1395,7 @@ ffs_checkblk(ip, bno, size)
 			if (isset(cg_blksfree(cgp), bno + i))
 				free++;
 		if (free != 0 && free != frags)
-			panic("checkblk: partially free fragment");
+			panic("ffs_checkblk: partially free fragment");
 	}
 	brelse(bp);
 	return (!free);
