@@ -496,4 +496,3 @@ static moduledata_t wep_mod = {
 DECLARE_MODULE(wlan_wep, wep_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan_wep, 1);
 MODULE_DEPEND(wlan_wep, wlan, 1, 1, 1);
-MODULE_DEPEND(wlan_wep, rc4, 1, 1, 1);
