@@ -104,7 +104,8 @@ port_match(portptr, nports, port, range_flag)
 
 #ifdef IPFIREWALL
 int 
-ip_fw_chk(ip, rif, chain)
+ip_fw_chk(m, ip, rif, chain)
+	struct mbuf *m;
 	struct ip *ip;
 	struct ifnet *rif;
 	struct ip_fw *chain;
@@ -115,7 +116,6 @@ ip_fw_chk(ip, rif, chain)
 	struct icmp *icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
 	struct ifaddr *ia = NULL, *ia_p;
 	struct in_addr src, dst, ia_i;
-	struct mbuf *m;
 	u_short src_port = 0, dst_port = 0;
 	u_short f_prt = 0, prt;
 	char notcpsyn = 1;
@@ -302,7 +302,6 @@ got_match:
 		return TRUE;
 
 bad_packet:
-	m = dtom(ip);
 	if (f != NULL) {
 		/*
 		 * Do not ICMP reply to icmp packets....:) or to packets
