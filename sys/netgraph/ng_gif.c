@@ -265,7 +265,7 @@ static void
 ng_gif_detach(struct ifnet *ifp)
 {
 	const node_p node = IFP2NG(ifp);
-	const priv_p priv;
+	priv_p priv;
 
 	if (node == NULL)		/* no node (why not?), ignore */
 		return;
