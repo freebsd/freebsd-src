@@ -81,6 +81,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) mfs_strategy },
 	{ &vop_copyonwrite_desc,	(vop_t *) vop_eopnotsupp },
 	{ &vop_unlock_desc,		(vop_t *) vop_defaultop },
+	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc mfs_vnodeop_opv_desc =
