@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.189 1999/02/20 22:16:13 dt Exp $
+ *	$Id: wd.c,v 1.190 1999/03/23 10:22:19 bde Exp $
  */
 
 /* TODO:
@@ -693,10 +693,8 @@ wdstrategy(register struct buf *bp)
 	return;
 
 done:
-	s = splbio();
 	/* toss transfer, we're done early */
 	biodone(bp);
-	splx(s);
 }
 
 static void
