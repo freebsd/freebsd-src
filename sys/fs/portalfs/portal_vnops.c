@@ -216,7 +216,6 @@ portal_open(ap)
 	struct portalnode *pt;
 	struct thread *td = ap->a_td;
 	struct vnode *vp = ap->a_vp;
-	int s;
 	struct uio auio;
 	struct iovec aiov[2];
 	int res;
@@ -284,16 +283,18 @@ portal_open(ap)
 	 * will happen if the server dies.  Sleep for 5 second intervals
 	 * and keep polling the reference count.   XXX.
 	 */
-	s = splnet();
+	/* XXXRW: Locking? */
+	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {
+			SOCK_UNLOCK(so);
 			error = ECONNREFUSED;
-			splx(s);
 			goto bad;
 		}
-		(void) tsleep((caddr_t) &so->so_timeo, PSOCK, "portalcon", 5 * hz);
+		(void) msleep((caddr_t) &so->so_timeo, SOCK_MTX(so), PSOCK,
+		    "portalcon", 5 * hz);
 	}
-	splx(s);
+	SOCK_UNLOCK(so);
 
 	if (so->so_error) {
 		error = so->so_error;
@@ -303,12 +304,12 @@ portal_open(ap)
 	/*
 	 * Set miscellaneous flags
 	 */
-	so->so_rcv.sb_timeo = 0;
-	so->so_snd.sb_timeo = 0;
 	SOCKBUF_LOCK(&so->so_rcv);
+	so->so_rcv.sb_timeo = 0;
 	so->so_rcv.sb_flags |= SB_NOINTR;
 	SOCKBUF_UNLOCK(&so->so_rcv);
 	SOCKBUF_LOCK(&so->so_snd);
+	so->so_snd.sb_timeo = 0;
 	so->so_snd.sb_flags |= SB_NOINTR;
 	SOCKBUF_UNLOCK(&so->so_snd);
 
