@@ -183,9 +183,6 @@ out:
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
 
-	/* XXX: Do idle pre-zeroing.  */
-	if (va != NULL && (flags & M_ZERO))
-		bzero(va, size);
 	return ((void *) va);
 }
 
