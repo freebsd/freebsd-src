@@ -19,6 +19,7 @@ RCSID("$OpenBSD: auth1.c,v 1.2 2000/04/29 18:11:52 markus Exp $");
 #include "compat.h"
 #include "auth.h"
 #include "session.h"
+#include <login_cap.h>
 
 #ifdef KRB5
 extern krb5_context ssh_context;

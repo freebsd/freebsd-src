@@ -30,7 +30,6 @@ RCSID("$OpenBSD: session.c,v 1.15 2000/05/30 17:23:37 markus Exp $");
 #include "auth.h"
 
 #ifdef __FreeBSD__
-#define	LOGIN_CAP
 #define _PATH_CHPASS "/usr/bin/passwd"
 #endif /* __FreeBSD__ */
 
