@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpc.c,v 1.7 1998/03/22 20:19:27 jb Exp $";
+	"$Id: lpc.c,v 1.8 1998/09/11 18:49:31 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -59,6 +59,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <string.h>
 #include <unistd.h>
+#include <histedit.h>
 
 #include "lp.h"
 #include "lpc.h"
@@ -79,13 +80,10 @@ static int	fromatty;
 static char	cmdline[MAX_CMDLINE];
 static int	margc;
 static char	*margv[MAX_MARGV];
-static int	top;
 uid_t		uid, euid;
 
-static jmp_buf	toplevel;
-
 int			 main __P((int, char *[]));
-static void		 cmdscanner __P((int));
+static void		 cmdscanner __P((void));
 static struct cmd	*getcmd __P((char *));
 static void		 intr __P((int));
 static void		 makeargv __P((void));
@@ -125,12 +123,10 @@ main(argc, argv)
 		exit(0);
 	}
 	fromatty = isatty(fileno(stdin));
-	top = setjmp(toplevel) == 0;
-	if (top)
+	if (!fromatty)
 		signal(SIGINT, intr);
 	for (;;) {
-		cmdscanner(top);
-		top = 1;
+		cmdscanner();
 	}
 }
 
@@ -138,32 +134,58 @@ static void
 intr(signo)
 	int signo;
 {
-	if (!fromatty)
-		exit(0);
-	longjmp(toplevel, 1);
+	exit(0);
+}
+
+static char *
+lpc_prompt()
+{
+	return("lpc> ");
 }
 
 /*
  * Command parser.
  */
 static void
-cmdscanner(top)
-	int top;
+cmdscanner()
 {
 	register struct cmd *c;
+	static EditLine *el = NULL;
+	static History *hist = NULL;
+	int num = 0;
+	const char *bp = NULL;
 
-	if (!top)
-		putchar('\n');
 	for (;;) {
 		if (fromatty) {
-			printf("lpc> ");
-			fflush(stdout);
+			if (!el) {
+				el = el_init("lpc", stdin, stdout);
+				hist = history_init();
+				history(hist, H_EVENT, 100);
+				el_set(el, EL_HIST, history, hist);
+				el_set(el, EL_EDITOR, "emacs");
+				el_set(el, EL_PROMPT, lpc_prompt);
+				el_set(el, EL_SIGNAL, 1);
+			}
+			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+				return;
+
+			memcpy(cmdline, bp, (MAX_CMDLINE > num ? MAX_CMDLINE : num));
+			cmdline[num] = 0; 
+			history(hist, H_ENTER, bp);
+
+		} else {
+			if (fgets(cmdline, MAX_CMDLINE, stdin) == 0)
+				quit(0, NULL);
+			if (cmdline[0] == 0 || cmdline[0] == '\n')
+				break;
 		}
-		if (fgets(cmdline, MAX_CMDLINE, stdin) == 0)
-			quit(0, NULL);
-		if (cmdline[0] == 0 || cmdline[0] == '\n')
-			break;
+
 		makeargv();
+		if (margc == 0)
+			continue;
+		if (el_parse(el, margc, margv) != -1)
+			continue;
+
 		c = getcmd(margv[0]);
 		if (c == (struct cmd *)-1) {
 			printf("?Ambiguous command\n");
@@ -182,7 +204,6 @@ cmdscanner(top)
 		else
 			(*c->c_handler)(margc, margv);
 	}
-	longjmp(toplevel, 0);
 }
 
 static struct cmd *

@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cdcontrol.c,v 1.17 1998/01/26 00:57:54 jmz Exp $";
+	"$Id: cdcontrol.c,v 1.18 1999/01/31 15:30:21 billf Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -33,6 +33,7 @@ static const char rcsid[] =
 #include <sys/file.h>
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
+#include <histedit.h>
 
 #define VERSION "2.0"
 
@@ -922,18 +923,48 @@ int status (int *trk, int *min, int *sec, int *frame)
 	return s.data->header.audio_status;
 }
 
-char *input (int *cmd)
+const char *
+cdcontrol_prompt()
 {
-	static char buf[80];
+	return ("cdcontrol> ");
+}
+
+char *
+input (int *cmd)
+{
+#define MAXLINE 80
+	static EditLine *el = NULL;
+	static History *hist = NULL;
+	static char buf[MAXLINE];
+	int num = 0;
+	const char *bp = NULL;
 	char *p;
 
 	do {
-		if (verbose)
-			fprintf (stderr, "cdcontrol> ");
-		if (! fgets (buf, sizeof (buf), stdin)) {
-			*cmd = CMD_QUIT;
-			fprintf (stderr, "\r\n");
-			return (0);
+		if (verbose) {
+			if (!el) {
+				el = el_init("cdcontrol", stdin, stdout);
+				hist = history_init();
+				history(hist, H_EVENT, 100);
+				el_set(el, EL_HIST, history, hist);
+				el_set(el, EL_EDITOR, "emacs");
+				el_set(el, EL_PROMPT, cdcontrol_prompt);
+				el_set(el, EL_SIGNAL, 1);
+			}
+			if ((bp = el_gets(el, &num)) == NULL || num == 0)
+				return (0);
+
+			memcpy(buf, bp, (MAXLINE > num ? MAXLINE : num));
+			buf[num] = 0;
+			history(hist, H_ENTER, bp);
+#undef MAXLINE
+
+		} else {
+			if (! fgets (buf, sizeof (buf), stdin)) {
+				*cmd = CMD_QUIT;
+				fprintf (stderr, "\r\n");
+				return (0);
+			}
 		}
 		p = parse (buf, cmd);
 	} while (! p);

@@ -95,11 +95,64 @@ static char sccsid[] = "@(#)commands.l	5.13 (Berkeley) 7/24/90";
 
 #include "port_before.h"
 #include <sys/types.h>
+#include <histedit.h>
 #include "port_after.h"
 #include "res.h"
 
 extern char rootServerName[];
 extern void PrintHelp();
+
+#define YY_INPUT(buf, result, max_size) \
+	{ \
+	nslookup_yy_input((char *)buf, &result, \
+			  max_size, yy_current_buffer->yy_is_interactive); \
+	}
+
+const char *
+nslookup_prompt()
+{
+	return ("> ");
+}
+
+int
+nslookup_yy_input(buf, result, max_size, intr)
+	char *	buf;
+	int *	result;
+	int	max_size;
+	int	intr;
+{
+	static EditLine *el = NULL;
+	static History *hist = NULL;
+	int num = 0;
+	const char *bp = NULL;
+
+	if (intr) {
+		if (!el) {
+			el = el_init("nslookup", yyin, yyout);
+			hist = history_init();
+			history(hist, H_EVENT, 100);
+			el_set(el, EL_HIST, history, hist);
+			el_set(el, EL_EDITOR, "emacs");
+			el_set(el, EL_PROMPT, nslookup_prompt);
+			el_set(el, EL_SIGNAL, 1);
+		}
+	
+		if ((bp = el_gets(el, &num)) == NULL || num == 0) {
+			*result = 0;
+			return;
+		}
+	
+		*result = (num > max_size) ? max_size : num;
+		strncpy(buf, bp, *result);
+		history(hist, H_ENTER, bp);
+	} else {
+		if ( ((*result = fread( buf, 1, max_size, yyin )) == 0)
+			&& ferror( yyin ) )
+                	yy_fatal_error( "input in flex scanner failed" );
+	}
+
+	return;
+}
 
 %}
 WS	[ \t]
