@@ -46,7 +46,7 @@ struct file_list {
 	char	*f_fn;			/* the name */
 	int     f_type;                 /* type or count */
 	u_char	f_flags;		/* see below */
-	char	*f_special;		/* special make rule if present */
+	char	*f_compilewith;		/* special make rule if present */
 	char	*f_depends;		/* additional dependancies */
 	char	*f_clean;		/* File list to add to clean rule */
 	char	*f_needs;
