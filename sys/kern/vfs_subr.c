@@ -359,23 +359,6 @@ vfs_getnewfsid(mp)
 }
 
 /*
- * Get what should become the root fsid.
- *
- * This is somewhat of a hack.  If the rootdev is not known we
- * assume that vfs_getnewfsid() will be called momentarily to
- * allocate it, and we return what vfs_getnewfsid() will return.
- */
-
-dev_t
-vfs_getrootfsid(struct mount *mp)
-{
-	int mtype;
-
-	mtype = mp->mnt_vfc->vfc_typenum;
-	return(makedev(255, mtype + (mntid_base << 16)));
-}
-
-/*
  * Knob to control the precision of file timestamps:
  *
  *   0 = seconds only; nanoseconds zeroed.
