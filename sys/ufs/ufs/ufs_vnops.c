@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.98 1998/08/12 20:46:47 julian Exp $
+ * $Id: ufs_vnops.c,v 1.99 1998/08/12 21:42:54 msmith Exp $
  */
 
 #include "opt_quota.h"
@@ -1481,7 +1481,9 @@ ufs_rmdir(ap)
 	 * Do not remove a directory that is in the process of being renamed.
 	 * Verify the directory is empty (and valid). Rmdir ".." will not be
 	 * valid since ".." will contain a reference to the current directory
-	 * and thus be non-empty.
+	 * and thus be non-empty. Do not allow the removal of mounted on
+	 * directories (this can happen when an NFS exported filesystem
+	 * tries to remove a locally mounted on directory).
 	 */
 	error = 0;
 	if (ip->i_flag & IN_RENAME) {
@@ -1496,6 +1498,10 @@ ufs_rmdir(ap)
 	if ((dp->i_flags & APPEND)
 	    || (ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))) {
 		error = EPERM;
+		goto out;
+	}
+	if (vp->v_mountedhere != 0) {
+		error = EINVAL;
 		goto out;
 	}
 	/*
