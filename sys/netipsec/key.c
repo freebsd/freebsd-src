@@ -947,8 +947,8 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 
 			/* set sadb_address for saidx's. */
 			m = key_setsadbaddr(SADB_EXT_ADDRESS_DST,
-				&d->sah->saidx.src.sa,
-				d->sah->saidx.src.sa.sa_len << 3,
+				&d->sah->saidx.dst.sa,
+				d->sah->saidx.dst.sa.sa_len << 3,
 				IPSEC_ULPROTO_ANY);
 			if (!m)
 				goto msgfail;
