@@ -22,7 +22,8 @@ LDADD+=	${LIBCC_INT}
 .ORDER: objc-parse.c c-parse.h
 objc-parse.c c-parse.h: c-parse.in
 	sed -e "/^ifc$$/,/^end ifc$$/d" \
-	    -e "/^ifobjc$$/d" -e "/^end ifobjc$$/d" \
+	    -e "/^ifobjc$$/d" \
+	    -e "/^end ifobjc$$/d" \
 	    ${.ALLSRC} > objc-parse.y
 	${YACC} -d -o objc-parse.c objc-parse.y
 	mv objc-parse.h c-parse.h
