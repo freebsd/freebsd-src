@@ -1894,7 +1894,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	register pt_entry_t *pte;
 	vm_paddr_t opa;
 	pt_entry_t origpte, newpte;
-	vm_page_t mpte;
+	vm_page_t mpte, om;
 
 	va &= PG_FRAME;
 #ifdef PMAP_DIAGNOSTIC
@@ -1939,6 +1939,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 
 	pa = VM_PAGE_TO_PHYS(m);
+	om = NULL;
 	origpte = *pte;
 	opa = origpte & PG_FRAME;
 
@@ -1986,8 +1987,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 * so we go ahead and sense modify status.
 		 */
 		if (origpte & PG_MANAGED) {
-			if ((origpte & PG_M) && pmap_track_modified(va))
-				vm_page_dirty(m);
+			om = m;
 			pa |= PG_MANAGED;
 		}
 		goto validate;
@@ -1998,10 +1998,17 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int err;
-		err = pmap_remove_pte(pmap, pte, va);
+		if (origpte & PG_W)
+			pmap->pm_stats.wired_count--;
+		if (origpte & PG_MANAGED) {
+			om = PHYS_TO_VM_PAGE(opa);
+			err = pmap_remove_entry(pmap, om, va);
+		} else
+			err = pmap_unuse_pt(pmap, va);
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%x", va);
-	}
+	} else
+		pmap->pm_stats.resident_count++;
 
 	/*
 	 * Enter on the PV list if part of our managed memory. Note that we
@@ -2017,7 +2024,6 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Increment counters
 	 */
-	pmap->pm_stats.resident_count++;
 	if (wired)
 		pmap->pm_stats.wired_count++;
 
@@ -2040,7 +2046,14 @@ validate:
 	 * to update the pte.
 	 */
 	if ((origpte & ~(PG_M|PG_A)) != newpte) {
-		pte_store(pte, newpte | PG_A);
+		if (origpte & PG_MANAGED) {
+			origpte = pte_load_store(pte, newpte | PG_A);
+			if ((origpte & PG_M) && pmap_track_modified(va))
+				vm_page_dirty(om);
+			if (origpte & PG_A)
+				vm_page_flag_set(om, PG_REFERENCED);
+		} else
+			pte_store(pte, newpte | PG_A);
 		if (origpte) {
 			pmap_invalidate_page(pmap, va);
 		}
