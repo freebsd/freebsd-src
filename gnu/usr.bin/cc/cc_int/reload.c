@@ -86,6 +86,7 @@ a register with any other reload.  */
 
 #define REG_OK_STRICT
 
+#include <stdio.h>
 #include "config.h"
 #include "rtl.h"
 #include "insn-config.h"
@@ -777,8 +778,8 @@ push_reload (in, out, inloc, outloc, class,
      a pseudo and hence will become a MEM) with M1 wider than M2 and the
      register is a pseudo, also reload the inside expression.
      For machines that extend byte loads, do this for any SUBREG of a pseudo
-     where both M1 and M2 are a word or smaller unless they are the same
-     size.
+     where both M1 and M2 are a word or smaller, M1 is wider than M2, and
+     M2 is an integral mode that gets extended when loaded.
      Similar issue for (SUBREG:M1 (REG:M2 ...) ...) for a hard register R where
      either M1 is not valid for R or M2 is wider than a word but we only
      need one word to store an M2-sized quantity in R.
@@ -792,7 +793,11 @@ push_reload (in, out, inloc, outloc, class,
      STRICT_LOW_PART (presumably, in == out in the cas).
 
      Also reload the inner expression if it does not require a secondary
-     reload but the SUBREG does.  */
+     reload but the SUBREG does.
+
+     Finally, reload the inner expression if it is a register that is in
+     the class whose registers cannot be referenced in a different size
+     and M1 is not the same size as M2.  */
 
   if (in != 0 && GET_CODE (in) == SUBREG
       && (CONSTANT_P (SUBREG_REG (in))
@@ -808,7 +813,9 @@ push_reload (in, out, inloc, outloc, class,
 		      && (GET_MODE_SIZE (GET_MODE (SUBREG_REG (in)))
 			  <= UNITS_PER_WORD)
 		      && (GET_MODE_SIZE (inmode)
-			  != GET_MODE_SIZE (GET_MODE (SUBREG_REG (in)))))
+			  > GET_MODE_SIZE (GET_MODE (SUBREG_REG (in))))
+		      && INTEGRAL_MODE_P (GET_MODE (SUBREG_REG (in)))
+		      && LOAD_EXTEND_OP (GET_MODE (SUBREG_REG (in))) != NIL)
 #endif
 		  ))
 	  || (GET_CODE (SUBREG_REG (in)) == REG
@@ -832,6 +839,15 @@ push_reload (in, out, inloc, outloc, class,
 						GET_MODE (SUBREG_REG (in)),
 						SUBREG_REG (in))
 		  == NO_REGS))
+#endif
+#ifdef CLASS_CANNOT_CHANGE_SIZE
+	  || (GET_CODE (SUBREG_REG (in)) == REG
+	      && REGNO (SUBREG_REG (in)) < FIRST_PSEUDO_REGISTER
+	      && (TEST_HARD_REG_BIT
+		  (reg_class_contents[(int) CLASS_CANNOT_CHANGE_SIZE],
+		   REGNO (SUBREG_REG (in))))
+	      && (GET_MODE_SIZE (GET_MODE (SUBREG_REG (in)))
+		  != GET_MODE_SIZE (inmode)))
 #endif
 	  ))
     {
@@ -885,15 +901,7 @@ push_reload (in, out, inloc, outloc, class,
 		&& REGNO (SUBREG_REG (out)) >= FIRST_PSEUDO_REGISTER)
 	       || GET_CODE (SUBREG_REG (out)) == MEM)
 	      && ((GET_MODE_SIZE (outmode)
-		   > GET_MODE_SIZE (GET_MODE (SUBREG_REG (out))))
-#ifdef LOAD_EXTEND_OP
-		  || (GET_MODE_SIZE (outmode) <= UNITS_PER_WORD
-		      && (GET_MODE_SIZE (GET_MODE (SUBREG_REG (out)))
-			  <= UNITS_PER_WORD)
-		      && (GET_MODE_SIZE (outmode)
-			  != GET_MODE_SIZE (GET_MODE (SUBREG_REG (out)))))
-#endif
-		  ))
+		   > GET_MODE_SIZE (GET_MODE (SUBREG_REG (out))))))
 	  || (GET_CODE (SUBREG_REG (out)) == REG
 	      && REGNO (SUBREG_REG (out)) < FIRST_PSEUDO_REGISTER
 	      && ((GET_MODE_SIZE (outmode) <= UNITS_PER_WORD
@@ -912,6 +920,15 @@ push_reload (in, out, inloc, outloc, class,
 						 GET_MODE (SUBREG_REG (out)),
 						 SUBREG_REG (out))
 		  == NO_REGS))
+#endif
+#ifdef CLASS_CANNOT_CHANGE_SIZE
+	  || (GET_CODE (SUBREG_REG (out)) == REG
+	      && REGNO (SUBREG_REG (out)) < FIRST_PSEUDO_REGISTER
+	      && (TEST_HARD_REG_BIT
+		  (reg_class_contents[(int) CLASS_CANNOT_CHANGE_SIZE],
+		   REGNO (SUBREG_REG (out))))
+	      && (GET_MODE_SIZE (GET_MODE (SUBREG_REG (out)))
+		  != GET_MODE_SIZE (outmode)))
 #endif
 	  ))
     {
@@ -1881,7 +1898,7 @@ operands_match_p (x, y)
 
 int
 n_occurrences (c, s)
-     char c;
+     int c;
      char *s;
 {
   int n = 0;
@@ -2401,7 +2418,7 @@ find_reloads (insn, replace, ind_levels, live_known, reload_reg_p)
 				 && &SET_DEST (set) == recog_operand_loc[i]);
       else if (code == PLUS)
 	/* We can get a PLUS as an "operand" as a result of
-	   register elimination.  See eliminate_regs and gen_input_reload.  */
+	   register elimination.  See eliminate_regs and gen_reload.  */
 	substed_operand[i] = recog_operand[i] = *recog_operand_loc[i]
 	  = find_reloads_toplev (recog_operand[i], i, address_type[i],
 				 ind_levels, 0);
@@ -2550,12 +2567,15 @@ find_reloads (insn, replace, ind_levels, live_known, reload_reg_p)
 		  || GET_CODE (operand) == PLUS
 		  /* We must force a reload of paradoxical SUBREGs
 		     of a MEM because the alignment of the inner value
-		     may not be enough to do the outer reference.
+		     may not be enough to do the outer reference.  On
+		     big-endian machines, it may also reference outside
+		     the object.
 
 		     On machines that extend byte operations and we have a
-		     SUBREG where both the inner and outer modes are different
-		     size but no wider than a word, combine.c has made
-		     assumptions about the behavior of the machine in such
+		     SUBREG where both the inner and outer modes are no wider
+		     than a word and the inner mode is narrower, is integral,
+		     and gets extended when loaded from memory, combine.c has
+		     made assumptions about the behavior of the machine in such
 		     register access.  If the data is, in fact, in memory we
 		     must always load using the size assumed to be in the
 		     register and let the insn do the different-sized 
@@ -2567,12 +2587,15 @@ find_reloads (insn, replace, ind_levels, live_known, reload_reg_p)
 			    < BIGGEST_ALIGNMENT)
 			   && (GET_MODE_SIZE (operand_mode[i])
 			       > GET_MODE_SIZE (GET_MODE (operand))))
+			  || (GET_CODE (operand) == MEM && BYTES_BIG_ENDIAN)
 #ifdef LOAD_EXTEND_OP
 			  || (GET_MODE_SIZE (operand_mode[i]) <= UNITS_PER_WORD
 			      && (GET_MODE_SIZE (GET_MODE (operand))
 				  <= UNITS_PER_WORD)
 			      && (GET_MODE_SIZE (operand_mode[i])
-				  != GET_MODE_SIZE (GET_MODE (operand))))
+				  > GET_MODE_SIZE (GET_MODE (operand)))
+			      && INTEGRAL_MODE_P (GET_MODE (operand))
+			      && LOAD_EXTEND_OP (GET_MODE (operand)) != NIL)
 #endif
 			  ))
 		  /* Subreg of a hard reg which can't handle the subreg's mode
@@ -2708,7 +2731,7 @@ find_reloads (insn, replace, ind_levels, live_known, reload_reg_p)
 	      case 'p':
 		/* All necessary reloads for an address_operand
 		   were handled in find_reloads_address.  */
-		this_alternative[i] = (int) ALL_REGS;
+		this_alternative[i] = (int) BASE_REG_CLASS;
 		win = 1;
 		break;
 
@@ -4233,12 +4256,12 @@ find_reloads_address (mode, memrefloc, ad, loc, opnum, type, ind_levels)
 	   && ! memory_address_p (mode, ad))
     {
       *loc = ad = gen_rtx (PLUS, GET_MODE (ad),
+			   XEXP (XEXP (ad, 0), 0),
 			   plus_constant (XEXP (XEXP (ad, 0), 1),
-					  INTVAL (XEXP (ad, 1))),
-			   XEXP (XEXP (ad, 0), 0));
-      find_reloads_address_part (XEXP (ad, 0), &XEXP (ad, 0), BASE_REG_CLASS,
+					  INTVAL (XEXP (ad, 1))));
+      find_reloads_address_part (XEXP (ad, 1), &XEXP (ad, 1), BASE_REG_CLASS,
 				 GET_MODE (ad), opnum, type, ind_levels);
-      find_reloads_address_1 (XEXP (ad, 1), 1, &XEXP (ad, 1), opnum, type, 0);
+      find_reloads_address_1 (XEXP (ad, 0), 1, &XEXP (ad, 0), opnum, type, 0);
 
       return 1;
     }
@@ -5647,4 +5670,111 @@ regno_clobbered_p (regno, insn)
     }
 
   return 0;
+}
+
+static char *reload_when_needed_name[] =
+{
+  "RELOAD_FOR_INPUT", 
+  "RELOAD_FOR_OUTPUT", 
+  "RELOAD_FOR_INSN",
+  "RELOAD_FOR_INPUT_ADDRESS", 
+  "RELOAD_FOR_OUTPUT_ADDRESS",
+  "RELOAD_FOR_OPERAND_ADDRESS", 
+  "RELOAD_FOR_OPADDR_ADDR",
+  "RELOAD_OTHER", 
+  "RELOAD_FOR_OTHER_ADDRESS"
+};
+
+static char *reg_class_names[] = REG_CLASS_NAMES;
+
+/* This function is used to print the variables set by 'find_reloads' */
+
+void
+debug_reload()
+{
+  int r;
+
+  fprintf (stderr, "\nn_reloads = %d\n", n_reloads);
+
+  for (r = 0; r < n_reloads; r++)
+    {
+      fprintf (stderr, "\nRELOAD %d\n", r);
+
+      if (reload_in[r])
+	{
+	  fprintf (stderr, "\nreload_in (%s) = ", mode_name[reload_inmode[r]]);
+	  debug_rtx (reload_in[r]);
+	}
+
+      if (reload_out[r])
+	{
+	  fprintf (stderr, "\nreload_out (%s) = ", mode_name[reload_outmode[r]]);
+	  debug_rtx (reload_out[r]);
+	}
+
+      fprintf (stderr, "%s, ", reg_class_names[(int) reload_reg_class[r]]);
+
+      fprintf (stderr, "%s (opnum = %d)", reload_when_needed_name[(int)reload_when_needed[r]],
+	       reload_opnum[r]);
+
+      if (reload_optional[r])
+	fprintf (stderr, ", optional");
+
+      if (reload_in[r])
+	fprintf (stderr, ", inc by %d\n", reload_inc[r]);
+
+      if (reload_nocombine[r])
+	fprintf (stderr, ", can combine", reload_nocombine[r]);
+
+      if (reload_secondary_p[r])
+	fprintf (stderr, ", secondary_reload_p");
+
+      if (reload_in_reg[r])
+	{
+	  fprintf (stderr, "\nreload_in_reg:\t\t\t");
+	  debug_rtx (reload_in_reg[r]);
+	}
+
+      if (reload_reg_rtx[r])
+	{
+	  fprintf (stderr, "\nreload_reg_rtx:\t\t\t");
+	  debug_rtx (reload_reg_rtx[r]);
+	}
+
+      if (reload_secondary_in_reload[r] != -1)
+	{
+	  fprintf (stderr, "\nsecondary_in_reload = ");
+	  fprintf (stderr, "%d ", reload_secondary_in_reload[r]);
+	}
+
+      if (reload_secondary_out_reload[r] != -1)
+	{
+	  if (reload_secondary_in_reload[r] != -1)
+	    fprintf (stderr, ", secondary_out_reload = ");
+	  else
+	    fprintf (stderr, "\nsecondary_out_reload = ");
+
+	  fprintf (stderr, "%d", reload_secondary_out_reload[r]);
+	}
+
+
+      if (reload_secondary_in_icode[r] != CODE_FOR_nothing)
+	{
+	  fprintf (stderr, "\nsecondary_in_icode = ");
+	  fprintf (stderr, "%s", insn_name[r]);
+	}
+
+      if (reload_secondary_out_icode[r] != CODE_FOR_nothing)
+	{
+	  if (reload_secondary_in_icode[r] != CODE_FOR_nothing)
+	    fprintf (stderr, ", secondary_out_icode = ");
+	  else
+	    fprintf (stderr, "\nsecondary_out_icode = ");
+
+	  fprintf (stderr, "%s ", insn_name[r]);
+	}
+      fprintf (stderr, "\n");
+    }
+
+  fprintf (stderr, "\n");
 }

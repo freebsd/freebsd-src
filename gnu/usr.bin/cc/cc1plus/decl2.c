@@ -84,6 +84,11 @@ int flag_no_asm;
 
 int flag_no_builtin;
 
+/* Nonzero means don't recognize the non-ANSI builtin functions.
+   -ansi sets this.  */
+
+int flag_no_nonansi_builtin;
+
 /* Nonzero means do some things the same way PCC does.  */
 
 int flag_traditional;
@@ -207,6 +212,12 @@ int warn_nonvdtor;
 /* Non-zero means warn when a function is declared extern and later inline.  */
 int warn_extern_inline;
 
+/* Non-zero means warn when the compiler will reorder code.  */
+int warn_reorder;
+
+/* Non-zero means warn when sysnthesis behavior differs from Cfront's.  */
+int warn_synth;
+
 /* Nonzero means `$' can be in an identifier.
    See cccp.c for reasons why this breaks some obscure ANSI C programs.  */
 
@@ -320,6 +331,9 @@ int flag_huge_objects;
    definitions.  */
 int flag_conserve_space;
 
+/* Nonzero if we want to obey access control semantics.  */
+int flag_access_control = 1;
+
 /* Table of language-dependent -f options.
    STRING is the option name.  VARIABLE is the address of the variable.
    ON_VALUE is the value to store in VARIABLE
@@ -361,6 +375,8 @@ static struct { char *string; int *variable; int on_value;} lang_f_options[] =
   {"conserve-space", &flag_conserve_space, 1},
   {"vtable-thunks", &flag_vtable_thunks, 1},
   {"short-temps", &flag_short_temps, 1},
+  {"access-control", &flag_access_control, 1},
+  {"nonansi-builtins", &flag_no_nonansi_builtin, 0}
 };
 
 /* Decode the string P as a language-specific option.
@@ -447,6 +463,10 @@ lang_decode_option (p)
 	  flag_alt_external_templates = 0;
 	  found = 1;
 	}
+      else if (!strcmp (p, "ansi-overloading"))
+	{
+	  warning ("-fansi-overloading is no longer meaningful");
+	}
       else for (j = 0;
 		!found && j < sizeof (lang_f_options) / sizeof (lang_f_options[0]);
 		j++)
@@ -511,6 +531,10 @@ lang_decode_option (p)
 	warn_nonvdtor = setting;
       else if (!strcmp (p, "extern-inline"))
 	warn_extern_inline = setting;
+      else if (!strcmp (p, "reorder"))
+	warn_reorder = setting;
+      else if (!strcmp (p, "synth"))
+	warn_synth = setting;
       else if (!strcmp (p, "comment"))
 	;			/* cpp handles this one.  */
       else if (!strcmp (p, "comments"))
@@ -537,6 +561,7 @@ lang_decode_option (p)
 	  if (warn_uninitialized != 1)
 	    warn_uninitialized = (setting ? 2 : 0);
 	  warn_template_debugging = setting;
+	  warn_reorder = setting;
 	}
 
       else if (!strcmp (p, "overloaded-virtual"))
@@ -544,7 +569,8 @@ lang_decode_option (p)
       else return 0;
     }
   else if (!strcmp (p, "-ansi"))
-    flag_no_asm = 1, dollars_in_ident = 0, flag_ansi = 1;
+    flag_no_asm = 1, dollars_in_ident = 0, flag_no_nonansi_builtin = 1,
+    flag_ansi = 1;
 #ifdef SPEW_DEBUG
   /* Undocumented, only ever used when you're invoking cc1plus by hand, since
      it's probably safe to assume no sane person would ever want to use this
@@ -983,7 +1009,7 @@ grok_array_decl (array_expr, index_exp)
   if (TYPE_LANG_SPECIFIC (type)
       && TYPE_OVERLOADS_ARRAY_REF (type))
     return build_opfncall (ARRAY_REF, LOOKUP_NORMAL,
-			 array_expr, index_exp, NULL_TREE);
+			   array_expr, index_exp, NULL_TREE);
 
   /* Otherwise, create an ARRAY_REF for a pointer or array type.  */
   if (TREE_CODE (type) == POINTER_TYPE
@@ -1000,17 +1026,14 @@ grok_array_decl (array_expr, index_exp)
       || TREE_CODE (type) == REFERENCE_TYPE)
     type = TREE_TYPE (type);
 
-  if (TYPE_LANG_SPECIFIC (type)
-      && TYPE_OVERLOADS_ARRAY_REF (type))
-    error ("array expression backwards");
-  else if (TREE_CODE (type) == POINTER_TYPE
-	   || TREE_CODE (type) == ARRAY_TYPE)
+  if (TREE_CODE (type) == POINTER_TYPE
+      || TREE_CODE (type) == ARRAY_TYPE)
     return build_array_ref (index_exp, array_expr);
-  else
-    error("`[]' applied to non-pointer type");
 
-  /* We gave an error, so give an error.  Huh?  */
-  return error_mark_node;
+  /* The expression E1[E2] is identical (by definition) to *((E1)+(E2)).  */
+  return build_indirect_ref (build_binary_op (PLUS_EXPR, array_expr,
+					      index_exp, 1),
+			     "array indexing");
 }
 
 /* Given the cast expression EXP, checking out its validity.   Either return
@@ -1057,11 +1080,20 @@ delete_sanity (exp, size, doing_vec, use_global_delete)
 	return build1 (NOP_EXPR, void_type_node, t);
     }
 
-  /* You can't delete a pointer to constant.  */
-  if (code == POINTER_TYPE && TREE_READONLY (TREE_TYPE (type)))
+  if (code == POINTER_TYPE)
     {
-      error ("`const *' cannot be deleted");
-      return error_mark_node;
+      /* You can't delete a pointer to constant.  */
+      if (TREE_READONLY (TREE_TYPE (type)))
+	{
+	  error ("`const *' cannot be deleted");
+	  return error_mark_node;
+	}
+      /* You also can't delete functions.  */
+      if (TREE_CODE (TREE_TYPE (type)) == FUNCTION_TYPE)
+	{
+	  error ("cannot delete a function");
+	  return error_mark_node;
+	}
     }
 
 #if 0
@@ -1128,13 +1160,13 @@ check_classfn (ctype, cname, function)
     }
 
   if (methods != end)
-    cp_error ("argument list for `%D' does not match any in class `%T'",
-	      fn_name, ctype);
+    cp_error ("argument list for `%#D' does not match any in class `%T'",
+	      function, ctype);
   else
     {
       methods = 0;
-      cp_error ("no `%D' member function declared in class `%T'",
-		fn_name, ctype);
+      cp_error ("no `%#D' member function declared in class `%T'",
+		function, ctype);
     }
 
   /* If we did not find the method in the class, add it to
@@ -1301,19 +1333,10 @@ grokfield (declarator, declspecs, raises, init, asmspec_tree)
 	  /* current_class_type can be NULL_TREE in case of error.  */
 	  if (asmspec == 0 && current_class_type)
 	    {
-	      tree name;
-	      char *buf, *buf2;
-
-	      buf2 = build_overload_name (current_class_type, 1, 1);
-	      buf = (char *)alloca (IDENTIFIER_LENGTH (DECL_NAME (value))
-				    + sizeof (STATIC_NAME_FORMAT)
-				    + strlen (buf2));
-	      sprintf (buf, STATIC_NAME_FORMAT, buf2,
-		       IDENTIFIER_POINTER (DECL_NAME (value)));
-	      name = get_identifier (buf);
 	      TREE_PUBLIC (value) = 1;
 	      DECL_INITIAL (value) = error_mark_node;
-	      DECL_ASSEMBLER_NAME (value) = name;
+	      DECL_ASSEMBLER_NAME (value)
+		= build_static_name (current_class_type, DECL_NAME (value));
 	    }
 	  pending_statics = perm_tree_cons (NULL_TREE, value, pending_statics);
 
@@ -1366,9 +1389,11 @@ grokfield (declarator, declspecs, raises, init, asmspec_tree)
       if (DECL_FRIEND_P (value))
 	return void_type_node;
 
+#if 0 /* Just because a fn is declared doesn't mean we'll try to define it.  */
       if (current_function_decl && ! IS_SIGNATURE (current_class_type))
 	cp_error ("method `%#D' of local class must be defined in class body",
 		  value);
+#endif
 
       DECL_IN_AGGR_P (value) = 1;
       return value;
@@ -2067,9 +2092,13 @@ finish_anon_union (anon_union_decl)
       return;
     }
 
-  while (field)
+  for (; field; field = TREE_CHAIN (field))
     {
-      tree decl = build_decl (VAR_DECL, DECL_NAME (field), TREE_TYPE (field));
+      tree decl;
+      if (TREE_CODE (field) != FIELD_DECL)
+	continue;
+
+      decl = build_decl (VAR_DECL, DECL_NAME (field), TREE_TYPE (field));
       /* tell `pushdecl' that this is not tentative.  */
       DECL_INITIAL (decl) = error_mark_node;
       TREE_PUBLIC (decl) = public_p;
@@ -2096,12 +2125,19 @@ finish_anon_union (anon_union_decl)
 	 TREE_PURPOSE of the following TREE_LIST.  */
       elems = tree_cons (NULL_TREE, decl, elems);
       TREE_TYPE (elems) = type;
-      field = TREE_CHAIN (field);
     }
   if (static_p)
     {
-      make_decl_rtl (main_decl, 0, global_bindings_p ());
-      DECL_RTL (anon_union_decl) = DECL_RTL (main_decl);
+      if (main_decl)
+	{
+	  make_decl_rtl (main_decl, 0, global_bindings_p ());
+	  DECL_RTL (anon_union_decl) = DECL_RTL (main_decl);
+	}
+      else
+	{
+	  warning ("anonymous union with no members");
+	  return;
+	}
     }
 
   /* The following call assumes that there are never any cleanups
@@ -2522,6 +2558,37 @@ walk_sigtables (typedecl_fn, vardecl_fn)
     }
 }
 
+/* Determines the proper settings of TREE_PUBLIC and DECL_EXTERNAL for an
+   inline function at end-of-file.  */
+
+void
+import_export_inline (decl)
+     tree decl;
+{
+  if (TREE_PUBLIC (decl))
+    return;
+
+  /* If an explicit instantiation doesn't have TREE_PUBLIC set, it was with
+     'extern'.  */
+  if (DECL_EXPLICIT_INSTANTIATION (decl)
+      || (DECL_IMPLICIT_INSTANTIATION (decl) && ! flag_implicit_templates))
+    {
+      TREE_PUBLIC (decl) = 1;
+      DECL_EXTERNAL (decl) = 1;
+    }
+  else if (DECL_FUNCTION_MEMBER_P (decl))
+    {
+      tree ctype = DECL_CLASS_CONTEXT (decl);
+      if (CLASSTYPE_INTERFACE_KNOWN (ctype))
+	{
+	  TREE_PUBLIC (decl) = 1;
+	  DECL_EXTERNAL (decl)
+	    = (CLASSTYPE_INTERFACE_ONLY (ctype)
+	       || (DECL_INLINE (decl) && ! flag_implement_inlines));
+	}
+    }
+}
+  
 extern int parse_time, varconst_time;
 
 #define TIMEVAR(VAR, BODY)    \
@@ -2541,8 +2608,7 @@ finish_file ()
   tree fnname;
   tree vars = static_aggregates;
   int needs_cleaning = 0, needs_messing_up = 0;
-
-  build_exception_table ();
+  int have_exception_handlers = build_exception_table ();
 
   if (flag_detailed_statistics)
     dump_tree_statistics ();
@@ -2636,7 +2702,7 @@ finish_file ()
  mess_up:
   /* Must do this while we think we are at the top level.  */
   vars = nreverse (static_aggregates);
-  if (vars != NULL_TREE)
+  if (vars != NULL_TREE || have_exception_handlers)
     {
       fnname = get_file_function_name ('I');
       start_function (void_list_node, build_parse_node (CALL_EXPR, fnname, void_list_node, NULL_TREE), 0, 0);
@@ -2647,6 +2713,9 @@ finish_file ()
       clear_last_expr ();
       push_momentary ();
       expand_start_bindings (0);
+
+      if (have_exception_handlers)
+	register_exception_table ();
 
       while (vars)
 	{
@@ -2712,7 +2781,6 @@ finish_file ()
 		    }
 		}
 	      if (IS_AGGR_TYPE (TREE_TYPE (decl))
-		  || init == 0
 		  || TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
 		expand_aggr_init (decl, init, 0);
 	      else if (TREE_CODE (init) == TREE_VEC)
@@ -2828,24 +2896,12 @@ finish_file ()
 	   0; don't crash.  */
 	if (TREE_ASM_WRITTEN (decl) || DECL_SAVED_INSNS (decl) == 0)
 	  continue;
-	if (DECL_FUNCTION_MEMBER_P (decl) && !TREE_PUBLIC (decl))
-	  {
-	    tree ctype = DECL_CLASS_CONTEXT (decl);
-	    if (CLASSTYPE_INTERFACE_KNOWN (ctype))
-	      {
-		TREE_PUBLIC (decl) = 1;
-		DECL_EXTERNAL (decl)
-		  = (CLASSTYPE_INTERFACE_ONLY (ctype)
-		     || (DECL_INLINE (decl) && ! flag_implement_inlines));
-	      }
-	  }
+	import_export_inline (decl);
 	if (TREE_PUBLIC (decl)
 	    || TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl))
 	    || flag_keep_inline_functions)
 	  {
-	    if (DECL_EXTERNAL (decl)
-		|| (DECL_IMPLICIT_INSTANTIATION (decl)
-		    && ! flag_implicit_templates))
+	    if (DECL_EXTERNAL (decl))
 	      assemble_external (decl);
 	    else
 	      {
@@ -2872,9 +2928,7 @@ finish_file ()
 		if (TREE_SYMBOL_REFERENCED (DECL_ASSEMBLER_NAME (decl))
 		    && ! TREE_ASM_WRITTEN (decl))
 		  {
-		    if (DECL_EXTERNAL (decl)
-			|| (DECL_IMPLICIT_INSTANTIATION (decl)
-			    && ! flag_implicit_templates))
+		    if (DECL_EXTERNAL (decl))
 		      assemble_external (decl);
 		    else
 		      {

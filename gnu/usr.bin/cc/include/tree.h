@@ -619,6 +619,10 @@ struct tree_block
    function when they are created.  */
 #define TYPE_NEEDS_CONSTRUCTING(NODE) ((NODE)->type.needs_constructing_flag)
 
+/* Indicates that objects of this type (a UNION_TYPE), should be passed
+   the same way that the first union alternative would be passed.  */
+#define TYPE_TRANSPARENT_UNION(NODE) ((NODE)->type.transparent_union_flag)
+
 struct tree_type
 {
   char common[sizeof (struct tree_common)];
@@ -637,6 +641,7 @@ struct tree_type
   unsigned string_flag : 1;
   unsigned no_force_blk_flag : 1;
   unsigned needs_constructing_flag : 1;
+  unsigned transparent_union_flag : 1;
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
   unsigned lang_flag_2 : 1;
@@ -644,7 +649,7 @@ struct tree_type
   unsigned lang_flag_4 : 1;
   unsigned lang_flag_5 : 1;
   unsigned lang_flag_6 : 1;
-  /* room for 6 more bits */
+  /* room for 5 more bits */
 
   unsigned int align;
   union tree_node *pointer_to;
@@ -928,6 +933,11 @@ struct tree_type
    so it should not be output now.  */
 #define DECL_DEFER_OUTPUT(NODE) ((NODE)->decl.defer_output)
 
+/* Used in PARM_DECLs whose type are unions to indicate that the
+   argument should be passed in the same way that the first union
+   alternative would be passed.  */
+#define DECL_TRANSPARENT_UNION(NODE) ((NODE)->decl.transparent_union)
+
 /* Additional flags for language-specific uses.  */
 #define DECL_LANG_FLAG_0(NODE) ((NODE)->decl.lang_flag_0)
 #define DECL_LANG_FLAG_1(NODE) ((NODE)->decl.lang_flag_1)
@@ -963,7 +973,8 @@ struct tree_decl
   unsigned in_system_header_flag : 1;
   unsigned common_flag : 1;
   unsigned defer_output : 1;
-  /* room for five more */
+  unsigned transparent_union : 1;
+  /* room for four more */
 
   unsigned lang_flag_0 : 1;
   unsigned lang_flag_1 : 1;
@@ -1238,6 +1249,12 @@ extern tree get_pending_sizes		PROTO((void));
 
 extern tree sizetype;
 
+/* If nonzero, an upper limit on alignment of structure fields, in bits. */
+extern int maximum_field_alignment;
+
+/* If non-zero, the alignment of a bitsting or (power-)set value, in bits. */
+extern int set_alignment;
+
 /* Concatenate two lists (chains of TREE_LIST nodes) X and Y
    by making the last node in X point to Y.
    Returns X, except if X is 0 returns Y.  */
@@ -1481,6 +1498,9 @@ extern void (*incomplete_decl_finalize_hook) ();
 
 /* In tree.c */
 extern char *perm_calloc			PROTO((int, long));
+extern tree get_set_constructor_bits		PROTO((tree, char*, int));
+extern tree get_set_constructor_words		PROTO((tree,
+						       HOST_WIDE_INT*, int));
 
 /* In stmt.c */
 

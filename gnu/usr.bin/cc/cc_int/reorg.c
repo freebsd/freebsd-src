@@ -607,6 +607,22 @@ mark_set_resources (x, res, in_dest, include_delayed_effects)
       mark_set_resources (XEXP (x, 0), res, 0, 0);
       return;
 
+    case SUBREG:
+      if (in_dest)
+	{
+	  if (GET_CODE (SUBREG_REG (x)) != REG)
+	    mark_set_resources (SUBREG_REG (x), res,
+				in_dest, include_delayed_effects);
+	  else
+	    {
+	      int regno = REGNO (SUBREG_REG (x)) + SUBREG_WORD (x);
+	      int last_regno = regno + HARD_REGNO_NREGS (regno, GET_MODE (x));
+	      for (i = regno; i < last_regno; i++)
+		SET_HARD_REG_BIT (res->regs, i);
+	    }
+	}
+      return;
+
     case REG:
       if (in_dest)
         for (i = 0; i < HARD_REGNO_NREGS (REGNO (x), GET_MODE (x)); i++)
@@ -1762,6 +1778,7 @@ try_merge_delay_insns (insn, thread)
   for (trial = thread; !stop_search_p (trial, 1); trial = next_trial)
     {
       rtx pat = PATTERN (trial);
+      rtx oldtrial = trial;
 
       next_trial = next_nonnote_insn (trial);
 
@@ -1781,6 +1798,8 @@ try_merge_delay_insns (insn, thread)
 	  && (trial = try_split (pat, trial, 0)) != 0
 	  /* Update next_trial, in case try_split succeeded.  */
 	  && (next_trial = next_nonnote_insn (trial))
+	  /* Likewise THREAD.  */
+	  && (thread = oldtrial == thread ? trial : thread)
 	  && rtx_equal_p (PATTERN (next_to_match), PATTERN (trial))
 	  /* Have to test this condition if annul condition is different
 	     from (and less restrictive than) non-annulling one.  */
@@ -1790,6 +1809,9 @@ try_merge_delay_insns (insn, thread)
 	  if (! annul_p)
 	    {
 	      update_block (trial, thread);
+	      if (trial == thread)
+		thread = next_active_insn (thread);
+
 	      delete_insn (trial);
 	      INSN_FROM_TARGET_P (next_to_match) = 0;
 	    }
@@ -3265,6 +3287,13 @@ fill_slots_from_thread (insn, condition, thread, opposite_thread, likely,
 	      if (own_thread)
 		{
 		  update_block (trial, thread);
+		  if (trial == thread)
+		    {
+		      thread = next_active_insn (thread);
+		      if (new_thread == trial)
+			new_thread = thread;
+		    }
+
 		  delete_insn (trial);
 		}
 	      else
@@ -3284,6 +3313,8 @@ fill_slots_from_thread (insn, condition, thread, opposite_thread, likely,
 	      trial = try_split (pat, trial, 0);
 	      if (new_thread == old_trial)
 		new_thread = trial;
+	      if (thread == old_trial)
+		thread = trial;
 	      pat = PATTERN (trial);
 	      if (eligible_for_delay (insn, *pslots_filled, trial, flags))
 		goto winner;

@@ -79,7 +79,7 @@ output_6 (operands, insn)
   if (find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
     output_asm_insn (AS1 (fstp,%y0), operands);
 
-  return (char *) output_fp_cc0_set (insn);
+  return output_fp_cc0_set (insn);
 }
 }
 
@@ -98,7 +98,7 @@ output_8 (operands, insn)
   if (find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
     output_asm_insn (AS1 (fstp,%y0), operands);
 
-  return (char *) output_fp_cc0_set (insn);
+  return output_fp_cc0_set (insn);
 }
 }
 
@@ -117,7 +117,7 @@ output_10 (operands, insn)
   if (find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
     output_asm_insn (AS1 (fstp,%y0), operands);
 
-  return (char *) output_fp_cc0_set (insn);
+  return output_fp_cc0_set (insn);
 }
 }
 
@@ -174,7 +174,7 @@ output_18 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -182,7 +182,7 @@ output_19 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -190,7 +190,7 @@ output_20 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -198,7 +198,7 @@ output_21 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -206,7 +206,7 @@ output_22 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -214,7 +214,7 @@ output_23 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -222,7 +222,7 @@ output_24 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -230,7 +230,7 @@ output_25 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -238,7 +238,7 @@ output_26 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -246,7 +246,7 @@ output_27 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -254,7 +254,7 @@ output_28 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -262,7 +262,7 @@ output_29 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -270,7 +270,7 @@ output_30 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -278,7 +278,7 @@ output_31 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -286,7 +286,7 @@ output_32 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -294,7 +294,7 @@ output_33 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_float_compare (insn, operands);
+ return output_float_compare (insn, operands);
 }
 
 static char *
@@ -414,7 +414,7 @@ output_45 (operands, insn)
 }
 
 static char *
-output_49 (operands, insn)
+output_50 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -436,12 +436,15 @@ output_49 (operands, insn)
     /* Fastest way to change a 0 to a 1.  */
     return AS1 (inc%L0,%0);
 
+  if (flag_pic && SYMBOLIC_CONST (operands[1]))
+    return AS2 (lea%L0,%a1,%0);
+
   return AS2 (mov%L0,%1,%0);
 }
 }
 
 static char *
-output_51 (operands, insn)
+output_55 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -476,7 +479,7 @@ output_51 (operands, insn)
 }
 
 static char *
-output_52 (operands, insn)
+output_57 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -503,7 +506,15 @@ output_52 (operands, insn)
 }
 
 static char *
-output_53 (operands, insn)
+output_58 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return AS1 (push%W0,%1);
+}
+
+static char *
+output_59 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -515,7 +526,19 @@ output_53 (operands, insn)
 }
 
 static char *
-output_54 (operands, insn)
+output_60 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  operands[1] = gen_rtx (REG, HImode, REGNO (operands[1]));
+  return AS1 (push%W0,%1);
+}
+}
+
+static char *
+output_62 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -546,7 +569,7 @@ output_54 (operands, insn)
 }
 
 static char *
-output_55 (operands, insn)
+output_64 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -580,7 +603,7 @@ output_55 (operands, insn)
 }
 
 static char *
-output_56 (operands, insn)
+output_66 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -610,7 +633,57 @@ output_56 (operands, insn)
 }
 
 static char *
-output_57 (operands, insn)
+output_67 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (STACK_REG_P (operands[1]))
+    {
+      rtx xops[3];
+
+      if (! STACK_TOP_P (operands[1]))
+        abort ();
+
+      xops[0] = AT_SP (SFmode);
+      xops[1] = GEN_INT (4);
+      xops[2] = stack_pointer_rtx;
+
+      output_asm_insn (AS2 (sub%L2,%1,%2), xops);
+
+      if (find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
+        output_asm_insn (AS1 (fstp%S0,%0), xops);
+      else
+        output_asm_insn (AS1 (fst%S0,%0), xops);
+      RET;
+    }
+
+  else if (GET_CODE (operands[1]) != MEM || GET_CODE (operands[2]) != REG)
+    return AS1 (push%L1,%1);
+
+  else
+    {
+      output_asm_insn (AS2 (mov%L2,%1,%2), operands);
+      return AS1 (push%L2,%2);
+    }
+}
+}
+
+static char *
+output_68 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  output_asm_insn (AS2 (mov%L2,%1,%2), operands);
+  return AS2 (mov%L0,%2,%0);
+}
+}
+
+static char *
+output_69 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -655,19 +728,33 @@ output_57 (operands, insn)
   /* Handle other kinds of reads to the 387 */
 
   if (STACK_TOP_P (operands[0]) && GET_CODE (operands[1]) == CONST_DOUBLE)
-    return (char *) output_move_const_single (operands);
+    return output_move_const_single (operands);
 
   if (STACK_TOP_P (operands[0]))
     return AS1 (fld%z1,%y1);
 
   /* Handle all SFmode moves not involving the 387 */
 
-  return (char *) singlemove_string (operands);
+  return singlemove_string (operands);
 }
 }
 
 static char *
-output_58 (operands, insn)
+output_70 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (STACK_TOP_P (operands[0]))
+    return AS1 (fxch,%1);
+  else
+    return AS1 (fxch,%0);
+}
+}
+
+static char *
+output_72 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -691,26 +778,53 @@ output_58 (operands, insn)
       RET;
     }
   else
-    return (char *) output_move_double (operands);
+    return output_move_double (operands);
 }
 }
 
 static char *
-output_59 (operands, insn)
+output_73 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  if (STACK_TOP_P (operands[0]))
-    return AS1 (fxch,%1);
+  if (STACK_REG_P (operands[1]))
+    {
+      rtx xops[3];
+
+      xops[0] = AT_SP (SFmode);
+      xops[1] = GEN_INT (8);
+      xops[2] = stack_pointer_rtx;
+
+      output_asm_insn (AS2 (sub%L2,%1,%2), xops);
+
+      if (find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
+        output_asm_insn (AS1 (fstp%Q0,%0), xops);
+      else
+        output_asm_insn (AS1 (fst%Q0,%0), xops);
+
+      RET;
+    }
+
+  else if (GET_CODE (operands[1]) != MEM)
+    return output_move_double (operands);
+
   else
-    return AS1 (fxch,%0);
+    return output_move_pushmem (operands, insn, GET_MODE_SIZE (DFmode), 2, 4);
 }
 }
 
 static char *
-output_60 (operands, insn)
+output_74 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_move_memory (operands, insn, GET_MODE_SIZE (DFmode), 2, 4);
+}
+
+static char *
+output_75 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -755,19 +869,33 @@ output_60 (operands, insn)
   /* Handle other kinds of reads to the 387 */
 
   if (STACK_TOP_P (operands[0]) && GET_CODE (operands[1]) == CONST_DOUBLE)
-    return (char *) output_move_const_single (operands);
+    return output_move_const_single (operands);
 
   if (STACK_TOP_P (operands[0]))
     return AS1 (fld%z1,%y1);
 
   /* Handle all DFmode moves not involving the 387 */
 
-  return (char *) output_move_double (operands);
+  return output_move_double (operands);
 }
 }
 
 static char *
-output_61 (operands, insn)
+output_76 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (STACK_TOP_P (operands[0]))
+    return AS1 (fxch,%1);
+  else
+    return AS1 (fxch,%0);
+}
+}
+
+static char *
+output_78 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -789,26 +917,52 @@ output_61 (operands, insn)
       RET;
     }
   else
-    return (char *) output_move_double (operands);
+    return output_move_double (operands);
  }
 }
 
 static char *
-output_62 (operands, insn)
+output_79 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  if (STACK_TOP_P (operands[0]))
-    return AS1 (fxch,%1);
+  if (STACK_REG_P (operands[1]))
+    {
+      rtx xops[3];
+
+      xops[0] = AT_SP (SFmode);
+      xops[1] = GEN_INT (12);
+      xops[2] = stack_pointer_rtx;
+
+      output_asm_insn (AS2 (sub%L2,%1,%2), xops);
+      output_asm_insn (AS1 (fstp%T0,%0), xops);
+      if (! find_regno_note (insn, REG_DEAD, FIRST_STACK_REG))
+	output_asm_insn (AS1 (fld%T0,%0), xops);
+
+      RET;
+    }
+
+  else if (GET_CODE (operands[1]) != MEM
+	   || GET_CODE (operands[2]) != REG)
+    return output_move_double (operands);
+
   else
-    return AS1 (fxch,%0);
+    return output_move_pushmem (operands, insn, GET_MODE_SIZE (XFmode), 2, 4);
 }
 }
 
 static char *
-output_63 (operands, insn)
+output_80 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_move_memory (operands, insn, GET_MODE_SIZE (XFmode), 2, 4);
+}
+
+static char *
+output_81 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -854,47 +1008,70 @@ output_63 (operands, insn)
   /* Handle other kinds of reads to the 387 */
 
   if (STACK_TOP_P (operands[0]) && GET_CODE (operands[1]) == CONST_DOUBLE)
-    return (char *) output_move_const_single (operands);
+    return output_move_const_single (operands);
 
   if (STACK_TOP_P (operands[0]))
        return AS1 (fld%z1,%y1);
 
   /* Handle all XFmode moves not involving the 387 */
 
-  return (char *) output_move_double (operands);
+  return output_move_double (operands);
 }
 }
 
 static char *
-output_64 (operands, insn)
+output_82 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  return (char *) output_move_double (operands);
+  if (STACK_TOP_P (operands[0]))
+    return AS1 (fxch,%1);
+  else
+    return AS1 (fxch,%0);
 }
 }
 
 static char *
-output_65 (operands, insn)
+output_83 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  return (char *) output_move_double (operands);
+  if (GET_CODE (operands[1]) != MEM)
+    return output_move_double (operands);
+
+  else
+    return output_move_pushmem (operands, insn, GET_MODE_SIZE (DImode), 2, 4);
 }
 }
 
 static char *
-output_66 (operands, insn)
+output_84 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  if ((TARGET_486 || REGNO (operands[0]) == 0)
+  rtx low[2], high[2], xop[6];
+
+  if (GET_CODE (operands[0]) != MEM || GET_CODE (operands[1]) != MEM)
+    return output_move_double (operands);
+  else
+    return output_move_memory (operands, insn, GET_MODE_SIZE (DImode), 2, 4);
+}
+}
+
+static char *
+output_85 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if ((!TARGET_386 || REGNO (operands[0]) == 0)
       && REG_P (operands[1]) && REGNO (operands[0]) == REGNO (operands[1]))
     {
       rtx xops[2];
@@ -913,13 +1090,13 @@ output_66 (operands, insn)
 }
 
 static char *
-output_67 (operands, insn)
+output_86 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  if ((TARGET_486 || REGNO (operands[0]) == 0)
+  if ((!TARGET_386 || REGNO (operands[0]) == 0)
       && REG_P (operands[1]) && REGNO (operands[0]) == REGNO (operands[1]))
     {
       rtx xops[2];
@@ -938,13 +1115,13 @@ output_67 (operands, insn)
 }
 
 static char *
-output_68 (operands, insn)
+output_87 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  if ((TARGET_486 || REGNO (operands[0]) == 0)
+  if ((!TARGET_386 || REGNO (operands[0]) == 0)
       && REG_P (operands[1]) && REGNO (operands[0]) == REGNO (operands[1]))
     {
       rtx xops[2];
@@ -963,7 +1140,7 @@ output_68 (operands, insn)
 }
 
 static char *
-output_69 (operands, insn)
+output_88 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -975,7 +1152,7 @@ output_69 (operands, insn)
 }
 
 static char *
-output_70 (operands, insn)
+output_89 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1000,7 +1177,7 @@ output_70 (operands, insn)
 }
 
 static char *
-output_71 (operands, insn)
+output_90 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1023,7 +1200,7 @@ output_71 (operands, insn)
 }
 
 static char *
-output_72 (operands, insn)
+output_91 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1042,7 +1219,7 @@ output_72 (operands, insn)
 }
 
 static char *
-output_73 (operands, insn)
+output_92 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1057,7 +1234,7 @@ output_73 (operands, insn)
 }
 
 static char *
-output_74 (operands, insn)
+output_93 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1093,7 +1270,7 @@ output_74 (operands, insn)
 }
 
 static char *
-output_75 (operands, insn)
+output_94 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1129,7 +1306,7 @@ output_75 (operands, insn)
 }
 
 static char *
-output_76 (operands, insn)
+output_95 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1165,7 +1342,7 @@ output_76 (operands, insn)
 }
 
 static char *
-output_78 (operands, insn)
+output_97 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1191,7 +1368,7 @@ output_78 (operands, insn)
 }
 
 static char *
-output_79 (operands, insn)
+output_98 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1225,7 +1402,7 @@ output_79 (operands, insn)
 }
 
 static char *
-output_80 (operands, insn)
+output_99 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1253,130 +1430,6 @@ output_80 (operands, insn)
 	  return AS1 (fstp%z0,%0);
 	}
     }
-  else
-    abort ();
-}
-}
-
-static char *
-output_87 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_88 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_89 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_93 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_94 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_95 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
- return (char *) output_fix_trunc (insn, operands);
-}
-
-static char *
-output_102 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  if (NON_STACK_REG_P (operands[1]))
-    {
-      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
-      RET;
-    }
-  else if (GET_CODE (operands[1]) == MEM)
-    return AS1 (fild%z1,%1);
-  else
-    abort ();
-}
-}
-
-static char *
-output_103 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  if (NON_STACK_REG_P (operands[1]))
-    {
-      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
-      RET;
-    }
-  else if (GET_CODE (operands[1]) == MEM)
-    return AS1 (fild%z1,%1);
-  else
-    abort ();
-}
-}
-
-static char *
-output_104 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  if (NON_STACK_REG_P (operands[1]))
-    {
-      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
-      RET;
-    }
-  else if (GET_CODE (operands[1]) == MEM)
-    return AS1 (fild%z1,%1);
-  else
-    abort ();
-}
-}
-
-static char *
-output_105 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  if (NON_STACK_REG_P (operands[1]))
-    {
-      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
-      RET;
-    }
-  else if (GET_CODE (operands[1]) == MEM)
-    return AS1 (fild%z1,%1);
   else
     abort ();
 }
@@ -1387,18 +1440,7 @@ output_106 (operands, insn)
      rtx *operands;
      rtx insn;
 {
-
-{
-  if (NON_STACK_REG_P (operands[1]))
-    {
-      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
-      RET;
-    }
-  else if (GET_CODE (operands[1]) == MEM)
-    return AS1 (fild%z1,%1);
-  else
-    abort ();
-}
+ return output_fix_trunc (insn, operands);
 }
 
 static char *
@@ -1406,6 +1448,46 @@ output_107 (operands, insn)
      rtx *operands;
      rtx insn;
 {
+ return output_fix_trunc (insn, operands);
+}
+
+static char *
+output_108 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_fix_trunc (insn, operands);
+}
+
+static char *
+output_112 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_fix_trunc (insn, operands);
+}
+
+static char *
+output_113 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_fix_trunc (insn, operands);
+}
+
+static char *
+output_114 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+ return output_fix_trunc (insn, operands);
+}
+
+static char *
+output_121 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
 
 {
   if (NON_STACK_REG_P (operands[1]))
@@ -1421,31 +1503,175 @@ output_107 (operands, insn)
 }
 
 static char *
-output_108 (operands, insn)
+output_122 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  rtx low[3], high[3];
+  if (NON_STACK_REG_P (operands[1]))
+    {
+      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
+      RET;
+    }
+  else if (GET_CODE (operands[1]) == MEM)
+    return AS1 (fild%z1,%1);
+  else
+    abort ();
+}
+}
+
+static char *
+output_123 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (NON_STACK_REG_P (operands[1]))
+    {
+      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
+      RET;
+    }
+  else if (GET_CODE (operands[1]) == MEM)
+    return AS1 (fild%z1,%1);
+  else
+    abort ();
+}
+}
+
+static char *
+output_124 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (NON_STACK_REG_P (operands[1]))
+    {
+      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
+      RET;
+    }
+  else if (GET_CODE (operands[1]) == MEM)
+    return AS1 (fild%z1,%1);
+  else
+    abort ();
+}
+}
+
+static char *
+output_125 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (NON_STACK_REG_P (operands[1]))
+    {
+      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
+      RET;
+    }
+  else if (GET_CODE (operands[1]) == MEM)
+    return AS1 (fild%z1,%1);
+  else
+    abort ();
+}
+}
+
+static char *
+output_126 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  if (NON_STACK_REG_P (operands[1]))
+    {
+      output_op_from_reg (operands[1], AS1 (fild%z0,%1));
+      RET;
+    }
+  else if (GET_CODE (operands[1]) == MEM)
+    return AS1 (fild%z1,%1);
+  else
+    abort ();
+}
+}
+
+static char *
+output_127 (operands, insn)
+     rtx *operands;
+     rtx insn;
+{
+
+{
+  rtx low[3], high[3], xops[7], temp;
 
   CC_STATUS_INIT;
 
-  split_di (operands, 3, low, high);
+  if (rtx_equal_p (operands[0], operands[2]))
+    {
+      temp = operands[1];
+      operands[1] = operands[2];
+      operands[2] = temp;
+    }
 
-  if (GET_CODE (low[2]) != CONST_INT || INTVAL (low[2]) != 0)
+  split_di (operands, 3, low, high);
+  if (!rtx_equal_p (operands[0], operands[1]))
+    {
+      xops[0] = high[0];
+      xops[1] = low[0];
+      xops[2] = high[1];
+      xops[3] = low[1];
+
+      if (GET_CODE (operands[0]) != MEM || GET_CODE (operands[1]) != MEM)
+	{
+	  output_asm_insn (AS2 (mov%L1,%3,%1), xops);
+	  output_asm_insn (AS2 (mov%L0,%2,%0), xops);
+	}
+      else
+	{
+	  xops[4] = high[2];
+	  xops[5] = low[2];
+	  xops[6] = operands[3];
+	  output_asm_insn (AS2 (mov%L6,%3,%6), xops);
+	  output_asm_insn (AS2 (add%L6,%5,%6), xops);
+	  output_asm_insn (AS2 (mov%L1,%6,%1), xops);
+	  output_asm_insn (AS2 (mov%L6,%2,%6), xops);
+	  output_asm_insn (AS2 (adc%L6,%4,%6), xops);
+	  output_asm_insn (AS2 (mov%L0,%6,%0), xops);
+	  RET;
+	}
+    }
+
+  if (GET_CODE (operands[3]) == REG && GET_CODE (operands[2]) != REG)
+    {
+      xops[0] = high[0];
+      xops[1] = low[0];
+      xops[2] = high[2];
+      xops[3] = low[2];
+      xops[4] = operands[3];
+
+      output_asm_insn (AS2 (mov%L4,%3,%4), xops);
+      output_asm_insn (AS2 (add%L1,%4,%1), xops);
+      output_asm_insn (AS2 (mov%L4,%2,%4), xops);
+      output_asm_insn (AS2 (adc%L0,%4,%0), xops);
+    }
+
+  else if (GET_CODE (low[2]) != CONST_INT || INTVAL (low[2]) != 0)
     {
       output_asm_insn (AS2 (add%L0,%2,%0), low);
       output_asm_insn (AS2 (adc%L0,%2,%0), high);
     }
+
   else
     output_asm_insn (AS2 (add%L0,%2,%0), high);
+
   RET;
 }
 }
 
 static char *
-output_109 (operands, insn)
+output_128 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1456,23 +1682,20 @@ output_109 (operands, insn)
       if (REG_P (operands[2]) && REGNO (operands[0]) == REGNO (operands[2]))
 	return AS2 (add%L0,%1,%0);
 
-      if (! TARGET_486 || ! REG_P (operands[2]))
-        {
+      if (operands[2] == stack_pointer_rtx)
+	{
+	  rtx temp;
+
+	  temp = operands[1];
+	  operands[1] = operands[2];
+	  operands[2] = temp;
+	}
+
+      if (operands[2] != stack_pointer_rtx)
+	{
 	  CC_STATUS_INIT;
-
-	  if (operands[2] == stack_pointer_rtx)
-	    {
-	      rtx temp;
-
-	      temp = operands[1];
-	      operands[1] = operands[2];
-	      operands[2] = temp;
-	    }
-	  if (operands[2] != stack_pointer_rtx)
-	    {
-	      operands[1] = SET_SRC (PATTERN (insn));
-	      return AS2 (lea%L0,%a1,%0);
-	    }
+	  operands[1] = SET_SRC (PATTERN (insn));
+	  return AS2 (lea%L0,%a1,%0);
 	}
 
       output_asm_insn (AS2 (mov%L0,%1,%0), operands);
@@ -1489,7 +1712,7 @@ output_109 (operands, insn)
 }
 
 static char *
-output_110 (operands, insn)
+output_129 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1525,7 +1748,7 @@ output_110 (operands, insn)
 }
 
 static char *
-output_111 (operands, insn)
+output_130 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1544,7 +1767,7 @@ output_111 (operands, insn)
 }
 
 static char *
-output_112 (operands, insn)
+output_131 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1572,23 +1795,65 @@ output_112 (operands, insn)
 }
 
 static char *
-output_116 (operands, insn)
+output_135 (operands, insn)
      rtx *operands;
      rtx insn;
 {
 
 {
-  rtx low[3], high[3];
+  rtx low[3], high[3], xops[7];
 
   CC_STATUS_INIT;
 
   split_di (operands, 3, low, high);
 
-  if (GET_CODE (low[2]) != CONST_INT || INTVAL (low[2]) != 0)
+  if (!rtx_equal_p (operands[0], operands[1]))
+    {
+      xops[0] = high[0];
+      xops[1] = low[0];
+      xops[2] = high[1];
+      xops[3] = low[1];
+
+      if (GET_CODE (operands[0]) != MEM || GET_CODE (operands[1]) != MEM)
+	{
+	  output_asm_insn (AS2 (mov%L1,%3,%1), xops);
+	  output_asm_insn (AS2 (mov%L0,%2,%0), xops);
+	}
+      else
+	{
+	  xops[4] = high[2];
+	  xops[5] = low[2];
+	  xops[6] = operands[3];
+	  output_asm_insn (AS2 (mov%L6,%3,%6), xops);
+	  output_asm_insn (AS2 (sub%L6,%5,%6), xops);
+	  output_asm_insn (AS2 (mov%L1,%6,%1), xops);
+	  output_asm_insn (AS2 (mov%L6,%2,%6), xops);
+	  output_asm_insn (AS2 (sbb%L6,%4,%6), xops);
+	  output_asm_insn (AS2 (mov%L0,%6,%0), xops);
+	  RET;
+	}
+    }
+
+  if (GET_CODE (operands[3]) == REG)
+    {
+      xops[0] = high[0];
+      xops[1] = low[0];
+      xops[2] = high[2];
+      xops[3] = low[2];
+      xops[4] = operands[3];
+
+      output_asm_insn (AS2 (mov%L4,%3,%4), xops);
+      output_asm_insn (AS2 (sub%L1,%4,%1), xops);
+      output_asm_insn (AS2 (mov%L4,%2,%4), xops);
+      output_asm_insn (AS2 (sbb%L0,%4,%0), xops);
+    }
+
+  else if (GET_CODE (low[2]) != CONST_INT || INTVAL (low[2]) != 0)
     {
       output_asm_insn (AS2 (sub%L0,%2,%0), low);
       output_asm_insn (AS2 (sbb%L0,%2,%0), high);
     }
+
   else
     output_asm_insn (AS2 (sub%L0,%2,%0), high);
 
@@ -1597,7 +1862,7 @@ output_116 (operands, insn)
 }
 
 static char *
-output_117 (operands, insn)
+output_136 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1605,7 +1870,7 @@ output_117 (operands, insn)
 }
 
 static char *
-output_118 (operands, insn)
+output_137 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1613,7 +1878,7 @@ output_118 (operands, insn)
 }
 
 static char *
-output_119 (operands, insn)
+output_138 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1621,7 +1886,7 @@ output_119 (operands, insn)
 }
 
 static char *
-output_123 (operands, insn)
+output_142 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1629,7 +1894,7 @@ output_123 (operands, insn)
 }
 
 static char *
-output_124 (operands, insn)
+output_143 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1645,7 +1910,7 @@ output_124 (operands, insn)
 }
 
 static char *
-output_125 (operands, insn)
+output_144 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1653,7 +1918,7 @@ output_125 (operands, insn)
 }
 
 static char *
-output_126 (operands, insn)
+output_145 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1669,7 +1934,7 @@ output_126 (operands, insn)
 }
 
 static char *
-output_139 (operands, insn)
+output_160 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1685,7 +1950,7 @@ output_139 (operands, insn)
 }
 
 static char *
-output_141 (operands, insn)
+output_162 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1697,7 +1962,7 @@ output_141 (operands, insn)
 }
 
 static char *
-output_142 (operands, insn)
+output_163 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1709,7 +1974,7 @@ output_142 (operands, insn)
 }
 
 static char *
-output_143 (operands, insn)
+output_164 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1721,7 +1986,7 @@ output_143 (operands, insn)
       if (INTVAL (operands[2]) == 0xffff && REG_P (operands[0])
 	  && (! REG_P (operands[1])
 	      || REGNO (operands[0]) != 0 || REGNO (operands[1]) != 0)
-	  && (! TARGET_486 || ! rtx_equal_p (operands[0], operands[1])))
+	  && (TARGET_386 || ! rtx_equal_p (operands[0], operands[1])))
 	{
 	  /* ??? tege: Should forget CC_STATUS only if we clobber a
 	     remembered operand.  Fix that later.  */
@@ -1737,7 +2002,7 @@ output_143 (operands, insn)
 	  && !(REG_P (operands[1]) && NON_QI_REG_P (operands[1]))
 	  && (! REG_P (operands[1])
 	      || REGNO (operands[0]) != 0 || REGNO (operands[1]) != 0)
-	  && (! TARGET_486 || ! rtx_equal_p (operands[0], operands[1])))
+	  && (TARGET_386 || ! rtx_equal_p (operands[0], operands[1])))
 	{
 	  /* ??? tege: Should forget CC_STATUS only if we clobber a
 	     remembered operand.  Fix that later.  */
@@ -1789,7 +2054,7 @@ output_143 (operands, insn)
 }
 
 static char *
-output_144 (operands, insn)
+output_165 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1836,7 +2101,7 @@ output_144 (operands, insn)
 }
 
 static char *
-output_145 (operands, insn)
+output_166 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1844,7 +2109,7 @@ output_145 (operands, insn)
 }
 
 static char *
-output_146 (operands, insn)
+output_167 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1881,7 +2146,7 @@ output_146 (operands, insn)
 }
 
 static char *
-output_147 (operands, insn)
+output_168 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1924,7 +2189,7 @@ output_147 (operands, insn)
 }
 
 static char *
-output_148 (operands, insn)
+output_169 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1932,7 +2197,7 @@ output_148 (operands, insn)
 }
 
 static char *
-output_149 (operands, insn)
+output_170 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -1969,7 +2234,7 @@ output_149 (operands, insn)
 }
 
 static char *
-output_150 (operands, insn)
+output_171 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2012,7 +2277,7 @@ output_150 (operands, insn)
 }
 
 static char *
-output_151 (operands, insn)
+output_172 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2020,7 +2285,7 @@ output_151 (operands, insn)
 }
 
 static char *
-output_152 (operands, insn)
+output_173 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2042,7 +2307,7 @@ output_152 (operands, insn)
 }
 
 static char *
-output_182 (operands, insn)
+output_203 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2079,7 +2344,7 @@ output_182 (operands, insn)
 }
 
 static char *
-output_183 (operands, insn)
+output_204 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2114,7 +2379,7 @@ output_183 (operands, insn)
 }
 
 static char *
-output_184 (operands, insn)
+output_205 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2122,7 +2387,7 @@ output_184 (operands, insn)
 {
   if (REG_P (operands[0]) && REGNO (operands[0]) != REGNO (operands[1]))
     {
-      if (TARGET_486 && INTVAL (operands[2]) == 1)
+      if (!TARGET_386 && INTVAL (operands[2]) == 1)
 	{
 	  output_asm_insn (AS2 (mov%L0,%1,%0), operands);
 	  return AS2 (add%L0,%1,%0);
@@ -2153,7 +2418,7 @@ output_184 (operands, insn)
 }
 
 static char *
-output_185 (operands, insn)
+output_206 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2170,7 +2435,7 @@ output_185 (operands, insn)
 }
 
 static char *
-output_186 (operands, insn)
+output_207 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2187,7 +2452,7 @@ output_186 (operands, insn)
 }
 
 static char *
-output_188 (operands, insn)
+output_209 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2226,7 +2491,7 @@ output_188 (operands, insn)
 }
 
 static char *
-output_189 (operands, insn)
+output_210 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2261,7 +2526,7 @@ output_189 (operands, insn)
 }
 
 static char *
-output_190 (operands, insn)
+output_211 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2275,7 +2540,7 @@ output_190 (operands, insn)
 }
 
 static char *
-output_191 (operands, insn)
+output_212 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2289,7 +2554,7 @@ output_191 (operands, insn)
 }
 
 static char *
-output_192 (operands, insn)
+output_213 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2303,7 +2568,7 @@ output_192 (operands, insn)
 }
 
 static char *
-output_194 (operands, insn)
+output_215 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2341,7 +2606,7 @@ output_194 (operands, insn)
 }
 
 static char *
-output_195 (operands, insn)
+output_216 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2376,7 +2641,7 @@ output_195 (operands, insn)
 }
 
 static char *
-output_196 (operands, insn)
+output_217 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2390,7 +2655,7 @@ output_196 (operands, insn)
 }
 
 static char *
-output_197 (operands, insn)
+output_218 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2404,7 +2669,7 @@ output_197 (operands, insn)
 }
 
 static char *
-output_198 (operands, insn)
+output_219 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2418,7 +2683,7 @@ output_198 (operands, insn)
 }
 
 static char *
-output_199 (operands, insn)
+output_220 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2432,7 +2697,7 @@ output_199 (operands, insn)
 }
 
 static char *
-output_200 (operands, insn)
+output_221 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2446,7 +2711,7 @@ output_200 (operands, insn)
 }
 
 static char *
-output_201 (operands, insn)
+output_222 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2460,7 +2725,7 @@ output_201 (operands, insn)
 }
 
 static char *
-output_202 (operands, insn)
+output_223 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2474,7 +2739,7 @@ output_202 (operands, insn)
 }
 
 static char *
-output_203 (operands, insn)
+output_224 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2488,7 +2753,7 @@ output_203 (operands, insn)
 }
 
 static char *
-output_204 (operands, insn)
+output_225 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2502,7 +2767,7 @@ output_204 (operands, insn)
 }
 
 static char *
-output_205 (operands, insn)
+output_226 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2518,7 +2783,7 @@ output_205 (operands, insn)
 }
 
 static char *
-output_206 (operands, insn)
+output_227 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2531,7 +2796,7 @@ output_206 (operands, insn)
 }
 
 static char *
-output_207 (operands, insn)
+output_228 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2544,7 +2809,7 @@ output_207 (operands, insn)
 }
 
 static char *
-output_208 (operands, insn)
+output_229 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2556,7 +2821,7 @@ output_208 (operands, insn)
 }
 
 static char *
-output_209 (operands, insn)
+output_230 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2588,7 +2853,7 @@ output_209 (operands, insn)
 }
 
 static char *
-output_210 (operands, insn)
+output_231 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2646,7 +2911,7 @@ output_210 (operands, insn)
 }
 
 static char *
-output_212 (operands, insn)
+output_233 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2660,7 +2925,7 @@ output_212 (operands, insn)
 }
 
 static char *
-output_214 (operands, insn)
+output_235 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2675,7 +2940,7 @@ output_214 (operands, insn)
 }
 
 static char *
-output_216 (operands, insn)
+output_237 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2689,7 +2954,7 @@ output_216 (operands, insn)
 }
 
 static char *
-output_218 (operands, insn)
+output_239 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2697,7 +2962,7 @@ output_218 (operands, insn)
 }
 
 static char *
-output_220 (operands, insn)
+output_241 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2711,7 +2976,7 @@ output_220 (operands, insn)
 }
 
 static char *
-output_222 (operands, insn)
+output_243 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2719,7 +2984,7 @@ output_222 (operands, insn)
 }
 
 static char *
-output_224 (operands, insn)
+output_245 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2733,7 +2998,7 @@ output_224 (operands, insn)
 }
 
 static char *
-output_226 (operands, insn)
+output_247 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2741,7 +3006,7 @@ output_226 (operands, insn)
 }
 
 static char *
-output_228 (operands, insn)
+output_249 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2755,7 +3020,7 @@ output_228 (operands, insn)
 }
 
 static char *
-output_230 (operands, insn)
+output_251 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2763,7 +3028,7 @@ output_230 (operands, insn)
 }
 
 static char *
-output_232 (operands, insn)
+output_253 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2777,7 +3042,7 @@ output_232 (operands, insn)
 }
 
 static char *
-output_234 (operands, insn)
+output_255 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2791,7 +3056,7 @@ output_234 (operands, insn)
 }
 
 static char *
-output_236 (operands, insn)
+output_257 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2805,7 +3070,7 @@ output_236 (operands, insn)
 }
 
 static char *
-output_240 (operands, insn)
+output_261 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2819,7 +3084,7 @@ output_240 (operands, insn)
 }
 
 static char *
-output_244 (operands, insn)
+output_265 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2833,7 +3098,7 @@ output_244 (operands, insn)
 }
 
 static char *
-output_248 (operands, insn)
+output_269 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2847,7 +3112,7 @@ output_248 (operands, insn)
 }
 
 static char *
-output_251 (operands, insn)
+output_272 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2861,7 +3126,7 @@ output_251 (operands, insn)
 }
 
 static char *
-output_252 (operands, insn)
+output_273 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2875,7 +3140,7 @@ output_252 (operands, insn)
 }
 
 static char *
-output_253 (operands, insn)
+output_274 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2889,7 +3154,7 @@ output_253 (operands, insn)
 }
 
 static char *
-output_255 (operands, insn)
+output_276 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2903,7 +3168,7 @@ output_255 (operands, insn)
 }
 
 static char *
-output_257 (operands, insn)
+output_278 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2917,7 +3182,7 @@ output_257 (operands, insn)
 }
 
 static char *
-output_259 (operands, insn)
+output_280 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2931,7 +3196,7 @@ output_259 (operands, insn)
 }
 
 static char *
-output_262 (operands, insn)
+output_283 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2944,7 +3209,7 @@ output_262 (operands, insn)
 }
 
 static char *
-output_264 (operands, insn)
+output_285 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2966,7 +3231,7 @@ output_264 (operands, insn)
 }
 
 static char *
-output_265 (operands, insn)
+output_286 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2979,7 +3244,7 @@ output_265 (operands, insn)
 }
 
 static char *
-output_267 (operands, insn)
+output_288 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -2997,7 +3262,7 @@ output_267 (operands, insn)
 }
 
 static char *
-output_270 (operands, insn)
+output_291 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3015,7 +3280,7 @@ output_270 (operands, insn)
 }
 
 static char *
-output_273 (operands, insn)
+output_294 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3035,7 +3300,7 @@ output_273 (operands, insn)
 }
 
 static char *
-output_276 (operands, insn)
+output_297 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3055,60 +3320,7 @@ output_276 (operands, insn)
 }
 
 static char *
-output_279 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  rtx addr = operands[1];
-
-  if (GET_CODE (operands[0]) == MEM
-      && ! CONSTANT_ADDRESS_P (XEXP (operands[0], 0)))
-    {
-      operands[0] = XEXP (operands[0], 0);
-      output_asm_insn (AS1 (call,%*%0), operands);
-    }
-  else
-    output_asm_insn (AS1 (call,%P0), operands);
-
-  operands[2] = gen_rtx (REG, SImode, 0);
-  output_asm_insn (AS2 (mov%L2,%2,%1), operands);
-
-  operands[2] = gen_rtx (REG, SImode, 1);
-  operands[1] = adj_offsettable_operand (addr, 4);
-  output_asm_insn (AS2 (mov%L2,%2,%1), operands);
-
-  operands[1] = adj_offsettable_operand (addr, 8);
-  return AS1 (fnsave,%1);
-}
-}
-
-static char *
-output_280 (operands, insn)
-     rtx *operands;
-     rtx insn;
-{
-
-{
-  rtx addr = operands[1];
-
-  output_asm_insn (AS1 (call,%P0), operands);
-
-  operands[2] = gen_rtx (REG, SImode, 0);
-  output_asm_insn (AS2 (mov%L2,%2,%1), operands);
-
-  operands[2] = gen_rtx (REG, SImode, 1);
-  operands[1] = adj_offsettable_operand (addr, 4);
-  output_asm_insn (AS2 (mov%L2,%2,%1), operands);
-
-  operands[1] = adj_offsettable_operand (addr, 8);
-  return AS1 (fnsave,%1);
-}
-}
-
-static char *
-output_283 (operands, insn)
+output_301 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3120,7 +3332,7 @@ output_283 (operands, insn)
 }
 
 static char *
-output_286 (operands, insn)
+output_304 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3155,7 +3367,7 @@ output_286 (operands, insn)
 }
 
 static char *
-output_288 (operands, insn)
+output_306 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3187,7 +3399,7 @@ output_288 (operands, insn)
 }
 
 static char *
-output_289 (operands, insn)
+output_307 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3207,7 +3419,7 @@ output_289 (operands, insn)
 }
 
 static char *
-output_291 (operands, insn)
+output_309 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3246,7 +3458,7 @@ output_291 (operands, insn)
 }
 
 static char *
-output_293 (operands, insn)
+output_311 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3284,111 +3496,111 @@ output_293 (operands, insn)
 }
 
 static char *
-output_294 (operands, insn)
+output_312 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_295 (operands, insn)
+output_313 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_296 (operands, insn)
+output_314 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_297 (operands, insn)
+output_315 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_298 (operands, insn)
+output_316 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_299 (operands, insn)
+output_317 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_300 (operands, insn)
+output_318 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_301 (operands, insn)
+output_319 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_302 (operands, insn)
+output_320 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_303 (operands, insn)
+output_321 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_304 (operands, insn)
+output_322 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_305 (operands, insn)
+output_323 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_306 (operands, insn)
+output_324 (operands, insn)
      rtx *operands;
      rtx insn;
 {
- return (char *) output_387_binary_op (insn, operands);
+ return output_387_binary_op (insn, operands);
 }
 
 static char *
-output_308 (operands, insn)
+output_326 (operands, insn)
      rtx *operands;
      rtx insn;
 {
@@ -3454,9 +3666,28 @@ char * const insn_template[] =
     0,
     "push%L0 %1",
     "push%L0 %1",
+    "push%L0 %1",
     0,
     0,
     "push%W0 %1",
+    "push%W0 %1",
+    "push%W0 %1",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     0,
     0,
     0,
@@ -3535,6 +3766,8 @@ char * const insn_template[] =
     0,
     "mul%B0 %2",
     "imul%B0 %2",
+    "mul%L0 %2",
+    "imul%L0 %2",
     "mul%L0 %2",
     "imul%L0 %2",
     0,
@@ -3685,10 +3918,7 @@ char * const insn_template[] =
     0,
     "call %P1",
     0,
-    0,
-    0,
-    0,
-    "frstor %0",
+    "",
     0,
     "nop",
     0,
@@ -3768,29 +3998,29 @@ char *(*const insn_outfun[])() =
     0,
     0,
     0,
-    output_49,
     0,
-    output_51,
-    output_52,
-    output_53,
-    output_54,
+    output_50,
+    0,
+    0,
+    0,
+    0,
     output_55,
-    output_56,
+    0,
     output_57,
     output_58,
     output_59,
     output_60,
-    output_61,
+    0,
     output_62,
-    output_63,
+    0,
     output_64,
-    output_65,
+    0,
     output_66,
     output_67,
     output_68,
     output_69,
     output_70,
-    output_71,
+    0,
     output_72,
     output_73,
     output_74,
@@ -3800,78 +4030,99 @@ char *(*const insn_outfun[])() =
     output_78,
     output_79,
     output_80,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    output_81,
+    output_82,
+    output_83,
+    output_84,
+    output_85,
+    output_86,
     output_87,
     output_88,
     output_89,
-    0,
-    0,
-    0,
+    output_90,
+    output_91,
+    output_92,
     output_93,
     output_94,
     output_95,
     0,
+    output_97,
+    output_98,
+    output_99,
     0,
     0,
     0,
     0,
     0,
-    output_102,
-    output_103,
-    output_104,
-    output_105,
+    0,
     output_106,
     output_107,
     output_108,
-    output_109,
-    output_110,
-    output_111,
+    0,
+    0,
+    0,
     output_112,
+    output_113,
+    output_114,
     0,
     0,
     0,
-    output_116,
-    output_117,
-    output_118,
-    output_119,
     0,
     0,
     0,
+    output_121,
+    output_122,
     output_123,
     output_124,
     output_125,
     output_126,
+    output_127,
+    output_128,
+    output_129,
+    output_130,
+    output_131,
     0,
     0,
     0,
+    output_135,
+    output_136,
+    output_137,
+    output_138,
     0,
     0,
     0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    output_139,
-    0,
-    output_141,
     output_142,
     output_143,
     output_144,
     output_145,
-    output_146,
-    output_147,
-    output_148,
-    output_149,
-    output_150,
-    output_151,
-    output_152,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    output_160,
+    0,
+    output_162,
+    output_163,
+    output_164,
+    output_165,
+    output_166,
+    output_167,
+    output_168,
+    output_169,
+    output_170,
+    output_171,
+    output_172,
+    output_173,
     0,
     0,
     0,
@@ -3901,133 +4152,130 @@ char *(*const insn_outfun[])() =
     0,
     0,
     0,
-    output_182,
-    output_183,
-    output_184,
-    output_185,
-    output_186,
-    0,
-    output_188,
-    output_189,
-    output_190,
-    output_191,
-    output_192,
-    0,
-    output_194,
-    output_195,
-    output_196,
-    output_197,
-    output_198,
-    output_199,
-    output_200,
-    output_201,
-    output_202,
     output_203,
     output_204,
     output_205,
     output_206,
     output_207,
-    output_208,
+    0,
     output_209,
     output_210,
-    0,
+    output_211,
     output_212,
+    output_213,
     0,
-    output_214,
-    0,
+    output_215,
     output_216,
-    0,
+    output_217,
     output_218,
-    0,
+    output_219,
     output_220,
-    0,
+    output_221,
     output_222,
-    0,
+    output_223,
     output_224,
-    0,
+    output_225,
     output_226,
-    0,
+    output_227,
     output_228,
-    0,
+    output_229,
     output_230,
+    output_231,
     0,
-    output_232,
+    output_233,
     0,
-    output_234,
+    output_235,
     0,
-    output_236,
+    output_237,
     0,
+    output_239,
     0,
+    output_241,
     0,
-    output_240,
+    output_243,
     0,
+    output_245,
     0,
+    output_247,
     0,
-    output_244,
-    0,
-    0,
-    0,
-    output_248,
-    0,
+    output_249,
     0,
     output_251,
-    output_252,
+    0,
     output_253,
     0,
     output_255,
     0,
     output_257,
     0,
-    output_259,
     0,
     0,
-    output_262,
+    output_261,
     0,
-    output_264,
+    0,
+    0,
     output_265,
     0,
-    output_267,
     0,
     0,
-    output_270,
+    output_269,
     0,
     0,
+    output_272,
     output_273,
-    0,
+    output_274,
     0,
     output_276,
     0,
+    output_278,
     0,
-    output_279,
     output_280,
     0,
     0,
     output_283,
     0,
-    0,
+    output_285,
     output_286,
     0,
     output_288,
-    output_289,
+    0,
     0,
     output_291,
     0,
-    output_293,
-    output_294,
-    output_295,
-    output_296,
-    output_297,
-    output_298,
-    output_299,
-    output_300,
-    output_301,
-    output_302,
-    output_303,
-    output_304,
-    output_305,
-    output_306,
     0,
-    output_308,
+    output_294,
+    0,
+    0,
+    output_297,
+    0,
+    0,
+    0,
+    output_301,
+    0,
+    0,
+    output_304,
+    0,
+    output_306,
+    output_307,
+    0,
+    output_309,
+    0,
+    output_311,
+    output_312,
+    output_313,
+    output_314,
+    output_315,
+    output_316,
+    output_317,
+    output_318,
+    output_319,
+    output_320,
+    output_321,
+    output_322,
+    output_323,
+    output_324,
+    0,
+    output_326,
   };
 
 rtx (*const insn_gen_function[]) () =
@@ -4080,22 +4328,41 @@ rtx (*const insn_gen_function[]) () =
     0,
     0,
     0,
+    0,
     gen_movsi,
     0,
     0,
+    0,
+    0,
     gen_movhi,
+    0,
     gen_movstricthi,
     0,
+    0,
+    0,
+    0,
     gen_movqi,
+    0,
     gen_movstrictqi,
     0,
     gen_movsf,
-    0,
-    gen_swapdf,
+    gen_movsf_push_nomove,
+    gen_movsf_push,
+    gen_movsf_mem,
+    gen_movsf_normal,
+    gen_swapsf,
     gen_movdf,
-    0,
-    gen_swapxf,
+    gen_movdf_push_nomove,
+    gen_movdf_push,
+    gen_movdf_mem,
+    gen_movdf_normal,
+    gen_swapdf,
     gen_movxf,
+    gen_movxf_push_nomove,
+    gen_movxf_push,
+    gen_movxf_mem,
+    gen_movxf_normal,
+    gen_swapxf,
     0,
     gen_movdi,
     gen_zero_extendhisi2,
@@ -4144,7 +4411,7 @@ rtx (*const insn_gen_function[]) () =
     gen_addsi3,
     gen_addhi3,
     gen_addqi3,
-    0,
+    gen_movsi_lea,
     gen_addxf3,
     gen_adddf3,
     gen_addsf3,
@@ -4163,6 +4430,8 @@ rtx (*const insn_gen_function[]) () =
     gen_mulqihi3,
     gen_umulsidi3,
     gen_mulsidi3,
+    gen_umulsi3_highpart,
+    gen_smulsi3_highpart,
     gen_mulxf3,
     gen_muldf3,
     gen_mulsf3,
@@ -4311,10 +4580,7 @@ rtx (*const insn_gen_function[]) () =
     0,
     0,
     gen_untyped_call,
-    0,
-    0,
-    gen_untyped_return,
-    gen_update_return,
+    gen_blockage,
     gen_return,
     gen_nop,
     gen_movstrsi,
@@ -4391,25 +4657,44 @@ char *insn_name[] =
     "cmpsf_ccfpeq+1",
     "cmpsf_ccfpeq+2",
     "cmpsf_ccfpeq+3",
+    "movsi-3",
     "movsi-2",
     "movsi-1",
     "movsi",
     "movsi+1",
+    "movsi+2",
+    "movhi-2",
     "movhi-1",
     "movhi",
+    "movhi+1",
     "movstricthi",
     "movstricthi+1",
+    "movstricthi+2",
+    "movqi-2",
+    "movqi-1",
     "movqi",
+    "movqi+1",
     "movstrictqi",
     "movstrictqi+1",
     "movsf",
-    "movsf+1",
-    "swapdf",
+    "movsf_push_nomove",
+    "movsf_push",
+    "movsf_mem",
+    "movsf_normal",
+    "swapsf",
     "movdf",
-    "movdf+1",
-    "swapxf",
+    "movdf_push_nomove",
+    "movdf_push",
+    "movdf_mem",
+    "movdf_normal",
+    "swapdf",
     "movxf",
-    "movxf+1",
+    "movxf_push_nomove",
+    "movxf_push",
+    "movxf_mem",
+    "movxf_normal",
+    "swapxf",
+    "swapxf+1",
     "movdi",
     "zero_extendhisi2",
     "zero_extendqihi2",
@@ -4457,7 +4742,7 @@ char *insn_name[] =
     "addsi3",
     "addhi3",
     "addqi3",
-    "addqi3+1",
+    "movsi_lea",
     "addxf3",
     "adddf3",
     "addsf3",
@@ -4476,6 +4761,8 @@ char *insn_name[] =
     "mulqihi3",
     "umulsidi3",
     "mulsidi3",
+    "umulsi3_highpart",
+    "smulsi3_highpart",
     "mulxf3",
     "muldf3",
     "mulsf3",
@@ -4624,10 +4911,7 @@ char *insn_name[] =
     "call_value+1",
     "untyped_call-1",
     "untyped_call",
-    "untyped_call+1",
-    "untyped_return-1",
-    "untyped_return",
-    "update_return",
+    "blockage",
     "return",
     "nop",
     "movstrsi",
@@ -4726,6 +5010,25 @@ const int insn_n_operands[] =
     2,
     2,
     2,
+    3,
+    3,
+    2,
+    2,
+    2,
+    2,
+    4,
+    4,
+    2,
+    2,
+    2,
+    2,
+    4,
+    4,
+    2,
+    2,
+    4,
+    4,
+    2,
     2,
     2,
     2,
@@ -4767,7 +5070,7 @@ const int insn_n_operands[] =
     2,
     2,
     2,
-    3,
+    4,
     3,
     3,
     3,
@@ -4775,6 +5078,7 @@ const int insn_n_operands[] =
     3,
     3,
     3,
+    4,
     3,
     3,
     3,
@@ -4789,7 +5093,8 @@ const int insn_n_operands[] =
     3,
     3,
     3,
-    3,
+    4,
+    4,
     3,
     3,
     3,
@@ -4938,10 +5243,7 @@ const int insn_n_operands[] =
     3,
     3,
     3,
-    3,
-    3,
-    2,
-    1,
+    0,
     0,
     0,
     5,
@@ -5031,11 +5333,30 @@ const int insn_n_dups[] =
     0,
     0,
     0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     2,
     0,
     0,
+    0,
+    0,
+    0,
     2,
     0,
+    0,
+    0,
+    0,
+    0,
+    2,
     0,
     0,
     0,
@@ -5065,6 +5386,8 @@ const int insn_n_dups[] =
     2,
     2,
     2,
+    0,
+    0,
     0,
     0,
     0,
@@ -5236,9 +5559,6 @@ const int insn_n_dups[] =
     0,
     0,
     3,
-    0,
-    0,
-    0,
     0,
     0,
     0,
@@ -5333,24 +5653,43 @@ char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =
     { "%qm", "qi", },
     { "=<", "g", },
     { "=<", "ri", },
+    { "=<", "ri", },
     { "", "", },
     { "=g,r", "ri,m", },
     { "=<", "g", },
+    { "=<", "ri", },
+    { "=<", "ri", },
+    { "", "", },
     { "=g,r", "ri,m", },
+    { "", "", },
     { "+g,r", "ri,m", },
+    { "=<", "n", },
     { "=<", "q", },
+    { "=<", "q", },
+    { "", "", },
     { "=q,*r,qm", "*g,q,qn", },
+    { "", "", },
     { "+qm,q", "*qn,m", },
+    { "", "", },
     { "=<,<", "gF,f", },
+    { "=<,<,<,<", "rF,f,m,m", "=X,X,r,X", },
+    { "=m", "m", "=&r", },
     { "=*rfm,*rf,f,!*rm", "*rf,*rfm,fG,fF", },
-    { "=<,<", "gF,f", },
     { "f", "f", },
-    { "=*rfm,*rf,f,!*rm", "*rf,*rfm,fG,fF", },
+    { "", "", },
     { "=<,<", "gF,f", },
-    { "f", "f", },
+    { "=<,<,<,<,<", "rF,f,o,o,o", "=X,X,&r,&r,X", "=X,X,&r,X,X", },
+    { "=o,o", "o,o", "=&r,&r", "=&r,X", },
     { "=f,fm,!*rf,!*rm", "fmG,f,*rfm,*rfF", },
-    { "=<", "roiF", },
-    { "=r,rm", "m,riF", },
+    { "f", "f", },
+    { "", "", },
+    { "=<,<", "gF,f", },
+    { "=<,<,<,<,<", "rF,f,o,o,o", "=X,X,&r,&r,X", "=X,X,&r,X,X", },
+    { "=o,o", "o,o", "=&r,&r", "=&r,X", },
+    { "=f,fm,!*rf,!*rm", "fmG,f,*rfm,*rfF", },
+    { "f", "f", },
+    { "=<,<,<,<", "riF,o,o,o", "=X,&r,&r,X", "=X,&r,X,X", },
+    { "=o,o,r,rm", "o,o,m,riF", "=&r,&r,X,X", "=&r,X,X,X", },
     { "=r", "rm", },
     { "=r", "qm", },
     { "=r", "qm", },
@@ -5393,7 +5732,7 @@ char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =
     { "=f", "rm", },
     { "=f,f", "m,!*r", },
     { "=f", "rm", },
-    { "=&r,ro", "%0,0", "o,riF", },
+    { "=&r,ro,o,&r,ro,o,&r,o,o,o", "%0,0,0,o,riF,o,or,riF,riF,o", "o,riF,o,0,0,0,oriF,riF,o,o", "=X,X,&r,X,X,&r,X,X,&r,&r", },
     { "=?r,rm,r", "%r,0,0", "ri,ri,rm", },
     { "=rm,r", "%0,0", "ri,rm", },
     { "=qm,q", "%0,0", "qn,qmn", },
@@ -5401,7 +5740,7 @@ char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =
     { "", "", "", },
     { "", "", "", },
     { "", "", "", },
-    { "=&r,ro", "0,0", "o,riF", },
+    { "=&r,ro,&r,o,o", "0,0,roiF,riF,o", "o,riF,roiF,riF,o", "=X,X,X,X,&r", },
     { "=rm,r", "0,0", "ri,rm", },
     { "=rm,r", "0,0", "ri,rm", },
     { "=qm,q", "0,0", "qn,qmn", },
@@ -5416,6 +5755,8 @@ char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =
     { "=a", "%0", "qm", },
     { "=A", "%0", "rm", },
     { "=A", "%0", "rm", },
+    { "=d", "%a", "rm", "=a", },
+    { "=d", "%a", "rm", "=a", },
     { "", "", "", },
     { "", "", "", },
     { "", "", "", },
@@ -5564,10 +5905,7 @@ char *const insn_operand_constraint[][MAX_RECOG_OPERANDS] =
     { "=rf", "m", "g", },
     { "=rf", "", "g", },
     { "", "", "", },
-    { "m", "o", "", },
-    { "", "o", "", },
-    { "", "", },
-    { "m", },
+    { 0 },
     { 0 },
     { 0 },
     { "", "", "", "", "", },
@@ -5648,22 +5986,41 @@ const enum machine_mode insn_operand_mode[][MAX_RECOG_OPERANDS] =
     { SImode, SImode, },
     { SImode, SImode, },
     { SImode, SImode, },
+    { SImode, SImode, },
     { HImode, HImode, },
     { HImode, HImode, },
     { HImode, HImode, },
+    { HImode, HImode, },
+    { HImode, HImode, },
+    { HImode, HImode, },
+    { HImode, HImode, },
+    { QImode, QImode, },
+    { QImode, QImode, },
+    { QImode, QImode, },
+    { QImode, QImode, },
     { QImode, QImode, },
     { QImode, QImode, },
     { QImode, QImode, },
     { SFmode, SFmode, },
     { SFmode, SFmode, },
+    { SFmode, SFmode, SImode, },
+    { SFmode, SFmode, SImode, },
+    { SFmode, SFmode, },
+    { SFmode, SFmode, },
     { DFmode, DFmode, },
+    { DFmode, DFmode, },
+    { DFmode, DFmode, SImode, SImode, },
+    { DFmode, DFmode, SImode, SImode, },
     { DFmode, DFmode, },
     { DFmode, DFmode, },
     { XFmode, XFmode, },
     { XFmode, XFmode, },
+    { XFmode, XFmode, SImode, SImode, },
+    { XFmode, XFmode, SImode, SImode, },
     { XFmode, XFmode, },
-    { DImode, DImode, },
-    { DImode, DImode, },
+    { XFmode, XFmode, },
+    { DImode, DImode, SImode, SImode, },
+    { DImode, DImode, SImode, SImode, },
     { SImode, HImode, },
     { HImode, QImode, },
     { SImode, QImode, },
@@ -5706,7 +6063,7 @@ const enum machine_mode insn_operand_mode[][MAX_RECOG_OPERANDS] =
     { DFmode, SImode, },
     { XFmode, SImode, },
     { SFmode, SImode, },
-    { DImode, DImode, DImode, },
+    { DImode, DImode, DImode, SImode, },
     { SImode, SImode, SImode, },
     { HImode, HImode, HImode, },
     { QImode, QImode, QImode, },
@@ -5714,7 +6071,7 @@ const enum machine_mode insn_operand_mode[][MAX_RECOG_OPERANDS] =
     { XFmode, XFmode, XFmode, },
     { DFmode, DFmode, DFmode, },
     { SFmode, SFmode, SFmode, },
-    { DImode, DImode, DImode, },
+    { DImode, DImode, DImode, SImode, },
     { SImode, SImode, SImode, },
     { HImode, HImode, HImode, },
     { QImode, QImode, QImode, },
@@ -5729,6 +6086,8 @@ const enum machine_mode insn_operand_mode[][MAX_RECOG_OPERANDS] =
     { HImode, QImode, QImode, },
     { DImode, SImode, SImode, },
     { DImode, SImode, SImode, },
+    { SImode, SImode, SImode, SImode, },
+    { SImode, SImode, SImode, SImode, },
     { XFmode, XFmode, XFmode, },
     { DFmode, DFmode, DFmode, },
     { SFmode, SFmode, SFmode, },
@@ -5876,11 +6235,8 @@ const enum machine_mode insn_operand_mode[][MAX_RECOG_OPERANDS] =
     { VOIDmode, QImode, SImode, },
     { VOIDmode, QImode, SImode, },
     { VOIDmode, SImode, SImode, },
-    { QImode, BLKmode, VOIDmode, },
-    { QImode, DImode, VOIDmode, },
-    { SImode, DImode, VOIDmode, },
-    { BLKmode, VOIDmode, },
-    { SImode, },
+    { VOIDmode, VOIDmode, VOIDmode, },
+    { VOIDmode },
     { VOIDmode },
     { VOIDmode },
     { BLKmode, BLKmode, SImode, SImode, SImode, },
@@ -5963,20 +6319,39 @@ const char insn_operand_strict_low[][MAX_RECOG_OPERANDS] =
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 1, 0, },
     { 1, 0, },
     { 0, 0, },
     { 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 1, 0, },
     { 1, 0, },
     { 0, 0, },
     { 0, 0, },
+    { 0, 0, 0, },
+    { 0, 0, 0, },
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
+    { 0, 0, 0, 0, },
+    { 0, 0, 0, 0, },
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
+    { 0, 0, 0, 0, },
+    { 0, 0, 0, 0, },
+    { 0, 0, },
+    { 0, 0, },
+    { 0, 0, 0, 0, },
+    { 0, 0, 0, 0, },
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
@@ -6019,7 +6394,7 @@ const char insn_operand_strict_low[][MAX_RECOG_OPERANDS] =
     { 0, 0, },
     { 0, 0, },
     { 0, 0, },
-    { 0, 0, 0, },
+    { 0, 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
@@ -6027,6 +6402,7 @@ const char insn_operand_strict_low[][MAX_RECOG_OPERANDS] =
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
+    { 0, 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
@@ -6041,7 +6417,8 @@ const char insn_operand_strict_low[][MAX_RECOG_OPERANDS] =
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
-    { 0, 0, 0, },
+    { 0, 0, 0, 0, },
+    { 0, 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
@@ -6190,10 +6567,7 @@ const char insn_operand_strict_low[][MAX_RECOG_OPERANDS] =
     { 0, 0, 0, },
     { 0, 0, 0, },
     { 0, 0, 0, },
-    { 0, 0, 0, },
-    { 0, 0, 0, },
-    { 0, 0, },
-    { 0, },
+    { 0 },
     { 0 },
     { 0 },
     { 0, 0, 0, 0, 0, },
@@ -6228,12 +6602,12 @@ extern int scratch_operand ();
 extern int general_operand ();
 extern int VOIDmode_compare_op ();
 extern int push_operand ();
+extern int nonmemory_operand ();
+extern int immediate_operand ();
 extern int memory_operand ();
 extern int address_operand ();
-extern int nonmemory_operand ();
 extern int const_int_operand ();
 extern int indirect_operand ();
-extern int immediate_operand ();
 extern int call_insn_operand ();
 extern int symbolic_operand ();
 extern int binary_387_op ();
@@ -6287,25 +6661,44 @@ int (*const insn_operand_predicate[][MAX_RECOG_OPERANDS])() =
     { general_operand, general_operand, },
     { general_operand, general_operand, },
     { push_operand, general_operand, },
+    { push_operand, nonmemory_operand, },
     { push_operand, general_operand, },
     { general_operand, general_operand, },
     { general_operand, general_operand, },
     { push_operand, general_operand, },
-    { general_operand, general_operand, },
-    { general_operand, general_operand, },
+    { push_operand, nonmemory_operand, },
     { push_operand, general_operand, },
     { general_operand, general_operand, },
     { general_operand, general_operand, },
-    { push_operand, general_operand, },
+    { general_operand, general_operand, },
+    { general_operand, general_operand, },
+    { push_operand, immediate_operand, },
+    { push_operand, nonimmediate_operand, },
+    { push_operand, register_operand, },
+    { general_operand, general_operand, },
+    { general_operand, general_operand, },
+    { general_operand, general_operand, },
+    { general_operand, general_operand, },
     { general_operand, general_operand, },
     { push_operand, general_operand, },
+    { push_operand, general_operand, scratch_operand, },
+    { memory_operand, memory_operand, scratch_operand, },
+    { general_operand, general_operand, },
     { register_operand, register_operand, },
     { general_operand, general_operand, },
     { push_operand, general_operand, },
+    { push_operand, general_operand, scratch_operand, scratch_operand, },
+    { memory_operand, memory_operand, scratch_operand, scratch_operand, },
+    { general_operand, general_operand, },
     { register_operand, register_operand, },
     { general_operand, general_operand, },
     { push_operand, general_operand, },
+    { push_operand, general_operand, scratch_operand, scratch_operand, },
+    { memory_operand, memory_operand, scratch_operand, scratch_operand, },
     { general_operand, general_operand, },
+    { register_operand, register_operand, },
+    { push_operand, general_operand, scratch_operand, scratch_operand, },
+    { general_operand, general_operand, scratch_operand, scratch_operand, },
     { general_operand, nonimmediate_operand, },
     { general_operand, nonimmediate_operand, },
     { general_operand, nonimmediate_operand, },
@@ -6348,7 +6741,7 @@ int (*const insn_operand_predicate[][MAX_RECOG_OPERANDS])() =
     { register_operand, nonimmediate_operand, },
     { register_operand, general_operand, },
     { register_operand, nonimmediate_operand, },
-    { general_operand, general_operand, general_operand, },
+    { general_operand, general_operand, general_operand, scratch_operand, },
     { general_operand, general_operand, general_operand, },
     { general_operand, general_operand, general_operand, },
     { general_operand, general_operand, general_operand, },
@@ -6356,7 +6749,7 @@ int (*const insn_operand_predicate[][MAX_RECOG_OPERANDS])() =
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
-    { general_operand, general_operand, general_operand, },
+    { general_operand, general_operand, general_operand, scratch_operand, },
     { general_operand, general_operand, general_operand, },
     { general_operand, general_operand, general_operand, },
     { general_operand, general_operand, general_operand, },
@@ -6371,6 +6764,8 @@ int (*const insn_operand_predicate[][MAX_RECOG_OPERANDS])() =
     { general_operand, nonimmediate_operand, nonimmediate_operand, },
     { register_operand, register_operand, nonimmediate_operand, },
     { register_operand, register_operand, nonimmediate_operand, },
+    { register_operand, register_operand, nonimmediate_operand, scratch_operand, },
+    { register_operand, register_operand, nonimmediate_operand, scratch_operand, },
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
     { register_operand, nonimmediate_operand, nonimmediate_operand, },
@@ -6518,11 +6913,8 @@ int (*const insn_operand_predicate[][MAX_RECOG_OPERANDS])() =
     { 0, indirect_operand, general_operand, },
     { 0, call_insn_operand, general_operand, },
     { 0, symbolic_operand, general_operand, },
-    { indirect_operand, memory_operand, 0, },
-    { call_insn_operand, memory_operand, 0, },
-    { symbolic_operand, memory_operand, 0, },
-    { memory_operand, 0, },
-    { memory_operand, },
+    { 0, 0, 0, },
+    { 0 },
     { 0 },
     { 0 },
     { memory_operand, memory_operand, const_int_operand, const_int_operand, scratch_operand, },
@@ -6601,75 +6993,94 @@ const int insn_n_alternatives[] =
     1,
     1,
     1,
+    1,
     0,
     2,
     1,
+    1,
+    1,
+    0,
     2,
+    0,
     2,
     1,
+    1,
+    1,
+    0,
+    3,
+    0,
+    2,
+    0,
+    2,
+    4,
+    1,
+    4,
+    1,
+    0,
+    2,
+    5,
+    2,
+    4,
+    1,
+    0,
+    2,
+    5,
+    2,
+    4,
+    1,
+    4,
+    4,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    2,
+    4,
+    4,
+    0,
+    2,
+    2,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    2,
+    1,
+    10,
     3,
     2,
     2,
-    4,
-    2,
-    1,
-    4,
-    2,
-    1,
-    4,
-    1,
-    2,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    2,
-    4,
-    4,
-    0,
-    2,
-    2,
-    2,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
     1,
     0,
     0,
     0,
-    1,
-    1,
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    2,
-    1,
-    2,
-    3,
-    2,
-    2,
-    1,
-    0,
-    0,
-    0,
-    2,
+    5,
     2,
     2,
     2,
@@ -6680,6 +7091,8 @@ const int insn_n_alternatives[] =
     2,
     1,
     2,
+    1,
+    1,
     1,
     1,
     1,
@@ -6832,10 +7245,7 @@ const int insn_n_alternatives[] =
     1,
     1,
     0,
-    1,
-    1,
     0,
-    1,
     0,
     0,
     0,

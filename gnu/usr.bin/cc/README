@@ -1,5 +1,5 @@
 
-$FreeBSD$
+$Id$
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.

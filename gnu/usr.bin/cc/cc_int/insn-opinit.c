@@ -109,8 +109,14 @@ init_all_optabs ()
   smul_optab->handlers[(int) SImode].insn_code = CODE_FOR_mulsi3;
   umul_widen_optab->handlers[(int) HImode].insn_code = CODE_FOR_umulqihi3;
   smul_widen_optab->handlers[(int) HImode].insn_code = CODE_FOR_mulqihi3;
-  umul_widen_optab->handlers[(int) DImode].insn_code = CODE_FOR_umulsidi3;
-  smul_widen_optab->handlers[(int) DImode].insn_code = CODE_FOR_mulsidi3;
+  if (HAVE_umulsidi3)
+    umul_widen_optab->handlers[(int) DImode].insn_code = CODE_FOR_umulsidi3;
+  if (HAVE_mulsidi3)
+    smul_widen_optab->handlers[(int) DImode].insn_code = CODE_FOR_mulsidi3;
+  if (HAVE_umulsi3_highpart)
+    umul_highpart_optab->handlers[(int) SImode].insn_code = CODE_FOR_umulsi3_highpart;
+  if (HAVE_smulsi3_highpart)
+    smul_highpart_optab->handlers[(int) SImode].insn_code = CODE_FOR_smulsi3_highpart;
   if (HAVE_mulxf3)
     smul_optab->handlers[(int) XFmode].insn_code = CODE_FOR_mulxf3;
   if (HAVE_muldf3)

@@ -1335,11 +1335,27 @@ calculate_giv_inc (pattern, src_insn, regno)
 	 one of the LO_SUM rtx.  */
       if (GET_CODE (increment) == LO_SUM)
 	increment = XEXP (increment, 1);
+      else if (GET_CODE (increment) == IOR)
+	{
+	  /* The rs6000 port loads some constants with IOR.  */
+	  rtx second_part = XEXP (increment, 1);
+
+	  src_insn = PREV_INSN (src_insn);
+	  increment = SET_SRC (PATTERN (src_insn));
+	  /* Don't need the last insn anymore.  */
+	  delete_insn (get_last_insn ());
+
+	  if (GET_CODE (second_part) != CONST_INT
+	      || GET_CODE (increment) != CONST_INT)
+	    abort ();
+
+	  increment = GEN_INT (INTVAL (increment) | INTVAL (second_part));
+	}
 
       if (GET_CODE (increment) != CONST_INT)
 	abort ();
 		  
-      /* The insn loading the constant into a register is not longer needed,
+      /* The insn loading the constant into a register is no longer needed,
 	 so delete it.  */
       delete_insn (get_last_insn ());
     }
@@ -1730,12 +1746,32 @@ copy_loop_body (copy_start, copy_end, map, exit_label, last_iteration,
 		 case to be a branch past the end of the loop, and the
 		 original jump label case to fall_through.  */
 
-	      if (! invert_exp (pattern, copy)
-		  || ! redirect_exp (&pattern,
-				     map->label_map[CODE_LABEL_NUMBER
-						    (JUMP_LABEL (insn))],
-				     exit_label, copy))
-		abort ();
+	      if (invert_exp (pattern, copy))
+		{
+		  if (! redirect_exp (&pattern,
+				      map->label_map[CODE_LABEL_NUMBER
+						     (JUMP_LABEL (insn))],
+				      exit_label, copy))
+		    abort ();
+		}
+	      else
+		{
+		  rtx jmp;
+		  rtx lab = gen_label_rtx ();
+		  /* Can't do it by reversing the jump (probably becasue we
+		     couln't reverse the conditions), so emit a new
+		     jump_insn after COPY, and redirect the jump around
+		     that.  */
+		  jmp = emit_jump_insn_after (gen_jump (exit_label), copy);
+		  jmp = emit_barrier_after (jmp);
+		  emit_label_after (lab, jmp);
+		  LABEL_NUSES (lab) = 0;
+		  if (! redirect_exp (&pattern,
+				      map->label_map[CODE_LABEL_NUMBER
+						     (JUMP_LABEL (insn))],
+				      lab, copy))
+		    abort ();
+		}
 	    }
 	  
 #ifdef HAVE_cc0
@@ -3077,7 +3113,11 @@ loop_iterations (loop_start, loop_end)
   loop_final_value = 0;
   loop_iteration_var = 0;
 
-  last_loop_insn = prev_nonnote_insn (loop_end);
+  /* We used to use pren_nonnote_insn here, but that fails because it might
+     accidentally get the branch for a contained loop if the branch for this
+     loop was deleted.  We can only trust branches immediately before the
+     loop_end.  */
+  last_loop_insn = PREV_INSN (loop_end);
 
   comparison = get_condition_for_loop (last_loop_insn);
   if (comparison == 0)
@@ -3114,28 +3154,6 @@ loop_iterations (loop_start, loop_end)
   if (initial_value == 0)
     /* iteration_info already printed a message.  */
     return 0;
-
-  if (increment == 0)
-    {
-      if (loop_dump_stream)
-	fprintf (loop_dump_stream,
-		 "Loop unrolling: Increment value can't be calculated.\n");
-      return 0;
-    }
-  if (GET_CODE (increment) != CONST_INT)
-    {
-      if (loop_dump_stream)
-	fprintf (loop_dump_stream,
-		 "Loop unrolling: Increment value not constant.\n");
-      return 0;
-    }
-  if (GET_CODE (initial_value) != CONST_INT)
-    {
-      if (loop_dump_stream)
-	fprintf (loop_dump_stream,
-		 "Loop unrolling: Initial value not constant.\n");
-      return 0;
-    }
 
   /* If the comparison value is an invariant register, then try to find
      its value from the insns before the start of the loop.  */
@@ -3185,7 +3203,28 @@ loop_iterations (loop_start, loop_end)
   loop_increment = increment;
   loop_final_value = final_value;
 
-  if (final_value == 0)
+  if (increment == 0)
+    {
+      if (loop_dump_stream)
+	fprintf (loop_dump_stream,
+		 "Loop unrolling: Increment value can't be calculated.\n");
+      return 0;
+    }
+  else if (GET_CODE (increment) != CONST_INT)
+    {
+      if (loop_dump_stream)
+	fprintf (loop_dump_stream,
+		 "Loop unrolling: Increment value not constant.\n");
+      return 0;
+    }
+  else if (GET_CODE (initial_value) != CONST_INT)
+    {
+      if (loop_dump_stream)
+	fprintf (loop_dump_stream,
+		 "Loop unrolling: Initial value not constant.\n");
+      return 0;
+    }
+  else if (final_value == 0)
     {
       if (loop_dump_stream)
 	fprintf (loop_dump_stream,

@@ -40,6 +40,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
+#include <errno.h>
 
 /* Defined to the name of the compiler; if using a cross compiler, the
    Makefile should compile this file with the proper name
@@ -78,8 +79,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #endif
 #endif
 
-extern int errno, sys_nerr;
-#if defined(bsd4_4) || defined(__NetBSD__)
+#ifndef errno
+extern int errno;
+#endif
+
+extern int sys_nerr;
+#if defined(bsd4_4) || defined(__NetBSD__) || defined(__FreeBSD__)
 extern const char *const sys_errlist[];
 #else
 extern char *sys_errlist[];
@@ -390,7 +395,7 @@ main (argc, argv)
 #endif
 
   args = (int *) malloc (argc * sizeof (int));
-  bzero (args, argc * sizeof (int));
+  bzero ((char *) args, argc * sizeof (int));
 
   for (i = 1; i < argc; i++)
     {
@@ -431,7 +436,7 @@ main (argc, argv)
 		     && (char *)strchr ("bBVDUoeTuIYmLiA", argv[i][1]) != NULL)
 		    || strcmp (argv[i], "-Tdata") == 0))
 	    quote = argv[i];
-	  else if (((argv[i][2] == '\0'
+	  else if (library != NULL && ((argv[i][2] == '\0'
 		     && (char *) strchr ("cSEM", argv[i][1]) != NULL)
 		    || strcmp (argv[i], "-MM") == 0))
 	    {
@@ -449,7 +454,10 @@ main (argc, argv)
 	  int len; 
 
 	  if (saw_speclang)
-	    continue;
+	    {
+	      saw_speclang = 0;
+	      continue;
+	    }
 
 	  /* If the filename ends in .c or .i, put options around it.
 	     But not if a specified -x option is currently active.  */

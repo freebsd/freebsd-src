@@ -35,66 +35,75 @@ int
 lvalue_p (ref)
      tree ref;
 {
-  register enum tree_code code = TREE_CODE (ref);
+  if (! language_lvalue_valid (ref))
+    return 0;
+  
+  if (TREE_CODE (TREE_TYPE (ref)) == REFERENCE_TYPE)
+    return 1;
 
-  if (language_lvalue_valid (ref))
+  if (ref == current_class_decl && flag_this_is_variable <= 0)
+    return 0;
+
+  switch (TREE_CODE (ref))
     {
-      if (TREE_CODE (TREE_TYPE (ref)) == REFERENCE_TYPE)
+      /* preincrements and predecrements are valid lvals, provided
+	 what they refer to are valid lvals. */
+    case PREINCREMENT_EXPR:
+    case PREDECREMENT_EXPR:
+    case COMPONENT_REF:
+    case SAVE_EXPR:
+      return lvalue_p (TREE_OPERAND (ref, 0));
+
+    case STRING_CST:
+      return 1;
+
+    case VAR_DECL:
+      if (TREE_READONLY (ref) && ! TREE_STATIC (ref)
+	  && DECL_LANG_SPECIFIC (ref)
+	  && DECL_IN_AGGR_P (ref))
+	return 0;
+    case INDIRECT_REF:
+    case ARRAY_REF:
+    case PARM_DECL:
+    case RESULT_DECL:
+    case ERROR_MARK:
+      if (TREE_CODE (TREE_TYPE (ref)) != FUNCTION_TYPE
+	  && TREE_CODE (TREE_TYPE (ref)) != METHOD_TYPE)
 	return 1;
-      
-      switch (code)
-	{
-	  /* preincrements and predecrements are valid lvals, provided
-	     what they refer to are valid lvals. */
-	case PREINCREMENT_EXPR:
-	case PREDECREMENT_EXPR:
-	case COMPONENT_REF:
-	case SAVE_EXPR:
-	  return lvalue_p (TREE_OPERAND (ref, 0));
+      break;
 
-	case STRING_CST:
-	  return 1;
+    case WITH_CLEANUP_EXPR:
+      return lvalue_p (TREE_OPERAND (ref, 0));
 
-	case VAR_DECL:
-	  if (TREE_READONLY (ref) && ! TREE_STATIC (ref)
-	      && DECL_LANG_SPECIFIC (ref)
-	      && DECL_IN_AGGR_P (ref))
-	    return 0;
-	case INDIRECT_REF:
-	case ARRAY_REF:
-	case PARM_DECL:
-	case RESULT_DECL:
-	case ERROR_MARK:
-	  if (TREE_CODE (TREE_TYPE (ref)) != FUNCTION_TYPE
-	      && TREE_CODE (TREE_TYPE (ref)) != METHOD_TYPE)
-	    return 1;
-	  break;
+    case TARGET_EXPR:
+      return 1;
 
-	case TARGET_EXPR:
-	case WITH_CLEANUP_EXPR:
-	  return 1;
+    case CALL_EXPR:
+      if (TREE_ADDRESSABLE (TREE_TYPE (ref)))
+	return 1;
+      break;
 
-	  /* A currently unresolved scope ref.  */
-	case SCOPE_REF:
-	  my_friendly_abort (103);
-	case OFFSET_REF:
-	  if (TREE_CODE (TREE_OPERAND (ref, 1)) == FUNCTION_DECL)
-	    return 1;
-	  return lvalue_p (TREE_OPERAND (ref, 0))
-	    && lvalue_p (TREE_OPERAND (ref, 1));
-	  break;
+      /* A currently unresolved scope ref.  */
+    case SCOPE_REF:
+      my_friendly_abort (103);
+    case OFFSET_REF:
+      if (TREE_CODE (TREE_OPERAND (ref, 1)) == FUNCTION_DECL)
+	return 1;
+      return lvalue_p (TREE_OPERAND (ref, 0))
+	&& lvalue_p (TREE_OPERAND (ref, 1));
+      break;
 
-	case COND_EXPR:
-	  return (lvalue_p (TREE_OPERAND (ref, 1))
-		  && lvalue_p (TREE_OPERAND (ref, 2)));
+    case COND_EXPR:
+      return (lvalue_p (TREE_OPERAND (ref, 1))
+	      && lvalue_p (TREE_OPERAND (ref, 2)));
 
-	case MODIFY_EXPR:
-	  return 1;
+    case MODIFY_EXPR:
+      return 1;
 
-	case COMPOUND_EXPR:
-	  return lvalue_p (TREE_OPERAND (ref, 1));
-	}
+    case COMPOUND_EXPR:
+      return lvalue_p (TREE_OPERAND (ref, 1));
     }
+
   return 0;
 }
 
@@ -221,12 +230,15 @@ break_out_calls (exp)
       return exp;
 
     case 'd':  /* A decl node */
+#if 0                               /* This is bogus.  jason 9/21/94 */
+
       t1 = break_out_calls (DECL_INITIAL (exp));
       if (t1 != DECL_INITIAL (exp))
 	{
 	  exp = copy_node (exp);
 	  DECL_INITIAL (exp) = t1;
 	}
+#endif
       return exp;
 
     case 'b':  /* A block node */
@@ -377,6 +389,40 @@ build_cplus_array_type (elt_type, index_type)
   current_obstack = ambient_obstack;
   saveable_obstack = ambient_saveable_obstack;
   return t;
+}
+
+/* Make a variant type in the proper way for C/C++, propagating qualifiers
+   down to the element type of an array.  */
+
+tree
+cp_build_type_variant (type, constp, volatilep)
+     tree type;
+     int constp, volatilep;
+{
+  if (TREE_CODE (type) == ARRAY_TYPE)
+    {
+      tree real_main_variant = TYPE_MAIN_VARIANT (type);
+
+      push_obstacks (TYPE_OBSTACK (real_main_variant),
+		     TYPE_OBSTACK (real_main_variant));
+      type = build_cplus_array_type (cp_build_type_variant (TREE_TYPE (type),
+							    constp, volatilep),
+				     TYPE_DOMAIN (type));
+
+      /* TYPE must be on same obstack as REAL_MAIN_VARIANT.  If not,
+	 make a copy.  (TYPE might have come from the hash table and
+	 REAL_MAIN_VARIANT might be in some function's obstack.)  */
+
+      if (TYPE_OBSTACK (type) != TYPE_OBSTACK (real_main_variant))
+	{
+	  type = copy_node (type);
+	  TYPE_POINTER_TO (type) = TYPE_REFERENCE_TO (type) = 0;
+	}
+
+      TYPE_MAIN_VARIANT (type) = real_main_variant;
+      pop_obstacks ();
+    }
+  return build_type_variant (type, constp, volatilep);
 }
 
 /* Add OFFSET to all base types of T.
@@ -1184,50 +1230,6 @@ virtual_member (elem, list)
   return rval;
 }
 
-/* Return the offset (as an INTEGER_CST) for ELEM in LIST.
-   INITIAL_OFFSET is the value to add to the offset that ELEM's
-   binfo entry in LIST provides.
-
-   Returns NULL if ELEM does not have an binfo value in LIST.  */
-
-tree
-virtual_offset (elem, list, initial_offset)
-     tree elem;
-     tree list;
-     tree initial_offset;
-{
-  tree vb, offset;
-  tree rval, nval;
-
-  for (vb = list; vb; vb = TREE_CHAIN (vb))
-    if (elem == BINFO_TYPE (vb))
-      return size_binop (PLUS_EXPR, initial_offset, BINFO_OFFSET (vb));
-  rval = 0;
-  for (vb = list; vb; vb = TREE_CHAIN (vb))
-    {
-      tree binfos = BINFO_BASETYPES (vb);
-      int i;
-
-      if (binfos == NULL_TREE)
-	continue;
-
-      for (i = TREE_VEC_LENGTH (binfos)-1; i >= 0; i--)
-	{
-	  nval = binfo_value (elem, BINFO_TYPE (TREE_VEC_ELT (binfos, i)));
-	  if (nval)
-	    {
-	      if (rval && BINFO_OFFSET (nval) != BINFO_OFFSET (rval))
-		my_friendly_abort (105);
-	      offset = BINFO_OFFSET (vb);
-	      rval = nval;
-	    }
-	}
-    }
-  if (rval == NULL_TREE)
-    return rval;
-  return size_binop (PLUS_EXPR, offset, BINFO_OFFSET (rval));
-}
-
 void
 debug_binfo (elem)
      tree elem;
@@ -1661,6 +1663,31 @@ make_deep_copy (t)
       TREE_OPERAND (t, 0) = make_deep_copy (TREE_OPERAND (t, 0));
       return t;
 
+    case POINTER_TYPE:
+      return build_pointer_type (make_deep_copy (TREE_TYPE (t)));
+    case REFERENCE_TYPE:
+      return build_reference_type (make_deep_copy (TREE_TYPE (t)));
+    case FUNCTION_TYPE:
+      return build_function_type (make_deep_copy (TREE_TYPE (t)),
+				  make_deep_copy (TYPE_ARG_TYPES (t)));
+    case ARRAY_TYPE:
+      return build_array_type (make_deep_copy (TREE_TYPE (t)),
+			       make_deep_copy (TYPE_DOMAIN (t)));
+    case OFFSET_TYPE:
+      return build_offset_type (make_deep_copy (TYPE_OFFSET_BASETYPE (t)),
+				make_deep_copy (TREE_TYPE (t)));
+    case METHOD_TYPE:
+      return build_method_type
+	(make_deep_copy (TYPE_METHOD_BASETYPE (t)),
+	 build_function_type
+	 (make_deep_copy (TREE_TYPE (t)),
+	  make_deep_copy (TREE_CHAIN (TYPE_ARG_TYPES (t)))));
+    case RECORD_TYPE:
+      if (TYPE_PTRMEMFUNC_P (t))
+	return build_ptrmemfunc_type
+	  (make_deep_copy (TYPE_PTRMEMFUNC_FN_TYPE (t)));
+      /* else fall through */
+      
       /*  This list is incomplete, but should suffice for now.
 	  It is very important that `sorry' does not call
 	  `report_error_function'.  That could cause an infinite loop.  */
@@ -1738,7 +1765,7 @@ tree
 array_type_nelts_top (type)
      tree type;
 {
-  return fold (build (PLUS_EXPR, integer_type_node,
+  return fold (build (PLUS_EXPR, sizetype,
 		      array_type_nelts (type),
 		      integer_one_node));
 }
@@ -1756,7 +1783,7 @@ array_type_nelts_total (type)
   while (TREE_CODE (type) == ARRAY_TYPE)
     {
       tree n = array_type_nelts_top (type);
-      sz = fold (build (MULT_EXPR, integer_type_node, sz, n));
+      sz = fold (build (MULT_EXPR, sizetype, sz, n));
       type = TREE_TYPE (type);
     }
   return sz;

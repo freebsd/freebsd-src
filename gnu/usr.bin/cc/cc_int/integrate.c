@@ -134,10 +134,15 @@ function_cannot_inline_p (fndecl)
   if (int_size_in_bytes (TREE_TYPE (TREE_TYPE (fndecl))) < 0)
     return "function with varying-size return value cannot be inline";
 
-  /* Cannot inline a function with a varying size argument.  */
+  /* Cannot inline a function with a varying size argument or one that
+     receives a transparent union.  */
   for (parms = DECL_ARGUMENTS (fndecl); parms; parms = TREE_CHAIN (parms))
-    if (int_size_in_bytes (TREE_TYPE (parms)) < 0)
-      return "function with varying-size parameter cannot be inline";
+    {
+      if (int_size_in_bytes (TREE_TYPE (parms)) < 0)
+	return "function with varying-size parameter cannot be inline";
+      else if (TYPE_TRANSPARENT_UNION (TREE_TYPE (parms)))
+	return "function with transparent unit parameter cannot be inline";
+    }
 
   if (!DECL_INLINE (fndecl) && get_max_uid () > max_insns)
     {
@@ -1235,6 +1240,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
       tree arg = convert (TREE_TYPE (formal), TREE_VALUE (actual));
       /* Mode of the variable used within the function.  */
       enum machine_mode mode = TYPE_MODE (TREE_TYPE (formal));
+      int invisiref = 0;
 
       /* Make sure this formal has some correspondence in the users code
        * before emitting any line notes for it.  */
@@ -1263,6 +1269,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 	  store_expr (arg, stack_slot, 0);
 
 	  arg_vals[i] = XEXP (stack_slot, 0);
+	  invisiref = 1;
 	}
       else if (GET_CODE (loc) != MEM)
 	{
@@ -1288,8 +1295,11 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 		 be two different pseudos, and `safe_from_p' will make all
 		 sorts of smart assumptions about their not conflicting.
 		 But if ARG_VALS[I] overlaps TARGET, these assumptions are
-		 wrong, so put ARG_VALS[I] into a fresh register.  */
+		 wrong, so put ARG_VALS[I] into a fresh register.
+		 Don't worry about invisible references, since their stack
+		 temps will never overlap the target.  */
 	      || (target != 0
+		  && ! invisiref
 		  && (GET_CODE (arg_vals[i]) == REG
 		      || GET_CODE (arg_vals[i]) == SUBREG
 		      || GET_CODE (arg_vals[i]) == MEM)
@@ -1640,7 +1650,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 
   for (insn = insns; insn; insn = NEXT_INSN (insn))
     {
-      rtx copy, pattern;
+      rtx copy, pattern, set;
 
       map->orig_asm_operands_vector = 0;
 
@@ -1648,6 +1658,7 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 	{
 	case INSN:
 	  pattern = PATTERN (insn);
+	  set = single_set (insn);
 	  copy = 0;
 	  if (GET_CODE (pattern) == USE
 	      && GET_CODE (XEXP (pattern, 0)) == REG
@@ -1659,33 +1670,47 @@ expand_inline_function (fndecl, parms, target, ignore, type, structure_value_add
 
 	  /* Ignore setting a function value that we don't want to use.  */
 	  if (map->inline_target == 0
-	      && GET_CODE (pattern) == SET
-	      && GET_CODE (SET_DEST (pattern)) == REG
-	      && REG_FUNCTION_VALUE_P (SET_DEST (pattern)))
+	      && set != 0
+	      && GET_CODE (SET_DEST (set)) == REG
+	      && REG_FUNCTION_VALUE_P (SET_DEST (set)))
 	    {
-	      if (volatile_refs_p (SET_SRC (pattern)))
+	      if (volatile_refs_p (SET_SRC (set)))
 		{
+		  rtx new_set;
+
 		  /* If we must not delete the source,
 		     load it into a new temporary.  */
 		  copy = emit_insn (copy_rtx_and_substitute (pattern, map));
-		  SET_DEST (PATTERN (copy)) 
-		    = gen_reg_rtx (GET_MODE (SET_DEST (PATTERN (copy))));
+
+		  new_set = single_set (copy);
+		  if (new_set == 0)
+		    abort ();
+
+		  SET_DEST (new_set)
+		    = gen_reg_rtx (GET_MODE (SET_DEST (new_set)));
 		}
 	      else
 		break;
 	    }
+
+	  /* If this is setting the static chain rtx, omit it.  */
+	  else if (static_chain_value != 0
+		   && set != 0
+		   && GET_CODE (SET_DEST (set)) == REG
+		   && rtx_equal_p (SET_DEST (set),
+				   static_chain_incoming_rtx))
+	    break;
+
 	  /* If this is setting the static chain pseudo, set it from
 	     the value we want to give it instead.  */
 	  else if (static_chain_value != 0
-		   && GET_CODE (pattern) == SET
-		   && rtx_equal_p (SET_SRC (pattern),
+		   && set != 0
+		   && rtx_equal_p (SET_SRC (set),
 				   static_chain_incoming_rtx))
 	    {
-	      rtx newdest = copy_rtx_and_substitute (SET_DEST (pattern), map);
+	      rtx newdest = copy_rtx_and_substitute (SET_DEST (set), map);
 
-	      copy = emit_insn (gen_rtx (SET, VOIDmode, newdest,
-					 static_chain_value));
-
+	      copy = emit_move_insn (newdest, static_chain_value);
 	      static_chain_value = 0;
 	    }
 	  else
@@ -2585,6 +2610,9 @@ subst_constants (loc, insn, map)
 	/* If storing a recognizable value save it for later recording.  */
 	if ((map->num_sets < MAX_RECOG_OPERANDS)
 	    && (CONSTANT_P (src)
+		|| (GET_CODE (src) == REG
+		    && REGNO (src) >= FIRST_VIRTUAL_REGISTER
+		    && REGNO (src) <= LAST_VIRTUAL_REGISTER)
 		|| (GET_CODE (src) == PLUS
 		    && GET_CODE (XEXP (src, 0)) == REG
 		    && REGNO (XEXP (src, 0)) >= FIRST_VIRTUAL_REGISTER

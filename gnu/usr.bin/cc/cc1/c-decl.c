@@ -1303,6 +1303,7 @@ duplicate_decls (newdecl, olddecl)
 			   && DECL_INITIAL (newdecl) != 0);
   tree oldtype = TREE_TYPE (olddecl);
   tree newtype = TREE_TYPE (newdecl);
+  char *errmsg = 0;
 
   if (TREE_CODE (newtype) == ERROR_MARK
       || TREE_CODE (oldtype) == ERROR_MARK)
@@ -1528,7 +1529,7 @@ duplicate_decls (newdecl, olddecl)
     }
   else
     {
-      char *errmsg = redeclaration_error_message (newdecl, olddecl);
+      errmsg = redeclaration_error_message (newdecl, olddecl);
       if (errmsg)
 	{
 	  error_with_decl (newdecl, errmsg);
@@ -1625,7 +1626,7 @@ duplicate_decls (newdecl, olddecl)
     }
 
   /* Optionally warn about more than one declaration for the same name.  */
-  if (warn_redundant_decls && DECL_SOURCE_LINE (olddecl) != 0
+  if (errmsg == 0 && warn_redundant_decls && DECL_SOURCE_LINE (olddecl) != 0
       /* Dont warn about a function declaration
 	 followed by a definition.  */
       && !(TREE_CODE (newdecl) == FUNCTION_DECL && DECL_INITIAL (newdecl) != 0
@@ -2439,6 +2440,21 @@ shadow_label (name)
 
   if (decl != 0)
     {
+      register tree dup;
+
+      /* Check to make sure that the label hasn't already been declared
+	 at this label scope */
+      for (dup = named_labels; dup; dup = TREE_CHAIN (dup))
+	if (TREE_VALUE (dup) == decl)
+	  {
+	    error ("duplicate label declaration `%s'", 
+		   IDENTIFIER_POINTER (name));
+	    error_with_decl (TREE_VALUE (dup),
+			     "this is a previous declaration");
+	    /* Just use the previous declaration.  */
+	    return lookup_label (name);
+	  }
+
       shadowed_labels = tree_cons (NULL_TREE, decl, shadowed_labels);
       IDENTIFIER_LABEL_VALUE (name) = decl = 0;
     }
@@ -3673,7 +3689,7 @@ finish_decl (decl, init, asmspec_tree)
 	     references to it.  */
 	  /* This test used to include TREE_STATIC, but this won't be set
 	     for function level initializers.  */
-	  if (TREE_READONLY (decl))
+	  if (TREE_READONLY (decl) || ITERATOR_P (decl))
 	    {
 	      preserve_initializer ();
 	      /* Hack?  Set the permanent bit for something that is permanent,
@@ -5418,7 +5434,7 @@ finish_struct (t, fieldlist)
 #endif
 	    }
 	}
-      else
+      else if (TREE_TYPE (x) != error_mark_node)
 	{
 	  int min_align = (DECL_PACKED (x) ? BITS_PER_UNIT
 			   : TYPE_ALIGN (TREE_TYPE (x)));
@@ -5646,37 +5662,6 @@ start_enum (name)
   return enumtype;
 }
 
-/* Return the minimum number of bits needed to represent VALUE in a
-   signed or unsigned type, UNSIGNEDP says which.  */
-
-static int
-min_precision (value, unsignedp)
-     tree value;
-     int unsignedp;
-{
-  int log;
-
-  /* If the value is negative, compute its negative minus 1.  The latter
-     adjustment is because the absolute value of the largest negative value
-     is one larger than the largest positive value.  This is equivalent to
-     a bit-wise negation, so use that operation instead.  */
-
-  if (tree_int_cst_sgn (value) < 0)
-    value = fold (build1 (BIT_NOT_EXPR, TREE_TYPE (value), value));
-
-  /* Return the number of bits needed, taking into account the fact
-     that we need one more bit for a signed than unsigned type.  */
-
-  if (integer_zerop (value))
-    log = 0;
-  else if (TREE_INT_CST_HIGH (value) != 0)
-    log = HOST_BITS_PER_WIDE_INT + floor_log2 (TREE_INT_CST_HIGH (value));
-  else
-    log = floor_log2 (TREE_INT_CST_LOW (value));
-
-  return log + 1 + ! unsignedp;
-}
-
 /* After processing and defining all the values of an enumeration type,
    install their decls in the enumeration type and finish it off.
    ENUMTYPE is the type object and VALUES a list of decl-value pairs.
@@ -5868,6 +5853,7 @@ start_function (declspecs, declarator, nested)
 {
   tree decl1, old_decl;
   tree restype;
+  int old_immediate_size_expand = immediate_size_expand;
 
   current_function_returns_value = 0;  /* Assume, until we see it does. */
   current_function_returns_null = 0;
@@ -5876,6 +5862,9 @@ start_function (declspecs, declarator, nested)
   c_function_varargs = 0;
   named_labels = 0;
   shadowed_labels = 0;
+
+  /* Don't expand any sizes in the return type of the function.  */
+  immediate_size_expand = 0;
 
   decl1 = grokdeclarator (declarator, declspecs, FUNCDEF, 1);
 
@@ -5922,6 +5911,11 @@ start_function (declspecs, declarator, nested)
       current_function_prototype_line = DECL_SOURCE_LINE (old_decl);
     }
 
+  /* If there is no explicit declaration, look for any out-of-scope implicit
+     declarations.  */
+  if (old_decl == 0)
+    old_decl = IDENTIFIER_IMPLICIT_DECL (DECL_NAME (decl1));
+
   /* Optionally warn of old-fashioned def with no previous prototype.  */
   if (warn_strict_prototypes
       && TYPE_ARG_TYPES (TREE_TYPE (decl1)) == 0
@@ -5937,7 +5931,7 @@ start_function (declspecs, declarator, nested)
      if the function has already been used.  */
   else if (warn_missing_prototypes
 	   && old_decl != 0 && TREE_USED (old_decl)
-	   && !(old_decl != 0 && TYPE_ARG_TYPES (TREE_TYPE (old_decl)) != 0))
+	   && TYPE_ARG_TYPES (TREE_TYPE (old_decl)) == 0)
     warning_with_decl (decl1,
 		      "`%s' was used with no prototype before its definition");
   /* Optionally warn of any global def with no previous declaration.  */
@@ -5949,7 +5943,8 @@ start_function (declspecs, declarator, nested)
   /* Optionally warn of any def with no previous declaration
      if the function has already been used.  */
   else if (warn_missing_declarations
-	   && old_decl != 0 && TREE_USED (old_decl))
+	   && old_decl != 0 && TREE_USED (old_decl)
+	   && old_decl == IDENTIFIER_IMPLICIT_DECL (DECL_NAME (decl1)))
     warning_with_decl (decl1,
 		    "`%s' was used with no declaration before its definition");
 
@@ -6005,6 +6000,8 @@ start_function (declspecs, declarator, nested)
      (or an implicit decl), propagate certain information about the usage.  */
   if (TREE_ADDRESSABLE (DECL_ASSEMBLER_NAME (current_function_decl)))
     TREE_ADDRESSABLE (current_function_decl) = 1;
+
+  immediate_size_expand = old_immediate_size_expand;
 
   return 1;
 }

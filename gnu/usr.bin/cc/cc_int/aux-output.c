@@ -1,5 +1,5 @@
-/* Subroutines for insn-output.c for Intel 80386.
-   Copyright (C) 1988, 1992 Free Software Foundation, Inc.
+/* Subroutines for insn-output.c for Intel X86.
+   Copyright (C) 1988, 1992, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -74,8 +74,151 @@ enum reg_class regclass_map[FIRST_PSEUDO_REGISTER] =
 /* Test and compare insns in i386.md store the information needed to
    generate branch and scc insns here.  */
 
-struct rtx_def *i386_compare_op0, *i386_compare_op1;
+struct rtx_def *i386_compare_op0 = NULL_RTX;
+struct rtx_def *i386_compare_op1 = NULL_RTX;
 struct rtx_def *(*i386_compare_gen)(), *(*i386_compare_gen_eq)();
+
+/* Register allocation order */
+char *i386_reg_alloc_order = (char *)0;
+static char regs_allocated[FIRST_PSEUDO_REGISTER];
+
+
+/* Sometimes certain combinations of command options do not make
+   sense on a particular target machine.  You can define a macro
+   `OVERRIDE_OPTIONS' to take account of this.  This macro, if
+   defined, is executed once just after all the command options have
+   been parsed.
+
+   Don't use this macro to turn on various extra optimizations for
+   `-O'.  That is what `OPTIMIZATION_OPTIONS' is for.  */
+
+void
+override_options ()
+{
+  int ch, i, regno;
+
+#ifdef SUBTARGET_OVERRIDE_OPTIONS
+  SUBTARGET_OVERRIDE_OPTIONS;
+#endif
+
+  /* Validate registers in register allocation order */
+  if (i386_reg_alloc_order)
+    {
+      for (i = 0; (ch = i386_reg_alloc_order[i]) != '\0'; i++)
+	{
+	  switch (ch)
+	    {
+	    case 'a':	regno = 0;	break;
+	    case 'd':	regno = 1;	break;
+	    case 'c':	regno = 2;	break;
+	    case 'b':	regno = 3;	break;
+	    case 'S':	regno = 4;	break;
+	    case 'D':	regno = 5;	break;
+	    case 'B':	regno = 6;	break;
+
+	    default:	fatal ("Register '%c' is unknown", ch);
+	    }
+
+	  if (regs_allocated[regno])
+	    fatal ("Register '%c' was already specified in the allocation order", ch);
+
+	  regs_allocated[regno] = 1;
+	}
+    }
+}
+
+/* A C statement (sans semicolon) to choose the order in which to
+   allocate hard registers for pseudo-registers local to a basic
+   block.
+
+   Store the desired register order in the array `reg_alloc_order'.
+   Element 0 should be the register to allocate first; element 1, the
+   next register; and so on.
+
+   The macro body should not assume anything about the contents of
+   `reg_alloc_order' before execution of the macro.
+
+   On most machines, it is not necessary to define this macro.  */
+
+void
+order_regs_for_local_alloc ()
+{
+  int i, ch, order, regno;
+
+  /* User specified the register allocation order */
+  if (i386_reg_alloc_order)
+    {
+      for (i = order = 0; (ch = i386_reg_alloc_order[i]) != '\0'; i++)
+	{
+	  switch (ch)
+	    {
+	    case 'a':	regno = 0;	break;
+	    case 'd':	regno = 1;	break;
+	    case 'c':	regno = 2;	break;
+	    case 'b':	regno = 3;	break;
+	    case 'S':	regno = 4;	break;
+	    case 'D':	regno = 5;	break;
+	    case 'B':	regno = 6;	break;
+	    }
+
+	  reg_alloc_order[order++] = regno;
+	}
+
+      for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+	{
+	  if (!regs_allocated[i])
+	    reg_alloc_order[order++] = i;
+	}
+    }
+
+  /* If users did not specify a register allocation order, favor eax
+     normally except if DImode variables are used, in which case
+     favor edx before eax, which seems to cause less spill register
+     not found messages.  */
+  else
+    {
+      rtx insn;
+
+      for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
+	reg_alloc_order[i] = i;
+
+      if (optimize)
+	{
+	  int use_dca = FALSE;
+
+	  for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
+	    {
+	      if (GET_CODE (insn) == INSN)
+		{
+		  rtx set = NULL_RTX;
+		  rtx pattern = PATTERN (insn);
+
+		  if (GET_CODE (pattern) == SET)
+		    set = pattern;
+
+		  else if ((GET_CODE (pattern) == PARALLEL
+			    || GET_CODE (pattern) == SEQUENCE)
+			   && GET_CODE (XVECEXP (pattern, 0, 0)) == SET)
+		    set = XVECEXP (pattern, 0, 0);
+
+		  if (set && GET_MODE (SET_SRC (set)) == DImode)
+		    {
+		      use_dca = TRUE;
+		      break;
+		    }
+		}
+	    }
+
+	  if (use_dca)
+	    {
+	      reg_alloc_order[0] = 1;	/* edx */
+	      reg_alloc_order[1] = 2;	/* ecx */
+	      reg_alloc_order[2] = 0;	/* eax */
+	    }
+	}
+    }
+}
+
 
 /* Output an insn whose source is a 386 integer register.  SRC is the
    rtx for the register, and TEMPLATE is the op-code template.  SRC may
@@ -235,6 +378,7 @@ find_addr_reg (addr)
   abort ();
 }
 
+
 /* Output an insn to add the constant N to the register X.  */
 
 static void
@@ -243,19 +387,25 @@ asm_add (n, x)
      rtx x;
 {
   rtx xops[2];
-  xops[1] = x;
-  if (n < 0)
+  xops[0] = x;
+
+  if (n == -1)
+    output_asm_insn (AS1 (dec%L0,%0), xops);
+  else if (n == 1)
+    output_asm_insn (AS1 (inc%L0,%0), xops);
+  else if (n < 0)
     {
-      xops[0] = GEN_INT (-n);
-      output_asm_insn (AS2 (sub%L0,%0,%1), xops);
+      xops[1] = GEN_INT (-n);
+      output_asm_insn (AS2 (sub%L0,%1,%0), xops);
     }
   else if (n > 0)
     {
-      xops[0] = GEN_INT (n);
-      output_asm_insn (AS2 (add%L0,%0,%1), xops);
+      xops[1] = GEN_INT (n);
+      output_asm_insn (AS2 (add%L0,%1,%0), xops);
     }
 }
 
+
 /* Output assembler code to perform a doubleword move insn
    with operands OPERANDS.  */
 
@@ -587,6 +737,199 @@ compadr:
 
   return "";
 }
+
+
+#define MAX_TMPS 2		/* max temporary registers used */
+
+/* Output the appropriate code to move push memory on the stack */
+
+char *
+output_move_pushmem (operands, insn, length, tmp_start, n_operands)
+     rtx operands[];
+     rtx insn;
+     int length;
+     int tmp_start;
+     int n_operands;
+{
+
+  struct {
+    char *load;
+    char *push;
+    rtx   xops[2];
+  } tmp_info[MAX_TMPS];
+
+  rtx src = operands[1];
+  int max_tmps = 0;
+  int offset = 0;
+  int stack_p = reg_overlap_mentioned_p (stack_pointer_rtx, src);
+  int stack_offset = 0;
+  int i, num_tmps;
+  rtx xops[1];
+
+  if (!offsettable_memref_p (src))
+    fatal_insn ("Source is not offsettable", insn);
+
+  if ((length & 3) != 0)
+    fatal_insn ("Pushing non-word aligned size", insn);
+
+  /* Figure out which temporary registers we have available */
+  for (i = tmp_start; i < n_operands; i++)
+    {
+      if (GET_CODE (operands[i]) == REG)
+	{
+	  if (reg_overlap_mentioned_p (operands[i], src))
+	    continue;
+
+	  tmp_info[ max_tmps++ ].xops[1] = operands[i];
+	  if (max_tmps == MAX_TMPS)
+	    break;
+	}
+    }
+
+  if (max_tmps == 0)
+    for (offset = length - 4; offset >= 0; offset -= 4)
+      {
+	xops[0] = adj_offsettable_operand (src, offset + stack_offset);
+	output_asm_insn (AS1(push%L0,%0), xops);
+	if (stack_p)
+	  stack_offset += 4;
+      }
+
+  else
+    for (offset = length - 4; offset >= 0; )
+      {
+	for (num_tmps = 0; num_tmps < max_tmps && offset >= 0; num_tmps++)
+	  {
+	    tmp_info[num_tmps].load    = AS2(mov%L0,%0,%1);
+	    tmp_info[num_tmps].push    = AS1(push%L0,%1);
+	    tmp_info[num_tmps].xops[0] = adj_offsettable_operand (src, offset + stack_offset);
+	    offset -= 4;
+	  }
+
+	for (i = 0; i < num_tmps; i++)
+	  output_asm_insn (tmp_info[i].load, tmp_info[i].xops);
+
+	for (i = 0; i < num_tmps; i++)
+	  output_asm_insn (tmp_info[i].push, tmp_info[i].xops);
+
+	if (stack_p)
+	  stack_offset += 4*num_tmps;
+      }
+
+  return "";
+}
+
+
+
+/* Output the appropriate code to move data between two memory locations */
+
+char *
+output_move_memory (operands, insn, length, tmp_start, n_operands)
+     rtx operands[];
+     rtx insn;
+     int length;
+     int tmp_start;
+     int n_operands;
+{
+  struct {
+    char *load;
+    char *store;
+    rtx   xops[3];
+  } tmp_info[MAX_TMPS];
+
+  rtx dest = operands[0];
+  rtx src  = operands[1];
+  rtx qi_tmp = NULL_RTX;
+  int max_tmps = 0;
+  int offset = 0;
+  int i, num_tmps;
+  rtx xops[3];
+
+  if (GET_CODE (dest) == MEM
+      && GET_CODE (XEXP (dest, 0)) == PRE_INC
+      && XEXP (XEXP (dest, 0), 0) == stack_pointer_rtx)
+    return output_move_pushmem (operands, insn, length, tmp_start, n_operands);
+
+  if (!offsettable_memref_p (src))
+    fatal_insn ("Source is not offsettable", insn);
+
+  if (!offsettable_memref_p (dest))
+    fatal_insn ("Destination is not offsettable", insn);
+
+  /* Figure out which temporary registers we have available */
+  for (i = tmp_start; i < n_operands; i++)
+    {
+      if (GET_CODE (operands[i]) == REG)
+	{
+	  if ((length & 1) != 0 && !qi_tmp && QI_REG_P (operands[i]))
+	    qi_tmp = operands[i];
+
+	  if (reg_overlap_mentioned_p (operands[i], dest))
+	    fatal_insn ("Temporary register overlaps the destination", insn);
+
+	  if (reg_overlap_mentioned_p (operands[i], src))
+	    fatal_insn ("Temporary register overlaps the source", insn);
+
+	  tmp_info[ max_tmps++ ].xops[2] = operands[i];
+	  if (max_tmps == MAX_TMPS)
+	    break;
+	}
+    }
+
+  if (max_tmps == 0)
+    fatal_insn ("No scratch registers were found to do memory->memory moves", insn);
+
+  if ((length & 1) != 0)
+    {
+      if (!qi_tmp)
+	fatal_insn ("No byte register found when moving odd # of bytes.", insn);
+    }
+
+  while (length > 1)
+    {
+      for (num_tmps = 0; num_tmps < max_tmps; num_tmps++)
+	{
+	  if (length >= 4)
+	    {
+	      tmp_info[num_tmps].load    = AS2(mov%L0,%1,%2);
+	      tmp_info[num_tmps].store   = AS2(mov%L0,%2,%0);
+	      tmp_info[num_tmps].xops[0] = adj_offsettable_operand (dest, offset);
+	      tmp_info[num_tmps].xops[1] = adj_offsettable_operand (src, offset);
+	      offset += 4;
+	      length -= 4;
+	    }
+	  else if (length >= 2)
+	    {
+	      tmp_info[num_tmps].load    = AS2(mov%W0,%1,%2);
+	      tmp_info[num_tmps].store   = AS2(mov%W0,%2,%0);
+	      tmp_info[num_tmps].xops[0] = adj_offsettable_operand (dest, offset);
+	      tmp_info[num_tmps].xops[1] = adj_offsettable_operand (src, offset);
+	      offset += 2;
+	      length -= 2;
+	    }
+	  else
+	    break;
+	}
+
+      for (i = 0; i < num_tmps; i++)
+	output_asm_insn (tmp_info[i].load, tmp_info[i].xops);
+
+      for (i = 0; i < num_tmps; i++)
+	output_asm_insn (tmp_info[i].store, tmp_info[i].xops);
+    }
+
+  if (length == 1)
+    {
+      xops[0] = adj_offsettable_operand (dest, offset);
+      xops[1] = adj_offsettable_operand (src, offset);
+      xops[2] = qi_tmp;
+      output_asm_insn (AS2(mov%B0,%1,%2), xops);
+      output_asm_insn (AS2(mov%B0,%2,%0), xops);
+    }
+
+  return "";
+}
+
 
 int
 standard_80387_constant_p (x)
@@ -741,111 +1084,6 @@ symbolic_reference_mentioned_p (op)
   return 0;
 }
 
-/* Return a legitimate reference for ORIG (an address) using the
-   register REG.  If REG is 0, a new pseudo is generated.
-
-   There are three types of references that must be handled:
-
-   1. Global data references must load the address from the GOT, via
-      the PIC reg.  An insn is emitted to do this load, and the reg is
-      returned.
-
-   2. Static data references must compute the address as an offset
-      from the GOT, whose base is in the PIC reg.  An insn is emitted to
-      compute the address into a reg, and the reg is returned.  Static
-      data objects have SYMBOL_REF_FLAG set to differentiate them from
-      global data objects.
-
-   3. Constant pool addresses must be handled special.  They are
-      considered legitimate addresses, but only if not used with regs.
-      When printed, the output routines know to print the reference with the
-      PIC reg, even though the PIC reg doesn't appear in the RTL.
-
-   GO_IF_LEGITIMATE_ADDRESS rejects symbolic references unless the PIC
-   reg also appears in the address (except for constant pool references,
-   noted above).
-
-   "switch" statements also require special handling when generating
-   PIC code.  See comments by the `casesi' insn in i386.md for details.  */
-
-rtx
-legitimize_pic_address (orig, reg)
-     rtx orig;
-     rtx reg;
-{
-  rtx addr = orig;
-  rtx new = orig;
-
-  if (GET_CODE (addr) == SYMBOL_REF || GET_CODE (addr) == LABEL_REF)
-    {
-      if (GET_CODE (addr) == SYMBOL_REF && CONSTANT_POOL_ADDRESS_P (addr))
-	reg = new = orig;
-      else
-	{
-	  if (reg == 0)
-	    reg = gen_reg_rtx (Pmode);
-
-	  if (GET_CODE (addr) == SYMBOL_REF && SYMBOL_REF_FLAG (addr))
-	    new = gen_rtx (PLUS, Pmode, pic_offset_table_rtx, orig);
-	  else
-	    new = gen_rtx (MEM, Pmode,
-			   gen_rtx (PLUS, Pmode,
-				    pic_offset_table_rtx, orig));
-
-	  emit_move_insn (reg, new);
-	}
-      current_function_uses_pic_offset_table = 1;
-      return reg;
-    }
-  else if (GET_CODE (addr) == CONST || GET_CODE (addr) == PLUS)
-    {
-      rtx base;
-
-      if (GET_CODE (addr) == CONST)
-	{
-	  addr = XEXP (addr, 0);
-	  if (GET_CODE (addr) != PLUS)
-	    abort ();
-	}
-
-      if (XEXP (addr, 0) == pic_offset_table_rtx)
-	return orig;
-
-      if (reg == 0)
-	reg = gen_reg_rtx (Pmode);
-
-      base = legitimize_pic_address (XEXP (addr, 0), reg);
-      addr = legitimize_pic_address (XEXP (addr, 1),
-				     base == reg ? NULL_RTX : reg);
-
-      if (GET_CODE (addr) == CONST_INT)
-	return plus_constant (base, INTVAL (addr));
-
-      if (GET_CODE (addr) == PLUS && CONSTANT_P (XEXP (addr, 1)))
-	{
-	  base = gen_rtx (PLUS, Pmode, base, XEXP (addr, 0));
-	  addr = XEXP (addr, 1);
-	}
-	return gen_rtx (PLUS, Pmode, base, addr);
-    }
-  return new;
-}
-
-/* Emit insns to move operands[1] into operands[0].  */
-
-void
-emit_pic_move (operands, mode)
-     rtx *operands;
-     enum machine_mode mode;
-{
-  rtx temp = reload_in_progress ? operands[0] : gen_reg_rtx (Pmode);
-
-  if (GET_CODE (operands[0]) == MEM && SYMBOLIC_CONST (operands[1]))
-    operands[1] = (rtx) force_reg (SImode, operands[1]);
-  else
-    operands[1] = legitimize_pic_address (operands[1], temp);
-}
-
 /* This function generates the assembly code for function entry.
    FILE is an stdio stream to output the code to.
    SIZE is an int: how many units of temporary storage to allocate. */
@@ -859,8 +1097,7 @@ function_prologue (file, size)
   int limit;
   rtx xops[4];
   int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
-				  || current_function_uses_const_pool
-				  || profile_flag || profile_block_flag);
+				  || current_function_uses_const_pool);
 
   xops[0] = stack_pointer_rtx;
   xops[1] = frame_pointer_rtx;
@@ -921,16 +1158,8 @@ simple_386_epilogue ()
   int nregs = 0;
   int reglimit = (frame_pointer_needed
 		  ? FRAME_POINTER_REGNUM : STACK_POINTER_REGNUM);
-
-#ifdef FUNCTION_PROFILER_EPILOGUE
-  if (profile_flag)
-    return 0;
-#endif
-
-  if (flag_pic && (current_function_uses_pic_offset_table
-		   || current_function_uses_const_pool
-		   || profile_flag || profile_block_flag))
-    return 0;
+  int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
+				  || current_function_uses_const_pool);
 
 #ifdef NON_SAVING_SETJMP
   if (NON_SAVING_SETJMP && current_function_calls_setjmp)
@@ -941,12 +1170,14 @@ simple_386_epilogue ()
     return 0;
 
   for (regno = reglimit - 1; regno >= 0; regno--)
-    if (regs_ever_live[regno] && ! call_used_regs[regno])
+    if ((regs_ever_live[regno] && ! call_used_regs[regno])
+	|| (regno == PIC_OFFSET_TABLE_REGNUM && pic_reg_used))
       nregs++;
 
   return nregs == 0 || ! frame_pointer_needed;
 }
 
+
 /* This function generates the assembly code for function exit.
    FILE is an stdio stream to output the code to.
    SIZE is an int: how many units of temporary storage to deallocate. */
@@ -962,11 +1193,6 @@ function_epilogue (file, size)
   rtx xops[3];
   int pic_reg_used = flag_pic && (current_function_uses_pic_offset_table
 				  || current_function_uses_const_pool);
-
-#ifdef FUNCTION_PROFILER_EPILOGUE
-  if (profile_flag)
-    FUNCTION_PROFILER_EPILOGUE (file);
-#endif
 
   /* Compute the number of registers to pop */
 
@@ -1025,7 +1251,7 @@ function_epilogue (file, size)
     {
       /* On i486, mov & pop is faster than "leave". */
 
-      if (TARGET_486)
+      if (!TARGET_386)
 	{
 	  xops[0] = frame_pointer_rtx;
 	  output_asm_insn (AS2 (mov%L2,%0,%2), xops);
@@ -1064,6 +1290,527 @@ function_epilogue (file, size)
   else
     output_asm_insn ("ret", xops);
 }
+
+
+/* GO_IF_LEGITIMATE_ADDRESS recognizes an RTL expression
+   that is a valid memory address for an instruction.
+   The MODE argument is the machine mode for the MEM expression
+   that wants to use this address.
+
+   On x86, legitimate addresses are:
+	base				movl (base),reg
+	displacement			movl disp,reg
+	base + displacement		movl disp(base),reg
+	index + base			movl (base,index),reg
+	(index + base) + displacement	movl disp(base,index),reg
+	index*scale			movl (,index,scale),reg
+	index*scale + disp		movl disp(,index,scale),reg
+	index*scale + base 		movl (base,index,scale),reg
+	(index*scale + base) + disp	movl disp(base,index,scale),reg
+
+	In each case, scale can be 1, 2, 4, 8.  */
+
+/* This is exactly the same as print_operand_addr, except that
+   it recognizes addresses instead of printing them.
+
+   It only recognizes address in canonical form.  LEGITIMIZE_ADDRESS should
+   convert common non-canonical forms to canonical form so that they will
+   be recognized.  */
+
+#define ADDR_INVALID(msg,insn)						\
+do {									\
+  if (TARGET_DEBUG_ADDR)						\
+    {									\
+      fprintf (stderr, msg);						\
+      debug_rtx (insn);							\
+    }									\
+} while (0)
+
+int
+legitimate_address_p (mode, addr, strict)
+     enum machine_mode mode;
+     register rtx addr;
+     int strict;
+{
+  rtx base  = NULL_RTX;
+  rtx indx  = NULL_RTX;
+  rtx scale = NULL_RTX;
+  rtx disp  = NULL_RTX;
+
+  if (TARGET_DEBUG_ADDR)
+    {
+      fprintf (stderr,
+	       "\n==========\nGO_IF_LEGITIMATE_ADDRESS, mode = %s, strict = %d\n",
+	       GET_MODE_NAME (mode), strict);
+
+      debug_rtx (addr);
+    }
+
+  if (GET_CODE (addr) == REG || GET_CODE (addr) == SUBREG)
+      base = addr;				/* base reg */
+
+  else if (GET_CODE (addr) == PLUS)
+    {
+      rtx op0 = XEXP (addr, 0);
+      rtx op1 = XEXP (addr, 1);
+      enum rtx_code code0 = GET_CODE (op0);
+      enum rtx_code code1 = GET_CODE (op1);
+
+      if (code0 == REG || code0 == SUBREG)
+	{
+	  if (code1 == REG || code1 == SUBREG)
+	    {
+	      indx = op0;			/* index + base */
+	      base = op1;
+	    }
+
+	  else
+	    {
+	      base = op0;			/* base + displacement */
+	      disp = op1;
+	    }
+	}
+
+      else if (code0 == MULT)
+	{
+	  indx  = XEXP (op0, 0);
+	  scale = XEXP (op0, 1);
+
+	  if (code1 == REG || code1 == SUBREG)
+	    base = op1;				/* index*scale + base */
+
+	  else
+	    disp = op1;				/* index*scale + disp */
+	}
+
+      else if (code0 == PLUS && GET_CODE (XEXP (op0, 0)) == MULT)
+	{
+	  indx  = XEXP (XEXP (op0, 0), 0);	/* index*scale + base + disp */
+	  scale = XEXP (XEXP (op0, 0), 1);
+	  base  = XEXP (op0, 1);
+	  disp  = op1;
+	}
+
+      else if (code0 == PLUS)
+	{
+	  indx = XEXP (op0, 0);			/* index + base + disp */
+	  base = XEXP (op0, 1);
+	  disp = op1;
+	}
+
+      else
+	{
+	  ADDR_INVALID ("PLUS subcode is not valid.\n", op0);
+	  return FALSE;
+	}
+    }
+
+  else if (GET_CODE (addr) == MULT)
+    {
+      indx  = XEXP (addr, 0);			/* index*scale */
+      scale = XEXP (addr, 1);
+    }
+
+  else
+    disp = addr;				/* displacement */
+
+  /* Allow arg pointer and stack pointer as index if there is not scaling */
+  if (base && indx && !scale
+      && (indx == arg_pointer_rtx || indx == stack_pointer_rtx))
+    {
+      rtx tmp = base;
+      base = indx;
+      indx = tmp;
+    }
+
+  /* Validate base register */
+  /* Don't allow SUBREG's here, it can lead to spill failures when the base
+     is one word out of a two word structure, which is represented internally
+     as a DImode int.  */
+  if (base)
+    {
+      if (GET_CODE (base) != REG)
+	{
+	  ADDR_INVALID ("Base is not a register.\n", base);
+	  return FALSE;
+	}
+
+      if ((strict && !REG_OK_FOR_BASE_STRICT_P (base))
+	  || (!strict && !REG_OK_FOR_BASE_NONSTRICT_P (base)))
+	{
+	  ADDR_INVALID ("Base is not valid.\n", base);
+	  return FALSE;
+	}
+    }
+
+  /* Validate index register */
+  /* Don't allow SUBREG's here, it can lead to spill failures when the index
+     is one word out of a two word structure, which is represented internally
+     as a DImode int.  */
+  if (indx)
+    {
+      if (GET_CODE (indx) != REG)
+	{
+	  ADDR_INVALID ("Index is not a register.\n", indx);
+	  return FALSE;
+	}
+
+      if ((strict && !REG_OK_FOR_INDEX_STRICT_P (indx))
+	  || (!strict && !REG_OK_FOR_INDEX_NONSTRICT_P (indx)))
+	{
+	  ADDR_INVALID ("Index is not valid.\n", indx);
+	  return FALSE;
+	}
+    }
+  else if (scale)
+    abort ();					/* scale w/o index illegal */
+
+  /* Validate scale factor */
+  if (scale)
+    {
+      HOST_WIDE_INT value;
+
+      if (GET_CODE (scale) != CONST_INT)
+	{
+	  ADDR_INVALID ("Scale is not valid.\n", scale);
+	  return FALSE;
+	}
+
+      value = INTVAL (scale);
+      if (value != 1 && value != 2 && value != 4 && value != 8)
+	{
+	  ADDR_INVALID ("Scale is not a good multiplier.\n", scale);
+	  return FALSE;
+	}
+    }
+
+  /* Validate displacement */
+  if (disp)
+    {
+      if (!CONSTANT_ADDRESS_P (disp))
+	{
+	  ADDR_INVALID ("Displacement is not valid.\n", disp);
+	  return FALSE;
+	}
+
+      if (GET_CODE (disp) == CONST_DOUBLE)
+	{
+	  ADDR_INVALID ("Displacement is a const_double.\n", disp);
+	  return FALSE;
+	}
+
+      if (flag_pic && SYMBOLIC_CONST (disp) && base != pic_offset_table_rtx
+	  && (indx != pic_offset_table_rtx || scale != NULL_RTX))
+	{
+	  ADDR_INVALID ("Displacement is an invalid pic reference.\n", disp);
+	  return FALSE;
+	}
+
+      if (HALF_PIC_P () && HALF_PIC_ADDRESS_P (disp)
+	  && (base != NULL_RTX || indx != NULL_RTX))
+	{
+	  ADDR_INVALID ("Displacement is an invalid half-pic reference.\n", disp);
+	  return FALSE;
+	}
+    }
+
+  if (TARGET_DEBUG_ADDR)
+    fprintf (stderr, "Address is valid.\n");
+
+  /* Everything looks valid, return true */
+  return TRUE;
+}
+
+
+/* Return a legitimate reference for ORIG (an address) using the
+   register REG.  If REG is 0, a new pseudo is generated.
+
+   There are three types of references that must be handled:
+
+   1. Global data references must load the address from the GOT, via
+      the PIC reg.  An insn is emitted to do this load, and the reg is
+      returned.
+
+   2. Static data references must compute the address as an offset
+      from the GOT, whose base is in the PIC reg.  An insn is emitted to
+      compute the address into a reg, and the reg is returned.  Static
+      data objects have SYMBOL_REF_FLAG set to differentiate them from
+      global data objects.
+
+   3. Constant pool addresses must be handled special.  They are
+      considered legitimate addresses, but only if not used with regs.
+      When printed, the output routines know to print the reference with the
+      PIC reg, even though the PIC reg doesn't appear in the RTL.
+
+   GO_IF_LEGITIMATE_ADDRESS rejects symbolic references unless the PIC
+   reg also appears in the address (except for constant pool references,
+   noted above).
+
+   "switch" statements also require special handling when generating
+   PIC code.  See comments by the `casesi' insn in i386.md for details.  */
+
+rtx
+legitimize_pic_address (orig, reg)
+     rtx orig;
+     rtx reg;
+{
+  rtx addr = orig;
+  rtx new = orig;
+
+  if (GET_CODE (addr) == SYMBOL_REF || GET_CODE (addr) == LABEL_REF)
+    {
+      if (GET_CODE (addr) == SYMBOL_REF && CONSTANT_POOL_ADDRESS_P (addr))
+	reg = new = orig;
+      else
+	{
+	  if (reg == 0)
+	    reg = gen_reg_rtx (Pmode);
+
+	  if ((GET_CODE (addr) == SYMBOL_REF && SYMBOL_REF_FLAG (addr))
+	      || GET_CODE (addr) == LABEL_REF)
+	    new = gen_rtx (PLUS, Pmode, pic_offset_table_rtx, orig);
+	  else
+	    new = gen_rtx (MEM, Pmode,
+			   gen_rtx (PLUS, Pmode,
+				    pic_offset_table_rtx, orig));
+
+	  emit_move_insn (reg, new);
+	}
+      current_function_uses_pic_offset_table = 1;
+      return reg;
+    }
+  else if (GET_CODE (addr) == CONST || GET_CODE (addr) == PLUS)
+    {
+      rtx base;
+
+      if (GET_CODE (addr) == CONST)
+	{
+	  addr = XEXP (addr, 0);
+	  if (GET_CODE (addr) != PLUS)
+	    abort ();
+	}
+
+      if (XEXP (addr, 0) == pic_offset_table_rtx)
+	return orig;
+
+      if (reg == 0)
+	reg = gen_reg_rtx (Pmode);
+
+      base = legitimize_pic_address (XEXP (addr, 0), reg);
+      addr = legitimize_pic_address (XEXP (addr, 1),
+				     base == reg ? NULL_RTX : reg);
+
+      if (GET_CODE (addr) == CONST_INT)
+	return plus_constant (base, INTVAL (addr));
+
+      if (GET_CODE (addr) == PLUS && CONSTANT_P (XEXP (addr, 1)))
+	{
+	  base = gen_rtx (PLUS, Pmode, base, XEXP (addr, 0));
+	  addr = XEXP (addr, 1);
+	}
+	return gen_rtx (PLUS, Pmode, base, addr);
+    }
+  return new;
+}
+
+
+/* Emit insns to move operands[1] into operands[0].  */
+
+void
+emit_pic_move (operands, mode)
+     rtx *operands;
+     enum machine_mode mode;
+{
+  rtx temp = reload_in_progress ? operands[0] : gen_reg_rtx (Pmode);
+
+  if (GET_CODE (operands[0]) == MEM && SYMBOLIC_CONST (operands[1]))
+    operands[1] = (rtx) force_reg (SImode, operands[1]);
+  else
+    operands[1] = legitimize_pic_address (operands[1], temp);
+}
+
+
+/* Try machine-dependent ways of modifying an illegitimate address
+   to be legitimate.  If we find one, return the new, valid address.
+   This macro is used in only one place: `memory_address' in explow.c.
+
+   OLDX is the address as it was before break_out_memory_refs was called.
+   In some cases it is useful to look at this to decide what needs to be done.
+
+   MODE and WIN are passed so that this macro can use
+   GO_IF_LEGITIMATE_ADDRESS.
+
+   It is always safe for this macro to do nothing.  It exists to recognize
+   opportunities to optimize the output.
+
+   For the 80386, we handle X+REG by loading X into a register R and
+   using R+REG.  R will go in a general reg and indexing will be used.
+   However, if REG is a broken-out memory address or multiplication,
+   nothing needs to be done because REG can certainly go in a general reg.
+
+   When -fpic is used, special handling is needed for symbolic references.
+   See comments by legitimize_pic_address in i386.c for details.  */
+
+rtx
+legitimize_address (x, oldx, mode)
+     register rtx x;
+     register rtx oldx;
+     enum machine_mode mode;
+{
+  int changed = 0;
+  unsigned log;
+
+  if (TARGET_DEBUG_ADDR)
+    {
+      fprintf (stderr, "\n==========\nLEGITIMIZE_ADDRESS, mode = %s\n", GET_MODE_NAME (mode));
+      debug_rtx (x);
+    }
+
+  if (flag_pic && SYMBOLIC_CONST (x))
+    return legitimize_pic_address (x, 0);
+
+  /* Canonicalize shifts by 0, 1, 2, 3 into multiply */
+  if (GET_CODE (x) == ASHIFT
+      && GET_CODE (XEXP (x, 1)) == CONST_INT
+      && (log = (unsigned)exact_log2 (INTVAL (XEXP (x, 1)))) < 4)
+    {
+      changed = 1;
+      x = gen_rtx (MULT, Pmode,
+		   force_reg (Pmode, XEXP (x, 0)),
+		   GEN_INT (1 << log));
+    }
+
+  if (GET_CODE (x) == PLUS)
+    {
+      /* Canonicalize shifts by 0, 1, 2, 3 into multiply */
+      if (GET_CODE (XEXP (x, 0)) == ASHIFT
+	  && GET_CODE (XEXP (XEXP (x, 0), 1)) == CONST_INT
+	  && (log = (unsigned)exact_log2 (INTVAL (XEXP (XEXP (x, 0), 1)))) < 4)
+	{
+	  changed = 1;
+	  XEXP (x, 0) = gen_rtx (MULT, Pmode,
+				 force_reg (Pmode, XEXP (XEXP (x, 0), 0)),
+				 GEN_INT (1 << log));
+	}
+
+      if (GET_CODE (XEXP (x, 1)) == ASHIFT
+	  && GET_CODE (XEXP (XEXP (x, 1), 1)) == CONST_INT
+	  && (log = (unsigned)exact_log2 (INTVAL (XEXP (XEXP (x, 1), 1)))) < 4)
+	{
+	  changed = 1;
+	  XEXP (x, 1) = gen_rtx (MULT, Pmode,
+				 force_reg (Pmode, XEXP (XEXP (x, 1), 0)),
+				 GEN_INT (1 << log));
+	}
+
+      /* Put multiply first if it isn't already */
+      if (GET_CODE (XEXP (x, 1)) == MULT)
+	{
+	  rtx tmp = XEXP (x, 0);
+	  XEXP (x, 0) = XEXP (x, 1);
+	  XEXP (x, 1) = tmp;
+	  changed = 1;
+	}
+
+      /* Canonicalize (plus (mult (reg) (const)) (plus (reg) (const)))
+	 into (plus (plus (mult (reg) (const)) (reg)) (const)).  This can be
+	 created by virtual register instantiation, register elimination, and
+	 similar optimizations.  */
+      if (GET_CODE (XEXP (x, 0)) == MULT && GET_CODE (XEXP (x, 1)) == PLUS)
+	{
+	  changed = 1;
+	  x = gen_rtx (PLUS, Pmode,
+		       gen_rtx (PLUS, Pmode, XEXP (x, 0), XEXP (XEXP (x, 1), 0)),
+		       XEXP (XEXP (x, 1), 1));
+	}
+
+      /* Canonicalize (plus (plus (mult (reg) (const)) (plus (reg) (const))) const)
+	 into (plus (plus (mult (reg) (const)) (reg)) (const)).  */
+      else if (GET_CODE (x) == PLUS && GET_CODE (XEXP (x, 0)) == PLUS
+	       && GET_CODE (XEXP (XEXP (x, 0), 0)) == MULT
+	       && GET_CODE (XEXP (XEXP (x, 0), 1)) == PLUS
+	       && CONSTANT_P (XEXP (x, 1)))
+	{
+	  rtx constant, other;
+
+	  if (GET_CODE (XEXP (x, 1)) == CONST_INT)
+	    {
+	      constant = XEXP (x, 1);
+	      other = XEXP (XEXP (XEXP (x, 0), 1), 1);
+	    }
+	  else if (GET_CODE (XEXP (XEXP (XEXP (x, 0), 1), 1)) == CONST_INT)
+	    {
+	      constant = XEXP (XEXP (XEXP (x, 0), 1), 1);
+	      other = XEXP (x, 1);
+	    }
+	  else
+	    constant = 0;
+
+	  if (constant)
+	    {
+	      changed = 1;
+	      x = gen_rtx (PLUS, Pmode,
+			   gen_rtx (PLUS, Pmode, XEXP (XEXP (x, 0), 0),
+				    XEXP (XEXP (XEXP (x, 0), 1), 0)),
+			   plus_constant (other, INTVAL (constant)));
+	    }
+	}
+
+      if (changed && legitimate_address_p (mode, x, FALSE))
+	return x;
+
+      if (GET_CODE (XEXP (x, 0)) == MULT)
+	{
+	  changed = 1;
+	  XEXP (x, 0) = force_operand (XEXP (x, 0), 0);
+	}
+
+      if (GET_CODE (XEXP (x, 1)) == MULT)
+	{
+	  changed = 1;
+	  XEXP (x, 1) = force_operand (XEXP (x, 1), 0);
+	}
+
+      if (changed
+	  && GET_CODE (XEXP (x, 1)) == REG
+	  && GET_CODE (XEXP (x, 0)) == REG)
+	return x;
+
+      if (flag_pic && SYMBOLIC_CONST (XEXP (x, 1)))
+	{
+	  changed = 1;
+	  x = legitimize_pic_address (x, 0);
+	}
+
+      if (changed && legitimate_address_p (mode, x, FALSE))
+	return x;
+
+      if (GET_CODE (XEXP (x, 0)) == REG)
+	{
+	  register rtx temp = gen_reg_rtx (Pmode);
+	  register rtx val  = force_operand (XEXP (x, 1), temp);
+	  if (val != temp)
+	    emit_move_insn (temp, val);
+
+	  XEXP (x, 1) = temp;
+	  return x;
+	}
+
+      else if (GET_CODE (XEXP (x, 1)) == REG)
+	{
+	  register rtx temp = gen_reg_rtx (Pmode);
+	  register rtx val  = force_operand (XEXP (x, 0), temp);
+	  if (val != temp)
+	    emit_move_insn (temp, val);
+
+	  XEXP (x, 0) = temp;
+	  return x;
+	}
+    }
+
+  return x;
+}
+
 
 /* Print an integer constant expression in assembler syntax.  Addition
    and subtraction are the only arithmetic that may appear in these
@@ -1102,7 +1849,9 @@ output_pic_addr_const (file, x, code)
 	fprintf (file, "@GOTOFF(%%ebx)");
       else if (code == 'P')
 	fprintf (file, "@PLT");
-      else if (GET_CODE (x) == LABEL_REF || ! SYMBOL_REF_FLAG (x))
+      else if (GET_CODE (x) == LABEL_REF)
+	fprintf (file, "@GOTOFF");
+      else if (! SYMBOL_REF_FLAG (x))
 	fprintf (file, "@GOT");
       else
 	fprintf (file, "@GOTOFF");
@@ -1424,15 +2173,14 @@ print_operand_address (file, addr)
 
 	  if (addr != 0)
 	    {
-	      if (GET_CODE (addr) == LABEL_REF)
+	      if (flag_pic)
+		output_pic_addr_const (file, addr, 0);
+
+	      else if (GET_CODE (addr) == LABEL_REF)
 		output_asm_label (addr);
+
 	      else
-		{
-		  if (flag_pic)
-		    output_pic_addr_const (file, addr, 0);
-		  else
-		    output_addr_const (file, addr);
-		}
+		output_addr_const (file, addr);
 	    }
 
   	  if (ireg != 0 && GET_CODE (ireg) == MULT)
@@ -1666,32 +2414,7 @@ binary_387_op (op, mode)
     }
 }
 
-/* Return 1 if this is a valid conversion operation on a 387.
-   OP is the expression matched, and MODE is its mode. */
-
-int
-convert_387_op (op, mode)
-    register rtx op;
-    enum machine_mode mode;
-{
-  if (mode != VOIDmode && mode != GET_MODE (op))
-    return 0;
-
-  switch (GET_CODE (op))
-    {
-    case FLOAT:
-      return GET_MODE (XEXP (op, 0)) == SImode;
-
-    case FLOAT_EXTEND:
-      return ((mode == DFmode && GET_MODE (XEXP (op, 0)) == SFmode)
-	      || (mode == XFmode && GET_MODE (XEXP (op, 0)) == DFmode)
-	      || (mode == XFmode && GET_MODE (XEXP (op, 0)) == SFmode));
-
-    default:
-      return 0;
-    }
-}
-
+
 /* Return 1 if this is a valid shift or rotate operation on a 386.
    OP is the expression matched, and MODE is its mode. */
 
@@ -1813,9 +2536,9 @@ output_387_binary_op (insn, operands)
 	return strcat (buf, AS2 (p,%2,%0));
 
       if (STACK_TOP_P (operands[0]))
-	return strcat (buf, AS2 (,%y2,%0));
+	return strcat (buf, AS2C (%y2,%0));
       else
-	return strcat (buf, AS2 (,%2,%0));
+	return strcat (buf, AS2C (%2,%0));
 
     case MINUS:
     case DIV:
@@ -1848,12 +2571,12 @@ output_387_binary_op (insn, operands)
       if (STACK_TOP_P (operands[0]))
 	{
 	  if (STACK_TOP_P (operands[1]))
-	    return strcat (buf, AS2 (,%y2,%0));
+	    return strcat (buf, AS2C (%y2,%0));
 	  else
 	    return strcat (buf, AS2 (r,%y1,%0));
 	}
       else if (STACK_TOP_P (operands[1]))
-	return strcat (buf, AS2 (,%1,%0));
+	return strcat (buf, AS2C (%1,%0));
       else
 	return strcat (buf, AS2 (r,%2,%0));
 
