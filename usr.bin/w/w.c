@@ -366,7 +366,8 @@ main(argc, argv)
 				p = hp->h_name;
 				p += strlen(hp->h_name);
 				p -= strlen(domain);
-				if (p > hp->h_name && strcmp(p, domain) == 0)
+				if (p > hp->h_name &&
+				    strcasecmp(p, domain) == 0)
 					*p = '\0';
 			}
 			p = hp->h_name;
