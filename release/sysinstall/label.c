@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63.2.10 1997/09/20 02:49:13 jkh Exp $
+ * $Id: label.c,v 1.63.2.11 1997/09/20 06:24:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,38 +80,95 @@ static int here;
 /*** with this value we try to track the most recently added label ***/
 static int label_focus = 0, pslice_focus = 0;
 
-static int diskLabel(char *str);
-static int diskLabelNonInteractive(char *str);
+static int diskLabel(Device *dev);
+static int diskLabelNonInteractive(Device *dev);
+
+static int
+labelHook(dialogMenuItem *selected)
+{
+    Device **devs = NULL;
+
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("Unable to find disk %s!", selected->prompt);
+	return DITEM_FAILURE;
+    }
+    /* Toggle enabled status? */
+    if (!devs[0]->enabled) {
+	devs[0]->enabled = TRUE;
+	diskLabel(devs[0]);
+    }
+    else
+	devs[0]->enabled = FALSE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
+static int
+labelCheck(dialogMenuItem *selected)
+{
+    Device **devs = NULL;
+
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs || devs[0]->enabled == FALSE)
+	return FALSE;
+    return TRUE;
+}
 
 int
 diskLabelEditor(dialogMenuItem *self)
 {
+    DMenu *menu;
     Device **devs;
-    int i, cnt, enabled;
-    char *cp;
+    int i, cnt;
 
-    cp = variable_get(VAR_DISK);
-    devs = deviceFind(cp, DEVICE_TYPE_DISK);
-    cnt = deviceCount(devs);
-    if (!cnt) {
+    i = 0;
+    cnt = diskGetSelectCount(&devs);
+    if (cnt == -1) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
 	return DITEM_FAILURE;
     }
-    for (i = 0, enabled = 0; i < cnt; i++) {
-	if (devs[i]->enabled)
-	    ++enabled;
+    else if (cnt) {
+	int j;
+
+	/* Some are already selected */
+	for (j = 0; j < cnt; j++) {
+	    if (devs[j]->enabled) {
+		if (variable_get(VAR_NONINTERACTIVE))
+		    i |= diskLabelNonInteractive(devs[j]);
+		else
+		    i |= diskLabel(devs[j]);
+	    }
+	}
     }
-    if (!enabled) {
-	msgConfirm("No disks have been selected.  Please visit the Partition\n"
-		   "editor first to specify which disks you wish to operate on.");
-	return DITEM_FAILURE;
+    else {
+	/* No disks are selected, fall-back case now */
+	cnt = deviceCount(devs);
+	if (cnt == 1) {
+	    devs[0]->enabled = TRUE;
+	    if (variable_get(VAR_NONINTERACTIVE))
+		i = diskLabelNonInteractive(devs[0]);
+	    else
+		i = diskLabel(devs[0]);
+	}
+	else {
+	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook, labelCheck);
+	    if (!menu) {
+		msgConfirm("No devices suitable for installation found!\n\n"
+			   "Please verify that your disk controller (and attached drives)\n"
+			   "were detected properly.  This can be done by pressing the\n"
+			   "[Scroll Lock] key and using the Arrow keys to move back to\n"
+			   "the boot messages.  Press [Scroll Lock] again to return.");
+		i = DITEM_FAILURE;
+	    }
+	    else {
+		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+		free(menu);
+	    }
+	    i |= DITEM_RESTORE;
+	}
     }
-    if (variable_get(VAR_NONINTERACTIVE))
-	i = diskLabelNonInteractive(devs[0]->name);
-    else
-	i = diskLabel(devs[0]->name);
     if (DITEM_STATUS(i) != DITEM_FAILURE) {
 	char *cp;
 
@@ -179,7 +236,7 @@ space_free(struct chunk *c)
 
 /* Snapshot the current situation into the displayed chunks structure */
 static void
-record_label_chunks(Device **devs)
+record_label_chunks(Device **devs, Device *dev)
 {
     int i, j, p;
     struct chunk *c1, *c2;
@@ -188,7 +245,7 @@ record_label_chunks(Device **devs)
     j = p = 0;
     /* First buzz through and pick up the FreeBSD slices */
     for (i = 0; devs[i]; i++) {
-	if (!devs[i]->enabled)
+	if ((dev && devs[i] != dev) || !devs[i]->enabled)
 	    continue;
 	d = (Disk *)devs[i]->private;
 	if (!d->chunks)
@@ -594,7 +651,7 @@ clear_wins(void)
 }
 
 static int
-diskLabel(char *str)
+diskLabel(Device *dev)
 {
     int sz, key = 0;
     Boolean labeling;
@@ -606,15 +663,15 @@ diskLabel(char *str)
     label_focus = 0;
     pslice_focus = 0;
     here = 0;
+
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("No disks found!");
 	return DITEM_FAILURE;
     }
-
     labeling = TRUE;
     keypad(stdscr, TRUE);
-    record_label_chunks(devs);
+    record_label_chunks(devs, dev);
 
     clear();
     while (labeling) {
@@ -707,7 +764,7 @@ diskLabel(char *str)
 		    }
 		    tmp->private_data = new_part("/", TRUE, tmp->size);
 		    tmp->private_free = safe_free;
-		    record_label_chunks(devs);
+		    record_label_chunks(devs, dev);
 		}
 
 		if (!swapdev) {
@@ -730,7 +787,7 @@ diskLabel(char *str)
 		    }
 		    tmp->private_data = 0;
 		    tmp->private_free = safe_free;
-		    record_label_chunks(devs);
+		    record_label_chunks(devs, dev);
 		}
 
 		if (!vardev) {
@@ -746,7 +803,7 @@ diskLabel(char *str)
 		    }
 		    tmp->private_data = new_part("/var", TRUE, tmp->size);
 		    tmp->private_free = safe_free;
-		    record_label_chunks(devs);
+		    record_label_chunks(devs, dev);
 		}
 
 		if (!usrdev) {
@@ -774,7 +831,7 @@ diskLabel(char *str)
 			}
 			tmp->private_data = new_part("/usr", TRUE, tmp->size);
 			tmp->private_free = safe_free;
-			record_label_chunks(devs);
+			record_label_chunks(devs, dev);
 		    }
 		}
 		/* At this point, we're reasonably "labelled" */
@@ -889,7 +946,7 @@ diskLabel(char *str)
 		tmp->private_free = safe_free;
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
 		    variable_set2(DISK_LABELLED, "yes");
-		record_label_chunks(devs);
+		record_label_chunks(devs, dev);
 		clear_wins();
                 /*** This is where we assign focus to new label so it shows ***/
                 {
@@ -920,7 +977,7 @@ diskLabel(char *str)
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
 	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
 		variable_set2(DISK_LABELLED, "yes");
-	    record_label_chunks(devs);
+	    record_label_chunks(devs, dev);
 	    break;
 
 	case 'M':	/* mount */
@@ -949,7 +1006,7 @@ diskLabel(char *str)
 		}
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
 		    variable_set2(DISK_LABELLED, "yes");
-		record_label_chunks(devs);
+		record_label_chunks(devs, dev);
 		clear_wins();
 		break;
 
@@ -999,10 +1056,10 @@ diskLabel(char *str)
 		    else if ((d = Open_Disk(devs[i]->name)) != NULL) {
 			Free_Disk(devs[i]->private);
 			devs[i]->private = d;
-			diskPartition(devs[i], d);
+			diskPartition(devs[i]);
 		    }
 		}
-		record_label_chunks(devs);
+		record_label_chunks(devs, dev);
 	    }
 	    clear_wins();
 	    break;
@@ -1047,7 +1104,7 @@ diskLabel(char *str)
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
 		    variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
-		record_label_chunks(devs);
+		record_label_chunks(devs, dev);
 		clear_wins();
 	    }
 	    else
@@ -1074,7 +1131,7 @@ diskLabel(char *str)
 }
 
 static int
-diskLabelNonInteractive(char *str)
+diskLabelNonInteractive(Device *dev)
 {
     char *cp;
     PartType type;
@@ -1085,21 +1142,23 @@ diskLabelNonInteractive(char *str)
     Disk *d;
 
     status = DITEM_SUCCESS;
+
     cp = variable_get(VAR_DISK);
     if (!cp) {
 	dialog_clear();
 	msgConfirm("diskLabel:  No disk selected - can't label automatically.");
 	return DITEM_FAILURE;
     }
-
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     if (!devs) {
 	msgConfirm("diskLabel: No disk device %s found!", cp);
 	return DITEM_FAILURE;
     }
-    d = devs[0]->private;
-
-    record_label_chunks(devs);
+    if (dev)
+	d = dev->private;
+    else
+	d = devs[0]->private;
+    record_label_chunks(devs, dev);
     for (i = 0; label_chunk_info[i].c; i++) {
 	Chunk *c1 = label_chunk_info[i].c;
 

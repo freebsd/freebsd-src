@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.45 1997/09/16 18:59:00 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.46 1997/09/17 16:35:37 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -461,7 +461,8 @@ extern void	dummyShutdown(Device *dev);
 /* disks.c */
 extern int	diskPartitionEditor(dialogMenuItem *self);
 extern int	diskPartitionWrite(dialogMenuItem *self);
-extern void	diskPartition(Device *dev, Disk *d);
+extern int	diskGetSelectCount(Device ***devs);
+extern void	diskPartition(Device *dev);
 
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
@@ -711,6 +712,7 @@ extern int	userAddUser(dialogMenuItem *self);
 extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 extern char 	*variable_get(char *var);
+extern int 	variable_cmp(char *var, char *value);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt);
 extern int 	variable_check(char *data);
