@@ -44,9 +44,10 @@ static char sccsid[] = "@(#)devname.c	8.2 (Berkeley) 4/29/95";
 #include <paths.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
-char *
-devname(dev, type)
+static char *
+xdevname(dev, type)
 	dev_t dev;
 	mode_t type;
 {
@@ -77,4 +78,28 @@ devname(dev, type)
 	key.data = &bkey;
 	key.size = sizeof(bkey);
 	return ((db->get)(db, &key, &data, 0) ? NULL : (char *)data.data);
+}
+
+char *
+devname(dev, type)
+	dev_t dev;
+	mode_t type;
+{
+	static char buf[20];
+	char *r;
+
+	r = xdevname(dev, type);
+	if (!r) {
+		r = buf;
+		if (minor(dev) > 255) {
+			sprintf(buf, "#%c%d:0x%x", 
+			    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
+			    major(dev), minor(dev));
+		} else {
+			sprintf(buf, "#%c%d:%d", 
+			    (type & S_IFMT) == S_IFCHR ? 'C' : 'B',
+			    major(dev), minor(dev));
+		}
+	}
+	return (r);
 }
