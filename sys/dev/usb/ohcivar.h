@@ -79,6 +79,13 @@ typedef struct ohci_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 
+#if defined(__FreeBSD__)
+	void *ih;
+
+	struct resource *io_res;
+	struct resource *irq_res;
+#endif
+
 	usb_dma_t sc_hccadma;
 	struct ohci_hcca *sc_hcca;
 	ohci_soft_ed_t *sc_eds[OHCI_NO_EDS];
