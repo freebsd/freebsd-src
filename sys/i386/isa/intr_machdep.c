@@ -58,7 +58,6 @@
 
 #include <machine/md_var.h>
 #include <machine/segments.h>
-#include <machine/intrcnt.h>
 
 #if defined(APIC_IO)
 #include <machine/smptests.h>			/** FAST_HI */
