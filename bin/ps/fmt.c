@@ -58,10 +58,6 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 static char *cmdpart(char *);
 static char *shquote(char **);
 
-/*
- * XXX
- * This is a stub until marc does the real one.
- */
 static char *
 shquote(char **argv)
 {
