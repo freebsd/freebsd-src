@@ -301,15 +301,18 @@ printtime(ftime)
 		now = time(NULL);
 
 #define	SIXMONTHS	((365 / 2) * 86400)
+	/* "%Ef" is a FreeBSD strftime definition for "%e %b" or "%b %e".
+	 * Actually format is locale sensitive.
+	 */
 	if (f_sectime)
-		/* Mmm dd hh:mm:ss yyyy */
-		format = "%b %e %T %Y ";
+		/* mmm dd hh:mm:ss yyyy || dd mmm hh:mm:ss yyyy */
+		format = "%Ef %T %Y ";
 	else if (ftime + SIXMONTHS > now && ftime < now + SIXMONTHS)
-		/* Mmm dd hh:mm */
-		format = "%b %e %R ";
+		/* mmm dd hh:mm || dd mmm hh:mm */
+		format = "%Ef %R ";
 	else
-		/* Mmm dd yyyy */
-		format = "%b %e %Y ";
+		/* mmm dd  yyyy || dd mmm  yyyy */
+		format = "%Ef  %Y ";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 	fputs(longstring, stdout);
 }
