@@ -2950,6 +2950,17 @@ to prevent the system from trying to
 recover pre-maturely terminated
 .Xr vi 1
 sessions.
+.It Va ugidfw_enable
+.Dq Li NO
+Load the
+.Xr mac_bsdextended 4
+module upon system initialization and load a default
+ruleset file.
+.It Va bsdextended_script
+.Dq Pa /etc/rc.bsdextended
+The default
+.Xr mac_bsdextended 4
+ruleset file to load.
 .It Va ramdisk_units
 .Pq Vt str
 A list of one or more ramdisk units to configure with

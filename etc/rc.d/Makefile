@@ -34,7 +34,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	serial sppp sshd swap1 \
 	syscons sysctl syslogd \
 	timed tmp \
-	usbd \
+	ugidfw usbd \
 	var vinum virecover \
 	watchdogd \
 	ypbind yppasswdd ypserv \
