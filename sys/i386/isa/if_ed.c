@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.106 1996/10/11 15:19:23 wollman Exp $
+ *	$Id: if_ed.c,v 1.107 1996/10/17 13:42:13 nate Exp $
  */
 
 /*
@@ -2410,7 +2410,6 @@ edintr_sc(sc)
 					 * TSR_ABT is set.
 					 */
 					collisions = 16;
-					sc->mibdata.dot3StatsMultipleCollisionFrames++;
 					sc->mibdata.dot3StatsExcessiveCollisions++;
 					sc->mibdata.dot3StatsCollFrequencies[15]++;
 				}
@@ -2458,12 +2457,10 @@ edintr_sc(sc)
 				break;
 			case 1:
 				sc->mibdata.dot3StatsSingleCollisionFrames++;
-				sc->mibdata.dot3StatsDeferredTransmissions++;
 				sc->mibdata.dot3StatsCollFrequencies[0]++;
 				break;
 			default:
 				sc->mibdata.dot3StatsMultipleCollisionFrames++;
-				sc->mibdata.dot3StatsDeferredTransmissions++;
 				sc->mibdata.
 					dot3StatsCollFrequencies[collisions-1]
 						++;
