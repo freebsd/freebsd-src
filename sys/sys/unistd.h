@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.13 1997/02/22 09:46:21 peter Exp $
+ * $Id: unistd.h,v 1.14 1997/06/16 00:29:26 dyson Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -50,7 +50,47 @@
 #define	_POSIX_SAVED_IDS	/* saved set-user-ID and set-group-ID */
 #endif
 
+#ifdef POSIX4
+
+/* Select POSIX.4 regardless.
+ * Don't undef first - we want an error on conflicts. 
+ */
+
+#define _POSIX_VERSION 199309L
+#endif
+
+#ifndef _POSIX_VERSION
 #define	_POSIX_VERSION		199009L
+#endif
+
+#if _POSIX_VERSION > 199009L
+/*
+ * Set it up so that all new headers can assume _POSIX_C_SOURCE is the
+ * only thing that must be looked at to determine the feature set,
+ * and so that old headers don't have to change:
+ */
+#if defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE)
+/*
+ * Default to latest:
+ */
+#define _POSIX_C_SOURCE _POSIX_VERSION
+#endif
+
+#if defined(_POSIX_C_SOURCE) && !defined(_POSIX_SOURCE)
+/*
+ * Define _POSIX_SOURCE for older headers:
+ */
+#define _POSIX_SOURCE
+#endif
+
+#if _POSIX_VERSION >= 199309L
+#include <posix4/posix4.h>
+#endif
+
+#endif	/* _POSIX_VERSION */
+
+
+
 #define	_POSIX2_VERSION		199212L
 
 /* execution-time symbolic constants */
@@ -121,6 +161,51 @@
 
 /* configurable system strings */
 #define	_CS_PATH		 1
+
+#ifdef POSIX4_VISIBLE
+
+#if 0
+/* Not until the dust settles after the header commit
+ */
+#define _POSIX_PRIORITY_SCHEDULING
+#define _POSIX_ASYNCHRONOUS_IO
+#define _POSIX_MEMLOCK
+#define _POSIX_MEMLOCK_RANGE
+#endif
+
+/* POSIX 4 sysconf options */
+#define _SC_ASYNCHRONOUS_IO	28
+#define _SC_MAPPED_FILES	29
+#define _SC_MEMLOCK		30
+#define _SC_MEMLOCK_RANGE	31
+#define _SC_MEMORY_PROTECTION	32
+#define _SC_MESSAGE_PASSING	33
+#define _SC_PRIORITIZED_IO	34
+#define _SC_PRIORITY_SCHEDULING	35
+#define _SC_REALTIME_SIGNALS	36
+#define _SC_SEMAPHORES		37
+#define _SC_FSYNC		38
+#define _SC_SHARED_MEMORY_OBJECTS 39
+#define _SC_SYNCHRONIZED_IO	40
+#define _SC_TIMERS		41
+#define _SC_AIO_LISTIO_MAX	42
+#define _SC_AIO_MAX		43
+#define _SC_AIO_PRIO_DELTA_MAX	44
+#define _SC_DELAYTIMER_MAX	45
+#define _SC_MQ_OPEN_MAX		46
+#define _SC_PAGESIZE		47
+#define _SC_RTSIG_MAX		48
+#define _SC_SEM_NSEMS_MAX	49
+#define _SC_SEM_VALUE_MAX	50
+#define _SC_SIGQUEUE_MAX	51
+#define _SC_TIMER_MAX		52
+
+/* POSIX 4 pathconf and fpathconf options */
+#define _PC_ASYNC_IO		53
+#define _PC_PRIO_IO		54
+#define _PC_SYNC_IO		55
+
+#endif /* POSIX4_VISIBLE */
 
 #ifndef _POSIX_SOURCE
 /*

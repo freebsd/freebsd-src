@@ -1,4 +1,4 @@
-#	$Id: options,v 1.62 1998/02/23 07:42:43 dyson Exp $
+#	$Id: options,v 1.63 1998/02/27 10:02:37 itojun Exp $
 
 # Format:
 # Option name	filename
@@ -29,6 +29,9 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 UCONSOLE
+
+# POSIX 4.
+POSIX4		opt_posix4.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
