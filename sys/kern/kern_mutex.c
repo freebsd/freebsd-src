@@ -70,7 +70,8 @@
 #define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
 	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
 
-#define	thread_runnable(td)						\
+/* XXXKSE This test will change. */
+#define	thread_running(td)						\
 	((td)->td_kse != NULL && (td)->td_kse->ke_oncpu != NOCPU)
     
 /*
@@ -131,8 +132,7 @@ propagate_priority(struct thread *td)
 		/*
 		 * If lock holder is actually running, just bump priority.
 		 */
-		 /* XXXKSE this test is not sufficient */
-		if (thread_runnable(td)) {
+		if (thread_running(td)) {
 			MPASS(td->td_proc->p_stat == SRUN
 			|| td->td_proc->p_stat == SZOMB
 			|| td->td_proc->p_stat == SSTOP);
@@ -534,10 +534,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * CPU, spin instead of blocking.
 		 */
 		owner = (struct thread *)(v & MTX_FLAGMASK);
-		if (m != &Giant && thread_runnable(owner)) {
+		if (m != &Giant && thread_running(owner)) {
 			mtx_unlock_spin(&sched_lock);
-			while (mtx_owner(m) == owner &&
-			    thread_runnable(owner)) {
+			while (mtx_owner(m) == owner && thread_running(owner)) {
 #ifdef __i386__
 				ia32_pause();
 #endif
