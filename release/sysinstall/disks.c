@@ -163,7 +163,51 @@ print_command_summary()
     move(0, 0);
 }
 
-#ifndef PC98
+#ifdef PC98
+static void
+getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
+	   u_char **bootmenu, size_t *bootmenu_size)
+{
+    extern u_char boot0[];
+    extern size_t boot0_size;
+    extern u_char boot05[];
+    extern size_t boot05_size;
+
+    char str[80];
+    char *cp;
+    int i = 0;
+
+    cp = variable_get(VAR_BOOTMGR);
+    if (!cp) {
+	/* Figure out what kind of MBR the user wants */
+	sprintf(str, "Install Boot Manager for drive %s?", dname);
+	MenuMBRType.title = str;
+	i = dmenuOpenSimple(&MenuMBRType, FALSE);
+    } else {
+	if (!strncmp(cp, "boot", 4))
+	    BootMgr = 0;
+	else
+	    BootMgr = 2;
+    }
+    if (cp || i) {
+	switch (BootMgr) {
+	case 0:
+	    *bootipl = boot0;
+	    *bootipl_size = boot0_size;
+	    *bootmenu = boot05;
+	    *bootmenu_size = boot05_size;
+	    return;
+	case 2:
+	default:
+	    break;
+	}
+    }
+    *bootipl = NULL;
+    *bootipl_size = 0;
+    *bootmenu = NULL;
+    *bootmenu_size = 0;
+}
+#else
 static void
 getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 {
@@ -236,7 +280,12 @@ diskPartition(Device *dev)
     int rv, key = 0;
     Boolean chunking;
     char *msg = NULL;
-#ifndef PC98
+#ifdef PC98
+    u_char *bootipl;
+    size_t bootipl_size;
+    u_char *bootmenu;
+    size_t bootmenu_size;
+#else
     u_char *mbrContents;
     size_t mbrSize;
 #endif
@@ -505,24 +554,41 @@ diskPartition(Device *dev)
 			       "from this screen, you should do it from the label editor.\n\n"
 			       "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes", 0);
-		
-#ifndef PC98
-		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
-		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
-		 * booteasy or a "standard" MBR -- both would be fatal in this case.
+
+		/*
+		 * Don't trash the MBR if the first (and therefore only) chunk
+		 * is marked for a truly dedicated disk (i.e., the disklabel
+		 * starts at sector 0), even in cases where the user has
+		 * requested booteasy or a "standard" MBR -- both would be
+		 * fatal in this case.
 		 */
 		/*
-		 * Don't offer to update the MBR on this disk if the first "real" chunk looks like
-		 * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD.
+		 * Don't offer to update the MBR on this disk if the first
+		 * "real" chunk looks like a FreeBSD "all disk" partition,
+		 * or the disk is entirely FreeBSD.
 		 */
-		if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)))
+#ifdef PC98
+		if ((d->chunks->part->type != freebsd) ||
+		    (d->chunks->part->offset > 1))
+		    getBootMgr(d->name, &bootipl, &bootipl_size,
+			       &bootmenu, &bootmenu_size);
+		else {
+		    bootipl = NULL;
+		    bootipl_size = 0;
+		    bootmenu = NULL;
+		    bootmenu_size = 0;
+		}
+		Set_Boot_Mgr(d, bootipl, bootipl_size, bootmenu, bootmenu_size);
+#else
+		if ((d->chunks->part->type != freebsd) ||
+		    (d->chunks->part->offset > 1))
 		    getBootMgr(d->name, &mbrContents, &mbrSize);
 		else {
 		    mbrContents = NULL;
 		    mbrSize = 0;
 		}
 		Set_Boot_Mgr(d, mbrContents, mbrSize);
-#endif /* !PC98 */
+#endif
 
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
@@ -549,30 +615,47 @@ diskPartition(Device *dev)
 	case '\033':	/* ESC */
 	case 'Q':
 	    chunking = FALSE;
-#ifndef PC98
-	    /* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated
-	     * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
+	    /*
+	     * Don't trash the MBR if the first (and therefore only) chunk
+	     * is marked for a truly dedicated disk (i.e., the disklabel
+	     * starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
 	     */
 #if 0
 	    if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
+#ifdef PC98
+		getBootMgr(d->name, &bootipl, &bootipl_size,
+			   &bootmenu, &bootmenu_size);
+		if (bootipl != NULL && bootmenu != NULL)
+		    Set_Boot_Mgr(d, bootipl, bootipl_size,
+				 bootmenu, bootmenu_size);
+#else
 		getBootMgr(d->name, &mbrContents, &mbrSize);
 		if (mbrContents != NULL)
 		    Set_Boot_Mgr(d, mbrContents, mbrSize);
+#endif
 	    }
 #else
 	    /*
-	     * Don't offer to update the MBR on this disk if the first "real" chunk looks like
-	     * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD. 
+	     * Don't offer to update the MBR on this disk if the first "real"
+	     * chunk looks like a FreeBSD "all disk" partition, or the disk is
+	     * entirely FreeBSD. 
 	     */
 	    if ((d->chunks->part->type != freebsd) ||
 		(d->chunks->part->offset > 1)) {
+#ifdef PC98
+		getBootMgr(d->name, &bootipl, &bootipl_size,
+			   &bootmenu, &bootmenu_size);
+		if (bootipl != NULL && bootmenu != NULL)
+		    Set_Boot_Mgr(d, bootipl, bootipl_size,
+				 bootmenu, bootmenu_size);
+#else
 		getBootMgr(d->name, &mbrContents, &mbrSize);
 		if (mbrContents != NULL)
 		    Set_Boot_Mgr(d, mbrContents, mbrSize);
+#endif
 	    }
 #endif
-#endif /* !PC98 */
 	    break;
 
 	case 'Z':
@@ -774,7 +857,12 @@ diskPartitionNonInteractive(Device *dev)
 {
     char *cp;
     int i, sz, all_disk = 0;
-#ifndef PC98
+#ifdef PC98
+    u_char *bootipl;
+    size_t bootipl_size;
+    u_char *bootmenu;
+    size_t bootmenu_size;
+#else
     u_char *mbrContents;
     size_t mbrSize;
 #endif
@@ -868,12 +956,16 @@ diskPartitionNonInteractive(Device *dev)
 	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_PARTITION);
 	    return;
 	}
-#ifndef PC98
 	if (!all_disk) {
+#ifdef PC98
+	    getBootMgr(d->name, &bootipl, &bootipl_size,
+		       &bootmenu, &bootmenu_size);
+	    Set_Boot_Mgr(d, bootipl, bootipl_size, bootmenu, bootmenu_size);
+#else
 	    getBootMgr(d->name, &mbrContents, &mbrSize);
 	    Set_Boot_Mgr(d, mbrContents, mbrSize);
-	}
 #endif
+	}
 	variable_set2(DISK_PARTITIONED, "yes", 0);
     }
 }
