@@ -315,7 +315,7 @@ osendsig(catcher, sig, mask, code)
 	regs = td->td_frame;
 	oonstack = sigonstack(regs->tf_esp);
 
-	/* Allocate and validate space for the signal handler context. */
+	/* Allocate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct osigframe *)(p->p_sigstk.ss_sp +
@@ -326,26 +326,6 @@ osendsig(catcher, sig, mask, code)
 	} else
 		fp = (struct osigframe *)regs->tf_esp - 1;
 	PROC_UNLOCK(p);
-
-	/*
-	 * grow_stack() will return 0 if *fp does not fit inside the stack
-	 * and the stack can not be grown.
-	 * useracc() will return FALSE if access is denied.
-	 */
-	if (grow_stack(p, (int)fp) == 0 ||
-	    !useracc((caddr_t)fp, sizeof(*fp), VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
 
 	/* Translate the signal if appropriate. */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
@@ -418,15 +398,18 @@ osendsig(catcher, sig, mask, code)
 		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
 	}
 
-	/* Copy the sigframe out to the user's stack. */
-	if (copyout(&sf, fp, sizeof(*fp)) != 0) {
-		/*
-		 * Something is wrong with the stack pointer.
-		 * ...Kill the process.
-		 */
+	/*
+	 * Copy the sigframe out to the user's stack.  If this fails,
+	 * try growing the stack and retrying the copy.
+	 */
+	if (copyout(&sf, fp, sizeof(*fp)) != 0 &&
+	    (grow_stack(p, (int)fp) == 0 ||
+	    copyout(&sf, fp, sizeof(*fp)) != 0)) {
+#ifdef DEBUG
+		printf("process %ld has trashed its stack\n", (long)p->p_pid);
+#endif
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
-		/* NOTREACHED */
 	}
 
 	regs->tf_esp = (int)fp;
@@ -440,7 +423,7 @@ osendsig(catcher, sig, mask, code)
 	regs->tf_ss = _udatasel;
 	PROC_LOCK(p);
 }
-#endif
+#endif /* COMPAT_43 */
 
 void
 sendsig(catcher, sig, mask, code)
@@ -481,7 +464,7 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_uc.uc_mcontext.mc_flags = __UC_MC_VALID;	/* no FP regs */
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 
-	/* Allocate and validate space for the signal handler context. */
+	/* Allocate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
@@ -492,29 +475,6 @@ sendsig(catcher, sig, mask, code)
 	} else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
 	PROC_UNLOCK(p);
-
-	/*
-	 * grow_stack() will return 0 if *sfp does not fit inside the stack
-	 * and the stack can not be grown.
-	 * useracc() will return FALSE if access is denied.
-	 */
-	if (grow_stack(p, (int)sfp) == 0 ||
-	    !useracc((caddr_t)sfp, sizeof(*sfp), VM_PROT_WRITE)) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-#ifdef DEBUG
-		printf("process %d has trashed its stack\n", p->p_pid);
-#endif
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
 
 	/* Translate the signal if appropriate. */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
@@ -570,15 +530,18 @@ sendsig(catcher, sig, mask, code)
 		tf->tf_eflags &= ~(PSL_VM | PSL_NT | PSL_VIF | PSL_VIP);
 	}
 
-	/* Copy the sigframe out to the user's stack. */
-	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
-		/*
-		 * Something is wrong with the stack pointer.
-		 * ...Kill the process.
-		 */
+	/*
+	 * Copy the sigframe out to the user's stack.  If this fails,
+	 * try growing the stack and retrying the copy.
+	 */
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0 &&
+	    (grow_stack(p, (int)sfp) == 0 ||
+	    copyout(&sf, sfp, sizeof(*sfp)) != 0)) {
+#ifdef DEBUG
+		printf("process %ld has trashed its stack\n", (long)p->p_pid);
+#endif
 		PROC_LOCK(p);
 		sigexit(td, SIGILL);
-		/* NOTREACHED */
 	}
 
 	regs->tf_esp = (int)sfp;
