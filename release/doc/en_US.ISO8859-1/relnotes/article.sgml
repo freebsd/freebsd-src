@@ -280,7 +280,7 @@
       use an AT keyboard if you are not using a serial
       console. &merged;</para>
 
-    <para arch="i386">The umodem driver for USB modems has been added.
+    <para arch="i386">The &man.umodem.4; driver for USB modems has been added.
       Support is provided for the 3Com 5605 and Metricom Ricochet GS
       wireless USB modems. &merged;</para>
 
@@ -290,9 +290,9 @@
       for supported scanners. The HP ScanJet 4100C, 5200C and 6300C
       are known to be working. &merged;</para>
 
-    <para>The ucom device driver has been added, to support USB
+    <para>The &man.ucom.4; device driver has been added, to support USB
       modems, serial devices, and other programs that need to look
-      like a tty.  The related uplcom and uvscom drivers provide specific
+      like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
       support for the Prolific PL-2303 serial adapter and the SUNTAC
       Slipper U VS-10U, respectively.</para>
 
