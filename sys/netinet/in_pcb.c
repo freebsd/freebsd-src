@@ -575,7 +575,7 @@ in_setsockaddr(so, nam)
 	if (!inp) {
 		splx(s);
 		free(sin, M_SONAME);
-		return EINVAL;
+		return ECONNRESET;
 	}
 	sin->sin_port = inp->inp_lport;
 	sin->sin_addr = inp->inp_laddr;
@@ -598,7 +598,7 @@ in_setpeeraddr(so, nam)
 	 * Do the malloc first in case it blocks.
 	 */
 	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME, M_WAITOK);
-	bzero((caddr_t)sin, sizeof (*sin));
+	bzero(sin, sizeof (*sin));
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 
@@ -607,7 +607,7 @@ in_setpeeraddr(so, nam)
 	if (!inp) {
 		splx(s);
 		free(sin, M_SONAME);
-		return EINVAL;
+		return ECONNRESET;
 	}
 	sin->sin_port = inp->inp_fport;
 	sin->sin_addr = inp->inp_faddr;
