@@ -608,7 +608,6 @@ struct proc {
 	struct vnode	*p_textvp;	/* (b) Vnode of executable. */
 	sigset_t	p_siglist;	/* (c) Sigs not delivered to a td. */
 	char		p_lock;		/* (c) Proclock (prevent swap) count. */
-	struct klist	p_klist;	/* (c) Knotes attached to this proc. */
 	struct sigiolst	p_sigiolst;	/* (c) List of sigio sources. */
 	int		p_sigparent;	/* (c) Signal to parent on exit. */
 	int		p_sig;		/* (n) For core dump/debugger XXX. */
@@ -638,6 +637,7 @@ struct proc {
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
+	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (j) Number of threads. */
 	int		p_numksegrps;	/* (c) number of ksegrps */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */

@@ -42,7 +42,7 @@
 struct selinfo {
 	TAILQ_ENTRY(selinfo)	si_thrlist;	/* list hung off of thread */
 	struct	thread *si_thread;	/* thread waiting */
-	struct	klist si_note;	/* kernel note list */
+	struct	knlist si_note;	/* kernel note list */
 	short	si_flags;	/* see below */
 };
 #define	SI_COLL	0x0001		/* collision occurred */

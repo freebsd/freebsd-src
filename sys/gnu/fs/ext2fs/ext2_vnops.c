@@ -570,7 +570,7 @@ ext2_setattr(ap)
 			return (EROFS);
 		error = ext2_chmod(vp, (int)vap->va_mode, cred, td);
 	}
-	VN_KNOTE(vp, NOTE_ATTRIB);
+	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 	return (error);
 }
 
@@ -1894,9 +1894,9 @@ ext2_kqfilter(ap)
 
 	if (vp->v_pollinfo == NULL)
 		v_addpollinfo(vp);
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	SLIST_INSERT_HEAD(&vp->v_pollinfo->vpi_selinfo.si_note, kn, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
+	if (vp->v_pollinfo == NULL)
+		return ENOMEM;
+	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
 
 	return (0);
 }
@@ -1907,10 +1907,7 @@ filt_ext2detach(struct knote *kn)
 	struct vnode *vp = (struct vnode *)kn->kn_hook;
 
 	KASSERT(vp->v_pollinfo != NULL, ("Mising v_pollinfo"));
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	SLIST_REMOVE(&vp->v_pollinfo->vpi_selinfo.si_note,
-	    kn, knote, kn_selnext);
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
+	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
 }
 
 /*ARGSUSED*/

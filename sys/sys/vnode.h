@@ -201,11 +201,13 @@ struct xvnode {
 			vn_pollevent((vp), (events));		\
 	} while (0)
 
-#define VN_KNOTE(vp, b)						\
+#define VN_KNOTE(vp, b, a)						\
 	do {							\
 		if ((vp)->v_pollinfo != NULL)			\
-			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b)); \
+			KNOTE(&vp->v_pollinfo->vpi_selinfo.si_note, (b), (a)); \
 	} while (0)
+#define VN_KNOTE_LOCKED(vp, b)		VN_KNOTE(vp, b, 1)
+#define VN_KNOTE_UNLOCKED(vp, b)	VN_KNOTE(vp, b, 0)
 
 /*
  * Vnode flags.

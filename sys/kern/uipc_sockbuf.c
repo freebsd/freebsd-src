@@ -242,6 +242,8 @@ sonewconn(head, connstatus)
 	mac_create_socket_from_socket(head, so);
 	SOCK_UNLOCK(head);
 #endif
+	knlist_init(&so->so_rcv.sb_sel.si_note, SOCKBUF_MTX(&so->so_rcv));
+	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd));
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sodealloc(so);
@@ -403,7 +405,7 @@ sowakeup(so, sb)
 		sb->sb_flags &= ~SB_WAIT;
 		wakeup(&sb->sb_cc);
 	}
-	KNOTE(&sb->sb_sel.si_note, 0);
+	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
 	SOCKBUF_UNLOCK(sb);
 	if ((so->so_state & SS_ASYNC) && so->so_sigio != NULL)
 		pgsigio(&so->so_sigio, SIGIO, 0);

@@ -29,11 +29,20 @@
 #ifndef _SYS_EVENTVAR_H_
 #define _SYS_EVENTVAR_H_
 
+#ifndef _KERNEL
+#error "no user-servicable parts inside"
+#endif
+
+#include <sys/_task.h>
+
 #define KQ_NEVENTS	8		/* minimize copy{in,out} calls */
 #define KQEXTENT	256		/* linear growth by this amount */
 
 struct kqueue {
-	TAILQ_HEAD(kqlist, knote) kq_head;	/* list of pending event */
+	struct		mtx kq_lock;
+	int		kq_refcnt;
+	SLIST_ENTRY(kqueue)	kq_list;
+	TAILQ_HEAD(, knote)	kq_head;	/* list of pending event */
 	int		kq_count;		/* number of pending events */
 	struct		selinfo kq_sel;
 	struct		sigio *kq_sigio;
@@ -41,8 +50,16 @@ struct kqueue {
 	int		kq_state;
 #define KQ_SEL		0x01
 #define KQ_SLEEP	0x02
-#define KQ_ASYNC	0x04
-	struct		kevent kq_kev[KQ_NEVENTS];
+#define KQ_FLUXWAIT	0x04			/* waiting for a in flux kn */
+#define KQ_ASYNC	0x08
+#define KQ_CLOSING	0x10
+#define	KQ_TASKSCHED	0x20			/* task scheduled */
+#define	KQ_TASKDRAIN	0x40			/* waiting for task to drain */
+	int		kq_knlistsize;		/* size of knlist */
+	struct		klist *kq_knlist;	/* list of knotes */
+	u_long		kq_knhashmask;		/* size of knhash */
+	struct		klist *kq_knhash;	/* hash table for knotes */
+	struct		task kq_task;
 };
 
 #endif /* !_SYS_EVENTVAR_H_ */

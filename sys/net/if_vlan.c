@@ -821,7 +821,7 @@ vlan_link_state(struct ifnet *ifp, int link)
 		if (ifv->ifv_p == ifp) {
 			ifv->ifv_if.if_link_state = ifv->ifv_p->if_link_state;
 			rt_ifmsg(&(ifv->ifv_if));
-			KNOTE(&ifp->if_klist, link);
+			KNOTE_UNLOCKED(&ifp->if_klist, link);
 		}
 	}
 	VLAN_UNLOCK();

@@ -287,6 +287,7 @@ fork1(td, flags, pages, procp)
 #ifdef MAC
 	mac_init_proc(newproc);
 #endif
+	knlist_init(&newproc->p_klist, &newproc->p_mtx);
 
 	/* We have to lock the process tree while we look for a pid. */
 	sx_slock(&proctree_lock);
@@ -722,7 +723,7 @@ again:
 	/*
 	 * Tell any interested parties about the new process.
 	 */
-	KNOTE(&p1->p_klist, NOTE_FORK | p2->p_pid);
+	KNOTE_LOCKED(&p1->p_klist, NOTE_FORK | p2->p_pid);
 
 	PROC_UNLOCK(p1);
 

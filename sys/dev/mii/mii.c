@@ -265,7 +265,7 @@ miibus_linkchg(dev)
 	if (ifp->if_link_state != link_state) {
 		ifp->if_link_state = link_state;
 		rt_ifmsg(ifp);
-		KNOTE(&ifp->if_klist, link);
+		KNOTE_UNLOCKED(&ifp->if_klist, link);
 		if (ifp->if_nvlans != 0)
 			(*vlan_link_state_p)(ifp, link);
 	}

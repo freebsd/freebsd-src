@@ -196,6 +196,7 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	TAILQ_INIT(&softc->work_queue);
 	TAILQ_INIT(&softc->abort_queue);
 	TAILQ_INIT(&softc->user_ccb_queue);
+	knlist_init(&softc->read_select.si_note, &softc->mtx);
 
 	return (0);
 }
@@ -336,9 +337,7 @@ targkqfilter(struct cdev *dev, struct knote *kn)
 	softc = (struct targ_softc *)dev->si_drv1;
 	kn->kn_hook = (caddr_t)softc;
 	kn->kn_fop = &targread_filtops;
-	TARG_LOCK(softc);
-	SLIST_INSERT_HEAD(&softc->read_select.si_note, kn, kn_selnext);
-	TARG_UNLOCK(softc);
+	knlist_add(&softc->read_select.si_note, kn, 0);
 	return (0);
 }
 
@@ -348,9 +347,7 @@ targreadfiltdetach(struct knote *kn)
 	struct  targ_softc *softc;
 
 	softc = (struct targ_softc *)kn->kn_hook;
-	TARG_LOCK(softc);
-	SLIST_REMOVE(&softc->read_select.si_note, kn, knote, kn_selnext);
-	TARG_UNLOCK(softc);
+	knlist_remove(&softc->read_select.si_note, kn, 0);
 }
 
 /* Notify the user's kqueue when the user queue or abort queue gets a CCB */
@@ -361,10 +358,8 @@ targreadfilt(struct knote *kn, long hint)
 	int	retval;
 
 	softc = (struct targ_softc *)kn->kn_hook;
-	TARG_LOCK(softc);
 	retval = !TAILQ_EMPTY(&softc->user_ccb_queue) ||
 		 !TAILQ_EMPTY(&softc->abort_queue);
-	TARG_UNLOCK(softc);
 	return (retval);
 }
 
@@ -1096,19 +1091,8 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted anything from the work queue, wakeup user. */
 	if (!TAILQ_EMPTY(&softc->user_ccb_queue)
-	 || !TAILQ_EMPTY(&softc->abort_queue)) {
-		/*
-		 * XXX KNOTE calls back into targreadfilt, causing a
-		 * lock recursion.  So unlock around calls to it although
-		 * this may open up a race allowing a user to submit
-		 * another CCB after we have aborted all pending ones
-		 * A better approach is to mark the softc as dying
-		 * under lock and check for this in targstart().
-		 */
-		TARG_UNLOCK(softc);
+	 || !TAILQ_EMPTY(&softc->abort_queue))
 		notify_user(softc);
-		TARG_LOCK(softc);
-	}
 }
 
 /* Notify the user that data is ready */
@@ -1120,7 +1104,7 @@ notify_user(struct targ_softc *softc)
 	 * blocking read().
 	 */
 	selwakeuppri(&softc->read_select, PRIBIO);
-	KNOTE(&softc->read_select.si_note, 0);
+	KNOTE_LOCKED(&softc->read_select.si_note, 0);
 	wakeup(&softc->user_ccb_queue);
 }
 
