@@ -1,0 +1,20 @@
+\ Loader.rc
+\ $FreeBSD$
+\
+\ Includes additional commands
+include /boot/loader.4th
+
+\ Reads and processes loader.rc
+start
+
+\ Tests for password -- executes autoboot first if a password was defined
+check-password
+
+\ Load in the boot menu
+include /boot/beastie.4th
+
+\ Do the normal initialization and startup
+initialize drop
+
+\ Start the boot menu
+beastie-start
