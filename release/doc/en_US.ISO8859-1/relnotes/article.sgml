@@ -140,7 +140,7 @@
         <filename>boot</filename> for consistency with other
         platforms.</para>
 
-      <para arch="i386">The two parts of the i386 boot loader
+      <para arch="i386,pc98">The two parts of the boot loader
         (<filename>boot1</filename> and <filename>boot2</filename>)
         have been combined into a single <filename>boot</filename>
         file, to simplify programs that need to write or otherwise
