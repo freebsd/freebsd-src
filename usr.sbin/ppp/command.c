@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.93 1997/11/09 17:51:24 brian Exp $
+ * $Id: command.c,v 1.94 1997/11/09 18:51:22 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -761,7 +761,6 @@ QuitCommand(struct cmdtab const * list, int argc, char **argv)
       Cleanup(EX_NORMAL);
     } else if (VarTerm) {
       LogPrintf(LogPHASE, "Client connection closed.\n");
-      LocalAuthInit();
       mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
@@ -899,43 +898,86 @@ SetStoppedTimeout(struct cmdtab const * list, int argc, char **argv)
   return -1;
 }
 
+#define ismask(x) \
+  (*x == '0' && strlen(x) == 4 && strspn(x+1, "0123456789.") == 3)
+
 static int
 SetServer(struct cmdtab const * list, int argc, char **argv)
 {
   int res = -1;
 
-  if (argc > 0 && argc < 3)
-    if (strcasecmp(argv[0], "none") == 0) {
-      ServerClose();
-      LogPrintf(LogPHASE, "Disabling server port.\n");
-      res = 0;
-    } else if (*argv[0] == '/') {
-      mode_t mask;
+  if (argc > 0 && argc < 4) {
+    const char *port, *passwd, *mask;
 
-      umask(mask = umask(0));
-      if (argc == 2) {
+    /* What's what ? */
+    port = argv[0];
+    if (argc == 2)
+      if (ismask(argv[1])) {
+        passwd = NULL;
+        mask = argv[1];
+      } else {
+        passwd = argv[1];
+        mask = NULL;
+      }
+    else if (argc == 3) {
+      passwd = argv[1];
+      mask = argv[2];
+      if (!ismask(mask))
+        return -1;
+    } else
+      passwd = mask = NULL;
+
+    if (passwd == NULL)
+      VarHaveLocalAuthKey = 0;
+    else {
+      strncpy(VarLocalAuthKey, passwd, sizeof VarLocalAuthKey);
+      VarLocalAuthKey[sizeof VarLocalAuthKey - 1] = '\0';
+      VarHaveLocalAuthKey = 1;
+    }
+    LocalAuthInit();
+
+    if (strcasecmp(port, "none") == 0) {
+      int oserver;
+
+      if (mask != NULL || passwd != NULL)
+        return -1;
+      oserver = server;
+      ServerClose();
+      if (oserver != -1)
+        LogPrintf(LogPHASE, "Disabling server port.\n");
+      res = 0;
+    } else if (*port == '/') {
+      mode_t imask;
+
+      if (mask != NULL) {
 	unsigned m;
 
-	if (sscanf(argv[1], "%o", &m) == 1)
-	  mask = m;
-      }
-      res = ServerLocalOpen(argv[0], mask);
-    } else {
-      int port;
-
-      if (strspn(argv[0], "0123456789") != strlen(argv[0])) {
-	struct servent *s;
-
-	if ((s = getservbyname(argv[0], "tcp")) == NULL) {
-	  port = 0;
-	  LogPrintf(LogWARN, "%s: Invalid port or service\n", argv[0]);
-	} else
-	  port = ntohs(s->s_port);
+	if (sscanf(mask, "%o", &m) == 1)
+	  imask = m;
+        else
+          return -1;
       } else
-	port = atoi(argv[0]);
-      if (port)
-	res = ServerTcpOpen(port);
+        imask = (mode_t)-1;
+      res = ServerLocalOpen(port, imask);
+    } else {
+      int iport;
+
+      if (mask != NULL)
+        return -1;
+
+      if (strspn(port, "0123456789") != strlen(port)) {
+        struct servent *s;
+
+        if ((s = getservbyname(port, "tcp")) == NULL) {
+	  iport = 0;
+	  LogPrintf(LogWARN, "%s: Invalid port or service\n", port);
+	} else
+	  iport = ntohs(s->s_port);
+      } else
+        iport = atoi(port);
+      res = iport ? ServerTcpOpen(iport) : -1;
     }
+  }
 
   return res;
 }

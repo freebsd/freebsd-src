@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.90 1997/11/09 14:18:45 brian Exp $
+ * $Id: main.c,v 1.91 1997/11/09 18:51:23 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -173,6 +173,7 @@ TtyOldMode()
 void
 Cleanup(int excode)
 {
+  ServerClose();
   OsInterfaceDown(1);
   HangupModem(1);
   nointr_sleep(1);
@@ -189,7 +190,6 @@ Cleanup(int excode)
     close(BGFiledes[1]);
   }
   LogPrintf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
-  ServerClose();
   TtyOldMode();
   LogClose();
 
@@ -242,9 +242,19 @@ SetUpServer(int signo)
 {
   int res;
 
+  VarHaveLocalAuthKey = 0;
+  LocalAuthInit();
   if ((res = ServerTcpOpen(SERVER_PORT + tunno)) != 0)
     LogPrintf(LogERROR, "SIGUSR1: Failed %d to open port %d\n",
 	      res, SERVER_PORT + tunno);
+}
+
+static void
+BringDownServer(int signo)
+{
+  VarHaveLocalAuthKey = 0;
+  LocalAuthInit();
+  ServerClose();
 }
 
 static char *
@@ -396,6 +406,10 @@ main(int argc, char **argv)
   if (mode != MODE_INTER)
     pending_signal(SIGUSR1, SetUpServer);
 #endif
+#ifdef SIGUSR2
+  if (mode != MODE_INTER)
+    pending_signal(SIGUSR2, BringDownServer);
+#endif
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
@@ -416,9 +430,6 @@ main(int argc, char **argv)
 	Cleanup(EX_SOCK);
       }
     }
-    /* Create server socket and listen (initial value is -2) */
-    if (server == -2)
-      ServerTcpOpen(SERVER_PORT + tunno);
 
     if (!(mode & MODE_DIRECT)) {
       pid_t bgpid;
@@ -560,7 +571,6 @@ ReadTty()
         Prompt();
     } else {
       LogPrintf(LogPHASE, "client connection closed.\n");
-      LocalAuthInit();
       mode &= ~MODE_INTER;
       oVarTerm = VarTerm;
       VarTerm = 0;
@@ -922,6 +932,7 @@ DoLoop()
       } else
 	netfd = wfd;
       VarTerm = fdopen(netfd, "a+");
+      LocalAuthInit();
       mode |= MODE_INTER;
       Greetings();
       IsInteractive(1);
