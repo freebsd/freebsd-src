@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.60 1997/02/23 09:20:54 peter Exp $
+#	$Id: sysconfig,v 1.61 1997/03/16 15:26:34 joerg Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -171,6 +171,9 @@ ipxrouted=NO
 # timed flags, or NO if you don't want to start the time daemon
 timedflags=NO
 
+# portmap flags, or NO if you don't want to start the portmap daemon
+portmapflags=""
+
 # xntpd flags, or NO if you don't want to start the xntpd daemon
 xntpdflags="NO"
 
@@ -220,6 +223,9 @@ ypxfrdflags="NO"
 # run on NIS master servers.
 # Typical flags might be "-t /var/yp/master.passwd -s -f"
 yppasswddflags="NO"
+
+# syslogd flags, or NO if you don't want to start the syslog daemon
+syslogdflags=""
 
 # Set to appropriate flags for named, if you have a full-time
 # connection to the Internet.
