@@ -53,8 +53,6 @@ static const char rcsid[] =
 #define	YES	1
 typedef int bool;
 
-struct	mbstat mbstat;
-
 static struct mbtypenames {
 	int	mt_type;
 	char	*mt_name;
@@ -96,10 +94,12 @@ static struct mbtypenames {
  * Print mbuf statistics.
  */
 void
-mbpr()
+mbpr(mbaddr, mbtaddr, nmbcaddr, nmbufaddr)
+	u_long mbaddr, mbtaddr, nmbcaddr, nmbufaddr;
 {
 	u_long totmem, totpossible, totmbufs;
 	register int i;
+	struct mbstat mbstat;
 	struct mbtypenames *mp;
 	int name[3], nmbclusters, nmbufs, nmbcnt, nmbtypes;
 	size_t nmbclen, nmbuflen, nmbcntlen, mbstatlen, mbtypeslen;
@@ -109,15 +109,11 @@ mbpr()
 	mbtypes = NULL;
 	seen = NULL;
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_IPC;
-	name[2] = KIPC_MBSTAT;
-	mbstatlen = sizeof mbstat;
-	if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
-		warn("sysctl: retrieving mbstat");
-		goto err;
-	}
-
+	/*
+	 * XXX
+	 * We can't kread() mbtypeslen from a core image so we'll
+	 * bogusly assume it's the same as in the running kernel.
+	 */
 	if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
 		warn("sysctl: retrieving mbtypes length");
 		goto err;
@@ -126,29 +122,50 @@ mbpr()
 		warn("malloc: %lu bytes for mbtypes", (u_long)mbtypeslen);
 		goto err;
 	}
-	if (sysctlbyname("kern.ipc.mbtypes", mbtypes, &mbtypeslen, NULL,
-	    0) < 0) {
-		warn("sysctl: retrieving mbtypes");
-		goto err;
-	}
 
 	nmbtypes = mbtypeslen / sizeof(*mbtypes);
 	if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
 		warn("calloc");
 		goto err;
 	}
-		
-	name[2] = KIPC_NMBCLUSTERS;
-	nmbclen = sizeof(int);
-	if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
-		warn("sysctl: retrieving nmbclusters");
-		goto err;
-	}
 
-	nmbuflen = sizeof(int);
-	if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
-		warn("sysctl: retrieving nmbufs");
-		goto err;
+	if (mbaddr) {
+		if (kread(mbaddr, (char *)&mbstat, sizeof mbstat))
+			goto err;
+		if (kread(mbtaddr, (char *)mbtypes, mbtypeslen))
+			goto err;
+		if (kread(nmbcaddr, (char *)&nmbclusters, sizeof(int)))
+			goto err;
+		if (kread(nmbufaddr, (char *)&nmbufs, sizeof(int)))
+			goto err;
+	} else {
+		name[0] = CTL_KERN;
+		name[1] = KERN_IPC;
+		name[2] = KIPC_MBSTAT;
+		mbstatlen = sizeof mbstat;
+		if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
+			warn("sysctl: retrieving mbstat");
+			goto err;
+		}
+
+		if (sysctlbyname("kern.ipc.mbtypes", mbtypes, &mbtypeslen, NULL,
+		    0) < 0) {
+			warn("sysctl: retrieving mbtypes");
+			goto err;
+		}
+		
+		name[2] = KIPC_NMBCLUSTERS;
+		nmbclen = sizeof(int);
+		if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
+			warn("sysctl: retrieving nmbclusters");
+			goto err;
+		}
+
+		nmbuflen = sizeof(int);
+		if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
+			warn("sysctl: retrieving nmbufs");
+			goto err;
+		}
 	}
 
 	nmbcntlen = sizeof(int);
