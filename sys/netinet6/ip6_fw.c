@@ -41,6 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/syslog.h>
 #include <sys/time.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -93,11 +94,11 @@ SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose, CTLFLAG_RW, &fw6_verbose, 0, ""
 SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_limit, 0, "");
 #endif
 
-#define dprintf(a)	if (!fw6_debug); else printf a
-
-#define print_ip6(a)	printf("[%s]", ip6_sprintf(a))
-
-#define dprint_ip6(a)	if (!fw6_debug); else print_ip6(a)
+#define dprintf(a)	do {						\
+				if (fw6_debug)				\
+					printf a;			\
+			} while (0)
+#define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 
 static int	add_entry6 __P((struct ip6_fw_head *chainptr, struct ip6_fw *frwl));
 static int	del_entry6 __P((struct ip6_fw_head *chainptr, u_short number));
@@ -332,93 +333,114 @@ ip6fw_report(struct ip6_fw *f, struct ip6_hdr *ip6,
 	struct udphdr *const udp = (struct udphdr *) ((caddr_t) ip6+ off);
 	struct icmp6_hdr *const icmp6 = (struct icmp6_hdr *) ((caddr_t) ip6+ off);
 	int count;
+	char *action;
+	char action2[32], proto[102], name[18];
+	int len;
 
 	count = f ? f->fw_pcnt : ++counter;
 	if (fw6_verbose_limit != 0 && count > fw6_verbose_limit)
 		return;
 
 	/* Print command name */
-	printf("ip6fw: %d ", f ? f->fw_number : -1);
+	snprintf(SNPARGS(name, 0), "ip6fw: %d", f ? f->fw_number : -1);
+
+	action = action2;
 	if (!f)
-		printf("Refuse");
-	else
+		action = "Refuse";
+	else {
 		switch (f->fw_flg & IPV6_FW_F_COMMAND) {
 		case IPV6_FW_F_DENY:
-			printf("Deny");
+			action = "Deny";
 			break;
 		case IPV6_FW_F_REJECT:
 			if (f->fw_reject_code == IPV6_FW_REJECT_RST)
-				printf("Reset");
+				action = "Reset";
 			else
-				printf("Unreach");
+				action = "Unreach";
 			break;
 		case IPV6_FW_F_ACCEPT:
-			printf("Accept");
+			action = "Accept";
 			break;
 		case IPV6_FW_F_COUNT:
-			printf("Count");
+			action = "Count";
 			break;
 		case IPV6_FW_F_DIVERT:
-			printf("Divert %d", f->fw_divert_port);
+			snprintf(SNPARGS(action2, 0), "Divert %d",
+			    f->fw_divert_port);
 			break;
 		case IPV6_FW_F_TEE:
-			printf("Tee %d", f->fw_divert_port);
+			snprintf(SNPARGS(action2, 0), "Tee %d",
+			    f->fw_divert_port);
 			break;
 		case IPV6_FW_F_SKIPTO:
-			printf("SkipTo %d", f->fw_skipto_rule);
+			snprintf(SNPARGS(action2, 0), "SkipTo %d",
+			    f->fw_skipto_rule);
 			break;
 		default:	
-			printf("UNKNOWN");
+			action = "UNKNOWN";
 			break;
 		}
-	printf(" ");
+	}
 
 	switch (nxt) {
 	case IPPROTO_TCP:
-		printf("TCP ");
-		print_ip6(&ip6->ip6_src);
+		len = snprintf(SNPARGS(proto, 0), "TCP [%s]",
+		    ip6_sprintf(&ip6->ip6_src));
 		if (off > 0)
-			printf(":%d ", ntohs(tcp6->th_sport));
+			len += snprintf(SNPARGS(proto, len), ":%d ",
+			    ntohs(tcp6->th_sport));
 		else
-			printf(" ");
-		print_ip6(&ip6->ip6_dst);
+			len += snprintf(SNPARGS(proto, len), " ");
+		len += snprintf(SNPARGS(proto, len), "[%s]",
+		    ip6_sprintf(&ip6->ip6_dst));
 		if (off > 0)
-			printf(":%d", ntohs(tcp6->th_dport));
+			snprintf(SNPARGS(proto, len), ":%d",
+			    ntohs(tcp6->th_dport));
 		break;
 	case IPPROTO_UDP:
-		printf("UDP ");
-		print_ip6(&ip6->ip6_src);
+		len = snprintf(SNPARGS(proto, 0), "UDP [%s]",
+		    ip6_sprintf(&ip6->ip6_src));
 		if (off > 0)
-			printf(":%d ", ntohs(udp->uh_sport));
+			len += snprintf(SNPARGS(proto, len), ":%d ",
+			    ntohs(udp->uh_sport));
 		else
-			printf(" ");
-		print_ip6(&ip6->ip6_dst);
+		    len += snprintf(SNPARGS(proto, len), " ");
+		len += snprintf(SNPARGS(proto, len), "[%s]",
+		    ip6_sprintf(&ip6->ip6_dst));
 		if (off > 0)
-			printf(":%d", ntohs(udp->uh_dport));
+			snprintf(SNPARGS(proto, len), ":%d",
+			    ntohs(udp->uh_dport));
 		break;
 	case IPPROTO_ICMPV6:
 		if (off > 0)
-			printf("IPV6-ICMP:%u.%u ", icmp6->icmp6_type, icmp6->icmp6_code);
+			len = snprintf(SNPARGS(proto, 0), "IPV6-ICMP:%u.%u ",
+			    icmp6->icmp6_type, icmp6->icmp6_code);
 		else
-			printf("IPV6-ICMP ");
-		print_ip6(&ip6->ip6_src);
-		printf(" ");
-		print_ip6(&ip6->ip6_dst);
+			len = snprintf(SNPARGS(proto, 0), "IPV6-ICMP ");
+		len += snprintf(SNPARGS(proto, len), "[%s]",
+		    ip6_sprintf(&ip6->ip6_src));
+		snprintf(SNPARGS(proto, len), " [%s]",
+		    ip6_sprintf(&ip6->ip6_dst));
 		break;
 	default:
-		printf("P:%d ", nxt);
-		print_ip6(&ip6->ip6_src);
-		printf(" ");
-		print_ip6(&ip6->ip6_dst);
+		len = snprintf(SNPARGS(proto, 0), "P:%d [%s]", nxt,
+		    ip6_sprintf(&ip6->ip6_src));
+		snprintf(SNPARGS(proto, len), " [%s]",
+		    ip6_sprintf(&ip6->ip6_dst));
 		break;
 	}
+
 	if (oif)
-		printf(" out via %s", if_name(oif));
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s out via %s\n",
+		    name, action, proto, if_name(oif));
 	else if (rif)
-		printf(" in via %s", if_name(rif));
-	printf("\n");
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s in via %s\n",
+		    name, action, proto, if_name(rif));
+	else
+		log(LOG_SECURITY | LOG_INFO, "%s %s %s",
+		    name, action, proto);
 	if (fw6_verbose_limit != 0 && count == fw6_verbose_limit)
-		printf("ip6fw: limit reached on rule #%d\n",
+	    log(LOG_SECURITY | LOG_INFO, "ip6fw: limit reached on entry %d\n",
 		f ? f->fw_number : -1);
 }
 
@@ -907,9 +929,11 @@ zero_entry6(struct mbuf *m)
 
 	if (fw6_verbose) {
 		if (frwl)
-			printf("ip6fw: Entry %d cleared.\n", frwl->fw_number);
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ip6fw: Entry %d cleared.\n", frwl->fw_number);
 		else
-			printf("ip6fw: Accounting cleared.\n");
+			log(LOG_SECURITY | LOG_NOTICE,
+			    "ip6fw: Accounting cleared.\n");
 	}
 
 	return(0);
