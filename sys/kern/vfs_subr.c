@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.165 1998/10/13 08:24:41 dg Exp $
+ * $Id: vfs_subr.c,v 1.166 1998/10/14 15:05:52 dt Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
@@ -1126,16 +1127,19 @@ bdevvp(dev, vpp)
 	struct vnode *nvp;
 	int error;
 
-	if (dev == NODEV)
-		return (0);
-	error = getnewvnode(VT_NON, (struct mount *) 0, spec_vnodeop_p, &nvp);
+	if (dev == NODEV || major(dev) >= nblkdev ||
+	    bdevsw[major(dev)] == NULL) {
+		*vpp = NULLVP;
+		return (ENXIO);
+	}
+	error = getnewvnode(VT_NON, (struct mount *)0, spec_vnodeop_p, &nvp);
 	if (error) {
-		*vpp = 0;
+		*vpp = NULLVP;
 		return (error);
 	}
 	vp = nvp;
 	vp->v_type = VBLK;
-	if ((nvp = checkalias(vp, dev, (struct mount *) 0))) {
+	if ((nvp = checkalias(vp, dev, (struct mount *)0)) != NULL) {
 		vput(vp);
 		vp = nvp;
 	}
