@@ -338,6 +338,10 @@ extern int flag_gnu_linker;
 
 /* Tag all structures with __attribute__(packed) */
 extern int flag_pack_struct;
+
+/* Nonzero means that -Wformat accepts certain non-ANSI formats.  */
+
+extern int flag_format_extensions;
 
 /* Other basic status info about current function.  */
 
