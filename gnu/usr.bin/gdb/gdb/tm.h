@@ -61,10 +61,13 @@ extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
     : read_memory_integer ((FRAME)->frame + 4, 4)) \
    ))
 
-/* Sigtramp is not the same address as BSD/OS.. */
+/* On FreeBSD, sigtramp has size 0x18 and is immediately below the
+   ps_strings struct which has size 0x10 and is at the top of the
+   user stack.  */
+
 #undef SIGTRAMP_START
 #undef SIGTRAMP_END
-#define SIGTRAMP_START	0xefbfdfc0
-#define SIGTRAMP_END	0xefbfe000
+#define SIGTRAMP_START	0xefbfdfd8
+#define SIGTRAMP_END	0xefbfdff0
  
-#endif  /* TM_FBSD_H */
+#endif  /* ifndef TM_FBSD_H */
