@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.71 1999/01/07 21:23:41 julian Exp $
+ * $Id: kern_exit.c,v 1.72 1999/01/26 02:38:10 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -75,7 +75,7 @@
 #include <vm/vm_zone.h>
 #include <sys/user.h>
 
-static MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
+MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 
 static int wait1 __P((struct proc *, struct wait_args *, int));
 
