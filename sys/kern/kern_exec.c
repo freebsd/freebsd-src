@@ -89,7 +89,8 @@ static register_t *exec_copyout_strings(struct image_params *);
 
 /* XXX This should be vm_size_t. */
 static u_long ps_strings = PS_STRINGS;
-SYSCTL_ULONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, 0, "");
+SYSCTL_ULONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings,
+    0, "");
 
 /* XXX This should be vm_size_t. */
 static u_long usrstack = USRSTACK;
@@ -201,7 +202,8 @@ execve(td, uap)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX + PAGE_SIZE);
+	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX +
+	    PAGE_SIZE);
 	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
 		mtx_lock(&Giant);
@@ -625,7 +627,8 @@ exec_map_first_page(imgp)
 					break;
 				vm_page_busy(ma[i]);
 			} else {
-				ma[i] = vm_page_alloc(object, i, VM_ALLOC_NORMAL);
+				ma[i] = vm_page_alloc(object, i,
+				    VM_ALLOC_NORMAL);
 				if (ma[i] == NULL)
 					break;
 			}
@@ -635,7 +638,8 @@ exec_map_first_page(imgp)
 		rv = vm_pager_get_pages(object, ma, initial_pagein, 0);
 		ma[0] = vm_page_lookup(object, 0);
 
-		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) || (ma[0]->valid == 0)) {
+		if ((rv != VM_PAGER_OK) || (ma[0] == NULL) ||
+		    (ma[0]->valid == 0)) {
 			if (ma[0]) {
 				vm_page_lock_queues();
 				vm_page_protect(ma[0], VM_PROT_NONE);
@@ -703,9 +707,9 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 	 * otherwise, create a new VM space so that other threads are
 	 * not disrupted
 	 */
-	if (vmspace->vm_refcnt == 1
-	    && vm_map_min(&vmspace->vm_map) == minuser
-	    && vm_map_max(&vmspace->vm_map) == maxuser) {
+	if (vmspace->vm_refcnt == 1 &&
+	    vm_map_min(&vmspace->vm_map) == minuser &&
+	    vm_map_max(&vmspace->vm_map) == maxuser) {
 		if (vmspace->vm_shm)
 			shmexit(p);
 		pmap_remove_pages(vmspace_pmap(vmspace), minuser, maxuser);
@@ -859,8 +863,8 @@ exec_copyout_strings(imgp)
 		 * 'AT_COUNT*2' is size for the ELF Auxargs data. This is for
 		 * lower compatibility.
 		 */
-		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size
-			: (AT_COUNT * 2);
+		imgp->auxarg_size = (imgp->auxarg_size) ? imgp->auxarg_size :
+		    (AT_COUNT * 2);
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets,and imgp->auxarg_size is room
@@ -874,8 +878,8 @@ exec_copyout_strings(imgp)
 		 * The '+ 2' is for the null pointers at the end of each of
 		 * the arg and env vector sets
 		 */
-		vectp = (char **)
-			(destp - (imgp->argc + imgp->envc + 2) * sizeof(char *));
+		vectp = (char **)(destp - (imgp->argc + imgp->envc + 2) *
+		    sizeof(char *));
 
 	/*
 	 * vectp also becomes our initial stack base
