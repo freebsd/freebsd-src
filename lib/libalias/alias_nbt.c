@@ -112,7 +112,7 @@ static void PrintRcode( u_char rcode )  {
 		case CFT_ERR:
 			printf("\nName in conflict error.\n");
 		default:
-			printf("\n???=%0x\n", rcode );
+			printf("\n?%c?=%0x\n", '?', rcode );
 
 	}	
 }
