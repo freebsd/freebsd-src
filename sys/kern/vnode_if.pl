@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.14 1997/12/19 23:25:16 bde Exp $
+# $Id: vnode_if.sh,v 1.15 1998/07/04 20:45:32 julian Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -188,7 +188,7 @@ cat << END_OF_LEADING_COMMENT > $CFILE
 #include <sys/vnode.h>
 
 struct vnodeop_desc vop_default_desc = {
-	0,
+	1,			/* special case, vop_default => 1 */
 	"default",
 	0,
 	NULL,
@@ -400,39 +400,3 @@ struct vnodeop_desc vop_bwrite_desc = {
 	NULL,
 };
 END_OF_SPECIAL_CASES
-
-# Add the vfs_op_descs array to the C file.
-$AWK '
-	BEGIN {
-		printf("\nstruct vnodeop_desc *vfs_op_descs[] = {\n");
-		printf("\t&vop_default_desc,	/* MUST BE FIRST */\n");
-		printf("\t&vop_strategy_desc,	/* XXX: SPECIAL CASE */\n");
-		printf("\t&vop_bwrite_desc,	/* XXX: SPECIAL CASE */\n");
-	}
-	END {
-		printf("\tNULL\n};\n");
-	}
-	NF == 0 || $0 ~ "^#" {
-		next;
-	}
-	{
-		# Get the function name.
-		printf("\t&%s_desc,\n", $1);
-
-		# Skip the function arguments.
-		for (;;) {
-			if (getline <= 0)
-				exit
-			if ($0 ~ "^};")
-				break;
-		}
-	}' < $SRC >> $CFILE
-
-cat << END_OF_NUMOPS_CODE >> $CFILE
-
-/*
- * the -1 is to account for the NULL
- * XXX is the NULL still necessary?  I don't think so...
- */
-int vfs_opv_numops = (sizeof(vfs_op_descs)/sizeof(struct vnodeop_desc *)) - 1;
-END_OF_NUMOPS_CODE
