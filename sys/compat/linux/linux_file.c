@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.20 1998/03/29 07:59:09 peter Exp $
+ *  $Id: linux_file.c,v 1.21 1998/07/29 16:43:00 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -240,12 +240,14 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	if (result & O_NDELAY) p->p_retval[0] |= LINUX_O_NONBLOCK;
 	if (result & O_APPEND) p->p_retval[0] |= LINUX_O_APPEND;
 	if (result & O_FSYNC) p->p_retval[0] |= LINUX_O_SYNC;
+	if (result & O_ASYNC) p->p_retval[0] |= LINUX_FASYNC;
 	return error;
 
     case LINUX_F_SETFL:
 	if (args->arg & LINUX_O_NDELAY) fcntl_args.arg |= O_NONBLOCK;
 	if (args->arg & LINUX_O_APPEND) fcntl_args.arg |= O_APPEND;
 	if (args->arg & LINUX_O_SYNC) fcntl_args.arg |= O_FSYNC;
+	if (args->arg & LINUX_FASYNC) fcntl_args.arg |= O_ASYNC;
 	fcntl_args.cmd = F_SETFL;
 	return fcntl(p, &fcntl_args);
     
@@ -294,6 +296,7 @@ linux_fcntl(struct proc *p, struct linux_fcntl_args *args)
 	    return EBADF;
 	if (fp->f_type == DTYPE_SOCKET) {
 	    fcntl_args.cmd = args->cmd == LINUX_F_SETOWN ? F_SETOWN : F_GETOWN;
+    	    fcntl_args.arg = args->arg;
 	    return fcntl(p, &fcntl_args); 
 	}
 	vp = (struct vnode *)fp->f_data;
