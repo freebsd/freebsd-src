@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.50 1998/01/10 14:55:02 phk Exp $
+ * $Id: kern_clock.c,v 1.51 1998/01/11 00:44:27 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -629,9 +629,7 @@ hardclock(frame)
 		CPU_CLOCKUPDATE(&time, &newtime);
 	}
 	
-	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) == NULL) {
-		softticks++;
-	} else {
+	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
 		setsoftclock();
 	}
 }
