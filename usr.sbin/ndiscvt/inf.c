@@ -191,6 +191,7 @@ dump_deviceids()
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
 	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
 	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
 		/* Handle Windows XP INF files. */
 		snprintf(xpsec, sizeof(xpsec), "%s.%s",
@@ -411,6 +412,7 @@ dump_regvals(void)
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
 	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
 	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
 		is_winxp++;
 		/* Handle Windows XP INF files. */
