@@ -286,32 +286,41 @@ getmicrotime(struct timeval *tvp)
 void
 tc_init(struct timecounter *tc)
 {
-	unsigned u;
+	u_int u;
 
 	u = tc->tc_frequency / tc->tc_counter_mask;
+	/* XXX: We need some margin here, 10% is a guess */
+	u *= 11;
+	u /= 10;
 	if (u > hz && tc->tc_quality >= 0) {
 		tc->tc_quality = -2000;
 		if (bootverbose) {
 			printf("Timecounter \"%s\" frequency %ju Hz",
-			    tc->tc_name, (intmax_t)tc->tc_frequency);
+			    tc->tc_name, (uintmax_t)tc->tc_frequency);
 			printf(" -- Insufficient hz, needs at least %u\n", u);
 		}
 	} else if (tc->tc_quality >= 0 || bootverbose) {
-		printf("Timecounter \"%s\" frequency %ju Hz quality %d",
-		    tc->tc_name, (intmax_t)tc->tc_frequency,
+		printf("Timecounter \"%s\" frequency %ju Hz quality %d\n",
+		    tc->tc_name, (uintmax_t)tc->tc_frequency,
 		    tc->tc_quality);
 	}
 
-	printf("\n");
 	tc->tc_next = timecounters;
 	timecounters = tc;
-	(void)tc->tc_get_timecount(tc);
-	(void)tc->tc_get_timecount(tc);
-	/* Never automatically use a timecounter with negative quality */
+	/*
+	 * Never automatically use a timecounter with negative quality.
+	 * Even though we run on the dummy counter, switching here may be
+	 * worse since this timecounter may not be monotonous.
+	 */
 	if (tc->tc_quality < 0)
 		return;
 	if (tc->tc_quality < timecounter->tc_quality)
 		return;
+	if (tc->tc_quality == timecounter->tc_quality &&
+	    tc->tc_frequency < timecounter->tc_frequency)
+		return;
+	(void)tc->tc_get_timecount(tc);
+	(void)tc->tc_get_timecount(tc);
 	timecounter = tc;
 }
 
