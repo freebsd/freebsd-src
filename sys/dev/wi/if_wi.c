@@ -661,7 +661,7 @@ wi_get_id(sc, dev)
 		LE16TOH(ver.wi_ver[1]);
 		LE16TOH(ver.wi_ver[2]);
 		LE16TOH(ver.wi_ver[3]);
-		printf(", Firmware: %i.%i variant %i\n", ver.wi_ver[2],
+		printf(", Firmware: %d.%d variant %d\n", ver.wi_ver[2],
 		       ver.wi_ver[3], ver.wi_ver[1]);
 		sc->wi_prism2_ver = ver.wi_ver[2] * 100 +
 				    ver.wi_ver[3] *  10 + ver.wi_ver[1];
