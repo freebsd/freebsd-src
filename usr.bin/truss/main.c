@@ -67,8 +67,8 @@ static __inline void
 usage(void)
 {
   fprintf(stderr, "%s\n%s\n",
-	"usage: truss [-S] [-o file] -p pid",
-	"       truss [-S] [-o file] command [args]");
+	"usage: truss [-fS] [-o file] -p pid",
+	"       truss [-fS] [-o file] command [args]");
   exit(1);
 }
 
@@ -145,10 +145,13 @@ main(int ac, char **av) {
   bzero(trussinfo, sizeof(struct trussinfo));
   trussinfo->outfile = stderr;
 
-  while ((c = getopt(ac, av, "p:o:S")) != -1) {
+  while ((c = getopt(ac, av, "p:o:fS")) != -1) {
     switch (c) {
     case 'p':	/* specified pid */
       trussinfo->pid = atoi(optarg);
+      break;
+    case 'f': /* Follow fork()'s */
+      trussinfo->flags |= FOLLOWFORKS;
       break;
     case 'o':	/* Specified output file */
       fname = optarg;
@@ -195,9 +198,11 @@ main(int ac, char **av) {
    * be woken up, either in exit() or in execve().
    */
 
+START_TRACE:
   Procfd = start_tracing(
 		trussinfo->pid, S_EXEC | S_SCE | S_SCX | S_CORE | S_EXIT |
-		((trussinfo->flags & NOSIGS) ? 0 : S_SIG));
+		((trussinfo->flags & NOSIGS) ? 0 : S_SIG),
+		((trussinfo->flags & FOLLOWFORKS) ? PF_FORK : 0));
   if (Procfd == -1)
     return 0;
 
@@ -230,6 +235,23 @@ main(int ac, char **av) {
 
 	if (in_exec) {
 	  in_exec = 0;
+	  break;
+	}
+
+	if (trussinfo->in_fork && (trussinfo->flags & FOLLOWFORKS)) {
+	  int childpid;
+
+	  trussinfo->in_fork = 0;
+	  childpid = funcs->exit_syscall(trussinfo, pfs.val);
+
+	  /*
+	   * Fork a new copy of ourself to trace the child of the
+	   * original traced process.
+	   */
+	  if (fork() == 0) {
+	    trussinfo->pid = childpid;
+	    goto START_TRACE;
+	  }
 	  break;
 	}
 	funcs->exit_syscall(trussinfo, pfs.val);

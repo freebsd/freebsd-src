@@ -25,11 +25,13 @@
  * $FreeBSD$
  */
 
+#define FOLLOWFORKS        0x00000001
 #define NOSIGS             0x00000008
 
 struct trussinfo
 {
 	int pid;
 	int flags;
+	int in_fork;
 	FILE *outfile;
 };

@@ -130,7 +130,7 @@ setup_and_wait(char *command[]) {
  */
 
 int
-start_tracing(int pid, int flags) {
+start_tracing(int pid, int eventflags, int flags) {
   int fd;
   char buf[32];
   struct procfs_status tmp;
@@ -153,7 +153,7 @@ start_tracing(int pid, int flags) {
   }
   evflags = tmp.events;
 
-  if (ioctl(fd, PIOCBIS, flags) == -1)
+  if (ioctl(fd, PIOCBIS, eventflags) == -1)
     err(9, "cannot set procfs event bit mask");
 
   /*
@@ -162,7 +162,7 @@ start_tracing(int pid, int flags) {
    * needs to be woken up via procctl.
    */
 
-  if (ioctl(fd, PIOCSFL, 0) == -1)
+  if (ioctl(fd, PIOCSFL, flags) == -1)
     warn("cannot clear PF_LINGER");
 
   return fd;

@@ -120,6 +120,13 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d\n", syscall);
   }
 
+  if (lsc.name && (trussinfo->flags & FOLLOWFORKS)
+   && ((!strcmp(lsc.name, "linux_fork")
+    || !strcmp(lsc.name, "linux_vfork"))))
+  {
+    trussinfo->in_fork = 1;
+  }
+
   if (nargs == 0)
     return;
 
