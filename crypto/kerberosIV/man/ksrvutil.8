@@ -8,10 +8,9 @@
 .Dd May 4, 1996
 .Dt KSRVUTIL 8
 .Os KTH-KRB
-
 .Sh NAME
 .Nm ksrvutil 
-host kerberos keyfile (srvtab) manipulation utility
+.Nd "host kerberos keyfile (srvtab) manipulation utility"
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Pa keyfile
@@ -20,7 +19,6 @@ host kerberos keyfile (srvtab) manipulation utility
 .Op Fl p Ar principal
 .Op Fl r Ar realm
 .Ar operation
-
 .Sh DESCRIPTION
 .Nm
 allows a system manager to list or change keys currently in his
@@ -76,10 +74,9 @@ and could supply an initial password.  Then, he could use
 to add the key to the keyfile and then to change the key so that it
 will be random and unknown to either the system manager or the
 kerberos administrator.
-
+.Pp
 .Nm
 always makes a backup copy of the keyfile before making any changes.
-
 .Sh DIAGNOSTICS
 If 
 .Nm
@@ -90,16 +87,14 @@ where
 .Pa filename
 is the name of the keyfile, and a copy of the file with all new
 keys changed or added so far can be found in 
-.Pa filename Ns .work.
+.Pa filename Ns .work .
 The original keyfile is left unmodified until the program exits at
 which point it is removed and replaced it with the workfile.
 Appending the workfile to the backup copy and replacing the keyfile
 with the result should always give a usable keyfile, although the
 resulting keyfile will have some out of date keys in it.
-
 .Sh SEE ALSO
 .Xr kadmin 8 ,
 .Xr ksrvtgt 1
-
 .Sh AUTHOR
 Emanuel Jay Berkenbilt, MIT Project Athena
