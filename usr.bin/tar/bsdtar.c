@@ -52,7 +52,8 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 
 static void		 long_help(void);
-static void		 only_mode(char mode, char opt, const char *valid);
+static void		 only_mode(char mode, const char *opt,
+			     const char *valid);
 static const char	*progname;
 static char **		 rewrite_argv(int *argc, char ** src_argv,
 			     const char *optstring);
@@ -115,10 +116,13 @@ main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	struct passwd		*pwent;
-	int			 opt, mode;
+	int			 opt;
+	char			 mode;
+	char			 buff[16];
 
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(0, "Failed to set default locale");
+	mode = '\0';
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -158,34 +162,6 @@ main(int argc, char **argv)
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
 
-	/* First option must be mode selector */
-#ifdef HAVE_GETOPT_LONG
-	mode = getopt_long(bsdtar->argc, bsdtar->argv, tar_opts, tar_longopts,
-	    NULL);
-#else
-	mode = getopt(bsdtar->argc, bsdtar->argv, tar_opts);
-#endif
-
-	switch (mode) {
-	case -1:
-		usage();
-		break;
-	case 'h':
-		long_help();
-		break;
-	case 't':
-		bsdtar->verbose = 1;
-		break;
-	case 'c': case 'r': case 'u': case 'x':
-		break;
-	default:
-		bsdtar_errc(1, 0,
-		    "First option '%c' unrecognized; "
-		    "should be -c, -r, -t, -u, -x", mode);
-		usage();
-		exit(1);
-	}
-
 	/* Process all remaining arguments now. */
 #ifdef HAVE_GETOPT_LONG
         while ((opt = getopt_long(bsdtar->argc, bsdtar->argv,
@@ -199,16 +175,22 @@ main(int argc, char **argv)
 			bsdtar->bytes_per_block = 512 * atoi(optarg);
 			break;
 		case 'C': /* GNU tar */
+			/* XXX How should multiple -C options be handled? */
 			bsdtar->start_dir = optarg;
+			break;
+		case 'c': /* SUSv2 */
+			if (mode != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c",
+				    opt, mode);
+			mode = opt;
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_EXCLUDE: /* GNU tar */
-			only_mode(mode, opt, "xtcr");
 			exclude(bsdtar, optarg);
 			break;
 #endif
 		case 'F':
-			only_mode(mode, opt, "c");
 			bsdtar->create_format = optarg;
 			break;
 		case 'f': /* SUSv2 */
@@ -218,46 +200,46 @@ main(int argc, char **argv)
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_FAST_READ: /* GNU tar */
-			only_mode(mode, opt, "tx");
 			bsdtar->option_fast_read = 1;
 			break;
 #endif
 		case 'H': /* BSD convention */
-			only_mode(mode, opt, "cr");
 			bsdtar->symlink_mode = 'H';
 			break;
+		case 'h':
+			long_help();
+			break;
+		case 'j': /* GNU tar */
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+			break;
 		case 'k': /* GNU tar */
-			only_mode(mode, opt, "x");
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_NO_OVERWRITE;
 			break;
 		case 'L': /* BSD convention */
-			only_mode(mode, opt, "cr");
 			bsdtar->symlink_mode = 'L';
 			break;
 	        case 'l': /* SUSv2 */
-			only_mode(mode, opt, "cr");
 			bsdtar->option_warn_links = 1;
 			break;
 		case 'm': /* SUSv2 */
-			only_mode(mode, opt, "x");
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
 			break;
 		case 'n': /* GNU tar */
-			only_mode(mode, opt, "cr");
 			bsdtar->option_no_subdirs = 1;
 			break;
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_NODUMP: /* star */
-			only_mode(mode, opt, "cr");
 			bsdtar->option_honor_nodump = 1;
 			break;
 #endif
 		case 'O': /* GNU tar */
-			only_mode(mode, opt, "x");
 			bsdtar->option_stdout = 1;
 			break;
 		case 'o': /* SUSv2 */
-			only_mode(mode, opt, "x");
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 #if 0
@@ -272,21 +254,39 @@ main(int argc, char **argv)
 			break;
 #endif
 		case 'P': /* GNU tar */
-			only_mode(mode, opt, "xcru");
 			bsdtar->option_absolute_paths = 1;
 			break;
 		case 'p': /* GNU tar, star */
-			only_mode(mode, opt, "x");
 			umask(0);
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_PERM;
 			break;
+		case 'r': /* SUSv2 */
+			if (mode != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c",
+				    opt, mode);
+			mode = opt;
+			break;
+		case 't': /* SUSv2 */
+			if (mode != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c",
+				    opt, mode);
+			mode = opt;
+			bsdtar->verbose++;
+			break;
 		case 'T': /* GNU tar */
-			only_mode(mode, opt, "c");
 			bsdtar->names_from_file = optarg;
 			break;
 		case 'U': /* GNU tar */
-			only_mode(mode, opt, "x");
 			bsdtar->extract_flags |= ARCHIVE_EXTRACT_UNLINK;
+			break;
+		case 'u': /* SUSv2 */
+			if (mode != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c",
+				    opt, mode);
+			mode = opt;
 			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
@@ -295,26 +295,74 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* -l in GNU tar */
-			only_mode(mode, opt, "cr");
 			bsdtar->option_dont_traverse_mounts = 1;
 			break;
-		case 'j': /* GNU tar */
+		case 'x': /* SUSv2 */
+			if (mode != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c",
+				    opt, mode);
+			mode = opt;
+			break;
 		case 'y': /* FreeBSD version of GNU tar */
-		case 'z': /* GNU tar, star */
-			/*
-			 * Ignored in x/t modes, used in 'c' mode,
-			 * forbidden in r/u modes.
-			 */
-			only_mode(mode, opt, "cxt");
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 			break;
 		case 'Z': /* GNU tar */
 			bsdtar_warnc(0, ".Z compression not supported");
 			usage();
 			break;
+		case 'z': /* GNU tar, star */
+			if (bsdtar->create_compression != '\0')
+				bsdtar_errc(1, 0,
+				    "Can't specify both -%c and -%c", opt,
+				    bsdtar->create_compression);
+			bsdtar->create_compression = opt;
+			break;
 		default:
 			usage();
 		}
+	}
+
+	/*
+	 * Sanity-check options.
+	 */
+	if (mode == '\0')
+		bsdtar_errc(1, 0, "Must specify one of -c, -r, -t, -u, -x");
+
+	/* Check boolean options only permitted in certain modes. */
+	if (bsdtar->option_absolute_paths)
+		only_mode(mode, "-P", "xcru");
+	if (bsdtar->option_dont_traverse_mounts)
+		only_mode(mode, "-X", "cru");
+	if (bsdtar->option_fast_read)
+		only_mode(mode, "--fast-read", "xt");
+	if (bsdtar->option_honor_nodump)
+		only_mode(mode, "--nodump", "cru");
+	if (bsdtar->option_no_subdirs)
+		only_mode(mode, "-n", "cru");
+	if (bsdtar->option_stdout)
+		only_mode(mode, "-O", "x");
+	if (bsdtar->option_warn_links)
+		only_mode(mode, "-l", "cr");
+
+	/* Check other parameters only permitted in certain modes. */
+	if (bsdtar->create_compression != '\0') {
+		strcpy(buff, "-?");
+		buff[1] = bsdtar->create_compression;
+		only_mode(mode, buff, "cxt");
+	}
+	if (bsdtar->create_format != NULL)
+		only_mode(mode, "-F", "c");
+	if (bsdtar->names_from_file != NULL)
+		only_mode(mode, "-T", "cru");
+	if (bsdtar->symlink_mode != '\0') {
+		strcpy(buff, "-X");
+		buff[1] = bsdtar->symlink_mode;
+		only_mode(mode, buff, "cru");
 	}
 
         bsdtar->argc -= optind;
@@ -338,8 +386,6 @@ main(int argc, char **argv)
 		break;
 	}
 
-
-
 	if (bsdtar->user_uname != NULL)
 		free(bsdtar->user_uname);
 
@@ -350,10 +396,10 @@ main(int argc, char **argv)
  * Verify that the mode is correct.
  */
 static void
-only_mode(char mode, char opt, const char *valid_modes)
+only_mode(char mode, const char *opt, const char *valid_modes)
 {
 	if (strchr(valid_modes, mode) == NULL)
-		bsdtar_errc(1, 0, "Option -%c is not permitted in mode -%c",
+		bsdtar_errc(1, 0, "Option %s is not permitted in mode -%c",
 		    opt, mode);
 }
 
