@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.1.2.4 1998/02/13 22:50:12 pst Exp $
+ *      $Id: wfd.c,v 1.1.2.5 1998/03/20 23:15:30 msmith Exp $
  */
 
 /*
@@ -131,7 +131,7 @@ struct wfd {
 	int flags;                      /* Device state flags */
 	int refcnt;                     /* The number of raw opens */
 	int maxblks;			/* transfer size limit */
-	struct buf_queue_head buf_queue;  /* Queue of i/o requests */
+	struct buf_queue_head buf_queue;/* Queue of i/o requests */
 	struct atapi_params *param;     /* Drive parameters table */
 	struct cappage cap;             /* Capabilities page info */
 	char description[80];           /* Device description */
@@ -197,7 +197,8 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 		return (0);
 	}
 	wfdtab[wfdnlun] = t;
-	bzero (t, sizeof (struct wfd));
+	bzero(t, sizeof (struct wfd));
+	bufq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;
 	lun = t->lun = wfdnlun++;
@@ -440,7 +441,7 @@ void wfdstrategy (struct buf *bp)
 	x = splbio();
 
 	/* Place it in the queue of disk activities for this disk. */
-	tqdisksort (&t->buf_queue, bp);
+	bufqdisksort(&t->buf_queue, bp);
 
 	/* Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion. */
@@ -458,7 +459,7 @@ void wfdstrategy (struct buf *bp)
  */
 static void wfd_start (struct wfd *t)
 {
-	struct buf *bp = TAILQ_FIRST(&t->buf_queue);
+	struct buf *bp = bufq_first(&t->buf_queue);
 	u_long blkno, nblk;
 	u_char op_code;
 	long count;
@@ -471,7 +472,7 @@ static void wfd_start (struct wfd *t)
 		return;
 
 	/* Unqueue the request. */
-	TAILQ_REMOVE(&t->buf_queue, bp, b_act);
+	bufq_remove(&t->buf_queue, bp);
 
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the

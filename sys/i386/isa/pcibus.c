@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.27 1996/10/30 22:38:55 asami Exp $
+**  $Id: pcibus.c,v 1.27.2.1 1998/03/07 11:33:25 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -94,6 +94,15 @@ pcibus_tag (u_char bus, u_char device, u_char func);
 static pcici_t
 pcibus_ftag (pcici_t tag, u_char func);
 
+static int
+pcibus_bus (pcici_t tag);
+
+static int
+pcibus_device (pcici_t tag);
+
+static int
+pcibus_function (pcici_t tag);
+
 static u_long
 pcibus_read (pcici_t tag, u_long reg);
 
@@ -117,6 +126,9 @@ static struct pcibus i386pci = {
 	pcibus_setup,
 	pcibus_tag,
 	pcibus_ftag,
+	pcibus_bus,
+	pcibus_device,
+	pcibus_function,
 	pcibus_read,
 	pcibus_write,
 	pcibus_ihandler_attach,
@@ -324,6 +336,58 @@ pcibus_ftag (pcici_t tag, u_char func)
 	};
 	return tag;
 }
+
+static int
+pcibus_bus (pcici_t tag)
+{
+	int bus;
+
+	bus = 0;
+	switch (pci_mechanism) {
+	case 1:
+		bus = (tag.cfg1 >> 16) & 0xff;
+		break;
+	case 2:
+		bus = tag.cfg2.forward;
+		break;
+	}
+	return (bus);
+}
+
+static int
+pcibus_device (pcici_t tag)
+{
+	int device;
+
+	device = 0;
+	switch (pci_mechanism) {
+	case 1:
+		device = (tag.cfg1 >> 11) & 0x1f;
+		break;
+	case 2:
+		device = (tag.cfg2.port >> 8) & 0x3f;
+		break;
+	}
+	return (device);
+}
+
+static int
+pcibus_function (pcici_t tag)
+{
+	int function;
+
+	function = 0;
+	switch (pci_mechanism) {
+	case 1:
+		function = (tag.cfg1 >> 8) & 0x7;
+		break;
+	case 2:
+		function = (tag.cfg2.enable >> 1) & 0x7;
+		break;
+	}
+	return (function);
+}
+
 
 /*--------------------------------------------------------------------
 **

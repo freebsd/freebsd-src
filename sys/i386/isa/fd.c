@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.92.2.4 1997/10/05 21:00:33 joerg Exp $
+ *	$Id: fd.c,v 1.92.2.5 1997/10/19 13:15:01 joerg Exp $
  *
  */
 
@@ -542,7 +542,7 @@ fdattach(struct isa_device *dev)
 	fdc->state = DEVIDLE;
 	/* reset controller, turn motor off, clear fdout mirror reg */
 	outb(fdc->baseport + FDOUT, ((fdc->fdout = 0)));
-	TAILQ_INIT(&fdc->head);
+	bufq_init(&fdc->head);
 
 	/* check for each floppy drive */
 	for (fdup = isa_biotab_fdc; fdup->id_driver != 0; fdup++) {
@@ -1169,7 +1169,7 @@ fdstrategy(struct buf *bp)
 	}
  	bp->b_pblkno = bp->b_blkno;
 	s = splbio();
-	tqdisksort(&fdc->head, bp);
+	bufqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, (caddr_t)fdu); /* a good idea */
 	fdstart(fdcu);
 	splx(s);
@@ -1210,7 +1210,7 @@ fd_timeout(void *arg1)
 	struct buf *bp;
 	int s;
 
-	bp = TAILQ_FIRST(&fdc_data[fdcu].head);
+	bp = bufq_first(&fdc_data[fdcu].head);
 
 	/*
 	 * Due to IBM's brain-dead design, the FDC has a faked ready
@@ -1297,7 +1297,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 	struct fd_formb *finfo = NULL;
 	size_t fdblk;
 
-	bp = TAILQ_FIRST(&fdc->head);
+	bp = bufq_first(&fdc->head);
 	if(!bp) {
 		/***********************************************\
 		* nothing left for this controller to do	*
@@ -1594,7 +1594,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		{
 			/* ALL DONE */
 			fd->skip = 0;
-			TAILQ_REMOVE(&fdc->head, bp, b_act);
+			bufq_remove(&fdc->head, bp);
 			biodone(bp);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
@@ -1704,7 +1704,7 @@ retrier(fdcu)
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
 
-	bp = TAILQ_FIRST(&fdc->head);
+	bp = bufq_first(&fdc->head);
 
 	if(fd_data[FDUNIT(minor(bp->b_dev))].options & FDOPT_NORETRY)
 		goto fail;
@@ -1748,7 +1748,7 @@ retrier(fdcu)
 		bp->b_flags |= B_ERROR;
 		bp->b_error = EIO;
 		bp->b_resid += bp->b_bcount - fdc->fd->skip;
-		TAILQ_REMOVE(&fdc->head, bp, b_act);
+		bufq_remove(&fdc->head, bp);
 		fdc->fd->skip = 0;
 		biodone(bp);
 		fdc->state = FINDWORK;
