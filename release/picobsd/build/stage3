@@ -1,9 +1,11 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+#	$Id: stage3,v 1.2 1998/08/31 13:35:06 abial Exp $
 #
 set -e
+
+. ../Version
 
 if [ ! -f kernel.kz ]; then
 	echo "-> ERROR: you must build kernel.kz first"
@@ -49,16 +51,24 @@ cd ../${TYPE}/floppy.tree
 echo "-> Copying language dependent files..."
 for i in hosts motd rc resolv.conf
 do
-	cp ../lang/${i}.${LANGUAGE} etc/${i}
+	cat ../lang/${i}.${LANGUAGE} | \
+		sed -e "s/@VER@/${VER}/g" > \
+		etc/${i}
 done
 if [ "${TYPE}" != "router" ]
 then
-	cp ../lang/rc.conf.${LANGUAGE} etc/rc.conf
-	cp ../lang/rc.network.${LANGUAGE} etc/rc.network
+	cat ../lang/rc.conf.${LANGUAGE} | \
+		sed -e "s/@VER@/${VER}/g" > \
+		etc/rc.conf
+	cat ../lang/rc.network.${LANGUAGE}| \
+		sed -e "s/@VER@/${VER}/g" > \
+		etc/rc.network
 fi
 
 echo "-> Populating floppy filesystem..."
-cp ../lang/boot.help.${LANGUAGE} /mnt/boot.help
+cat ../lang/boot.help.${LANGUAGE} | \
+	sed -e "s/@VER@/${VER}/g" > \
+	/mnt/boot.help
 cp -pr . /mnt
 rm -rf /mnt/CVS /mnt/etc/CVS /mnt/etc/ppp/CVS
 if [ "${TYPE}" = "dial" ]

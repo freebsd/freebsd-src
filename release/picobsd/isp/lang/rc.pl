@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.pl,v 1.3 1998/08/10 19:16:43 abial Exp $
+# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
@@ -47,7 +47,7 @@ if [ "x$swapfile" = "xNO" ]; then
 fi
 echo ''
 echo ''
-echo '+------------ PicoBSD 0.4 (ISP) ---------------+'
+echo '+------------ PicoBSD @VER@ (ISP) --------------+'
 echo '|                                              |'
 echo '| Zaloguj sie jako "root" (haslo "setup").     |'
 echo '|                                              |'

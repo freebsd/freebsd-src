@@ -1,11 +1,11 @@
 #!/bin/sh
-# $Id: rc,v 1.4 1998/08/19 07:06:33 abial Exp $
+# $Id: rc.pl,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $
 ### Special setup for one floppy PICOBSD ###
 ifconfig lo0 inet 127.0.0.1 netmask 0xffffff00
 hostname pico
 echo ""
 echo ""
-echo '+----------- PicoBSD 0.4 (ROUTER) -------------+'
+echo '+----------- PicoBSD 0.41 (ROUTER) ------------+'
 echo '|                                              |'
 echo '| Ta wersja PicoBSD podlega w pelni licencji   |'
 echo '| BSD. Wiecej informacji mozna znalezc na      |'

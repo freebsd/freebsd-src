@@ -1,6 +1,6 @@
 1998.07.29, Warszawa
 
-				PicoBSD 0.4
+				PicoBSD @VER@
 				-----------
 
 Co to jest PicoBSD?

@@ -4,7 +4,7 @@
                   The system is coming up, please wait.
 +--------------------------------------------------------------------------+
 
- This is special version of FreeBSD-3.0, called PicoBSD (v.0.4).
+ This is special version of FreeBSD-3.0, called PicoBSD (v.@VER@).
 
  It allows you to connect to the Internet via dialup connection (using PPP)
  or via Ethernet card.
