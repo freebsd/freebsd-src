@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.56 1998/05/20 08:02:23 peter Exp $
+ * $Id: nfs_bio.c,v 1.57 1998/05/30 16:33:56 peter Exp $
  */
 
 
@@ -75,54 +75,75 @@ extern struct nfsstats nfsstats;
  */
 int
 nfs_getpages(ap)
-	struct vop_getpages_args *ap;
+	struct vop_getpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_reqpage;
+		vm_ooffset_t a_offset;
+	} */ *ap;
 {
-	int i, error, nextoff, size, toff, npages;
+	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
 	struct iovec iov;
 	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
+	struct vnode *vp;
+	struct proc *p;
+	struct ucred *cred;
+	struct nfsmount *nmp;
+	vm_page_t *pages;
 
-	if ((ap->a_vp->v_object) == NULL) {
+	vp = ap->a_vp;
+	p = curproc;				/* XXX */
+	cred = curproc->p_ucred;		/* XXX */
+	nmp = VFSTONFS(vp->v_mount);
+	pages = ap->a_m;
+	count = ap->a_count;
+
+	if (vp->v_object == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
-		return EOPNOTSUPP;
+		return VM_PAGER_ERROR;
 	}
 
+	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
+		(void)nfs_fsinfo(nmp, vp, cred, p);
 	/*
 	 * We use only the kva address for the buffer, but this is extremely
 	 * convienient and fast.
 	 */
 	bp = getpbuf();
 
-	npages = btoc(ap->a_count);
+	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
-	pmap_qenter(kva, ap->a_m, npages);
+	pmap_qenter(kva, pages, npages);
 
 	iov.iov_base = (caddr_t) kva;
-	iov.iov_len = ap->a_count;
+	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	uio.uio_offset = IDX_TO_OFF(ap->a_m[0]->pindex);
-	uio.uio_resid = ap->a_count;
+	uio.uio_offset = IDX_TO_OFF(pages[0]->pindex);
+	uio.uio_resid = count;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_READ;
-	uio.uio_procp = curproc;
+	uio.uio_procp = p;
 
-	error = nfs_readrpc(ap->a_vp, &uio, curproc->p_ucred);
+	error = nfs_readrpc(vp, &uio, cred);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp);
 
-	if (error && (uio.uio_resid == ap->a_count))
+	if (error && (uio.uio_resid == count))
 		return VM_PAGER_ERROR;
 
-	size = ap->a_count - uio.uio_resid;
+	size = count - uio.uio_resid;
 
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
-		m = ap->a_m[i];
+		m = pages[i];
 
 		m->flags &= ~PG_ZERO;
 
@@ -166,19 +187,40 @@ nfs_getpages(ap)
  */
 int
 nfs_putpages(ap)
-	struct vop_putpages_args *ap;
+	struct vop_putpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_sync;
+		int *a_rtvals;
+		vm_ooffset_t a_offset;
+	} */ *ap;
 {
 	struct uio uio;
 	struct iovec iov;
 	vm_page_t m;
 	vm_offset_t kva;
 	struct buf *bp;
-	int iomode, must_commit, i, error, npages;
+	int iomode, must_commit, i, error, npages, count;
 	int *rtvals;
+	struct vnode *vp;
+	struct proc *p;
+	struct ucred *cred;
+	struct nfsmount *nmp;
+	vm_page_t *pages;
 
+	vp = ap->a_vp;
+	p = curproc;				/* XXX */
+	cred = curproc->p_ucred;		/* XXX */
+	nmp = VFSTONFS(vp->v_mount);
+	pages = ap->a_m;
+	count = ap->a_count;
 	rtvals = ap->a_rtvals;
+	npages = btoc(count);
 
-	npages = btoc(ap->a_count);
+	if ((nmp->nm_flag & NFSMNT_NFSV3) != 0 &&
+	    (nmp->nm_state & NFSSTA_GOTFSINFO) == 0)
+		(void)nfs_fsinfo(nmp, vp, cred, p);
 
 	for (i = 0; i < npages; i++) {
 		rtvals[i] = VM_PAGER_AGAIN;
@@ -191,44 +233,42 @@ nfs_putpages(ap)
 	bp = getpbuf();
 
 	kva = (vm_offset_t) bp->b_data;
-	pmap_qenter(kva, ap->a_m, npages);
+	pmap_qenter(kva, pages, npages);
 
 	iov.iov_base = (caddr_t) kva;
-	iov.iov_len = ap->a_count;
+	iov.iov_len = count;
 	uio.uio_iov = &iov;
 	uio.uio_iovcnt = 1;
-	uio.uio_offset = IDX_TO_OFF(ap->a_m[0]->pindex);
-	uio.uio_resid = ap->a_count;
+	uio.uio_offset = IDX_TO_OFF(pages[0]->pindex);
+	uio.uio_resid = count;
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_WRITE;
-	uio.uio_procp = curproc;
+	uio.uio_procp = p;
 
 	if ((ap->a_sync & VM_PAGER_PUT_SYNC) == 0)
 	    iomode = NFSV3WRITE_UNSTABLE;
 	else
 	    iomode = NFSV3WRITE_FILESYNC;
 
-	error = nfs_writerpc(ap->a_vp, &uio,
-		curproc->p_ucred, &iomode, &must_commit);
+	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
 
 	pmap_qremove(kva, npages);
 	relpbuf(bp);
 
 	if (!error) {
-		int nwritten = round_page(ap->a_count - uio.uio_resid) / PAGE_SIZE;
+		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
 		for (i = 0; i < nwritten; i++) {
 			rtvals[i] = VM_PAGER_OK;
-			ap->a_m[i]->dirty = 0;
+			pages[i]->dirty = 0;
 		}
 		if (must_commit)
-			nfs_clearcommit(ap->a_vp->v_mount);
+			nfs_clearcommit(vp->v_mount);
 	}
-	return ap->a_rtvals[0];
+	return rtvals[0];
 }
 
 /*
  * Vnode op for read using bio
- * Any similarity to readip() is purely coincidental
  */
 int
 nfs_bioread(vp, uio, ioflag, cred, getpages)
