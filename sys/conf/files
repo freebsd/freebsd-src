@@ -311,6 +311,19 @@ dev/digi/Xr.c		optional digi_Xr
 dev/dpt/dpt_eisa.c	optional dpt eisa
 dev/dpt/dpt_pci.c	optional dpt pci
 dev/dpt/dpt_scsi.c	optional dpt
+dev/drm/gamma_dma.c	optional gammadrm
+dev/drm/gamma_drv.c	optional gammadrm
+dev/drm/mga_dma.c	optional mgadrm
+dev/drm/mga_drv.c	optional mgadrm
+dev/drm/mga_state.c	optional mgadrm
+dev/drm/mga_warp.c	optional mgadrm
+dev/drm/r128_cce.c	optional r128drm
+dev/drm/r128_drv.c	optional r128drm
+dev/drm/r128_state.c	optional r128drm
+dev/drm/radeon_cp.c	optional radeondrm
+dev/drm/radeon_drv.c	optional radeondrm
+dev/drm/radeon_state.c	optional radeondrm
+dev/drm/tdfx_drv.c	optional tdfxdrm
 dev/ed/if_ed.c		optional ed
 dev/ed/if_ed_pccard.c	optional ed card
 dev/ed/if_ed_pccard.c	optional ed pccard
