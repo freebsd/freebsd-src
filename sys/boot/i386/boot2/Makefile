@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1998/10/15 20:04:21 rnordier Exp $
+#	$Id: Makefile,v 1.7 1998/10/15 22:08:13 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -10,6 +10,10 @@ CLEANFILES+=	boot1 boot1.out boot1.o \
 		sio.o
 
 M4?=	m4
+
+B2SIOPRT?=	0x3f8
+B2SIOFMT?=	0x3
+B2SIODIV?=	0xc
 
 .if exists(${.OBJDIR}/../btx)
 BTX=	${.OBJDIR}/../btx
@@ -58,7 +62,9 @@ boot2.out: boot2.o sio.o
 		${BTX}/lib/crt0.o boot2.o sio.o
 
 sio.o: sio.s
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+	(cd ${.CURDIR}; ${M4} -DSIOPRT=${B2SIOPRT} \
+		-DSIOFMT=${B2SIOFMT} -DSIODIV=${B2SIODIV} sio.s) | \
+		${AS} ${AFLAGS} -o ${.TARGET}
 
 install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
