@@ -9,6 +9,8 @@ CLEANFILES+=	send-pr send-pr.el
 
 SUBDIR+= doc
 
+LINKS=	${BINDIR}/send-pr ${BINDIR}/sendbug
+
 all: send-pr _PROGSUBDIR
 
 send-pr:	send-pr.sh Makefile
