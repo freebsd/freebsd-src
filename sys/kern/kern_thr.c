@@ -238,29 +238,23 @@ thr_kill(struct thread *td, struct thr_kill_args *uap)
 
 	p = td->td_proc;
 	error = 0;
-
 	PROC_LOCK(p);
-
-	FOREACH_THREAD_IN_PROC(p, ttd)
+	FOREACH_THREAD_IN_PROC(p, ttd) {
 		if (ttd == uap->id)
 			break;
-
+	}
 	if (ttd == NULL) {
 		error = ESRCH;
 		goto out;
 	}
-
 	if (uap->sig == 0)
 		goto out;
-
 	if (!_SIG_VALID(uap->sig)) {
 		error = EINVAL;
 		goto out;
 	}
-
 	tdsignal(ttd, uap->sig, SIGTARGET_TD);
 out:
 	PROC_UNLOCK(p);
-
 	return (error);
 }
