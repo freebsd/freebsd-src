@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: subsegs.c,v 1.3 1993/10/02 20:57:54 pk Exp $";
+static char rcsid[] = "$Id: subsegs.c,v 1.2 1993/11/03 00:52:19 paul Exp $";
 #endif
 
 #include "as.h"
@@ -140,6 +140,9 @@ register int	subseg;
 	if (seg == SEG_DATA) {
 		seg_fix_rootP = &data_fix_root;
 		seg_fix_tailP = &data_fix_tail;
+	} else if (seg == SEG_BSS) {
+		seg_fix_rootP = &bss_fix_root;
+		seg_fix_tailP = &bss_fix_tail;
 	} else {
 		know (seg == SEG_TEXT);
 		seg_fix_rootP = &text_fix_root;
@@ -171,7 +174,7 @@ register subsegT	subseg;
 {
 	long tmp;		/* JF for obstack alignment hacking */
 #ifndef MANY_SEGMENTS
-	know(seg == SEG_DATA || seg == SEG_TEXT);
+	know(seg == SEG_DATA || seg == SEG_TEXT || seg == SEG_BSS);
 #endif
 	if (seg != now_seg || subseg != now_subseg)
 	    {				/* we just changed sub-segments */
