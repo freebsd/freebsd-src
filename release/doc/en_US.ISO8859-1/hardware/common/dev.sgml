@@ -804,6 +804,8 @@
 
     &hwlist.snd.ds1;
 
+    &hwlist.snd.ich;
+
     <para arch="pc98">NEC PC-9801-73, 86 and compatibles (nss driver)
       <itemizedlist>
         <listitem>
