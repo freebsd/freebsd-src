@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_close_session.c#9 $
+ * $P4: //depot/projects/openpam/lib/pam_close_session.c#10 $
  */
 
 #include <sys/param.h>
@@ -52,9 +52,10 @@ pam_close_session(pam_handle_t *pamh,
 	int flags)
 {
 
+	ENTER();
 	if (flags & ~(PAM_SILENT))
-		return (PAM_SYMBOL_ERR);
-	return (openpam_dispatch(pamh, PAM_SM_CLOSE_SESSION, flags));
+		RETURNC(PAM_SYMBOL_ERR);
+	RETURNC(openpam_dispatch(pamh, PAM_SM_CLOSE_SESSION, flags));
 }
 
 /*

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_configure.c#5 $
+ * $P4: //depot/projects/openpam/lib/openpam_configure.c#6 $
  */
 
 #include <ctype.h>
@@ -213,6 +213,7 @@ static const char *openpam_policy_path[] = {
 	"/etc/pam.d/",
 	"/etc/pam.conf",
 	"/usr/local/etc/pam.d/",
+	"/usr/local/etc/pam.conf",
 	NULL
 };
 

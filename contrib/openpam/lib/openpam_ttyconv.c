@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#13 $
+ * $P4: //depot/projects/openpam/lib/openpam_ttyconv.c#14 $
  */
 
 #include <sys/types.h>
@@ -46,7 +46,8 @@
 #include <unistd.h>
 
 #include <security/pam_appl.h>
-#include <security/openpam.h>
+
+#include "openpam_impl.h"
 
 int openpam_ttyconv_timeout = 0;
 static jmp_buf jmpenv;
@@ -139,11 +140,12 @@ openpam_ttyconv(int n,
 {
 	int i;
 
-	data = data;
+	ENTER();
+	(void)data;
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
-		return (PAM_CONV_ERR);
+		RETURNC(PAM_CONV_ERR);
 	if ((*resp = calloc(n, sizeof **resp)) == NULL)
-		return (PAM_BUF_ERR);
+		RETURNC(PAM_BUF_ERR);
 	for (i = 0; i < n; ++i) {
 		resp[i]->resp_retcode = 0;
 		resp[i]->resp = NULL;
@@ -174,13 +176,13 @@ openpam_ttyconv(int n,
 			goto fail;
 		}
 	}
-	return (PAM_SUCCESS);
+	RETURNC(PAM_SUCCESS);
  fail:
 	while (i)
 		free(resp[--i]);
 	free(*resp);
 	*resp = NULL;
-	return (PAM_CONV_ERR);
+	RETURNC(PAM_CONV_ERR);
 }
 
 /*
