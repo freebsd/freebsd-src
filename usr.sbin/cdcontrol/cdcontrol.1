@@ -1,4 +1,4 @@
-.\"	$Id: cdcontrol.1,v 1.15 1998/01/26 00:57:54 jmz Exp $
+.\"	$Id: cdcontrol.1,v 1.16 1998/06/13 19:28:51 steve Exp $
 .\"
 .Dd July 3, 1995
 .Dt CDCONTROL 1
@@ -10,7 +10,7 @@
 .Nm cdcontrol
 .Op Fl s
 .Op Fl v
-.Op Fl f Ar discname
+.Op Fl f Ar devicename
 .Op Ar command args ...
 .Sh DESCRIPTION
 .Nm Cdcontrol
@@ -38,7 +38,7 @@ The following options are available:
 Silent mode - do not print table headers and human readable comments.
 .It Fl v
 Verbose mode - print as much information as possible.
-.It Fl f Ar discname
+.It Fl f Ar devicename
 Specify a device name, such as
 .Pa /dev/cd0c
 or
