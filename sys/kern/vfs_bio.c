@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.104.2.5 1997/05/31 10:36:23 dfr Exp $
+ * $Id: vfs_bio.c,v 1.104.2.6 1997/06/21 13:32:58 bde Exp $
  */
 
 /*
@@ -516,6 +516,7 @@ brelse(struct buf * bp)
 	 */
 	if ((bp->b_flags & B_VMIO)
 	    && (bp->b_vp->v_tag != VT_NFS
+		|| bp->b_vp->v_type == VBLK
 		|| (bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR))
 		|| bp->b_validend == 0
 		|| (bp->b_validoff == 0
@@ -1498,7 +1499,9 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
 				}
-				if (vp->v_tag == VT_NFS && bp->b_validend == 0)
+				if (vp->v_tag == VT_NFS &&
+				    vp->v_type != VBLK && 
+				    bp->b_validend == 0)
 					bp->b_flags &= ~B_CACHE;
 				bp->b_data = (caddr_t) trunc_page(bp->b_data);
 				bp->b_npages = curbpnpages;
@@ -1785,7 +1788,7 @@ vfs_buf_set_valid(struct buf *bp,
 		  vm_ooffset_t foff, vm_offset_t off, vm_offset_t size,
 		  vm_page_t m)
 {
-	if (bp->b_vp->v_tag == VT_NFS) {
+	if (bp->b_vp->v_tag == VT_NFS && bp->b_vp->v_type != VBLK) {
 		vm_offset_t svalid, evalid;
 		int validbits = m->valid;
 
@@ -1835,7 +1838,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 	vm_page_set_invalid(m,
 			    (vm_offset_t) (soff & PAGE_MASK),
 			    (vm_offset_t) (eoff - soff));
-	if (vp->v_tag == VT_NFS) {
+	if (vp->v_tag == VT_NFS && vp->v_type != VBLK) {
 		vm_ooffset_t sv, ev;
 		off = off - pageno * PAGE_SIZE;
 		sv = off + ((bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1));
