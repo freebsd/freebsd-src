@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.22 1998/11/15 18:25:15 dfr Exp $
+ *	$Id: machdep.c,v 1.23 1998/11/18 23:51:40 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -197,6 +197,8 @@ int	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
 vm_offset_t phys_avail[10];
+
+SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
