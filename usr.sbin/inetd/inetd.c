@@ -204,30 +204,30 @@ static const char rcsid[] =
 
 #define	SIGBLOCK	(sigmask(SIGCHLD)|sigmask(SIGHUP)|sigmask(SIGALRM))
 
-void		close_sep __P((struct servtab *));
-void		flag_signal __P((int));
-void		flag_config __P((int));
-void		config __P((void));
-int		cpmip __P((const struct servtab *, int));
-void		endconfig __P((void));
-struct servtab *enter __P((struct servtab *));
-void		freeconfig __P((struct servtab *));
-struct servtab *getconfigent __P((void));
-int		matchservent __P((const char *, const char *, const char *));
-char	       *nextline __P((FILE *));
-void		addchild __P((struct servtab *, int));
-void		flag_reapchild __P((int));
-void		reapchild __P((void));
-void		enable __P((struct servtab *));
-void		disable __P((struct servtab *));
-void		flag_retry __P((int));
-void		retry __P((void));
-int		setconfig __P((void));
-void		setup __P((struct servtab *));
+void		close_sep(struct servtab *);
+void		flag_signal(int);
+void		flag_config(int);
+void		config(void);
+int		cpmip(const struct servtab *, int);
+void		endconfig(void);
+struct servtab *enter(struct servtab *);
+void		freeconfig(struct servtab *);
+struct servtab *getconfigent(void);
+int		matchservent(const char *, const char *, const char *);
+char	       *nextline(FILE *);
+void		addchild(struct servtab *, int);
+void		flag_reapchild(int);
+void		reapchild(void);
+void		enable(struct servtab *);
+void		disable(struct servtab *);
+void		flag_retry(int);
+void		retry(void);
+int		setconfig(void);
+void		setup(struct servtab *);
 #ifdef IPSEC
-void		ipsecsetup __P((struct servtab *));
+void		ipsecsetup(struct servtab *);
 #endif
-void		unregisterrpc __P((register struct servtab *sep));
+void		unregisterrpc(register struct servtab *sep);
 
 int	allow_severity;
 int	deny_severity;

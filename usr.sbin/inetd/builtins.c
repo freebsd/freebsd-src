@@ -52,21 +52,21 @@
 
 #include "inetd.h"
 
-void		chargen_dg __P((int, struct servtab *));
-void		chargen_stream __P((int, struct servtab *));
-void		daytime_dg __P((int, struct servtab *));
-void		daytime_stream __P((int, struct servtab *));
-void		discard_dg __P((int, struct servtab *));
-void		discard_stream __P((int, struct servtab *));
-void		echo_dg __P((int, struct servtab *));
-void		echo_stream __P((int, struct servtab *));
-static int	getline __P((int, char *, int));
-void		iderror __P((int, int, int, const char *));
-void		ident_stream __P((int, struct servtab *));
-void		initring __P((void));
-unsigned long	machtime __P((void));
-void		machtime_dg __P((int, struct servtab *));
-void		machtime_stream __P((int, struct servtab *));
+void		chargen_dg(int, struct servtab *);
+void		chargen_stream(int, struct servtab *);
+void		daytime_dg(int, struct servtab *);
+void		daytime_stream(int, struct servtab *);
+void		discard_dg(int, struct servtab *);
+void		discard_stream(int, struct servtab *);
+void		echo_dg(int, struct servtab *);
+void		echo_stream(int, struct servtab *);
+static int	getline(int, char *, int);
+void		iderror(int, int, int, const char *);
+void		ident_stream(int, struct servtab *);
+void		initring(void);
+unsigned long	machtime(void);
+void		machtime_dg(int, struct servtab *);
+void		machtime_stream(int, struct servtab *);
 
 char ring[128];
 char *endring;
