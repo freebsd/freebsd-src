@@ -1,3 +1,5 @@
+struct mbuf;
+struct sockaddr_at;
 
 #ifdef _NET_IF_ARP_H_
 extern timeout_t	aarpprobe;
@@ -12,6 +14,10 @@ extern int	at_broadcast	__P((struct sockaddr_at  *));
 #ifdef _NETATALK_AARP_H_
 extern void	aarptfree	__P((struct aarptab *));
 #endif
+
+struct ifnet;
+struct proc;
+struct socket;
 
 extern void	aarp_clean	__P((void));
 extern int	at_control	__P(( struct socket *so,

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_rrip.h	8.2 (Berkeley) 1/23/94
- * $Id$
+ * $Id: iso_rrip.h,v 1.4 1997/02/22 09:38:52 peter Exp $
  */
 
 
@@ -71,6 +71,8 @@ typedef struct {
 	u_short		maxlen;		/* maximum length of above */
 	int		cont;		/* continuation of above */
 } ISO_RRIP_ANALYZE;
+
+struct iso_directory_record;
 
 int cd9660_rrip_analyze __P((struct iso_directory_record *isodir,
 			    struct iso_node *inop, struct iso_mnt *imp));

@@ -34,13 +34,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.12 1997/02/22 09:42:48 peter Exp $
+ * $Id: nfsm_subs.h,v 1.13 1997/07/16 09:06:30 dfr Exp $
  */
 
 
 #ifndef _NFS_NFSM_SUBS_H_
 #define _NFS_NFSM_SUBS_H_
 
+struct ucred;
+struct vnode;
 
 /*
  * These macros do strange and peculiar things to mbuf chains for
