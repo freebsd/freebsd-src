@@ -14,6 +14,7 @@ KODIR?=		/boot/${KERNEL}
 M=	${MACHINE_ARCH}
 
 AWK?=		awk
+LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
@@ -54,6 +55,9 @@ WERROR?=	-Werror
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}
 
+# Optional linting. This can be overridden in /etc/make.conf.
+LINTFLAGS=	${LINTOBJKERNFLAGS}
+
 NORMAL_C= ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
 PROFILE_C= ${CC} -c ${CFLAGS} ${WERROR} ${.IMPSRC}
@@ -61,6 +65,8 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
+
+NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= config.c env.c hints.c majors.c vnode_if.c
