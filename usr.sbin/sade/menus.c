@@ -42,6 +42,8 @@ setSrc(dialogMenuItem *self)
 {
     Dists |= DIST_SRC;
     SrcDists = DIST_SRC_ALL;
+    CRYPTODists |= (DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
+	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -50,22 +52,8 @@ clearSrc(dialogMenuItem *self)
 {
     Dists &= ~DIST_SRC;
     SrcDists = 0;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-setCRYPTO(dialogMenuItem *self)
-{
-    Dists |= DIST_CRYPTO;
-    CRYPTODists = DIST_CRYPTO_ALL;
-    return DITEM_SUCCESS | DITEM_REDRAW;
-}
-
-static int
-clearCRYPTO(dialogMenuItem *self)
-{
-    Dists &= ~DIST_CRYPTO;
-    CRYPTODists = 0;
+    CRYPTODists &= ~(DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
+	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
@@ -121,10 +109,10 @@ clearX11Fonts(dialogMenuItem *self)
 #define _IS_SET(dist, set) (((dist) & (set)) == (set))
 
 #define IS_DEVELOPER(dist, extra) (_IS_SET(dist, _DIST_DEVELOPER | extra) || \
-	_IS_SET(dist, _DIST_DEVELOPER | DIST_CRYPTO | extra))
+	_IS_SET(dist, _DIST_DEVELOPER | extra))
 
 #define IS_USER(dist, extra) (_IS_SET(dist, _DIST_USER | extra) || \
-	_IS_SET(dist, _DIST_USER | DIST_CRYPTO | extra))
+	_IS_SET(dist, _DIST_USER | extra))
 
 static int
 checkDistDeveloper(dialogMenuItem *self)
@@ -171,16 +159,11 @@ checkDistMinimum(dialogMenuItem *self)
 static int
 checkDistEverything(dialogMenuItem *self)
 {
-    return Dists == DIST_ALL && _IS_SET(SrcDists, DIST_SRC_ALL) && \
+    return Dists == DIST_ALL && CRYPTODists == DIST_CRYPTO_ALL && \
+	_IS_SET(SrcDists, DIST_SRC_ALL) && \
 	_IS_SET(XF86Dists, DIST_XF86_ALL) && \
 	_IS_SET(XF86ServerDists, DIST_XF86_SERVER_ALL) && \
 	_IS_SET(XF86FontDists, DIST_XF86_FONTS_ALL);
-}
-
-static int
-CRYPTOFlagCheck(dialogMenuItem *item)
-{
-    return CRYPTODists;
 }
 
 static int
@@ -225,7 +208,6 @@ DMenu MenuIndex = {
       { " Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { " Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { " Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
-      { " Dists, CRYPTO",	"Encryption distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuCRYPTODistributions },
       { " Dists, Developer",	"Select developer's distribution.",	checkDistDeveloper, distSetDeveloper },
       { " Dists, Src",		"Src distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuSrcDistributions },
       { " Dists, X Developer",	"Select X developer's distribution.",	checkDistXDeveloper, distSetXDeveloper },
@@ -275,6 +257,7 @@ DMenu MenuIndex = {
       { " PCNFSD",		"Run authentication server for PC-NFS.", dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
       { " Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { " Router",		"Select routing daemon (default: routed)", NULL, configRouter, NULL, "router_enable" },
+      { " Security",		"Select a default system security profile.", NULL, dmenuSubmenu, NULL, &MenuSecurityProfile },
       { " Syscons",		"The system console configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { " Syscons, Font",	"The console screen font.",	  NULL, dmenuSubmenu, NULL, &MenuSysconsFont },
       { " Syscons, Keymap",	"The console keymap configuration menu.", NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
@@ -422,70 +405,6 @@ DMenu MenuMouse = {
       { "5 Flags",      "Set additional flags", dmenuVarCheck, setMouseFlags,
 	NULL, VAR_MOUSED_FLAGS "=" },
       { "6 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
-      { NULL } },
-};
-
-DMenu MenuXF86Config = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select the XFree86 configuration tool you want to use.",
-#ifdef __alpha__
-    "Due to problems with the VGA16 server right now, only the\n"
-    "text-mode configuration tool (xf86config) is currently supported.",
-#else
-    "The first tool, XF86Setup, is fully graphical and requires the\n"
-    "VGA16 server in order to work (should have been selected by\n"
-    "default, but if you de-selected it then you won't be able to\n"
-    "use this fancy setup tool).  The second tool, xf86config, is\n"
-    "a more simplistic shell-script based tool and less friendly to\n"
-    "new users, but it may work in situations where the fancier one\n"
-    "does not.",
-#endif
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)",
-	NULL, dmenuExit },
-#ifdef __alpha__
-      { "2 xf86config",	"Shell-script based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-#else
-      { "2 XF86Setup",	"Fully graphical XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
-      { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-      { "4 XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
-#endif
-      { "D XDesktop",	"X already set up, just do desktop configuration.",
-	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
-      { NULL } },
-};
-
-DMenu MenuXDesktops = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Please select the default X desktop to use.",
-    "By default, XFree86 comes with a fairly vanilla desktop which\n"
-    "is based around the twm(1) window manager and does not offer\n"
-    "much in the way of features.  It does have the advantage of\n"
-    "being a standard part of X so you don't need to load anything\n"
-    "extra in order to use it.  If, however, you have access to a\n"
-    "reasonably full packages collection on your installation media,\n"
-    "you can choose any one of the following desktops as alternatives.",
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)",
-	NULL, dmenuExit },
-      { "2 KDE",		"The K Desktop Environment.",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
-      { "3 GNOME + Afterstep",	"GNOME + Afterstep window manager.",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
-      { "4 GNOME + Enlightenment","GNOME + The E window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
-      { "5 Afterstep",	"The Afterstep window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
-      { "6 Windowmaker",	"The Windowmaker window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
-      { "7 fvwm2",		"The fvwm2 window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
       { NULL } },
 };
 
@@ -844,8 +763,17 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
 #endif
 #endif
-      { " CRYPTO",	"Encryption code - NOT FOR EXPORT!",
-	CRYPTOFlagCheck,distSetCRYPTO },
+      { " crypto",	"Basic encryption services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
+#if __FreeBSD__ <= 3
+      { " krb",		"KerberosIV authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS },
+#else
+      { " krb4",	"KerberosIV authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS4 },
+      { " krb5",	"Kerberos5 authentication services",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
+#endif
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
@@ -868,43 +796,6 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " XFree86",	"The XFree86 3.3.6 distribution",
 	x11FlagCheck,	distSetXF86 },
-      { NULL } },
-};
-
-DMenu MenuCRYPTODistributions = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "Select the encryption facilities you wish to install.",
-    "Please check off any special encryption distributions\n"
-    "you would like to install.  Please note that these services are NOT FOR\n"
-    "EXPORT from the United States.  For information on non-U.S. FTP\n"
-    "distributions of this software, please consult the release notes.",
-    NULL,
-    NULL,
-    { { "X Exit", "Exit this menu (returning to previous)",
-	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
-      { "All",		"Select all of the below",
-	NULL,		setCRYPTO, NULL, NULL, ' ', ' ', ' ' },
-      { "Reset",	"Reset all of the below",
-	NULL,		clearCRYPTO, NULL, NULL, ' ', ' ', ' ' },
-      { " crypto",	"Basic encryption services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
-#if __FreeBSD__ <= 3
-      { " krb",		"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS },
-#else
-      { " krb4",	"KerberosIV authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS4 },
-      { " krb5",	"Kerberos5 authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
-#endif
-      { " skrb4",	"Sources for KerberosIV",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS4 },
-      { " skrb5",	"Sources for Kerberos5",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS5 },
-      { " ssecure",	"BSD encryption sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SSECURE },
-      { " scrypto",	"Contributed encryption sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SCRYPTO },
       { NULL } },
 };
 
@@ -943,8 +834,16 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BIN },
       { " sbin",	"/usr/src/sbin (system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SBIN },
+      { " scrypto",	"/usr/src/crypto (contrib encryption sources)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SCRYPTO },
       { " share",	"/usr/src/share (documents and shared files)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SHARE },
+      { " skrb4",	"/usr/src/kerberosIV (sources for KerberosIV)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS4 },
+      { " skrb5",	"/usr/src/kerberos5 (sources for Kerberos5)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SKERBEROS5 },
+      { " ssecure",	"/usr/src/secure (BSD encryption sources)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_SSECURE },
       { " sys",		"/usr/src/sys (FreeBSD kernel)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SYS },
       { " tools",	"/usr/src/tools (miscellaneous tools)",
@@ -953,6 +852,70 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_UBIN },
       { " usbin",	"/usr/src/usr.sbin (aux system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_USBIN },
+      { NULL } },
+};
+
+DMenu MenuXF86Config = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select the XFree86 configuration tool you want to use.",
+#ifdef __alpha__
+    "Due to problems with the VGA16 server right now, only the\n"
+    "text-mode configuration tool (xf86config) is currently supported.",
+#else
+    "The first tool, XF86Setup, is fully graphical and requires the\n"
+    "VGA16 server in order to work (should have been selected by\n"
+    "default, but if you de-selected it then you won't be able to\n"
+    "use this fancy setup tool).  The second tool, xf86config, is\n"
+    "a more simplistic shell-script based tool and less friendly to\n"
+    "new users, but it may work in situations where the fancier one\n"
+    "does not.",
+#endif
+    NULL,
+    NULL,
+    { { "X Exit", "Exit this menu (returning to previous)",
+	NULL, dmenuExit },
+#ifdef __alpha__
+      { "2 xf86config",	"Shell-script based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+#else
+      { "2 XF86Setup",	"Fully graphical XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
+      { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+      { "4 XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
+#endif
+      { "D XDesktop",	"X already set up, just do desktop configuration.",
+	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
+      { NULL } },
+};
+
+DMenu MenuXDesktops = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Please select the default X desktop to use.",
+    "By default, XFree86 comes with a fairly vanilla desktop which\n"
+    "is based around the twm(1) window manager and does not offer\n"
+    "much in the way of features.  It does have the advantage of\n"
+    "being a standard part of X so you don't need to load anything\n"
+    "extra in order to use it.  If, however, you have access to a\n"
+    "reasonably full packages collection on your installation media,\n"
+    "you can choose any one of the following desktops as alternatives.",
+    NULL,
+    NULL,
+    { { "X Exit", "Exit this menu (returning to previous)",
+	NULL, dmenuExit },
+      { "2 KDE",		"The K Desktop Environment.",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=kde" },
+      { "3 GNOME + Afterstep",	"GNOME + Afterstep window manager.",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=gnome" },
+      { "4 GNOME + Enlightenment","GNOME + The E window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=enlightenment" },
+      { "5 Afterstep",	"The Afterstep window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=afterstep" },
+      { "6 Windowmaker",	"The Windowmaker window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
+      { "7 fvwm2",		"The fvwm2 window manager",
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
       { NULL } },
 };
 
@@ -1254,6 +1217,8 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSubmenu, NULL, &MenuMouse, NULL },
       { " Networking",	"Configure additional network services",
 	NULL,	dmenuSubmenu, NULL, &MenuNetworking },
+      { " Security",	"Select default system security profile",
+	NULL,	dmenuSubmenu, NULL, &MenuSecurityProfile },
       { " Startup",	"Configure system startup options",
 	NULL,	dmenuSubmenu, NULL, &MenuStartup },
       { " Options",	"View/Set various installation options",
@@ -1340,6 +1305,8 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	configAnonFTP, NULL, "anon_ftp" },
       { " Gateway",	"This machine will route packets between interfaces",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
+      { " inetd",	"This machine wants to run the inet daemon",
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "inetd_enable=YES" },
       { " NFS client",	"This machine will be an NFS client",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
       { " NFS server",	"This machine will be an NFS server",
@@ -1348,6 +1315,8 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	dmenuSubmenu, NULL, &MenuNTP, '[', 'X', ']', "ntpdate_enable=YES" },
       { " PCNFSD",	"Run authentication server for clients with PC-NFS.",
 	dmenuVarCheck,	configPCNFSD, NULL, "pcnfsd" },
+      { " portmap",	"This machine wants to run the portmapper daemon",
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "portmap_enable=YES" },
       { " Routed",	"Select routing daemon (default: routed)",
 	dmenuVarCheck,	configRouter, NULL, "router_enable=YES" },
       { " Rwhod",	"This machine wants to run the rwho daemon",
@@ -1369,7 +1338,7 @@ DMenu MenuNTP = {
     "close to you to have your system time synchronized accordingly.",
     "These are the primary open-access NTP servers",
     NULL,
-    { { "None",		        "No ntp server",
+    { { "None",		        "No NTP server",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=NO,ntpdate_flags=none" },
       { "Other",		"Select a site not on this list",
@@ -1622,6 +1591,21 @@ DMenu MenuUsermgmt = {
     { { "X Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
       { "User",		"Add a new user to the system.",	NULL, userAddUser },
       { "Group",	"Add a new user group to the system.",	NULL, userAddGroup },
+      { NULL } },
+};
+
+DMenu MenuSecurityProfile = {
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    "Default system security profile",
+    "Each item in this list will set what it considers to\n"
+    "be \"appropriate\" values in that category for various\n"
+    "security-related knobs in /etc/rc.conf.",
+    "Select a canned security profile.",
+    NULL,
+    { { "X Exit",	"Exit this menu (returning to previous)", NULL, configSecurityModerate },
+      { "Low",		"Fairly wide-open (little) security.", NULL, configSecurityLiberal },
+      { "Medium",	"Moderate security settings [DEFAULT].", NULL, configSecurityModerate },
+      { "High",		"Very restrictive security settings.", NULL, configSecurityFascist },
       { NULL } },
 };
 
