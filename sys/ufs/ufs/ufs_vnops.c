@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.86 1998/06/07 10:49:18 bde Exp $
+ * $Id: ufs_vnops.c,v 1.87 1998/06/07 11:04:26 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1143,8 +1143,10 @@ abortit:
 		if (error)
 			goto bad;
 		if (doingdirectory) {
-			dp->i_effnlink--;
-			dp->i_flag |= IN_CHANGE;
+			if (!newparent) {
+				dp->i_effnlink--;
+				dp->i_flag |= IN_CHANGE;
+			}
 			xp->i_effnlink--;
 			xp->i_flag |= IN_CHANGE;
 		}
@@ -1161,7 +1163,8 @@ abortit:
 			 * disk, so when running with that code we avoid doing
 			 * them now.
 			 */
-			dp->i_nlink--;
+			if (!newparent)
+				dp->i_nlink--;
 			xp->i_nlink--;
 			if ((error = UFS_TRUNCATE(tvp, (off_t)0, IO_SYNC,
 			    tcnp->cn_cred, tcnp->cn_proc)) != 0)
