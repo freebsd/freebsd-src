@@ -43,6 +43,8 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 
+struct disk;
+
 typedef	int	disk_open_t(struct disk *);
 typedef	int	disk_close_t(struct disk *);
 typedef	void	disk_strategy_t(struct bio *bp);
