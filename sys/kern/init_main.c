@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.20 1995/03/28 07:56:24 bde Exp $
+ * $Id: init_main.c,v 1.21 1995/04/10 07:44:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -359,14 +359,10 @@ main(framep)
  * List of paths to try when searching for "init".
  */
 static char *initpaths[] = {
-#ifdef BOOTCDROM
-	"/bootcd/stand/sysinstall",
-#else
 	"/sbin/init",
 	"/sbin/oinit",
 	"/sbin/init.bak",
 	"/stand/sysinstall",
-#endif
 	NULL,
 };
 
