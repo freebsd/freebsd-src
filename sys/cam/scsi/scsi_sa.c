@@ -1728,6 +1728,11 @@ samount(struct cam_periph *periph, int oflags, dev_t dev)
 			return (error);
 		}
 		ccb = cam_periph_getccb(periph, 1);
+		scsi_test_unit_ready(&ccb->csio, 0, sadone,
+		    MSG_SIMPLE_Q_TAG, SSD_FULL_SIZE, 5 * 60 * 1000);
+		error = cam_periph_runccb(ccb, saerror, 0, SF_NO_PRINT,
+		    &softc->device_stats);
+		QFRLS(ccb);
 	}
 
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
