@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.12 1994/10/14 08:57:25 jkh Exp $
+ *	$Id: vnode_pager.c,v 1.13 1994/10/14 12:26:18 davidg Exp $
  */
 
 /*
@@ -809,6 +809,8 @@ vnode_pager_input(vnp, m, count, reqpage)
 				vnode_pager_freepage(m[i]);
 			}
 		}
+		cnt.v_vnodein++;
+		cnt.v_vnodepgsin++;
 		return vnode_pager_input_old(vnp, m[reqpage]);
 
 		/*
@@ -824,6 +826,8 @@ vnode_pager_input(vnp, m, count, reqpage)
 				vnode_pager_freepage(m[i]);
 			}
 		}
+		cnt.v_vnodein++;
+		cnt.v_vnodepgsin++;
 		return vnode_pager_input_smlfs(vnp, m[reqpage]);
 	}
 /*
@@ -1051,8 +1055,12 @@ vnode_pager_input(vnp, m, count, reqpage)
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 
+	cnt.v_vnodein++;
+	cnt.v_vnodepgsin += count;
+
 	/* do the input */
 	VOP_STRATEGY(bp);
+
 	if( counta) {
 		for(i=0;i<counta;i++) {
 			vm_page_deactivate(m[count+i]);
@@ -1074,6 +1082,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		bpa->b_bcount = sizea;
 		bpa->b_bufsize = counta*PAGE_SIZE;
 
+		cnt.v_vnodepgsin += counta;
 		VOP_STRATEGY(bpa);
 	}
 
@@ -1322,6 +1331,8 @@ retryoutput:
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m[0]));
 		m[0]->flags |= PG_CLEAN;
 		m[0]->flags &= ~PG_LAUNDRY;
+		cnt.v_vnodeout++;
+		cnt.v_vnodepgsout++;
 		return rtvals[0];
 	}
 
@@ -1340,6 +1351,8 @@ retryoutput:
 				m[i]->flags &= ~PG_LAUNDRY;
 			}
 		}
+		cnt.v_vnodeout++;
+		cnt.v_vnodepgsout += count;
 		return rtvals[0];
 	}
 
@@ -1449,6 +1462,9 @@ retryoutput:
 
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
+
+	cnt.v_vnodeout++;
+	cnt.v_vnodepgsout += count;
 
 	/* do the output */
 	VOP_STRATEGY(bp);

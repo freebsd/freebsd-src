@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.12 1994/10/14 01:58:52 davidg Exp $
+ * $Id: swap_pager.c,v 1.13 1994/10/14 12:26:17 davidg Exp $
  */
 
 /*
@@ -1081,6 +1081,8 @@ swap_pager_input(swp, m, count, reqpage)
 
 	swp->sw_piip++;
 
+	cnt.v_swapin++;
+	cnt.v_swappgsin += count;
 	/*
 	 * perform the I/O
 	 */
@@ -1457,6 +1459,9 @@ retrygetspace:
 		bp->b_flags |= B_CALL;
 		bp->b_iodone = swap_pager_iodone1;
 	}
+
+	cnt.v_swapout++;
+	cnt.v_swappgsout += count;
 	/*
 	 * perform the I/O
 	 */
