@@ -16,6 +16,6 @@ SRCS=	char.c cmd.c cmd1.c cmd2.c cmd3.c cmd4.c cmd5.c cmd6.c cmd7.c \
 	wwterminfo.c wwtty.c wwunframe.c wwupdate.c wwwrite.c xx.c xxflush.c \
 	compress.c
 DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+LDADD=	-ltermcap -lutil
 
 .include <bsd.prog.mk>
