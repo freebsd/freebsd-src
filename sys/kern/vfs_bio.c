@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.212 1999/06/15 23:37:23 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.213 1999/06/16 03:19:04 tegge Exp $
  */
 
 /*
@@ -699,7 +699,7 @@ void
 bawrite(struct buf * bp)
 {
 	bp->b_flags |= B_ASYNC;
-	(void) VOP_BWRITE(bp);
+	(void) VOP_BWRITE(bp->b_vp, bp);
 }
 
 /*
@@ -714,7 +714,7 @@ int
 bowrite(struct buf * bp)
 {
 	bp->b_flags |= B_ORDERED | B_ASYNC;
-	return (VOP_BWRITE(bp));
+	return (VOP_BWRITE(bp->b_vp, bp));
 }
 
 /*
@@ -1155,7 +1155,7 @@ vfs_bio_awrite(struct buf * bp)
 	 * XXX returns b_bufsize instead of b_bcount for nwritten?
 	 */
 	nwritten = bp->b_bufsize;
-	(void) VOP_BWRITE(bp);
+	(void) VOP_BWRITE(bp->b_vp, bp);
 
 	return nwritten;
 }
@@ -1880,7 +1880,7 @@ loop:
 			) {
 				if (bp->b_flags & B_DELWRI) {
 					bp->b_flags |= B_NOCACHE;
-					VOP_BWRITE(bp);
+					VOP_BWRITE(bp->b_vp, bp);
 				} else {
 					if ((bp->b_flags & B_VMIO) &&
 					   (LIST_FIRST(&bp->b_dep) == NULL)) {
@@ -1888,7 +1888,7 @@ loop:
 						brelse(bp);
 					} else {
 						bp->b_flags |= B_NOCACHE;
-						VOP_BWRITE(bp);
+						VOP_BWRITE(bp->b_vp, bp);
 					}
 				}
 				goto loop;
@@ -1925,7 +1925,7 @@ loop:
 		 */
 
 		if ((bp->b_flags & (B_CACHE|B_DELWRI)) == B_DELWRI) {
-			VOP_BWRITE(bp);
+			VOP_BWRITE(bp->b_vp, bp);
 			goto loop;
 		}
 

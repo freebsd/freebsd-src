@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.129 1999/05/11 19:54:47 phk Exp $
+ * $Id: nfs_vnops.c,v 1.130 1999/06/05 05:35:02 peter Exp $
  */
 
 
@@ -2933,7 +2933,7 @@ loop:
 		else
 		    bp->b_flags |= (B_BUSY|B_ASYNC|B_WRITEINPROG|B_NEEDCOMMIT);
 		splx(s);
-		VOP_BWRITE(bp);
+		VOP_BWRITE(bp->b_vp, bp);
 		goto loop;
 	}
 	splx(s);

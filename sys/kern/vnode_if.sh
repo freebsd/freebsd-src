@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.16 1998/11/10 09:04:09 peter Exp $
+# $Id: vnode_if.sh,v 1.17 1999/02/28 11:30:00 bde Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -350,48 +350,3 @@ $AWK 'function kill_surrounding_ws (s) {
 		printf "\n";
 
 	}' < $SRC >> $CFILE
-
-# THINGS THAT DON'T WORK RIGHT YET.
-# 
-# vop_bwrite doesn't take any vnodes as arguments.  This means that it
-# can't function successfully through a bypass routine.
-#
-# To get around this problem for now we handle it as a special case.
-
-cat << END_OF_SPECIAL_CASES >> $HEADER
-#include <sys/buf.h>
-
-struct vop_bwrite_args {
-	struct vnodeop_desc *a_desc;
-	struct buf *a_bp;
-};
-extern struct vnodeop_desc vop_bwrite_desc;
-static __inline int VOP_BWRITE __P((
-	struct buf *bp));
-static __inline int VOP_BWRITE(bp)
-	struct buf *bp;
-{
-	struct vop_bwrite_args a;
-
-	a.a_desc = VDESC(vop_bwrite);
-	a.a_bp = bp;
-	return (VCALL((bp)->b_vp, VOFFSET(vop_bwrite), &a));
-}
-END_OF_SPECIAL_CASES
-
-cat << END_OF_SPECIAL_CASES >> $CFILE
-static int vop_bwrite_vp_offsets[] = {
-	VDESC_NO_OFFSET
-};
-struct vnodeop_desc vop_bwrite_desc = {
-	0,
-	"vop_bwrite",
-	0,
-	vop_bwrite_vp_offsets,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	VDESC_NO_OFFSET,
-	NULL,
-};
-END_OF_SPECIAL_CASES

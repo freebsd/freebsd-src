@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.26 1999/01/07 16:14:18 bde Exp $
+ * $Id: ufs_lookup.c,v 1.27 1999/01/28 00:57:56 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -719,7 +719,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 			    dirp->d_ino, newdirbp);
 			bdwrite(bp);
 		} else {
-			error = VOP_BWRITE(bp);
+			error = VOP_BWRITE(bp->b_vp, bp);
 		}
 		ret = UFS_UPDATE(dvp, !DOINGSOFTDEP(dvp));
 		if (error == 0)
@@ -896,7 +896,7 @@ out:
 		if (ip)
 			ip->i_nlink--;
 		if (flags & DOWHITEOUT)
-			error = VOP_BWRITE(bp);
+			error = VOP_BWRITE(bp->b_vp, bp);
 		else if (dvp->v_mount->mnt_flag & MNT_ASYNC
 		    && dp->i_count != 0) {
 			bdwrite(bp);
