@@ -128,10 +128,17 @@ initial_pcb()
    * Therefore, just use proc0 and let the user set
    * some other context if they care about it.
    */
-  addr = ksym_lookup("proc0paddr");
+  addr = ksym_lookup("thread0");
   if (kvread(addr, &val)) {
-    error("cannot read proc0paddr pointer at %x\n", addr);
+    error("cannot read thread0 pointer at %x\n", addr);
     val = 0;
+  } else {
+    /* Read the PCB address in proc structure. */
+    addr = (CORE_ADDR)val + offsetof(struct thread, td_pcb);
+    if (kvread(addr, &val)) {
+      error("cannot read thread0->td_pcb pointer at %x\n", addr);
+      val = 0;
+    }
   }
 
   return ((CORE_ADDR)val);
