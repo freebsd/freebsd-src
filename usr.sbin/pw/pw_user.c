@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw_user.c,v 1.24 1999/01/02 04:37:46 billf Exp $";
+	"$Id: pw_user.c,v 1.25 1999/01/04 14:07:53 billf Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -291,7 +291,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		 * really don't really care which we have, but we need to
 		 * know.
 		 */
-		if (mode != M_ADD && pwd == NULL && isdigit(*a_name->val) && atoi(a_name->val) > 0) {	/* Assume uid */
+		if (mode != M_ADD && pwd == NULL
+		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)
+		    && atoi(a_name->val) > 0) {	/* Assume uid */
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
