@@ -80,14 +80,14 @@
 27	MSTD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
 28	MSTD	{ int sendmsg(int s, struct msghdr *msg, int flags); }
 29	MSTD	{ int recvfrom(int s, caddr_t buf, size_t len, int flags, \
-		    struct sockaddr * __restrict from, \
-		    __socklen_t * __restrict fromlenaddr); }
-30	MSTD	{ int accept(int s, struct sockaddr * __restrict name, \
-		    __socklen_t * __restrict *anamelen); }
-31	MSTD	{ int getpeername(int fdes, struct sockaddr * __restrict asa, \
-		    __socklen_t * __restrict *alen); }
-32	MSTD	{ int getsockname(int fdes, struct sockaddr * __restrict asa, \
-		    __socklen_t * __restrict *alen); }
+		    struct sockaddr * from, \
+		    __socklen_t * fromlenaddr); }
+30	MSTD	{ int accept(int s, struct sockaddr * name, \
+		    __socklen_t *anamelen); }
+31	MSTD	{ int getpeername(int fdes, struct sockaddr * asa, \
+		    __socklen_t *alen); }
+32	MSTD	{ int getsockname(int fdes, struct sockaddr * asa, \
+		    __socklen_t *alen); }
 33	STD	{ int access(char *path, int flags); }
 34	STD	{ int chflags(char *path, int flags); }
 35	STD	{ int fchflags(int fd, int flags); }
