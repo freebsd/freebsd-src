@@ -1000,6 +1000,55 @@ initconn()
 	char *p, *a;
 	int result, len, tmpno = 0;
 	int on = 1;
+	u_long a1,a2,a3,a4,p1,p2;
+
+	if (passivemode) {
+		data = socket(AF_INET, SOCK_STREAM, 0);
+		if (data < 0) {
+			perror("ftp: socket");
+			return(1);
+		}
+		if (options & SO_DEBUG &&
+		    setsockopt(data, SOL_SOCKET, SO_DEBUG, (char *)&on,
+			       sizeof (on)) < 0)
+			perror("ftp: setsockopt (ignored)");
+		if (command("PASV") != COMPLETE) {
+			printf("Passive mode refused.\n");
+			return(1);
+		}
+
+		/*
+		 * What we've got at this point is a string of comma separated
+		 * one-byte unsigned integer values, separated by commas.
+		 * The first four are the an IP address. The fifth is the MSB
+		 * of the port number, the sixth is the LSB. From that we'll
+		 * prepare a sockaddr_in.
+		 */
+
+		if (sscanf(pasv,"%d,%d,%d,%d,%d,%d",&a1,&a2,&a3,&a4,&p1,&p2)
+		    != 6) {
+			printf("Passive mode address scan failure. Shouldn't happen!\n");
+			return(1);
+		};
+
+		data_addr.sin_family = AF_INET;
+		data_addr.sin_addr.s_addr = htonl((a1 << 24) | (a2 << 16) |
+						  (a3 << 8) | a4);
+		data_addr.sin_port = htons((p1 << 8) | p2);
+
+		if (connect(data, (struct sockaddr *) &data_addr,
+		    sizeof(data_addr))<0) {
+			perror("ftp: connect");
+			return(1);
+		}
+#ifdef IP_TOS
+		on = IPTOS_THROUGHPUT;
+		if (setsockopt(data, IPPROTO_IP, IP_TOS, (char *)&on,
+		    sizeof(int)) < 0)
+			perror("ftp: setsockopt TOS (ignored)");
+#endif
+		return(0);
+	}
 
 noport:
 	data_addr = myctladdr;
@@ -1069,6 +1118,9 @@ dataconn(lmode)
 {
 	struct sockaddr_in from;
 	int s, fromlen = sizeof (from), tos;
+
+	if (passivemode)
+	    return (fdopen(data, lmode));
 
 	s = accept(data, (struct sockaddr *) &from, &fromlen);
 	if (s < 0) {

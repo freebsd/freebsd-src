@@ -2133,8 +2133,19 @@ macdef(argc, argv)
 }
 
 /*
+ * Start up passive mode interaction
+ */
+setpassive()
+{
+	passivemode = !passivemode;
+	printf("Passive mode %s.\n", onoff(passivemode));
+	code = passivemode;
+}
+
+/*
  * get size of file on remote machine
  */
+/*VARARGS*/
 void
 sizecmd(argc, argv)
 	int argc;
