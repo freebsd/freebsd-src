@@ -186,8 +186,12 @@ bad:
 }
 
 static int
-idad_dump(dev_t dev)
+idad_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
+
+	/* This needs modified to the new dump API */
+	return (ENXIO);
+#if 0
 	struct idad_softc *drv;
 	u_int count, blkno, secsize;
 	long blkcnt;
@@ -231,6 +235,7 @@ idad_dump(dev_t dev)
 		addr += PAGE_SIZE * dumppages;
 	}
 	return (0);
+#endif
 }
 
 void

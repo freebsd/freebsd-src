@@ -701,8 +701,12 @@ twed_strategy(twe_bio *bp)
  * System crashdump support
  */
 int
-twed_dump(dev_t dev)
+twed_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
+
+    /* XXX: this needs modified to the new dump API */
+    return (ENXIO);
+#if 0
     struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
     struct twe_softc	*twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
     u_int		count, blkno, secsize;
@@ -747,6 +751,7 @@ twed_dump(dev_t dev)
 	addr += PAGE_SIZE * dumppages;
     }
     return(0);
+#endif
 }
 
 /********************************************************************************

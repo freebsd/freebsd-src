@@ -198,31 +198,26 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	return (dev);
 }
 
-int
-disk_dumpcheck(dev_t dev, u_int *count, u_int *blkno, u_int *secsize)
+static int
+diskdumpconf(u_int onoff, dev_t dev, struct disk *dp)
 {
-	struct disk *dp;
+	struct dumperinfo di;
 	struct disklabel *dl;
-	u_int boff;
 
-	dp = dev->si_disk;
-	if (!dp)
-		return (ENXIO);
-	if (!dp->d_slice)
-		return (ENXIO);
+	if (!onoff) 
+		return(set_dumper(NULL));
 	dl = dsgetlabel(dev, dp->d_slice);
 	if (!dl)
 		return (ENXIO);
-	*count = Maxmem * (PAGE_SIZE / dl->d_secsize);
-	if (dumplo <= LABELSECTOR || 
-	    (dumplo + *count > dl->d_partitions[dkpart(dev)].p_size))
-		return (EINVAL);
-	boff = dl->d_partitions[dkpart(dev)].p_offset +
-	    dp->d_slice->dss_slices[dkslice(dev)].ds_offset;
-	*blkno = boff + dumplo;
-	*secsize = dl->d_secsize;
-	return (0);
-	
+	bzero(&di, sizeof di);
+	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
+	di.priv = dp->d_dev;
+	di.blocksize = dl->d_secsize;
+	di.mediaoffset = (off_t)(dl->d_partitions[dkpart(dev)].p_offset +
+	    dp->d_slice->dss_slices[dkslice(dev)].ds_offset) * DEV_BSIZE;
+	di.mediasize =
+	    (off_t)(dl->d_partitions[dkpart(dev)].p_size) * DEV_BSIZE;
+	return(set_dumper(&di));
 }
 
 void 
@@ -388,12 +383,17 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	struct disk *dp;
 	int error;
+	u_int u;
 	dev_t pdev;
 
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
 	if (!dp)
 		return (ENXIO);
+	if (cmd == DIOCGKERNELDUMP) {
+		u = *(u_int *)data;
+		return (diskdumpconf(u, dev, dp));
+	}
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
 		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, td);
