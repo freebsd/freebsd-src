@@ -417,7 +417,9 @@ can also be created by
 .Pp
 If the
 .Ql \e
-before the space resp.\& the double quotes were omitted,
+before the space in the first example
+or double quotes in the second example
+were omitted,
 .Ql .Fn
 would see three arguments, and the result would be:
 .Pp
@@ -3128,10 +3130,11 @@ specifying the so-called
 .Em \&Em
 and
 .Em "En square" .
-This is approximately the width of the letter
+This is approximately the width of the letters
 .Sq m
-resp.\& the letter
+and
 .Sq n
+respectively
 of the current font (for nroff output, both scale indicators give the same
 values).
 If
@@ -3638,10 +3641,11 @@ specifying the so-called
 .Em \&Em
 and
 .Em "En square" .
-This is approximately the width of the letter
+This is approximately the width of the letters
 .Sq m
-resp.\& the letter
+and
 .Sq n
+respectively
 of the current font (for nroff output, both scale indicators give the same
 values).
 If
@@ -3687,10 +3691,11 @@ specifying the so-called
 .Em \&Em
 and
 .Em "En square" .
-This is approximately the width of the letter
+This is approximately the width of the letters
 .Sq m
-resp.\& the letter
+and
 .Sq n
+respectively
 of the current font (for nroff output, both scale indicators give the same
 values).
 If
