@@ -166,7 +166,8 @@
       <title>Processor/Motherboard Support</title>
 
       <para arch="i386">&os; now has rudimentary support for
-	HyperThreading (HTT).  SMP kernels will detect and start up
+	HyperThreading (HTT).  SMP kernels with the
+	<literal>HTT</literal> kernel option will detect and start up
 	the logical processors on HTT-capable machines.  The logical
 	processors will be treated like additional physical processors
 	for the purposes of process scheduling. &merged;</para>
@@ -254,6 +255,10 @@
 
     <sect3>
       <title>Disks and Storage</title>
+
+      <para>The &man.aac.4; driver now runs free of the Giant kernel
+        lock.  This change has given a nearly 20% performance speedup
+        on an SMP system running multiple I/O intensive loads.</para>
 
       <para>The &man.ata.4; driver now supports all known SiS
 	chipsets.  (More details can be found in the Hardware
@@ -414,6 +419,17 @@
     <para>The &man.libgeom.3; library has been added to allow some
       userland access to the &man.geom.4; subsystem.</para>
 
+    <para>The mac_portacl MAC policy module has been added.  It
+      provides a simple ACL mechanism to permit users and groups to
+      bind ports for TCP or UDP, and is intended to be used in
+      conjunction with the recently-added
+      <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl.
+
+    <para>The &man.mksnap.ffs.8; program has been added to allow
+      easier creation of FFS snapshots.  It is a
+      SUID-<username>root</username> executable designed for use by
+      members of the <groupname>operator</groupname>group.</para>
+
     <para>&man.mount.nfs.8; now supports a <option>-c</option> flag to
       avoid doing a &man.connect.2; for UDP mount points.  This option
       must be used if the server does not reply to requests from the
@@ -439,8 +455,8 @@
     <para>&man.ping.8; now supports a <option>-D</option> flag to set
       the <quote>Don't Fragment</quote> bit on outgoing packets.</para>
 
-    <para>&man.ping.8; now supports a <option>-M</option> flag to use
-      ICMP mask request messages instead of ICMP echo requests.</para>
+    <para>&man.ping.8; now supports a <option>-M</option> option to use
+      ICMP mask request or timestamp request messages instead of ICMP echo requests.</para>
 
     <para>&man.ping.8; now supports a <option>-z</option> flag to set
       the Type of Service bits in outgoing packets.</para>
@@ -539,7 +555,12 @@
     <sect3>
       <title>Ports/Packages Collection Infrastructure</title>
 
-      <para></para>
+      <para>The one-line <filename>pkg-comment</filename> files have
+        been eliminated from each port skeleton; their contents have
+        been moved into each port's <filename>Makefile</filename>.
+        This change reduces the disk space and inodes used by the
+        ports tree. &merged;</para>
+
     </sect3>
   </sect2>
 
