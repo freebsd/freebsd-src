@@ -2024,8 +2024,11 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	 * When the thread is the current thread, the user stack pointer
 	 * is not in the PCB; it must be read from the PAL.
 	 */
-	if (td == curthread)
+	if (td == curthread) {
 		mcp->mc_regs[FRAME_SP] = alpha_pal_rdusp();
+		mcp->mc_thrptr = alpha_pal_rdunique();
+	} else
+		mcp->mc_thrptr = td->td_pcb->pcb_hw.apcb_unique;
 
 	mcp->mc_format = _MC_REV0_TRAPFRAME;
 	PROC_LOCK(curthread->td_proc);
@@ -2047,6 +2050,12 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	else if ((ret = set_fpcontext(td, mcp)) != 0)
 		return (ret);
 
+	/*
+	 * NOTE: We only need to restore mc_thrptr when the ucontext format
+	 * is _MC_REV0_TRAPFRAME. Only get_mcontext() above creates such
+	 * contexts and that's also the only place where we save the thread
+	 * pointer in the context.
+	 */
 	if (mcp->mc_format == _MC_REV0_SIGFRAME) {
 		set_regs(td, (struct reg *)&mcp->mc_regs);
 		val = (mcp->mc_regs[R_PS] | ALPHA_PSL_USERSET) &
@@ -2056,10 +2065,13 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		td->td_frame->tf_regs[FRAME_FLAGS] = 0;
 		if (td == curthread)
 			alpha_pal_wrusp(mcp->mc_regs[R_SP]);
-
 	} else {
-		if (td == curthread)
+		if (td == curthread) {
 			alpha_pal_wrusp(mcp->mc_regs[FRAME_SP]);
+			alpha_pal_wrunique(mcp->mc_thrptr);
+		} else
+			td->td_pcb->pcb_hw.apcb_unique = mcp->mc_thrptr;
+
 		/*
 		 * The context is a trapframe, so just copy it over the
 		 * threads frame.
