@@ -52,6 +52,8 @@ static const char rcsid[] =
 #include <sys/syslog.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
+#include <sys/linker.h>
+#include <sys/module.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -64,6 +66,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -86,12 +89,16 @@ pid_t	children[MAXNFSDCNT];	/* PIDs of children */
 int	nfsdcnt;		/* number of children */
 
 void	cleanup(int);
+void	child_cleanup(int);
 void	killchildren(void);
-void	nonfs (int);
-void	reapchild (int);
-int	setbindhost (struct addrinfo **ia, const char *bindhost, struct addrinfo hints);
-void	unregistration (void);
-void	usage (void);
+void	nfsd_exit(int);
+void	nonfs(int);
+void	reapchild(int);
+int	setbindhost(struct addrinfo **ia, const char *bindhost,
+	    struct addrinfo hints);
+void	start_server(int);
+void	unregistration(void);
+void	usage(void);
 
 /*
  * Nfs server daemon mostly just a user context for nfssvc()
@@ -126,13 +133,12 @@ main(argc, argv, envp)
 	fd_set ready, sockbits;
 	fd_set v4bits, v6bits;
 	int ch, connect_type_cnt, i, len, maxsock, msgsock;
-	int nfssvc_flag, on = 1, unregister, reregister, sock;
+	int on = 1, unregister, reregister, sock;
 	int tcp6sock, ip6flag, tcpflag, tcpsock;
-	int udpflag, ecode, s;
-	int bindhostc = 0, bindanyflag, rpcbreg, rpcbregcnt;
+	int udpflag, ecode, s, srvcnt;
+	int bindhostc, bindanyflag, rpcbreg, rpcbregcnt;
 	char **bindhost = NULL;
 	pid_t pid;
-	int error;
 
 	if (modfind("nfsserver") < 0) {
 		/* Not present in kernel, try loading it */
@@ -141,8 +147,8 @@ main(argc, argv, envp)
 	}
 
 	nfsdcnt = DEFNFSDCNT;
-	unregister = reregister = tcpflag = 0;
-	bindanyflag = udpflag;
+	unregister = reregister = tcpflag = maxsock = 0;
+	bindanyflag = udpflag = connect_type_cnt = bindhostc = 0;
 #define	GETOPT	"ah:n:rdtu"
 #define	USAGE	"[-ardtu] [-n num_servers] [-h bindip]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
@@ -313,8 +319,6 @@ main(argc, argv, envp)
 		daemon(0, 0);
 		(void)signal(SIGHUP, SIG_IGN);
 		(void)signal(SIGINT, SIG_IGN);
-		(void)signal(SIGSYS, nonfs);
-		(void)signal(SIGUSR1, cleanup);
 		/*
 		 * nfsd sits in the kernel most of the time.  It needs
 		 * to ignore SIGTERM/SIGQUIT in order to stay alive as long
@@ -324,40 +328,31 @@ main(argc, argv, envp)
 		(void)signal(SIGTERM, SIG_IGN);
 		(void)signal(SIGQUIT, SIG_IGN);
 	}
+	(void)signal(SIGSYS, nonfs);
 	(void)signal(SIGCHLD, reapchild);
 
-	openlog("nfsd:", LOG_PID, LOG_DAEMON);
+	openlog("nfsd", LOG_PID, LOG_DAEMON);
 
-	for (i = 0; i < nfsdcnt; i++) {
+	/* If we use UDP only, we start the last server below. */
+	srvcnt = tcpflag ? nfsdcnt : nfsdcnt - 1;
+	for (i = 0; i < srvcnt; i++) {
 		switch ((pid = fork())) {
 		case -1:
 			syslog(LOG_ERR, "fork: %m");
-			killchildren();
-			exit (1);
+			nfsd_exit(1);
 		case 0:
 			break;
 		default:
 			children[i] = pid;
 			continue;
 		}
-
+		(void)signal(SIGUSR1, child_cleanup);
 		setproctitle("server");
-		nfssvc_flag = NFSSVC_NFSD;
-		nsd.nsd_nfsd = NULL;
-		while (nfssvc(nfssvc_flag, &nsd) < 0) {
-			if (errno) {
-				syslog(LOG_ERR, "nfssvc: %m");
-				exit(1);
-			}
-			nfssvc_flag = NFSSVC_NFSD;
-		}
-		exit(0);
+
+		start_server(0);
 	}
 
-	if (atexit(killchildren) == -1) {
- 		syslog(LOG_ERR, "atexit: %s", strerror(errno));
- 		exit(1);
- 	}
+	(void)signal(SIGUSR1, cleanup);
 	FD_ZERO(&v4bits);
 	FD_ZERO(&v6bits);
  
@@ -379,14 +374,14 @@ main(argc, argv, envp)
 				    ai_udp->ai_protocol)) < 0) {
 					syslog(LOG_ERR,
 					    "can't create udp socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (bind(sock, ai_udp->ai_addr,
 				    ai_udp->ai_addrlen) < 0) {
 					syslog(LOG_ERR,
 					    "can't bind udp addr %s: %m",
 					    bindhost[i]);
-					exit(1);
+					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_udp);
 				nfsdargs.sock = sock;
@@ -394,7 +389,7 @@ main(argc, argv, envp)
 				nfsdargs.namelen = 0;
 				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
 					syslog(LOG_ERR, "can't Add UDP socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				(void)close(sock);
 			}
@@ -409,7 +404,7 @@ main(argc, argv, envp)
 			if (ecode != 0) {
 				syslog(LOG_ERR, "getaddrinfo udp: %s",
 				   gai_strerror(ecode));
-				exit(1);
+				nfsd_exit(1);
 			}
 			nconf_udp = getnetconfigent("udp");
 			if (nconf_udp == NULL)
@@ -440,7 +435,7 @@ main(argc, argv, envp)
 				    ai_udp6->ai_protocol)) < 0) {
 					syslog(LOG_ERR,
 						"can't create udp6 socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (setsockopt(sock, IPPROTO_IPV6,
 				    IPV6_BINDV6ONLY,
@@ -448,14 +443,14 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 					    "can't set v6-only binding for "
 					    "udp6 socket: %m");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (bind(sock, ai_udp6->ai_addr,
 				    ai_udp6->ai_addrlen) < 0) {
 					syslog(LOG_ERR,
 					    "can't bind udp6 addr %s: %m",
 					    bindhost[i]);
-					exit(1);
+					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_udp6);
 				nfsdargs.sock = sock;
@@ -464,7 +459,7 @@ main(argc, argv, envp)
 				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
 					syslog(LOG_ERR,
 					    "can't add UDP6 socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				(void)close(sock);    
 			}
@@ -479,7 +474,7 @@ main(argc, argv, envp)
 			if (ecode != 0) {
 				syslog(LOG_ERR, "getaddrinfo udp6: %s",
 				   gai_strerror(ecode));
-				exit(1);
+				nfsd_exit(1);
 			}
 			nconf_udp6 = getnetconfigent("udp6");
 			if (nconf_udp6 == NULL)
@@ -509,7 +504,7 @@ main(argc, argv, envp)
 				    0)) < 0) {
 					syslog(LOG_ERR,
 					    "can't create tpc socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (setsockopt(tcpsock, SOL_SOCKET,
 				    SO_REUSEADDR,
@@ -521,11 +516,11 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 					    "can't bind tcp addr %s: %m",
 					    bindhost[i]);
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (listen(tcpsock, 5) < 0) {
 					syslog(LOG_ERR, "listen failed");
-					exit(1);
+					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_tcp);
 				FD_SET(tcpsock, &sockbits);
@@ -545,7 +540,7 @@ main(argc, argv, envp)
 			if (ecode != 0) {
 				syslog(LOG_ERR, "getaddrinfo tcp: %s",
 				   gai_strerror(ecode));
-				exit(1);
+				nfsd_exit(1);
 			}
 			nconf_tcp = getnetconfigent("tcp");
 			if (nconf_tcp == NULL)
@@ -577,7 +572,7 @@ main(argc, argv, envp)
 				    ai_tcp6->ai_protocol)) < 0) {
 					syslog(LOG_ERR,
 					    "can't create tcp6 socket");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (setsockopt(tcp6sock, SOL_SOCKET,
 				    SO_REUSEADDR,
@@ -589,18 +584,18 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 					"can't set v6-only binding for tcp6 "
 					    "socket: %m");
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (bind(tcp6sock, ai_tcp6->ai_addr,
 				    ai_tcp6->ai_addrlen) < 0) {
 					syslog(LOG_ERR,
 					    "can't bind tcp6 addr %s: %m",
 					    bindhost[i]);
-					exit(1);
+					nfsd_exit(1);
 				}
 				if (listen(tcp6sock, 5) < 0) {
 					syslog(LOG_ERR, "listen failed");
-					exit(1);
+					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_tcp6);
 				FD_SET(tcp6sock, &sockbits);
@@ -620,7 +615,7 @@ main(argc, argv, envp)
 			if (ecode != 0) {
 				syslog(LOG_ERR, "getaddrinfo tcp6: %s",
 				   gai_strerror(ecode));
-				exit(1);
+				nfsd_exit(1);
 			}
 			nconf_tcp6 = getnetconfigent("tcp6");
 			if (nconf_tcp6 == NULL)
@@ -636,15 +631,24 @@ main(argc, argv, envp)
 
 	if (rpcbregcnt == 0) {
 		syslog(LOG_ERR, "rpcb_set() failed, nothing to do: %m");
-		exit(1);
+		nfsd_exit(1);
 	}
 
-	if ((tcpflag) && (connect_type_cnt == 0)) {
+	if (tcpflag && connect_type_cnt == 0) {
 		syslog(LOG_ERR, "tcp connects == 0, nothing to do: %m");
-		exit(1);
+		nfsd_exit(1);
 	}
 
 	setproctitle("master");
+	/*
+	 * We always want a master to have a clean way to to shut nfsd down
+	 * (with unregistration): if the master is killed, it unregisters and
+	 * kills all children. If we run for UDP only (and so do not have to
+	 * loop waiting waiting for accept), we instead make the parent
+	 * a "server" too. start_server will not return.
+	 */
+	if (!tcpflag)
+		start_server(1);
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -656,7 +660,7 @@ main(argc, argv, envp)
 			if (select(maxsock + 1,
 			    &ready, NULL, NULL, NULL) < 1) {
 				syslog(LOG_ERR, "select failed: %m");
-				exit(1);
+				nfsd_exit(1);
 			}
 		}
 		for (tcpsock = 0; tcpsock <= maxsock; tcpsock++) {
@@ -666,7 +670,7 @@ main(argc, argv, envp)
 					if ((msgsock = accept(tcpsock,
 					    (struct sockaddr *)&inetpeer, &len)) < 0) {
 						syslog(LOG_ERR, "accept failed: %m");
-						exit(1);
+						nfsd_exit(1);
 					}
 					memset(inetpeer.sin_zero, 0,
 						sizeof(inetpeer.sin_zero));
@@ -676,7 +680,7 @@ main(argc, argv, envp)
 						    "setsockopt SO_KEEPALIVE: %m");
 					nfsdargs.sock = msgsock;
 					nfsdargs.name = (caddr_t)&inetpeer;
-					nfsdargs.namelen = sizeof(inetpeer);
+					nfsdargs.namelen = len;
 					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
 					(void)close(msgsock);
 				} else if (FD_ISSET(tcpsock, &v6bits)) {
@@ -686,7 +690,7 @@ main(argc, argv, envp)
 					    &len)) < 0) {
 						syslog(LOG_ERR,
 						     "accept failed: %m");
-						exit(1);
+						nfsd_exit(1);
 					}
 					if (setsockopt(msgsock, SOL_SOCKET,
 					    SO_KEEPALIVE, (char *)&on,
@@ -695,7 +699,7 @@ main(argc, argv, envp)
 						    "SO_KEEPALIVE: %m");
 					nfsdargs.sock = msgsock;
 					nfsdargs.name = (caddr_t)&inet6peer;
-					nfsdargs.namelen = sizeof(inet6peer);
+					nfsdargs.namelen = len;
 					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
 					(void)close(msgsock);
 				}
@@ -767,8 +771,14 @@ void
 reapchild(signo)
 	int signo;
 {
+	pid_t pid;
+	int i;
 
-	while (wait3(NULL, WNOHANG, NULL) > 0);
+	while ((pid = wait3(NULL, WNOHANG, NULL)) > 0) {
+		for (i = 0; i < nfsdcnt; i++)
+			if (pid == children[i])
+				children[i] = -1;
+	}
 }
 
 void
@@ -783,32 +793,52 @@ void
 killchildren()
 {
 	int i;
-	sigset_t sigs;
 
-	sigemptyset(&sigs);
-	/*
-	* Block SIGCHLD to avoid killing a reaped process (although it is
-	* unlikely, the pid might have been reused).
-	*/
-	sigaddset(&sigs, SIGCHLD);
-	if (sigprocmask(SIG_BLOCK, &sigs, NULL) == -1) {
-		syslog(LOG_ERR, "sigprocmask: %s",
-		   strerror(errno));
-		return;
-	}
 	for (i = 0; i < nfsdcnt; i++) {
 		if (children[i] > 0)
 			kill(children[i], SIGKILL);
 	}
-	if (sigprocmask(SIG_UNBLOCK, &sigs, NULL) == -1) {
-		syslog(LOG_ERR, "sigprocmask: %s", strerror(errno));
-	}
-	unregistration();
 }
 
+/*
+ * Cleanup master after SIGUSR1.
+ */
 void
 cleanup(signo)
 {
+	nfsd_exit(0);
+}
+
+/*
+ * Cleanup child after SIGUSR1.
+ */
+void
+child_cleanup(signo)
+{
+	exit(0);
+}
+
+void
+nfsd_exit(int status)
+{
 	killchildren();
-	exit (0);
+	unregistration();
+	exit(status);
+}
+
+void
+start_server(int master)
+{
+	int status;
+
+	status = 0;
+	nsd.nsd_nfsd = NULL;
+	if (nfssvc(NFSSVC_NFSD, &nsd) < 0) {
+		syslog(LOG_ERR, "nfssvc: %m");
+		status = 1;
+	}
+	if (master)
+		nfsd_exit(status);
+	else
+		exit(status);
 }
