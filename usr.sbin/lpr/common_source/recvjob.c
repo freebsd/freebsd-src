@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: recvjob.c,v 1.10 1997/09/24 06:47:55 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -263,7 +263,8 @@ readfile(file, size)
 	if (err)
 		frecverr("%s: write error", file);
 	if (noresponse()) {		/* file sent had bad data in it */
-		(void) unlink(file);
+		if (strchr(file, '/') == NULL)
+			(void) unlink(file);
 		return(0);
 	}
 	ack();
@@ -328,15 +329,16 @@ static void
 rcleanup(signo)
 	int signo;
 {
-	if (tfname[0])
+	if (tfname[0] && strchr(tfname, '/') == NULL)
 		(void) unlink(tfname);
-	if (dfname[0])
+	if (dfname[0] && strchr(dfname, '/') == NULL) {
 		do {
 			do
 				(void) unlink(dfname);
 			while (dfname[2]-- != 'A');
 			dfname[2] = 'z';
 		} while (dfname[0]-- != 'd');
+	}
 	dfname[0] = '\0';
 }
 
