@@ -30,10 +30,6 @@
  * SUCH DAMAGE.
  */
 
-/* not yet in use 
-#define	ROUTE6D_CONF	"/usr/local/v6/etc/route6d.conf"
-*/
-
 #define	ROUTE6D_DUMP	"/var/run/route6d_dump"
 #define	ROUTE6D_PID	"/var/run/route6d.pid"
 
@@ -45,7 +41,7 @@
 #define	IFC_CHANGED	1
 
 struct netinfo6 {
-	struct	in6_addr	rip6_dest;
+	struct	in6_addr rip6_dest;
 	u_short	rip6_tag;
 	u_char	rip6_plen;
 	u_char	rip6_metric;

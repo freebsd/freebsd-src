@@ -990,8 +990,8 @@ sendpacket(sin6, len)
 	sincopy = *sin6;
 	sin6 = &sincopy;
 
-	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)
-	 || IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
+	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 		idx = IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr);
 		SET_IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr, 0);
 	} else
@@ -1089,7 +1089,7 @@ riprecv()
 	rp = (struct rip6 *)buf;
 	np = rp->rip6_nets;
 
-	if (rp->rip6_vers !=  RIP6_VERSION) {
+	if (rp->rip6_vers != RIP6_VERSION) {
 		trace(1, "Incorrect RIP version %d\n", rp->rip6_vers);
 		return;
 	}
@@ -2069,7 +2069,7 @@ ifrt(ifcp, again)
 /*
  * there are couple of p2p interface routing models.  "behavior" lets
  * you pick one.  it looks that gated behavior fits best with BSDs,
- * since BSD kernels does not look at prefix length on p2p interfaces.
+ * since BSD kernels do not look at prefix length on p2p interfaces.
  */
 void
 ifrt_p2p(ifcp, again)
@@ -2559,11 +2559,7 @@ rt_entry(rtm, again)
 	rrt->rrt_t = time(NULL);
 	if (aflag == 0 && (rtm->rtm_flags & RTF_STATIC))
 		rrt->rrt_t = 0;	/* Don't age static routes */
-#if 0
-	np->rip6_tag = htons(routetag & 0xffff);
-#else
 	np->rip6_tag = 0;
-#endif
 	np->rip6_metric = rtm->rtm_rmx.rmx_hopcount;
 	if (np->rip6_metric < 1)
 		np->rip6_metric = 1;
@@ -2707,16 +2703,16 @@ addroute(rrt, gw, ifcp)
 
 	if (errno == EEXIST) {
 		trace(0, "ADD: Route already exists %s/%d gw %s\n",
-			inet6_n2p(&np->rip6_dest), np->rip6_plen, buf1);
+		    inet6_n2p(&np->rip6_dest), np->rip6_plen, buf1);
 		if (rtlog)
 			fprintf(rtlog, "ADD: Route already exists %s/%d gw %s\n",
-				inet6_n2p(&np->rip6_dest), np->rip6_plen, buf1);
+			    inet6_n2p(&np->rip6_dest), np->rip6_plen, buf1);
 	} else {
 		trace(0, "Can not write to rtsock (addroute): %s\n",
-			strerror(errno));
+		    strerror(errno));
 		if (rtlog)
 			fprintf(rtlog, "\tCan not write to rtsock: %s\n",
-				strerror(errno));
+			    strerror(errno));
 	}
 	return -1;
 }
@@ -2774,16 +2770,16 @@ delroute(np, gw)
 
 	if (errno == ESRCH) {
 		trace(0, "RTDEL: Route does not exist: %s/%d gw %s\n",
-			inet6_n2p(&np->rip6_dest), np->rip6_plen, buf2);
+		    inet6_n2p(&np->rip6_dest), np->rip6_plen, buf2);
 		if (rtlog)
 			fprintf(rtlog, "RTDEL: Route does not exist: %s/%d gw %s\n",
-				inet6_n2p(&np->rip6_dest), np->rip6_plen, buf2);
+			    inet6_n2p(&np->rip6_dest), np->rip6_plen, buf2);
 	} else {
 		trace(0, "Can not write to rtsock (delroute): %s\n",
-			strerror(errno));
+		    strerror(errno));
 		if (rtlog)
 			fprintf(rtlog, "\tCan not write to rtsock: %s\n",
-				strerror(errno));
+			    strerror(errno));
 	}
 	return -1;
 }
