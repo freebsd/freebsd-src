@@ -847,7 +847,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_FWD_ITEM_HOOK(error, item, hook)				\
 	do {								\
 		(error) =						\
-		    ng_address_hook(NULL, (item), (hook), NULL);	\
+		    ng_address_hook(NULL, (item), (hook), 0);	\
 		if (error == 0) {					\
 			SAVE_LINE(item);				\
 			(error) = ng_snd_item((item), 0);		\
@@ -994,10 +994,10 @@ _ngi_hook(item_p item, char *file, int line)
 	do {								\
 		if (resp) {						\
 			ng_ID_t _dest = NGI_RETADDR(item);		\
-			NGI_RETADDR(item) = NULL;			\
+			NGI_RETADDR(item) = 0;				\
 			NGI_MSG(item) = resp;				\
 			if ((ng_address_ID((here), (item),		\
-					_dest, NULL )) == 0) {		\
+					_dest, 0)) == 0) {		\
 				SAVE_LINE(item);			\
 				(error) = ng_snd_item((item), 1);	\
 			} else {					\

@@ -525,8 +525,8 @@ cisco_input(sc_p sc, item_p item)
 				    NGM_CISCO_GET_IPADDR, 0, M_NOWAIT);
 				if (msg == NULL)
 					goto nomsg;
-				NG_SEND_MSG_HOOK(dummy_error, sc->node, msg,
-					sc->inet.hook, NULL);
+				NG_SEND_MSG_HOOK(dummy_error,
+				    sc->node, msg, sc->inet.hook, 0);
 		/*
 		 * XXX Now maybe we should set a flag telling
 		 * our receiver to send this message when the response comes in

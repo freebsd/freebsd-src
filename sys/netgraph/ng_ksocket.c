@@ -1061,8 +1061,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 				 * to the node that set us up
 				 * (if it still exists)
 				 */
-				NG_SEND_MSG_ID(error, node, response,
-						priv->response_addr, NULL);
+				NG_SEND_MSG_ID(error, node,
+				    response, priv->response_addr, 0);
 			}
 			priv->flags &= ~KSF_CONNECTING;
 		}
@@ -1259,7 +1259,7 @@ ng_ksocket_finish_accept(priv_p priv)
 	resp_data->nodeid = NG_NODE_ID(node);
 	if (sa != NULL)
 		bcopy(sa, &resp_data->addr, sa->sa_len);
-	NG_SEND_MSG_ID(error, node, resp, priv->response_addr, NULL);
+	NG_SEND_MSG_ID(error, node, resp, priv->response_addr, 0);
 
 out:
 	if (sa != NULL)

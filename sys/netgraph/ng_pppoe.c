@@ -906,7 +906,7 @@ send_acname(sessp sp, const struct pppoe_tag *tag)
 	tlen = min(NG_HOOKLEN, ntohs(tag->tag_len));
 	strncpy(sts->hook, tag->tag_data, tlen);
 	sts->hook[tlen] = '\0';
-	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 
 	return (error);
 }
@@ -923,7 +923,7 @@ send_sessionid(sessp sp)
 		return (ENOMEM);
 
 	*(u_int16_t *)msg->data = sp->Session_ID;
-	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 
 	return (error);
 }
@@ -1737,6 +1737,6 @@ AAA
 		return (ENOMEM);
 	sts = (struct ngpppoe_sts *)msg->data;
 	strncpy(sts->hook, NG_HOOK_NAME(sp->hook), NG_HOOKLEN + 1);
-	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, NULL);
+	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 	return (error);
 }
