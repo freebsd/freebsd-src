@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.21 1995/01/23 18:46:13 davidg Exp $
+ *	$Id: cons.c,v 1.22 1995/02/25 20:09:04 pst Exp $
  */
 
 #include <sys/param.h>
@@ -74,11 +74,8 @@ static struct consdev constab[] = {
 struct	tty *constty = 0;	/* virtual console output device */
 struct	tty *cn_tty;		/* XXX: console tty struct for tprintf */
 
-/* XXX */
-typedef	u_char bool_t;
-
-static bool_t cn_is_open;	/* nonzero if logical console is open */
-static bool_t cn_phys_is_open;	/* nonzero if physical console is open */
+static u_char cn_is_open;	/* nonzero if logical console is open */
+static u_char cn_phys_is_open;	/* nonzero if physical console is open */
 static d_close_t *cn_phys_close;	/* physical device close function */
 static d_open_t *cn_phys_open;	/* physical device open function */
 static struct consdev *cn_tab;	/* physical console device info */
