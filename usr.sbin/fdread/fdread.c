@@ -28,8 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#include <machine/ioctl_fd.h>
+#include <sys/fdcio.h>
 
 #include <err.h>
 #include <errno.h>
