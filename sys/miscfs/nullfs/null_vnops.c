@@ -190,7 +190,10 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
 	&null_bug_bypass, 0, "");
 
 static int	null_access(struct vop_access_args *ap);
+static int	null_createvobject(struct vop_createvobject_args *ap);
+static int	null_destroyvobject(struct vop_destroyvobject_args *ap);
 static int	null_getattr(struct vop_getattr_args *ap);
+static int	null_getvobject(struct vop_getvobject_args *ap);
 static int	null_inactive(struct vop_inactive_args *ap);
 static int	null_lock(struct vop_lock_args *ap);
 static int	null_lookup(struct vop_lookup_args *ap);
@@ -601,13 +604,69 @@ null_print(ap)
 }
 
 /*
+ * Let an underlying filesystem do the work
+ */
+static int
+null_createvobject(ap)
+	struct vop_createvobject_args /* {
+		struct vnode *vp;
+		struct ucred *cred;
+		struct proc *p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vnode *lowervp = VTONULL(vp) ? NULLVPTOLOWERVP(vp) : NULL;
+	int error;
+
+	if (vp->v_type == VNON || lowervp == NULL)
+		return 0;
+	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_p);
+	if (error)
+		return (error);
+	vp->v_flag |= VOBJBUF;
+	return (0);
+}
+
+/*
+ * We have nothing to destroy and this operation shouldn't be bypassed.
+ */
+static int
+null_destroyvobject(ap)
+	struct vop_destroyvobject_args /* {
+		struct vnode *vp;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vp->v_flag &= ~VOBJBUF;
+	return (0);
+}
+
+static int
+null_getvobject(ap)
+	struct vop_getvobject_args /* {
+		struct vnode *vp;
+		struct vm_object **objpp;
+	} */ *ap;
+{
+	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
+
+	if (lvp == NULL)
+		return EINVAL;
+	return (VOP_GETVOBJECT(lvp, ap->a_objpp));
+}
+
+/*
  * Global vfs data structures
  */
 vop_t **null_vnodeop_p;
 static struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) null_bypass },
 	{ &vop_access_desc,		(vop_t *) null_access },
+	{ &vop_createvobject_desc,	(vop_t *) null_createvobject },
+	{ &vop_destroyvobject_desc,	(vop_t *) null_destroyvobject },
 	{ &vop_getattr_desc,		(vop_t *) null_getattr },
+	{ &vop_getvobject_desc,		(vop_t *) null_getvobject },
 	{ &vop_inactive_desc,		(vop_t *) null_inactive },
 	{ &vop_lock_desc,		(vop_t *) null_lock },
 	{ &vop_lookup_desc,		(vop_t *) null_lookup },
