@@ -1,7 +1,6 @@
-#	$Id: Makefile,v 1.6 1996/09/26 14:22:32 peter Exp $
+#	$Id: Makefile,v 1.7 1996/09/27 06:58:03 peter Exp $
 
 LIB=		gnumalloc
-SHLIBDIR=	${LIBDIR}/compat
 INTERNALLIB=	yes		# Do not build or install lib*.a
 SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
@@ -17,7 +16,9 @@ SRCS=	cfree.c
 # you to run programs that were linked with -lgnumalloc (such as XFree86).
 #
 beforeinstall:
-	rm -f ${DESTDIR}${LIBDIR}/libgnumalloc.a
-	rm -f ${DESTDIR}${LIBDIR}/libgnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libgnumalloc.a
+	rm -f ${DESTDIR}${ORIG_SHLIBDIR}/libgnumalloc.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
 
 .include <bsd.lib.mk>
+ORIG_SHLIBDIR:= ${SHLIBDIR}
+SHLIBDIR=	${ORIG_SHLIBDIR}/compat
