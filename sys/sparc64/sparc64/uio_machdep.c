@@ -89,7 +89,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		if (cnt > n)
 			cnt = n;
 		page_offset = offset & PAGE_MASK;
-		cnt = min(cnt, PAGE_SIZE - page_offset);
+		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
 		if (m->md.color != DCACHE_COLOR(pa)) {
