@@ -51,6 +51,8 @@
 #include <sys/mman.h>
 #include <machine/atomic.h>
 
+#include <pthread.h>
+
 #define NTHREAD 30
 static struct thread thr[NTHREAD];
 
@@ -61,6 +63,8 @@ int bootverbose = 1;
 void
 done(void)
 {
+	
+	rattle();
 	weredone = 1;
 	exit(0);
 }
@@ -94,136 +98,108 @@ scram:
 	exit(9);
 }
 
-static int sleeping;
+
+void
+biodone(struct bio *bp)
+{
+	bp->bio_flags |= BIO_DONE;
+	if (bp->bio_done != NULL)
+		bp->bio_done(bp);
+}
+
+int
+biowait(struct bio *bp, const char *wchan __unused)
+{
+
+	while ((bp->bio_flags & BIO_DONE) == 0)
+		usleep(10000);
+	if (!(bp->bio_flags & BIO_ERROR))
+		return (0);
+	if (bp->bio_error)
+		return (bp->bio_error);
+	return (EIO);
+}
 
 void
 wakeup(void *chan)
 {
-	int i;
-
-	secrethandshake();
-	for (i = 0; i < NTHREAD; i++)
-		if (thr[i].wchan == chan) {
-			printf("wakeup %s\n", thr[i].name);
-			atomic_clear_int(&sleeping, 1 << i);
-			write(thr[i].pipe[1], "\0", 1);
-		}
+	
+	if (chan == &g_wait_event)
+		pthread_cond_signal(&ptc_event);
+	else if (chan == &g_wait_up)
+		pthread_cond_signal(&ptc_up);
+	else if (chan == &g_wait_down)
+		pthread_cond_signal(&ptc_down);
+	else
+	return;
 }
 
 int hz;
 
 int
-tsleep(void *chan, int pri __unused, const char *wmesg, int timo)
+tsleep(void *chan __unused, int pri __unused, const char *wmesg __unused, int timo)
 {
-	fd_set r,w,e;
-	int i, j, fd, pid;
-	struct timeval tv;
-	char buf[100];
-	struct thread *tp;
 
-	secrethandshake();
-	pid = getpid();
-	tp = NULL;
-	for (i = 0; i < NTHREAD; i++) {
-		if (pid != thr[i].pid)
-			continue;
-		tp = &thr[i];
-		break;
-	}
-
-	KASSERT(tp != NULL, ("Confused tp=%p has no name\n", tp));
-	KASSERT(tp->name != NULL, ("Confused tp=%p has no name\n", tp));
-	tp->wchan = chan;
-	tp->wmesg = wmesg;
-	fd = tp->pipe[0];
-	printf("tsleep %s %p %s\n", tp->name, chan, wmesg);
-	for (;;) {
-		if (timo > 0) {
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-		} else {
-			tv.tv_sec = 3;
-			tv.tv_usec = 0;
-		}
-		FD_ZERO(&r);
-		FD_ZERO(&w);
-		FD_ZERO(&e);
-		FD_SET(fd, &r);
-		atomic_set_int(&sleeping, 1 << i);
-		j = select(fd + 1, &r, &w, &e, &tv);
-		secrethandshake();
-		break;
-	}
-	if (j)
-		i = read(fd, buf, sizeof(buf));
-	tp->wchan = 0;
-	tp->wmesg = 0;
-	return(i);
+	usleep(timo);
+	return (0);
 }
 
 void
 rattle()
 {
-	int i, j;
+	int i;
+
+	pthread_yield();
 
 	for (;;) {
-		secrethandshake();
-		usleep(500000);
-		secrethandshake();
-		i = sleeping & 7;
-		if (i != 7)
-			continue;
-		usleep(20000);
-		j = sleeping & 7;
-		if (i != j)
-			continue;
-		printf("Rattle(%d) \"%s\" \"%s\" \"%s\"\n", i, thr[0].wmesg, thr[1].wmesg, thr[2].wmesg);
-		if (!thr[0].wmesg || strcmp(thr[0].wmesg, "up"))
-			continue;
-		if (!thr[1].wmesg || strcmp(thr[1].wmesg, "down"))
-			continue;
-		if (!thr[2].wmesg || strcmp(thr[2].wmesg, "events"))
-			continue;
-		break;
+		i = pthread_mutex_trylock(&ptm_up);
+		if (i != EBUSY) {
+			i = pthread_mutex_trylock(&ptm_down);
+			if (i != EBUSY) {
+				i = pthread_mutex_trylock(&ptm_event);
+				if (i != EBUSY)
+					break;
+				pthread_mutex_unlock(&ptm_down);
+			}
+			pthread_mutex_unlock(&ptm_up);
+		}
+		usleep(100000);
 	}
+	pthread_mutex_unlock(&ptm_event);
+	pthread_mutex_unlock(&ptm_down);
+	pthread_mutex_unlock(&ptm_up);
+	return;
 }
 
 
 void
-new_thread(int (*func)(void *arg), char *name)
+new_thread(void *(*func)(void *arg), char *name)
 {
-	char *c;
 	struct thread *tp;
 	static int nextt;
+	int error;
 
 	tp = thr + nextt++;
-	c = calloc(1, 65536);
+	error = pthread_create(&tp->tid, NULL, func, tp);
+	if (error)
+		err(1, "pthread_create(%s)", name);
 	tp->name = name;
-	pipe(tp->pipe);
-	tp->pid = rfork_thread(RFPROC|RFMEM, c + 65536 - 16, func, tp);
-	if (tp->pid <= 0)
-		err(1, "rfork_thread");
 	printf("New Thread %d %s %p %d\n", tp - thr, name, tp, tp->pid);
 }
 
 #define FASCIST 0
-int malloc_lock;
 
 void *
 g_malloc(int size, int flags)
 {
 	void *p;
 
-	secrethandshake();
-	while (!atomic_cmpset_int(&malloc_lock, 0, 1))
-		sched_yield();
 #if FASCIST
 	p = malloc(4096);
 	printf("Malloc %p \n", p);
 #else
 	p = malloc(size);
 #endif
-	malloc_lock = 0;
 	if (flags & M_ZERO)
 		memset(p, 0, size);
 	else
@@ -236,103 +212,76 @@ g_free(void *ptr)
 {
 
 	secrethandshake();
-	while (!atomic_cmpset_int(&malloc_lock, 0, 1))
-		sched_yield();
 #if FASCIST
 	printf("Free %p \n", ptr);
 	munmap(ptr, 4096);
 #else
 	free(ptr);
 #endif
-	malloc_lock = 0;
 }
 
+static pthread_mutex_t pt_topology;
 
 void
 g_init(void)
 {
 
+	pthread_mutex_init(&pt_topology, NULL);
 	g_io_init();
 	g_event_init();
 }
 
-static int topology_lock;
-
 void
 g_topology_lock()
 {
-	int pid;
 
-	pid = getpid();
-	if (atomic_cmpset_int(&topology_lock, 0, pid))
-		return;
-	KASSERT(pid != topology_lock,
-	    ("Locking topology against myself pid %d\n", pid));
-	while (!atomic_cmpset_int(&topology_lock, 0, pid)) {
-		printf("Waiting for topology lock mypid = %d held by %d\n",
-		    pid, topology_lock);
-		sleep(1);
-	}
+	pthread_mutex_lock(&pt_topology);
 }
 
 void
 g_topology_unlock()
 {
 
-	KASSERT(topology_lock == getpid(), ("Didn't have topology_lock to release"));
-	topology_lock = 0;
+	pthread_mutex_unlock(&pt_topology);
 }
 
 void
 g_topology_assert()
 {
 
+#if 0
 	if (topology_lock == getpid())
 		return;
 	KASSERT(1 == 0, ("Lacking topology_lock"));
-}
-
-void
-mtx_lock_spin(struct mtx *mp)
-{
-
-	while(!atomic_cmpset_int(&mp->mtx_lock, 0, 1)) {
-		printf("trying to get lock...\n");
-		sched_yield();
-	}
-}
-
-void
-mtx_unlock_spin(struct mtx *mp)
-{
-
-	mp->mtx_lock = 0;
+#endif
 }
 
 void
 mtx_init(struct mtx *mp, const char *bla __unused, const char *yak __unused, int foo __unused)
 {
-	mp->mtx_lock = 0;
+
+	pthread_mutex_init((pthread_mutex_t *)&mp->mtx_object, NULL);
 }
 
 void
 mtx_destroy(struct mtx *mp)
 {
-	mp->mtx_lock = 0;
+
+	pthread_mutex_destroy((pthread_mutex_t *)&mp->mtx_object);
 }
 
 void
 mtx_lock(struct mtx *mp)
 {
 
-	mp->mtx_lock = 0;
+	pthread_mutex_lock((pthread_mutex_t *)&mp->mtx_object);
 }
 
 void
 mtx_unlock(struct mtx *mp)
 {
 
-	mp->mtx_lock = 0;
+	pthread_mutex_unlock((pthread_mutex_t *)&mp->mtx_object);
 }
 
 struct mtx Giant;
