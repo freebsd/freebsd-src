@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.38 1997/05/22 21:26:47 jkh Exp $
+ * $Id: menus.c,v 1.89.2.39 1997/05/23 18:46:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1287,8 +1287,6 @@ DMenu MenuSysconsSaver = {
     NULL,
     { { "blank",	"Simply blank the screen",
 	dmenuVarCheck, configSaver, NULL, "saver=blank" },
-      { "Daemon",	"\"BSD Daemon\" animated screen saver",
-	dmenuVarCheck, configSaver, NULL, "saver=daemon" },
       { "Green",	"\"Green\" power saving mode (if supported by monitor)",
 	dmenuVarCheck, configSaver, NULL, "saver=green" },
       { "Snake",	"Draw a FreeBSD \"snake\" on your screen",
