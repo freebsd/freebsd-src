@@ -146,7 +146,7 @@ fi
 # generate our hostname
 #
 if [ -z "`hostname -s`" -a \
-    "x`/bin/kenv dhdp.host-name`" != "x" ]; then
+    "x`/bin/kenv dhcp.host-name`" != "x" ]; then
         hostname=`/bin/kenv dhcp.host-name`
         hostname $hostname
 	echo "Hostname is $hostname"
