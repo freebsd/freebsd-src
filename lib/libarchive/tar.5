@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd May 20, 2004
 .Dt TAR 5
 .Os
 .Sh NAME
@@ -68,10 +68,8 @@ convention established by John Gilmore in documenting
 The original tar archive format has been extended many times to
 include additional information that various implementors found
 necessary.
-This section describes a variant that is compatible with
-most historic
-.Nm
-implementations.
+This section describes the variant implemented by the tar command
+included in Seventh Edition Unix.
 .Pp
 The header record for an old-style
 .Nm
@@ -85,22 +83,30 @@ char gid[8];
 char size[12];
 char mtime[12];
 char checksum[8];
+char linkflag[1];
+char linkname[100];
 };
 .Ed
-The remaining bytes in the header record are filled with nulls.
+All unused bytes in the header record are filled with nulls.
 .Bl -tag -width indent
 .It Va name
 Pathname, stored as a null-terminated string.
-Some very early implementations only supported regular files.
-However, a common early convention added
+The Unix V7 tar command only stored regular files (including
+hardlinks to those files).
+One common early convention added
 a trailing "/" character to indicate a directory name, allowing
 directory permissions and owner information to be archived and restored.
 .It Va mode
 File mode, stored as an octal number in ASCII.
 .It Va uid , Va gid
-User id and group id of owner, as octal number in ASCII.
+User id and group id of owner, as octal numbers in ASCII.
 .It Va size
 Size of file, as octal number in ASCII.
+For regular files only, this indicates the amount of data
+that follows the header.
+In particular, this field was ignored by early tar implementations
+when extracting hardlinks.
+Modern writers should always store a zero length for hardlink entries.
 .It Va mtime
 Modification time of file, as an octal number in ASCII.
 This indicates the number of seconds since the start of the epoch,
@@ -113,72 +119,41 @@ To compute the checksum, set the checksum field to all spaces,
 then sum all bytes in the header using unsigned arithmetic.
 This field should be stored as six octal digits followed by a null and a space
 character.
-Note that for many years, Sun tar used signed arithmetic
+Note that many early implementations of tar used signed arithmetic
 for the checksum field, which can cause interoperability problems
 when transferring archives between systems.
-This error was propagated to other implementations that used Sun
-tar as a reference.
 Modern robust readers compute the checksum both ways and accept the
 header if either computation matches.
+.It Va linkflag , Va linkname
+In order to preserve hardlinks and conserve tape, a file
+with multiple links is only written to the archive the first
+time it is encountered.
+The next time it is encountered, the
+.Va linkflag
+is set to an ASCII
+.Sq 1
+and the
+.Va linkname
+field holds the first name under which this file appears.
+(Note that regular files have a null value in the
+.Va linkflag
+field.)
 .El
 .Pp
 Early implementations of
 .Nm
 varied in how they terminated these fields.
-Early BSD documentation specified the following: the pathname must
-be null-terminated; the mode, uid, and gid fields must end in a space and a
-null byte; the size and mtime fields must end in a space; the checksum is
-terminated by a null and a space.
+The
+.Nm
+command in Seventh Edition Unix used the following conventions
+(this is also documented in early BSD manpages):
+the pathname must be null-terminated;
+the mode, uid, and gid fields must end in a space and a null byte;
+the size and mtime fields must end in a space;
+the checksum is terminated by a null and a space.
 For best portability, writers of
 .Nm
 archives should fill the numeric fields with leading zeros.
-.Ss Early Extensions
-Very early
-.Nm
-implementations only supported regular files.
-Two early extensions added support for directories, hard links, and
-symbolic links.
-.Pp
-Early
-.Nm
-archives indicated directories by adding a trailing
-.Pa /
-to the name.
-The size field was often used to indicate the total size of all files
-in the directory.
-This was intended to facilitate extraction on systems that pre-allocated
-directory storage; most modern readers should simply ignore the
-size field for directories.
-.Pp
-To support hard links and symbolic links,
-.Va linktype
-and
-.Va linkname
-fields were added:
-.Bd -literal -offset indent
-struct tarfile_entry_common {
-char name[100];
-char mode[8];
-char uid[8];
-char gid[8];
-char size[12];
-char mtime[12];
-char checksum[8];
-char linktype[1];
-char linkname[100];
-};
-.Ed
-.Pp
-The
-.Va linktype
-field indicates the type of entry.
-For backwards compatibility, a NULL
-character here indicates a regular file or directory.
-An ASCII "1" here indicates a hard link entry, ASCII "2" indicates
-a symbolic link.
-The
-.Va linkname
-field holds the name of the file linked to.
 .Ss POSIX Standard Archives
 POSIX 1003.1 defines a standard
 .Nm
@@ -216,12 +191,13 @@ char prefix[155];
 .Ed
 .Bl -tag -width indent
 .It Va typeflag
-Type of entry.  POSIX adopted the BSD
-.Va linktype
-field and extended it with several new type values:
+Type of entry.  POSIX extended the earlier
+.Va linkflag
+field with several new type values:
 .Bl -tag -width indent -compact
 .It Dq 0
-Regular file. NULL should be treated as a synonym, for compatibility purposes.
+Regular file.
+NULL should be treated as a synonym, for compatibility purposes.
 .It Dq 1
 Hard link.
 .It Dq 2
@@ -245,6 +221,16 @@ support the corresponding extension.
 Uppercase letters "A" through "Z" are reserved for custom extensions.
 Note that sockets and whiteout entries are not archivable.
 .El
+It is worth noting that the
+.Va size
+field, in particular, has different meanings depending on the type.
+For regular files, of course, it indicates the amount of data
+following the header.
+For directories, it may be used to indicate the total size of all
+files in the directory, for use by operating systems that pre-allocate
+directory space.
+For all other types, it should be set to zero by writers and ignored
+by readers.
 .It Va magic
 Contains the magic value
 .Dq ustar
@@ -407,15 +393,28 @@ defaults for all subsequent archive entries.
 The
 .Cm g
 entry is not widely used.
+.Pp
+Besides the new
+.Cm x
+and
+.Cm g
+entries, the pax interchange format has a few other minor variations
+from the earlier ustar format.
+The most troubling one is that hardlinks are permitted to have
+data following them.
+This allows readers to restore any hardlink to a file without
+having to rewind the archive to find an earlier entry.
+However, it creates complications for robust readers, as it is
+no longer clear whether or not they should ignore the size
+field for hardlink entries.
 .Ss GNU Tar Archives
-The GNU tar program added new features by starting with an early draft
-of POSIX and using three different extension mechanisms:  They added
-new fields to the empty space in the header (some of which was later
+The GNU tar program has used a variety of different extension
+mechanisms over the years:
+They added new fields to the empty space in the header (some of which was later
 used by POSIX for conflicting purposes);
-they allowed the header to
-be continued over multiple records;
-and they defined new entries
-that modify following entries (similar in principle to the
+they allowed the header to be continued over multiple records;
+and they defined new entries that modify following entries
+(similar in principle to the
 .Cm x
 entry described above, but each GNU special entry is single-purpose,
 unlike the general-purpose
@@ -456,7 +455,8 @@ char realsize[12];
 .Ed
 .Bl -tag -width indent
 .It Va typeflag
-GNU tar uses the following special entry types.
+GNU tar uses the following special entry types, in addition to
+those defined by POSIX:
 .Bl -tag -width indent
 .It "7"
 GNU tar treats type "7" records identically to type "0" records,
@@ -634,8 +634,10 @@ GNU tar encounters a damaged archive.
 .Sh STANDARDS
 The
 .Nm tar
-utility is no longer a part of any official standard.
-It last appeared in SUSv2.
+utility is no longer a part of POSIX or the Single Unix Standard.
+It last appeared in
+.St -p 1003.1-1997
+(SUSv2).
 It has been supplanted in subsequent standards by
 .Xr pax 1 .
 The ustar format is defined in
@@ -648,7 +650,7 @@ The pax interchange file format is new with
 .Sh HISTORY
 A
 .Nm tar
-command appeared in Sixth Edition Unix.
+command appeared in Seventh Edition Unix, which was released in January, 1979.
 John Gilmore's
 .Nm pdtar
 public-domain implementation (circa 1987) was highly influential
