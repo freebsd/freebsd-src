@@ -50,6 +50,7 @@ extern int		_none_init(_RuneLocale *);
 extern int		_UTF2_init(_RuneLocale *);
 extern int		_UTF8_init(_RuneLocale *);
 extern int		_EUC_init(_RuneLocale *);
+extern int		_GB18030_init(_RuneLocale *);
 extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale      *_Read_RuneMagi(FILE *);
@@ -135,6 +136,8 @@ setrunelocale(char *encoding)
 		ret = _UTF8_init(rl);
 	else if (strcmp(rl->encoding, "EUC") == 0)
 		ret = _EUC_init(rl);
+	else if (strcmp(rl->encoding, "GB18030") == 0)
+		ret = _GB18030_init(rl);
 	else if (strcmp(rl->encoding, "BIG5") == 0)
 		ret = _BIG5_init(rl);
 	else if (strcmp(rl->encoding, "MSKanji") == 0)
