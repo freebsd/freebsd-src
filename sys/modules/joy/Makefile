@@ -3,7 +3,7 @@
 .PATH:	${.CURDIR}/../../isa
 KMOD	= joy
 SRCS	= bus_if.h device_if.h isa_if.h joy.c
-MAN8	= joy.8
+MAN	= joy.8
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

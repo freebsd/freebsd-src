@@ -1,10 +1,11 @@
 #	$NetBSD: Makefile,v 1.2 1995/07/03 21:25:14 cgd Exp $
+# $FreeBSD$
 
 .PATH:	${.CURDIR}/../lint1
 
 PROG=	xlint
 SRCS=	xlint.c mem.c
-MAN1=	lint.1
+MAN=	lint.1
 
 CFLAGS+=-I${.CURDIR}/../lint1
 

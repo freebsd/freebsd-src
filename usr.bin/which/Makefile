@@ -3,8 +3,7 @@
 
 MAINTAINER= wosch
 
-
-MAN1=	which.1
+MAN=	which.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 MAINTAINER=	des@freebsd.org
-MAN1=		sockstat.1
+MAN=		sockstat.1
 
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

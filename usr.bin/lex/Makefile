@@ -18,7 +18,6 @@ SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
 		skel.c sym.c tblcmp.c yylex.c
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
-MAN1=		lex.1
 MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1

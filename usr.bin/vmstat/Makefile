@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	vmstat
+MAN=	vmstat.8
 CFLAGS+=-I${.CURDIR}/../../sys
-SRCS=	vmstat.c
-MAN8=	vmstat.8
 BINGRP=	kmem
 BINMODE=2555
 DPADD=	${LIBKVM} ${LIBDEVSTAT}

@@ -5,8 +5,7 @@ PROG=	ar
 CFLAGS+=-I${.CURDIR} -Wall
 SRCS=	append.c ar.c archive.c contents.c delete.c extract.c misc.c \
 	move.c print.c replace.c
-MAN1aout=ar.1aout
-MAN5=	ar.5
+MAN=	ar.1aout ar.5
 BINDIR=	/usr/libexec/aout
 
 .include <bsd.prog.mk>

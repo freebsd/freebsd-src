@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
+# $FreeBSD$
 
 PROG=	id
-MAN1=   id.1 groups.1 whoami.1
+MAN=	id.1 groups.1 whoami.1
 
 # XXX BROKEN:	afterinstall:
 afterinstall:
