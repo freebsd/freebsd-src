@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.1 1995/09/18 17:00:21 peter Exp $
+ * $Id: options.c,v 1.1 1995/10/04 07:54:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,7 +98,7 @@ static Option Options[] = {
       OPT_IS_FLAG,	&OptFlags,	OPT_NFS_SECURE,		NULL		},
 { "NFS Slow",		"User is using a slow PC or ethernet card",
       OPT_IS_FLAG,	&OptFlags,	OPT_SLOW_ETHER,		NULL		},
-{ "Debugging",		"Emit extra debugging output on VTY1",
+{ "Debugging",		"Emit extra debugging output on VTY1 (ALT-F2)",
       OPT_IS_FLAG,	&OptFlags,	OPT_DEBUG,		NULL		},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_FLAG,	&OptFlags,	OPT_NO_CONFIRM,		NULL		},
@@ -123,7 +123,7 @@ static Option Options[] = {
 #define OPT_END_ROW	20
 #define OPT_NAME_COL	0
 #define OPT_VALUE_COL	16
-#define GROUP_OFFSET	30
+#define GROUP_OFFSET	40
 
 Boolean
 optionIsSet(int opt)
@@ -185,7 +185,7 @@ optionsEditor(char *str)
 
     while (1) {
 	/* Whap up the header */
-	attrset(A_REVERSE); mvaddstr(0, 1, "Options Editor"); attrset(A_NORMAL);
+	attrset(A_REVERSE); mvaddstr(0, 0, "Options Editor"); attrset(A_NORMAL);
 	for (i = 0; i < 2; i++) {
 	    mvaddstr(OPT_START_ROW - 2, OPT_NAME_COL + (i * GROUP_OFFSET), "Name");
 	    mvaddstr(OPT_START_ROW - 1, OPT_NAME_COL + (i * GROUP_OFFSET), "----");
@@ -213,7 +213,7 @@ optionsEditor(char *str)
 	}
 	mvaddstr(OPT_END_ROW + 3, 0, Options[currOpt].desc);
 	clrtoeol();
-	move(0, 0);
+	move(0, 14);
 	/* Start the edit loop */
 	key = toupper(getch());
 	switch (key) {
