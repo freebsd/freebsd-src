@@ -59,11 +59,6 @@ SYSCTL_INT(_security_jail, OID_AUTO, getfsstate_getfsstatroot_only, CTLFLAG_RW,
     &jail_getfsstatroot_only, 0,
     "Processes see only their root file system in getfsstat()");
 
-int	jail_list_allowed = 0;
-SYSCTL_INT(_security_jail, OID_AUTO, list_allowed, CTLFLAG_RW,
-    &jail_list_allowed, 0,
-    "Processes in jail can access system jail list");
-
 /* allprison, lastprid, and prisoncount are protected by allprison_mtx. */
 struct	prisonlist allprison;
 struct	mtx allprison_mtx;
@@ -451,7 +446,7 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 	int count, error;
 
 	mtx_assert(&Giant, MA_OWNED);
-	if (jailed(req->td->td_ucred) && !jail_list_allowed)
+	if (jailed(req->td->td_ucred))
 		return (0);
 retry:
 	mtx_lock(&allprison_mtx);
