@@ -30,7 +30,7 @@
 #if defined(arch_i386)
 #define	__ELF_WORD_SIZE	32
 #include <sys/elf32.h>
-#elif defined(arch_alpha)
+#elif defined(arch_alpha) || defined(arch_sparc64)
 #define	__ELF_WORD_SIZE	64
 #include <sys/elf64.h>
 #endif
