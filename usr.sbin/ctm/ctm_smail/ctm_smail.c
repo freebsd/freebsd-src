@@ -43,7 +43,7 @@ void write_header(FILE *sfp, char *mail_alias, char *delta, int pce,
 	int npieces);
 void write_trailer(FILE *sfp, unsigned sum);
 int apologise(char *delta, off_t ctm_size, long max_ctm_size,
-	char *mail_alias);
+	char *mail_alias, char *queue_dir);
 FILE *open_sendmail(void);
 int close_sendmail(FILE *fp);
 
@@ -91,7 +91,8 @@ main(int argc, char **argv)
 	}
 
     if (max_ctm_size != 0 && sb.st_size > max_ctm_size)
-	status = apologise(delta, sb.st_size, max_ctm_size, mail_alias);
+	status = apologise(delta, sb.st_size, max_ctm_size, mail_alias,
+		queue_dir);
     else
 	status = chop_and_send_or_queue(dfp, delta, sb.st_size, max_msg_size,
 		mail_alias, queue_dir);
@@ -405,13 +406,29 @@ write_trailer(FILE *sfp, unsigned sum)
  * Returns 0 on success, 1 on failure.
  */
 int
-apologise(char *delta, off_t ctm_size, long max_ctm_size, char *mail_alias)
+apologise(char *delta, off_t ctm_size, long max_ctm_size, char *mail_alias,
+	char *queue_dir)
     {
     FILE *sfp;
+    char qname[PATH_MAX];
 
-    sfp = open_sendmail();
-    if (sfp == NULL)
-	return 1;
+    if (queue_dir == NULL)
+	{
+	sfp = open_sendmail();
+	if (sfp == NULL)
+	    return 1;
+	}
+    else
+	{
+	mk_queue_name(qname, queue_dir, delta, 1, 1);
+	sfp = fopen(qname, "w");
+	if (sfp == NULL)
+	    {
+	    err("cannot open '%s' for writing", qname);
+	    return 1;
+	    }
+	}
+
 
     fprintf(sfp, "From: owner-%s\n", mail_alias);
     fprintf(sfp, "To: %s\n", mail_alias);
@@ -419,11 +436,22 @@ apologise(char *delta, off_t ctm_size, long max_ctm_size, char *mail_alias)
 
     fprintf(sfp, "%s is %ld bytes.  The limit is %ld bytes.\n\n", delta,
 	(long)ctm_size, max_ctm_size);
-    fprintf(sfp, "You can retrieve this delta via ftpmail, "
-	"or your good mate at the university.\n");
+    fprintf(sfp, "You can retrieve this delta via ftp.\n");
 
-    if (!close_sendmail(sfp))
-	return 1;
+    if (queue_dir == NULL)
+	{
+	if (!close_sendmail(sfp))
+	    return 1;
+	}
+    else
+	{
+	if (fclose(sfp)!=0)
+	    {
+	    err("error writing '%s'", qname);
+	    unlink(qname);
+	    return 1;
+            }
+	}
 
     return 0;
     }
