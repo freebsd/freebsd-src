@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.2 1998/02/26 20:44:16 sos Exp sos $
+ *	$Id: wst.c,v 1.4 1998/03/10 12:00:24 sos Exp sos $
  */
 
 #include "wdc.h"
@@ -44,7 +44,7 @@
 #include <sys/mtio.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#endif /*DEVFS*/
+#endif
 #include <machine/clock.h>
 #include <i386/isa/atapi.h>
 
@@ -68,7 +68,9 @@ static int wst_total = 0;
 
 #define WST_OPEN            	0x0001	/* The device is opened */
 #define WST_MEDIA_CHANGED   	0x0002	/* The media have changed */
-#define WST_DEBUG           	0x0004	/* Print debug info */
+#define WST_DATA_WRITTEN	0x0004	/* Data has been written */
+#define WST_FM_WRITTEN		0x0008	/* Filemark has been written */
+#define WST_DEBUG           	0x0010	/* Print debug info */
 
 /* ATAPI tape commands not in std ATAPI command set */
 #define ATAPI_TAPE_REWIND   		0x01
@@ -86,6 +88,8 @@ static int wst_total = 0;
 #define     LU_LOAD_MASK       			0x01
 #define     LU_RETENSION_MASK 			0x02
 #define     LU_EOT_MASK     			0x04
+
+#define DSC_POLL_INTERVAL	10
 
 /* 
  * MODE SENSE parameter header
@@ -121,7 +125,8 @@ struct wst_cappage {
     u_char  locked      	:1;	/* The media is locked */
     u_char  prevent     	:1;	/* Defaults  to prevent state */
     u_char  eject       	:1;	/* Supports eject */
-    u_char  reserved6_45    	:2;
+    u_char  disconnect		:1;	/* Can break request > ctl */
+    u_char  reserved6_5    	:1;
     u_char  ecc     		:1;	/* Supports error correction */
     u_char  compress    	:1;	/* Supports data compression */
     u_char  reserved7_0 	:1;
@@ -173,7 +178,6 @@ struct wst {
     struct atapi_params *param;     	/* Drive parameters table */
     struct wst_header header;       	/* MODE SENSE param header */
     struct wst_cappage cap;         	/* Capabilities page info */
-    char description[80];           	/* Device description */
 #ifdef  DEVFS
     void    *cdevs;
     void    *bdevs;
@@ -190,9 +194,10 @@ int wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug);
 static int wst_sense(struct wst *t);
 static void wst_describe(struct wst *t);
 static int wst_open(dev_t dev, int chardev);
+static void wst_poll_dsc(struct wst *t);
 static void wst_start(struct wst *t);
 static void wst_done(struct wst *t, struct buf *bp, int resid, struct atapires result);
-static void wst_error(struct wst *t, struct atapires result);
+static int wst_error(struct wst *t, struct atapires result);
 static void wst_drvinit(void *unused);
 static int wst_space_cmd(struct wst *t, u_char function, u_int count);
 static int wst_write_filemark(struct wst *t, u_char function);
@@ -271,7 +276,7 @@ wst_sense(struct wst *t)
     char buffer[255];
 
     /* Get drive capabilities, some drives needs this repeated */
-    for (count = 0 ; count < 3 ; count++) {
+    for (count = 0 ; count < 5 ; count++) {
         result = atapi_request_immediate(t->ata, t->unit,
             ATAPI_TAPE_MODE_SENSE,
             8, /* DBD = 1 no block descr */
@@ -298,26 +303,21 @@ wst_sense(struct wst *t)
         t->cap.ctl = ntohs(t->cap.ctl);
         t->cap.speed = ntohs(t->cap.speed);
         t->cap.buffer_size = ntohs(t->cap.buffer_size);
-        /*wst_describe(t);*/
-        /*if (t->flags & WST_DEBUG) */
-        /*    wst_dump(t->lun, "cap", &t->cap, sizeof(t->cap)); */
         t->blksize = (t->cap.blk512 ? 512 : (t->cap.blk1024 ? 1024 : 0));
-
-    } else
-        return 1;
-    return 0;
+        return 0;
+    }
+    return 1;
 }
 
 static void 
 wst_describe(struct wst *t)
 {
     printf("wst%d: ", t->lun);
-    printf("Medium: ");
     switch (t->header.medium_type) {
 	case 0x00:	printf("Drive empty"); break;
-	case 0x17:	printf("Travan 1 (400 Mbyte)"); break;
-	case 0xb6:	printf("Travan 4 (4 Gbyte)"); break;
-	default: printf("Unknown (0x%x)", t->header.medium_type);
+	case 0x17:	printf("Travan 1 (400 Mbyte) media"); break;
+	case 0xb6:	printf("Travan 4 (4 Gbyte) media"); break;
+	default: printf("Unknown media (0x%x)", t->header.medium_type);
     }
     if (t->cap.readonly) printf(", readonly");
     if (t->cap.reverse) printf(", reverse");
@@ -327,6 +327,7 @@ wst_describe(struct wst *t)
     if (t->cap.locked) printf(", locked");
     if (t->cap.prevent) printf(", prevent");
     if (t->cap.eject) printf(", eject");
+    if (t->cap.disconnect) printf(", disconnect");
     if (t->cap.ecc) printf(", ecc");
     if (t->cap.compress) printf(", compress");
     if (t->cap.blk512) printf(", 512b");
@@ -353,15 +354,13 @@ wstopen(dev_t dev, int flags, int fmt, struct proc *p)
                lun, wstnlun, atapi_request_immediate);
         return(ENXIO);
     }
-
     t = wsttab[lun];
     if (t->flags == WST_OPEN)
         return EBUSY;
-    t->flags &= ~WST_MEDIA_CHANGED;
-
     if (wst_sense(t))
         printf("wst%d: Sense media type failed\n", t->lun);
-
+    t->flags &= ~WST_MEDIA_CHANGED;
+    t->flags &= ~(WST_DATA_WRITTEN | WST_FM_WRITTEN);
     t->flags |= WST_OPEN;
     return(0);
 }
@@ -372,14 +371,21 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
     int lun = UNIT(dev);
     struct wst *t = wsttab[lun];
 
-    /* flush buffers */
-    wst_write_filemark(t, 0);
+    /* Flush buffers, some drives fail here, but they report ctl = 0 */
+    if (t->cap.ctl)
+        wst_write_filemark(t, 0);
 
-    /* if minor is even rewind on close */
+    /* Write filemark if data written to tape */
+    if (t->flags & (WST_DATA_WRITTEN || WST_FM_WRITTEN) == WST_DATA_WRITTEN)
+        wst_write_filemark(t, WEOF_WRITE_MASK);
+
+    /* If minor is even rewind on close */
     if (!(minor(dev) & 0x01))	
 	wst_rewind(t);
 
     t->flags &= ~WST_OPEN;
+    if (t->flags & WST_DEBUG)
+	printf("wst%d: %d total bytes transferred\n", t->lun, wst_total);
     return(0);
 }
 
@@ -411,12 +417,23 @@ wststrategy(struct buf *bp)
 		lun, bp->b_bcount, t->blksize*t->cap.ctl);
     }
 
-wst_total += bp->b_bcount;
-
     x = splbio();
+    wst_total += bp->b_bcount;
     bufq_insert_tail(&t->buf_queue, bp);
     wst_start(t);
     splx(x);
+}
+
+static void     
+wst_poll_dsc(struct wst *t)
+{ 
+    /* We should use a final timeout here SOS XXX */
+    if (!(inb(t->ata->port + AR_STATUS) & ARS_DSC)) {
+        timeout((timeout_t*)wst_poll_dsc, t, DSC_POLL_INTERVAL);
+        return;
+    }       
+    t->ata->wait_for_dsc = 0;
+    wakeup((caddr_t)t);
 }
 
 static void 
@@ -430,16 +447,28 @@ wst_start(struct wst *t)
     if (!bp)
         return;
 
+    if (t->ata->wait_for_dsc)
+	printf("wst%d: ERROR! allready waiting for DSC\n", t->lun);
+
+    /* Sleep waiting for a ready drive (DSC) */
+    if (t->ata->use_dsc && !(inb(t->ata->port + AR_STATUS) & ARS_DSC)) {
+        t->ata->wait_for_dsc = 1;
+        timeout((timeout_t*)wst_poll_dsc, t, DSC_POLL_INTERVAL);
+        tsleep((caddr_t) t, 0, "wstdsc", 0);
+    }
+
     bufq_remove(&t->buf_queue, bp);
     blk_count = bp->b_bcount / t->blksize;
 
-    if(bp->b_flags & B_READ) {
+    if (bp->b_flags & B_READ) {
         op_code = ATAPI_TAPE_READ_CMD;
         byte_count = bp->b_bcount;
     } else {
         op_code = ATAPI_TAPE_WRITE_CMD;
+	t->flags |= WST_DATA_WRITTEN;
         byte_count = -bp->b_bcount;
     }
+
     atapi_request_callback(t->ata, t->unit, op_code, 1,
                     	   blk_count>>16, blk_count>>8, blk_count,
                     	   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -459,35 +488,47 @@ wst_done(struct wst *t, struct buf *bp, int resid,
     }
     else
 	bp->b_resid = resid;
+
     biodone(bp);
-    wst_start(t);
+    /*wst_start(t);*/
 }
 
-static void 
+static int 
 wst_error(struct wst *t, struct atapires result)
 {
+    struct wst_reqsense sense;
+
     if (result.code != RES_ERR) {
     	printf("wst%d: ERROR code=%d, status=%b, error=%b\n", t->lun,
                result.code, result.status, ARS_BITS, result.error, AER_BITS);
-        return;
+        return 1;
+    }
+
+    if ((result.error & AER_SKEY) && (result.status & ARS_CHECK)) {
+        atapi_request_immediate(t->ata, t->unit,
+            ATAPI_TAPE_REQUEST_SENSE,
+            0, 0, 0, sizeof(sense),
+            0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, (char*) &sense, sizeof(struct wst_reqsense));
+        /*wst_dump(t->lun, "req_sense", &sense, sizeof(struct wst_reqsense));*/
     }
     switch (result.error & AER_SKEY) {
     case AER_SK_NOT_READY:
         if (result.error & ~AER_SKEY) {
             if (t->flags & WST_DEBUG)
                 printf("wst%d: not ready\n", t->lun);
-            return;
+            break;
         }
         if (!(t->flags & WST_MEDIA_CHANGED))
             if (t->flags & WST_DEBUG)
                 printf("wst%d: no media\n", t->lun);
         t->flags |= WST_MEDIA_CHANGED;
-        return;
+        break;
 
     case AER_SK_BLANK_CHECK:
         if (t->flags & WST_DEBUG)
             printf("wst%d: EOD encountered\n", t->lun);
-        return;
+        break;
 
     case AER_SK_MEDIUM_ERROR:
         if (t->flags & WST_DEBUG)
@@ -508,7 +549,7 @@ wst_error(struct wst *t, struct atapires result)
         if (!(t->flags & WST_MEDIA_CHANGED))
             printf("wst%d: media changed\n", t->lun);
         t->flags |= WST_MEDIA_CHANGED;
-        return;
+        break;
 
     case AER_SK_DATA_PROTECT:
         if (t->flags & WST_DEBUG)
@@ -529,21 +570,10 @@ wst_error(struct wst *t, struct atapires result)
         printf("wst%d: i/o error, status=%b, error=%b\n", t->lun,
         	result.status, ARS_BITS, result.error, AER_BITS);
     }
-
-    if ((result.error & AER_SKEY) && (result.status & ARS_CHECK)) {
-	struct wst_reqsense sense;
-
-        atapi_request_immediate(t->ata, t->unit,
-            ATAPI_TAPE_REQUEST_SENSE,
-            0, 0, 0, sizeof(sense),
-            0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, (char*) &sense, sizeof(struct wst_reqsense));
-
-        wst_dump(t->lun, "req_sense", &sense, sizeof(struct wst_reqsense));
-	printf("count=%d ERR=%x len=%d ASC=%x ASCQ=%x\n", 
-		wst_total, sense.error_code, ntohl(sense.info), 
-		sense.asc, sense.ascq);
-    }
+    printf("total=%d ERR=%x len=%d ASC=%x ASCQ=%x\n", 
+	   wst_total, sense.error_code, ntohl(sense.info), 
+	   sense.asc, sense.ascq);
+    return 1;
 }
 
 int 
@@ -559,7 +589,7 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
             struct mtget *g = (struct mtget *) addr;
 
             bzero(g, sizeof(struct mtget));
-            g->mt_type = 1;
+            g->mt_type = 7;
             g->mt_density = 1;
             g->mt_blksiz = t->blksize;
             g->mt_comp = t->cap.compress;
@@ -577,15 +607,15 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
     	    struct mtop *mt = (struct mtop *)addr;
 
             switch ((short) (mt->mt_op)) {
-            case MTWEOF:	/* write filemark */
+            case MTWEOF:
 		for (i=0; i < mt->mt_count && !error; i++)
 			error = wst_write_filemark(t, WEOF_WRITE_MASK);
                 break;
-            case MTFSF:		/* forward count filemarks */
+            case MTFSF:
 		if (mt->mt_count)
 			error = wst_space_cmd(t, SP_FM, mt->mt_count);
                 break;
-            case MTBSF:		/* backward count filemarks */
+            case MTBSF:
 		if (mt->mt_count)
 			error = wst_space_cmd(t, SP_FM, -(mt->mt_count));
                 break;
@@ -593,11 +623,11 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
                 error = EINVAL; break;
             case MTBSR:
                 error = EINVAL; break;
-            case MTREW: 	/* rewind */
+            case MTREW:
                 error = wst_rewind(t);
 		break;
-            case MTOFFL:    	/* rewind and go offline */
-#if 1				/* misuse as a reset func for now */
+            case MTOFFL:
+#if 1				/* Misuse as a reset func for now */
 		wst_reset(t);
 		wst_sense(t);
 		wst_describe(t);
@@ -607,7 +637,7 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
                 error = wst_load_unload(t, !LU_LOAD_MASK);
 #endif
 		    break;
-            case MTNOP:	/* flush buffers */
+            case MTNOP:
 		error = wst_write_filemark(t, 0);
                 break;
             case MTCACHE:
@@ -618,7 +648,7 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
                 error = EINVAL; break;
             case MTSETDNSTY:
                 error = EINVAL; break;
-            case MTERASE:   /* erase */
+            case MTERASE:
                 error = wst_erase(t);
 		break;
             case MTEOD:
@@ -626,7 +656,7 @@ wstioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
                 break;
             case MTCOMP:
                 error = EINVAL; break;
-            case MTRETENS:  /* retension tape */
+            case MTRETENS:
                 error = wst_load_unload(t, LU_RETENSION_MASK|LU_LOAD_MASK);
 		break;
             default:
@@ -662,6 +692,12 @@ wst_write_filemark(struct wst *t, u_char function)
 {
     struct atapires result;
 
+    if (function) {
+	if (t->flags & WST_FM_WRITTEN)
+	    t->flags &= ~WST_DATA_WRITTEN;
+        else
+	    t->flags |= WST_FM_WRITTEN;
+    }
     result = atapi_request_wait(t->ata, t->unit, 
         			ATAPI_TAPE_WEOF, 0, 0, 0, function,
         			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0);
