@@ -238,7 +238,6 @@ typedef struct sigaltstack {
 
 #define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
 #define	SS_DISABLE	0x0004	/* disable taking signals on alternate stack */
-#define	MINSIGSTKSZ	8192			/* minimum allowable stack */
 #define	SIGSTKSZ	(MINSIGSTKSZ + 32768)	/* recommended stack size */
 
 /* Have enough typedefs for this now.  XXX */
