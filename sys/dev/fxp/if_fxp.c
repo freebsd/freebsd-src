@@ -491,15 +491,21 @@ fxp_ether_ioctl(ifp, cmd, data)
 static int
 fxp_probe(device_t dev)
 {
-	if ((pci_get_vendor(dev) == FXP_VENDORID_INTEL) &&
-	    (pci_get_device(dev) == FXP_DEVICEID_i82557)) {
-		device_set_desc(dev, "Intel EtherExpress Pro 10/100B Ethernet");
-		return 0;
-	}
-	if ((pci_get_vendor(dev) == FXP_VENDORID_INTEL) &&
-	    (pci_get_device(dev) == FXP_DEVICEID_i82559)) {
-		device_set_desc(dev, "Intel InBusiness 10/100 Ethernet");
-		return 0;
+	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
+		switch (pci_get_device(dev)) {
+
+		case FXP_DEVICEID_i82557:
+			device_set_desc(dev, "Intel Pro 10/100B/100+ Ethernet");
+			return 0;
+		case FXP_DEVICEID_i82559:
+			device_set_desc(dev, "Intel InBusiness 10/100 Ethernet");
+			return 0;
+		case FXP_DEVICEID_i82559ER:
+			device_set_desc(dev, "Intel Embedded 10/100 Ethernet");
+			return 0;
+		default:
+			break;
+		}
 	}
 
 	return ENXIO;
