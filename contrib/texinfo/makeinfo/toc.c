@@ -1,7 +1,7 @@
 /* toc.c -- table of contents handling.
-   $Id: toc.c,v 1.22 2002/04/01 14:07:11 karl Exp $
+   $Id: toc.c,v 1.3 2002/11/07 16:13:59 karl Exp $
 
-   Copyright (C) 1999, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-   Written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
+   Originally written by Karl Heinz Marbaise <kama@hippo.fido.de>.  */
 
 #include "system.h"
 #include "makeinfo.h"
@@ -218,7 +218,7 @@ contents_update_html (fp)
 
   flush_output ();      /* in case we are writing stdout */
 
-  fprintf (fp, "\n<h2>%s</h2>\n<ul>\n", _("Table of Contents"));
+  fprintf (fp, "\n<div class=\"contents\">\n<h2>%s</h2>\n<ul>\n", _("Table of Contents"));
 
   last_level = toc_entry_alist[0]->level;
 
@@ -237,7 +237,7 @@ contents_update_html (fp)
           /* @subsubsection ...
              @chapter ... this IS usual.*/
           for (k = 0; k < (last_level-toc_entry_alist[i]->level); k++)
-            fputs ("</ul>\n", fp);
+            fputs ("</li></ul>\n", fp);
         }
 
       /* No double entries in TOC.  */
@@ -247,6 +247,9 @@ contents_update_html (fp)
           /* each toc entry is a list item.  */
           fputs ("<li>", fp);
 
+          /* Insert link -- to an external file if splitting, or
+             within the current document if not splitting.  */
+	  fprintf (fp, "<a ");
           /* For chapters (only), insert an anchor that the short contents
              will link to.  */
           if (toc_entry_alist[i]->level == 0)
@@ -259,13 +262,10 @@ contents_update_html (fp)
 		 ends, and use that in toc_FOO.  */
 	      while (*p && *p != '"')
 		p++;
-	      fprintf (fp, "<a name=\"toc_%.*s\"></a>\n    ",
+	      fprintf (fp, "name=\"toc_%.*s\" ",
 		       p - toc_entry_alist[i]->name, toc_entry_alist[i]->name);
 	    }
-
-          /* Insert link -- to an external file if splitting, or
-             within the current document if not splitting.  */
-	  fprintf (fp, "<a href=\"%s#%s</a>\n",
+	  fprintf (fp, "href=\"%s#%s</a>\n",
 		   splitting ? toc_entry_alist[i]->html_file : "",
 		   toc_entry_alist[i]->name);
         }
@@ -276,9 +276,9 @@ contents_update_html (fp)
   /* Go back to start level. */
   if (toc_entry_alist[0]->level < last_level)
     for (k = 0; k < (last_level-toc_entry_alist[0]->level); k++)
-      fputs ("</ul>\n", fp);
+      fputs ("</li></ul>\n", fp);
 
-  fputs ("</ul>\n\n", fp);
+  fputs ("</li></ul>\n</div>\n\n", fp);
 }
 
 /* print table of contents in ASCII (--no-headers)
@@ -327,7 +327,7 @@ shortcontents_update_html (fp)
 
   flush_output ();      /* in case we are writing stdout */
 
-  fprintf (fp, "\n<h2>%s</h2>\n<ul>\n", _("Short Contents"));
+  fprintf (fp, "\n<div class=\"shortcontents\">\n<h2>%s</h2>\n<ul>\n", _("Short Contents"));
 
   if (contents_filename)
     toc_file = filename_part (contents_filename);
@@ -339,14 +339,14 @@ shortcontents_update_html (fp)
       if (toc_entry_alist[i]->level == 0)
 	{
 	  if (contents_filename)
-	    fprintf (fp, "<li><a href=\"%s#toc_%s</a>\n",
+	    fprintf (fp, "<li><a href=\"%s#toc_%s</a></li>\n",
 		     splitting ? toc_file : "", name);
 	  else
 	    fprintf (fp, "<a href=\"%s#%s</a>\n",
 		     splitting ? toc_entry_alist[i]->html_file : "", name);
 	}
     }
-  fputs ("</ul>\n\n", fp);
+  fputs ("</ul>\n</div>\n\n", fp);
   if (contents_filename)
     free (toc_file);
 }
