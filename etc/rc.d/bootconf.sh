@@ -15,7 +15,7 @@ bootconf_start()
 	if [ ! -e /etc/etc.current ]; then
 		return 0
 	fi
-	if [ -h /etc/etc.default ]; then
+	if [ -L /etc/etc.default ]; then
 		def=`ls -ld /etc/etc.default 2>&1`
 		default="${def##*-> etc.}"
 	else

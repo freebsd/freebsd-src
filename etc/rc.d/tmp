@@ -103,7 +103,7 @@ fi
 # XXX: mtree runs too early to create any directories needed in /tmp,
 # so if /var/tmp == /tmp, then you don't get a vi.recover.
 #
-if [ ! -h /tmp ]; then
+if [ ! -L /tmp ]; then
 	mount_md ${tmpsize:=64m} /tmp 2
 	chmod 01777 /tmp
 fi
