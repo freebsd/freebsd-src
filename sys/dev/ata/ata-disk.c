@@ -82,7 +82,7 @@ static void ad_attach(void *);
 static int32_t ad_getparam(struct ad_softc *);
 static void ad_start(struct ad_softc *);
 static void ad_timeout(struct ad_request *);
-static int8_t ad_version(u_int16_t);
+static int32_t ad_version(u_int16_t);
 static void ad_drvinit(void);
 
 /* internal vars */
@@ -105,7 +105,7 @@ apiomode(struct ata_params *ap)
 static __inline int
 wdmamode(struct ata_params *ap)
 {
-    if (ap->atavalid & 2) {
+    if ((ap->atavalid & 2) && ad_version(ap->versmajor) >= 2) {
 	if (ap->wdmamodes & 4) return 2;
 	if (ap->wdmamodes & 2) return 1;
 	if (ap->wdmamodes & 1) return 0;
@@ -116,7 +116,7 @@ wdmamode(struct ata_params *ap)
 static __inline int
 udmamode(struct ata_params *ap)
 {
-    if (ap->atavalid & 4) {
+    if ((ap->atavalid & 4) && ad_version(ap->versmajor) >= 3) {
 	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
 	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
 	if (ap->udmamodes & 0x04) return 2;
@@ -209,7 +209,7 @@ ad_attach(void *notused)
 		           wdmamode(adp->ata_parm), udmamode(adp->ata_parm),
 			   adp->ata_parm->cblid);
 
-		printf("ad%d: <%s/%s> ATA-%c disk at ata%d as %s\n", 
+		printf("ad%d: <%s/%s> ATA-%d disk at ata%d as %s\n", 
 		       adp->lun, model_buf, revision_buf,
 		       ad_version(adp->ata_parm->versmajor), ctlr,
 		       (adp->unit == ATA_MASTER) ? "master" : "slave ");
@@ -257,8 +257,9 @@ ad_getparam(struct ad_softc *adp)
     /* select drive */
     outb(adp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | adp->unit);
     DELAY(1);
-    ata_command(adp->controller, adp->unit, ATA_C_ATA_IDENTIFY,
-		0, 0, 0, 0, 0, ATA_WAIT_INTR);
+    if (ata_command(adp->controller, adp->unit, ATA_C_ATA_IDENTIFY,
+		0, 0, 0, 0, 0, ATA_WAIT_INTR))
+	return -1;
     if (ata_wait(adp->controller, adp->unit,
 		 ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))
 	return -1;
@@ -476,8 +477,9 @@ ad_transfer(struct ad_request *request)
 	else
 	    cmd = request->flags & AR_F_READ ? ATA_C_READ : ATA_C_WRITE;
 
-	ata_command(adp->controller, adp->unit, cmd, 
-		    cylinder, head, sector, count, 0, ATA_IMMEDIATE);
+	if (ata_command(adp->controller, adp->unit, cmd, 
+			cylinder, head, sector, count, 0, ATA_IMMEDIATE))
+	    printf("ad%d: wouldn't take transfer command - HELP!\n", adp->lun);
     }
    
     /* if this is a DMA transaction start it, return and wait for interrupt */
@@ -553,6 +555,8 @@ oops:
 	    if (request->retries++ < AD_MAX_RETRIES)
 		printf(" retrying\n");
 	    else {
+		ata_dmainit(adp->controller, adp->unit, 
+			    apiomode(adp->ata_parm), -1, -1);
 		adp->flags &= ~AD_F_DMA_ENABLED;
 		printf(" falling back to PIO mode\n");
 	    }
@@ -563,8 +567,10 @@ oops:
 	/* if using DMA, try once again in PIO mode */
 	if (request->flags & AR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
-
+	    ata_dmainit(adp->controller, adp->unit, 
+			apiomode(adp->ata_parm), -1, -1);
 	    request->flags |= AR_F_FORCE_PIO;
+	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
 	    return ATA_OP_FINISHED;
 	}
@@ -576,7 +582,6 @@ oops:
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
     if (request->flags & AR_F_FORCE_PIO) {
-	adp->flags &= ~AD_F_DMA_ENABLED;
 	printf("ad%d: DMA problem encountered, fallback to PIO mode\n",
 	       adp->lun);
     }
@@ -666,17 +671,15 @@ ad_timeout(struct ad_request *request)
     struct ad_softc *adp = request->device;
 
     adp->controller->running = NULL;
-    printf("ata%d-%s: ad_timeout: lost disk contact - resetting\n",
-	   adp->controller->lun, 
-	   (adp->unit == ATA_MASTER) ? "master" : "slave");
+    printf("ad%d: ad_timeout: lost disk contact - resetting\n", adp->lun);
 
     if (request->flags & AR_F_DMA_USED) {
 	ata_dmadone(adp->controller);
         if (request->retries == AD_MAX_RETRIES) {
+	    ata_dmainit(adp->controller, adp->unit, 
+			apiomode(adp->ata_parm), -1, -1);
 	    adp->flags &= ~AD_F_DMA_ENABLED;
-	    printf("ata%d-%s: ad_timeout: trying fallback to PIO mode\n",
-		   adp->controller->lun,
-           	   (adp->unit == ATA_MASTER) ? "master" : "slave");
+	    printf("ad%d: ad_timeout: trying fallback to PIO mode\n", adp->lun);
 	    request->retries = 0;
 	}
     }
@@ -695,17 +698,17 @@ ad_timeout(struct ad_request *request)
     ata_reinit(adp->controller);
 }
 
-static int8_t
+static int32_t
 ad_version(u_int16_t version)
 {
     int32_t bit;
 
     if (version == 0xffff)
-	return '?';
+	return 0;
     for (bit = 15; bit >= 0; bit--)
 	if (version & (1<<bit))
-	    return ('0' + bit);
-    return '?';
+	    return bit;
+    return 0;
 }
 
 static void 

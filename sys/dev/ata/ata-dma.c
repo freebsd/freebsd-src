@@ -180,7 +180,28 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	break;
 
     case 0x12308086:	/* Intel PIIX */
-	/* probably not worth the trouble */
+	if (wdmamode >= 2 && apiomode >= 4) {
+	    int32_t word40;
+
+	    word40 = pci_read_config(scp->dev, 0x40, 4);
+	    word40 >>= scp->unit * 16;
+
+	    /* Check for timing config usable for DMA on controller */
+	    if (!((word40 & 0x3300) == 0x2300 &&
+		  ((word40 >> (device == ATA_MASTER ? 0 : 4)) & 1) == 1))
+		break;
+
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		printf("ata%d: %s: %s setting up WDMA2 mode on PIIX chip\n",
+		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
+		       (error) ? "failed" : "success");
+	    if (!error) {
+		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_WDMA2;
+		return 0;
+	    }
+	}
 	break;
 
     case 0x522910b9:	/* AcerLabs Aladdin IV/V */
@@ -290,6 +311,37 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
 		       (error) ? "failed" : "success");
 	    if (!error) {
+		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_WDMA2;
+		return 0;
+	    }
+	}
+	/* we could set PIO mode timings, but we assume the BIOS did that */
+	break;
+
+    case 0x55131039:	/* SiS 5591 */
+	devno = (scp->unit << 1) + ((device == ATA_MASTER) ? 0 : 1);
+	if (udmamode >= 2) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		printf("ata%d: %s: %s setting up UDMA2 mode on SiS chip\n",
+		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
+		       (error) ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(scp->dev, 0x40 + (devno << 1), 0xa301, 2);
+		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_UDMA2;
+		return 0;
+	    }
+	}
+	if (wdmamode >=2 && apiomode >= 4) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		printf("ata%d: %s: %s setting up WDMA2 mode on SiS chip\n",
+		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
+		       (error) ? "failed" : "success");
+	    if (!error) {
+		pci_write_config(scp->dev, 0x40 + (devno << 1), 0x0301, 2);
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_MODE_WDMA2;
 		return 0;
 	    }
@@ -427,7 +479,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	if (((wdmamode >= 2 && apiomode >= 4) || udmamode >= 2) &&
 	    (inb(scp->bmaddr + ATA_BMSTAT_PORT) & 
 		((device == ATA_MASTER) ? 
-		 ATA_BMSTAT_DMA_SLAVE : ATA_BMSTAT_DMA_MASTER))) {
+		 ATA_BMSTAT_DMA_MASTER : ATA_BMSTAT_DMA_SLAVE))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)

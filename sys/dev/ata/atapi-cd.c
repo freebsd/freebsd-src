@@ -215,9 +215,10 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     acd->changer_info = NULL;
     acd->atp->flags |= ATAPI_F_MEDIA_CHANGED;
     if (stats == NULL) {
-	if (!(acd->stats = malloc(sizeof(struct devstat), 
-					 M_ACD, M_NOWAIT)))
+	if (!(acd->stats = malloc(sizeof(struct devstat), M_ACD, M_NOWAIT))) {
+	    free(acd, M_ACD);
 	    return NULL;
+	}
 	bzero(acd->stats, sizeof(struct devstat));
     }
     else
@@ -238,6 +239,8 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", lun);
     dev->si_drv1 = acd;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    if ((acd->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
+        sprintf(acd->atp->devname, "acd%d", acd->lun);
     return acd;
 }
 

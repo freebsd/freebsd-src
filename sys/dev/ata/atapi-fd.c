@@ -117,6 +117,8 @@ afdattach(struct atapi_softc *atp)
     dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
     dev->si_drv1 = fdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    if ((fdp->atp->devname = malloc(8, M_AFD, M_NOWAIT)))
+        sprintf(fdp->atp->devname, "afd%d", fdp->lun);
     return 0;
 }
 
