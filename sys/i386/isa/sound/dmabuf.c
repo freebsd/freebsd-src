@@ -3,8 +3,28 @@
  * 
  * The DMA buffer manager for digitized voice applications
  * 
- * (C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi) See COPYING for further
- * details. Should be distributed with this file.
+ * Copyright by Hannu Savolainen 1993
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met: 1. Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * 
  */
 
 #include "sound_config.h"
@@ -58,7 +78,9 @@ static volatile int dmabuf_interrupted[MAX_DSP_DEV] =
  * Pointers to raw buffers
  */
 
-char           *snd_raw_buf[MAX_DSP_DEV][DSP_BUFFCOUNT];
+char           *snd_raw_buf[MAX_DSP_DEV][DSP_BUFFCOUNT] =
+{
+  {NULL}};
 unsigned long   snd_raw_buf_phys[MAX_DSP_DEV][DSP_BUFFCOUNT];
 int             snd_raw_count[MAX_DSP_DEV];
 
@@ -83,7 +105,9 @@ static int      dev_nbufs[MAX_DSP_DEV];	/* # of logical buffers ( >=
 					 * sound_buffcounts[dev] */
 static int      dev_counts[MAX_DSP_DEV][MAX_SUB_BUFFERS];
 static unsigned long dev_buf_phys[MAX_DSP_DEV][MAX_SUB_BUFFERS];
-static char    *dev_buf[MAX_DSP_DEV][MAX_SUB_BUFFERS];
+static char    *dev_buf[MAX_DSP_DEV][MAX_SUB_BUFFERS] =
+{
+  {NULL}};
 static int      dev_buffsize[MAX_DSP_DEV];
 
 static void
@@ -174,7 +198,7 @@ DMAbuf_open (int dev, int mode)
       return RET_ERROR (ENXIO);
     }
 
-  if (sound_buffcounts[dev] <= 0)
+  if (snd_raw_buf[dev][0] == NULL)
     return RET_ERROR (ENOSPC);	/* Memory allocation failed during boot */
 
   if ((retval = dsp_devs[dev]->open (dev, mode)) < 0)
@@ -299,11 +323,7 @@ DMAbuf_getrdbuffer (int dev, char **buf, int *len)
 	}
 
       /* Wait for the next block */
-#ifdef CRYPTO
-      REQUEST_TIMEOUT (60 * HZ, dev_sleeper[dev]);
-#else
       REQUEST_TIMEOUT (10 * HZ, dev_sleeper[dev]);
-#endif
       INTERRUPTIBLE_SLEEP_ON (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);
@@ -420,7 +440,8 @@ DMAbuf_getwrbuffer (int dev, char **buf, int *size)
 	}
 
       /* Wait for free space */
-      REQUEST_TIMEOUT (60 * HZ, dev_sleeper[dev]);	/* Overestimated timeout */
+      REQUEST_TIMEOUT (60 * HZ, dev_sleeper[dev]);	/* GUS requires up to 60
+							 * sec */
       INTERRUPTIBLE_SLEEP_ON (dev_sleeper[dev], dev_sleep_flag[dev]);
     }
   RESTORE_INTR (flags);

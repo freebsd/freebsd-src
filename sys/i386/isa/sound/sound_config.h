@@ -1,8 +1,32 @@
-/* linux/kernel/chr_drv/sound/sound-config.h
-
-A driver for Soundcards, misc configuration parameters.
-
-(C) 1992  Hannu Savolainen (hsavolai@cs.helsinki.fi) */
+/* sound_config.h
+ *
+ * A driver for Soundcards, misc configuration parameters.
+ *
+ * 
+ * Copyright by Hannu Savolainen 1993
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ */
 
 #include "local.h"
 
@@ -116,7 +140,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
 
 /* SEQ_MAX_QUEUE is the maximum number of sequencer events buffered by the
    driver. (There is no need to alter this) */
-#define SEQ_MAX_QUEUE	512
+#define SEQ_MAX_QUEUE	1024
 
 #define SBFM_MAXINSTR		(256)	/* Size of the FM Instrument
 						   bank				 */
@@ -137,6 +161,7 @@ If your card has nonstandard I/O address or IRQ number, change defines
  *  Also do not forget to add table midi_supported[]
  *  Minor numbers for on-chip midi devices start from 15.. and 
  *  should be contiguous.. viz. 15,16,17....
+ * ERROR!!!!!!!!! NO NO. Minor numbers above 15 are reserved!!!!!! Hannu
  *  Also note the max # of midi devices as MAX_MIDI_DEV
  */ 
 
@@ -177,6 +202,9 @@ struct address_info {
 #include "os.h"
 #include "sound_calls.h"
 #include "dev_table.h"
-#include "debug.h"
+
+#ifndef DEB
+#define DEB(x)
+#endif
 
 #endif
