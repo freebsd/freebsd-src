@@ -180,19 +180,18 @@ do_umntall(char *hostname) {
 	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
 	if (clp == NULL) {
 		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
-		return (1);
+		return (0);
 	}
 	clp->cl_auth = authunix_create_default();
 	try.tv_sec = 3;
 	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMNTALL, xdr_void, (caddr_t)0,
 	    xdr_void, (caddr_t)0, try);
-	clnt_destroy(clp);
-	if (clnt_stat != RPC_SUCCESS) {
+	if (clnt_stat != RPC_SUCCESS)
 		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMNTALL"));
-		return (0);
-	} else
-		return (1);
+	auth_destroy(clp->cl_auth);
+	clnt_destroy(clp);
+	return (clnt_stat == RPC_SUCCESS);
 }
 
 /*
@@ -207,19 +206,18 @@ do_umount(char *hostname, char *dirp) {
 	clp = clnt_create(hostname, RPCPROG_MNT, RPCMNT_VER1, "udp");
 	if (clp  == NULL) {
 		warnx("%s: %s", hostname, clnt_spcreateerror("RPCPROG_MNT"));
-		return (1);
+		return (0);
 	}
 	clp->cl_auth = authsys_create_default();
 	try.tv_sec = 3;
 	try.tv_usec = 0;
 	clnt_stat = clnt_call(clp, RPCMNT_UMOUNT, xdr_dir, dirp,
 	    xdr_void, (caddr_t)0, try);
-	clnt_destroy(clp);
-	if (clnt_stat != RPC_SUCCESS) {
+	if (clnt_stat != RPC_SUCCESS)
 		warnx("%s: %s", hostname, clnt_sperror(clp, "RPCMNT_UMOUNT"));
-		return (0);
-	}
-	return (1);
+	auth_destroy(clp->cl_auth);
+	clnt_destroy(clp);
+	return (clnt_stat == RPC_SUCCESS);
 }
 
 /*
