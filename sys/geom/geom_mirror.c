@@ -183,7 +183,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return(NULL);
 	}
 	g_topology_unlock();
-	while (1) {
+	do {
 		sectorsize = cp->provider->sectorsize;
 		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
@@ -214,9 +214,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		pp2->sectorsize = sc->sectorsize = pp->sectorsize;
 		g_error_provider(pp2, 0);
 		g_topology_unlock();
-		
-		break;
-	}
+	} while (0);
 	g_topology_lock();
 	if (buf != NULL)
 		g_free(buf);
