@@ -407,7 +407,7 @@ The shorter forms
 and
 .Ql Va *
 are permitted for backward
-compatibility with historical makefiles and are not recommended.
+compatibility and are not recommended.
 The six variables
 .Ql Va "@F" ,
 .Ql Va "@D" ,
@@ -562,12 +562,20 @@ if not defined.
 Name of the machine architecture
 .Nm
 was compiled for, defined at compilation time.
+.It Va VPATH
+Makefiles may assign a colon-delimited list of directories to
+.Va VPATH .
+These directories will be searched for source files by
+.Nm
+after
+.Nm
+has finished parsing all input makefiles.
 .El
 .Pp
 Variable expansion may be modified to select or modify each word of the
 variable (where a
 .Dq word
-is whitespace delimited sequence of characters).
+is whitespace-delimited sequence of characters).
 The general format of a variable expansion is as follows:
 .Pp
 .Dl {variable[:modifier[:...]]}
@@ -1056,11 +1064,11 @@ The sources are directories which are to be searched for files not
 found in the current directory.
 If no sources are specified, any previously specified directories are
 deleted.
-.Pp
-The variable
-.Ql Ev VPATH
-used to add directories to the search path is permitted only for backward
-compatibility, and is not recommended for use in new Makefiles.
+Where possible, use of
+.Ic .PATH
+is preferred over use of the
+.Va VPATH
+variable.
 .It Ic .PATH\fIsuffix\fR
 The sources are directories which are to be searched for suffixed files
 not found in the current directory.
