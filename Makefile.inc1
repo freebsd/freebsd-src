@@ -127,7 +127,7 @@ MAKEOBJDIRPREFIX?=	/usr/obj
 OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		/usr/include/osreldate.h
 .else
-OSRELDATE!=	sysctl -n kern.osreldate
+OSRELDATE=	0
 .endif
 .endif
 TARGET_ARCH?=	${MACHINE_ARCH}
