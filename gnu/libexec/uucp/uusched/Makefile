@@ -1,9 +1,10 @@
 # Makefile for uusched
-# $Id$
+# $Id: Makefile,v 1.10 1997/02/22 15:28:46 peter Exp $
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)
 ONESHPROG=	uusched
+MAN8=		uusched.8
 
 all: $(ONESHPROG)
 
