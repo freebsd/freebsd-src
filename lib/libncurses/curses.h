@@ -249,7 +249,7 @@ extern int setupterm(char *,int,int *);
 extern WINDOW *subwin(WINDOW *,int,int,int,int);
 extern int timeout(int);
 extern char *tparm(const char *, ...);
-extern int tputs(const char *,int,int (*)(char));
+extern int tputs(const char *,int,int (*)(int));
 extern int typeahead(int);
 extern int ungetch(int);
 extern int vidattr(chtype);
