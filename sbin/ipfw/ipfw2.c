@@ -1225,7 +1225,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			case O_VERREVPATH:
 				printf(" verrevpath");
 				break;
-			  
+
 			case O_KEEP_STATE:
 				printf(" keep-state");
 				break;
@@ -1277,9 +1277,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
 			return;
 	}
-
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
-
 	printf("%05d %*llu %*llu (%ds)", rulenum, pcwidth,
 	    align_uint64(&d->pcnt), bcwidth,
 	    align_uint64(&d->bcnt), d->expire);
@@ -1518,7 +1516,6 @@ sets_handler(int ac, char *av[])
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		bcopy(&((struct ip_fw *)data)->next_rule,
 			&set_disable, sizeof(set_disable));
-
 
 		for (i = 0, msg = "disable" ; i < 31; i++)
 			if (  (set_disable & (1<<i))) {
@@ -3272,7 +3269,7 @@ read_options:
 		case TOK_VERREVPATH:
 			fill_cmd(cmd, O_VERREVPATH, 0, 0);
 			break;
-		  
+
 		default:
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
