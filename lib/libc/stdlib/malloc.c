@@ -65,6 +65,10 @@ __FBSDID("$FreeBSD$");
 #       define malloc_pageshift		12U
 #       define malloc_minsize		16U
 #   endif
+#   if defined(__arm__)
+#       define malloc_pageshift         12U
+#       define malloc_minsize           16U
+#   endif
 #   define HAS_UTRACE
     /*
      * Make malloc/free/realloc thread-safe in libc for use with
