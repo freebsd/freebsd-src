@@ -64,6 +64,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/errno.h>
@@ -509,6 +510,7 @@ vnshutdown()
 		if (vn_softc[i] && vn_softc[i]->sc_flags & VNF_INITED)
 			vnclear(vn_softc[i]);
 }
+
 TEXT_SET(cleanup_set,vnshutdown);
 
 void
@@ -535,11 +537,12 @@ size_t
 vnsize(dev_t dev)
 {
 	int unit = vnunit(dev);
-	register struct vn_softc *vn = vn_softc[unit];
 
-	if (unit >= numvnd || (vn->sc_flags & VNF_INITED) == 0)
+	if (!vn_softc || 
+	    unit >= numvnd || 
+	    (vn_softc[unit]->sc_flags & VNF_INITED) == 0)
 		return(-1);
-	return(vn->sc_size);
+	return(vn_softc[unit]->sc_size);
 }
 
 int
