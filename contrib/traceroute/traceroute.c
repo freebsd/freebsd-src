@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: traceroute.c,v 1.43 96/09/27 20:08:10 leres Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.1.1.1 1996/09/30 19:09:55 fenner Exp $ (LBL)";
 #endif
 
 /*
@@ -313,6 +313,23 @@ main(int argc, char **argv)
 	register int tos = 0;
 	register int lsrr = 0;
 	register int optlen = 0;
+	int sockerrno;
+
+	/*
+	 * Do the setuid-required stuff first, then lose priveleges ASAP.
+	 * Do error checking for these two calls where they appeared in
+	 * the original code.
+	 */
+	cp = "icmp";
+	pe = getprotobyname(cp);
+	if (pe) {
+		if ((s = socket(AF_INET, SOCK_RAW, pe->p_proto)) < 0)
+			sockerrno = errno;
+		else if ((sndsock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+			sockerrno = errno;
+	}
+
+	setuid(getuid());
 
 	if ((cp = strrchr(argv[0], '/')) != NULL)
 		prog = cp + 1;
@@ -487,12 +504,12 @@ main(int argc, char **argv)
 
 	outdata = (struct outdata *)(outudp + 1);
 
-	cp = "icmp";
-	if ((pe = getprotobyname(cp)) == NULL) {
+	if (pe == NULL) {
 		Fprintf(stderr, "%s: unknown protocol %s\n", prog, cp);
 		exit(1);
 	}
-	if ((s = socket(AF_INET, SOCK_RAW, pe->p_proto)) < 0) {
+	if (s < 0) {
+		errno = sockerrno;
 		Fprintf(stderr, "%s: icmp socket: %s\n", prog, strerror(errno));
 		exit(1);
 	}
@@ -503,13 +520,11 @@ main(int argc, char **argv)
 		(void)setsockopt(s, SOL_SOCKET, SO_DONTROUTE, (char *)&on,
 		    sizeof(on));
 
-	if ((sndsock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
+	if (sndsock < 0) {
+		errno = sockerrno;
 		Fprintf(stderr, "%s: raw socket: %s\n", prog, strerror(errno));
 		exit(1);
 	}
-
-	/* Revert to non-privileged user after opening sockets */
-	setuid(getuid());
 
 #if defined(IP_OPTIONS) && !defined(HAVE_RAW_OPTIONS)
 	if (lsrr > 0) {
@@ -599,6 +614,9 @@ main(int argc, char **argv)
 			(void)gettimeofday(&t1, &tz);
 			send_probe(++seq, ttl, &t1);
 			while ((cc = wait_for_reply(s, &from, &t1)) != 0) {
+				double T;
+				int precis;
+
 				(void)gettimeofday(&t2, &tz);
 				i = packet_ok(packet, cc, &from, seq);
 				/* Skip short packet */
@@ -608,7 +626,18 @@ main(int argc, char **argv)
 					print(packet, cc, &from);
 					lastaddr = from.sin_addr.s_addr;
 				}
-				Printf("  %.3f ms", deltaT(&t1, &t2));
+				T = deltaT(&t1, &t2);
+#ifdef SANE_PRECISION
+				if (T >= 1000.0)
+					precis = 0;
+				else if (T >= 100.0)
+					precis = 1;
+				else if (T >= 10.0)
+					precis = 2;
+				else
+#endif
+					precis = 3;
+				Printf("  %.*f ms", precis, T);
 				/* time exceeded in transit */
 				if (i == -1)
 					break;
