@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.13 1995/05/25 01:35:24 davidg Exp $
+ *	$Id: procfs_vnops.c,v 1.14 1995/05/30 08:07:13 rgrimes Exp $
  */
 
 /*
@@ -311,7 +311,10 @@ procfs_getattr(ap)
 	struct proc *procp;
 	int error;
 
-	/* first check the process still exists */
+	/*
+	 * First make sure that the process and its credentials 
+	 * still exist.
+	 */
 	switch (pfs->pfs_type) {
 	case Proot:
 		procp = 0;
@@ -319,7 +322,8 @@ procfs_getattr(ap)
 
 	default:
 		procp = PFIND(pfs->pfs_pid);
-		if (procp == 0)
+		if (procp == 0 || procp->p_cred == NULL ||
+		    procp->p_ucred == NULL)
 			return (ENOENT);
 	}
 
