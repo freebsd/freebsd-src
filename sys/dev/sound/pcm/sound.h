@@ -116,7 +116,7 @@ struct snddev_info {
 	char status[SND_STATUSLEN];
 	struct sysctl_ctx_list sysctl_tree;
 	struct sysctl_oid *sysctl_tree_top;
-	struct mtx mutex;
+	void *lock;
 };
 
 #ifndef ISADMA_WRITE
