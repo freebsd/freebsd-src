@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
-
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
