@@ -66,7 +66,7 @@ static struct mntopt mopts[] = {
 	{ NULL }
 };
 
-static const char *fsname;
+static char *fsname;
 static volatile sig_atomic_t caughtsig;
 
 static void usage(void) __dead2;
@@ -84,7 +84,6 @@ main(argc, argv)
 {
 	int ch, mntflags;
 	char mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
 	struct iovec iov[4];
 	int error;
 
@@ -120,23 +119,13 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	error = getvfsbyname(fsname, &vfc);
-	if (error && vfsisloadable(fsname)) {
-		if(vfsload(fsname))
-			err(EX_OSERR, "vfsload(%s)", fsname);
-		endvfsent();
-		error = getvfsbyname(fsname, &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "%s filesystem not available", fsname);
-
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(argv[1], mntpath);
 
 	iov[0].iov_base = "fstype";
 	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = vfc.vfc_name;
-	iov[1].iov_len = strlen(vfc.vfc_name) + 1;
+	iov[1].iov_base = fsname;
+	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
 	iov[2].iov_base = "fspath";
 	iov[2].iov_len = sizeof("fstype");
 	iov[3].iov_base = mntpath;
@@ -161,7 +150,7 @@ main(argc, argv)
 	 * or the user didn't recompile his kernel.
 	 */
 	if (error && (errno == EOPNOTSUPP || errno == ENOSYS || caughtsig))
-		error = mount(vfc.vfc_name, mntpath, mntflags, NULL);
+		error = mount(fsname, mntpath, mntflags, NULL);
 
 	if (error)
 		err(EX_OSERR, NULL);

@@ -79,8 +79,6 @@ mount_ufs(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags;
 	char *fs_name;
-	struct vfsconf vfc;
-	int error = 0;
 
 	mntflags = 0;
 	optind = optreset = 1;		/* Reset for parse of new argv. */
@@ -109,21 +107,7 @@ mount_ufs(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	error = getvfsbyname("ufs", &vfc);
-	if (error && vfsisloadable("ufs")) {
-		if (vfsload("ufs")) {
-			warn("vfsload(ufs)");
-			return (1);
-		}
-		endvfsent(); /* flush old table */
-		error = getvfsbyname("ufs", &vfc);
-	}
-	if (error) {
-		warnx("ufs filesystem is not available");
-		return (1);
-	}
-
-	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0) {
+	if (mount("ufs", fs_name, mntflags, &args) < 0) {
 		switch (errno) {
 		case EMFILE:
 			warnx("%s on %s: mount table full",
