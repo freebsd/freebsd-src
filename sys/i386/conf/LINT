@@ -989,12 +989,13 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 #
 
 #
-# SCSI host adapters: `aha', `bt'
+# SCSI host adapters: `aha', `aic', `bt'
 #
 # adv: All Narrow SCSI bus AdvanSys controllers.
 # adw: Second Generation AdvanSys controllers including the ADV940UW.
 # aha: Adaptec 154x
 # ahc: Adaptec 274x/284x/294x
+# aic: Adaptec 152x
 # bt: Most Buslogic controllers
 #
 # Note that the order is important in order for Buslogic cards to be
@@ -1004,7 +1005,8 @@ device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 controller	bt0	at isa? port "IO_BT0" cam irq ?
 controller	adv0	at isa? port ? cam irq ?
 controller	adw0
-controller      aha0    at isa? port ? cam irq ?
+controller	aha0	at isa? port ? cam irq ?
+controller	aic0	at isa? port ? cam irq ?
 
 
 #

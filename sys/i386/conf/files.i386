@@ -41,6 +41,7 @@ msysosak.o			optional	fla			\
 	no-implicit-rule
 
 #
+dev/aic/aic_isa.c		optional	aic	device-driver
 dev/fb/fb.c			optional	fb	device-driver
 dev/fb/fb.c			optional	vga	device-driver
 dev/fb/splash.c			optional	splash
