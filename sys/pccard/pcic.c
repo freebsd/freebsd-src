@@ -59,6 +59,8 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
+#include <i386/include/laptops.h>
+
 extern struct kern_devconf kdc_pccard0;
 
 struct kern_devconf kdc_pcic[PCIC_MAX_SLOTS] = {
@@ -363,40 +365,56 @@ pcic_io(struct slot *slotp, int win)
 	struct pcic_slot *sp = slotp->cdata;
 	struct io_desc *ip = &slotp->io[win];
 
-	if (win) {
+	switch (win) {
+	case 0:
 		mask = PCIC_IO0_EN;
 		reg = PCIC_IO0;
-	} else {
+		break;
+	case 1:
 		mask = PCIC_IO1_EN;
 		reg = PCIC_IO1;
+		break;
+	default:
+		panic("Illegal PCIC I/O window request!");
 	}
 	if (ip->flags & IODF_ACTIVE) {
-		unsigned char x = 0;
+		unsigned char x, ioctlv;
 
+#ifdef	PCIC_DEBUG
+printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
+#endif	/* PCIC_DEBUG */
 		putw (sp, reg, ip->start);
 		putw (sp, reg+2, ip->start+ip->size-1);
+		x = 0;
 		if (ip->flags & IODF_ZEROWS)
-			x = PCIC_IO_0WS;
+			x |= PCIC_IO_0WS;
 		if (ip->flags & IODF_WS)
 			x |= PCIC_IO_WS;
 		if (ip->flags & IODF_CS16)
 			x |= PCIC_IO_CS16;
-		else if (ip->flags & IODF_16BIT)
+		if (ip->flags & IODF_16BIT)
 			x |= PCIC_IO_16BIT;
 		/*
 		 * Extract the current flags and merge with new flags.
 		 * Flags for window 0 in lower nybble, and in upper nybble
 		 * for window 1.
 		 */
-		if (win)
-			putb(sp, PCIC_IOCTL, (x << 4) |
-				(getb(sp, PCIC_IOCTL) & 0xF));
-		else
-			putb(sp, PCIC_IOCTL, x | (getb(sp, PCIC_IOCTL) & 0xF0));
+		ioctlv = getb(sp, PCIC_IOCTL);
+		DELAY(100);
+		switch (win) {
+		case 0:
+			putb(sp, PCIC_IOCTL, x | (ioctlv & 0xf0));
+			break;
+		case 1:
+			putb(sp, PCIC_IOCTL, (x << 4) | (ioctlv & 0xf));
+			break;
+		}
+		DELAY(100);
 		setb (sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
 	} else {
 		clrb (sp, PCIC_ADDRWINE, mask);
+		DELAY(100);
 		putw (sp, reg, 0);
 		putw (sp, reg + 2, 0);
 	}
@@ -408,6 +426,14 @@ pcic_io(struct slot *slotp, int win)
  *	For each available slot, allocate a PC-CARD slot.
  */
 
+/*
+ *	VLSI 82C146 has incompatibilities about the I/O address 
+ *	of slot 1.  If it's the only PCIC whose vendor ID is 0x84, 
+ *	I want to remove this #define and corresponding #ifdef's.
+ *	HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ */
+#define	VLSI_SLOT1	1
+
 int
 pcic_probe ()
 {
@@ -415,6 +441,9 @@ pcic_probe ()
 	struct slot *slotp;
 	struct pcic_slot *sp;
 	unsigned char c;
+#ifdef	VLSI_SLOT1
+	static int vs = 0;
+#endif	/* VLSI_SLOT1 */
 
 	/*
 	 *	Initialise controller information structure.
@@ -439,9 +468,21 @@ pcic_probe ()
 		 *	Initialise the PCIC slot table.
 		 */
 		if (slot < 4) {
+#ifdef	VLSI_SLOT1
+			if (slot == 1 && vs) {
+				sp->index = PCIC_INDEX_0 + 4;
+				sp->data = PCIC_DATA_0 + 4;
+				sp->offset = PCIC_SLOT_SIZE << 1;
+			} else {
+				sp->index = PCIC_INDEX_0;
+				sp->data = PCIC_DATA_0;
+				sp->offset = slot * PCIC_SLOT_SIZE;
+			}
+#else	/* VLSI_SLOT1 */
 			sp->index = PCIC_INDEX_0;
 			sp->data = PCIC_DATA_0;
 			sp->offset = slot * PCIC_SLOT_SIZE;
+#endif	/* VLSI_SLOT1 */
 		} else {
 			sp->index = PCIC_INDEX_1;
 			sp->data = PCIC_DATA_1;
@@ -474,16 +515,32 @@ pcic_probe ()
 					PCIC_VG469 : PCIC_VG468 ;
 				clrb(sp, 0x3A, 0x40);
 			}
+
+			/*
+			 * Check for RICOH RF5C396 PCMCIA Controller
+			 */
+			c = getb (sp, 0x3a);
+			if (c == 0xb2) {
+				sp->controller = PCIC_RF5C396;
+			}
+
 			break;
 		/*
 		 *	VLSI chips.
 		 */
 		case 0x84:
 			sp->controller = PCIC_VLSI;
+#ifdef	VLSI_SLOT1
+			vs = 1;
+#endif	/* VLSI_SLOT1 */
 			break;
 		case 0x88:
 		case 0x89:
 			sp->controller = PCIC_IBM;
+			sp->revision = c & 1;
+			break;
+		case 0x8a:
+			sp->controller = PCIC_IBM_KING;
 			sp->revision = c & 1;
 			break;
 		default:
@@ -511,6 +568,9 @@ pcic_probe ()
 		case PCIC_IBM:
 			cinfo.name = "IBM PCIC";
 			break;
+		case PCIC_IBM_KING:
+			cinfo.name = "IBM KING PCMCIA Controller";
+			break;
 		case PCIC_PD672X:
 			cinfo.name = "Cirrus Logic PD672X";
 			break;
@@ -523,15 +583,23 @@ pcic_probe ()
 		case PCIC_VG469:
 			cinfo.name = "Vadem 469";
 			break;
+		case PCIC_RF5C396:
+			cinfo.name = "Ricoh RF5C396";
+			break;
+		case PCIC_VLSI:
+			cinfo.name = "VLSI 82C146";
+			break;
 		default:
 			cinfo.name = "Unknown!";
 			break;
 		}
+#ifndef	PCIC_NOCLRREGS
 		/*
 		 *	clear out the registers.
 		 */
 		for (i = 2; i < 0x40; i++)
 			putb(sp, i, 0);
+#endif	/* PCIC_NOCLRREGS */
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
@@ -621,7 +689,11 @@ pcic_power(struct slot *slotp)
 	switch(sp->controller) {
 	case PCIC_PD672X:
 	case PCIC_PD6710:
+	case PCIC_VG468:
 	case PCIC_VG469:
+	case PCIC_RF5C396:
+	case PCIC_VLSI:
+	case PCIC_IBM_KING:
 		switch(slotp->pwr.vpp) {
 		default:
 			return(EINVAL);
@@ -641,20 +713,31 @@ pcic_power(struct slot *slotp)
 		case 0:
 			break;
 		case 33:
+			if (sp->controller == PCIC_IBM_KING) {
+				reg |= PCIC_VCC_5V_KING;
+				break;
+			}
 			reg |= PCIC_VCC_5V;
-			if (sp->controller == PCIC_VG469)
+			if ((sp->controller == PCIC_VG468)||
+				(sp->controller == PCIC_VG469))
 				setb(sp, 0x2f, 0x03) ;
 			else
 				setb(sp, 0x16, 0x02);
 			break;
 		case 50:
+                        if (sp->controller == PCIC_IBM_KING) {
+                                reg |= PCIC_VCC_5V_KING;
+                                break;
+                        }
 			reg |= PCIC_VCC_5V;
-			if (sp->controller == PCIC_VG469)
+			if ((sp->controller == PCIC_VG468)||
+				(sp->controller == PCIC_VG469))
 				clrb(sp, 0x2f, 0x03) ;
 			else
 				clrb(sp, 0x16, 0x02);
 			break;
 		}
+		break;
 	}
 	putb (sp, PCIC_POWER, reg);
 	DELAY(300*1000);
@@ -695,25 +778,21 @@ pcic_reset(void *chan)
 	    case 0: /* Something funny happended on the way to the pub... */
 		return;
 	    case 1: /* Assert reset */
-		printf("R");
 		clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slotp->insert_seq = 2;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 2: /* Deassert it again */
-		printf("r");
 		setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slotp->insert_seq = 3;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 3: /* Wait if card needs more time */
 		if (!getb(sp, PCIC_STATUS) & PCIC_READY) {
-			printf("_");
 			timeout(pcic_reset, (void*) slotp, hz/10);
 			return;
 		}
 	}
-	printf(".\n");
 	slotp->insert_seq = 0;
 	if (sp->controller == PCIC_PD672X || sp->controller == PCIC_PD6710) {
 		putb(sp, PCIC_TIME_SETUP0, 0x1);
