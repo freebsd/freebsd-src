@@ -36,6 +36,8 @@
 
 #if !defined(lint) && !defined(SCCSID)
 static char sccsid[] = "@(#)key.c	8.1 (Berkeley) 6/4/93";
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint && not SCCSID */
 
 /*
@@ -601,7 +603,7 @@ key_kprint(el, key, val, ntype)
 {
     el_bindings_t *fp;
     char unparsbuf[EL_BUFSIZ];
-    static char *fmt = "%-15s->  %s\n";
+    static const char fmt[] = "%-15s->  %s\n";
 
     if (val != NULL)
 	switch (ntype) {

@@ -70,6 +70,7 @@ static void save_column __P((int, int));
 static void sort_actions __P((void));
 static void token_actions __P((void));
 
+static const char line_format[] = "#line %d \"%s\"\n";
 static int nvectors;
 static int nentries;
 static short **froms;
