@@ -442,6 +442,13 @@ struct pthread_cleanup {
 	void			*routine_arg;
 };
 
+struct pthread_atfork {
+	TAILQ_ENTRY(pthread_atfork) qe;
+	void (*prepare)(void);
+	void (*parent)(void);
+	void (*child)(void);
+};
+
 struct pthread_attr {
 	int	sched_policy;
 	int	sched_inherit;
@@ -997,6 +1004,9 @@ SCLASS TAILQ_HEAD(, pthread)	_thread_gc_list
 
 SCLASS int	_thr_active_threads  SCLASS_PRESET(1);
 
+SCLASS TAILQ_HEAD(atfork_head, pthread_atfork) _thr_atfork_list;
+SCLASS pthread_mutex_t		_thr_atfork_mutex;
+
 /* Default thread attributes: */
 SCLASS struct pthread_attr _pthread_attr_default
     SCLASS_PRESET({
@@ -1109,8 +1119,11 @@ void	_thr_exit(char *, int, char *);
 void	_thr_exit_cleanup(void);
 void	_thr_lock_wait(struct lock *lock, struct lockuser *lu);
 void	_thr_lock_wakeup(struct lock *lock, struct lockuser *lu);
+void	_thr_mutex_reinit(pthread_mutex_t *);
 int	_thr_ref_add(struct pthread *, struct pthread *, int);
 void	_thr_ref_delete(struct pthread *, struct pthread *);
+void	_thr_rtld_init(void);
+void	_thr_rtld_fini(void);
 int	_thr_schedule_add(struct pthread *, struct pthread *);
 void	_thr_schedule_remove(struct pthread *, struct pthread *);
 void	_thr_setrunnable(struct pthread *curthread, struct pthread *thread);

@@ -5,7 +5,7 @@
 
 SRCS+= \
 	thr_aio_suspend.c \
-	thr_autoinit.c \
+	thr_atfork.c \
 	thr_attr_destroy.c \
 	thr_attr_init.c \
 	thr_attr_get_np.c \
@@ -28,6 +28,7 @@ SRCS+= \
 	thr_attr_setstack.c \
 	thr_attr_setstackaddr.c \
 	thr_attr_setstacksize.c \
+	thr_autoinit.c \
 	thr_barrier.c \
 	thr_barrierattr.c \
 	thr_cancel.c \
