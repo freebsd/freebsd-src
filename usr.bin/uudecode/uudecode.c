@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: uudecode.c,v 1.10 1997/09/18 14:07:26 phk Exp $";
+	"$Id: uudecode.c,v 1.11 1998/01/25 19:25:54 wosch Exp $";
 #endif /* not lint */
 
 /*
@@ -158,7 +158,7 @@ decode2(flag)
 	} while (strncmp(buf, "begin ", 6) || 
 		 fnmatch("begin [0-7]* *", buf, 0));
 
-	(void)sscanf(buf, "begin %o %s", &mode, buf);
+	(void)sscanf(buf, "begin %o %[^\n\r]", &mode, buf);
 
 	if (!sflag && !pflag) {
 		strncpy(buffn, buf, sizeof(buffn)); 
