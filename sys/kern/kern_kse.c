@@ -51,6 +51,8 @@
 #include <vm/uma.h>
 #include <vm/vm_map.h>
 
+#include <machine/frame.h>
+
 /*
  * Thread related storage.
  */
