@@ -17,7 +17,7 @@
 #include <machine/md_var.h>
 #include <machine/ver.h>
 
-static char machine[] = "sparc64";
+char machine[] = "sparc64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
     machine, 0, "Machine class");
 
