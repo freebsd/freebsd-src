@@ -1,9 +1,9 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.14 2004/09/13 09:24:01 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.15 2004/09/20 12:49:48 den Exp $
 
-     Original revision: 1.774
+     Original revision: 1.778
 -->
 
 <articleinfo>
@@ -230,38 +230,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       адаптивности мьютексов.  Это повышает производительность
       SMP систем и включено по умолчанию на i386.</para>
 
-    <para arch="i386">Был добавлен драйвер &man.acpi.asus.4; для использования
-      на лэптопах ASUSTek управляемых ACPI аппаратных возможностей, таких как
-      горячие клавиши и LED.</para>
-
-    <para arch="i386">Был добавлен драйвер &man.acpi.panasonic.4; для
-      поддержки горячих клавиш лэптопов Panasonic.  Теперь он поддерживает
-      Let's note (или Toughbook, вне Японии) CF-R1N, CF-R2A, и
-      CF-R3.</para>
-
-    <para arch="i386">Был добавлен драйвер &man.acpi.toshiba.4;,
-      использующий аппаратный интерфейс Toshiba для управления определенными
-      аппаратными возможностями на лэптопах Toshiba, такие как
-      переключение видео вывода.</para>
-
-    <para>Добавлен драйвер &man.acpi.video.4; для обеспечения управления
-      переключением экранов и фоновой яркостью с использованием
-      видео расширений ACPI.</para>
-
-    <para arch="i386">Драйвер &man.acpi.4; теперь поддерживает sysctl
-      на устройства (например,
-      <varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>), чтобы
-      пользователи могли управлять возможностью пробуждения системы с
-      данного устройства.</para>
-
-    <para arch="i386">Драйвер &man.acpi.4; теперь автоматически отключается,
-      если в BIOS компьютера имеются известные проблемы.  Это поведение
-      может быть изменено путем установки переменной loader
-      <varname>hint.acpi.0.disabled</varname> в <literal>0</literal>.</para>
-
-    <para arch="amd64">Драйвер &man.agp.4; теперь поддерживает AMD64 graphics
-      aperture relocation table (GART).</para>
-
     <para>Интерфейс &man.bus.dma.9; теперь прозрачно поддерживает
       выравнивание и установление границ в теге DMA при загрузке буферов, и
       <function>bus_dmamap_load()</function> будет автоматически использовать
@@ -276,44 +244,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       может быть получена со страницы справочника
       &man.contigmalloc.9;.</para>
 
-    <para arch="i386">Был добавлен драйвер &man.ctau.4; для последовательных
-      синхронных адаптеров Cronyx Tau.  Этот драйвер долгое время был известен
-      как <quote>ct</quote> &ndash; до того, как был помещен в дерево
-      исходных текстов &os;.  &merged;
-
-      <note>
-	<para>Имя драйвера изменилось, но сетевой интерфейс все еще использует
-	  имя <devicename>ct</devicename>.</para>
-      </note>
-    </para>
-
-    <para arch="i386,pc98">Был добавлен драйвер &man.cp.4; для
-      последовательных синхронных адаптеров Cronyx Tau-PCI.</para>
-
     <para>Правила path &man.devfs.5; теперь корректно работают с
       каталогами.</para>
 
-    <para arch="i386,pc98">Драйвер <devicename>dgb</devicename>
-      (DigiBoard intelligent serial card)
-      был удален вследствие неработоспособности.  Его заменой является
-      драйвер &man.digi.4;, который поддерживает все оборудование,
-      которое поддерживалось драйвером <devicename>dgb</devicename>.</para>
-
     <para>API &man.getvfsent.3; был удален.</para>
-
-    <para>Драйвер &man.hme.4; теперь поддерживает
-      длинные фреймы, и может использоваться для &man.vlan.4; с полным
-      размером Ethernet MTU.</para>
-
-    <para>Драйвер &man.hme.4; теперь поддерживает
-      TCP/UDP Transmit/Receive разгрузку контрольной суммы
-      (checksum offload) на прием/передачу. Поскольку &man.hme.4; не
-      компенсирует контрольную сумму для UDP дейтаграммы, которая
-      может принимать значение <literal>0x0</literal>,
-      UDP разгрузка контрольной суммы на передачу выключена по
-      умолчанию.  Она может быть включена путем установки
-      параметра соединения <option>link0</option> через
-      &man.ifconfig.8;.</para>
 
     <para>Переменная загрузчика
       <varname>hw.pci.allow_unsupported_io_range</varname> была
@@ -405,10 +339,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       32-битных бинарных файлов Linux на amd64.  Эта возможность включена
       параметром ядра <literal>COMPAT_LINUX32</literal>.</para>
 
-    <para arch="i386">Драйвер <devicename>loran</devicename>
-      (Loran-C receiver) был удален вследствие
-      неработоспособности и отсутствии поддержки.</para>
-
     <para>Был добавлен новый параметр ядра, <literal>MAC_STATIC</literal>,
       который отключает внутреннюю синхронизацию MAC Framework, защищая
       от динамической загрузки и выгрузки политик MAC.</para>
@@ -480,33 +410,11 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <para arch="i386,amd64">Переменная загрузчика
       <varname>debug.mpsafevm</varname> была включена по умолчанию.</para>
 
-    <para>Драйвер &man.nmdm.4; был переписан для увеличения надежности.</para>
-
-    <para>Драйвер <devicename>raid(4)</devicename> (диск RAIDframe
-      из NetBSD) был удален.  В настоящее
-      время он не функционален, и потребует дополнительного объема работы,
-      чтобы стать работоспособным под существующим &man.geom.4; API
-      в 5-CURRENT.</para>
-
-    <para>Запись для драйвера &man.pcic.4; была исключена из файла
-      конфигурации ядра <filename>GENERIC</filename>, поскольку
-      драйвер более не поддерживается.  Эта запись была закомментирована
-      в течение длительного времени.</para>
-
     <para arch="alpha,amd64,i386">Был добавлен новый параметр ядра
       <literal>PREEMPTION</literal>.  Он позволяет вытеснять потоки
       в ядре потоками с более высокими приоритетами.  Этот параметр
       позволяет повысить интерактивность и ускоряет работу
       потоков.</para>
-
-    <para arch="i386">Драйвер &man.psm.4; и &man.moused.8;
-      теперь поддерживают Synaptics TouchPad.</para>
-
-    <para arch="sparc64">Драйвер &man.sab.4; теперь поддерживает параметр ядра
-      <literal>BREAK_TO_DEBUGGER</literal>.</para>
-
-    <para arch="i386,pc98">Добавлен драйвер <devicename>sx</devicename>, поддерживающий
-      Specialix I/O8+ и I/O4+ intelligent multiport serial controllers.</para>
 
     <para>В дерево dev sysctl был добавлен уровень devclass для поддержки
       переменных по классам устройств, в дополнение к переменным по
@@ -514,20 +422,28 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       теперь называются <varname>dev.foo.0.bar</varname>, и возможно
       также наличие <varname>dev.foo.bar</varname>.</para>
 
+    <para>Была добавлена новая переменная sysctl,
+      <varname>kern.always_console_output</varname>. Она направляет
+      вывод ядра на консоль независимо от
+      <varname>TIOCCONS</varname>.</para>
+
     <para>Была добавлена переменная sysctl
       <varname>kern.sched.name</varname>, в которой находится
       имя используемого планировщика, и переменная
       <varname>kern.quantum</varname> была перемещена в
       <varname>kern.sched.quantum</varname>.</para>
 
-    <para arch="alpha,amd64,i386">Добавлены переменные ядра
-      для <varname>hw.uart.console</varname> и
-      <varname>hw.uart.dbgport</varname> для устройства &man.uart.4;.
-      Они могут быть использованы соответственно для выбора последовательной
-      консоли и отладочного порта, как и атрибуты.</para>
+    <para>Обновлено управление ресурсами и энергопотреблением шины
+      &man.pci.4;.
 
-    <para>Был добавлен драйвер устройства &man.ubser.4; для поддержки
-      управляемых с консоли последовательных адаптеров BWCT.</para>
+      <note>
+	<para>Хотя управление состоянием энергопотребления в шине
+	  &man.pci.4; было включено по умолчанию, это может привести к проблемам
+	  на некоторых системах.  Оно может быть отключено путем
+	  установки переменной <varname>hw.pci.do_powerstate</varname>
+	  в <literal>0</literal>.</para>
+      </note>
+    </para>
 
     <para>Планировщик ULE был добавлен в качестве дополнительного
       планировщика.  Обратите внимание, что в качестве планировщика
@@ -545,14 +461,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       fine-grained kernel locking, планировщик сможет более эффективно
       использовать доступные параллельные ресурсы.</para>
 
-    <para>Был добавлен драйвер &man.ucycom.4; для поддержки
-      семейства мостов USB к RS232 Cypress CY7C637xx и CY7C640/1xx,
-      один из которых используется в DeLorme Earthmate USB GPS
-      приемнике (который и является единственным поддерживаемым
-      этим драйвером устройством на данный момент).  Этот драйвер
-      не полон, поскольку в нем еще нет поддержки вывода и контроля
-      потока.</para>
-
     <para>Линейный алгоритм поиска, использовавшийся в
       &man.vm.map.findspace.9;, был замещен на алгоритм
       O(log n), строящий карту в виде дерева.  Он значительно снижает
@@ -564,27 +472,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       были переименованы в <varname>debug.witness.*</varname>.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
-
-    <para>Инфраструктура драйверов устройств (как и многие драйверы)
-      была обновлена.  Среди прочих изменений: еще больше драйверов
-      теперь используют автоматически выделяемые главные (major) номера
-      (вместо старых статических главных номеров).  Расширены функции по
-      поддержке клонирования псевдо-устройств.  Несколько изменений в
-      API драйверов, включая новое поле <varname>d_version</varname>
-      в <varname>struct cdevsw</varname>.  Обратите внимание, что
-      сторонние драйвера устройств потребуют перекомпиляции после этого
-      изменения.</para>
-
-    <para>Клонирование псевдо-интерфейсов было обновлено,
-      чтобы сделать возможным создание интерфейсов &man.stf.4;
-      с именами <devicename>stf0</devicename>,
-      <devicename>stf</devicename>, или
-      <devicename>6to4</devicename>.  Обратите внимание, что
-      это нарушает обратную совместимость; например, теперь
-      <command>ifconfig stf</command> создаст интерфейс
-      <devicename>stf</devicename>, а не
-      <devicename>stf0</devicename>, и не выведет
-      <devicename>stf0</devicename> на стандартный вывод.</para>
 
     <para>Динамический и статический линковщик &os; теперь поддерживает
       Thread Local Storage (TLS), возможность <application>GCC</application>
@@ -615,12 +502,121 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       с Intel C/C++ Compiler (из порта <filename
       role="package">lang/icc</filename>).</para>
 
+    <sect3 id="boot">
+      <title>Изменения в загрузчике</title>
+
+      <para arch="i386">Добавлена версия <filename>boot0</filename> для
+	последовательной консоли.  Она может быть записана на диск с
+	использованием &man.boot0cfg.8; и указанием
+	<filename>/boot/boot0sio</filename> в качестве аргумента
+	к параметру <option>-b</option>.</para>
+
+      <para arch="i386"><filename>cdboot</filename> теперь обходит проблему
+	BIOS, встречающуюся на некоторых системах при загрузке с USB
+	CDROM приводов.</para>
+
+      <!-- Above this line, order boot loader changes by keyword-->
+
+    </sect3>
+
     <sect3 id="proc">
-      <title>Платформо-зависимая поддержка оборудования</title>
+      <title>Поддержка оборудования</title>
+
+      <para arch="i386">Был добавлен драйвер &man.acpi.asus.4; для использования
+	на лэптопах ASUSTek управляемых ACPI аппаратных возможностей, таких как
+	горячие клавиши и LED.</para>
+
+      <para arch="i386">Был добавлен драйвер &man.acpi.panasonic.4; для
+	поддержки горячих клавиш лэптопов Panasonic.  Теперь он поддерживает
+	Let's note (или Toughbook, вне Японии) CF-R1N, CF-R2A, и
+	CF-R3.</para>
+
+      <para arch="i386">Был добавлен драйвер &man.acpi.toshiba.4;,
+	использующий аппаратный интерфейс Toshiba для управления определенными
+	аппаратными возможностями на лэптопах Toshiba, такие как
+	переключение видео вывода.</para>
+
+      <para>Добавлен драйвер &man.acpi.video.4; для обеспечения управления
+	переключением экранов и фоновой яркостью с использованием
+	видео расширений ACPI.</para>
+
+      <para arch="i386">Драйвер &man.acpi.4; теперь поддерживает sysctl
+	на устройства (например,
+	<varname>dev.root0.nexus0.acpi0.acpi_lid0.wake</varname>), чтобы
+	пользователи могли управлять возможностью пробуждения системы с
+	данного устройства.</para>
+
+      <para arch="i386">Драйвер &man.acpi.4; теперь автоматически отключается,
+	если в BIOS компьютера имеются известные проблемы.  Это поведение
+	может быть изменено путем установки переменной loader
+	<varname>hint.acpi.0.disabled</varname> в <literal>0</literal>.</para>
+
+      <para arch="amd64">Драйвер &man.agp.4; теперь поддерживает AMD64 graphics
+	aperture relocation table (GART).</para>
+
+      <para arch="i386">Был добавлен драйвер &man.ctau.4; для последовательных
+	синхронных адаптеров Cronyx Tau.  Этот драйвер долгое время был известен
+	как <quote>ct</quote> &ndash; до того, как был помещен в дерево
+	исходных текстов &os;.  &merged;
+
+	<note>
+	  <para>Имя драйвера изменилось, но сетевой интерфейс все еще использует
+	    имя <devicename>ct</devicename>.</para>
+	</note>
+      </para>
+
+      <para arch="i386,pc98">Был добавлен драйвер &man.cp.4; для
+	последовательных синхронных адаптеров Cronyx Tau-PCI.</para>
+
+      <para arch="i386,pc98">Драйвер <devicename>dgb</devicename>
+	(DigiBoard intelligent serial card)
+	был удален вследствие неработоспособности.  Его заменой является
+	драйвер &man.digi.4;, который поддерживает все оборудование,
+	которое поддерживалось драйвером <devicename>dgb</devicename>.</para>
+
+      <para>Драйвер &man.nmdm.4; был переписан для увеличения надежности.</para>
+
+      <para>Драйвер <devicename>raid(4)</devicename> (диск RAIDframe
+	из NetBSD) был удален.  В настоящее
+	время он не функционален, и потребует дополнительного объема работы,
+	чтобы стать работоспособным под существующим &man.geom.4; API
+	в 5-CURRENT.</para>
+
+      <para>Запись для драйвера &man.pcic.4; была исключена из файла
+	конфигурации ядра <filename>GENERIC</filename>, поскольку
+	драйвер более не поддерживается.  Эта запись была закомментирована
+	в течение длительного времени.</para>
+
+      <para arch="i386">Драйвер &man.psm.4; и &man.moused.8;
+	теперь поддерживают Synaptics TouchPad.</para>
 
       <para arch="i386">Генератор случайных чисел &man.random.4; теперь
 	поддерживает аппаратный генератор (RNG) процессора VIA C3 Nehemiah
 	(Stepping 3 и выше).</para>
+
+      <para arch="sparc64">Драйвер &man.sab.4; теперь поддерживает параметр
+	ядра <literal>BREAK_TO_DEBUGGER</literal>.</para>
+
+      <para arch="i386,pc98">Добавлен драйвер <devicename>sx</devicename>,
+	поддерживающий Specialix I/O8+ и I/O4+ intelligent multiport serial
+	controllers.</para>
+
+      <para arch="alpha,amd64,i386">Добавлены переменные ядра
+	для <varname>hw.uart.console</varname> и
+	<varname>hw.uart.dbgport</varname> для устройства &man.uart.4;.
+	Они могут быть использованы соответственно для выбора последовательной
+	консоли и отладочного порта, как и атрибуты.</para>
+
+      <para>Был добавлен драйвер устройства &man.ubser.4; для поддержки
+	управляемых с консоли последовательных адаптеров BWCT.</para>
+
+      <para>Был добавлен драйвер &man.ucycom.4; для поддержки
+	семейства мостов USB к RS232 Cypress CY7C637xx и CY7C640/1xx,
+	один из которых используется в DeLorme Earthmate USB GPS
+	приемнике (который и является единственным поддерживаемым
+	этим драйвером устройством на данный момент).  Этот драйвер
+	не полон, поскольку в нем еще нет поддержки вывода и контроля
+	потока.</para>
 
       <para arch="i386">Некоторые старые драйверы для ISA карт были удалены,
 	включая
@@ -639,150 +635,154 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	этих устройств &ndash; соответствующие ioctl и утилиты, включая
 	<devicename>sasc</devicename> и <devicename>sgsc</devicename> также были удалены.</para>
 
-      <para>Была добавлена новая переменная sysctl,
-	<varname>kern.always_console_output</varname>. Она направляет
-	вывод ядра на консоль независимо от
-	<varname>TIOCCONS</varname>.</para>
-    </sect3>
+      <para>Инфраструктура драйверов устройств (как и многие драйверы)
+	была обновлена.  Среди прочих изменений: еще больше драйверов
+	теперь используют автоматически выделяемые главные (major) номера
+	(вместо старых статических главных номеров).  Расширены функции по
+	поддержке клонирования псевдо-устройств.  Несколько изменений в
+	API драйверов, включая новое поле <varname>d_version</varname>
+	в <varname>struct cdevsw</varname>.  Обратите внимание, что
+	сторонние драйвера устройств потребуют перекомпиляции после этого
+	изменения.</para>
 
-    <sect3 id="boot">
-      <title>Изменения в загрузчике</title>
+      <sect4 id="mm">
+	<title>Поддержка мультимедиа</title>
 
-      <para arch="i386">Добавлена версия <filename>boot0</filename> для
-	последовательной консоли.  Она может быть записана на диск с
-	использованием &man.boot0cfg.8; и указанием
-	<filename>/boot/boot0sio</filename> в качестве аргумента
-	к параметру <option>-b</option>.</para>
+	<para>Драйвер <devicename>meteor</devicename> (видеозахват) был удален вследствие
+	неработоспособности и отсутствия поддержки.</para>
 
-      <para arch="i386"><filename>cdboot</filename> теперь обходит проблему
-	BIOS, встречающуюся на некоторых системах при загрузке с USB
-	CDROM приводов.</para>
+	<para>Код Direct Rendering Manager (DRM) был обновлен из дерева CVS
+	  DRI Project от 26 мая 2004 года.  Это обновление включает новые
+	  PCI ID и новый пакет для Radeon.</para>
 
-      <!-- Above this line, order boot loader changes by keyword-->
+	<para>Драйверы для различных звуковых карт были реорганизованы;
+	  <literal>device sound</literal> это общий звуковой драйвер,
+	  а <literal>device snd_*</literal> это звуковые драйвера устройств.
+	  Драйвер <devicename>midi</devicename>, поддерживающий последовательный
+	  порт и несколько звуковых карт, был удален.  Дополнительные
+	  подробности находятся на соответствующих страницах справочной
+	  системы:
+	  &man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
+	  &man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
+	  &man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
+	  &man.snd.sbc.4;, &man.snd.solo.4;, и &man.snd.uaudio.4;.</para>
 
-    </sect3>
+	<para>Драйвер &man.sound.4; (бывший &man.pcm.4;) был модифицирован для
+	  чтения <filename>/boot/device.hints</filename> при запуске, чтобы
+	  восстанавливать значения каналов mixer по умолчанию.  Обратите внимание,
+	  что в <filename>/boot/device.hints</filename> все еще используется
+	  имя драйвера <literal>pcm</literal>.  Дополнительную информацию
+	  и примеры можно найти на странице справочной системы
+	  &man.sound.4;.</para>
+      </sect4>
 
-    <sect3 id="net-if">
-      <title>Поддержка сетевых интерфейсов</title>
+      <sect4 id="net-if">
+	<title>Поддержка сетевых интерфейсов</title>
 
-      <para arch="i386">Добавлен драйвер &man.arl.4;, поддерживающий
-	беспроводные адаптеры Aironet Arlan 655. &merged;</para>
+	<para arch="i386">Добавлен драйвер &man.arl.4;, поддерживающий
+	  беспроводные адаптеры Aironet Arlan 655. &merged;</para>
 
-      <para arch="sparc64">Драйвер &man.dc.4; теперь поддерживает карты
-	sparc64 Davicom, которые хранят свой MAC адрес в Open Firmware.</para>
+	<para arch="sparc64">Драйвер &man.dc.4; теперь поддерживает карты
+	  sparc64 Davicom, которые хранят свой MAC адрес в Open Firmware.</para>
 
-      <para>Было исправлено кратковременно отключение в драйвере &man.em.4;
-	во время перенастройки параметров.  &merged;</para>
+	<para>Было исправлено кратковременно отключение в драйвере &man.em.4;
+	  во время перенастройки параметров.  &merged;</para>
 
-      <para>Был добавлен драйвер &man.fwip.4;, поддерживающий IP через
-	FireWire.  Обратите внимание, что на данный момент номер
-	широковещательного канала жестко установлен и MCAP для
-	широковещательного выделения каналов не поддерживается.
-	Этот драйвер предназначен для соответствия стандартам
-	RFC 2734 и RFC 3146 IP через FireWire и со временем заменит
-	драйвер &man.fwe.4;.</para>
+	<para>Был добавлен драйвер &man.fwip.4;, поддерживающий IP через
+	  FireWire.  Обратите внимание, что на данный момент номер
+	  широковещательного канала жестко установлен и MCAP для
+	  широковещательного выделения каналов не поддерживается.
+	  Этот драйвер предназначен для соответствия стандартам
+	  RFC 2734 и RFC 3146 IP через FireWire и со временем заменит
+	  драйвер &man.fwe.4;.</para>
 
-      <para>&man.fxp.4; теперь использует дерево устройств sysctl, например
-	<varname>dev.fxp0</varname>, и эти переменные sysctl могут быть
-	установлены для каждого устройства.</para>
+	<para>&man.fxp.4; теперь использует дерево устройств sysctl, например
+	  <varname>dev.fxp0</varname>, и эти переменные sysctl могут быть
+	  установлены для каждого устройства.</para>
 
-      <para>&man.fxp.4; теперь предоставляет реальный контроль над
-	возможностью получения расширенных фреймов Ethernet,
-	отображаемый как <literal>VLAN_MTU</literal>.
-	Она может переключаться из пространства
-	пользователя параметрами &man.ifconfig.8; <option>vlanmtu</option>
-	и <option>-vlanmtu</option>.</para>
+	<para>&man.fxp.4; теперь предоставляет реальный контроль над
+	  возможностью получения расширенных фреймов Ethernet,
+	  отображаемый как <literal>VLAN_MTU</literal>.
+	  Она может переключаться из пространства
+	  пользователя параметрами &man.ifconfig.8; <option>vlanmtu</option>
+	  и <option>-vlanmtu</option>.</para>
 
-      <para arch="i386,pc98">Драйвер <devicename>hea</devicename>
-	(Efficient Networks, Inc. ENI-155p
-	ATM adapter) был удален вследствие неработоспособности.
-	Его функциональность была добавлена в драйвер &man.en.4;.</para>
+	<para arch="i386,pc98">Драйвер <devicename>hea</devicename>
+	  (Efficient Networks, Inc. ENI-155p
+	  ATM adapter) был удален вследствие неработоспособности.
+	  Его функциональность была добавлена в драйвер &man.en.4;.</para>
 
-      <para>Был добавлен драйвер &man.ixgb.4;, поддерживающий карты
-        Intel PRO/10GBE 10 Gigabit Ethernet. &merged;</para>
+	<para>Драйвер &man.hme.4; теперь поддерживает
+	  длинные фреймы, и может использоваться для &man.vlan.4; с полным
+	  размером Ethernet MTU.</para>
 
-      <para arch="i386">Драйвер <devicename>lmc</devicename> (LAN Media Corp. PCI WAN adapter)
-	был удален вследствие неработоспособности и отсутствия
-	поддержки.</para>
+	<para>Драйвер &man.hme.4; теперь поддерживает
+	  TCP/UDP Transmit/Receive разгрузку контрольной суммы
+	  (checksum offload) на прием/передачу. Поскольку &man.hme.4; не
+	  компенсирует контрольную сумму для UDP дейтаграммы, которая
+	  может принимать значение <literal>0x0</literal>,
+	  UDP разгрузка контрольной суммы на передачу выключена по
+	  умолчанию.  Она может быть включена путем установки
+	  параметра соединения <option>link0</option> через
+	  &man.ifconfig.8;.</para>
 
-      <para arch="i386">&os; теперь предоставляет уровень бинарной
-	совместимости для использования &microsoft.windows; NDIS драйверов
-	для сетевых адаптеров под &os;/i386.  Он включает relocator/linker
-	для &windows; <filename>.SYS</filename> для интерфейса с ядром
-	&os; и эмулирует различные части NDIS API используя родные
-	функции ядра &os;.  Эта система поддерживает сетевые устройства
-	PCI (&man.pci.4;) и CardBus (&man.cardbus.4;), и разработана главным образом для Ethernet
-	и беспроводных сетевых интерфейсов.  За дополнительной информацией
-	обращайтесь к страницам справочника &man.ndis.4; и
-	&man.ndiscvt.8;.</para>
+	<para>Был добавлен драйвер &man.ixgb.4;, поддерживающий карты
+	  Intel PRO/10GBE 10 Gigabit Ethernet. &merged;</para>
 
-      <para>Был добавлен тип узла Netgraph &man.ng.atmllc.4;,
-	который работает с RFC 1483 ATM LLC инкапсуляцией.</para>
+	<para arch="i386">Драйвер <devicename>lmc</devicename>
+	  (LAN Media Corp. PCI WAN adapter)
+	  был удален вследствие неработоспособности и отсутствия
+	  поддержки.</para>
 
-      <para>Был добавлен тип узла Netgraph &man.ng.hub.4;,
-	который поддерживает простую рассылку пакетов и работает как
-	концентратор Ethernet.  &merged;</para>
+	<para arch="i386">Драйвер <devicename>loran</devicename>
+	  (Loran-C receiver) был удален вследствие
+	  неработоспособности и отсутствии поддержки.</para>
 
-      <para>Тип узла Netgraph &man.ng.rfc1490.4; теперь поддерживает
-	инкапсуляцию в стиле Cisco, которая часто используется
-	вместе с RFC 1490 в соединениях frame relay.</para>
+	<para arch="i386">&os; теперь предоставляет уровень бинарной
+	  совместимости для использования &microsoft.windows; NDIS драйверов
+	  для сетевых адаптеров под &os;/i386.  Он включает relocator/linker
+	  для &windows; <filename>.SYS</filename> для интерфейса с ядром
+	  &os; и эмулирует различные части NDIS API используя родные
+	  функции ядра &os;.  Эта система поддерживает сетевые устройства
+	  PCI (&man.pci.4;) и CardBus (&man.cardbus.4;), и разработана главным образом для Ethernet
+	  и беспроводных сетевых интерфейсов.  За дополнительной информацией
+	  обращайтесь к страницам справочника &man.ndis.4; и
+	  &man.ndiscvt.8;.</para>
 
-      <para>Был добавлен тип узла Netgraph &man.ng.sppp.4;, являющийся
-	интерфейсом &man.netgraph.4; к оригинальному сетевому модулю
-	&man.sppp.4; для синхронных линий.</para>
+	<para>Была исправлена ошибка в драйвере &man.nge.4;, которая
+	  делала невозможной работу VLAN.  &merged;</para>
 
-      <para>Был добавлен новый метод Netgraph, позволяющий восстановление
-	поведения, потерянного при изменении стиля узлов Netgraph
-	&man.ng.tee.4; с 4.<replaceable>X</replaceable>.</para>
+	<para>Были исправлены несколько ошибок, относящиеся к поддержке
+	  &man.polling.4; в драйвере &man.rl.4;.  &merged;</para>
 
-      <para>Был добавлен тип узла Netgraph &man.ng.vlan.4;,
-	который поддерживает IEEE 802.1Q VLAN tagging.  &merged;</para>
+	<para>Были исправлены несколько ошибок, относящихся к обработке
+	  multicast и promiscuous режимов в драйвере &man.sk.4;.</para>
 
-      <para>Была исправлена ошибка в драйвере &man.nge.4;, которая
-	делала невозможной работу VLAN.  &merged;</para>
+	<para>Драйвер &man.ste.4; теперь поддерживает &man.polling.4;.
+	  &merged;</para>
 
-      <para>Обновлено управление ресурсами и энергопотреблением шины
-	&man.pci.4;.
+	<para>Был добавлен драйвер &man.udav.4;.  Он предоставляет поддержку
+	  USB Ethernet адаптеров, основанных на Davicom DM9601 чипсете.</para>
 
-	<note>
-	  <para>Хотя управление состоянием энергопотребления в шине
-	    &man.pci.4; было включено по умолчанию, это может привести к проблемам
-	    на некоторых системах.  Оно может быть отключено путем
-	    установки переменной <varname>hw.pci.do_powerstate</varname>
-	    в <literal>0</literal>.</para>
-	</note>
-      </para>
+	<para>Был добавлен драйвер &man.vge.4;, поддерживающий
+	  чип VIA Networking Technologies
+	  VT6122 Gigabit Ethernet и интегрированный 10/100/1000 copper
+	  PHY.</para>
 
-      <para>Были исправлены несколько ошибок, относящиеся к поддержке
-	&man.polling.4; в драйвере &man.rl.4;.  &merged;</para>
+	<para>Драйвер &man.vr.4; теперь поддерживает &man.polling.4;.
+	  &merged;</para>
 
-      <para>Были исправлены несколько ошибок, относящихся к обработке
-	multicast и promiscuous режимов в драйвере &man.sk.4;.</para>
+	<para>Поддержка аппаратной TX контрольной суммы в драйвере &man.xl.4;
+	  была отключена, поскольку она не работала корректно и уменьшала
+	  скорость передачи данных.  &merged;</para>
 
-      <para>Драйвер &man.ste.4; теперь поддерживает &man.polling.4;.
-        &merged;</para>
-
-      <para>Был добавлен драйвер &man.udav.4;.  Он предоставляет поддержку
-	USB Ethernet адаптеров, основанных на Davicom DM9601 чипсете.</para>
-
-      <para>Был добавлен драйвер &man.vge.4;, поддерживающий
-	чип VIA Networking Technologies
-	VT6122 Gigabit Ethernet и интегрированный 10/100/1000 copper
-	PHY.</para>
-
-      <para>Драйвер &man.vr.4; теперь поддерживает &man.polling.4;.
-	&merged;</para>
-
-      <para>Поддержка аппаратной TX контрольной суммы в драйвере &man.xl.4;
-	была отключена, поскольку она не работала корректно и уменьшала
-	скорость передачи данных.  &merged;</para>
-
-      <para>Поддержка интерфейсами &man.polling.4; теперь может быть включена
-	поинтерфейсно.  Все драйвера, поддерживающие &man.polling.4;
-	(&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
-	&man.rl.4;, &man.sis.4;, &man.ste.4;, и &man.vr.4;),
-	теперь также поддерживают эту возможность, которая может управляться
-	через &man.ifconfig.8;.  &merged;</para>
+	<para>Поддержка интерфейсами &man.polling.4; теперь может быть включена
+	  поинтерфейсно.  Все драйвера, поддерживающие &man.polling.4;
+	  (&man.dc.4;, &man.fxp.4;, &man.em.4;, &man.nge.4;, &man.re.4;,
+	  &man.rl.4;, &man.sis.4;, &man.ste.4;, и &man.vr.4;),
+	  теперь также поддерживают эту возможность, которая может управляться
+	  через &man.ifconfig.8;.  &merged;</para>
+      </sect4>
     </sect3>
 
     <sect3 id="net-proto">
@@ -853,6 +853,28 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	&man.natd.8; привязку к различным сетевым интерфейсам и
 	распределение нагрузки.</para>
 
+      <para>Был добавлен тип узла Netgraph &man.ng.atmllc.4;,
+	который работает с RFC 1483 ATM LLC инкапсуляцией.</para>
+
+      <para>Был добавлен тип узла Netgraph &man.ng.hub.4;,
+	который поддерживает простую рассылку пакетов и работает как
+	концентратор Ethernet.  &merged;</para>
+
+      <para>Тип узла Netgraph &man.ng.rfc1490.4; теперь поддерживает
+	инкапсуляцию в стиле Cisco, которая часто используется
+	вместе с RFC 1490 в соединениях frame relay.</para>
+
+      <para>Был добавлен тип узла Netgraph &man.ng.sppp.4;, являющийся
+	интерфейсом &man.netgraph.4; к оригинальному сетевому модулю
+	&man.sppp.4; для синхронных линий.</para>
+
+      <para>Был добавлен новый метод Netgraph, позволяющий восстановление
+	поведения, потерянного при изменении стиля узлов Netgraph
+	&man.ng.tee.4; с 4.<replaceable>X</replaceable>.</para>
+
+      <para>Был добавлен тип узла Netgraph &man.ng.vlan.4;,
+	который поддерживает IEEE 802.1Q VLAN tagging.  &merged;</para>
+
       <para>Поддержка <literal>PFIL_HOOKS</literal> теперь постоянно
 	встроена в ядро, и соответствующие параметры ядра были
 	удалены.  Все подсистемы фильтрации пакетов, поддерживаемые
@@ -865,6 +887,17 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Поддержка Link Quality Monitoring (LQM) в &man.ppp.8;
 	была переписана заново.  LQM, описанный в RFC 1989, позволяет PPP
 	сохранять информацию о качестве работающего соединения. &merged;</para>
+
+      <para>Клонирование псевдо-интерфейсов было обновлено,
+	чтобы сделать возможным создание интерфейсов &man.stf.4;
+	с именами <devicename>stf0</devicename>,
+	<devicename>stf</devicename>, или
+	<devicename>6to4</devicename>.  Обратите внимание, что
+	это нарушает обратную совместимость; например, теперь
+	<command>ifconfig stf</command> создаст интерфейс
+	<devicename>stf</devicename>, а не
+	<devicename>stf0</devicename>, и не выведет
+	<devicename>stf0</devicename> на стандартный вывод.</para>
 
       <para>Следующие возможности TCP теперь включены по умолчанию:
 	RFC 3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -946,44 +979,6 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para arch="pc98">Была исправлена ошибка в коде автоматического
 	выбора плотности драйвера &man.fd.4;.</para>
 
-      <para>Драйвер &man.ips.4; теперь поддерживает современные контроллеры
-	Adaptec ServeRAID series SCSI.</para>
-
-      <para arch="sparc64">Была исправлена ошибка в драйвере &man.isp.4;,
-	которая делала невозможной работу карт на SBus.</para>
-
-      <para arch="i386">Был добавлен драйвер &man.twa.4;, поддерживающий
-	контроллеры 3ware's 9000 series PATA/SATA RAID.  &merged;</para>
-
-      <para>Драйвер &man.umass.4; теперь поддерживает отсутствовавшие команды
-	ATAPI MMC и правильно обрабатывает задержки.  &merged;</para>
-
-      <para>Менеджер томов &man.vinum.4; был обновлен для использования
-        &man.geom.4;, инфраструктуры трансформирования дисковых запросов
-	ввода-вывода 5.x.  Была добавлена утилита пользователя
-	<command>gvinum</command>.</para>
-
-      <para arch="sparc64">Драйвер устройства &man.esp.4; был портирован
-	из NetBSD для поддержки SBus SCSI карт в компьютерах Sun Ultra
-        1e и 2.</para>
-
-      <para>Была добавлена поддержка LSI-type программного RAID.</para>
-
-    </sect3>
-
-    <sect3 id="fs">
-      <title>Файловые системы</title>
-
-      <para>Была добавлена файловая система autofs(9) и библиотека пользователя
-	&man.libautofs.3;.</para>
-
-      <para>Код файловой системы EXT2FS теперь включает частичную поддержку
-	больших файлов (&gt; 4GB).  Частичность поддержки заключается в том,
-	невозможно создать большие файлы на файловых системах, которые не
-	были обновлены до <literal>EXT2_DYN_REV</literal> или на тех,
-	где в суперблоке не установлен флаг
-	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal>.</para>
-
       <para>Была исправлена ошибка в &man.geom.4;, которая могла приводить к
 	прерыванию ввода/вывода в некоторых редких случаях.</para>
 
@@ -1043,16 +1038,47 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       <para>Был добавлен новый класс &man.geom.4; <literal>GEOM_VINUM</literal> для поддержки
 	взаимодействия между &man.vinum.4; и &man.geom.4;.</para>
 
+      <para>Драйвер &man.ips.4; теперь поддерживает современные контроллеры
+	Adaptec ServeRAID series SCSI.</para>
+
+      <para arch="sparc64">Была исправлена ошибка в драйвере &man.isp.4;,
+	которая делала невозможной работу карт на SBus.</para>
+
+      <para arch="i386">Был добавлен драйвер &man.twa.4;, поддерживающий
+	контроллеры 3ware's 9000 series PATA/SATA RAID.  &merged;</para>
+
+      <para>Драйвер &man.umass.4; теперь поддерживает отсутствовавшие команды
+	ATAPI MMC и правильно обрабатывает задержки.  &merged;</para>
+
+      <para>Менеджер томов &man.vinum.4; был обновлен для использования
+        &man.geom.4;, инфраструктуры трансформирования дисковых запросов
+	ввода-вывода 5.x.  Была добавлена утилита пользователя
+	<command>gvinum</command>.</para>
+
+      <para arch="sparc64">Драйвер устройства &man.esp.4; был портирован
+	из NetBSD для поддержки SBus SCSI карт в компьютерах Sun Ultra
+        1e и 2.</para>
+
+      <para>Была добавлена поддержка LSI-type программного RAID.</para>
+
+    </sect3>
+
+    <sect3 id="fs">
+      <title>Файловые системы</title>
+
+      <para>Была добавлена файловая система autofs(9) и библиотека пользователя
+	&man.libautofs.3;.</para>
+
+      <para>Код файловой системы EXT2FS теперь включает частичную поддержку
+	больших файлов (&gt; 4GB).  Частичность поддержки заключается в том,
+	невозможно создать большие файлы на файловых системах, которые не
+	были обновлены до <literal>EXT2_DYN_REV</literal> или на тех,
+	где в суперблоке не установлен флаг
+	<literal>EXT2_FEATURE_RO_COMPAT_LARGE_FILE</literal>.</para>
+
       <para>Была исправлена паника в NFSv4 клиенте; она случалась при
 	попытке работы с поддерживающим только NFSv3/NFSv2
 	сервером.</para>
-
-      <para>Клиент SMBFS теперь поддерживает подпись SMB запроса, которая
-	предотвращает атаки <quote>man in the middle</quote> и необходима
-	для подключения к серверам Windows 2003 в настройке по умолчанию.
-	Поскольку подпись каждого сообщения понижает производительность,
-	эта возможность включается только если сервер ее требует;
-	со временем она может стать параметром &man.mount.smbfs.8;.</para>
 
       <para>Был добавлен параметр ядра <literal>MSDOSFS_LARGE</literal>
 	для поддержки файловых систем больших,
@@ -1063,33 +1089,13 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	файловой системы с менее чем 1 миллионом файлов только для
 	чтения, и так далее.  Экспорт этих больших файловых систем
 	по NFS не поддерживается.</para>
-    </sect3>
 
-    <sect3 id="mm">
-      <title>Поддержка мультимедиа</title>
-
-      <para>Драйвер <devicename>meteor</devicename> (видеозахват) был удален вследствие
-	неработоспособности и отсутствия поддержки.</para>
-
-      <para>Код Direct Rendering Manager (DRM) был обновлен из дерева CVS
-	DRI Project от 26 мая 2004 года.  Это обновление включает новые
-	PCI ID и новый пакет для Radeon.</para>
-
-      <para>Драйверы для различных звуковых карт были реорганизованы;
-	<literal>device sound</literal> это общий звуковой драйвер,
-	а <literal>device snd_*</literal> это звуковые драйвера устройств.
-	Драйвер <devicename>midi</devicename>, поддерживающий последовательный
-	порт и несколько звуковых карт, был удален.  Дополнительные
-	подробности находятся на соответствующих страницах справочной
-	системы:
-	&man.sound.4;, &man.snd.ad1816.4;, &man.snd.als4000.4;, &man.snd.cmi.4;,
-	&man.snd.cs4281.4;, &man.snd.csa.4;, &man.snd.ds1.4;, &man.snd.emu10k1.4;,
-	&man.snd.es137x.4;, &man.snd.gusc.4;, &man.snd.maestro3.4;,
-        &man.snd.sbc.4;, &man.snd.solo.4;, и &man.snd.uaudio.4;.</para>
-
-      <para>Драйвер &man.sound.4; (бывший &man.pcm.4;) был модифицирован для
-	чтения <filename>/boot/device.hints</filename> при запуске, чтобы
-	восстанавливать значения каналов mixer по умолчанию.</para>
+      <para>Клиент SMBFS теперь поддерживает подпись SMB запроса, которая
+	предотвращает атаки <quote>man in the middle</quote> и необходима
+	для подключения к серверам Windows 2003 в настройке по умолчанию.
+	Поскольку подпись каждого сообщения понижает производительность,
+	эта возможность включается только если сервер ее требует;
+	со временем она может стать параметром &man.mount.smbfs.8;.</para>
     </sect3>
 
     <sect3>
@@ -1159,6 +1165,10 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       уменьшения пиков нагрузки, появляющихся при выполнении большого
       количества задач, запланированных на определенный момент
       времени. &merged;</para>
+ 
+    <para>Ошибка, мешавшая &man.crontab.1 с параметром <option>-e</option>
+      предлагать пользователю скорректировать записи в неправильном
+      формате, была исправлена.</para>
 
     <para>Параметры &man.cut.1; <option>-c</option>,
       <option>-d</option>, и <option>-f</option>
