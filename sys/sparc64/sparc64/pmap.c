@@ -1475,7 +1475,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	if (dst_addr != src_addr)
 		return;
 	vm_page_lock_queues();
-	PMAP_LOCK(dst_pmap);
+	if (dst_pmap < src_pmap) {
+		PMAP_LOCK(dst_pmap);
+		PMAP_LOCK(src_pmap);
+	} else {
+		PMAP_LOCK(src_pmap);
+		PMAP_LOCK(dst_pmap);
+	}
 	if (len > PMAP_TSB_THRESH) {
 		tsb_foreach(src_pmap, dst_pmap, src_addr, src_addr + len,
 		    pmap_copy_tte);
@@ -1488,6 +1494,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		tlb_range_demap(dst_pmap, src_addr, src_addr + len - 1);
 	}
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 }
 
