@@ -213,7 +213,7 @@ static char *
 concat(const char *str1, const char *str2)
 {
   char *newstr;
-  char str1_length = strlen (str1);
+  int str1_length = strlen (str1);
 
   newstr = malloc (str1_length + strlen (str2) + 1);
   if (newstr == 0)
