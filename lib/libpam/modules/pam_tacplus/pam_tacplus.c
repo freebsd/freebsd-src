@@ -1,7 +1,7 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
- * Copyright (c) 2001 Networks Associates Technologies, Inc.
+ * Copyright (c) 2001 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
