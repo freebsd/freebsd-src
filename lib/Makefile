@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
-# Not done yet: csu
-# Missing:	libmp libplot
+# XXX NOT DONE YET:	csu
+# XXX MISSING:		libmp libplot
 SUBDIR=	libc libcompat libcurses libedit libkvm libm \
 	libresolv librpc/rpc libtelnet libterm libutil liby
 
