@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.490
+    Original revision: 1.492
 -->
 
 <articleinfo>
@@ -152,7 +152,7 @@
         他のプラットフォームと合わせるために
         <filename>boot</filename> という名前に変わりました。</para>
 
-      <para arch="i386">i386 アーキテクチャ用ブートローダのうちの
+      <para arch="i386,pc98">i386 アーキテクチャ用ブートローダのうちの
         (<filename>boot1</filename> および <filename>boot2</filename>)
         が <filename>boot</filename> という一つのファイルに統合されました。
         これは、
@@ -275,7 +275,7 @@
       &man.chroot.2; 用のディレクトリと、
       chroot 環境でのカレントディレクトリが指定できるようになりました。
       指定には、他の FTP デーモンでも使われている
-      <quote><literal>/./</literal></quote>
+      <literal>/./</literal>
       というセパレータを使います。
       これは &man.ftpchroot.5; と &man.passwd.5; の両方で指定可能です。</para>
 

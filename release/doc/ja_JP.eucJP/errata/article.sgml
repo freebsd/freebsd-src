@@ -132,7 +132,7 @@
   <sect1 id="security">
     <title>セキュリティ勧告</title>
 
-    <para><application>CVS</application> には、
+    <para><application>CVS</application> には、CVS サーバ上で任意のコマンドが実行できるという、
       リモートから悪用可能なセキュリティ上の弱点が存在します。
       問題の詳細は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>
