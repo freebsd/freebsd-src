@@ -33,6 +33,7 @@ alpha/alpha/dec_kn20aa.c	optional	dec_kn20aa
 alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_1000a.c		optional	dec_1000a
 alpha/alpha/dec_2100_a50.c	optional	dec_2100_a50
+alpha/alpha/dec_2100_a500.c	optional	dec_2100_a500
 alpha/alpha/dec_st550.c		optional	dec_st550
 alpha/alpha/dec_st6600.c	optional	dec_st6600
 alpha/alpha/dec_axppci_33.c	optional	dec_axppci_33
@@ -136,6 +137,8 @@ alpha/pci/pci_eb164_intr.s	optional	dec_st550
 alpha/pci/pci_eb64plus_intr.s	optional	dec_2100_a50
 alpha/pci/pci_eb64plus_intr.s	optional	dec_eb64plus
 alpha/pci/pcibus.c		optional	pci
+alpha/pci/t2.c			optional	dec_2100_a500
+alpha/pci/t2_pci.c		optional	dec_2100_a500
 alpha/pci/tsunami.c		optional	dec_st6600
 alpha/pci/tsunami_pci.c		optional	dec_st6600
 dev/advansys/adv_isa.c		optional	adv isa
