@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 1996
+.Dd March 18, 2005
 .Dt SR 4 i386
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ For ISA cards, in
 The
 .Nm
 driver supports the RISCom/N2 ISA cards and the WANic 400/405 PCI cards
-that is based on the HD64570 chip.
+that are based on the HD64570 chip.
 .Pp
 If you have ISA cards, you need to specify the resources for them in
 .Pa /boot/device.hints .
@@ -110,6 +110,17 @@ Use separate external clocks for transmit and receive on port 1.
 The card only supports IRQ 3, 4, 5, 7, 10, 11, 12 and 15.
 .Pp
 The iomem area is a 16Kb block and must start at a 16Kb boundary.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following hardware:
+.Pp
+.Bl -bullet -compact
+.It
+RISCom/N2 ISA card
+.It
+WANic 400/405 PCI cards
+.El
 .Sh NETGRAPH SUPPORT
 If the kernel is compiled with
 .Dv "options NETGRAPH"
@@ -122,14 +133,6 @@ Connecting to this hook enables the transmission of raw HDLC frames.
 The node will have the same name as the device with ``sync_''
 prepended, e.g.,
 .Dv sync_sr0 .
-.Sh FILES
-.Bl -tag -width /sys/i386/isa/ic/hd64570.h -compact
-.It Pa /sys/i386/isa/ic/hd64570.h
-.It Pa /sys/i386/isa/if_srregs.h
-.It Pa /sys/i386/isa/if_sr.c
-.It Pa /sys/i386/isa/if_sr.h
-.It Pa /sys/pci/if_sr_p.c
-.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "sr%d: Warning illegal interrupt %d."
