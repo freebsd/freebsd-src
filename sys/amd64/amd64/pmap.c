@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.243 1999/07/31 04:10:31 alc Exp $
+ *	$Id: pmap.c,v 1.244 1999/07/31 23:02:57 alc Exp $
  */
 
 /*
@@ -2966,6 +2966,9 @@ pmap_remove_pages(pmap, sva, eva)
 		*pte = 0;
 
 		ppv = pa_to_pvh(tpte);
+
+		KASSERT(ppv < &pv_table[pv_npg],
+			("pmap_remove_pages: bad tpte %x", tpte));
 
 		pv->pv_pmap->pm_stats.resident_count--;
 
