@@ -3241,12 +3241,10 @@ elf64_alpha_size_dynamic_sections (output_bfd, info)
 	    return false;
 	}
 
-      if (!add_dynamic_entry (DT_PLTGOT, 0))
-	return false;
-
       if (relplt)
 	{
-	  if (!add_dynamic_entry (DT_PLTRELSZ, 0)
+	  if (!add_dynamic_entry (DT_PLTGOT, 0)
+	      || !add_dynamic_entry (DT_PLTRELSZ, 0)
 	      || !add_dynamic_entry (DT_PLTREL, DT_RELA)
 	      || !add_dynamic_entry (DT_JMPREL, 0))
 	    return false;
