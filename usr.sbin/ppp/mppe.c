@@ -67,6 +67,7 @@ struct mppe_state {
 };
 
 int MPPE_MasterKeyValid = 0;
+int MPPE_IsServer = 0;
 char MPPE_MasterKey[MPPE_KEY_LEN];
 
 static void
@@ -340,7 +341,8 @@ MPPEInitInput(struct lcp_opt *o)
 
   log_Printf(LogDEBUG, "MPPE: InitInput: %d-bits\n", mip->keybits);
 
-  GetAsymetricStartKey(MPPE_MasterKey, mip->mastkey, mip->keylen, 0, 0);
+  GetAsymetricStartKey(MPPE_MasterKey, mip->mastkey, mip->keylen, 0,
+                       MPPE_IsServer);
   GetNewKeyFromSHA(mip->mastkey, mip->mastkey, mip->keylen, mip->sesskey);
 
   MPPEReduceSessionKey(mip);
@@ -381,7 +383,8 @@ MPPEInitOutput(struct lcp_opt *o)
 
   log_Printf(LogDEBUG, "MPPE: InitOutput: %d-bits\n", mop->keybits);
 
-  GetAsymetricStartKey(MPPE_MasterKey, mop->mastkey, mop->keylen, 1, 0);
+  GetAsymetricStartKey(MPPE_MasterKey, mop->mastkey, mop->keylen, 1,
+                       MPPE_IsServer);
   GetNewKeyFromSHA(mop->mastkey, mop->mastkey, mop->keylen, mop->sesskey);
 
   MPPEReduceSessionKey(mop);
