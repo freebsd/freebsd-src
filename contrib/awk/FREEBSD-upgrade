@@ -1,7 +1,8 @@
+$FreeBSD$
 
-Import of GNU awk 3.0.3
+Import of GNU awk 3.0.4
 
-Original source available as ftp://prep.ai.mit.edu/pub/gnu/gawk-3.0.3.tar.gz
+Original source available as ftp://prep.ai.mit.edu/pub/gnu/gawk-3.0.4.tar.gz
 
 The following files and directories were removed for this import:
 
@@ -23,6 +24,8 @@ alloca.c
 atari/
 awklib/
 awktab.c
+config.guess
+config.sub
 configh.in
 configure
 configure.in
@@ -34,6 +37,7 @@ doc/awkforai.txt
 doc/cardfonts
 doc/colors
 doc/igawk.1
+doc/gawk.info
 doc/macros
 doc/no.colors
 doc/setter.outline
@@ -52,6 +56,6 @@ stamp-h.in
 test/
 vms/
 
-In addition, doc/gawk.1 and doc/gawk.texi were renamed to awk.1 and awk.texi.
+In addition, doc/gawk.1 was renamed to awk.1.
 
 jraynard@freebsd.org
