@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.77 1994/09/05 05:14:01 gpalmer Exp $
+#	$Id: Makefile,v 1.78 1994/09/07 07:42:56 pst Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -20,7 +20,17 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN3=	daily weekly monthly
 
-CLEANFILES+= *.o *.lo *.c *.cache *.mk kcopy filesystem
+CLEANFILES+=	*.o *.lo
+CLEANFILES+=	filesystem filesystem.c filesystem.cache filesystem.mk
+CLEANFILES+=	kcopy kcopy.c kcopy.cache kcopy.mk
+
+MAKEDEVS=	(cd ${MOUNT}/dev; \
+		    sh ${DESTDIR}/dev/MAKEDEV std; \
+		    rm -rf fd; \
+		    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1; \
+		    rm -rf fd0?* rfd0?* fd1?* rfd1?*; \
+		    sh ${DESTDIR}/dev/MAKEDEV wd0 wd1 sd0 sd1 cd0 mcd0 mcd1; \
+		    rm -rf *wd[01][ijklm] rmcd*)
 
 ZIPNSPLIT=	gzip --no-name -9 -c | split -b 240640 -
 
@@ -108,13 +118,13 @@ CPIO_CPIO+=	usr/share/misc/termcap
 CPIO_CPIO_DIRS=		tmp usr/lib usr/libexec usr/share usr/share/misc
 CPIO_CPIO_DIRS+=	var var/tmp var/run var/spool var/spool/lock
 
-SCRYPT_LIB=	lib/libscrypt
-DESCRYPT_LIB=	secure/lib/libdescrypt
+SCRYPT_LIB=	lib/libcrypt
+DESCRYPT_LIB=	secure/lib/libcrypt
 CRYPT_SRCS=	bin/ed bin/rcp
 CRYPT_SRCS+=	libexec/ftpd libexec/makekey libexec/rexecd libexec/rlogind
 CRYPT_SRCS+=	libexec/rshd libexec/telnetd libexec/uucpd
-CRYPT_SRCS+=	sbin/init.bsdi
-CRYPT_SRCS+=	usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
+CRYPT_SRCS+=	sbin/init
+CRYPT_SRCS+=	secure/usr.bin/bdes usr.bin/lock usr.bin/login usr.bin/passwd
 CRYPT_SRCS+=	usr.bin/rlogin usr.bin/rsh usr.bin/su usr.bin/telnet
 CRYPT_DIRS=	bin sbin usr usr/bin usr/lib usr/libexec 
 
@@ -226,11 +236,14 @@ crunch:
 
 extract:
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/EXTRACT_bin.sh ${RELEASEDIR}/tarballs/bindist
+	    ${.CURDIR}/etc.i386/EXTRACT_bin.sh \
+	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/EXTRACT_src.sh ${RELEASEDIR}/tarballs/srcdist
+	    ${.CURDIR}/etc.i386/EXTRACT_src.sh \
+	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	    ${.CURDIR}/etc.i386/EXTRACT_secr.sh ${RELEASEDIR}/tarballs/secrdist
+	    ${.CURDIR}/etc.i386/EXTRACT_secr.sh \
+	    ${RELEASEDIR}/tarballs/bindist/EXTRACT.sh
 
 hcx9-distribution:
 	(cd ${.CURDIR}/etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} \
@@ -256,13 +269,7 @@ kcopy-floppy:
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${KC_DIRS} | cpio -pdamuv ${MOUNT})
-	(cd ${MOUNT}/dev; \
-	    sh ${DESTDIR}/dev/MAKEDEV std; \
-	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 wd1 sd0 sd1; \
-	    rm -rf fd0?* rfd0?* fd1?* rfd1?*; \
-	    sh ${DESTDIR}/dev/MAKEDEV cd0 mcd0 mcd1; \
-	    rm -rf rmcd*)
+	${MAKEDEVS}
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
@@ -275,7 +282,7 @@ kcopy-floppy:
 	    done)
 
 kcopy_ah.flp:
-	${MAKE} kcopy-floppy
+	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
@@ -287,7 +294,7 @@ kcopy_ah.flp:
 		>${RELEASEDIR}/floppies/kcopy_ah.flp.gz &
 
 kcopy_bt.flp:
-	${MAKE} kcopy-floppy
+	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
@@ -299,7 +306,7 @@ kcopy_bt.flp:
 		>${RELEASEDIR}/floppies/kcopy_bt.flp.gz &
 
 cdins-floppy:
-	${MAKE} kcopy-floppy
+	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${DESTDIR}/; \
 	    ls -d ${CD_DIRS} | cpio -pdamuv ${MOUNT})
 	(cd ${MOUNT}/usr; \
@@ -314,7 +321,7 @@ cdins-floppy:
 	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
 	
 cdins_ah.flp:
-	${MAKE} cdins-floppy
+	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICAH; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
@@ -326,7 +333,7 @@ cdins_ah.flp:
 		>${RELEASEDIR}/floppies/cdins_ah.flp.gz &
 
 cdins_bt.flp:
-	${MAKE} cdins-floppy
+	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
 	(cd ${.CURDIR}/../sys/compile/GENERICBT; \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
@@ -347,11 +354,7 @@ filesyst.flp:
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${FILESYSTEM_DIRS} | cpio -pdamuv ${MOUNT})
-	(cd ${MOUNT}/dev; \
-	    sh ${DESTDIR}/dev/MAKEDEV std; \
-	    rm -rf fd; \
-	    sh ${DESTDIR}/dev/MAKEDEV fd0 fd1 wd0 sd0 sd1; \
-	    rm -f fd0?* fd1?* rfd0?* rfd1?*)
+	${MAKEDEVS}
 	(cd ${DESTDIR}/; \
 	    ls ${FILESYSTEM_FILES} | cpio -pdamuv ${MOUNT}; \
 	    (find ${FILESYSTEM_CPIO}; ls -d ${FILESYSTEM_CPIO_DIRS}) | \
@@ -432,8 +435,9 @@ bin-tarball:
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bin_tgz.)
 
 src-clean:
-	(cd ${DESTDIR}/usr/src; make cleandist)
 	find ${DESTDIR}/usr/src -name obj | xargs -n30 rm -rf
+	(cd ${DESTDIR}/usr/src; make cleandist)
+	rm -rf ${DESTDIR}/usr/src/sys/compile/*
 	chown -R bin:bin ${DESTDIR}/usr/src
 	chmod -R og-w ${DESTDIR}/usr/src
 
@@ -445,7 +449,7 @@ srcbase-tarball:
 srcbin-tarball:
 	(cd ${DESTDIR}; \
 		tar --exclude CVS -cf - usr/src/bin | \
-		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/bin.)
+		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/srcdist/srcbin.)
 
 srccontrib-tarball:
 	(cd ${DESTDIR}; \
@@ -565,6 +569,7 @@ release:	release-dirs distribution crunch extract kcopy-kernels \
 		floppies bin-tarball des-tarball clean
 
 release-dirs:
+	chflags -R noschg ${RELEASEDIR}/filesys
 	rm -rf ${RELEASEDIR}/filesys
 	mkdir ${RELEASEDIR}/filesys
 	chown ${BINOWN}.${BINGRP} ${RELEASEDIR}/filesys
