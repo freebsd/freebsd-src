@@ -20,6 +20,9 @@
 static char *tiplist[] = {
     "Have you tried typing 'open' by itself lately?",
 
+    "You know what?  You're using obselete software.  Ask your sysadmin \n\
+	 to upgrade to a version of ncftp numbered 2.2 or higher.",
+
     "If you don't want a .ncrecent file in your home directory, put the \n\
      command '#unset recent-list' in your .ncftprc file.",
 

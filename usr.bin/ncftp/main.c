@@ -2,7 +2,7 @@
 
 #define _main_c_
 
-#define FTP_VERSION "1.9.4 (April 15, 1995)"
+#define FTP_VERSION "1.9.5 (October 29, 1995)"
 
 /* #define BETA 1 */ /* If defined, it prints a little warning message. */
 
@@ -28,6 +28,10 @@
 #		include <term.h>
 #	endif
 #endif	/* CURSES */
+
+#if defined(CURSES) && defined(SGTTYB)
+#       include <sgtty.h>
+#endif
 
 #include "util.h"
 #include "cmds.h"
@@ -1104,6 +1108,10 @@ int termcap_get(char **dest, char *attr)
 void termcap_init(void)
 {
 	char *term;
+#ifdef  SGTTYB
+	struct sgttyb ttyb;
+	extern short ospeed;
+#endif
 
 	if ((term = getenv("TERM")) == NULL) {
 		term = "dumb";  /* TAR */
@@ -1123,6 +1131,10 @@ void termcap_init(void)
 		tcl_bold = strlen(tcap_boldface);
 		tcl_uline = strlen(tcap_underline);
 		tcl_rev = strlen(tcap_reverse);
+#ifdef  SGTTYB
+		if (ioctl(fileno(stdout), TIOCGETP, &ttyb) == 0)
+			ospeed = ttyb.sg_ospeed;
+#endif
 	}
 
 }	/* termcap_init */

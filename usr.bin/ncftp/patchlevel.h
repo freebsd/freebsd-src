@@ -1,3 +1,5 @@
+v1.9.5 - October 29, 1995.  Termcap needs ospeed initialization for BSD.
+
 v1.9.4 - April 15, 1995.  Using PORT by default instead of PASV by default.
   Method to get the mail pathname changed.
 
