@@ -121,6 +121,7 @@ static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(double);
 static void	  prtstat(struct statfs *, struct maxwidths *);
+static void	  addstat(struct statfs *, struct statfs *);
 static size_t	  regetmntinfo(struct statfs **, long, const char **);
 static unit_t	  unit_adjust(double *);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
@@ -132,14 +133,14 @@ imax(int a, int b)
 	return (a > b ? a : b);
 }
 
-static int	aflag = 0, hflag, iflag, nflag;
+static int	aflag = 0, cflag, hflag, iflag, nflag;
 static struct	ufs_args mdev;
 
 int
 main(int argc, char *argv[])
 {
 	struct stat stbuf;
-	struct statfs statfsbuf, *mntbuf;
+	struct statfs statfsbuf, totalbuf, *mntbuf;
 	struct maxwidths maxwidths;
 	const char *fstype;
 	char *mntpath, *mntpt;
@@ -149,11 +150,17 @@ main(int argc, char *argv[])
 
 	fstype = "ufs";
 
+	memset (&totalbuf, 0, sizeof (totalbuf));
+	totalbuf.f_bsize = DEV_BSIZE;
+	strncpy (totalbuf.f_mntfromname, "total", MNAMELEN);
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "abgHhiklmnPt:")) != -1)
+	while ((ch = getopt(argc, argv, "abcgHhiklmnPt:")) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
+			break;
+		case 'c':
+			cflag = 1;
 			break;
 		case 'b':
 				/* FALLTHROUGH */
@@ -214,12 +221,18 @@ main(int argc, char *argv[])
 	if (!*argv) {
 		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
 		bzero(&maxwidths, sizeof(maxwidths));
-		for (i = 0; i < mntsize; i++)
-			update_maxwidths(&maxwidths, &mntbuf[i]);
 		for (i = 0; i < mntsize; i++) {
+			if (cflag)
+				addstat(&totalbuf, &mntbuf[i]);
+			update_maxwidths(&maxwidths, &mntbuf[i]);
+		}
+		if (cflag)
+			update_maxwidths(&maxwidths, &totalbuf);
+		for (i = 0; i < mntsize; i++)
 			if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0)
 				prtstat(&mntbuf[i], &maxwidths);
-		}
+		if (cflag)
+			prtstat(&totalbuf, &maxwidths);
 		exit(rv);
 	}
 
@@ -256,6 +269,8 @@ main(int argc, char *argv[])
 				} else if (statfs(mntpt, &statfsbuf) == 0) {
 					statfsbuf.f_mntonname[0] = '\0';
 					prtstat(&statfsbuf, &maxwidths);
+					if (cflag)
+						addstat(&totalbuf, &statfsbuf);
 				} else {
 					warn("%s", *argv);
 					rv = 1;
@@ -294,7 +309,11 @@ main(int argc, char *argv[])
 			update_maxwidths(&maxwidths, &statfsbuf);
 		}
 		prtstat(&statfsbuf, &maxwidths);
+		if (cflag)
+			addstat(&totalbuf, &statfsbuf);
 	}
+	if (cflag)
+		prtstat(&totalbuf, &maxwidths);
 	return (rv);
 }
 
@@ -383,11 +402,11 @@ prthumanval(double bytes)
 	unit = unit_adjust(&bytes);
 
 	if (bytes == 0)
-		(void)printf("     0B");
+		(void)printf("      0B");
 	else if (bytes > 10)
-		(void)printf(" %5.0f%c", bytes, "BKMGTPE"[unit]);
+		(void)printf(" % 6.0f%c", bytes, "BKMGTPE"[unit]);
 	else
-		(void)printf(" %5.1f%c", bytes, "BKMGTPE"[unit]);
+		(void)printf(" % 6.1f%c", bytes, "BKMGTPE"[unit]);
 }
 
 /*
@@ -409,6 +428,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	static int headerlen, timesthrough = 0;
 	static const char *header;
 	int64_t used, availblks, inodes;
+	int total;
 
 	if (++timesthrough == 1) {
 		mwp->mntfrom = imax(mwp->mntfrom, (int)strlen("Filesystem"));
@@ -450,15 +470,29 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
+	total = !*sfsp->f_mntonname &&
+	    strncmp(sfsp->f_mntfromname, "total", MNAMELEN) == 0;
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
 		(void)printf(" %*jd %*jd %4.0f%% ", mwp->iused, (intmax_t)used,
 		    mwp->ifree, (intmax_t)sfsp->f_ffree, inodes == 0 ? 100.0 :
 		    (double)used / (double)inodes * 100.0);
-	} else
-		(void)printf("  ");
-	(void)printf("  %s\n", sfsp->f_mntonname);
+	} else if (!total)
+		(void)printf("  %s", sfsp->f_mntonname);
+	(void)printf("\n");
+}
+
+void
+addstat(struct statfs *totalfsp, struct statfs *statfsp)
+{
+	double bsize = statfsp->f_bsize / totalfsp->f_bsize;
+
+	totalfsp->f_blocks += statfsp->f_blocks * bsize;
+	totalfsp->f_bfree += statfsp->f_bfree * bsize;
+	totalfsp->f_bavail += statfsp->f_bavail * bsize;
+	totalfsp->f_files += statfsp->f_files;
+	totalfsp->f_ffree += statfsp->f_ffree;
 }
 
 /*
@@ -512,7 +546,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr,
-	    "usage: df [-b | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | filesystem ...]\n");
+	    "usage: df [-b | -H | -h | -k | -m | -P] [-aciln] [-t type] [file | filesystem ...]\n");
 	exit(EX_USAGE);
 }
 
