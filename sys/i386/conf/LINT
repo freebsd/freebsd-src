@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.53 1998/06/04 20:39:05 steve Exp $
+#	$Id: LINT,v 1.286.2.54 1998/06/23 21:33:19 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -555,7 +555,7 @@ options		OD_AUTO_TURNOFF
 # then `gzip' becomes mandatory too.
 #
 pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
-pseudo-device	vcfs	4	#coda minicache <-> venus comm.
+#pseudo-device	vcfs	4	#coda minicache <-> venus comm.
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
@@ -570,6 +570,9 @@ pseudo-device	ccd	4	#Concatenated disk driver
 # These are only for watching for bitrot in old SCSI code.
 pseudo-device	su		#scsi user
 pseudo-device	ssc		#super scsi
+
+# Size of the kernel message buffer.  Should be N * pagesize.
+options		"MSGBUF_SIZE=40960"
 
 
 #####################################################################
