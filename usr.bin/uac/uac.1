@@ -38,18 +38,29 @@
 sets the per-process handling of "Unaligned Access" events.  Unlike many
 other CPU's the DEC Alpha processor cannot access unaligned data.  To work
 around this, the Alpha has the ability to fix the UA fault rather than send
-the faulting process a SIGBUS signal.  However, doing so does slow down the
+the faulting process a
+.Dv SIGBUS
+signal.
+However, doing so does slow down the
 execution of the faulting process.
 At boot up, the DEC Alpha CPU defaults to printing 
-.Bl -diag
-.It pid nnn (<progname>): unaligned access: va=0xADDR pc=0xADDR ra=0xADDR op=ldl
+.Bl -tag -width indent
+.It pid Ar nnn Pq Ar <progname> Ns Xo
+.No : unaligned access: Xo
+.Va va Ns = Ns Ar 0xADDR Xo
+.Va pc Ns = Ns Ar 0xADDR Xo
+.Va ra Ns = Ns Ar 0xADDR Xo
+.Xc Va op Ns = Ns Ar ldl
+.Xc
+.Xc
+.Xc
+.Xc
 .El
-.Pp
 when a UA happens along with fixing it so
 the faulting instruction can continue.
 UA handling settings are inherited by child process.
 Issued with out any options,
-.Mn
+.Nm
 displays the current UA handling for the parent process.
 .Pp
 The options are as follows:
@@ -62,14 +73,15 @@ descendants.
 .It Fl r
 Resets the unaligned access error settings back to their bootup defaults.
 .It Fl s
-Unaligned access errors result in a SIGBUS being delivered to the parent and
+Unaligned access errors result in a
+.Dv SIGBUS
+being delivered to the parent and
 its future descendants.  This aid in pin pointing the faulting access so it
 debugged.
 .El
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
 fails for any reason.
-.El
 .Sh COMPATIBILITY
 The
 .Nm
