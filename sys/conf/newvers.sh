@@ -32,10 +32,10 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $Id: newvers.sh,v 1.10 1995/04/09 07:17:45 jkh Exp $
+# $Id: newvers.sh,v 1.11 1995/04/12 23:29:14 jkh Exp $
 
 TYPE="FreeBSD"
-RELEASE="2.1.0-Development"
+RELEASE="2.0.950412-SNAP"
 RELDATE="199504"
 DISTNAME="2.0-950412-SNAP"
 
