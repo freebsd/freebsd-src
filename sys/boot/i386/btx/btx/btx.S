@@ -907,17 +907,28 @@ dump.3: 	lodsl				# Set offset
 		shll $0x4,%eax			#  * 0x10
 		addl %edx,%eax			#  + offset
 		xchgl %eax,%esi 		# Set pointer
-dump.4: 	movb $0x10,%cl			# Bytes to dump
+dump.4: 	movb $2,%dl			# Num lines
+dump.4a:	movb $0x10,%cl			# Bytes to dump
 dump.5: 	lodsb				# Get byte and
 		call hex8			#  dump it
 		decb %cl			# Keep count
-		jz dump.7			# If done
+		jz dump.6a			# If done
 		movb $'-',%al			# Separator
 		cmpb $0x8,%cl			# Half way?
 		je dump.6			# Yes
 		movb $' ',%al			# Use space
 dump.6: 	stosb				# Save separator
 		jmp dump.5			# Continue
+dump.6a:	decb %dl			# Keep count
+		jz dump.7			# If done
+		movb $0xa,%al			# Line feed
+		stosb				# Save one
+		movb $7,%cl			# Leading
+		movb $' ',%al			#  spaces
+dump.6b:	stosb				# Dump
+		decb %cl			#  spaces
+		jnz dump.6b
+		jmp dump.4a			# Next line
 dump.7: 	popl %ds			# Restore
 dump.8: 	popl %esi			# Restore
 		movb $0xa,%al			# Line feed
