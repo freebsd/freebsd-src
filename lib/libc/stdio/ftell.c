@@ -36,10 +36,10 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0
-static char sccsid[] = "@(#)ftell.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)ftell.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: ftell.c,v 1.7 1997/02/22 15:02:07 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
