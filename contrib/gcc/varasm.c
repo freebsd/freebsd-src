@@ -2411,7 +2411,7 @@ compare_constant (t1, t2)
 	  if (get_set_constructor_bytes (t2, tmp2, len) != NULL_TREE)
 	    return 0;
 
-	  return memcmp (tmp1, tmp2, len) != 0;
+	  return memcmp (tmp1, tmp2, len) == 0;
 	}
       else
 	{
@@ -2662,6 +2662,7 @@ output_constant_def (exp, defer)
   int labelno = -1;
   rtx rtl;
 
+
   /* We can't just use the saved RTL if this is a deferred string constant
      and we are not to defer anymore.  */
   if (TREE_CODE (exp) != INTEGER_CST && TREE_CST_RTL (exp)
@@ -2825,6 +2826,7 @@ output_constant_def_contents (exp, reloc, labelno)
      int labelno;
 {
   int align;
+  HOST_WIDE_INT size;
 
   /* Align the location counter as required by EXP's data type.  */
   align = TYPE_ALIGN (TREE_TYPE (exp));
@@ -2842,17 +2844,24 @@ output_constant_def_contents (exp, reloc, labelno)
       ASM_OUTPUT_ALIGN (asm_out_file, floor_log2 (align / BITS_PER_UNIT));
     }
 
-  /* Output the label itself.  */
+  size = int_size_in_bytes (TREE_TYPE (exp));
+  if (TREE_CODE (exp) == STRING_CST)
+    size = MAX (TREE_STRING_LENGTH (exp), size);
+
+  /* Do any machine/system dependent processing of the constant.  */
+#ifdef ASM_DECLARE_CONSTANT_NAME
+  {
+    char label[256];
+    ASM_GENERATE_INTERNAL_LABEL (label, "LC", labelno);
+    ASM_DECLARE_CONSTANT_NAME (asm_out_file, label, exp, size);
+  }
+#else
+  /* Standard thing is just output label for the constant.  */
   ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, "LC", labelno);
+#endif /* ASM_DECLARE_CONSTANT_NAME */
 
   /* Output the value of EXP.  */
-  output_constant (exp,
-		   (TREE_CODE (exp) == STRING_CST
-		    ? MAX (TREE_STRING_LENGTH (exp),
-			   int_size_in_bytes (TREE_TYPE (exp)))
-		    : int_size_in_bytes (TREE_TYPE (exp))),
-		   align);
-
+  output_constant (exp, size, align);
 }
 
 /* Used in the hash tables to avoid outputting the same constant
@@ -3767,11 +3776,27 @@ initializer_constant_valid_p (value, endtype)
 	   || TREE_CODE (TREE_TYPE (value)) == RECORD_TYPE)
 	  && TREE_CONSTANT (value)
 	  && CONSTRUCTOR_ELTS (value))
-	return
-	  initializer_constant_valid_p (TREE_VALUE (CONSTRUCTOR_ELTS (value)),
-					endtype);
+	{
+	  tree elt;
+	  bool absolute = true;
 
-      return TREE_STATIC (value) ? null_pointer_node : 0;
+	  for (elt = CONSTRUCTOR_ELTS (value); elt; elt = TREE_CHAIN (elt))
+	    {
+	      tree reloc;
+	      value = TREE_VALUE (elt);
+	      reloc = initializer_constant_valid_p (value, TREE_TYPE (value));
+	      if (!reloc)
+		return NULL_TREE;
+	      if (reloc != null_pointer_node)
+		absolute = false;
+	    }
+	  /* For a non-absolute relocation, there is no single
+	     variable that can be "the variable that determines the
+	     relocation."  */
+	  return absolute ? null_pointer_node : error_mark_node;
+	}
+
+      return TREE_STATIC (value) ? null_pointer_node : NULL_TREE;
 
     case INTEGER_CST:
     case VECTOR_CST:

@@ -1,3 +1,820 @@
+2003-11-05  Roger Sayle  <roger@eyesopen.com>
+
+	PR optimization/10339
+	* builtins.c (expand_builtin_strcmp): Try to emit cmpstrsi insn
+	directly instead of unsafely transforming call into a memcmp.
+	(expand_builtin_strncmp): Likewise.
+
+2003-11-03  Alexander Kabaev  <ak03@gte.com>
+
+	* real.c (encode_ieee_single): Ensure proper promotion.
+
+2003-11-04  H.J. Lu <hongjiu.lu@intel.com>
+
+	Backport from 3.4-branch
+
+	2003-07-13  Andreas Jaeger  <aj@suse.de>
+
+	* config.gcc: Add pmmintrin.h for x86_64-*-*.
+
+	2003-06-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config.gcc (extra_headers): Add pmmintrin.h for i[34567]86-*-*.
+
+	* config/i386/i386.c (override_options): Turn on MASK_SSE2
+	for -mpni.
+	(bdesc_2arg): Add PNI builtins with 2 args.
+	(bdesc_1arg): Add PNI builtins with 1 arg.
+	(ix86_init_mmx_sse_builtins): Handle PNI builtins.
+	(ix86_expand_builtin): Likewise.
+
+	* config/i386/i386.h (MASK_3DNOW, MASK_3DNOW_A,
+	MASK_128BIT_LONG_DOUBLE, MASK_64BIT, MASK_MS_BITFIELD_LAYOUT,
+	MASK_TLS_DIRECT_SEG_REFS): Renumbered.
+	(TARGET_PNI): New.
+	(TARGET_SWITCHES): Add -mpni and -mno-pni.
+	(TARGET_CPU_CPP_BUILTINS): Defined __PNI__ for PNI.
+	(ix86_builtins): Add PNI builtins.
+	(config/i386/i386.md): Add PNI patterns.
+
+	* config/i386/pmmintrin.h: New file.
+
+	* config/i386/i386.c (override_options): Turn on MASK_SSE for
+	-msse2.
+	(MASK_SSE1): Removed.
+	(MASK_SSE164): Removed.
+	(MASK_SSE264): Removed.
+	(bdesc_2arg): Replace MASK_SSE1 with MASK_SSE. Replace
+	MASK_SSE164 with MASK_SSE | MASK_64BIT. Replace MASK_SSE264
+	with MASK_SSE2 | MASK_64BIT.
+	(bdesc_1arg): Likewise.
+	(ix86_init_mmx_sse_builtins): Likewise.
+
+	* config/i386/i386.h (TARGET_SSE): Remove MASK_SSE2.
+
+	2003-06-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* doc/extend.texi: Document new builtin functions for Intel
+	Prescott New Intrunctions.
+
+	* doc/invoke.texi: Document new command-line options, -mpni and
+	-mno-pni, for Intel Prescott New Intrunctions.
+
+	2003-06-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* config.gcc (extra_headers): Add emmintrin.h for i[34567]86-*-*
+	and x86_64-*-*.
+
+	* config/i386/mmintrin.h: Update version and add alternate
+	intrinsic names.
+	* config/i386/xmmintrin.h: Likewise.
+
+	* config/i386/xmmintrin.h: Include <emmintrin.h>. Move SSE2
+	intrinsics to ...
+	* config/i386/emmintrin.h: Here. New file.
+
+2003-11-04  H.J. Lu  <hongjiu.lu@intel.com>
+ 
+	Backport from 3.4-branch
+	2003-04-25  H.J. Lu   <hjl@gnu.org>
+
+	* config/ia64/ia64.c (ia64_expand_compare_and_swap): Add rmode
+	for return mode.
+	(ia64_expand_builtin): Set rmode to SImode for
+	IA64_BUILTIN_BOOL_COMPARE_AND_SWAP_SI,
+	IA64_BUILTIN_VAL_COMPARE_AND_SWAP_SI and
+	IA64_BUILTIN_BOOL_COMPARE_AND_SWAP_DI. Set remode to DImode
+	for IA64_BUILTIN_VAL_COMPARE_AND_SWAP_DI.
+
+	2003-04-24  H.J. Lu  <hjl@gnu.org>
+
+	* config/ia64/ia64.c (ia64_init_builtins): Add si_ftype_pdi_di_di
+	for __sync_bool_compare_and_swap_di for int return type.
+
+	* config/ia64/ia64intrin.h (__sync_bool_compare_and_swap_di):
+	Change return type to int.
+	(__sync_bool_compare_and_swap): Likewise.
+
+2003-11-03  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	* doc/contrib.texi: Add Giovanni Bajo, Dara Hazeghi, Falk Hueffner,
+	and Andrew Pinski.
+
+2003-11-03  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* fixinc/inclhack.def (stdio_va_list): Allow tab before va_list.
+	Merge two substitutions.
+	* fixinc/fixincl.x: Regenerate.
+	Fixes PR bootstrap/12666.
+
+2003-10-28  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	PR target/11598
+	PR libgcj/10610
+	* config/rs6000/sysv4.h (PREFERRED_STACK_BOUNDARY): New macro.
+
+2003-10-27  Falk Hueffner  <falk@debian.org>
+
+	PR target/12654
+	* config/alpha/alpha.c (alpha_emit_conditional_branch): Don't do
+	comparison against constant by adjusting the argument except for
+	EQ and NE.
+
+2003-10-26  Ottavio Campana <ottavio@campana.vi.it>
+
+	PR target/12690
+	* config/i386/mmintrin.h (_mm_set1_pi8): Fix comment.
+
+2003-10-25  Bruce Korb  <bkorb@gnu.org>
+
+	* gcc/fixinc/tests/base/ansi/string.h:
+	This fixes a result from a broken sed or a hand-edited output file.
+	The '__GNUC__' wrappers were misplaced.
+
+2003-10-25  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR target/12712
+	* reg-stack.c (convert_regs_1): Create an arbitrary input stack
+	if the block has no predecessors.
+	(convert_regs_2): Document the problem with successors whose
+	only predecessor is the block to be processed.
+	(convert_regs): Don't create the arbitrary input stack here.
+
+2003-10-22  David Taylor <dtaylor@emc.com>
+
+	PR debug/12500
+	* dbxout.c (dbxout_typedefs): Use COMPLETE_OR_VOID_TYPE_P.
+
+2003-10-20  Zack Weinberg  <zack@codesourcery.com>
+
+	* fixinc/inclhack.def (hpux11_snprintf): New edit.
+	* fixinc/fixincl.x: Regenerate.
+	* fixinc/tests/base/stdio.h: Add test for hpux11_snprintf.
+
+2003-05-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/ia64/unwind-ia64.c (uw_update_reg_address): Handle
+	.save XX, r0.
+
+2003-10-19  Mark Mitchell  <mark@codesourcery.com>
+
+	* doc/include/gcc-common.texi: Bump version number.
+	* version.c (version_string): Reset to prerelease format.
+
+2003-10-18  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* doc/extend.texi: Fix typos.
+
+2003-10-16  Release Manager
+
+	* GCC 3.3.2 Released.
+
+2003-10-14  Jason Merrill  <jason@redhat.com>
+
+	PR c/11885
+	* stor-layout.c (update_alignment_for_field): Packed non-bit-fields 
+	get byte alignment.
+
+2003-10-14  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* fixinc/inclhack.def (alpha_pthread_gcc): New fix.
+	* fixinc/fixincl.x: Regenerate.
+	* fixinc/tests/base/pthread.h [ALPHA_PTHREAD_GCC_CHECK]: New
+	testcase. 
+	Fixes PR bootstrap/9330.
+
+2003-10-14  Steven Bosscher  <steven@gcc.gnu.org>
+
+	PR target/11087
+	Backport from gcc-3_3-rhl-branch and mainline.
+
+	2003-07-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* loop.c (basic_induction_var): Check if convert_modes
+	emitted any instructions. Remove them and return 0 if so.
+
+2003-10-13  Matt Kraai <kraai@alumni.cmu.edu>
+
+	PR target/11949
+	Backport from mainline:
+
+	2003-05-05  Aldy Hernandez  <aldyh@redhat.com>
+
+	* testsuite/gcc.c-torture/compile/simd-6.c: New.
+	* c-typeck.c (digest_init): Handle arrays of vector constants.
+
+2003-10-11  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/12544
+	* function.c (put_var_into_stack): Don't generate ADDRESSOFs
+	for DECL_NONLOCAL decls.
+
+2003-10-09  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/12510
+	Backport from mainline:
+
+	2003-09-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* toplev.c (rest_of_compilation): Call split_all_insns before
+	regstack if optimizing but not scheduling after reload.
+
+2003-10-09  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* fixinc/inclhack.def (stdio_va_list): Removed _ap fix.
+	(irix_stdio_va_list): Don't require leading printf, IRIX 6.5.21
+	introduced some multi-line prototypes.
+	* fixinc/fixincl.x: Regenerate.
+	Fixes PR libf2c/12263.
+
+2003-10-08  Timo Kokkonen  <tjko@iki.fi>
+            Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR bootstrap/12490
+	* scan-decls.c (MAX_EXTERN_C_BRACES): New preprocessor constant
+	to define the size of the extern_C_braces array.  Set it to 200.
+	(scan_decls): Abort when extern_C_braces_length is out-of-bounds.
+
+2003-10-06  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/12215
+	* cse.c (cse_set_around_loop): Emit the move at the beginning
+	of the next basic block for trapping sets.
+
+2003-10-06  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/11637
+	* combine.c (adjust_for_new_dest): New function to adjust the
+	notes and LOG_LINKS when the dest of an insn has changed.
+	(try_combine): Use it when deleting the first insn of a two-insn
+	parallel or splitting a two-load parallel.
+
+2003-10-04  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* config/m68hc11/t-m68hc11-gas (MULTILIB_MATCHES): m68hcs12 is
+	identical to m68hc12 as far as libraries are concerned.
+
+2003-10-04  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/12446
+	* c-typeck.c (convert_for_assignment): Issue an error for
+	array to pointer assignment after default conversion.
+	(digest_init): Likewise.
+
+2003-10-03  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* doc/extend.texi (Function Attributes): Fix title of GNU C
+	Preprocessor manual.
+	(C++ Extensions): Fix reference to "Predefined Macros" in the
+	GNU C Preprocessor manual.
+
+2003-10-03  Zdenek Dvorak  <rakdver@atrey.karlin.mff.cuni.cz>
+
+	PR/11883
+	* cfgloop.c (flow_loops_find): Fix handling of abnormal edges.
+
+2003-10-02  Mark Mitchell  <mark@codesourcery.com>
+
+	PR optimization/12180
+	* c-objc-common.c (inline_forbidden_p): Do not permit inlining of
+	functions containing calls to __builtin_next_arg.
+
+2003-10-02  Josef Zlomek  <zlomekj@suse.cz>
+
+	PR/12292
+	* combine.c (make_field_assignment): Check whether rtx's code
+	is CONST_INT before using INTVAL.
+
+2003-10-02  Josef Zlomek  <zlomekj@suse.cz>
+
+	Waldek Hebisch <hebisch@math.uni.wroc.pl>
+	PR/12072
+	* varasm.c (compare_constant): Fix thinko.
+
+2003-10-01  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* aclocal.m4: Add hpux10* and hpux11.00 to /dev/zero blacklist.
+	* configure: Rebuilt.
+
+2003-10-01  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* aclocal.m4: Add ultrix* to /dev/zero blacklist.
+	* configure: Rebuilt.
+
+2003-10-01  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* config.gcc (sparc-*-solaris2*): Handle Solaris 10 and up like
+	Solaris 7-9.
+
+	* fixinc/inclhack.def (solaris_widec): Replace solaris2.[0-5]* by
+	wildcards which explicitly match micro versions.
+	* fixinc/fixincl.x: Regenerate.
+
+2003-10-01  Richard Henderson  <rth@redhat.com>
+
+	* dwarf2out.c (expand_builtin_init_dwarf_reg_sizes): Honor
+	DWARF_ALT_FRAME_RETURN_COLUMN.
+	* unwind-dw2.c (dwarf_reg_size_table): Expand by one.
+	(_Unwind_GetGR, _Unwind_SetGR): Validate lookup column.
+	(uw_frame_state_for): Return end-of-stack for null return address.
+
+	* config/alpha/alpha.c (alpha_sa_mask): Add r31 for eh_return.
+	(alpha_expand_prologue): Store a zero for it.
+	(alpha_expand_epilogue): Don't reload it.
+	* config/alpha/alpha.h (DWARF_ALT_FRAME_RETURN_COLUMN): New.
+	* config/alpha/linux.h (MD_FALLBACK_FRAME_STATE_FOR): Use column 64
+	for the sigframe return address.
+
+2003-10-01  Nick Clifton  <nickc@redhat.com>
+
+	* Import this patch from mainline:
+	
+	2003-02-01  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* collect2.c (pexecute_pid): Rename to pid.
+	(collect_wait, collect_execute, scan_prog_file, scan_libraries): Use
+	pid.
+
+2003-09-23  David S. Miller  <davem@redhat.com>
+
+	* config/sparc/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Undefine
+	before redefining.
+	* config/sparc/linux64.h (LINK_GCC_C_SEQUENCE_SPEC): Likewise.
+
+2003-10-01  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/11753
+	* config/sparc/sparc.md (length attribute) [fcc branch]: Add 1 to
+	the length in the non-V9 case.
+
+2003-09-27  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/12340
+	* loop.h (struct induction): Document the new semantics
+	of the 'same' field for bivs.
+	* unroll.c (biv_total_increment): Don't count the same
+	biv increment several times.
+	(loop_iterations) [GENERAL_INDUCT]: Likewise.
+
+2003-09-26  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR bootstrap/12358
+	* pa.c (output_bvb): Fix typo.
+
+2003-09-24  Alexandre Oliva  <aoliva@redhat.com>
+
+	* cpplib.c (do_pragma): Reintroduce cb_line_change call in the
+	code path that calls a handler.
+
+2003-09-23  Geoffrey Keating  <geoffk@apple.com>
+
+	* config/t-darwin (crt2.o): Add stmp-int-hdrs to dependencies.
+
+	* config/rs6000/rs6000.c (function_arg_pass_by_reference): Don't
+	pass zero-size arrays by reference.
+	(rs6000_va_arg): Likewise.
+
+2003-09-22	Joel Sherrill <joel@oarcorp.com>
+
+	* combine.c, config/mips/t-elf, config/c4x/rtems.h: Revert patches
+	which should not have been committed with other RTEMS changes.
+
+2003-09-22  Olivier Hainque  <hainque@act-europe.fr>
+
+	PR target/9786
+	* reg-stack.c (convert_regs_1): Purge possible dead eh edges
+	after potential deletion of trapping insn. Avoids later ICE
+	from call to fixup_abnormal_edges.
+	(convert_regs_2): Stack the current block successors before
+	processing this block, that is, before the potential deletion of
+	dead edges by convert_regs_1, because these edges have been used
+	to initialize the predecessors count.
+
+2003-09-21  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR target/12301
+	* reorg.c (stop_search_p): Return 1 for insns that can
+	throw internally.
+
+2003-09-19  Joel Sherrill <joel@oarcorp.com>
+
+	* config/m68k/t-m68kbare, config/m68k/t-rtems: Change 68681 to
+	68881.
+
+2003-09-19  Ralf Corsepius <corsepiu@faw.uni-ulm.de>
+
+	* config/m68k/t-rtems (m68k-*-rtems*): New.
+	* config.gcc: Use config/m68k/t-rtems.
+
+2003-09-19  Ralf Corsepius <corsepiu@faw.uni-ulm.de>
+
+	* config/mips/t-rtems: New.
+	* config.gcc (mips*-*-rtems*): Use config/mips/t-rtems.
+
+2003-09-19  T. Papadopoulo <Theodore.Papadopoulo@sophia.inria.fr>
+	    Eric Botcazou <ebotcazou@libertysurf.fr>
+
+	PR target/12166
+	* config/sparc/sol2-c1.asm (start): Set __Argv if GCRT1.
+
+2003-09-18  Mark Mitchell  <mark@codesourcery.com>
+
+	PR target/11184
+	* builtins.c (expand_builtin_apply): Use convert_memory_address
+	before returning the value.
+
+2003-09-17  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* configure.in (gcc_cv_as_hidden): Only disable if no GNU ld
+	detected.
+	* configure: Regenerate.
+	Fixes PR target/12248.
+
+2003-09-17  Richard Henderson  <rth@redhat.com>
+
+	* config/alpha/alpha.c (alpha_expand_mov): Do gen_movdi_er_maybe_g
+	always during initial code generation.
+	* config/alpha/alpha.md (movdi_er_maybe_g): Don't conditionalize 
+	on flag_inline_functions.
+
+2003-09-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/11646
+	* cfgrtl.c (purge_dead_edges) [JUMP_INSN]: Rematerialize the
+	EDGE_ABNORMAL flag for EH edges.
+	* toplev.c (rest_of_compilation): Delete unreachable blocks
+	if dead edges were purged after the first CSE pass.
+
+2003-09-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/alpha/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/arm/linux-elf.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/rs6000/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/rs6000/linux64.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/sh/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/sparc/linux.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+	* config/sparc/linux64.h (LINK_GCC_C_SEQUENCE_SPEC): Define.
+
+2003-09-15  Alexandre Oliva  <aoliva@redhat.com>
+
+	* cpplib.c (do_pragma): Remove unnecessary cb_line_change.
+
+2003-09-14  Alexandre Oliva  <aoliva@redhat.com>
+
+	* cppmain.c (cb_line_change): Revert 2003-08-04's change.
+	* c-lex.c (cb_line_change): Skip line changing whenever
+	cppmain.c would.
+
+2003-09-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	PR fortran/11522
+	* dwarf2out.c (gen_inlined_subroutine_die): Emit abstract function
+	for ultimate origin even if block is abstract.
+
+2003-09-10  Martin Husemann  <martin@duskware.de>
+
+	PR target/11965
+	* config/sparc/sparc.c (sparc_v8plus_shift): Protect against
+	constants greater than 63.
+	* config/sparc/sparc.md (ashlsi3, ashrsi3, lshrsi3): Protect
+	against constants greater than 31.
+	(*ashldi3_sp64, *ashrdi3_sp64, *lshrdi3_sp64): Protect against
+	constants greater than 63.
+
+2003-09-09  Richard Henderson  <rth@redhat.com>
+
+	PR target/12224:
+	* config/ia64/ia64.c (ia64_expand_move): Properly truncate
+	result when op0 is SImode.
+
+2003-09-09  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* configure.in (gcc_cv_as_ix86_cmov_sun_syntax): Check if
+	assembler supports Sun syntax for cmov.
+	* configure: Regenerate.
+	* config.in: Li{ewise.
+	* config/i386/i386.c: Rename CMOV_SUN_AS_SYNTAX to
+	HAVE_AS_IX86_CMOV_SUN_SYNTAX. 
+	* config/i386/sol2.h (CMOV_SUN_AS_SYNTAX): Remove.
+	Fixes PR target/12101.
+
+2003-09-09  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* configure.in (gcc_cv_as_hidden): Disable unless using GNU ld.
+	* configure: Regenerate.
+
+2003-09-08  Mark Mitchell  <mark@codesourcery.com>
+
+	* mklibgcc.in (libcc.a): Depend on stmp-dirs.
+	(libgov.a): Likewise.
+	(libgcc_eh.a): Likewise.
+
+2003-09-07  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR target/11689
+	* config/i386/i386.c (memory_address_length): Fix computation when
+	the base is esp or ebp.
+
+2003-09-07  Mark Mitchell  <mark@codesourcery.com>
+
+	PR c++/11852
+	* varasm.c (initializer_constant_valid_p): Correct logic for
+	CONSTRUCTORs.
+
+Sun Sep  7 14:53:36 CEST 2003  Jan Hubicka  <jh@suse.cz>
+
+	* cfgcleanup.c (try_simplify_condjump): Fix again the preivous patch.
+
+2003-09-07  Christian Ehrhardt  <ehrhardt@mathematik.uni-ulm.de>
+
+	PR optimization/11662
+	Backport from mainline:
+
+	2003-07-10  Denis Chertykov  <denisc@overta.ru>
+	            Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
+
+	* combine.c (gen_binary): Handle the CLOBBER rtx and
+	don't build a binary operation with it.
+
+Sat Sep  6 23:16:35 CEST 2003  Jan Hubicka  <jh@suse.cz>
+
+	* cfgcleanup.c (try_simplify_condjump): Fix my previous patch.
+
+	PR target/12070
+	* calls.c (emit_library_call_value_1): Fix saving of BLKmode arguments.
+
+	PR opt/12082
+	* cfgcleanup.c (try_simplify_condjump): Avoid unreachable code warning.
+
+2003-09-06  Steven Bosscher  <steven@gcc.gnu.org>
+
+	PR c/9862
+	* c-decl.c (c_expand_body): Move return warning from here...
+	(finish_function): ...to here.
+
+2003-09-05  Jan Hubicka  <jh@suse.cz>
+
+	PR target/8869
+	* expr.c (convert_modes): Deal properly with integer to vector
+	constant conversion.
+
+2003-09-05  Andrew Pinski <pinskia@physics.uc.edu>
+
+	PR c/10962
+	* c-decl.c (field_decl_cmp): Add back function.
+	(finish_struct): Sort fields if number greater than 15
+	and no anymous structs/unions.
+
+2003-09-04  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/ia64/libgcc-ia64.ver: Export _Unwind_GetBSP@@GCC_3.3.2.
+	* config/ia64/unwind-ia64.c (_Unwind_GetBSP): New function.
+	* unwind.h (_Unwind_GetBSP): New prototype.
+	* libgcc-std.ver: Add empty GCC_3.3.2 version.
+	* mkmap-symver.awk: For symbol versions with no exported symbols,
+	don't put anything into version script, just change all symbol
+	versions which inherit from it to inherit from its ancestor.
+
+2003-09-02  Kazuhiro Inaoka  <inaoka.kazuhiro@renesas.com>
+
+	This is a fix for PR 10988:
+	* m32r.c (m32r_print_operand): Correct comment.
+	(m32r_expand_block_move): Correct the handling of leftover/small
+	blocks.
+	(m32r_block_small_immediate_operand): New predicate.
+	* m32r.md (movstrsi_small_internal): New pattern.
+	* m32r.h (PREDICATE_CODES): Add m32r_block_small_immediate_operand.
+	* m32r-protos.h: Add prototype for m32r_block_small_immediate_operand.	
+
+2003-08-25  Richard Henderson  <rth@redhat.com>
+
+	* config/i386.i386.c (ix86_return_in_memory): Reformat.  Return true
+	for 16-byte vector modes if sse not enabled; warn for abi change.
+	(ix86_value_regno): Only return xmm0 for 16-byte vector types.
+
+2003-08-25  Zack Weinberg  <zack@codesourcery.com>
+
+	* config.gcc (hppa*-*-hpux11*, ia64*-*-hpux*): Remove
+	commented-out logic to use DCE threads (if present), add
+	support for POSIX threads.
+	* config/ia64/hpux.h: Define CPP_SPEC to set appropriate
+	#defines for -pthread.  Add -lpthread to LIB_SPEC when
+	-pthread.  In both cases take -mt as a synonym for -pthread
+	for acc compatibility.
+	Define GTHREAD_USE_WEAK to 0.
+	* config/pa/pa-hpux11.h: Likewise for CPP_SPEC and LIB_SPEC.
+	Remove old logic for DCE threads from LIB_SPEC.
+	* config/pa/pa64-hpux.h: Define GTHREAD_USE_WEAK to 0.
+
+2003-08-25  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* combine.c (distribute_notes): Handle REG_ALWAYS_RETURN.
+
+2003-08-23  Jakub Jelinek  <jakub@redhat.com>
+
+	* c-decl.c (pushdecl): Only put decls which finish_struct will do
+	something about onto incomplete chain.
+	(finish_struct): If not removing type from incomplete
+	list, update prev.
+
+2003-08-23  Alexandre Oliva  <aoliva@redhat.com>
+
+	* cppmain.c (cb_line_change): Don't skip line changing while
+	parsing macro arguments in the top-level context.
+
+2003-08-22  Mark Mitchell  <mark@codesourcery.com>
+
+	* config/ia64/hpux.h (SUPPORTS_INIT_PRIORITY): Define to 0.
+
+	* config/ia64/ia64.c (ia64_output_mi_thunk): Support ILP32 mode.
+
+2003-08-21  Kazu Hirata  <kazu@cs.umass.edu>
+
+	PR target/11805
+	* config/h8300/h8300.md (two anonymous patterns): Remove.
+
+2003-08-20  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* stmt.c (expand_asm_operands): Avoid string concatenation.
+	* tree.c (default_flag_random_seed): Avoid ISO C definition.
+	* varasm.c (output_constant_def): Delete unused variable.
+
+2003-08-18  Matt Kraai  <kraai@alumni.cmu.edu>
+
+	PR c/11207
+	* c-typeck.c (set_init_index): Check for negative index.
+
+2003-08-14  Mark Mitchell  <mark@codesourcery.com>
+
+	* version.c (version_string): Use "prerelease" not "experimental".
+
+2003-08-11  James E Wilson  <wilson@tuliptree.org>
+
+	PR optimization/11319
+	PR target/10021
+	* alias.c (find_base_value, case REG): Return 0 not src if no base
+	found.
+
+2003-08-11  Kean Johnston  <jkj@sco.com>
+
+	* fixinc/inclhack.def (sco_math): Updated test text and select trigger
+	according to bkorb's review.
+	* fixinc/inclhack.def (sco_regset): Ditto.
+	* fixinc/inclhack.def (AAB_svr4_replace_byteorder): Remove all mach
+	lines so that this file is unconditionally replaced.
+	* fixinc/inclhack.def (sco_string): Use ansi/string.h as the first file
+	to check so that the Ultrix string.h check doesnt overwrite the test
+	case with its replacement text.
+	* fixinc/fixincl.x: Regenerated
+	* fixinc/tests/base/math.h: Updated sco_math result text
+	* fixinc/tests/base/ansi/string.h: New file.
+	* fixinc/tests/base/sys/regset.h: Compacted result text to fewer lines.
+
+2003-08-11  Dale Johannesen  <dalej@apple.com>
+	* config/rs6000/rs6000.md (ctrsi, ctrdi):  Reenable handling of
+	decrement-and-branch farther away than 32 bits.
+
+2003-08-10  Zack Weinberg  <zack@codesourcery.com>
+
+	Backport the following changes from mainline:
+
+    2003-05-08  David Mosberger <davidm@hpl.hp.com>
+
+	* unwind-libunwind.c (_Unwind_FindEnclosingFunction): New.
+
+    2003-04-03  Richard Henderson  <rth@redhat.com>
+
+	* unwind-libunwind.c (_Unwind_GetCFA): New.
+
+    2003-03-27  David Mosberger <davidm@hpl.hp.com>
+
+	* unwind-libunwind.c (uw_frame_state_for): Adjust for libunwind
+	v0.9 API change: replace read of UNW_REG_HANDLER with
+	unw_get_proc_info().
+	(_Unwind_GetLanguageSpecificData): Replace read of UNW_REG_LSDA
+	with unw_get_proc_info().
+	(_Unwind_GetRegionStart): Replace UNW_REG_PROC_START with
+	unw_get_proc_info().
+
+    2003-03-13  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* unwind-libunwind.c: Replace "GNU CC" with "GCC".
+
+    2002-10-02  David Mosberger-Tang  <David.Mosberger@acm.org>
+
+	* config/t-libunwind: Mention unwind-sjlj.c.
+	* unwind-libunwind.c: Change #ifdef __USING_LIBUNWIND_EXCEPTIONS__
+	to #ifndef __USING_SJLJ_EXCEPTIONS__.
+
+	* configure.in: Move sjlj-exceptions and --enable-libunwind-exceptions
+	before inclusion of config.gcc, but after configuring the compiler etc.
+	Determine default value for --enable-libunwind-exceptions based on
+	whether the host has a libunwind library (not guaranteed to be correct,
+	but it's a reasonable first guess and can always be overridden with an
+	explicit --enable/disable-libunwind-exceptions.
+	* config.gcc: For target ia64*-*-linux*, mention t-libunwind as a
+	tmake_file when $use_libunwind_exceptions is enabled.
+	* Makefile.in: Update comment: LIB2ADDEH is updated not just by
+	ia64 (e.g., config/t-linux also updates it).
+	* gcc.c (init_spec) [USE_LIBUNWIND_EXCEPTIONS]: Mention -lunwind
+	along with the shared version of libgcc since the latter requires
+	the former.
+
+	* unwind-libunwind.c: New file.
+	* config/t-libunwind: Ditto.
+
+2003-08-10  Richard Henderson  <rth@redhat.com>
+
+	PR target/11693
+	* config/ia64/ia64.c (ia64_emit_nops): Skip L slots when
+	padding before inline assembly.
+
+2003-08-10  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	PR c++/11712
+	* pa-hpux.h, pa-hpux10.h, pa-hpux11.h (TARGET_OS_CPP_BUILTINS): Define
+	__STDC_EXT__ when using C++ dialect.
+
+2003-08-08  Kean Johnston  <jkj@sco.com>
+
+	PR target/9877
+	PR target/8336
+	* config.gcc (sco3.2v5*): Use elfos.h and dbxelf.h in tm_file;
+	Eliminate need for t-sco5gas target fragment.
+	No longer build crt{begin,end}S.o, that were used for COFF support.
+	* tlink.c (recompile_files): Add missing = in putenv() calls.
+	* unwind-dw2.c (_Unwind_GetCFA): Correct return cast.
+	* config/i386/sco5.h: Major overhaul to remove all COFF support
+	* config/i386/t-sco5: Multilib for PIC support
+	* config/i386/t-sco5gas: Remove
+	* config/i386/i386.c: Check value as well as presence of
+	SUPPORTS_ONE_ONLY
+	* doc/install.texi: Update for modern SCO instructions
+	* fixinc/check.tpl: Allow user to specify diff program for make check
+	* fixinc/inclhack.def: Fix several SCO header files, namely string.h,
+	math.h, sys/byteorder.h and sys/regset.h.
+	* fixinc/fixincl.x: Regenerate
+	* fixinc/tests/base/math.h: Update
+	* fixinc/tests/base/sys/byteorder.h: Update
+	* fixinc/tests/base/string.h: Added
+	* fixinc/tests/base/sys/regset.h: Added
+	* testsuite/gcc.dg/nest.c: Allow failure on SCO (-pg not supported)
+
+2003-08-08  Roger Sayle  <roger@eyesopen.com>
+
+	PR c/11370
+	* calls.c (emit_call_1): Don't bother popping the arguments off of
+	the stack after a noreturn function call;  The adjustment is dead.
+	(expand_call): Likewise.
+
+2003-08-08  SUGIOKA Toshinobu  <sugioka@itonet.co.jp>
+
+	* config.gcc: Do not override sh/t-linux with sh/t-le.
+
+2003-08-08  Kaz Kojima  <kkojima@gcc.gnu.org>
+
+	* config/sh/linux.h (SUBTARGET_LINK_SPEC): Don't set rpath.
+	(LIB_SPEC): Set -lpthread always when -pthread set.  Set -lieee
+	when -mieee-fp set and -shared not set.
+
+2003-08-08  Richard Henderson  <rth@redhat.com>
+
+	PR target/11535
+	* config/ia64/ia64.c (ia64_initial_elimination_offset): Remove
+	RETURN_ADDRESS_POINTER_REGNUM.
+	(ia64_expand_prologue): Don't frob it.
+	(ia64_output_function_epilogue): Likewise.
+	(ia64_return_addr_rtx): New.
+	(ia64_split_return_addr_rtx): New.
+	* config/ia64/ia64-protos.h: Update.
+	* config/ia64/ia64.h (FIRST_PSEUDO_REGISTER): Decrement.
+	(RETURN_ADDRESS_POINTER_REGNUM): Remove.
+	(GENERAL_REGNO_P): Don't check it.
+	(AR_*_REGNUM): Renumber.
+	(FIXED_REGISTERS): Remove RETURN_ADDRESS_POINTER_REGNUM.
+	(CALL_USED_REGISTERS, CALL_REALLY_USED_REGISTERS): Likewise.
+	(REG_ALLOC_ORDER, REG_CLASS_CONTENTS): Likewise.
+	(ELIMINABLE_REGS, REGISTER_NAMES): Likewise.
+	(RETURN_ADDR_RTX): Use ia64_return_addr_rtx.
+	* config/ia64/ia64.md (UNSPEC_RET_ADDR): New.
+	(movdi_ret_addr): New.
+
+2003-08-03  Geoffrey Keating  <geoffk@apple.com>
+
+	PR 11709
+	* varasm.c (output_constant_def_contents): Use
+	ASM_DECLARE_CONSTANT_NAME if defined.
+	* doc/tm.texi (Label Output): Document ASM_DECLARE_CONSTANT_NAME.
+	* config/darwin.h (ASM_DECLARE_OBJECT_NAME): Ensure zero-sized
+	objects get at least one byte to prevent assembler problems.
+	(ASM_DECLARE_CONSTANT_NAME): New.
+
+2003-08-07  Mark Mitchell  <mark@codesourcery.com>
+
+	* version.c (version_string): Reset to prerelease.
+	* doc/include/gcc-common.texi: Update version.
+
 2003-08-04  Release Manager
 
 	* GCC 3.3.1 Released.
@@ -8,23 +825,23 @@
 
 2003-08-03  Neil Booth  <neil@daikokuya.co.uk>
 
-        PR preprocessor/11534
-        * cppexp.c (parse_defined): Warn only if -pedantic.
+	PR preprocessor/11534
+	* cppexp.c (parse_defined): Warn only if -pedantic.
 
 2003-08-03  Mark Mitchell  <mark@codesourcery.com>
 
 	* Makefile.in (ORDINARY_FLAGS_TO_PASS): Pass AR.
-	
+
 	* Makefile.in (STAGE2_FLAGS_TO_PASS): Pass AR_FOR_TARGET and
 	RANLIB_FOR_TARGET.
 	(stage1_build): Likewise.
 
 2003-08-03  Jan Hubicka  <jh@suse.cz>
 
-        PR 10510
-        * config/pa/pa.h (MAYBE_FP_REG_CLASS_P): New.
-        (SECONDARY_MEMORY_NEEDED): Use it.
-	
+	PR 10510
+	* config/pa/pa.h (MAYBE_FP_REG_CLASS_P): New.
+	(SECONDARY_MEMORY_NEEDED): Use it.
+
 2003-08-01  Geoffrey Keating  <geoffk@apple.com>
 
 	PR 11709 (partial fix)
@@ -40,18 +857,18 @@
 	PR target/10681
 
 	2003-06-27  J"orn Rennecke <joern.rennecke@superh.com>
-        * flow.c (propagate_one_insn): Use proper test for a register
-        being part of the return value.
+	* flow.c (propagate_one_insn): Use proper test for a register
+	being part of the return value.
 
 	2003-06-26  Richard Henderson  <rth@redhat.com>
-        * flow.c (propagate_one_insn): Preserve live-at-end registers
-        across tail calls.
+	* flow.c (propagate_one_insn): Preserve live-at-end registers
+	across tail calls.
 
 	2003-06-26  Richard Henderson  <rth@redhat.com>
-        * config/ia64/ia64.c (ia64_expand_call): Don't add ar.pfs for sibcalls.
-        (ia64_split_call): Only load descriptor for GP register inputs.
-        (ia64_expand_epilogue): Check current_frame_info.mask not
-        current_function_is_leaf to restore ar.pfs.
+	* config/ia64/ia64.c (ia64_expand_call): Don't add ar.pfs for sibcalls.
+	(ia64_split_call): Only load descriptor for GP register inputs.
+	(ia64_expand_epilogue): Check current_frame_info.mask not
+	current_function_is_leaf to restore ar.pfs.
 
 2003-07-26  Gerald Pfeifer  <pfeifer@dbai.tuwien.ac.at>
 
@@ -62,15 +879,15 @@
 	Backport the folling patch.
 
 	2003-04-01  Aldy Hernandez  <aldyh@redhat.com>
-         
-        PR/8878
-        * expr.c (expand_expr): Handle VECTOR_CST.
-        (const_vector_from_tree): New.
-         
-        * varasm.c (output_constant): Handle VECTOR_CST.
-         
-        * c-typeck.c (digest_init): Build a vector constant from a
-        VECTOR_TYPE.
+
+	PR/8878
+	* expr.c (expand_expr): Handle VECTOR_CST.
+	(const_vector_from_tree): New.
+
+	* varasm.c (output_constant): Handle VECTOR_CST.
+
+	* c-typeck.c (digest_init): Build a vector constant from a
+	VECTOR_TYPE.
 
 2003-07-23  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
 
@@ -81,11 +898,11 @@
 
 	PR optimization/10679
 	* tree-inline.c (inlinable_function_p): Honor MIN_INLINE_INSNS.
-	
+
 2003-07-22  Bob Wilson  <bob.wilson@acm.org>
-	
+
 	* unwind-c.c (PERSONALITY_FUNCTION): Delete duplicate define.
-	
+
 2003-07-23  Dave Fluri  <dave.fluri@onlink.net>
 
 	* doc/extend.texi: Fixes to spelling, grammar, and diction.
@@ -97,14 +914,10 @@
 
 2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
 
-        PR optimization/11536
+	PR optimization/11536
 	* unroll.c (loop_iterations): Do not replace a register holding
 	the final value by its equivalent before the loop if it is not
 	invariant.
-
-2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
-
-	* gcc.c-torture/execute/loop-16.c: New test.
 
 2003-07-21  Ben Elliston  <bje@wasabisystems.com>
 
@@ -152,7 +965,7 @@
 	if the predicate doesn't satisfy.
 	(gen_cond_trap): Allow prepare_operand to fail.
 	Pass correct opnum argument to prepare_operand.
-	
+
 2003-07-18  Eric Botcazou  <ebotcazou@libertysurf.fr>
 
 	PR optimization/11083
@@ -168,7 +981,7 @@
 2003-07-17  Nathanael Nerode  <neroden@gcc.gnu.org>
 
 	PR bootstrap/11043
-	* config/arc/t-arc: Replace bogus references to "x-crtinit.o", 
+	* config/arc/t-arc: Replace bogus references to "x-crtinit.o",
 	"x-crtfini.o" with "crtinit.o", "crtfini.o".
 
 2003-07-17  Eric Botcazou  <ebotcazou@libertysurf.fr>
@@ -183,7 +996,7 @@
 	* doc/invoke.texi (SPARC Options): Document "-mimpure-text".
 
 2003-07-17  Eric Botcazou <ebotcazou@libertysurf.fr>
-            Phil Edwards <phil@jaj.com>
+	    Phil Edwards <phil@jaj.com>
 
 	* doc/install.texi (*-*-solaris2*): Document the step-by-step
 	procedure to bootstrap and install.
@@ -193,9 +1006,9 @@
 2003-07-16  Richard Henderson  <rth@redhat.com>
 
 	PR target/10907
-        * config/ia64/ia64.c (ia64_epilogue_uses): GP is live at end
-        even with !TARGET_CONST_GP.
-        (ia64_function_ok_for_sibcall): Reject non-local functions.
+	* config/ia64/ia64.c (ia64_epilogue_uses): GP is live at end
+	even with !TARGET_CONST_GP.
+	(ia64_function_ok_for_sibcall): Reject non-local functions.
 
 2003-07-15  Geoffrey Keating  <geoffk@apple.com>
 
@@ -297,7 +1110,7 @@
 	* c-decl.c (duplicate_decls): Re-invoke make_decl_rtl if
 	the old decl had instantiated DECL_RTL.
 
-	2003-05-21  Danny Smith  <dannysmith@users.sourceforge.net>
+	2003-05-21  Danny Smith  <dannysmitx@users.sourceforge.net>
 
 	PR c++/9738
 	* config/i386/winnt.c (i386_pe_encode_section_info): Enable
@@ -329,7 +1142,7 @@
 	* loop.c (loop_iv_add_mult_emit_before): Call loop_regs_update before
 	loop_insn_emit_before.
 	(loop_iv_add_mult_sink, loop_iv_add_mult_hoist): Likewise.
-	
+
 2003-07-10  Dara Hazeghi  <dhazeghi@yahoo.com>
 
 	PR bootstrap/10758
@@ -385,8 +1198,8 @@
 
 2003-07-07  Dale Johannesen <dalej@apple.com>
 
-        PR 10900
-        * config/rs6000/darwin-tramp.asm:  Fix trampolines.
+	PR 10900
+	* config/rs6000/darwin-tramp.asm:  Fix trampolines.
 
 2003-07-07 Andrew Pinski <pinskia@physics.uc.edu>
 
@@ -400,7 +1213,7 @@
 	(-falign-jumps): Likewise.
 
 2003-07-07  Richard Kenner  <kenner@vlsi1.ultra.nyu.edu>
-            Eric Botcazou  <ebotcazou@libertysurf.fr>
+	    Eric Botcazou  <ebotcazou@libertysurf.fr>
 
 	PR optimization/11198
 	* alias.c (objects_must_conflict_p): Return 1 if the types have
@@ -1567,7 +2380,7 @@ Sun Apr 20 18:23:18 CEST 2003  Richard Henderson  <rth@redhat.com>
 
 2003-04-21  Mark Mitchell  <mark@codesourcery.com>
 
-	* config/i386/winnt.c (i386_pe_mark_dllimport): Make the new RTL
+	* config/i386/winnt.c (i386_pe_}ark_dllimport): Make the new RTL
 	have the same form as the old RTL.
 
 2003-04-18  Mark Mitchell  <mark@codesourcery.com>
@@ -4172,7 +4985,7 @@ Mon Apr  7 15:56:30 CEST 2003  Jan Hubicka  <jh@suse.cz>
 	* df.c (df_uses_record): Handle CC0.
 
 2003-01-25  Jan Hubicka  <jh@suse.cz>
-            Eric Botcazou <ebotcazou@libertysurf.fr>
+	    Eric Botcazou <ebotcazou@libertysurf.fr>
 
 	PR opt/8492
 	* gcse.c (one_cprop_pass): Delete unreachable blocks.
@@ -4445,7 +5258,7 @@ Mon Apr  7 15:56:30 CEST 2003  Jan Hubicka  <jh@suse.cz>
 
 2003-01-16  Stephane Carrez  <stcarrez@nerim.fr>
 
-	* config/m68hc11/m68hc11.c (expand_prologue): Use push/pop to
+	* config/m68hs11/m68hc11.c (expand_prologue): Use push/pop to
 	allocate 4-bytes of locals on 68HC11.
 	(expand_epilogue): Likewise.
 	(m68hc11_memory_move_cost): Increase cost of HI/QI soft registers.
@@ -16996,3 +17809,4 @@ cp:
 	* mips.h (FUNCTION_ARG_REGNO_P): Fix parentheses.
 
 See ChangeLog.7 for earlier changes.
+

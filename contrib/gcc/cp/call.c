@@ -756,7 +756,7 @@ standard_conversion (to, from, expr)
   if ((TYPE_PTRFN_P (to) || TYPE_PTRMEMFUNC_P (to))
       && expr && type_unknown_p (expr))
     {
-      expr = instantiate_type (to, expr, tf_none);
+      expr = instantiate_type (to, expr, tf_conv);
       if (expr == error_mark_node)
 	return NULL_TREE;
       from = TREE_TYPE (expr);
@@ -857,16 +857,25 @@ standard_conversion (to, from, expr)
 	    }
 	}
       else if (IS_AGGR_TYPE (TREE_TYPE (from))
-	       && IS_AGGR_TYPE (TREE_TYPE (to)))
+	       && IS_AGGR_TYPE (TREE_TYPE (to))
+	       /* [conv.ptr]
+		  
+	          An rvalue of type "pointer to cv D," where D is a
+		  class type, can be converted to an rvalue of type
+		  "pointer to cv B," where B is a base class (clause
+		  _class.derived_) of D.  If B is an inaccessible
+		  (clause _class.access_) or ambiguous
+		  (_class.member.lookup_) base class of D, a program
+		  that necessitates this conversion is ill-formed.  */
+	       /* Therefore, we use DERIVED_FROM_P, and not
+		  ACESSIBLY_UNIQUELY_DERIVED_FROM_P, in this test.  */
+	       && DERIVED_FROM_P (TREE_TYPE (to), TREE_TYPE (from)))
 	{
-	  if (DERIVED_FROM_P (TREE_TYPE (to), TREE_TYPE (from)))
-	    {
-	      from = 
-		cp_build_qualified_type (TREE_TYPE (to),
-					 cp_type_quals (TREE_TYPE (from)));
-	      from = build_pointer_type (from);
-	      conv = build_conv (PTR_CONV, from, conv);
-	    }
+	  from = 
+	    cp_build_qualified_type (TREE_TYPE (to),
+				     cp_type_quals (TREE_TYPE (from)));
+	  from = build_pointer_type (from);
+	  conv = build_conv (PTR_CONV, from, conv);
 	}
 
       if (same_type_p (from, to))
@@ -5993,7 +6002,8 @@ perform_implicit_conversion (type, expr)
 
 /* Convert EXPR to TYPE (as a direct-initialization) if that is
    permitted.  If the conversion is valid, the converted expression is
-   returned.  Otherwise, NULL_TREE is returned.  */
+   returned.  Otherwise, NULL_TREE is returned, except in the case
+   that TYPE is a class type; in that case, an error is issued.  */
 
 tree
 perform_direct_initialization_if_possible (tree type, tree expr)
@@ -6002,6 +6012,22 @@ perform_direct_initialization_if_possible (tree type, tree expr)
   
   if (type == error_mark_node || error_operand_p (expr))
     return error_mark_node;
+  /* [dcl.init]
+
+     If the destination type is a (possibly cv-qualified) class type:
+
+     -- If the initialization is direct-initialization ...,
+     constructors are considered. ... If no constructor applies, or
+     the overload resolution is ambiguous, the initialization is
+     ill-formed.  */
+  if (CLASS_TYPE_P (type))
+    {
+      expr = build_special_member_call (NULL_TREE, complete_ctor_identifier,
+					build_tree_list (NULL_TREE, expr),
+					TYPE_BINFO (type),
+					LOOKUP_NORMAL);
+      return build_cplus_new (type, expr);
+    }
   conv = implicit_conversion (type, TREE_TYPE (expr), expr,
 			      LOOKUP_NORMAL);
   if (!conv || ICS_BAD_FLAG (conv))
@@ -6048,18 +6074,23 @@ make_temporary_var_for_ref_to_temp (tree decl, tree type)
   return var;
 }
 
-/* Convert EXPR to the indicated reference TYPE, in a way suitable for
-   initializing a variable of that TYPE.   If DECL is non-NULL, it is
-   the VAR_DECL being initialized with the EXPR.  (In that case, the
-   type of DECL will be TYPE.)
+  /* Convert EXPR to the indicated reference TYPE, in a way suitable
+     for initializing a variable of that TYPE.  If DECL is non-NULL,
+     it is the VAR_DECL being initialized with the EXPR.  (In that
+     case, the type of DECL will be TYPE.)  If DECL is non-NULL, then
+     CLEANUP must also be non-NULL, and with *CLEANUP initialized to
+     NULL.  Upon return, if *CLEANUP is no longer NULL, it will be a
+     CLEANUP_STMT that should be inserted after the returned
+     expression is used to initialize DECL.
 
-   Return the converted expression.  */
+     Return the converted expression.  */
 
 tree
-initialize_reference (type, expr, decl)
+initialize_reference (type, expr, decl, cleanup)
      tree type;
      tree expr;
      tree decl;
+     tree *cleanup;
 {
   tree conv;
 
@@ -6069,7 +6100,15 @@ initialize_reference (type, expr, decl)
   conv = reference_binding (type, TREE_TYPE (expr), expr, LOOKUP_NORMAL);
   if (!conv || ICS_BAD_FLAG (conv))
     {
-      error ("could not convert `%E' to `%T'", expr, type);
+      if (!(TYPE_QUALS (TREE_TYPE (type)) & TYPE_QUAL_CONST)
+          && !real_lvalue_p (expr))
+        error ("invalid initialization of non-const reference of "
+               "type '%T' from a temporary of type '%T'",
+               type, TREE_TYPE (expr));
+      else
+        error ("invalid initialization of reference of type "
+	       "'%T' from expression of type '%T'", type, 
+	       TREE_TYPE (expr));
       return error_mark_node;
     }
 
@@ -6135,14 +6174,33 @@ initialize_reference (type, expr, decl)
 	  type = TREE_TYPE (expr);
 	  var = make_temporary_var_for_ref_to_temp (decl, type);
 	  layout_decl (var, 0);
+	  /* Create the INIT_EXPR that will initialize the temporary
+	     variable.  */
+	  init = build (INIT_EXPR, type, var, expr);
 	  if (at_function_scope_p ())
 	    {
-	      tree cleanup;
-
 	      add_decl_stmt (var);
-	      cleanup = cxx_maybe_build_cleanup (var);
-	      if (cleanup)
-		finish_decl_cleanup (var, cleanup);
+	      *cleanup = cxx_maybe_build_cleanup (var);
+	      if (*cleanup)
+		/* We must be careful to destroy the temporary only
+		   after its initialization has taken place.  If the
+		   initialization throws an exception, then the
+		   destructor should not be run.  We cannot simply
+		   transform INIT into something like:
+	     
+		     (INIT, ({ CLEANUP_STMT; }))
+
+		   because emit_local_var always treats the
+		   initializer as a full-expression.  Thus, the
+		   destructor would run too early; it would run at the
+		   end of initializing the reference variable, rather
+		   than at the end of the block enclosing the
+		   reference variable.
+
+		   The solution is to pass back a CLEANUP_STMT which
+		   the caller is responsible for attaching to the
+		   statement tree.  */
+		*cleanup = build_stmt (CLEANUP_STMT, var, *cleanup);
 	    }
 	  else
 	    {
@@ -6151,7 +6209,6 @@ initialize_reference (type, expr, decl)
 		static_aggregates = tree_cons (NULL_TREE, var,
 					       static_aggregates);
 	    }
-	  init = build (INIT_EXPR, type, var, expr);
 	  /* Use its address to initialize the reference variable.  */
 	  expr = build_address (var);
 	  expr = build (COMPOUND_EXPR, TREE_TYPE (expr), init, expr);
