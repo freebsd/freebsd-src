@@ -287,8 +287,8 @@ bi_load(char *args, int *howtop, int *bootdevp, vm_offset_t *bip)
         bi.bi_bios_geom[i] = bd_getbigeom(i);
     bi.bi_size = sizeof(bi);
     bi.bi_memsizes_valid = 1;
-    bi.bi_basemem = getbasemem();
-    bi.bi_extmem = getextmem();
+    bi.bi_basemem = bios_basemem / 1024;
+    bi.bi_extmem = bios_extmem / 1024;
 
     /* find the last module in the chain */
     addr = 0;
