@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_cd.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -2547,6 +2547,12 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct cd_softc *)periph->softc;
 
+	/*
+	 * XXX
+	 * Until we have a better way of doing pack validation,
+	 * don't treat UAs as errors.
+	 */
+	sense_flags |= SF_RETRY_UA;
 	return (cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
 }

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.3 1998/09/18 22:33:59 ken Exp $
+ *      $Id: scsi_da.c,v 1.4 1998/09/19 04:59:35 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1281,6 +1281,12 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct da_softc *)periph->softc;
 
+	/*
+	 * XXX
+	 * Until we have a better way of doing pack validation,
+	 * don't treat UAs as errors.
+	 */
+	sense_flags |= SF_RETRY_UA;
 	return(cam_periph_error(ccb, cam_flags, sense_flags,
 				&softc->saved_ccb));
 }
