@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.222 1999/07/08 17:58:55 mckusick Exp $
+ * $Id: vfs_bio.c,v 1.223 1999/07/09 16:41:19 peter Exp $
  */
 
 /*
@@ -83,6 +83,7 @@ static void buf_daemon __P((void));
  */
 vm_page_t bogus_page;
 int runningbufspace;
+int vmiodirenable = FALSE;
 static vm_offset_t bogus_offset;
 
 static int bufspace, maxbufspace, vmiospace, 
@@ -136,6 +137,8 @@ SYSCTL_INT(_vfs, OID_AUTO, getnewbufcalls, CTLFLAG_RW,
 	&getnewbufcalls, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, getnewbufrestarts, CTLFLAG_RW,
 	&getnewbufrestarts, 0, "");
+SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW,
+	&vmiodirenable, 0, "");
 
 
 static int bufhashmask;
