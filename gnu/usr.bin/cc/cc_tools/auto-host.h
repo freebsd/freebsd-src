@@ -128,9 +128,6 @@
 /* Define to the name of the distribution.  */
 #define PACKAGE "gcc"
 
-/* Define to the version of the distribution.  */
-#define VERSION "2.95.2"
-
 /* Define if using alloca.c.  */
 /* #undef C_ALLOCA */
 
