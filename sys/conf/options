@@ -1,4 +1,4 @@
-#	$Id: options,v 1.94 1998/08/31 18:37:19 sos Exp $
+#	$Id: options,v 1.95 1998/09/11 18:50:15 rvb Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -41,7 +41,6 @@ GDB_REMOTE_CHAT	opt_ddb.h
 DB_KLD_SYMBOLS	opt_ddb.h
 DB_ELF_SYMBOLS	opt_ddb.h
 DEVFS
-SLICE		opt_devfs.h
 FAILSAFE
 HW_WDOG
 KTRACE

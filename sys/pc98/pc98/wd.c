@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.60 1998/07/30 15:16:05 bde Exp $
+ *	$Id: wd.c,v 1.61 1998/08/23 20:16:34 phk Exp $
  */
 
 /* TODO:
@@ -80,14 +80,7 @@
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #ifdef DEVFS
-#ifdef SLICE
-#include <sys/device.h>
-#include <sys/fcntl.h>
-#include <sys/sliceio.h>
-#include <dev/slice/slice.h>
-#else
 #include <sys/devfsext.h>
-#endif /*SLICE*/
 #endif /*DEVFS*/
 #include <machine/bootinfo.h>
 #include <machine/clock.h>
@@ -196,15 +189,8 @@ struct disk {
 	u_int32_t	dk_port;	/* i/o port base */
 	u_int32_t	dk_altport;	/* altstatus port base */
 #ifdef	DEVFS
-#ifdef	SLICE
-	struct slice	*slice;
-	int	minor;
-	struct slicelimits limit;
-	struct intr_config_hook ich;
-#else
 	void	*dk_bdev;	/* devfs token for whole disk */
 	void	*dk_cdev;	/* devfs token for raw whole disk */
-#endif	/* SLICE */
 #endif	/* DEVFS */
 	u_long	cfg_flags;	/* configured characteristics */
 	short	dk_flags;	/* drive characteristics found */
@@ -274,9 +260,7 @@ static void wderror(struct buf *bp, struct disk *du, char *mesg);
 static void wdflushirq(struct disk *du, int old_ipl);
 static int wdreset(struct disk *du);
 static void wdsleep(int ctrlr, char *wmesg);
-#ifndef	SLICE
 static void wdstrategy1(struct buf *bp);
-#endif
 static timeout_t wdtimeout;
 static int wdunwedge(struct disk *du);
 static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
@@ -285,34 +269,7 @@ struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
 
-#ifdef SLICE
 
-static sl_h_IO_req_t	wdsIOreq;	/* IO req downward (to device) */
-static sl_h_ioctl_t	wdsioctl;	/* ioctl req downward (to device) */
-static sl_h_open_t	wdsopen;	/* downwards travelling open */
-/*static sl_h_close_t	wdsclose; */	/* downwards travelling close */
-static sl_h_dump_t	wddump;		/* core dump req downward */
-static void	wds_init(void*);
-
-static struct slice_handler slicetype = {
-	"IDE",
-	0,
-	NULL,
-	0,
-	NULL,	/* constructor */
-	&wdsIOreq,
-	&wdsioctl,
-	&wdsopen,
-	/*&wdsclose*/NULL,
-	NULL,	/* revoke */
-	NULL,	/* claim */
-	NULL,	/* verify */
-	NULL,	/* upconfig */
-	&wddump
-};
-#endif
-
-#ifndef	SLICE
 
 static	d_open_t	wdopen;
 static	d_read_t	wdread;
@@ -334,7 +291,6 @@ static struct cdevsw wd_cdevsw = {
 	  NULL,		-1,		wddump,		wdsize,
 	  D_DISK,	0,		-1 };
 
-#endif /* !SLICE */
 
 #ifdef CMD640
 static int      atapictrlr;
@@ -521,7 +477,7 @@ nodevice:
 static int
 wdattach(struct isa_device *dvp)
 {
-#if defined(DEVFS) && ! defined(SLICE)
+#if defined(DEVFS)
 	int	mynor;
 #endif
 	u_int	unit, lunit;
@@ -611,12 +567,6 @@ wdattach(struct isa_device *dvp)
 			if (du->cfg_flags & WDOPT_SLEEPHACK)
 				printf(", sleep-hack");
 			printf("\n");
-#ifdef SLICE
-/*
- * Here we somehow schedule the geometry HACK fro later and print 
- * something meaningful.
- */
-#endif
 			if (du->dk_params.wdp_heads == 0)
 				printf("wd%d: size unknown, using %s values\n",
 				       lunit, du->dk_dd.d_secperunit > 17
@@ -651,35 +601,6 @@ wdattach(struct isa_device *dvp)
 			wdtimeout(du);
 
 #ifdef DEVFS
-#ifdef SLICE
-			{
-				char namebuf[64];
-				sprintf(namebuf,"wd%d",lunit);
-				du->minor = dkmakeminor(lunit,
-					WHOLE_DISK_SLICE, RAW_PART);
-				du->limit.blksize = du->dk_dd.d_secsize;
-				du->limit.slicesize =
-				  (u_int64_t)du->dk_dd.d_secsize *
-				             du->dk_dd.d_secperunit;
-				/*
-				 * Fill in the 3 geometry entries
-				 * to tell the mbr code
-				 * we already know it, so that it
-				 * doesn't try deduce it.
-				 */
-				sl_make_slice(&slicetype,
-					du,
-					&du->limit,
-		 			&du->slice,
-					namebuf);
-				/* Allow full probing */
-				du->slice->probeinfo.typespecific = NULL;
-				du->slice->probeinfo.type = NULL;
-			}
-			du->ich.ich_func = wds_init;
-			du->ich.ich_arg = du;
-			config_intrhook_establish(&du->ich);
-#else
 			mynor = dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART);
 			du->dk_bdev = devfs_add_devswf(&wd_cdevsw, mynor,
 						       DV_BLK, UID_ROOT,
@@ -689,7 +610,6 @@ wdattach(struct isa_device *dvp)
 						       DV_CHR, UID_ROOT,
 						       GID_OPERATOR, 0640,
 						       "rwd%d", lunit);
-#endif
 #endif
 
 			if (dk_ndrive < DK_NDRIVE) {
@@ -755,50 +675,7 @@ next: ;
 	return (1);
 }
 
-#ifdef SLICE
-extern struct proc *curproc;
-static void
-wds_init(void *arg)
-{
-	struct disk *du = arg;
-	sh_p	tp;
-	int err = 0;
-	struct ide_geom geom;
 
-	if ((err = wdsopen(du, FREAD, 0, curproc))) {
-		printf("wd open failed with %d", err);
-		return;
-	}
-	/*
- 	 * If we still don't have geometry,
-	 * Then call the IDE geometry HACK functions.
-	 */
-#if 0
-	if ( ?? ) { /* how do we know? */
-		bzero (&geom, sizeof(geom));
-		if (mbr_geom_hack(du->slice)) && (dkl_geom_hack(du->slice)) {
-			printf("We really have no geometry\n");
-		} else {
-	       		du->dk_dd.d_secperunit = (geom.cyls *
-				geom.trackpercyl * geom.secpertrack);
-	       		du->dk_dd.d_ncylinders = geom.cyls;
-	       		du->dk_dd.d_ntracks = geom.trackpercyl;
-	       		du->dk_dd.d_nsectors = geom.secpertrack;
-		}
-	}
-#endif
-	slice_start_probe(du->slice);
-	config_intrhook_disestablish(&du->ich);
-	DELAY(2000000); /* XXX */
-#if 0
-	wdsclose(du, 0, 0, curproc);
-#else
-	wdsopen(du, 0, 0, curproc); /* open to 0 flags == close */
-#endif
-}
-#endif
-
-#ifndef	SLICE
 
 static int
 wdread(dev_t dev, struct uio *uio, int ioflag)
@@ -928,7 +805,6 @@ wdstrategy1(struct buf *bp)
 	 */
 	wdstrategy(bp);
 }
-#endif /* !SLICE */
 
 /*
  * Routine to queue a command to the controller.  The unit's
@@ -1024,13 +900,8 @@ wdstart(int ctrlr)
 	}
 
 	/* obtain controller and drive information */
-#ifdef	SLICE
-	du = bp->b_driver1;
-	lunit = du->dk_lunit;
-#else	/* !SLICE */
 	lunit = dkunit(bp->b_dev);
 	du = wddrives[lunit];
-#endif	/* !SLICE */
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -1081,7 +952,6 @@ wdstart(int ctrlr)
 			du->dk_flags |= DKFL_SINGLE;
 	}
 
-#ifndef	SLICE
 	if (du->dk_flags & DKFL_SINGLE
 	    && dsgetbad(bp->b_dev, du->dk_slices) != NULL) {
 		/* XXX */
@@ -1091,12 +961,6 @@ wdstart(int ctrlr)
 		blknum = transbad144(dsgetbad(bp->b_dev, du->dk_slices),
 				     blknum - ds_offset) + ds_offset;
 	}
-#else
-	if (du->dk_flags & DKFL_SINGLE && du->slice->handler_up) {
-		(void) (*du->slice->handler_up->upconf)(du->slice,
-			SLCIOCTRANSBAD, (caddr_t)&blknum, 0, 0);
-	}
-#endif
 
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
 
@@ -1354,11 +1218,7 @@ wdintr(int unit)
 	}
 #endif
 	bp = bufq_first(&wdtab[unit].controller_queue);
-#ifdef	SLICE
-	du = bp->b_driver1;
-#else	/* !SLICE */
 	du = wddrives[dkunit(bp->b_dev)];
-#endif	/* !SLICE */
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -1568,7 +1428,6 @@ done: ;
 		wdstart(unit);
 }
 
-#ifndef	SLICE
 /*
  * Initialize a drive.
  */
@@ -1749,7 +1608,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	return (0);
 #endif
 }
-#endif /* !SLICE */
 
 /*
  * Implement operations other than read/write.
@@ -1763,11 +1621,7 @@ wdcontrol(register struct buf *bp)
 	register struct disk *du;
 	int	ctrlr;
 
-#ifdef	SLICE
-	du = bp->b_driver1;
-#else	/* !SLICE */
 	du = wddrives[dkunit(bp->b_dev)];
-#endif	/* !SLICE */
 #ifdef CMD640
 	ctrlr = du->dk_ctrlr_cmd640;
 #else
@@ -2348,7 +2202,6 @@ failed:
 	return (0);
 }
 
-#ifndef SLICE
 int
 wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
@@ -2370,12 +2223,10 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	du = wddrives[lunit];
 	wdsleep(du->dk_ctrlr, "wdioct");
-#ifndef	SLICE
 	error = dsioctl("wd", dev, cmd, addr, flags, &du->dk_slices,
 			wdstrategy1, (ds_setgeom_t *)NULL);
 	if (error != ENOIOCTL)
 		return (error);
-#endif	/* SLICE */
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
@@ -2444,15 +2295,9 @@ wdsize(dev_t dev)
 #endif
 	return (dssize(dev, &du->dk_slices, wdopen, wdclose));
 }
-#endif	/* !SLICE */
  
-#ifndef SLICE
 int
 wddump(dev_t dev)
-#else
-static int
-wddump(void *private, int32_t start, int32_t num)
-#endif /* SLICE */
 {
 #ifdef PC98
 	/* do nothing */
@@ -2460,7 +2305,6 @@ wddump(void *private, int32_t start, int32_t num)
 	return(0);
 #else
 	register struct disk *du;
-#ifndef SLICE
 	struct disklabel *lp;
 	long	num;		/* number of sectors to write */
 	int	lunit, part;
@@ -2469,14 +2313,10 @@ wddump(void *private, int32_t start, int32_t num)
 	u_long	ds_offset;
 	u_long	nblocks;
 	static int wddoingadump = 0;
-#else
-	long	blknum, blkchk, blkcnt, blknext;
-#endif /* SLICE */
 	long	cylin, head, sector;
 	long	secpertrk, secpercyl;
 	char   *addr;
 
-#ifndef SLICE
 	/* Toss any characters present prior to dump. */
 	while (cncheckc() != -1)
 		;
@@ -2523,14 +2363,6 @@ wddump(void *private, int32_t start, int32_t num)
 	wdtab[du->dk_ctrlr].b_active = 1;
 #endif
 	wddoingadump = 1;
-#else
-	du = private;
-	if (du->dk_state < OPEN)
-		return (ENXIO);
-
-	secpertrk = du->dk_dd.d_nsectors;
-	secpercyl = du->dk_dd.d_secpercyl;
-#endif /* SLICE */
 
 	/* Recalibrate the drive. */
 	DELAY(5);		/* ATA spec XXX NOT */
@@ -2543,11 +2375,7 @@ wddump(void *private, int32_t start, int32_t num)
 
 	du->dk_flags |= DKFL_SINGLE;
 	addr = (char *) 0;
-#ifndef SLICE
 	blknum = dumplo + blkoff;
-#else
-	blknum = start;
-#endif /* SLICE */
 	while (num > 0) {
 		blkcnt = num;
 		if (blkcnt > MAXTRANSFER)
@@ -2564,20 +2392,12 @@ wddump(void *private, int32_t start, int32_t num)
 		 * sector is bad, then reduce reduce the transfer to
 		 * avoid any bad sectors.
 		 */
-#ifndef SLICE
 		if (du->dk_flags & DKFL_SINGLE
 		    && dsgetbad(dev, du->dk_slices) != NULL) {
 		  for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
 			daddr_t blknew;
 			blknew = transbad144(dsgetbad(dev, du->dk_slices),
 					     blkchk - ds_offset) + ds_offset;
-#else
-		if (du->dk_flags & DKFL_SINGLE && du->slice->handler_up) {
-		    for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
-			daddr_t blknew = blkchk;
-			(void) (*du->slice->handler_up->upconf)(du->slice,
-				SLCIOCTRANSBAD, (caddr_t)&blknew, 0, 0);
-#endif /* SLICE */
 			if (blknew != blkchk) {
 				/* Found bad block. */
 				blkcnt = blkchk - blknum;
@@ -2686,15 +2506,11 @@ out:
 static void
 wderror(struct buf *bp, struct disk *du, char *mesg)
 {
-#ifdef	SLICE
-		printf("wd%d: %s:\n", du->dk_lunit, mesg);
-#else	/* !SLICE */
 	if (bp == NULL)
 		printf("wd%d: %s:\n", du->dk_lunit, mesg);
 	else
 		diskerr(bp, "wd", mesg, LOG_PRINTF, du->dk_skip,
 			dsgetlabel(bp->b_dev, du->dk_slices));
-#endif	/* !SLICE */
 	printf("wd%d: status %b error %b\n", du->dk_lunit,
 	       du->dk_status, WDCS_BITS, du->dk_error, WDERR_BITS);
 }
@@ -2953,7 +2769,6 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	return (-1);
 }
 
-#ifndef	SLICE
 static wd_devsw_installed = 0;
 
 static void 	wd_drvinit(void *unused)
@@ -2968,134 +2783,7 @@ static void 	wd_drvinit(void *unused)
 }
 
 SYSINIT(wddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wd_drvinit,NULL)
-#endif	/* !SLICE */
 
 
 
-#ifdef SLICE
-/*
- * Read/write routine for a buffer.  Finds the proper unit, range checks
- * arguments, and schedules the transfer.  Does not wait for the transfer
- * to complete.  Multi-page transfers are supported.  All I/O requests must
- * be a multiple of a sector in length.
- */
-static void 
-wdsIOreq(void *private, struct buf *bp)
-{
-	struct disk *du = private;
-	int	s;
-	int	lunit = du->dk_lunit;
-
-	/* queue transfer on drive, activate drive and controller if idle */
-	s = splbio();
-
-	bufqdisksort(&drive_queue[lunit], bp);
-
-	/*
-	 * Move the head of the drive queue to the controller queue.
-	 */
-	if (wdutab[lunit].b_active == 0)
-		wdustart(du);
-
-	/*
-	 * Kick off the controller if there is anything for IT to do.
-	 */
-#ifdef CMD640
-	if (wdtab[du->dk_ctrlr_cmd640].b_active == 0)
-#else
-	if (wdtab[du->dk_ctrlr].b_active == 0)
-#endif
-		wdstart(du->dk_ctrlr);	/* start controller */
-
-	splx(s);
-	return;
-
-}
-
-/*
- * Initialize a drive.
- */
-static int
-wdsopen(void *private, int flags, int mode, struct proc *p)
-{
-	register struct disk *du;
-	int	error = 0;
-
-	du = private;
-
-	if ((flags & (FREAD|FWRITE)) != 0) {
-		/* Finish flushing IRQs left over from wdattach(). */
-#ifdef CMD640
-		if (wdtab[du->dk_ctrlr_cmd640].b_active == 2)
-			wdtab[du->dk_ctrlr_cmd640].b_active = 0;
-#else
-		if (wdtab[du->dk_ctrlr].b_active == 2)
-			wdtab[du->dk_ctrlr].b_active = 0;
-#endif
-
-		du->dk_state = OPEN;
-		du->dk_flags &= ~DKFL_BADSCAN;
-	} else {
-		/* <luoqi@watermarkgroup.com> suggests I remove this */
-		/* du->dk_state = CLOSED;*/ 
-		/* du->dk_state = WANTOPEN; */ /* maybe this? */
-	}
-	return (error);
-}
-
-#if 0
-static void
-wdsclose(void *private, int flags, int mode, struct proc *p)
-{
-	register struct disk *du;
-
-	du = private;
-	du->dk_state = CLOSED;
-	return;
-}
-#endif /* 0 */
-
-static int
-wdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
-{
-	register struct disk *du = private;
-#ifdef notyet
-	int	error;
-#endif
-
-	wdsleep(du->dk_ctrlr, "wdioct");
-	switch (cmd) {
-	case DIOCSBADSCAN:
-		if (*(int *)addr)
-			du->dk_flags |= DKFL_BADSCAN;
-		else
-			du->dk_flags &= ~DKFL_BADSCAN;
-		return (0);
-#ifdef notyet
-	case DIOCWFORMAT:
-		if (!(flag & FWRITE))
-			return (EBADF);
-		fop = (struct format_op *)addr;
-		aiov.iov_base = fop->df_buf;
-		aiov.iov_len = fop->df_count;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_resid = fop->df_count;
-		auio.uio_segflg = 0;
-		auio.uio_offset = fop->df_startblk * du->dk_dd.d_secsize;
-#error /* XXX the 386BSD interface is different */
-		error = physio(wdformat, &rwdbuf[lunit], 0, dev, B_WRITE,
-			       minphys, &auio);
-		fop->df_count -= auio.uio_resid;
-		fop->df_reg[0] = du->dk_status;
-		fop->df_reg[1] = du->dk_error;
-		return (error);
-#endif
-
-	default:
-		return (ENOTTY);
-	}
-}
-
-#endif /* SLICE */
 #endif /* NWDC > 0 */

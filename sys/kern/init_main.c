@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.94 1998/06/07 17:11:32 dfr Exp $
+ * $Id: init_main.c,v 1.95 1998/07/15 05:21:48 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -583,11 +583,6 @@ start_init(p)
 
 #ifdef BOOTCDROM
 		(void)subyte(--ucp, 'C');
-		options = 1;
-#endif
-
-#if defined(DEVFS) && defined(SLICE)
-		(void)subyte(--ucp, 'd');
 		options = 1;
 #endif
 		if (options == 0)
