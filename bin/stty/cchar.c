@@ -64,6 +64,7 @@ struct cchar cchars1[] = {
 	{ "eol",	VEOL,		CEOL },
 	{ "eol2",	VEOL2,		CEOL },
 	{ "erase",	VERASE,		CERASE },
+	{ "erase2",	VERASE2,	CERASE2 },
 	{ "intr",	VINTR,		CINTR },
 	{ "kill",	VKILL,		CKILL },
 	{ "lnext",	VLNEXT,		CLNEXT },
