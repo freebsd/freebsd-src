@@ -179,7 +179,7 @@ _thread_sig_handler(int sig, int code, ucontext_t * scp)
 pthread_t
 _thread_sig_handle(int sig, ucontext_t * scp)
 {
-	int		i;
+	int		i, handler_installed;
 	pthread_t	pthread, pthread_next;
 	pthread_t	suspended_thread, signaled_thread;
 
@@ -254,15 +254,23 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 		}
 
 		/*
-		 * Enter a loop to look for threads that have the
-		 * signal unmasked.  POSIX specifies that a thread
-		 * in a sigwait will get the signal over any other
-		 * threads.  Second preference will be threads in
-		 * in a sigsuspend.  If none of the above, then the
-		 * signal is delivered to the first thread we find.
+		 * Enter a loop to look for threads that have the signal
+		 * unmasked.  POSIX specifies that a thread in a sigwait
+		 * will get the signal over any other threads.  Second
+		 * preference will be threads in in a sigsuspend.  If
+		 * none of the above, then the signal is delivered to the
+		 * first thread we find.  Note that if a custom handler
+		 * is not installed, the signal only affects threads in
+		 * sigwait.
 		 */
 		suspended_thread = NULL;
 		signaled_thread = NULL;
+		if ((_thread_sigact[sig - 1].sa_handler == SIG_IGN) ||
+		    (_thread_sigact[sig - 1].sa_handler == SIG_DFL))
+			handler_installed = 0;
+		else
+			handler_installed = 1;
+
 		for (pthread = TAILQ_FIRST(&_waitingq);
 		    pthread != NULL; pthread = pthread_next) {
 			/*
@@ -290,7 +298,8 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				 */
 				return (NULL);
 			}
-			else if (!sigismember(&pthread->sigmask, sig)) {
+			else if ((handler_installed != 0) &&
+			    !sigismember(&pthread->sigmask, sig)) {
 				if (pthread->state == PS_SIGSUSPEND) {
 					if (suspended_thread == NULL)
 						suspended_thread = pthread;
@@ -300,24 +309,29 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 		}
 
 		/*
-		 * If we didn't find a thread in the waiting queue,
-		 * check the all threads queue:
+		 * Only perform wakeups and signal delivery if there is a
+		 * custom handler installed:
 		 */
-		if (suspended_thread == NULL && signaled_thread == NULL) {
+		if (handler_installed != 0) {
 			/*
-			 * Enter a loop to look for other threads capable
-			 * of receiving the signal: 
+			 * If we didn't find a thread in the waiting queue,
+			 * check the all threads queue:
 			 */
-			TAILQ_FOREACH(pthread, &_thread_list, tle) {
-				if (!sigismember(&pthread->sigmask, sig)) {
-					signaled_thread = pthread;
-					break;
+			if (suspended_thread == NULL &&
+			    signaled_thread == NULL) {
+				/*
+				 * Enter a loop to look for other threads
+				 * capable of receiving the signal: 
+				 */
+				TAILQ_FOREACH(pthread, &_thread_list, tle) {
+					if (!sigismember(&pthread->sigmask,
+					    sig)) {
+						signaled_thread = pthread;
+						break;
+					}
 				}
 			}
-		}
 
-		/* Check if the signal is not being ignored: */
-		if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
 			if (suspended_thread == NULL &&
 			    signaled_thread == NULL)
 				/*
@@ -363,8 +377,6 @@ _thread_sig_check_state(pthread_t pthread, int sig)
 	case PS_COND_WAIT:
 	case PS_DEAD:
 	case PS_DEADLOCK:
-	case PS_FDLR_WAIT:
-	case PS_FDLW_WAIT:
 	case PS_FILE_WAIT:
 	case PS_JOIN:
 	case PS_MUTEX_WAIT:
@@ -415,6 +427,8 @@ _thread_sig_check_state(pthread_t pthread, int sig)
 	 * States that are interrupted by the occurrence of a signal
 	 * other than the scheduling alarm: 
 	 */
+	case PS_FDLR_WAIT:
+	case PS_FDLW_WAIT:
 	case PS_FDR_WAIT:
 	case PS_FDW_WAIT:
 	case PS_POLL_WAIT:
@@ -485,7 +499,7 @@ _thread_sig_send(pthread_t pthread, int sig)
 void
 _dispatch_signals()
 {
-	sigset_t sigset, mask;
+	sigset_t sigset;
 	int i;
 
 	/*
