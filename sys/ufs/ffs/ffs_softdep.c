@@ -4566,8 +4566,6 @@ getdirtybuf(bpp, waitfor)
 			FREE_LOCK_INTERLOCKED(&lk);
 			tsleep(&bp->b_xflags, PRIBIO, "getbuf", 0);
 			ACQUIRE_LOCK_INTERLOCKED(&lk);
-			if (bp->b_xflags & BX_BKGRDINPROG)
-				panic("getdirtybuf: still writing");
 			continue;
 		}
 		if (waitfor != MNT_WAIT)
