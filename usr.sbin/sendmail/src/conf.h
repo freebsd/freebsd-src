@@ -428,7 +428,7 @@ typedef int		pid_t;
 **	See also BSD defines.
 */
 
-#if defined(__386BSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__FreeBSD__) || defined(__NetBSD__)
 # define HASUNSETENV	1	/* has unsetenv(3) call */
 # define HASSETSID	1	/* has the setsid(2) POSIX syscall */
 # ifdef __NetBSD__

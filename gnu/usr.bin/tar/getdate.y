@@ -1,5 +1,5 @@
 %{
-/* $Revision: 2.1 $
+/* $Revision: 1.1.1.1 $
 **
 **  Originally written by Steven M. Bellovin <smb@research.att.com> while
 **  at the University of North Carolina at Chapel Hill.  Later tweaked by
@@ -40,7 +40,7 @@ char *alloca ();
    tricks are need, but defaults to using the gettimeofday system call.
    Include <sys/time.h> if that will be used.  */
 
-#if !defined (USG) && !defined (sgi) && !defined (__386BSD__)
+#if !defined (USG) && !defined (sgi) && !defined (__FreeBSD__)
 #include <sys/time.h>
 #endif
 
@@ -98,7 +98,7 @@ extern struct tm	*localtime();
 
 #if	!defined(lint) && !defined(SABER)
 static char RCS[] =
-	"$Header: str2date.y,v 2.1 90/09/06 08:15:06 cronan Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/tar/getdate.y,v 1.1.1.1 1993/06/18 04:22:21 jkh Exp $";
 #endif	/* !defined(lint) && !defined(SABER) */
 
 
@@ -872,7 +872,7 @@ get_date(p, now)
 #if sgi
 	    ftz.timezone = (int) _timezone / 60;
 #else /* not sgi */
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 	    ftz.timezone = 0;
 #else /* neither sgi nor 386BSD */
 #if defined (USG)

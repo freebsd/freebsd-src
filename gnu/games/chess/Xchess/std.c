@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:07 $
- *           $Source: /a/cvs/386BSD/src/gnu/chess/Xchess/std.c,v $
+/* RCS Info: $Revision: 1.2 $ on $Date: 1994/01/07 11:10:42 $
+ *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/std.c,v $
  * Copyright (c) 1985 Wayne A. Christopher, U. C. Berkeley CAD Group
  *
  * Utility routines.
@@ -344,7 +344,7 @@ fatal(s, args)
         char *s;
 {
 	fputs("Internal Error: ", stderr);
-#ifndef __386BSD__
+#ifndef __FreeBSD__
 	_doprnt(s, &args, stderr);
 #endif
 	putc('\n', stderr);

@@ -48,7 +48,7 @@ char *malloc ();
 
 /* AIX requires this to be the first thing in the file. */
 #ifdef __GNUC__
-#if !defined(bsdi) && !defined(__386BSD__)
+#if !defined(bsdi) && !defined(__FreeBSD__)
 #define alloca __builtin_alloca
 #endif
 #else /* not __GNUC__ */

@@ -429,7 +429,7 @@ extern int re_match_2 (const struct re_pattern_buffer *buffer,
                        int stop);
 
 
-#ifndef	__386BSD__
+#ifndef	__FreeBSD__
 /* 4.2 bsd compatibility.  */
 #ifndef bsdi
 extern const char *re_comp (const char *);
