@@ -196,7 +196,7 @@ struct ata_request {
 #define		ATA_R_REQUEUE		0x0400
 #define		ATA_R_SKIPSTART		0x0800
 
-    void			(*callback)(struct ata_request *);
+    void			(*callback)(struct ata_request *request);
     int				retries;	/* retry count */
     int				timeout;	/* timeout for this cmd */
     struct callout_handle	timeout_handle; /* handle for untimeout */
@@ -216,9 +216,9 @@ struct ata_device {
     char			*name;		/* device name */
     struct ata_params		*param;		/* ata param structure */
     void			*softc;		/* ptr to softc for device */
-    void			(*attach)(struct ata_device *);
-    void			(*detach)(struct ata_device *);
-    void			(*start)(struct ata_device *);
+    void			(*attach)(struct ata_device *atadev);
+    void			(*detach)(struct ata_device *atadev);
+    void			(*start)(struct ata_device *atadev);
     int				flags;
 #define		ATA_D_USE_CHS		0x0001
 #define		ATA_D_DETACHING		0x0002
@@ -227,7 +227,7 @@ struct ata_device {
 
     int				cmd;		/* last cmd executed */
     int				mode;		/* transfermode */
-    void			(*setmode)(struct ata_device *, int);
+    void			(*setmode)(struct ata_device *atadev, int mode);
 };
 
 /* structure for holding DMA address data */
@@ -251,18 +251,18 @@ struct ata_dma {
 #define ATA_DMA_ACTIVE			0x01	/* DMA transfer in progress */
 #define ATA_DMA_READ			0x02	/* transaction is a read */
 
-    int (*alloc)(struct ata_channel *);
-    void (*free)(struct ata_channel *);
-    int (*setup)(struct ata_device *, caddr_t, int32_t);
-    int (*start)(struct ata_channel *, caddr_t, int32_t, int);
-    int (*stop)(struct ata_channel *);
+    int (*alloc)(struct ata_channel *ch);
+    void (*free)(struct ata_channel *ch);
+    int (*setup)(struct ata_device *atadev, caddr_t data, int32_t count);
+    int (*start)(struct ata_channel *ch, caddr_t data, int32_t count, int dir);
+    int (*stop)(struct ata_channel *ch);
 };
 
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
-    void (*reset)(struct ata_channel *);
-    int (*transaction)(struct ata_request *);
-    void (*interrupt)(void *);
+    void (*reset)(struct ata_channel *ch);
+    int (*transaction)(struct ata_request *request);
+    void (*interrupt)(void *channel);
 };
 
 /* structure holding resources for an ATA channel */
@@ -347,19 +347,19 @@ extern int ata_dma, ata_wc, atapi_dma;
  
 /* public prototypes */
 /* ata-all.c: */
-int ata_probe(device_t);
-int ata_attach(device_t);
-int ata_detach(device_t);
-int ata_suspend(device_t);
-int ata_resume(device_t);
-int ata_printf(struct ata_channel *, int, const char *, ...) __printflike(3, 4);
-int ata_prtdev(struct ata_device *, const char *, ...) __printflike(2, 3);
-void ata_set_name(struct ata_device *, char *, int);
-void ata_free_name(struct ata_device *);
-int ata_get_lun(u_int32_t *);
-int ata_test_lun(u_int32_t *, int);
-void ata_free_lun(u_int32_t *, int);
-char *ata_mode2str(int);
+int ata_probe(device_t dev);
+int ata_attach(device_t dev);
+int ata_detach(device_t dev);
+int ata_suspend(device_t dev);
+int ata_resume(device_t dev);
+int ata_printf(struct ata_channel *ch, int device, const char *fmt, ...) __printflike(3, 4);
+int ata_prtdev(struct ata_device *atadev, const char *fmt, ...) __printflike(2, 3);
+void ata_set_name(struct ata_device *atadev, char *name, int lun);
+void ata_free_name(struct ata_device *atadev);
+int ata_get_lun(u_int32_t *map);
+int ata_test_lun(u_int32_t *map, int lun);
+void ata_free_lun(u_int32_t *map, int lun);
+char *ata_mode2str(int mode);
 int ata_pmode(struct ata_params *ap);
 int ata_wmode(struct ata_params *ap);
 int ata_umode(struct ata_params *ap);
@@ -380,13 +380,13 @@ char *ata_cmd2str(struct ata_request *request);
 void ata_generic_hw(struct ata_channel *ch);
 
 /* subdrivers */
-void ad_attach(struct ata_device *);
-void acd_attach(struct ata_device *);
-void afd_attach(struct ata_device *);
-void ast_attach(struct ata_device *);
-void atapi_cam_attach_bus(struct ata_channel *);
-void atapi_cam_detach_bus(struct ata_channel *);
-void atapi_cam_reinit_bus(struct ata_channel *);
+void ad_attach(struct ata_device *atadev);
+void acd_attach(struct ata_device *atadev);
+void afd_attach(struct ata_device *atadev);
+void ast_attach(struct ata_device *atadev);
+void atapi_cam_attach_bus(struct ata_channel *ch);
+void atapi_cam_detach_bus(struct ata_channel *ch);
+void atapi_cam_reinit_bus(struct ata_channel *ch);
 
 /* macros for locking a channel */
 #define ATA_LOCK_CH(ch, value) \

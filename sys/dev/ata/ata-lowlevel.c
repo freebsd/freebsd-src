@@ -43,13 +43,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 
 /* prototypes */
-static int ata_transaction(struct ata_request *request);
-static void ata_interrupt(void *data);
-static void ata_reset(struct ata_channel *ch);
-static int ata_wait(struct ata_device *atadev, u_int8_t mask);
-static int ata_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
-static void ata_pio_read(struct ata_request *request, int length);
-static void ata_pio_write(struct ata_request *request, int length);
+static int ata_transaction(struct ata_request *);
+static void ata_interrupt(void *);
+static void ata_reset(struct ata_channel *);
+static int ata_wait(struct ata_device *, u_int8_t);
+static int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t);
+static void ata_pio_read(struct ata_request *, int);
+static void ata_pio_write(struct ata_request *, int);
 
 /* local vars */
 static int atadebug = 0;

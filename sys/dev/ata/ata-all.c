@@ -65,13 +65,13 @@ static struct cdevsw ata_cdevsw = {
 };
 
 /* prototypes */
-static void ata_shutdown(void *arg, int howto);
-static int ata_getparam(struct ata_device *atadev, u_int8_t command);
-static void ata_identify_devices(struct ata_channel *ch);
+static void ata_shutdown(void *, int);
+static int ata_getparam(struct ata_device *, u_int8_t);
+static void ata_identify_devices(struct ata_channel *);
 static void ata_boot_attach(void);
-static void bswap(int8_t *buf, int len);
-static void btrim(int8_t *buf, int len);
-static void bpack(int8_t *src, int8_t *dst, int len);
+static void bswap(int8_t *, int);
+static void btrim(int8_t *, int);
+static void bpack(int8_t *, int8_t *, int);
 static void ata_init(void);
 
 /* sysctl vars */

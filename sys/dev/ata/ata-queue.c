@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 
 /* prototypes */
-static void ata_completed(void *context, int pending);
-static void ata_timeout(struct ata_request *request);
-static char *ata_sensekey2str(u_int8_t skey);
+static void ata_completed(void *, int);
+static void ata_timeout(struct ata_request *);
+static char *ata_sensekey2str(u_int8_t);
 
 /* local vars */
 static MALLOC_DEFINE(M_ATA_REQ, "ATA request", "ATA request");
