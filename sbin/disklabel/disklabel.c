@@ -160,7 +160,7 @@ main(argc, argv)
 	int ch, f, flag, error = 0;
 	char *name = 0;
 
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch (ch) {
 #if NUMBOOT > 0
 			case 'B':

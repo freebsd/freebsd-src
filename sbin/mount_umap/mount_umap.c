@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_umap.c,v 1.9 1997/02/22 14:33:00 peter Exp $";
+	"$Id: mount_umap.c,v 1.10 1997/03/11 12:39:32 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -105,7 +105,7 @@ main(argc, argv)
 
 	mntflags = 0;
 	mapfile = gmapfile = NULL;
-	while ((ch = getopt(argc, argv, "g:o:u:")) != EOF)
+	while ((ch = getopt(argc, argv, "g:o:u:")) != -1)
 		switch (ch) {
 		case 'g':
 			gmapfile = optarg;

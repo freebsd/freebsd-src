@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dumpon.c,v 1.4 1997/02/22 14:32:22 peter Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -68,7 +68,7 @@ main(int argc, char **argv)
 
 	verbose = rv = 0;
 	whoami = argv[0];
-	while ((ch = getopt(argc, argv, "v")) != EOF)
+	while ((ch = getopt(argc, argv, "v")) != -1)
 		switch((char)ch) {
 		case 'v':
 			verbose = 1;

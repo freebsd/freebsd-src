@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.7 1997/02/22 14:32:30 peter Exp $";
+	"$Id: mount_msdos.c,v 1.8 1997/03/03 13:23:54 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -75,7 +75,7 @@ main(argc, argv)
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
 
-	while ((c = getopt(argc, argv, "u:g:m:o:")) != EOF) {
+	while ((c = getopt(argc, argv, "u:g:m:o:")) != -1) {
 		switch (c) {
 		case 'u':
 			args.uid = a_uid(optarg);

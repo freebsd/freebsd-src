@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.16 1997/02/22 14:32:40 peter Exp $
+ *	$Id: modload.c,v 1.17 1997/03/11 12:23:09 peter Exp $
  */
 
 #include <stdio.h>
@@ -172,7 +172,7 @@ main(argc, argv)
 	int sz, bytesleft;
 	char buf[MODIOBUF];
 
-	while ((c = getopt(argc, argv, "dvquA:e:p:o:")) != EOF) {
+	while ((c = getopt(argc, argv, "dvquA:e:p:o:")) != -1) {
 		switch (c) {
 		case 'd':
 			debug = 1;
