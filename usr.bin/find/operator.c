@@ -198,6 +198,12 @@ not_squish(plan)
 				errx(1, "!: no following expression");
 			if (node->type == N_OR)
 				errx(1, "!: nothing between ! and -o");
+			/*
+			 * If we encounter ! ( expr ) then look for nots in
+			 * the expr subplan.
+			 */
+			if (node->type == N_EXPR)
+				node->p_data[0] = not_squish(node->p_data[0]);
 			if (notlevel % 2 != 1)
 				next = node;
 			else
@@ -238,7 +244,7 @@ or_squish(plan)
 		if (next->type == N_EXPR)
 			next->p_data[0] = or_squish(next->p_data[0]);
 
-		/* if we encounter a not then look for not's in the subplan */
+		/* if we encounter a not then look for or's in the subplan */
 		if (next->type == N_NOT)
 			next->p_data[0] = or_squish(next->p_data[0]);
 
