@@ -276,31 +276,30 @@ as opposed to a
 so it is independent from the actual subdevice being used for
 .Ar device .
 .Bd -literal
-$ fdcontrol -v /dev/fd1.360
-/dev/fd1.360: 1.2M drive (5.25" high-density)
-.Ed
+$ fdcontrol -v /dev/fd0
+/dev/fd0: 1.44M drive (3.5" high-density)
 .\" " <- this one is for Emacs :)
 .Pp
-Inquiry about the density settings of a particular subdevice.
+Inquiry about the density settings
 .Bd -literal
-$ fdcontrol -F /dev/fd0.720
+$ fdcontrol -F /dev/fd0
 18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
 .Ed
 .Pp
-Note that just accessing a new subdevice for the first time will clone
-this device using the default density settings for the drive type, as
-explained in
-.Xr fdc 4 .
-Thus, albeit the device name in the example above suggests a 720 KB
-media density, it has actually been initialized (by the driver) to
-1440 KB.
-So, in order to adjust it for standard 720 KB double-density
-media, one of the following
-.Nm
-commands needs to be run:
+The verbose flag makes this human readable
 .Bd -literal
-# fdcontrol -s 9,,,0x20,,250,,0x50 /dev/fd0.720
-# fdcontrol -f 720 /dev/fd0.720
+/dev/fd0: 1440 KB media type
+        Format:         18,512,0xff,0x1b,80,500,2,0x6c,1,0,+mfm
+        Sector size:    512
+        Sectors/track:  18
+        Heads/cylinder: 2
+        Cylinders/disk: 80
+        Transfer rate:  500 kbps
+        Sector gap:     27
+        Format gap:     108
+        Interleave:     1
+        Side offset:    0
+        Flags           <MFM>
 .Ed
 .Pp
 As indicated, trailing commas in the parameter list may be omitted.
@@ -313,7 +312,15 @@ capable of handling FM encoding at all.)
 .Bd -literal
 # fdcontrol -s 16,128,0x80,0x2,40,300,,0x10,,,-mfm,+2step /dev/fd1.1
 .Ed
-.Sh SEE ALSO
+.Pp
+It is still possible to hook up 8" drives to most modern floppy 
+controllers, given the right cable magic.
+(On PC hardware, tell the bios that it is a 5.25" drive)
+The classical 128/26/2/77 format can be read with this entry
+.Bd -literal
+fdcontrol -s  26,128,0x80,0x2,77,500,2,0x10,,,-mfm /dev/fd0
+.Ed
+Sh SEE ALSO
 .Xr fdc 4
 .Sh HISTORY
 The
