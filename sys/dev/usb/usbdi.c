@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.96 2002/02/11 15:11:49 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.99 2002/02/28 04:49:16 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -81,22 +81,22 @@ Static void usbd_do_request_async_cb
 Static void usbd_start_next(usbd_pipe_handle pipe);
 Static usbd_status usbd_open_pipe_ival
 	(usbd_interface_handle, u_int8_t, u_int8_t, usbd_pipe_handle *, int);
+Static int usbd_xfer_isread(usbd_xfer_handle xfer);
 
 Static int usbd_nbuses = 0;
 
 void
-usbd_init()
+usbd_init(void)
 {
 	usbd_nbuses++;
 }
 
 void
-usbd_finish()
+usbd_finish(void)
 {
 	--usbd_nbuses;
 }
 
-static __inline int usbd_xfer_isread(usbd_xfer_handle xfer);
 static __inline int
 usbd_xfer_isread(usbd_xfer_handle xfer)
 {
@@ -626,7 +626,7 @@ usbd_interface_count(usbd_device_handle dev, u_int8_t *count)
 	return (USBD_NORMAL_COMPLETION);
 }
 
-void 
+void
 usbd_interface2device_handle(usbd_interface_handle iface,
 			     usbd_device_handle *dev)
 {
@@ -847,9 +847,9 @@ usb_transfer_complete(usbd_xfer_handle xfer)
 
 	if (!repeat) {
 		/* XXX should we stop the queue on all errors? */
-		if ((xfer->status == USBD_CANCELLED
-		     || xfer->status == USBD_TIMEOUT)
-		    && pipe->iface != NULL)		/* not control pipe */
+		if ((xfer->status == USBD_CANCELLED ||
+		     xfer->status == USBD_TIMEOUT) &&
+		    pipe->iface != NULL)		/* not control pipe */
 			pipe->running = 0;
 		else
 			usbd_start_next(pipe);
@@ -1118,7 +1118,7 @@ int
 usbd_ratecheck(struct timeval *last)
 {
 #if 0
-	static struct timeval errinterval = { 0, 2500000 }; /* 0.25 s*/
+	static struct timeval errinterval = { 0, 250000 }; /* 0.25 s*/
 
 	return (ratecheck(last, &errinterval));
 #endif
