@@ -80,6 +80,7 @@
 	.set	SYSTEM,0xFE000000	# virtual address of system start
 	/*note: gas copys sign bit (e.g. arithmetic >>), can't do SYSTEM>>22! */
 	.set	SYSPDROFF,0x3F8		# Page dir index of System Base
+	.set	SYSPDREND,0x3FA		# Page dir index of System End
 
 
 /*
@@ -343,8 +344,8 @@ ENTRY(btext)
 	movl	%eax,(%esi)		# which is where temp maps!
 
 	/* kernel pde's */
-	movl	$ 3,%ecx		# for this many pde s,
-	lea	(SYSPDROFF*4)(%esi), %ebx	# offset of pde for kernel
+	movl	$(SYSPDREND-SYSPDROFF+1), %ecx		# for this many pde s,
+	lea	(SYSPDROFF*4)(%esi), %ebx		# offset of pde for kernel
 	fillkpt
 
 	/* install a pde recursively mapping page directory as a page table! */
