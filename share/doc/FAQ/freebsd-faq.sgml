@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.8 1995/07/29 22:35:40 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.9 1995/07/30 01:44:51 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -14,7 +14,6 @@ Any entries with a &lt;XXX&gt; are under construction.
     <toc>
 
     <sect>Preface
-
       <p>
         Welcome to the FreeBSD 2.X FAQ !  This document tries to answer
         some of the most frequently asked questions about FreeBSD 2.X  (or
@@ -42,14 +41,15 @@ Any entries with a &lt;XXX&gt; are under construction.
         name="roberto@FreeBSD.ORG">
 
         Some of the instructions here will also refer to auxiliary
-        utilities in the <tt>/usr/src/share/FAQ directory</tt>.  If you do
+        utilities in the <tt>/usr/share/FAQ/Text</tt> directory. If you do
         not have this directory, or if it does not contain the file that
         you want, you are probably using a version of FreeBSD prior to
         2.0.5R.  In this case, install the FreeBSD sources and look in
-        <tt>/usr/src/share/FAQ</tt> (instead of <tt>/usr/share/FAQ</tt>).
-        CDROM purchasers and net folks who've grabbed the FreeBSD 2.X
-        ``<tt/srcdist/'' will have these files.  If you don't have the
-        source distribution, then you can either grab the whole thing from:
+        <tt>/usr/src/share/FAQ/Text</tt> (instead of
+        <tt>/usr/share/FAQ</tt>).  CDROM purchasers and net folks who've
+        grabbed the FreeBSD 2.X ``<tt/srcdist/'' will have these files.  If
+        you don't have the source distribution, then you can either grab
+        the whole thing from:
 
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current"
             name="FreeBSD-current base directory"> 
@@ -61,7 +61,6 @@ Any entries with a &lt;XXX&gt; are under construction.
             name="FreeBSD-current src directory">
 
       <sect1>What is FreeBSD?
-
         <p>
           FreeBSD 2.X is a UN*X type operating system based on
           U.C. Berkeley's 4.4BSD-lite release for the i386 platform.  It is
@@ -69,7 +68,6 @@ Any entries with a &lt;XXX&gt; are under construction.
           Net/2 to the i386, 386BSD.  There have been many additions and
           bug fixes made throughout the entire system, some of the
           highlights of which are:
-
 
           <itemize>
             <item>More robust and extensive PC device support
@@ -90,35 +88,32 @@ Any entries with a &lt;XXX&gt; are under construction.
 
       <sect1>What do I need to run FreeBSD?
         <p>
-          See section 2, "Hardware compatibility", of this FAQ.
+          You'll need a 386 or better PC, with 4 Mo or more of RAM and at
+          least 60 MB of hard disk space. It can run with a low end MDA
+          card but to run X11R6, a VGA or better video card is needed.
+
+          See the section on <ref id="hardware" name="Hardware compatibility">
  
       <sect1>Where can I get FreeBSD?
         <p>
           The distribution is available via anonymous ftp from:
-
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD
-            home directory">
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD home directory">
 
           For the current release, 2.0.5R, look in:
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/" name="FreeBSD 2.0.5-RELEASE">
 
-          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/"
-            name="FreeBSD 2.0.5-RELEASE">
-          
           FreeBSD is also available via CDROM, from the following place(s):
  
           Walnut Creek CDROM<newline>
           4041 Pike Lane, Suite D-386<newline>
           Concord, CA  94520  USA<newline>
-          Orders:         (800)-786-9907<newline>
-          Questions:      (510)-674-0783<newline>
-          FAX:            (510)-674-0821<newline>
-          email:          <url url="mailto:orders@cdrom.com" name="WC Orders
-            address"> <newline>
-          WWW:            <url url="http://www.cdrom.com/" name="WC Home
-            page"><newline> 
+          Orders:     (800)-786-9907<newline>
+          Questions:  (510)-674-0783<newline>
+          FAX:        (510)-674-0821<newline>
+          email: <url url="mailto:orders@cdrom.com" name="WC Orders address"> <newline>
+          WWW: <url url="http://www.cdrom.com/" name="WC Home page"><newline> 
 
       <sect1>What are the FreeBSD mailing lists, and how can I get on them?
-
         <p>
           The following mailing lists are provided for FreeBSD users and
           developers.  For more information, send to
@@ -148,18 +143,30 @@ Any entries with a &lt;XXX&gt; are under construction.
               meeting synopsis and coordination of projects that span User
               Groups
           </descrip>
-
         <p>
           The FreeBSD-commit list has been broken up into groups dealing
           with different areas of interest.  Please see the FreeBSD mailing
           list FAQ in:
- 
           <verb>
-            /usr/src/share/FAQ/mailing-list.FAQ
+            /usr/src/share/FAQ/Text/mailing-list.FAQ
           </verb>
+        <p>
+          Example:
+        <p>
+          To subscribe to the <tt/questions/ list, you'll to send a message
+          containing the following command in the <bf/body/ of the message,
+          the subject is ignored:
+          <verb>
+            subscribe questions john.smith@foo.bar (John Smith)
+          </verb>
+        <p>
+          To unsubscribe, it is as easy. Just remember to send your request
+          to 
+          <url url="mailto:Majordomo@FreeBSD.ORG" name="The mail administrator"> 
+          <bf/not/ to the list itself. The last thing the subscribred
+          users want to see is administrative requests...
 
       <sect1>What are the various FreeBSD news groups?
-
         <p>
           There are two newsgroups currently dedicated to FreeBSD:
           <descrip>
@@ -172,6 +179,10 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag><tt/comp.unix.bsd/</tag>
               General BSD topics
           </descrip>
+          To setup/run your own News server or just reading Usenet News,
+          you may have a look at various packages already ported for
+          FreeBSD 2.X in <tt>/usr/ports/news</tt>. You'll find Cnews, INN,
+          Trn, TIN and others there.
       </sect1>
       
       <sect1>Books on FreeBSD
@@ -179,6 +190,15 @@ Any entries with a &lt;XXX&gt; are under construction.
           There currently aren't any books written specifically for
           FreeBSD, although some people are supposedly working on some.
  
+          The FreeBSD Documentation Project exists, you may contact (or
+          better join them) on the <tt>doc</tt> mailing list:
+          <url url="mailto:doc@FreeBSD.ORG" name="&lt;doc@FreeBSD.ORG&gt;">.
+
+          A FreeBSD ``handbook'' is being created, and can be found as:
+ 
+          <url url="http://www.freebsd.org/How/handbook/" name="FreeBSD's Handbook"> 
+          Note that this is a work in progress, and so parts may be incomplete.
+
           However, as FreeBSD 2.X is based upon Berkeley 4.4BSD-Lite, most
           of the 4.4BSD manuals are applicable to FreeBSD 2.X.  O'Reilly
           and Associates publishes these manuals:
@@ -246,14 +266,10 @@ Any entries with a &lt;XXX&gt; are under construction.
           If you have WWW access, the FreeBSD home page is at:
  
           <url url="http://www.freebsd.org/" name="Main FreeBSD page">
- 
-          A FreeBSD ``handbook'' is being created, and can be found as:
- 
-          <url url="http://www.freebsd.org/How/handbook/" name="FreeBSD's
-            Handbook"> 
- 
-          Note that this is a work in progress, and so parts may be incomplete.
- 
+
+          The FreeBSD handbook has a pretty complete bibliography, look at:
+          <url url="http://www.FreeBSD.ORG/How/handbook/bibliography.html" name="Bibliography">
+
     <sect>FreeBSD goals
       <p>
       <sect1>Copyrights
@@ -281,8 +297,8 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
 
           <bf/IMPORTANT NOTE/ if you  are installing 2.0.5R from tape,  see
-          the question  titled, <ref id="install-tape" name="Help!  I can't
-          install from tape!">
+          the question  titled, 
+          <ref id="install-tape" name="Help!  I can't install from tape!">
  
           Installation instructions can be found as:
  
@@ -301,9 +317,65 @@ Any entries with a &lt;XXX&gt; are under construction.
             README.TXT      -- Basic README file
             RELNOTES        -- Release notes
           </verb>
- 
-      <sect1>Help!  I can't install from tape!  The install fails with a
-          ``record too big'' error! <label id="install-tape">
+
+      <sect1>Help! I have no space! Do I need to delete everything first?
+
+        <p>
+          If your machine is already running DOS and has little or no free
+          space available for FreeBSD's installation, all is not lost!  You
+          may find the ``<tt/FIPS/'' utility, provided in the
+          <tt>tools/</tt> subdirectory on the FreeBSD CDROM or on the
+          various FreeBSD ftp sites, to be quite useful.
+
+          FIPS allows you to split an existing DOS partition into two
+          pieces, preserving the original partition and allowing you to
+          install onto the second free piece.  You first ``defrag'' your
+          DOS partition, using the DOS 6.xx <tt/DEFRAG/ utility or the
+          Norton Disk tools, then run <tt/FIPS/.  It will prompt you for
+          the rest of the information it needs.  Afterwards, you can reboot
+          and install FreeBSD on the new free slice.  See the Distributions
+          menu for an estimation of how much free space you'll need for the
+          kind of installation you want.
+
+      <sect1>Can I use compressed DOS filesystems from FreeBSD?
+
+        <p>
+          No.  If you are using a utility such as Stacker(tm) or
+          DoubleSpace(tm), FreeBSD will only be able to use whatever
+          portion of the filesystem you leave uncompressed.  The rest of
+          the filesystem will show up as one large file (the
+          stacked/dblspaced file!).  <bf/DO NOT REMOVE THAT FILE!/ You will
+          probably regret it greatly!
+
+          It is probably better to create another uncompressed DOS primary
+          partition and use this for communications between DOS and
+          FreeBSD.
+
+      <sect1>Can I mount my DOS extended partitions?
+
+        <p>
+          This feature isn't in FreeBSD 2.0.5 but should be in 2.1.  We've
+          laid all the groundwork for making this happen, now we just need
+          to do the last 1% of the work involved.
+
+      <sect1>Can I run DOS binaries under FreeBSD?
+
+        <p>
+          Not yet!  We'd like to add support for this someday, but are
+          still lacking anyone to actually do the work.  Ongoing work with
+          Linux's <tt/DOSEMU/ utility may bring this much closer to being a
+          reality sometime soon.  Send mail to
+          <url url="mailto:hackers@freebsd.org"
+            name="The FreeBSD hackers list">
+          if you're interested in joining this effort!
+
+          However, there is a neat utility called ``<tt/pcemu/'' in the
+          ports collection which emulates an 8088 and enough BIOS services
+          to run DOS text mode applications.  It requires the X Window
+          System (provided as XFree86 3.1.2).
+
+      <sect1>Help! I  can't  install from tape! The  install fails with a ``record too big'' error!
+          <label id="install-tape"> 
         <p> 
           If you are installing 2.0.5R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
@@ -312,9 +384,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           you will get an error that complains about  the record size being
           too big.
  
-       <sect1>I want to install FreeBSD onto a SCSI disk that has more than
-          1024 cylinders.  How do I do it?
-          
+       <sect1>I want to install FreeBSD onto a SCSI disk that has more than 1024 cylinders.  How do I do it?
+
         <p>
           This depends.  If you don't have DOS (or another operating
           system) on the system, you can just keep the drive in native mode
@@ -339,9 +410,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           geometry.  You will have to reinstall FreeBSD, but obeying the
           instructions given above will almost always get you going.
 
-      <sect1>When I install the boot manager and try to boot FreeBSD for
-          the first time, it just comes back with the boot manager prompt
-          again.
+      <sect1>When I install the boot manager and try to boot FreeBSD for the first time, it just comes back with the boot manager prompt again.
 
         <p>
           This is another symptom of the problem described in the preceding
@@ -350,9 +419,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           translation (often marked as ``&gt;1GB drive support''), try
           toggling its setting and reinstalling FreeBSD.
 
-      <sect1>I'm having lots of trouble trying to disklabel a new SCSI
-          drive.  I have made an entry in <tt>/etc/disktab</tt>, but when I
-          try to label the drive the following happens:
+      <sect1>I'm having lots of trouble trying to disklabel a new SCSI drive. I have made an entry in <tt>/etc/disktab</tt>, but when I try to label the drive the following happens:
         <p>
           <verb>
             mips# disklabel -w /dev/sd1 sea32550N
@@ -360,16 +427,15 @@ Any entries with a &lt;XXX&gt; are under construction.
           </verb>
           What am I doing wrong?
 
+          Answer:<newline>
           Doing this using <tt/disklabel/ (and <tt/fdisk/) is probably
           harder than using <tt/sysinstall/.  The following should work to
           put FreeBSD-2.0.5 on the whole of an <bf/empty/ disk assuming that
           the <tt/disktab/ entry is correct.
-
           <verb>
             disklabel -r -w /dev/rsd1 sea32550N
                       ^^         ^
           </verb>
-
           The first <tt/-r/ is essential for writing new labels and using
           the raw device instead of the block device is good technique.  To
           be ``empty'' the disk should have 0's at critical points on the
@@ -441,8 +507,7 @@ sea32550N|Seagate 32550N:\
           offset 0 is invalid so <tt/sysinstall/ doesn't support creating
           such slices.
 
-      <sect1>I have an IDE drive with lots of bad blocks on it and FreeBSD
-          doesn't seem to install properly.
+      <sect1>I have an IDE drive with lots of bad blocks on it and FreeBSD doesn't seem to install properly.
 
         <p>
           FreeBSD's bad block (the ``<tt/bad144/'' command) handling is
@@ -464,8 +529,8 @@ sea32550N|Seagate 32550N:\
           No.  FreeBSD 2.X comes with bounce buffers which allows your bus
           mastering controller access to greater than 16MB.
 
-      <sect1>My network card    keeps  getting  errors  like,    ``<tt/ed1:
-         timeout/''.  What's going on?
+      <sect1>My network card keeps getting errors like, ``<tt/ed1: timeout/''.  What's going on?
+
         <p>
           This is usually caused by an interrupt conflict (e.g., two boards
           using the same IRQ).  FreeBSD prior to 2.0.5R used to be tolerant
@@ -495,8 +560,7 @@ sea32550N|Seagate 32550N:\
           releases of FreeBSD.
 
 
-      <sect1>DES encryption software can not be exported from the United
-          States.  If I live outside the US, how can I encrypt passwords?
+      <sect1>DES encryption software can not be exported from the United States.  If I live outside the US, how can I encrypt passwords?
 
         <p> If it is not absolutely imperative that you use DES style
           encryption, you can use FreeBSD's default encryption for even
@@ -543,8 +607,8 @@ sea32550N|Seagate 32550N:\
 
       </sect1>
     </sect>
-    <sect>Hardware compatibility
-
+    <sect>Hardware compatibility <label id="hardware">
+      <p>
       <sect1>What kind of hard drives does FreeBSD run on?
 
         <p>
@@ -567,6 +631,7 @@ sea32550N|Seagate 32550N:\
               Sound Blaster SCSI (AH-152x compat) &lt;ISA&gt; <newline>
               AH-2742/2842 Series &lt;ISA/EISA&gt; <newline>
               AH-2820/2822/2825 Series &lt;VLB&gt; <newline>
+              AH-294x and aic7870 MB controllers &lt;PCI&gt;
             <tag/Buslogic/
               BT-445 Series &lt;VLB&gt; (but see section <ref id="bigram"
                 name="on 32 MB machines">) <newline>
@@ -574,12 +639,15 @@ sea32550N|Seagate 32550N:\
               BT-742 Series &lt;EISA&gt;<newline>
               BT-747 Series &lt;EISA&gt;<newline>
               BT-946 Series &lt;PCI&gt; <newline>
+              BT-956 Series &lt;PCI&gt; <newline>
             <tag/Future Domain/
               TMC-950 Series &lt;ISA&gt; <newline>
             <tag/PCI Generic/
               NCR 53C810 based controllers &lt;PCI&gt; <newline>
+              NCR 53C82x based controllers &lt;PCI&gt; <newline>
             <tag/ProAudioSpectrum/
               Zilog 5380 based controllers &lt;ISA&gt; <newline>
+              Trantor 130 based controllers &lt;ISA&gt; <newline>
             <tag/Seagate/
               ST-01/02 Series &lt;ISA&gt;<newline>
             <tag/UltraStor/
@@ -588,10 +656,6 @@ sea32550N|Seagate 32550N:\
               UH-34f Series &lt;VLB&gt;<newline>
             <tag/Western Digital/
               WD7000 &lt;ISA&gt; &lt;No scatter/gather&gt;
-            <tag/Adaptec/
-              AH-294x and aic7870 MB controllers &lt;PCI&gt;
-            <tag/ProAudioSpectrum/
-              Trantor 130 based controllers &lt;ISA&gt;
           </descrip>
 
       <sect1>What CD-ROM drives are supported by FreeBSD?
@@ -601,7 +665,9 @@ sea32550N|Seagate 32550N:\
 
           Mitsumi LU002 (8bit), LU005 (16bit) and FX001D (16bit 2x Speed).
 
-          Sound Blaster Non-SCSI CD-ROM
+          Sony CDU 31/33A<newline>
+          Sound Blaster Non-SCSI CD-ROM<newline>
+          Matsushita/Panasocnic CD-ROM.
  
           FreeBSD does not support any of the ``IDE'' CD-ROM interfaces.
           All non-SCSI cards are known to be extremely slow compared to
@@ -611,17 +677,25 @@ sea32550N|Seagate 32550N:\
 
         <p>
           <itemize>
-            <item>AST/4
-            <item>BOCA 4/8/16 port cards.  
-            <item>Cyclades 8/16 port &lt;Alpha&gt;
+            <item>AST/4 in shared IRQ mode,
+            <item>ARNET 8 port in shared IRQ mode,
+            <item>BOCA 4/8/16 port cards inshared IRQ mode,
+            <item>Cyclades 8/16 port &lt;Alpha&gt;,
+            <item>Cronyx/Sigfgma multiport sync/async,
+            <item>RISCom/8 multiport card,
+            <item>STB 4 port i shared IRQ mode,
           </itemize>
 
           Some unnamed clone cards have also been known to work, especially
           those that claim to be AST compatible.
 
+          A Dibiboard driver is currently in alpha stage.  If you want to
+          test it, take the file in 
+          <url url="ftp://freefall.FreeBSD.ORG/pub/incoming" 
+            name="the incoming directory">
+
           Check the <tt/sio(4)/ man page to get more information on
           configuring such cards.
-
 
       <sect1>Does FreeBSD support the AHA-2xxx SCSI adapters from Adaptec?
 
@@ -630,21 +704,26 @@ sea32550N|Seagate 32550N:\
           of the old drivers have been re-written and now it is fully
           under the Berkeley style copyright.
  
-      <sect1>I have a Mumbleco bus mouse.  Is it supported and if so, how
-          do I set it up for XFree86?
+      <sect1>I have a Mumbleco bus mouse.  Is it supported and if so, how do I set it up for XFree86?
 
         <p>
           FreeBSD supports the Logitech and ATI Inport bus mice.  You need
           to add the following line to the kernel config file and recompile
           for the Logitech and ATI mice:
-          
           <verb>
             device        mse0    at isa? port 0x23c tty irq6 vector mseintr
           </verb>
           
-      <sect1>I have a PS/2 mouse (``keyboard'' mouse) (Alternatively: I
-          have a laptop with a track-ball mouse).  How do I use it?
-          
+      <sect1>I have a PS/2 mouse (``keyboard'' mouse) (Alternatively: I have a laptop with a track-ball mouse).  How do I use it?
+        <p>
+          You'll have to add the following lines to your kernel
+          configuration file and recompile:
+<verb>
+device    psm0    at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+# Options for psm:
+options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
+</verb>
+
       <sect1>What types of tape drives are supported under FreeBSD?
           
         <p>
@@ -654,15 +733,14 @@ sea32550N|Seagate 32550N:\
       <sect1>What sound cards are supported by FreeBSD?
           
         <p>
-          FreeBSD supports the SoundBlaster, SoundBlaster Pro, Pro Audio
-          Spectrum 16, AdLib and Gravis UltraSound sound cards. There is
-          also limited support for MPU-401 and compatible MIDI cards.  The
-          SoundBlaster 16 and SoundBlaster 16 ASP cards are not yet
-          supported.
+          FreeBSD supports the SoundBlaster, SoundBlaster Pro, SoundBlaster
+          16, Pro Audio Spectrum 16, AdLib and Gravis UltraSound sound
+          cards. There is also limited support for MPU-401 and compatible
+          MIDI cards. The SoundBlaster 16 ASP cards are not yet
+          supported. The Microsoft Sound System is also supported.
           
           <bf/NOTE/ This is only for sound!  This driver does not support
           CD-ROMs, SCSI or joysticks on these cards.
-          
           
       <sect1>What network cards does FreeBSD support?
 
@@ -671,7 +749,8 @@ sea32550N|Seagate 32550N:\
 
           <descrip>
             <tag/``de'' driver/
-              DEC and compatible PCI controllers <newline>
+              DEC DC21x40 and compatible PCI controllers<newline>
+              (including 21140 100bT cards) <newline>
             <tag/``ed'' driver/
               NE2000 and 1000<newline>
               WD/SMC 8003, 8013 and Elite Ultra (8216)<newline>
@@ -681,25 +760,33 @@ sea32550N|Seagate 32550N:\
               DEC EtherWORKS II and EtherWORKS III controllers. <newline>
             <tag/``ie'' driver/
               AT&amp;T EN100/StarLAN 10 <newline>
+              3COM 3c507 <newline>
+              NI5210 <newline>
             <tag/``is'' driver/
               Isolan AT 4141-0 <newline>
               Isolink 4110 <newline>
             <tag/``el'' driver/
-              3com 3c501 (does not support Multicast or DMA) <newline>
+              3com 3c501 (does not support Multicast or DMA)
+            <tag/``eg'' driver/
+              3com 3c505 
             <tag/``ze'' driver/
-              IBM PCMCIA credit card adapter <newline>
+              IBM PCMCIA credit card adapter
             <tag/``lnc'' drive/
-              Unknown Lance based (*) <newline>
+              Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)(*)
             <tag/``ep'' driver/
-              3com 3c509 (*)
+              3com 3c509
+            <tag/``ix'' driver/
+              Intel InterExpress
             <tag/``cx'' driver/
               Cronyx/Sigma multiport Sync/Async (Cisco and PPP framing)
             <tag/``zp'' driver/
-              3Com PCMCIA Etherlink III
+              3Com PCMCIA Etherlink III (aka 3c389)
             <tag/``fea'' driver/
               DEC DEFEA EISA FDDI controller
             <tag/``fpa'' driver/
               DEC DEFPA PCI FDDI controller
+            <tag/``fe'' driver/
+              Fujitsu MB86960A/MB86965A Ethernet cards
           </descrip>
 
           <bf/NOTE/	Drivers marked with (*) are known to have problems.
@@ -708,9 +795,7 @@ sea32550N|Seagate 32550N:\
           we are incompatiable with other versions, but we hope to correct
           this in the near future.
 
-
-      <sect1>I have a 386/486sx/486SLC machine without a math co-processor.
-          Will this cause me any problems?
+      <sect1>I have a 386/486sx/486SLC machine without a math co-processor. Will this cause me any problems?
 
         <p>
           Generally no, but there are circumstances where you will take a
@@ -732,27 +817,32 @@ sea32550N|Seagate 32550N:\
           <descrip>
             <tag><tt/b004.c/</tag>
               Driver for B004 compatiable Transputer boards <newline>
-            <tag><tt/ctx.c/</tag>
+            <tag>``ctx'' driver</tag>
               Driver for CORTEX-I Frame grabber <newline>
-            <tag><tt/gpib.c/</tag>
-              Driver for National Instruments AT-GPIB and
-              AT-GPIB/TNT boards <newline>
-            <tag><tt/pcaudio.c/</tag>
+            <tag>``gp'' driver</tag>
+              Driver for National Instruments AT-GPIB and<newline>
+              AT-GPIB/TNT boards 
+            <tag>``pca'' driver</tag>
               Driver for PC speakers to allow the playing of audio files
-              <newline>
+            <tag>``spigot'' driver</tag>
+              Driver for the Creative Labs Video Spigot
+            <tag>``gsc'' driver</tag>
+              Driver for the Genuis GS-4500 Hand scanner
+            <tag>``joy'' driver</tag>
+              Driver for a joystick
+            <tag/``labpc'' driver/
+              Driver for National Instrument's Lab-PC and Lab-PC+
+            <tag/``uart'' driver/
+              Stand-alone 6850 UART for MIDI
+            <tag/``nic'' driver/
+              Dr Neuhaus NICCY 3008, 3009 &amp; 5000 ISDN cards
+            <tag/``psm'' driver/
+              PS/2 ouse port
             <tag><tt/tw.c/</tag>
               Driver for the X-10 POWERHOUSE <newline>
-            <tag><tt/spigot.c/</tag>
-              Driver for the Creative Labs Video Spigot <newline>
-            <tag><tt/gsc.c/</tag>
-              Driver for the Genuis GS-4500 Hand scanner <newline>
-            <tag><tt/joy.c/</tag>
-              Driver for a joystick <newline>
           </descrip>
 
-      <sect1>I am about to buy a new machine to run FreeBSD on and want an
-          idea of what other people are running. Is there list of other
-          systems anywhere?
+      <sect1>I am about to buy a new machine to run FreeBSD on and want an idea of what other people are running. Is there list of other systems anywhere?
 
         <p>
           Yes.  Please look at the file <tt>Systems.FAQ</tt>.  This file is
@@ -761,8 +851,7 @@ sea32550N|Seagate 32550N:\
           have sent in, and does not constitute any kind of endorsement by
           the FreeBSD Project.
 
-      <sect1>I have a lap-top with power management.  Can FreeBSD take
-          advantage of this?
+      <sect1>I have a lap-top with power management. Can FreeBSD take advantage of this?
         <p>
           Yes it can on certain machines.  Please look in the <tt/LINT/
           kernel config file under <tt/APM/.
@@ -781,28 +870,18 @@ sea32550N|Seagate 32550N:\
 
 
       <sect1>Where can I get Motif for FreeBSD?
-
         <p>
-          You can purchase Motif 1.2.3 for FreeBSD (SWiM) from:
+          Contact the following company:
 
-          ACC Bookstore, <newline>
-          P.O. Box 3364, <newline>
-          Westport CT. 06880. <newline>
-          1-800-546-7274 or <newline>
-          FAX: 1-203-454-2582
+          Lasermoon Ltd<newline>
+          2a Beaconsfield Road<newline>
+          Fareham, Hants<newline>
+          England. PO16 0QB<newline>
+          Phone: +44 (01) 329 834944<newline>
+          FAX: +44 (0) 329 825936<newline>
+          Email:  <url url="mailto:info@lasermoon.co.uk" name="Info Address">
 
-          This software works flawlessly for for FreeBSD 1.1.5 but has
-          shown one problem with 2.0 in that the ``<tt/uil/'' program core
-          dumps.  This is apparently because of the way <tt/uil/ is
-          installed, and it's quite possible that ACC will have a fixed
-          version by the time you read this.  No other compatibility
-          problems with the programs or libraries have been found, and ACC
-          can hardly be blamed for failing to work perfectly with a
-          brand-new release they haven't even seen yet! :)
-
-      <sect1>Are there any commercial X servers for some of the high-end
-          graphics cards like the Matrox or &num;9 I-128, or offering
-          8/16/24 bit deep pallettes?
+      <sect1>Are there any commercial X servers for some of the high-end graphics cards like the Matrox or &num;9 I-128, or offering 8/16/24 bit deep pallettes?
           <label id="xinside">
         <p>
           Yes, X Inside Incorporated sells their Accelerated-X product for
@@ -872,9 +951,7 @@ sea32550N|Seagate 32550N:\
           available at a very reasonable price.  See section
           <ref id="xinside" name="on Xaccel"> for more details.
 
-      <sect1>I've been trying to run ghostscript on a 386 (or 486sx) with
-          no math co-processor and I keep getting errors. What's up? <label
-          id="emul">
+      <sect1>I've been trying to run ghostscript on a 386 (or 486sx) with no math co-processor and I keep getting errors. What's up? <label id="emul">
 
         <p>
           You will need to add the alternate math emulator to your kernel,
@@ -888,9 +965,7 @@ sea32550N|Seagate 32550N:\
           <bf/NOTE/ You will need to remove the <tt/MATH&lowbar;EMULATE/
           option when you do this.
 
-      <sect1>I want all this neat software, but I haven't got the space or
-          CPU power to compile it all myself.  Is there any way of getting
-          binaries?
+      <sect1>I want all this neat software, but I haven't got the space or CPU power to compile it all myself.  Is there any way of getting binaries?
 
         <p>
           Yes.  We support the concept of a ``package'', which is
@@ -913,8 +988,7 @@ sea32550N|Seagate 32550N:\
 
     <sect>Miscellaneous Questions
       <p>
-      <sect1>Hey!  Chmod doesn't change the  file permissions of  symlinked
-          files!  What's going on?
+      <sect1>Hey!  Chmod doesn't change the  file permissions of  symlinked files!  What's going on?
         <p>
           You have to use either ``<tt/-H/'' or ``<tt/-L/'' together with
           the ``<tt/-R/'' option to make this work.  See the <tt/chmod(1)/
@@ -937,9 +1011,7 @@ sea32550N|Seagate 32550N:\
           ``<tt/foo/'', to change the permissions of the directory,
           ``<tt/bar/''.
  
-      <sect1>How do I mount a CDROM?  I've tried using <tt/mount(8)/, but
-        it keeps on giving me an error like, ``<tt>/dev/cd0a on /mnt:
-        Incorrect super block.</tt>''
+      <sect1>How do I mount a CDROM?  I've tried using <tt/mount(8)/, but it keeps on giving me an error like, ``<tt>/dev/cd0a on /mnt: Incorrect super block.</tt>''
         <p>
           You have to tell <tt/mount(8)/ the type of the device that you
           want to mount.  By default, <tt/mount(8)/ will assume the
@@ -966,14 +1038,12 @@ sea32550N|Seagate 32550N:\
             mount_cd9660 /dev/cd0c /mnt
           </verb>
  
-      <sect1>When I try to mount a CDROM, I get a ``Device not configured''
-          error.  What's going on?
+      <sect1>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?
         <p>
           This generally means that there is no CDROM in the CDROM drive.
           Feed the drive something.
   
-      <sect1>My programs occasionally die with ``Signal 11'' errors.
-          What's going on?
+      <sect1>My programs occasionally die with ``Signal 11'' errors. What's going on?
         <p>
           This can be caused by bad hardware (memory, motherboard, etc.).
           Try running a memory-testing program on your PC.  Note that, even
@@ -983,8 +1053,7 @@ sea32550N|Seagate 32550N:\
           (such as during busmastering DMA from a SCSI controller like the
           Adaptec 1542).
  
-      <sect1>Help, some of my X Window menus and dialog boxes don't work
-          right!  I can't select them.
+      <sect1>Help, some of my X Window menus and dialog boxes don't work right!  I can't select them.
         <p>
           Try turning off the Num Lock key.
 
@@ -1091,8 +1160,7 @@ sea32550N|Seagate 32550N:\
           will probably appear to hang/lock up after executing the kill
           command.
  
-      <sect1>I've heard of something called FreeBSD-current.  How do I run
-          it, and where can I get more information?
+      <sect1>I've heard of something called FreeBSD-current. How do I run it, and where can I get more information?
 
         <p>
           Read the file <tt>/usr/src/share/FAQ/Text/current-policy.FAQ</tt>,
@@ -1130,8 +1198,7 @@ sea32550N|Seagate 32550N:\
 
           which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
 
-      <sect1>How do I create customized installation disks that I can give
-          out to other people at my site?
+      <sect1>How do I create customized installation disks that I can give out to other people at my site?
 
         <p>
           The entire process of creating installation disks and source and
@@ -1139,8 +1206,7 @@ sea32550N|Seagate 32550N:\
           <tt>/usr/src/release/Makefile</tt>.  The information there should
           be enough to get you started.
 
-      <sect1>How do I re-build my system without clobbering the existing
-          installed binaries?
+      <sect1>How do I re-build my system without clobbering the existing installed binaries?
 
         <p>
           If you define the environment variable <tt/DESTDIR/ while running
@@ -1152,8 +1218,7 @@ sea32550N|Seagate 32550N:\
           however.
 
 
-      <sect1>When my system booted, it told me that ``(bus speed
-          defaulted)''.  What does that mean?
+      <sect1>When my system booted, it told me that ``(bus speed defaulted)''.  What does that mean?
 
         <p>
           The Adaptec 1542 SCSI host adapters allow the user to configure
@@ -1166,9 +1231,7 @@ sea32550N|Seagate 32550N:\
           but on those systems where it doesn't, your data could be
           corrupted.
 
-      <sect1>I would like to track changes to current and do not have net
-          access.  Is there any way besides downloading the whole tree?
-          <label id="ctm">
+      <sect1>I would like to track changes to current and do not have net access.  Is there any way besides downloading the whole tree? <label id="ctm">
 
         <p>
           Yes, you can use the <tt/CTM/ facility.  Check out the
@@ -1179,8 +1242,7 @@ sea32550N|Seagate 32550N:\
 
           for more information.
 
-      <sect1>How do I split up large binary files into smaller 240k files
-          like the distribution does?
+      <sect1>How do I split up large binary files into smaller 240k files like the distribution does?
 
         <p>
           Newer BSD based systems have a ``<tt/-b/'' option to split that
@@ -1197,13 +1259,9 @@ sea32550N|Seagate 32550N:\
             $&lcub;RELEASEDIR&rcub;/tarballs/bindist/bin_tgz.)
           </verb>
 
-      <sect1>&lt;XXX&gt; I've had a couple of system panics and would like
-          to be able browse the system dumps.  The normal kernel is
-          stripped and I don't want to run a bloated kernel.  What can I
-          do?</>
+      <sect1>&lt;XXX&gt; I've had a couple of system panics and would like to be able browse the system dumps.  The normal kernel is stripped and I don't want to run a bloated kernel.  What can I do?</>
 
-      <sect1>I've got this neato kernel extension I just know everyone will
-          will want.  How do I get it included into the distribution?
+      <sect1>I've got this neato kernel extension I just know everyone will will want.  How do I get it included into the distribution?
         <p>
           Please take a look at the FAQ for submiting code to FreeBSD at:
 
@@ -1217,8 +1275,7 @@ sea32550N|Seagate 32550N:\
 
     <sect>Kernel Configuration
       <p>
-      <sect1>Ok, so how DO I compile my own kernel, anyway? <label
-            id="make-kernel">
+      <sect1>Ok, so how DO I compile my own kernel, anyway? <label id="make-kernel">
         <p>
           Before you can compile a kernel, you need either the complete
           <tt/srcdist/ or, at the minimum, the <tt/kerndist/ loaded on your
@@ -1282,9 +1339,7 @@ sea32550N|Seagate 32550N:\
           messages printed by your old kernel, some of which may be quite
           helpful in configuring the new one.
 
-      <sect1>When I compile a kernel with multi-port serial code, it tells
-          me that only the first port is probed and the rest skipped due to
-          interrupt conflicts.  How do I fix this?
+      <sect1>When I compile a kernel with multi-port serial code, it tells me that only the first port is probed and the rest skipped due to interrupt conflicts.  How do I fix this?
 
         <p>
           The problem here is that FreeBSD has code built-in to keep the
@@ -1302,8 +1357,7 @@ device    sio4    at isa? port 0x2b0 tty flags 0x501 vector siointr
 device    sio5    at isa? port 0x2b8 tty flags 0x501 vector siointr
 </verb>
 
-      <sect1>FreeBSD is supposed to come with support for QIC-40/80 drives
-          but when I look, I can't find it.
+      <sect1>FreeBSD is supposed to come with support for QIC-40/80 drives but when I look, I can't find it.
 
         <p>
           You need to uncomment the following line in the generic config
@@ -1362,9 +1416,7 @@ disk        fd1   at fdc0 drive 1
           <tt>&lt;platforms@FreeBSD.ORG&gt;</tt> for more information on our
           strategy for porting.
 
-      <sect1>I just wrote a device driver for a Foobar Systems, Inc.
-          Integrated Adaptive Gronkulator card.  How do I get the
-          appropriate major numbers assigned?
+      <sect1>I just wrote a device driver for a Foobar Systems, Inc. Integrated Adaptive Gronkulator card.  How do I get the appropriate major numbers assigned?
 
         <p>
           This depends on whether or not you plan on making the driver
@@ -1382,9 +1434,28 @@ disk        fd1   at fdc0 drive 1
 
     <sect>System Administration
 
-      <sect1>How do I add a user easily?  I read the man page and am more
-          confused than ever!  (Alternatively: I didn't read the man page,
-          I never read man pages! :-) )
+<sect1>Hmm, where are my familiar BSD system files ? What's this <tt>/etc/sysconfig</tt> thing ?
+
+        <p>
+          As for 2.0.5R, the primary configuration file is
+          <tt>/etc/sysconfig</tt>. All the options are to be specified in
+          this one and the other one (<tt>/etc/rc</tt> and
+          <tt>/etc/netstart</tt>) just include it.
+
+          Look in the <tt>/etc/sysconfig</tt> file and change the value to
+          match your system. This file is filled with comments to show what
+          to put in there.
+
+          The <tt>/etc/rc.local</tt> is here as always and is the place to
+          put additional services like <tt/INN/ or a <tt/http/ server.
+
+          The <tt>/etc/rc.serial</tt> is for serial port initialization
+          (e.g. locking the port characterictics, and so on.).
+
+          The <tt>/etc/rc.i386</tt> is for Intel-specifics setting like the
+          iBCS2 emulation.
+
+      <sect1>How do I add a user easily?  I read the man page and am more confused than ever!  (Alternatively: I didn't read the man page, I never read man pages! :-) )
 
         <p>
           Use the <tt/adduser/ command.
@@ -1394,15 +1465,12 @@ disk        fd1   at fdc0 drive 1
           <tt>&lt;roberto@FreeBSD.ORG&gt;</tt> about it.  It is currently
           under further development.
 
-      <sect1>&lt;XXX&gt; I'm trying to use my printer and keep running into
-          problems.  I tried looking at <tt>/etc/printcap</tt>, but it's
-          close to useless.  Any ideas?
+      <sect1>&lt;XXX&gt; I'm trying to use my printer and keep running into problems.  I tried looking at <tt>/etc/printcap</tt>, but it's close to useless.  Any ideas?
         <p>
           Still under construction.
       </sect1>
 
-      <sect1>My keyboard mappings are wrong for my system. How can I fix
-          them?
+      <sect1>My keyboard mappings are wrong for my system. How can I fix them?
         <p>
           The kbdcontrol program has an option to load a keyboard map file.
           Under <tt>/usr/share/syscons/keymaps</tt> are a number of map
@@ -1436,9 +1504,7 @@ disk        fd1   at fdc0 drive 1
 
     <sect>Networking
 
-      <sect1>Where can I get information booting FreeBSD ``diskless'', that
-          is booting and running a FreeBSD box from a server rather than
-          having a local disk?
+      <sect1>Where can I get information booting FreeBSD ``diskless'', that is booting and running a FreeBSD box from a server rather than having a local disk?
 
         <p>
           Please read the diskless section in the Handbook. It is in
@@ -1447,8 +1513,7 @@ disk        fd1   at fdc0 drive 1
           <url url="http://www.FreeBSD.ORG/How/handbook/diskless.html"
             name="Handbook's section on diskless boot">
 
-      <sect1>I've heard that you can use a FreeBSD box as a dedicated
-          network router - is there any easy support for this?
+      <sect1>I've heard that you can use a FreeBSD box as a dedicated network router - is there any easy support for this?
 
         <p>
           Internet standards and good engineering practice prohibit us from
@@ -1487,11 +1552,10 @@ disk        fd1   at fdc0 drive 1
           handbook in <tt>/usr/share/doc/handbook</tt> or use the following
           link:
 
-          <url url="http://www.FreeBSD.ORG/How/handbook" name="FreeBSD's
-            Handbook">
+          <url url="http://www.FreeBSD.ORG/How/handbook"
+            name="FreeBSD's Handbook">
 
-      <sect1>How do I get my network set up? I don't see how to make my
-          <tt>/dev/ed0</tt> device!
+      <sect1>How do I get my network set up? I don't see how to make my <tt>/dev/ed0</tt> device!
 
         <p>
           In the Berkeley networking framework, network interfaces are only
@@ -1507,13 +1571,12 @@ disk        fd1   at fdc0 drive 1
       <sect1>How do I get my 3C503 to use the other network port?
 
         <p>
-          Use ``<tt/ifconfig ed0/'' to see whether the ALTPHYS flag is set,
-          and then use either ``<tt/ifconfig ed0 altphys/'' if it was off,
-          or ``<tt/ifconfig ed0 -altphys/'' if it was on.
+          If you want to use the other ports, you'll have to specify an
+          additional parameter on the <tt/ifconfig(1)/ command line. The
+          default port is ``<tt/link0/''. To use the AUI port instead of
+          the BNC one, use ``<tt/link2/''.
 
-      <sect1>I'm having problems with NFS to/from FreeBSD and my
-          Wuffotronics Workstation / generic NFS appliance, where should I
-          look first?
+      <sect1>I'm having problems with NFS to/from FreeBSD and my Wuffotronics Workstation / generic NFS appliance, where should I look first?
 
         <p>
           Certain PC network cards are better than others (to put it
@@ -1527,9 +1590,16 @@ disk        fd1   at fdc0 drive 1
           for more information on
           this topic.
 
-      <sect1>I want to enable IP multicast support on my FreeBSD box, how
-          do I do it?  (Alternatively: What the heck IS multicasting and
-          what applications make use of it?)
+      <sect1>Why can't I NFS-mount from a Linux box?
+
+        <p>
+          Some versions of the Linux NFS code only accept mount requests
+          from a priviledged port; try
+          <verb>
+            mount -o -P linuxbox:/blah /mnt
+          </verb>
+
+      <sect1>I want to enable IP multicast support on my FreeBSD box, how do I do it?  (Alternatively: What the heck IS multicasting and what applications make use of it?)
 
         <p>
           Multicast host operations are fully supported in FreeBSD 2.0 by
@@ -1565,8 +1635,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
         This section answers common questions about serial communications
         with FreeBSD.
 
-      <sect1> How do I tell if FreeBSD found my serial ports or modem
-          cards?
+      <sect1> How do I tell if FreeBSD found my serial ports or modem cards?
         <p>
           As the FreeBSD kernel boots, it will probe for the serial ports
           in your system for which the kernel was configured.  You can
@@ -1612,18 +1681,17 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           <tt>/dev/ttyd2</tt> for dial-in devices.  What's the difference
           between these two classes of devices?
 
-          You use <tt/ttydX/ for dial-ins.  The <tt/ttydX/ device acts like
-          the <tt/ttyXX/ device, but it also uses the modem control lines.
-          When opening <tt>/dev/ttydX</tt> in blocking mode, a process will
-          wait for the corresponding <tt/cuaaX/ device to become inactive,
-          and then wait for the carrier detect line to go active.  When you
-          open the <tt/cuaaX/ device, it makes sure the serial port isn't
-          already in use by the <tt/ttydX/ device.  If the port's
-          available, it ``steals'' it from the <tt/ttydX/ device.  Also,
-          the <tt/cuaXX/ device doesn't care about carrier detect.  With
-          this scheme and an auto-answer modem, you can have remote users
-          log in and you can still dialout with the same modem and the
-          system will take care of all the conflicts.
+          You use <tt/ttydX/ for dial-ins.  When opening
+          <tt>/dev/ttydX</tt> in blocking mode, a process will wait for the
+          corresponding <tt/cuaaX/ device to become inactive, and then wait
+          for the carrier detect line to go active.  When you open the
+          <tt/cuaaX/ device, it makes sure the serial port isn't already in
+          use by the <tt/ttydX/ device.  If the port's available, it
+          ``steals'' it from the <tt/ttydX/ device.  Also, the <tt/cuaXX/
+          device doesn't care about carrier detect.  With this scheme and
+          an auto-answer modem, you can have remote users log in and you
+          can still dialout with the same modem and the system will take
+          care of all the conflicts.
 
       <sect1> How do I configure the kernel for my multiport serial card?
         <p>
@@ -1648,14 +1716,11 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           (<tt/0x700/), diagnostics enabled during probe (<tt/0x080/), and
           all the ports share an irq (<tt/0x001/).
 
-      <sect1> I have two multiport serial cards that can share irqs. Can
-          FreeBSD handle this?
+      <sect1> I have two multiport serial cards that can share irqs. Can FreeBSD handle this?
         <p>
           Not yet. You'll have to use a different irq for each card.
 
-      <sect1> What's the difference between <tt/ttyd1/, <tt/ttyid1/, and
-          <tt/ttyld1/?  Or, how can I set the default serial parameters for
-          a port?
+      <sect1> What's the difference between <tt/ttyd1/, <tt/ttyid1/, and <tt/ttyld1/?  Or, how can I set the default serial parameters for a port?
         <p>
           The <tt/ttydX/ (or <tt/cuaaX/) device is the regular device
           you'll want to open for your applications.  When a process opens
@@ -1677,17 +1742,17 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
 
           A good place to do this is in <tt>/etc/rc.serial</tt>. Now, an
           application will have these settings by default when it opens
-          <tt/tty05/.  It can still change these settings to its liking,
+          <tt/ttyd5/.  It can still change these settings to its liking,
           though.
 
           You can also prevent certain settings from being changed by an
           application by making adjustments to the ``lock state'' device.
-          For example, to lock the speed of <tt/tty05/ to 57600 bps, do
+          For example, to lock the speed of <tt/ttyd5/ to 57600 bps, do
           <verb>
-            stty -f /dev/ttyl05 57600
+            stty -f /dev/ttyld5 57600
           </verb>
 
-          Now, an application that opens <tt/tty05/ and tries to change the
+          Now, an application that opens <tt/ttyd5/ and tries to change the
           speed of the port will be stuck with 57600 bps.
 
           Naturally, you should make the initial state and lock state
@@ -1755,8 +1820,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             747 ??  I      0:00.04 /usr/libexec/getty std.57600 ttyd1 
           </verb>
 
-      <sect1> How can I make my spare computer a dumb terminal connected to
-          my FreeBSD box?
+      <sect1> How can I make my spare computer a dumb terminal connected to my FreeBSD box?
         <p>
           If you're using another computer as a terminal into your FreeBSD
           system, get a null modem cable to go between the two serial
@@ -1767,13 +1831,12 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           you're hooking up a WYSE-50 terminal to the fifth serial port,
           use an entry like this:
           <verb>
-            tty04 "/usr/libexec/getty std.38400" wyse50 on secure
+            ttyd4 "/usr/libexec/getty std.38400" wyse50 on secure
           </verb>
-          This example shows that the port on <tt>/dev/tty04</tt> has a
+          This example shows that the port on <tt>/dev/ttyd4</tt> has a
           wyse50 terminal connected at 38400 bps with no parity
           (<tt/std.38400/ from <tt>/etc/gettytab</tt>) and <tt/root/ logins
-          are allowed (secure).  For directly-connected terminals, use the
-          <tt/ttyXX/ entry.
+          are allowed (secure).
 
       <sect1>  Why can't I run <tt/tip/ or <tt/cu/?
         <p>
@@ -1815,8 +1878,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           1/''. Then ``<tt/make/'' and ``<tt/make install/''. Everything
           works nicely after that.
 
-      <sect1> How am I expected to enter these AT commands without resorting
-          to some DOS-based terminal program? <label id="direct-at">
+      <sect1> How am I expected to enter these AT commands without resorting to some DOS-based terminal program? <label id="direct-at">
         <p>
           Make what's called a ``<tt/direct/'' entry in your
           <tt>/etc/remote</tt> file.  For example, if your modem's hooked
@@ -1835,8 +1897,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
             MAKEDEV cuaa0
           </verb>
 
-      <sect1> Why doesn't the <tt/@/ sign for the phone number capability
-          work?
+      <sect1> Why doesn't the <tt/@/ sign for the phone number capability work?
         <p>
           The <tt/@/ sign in the pn capability tells tip to look in
           <tt>/etc/phones</tt> for a phone number.  But the <tt/@/ sign is
@@ -1865,8 +1926,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           </verb>
           and type ``<tt/cu 5551234 -s 115200/''.
 
-      <sect1> Great---but how can I do that without having to specify the
-          bps rate on the command line?
+      <sect1> Great---but how can I do that without having to specify the bps rate on the command line?
         <p>
           Put in an entry for <tt/tip1200/ or <tt/cu1200/, but go ahead and
           use whatever bps rate is appropriate with the br
@@ -1874,10 +1934,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           why it looks for a ``<tt/tip1200/'' entry.  You don't have to use
           1200 bps, though.
 
-      <sect1> I want separate entries for various hosts I access through a
-          terminal server, but I don't want to type ``<tt/CONNECT
-          &lt;host&gt;/'' each time once I'm connected. Can <tt/tip/ do
-          that for me?
+      <sect1> I want separate entries for various hosts I access through a terminal server, but I don't want to type ``<tt/CONNECT &lt;host&gt;/'' each time once I'm connected. Can <tt/tip/ do that for me?
         <p>
           Yes. Use the <tt/cm/ capability. For example, these entries in
           <tt>/etc/remote</tt>:
@@ -1894,8 +1951,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           connect to the hosts pain or muffin; and ``<tt/tip deep13/'' to
           get to the terminal server.
 
-      <sect1> My university has 42 billion students but only 4 modem lines.
-          Can tip automatically try each line?
+      <sect1> My university has 42 billion students but only 4 modem lines. Can tip automatically try each line?
         <p>
           Sure.  Make an entry for your university in <tt>/etc/remote</tt>
           and use <tt>\@</tt> for the <tt/pn/ capability:
