@@ -71,9 +71,13 @@
 #define DMA1_READY  0x08
 
 #ifdef GSCDEBUG
-#define lprintf if(scu->flags & FLAG_DEBUG) printf
+#define lprintf(args)						\
+		do {						\
+			if (scu->flags & FLAG_DEBUG)		\
+				printf args;			\
+		} while (0)
 #else
-#define lprintf (void)
+#define lprintf(args)
 #endif
 
 #define MIN(a, b)	(((a) < (b)) ? (a) : (b))
@@ -226,16 +230,16 @@ lookup_geometry(struct gsc_geom geom, const struct gsc_unit *scu)
 	   ( ( geom.g_res != INVALID ) && ( tab.g_res == geom.g_res ) ) ||
 	   ( ( geom.s_res != INVALID ) && ( tab.s_res == geom.s_res ) ) )
 	{
-	  lprintf("gsc.lookup_geometry: "
+	  lprintf(("gsc.lookup_geometry: "
 		 "geometry lookup found: %ddpi, %ddpl\n",
-		 tab.dpi, tab.dpl);
+		 tab.dpi, tab.dpl));
 	  return i;
 	}
     }
 
-  lprintf("gsc.lookup_geometry: "
+  lprintf(("gsc.lookup_geometry: "
 	 "geometry lookup failed on {%d, %d, 0x%02x, 0x%02x}\n",
-	 geom.dpi, geom.dpl, geom.g_res, geom.s_res);
+	 geom.dpi, geom.dpl, geom.g_res, geom.s_res));
 
   return INVALID;
 }
@@ -253,7 +257,7 @@ get_geometry(const struct gsc_unit *scu)
 {
   struct gsc_geom geom = NEW_GEOM;
 
-  lprintf("gsc.get_geometry: get geometry at 0x%03x\n", scu->stat);
+  lprintf(("gsc.get_geometry: get geometry at 0x%03x\n", scu->stat));
 
   if ( ( geom.g_res = inb(scu->stat) ) == FAIL )
     return INVALID;
@@ -276,18 +280,18 @@ buffer_allocate(struct gsc_unit *scu)
 
   size = scu->blen * geomtab[scu->geometry].dpl / 8;
 
-  lprintf("gsc.buffer_allocate: need 0x%x bytes\n", size);
+  lprintf(("gsc.buffer_allocate: need 0x%x bytes\n", size));
 
   if ( size > MAX_BUFSIZE )
     {
-      lprintf("gsc.buffer_allocate: 0x%x bytes are too much\n", size);
+      lprintf(("gsc.buffer_allocate: 0x%x bytes are too much\n", size));
       return ENOMEM;
     }
 
   scu->sbuf.size = size;
   scu->sbuf.poi  = size;
 
-  lprintf("gsc.buffer_allocate: ok\n");
+  lprintf(("gsc.buffer_allocate: ok\n"));
 
   return SUCCESS;
 }
@@ -307,11 +311,11 @@ buffer_read(struct gsc_unit *scu)
   int sps;
   int delay;
 
-  lprintf("gsc.buffer_read: begin\n");
+  lprintf(("gsc.buffer_read: begin\n"));
 
   if (scu->ctrl_byte == INVALID)
     {
-      lprintf("gsc.buffer_read: invalid ctrl_byte\n");
+      lprintf(("gsc.buffer_read: invalid ctrl_byte\n"));
       return EIO;
     }
 
@@ -330,7 +334,7 @@ buffer_read(struct gsc_unit *scu)
       if(delay >= scu->btime)
 	{
 	  splx(sps);
-	  lprintf("gsc.buffer_read: timeout\n");
+	  lprintf(("gsc.buffer_read: timeout\n"));
 	  res = EWOULDBLOCK;
 	  break;
 	}
@@ -346,16 +350,16 @@ buffer_read(struct gsc_unit *scu)
 
   if(res != SUCCESS)
     {
-      lprintf("gsc.buffer_read: aborted with %d\n", res);
+      lprintf(("gsc.buffer_read: aborted with %d\n", res));
       return res;
     }
 
-  lprintf("gsc.buffer_read: invert buffer\n");
+  lprintf(("gsc.buffer_read: invert buffer\n"));
   for(p = scu->sbuf.base + scu->sbuf.size - 1; p >= scu->sbuf.base; p--)
     *p = ~*p;
 
   scu->sbuf.poi = 0;
-  lprintf("gsc.buffer_read: ok\n");
+  lprintf(("gsc.buffer_read: ok\n"));
   return SUCCESS;
 }
 
@@ -384,25 +388,25 @@ gscprobe (struct isa_device *isdp)
 
   scu->flags = FLAG_DEBUG;
 
-  lprintf("gsc%d.probe "
-	 "on iobase 0x%03x, irq %d, drq %d, addr %d, size %d\n",
+  lprintf(("gsc%d.probe "
+	 "on iobase 0x%03x, irq %d, drq %d, addr %p, size %d\n",
 	 unit,
 	 isdp->id_iobase,
 	 isdp->id_irq,
 	 isdp->id_drq,
 	 isdp->id_maddr,
-	 isdp->id_msize);
+	 isdp->id_msize));
 
   if ( isdp->id_iobase < 0 )
     {
-      lprintf("gsc%d.probe: no iobase given\n", unit);
+      lprintf(("gsc%d.probe: no iobase given\n", unit));
       return PROBE_FAIL;
     }
 
   stb = inb( GSC_STAT(isdp->id_iobase) );
   if (stb == FAIL)
     {
-      lprintf("gsc%d.probe: get status byte failed\n", unit);
+      lprintf(("gsc%d.probe: get status byte failed\n", unit));
       return PROBE_FAIL;
     }
 
@@ -416,25 +420,25 @@ gscprobe (struct isa_device *isdp)
 
   switch(stb & GSC_CNF_MASK) {
   case GSC_CNF_DMA1:
-    lprintf("gsc%d.probe: DMA 1\n", unit);
+    lprintf(("gsc%d.probe: DMA 1\n", unit));
     scu->channel = 1;
     break;
 
   case GSC_CNF_DMA3:
-    lprintf("gsc%d.probe: DMA 3\n", unit);
+    lprintf(("gsc%d.probe: DMA 3\n", unit));
     scu->channel = 3;
     break;
 
   case GSC_CNF_IRQ3:
-    lprintf("gsc%d.probe: IRQ 3\n", unit);
+    lprintf(("gsc%d.probe: IRQ 3\n", unit));
     goto probe_noirq;
   case GSC_CNF_IRQ5:
-    lprintf("gsc%d.probe: IRQ 5\n", unit);
+    lprintf(("gsc%d.probe: IRQ 5\n", unit));
   probe_noirq:
-    lprintf("gsc%d.probe: sorry, can't use IRQ yet\n", unit);
+    lprintf(("gsc%d.probe: sorry, can't use IRQ yet\n", unit));
     return PROBE_FAIL;
   default:
-    lprintf("gsc%d.probe: invalid status byte\n", unit, stb);
+    lprintf(("gsc%d.probe: invalid status byte 0x%02x\n", unit, (u_char) stb));
     return PROBE_FAIL;
   }
 
@@ -442,8 +446,8 @@ gscprobe (struct isa_device *isdp)
     isdp->id_drq = scu->channel;
   if (scu->channel != isdp->id_drq)
     {
-      lprintf("gsc%d.probe: drq mismatch: config: %d; hardware: %d\n",
-	      unit, isdp->id_drq, scu->channel);
+      lprintf(("gsc%d.probe: drq mismatch: config: %d; hardware: %d\n",
+	      unit, isdp->id_drq, scu->channel));
       return PROBE_FAIL;
     }
 
@@ -451,7 +455,7 @@ gscprobe (struct isa_device *isdp)
   scu->geometry = lookup_geometry(geom, scu);
   if (scu->geometry == INVALID)
     {
-      lprintf("gsc%d.probe: geometry lookup failed\n", unit);
+      lprintf(("gsc%d.probe: geometry lookup failed\n", unit));
       return PROBE_FAIL;
     }
   else
@@ -459,13 +463,13 @@ gscprobe (struct isa_device *isdp)
       scu->ctrl_byte = geomtab[scu->geometry].s_res;
       outb(scu->ctrl, scu->ctrl_byte | GSC_POWER_ON);
 
-      lprintf("gsc%d.probe: status 0x%02x, %ddpi\n",
-	     unit, stb, geomtab[scu->geometry].dpi);
+      lprintf(("gsc%d.probe: status 0x%02x, %ddpi\n",
+	     unit, stb, geomtab[scu->geometry].dpi));
 
       outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);
     }
 
-  lprintf("gsc%d.probe: ok\n", unit);
+  lprintf(("gsc%d.probe: ok\n", unit));
 
   scu->flags &= ~FLAG_DEBUG;
 
@@ -488,14 +492,14 @@ gscattach(struct isa_device *isdp)
 
   scu->flags |= FLAG_DEBUG;
 
-  lprintf("gsc%d.attach: "
-	 "iobase 0x%03x, irq %d, drq %d, addr %d, size %d\n",
+  lprintf(("gsc%d.attach: "
+	 "iobase 0x%03x, irq %d, drq %d, addr %p, size %d\n",
 	 unit,
 	 isdp->id_iobase,
 	 isdp->id_irq,
 	 isdp->id_drq,
 	 isdp->id_maddr,
-	 isdp->id_msize);
+	 isdp->id_msize));
 
   printf("gsc%d: GeniScan GS-4500 at %ddpi\n",
 	 unit, geomtab[scu->geometry].dpi);
@@ -509,7 +513,7 @@ gscattach(struct isa_device *isdp)
 				0ul, 0xfffffful, 1ul, 0x10000ul);
   if ( scu->sbuf.base == NULL )
     {
-      lprintf("gsc%d.attach: buffer allocation failed\n", unit);
+      lprintf(("gsc%d.attach: buffer allocation failed\n", unit));
       return ATTACH_FAIL;	/* XXX attach must not fail */
     }
   scu->sbuf.size = INVALID;
@@ -519,7 +523,7 @@ gscattach(struct isa_device *isdp)
   scu->btime = TIMEOUT;
 
   scu->flags |= ATTACHED;
-  lprintf("gsc%d.attach: ok\n", unit);
+  lprintf(("gsc%d.attach: ok\n", unit));
   scu->flags &= ~FLAG_DEBUG;
 #ifdef DEVFS
 #define GSC_UID 0
@@ -569,8 +573,8 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
   scu = unittab + unit;
   if ( !( scu->flags & ATTACHED ) )
     {
-      lprintf("gsc%d.open: unit was not attached successfully 0x04x\n",
-	     unit, scu->flags);
+      lprintf(("gsc%d.open: unit was not attached successfully 0x%04x\n",
+	     unit, scu->flags));
       return ENXIO;
     }
 
@@ -582,23 +586,23 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
   switch(minor(dev) & FRMT_MASK) {
   case FRMT_PBM:
     scu->flags |= PBM_MODE;
-    lprintf("gsc%d.open: pbm mode\n", unit);
+    lprintf(("gsc%d.open: pbm mode\n", unit));
     break;
   case FRMT_RAW:
-    lprintf("gsc%d.open: raw mode\n", unit);
+    lprintf(("gsc%d.open: raw mode\n", unit));
     scu->flags &= ~PBM_MODE;
     break;
   default:
-    lprintf("gsc%d.open: gray maps are not yet supported", unit);
+    lprintf(("gsc%d.open: gray maps are not yet supported", unit));
     return ENXIO;
   }
 
-  lprintf("gsc%d.open: minor %d\n",
-	 unit, minor(dev));
+  lprintf(("gsc%d.open: minor %d\n",
+	 unit, minor(dev)));
 
   if ( scu->flags & OPEN )
     {
-      lprintf("gsc%d.open: already open", unit);
+      lprintf(("gsc%d.open: already open", unit));
       return EBUSY;
     }
 
@@ -624,13 +628,13 @@ gscclose (dev_t dev, int flags, int fmt, struct proc *p)
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
 
-  lprintf("gsc%d.close: minor %d\n",
-	 unit, minor(dev));
+  lprintf(("gsc%d.close: minor %d\n",
+	 unit, minor(dev)));
 
   if ( unit >= NGSC || !( scu->flags & ATTACHED ) )
     {
-      lprintf("gsc%d.read: unit was not attached successfully 0x04x\n",
-	     unit, scu->flags);
+      lprintf(("gsc%d.read: unit was not attached successfully 0x%04x\n",
+	     unit, scu->flags));
       return ENXIO;
     }
 
@@ -659,12 +663,12 @@ gscread  (dev_t dev, struct uio *uio, int ioflag)
   size_t nbytes;
   int res;
 
-  lprintf("gsc%d.read: minor %d\n", unit, minor(dev));
+  lprintf(("gsc%d.read: minor %d\n", unit, minor(dev)));
 
   if ( unit >= NGSC || !( scu->flags & ATTACHED ) )
     {
-      lprintf("gsc%d.read: unit was not attached successfully 0x04x\n",
-	     unit, scu->flags);
+      lprintf(("gsc%d.read: unit was not attached successfully 0x%04x\n",
+	     unit, scu->flags));
       return ENXIO;
     }
 
@@ -687,8 +691,8 @@ gscread  (dev_t dev, struct uio *uio, int ioflag)
 	  sprintf(scu->sbuf.base,"P4 %d %d\n", width, scu->height);
 	  scu->bcount = scu->height * width / 8;
 
-	  lprintf("gsc%d.read: initializing pbm mode: `%s', bcount: 0x%x\n",
-		  unit, scu->sbuf.base, scu->bcount);
+	  lprintf(("gsc%d.read: initializing pbm mode: `%s', bcount: 0x%x\n",
+		  unit, scu->sbuf.base, scu->bcount));
 
 	  /* move header to end of sbuf */
 	  for(p=scu->sbuf.base; *p; p++);
@@ -700,37 +704,37 @@ gscread  (dev_t dev, struct uio *uio, int ioflag)
 	}
     }
 
-  lprintf("gsc%d.read(before buffer_read): "
+  lprintf(("gsc%d.read(before buffer_read): "
 	  "size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
-	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
+	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount));
 
   if ( scu->sbuf.poi == scu->sbuf.size )
     if ( (res = buffer_read(scu)) != SUCCESS )
       return res;
 
-  lprintf("gsc%d.read(after buffer_read): "
+  lprintf(("gsc%d.read(after buffer_read): "
 	  "size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
-	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
+	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount));
 
   nbytes = MIN( uio->uio_resid, scu->sbuf.size - scu->sbuf.poi );
 
   if ( (scu->flags & PBM_MODE) )
     nbytes = MIN( nbytes, scu->bcount );
 
-  lprintf("gsc%d.read: transferring 0x%x bytes", nbytes);
+  lprintf(("gsc%d.read: transferring 0x%x bytes", unit, nbytes));
 
   res = uiomove(scu->sbuf.base + scu->sbuf.poi, nbytes, uio);
   if ( res != SUCCESS )
     {
-      lprintf("gsc%d.read: uiomove failed %d", unit, res);
+      lprintf(("gsc%d.read: uiomove failed %d", unit, res));
       return res;
     }
 
   scu->sbuf.poi += nbytes;
   if ( scu->flags & PBM_MODE ) scu->bcount -= nbytes;
 
-  lprintf("gsc%d.read: size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
-	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount);
+  lprintf(("gsc%d.read: size 0x%x, pointer 0x%x, bcount 0x%x, ok\n",
+	  unit, scu->sbuf.size, scu->sbuf.poi, scu->bcount));
 
   return SUCCESS;
 }
@@ -747,38 +751,38 @@ gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
   int unit = UNIT(minor(dev));
   struct gsc_unit *scu = unittab + unit;
 
-  lprintf("gsc%d.ioctl: minor %d\n",
-	 unit, minor(dev));
+  lprintf(("gsc%d.ioctl: minor %d\n",
+	 unit, minor(dev)));
 
   if ( unit >= NGSC || !( scu->flags & ATTACHED ) )
     {
-      lprintf("gsc%d.ioctl: unit was not attached successfully 0x04x\n",
-	     unit, scu->flags);
+      lprintf(("gsc%d.ioctl: unit was not attached successfully 0x%04x\n",
+	     unit, scu->flags));
       return ENXIO;
     }
 
   switch(cmd) {
   case GSC_SRESSW:
-    lprintf("gsc%d.ioctl:GSC_SRESSW\n", unit);
+    lprintf(("gsc%d.ioctl:GSC_SRESSW\n", unit));
     if ( scu->flags & READING )
       {
-	lprintf("gsc%d:ioctl on already reading unit\n", unit);
+	lprintf(("gsc%d:ioctl on already reading unit\n", unit));
 	return EBUSY;
       }
     scu->geometry = get_geometry(scu);
     return SUCCESS;
   case GSC_GRES:
     *(int *)data=geomtab[scu->geometry].dpi;
-    lprintf("gsc%d.ioctl:GSC_GRES %ddpi\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_GRES %ddpi\n", unit, *(int *)data));
     return SUCCESS;
   case GSC_GWIDTH:
     *(int *)data=geomtab[scu->geometry].dpl;
-    lprintf("gsc%d.ioctl:GSC_GWIDTH %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_GWIDTH %d\n", unit, *(int *)data));
     return SUCCESS;
   case GSC_SRES:
   case GSC_SWIDTH:
-    lprintf("gsc%d.ioctl:GSC_SRES or GSC_SWIDTH %d\n",
-	   unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_SRES or GSC_SWIDTH %d\n",
+	   unit, *(int *)data));
     { int g;
       struct gsc_geom geom = NEW_GEOM;
       if ( cmd == GSC_SRES )
@@ -792,37 +796,37 @@ gscioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     }
   case GSC_GHEIGHT:
     *(int *)data=scu->height;
-    lprintf("gsc%d.ioctl:GSC_GHEIGHT %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_GHEIGHT %d\n", unit, *(int *)data));
     return SUCCESS;
   case GSC_SHEIGHT:
-    lprintf("gsc%d.ioctl:GSC_SHEIGHT %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_SHEIGHT %d\n", unit, *(int *)data));
     if ( scu->flags & READING )
       {
-	lprintf("gsc%d:ioctl on already reading unit\n", unit);
+	lprintf(("gsc%d:ioctl on already reading unit\n", unit));
 	return EBUSY;
       }
     scu->height=*(int *)data;
     return SUCCESS;
   case GSC_GBLEN:
     *(int *)data=scu->blen;
-    lprintf("gsc%d.ioctl:GSC_GBLEN %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_GBLEN %d\n", unit, *(int *)data));
     return SUCCESS;
   case GSC_SBLEN:
-    lprintf("gsc%d.ioctl:GSC_SBLEN %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_SBLEN %d\n", unit, *(int *)data));
     if (*(int *)data * geomtab[scu->geometry].dpl / 8 > MAX_BUFSIZE)
       {
-	lprintf("gsc%d:ioctl buffer size too high\n", unit);
+	lprintf(("gsc%d:ioctl buffer size too high\n", unit));
 	return ENOMEM;
       }
     scu->blen=*(int *)data;
     return SUCCESS;
   case GSC_GBTIME:
     *(int *)data = scu->btime / hz;
-    lprintf("gsc%d.ioctl:GSC_GBTIME %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_GBTIME %d\n", unit, *(int *)data));
     return SUCCESS;
   case GSC_SBTIME:
     scu->btime = *(int *)data * hz;
-    lprintf("gsc%d.ioctl:GSC_SBTIME %d\n", unit, *(int *)data);
+    lprintf(("gsc%d.ioctl:GSC_SBTIME %d\n", unit, *(int *)data));
     return SUCCESS;
   default: return ENOTTY;
   }
