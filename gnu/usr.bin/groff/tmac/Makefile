@@ -1,8 +1,8 @@
 # Makefile for groff macros
 
-TMACOWN?=	bin
-TMACGRP?=	bin
-TMACMODE?=	444
+TMACOWN?=	${BINOWN}
+TMACGRP?=	${BINGRP}
+TMACMODE?=	${NOBINMODE}
 TMACDIR?=	/usr/share/tmac
 MDOCDIR?=	${TMACDIR}/mdoc
 
@@ -26,18 +26,18 @@ beforeinstall:
 			${DIST_DIR}/$$f ${DESTDIR}${TMACDIR}; \
 	done
 	sed -f ${DIST_DIR}/strip.sed ${DIST_DIR}/tmac.an >tmac.groff_an
-	${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+	${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 		tmac.groff_an ${DESTDIR}${TMACDIR}
 	for f in ${STRIPFILES}; do \
 		rm -f temp; \
 	  	sed -f ${DIST_DIR}/strip.sed ${DIST_DIR}/$$f >temp; \
-		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			temp ${DESTDIR}${TMACDIR}/$$f; \
 	done
 	for f in ${MDOCFILES}; do \
 		rm -f temp; \
 		sed -f ${DIST_DIR}/strip.sed ${DIST_DIR}/$$f >temp; \
-		${INSTALL} -c -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
+		${INSTALL} ${COPY} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 			temp ${DESTDIR}${MDOCDIR}/$$f; \
 	done
 	test -f ${DESTDIR}${TMACDIR}/man.local || \
