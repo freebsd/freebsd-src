@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.24 1999/03/16 01:24:23 brian Exp $
+ *	$Id: pred.c,v 1.25 1999/05/08 11:07:28 brian Exp $
  */
 
 #include <sys/types.h>
@@ -287,7 +287,7 @@ Pred1Input(void *v, struct ccp *ccp, u_short *proto, struct mbuf *bp)
 }
 
 static void
-Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf * bp)
+Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *bp)
 {
 }
 
