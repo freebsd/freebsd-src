@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.6 1995/01/09 16:05:32 davidg Exp $
+ * $Id: pmap.h,v 1.7 1995/12/17 07:19:54 bde Exp $
  */
 
 /*
@@ -87,44 +87,39 @@ typedef struct pmap_statistics *pmap_statistics_t;
 #include <machine/pmap.h>
 
 #ifdef KERNEL
-__BEGIN_DECLS
-void *pmap_bootstrap_alloc __P((int));
+void		 pmap_change_wiring __P((pmap_t, vm_offset_t, boolean_t));
+void		 pmap_clear_modify __P((vm_offset_t pa));
+void		 pmap_clear_reference __P((vm_offset_t pa));
+void		 pmap_copy __P((pmap_t, pmap_t, vm_offset_t, vm_size_t,
+		    vm_offset_t));
+void		 pmap_copy_page __P((vm_offset_t, vm_offset_t));
+void		 pmap_destroy __P((pmap_t));
+void		 pmap_enter __P((pmap_t, vm_offset_t, vm_offset_t, vm_prot_t,
+		    boolean_t));
+vm_offset_t	 pmap_extract __P((pmap_t, vm_offset_t));
+void		 pmap_growkernel __P((vm_offset_t));
+void		 pmap_init __P((vm_offset_t, vm_offset_t));
+boolean_t	 pmap_is_modified __P((vm_offset_t pa));
+boolean_t	 pmap_is_referenced __P((vm_offset_t pa));
+void		 pmap_kenter __P((vm_offset_t, vm_offset_t));
+void		 pmap_kremove __P((vm_offset_t));
+vm_offset_t	 pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
+void		 pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr,
+		    vm_object_t object, vm_pindex_t pindex, vm_offset_t size));
+boolean_t	 pmap_page_exists __P((pmap_t, vm_offset_t));
+void		 pmap_page_protect __P((vm_offset_t, vm_prot_t));
+void		 pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t,
+		    boolean_t));
+vm_offset_t	 pmap_phys_address __P((int));
+void		 pmap_pinit __P((pmap_t));
+void		 pmap_protect __P((pmap_t, vm_offset_t, vm_offset_t,
+		    vm_prot_t));
+void		 pmap_qenter __P((vm_offset_t, vm_page_t *, int));
+void		 pmap_qremove __P((vm_offset_t, int));
+void		 pmap_reference __P((pmap_t));
+void		 pmap_release __P((pmap_t));
+void		 pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
+void		 pmap_zero_page __P((vm_offset_t));
+#endif /* KERNEL */
 
-#if 0				/* XXX */
-void pmap_bootstrap __P(( /* machine dependent */ ));
-
-#endif
-void pmap_change_wiring __P((pmap_t, vm_offset_t, boolean_t));
-void pmap_clear_modify __P((vm_offset_t pa));
-void pmap_clear_reference __P((vm_offset_t pa));
-void pmap_collect __P((pmap_t));
-void pmap_copy __P((pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t));
-void pmap_copy_page __P((vm_offset_t, vm_offset_t));
-pmap_t pmap_create __P((vm_size_t));
-void pmap_destroy __P((pmap_t));
-void pmap_enter __P((pmap_t, vm_offset_t, vm_offset_t, vm_prot_t, boolean_t));
-vm_offset_t pmap_extract __P((pmap_t, vm_offset_t));
-void pmap_init __P((vm_offset_t, vm_offset_t));
-boolean_t pmap_is_modified __P((vm_offset_t pa));
-boolean_t pmap_is_referenced __P((vm_offset_t pa));
-void pmap_kenter __P((vm_offset_t, vm_offset_t));
-void pmap_kremove __P((vm_offset_t));
-vm_offset_t pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
-void pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr, vm_object_t object,
-			      vm_pindex_t pindex, vm_offset_t size));
-void pmap_page_protect __P((vm_offset_t, vm_prot_t));
-void pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t, boolean_t));
-vm_offset_t pmap_phys_address __P((int));
-void pmap_pinit __P((pmap_t));
-void pmap_protect __P((pmap_t, vm_offset_t, vm_offset_t, vm_prot_t));
-void pmap_qenter __P((vm_offset_t, vm_page_t *, int));
-void pmap_qremove __P((vm_offset_t, int));
-void pmap_reference __P((pmap_t));
-void pmap_release __P((pmap_t));
-void pmap_remove __P((pmap_t, vm_offset_t, vm_offset_t));
-void pmap_zero_page __P((vm_offset_t));
-
-__END_DECLS
-#endif
-
-#endif				/* _PMAP_VM_ */
+#endif /* _PMAP_VM_ */
