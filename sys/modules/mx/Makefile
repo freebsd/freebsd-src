@@ -3,8 +3,8 @@
 S	= ${.CURDIR}/../..
 .PATH:	$S/pci
 KMOD	= if_mx
-SRCS	= if_mx.c opt_bdg.h device_if.h bus_if.h pci_if.h
-CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h
+SRCS	= if_mx.c opt_bdg.h device_if.h bus_if.h pci_if.h miibus_if.h
+CLEANFILES	+= opt_bdg.h device_if.h bus_if.h pci_if.h miibus_if.h
 CFLAGS	+= ${DEBUG_FLAGS}
 
 opt_bdg.h:
@@ -18,5 +18,8 @@ bus_if.h: $S/kern/makedevops.pl $S/kern/bus_if.m
 
 pci_if.h: $S/kern/makedevops.pl $S/pci/pci_if.m
 	perl $S/kern/makedevops.pl -h $S/pci/pci_if.m
+
+miibus_if.h: $S/kern/makedevops.pl $S/dev/mii/miibus_if.m
+	perl $S/kern/makedevops.pl -h $S/dev/mii/miibus_if.m
 
 .include <bsd.kmod.mk>
