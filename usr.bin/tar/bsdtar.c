@@ -270,7 +270,12 @@ main(int argc, char **argv)
 #endif
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_NO_SAME_PERMISSIONS: /* GNU tar */
-			/* XXX This appears to be a no-op in GNU tar? XXX */
+			/*
+			 * This is always the default in FreeBSD's
+			 * version of GNU tar; it's also the default
+			 * behavior for bsdtar, so treat the
+			 * command-line option as a no-op.
+			 */
 			break;
 #endif
 		case 'O': /* GNU tar */
