@@ -372,7 +372,7 @@ macio_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
                 *result = dinfo->mdi_nregs;
                 break;
         case MACIO_IVAR_REGS:
-                *result = dinfo->mdi_regs;
+                *result = (uintptr_t)dinfo->mdi_regs;
                 break;
         default:
                 return (ENOENT);
