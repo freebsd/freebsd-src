@@ -65,16 +65,10 @@ int column, w;
 
 column = 0;
 while ((ch = getwchar()) != WEOF) {
-<<<<<<< wcwidth.3
-	if ((w = wcwidth(ch)) > 0)
-		column += w;
-	if (column > 20) {
-=======
 	w = wcwidth(ch);
 	if (w > 0 && column + w >= 20) {
->>>>>>> 1.4
 		putwchar(L'\en');
-		column = w;
+		column = 0;
 	}
 	putwchar(ch);
 	if (ch == L'\en')
