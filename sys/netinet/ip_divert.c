@@ -68,6 +68,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
 
 /*
@@ -150,17 +151,21 @@ div_input(struct mbuf *m, int off)
  * then pass them along with mbuf chain.
  */
 void
-divert_packet(struct mbuf *m, int incoming, int port, int rule)
+divert_packet(struct mbuf *m, int incoming)
 {
 	struct ip *ip;
 	struct inpcb *inp;
 	struct socket *sa;
 	u_int16_t nport;
 	struct sockaddr_in divsrc;
+	struct m_tag *mtag;
 
-	/* Sanity check */
-	KASSERT(port != 0, ("%s: port=0", __func__));
-
+	mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
+	if (mtag == NULL) {
+		printf("%s: no divert tag\n", __func__);
+		m_freem(m);
+		return;
+	}
 	/* Assure header */
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == 0)
@@ -174,7 +179,7 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	bzero(&divsrc, sizeof(divsrc));
 	divsrc.sin_len = sizeof(divsrc);
 	divsrc.sin_family = AF_INET;
-	divsrc.sin_port = rule;		/* record matching rule */
+	divsrc.sin_port = divert_cookie(mtag);	/* record matching rule */
 	if (incoming) {
 		struct ifaddr *ifa;
 
@@ -234,7 +239,7 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 	mtx_lock(&Giant);
 	/* Put packet on socket queue, if any */
 	sa = NULL;
-	nport = htons((u_int16_t)port);
+	nport = htons((u_int16_t)divert_info(mtag));
 	INP_INFO_RLOCK(&divcbinfo);
 	LIST_FOREACH(inp, &divcb, inp_list) {
 		INP_LOCK(inp);
@@ -273,19 +278,8 @@ div_output(struct socket *so, struct mbuf *m,
 	struct sockaddr_in *sin, struct mbuf *control)
 {
 	int error = 0;
-	struct m_hdr divert_tag;
 
-	/*
-	 * Prepare the tag for divert info. Note that a packet
-	 * with a 0 tag in mh_data is effectively untagged,
-	 * so we could optimize that case.
-	 */
-	divert_tag.mh_type = MT_TAG;
-	divert_tag.mh_flags = PACKET_TAG_DIVERT;
-	divert_tag.mh_next = m;
-	divert_tag.mh_data = 0;		/* the matching rule # */
-	divert_tag.mh_nextpkt = NULL;
-	m->m_pkthdr.rcvif = NULL;	/* XXX is it necessary ? */
+	KASSERT(m->m_pkthdr.rcvif == NULL, ("rcvif not null"));
 
 #ifdef MAC
 	mac_create_mbuf_from_socket(so, m);
@@ -296,9 +290,21 @@ div_output(struct socket *so, struct mbuf *m,
 
 	/* Loopback avoidance and state recovery */
 	if (sin) {
+		struct m_tag *mtag;
+		struct divert_tag *dt;
 		int i;
 
-		divert_tag.mh_data = (caddr_t)(uintptr_t)sin->sin_port;
+		mtag = m_tag_get(PACKET_TAG_DIVERT,
+				sizeof(struct divert_tag), M_NOWAIT);
+		if (mtag == NULL) {
+			error = ENOBUFS;
+			goto cantsend;
+		}
+		dt = (struct divert_tag *)(mtag+1);
+		dt->info = 0;
+		dt->cookie = sin->sin_port;
+		m_tag_prepend(m, mtag);
+
 		/*
 		 * Find receive interface with the given name, stuffed
 		 * (if it exists) in the sin_zero[] field.
@@ -335,7 +341,7 @@ div_output(struct socket *so, struct mbuf *m,
 			/* Send packet to output processing */
 			ipstat.ips_rawout++;			/* XXX */
 
-			error = ip_output((struct mbuf *)&divert_tag,
+			error = ip_output(m,
 				    inp->inp_options, NULL,
 				    (so->so_options & SO_DONTROUTE) |
 				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
@@ -362,7 +368,7 @@ div_output(struct socket *so, struct mbuf *m,
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
 		/* Send packet to input processing */
-		ip_input((struct mbuf *)&divert_tag);
+		ip_input(m);
 	}
 
 	return error;
@@ -370,6 +376,27 @@ div_output(struct socket *so, struct mbuf *m,
 cantsend:
 	m_freem(m);
 	return error;
+}
+
+/*
+ * Return a copy of the specified packet, but without
+ * the divert tag.  This is used when packets are ``tee'd''
+ * and we want the cloned copy to not have divert processing.
+ */
+struct mbuf *
+divert_clone(struct mbuf *m)
+{
+	struct mbuf *clone;
+	struct m_tag *mtag;
+
+	clone = m_dup(m, M_DONTWAIT);
+	if (clone != NULL) {
+		/* strip divert tag from copy */
+		mtag = m_tag_find(clone, PACKET_TAG_DIVERT, NULL);
+		if (mtag != NULL)
+			m_tag_delete(clone, mtag);
+	}
+	return clone;
 }
 
 static int
