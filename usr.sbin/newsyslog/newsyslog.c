@@ -150,8 +150,7 @@ static void bzcompress_log(char *logname, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static int send_signal(const struct conf_entry *ent);
-static void movefile(char *from, char *to, int perm, uid_t owner_uid,
-		gid_t group_gid);
+static void movefile(char *from, char *to);
 static void createdir(const struct conf_entry *ent, char *dirpart);
 static void createlog(const struct conf_entry *ent);
 
@@ -1401,14 +1400,22 @@ dotrim(const struct conf_entry *ent)
 		else
 			(void) unlink(ent->log);
 	} else {
-		if (noaction)
+		if (noaction) {
 			printf("\tmv %s to %s\n", ent->log, file1);
-		else {
+			printf("\tchmod %o %s\n", ent->permissions, file1);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				printf("\tchown %u:%u %s\n", ent->uid,
+				    ent->gid, file1);
+ 		} else {
 			if (archtodir)
-				movefile(ent->log, file1, ent->permissions,
-				    ent->uid, ent->gid);
+				movefile(ent->log, file1);
 			else
 				(void) rename(ent->log, file1);
+			if (chmod(file1, ent->permissions))
+				warn("can't chmod %s", file1);
+			if (ent->uid != (uid_t)-1 || ent->gid != (gid_t)-1)
+				if (chown(file1, ent->uid, ent->gid))
+					warn("can't chown %s", file1);
 		}
 	}
 
@@ -1664,7 +1671,7 @@ isnumberstr(const char *string)
 
 /* physically move file */
 static void
-movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
+movefile(char *from, char *to)
 {
 	FILE *src, *dst;
 	int c;
@@ -1673,12 +1680,6 @@ movefile(char *from, char *to, int perm, uid_t owner_uid, gid_t group_gid)
 		err(1, "can't fopen %s for reading", from);
 	if ((dst = fopen(to, "w")) == NULL)
 		err(1, "can't fopen %s for writing", to);
-	if (owner_uid != (uid_t)-1 || group_gid != (gid_t)-1) {
-		if (fchown(fileno(dst), owner_uid, group_gid))
-			err(1, "can't fchown %s", to);
-	}
-	if (fchmod(fileno(dst), perm))
-		err(1, "can't fchmod %s", to);
 
 	while ((c = getc(src)) != EOF) {
 		if ((putc(c, dst)) == EOF)
