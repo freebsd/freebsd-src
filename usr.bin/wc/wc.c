@@ -182,7 +182,7 @@ cnt(file)
 		}
 		/*
 		 * If all we need is the number of characters and it's a
-		 * regular or linked file, just stat the puppy.
+		 * regular file, just stat the puppy.
 		 */
 		if (dochar || domulti) {
 			if (fstat(fd, &sb)) {
@@ -190,7 +190,7 @@ cnt(file)
 				(void)close(fd);
 				return (1);
 			}
-			if (S_ISREG(sb.st_mode) || S_ISLNK(sb.st_mode)) {
+			if (S_ISREG(sb.st_mode)) {
 				(void)printf(" %7lld", (long long)sb.st_size);
 				tcharct += sb.st_size;
 				(void)close(fd);
