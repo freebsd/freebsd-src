@@ -244,7 +244,6 @@ struct ata_pci_controller {
 #define PRNEW		1
 #define PRTX		2
 #define PRMIO		3
-#define PRIDX		4
 #define PRTX4		0x01
 #define PRSX4K		0x02
 #define PRSX6K		0x04

@@ -135,7 +135,6 @@
 #define		ATA_BMCMD_START_STOP	0x01
 #define		ATA_BMCMD_WRITE_READ	0x08
 
-#define ATA_BMCTL_PORT			0x09
 #define ATA_BMDEVSPEC_0			0x0a
 #define ATA_BMSTAT_PORT			0x0b
 #define		ATA_BMSTAT_ACTIVE	0x01
