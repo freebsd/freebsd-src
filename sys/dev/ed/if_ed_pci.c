@@ -27,16 +27,20 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
+
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_mib.h>
+
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 #include <dev/ed/if_edvar.h>
 
@@ -57,10 +61,8 @@ static struct _pcsid
 	{ 0x00000000,	NULL					}
 };
 
-extern int ed_attach_NE2000_pci __P((device_t dev, int));
-
-static int ed_pci_probe __P((device_t));
-static int ed_pci_attach __P((device_t));
+static int	ed_pci_probe	__P((device_t));
+static int	ed_pci_attach	__P((device_t));
 
 static int
 ed_pci_probe (device_t dev)
@@ -81,7 +83,30 @@ ed_pci_probe (device_t dev)
 static int
 ed_pci_attach(device_t dev)
 {
-	return ed_attach_NE2000_pci(dev, PCIR_MAPS);
+        struct ed_softc *sc = device_get_softc(dev);
+        int flags = 0;
+        int error;
+
+        error = ed_probe_Novell_generic(dev, PCIR_MAPS, flags);
+        if (error)
+                return (error);
+
+        error = ed_alloc_irq(dev, 0, RF_SHAREABLE);
+        if (error) {
+                ed_release_resources(dev);
+                return (error);
+        }
+
+        error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
+                               edintr, sc, &sc->irq_handle);
+        if (error) {
+                ed_release_resources(dev);
+                return (error);
+        }
+
+	error = ed_attach(sc, device_get_unit(dev), flags);
+
+	return (error);
 }
 
 static device_method_t ed_pci_methods[] = {
