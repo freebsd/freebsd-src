@@ -1870,7 +1870,7 @@ pnpwakeup1(void)
      * The PnP COM device spec. dictates that the mouse must set DSR 
      * in response to DTR (by hardware or by software) and that if DSR is 
      * not asserted, the host computer should think that there is no device
-     * at this serial port.  But there are some mice just don't do that...
+     * at this serial port.  But some mice just don't do that...
      */
     ioctl(rodent.mfd, TIOCMGET, &i);
     debug("modem status 0%o", i);
@@ -1900,29 +1900,29 @@ pnpwakeup1(void)
     if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
 	debug("pnpwakeup1(): valid response in first phase.");
 	return TRUE;
-    } else {
-
-	/* port setup, 2nd phase (2.1.5) */
-        i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 0, RTS = 0 */
-        ioctl(rodent.mfd, TIOCMBIC, &i);
-        usleep(240000);
-
-	/* wait for respose, 2nd phase (2.1.6) */
-        i = FREAD;
-        ioctl(rodent.mfd, TIOCFLUSH, &i);
-        i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 1, RTS = 1 */
-        ioctl(rodent.mfd, TIOCMBIS, &i);
-
-        /* try to read something */
-        FD_ZERO(&fds);
-        FD_SET(rodent.mfd, &fds);
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 240000;
-        if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
-	    debug("pnpwakeup1(): valid response in second phase.");
-	    return TRUE;
-	}
     }
+
+    /* port setup, 2nd phase (2.1.5) */
+    i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 0, RTS = 0 */
+    ioctl(rodent.mfd, TIOCMBIC, &i);
+    usleep(240000);
+
+    /* wait for respose, 2nd phase (2.1.6) */
+    i = FREAD;
+    ioctl(rodent.mfd, TIOCFLUSH, &i);
+    i = TIOCM_DTR | TIOCM_RTS;	/* DTR = 1, RTS = 1 */
+    ioctl(rodent.mfd, TIOCMBIS, &i);
+
+    /* try to read something */
+    FD_ZERO(&fds);
+    FD_SET(rodent.mfd, &fds);
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 240000;
+    if (select(FD_SETSIZE, &fds, NULL, NULL, &timeout) > 0) {
+	debug("pnpwakeup1(): valid response in second phase.");
+	return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -1936,7 +1936,7 @@ pnpwakeup2(void)
     /*
      * This is a simplified procedure; it simply toggles RTS.
      */
-    debug("PnP COM device rev 0.9 probe...");
+    debug("alternate probe...");
 
     ioctl(rodent.mfd, TIOCMGET, &i);
     i |= TIOCM_DTR;		/* DTR = 1 */
@@ -1961,6 +1961,7 @@ pnpwakeup2(void)
 	debug("pnpwakeup2(): valid response.");
 	return TRUE;
     }
+
     return FALSE;
 }
 
