@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.8 1998/02/16 09:37:18 kato Exp $
+#	$Id: Makefile,v 1.9 1998/03/07 15:48:29 kato Exp $
 #
 
 PROG=	boot
@@ -17,7 +17,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-I${.CURDIR}/../biosboot \
 		-DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
-CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
