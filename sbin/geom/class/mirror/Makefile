@@ -4,7 +4,6 @@
 
 CLASS=	mirror
 
-NOMAN=	notyet
 DPADD=	${LIBMD}
 LDADD=	-lmd
 
