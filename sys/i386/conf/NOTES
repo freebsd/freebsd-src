@@ -371,6 +371,21 @@ hint.npx.0.irq="13"
 # Optional devices:
 #
 
+#
+# ACPI support using the Intel ACPI Component Architecture reference
+# implementation.
+#
+# ACPI_DEBUG enables the use of the debug.acpi.level and debug.acpi.layer
+# kernel environment variables to select initial debugging levels for the
+# Intel ACPICA code.  (Note that the Intel code must also have USE_DEBUGGER
+# defined when it is built).
+#
+# Note that building ACPI into the kernel is deprecated; the module is
+# normally loaded automatically by the loader.
+#
+device		acpica
+options 	ACPI_DEBUG
+
 # M-systems DiskOnchip products see src/sys/contrib/dev/fla/README
 device		fla
 hint.fla.0.at="isa"
