@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.7 1994/10/11 20:29:42 ache Exp $
+ * $Id: tty_compat.c,v 1.8 1995/03/29 19:50:58 ache Exp $
  */
 
 /* 
@@ -78,7 +78,7 @@ static struct speedtab compatspeeds[] = {
 	{ 0,	0 },
 	{ -1,	-1 },
 };
-static int compatspcodes[] = { 
+int compatspcodes[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
 	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
 };
@@ -95,7 +95,7 @@ ttcompat(tp, com, data, flag)
 	switch (com) {
 	case TIOCGETP: {
 		register struct sgttyb *sg = (struct sgttyb *)data;
-		register u_char *cc = tp->t_cc;
+		register cc_t *cc = tp->t_cc;
 		register speed;
 
 		speed = ttspeedtab(tp->t_ospeed, compatspeeds);
@@ -120,11 +120,11 @@ ttcompat(tp, com, data, flag)
 
 		term = tp->t_termios;
 		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
-			term.c_ispeed = speed;
+			return(EINVAL);
 		else
 			term.c_ispeed = compatspcodes[speed];
 		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
-			term.c_ospeed = speed;
+			return(EINVAL);
 		else
 			term.c_ospeed = compatspcodes[speed];
 		term.c_cc[VERASE] = sg->sg_erase;
@@ -137,7 +137,7 @@ ttcompat(tp, com, data, flag)
 
 	case TIOCGETC: {
 		struct tchars *tc = (struct tchars *)data;
-		register u_char *cc = tp->t_cc;
+		register cc_t *cc = tp->t_cc;
 
 		tc->t_intrc = cc[VINTR];
 		tc->t_quitc = cc[VQUIT];
@@ -149,7 +149,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCSETC: {
 		struct tchars *tc = (struct tchars *)data;
-		register u_char *cc = tp->t_cc;
+		register cc_t *cc = tp->t_cc;
 
 		cc[VINTR] = tc->t_intrc;
 		cc[VQUIT] = tc->t_quitc;
@@ -163,7 +163,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCSLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
-		register u_char *cc = tp->t_cc;
+		register cc_t *cc = tp->t_cc;
 
 		cc[VSUSP] = ltc->t_suspc;
 		cc[VDSUSP] = ltc->t_dsuspc;
@@ -175,7 +175,7 @@ ttcompat(tp, com, data, flag)
 	}
 	case TIOCGLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
-		register u_char *cc = tp->t_cc;
+		register cc_t *cc = tp->t_cc;
 
 		ltc->t_suspc = cc[VSUSP];
 		ltc->t_dsuspc = cc[VDSUSP];
