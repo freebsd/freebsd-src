@@ -332,6 +332,7 @@ vendor NEC2		0x0b62	NEC
 vendor ATI2		0x0b6f	ATI
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
+vendor LUWEN		0x0c76	Luwen
 vendor MOTOROLA		0x1063	Motorola
 vendor PLX		0x10b5	PLX
 vendor ASANTE		0x10bd	Asante
@@ -772,6 +773,9 @@ product LOGITECH QUICKCAMPRO2	0xd001	QuickCam Pro
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
+
+/* Luwen products */
+product LUWEN EASYDISK		0x0005	EasyDisc
 
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
