@@ -1963,9 +1963,9 @@ process_ACK:
 		case TCPS_CLOSING:
 			if (ourfinisacked) {
 				KASSERT(headlocked, ("headlocked"));
+				tcp_twstart(tp);
 				INP_INFO_WUNLOCK(&tcbinfo);
 				m_freem(m);
-				tcp_twstart(tp);
 				return;
 			}
 			break;
@@ -2078,8 +2078,10 @@ step6:
 	}
 dodata:							/* XXX */
 	KASSERT(headlocked, ("headlocked"));
-	INP_INFO_WUNLOCK(&tcbinfo);
-	headlocked = 0;
+	if (!(thflags & TH_FIN && tp->t_state == TCPS_FIN_WAIT_2)) {
+		INP_INFO_WUNLOCK(&tcbinfo);
+		headlocked = 0;
+	}
 	/*
 	 * Process the segment text, merging it into the TCP sequencing queue,
 	 * and arranging for acknowledgment of receipt if necessary.
@@ -2183,8 +2185,9 @@ dodata:							/* XXX */
 		 * standard timers.
 		 */
 		case TCPS_FIN_WAIT_2:
-			KASSERT(headlocked == 0, ("headlocked"));
+			KASSERT(headlocked == 1, ("headlocked should be 1"));
 			tcp_twstart(tp);
+			INP_INFO_WUNLOCK(&tcbinfo);
 			return;
 
 		/*
@@ -2211,11 +2214,10 @@ dodata:							/* XXX */
 check_delack:
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
-		KASSERT(!callout_active(tp->tt_delack),
-		    ("delayed ack already active"));
 		callout_reset(tp->tt_delack, tcp_delacktime,  
 		    tcp_timer_delack, tp);  
 	}
+	KASSERT(headlocked == 0, ("headlocked should be 0"));
 	INP_UNLOCK(inp);
 	return;
 
