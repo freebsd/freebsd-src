@@ -334,18 +334,14 @@ cpu_reset()
 		cpu_reset_real();
 		/* NOTREACHED */
 	} else {
-
 		u_int map;
-		int cnt;
+
 		printf("cpu_reset called on cpu#%d\n", PCPU_GET(cpuid));
-
 		map = PCPU_GET(other_cpus) & ~ stopped_cpus;
-
 		if (map != 0) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);		/* Stop all other CPUs */
 		}
-
 		DELAY(1000000);
 		cpu_reset_real();
 		/* NOTREACHED */
