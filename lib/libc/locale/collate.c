@@ -27,6 +27,7 @@
  * $FreeBSD$
  */
 
+#include "namespace.h"
 #include <rune.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sysexits.h>
+#include "un-namespace.h"
+
 #include "collate.h"
 #include "setlocale.h"
 
@@ -46,7 +49,7 @@ struct __collate_st_chain_pri __collate_chain_pri_table[TABLE_SIZE];
 
 #define FREAD(a, b, c, d) \
 	do { \
-		if(fread(a, b, c, d) != c) { \
+		if (fread(a, b, c, d) != c) { \
 			fclose(d); \
 			return -1; \
 		} \

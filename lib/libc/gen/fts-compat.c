@@ -43,6 +43,7 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -53,6 +54,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 static FTSENT	*fts_alloc __P((FTS *, char *, int));
 static FTSENT	*fts_build __P((FTS *, int));
@@ -1082,7 +1084,7 @@ fts_safe_changedir(sp, p, fd)
 		return (0);
 	if (fd < 0 && (newfd = _open(p->fts_accpath, O_RDONLY, 0)) < 0)
 		return (-1);
-	if (fstat(newfd, &sb)) {
+	if (_fstat(newfd, &sb)) {
 		ret = -1;
 		goto bail;
 	}

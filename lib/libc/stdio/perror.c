@@ -29,18 +29,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)perror.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include "un-namespace.h"
 
 void
 perror(s)
@@ -63,5 +67,5 @@ perror(s)
 	v++;
 	v->iov_base = "\n";
 	v->iov_len = 1;
-	(void)writev(STDERR_FILENO, iov, (v - iov) + 1);
+	(void)_writev(STDERR_FILENO, iov, (v - iov) + 1);
 }

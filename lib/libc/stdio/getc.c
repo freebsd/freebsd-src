@@ -42,14 +42,12 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
+#include "un-namespace.h"
 #include "libc_private.h"
 
-/*
- * A subroutine version of the macro getc.
- */
 #undef getc
-
 int
 getc(fp)
 	register FILE *fp;

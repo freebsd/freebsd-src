@@ -30,6 +30,7 @@ static const char	elsieid[] = "@(#)strftime.c	7.38";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
+#include "namespace.h"
 #include "private.h"
 
 #ifndef LIBC_SCCS
@@ -41,6 +42,7 @@ static const char	sccsid[] = "@(#)strftime.c	5.4 (Berkeley) 3/14/89";
 #include "tzfile.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "un-namespace.h"
 #include "timelocal.h"
 
 static char *	_add P((const char *, char *, const char *));

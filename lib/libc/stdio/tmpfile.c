@@ -40,6 +40,7 @@
 static char sccsid[] = "@(#)tmpfile.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
@@ -47,6 +48,7 @@ static char sccsid[] = "@(#)tmpfile.c	8.1 (Berkeley) 6/4/93";
 #include <stdio.h>
 #include <string.h>
 #include <paths.h>
+#include "un-namespace.h"
 
 FILE *
 tmpfile()
@@ -61,13 +63,13 @@ tmpfile()
 	(void)memcpy(buf + sizeof(_PATH_TMP) - 1, TRAILER, sizeof(TRAILER));
 
 	sigfillset(&set);
-	(void)sigprocmask(SIG_BLOCK, &set, &oset);
+	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
 
 	fd = mkstemp(buf);
 	if (fd != -1)
 		(void)unlink(buf);
 
-	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (fd == -1)
 		return (NULL);

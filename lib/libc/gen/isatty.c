@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -37,10 +39,6 @@ static char sccsid[] = "@(#)isatty.c	8.1 (Berkeley) 6/4/93";
 
 #include <termios.h>
 #include <unistd.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
 
 int
 isatty(fd)
@@ -49,15 +47,6 @@ isatty(fd)
 	int retval;
 	struct termios t;
 
-#ifdef _THREAD_SAFE
-	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
-#endif
-		retval = (tcgetattr(fd, &t) != -1);
-#ifdef _THREAD_SAFE
-        	_FD_UNLOCK(fd, FD_READ);
-	} else {
-		retval = 0;
-	}
-#endif
+	retval = (tcgetattr(fd, &t) != -1);
 	return(retval);
 }

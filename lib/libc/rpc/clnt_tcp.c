@@ -52,6 +52,7 @@ static char *rcsid = "$FreeBSD$";
  * Now go hang yourself.
  */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -61,6 +62,7 @@ static char *rcsid = "$FreeBSD$";
 #include <netdb.h>
 #include <errno.h>
 #include <rpc/pmap_clnt.h>
+#include "un-namespace.h"
 
 #define MCALL_MSG_SIZE 24
 
@@ -159,10 +161,10 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	 * If no socket given, open one
 	 */
 	if (*sockp < 0) {
-		*sockp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+		*sockp = _socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		(void)bindresvport(*sockp, (struct sockaddr_in *)0);
 		if ((*sockp < 0)
-		    || (connect(*sockp, (struct sockaddr *)raddr,
+		    || (_connect(*sockp, (struct sockaddr *)raddr,
 		    sizeof(*raddr)) < 0)) {
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
@@ -450,7 +452,7 @@ clnttcp_control(cl, request, info)
 		break;
 	case CLGET_LOCAL_ADDR:
 		len = sizeof(struct sockaddr);
-		if (getsockname(ct->ct_sock, (struct sockaddr *)info, &len) <0)
+		if (_getsockname(ct->ct_sock, (struct sockaddr *)info, &len) <0)
 			return(FALSE);
 		break;
 	case CLGET_RETRY_TIMEOUT:
@@ -516,7 +518,7 @@ readtcp(ct, buf, len)
 		/* XXX we know the other bits are still clear */
 		FD_SET(ct->ct_sock, fds);
 		tv = delta;	/* in case select writes back */
-		r = select(ct->ct_sock+1, fds, NULL, NULL, &tv);
+		r = _select(ct->ct_sock+1, fds, NULL, NULL, &tv);
 		save_errno = errno;
 
 		gettimeofday(&after, NULL);

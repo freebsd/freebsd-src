@@ -29,12 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -42,42 +45,44 @@ static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
-#include <db.h>
 #include <string.h>
 #include <paths.h>
-
-#ifdef _THREAD_SAFE
 #include <pthread.h>
-#include "pthread_private.h"
-static struct pthread_mutex _ttyname_lockd = PTHREAD_MUTEX_STATIC_INITIALIZER;
-static pthread_mutex_t ttyname_lock = &_ttyname_lockd;
-static pthread_key_t ttyname_key;
-static int      ttyname_init = 0;
+#include "un-namespace.h"
 
-char           *
+#include <db.h>
+#include "libc_private.h"
+
+static char buf[sizeof(_PATH_DEV) + MAXNAMLEN] = _PATH_DEV;
+static char *oldttyname __P((int, struct stat *));
+static char *ttyname_threaded(int fd);
+static char *ttyname_unthreaded(int fd);
+
+static pthread_mutex_t	ttyname_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_key_t	ttyname_key;
+static int		ttyname_init = 0;
+
+char *
 ttyname(int fd)
 {
 	char           *ret;
 
-	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
-		ret = __ttyname_basic(fd);
-		_FD_UNLOCK(fd, FD_READ);
-	} else {
-		ret = NULL;
-	}
-
+	if (__isthreaded == 0)
+		ret = ttyname_unthreaded(fd);
+	else
+		ret = ttyname_threaded(fd);
 	return (ret);
 }
 
-char           *
-__ttyname_r_basic(int fd, char *buf, size_t len)
+char *
+ttyname_r(int fd, char *buf, size_t len)
 {
-	register struct dirent *dirp;
-	register DIR   *dp;
-	struct stat     dsb;
-	struct stat     sb;
-	char           *rval;
-	int             minlen;
+	struct dirent	*dirp;
+	DIR		*dp;
+	struct stat	dsb;
+	struct stat	sb;
+	char		*rval;
+	int		minlen;
 
 	rval = NULL;
 
@@ -85,7 +90,7 @@ __ttyname_r_basic(int fd, char *buf, size_t len)
 	if (!isatty(fd))
 		return (rval);
 	/* Must be a character device. */
-	if (_thread_sys_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
+	if (_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
 		return (rval);
 	/* Must have enough room */
 	if (len <= sizeof(_PATH_DEV))
@@ -110,25 +115,27 @@ __ttyname_r_basic(int fd, char *buf, size_t len)
 	return (rval);
 }
 
-char           *
-__ttyname_basic(int fd)
+static char *
+ttyname_threaded(int fd)
 {
-	char           *buf;
+	char	*buf;
 
-	pthread_mutex_lock(&ttyname_lock);
 	if (ttyname_init == 0) {
-		if (pthread_key_create(&ttyname_key, free)) {
-			pthread_mutex_unlock(&ttyname_lock);
-			return (NULL);
+		_pthread_mutex_lock(&ttyname_lock);
+		if (ttyname_init == 0) {
+			if (_pthread_key_create(&ttyname_key, free)) {
+				_pthread_mutex_unlock(&ttyname_lock);
+				return (NULL);
+			}
+			ttyname_init = 1;
 		}
-		ttyname_init = 1;
+		_pthread_mutex_unlock(&ttyname_lock);
 	}
-	pthread_mutex_unlock(&ttyname_lock);
 
 	/* Must have thread specific data field to put data */
-	if ((buf = pthread_getspecific(ttyname_key)) == NULL) {
+	if ((buf = _pthread_getspecific(ttyname_key)) == NULL) {
 		if ((buf = malloc(sizeof(_PATH_DEV) + MAXNAMLEN)) != NULL) {
-			if (pthread_setspecific(ttyname_key, buf) != 0) {
+			if (_pthread_setspecific(ttyname_key, buf) != 0) {
 				free(buf);
 				return (NULL);
 			}
@@ -136,34 +143,16 @@ __ttyname_basic(int fd)
 			return (NULL);
 		}
 	}
-	return (__ttyname_r_basic(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN));
+	return (ttyname_r(fd, buf, sizeof(_PATH_DEV) + MAXNAMLEN));
 }
 
-char           *
-ttyname_r(int fd, char *buf, size_t len)
+static char *
+ttyname_unthreaded(int fd)
 {
-	char           *ret;
-
-	if (_FD_LOCK(fd, FD_READ, NULL) == 0) {
-		ret = __ttyname_r_basic(fd, buf, len);
-		_FD_UNLOCK(fd, FD_READ);
-	} else {
-		ret = NULL;
-	}
-	return (ret);
-}
-#else
-static char buf[sizeof(_PATH_DEV) + MAXNAMLEN] = _PATH_DEV;
-static char *oldttyname __P((int, struct stat *));
-
-char *
-ttyname(fd)
-	int fd;
-{
-	struct stat sb;
-	struct termios ttyb;
-	DB *db;
-	DBT data, key;
+	struct stat	sb;
+	struct termios	ttyb;
+	DB		*db;
+	DBT		data, key;
 	struct {
 		mode_t type;
 		dev_t dev;
@@ -173,7 +162,7 @@ ttyname(fd)
 	if (tcgetattr(fd, &ttyb) < 0)
 		return (NULL);
 	/* Must be a character device. */
-	if (fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
+	if (_fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
 		return (NULL);
 
 	if ( (db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL)) ) {
@@ -194,13 +183,11 @@ ttyname(fd)
 }
 
 static char *
-oldttyname(fd, sb)
-	int fd;
-	struct stat *sb;
+oldttyname(int fd, struct stat *sb)
 {
-	register struct dirent *dirp;
-	register DIR *dp;
-	struct stat dsb;
+	struct dirent	*dirp;
+	struct stat	dsb;
+	DIR 		*dp;
 
 	if ((dp = opendir(_PATH_DEV)) == NULL)
 		return (NULL);
@@ -219,4 +206,3 @@ oldttyname(fd, sb)
 	(void)closedir(dp);
 	return (NULL);
 }
-#endif

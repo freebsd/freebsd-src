@@ -40,6 +40,7 @@ static char *rcsid = "$FreeBSD$";
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
+#include "namespace.h"
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/pmap_prot.h>
@@ -50,6 +51,7 @@ static char *rcsid = "$FreeBSD$";
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "un-namespace.h"
 
 /*
  * don't use gethostbyname, which would invoke yellow pages
@@ -67,12 +69,12 @@ get_myaddress(addr)
 	struct ifreq ifreq, *ifr, *end;
 	int loopback = 0, gotit = 0;
 
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((s = _socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		return(-1);
 	}
 	ifc.ifc_len = sizeof (buf);
 	ifc.ifc_buf = buf;
-	if (ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
+	if (_ioctl(s, SIOCGIFCONF, (char *)&ifc) < 0) {
 		_close(s);
 		return(-1);
 	}
@@ -82,7 +84,7 @@ again:
 
 	while (ifr < end) {
 		memcpy(&ifreq, ifr, sizeof(ifreq));
-		if (ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
+		if (_ioctl(s, SIOCGIFFLAGS, (char *)&ifreq) < 0) {
 			_close(s);
 			return(-1);
 		}

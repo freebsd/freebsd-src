@@ -42,11 +42,19 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
+#include "un-namespace.h"
 #include "libc_private.h"
 
-#undef putchar
-
+/*
+ * putchar has traditionally been a macro in <stdio.h>.  That is no
+ * longer true because POSIX requires it to be thread-safe.  POSIX
+ * does define putchar_unlocked() which is defined as a macro and is
+ * probably what you want to use instead.
+ *
+ * #undef putchar
+ */
 /*
  * A subroutine version of the macro putchar
  */

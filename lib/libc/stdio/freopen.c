@@ -42,6 +42,7 @@ static const char rcsid[] =
     "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -49,7 +50,8 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <libc_private.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 #include "local.h"
 
 /*
@@ -146,7 +148,7 @@ freopen(file, mode, fp)
 	 * assume stderr is always fd STDERR_FILENO, even if being freopen'd.
 	 */
 	if (wantfd >= 0 && f != wantfd) {
-		if (dup2(f, wantfd) >= 0) {
+		if (_dup2(f, wantfd) >= 0) {
 			(void)_close(f);
 			f = wantfd;
 		}

@@ -40,10 +40,10 @@
 static char sccsid[] = "@(#)getcap.c	8.3 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 
 #include <ctype.h>
-#include <db.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -51,6 +51,9 @@ static char sccsid[] = "@(#)getcap.c	8.3 (Berkeley) 3/25/94";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
+
+#include <db.h>
 
 #define	BFRAG		1024
 #define	BSIZE		1024

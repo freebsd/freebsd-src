@@ -48,6 +48,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <rpc/des_crypt.h>
 #include <sys/param.h>

@@ -53,11 +53,13 @@ static char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
 static char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 const char *h_errlist[] = {
 	"Resolver Error 0 (no error)",
@@ -94,7 +96,7 @@ herror(s)
 	v++;
 	v->iov_base = "\n";
 	v->iov_len = 1;
-	writev(STDERR_FILENO, iov, (v - iov) + 1);
+	_writev(STDERR_FILENO, iov, (v - iov) + 1);
 }
 
 const char *

@@ -30,7 +30,6 @@ static char rcsid[] = "$FreeBSD$";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
-#include <errno.h>
 #include <limits.h>
 #include <netdb.h>
 #include <resolv.h>

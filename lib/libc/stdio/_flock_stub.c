@@ -35,16 +35,17 @@
 
 #include <stdio.h>
 
-/* Don't build this in libc_r, just libc: */
-#ifndef	_THREAD_SAFE
 /*
  * Declare weak references in case the application is not linked
  * with libpthread.
  */
 #pragma weak flockfile=_flockfile_stub
+#pragma weak _flockfile=_flockfile_stub
 #pragma weak _flockfile_debug=_flockfile_debug_stub
 #pragma weak ftrylockfile=_ftrylockfile_stub
+#pragma weak _ftrylockfile=_ftrylockfile_stub
 #pragma weak funlockfile=_funlockfile_stub
+#pragma weak _funlockfile=_funlockfile_stub
 
 /*
  * This function is a stub for the _flockfile function in libpthread.
@@ -78,4 +79,3 @@ void
 _funlockfile_stub(FILE *fp)
 {
 }
-#endif

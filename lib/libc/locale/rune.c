@@ -32,18 +32,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)rune.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <rune.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include "un-namespace.h"
 
 _RuneLocale *
 _Read_RuneMagi(fp)
@@ -56,7 +60,7 @@ _Read_RuneMagi(fp)
 	struct stat sb;
 	int x;
 
-	if (fstat(fileno(fp), &sb) < 0)
+	if (_fstat(fileno(fp), &sb) < 0)
 		return(0);
 
 	if (sb.st_size < sizeof(_RuneLocale))

@@ -42,9 +42,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <stdio.h>
 #include <errno.h>
+#include "un-namespace.h"
 #include "local.h"
 #include "libc_private.h"
 

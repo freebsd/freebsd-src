@@ -45,7 +45,7 @@ static char *rcsid = "$FreeBSD$";
  * descriptors be greater than FD_SETSIZE (which us 256 by default).
  *
  * Since old programs tend to use this call to determine the first arg
- * for select(), having this return > FD_SETSIZE is a Bad Idea(TM)!
+ * for _select(), having this return > FD_SETSIZE is a Bad Idea(TM)!
  */
 int
 _rpc_dtablesize(void)

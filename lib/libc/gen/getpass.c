@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)getpass.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/termios.h>
 #include <signal.h>
 
@@ -44,6 +45,7 @@ static char sccsid[] = "@(#)getpass.c	8.1 (Berkeley) 6/4/93";
 #include <pwd.h>
 #include <stdio.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 static	struct termios oterm, term;
 static	FILE *fp;
@@ -74,7 +76,7 @@ getpass(prompt)
 	sigemptyset(&nset);
 	sigaddset(&nset, SIGINT);
 	sigaddset(&nset, SIGTSTP);
-	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	(void)_sigprocmask(SIG_BLOCK, &nset, &oset);
 	
 	(void)tcgetattr(fileno(fp), &oterm);
 	term = oterm;
@@ -89,7 +91,7 @@ getpass(prompt)
 	(void)_write(fileno(outfp), "\n", 1);
 	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
 
-	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 
 	if (fp != stdin)
 		(void)fclose(fp);

@@ -37,9 +37,13 @@
 static char sccsid[] = "@(#)seekdir.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <dirent.h>
+#include <pthread.h>
+#include "un-namespace.h"
 
+#include "libc_private.h"
 #include "telldir.h"
 
 /*
@@ -51,5 +55,9 @@ seekdir(dirp, loc)
 	DIR *dirp;
 	long loc;
 {
+	if (__isthreaded)
+		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
 	_seekdir(dirp, loc);
+	if (__isthreaded)
+		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
 }
