@@ -44,10 +44,15 @@
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
+#include <dev/mii/miidevs.h>
+
+#include <machine/bus.h>
+#include <pci/if_rlreg.h>
 
 #include "miibus_if.h"
 
@@ -80,6 +85,7 @@ static driver_t rlphy_driver = {
 DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
 
 int	rlphy_service __P((struct mii_softc *, struct mii_data *, int));
+void	rlphy_status __P((struct mii_softc *));
 
 static int rlphy_probe(dev)
 	device_t		dev;
@@ -89,6 +95,13 @@ static int rlphy_probe(dev)
 
 	ma = device_get_ivars(dev);
 	parent = device_get_parent(device_get_parent(dev));
+
+	/* Test for RealTek 8201L PHY */
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_REALTEK &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_REALTEK_RTL8201L) {
+		device_set_desc(dev, MII_STR_REALTEK_RTL8201L);
+		return(0);
+	}
 
 	/*
 	 * RealTek PHY doesn't have vendor/device ID registers:
@@ -259,7 +272,7 @@ rlphy_service(sc, mii, cmd)
 	}
 
 	/* Update the media status. */
-	ukphy_status(sc);
+	rlphy_status(sc);
 
 	/* Callback if something changed. */
 	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
@@ -267,4 +280,103 @@ rlphy_service(sc, mii, cmd)
 		sc->mii_active = mii->mii_media_active;
 	}
 	return (0);
+}
+
+void
+rlphy_status(phy)
+	struct mii_softc *phy;
+{
+	struct mii_data *mii = phy->mii_pdata;
+	int bmsr, bmcr, anlpar;
+	device_t		parent;
+
+	mii->mii_media_status = IFM_AVALID;
+	mii->mii_media_active = IFM_ETHER;
+
+	bmsr = PHY_READ(phy, MII_BMSR) | PHY_READ(phy, MII_BMSR);
+	if (bmsr & BMSR_LINK)
+		mii->mii_media_status |= IFM_ACTIVE;
+
+	bmcr = PHY_READ(phy, MII_BMCR);
+	if (bmcr & BMCR_ISO) {
+		mii->mii_media_active |= IFM_NONE;
+		mii->mii_media_status = 0;
+		return;
+	}
+
+	if (bmcr & BMCR_LOOP)
+		mii->mii_media_active |= IFM_LOOP;
+
+	if (bmcr & BMCR_AUTOEN) {
+		/*
+		 * NWay autonegotiation takes the highest-order common
+		 * bit of the ANAR and ANLPAR (i.e. best media advertised
+		 * both by us and our link partner).
+		 */
+		if ((bmsr & BMSR_ACOMP) == 0) {
+			/* Erg, still trying, I guess... */
+			mii->mii_media_active |= IFM_NONE;
+			return;
+		}
+
+		if ((anlpar = PHY_READ(phy, MII_ANAR) &
+		    PHY_READ(phy, MII_ANLPAR))) {
+			if (anlpar & ANLPAR_T4)
+				mii->mii_media_active |= IFM_100_T4;
+			else if (anlpar & ANLPAR_TX_FD)
+				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+			else if (anlpar & ANLPAR_TX)
+				mii->mii_media_active |= IFM_100_TX;
+			else if (anlpar & ANLPAR_10_FD)
+				mii->mii_media_active |= IFM_10_T|IFM_FDX;
+			else if (anlpar & ANLPAR_10)
+				mii->mii_media_active |= IFM_10_T;
+			else
+				mii->mii_media_active |= IFM_NONE; 
+			return;
+		}
+		/*
+		 * If the other side doesn't support NWAY, then the
+		 * best we can do is determine if we have a 10Mbps or
+		 * 100Mbps link. There's no way to know if the link 
+		 * is full or half duplex, so we default to half duplex
+		 * and hope that the user is clever enough to manually
+		 * change the media settings if we're wrong.
+		 */
+
+
+		/*
+		 * The RealTek PHY supports non-NWAY link speed
+		 * detection, however it does not report the link
+		 * detection results via the ANLPAR or BMSR registers.
+		 * (What? RealTek doesn't do things the way everyone
+		 * else does? I'm just shocked, shocked I tell you.)
+		 * To determine the link speed, we have to do one
+		 * of two things:
+		 *
+		 * - If this is a standalone RealTek RTL8201(L) PHY,
+		 *   we can determine the link speed by testing bit 0
+		 *   in the magic, vendor-specific register at offset
+		 *   0x19.
+		 *
+		 * - If this is a RealTek MAC with integrated PHY, we
+		 *   can test the 'SPEED10' bit of the MAC's media status
+		 *   register.
+		 */
+		parent = device_get_parent(phy->mii_dev);
+		if (strcmp(device_get_name(parent), "rl") != 0) {
+			if (PHY_READ(phy, 0x0019) & 0x01)
+				mii->mii_media_active |= IFM_100_TX;
+			else
+				mii->mii_media_active |= IFM_10_T;
+		} else {
+			if (PHY_READ(phy, RL_MEDIASTAT) &
+			    RL_MEDIASTAT_SPEED10)
+				mii->mii_media_active |= IFM_10_T;
+			else
+				mii->mii_media_active |= IFM_100_TX;
+		}
+
+	} else
+		mii->mii_media_active = mii_media_from_bmcr(bmcr);
 }

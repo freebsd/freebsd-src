@@ -420,6 +420,11 @@ struct rl_softc {
 #define ACCTON_DEVICEID_5030			0x1211
 
 /*
+ * Nortel PCI vendor ID
+ */
+#define NORTEL_VENDORID				0x126C
+
+/*
  * Delta Electronics Vendor ID.
  */
 #define DELTA_VENDORID				0x1500
