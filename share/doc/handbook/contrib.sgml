@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.4 1995/08/18 20:23:52 gclarkii Exp $ -->
+<!-- $Id: contrib.sgml,v 1.5 1995/08/21 07:19:20 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>FreeBSD contributor list<label id="contrib">
@@ -142,6 +142,7 @@
 	    (fallback: &lt;julian@meepmeep.pcs.com&gt)
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
+	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
 	  <item>L Jonas Olsson &lt;ljo@po.cwru.edu&gt;
 	  <item>Lars Fredriksen &lt;fredriks@mcs.com&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
