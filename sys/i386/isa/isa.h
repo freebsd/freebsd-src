@@ -187,14 +187,4 @@
 #define	RAM_SIZE	(RAM_END - RAM_BEGIN)
 #endif /* !RAM_BEGIN */
 
-/*
- * Oddball Physical Memory Addresses
- */
-#ifndef	COMPAQ_RAMRELOC
-#define	COMPAQ_RAMRELOC	0x80C00000	/* Compaq RAM relocation/diag */
-#define	COMPAQ_RAMSETUP	0x80C00002	/* Compaq RAM setup */
-#define	WEITEK_FPU	0xC0000000	/* WTL 2167 */
-#define	CYRIX_EMC	0xC0000000	/* Cyrix EMC */
-#endif /* !COMPAQ_RAMRELOC */
-
 #endif /* !_I386_ISA_ISA_H_ */
