@@ -470,7 +470,7 @@ msgget(p, uap)
 		msqptr->msg_perm.gid = cred->cr_gid;
 		msqptr->msg_perm.mode = (msgflg & 0777);
 		/* Make sure that the returned msqid is unique */
-		msqptr->msg_perm.seq++;
+		msqptr->msg_perm.seq = (msqptr->msg_perm.seq + 1) & 0x7fff;
 		msqptr->msg_first = NULL;
 		msqptr->msg_last = NULL;
 		msqptr->msg_cbytes = 0;
