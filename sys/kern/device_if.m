@@ -57,6 +57,11 @@ CODE {
 	{
 	    return 0;
 	}
+
+	static int null_quiesce(device_t dev)
+	{
+	    return EOPNOTSUPP;
+	}
 };
 	
 /**
@@ -283,3 +288,29 @@ METHOD int suspend {
 METHOD int resume {
 	device_t dev;
 } DEFAULT null_resume;
+
+/**
+ * @brief This is called when the driver is asked to quiesce itself.
+ *
+ * The driver should arrange for the orderly shutdown of this device.
+ * All further access to the device should be curtailed.  Soon there
+ * will be a request to detach, but there won't necessarily be one.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_quiesce, foo_quiesce)
+ * @endcode
+ *
+ * @param dev		the device being quiesced
+ *
+ * @retval 0		success
+ * @retval non-zero	an error occurred while attempting to quiesce the
+ *                      device
+ *
+ * @see DEVICE_DETACH()
+ */
+METHOD int quiesce {
+	device_t dev;
+} DEFAULT null_quiesce;
