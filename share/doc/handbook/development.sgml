@@ -1,4 +1,4 @@
-<!-- $Id: development.sgml,v 1.7 1996/11/05 11:44:48 asami Exp $ -->
+<!-- $Id: development.sgml,v 1.8 1996/11/30 23:51:44 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The FreeBSD development model<label id="development"></heading>
@@ -29,7 +29,7 @@ whether working independently or in close cooperation:
 url="http://www.cyclic.com/cyclic-pages/CVS-sheet.html" name="CVS">
 (Concurrent Version System), a freely available source code control
 tool which comes bundled with FreeBSD.  The primary <htmlurl
-url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS repository">
+url="http://www.freebsd.org/cgi/cvsweb.cgi" name="CVS repository">
 resides on a machine in Concord CA, USA from where it is replicated
 to numerous mirror machines throughout the world.  The CVS tree, as well
 as the <ref id="current" name="-current"> and <ref id="stable"
