@@ -253,6 +253,7 @@ struct atapi_request {
     struct callout_handle	timeout_handle; /* handle for untimeout */
     int32_t			retries;	/* retry count */
     int32_t			result;		/* result of this cmd */
+    int32_t			error;		/* result translated to errno */
     struct atapi_reqsense	sense;		/* sense data if error */
     int32_t			flags;		
 #define		A_READ			0x0001

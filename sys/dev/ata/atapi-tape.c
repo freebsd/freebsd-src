@@ -227,6 +227,9 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct ast_softc *stp = dev->si_drv1;
 
+    if (!stp)
+	return ENXIO;
+
     if (stp->flags == F_OPEN)
 	return EBUSY;
 
@@ -469,10 +472,9 @@ ast_done(struct atapi_request *request)
 {
     struct buf *bp = request->bp;
     struct ast_softc *stp = request->driver;
-    int32_t error = request->result;
 
-    if (error) {
-	bp->b_error = error;
+    if (request->error) {
+	bp->b_error = request->error;
 	bp->b_flags |= B_ERROR;
     }
     else {

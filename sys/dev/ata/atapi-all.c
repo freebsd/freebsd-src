@@ -263,36 +263,7 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 #ifdef ATAPI_DEBUG
     printf("atapi: phew, got back from tsleep\n");
 #endif
-
-    error = request->result;
-    switch ((error & ATAPI_SK_MASK)) {
-    case ATAPI_SK_RESERVED:
-	printf("atapi_error: %s - timeout error = %02x\n", 
-	       atapi_cmd2str(atp->cmd), error & ATAPI_E_MASK);
-	error = EIO;
-	break;
-
-    case ATAPI_SK_NO_SENSE:
-	error = 0;
-	break;
-
-    case ATAPI_SK_RECOVERED_ERROR:
-	printf("atapi_error: %s - recovered error\n", atapi_cmd2str(atp->cmd));
-	error = 0;
-	break;
-
-    case ATAPI_SK_NOT_READY:
-	atp->flags |= ATAPI_F_MEDIA_CHANGED;
-	error = EBUSY;
-	break;
-
-    case ATAPI_SK_UNIT_ATTENTION:
-	atp->flags |= ATAPI_F_MEDIA_CHANGED;
-	error = EIO;
-	break;
-
-    default: error = EIO;
-    }
+    error = request->error;
     free(request, M_ATAPI);
     return error;
 }
@@ -497,23 +468,52 @@ op_finished:
 	request->flags = A_READ;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
-    else if (request->callback) {
-    	if (request->result)
-	    printf("atapi: %s - %s skey=%01x asc=%02x ascq=%02x error=%02x\n",
-            atapi_cmd2str(atp->cmd), atapi_skey2str(request->sense.sense_key),
-            request->sense.sense_key, request->sense.asc, request->sense.ascq,
-	    request->result & ATAPI_E_MASK);
- 
-	if (!((request->callback)(request)))
-	    free(request, M_ATAPI);
-    }
     else {
-    	if (request->result)
+	request->error = 0;
+    	if (request->result) {
 	    printf("atapi: %s - %s skey=%01x asc=%02x ascq=%02x error=%02x\n",
-            atapi_cmd2str(atp->cmd), atapi_skey2str(request->sense.sense_key),
-            request->sense.sense_key, request->sense.asc, request->sense.ascq,
-	    request->result & ATAPI_E_MASK);
-        wakeup((caddr_t)request);	
+		   atapi_cmd2str(atp->cmd), 
+		   atapi_skey2str(request->sense.sense_key),
+		   request->sense.sense_key, request->sense.asc, 
+		   request->sense.ascq, request->result & ATAPI_E_MASK);
+
+	    switch ((request->result & ATAPI_SK_MASK)) {
+	    case ATAPI_SK_RESERVED:
+		printf("atapi_error: %s - timeout error = %02x\n", 
+		       atapi_cmd2str(atp->cmd), request->result & ATAPI_E_MASK);
+		request->error = EIO;
+		break;
+
+	    case ATAPI_SK_NO_SENSE:
+		request->error = 0;
+		break;
+
+	    case ATAPI_SK_RECOVERED_ERROR:
+		printf("atapi_error: %s - recovered error\n", 
+		       atapi_cmd2str(atp->cmd));
+		request->error = 0;
+		break;
+
+	    case ATAPI_SK_NOT_READY:
+		atp->flags |= ATAPI_F_MEDIA_CHANGED;
+		request->error = EBUSY;
+		break;
+
+	    case ATAPI_SK_UNIT_ATTENTION:
+		atp->flags |= ATAPI_F_MEDIA_CHANGED;
+		request->error = EIO;
+		break;
+
+	    default: 
+		request->error = EIO;
+	    }
+	}
+	if (request->callback) {
+	    if (!((request->callback)(request)))
+		free(request, M_ATAPI);
+	}
+	else 
+            wakeup((caddr_t)request);	
     }
 #ifdef ATAPI_DEBUG
     printf("atapi_interrupt: error=0x%02x\n", request->result);
