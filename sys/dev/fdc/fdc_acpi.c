@@ -42,21 +42,31 @@ __FBSDID("$FreeBSD$");
 
 static int		fdc_acpi_probe(device_t dev);
 static int		fdc_acpi_attach(device_t dev);
+static int		fdc_acpi_probe_children(device_t bus, device_t dev,
+			    void *fde);
 static ACPI_STATUS	fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev,
 			    int level, void *arg);
 static void		fdctl_wr_acpi(fdc_p fdc, u_int8_t v);
 
-/* Parameters for the tape drive (5th device). */
-#define ACPI_TAPE_UNKNOWN	0
-#define ACPI_TAPE_PRESENT	1
-#define ACPI_TAPE_NEVER_PRESENT	2
+/* Maximum number of child devices of a controller (4 floppy + 1 tape.) */
+#define ACPI_FDC_MAXDEVS	5
+
+/*
+ * Parameters for the tape drive (5th device).  Some BIOS authors use this
+ * for all drives, not just the tape drive (e.g., ASUS K8V).  This isn't
+ * grossly incompatible with the spec since it says the first four devices
+ * are simple booleans.
+ */
+#define ACPI_FD_UNKNOWN		0
+#define ACPI_FD_PRESENT		1
+#define ACPI_FD_NEVER_PRESENT	2
 
 /* Temporary buf length for evaluating _FDE and _FDI. */
 #define ACPI_FDC_BUFLEN		1024
 
 /* Context for walking FDC child devices. */
 struct fdc_walk_ctx {
-	uint32_t	fd_present[5];
+	uint32_t	fd_present[ACPI_FDC_MAXDEVS];
 	int		index;
 	device_t	acpi_dev;
 	device_t	dev;
@@ -88,12 +98,13 @@ fdc_acpi_probe(device_t dev)
 static int
 fdc_acpi_attach(device_t dev)
 {
-	struct fdc_walk_ctx *ctx;
 	struct fdc_data *sc;
 	ACPI_BUFFER buf;
 	device_t bus;
-	int error, ic_type;
+	int error, i, ic_type;
+	ACPI_OBJECT *obj, *pkg;
 	ACPI_HANDLE h;
+	uint32_t *fde;
 
 	/* Get our softc and use the same accessor as ISA. */
 	sc = device_get_softc(dev);
@@ -145,29 +156,31 @@ fdc_acpi_attach(device_t dev)
 	 */
 	bus = device_get_parent(dev);
 	if (ACPI_SUCCESS(ACPI_EVALUATE_OBJECT(bus, dev, "_FDE", NULL, &buf))) {
-		/* Setup the context and walk all child devices. */
-		ctx = malloc(sizeof(struct fdc_walk_ctx), M_TEMP, M_NOWAIT);
-		if (ctx == NULL) {
-			device_printf(dev, "no memory for walking children\n");
-			goto out;
+		/*
+		 * In violation of the spec, systems including the ASUS K8V
+		 * return a package of five integers instead of a buffer of
+		 * five 32-bit integers.
+		 */
+		fde = (uint32_t *)buf.Pointer;
+		pkg = (ACPI_OBJECT *)buf.Pointer;
+		if (pkg->Type == ACPI_TYPE_PACKAGE) {
+			fde = malloc(pkg->Package.Count * sizeof(uint32_t),
+			    M_TEMP, M_NOWAIT | M_ZERO);
+			if (fde == NULL) {
+				error = ENOMEM;
+				goto out;
+			}
+			for (i = 0; i < pkg->Package.Count; i++) {
+				obj = &pkg->Package.Elements[i];
+				if (obj->Type == ACPI_TYPE_INTEGER)
+					fde[i] = (uint32_t)obj->Integer.Value;
+			}
 		}
-		bcopy(buf.Pointer, ctx->fd_present, sizeof(ctx->fd_present));
-		ctx->index = 0;
-		ctx->dev = dev;
-		ctx->acpi_dev = bus;
-		ACPI_SCAN_CHILDREN(ctx->acpi_dev, dev, 1, fdc_acpi_probe_child,
-		    ctx);
-		free(ctx, M_TEMP);
-
-		/* Attach any children found during the probe. */
-		error = bus_generic_attach(dev);
-		if (error != 0)
-			goto out;
-	} else {
+		error = fdc_acpi_probe_children(bus, dev, fde);
+		if (pkg->Type == ACPI_TYPE_PACKAGE)
+			free(fde, M_TEMP);
+	} else
 		error = fdc_hints_probe(dev);
-		if (error != 0)
-			goto out;
-	}
 
 out:
 	if (buf.Pointer)
@@ -176,6 +189,40 @@ out:
 		fdc_release_resources(sc);
 
 	return (error);
+}
+
+static int
+fdc_acpi_probe_children(device_t bus, device_t dev, void *fde)
+{
+	struct fdc_walk_ctx *ctx;
+	devclass_t fd_dc;
+	int i;
+
+	/* Setup the context and walk all child devices. */
+	ctx = malloc(sizeof(struct fdc_walk_ctx), M_TEMP, M_NOWAIT);
+	if (ctx == NULL) {
+		device_printf(dev, "no memory for walking children\n");
+		return (ENOMEM);
+	}
+	bcopy(fde, ctx->fd_present, sizeof(ctx->fd_present));
+	ctx->index = 0;
+	ctx->dev = dev;
+	ctx->acpi_dev = bus;
+	ACPI_SCAN_CHILDREN(ctx->acpi_dev, dev, 1, fdc_acpi_probe_child,
+	    ctx);
+
+	/* Add any devices not represented by an AML Device handle/node. */
+	fd_dc = devclass_find("fd");
+	for (i = 0; i < ACPI_FDC_MAXDEVS; i++)
+		if (ctx->fd_present[i] == ACPI_FD_PRESENT &&
+		    devclass_get_device(fd_dc, i) == NULL) {
+			if (fdc_add_child(dev, "fd", i) == NULL)
+				device_printf(dev, "fd add failed\n");
+		}
+	free(ctx, M_TEMP);
+
+	/* Attach any children found during the probe. */
+	return (bus_generic_attach(dev));
 }
 
 static ACPI_STATUS
@@ -187,14 +234,26 @@ fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 	ACPI_OBJECT *pkg, *obj;
 	ACPI_STATUS status;
 
+	ctx = (struct fdc_walk_ctx *)arg;
+	buf.Pointer = NULL;
+
 	/*
 	 * The first four ints are booleans that indicate whether fd0-3 are
 	 * present or not.  The last is for a tape device, which we don't
 	 * bother supporting for now.
 	 */
-	ctx = (struct fdc_walk_ctx *)arg;
 	if (ctx->index > 3)
 		return (AE_OK);
+
+	/* This device is not present, move on to the next. */
+	if (ctx->fd_present[ctx->index] != ACPI_FD_PRESENT)
+		goto out;
+
+	/* Create a device for the child with the given index. */
+	child = fdc_add_child(ctx->dev, "fd", ctx->index);
+	if (child == NULL)
+		goto out;
+	*dev = child;
 
 	/* Get temporary buffer for _FDI probe. */
 	buf.Length = ACPI_FDC_BUFLEN;
@@ -202,14 +261,11 @@ fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 	if (buf.Pointer == NULL)
 		goto out;
 
-	/* This device is not present, move on to the next. */
-	if (ctx->fd_present[ctx->index] == 0)
-		goto out;
-
 	/* Evaluate _FDI to get drive type to pass to the child. */
 	status = ACPI_EVALUATE_OBJECT(ctx->acpi_dev, *dev, "_FDI", NULL, &buf);
 	if (ACPI_FAILURE(status)) {
-		device_printf(ctx->dev, "_FDI not available - %#x\n", status);
+		if (status != AE_NOT_FOUND)
+			device_printf(ctx->dev, "_FDI failed - %#x\n", status);
 		goto out;
 	}
 	pkg = (ACPI_OBJECT *)buf.Pointer;
@@ -222,12 +278,6 @@ fdc_acpi_probe_child(ACPI_HANDLE h, device_t *dev, int level, void *arg)
 		device_printf(ctx->dev, "invalid type object in _FDI\n");
 		goto out;
 	}
-
-	/* Create a device for the child with the given index and set ivars. */
-	child = fdc_add_child(ctx->dev, "fd", ctx->index);
-	if (child == NULL)
-		goto out;
-	*dev = child;
 	fdc_set_fdtype(child, obj->Integer.Value);
 
 out:
