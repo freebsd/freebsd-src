@@ -153,6 +153,9 @@
     <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
     port. &merged;</para>
 
+    <para>Linux emulation now requires <literal>options
+    SYSVSEM</literal> in the kernel configuration. &merged;</para>
+
     <para>&man.lomac.4;, a Low-Watermark Mandatory Access Control
     security facility, has been added as a kernel module.  It provides
     a drop-in security mechanism in addition to the traditional
