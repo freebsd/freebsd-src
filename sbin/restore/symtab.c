@@ -150,8 +150,11 @@ lookupname(name)
 
 	cp = name;
 	for (ep = lookupino(ROOTINO); ep != NULL; ep = ep->e_entries) {
-		for (np = buf; *cp != '/' && *cp != '\0'; )
+		for (np = buf; *cp != '/' && *cp != '\0' &&
+				np < &buf[sizeof(buf)]; )
 			*np++ = *cp++;
+		if (np == &buf[sizeof(buf)])
+			break;
 		*np = '\0';
 		for ( ; ep != NULL; ep = ep->e_sibling)
 			if (strcmp(ep->e_name, buf) == 0)
