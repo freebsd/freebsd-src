@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		lkbib
+PROG_CXX=	lkbib
 SRCS=		lkbib.cc
-DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBBIB} ${LIBGROFF} -lm -lstdc++
+DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
+LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 .include <bsd.prog.mk>

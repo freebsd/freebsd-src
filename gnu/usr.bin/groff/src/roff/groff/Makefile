@@ -1,9 +1,9 @@
 # $FreeBSD$
 
-PROG=		groff
+PROG_CXX=	groff
 SRCS=		groff.cc pipeline.c
-DPADD=		${LIBGROFF} ${LIBM} ${LIBSTDCPLUSPLUS}
-LDADD=		${LIBGROFF} -lm -lstdc++
+DPADD=		${LIBGROFF} ${LIBM}
+LDADD=		${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
 .include <bsd.prog.mk>
