@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.36 1998/10/11 21:08:02 alex Exp $
+ *  $Id: linux_sysvec.c,v 1.37 1998/10/16 03:55:00 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -448,14 +448,8 @@ Elf32_Brandinfo *linux_brandlist[] = {
 					NULL
 				};
 
-/*
- * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
- * "proof of concept" stage and will be fixed shortly
- */
-static int linux_elf_modevent __P((module_t mod, modeventtype_t type, void *data));
-
 static int
-linux_elf_modevent(module_t mod, modeventtype_t type, void *data)
+linux_elf_modevent(module_t mod, int type, void *data)
 {
 	Elf32_Brandinfo **brandinfo;
 	int error;

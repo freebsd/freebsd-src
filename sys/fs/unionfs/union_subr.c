@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_subr.c	8.20 (Berkeley) 5/20/95
- * $Id: union_subr.c,v 1.31 1998/07/15 04:17:44 bde Exp $
+ * $Id: union_subr.c,v 1.32 1998/11/03 08:01:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -1196,7 +1196,8 @@ union_dircheck(struct proc *p, struct vnode **vp, struct file *fp)
 	return error;
 }
 
-static int union_modevent(module_t mod, modeventtype_t type, void *data)
+static int
+union_modevent(module_t mod, int type, void *data)
 {
 	switch (type) {
 	case MOD_LOAD:
