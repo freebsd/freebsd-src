@@ -106,6 +106,8 @@ __FBSDID("$FreeBSD$");
 
 static const u_char *__sccl(char *, const u_char *);
 
+__weak_reference(__vfscanf, vfscanf);
+
 /*
  * __vfscanf - MT-safe version
  */

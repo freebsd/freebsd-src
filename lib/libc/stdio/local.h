@@ -68,11 +68,13 @@ extern void	(*__cleanup)(void);
 extern void	__smakebuf(FILE *);
 extern int	__swhatbuf(FILE *, size_t *, int *);
 extern int	_fwalk(int (*)(FILE *));
+extern int	__svfscanf(FILE *, const char *, __va_list);
 extern int	__swsetup(FILE *);
 extern int	__sflags(const char *, int *);
 extern int	__ungetc(int, FILE *);
 extern wint_t	__ungetwc(wint_t, FILE *);
 extern int	__vfprintf(FILE *, const char *, __va_list);
+extern int	__vfscanf(FILE *, const char *, __va_list);
 extern int	__vfwprintf(FILE *, const wchar_t *, __va_list);
 extern int	__vfwscanf(FILE * __restrict, const wchar_t * __restrict,
 		    __va_list);
