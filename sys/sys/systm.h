@@ -247,7 +247,7 @@ void		splx __P((intrmask_t ipl));
 void		splz __P((void));
 #endif /* __i386__ */
 
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__ia64__)
 #include <machine/ipl.h>
 #endif
 
