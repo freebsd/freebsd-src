@@ -239,7 +239,6 @@ bad:
 	if (to)
 		FREE(to, M_SONAME);
 done1:
-	fdrop(fp, td);
 	fputsock(so);
 	return (error);
 }
@@ -364,7 +363,6 @@ out:
 	if (control)
 		m_freem(control);
 done1:
-	fdrop(fp, td);
 	fputsock(so);
 	return (error);
 }
@@ -1916,7 +1914,7 @@ svr4_sys_getmsg(td, uap)
 }
 
 int
-svr4_sys_getmsg(td, uap)
+svr4_do_getmsg(td, uap, fp)
 	register struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 	struct file *fp;
