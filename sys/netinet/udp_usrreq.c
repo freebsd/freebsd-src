@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.5 1995/02/16 00:27:46 wollman Exp $
+ * $Id: udp_usrreq.c,v 1.6 1995/02/16 01:25:06 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -420,6 +420,8 @@ udp_output(inp, m, addr, control)
 	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
 	if (m == 0) {
 		error = ENOBUFS;
+		if (addr)
+			splx(s);
 		goto release;
 	}
 
