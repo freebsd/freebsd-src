@@ -83,6 +83,7 @@ int smp_cpus = 1;	/* how many cpu's running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cpus, CTLFLAG_RD, &smp_cpus, 0,
     "Number of CPUs online");
 
+#ifndef	__sparc64__
 static void	cpu_identify(driver_t *driver, device_t parent);
 static device_t	cpu_add_child(device_t bus, int order, const char *name,
 			int unit);
@@ -122,6 +123,7 @@ static driver_t cpu_driver = {
 };
 static devclass_t cpu_devclass;
 DRIVER_MODULE(cpu, nexus, cpu_driver, cpu_devclass, 0, 0);
+#endif
 
 #ifdef SMP
 /* Enable forwarding of a signal to a process running on a different CPU */
@@ -415,6 +417,7 @@ smp_rendezvous(void (* setup_func)(void *),
 }
 #endif /* SMP */
 
+#ifndef __sparc64__
 static void
 cpu_identify(driver_t *driver, device_t parent)
 {
@@ -440,3 +443,4 @@ cpu_add_child(device_t bus, int order, const char *name, int unit)
 {
 	return (device_add_child_ordered(bus, order, name, unit));
 }
+#endif
