@@ -129,8 +129,10 @@ vfs_opv_recalc(void)
 	for (i = 0; i < vnodeopv_num; i++) {
 		opv = vnodeopv_descs[i];
 		opv_desc_vector_p = opv->opv_desc_vector_p;
+#ifdef WANT_BAD_JUJU
 		if (*opv_desc_vector_p)
 			FREE(*opv_desc_vector_p, M_VNODE);
+#endif
 		MALLOC(*opv_desc_vector_p, vop_t **,
 			vfs_opv_numops * sizeof(vop_t *), M_VNODE,
 			M_WAITOK | M_ZERO);
