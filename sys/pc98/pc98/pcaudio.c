@@ -41,7 +41,11 @@
 #include <machine/clock.h>
 #include <machine/pcaudioio.h>
 
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <isa/isareg.h>
+#endif
 #include <isa/isavar.h>
 #include <i386/isa/timerreg.h>
 
