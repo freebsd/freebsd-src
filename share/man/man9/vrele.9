@@ -49,7 +49,7 @@ the vnode to decrement
 .El
 .Pp
 Any code in the system which is using a vnode should call
-.Xr vrele 9
+.Fn vrele
 when it is finished with the vnode.
 If the
 .Dv v_usecount

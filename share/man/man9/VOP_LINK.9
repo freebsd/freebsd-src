@@ -60,7 +60,7 @@ The directory and file vnodes should
 .Em not
 be released on exit.
 .Sh LOCKS
-.Xr VOP_LINK 9
+.Fn VOP_LINK
 expects the directory and file vnodes to be locked on entry and will leave
 the vnodes locked on return.
 .Sh RETURN VALUES
