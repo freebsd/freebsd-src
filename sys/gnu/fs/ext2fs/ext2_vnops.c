@@ -231,7 +231,9 @@ struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 #if defined(__FreeBSD__)
 	VNODEOP_SET(ext2fs_vnodeop_opv_desc);
 	VNODEOP_SET(ext2fs_specop_opv_desc);
+#if FIFO
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
+#endif
 #endif
 
 /*
