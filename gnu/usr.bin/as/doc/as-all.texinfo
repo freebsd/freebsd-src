@@ -1538,7 +1538,7 @@ If the label is written @samp{0:} then the digit is @samp{0}.
 If the label is written @samp{1:} then the digit is @samp{1}.
 And so on up through @samp{9:}.
 
-@item @ctrl{A}
+@item @kbd{C-A}
 This unusual character is included so you don't accidentally invent
 a symbol of the same name.  The character has ASCII value
 @samp{\001}.
@@ -1550,8 +1550,8 @@ number @samp{15}; @emph{etc.}.  Likewise for the other labels @samp{1:}
 through @samp{9:}.
 @end table
 
-For instance, the first @code{1:} is named @code{L1@ctrl{A}1}, the 44th
-@code{3:} is named @code{L3@ctrl{A}44}.
+For instance, the first @code{1:} is named @code{L1@kbd{C-A}1}, the 44th
+@code{3:} is named @code{L3@kbd{C-A}44}.
 
 @node Dot, Symbol Attributes, Symbol Names, Symbols
 @section The Special Dot Symbol
