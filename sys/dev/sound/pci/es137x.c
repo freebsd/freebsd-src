@@ -773,7 +773,7 @@ es_pci_attach(device_t dev)
 		}
 	}
 	if (mapped == 0 && (data & PCIM_CMD_PORTEN)) {
-		regid = PCI_MAP_REG_START;
+		regid = PCIR_MAPS;
 		type = SYS_RES_IOPORT;
 		reg = bus_alloc_resource(dev, type, &regid,
 					 0, ~0, 1, RF_ACTIVE);
