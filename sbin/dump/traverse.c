@@ -277,10 +277,8 @@ dirindir(
 {
 	int ret = 0;
 	int i;
-	static caddr_t idblk;
+	char idblk[MAXBSIZE];
 
-	if (idblk == NULL && (idblk = malloc(sblock->fs_bsize)) == NULL)
-		quit("dirindir: cannot allocate indirect memory.\n");
 	bread(fsbtodb(sblock, blkno), idblk, (int)sblock->fs_bsize);
 	if (ind_level <= 0) {
 		for (i = 0; *filesize > 0 && i < NINDIR(sblock); i++) {
@@ -501,10 +499,8 @@ static void
 dmpindir(ino_t ino, ufs2_daddr_t blk, int ind_level, off_t *size)
 {
 	int i, cnt;
-	static caddr_t idblk;
+	char idblk[MAXBSIZE];
 
-	if (idblk == NULL && (idblk = malloc(sblock->fs_bsize)) == NULL)
-		quit("dmpindir: cannot allocate indirect memory.\n");
 	if (blk != 0)
 		bread(fsbtodb(sblock, blk), idblk, (int) sblock->fs_bsize);
 	else
