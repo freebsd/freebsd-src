@@ -427,10 +427,6 @@ options 	PERFMON
 options 	COMPILING_LINT
 
 
-# XXX - this doesn't belong here.
-# Allow ordinary users to take the console - this is useful for X.
-options 	UCONSOLE
-
 # XXX - this doesn't belong here either
 #options 	USERCONFIG		#boot -c editor
 #options 	INTRO_USERCONFIG	#imply -c and show intro screen
