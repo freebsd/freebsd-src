@@ -980,6 +980,14 @@ set_history(char *opt)
 		warn("setting history buffer size");
 }
 
+void
+clear_history()
+{
+
+	if (ioctl(0, CONS_CLRHIST) == -1)
+		warn("clear history buffer");
+}
+
 static char
 *get_kbd_type_name(int type)
 {
@@ -1079,7 +1087,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-"usage: kbdcontrol [-dFKix] [-b  duration.pitch | [quiet.]belltype]",
+"usage: kbdcontrol [-cdFKix] [-b duration.pitch | [quiet.]belltype]",
 "                  [-r delay.repeat | speed] [-l mapfile] [-f # string]",
 "                  [-h size] [-k device] [-L mapfile]");
 	exit(1);
@@ -1091,10 +1099,13 @@ main(int argc, char **argv)
 {
 	int		opt;
 
-	while((opt = getopt(argc, argv, "b:df:h:iKk:Fl:L:r:x")) != -1)
+	while((opt = getopt(argc, argv, "b:cdf:h:iKk:Fl:L:r:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
+				break;
+			case 'c':
+				clear_history();
 				break;
 			case 'd':
 				print_keymap();
