@@ -35,25 +35,36 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)fold.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	DEFLINEWIDTH	80
 
+void fold __P((int));
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int errno, optind;
+	extern int optind;
 	extern char *optarg;
 	register int ch;
 	int width;
@@ -64,9 +75,7 @@ main(argc, argv)
 		switch (ch) {
 		case 'w':
 			if ((width = atoi(optarg)) <= 0) {
-				(void)fprintf(stderr,
-				    "fold: illegal width value.\n");
-				exit(1);
+				errx(1, "illegal width value");
 			}
 			break;
 		case '0': case '1': case '2': case '3': case '4':
@@ -80,9 +89,7 @@ main(argc, argv)
 			}
 			break;
 		default:
-			(void)fprintf(stderr,
-			    "usage: fold [-w width] [file ...]\n");
-			exit(1);
+			usage();
 		}
 	argv += optind;
 	argc -= optind;
@@ -93,14 +100,20 @@ main(argc, argv)
 		fold(width);
 	else for (; *argv; ++argv)
 		if (!freopen(*argv, "r", stdin)) {
-			(void)fprintf(stderr,
-			    "fold: %s: %s\n", *argv, strerror(errno));
-			exit(1);
+			err(1, "%s", *argv);
 		} else
 			fold(width);
 	exit(0);
 }
 
+static void
+usage()
+{
+	(void)fprintf(stderr, "usage: fold [-w width] [file ...]\n");
+	exit(1);
+}
+
+void
 fold(width)
 	register int width;
 {
