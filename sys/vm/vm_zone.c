@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *	John S. Dyson.
  *
- * $Id: vm_zone.c,v 1.21 1998/04/25 04:50:01 dyson Exp $
+ * $Id: vm_zone.c,v 1.22 1998/10/09 00:24:49 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -459,8 +459,8 @@ SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
 	NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 
 SYSCTL_INT(_vm, OID_AUTO, zone_kmem_pages,
-	CTLFLAG_RD, &zone_kmem_pages, 0, "");
+	CTLFLAG_RD, &zone_kmem_pages, 0, "Number of interrupt safe pages allocated by zone");
 SYSCTL_INT(_vm, OID_AUTO, zone_kmem_kvaspace,
-	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "");
+	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "KVA space allocated by zone");
 SYSCTL_INT(_vm, OID_AUTO, zone_kern_pages,
-	CTLFLAG_RD, &zone_kern_pages, 0, "");
+	CTLFLAG_RD, &zone_kern_pages, 0, "Number of non-interrupt safe pages allocated by zone");

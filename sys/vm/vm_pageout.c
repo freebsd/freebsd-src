@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.127 1998/09/29 17:33:59 abial Exp $
+ * $Id: vm_pageout.c,v 1.128 1998/10/25 17:44:59 phk Exp $
  */
 
 /*
@@ -155,19 +155,19 @@ static int vm_swap_idle_enabled=0;
 #endif
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
-	CTLFLAG_RW, &vm_pageout_algorithm_lru, 0, "");
+	CTLFLAG_RW, &vm_pageout_algorithm_lru, 0, "LRU page mgmt");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_max,
-	CTLFLAG_RW, &vm_pageout_stats_max, 0, "");
+	CTLFLAG_RW, &vm_pageout_stats_max, 0, "Max pageout stats scan length");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_full_stats_interval,
-	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "");
+	CTLFLAG_RW, &vm_pageout_full_stats_interval, 0, "Interval for full stats scan");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
-	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "");
+	CTLFLAG_RW, &vm_pageout_stats_interval, 0, "Interval for partial stats scan");
 
 SYSCTL_INT(_vm, OID_AUTO, pageout_stats_free_max,
-	CTLFLAG_RW, &vm_pageout_stats_free_max, 0, "");
+	CTLFLAG_RW, &vm_pageout_stats_free_max, 0, "Not implemented");
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
@@ -176,19 +176,19 @@ SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled,
 	CTLFLAG_RD, &vm_swap_idle_enabled, 0, "");
 #else
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
-	CTLFLAG_RW, &vm_swap_enabled, 0, "");
+	CTLFLAG_RW, &vm_swap_enabled, 0, "Enable entire process swapout");
 SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled,
-	CTLFLAG_RW, &vm_swap_idle_enabled, 0, "");
+	CTLFLAG_RW, &vm_swap_idle_enabled, 0, "Allow swapout on idle criteria");
 #endif
 
 SYSCTL_INT(_vm, OID_AUTO, defer_swapspace_pageouts,
-	CTLFLAG_RW, &defer_swap_pageouts, 0, "");
+	CTLFLAG_RW, &defer_swap_pageouts, 0, "Give preference to dirty pages in mem");
 
 SYSCTL_INT(_vm, OID_AUTO, disable_swapspace_pageouts,
-	CTLFLAG_RW, &disable_swap_pageouts, 0, "");
+	CTLFLAG_RW, &disable_swap_pageouts, 0, "Disallow swapout of dirty pages");
 
 SYSCTL_INT(_vm, OID_AUTO, max_page_launder,
-	CTLFLAG_RW, &max_page_launder, 0, "");
+	CTLFLAG_RW, &max_page_launder, 0, "Maximum number of pages to clean per pass");
 
 
 #define VM_PAGEOUT_PAGE_COUNT 16
