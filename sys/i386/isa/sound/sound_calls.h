@@ -49,7 +49,7 @@ int sequencer_ioctl (int dev, struct fileinfo *file,
 	   unsigned int cmd, unsigned int arg);
 int sequencer_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 long sequencer_init (long mem_start);
-void sequencer_timer(void);
+void sequencer_timer(void *arg);
 int note_to_freq(int note_num);
 unsigned long compute_finetune(unsigned long base_freq, int bend, int range);
 void seq_input_event(unsigned char *event, int len);

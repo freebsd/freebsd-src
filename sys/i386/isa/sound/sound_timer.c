@@ -373,7 +373,7 @@ sound_timer_interrupt (void)
   if (curr_ticks >= next_event_time)
     {
       next_event_time = 0xffffffff;
-      sequencer_timer ();
+      sequencer_timer (NULL);
     }
 }
 

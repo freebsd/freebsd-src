@@ -307,8 +307,7 @@ extern unsigned long get_time(void);
  * The ACTIVATE_TIMER requests system to call 'proc' after 'time' ticks.
  */
 
-#define ACTIVATE_TIMER(name, proc, time) \
-	timeout((timeout_func_t)proc, 0, time);
+#define ACTIVATE_TIMER(name, proc, time)	timeout(proc, 0, time)
 /*
  * The rest of this file is not complete yet. The functions using these
  * macros will not work

@@ -43,7 +43,7 @@ static volatile unsigned long curr_ticks;
 static volatile unsigned long next_event_time;
 static unsigned long prev_event_time;
 
-static void     poll_def_tmr (unsigned long dummy);
+static void     poll_def_tmr (void *dummy);
 
 DEFINE_TIMER (def_tmr, poll_def_tmr);
 
@@ -65,7 +65,7 @@ tmr2ticks (int tmr_value)
 }
 
 static void
-poll_def_tmr (unsigned long dummy)
+poll_def_tmr (void *dummy)
 {
 
   if (opened)
@@ -80,7 +80,7 @@ poll_def_tmr (unsigned long dummy)
 	  if (curr_ticks >= next_event_time)
 	    {
 	      next_event_time = 0xffffffff;
-	      sequencer_timer ();
+	      sequencer_timer (NULL);
 	    }
 	}
     }
