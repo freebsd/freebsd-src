@@ -2529,28 +2529,8 @@ ipfw_readfile(int ac, char *av[])
 	pid_t	preproc = 0;
 	int	c;
 
-	while ((c = getopt(ac, av, "D:U:p:q")) != -1)
+	while ((c = getopt(ac, av, "p:q")) != -1) {
 		switch(c) {
-		case 'D':
-			if (!pflag)
-				errx(EX_USAGE, "-D requires -p");
-			if (i > MAX_ARGS - 2)
-				errx(EX_USAGE,
-				     "too many -D or -U options");
-			args[i++] = "-D";
-			args[i++] = optarg;
-			break;
-
-		case 'U':
-			if (!pflag)
-				errx(EX_USAGE, "-U requires -p");
-			if (i > MAX_ARGS - 2)
-				errx(EX_USAGE,
-				     "too many -D or -U options");
-			args[i++] = "-U";
-			args[i++] = optarg;
-			break;
-
 		case 'p':
 			pflag = 1;
 			cmd = optarg;
@@ -2566,6 +2546,19 @@ ipfw_readfile(int ac, char *av[])
 			errx(EX_USAGE, "bad arguments, for usage"
 			     " summary ``ipfw''");
 		}
+
+		if (pflag)
+			break;
+	}
+
+	if (pflag) {
+		/* Pass all but the last argument to the preprocessor. */
+		while (optind < ac - 1) {
+			if (i >= MAX_ARGS)
+				errx(EX_USAGE, "too many preprocessor options");
+			args[i++] = av[optind++];
+		}
+	}
 
 	av += optind;
 	ac -= optind;
