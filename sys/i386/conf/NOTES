@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.375 1997/10/18 10:59:16 joerg Exp $
+#	$Id: LINT,v 1.376 1997/10/26 04:36:09 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -578,18 +578,12 @@ options		OD_AUTO_TURNOFF
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
 
-#
-# Of these, only the `log' device is truly mandatory.  The `pty'
-# device usually turns out to be ``effectively mandatory'', as it is
-# required for `telnetd', `rlogind', `screen', `emacs', and `xterm',
-# among others. 
-# If you wish to run certain
-# system utilities which are compressed by default (like /stand/sysinstall)
-# then `gzip' becomes mandatory too.
-#
+# The `pty' device usually turns out to be ``effectively mandatory'',
+# as it is required for `telnetd', `rlogind', `screen', `emacs', and
+# `xterm', among others.
+
 pseudo-device	pty	16	#Pseudo ttys - can go as high as 256
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
-pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
