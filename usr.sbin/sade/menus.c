@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.161 1998/03/15 17:10:11 jkh Exp $
+ * $Id: menus.c,v 1.162 1998/03/15 19:30:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -366,8 +366,8 @@ DMenu MenuMouseType = {
 DMenu MenuMousePort = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "Select your mouse port from the following menu",
-    "Please note that for PS/2 mice, you need to enable the psm driver\n"
-    "in the kernel configuration menu when installing for the first time.",
+    "The built-in pointing device of laptop/notebook computers is usually\n"
+    "a PS/2 style device.",
     NULL,
     NULL,
     { { "COM1",	"Serial mouse on COM1 (/dev/cuaa0)",
@@ -380,7 +380,7 @@ DMenu MenuMousePort = {
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/cuaa3" },
       { "BusMouse", "Logitech, ATI or MS bus mouse (/dev/mse0)", 
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/mse0" },
-      { "PS/2",	"PS/2 style mouse (must enable /dev/psm0)", 
+      { "PS/2",	"PS/2 style mouse (/dev/psm0)", 
 	dmenuVarCheck, dmenuSetVariable, NULL, VAR_MOUSED_PORT "=/dev/psm0" },
       { NULL } },
 };
@@ -388,19 +388,20 @@ DMenu MenuMousePort = {
 DMenu MenuMouse = {
     DMENU_NORMAL_TYPE,
     "Please configure your mouse",
-    "There are many different types of mice currently on the market,\n"
-    "but this configuration menu should at least narrow down the choices\n"
-    "somewhat.  Once you've done with the following menus, you can specify\n"
-    "\"/dev/sysmouse\" as your mouse device and \"SysMouse\" or \"MouseSystems\"\n"
-    "as mouse protocol when running the X configuration utility (see \n"
-    "Configuration menu).",
-    "Choose 3 after selecting a protocol and a port.",
+    "You can cut and paste text in the text console by running the mouse\n"
+    "daemon.  Specify a port and a protocol type of your mouse and enable\n"
+    "the mouse daemon.  If you don't want this feature, select 4 to disable\n"
+    "the daemon.\n"
+    "Once you've enabled the mouse daemon, you can specify \"/dev/sysmouse\"\n"
+    "as your mouse device and \"SysMouse\" or \"MouseSystems\" as mouse\n"
+    "protocol when running the X configuration utility (see Configuration\n"
+    "menu).",
     NULL,
-    { { "1 Type",	"Select mouse protocol", NULL, dmenuSubmenu, NULL, &MenuMouseType },
+    NULL,
+    { { "1 Type",	"Select mouse protocol type", NULL, dmenuSubmenu, NULL, &MenuMouseType },
       { "2 Port",	"Select mouse port", NULL, dmenuSubmenu, NULL, &MenuMousePort },
-      { "3 Daemon",	"Test and run the mouse daemon", NULL, mousedTest, NULL, NULL }, 
-      { "4 No mouse",	"Clear mouse configuration", NULL, dmenuSetVariables,
-	NULL, VAR_MOUSED "=NO, " VAR_MOUSED_TYPE "=NO, " VAR_MOUSED_PORT "=" },
+      { "3 Enable",	"Test and run the mouse daemon", NULL, mousedTest, NULL, NULL },
+      { "4 Disable",	"Disable the mouse daemon", NULL, mousedDisable, NULL, NULL },
       { "0 Exit", "Exit this menu (returning to previous)", NULL, dmenuExit },
       { NULL } },
 };
@@ -1334,7 +1335,7 @@ DMenu MenuSysconsKeymap = {
       { "Icelandic (accent)", "Icelandic ISO keymap (accent keys)",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso.acc" },
       { "Icelandic",	"Icelandic ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=icelandic.iso" },
       { "Italian",	"Italian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=it.iso" },
-      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer.iso" },
+      { "Latin American", "Latin American ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=lat-amer" },
       { "Japanese 106",	"Japanese 106 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.106" },
       { "Norway ISO",	"Norwegian ISO keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=norwegian.iso" },
       { "Russia CP866",	"Russian CP866 keymap",	dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.cp866" },
