@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.62 1995/04/30 15:14:34 bde Exp $
+ *      $Id: sd.c,v 1.63 1995/05/03 18:09:17 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -765,25 +765,12 @@ sd_get_parms(unit, flags)
 int
 sdsize(dev_t dev)
 {
-	u_int32 unit = SDUNIT(dev), part = PARTITION(dev);
 	struct scsi_data *sd;
-	struct disklabel *lp;
 
-	if ((sd = SCSI_DATA(&sd_switch, unit)) == NULL)
-		return -1;
-	if ((sd->flags & SDINIT) == 0)
-		return -1;
-	if (!dsisopen(sd->dk_slices)) {
-		if (sdopen(dkmodpart(dev, RAW_PART), FREAD, S_IFBLK,
-		    (struct proc *)NULL) != 0)
-			return (-1);
-		sdclose(dkmodpart(dev, RAW_PART), FREAD/*XXX?*/, S_IFBLK,
-			(struct proc *)NULL);
-	}
-	lp = dsgetlabel(dev, sd->dk_slices);
-	if (lp == NULL)
+	sd = SCSI_DATA(&sd_switch, (u_int32) SDUNIT(dev));
+	if (sd == NULL)
 		return (-1);
-	return ((int)lp->d_partitions[part].p_size);
+	return (dssize(dev, &sd->dk_slices, sdopen, sdclose));
 }
 
 /*
