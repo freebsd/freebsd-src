@@ -3,7 +3,7 @@
 BASE= 		loader
 PROG= 		${BASE}
 NOMAN=
-NEWVERSWHAT=	"SRM disk boot"
+NEWVERSWHAT=	"SRM disk boot" alpha
 
 .PATH:		${.CURDIR}/../common
 
@@ -34,8 +34,8 @@ BINDIR?=	/boot
 
 all: ${BASE}
 
-vers.o: ${.CURDIR}/newvers.sh ${.CURDIR}/Makefile
-	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+vers.o: ${.CURDIR}/../../newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 	${CC} -c vers.c
 
 ${BASE}: ${BASE}.sym ${BASE}.help
