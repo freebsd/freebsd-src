@@ -15,9 +15,9 @@ paper.tmp: ${LSRCS}
 	(cd ${.CURDIR}; ${TBL} ${LSRCS}) > paper.tmp
 
 appendix.tmp: a1.t a2.t
-	${GRIND} -f ${.CURDIR}/a1.t |  awk '/\.\(\)/{ cnt = 2 } \
+	${GRIND} ${.CURDIR}/a1.t |  awk '/\.\(\)/{ cnt = 2 } \
 	   { if (cnt) cnt -= 1; else print $$0; } ' > appendix.tmp
-	${GRIND} -f -lcsh ${.CURDIR}/a2.t |  awk '/\.\(\)/{ cnt = 2 } \
+	${GRIND} -lcsh ${.CURDIR}/a2.t |  awk '/\.\(\)/{ cnt = 2 } \
 	   { if (cnt) cnt -= 1; else print $$0; } ' >> appendix.tmp
 
 .include <bsd.doc.mk>
