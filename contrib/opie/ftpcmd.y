@@ -1,7 +1,7 @@
 /* ftpcmd.y: yacc parser for the FTP daemon.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -21,6 +21,8 @@ you didn't get a copy, you may request one from <license@inner.net>.
                 PORT attack fixes from Hobbit.
 	Modified at NRL for OPIE 2.0.
 	Originally from BSD.
+
+$FreeBSD$
 */
 /*
  * Copyright (c) 1985, 1988 Regents of the University of California.
