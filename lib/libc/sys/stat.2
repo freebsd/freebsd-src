@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)stat.2	8.3 (Berkeley) 4/19/94
-.\"	$Id: stat.2,v 1.6 1996/09/23 22:22:46 wosch Exp $
+.\"	$Id: stat.2,v 1.8 1997/01/11 21:45:57 mpp Exp $
 .\"
 .Dd April 19, 1994
 .Dt STAT 2
@@ -94,21 +94,30 @@ as defined by
 and into which information is placed concerning the file.
 .Bd -literal
 struct stat {
-    dev_t    st_dev;    /* device inode resides on */
-    ino_t    st_ino;    /* inode's number */
-    mode_t   st_mode;   /* inode protection mode */
-    nlink_t  st_nlink;  /* number or hard links to the file */
-    uid_t    st_uid;    /* user-id of owner */
-    gid_t    st_gid;    /* group-id of owner */
-    dev_t    st_rdev;   /* device type, for special file inode */
+    dev_t    st_dev;               /* inode's device */
+    ino_t    st_ino;               /* inode's number */
+    mode_t   st_mode;              /* inode protection mode */
+    nlink_t  st_nlink;             /* number of hard links */
+    uid_t    st_uid;               /* user ID of the file's owner */
+    gid_t    st_gid;               /* group ID of the file's group */
+    dev_t    st_rdev;              /* device type */
+#ifndef _POSIX_SOURCE
     struct timespec st_atimespec;  /* time of last access */
     struct timespec st_mtimespec;  /* time of last data modification */
     struct timespec st_ctimespec;  /* time of last file status change */
-    off_t    st_size;   /* file size, in bytes */
-    quad_t   st_blocks; /* blocks allocated for file */
-    u_long   st_blksize;/* optimal file sys I/O ops blocksize */
-    u_long   st_flags;  /* user defined flags for file */
-    u_long   st_gen;    /* file generation number */
+#else
+    time_t   st_atime;             /* time of last access */
+    long     st_atimensec;         /* nsec of last access */
+    time_t   st_mtime;             /* time of last data modification */
+    long     st_mtimensec;         /* nsec of last data modification */
+    time_t   st_ctime;             /* time of last file status change */
+    long     st_ctimensec;         /* nsec of last file status change */
+#endif
+    off_t    st_size;              /* file size, in bytes */
+    quad_t   st_blocks;            /* blocks allocated for file */
+    u_long   st_blksize;           /* optimal blocksize for I/O */
+    u_long   st_flags;             /* user defined flags for file */
+    u_long   st_gen;               /* file generation number */
 };
 .Ed
 .Pp
@@ -147,6 +156,17 @@ and
 system calls.
 .El
 .Pp
+If
+.Dv _POSIX_SOURCE
+is not defined, the time-related fields are defined as:
+.Bd -literal
+#ifndef _POSIX_SOURCE
+#define st_atime st_atimespec.tv_sec
+#define st_mtime st_mtimespec.tv_sec
+#define st_ctime st_ctimespec.tv_sec
+#endif
+.Ed
+.Pp
 The size-related fields of the
 .Fa struct stat
 are as follows:
@@ -171,6 +191,7 @@ has the following bits:
 #define        S_IFREG  0100000  /* regular */
 #define        S_IFLNK  0120000  /* symbolic link */
 #define        S_IFSOCK 0140000  /* socket */
+#define        S_IFWHT  0160000  /* whiteout */
 #define S_ISUID 0004000  /* set user id on execution */
 #define S_ISGID 0002000  /* set group id on execution */
 #define S_ISVTX 0001000  /* save swapped text even after use */
