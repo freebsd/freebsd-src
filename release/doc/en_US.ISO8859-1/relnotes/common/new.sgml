@@ -100,6 +100,9 @@
       import of a new version of
       <application>sendmail</application>.</para>
 
+    <para>A single-byte buffer overflow in &man.realpath.3; has been
+      fixed.  See security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
