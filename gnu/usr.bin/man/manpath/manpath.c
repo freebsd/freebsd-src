@@ -200,10 +200,8 @@ get_dirlist ()
       if (*bp == '#' || *bp == '\n')
 	continue;
 
-      if (!strncmp ("MANBIN", bp, 6))
-	continue;
-
-      if (!strncmp ("MANDATORY_MANPATH", bp, 17))
+      if (!strncmp ("MANDATORY_MANPATH", bp, 17) ||
+	  !strncmp ("OPTIONAL_MANPATH", bp, 16))
 	{
 	  if ((p = strchr (bp, ' ')) == NULL &&
 	      (p = strchr (bp, '\t')) == NULL) {
@@ -211,9 +209,9 @@ get_dirlist ()
 	    return -1;
 	  }
 
-	  bp = p;
+	  dlp->type = *bp == 'M'? MANPATH_MANDATORY: MANPATH_OPTIONAL;
 
-	  dlp->mandatory = 1;
+	  bp = p;
 
 	  while (*bp && *bp != '\n' && (*bp == ' ' || *bp == '\t'))
 	    bp++;
@@ -224,7 +222,8 @@ get_dirlist ()
 	  dlp->mandir[i] = '\0';
 
 	  if (debug)
-	    fprintf (stderr, "found mandatory man directory %s\n",
+	    fprintf (stderr, "found %s man directory %s\n",
+		     dlp->type == MANPATH_MANDATORY? "mandatory": "optional",
 		     dlp->mandir);
 	}
       else if (!strncmp ("MANPATH_MAP", bp, 11))
@@ -237,7 +236,7 @@ get_dirlist ()
 
 	  bp = p;
 
-	  dlp->mandatory = 0;
+	  dlp->type = MANPATH_MAP;
 
 	  while (*bp && *bp != '\n' && (*bp == ' ' || *bp == '\t'))
 	    bp++;
@@ -269,14 +268,14 @@ get_dirlist ()
   fclose(config);
   dlp->bin[0] = '\0';
   dlp->mandir[0] = '\0';
-  dlp->mandatory = 0;
+  dlp->type = MANPATH_NONE;
 
   return 0;
 }
 
 /*
- * Construct the default manpath.  This picks up mandatory manpaths
- * only.
+ * Construct the default manpath.  This picks up mandatory
+ * and optional (if they exist) manpaths only.
  */
 char *
 def_path (perrs)
@@ -288,11 +287,11 @@ def_path (perrs)
 
   len = 0;
   dlp = list;
-  while (dlp->mandatory != 0)
-    {
+  while (dlp->type != MANPATH_NONE) {
+    if (dlp->type == MANPATH_MANDATORY || dlp->type == MANPATH_OPTIONAL)
       len += strlen (dlp->mandir) + 1;
-      dlp++;
-    }
+    dlp++;
+  }
 
   manpathlist = (char *) malloc (len);
   if (manpathlist == NULL)
@@ -302,21 +301,20 @@ def_path (perrs)
 
   dlp = list;
   p = manpathlist;
-  while (dlp->mandatory != 0)
-    {
+  while (dlp->type != MANPATH_NONE) {
+    if (dlp->type == MANPATH_MANDATORY || dlp->type == MANPATH_OPTIONAL) {
       int status;
       char *path = dlp->mandir;
 
       status = is_directory(path);
 
-      if (status < 0 && perrs)
+      if (status < 0 && perrs && dlp->type == MANPATH_MANDATORY)
 	{
 	  fprintf (stderr, "Warning: couldn't stat file %s!\n", path);
 	}
       else if (status == 0 && perrs)
 	{
-	  fprintf (stderr, "Warning: standard directory %s doesn't exist!\n",
-		   path);
+	  fprintf (stderr, "Warning: %s isn't a directory!\n", path);
 	}
       else if (status == 1)
 	{
@@ -324,9 +322,10 @@ def_path (perrs)
 	  memcpy (p, path, len);
 	  p += len;
 	  *p++ = ':';
-	  dlp++;
 	}
     }
+    dlp++;
+  }
 
   p[-1] = '\0';
 
@@ -363,7 +362,7 @@ get_manpath (perrs, path)
 
   for (p = tmppath; ; p = end+1)
     {
-      if (end = strchr(p, ':'))
+      if ((end = strchr(p, ':')) != NULL)
 	*end = '\0';
 
       if (debug)
@@ -416,11 +415,12 @@ get_manpath (perrs, path)
     fprintf (stderr, "\nadding mandatory man directories\n\n");
 
   dlp = list;
-  while (dlp->mandatory != 0)
-    {
-      add_dir_to_list (tmplist, dlp->mandir, perrs);
-      dlp++;
-    }
+  while (dlp->type != MANPATH_NONE) {
+    if (dlp->type == MANPATH_MANDATORY || dlp->type == MANPATH_OPTIONAL)
+      add_dir_to_list (tmplist, dlp->mandir,
+	dlp->type == MANPATH_MANDATORY? perrs: 0);
+    dlp++;
+  }
 
   len = 0;
   lp = tmplist;
