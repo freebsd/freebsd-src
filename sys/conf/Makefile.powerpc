@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.20 1994/01/27 21:10:14 nate Exp $
+#	$Id: Makefile.i386,v 1.21 1994/02/13 20:37:32 jkh Exp $
 #
 # Makefile for FreeBSD
 #
@@ -39,6 +39,7 @@ CWARNFLAGS=-W -Wreturn-type -Wcomment
 # of material assistance.
 #
 COPTFLAGS=-O
+COPTFLAGS+=-D__FreeBSD__
 INCLUDES= -I. -I$S -I$S/sys
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DNPX
 ASFLAGS=
