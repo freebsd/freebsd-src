@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		objformat
-CFLAGS+=	-Wall
+WARNS?=		2
 NOSHARED?=	YES
 
 LINKS+=	${BINDIR}/objformat ${BINDIR}/addr2line
