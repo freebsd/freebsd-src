@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.3 1998/09/20 22:48:15 ken Exp $
+ *      $Id: scsi_cd.c,v 1.4 1998/09/23 03:17:08 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -46,23 +46,18 @@
  *      from: cd.c,v 1.83 1997/05/04 15:24:22 joerg Exp $
  */
 
+#include "opt_cd.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/buf.h>
 #include <sys/dkbad.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/cdio.h>
-#include <sys/errno.h>
 #include <sys/devicestat.h>
 #include <sys/sysctl.h>
 
@@ -72,20 +67,11 @@
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_queue.h>
-#include <cam/cam_debug.h>
 
-#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_da.h>
 #include <cam/scsi/scsi_cd.h>
-#include "opt_cd.h"
 
-#define ESUCCESS 0
-
-#define CDUNIT(DEV)	((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
-#define CDSETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
-#define PARTITION(z)	(minor(z) & 0x07)
-#define RAW_PART	2
 #define LEADOUT         0xaa            /* leadout toc entry */
 
 struct cd_params {
@@ -144,7 +130,6 @@ struct cd_softc {
 	struct buf_queue_head	buf_queue;
 	LIST_HEAD(, ccb_hdr)	pending_ccbs;
 	struct cd_params	params;
-	struct disklabel	disklabel;
 	struct diskslices 	*cd_slices;
 	union ccb		saved_ccb;
 	cd_quirks		quirks;
@@ -153,13 +138,6 @@ struct cd_softc {
 	struct cdchanger	*changer;
 	int			bufs_left;
 	struct cam_periph	*periph;
-#ifdef  DEVFS
-	void	  *ra_devfs_token;
-	void	  *rc_devfs_token;
-	void	  *a_devfs_token;
-	void	  *c_devfs_token; 
-	void	  *ctl_devfs_token;
-#endif  
 };
 
 struct cd_quirk_entry {
@@ -199,6 +177,7 @@ static	d_read_t	cdread;
 static	d_close_t	cdclose;
 static	d_ioctl_t	cdioctl;
 static	d_strategy_t	cdstrategy;
+static	d_strategy_t	cdstrategy1;
 
 static	periph_init_t	cdinit;
 static	periph_ctor_t	cdregister;
@@ -223,7 +202,6 @@ static	int		cderror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
 static	void		cdprevent(struct cam_periph *periph, int action);
 static	int		cdsize(dev_t dev, u_int32_t *size);
-static	int		cdgetdisklabel (dev_t dev);
 static	int		cdreadtoc(struct cam_periph *periph, u_int32_t mode, 
 				  u_int32_t start, struct cd_toc_entry *data, 
 				  u_int32_t len);
@@ -885,12 +863,12 @@ cdregisterexit:
 static int
 cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
+	struct disklabel label;
 	struct cam_periph *periph;
 	struct cd_softc *softc;
+	struct ccb_getdev cgd;
 	u_int32_t size;
 	int unit, error;
-
-	error = 0; /* default to no error */
 
 	unit = dkunit(dev);
 	periph = cam_extend_get(cdperiphs, unit);
@@ -910,40 +888,70 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		if (cam_periph_acquire(periph) != CAM_REQ_CMP)
 			return(ENXIO);
 		softc->flags |= CD_FLAG_OPEN;
-	}
 
-	/* lock the cd */
-	cdprevent(periph, PR_PREVENT);
+		cdprevent(periph, PR_PREVENT);
+	}
 
 	/* find out the size */
 	if ((error = cdsize(dev, &size)) != 0) {
-		cdprevent(periph, PR_ALLOW);
-		softc->flags &= ~CD_FLAG_OPEN;
+		if (dsisopen(softc->cd_slices) == 0) {
+			cdprevent(periph, PR_ALLOW);
+			softc->flags &= ~CD_FLAG_OPEN;
+		}
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
+
+		if ((softc->flags & CD_FLAG_OPEN) == 0)
+			cam_periph_release(periph);
+
 		return(error);
 	}
 
-	/* get a disklabel */
-	if ((error = cdgetdisklabel(dev)) != 0) {
-		printf("error getting disklabel\n");
-		cdprevent(periph, PR_ALLOW);
-		softc->flags &= ~CD_FLAG_OPEN;
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-		return(error);
-	}
+	/*
+	 * Build prototype label for whole disk.
+	 * Should take information about different data tracks from the
+	 * TOC and put it in the partition table.
+	 */
+	bzero(&label, sizeof(label));
+	label.d_type = DTYPE_SCSI;
+
+	/*
+	 * Grab the inquiry data to get the vendor and product names.
+	 * Put them in the typename and packname for the label.
+	 */
+	xpt_setup_ccb(&cgd.ccb_h, periph->path, /*priority*/ 1);
+	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
+	xpt_action((union ccb *)&cgd);
+
+	strncpy(label.d_typename, cgd.inq_data.vendor,
+		min(SID_VENDOR_SIZE, sizeof(label.d_typename)));
+	strncpy(label.d_packname, cgd.inq_data.product,
+		min(SID_PRODUCT_SIZE, sizeof(label.d_packname)));
+		
+	label.d_secsize = softc->params.blksize;
+	label.d_secperunit = softc->params.disksize;
+	label.d_flags = D_REMOVABLE;
+	/*
+	 * Make partition 'a' cover the whole disk.  This is a temporary
+	 * compatibility hack.  The 'a' partition should not exist, so
+	 * the slice code won't create it.  The slice code will make
+	 * partition (RAW_PART + 'a') cover the whole disk and fill in
+	 * some more defaults.
+	 */
+	label.d_partitions[0].p_size = label.d_secperunit;
+	label.d_partitions[0].p_fstype = FS_OTHER;
+
+	/* Initialize slice tables. */
+	error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
+		       &softc->cd_slices, &label, cdstrategy,
+		       (ds_setgeom_t *)NULL, &cd_cdevsw);
 
 	if (error == 0) {
-		/* Initialize slice tables. */
-		error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
-			       &softc->cd_slices, &softc->disklabel,
-			       cdstrategy, (ds_setgeom_t *)NULL, &cd_cdevsw);
-
 		/*
 		 * We unconditionally (re)set the blocksize each time the
 		 * CD device is opened.  This is because the CD can change,
 		 * and therefore the blocksize might change.
+		 * XXX problems here if some slice or partition is still
+		 * open with the old size?
 		 */
 		if ((softc->device_stats.flags & DEVSTAT_BS_UNAVAILABLE) != 0)
 			softc->device_stats.flags &= ~DEVSTAT_BS_UNAVAILABLE;
@@ -979,6 +987,10 @@ cdclose(dev_t dev, int flag, int fmt, struct proc *p)
 		return (error);
 
 	dsclose(dev, fmt, softc->cd_slices);
+	if (dsisopen(softc->cd_slices)) {
+		cam_periph_unlock(periph);
+		return (0);
+	}
 
 	if ((softc->flags & CD_FLAG_DISC_REMOVABLE) != 0)
 		cdprevent(periph, PR_ALLOW);
@@ -1417,6 +1429,16 @@ done:
 }
 
 static void
+cdstrategy1(struct buf *bp)
+{
+	/*
+	 * XXX - do something to make cdstrategy() but not this block while
+	 * we're doing dsopen() and dsioctl().
+	 */
+	cdstrategy(bp);
+}
+
+static void
 cdstart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct cd_softc *softc;
@@ -1651,8 +1673,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
 
 			sprintf(announce_buf,
-				"cd present [%ld x %d byte records]",
-				cdp->disksize, cdp->blksize);
+				"cd present [%lu x %lu byte records]",
+				cdp->disksize, (u_long)cdp->blksize);
 
 		} else {
 			int	error;
@@ -1736,58 +1758,47 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 					 * Otherwise, just say that we 
 					 * couldn't attach.
 					 */
-					if ((have_sense) && (asc || ascq) 
-					 && (error_code == SSD_CURRENT_ERROR))
-						sprintf(announce_buf, 
-							"fatal error: %s, %s "
-							"-- failed to attach "
-							"to device",
-						scsi_sense_key_text[sense_key], 
-						scsi_sense_desc(asc,ascq,
-								&cgd.inq_data));
-					else 
-						sprintf(announce_buf, 
-							"fatal error, failed" 
-							" to attach to device");
 
 					/*
 					 * Just print out the error, not
 					 * the full probe message, when we
 					 * don't attach.
 					 */
-					printf("%s%d: %s\n", 
-					       periph->periph_name,
-					       periph->unit_number,
-						announce_buf);
-					scsi_sense_print(&done_ccb->csio);
+					if (have_sense)
+						scsi_sense_print(
+							&done_ccb->csio);
+					else {
+						xpt_print_path(periph->path);
+						printf("got CAM status %#x\n",
+						       done_ccb->ccb_h.status);
+					}
+					xpt_print_path(periph->path);
+					printf("fatal error, failed" 
+					       " to attach to device");
 
 					/*
 					 * Free up resources.
 					 */
-					cam_extend_release(cdperiphs,
-							   periph->unit_number);
 					cam_periph_invalidate(periph);
-					periph = NULL;
+
+					announce_buf[0] = '\0';
 				} else {
 					/*
 					 * Free up resources.
 					 */
-					cam_extend_release(cdperiphs,
-							   periph->unit_number);
 					cam_periph_invalidate(periph);
-					periph = NULL;
+					announce_buf[0] = '\0';
 				}
 			}
 		}
 		free(rdcap, M_TEMP);
-		if (periph != NULL) {
+		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
-			softc->state = CD_STATE_NORMAL;		
-			cam_periph_unlock(periph);
-		}
-
+		softc->state = CD_STATE_NORMAL;		
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
+		cam_periph_unlock(periph);
+
 		break;
 	}
 	case CD_CCB_WAITING:
@@ -1809,11 +1820,9 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	struct 	cam_periph *periph;
 	struct	cd_softc *softc;
-	u_int8_t unit, part;
-	int      error;
+	int	error, unit;
 
 	unit = dkunit(dev);
-	part = dkpart(dev);
 
 	periph = cam_extend_get(cdperiphs, unit);
 	if (periph == NULL)
@@ -1824,9 +1833,12 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	softc = (struct cd_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, 
-		  ("trying to do ioctl %#x\n", cmd));
+		  ("trying to do ioctl %#lx\n", cmd));
 
-	error = 0;
+	error = cam_periph_lock(periph, PRIBIO | PCATCH);
+
+	if (error != 0)
+		return(error);
 
 	switch (cmd) {
 
@@ -2451,6 +2463,8 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		break;
 	}
 
+	cam_periph_unlock(periph);
+
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("leaving cdioctl\n"));
 
 	return (error);
@@ -2560,59 +2574,6 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	sense_flags |= SF_RETRY_UA;
 	return (cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
-}
-
-static int
-cdgetdisklabel(dev_t dev)
-{
-	struct	cam_periph *periph;
-	struct	cd_softc *softc;
-
-	periph = cam_extend_get(cdperiphs, dkunit(dev));
-
-	if (periph == NULL)
-		return (ENXIO);
-                
-	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("entering cdgetdisklabel\n"));
-
-	softc = (struct cd_softc *)periph->softc;
-
-	bzero(&softc->disklabel, sizeof(struct disklabel));
-	
-	/* XXX Use the controller's geometry for this */
-	softc->disklabel.d_type = DTYPE_SCSI;
-	sprintf(softc->disklabel.d_typename, "%s%d", periph->periph_name,
-		periph->unit_number);
-        strncpy(softc->disklabel.d_packname, "ficticious", 16);
-        softc->disklabel.d_secsize = softc->params.blksize;
-        softc->disklabel.d_nsectors = 100;
-        softc->disklabel.d_ntracks = 1;
-        softc->disklabel.d_ncylinders = (softc->params.disksize / 100) + 1;
-        softc->disklabel.d_secpercyl = 100;
-        softc->disklabel.d_secperunit = softc->params.disksize;
-        softc->disklabel.d_rpm = 300;
-        softc->disklabel.d_interleave = 1;
-        softc->disklabel.d_flags = D_REMOVABLE;
- 
-	/* 
-	 * Make partition 'a' cover the whole disk.  This is a temporary
-	 * compatibility hack.  The 'a' partition should not exist, so
-	 * the slice code won't create it.  The slice code will make
-	 * partition (RAW_PART + 'a') cover the whole disk and fill in
-	 * some more defaults.
-	 */
-        softc->disklabel.d_npartitions = 1;
-        softc->disklabel.d_partitions[0].p_offset = 0;
-        softc->disklabel.d_partitions[0].p_size
-            = softc->params.disksize;
-        softc->disklabel.d_partitions[0].p_fstype = FS_OTHER;
-
-        /*
-         * Signal to other users and routines that we now have a
-         * disklabel that represents the media (maybe)
-         */
-        return (0);
-
 }
 
 /*
