@@ -1299,9 +1299,7 @@ psignal(p, sig)
 		SIG_CONTSIGMASK(p->p_siglist);
 	}
 	SIGADDSET(p->p_siglist, sig);
-	mtx_lock_spin(&sched_lock);
-	signotify(p);
-	mtx_unlock_spin(&sched_lock);
+	signotify(p);			/* uses schedlock */
 
 	/*
 	 * Some signals have a process-wide effect and a per-thread
@@ -1455,9 +1453,9 @@ psignal(p, sig)
 	 */
 
 runfast:
+	mtx_lock_spin(&sched_lock);
 	FOREACH_THREAD_IN_PROC(p, td)
 		tdsignal(td, sig, action);
-	mtx_lock_spin(&sched_lock);
 	thread_unsuspend(p);
 	mtx_unlock_spin(&sched_lock);
 out:
@@ -1476,29 +1474,25 @@ tdsignal(struct thread *td, int sig, sig_t action)
 	struct proc *p = td->td_proc;
 	register int prop;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	prop = sigprop(sig);
-
 	/*
-	 * Bring the priority of a process up if we want it to get
+	 * Bring the priority of a thread up if we want it to get
 	 * killed in this lifetime.
-	 * XXXKSE we should shift the priority to the thread.
 	 */
-	mtx_lock_spin(&sched_lock);
 	if ((action == SIG_DFL) && (prop & SA_KILL)) {
 		if (td->td_priority > PUSER) {
 			td->td_priority = PUSER;
 		}
 	}
-	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
 	 */
 	if (action == SIG_HOLD) {
-		goto out;
+		return;
 	}
-	mtx_lock_spin(&sched_lock);
 	if (td->td_state == TDS_SLP) {
 		/*
 		 * If thread is sleeping uninterruptibly
@@ -1507,8 +1501,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 		 * trap() or syscall().
 		 */
 		if ((td->td_flags & TDF_SINTR) == 0) {
-			mtx_unlock_spin(&sched_lock);
-			goto out;
+			return;
 		}
 		/*
 		 * Process is sleeping and traced.  Make it runnable
@@ -1517,58 +1510,39 @@ tdsignal(struct thread *td, int sig, sig_t action)
 		 */
 		if (p->p_flag & P_TRACED) {
 			p->p_flag &= ~P_STOPPED_TRACE;
-			goto run;
-		}
-		mtx_unlock_spin(&sched_lock);
-		/*
-		 * If SIGCONT is default (or ignored) and process is
-		 * asleep, we are finished; the process should not
-		 * be awakened.
-		 */
-		if ((prop & SA_CONT) && action == SIG_DFL) {
-			SIGDELSET(p->p_siglist, sig);
-			goto out;
-		}
-		goto runfast;
-		/* NOTREACHED */
+		} else {
 
-	} else {
+			/*
+			 * If SIGCONT is default (or ignored) and process is
+			 * asleep, we are finished; the process should not
+			 * be awakened.
+			 */
+			if ((prop & SA_CONT) && action == SIG_DFL) {
+				SIGDELSET(p->p_siglist, sig);
+				return;
+			}
+
+			/*
+			 * Raise priority to at least PUSER.
+			 */
+			if (td->td_priority > PUSER) {
+				td->td_priority = PUSER;
+			}
+		}
+		setrunnable(td);
+	}
+#ifdef SMP
+	  else {
 		/*
 		 * Other states do nothing with the signal immediatly,
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		mtx_unlock_spin(&sched_lock);
-		if (td->td_state == TDS_RUNQ ||
-		    td->td_state == TDS_RUNNING) {
-			signotify(td->td_proc);
-#ifdef SMP
-			if (td->td_state == TDS_RUNNING && td != curthread) {
-				mtx_lock_spin(&sched_lock);
-				forward_signal(td);
-				mtx_unlock_spin(&sched_lock);
-			}
-#endif
+		if (td->td_state == TDS_RUNNING && td != curthread) {
+			forward_signal(td);
 		}
-		goto out;
 	}
-	/*NOTREACHED*/
-
-runfast:
-	/*
-	 * Raise priority to at least PUSER.
-	 */
-	mtx_lock_spin(&sched_lock);
-	if (td->td_priority > PUSER) {
-		td->td_priority = PUSER;
-	}
-run:
-	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	setrunnable(td);
-	mtx_unlock_spin(&sched_lock);
-
-out:
-	mtx_assert(&sched_lock, MA_NOTOWNED);
+#endif
 }
 
 /*
