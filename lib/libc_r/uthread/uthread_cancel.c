@@ -63,8 +63,10 @@ pthread_cancel(pthread_t pthread)
 				 * Disconnect the thread from the joinee and
 				 * detach:
 				 */
-				if (pthread->data.thread != NULL) {
-					pthread->data.thread->joiner = NULL;
+				if (pthread->join_status.thread != NULL) {
+					pthread->join_status.thread->joiner
+					    = NULL;
+					pthread->join_status.thread = NULL;
 				}
 				pthread->cancelflags |= PTHREAD_CANCELLING;
 				PTHREAD_NEW_STATE(pthread, PS_RUNNING);

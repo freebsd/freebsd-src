@@ -65,7 +65,9 @@ pthread_detach(pthread_t pthread)
 			PTHREAD_NEW_STATE(joiner, PS_RUNNING);
 
 			/* Set the return value for the woken thread: */
-			joiner->error = ESRCH;
+			joiner->join_status.error = ESRCH;
+			joiner->join_status.ret = NULL;
+			joiner->join_status.thread = NULL;
 
 			/*
 			 * Disconnect the joiner from the thread being detached:
