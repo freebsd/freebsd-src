@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include <limits.h>
-#include <sys/cdefs.h>
 #include "lnumeric.h"
 #include "ldpart.h"
 
@@ -35,7 +33,7 @@ extern int __nlocale_changed;
 
 #define LCNUMERIC_SIZE (sizeof(struct lc_numeric_T) / sizeof(char *))
 
-static char     numempty[] = __XSTRING(CHAR_MAX);
+static char     numempty[] = "-1";
 
 static const struct lc_numeric_T _C_numeric_locale = {
 	".",     /* decimal_point */

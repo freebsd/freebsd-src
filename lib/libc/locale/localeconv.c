@@ -34,6 +34,7 @@ static char rcsid[] = "$FreeBSD$";
 
 #include <locale.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "lmonetary.h"
 #include "lnumeric.h"
 
@@ -51,7 +52,10 @@ int __nlocale_changed = 1;
 
 static char
 cnv(char *str) {
-	return (char)strtol(str, NULL, 0);
+	int i = strtol(str, NULL, 10);
+	if (i == -1)
+		i = CHAR_MAX;
+	return (char)i;
 }
 
 /*
