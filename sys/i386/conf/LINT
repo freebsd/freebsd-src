@@ -2316,6 +2316,43 @@ options 	PMAP_SHPGPERPROC=201
 #
 options 	NSFBUFS=1024
 
+# Set the size of the buffer cache KVM reservation, in buffers.  This is
+# scaled by approximately 16384 bytes.  The system will auto-size the buffer
+# cache if this option is not specified or set to 0.
+#
+options 	NBUF=512
+
+# Set the size of the mbuf KVM reservation, in clusters.  This is scaled
+# by approximately 2048 bytes.  The system will auto-size the mbuf area
+# if this options is not specified or set to 0.
+#
+options 	NMBCLUSTERS=1024
+
+# Tune the kernel malloc area parameters.  VM_KMEM_SIZE represents the 
+# minimum, in bytes, and is typically (12*1024*1024) (12MB). 
+# VM_KMEM_SIZE_MAX represents the maximum, typically 200 megabytes.
+# VM_KMEM_SIZE_SCALE can be set to adjust the auto-tuning factor, which
+# typically defaults to 4 (kernel malloc area size is physical memory 
+# divided by the scale factor).
+#
+options 	VM_KMEM_SIZE="(10*1024*1024)"
+options 	VM_KMEM_SIZE_MAX="(100*1024*1024)"
+options 	VM_KMEM_SIZE_SCALE="4"
+
+# Tune the buffer cache maximum KVA reservation, in bytes.  The maximum is
+# usually capped at 200 MB, effecting machines with > 1GB of ram.  Note
+# that the buffer cache only really governs write buffering and disk block
+# translations.  The VM page cache is our primary disk cache and is not
+# effected by the size of the buffer cache.
+#
+options		VM_BCACHE_SIZE_MAX="(100*1024*1024)"
+
+# Tune the swap zone KVA reservation, in bytes.  The default is typically
+# 70 MB, giving the system the ability to manage a maximum of 28GB worth
+# of swapped out data.  
+#
+options		VM_SWZONE_SIZE_MAX="(50*1024*1024)"
+
 #
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and change a
@@ -2501,9 +2538,7 @@ options 	KBD_RESETDELAY=201
 options 	KEY
 options 	LOCKF_DEBUG
 options 	LOUTB
-options 	NBUF=512
 options 	NETATALKDEBUG
-options 	NMBCLUSTERS=1024
 #options 	OLTR_NO_BULLSEYE_MAC
 #options 	OLTR_NO_HAWKEYE_MAC
 #options 	OLTR_NO_TMS_MAC
@@ -2522,7 +2557,5 @@ options 	SLIP_IFF_OPTS
 options 	SPX_HACK
 options 	TIMER_FREQ="((14318182+6)/12)"
 options 	VFS_BIO_DEBUG
-options 	VM_KMEM_SIZE
-options 	VM_KMEM_SIZE_MAX
-options 	VM_KMEM_SIZE_SCALE
 options		XBONEHACK
+
