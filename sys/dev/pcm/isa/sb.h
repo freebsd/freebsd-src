@@ -19,9 +19,9 @@ extern int sbc_major, sbc_minor ;
 #define DSP_DATA_AVAIL	(io_base + 0xE)
 #define DSP_DATA_AVL16	(io_base + 0xF)
 
+#define SB_MIX_ADDR	0x4
+#define SB_MIX_DATA	0x5
 #if 0
-#define MIXER_ADDR	(io_base + 0x4)
-#define MIXER_DATA	(io_base + 0x5)
 #define OPL3_LEFT	(io_base + 0x0)
 #define OPL3_RIGHT	(io_base + 0x2)
 #define OPL3_BOTH	(io_base + 0x8)
@@ -138,9 +138,14 @@ extern int sbc_major, sbc_minor ;
 #define	BD_F_MIX_CT1745	0x0030	/* CT1745		*/
 
 #define	BD_F_SB16	0x0100	/* this is a SB16 */
-#define	BD_F_NOREC	0x0200	/* recording not supported on this board */
+#define	BD_F_SB16X	0x0200	/* this is a vibra16X or clone */
 #define	BD_F_MIDIBUSY	0x0400	/* midi busy */
 #define	BD_F_ESS	0x0800	/* this is an ESS chip */
+/*
+ * on some SB16 cards, at times I swap DMA channels. Remember this
+ * so that they can be restored later.
+ */
+#define	BD_F_SWAPPED	0x1000	/* have swapped DMA channels */
 
 
 /*
