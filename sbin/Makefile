@@ -2,7 +2,7 @@
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR= adjkerntz badsect clri disklabel dmesg dset dump dumpfs \
+SUBDIR= adjkerntz badsect ccdconfig clri disklabel dmesg dset dump dumpfs \
 	dumplfs dumpon fsck fsdb ifconfig init ipfw md5 mknod modload \
 	modunload mount mount_cd9660 mount_devfs mount_ext2fs mount_fdesc \
 	mount_kernfs mount_lfs mount_nfs mount_null mount_portal mount_procfs \
