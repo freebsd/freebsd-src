@@ -71,6 +71,19 @@ static int	pcireg_cfgopen(void);
 static struct PIR_table	*pci_route_table;
 static int		pci_route_count;
 
+int
+pci_pcibios_active(void)
+{
+    return usebios;
+}
+
+int
+pci_kill_pcibios(void)
+{
+    usebios = 0;
+    return pcireg_cfgopen() != 0;
+}
+
 /* 
  * Initialise access to PCI configuration space 
  */
