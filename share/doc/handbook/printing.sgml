@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id$
+     $Id: printing.sgml,v 1.1 1995/10/01 04:43:13 jfieber Exp $
 
      The FreeBSD Documentation Project
 
@@ -438,7 +438,7 @@ cd /dev
 </tscreen>
 		  </itemize>
 		<item>Save the file.  Then configure, build, and
-		  install the kernel, then reboot.  See <ref id="printing:kernel"
+		  install the kernel, then reboot.  See <ref id="kernelconfig"
 		  name="kernel configuration"> for more details.
 	      </enum>
 
@@ -928,8 +928,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      </descrip>
 	      For more information on the bits for the <tt/fc/,
 	      <tt/fs/, <tt/xc/, and <tt/xs/ capabilities, see the file
-	      <tt>/usr/include/sys/ioctl_compat.h</tt> and also BLAH
-	      (the serial communications document).
+	      <tt>/usr/include/sys/ioctl_compat.h</tt>.
 
 	      When LPD opens the device specified by the <tt/lp/
 	      capability, it reads the flag bits in the <tt/sgttyb/
