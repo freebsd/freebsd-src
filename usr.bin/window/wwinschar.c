@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)wwinschar.c	8.1 (Berkeley) 6/6/93";
 
 wwinschar(w, row, col, c, m)
 register struct ww *w;
-char c, m;
+unsigned char c, m;
 {
 	register i;
 	int nvis;
