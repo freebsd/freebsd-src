@@ -328,7 +328,10 @@ nopgrp:
 		kp->ki_wchan = mainthread.td_wchan;		/* XXXKSE */
 		kp->ki_traceflag = proc.p_traceflag;
 		kp->ki_stat = proc.p_stat;
-		kp->ki_pri = proc.p_ksegrp.kg_pri;		/* XXXKSE */
+		kp->ki_pri.pri_class = proc.p_ksegrp.kg_pri_class; /* XXXKSE */
+		kp->ki_pri.pri_user = proc.p_ksegrp.kg_user_pri; /* XXXKSE */
+		kp->ki_pri.pri_level = mainthread.td_priority;	/* XXXKSE */
+		kp->ki_pri.pri_native = mainthread.td_base_pri; /* XXXKSE */
 		kp->ki_nice = proc.p_ksegrp.kg_nice;		/* XXXKSE */
 		kp->ki_lock = proc.p_lock;
 		kp->ki_rqindex = proc.p_kse.ke_rqindex;		/* XXXKSE */
