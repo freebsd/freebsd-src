@@ -383,6 +383,8 @@
             ..
             devdvi
             ..
+            devhtml
+            ..
             devkoi8-r
             ..
             devlatin1
@@ -737,7 +739,11 @@
         tabset
         ..
         tmac
+            locale
+            ..
             mdoc
+                locale
+                ..
             ..
             mm
             ..
