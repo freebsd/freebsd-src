@@ -428,7 +428,10 @@ ciss_detach(device_t dev)
     struct ciss_softc	*sc = device_get_softc(dev);
 
     debug_called(1);
-    
+
+    if (sc->ciss_flags & CISS_FLAG_CONTROL_OPEN)
+	return (EBUSY);
+
     /* flush adapter cache */
     ciss_flush_adapter(sc);
 
