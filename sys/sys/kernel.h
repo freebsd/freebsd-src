@@ -228,13 +228,13 @@ struct sysinit {
 		subsystem,					\
 		order,						\
 		func,						\
-		ident						\
+		(ident)						\
 	};							\
 	DATA_SET(sysinit_set,uniquifier ## _sys_init);
 
 #define	SYSINIT(uniquifier, subsystem, order, func, ident)	\
 	C_SYSINIT(uniquifier, subsystem, order,			\
-	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
+	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)(ident))
 
 /*
  * Called on module unload: no special processing
@@ -244,13 +244,13 @@ struct sysinit {
 		subsystem,					\
 		order,						\
 		func,						\
-		ident						\
+		(ident)						\
 	};							\
 	DATA_SET(sysuninit_set,uniquifier ## _sys_uninit)
 
 #define	SYSUNINIT(uniquifier, subsystem, order, func, ident)	\
 	C_SYSUNINIT(uniquifier, subsystem, order,		\
-	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
+	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)(ident))
 
 void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
 
