@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.193.2.4 1999/03/03 17:43:17 julian Exp $
+ * $Id: vfs_bio.c,v 1.193.2.5 1999/04/20 19:54:20 dt Exp $
  */
 
 /*
@@ -1219,7 +1219,7 @@ static void
 waitfreebuffers(int slpflag, int slptimeo) {
 	while (numfreebuffers < hifreebuffers) {
 		flushdirtybuffers(slpflag, slptimeo);
-		if (numfreebuffers < hifreebuffers)
+		if (numfreebuffers >= hifreebuffers)
 			break;
 		needsbuffer |= VFS_BIO_NEED_FREE;
 		if (tsleep(&needsbuffer, (PRIBIO + 4)|slpflag, "biofre", slptimeo))
