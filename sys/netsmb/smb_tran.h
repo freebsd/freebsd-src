@@ -49,6 +49,7 @@
 #define	SMBTP_RCVSZ	2		/* R  - int */
 #define	SMBTP_TIMEOUT	3		/* RW - struct timespec */
 #define	SMBTP_SELECTID	4		/* RW - (void *) */
+#define SMBTP_UPCALL	5		/* RW - (* void)(void *) */
 
 struct smb_tran_ops;
 
