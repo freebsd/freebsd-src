@@ -86,6 +86,7 @@ fi
 
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
+i=`make -V KERN_IDENT`
 cat << EOF > vers.c
 $COPYRIGHT
 char sccspad[32 - 4 /* sizeof(sccs) */] = { '\\0' };
@@ -94,6 +95,7 @@ char version[] = "${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n";
 char ostype[] = "${TYPE}";
 char osrelease[] = "${RELEASE}";
 int osreldate = ${RELDATE};
+char ident[] = "${i}";
 EOF
 
 echo `expr ${v} + 1` > version
