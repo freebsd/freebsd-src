@@ -148,7 +148,9 @@ i[3456]86-*-linux-gnu*)	targ_emul=elf_i386
 			;;
 x86_64-*-linux-gnu*)	targ_emul=elf_x86_64
 			targ_extra_emuls="elf_i386 i386linux"
-			tdir_i386linux=${targ_alias}aout
+			targ_extra_libpath=elf_i386
+			tdir_i386linux=`echo ${targ_alias}aout | sed -e 's/x86_64/i386/'`
+			tdir_elf_i386=`echo ${targ_alias} | sed -e 's/x86_64/i386/'`
 			;;
 i[3456]86-*-sysv[45]*)	targ_emul=elf_i386 ;;
 i[3456]86-*-solaris2*)  targ_emul=elf_i386_ldso
