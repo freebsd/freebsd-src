@@ -12,8 +12,6 @@ NOMAN=		noman
 SRCS=		common.c ctlinfo.c displayq.c net.c printcap.c request.c \
 		rmjob.c startdaemon.c
 
-CFLAGS+=	${CWARNFLAGS}
-
 install:
 
 .include <bsd.lib.mk>
