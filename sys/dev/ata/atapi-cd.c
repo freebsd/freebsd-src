@@ -773,7 +773,7 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		break;
 	    }
 
-	    format=args->data_format;
+	    format = args->data_format;
 	    if ((format != CD_CURRENT_POSITION) &&
 		(format != CD_MEDIA_CATALOG) && (format != CD_TRACK_INFO)) {
 		error = EINVAL;
@@ -782,7 +782,7 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 
 	    ccb[1] = args->address_format & CD_MSF_FORMAT;
 
-	    if ((error = ata_atapicmd(cdp->device,ccb,(caddr_t)&cdp->subchan,
+	    if ((error = ata_atapicmd(cdp->device, ccb, (caddr_t)&cdp->subchan,
 				      sizeof(cdp->subchan), ATA_R_READ, 10)))
 		break;
 
