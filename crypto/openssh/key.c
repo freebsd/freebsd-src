@@ -25,6 +25,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * read_bignum():
@@ -33,9 +35,9 @@
 
 #include "includes.h"
 #include "ssh.h"
-#include <ssl/rsa.h>
-#include <ssl/dsa.h>
-#include <ssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
+#include <openssl/evp.h>
 #include "xmalloc.h"
 #include "key.h"
 

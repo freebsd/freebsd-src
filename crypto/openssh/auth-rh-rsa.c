@@ -12,6 +12,7 @@
  * Rhosts or /etc/hosts.equiv authentication combined with RSA host
  * authentication.
  *
+ * $FreeBSD$
  */
 
 #include "includes.h"
@@ -23,8 +24,8 @@ RCSID("$Id: auth-rh-rsa.c,v 1.11 2000/03/23 22:15:33 markus Exp $");
 #include "uidswap.h"
 #include "servconf.h"
 
-#include <ssl/rsa.h>
-#include <ssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
 #include "key.h"
 #include "hostfile.h"
 
