@@ -136,8 +136,9 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(GEMTEK, WLAN, 0),
 	PCMCIA_CARD(HWN, AIRWAY80211, 0), 
 	PCMCIA_CARD(INTEL, PRO_WLAN_2011, 0),
-	PCMCIA_CARD(INTERSIL, MA401RA, 0),
-	PCMCIA_CARD(INTERSIL, DWL650, 0),
+	PCMCIA_CARD(INTERSIL, ISL37100P, 0),
+	PCMCIA_CARD(INTERSIL, ISL37110P, 0),
+	PCMCIA_CARD(INTERSIL, ISL37300P, 0),
 	PCMCIA_CARD(INTERSIL2, PRISM2, 0),
 	PCMCIA_CARD(IODATA2, WCF12, 0),
 	PCMCIA_CARD(IODATA2, WNB11PCM, 0),
@@ -146,7 +147,7 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(MICROSOFT, MN_520, 0),
 	PCMCIA_CARD(NOKIA, C020_WLAN, 0),
 	PCMCIA_CARD(NOKIA, C110_WLAN, 0),
-	PCMCIA_CARD(PLANEX_2, GWNS11H, 0),
+	PCMCIA_CARD(PLANEX, GWNS11H, 0),
 	PCMCIA_CARD(PROXIM, HARMONY, 0),
 	PCMCIA_CARD(PROXIM, RANGELANDS_8430, 0),
 	PCMCIA_CARD(SAMSUNG, SWL_2000N, 0),
@@ -197,11 +198,11 @@ wi_pccard_probe(dev)
 	if (error)
 		return (error);
 
-	wi_free(dev);
-
 	/* Make sure interrupts are disabled. */
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
+
+	wi_free(dev);
 
 	return (0);
 }
