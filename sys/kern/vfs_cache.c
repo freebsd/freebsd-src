@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.37 1997/12/19 23:18:37 bde Exp $
+ * $Id: vfs_cache.c,v 1.38 1998/09/09 07:41:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -318,13 +318,21 @@ nchinit()
 }
 
 /*
- * Invalidate all entries to particular vnode.
+ * Invalidate all entries to a particular vnode.
  *
- * We actually just increment the v_id, that will do it. The stale entries
- * will be purged by lookup as they get found. If the v_id wraps around, we
- * need to ditch the entire cache, to avoid confusion. No valid vnode will
- * ever have (v_id == 0).
+ * Remove all entries in the namecache relating to this vnode and
+ * change the v_id.  We take the v_id from a global counter, since
+ * it becomes a handy sequence number in crash-dumps that way.
+ * No valid vnode will ever have (v_id == 0).
+ *
+ * XXX: Only time and the size of v_id prevents this from failing:
+ * XXX: In theory we should hunt down all (struct vnode*, v_id)
+ * XXX: soft references and nuke them, at least on the global
+ * XXX: v_id wraparound.  The period of resistance can be extended
+ * XXX: by incrementing each vnodes v_id individually instead of
+ * XXX: using the global v_id.
  */
+
 void
 cache_purge(vp)
 	struct vnode *vp;
@@ -336,9 +344,9 @@ cache_purge(vp)
 	while (!TAILQ_EMPTY(&vp->v_cache_dst)) 
 		cache_zap(TAILQ_FIRST(&vp->v_cache_dst));
 
-	nextid++;
-	while (nextid == vp->v_id || !nextid)
-		continue;
+	do
+		nextid++;
+	while (nextid == vp->v_id || !nextid);
 	vp->v_id = nextid;
 	vp->v_dd = vp;
 	vp->v_ddid = 0;
