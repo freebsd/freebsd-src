@@ -67,7 +67,14 @@ static off_t	tftp_seek(struct open_file *f, off_t offset, int where);
 static int	tftp_stat(struct open_file *f, struct stat *sb);
 
 struct fs_ops tftp_fsops = {
-	"tftp", tftp_open, tftp_close, tftp_read, tftp_write, tftp_seek, tftp_stat
+	"tftp",
+	tftp_open,
+	tftp_close,
+	tftp_read,
+	tftp_write,
+	tftp_seek,
+	tftp_stat,
+	null_readdir
 };
 
 extern struct in_addr servip;

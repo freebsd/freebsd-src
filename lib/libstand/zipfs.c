@@ -56,7 +56,8 @@ struct fs_ops zipfs_fsops = {
     zf_read,
     null_write,
     zf_seek,
-    zf_stat
+    zf_stat,
+    null_readdir
 };
 
 #if 0

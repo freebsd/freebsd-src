@@ -23,6 +23,8 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -46,7 +48,14 @@ static off_t	dos_seek(struct open_file *fd, off_t offset, int whence);
 static int	dos_stat(struct open_file *fd, struct stat *sb);
 
 struct fs_ops dosfs_fsops = {
-    "dosfs", dos_open, dos_close, dos_read, null_write, dos_seek, dos_stat
+	"dosfs",
+	dos_open,
+	dos_close,
+	dos_read,
+	null_write,
+	dos_seek,
+	dos_stat,
+	null_readdir
 };
 
 #define SECSIZ  512             /* sector size */
