@@ -124,9 +124,11 @@ setup(dev)
 				"LOCATION OF AN ALTERNATE",
 				"SUPER-BLOCK TO SUPPLY NEEDED",
 				"INFORMATION; SEE fsck(8).");
+			bflag = 0;
 			return(0);
 		}
 		pwarn("USING ALTERNATE SUPERBLOCK AT %d\n", bflag);
+		bflag = 0;
 	}
 	maxfsblock = sblock.fs_size;
 	maxino = sblock.fs_ncg * sblock.fs_ipg;
