@@ -391,7 +391,7 @@ pppwrite(tp, uio, flag)
 
     s = spltty();
     for (mp = &m0; uio->uio_resid; mp = &m->m_next) {
-	MGET(m, M_WAIT, MT_DATA);
+	MGET(m, M_TRYWAIT, MT_DATA);
 	if ((*mp = m) == NULL) {
 	    m_freem(m0);
 	    splx(s);

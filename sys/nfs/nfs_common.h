@@ -94,7 +94,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 #define	nfsm_build(a,c,s) \
 	do { \
 		if ((s) > M_TRAILINGSPACE(mb)) { \
-			MGET(mb2, M_WAIT, MT_DATA); \
+			MGET(mb2, M_TRYWAIT, MT_DATA); \
 			if ((s) > MLEN) \
 				panic("build > MLEN"); \
 			mb->m_next = mb2; \
@@ -491,8 +491,8 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		if (bp >= be) { \
 			if (mp == mb) \
 				mp->m_len += bp-bpos; \
-			MGET(mp, M_WAIT, MT_DATA); \
-			MCLGET(mp, M_WAIT); \
+			MGET(mp, M_TRYWAIT, MT_DATA); \
+			MCLGET(mp, M_TRYWAIT); \
 			mp->m_len = NFSMSIZ(mp); \
 			mp2->m_next = mp; \
 			mp2 = mp; \

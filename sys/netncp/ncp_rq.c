@@ -60,9 +60,9 @@ ncp_rq_head(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,struct proc *p,
 	bzero(rqp, sizeof(*rqp));
 	rqp->p = p;
 	rqp->cred = cred;
-	m = m_gethdr(M_WAIT, MT_DATA);
+	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m == NULL) 
-		return ENOBUFS;		/* if M_WAIT ? */
+		return ENOBUFS;		/* if M_TRYWAIT ? */
 	m->m_pkthdr.rcvif = NULL;
 	rqp->rq = rqp->mrq = m;
 	rqp->rp = NULL;
@@ -106,9 +106,9 @@ m_getm(struct mbuf *top, int len) {
 	mp = top;
 	while (rest > 0) {
 /*	NCPSDEBUG("%d\n",rest);*/
-		m = m_get(M_WAIT, MT_DATA);
+		m = m_get(M_TRYWAIT, MT_DATA);
 		if (rest > MINCLSIZE) {
-			MCLGET(m,M_WAIT);
+			MCLGET(m,M_TRYWAIT);
 			mlen = ( (m->m_flags & M_EXT) == 0) ? MLEN : MCLBYTES;
 		} else { 
 			mlen = MLEN;
@@ -135,7 +135,7 @@ ncp_mchecksize(struct ncp_rq *rqp, int size) {
 		panic("ncp_mchecksize\n");
 	if (M_TRAILINGSPACE(rqp->mrq)<(size)) {
 		struct mbuf *m;
-		m = m_get(M_WAIT, MT_DATA);
+		m = m_get(M_TRYWAIT, MT_DATA);
 		m->m_len = 0;
 		rqp->bpos = mtod(m, caddr_t);
 		rqp->mrq->m_next = m;
@@ -435,7 +435,7 @@ ncp_rp_mbuf(struct ncp_rq *rqp, int size) {
 	register struct mbuf *m=rqp->mrp, *rm;
 	register unsigned count;
 	
-	rm = m_copym(m, rqp->bpos - mtod(m,caddr_t), size, M_WAIT);
+	rm = m_copym(m, rqp->bpos - mtod(m,caddr_t), size, M_TRYWAIT);
 	while (size > 0) {
 		if (m == 0) {
 			printf("ncp_rp_mbuf: can't advance\n");
@@ -555,9 +555,9 @@ nwfs_uiotombuf(uiop, mq, siz, bpos)
 		while (left > 0) {
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
-				MGET(mp, M_WAIT, MT_DATA);
+				MGET(mp, M_TRYWAIT, MT_DATA);
 				if (clflg)
-					MCLGET(mp, M_WAIT);
+					MCLGET(mp, M_TRYWAIT);
 				mp->m_len = 0;
 				mp2->m_next = mp;
 				mp2 = mp;
