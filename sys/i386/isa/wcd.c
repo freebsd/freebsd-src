@@ -33,7 +33,9 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <i386/include/cpufunc.h>
+
+#include <machine/cpufunc.h>
+
 #include <i386/isa/atapi.h>
 
 static	d_open_t	wcdropen;
