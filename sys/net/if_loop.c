@@ -276,7 +276,7 @@ if_simloop(ifp, m, af, hlen)
 			    (char *)(mtod(m, vm_offset_t) 
 				- (mtod(m, vm_offset_t) & 3)),
 			    m->m_len);
-			mtod(m,vm_offset_t) -= (mtod(m, vm_offset_t) & 3);
+			m->m_data -= (mtod(m,vm_offset_t) & 3);
 		}
 #endif
 	}
