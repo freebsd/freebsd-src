@@ -86,7 +86,7 @@
 #if defined(BSD)
 #define	KM_CMP(b1, b2, len)		bcmp((void *)(b1), (void *)(b2),\
 						(len))
-#define	KM_COPY(from, to, len)		bcopy((void *)(from), (void *)(to),\
+#define	KM_COPY(from, to, len)		bcopy((const void *)(from), (void *)(to),\
 						(len))
 #define	KM_ZERO(addr, len)		bzero((void *)(addr), (len))
 #endif
