@@ -19,7 +19,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.5 1995/10/31 21:21:46 peter Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.6 1996/03/01 19:29:44 phk Exp $";
 #endif
 
 /*
@@ -732,7 +732,7 @@ dodefaultroute(g, cmd)
 
     memset(&rtmsg, 0, sizeof(rtmsg));
     rtmsg.hdr.rtm_type = cmd == 's'? RTM_ADD: RTM_DELETE;
-    rtmsg.hdr.rtm_flags = RTF_UP | RTF_GATEWAY;
+    rtmsg.hdr.rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
     rtmsg.hdr.rtm_version = RTM_VERSION;
     rtmsg.hdr.rtm_seq = ++rtm_seq;
     rtmsg.hdr.rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
