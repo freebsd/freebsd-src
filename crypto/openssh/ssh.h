@@ -14,7 +14,7 @@
  * $FreeBSD$
  */
 
-/* RCSID("$Id: ssh.h,v 1.45 2000/05/08 17:12:16 markus Exp $"); */
+/* RCSID("$Id: ssh.h,v 1.46 2000/05/17 08:20:15 markus Exp $"); */
 
 #ifndef SSH_H
 #define SSH_H
@@ -454,6 +454,12 @@ void    fatal_remove_cleanup(void (*proc) (void *context), void *context);
  * Warning: this calls getpw*.
  */
 char   *tilde_expand_filename(const char *filename, uid_t my_uid);
+
+/* remove newline at end of string */
+char	*chop(char *s);
+
+/* set filedescriptor to non-blocking */
+void	set_nonblock(int fd);
 
 /*
  * Performs the interactive session.  This handles data transmission between
