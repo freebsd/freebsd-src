@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020815:
+	A "bug" in gcc(1) that was hiding warning in system headers was
+	fixed.  It's probably time to add -DNO_WERROR to your make line
+	again.
+
 20020729:
 	COPY is being deprecated.  The 20010530 change was reverted, as
 	it causes far more pain than was expected, and to always compare
