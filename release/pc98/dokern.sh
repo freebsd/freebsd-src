@@ -28,6 +28,8 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/WITNESS/d' \
+	-e '/	atapifd	/d' \
+	-e '/	atapist	/d' \
 	-e '/	ch	/d' \
 	-e '/	sa	/d' \
 	-e '/	pass	/d' \
@@ -93,6 +95,8 @@ sed	-e 's/ident.*GENERIC/ident		BOOTMFS/g' \
 	-e '/INVARIANTS/d' \
 	-e '/INVARIANT_SUPPORT/d' \
 	-e '/WITNESS/d' \
+	-e '/	atapifd	/d' \
+	-e '/	atapist	/d' \
 	-e '/	ch	/d' \
 	-e '/	sa	/d' \
 	-e '/	pass	/d' \
