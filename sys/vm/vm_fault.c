@@ -269,11 +269,15 @@ RetryFault:;
 	 * are messing with it.  Once we have the reference, the map is free
 	 * to be diddled.  Since objects reference their shadows (and copies),
 	 * they will stay around as well.
+	 *
+	 * Bump the paging-in-progress count to prevent size changes (e.g. 
+	 * truncation operations) during I/O.  This must be done after
+	 * obtaining the vnode lock in order to avoid possible deadlocks.
 	 */
 	vm_object_reference(fs.first_object);
+	fs.vp = vnode_pager_lock(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
-	fs.vp = vnode_pager_lock(fs.first_object);
 	if ((fault_type & VM_PROT_WRITE) &&
 		(fs.first_object->type == OBJT_VNODE)) {
 		vm_freeze_copyopts(fs.first_object,
