@@ -683,8 +683,10 @@ cam_rescan(struct cam_sim *sim)
     union ccb *ccb = malloc(sizeof(union ccb), M_ATACAM, M_WAITOK | M_ZERO);
 
     if (xpt_create_path(&path, xpt_periph, cam_sim_path(sim),
-			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+			CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	free(ccb, M_ATACAM);
 	return;
+    }
 
     CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
     xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
