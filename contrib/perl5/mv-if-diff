@@ -1,0 +1,15 @@
+: mv-if-diff file1 file2
+: move file1 to file2 if file1 and file2 are different.
+
+if test $# -lt 2 ; then
+	echo "usage:  $0 file1 file2"
+	echo "move file1 to file2 if file1 and file2 are different."
+	exit 1
+fi
+if cmp $1 $2 >/dev/null 2>&1; then
+	echo "File $2 not changed."
+	rm -f $1
+else
+	rm -f $2
+	mv $1 $2
+fi
