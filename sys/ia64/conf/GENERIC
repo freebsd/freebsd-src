@@ -29,11 +29,7 @@ maxusers	0
 #hints		"GENERIC.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-makeoptions	NO_CPU_COPTFLAGS=true	#Ignore any x86 CPUTYPE
 
-options		NO_GEOM
-
-#options 	SKI			#Support for HP simulator
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -50,7 +46,7 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	COMPAT_FREEBSD4		#Keep this for a while
-options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
+options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
@@ -63,8 +59,8 @@ options 	SMP
 # Debugging for use in -current
 options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
-options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-#options 	WITNESS			#Enable checks to detects deadlocks and cycles
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal
+					#structures, required by INVARIANTS
 
 # Standard busses
 device		isa
@@ -86,7 +82,6 @@ device		atapist		# ATAPI tape drives
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		isp		# Qlogic family
-#device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 # SCSI peripherals
@@ -112,7 +107,7 @@ device		vga		# VGA video card driver
 device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
-#device		sc
+device		sc
 
 # Serial (COM) ports
 device		sio
@@ -123,7 +118,6 @@ device          ppbus           # Parallel port bus (required)
 device          lpt             # Printer
 device          plip            # TCP/IP over parallel
 device          ppi             # Parallel port interface device
-#device         vpo             # Requires scbus and da
  
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
