@@ -274,25 +274,6 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 			if (ia6 == 0) /* xxx scope error ?*/
 				ia6 = ifatoia6(ro->ro_rt->rt_ifa);
 		}
-#if 0
-		/*
-		 * xxx The followings are necessary? (kazu)
-		 * I don't think so.
-		 * It's for SO_DONTROUTE option in IPv4.(jinmei)
-		 */
-		if (ia6 == 0) {
-			struct sockaddr_in6 sin6 = {sizeof(sin6), AF_INET6, 0};
-
-			sin6->sin6_addr = *dst;
-
-			ia6 = ifatoia6(ifa_ifwithdstaddr(sin6tosa(&sin6)));
-			if (ia6 == 0)
-				ia6 = ifatoia6(ifa_ifwithnet(sin6tosa(&sin6)));
-			if (ia6 == 0)
-				return (0);
-			return (&satosin6(&ia6->ia_addr)->sin6_addr);
-		}
-#endif /* 0 */
 		if (ia6 == 0) {
 			*errorp = EHOSTUNREACH;	/* no route */
 			return (0);
@@ -422,14 +403,14 @@ in6_pcbsetport(laddr, inp, td)
 }
 
 /*
- * generate kernel-internal form (scopeid embedded into s6_addr16[1]).
+ * Generate kernel-internal form (scopeid embedded into s6_addr16[1]).
  * If the address scope of is link-local, embed the interface index in the
  * address.  The routine determines our precedence
  * between advanced API scope/interface specification and basic API
  * specification.
  *
- * this function should be nuked in the future, when we get rid of
- * embedded scopeid thing.
+ * This function should be nuked in the future, when we get rid of embedded
+ * scopeid thing.
  *
  * XXX actually, it is over-specification to return ifp against sin6_scope_id.
  * there can be multiple interfaces that belong to a particular scope zone
@@ -489,7 +470,7 @@ in6_embedscope(in6, sin6, in6p, ifpp)
 			if (scopeid < 0 || if_index < scopeid)
 				return ENXIO;  /* XXX EINVAL? */
 			ifp = ifnet_byindex(scopeid);
-			/*XXX assignment to 16bit from 32bit variable */
+			/* XXX assignment to 16bit from 32bit variable */
 			in6->s6_addr16[1] = htons(scopeid & 0xffff);
 		}
 
@@ -547,7 +528,7 @@ in6_recoverscope(sin6, in6, ifp)
 }
 
 /*
- * just clear the embedded scope identifer.
+ * just clear the embedded scope identifier.
  * XXX: currently used for bsdi4 only as a supplement function.
  */
 void

@@ -187,26 +187,26 @@ struct ip6protosw inet6sw[] = {
 },
 { SOCK_RAW,	&inet6domain,	IPPROTO_DSTOPTS,PR_ATOMIC|PR_ADDR,
   dest6_input,	0,	 	0,		0,
-  0,	
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 { SOCK_RAW,	&inet6domain,	IPPROTO_ROUTING,PR_ATOMIC|PR_ADDR,
   route6_input,	0,	 	0,		0,
-  0,	
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 { SOCK_RAW,	&inet6domain,	IPPROTO_FRAGMENT,PR_ATOMIC|PR_ADDR,
   frag6_input,	0,	 	0,		0,
-  0,	
+  0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #ifdef IPSEC
 { SOCK_RAW,	&inet6domain,	IPPROTO_AH,	PR_ATOMIC|PR_ADDR,
   ah6_input,	0,		0,		0,
-  0,	
+  0,
   0,		0,		0,		0,
   &nousrreqs,
 },
@@ -222,7 +222,7 @@ struct ip6protosw inet6sw[] = {
 #endif
 { SOCK_RAW,	&inet6domain,	IPPROTO_IPCOMP,	PR_ATOMIC|PR_ADDR,
   ipcomp6_input, 0,	 	0,		0,
-  0,	
+  0,
   0,		0,		0,		0,
   &nousrreqs,
 },
@@ -299,7 +299,7 @@ int	ip6_auto_flowlabel = 1;
 int	ip6_gif_hlim = 0;
 int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
 int	ip6_rr_prune = 5;	/* router renumbering prefix
-				 * walk list every 5 sec.    */
+				 * walk list every 5 sec. */
 int	ip6_v6only = 1;
 
 #ifndef RANDOM_IP_ID

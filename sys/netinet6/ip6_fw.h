@@ -112,12 +112,12 @@ struct ip6_fw {
 #define IPV6_FW_SETNSRCP(rule, n)		do {				\
 					  (rule)->fw_nports &= ~0x0f;	\
 					  (rule)->fw_nports |= (n);	\
-					} while (0)
+					} while (/*CONSTCOND*/ 0)
 #define IPV6_FW_GETNDSTP(rule)		((rule)->fw_nports >> 4)
 #define IPV6_FW_SETNDSTP(rule, n)		do {				\
 					  (rule)->fw_nports &= ~0xf0;	\
 					  (rule)->fw_nports |= (n) << 4;\
-					} while (0)
+					} while (/*CONSTCOND*/ 0)
 
 #define fw_divert_port	fw_un.fu_divert_port
 #define fw_skipto_rule	fw_un.fu_skipto_rule
@@ -167,7 +167,7 @@ struct ip6_fw_chain {
 
 #define IPV6_FW_F_MASK	0xFFFF	/* All possible flag bits mask		*/
 
-/* 
+/*
  * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols. */
 #define	IPV6_FW_IF_TCPEST 0x00000020	/* established TCP connection	*/
 #define IPV6_FW_IF_TCPMSK 0x00000020	/* mask of all TCP values */
@@ -220,7 +220,7 @@ void ip6_fw_init(void);
 /* Firewall hooks */
 struct ip6_hdr;
 typedef	int ip6_fw_chk_t __P((struct ip6_hdr**, struct ifnet*,
-				u_short *, struct mbuf**));
+	u_short *, struct mbuf**));
 typedef	int ip6_fw_ctl_t __P((int, struct mbuf**));
 extern	ip6_fw_chk_t *ip6_fw_chk_ptr;
 extern	ip6_fw_ctl_t *ip6_fw_ctl_ptr;

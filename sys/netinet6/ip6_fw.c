@@ -128,7 +128,7 @@ SYSCTL_INT(_net_inet6_ip6_fw, OID_AUTO, verbose_limit, CTLFLAG_RW, &fw6_verbose_
 #define dprintf(a)	do {						\
 				if (fw6_debug)				\
 					printf a;			\
-			} while (0)
+			} while (/*CONSTCOND*/ 0)
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 
 static int	add_entry6 __P((struct ip6_fw_head *chainptr, struct ip6_fw *frwl));
@@ -156,7 +156,8 @@ static char err_prefix[] = "ip6_fw_ctl:";
  * Returns 1 if the port is matched by the vector, 0 otherwise
  */
 static
-__inline int
+__inline
+int
 port_match6(u_short *portptr, int nports, u_short port, int range_flag)
 {
 	if (!nports)
@@ -180,7 +181,7 @@ static int
 tcp6flg_match(struct tcphdr *tcp6, struct ip6_fw *f)
 {
 	u_char		flg_set, flg_clr;
-	
+
 	/*
 	 * If an established connection is required, reject packets that
 	 * have only SYN of RST|ACK|SYN set.  Otherwise, fall through to
@@ -260,7 +261,7 @@ ip6opts_match(struct ip6_hdr **pip6, struct ip6_fw *f, struct mbuf **m,
 		if ((*m)->m_len < *off + sizeof(*ip6e))
 			goto opts_check;	/* XXX */
 
-		switch(*nxt) {
+		switch (*nxt) {
 		case IPPROTO_FRAGMENT:
 			if ((*m)->m_len >= *off + sizeof(struct ip6_frag)) {
 				struct ip6_frag *ip6f;
@@ -319,7 +320,8 @@ ip6opts_match(struct ip6_hdr **pip6, struct ip6_fw *f, struct mbuf **m,
 }
 
 static
-__inline int
+__inline
+int
 iface_match(struct ifnet *ifp, union ip6_fw_if *ifu, int byname)
 {
 	/* Check by name or by IP address */
@@ -335,8 +337,7 @@ iface_match(struct ifnet *ifp, union ip6_fw_if *ifu, int byname)
 	} else if (!IN6_IS_ADDR_UNSPECIFIED(&ifu->fu_via_ip6)) {	/* Zero == wildcard */
 		struct ifaddr *ia;
 
-		for (ia = ifp->if_addrlist.tqh_first; ia; ia = ia->ifa_list.tqe_next)
-		{
+		for (ia = ifp->if_addrlist.tqh_first; ia; ia = ia->ifa_list.tqe_next) {
 
 			if (ia->ifa_addr == NULL)
 				continue;
@@ -405,7 +406,7 @@ ip6fw_report(struct ip6_fw *f, struct ip6_hdr *ip6,
 			snprintf(SNPARGS(action2, 0), "SkipTo %d",
 			    f->fw_skipto_rule);
 			break;
-		default:	
+		default:
 			action = "UNKNOWN";
 			break;
 		}
@@ -602,7 +603,7 @@ ip6_fw_chk(struct ip6_hdr **pip6,
 				    goto dropit;			\
 			    }						\
 			    *pip6 = ip6 = mtod(*m, struct ip6_hdr *);	\
-			} while (0)
+			} while (/*CONSTCOND*/ 0)
 
 		/* Protocol specific checks */
 		switch (nxt) {
@@ -770,6 +771,7 @@ got_match:
 	    && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		switch (rule->fw_reject_code) {
 		case IPV6_FW_REJECT_RST:
+#if 1	/* not tested */
 		  {
 			struct tcphdr *const tcp =
 				(struct tcphdr *) ((caddr_t)ip6 + off);
@@ -814,6 +816,7 @@ got_match:
 			*m = NULL;
 			break;
 		  }
+#endif
 		default:	/* Send an ICMP unreachable using code */
 			if (oif)
 				(*m)->m_pkthdr.rcvif = oif;
@@ -857,7 +860,7 @@ add_entry6(struct ip6_fw_head *chainptr, struct ip6_fw *frwl)
 	ftmp->fw_pcnt = 0L;
 	ftmp->fw_bcnt = 0L;
 	fwc->rule = ftmp;
-	
+
 	s = splnet();
 
 	if (!chainptr->lh_first) {
@@ -1234,7 +1237,7 @@ ip6_fw_init(void)
 	default_rule.fw_flg |= IPV6_FW_F_IN | IPV6_FW_F_OUT;
 	if (check_ip6fw_struct(&default_rule) == NULL ||
 		add_entry6(&ip6_fw_chain, &default_rule))
-		panic(__func__);
+		panic(__FUNCTION__);
 
 	printf("IPv6 packet filtering initialized, ");
 #ifdef IPV6FIREWALL_DEFAULT_TO_ACCEPT
