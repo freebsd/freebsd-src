@@ -115,6 +115,24 @@
       found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:01.cvs.asc">FreeBSD-SA-03:01</ulink>.</para>
 
+    <para>A timing-based attack on <application>OpenSSL</application>,
+      could allow a very powerful attacker access to plaintext
+      under certain circumstances.  This problem has been corrected in
+      &os; &release.current; with an upgrade
+      to <application>OpenSSL</application> 0.9.7.  On supported
+      security fix branches, this problem has been corrected with the
+      import of <application>OpenSSL</application> 0.9.6i.  See security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:02.openssl.asc">FreeBSD-SA-03:02</ulink>
+      for more details.</para>
+
+    <para>It may be possible to recover the shared secret key used by
+      the implementation of the <quote>syncookies</quote> feature.
+      This reduces its effectiveness in dealing with TCP SYN flood
+      denial-of-service attacks.  Workaround information and fixes are
+      given in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:03.syncookies.asc">FreeBSD-SA-03:03</ulink>.</para>
+
   </sect1>
 
   <sect1 id="late-news">
