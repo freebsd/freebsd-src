@@ -502,8 +502,8 @@ avma1pp_attach_avma1pp(device_t dev)
 	bzero(sc, sizeof(struct l1_softc));
 
 	/* probably not really required */
-	if(unit > IFPI_MAXUNIT) {
-		printf("avma1pp%d: Error, unit > IFPI_MAXUNIT!\n", unit);
+	if(unit >= IFPI_MAXUNIT) {
+		printf("avma1pp%d: Error, unit >= IFPI_MAXUNIT!\n", unit);
 		splx(s);
 		return(ENXIO);
 	}

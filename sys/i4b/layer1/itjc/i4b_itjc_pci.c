@@ -1523,9 +1523,9 @@ itjc_attach(device_t dev)
 	bzero(sc, sizeof(struct l1_softc));
 
 	/* Probably not really required. */
-	if (unit > ITJC_MAXUNIT)
+	if (unit >= ITJC_MAXUNIT)
 	{
-		printf("itjc%d: Error, unit > ITJC_MAXUNIT!\n", unit);
+		printf("itjc%d: Error, unit >= ITJC_MAXUNIT!\n", unit);
 		splx(s);
 		return ENXIO;
 	}
