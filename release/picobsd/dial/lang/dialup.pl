@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: dialup.pl,v 1.4 1998/08/10 19:07:52 abial Exp $
+# $Id: dialup.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Domy¶lna Nazwa Domeny[m"
@@ -162,7 +162,19 @@ do
 	echo "rêcznie, tak jak dotychczas. W tym przypadku przerwij ten skrypt"
 	echo "przez Ctrl-C.[37m"
 	echo ""
+	stty -echo
 	read -p "Podaj swoje has³o: " pass
+	echo ""
+	read -p "Podaj powtórnie swoje has³o: " pass1
+	stty echo
+	echo ""
+	if [ "X${pass}" != "X${pass1}" ]
+	then
+		echo "Has³a nie pasuj± do siebie. Naci¶nij Enter..."
+		pass=""
+		read junk
+		set_pass
+	fi
 done
 }
 
@@ -188,7 +200,11 @@ do
 	echo "	[32mportX/..xxx...:[37m ppp"
 	echo "		[36m(tutaj startuje PPP)[37m"
 	echo ""
-	read -p "Wybierz 1,2 lub 3: " chat
+	echo "4)	[32mZastosuj CHAP[37m"
+	echo ""
+	echo "5)	[32mZastosuj PAP[37m"
+	echo ""
+	read -p "Wybierz 1,2,3,4 lub 5: " chat
 	case ${chat} in
 	1)
 		chat1="TIMEOUT 10 ogin:--ogin: ${user} word: \\\\P"
@@ -201,6 +217,12 @@ do
 	3)
 		chat1="TIMEOUT 10 ername:--ername: ${user} word: \\\\P port ppp"
 		chat2="NASK - username/password/port"
+		;;
+	4)	chat1="-"
+		chat2="CHAP"
+		;;
+	5)	chat1="-"
+		chat2="PAP"
 		;;
 	*)	echo "Z³a warto¶æ! Musisz wybraæ 1,2 lub 3."
 		echo ""
@@ -315,7 +337,12 @@ echo " set line /dev/cuaa${dev}" >>/etc/ppp/ppp.conf
 echo " set phone ${phone}" >>/etc/ppp/ppp.conf
 echo " set authkey ${pass}" >>/etc/ppp/ppp.conf
 echo " set timeout ${timo}" >>/etc/ppp/ppp.conf
-echo " set login \"${chat1}\"" >>/etc/ppp/ppp.conf
+if [ "X${chat1}" = "-" ]
+then
+	echo "set authname ${user}" >>/etc/ppp/ppp.conf
+else
+	echo " set login \"${chat1}\"" >>/etc/ppp/ppp.conf
+fi
 echo " set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0" >>/etc/ppp/ppp.conf
 
 echo " Zrobione."
@@ -339,9 +366,27 @@ echo ""
 echo "Ok. Je¶li Twój plik /etc/ppp/ppp.conf jest prawid³owy (co jest dosyæ"
 echo -n "prawdopodobne :-), czy chcesz teraz uruchomiæ po³±czenie dialup? (t/n) "
 read ans
+opts=""
 while [ "X${ans}" = "Xt" ]
 do
 	echo "[H[J"
+	if [ "X${opts}" = "X" ]
+	then
+		echo "Wystartujemy 'ppp' z poni¿szymi opcjami:"
+		echo ""
+		echo "		ppp -background dialup"
+		echo "
+		echo -n "Czy chcesz je zmienic?? (t/n) "
+		read oo
+		if [ "X${oo}" = "Xt" ]
+		then
+			read -p "Podaj opcje ppp: " opts
+		else
+			opts="-background dialup"
+		fi
+		echo ""
+		echo ""
+	fi
 	echo "Uruchamiam po³±czenie dialup. Proszê czekaæ dopóki nie pojawi siê"
 	echo "komunikat 'PPP Enabled'..."
 	echo ""
