@@ -78,6 +78,12 @@ is set to 0, the
 .Ev LANG
 environment variable
 determines the message catalog locale.
+.Pp
+A message catalog descriptor
+remains valid in a process until that process closes it, or a
+successful call to one of the
+.Xr exec 3
+functions.
 .Sh RETURN VALUE
 Upon successful completion, 
 .Fn catopen
