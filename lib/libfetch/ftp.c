@@ -744,7 +744,8 @@ _ftp_authenticate(int cd, struct url *url, struct url *purl)
 	if (!pwd || !*pwd) {
 	    if ((logname = getlogin()) == 0)
 		logname = FTP_ANONYMOUS_USER;
-	    len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname);
+	    if ((len = snprintf(pbuf, MAXLOGNAME + 1, "%s@", logname)) == -1)
+		len = 0;
 	    gethostname(pbuf + len, sizeof pbuf - len);
 	    pwd = pbuf;
 	}
