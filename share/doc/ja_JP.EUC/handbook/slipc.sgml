@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: slipc.sgml,v 1.4 1997/02/22 13:01:56 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.8 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>SLIPクライアントのセットアップ<label id="slipc"></heading>
 

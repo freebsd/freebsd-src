@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: kerneldebug.sgml,v 1.4 1997/02/22 13:01:21 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.11 -->
+<!-- Original revision: 1.12 -->
 
 <chapt><heading>カーネルデバッグ<label id="kerneldebug"></heading>
 
