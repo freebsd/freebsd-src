@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.5 1998/09/15 07:03:33 gibbs Exp $
+ *      $Id: advlib.c,v 1.6 1998/09/20 05:04:05 gibbs Exp $
  */
 /*
  * Ported from:
@@ -241,7 +241,20 @@ static u_int8_t  adv_get_chip_scsi_ctrl(struct adv_softc *adv);
 #endif
 
 /* Queue handling and execution */
-static int	 adv_sgcount_to_qcount(int sgcount);
+static __inline int
+		 adv_sgcount_to_qcount(int sgcount);
+
+static __inline int
+adv_sgcount_to_qcount(int sgcount)
+{
+	int	n_sg_list_qs;
+
+	n_sg_list_qs = ((sgcount - 1) / ADV_SG_LIST_PER_Q);
+	if (((sgcount - 1) % ADV_SG_LIST_PER_Q) != 0)
+		n_sg_list_qs++;
+	return (n_sg_list_qs + 1);
+}
+
 static void	 adv_get_q_info(struct adv_softc *adv, u_int16_t s_addr,
 				u_int16_t *inbuf, int words);
 static u_int	 adv_get_num_free_queues(struct adv_softc *adv, u_int8_t n_qs);
@@ -1583,17 +1596,6 @@ adv_get_chip_scsi_ctrl(struct adv_softc *adv)
 	return (scsi_ctrl);
 }
 #endif
-
-static int
-adv_sgcount_to_qcount(int sgcount)
-{
-	int	n_sg_list_qs;
-
-	n_sg_list_qs = ((sgcount - 1) / ADV_SG_LIST_PER_Q);
-	if (((sgcount - 1) % ADV_SG_LIST_PER_Q) != 0)
-		n_sg_list_qs++;
-	return (n_sg_list_qs + 1);
-}
 
 /*
  * XXX Looks like more padding issues in this routine as well.
