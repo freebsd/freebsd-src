@@ -559,7 +559,6 @@ static void
 ata_intr(void *data)
 {
     struct ata_softc *scp = (struct ata_softc *)data;
-
     /* 
      * on PCI systems we might share an interrupt line with another
      * device or our twin ATA channel, so call scp->intr_func to figure 
@@ -685,28 +684,34 @@ void
 ata_reset(struct ata_softc *scp)
 {
     u_int8_t lsb, msb, ostat0, ostat1;
-    u_int8_t stat0 = ATA_S_BUSY, stat1 = ATA_S_BUSY;
+    u_int8_t stat0 = 0, stat1 = 0;
     int mask = 0, timeout;
 
     /* do we have any signs of ATA/ATAPI HW being present ? */
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ostat0 = ATA_INB(scp->r_io, ATA_STATUS);
-    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5)
+    if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
+	stat0 = ATA_S_BUSY;
 	mask |= 0x01;
+    }
     ATA_OUTB(scp->r_io, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(10);	
     ostat1 = ATA_INB(scp->r_io, ATA_STATUS);
-    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5)
+    if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
+	stat1 = ATA_S_BUSY;
 	mask |= 0x02;
+    }
 
     scp->devices = 0;
     if (!mask)
 	return;
 
     /* in some setups we dont want to test for a slave */
-    if (scp->flags & ATA_NO_SLAVE)
+    if (scp->flags & ATA_NO_SLAVE) {
+	stat1 = 0x0;
 	mask &= ~0x02;
+    }
 
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x ostat0=%02x ostat2=%02x\n",
@@ -985,7 +990,7 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
     }
 
     /* only use 48bit addressing if needed because of the overhead */
-    if ((lba > 268435455 || count > 256) &&
+    if ((lba > 268435455 || count > 256) && scp->dev_param[ATA_DEV(device)] &&
 	scp->dev_param[ATA_DEV(device)]->support.address48) {
 	ATA_OUTB(scp->r_io, ATA_FEATURE, (feature>>8) & 0xff);
 	ATA_OUTB(scp->r_io, ATA_FEATURE, feature);
