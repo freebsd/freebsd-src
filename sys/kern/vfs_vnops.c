@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.67 1999/04/27 11:16:27 phk Exp $
+ * $Id: vfs_vnops.c,v 1.68 1999/04/28 11:37:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -378,7 +378,10 @@ vn_stat(vp, sb, p)
 	/*
 	 * Copy from vattr table
 	 */
-	sb->st_dev = vap->va_fsid;
+	if (vap->va_fsid != VNOVAL)
+		sb->st_dev = vap->va_fsid;
+	else
+		sb->st_dev = vp->v_mount->mnt_stat.f_fsid.val[0];
 	sb->st_ino = vap->va_fileid;
 	mode = vap->va_mode;
 	switch (vap->va_type) {

@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.32 1999/01/28 00:57:50 dillon Exp $
+ *	$Id: null_vnops.c,v 1.33 1999/06/16 23:27:38 mckusick Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.32 1999/01/28 00:57:50 dillon Exp $
+ * $Id: null_vnops.c,v 1.33 1999/06/16 23:27:38 mckusick Exp $
  */
 
 /*
@@ -452,8 +452,6 @@ null_getattr(ap)
 
 	if ((error = null_bypass((struct vop_generic_args *)ap)) != 0)
 		return (error);
-	/* Requires that arguments be restored. */
-	ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 	return (0);
 }
 

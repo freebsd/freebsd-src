@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.203 1999/06/26 02:46:10 mckusick Exp $
+ * $Id: vfs_subr.c,v 1.204 1999/07/01 13:21:41 peter Exp $
  */
 
 /*
@@ -333,16 +333,17 @@ vfs_getnewfsid(mp)
 
 	simple_lock(&mntid_slock); 
 	mtype = mp->mnt_vfc->vfc_typenum;
-	mp->mnt_stat.f_fsid.val[0] = (256 + mtype) * 256;
+	mp->mnt_stat.f_fsid.val[0] = umakedev(255, mtype);
 	mp->mnt_stat.f_fsid.val[1] = mtype;
 	if (xxxfs_mntid == 0)
 		++xxxfs_mntid;
-	tfsid.val[0] = (256 + mtype) * 256 | xxxfs_mntid;
+	tfsid.val[0] = umakedev(255, mtype + (xxxfs_mntid << 16));
 	tfsid.val[1] = mtype;
 	if (mountlist.cqh_first != (void *)&mountlist) {
 		while (vfs_getvfs(&tfsid)) {
-			tfsid.val[0]++;
 			xxxfs_mntid++;
+			tfsid.val[0] = umakedev(255,
+			    mtype + (xxxfs_mntid << 16));
 		}
 	}
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
