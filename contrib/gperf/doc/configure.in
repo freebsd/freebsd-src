@@ -1,6 +1,6 @@
 dnl autoconf configuration for gperf/doc
 
-dnl Copyright (C) 1998 Free Software Foundation, Inc.
+dnl Copyright (C) 1998, 2000 Free Software Foundation, Inc.
 dnl written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 dnl
 dnl This file is part of GNU GPERF.
@@ -21,6 +21,8 @@ dnl Free Software Foundation, 59 Temple Place - Suite 330, Boston,
 dnl MA 02111-1307, USA.
 
 AC_INIT(gperf.1)
+PACKAGE=gperf
+AC_SUBST(PACKAGE)
 AC_PROG_MAKE_SET
 dnl
 dnl           checks for programs

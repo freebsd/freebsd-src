@@ -3,7 +3,7 @@
 /* Provides high-level routines to manipulate the keyword list
    structures the code generation output.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -38,7 +38,7 @@ private:
   void        change (List_Node *prior, List_Node *curr);
   int         affects_prev (char c, List_Node *curr);
   static int  hash (List_Node *key_node);
-  static int  compute_disjoint_union (const char *set_1, const char *set_2, char *set_3);
+  static int  compute_disjoint_union (const char *set_1, int size_1, const char *set_2, int size_2, char *set_3);
   static void sort_set (char *union_set, int len);
 
 public:

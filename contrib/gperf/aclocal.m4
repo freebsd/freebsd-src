@@ -37,7 +37,7 @@ AC_CACHE_VAL(cl_cv_path_install,
 	      # AIX installbsd doesn't work without option "-g".
 	      :
 	    else
-	      ac_cv_path_install="$ac_dir/$ac_prog -c"
+	      cl_cv_path_install="$ac_dir/$ac_prog -c"
 	      break 2
 	    fi
 	  fi

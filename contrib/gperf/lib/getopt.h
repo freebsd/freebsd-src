@@ -1,5 +1,5 @@
 /* Declarations for getopt.
-   Copyright (C) 1989,90,91,92,93,94,96,97 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -78,7 +78,7 @@ extern int optopt;
 
 struct option
 {
-#if defined (__STDC__) && __STDC__
+#if (defined (__STDC__) && __STDC__) || defined (__cplusplus)
   const char *name;
 #else
   char *name;
