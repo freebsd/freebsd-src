@@ -1183,6 +1183,10 @@ END(tl0_sftrap)
 	.endm
 
 ENTRY(tl0_fp_restore)
+	ldx	[PCB_REG + PCB_FLAGS], %g1
+	andn	%g1, PCB_FEF, %g1
+	stx	%g1, [PCB_REG + PCB_FLAGS]
+
 	wr	%g0, FPRS_FEF, %fprs
 	wr	%g0, ASI_BLK_S, %asi
 	ldda	[PCB_REG + PCB_UFP + (0 * 64)] %asi, %f0

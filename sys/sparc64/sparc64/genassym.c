@@ -246,9 +246,11 @@ ASSYM(PCB_SIZEOF, sizeof(struct pcb));
 ASSYM(PCB_UFP, offsetof(struct pcb, pcb_ufp));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
+ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_RWSP, offsetof(struct pcb, pcb_rwsp));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
+ASSYM(PCB_FEF, PCB_FEF);
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
