@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.4 1996/02/18 22:06:11 wpaul Exp wpaul $
+# $Id: Makefile,v 1.3 1996/06/05 06:13:02 wpaul Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
-	yp_dblookup.c yp_dbwrite yp_access.c yppasswd_private_xdr.c \
+	yp_dblookup.c yp_dbwrite.c yp_access.c yppasswd_private_xdr.c \
 	yp_clnt.c yppasswdd_server.c yppasswd_comm.c yppasswdd_main.c
 
 RPCDIR=	${.CURDIR}/../../include/rpcsvc
