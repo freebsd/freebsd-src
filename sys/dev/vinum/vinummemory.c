@@ -33,11 +33,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.6.2.3 1999/05/05 05:20:01 grog Exp $
+ * $Id: vinummemory.c,v 1.21 1999/05/08 02:41:33 grog Exp grog $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
 #ifdef VINUMDEBUG

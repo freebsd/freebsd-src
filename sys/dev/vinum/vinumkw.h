@@ -33,12 +33,8 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.12 1999/03/02 02:22:56 grog Exp grog $
+ * $Id: vinumkw.h,v 1.12 1999/08/14 06:27:52 grog Exp $
  */
-
-#ifdef KERNEL
-#include "opt_vinum.h"
-#endif
 
 /*
  * Command keywords that vinum knows.  These include both user-level
@@ -106,20 +102,26 @@ enum keyword {
     kw_writethrough,
     kw_writeback,
     kw_raw,
+    kw_replace,
     kw_resetstats,
     kw_attach,
     kw_detach,
     kw_rename,
     kw_printconfig,
     kw_saveconfig,
-    kw_replace,
+    kw_hotspare,
     kw_detached,
 #ifdef VINUMDEBUG
     kw_debug,						    /* go into debugger */
+    kw_stripe,
+    kw_mirror,
 #endif
     kw_info,
     kw_quit,
     kw_max,
+    kw_setstate,
+    kw_checkparity,
+    kw_rebuildparity,
     kw_invalid_keyword = -1
 };
 

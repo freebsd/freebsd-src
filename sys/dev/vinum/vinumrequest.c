@@ -1,6 +1,10 @@
 /*-
- * Copyright (c) 1997, 1998
+ * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
  *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
@@ -33,14 +37,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.33 1999/08/14 11:40:38 phk Exp $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <miscfs/specfs/specdev.h>
 #include <sys/resourcevar.h>
 
 enum requeststatus bre(struct request *rq,
@@ -54,7 +55,6 @@ enum requeststatus bre5(struct request *rq,
 enum requeststatus build_read_request(struct request *rq, int volplexno);
 enum requeststatus build_write_request(struct request *rq);
 enum requeststatus build_rq_buffer(struct rqelement *rqe, struct plex *plex);
-void freerq(struct request *rq);
 int find_alternate_sd(struct request *rq);
 int check_range_covered(struct request *);
 void complete_rqe(struct buf *bp);
@@ -69,7 +69,7 @@ void freedatabuf(struct rqelement *rqe);
 struct rqinfo rqinfo[RQINFO_SIZE];
 struct rqinfo *rqip = rqinfo;
 
-void 
+void
 logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 {
     int s = splhigh();
@@ -80,7 +80,11 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
     switch (type) {
     case loginfo_user_bp:
     case loginfo_user_bpl:
+    case loginfo_sdio:					    /* subdisk I/O */
+    case loginfo_sdiol:					    /* subdisk I/O launch */
 	bcopy(info.bp, &rqip->info.b, sizeof(struct buf));
+	rqip->devmajor = major(info.bp->b_dev);
+	rqip->devminor = minor(info.bp->b_dev);
 	break;
 
     case loginfo_iodone:
@@ -88,6 +92,15 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
     case loginfo_raid5_data:
     case loginfo_raid5_parity:
 	bcopy(info.rqe, &rqip->info.rqe, sizeof(struct rqelement));
+	rqip->devmajor = major(info.rqe->b.b_dev);
+	rqip->devminor = minor(info.rqe->b.b_dev);
+	break;
+
+    case loginfo_lockwait:
+    case loginfo_lock:
+    case loginfo_unlock:
+	bcopy(info.lockinfo, &rqip->info.lockinfo, sizeof(struct rangelock));
+
 	break;
 
     case loginfo_unused:
@@ -101,14 +114,13 @@ logrq(enum rqinfo_type type, union rqinfou info, struct buf *ubp)
 
 #endif
 
-void 
+void
 vinumstrategy(struct buf *bp)
 {
     int volno;
     struct volume *vol = NULL;
-    struct devcode *device = (struct devcode *) &bp->b_dev; /* decode device number */
 
-    switch (device->type) {
+    switch (DEVTYPE(bp->b_dev)) {
     case VINUM_SD_TYPE:
     case VINUM_RAWSD_TYPE:
 	sdio(bp);
@@ -162,7 +174,7 @@ vinumstrategy(struct buf *bp)
  * are queued if they share address space with
  * a currently active revive operation.
  */
-int 
+int
 vinumstart(struct buf *bp, int reviveok)
 {
     int plexno;
@@ -175,15 +187,6 @@ vinumstart(struct buf *bp, int reviveok)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_user_bp, (union rqinfou) bp, bp);
 #endif
-
-    /*
-     * XXX In these routines, we're assuming that
-     * we will always be called with bp->b_bcount
-     * which is a multiple of the sector size.  This
-     * is a reasonable assumption, since we are only
-     * called from system routines.  Should we check
-     * anyway?
-     */
 
     if ((bp->b_bcount % DEV_BSIZE) != 0) {		    /* bad length */
 	bp->b_error = EINVAL;				    /* invalid size */
@@ -237,7 +240,7 @@ vinumstart(struct buf *bp, int reviveok)
 	    if (plexno < 0) {				    /* round robin */
 		plexno = vol->last_plex_read;
 		vol->last_plex_read++;
-		if (vol->last_plex_read == vol->plexes)	    /* got the the end? */
+		if (vol->last_plex_read >= vol->plexes)	    /* got the the end? */
 		    vol->last_plex_read = 0;		    /* wrap around */
 	    }
 	    status = build_read_request(rq, plexno);	    /* build a request */
@@ -299,7 +302,7 @@ vinumstart(struct buf *bp, int reviveok)
  * Call the low-level strategy routines to
  * perform the requests in a struct request
  */
-int 
+int
 launch_requests(struct request *rq, int reviveok)
 {
     struct rqgroup *rqg;
@@ -330,13 +333,14 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+		"Revive conflict sd %d: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		rq->sdno,
 		(u_int) rq,
 		rq->bp->b_flags & B_READ ? "Read" : "Write",
-		rq->bp->b_dev,
+		major(rq->bp->b_dev),
+		minor(rq->bp->b_dev),
 		rq->bp->b_blkno,
-		rq->bp->b_bcount);			    /* XXX */
+		rq->bp->b_bcount);
 #endif
 	return 0;					    /* and get out of here */
     }
@@ -350,12 +354,13 @@ launch_requests(struct request *rq, int reviveok)
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %x\n%s dev 0x%x, offset 0x%x, length %ld\n",
+	    "Request: %x\n%s dev %d.%d, offset 0x%x, length %ld\n",
 	    (u_int) rq,
 	    rq->bp->b_flags & B_READ ? "Read" : "Write",
-	    rq->bp->b_dev,
+	    major(rq->bp->b_dev),
+	    minor(rq->bp->b_dev),
 	    rq->bp->b_blkno,
-	    rq->bp->b_bcount);				    /* XXX */
+	    rq->bp->b_bcount);
     vinum_conf.lastrq = (int) rq;
     vinum_conf.lastbuf = rq->bp;
     if (debug & DEBUG_LASTREQS)
@@ -364,25 +369,25 @@ launch_requests(struct request *rq, int reviveok)
     s = splbio();
     for (rqg = rq->rqg; rqg != NULL; rqg = rqg->next) {	    /* through the whole request chain */
 	rqg->active = rqg->count;			    /* they're all active */
-	rq->active++;					    /* one more active request group */
 	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    rqe = &rqg->rqe[rqno];
 	    if (rqe->flags & XFR_BAD_SUBDISK)		    /* this subdisk is bad, */
 		rqg->active--;				    /* one less active request */
-	    else {
+	    else {					    /* we can do it */
 		if ((rqe->b.b_flags & B_READ) == 0)
 		    rqe->b.b_vp->v_numoutput++;		    /* one more output going */
-		rqe->b.b_flags |= B_ORDERED;		    /* XXX chase SCSI driver */
+		rqe->b.b_flags |= B_ORDERED;		    /* stick to the request order */
 #if VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
-			"  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 			rqe->b.b_flags & B_READ ? "Read" : "Write",
-			rqe->b.b_dev,
+			major(rqe->b.b_dev),
+			minor(rqe->b.b_dev),
 			rqe->sdno,
 			(u_int) (rqe->b.b_blkno - SD[rqe->sdno].driveoffset),
 			rqe->b.b_blkno,
-			rqe->b.b_bcount);		    /* XXX */
+			rqe->b.b_bcount);
 		if (debug & DEBUG_NUMOUTPUT)
 		    log(LOG_DEBUG,
 			"  vinumstart sd %d numoutput %ld\n",
@@ -394,8 +399,9 @@ launch_requests(struct request *rq, int reviveok)
 		/* fire off the request */
 		(*bdevsw[major(rqe->b.b_dev)]->d_strategy) (&rqe->b);
 	    }
-	    /* XXX Do we need caching?  Think about this more */
 	}
+	if (rqg->active)				    /* we have at least one active request, */
+	    rq->active++;				    /* one more active request group */
     }
     splx(s);
     return 0;
@@ -405,9 +411,9 @@ launch_requests(struct request *rq, int reviveok)
  * define the low-level requests needed to perform a
  * high-level I/O operation for a specific plex 'plexno'.
  *
- * Return 0 if all subdisks involved in the request are up, 1 if some
- * subdisks are not up, and -1 if the request is at least partially
- * outside the bounds of the subdisks.
+ * Return REQUEST_OK if all subdisks involved in the request are up,
+ * REQUEST_DOWN if some subdisks are not up, and REQUEST_EOF if the
+ * request is at least partially outside the bounds of the subdisks.
  *
  * Modify the pointer *diskstart to point to the end address.  On
  * read, return on the first bad subdisk, so that the caller
@@ -420,7 +426,7 @@ launch_requests(struct request *rq, int reviveok)
  * initializing the ones we use, and not looking at the others (index
  * >= rqg->requests).
  */
-enum requeststatus 
+enum requeststatus
 bre(struct request *rq,
     int plexno,
     daddr_t * diskaddr,
@@ -438,6 +444,7 @@ bre(struct request *rq,
     daddr_t blockoffset;				    /* offset in stripe on subdisk */
     struct rqelement *rqe;				    /* point to this request information */
     daddr_t diskstart = *diskaddr;			    /* remember where this transfer starts */
+    enum requeststatus s;				    /* temp return value */
 
     bp = rq->bp;					    /* buffer pointer */
     status = REQUEST_OK;				    /* return value: OK until proven otherwise */
@@ -445,17 +452,12 @@ bre(struct request *rq,
 
     switch (plex->organization) {
     case plex_concat:
+	sd = NULL;					    /* (keep compiler quiet) */
 	for (sdno = 0; sdno < plex->subdisks; sdno++) {
 	    sd = &SD[plex->sdnos[sdno]];
-	    if ((*diskaddr < (sd->plexoffset + sd->sectors)) /* The request starts before the end of this */
-	    &&(diskend > sd->plexoffset)) {		    /* subdisk and ends after the start of this sd */
-		if (sd->state != sd_up) {
-		    enum requeststatus s;
-
-		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
-		    if (s)
-			return s;			    /* XXX get this right */
-		}
+	    if (*diskaddr < sd->plexoffset)		    /* we must have a hole, */
+		status = REQUEST_DEGRADED;		    /* note the fact */
+	    if (*diskaddr < (sd->plexoffset + sd->sectors)) { /* the request starts in this subdisk */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_flags |= B_ERROR;
@@ -468,7 +470,7 @@ bre(struct request *rq,
 		rqe = &rqg->rqe[0];			    /* point to the element */
 		rqe->rqg = rqg;				    /* group */
 		rqe->sdno = sd->sdno;			    /* put in the subdisk number */
-		plexoffset = max(sd->plexoffset, *diskaddr); /* start offset in plex */
+		plexoffset = *diskaddr;			    /* start offset in plex */
 		rqe->sdoffset = plexoffset - sd->plexoffset; /* start offset in subdisk */
 		rqe->useroffset = plexoffset - diskstart;   /* start offset in user buffer */
 		rqe->dataoffset = 0;
@@ -479,6 +481,21 @@ bre(struct request *rq,
 		rqe->buflen = rqe->datalen;		    /* buffer length is data buffer length */
 		rqe->flags = 0;
 		rqe->driveno = sd->driveno;
+		if (sd->state != sd_up) {		    /* *now* we find the sd is down */
+		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
+		    if (s == REQUEST_DOWN) {		    /* down? */
+			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
+			if (rq->bp->b_flags & B_READ)	    /* read request, */
+			    return REQUEST_DEGRADED;	    /* give up here */
+			/*
+			 * If we're writing, don't give up
+			 * because of a bad subdisk.  Go
+			 * through to the bitter end, but note
+			 * which ones we can't access.
+			 */
+			status = REQUEST_DEGRADED;	    /* can't do it all */
+		    }
+		}
 		*diskaddr += rqe->datalen;		    /* bump the address */
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
@@ -488,46 +505,43 @@ bre(struct request *rq,
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 	    }
-	    if (*diskaddr > diskend)			    /* we're finished, */
+	    if (*diskaddr == diskend)			    /* we're finished, */
 		break;					    /* get out of here */
 	}
+	/*
+	 * We've got to the end of the plex.  Have we got to the end of
+	 * the transfer?  It would seem that having an offset beyond the
+	 * end of the subdisk is an error, but in fact it can happen if
+	 * the volume has another plex of different size.  There's a valid
+	 * question as to why you would want to do this, but currently
+	 * it's allowed.
+	 *
+	 * In a previous version, I returned REQUEST_DOWN here.  I think
+	 * REQUEST_EOF is more appropriate now.
+	 */
+	if (diskend > sd->sectors + sd->plexoffset)	    /* pointing beyond EOF? */
+	    status = REQUEST_EOF;
 	break;
 
     case plex_striped:
 	{
 	    while (*diskaddr < diskend) {		    /* until we get it all sorted out */
-		/*
-		 * The offset of the start address from
-		 * the start of the stripe
-		 */
+		if (*diskaddr >= plex->length)		    /* beyond the end of the plex */
+		    return REQUEST_EOF;			    /* can't continue */
+
+		/* The offset of the start address from the start of the stripe. */
 		stripeoffset = *diskaddr % (plex->stripesize * plex->subdisks);
 
-		/*
-		 * The plex-relative address of the
-		 * start of the stripe
-		 */
+		/* The plex-relative address of the start of the stripe. */
 		stripebase = *diskaddr - stripeoffset;
 
-		/*
-		 * The number of the subdisk in which
-		 * the start is located
-		 */
+		/* The number of the subdisk in which the start is located. */
 		sdno = stripeoffset / plex->stripesize;
 
-		/*
-		 * The offset from the beginning of the stripe
-		 * on this subdisk
-		 */
+		/* The offset from the beginning of the stripe on this subdisk. */
 		blockoffset = stripeoffset % plex->stripesize;
 
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
-		if (sd->state != sd_up) {
-		    enum requeststatus s;
-
-		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
-		    if (s)				    /* give up? */
-			return s;			    /* yup */
-		}
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_flags |= B_ERROR;
@@ -551,8 +565,32 @@ bre(struct request *rq,
 		rqe->sdno = sd->sdno;			    /* put in the subdisk number */
 		rqe->driveno = sd->driveno;
 
-		if (rqe->sdoffset >= sd->sectors) {	    /* starts beyond the end of the subdisk? */
-		    deallocrqg(rqg);
+		if (sd->state != sd_up) {		    /* *now* we find the sd is down */
+		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
+		    if (s == REQUEST_DOWN) {		    /* down? */
+			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
+			if (rq->bp->b_flags & B_READ)	    /* read request, */
+			    return REQUEST_DEGRADED;	    /* give up here */
+			/*
+			 * If we're writing, don't give up
+			 * because of a bad subdisk.  Go through
+			 * to the bitter end, but note which
+			 * ones we can't access.
+			 */
+			status = REQUEST_DEGRADED;	    /* can't do it all */
+		    }
+		}
+		/*
+		 * It would seem that having an offset
+		 * beyond the end of the subdisk is an
+		 * error, but in fact it can happen if the
+		 * volume has another plex of different
+		 * size.  There's a valid question as to why
+		 * you would want to do this, but currently
+		 * it's allowed.
+		 */
+		if (rqe->sdoffset + rqe->datalen > sd->sectors) { /* ends beyond the end of the subdisk? */
+		    rqe->datalen = sd->sectors - rqe->sdoffset;	/* truncate */
 #if VINUMDEBUG
 		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
 			log(LOG_DEBUG,
@@ -568,10 +606,7 @@ bre(struct request *rq,
 			    blockoffset);
 		    }
 #endif
-		    return REQUEST_EOF;
-		} else if (rqe->sdoffset + rqe->datalen > sd->sectors) /* ends beyond the end of the subdisk? */
-		    rqe->datalen = sd->sectors - rqe->sdoffset;	/* yes, truncate */
-
+		}
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
 		    bp->b_flags |= B_ERROR;
@@ -580,7 +615,8 @@ bre(struct request *rq,
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 		*diskaddr += rqe->datalen;		    /* look at the remainder */
-		if (*diskaddr < diskend) {		    /* didn't finish the request on this stripe */
+		if ((*diskaddr < diskend)		    /* didn't finish the request on this stripe */
+		&&(*diskaddr < plex->length)) {		    /* and there's more to come */
 		    plex->multiblock++;			    /* count another one */
 		    if (sdno == plex->subdisks - 1)	    /* last subdisk, */
 			plex->multistripe++;		    /* another stripe as well */
@@ -589,9 +625,17 @@ bre(struct request *rq,
 	}
 	break;
 
+	/*
+	 * RAID5 is complicated enough to have
+	 * its own function
+	 */
+    case plex_raid5:
+	status = bre5(rq, plexno, diskaddr, diskend);
+	break;
 
     default:
 	log(LOG_ERR, "vinum: invalid plex type %d in bre\n", plex->organization);
+	status = REQUEST_DOWN;				    /* can't access it */
     }
 
     return status;
@@ -602,7 +646,7 @@ bre(struct request *rq,
  * This function is not needed for plex reads, since there's
  * no recovery if a plex read can't be satisified.
  */
-enum requeststatus 
+enum requeststatus
 build_read_request(struct request *rq,			    /* request */
     int plexindex)
 {							    /* index in the volume's plex table */
@@ -613,9 +657,9 @@ build_read_request(struct request *rq,			    /* request */
     int plexno;						    /* plex index in vinum_conf */
     struct rqgroup *rqg;				    /* point to the request we're working on */
     struct volume *vol;					    /* volume in question */
-    off_t oldstart;					    /* note where we started */
     int recovered = 0;					    /* set if we recover a read */
     enum requeststatus status = REQUEST_OK;
+    int plexmask;					    /* bit mask of plexes, for recovery */
 
     bp = rq->bp;					    /* buffer pointer */
     diskaddr = bp->b_blkno;				    /* start offset of transfer */
@@ -631,41 +675,43 @@ build_read_request(struct request *rq,			    /* request */
 	    continue;
 
 	case REQUEST_RECOVERED:
+	    /*
+	     * XXX FIXME if we have more than one plex, and we can
+	     * satisfy the request from another, don't use the
+	     * recovered request, since it's more expensive.
+	     */
 	    recovered = 1;
 	    break;
 
-	case REQUEST_EOF:
 	case REQUEST_ENOMEM:
 	    return status;
-
 	    /*
-	     * if we get here, we have either had a failure or
-	     * a RAID 5 recovery.  We don't want to use the
-	     * recovery, because it's expensive, so first we
-	     * check if we have alternatives
+	     * If we get here, our request is not complete.  Try
+	     * to fill in the missing parts from another plex.
+	     * This can happen multiple times in this function,
+	     * and we reinitialize the plex mask each time, since
+	     * we could have a hole in our plexes.
 	     */
+	case REQUEST_EOF:
 	case REQUEST_DOWN:				    /* can't access the plex */
-	    if (vol != NULL) {				    /* and this is volume I/O */
-		/*
-		 * Try to satisfy the request
-		 * from another plex
-		 */
+	case REQUEST_DEGRADED:				    /* can't access the plex */
+	    plexmask = ((1 << vol->plexes) - 1)		    /* all plexes in the volume */
+	    &~(1 << plexindex);				    /* except for the one we were looking at */
 		for (plexno = 0; plexno < vol->plexes; plexno++) {
+		if (plexmask == 0)			    /* no plexes left to try */
+		    return REQUEST_DOWN;		    /* failed */
 		    diskaddr = startaddr;		    /* start at the beginning again */
-		    oldstart = startaddr;		    /* and note where that was */
-		    if (plexno != plexindex) {		    /* don't try this plex again */
+		if (plexmask & (1 << plexno)) {		    /* we haven't tried this plex yet */
 			bre(rq, vol->plex[plexno], &diskaddr, diskend);	/* try a request */
-			if (diskaddr > oldstart) {	    /* we satisfied another part */
+		    if (diskaddr > startaddr) {		    /* we satisfied another part */
 			    recovered = 1;		    /* we recovered from the problem */
 			    status = REQUEST_OK;	    /* don't complain about it */
 			    break;
 			}
 		    }
-		    if (plexno == (vol->plexes - 1))	    /* couldn't satisfy the request */
-			return REQUEST_DOWN;		    /* failed */
 		}
-	    } else
-		return REQUEST_DOWN;			    /* bad luck */
+	    if (diskaddr == startaddr)			    /* didn't get any further, */
+		return status;
 	}
 	if (recovered)
 	    vol->recovered_reads += recovered;		    /* adjust our recovery count */
@@ -679,7 +725,7 @@ build_read_request(struct request *rq,			    /* request */
  * subdisks are not up, and -1 if the request is at least partially
  * outside the bounds of the subdisks.
  */
-enum requeststatus 
+enum requeststatus
 build_write_request(struct request *rq)
 {							    /* request */
     struct buf *bp;
@@ -709,7 +755,7 @@ build_write_request(struct request *rq)
 }
 
 /* Fill in the struct buf part of a request element. */
-enum requeststatus 
+enum requeststatus
 build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 {
     struct sd *sd;					    /* point to subdisk */
@@ -723,28 +769,33 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     ubp = rqe->rqg->rq->bp;				    /* pointer to user buffer header */
 
     /* Initialize the buf struct */
-    bzero(&rqe->b, sizeof(struct buf));
-    bp->b_proc = ubp->b_proc;				    /* process pointer */
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
-    /*
-     * XXX Should we check for reviving plexes here, and
-     * set B_ORDERED if so?
-     */
     bp->b_iodone = complete_rqe;			    /* by calling us here */
-    bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
+
+    /*
+     * You'd think that we wouldn't need to even
+     * build the request buffer for a dead subdisk,
+     * but in some cases we need information like
+     * the user buffer address.  Err on the side of
+     * generosity and supply what we can.  That
+     * obviously doesn't include drive information
+     * when the drive is dead.
+     */
+    if ((rqe->flags & XFR_BAD_SUBDISK) == 0) {		    /* subdisk is accessible, */
+        bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
+	bp->b_vp = DRIVE[rqe->driveno].vp;		    /* drive vnode */
+    }
     bp->b_blkno = rqe->sdoffset + sd->driveoffset;	    /* start address */
     bp->b_bcount = rqe->buflen << DEV_BSHIFT;		    /* number of bytes to transfer */
     bp->b_resid = bp->b_bcount;				    /* and it's still all waiting */
     bp->b_bufsize = bp->b_bcount;			    /* and buffer size */
-    bp->b_vp = DRIVE[rqe->driveno].vp;			    /* drive vnode */
     bp->b_rcred = FSCRED;				    /* we have the file system credentials */
     bp->b_wcred = FSCRED;				    /* we have the file system credentials */
 
     if (rqe->flags & XFR_MALLOCED) {			    /* this operation requires a malloced buffer */
 	bp->b_data = Malloc(bp->b_bcount);		    /* get a buffer to put it in */
 	if (bp->b_data == NULL) {			    /* failed */
-	    Debugger("XXX");
 	    abortrequest(rqe->rqg->rq, ENOMEM);
 	    return REQUEST_ENOMEM;			    /* no memory */
 	}
@@ -755,13 +806,26 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 	 * finished the transfer
 	 */
 	bp->b_data = ubp->b_data + rqe->useroffset * DEV_BSIZE;
+    /*
+     * On a recovery read, we perform an XOR of
+     * all blocks to the user buffer.  To make
+     * this work, we first clean out the buffer
+     */
+    if ((rqe->flags & (XFR_RECOVERY_READ | XFR_BAD_SUBDISK))
+	== (XFR_RECOVERY_READ | XFR_BAD_SUBDISK)) {	    /* bad subdisk of a recovery read */
+	int length = rqe->grouplen << DEV_BSHIFT;	    /* and count involved */
+	char *data = (char *) &rqe->b.b_data[rqe->groupoffset << DEV_BSHIFT]; /* destination */
+
+	bzero(data, length);				    /* clean it out */
+    }
     return 0;
 }
+
 /*
  * Abort a request: free resources and complete the
  * user request with the specified error
  */
-int 
+int
 abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
@@ -779,15 +843,14 @@ abortrequest(struct request *rq, int error)
  *
  * Return 1 if it can, otherwise 0
  */
-int 
+int
 check_range_covered(struct request *rq)
 {
-    /* XXX */
     return 1;
 }
 
 /* Perform I/O on a subdisk */
-void 
+void
 sdio(struct buf *bp)
 {
     int s;						    /* spl */
@@ -799,20 +862,10 @@ sdio(struct buf *bp)
     sd = &SD[Sdno(bp->b_dev)];				    /* point to the subdisk */
     drive = &DRIVE[sd->driveno];
 
-    if (drive->state != drive_up) {			    /* XXX until we get the states fixed */
-	if (bp->b_flags & B_WRITE)			    /* writing, */
-	    set_sd_state(Sdno(bp->b_dev), sd_stale, setstate_force);
-	else
-	    set_sd_state(Sdno(bp->b_dev), sd_crashed, setstate_force);
-	bp->b_flags |= B_ERROR;
-	bp->b_error = EIO;
-	biodone(bp);
-	return;
-    }
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_flags |= B_ERROR;
-	bp->b_flags = EIO;
-	if (bp->b_flags & B_BUSY)			    /* XXX why isn't this always the case? */
+	bp->b_error = EIO;
+	if (bp->b_flags & B_BUSY)  
 	    biodone(bp);
 	return;
     }
@@ -824,12 +877,17 @@ sdio(struct buf *bp)
 	biodone(bp);
 	return;
     }
-    bcopy(bp, &sbp->b, sizeof(struct buf));		    /* start with the user's buffer */
-    sbp->b.b_flags |= B_CALL;				    /* tell us when it's done */
-    sbp->b.b_iodone = sdio_done;			    /* here */
+    bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
+    sbp->b.b_flags = bp->b_flags | B_CALL;		    /* inform us when it's done */
+    sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
+    sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
+    sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */
     sbp->b.b_dev = DRIVE[sd->driveno].dev;		    /* device */
+    sbp->b.b_data = bp->b_data;				    /* data buffer */
+    sbp->b.b_blkno = bp->b_blkno + sd->driveoffset;
+    sbp->b.b_iodone = sdio_done;			    /* come here on completion */
+
     sbp->b.b_vp = DRIVE[sd->driveno].vp;		    /* vnode */
-    sbp->b.b_blkno += sd->driveoffset;
     sbp->bp = bp;					    /* note the address of the original header */
     sbp->sdno = sd->sdno;				    /* note for statistics */
     sbp->driveno = sd->driveno;
@@ -838,12 +896,6 @@ sdio(struct buf *bp)
 	sbp->b.b_bcount -= (endoffset - sd->sectors) * DEV_BSIZE; /* trim */
 	if (sbp->b.b_bcount <= 0) {			    /* nothing to transfer */
 	    bp->b_resid = bp->b_bcount;			    /* nothing transferred */
-	    /*
-	     * XXX Grrr.  This doesn't seem to work.  Return
-	     * an error after all
-	     */
-	    bp->b_flags |= B_ERROR;
-	    bp->b_error = ENOSPC;
 	    biodone(bp);
 	    Free(sbp);
 	    return;
@@ -854,13 +906,14 @@ sdio(struct buf *bp)
 #if VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "  %s dev 0x%x, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+	    "  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
 	    sbp->b.b_flags & B_READ ? "Read" : "Write",
-	    sbp->b.b_dev,
+	    major(sbp->b.b_dev),
+	    minor(sbp->b.b_dev),
 	    sbp->sdno,
 	    (u_int) (sbp->b.b_blkno - SD[sbp->sdno].driveoffset),
 	    (int) sbp->b.b_blkno,
-	    sbp->b.b_bcount);				    /* XXX */
+	    sbp->b.b_bcount);
     if (debug & DEBUG_NUMOUTPUT)
 	log(LOG_DEBUG,
 	    "  vinumstart sd %d numoutput %ld\n",
@@ -868,6 +921,12 @@ sdio(struct buf *bp)
 	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
+#if VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_sdiol,
+	    (union rqinfou) (struct buf *) sbp,
+	    (struct buf *) sbp);
+#endif
     (*bdevsw[major(sbp->b.b_dev)]->d_strategy) (&sbp->b);
     splx(s);
 }
@@ -888,7 +947,7 @@ sdio(struct buf *bp)
  * one in the first pleace (because it's protected), it wouldn't
  * be a problem.
  */
-int 
+int
 vinum_bounds_check(struct buf *bp, struct volume *vol)
 {
     int maxsize = vol->size;				    /* size of the partition (sectors) */
@@ -961,11 +1020,13 @@ allocrqg(struct request *rq, int elements)
  * almost never happens, and currently it can only
  * happen to the first member of the chain.
  */
-void 
+void
 deallocrqg(struct rqgroup *rqg)
 {
     struct rqgroup *rqgc = rqg->rq->rqg;		    /* point to the request chain */
 
+    if (rqg->lock)					    /* got a lock? */
+	unlockrange(rqg->plexno, rqg->lock);		    /* yes, free it */
     if (rqgc == rqg)					    /* we're first in line */
 	rqg->rq->rqg = rqg->next;			    /* unhook ourselves */
     else {
@@ -984,13 +1045,13 @@ deallocrqg(struct rqgroup *rqg)
 }
 
 /* Character device interface */
-int 
+int
 vinumread(dev_t dev, struct uio *uio, int ioflag)
 {
     return (physio(vinumstrategy, NULL, dev, 1, minphys, uio));
 }
 
-int 
+int
 vinumwrite(dev_t dev, struct uio *uio, int ioflag)
 {
     return (physio(vinumstrategy, NULL, dev, 0, minphys, uio));

@@ -34,10 +34,10 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.5.2.6 1999/08/14 09:14:03 grog Exp $
+.\" $Id: vinum.8,v 1.27 1999/08/24 02:36:23 grog Exp $
 .\"
 .Dd 28 March 1999
-.Dt VINUM 8
+.Dt vinum 8
 .Os
 .Sh NAME
 .Nm vinum
@@ -47,18 +47,28 @@
 .Op command
 .Op Fl options
 .Sh COMMANDS
-.Cd create Op Fl f Ar description-file
-.in +1i
-Create a volume as described in
-.Ar description-file
-.in
-.\" XXX remove this
 .Cd attach Ar plex Ar volume
 .Op Nm rename
 .Cd attach Ar subdisk Ar plex Ar [offset]
 .Op Nm rename
 .in +1i
 Attach a plex to a volume, or a subdisk to a plex.
+.in
+.\" XXX remove this
+.Nm concat
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl v
+.Ar drives
+.in +1i
+Create a concatenated volume from the specified drives.
+.in
+.Cd create
+.Op Fl f
+.Ar description-file
+.in +1i
+Create a volume as described in
+.Ar description-file
 .in
 .\" XXX remove this
 .Cd debug
@@ -71,6 +81,7 @@ Cause the volume manager to enter the kernel debugger.
 Set debugging flags.
 .in
 .Cd detach
+.Op Fl f
 .Op Ar plex | subdisk
 .in +1i
 Detach a plex or subdisk from the volume or plex to which it is attached.
@@ -149,16 +160,25 @@ List information about plexes
 .in +1i
 List information about volumes
 .in
+.Cd makedev
+.in +1i
+Remake the device nodes in
+.Ar /dev/vinum .
+.in
+.Nm mirror
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl s
+.Op Fl v
+.Ar drives
+.in +1i
+Create a mirrored volume from the specified drives.
+.in
 .Cd printconfig
 .Op Pa file
 .in +1i
 Write a copy of the current configuration to
 .Pa file .
-.in
-.Cd makedev
-.in +1i
-Remake the device nodes in
-.Ar /dev/vinum .
 .in
 .Cd quit
 .in +1i
@@ -232,6 +252,12 @@ Set the state of the object to \fIstate\fP\|
 .in +1i
 Set dæmon configuration.
 .in
+.Cd setstate
+.Ar state
+.Op Ar volume | plex | subdisk | drive
+.in +1i
+Set state without influencing other objects, for diagnostic purposes only.
+.in
 .Cd start
 .in +1i
 Read configuration from all vinum drives.
@@ -249,6 +275,14 @@ Terminate access to the objects, or stop
 .Nm
 if no parameters are specified.
 .in
+.Nm stripe
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl v
+.Ar drives
+.in +1i
+Create a striped volume from the specified drives.
+.in
 .Sh DESCRIPTION
 .Nm
 is a utility program to communicate with the \fBVinum\fP\| logical volume
@@ -256,10 +290,9 @@ manager.  See
 .Xr vinum 4
 for more information about the volume manager.
 .Xr vinum 8
-is designed either for interactive use, when started without a command, or to
-execute a single command if the command is supplied as arguments to
-.Nm vinum .
-In interactive mode,
+is designed either for interactive use, when started without command line
+arguments, or to execute a single command if the command is supplied on the
+command line.  In interactive mode,
 .Nm
 maintains a command line history.
 .Ss OPTIONS
@@ -289,6 +322,14 @@ removes
 .Ar myvolume
 even if it is open.  Any subsequent access to the volume will almost certainly
 cause a panic.
+.It Fl n Ar name
+Use the
+.Fl n
+option to specify a volume name to the simplified configuration commands
+.Nm concat ,
+.Nm mirror
+and
+.Nm stripe .
 .It Fl r
 The
 .Fl r
@@ -307,7 +348,9 @@ The
 .Fl s
 .if t (``statistics'')
 .if n ("statistics")
-option is used by the list commands to display statistical information.
+option is used by the list commands to display statistical information.  The
+.Nm mirror
+command also uses this flag to specify that it should create striped plexes.
 .It Fl v
 The
 .Fl v
@@ -370,8 +413,13 @@ A number of considerations apply to attaching subdisks:
 Subdisks can normally only be attached to concatenated plexes.
 .It
 If a striped or RAID-5 plex is missing a subdisk (for example after drive
-failure), it may be replaced by a subdisk of the same size only.  No other
-attachment of subdisks is currently allowed.
+failure), it should be replaced by a subdisk of the same size only.  
+.It
+In order to add further subdisks to a striped or RAID-5 plex, use the
+.Fl f
+(force) option.  This will corrupt the data in the plex.  
+.\"No other attachment of
+.\"subdisks is currently allowed for striped and RAID-5 plexes.
 .It
 For concatenated plexes, the
 .Ar offset
@@ -382,6 +430,50 @@ multiplied by the stripe size.  For example, in a plex of block size 256k, the
 first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
 This calculation ignores parity blocks in RAID-5 plexes.
 .El
+.It Nm concat
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl v
+.Ar drives
+.br
+The
+.Nm concat
+command provides a simplified alternative to the
+.Nm create
+command for creating volumes with a single concatenated plex.  The largest
+contiguous space available on each drive is used to create the subdisks for the
+plexes.
+.Pp
+Normally, the
+.Nm concat
+command creates an arbitrary name for the volume and its components.  The name
+is composed of the text
+.Ar vinum
+and a small integer, for example
+.Ar vinum3 .
+You can override this with the
+.Fl n Ar name
+option, which assigns the name specified to the volume.  The plexes and subdisks
+are named after the volume in the default manner.
+.Pp
+There is no choice of name for the drives.  If the drives have already been
+initialized as
+.Nm
+drives, the name remains.  Otherwise the drives are given names starting with
+the text
+.Ar vinumdrive
+and a small integer, for example
+.Ar vinumdrive7 .
+As with the
+.Nm create
+command, the
+.Fl f
+option can be used to specify that a previous name should be overwritten.  The
+.Fl v
+is used to specify verbose output.
+.Pp
+See the section SIMPLIFIED CONFIGURATION below for some examples of this
+command.
 .It Nm create Op Fl f Ar description-file
 .sp
 .Nm
@@ -528,16 +620,16 @@ Maximum allocs:       56, malloc table at 0xf0f72dbc
 
 Time             Event       Buf        Dev     Offset          Bytes   SD      SDoff   Doffset Goffset
 
-14:40:00.637758 1VS Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639280 2LR Write 0xf2361f40    0x5b03  0x10            16384
-14:40:00.639294 3RQ Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.639455 3RQ Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.639529 3RQ Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.652978 4DN Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.667040 4DN Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
-14:40:00.668556 4DN Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
-14:40:00.669777 6RP Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
-14:40:00.685547 4DN Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
+14:40:00.637758 1VS Write 0xf2361f40    91.3  0x10            16384
+14:40:00.639280 2LR Write 0xf2361f40    91.3  0x10            16384
+14:40:00.639294 3RQ Read  0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.639455 3RQ Read  0xf2361f40    4.23   0xd2109         8192    17      0       0       0
+14:40:00.639529 3RQ Read  0xf2361f40    4.15   0x6e109         8192    16      0       0       0
+14:40:00.652978 4DN Read  0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.667040 4DN Read  0xf2361f40    4.15   0x6e109         8192    16      0       0       0
+14:40:00.668556 4DN Read  0xf2361f40    4.23   0xd2109         8192    17      0       0       0
+14:40:00.669777 6RP Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
+14:40:00.685547 4DN Write 0xf2361f40    4.39   0x104109        8192    19      0       0       0
 .Ed
 .Pp
 The
@@ -741,13 +833,62 @@ command removes the directory /dev/vinum and recreates it with device nodes
 which reflect the current configuration.  This command is not intended for
 general use, and is provided for emergency use only.
 .Pp
-.It Nm quit
-Exit the
+.It Nm mirror
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl s
+.Op Fl v
+.Ar drives
+.br
+The
+.Nm mirror
+command provides a simplified alternative to the
+.Nm create
+command for creating mirrored volumes.  Without any options, it creates a RAID-1
+(mirrored) volume with two concatenated plexes.  The largest contiguous space
+available on each drive is used to create the subdisks for the plexes.  The
+first plex is built from the odd-numbered drives in the list, and the second
+plex is built from the even-numbered drives.  If the drives are of different
+sizes, the plexes will be of different sizes.
+.Pp
+If the
+.Fl s
+option is provided,
+.Nm mirror
+builds striped plexes with a stripe size of 256 kB.  The size of the subdisks in
+each plex is the size of the smallest contiguous storage available on any of the
+drives which form the plex.  Again, the plexes may differ in size.
+.Pp
+Normally, the
+.Nm mirror
+command creates an arbitrary name for the volume and its components.  The name
+is composed of the text
+.Ar vinum
+and a small integer, for example
+.Ar vinum3 .
+You can override this with the
+.Fl n Ar name
+option, which assigns the name specified to the volume.  The plexes and subdisks
+are named after the volume in the default manner.
+.Pp
+There is no choice of name for the drives.  If the drives have already been
+initialized as
 .Nm
-program when running in interactive mode.  Normally this would be done by
-entering the
-.Ar EOF
-character.
+drives, the name remains.  Otherwise the drives are given names starting with
+the text
+.Ar vinumdrive
+and a small integer, for example
+.Ar vinumdrive7 .
+As with the
+.Nm create
+command, the
+.Fl f
+option can be used to specify that a previous name should be overwritten.  The
+.Fl v
+is used to specify verbose output.
+.Pp
+See the section SIMPLIFIED CONFIGURATION below for some examples of this
+command.
 .It Nm printconfig Op Pa file
 Write a copy of the current configuration to
 .Pa file
@@ -759,6 +900,13 @@ of the drives.  If you omit
 .Nm
 writes the list to
 .Pa stdout .
+.It Nm quit
+Exit the
+.Nm
+program when running in interactive mode.  Normally this would be done by
+entering the
+.Ar EOF
+character.
 .It Nm read
 .Ar disk Op disk...
 .Pp
@@ -921,6 +1069,16 @@ sets a variable bitmask for the
 dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
 may contain the bits 1 (log every action to syslog) and 4 (don't update
 configuration).  Option bit 4 can be useful for error recovery.
+.It Nm setstate
+.Ar state
+.Op Ar volume | plex | subdisk | drive
+.Pp
+.Nm setstate
+sets the state of the specified objects to the specified state.  This bypasses
+the usual consistency mechanism of
+.Nm
+and should be used only for recovery purposes.  It is possible to crash the
+system by incorrect use of this command.
 .It Nm start
 .Op volume | plex | subdisk
 .Pp
@@ -1068,7 +1226,186 @@ option tells
 to omit this checking and remove the object anyway.  Use this option with great
 care and understanding: used incorrectly, it can result in serious data
 corruption.
+.It Nm stripe
+.Op Fl f
+.Op Fl n Ar name
+.Op Fl v
+.Ar drives
+.br
+The
+.Nm stripe
+command provides a simplified alternative to the
+.Nm create
+command for creating volumes with a single striped plex.  The size of the
+subdisks is the size of the largest contiguous space available on all the
+specified drives.  The stripe size is fixed at 256 kB.
+.Pp
+Normally, the
+.Nm stripe
+command creates an arbitrary name for the volume and its components.  The name
+is composed of the text
+.Ar vinum
+and a small integer, for example
+.Ar vinum3 .
+You can override this with the
+.Fl n Ar name
+option, which assigns the name specified to the volume.  The plexes and subdisks
+are named after the volume in the default manner.
+.Pp
+There is no choice of name for the drives.  If the drives have already been
+initialized as
+.Nm
+drives, the name remains.  Otherwise the drives are given names starting with
+the text
+.Ar vinumdrive
+and a small integer, for example
+.Ar vinumdrive7 .
+As with the
+.Nm create
+command, the
+.Fl f
+option can be used to specify that a previous name should be overwritten.  The
+.Fl v
+is used to specify verbose output.
+.Pp
+See the section SIMPLIFIED CONFIGURATION below for some examples of this
+command.
 .El
+.Sh SIMPLIFIED CONFIGURATION
+This section describes a simplified interface to
+.Nm
+configuration using the
+.Nm concat ,
+.Nm mirror
+and
+.Nm stripe
+commands.  These commands create convenient configurations for some more normal
+situations, but they are not as flexible as the
+.Nm create
+command.
+.Pp
+See above for the description of the commands.  Here are some examples, all
+performed with the same collection of disks.  Note that the first drive,
+.Pa /dev/da1h ,
+is smaller than the others.  This has an effect on the sizes chosen for each
+kind of subdisk.
+.Pp
+The following examples all use the
+.Fl v
+option to show the commands passed to the system, and also to list the structure
+of the volume.  Without the
+.Fl v
+option, these commands produce no output.
+.Ss Volume with a single concatenated plex
+Use a volume with a single concatenated plex for the largest possible storage
+without resilience to drive failures:
+.Bd -literal
+vinum ->  concat -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+volume vinum0
+  plex name vinum0.p0 org concat
+drive vinumdrive0 device /dev/da1h
+    sd name vinum0.p0.s0 drive vinumdrive0 size 0
+drive vinumdrive1 device /dev/da2h
+    sd name vinum0.p0.s1 drive vinumdrive1 size 0
+drive vinumdrive2 device /dev/da3h
+    sd name vinum0.p0.s2 drive vinumdrive2 size 0
+drive vinumdrive3 device /dev/da4h
+    sd name vinum0.p0.s3 drive vinumdrive3 size 0
+V vinum0                State: up       Plexes:       1 Size:       2134 MB
+P vinum0.p0           C State: up       Subdisks:     4 Size:       2134 MB
+S vinum0.p0.s0          State: up       PO:        0  B Size:        414 MB
+S vinum0.p0.s1          State: up       PO:      414 MB Size:        573 MB
+S vinum0.p0.s2          State: up       PO:      988 MB Size:        573 MB
+S vinum0.p0.s3          State: up       PO:     1561 MB Size:        573 MB
+.Ed
+.Pp
+In this case, the complete space on all four disks was used, giving a volume
+2134 MB in size.
+.Ss Volume with a single striped plex
+A volume with a single striped plex may give better performance than a
+concatenated plex, but restrictions on striped plexes can mean that the volume
+is smaller.  It will also not be resilient to a drive failure:
+.Bd -literal
+vinum -> stripe -v /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+drive vinumdrive0 device /dev/da1h
+drive vinumdrive1 device /dev/da2h
+drive vinumdrive2 device /dev/da3h
+drive vinumdrive3 device /dev/da4h
+volume vinum0
+  plex name vinum0.p0 org striped 256k
+    sd name vinum0.p0.s0 drive vinumdrive0 size 849825b
+    sd name vinum0.p0.s1 drive vinumdrive1 size 849825b
+    sd name vinum0.p0.s2 drive vinumdrive2 size 849825b
+    sd name vinum0.p0.s3 drive vinumdrive3 size 849825b
+V vinum0                State: up       Plexes:       1 Size:       1659 MB
+P vinum0.p0           S State: up       Subdisks:     4 Size:       1659 MB
+S vinum0.p0.s0          State: up       PO:        0  B Size:        414 MB
+S vinum0.p0.s1          State: up       PO:      256 kB Size:        414 MB
+S vinum0.p0.s2          State: up       PO:      512 kB Size:        414 MB
+S vinum0.p0.s3          State: up       PO:      768 kB Size:        414 MB
+.Ed
+.Pp
+In this case, the size of the subdisks has been limited to the smallest
+available disk, so the resulting volume is only 1659 MB in size.
+.Ss Mirrored volume with two concatenated plexes
+For more reliability, use a mirrored, concatenated volume:
+.Bd -literal
+vinum -> mirror -v -n mirror /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+drive vinumdrive0 device /dev/da1h
+drive vinumdrive1 device /dev/da2h
+drive vinumdrive2 device /dev/da3h
+drive vinumdrive3 device /dev/da4h
+volume mirror setupstate
+  plex name mirror.p0 org concat
+    sd name mirror.p0.s0 drive vinumdrive0 size 0b
+    sd name mirror.p0.s1 drive vinumdrive2 size 0b
+  plex name mirror.p1 org concat
+    sd name mirror.p1.s0 drive vinumdrive1 size 0b
+    sd name mirror.p1.s1 drive vinumdrive3 size 0b
+V mirror                State: up       Plexes:       2 Size:       1146 MB
+P mirror.p0           C State: up       Subdisks:     2 Size:        988 MB
+P mirror.p1           C State: up       Subdisks:     2 Size:       1146 MB
+S mirror.p0.s0          State: up       PO:        0  B Size:        414 MB
+S mirror.p0.s1          State: up       PO:      414 MB Size:        573 MB
+S mirror.p1.s0          State: up       PO:        0  B Size:        573 MB
+S mirror.p1.s1          State: up       PO:      573 MB Size:        573 MB
+.Ed
+.Pp
+This example specifies the name of the volume:
+.Ar mirror .
+Since one drive is smaller than the others, the two plexes are of different
+size, and the last 158 MB of the volume is non-resilient.  To ensure complete
+reliability in such a situation, use the
+.Nm create
+command to create a volume with 988 MB.
+.Ss Mirrored volume with two striped plexes
+Alternatively, use the
+.Fl s
+option to create a mirrored volume with two striped plexes:
+.Bd -literal
+vinum -> mirror -v -n raid10 -s /dev/da1h /dev/da2h /dev/da3h /dev/da4h
+drive vinumdrive0 device /dev/da1h
+drive vinumdrive1 device /dev/da2h
+drive vinumdrive2 device /dev/da3h
+drive vinumdrive3 device /dev/da4h
+volume raid10 setupstate
+  plex name raid10.p0 org striped 256k
+    sd name raid10.p0.s0 drive vinumdrive0 size 849825b
+    sd name raid10.p0.s1 drive vinumdrive2 size 849825b
+  plex name raid10.p1 org striped 256k
+    sd name raid10.p1.s0 drive vinumdrive1 size 1173665b
+    sd name raid10.p1.s1 drive vinumdrive3 size 1173665b
+V raid10                State: up       Plexes:       2 Size:       1146 MB
+P raid10.p0           S State: up       Subdisks:     2 Size:        829 MB
+P raid10.p1           S State: up       Subdisks:     2 Size:       1146 MB
+S raid10.p0.s0          State: up       PO:        0  B Size:        414 MB
+S raid10.p0.s1          State: up       PO:      256 kB Size:        414 MB
+S raid10.p1.s0          State: up       PO:        0  B Size:        573 MB
+S raid10.p1.s1          State: up       PO:      256 kB Size:        573 MB
+.Ed
+.Pp
+In this case, the usable part of the volume is even smaller, since the first
+plex has shrunken to match the smallest drive.
 .Ss CONFIGURATION FILE
 .Nm
 requires that all parameters to the
@@ -1094,29 +1431,34 @@ dependent on the context.
 The configuration file can contain the following entries:
 .Pp
 .Bl -hang -width 4n
-.It Nm drive Ar name option
+.It Nm drive Ar name devicename
+.Op options
 .Pp
-Define a drive.  The option must be:
+Define a drive.  The options are:
 .Pp
 .Bl -hang -width 18n
 .It Nm device Ar devicename
 Specify the device on which the drive resides.  
 .Ar devicename
-must be the name of a disk compatibility partition, for example
+must be the name of a disk partition, for example
 .Pa /dev/da1e
 or
-.Pa /dev/wd3h ,
-and it should be of type
+.Pa /dev/wd3s2h ,
+and it must be of type
 .Nm vinum .
 Do not use the
 .Nm c
-partition, which is reserved for the complete disk, and should be of type
-.Nm unused .
-It is currently possible to create drives on other disk devices, for example
-.Pa /dev/da0s1
-or 
-.Pa /dev/da0s1e ,
-but it will not be possible to start these drives after a reboot.
+partition, which is reserved for the complete disk.
+.It Nm hotspare
+Define the drive to be a
+.Do
+hot spare
+.Dc
+drive, which is maintained to automatically replace a failed drive.
+.Nm
+does not allow this drive to be used for any other purpose.  In particular, it
+is not possible to create subdisks on it.  This functionality has not been
+completely implemented.
 .El
 .It Nm volume
 .Ar name
@@ -1333,15 +1675,7 @@ volume vol5
 .Nm
 drives are currently BSD disk partitions.  They must be of type
 .Ar vinum
-in order to avoid overwriting file systems.  For compatibility reasons,
-.Nm
-currently accepts partitions of type
-.Ar unused ,
-but the next release will not allow this kind of partition.
-.Nm
-prints a warning message when reading a configuration from a partition of type
-.Ar unused .
-Use
+in order to avoid overwriting data used for other purposes.  Use
 .Nm disklabel
 .Ar -e
 to edit a partition type definition.  The following display shows a typical
@@ -1383,7 +1717,7 @@ the maximum size of a subdisk is 265 sectors smaller than the drive.
 .Sh LOG FILE
 .Nm
 maintains a log file, by default
-.Pa /var/tmp/vinum.history ,
+.Pa /var/tmp/vinum_history ,
 in which it keeps track of the commands issued to
 .Nm vinum .
 You can override the name of this file by setting the environment variable
@@ -1405,12 +1739,12 @@ system.
 The first choice you need to make is where to put the data.  You need dedicated
 disk partitions for
 .Nm vinum .
-They should be compatibility partitions, not devices or partition
-.Nm c
-of a slice.  For example, good names are
+They should be partitions, not devices, and they should not be partition
+.Nm c .
+For example, good names are
 .Pa /dev/da0e
 or
-.Pa /dev/wd3a .
+.Pa /dev/wd3s4a .
 Bad names are 
 .Pa /dev/da0
 and
@@ -1418,15 +1752,8 @@ and
 both of which represent a device, not a partition,
 .Pa /dev/wd1c ,
 which represents a complete disk and should be of type
-.Nm unused ,
-and
-.Pa /dev/da3s0e ,
-which is not a compatibility partition.
-.Nm
-currently allows you to create drives with these names, but the
-.Nm start
-command will not find them.  See the example under DRIVE LAYOUT CONSIDERATIONS
-above.
+.Nm unused .
+See the example under DRIVE LAYOUT CONSIDERATIONS above.
 .Ss Designing volumes
 The way you set up
 .Nm
@@ -1941,11 +2268,8 @@ will not create a device on UFS partitions.  Instead, it will return an error
 message 
 .if t ``wrong partition type''.  
 .if n "wrong partition type".  
-The partition type should be
-.Ar vinum ,
-though currently partitions of type
-.Ar unused
-are also accepted.
+The partition type must be
+.Ar vinum .
 .It
 When you create a volume with multiple plexes,
 .Nm
@@ -2086,7 +2410,7 @@ plexes.
 - directory containing device nodes for
 .Nm
 subdisks.
-.Sh ENVIRONMENT
+.Sh ENVIRONMENT VARIABLES
 .Bl -hang
 .It VINUM_HISTORY
 The name of the log file, by default /var/log/vinum_history.
@@ -2100,7 +2424,7 @@ The name of the editor to use for editing configuration files, by default
 .Xr strftime 3 ,
 .Xr vinum 4 ,
 .Xr disklabel 8 ,
-.Xr newfs 8
+.Xr newfs 8 ,
 .Pa http://www.lemis.com/vinum.html ,
 .Pa http://www.lemis.com/vinum-debugging.html .
 .Sh AUTHOR
@@ -2109,4 +2433,9 @@ The name of the editor to use for editing configuration files, by default
 The
 .Nm
 command first appeared in
-.Fx 3.0 .
+.Fx 3.0.
+The RAID-5 component of
+.Nm
+was developed by Cybernet Inc. 
+.Pa www.cybernet.com
+for its NetMAX product.

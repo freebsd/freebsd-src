@@ -2,6 +2,10 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -33,12 +37,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.9 1999/03/13 03:26:00 grog Exp grog $
+ * $Id: vinumlock.c,v 1.12 1999/08/14 06:28:21 grog Exp $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 
 /*
  * Lock routines.  Currently, we lock either an individual volume
@@ -122,7 +125,7 @@ lockvol(struct volume *vol)
 	 * guarantee that this address won't change due to
 	 * table expansion.  The address we choose won't change.
 	 */
-	if ((error = tsleep(&vinum_conf.volume + vol->devno,
+	if ((error = tsleep(&vinum_conf.volume + vol->volno,
 		    PRIBIO | PCATCH,
 		    "volock",
 		    0)) != 0)
@@ -139,7 +142,7 @@ unlockvol(struct volume *vol)
     vol->flags &= ~VF_LOCKED;
     if ((vol->flags & VF_LOCKING) != 0) {
 	vol->flags &= ~VF_LOCKING;
-	wakeup(&vinum_conf.volume + vol->devno);
+	wakeup(&vinum_conf.volume + vol->volno);
     }
 }
 
@@ -178,6 +181,125 @@ unlockplex(struct plex *plex)
     }
 }
 
+/* Lock a stripe of a plex, wait if it's in use */
+struct rangelock *
+lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
+{
+    int s;
+    struct rangelock *lock;
+    struct rangelock *pos;				    /* position of first free lock */
+    int foundlocks;					    /* number of locks found */
+    int newlock;
+
+    /*
+     * We could get by without counting the number
+     * of locks we find, but we have a linear search
+     * through a table which in most cases will be
+     * empty.  It's faster to stop when we've found
+     * all the locks that are there.  This is also
+     * the reason why we put pos at the beginning
+     * instead of the end, though it requires an
+     * extra test.
+     */
+    pos = NULL;
+    foundlocks = 0;
+
+    /*
+     * we can't use 0 as a valid address, so
+     * increment all addresses by 1.
+     */
+    stripe++;
+    /*
+     * We give the locks back from an interrupt
+     * context, so we need to raise the spl here.
+     */
+    s = splbio();
+
+    /* Search the lock table for our stripe */
+    for (lock = plex->lock;
+	lock < &plex->lock[plex->alloclocks]
+	&& foundlocks < plex->usedlocks;
+	lock++) {
+	if (lock->stripe) {				    /* in use */
+	    foundlocks++;				    /* found another one in use */
+	    if ((lock->stripe == stripe)		    /* it's our stripe */
+&&(lock->plexno == plex->plexno)			    /* and our plex */
+	    &&(lock->bp != bp)) {			    /* but not our request */
+		/*
+		 * It would be nice to sleep on the lock
+		 * itself, but it could get moved if the
+		 * table expands during the wait.  Wait on
+		 * the lock address + 1 (since waiting on
+		 * 0 isn't allowed) instead.  It isn't
+		 * exactly unique, but we won't have many
+		 * conflicts.  The worst effect of a
+		 * conflict would be an additional
+		 * schedule and time through this loop.
+		 */
+		while (lock->stripe) {			    /* wait for it to become free */
+#ifdef VINUMDEBUG
+		    if (debug & DEBUG_LASTREQS) {
+			struct rangelock info;
+
+			info.stripe = stripe;
+			info.bp = bp;
+			info.plexno = plex->plexno;
+			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
+		    }
+#endif
+		    splx(s);
+		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
+		    plex->lockwaits++;			    /* waited one more time */
+		    s = splbio();
+		}
+		break;					    /* out of the inner level loop */
+	    }
+	} else {
+	    if (pos == NULL)				    /* still looking for somewhere? */
+		pos = lock;				    /* a place to put this one */
+	}
+    }
+
+    /*
+     * The address range is free.  Add our lock
+     * entry.
+     */
+    if (pos == NULL) {					    /* Didn't find an entry */
+	if (foundlocks >= plex->alloclocks) {		    /* searched the lot, */
+	    newlock = plex->alloclocks;
+	    EXPAND(plex->lock, struct rangelock, plex->alloclocks, INITIAL_LOCKS);
+	    while (newlock < plex->alloclocks)
+		plex->lock[newlock++].stripe = 0;
+	}
+	pos = lock;					    /* put it at the end */
+    }
+    pos->stripe = stripe;
+    pos->bp = bp;
+    pos->plexno = plex->plexno;
+    plex->usedlocks++;					    /* one more lock */
+    splx(s);
+#ifdef VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_lock, (union rqinfou) pos, bp);
+#endif
+    return pos;
+}
+
+/* Unlock a volume and let the next one at it */
+void 
+unlockrange(int plexno, struct rangelock *lock)
+{
+    daddr_t lockaddr;
+
+#ifdef VINUMDEBUG
+    if (debug & DEBUG_LASTREQS)
+	logrq(loginfo_unlock, (union rqinfou) lock, lock->bp);
+#endif
+    lockaddr = lock->stripe;
+    lock->stripe = 0;					    /* no longer used */
+    PLEX[plexno].usedlocks--;				    /* one less lock */
+    wakeup((void *) lockaddr);
+}
 
 /* Get a lock for the global config, wait if it's not available */
 int 
@@ -204,3 +326,6 @@ unlock_config(void)
 	wakeup(&vinum_conf);
     }
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */

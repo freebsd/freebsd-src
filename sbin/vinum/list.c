@@ -4,6 +4,10 @@
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
  *
+ *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
+ *
+ *  Written by Greg Lehey
+ *
  *  This software is distributed under the so-called ``Berkeley
  *  License'':
  *
@@ -22,7 +26,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -35,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.18 1999/03/10 09:26:46 grog Exp grog $
+ * $Id: list.c,v 1.19 1999/08/24 02:32:57 grog Exp $
  */
 
 #include <ctype.h>
@@ -77,14 +81,14 @@ roughlength(long long bytes, int lj)
     return description;
 }
 
-void 
+void
 vinum_list(int argc, char *argv[], char *argv0[])
 {
     int object;
     int i;
     enum objecttype type;
 
-    if (stats & (!verbose))				    /* just summary stats, */
+    if (sflag & (!verbose))				    /* just summary stats, */
 	printf("Object\t\t  Reads\t\tBytes\tAverage\tRecover\t Writes\t\tBytes\tAverage\t  Mblock  Mstripe\n\n");
     if (argc == 0)
 	listconfig();					    /* list everything */
@@ -98,7 +102,7 @@ vinum_list(int argc, char *argv[], char *argv0[])
 }
 
 /* List an object */
-int 
+int
 vinum_li(int object, enum objecttype type)
 {
     switch (type) {
@@ -124,7 +128,7 @@ vinum_li(int object, enum objecttype type)
     return 0;
 }
 
-void 
+void
 vinum_ldi(int driveno, int recurse)
 {
     time_t t;						    /* because Bruce says so */
@@ -175,10 +179,10 @@ vinum_ldi(int driveno, int recurse)
 			    strerror(errno));
 			longjmp(command_fail, -1);
 		    }
-		    printf("\t\t%9qd\t%9ld\n", freelist.offset, freelist.sectors);
+		    printf("\t\t%9qd\t%9lld\n", freelist.offset, freelist.sectors);
 		}
 	    }
-	} else if (!stats) {
+	} else if (!sflag) {
 	    printf("D %-21s State: %s\tDevice %s\tAvail: %qd/%qd MB",
 		drive.label.name,
 		drive_state(drive.state),
@@ -189,9 +193,10 @@ vinum_ldi(int driveno, int recurse)
 		printf("\n");				    /* can't print percentages */
 	    else
 		printf(" (%d%%)\n",
-		    (int) ((drive.sectors_available * 100 * DEV_BSIZE) / drive.label.drive_size));
+		    (int) ((drive.sectors_available * 100 * DEV_BSIZE)
+			/ (drive.label.drive_size - (DATASTART * DEV_BSIZE))));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    drive.reads,
@@ -222,7 +227,7 @@ vinum_ldi(int driveno, int recurse)
     }
 }
 
-void 
+void
 vinum_ld(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -247,7 +252,7 @@ vinum_ld(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lvi(int volno, int recurse)
 {
     get_volume_info(&vol, volno);
@@ -269,13 +274,13 @@ vinum_lvi(int volno, int recurse)
 		get_plex_info(&plex, vol.plex[vol.preferred_plex]);
 		printf("plex %d (%s)\n", vol.preferred_plex, plex.name);
 	    }
-	} else if (!stats)				    /* brief */
+	} else if (!sflag)				    /* brief */
 	    printf("V %-21s State: %s\tPlexes: %7d\tSize: %s\n",
 		vol.name,
 		volume_state(vol.state),
 		vol.plexes,
 		roughlength(vol.size << DEV_BSHIFT, 0));
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tRecovered:\t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    vol.reads,
@@ -340,7 +345,7 @@ vinum_lvi(int volno, int recurse)
     }
 }
 
-void 
+void
 vinum_lv(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -365,7 +370,7 @@ vinum_lv(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lpi(int plexno, int recurse)
 {
     get_plex_info(&plex, plexno);
@@ -388,7 +393,7 @@ vinum_lpi(int plexno, int recurse)
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
 	    }
-	} else if (!stats) {
+	} else if (!sflag) {
 	    char *org = "";				    /* organization */
 
 	    switch (plex.organization) {
@@ -412,7 +417,7 @@ vinum_lpi(int plexno, int recurse)
 		plex.subdisks,
 		roughlength(plex.length << DEV_BSHIFT, 0));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    plex.reads,
@@ -436,12 +441,19 @@ vinum_lpi(int plexno, int recurse)
 			(int) (plex.multiblock * 100 / (plex.reads + plex.writes)),
 			plex.multistripe,
 			(int) (plex.multistripe * 100 / (plex.reads + plex.writes)));
+		if (plex.recovered_reads)
+		    printf("\t\tRecovered reads:%16qd\n", plex.recovered_reads);
+		if (plex.degraded_writes)
+		    printf("\t\tDegraded writes:%16qd\n", plex.degraded_writes);
+		if (plex.parityless_writes)
+		    printf("\t\tParityless writes:%14qd\n", plex.parityless_writes);
 	    } else {
 		printf("%-15s\t%7qd\t%15qd\t", plex.name, plex.reads, plex.bytes_read);
 		if (plex.reads != 0)
-		    printf("%7qd\t\t", plex.bytes_read / plex.reads);
+		    printf("%7qd\t", plex.bytes_read / plex.reads);
 		else
-		    printf("\t\t");
+		    printf("\t");
+		printf("%7qd\t", plex.recovered_reads);
 		printf("%7qd\t%15qd\t", plex.writes, plex.bytes_written);
 		if (plex.writes != 0)
 		    printf("%7qd\t", plex.bytes_written / plex.writes);
@@ -478,7 +490,7 @@ vinum_lpi(int plexno, int recurse)
     }
 }
 
-void 
+void
 vinum_lp(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -503,7 +515,7 @@ vinum_lp(int argc, char *argv[], char *argv0[])
     }
 }
 
-void 
+void
 vinum_lsi(int sdno, int recurse)
 {
     get_sd_info(&sd, sdno);
@@ -541,15 +553,19 @@ vinum_lsi(int sdno, int recurse)
 		    drive.devicename,
 		    sd.driveoffset * DEV_BSIZE,
 		    roughlength(sd.driveoffset * DEV_BSIZE, 1));
-	} else if (!stats) {				    /* brief listing, no stats */
-	    printf("S %-21s State: %s\tPO: %s ",
+	} else if (!sflag) {				    /* brief listing, no stats */
+	    printf("S %-21s State: %s\t",
 		sd.name,
-		sd_state(sd.state),
-		&(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]); /* what a kludge! */
+		sd_state(sd.state));
+	    if (sd.plexno == -1)
+		printf("(detached)\t");
+	    else
+		printf("PO: %s ",
+		    &(roughlength(sd.plexoffset << DEV_BSHIFT, 0))[2]);	/* what a kludge! */
 	    printf("Size: %s\n",
 		roughlength(sd.sectors << DEV_BSHIFT, 0));
 	}
-	if (stats) {
+	if (sflag) {
 	    if (verbose || Verbose) {
 		printf("\t\tReads:  \t%16qd\n\t\tBytes read:\t%16qd (%s)\n",
 		    sd.reads,
@@ -584,7 +600,7 @@ vinum_lsi(int sdno, int recurse)
     }
 }
 
-void 
+void
 vinum_ls(int argc, char *argv[], char *argv0[])
 {
     int i;
@@ -616,14 +632,14 @@ vinum_ls(int argc, char *argv[], char *argv0[])
 /* List the complete configuration.
 
  * XXX Change this to specific lists */
-void 
+void
 listconfig()
 {
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
 	perror("Can't get vinum config");
 	return;
     }
-    if (verbose || (!stats)) {
+    if (verbose || (!sflag)) {
 	printf("Configuration summary\n\n");
 	printf("Drives:\t\t%d (%d configured)\n", vinum_conf.drives_used, vinum_conf.drives_allocated);
 	printf("Volumes:\t%d (%d configured)\n", vinum_conf.volumes_used, vinum_conf.volumes_allocated);
@@ -653,7 +669,7 @@ timetext(struct timeval *time)
     return &text[11];
 }
 
-void 
+void
 vinum_info(int argc, char *argv[], char *argv0[])
 {
     struct meminfo meminfo;
@@ -697,7 +713,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	}
 #if VINUMDEBUG
     if (Verbose) {
-	printf("\nTime\t\t Event\t     Buf\tDev\tOffset\t\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
+	printf("\nTime\t\t Event\t     Buf\tDev\t  Offset\tBytes\tSD\tSDoff\tDoffset\tGoffset\n\n");
 	for (i = RQINFO_SIZE - 1; i >= 0; i--) {	    /* go through the request list in order */
 	    *((int *) &rq) = i;
 	    if (ioctl(superdev, VINUM_RQINFO, &rq) < 0) {
@@ -709,31 +725,38 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_user_bp:			    /* this is the bp when strategy is called */
-		printf("%s 1VS %s %p\t0x%x\t0x%-9x\t%ld\n",
+	    case loginfo_sdio:				    /* subdisk I/O */
+		printf("%s %dVS %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
+		    rq.type,
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_user_bpl:			    /* and this is the bp at launch time */
-		printf("%s 2LR %s %p\t0x%x\t0x%-9x\t%ld\n",
+	    case loginfo_sdiol:				    /* subdisk I/O launch */
+		printf("%s %dLR %s %p\t%d.%-6d 0x%-9x\t%ld\n",
 		    timetext(&rq.timestamp),
+		    rq.type,
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.b.b_blkno,
 		    rq.info.b.b_bcount);
 		break;
 
 	    case loginfo_rqe:				    /* user RQE */
-		printf("%s 3RQ %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 3RQ %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -743,11 +766,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_iodone:			    /* iodone called */
-		printf("%s 4DN %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 4DN %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -757,11 +781,12 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_data:			    /* RAID-5 write data block */
-		printf("%s 5RD %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 5RD %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
@@ -771,17 +796,43 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
-		printf("%s 6RP %s %p\t0x%x\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
+		printf("%s 6RP %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
 		    rq.info.rqe.b.b_flags & B_READ ? "Read " : "Write",
 		    rq.bp,
-		    rq.info.rqe.b.b_dev,
+		    rq.devmajor,
+		    rq.devminor,
 		    rq.info.rqe.b.b_blkno,
 		    rq.info.rqe.b.b_bcount,
 		    rq.info.rqe.sdno,
 		    rq.info.rqe.sdoffset,
 		    rq.info.rqe.dataoffset,
 		    rq.info.rqe.groupoffset);
+		break;
+
+	    case loginfo_lockwait:
+		printf("%s Lockwait  %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+		break;
+
+	    case loginfo_lock:
+		printf("%s Lock      %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+		break;
+
+	    case loginfo_unlock:
+		printf("%s Unlock\t  %p\t%d\t  0x%x\n",
+		    timetext(&rq.timestamp),
+		    rq.bp,
+		    rq.info.lockinfo.plexno,
+		    rq.info.lockinfo.stripe);
+
 	    }
 	}
     }
@@ -792,7 +843,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
  * Print config file to a file.  This is a userland version
  * of kernel format_config
  */
-void 
+void
 vinum_printconfig(int argc, char *argv[], char *argv0[])
 {
     FILE *of;
@@ -819,7 +870,7 @@ vinum_printconfig(int argc, char *argv[], char *argv0[])
  * called without an argument, in order to give
  * the user something to edit.
  */
-void 
+void
 printconfig(FILE * of, char *comment)
 {
     struct utsname uname_s;
@@ -878,12 +929,13 @@ printconfig(FILE * of, char *comment)
 		plex_org(plex.organization));
 	    if ((plex.organization == plex_striped)
 		|| (plex.organization == plex_raid5)) {
-		fprintf(of, "%db ", (int) plex.stripesize);
+		fprintf(of, "%ds ", (int) plex.stripesize);
 	    }
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
-	    }
+	    } else
+		fprintf(of, "detached ");
 	    fprintf(of, "\n");
 	}
     }
@@ -893,16 +945,84 @@ printconfig(FILE * of, char *comment)
 	get_sd_info(&sd, i);
 	if (sd.state != sd_unallocated) {
 	    get_drive_info(&drive, sd.driveno);
-	    get_plex_info(&plex, sd.plexno);
-	    fprintf(of,
-		"%ssd name %s drive %s plex %s len %qdb driveoffset %qdb plexoffset %qdb\n",
-		comment,
-		sd.name,
-		drive.label.name,
-		plex.name,
-		sd.sectors,
-		sd.driveoffset,
-		sd.plexoffset);
+	    if (sd.plexno >= 0) {
+		get_plex_info(&plex, sd.plexno);
+		fprintf(of,
+		    "%ssd name %s drive %s plex %s len %qds driveoffset %qds plexoffset %qds\n",
+		    comment,
+		    sd.name,
+		    drive.label.name,
+		    plex.name,
+		    sd.sectors,
+		    sd.driveoffset,
+		    sd.plexoffset);
+	    } else
+		fprintf(of,
+		    "%ssd name %s drive %s detached len %qds driveoffset %qds\n",
+		    comment,
+		    sd.name,
+		    drive.label.name,
+		    sd.sectors,
+		    sd.driveoffset);
+	}
+    }
+}
+
+void
+list_defective_objects()
+{
+    int o;						    /* object */
+    int heading_needed = 1;
+
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Can't get vinum config");
+	return;
+    }
+    for (o = 0; o < vinum_conf.drives_allocated; o++) {
+	get_drive_info(&drive, o);
+	if ((drive.state != drive_unallocated)		    /* drive exists */
+	&&(drive.state != drive_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_ldi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.volumes_allocated; o++) {
+	get_volume_info(&vol, o);
+	if ((vol.state != volume_unallocated)		    /* volume exists */
+	&&(vol.state != volume_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lvi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.plexes_allocated; o++) {
+	get_plex_info(&plex, o);
+	if ((plex.state != plex_unallocated)		    /* plex exists */
+	&&(plex.state != plex_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lpi(o, 0);				    /* print info */
+	}
+    }
+
+    for (o = 0; o < vinum_conf.subdisks_allocated; o++) {
+	get_sd_info(&sd, o);
+	if ((sd.state != sd_unallocated)		    /* sd exists */
+	&&(sd.state != sd_up)) {			    /* but it's not up */
+	    if (heading_needed) {
+		printf("Warning: defective objects\n\n");
+		heading_needed = 0;
+	    }
+	    vinum_lsi(o, 0);				    /* print info */
 	}
     }
 }
