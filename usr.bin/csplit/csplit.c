@@ -325,6 +325,8 @@ toomuch(FILE *ofp, long n)
 		for (i = 1; i <= nread; i++)
 			if (buf[nread - i] == '\n' && n-- == 0)
 				break;
+		if (ftello(ofp) == 0)
+			break;
 	} while (n > 0);
 	if (fseek(ofp, nread - i + 1, SEEK_CUR) != 0)
 		err(1, "%s", currfile);
