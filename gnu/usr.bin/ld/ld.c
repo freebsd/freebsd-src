@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.41 1997/02/22 15:46:20 peter Exp $
+ *	$Id: ld.c,v 1.42 1997/03/22 02:59:40 jdp Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -3798,7 +3798,15 @@ list_files()
 			error = 1;
 		else
 			close(fd);
-		printf("%s\n", entry->filename);
+
+		/*
+		 * Print the name even if the file doesn't exist except in
+		 * the -lfoo case.  This allows `ld -f' to work as well as
+		 * possible when it is used to generate dependencies before
+		 * the libraries exist.
+		 */
+		if (fd >= 0 || !(entry->flags & E_SEARCH_DIRS))
+			printf("%s\n", entry->filename);
 	}
 	exit(error);
 }
