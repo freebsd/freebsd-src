@@ -95,6 +95,10 @@ fwohci_pci_probe( device_t dev )
 	uint32_t id;
 
 	id = pci_get_devid(dev);
+	if (id == (FW_VENDORID_NATSEMI | FW_DEVICE_CS4210)) {
+		device_set_desc(dev, "National Semiconductor CS4210");
+		return 0;
+	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD861)) {
 		device_set_desc(dev, "NEC uPD72861");
 		return 0;
@@ -115,6 +119,11 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "NEC uPD72874");
 		return 0;
 	}
+	if (id == (FW_VENDORID_SIS | FW_DEVICE_7007)) {
+		/* It has no real identifier, using device id. */
+		device_set_desc(dev, "SiS 7007");
+		return 0;
+	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB22)) {
 		device_set_desc(dev, "Texas Instruments TSB12LV22");
 		return 0;
@@ -133,6 +142,10 @@ fwohci_pci_probe( device_t dev )
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43A)) {
 		device_set_desc(dev, "Texas Instruments TSB43AB22/A");
+		return 0;
+	}
+	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43AB21)) {
+		device_set_desc(dev, "Texas Instruments TSB43AB21/A/AI/A-EP");
 		return 0;
 	}
 	if (id == (FW_VENDORID_TI | FW_DEVICE_TITSB43AB23)) {
@@ -181,6 +194,14 @@ fwohci_pci_probe( device_t dev )
 	}
 	if (id == (FW_VENDORID_LUCENT | FW_DEVICE_FW322)) {
 		device_set_desc(dev, "Lucent FW322/323");
+		return 0;
+	}
+	if (id == (FW_VENDORID_INTEL | FW_DEVICE_82372FB)) {
+		device_set_desc(dev, "Intel 82372FB");
+		return 0;
+	}
+	if (id == (FW_VENDORID_ADAPTEC | FW_DEVICE_AIC5800)) {
+		device_set_desc(dev, "Adaptec AHA-894x/AIC-5800");
 		return 0;
 	}
 #endif
