@@ -28,10 +28,6 @@
 #ifndef _MACHINE_MPAPIC_H_
 #define _MACHINE_MPAPIC_H_
 
-#include <machine/apic.h>
-
-#include <i386/isa/icu.h>
-
 /*
  * Size of APIC ID list.
  * Also used a MAX size of various other arrays.
@@ -59,47 +55,5 @@ enum busTypes {
 #define ID_TO_CPU(ID)	(apic_id_to_logical[ID])
 #define IO_TO_ID(IO)	(io_num_to_apic_id[IO])
 #define ID_TO_IO(ID)	(apic_id_to_logical[ID])
-
-
-/*
- * send an IPI INTerrupt containing 'vector' to CPUs in 'targetMap'
- * 'targetMap' is a bitfiled of length 14,
- *   APIC #0 == bit 0, ..., APIC #14 == bit 14
- *   NOTE: these are LOGICAL APIC IDs
- */
-static __inline int
-selected_procs_ipi(int targetMap, int vector)
-{
-	return selected_apic_ipi(targetMap, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
- */
-static __inline int
-all_procs_ipi(int vector)
-{
-	return apic_ipi(APIC_DEST_ALLISELF, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to all CPUs EXCEPT myself
- */
-static __inline int
-all_but_self_ipi(int vector)
-{
-	if (mp_ncpus <= 1)
-		return 0;
-	return apic_ipi(APIC_DEST_ALLESELF, vector, APIC_DELMODE_FIXED);
-}
-
-/*
- * send an IPI INTerrupt containing 'vector' to myself
- */
-static __inline int
-self_ipi(int vector)
-{
-	return apic_ipi(APIC_DEST_SELF, vector, APIC_DELMODE_FIXED);
-}
 
 #endif /* _MACHINE_MPAPIC_H */
