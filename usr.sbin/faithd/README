@@ -1,14 +1,13 @@
 Configuring FAITH IPv6-to-IPv4 TCP relay
 
 Kazu Yamamoto and Jun-ichiro itojun Hagino
-$Id: README,v 1.1.1.1 1999/08/08 23:29:27 itojun Exp $
+$KAME: README,v 1.4 2000/05/31 03:16:14 itojun Exp $
 $FreeBSD$
-
 
 Introduction
 ============
 
-FAITH is a IPv6-to-IPv4 TCP relay.  It performs TCP relay just as some of
+FAITH is a IPv6-to-IPv4 TCP relay.  It performs tcp relay just as some of
 firewall-oriented gateway does, but between IPv6 and IPv4 with address
 translation.
 TCP connections has to be made from IPv6 node to IPv4 node.  FAITH will
@@ -34,7 +33,7 @@ FAITH will make it possible to make a IPv6 TCP connection From IPv6 node
 "src", toward IPv4 node "dest", by specifying FAITH-mapped address
 3ffe:0501:1234:ffff::123.4.5.6
 (which is, 3ffe:0501:1234:ffff:0000:0000:7b04:0506).
-The address mapping can be performed by hand:-), by special nameserver on
+The address mapping can be performed by hand:-), by speical nameserver on
 the network, or by special resolver on the source node.
 
 
@@ -42,7 +41,7 @@ Setup
 =====
 
 The following example assumes:
-- You have assigned 3ffe:0501:1234:ffff:: as FAITH address prefix.
+- You have assigned 3ffe:0501:1234:ffff:: as FAITH adderss prefix.
 - You are willing to provide IPv6-to IPv4 TCP relay for telnet.
 
 <<On the translating router on which faithd runs>>
@@ -58,13 +57,8 @@ The following example assumes:
 (3) Route packets toward FAITH prefix into "faith0" interface.
 
 	# ifconfig faith0 up
-	# route add -inet6 3ffe:0501:1234:ffff:: -prefixlen 64 -interface faith0
-
-	or, on platforms that has problem with "-interface":
-	# ifconfig faith0 up
 	# route add -inet6 3ffe:0501:1234:ffff:: -prefixlen 64 \
-		fe80:q::xxxx:yyyy:zzzz:wwww
-	(the last one is link-local address assigned for faith0)
+		fe80::xxxx:yyyy:zzzz:wwww%faith0
 
 (4) Execute "faithd" by root as follows:
 
@@ -82,7 +76,7 @@ The following example assumes:
 	# faithd login /usr/local/v6/libexec/rlogin rlogind
 	# faithd shell /usr/local/v6/libexec/rshd rshd
 	# faithd ftpd /usr/local/v6/libexec/ftpd ftpd -l
-	# faithd ssh
+	# faithd sshd
 
 
 <<Routing>>
@@ -96,13 +90,12 @@ There are two ways to translate IPv4 address to IPv6 address:
 	(a) Faked by DNS
 	(b) Faked by /etc/hosts.
 
-(5.a) Install "newbie" and set up FAITH mode. See kit/ports/newbie of
-      KAME package. KAME package is obtained from www.kame.net.
+(5.a) Install "newbie" and set up FAITH mode. See kit/ports/newbie.
 
 (5.b) Add an entry into /etc/hosts so that you can resolve hostname into
-faked IPv6 address.  For example, add the following line for www.freebsd.org:
+faked IPv6 addrss.  For example, add the following line for www.netbsd.org:
 
-	3ffe:0501:1234:ffff::204.216.27.21	www.freebsd.org
+	3ffe:0501:1234:ffff::140.160.140.252	www.netbsd.org
 
 <<On the translating router on which faithd runs.>>
 
@@ -125,16 +118,16 @@ want to do the following:
 
 By this way, you can restrict IPv4 destination to 123.0.0.0/8.
 You may also want to reject packets toward 3ffe:0501:1234:ffff::/64 which
-is not in 3ffe:0501:1234:ffff::123.0.0.0/104.  This will be left as exercise
+is not in 3ffe:0501:1234:ffff::123.0.0.0/104.  This will be left as excerside
 for the reader.
 
 By doing this, you will be able to provide your IPv4 web server to outside
 IPv6 customers, without risks of unwanted open relays.
 
-	[[[[ IPv6 network outside ]]]]			| 
+	[[[[ IPv6 network outside ]]]]			|
 		|					| connection
 	node that runs FAITH-daemon (usually a router)	v
 		|
-	========+======== IPv4/v6 network in your site 
+	========+======== IPv4/v6 network in your site
 		|			(123.0.0.0/8)
 	IPv4 web server
