@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.39 1996/08/04 22:34:23 wosch Exp $
+#	$Id: Makefile,v 1.40 1996/08/20 08:19:33 julian Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -22,11 +22,18 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 FILES+=	math.h
 .endif
 
+ARPAFILES=	ftp.h inet.h nameser.h telnet.h tftp.h
+
+PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
+
+RPCFILES=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
+		rpc.h rpc_msg.h svc.h svc_auth.h types.h xdr.h
+
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 LFILES=	errno.h fcntl.h syslog.h termios.h
 
-DIRS=	arpa protocols rpc
 LDIRS=  net netatalk netinet netipx netkey nfs pccard sys vm #netccitt netiso netns
+
 LUDIR=	ufs
 UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 
@@ -36,90 +43,69 @@ UDIRS=	ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 # SHARED=	copies
 SHARED?=	symlinks
 
-OSREL	= ${DESTDIR}/usr/include/osreldate.h
 beforeinstall: ${SHARED}
-	@${ECHO} installing ${FILES}
-	@cd ${.CURDIR}; \
-	for i in ${FILES}; do \
-		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
-		    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
-		    ${DESTDIR}/usr/include/$$i; \
-	done
+	cd ${.CURDIR}; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${FILES} ${DESTDIR}/usr/include
+	cd ${.CURDIR}/arpa; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${ARPAFILES} ${DESTDIR}/usr/include/arpa
+	cd ${.CURDIR}/protocols; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${PROTOFILES} ${DESTDIR}/usr/include/protocols
+	@rm -f osreldate.h
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
 	@${ECHO} creating osreldate.h from newvers.sh
 	. ${.CURDIR}/../sys/conf/newvers.sh;			\
-	echo "$$COPYRIGHT" >> ${OSREL}.new;			\
-	echo \#'undef __FreeBSD_version' >> ${OSREL}.new;	\
-	echo \#'define __FreeBSD_version' $$RELDATE >> ${OSREL}.new
+	echo "$$COPYRIGHT" > osreldate.h;			\
+	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
+	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
 .else
 	@${ECHO} creating osreldate.h from sysctl info
-	@echo \#'undef __FreeBSD_version' > ${OSREL}.new
+	@echo \#'undef __FreeBSD_version' > osreldate.h
 	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
-		>> ${OSREL}.new
+		>> osreldate.h
 .endif
-	@if cmp -s ${OSREL} ${OSREL}.new ; then \
-		rm -f ${OSREL}.new ; else \
-		mv -f ${OSREL}.new ${OSREL} ; fi
-	@chown ${BINOWN}.${BINGRP} ${OSREL}
-	@chmod 444 ${OSREL}
-	@${ECHO} installing ${DIRS}
-	@-for i in ${DIRS}; do \
-		if [ ! -d ${DESTDIR}/usr/include/$$i ]; \
-		then \
-			mkdir ${DESTDIR}/usr/include/$$i; \
-		fi; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
-		chmod 755 ${DESTDIR}/usr/include/$$i; \
-		(cd ${.CURDIR}/$$i; for j in *.[ih]; do \
-			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j || \
-			    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
-			    ${DESTDIR}/usr/include/$$i/$$j; \
-		done); \
-	done
-	@${ECHO} installing ${LFILES}
-	@-for i in ${LFILES}; do \
-		rm -f ${DESTDIR}/usr/include/$$i; \
-		ln -s sys/$$i ${DESTDIR}/usr/include/$$i; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
-	done
-	@${ECHO} installing ${MFILES}
-	@-for i in ${MFILES}; do \
-		rm -f ${DESTDIR}/usr/include/$$i; \
-		ln -s machine/$$i ${DESTDIR}/usr/include/$$i; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i; \
-	done
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 osreldate.h \
+		${DESTDIR}/usr/include
+.for i in ${LFILES}
+	ln -sf sys/$i ${DESTDIR}/usr/include/$i
+.endfor
+.for i in ${MFILES}
+	ln -sf machine/$i ${DESTDIR}/usr/include/$i
+.endfor
 
 copies:
-	rm -rf ${DESTDIR}/usr/include/${LUDIR}
-	mkdir ${DESTDIR}/usr/include/${LUDIR}
-	chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/${LUDIR}
-	chmod 755 ${DESTDIR}/usr/include/${LUDIR}
-	@-for i in ${LDIRS} ${UDIRS}; do				\
-		${ECHO} ${SHARED} $$i;					\
-		rm -rf ${DESTDIR}/usr/include/$$i;			\
-		cd ${.CURDIR}/../sys;					\
-		tar cf - $$i/*.h |					\
-			(cd ${DESTDIR}/usr/include; tar xpfB -);	\
-		chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;\
-		chmod -R 444 ${DESTDIR}/usr/include/$$i;		\
-		chmod 755 ${DESTDIR}/usr/include/$$i;			\
-	done
-	rm -rf ${DESTDIR}/usr/include/machine
-	mkdir ${DESTDIR}/usr/include/machine
-	cd ${.CURDIR}/../sys/${MACHINE}/include && \
-	    tar cf - *.h | (cd ${DESTDIR}/usr/include/machine; tar xpfB -);
-	chown -R ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/machine;
-	chmod -R 444 ${DESTDIR}/usr/include/machine;
-	chmod 755 ${DESTDIR}/usr/include/machine;
+.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+	if [ -h ${DESTDIR}/usr/include/$i ]; then \
+		rm -f ${DESTDIR}/usr/include/$i; \
+	fi
+.endfor
+.for i in ${LDIRS} ${UDIRS} ${LUDIR} machine
+	if [ ! -d ${DESTDIR}/usr/include/$i ]; then \
+		mkdir ${DESTDIR}/usr/include/$i; \
+		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$i; \
+		chmod 755 ${DESTDIR}/usr/include/$i; \
+	fi
+.endfor
+.for i in ${LDIRS} ${UDIRS}
+	cd ${.CURDIR}/../sys; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
+		${DESTDIR}/usr/include/$i
+.endfor
+.if exists(${.CURDIR}/../sys/${MACHINE}/include)
+	cd ${.CURDIR}/../sys/${MACHINE}/include; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+		${DESTDIR}/usr/include/machine
+.endif
 
 symlinks:
-	@for i in ${LDIRS} ${LUDIR}; do					\
-		${ECHO} ${SHARED} $$i;					\
-		rm -rf ${DESTDIR}/usr/include/$$i;			\
-		ln -s /sys/$$i ${DESTDIR}/usr/include/$$i;		\
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/$$i;	\
-	done
-	rm -rf ${DESTDIR}/usr/include/machine
-	ln -s /sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
+	@echo "Setting up symlinks to kernel source tree..."
+.for i in ${LDIRS} ${LUDIR}
+	rm -rf ${DESTDIR}/usr/include/$i && \
+		ln -s /sys/$i ${DESTDIR}/usr/include/$i
+.endfor
+	rm -rf ${DESTDIR}/usr/include/machine && \
+		ln -s /sys/${MACHINE}/include ${DESTDIR}/usr/include/machine
 
 .include <bsd.prog.mk>
