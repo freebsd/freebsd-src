@@ -592,6 +592,7 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 			}
 			break;
 		case 'd':
+		case 'i':
 			base = 10;
 			sign = 1;
 			goto handle_sign;
