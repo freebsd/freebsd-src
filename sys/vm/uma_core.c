@@ -2017,7 +2017,13 @@ uma_large_malloc(int size, int wait)
 	if (slab == NULL)
 		return (NULL);
 
-	mem = page_alloc(NULL, size, &flags, wait);
+	/* XXX: kmem_malloc panics if Giant isn't held and sleep allowed */
+	if ((wait & M_NOWAIT) == 0 && !mtx_owned(&Giant)) {
+		mtx_lock(&Giant);
+		mem = page_alloc(NULL, size, &flags, wait);
+		mtx_unlock(&Giant);
+	} else
+		mem = page_alloc(NULL, size, &flags, wait);
 	if (mem) {
 		vsetslab((vm_offset_t)mem, slab);
 		slab->us_data = mem;
@@ -2035,7 +2041,20 @@ void
 uma_large_free(uma_slab_t slab)
 {
 	vsetobj((vm_offset_t)slab->us_data, kmem_object);
-	page_free(slab->us_data, slab->us_size, slab->us_flags);
+	/* 
+	 * XXX: Giant is still needed by kmem_free, since we have
+	 * kmem_free -> vm_map_remove -> vm_map_delete ->
+	 *   vm_object_page_remove -> vm_object_pip_add -> GIANT_REQUIRED
+	 * We also get a lock order reversal if we don't have Giant:
+	 * vm_map_remove (locks system map) -> vm_map_delete ->
+	 *    vm_map_entry_unwire -> vm_fault_unwire -> mtx_lock(&Giant)
+	 */
+	if (!mtx_owned(&Giant)) {
+		mtx_lock(&Giant);
+		page_free(slab->us_data, slab->us_size, slab->us_flags);
+		mtx_unlock(&Giant);
+	} else
+		page_free(slab->us_data, slab->us_size, slab->us_flags);
 	uma_zfree_internal(slabzone, slab, NULL, 0);
 }
 
