@@ -374,7 +374,6 @@ snp_in(snp, buf, n)
 		wakeup((caddr_t)snp);
 	}
 	selwakeup(&snp->snp_sel);
-	snp->snp_sel.si_pid = 0;
 
 	return (n);
 }
@@ -449,7 +448,6 @@ snp_detach(snp)
 
 detach_notty:
 	selwakeup(&snp->snp_sel);
-	snp->snp_sel.si_pid = 0;
 	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
 		free(snp, M_SNP);
 

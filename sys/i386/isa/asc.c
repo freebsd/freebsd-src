@@ -484,7 +484,6 @@ ascattach(struct isa_device *isdp)
   scu->flags &= ~FLAG_DEBUG;
 
     scu->selp.si_flags=0;
-    scu->selp.si_pid=(pid_t)0;
 #define ASC_UID 0
 #define ASC_GID 13
   make_dev(&asc_cdevsw, unit<<6, ASC_UID, ASC_GID, 0666, "asc%d", unit);
@@ -531,10 +530,8 @@ ascintr(int unit)
 	if (scu->sbuf.size - scu->sbuf.count >= scu->linesize) {
 	    dma_restart(scu);
 	}
-	if (scu->selp.si_pid) {
+	if (SEL_WAITING(&scu->selp)) {
 	    selwakeup(&scu->selp);
-	    scu->selp.si_pid=(pid_t)0;
-	    scu->selp.si_flags = 0;
 	}
     }
 }

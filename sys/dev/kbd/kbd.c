@@ -523,8 +523,6 @@ genkbdopen(dev_t dev, int mode, int flag, struct thread *td)
 	bzero(&sc->gkb_q, sizeof(sc->gkb_q));
 #endif
 	clist_alloc_cblocks(&sc->gkb_q, KB_QSIZE, KB_QSIZE/2); /* XXX */
-	sc->gkb_rsel.si_flags = 0;
-	sc->gkb_rsel.si_pid = 0;
 	splx(s);
 
 	return 0;
