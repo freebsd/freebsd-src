@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.9 1997/02/22 16:10:59 peter Exp $
+ * $Id: timer.c,v 1.10 1997/02/25 14:05:17 brian Exp $
  *
  *  TODO:
  */
@@ -271,7 +271,7 @@ void usleep( u_int usec)
 void InitTimerService( void ) {
   struct itimerval itimer;
 
-  pending_signal(SIGALRM, (void (*)(int))TimerService);
+  signal(SIGALRM, (void (*)(int))TimerService);
   itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
   itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
   setitimer(ITIMER_REAL, &itimer, NULL);
@@ -287,6 +287,6 @@ void TermTimerService( void ) {
    * Notes: after disabling timer here, we will get one
    *        SIGALRM will be got.
    */
-  pending_signal(SIGALRM, SIG_IGN);
+  signal(SIGALRM, SIG_IGN);
 }
 #endif
