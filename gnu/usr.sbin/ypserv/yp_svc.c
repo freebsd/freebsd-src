@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.3 1995/05/30 05:05:37 rgrimes Exp $
+ *	$Id: yp_svc.c,v 1.4 1995/07/04 21:58:38 wpaul Exp $
  */
 
 #include "system.h"
@@ -316,8 +316,8 @@ int main(int argc, char **argv)
     }
 
     /*
-     * Ignore SIGPIPEs. They can hurt us is someone does a ypcat
-     * and then hits CTRL-C before it terminales.
+     * Ignore SIGPIPEs. They can hurt us if someone does a ypcat
+     * and then hits CTRL-C before it terminates.
      */
     signal(SIGPIPE, SIG_IGN);
 
