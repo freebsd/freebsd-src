@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.11
+    Original revision: 1.12
 -->
 <sect1 id="support-sys">
   <title>対応システム</title>
@@ -50,10 +50,10 @@
           <para>Fire V120</para>
         </listitem>
         <listitem>
-          <para>Netra t1 105</para> 
+          <para>Netra t1 105</para>
         </listitem>
         <listitem>
-          <para>Netra T1 AC200/DC200</para> 
+          <para>Netra T1 AC200/DC200</para>
         </listitem>
         <listitem>
           <para>Netra t 1100</para>
@@ -78,6 +78,15 @@
         </listitem>
         <listitem>
           <para>SPARCEngine Ultra AXmp</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 1E</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 2</para>
+        </listitem>
+        <listitem>
+	  <para>Ultra 5</para>
         </listitem>
         <listitem>
           <para>Ultra 5</para>
@@ -110,12 +119,6 @@
         </listitem>
         <listitem>
           <para>Enterprise 4500</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 1 Enterprise (略称 1E)</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 2</para>
         </listitem>
       </itemizedlist>
   </sect2>
