@@ -12,24 +12,23 @@ ENCODING     "NONE"
 ALPHA		'A' - 'Z' 'a' - 'z' '¡' - 'ê'
 CONTROL		0x00 - 0x1f 0x7f
 DIGIT		'0' - '9'
-GRAPH		0x21 - 0x7e
+GRAPH           0x21 - 0x7e 0x80 - 0xfa
 LOWER		'a' - 'z'
 PUNCT		0x21 - 0x2f 0x3a - 0x40 0x5b - 0x60 0x7b - 0x7e
 SPACE		0x09 - 0x0d 0x20
 UPPER		'A' - 'Z'
 XDIGIT          '0' - '9' 'a' - 'f' 'A' - 'F'
 BLANK		' ' '\t'
-PRINT		0x20 - 0xfa
-# IDEOGRAM
-# SPECIAL
-# PHONEGRAM
+PRINT           0x20 - 0x7e 0x80 - 0xfa
 
 /* ?DIGIT         'ñ' - 'ú' */
 
 MAPLOWER       	<'A' - 'Z' : 'a'>
 MAPLOWER       	<'a' - 'z' : 'a'>
+
 MAPUPPER       	<'A' - 'Z' : 'A'>
 MAPUPPER       	<'a' - 'z' : 'A'>
+
 TODIGIT       	<'0' - '9' : 0>
 TODIGIT       	<'ñ' - 'ú' : 0>
 TODIGIT       	<'A' - 'F' : 10>
