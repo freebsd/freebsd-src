@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_ppp.8,v 1.3 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd August 2, 2004
 .Dt NG_PPP 4
 .Os
 .Sh NAME
@@ -303,18 +303,18 @@ This node type supports the generic control messages, plus the following:
 This command configures all aspects of the node.
 This includes enabling
 multi-link PPP, encryption, compression, Van Jacobson compression, and IP,
-AppleTalk, and IPX packet delivery.
+IPv6, AppleTalk, and IPX packet delivery.
 It includes per-link configuration,
 including enabling the link, setting latency and bandwidth parameters,
 and enabling protocol field compression.
 Note that no link or functionality
 is active until the corresponding hook is also connected.
 This command takes a
-.Dv "struct ng_ppp_node_config"
+.Dv "struct ng_ppp_node_conf"
 as an argument:
 .Bd -literal -offset 0n
 /* Per-link config structure */
-struct ng_ppp_link_config {
+struct ng_ppp_link_conf {
   u_char    enableLink;     /* enable this link */
   u_char    enableProtoComp;/* enable protocol field compression */
   u_char    enableACFComp;  /* enable addr/ctrl field compression */
@@ -323,14 +323,15 @@ struct ng_ppp_link_config {
   u_int32_t bandwidth;      /* link bandwidth (in bytes/second) */
 };
 
-/* Node config structure */
-struct ng_ppp_node_config {
+/* Bundle config structure */
+struct ng_ppp_bund_conf {
   u_int16_t mrru;                   /* multilink peer MRRU */
   u_char    enableMultilink;        /* enable multilink */
   u_char    recvShortSeq;           /* recv multilink short seq # */
   u_char    xmitShortSeq;           /* xmit multilink short seq # */
   u_char    enableRoundRobin;       /* xmit whole packets */
   u_char    enableIP;               /* enable IP data flow */
+  u_char    enableIPv6;             /* enable IPv6 data flow */
   u_char    enableAtalk;            /* enable AppleTalk data flow */
   u_char    enableIPX;              /* enable IPX data flow */
   u_char    enableCompression;      /* enable PPP compression */
@@ -339,14 +340,17 @@ struct ng_ppp_node_config {
   u_char    enableDecryption;       /* enable PPP decryption */
   u_char    enableVJCompression;    /* enable VJ compression */
   u_char    enableVJDecompression;  /* enable VJ decompression */
-  struct ng_ppp_link_config          /* per link config params */
-            links[NG_PPP_MAX_LINKS];
+};
+
+struct ng_ppp_node_conf {
+  struct ng_ppp_bund_conf   bund;
+  struct ng_ppp_link_conf   links[NG_PPP_MAX_LINKS];
 };
 .Ed
 .Pp
 .It Dv NGM_PPP_GET_CONFIG
 Returns the current configuration as a
-.Dv "struct ng_ppp_node_config" .
+.Dv "struct ng_ppp_node_conf" .
 .It Dv NGM_PPP_GET_LINK_STATS
 This command takes a two byte link number as an argument and returns a
 .Dv "struct ng_ppp_link_stat"
