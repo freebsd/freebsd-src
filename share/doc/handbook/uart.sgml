@@ -1,4 +1,4 @@
-<!-- $Id: uart.sgml,v 1.1.1.1 1996/01/13 00:00:00 uhclem Exp $ -->
+<!-- $Id: uart.sgml,v 1.1 1996/02/16 13:28:22 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -481,10 +481,10 @@ Pin	Pin	Symbol	Symbol
 	(A description of the numbering system can be found below.)  
 	
 	It is important to understand that in some stores, you may pay
-	$15(US) for a NS16550AFN made in 1990 and in the next bin are the
+	&dollar;15(US) for a NS16550AFN made in 1990 and in the next bin are the
 	new PC16550DN parts with minor fixes that National has made since the
 	AFN part was in production, the PC16550DN was probably made in the
-	past six months and it costs half (as low as $5(US) in volume) as
+	past six months and it costs half (as low as &dollar;5(US) in volume) as
 	much as the NS16550AFN because they are readily available.
 
 	As the supply of NS16550AFN chips continues to shrink, the price will
@@ -1104,4 +1104,5 @@ Port	Allowed
 	designer free to components that may have better performance
 	characteristics. 
 
-601131
+<!-- 601131 ? -->
+
