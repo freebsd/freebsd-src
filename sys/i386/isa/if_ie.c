@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.2 1993/11/25 01:31:36 wollman Exp $
+ *	$Id: if_ie.c,v 1.6 1994/05/27 04:02:04 rgrimes Exp $
  */
 
 /*
@@ -1748,6 +1748,17 @@ ieioctl(ifp, command, data)
     }
     break;
 #endif /* MULTICAST */
+
+  case SIOCSIFMTU:
+    /*
+     * Set the interface MTU.
+     */
+    if (ifr->ifr_mtu > ETHERMTU) {
+      error = EINVAL;
+    } else {
+      ifp->if_mtu = ifr->ifr_mtu;
+    }
+    break;
 
   default:
     error = EINVAL;
