@@ -43,6 +43,8 @@
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>

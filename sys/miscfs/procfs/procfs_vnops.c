@@ -54,6 +54,8 @@
 #include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
