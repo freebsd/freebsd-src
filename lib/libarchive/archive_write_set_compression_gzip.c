@@ -200,6 +200,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 	if ((ret = drive_compressor(a, state, 0)) != ARCHIVE_OK)
 		return (ret);
 
+	a->file_position += length;
 	return (length);
 }
 
@@ -270,6 +271,7 @@ archive_compressor_gzip_finish(struct archive *a)
 	if (tocopy < 8) {
 		ret = (a->client_writer)(a, a->client_data, state->compressed,
 		    state->compressed_buffer_size);
+		a->raw_position += ret;
 		state->stream.next_out = state->compressed;
 		state->stream.avail_out = state->compressed_buffer_size;
 		memcpy(state->stream.next_out, trailer + tocopy, 8-tocopy);

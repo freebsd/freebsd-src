@@ -172,6 +172,7 @@ archive_compressor_bzip2_write(struct archive *a, const void *buff,
 	state->stream.avail_in = length;
 	if (drive_compressor(a, state, 0))
 		return (-1);
+	a->file_position += length;
 	return (length);
 }
 
@@ -244,6 +245,7 @@ archive_compressor_bzip2_finish(struct archive *a)
 	ret = (a->client_writer)(a, a->client_data, state->compressed,
 	    block_length);
 
+	a->raw_position += ret;
 	if (ret != 0)
 		goto cleanup;
 
@@ -295,6 +297,7 @@ drive_compressor(struct archive *a, struct private_data *state, int finishing)
 				    state->compressed_buffer_size - ret);
 			}
 
+			a->raw_position += ret;
 			state->stream.next_out = state->compressed +
 			    state->compressed_buffer_size - ret;
 			state->stream.avail_out = ret;
