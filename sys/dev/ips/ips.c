@@ -39,11 +39,11 @@ static d_ioctl_t ips_ioctl;
 
 #define IPS_CDEV_MAJOR 175
 static struct cdevsw ips_cdevsw = {
-	.d_open = ips_open,
-	.d_close = ips_close,
-	.d_ioctl = ips_ioctl,
-	.d_name = "ips",
-	.d_maj = IPS_CDEV_MAJOR,
+	.d_open =	ips_open,
+	.d_close =	ips_close,
+	.d_ioctl =	ips_ioctl,
+	.d_name =	"ips",
+	.d_maj =	IPS_CDEV_MAJOR,
 };
 
 static const char* ips_adapter_name[] = {
