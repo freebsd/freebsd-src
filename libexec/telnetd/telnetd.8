@@ -369,7 +369,9 @@ DO TIMING-MARK
 .Ed
 .Pp
 The pseudo-terminal allocated to the client is configured
-to operate in \*(lqcooked\*(rq mode, and with
+to operate in
+.Dq cooked
+mode, and with
 .Dv XTABS and
 .Dv CRMOD
 enabled (see
@@ -513,6 +515,7 @@ Only sent if
 is compiled with support for data encryption, and
 indicates a willingness to decrypt
 the data stream.
+.El
 .Sh NOTES
 By default
 .Nm
@@ -599,6 +602,7 @@ Telnet Authentication: SPX
 Telnet Environment Option Interoperability Issues
 .It Cm RFC-1572
 Telnet Environment Option
+.El
 .Sh BUGS
 Some
 .Tn TELNET
