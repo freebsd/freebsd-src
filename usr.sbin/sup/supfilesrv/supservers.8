@@ -23,6 +23,11 @@
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .\" HISTORY
 .\" $Log: supservers.8,v $
+.\" Revision 1.1.1.1  1995/12/26 04:54:48  peter
+.\" Import the unmodified version of the sup that we are using.
+.\" The heritage of this version is not clear.  It appears to be NetBSD
+.\" derived from some time ago.
+.\"
 .\" Revision 1.1.1.1  1993/08/21  00:46:35  jkh
 .\" Current sup with compression support.
 .\"
@@ -167,6 +172,14 @@ will cause
 .I 
 supscan
 to produce output messages as it scans the files in the collection.
+The "release" option
+.I -r
+causes
+.I supscan
+to only update the scan file for the specified release.  More than one
+release may be specified by using
+.I -r
+multiple times.
 The "system" flag
 .I 
 -s
