@@ -9,6 +9,7 @@
  * authorized by a written license agreement from QSSL. For more information,
  * please email licensing@qnx.com.
  *
+ * For more details, see QNX_OCL.txt provided with this distribution.
  */
 
 /*
@@ -52,7 +53,7 @@ unsigned char *data;
 int datlen, *off;
 unsigned short *port;
 {
-	u_32_t addr;
+	u_32_t addr, netaddr;
 	u_char *dp;
 	int offset;
 
@@ -62,10 +63,11 @@ unsigned short *port;
 	*port = 0;
 	offset = *off;
 	dp = (u_char *)data;
+	netaddr = ntohl(ipaddr);
 
 	for (offset = 0; offset <= datlen - 6; offset++, dp++) {
 		addr = (dp[0] << 24) | (dp[1] << 16) | (dp[2] << 8) | dp[3];
-		if (ipaddr == addr)
+		if (netaddr == addr)
 		{
 			*port = (*(dp + 4) << 8) | *(dp + 5);
 			break;

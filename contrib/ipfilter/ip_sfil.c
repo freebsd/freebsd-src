@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.16 2002/04/05 08:43:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.20 2002/08/28 12:42:44 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -61,7 +61,13 @@ int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
 u_long	ipl_frouteok[2] = {0, 0};
 static	int	frzerostats __P((caddr_t));
+#if SOLARIS2 >= 7
+static	u_int	*ip_ttl_ptr;
+static	u_int	*ip_mtudisc;
+#else
 static	u_long	*ip_ttl_ptr;
+static	u_long	*ip_mtudisc;
+#endif
 
 static	int	frrequest __P((minor_t, int, caddr_t, int));
 static	int	send_ip __P((fr_info_t *fin, mblk_t *m));
@@ -82,8 +88,8 @@ int ipldetach()
 	for (i = IPL_LOGMAX; i >= 0; i--)
 		ipflog_clear(i);
 #endif
-	i = FR_INQUE|FR_OUTQUE;
-	(void) frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
+	i = frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
+	i += frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
 	ipfr_unload();
 	fr_stateunload();
 	ip_natunload();
@@ -138,16 +144,22 @@ int iplattach __P((void))
 		return -1;
 
 	ip_ttl_ptr = NULL;
+	ip_mtudisc = NULL;
 	/*
 	 * XXX - There is no terminator for this array, so it is not possible
 	 * to tell if what we are looking for is missing and go off the end
 	 * of the array.
 	 */
 	for (i = 0; ; i++) {
-		if (!strcmp(ip_param_arr[i].ip_param_name, "ip_def_ttl")) {
+		if (strcmp(ip_param_arr[i].ip_param_name, "ip_def_ttl") == 0) {
 			ip_ttl_ptr = &ip_param_arr[i].ip_param_value;
-			break;
+		} else if (strcmp(ip_param_arr[i].ip_param_name,
+				  "ip_path_mtu_discovery") == 0) {
+			ip_mtudisc = &ip_param_arr[i].ip_param_value;
 		}
+
+		if (ip_mtudisc != NULL && ip_ttl_ptr != NULL)
+			break;
 	}
 	return 0;
 }
@@ -195,6 +207,9 @@ int *rp;
 	unit = getminor(dev);
 	if (IPL_LOGMAX < unit)
 		return ENXIO;
+
+	if (fr_running == 0 && (cmd != SIOCFRENB || unit != IPL_LOGIPF))
+		return ENODEV;
 
 	if (fr_running <= 0)
 		return 0;
@@ -422,7 +437,8 @@ caddr_t data;
 	 * Check that the group number does exist and that if a head group
 	 * has been specified, doesn't exist.
 	 */
-	if ((req != SIOCZRLST) && fp->fr_grhead &&
+	if ((req != SIOCZRLST) && ((req == SIOCINAFR) || (req == SIOCINIFR) ||
+	     (req == SIOCADAFR) || (req == SIOCADIFR)) && fp->fr_grhead &&
 	    fr_findgroup(fp->fr_grhead, fp->fr_flags, unit, set, NULL)) {
 		error = EEXIST;
 		goto out;
@@ -791,6 +807,7 @@ mblk_t *m;
 		ip = (ip_t *)m->b_rptr;
 		ip->ip_v = IPVERSION;
 		ip->ip_ttl = (u_char)(*ip_ttl_ptr);
+		ip->ip_off = htons(*ip_mtudisc ? IP_DF : 0);
 		ip_wput(((qif_t *)fin->fin_qif)->qf_ill->ill_wq, m);
 	}
 	READ_ENTER(&ipf_solaris);

@@ -13,7 +13,11 @@
 
 #if defined(__FreeBSD__)
 # ifndef __FreeBSD_version
-#  include <sys/osreldate.h>
+#  ifdef IPFILTER_LKM
+#   include <osreldate.h>
+#  else
+#   include <sys/osreldate.h>
+#  endif
 # endif
 # ifdef	IPFILTER_LKM
 #  define	ACTUALLY_LKM_NOT_KERNEL

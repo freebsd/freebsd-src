@@ -19,17 +19,19 @@ mapit ::= "map" | "bimap" .
 fromto ::= "from" object "to" object .
 ipmask ::= ip "/" bits | ip "/" mask | ip "netmask" mask .
 dstipmask ::= ipmask | "range" ip "-" ip .
-mapport ::= "portmap" tcpudp portnumber ":" portnumber .
+mapport ::= "portmap" tcpudp portspec .
 options ::= [ tcpudp ] [ rr ] .
 
-object  = addr [ port-comp | port-range ] .
-addr    = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
-port-comp = "port" compare port-num .
-port-range = "port" port-num range port-num .
+object  :: = addr [ port-comp | port-range ] .
+addr    :: = "any" | nummask | host-name [ "mask" ipaddr | "mask" hexnumber ] .
+port-comp :: = "port" compare port-num .
+port-range :: = "port" port-num range port-num .
 
 rr ::= "round-robin" .
+nummask = host-name [ "/" decnumber ] .
 tcpudp ::= "tcp" | "udp" | "tcp/udp" .
-portnumber ::= number { numbers } | "auto" .
+portspec ::= "auto" | portnumber ":" portnumber .
+portnumber ::= number { numbers } .
 ifname ::= 'A' - 'Z' { 'A' - 'Z' } numbers .
 
 numbers ::= '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' .
@@ -94,6 +96,15 @@ or as
 map de0 from 10.1.0.0/16 to any -> 201.2.3.4/32
 .fi
 .LP
+For even greater control, one may negate either of the "from" or "to" clauses
+with a preceding exclamation mark ("!").  Please note that one may not use a
+negated "from" within a \fBmap\fP rule or a negated "to" within a \fBrdr\fP
+rule.  Such a rule might look like the following:
+.LP
+.nf
++map de0 from 10.1.0.0/16 ! to 10.1.0.0/16 -> 201.2.3.4/32
+.fi
+.PP
 Only IP address and port numbers can be compared against.  This is available
 with all NAT rules.
 .SH TRANSLATION
