@@ -49,6 +49,9 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_VARARGS_H_
+#define	_MACHINE_VARARGS_H_
+
 #if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 
 #include <sys/_types.h>
@@ -67,9 +70,6 @@ typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 #define	va_end(ap)		__builtin_va_end(ap)
 
 #else	/* ! __GNUC__ post GCC 2.95 */
-
-#ifndef _MACHINE_VARARGS_H_
-#define	_MACHINE_VARARGS_H_
 
 #include <machine/stdarg.h>
 
