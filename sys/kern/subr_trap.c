@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.133 1999/01/06 23:05:36 julian Exp $
+ *	$Id: trap.c,v 1.134 1999/03/09 20:20:09 phk Exp $
  */
 
 /*
@@ -666,16 +666,6 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
-#ifndef VM_STACK
-		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
-			if (!grow(p, va)) {
-				rv = KERN_FAILURE;
-				--p->p_lock;
-				goto nogo;
-			}
-		}
-
-#else
 		/* grow_stack returns false only if va falls into
 		 * a growable stack region and the stack growth
 		 * fails.  It returns true if va was not within
@@ -687,7 +677,6 @@ trap_pfault(frame, usermode, eva)
 			--p->p_lock;
 			goto nogo;
 		}
-#endif
 		
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
@@ -791,15 +780,6 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
-#ifndef VM_STACK
-		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
-			if (!grow(p, va)) {
-				rv = KERN_FAILURE;
-				--p->p_lock;
-				goto nogo;
-			}
-		}
-#else
 		/* grow_stack returns false only if va falls into
 		 * a growable stack region and the stack growth
 		 * fails.  It returns true if va was not within
@@ -811,7 +791,6 @@ trap_pfault(frame, usermode, eva)
 			--p->p_lock;
 			goto nogo;
 		}
-#endif
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
@@ -999,19 +978,10 @@ int trapwrite(addr)
 
 	++p->p_lock;
 
-#ifndef VM_STACK
-	if ((caddr_t)va >= vm->vm_maxsaddr && va < USRSTACK) {
-		if (!grow(p, va)) {
-			--p->p_lock;
-			return (1);
-		}
-	}
-#else
 	if (!grow_stack (p, va)) {
 		--p->p_lock;
 		return (1);
 	}
-#endif
 
 	/*
 	 * fault the data page

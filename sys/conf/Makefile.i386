@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.145 1999/04/15 14:52:23 bde Exp $
+#	$Id: Makefile.i386,v 1.146 1999/04/16 21:22:09 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -38,7 +38,7 @@ INCLUDES+= -I$S/../include
 .else
 INCLUDES+= -I/usr/include
 .endif
-COPTS=	${INCLUDES} ${IDENT} -DKERNEL -DVM_STACK -include opt_global.h 
+COPTS=	${INCLUDES} ${IDENT} -DKERNEL -include opt_global.h 
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".

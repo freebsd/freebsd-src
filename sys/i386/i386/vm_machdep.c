@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.119 1999/02/16 10:49:48 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.120 1999/02/19 14:25:33 luoqi Exp $
  */
 
 #include "npx.h"
@@ -507,60 +507,6 @@ cpu_reset_real()
 	while(1);
 }
 
-#ifndef VM_STACK
-/*
- * Grow the user stack to allow for 'sp'. This version grows the stack in
- *	chunks of SGROWSIZ.
- */
-int
-grow(p, sp)
-	struct proc *p;
-	u_int sp;
-{
-	unsigned int nss;
-	caddr_t v;
-	struct vmspace *vm = p->p_vmspace;
-
-	if ((caddr_t)sp <= vm->vm_maxsaddr || sp >= USRSTACK)
-		return (1);
-
-	nss = roundup(USRSTACK - sp, PAGE_SIZE);
-
-	if (nss > p->p_rlimit[RLIMIT_STACK].rlim_cur)
-		return (0);
-
-	if (vm->vm_ssize && roundup(vm->vm_ssize << PAGE_SHIFT,
-	    SGROWSIZ) < nss) {
-		int grow_amount;
-		/*
-		 * If necessary, grow the VM that the stack occupies
-		 * to allow for the rlimit. This allows us to not have
-		 * to allocate all of the VM up-front in execve (which
-		 * is expensive).
-		 * Grow the VM by the amount requested rounded up to
-		 * the nearest SGROWSIZ to provide for some hysteresis.
-		 */
-		grow_amount = roundup((nss - (vm->vm_ssize << PAGE_SHIFT)), SGROWSIZ);
-		v = (char *)USRSTACK - roundup(vm->vm_ssize << PAGE_SHIFT,
-		    SGROWSIZ) - grow_amount;
-		/*
-		 * If there isn't enough room to extend by SGROWSIZ, then
-		 * just extend to the maximum size
-		 */
-		if (v < vm->vm_maxsaddr) {
-			v = vm->vm_maxsaddr;
-			grow_amount = MAXSSIZ - (vm->vm_ssize << PAGE_SHIFT);
-		}
-		if ((grow_amount == 0) || (vm_map_find(&vm->vm_map, NULL, 0, (vm_offset_t *)&v,
-		    grow_amount, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != KERN_SUCCESS)) {
-			return (0);
-		}
-		vm->vm_ssize += grow_amount >> PAGE_SHIFT;
-	}
-
-	return (1);
-}
-#else
 int
 grow_stack(p, sp)
 	struct proc *p;
@@ -574,7 +520,6 @@ grow_stack(p, sp)
 
 	return (1);
 }
-#endif
 
 SYSCTL_DECL(_vm_stats_misc);
 
