@@ -1038,7 +1038,9 @@ mac_test_execve_transition(struct ucred *old, struct ucred *new,
 	ASSERT_CRED_LABEL(old->cr_label);
 	ASSERT_CRED_LABEL(new->cr_label);
 	ASSERT_VNODE_LABEL(filelabel);
-	ASSERT_VNODE_LABEL(interpvnodelabel);
+	if (interpvnodelabel != NULL) {
+		ASSERT_VNODE_LABEL(interpvnodelabel);
+	}
 	if (execlabel != NULL) {
 		ASSERT_CRED_LABEL(execlabel);
 	}
