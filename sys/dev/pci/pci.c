@@ -1232,6 +1232,9 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	dinfo = device_get_ivars(child);
 
 	switch (which) {
+	case PCI_IVAR_INTPIN:
+		dinfo->cfg.intpin = value;
+		return (0);
 	case PCI_IVAR_ETHADDR:
 	case PCI_IVAR_SUBVENDOR:
 	case PCI_IVAR_SUBDEVICE:
@@ -1242,7 +1245,6 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	case PCI_IVAR_SUBCLASS:
 	case PCI_IVAR_PROGIF:
 	case PCI_IVAR_REVID:
-	case PCI_IVAR_INTPIN:
 	case PCI_IVAR_IRQ:
 	case PCI_IVAR_BUS:
 	case PCI_IVAR_SLOT:
