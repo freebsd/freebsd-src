@@ -41,7 +41,7 @@
 .Nm ccd
 .Nd Concatenated Disk driver
 .Sh SYNOPSIS
-.Cd "pseudo-device ccd 4"
+.Cd "device ccd 4"
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,7 +49,7 @@ driver provides the capability of combining one or more disks/partitions
 into one virtual disk.
 .Pp
 This document assumes that you're familiar with how to generate kernels,
-how to properly configure disks and pseudo-devices in a kernel
+how to properly configure disks and devices in a kernel
 configuration file, and how to partition disks.
 .Pp
 Note that the
@@ -65,7 +65,7 @@ as shown as
 In order to compile in support for the ccd, you must add a line similar
 to the following to your kernel configuration file:
 .Bd -unfilled -offset indent
-pseudo-device	ccd	4	# concatenated disk devices
+device	ccd	4	# concatenated disk devices
 .Ed
 .Pp
 The count argument is how many
@@ -77,7 +77,7 @@ may be configured.  As of the
 release, you do not need to
 configure your kernel with ccd but may instead use it as a kernel loadable
 module.  Simply running
-.Nm ccdconfig 
+.Nm ccdconfig
 will load the module into the kernel.
 .Pp
 A
@@ -107,7 +107,7 @@ on two Fast-Wide SCSI buses, this translates to about 128 for writes
 and 32 for reads.  A larger interleave tends to work better when the
 disk is taking a multitasking load by localizing the file I/O from
 any given process onto a single disk.  You lose sequential performance when
-you do this, but sequential performance is not usually an issue with a 
+you do this, but sequential performance is not usually an issue with a
 multitasking load.
 .Pp
 An interleave factor must be specified when using a mirroring configuration,
@@ -172,11 +172,11 @@ file system will be lost unless you are mirroring the disks.
 If one of the disks in a mirror is lost, you should still
 be able to backup your data.  If a write error occurs, however, data
 read from that sector may be non-deterministic.  It may return the data
-prior to the write or it may return the data that was written.  When a 
+prior to the write or it may return the data that was written.  When a
 write error occurs, you should recover and regenerate the data as soon
 as possible.
 .Pp
-Changing the interleave or other parameters for a 
+Changing the interleave or other parameters for a
 .Nm
 disk usually destroys whatever data previously existed on that disk.
 .Sh FILES

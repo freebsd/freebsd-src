@@ -9,16 +9,16 @@
 .Nm spkr
 .Nd console speaker device driver
 .Sh SYNOPSIS
-.Cd pseudo-device speaker
+.Cd device speaker
 .Fd #include <machine/speaker.h>
 .Sh DESCRIPTION
 The speaker device driver allows applications to control the PC console
-speaker on an 
+speaker on an
 .Tn IBM-PC Ns --compatible
 machine running
 .Fx .
 .Pp
-Only one process may have this device open at any given time; 
+Only one process may have this device open at any given time;
 .Xr open 2
 and
 .Xr close 2
@@ -30,7 +30,7 @@ error
 indication.
 Writes to the device are interpreted as `play strings' in a
 simple ASCII melody notation.
-An 
+An
 .Xr ioctl 2
 request
 for tone generation at arbitrary
@@ -41,10 +41,10 @@ spends most of its time sleeping while the PC hardware is emitting
 tones.
 Other processes may emit beeps while the driver is running.
 .Pp
-Applications may call 
+Applications may call
 .Xr ioctl 2
 on a speaker file descriptor to control the
-speaker driver directly; definitions for the 
+speaker driver directly; definitions for the
 .Xr ioctl 2
 interface are in
 .Pa /usr/include/machine/speaker.h .
@@ -59,7 +59,7 @@ At present there are two such
 calls.
 .Dv SPKRTONE
 accepts a pointer to a
-single tone structure as third argument and plays it. 
+single tone structure as third argument and plays it.
 .Dv SPKRTUNE
 accepts a
 pointer to the first of an array of tone structures and plays them in
@@ -67,7 +67,7 @@ continuous sequence; this array must be terminated by a final member with
 a zero duration.
 .Pp
 The play-string language is modelled on the PLAY statement conventions of
-.Tn IBM 
+.Tn IBM
 Advanced BASIC 2.0.  The
 .Li MB ,
 .Li MF ,
@@ -89,8 +89,8 @@ Play command groups are as follows:
 .Bl -tag -width CDEFGABxx
 .It Li CDEFGAB
 Letters A through G cause the corresponding note to be played in the
-current octave.  A note letter may optionally be followed by an 
-.Dq Em "accidental sign" , 
+current octave.  A note letter may optionally be followed by an
+.Dq Em "accidental sign" ,
 one of # + or -; the first two of these cause it to be sharped one
 half-tone, the last causes it to be flatted one half-tone.  It may
 also be followed by a time value number and by sustain dots (see
@@ -111,7 +111,7 @@ possible jump between notes.
 Thus ``olbc'' will be played as
 ``olb>c'', and ``olcb'' as ``olc<b''.  Octave locking is disabled for
 one letter note following >, < and O[0123456].  (The octave-locking
-feature is not supported in 
+feature is not supported in
 .Tn IBM
 BASIC.)
 .It Li >
@@ -119,13 +119,13 @@ Bump the current octave up one.
 .It Li <
 Drop the current octave down one.
 .It Ns Li N Sy n
-Play note 
+Play note
 .Sy n ,
 .Sy n
 being 1 to 84 or 0 for a rest of current time value.
 May be followed by sustain dots.
 .It Ns Li L Sy n
-Sets the current time value for notes.  The default is 
+Sets the current time value for notes.  The default is
 .Li L4 ,
 quarter or crotchet notes.
 The lowest possible value is 1; values up
@@ -137,9 +137,9 @@ sets half notes,
 .Li L4
 sets quarter notes, etc.
 .It Ns Li P Sy n
-Pause (rest), with 
+Pause (rest), with
 .Sy n
-interpreted as for 
+interpreted as for
 .Li L Sy n .
 May be followed by
 sustain dots.  May also be written
@@ -188,11 +188,11 @@ sustain dots.
 Each dot causes the note's value to be lengthened by one-half
 for each one.
 Thus, a note dotted once is held for 3/2 of its undotted value;
-dotted twice, it is held 9/4, and three times would give 27/8. 
+dotted twice, it is held 9/4, and three times would give 27/8.
 .Pp
 A note and its sustain dots may also be followed by a slur mark (underscore).
 This causes the normal micro-rest after the note to be filled in, slurring it
-to the next one.  (The slur feature is not supported in 
+to the next one.  (The slur feature is not supported in
 .Tn IBM
 BASIC.)
 .Pp
@@ -209,7 +209,7 @@ notation, in which each dot adds half the value of the previous dot
 modifier, not half the value of the note as modified.  Thus, a note dotted
 once is held for 3/2 of its undotted value; dotted twice, it is held 7/4,
 and three times would give 15/8.  The multiply-by-3/2 interpretation,
-however, is specified in the 
+however, is specified in the
 .Tn IBM
 BASIC manual and has been retained for
 compatibility.

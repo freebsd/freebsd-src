@@ -33,11 +33,11 @@
 .Nm splash
 .Nd splash screen / screen saver interface
 .Sh SYNOPSIS
-.Cd "pseudo-device splash"
+.Cd "device splash"
 .Sh DESCRIPTION
 The
 .Nm
-pseudo device driver adds support for the splash screen and screen 
+pseudo device driver adds support for the splash screen and screen
 savers to the kernel.
 This driver is required if the splash bitmap image is to be loaded or
 any screen saver is to be used.
@@ -47,12 +47,12 @@ on the screen when the system is about to start.
 This image will remain on the screen
 during kernel initialization process
 until the login prompt appears on the screen
-or until a screen saver is loaded and initialized. 
+or until a screen saver is loaded and initialized.
 The image will also disappear if you hit any key,
 although this may not work immediately
 if the kernel is still probing devices.
 .Pp
-If you specify the  
+If you specify the
 .Fl c
 or
 .Fl v
@@ -116,7 +116,7 @@ Twinkling stars.
 Streaking stars.
 .El
 .Pp
-Screen saver modules can be loaded using 
+Screen saver modules can be loaded using
 .Xr kldload 8 :
 .Pp
 .Dl kldload logo_saver
@@ -132,12 +132,12 @@ variable in the
 to the screen saver of your choice and
 the timeout value to the
 .Ar blanktime
-variable so that the screen saver is automatically loaded 
+variable so that the screen saver is automatically loaded
 and the timeout value is set when the system starts.
 .Pp
 The screen saver may be instantly activated by hitting the
 .Ar saver
-key: the defaults are 
+key: the defaults are
 .Em Shift-Pause
 on the AT enhanced keyboard and
 .Em Shift-Ctrl-NumLock/Pause
@@ -152,7 +152,7 @@ function to a key of your preference.
 .Pp
 The screen saver will not run if the screen is not in text mode.
 .Ss Splash screen as a screen saver
-If you load a splash image but do not load a screen saver, 
+If you load a splash image but do not load a screen saver,
 you can continue using the splash module as a screen saver.
 The screen blanking interval can be specified as described in the
 .Sx Screen saver
@@ -172,10 +172,10 @@ screen saver modules
 the VESA support module
 .El
 .Sh EXAMPLES
-In order to load the splash screen or the screen saver, you must 
+In order to load the splash screen or the screen saver, you must
 have the following line in the kernel configuration file.
 .Pp
-.Dl pseudo-device splash
+.Dl device splash
 .Pp
 Next, edit
 .Pa /boot/loader.conf
@@ -187,7 +187,7 @@ bitmap_load="YES"
 bitmap_name="chuck.bmp"
 .Ed
 .Pp
-In the above example, the file 
+In the above example, the file
 .Pa chuck.bmp
 is loaded.
 In the following example, the VESA module

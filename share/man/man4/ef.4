@@ -30,11 +30,11 @@
 .Os
 .Sh NAME
 .Nm ef
-.Nd "pseudo-device driver provides support for multiple ethernet frame types"
+.Nd "pseudo-device driver providing support for multiple ethernet frame types"
 .Sh SYNOPSIS
 .Cd "kldload if_ef.ko"
 .Sh DESCRIPTION
-The 
+The
 .Nm
 pseudo-device driver clones each ethernet type device with four
 additional interfaces. Each of them capable to send or receive only
@@ -42,7 +42,7 @@ one predefined frame type.
 .Pp
 Names for the new interfaces created by adding
 .Ar fN
-suffix to an existing device name. Where 
+suffix to an existing device name. Where
 .Ar N
 is a device unit which can have one of the following values:
 .Bd -literal -offset indent
@@ -87,7 +87,7 @@ in the
 .Xr rc.conf 5
 file:
 .Dl network_interfaces="ed2 lo0 tun0 ed2f0 ed2f1"
-.Dl ifconfig_ed2f0_ipx="ipx 0x101"     
+.Dl ifconfig_ed2f0_ipx="ipx 0x101"
 .Dl ifconfig_ed2f1_ipx="ipx 0x102"
 .Sh DIAGNOSTICS
 None.

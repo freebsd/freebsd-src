@@ -21,7 +21,7 @@
 .\" 4. Neither the name of the Company nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
-.\"  
+.\"
 .\" This software is provided ``as is'', and any express or implied
 .\" warranties, including, but not limited to, the implied warranties of
 .\" merchantability and fitness for a particular purpose are disclaimed.
@@ -145,7 +145,7 @@ started correctly when the subsystem is enabled.  This is also a significant
 advantage over the Veritas\(tm File System.  This feature regards the presence
 of the volumes.  It does not mean that the volumes will be mounted
 automatically, since the standard startup procedures with
-.Pa /etc/fstab 
+.Pa /etc/fstab
 perform this function.
 .El
 .Sh KERNEL CONFIGURATION
@@ -161,7 +161,7 @@ It is possible to configure
 in the kernel, but this is not recommended.  To do so, add this line to the
 kernel configuration file:
 .Bd -literal -offset indent
-pseudo-device	vinum
+device	vinum
 .Ed
 .Pp
 .Ss DEBUG OPTIONS
@@ -244,7 +244,7 @@ program are active.  Unloading the kld does not harm the data in the volumes.
 Use the
 .Xr vinum 8
 utility to configure and start
-.Nm 
+.Nm
 objects.
 .Sh IOCTL CALLS
 .Pa ioctl
@@ -271,12 +271,12 @@ result, the
 .Fl r
 option of
 .Xr disklabel 8 ,
-which reads the 
-.if t ``raw disk'', 
-.if n "raw disk", 
+which reads the
+.if t ``raw disk'',
+.if n "raw disk",
 will fail.
 .Pp
-In general, 
+In general,
 .Xr disklabel 8
 serves no useful purpose on a vinum volume.  If you run it, it will show you
 three partitions, a, b and c, all the same except for the fstype, for example:
@@ -333,19 +333,19 @@ plexes and subdisks may be up to 64 characters long, and the names of drives may
 up to 32 characters long.  When choosing volume and plex names, bear in mind
 that automatically generated plex and subdisk names are longer than the name
 from which they are derived.
-.Bl -bullet 
+.Bl -bullet
 .It
 When
 .Xr vinum 8
 creates or deletes objects, it creates a directory
 .Pa /dev/vinum ,
-in which it makes device entries for each volume it finds.  It also creates 
+in which it makes device entries for each volume it finds.  It also creates
 subdirectories,
 .Pa /dev/vinum/plex ,
-.Pa /dev/vinum/sd 
-and 
+.Pa /dev/vinum/sd
+and
 .Pa /dev/vinum/rsd ,
-in which it stores device entries for the plexes and subdisks.  
+in which it stores device entries for the plexes and subdisks.
 .Pa /dev/vinum/sd
 contains block device entries, while
 .Pa /dev/vinum/rsd
@@ -366,20 +366,20 @@ and
 .Pa /dev/vinum/control
 is used by
 .Xr vinum 8
-when it has been compiled without the VINUMDEBUG option, 
+when it has been compiled without the VINUMDEBUG option,
 .Pa /dev/vinum/Control
 is used by
 .Xr vinum 8
-when it has been compiled with the VINUMDEBUG option, 
+when it has been compiled with the VINUMDEBUG option,
 and
 .Pa /dev/vinum/controld
-is used by the 
+is used by the
 .Nm
 daemon.  The two control devices for
 .Xr vinum 8
 are used to synchronize the debug status of kernel and user modules.
 .It
-Unlike 
+Unlike
 .Nm UNIX
 drives,
 .Nm
@@ -394,12 +394,12 @@ end in the letters
 to
 .Ar c ,
 you must use the
-.Fl v 
+.Fl v
 flag to
 .Nm newfs
 in order to tell it to ignore this convention.
 .\"
-.It 
+.It
 Plexes do not need to be assigned explicit names.  By default, a plex name is
 the name of the volume followed by the letters \f(CW.p\fR and the number of the
 plex.  For example, the plexes of volume
@@ -421,7 +421,7 @@ are called
 and so on.
 .br
 .It
-By contrast, 
+By contrast,
 .Nm drives
 must be named.  This makes it possible to move a drive to a different location
 and still recognize it automatically.  Drive names may be up to 32 characters
@@ -430,7 +430,7 @@ long.
 .Pp
 EXAMPLE
 .Pp
-Assume the 
+Assume the
 .Nm
 objects described in the section CONFIGURATION FILE in
 .Xr vinum 8 .
@@ -588,14 +588,14 @@ crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 rvol5
 .Pp
 In the case of unattached plexes and subdisks, the naming is reversed.  Subdisks
 are named after the disk on which they are located, and plexes are named after
-the subdisk.  
+the subdisk.
 .\" XXX
 .Nm This mapping is still to be determined.
 .Ss OBJECT STATES
 .Pp
 Each
 .Nm
-object has a \fIstate\fR associated with it. 
+object has a \fIstate\fR associated with it.
 .Nm
 uses this state to determine the handling of the object.
 .Pp
@@ -725,7 +725,7 @@ yet implemented.
 The RAID-5 functionality is new in
 .Fx 3.3 .
 Some problems have been
-reported with 
+reported with
 .Nm
 in combination with soft updates, but these are not reproducible on all
 systems.  If you are planning to use
@@ -797,10 +797,10 @@ sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 4098
 .if t .ps
 .Pp
 The first line contains the
-.Nm 
+.Nm
 label and must start with the text
 .Li IN VINO .
-It also contains the name of the system.  The exact definition is contained in 
+It also contains the name of the system.  The exact definition is contained in
 .Pa /usr/src/sys/dev/vinum/vinumvar.h .
 The saved configuration starts in the middle of the line with the text
 .Li volume obj state up
@@ -827,10 +827,10 @@ command if you have this kind of trouble.
 .Pp
 In order to analyse a panic which you suspect comes from
 .Nm
-you will need to build a debug kernel.  See the online handbook at 
-.Pa /usr/share/doc/handbook/kerneldebug.html 
+you will need to build a debug kernel.  See the online handbook at
+.Pa /usr/share/doc/handbook/kerneldebug.html
 (if installed) or
-.Pa http://www.FreeBSD.org/handbook/kerneldebug.html  
+.Pa http://www.FreeBSD.org/handbook/kerneldebug.html
 for more details of how to do this.
 .Pp
 Perform the following steps to analyse a
@@ -842,14 +842,14 @@ Copy the files
 .Pa /usr/src/sys/modules/vinum/.gdbinit.crash ,
 .Pa /usr/src/sys/modules/vinum/.gdbinit.kernel ,
 .Pa /usr/src/sys/modules/vinum/.gdbinit.serial ,
-.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum 
+.Pa /usr/src/sys/modules/vinum/.gdbinit.vinum
 and
 .Pa /usr/src/sys/modules/vinum/.gdbinit.vinum.paths
 to the directory in which you will be performing the analysis, typically
 .Pa /var/crash .
 .It
 Make sure that you build the
-.Nm 
+.Nm
 module with debugging information.  The standard
 .Pa Makefile
 builds a module with debugging symbols by default.  If the version of
@@ -860,8 +860,8 @@ does not contain symbols, you will not get an error message, but the stack trace
 will not show the symbols.  Check the module before starting
 .Nm gdb :
 .Bd -literal
-$ file /modules/vinum.ko 
-/modules/vinum.ko: ELF 32-bit LSB shared object, Intel 80386, 
+$ file /modules/vinum.ko
+/modules/vinum.ko: ELF 32-bit LSB shared object, Intel 80386,
   version 1 (FreeBSD), not stripped
 .Ed
 .Pp
@@ -886,9 +886,9 @@ Either take a dump or use remote serial
 .Cm gdb
 to analyse the problem.  To analyse a dump, say
 .Pa /var/crash/vmcore.5 ,
-link 
+link
 .Pa /var/crash/.gdbinit.crash
-to 
+to
 .Pa /var/crash/.gdbinit
 and enter:
 .Bd -literal
@@ -900,10 +900,10 @@ This example assumes that you have installed the correct debug kernel at
 .Pa /var/crash/kernel.debug .
 If not, substitute the correct name of the debug kernel.
 .Pp
-To perform remote serial debugging, 
-link 
+To perform remote serial debugging,
+link
 .Pa /var/crash/.gdbinit.serial
-to 
+to
 .Pa /var/crash/.gdbinit
 and enter
 .Bd -literal
@@ -911,7 +911,7 @@ and enter
 # gdb -k kernel.debug
 .Ed
 .Pp
-In this case, the 
+In this case, the
 .Pa .gdbinit
 file performs the functions necessary to establish connection.  The remote
 machine must already be in debug mode: enter the kernel debugger and select
@@ -934,24 +934,24 @@ GDB 4.16 (i386-unknown-freebsd), Copyright 1996 Free Software Foundation, Inc.
 Debugger (msg=0xf1093174 "vinum debug") at ../../i386/i386/db_interface.c:318
 318                 in_Debugger = 0;
 #1  0xf108d9bc in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6dedee0 "",
-    flag=0x3, p=0xf68b7940) at 
+    flag=0x3, p=0xf68b7940) at
     /usr/src/sys/modules/Vinum/../../dev/Vinum/vinumioctl.c:102
 102             Debugger ("vinum debug");
 (kgdb) bt
 #0  Debugger (msg=0xf0f661ac "vinum debug") at ../../i386/i386/db_interface.c:318
-#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "", 
-      flag=0x3, p=0xf688e6c0) at 
+#1  0xf0f60a7c in vinumioctl (dev=0x40001900, cmd=0xc008464b, data=0xf6923ed0 "",
+      flag=0x3, p=0xf688e6c0) at
       /usr/src/sys/modules/vinum/../../dev/vinum/vinumioctl.c:109
 #2  0xf01833b7 in spec_ioctl (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:424
 #3  0xf0182cc9 in spec_vnoperate (ap=0xf6923e0c) at ../../miscfs/specfs/spec_vnops.c:129
 #4  0xf01eb3c1 in ufs_vnoperatespec (ap=0xf6923e0c) at ../../ufs/ufs/ufs_vnops.c:2312
-#5  0xf017dbb1 in vn_ioctl (fp=0xf1007ec0, com=0xc008464b, data=0xf6923ed0 "", 
+#5  0xf017dbb1 in vn_ioctl (fp=0xf1007ec0, com=0xc008464b, data=0xf6923ed0 "",
       p=0xf688e6c0) at vnode_if.h:395
 #6  0xf015dce0 in ioctl (p=0xf688e6c0, uap=0xf6923f84) at ../../kern/sys_generic.c:473
-#7  0xf0214c0b in syscall (frame={tf_es = 0x27, tf_ds = 0x27, tf_edi = 0xefbfcff8, 
-      tf_esi = 0x1, tf_ebp = 0xefbfcf90, tf_isp = 0xf6923fd4, tf_ebx = 0x2, 
+#7  0xf0214c0b in syscall (frame={tf_es = 0x27, tf_ds = 0x27, tf_edi = 0xefbfcff8,
+      tf_esi = 0x1, tf_ebp = 0xefbfcf90, tf_isp = 0xf6923fd4, tf_ebx = 0x2,
       tf_edx = 0x804b614, tf_ecx = 0x8085d10, tf_eax = 0x36, tf_trapno = 0x7,
-      tf_err = 0x2, tf_eip = 0x8060a34, tf_cs = 0x1f, tf_eflags = 0x286, 
+      tf_err = 0x2, tf_eip = 0x8060a34, tf_cs = 0x1f, tf_eflags = 0x286,
       tf_esp = 0xefbfcf78, tf_ss = 0x27}) at ../../i386/i386/trap.c:1100
 #8  0xf020a1fc in Xint0x80_syscall ()
 #9  0x804832d in ?? ()
@@ -1012,7 +1012,7 @@ first appeared in
 .Fx 3.0 .
 The RAID-5 component of
 .Nm
-was developed by Cybernet Inc. 
+was developed by Cybernet Inc.
 .Pa www.cybernet.com
 for its NetMAX product.
 .Sh SEE ALSO
