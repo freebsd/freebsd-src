@@ -654,10 +654,9 @@ inserted(void *arg)
 	 */
 	sp->pwr.vcc = 50;
 	sp->pwr.vpp = 0;
-	if (sp->pwr_off_pending) {
-		untimeout(power_off_slot, (caddr_t)sp, sp->poff_ch);
+	untimeout(power_off_slot, (caddr_t)sp, sp->poff_ch);
+	if (sp->pwr_off_pending)
 		sp->ctrl->disable(sp);
-	}
 	sp->pwr_off_pending = 0;
 	sp->ctrl->power(sp);
 	printf("Card inserted, slot %d\n", sp->slot);
