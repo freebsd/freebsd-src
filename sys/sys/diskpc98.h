@@ -250,7 +250,7 @@ static const char *dktypenames[] = {
 #define	FS_VINUM	14		/* Vinum drive */
 #define	FS_JFS2		21		/* IBM JFS2 */
 
-#ifdef	DKTYPENAMES
+#ifdef	FSTYPENAMES
 static const char *fstypenames[] = {
 	"unused",
 	"swap",
