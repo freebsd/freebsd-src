@@ -792,7 +792,7 @@ const struct puc_device_description puc_devices[] = {
 	 */
 
 	/* Oxford Semiconductor OX16PCI954 PCI UARTs */
-	{   "Qxford Semiconductor OX16PCI954 UARTs",
+	{   "Oxford Semiconductor OX16PCI954 UARTs",
 	    {	0x1415,	0x9501,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
 	    {
@@ -804,7 +804,7 @@ const struct puc_device_description puc_devices[] = {
 	},
 
 	/* Oxford Semiconductor OX16PCI954 PCI Parallel port */
-	{   "Qxford Semiconductor OX16PCI954 Parallel port",
+	{   "Oxford Semiconductor OX16PCI954 Parallel port",
 	    {	0x1415,	0x9513,	0,	0	},
 	    {	0xffff,	0xffff,	0,	0	},
 	    {
