@@ -5,7 +5,7 @@ VOLUME=	papers
 DOC=	releng
 SRCS=	0.t 1.t 2.t 3.t
 MACROS=	-ms
-EXTRA=	ref.bib tmac.srefs
+EXTRA=	ref.bib
 
 USE_REFER=	yes
 
