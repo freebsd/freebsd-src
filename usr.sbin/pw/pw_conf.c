@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw_conf.c,v 1.7 1997/10/10 06:23:36 charnier Exp $";
+	"$Id: pw_conf.c,v 1.8 1999/02/23 07:15:10 davidn Exp $";
 #endif /* not lint */
 
 #include <string.h>
@@ -98,7 +98,8 @@ static struct userconf config =
 	1000, 32000,		/* Allowed range of uids */
 	1000, 32000,		/* Allowed range of gids */
 	0,			/* Days until account expires */
-	0			/* Days until password expires */
+	0,			/* Days until password expires */
+	0			/* size of default_group array */
 };
 
 static char const *comments[_UC_FIELDS] =
