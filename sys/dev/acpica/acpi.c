@@ -1216,10 +1216,10 @@ acpi_MatchHid(device_t dev, char *hid)
 	return (FALSE);
     devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
-    if ((devinfo->Valid & ACPI_VALID_HID) != 0) {
-	if (strcmp(hid, devinfo->HardwareId.Value) == 0)
+    if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
+	strcmp(hid, devinfo->HardwareId.Value) == 0)
 	    ret = TRUE;
-    } else if ((devinfo->Valid & ACPI_VALID_CID) != 0) {
+    else if ((devinfo->Valid & ACPI_VALID_CID) != 0) {
 	for (i = 0; i < devinfo->CompatibilityId.Count; i++) {
 	    if (strcmp(hid, devinfo->CompatibilityId.Id[i].Value) == 0) {
 		ret = TRUE;
