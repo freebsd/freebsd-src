@@ -39,17 +39,17 @@
 .Nd build system configuration files
 .Sh SYNOPSIS
 .Nm config
-.Op Fl p
-.Ar system_name
+.Op Fl gp
+.Ar SYSTEM_NAME
 .Sh DESCRIPTION
 .Pp
 This is the old version of the
 .Nm config
 program.
 It understands the old autoconfiguration scheme
-used on the HP300, DECstation, and derivative platforms.
+used on the HP300, i386, DECstation, and derivative platforms.
 The new version of config is used with the
-SPARC and i386 platforms.
+SPARC platform.
 Only the version of 
 .Nm config
 applicable to the architecture that you are running
@@ -73,6 +73,12 @@ section below)
 Available option and operand:
 .Pp
 .Bl -tag -width SYSTEM_NAME
+.It Fl g
+If the
+.Fl g
+option is supplied, 
+.Nm config
+will configure a system for debugging.
 .It Fl p
 If the
 .Fl p
@@ -92,24 +98,22 @@ and other system parameters for one system configuration.
 should be run from the
 .Pa conf
 subdirectory of the system source (usually
-.Pa /sys/conf ) .
+.Pa /sys/ARCH/conf ) .
 .Nm Config
 assumes the directory
-.Pa ../SYSTEM_NAME
+.Pa ../../compile/SYSTEM_NAME
 exists and places all output files there.  
 The output of
 .Nm config
 consists of a number of files; for the
-.Tn VAX ,
+.Tn i386 ,
 they are:
 .Pa ioconf.c ,
 a description
 of what I/O devices are attached to the system;
-.Pa ubglue.s ,
+.Pa vector.h ,
 a set of interrupt service routines for devices
-attached to the
-.Tn UNIBUS ;
-.Pa ubvec.s ,
+attached to the bus plus
 offsets into a structure used for counting per-device interrupts;
 .Pa Makefile ,
 used by
@@ -140,20 +144,20 @@ should be run again.
 Attempts to compile a system that had configuration errors
 are likely to fail.
 .Sh FILES
-.Bl -tag -width /sys/conf/Makefile.vax -compact
-.It Pa /sys/conf/Makefile.vax
-generic makefile for the
-.Tn VAX
+.Bl -tag -width /sys/i386/conf/Makefile.i386 -compact
 .It Pa /sys/conf/files
 list of common files system is built from
-.It Pa /sys/conf/files.vax
+.It Pa /sys/i386/conf/Makefile.i386
+generic makefile for the
+.Tn i386
+.It Pa /sys/i386/conf/files.i386
 list of
-.Tn VAX
+.Tn i386
 specific files
-.It Pa /sys/conf/devices.vax
+.It Pa /sys/i386/conf/devices.i386
 name to major device mapping file for the
-.Tn VAX
-.It Pa /sys/conf/files. Ns Em ERNIE
+.Tn i386
+.It Pa /sys/i386/conf/files. Ns Em ERNIE
 list of files specific to
 .Em ERNIE
 system

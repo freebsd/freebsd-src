@@ -101,6 +101,7 @@ usage:		fputs("usage: config [-gp] sysname\n", stderr);
 		exit(2);
 	}
 
+	loadaddress = -1;
 	dtab = NULL;
 	confp = &conf_list;
 	compp = &comp_list;
