@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 .if ${MACHINE_ARCH} == "amd64"
-MACHINE_ARCH=i386
-MACHINE=i386
+.MAKEFLAGS:  MACHINE_ARCH=i386 MACHINE=i386 REALLY_AMD64=true
 .endif
 
 .if !defined(NOFORTH)

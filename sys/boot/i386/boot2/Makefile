@@ -109,3 +109,15 @@ install:
 		boot2 ${DESTDIR}${BINDIR}/boot2
 
 .include <bsd.prog.mk>
+
+.if defined(REALLY_AMD64)
+boot2.o: machine
+
+beforedepend ${OBJS}: machine
+
+machine:
+	ln -sf ${.CURDIR}/../../../i386/include machine
+
+CLEANFILES+=	machine
+.endif
+
