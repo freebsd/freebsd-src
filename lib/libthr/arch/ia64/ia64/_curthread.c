@@ -52,7 +52,7 @@ _set_curthread(ucontext_t *uc, struct pthread *thread)
 {
 
 	if (uc != NULL)
-		uc->uc_mcontext.mc_gr[13] = (uint64_t)thread;
+		uc->uc_mcontext.mc_special.tp = (uint64_t)thread;
 	else
 		_tp = thread;
 	return (NULL);
