@@ -550,13 +550,30 @@ JobPrintCommand(void *cmdp, void *jobp)
     cmdTemplate = "%s\n";
 
     /*
-     * Check for leading @' and -'s to control echoing and error checking.
+     * Check for leading @', -' or +'s to control echoing, error checking,
+     * and execution on -n.
      */
-    while (*cmd == '@' || *cmd == '-') {
-	if (*cmd == '@') {
+    while (*cmd == '@' || *cmd == '-' || *cmd == '+') {
+	switch (*cmd) {
+
+	  case '@':
 	    shutUp = DEBUG(LOUD) ? FALSE : TRUE;
-	} else {
+	    break;
+
+	  case '-':
 	    errOff = TRUE;
+	    break;
+
+	  case '+':
+	    if (noSpecials) {
+		/*
+		 * We're not actually exececuting anything...
+		 * but this one needs to be - use compat mode just for it.
+		 */
+		Compat_RunCommand(cmdp, job->node);
+		return (0);
+	    }
+	    break;
 	}
 	cmd++;
     }
