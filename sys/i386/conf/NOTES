@@ -630,7 +630,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #
 # Miscellaneous hardware:
 #
-# wt: Wangtek and Archive QIC-02/QIC-36 tape drives
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
@@ -692,11 +691,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #	Brumby:                      flags 2          msize 0x4000
 #	Stallion:                    flags 1          msize 0x10000
 
-device		wt	1
-hint.wt.0.at="isa"
-hint.wt.0.port="0x300"
-hint.wt.0.irq="5"
-hint.wt.0.drq="1"
 device		ctx
 hint.ctx.0.at="isa"
 hint.ctx.0.port="0x230"
