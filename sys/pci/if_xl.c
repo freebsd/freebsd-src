@@ -1373,6 +1373,7 @@ xl_attach(dev)
 		sc->xl_flags |= XL_FLAG_PHYOK;
 
 	switch (did) {
+	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_575A:
 	case TC_DEVICEID_HURRICANE_575B:
 	case TC_DEVICEID_HURRICANE_575C:
