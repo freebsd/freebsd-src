@@ -307,6 +307,7 @@ struct sadb_x_ipsecrequest {
 #define SADB_X_AALG_SHA2_256	5
 #define SADB_X_AALG_SHA2_384	6
 #define SADB_X_AALG_SHA2_512	7
+#define SADB_X_AALG_RIPEMD160HMAC	9	/*8*/
 /* private allocations should use 249-255 (RFC2407) */
 #define SADB_X_AALG_MD5		249	/* Keyed MD5 */
 #define SADB_X_AALG_SHA		250	/* Keyed SHA */
@@ -324,6 +325,7 @@ struct sadb_x_ipsecrequest {
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
 /* private allocations should use 249-255 (RFC2407) */
+#define	SADB_X_EALG_SKIPJACK	249
 
 #if 1	/*nonstandard */
 #define SADB_X_CALG_NONE	0
