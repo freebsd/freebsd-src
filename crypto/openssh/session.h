@@ -1,5 +1,4 @@
 /*	$OpenBSD: session.h,v 1.19 2002/06/30 21:59:45 deraadt Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.

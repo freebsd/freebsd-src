@@ -14,7 +14,6 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: sshconnect.c,v 1.137 2002/11/21 23:03:51 deraadt Exp $");
-RCSID("$FreeBSD$");
 
 #include <openssl/bn.h>
 

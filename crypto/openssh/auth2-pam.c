@@ -1,6 +1,5 @@
 #include "includes.h"
 RCSID("$Id: auth2-pam.c,v 1.15 2003/01/08 01:37:03 djm Exp $");
-RCSID("$FreeBSD$");
 
 #ifdef USE_PAM
 #include <security/pam_appl.h>
