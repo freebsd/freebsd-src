@@ -1,5 +1,5 @@
 #
-#	$Id: ttys,v 1.2 1998/09/02 01:34:57 brian Exp $
+#	$Id: ttys,v 1.2.2.1 1999/02/12 04:03:39 wes Exp $
 #	@(#)ttys	5.1 (Berkeley) 4/17/89
 #
 # name	getty				type	status		comments
@@ -34,7 +34,12 @@ ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
 ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv2	"/usr/libexec/getty Pc"		cons25	on  secure
-ttyv3	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
+ttyv3	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv4	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv5	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv6	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
+ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
 ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
