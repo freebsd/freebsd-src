@@ -9,8 +9,8 @@ LDADD+=		-L${.CURDIR}/../lib -linstall
 DPADD+=		${.CURDIR}/../lib/libinstall.a
 .endif
 
-LDADD+=         -lftpio
-DPADD+=         ${LIBFTPIO}
+LDADD+=         -lftpio -lmd
+DPADD+=         ${LIBFTPIO} ${LIBMD}
 
 SRCS= main.c perform.c show.c
 
