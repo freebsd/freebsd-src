@@ -36,6 +36,23 @@ fi
 
 # Setup DEVFS, ie permissions, links etc.
 #
-if [ -c /dev/ttyv0 ]; then
-	ln -fs /dev/ttyv0 /dev/vga
+cd /dev
+
+# This isn't necessarily a good example, since we probably shouldn't need this.
+# However, a lot of X software depends on it.
+#
+if [ -c ttyv0 ]; then
+	ln -fs ttyv0 vga
 fi
+
+# Commonly used by many ports
+#
+#if [ -c acd0c ]; then
+#	ln -fs acd0c cdrom
+#fi
+
+# Allow users to query the smb device
+#
+#if [ -c smb0 ]; then
+#	chmod 660 smb0
+#fi
