@@ -51,7 +51,7 @@ static const char rcsid[] =
 #include <setjmp.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <syslog.h>
 #include <unistd.h>
 

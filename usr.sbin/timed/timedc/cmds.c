@@ -50,7 +50,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 
 #define TSPTYPES
