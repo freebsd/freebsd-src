@@ -200,6 +200,20 @@ wrcd(struct ac97_info *codec, int reg, u_int16_t val)
 	AC97_WRITE(codec->methods, codec->devinfo, reg, val);
 }
 
+static void
+ac97_reset(struct ac97_info *codec)
+{
+	u_int32_t i, ps;
+	wrcd(codec, AC97_REG_RESET, 0);
+	for (i = 0; i < 500; i++) {
+		ps = rdcd(codec, AC97_REG_POWER) & AC97_POWER_STATUS;
+		if (ps == AC97_POWER_STATUS) 
+			return;
+		DELAY(1000);
+	}
+	device_printf(codec->dev, "AC97 reset timed out.");
+}
+
 int
 ac97_setrate(struct ac97_info *codec, int which, int rate)
 {
@@ -372,8 +386,7 @@ ac97_initmixer(struct ac97_info *codec)
 	}
 
 	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
-	wrcd(codec, AC97_REG_RESET, 0);
-	DELAY(100000);
+	ac97_reset(codec);
 	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
 
 	i = rdcd(codec, AC97_REG_RESET);
@@ -456,8 +469,6 @@ ac97_initmixer(struct ac97_info *codec)
 static unsigned
 ac97_reinitmixer(struct ac97_info *codec)
 {
-	unsigned i;
-
 	snd_mtxlock(codec->lock);
 	codec->count = AC97_INIT(codec->methods, codec->devinfo);
 	if (codec->count == 0) {
@@ -467,10 +478,8 @@ ac97_reinitmixer(struct ac97_info *codec)
 	}
 
 	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
-	wrcd(codec, AC97_REG_RESET, 0);
-	DELAY(100000);
+	ac97_reset(codec);
 	wrcd(codec, AC97_REG_POWER, (codec->flags & AC97_F_EAPD_INV)? 0x8000 : 0x0000);
-	i = rdcd(codec, AC97_REG_RESET);
 
 	if (!codec->noext) {
 		wrcd(codec, AC97_REGEXT_STAT, codec->extstat);

@@ -56,6 +56,12 @@
 #define AC97_REG_GEN	0x20
 #define AC97_REG_3D	0x22
 #define AC97_REG_POWER	0x26
+#define		AC97_POWER_ADC		(1 << 0)
+#define		AC97_POWER_DAC		(1 << 1)
+#define		AC97_POWER_ANL		(1 << 2)
+#define		AC97_POWER_REF		(1 << 3)
+#define		AC97_POWER_STATUS	(AC97_POWER_ADC | AC97_POWER_DAC | \
+					 AC97_POWER_REF | AC97_POWER_ANL )
 #define AC97_REGEXT_ID		0x28
 #define 	AC97_EXTCAP_VRA		(1 << 0)
 #define 	AC97_EXTCAP_DRA		(1 << 1)
