@@ -246,10 +246,13 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	int bytes = obj->nchains * sizeof(SymCache);
 	int r = -1;
 	
+	/* The relocation for the dynamic loader has already been done. */
+	if (obj == obj_rtld)
+		return (0);
 	/*
  	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
-	 * 	 	 	 */
+	 */
 	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
 	if (cache == MAP_FAILED)
 		cache = NULL;
