@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.6 1994/09/25 22:31:11 davidg Exp $
+ * $Id: vm_swap.c,v 1.7 1994/10/09 01:52:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -42,8 +42,8 @@
 #include <sys/namei.h>
 #include <sys/dmap.h>		/* XXX */
 #include <sys/vnode.h>
-#include <sys/map.h>
 #include <sys/file.h>
+#include <sys/rlist.h>
 
 #include <miscfs/specfs/specdev.h>
 
@@ -390,7 +390,7 @@ swfree(p, index)
 		blk = niswap;
 		for (swp = &swdevt[niswdev]; swp != sp; swp++)
 			blk += swp->sw_nblks;
-		rlist_free(&swapmap, blk, blk + nblks - 1); 
+		rlist_free(&swaplist, blk, blk + nblks - 1); 
 		vm_swap_size += nblks;
 		return (0);
 	}
@@ -409,7 +409,7 @@ swfree(p, index)
 			blk = dmmax;
 		/* XXX -- we need to exclude the first cluster as above */
 		/* but for now, this will work fine... */
-		rlist_free(&swapmap, vsbase, vsbase + blk - 1); 
+		rlist_free(&swaplist, vsbase, vsbase + blk - 1); 
 		vm_swap_size += blk;
 	}
 	return (0);

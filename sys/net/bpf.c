@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.2 1994/08/02 07:45:51 davidg Exp $
+ * $Id: bpf.c,v 1.3 1994/08/20 03:48:55 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -58,7 +58,6 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/ioctl.h>
-#include <sys/map.h>
 
 #include <sys/file.h>
 #if defined(sparc) && BSD < 199103

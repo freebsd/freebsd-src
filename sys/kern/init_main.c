@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.11 1994/09/25 19:33:33 phk Exp $
+ * $Id: init_main.c,v 1.12 1994/10/02 04:45:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -45,7 +45,6 @@
 #include <sys/exec.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/map.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
