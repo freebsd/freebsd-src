@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.3 1998/03/13 00:44:21 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.4 1998/03/16 07:37:56 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -107,15 +107,15 @@ When
 is set up as server, you can also configure it to do proxy arp for your
 connection.
 .It Supports packet filtering.
-User can define four kinds of filters:
-.Em ifilter
-for incoming packets,
-.Em ofilter
-for outgoing packets,
-.Em dfilter
-to define a dialing trigger packet and
-.Em afilter
-for keeping a connection alive with the trigger packet.
+User can define four kinds of filters: the
+.Em in
+filter for incoming packets, the
+.Em out
+filter for outgoing packets, the
+.Em dial
+filter to define a dialing trigger packet and the
+.Em alive
+filter for keeping a connection alive with the trigger packet.
 .It Tunnel driver supports bpf.
 The user can use
 .Xr tcpdump 1
@@ -919,16 +919,29 @@ and that other machines have designated the
 host as the gateway for the LAN.
 .Sh PACKET FILTERING
 This implementation supports packet filtering. There are four kinds of
-filters; ifilter, ofilter, dfilter and afilter.  Here are the basics:
+filters; the
+.Em in
+filter, the
+.Em out
+filter, the
+.Em dial
+filter and the
+.Em alive
+filter.  Here are the basics:
 .Bl -bullet -compact
 .It
 A filter definition has the following syntax:
-set filter-name rule-no action [src_addr/src_width] [dst_addr/dst_width]
+set filter name rule-no action [src_addr/src_width] [dst_addr/dst_width]
 [proto [src [lt|eq|gt] port ]] [dst [lt|eq|gt] port] [estab]
 .Bl -enum
 .It
-.Sq filter-name
-should be one of ifilter, ofilter, dfilter or afilter.
+.Sq name
+should be one of
+.Em in ,
+.Em out ,
+.Em dial
+or
+.Em alive .
 .It
 There are two actions:
 .Sq permit
@@ -959,12 +972,12 @@ If no rule is matched to a packet, that packet will be discarded
 (blocked).
 .It
 Use
-.Dq set filter-name -1
+.Dq set filter name -1
 to flush all rules.
 .El
 .Pp
 See
-.Pa /etc/ppp/ppp.conf.filter.example .
+.Pa /etc/ppp/ppp.conf.example .
 .Sh SETTING IDLE, LINE QUALITY REQUEST, RETRY TIMER
 To check/set idle timer, use the
 .Dq show timeout
@@ -1934,30 +1947,41 @@ ACCMap stands for Asyncronous Control Character Map.  This is always
 negotiated with the peer, and defaults to a value of 0x00000000.
 This protocol is required to defeat hardware that depends on passing
 certain characters from end to end (such as XON/XOFF etc).
-.It set filter-name rule-no action [src_addr/src_width]
+.It set filter name rule-no action [src_addr/src_width]
 [dst_addr/dst_width] [proto [src [lt|eq|gt] port ]]
 [dst [lt|eq|gt] port] [estab]
 .Pp
 .Nm Ppp
-supports four filter sets.  The afilter specifies packets that keep
-the connection alive - reseting the idle timer.  The dfilter specifies
+supports four filter sets.  The
+.Em alive
+filter specifies packets that keep the connection alive - reseting the
+idle timer.  The dial filter specifies
 packets that cause
 .Nm
 to dial when in
 .Fl auto
-mode.  The ifilter specifies packets that are allowed to travel
-into the machine and the ofilter specifies packets that are allowed
-out of the machine.  By default all filter sets allow all packets
-to pass.
-Rules are processed in order according to
+mode.  The
+.Em in
+filter specifies packets that are allowed to travel
+into the machine and the
+.Em out
+filter specifies packets that are allowed out of the machine.  Filtering
+is done prior to any IP alterations that might be done by the alias
+engine.  By default all filter sets allow all packets to pass.  Rules are
+processed in order according to
 .Dq n .
 Up to 20 rules may be given for each set.  If a packet doesn't match
 any of the rules in a given set, it is discarded.  In the case of
-ifilters and ofilters, this means that the packet is dropped.  In
-the case of afilters it means that the packet will not reset the
-idle timer and in the case of dfilters it means that the packet will
-not trigger a dial.
-Refer to the section on PACKET FILTERING above for further details.
+.Em in
+and
+.Em out
+filters, this means that the packet is dropped.  In the case of
+.Em alive
+filters it means that the packet will not reset the idle timer and in
+the case of
+.Em dial
+filters it means that the packet will not trigger a dial.  Refer to the
+section on PACKET FILTERING above for further details.
 .It set authkey|key value
 This sets the authentication key (or password) used in client mode
 PAP or CHAP negotiation to the given value.  It can also be used to
@@ -2445,8 +2469,10 @@ command if you wish processing to happen in the background.
 .It show var
 This command allows the user to examine the following:
 .Bl -tag -width 20
-.It show [adio]filter
-List the current rules for the given filter.
+.It show filter [name]
+List the current rules for the given filter.  If
+.Ar name
+isn't specified, all filters are shown.
 .It show auth
 Show the current authname and encryption values.  If you have built
 .Nm

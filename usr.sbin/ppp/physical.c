@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.15 1998/03/13 00:44:20 brian Exp $
+ *  $Id: physical.c,v 1.1.2.16 1998/03/13 21:07:43 brian Exp $
  *
  */
 
@@ -59,6 +59,7 @@
 #include "vars.h"
 #include "iplist.h"
 #include "ipcp.h"
+#include "filter.h"
 #include "bundle.h"
 #include "log.h"
 #include "id.h"

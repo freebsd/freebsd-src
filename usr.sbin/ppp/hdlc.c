@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.18 1998/03/13 21:07:04 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.19 1998/03/13 21:07:33 brian Exp $
  *
  *	TODO:
  */
@@ -57,6 +57,7 @@
 #include "prompt.h"
 #include "chat.h"
 #include "datalink.h"
+#include "filter.h"
 #include "bundle.h"
 
 static u_short const fcstab[256] = {

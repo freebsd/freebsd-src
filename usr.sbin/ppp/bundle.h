@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.15 1998/03/13 00:44:33 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.16 1998/03/13 21:07:27 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -31,6 +31,7 @@
 #define	PHASE_AUTHENTICATE	2	/* Being authenticated */
 #define	PHASE_NETWORK		3	/* We're alive ! */
 #define	PHASE_TERMINATE		4	/* Terminating link */
+
 
 struct datalink;
 struct physical;
@@ -55,6 +56,14 @@ struct bundle {
   struct {
     struct ipcp ipcp;         /* Our IPCP FSM */
   } ncp;
+
+  struct {
+    struct filter in;		/* incoming packet filter */
+    struct filter out;		/* outgoing packet filter */
+    struct filter dial;		/* dial-out packet filter */
+    struct filter alive;	/* keep-alive packet filter */
+  } filter;
+
 
   struct pppTimer IdleTimer;  /* timeout after cfg.idle_timeout */
 };

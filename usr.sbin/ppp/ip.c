@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.11 1998/03/13 00:44:04 brian Exp $
+ * $Id: ip.c,v 1.38.2.12 1998/03/13 21:07:34 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -77,9 +77,6 @@ static const u_short interactive_ports[32] = {
 
 static const char *TcpFlags[] = { "FIN", "SYN", "RST", "PSH", "ACK", "URG" };
 
-static const char *Direction[] = {"INP", "OUT", "OUT", "IN/OUT"};
-static struct filterent *Filters[] = {ifilters, ofilters, dfilters, afilters};
-
 static int
 PortMatch(int op, u_short pport, u_short rport)
 {
@@ -99,15 +96,15 @@ PortMatch(int op, u_short pport, u_short rport)
  *  Check a packet against with defined filters
  */
 static int
-FilterCheck(struct ip * pip, int direction)
+FilterCheck(struct ip *pip, struct filter *filter)
 {
-  struct filterent *fp = Filters[direction];
   int gotinfo, cproto, estab, n;
   struct tcphdr *th;
   struct udphdr *uh;
   struct icmp *ih;
   char *ptop;
   u_short sport, dport;
+  struct filterent *fp = filter->rule;
 
   if (fp->action) {
     cproto = gotinfo = estab = 0;
@@ -115,10 +112,9 @@ FilterCheck(struct ip * pip, int direction)
     for (n = 0; n < MAXFILTERS; n++) {
       if (fp->action) {
 	/* permit fragments on in and out filter */
-	if ((direction == FL_IN || direction == FL_OUT) &&
-	    (ntohs(pip->ip_off) & IP_OFFMASK) != 0) {
+        if (filter->fragok && (ntohs(pip->ip_off) & IP_OFFMASK) != 0)
 	  return (A_PERMIT);
-	}
+
 	LogPrintf(LogDEBUG, "rule = %d\n", n);
 	if ((pip->ip_src.s_addr & fp->smask.s_addr) ==
 	    (fp->saddr.s_addr & fp->smask.s_addr) &&
@@ -156,8 +152,8 @@ FilterCheck(struct ip * pip, int direction)
 		return (A_DENY);/* We'll block unknown type of packet */
 	      }
 	      gotinfo = 1;
-	      LogPrintf(LogDEBUG, "dir = %d, proto = %d, srcop = %d,"
-			" dstop = %d, estab = %d\n", direction, cproto,
+	      LogPrintf(LogDEBUG, "dir = %p, proto = %d, srcop = %d,"
+			" dstop = %d, estab = %d\n", fp, cproto,
 			fp->opt.srcop, fp->opt.dstop, estab);
 	    }
 	    LogPrintf(LogDEBUG, "check0: rule = %d, proto = %d, sport = %d,"
@@ -189,10 +185,10 @@ FilterCheck(struct ip * pip, int direction)
   return (A_PERMIT);		/* No rule is given. Permit this packet */
 }
 
+#ifdef notdef
 static void
 IcmpError(struct ip * pip, int code)
 {
-#ifdef notdef
   struct mbuf *bp;
 
   if (pip->ip_p != IPPROTO_ICMP) {
@@ -203,14 +199,14 @@ IcmpError(struct ip * pip, int code)
       bundle_StartIdleTimer(bundle);
     ipcp_AddOutOctets(cnt);
   }
-#endif
 }
+#endif
 
 /*
  *  For debugging aid.
  */
 int
-PacketCheck(char *cp, int nb, int direction)
+PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
 {
   struct ip *pip;
   struct tcphdr *th;
@@ -222,14 +218,13 @@ PacketCheck(char *cp, int nb, int direction)
   int logit, loglen;
   static char logbuf[200];
 
-  logit = LogIsKept(LogTCPIP) && direction != FL_DIAL;
+  logit = LogIsKept(LogTCPIP) && filter->logok;
   loglen = 0;
 
   pip = (struct ip *) cp;
 
   if (logit && loglen < sizeof logbuf) {
-    snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ",
-	     Direction[direction]);
+    snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
     loglen += strlen(logbuf + loglen);
   }
   ptop = (cp + (pip->ip_hl << 2));
@@ -300,14 +295,17 @@ PacketCheck(char *cp, int nb, int direction)
     break;
   }
 
-  if ((FilterCheck(pip, direction) & A_DENY)) {
+  if ((FilterCheck(pip, filter) & A_DENY)) {
     if (logit)
       LogPrintf(LogTCPIP, "%s - BLOCKED\n", logbuf);
+#ifdef notdef
     if (direction == 0)
       IcmpError(pip, pri);
+#endif
     return (-1);
   } else {
-    if (FilterCheck(pip, FL_KEEP) & A_DENY) {	/* Check Keep Alive filter */
+    /* Check Keep Alive filter */
+    if (FilterCheck(pip, &bundle->filter.alive) & A_DENY) {
       if (logit)
         LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       ipKeepAlive = 0;
@@ -359,7 +357,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
     }
     if (iresult == PKT_ALIAS_OK
 	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-      if (PacketCheck(tun.data, nb, FL_IN) < 0) {
+      if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
 	pfree(bp);
 	return;
       }
@@ -407,7 +405,7 @@ IpInput(struct bundle *bundle, struct mbuf * bp)
   } else
 #endif /* #ifndef NOALIAS */
   {			/* no aliasing */
-    if (PacketCheck(tun.data, nb, FL_IN) < 0) {
+    if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
       pfree(bp);
       return;
     }

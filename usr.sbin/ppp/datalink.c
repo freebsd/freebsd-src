@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.21 1998/03/13 21:07:03 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.22 1998/03/13 21:07:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 #include "physical.h"
 #include "iplist.h"
 #include "ipcp.h"
+#include "filter.h"
 #include "bundle.h"
 #include "chat.h"
 #include "ccp.h"

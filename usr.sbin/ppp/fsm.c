@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.19 1998/03/13 21:07:32 brian Exp $
+ * $Id: fsm.c,v 1.27.2.20 1998/03/13 21:08:01 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -51,6 +51,7 @@
 #include "physical.h"
 #include "iplist.h"
 #include "ipcp.h"
+#include "filter.h"
 #include "bundle.h"
 #include "auth.h"
 #include "chat.h"

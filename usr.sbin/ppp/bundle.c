@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.24 1998/03/13 21:06:59 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.25 1998/03/13 21:07:27 brian Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 #include "throughput.h"
 #include "ipcp.h"
 #include "link.h"
+#include "filter.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -410,6 +411,15 @@ bundle_Create(const char *prefix)
 
   ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
             &bundle.fsm);
+
+  memset(&bundle.filter, '\0', sizeof bundle.filter);
+  bundle.filter.in.fragok = bundle.filter.in.logok = 1;
+  bundle.filter.in.name = "IN";
+  bundle.filter.out.fragok = bundle.filter.out.logok = 1;
+  bundle.filter.out.name = "OUT";
+  bundle.filter.dial.name = "DIAL";
+  bundle.filter.alive.name = "ALIVE";
+  bundle.filter.alive.logok = 1;
 
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);

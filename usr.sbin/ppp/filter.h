@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.11 1997/11/22 03:37:30 brian Exp $
+ * $Id: filter.h,v 1.11.2.1 1998/03/13 21:07:32 brian Exp $
  *
  *	TODO:
  */
@@ -64,25 +64,21 @@ struct filterent {
   } opt;
 };
 
-#define	MAXFILTERS	20
+#define	MAXFILTERS		20	/* in each filter set */
+
+struct filter {
+  struct filterent rule[MAXFILTERS];	/* incoming packet filter */
+  char *name;
+  unsigned fragok : 1;
+  unsigned logok : 1;
+};
 
 #define FL_IN		0
 #define FL_OUT		1
 #define FL_DIAL		2
 #define FL_KEEP		3
 
-extern struct filterent ifilters[MAXFILTERS];	/* incoming packet filter */
-extern struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
-extern struct filterent dfilters[MAXFILTERS];	/* dial-out packet filter */
-extern struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
-
 extern int ParseAddr(struct ipcp *, int, char const *const *, struct in_addr *,
                      struct in_addr *, int *);
-extern int ShowIfilter(struct cmdargs const *);
-extern int ShowOfilter(struct cmdargs const *);
-extern int ShowDfilter(struct cmdargs const *);
-extern int ShowAfilter(struct cmdargs const *);
-extern int SetIfilter(struct cmdargs const *);
-extern int SetOfilter(struct cmdargs const *);
-extern int SetDfilter(struct cmdargs const *);
-extern int SetAfilter(struct cmdargs const *);
+extern int ShowFilter(struct cmdargs const *);
+extern int SetFilter(struct cmdargs const *);

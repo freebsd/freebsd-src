@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.37 1998/03/13 21:07:29 brian Exp $
+ * $Id: command.c,v 1.131.2.38 1998/03/13 21:08:01 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -56,7 +56,6 @@
 #include "throughput.h"
 #include "ipcp.h"
 #include "modem.h"
-#include "filter.h"
 #ifndef NOALIAS
 #include "alias_cmd.h"
 #endif
@@ -65,6 +64,7 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "systems.h"
+#include "filter.h"
 #include "bundle.h"
 #include "main.h"
 #include "route.h"
@@ -558,22 +558,18 @@ ShowMSExt(struct cmdargs const *arg)
 #endif
 
 static struct cmdtab const ShowCommands[] = {
-  {"afilter", NULL, ShowAfilter, LOCAL_AUTH,
-  "Show keep-alive filters", "show afilter option .."},
   {"auth", NULL, ShowAuthKey, LOCAL_AUTH,
   "Show auth details", "show auth"},
   {"ccp", NULL, ccp_ReportStatus, LOCAL_AUTH | LOCAL_CX_OPT,
   "Show CCP status", "show cpp"},
   {"compress", NULL, ReportCompress, LOCAL_AUTH,
   "Show compression stats", "show compress"},
-  {"dfilter", NULL, ShowDfilter, LOCAL_AUTH,
-  "Show Demand filters", "show dfilteroption .."},
   {"escape", NULL, ShowEscape, LOCAL_AUTH | LOCAL_CX,
   "Show escape characters", "show escape"},
   {"hdlc", NULL, hdlc_ReportStatus, LOCAL_AUTH | LOCAL_CX,
   "Show HDLC errors", "show hdlc"},
-  {"ifilter", NULL, ShowIfilter, LOCAL_AUTH,
-  "Show Input filters", "show ifilter option .."},
+  {"filter", NULL, ShowFilter, LOCAL_AUTH,
+  "Show packet filters", "show filter [in|out|dial|alive]"},
   {"ipcp", NULL, ReportIpcpStatus, LOCAL_AUTH,
   "Show IPCP status", "show ipcp"},
   {"lcp", NULL, lcp_ReportStatus, LOCAL_AUTH | LOCAL_CX,
@@ -596,8 +592,6 @@ static struct cmdtab const ShowCommands[] = {
 #endif
   {"mtu", NULL, ShowPreferredMTU, LOCAL_AUTH,
   "Show Preferred MTU", "show mtu"},
-  {"ofilter", NULL, ShowOfilter, LOCAL_AUTH,
-  "Show Output filters", "show ofilter option .."},
   {"proto", NULL, Physical_ReportProtocolStatus, LOCAL_AUTH,
   "Show protocol summary", "show proto"},
   {"reconnect", NULL, ShowReconnect, LOCAL_AUTH | LOCAL_CX,
@@ -1385,8 +1379,6 @@ SetOpenMode(struct cmdargs const *arg)
 static struct cmdtab const SetCommands[] = {
   {"accmap", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set accmap value", "set accmap hex-value", (const void *) VAR_ACCMAP},
-  {"afilter", NULL, SetAfilter, LOCAL_AUTH,
-  "Set keep Alive filter", "set afilter ..."},
   {"authkey", "key", SetVariable, LOCAL_AUTH,
   "Set authentication key", "set authkey|key key", (const void *) VAR_AUTHKEY},
   {"authname", NULL, SetVariable, LOCAL_AUTH,
@@ -1396,8 +1388,6 @@ static struct cmdtab const SetCommands[] = {
   {"device", "line", SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set modem device name", "set device|line device-name[,device-name]",
   (const void *) VAR_DEVICE},
-  {"dfilter", NULL, SetDfilter, LOCAL_AUTH,
-  "Set demand filter", "set dfilter ..."},
   {"dial", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "Set dialing script", "set dial chat-script", (const void *) VAR_DIAL},
 #ifdef HAVE_DES
@@ -1410,8 +1400,8 @@ static struct cmdtab const SetCommands[] = {
   "Set hangup script", "set hangup chat-script", (const void *) VAR_HANGUP},
   {"ifaddr", NULL, SetInterfaceAddr, LOCAL_AUTH, "Set destination address",
   "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
-  {"ifilter", NULL, SetIfilter, LOCAL_AUTH,
-  "Set input filter", "set ifilter ..."},
+  {"filter", NULL, SetFilter, LOCAL_AUTH,
+  "Set packet filters", "set filter in|out|dial|alive ..."},
   {"loopback", NULL, SetLoopback, LOCAL_AUTH,
   "Set loopback facility", "set loopback on|off"},
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
@@ -1428,8 +1418,6 @@ static struct cmdtab const SetCommands[] = {
   {"ns", NULL, SetNS, LOCAL_AUTH,
   "Set NameServer", "set ns pri-addr [sec-addr]"},
 #endif
-  {"ofilter", NULL, SetOfilter, LOCAL_AUTH,
-  "Set output filter", "set ofilter ..."},
   {"openmode", NULL, SetOpenMode, LOCAL_AUTH | LOCAL_CX,
   "Set open mode", "set openmode [active|passive]"},
   {"parity", NULL, SetModemParity, LOCAL_AUTH | LOCAL_CX,

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: prompt.c,v 1.1.2.11 1998/03/13 00:44:23 brian Exp $
+ *	$Id: prompt.c,v 1.1.2.12 1998/03/13 21:07:43 brian Exp $
  */
 
 #include <sys/param.h>
@@ -51,6 +51,7 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "filter.h"
 #include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.31 1998/03/13 21:07:09 brian Exp $
+ * $Id: main.c,v 1.121.2.32 1998/03/13 21:07:39 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -61,11 +61,11 @@
 #include "iplist.h"
 #include "throughput.h"
 #include "ipcp.h"
+#include "filter.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
-#include "filter.h"
 #include "systems.h"
 #include "ip.h"
 #include "sig.h"
@@ -587,7 +587,7 @@ DoLoop(struct bundle *bundle)
           bundle->ncp.ipcp.my_ip.s_addr) {
 	/* we've been asked to send something addressed *to* us :( */
 	if (VarLoopback) {
-	  pri = PacketCheck(tun.data, n, FL_IN);
+	  pri = PacketCheck(bundle, tun.data, n, &bundle->filter.in);
 	  if (pri >= 0) {
 	    struct mbuf *bp;
 
@@ -612,10 +612,10 @@ DoLoop(struct bundle *bundle)
        * device until IPCP is opened.
        */
       if (bundle->phase == PHASE_DEAD && (mode & MODE_AUTO) &&
-	  (pri = PacketCheck(tun.data, n, FL_DIAL)) >= 0)
+	  (pri = PacketCheck(bundle, tun.data, n, &bundle->filter.dial)) >= 0)
         bundle_Open(bundle, NULL);
 
-      pri = PacketCheck(tun.data, n, FL_OUT);
+      pri = PacketCheck(bundle, tun.data, n, &bundle->filter.out);
       if (pri >= 0) {
 #ifndef NOALIAS
 	if (mode & MODE_ALIAS) {
