@@ -86,6 +86,24 @@ struct pccard_device {
 	struct pccard_device *next;
 };
 
+int pccard_module_handler __P((module_t mod, int what, void *arg));
+
+#define PCCARD_MODULE(name, enable, disable, handler, attr, imask) 	\
+static struct pccard_device name ## _info = {				\
+	#name,								\
+	enable,								\
+	disable,							\
+	handler,							\
+	attr,								\
+	&imask								\
+};									\
+static moduledata_t name ## _mod = {					\
+	"pccard_" #name,						\
+	pccard_module_handler,						\
+	&name ## _info							\
+};									\
+DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+
 /*
  *	Device structure for cards. Each card may have one
  *	or more pccard drivers attached to it; each driver is assumed
