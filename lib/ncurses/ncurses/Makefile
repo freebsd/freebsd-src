@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.9 1994/12/04 02:43:41 ache Exp $
+# $Id: Makefile,v 1.10 1995/02/13 17:23:18 ache Exp $
 
 LIB=    ncurses
 SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
@@ -71,6 +71,7 @@ MAN3 =  curs_addch.3 \
 	curs_scroll.3 \
 	curs_slk.3 \
 	curs_termatt.3 \
+	curs_termin.3 \
 	curs_touch.3 \
 	curs_util.3 \
 	curs_window.3 \
