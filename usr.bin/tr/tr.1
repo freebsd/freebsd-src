@@ -162,7 +162,9 @@ values.
 .Pp
 A backslash followed by any other character maps to that character.
 .It c-c
-Represents the range of characters between the range endpoints, inclusively.
+Represents the range of characters between the range endpoints, inclusive,
+in ascending order,
+as defined by the collation sequence.
 .It [:class:]
 Represents all characters belonging to the defined character class.
 Class names are:
@@ -199,7 +201,8 @@ Class names are:
 With the exception of the ``upper'' and ``lower'' classes, characters
 in the classes are in unspecified order.
 In the ``upper'' and ``lower'' classes, characters are entered in
-ascending order.
+ascending order,
+as defined by the collation sequence.
 .Pp
 For specific information as to which
 .Tn ASCII
