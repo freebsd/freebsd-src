@@ -173,28 +173,30 @@ extern int errno;
 
 #include <ctype.h>
 
-#ifndef isascii
-#define isascii(c) 1
+#if !defined(isascii) || defined(__FreeBSD__)
+#define ISASCII(c) 1
+#else
+#define ISASCII(c) isascii (c)
 #endif
 
 #ifdef isblank
-#define ISBLANK(c) (isascii (c) && isblank (c))
+#define ISBLANK(c) (ISASCII (c) && isblank (c))
 #else
 #define ISBLANK(c) ((c) == ' ' || (c) == '\t')
 #endif
 #ifdef isgraph
-#define ISGRAPH(c) (isascii (c) && isgraph (c))
+#define ISGRAPH(c) (ISASCII (c) && isgraph (c))
 #else
-#define ISGRAPH(c) (isascii (c) && isprint (c) && !isspace (c))
+#define ISGRAPH(c) (ISASCII (c) && isprint (c) && !isspace (c))
 #endif
 
-#define ISPRINT(c) (isascii (c) && isprint (c))
-#define ISDIGIT(c) (isascii (c) && isdigit (c))
-#define ISALNUM(c) (isascii (c) && isalnum (c))
-#define ISALPHA(c) (isascii (c) && isalpha (c))
-#define ISCNTRL(c) (isascii (c) && iscntrl (c))
-#define ISLOWER(c) (isascii (c) && islower (c))
-#define ISPUNCT(c) (isascii (c) && ispunct (c))
-#define ISSPACE(c) (isascii (c) && isspace (c))
-#define ISUPPER(c) (isascii (c) && isupper (c))
-#define ISXDIGIT(c) (isascii (c) && isxdigit (c))
+#define ISPRINT(c) (ISASCII (c) && isprint (c))
+#define ISDIGIT(c) (ISASCII (c) && isdigit (c))
+#define ISALNUM(c) (ISASCII (c) && isalnum (c))
+#define ISALPHA(c) (ISASCII (c) && isalpha (c))
+#define ISCNTRL(c) (ISASCII (c) && iscntrl (c))
+#define ISLOWER(c) (ISASCII (c) && islower (c))
+#define ISPUNCT(c) (ISASCII (c) && ispunct (c))
+#define ISSPACE(c) (ISASCII (c) && isspace (c))
+#define ISUPPER(c) (ISASCII (c) && isupper (c))
+#define ISXDIGIT(c) (ISASCII (c) && isxdigit (c))
