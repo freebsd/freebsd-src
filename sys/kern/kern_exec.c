@@ -127,13 +127,15 @@ execve(td, uap)
 {
 	struct proc *p = td->td_proc;
 	struct nameidata nd, *ndp;
-	struct ucred *newcred, *oldcred;
+	struct ucred *newcred = NULL, *oldcred;
 	register_t *stack_base;
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
 	int (*img_first)(struct image_params *);
-	struct pargs *pa;
+	struct pargs *oldargs, *newargs = NULL;
+	struct procsig *oldprocsig, *newprocsig;
+	struct vnode *tracevp = NULL, *textvp = NULL;
 
 	imgp = &image_params;
 
@@ -295,20 +297,34 @@ interpret:
 		FILEDESC_UNLOCK(p->p_fd);
 
 	/*
+	 * Malloc things before we need locks.
+	 */
+	newcred = crget();
+	i = imgp->endargs - imgp->stringbase;
+	if (ps_arg_cache_limit >= i + sizeof(struct pargs))
+		newargs = pargs_alloc(i);
+
+	/* close files on exec */
+	fdcloseexec(td);
+
+	/*
 	 * For security and other reasons, signal handlers cannot
 	 * be shared after an exec. The new process gets a copy of the old
 	 * handlers. In execsigs(), the new process will have its signals
 	 * reset.
 	 */
+	PROC_LOCK(p);
+	mp_fixme("procsig needs a lock");
 	if (p->p_procsig->ps_refcnt > 1) {
-		struct procsig *newprocsig;
-
+		oldprocsig = p->p_procsig;
+		PROC_UNLOCK(p);
 		MALLOC(newprocsig, struct procsig *, sizeof(struct procsig),
-		       M_SUBPROC, M_WAITOK);
-		bcopy(p->p_procsig, newprocsig, sizeof(*newprocsig));
-		p->p_procsig->ps_refcnt--;
+		    M_SUBPROC, M_WAITOK);
+		bcopy(oldprocsig, newprocsig, sizeof(*newprocsig));
+		newprocsig->ps_refcnt = 1;
+		oldprocsig->ps_refcnt--;
+		PROC_LOCK(p);
 		p->p_procsig = newprocsig;
-		p->p_procsig->ps_refcnt = 1;
 		if (p->p_sigacts == &p->p_uarea->u_sigacts)
 			panic("shared procsig but private sigacts?");
 
@@ -317,9 +333,6 @@ interpret:
 	}
 	/* Stop profiling */
 	stopprofclock(p);
-
-	/* close files on exec */
-	fdcloseexec(td);
 
 	/* reset caught signals */
 	execsigs(p);
@@ -333,7 +346,6 @@ interpret:
 	 * mark as execed, wakeup the process that vforked (if any) and tell
 	 * it that it now has its own resources back
 	 */
-	PROC_LOCK(p);
 	p->p_flag |= P_EXEC;
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
 		p->p_flag &= ~P_PPWAIT;
@@ -347,12 +359,10 @@ interpret:
 	 * the process is being traced.
 	 */
 	oldcred = p->p_ucred;
-	newcred = NULL;
 	if ((((attr.va_mode & VSUID) && oldcred->cr_uid != attr.va_uid) ||
 	     ((attr.va_mode & VSGID) && oldcred->cr_gid != attr.va_gid)) &&
 	    (imgp->vp->v_mount->mnt_flag & MNT_NOSUID) == 0 &&
 	    (p->p_flag & P_TRACED) == 0) {
-		PROC_UNLOCK(p);
 		/*
 		 * Turn off syscall tracing for set-id programs, except for
 		 * root.  Record any set-id flags first to make sure that
@@ -360,13 +370,9 @@ interpret:
 		 */
 		setsugid(p);
 		if (p->p_tracep && suser_cred(oldcred, PRISON_ROOT)) {
-			struct vnode *vtmp;
-
-			if ((vtmp = p->p_tracep) != NULL) {
-				p->p_tracep = NULL;
-				p->p_traceflag = 0;
-				vrele(vtmp);
-			}
+			p->p_traceflag = 0;
+			tracevp = p->p_tracep;
+			p->p_tracep = NULL;
 		}
 		/* Make sure file descriptors 0..2 are in use.  */
 		error = fdcheckstd(td);
@@ -375,55 +381,49 @@ interpret:
 		/*
 		 * Set the new credentials.
 		 */
-		newcred = crdup(oldcred);
+		crcopy(newcred, oldcred);
 		if (attr.va_mode & VSUID)
 			change_euid(newcred, attr.va_uid);
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
 		setugidsafety(td);
+		/*
+		 * Implement correct POSIX saved-id behavior.
+		 */
+		change_svuid(newcred, newcred->cr_uid);
+		change_svgid(newcred, newcred->cr_gid);
+		p->p_ucred = newcred;
+		newcred = NULL;
 	} else {
 		if (oldcred->cr_uid == oldcred->cr_ruid &&
 		    oldcred->cr_gid == oldcred->cr_rgid)
 			p->p_flag &= ~P_SUGID;
-		PROC_UNLOCK(p);
-	}
-
-	/*
-	 * Implement correct POSIX saved-id behavior.
-	 *
-	 * XXX: It's not clear that the existing behavior is
-	 * POSIX-compliant.  A number of sources indicate that the saved
-	 * uid/gid should only be updated if the new ruid is not equal to
-	 * the old ruid, or the new euid is not equal to the old euid and
-	 * the new euid is not equal to the old ruid.  The FreeBSD code
-	 * always updates the saved uid/gid.  Also, this code uses the new
-	 * (replaced) euid and egid as the source, which may or may not be
-	 * the right ones to use.
-	 */
-	if (newcred == NULL) {
+		/*
+		 * Implement correct POSIX saved-id behavior.
+		 *
+		 * XXX: It's not clear that the existing behavior is
+		 * POSIX-compliant.  A number of sources indicate that the
+		 * saved uid/gid should only be updated if the new ruid is
+		 * not equal to the old ruid, or the new euid is not equal
+		 * to the old euid and the new euid is not equal to the old
+		 * ruid.  The FreeBSD code always updates the saved uid/gid.
+		 * Also, this code uses the new (replaced) euid and egid as
+		 * the source, which may or may not be the right ones to use.
+		 */
 		if (oldcred->cr_svuid != oldcred->cr_uid ||
 		    oldcred->cr_svgid != oldcred->cr_gid) {
-			newcred = crdup(oldcred);
+			crcopy(newcred, oldcred);
 			change_svuid(newcred, newcred->cr_uid);
 			change_svgid(newcred, newcred->cr_gid);
+			p->p_ucred = newcred;
+			newcred = NULL;
 		}
-	} else {
-		change_svuid(newcred, newcred->cr_uid);
-		change_svgid(newcred, newcred->cr_gid);
-	}
-
-	if (newcred != NULL) {
-		PROC_LOCK(p);
-		p->p_ucred = newcred;
-		PROC_UNLOCK(p);
-		crfree(oldcred);
 	}
 
 	/*
 	 * Store the vp for use in procfs
 	 */
-	if (p->p_textvp)		/* release old reference */
-		vrele(p->p_textvp);
+	textvp = p->p_textvp;
 	VREF(ndp->ni_vp);
 	p->p_textvp = ndp->ni_vp;
 
@@ -431,7 +431,6 @@ interpret:
 	 * Notify others that we exec'd, and clear the P_INEXEC flag
 	 * as we're now a bona fide freshly-execed process.
 	 */
-	PROC_LOCK(p);
 	KNOTE(&p->p_klist, NOTE_EXEC);
 	p->p_flag &= ~P_INEXEC;
 
@@ -448,24 +447,37 @@ interpret:
 	p->p_acflag &= ~AFORK;
 
 	/* Free any previous argument cache */
-	pa = p->p_args;
+	oldargs = p->p_args;
 	p->p_args = NULL;
-	PROC_UNLOCK(p);
-	pargs_drop(pa);
 
 	/* Set values passed into the program in registers. */
 	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
 	    imgp->ps_strings);
 
 	/* Cache arguments if they fit inside our allowance */
-	i = imgp->endargs - imgp->stringbase;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		pa = pargs_alloc(i);
-		bcopy(imgp->stringbase, pa->ar_args, i);
-		PROC_LOCK(p);
-		p->p_args = pa;
-		PROC_UNLOCK(p);
+		bcopy(imgp->stringbase, newargs->ar_args, i);
+		p->p_args = newargs;
+		newargs = NULL;
 	}
+	PROC_UNLOCK(p);
+
+	/*
+	 * Free any resources malloc'd earlier that we didn't use.
+	 */
+	if (newcred == NULL)
+		crfree(oldcred);
+	else
+		crfree(newcred);
+	KASSERT(newargs == NULL, ("leaking p_args"));
+	/*
+	 * Handle deferred decrement of ref counts.
+	 */
+	if (textvp != NULL)
+		vrele(textvp);
+	if (tracevp != NULL)
+		vrele(tracevp);
+	pargs_drop(oldargs);
 
 exec_fail_dealloc:
 
