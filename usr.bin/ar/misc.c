@@ -73,9 +73,10 @@ tmp()
 	}
 
 	if (envtmp)
-		(void)sprintf(path, "%s/%s", envtmp, _NAME_ARTMP);
+		(void)snprintf(path, sizeof(path), "%s/%s", envtmp,
+		    _NAME_ARTMP); 
 	else
-		strcpy(path, _PATH_ARTMP);
+		strlcpy(path, _PATH_ARTMP, sizeof(path));
 
 	sigfillset(&set);
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
