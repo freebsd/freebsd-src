@@ -1,18 +1,18 @@
-# ISO 3166 2-letter country codes
+# ISO 3166 alpha-2 country codes
 #
-# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
+# @(#)iso3166.tab	1.15
+#
+# From Paul Eggert <eggert@twinsun.com> (2004-06-14):
 #
 # This file contains a table with the following columns:
-# 1.  ISO 3166-1:1997 2-character country code.  See: 
+# 1.  ISO 3166-1 alpha-2 country code, current as of
+#     ISO 3166-1 Newsletter No. V-10 (2004-04-26).  See:
+#     <a href="http://www.iso.org/iso/en/prods-services/iso3166ma/index.html">
+#     ISO 3166 Maintenance agency (ISO 3166/MA)
+#     </a>.
 # 2.  The usual English name for the country,
-#	chosen so that alphabetic sorting of subsets produces helpful lists.
-#	This is not the same as the English name in the ISO 3166 tables.
-#
-# The PS code below has been reserved for Palestine by the ISO;
-# however, the code is not yet officially assigned to Palestine.  Please see
-# <a href="ftp://ftp.informatik.uni-erlangen.de/pub/doc/ISO/ISO-3166-background">
-# Cord Wischhoefer, Country Code Elements for Palestine (1996-07-24)
-# </a>.
+#     chosen so that alphabetic sorting of subsets produces helpful lists.
+#     This is not the same as the English name in the ISO 3166 tables.
 #
 # Columns are separated by a single tab.
 # The table is sorted by country code.
@@ -36,6 +36,7 @@ AS	Samoa (American)
 AT	Austria
 AU	Australia
 AW	Aruba
+AX	Aaland Islands
 AZ	Azerbaijan
 BA	Bosnia & Herzegovina
 BB	Barbados
@@ -69,6 +70,7 @@ CM	Cameroon
 CN	China
 CO	Colombia
 CR	Costa Rica
+CS	Serbia and Montenegro
 CU	Cuba
 CV	Cape Verde
 CX	Christmas Island
@@ -93,7 +95,6 @@ FK	Falkland Islands
 FM	Micronesia
 FO	Faeroe Islands
 FR	France
-FX	France, Metropolitan
 GA	Gabon
 GB	Britain (UK)
 GD	Grenada
@@ -112,6 +113,7 @@ GT	Guatemala
 GU	Guam
 GW	Guinea-Bissau
 GY	Guyana
+HK	Hong Kong
 HM	Heard Island & McDonald Islands
 HN	Honduras
 HR	Croatia
@@ -130,7 +132,7 @@ JM	Jamaica
 JO	Jordan
 JP	Japan
 KE	Kenya
-KG	Kirgizstan
+KG	Kyrgyzstan
 KH	Cambodia
 KI	Kiribati
 KM	Comoros
@@ -160,7 +162,7 @@ MK	Macedonia
 ML	Mali
 MM	Myanmar (Burma)
 MN	Mongolia
-MO	Macao
+MO	Macau
 MP	Northern Mariana Islands
 MQ	Martinique
 MR	Mauritania
@@ -230,10 +232,10 @@ TG	Togo
 TH	Thailand
 TJ	Tajikistan
 TK	Tokelau
+TL	East Timor
 TM	Turkmenistan
 TN	Tunisia
 TO	Tonga
-TP	East Timor
 TR	Turkey
 TT	Trinidad & Tobago
 TV	Tuvalu
@@ -256,7 +258,6 @@ WF	Wallis & Futuna
 WS	Samoa (Western)
 YE	Yemen
 YT	Mayotte
-YU	Yugoslavia
 ZA	South Africa
 ZM	Zambia
 ZW	Zimbabwe
