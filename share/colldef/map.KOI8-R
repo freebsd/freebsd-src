@@ -1,3 +1,4 @@
+# $FreeBSD$
 NU \x00
 SH \x01
 SX \x02
@@ -65,7 +66,7 @@ RB \x8f
 ?S \x92
 Iu \x93
 fS \x94
-sb \x95
+Sb \x95
 RT \x96
 ?2 \x97
 =< \x98
