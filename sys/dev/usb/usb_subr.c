@@ -592,11 +592,19 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 
 	DPRINTFN(5,("usbd_set_config_index: dev=%p index=%d\n", dev, index));
 
-	/* XXX check that all interfaces are idle */
 	if (dev->config != USB_UNCONFIG_NO) {
+		nifc = dev->cdesc->bNumInterface;
+
+		/* Check that all interfaces are idle */
+		for (ifcidx = 0; ifcidx < nifc; ifcidx++) {
+			if (LIST_EMPTY(&dev->ifaces[ifcidx].pipes))
+				continue;
+			DPRINTF(("usbd_set_config_index: open pipes exist\n"));
+			return (USBD_IN_USE);
+		}
+
 		DPRINTF(("usbd_set_config_index: free old config\n"));
 		/* Free all configuration data structures. */
-		nifc = dev->cdesc->bNumInterface;
 		for (ifcidx = 0; ifcidx < nifc; ifcidx++)
 			usbd_free_iface_data(dev, ifcidx);
 		free(dev->ifaces, M_USB);
