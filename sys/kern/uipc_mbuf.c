@@ -1118,6 +1118,11 @@ bad:
  * Partition an mbuf chain in two pieces, returning the tail --
  * all but the first len0 bytes.  In case of failure, it returns NULL and
  * attempts to restore the chain to its original state.
+ *
+ * Note that the resulting mbufs might be read-only, because the new
+ * mbuf can end up sharing an mbuf cluster with the original mbuf if
+ * the "breaking point" happens to lie within a cluster mbuf. Use the
+ * M_WRITABLE() macro to check for this case.
  */
 struct mbuf *
 m_split(m0, len0, wait)
@@ -1173,7 +1178,6 @@ extpacket:
 		else
 			(*(m->m_ext.ext_ref))(m->m_ext.ext_buf,
 						m->m_ext.ext_size);
-		m->m_ext.ext_size = 0; /* For Accounting XXXXXX danger */
 		n->m_data = m->m_data + len;
 	} else {
 		bcopy(mtod(m, caddr_t) + len, mtod(n, caddr_t), remain);
