@@ -601,7 +601,7 @@ get_dumpsize()
 	/* Read the dump size. */
 	DumpRead(dumpfd, &kdumpsize, sizeof(kdumpsize),
 	    (off_t)(dumplo + ok(dump_nl[X_DUMPSIZE].n_value)), L_SET);
-	dumpsize = kdumpsize * getpagesize();
+	dumpsize = (off_t)kdumpsize * getpagesize();
 }
 
 /*
