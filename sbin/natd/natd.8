@@ -42,7 +42,6 @@ Network Address Translation Daemon
 .Op Fl reverse
 .Op Fl proxy_only
 .Op Fl proxy_rule Ar proxyspec
-.Op Fl pptpalias Ar localIP
 
 .Sh DESCRIPTION
 This program provides a Network Address Translation facility for use
@@ -377,22 +376,6 @@ Use
 to put this information into the IP option field or
 .Dq encode_tcp_stream
 to inject the data into the beginning of the TCP stream.
-
-.It Fl pptpalias Ar localIP
-Allow PPTP packets to go to the defined localIP address.
-PPTP is a VPN or secure
-IP tunneling technology being developed primarily by Microsoft.
-For its encrypted traffic,
-it uses an old IP encapsulation protocol called GRE (47).
-This natd option will translate any traffic of this protocol to a
-single, specified IP address.
-This would allow either one client or one server 
-to be serviced with natd.
-If you are setting up a server, don't forget to allow the TCP traffic
-for the PPTP setup.
-For a client or server,
-you must allow GRE (protocol 47) if you have firewall lists active.
-
 .El
 
 .Sh RUNNING NATD
@@ -529,6 +512,6 @@ times:
 .An Ari Suutari Aq suutari@iki.fi
 (natd)
 .An Dru Nelson Aq dnelson@redwoodsoft.com
-(PPTP support)
+(early PPTP support)
 .An Brian Somers Aq brian@awfulhak.org
 (glue)
