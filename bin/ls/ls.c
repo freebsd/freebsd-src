@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.4 1994/12/18 19:00:01 joerg Exp $
+ *	$Id: ls.c,v 1.5 1995/03/19 13:28:44 joerg Exp $
  */
 
 #ifndef lint
@@ -227,10 +227,12 @@ main(argc, argv)
 
 	/* If -l or -s, figure out block size. */
 	if (f_longform || f_size) {
-		(void)getbsize(&notused, &blocksize);
-		    blocksize /= 512;
 		if (f_kblocks)
-		    blocksize *= 2;
+			blocksize = 2;
+		else {
+			(void)getbsize(&notused, &blocksize);
+			blocksize /= 512;
+		}
 	}
 
 	/* Select a sort function. */
