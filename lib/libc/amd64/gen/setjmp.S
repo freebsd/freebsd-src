@@ -55,8 +55,8 @@
 #include "SYS.h"
 
 ENTRY(setjmp)
-	PIC_PROLOGUE
 	movl	4(%esp),%ecx
+	PIC_PROLOGUE
 	leal	28(%ecx), %eax
 	pushl	%eax			/* (sigset_t*)oset */
 	pushl	$0			/* (sigset_t*)set  */
