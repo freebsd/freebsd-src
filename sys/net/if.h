@@ -72,8 +72,8 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	u_long	ifi_recvtiming;		/* usec spent receiving when timing */
-	u_long	ifi_xmittiming;		/* usec spent xmitting when timing */
+	u_long	ifi_hwassist;		/* HW offload capabilities */
+	u_long	ifi_unused;		/* XXX was ifi_xmittiming */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
 

@@ -80,6 +80,9 @@ struct pkthdr {
 	int	len;			/* total packet length */
 	/* variables for ip and tcp reassembly */
 	caddr_t	header;			/* pointer to packet header */
+	/* variables for hardware checksum */
+	int	csum_flags;		/* flags regarding checksum */
+	int	csum_data;		/* data field used by csum routines */
 };
 
 /* description of external storage mapped into mbuf, valid if M_EXT set */
@@ -131,10 +134,27 @@ struct mbuf {
 #define	M_BCAST		0x0100	/* send/received as link-level broadcast */
 #define	M_MCAST		0x0200	/* send/received as link-level multicast */
 #define	M_FRAG		0x0400	/* packet is a fragment of a larger packet */
+#define	M_FIRSTFRAG	0x0800	/* packet is first fragment */
+#define	M_LASTFRAG	0x1000	/* packet is last fragment */
 
 /* flags copied when copying m_pkthdr */
 #define	M_COPYFLAGS	(M_PKTHDR|M_EOR|M_PROTO1|M_PROTO1|M_PROTO2|M_PROTO3 | \
 			    M_PROTO4|M_PROTO5|M_BCAST|M_MCAST|M_FRAG)
+
+/* flags indicating hw checksum support and sw checksum requirements */
+#define CSUM_IP			0x0001		/* will csum IP */
+#define CSUM_TCP		0x0002		/* will csum TCP */
+#define CSUM_UDP		0x0004		/* will csum UDP */
+#define CSUM_IP_FRAGS		0x0008		/* will csum IP fragments */
+#define CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
+
+#define CSUM_IP_CHECKED		0x0100		/* did csum IP */
+#define CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
+#define CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
+#define CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
+
+#define CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
+#define CSUM_DELAY_IP		(CSUM_IP)	/* XXX add ipv6 here too? */
 
 /* mbuf types */
 #define	MT_FREE		0	/* should be on free list */
@@ -301,6 +321,7 @@ union mcluster {
 		_mm->m_data = _mm->m_pktdat;				\
 		_mm->m_flags = M_PKTHDR;				\
 		_mm->m_pkthdr.rcvif = NULL;				\
+		_mm->m_pkthdr.csum_flags = 0;				\
 		(m) = _mm;						\
 		splx(_ms);						\
 	} else {							\
@@ -465,11 +486,6 @@ union mcluster {
 	int _mplen = (plen);						\
 	int __mhow = (how);						\
 									\
-	if (_mm == NULL) {						\
-		MGET(_mm, __mhow, MT_DATA);				\
-		if (_mm == NULL)					\
-			break;						\
-	}								\
 	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
 		_mm->m_data -= _mplen;					\
 		_mm->m_len += _mplen;					\

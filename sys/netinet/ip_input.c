@@ -324,10 +324,14 @@ ip_input(struct mbuf *m)
 		}
 		ip = mtod(m, struct ip *);
 	}
-	if (hlen == sizeof(struct ip)) {
-		sum = in_cksum_hdr(ip);
+	if (m->m_pkthdr.csum_flags & CSUM_IP_CHECKED) {
+		sum = !(m->m_pkthdr.csum_flags & CSUM_IP_VALID);
 	} else {
-		sum = in_cksum(m, hlen);
+		if (hlen == sizeof(struct ip)) {
+			sum = in_cksum_hdr(ip);
+		} else {
+			sum = in_cksum(m, hlen);
+		}
 	}
 	if (sum) {
 		ipstat.ips_badsum++;
@@ -841,6 +845,9 @@ ip_reass(m, fp, where)
 	 * our data already.  If so, drop the data from the incoming
 	 * segment.  If it provides all of our data, drop us, otherwise
 	 * stick new segment in the proper place.
+	 *
+	 * If some of the data is dropped from the the preceding
+	 * segment, then it's checksum is invalidated.
 	 */
 	if (p) {
 		i = GETIP(p)->ip_off + GETIP(p)->ip_len - ip->ip_off;
@@ -848,6 +855,7 @@ ip_reass(m, fp, where)
 			if (i >= ip->ip_len)
 				goto dropfrag;
 			m_adj(m, i);
+			m->m_pkthdr.csum_flags = 0;
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
@@ -870,6 +878,7 @@ ip_reass(m, fp, where)
 			GETIP(q)->ip_len -= i;
 			GETIP(q)->ip_off += i;
 			m_adj(q, i);
+			q->m_pkthdr.csum_flags = 0;
 			break;
 		}
 		nq = q->m_nextpkt;
@@ -927,6 +936,8 @@ inserted:
 		nq = q->m_nextpkt;
 		q->m_nextpkt = NULL;
 		m_cat(m, q);
+		m->m_pkthdr.csum_flags &= q->m_pkthdr.csum_flags;
+		m->m_pkthdr.csum_data += q->m_pkthdr.csum_data;
 	}
 
 #ifdef IPDIVERT

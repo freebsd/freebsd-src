@@ -80,6 +80,8 @@
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
 
+#include <machine/in_cksum.h>
+
 #ifdef notyet
 extern struct mbuf *m_copypack();
 #endif
@@ -645,6 +647,7 @@ send:
 	ip = mtod(m, struct ip *);
 	ipov = (struct ipovly *)ip;
 	th = (struct tcphdr *)(ip + 1);
+	/* this picks up the pseudo header (w/o the length) */
 	bcopy((caddr_t)tp->t_template->tt_ipgen, (caddr_t)ip,
 	      sizeof(struct ip));
 	bcopy((caddr_t)&tp->t_template->tt_t, (caddr_t)th,
@@ -722,15 +725,15 @@ send:
 	else
 #endif /* INET6 */
       {
+	m->m_pkthdr.csum_flags = CSUM_TCP;
+	m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 	if (len + optlen)
-		ipov->ih_len = htons((u_short)(sizeof (struct tcphdr) +
-		    optlen + len));
-	th->th_sum = in_cksum(m, (int)(hdrlen + len));
-#ifdef INET6
-	/* Re-initialization for later version check */
-	ip->ip_v = IPVERSION;
-	
-#endif /* INET6 */
+		th->th_sum = in_addword(th->th_sum, 
+		    htons((u_short)(optlen + len)));
+
+	/* IP version must be set here for ipv4/ipv6 checking later */
+	KASSERT(ip->ip_v == IPVERSION,
+	    ("%s: IP version incorrect: %d", __FUNCTION__, ip->ip_v));
       }
 
 	/*

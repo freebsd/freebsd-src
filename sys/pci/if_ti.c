@@ -122,9 +122,7 @@
 #include <pci/ti_fw.h>
 #include <pci/ti_fw2.h>
 
-#ifdef M_HWCKSUM
-/*#define TI_CSUM_OFFLOAD*/
-#endif
+#define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
 
 #if !defined(lint)
 static const char rcsid[] =
@@ -792,11 +790,9 @@ static int ti_newbuf_std(sc, i, m)
 	r = &sc->ti_rdata->ti_rx_std_ring[i];
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_BD;
-#ifdef TI_CSUM_OFFLOAD
-	r->ti_flags = TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
-#else
 	r->ti_flags = 0;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
@@ -835,9 +831,8 @@ static int ti_newbuf_mini(sc, i, m)
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_BD;
 	r->ti_flags = TI_BDFLAG_MINI_RING;
-#ifdef TI_CSUM_OFFLOAD
-	r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
@@ -896,9 +891,8 @@ static int ti_newbuf_jumbo(sc, i, m)
 	TI_HOSTADDR(r->ti_addr) = vtophys(mtod(m_new, caddr_t));
 	r->ti_type = TI_BDTYPE_RECV_JUMBO_BD;
 	r->ti_flags = TI_BDFLAG_JUMBO_RING;
-#ifdef TI_CSUM_OFFLOAD
-	r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM|TI_BDFLAG_IP_CKSUM;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		r->ti_flags |= TI_BDFLAG_TCP_UDP_CKSUM | TI_BDFLAG_IP_CKSUM;
 	r->ti_len = m_new->m_len;
 	r->ti_idx = i;
 
@@ -1206,6 +1200,8 @@ static int ti_chipinit(sc)
 	/* Initialize link to down state. */
 	sc->ti_linkstat = TI_EV_CODE_LINK_DOWN;
 
+	sc->arpcom.ac_if.if_hwassist = TI_CSUM_FEATURES;
+
 	/* Set endianness before we access any non-PCI registers. */
 #if BYTE_ORDER == BIG_ENDIAN
 	CSR_WRITE_4(sc, TI_MISC_HOST_CTL,
@@ -1316,11 +1312,10 @@ static int ti_chipinit(sc)
 	 * Only allow 1 DMA channel to be active at a time.
 	 * I don't think this is a good idea, but without it
 	 * the firmware racks up lots of nicDmaReadRingFull
-	 * errors.
+	 * errors.  This is not compatible with hardware checksums.
 	 */
-#ifndef TI_CSUM_OFFLOAD
-	TI_SETBIT(sc, TI_GCR_OPMODE, TI_OPMODE_1_DMA_ACTIVE);
-#endif
+	if (sc->arpcom.ac_if.if_hwassist == 0)
+		TI_SETBIT(sc, TI_GCR_OPMODE, TI_OPMODE_1_DMA_ACTIVE);
 
 	/* Recommended settings from Tigon manual. */
 	CSR_WRITE_4(sc, TI_GCR_DMA_WRITECFG, TI_DMA_STATE_THRESH_8W);
@@ -1399,9 +1394,9 @@ static int ti_gibinit(sc)
 	TI_HOSTADDR(rcb->ti_hostaddr) = vtophys(&sc->ti_rdata->ti_rx_std_ring);
 	rcb->ti_max_len = TI_FRAMELEN;
 	rcb->ti_flags = 0;
-#ifdef TI_CSUM_OFFLOAD
-	rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM|TI_RCB_FLAG_IP_CKSUM;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
+		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 #if NVLAN > 0
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 #endif
@@ -1412,9 +1407,9 @@ static int ti_gibinit(sc)
 	    vtophys(&sc->ti_rdata->ti_rx_jumbo_ring);
 	rcb->ti_max_len = TI_JUMBO_FRAMELEN;
 	rcb->ti_flags = 0;
-#ifdef TI_CSUM_OFFLOAD
-	rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM|TI_RCB_FLAG_IP_CKSUM;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
+		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 #if NVLAN > 0
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 #endif
@@ -1432,9 +1427,9 @@ static int ti_gibinit(sc)
 		rcb->ti_flags = TI_RCB_FLAG_RING_DISABLED;
 	else
 		rcb->ti_flags = 0;
-#ifdef TI_CSUM_OFFLOAD
-	rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM|TI_RCB_FLAG_IP_CKSUM;
-#endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
+		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 #if NVLAN > 0
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 #endif
@@ -1474,6 +1469,9 @@ static int ti_gibinit(sc)
 #if NVLAN > 0
 	rcb->ti_flags |= TI_RCB_FLAG_VLAN_ASSIST;
 #endif
+	if (sc->arpcom.ac_if.if_hwassist)
+		rcb->ti_flags |= TI_RCB_FLAG_TCP_UDP_CKSUM |
+		     TI_RCB_FLAG_IP_CKSUM | TI_RCB_FLAG_NO_PHDR_CKSUM;
 	rcb->ti_max_len = TI_TX_RING_CNT;
 	if (sc->ti_hwrev == TI_HWREV_TIGON)
 		TI_HOSTADDR(rcb->ti_hostaddr) = TI_TX_RING_BASE;
@@ -1791,9 +1789,6 @@ static void ti_rxeof(sc)
 		u_int16_t		vlan_tag = 0;
 		int			have_tag = 0;
 #endif
-#ifdef TI_CSUM_OFFLOAD
-		struct ip		*ip;
-#endif
 
 		cur_rx =
 		    &sc->ti_rdata->ti_rx_return_ring[sc->ti_rx_saved_considx];
@@ -1876,12 +1871,13 @@ static void ti_rxeof(sc)
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 
-#ifdef TI_CSUM_OFFLOAD
-		ip = mtod(m, struct ip *);
-		if (!(cur_rx->ti_tcp_udp_cksum ^ 0xFFFF) &&
-		    !(ip->ip_off & htons(IP_MF | IP_OFFMASK | IP_RF)))
-			m->m_flags |= M_HWCKSUM;
-#endif
+		if (ifp->if_hwassist) {
+			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED |
+			    CSUM_DATA_VALID;
+			if ((cur_rx->ti_ip_cksum ^ 0xffff) == 0)
+				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+			m->m_pkthdr.csum_data = cur_rx->ti_tcp_udp_cksum;
+		}
 
 #if NVLAN > 0
 		/*
@@ -2025,6 +2021,7 @@ static int ti_encap(sc, m_head, txidx)
 	struct ti_tx_desc	*f = NULL;
 	struct mbuf		*m;
 	u_int32_t		frag, cur, cnt = 0;
+	u_int16_t		csum_flags = 0;
 #if NVLAN > 0
 	struct ifvlan		*ifv = NULL;
 
@@ -2037,6 +2034,16 @@ static int ti_encap(sc, m_head, txidx)
 	m = m_head;
 	cur = frag = *txidx;
 
+	if (m_head->m_pkthdr.csum_flags) {
+		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
+			csum_flags |= TI_BDFLAG_IP_CKSUM;
+		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+			csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
+		if (m_head->m_flags & M_LASTFRAG)
+			csum_flags |= TI_BDFLAG_IP_FRAG_END;
+		else if (m_head->m_flags & M_FRAG)
+			csum_flags |= TI_BDFLAG_IP_FRAG;
+	}
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
@@ -2064,7 +2071,7 @@ static int ti_encap(sc, m_head, txidx)
 				break;
 			TI_HOSTADDR(f->ti_addr) = vtophys(mtod(m, vm_offset_t));
 			f->ti_len = m->m_len;
-			f->ti_flags = 0;
+			f->ti_flags = csum_flags;
 #if NVLAN > 0
 			if (ifv != NULL) {
 				f->ti_flags |= TI_BDFLAG_VLAN_TAG;
@@ -2123,6 +2130,24 @@ static void ti_start(ifp)
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
+
+		/*
+		 * XXX
+		 * safety overkill.  If this is a fragmented packet chain
+		 * with delayed TCP/UDP checksums, then only encapsulate
+		 * it if we have enough descriptors to handle the entire
+		 * chain at once.
+		 * (paranoia -- may not actually be needed)
+		 */
+		if (m_head->m_flags & M_FIRSTFRAG &&
+		    m_head->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
+			if ((TI_TX_RING_CNT - sc->ti_txcnt) <
+			    m_head->m_pkthdr.csum_data + 16) {
+				IF_PREPEND(&ifp->if_snd, m_head);
+				ifp->if_flags |= IFF_OACTIVE;
+				break;
+			}
+		}
 
 		/*
 		 * Pack the data into the transmit ring. If we
