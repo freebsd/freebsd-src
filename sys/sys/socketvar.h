@@ -404,7 +404,8 @@ int	accept_filt_add __P((struct accept_filter *filt));
 int	accept_filt_del __P((char *name));
 struct accept_filter *	accept_filt_get __P((char *name));
 #ifdef ACCEPT_FILTER_MOD
-int	accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
+int accept_filt_generic_mod_event __P((module_t mod, int event, void *data));
+SYSCTL_DECL(_net_inet_accf);
 #endif /* ACCEPT_FILTER_MOD */
 
 #endif /* _KERNEL */
