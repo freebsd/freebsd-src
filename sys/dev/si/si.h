@@ -85,18 +85,6 @@
 #define	MINOR2TP(m)	(MINOR2PP((m))->sp_tty)
 #define	TP2PP(tp)	(MINOR2PP(SI_TTY(minor((tp)->t_dev))))
 
-/* Adapter types */
-#define	SIEMPTY		0
-#define	SIHOST		1
-#define	SIMCA		2
-#define	SIHOST2		3
-#define	SIEISA		4
-#define SIPCI		5
-#define SIJETPCI	6
-#define SIJETISA	7
-
-#define SI_ISJET(x)	(((x) == SIJETPCI) || ((x) == SIJETISA))
-
 /* Buffer parameters */
 #define	SI_BUFFERSIZE	256
 

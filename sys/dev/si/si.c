@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1990, 1992, 1998 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
- * Copyright (C) 1995, Peter Wemm <peter@netplex.com.au>
+ * Copyright (C) 2000, Peter Wemm <peter@netplex.com.au>
  *
  * Originally derived from:	SunOS 4.x version
  * Ported from BSDI version to FreeBSD by Peter Wemm.
@@ -36,7 +36,7 @@
 #ifndef lint
 static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International, 1990,1992,1998",
 		  si_copyright2[] =  "@(#) Copyright (C) Andy Rutter 1993",
-		  si_copyright3[] =  "@(#) Copyright (C) Peter Wemm 1995";
+		  si_copyright3[] =  "@(#) Copyright (C) Peter Wemm 2000";
 #endif	/* not lint */
 
 #include "opt_compat.h"
@@ -68,16 +68,8 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #include <machine/stdarg.h>
 
 #include <dev/si/sireg.h>
+#include <dev/si/sivar.h>
 #include <dev/si/si.h>
-
-#include "isa.h"
-#include <isa/isavar.h>
-
-#include "pci.h"
-#include <pci/pcivar.h>
-
-#include "eisa.h"
-#include <dev/eisa/eisaconf.h>
 
 /*
  * This device driver is designed to interface the Specialix International
@@ -111,11 +103,13 @@ static void si_disc_optim(struct tty *tp, struct termios *t,struct si_port *pp);
 static void sihardclose(struct si_port *pp);
 static void sidtrwakeup(void *chan);
 
+#ifdef SI_DEBUG
+static char	*si_mctl2str(enum si_mctl cmd);
+#endif
+
 static int	siparam(struct tty *, struct termios *);
 
-static int	siattach(device_t dev);
 static void	si_modem_state(struct si_port *pp, struct tty *tp, int hi_ip);
-static void	si_intr(void *);
 static char *	si_modulename(int host_type, int uart_type);
 
 static	d_open_t	siopen;
@@ -141,17 +135,6 @@ static struct cdevsw si_cdevsw = {
 	/* bmaj */	-1
 };
 
-#ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
-
-static	void	si_dprintf(struct si_port *pp, int flags, const char *fmt, ...);
-static	char	*si_mctl2str(enum si_mctl cmd);
-
-#define	DPRINT(x)	si_dprintf x
-
-#else
-#define	DPRINT(x)	/* void */
-#endif
-
 static int si_Nports;
 static int si_Nmodules;
 static int si_debug = 0;	/* data, not bss, so it's patchable */
@@ -160,42 +143,9 @@ SYSCTL_INT(_machdep, OID_AUTO, si_debug, CTLFLAG_RW, &si_debug, 0, "");
 
 static struct tty *si__tty;
 
-/* where the firmware lives; defined in si2_z280.c and si3_t225.c */
-/* old: si2_z280.c */
-extern unsigned char si2_z280_download[];
-extern unsigned short si2_z280_downloadaddr;
-extern int si2_z280_dsize;
-/* new: si3_t225.c */
-extern unsigned char si3_t225_download[];
-extern unsigned short si3_t225_downloadaddr;
-extern int si3_t225_dsize;
-extern unsigned char si3_t225_bootstrap[];
-extern unsigned short si3_t225_bootloadaddr;
-extern int si3_t225_bsize;
-
-
-struct si_softc {
-	int 		sc_type;	/* adapter type */
-	char 		*sc_typename;	/* adapter type string */
-
-	struct si_port	*sc_ports;	/* port structures for this card */
-
-	caddr_t		sc_paddr;	/* physical addr of iomem */
-	caddr_t		sc_maddr;	/* kvaddr of iomem */
-	int		sc_nport;	/* # ports on this card */
-	int		sc_irq;		/* copy of attach irq */
-	int		sc_iobase;	/* EISA io port address */
-	struct resource *sc_port_res;
-	struct resource *sc_irq_res;
-	struct resource *sc_mem_res;
-	int		sc_port_rid;
-	int		sc_irq_rid;
-	int		sc_mem_rid;
-	int		sc_memsize;
-};
 static int si_numunits;
 
-static devclass_t si_devclass;
+devclass_t si_devclass;
 
 #ifndef B2000	/* not standard, but the hardware knows it. */
 # define B2000 2000
@@ -291,538 +241,10 @@ si_bcopyv(const void *src, volatile void *dst, size_t len)
 }
 
 
-#if NPCI > 0
-
-static const char *
-si_pci_probe(device_t dev)
-{
-	switch (pci_get_devid(dev)) {
-	case 0x400011cb:
-		return("Specialix SI/XIO PCI host card");
-		break;
-	case 0x200011cb:
-		if (pci_read_config(dev, SIJETSSIDREG, 4) == 0x020011cb)
-			return("Specialix SX PCI host card");
-		else
-			return NULL;
-		break;
-	}
-	return NULL;
-}
-
-static int
-si_pci_attach(device_t dev)
-{
-	struct si_softc *sc;
-	void *ih;
-	int error;
-
-	error = 0;
-	ih = NULL;
-	sc = device_get_softc(dev);
-
-	switch (pci_get_devid(dev)) {
-	case 0x400011cb:
-		sc->sc_type = SIPCI;
-		sc->sc_mem_rid = SIPCIBADR;
-		break;
-	case 0x200011cb:
-		sc->sc_type = SIJETPCI;
-		sc->sc_mem_rid = SIJETBADR;
-		break;
-	}
-	sc->sc_typename = si_type[sc->sc_type];
-
-	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-					    &sc->sc_mem_rid,
-					    0, ~0, 1, RF_ACTIVE);
-	if (!sc->sc_mem_res) {
-		device_printf(dev, "couldn't map memory\n");
-		goto fail;
-	}
-	sc->sc_paddr = (caddr_t)rman_get_start(sc->sc_mem_res);
-	sc->sc_maddr = rman_get_virtual(sc->sc_mem_res);
-
-	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irq_rid,
-					    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->sc_irq_res) {
-		device_printf(dev, "couldn't map interrupt\n");
-		goto fail;
-	}
-	sc->sc_irq = rman_get_start(sc->sc_irq_res);
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY,
-			       si_intr, sc, &ih);
-	if (error) {
-		device_printf(dev, "could not activate interrupt\n");
-		goto fail;
-	}
-
-	error = siattach(dev);
-	if (error)
-		goto fail;
-	return (0);		/* success */
-
-fail:
-	if (error == 0)
-		error = ENXIO;
-	if (sc->sc_irq_res) {
-		if (ih)
-			bus_teardown_intr(dev, sc->sc_irq_res, ih);
-		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->sc_irq_rid, sc->sc_irq_res);
-		sc->sc_irq_res = 0;
-	}
-	if (sc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->sc_mem_rid, sc->sc_mem_res);
-		sc->sc_mem_res = 0;
-	}
-	return (error);
-}
-
-static device_method_t si_pci_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		si_pci_probe),
-	DEVMETHOD(device_attach,	si_pci_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t si_pci_driver = {
-	"si",
-	si_pci_methods,
-	sizeof(struct si_softc),
-};
-
-DRIVER_MODULE(si, pci, si_pci_driver, si_devclass, 0, 0);
-
-#endif
-
-#if NEISA > 0
-
-static int
-si_eisa_probe(device_t dev)
-{
-	u_long iobase;
-	u_long maddr;
-	int irq;
-
-	if (eisa_get_id(dev) != SIEISADEVID)
-		return ENXIO;
-
-	device_set_desc(dev, "Specialix SI/XIO EISA host card");
-	
-	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE) + SIEISABASE;
-	eisa_add_iospace(dev, iobase, SIEISAIOSIZE, RESVADDR_NONE);
-
-	maddr = (inb(iobase+1) << 24) | (inb(iobase) << 16);
-	eisa_add_mspace(dev, maddr, SIEISA_MEMSIZE, RESVADDR_NONE);
-
-	irq  = ((inb(iobase+2) >> 4) & 0xf);
-	eisa_add_intr(dev, irq, EISA_TRIGGER_LEVEL);	/* XXX shared? */
-
-	return (0);
-}
-
-static int
-si_eisa_attach(device_t dev)
-{
-	struct si_softc *sc;
-	void *ih;
-	int error;
-
-	error = 0;
-	ih = NULL;
-	sc = device_get_softc(dev);
-
-	sc->sc_type = SIEISA;
-	sc->sc_typename = si_type[sc->sc_type];
-
-	sc->sc_port_rid = 0;
-	sc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
-					     &sc->sc_port_rid,
-					     0, ~0, 1, RF_ACTIVE);
-	if (!sc->sc_port_res) {
-		device_printf(dev, "couldn't allocate ioports\n");
-		goto fail;
-	}
-	sc->sc_iobase = rman_get_start(sc->sc_port_res);
-
-	sc->sc_mem_rid = 0;
-	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-					    &sc->sc_mem_rid,
-					    0, ~0, 1, RF_ACTIVE);
-	if (!sc->sc_mem_res) {
-		device_printf(dev, "couldn't allocate iomemory");
-		goto fail;
-	}
-	sc->sc_paddr = (caddr_t)rman_get_start(sc->sc_mem_res);
-	sc->sc_maddr = rman_get_virtual(sc->sc_mem_res);
-
-	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irq_rid,
-					    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->sc_irq_res) {
-		device_printf(dev, "couldn't allocate interrupt");
-		goto fail;
-	}
-	sc->sc_irq = rman_get_start(sc->sc_irq_res);
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY,
-			       si_intr, sc,&ih);
-	if (error) {
-		device_printf(dev, "couldn't activate interrupt");
-		goto fail;
-	}
-
-	error = siattach(dev);
-	if (error)
-		goto fail;
-	return (0);		/* success */
-
-fail:
-	if (error == 0)
-		error = ENXIO;
-	if (sc->sc_irq_res) {
-		if (ih)
-			bus_teardown_intr(dev, sc->sc_irq_res, ih);
-		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->sc_irq_rid, sc->sc_irq_res);
-		sc->sc_irq_res = 0;
-	}
-	if (sc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->sc_mem_rid, sc->sc_mem_res);
-		sc->sc_mem_res = 0;
-	}
-	if (sc->sc_port_res) {
-		bus_release_resource(dev, SYS_RES_IOPORT,
-				     sc->sc_port_rid, sc->sc_port_res);
-		sc->sc_port_res = 0;
-	}
-	return (error);
-}
-
-static device_method_t si_eisa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		si_eisa_probe),
-	DEVMETHOD(device_attach,	si_eisa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t si_eisa_driver = {
-	"si",
-	si_eisa_methods,
-	sizeof(struct si_softc),
-};
-
-DRIVER_MODULE(si, eisa, si_eisa_driver, si_devclass, 0, 0);
-
-#endif
-
-
-#if NISA > 0
-
-/* Look for a valid board at the given mem addr */
-static int
-si_isa_probe(device_t dev)
-{
-	struct si_softc *sc;
-	int type;
-	u_int i, ramsize;
-	volatile BYTE was, *ux;
-	volatile unsigned char *maddr;
-	unsigned char *paddr;
-	int unit;
-
-	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
-
-	sc->sc_mem_rid = 0;
-	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-					    &sc->sc_mem_rid,
-					    0, ~0, SIPROBEALLOC, RF_ACTIVE);
-	if (!sc->sc_mem_res)
-		return ENXIO;
-	paddr = (caddr_t)rman_get_start(sc->sc_mem_res);/* physical */
-	maddr = rman_get_virtual(sc->sc_mem_res);	/* in kvm */
-
-	DPRINT((0, DBG_AUTOBOOT, "si%d: probe at virtual=0x%x physical=0x%x\n",
-		unit, maddr, paddr));
-
-	/*
-	 * this is a lie, but it's easier than trying to handle caching
-	 * and ram conflicts in the >1M and <16M region.
-	 */
-	if ((caddr_t)paddr < (caddr_t)0xA0000 ||
-	    (caddr_t)paddr >= (caddr_t)0x100000) {
-		printf("si%d: iomem (%p) out of range\n",
-			unit, (void *)paddr);
-		goto fail;
-	}
-
-	if (((u_int)paddr & 0x7fff) != 0) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: iomem (%x) not on 32k boundary\n", unit, paddr));
-		goto fail;
-	}
-
-	/* Is there anything out there? (0x17 is just an arbitrary number) */
-	*maddr = 0x17;
-	if (*maddr != 0x17) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: 0x17 check fail at phys 0x%x\n", unit, paddr));
-		goto fail;
-	}
-	/*
-	 * Let's look first for a JET ISA card, since that's pretty easy
-	 *
-	 * All jet hosts are supposed to have this string in the IDROM,
-	 * but it's not worth checking on self-IDing busses like PCI.
-	 */
-	{
-		unsigned char *jet_chk_str = "JET HOST BY KEV#";
-
-		for (i = 0; i < strlen(jet_chk_str); i++)
-			if (jet_chk_str[i] != *(maddr + SIJETIDSTR + 2 * i))
-				goto try_mk2;
-	}
-	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL, "si%d: JET first check - 0x%x\n",
-		unit, (*(maddr+SIJETIDBASE))));
-	if (*(maddr+SIJETIDBASE) != (SISPLXID&0xff))
-		goto try_mk2;
-	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL, "si%d: JET second check - 0x%x\n",
-		unit, (*(maddr+SIJETIDBASE+2))));
-	if (*(maddr+SIJETIDBASE+2) != ((SISPLXID&0xff00)>>8))
-		goto try_mk2;
-	/* It must be a Jet ISA or RIO card */
-	DPRINT((0, DBG_AUTOBOOT|DBG_FAIL, "si%d: JET id check - 0x%x\n",
-		unit, (*(maddr+SIUNIQID))));
-	if ((*(maddr+SIUNIQID) & 0xf0) != 0x20)
-		goto try_mk2;
-	/* It must be a Jet ISA SI/XIO card */
-	*(maddr + SIJETCONFIG) = 0;
-	type = SIJETISA;
-	ramsize = SIJET_RAMSIZE;
-	goto got_card;
-
-try_mk2:
-	/*
-	 * OK, now to see if whatever responded is really an SI card.
-	 * Try for a MK II next (SIHOST2)
-	 */
-	for (i = SIPLSIG; i < SIPLSIG + 8; i++)
-		if ((*(maddr+i) & 7) != (~(BYTE)i & 7))
-			goto try_mk1;
-
-	/* It must be an SIHOST2 */
-	*(maddr + SIPLRESET) = 0;
-	*(maddr + SIPLIRQCLR) = 0;
-	*(maddr + SIPLIRQSET) = 0x10;
-	type = SIHOST2;
-	ramsize = SIHOST2_RAMSIZE;
-	goto got_card;
-
-try_mk1:
-	/*
-	 * Its not a MK II, so try for a MK I (SIHOST)
-	 */
-	*(maddr+SIRESET) = 0x0;		/* reset the card */
-	*(maddr+SIINTCL) = 0x0;		/* clear int */
-	*(maddr+SIRAM) = 0x17;
-	if (*(maddr+SIRAM) != (BYTE)0x17)
-		goto fail;
-	*(maddr+0x7ff8) = 0x17;
-	if (*(maddr+0x7ff8) != (BYTE)0x17) {
-		DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-			"si%d: 0x17 check fail at phys 0x%x = 0x%x\n",
-			unit, paddr+0x77f8, *(maddr+0x77f8)));
-		goto fail;
-	}
-
-	/* It must be an SIHOST (maybe?) - there must be a better way XXX */
-	type = SIHOST;
-	ramsize = SIHOST_RAMSIZE;
-
-got_card:
-	DPRINT((0, DBG_AUTOBOOT, "si%d: found type %d card, try memory test\n",
-		unit, type));
-	/* Try the acid test */
-	ux = maddr + SIRAM;
-	for (i = 0; i < ramsize; i++, ux++)
-		*ux = (BYTE)(i&0xff);
-	ux = maddr + SIRAM;
-	for (i = 0; i < ramsize; i++, ux++) {
-		if ((was = *ux) != (BYTE)(i&0xff)) {
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: match fail at phys 0x%x, was %x should be %x\n",
-				unit, paddr + i, was, i&0xff));
-			goto fail;
-		}
-	}
-
-	/* clear out the RAM */
-	ux = maddr + SIRAM;
-	for (i = 0; i < ramsize; i++)
-		*ux++ = 0;
-	ux = maddr + SIRAM;
-	for (i = 0; i < ramsize; i++) {
-		if ((was = *ux++) != 0) {
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: clear fail at phys 0x%x, was %x\n",
-				unit, paddr + i, was));
-			goto fail;
-		}
-	}
-
-	/*
-	 * Success, we've found a valid board, now fill in
-	 * the adapter structure.
-	 */
-	switch (type) {
-	case SIHOST2:
-		switch (isa_get_irq(dev)) {
-		case 11:
-		case 12:
-		case 15:
-			break;
-		default:
-bad_irq:
-			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
-				"si%d: bad IRQ value - %d\n",
-				unit, isa_get_irq(dev)));
-			goto fail;
-		}
-		sc->sc_memsize = SIHOST2_MEMSIZE;
-		break;
-	case SIHOST:
-		switch (isa_get_irq(dev)) {
-		case 11:
-		case 12:
-		case 15:
-			break;
-		default:
-			goto bad_irq;
-		}
-		sc->sc_memsize = SIHOST_MEMSIZE;
-		break;
-	case SIJETISA:
-		switch (isa_get_irq(dev)) {
-		case 9:
-		case 10:
-		case 11:
-		case 12:
-		case 15:
-			break;
-		default:
-			goto bad_irq;
-		}
-		sc->sc_memsize = SIJETISA_MEMSIZE;
-		break;
-	case SIMCA:		/* MCA */
-	default:
-		printf("si%d: %s not supported\n", unit, si_type[type]);
-		goto fail;
-	}
-	sc->sc_type = type;
-	sc->sc_typename = si_type[type];
-	bus_release_resource(dev, SYS_RES_MEMORY,
-			     sc->sc_mem_rid, sc->sc_mem_res);
-	sc->sc_mem_res = 0;
-	return (0);		/* success! */
-
-fail:
-	if (sc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->sc_mem_rid, sc->sc_mem_res);
-		sc->sc_mem_res = 0;
-	}
-	return(EINVAL);
-}
-
-static int
-si_isa_attach(device_t dev)
-{
-	int error;
-	void *ih;
-	struct si_softc *sc;
-
-	error = 0;
-	ih = NULL;
-	sc = device_get_softc(dev);
-
-	sc->sc_mem_rid = 0;
-	sc->sc_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-					    &sc->sc_mem_rid,
-					    0, ~0, 1, RF_ACTIVE);
-	if (!sc->sc_mem_res) {
-		device_printf(dev, "couldn't map memory\n");
-		goto fail;
-	}
-	sc->sc_paddr = (caddr_t)rman_get_start(sc->sc_mem_res);
-	sc->sc_maddr = rman_get_virtual(sc->sc_mem_res);
-
-	sc->sc_irq_rid = 0;
-	sc->sc_irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irq_rid,
-					    0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (!sc->sc_irq_res) {
-		device_printf(dev, "couldn't allocate interrupt\n");
-		goto fail;
-	}
-	sc->sc_irq = rman_get_start(sc->sc_irq_res);
-	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY,
-			       si_intr, sc,&ih);
-	if (error) {
-		device_printf(dev, "couldn't activate interrupt\n");
-		goto fail;
-	}
-
-	error = siattach(dev);
-	if (error)
-		goto fail;
-	return (0);		/* success */
-
-fail:
-	if (error == 0)
-		error = ENXIO;
-	if (sc->sc_irq_res) {
-		if (ih)
-			bus_teardown_intr(dev, sc->sc_irq_res, ih);
-		bus_release_resource(dev, SYS_RES_IRQ,
-				     sc->sc_irq_rid, sc->sc_irq_res);
-		sc->sc_irq_res = 0;
-	}
-	if (sc->sc_mem_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-				     sc->sc_mem_rid, sc->sc_mem_res);
-		sc->sc_mem_res = 0;
-	}
-	return (error);
-}
-
-static device_method_t si_isa_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		si_isa_probe),
-	DEVMETHOD(device_attach,	si_isa_attach),
-
-	{ 0, 0 }
-};
-
-static driver_t si_isa_driver = {
-	"si",
-	si_isa_methods,
-	sizeof(struct si_softc),
-};
-
-DRIVER_MODULE(si, isa, si_isa_driver, si_devclass, 0, 0);
-
-#endif
-
 /*
  * Attach the device.  Initialize the card.
  */
-static int
+int
 siattach(device_t dev)
 {
 	int unit;
@@ -839,6 +261,10 @@ siattach(device_t dev)
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+
+	sc->sc_typename = si_type[sc->sc_type];
+	if (si_numunits < unit + 1)
+		si_numunits = unit + 1;
 
 	DPRINT((0, DBG_AUTOBOOT, "si%d: siattach\n", unit));
 
@@ -2156,7 +1582,7 @@ out:
 static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
 static BYTE si_txbuf[SI_BUFFERSIZE];	/* output staging area */
 
-static void
+void
 si_intr(void *arg)
 {
 	struct si_softc *sc;
@@ -2715,7 +2141,7 @@ si_disc_optim(struct tty *tp, struct termios *t, struct si_port *pp)
 
 #ifdef	SI_DEBUG
 
-static void
+void
 si_dprintf(struct si_port *pp, int flags, const char *fmt, ...)
 {
 	va_list ap;
