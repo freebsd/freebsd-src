@@ -72,6 +72,9 @@ __FBSDID("$FreeBSD$");
 
 static int i386_get_ldt(struct thread *, char *);
 static int i386_set_ldt(struct thread *, char *);
+static int i386_set_ldt_data(struct thread *, int start, int num,
+	union descriptor *descs);
+static int i386_ldt_grow(struct thread *td, int len);
 static int i386_get_ioperm(struct thread *, char *);
 static int i386_set_ioperm(struct thread *, char *);
 #ifdef SMP
@@ -412,77 +415,71 @@ i386_set_ldt(td, args)
 	struct thread *td;
 	char *args;
 {
-	int error = 0, i, n;
+	int error = 0, i;
 	int largest_ld;
 	struct mdproc *mdp = &td->td_proc->p_md;
-	struct proc_ldt *pldt = mdp->md_ldt;
+	struct proc_ldt *pldt = 0;
 	struct i386_ldt_args ua, *uap = &ua;
-	union descriptor *descs;
-	caddr_t old_ldt_base;
-	int descs_size, old_ldt_len;
-	register_t savecrit;
+	union descriptor *descs, *dp;
+	int descs_size;
+
+#ifdef	DEBUG
+	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
+	    start, num, (void *)descs);
+#endif
 
 	if ((error = copyin(args, uap, sizeof(struct i386_ldt_args))) < 0)
 		return(error);
 
-#ifdef	DEBUG
-	printf("i386_set_ldt: start=%d num=%d descs=%p\n",
-	    uap->start, uap->num, (void *)uap->descs);
-#endif
-
-	/* verify range of descriptors to modify */
-	if ((uap->start < 0) || (uap->start >= MAX_LD) || (uap->num < 0) ||
-		(uap->num > MAX_LD))
-	{
-		return(EINVAL);
-	}
-	largest_ld = uap->start + uap->num - 1;
-	if (largest_ld >= MAX_LD)
-		return(EINVAL);
-
-	/* allocate user ldt */
-	if (!pldt || largest_ld >= pldt->ldt_len) {
-		struct proc_ldt *new_ldt = user_ldt_alloc(mdp, largest_ld);
-		if (new_ldt == NULL)
-			return ENOMEM;
-		if (pldt) {
-			old_ldt_base = pldt->ldt_base;
-			old_ldt_len = pldt->ldt_len;
-			pldt->ldt_sd = new_ldt->ldt_sd;
-			pldt->ldt_base = new_ldt->ldt_base;
-			pldt->ldt_len = new_ldt->ldt_len;
-			mtx_unlock_spin(&sched_lock);
-			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
-				old_ldt_len * sizeof(union descriptor));
-			FREE(new_ldt, M_SUBPROC);
-#ifndef SMP
-			mtx_lock_spin(&sched_lock);
-#endif
-		} else {
-			mdp->md_ldt = pldt = new_ldt;
+	if (uap->descs == NULL) {
+		/* Free descriptors */
+		if (uap->start == 0 && uap->num == 0) {
+			/*
+			 * Treat this as a special case, so userland needn't
+			 * know magic number NLDT.
+		 	 */
+			uap->start = NLDT;
+			uap->num = MAX_LD - NLDT;
 		}
-#ifdef SMP
-		/* signal other cpus to reload ldt */
-		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv, 
-		    NULL, td);
-#else
-		set_user_ldt(mdp);
-#endif
+		if (uap->start < NLDT || uap->num <= 0)
+			return (EINVAL);
+		mtx_lock_spin(&sched_lock);
+		pldt = mdp->md_ldt;
+		if (pldt == NULL || uap->start >= pldt->ldt_len) {
+			mtx_unlock_spin(&sched_lock);
+			return (0);
+		}
+		largest_ld = uap->start + uap->num;
+		if (largest_ld > pldt->ldt_len)
+			largest_ld = pldt->ldt_len;
+		i = largest_ld - uap->start;
+		bzero(&((union descriptor *)(pldt->ldt_base))[uap->start],
+		    sizeof(union descriptor) * i);
 		mtx_unlock_spin(&sched_lock);
+		return (0);
+	}
+
+	if (!(uap->start == 0 && uap->num == 1)) {
+		/* verify range of descriptors to modify */
+		largest_ld = uap->start + uap->num;
+		if (uap->start < NLDT || uap->start >= MAX_LD || uap->num < 0 ||
+		    largest_ld > MAX_LD) {
+			return (EINVAL);
+		}
 	}
 
 	descs_size = uap->num * sizeof(union descriptor);
 	descs = (union descriptor *)kmem_alloc(kernel_map, descs_size);
 	if (descs == NULL)
 		return (ENOMEM);
-	error = copyin(&uap->descs[0], descs, descs_size);
+	error = copyin(uap->descs, descs, descs_size);
 	if (error) {
 		kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
 		return (error);
 	}
+
 	/* Check descriptors for access violations */
-	for (i = 0, n = uap->start; i < uap->num; i++, n++) {
-		union descriptor *dp;
+	for (i = 0; i < uap->num; i++) {
 		dp = &descs[i];
 
 		switch (dp->sd.sd_type) {
@@ -509,7 +506,7 @@ i386_set_ldt(td, args)
 			 * for OS use only.
 			 */
 			kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
-			return EACCES;
+			return (EACCES);
 			/*NOTREACHED*/
 
 		/* memory segment types */
@@ -550,13 +547,127 @@ i386_set_ldt(td, args)
 		}
 	}
 
-	/* Fill in range */
-	savecrit = intr_disable();
-	bcopy(descs, 
-	    &((union descriptor *)(pldt->ldt_base))[uap->start],
-	    uap->num * sizeof(union descriptor));
-	td->td_retval[0] = uap->start;
-	intr_restore(savecrit);
+	if (uap->start == 0 && uap->num == 1) {
+		/* Allocate a free slot */
+		pldt = mdp->md_ldt;
+		if (pldt == NULL) {
+			error = i386_ldt_grow(td, NLDT+1);
+			if (error) {
+				kmem_free(kernel_map, (vm_offset_t)descs,
+				    descs_size);
+				return (error);
+			}
+			pldt = mdp->md_ldt;
+		}
+again:
+		mtx_lock_spin(&sched_lock);
+		dp = &((union descriptor *)(pldt->ldt_base))[NLDT];
+		for (i = NLDT; i < pldt->ldt_len; ++i) {
+			if (dp->sd.sd_type == SDT_SYSNULL)
+				break;
+			dp++;
+		}
+		if (i >= pldt->ldt_len) {
+			mtx_unlock_spin(&sched_lock);
+			error = i386_ldt_grow(td, pldt->ldt_len+1);
+			if (error) {
+				kmem_free(kernel_map, (vm_offset_t)descs,
+				    descs_size);
+				return (error);
+			}
+			goto again;
+		}
+		uap->start = i;
+		error = i386_set_ldt_data(td, i, 1, descs);
+		mtx_unlock_spin(&sched_lock);
+	} else {
+		largest_ld = uap->start + uap->num;
+		error = i386_ldt_grow(td, largest_ld);
+		if (error == 0) {
+			mtx_lock_spin(&sched_lock);
+			error = i386_set_ldt_data(td, uap->start, uap->num,
+			    descs);
+			mtx_unlock_spin(&sched_lock);
+		}
+	}
 	kmem_free(kernel_map, (vm_offset_t)descs, descs_size);
+	if (error == 0)
+		td->td_retval[0] = uap->start;
+	return (error);
+}
+
+static int
+i386_set_ldt_data(struct thread *td, int start, int num,
+	union descriptor *descs)
+{
+	struct mdproc *mdp = &td->td_proc->p_md;
+	struct proc_ldt *pldt = mdp->md_ldt;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	/* Fill in range */
+	bcopy(descs,
+	    &((union descriptor *)(pldt->ldt_base))[start],
+	    num * sizeof(union descriptor));
+	return (0);
+}
+
+static int
+i386_ldt_grow(struct thread *td, int len) 
+{
+	struct mdproc *mdp = &td->td_proc->p_md;
+	struct proc_ldt *pldt;
+	caddr_t old_ldt_base;
+	int old_ldt_len;
+
+	if (len > MAX_LD)
+		return (ENOMEM);
+	if (len < NLDT+1)
+		len = NLDT+1;
+	pldt = mdp->md_ldt;
+	/* allocate user ldt */
+	if (!pldt || len > pldt->ldt_len) {
+		struct proc_ldt *new_ldt = user_ldt_alloc(mdp, len);
+		if (new_ldt == NULL)
+			return (ENOMEM);
+		pldt = mdp->md_ldt;
+		/* sched_lock was held by user_ldt_alloc */
+		if (pldt) {
+			if (new_ldt->ldt_len > pldt->ldt_len) {
+				old_ldt_base = pldt->ldt_base;
+				old_ldt_len = pldt->ldt_len;
+				pldt->ldt_sd = new_ldt->ldt_sd;
+				pldt->ldt_base = new_ldt->ldt_base;
+				pldt->ldt_len = new_ldt->ldt_len;
+				mtx_unlock_spin(&sched_lock);
+				kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
+					old_ldt_len * sizeof(union descriptor));
+				FREE(new_ldt, M_SUBPROC);
+				mtx_lock_spin(&sched_lock);
+			} else {
+				/*
+				 * If other threads already did the work,
+				 * do nothing
+				 */
+				mtx_unlock_spin(&sched_lock);
+				kmem_free(kernel_map,
+				   (vm_offset_t)new_ldt->ldt_base,
+				   new_ldt->ldt_len * sizeof(union descriptor));
+				FREE(new_ldt, M_SUBPROC);
+				return (0);
+			}
+		} else {
+			mdp->md_ldt = pldt = new_ldt;
+		}
+#ifdef SMP
+		mtx_unlock_spin(&sched_lock);
+		/* signal other cpus to reload ldt */
+		smp_rendezvous(NULL, (void (*)(void *))set_user_ldt_rv,
+		    NULL, td);
+#else
+		set_user_ldt(mdp);
+		mtx_unlock_spin(&sched_lock);
+#endif
+	}
 	return (0);
 }
