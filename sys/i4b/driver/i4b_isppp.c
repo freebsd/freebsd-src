@@ -55,12 +55,8 @@
 #include <net/if_types.h>
 #include <net/if_sppp.h>
 
-#include "bpf.h"     
-
-#if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
-#endif
 
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_debug.h>
@@ -230,9 +226,7 @@ i4bispppattach(void *dummy)
 
 		CALLOUT_INIT(&sc->sc_ch);
 		
-#if NBPFILTER > 0 || NBPF > 0
 		bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
-#endif		
 	}
 }
 
@@ -295,10 +289,8 @@ i4bisppp_start(struct ifnet *ifp)
 	while ((m = sppp_dequeue(&sc->sc_if)) != NULL)
 	{
 
-#if NBPFILTER > 0 || NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-#endif 
 
 		microtime(&ifp->if_lastchange);
 
@@ -589,10 +581,8 @@ i4bisppp_rx_data_rdy(int unit)
 	printf("i4bisppp_rx_data_ready: received packet!\n");
 #endif
 
-#if NBPFILTER > 0 || NBPF > 0
 	if(sc->sc_if.if_bpf)
 		bpf_mtap(&sc->sc_if, m);
-#endif
 
 	s = splimp();
 
