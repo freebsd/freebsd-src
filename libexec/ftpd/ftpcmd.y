@@ -58,6 +58,8 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <glob.h>
+#include <libutil.h>
+#include <md5.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
@@ -67,8 +69,6 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
-#include <libutil.h>
-#include <md5.h>
 
 #include "extern.h"
 
@@ -137,8 +137,7 @@ extern int epsvall;
 %token	<i> NUMBER
 
 %type	<i> check_login octal_number byte_size
-%type	<i> check_login_ro octal_number byte_size
-%type	<i> check_login_epsv octal_number byte_size
+%type	<i> check_login_ro check_login_epsv
 %type	<i> struct_code mode_code type_code form_code
 %type	<s> pathstring pathname password username
 %type	<s> ALL
