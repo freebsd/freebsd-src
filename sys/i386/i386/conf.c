@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.64 1995/02/15 04:51:10 jkh Exp $
+ *	$Id: conf.c,v 1.65 1995/02/15 08:19:31 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -796,10 +796,10 @@ d_read_t        cyread;
 d_write_t       cywrite;
 d_ioctl_t	cyioctl;
 d_stop_t        cystop;
-d_reset_t       cyreset;
 d_select_t      cyselect;
-d_mmap_t        cymmap;
-d_strategy_t    cystrategy;
+#define cyreset	nxreset
+#define	cymmap	nxmmap
+#define cystrategy nxstrategy
 extern	struct tty cy_tty[];
 #else
 #define	cyopen		nxopen
