@@ -50,6 +50,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 
 static char* snd_mixernames[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
+#ifdef SND_DYNSYSCTL
 static int
 mixer_lookup(char *devname)
 {
@@ -61,6 +62,7 @@ mixer_lookup(char *devname)
 			return i;
 	return -1;
 }
+#endif
 
 static int
 mixer_set(snd_mixer *mixer, unsigned dev, unsigned lev)
@@ -268,6 +270,7 @@ mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg)
 	return ENXIO;
 }
 
+#ifdef SND_DYNSYSCTL
 static int
 sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 {
@@ -289,6 +292,7 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 	}
 	return error;
 }
+#endif
 
 int
 mixer_hwvol_init(device_t dev)
@@ -300,11 +304,13 @@ mixer_hwvol_init(device_t dev)
 	m = d->mixer;
 	m->hwvol_mixer = SOUND_MIXER_VOLUME;
 	m->hwvol_step = 5;
+#ifdef SND_DYNSYSCTL
 	SYSCTL_ADD_INT(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
             OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
 	SYSCTL_ADD_PROC(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
             OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
 	    sysctl_hw_snd_hwvol_mixer, "A", "")
+#endif
 	return 0;
 }
 

@@ -88,8 +88,8 @@ nomenclature:
 
 static devclass_t pcm_devclass;
 
-#if __FreeBSD_version > 500000
-#define USING_DEVFS
+#ifdef SND_DYNSYSCTL
+SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 #endif
 
 #ifdef USING_DEVFS
@@ -137,8 +137,6 @@ pcm_makelinks(void *dummy)
 	pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
 	mixer = make_dev_alias(pdev, "mixer");
 }
-
-SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 
 static int
 sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
@@ -311,7 +309,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	} else
 		d->rec = NULL;
 
-#ifdef USING_DEVFS
+#ifdef SND_DYNSYSCTL
 	sysctl_ctx_init(&d->sysctl_tree);
 	d->sysctl_tree_top = SYSCTL_ADD_NODE(&d->sysctl_tree,
 				 SYSCTL_STATIC_CHILDREN(_hw_snd), OID_AUTO,
@@ -346,9 +344,11 @@ pcm_unregister(device_t dev)
     	snddev_info *d = device_get_softc(dev);
 	dev_t pdev;
 
+#ifdef SND_DYNSYSCTL
 	sysctl_remove_oid(d->sysctl_tree_top, 1, 1);
 	d->sysctl_tree_top = NULL;
 	sysctl_ctx_free(&d->sysctl_tree);
+#endif
 
 	r = 0;
 	for (i = 0; i < d->chancount; i++)
