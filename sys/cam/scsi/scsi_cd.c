@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.12 1999/01/07 20:20:57 mjacob Exp $
+ *      $Id: scsi_cd.c,v 1.13 1999/01/11 17:45:22 eivind Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -964,7 +964,7 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Initialize slice tables. */
 	error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
-		       &softc->cd_slices, &label, cdstrategy,
+		       &softc->cd_slices, &label, cdstrategy1,
 		       (ds_setgeom_t *)NULL, &cd_cdevsw);
 
 	if (error == 0) {
@@ -2486,7 +2486,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		 * don't, dsioctl will pass back an error code of ENOIOCTL.
 		 */
 		error = dsioctl("cd", dev, cmd, addr, flag, &softc->cd_slices,
-				cdstrategy, (ds_setgeom_t *)NULL);
+				cdstrategy1, (ds_setgeom_t *)NULL);
 
 		if (error != ENOIOCTL)
 			break;
