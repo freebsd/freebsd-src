@@ -19,8 +19,10 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* GNU SDIFF was written by Thomas Lord. */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef lint
+static const char rcsid[] = 
+"$FreeBSD$";
+#endif /* not lint */
 
 #include "system.h"
 #include <stdio.h>
