@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.75 1998/10/30 05:41:13 msmith Exp $
+ *	$Id: apm.c,v 1.76 1998/12/04 21:28:39 archie Exp $
  */
 
 #include "opt_devfs.h"
@@ -251,8 +251,8 @@ apm_power_off(int howto, void *junk)
 {
 	u_long eax, ebx, ecx, edx;
 
-	/* Not halting, or not active */
-	if (!(howto & RB_HALT) || !apm_softc.active)
+	/* Not halting powering off, or not active */
+	if (!(howto & RB_POWEROFF) || !apm_softc.active)
 		return;
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
 	ebx = PMDV_ALLDEV;
