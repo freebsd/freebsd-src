@@ -112,7 +112,7 @@ struct kse {
 		KES_ONRUNQ
 	} ke_state;			/* (j) thread sched specific status. */
 	int		ke_slptime;
-	int		ke_pinned;
+	int		ke_pinned;	/* (k) nested coult.. pinned to a cpu */
 	int		ke_slice;
 	struct runq	*ke_runq;
 	u_char		ke_cpu;		/* CPU that we have affinity for. */
@@ -1902,5 +1902,26 @@ sched_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
+
+void
+sched_pin(void)
+{
+	curthread->td_sched->ke_pinned++;
+}
+
+ void
+sched_unpin(void)
+{  
+	curthread->td_sched->td_pinned--;
+}
+
+#ifdef INVARIANTS
+int
+sched_ispinned(void)
+{
+	return (curthread->td_sched->ke_pinned);
+}
+#endif
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"
