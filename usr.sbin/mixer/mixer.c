@@ -9,8 +9,14 @@
  * You may do anything you wish with this program.
  */
 
-#include <stdio.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #ifdef __FreeBSD__
 #include <machine/soundcard.h>
@@ -25,7 +31,7 @@ int devmask = 0, recmask = 0, recsrc = 0;
 void usage(void)
 {
 	int i, n = 0;
-	printf("Usage: mixer { ");
+	printf("usage: mixer { ");
 
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
 		if ((1 << i) & devmask)  {
@@ -66,22 +72,14 @@ main(int argc, char *argv[])
 	  if (!strcmp(argv[0], "mixer3"))
 	     strcpy(name, "/dev/mixer2");
 
-	if ((baz = open(name, O_RDWR)) < 0) {
-		perror(name);
-		exit(1);
-	}
-	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1) {
-		perror("SOUND_MIXER_READ_DEVMASK");
-		exit(-1);
-	}
-	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1) {
-		perror("SOUND_MIXER_READ_RECMASK");
-		exit(-1);
-	}
-	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1) {
-		perror("SOUND_MIXER_READ_RECSRC");
-		exit(-1);
-	}
+	if ((baz = open(name, O_RDWR)) < 0)
+		err(1, "%s", name);
+	if (ioctl(baz, SOUND_MIXER_READ_DEVMASK, &devmask) == -1)
+		err(-1, "SOUND_MIXER_READ_DEVMASK");
+	if (ioctl(baz, SOUND_MIXER_READ_RECMASK, &recmask) == -1)
+		err(-1, "SOUND_MIXER_READ_RECMASK");
+	if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
+		err(-1, "SOUND_MIXER_READ_RECSRC");
 
 	switch (argc) {
 		case 3:
@@ -102,7 +100,7 @@ main(int argc, char *argv[])
 			if (!((1 << foo) & devmask)) 
 				continue;
 			if (ioctl(baz, MIXER_READ(foo),&bar)== -1) {
-			   	perror("MIXER_READ");
+			   	warn("MIXER_READ");
 				continue;
 			}
 			printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
@@ -123,19 +121,16 @@ main(int argc, char *argv[])
 			if (dev >= SOUND_MIXER_NRDEVICES)
 				usage();
 
-			if (!((1 << dev) & recmask)) {
-				fprintf(stderr, "Invalid recording source %s\n", argv[2]);
-				exit(-1);
-			}
+			if (!((1 << dev) & recmask))
+				errx(-1,
+				"invalid recording source %s", argv[2]);
 			if (argv[1][0] == '+')
 				recsrc |= (1 << dev);
 			else
 				recsrc &= ~(1 << dev);
 
-			if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1) {
-				perror("SOUND_MIXER_WRITE_RECSRC");
-				exit(-1);
-			}
+			if (ioctl(baz, SOUND_MIXER_WRITE_RECSRC, &recsrc) == -1)
+				err(-1, "SOUND_MIXER_WRITE_RECSRC");
 			print_recsrc();
 
 		} else
@@ -161,11 +156,11 @@ main(int argc, char *argv[])
 
                         bar |= dev << 8;
 			if (ioctl(baz, MIXER_WRITE(foo), &bar) == -1)
-				perror("WRITE_MIXER");
+				warn("WRITE_MIXER");
 	return (0);
 		} else {
 			if (ioctl(baz, MIXER_READ(foo),&bar)== -1)
-			   perror("MIXER_READ");
+			   warn("MIXER_READ");
 			printf("The mixer %s is currently set to %d:%d.\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
 		}
 	}
