@@ -1026,7 +1026,7 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 	if (nmp->nm_flag & NFSMNT_INT) {
 		bp = getblk(vp, bn, size, PCATCH, 0);
 		while (bp == (struct buf *)0) {
-			if (nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc))
+			if (nfs_sigintr(nmp, (struct nfsreq *)0, td))
 				return ((struct buf *)0);
 			bp = getblk(vp, bn, size, 0, 2 * hz);
 		}
@@ -1076,7 +1076,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nfsvinval",
 			slptimeo);
 		if (error && intrflg &&
-		    nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc))
+		    nfs_sigintr(nmp, (struct nfsreq *)0, td))
 			return (EINTR);
 	}
 
@@ -1087,7 +1087,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
 	while (error) {
 		if (intrflg &&
-		    nfs_sigintr(nmp, (struct nfsreq *)0, td->td_proc)) {
+		    nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
@@ -1200,7 +1200,7 @@ again:
 			error = tsleep(&nmp->nm_bufq, slpflag | PRIBIO,
 				       "nfsaio", slptimeo);
 			if (error) {
-				if (nfs_sigintr(nmp, NULL, td ? td->td_proc : NULL))
+				if (nfs_sigintr(nmp, NULL, td))
 					return (EINTR);
 				if (slpflag == PCATCH) {
 					slpflag = 0;
