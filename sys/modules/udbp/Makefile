@@ -9,6 +9,4 @@ SRCS		 = bus_if.h device_if.h \
 		   udbp.c
 NOMAN		 =
 
-CFLAGS		+= -DUDBP_DEBUG
-
 .include "${.CURDIR}/../../conf/kmod.mk"
