@@ -106,8 +106,11 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_CD9660_SUPPORT
 	&cd9660_fsops,
 #endif
-#ifdef LOADER_GZIP_SUPPORT
+#ifdef LOADER_ZIP_SUPPORT
 	&zipfs_fsops,
+#endif
+#ifdef LOADER_GZIP_SUPPORT
+	&gzipfs_fsops,
 #endif
 #ifdef LOADER_BZIP2_SUPPORT
 	&bzipfs_fsops,

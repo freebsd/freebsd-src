@@ -62,7 +62,7 @@ struct fs_ops *file_system[] = {
 	&efi_fsops,
 /*	&ufs_fsops, */
 	&nfs_fsops,
-	&zipfs_fsops,
+	&gzipfs_fsops,
 	NULL
 };
 
