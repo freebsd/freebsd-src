@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
-.\"	$Id: symlink.7,v 1.7 1997/06/19 01:07:05 jdp Exp $
+.\"	$Id: symlink.7,v 1.11 1999/04/25 11:58:25 bde Exp $
 .\"
 .Dd March 31, 1994
 .Dt SYMLINK 7
@@ -162,23 +162,23 @@ is not.
 .Pp
 If it is explicitly intended that the command operate on the symbolic
 link instead of following the symbolic link, e.g., it is desired that
-.Dq Li "file slink"
-display the type of file that
+.Dq Li "chown slink"
+change the ownership of the file that
 .Dq Li slink
 is, whether it is a symbolic link or not, the
 .Fl h
 option should be used.
 In the above example,
-.Dq Li "file slink"
-would report the type of the file referenced by
+.Dq Li "chown root slink"
+would change the ownership of the file referenced by
 .Dq Li slink ,
 while
-.Dq Li "file -h slink"
-would report that
+.Dq Li "chown -h root slink"
+would change the ownership of
 .Dq Li slink
-was a symbolic link.
+itself.
 .Pp
-There are three exceptions to this rule.
+There are four exceptions to this rule.
 The
 .Xr mv 1
 and
@@ -219,12 +219,23 @@ options affect its behavior even though it is not doing a walk of
 a file tree.)
 .Pp
 The
+.Xr file 1
+command is also an exception to this rule.
+The
+.Xr file 1
+command does not follow symbolic links named as argument by default.
+The 
+.Xr file 1
+command does follow symbolic links named as argument if
+.Fl L
+option is specified.
+.Pp
+The
 .Bx 4.4
 system differs from historical 4BSD systems in that the
-.Nm chown ,
-.Nm chgrp
+.Nm chown
 and
-.Nm file
+.Nm chgrp
 commands follow symbolic links specified on the command line.
 .Ss Commands traversing a file tree.
 The following commands either optionally or always traverse file trees:

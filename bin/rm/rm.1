@@ -33,9 +33,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
-.\"	$Id: rm.1,v 1.11 1997/08/07 21:37:38 steve Exp $
+.\"	$Id: rm.1,v 1.13 1999/01/28 17:41:02 wollman Exp $
 .\"
-.Dd December 5, 1994
+.Dd January 28, 1999
 .Dt RM 1
 .Os
 .Sh NAME
@@ -43,8 +43,7 @@
 .Nd remove directory entries
 .Sh SYNOPSIS
 .Nm rm
-.Op Fl f | Fl i
-.Op Fl dPRrW
+.Op Fl dfiPRrW
 .Ar file ...
 .Sh DESCRIPTION
 The
@@ -56,7 +55,7 @@ input device is a terminal, the user is prompted (on the standard error
 output) for confirmation.
 .Pp
 The options are as follows:
-.Bl -tag -width flag
+.Bl -tag -width Fl
 .It Fl d
 Attempt to remove directories as well as other types of files.
 .It Fl f
@@ -140,9 +139,6 @@ The same behavior can be obtained by using an absolute or relative
 path reference.  For example:
 .Dl rm /home/user/-filename
 .Dl rm ./-filename
-This is useful for commands that do not use
-.Xr getopt 3
-to parse the command line arguments.
 .Sh SEE ALSO
 .Xr rmdir 1 ,
 .Xr undelete 2 ,
@@ -173,9 +169,22 @@ not the standard error output.
 .Sh STANDARDS
 The
 .Nm
-command is expected to be
+command is almost
 .St -p1003.2
-compatible.
+compatible, except that
+.Tn POSIX
+requires
+.Nm rm
+to act like
+.Xr rmdir 1
+when the
+.Ar file
+specified is a directory.  This implementation requires the
+.Fl d
+option if such behavior is desired.  This follows the historical
+behavior of
+.Nm
+with respect to directories.
 .Sh HISTORY
 A
 .Nm
