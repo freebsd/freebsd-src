@@ -977,7 +977,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 					    c != '`' && c != '$' &&
 					    (c != '"' || eofmark != NULL))
 						USTPUTC('\\', out);
-					if (c >= 0 && SQSYNTAX[c] == CCTL)
+					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
 					else if (eofmark == NULL)
 						USTPUTC(CTLQUOTEMARK, out);
@@ -1496,7 +1496,7 @@ noexpand(text)
 			continue;
 		if (c == CTLESC)
 			p++;
-		else if (c >= 0 && BASESYNTAX[(int)c] == CCTL)
+		else if (BASESYNTAX[(int)c] == CCTL)
 			return 0;
 	}
 	return 1;
