@@ -834,7 +834,7 @@ c_fstype(option, argvp)
 {
 	char *fsname;
 	PLAN *new;
-	struct vfsconf vfc;
+	struct xvfsconf vfc;
 
 	fsname = nextarg(option, argvp);
 	ftsoptions &= ~FTS_NOSTAT;

@@ -21,7 +21,6 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 
 /* XXX hide some compatibility problems. */
-#undef getvfsbyname
 #define vfsconf		ovfsconf
 
 static struct vfsconf *_vfslist = 0;
@@ -78,36 +77,6 @@ getvfsent(void)
 		_vfslist = 0;
 	}
 	return &_vfsconf;
-}
-
-struct vfsconf *
-getvfsbyname(const char *name)
-{
-	int i;
-
-	if(!_vfslist && !initvfs()) {
-		return 0;
-	}
-
-	for(i = 0; i < _vfslistlen; i++) {
-		if( ! strcmp(_vfslist[i].vfc_name, name) )
-			break;
-	}
-
-	if(i < _vfslistlen) {
-		_vfsconf = _vfslist[i];
-	}
-
-	if(!_vfs_keeplist) {
-		free(_vfslist);
-		_vfslist = 0;
-	}
-
-	if(i < _vfslistlen) {
-		return &_vfsconf;
-	} else {
-		return 0;
-	}
 }
 
 struct vfsconf *
