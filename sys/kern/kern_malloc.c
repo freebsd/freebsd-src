@@ -143,6 +143,10 @@ malloc(size, type, flags)
 	uma_zone_t zone;
 	register struct malloc_type *ksp = type;
 
+#if 0
+	if (size == 0)
+		Debugger("zero size malloc");
+#endif
 #if defined(INVARIANTS)
 	if (flags == M_WAITOK)
 		KASSERT(curthread->td_intr_nesting_level == 0,
@@ -202,6 +206,12 @@ free(addr, type)
 	/* free(NULL, ...) does nothing */
 	if (addr == NULL)
 		return;
+
+	if ((u_long)addr & 3) {	/* XXX: Jeff: find better value for 3 */
+		printf("free(9)'ing unaligned pointer %p\n", addr);
+		Debugger("Don't do that...");
+		return;
+	}
 
 	size = 0;
 
