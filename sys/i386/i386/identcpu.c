@@ -35,9 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.5 1996/09/06 23:07:02 phk Exp $
+ *	$Id: identcpu.c,v 1.6 1996/10/09 18:30:08 bde Exp $
  */
 
+#include "opt_cpu.h"
 #include "opt_temporary.h"			/* for I586_OPTIMIZED_B* */
 
 #include <sys/param.h>

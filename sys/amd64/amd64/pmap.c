@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.121 1996/09/28 15:28:40 bde Exp $
+ *	$Id: pmap.c,v 1.122 1996/09/28 22:37:38 dyson Exp $
  */
 
 /*
@@ -67,6 +67,8 @@
  *	to which processors are currently using which maps,
  *	and to when physical maps must be made correct.
  */
+
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -30,9 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.39 1996/09/20 16:52:09 bde Exp $
+ *	$Id: support.s,v 1.40 1996/10/09 18:16:17 bde Exp $
  */
 
+#include "opt_cpu.h"
 #include "opt_temporary.h"			/* for I586_*_B* */
 
 #include <machine/asmacros.h>
