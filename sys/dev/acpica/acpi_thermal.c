@@ -481,7 +481,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
     if ((newflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT)) && 
 	!(sc->tz_thflags & (TZ_THFLAG_HOT | TZ_THFLAG_CRT))) {
 	device_printf(sc->tz_dev, "WARNING - current temperature (%d.%dC) exceeds system limits\n",
-		      TZ_KELVTOC(sc->tz_temperature), sc->tz_temperature);
+		      TZ_KELVTOC(sc->tz_temperature));
 	/* shutdown_nice(RB_POWEROFF);*/
     }
     sc->tz_thflags = newflags;

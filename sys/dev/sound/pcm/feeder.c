@@ -61,7 +61,8 @@ feeder_register(void *p)
 		SLIST_INIT(&feedertab);
 		fte = malloc(sizeof(*fte), M_FEEDER, M_WAITOK | M_ZERO);
 		if (fte == NULL) {
-			printf("can't allocate memory for root feeder\n", fc->name);
+			printf("can't allocate memory for root feeder: %s\n",
+			    fc->name);
 
 			return;
 		}
