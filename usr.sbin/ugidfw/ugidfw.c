@@ -34,7 +34,6 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
-#include <sys/vnode.h>
 
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
