@@ -360,14 +360,13 @@ vop_sharedlock(ap)
 	 * to be handled in intermediate layers.
 	 */
 	struct vnode *vp = ap->a_vp;
+	struct lock *l = (struct lock *)vp->v_data;
 	int vnflags, flags = ap->a_flags;
 
-	if (vp->v_vnlock == NULL) {
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN)
-			return (0);
-		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
-		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
+	if (l == NULL) {
+		if (ap->a_flags & LK_INTERLOCK)
+			simple_unlock(&ap->a_vp->v_interlock);
+		return 0;
 	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:
@@ -396,9 +395,9 @@ vop_sharedlock(ap)
 	if (flags & LK_INTERLOCK)
 		vnflags |= LK_INTERLOCK;
 #ifndef	DEBUG_LOCKS
-	return (lockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p));
+	return (lockmgr(l, vnflags, &vp->v_interlock, ap->a_p));
 #else
-	return (debuglockmgr(vp->v_vnlock, vnflags, &vp->v_interlock, ap->a_p,
+	return (debuglockmgr(l, vnflags, &vp->v_interlock, ap->a_p,
 	    "vop_sharedlock", vp->filename, vp->line));
 #endif
 }
@@ -435,13 +434,6 @@ vop_nolock(ap)
 	struct vnode *vp = ap->a_vp;
 	int vnflags, flags = ap->a_flags;
 
-	if (vp->v_vnlock == NULL) {
-		if ((flags & LK_TYPE_MASK) == LK_DRAIN)
-			return (0);
-		MALLOC(vp->v_vnlock, struct lock *, sizeof(struct lock),
-		    M_VNODE, M_WAITOK);
-		lockinit(vp->v_vnlock, PVFS, "vnlock", 0, LK_NOPAUSE);
-	}
 	switch (flags & LK_TYPE_MASK) {
 	case LK_DRAIN:
 		vnflags = LK_DRAIN;
@@ -485,13 +477,9 @@ vop_nounlock(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	if (vp->v_vnlock == NULL) {
-		if (ap->a_flags & LK_INTERLOCK)
-			simple_unlock(&ap->a_vp->v_interlock);
-		return (0);
-	}
-	return (lockmgr(vp->v_vnlock, LK_RELEASE | ap->a_flags,
-		&ap->a_vp->v_interlock, ap->a_p));
+	if (ap->a_flags & LK_INTERLOCK)
+		simple_unlock(&vp->v_interlock);
+	return (0);
 }
 
 /*
@@ -505,10 +493,11 @@ vop_noislocked(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
+	struct lock *l = (struct lock *)vp->v_data;
 
-	if (vp->v_vnlock == NULL)
+	if (l == NULL)
 		return (0);
-	return (lockstatus(vp->v_vnlock, ap->a_p));
+	return (lockstatus(l, ap->a_p));
 }
 
 int

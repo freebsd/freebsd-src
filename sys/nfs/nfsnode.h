@@ -86,6 +86,7 @@ struct nfsdmap {
  *     be well aligned and, therefore, tightly packed.
  */
 struct nfsnode {
+	struct lock		n_lock;
 	LIST_ENTRY(nfsnode)	n_hash;		/* Hash chain */
 	CIRCLEQ_ENTRY(nfsnode)	n_timer;	/* Nqnfs timer chain */
 	u_quad_t		n_size;		/* Current size of file */

@@ -52,6 +52,8 @@ struct null_mount {
  * A cache of vnode references
  */
 struct null_node {
+	struct lock		null_lock;	/* Lock for this vnode. MBF */
+	struct lock		*null_vnlock;	/* lock of lower vnode in the stack */
 	LIST_ENTRY(null_node)	null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
