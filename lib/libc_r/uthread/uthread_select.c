@@ -167,8 +167,9 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			got_one = 0;
 			if (readfds != NULL) {
 				if (FD_ISSET(data.fds[i].fd, readfds)) {
-					if (data.fds[i].revents & (POLLIN |
-					    POLLRDNORM))
+					if ((data.fds[i].revents & (POLLIN
+					    | POLLRDNORM | POLLERR
+					    | POLLHUP | POLLNVAL)) != 0)
 						got_one = 1;
 					else
 						FD_CLR(data.fds[i].fd, readfds);
@@ -176,8 +177,9 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			}
 			if (writefds != NULL) {
 				if (FD_ISSET(data.fds[i].fd, writefds)) {
-					if (data.fds[i].revents & (POLLOUT |
-					    POLLWRNORM | POLLWRBAND))
+					if ((data.fds[i].revents & (POLLOUT
+					    | POLLWRNORM | POLLWRBAND | POLLERR
+					    | POLLHUP | POLLNVAL)) != 0)
 						got_one = 1;
 					else
 						FD_CLR(data.fds[i].fd,
