@@ -1050,7 +1050,6 @@ rescan0:
 		}
 		m = next;
 	}
-	vm_page_unlock_queues();
 	s = splvm();
 
 	/*
@@ -1079,7 +1078,7 @@ rescan0:
 		cnt.v_dfree++;
 	}
 	splx(s);
-
+	vm_page_unlock_queues();
 #if !defined(NO_SWAPPING)
 	/*
 	 * Idle process swapout -- run once per second.
