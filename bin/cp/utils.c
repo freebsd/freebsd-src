@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: utils.c,v 1.22 1999/04/25 21:13:32 imp Exp $";
+	"$Id: utils.c,v 1.23 1999/05/08 10:19:29 kris Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -117,6 +117,9 @@ copy_file(entp, dne)
 	}
 
 	rval = 0;
+
+	if (vflag)
+		printf("%s -> %s\n",entp->fts_path, to.p_path);
 
 	/*
 	 * Mmap and write if less than 8M (the limit is so we don't totally
@@ -321,7 +324,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
-"usage: cp [-R [-H | -L | -P]] [-f | -i] [-p] src target",
-"       cp [-R [-H | -L | -P]] [-f | -i] [-p] src1 ... srcN directory");
+"usage: cp [-R [-H | -L | -P]] [-f | -i] [-p] [-v] src target",
+"       cp [-R [-H | -L | -P]] [-f | -i] [-p] [-v] src1 ... srcN directory");
 	exit(1);
 }
