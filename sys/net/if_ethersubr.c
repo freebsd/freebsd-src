@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_ethersubr.c,v 1.2 1994/08/02 07:46:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,7 +138,7 @@ ether_output(ifp, m0, dst, rt0)
 
 #ifdef INET
 	case AF_INET:
-		if (!arpresolve(ac, rt, m, dst, edst))
+		if (!arpresolve(ac, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		/* If broadcasting on a simplex interface, loopback a copy */
 		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))

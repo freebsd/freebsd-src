@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.3 1994/08/18 22:35:27 wollman Exp $
+ * $Id: if_ether.h,v 1.4 1994/08/21 05:27:24 paul Exp $
  */
 
 #ifndef _NETINET_IF_ETHER_H_
@@ -151,8 +151,8 @@ extern struct	llinfo_arp llinfo_arp;		/* head of the llinfo queue */
 
 void	arpwhohas __P((struct arpcom *, struct in_addr *));
 void	arpintr __P((void));
-int	arpresolve __P((struct arpcom *,
-	   struct rtentry *, struct mbuf *, struct sockaddr *, u_char *));
+int	arpresolve __P((struct arpcom *, struct rtentry *, struct mbuf *,
+			struct sockaddr *, u_char *, struct rtentry *));
 void	arp_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
 int	ether_addmulti __P((struct ifreq *, struct arpcom *));
