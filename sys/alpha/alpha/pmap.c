@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.23 1999/05/11 18:59:56 dt Exp $
+ *	$Id: pmap.c,v 1.24 1999/05/28 05:38:47 alc Exp $
  */
 
 /*
@@ -970,7 +970,7 @@ pmap_new_proc(struct proc *p)
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	if ((up = p->p_addr) == NULL) {
-		up = (struct user *) kmem_alloc_pageable(kernel_map,
+		up = (struct user *) kmem_alloc_nofault(kernel_map,
 				UPAGES * PAGE_SIZE);
 #if !defined(MAX_PERF)
 		if (up == NULL)
