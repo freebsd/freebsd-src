@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.26 2001/02/20 15:20:33 minoura Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.29 2001/11/21 02:41:18 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -129,10 +129,9 @@ typedef struct ohci_softc {
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 	void *sc_powerhook;		/* cookie from power hook */
 	void *sc_shutdownhook;		/* cookie from shutdown hook */
-
+#endif
 	u_int32_t sc_control;		/* Preserved during suspend/standby */
 	u_int32_t sc_intre;
-#endif
 
 	u_int sc_overrun_cnt;
 	struct timeval sc_overrun_ntc;
