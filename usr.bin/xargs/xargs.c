@@ -283,7 +283,7 @@ arg2:
 				curlen++;
 				/*
 				 * Allocate enough to hold what we will
-				 * be holding in a secont, and to append
+				 * be holding in a second, and to append
 				 * a space next time through, if we have
 				 * to.
 				 */
@@ -305,7 +305,8 @@ arg2:
 		 * of input lines, as specified by -L is the same as
 		 * maxing out on arguments.
 		 */
-		if (xp == exp || p > ebp || ch == EOF || (Lflag <= count && xflag) || foundeof) {
+		if (xp == exp || p > ebp || ch == EOF ||
+		    (Lflag <= count && xflag) || foundeof) {
 			if (xflag && xp != exp && p > ebp)
 				errx(1, "insufficient space for arguments");
 			if (jfound) {
