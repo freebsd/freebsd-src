@@ -2246,7 +2246,6 @@ asr_attach(device_t tag)
 		 *	engine (dptioctl.h) to pick up.
 		 */
 		bcopy(osrelease, &ASR_sig.dsDescription[16], 5);
-		printf("asr%d: major=%d\n", unit, asr_cdevsw.d_maj);
 	}
 	/*
 	 *	Initialize the software structure
@@ -2519,7 +2518,7 @@ asr_attach(device_t tag)
 	 *	Generate the device node information
 	 */
 	sc->ha_devt = make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
-			       "rasr%d", unit);
+			       "asr%d", unit);
 	sc->ha_devt->si_drv1 = sc;
 	return(0);
 } /* asr_attach */
