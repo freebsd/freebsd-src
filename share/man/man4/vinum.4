@@ -34,10 +34,11 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.4,v 1.9 1999/03/23 04:57:24 grog Exp grog $
+.\" $Id: vinum.4,v 1.6.2.5 1999/05/05 05:14:16 grog Exp $
 .\"
 .Dd 28 March 1999
-.Dt vinum 4
+.Dt VINUM 4
+.Os
 .Sh NAME
 .Nm vinum
 .Nd Logical Volume Manager
@@ -742,7 +743,7 @@ The drive is not accessible.
 The drive is up and running.
 .El
 .sp 2v
-.Sh BUGS AND OMISSIONS
+.Sh BUGS
 .Bl -enum
 .It
 .Nm
@@ -1009,13 +1010,13 @@ the
 .Nm bt
 (backtrace) command above.
 .Sh AUTHOR
-Greg Lehey
-.Pa <grog@lemis.com> .
+.An Greg Lehey Aq grog@lemis.com .
 .Sh HISTORY
 .Nm vinum
-first appeared in FreeBSD 3.0.
+first appeared in
+.Fx 3.0 .
 .Sh SEE ALSO
-.Xr vinum 8 ,
 .Xr disklabel 5 ,
 .Xr disklabel 8 ,
-.Xr newfs 8 .
+.Xr newfs 8 ,
+.Xr vinum 8
