@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.119.2.4 1997/03/12 19:50:33 se Exp $
+ *	$Id: wd.c,v 1.119.2.5 1997/04/28 19:33:18 se Exp $
  */
 
 /* TODO:
@@ -529,7 +529,11 @@ next:   }
 	 * doesn't work now because the ambient ipl is too high.
 	 */
 #ifdef CMD640
-	wdtab[du->dk_ctrlr_cmd640].b_active = 2;
+	if (eide_quirks & Q_CMD640B) {
+		wdtab[PRIMARY].b_active = 2;
+	} else {
+		wdtab[dvp->id_unit].b_active = 2;
+	}
 #else
 	wdtab[dvp->id_unit].b_active = 2;
 #endif
