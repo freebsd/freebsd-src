@@ -320,9 +320,10 @@ int cmd;
 #endif
 {
 	mb_t *m;
-#if defined(_KERNEL) && !SOLARIS && \
-    (!defined(__FreeBSD_version) || (__FreeBSD_version < 501000))
+#if defined(_KERNEL) && !SOLARIS
+# if !defined(__FreeBSD_version) || (__FreeBSD_version < 501104)
 	struct ifqueue *ifq;
+# endif
 	int s;
 #endif
 	frauth_t auth, *au = &auth, *fra;
