@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.28 1998/08/31 10:53:33 jkh Exp $
+ *  $Id: linux_ioctl.c,v 1.29 1998/09/30 01:42:53 jfieber Exp $
  */
 
 #include <sys/param.h>
@@ -682,6 +682,66 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	}
 	return copyout(&linux_line, (caddr_t)args->arg, 
 		       sizeof(int));
+
+    case LINUX_SNDCTL_SEQ_RESET:
+	args->cmd = SNDCTL_SEQ_RESET;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_SYNC:
+	args->cmd = SNDCTL_SEQ_SYNC;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SYNTH_INFO:
+	args->cmd = SNDCTL_SYNTH_INFO;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_CTRLRATE:
+	args->cmd = SNDCTL_SEQ_CTRLRATE;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_GETOUTCOUNT:
+	args->cmd = SNDCTL_SEQ_GETOUTCOUNT;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_GETINCOUNT:
+	args->cmd = SNDCTL_SEQ_GETINCOUNT;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_PERCMODE:
+	args->cmd = SNDCTL_SEQ_PERCMODE;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_FM_LOAD_INSTR:
+	args->cmd = SNDCTL_FM_LOAD_INSTR;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_TESTMIDI:
+	args->cmd = SNDCTL_SEQ_TESTMIDI;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_RESETSAMPLES:
+	args->cmd = SNDCTL_SEQ_RESETSAMPLES;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_NRSYNTHS:
+	args->cmd = SNDCTL_SEQ_NRSYNTHS;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_NRMIDIS:
+	args->cmd = SNDCTL_SEQ_NRMIDIS;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_MIDI_INFO:
+	args->cmd = SNDCTL_MIDI_INFO;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SEQ_TRESHOLD:
+	args->cmd = SNDCTL_SEQ_TRESHOLD;
+	return ioctl(p, (struct ioctl_args *)args);
+
+    case LINUX_SNDCTL_SYNTH_MEMAVL:
+	args->cmd = SNDCTL_SYNTH_MEMAVL;
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_SNDCTL_DSP_GETOPTR :
 	args->cmd = SNDCTL_DSP_GETOPTR;
