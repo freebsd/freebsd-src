@@ -112,8 +112,10 @@ static void	 reapchild(int _signo);
 static void	 mcleanup(int _signo);
 static void	 doit(void);
 static void	 startup(void);
-static void	 chkhost(struct sockaddr *_f);
+static void	 chkhost(struct sockaddr *_f, int _ch_opts);
 static int	 ckqueue(struct printer *_pp);
+static void	 fhosterr(int _dosys, const char *_sysmsg, const char *_usermsg,
+			  ...);
 static int	*socksetup(int _af, int _debuglvl);
 static void	 usage(void);
 
@@ -123,10 +125,13 @@ extern int __ivaliduser_sa __P((FILE *, struct sockaddr *, socklen_t,
 
 uid_t	uid, euid;
 
+#define LPD_NOPORTCHK	0001		/* skip reserved-port check */
+#define LPD_LOGCONNERR	0002		/* (sys)log connection errors */
+
 int
 main(int argc, char **argv)
 {
-	int errs, f, funix, *finet, fromlen, i, options, socket_debug;
+	int ch_options, errs, f, funix, *finet, fromlen, i, socket_debug;
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
 	struct sockaddr_storage frominet;
@@ -137,6 +142,8 @@ main(int argc, char **argv)
 
 	euid = geteuid();	/* these shouldn't be different */
 	uid = getuid();
+
+	ch_options = 0;
 	socket_debug = 0;
 	gethostname(local_host, sizeof(local_host));
 
@@ -146,8 +153,12 @@ main(int argc, char **argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "dlp46")) != -1)
+	while ((i = getopt(argc, argv, "cdlpw46")) != -1)
 		switch (i) {
+		case 'c':
+			/* log all kinds of connection-errors to syslog */
+			ch_options |= LPD_LOGCONNERR;
+			break;
 		case 'd':
 			socket_debug++;
 			break;
@@ -156,6 +167,11 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			pflag++;
+			break;
+		case 'w':
+			/* allow connections coming from a non-reserved port */
+			/* (done by some lpr-implementations for MS-Windows) */ 
+			ch_options |= LPD_NOPORTCHK;
 			break;
 		case '4':
 			family = PF_INET;
@@ -366,7 +382,8 @@ main(int argc, char **argv)
 			if (domain == AF_INET) {
 				/* for both AF_INET and AF_INET6 */
 				from_remote = 1;
- 				chkhost((struct sockaddr *)&frominet);
+ 				chkhost((struct sockaddr *)&frominet,
+				    ch_options);
 			} else
 				from_remote = 0;
 			doit();
@@ -600,36 +617,40 @@ ckqueue(struct printer *pp)
 #define DUMMY ":nobody::"
 
 /*
- * Check to see if the from host has access to the line printer.
+ * Check to see if the host connecting to this host has access to any
+ * lpd services on this host.
  */
 static void
-chkhost(struct sockaddr *f)
+chkhost(struct sockaddr *f, int ch_opts)
 {
 	struct addrinfo hints, *res, *r;
 	register FILE *hostf;
-	int first = 1;
-	int good = 0;
 	char hostbuf[NI_MAXHOST], ip[NI_MAXHOST];
 	char serv[NI_MAXSERV];
-	int error, addrlen;
-	caddr_t addr;
+	int error, errsav, fpass, good, wantsl;
 
-	error = getnameinfo(f, f->sa_len, NULL, 0, serv, sizeof(serv),
-			    NI_NUMERICSERV);
-	if (error || atoi(serv) >= IPPORT_RESERVED)
-		fatal(0, "Malformed from address");
+	wantsl = 0;
+	if (ch_opts & LPD_LOGCONNERR)
+		wantsl = 1;			/* also syslog the errors */
+
+	from_host = ".na.";
 
 	/* Need real hostname for temporary filenames */
 	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
 	    NI_NAMEREQD);
 	if (error) {
+		errsav = error;
 		error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf),
 		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 		if (error)
-			fatal(0, "Host name for your address unknown");
+			fhosterr(wantsl,
+			    "can not determine hostname for remote host (%d)",
+			    "Host name for your address not known", error);
 		else
-			fatal(0, "Host name for your address (%s) unknown",
-			    hostbuf);
+			fhosterr(wantsl,
+			    "Host name for remote host (%s) not known (%d)",
+			    "Host name for your address (%s) not known",
+			    hostbuf, errsav);
 	}
 
 	strlcpy(frombuf, hostbuf, sizeof(frombuf));
@@ -639,7 +660,8 @@ chkhost(struct sockaddr *f)
 	error = getnameinfo(f, f->sa_len, hostbuf, sizeof(hostbuf), NULL, 0,
 	    NI_NUMERICHOST | NI_WITHSCOPEID);
 	if (error)
-		fatal(0, "Cannot print address");
+		fhosterr(wantsl, "Cannot print IP address (error %d)",
+		    "Cannot print IP address", error);
 	from_ip = strdup(hostbuf);
 
 	/* Reject numeric addresses */
@@ -649,7 +671,8 @@ chkhost(struct sockaddr *f)
 	hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
 	if (getaddrinfo(from_host, NULL, &hints, &res) == 0) {
 		freeaddrinfo(res);
-		fatal(0, "reverse lookup results in non-FQDN %s", from_host);
+		fhosterr(wantsl, NULL, "reverse lookup results in non-FQDN %s",
+		    from_host);
 	}
 
 	/* Check for spoof, ala rlogind */
@@ -658,38 +681,121 @@ chkhost(struct sockaddr *f)
 	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
 	error = getaddrinfo(from_host, NULL, &hints, &res);
 	if (error) {
-		fatal(0, "hostname for your address (%s) unknown: %s", from_ip,
-		      gai_strerror(error));
+		fhosterr(wantsl, "dns lookup for address %s failed: %s",
+		    "hostname for your address (%s) unknown: %s", from_ip,
+		    gai_strerror(error));
 	}
 	good = 0;
 	for (r = res; good == 0 && r; r = r->ai_next) {
 		error = getnameinfo(r->ai_addr, r->ai_addrlen, ip, sizeof(ip),
-				    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
+		    NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID);
 		if (!error && !strcmp(from_ip, ip))
 			good = 1;
 	}
 	if (res)
 		freeaddrinfo(res);
 	if (good == 0)
-		fatal(0, "address for your hostname (%s) not matched",
-		    from_ip);
+		fhosterr(wantsl, "address for remote host (%s) not matched",
+		    "address for your hostname (%s) not matched", from_ip);
 
+	fpass = 1;
 	hostf = fopen(_PATH_HOSTSEQUIV, "r");
 again:
 	if (hostf) {
 		if (__ivaliduser_sa(hostf, f, f->sa_len, DUMMY, DUMMY) == 0) {
 			(void) fclose(hostf);
-			return;
+			goto foundhost;
 		}
 		(void) fclose(hostf);
 	}
-	if (first == 1) {
-		first = 0;
+	if (fpass == 1) {
+		fpass = 2;
 		hostf = fopen(_PATH_HOSTSLPD, "r");
 		goto again;
 	}
-	fatal(0, "Your host does not have line printer access");
+	fhosterr(wantsl, "refused connection from %s, sip=%s",
+	    "Print-services are not available to your host (%s).", from_host,
+	    from_ip);
 	/*NOTREACHED*/
+
+foundhost:
+	if (ch_opts & LPD_NOPORTCHK)
+		return;			/* skip the reserved-port check */
+
+	error = getnameinfo(f, f->sa_len, NULL, 0, serv, sizeof(serv),
+	    NI_NUMERICSERV);
+	if (error)
+		fhosterr(wantsl, NULL, "malformed from-address (%d)", error);
+
+	if (atoi(serv) >= IPPORT_RESERVED)
+		fhosterr(wantsl, NULL, "connected from invalid port (%s)",
+		    serv);
+}
+
+#include <stdarg.h>
+/*
+ * Handle fatal errors in chkhost.  The first message will optionally be sent
+ * to syslog, the second one is sent to the connecting host.  If the first
+ * message is NULL, then the same message is used for both.  Note that the
+ * argument list for both messages are assumed to be the same (or at least
+ * the initial arguments for one must be EXACTLY the same as the complete
+ * argument list for the other message).
+ *
+ * The idea is that the syslog message is meant for an administrator of a
+ * print server (the host receiving connections), while the usermsg is meant
+ * for a remote user who may or may not be clueful, and may or may not be
+ * doing something nefarious.  Some remote users (eg, MS-Windows...) may not
+ * even see whatever message is sent, which is why there's the option to
+ * start 'lpd' with the connection-errors also sent to syslog.
+ *
+ * Given that hostnames can theoretically be fairly long (well, over 250
+ * bytes), it would probably be helpful to have the 'from_host' field at
+ * the end of any error messages which include that info.
+ */
+void
+fhosterr(int dosys, const char *sysmsg, const char *usermsg, ...)
+{
+	va_list ap;
+	char *sbuf, *ubuf;
+	const char *testone;
+
+	va_start(ap, usermsg);
+	vasprintf(&ubuf, usermsg, ap);
+	va_end(ap);
+
+	if (dosys) {
+		sbuf = ubuf;			/* assume sysmsg == NULL */
+		if (sysmsg != NULL) {
+			va_start(ap, usermsg);
+			vasprintf(&sbuf, sysmsg, ap);
+			va_end(ap);
+		}
+		/*
+		 * If the first variable-parameter is not the 'from_host',
+		 * then first write THAT information as a line to syslog.
+		 */
+		va_start(ap, usermsg);
+		testone = va_arg(ap, const char *);
+		if (testone != from_host) {
+		    syslog(LOG_WARNING, "for connection from %s:", from_host);
+		}
+		va_end(ap);
+		
+		/* now write the syslog message */
+		syslog(LOG_WARNING, "%s", sbuf);
+	}
+
+	printf("%s [@%s]: %s\n", progname, local_host, ubuf);
+	fflush(stdout);
+
+	/* 
+	 * Add a minimal delay before exiting (and disconnecting from the
+	 * sending-host).  This is just in case that machine responds by
+	 * INSTANTLY retrying (and instantly re-failing...).  This may also
+	 * give the other side more time to read the error message.
+	 */
+	sleep(2);			/* a paranoid throttling measure */
+	exit(1);
 }
 
 /* setup server socket for specified address family */
@@ -777,9 +883,9 @@ static void
 usage(void)
 {
 #ifdef INET6
-	fprintf(stderr, "usage: lpd [-dlp46] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlpw46] [port#]\n");
 #else
-	fprintf(stderr, "usage: lpd [-dlp] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlpw] [port#]\n");
 #endif
 	exit(EX_USAGE);
 }
