@@ -485,9 +485,7 @@ open_files()
 
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
     set_signals();
     getargs(argc, argv);
