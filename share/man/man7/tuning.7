@@ -524,17 +524,16 @@ In a small system
 this option will have a detrimental effect but in a large system that is
 already doing moderate paging this option allows the VM system to stage
 whole processes into and out of memory more easily.
-.Sh BOOT-TIME SYSCTL TUNING
-Some sysctls may not be tunable at runtime because the memory allocations
-they perform must occur early in the boot process.
-To change these sysctls,
-you must set their value in
+.Sh LOADER TUNABLES
+Some aspects of the system behavior may not be tunable at runtime because
+memory allocates they perform must occur early in the boot process.
+To change loader tunables, you must set their value in
 .Xr loader.conf 5
 and reboot the system.
 .Pp
 The
 .Va kern.maxusers
-sysctl defaults to an incredibly low value.
+tunable defaults to an incredibly low value.
 For most modern machines,
 you probably want to increase this value to 64, 128, or 256.
 We do not
@@ -544,7 +543,7 @@ kernel option.
 Do not increase maxusers just to get more network mbufs.
 Systems older than
 .Fx 4.4
-do not have this sysctl and require that
+do not have this loader tunable and require that
 the kernel
 .Xr config 8
 option
@@ -580,7 +579,7 @@ option to
 may be used to observe network cluster use.
 Older versions of
 .Fx
-do not have this sysctl and require that the
+do not have this tunable and require that the
 kernel
 .Xr config 8
 option
