@@ -27,9 +27,37 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/elf64.h>
+#if __FreeBSD_version >= 500034
 #include <sys/endian.h>
+#else
+#include <machine/endian.h>
+#if BYTE_ORDER == LITTLE_ENDIAN
+
+#define	bswap16(x) \
+	((x >> 8) | (x << 8))
+
+#define	bswap32(x) \
+	((x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24))
+
+#define	bswap64(x) \
+	((x >> 56) | ((x >> 40) & 0xff00) | ((x >> 24) & 0xff0000) | \
+	((x >> 8) & 0xff000000) | ((x << 8) & ((u_int64_t)0xff << 32)) | \
+	((x << 24) & ((u_int64_t)0xff << 40)) | \
+	((x << 40) & ((u_int64_t)0xff << 48)) | ((x << 56)))
+
+#define	be16toh(x)      bswap16((x))
+#define	be32toh(x)      bswap32((x))
+#define	be64toh(x)      bswap64((x))
+#define	htobe32(x)      bswap32((x))
+#else
+#define	be16toh(x)	(x)
+#define	be32toh(x)	(x)
+#define	be64toh(x)	(x)
+#define	htobe32(x)	(x)
+#endif
+#endif
 #include <sys/mman.h>
 #include <sys/stat.h>
 
