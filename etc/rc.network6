@@ -319,7 +319,7 @@ network6_interface_setup() {
 		sysctl net.inet6.ip6.accept_rtadv=1
 		set ${rtsol_interfaces}
 		ifconfig $1 up
-		rtsol $1
+		rtsol ${rtsol_flags} $1
 	fi
 
 	for i in $interfaces; do
