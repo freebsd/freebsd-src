@@ -157,9 +157,7 @@ isp_intr_enable(void *arg)
 {
 	struct ispsoftc *isp = arg;
 	ENABLE_INTS(isp);
-#ifdef	SERVICING_INTERRUPT
 	isp->isp_osinfo.intsok = 1;
-#endif
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
 }
