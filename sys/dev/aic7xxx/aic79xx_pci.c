@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#67 $
+ * $Id$
  *
  * $FreeBSD$
  */
@@ -332,9 +332,9 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	}
 	
 	/* Ensure busmastering is enabled */
-	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/2);
 	command |= PCIM_CMD_BUSMASTEREN;
-	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, command, /*bytes*/1);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, command, /*bytes*/2);
 
 	error = ahd_softc_init(ahd);
 	if (error != 0)
@@ -466,6 +466,7 @@ fail:
 static int
 ahd_check_extport(struct ahd_softc *ahd)
 {
+	struct	vpd_config vpd;
 	struct	seeprom_config *sc;
 	u_int	adapter_control;
 	int	have_seeprom;
@@ -476,6 +477,27 @@ ahd_check_extport(struct ahd_softc *ahd)
 	if (have_seeprom) {
 		u_int start_addr;
 
+		/*
+		 * Fetch VPD for this function and parse it.
+		 */
+		if (bootverbose) 
+			printf("%s: Reading VPD from SEEPROM...",
+			       ahd_name(ahd));
+
+		/* Address is always in units of 16bit words */
+		start_addr = ((2 * sizeof(*sc))
+			    + (sizeof(vpd) * (ahd->channel - 'A'))) / 2;
+
+		error = ahd_read_seeprom(ahd, (uint16_t *)&vpd,
+					 start_addr, sizeof(vpd)/2,
+					 /*bytestream*/TRUE);
+		if (error == 0)
+			error = ahd_parse_vpddata(ahd, &vpd);
+		if (bootverbose) 
+			printf("%s: VPD parsing %s\n",
+			       ahd_name(ahd),
+			       error == 0 ? "successful" : "failed");
+
 		if (bootverbose) 
 			printf("%s: Reading SEEPROM...", ahd_name(ahd));
 
@@ -483,7 +505,8 @@ ahd_check_extport(struct ahd_softc *ahd)
 		start_addr = (sizeof(*sc) / 2) * (ahd->channel - 'A');
 
 		error = ahd_read_seeprom(ahd, (uint16_t *)sc,
-					 start_addr, sizeof(*sc)/2);
+					 start_addr, sizeof(*sc)/2,
+					 /*bytestream*/FALSE);
 
 		if (error != 0) {
 			printf("Unable to read SEEPROM\n");
@@ -542,14 +565,13 @@ ahd_check_extport(struct ahd_softc *ahd)
 #if AHD_DEBUG
 	if (have_seeprom != 0
 	 && (ahd_debug & AHD_DUMP_SEEPROM) != 0) {
-		uint8_t *sc_data;
-		int	 i;
+		uint16_t *sc_data;
+		int	  i;
 
 		printf("%s: Seeprom Contents:", ahd_name(ahd));
-		sc_data = (uint8_t *)sc;
+		sc_data = (uint16_t *)sc;
 		for (i = 0; i < (sizeof(*sc)); i += 2)
-			printf("\n\t0x%.4x", 
-			       sc_data[i] | (sc_data[i+1] << 8));
+			printf("\n\t0x%.4x", sc_data[i]);
 		printf("\n");
 	}
 #endif
@@ -803,7 +825,7 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 		/* Clear latched errors.  So our interrupt deasserts. */
 		ahd_outb(ahd, DCHSPLTSTAT0, split_status[i]);
 		ahd_outb(ahd, DCHSPLTSTAT1, split_status1[i]);
-		if (i != 0)
+		if (i > 1)
 			continue;
 		sg_split_status[i] = ahd_inb(ahd, SGSPLTSTAT0);
 		sg_split_status1[i] = ahd_inb(ahd, SGSPLTSTAT1);
@@ -825,7 +847,7 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 				       split_status_source[i]);
 			}
 
-			if (i != 0)
+			if (i > 1)
 				continue;
 
 			if ((sg_split_status[i] & (0x1 << bit)) != 0) {
@@ -868,7 +890,7 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 	if (rev < ID_AIC7902_PCI_REV_A4) {
 		printf("%s: Unable to attach to unsupported chip revision %d\n",
 		       ahd_name(ahd), rev);
-		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/1);
+		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/2);
 		return (ENXIO);
 	}
 	ahd->channel = ahd_get_pci_function(pci) + 'A';
@@ -887,7 +909,8 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 			  |  AHD_PKTIZED_STATUS_BUG|AHD_PKT_LUN_BUG
 			  |  AHD_MDFF_WSCBPTR_BUG|AHD_REG_SLOW_SETTLE_BUG
 			  |  AHD_SET_MODE_BUG|AHD_BUSFREEREV_BUG
-			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG;
+			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG
+			  |  AHD_FAINT_LED_BUG;
 
 		/*
 		 * IO Cell paramter setup.

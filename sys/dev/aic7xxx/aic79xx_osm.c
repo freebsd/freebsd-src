@@ -215,7 +215,7 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 	untimeout(ahd_timeout, (caddr_t)scb, ccb->ccb_h.timeout_ch);
 
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		int op;
+		/*XXX bus_dmasync_op_t*/int op;
 
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
 			op = BUS_DMASYNC_POSTREAD;
@@ -1056,7 +1056,7 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	scb->sg_count = 0;
 	if (nsegments != 0) {
 		void *sg;
-		int op;
+		/*bus_dmasync_op_t*/int op;
 		u_int i;
 
 		/* Copy the segments into our SG list */
