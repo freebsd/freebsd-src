@@ -46,6 +46,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/route.h>
 
 #define _IP_VHL
@@ -60,11 +61,6 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
-#endif
-
-#include "faith.h"
-#if defined(NFAITH) && NFAITH > 0
-#include <net/if_types.h>
 #endif
 
 /*
@@ -286,7 +282,6 @@ icmp_input(m, off, proto)
 	m->m_len += hlen;
 	m->m_data -= hlen;
 
-#if defined(NFAITH) && 0 < NFAITH
 	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
 		/*
 		 * Deliver very specific ICMP type only.
@@ -299,7 +294,6 @@ icmp_input(m, off, proto)
 			goto freeit;
 		}
 	}
-#endif
 
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)

@@ -138,6 +138,8 @@ static void in6_unlink_ifa __P((struct in6_ifaddr *, struct ifnet *));
 
 struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 
+int	(*faithprefix_p)(struct in6_addr *);
+
 /*
  * Subroutine for in6_ifaddloop() and in6_ifremloop().
  * This routine does actual work.

@@ -100,11 +100,6 @@
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 
-#include "faith.h"
-#if defined(NFAITH) && NFAITH > 0
-#include <net/if_faith.h>
-#endif
-
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #ifdef INET6
@@ -1040,11 +1035,10 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
 
-#if defined(NFAITH) && NFAITH > 0
-	faith = faithprefix(laddr);
-#else
-	faith = 0;
-#endif
+	if (faithprefix_p != NULL)
+		faith = (*faithprefix_p)(laddr);
+	else
+		faith = 0;
 
 	/*
 	 * First look for an exact match.

@@ -63,8 +63,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
-#include "faith.h"
-
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
@@ -1139,9 +1137,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
-#if defined(NFAITH) && NFAITH > 0
 		case IP_FAITH:
-#endif
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1177,11 +1173,9 @@ ip_ctloutput(so, sopt)
 				OPTSET(INP_RECVIF);
 				break;
 
-#if defined(NFAITH) && NFAITH > 0
 			case IP_FAITH:
 				OPTSET(INP_FAITH);
 				break;
-#endif
 			}
 			break;
 #undef OPTSET
@@ -1273,9 +1267,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVDSTADDR:
 		case IP_RECVIF:
 		case IP_PORTRANGE:
-#if defined(NFAITH) && NFAITH > 0
 		case IP_FAITH:
-#endif
 			switch (sopt->sopt_name) {
 
 			case IP_TOS:
@@ -1313,11 +1305,9 @@ ip_ctloutput(so, sopt)
 					optval = 0;
 				break;
 
-#if defined(NFAITH) && NFAITH > 0
 			case IP_FAITH:
 				optval = OPTBIT(INP_FAITH);
 				break;
-#endif
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
