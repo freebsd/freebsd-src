@@ -76,13 +76,13 @@ loader.help: help.common help.pc98
 
 .PATH: ${.CURDIR}/../../forth 
 FILES=	loader loader.help loader.4th support.4th loader.conf
-FILES+= screen.4th frames.4th beastie.4th
+FILES+= screen.4th frames.4th
 # XXX INSTALLFLAGS_loader= -b
 FILESMODE_loader= ${BINMODE} -b
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	${.CURDIR}/../../i386/loader/loader.rc
+FILES+=	loader.rc
 .endif
 
 # XXX crt0.o needs to be first for pxeboot(8) to work
