@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.13 1993/10/29 08:58:34 davidg Exp $
+ *	$Id: machdep.c,v 1.14 1993/10/29 09:06:56 davidg Exp $
  */
 
 #include "npx.h"
@@ -729,7 +729,7 @@ physstrat(bp, strat, prio)
 		return;
 	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0)
-		sleep((caddr_t)bp, prio);
+	  tsleep((caddr_t)bp, prio, "physstr", 0);
 	splx(s);
 	vunmapbuf(bp);
 	bp->b_un.b_addr = baddr;
