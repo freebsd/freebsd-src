@@ -34,13 +34,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl v
-.Ar filename
+.Ar
 .Sh DESCRIPTION
 The
 .Nm
-utility loads the file
-.Ar filename Ns Pa .ko
+utility loads
+.Ar file Ns Pa .ko
 into the kernel using the kernel linker.
+Note that if multiple modules are specified then an attempt will
+be made to load them all, even if some fail.
 .Pp
 The following option is available:
 .Bl -tag -width indent
