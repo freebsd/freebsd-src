@@ -148,7 +148,6 @@ char *ifname(ifp)
 {
 	static char buf[BUFSIZ];
 	struct ifnet ifnet;
-	char ifnamebuf[IFNAMSIZ];
 
 	KREAD(ifp, &ifnet, struct ifnet);
 	strlcpy(buf, ifnet.if_xname, sizeof(buf));
