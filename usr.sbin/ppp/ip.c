@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.20 1997/05/26 00:44:01 brian Exp $
+ * $Id: ip.c,v 1.21 1997/06/09 03:27:23 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -245,30 +245,44 @@ int direction;
   struct icmp *icmph;
   char *ptop;
   int mask, len, n;
-  int logit;
   int pri = PRI_NORMAL;
+  int logit, loglen;
+  static char logbuf[200];
 
   logit = LogIsKept(LogTCPIP);
+  loglen = 0;
 
   pip = (struct ip *)cp;
 
-  if (logit) LogPrintf(LogTCPIP, "%s  ", Direction[direction]);
+  if (logit && loglen < sizeof logbuf) {
+    snprintf(logbuf+loglen, sizeof logbuf - loglen, "%s ",
+             Direction[direction]);
+    loglen += strlen(logbuf+loglen);
+  }
 
   ptop = (cp + (pip->ip_hl << 2));
 
   switch (pip->ip_p) {
   case IPPROTO_ICMP:
-    if (logit) {
+    if (logit && loglen < sizeof logbuf) {
       icmph = (struct icmp *)ptop;
-      LogPrintf(LogTCPIP, "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
-      LogPrintf(LogTCPIP, "%s:%d\n", inet_ntoa(pip->ip_dst), icmph->icmp_type);
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "ICMP: %s:%d ---> ", inet_ntoa(pip->ip_src), icmph->icmp_type);
+      loglen += strlen(logbuf+loglen);
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "%s:%d", inet_ntoa(pip->ip_dst), icmph->icmp_type);
+      loglen += strlen(logbuf+loglen);
     }
     break;
   case IPPROTO_UDP:
-    if (logit) {
+    if (logit && loglen < sizeof logbuf) {
       uh = (struct udphdr *)ptop;
-      LogPrintf(LogTCPIP, "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
-      LogPrintf(LogTCPIP, "%s:%d\n", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "UDP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(uh->uh_sport));
+      loglen += strlen(logbuf+loglen);
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      loglen += strlen(logbuf+loglen);
     }
     break;
   case IPPROTO_TCP:
@@ -280,29 +294,43 @@ int direction;
 	 pri = PRI_FAST;
     }
 
-    if (logit) {
+    if (logit && loglen < sizeof logbuf) {
       len = ntohs(pip->ip_len) - (pip->ip_hl << 2) - (th->th_off << 2);
-      LogPrintf(LogTCPIP, "TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
-      LogPrintf(LogTCPIP, "%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "TCP: %s:%d ---> ", inet_ntoa(pip->ip_src), ntohs(th->th_sport));
+      loglen += strlen(logbuf+loglen);
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "%s:%d", inet_ntoa(pip->ip_dst), ntohs(th->th_dport));
+      loglen += strlen(logbuf+loglen);
       n = 0;
       for (mask = TH_FIN; mask != 0x40; mask <<= 1) {
-	if (th->th_flags & mask)
-	  LogPrintf(LogTCPIP, " %s", TcpFlags[n]);
+	if (th->th_flags & mask) {
+          snprintf(logbuf+loglen, sizeof logbuf - loglen, " %s", TcpFlags[n]);
+          loglen += strlen(logbuf+loglen);
+        }
 	n++;
       }
-      LogPrintf(LogTCPIP, "  seq:%x  ack:%x (%d/%d)\n",
-	ntohl(th->th_seq), ntohl(th->th_ack), len, nb);
+      snprintf(logbuf+loglen, sizeof logbuf - loglen,
+               "  seq:%x  ack:%x (%d/%d)",
+               ntohl(th->th_seq), ntohl(th->th_ack), len, nb);
+      loglen += strlen(logbuf+loglen);
       if ((th->th_flags & TH_SYN) && nb > 40) {
         u_short *sp;
 
 	ptop += 20;
 	sp = (u_short *)ptop;
-	if (ntohs(sp[0]) == 0x0204)
-	  LogPrintf(LogTCPIP, " MSS = %d\n", ntohs(sp[1]));
+	if (ntohs(sp[0]) == 0x0204) {
+          snprintf(logbuf+loglen, sizeof logbuf - loglen,
+	           " MSS = %d", ntohs(sp[1]));
+          loglen += strlen(logbuf+loglen);
+        }
       }
     }
     break;
   }
+
+  if (logit)
+    LogPrintf(LogTCPIP, "%s\n", logbuf);
   
   if ((FilterCheck(pip, direction) & A_DENY)) {
     LogPrintf(LogDEBUG, "blocked.\n");
