@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.8 1993/10/16 19:11:31 rgrimes Exp $
+ *	$Id: boot.c,v 1.9 1994/02/22 22:59:38 rgrimes Exp $
  */
 
 
@@ -290,6 +290,8 @@ getbootdev(howto)
 			if (c=='-')
 				while ((c = *++ptr) && c!=' ')
 					switch (c) {
+					      case 'r':
+						*howto |= RB_DFLTROOT; continue;
 					      case 'a':
 						*howto |= RB_ASKNAME; continue;
 					      case 's':
