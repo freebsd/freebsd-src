@@ -29,7 +29,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <machine/vmparam.h>
 #define KERNEL_U_ADDR USRSTACK
 
-/* #undef FLOAT_INFO	/* No float info yet */
+/* #undef FLOAT_INFO */	/* No float info yet */
 #define FLOAT_INFO extern void i386_float_info (); \
 						  i386_float_info ()
 
