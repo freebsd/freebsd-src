@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount.c,v 1.28 1998/07/06 07:12:38 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -192,7 +192,8 @@ main(argc, argv)
 					continue;
 				if (hasopt(fs->fs_mntops, "noauto"))
 					continue;
-				if (ismounted(fs, mntbuf, mntsize))
+				if (!(init_flags & MNT_UPDATE) &&
+				    ismounted(fs, mntbuf, mntsize))
 					continue;
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
 				    fs->fs_file, init_flags, options,
