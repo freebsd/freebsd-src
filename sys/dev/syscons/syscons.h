@@ -256,7 +256,9 @@ typedef struct scr_stat {
 	int		index;			/* index of this vty */
 	struct sc_softc *sc;			/* pointer to softc */
 	struct sc_rndr_sw *rndr;		/* renderer */
+#ifndef __sparc64__
 	sc_vtb_t	scr;
+#endif
 	sc_vtb_t	vtb;
 
 	int 		xpos;			/* current X position */

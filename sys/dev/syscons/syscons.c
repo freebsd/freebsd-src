@@ -53,7 +53,11 @@
 #include <sys/power.h>
 
 #include <machine/clock.h>
+#ifdef __sparc64__
+#include <machine/sc_machdep.h>
+#else
 #include <machine/pc/display.h>
+#endif
 #ifdef __i386__
 #include <machine/psl.h>
 #include <machine/apm_bios.h>
@@ -145,7 +149,7 @@ static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
-#if __i386__ || __ia64__ || __amd64__
+#if __i386__ || __ia64__ || __amd64__ || __sparc64__
 static void scterm(int unit, int flags);
 #endif
 static void scshutdown(void *arg, int howto);
@@ -452,7 +456,9 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
     sc_softc_t *sc;
     struct tty *tp;
     scr_stat *scp;
+#ifndef __sparc64__
     keyarg_t key;
+#endif
     int error;
 
     DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
@@ -471,11 +477,13 @@ scopen(dev_t dev, int flag, int mode, struct thread *td)
 	ttychars(tp);
         /* Use the current setting of the <-- key as default VERASE. */  
         /* If the Delete key is preferable, an stty is necessary     */
+#ifndef __sparc64__
 	if (sc->kbd != NULL) {
 	    key.keynum = KEYCODE_BS;
 	    kbd_ioctl(sc->kbd, GIO_KEYMAPENT, (caddr_t)&key);
             tp->t_cc[VERASE] = key.key.map[0];
 	}
+#endif
 	tp->t_iflag = TTYDEF_IFLAG;
 	tp->t_oflag = TTYDEF_OFLAG;
 	tp->t_cflag = TTYDEF_CFLAG;
@@ -530,7 +538,9 @@ scclose(dev_t dev, int flag, int mode, struct thread *td)
 	}
 	else {
 	    sc_vtb_destroy(&scp->vtb);
+#ifndef __sparc64__
 	    sc_vtb_destroy(&scp->scr);
+#endif
 	    sc_free_history_buffer(scp, scp->ysize);
 	    SC_STAT(dev) = NULL;
 	    free(scp, M_DEVBUF);
@@ -1361,7 +1371,7 @@ scstart(struct tty *tp)
 static void
 sccnprobe(struct consdev *cp)
 {
-#if __i386__ || __ia64__ || __amd64__
+#if __i386__ || __ia64__ || __amd64__ || __sparc64__
     int unit;
     int flags;
 
@@ -1379,7 +1389,7 @@ sccnprobe(struct consdev *cp)
 
     /* initialize required fields */
     cp->cn_dev = makedev(CDEV_MAJOR, SC_CONSOLECTL);
-#endif /* __i386__ || __ia64__ || __amd64__ */
+#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
 
 #if __alpha__
     /*
@@ -1394,7 +1404,7 @@ sccnprobe(struct consdev *cp)
 static void
 sccninit(struct consdev *cp)
 {
-#if __i386__ || __ia64__ || __amd64__
+#if __i386__ || __ia64__ || __amd64__ || __sparc64__
     int unit;
     int flags;
 
@@ -1402,7 +1412,7 @@ sccninit(struct consdev *cp)
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
-#endif /* __i386__ || __ia64__ || __amd64__ */
+#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
 
 #if __alpha__
     /* SHOULDN'T REACH HERE */
@@ -1417,7 +1427,7 @@ sccnterm(struct consdev *cp)
     if (sc_console_unit < 0)
 	return;			/* shouldn't happen */
 
-#if __i386__ || __ia64__ || __amd64__
+#if __i386__ || __ia64__ || __amd64__ || __sparc64__
 #if 0 /* XXX */
     sc_clear_screen(sc_console);
     sccnupdate(sc_console);
@@ -1425,7 +1435,7 @@ sccnterm(struct consdev *cp)
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
-#endif /* __i386__ || __ia64__ || __amd64__ */
+#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
 
 #if __alpha__
     /* do nothing XXX */
@@ -2446,9 +2456,11 @@ exchange_scr(sc_softc_t *sc)
     scp = sc->cur_scp = sc->new_scp;
     if (sc->old_scp->mode != scp->mode || ISUNKNOWNSC(sc->old_scp))
 	set_mode(scp);
+#ifndef __sparc64__
     else
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)sc->adp->va_window, FALSE);
+#endif
     scp->status |= MOUSE_HIDDEN;
     sc_move_cursor(scp, scp->xpos, scp->ypos);
     if (!ISGRAPHSC(scp))
@@ -2715,11 +2727,13 @@ scinit(int unit, int flags)
 	SC_STAT(sc->dev[0]) = scp;
 	sc->cur_scp = scp;
 
+#ifndef __sparc64__
 	/* copy screen to temporary buffer */
 	sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		    (void *)scp->sc->adp->va_window, FALSE);
 	if (ISTEXTSC(scp))
 	    sc_vtb_copy(&scp->scr, 0, &scp->vtb, 0, scp->xsize*scp->ysize);
+#endif
 
 	/* move cursors to the initial positions */
 	if (col >= scp->xsize)
@@ -2806,7 +2820,7 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
-#if __i386__ || __ia64__ || __amd64__
+#if __i386__ || __ia64__ || __amd64__ || __sparc64__
 static void
 scterm(int unit, int flags)
 {
@@ -2862,7 +2876,7 @@ scterm(int unit, int flags)
     sc->keyboard = -1;
     sc->adapter = -1;
 }
-#endif /* __i386__ || __ia64__ || __amd64__ */
+#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
 
 static void
 scshutdown(void *arg, int howto)
@@ -2999,7 +3013,9 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	}
     }
     sc_vtb_init(&scp->vtb, VTB_MEMORY, 0, 0, NULL, FALSE);
+#ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, 0, 0, NULL, FALSE);
+#endif
     scp->xoff = scp->yoff = 0;
     scp->xpos = scp->ypos = 0;
     scp->start = scp->xsize * scp->ysize - 1;
@@ -3441,8 +3457,10 @@ set_mode(scr_stat *scp)
 
     /* setup video hardware for the given mode */
     (*vidsw[scp->sc->adapter]->set_mode)(scp->sc->adp, scp->mode);
+#ifndef __sparc64__
     sc_vtb_init(&scp->scr, VTB_FRAMEBUFFER, scp->xsize, scp->ysize,
 		(void *)scp->sc->adp->va_window, FALSE);
+#endif
 
 #ifndef SC_NO_FONT_LOADING
     /* load appropriate font */
