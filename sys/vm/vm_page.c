@@ -87,8 +87,8 @@
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
-static void	vm_page_queue_init __P((void));
-static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
+static void	vm_page_queue_init (void);
+static vm_page_t vm_page_select_cache (vm_object_t, vm_pindex_t);
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -126,8 +126,8 @@ int vm_page_array_size = 0;
 long first_page = 0;
 int vm_page_zero_count = 0;
 
-static __inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
-static void vm_page_free_wakeup __P((void));
+static __inline int vm_page_hash (vm_object_t object, vm_pindex_t pindex);
+static void vm_page_free_wakeup (void);
 
 /*
  *	vm_set_page_size:
@@ -137,7 +137,7 @@ static void vm_page_free_wakeup __P((void));
  *	dependent functions.
  */
 void
-vm_set_page_size()
+vm_set_page_size(void)
 {
 	if (cnt.v_page_size == 0)
 		cnt.v_page_size = PAGE_SIZE;
@@ -152,8 +152,7 @@ vm_set_page_size()
  *	Must be called at splhigh().
  */
 vm_page_t
-vm_add_new_page(pa)
-	vm_offset_t pa;
+vm_add_new_page(vm_offset_t pa)
 {
 	vm_page_t m;
 
@@ -180,15 +179,12 @@ vm_add_new_page(pa)
  */
 
 vm_offset_t
-vm_page_startup(starta, enda, vaddr)
-	register vm_offset_t starta;
-	vm_offset_t enda;
-	register vm_offset_t vaddr;
+vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 {
-	register vm_offset_t mapped;
-	register struct vm_page **bucket;
+	vm_offset_t mapped;
+	struct vm_page **bucket;
 	vm_size_t npages, page_range;
-	register vm_offset_t new_end;
+	vm_offset_t new_end;
 	int i;
 	vm_offset_t pa;
 	int nblocks;
@@ -339,9 +335,7 @@ vm_page_startup(starta, enda, vaddr)
  *	out in the hash table without it costing us too much.
  */
 static __inline int
-vm_page_hash(object, pindex)
-	vm_object_t object;
-	vm_pindex_t pindex;
+vm_page_hash(vm_object_t object, vm_pindex_t pindex)
 {
 	int i = ((uintptr_t)object + pindex) ^ object->hash_rand;
 
@@ -372,12 +366,9 @@ vm_page_unhold(vm_page_t mem)
  */
 
 void
-vm_page_insert(m, object, pindex)
-	register vm_page_t m;
-	register vm_object_t object;
-	register vm_pindex_t pindex;
+vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 {
-	register struct vm_page **bucket;
+	struct vm_page **bucket;
 
 	if (m->object != NULL)
 		panic("vm_page_insert: already inserted");
@@ -433,8 +424,7 @@ vm_page_insert(m, object, pindex)
  */
 
 void
-vm_page_remove(m)
-	vm_page_t m;
+vm_page_remove(vm_page_t m)
 {
 	vm_object_t object;
 
@@ -508,12 +498,10 @@ vm_page_remove(m)
  */
 
 vm_page_t
-vm_page_lookup(object, pindex)
-	register vm_object_t object;
-	register vm_pindex_t pindex;
+vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 {
-	register vm_page_t m;
-	register struct vm_page **bucket;
+	vm_page_t m;
+	struct vm_page **bucket;
 	int generation;
 
 	/*
@@ -560,10 +548,7 @@ retry:
  */
 
 void
-vm_page_rename(m, new_object, new_pindex)
-	register vm_page_t m;
-	register vm_object_t new_object;
-	vm_pindex_t new_pindex;
+vm_page_rename(vm_page_t m, vm_object_t new_object, vm_pindex_t new_pindex)
 {
 	int s;
 
@@ -586,8 +571,7 @@ vm_page_rename(m, new_object, new_pindex)
  */
 
 void
-vm_page_unqueue_nowakeup(m)
-	vm_page_t m;
+vm_page_unqueue_nowakeup(vm_page_t m)
 {
 	int queue = m->queue;
 	struct vpgqueues *pq;
@@ -610,8 +594,7 @@ vm_page_unqueue_nowakeup(m)
  */
 
 void
-vm_page_unqueue(m)
-	vm_page_t m;
+vm_page_unqueue(vm_page_t m)
 {
 	int queue = m->queue;
 	struct vpgqueues *pq;
@@ -648,8 +631,7 @@ vm_page_unqueue(m)
  *	in vm_page.h
  */
 vm_page_t
-_vm_page_list_find(basequeue, index)
-	int basequeue, index;
+_vm_page_list_find(int basequeue, int index)
 {
 	int i;
 	vm_page_t m = NULL;
@@ -686,9 +668,7 @@ _vm_page_list_find(basequeue, index)
  *	This routine may not block.
  */
 vm_page_t
-vm_page_select_cache(object, pindex)
-	vm_object_t object;
-	vm_pindex_t pindex;
+vm_page_select_cache(vm_object_t object, vm_pindex_t pindex)
 {
 	vm_page_t m;
 
@@ -752,12 +732,9 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
  */
 
 vm_page_t
-vm_page_alloc(object, pindex, page_req)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int page_req;
+vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int page_req)
 {
-	register vm_page_t m = NULL;
+	vm_page_t m = NULL;
 	int s;
 
 	KASSERT(!vm_page_lookup(object, pindex),
@@ -886,7 +863,7 @@ loop:
  */
 
 void
-vm_wait()
+vm_wait(void)
 {
 	int s;
 
@@ -937,7 +914,7 @@ vm_waitpfault(void)
  */
 
 void
-vm_await()
+vm_await(void)
 {
 	int s;
 
@@ -963,7 +940,8 @@ vm_await()
  */
 
 int
-vm_page_sleep(vm_page_t m, char *msg, char *busy) {
+vm_page_sleep(vm_page_t m, char *msg, char *busy) 
+{
 	int slept = 0;
 	if ((busy && *busy) || (m->flags & PG_BUSY)) {
 		int s;
@@ -993,7 +971,8 @@ vm_page_sleep(vm_page_t m, char *msg, char *busy) {
  */
 
 int
-vm_page_asleep(vm_page_t m, char *msg, char *busy) {
+vm_page_asleep(vm_page_t m, char *msg, char *busy) 
+{
 	int slept = 0;
 	if ((busy && *busy) || (m->flags & PG_BUSY)) {
 		int s;
@@ -1021,8 +1000,7 @@ vm_page_asleep(vm_page_t m, char *msg, char *busy) {
  *	This routine may not block.
  */
 void
-vm_page_activate(m)
-	register vm_page_t m;
+vm_page_activate(vm_page_t m)
 {
 	int s;
 
@@ -1060,7 +1038,7 @@ vm_page_activate(m)
  *	This routine must be called at splvm()
  */
 static __inline void
-vm_page_free_wakeup()
+vm_page_free_wakeup(void)
 {
 	/*
 	 * if pageout daemon needs pages, then tell it that there are
@@ -1242,8 +1220,7 @@ vm_page_unmanage(vm_page_t m)
  *	This routine may not block.
  */
 void
-vm_page_wire(m)
-	register vm_page_t m;
+vm_page_wire(vm_page_t m)
 {
 	int s;
 
@@ -1295,9 +1272,7 @@ vm_page_wire(m)
  *	This routine may not block.
  */
 void
-vm_page_unwire(m, activate)
-	register vm_page_t m;
-	int activate;
+vm_page_unwire(vm_page_t m, int activate)
 {
 	int s;
 
@@ -1400,8 +1375,7 @@ vm_page_try_to_cache(vm_page_t m)
  */
 
 int
-vm_page_try_to_free(m)
-	vm_page_t m;
+vm_page_try_to_free(vm_page_t m)
 {
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
@@ -1425,8 +1399,7 @@ vm_page_try_to_free(m)
  * This routine may not block.
  */
 void
-vm_page_cache(m)
-	register vm_page_t m;
+vm_page_cache(vm_page_t m)
 {
 	int s;
 
@@ -1480,8 +1453,7 @@ vm_page_cache(m)
  */
 
 void
-vm_page_dontneed(m)
-	vm_page_t m;
+vm_page_dontneed(vm_page_t m)
 {
 	static int dnweight;
 	int dnw;
@@ -1529,10 +1501,7 @@ vm_page_dontneed(m)
  * This routine may block.
  */
 vm_page_t
-vm_page_grab(object, pindex, allocflags)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int allocflags;
+vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 
 	vm_page_t m;
@@ -1612,10 +1581,7 @@ vm_page_bits(int base, int size)
  *	(base + size) must be less then or equal to PAGE_SIZE.
  */
 void
-vm_page_set_validclean(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
+vm_page_set_validclean(vm_page_t m, int base, int size)
 {
 	int pagebits;
 	int frag;
@@ -1692,10 +1658,7 @@ vm_page_set_validclean(m, base, size)
 #if 0
 
 void
-vm_page_set_dirty(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
+vm_page_set_dirty(vm_page_t m, int base, int size)
 {
 	m->dirty |= vm_page_bits(base, size);
 }
@@ -1703,10 +1666,7 @@ vm_page_set_dirty(m, base, size)
 #endif
 
 void
-vm_page_clear_dirty(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
+vm_page_clear_dirty(vm_page_t m, int base, int size)
 {
 	m->dirty &= ~vm_page_bits(base, size);
 }
@@ -1720,10 +1680,7 @@ vm_page_clear_dirty(m, base, size)
  *	May not block.
  */
 void
-vm_page_set_invalid(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
+vm_page_set_invalid(vm_page_t m, int base, int size)
 {
 	int bits;
 
@@ -1794,10 +1751,7 @@ vm_page_zero_invalid(vm_page_t m, boolean_t setvalid)
  */
 
 int
-vm_page_is_valid(m, base, size)
-	vm_page_t m;
-	int base;
-	int size;
+vm_page_is_valid(vm_page_t m, int base, int size)
 {
 	int bits = vm_page_bits(base, size);
 
@@ -1812,8 +1766,7 @@ vm_page_is_valid(m, base, size)
  */
 
 void
-vm_page_test_dirty(m)
-	vm_page_t m;
+vm_page_test_dirty(vm_page_t m)
 {
 	if ((m->dirty != VM_PAGE_BITS_ALL) && pmap_is_modified(m)) {
 		vm_page_dirty(m);
@@ -1827,15 +1780,15 @@ vm_page_test_dirty(m)
  * for statistics and for allocations of less than a page.
  */
 void *
-contigmalloc1(size, type, flags, low, high, alignment, boundary, map)
-	unsigned long size;	/* should be size_t here and for malloc() */
-	struct malloc_type *type;
-	int flags;
-	unsigned long low;
-	unsigned long high;
-	unsigned long alignment;
-	unsigned long boundary;
-	vm_map_t map;
+contigmalloc1(
+	unsigned long size,	/* should be size_t here and for malloc() */
+	struct malloc_type *type,
+	int flags,
+	unsigned long low,
+	unsigned long high,
+	unsigned long alignment,
+	unsigned long boundary,
+	vm_map_t map)
 {
 	int i, s, start;
 	vm_offset_t addr, phys, tmp_addr;
@@ -2012,34 +1965,31 @@ again1:
 }
 
 void *
-contigmalloc(size, type, flags, low, high, alignment, boundary)
-	unsigned long size;	/* should be size_t here and for malloc() */
-	struct malloc_type *type;
-	int flags;
-	unsigned long low;
-	unsigned long high;
-	unsigned long alignment;
-	unsigned long boundary;
+contigmalloc(
+	unsigned long size,	/* should be size_t here and for malloc() */
+	struct malloc_type *type,
+	int flags,
+	unsigned long low,
+	unsigned long high,
+	unsigned long alignment,
+	unsigned long boundary)
 {
 	return contigmalloc1(size, type, flags, low, high, alignment, boundary,
 			     kernel_map);
 }
 
 void
-contigfree(addr, size, type)
-	void *addr;
-	unsigned long size;
-	struct malloc_type *type;
+contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
 	kmem_free(kernel_map, (vm_offset_t)addr, size);
 }
 
 vm_offset_t
-vm_page_alloc_contig(size, low, high, alignment)
-	vm_offset_t size;
-	vm_offset_t low;
-	vm_offset_t high;
-	vm_offset_t alignment;
+vm_page_alloc_contig(
+	vm_offset_t size,
+	vm_offset_t low,
+	vm_offset_t high,
+	vm_offset_t alignment)
 {
 	return ((vm_offset_t)contigmalloc1(size, M_DEVBUF, M_NOWAIT, low, high,
 					  alignment, 0ul, kernel_map));
