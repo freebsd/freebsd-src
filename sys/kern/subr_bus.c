@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.21 1999/05/10 17:06:14 dfr Exp $
+ *	$Id: subr_bus.c,v 1.22 1999/05/14 09:13:43 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -1604,6 +1604,22 @@ SYSINIT(cfgload, SI_SUB_KMEM, SI_ORDER_ANY + 50, resource_cfgload, 0)
 /*
  * Some useful method implementations to make life easier for bus drivers.
  */
+
+/*
+ * Call DEVICE_IDENTIFY for each driver.
+ */
+int
+bus_generic_probe(device_t dev)
+{
+    devclass_t dc = dev->devclass;
+    driverlink_t dl;
+
+    for (dl = TAILQ_FIRST(&dc->drivers); dl; dl = TAILQ_NEXT(dl, link))
+	DEVICE_IDENTIFY(dl->driver, dev);
+
+    return 0;
+}
+
 int
 bus_generic_attach(device_t dev)
 {

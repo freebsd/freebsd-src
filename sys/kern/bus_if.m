@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.8 1999/05/08 21:59:34 dfr Exp $
+#	$Id: bus_if.m,v 1.9 1999/05/10 17:06:12 dfr Exp $
 #
 
 INTERFACE bus;
@@ -102,6 +102,19 @@ METHOD void driver_added {
 	device_t dev;
 	driver_t *driver;
 }
+
+#
+# For busses which use use drivers supporting DEVICE_IDENTIFY to
+# enumerate their devices, these methods are used to create new
+# device instances. If place is non-NULL, the new device will be
+# added after place in the list of devices.
+#
+METHOD device_t add_child {
+	device_t dev;
+	device_t place;
+	const char *name;
+	int unit;
+};
 
 #
 # Allocate a system resource attached to `dev' on behalf of `child'.
