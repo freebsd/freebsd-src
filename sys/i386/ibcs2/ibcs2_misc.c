@@ -420,7 +420,7 @@ again:
 eof:
 	*retval = SCARG(uap, nbytes) - resid;
 out:
-	VOP_UNLOCK(vp, p);
+	VOP_UNLOCK(vp, 0, p);
 	free(buf, M_TEMP);
 	return (error);
 }
@@ -535,7 +535,7 @@ again:
 eof:
 	*retval = SCARG(uap, nbytes) - resid;
 out:
-	VOP_UNLOCK(vp, p);
+	VOP_UNLOCK(vp, 0, p);
 	free(buf, M_TEMP);
 	return (error);
 }
