@@ -141,10 +141,7 @@ main(int argc, char **argv)
 	cfg_lv=0xff;
 	cfg_in=-2;
 	cfg_cg=-2;
-	out_file=strdup("/var/tmp/ffsinfo");
-	if(out_file == NULL) {
-		errx(1, "strdup failed");
-	}
+	out_file=NULL;
 
 	while ((ch=getopt(argc, argv, "g:i:l:o:")) != -1) {
 		switch(ch) {
@@ -192,6 +189,8 @@ main(int argc, char **argv)
 		usage();
 	}
 	device=*argv;
+	if (out_file == NULL)
+		errx(1, "out_file not specified");
 	
 	/*
 	 * Now we try to guess the (raw)device name.
