@@ -1,18 +1,23 @@
-Easy Editor ("ee") provides the ability to translate the messages displayed to 
-the user and the commands entered.  This is done via message catalogs, 
-following X/Open standards.  ee only supports eight bit characters.
+Easy Editor ("ee") provides the ability to translate the messages 
+displayed to the user and the commands entered.  This is done via message 
+catalogs, following X/Open standards.  ee supports eight bit characters, 
+as well as 16-bit characters.  The Chinese Big 5 code set is the 16-bit 
+code set that ee was modified to handle, as it is relatively easy to 
+support since two byte characters also take up two columns on the screen, 
+thereby simplifying the screen position calculations.  Other multibyte 
+code sets may function, but have not been tested. 
 
 (The name ee.i18n.guide is for "ee internationalization guide".  The i18n 
 abbreviation is used because there are 18 characters between the first 
-letter ("i") and last ("n") of "internationalization".)
+letter ("i") and last ("n") of "internationalization".) 
 
-All of the messages, warnings, information, and commands, are contained in the 
-message catalog.  Each numbered entry represents an individual string used by 
-ee.  Some strings contain formatting information for formatted print 
-statements, which are of the form "%s", or "%d", these must be preserved in 
-the translation, or the correct information will not be displayed.  For those 
-strings containing multiple formatting codes, the order of each item must be 
-preserved as well.
+All of the messages, warnings, information, and commands, are contained 
+in the message catalog.  Each numbered entry represents an individual 
+string used by ee.  Some strings contain formatting information for 
+formatted print statements, which are of the form "%s", or "%d", these 
+must be preserved in the translation, or the correct information will not 
+be displayed.  For those strings containing multiple formatting codes, 
+the order of each item must be preserved as well. 
 
 Message		content 
 1 		title for modes, or settings menu
@@ -93,6 +98,18 @@ Message		content
 154 - 158	info window entries for emacs key bindings info
 159		string for turning on emacs key bindings in the init file
 160		string for turning off emacs key bindings in the init file
+161		fifth line of usage statement
+162		error message when unable to save configuration file
+163		positive feedback about saving the configuration file
+164 - 167	menu items for saving editor configuration
+168		error message when unable to save configuration file
+169		error message for ree when not specifying the file
+180		self-explanatory
+181 - 182	indicators of more information in menu (for when scrolling 
+		 menus because menu contents won't fit vertically on screen)
+183		menu entry for modes menu for 16 bit characters
+184 - 185	strings for initialization to turn on or off 16 bit 
+		character handling
 
 Care should be taken when translating commands and initialization keywords 
 because the algorithm used for detecting uniqueness of entered commands 
