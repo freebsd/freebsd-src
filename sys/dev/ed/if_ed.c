@@ -67,9 +67,7 @@
 
 #include <net/bpf.h>
 #include "opt_bdg.h"
-#ifdef BRIDGE
 #include <net/bridge.h>
-#endif
 
 #include <machine/md_var.h>
 
@@ -2708,7 +2706,6 @@ ed_get_packet(sc, buf, len)
 	m->m_data += 2;
 	eh = mtod(m, struct ether_header *);
 
-#ifdef BRIDGE
 	/*
 	 * Don't read in the entire packet if we know we're going to drop it
 	 * and no bpf is active.
@@ -2727,11 +2724,10 @@ ed_get_packet(sc, buf, len)
 			ed_ring_copy(sc, buf + ETHER_HDR_LEN,
 				(char *)(eh + 1), len - ETHER_HDR_LEN);
 	} else
-#endif
-	/*
-	 * Get packet, including link layer address, from interface.
-	 */
-	ed_ring_copy(sc, buf, (char *)eh, len);
+		/*
+		 * Get packet, including link layer address, from interface.
+		 */
+		ed_ring_copy(sc, buf, (char *)eh, len);
 
 	/*
 	 * Remove link layer address.
