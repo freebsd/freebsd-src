@@ -5,7 +5,6 @@ KMOD=   if_ppp
 SRCS=	if_ppp.c ppp_tty.c slcompress.c \
 	ppp.h opt_inet.h opt_ipx.h opt_ppp.h vnode_if.h
 NOMAN=
-CLEANFILES+=	vnode_if.c vnode_if.h
 
 NPPP?=		2
 PPP_BSDCOMP?=	1	# 0/1
@@ -23,7 +22,7 @@ SRCS+=	bsd_comp.c
 SRCS+=	ppp_deflate.c zlib.c
 .endif
 
-CLEANFILES+=	opt_inet.h opt_ipx.h opt_ppp.h ppp.h
+CLEANFILES=	ppp.h
 
 ppp.h:
 	echo "#define NPPP ${NPPP}" > ppp.h

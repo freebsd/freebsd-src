@@ -7,9 +7,5 @@ SRCS=	ntfs_vfsops.c ntfs_vnops.c ntfs_subr.c ntfs_ihash.c \
 NOMAN=
 VFS_KLD=
 CFLAGS+= -DNTFS
-CLEANFILES= opt_vmpage.h
-
-opt_vmpage.h:
-	touch ${.TARGET}
 
 .include <bsd.kmod.mk>

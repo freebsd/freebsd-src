@@ -14,8 +14,7 @@ MAN8=	linux.8
 
 # CFLAGS+=	-DDEBUG
 EXPORT_SYMS=_linux_mod
-CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym \
-	linux_assym.h opt_compat.h opt_linux.h opt_vmpage.h
+CLEANFILES= linux_assym.h linux_genassym linux_genassym.o
 
 build-tools: linux_genassym
 
@@ -34,9 +33,6 @@ linux_genassym:	linux_genassym.o
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
-
-opt_linux.h opt_vmpage.h:
-	touch ${.TARGET}
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
