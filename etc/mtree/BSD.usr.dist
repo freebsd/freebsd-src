@@ -140,8 +140,6 @@
                 ..
                 08.sendmailop
                 ..
-                10.named
-                ..
                 11.timedop
                 ..
                 12.timed
