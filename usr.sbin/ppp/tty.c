@@ -574,7 +574,13 @@ tty_Slot(struct physical *p)
 
 static void
 tty_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov __unused, int *auxfd, int *nauxfd)
+               int maxiov __unused,
+#ifndef NONETGRAPH
+               int *auxfd, int *nauxfd
+#else
+               int *auxfd __unused, int *nauxfd __unused
+#endif
+               )
 {
   struct ttydevice *dev = device2tty(d);
   int sz = physical_MaxDeviceSize();
@@ -623,7 +629,13 @@ static struct device basettydevice = {
 
 struct device *
 tty_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
-               int maxiov __unused, int *auxfd, int *nauxfd)
+               int maxiov __unused,
+#ifndef NONETGRAPH
+               int *auxfd, int *nauxfd
+#else
+               int *auxfd __unused, int *nauxfd __unused
+#endif
+               )
 {
   if (type == TTY_DEVICE) {
     struct ttydevice *dev = (struct ttydevice *)iov[(*niov)++].iov_base;
