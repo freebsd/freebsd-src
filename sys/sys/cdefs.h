@@ -142,6 +142,11 @@
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
 #endif
+#ifdef __GNUC__
+#define	alloca(sz)	__builtin_alloca(sz)
+#else
+#error FreeBSD alloca support needed for this compiler
+#endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ >= 7 || __GNUC__ >= 3)
