@@ -124,8 +124,8 @@ struct ip_fw_ext {             /* extended structure */
 #define fw_fwd_ip	fw_un.fu_fwd_ip
 
 struct ip_fw_chain {
-        LIST_ENTRY(ip_fw_chain) chain;
-        struct ip_fw    *rule;
+	LIST_ENTRY(ip_fw_chain) next;
+	struct ip_fw *rule;
 };
 
 /*
