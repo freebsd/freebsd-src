@@ -45,7 +45,10 @@ flag, specifies case insensitive matching: lowercase characters in the magic
 match both lower and upper case characters in the targer, whereas upper case
 characters in the magic, only much uppercase characters in the target.
 .IP date
-A four-byte value interpreted as a unix date.
+A four-byte value interpreted as a UNIX date.
+.IP ldate
+A four-byte value interpreted as a UNIX-style date, but interpreted as
+local time rather than UTC.
 .IP beshort
 A two-byte value (on most systems) in big-endian byte order.
 .IP belong
@@ -59,7 +62,11 @@ A two-byte value (on most systems) in little-endian byte order.
 A four-byte value (on most systems) in little-endian byte order.
 .IP ledate
 A four-byte value (on most systems) in little-endian byte order,
-interpreted as a unix date.
+interpreted as a UNIX date.
+.IP leldate
+A four-byte value (on most systems) in little-endian byte order,
+interpreted as a UNIX-style date, but interpreted as local time rather
+than UTC.
 .RE
 .PP
 The numeric types may optionally be followed by
@@ -212,4 +219,4 @@ indirect offsets.
 .\" the changes I posted to the S5R2 version.
 .\"
 .\" Modified for Ian Darwin's version of the file command.
-.\" @(#)$Id: magic.man,v 1.16 1999/11/28 20:02:29 christos Exp $
+.\" @(#)$Id: magic.man,v 1.17 2001/08/07 15:38:42 christos Exp $
