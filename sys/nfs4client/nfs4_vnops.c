@@ -126,12 +126,12 @@ __FBSDID("$FreeBSD$");
 #define vfs_busy_pages(bp, f)
 #endif
 
-static int	nfsspec_read(struct vop_read_args *);
-static int	nfsspec_write(struct vop_write_args *);
+#if 0
 static int	nfsfifo_read(struct vop_read_args *);
 static int	nfsfifo_write(struct vop_write_args *);
-static int	nfsspec_close(struct vop_close_args *);
 static int	nfsfifo_close(struct vop_close_args *);
+static int	nfsspec_access(struct vop_access_args *);
+#endif
 static int	nfs4_flush(struct vnode *, struct ucred *, int, struct thread *,
 		    int);
 static int	nfs4_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
@@ -160,7 +160,6 @@ static	int	nfs4_lookitup(struct vnode *, const char *, int,
 		    struct ucred *, struct thread *, struct nfsnode **);
 static	int	nfs4_sillyrename(struct vnode *, struct vnode *,
 		    struct componentname *);
-static int	nfsspec_access(struct vop_access_args *);
 static int	nfs4_readlink(struct vop_readlink_args *);
 static int	nfs4_print(struct vop_print_args *);
 static int	nfs4_advlock(struct vop_advlock_args *);
@@ -204,27 +203,15 @@ static struct vnodeopv_desc nfs4_vnodeop_opv_desc =
 	{ &nfs4_vnodeop_p, nfs4_vnodeop_entries };
 VNODEOP_SET(nfs4_vnodeop_opv_desc);
 
+#if 0
 /*
  * Special device vnode ops
+ *
+ * XXX: I've commented this stuff out because it is unused.  It is not clear
+ * XXX: however that it shouldn't be used: the current code applies the
+ * XXX: vector from sys/nfsclient and it would take some luck for that to
+ * XXX: work also in the NFS4 case I think /phk.
  */
-vop_t **spec_nfs4nodeop_p;
-static struct vnodeopv_entry_desc nfs4_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_close_desc,		(vop_t *) nfsspec_close },
-	{ &vop_fsync_desc,		(vop_t *) nfs4_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs4_getattr },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_print_desc,		(vop_t *) nfs4_print },
-	{ &vop_read_desc,		(vop_t *) nfsspec_read },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) nfs4_setattr },
-	{ &vop_write_desc,		(vop_t *) nfsspec_write },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc spec_nfs4nodeop_opv_desc =
-	{ &spec_nfs4nodeop_p, nfs4_specop_entries };
-VNODEOP_SET(spec_nfs4nodeop_opv_desc);
 
 vop_t **fifo_nfs4nodeop_p;
 static struct vnodeopv_entry_desc nfs4_fifoop_entries[] = {
@@ -244,6 +231,7 @@ static struct vnodeopv_entry_desc nfs4_fifoop_entries[] = {
 static struct vnodeopv_desc fifo_nfs4nodeop_opv_desc =
 	{ &fifo_nfs4nodeop_p, nfs4_fifoop_entries };
 VNODEOP_SET(fifo_nfs4nodeop_opv_desc);
+#endif
 
 static int	nfs4_removerpc(struct vnode *dvp, const char *name, int namelen,
 			      struct ucred *cred, struct thread *td);
@@ -2994,6 +2982,7 @@ nfs4_writebp(struct buf *bp, int force __unused, struct thread *td)
 	return (0);
 }
 
+#if 0
 /*
  * nfs special file access vnode op.
  * Essentially just get vattr and then imitate iaccess() since the device is
@@ -3030,65 +3019,6 @@ nfsspec_access(struct vop_access_args *ap)
 		return (error);
 	return (vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
 	    mode, cred, NULL));
-}
-
-/*
- * Read wrapper for special devices.
- */
-static int
-nfsspec_read(struct vop_read_args *ap)
-{
-	struct nfsnode *np = VTONFS(ap->a_vp);
-
-	/*
-	 * Set access flag.
-	 */
-	np->n_flag |= NACC;
-	getnanotime(&np->n_atim);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
-}
-
-/*
- * Write wrapper for special devices.
- */
-static int
-nfsspec_write(struct vop_write_args *ap)
-{
-	struct nfsnode *np = VTONFS(ap->a_vp);
-
-	/*
-	 * Set update flag.
-	 */
-	np->n_flag |= NUPD;
-	getnanotime(&np->n_mtim);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
-}
-
-/*
- * Close wrapper for special devices.
- *
- * Update the times on the nfsnode then do device close.
- */
-static int
-nfsspec_close(struct vop_close_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-	struct nfsnode *np = VTONFS(vp);
-	struct vattr vattr;
-
-	if (np->n_flag & (NACC | NUPD)) {
-		np->n_flag |= NCHG;
-		if (vrefcnt(vp) == 1 &&
-		    (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-			VATTR_NULL(&vattr);
-			if (np->n_flag & NACC)
-				vattr.va_atime = np->n_atim;
-			if (np->n_flag & NUPD)
-				vattr.va_mtime = np->n_mtim;
-			(void)VOP_SETATTR(vp, &vattr, ap->a_cred, ap->a_td);
-		}
-	}
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
 /*
@@ -3158,3 +3088,4 @@ nfsfifo_close(struct vop_close_args *ap)
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
+#endif
