@@ -50,7 +50,7 @@ struct globaldata {
 	struct pcb	*gd_curpcb;		/* current pcb */
 	struct timeval	gd_switchtime;	
 	int		gd_switchticks;
-	u_int		gd_cpuno;		/* this cpu number */
+	u_int		gd_cpuid;		/* this cpu number */
 	u_int		gd_other_cpus;		/* all other cpus */
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
@@ -60,7 +60,6 @@ struct globaldata {
 	u_int		gd_astpending;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	int		gd_witness_spin_check;
-	u_int		gd_cpuid;
 #ifdef KTR_PERCPU
 	volatile int	gd_ktr_idx;		/* Index into trace table */
 	char		*gd_ktr_buf;
@@ -71,8 +70,11 @@ struct globaldata {
 SLIST_HEAD(cpuhead, globaldata);
 extern struct cpuhead cpuhead;
 
-void globaldata_init(struct globaldata *pcpu, int cpuno, size_t sz);
-struct globaldata *globaldata_find(int cpuno);
+void globaldata_init(struct globaldata *pcpu, int cpuid, size_t sz);
+struct globaldata *globaldata_find(int cpuid);
+#ifdef SMP
+void globaldata_register(struct globaldata *pcpu);
+#endif
 
 #endif	/* _KERNEL */
 
