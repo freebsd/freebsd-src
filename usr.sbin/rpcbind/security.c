@@ -10,6 +10,7 @@
 #include <rpc/rpcb_prot.h>
 #include <rpc/pmap_prot.h>
 #include <err.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -201,7 +202,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 
 		/* Try to map procedure number to name. */
 
-		if (procnum > (sizeof procmap / sizeof (char *))) {
+		if (procnum >= (sizeof procmap / sizeof (char *))) {
 			snprintf(procbuf, sizeof procbuf, "%u",
 			    (unsigned)procnum);
 			procname = procbuf;
