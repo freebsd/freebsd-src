@@ -92,15 +92,16 @@ static const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
  */
 
 /* Fake short equivalents for long options that otherwise lack them. */
-#define	OPTION_EXCLUDE 1
-#define	OPTION_FAST_READ 2
-#define	OPTION_HELP 3
-#define	OPTION_INCLUDE 4
-#define	OPTION_NODUMP 5
-#define	OPTION_NO_SAME_PERMISSIONS 6
-#define	OPTION_NULL 7
-#define	OPTION_ONE_FILE_SYSTEM 8
-#define	OPTION_VERSION 9
+#define	OPTION_CHECK_LINKS 3
+#define	OPTION_EXCLUDE 6
+#define	OPTION_FAST_READ 9
+#define	OPTION_HELP 12
+#define	OPTION_INCLUDE 15
+#define	OPTION_NODUMP 18
+#define	OPTION_NO_SAME_PERMISSIONS 21
+#define	OPTION_NULL 24
+#define	OPTION_ONE_FILE_SYSTEM 27
+#define	OPTION_VERSION 30
 
 static const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
@@ -110,6 +111,7 @@ static const struct option tar_longopts[] = {
 	{ "bzip",               no_argument,       NULL, 'j' },
 	{ "bzip2",              no_argument,       NULL, 'j' },
 	{ "cd",                 required_argument, NULL, 'C' },
+	{ "check-links",        no_argument,       NULL, OPTION_CHECK_LINKS },
 	{ "confirmation",       no_argument,       NULL, 'w' },
 	{ "create",             no_argument,       NULL, 'c' },
 	{ "dereference",	no_argument,	   NULL, 'L' },
@@ -154,6 +156,7 @@ main(int argc, char **argv)
 	const struct option	*option;
 	int			 opt, t;
 	char			 mode;
+	char			 option_o;
 	char			 possible_help_request;
 	char			 buff[16];
 
@@ -164,6 +167,7 @@ main(int argc, char **argv)
 	bsdtar = &bsdtar_storage;
 	memset(bsdtar, 0, sizeof(*bsdtar));
 	bsdtar->fd = -1; /* Mark as "unused" */
+	option_o = 0;
 
 	if (setlocale(LC_ALL, "") == NULL)
 		bsdtar_warnc(bsdtar, 0, "Failed to set default locale");
@@ -227,6 +231,9 @@ main(int argc, char **argv)
 				    opt, mode);
 			mode = opt;
 			break;
+		case OPTION_CHECK_LINKS: /* GNU tar */
+			bsdtar->option_warn_links = 1;
+			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (exclude(bsdtar, optarg))
 				bsdtar_errc(bsdtar, 1, 0,
@@ -274,8 +281,19 @@ main(int argc, char **argv)
 		case 'L': /* BSD convention */
 			bsdtar->symlink_mode = 'L';
 			break;
-	        case 'l': /* SUSv2; note that GNU -l conflicts */
-			bsdtar->option_warn_links = 1;
+	        case 'l': /* SUSv2 and GNU conflict badly here */
+			if (getenv("POSIXLY_CORRECT") != NULL) {
+				/* User has asked for POSIX/SUS behavior. */
+				bsdtar->option_warn_links = 1;
+			} else {
+				fprintf(stderr,
+"Error: -l has different behaviors in different tar programs.\n");
+				fprintf(stderr,
+"  For the GNU behavior, use --one-file-system instead.\n");
+				fprintf(stderr,
+"  For the POSIX behavior, use --check-links instead.\n");
+				usage(bsdtar);
+			}
 			break;
 		case 'm': /* SUSv2 */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_TIME;
@@ -300,9 +318,8 @@ main(int argc, char **argv)
 		case 'O': /* GNU tar */
 			bsdtar->option_stdout = 1;
 			break;
-		case 'o': /* SUSv2; note that GNU -o conflicts */
-			bsdtar->option_no_owner = 1;
-			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
+		case 'o': /* SUSv2 and GNU conflict here */
+			option_o = 1; /* Record it and resolve it later. */
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* -l in GNU tar */
 			bsdtar->option_dont_traverse_mounts = 1;
@@ -424,18 +441,33 @@ main(int argc, char **argv)
 		only_mode(bsdtar, mode, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
 		only_mode(bsdtar, mode, "--nodump", "cru");
-	if (bsdtar->option_no_owner) {
-		only_mode(bsdtar, mode, "-o", "xc");
-		/* Warn about nonsensical -co combination, but ignore it. */
-		if (mode == 'c')
-			bsdtar_warnc(bsdtar, 0, "Ignoring nonsensical -o option");
+	if (option_o > 0) {
+		switch (mode) {
+		case 'c':
+			/*
+			 * In GNU tar, -o means "old format."  The
+			 * "ustar" format is the closest thing
+			 * supported by libarchive.
+			 */
+			bsdtar->create_format = "ustar";
+			/* TODO: bsdtar->create_format = "v7"; */
+			break;
+		case 'x':
+			/* POSIX-compatible behavior. */
+			bsdtar->option_no_owner = 1;
+			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
+			break;
+		default:
+			only_mode(bsdtar, mode, "-o", "xc");
+			break;
+		}
 	}
 	if (bsdtar->option_no_subdirs)
 		only_mode(bsdtar, mode, "-n", "cru");
 	if (bsdtar->option_stdout)
 		only_mode(bsdtar, mode, "-O", "x");
 	if (bsdtar->option_warn_links)
-		only_mode(bsdtar, mode, "-l", "cr");
+		only_mode(bsdtar, mode, "--check-links", "cr");
 
 	/* Check other parameters only permitted in certain modes. */
 	if (bsdtar->create_compression == 'Z' && mode == 'c') {
