@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.9 1994/08/06 10:25:34 davidg Exp $
+ *	$Id: mem.c,v 1.9.8.1 1995/09/14 07:09:00 davidg Exp $
  */
 
 /*
@@ -143,13 +143,26 @@ mmrw(dev, uio, flags)
 			continue;
 
 /* minor device 1 is kernel memory */
-		case 1:
+		case 1: {
+			vm_offset_t addr, eaddr;
 			c = iov->iov_len;
+
+			/*
+			 * Make sure that all of the pages are currently resident so
+			 * that we don't create any zero-fill pages.
+			 */
+			addr = trunc_page(uio->uio_offset);
+			eaddr = round_page(uio->uio_offset + c);
+			for (; addr < eaddr; addr += PAGE_SIZE)
+				if (pmap_extract(kernel_pmap, addr) == 0)
+					return EFAULT;
+			
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
 				return(EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
+		}
 
 /* minor device 2 is EOF/RATHOLE */
 		case 2:
