@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.22 1995/05/03 07:16:52 davidg Exp $
+ *	$Id: tcp_input.c,v 1.23 1995/05/09 12:32:06 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -84,6 +84,7 @@ struct inpcbinfo tcbinfo;
  * Set DELACK for segments received in order, but ack immediately
  * when segments are out of order (so fast retransmit can work).
  */
+#ifdef TCP_ACK_HACK
 #define	TCP_REASS(tp, ti, m, so, flags) { \
 	if ((ti)->ti_seq == (tp)->rcv_nxt && \
 	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
@@ -103,6 +104,24 @@ struct inpcbinfo tcbinfo;
 		tp->t_flags |= TF_ACKNOW; \
 	} \
 }
+#else
+#define	TCP_REASS(tp, ti, m, so, flags) { \
+	if ((ti)->ti_seq == (tp)->rcv_nxt && \
+	    (tp)->seg_next == (struct tcpiphdr *)(tp) && \
+	    (tp)->t_state == TCPS_ESTABLISHED) { \
+		tp->t_flags |= TF_DELACK; \
+		(tp)->rcv_nxt += (ti)->ti_len; \
+		flags = (ti)->ti_flags & TH_FIN; \
+		tcpstat.tcps_rcvpack++;\
+		tcpstat.tcps_rcvbyte += (ti)->ti_len;\
+		sbappend(&(so)->so_rcv, (m)); \
+		sorwakeup(so); \
+	} else { \
+		(flags) = tcp_reass((tp), (ti), (m)); \
+		tp->t_flags |= TF_ACKNOW; \
+	} \
+}
+#endif
 #ifndef TUBA_INCLUDE
 
 int
@@ -531,6 +550,7 @@ findpcb:
 			 */
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
+#ifdef TCP_ACK_HACK
 			/*
 			 * If this is a short packet, then ACK now - with Nagel
 			 *	congestion avoidance sender won't send more until
@@ -542,6 +562,9 @@ findpcb:
 			} else {
 				tp->t_flags |= TF_DELACK;
 			}
+#else
+			tp->t_flags |= TF_DELACK;
+#endif
 			return;
 		}
 	}
