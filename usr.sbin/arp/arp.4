@@ -114,10 +114,10 @@ This indicates a misconfigured or broken device.
 .Pp
 .Em "arp: %d.%d.%d.%d moved from %x:%x:%x:%x:%x:%x to %x:%x:%x:%x:%x:%x" :
 ARP had a cached value for the ethernet address of the referenced host,
-but received a reply indicating that the host is at a new address.  This
-can happen normally when host hardware addresses change, or when a mobile
-node arrives or leaves the local subnet.  It can also indicate a problem
-with proxy ARP.
+but received a reply indicating that the host is at a new address.
+This can happen normally when host hardware addresses change,
+or when a mobile node arrives or leaves the local subnet.
+It can also indicate a problem with proxy ARP.
 This message can only be issued if the sysctl
 .Dv net.link.ether.inet.log_arp_movements
 is set to 1, which is the system's default behaviour.
@@ -125,8 +125,9 @@ is set to 1, which is the system's default behaviour.
 .Em "arpresolve: can't allocate llinfo for %d.%d.%d.%d" :
 The route for the referenced host points to a device upon which ARP is
 required, but ARP was unable to allocate a routing table entry in which
-to store the host's MAC address.  This usually points to a misconfigured
-routing table.  It can also occur if the kernel cannot allocate memory.
+to store the host's MAC address.
+This usually points to a misconfigured routing table.
+It can also occur if the kernel cannot allocate memory.
 .Pp
 .Em "arp: %d.%d.%d.%d is on if0 but got reply from %x:%x:%x:%x:%x:%x on if1" :
 Physical connections exist to the same logical IP network on both if0 and if1.
