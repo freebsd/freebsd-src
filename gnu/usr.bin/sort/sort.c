@@ -1862,7 +1862,7 @@ main (int argc, char **argv)
 		      insertkey (key);
 		    key = (struct keyfield *)
 		      xmalloc (sizeof (struct keyfield));
-		    bzero(key, sizeof(*key));
+		    memset (key, 0, sizeof (struct keyfield));
 		    key->eword = -1;
 		    key->ignore = NULL;
 		    key->translate = NULL;
