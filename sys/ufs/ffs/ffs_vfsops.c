@@ -455,6 +455,8 @@ ffs_reload(mp, cred, td)
 	newfs->fs_maxcluster = fs->fs_maxcluster;
 	newfs->fs_contigdirs = fs->fs_contigdirs;
 	newfs->fs_active = fs->fs_active;
+	/* The file system is still read-only. */
+	newfs->fs_ronly = 1;
 	sblockloc = fs->fs_sblockloc;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
 	brelse(bp);
