@@ -53,6 +53,7 @@
  */
 void mark_buffer_dirty(struct buf *bh)
 {
+	numdirtybuffers++;
 	bh->b_flags |= B_DELWRI;
 	bh->b_flags &= ~(B_READ | B_ERROR);
 } 
@@ -62,6 +63,11 @@ void mark_buffer_dirty(struct buf *bh)
  */
 int ll_w_block(struct buf * bp, int waitfor)
 {
+	if (bp->b_flags & B_DELWRI) {
+		--numdirtybuffers;
+		if (needsbuffer)
+			vfs_bio_need_satisfy();
+	}
 	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
 	bp->b_flags |= B_WRITEINPROG;
 	bp->b_vp->v_numoutput++;

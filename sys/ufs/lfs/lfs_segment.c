@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.20 1997/02/22 09:47:22 peter Exp $
+ * $Id: lfs_segment.c,v 1.21 1997/03/23 00:45:17 bde Exp $
  */
 
 #include <sys/param.h>
@@ -985,6 +985,11 @@ lfs_writeseg(fs, sp)
 			cbp->b_bcount += bp->b_bcount;
 			if (bp->b_flags & B_LOCKED)
 				--locked_queue_count;
+			if (bp->b_flags & (B_DELWRI|B_LOCKED)) {
+				--numdirtybuffers;
+				if (needsbuffer)
+					vfs_bio_need_satisfy();
+			}
 			bp->b_flags &= ~(B_ERROR | B_READ | B_DELWRI |
 				B_LOCKED | B_GATHERED);
 			if (bp->b_flags & B_CALL) {
@@ -1059,6 +1064,11 @@ lfs_writesuper(fs)
 	/* XXX Toggle between first two superblocks; for now just write first */
 	bp->b_dev = i_dev;
 	bp->b_flags |= B_BUSY | B_CALL | B_ASYNC;
+	if (bp->b_flags & (B_DELWRI|B_LOCKED)) {
+		--numdirtybuffers;
+		if (needsbuffer)
+			vfs_bio_need_satisfy();
+	}
 	bp->b_flags &= ~(B_DONE | B_ERROR | B_READ | B_DELWRI);
 	bp->b_iodone = lfs_supercallback;
 	vop_strategy_a.a_desc = VDESC(vop_strategy);
