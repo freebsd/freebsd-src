@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.168 1996/09/08 21:31:56 sos Exp $
+ *  $Id: syscons.c,v 1.169 1996/09/09 19:02:26 sos Exp $
  */
 
 #include "sc.h"
@@ -164,6 +164,7 @@ static int scattach(struct isa_device *dev);
 static int scparam(struct tty *tp, struct termios *t);
 static int scprobe(struct isa_device *dev);
 static void scstart(struct tty *tp);
+static void scmousestart(struct tty *tp);
 static void scinit(void);
 static u_int scgetc(int noblock);
 static scr_stat *get_scr_stat(dev_t dev);
@@ -519,7 +520,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     if (!tp)
 	return(ENXIO);
 
-    tp->t_oproc = (minor(dev) == SC_MOUSE) ? NULL : scstart;
+    tp->t_oproc = (minor(dev) == SC_MOUSE) ? scmousestart : scstart;
     tp->t_param = scparam;
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
@@ -1331,6 +1332,26 @@ scstart(struct tty *tp)
 	    splx(s);
 	    ansi_put(scp, buf, len);
 	    s = spltty();
+	}
+	tp->t_state &= ~TS_BUSY;
+	ttwwakeup(tp);
+    }
+    splx(s);
+}
+
+static void
+scmousestart(struct tty *tp)
+{
+    struct clist *rbp;
+    int s;
+    u_char buf[PCBURST];
+
+    s = spltty();
+    if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
+	tp->t_state |= TS_BUSY;
+	rbp = &tp->t_outq;
+	while (rbp->c_cc) {
+	    q_to_b(rbp, buf, PCBURST);
 	}
 	tp->t_state &= ~TS_BUSY;
 	ttwwakeup(tp);
