@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.22 1996/08/09 09:02:26 markm Exp $
+ *	$Id: ftpd.c,v 1.23 1996/08/09 22:22:30 julian Exp $
  */
 
 #if 0
@@ -182,6 +182,7 @@ char	proctitle[LINE_MAX];	/* initial part of title */
 
 #ifdef SKEY
 int	pwok = 0;
+int     sflag;
 char	addr_string[20];	/* XXX */
 #endif
 
@@ -627,7 +628,17 @@ user(name)
 		strncpy(curname, name, sizeof(curname)-1);
 #ifdef SKEY
 	pwok = skeyaccess(name, NULL, remotehost, addr_string);
-	reply(331, "%s", skey_challenge(name, pw, pwok));
+	cp = skey_challenge(name, pw, pwok, &sflag);
+	if (!pwok && sflag) {
+		reply(530, cp);
+		if (logging)
+			syslog(LOG_NOTICE,
+			    "FTP LOGIN REFUSED FROM %s, %s",
+			    remotehost, name);
+		pw = (struct passwd *) NULL;
+		return;
+	}
+	reply(331, cp);
 #else
 	reply(331, "Password required for %s.", name);
 #endif
