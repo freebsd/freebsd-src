@@ -93,8 +93,6 @@ is marked as
 .Pp
 The kernel runs with four different levels of security.
 Any super-user process can raise the security level, but no process
-(including
-.Nm Ns )
 can lower it.
 The security levels are:
 .Bl -tag -width flag
@@ -142,10 +140,8 @@ leaves it unchanged.
 Otherwise,
 .Nm
 raises the level to 1 before going multi-user for the first time.
-No process, including
-.Nm
-itself,
-can reduce the level, even on return to single-user.
+Since the level can not be reduced, it will be at least 1 for
+subsequent operation, even on return to single-user.
 If a level higher than 1 is desired while running multi-user,
 it can be set before going multi-user, e.g., by the startup script
 .Xr rc 8 ,
