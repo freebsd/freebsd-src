@@ -116,17 +116,24 @@ find_formplan(argv)
 	 * necessary, and add a -print node on the end.
 	 */
 	if (!isoutput) {
+		OPTION *p;
+		char **argv = 0;
+
 		if (plan == NULL) {
-			new = c_print();
+			p = option("-print");
+			new = (p->create)(p, &argv);
 			tail = plan = new;
 		} else {
-			new = c_openparen();
+			p = option("(");
+			new = (p->create)(p, &argv);
 			new->next = plan;
 			plan = new;
-			new = c_closeparen();
+			p = option(")");
+			new = (p->create)(p, &argv);
 			tail->next = new;
 			tail = new;
-			new = c_print();
+			p = option("-print");
+			new = (p->create)(p, &argv);
 			tail->next = new;
 			tail = new;
 		}
@@ -220,7 +227,7 @@ find_execute(plan, paths)
 		 * false or all have been executed.  This is where we do all
 		 * the work specified by the user on the command line.
 		 */
-		for (p = plan; p && (p->eval)(p, entry); p = p->next);
+		for (p = plan; p && (p->execute)(p, entry); p = p->next);
 
 		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
 			if (fts_set(tree, entry, FTS_SKIP))

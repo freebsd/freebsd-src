@@ -39,37 +39,45 @@
 
 #include <regex.h>
 
-/* node type */
-enum ntype {
-	N_AND = 1, 				/* must start > 0 */
-	N_AMIN, N_ATIME, N_CLOSEPAREN, N_CMIN, N_CTIME, N_DEPTH, 
-	N_EMPTY, N_EXEC, N_EXECDIR, N_EXPR, N_FLAGS,
-	N_FOLLOW, N_FSTYPE, N_GROUP, N_INUM, N_LINKS, N_LS, N_MMIN, 
-	N_MTIME, N_NAME, N_INAME, N_PATH, N_IPATH, N_REGEX, N_IREGEX,
-	N_NEWER, N_NOGROUP, N_NOT, N_NOUSER, N_OK, N_OPENPAREN, N_OR,
-	N_PERM, N_PRINT, N_PRUNE, N_SIZE, N_TYPE, N_USER, N_XDEV,
-	N_PRINT0, N_DELETE, N_MAXDEPTH, N_MINDEPTH
-};
+/* forward declarations */
+struct _plandata;
+struct _option;
+
+/* execute function */
+typedef int exec_f __P((struct _plandata *, FTSENT *));
+/* create function */
+typedef	struct _plandata *creat_f(struct _option *, char ***);
+
+/* function modifiers */
+#define	F_NEEDOK	0x00000001	/* -ok vs. -exec */
+#define	F_EXECDIR	0x00000002	/* -execdir vs. -exec */
+#define F_TIME_A	0x00000004	/* one of -atime, -anewer, -newera* */
+#define F_TIME_C	0x00000008	/* one of -ctime, -cnewer, -newerc* */
+#define	F_TIME2_A	0x00000010	/* one of -newer?a */
+#define	F_TIME2_C	0x00000020	/* one of -newer?c */
+#define	F_TIME2_T	0x00000040	/* one of -newer?t */
+#define F_MAXDEPTH	F_TIME_A	/* maxdepth vs. mindepth */
+/* command line function modifiers */
+#define	F_EQUAL		0x00000000	/* [acm]min [acm]time inum links size */
+#define	F_LESSTHAN	0x00000100
+#define	F_GREATER	0x00000200
+#define F_ELG_MASK	0x00000300
+#define	F_ATLEAST	0x00000400	/* flags perm */
+#define F_ANY		0x00000800	/* perm */
+#define	F_MTMASK	0x00003000
+#define	F_MTFLAG	0x00000000	/* fstype */
+#define	F_MTTYPE	0x00001000
+#define	F_IGNCASE	0x00010000	/* iname ipath iregex */
 
 /* node definition */
 typedef struct _plandata {
-	struct _plandata *next;			/* next node */
-	int (*eval)				/* node evaluation function */
-	    __P((struct _plandata *, FTSENT *));
-#define	F_EQUAL		1			/* [acm]time inum links size */
-#define	F_LESSTHAN	2
-#define	F_GREATER	3
-#define	F_NEEDOK	1			/* exec ok */
-#define	F_MTFLAG	1			/* fstype */
-#define	F_MTTYPE	2
-#define	F_ATLEAST	1			/* perm */
-#define	F_ANY		2			/* perm */
-	int flags;				/* private flags */
-	enum ntype type;			/* plan node type */
+	struct _plandata *next;		/* next node */
+	exec_f	*execute;		/* node evaluation function */
+	int flags;			/* private flags */
 	union {
-		gid_t _g_data;			/* gid */
-		ino_t _i_data;			/* inode */
-		mode_t _m_data;			/* mode mask */
+		gid_t _g_data;		/* gid */
+		ino_t _i_data;		/* inode */
+		mode_t _m_data;		/* mode mask */
 		struct {
 			u_long _f_flags;
 			u_long _f_mask;
@@ -110,12 +118,8 @@ typedef struct _plandata {
 
 typedef struct _option {
 	char *name;			/* option name */
-	enum ntype token;		/* token type */
-	PLAN *(*create)();		/* create function: DON'T PROTOTYPE! */
-#define	O_NONE		0x01		/* no call required */
-#define	O_ZERO		0x02		/* pass: nothing */
-#define	O_ARGV		0x04		/* pass: argv, increment argv */
-#define	O_ARGVP		0x08		/* pass: *argv, N_OK || N_EXEC || N_EXECDIR */
+	creat_f *create;		/* create function */
+	exec_f *execute;		/* execute function */
 	int flags;
 } OPTION;
 
