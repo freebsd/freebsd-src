@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.38 1998/10/17 07:49:04 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.39 1998/12/14 05:37:37 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ readdisklabel(dev, strat, lp)
 	bp->b_blkno = LABELSECTOR * ((int)lp->d_secsize/DEV_BSIZE);
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	if (biowait(bp))
 		msg = "I/O error";
@@ -286,7 +286,7 @@ writedisklabel(dev, strat, lp)
 	 * (also stupid.. how do you write the first one? by raw writes?)
 	 */
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_BUSY | B_READ;
+	bp->b_flags |= B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
 	if (error)
@@ -299,7 +299,7 @@ writedisklabel(dev, strat, lp)
 		    dkcksum(dlp) == 0) {
 			*dlp = *lp;
 			bp->b_flags &= ~(B_DONE | B_READ);
-			bp->b_flags |= B_BUSY | B_WRITE;
+			bp->b_flags |= B_WRITE;
 #ifdef __alpha__
 			alpha_fix_srm_checksum(bp);
 #endif
@@ -315,7 +315,7 @@ done:
 	dlp = (struct disklabel *)bp->b_data;
 	*dlp = *lp;
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_BUSY | B_WRITE;
+	bp->b_flags |= B_WRITE;
 	(*strat)(bp);
 	error = biowait(bp);
 #endif

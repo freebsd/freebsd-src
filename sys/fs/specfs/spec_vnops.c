@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.87 1999/05/31 11:27:56 phk Exp $
+ * $Id: spec_vnops.c,v 1.88 1999/06/01 20:29:58 dt Exp $
  */
 
 #include <sys/param.h>
@@ -492,16 +492,16 @@ loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if ((bp->b_flags & B_BUSY))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("spec_fsync: not dirty");
 		if ((vp->v_flag & VOBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
+			BUF_UNLOCK(bp);
 			vfs_bio_awrite(bp);
 			splx(s);
 		} else {
 			bremfree(bp);
-			bp->b_flags |= B_BUSY;
 			splx(s);
 			bawrite(bp);
 		}
@@ -570,7 +570,7 @@ spec_freeblks(ap)
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
-	bp->b_flags |= B_FREEBUF | B_BUSY;
+	bp->b_flags |= B_FREEBUF;
 	bp->b_dev = ap->a_vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
@@ -806,7 +806,7 @@ spec_getpages(ap)
 	pmap_qenter(kva, ap->a_m, pcount);
 
 	/* Build a minimal buffer header. */
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_flags = B_READ | B_CALL;
 	bp->b_iodone = spec_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */

@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.50 1999/05/09 13:13:52 phk Exp $
+ * $Id: vfs_aio.c,v 1.51 1999/06/01 18:56:24 phk Exp $
  */
 
 /*
@@ -1017,7 +1017,7 @@ aio_qphysio(p, aiocbe)
 	
 	bp->b_bcount = cb->aio_nbytes;
 	bp->b_bufsize = cb->aio_nbytes;
-	bp->b_flags = B_BUSY | B_PHYS | B_CALL | bflags;
+	bp->b_flags = B_PHYS | B_CALL | bflags;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *) cb->aio_buf;

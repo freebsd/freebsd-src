@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.24 1999/03/12 03:09:29 julian Exp $
+ * $Id: kern_lock.c,v 1.25 1999/03/15 05:11:27 julian Exp $
  */
 
 #include "opt_lint.h"
@@ -384,7 +384,8 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	case LK_RELEASE:
 		if (lkp->lk_exclusivecount != 0) {
 #if !defined(MAX_PERF)
-			if (pid != lkp->lk_lockholder)
+			if (lkp->lk_lockholder != pid &&
+			    lkp->lk_lockholder != LK_KERNPROC)
 				panic("lockmgr: pid %d, not %s %d unlocking",
 				    pid, "exclusive lock holder",
 				    lkp->lk_lockholder);
@@ -515,6 +516,21 @@ lockstatus(lkp)
 		lock_type = LK_SHARED;
 	simple_unlock(&lkp->lk_interlock);
 	return (lock_type);
+}
+
+/*
+ * Determine the number of holders of a lock.
+ */
+int
+lockcount(lkp)
+	struct lock *lkp;
+{
+	int count;
+
+	simple_lock(&lkp->lk_interlock);
+	count = lkp->lk_exclusivecount + lkp->lk_sharecount;
+	simple_unlock(&lkp->lk_interlock);
+	return (count);
 }
 
 /*

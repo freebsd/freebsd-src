@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.75 1999/06/05 05:35:00 peter Exp $
+ * $Id: nfs_subs.c,v 1.76 1999/06/23 04:44:12 julian Exp $
  */
 
 /*
@@ -2188,7 +2188,8 @@ loop:
 		nvp = vp->v_mntvnodes.le_next;
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
+			if (BUF_REFCNT(bp) == 0 &&
+			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
 				bp->b_flags &= ~B_NEEDCOMMIT;
 		}

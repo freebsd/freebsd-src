@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.84 1999/05/06 18:12:51 peter Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.85 1999/05/11 19:54:43 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -842,12 +842,11 @@ loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if ((bp->b_flags & B_BUSY))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("msdosfs_fsync: not dirty");
 		bremfree(bp);
-		bp->b_flags |= B_BUSY;
 		splx(s);
 		(void) bwrite(bp);
 		goto loop;

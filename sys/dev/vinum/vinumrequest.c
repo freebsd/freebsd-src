@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.23 1999/03/20 21:58:38 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.26 1999/06/24 08:56:03 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -725,7 +725,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 
     /* Initialize the buf struct */
     bp->b_flags = ubp->b_flags & (B_NOCACHE | B_READ | B_ASYNC); /* copy these flags from user bp */
-    bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
+    bp->b_flags |= B_CALL;			    	    /* inform us when it's done */
     /*
      * XXX Should we check for reviving plexes here, and
      * set B_ORDERED if so?
@@ -811,8 +811,7 @@ sdio(struct buf *bp)
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
 	bp->b_flags |= B_ERROR;
 	bp->b_flags = EIO;
-	if (bp->b_flags & B_BUSY)			    /* XXX why isn't this always the case? */
-	    biodone(bp);
+	biodone(bp);
 	return;
     }
     /* Get a buffer */

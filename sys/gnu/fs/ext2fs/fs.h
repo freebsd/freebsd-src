@@ -173,8 +173,8 @@ extern u_char *fragtbl[];
 	s = splbio(); \
 	flags = (bp)->b_flags; \
 	(bp)->b_flags &= ~(B_DIRTY | B_LOCKED); \
+	BUF_LOCK(bp, LK_EXCLUSIVE); \
 	bremfree(bp); \
-	(bp)->b_flags |= B_BUSY; \
 	splx(s); \
 	if (flags & B_DIRTY) \
 		bdwrite(bp); \

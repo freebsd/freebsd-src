@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.73 1999/05/06 20:00:27 phk Exp $
+ *	$Id: devfs_vnops.c,v 1.74 1999/05/11 19:54:35 phk Exp $
  */
 
 
@@ -1647,16 +1647,16 @@ loop:
 	s = splbio();
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if ((bp->b_flags & B_BUSY))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("devfs_fsync: not dirty");
 		if ((vp->v_flag & VOBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
+			BUF_UNLOCK(bp);
 			vfs_bio_awrite(bp);
 			splx(s);
 		} else {
 			bremfree(bp);
-			bp->b_flags |= B_BUSY;
 			splx(s);
 			bawrite(bp);
 		}
@@ -1950,7 +1950,7 @@ devfs_getpages(struct vop_getpages_args *ap)
 	pmap_qenter(kva, ap->a_m, pcount);
 
 	/* Build a minimal buffer header. */
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
+	bp->b_flags = B_READ | B_CALL;
 	bp->b_iodone = devfs_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.12 1999/01/02 11:34:56 bde Exp $
+ * $Id: lock.h,v 1.13 1999/01/20 14:49:12 eivind Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -189,6 +189,7 @@ int	lockmgr __P((struct lock *, u_int flags,
 #endif
 void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *));
+int	lockcount __P((struct lock *));
 
 #ifdef SIMPLELOCK_DEBUG
 void _simple_unlock __P((struct simplelock *alp, const char *, int));
