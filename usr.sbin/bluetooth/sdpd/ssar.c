@@ -36,6 +36,7 @@
 #include "profile.h"
 #include "provider.h"
 #include "server.h"
+#include "uuid-private.h"
 
 /* from sar.c */
 int32_t server_prepare_attr_list(provider_p const provider,
@@ -58,7 +59,8 @@ server_prepare_service_search_attribute_response(server_p srv, int32_t fd)
 	uint8_t		*ptr = NULL;
 
 	provider_t	*provider = NULL;
-	int32_t		 type, rsp_limit, ssplen, aidlen, cslen, cs, uuid;
+	int32_t		 type, rsp_limit, ssplen, aidlen, cslen, cs;
+	uint128_t	 uuid, puuid;
 
 	/*
 	 * Minimal Service Search Attribute Request request
@@ -177,12 +179,33 @@ server_prepare_service_search_attribute_response(server_p srv, int32_t fd)
 			if (ssplen < 2)
 				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 
-			SDP_GET16(uuid, sspptr);
+			memcpy(&uuid, &uuid_base, sizeof(uuid));
+			uuid.b[2] = *sspptr ++;
+			uuid.b[3] = *sspptr ++;
 			ssplen -= 2;
 			break;
 
-		case SDP_DATA_UUID32: /* XXX FIXME */
-		case SDP_DATA_UUID128: /* XXX FIXME */
+		case SDP_DATA_UUID32:
+			if (ssplen < 4)
+				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
+
+			memcpy(&uuid, &uuid_base, sizeof(uuid));
+			uuid.b[0] = *sspptr ++;
+			uuid.b[1] = *sspptr ++;
+			uuid.b[2] = *sspptr ++;
+			uuid.b[3] = *sspptr ++;
+			ssplen -= 4;
+			break;
+
+		case SDP_DATA_UUID128:
+			if (ssplen < 16)
+				return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
+
+			memcpy(uuid.b, sspptr, 16);
+			sspptr += 16;	
+			ssplen -= 16; 
+			break;
+
 		default:
 			return (SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX);
 			/* NOT REACHED */
@@ -194,8 +217,12 @@ server_prepare_service_search_attribute_response(server_p srv, int32_t fd)
 			if (!provider_match_bdaddr(provider, &srv->req_sa.l2cap_bdaddr))
 				continue;
 
-			if (provider->profile->uuid != uuid &&
-			    SDP_SERVICE_CLASS_PUBLIC_BROWSE_GROUP != uuid)
+			memcpy(&puuid, &uuid_base, sizeof(puuid));
+			puuid.b[2] = provider->profile->uuid >> 8;
+			puuid.b[3] = provider->profile->uuid;
+
+			if (memcmp(&uuid, &puuid, sizeof(uuid)) != 0 &&
+			    memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) != 0)
 				continue;
 
 			cs = server_prepare_attr_list(provider,
