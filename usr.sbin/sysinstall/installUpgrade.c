@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.38 1995/10/18 05:01:55 jkh Exp $
+ * $Id: installUpgrade.c,v 1.1 1995/10/19 16:15:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,20 +320,11 @@ installUpgrade(char *str)
     if (!(child = fork())) {
 	int i, fd;
 	struct termios foo;
-	extern int login_tty(int);
 
-	for (i = 0; i < 3; i++)
-	    close(i);
-	fd = open("/dev/ttyv0", O_RDWR);
-	ioctl(0, TIOCSCTTY, &fd);
-	dup2(0, 1);
-	dup2(0, 2);
-	if (login_tty(fd) == -1)
-	    msgDebug("Can't set the controlling terminal.\n");
 	signal(SIGTTOU, SIG_IGN);
-	if (tcgetattr(fd, &foo) != -1) {
+	if (tcgetattr(0, &foo) != -1) {
 	    foo.c_cc[VERASE] = '\010';
-	    if (tcsetattr(fd, TCSANOW, &foo) == -1)
+	    if (tcsetattr(0, TCSANOW, &foo) == -1)
 		msgDebug("Unable to set the erase character.\n");
 	}
 	else
