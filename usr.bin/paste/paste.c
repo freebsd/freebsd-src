@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)paste.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: paste.c,v 1.3 1997/07/31 06:59:26 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -115,7 +115,7 @@ parallel(argv)
 	register char ch, *p;
 	LIST *head, *tmp;
 	int opencnt, output;
-	char buf[_POSIX2_LINE_MAX + 1], *malloc();
+	char buf[_POSIX2_LINE_MAX + 1];
 
 	for (cnt = 0, head = NULL; (p = *argv); ++argv, ++cnt) {
 		if (!(lp = (LIST *)malloc((u_int)sizeof(LIST))))
