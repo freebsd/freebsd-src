@@ -1305,9 +1305,9 @@ m_gethdr(int how, short type)
 	if (mb != NULL) {
 		_mbhdr_setup(mb, type);
 #ifdef MAC
-		if (mac_init_mbuf(mb, how) != 0) {
+		if (mac_init_mbuf(mb, MBTOM(how)) != 0) {
 			m_free(mb);
-			return NULL;
+			return (NULL);
 		}
 #endif
 	}
@@ -1354,9 +1354,9 @@ m_gethdr_clrd(int how, short type)
 	if (mb != NULL) {
 		_mbhdr_setup(mb, type);
 #ifdef MAC
-		if (mac_init_mbuf(mb, how) != 0) {
+		if (mac_init_mbuf(mb, MBTOM(how)) != 0) {
 			m_free(mb);
-			return NULL;
+			return (NULL);
 		}
 #endif
 		bzero(mtod(mb, caddr_t), MHLEN);
@@ -1382,11 +1382,6 @@ m_free(struct mbuf *mb)
 
 	if ((mb->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(mb, NULL);
-#ifdef MAC
-	if ((mb->m_flags & M_PKTHDR) &&
-	    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
-		mac_destroy_mbuf(mb);
-#endif
 	nb = mb->m_next;
 	if ((mb->m_flags & M_EXT) != 0) {
 		MEXT_REM_REF(mb);
@@ -1429,11 +1424,6 @@ m_freem(struct mbuf *mb)
 	while (mb != NULL) {
 		if ((mb->m_flags & M_PKTHDR) != 0)
 			m_tag_delete_chain(mb, NULL);
-#ifdef MAC
-		if ((mb->m_flags & M_PKTHDR) &&
-		    (mb->m_pkthdr.label.l_flags & MAC_FLAG_INITIALIZED))
-			mac_destroy_mbuf(mb);
-#endif
 		persist = 0;
 		m = mb;
 		mb = mb->m_next;
@@ -1501,9 +1491,11 @@ m_getcl(int how, short type, int flags)
 		_mext_init_ref(mb, &cl_refcntmap[cl2ref(mb->m_ext.ext_buf)]);
 	}
 #ifdef MAC
-	if ((flags & M_PKTHDR) && (mac_init_mbuf(mb, how) != 0)) {
-		m_free(mb);
-		return NULL;
+	if (flags & M_PKTHDR) {
+		if (mac_init_mbuf(mb, MBTOM(how)) != 0) {
+			m_free(mb);
+			return (NULL);
+		}
 	}
 #endif
 	return (mb);

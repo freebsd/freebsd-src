@@ -37,7 +37,6 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
-#include <sys/_label.h>
 #include <sys/queue.h>
 
 /*
@@ -98,7 +97,6 @@ struct pkthdr {
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
-	struct	label label;		/* MAC label of data in packet */
 };
 
 /*
@@ -535,6 +533,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 #define	PACKET_TAG_IPFW				16 /* ipfw classification */
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
+#define	PACKET_TAG_MACLABEL			19 /* MAC label */
 
 /* Packet tag routines */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);

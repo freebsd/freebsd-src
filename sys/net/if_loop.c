@@ -214,14 +214,6 @@ looutput(ifp, m, dst, rt)
 		if (!n)
 			goto contiguousfail;
 		M_MOVE_PKTHDR(n, m);
-#ifdef MAC
-		/* 
-		 * XXXMAC: Once we put labels in tags and proper
-		 * primitives are used for relocating mbuf header
-		 * data, this will no longer be required.
-		 */
-		m->m_pkthdr.label.l_flags &= ~MAC_FLAG_INITIALIZED;
-#endif
 		MCLGET(n, M_DONTWAIT);
 		if (! (n->m_flags & M_EXT)) {
 			m_freem(n);

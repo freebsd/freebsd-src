@@ -68,10 +68,13 @@
 
 /*#define PULLDOWN_DEBUG*/
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -327,6 +330,10 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 void
 m_tag_free(struct m_tag *t)
 {
+#ifdef MAC
+	if (t->m_tag_id == PACKET_TAG_MACLABEL)
+		mac_destroy_mbuf_tag(t);
+#endif
 	free(t, M_PACKET_TAGS);
 }
 
@@ -402,7 +409,21 @@ m_tag_copy(struct m_tag *t, int how)
 	p = m_tag_alloc(t->m_tag_cookie, t->m_tag_id, t->m_tag_len, how);
 	if (p == NULL)
 		return (NULL);
-	bcopy(t + 1, p + 1, t->m_tag_len); /* Copy the data */
+#ifdef MAC
+	/*
+	 * XXXMAC: we should probably pass off the initialization, and
+	 * copying here?  can we hide that PACKET_TAG_MACLABEL is
+	 * special from the mbuf code?
+	 */
+	if (t->m_tag_id == PACKET_TAG_MACLABEL) {
+		if (mac_init_mbuf_tag(p, how) != 0) {
+			m_tag_free(p);
+			return (NULL);
+		}
+		mac_copy_mbuf_tag(t, p);
+	} else
+#endif
+		bcopy(t + 1, p + 1, t->m_tag_len); /* Copy the data */
 	return p;
 }
 
