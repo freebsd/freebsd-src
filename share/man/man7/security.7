@@ -4,7 +4,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 1998
+.Dd September 18, 1999
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -15,8 +15,8 @@
 Security is a function that begins and ends with the system administrator.
 While all
 .Bx
-systems are inherently multi-user capable, the job of building and
-maintaining security mechanisms to keep those users
+multi-user systems have some inherent security, the job of building and
+maintaining additional security mechanisms to keep those users
 .Sq honest
 is probably
 one of the single largest undertakings of the sysadmin.  Machines are
@@ -30,7 +30,27 @@ can connect and talk to them.  As yesterday's mini-computers and mainframes
 become today's desktops, and as computers become networked and internetworked,
 security becomes an ever bigger issue.
 .Pp
-Security concerns can be split up into several categories:
+Security is best implemented through a layered onion approach.  In a nutshell,
+what you want to do is to create as many layers of security as are convenient
+and then carefully monitor the system for intrusions.  You do not want to
+overbuild your security or you will interefere with the detection side, and
+detection is one of the single most important aspects of any security 
+mechanism.  For example, it makes little sense to set the
+.Pa schg 
+flags
+.Po
+see
+.Xr chflags 1
+.Pc
+on every system binary because while this may temporarily protect the
+binaries, it prevents a hacker who has broken in from making an
+easily detectable change that may result in your security mechanisms not
+detecting the hacker at all.
+.Pp
+System security also pertains to dealing with various forms of attack,
+including attacks that attempt to crash or otherwise make a system unusable
+but do not attempt to break root.  Security concerns can be split up into
+several categories:
 .Bl -enum -offset indent
 .It
 Denial of service attacks
@@ -40,6 +60,8 @@ User account compromises
 Root compromise through accessible servers
 .It
 Root compromise via user accounts
+.It
+Backdoor creation
 .El
 .Pp
 A denial of service attack is an action that deprives the machine of needed
@@ -48,10 +70,12 @@ to crash or otherwise make a machine unusable by overwhelming its servers or
 network stack.  Some D.O.S. attacks try to take advantages of bugs in the
 networking stack to crash a machine with a single packet.  The latter can
 only be fixed by applying a bug fix to the kernel.  Attacks on servers can
-often be fixed by properly specifying options to servers to limit the load
-they incur on the system under adverse conditions.  Brute-force network 
+often be fixed by properly specifying options to limit the load the servers
+incur on the system under adverse conditions.  Brute-force network 
 attacks are harder to deal with.  A spoofed-packet attack, for example, is 
 nearly impossible to stop short of cutting your system off from the internet.
+It may not be able to take your machine down, but it can fill up internet
+pipe.
 .Pp
 A user account compromise is even more common then a D.O.S. attack.  Many
 sysadmins still run standard telnetd, rlogind, rshd, and ftpd servers on their
@@ -63,7 +87,7 @@ which is the most common and convenient way to login to a system
 .Pc
 will
 have his or her password sniffed.  The attentive system admin will analyze
-his remote access logs occasionally looking for suspicious source addresses
+his remote access logs looking for suspicious source addresses
 even for successful logins.
 .Pp
 One must always assume that once an attacker has access to a user account,
@@ -71,17 +95,26 @@ the attacker can break root.  However, the reality is that in a well secured
 and maintained system, access to a user account does not necessarily give the
 attacker access to root.  The distinction is important because without access
 to root the attacker cannot generally hide his tracks and may, at best, be
-able to remove that user's files and crash the machine, but not touch anyone
-else's files.
+able to do nothing more then mess with the user's files or crash the machine.
+User account compromises are very common because users tend not to take the
+precautions that sysads take.
 .Pp
-System administrators must keep in mind that there are several ways to break
-root on a machine.  The attacker may know the root password, the attacker
+System administrators must keep in mind that there are potentially many ways 
+to break root on a machine.  The attacker may know the root password, 
+the attacker
 may find a bug in a root-run server and be able to break root over a network
 connection to that server, or the attacker may know of a bug in an suid-root
 program that allows the attacker to break root once he has broken into a 
-user's account.
+user's account.  If an attacker has found a way to break root on a machine,
+.Pa the attacker may not have a need to install a backdoor.
+Many of the root holes found and closed to date involve a considerable amount
+of work by the hacker to cleanup after himself, so most hackers do install
+backdoors.  This gives you a convienient way to detect the hacker.  Making
+it impossible for a hacker to install a backdoor may actually be detrimental
+to your security because it will not close off the hole the hacker found to
+break in in the first place.
 .Pp
-Security remedies are always implemented in a multi-layered
+Security remedies should always be implemented with a multi-layered
 .Sq onion peel
 approach and can be categorized as follows:
 .Bl -enum -offset indent
@@ -96,7 +129,7 @@ Securing the password file
 .It
 Securing the kernel core, raw devices, and filesystems
 .It
-Checking file integrity: binaries, configuration files, and so forth
+Quick detection of inappropriate changes made to the system
 .It
 Paranoia
 .El
@@ -106,17 +139,21 @@ Don't bother securing staff accounts if you haven't secured the root
 account.  Most systems have a password assigned to the root account.  The
 first thing you do is assume that the password is
 .Sq always
-compromised.
-To secure the root account you make sure that it is not possible to login
-to the root account using the root password from a random user account or 
-over the network.  If you haven't already, configure telnetd, rlogind, and
-all other servers that handle login operations to refuse root logins, period,
-whether the right password is given or not.  Allow direct root logins only
-via the system console.  The
+compromised.  This does not mean that you should remove the password.  The
+password is almost always necessary for console access to the machine.
+What it does mean is that you should not make it possible to use the password
+outside of the console or possibly even with a
+.Xr su 1
+command.
+For example, make sure that your pty's are specified as being unsecure
+in the 
 .Sq Pa /etc/ttys
-file comes in handy here and is
-secure by default on most systems, but a good sysadmin always checks to make
-sure.
+file
+so that direct root logins via telnet or rlogin are disallowed.  If using
+other login services such as sshd, make sure that direct root logins are
+disabled there as well.  Consider every access method - services such as
+ftp often fall through the cracks.  Direct root logins should only be allowed
+via the system console.
 .Pp
 Of course, as a sysadmin you have to be able to get to root, so we open up
 a few holes.  But we make sure these holes require additional password
@@ -127,15 +164,23 @@ The staff members placed
 in the wheel group are allowed to 
 .Sq su
 to root.  You should never give staff
-members native wheel access via their entry in the password file... put staff
-in a
+members native wheel access by putting the min the wheel group in their 
+password entry.  Staff accounts should be placed in a 
 .Sq staff
-group or something and only add those that really need root to
-the wheel group.  Unfortunately the wheel mechanism still allows an intruder to
-break root if the intruder has gotten hold of your password file - he need only
-break the root password and the password of one of the staff accounts that
-happens to be in the wheel group.  So while the wheel mechanism is usable,
-it isn't much safer then not having a wheel group at all.
+group, and then added to the wheel group via the
+.Sq Pa /etc/group
+file.  Only those staff members who actually need to have root access
+should be placed in the wheel group.  It is also possible, when using an
+authentication method such as kerberos, to use kerberos's
+.Sq Pa .k5login
+file in the root account to allow a
+.Xr ksu 1
+to root without having to place anyone at all in the wheel group.  This
+may be the better solution since the wheel mechanism still allows an 
+intruder to break root if the intruder has gotten hold of your password
+file and can break into a staff account.  While having the wheel mechanism 
+is better then having nothing at all, it isn't necessarily the safest
+option.
 .Pp
 An indirect way to secure the root account is to secure your staff accounts
 by using an alternative login access method and *'ing out the crypted password
@@ -251,9 +296,13 @@ can be almost as dangerous.  If an intruder can break an sgid-kmem binary the
 intruder might be able to read
 .Pa /dev/kmem
 and thus read the crypted password
-file, potentially compromising any passworded account.  An intruder that breaks
-the tty group can write to almost any user's tty.  If a user is running a terminal
-program or emulator with a talk-back feature, the intruder can potentially 
+file, potentially compromising any passworded account.  Alternatively an
+intruder who breaks group kmem can monitor keystrokes sent through pty's,
+including pty's used by users who login through secure methods.  An intruder
+that breaks the tty group can write to almost any user's tty.  If a user 
+is running a terminal
+program or emulator with a keyboard-simulation feature, the intruder can 
+potentially 
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
 .Sh SECURING USER ACCOUNTS
@@ -264,8 +313,9 @@ may not be able to do so with any general user accounts you might have.  If
 you do have sufficient control then you may win out and be able to secure the
 user accounts properly.  If not, you simply have to be more vigilant in your
 monitoring of those accounts.  Use of ssh and kerberos for user accounts is
-more problematic, but still a very good solution compared to a crypted
-password. 
+more problematic due to the extra administration and technical support 
+required, but still a very good solution compared to a crypted password
+file.
 .Sh SECURING THE PASSWORD FILE
 .Pp
 The only sure fire way is to *-out as many passwords as you can and 
@@ -302,8 +352,8 @@ you still have
 and
 .Pa /dev/kmem
 to worry about.  For that matter,
-the intruder can still write raw devices.
-Also, there is another kernel feature called
+the intruder can still write to raw disk devices.
+Also, there is another kernel feature called the module loader,
 .Xr kldload 8 .
 An enterprising intruder can use a KLD module to install 
 his own bpf device or other sniffing device on a running kernel.
@@ -321,73 +371,89 @@ script files - everything that gets run up to the point where the securelevel
 is set.  This might be overdoing it, and upgrading the system is much more
 difficult when you operate at a higher secure level.  You may compromise and
 run the system at a higher secure level but not set the schg flag for every
-system file and directory under the sun.
+system file and directory under the sun.  Another possibility is to simply
+mount / and /usr read-only.  It should be noted that being too draconian in
+what you attempt to protect may prevent the all-important detection of an
+intrusion.
 .Sh CHECKING FILE INTEGRITY: BINARIES, CONFIG FILES, ETC
 .Pp
 When it comes right down to it, you can only protect your core system
 configuration and control files so much before the convenience factor
-rears its ugly head.  The last layer of your security onion is perhaps
-the most important - detection.
+rears its ugly head.  For example, using chflags to set the schg bit
+on most of the files in / and /usr is probably counterproductive because
+while it may protect the files, it also closes a detection window.  The
+last layer of your security onion is perhaps the most important - detection.
+The rest of your security is pretty much useless (or, worse, presents you with
+a false sense of safety) if you cannot detect potential incursions.  Half
+the job of the onion is to slow down the attacker rather then stop him
+in order to give the detection side of the equation a chance to catch him in
+the act.
 .Pp
-The only correct way to check a system's file integrity is via another,
-more secure system.  It is fairly easy to setup a
-.Sq secure
-system: you
-simply do not run any services on it.  With a secure system in place you
-can then give it access to other system's root spaces via ssh.  This may
-seem like a security breech, but you have to put your trust somewhere and
-as long as you don't do something stupid like run random servers it really
-is possible to build a secure machine.  When I say
-.Sq secure
-here, I assuming
-physical access security as well, of course.  Given a secure machine with
-root access on all your other machines, you can then write security scripts
-ON the secure machine to check the other machines on the system.  The most
-common way of checking is to have the security script
-.Xr scp 1
-over a find
-and md5 binary and then ssh a shell command to the remote machine to md5
-all the files in the system
-.Po
-or, at least, the 
-.Pa / ,
-.Pa /var ,
+The best way to detect an incursion is to look for modified, missing, or
+unexpected files.  The best
+way to look for modified files is from another (often centralized)
+limited-access system.
+Writing your security scripts on the extra-secure limited-access system 
+makes them mostly invisible to potential hackers, and this is important.
+In order to take maximum advantage you generally have to give the
+limited-access box significant access to the other machines in the business,
+usually either by doing a read-only NFS export of the other machines to the
+limited-access box, or by setting up ssh keypairs to allow the limit-access
+box to ssh to the other machines.  Except for its network traffic, NFS is
+the least visible method - allowing you to monitor the filesystems on each
+client box virtually undetected.  If your
+limited-access server is connected to the client boxes through a switch,
+the NFS method is often the better choice.  If your limited-access server
+is connected to the client boxes through a hub or through several layers
+of routing, the NFS method may be too insecure (network-wise) and using ssh
+may be the better choice even with the audit-trail tracks that ssh lays.
+.Pp
+Once you give a limit-access box at least read access to the client systems
+it is supposed to monitor, you must write scripts to do the actual 
+monitoring.  Given an NFS mount, you can write scripts out of simple system
+utilities such as
+.Xr find 1
+and
+.Xr md5 1
+It is best to physically md5 the client-box files boxes at least once a 
+day, and to test control files such as those found in /etc and /usr/local/etc
+even more often.  When mismatches are found relative to the base md5
+information the limited-access machine knows is valid, it should scream at
+a sysadmin to go check it out.  A good security script will also check for
+inappropriate suid binaries and for new or deleted files on system partitions
+such as
+.Pa /
 and
 .Pa /usr
-partitions!
-.Pc .
-The security machine copies the results to a file and diff's them against
-results from a previous run (or compares the results against its own 
-binaries), then emails each staff member a daily report of differences.
 .Pp
-Another way to do this sort of check is to NFS export the major filesystems
-from every other machine to the security machine.  This is somewhat more
-network intensive but also virtually impossible for an intruder to detect
-or spoof.
+When using ssh rather then NFS, writing the security script is much more
+difficult.   You essentially have to
+.Pa scp
+the scripts to the client box in order to run them, making them visible, and
+for safety you also need to scp the binaries (such as find) that those scripts
+use.  The ssh daemon on the client box may already be compromised.  All in all,
+using ssh may be necessary when running over unsecure links, but it's also a
+lot harder to deal with.
 .Pp
 A good security script will also check for changes to user and staff members
 access configuration files:  .rhosts, .shosts, .ssh/authorized_keys, and
 so forth... files that might fall outside the purview of the MD5 check.
 .Pp
-A good security script will check for suid and sgid binaries on all 
-filesystems and report their absolute existence as well as a diff against
-the previous report or some baseline
-.Pq say, make a baseline once a week .
-While you can turn off the ability to run suid and sgid binaries on certain
-filesystems through the
-.Sq nosuid
-option in fstab/mount, you cannot turn this
-off on root and anyone who breaks root can just install their binary there.
-If you have a huge amount of user disk space, though, it may be useful to
-disallow suid binaries and devices 
-.Po
+If you have a huge amount of user disk space it may take too long to run
+through every file on those partitions.  In this case, setting mount
+flags to disallow suid binaries and devices on those partitions is a good
+idea.  The
 .Sq nodev
-option
+and
+.Sq nosuid
+options
+.Po
+see
+.Xr mount 8
 .Pc
-on the user partitions
-so you do not have to scan them for such.  I would scan them anyway, though,
-at least once a week, since the object of this onion layer is detection of
-a break-in.
+are what you want to look into.  I would scan them anyway at least once a 
+week, since the object of this layer is to detect a break-in whether or
+not the breakin is effective.
 .Pp
 Process accounting
 .Po
@@ -397,19 +463,25 @@ see
 is a relatively low-overhead feature of
 the operating system which I recommend using as a post-break-in evaluation
 mechanism.  It is especially useful in tracking down how an intruder has 
-actually broken root on a system, assuming the file is still intact after
+actually broken into a system, assuming the file is still intact after
 the break-in occurs.
 .Pp
 Finally, security scripts should process the log files and the logs themselves
-should be generated in as secured a manner as possible - remote syslog can be
+should be generated in as secure a manner as possible - remote syslog can be
 very useful.  An intruder tries to cover his tracks, and log files are critical
-to the sysadmin trying to track down the time and method of the initial break-in.
+to the sysadmin trying to track down the time and method of the initial 
+break-in.  One way to keep a permanent record of the log files is to run
+the system console to a serial port and collect the information on a
+continuing basis through a secure machine monitoring the consoles.
 .Sh PARANOIA
 .Pp
 A little paranoia never hurts.  As a rule, a sysadmin can add any number
 of security features as long as they do not effect convenience, and 
 can add security features that do effect convenience with some added
-thought.
+thought.  Even more importantly, a security administrator should mix it up
+a bit - if you use recommendations such as those given by this manual
+page verbatim, you give away your methodologies to the prospective
+hacker who also has access to this manual page.
 .Sh SPECIAL SECTION ON D.O.S. ATTACKS
 .Pp
 This section covers Denial of Service attacks.  A DOS attack is typically
@@ -566,6 +638,37 @@ Never set either parameter to zero
 .Pq unless you want to crash the machine :-) .
 Setting both parameters to 2 seconds should be sufficient to protect the route
 table from attack.
+.Sh ACCESS ISSUES WITH KERBEROS AND SSH
+.Pp
+There are a few issues with both kerberos and ssh that need to be addressed
+if you intend to use them.  Kerberos V is an excellent authentication
+protocol but the kerberized telnet and rlogin suck rocks.  There are bugs that
+make them unsuitable for dealing with binary streams.  Also, by default 
+kerberos does not encrypt a session unless you use the 
+.Fl x
+option.  Ssh encrypts everything by default.
+.Pp
+Ssh works quite well in every respect except that it forwards encryption keys
+by default.  What this means is that if you have a secure workstation holding 
+keys that give you access to the rest of the system, and you ssh to an
+unsecure machine, your keys becomes exposed.  The actual keys themselves are
+not exposed, but ssh installs a forwarding port for the duration of your 
+login and if a hacker has broken root on the unsecure machine he can utilize
+that port to use your keys to gain access to any other machine that your
+keys unlock.
+.Pp
+We recommend that you use ssh in combination with kerberos whenever possible
+for staff logins.  Ssh can be compiled with kerberos support.  This reduces 
+your reliance on potentially exposable ssh keys while at the same time
+protecting passwords via kerberos.  Ssh keys 
+should only be used for automated tasks from secure machines (something 
+that kerberos is unsuited to).  We also recommend that you either turn off
+key-forwarding in the ssh configuration, or that you make use of the
+.Pa "from=IP/DOMAIN"
+option that ssh allows in its
+.Pa authorized_keys
+file to make the key only useable to entities logging in from specific 
+machines.
 
 .Sh SEE ALSO
 .Pp
@@ -577,6 +680,10 @@ table from attack.
 .Xr netstat 1 ,
 .Xr syslogd 1 ,
 .Xr xdm 1 ,
+.Xr ttys 5 ,
+.Xr group 5 ,
+.Xr vipw 8 ,
+.Xr init 8 ,
 .Xr sysctl 8
 
 The following are part of security ports collection:
