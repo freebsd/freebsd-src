@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrcontrol.c,v 1.12 1996/10/25 15:36:42 bde Exp $
+**  $Id: ncrcontrol.c,v 1.13 1996/10/29 19:32:31 se Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -1344,7 +1344,6 @@ static void dump_ncr (void)
 	printf    ("      script: @ %x (p=%x)\n", ncr.script, ncr.p_script);
 
 	printf ("hostscsiaddr: %d\n", ncr.myaddr);
-	printf ("    ns_async: %d ns\n", ncr.ns_async);
 	printf ("    ns_sync : %d ns\n", ncr.ns_sync);
 	printf ("      scntl3: 0x%02x\n", ncr.rv_scntl3);
 	printf ("\n");
