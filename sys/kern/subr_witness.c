@@ -216,6 +216,14 @@ propagate_priority(struct proc *p)
 			return;
 		}
 
+#ifndef SMP
+		/*
+		 * For UP, we check to see if p is curproc (this shouldn't
+		 * ever happen however as it would mean we are in a deadlock.)
+		 */
+		KASSERT(p != curproc, ("Deadlock detected"));
+#endif
+
 		/*
 		 * If on run queue move to new run queue, and
 		 * quit.
@@ -501,7 +509,6 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	int pri;
 
 	p = curproc;
-	MPASS4(mtx_owned(m), "mtx_owned(mpp)", file, line);
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)
@@ -949,6 +956,7 @@ static char *order_list[] = {
 };
 
 static char *dup_list[] = {
+	"process lock",
 	NULL
 };
 
