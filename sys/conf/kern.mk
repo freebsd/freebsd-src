@@ -3,8 +3,12 @@
 #
 # Warning flags for compiling the kernel and components of the kernel.
 #
+# Note that the newly added -Wcast-qual is responsible for generating 
+# most of the remaining warnings.  Warnings introduced with -Wall will
+# also pop up, but are easier to fix.
+#
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline \
+		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-fformat-extensions -ansi
 #
 # The following flags are next up for working on:
