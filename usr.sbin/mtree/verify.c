@@ -53,7 +53,7 @@ static const char rcsid[] =
 
 extern long int crc_total;
 extern int ftsoptions;
-extern int dflag, eflag, rflag, sflag, uflag;
+extern int dflag, eflag, qflag, rflag, sflag, uflag;
 extern char fullpath[MAXPATHLEN];
 extern int lineno;
 
@@ -96,6 +96,7 @@ vwalk()
 		}
 		switch(p->fts_info) {
 		case FTS_D:
+		case FTS_SL:
 			break;
 		case FTS_DP:
 			if (specdepth > p->fts_level) {
@@ -138,7 +139,7 @@ vwalk()
 			continue;
 extra:
 		if (!eflag) {
-			(void)printf("extra: %s", RP(p));
+			(void)printf("%s extra", RP(p));
 			if (rflag) {
 				if ((S_ISDIR(p->fts_statp->st_mode)
 				    ? rmdir : unlink)(p->fts_accpath)) {
@@ -164,25 +165,48 @@ miss(p, tail)
 {
 	register int create;
 	register char *tp;
+	const char *type;
 
 	for (; p; p = p->next) {
 		if (p->type != F_DIR && (dflag || p->flags & F_VISIT))
 			continue;
 		(void)strcpy(tail, p->name);
-		if (!(p->flags & F_VISIT))
-			(void)printf("missing: %s", path);
-		if (p->type != F_DIR) {
+		if (!(p->flags & F_VISIT)) {
+			/* Don't print missing message if file exists as a
+			   symbolic link and the -q flag is set. */
+			struct stat statbuf;
+ 
+			if (qflag && stat(path, &statbuf) == 0)
+				p->flags |= F_VISIT;
+			else
+				(void)printf("%s missing", path);
+		}
+		if (p->type != F_DIR && p->type != F_LINK) {
 			putchar('\n');
 			continue;
 		}
 
 		create = 0;
+		if (p->type == F_LINK)
+			type = "symlink";
+		else
+			type = "directory";
 		if (!(p->flags & F_VISIT) && uflag) {
 			if (!(p->flags & (F_UID | F_UNAME)))
-			    (void)printf(" (directory not created: user not specified)");
+				(void)printf(" (%s not created: user not specified)", type);
 			else if (!(p->flags & (F_GID | F_GNAME)))
-			    (void)printf(" (directory not created: group not specified)");
-			else if (!(p->flags & F_MODE))
+				(void)printf(" (%s not created: group not specified)", type);
+			else if (p->type == F_LINK) {
+				if (symlink(p->slink, path))
+					(void)printf(" (symlink not created: %s)\n",
+					    strerror(errno));
+				else
+					(void)printf(" (created)\n");
+				if (lchown(path, p->st_uid, p->st_gid))
+					(void)printf("%s: user/group not modified: %s\n",
+					    path, strerror(errno));
+				continue;
+			} else if (!(p->flags & F_MODE))
 			    (void)printf(" (directory not created: mode not specified)");
 			else if (mkdir(path, S_IRWXU))
 				(void)printf(" (directory not created: %s)",

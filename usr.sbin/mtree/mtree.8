@@ -40,13 +40,25 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm
-.Op Fl cdeinrUux
+.Op Fl LPUcdeinqrux
+.Bk -words
 .Op Fl f Ar spec
+.Ek
+.Bk -words
 .Op Fl K Ar keywords
+.Ek
+.Bk -words
 .Op Fl k Ar keywords
+.Ek
+.Bk -words
 .Op Fl p Ar path
+.Ek
+.Bk -words
 .Op Fl s Ar seed
+.Ek
+.Bk -words
 .Op Fl X Ar exclude-list
+.Ek
 .Sh DESCRIPTION
 The utility
 .Nm
@@ -58,6 +70,17 @@ missing from either the file hierarchy or the specification.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
+.It Fl L
+Follow all symbolic links in the file hierarchy.
+.It Fl P
+Don't follow symbolic links in the file hierarchy, instead consider
+the symbolic link itself in any comparisons. This is the default.
+.It Fl U
+Modify the owner, group and permissions of existing files to match
+the specification and create any missing directories or symbolic links.
+User, group and permissions must all be specified for missing directories
+to be created.
+Corrected mismatches are not considered errors.
 .It Fl c
 Print a specification for the file hierarchy to the standard output.
 .It Fl d
@@ -65,18 +88,39 @@ Ignore everything except directory type files.
 .It Fl e
 Don't complain about files that are in the file hierarchy, but not in the
 specification.
-.It Fl f Ar file
-Read the specification from
-.Ar file  ,
-instead of from the standard input.
 .It Fl i
 Indent the output 4 spaces each time a directory level is descended when
 create a specification with the
 .Fl c
 option.
-This does not effect either the /set statements or the comment before each
+This does not affect either the /set statements or the comment before each
 directory.
-It does however effect the comment before the close of each directory.
+It does however affect the comment before the close of each directory.
+.It Fl n
+Do not emit pathname comments when creating a specification.  Normally 
+a comment is emitted before each directory and before the close of that
+directory when using the 
+.Fl c
+option.
+.It Fl q
+Quiet mode.  Do not complain when a
+.Dq missing
+directory can not be created because it is already exists.
+This occurs when the directory is a symbolic link.
+.It Fl r
+Remove any files in the file hierarchy that are not described in the
+specification.
+.It Fl u
+Same as
+.Fl U
+except a status of 2 is returned if the file hierarchy did not match
+the specification.
+.It Fl x
+Don't descend below mount points in the file hierarchy.
+.It Fl f Ar file
+Read the specification from
+.Ar file  ,
+instead of from the standard input.
 .It Fl K Ar keywords
 Add the specified (whitespace or comma separated)
 .Ar keywords
@@ -85,39 +129,16 @@ to the current set of keywords.
 Use the ``type'' keyword plus the specified (whitespace or comma separated)
 .Ar keywords
 instead of the current set of keywords.
-.It Fl n
-Do not emit pathname comments when creating a specification.  Normally 
-a comment is emitted before each directory and before the close of that
-directory when using the 
-.Fl c
-option.
 .It Fl p Ar path
 Use the file hierarchy rooted in
 .Ar path  ,
 instead of the current directory.
-.It Fl r
-Remove any files in the file hierarchy that are not described in the
-specification.
 .It Fl s Ar seed
 Display a single checksum to the standard error output that represents all
 of the files for which the keyword
 .Cm cksum
 was specified.
 The checksum is seeded with the specified value.
-.It Fl U
-Modify the owner, group, and permissions of existing files to match
-the specification and create any missing directories.
-User, group, and permissions must all be specified for missing directories
-to be created.
-Exit with a status of 0 on success, 1 if any error occurred;
-a mismatch is not considered an error if it was corrected.
-.It Fl u
-Same as
-.Fl U
-except a status of 2 is returned if the file hierarchy did not match
-the specification.
-.It Fl x
-Don't descend below mount points in the file hierarchy.
 .It Fl X Ar exclude-list
 The specified file contains
 .Xr fnmatch 3
@@ -302,6 +323,10 @@ distribution.
 .It Pa /etc/mtree
 system specification directory
 .El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
@@ -333,4 +358,5 @@ as new attacks have demonstrated weaknesses in
 .Tn MD5 .
 Support for file flags was added in
 .Fx 4.0 ,
-and mostly comes from NetBSD.
+and mostly comes from
+.Nx .

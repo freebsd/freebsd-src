@@ -77,7 +77,7 @@ extern int lineno;
 static gid_t gid;
 static uid_t uid;
 static mode_t mode;
-static u_long flags;
+static u_long flags = 0xffffffff;
 
 static int	dsort __P((const FTSENT **, const FTSENT **));
 static void	output __P((int, int *, const char *, ...));
@@ -290,7 +290,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 	gid_t savegid = *pgid;
 	uid_t saveuid = *puid;
 	mode_t savemode = *pmode;
-	u_long saveflags = 0;
+	u_long saveflags = *pflags;
 	u_short maxgid, maxuid, maxmode, maxflags;
 	u_short g[MAXGID], u[MAXUID], m[MAXMODE], f[MAXFLAGS];
 	char *fflags;
@@ -337,7 +337,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 			if (FLAGS2IDX(sflags) < MAXFLAGS &&
 			    ++f[FLAGS2IDX(sflags)] > maxflags) {
 				saveflags = sflags;
-				maxflags = u[FLAGS2IDX(sflags)];
+				maxflags = f[FLAGS2IDX(sflags)];
 			}
 		}
 	}
@@ -348,7 +348,9 @@ statd(t, parent, puid, pgid, pmode, pflags)
 	 */
 	if ((((keys & F_UNAME) | (keys & F_UID)) && (*puid != saveuid)) ||
 	    (((keys & F_GNAME) | (keys & F_GID)) && (*pgid != savegid)) ||
-	    ((keys & F_MODE) && (*pmode != savemode)) || (first)) {
+	    ((keys & F_MODE) && (*pmode != savemode)) || 
+	    ((keys & F_FLAGS) && (*pflags != saveflags)) ||
+	    (first)) {
 		first = 0;
 		if (dflag)
 			(void)printf("/set type=dir");
@@ -378,7 +380,7 @@ statd(t, parent, puid, pgid, pmode, pflags)
 			(void)printf(" mode=%#o", savemode);
 		if (keys & F_NLINK)
 			(void)printf(" nlink=1");
-		if (keys & F_FLAGS && saveflags) {
+		if (keys & F_FLAGS) {
 			fflags = flags_to_string(saveflags);
 			(void)printf(" flags=%s", fflags);
 			free(fflags);
