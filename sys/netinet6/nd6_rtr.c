@@ -1908,7 +1908,9 @@ rt6_flush(gateway, ifp)
 	/* XXX: hack for KAME's link-local address kludge */
 	gateway->s6_addr16[1] = htons(ifp->if_index);
 
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 }
 

@@ -375,7 +375,9 @@ bootpboot_p_rtlist(void)
 {
 
 	printf("Routing table:\n");
+	RADIX_NODE_LOCK(rt_tables[AF_INET]);	/* could sleep XXX */
 	bootpboot_p_tree(rt_tables[AF_INET]->rnh_treetop);
+	RADIX_NODE_UNLOCK(rt_tables[AF_INET]);
 }
 
 void

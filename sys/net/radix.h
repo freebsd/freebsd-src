@@ -37,6 +37,9 @@
 #ifndef _RADIX_H_
 #define	_RADIX_H_
 
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_RTABLE);
 #endif
@@ -138,6 +141,7 @@ struct radix_node_head {
 	void	(*rnh_close)	/* do something when the last ref drops */
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
+	struct	mtx rnh_mtx;
 };
 
 #ifndef _KERNEL
@@ -152,6 +156,13 @@ struct radix_node_head {
 #define Bzero(p, n) bzero((caddr_t)(p), (unsigned)(n));
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_NOWAIT))
 #define Free(p) free((caddr_t)p, M_RTABLE);
+
+
+#define RADIX_NODE_HEAD_LOCK_INIT(rnh)	\
+    mtx_init(&(rnh)->rnh_mtx, "radix node head", NULL, MTX_DEF | MTX_RECURSE)
+#define RADIX_NODE_HEAD_LOCK(rnh)	mtx_lock(&(rnh)->rnh_mtx)
+#define RADIX_NODE_HEAD_UNLOCK(rnh)	mtx_unlock(&(rnh)->rnh_mtx)
+#define RADIX_NODE_HEAD_DESTROY(rnh)	mtx_destroy(&(rnh)->rnh_mtx)
 #endif /* _KERNEL */
 
 void	 rn_init(void);

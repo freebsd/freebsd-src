@@ -291,7 +291,9 @@ in_rtqtimo(void *rock)
 	arg.nextstop = time_second + rtq_timeout;
 	arg.draining = arg.updating = 0;
 	s = splnet();
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 
 	/*
@@ -318,7 +320,9 @@ in_rtqtimo(void *rock)
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
 		s = splnet();
+		RADIX_NODE_HEAD_LOCK(rnh);
 		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
 		splx(s);
 	}
 
@@ -339,7 +343,9 @@ in_rtqdrain(void)
 	arg.draining = 1;
 	arg.updating = 0;
 	s = splnet();
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	splx(s);
 }
 
@@ -420,7 +426,9 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	arg.rnh = rnh = rt_tables[AF_INET];
 	arg.ifa = ifa;
 	arg.del = delete;
+	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_ifadownkill, &arg);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
 	ifa->ifa_flags &= ~IFA_ROUTE;
 	return 0;
 }
