@@ -13,9 +13,6 @@
 #define _KERNEL
 #define KERNEL
 #if !defined(solaris) && !defined(linux) && !defined(__sgi)
-# if (__FreeBSD_version >= 500028)
-#  include <sys/queue.h>
-# endif
 # include <sys/file.h>
 #else
 # ifdef solaris
