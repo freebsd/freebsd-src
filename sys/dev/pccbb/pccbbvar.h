@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2003-2004 Warner Losh.
  * Copyright (c) 2000,2001 Jonathan Chen.
  * All rights reserved.
  *
@@ -35,7 +36,8 @@
 struct cbb_intrhand {
 	driver_intr_t	*intr;
 	void 		*arg;
-	uint32_t	flags;
+	struct cbb_softc *sc;
+	void		*cookie;
 	STAILQ_ENTRY(cbb_intrhand) entries;
 };
 
@@ -52,10 +54,11 @@ struct cbb_reslist {
 };
 
 #define	CBB_AUTO_OPEN_SMALLHOLE 0x100
+#define CBB_NSLOTS		4
 
 struct cbb_softc {
 	device_t	dev;
-	struct exca_softc exca;
+	struct exca_softc exca[CBB_NSLOTS];
 	struct		resource *base_res;
 	struct		resource *irq_res;
 	void		*intrhand;
@@ -86,6 +89,7 @@ struct cbb_softc {
 
 	device_t	cbdev;
 	struct proc	*event_thread;
+	void (*chipinit)(struct cbb_softc *);
 };
 
 /* result of detect_card */
@@ -104,3 +108,72 @@ struct cbb_softc {
 #define YV		1
 
 #define CARD_OFF	(CARD_VCC(0))
+
+extern int cbb_debug;
+extern devclass_t cbb_devclass;
+
+int	cbb_activate_resource(device_t brdev, device_t child,
+	    int type, int rid, struct resource *r);
+struct resource	*cbb_alloc_resource(device_t brdev, device_t child,
+	    int type, int *rid, u_long start, u_long end, u_long count,
+	    u_int flags);
+void	cbb_child_detached(device_t brdev, device_t child);
+int	cbb_child_present(device_t self);
+int	cbb_deactivate_resource(device_t brdev, device_t child,
+	    int type, int rid, struct resource *r);
+int	cbb_detach(device_t brdev);
+void	cbb_disable_func_intr(struct cbb_softc *sc);
+void	cbb_driver_added(device_t brdev, driver_t *driver);
+void	cbb_event_thread(void *arg);
+void	cbb_intr(void *arg);
+int	cbb_maxslots(device_t brdev);
+int	cbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
+	    uint32_t cardaddr, uint32_t *deltap);
+int	cbb_pcic_set_res_flags(device_t brdev, device_t child, int type,
+	    int rid, uint32_t flags);
+int	cbb_power(device_t brdev, int volts);
+int	cbb_power_enable_socket(device_t brdev, device_t child);
+void	cbb_power_disable_socket(device_t brdev, device_t child);
+uint32_t cbb_read_config(device_t brdev, int b, int s, int f,
+	    int reg, int width);
+int	cbb_read_ivar(device_t brdev, device_t child, int which,
+	    uintptr_t *result);
+int	cbb_release_resource(device_t brdev, device_t child,
+	    int type, int rid, struct resource *r);
+int	cbb_resume(device_t self);
+int	cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
+	    int flags, driver_intr_t *intr, void *arg, void **cookiep);
+int	cbb_shutdown(device_t brdev);
+int	cbb_suspend(device_t self);
+int	cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
+	    void *cookie);
+void	cbb_write_config(device_t brdev, int b, int s, int f,
+	    int reg, uint32_t val, int width);
+int	cbb_write_ivar(device_t brdev, device_t child, int which,
+	    uintptr_t value);
+
+/*
+ */
+static __inline void
+cbb_set(struct cbb_softc *sc, uint32_t reg, uint32_t val)
+{
+	bus_space_write_4(sc->bst, sc->bsh, reg, val);
+}
+
+static __inline uint32_t
+cbb_get(struct cbb_softc *sc, uint32_t reg)
+{
+	return (bus_space_read_4(sc->bst, sc->bsh, reg));
+}
+
+static __inline void
+cbb_setb(struct cbb_softc *sc, uint32_t reg, uint32_t bits)
+{
+	cbb_set(sc, reg, cbb_get(sc, reg) | bits);
+}
+
+static __inline void
+cbb_clrb(struct cbb_softc *sc, uint32_t reg, uint32_t bits)
+{
+	cbb_set(sc, reg, cbb_get(sc, reg) & ~bits);
+}
