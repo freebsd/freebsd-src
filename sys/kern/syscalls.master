@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.54 1998/11/05 14:28:24 dg Exp $
+	$Id: syscalls.master,v 1.57 1999/04/04 21:41:16 dt Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -266,8 +266,10 @@
 171	STD	BSD	{ int shmsys(int which, int a2, int a3, int a4); }
 ; XXX should be		{ int shmsys(int which, ...); }
 172	UNIMPL	NOHIDE	nosys
-173	UNIMPL	NOHIDE	nosys
-174	UNIMPL	NOHIDE	nosys
+173	STD	POSIX	{ ssize_t pread(int fd, void *buf, size_t nbyte, \
+			    int pad, off_t offset); }
+174	STD	POSIX	{ ssize_t pwrite(int fd, const void *buf, \
+			    size_t nbyte, int pad, off_t offset); }
 175	UNIMPL	NOHIDE	nosys
 176	STD	BSD	{ int ntp_adjtime(struct timex *tp); }
 177	UNIMPL	NOHIDE	sfork (BSD/OS 2.x)

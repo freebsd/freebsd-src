@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.18 1998/06/07 17:11:40 dfr Exp $
+ * $Id: sys_socket.c,v 1.19 1998/11/11 10:03:56 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -50,9 +50,9 @@
 #include <net/route.h>
 
 static int soo_read __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 static int soo_write __P((struct file *fp, struct uio *uio, 
-		struct ucred *cred));
+		struct ucred *cred, int flags));
 static int soo_close __P((struct file *fp, struct proc *p));
 
 struct	fileops socketops =
@@ -60,10 +60,11 @@ struct	fileops socketops =
 
 /* ARGSUSED */
 static int
-soo_read(fp, uio, cred)
+soo_read(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 	return so->so_proto->pr_usrreqs->pru_soreceive(so, 0, uio, 0, 0, 0);
@@ -71,10 +72,11 @@ soo_read(fp, uio, cred)
 
 /* ARGSUSED */
 static int
-soo_write(fp, uio, cred)
+soo_write(fp, uio, cred, flags)
 	struct file *fp;
 	struct uio *uio;
 	struct ucred *cred;
+	int flags;
 {
 	struct socket *so = (struct socket *)fp->f_data;
 	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
