@@ -56,7 +56,7 @@
  * SUCH DAMAGE.
  */
 
-#define SYM_DRIVER_NAME	"sym-0.11.0-19991120"
+#define SYM_DRIVER_NAME	"sym-0.12.0-19991127"
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -356,7 +356,7 @@ static int sym_debug = 0;
 	#define DEBUG_FLAGS sym_debug
 #else
 /*	#define DEBUG_FLAGS (0x0631) */
-	#define DEBUG_FLAGS (0x0)
+	#define DEBUG_FLAGS (0x00)
 #endif
 #define sym_verbose	(np->verbose)
 
@@ -4281,8 +4281,12 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	/*
 	 *  For now, only use PPR with DT option if period factor = 9.
 	 */
-	if (tp->tinfo.goal.period == 9)
-		tp->tinfo.goal.options = PPR_OPT_DT;
+	if (tp->tinfo.goal.period == 9) {
+		tp->tinfo.goal.width = BUS_16_BIT;
+		tp->tinfo.goal.options |= PPR_OPT_DT;
+	}
+	else
+		tp->tinfo.goal.options &= ~PPR_OPT_DT;
 #endif
 	/*
 	 *  Early C1010 chips need a work-around for DT 
@@ -4340,7 +4344,9 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	if (nego) {
 		tp->nego_cp = cp; /* Keep track a nego will be performed */
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
-			sym_print_msg(cp, "nego msgout:", msgptr);
+			sym_print_msg(cp, nego == NS_SYNC ? "sync msgout" :
+					  nego == NS_WIDE ? "wide msgout" :
+					  "ppr msgout", msgptr);
 		};
 	};
 
@@ -4878,6 +4884,7 @@ static void sym_setwide(hcb_p np, ccb_p cp, u_char wide)
 	tp->tinfo.goal.width = tp->tinfo.current.width = wide;
 	tp->tinfo.current.offset = 0;
 	tp->tinfo.current.period = 0;
+	tp->tinfo.current.options = 0;
 	neg.bus_width = wide ? BUS_16_BIT : BUS_8_BIT;
 	neg.sync_period = tp->tinfo.current.period;
 	neg.sync_offset = tp->tinfo.current.offset;
@@ -4935,8 +4942,7 @@ static void sym_setpprot(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	tp->tinfo.goal.width	= tp->tinfo.current.width  = wide;
 	tp->tinfo.goal.period	= tp->tinfo.current.period = per;
 	tp->tinfo.goal.offset	= tp->tinfo.current.offset = ofs;
-	tp->tinfo.current.offset= dt ? PPR_OPT_DT : 0;
-	tp->tinfo.goal.offset	= tp->tinfo.current.offset = ofs;
+	tp->tinfo.goal.options	= tp->tinfo.current.options = dt;
 	neg.sync_period = tp->tinfo.current.period;
 	neg.sync_offset = tp->tinfo.current.offset;
 	neg.bus_width = wide ? BUS_16_BIT : BUS_8_BIT;
@@ -7111,7 +7117,7 @@ static void sym_sync_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	 *  Synchronous request message received.
 	 */
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
-		sym_print_msg(cp, "sync msg in", np->msgin);
+		sym_print_msg(cp, "sync msgin", np->msgin);
 	};
 
 	/*
@@ -7212,7 +7218,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	 * Synchronous request message received.
 	 */
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
-		sym_print_msg(cp, "sync msg in", np->msgin);
+		sym_print_msg(cp, "ppr msgin", np->msgin);
 	};
 
 	/*
@@ -7261,8 +7267,10 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	}
 
 	if (ofs) {
-		if (dt && per < np->minsync_dt)
-			{chg = 1; per = np->minsync_dt;}
+		if (dt) {
+			if (per < np->minsync_dt)
+				{chg = 1; per = np->minsync_dt;}
+		}
 		else if (per < np->minsync)
 			{chg = 1; per = np->minsync;}
 		if (req) {
@@ -7311,7 +7319,7 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 	cp->nego_status = NS_PPR;
 
 	if (DEBUG_FLAGS & DEBUG_NEGO) {
-		sym_print_msg(cp, "sync msgout", np->msgout);
+		sym_print_msg(cp, "ppr msgout", np->msgout);
 	}
 
 	np->msgin [0] = M_NOOP;
@@ -9507,8 +9515,14 @@ DATA_SET (pcidevice_set, sym_pci_driver);
 #endif /* FreeBSD_4_Bus */
 
 static struct sym_pci_chip sym_pci_dev_table[] = {
+ {PCI_ID_SYM53C810, 0x0f, "810", 4,  8, 4,
+ FE_ERL}
+ ,
  {PCI_ID_SYM53C810, 0xff, "810a", 4,  8, 4,
  FE_CACHE_SET|FE_LDSTR|FE_PFEN|FE_BOF}
+ ,
+ {PCI_ID_SYM53C825, 0x0f, "825", 6,  8, 4,
+ FE_WIDE|FE_BOF|FE_ERL|FE_DIFF}
  ,
  {PCI_ID_SYM53C825, 0xff, "825a", 6,  8, 4,
  FE_WIDE|FE_CACHE0_SET|FE_BOF|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM|FE_DIFF}
@@ -9602,6 +9616,7 @@ sym_find_pci_chip(pcici_t pci_tag)
 			continue;
 		if (FE_LDSTR & chip->features)
 			return chip;
+		break;
 	}
 
 	return 0;
