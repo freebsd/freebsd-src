@@ -1725,7 +1725,16 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 						scsi_sense_key_text[sense_key],
 						scsi_sense_desc(asc,ascq,
 								&cgd.inq_data));
-				else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
+				else if ((have_sense == 0)
+				      && ((status & CAM_STATUS_MASK) ==
+					   CAM_SCSI_STATUS_ERROR)
+				      && (csio->scsi_status ==
+					  SCSI_STATUS_BUSY)) {
+					snprintf(announce_buf,
+					    sizeof(announce_buf),
+					    "Attempt to query device "
+					    "size failed: SCSI status: BUSY");
+				} else if (SID_TYPE(&cgd.inq_data) == T_CDROM) {
 					/*
 					 * We only print out an error for
 					 * CDROM type devices.  For WORM
