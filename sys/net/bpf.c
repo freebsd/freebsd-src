@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.3 1994/08/20 03:48:55 davidg Exp $
+ * $Id: bpf.c,v 1.4 1994/10/09 07:35:03 davidg Exp $
  */
 
 #include "bpfilter.h"
@@ -168,9 +168,14 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 		break;
 
 	case DLT_FDDI:
+#if defined(__FreeBSD__) || defined(__bsdi__)
+		sockp->sa_family = AF_IMPLINK;
+		hlen = 0;
+#else
 		sockp->sa_family = AF_UNSPEC;
 		/* XXX 4(FORMAC)+6(dst)+6(src)+3(LLC)+5(SNAP) */
 		hlen = 24;
+#endif
 		break;
 
 	case DLT_NULL:
