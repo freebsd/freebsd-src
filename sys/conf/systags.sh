@@ -32,13 +32,12 @@
 # SUCH DAMAGE.
 #
 #	@(#)systags.sh	8.1 (Berkeley) 6/10/93
+#	$Id$
 #
 # systags.sh - construct a system tags file using dependence relations
 #	in a .depend file
 #
 # First written May 16, 1992 by Van Jacobson, Lawrence Berkeley Laboratory.
-#
-# from: $Header: systags.sh,v 1.3 96/08/08 20:23:13 leres Exp $
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
 MACHINE=`uname -m`
