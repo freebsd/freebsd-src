@@ -264,6 +264,7 @@ static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
 static void	ia64_protection_init(void);
 
+static pmap_t	pmap_install(pmap_t);
 static void	pmap_invalidate_all(pmap_t pmap);
 static void	pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
@@ -2534,45 +2535,43 @@ pmap_activate(struct thread *td)
 }
 
 pmap_t
-pmap_install(pmap_t pmap)
+pmap_switch(pmap_t pm)
 {
-	pmap_t oldpmap;
+	pmap_t prevpm;
 	int i;
 
-	critical_enter();
+	mtx_assert(&sched_lock, MA_OWNED);
 
-	oldpmap = PCPU_GET(current_pmap);
-	if (oldpmap == pmap) {
-		critical_exit();
-		return (oldpmap);
+	prevpm = PCPU_GET(current_pmap);
+	if (prevpm == pm)
+		return (prevpm);
+	if (prevpm != NULL)
+		atomic_clear_32(&prevpm->pm_active, PCPU_GET(cpumask));
+	if (pm == NULL) {
+		for (i = 0; i < 5; i++) {
+			ia64_set_rr(IA64_RR_BASE(i),
+			    (i << 8)|(PAGE_SHIFT << 2)|1);
+		}
+	} else {
+		for (i = 0; i < 5; i++) {
+			ia64_set_rr(IA64_RR_BASE(i),
+			    (pm->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
+		}
+		atomic_set_32(&pm->pm_active, PCPU_GET(cpumask));
+		PCPU_SET(current_pmap, pm);
 	}
+	return (prevpm);
+}
 
-	if (oldpmap != NULL)
-		atomic_clear_32(&oldpmap->pm_active, PCPU_GET(cpumask));
+static pmap_t
+pmap_install(pmap_t pm)
+{
+	pmap_t prevpm;
 
-	PCPU_SET(current_pmap, pmap);
-
-	if (pmap == NULL) {
-		/* Invalidate regions 0-4. */
-		ia64_set_rr(IA64_RR_BASE(0), (0 << 8)|(PAGE_SHIFT << 2)|1);
-		ia64_set_rr(IA64_RR_BASE(1), (1 << 8)|(PAGE_SHIFT << 2)|1);
-		ia64_set_rr(IA64_RR_BASE(2), (2 << 8)|(PAGE_SHIFT << 2)|1);
-		ia64_set_rr(IA64_RR_BASE(3), (3 << 8)|(PAGE_SHIFT << 2)|1);
-		ia64_set_rr(IA64_RR_BASE(4), (4 << 8)|(PAGE_SHIFT << 2)|1);
-		critical_exit();
-		return (oldpmap);
-	}
-
-	atomic_set_32(&pmap->pm_active, PCPU_GET(cpumask));
-
-	for (i = 0; i < 5; i++) {
-		ia64_set_rr(IA64_RR_BASE(i),
-		    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
-	}
-
-	critical_exit();
-
-	return (oldpmap);
+	mtx_lock_spin(&sched_lock);
+	prevpm = pmap_switch(pm);
+	mtx_unlock_spin(&sched_lock);
+	return (prevpm);
 }
 
 vm_offset_t
