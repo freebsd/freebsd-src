@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.31 1998/06/24 06:16:32 jkh Exp $";
+	"$Id: mkmakefile.c,v 1.32 1998/07/12 08:10:33 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -79,6 +79,7 @@ void do_clean __P((FILE *));
 void do_load __P((FILE *));
 void do_rules __P((FILE *));
 void do_sfiles __P((FILE *));
+void do_mfiles __P((FILE *));
 void do_cfiles __P((FILE *));
 void do_objs __P((FILE *));
 void do_before_depend __P((FILE *));
@@ -198,6 +199,8 @@ makefile()
 			do_before_depend(ofp);
 		else if (eq(line, "%OBJS\n"))
 			do_objs(ofp);
+		else if (eq(line, "%MFILES\n"))
+			do_mfiles(ofp);
 		else if (eq(line, "%CFILES\n"))
 			do_cfiles(ofp);
 		else if (eq(line, "%SFILES\n"))
@@ -396,6 +399,14 @@ nextparam:
 		goto nextparam;
 	}
 	nreqs++;
+	if (eq(wd, "local")) {
+		filetype = LOCAL;
+		goto nextparam;
+	}
+	if (eq(wd, "no-depend")) {
+		filetype = NODEPEND;
+		goto nextparam;
+	}
 	if (eq(wd, "device-driver")) {
 		filetype = DRIVER;
 		goto nextparam;
@@ -587,7 +598,7 @@ do_cfiles(fp)
 	fputs("CFILES=", fp);
 	lpos = 8;
 	for (tp = ftab; tp; tp = tp->f_next)
-		if (tp->f_type != INVISIBLE) {
+		if (tp->f_type != INVISIBLE && tp->f_type != NODEPEND) {
 			len = strlen(tp->f_fn);
 			if (tp->f_fn[len - 1] != 'c')
 				continue;
@@ -595,7 +606,11 @@ do_cfiles(fp)
 				lpos = 8;
 				fputs("\\\n\t", fp);
 			}
-			fprintf(fp, "$S/%s ", tp->f_fn);
+			if (tp->f_type != LOCAL)
+				fprintf(fp, "$S/%s ", tp->f_fn);
+			else
+				fprintf(fp, "%s ", tp->f_fn);
+
 			lpos += len + 1;
 		}
 	for (fl = conf_list; fl; fl = fl->f_next)
@@ -610,6 +625,31 @@ do_cfiles(fp)
 				    machinename, machinename, swapname);
 			else
 				fprintf(fp, "%s ", swapname);
+			lpos += len + 1;
+		}
+	if (lpos != 8)
+		putc('\n', fp);
+}
+
+void
+do_mfiles(fp)
+	FILE *fp;
+{
+	register struct file_list *tp;
+	register int lpos, len;
+
+	fputs("MFILES=", fp);
+	lpos = 8;
+	for (tp = ftab; tp; tp = tp->f_next)
+		if (tp->f_type != INVISIBLE) {
+			len = strlen(tp->f_fn);
+			if (tp->f_fn[len - 1] != 'm' || tp->f_fn[len - 2] != '.')
+				continue;
+			if ((len = 3 + len) + lpos > 72) {
+				lpos = 8;
+				fputs("\\\n\t", fp);
+			}
+			fprintf(fp, "$S/%s ", tp->f_fn);
 			lpos += len + 1;
 		}
 	if (lpos != 8)
