@@ -142,7 +142,8 @@ main(argc, argv)
 	for (i = 0; i < maxindex; i++) {
 		nconf = getnetconfigent(transports[i]);
 		if (nconf == NULL)
-			errx(1, "cannot get udp netconf.");
+			errx(1, "cannot get %s netconf: %s.", transports[i],
+			    nc_sperror());
 
 		transp = svc_tli_create(RPC_ANYFD, nconf, NULL, 0, 0);
 		if (transp == NULL) {
