@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.59 1998/06/14 15:51:59 bde Exp $
+ * $Id: nfs_bio.c,v 1.60 1998/09/04 08:06:56 dfr Exp $
  */
 
 
@@ -811,6 +811,7 @@ again:
 		}
 
 		error = uiomove((char *)bp->b_data + on, n, uio);
+		bp->b_flags &= ~B_NEEDCOMMIT;
 		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
