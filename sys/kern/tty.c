@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.67 1995/08/01 23:27:34 ache Exp $
+ * $Id: tty.c,v 1.68 1995/08/01 23:38:00 ache Exp $
  */
 
 /*-
@@ -174,12 +174,6 @@ char const char_type[] = {
 #undef	NO
 #undef	TB
 #undef	VT
-
-int validspeed[] = {
-	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
-	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200
-};
-#define MAX_SPEED (sizeof(validspeed)/sizeof(*validspeed) - 1)
 
 /* Macros to clear/set/test flags. */
 #define	SET(t, f)	(t) |= (f)
@@ -829,23 +823,9 @@ ttioctl(tp, cmd, data, flag)
 	case TIOCSETAW:			/* drain output, set */
 	case TIOCSETAF: {		/* drn out, fls in, set */
 		register struct termios *t = (struct termios *)data;
-		register int i;
 
-		for (i = MAX_SPEED; i >= 0; i--)
-			if (t->c_ispeed == validspeed[i])
-				break;
-			else if (t->c_ispeed > validspeed[i])
-				return (EINVAL);
-		if (i < 0)
+		if (t->c_ispeed < 0 || t->c_ospeed < 0)
 			return (EINVAL);
-		for (i = MAX_SPEED; i >= 0; i--)
-			if (t->c_ospeed == validspeed[i])
-				break;
-			else if (t->c_ospeed > validspeed[i])
-				return (EINVAL);
-		if (i < 0)
-			return (EINVAL);
-
 		s = spltty();
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
 			error = ttywait(tp);
