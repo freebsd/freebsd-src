@@ -1901,10 +1901,6 @@ ip_forward(struct mbuf *m, struct route *ro,
 		mcopy->m_len = imin((ip->ip_hl << 2) + 8,
 		    (int)ip->ip_len);
 		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
-		/*
-		 * XXXMAC: Eventually, we may have an explict labeling
-		 * point here.
-		 */
 	}
 
 #ifdef IPSTEALTH
