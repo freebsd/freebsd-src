@@ -34,8 +34,8 @@
 .Nm CONDSPLASSERT
 .Nd conditional kernel spl level verification macro
 .Sh SYNOPSIS
-.Fd options INVARIANTS
-.Fd options INVARIANT_SUPPORT
+.Cd options INVARIANTS
+.Cd options INVARIANT_SUPPORT
 .Fn CONDSPLASSERT "condition, char *level, char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with both "options INVARIANTS"
@@ -78,7 +78,7 @@ When set to 2 the
 .Fn CONDSPLASSERT
 macro is defined to
 .Xr panic 9 .
-.Sh EXAMPLE
+.Sh EXAMPLES
 The kernel function
 .Fn swp_pager_meta_build
 must be called
@@ -98,7 +98,7 @@ if (object->type != OBJT_SWAP) {
 .Xr panic 9 ,
 .Xr SPLASSERT 9
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Jeroen Ruigrok van der Werven
 .Aq asmodai@freebsd.org ,
 based on the
