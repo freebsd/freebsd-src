@@ -35,6 +35,8 @@
  */
 
 #include "includes.h"
+RCSID("$OpenBSD: serverloop.c,v 1.34 2000/10/27 07:32:18 markus Exp $");
+
 #include "xmalloc.h"
 #include "ssh.h"
 #include "packet.h"
@@ -48,6 +50,8 @@
 #include "session.h"
 #include "dispatch.h"
 #include "auth-options.h"
+
+extern ServerOptions options;
 
 static Buffer stdin_buffer;	/* Buffer for stdin data. */
 static Buffer stdout_buffer;	/* Buffer for stdout data. */
@@ -380,7 +384,7 @@ drain_output()
 void
 process_buffered_input_packets()
 {
-	dispatch_run(DISPATCH_NONBLOCK, NULL);
+	dispatch_run(DISPATCH_NONBLOCK, NULL, NULL);
 }
 
 /*
@@ -673,7 +677,7 @@ server_loop2(void)
 }
 
 void
-server_input_stdin_data(int type, int plen)
+server_input_stdin_data(int type, int plen, void *ctxt)
 {
 	char *data;
 	unsigned int data_len;
@@ -690,7 +694,7 @@ server_input_stdin_data(int type, int plen)
 }
 
 void
-server_input_eof(int type, int plen)
+server_input_eof(int type, int plen, void *ctxt)
 {
 	/*
 	 * Eof from the client.  The stdin descriptor to the
@@ -703,7 +707,7 @@ server_input_eof(int type, int plen)
 }
 
 void
-server_input_window_size(int type, int plen)
+server_input_window_size(int type, int plen, void *ctxt)
 {
 	int row = packet_get_int();
 	int col = packet_get_int();
@@ -733,7 +737,7 @@ input_direct_tcpip(void)
 	   originator, originator_port, target, target_port);
 
 	/* XXX check permission */
-	if (no_port_forwarding_flag) {
+	if (no_port_forwarding_flag || !options.allow_tcp_forwarding) {
 		xfree(target);
 		xfree(originator);
 		return -1;
@@ -745,11 +749,11 @@ input_direct_tcpip(void)
 		return -1;
 	return channel_new("direct-tcpip", SSH_CHANNEL_OPEN,
 	    sock, sock, -1, CHAN_TCP_WINDOW_DEFAULT,
-	    CHAN_TCP_PACKET_DEFAULT, 0, xstrdup("direct-tcpip"));
+	    CHAN_TCP_PACKET_DEFAULT, 0, xstrdup("direct-tcpip"), 1);
 }
 
 void
-server_input_channel_open(int type, int plen)
+server_input_channel_open(int type, int plen, void *ctxt)
 {
 	Channel *c = NULL;
 	char *ctype;
@@ -764,7 +768,7 @@ server_input_channel_open(int type, int plen)
 	rwindow = packet_get_int();
 	rmaxpack = packet_get_int();
 
-	debug("channel_input_open: ctype %s rchan %d win %d max %d",
+	debug("server_input_channel_open: ctype %s rchan %d win %d max %d",
 	    ctype, rchan, rwindow, rmaxpack);
 
 	if (strcmp(ctype, "session") == 0) {
@@ -779,7 +783,7 @@ server_input_channel_open(int type, int plen)
 		 */
 		id = channel_new(ctype, SSH_CHANNEL_LARVAL,
 		    -1, -1, -1, 0, CHAN_SES_PACKET_DEFAULT,
-		    0, xstrdup("server-session"));
+		    0, xstrdup("server-session"), 1);
 		if (session_open(id) == 1) {
 			channel_register_callback(id, SSH2_MSG_CHANNEL_REQUEST,
 			    session_input_channel_req, (void *)0);

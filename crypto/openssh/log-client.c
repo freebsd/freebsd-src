@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: log-client.c,v 1.11 2000/09/07 20:27:51 deraadt Exp $");
+RCSID("$OpenBSD: log-client.c,v 1.12 2000/09/12 20:53:10 markus Exp $");
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -57,7 +57,9 @@ log_init(char *av0, LogLevel level, SyslogFacility ignored1, int ignored2)
 	case SYSLOG_LEVEL_FATAL:
 	case SYSLOG_LEVEL_INFO:
 	case SYSLOG_LEVEL_VERBOSE:
-	case SYSLOG_LEVEL_DEBUG:
+	case SYSLOG_LEVEL_DEBUG1:
+	case SYSLOG_LEVEL_DEBUG2:
+	case SYSLOG_LEVEL_DEBUG3:
 		log_level = level;
 		break;
 	default:
@@ -75,7 +77,7 @@ do_log(LogLevel level, const char *fmt, va_list args)
 
 	if (level > log_level)
 		return;
-	if (level == SYSLOG_LEVEL_DEBUG)
+	if (level >= SYSLOG_LEVEL_DEBUG1)
 		fprintf(stderr, "debug: ");
 	vsnprintf(msgbuf, sizeof(msgbuf), fmt, args);
 	fprintf(stderr, "%s\r\n", msgbuf);

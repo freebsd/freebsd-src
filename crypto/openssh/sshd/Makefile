@@ -9,7 +9,7 @@ CFLAGS+=-DHAVE_LOGIN_CAP
 
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	pty.c log-server.c login.c servconf.c serverloop.c \
-	auth.c auth1.c auth2.c auth-options.c session.c
+	auth.c auth1.c auth2.c auth-options.c session.c dh.c
 
 .include <bsd.own.mk> # for KERBEROS and AFS
 
@@ -26,7 +26,7 @@ DPADD+=	 ${LIBKRB}
 .endif # KERBEROS
 
 .if (${SKEY:L} == "yes")
-SRCS+=	auth-skey.c
+SRCS+=	auth-skey.c auth2-skey.c
 .endif
 
 .include <bsd.prog.mk>
