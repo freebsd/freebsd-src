@@ -128,6 +128,27 @@ statements at the top of the script as an alternative to using
 .Fa vars
 declarations.
 .Pp
+All variables should be commented.
+.Bd -literal -offset 0i
+ sub foo($@) {
+	my $cmd = shift;	# Command to run
+	my @args = @_;		# Arguments to $cmd
+ }
+.Ed
+.Pp
+Local variables should be separated from function arguments by a
+blank line:
+.Bd -literal -offset 0i
+ sub foo($@) {
+	my $cmd = shift;	# Command to run
+	my @args = @_;		# Arguments to command
+
+	my $pid;		# Child PID
+	local *PIPE;		# Pipe
+	my $output;		# Output from command
+}
+.Ed
+.Pp
 Whenever possible code should be run through the code checker
 .Nm perl
 .Ar -wc
