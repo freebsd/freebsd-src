@@ -235,7 +235,7 @@ extern void savetty P_((void));
 extern void resetty P_((void));
 extern void endwin P_((void));
 extern void delwin P_((WINDOW *window));
-extern void wprintw P_((WINDOW *window, __const char* format, ...));
+extern void wprintw P_((WINDOW *window, const char* format, ...));
 extern void iout P_((WINDOW *window, int value));
 extern int Comp_line P_((struct _line *line1, struct _line *line2));
 extern struct _line *Insert_line P_((int row, int end_row, WINDOW *window));
