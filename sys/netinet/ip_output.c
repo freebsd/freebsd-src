@@ -123,11 +123,11 @@ ip_output(m0, opt, ro, flags, imo)
 	struct mbuf *m = m0;
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
+	struct route iproute;
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast, sw_csum;
 #ifdef IPSEC
-	struct route iproute;
 	struct socket *so = NULL;
 	struct secpolicy *sp = NULL;
 #endif
@@ -188,9 +188,6 @@ ip_output(m0, opt, ro, flags, imo)
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("ip_output no HDR");
-	if (!ro)
-		panic("ip_output no route, proto = %d",
-		      mtod(m, struct ip *)->ip_p);
 #endif
 	if (opt) {
 		m = ip_insertoptions(m, opt, &len);
@@ -213,6 +210,11 @@ ip_output(m0, opt, ro, flags, imo)
 		hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	}
 
+	/* Route packet. */
+	if (ro == NULL) {
+		ro = &iproute;
+		bzero(ro, sizeof(*ro));
+	}
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	/*
 	 * If there is a cached route,
