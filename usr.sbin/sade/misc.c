@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.5 1995/05/16 11:37:22 jkh Exp $
+ * $Id: misc.c,v 1.6 1995/05/18 16:53:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -212,8 +212,8 @@ Mount(char *mountp, void *dev)
     char device[80];
     char mountpoint[FILENAME_MAX];
 
-    if (*((char *)dev) != "/") {
-    	sprintf(device, "/mnt/dev/%s", dev);
+    if (*((char *)dev) != '/') {
+    	sprintf(device, "/mnt/dev/%s", (char *)dev);
 	sprintf(mountpoint, "/mnt%s", mountp);
     }
     else {
