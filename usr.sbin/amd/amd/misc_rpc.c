@@ -37,7 +37,7 @@
  *
  *	@(#)misc_rpc.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: misc_rpc.c,v 1.1.1.1 1994/05/26 05:22:01 rgrimes Exp $
+ * $Id: misc_rpc.c,v 1.2 1995/05/30 03:45:51 rgrimes Exp $
  *
  */
 
@@ -134,7 +134,7 @@ AUTH *auth;
 	/*
 	 * Called procedure number
 	 */
-	if (!xdr_enum(&msg_xdr, &proc))
+	if (!xdr_enum(&msg_xdr, (enum_t *)&proc))
 		return -EIO;
 	/*
 	 * Authorization
