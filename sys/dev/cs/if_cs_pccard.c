@@ -42,25 +42,8 @@
 
 #include <dev/cs/if_csvar.h>
 #include <dev/pccard/pccardvar.h>
-#include <dev/pccard/pccarddevs.h>
 
 #include "card_if.h"
-
-static const struct pccard_product cs_pccard_products[] = {
-	{ NULL }
-};
-static int
-cs_pccard_match(device_t dev)
-{
-	const struct pccard_product *pp;
-
-	if ((pp = pccard_product_lookup(dev, cs_pccard_products,
-	    sizeof(cs_pccard_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->pp_name);
-		return 0;
-	}
-	return EIO;
-}
 
 static int
 cs_pccard_probe(device_t dev)
@@ -100,17 +83,11 @@ bad:
 
 static device_method_t cs_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		pccard_compat_probe),
-	DEVMETHOD(device_attach,	pccard_compat_attach),
+	DEVMETHOD(device_probe,		cs_pccard_probe),
+	DEVMETHOD(device_attach,	cs_pccard_attach),
 #ifdef CS_HAS_DETACH
 	DEVMETHOD(device_detach,	cs_detach),
 #endif
-
-	/* Card interface */
-	DEVMETHOD(card_compat_match,	cs_pccard_match),
-	DEVMETHOD(card_compat_probe,	cs_pccard_probe),
-	DEVMETHOD(card_compat_attach,	cs_pccard_attach),
-
 	{ 0, 0 }
 };
 

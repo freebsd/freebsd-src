@@ -52,6 +52,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/clock.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
