@@ -200,6 +200,11 @@ void file_compress(file, mode)
     FILE  *in;
     gzFile out;
 
+    if (strlen(file) + strlen(GZ_SUFFIX) >= sizeof(outfile)) {
+        fprintf(stderr, "%s: nilename too long\n", prog);
+        exit(1);	    
+    }
+    
     strcpy(outfile, file);
     strcat(outfile, GZ_SUFFIX);
 
@@ -230,6 +235,11 @@ void file_uncompress(file)
     FILE  *out;
     gzFile in;
     int len = strlen(file);
+
+    if (len + strlen(GZ_SUFFIX) >= sizeof(buf)) {
+        fprintf(stderr, "%s: filename too long\n", prog);
+        exit(1);	    
+    }
 
     strcpy(buf, file);
 
