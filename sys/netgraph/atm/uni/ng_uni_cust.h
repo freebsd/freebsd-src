@@ -38,6 +38,7 @@
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/mbuf.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/atm/ngatmbase.h>

@@ -2228,10 +2228,9 @@ ngar_rcvdata(hook_p hook, item_p item)
 	struct ar_softc * sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct ifqueue	*xmitq_p;
 	struct mbuf *m;
-	meta_p meta;
+	struct ng_tag_prio *ptag;
 	
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
 	/*
 	 * data doesn't come in from just anywhere (e.g control hook)
@@ -2244,11 +2243,12 @@ ngar_rcvdata(hook_p hook, item_p item)
 	/* 
 	 * Now queue the data for when it can be sent
 	 */
-	if (meta && meta->priority > 0) {
+	if ((ptag = (struct ng_tag_prio *)m_tag_locate(m, NGM_GENERIC_COOKIE,
+	    NG_TAG_PRIO, NULL)) != NULL && (ptag->priority > NG_PRIO_CUTOFF) )
 		xmitq_p = (&sc->xmitq_hipri);
-	} else {
+	else
 		xmitq_p = (&sc->xmitq);
-	}
+
 	s = splimp();
 	IF_LOCK(xmitq_p);
 	if (_IF_QFULL(xmitq_p)) {
@@ -2270,7 +2270,6 @@ bad:
 	 * check if we need to free the mbuf, and then return the error
 	 */
 	NG_FREE_M(m);
-	NG_FREE_META(meta);
 	return (error);
 }
 

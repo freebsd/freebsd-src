@@ -1137,10 +1137,24 @@ struct callout_handle
 	    ng_item_fn *fn, void * arg1, int arg2);
 
 /*
- * prototypes the user should DEFINITLY not use directly
+ * prototypes the user should DEFINITELY not use directly
  */
 void	ng_free_item(item_p item); /* Use NG_FREE_ITEM instead */
 int	ng_mod_event(module_t mod, int what, void *arg);
 
-#endif /* _NETGRAPH_NETGRAPH_H_ */
+/*
+ * Tag definitions and constants
+ */
 
+#define	NG_TAG_PRIO	1
+
+struct ng_tag_prio {
+	struct m_tag	tag;
+	char	priority;
+	char	discardability;
+};
+
+#define	NG_PRIO_CUTOFF		32
+#define	NG_PRIO_LINKSTATE	64
+
+#endif /* _NETGRAPH_NETGRAPH_H_ */

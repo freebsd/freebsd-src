@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 1999
+.Dd June 8, 2004
 .Dt NG_KSOCKET 4
 .Os
 .Sh NAME
@@ -88,6 +88,24 @@ well.  For example
 .Dv inet/dgram/udp
 is a more readable but equivalent version of
 .Dv 2/2/17 .
+.Pp
+Data received into socket is sent out via hook.
+Data received on hook is sent out from socket, if the latter is
+connected (an
+.Dv NGM_KSOCKET_CONNECT
+was sent to node before).
+If socket is not connected, destination
+.Dv "struct sockaddr"
+must be supplied in an mbuf tag with cookie
+.Dv NGM_KSOCKET_COOKIE
+and type
+.Dv NG_KSOCKET_TAG_SOCKADDR
+attached to data.
+Otherwise
+.Nm
+will return
+.Dv ENOTCONN
+to sender.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
@@ -190,7 +208,8 @@ Shutdown of the node closes the associated socket.
 .Xr socket 2 ,
 .Xr netgraph 4 ,
 .Xr ng_socket 4 ,
-.Xr ngctl 8
+.Xr ngctl 8 ,
+.Xr mbuf_tags 9
 .Sh HISTORY
 The
 .Nm

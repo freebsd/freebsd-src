@@ -893,9 +893,9 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct socket *const so = priv->so;
 	struct sockaddr *sa = NULL;
-	meta_p meta;
 	int error;
 	struct mbuf *m;
+	struct sa_tag *stag;
 
 	/* Avoid reentrantly sending on the socket */
 	if ((priv->flags & KSF_SENDING) != 0) {
@@ -903,35 +903,20 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 		return (EDEADLK);
 	}
 
-	/* Extract data and meta information */
+	/* Extract data */
 	NGI_GET_M(item, m);
-	NGI_GET_META(item, meta);
 	NG_FREE_ITEM(item);
 
-	/* If any meta info, look for peer socket address */
-	if (meta != NULL) {
-		struct meta_field_header *field;
-
-		/* Look for peer socket address */
-		for (field = &meta->options[0];
-		    (caddr_t)field < (caddr_t)meta + meta->used_len;
-		    field = (struct meta_field_header *)
-		      ((caddr_t)field + field->len)) {
-			if (field->cookie != NGM_KSOCKET_COOKIE
-			    || field->type != NG_KSOCKET_META_SOCKADDR)
-				continue;
-			sa = (struct sockaddr *)field->data;
-			break;
-		}
-	}
+	/* Look if socket address is stored in packet tags */
+	if ((stag = (struct sa_tag *)m_tag_locate(m, NGM_KSOCKET_COOKIE,
+	    NG_KSOCKET_TAG_SOCKADDR, NULL)) != NULL)
+		sa = &stag->sa;
 
 	/* Send packet */
 	priv->flags |= KSF_SENDING;
 	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, td);
 	priv->flags &= ~KSF_SENDING;
 
-	/* Clean up and exit */
-	NG_FREE_META(meta);
 	return (error);
 }
 
@@ -1103,7 +1088,6 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 	flags = MSG_DONTWAIT;
 	while (1) {
 		struct sockaddr *sa = NULL;
-		meta_p meta = NULL;
 		struct mbuf *n;
 
 		/* Try to get next packet from socket */
@@ -1124,30 +1108,23 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int waitflag)
 		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next)
 			m->m_pkthdr.len += n->m_len;
 
-		/* Put peer's socket address (if any) into a meta info blob */
+		/* Put peer's socket address (if any) into a tag */
 		if (sa != NULL) {
-			struct meta_field_header *mhead;
-			u_int len;
+			struct sa_tag	*stag;
 
-			len = sizeof(*meta) + sizeof(*mhead) + sa->sa_len;
-			MALLOC(meta, meta_p, len, M_NETGRAPH_META,
-			    M_NOWAIT | M_ZERO);
-			if (meta == NULL) {
+			stag = (struct sa_tag *)m_tag_alloc(NGM_KSOCKET_COOKIE,
+			    NG_KSOCKET_TAG_SOCKADDR, sa->sa_len, M_NOWAIT);
+			if (stag == NULL) {
 				FREE(sa, M_SONAME);
 				goto sendit;
 			}
-			mhead = &meta->options[0];
-			meta->allocated_len = len;
-			meta->used_len = len;
-			mhead->cookie = NGM_KSOCKET_COOKIE;
-			mhead->type = NG_KSOCKET_META_SOCKADDR;
-			mhead->len = sizeof(*mhead) + sa->sa_len;
-			bcopy(sa, mhead->data, sa->sa_len);
+			bcopy(sa, &stag->sa, sa->sa_len);
 			FREE(sa, M_SONAME);
+			m_tag_prepend(m, &stag->tag);
 		}
 
-sendit:		/* Forward data with optional peer sockaddr as meta info */
-		NG_SEND_DATA(error, priv->hook, m, meta);
+sendit:		/* Forward data with optional peer sockaddr as packet tag */
+		NG_SEND_DATA_ONLY(error, priv->hook, m);
 	}
 
 	/*
