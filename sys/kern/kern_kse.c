@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tty.h>
 #include <sys/turnstile.h>
 #include <sys/user.h>
-#include <sys/jail.h>
 #include <sys/kse.h>
 #include <sys/ktr.h>
 #include <sys/ucontext.h>
