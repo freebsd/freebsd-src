@@ -1,8 +1,8 @@
-<!-- $Id: stable.sgml,v 1.6 1997/02/25 04:58:49 hanai Exp $ -->
+<!-- $Id: stable.sgml,v 1.7 1997/03/21 09:22:24 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.10 -->
+<!-- Original revision: 1.12 -->
 
-<chapt><heading>FreeBSD の安定状態の持続<label id="stable"></heading>
+<sect><heading>FreeBSD の安定状態の持続<label id="stable"></heading>
 
 <p><em>原作: &a.jkh;.</em>
 <p><em>訳: &a.iwasaki;.</em>
@@ -11,7 +11,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1997/02/25 04:58:49 $
+Last updated: $Date: 1997/03/21 09:22:24 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -19,14 +19,14 @@ and states some prerequisites for making sure the process goes as
 smoothly as possible.
 -->
 
-<sect><heading>FreeBSD-stable ってなに?</heading>
+<sect1><heading>FreeBSD-stable ってなに?</heading>
 
 <p>FreeBSD-stable は, 次の本流のリリースを目指した新機能をあまり採り入
 れない保守的な変更のための開発の支流です. 実験的またはテスト未完の変更
 はこの支流には取り入れられません (<ref id="current" name="最新の 
 FreeBSD を追いかける"> 参照).
 
-<sect><heading>誰が FreeBSD-stable を必要としているの?</heading>
+<sect1><heading>誰が FreeBSD-stable を必要としているの?</heading>
 
 <p>もしあなたが仕事で使用しているとか, なによりも FreeBSD システムの安
 定性を最重要視するなら, <em>stable</em> を追いかけることを考えるべきで
@@ -44,7 +44,7 @@ name="2.1.7-RELEASE"> 執筆時点) をインストールしているのであれば, 特に
 いるとは限りません. もし何か <em>stable</em> で不具合があるようでした
 ら, 私たちに<em>すぐに</em>教えてください (次の節参照).
 
-<sect><heading>FreeBSD-stable を使う</heading>
+<sect1><heading>FreeBSD-stable を使う</heading>
 
     <p><enum><item> &a.stable へ加わってください. このメーリングリスト
     では, <em>stable</em> の構築に関連する事柄や, その他の注意すべき点
@@ -69,11 +69,12 @@ name="2.1.7-RELEASE"> 執筆時点) をインストールしているのであれば, 特に
                安定している TCP/IP 接続でない場合は, この方法が適して
                います. 
 
-        <item> CMUの<ref id="sup" name="sup"> プログラム (ソフトウェア
-            更新プロトコル) を使用する. 一度コレクション全体を入手
-            してしまえば, 前回からの変更部分だけですむので, 2番目に
-            推奨される方法です. 多くの人が cron から sup を実行し, 
-            自動的にソースコードを最新の状態に保っています. 
+        <item> <ref id="cvsup" name="cvsup"> を 
+      	    <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/stable-supfile" name="この supfile">
+            を用いて使用する.  一度コレクション全体を入手してしまえば, 
+            前回からの変更部分だけですむので, 2番目に推奨される方法で
+            す. 多くの人が cron から cvsup を実行し, 自動的にソースコー
+            ドを最新の状態に保っています.
  
         <item> ftp を使用する. FreeBSD-stable 用のソースツリーは
             常に次のところで「公開」されています :
@@ -95,7 +96,7 @@ name="2.1.7-RELEASE"> 執筆時点) をインストールしているのであれば, 特に
     </enum>
 
     <item> 基本的には, ソースに迅速でオンデマンドなアクセスが必要で, 
-    接続のバンド幅が問題でなければ, sup か ftp を使いましょう. そうで
+    接続のバンド幅が問題でなければ, cvsup か ftp を使いましょう. そうで
     ない場合は CTM を使いましょう. 
 
     <item> stable をコンパイルする前に, /usr/src にある Makefile をよ
