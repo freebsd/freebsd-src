@@ -439,7 +439,8 @@ trap(a0, a1, a2, entry, framep)
 				/* Fault in the user page: */
 				rv = vm_fault(map, va, ftype,
 					      (ftype & VM_PROT_WRITE)
-					      ? VM_FAULT_DIRTY : 0);
+						      ? VM_FAULT_DIRTY
+						      : VM_FAULT_NORMAL);
 
 				--p->p_lock;
 			} else {
@@ -447,7 +448,7 @@ trap(a0, a1, a2, entry, framep)
 				 * Don't have to worry about process
 				 * locking or stacks in the kernel.
 				 */
-				rv = vm_fault(map, va, ftype, FALSE);
+				rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 			}
 				
 		nogo:;

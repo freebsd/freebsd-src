@@ -664,7 +664,8 @@ trap_pfault(frame, usermode, eva)
 		
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
-			(ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY : 0);
+			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
+						      : VM_FAULT_NORMAL);
 
 		--p->p_lock;
 	} else {
@@ -679,7 +680,7 @@ trap_pfault(frame, usermode, eva)
 		 * always have pte pages mapped, we just have to fault
 		 * the page.
 		 */
-		rv = vm_fault(kernel_map, va, ftype, FALSE);
+		rv = vm_fault(kernel_map, va, ftype, VM_FAULT_NORMAL);
 	}
 
 	if (rv == KERN_SUCCESS)
@@ -778,14 +779,15 @@ trap_pfault(frame, usermode, eva)
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype,
-			(ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY : 0);
+			      (ftype & VM_PROT_WRITE) ? VM_FAULT_DIRTY
+						      : VM_FAULT_NORMAL);
 
 		--p->p_lock;
 	} else {
 		/*
 		 * Don't have to worry about process locking or stacks in the kernel.
 		 */
-		rv = vm_fault(map, va, ftype, FALSE);
+		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
 
 	if (rv == KERN_SUCCESS)
