@@ -49,11 +49,9 @@ SUBDIR=	adjkerntz \
 	mount_udf \
 	mount_umapfs \
 	mount_unionfs \
-	mountd \
 	natd \
 	newfs \
 	newfs_msdos \
-	nfsd \
 	nologin \
 	nos-tun \
 	ping \
