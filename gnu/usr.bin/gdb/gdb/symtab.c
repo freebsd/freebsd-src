@@ -29,7 +29,7 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include "objfiles.h"
 #include "gdbcmd.h"
 #include "call-cmds.h"
-#include "regex.h"
+#include "gnuregex.h"
 #include "expression.h"
 #include "language.h"
 #include "demangle.h"
