@@ -962,7 +962,6 @@ rcclose(dev_t dev, int flag, int mode, d_thread_t *td)
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	disc_optim(tp, &tp->t_termios, rc);
-	rc_stop(tp, FREAD | FWRITE);
 	rc_hardclose(rc);
 	ttyclose(tp);
 	splx(s);

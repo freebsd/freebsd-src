@@ -313,7 +313,6 @@ nmdmclose(dev_t dev, int flag, int mode, struct thread *td)
 	err = (*linesw[tp->t_line].l_close)(tp, flag);
 	ourpart->modemsignals &= ~TIOCM_DTR;
 	nmdm_crossover(dev->si_drv1, ourpart, otherpart);
-	nmdmstop(tp, FREAD|FWRITE);
 	(void) ttyclose(tp);
 	return (err);
 }

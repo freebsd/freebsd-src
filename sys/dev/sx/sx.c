@@ -547,8 +547,6 @@ sxclose(
 	}
 	/* ok. we are now still on the right track.. nuke the hardware */
 
-	sx_stop(tp, FREAD | FWRITE);
-
 	sxhardclose(pp);
 	ttyclose(tp);
 	pp->sp_state &= ~SX_SS_OPEN;

@@ -1385,7 +1385,6 @@ sioclose(dev, flag, mode, td)
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	disc_optim(tp, &tp->t_termios, com);
-	comstop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();

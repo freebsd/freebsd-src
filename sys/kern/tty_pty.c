@@ -208,7 +208,6 @@ ptsclose(dev, flag, mode, td)
 
 	tp = dev->si_tty;
 	err = (*linesw[tp->t_line].l_close)(tp, flag);
-	ptsstop(tp, FREAD|FWRITE);
 	(void) ttyclose(tp);
 	return (err);
 }
