@@ -339,8 +339,11 @@ inside blocks unless the routine is unusually complicated.
 .Pp
 Indentation is an 8 character tab.
 Second level indents are four spaces.
+If you have to wrap a long statement, put the operator at the end of the
+line.
 .Bd -literal
-	while (cnt < 20)
+	while (cnt < 20 && this_variable_name_is_too_long_for_its_own_good &&
+	    ep != NULL)
 		z = a + really + long + statement + that + needs +
 		    two lines + gets + indented + four + spaces +
 		    on + the + second + and + subsequent + lines;
