@@ -48,6 +48,7 @@ struct pccard_io_handle {
 	bus_addr_t      addr;		/* resulting address in bus space */
 	bus_size_t      size;		/* size of i/o space */
 	int             flags;		/* misc. information */
+	int		width;
 };
 
 #define	PCCARD_IO_ALLOCATED	0x01	/* i/o space was allocated */
@@ -62,6 +63,8 @@ struct pccard_mem_handle {
 	bus_size_t      size;		/* size of mem space */
 	pccard_mem_handle_t mhandle;	/* opaque memory handle */
 	bus_size_t      realsize;	/* how much we really allocated */
+	long		offset;
+	int		kind;
 };
 
 /* pccard itself */
@@ -128,7 +131,7 @@ struct pccard_function {
 	int		pf_ccr_window;
 	long		pf_mfc_iobase;
 	long		pf_mfc_iomax;
-	int		(*ih_fct) __P((void *));
+	int		(*ih_fct)(void *);
 	void		*ih_arg;
 	int		ih_ipl;
 	int		pf_flags;
@@ -185,7 +188,7 @@ struct pccard_softc {
 };
 
 void
-pccardbus_if_setup __P((struct pccard_softc*));
+pccardbus_if_setup(struct pccard_softc*);
 
 struct pccard_cis_quirk {
 	int32_t manufacturer;
@@ -211,11 +214,11 @@ struct pccard_tuple {
 	bus_space_handle_t memh;
 };
 
-void	pccard_read_cis __P((struct pccard_softc *));
+void	pccard_read_cis(struct pccard_softc *);
 void	pccard_check_cis_quirks(device_t);
 void	pccard_print_cis(device_t);
-int	pccard_scan_cis __P((struct device * dev,
-	    int (*) (struct pccard_tuple *, void *), void *));
+int	pccard_scan_cis(struct device * dev,
+	    int (*) (struct pccard_tuple *, void *), void *);
 
 #define	pccard_cis_read_1(tuple, idx0)					\
 	(bus_space_read_1((tuple)->memt, (tuple)->memh, (tuple)->mult*(idx0)))
@@ -247,16 +250,16 @@ int	pccard_scan_cis __P((struct device * dev,
 #define	PCCARD_SPACE_MEMORY	1
 #define	PCCARD_SPACE_IO		2
 
-int	pccard_ccr_read __P((struct pccard_function *, int));
-void	pccard_ccr_write __P((struct pccard_function *, int, int));
+int	pccard_ccr_read(struct pccard_function *, int);
+void	pccard_ccr_write(struct pccard_function *, int, int);
 
 #define	pccard_mfc(sc)	(STAILQ_FIRST(&(sc)->card.pf_head) &&		\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
-void	pccard_function_init __P((struct pccard_function *,
-	    struct pccard_config_entry *));
-int	pccard_function_enable __P((struct pccard_function *));
-void	pccard_function_disable __P((struct pccard_function *));
+void	pccard_function_init(struct pccard_function *,
+	    struct pccard_config_entry *);
+int	pccard_function_enable(struct pccard_function *);
+void	pccard_function_disable(struct pccard_function *);
 
 #define	pccard_io_alloc(pf, start, size, align, pciop)			\
 	(pccard_chip_io_alloc((pf)->sc->pct, pf->sc->pch, (start),	\
@@ -265,9 +268,9 @@ void	pccard_function_disable __P((struct pccard_function *));
 #define	pccard_io_free(pf, pciohp)					\
 	(pccard_chip_io_free((pf)->sc->pct, (pf)->sc->pch, (pciohp)))
 
-int	pccard_io_map __P((struct pccard_function *, int, bus_addr_t,
-	    bus_size_t, struct pccard_io_handle *, int *));
-void	pccard_io_unmap __P((struct pccard_function *, int));
+int	pccard_io_map(struct pccard_function *, int, bus_addr_t,
+	    bus_size_t, struct pccard_io_handle *, int *);
+void	pccard_io_unmap(struct pccard_function *, int);
 
 #define pccard_mem_alloc(pf, size, pcmhp)				\
 	(pccard_chip_mem_alloc((pf)->sc->pct, (pf)->sc->pch, (size), (pcmhp)))
@@ -282,6 +285,6 @@ void	pccard_io_unmap __P((struct pccard_function *, int));
 #define	pccard_mem_unmap(pf, window)					\
 	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
 
-void	*pccard_intr_establish __P((struct pccard_function *, int,
-	    int (*) (void *), void *));
-void 	pccard_intr_disestablish __P((struct pccard_function *, void *));
+void	*pccard_intr_establish(struct pccard_function *, int,
+	    int (*) (void *), void *);
+void 	pccard_intr_disestablish(struct pccard_function *, void *);
