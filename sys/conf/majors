@@ -192,6 +192,7 @@ chrdev	name		comments
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
 175	ips		IBM/Adaptec ServeRAID (control device)
 176	ipsd		IBM/Adaptec ServeRAID (disk device)
+177	openfirm	OpenFirmware control device <tmm>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
