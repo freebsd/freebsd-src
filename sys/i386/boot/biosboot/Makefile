@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.50 1996/10/14 17:25:52 pst Exp $
+#	$Id: Makefile,v 1.50.2.1 1996/11/06 10:30:03 phk Exp $
 #
 
 PROG=	boot
@@ -11,6 +11,7 @@ BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
+CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
