@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.4 1995/09/18 17:00:22 peter Exp $
+ * $Id: menus.c,v 1.42.2.5 1995/09/22 23:22:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -59,9 +59,9 @@ select one of the options below by using the arrow keys or typing the\n\
 first character of the option name you're interested in.  Invoke an\n\
 option by pressing [ENTER].",		/* prompt */
     "Press F1 for usage instructions",				/* help line */
-    "usage.hlp",						/* help file */
+    "usage",						/* help file */
     { { "Usage",		"Quick start - How to use this menu system.",	/* U */
-	DMENU_DISPLAY_FILE,	"usage.hlp", 0, 0		},
+	DMENU_DISPLAY_FILE,	"usage", 0, 0		},
       { "Doc",			"More detailed documentation on FreeBSD.",	/* D */
 	DMENU_SUBMENU,		&MenuDocumentation, 0, 0	},
       { "Options",		"Select various options for this utility.",	/* O */
@@ -87,13 +87,13 @@ Hardware guide!  New users should also read the Install document for\n\
 a step-by-step tutorial on installing FreeBSD.  For general information,\n\
 consult the README file.",
     "Confused?  Press F1 for help.",
-    "usage.hlp",
+    "usage",
     { { "README",		"Read this for a general description of FreeBSD",
 	DMENU_DISPLAY_FILE,	"README", 0, 0		},
       { "Hardware",		"The FreeBSD survival guide for PC hardware.",
-	DMENU_DISPLAY_FILE,	"hardware.hlp", 0, 0	},
+	DMENU_DISPLAY_FILE,	"hardware", 0, 0	},
       { "Install",		"A step-by-step guide to installing FreeBSD.",
-	DMENU_DISPLAY_FILE,	"install.hlp", 0, 0	},
+	DMENU_DISPLAY_FILE,	"install", 0, 0	},
       { "Copyright",		"The FreeBSD Copyright notices.",
 	DMENU_DISPLAY_FILE,	"COPYRIGHT", 0, 0	},
       { "Release",		"The release notes for this version of FreeBSD.",
@@ -111,7 +111,7 @@ FreeBSD RELEASE_NAME distribution.  If you are seeing this menu it is because\n\
 more than one CDROM drive was found on your system.  Please select one\n\
 of the following CDROM drives as your installation drive.",
     "Press F1 to read the installation guide",
-    "install.hlp",
+    "install",
     { { NULL } },
 };
 
@@ -137,7 +137,7 @@ into a \"FREEBSD\" subdirectory on one of your DOS partitions.\n\
 Otherwise, please select the DOS partition containing the FreeBSD\n\
 distribution files.",
     "Press F1 to read the installation guide",
-    "install.hlp",
+    "install",
     { { NULL } },
 };
 
@@ -153,7 +153,7 @@ If the first site selected doesn't respond, try one of the alternates.\n\
 You may also wish to investigate the options menu in case of trouble.\n\
 To specify a URL not in this list, chose \"other\".",
     "Select a site that's close!",
-    "install.hlp",
+    "install",
     { { "Primary Site",		"ftp.freebsd.org",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.freebsd.org/pub/FreeBSD/RELEASE_NAME", 0, 0			},
       { "Secondary Site",	"freefall.cdrom.com",
@@ -231,7 +231,7 @@ poor random-access devices, so we extract _everything_ on the tape\n\
 in one pass).  If you have sufficient space for this, then you should\n\
 select one of the following tape devices detected on your system.",
     "Press F1 to read the installation guide",
-    "install.hlp",
+    "install",
     { { NULL } },
 };
 
@@ -249,7 +249,7 @@ To use PPP select one of the serial devices, otherwise select lp0 for\n\
 the parallel port or one of the ethernet controllers (if you have one)\n\
 for an ethernet installation.",
     "Press F1 to read network configuration manual",
-    "network_device.hlp",
+    "network_device",
     { { NULL } },
 };
 
@@ -263,7 +263,7 @@ FreeBSD from a supported CDROM drive then this is generally the best\n\
 media to use, unless you have some overriding reason for using another\n\
 media.",
     "Press F1 for more information on the various media types",
-    "media.hlp",
+    "media",
     { { "CDROM",	"Install from a FreeBSD CDROM",
 	DMENU_CALL,	mediaSetCDROM, 0, 0		},
       { "DOS",		"Install from a DOS partition",
@@ -292,7 +292,7 @@ These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"custom\".",
     "Press F1 for more information on these options.",
-    "distributions.hlp",
+    "distributions",
     { { "Developer",	"Full sources, binaries and doc but no games [171MB]",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
       { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
@@ -305,7 +305,7 @@ the list of distributions yourself, simply select \"custom\".",
 	DMENU_CALL,	distSetXUser, 0, 0		},
       { "Minimal",	"The smallest configuration possible [15MB]",
 	DMENU_CALL,	distSetMinimum, 0, 0		},
-      { "Everything",	"All sources, binaries and XFree86 binaries [203MB]",
+      { "Everything",	"All sources, binaries and XFree86 binaries [700MB]",
 	DMENU_CALL,	distSetEverything, 0, 0		},
       { "Custom",	"Specify your own distribution set [?]",
 	DMENU_SUBMENU,	&MenuDistributions, 0, 0	},
@@ -447,7 +447,7 @@ DMenu MenuXF86Select = {
 distribution.  We recommend that you select what you need from the basic\n\
 components set and at least one entry from the Server and Font set menus.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86.hlp",
+    "XF86",
     { { "Basic",	"Basic component menu (required)",
 	DMENU_SUBMENU,	&MenuXF86SelectCore, 0, 0			},
       { "Server",	"X server menu",
@@ -466,7 +466,7 @@ DMenu MenuXF86SelectCore = {
     "XFree86 3.1.1 base distribution types",
     "Please check off the basic XFree86 components you wish to install.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86.hlp",
+    "XF86",
     { { "bin",		"X client applications and shared libs [4MB].",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0, dmenuFlagCheck		},
       { "lib",		"Data files needed at runtime [600K]",
@@ -498,7 +498,7 @@ install.  At the minimum, you should install the standard\n\
 75 DPI and misc fonts if you're also installing a server\n\
 (these are selected by default).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86.hlp",
+    "XF86",
     { { "fnts",		"Standard 75 DPI and miscellaneous fonts [3.6MB]",
 	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0, dmenuFlagCheck		},
       { "f100",		"100 DPI fonts [1.8MB]",
@@ -520,7 +520,7 @@ If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
 Mono servers are particularly well-suited to most LCD displays).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86.hlp",
+    "XF86",
     { { "SVGA",		"Standard VGA or Super VGA display [1MB]",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0, dmenuFlagCheck	},
       { "VGA16",	"Standard 16 color VGA display [1MB]",
@@ -560,7 +560,7 @@ systems on your machine, you will have the option to install a boot\n\
 manager later.  To select a drive, use the arrow keys to move to it\n\
 and press [SPACE].",
     "Press F1 for important information regarding geometry!",
-    "drives.hlp",
+    "drives",
     { { NULL } },
 };
 
@@ -601,7 +601,7 @@ DMenu MenuOptions = {
 with various possible error conditions and how verbose it will\n\
 be at various stages.",
     "Press F1 for more help on these options",
-    "options.hlp",
+    "options",
     { { "FTP Options",	"Set FTP specific options",
 	DMENU_SUBMENU,	&MenuFTPOptions, 0, 0, 0			},
       { "NFS Secure",	"NFS server talks only on a secure port",
@@ -644,7 +644,7 @@ DMenu MenuInstallCustom = {
 details on the type of distribution you wish to have, where you wish\n\
 to install it from and how you wish to allocate disk storage to FreeBSD.",
     "Press F1 to read the installation guide",
-    "install.hlp",
+    "install",
     { { "Partition",	"Allocate disk space for FreeBSD",
 	DMENU_CALL,	diskPartitionEditor, 0, 0		},
       { "Label",	"Label allocated disk partitions",
@@ -679,7 +679,7 @@ If you do not want a boot selector, or wish to replace an existing\n\
 one, select \"standard\".  If you would prefer your Master Boot\n\
 Record to remain untouched, then select \"none\".",
     "Press F1 to read the installation guide",
-    "install.hlp",
+    "install",
     { { "BootMgr",		"Install the FreeBSD Boot Manager (\"Booteasy\")",
 	DMENU_SET_VALUE,	&BootMgr, 0, 0, dmenuRadioCheck		},
       { "Standard",		"Use a standard MBR (no boot manager)",
@@ -698,7 +698,7 @@ customize it somewhat to suit your particular configuration.  Most\n\
 importantly, you can use the Packages utility to load extra \"3rd party\"\n\
 software not provided in the base distributions.",
     "Press F1 for more information on these options",
-    "configure.hlp",
+    "configure",
     { { "Add User",		"Add users to the system",
 	DMENU_SYSTEM_COMMAND,	"adduser -silent", 0, 0			},
       { "Console",		"Customize system console behavior",

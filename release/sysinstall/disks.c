@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.3 1995/09/18 17:00:17 peter Exp $
+ * $Id: disks.c,v 1.31.2.4 1995/09/20 10:43:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -175,7 +175,7 @@ diskPartition(Disk *d)
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("slice.hlp");
+	    systemDisplayFile("slice");
 	    break;
 
 	case 'A':

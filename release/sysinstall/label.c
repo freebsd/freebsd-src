@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.2 1995/07/21 11:45:39 rgrimes Exp $
+ * $Id: label.c,v 1.32.2.3 1995/09/18 17:00:20 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -467,7 +467,7 @@ diskLabelEditor(char *str)
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("partition.hlp");
+	    systemDisplayFile("partition");
 	    break;
 
 	case 'A':
