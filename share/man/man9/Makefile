@@ -56,7 +56,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9 \
 	random_harvest.9 rijndael.9 \
-	sbuf.9 scheduler.9 selrecord.9 sema.9 sleep.9 sleepqueue.9 spl.9 store.9 \
+	sbuf.9 scheduler.9 selrecord.9 sema.9 signal.9 sleep.9 sleepqueue.9 spl.9 store.9 \
 	style.9 suser.9 swi.9 sx.9 sysctl_add_oid.9 sysctl_ctx_init.9 \
 	taskqueue.9 time.9 timeout.9 tvtohz.9 \
 	ucred.9 uidinfo.9 uio.9 \
@@ -178,6 +178,16 @@ MLINKS+=scheduler.9 roundrobin_interval.9 scheduler.9 sched_setup.9
 MLINKS+=scheduler.9 schedclock.9 scheduler.9 schedcpu.9
 MLINKS+=scheduler.9 setrunnable.9 scheduler.9 updatepri.9
 MLINKS+=selrecord.9 selwakeup.9
+MLINKS+=signal.9 SIGADDSET.9 signal.9 SIGDELSET.9 signal.9 SIGEMPTYSET.9
+MLINKS+=signal.9 SIGFILLSET.9 signal.9 SIGISMEMBER.9
+MLINKS+=signal.9 SIGISEMPTY.9 signal.9 SIGNOTEMPTY.9 signal.9 SIGSETEQ.9
+MLINKS+=signal.9 SETSETNEQ.9 signal.9 SETSETOR.9 signal.9 SIGSETAND.9
+MLINKS+=signal.9 SIGSETNAND.9 signal.9 SIGSETCANTMASK.9
+MLINKS+=signal.9 SIG_STOPSIGMASK.9 signal.9 SIG_CONTSIGMASK.9
+MLINKS+=signal.9 SIGPENDING.9 signal.9 CURSIG.9
+MLINKS+=signal.9 execsigs.9 signal.9 issignal.9 signal.9 killproc.9
+MLINKS+=signal.9 pgsigio.9 signal.9 postsig.9 signal.9 sigexit.9
+MLINKS+=signal.9 siginit.9 signal.9 signotify.9 signal.9 trapsignal.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
 MLINKS+=sleep.9 msleep.9
 MLINKS+=sleepqueue.9 endtsleep.9 sleepqueue.9 sleepinit.9
