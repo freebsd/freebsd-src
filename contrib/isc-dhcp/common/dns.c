@@ -3,46 +3,37 @@
    Domain Name Service subroutines. */
 
 /*
- * Copyright (c) 2001-2002 Internet Software Consortium.
- * All rights reserved.
+ * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 2001-2003 by Internet Software Consortium
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of The Internet Software Consortium nor the names
- *    of its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INTERNET SOFTWARE CONSORTIUM AND
- * CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
- * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED.  IN NO EVENT SHALL THE INTERNET SOFTWARE CONSORTIUM OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
- * USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
- * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ *   Internet Systems Consortium, Inc.
+ *   950 Charter Street
+ *   Redwood City, CA 94063
+ *   <info@isc.org>
+ *   http://www.isc.org/
  *
- * This software has been written for the Internet Software Consortium
+ * This software has been written for Internet Systems Consortium
  * by Ted Lemon in cooperation with Nominum, Inc.
- * To learn more about the Internet Software Consortium, see
+ * To learn more about Internet Systems Consortium, see
  * ``http://www.isc.org/''.  To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
  */
 
 #ifndef lint
 static char copyright[] =
-"$Id: dns.c,v 1.35.2.13 2002/11/17 02:26:57 dhankins Exp $ Copyright (c) 2001-2002 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dns.c,v 1.35.2.16 2004/06/17 20:54:38 dhankins Exp $ Copyright (c) 2004 Internet Systems Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -539,15 +530,11 @@ isc_result_t ddns_update_a (struct data_string *ddns_fwd_name,
 
 	if (ddns_addr.len != 4)
 		return ISC_R_INVALIDARG;
-#ifndef NO_SNPRINTF
-	snprintf (ddns_address, 16, "%d.%d.%d.%d",
+
+	/* %Audit% Cannot exceed 16 bytes. %2004.06.17,Safe% */
+	sprintf (ddns_address, "%u.%u.%u.%u",
 		  ddns_addr.iabuf[0], ddns_addr.iabuf[1],
 		  ddns_addr.iabuf[2], ddns_addr.iabuf[3]);
-#else
-	sprintf (ddns_address, "%d.%d.%d.%d",
-		 ddns_addr.iabuf[0], ddns_addr.iabuf[1],
-		 ddns_addr.iabuf[2], ddns_addr.iabuf[3]);
-#endif
 
 	/*
 	 * When a DHCP client or server intends to update an A RR, it first
@@ -793,16 +780,10 @@ isc_result_t ddns_remove_a (struct data_string *ddns_fwd_name,
 	if (ddns_addr.len != 4)
 		return ISC_R_INVALIDARG;
 
-#ifndef NO_SNPRINTF
-	snprintf (ddns_address, 16, "%d.%d.%d.%d",
+	/* %Audit% Cannot exceed 16 bytes. %2004.06.17,Safe% */
+	sprintf (ddns_address, "%u.%u.%u.%u",
 		  ddns_addr.iabuf[0], ddns_addr.iabuf[1],
 		  ddns_addr.iabuf[2], ddns_addr.iabuf[3]);
-#else
-	sprintf (ddns_address, "%d.%d.%d.%d",
-		 ddns_addr.iabuf[0], ddns_addr.iabuf[1],
-		 ddns_addr.iabuf[2], ddns_addr.iabuf[3]);
-#endif
-
 
 	/*
 	 * The entity chosen to handle the A record for this client (either the

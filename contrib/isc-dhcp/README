@@ -1,7 +1,6 @@
-	    Internet Software Consortium DHCP Distribution
-			     Version 3.0.1
-			  Release Candidate 12
-			     April 28, 2002
+	       Internet Systems Consortium DHCP Distribution
+			   Version 3.0.1rc14
+			     June 09, 2004
 
 			      README FILE
 
@@ -97,18 +96,16 @@ system.
 
 			    RELEASE STATUS
 
-This is the twelfth release candidate of version 3.0.1 of the ISC DHCP
-Distribution.  Development of this release is approaching the point at
-which it will be frozen, and no significant new features will be
-added.
+This is fourteenth release candidate of version 3.0.1 of the ISC DHCP
+Distribution.  
 
 In this release, the server and relay agent are currently fully
 functional on NetBSD, Linux systems with kernel version 2.2 or later,
-FreeBSD, OpenBSD, BSD/OS, Digital Tru64 Unix and Solaris.  The
-software will also run on HP-UX, but only supports a single network
-interface.  Ports also exist for QNX, SCO, NeXTStep, and MacOS X, but
-are not in wide use, with all that implies.   We are not aware of an
-easy way to get this software running on HP-UX.
+FreeBSD, OpenBSD, BSD/OS, Digital Tru64 Unix and Solaris.  The software
+will also run on HP-UX, but only supports a single network interface.
+Ports also exist for QNX, SCO, NeXTStep, and MacOS X, but are not in
+wide use, with all that implies.   We are not aware of an easy way to
+get this software running on HP-UX.
 
 The DHCP client currently only knows how to configure the network on
 NetBSD, FreeBSD, OpenBSD, BSD/os, Linux, Solaris and NextStep.  The
@@ -143,14 +140,14 @@ information.   On Digital Unix, type ``man pfilt''.
 To build the DHCP Distribution, unpack the compressed tar file using
 the tar utility and the gzip command - type something like:
 
-	zcat dhcp-3.0.1rc11.tar.gz |tar xvf -
+	zcat dhcp-3.0.1rc14.tar.gz |tar xvf -
 
 On BSD/OS, you have to type gzcat, not zcat, and you may run into
 similar problems on other operating systems.
 
 			    CONFIGURING IT
 
-Now, cd to the dhcp-3.0.1rc11 subdirectory that you've just
+Now, cd to the dhcp-3.0.1rc14 subdirectory that you've just
 created and configure the source tree by typing:
 
 		./configure
@@ -466,14 +463,14 @@ rather than using the ISC DHCP client.  The feature set of the Solaris
 client is different (not necessarily better or worse) than that of the
 ISC client, but in most cases it will be a lot easier for you to just
 use that.  Please do not ask for help in using the Solaris DHCP client
-on Internet Software Consortium mailing lists - that's why you're
+on Internet Systems Consortium mailing lists - that's why you're
 paying Sun the big bucks.   If you're having a problem with the
 Solaris client interoperating with the ISC dhcp server, that's another
 matter, but please check with Sun first.
 
 			       SUPPORT
 
-The Internet Software Consortium DHCP server is not a commercial
+The Internet Systems Consortium DHCP server is not a commercial
 product, and is not supported by the ISC.  However, it has attracted a
 fairly sizable following on the Internet, which means that there are a
 lot of knowledgable users who may be able to help you if you get
@@ -508,8 +505,8 @@ PLEASE DO NOT REPORT BUGS IN OLD SOFTWARE RELEASES!  Fetch the latest
 release and see if the bug is still in that version of the software,
 and if it's not, _then_ report it.  It's okay to report bugs in the
 latest patchlevel of a major version that's not the most recent major
-version, though - for example, if you're running 2.0, you don't have
-to upgrade to 3.0 before you can report bugs.
+version, though - for example, if you're running 3.0pl2, you don't have
+to upgrade to a 3.0.1rc (release candidate) before you can report bugs.
 
 PLEASE DO NOT REPORT BUGS IF YOU ARE RUNNING A VERSION OF THE ISC
 DHCP DISTRIBUTION THAT YOU DIDN'T GET FROM THE ISC!   Free operating
@@ -639,7 +636,7 @@ If you are having problems with a client whose executable is called
 dhcpcd, this is _not_ the ISC DHCP client, and we probably can't help
 you with it.
 
-Please see http://www.isc.org/services/public/lists/dhcp-lists.html
-for details on how to subscribe to the ISC DHCP mailing lists.
+Please see http://www.isc.org/sw/dhcp/ for details on how to subscribe
+to the ISC DHCP mailing lists.
 
 
