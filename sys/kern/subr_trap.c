@@ -118,7 +118,7 @@ userret(td, frame, oticks)
 	}
 
 	/*
-	 * DO special thread processing, e.g. upcall tweaking and such
+	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
 	if (p->p_flag & P_KSES) {
 		thread_userret(td, frame);
