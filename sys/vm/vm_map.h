@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.35 1999/02/07 21:48:22 dillon Exp $
+ * $Id: vm_map.h,v 1.36 1999/02/19 14:25:36 luoqi Exp $
  */
 
 /*
@@ -130,7 +130,6 @@ struct vm_map {
 	struct vm_map_entry header;	/* List of entries */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
-	unsigned char	is_main_map;		/* Am I a main map? */
 	unsigned char	system_map;			/* Am I a system map? */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	unsigned int timestamp;		/* Version number */
