@@ -105,8 +105,9 @@ tgetent(char *bp, const char *name)
 			strncpy(pathbuf, termpath, PBUFSIZ);
 		else {
 			if ( (home = getenv("HOME")) ) {/* set up default */
-				p += strlen(home);	/* path, looking in */
-				strcpy(pathbuf, home);	/* $HOME first */
+				strncpy(pathbuf, home, PBUFSIZ - 1); /* $HOME first */
+				pathbuf[PBUFSIZ - 2] = '\0'; /* -2 because we add a slash */
+				p += strlen(pathbuf);	/* path, looking in */
 				*p++ = '/';
 			}	/* if no $HOME look in current directory */
 			strncpy(p, _PATH_DEF, PBUFSIZ - (p - pathbuf));
@@ -114,7 +115,11 @@ tgetent(char *bp, const char *name)
 	}
 	else				/* user-defined name in TERMCAP */
 		strncpy(pathbuf, cp, PBUFSIZ);	/* still can be tokenized */
+	pathbuf[PBUFSIZ - 1] = '\0';
 
+	/* XXX Should really be issetguid(), but we don't have that */
+	if (getuid() != geteuid() || getgid() != getegid())
+		strcpy(pathbuf, _PATH_DEF_SEC);
 	*fname++ = pathbuf;	/* tokenize path into vector of names */
 	while (*++p)
 		if (*p == ' ' || *p == ':') {
