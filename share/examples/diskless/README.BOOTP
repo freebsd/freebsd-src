@@ -23,7 +23,7 @@ be useful to set up clients and server for diskless boot.
     optional NFS based swap, and NFS based root mount.  The NFS server will
     typically export a shared read-only /, /usr, and /var to any number of
     workstations.  The shared read-only root is typically either the server's
-    own root or, if you are more security concious, a contrived root.
+    own root or, if you are more security conscious, a contrived root.
 
     The key issue with starting up a BOOTP kernel is that you typically want
     to export read-only NFS partitions from the server, yet still be able to
