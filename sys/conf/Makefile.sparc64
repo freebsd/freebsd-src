@@ -39,7 +39,7 @@ S=	../../..
 # XXX: this should probably go somewhere else
 COPTS+=		-mcmodel=medlow -msoft-float
 
-SYSTEM_SFILES= $S/$M/$M/locore.s $S/$M/$M/exception.s
+SYSTEM_SFILES= $S/$M/$M/locore.S $S/$M/$M/exception.S
 SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
 
 %BEFORE_DEPEND
@@ -60,10 +60,10 @@ SYSTEM_OBJS= locore.o exception.o vnode_if.o ${OBJS} hints.o env.o config.o hack
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
 
-exception.o: $S/$M/$M/exception.s assym.s
+exception.o: $S/$M/$M/exception.S assym.s
 	${NORMAL_S}
 
-locore.o: $S/$M/$M/locore.s assym.s
+locore.o: $S/$M/$M/locore.S assym.s
 	${NORMAL_S}
 
 %RULES
