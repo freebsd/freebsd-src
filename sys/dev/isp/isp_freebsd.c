@@ -3,7 +3,6 @@
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
  * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,8 +75,8 @@ isp_attach(struct ispsoftc *isp)
 	isp->isp_osinfo.ehook.ich_func = isp_intr_enable;
 	isp->isp_osinfo.ehook.ich_arg = isp;
 	if (config_intrhook_establish(&isp->isp_osinfo.ehook) != 0) {
-		printf("%s: could not establish interrupt enable hook\n",
-		    isp->isp_name);
+		isp_prt(isp, ISP_LOGERR,
+		    "could not establish interrupt enable hook");
 		cam_sim_free(sim, TRUE);
 		return;
 	}
@@ -158,7 +157,7 @@ isp_intr_enable(void *arg)
 {
 	struct ispsoftc *isp = arg;
 	ENABLE_INTS(isp);
-#ifdef	SERVICING_INTERRUPT
+#if	0
 	isp->isp_osinfo.intsok = 1;
 #endif
 	/* Release our hook so that the boot can continue. */
@@ -1488,9 +1487,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_PATH_INVALID;
 		}
 		if (ccb->ccb_h.status == CAM_PATH_INVALID) {
-			printf("%s: invalid tgt/lun (%d.%d) in XPT_SCSI_IO\n",
-			    isp->isp_name, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			isp_prt(isp, ISP_LOGERR,
+			    "invalid tgt/lun (%d.%d) in XPT_SCSI_IO",
+			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 			xpt_done(ccb);
 			break;
 		}
@@ -1540,7 +1539,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			isp_done((struct ccb_scsiio *) ccb);
 			break;
 		default:
-			printf("%s: What's this? 0x%x at %d in file %s\n",
+			isp_prt(isp, ISP_LOGERR,
+			    "What's this? 0x%x at %d in file %s",
 			    isp->isp_name, error, __LINE__, __FILE__);
 			XS_SETERR(ccb, CAM_REQ_CMP_ERR);
 			xpt_done(ccb);
@@ -1719,15 +1719,14 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				*dptr &= ~DPARM_SYNC;
 			}
 			*dptr |= DPARM_SAFE_DFLT;
-			if (bootverbose || isp->isp_dblev >= 3)
-				printf("%s: %d.%d set %s period 0x%x offset "
-				    "0x%x flags 0x%x\n", isp->isp_name, bus,
-				    tgt,
-				    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-				    "current" : "user", 
-				    sdp->isp_devparam[tgt].sync_period,
-				    sdp->isp_devparam[tgt].sync_offset,
-				    sdp->isp_devparam[tgt].dev_flags);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
+			    isp->isp_name, bus, tgt,
+			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    "current" : "user", 
+			    sdp->isp_devparam[tgt].sync_period,
+			    sdp->isp_devparam[tgt].sync_offset,
+			    sdp->isp_devparam[tgt].dev_flags);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
 		}
@@ -1801,12 +1800,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
 			ISP_UNLOCK(isp);
-			if (bootverbose || isp->isp_dblev >= 3)
-				printf("%s: %d.%d get %s period 0x%x offset "
-				    "0x%x flags 0x%x\n", isp->isp_name, bus,
-				    tgt,
-			    	    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
-				    "current" : "user", pval, oval, dval);
+			isp_prt(isp, ISP_LOGDEBUG0,
+			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
+			    isp->isp_name, bus, tgt,
+			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    "current" : "user", pval, oval, dval);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1820,9 +1818,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
-			printf("%s: %d.%d XPT_CALC_GEOMETRY block size 0?\n",
-				isp->isp_name, ccg->ccb_h.target_id,
-				ccg->ccb_h.target_lun);
+			isp_prt(isp, ISP_LOGERR,
+			    "%d.%d XPT_CALC_GEOMETRY block size 0?",
+			    ccg->ccb_h.target_id, ccg->ccb_h.target_lun);
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			break;
@@ -2010,9 +2008,9 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		if (xpt_create_path(&tmppath, NULL,
 		    cam_sim_path(bus? isp->isp_sim2 : isp->isp_sim),
 		    tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-			xpt_print_path(isp->isp_path);
-			printf("isp_async cannot make temp path for "
-			    "target %d bus %d\n", tgt, bus);
+			isp_prt(isp, ISP_LOGWARN,
+			    "isp_async cannot make temp path for %d.%d",
+			    tgt, bus);
 			rv = -1;
 			break;
 		}
@@ -2191,8 +2189,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 				break;
 		}
 		if (target == MAX_FC_TARG) {
-			printf("%s: no more space for fabric devices\n",
-			    isp->isp_name);
+			isp_prt(isp, ISP_LOGWARN,
+			    "no more space for fabric devices");
 			break;
 		}
 		lp->node_wwn = wwnn;
@@ -2223,8 +2221,9 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 	case ISPASYNC_TARGET_ACTION:
 		switch (((isphdr_t *)arg)->rqs_entry_type) {
 		default:
-			printf("%s: event 0x%x for unhandled target action\n",
-			    isp->isp_name, ((isphdr_t *)arg)->rqs_entry_type);
+			isp_prt(isp, ISP_LOGWARN,
+			   "event 0x%x for unhandled target action",
+			    ((isphdr_t *)arg)->rqs_entry_type);
 			break;
 		case RQSTYPE_ATIO:
 			rv = isp_handle_platform_atio(isp, (at_entry_t *) arg);
