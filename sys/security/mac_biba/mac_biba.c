@@ -477,6 +477,18 @@ mac_biba_create_devfs_directory(char *dirname, int dirnamelen,
 }
 
 static void
+mac_biba_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
+    struct label *ddlabel, struct devfs_dirent *de, struct label *delabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(&cred->cr_label);
+	dest = SLOT(delabel);
+
+	mac_biba_copy_single(source, dest);
+}
+
+static void
 mac_biba_create_devfs_vnode(struct devfs_dirent *devfs_dirent,
     struct label *direntlabel, struct vnode *vp, struct label *vnodelabel)
 {
@@ -1983,6 +1995,8 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_create_devfs_device },
 	{ MAC_CREATE_DEVFS_DIRECTORY,
 	    (macop_t)mac_biba_create_devfs_directory },
+	{ MAC_CREATE_DEVFS_SYMLINK,
+	    (macop_t)mac_biba_create_devfs_symlink },
 	{ MAC_CREATE_DEVFS_VNODE,
 	    (macop_t)mac_biba_create_devfs_vnode },
 	{ MAC_CREATE_VNODE,
