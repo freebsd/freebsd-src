@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: gif.4,v 1.17 2000/06/30 18:31:27 itojun Exp $
+.\"	$KAME: gif.4,v 1.28 2001/05/18 13:15:56 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -44,7 +44,11 @@ It can tunnel IPv[46] traffic over IPv[46].
 Therefore, there can be four possible configurations.
 The behavior of
 .Nm
-is mainly based on RFC1933 IPv6-over-IPv4 configured tunnel.
+is mainly based on RFC2893 IPv6-over-IPv4 configured tunnel.
+On
+.Nx ,
+.Nm
+can also tunnel ISO traffic over IPv[46] using EON encapsulation.
 .Pp
 To use
 .Nm ,
@@ -70,79 +74,9 @@ Finally, use routing table to route the packets toward
 interface.
 .Pp
 .Nm
-interface can be configued to perform bidirectional tunnel, or
-multi-destination tunnel.
-This is controlled by
-.Dv IFF_LINK0
-interface flag.
-Also,
-.Nm
 can be configured to be ECN friendly.
 This can be configured by
 .Dv IFF_LINK1 .
-.\"
-.Ss Bidirectional and multi-destination mode
-Usually,
-.Nm
-implements bidirectional tunnel.
-.Xr gifconfig 8
-should configure a tunnel ingress point
-.Pq this node
-and an egress point
-.Pq tunnel endpoint ,
-and
-one
-.Nm
-interface will tunnel to only a single tunnel endpoint,
-and accept from only a single tunnel endpoint.
-Source and destination address for outer IP header is always the
-ingress and the egress point configued by
-.Xr gifconfig 8 .
-.Pp
-With
-.Dv IFF_LINK0
-interface flag,
-.Nm
-can be configured to implement multi-destination tunnel.
-With
-.Dv IFF_LINK0 ,
-it is able to configure egress point to IPv4 wildcard address
-.Pq Li 0.0.0.0
-or IPv6 unspecified address
-.Pq Li 0::0 .
-In this case, destination address for the outer IP header is
-determined based on the routing table setup.
-Therefore, one
-.Nm
-interface can tunnel to multiple destinations.
-Also,
-.Nm
-will accept tunneled traffic from any outer source address.
-.Pp
-When finding a
-.Nm
-interface from the inbound tunneled traffic,
-bidirectional mode interface is preferred than multi-destination mode interface.
-For example, if you have the following three
-.Nm
-interfaces on node A, tunneled traffic from C to A will match the second
-.Nm
-interface, not the third one.
-.Bl -bullet -compact -offset indent
-.It
-bidirectional, A to B
-.It
-bidirectional, A to C
-.It
-multi-destination, A to any
-.El
-.Pp
-Please note that multi-destination mode is far less secure
-than bidirectional mode.
-Multi-destination mode
-.Nm
-can accept tunneled packet from anybody,
-and can be attacked from a malicious node.
 .Pp
 .Ss ECN friendly behavior
 .Nm
@@ -155,7 +89,7 @@ interface flag.
 Without
 .Dv IFF_LINK1 ,
 .Nm
-will show a normal behavior, like described in RFC1933.
+will show a normal behavior, like described in RFC2893.
 This can be summarized as follows:
 .Bl -tag -width "Ingress" -offset indent
 .It Ingress
@@ -194,7 +128,7 @@ If outer ECN CE bit is
 enable ECN CE bit on the inner.
 .El
 .Pp
-Note that the ECN friendly behavior violates RFC1933.
+Note that the ECN friendly behavior violates RFC2893.
 This should be used in mutual agreement with the peer.
 .Pp
 .Ss Security
@@ -206,10 +140,9 @@ performs martian filter and ingress filter against outer source address,
 on egress.
 Note that martian/ingress filters are no way complete.
 You may want to secure your node by using packet filters.
-.Pp
-As mentioned above, multi-destination mode
-.Pq Dv IFF_LINK0
-is far less secure than bidirectional mode.
+Ingress filter can be turned off by
+.Dv IFF_LINK2
+bit.
 .\"
 .Sh SEE ALSO
 .Xr inet 4 ,
@@ -218,10 +151,10 @@ is far less secure than bidirectional mode.
 .Rs
 .%A	R. Gilligan
 .%A	E. Nordmark
-.%B	RFC1933
+.%B	RFC2893
 .%T	Transition Mechanisms for IPv6 Hosts and Routers
-.%D	April 1996
-.%O	ftp://ftp.isi.edu/in-notes/rfc1933.txt
+.%D	August 2000
+.%O	ftp://ftp.isi.edu/in-notes/rfc2893.txt
 .Re
 .Rs
 .%A	Sally Floyd
@@ -256,7 +189,24 @@ Make sure to configure an address which belongs to your node.
 Otherwise, your node will not be able to receive packets from the peer,
 and your node will generate packets with a spoofed source address.
 .Pp
-.Xr gif 4
-is an
-.Dv IFF_POINTOPOINT
-device, however, it supports NBMA behavior in multi-destination mode.
+If the outer protocol is IPv4,
+.Nm
+does not try to perform path MTU discovery for the encapsulated packet
+.Pq DF bit is set to 0 .
+.Pp
+If the outer protocol is IPv6, path MTU discovery for encapsulated packet
+may affect communication over the interface.
+The first bigger-than-pmtu packet may be lost.
+To avoid the problem, you may want to set the interface MTU for
+.Nm
+to 1240 or smaller, when outer header is IPv6 and inner header is IPv4.
+.Pp
+.Nm
+does not translate ICMP messages for outer header into inner header.
+.Pp
+In the past,
+.Nm
+had a multi-destination behavior, configurable via
+.Dv IFF_LINK0
+flag.
+The behavior was obsoleted and is no longer supported.

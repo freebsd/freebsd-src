@@ -228,6 +228,20 @@ struct mbstat {
 	u_long	m_minclsize;	/* min length of data to allocate a cluster */
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
+
+	u_quad_t m_exthdrget;	/* # of calls to IP6_EXTHDR_GET */
+	u_quad_t m_exthdrget0;	/* # of calls to IP6_EXTHDR_GET0 */
+	u_quad_t m_pulldowns;	/* # of calls to m_pulldown */
+	u_quad_t m_pulldown_copy; /* # of mbuf copies in m_pulldown */
+	u_quad_t m_pulldown_alloc; /* # of mbuf allocs in m_pulldown */
+	u_quad_t m_pullups;	/* # of calls to m_pullup */
+	u_quad_t m_pullup_copy;	/* # of possible m_pullup copies */
+	u_quad_t m_pullup_alloc; /* # of possible m_pullup mallocs */
+	u_quad_t m_pullup_fail;	/* # of possible m_pullup failures */
+	u_quad_t m_pullup2;	/* # of calls to m_pullup2 */
+	u_quad_t m_pullup2_copy; /* # of possible m_pullup2 copies */
+	u_quad_t m_pullup2_alloc; /* # of possible m_pullup2 mallocs */
+	u_quad_t m_pullup2_fail; /* # of possible m_pullup2 failures */
 };
 
 /* flags to m_get/MGET */
@@ -524,6 +538,10 @@ struct mcntfree_lst {
  * MFREE(struct mbuf *m, struct mbuf *n)
  * Free a single mbuf and associated external storage.
  * Place the successor, if any, in n.
+ *
+ * we do need to check non-first mbuf for m_aux, since some of existing
+ * code does not call M_PREPEND properly.
+ * (example: call to bpf_mtap from drivers)
  */
 #define	MFREE(m, n) do {						\
 	struct mbuf *_mm = (m);						\
@@ -533,6 +551,10 @@ struct mcntfree_lst {
 		MEXTFREE(_mm);						\
 	mtx_lock(&mbuf_mtx);						\
 	mbtypes[_mm->m_type]--;						\
+	if ((_mm->m_flags & M_PKTHDR) != 0 && _mm->m_pkthdr.aux) {	\
+		m_freem(_mm->m_pkthdr.aux);				\
+		_mm->m_pkthdr.aux = NULL;				\
+	}								\
 	_mm->m_type = MT_FREE;						\
 	mbtypes[MT_FREE]++;						\
 	(n) = _mm->m_next;						\
@@ -649,6 +671,7 @@ struct mcntfree_lst {
 struct mauxtag {
 	int	af;
 	int	type;
+	void*	p;
 };
 
 extern	u_long		 m_clalloc_wid;	/* mbuf cluster wait count */
@@ -672,6 +695,8 @@ extern	int		 nsfbufs;
 
 void	m_adj(struct mbuf *, int);
 int	m_alloc_ref(u_int, int);
+struct	mbuf *m_aux_add2 __P((struct mbuf *, int, int, void *));
+struct	mbuf *m_aux_find2 __P((struct mbuf *, int, int, void *));
 struct	mbuf *m_aux_add(struct mbuf *, int, int);
 void	m_aux_delete(struct mbuf *, struct mbuf *);
 struct	mbuf *m_aux_find(struct mbuf *, int, int);

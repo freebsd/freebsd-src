@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 #include <sys/ioctl.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sysctl.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -59,6 +60,7 @@ static char sccsid[] = "@(#)inet6.c	8.4 (Berkeley) 4/20/94";
 #include <netinet6/in6_var.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/pim6_var.h>
+#include <netinet6/raw_ip6.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -868,6 +870,13 @@ icmp6_stats(off, name)
 
 	p(icp6s_reflect, "\t%llu message response%s generated\n");
 	p(icp6s_nd_toomanyopt, "\t%llu message%s with too many ND options\n");
+	p(icp6s_nd_badopt, "\t%qu message%s with bad ND options\n");
+	p(icp6s_badns, "\t%qu bad neighbor solicitation message%s\n");
+	p(icp6s_badna, "\t%qu bad neighbor advertisement message%s\n");
+	p(icp6s_badrs, "\t%qu bad router solicitation message%s\n");
+	p(icp6s_badra, "\t%qu bad router advertisement message%s\n");
+	p(icp6s_badredirect, "\t%qu bad redirect message%s\n");
+	p(icp6s_pmtuchg, "\t%llu path MTU change%s\n");
 #undef p
 #undef p_5
 }
@@ -962,6 +971,52 @@ pim6_stats(off, name)
 	p(pim6s_rcv_registers, "\t%llu register%s received\n");
 	p(pim6s_rcv_badregisters, "\t%llu bad register%s received\n");
 	p(pim6s_snd_registers, "\t%llu register%s sent\n");
+#undef p
+}
+
+/*
+ * Dump raw ip6 statistics structure.
+ */
+void
+rip6_stats(off, name)
+	u_long off;
+	char *name;
+{
+	struct rip6stat rip6stat;
+	u_quad_t delivered;
+	int mib[4];
+	size_t l;
+
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET6;
+	mib[2] = IPPROTO_IPV6;
+	mib[3] = IPV6CTL_RIP6STATS;
+	l = sizeof(rip6stat);
+	if (sysctl(mib, 4, &rip6stat, &l, NULL, 0) < 0) {
+		perror("Warning: sysctl(net.inet6.ip6.rip6stats)");
+		return;
+	}
+
+	printf("%s:\n", name);
+
+#define	p(f, m) if (rip6stat.f || sflag <= 1) \
+    printf(m, (unsigned long long)rip6stat.f, plural(rip6stat.f))
+	p(rip6s_ipackets, "\t%llu message%s received\n");
+	p(rip6s_isum, "\t%llu checksum calcuration%s on inbound\n");
+	p(rip6s_badsum, "\t%llu message%s with bad checksum\n");
+	p(rip6s_nosock, "\t%llu message%s dropped due to no socket\n");
+	p(rip6s_nosockmcast,
+	    "\t%llu multicast message%s dropped due to no socket\n");
+	p(rip6s_fullsock,
+	    "\t%llu message%s dropped due to full socket buffers\n");
+	delivered = rip6stat.rip6s_ipackets -
+		    rip6stat.rip6s_badsum -
+		    rip6stat.rip6s_nosock -
+		    rip6stat.rip6s_nosockmcast -
+		    rip6stat.rip6s_fullsock;
+	if (delivered || sflag <= 1)
+		printf("\t%llu delivered\n", (unsigned long long)delivered);
+	p(rip6s_opackets, "\t%llu datagram%s output\n");
 #undef p
 }
 

@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_gif.h,v 1.13 2000/06/17 20:34:24 itojun Exp $	*/
+/*	$KAME: if_gif.h,v 1.17 2000/09/11 11:36:41 sumikawa Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -38,10 +38,8 @@
 #define _NET_IF_GIF_H_
 
 
-#if (defined(__FreeBSD__) && __FreeBSD__ >= 3) || defined(__NetBSD__)
 #if defined(_KERNEL) && !defined(_LKM)
 #include "opt_inet.h"
-#endif
 #endif
 
 #include <netinet/in.h>

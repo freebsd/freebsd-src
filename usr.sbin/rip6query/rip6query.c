@@ -1,3 +1,5 @@
+/*	$KAME: rip6query.c,v 1.11 2001/05/08 04:36:37 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -41,6 +43,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
+
 #include <net/if.h>
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
@@ -82,7 +86,7 @@ main(argc, argv)
 	char pbuf[10];
 	struct addrinfo hints, *res;
 
-	while ((c = getopt(argc, argv, "I:")) != EOF) {
+	while ((c = getopt(argc, argv, "I:")) != -1) {
 		switch (c) {
 		case 'I':
 			ifidx = if_nametoindex(optarg);
@@ -102,7 +106,7 @@ main(argc, argv)
 
 	if (argc != 1) {
 		usage();
-		exit(-1);
+		exit(1);
 	}
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {

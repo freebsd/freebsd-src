@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip_encap.c,v 1.36 2000/06/17 20:34:24 itojun Exp $	*/
+/*	$KAME: ip_encap.c,v 1.41 2001/03/15 08:35:08 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -67,6 +67,7 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -100,12 +101,21 @@ static int mask_match __P((const struct encaptab *, const struct sockaddr *,
 		const struct sockaddr *));
 static void encap_fillarg __P((struct mbuf *, const struct encaptab *));
 
+#ifndef LIST_HEAD_INITIALIZER
 /* rely upon BSS initialization */
 LIST_HEAD(, encaptab) encaptab;
+#else
+LIST_HEAD(, encaptab) encaptab = LIST_HEAD_INITIALIZER(&encaptab);
+#endif
 
 void
 encap_init()
 {
+	static int initialized = 0;
+
+	if (initialized)
+		return;
+	initialized++;
 #if 0
 	/*
 	 * we cannot use LIST_INIT() here, since drivers may want to call
@@ -118,6 +128,7 @@ encap_init()
 #endif
 }
 
+#ifdef INET
 void
 #if __STDC__
 encap4_input(struct mbuf *m, ...)
@@ -221,6 +232,7 @@ encap4_input(m, va_alist)
 	/* last resort: inject to raw socket */
 	rip_input(m, off, proto);
 }
+#endif
 
 #ifdef INET6
 int

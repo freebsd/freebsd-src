@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ipsec.h,v 1.33 2000/06/19 14:31:49 sakane Exp $	*/
+/*	$KAME: ipsec.h,v 1.44 2001/03/23 08:08:47 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -36,6 +36,11 @@
 
 #ifndef _NETINET6_IPSEC_H_
 #define _NETINET6_IPSEC_H_
+
+#if defined(_KERNEL) && !defined(_LKM) && !defined(KLD_MODULE)
+#include "opt_inet.h"
+#include "opt_ipsec.h"
+#endif
 
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
@@ -79,6 +84,18 @@ struct secpolicy {
 	struct ipsecrequest *req;
 				/* pointer to the ipsec request tree, */
 				/* if policy == IPSEC else this value == NULL.*/
+
+	/*
+	 * lifetime handler.
+	 * the policy can be used without limitiation if both lifetime and
+	 * validtime are zero.
+	 * "lifetime" is passed by sadb_lifetime.sadb_lifetime_addtime.
+	 * "validtime" is passed by sadb_lifetime.sadb_lifetime_usetime.
+	 */
+	long created;		/* time created the policy */
+	long lastused;		/* updated every when kernel sends a packet */
+	long lifetime;		/* duration of the lifetime of this policy */
+	long validtime;		/* duration this policy is valid without use */
 };
 
 /* Request for IPsec */
@@ -107,7 +124,7 @@ struct secspacq {
 
 	struct secpolicyindex spidx;
 
-	u_int32_t tick;		/* for lifetime */
+	long created;		/* for lifetime */
 	int count;		/* for lifetime */
 	/* XXX: here is mbuf place holder to be sent ? */
 };
@@ -137,9 +154,9 @@ struct secspacq {
 
 /* Policy level */
 /*
- * IPSEC, ENTRUST and BYPASS are allowd for setsockopt() in PCB,
- * DISCARD, IPSEC and NONE are allowd for setkey() in SPD.
- * DISCARD and NONE are allowd for system default.
+ * IPSEC, ENTRUST and BYPASS are allowed for setsockopt() in PCB,
+ * DISCARD, IPSEC and NONE are allowed for setkey() in SPD.
+ * DISCARD and NONE are allowed for system default.
  */
 #define IPSEC_POLICY_DISCARD	0	/* discarding packet */
 #define IPSEC_POLICY_NONE	1	/* through IPsec engine */
@@ -216,7 +233,8 @@ struct ipsecstat {
 #define	IPSECCTL_DFBIT			10
 #define	IPSECCTL_ECN			11
 #define	IPSECCTL_DEBUG			12
-#define IPSECCTL_MAXID			13
+#define	IPSECCTL_ESP_RANDPAD		13
+#define IPSECCTL_MAXID			14
 
 #define IPSECCTL_NAMES { \
 	{ 0, 0 }, \
@@ -232,6 +250,7 @@ struct ipsecstat {
 	{ "dfbit", CTLTYPE_INT }, \
 	{ "ecn", CTLTYPE_INT }, \
 	{ "debug", CTLTYPE_INT }, \
+	{ "esp_randpad", CTLTYPE_INT }, \
 }
 
 #define IPSEC6CTL_NAMES { \
@@ -248,6 +267,7 @@ struct ipsecstat {
 	{ 0, 0 }, \
 	{ "ecn", CTLTYPE_INT }, \
 	{ "debug", CTLTYPE_INT }, \
+	{ "esp_randpad", CTLTYPE_INT }, \
 }
 
 #ifdef _KERNEL
@@ -255,6 +275,11 @@ struct ipsec_output_state {
 	struct mbuf *m;
 	struct route *ro;
 	struct sockaddr *dst;
+};
+
+struct ipsec_history {
+	int ih_proto;
+	u_int32_t ih_spi;
 };
 
 extern int ipsec_debug;
@@ -269,6 +294,7 @@ extern int ip4_ah_cleartos;
 extern int ip4_ah_offsetmask;
 extern int ip4_ipsec_dfbit;
 extern int ip4_ipsec_ecn;
+extern int ip4_esp_randpad;
 
 #define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
 
@@ -307,10 +333,15 @@ extern void ipsec_dumpmbuf __P((struct mbuf *));
 
 extern int ipsec4_output __P((struct ipsec_output_state *, struct secpolicy *,
 	int));
-extern int ipsec4_tunnel_validate __P((struct ip *, u_int, struct secasvar *));
+extern int ipsec4_tunnel_validate __P((struct mbuf *, int, u_int,
+	struct secasvar *));
 extern struct mbuf *ipsec_copypkt __P((struct mbuf *));
-extern void ipsec_setsocket __P((struct mbuf *, struct socket *));
+extern void ipsec_delaux __P((struct mbuf *));
+extern int ipsec_setsocket __P((struct mbuf *, struct socket *));
 extern struct socket *ipsec_getsocket __P((struct mbuf *));
+extern int ipsec_addhist __P((struct mbuf *, int, u_int32_t)); 
+extern struct ipsec_history *ipsec_gethist __P((struct mbuf *, int *));
+extern void ipsec_clearhist __P((struct mbuf *));
 #endif /*_KERNEL*/
 
 #ifndef _KERNEL
@@ -318,7 +349,7 @@ extern caddr_t ipsec_set_policy __P((char *, int));
 extern int ipsec_get_policylen __P((caddr_t));
 extern char *ipsec_dump_policy __P((caddr_t, char *));
 
-extern char *ipsec_strerror __P((void));
+extern const char *ipsec_strerror __P((void));
 #endif /*!_KERNEL*/
 
 #endif /*_NETINET6_IPSEC_H_*/

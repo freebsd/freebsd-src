@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: pfkey_dump.c,v 1.19 2000/06/10 06:47:11 sakane Exp $	*/
+/*	$KAME: pfkey_dump.c,v 1.27 2001/03/12 09:03:38 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
@@ -52,6 +52,29 @@
 #include "ipsec_strerror.h"
 #include "libpfkey.h"
 
+/* cope with old kame headers - ugly */
+#ifndef SADB_X_AALG_MD5
+#define SADB_X_AALG_MD5		SADB_AALG_MD5	
+#endif
+#ifndef SADB_X_AALG_SHA
+#define SADB_X_AALG_SHA		SADB_AALG_SHA
+#endif
+#ifndef SADB_X_AALG_NULL
+#define SADB_X_AALG_NULL	SADB_AALG_NULL
+#endif
+
+#ifndef SADB_X_EALG_BLOWFISHCBC
+#define SADB_X_EALG_BLOWFISHCBC	SADB_EALG_BLOWFISHCBC
+#endif
+#ifndef SADB_X_EALG_CAST128CBC
+#define SADB_X_EALG_CAST128CBC	SADB_EALG_CAST128CBC
+#endif
+#ifndef SADB_X_EALG_RC5CBC
+#ifdef SADB_EALG_RC5CBC
+#define SADB_X_EALG_RC5CBC	SADB_EALG_RC5CBC
+#endif
+#endif
+
 #define GETMSGSTR(str, num) \
 do { \
 	if (sizeof((str)[0]) == 0 \
@@ -63,15 +86,33 @@ do { \
 		printf("%s ", (str)[(num)]); \
 } while (0)
 
+#define GETMSGV2S(v2s, num) \
+do { \
+	struct val2str *p;  \
+	for (p = (v2s); p && p->str; p++) { \
+		if (p->val == (num)) \
+			break; \
+	} \
+	if (p && p->str) \
+		printf("%s ", p->str); \
+	else \
+		printf("%d ", (num)); \
+} while (0)
+
 static char *str_ipaddr __P((struct sockaddr *));
 static char *str_prefport __P((u_int, u_int, u_int));
 static char *str_time __P((time_t));
 static void str_lifetime_byte __P((struct sadb_lifetime *, char *));
 
+struct val2str {
+	int val;
+	const char *str;
+};
+
 /*
  * Must to be re-written about following strings.
  */
-static char *_str_satype[] = {
+static char *str_satype[] = {
 	"unspec",
 	"unknown",
 	"ah",
@@ -84,13 +125,13 @@ static char *_str_satype[] = {
 	"ipcomp",
 };
 
-static char *_str_mode[] = {
+static char *str_mode[] = {
 	"any",
 	"transport",
 	"tunnel",
 };
 
-static char *_str_upper[] = {
+static char *str_upper[] = {
 /*0*/	"ip", "icmp", "igmp", "ggp", "ip4",
 	"", "tcp", "", "egp", "",
 /*10*/	"", "", "", "", "",
@@ -106,37 +147,57 @@ static char *_str_upper[] = {
 /*60*/	"dst6",
 };
 
-static char *_str_state[] = {
+static char *str_state[] = {
 	"larval",
 	"mature",
 	"dying",
 	"dead",
 };
 
-static char *_str_alg_auth[] = {
-	"none",
-	"hmac-md5",
-	"hmac-sha1",
-	"md5",
-	"sha",
-	"null",
+static struct val2str str_alg_auth[] = {
+	{ SADB_AALG_NONE, "none", },
+	{ SADB_AALG_MD5HMAC, "hmac-md5", },
+	{ SADB_AALG_SHA1HMAC, "hmac-sha1", },
+	{ SADB_X_AALG_MD5, "md5", },
+	{ SADB_X_AALG_SHA, "sha", },
+	{ SADB_X_AALG_NULL, "null", },
+#ifdef SADB_X_AALG_SHA2_256
+	{ SADB_X_AALG_SHA2_256, "hmac-sha2-256", },
+#endif
+#ifdef SADB_X_AALG_SHA2_384
+	{ SADB_X_AALG_SHA2_384, "hmac-sha2-384", },
+#endif
+#ifdef SADB_X_AALG_SHA2_512
+	{ SADB_X_AALG_SHA2_512, "hmac-sha2-512", },
+#endif
+	{ -1, NULL, },
 };
 
-static char *_str_alg_enc[] = {
-	"none",
-	"des-cbc",
-	"3des-cbc",
-	"null",
-	"blowfish-cbc",
-	"cast128-cbc",
-	"rc5-cbc",
+static struct val2str str_alg_enc[] = {
+	{ SADB_EALG_NONE, "none", },
+	{ SADB_EALG_DESCBC, "des-cbc", },
+	{ SADB_EALG_3DESCBC, "3des-cbc", },
+	{ SADB_EALG_NULL, "null", },
+#ifdef SADB_X_EALG_RC5CBC
+	{ SADB_X_EALG_RC5CBC, "rc5-cbc", },
+#endif
+	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
+	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
+#ifdef SADB_X_EALG_RIJNDAELCBC
+	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
+#endif
+#ifdef SADB_X_EALG_TWOFISHCBC
+	{ SADB_X_EALG_TWOFISHCBC, "twofish-cbc", },
+#endif
+	{ -1, NULL, },
 };
 
-static char *_str_alg_comp[] = {
-	"none",
-	"oui",
-	"deflate",
-	"lzs",
+static struct val2str str_alg_comp[] = {
+	{ SADB_X_CALG_NONE, "none", },
+	{ SADB_X_CALG_OUI, "oui", },
+	{ SADB_X_CALG_DEFLATE, "deflate", },
+	{ SADB_X_CALG_LZS, "lzs", },
+	{ -1, NULL, },
 };
 
 /*
@@ -204,10 +265,10 @@ pfkey_sadump(m)
 	}
 	printf("\n\t");
 
-	GETMSGSTR(_str_satype, m->sadb_msg_satype);
+	GETMSGSTR(str_satype, m->sadb_msg_satype);
 
 	printf("mode=");
-	GETMSGSTR(_str_mode, m_sa2->sadb_x_sa2_mode);
+	GETMSGSTR(str_mode, m_sa2->sadb_x_sa2_mode);
 
 	printf("spi=%u(0x%08x) reqid=%u(0x%08x)\n",
 		(u_int32_t)ntohl(m_sa->sadb_sa_spi),
@@ -218,11 +279,11 @@ pfkey_sadump(m)
 	/* encryption key */
 	if (m->sadb_msg_satype == SADB_X_SATYPE_IPCOMP) {
 		printf("\tC: ");
-		GETMSGSTR(_str_alg_comp, m_sa->sadb_sa_encrypt);
+		GETMSGV2S(str_alg_comp, m_sa->sadb_sa_encrypt);
 	} else if (m->sadb_msg_satype == SADB_SATYPE_ESP) {
 		if (m_enc != NULL) {
 			printf("\tE: ");
-			GETMSGSTR(_str_alg_enc, m_sa->sadb_sa_encrypt);
+			GETMSGV2S(str_alg_enc, m_sa->sadb_sa_encrypt);
 			ipsec_hexdump((caddr_t)m_enc + sizeof(*m_enc),
 				      m_enc->sadb_key_bits / 8);
 			printf("\n");
@@ -232,7 +293,7 @@ pfkey_sadump(m)
 	/* authentication key */
 	if (m_auth != NULL) {
 		printf("\tA: ");
-		GETMSGSTR(_str_alg_auth, m_sa->sadb_sa_auth);
+		GETMSGV2S(str_alg_auth, m_sa->sadb_sa_auth);
 		ipsec_hexdump((caddr_t)m_auth + sizeof(*m_auth),
 		              m_auth->sadb_key_bits / 8);
 		printf("\n");
@@ -245,7 +306,7 @@ pfkey_sadump(m)
 
 	/* state */
 	printf("state=");
-	GETMSGSTR(_str_state, m_sa->sadb_sa_state);
+	GETMSGSTR(str_state, m_sa->sadb_sa_state);
 
 	printf("seq=%lu pid=%lu\n",
 		(u_long)m->sadb_msg_seq,
@@ -307,6 +368,7 @@ pfkey_spdump(m)
 	caddr_t mhp[SADB_EXT_MAX + 1];
 	struct sadb_address *m_saddr, *m_daddr;
 	struct sadb_x_policy *m_xpl;
+	struct sadb_lifetime *m_lft = NULL;
 	struct sockaddr *sa;
 	u_int16_t port;
 
@@ -323,6 +385,7 @@ pfkey_spdump(m)
 	m_saddr = (struct sadb_address *)mhp[SADB_EXT_ADDRESS_SRC];
 	m_daddr = (struct sadb_address *)mhp[SADB_EXT_ADDRESS_DST];
 	m_xpl = (struct sadb_x_policy *)mhp[SADB_X_EXT_POLICY];
+	m_lft = (struct sadb_lifetime *)mhp[SADB_EXT_LIFETIME_HARD];
 
 	/* source address */
 	if (m_saddr == NULL) {
@@ -378,7 +441,7 @@ pfkey_spdump(m)
 	if (m_saddr->sadb_address_proto == IPSEC_ULPROTO_ANY)
 		printf("any");
 	else
-		GETMSGSTR(_str_upper, m_saddr->sadb_address_proto);
+		GETMSGSTR(str_upper, m_saddr->sadb_address_proto);
 
 	/* policy */
     {
@@ -394,6 +457,13 @@ pfkey_spdump(m)
 	printf("\n\t%s\n", d_xpl);
 	free(d_xpl);
     }
+
+	/* lifetime */
+	if (m_lft) {
+		printf("\tlifetime:%lu validtime:%lu\n",
+			(u_long)m_lft->sadb_lifetime_addtime,
+			(u_long)m_lft->sadb_lifetime_usetime);
+	}
 
 	printf("\tspid=%ld seq=%ld pid=%ld\n",
 		(u_long)m_xpl->sadb_x_policy_id,

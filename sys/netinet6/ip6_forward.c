@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip6_forward.c,v 1.43 2000/07/16 07:50:49 itojun Exp $	*/
+/*	$KAME: ip6_forward.c,v 1.69 2001/05/17 03:48:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -37,12 +37,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -50,15 +52,22 @@
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
 
+#include <netinet/in_pcb.h>
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#ifdef INET6
 #include <netinet6/ipsec6.h>
+#endif
 #include <netkey/key.h>
 #endif /* IPSEC */
 
@@ -87,8 +96,8 @@ ip6_forward(m, srcrt)
 	int srcrt;
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	register struct sockaddr_in6 *dst;
-	register struct rtentry *rt;
+	struct sockaddr_in6 *dst;
+	struct rtentry *rt;
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
@@ -111,8 +120,15 @@ ip6_forward(m, srcrt)
 	}
 #endif /*IPSEC*/
 
+	/*
+	 * Do not forward packets to multicast destination (should be handled
+	 * by ip6_mforward().
+	 * Do not forward packets with unspecified source.  It was discussed
+	 * in July 2000, on ipngwg mailing list.
+	 */
 	if ((m->m_flags & (M_BCAST|M_MCAST)) != 0 ||
-	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+	    IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) ||
+	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
 		ip6stat.ip6s_cantforward++;
 		/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_discard) */
 		if (ip6_log_time + ip6_log_interval < time_second) {
@@ -150,7 +166,8 @@ ip6_forward(m, srcrt)
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
-	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, 0, &error);
+	sp = ipsec6_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, IP_FORWARDING,
+	    &error);
 	if (sp == NULL) {
 		ipsec6stat.out_inval++;
 		ip6stat.ip6s_cantforward++;
@@ -238,10 +255,6 @@ ip6_forward(m, srcrt)
 	error = ipsec6_output_tunnel(&state, sp, 0);
 
 	m = state.m;
-#if 0	/* XXX allocate a route (ro, dst) again later */
-	ro = (struct route_in6 *)state.ro;
-	dst = (struct sockaddr_in6 *)state.dst;
-#endif
 	key_freesp(sp);
 
 	if (error) {
@@ -275,7 +288,7 @@ ip6_forward(m, srcrt)
     skip_ipsec:
 #endif /* IPSEC */
 
-	dst = &ip6_forward_rt.ro_dst;
+	dst = (struct sockaddr_in6 *)&ip6_forward_rt.ro_dst;
 	if (!srcrt) {
 		/*
 		 * ip6_forward_rt.ro_dst.sin6_addr is equal to ip6->ip6_dst
@@ -293,7 +306,7 @@ ip6_forward(m, srcrt)
 
 		if (ip6_forward_rt.ro_rt == 0) {
 			ip6stat.ip6s_noroute++;
-			/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_noroute) */
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
 			if (mcopy) {
 				icmp6_error(mcopy, ICMP6_DST_UNREACH,
 					    ICMP6_DST_UNREACH_NOROUTE, 0);
@@ -315,7 +328,7 @@ ip6_forward(m, srcrt)
   		rtalloc_ign((struct route *)&ip6_forward_rt, RTF_PRCLONING);
 		if (ip6_forward_rt.ro_rt == 0) {
 			ip6stat.ip6s_noroute++;
-			/* XXX in6_ifstat_inc(rt->rt_ifp, ifs6_in_noroute) */
+			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_noroute);
 			if (mcopy) {
 				icmp6_error(mcopy, ICMP6_DST_UNREACH,
 					    ICMP6_DST_UNREACH_NOROUTE, 0);
@@ -410,8 +423,25 @@ ip6_forward(m, srcrt)
 	 * modified by a redirect.
 	 */
 	if (rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0)
+	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
+		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
+			/*
+			 * If the incoming interface is equal to the outgoing
+			 * one, and the link attached to the interface is
+			 * point-to-point, then it will be highly probable
+			 * that a routing loop occurs. Thus, we immediately
+			 * drop the packet and send an ICMPv6 error message.
+			 *
+			 * type/code is based on suggestion by Rich Draves.
+			 * not sure if it is the best pick.
+			 */
+			icmp6_error(mcopy, ICMP6_DST_UNREACH,
+				    ICMP6_DST_UNREACH_ADDR, 0);
+			m_freem(m);
+			return;
+		}
 		type = ND_REDIRECT;
+	}
 
 	/*
 	 * Check with the firewall...
@@ -432,8 +462,8 @@ ip6_forward(m, srcrt)
 	 * destinaion can appear, if the originating node just sends the
 	 * packet to us (without address resolution for the destination).
 	 * Since both icmp6_error and icmp6_redirect_output fill the embedded
-	 * link identifiers, we can do this stuff after make a copy for
-	 * returning error.
+	 * link identifiers, we can do this stuff after making a copy for
+	 * returning an error.
 	 */
 	if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
 		/*
@@ -459,34 +489,21 @@ ip6_forward(m, srcrt)
 			       if_name(rt->rt_ifp));
 		}
 
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
-			origifp = ifindex2ifnet[ntohs(ip6->ip6_src.s6_addr16[1])];
-		else if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
-			origifp = ifindex2ifnet[ntohs(ip6->ip6_dst.s6_addr16[1])];
-		else
-			origifp = rt->rt_ifp;
+		/* we can just use rcvif in forwarding. */
+		origifp = m->m_pkthdr.rcvif;
 	}
 	else
 		origifp = rt->rt_ifp;
-#ifndef FAKE_LOOPBACK_IF
-	if ((rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0)
-#else
-	if (1)
+#ifndef SCOPEDROUTING
+	/*
+	 * clear embedded scope identifiers if necessary.
+	 * in6_clearscope will touch the addresses only when necessary.
+	 */
+	in6_clearscope(&ip6->ip6_src);
+	in6_clearscope(&ip6->ip6_dst);
 #endif
-	{
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
-			ip6->ip6_src.s6_addr16[1] = 0;
-		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
-			ip6->ip6_dst.s6_addr16[1] = 0;
-	}
 
-#ifdef OLDIP6OUTPUT
-	error = (*rt->rt_ifp->if_output)(rt->rt_ifp, m,
-					 (struct sockaddr *)dst,
-					 ip6_forward_rt.ro_rt);
-#else
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);
-#endif
 	if (error) {
 		in6_ifstat_inc(rt->rt_ifp, ifs6_out_discard);
 		ip6stat.ip6s_cantforward++;

@@ -1,4 +1,4 @@
-.\"	$KAME: faithd.8,v 1.12 2000/07/04 13:15:01 itojun Exp $
+.\"	$KAME: faithd.8,v 1.30 2001/05/24 20:47:56 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -38,7 +38,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dp
-.Op Ar service Op Ar serverpath Op Ar serverargs
+.Op Fl f Ar configfile
+.Ar service
+.Op Ar serverpath Op Ar serverargs
 .Sh DESCRIPTION
 .Nm
 provides IPv6-to-IPv4 TCP relay.
@@ -96,6 +98,24 @@ address prefix, by using
 and
 .Xr sysctl 8
 commands.
+.Pp
+.Nm
+needs a special name-to-address translation logic, so that
+hostnames gets resolved into special
+.Tn IPv6
+address prefix.
+For small-scale installation, use
+.Xr hosts 5 .
+For large-scale installation, it is useful to have
+a DNS server with special address translation support.
+An implementation called
+.Nm totd
+is available
+at
+.Pa http://www.vermicelli.pasta.cs.uit.no/ipv6/software.html .
+Make sure you do not propagate translated DNS records to normal DNS cloud,
+it is highly harmful.
+.Pp
 .Ss Daemon mode
 When
 .Nm
@@ -136,26 +156,14 @@ You can also specify
 .Ar serverargs
 for the arguments for the local daemon.
 .Pp
-If
-.Ar service
-is not given,
-.Li telnet
-is assumed, and
-.Nm
-will relay TCP traffic on TCP port
-.Li telnet .
-With
-.Ar service ,
-.Nm
-will work as TCP relaying daemon for specified
-.Ar service
-as described above.
-.Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl d
 Debugging information will be generated using
 .Xr syslog 3 .
+.It Fl f Ar configfile
+Specify a configuration file for access control.
+See below.
 .It Fl p
 Use privileged TCP port number as source port,
 for IPv4 TCP connection toward final destination.
@@ -200,7 +208,7 @@ is invoked via
 .Xr inetd 8 ,
 .Nm
 will handle connection passed from standard input.
-If it the connection endpoint is in the reserved IPv6 address prefix.
+If the connection endpoint is in the reserved IPv6 address prefix,
 .Nm
 will relay the connection.
 Otherwise,
@@ -223,6 +231,52 @@ The operation mode requires special support for
 .Nm
 in
 .Xr inetd 8 .
+.Ss Access control
+To prevent malicious accesses,
+.Nm
+implements a simple address-based access control.
+With
+.Pa /etc/faithd.conf
+.Po
+or
+.Ar configfile
+specified by
+.Fl f
+.Pc ,
+.Nm
+will avoid relaying unwanted traffic.
+The
+.Pa faithd.conf
+contains directives with the following format:
+.Bl -bullet
+.It
+.Xo
+.Ic Ar src/slen Li deny Ar dst/dlen
+.Xc
+.Pp
+If the source address of a query matches
+.Ar src/slen ,
+and the translated destination address matches
+.Ar dst/dlen ,
+deny the connection.
+.It
+.Xo
+.Ic Ar src/slen Li permit Ar dst/dlen
+.Xc
+.Pp
+If the source address of a query matches
+.Ar src/slen ,
+and the translated destination address matches
+.Ar dst/dlen ,
+permit the connection.
+.El
+.Pp
+The directives are evaluated in sequence,
+and the first matching entry will be effective.
+.Pp
+With inetd mode,
+traffic may be filtered by using access control functionality in 
+.Xr inetd 8 .
 .Sh EXAMPLES
 Before invoking
 .Nm ,
@@ -241,9 +295,8 @@ To translate
 .Li telnet
 service, and provide no local telnet service, invoke
 .Nm
-as either of the following:
+as follows:
 .Bd -literal -offset
-# faithd
 # faithd telnet
 .Ed
 .Pp
@@ -258,7 +311,7 @@ use the following command line:
 .Pp
 If you would like to pass extra arguments to the local daemon:
 .Bd -literal -offset
-# faithd ftpd /usr/local/v6/libexec/ftpd ftpd -l
+# faithd ftp /usr/local/v6/libexec/ftpd ftpd -l
 .Ed
 .Pp
 Here are some other examples.
@@ -266,14 +319,15 @@ You may need
 .Fl p
 to translate rsh/rlogin services.
 .Bd -literal -offset
-# faithd sshd
+# faithd ssh
 # faithd login /usr/local/v6/libexec/rlogin rlogind
 # faithd shell /usr/local/v6/libexec/rshd rshd
 .Ed
 .Pp
 However, you should be careful when translating rlogin or rsh
-connections. See
-.Sx SECURITY NOTICE
+connections.
+See
+.Sx SECURITY CONSIDERATIONS
 for more details.
 .Ss inetd mode samples
 Add the following lines into
@@ -282,7 +336,7 @@ Syntax may vary depending upon your operating system.
 .Bd -literal -offset
 telnet  stream  tcp6/faith  nowait  root  /usr/sbin/faithd  telnetd
 ftp     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  ftpd -l
-ssh     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  /usr/pkg/bin/sshd -i
+ssh     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  /usr/sbin/sshd -i
 .Ed
 .Pp
 .Xr inetd 8
@@ -298,6 +352,20 @@ Otherwise,
 .Nm
 will invoke service-specific daemon like
 .Xr telnetd 8 .
+.Ss Access control samples
+The following illustrates a simple
+.Pa faithd.conf
+setting.
+.Bd -literal -offset
+# permit anyone from 3ffe:501:ffff::/48 to use the translator,
+# to connect to the following IPv4 destinations:
+# - any location except 10.0.0.0/8 and 127.0.0.0/8.
+# Permit no other connections.
+#
+3ffe:501:ffff::/48 deny 10.0.0.0/8
+3ffe:501:ffff::/48 deny 127.0.0.0/8
+3ffe:501:ffff::/48 permit 0.0.0.0/0
+.Ed
 .Sh RETURN VALUES
 .Nm
 exits with
@@ -316,20 +384,34 @@ on error.
 .%A Kazu Yamamoto
 .%T "An IPv6-to-IPv4 transport relay translator"
 .%R internet draft
-.%N draft-ietf-ngtrans-tcpudp-relay-01.txt
+.%N draft-ietf-ngtrans-tcpudp-relay-04.txt
 .%O work in progress material
 .Re
-.Sh SECURITY NOTICE
+.\"
+.Sh HISTORY
+The
+.Nm
+command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
+.\"
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0
+.Sh SECURITY CONSIDERATIONS
 It is very insecure to use
 .Xr rhosts 5
 and other IP-address based authentication, for connections relayed by
 .Nm
 .Pq and any other TCP relaying services .
 .Pp
+Administrators are advised to limit accesses to
 .Nm
-itself does not implement access controls, as
-it intends to implement transparent TCP relay services.
-Administrators are advised to filter packets based on IPv6 address.
+using
+.Pa faithd.conf ,
+or by using IPv6 packet filters.
+It is to protect
+.Nm
+service from malicious parties and avoid theft of service/bandwidth.
 IPv6 destination address can be limited by
 carefully configuring routing entries that points to
 .Xr faith 4 ,
@@ -339,12 +421,3 @@ IPv6 source address needs to be filtered by using packet filters.
 Documents listed in
 .Sx SEE ALSO
 have more discussions on this topic.
-.\"
-.Sh HISTORY
-The
-.Nm
-command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-.Pp
-IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
-was initially integrated into
-.Fx 4.0

@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: rtadvd.8,v 1.9 2000/05/27 13:37:01 jinmei Exp $
+.\"	$KAME: rtadvd.8,v 1.17 2001/02/04 05:34:38 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -36,8 +36,8 @@
 .Nd router advertisement daemon
 .Sh SYNOPSIS
 .Nm
+.Op Fl dDfMRs
 .Op Fl c Ar configfile
-.Op Fl dDfRs
 .Ar interface ...
 .Sh DESCRIPTION
 .Nm
@@ -77,6 +77,15 @@ Moreover, if the status of an advertising interface changes,
 will start or stop sending router advertisements according
 to the latest status.
 .Pp
+Basically, hosts MUST NOT send Router Advertisement messages at any
+time (RFC 2461, Section 6.2.3).
+However, it would sometimes be useful to allow hosts to advertise some
+parameters such as prefix information and link MTU.
+Thus,
+.Nm
+can be invoked if router lifetime is explicitly set zero on every
+advertising interface.
+.Pp
 The command line options are:
 .Bl -tag -width indent
 .\"
@@ -93,6 +102,15 @@ Print debugging information.
 Even more debugging information is printed.
 .It Fl f
 Foreground mode (useful when debugging).
+.It Fl M
+Specify an interface to join the all-routers site-local multicast group.
+By default,
+.Nm
+tries to join the first advertising interface appeared in the command
+line.
+This option has meaning only with the
+.Fl R
+option, which enables routing renumbering protocol support.
 .\".It Fl m
 .\"Enables mobile IPv6 support.
 .\"This changes the content of router advertisement option, as well as
@@ -100,6 +118,12 @@ Foreground mode (useful when debugging).
 .It Fl R
 Accept router renumbering requests.
 If you enable it, certain IPsec setup is suggested for security reasons.
+On KAME-based systems,
+.Xr rrenumd 8
+generates router renumbering request packets.
+This option is currently disabled, and is ignored by
+.Nm
+with a warning message.
 .It Fl s
 Do not add or delete prefixes dynamically.
 Only statically configured prefixes, if any, will be advertised.
@@ -138,17 +162,20 @@ in which
 dumps its internal state.
 .El
 .Sh SEE ALSO
-.Xr daemon 3 ,
 .Xr rtadvd.conf 5 ,
-.Xr rtsol 8
+.Xr rtsol 8 ,
+.Xr rrenumd 8
 .Sh HISTORY
 The
 .Nm
 command first appeared in WIDE Hydrangea IPv6 protocol stack kit.
 .Sh CAVEAT
-Router advertisements should only be performed downstream.
-Erroneous upstream advertisements will cause
+There used to be some text that recommended users not to let
+.Nm
+advertise Router Advertisement messages on an upstream link to avoid
+undesirable
 .Xr icmp6 4
-redirect packet storms in the subnet, as (per the specification) the
-advertising router is assumed to become the default router for
-end hosts in the subnet.
+redirect messages.
+However, based on the later discussion in the IETF ipng working group,
+all routers should rather advertise the messages regardless of
+the network topology, in order to ensure reachability.

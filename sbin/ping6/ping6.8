@@ -1,4 +1,4 @@
-.\"     $KAME: ping6.8,v 1.22 2000/05/31 17:00:07 itojun Exp $
+.\"	$KAME: ping6.8,v 1.39 2001/04/04 00:08:34 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -40,9 +40,9 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl dfHnNqRvw
+.Op Fl dfHnNqRtvw
 .\" old ipsec
-.\" .Op Fl AdEfnNqRvw
+.\" .Op Fl AdEfnNqRtvw
 .Bk -words
 .Op Fl a Ar addrtype
 .Ek
@@ -184,13 +184,13 @@ option.
 If
 .Ar preload
 is specified,
-.Nm ping
+.Nm
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
 .It Fl n
 Numeric output only.
-No attempt will be made to lookup symbolic names for host addresses.
+No attempt will be made to lookup symbolic names from addresses in the reply.
 .It Fl N
 Probe node information multicast group
 .Pq Li ff02::2:xxxx:xxxx .
@@ -213,11 +213,6 @@ For example,
 .Dq Li \-p ff
 will cause the sent packet to be filled with all
 ones.
-.Fl Q
-flag,
-.Nm
-prints out any ICMP error messages caused by its own ECHO_REQUEST
-messages.
 .\" new ipsec
 .It Fl P Ar policy
 .Ar policy
@@ -259,6 +254,13 @@ header data.
 You may need to specify
 .Fl b
 as well to extend socket buffer size.
+.It Fl t
+Generate ICMPv6 Node Information supported query types query,
+rather than echo-request.
+.Fl s
+has no effect if
+.Fl t
+is specified.
 .It Fl v
 Verbose output.
 .Tn ICMP
@@ -266,7 +268,7 @@ packets other than
 .Tn ECHO_RESPONSE
 that are received are listed.
 .It Fl w
-Generate ICMPv6 Node Information FQDN query, rather than echo-request.
+Generate ICMPv6 Node Information DNS Name query, rather than echo-request.
 .Fl s
 has no effect if
 .Fl w
@@ -335,7 +337,7 @@ during normal operations or from automated scripts.
 .\" If less than eight bytes of pad are specified, no round trip times are
 .\" given.
 .Sh DUPLICATE AND DAMAGED PACKETS
-.Nm Ping6
+.Nm
 will report duplicate and damaged packets.
 Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
@@ -350,7 +352,7 @@ to the same request.
 .Pp
 Damaged packets are obviously serious cause for alarm and often
 indicate broken hardware somewhere in the
-.Nm ping
+.Nm
 packet's path
 .Pq in the network or in the hosts .
 .Sh TRYING DIFFERENT DATA PATTERNS
@@ -386,8 +388,39 @@ option of
 .Nm
 returns 0 on success (the host is alive),
 and non-zero if the arguments are incorrect or the host is not responding.
+.Sh EXAMPLES
+Normally,
+.Xr ping6 8
+works just like
+.Xr ping 8
+would work; the following will send ICMPv6 echo request to
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping6 -n dst.foo.com
+.Ed
+.Pp
+The following will probe hostnames for all nodes on the network link attached to
+.Li wi0
+interface.
+The address
+.Li ff02::1
+is named the link-local all-node multicast address, and the packet would
+reach every node on the network link.
+.Bd -literal -offset indent
+ping6 -w ff02::1%wi0
+.Ed
+.Pp
+The following will probe addresses assigned to the destination node,
+.Li dst.foo.com .
+.Bd -literal -offset indent
+ping6 -a agl dst.foo.com
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr netstat 1 ,
+.Xr icmp6 4 ,
+.Xr inet6 4 ,
+.Xr ip6 4 ,
 .Xr ifconfig 8 ,
 .Xr ping 8 ,
 .Xr routed 8 ,
@@ -403,8 +436,8 @@ and non-zero if the arguments are incorrect or the host is not responding.
 .Rs
 .%A Matt Crawford
 .%T "IPv6 Node Information Queries"
-.%N draft-ietf-ipngwg-icmp-name-lookups-05.txt
-.%D October 22, 1999
+.%N draft-ietf-ipngwg-icmp-name-lookups-07.txt
+.%D August 2000
 .%O work in progress material
 .Re
 .Sh BUGS
@@ -438,7 +471,7 @@ option (or something like those) to specify the particular address family.
 This essentially means that we have two different commands.
 .Sh HISTORY
 The
-.Nm ping
+.Xr ping 8
 command appeared in
 .Bx 4.3 .
 The

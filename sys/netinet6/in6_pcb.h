@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_pcb.h,v 1.5 2000/07/03 06:19:53 itojun Exp $	*/
+/*	$KAME: in6_pcb.h,v 1.13 2001/02/06 09:16:53 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -90,7 +90,7 @@ struct	inpcb *
 				struct in6_addr *, u_int, struct in6_addr *,
 				u_int, int, struct ifnet *));
 void	in6_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
-			   u_int, struct in6_addr *, u_int, int,
+			   u_int, struct sockaddr *, u_int, int,
 			   void (*)(struct inpcb *, int)));
 void	in6_rtchange __P((struct inpcb *, int));
 int	in6_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
@@ -105,11 +105,6 @@ struct	in6_addr *in6_selectsrc __P((struct sockaddr_in6 *,
 int	in6_selecthlim __P((struct in6pcb *, struct ifnet *));
 int	in6_pcbsetport __P((struct in6_addr *, struct inpcb *, struct proc *));
 void	init_sin6 __P((struct sockaddr_in6 *sin6, struct mbuf *m));
-
-int in6_embedscope __P((struct in6_addr *, const struct sockaddr_in6 *,
-	struct inpcb *, struct ifnet **));
-int in6_recoverscope __P((struct sockaddr_in6 *, const struct in6_addr *,
-	struct ifnet *));
 #endif /* _KERNEL */
 
 #endif /* !_NETINET6_IN6_PCB_H_ */

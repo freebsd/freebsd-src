@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: key_debug.c,v 1.23 2000/07/04 04:08:15 itojun Exp $	*/
+/*	$KAME: key_debug.c,v 1.25 2000/07/24 13:23:12 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -41,17 +41,14 @@
 #ifdef _KERNEL
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/queue.h>
 #endif
 #include <sys/socket.h>
 
 #include <net/route.h>
 
 #include <netkey/key_var.h>
-#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
-#else
-#define	KEYDEBUG(lev,arg)
-#endif
 
 #include <netinet/in.h>
 #include <netinet6/ipsec.h>

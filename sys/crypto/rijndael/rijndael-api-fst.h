@@ -1,4 +1,5 @@
-/*	$KAME$	*/
+/*	$FreeBSD$	*/
+/*	$KAME: rijndael-api-fst.h,v 1.6 2001/05/27 00:23:23 itojun Exp $	*/
 
 /*
  * rijndael-api-fst.h   v2.3   April '2000
@@ -55,7 +56,11 @@ typedef struct {
         /*  The following parameters are algorithm dependent, replace or add as necessary  */
 	int   ROUNDS;                   /* key-length-dependent number of rounds */
     int   blockLen;                 /* block length */
-    u_int8_t keySched[RIJNDAEL_MAXROUNDS+1][4][4];	/* key schedule		*/
+    union {
+    	u_int8_t xkS8[RIJNDAEL_MAXROUNDS+1][4][4];	/* key schedule		*/
+    	u_int32_t xkS32[RIJNDAEL_MAXROUNDS+1][4];	/* key schedule		*/
+    } xKeySched;
+#define	keySched	xKeySched.xkS8
 } keyInstance;
 
 /*  The structure for cipher information */
