@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.1 1998/06/10 10:54:35 dfr Exp $
+ *	$Id: clock.h,v 1.2 1998/07/22 08:26:23 dfr Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -11,6 +11,7 @@
 
 #ifdef KERNEL
 
+extern	int	disable_rtc_set;
 extern	int	wall_cmos_clock;
 extern	int	adjkerntz;
 
