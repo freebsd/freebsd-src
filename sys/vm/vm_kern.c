@@ -173,11 +173,10 @@ kmem_alloc(map, size)
 		vm_page_t mem;
 
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
-				VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		mem->valid = VM_PAGE_BITS_ALL;
 		vm_page_lock_queues();
 		vm_page_unmanage(mem);
-		vm_page_wakeup(mem);
 		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(kernel_object);
