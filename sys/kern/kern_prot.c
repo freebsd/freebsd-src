@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.32 1997/04/02 17:05:49 peter Exp $
+ * $Id: kern_prot.c,v 1.33 1997/08/02 14:31:34 bde Exp $
  */
 
 /*
@@ -106,6 +106,55 @@ getpgrp(p, uap, retval)
 	*retval = p->p_pgrp->pg_id;
 	return (0);
 }
+
+/* Get an arbitary pid's process group id */
+#ifndef _SYS_SYSPROTO_H_
+struct getpgid_args {
+	pid_t	pid;
+};
+#endif
+
+int
+getpgid(p, uap, retval)
+	struct proc *p;
+	struct getpgid_args *uap;
+	int *retval;
+{
+	if (uap->pid == 0)
+		goto found;
+
+	if ((p == pfind(uap->pid)) == 0)
+		return ESRCH;
+found:
+	*retval = p->p_pgrp->pg_id;
+	return 0;
+}
+
+/*
+ * Get an arbitary pid's session id.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct getsid_args {
+	pid_t	pid;
+};
+#endif
+
+int
+getsid(p, uap, retval)
+	struct proc *p;
+	struct getsid_args *uap;
+	int *retval;
+{
+	if (uap->pid == 0)
+		goto found;
+
+	if ((p == pfind(uap->pid)) == 0)
+		return ESRCH;
+found:
+	*retval = p->p_pgrp->pg_session->s_leader->p_pid;
+	return 0;
+}
+
 
 #ifndef _SYS_SYSPROTO_H_
 struct getuid_args {
