@@ -813,196 +813,348 @@ ia64_vhpt:	.quad 0
  *
  */
 ENTRY(exception_restore, 0)
-
+{	.mfi
 	alloc	r14=ar.pfs,0,0,1,0	// in case we call ast()
+	nop	1
 	add	r3=TF_CR_IPSR+16,sp
 	;;
+}
+{	.mmi
 	ld8	rIPSR=[r3]
-	;; 
+	;;
+	nop	2
 	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
 	;;
+}
+{	.mfb
 	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
-(p1)	br.cond.dpnt 2f			// skip ast checking for returns to kernel
+	nop	3
+(p1)	br.cond.dpnt 2f			// no ast check for returns to kernel
+}
 3:
+{	.mmi
 	add	r3=PC_CURTHREAD,r13	// &curthread
 	;;
 	ld8	r3=[r3]			// curthread
 	add	r2=(KEF_ASTPENDING|KEF_NEEDRESCHED),r0
 	;;
+}
+{	.mmb
 	add	r3=TD_KSE,r3		// &curthread->td_kse
 	mov	r15=psr			// save interrupt enable status
+	nop	4
 	;;
+}
+{	.mmi
 	ld8	r3=[r3]			// curkse
 	;;
-	add	r3=KE_FLAGS,r3		// &curkse->ke_flags
 	rsm	psr.i			// disable interrupts
+	add	r3=KE_FLAGS,r3		// &curkse->ke_flags
 	;;
+}
+{	.mmi
 	ld4	r14=[r3]		// fetch curkse->ke_flags
 	;;
-	and	r14=r2,r14		// flags & (KEF_ASTPENDING|KEF_NEEDRESCHED)
+	and	r14=r2,r14	    // flags & (KEF_ASTPENDING|KEF_NEEDRESCHED)
+	nop	5
 	;;
+}
+{	.mfb
 	cmp4.eq	p6,p7=r0,r14		//  == 0 ?
+	nop	6
 (p6)	br.cond.dptk	2f
 	;;
+}
+{	.mmi
 	mov	psr.l=r15		// restore interrups
 	;;
 	srlz.d
-	;;
 	add	out0=16,sp		// trapframe argument to ast()
+}
+{	.bbb
 	br.call.sptk.many rp=ast	// note: p1, p2 preserved
-	;;
-	br	3b
-	;;
+	br.sptk	3b
+	nop	7
+}
 2:
+{	.mmi
 	rsm	psr.ic|psr.dt|psr.i	// disable interrupt collection and vm
-	add	r3=16,sp;
 	;;
 	srlz.i
+	add	r3=16,sp
+	;;
+}
+{	.mmi
+(p2)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
+	;;
+(p2)	mov	ar.k6=r16
 	dep	r3=0,r3,61,3		// physical address
 	;; 
-(p2)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
-	;; 
-(p2)	mov	ar.k6=r16
+}
+{	.mmi
 	add	r1=SIZEOF_TRAPFRAME-16,r3 // r1=&tf_f[FRAME_F15]
-	add	r2=SIZEOF_TRAPFRAME-32,r3 // r2=&tf_f[FRAME_F14]
 	;;
 	ldf.fill f15=[r1],-32		// r1=&tf_f[FRAME_F13]
+	add	r2=SIZEOF_TRAPFRAME-32,r3 // r2=&tf_f[FRAME_F14]
+	;;
+}
+{	.mmb
 	ldf.fill f14=[r2],-32		// r2=&tf_f[FRAME_F12]
-	;;
 	ldf.fill f13=[r1],-32		// r1=&tf_f[FRAME_F11]
+	nop	8
+	;;
+}
+{	.mmi
 	ldf.fill f12=[r2],-32		// r2=&tf_f[FRAME_F10]
-	;;
 	ldf.fill f11=[r1],-32		// r1=&tf_f[FRAME_F9]
+	nop	9
+	;;
+}
+{	.mmb
 	ldf.fill f10=[r2],-32		// r2=&tf_f[FRAME_F8]
-	;;
 	ldf.fill f9=[r1],-32		// r1=&tf_f[FRAME_F7]
-	ldf.fill f8=[r2],-32		// r2=&tf_f[FRAME_F6]
-	;; 
-	ldf.fill f7=[r1],-24		// r1=&tf_r[FRAME_R31]
-	ldf.fill f6=[r2],-16		// r2=&tf_r[FRAME_R30]
-	;; 
-	ld8.fill r31=[r1],-16		// r1=&tf_r[FRAME_R29]
-	ld8.fill r30=[r2],-16		// r2=&tf_r[FRAME_R28]
-	;; 
-	ld8.fill r29=[r1],-16		// r1=&tf_r[FRAME_R27]
-	ld8.fill r28=[r2],-16		// r2=&tf_r[FRAME_R26]
-	;; 
-	ld8.fill r27=[r1],-16		// r1=&tf_r[FRAME_R25]
-	ld8.fill r26=[r2],-16		// r2=&tf_r[FRAME_R24]
-	;; 
-	ld8.fill r25=[r1],-16		// r1=&tf_r[FRAME_R23]
-	ld8.fill r24=[r2],-16		// r2=&tf_r[FRAME_R22]
-	;; 
-	ld8.fill r23=[r1],-16		// r1=&tf_r[FRAME_R21]
-	ld8.fill r22=[r2],-16		// r2=&tf_r[FRAME_R20]
-	;; 
-	ld8.fill r21=[r1],-16		// r1=&tf_r[FRAME_R19]
-	ld8.fill r20=[r2],-16		// r2=&tf_r[FRAME_R18]
-	;; 
-	ld8.fill r19=[r1],-16		// r1=&tf_r[FRAME_R17]
-	ld8.fill r18=[r2],-16		// r2=&tf_r[FRAME_R16]
-	;; 
-	ld8.fill r17=[r1],-16		// r1=&tf_r[FRAME_R15]
-	ld8.fill r16=[r2],-16		// r2=&tf_r[FRAME_R14]
+	nop	10
 	;;
+}
+{	.mmi
+	ldf.fill f8=[r2],-32		// r2=&tf_f[FRAME_F6]
+	ldf.fill f7=[r1],-24		// r1=&tf_r[FRAME_R31]
+	nop	11
+	;;
+}
+{	.mmb
+	ldf.fill f6=[r2],-16		// r2=&tf_r[FRAME_R30]
+	ld8.fill r31=[r1],-16		// r1=&tf_r[FRAME_R29]
+	nop	12
+	;;
+}
+{	.mmi
+	ld8.fill r30=[r2],-16		// r2=&tf_r[FRAME_R28]
+	ld8.fill r29=[r1],-16		// r1=&tf_r[FRAME_R27]
+	nop	13
+	;;
+}
+{	.mmb
+	ld8.fill r28=[r2],-16		// r2=&tf_r[FRAME_R26]
+	ld8.fill r27=[r1],-16		// r1=&tf_r[FRAME_R25]
+	nop	14
+	;;
+}
+{	.mmi
+	ld8.fill r26=[r2],-16		// r2=&tf_r[FRAME_R24]
+	ld8.fill r25=[r1],-16		// r1=&tf_r[FRAME_R23]
+	nop	15
+	;;
+}
+{	.mmb
+	ld8.fill r24=[r2],-16		// r2=&tf_r[FRAME_R22]
+	ld8.fill r23=[r1],-16		// r1=&tf_r[FRAME_R21]
+	nop	16
+	;;
+}
+{	.mmi
+	ld8.fill r22=[r2],-16		// r2=&tf_r[FRAME_R20]
+	ld8.fill r21=[r1],-16		// r1=&tf_r[FRAME_R19]
+	nop	17
+	;;
+}
+{	.mmb
+	ld8.fill r20=[r2],-16		// r2=&tf_r[FRAME_R18]
+	ld8.fill r19=[r1],-16		// r1=&tf_r[FRAME_R17]
+	nop	18
+	;;
+}
+{	.mmi
+	ld8.fill r18=[r2],-16		// r2=&tf_r[FRAME_R16]
+	ld8.fill r17=[r1],-16		// r1=&tf_r[FRAME_R15]
+	nop	19
+	;;
+}
+{	.mfb
+	ld8.fill r16=[r2],-16		// r2=&tf_r[FRAME_R14]
+	nop	20
 	bsw.0				// switch to bank 0
 	;;
+}
+{	.mmi
 	ld8.fill r15=[r1],-16		// r1=&tf_r[FRAME_R13]
 	ld8.fill r14=[r2],-16		// r2=&tf_r[FRAME_R12]
+	nop	21
 	;;
+}
 	// Don't restore r13 if returning to kernel
+{	.mmi
 	.pred.rel.mutex p1,p2
 (p2)	ld8.fill r13=[r1],-16		// r1=&tf_r[FRAME_R11]
-(p1)	add	r1=-16,r1		// r1=&tf_r[FRAME_R11]
 	ld8.fill r12=[r2],-16		// r2=&tf_r[FRAME_R10]
+(p1)	add	r1=-16,r1		// r1=&tf_r[FRAME_R11]
 	;;
+}
+{	.mmb
 	ld8.fill r11=[r1],-16		// r1=&tf_r[FRAME_R9]
 	ld8.fill r10=[r2],-16		// r2=&tf_r[FRAME_R8]
+	nop	22
 	;;
+}
+{	.mmi
 	ld8.fill r9=[r1],-16		// r1=&tf_r[FRAME_R7]
 	ld8.fill r8=[r2],-16		// r2=&tf_r[FRAME_R6]
+	nop	23
 	;;
+}
+{	.mmb
 	ld8.fill r7=[r1],-16		// r1=&tf_r[FRAME_R5]
 	ld8.fill r6=[r2],-16		// r2=&tf_r[FRAME_R4]
+	nop	24
 	;;
+}
+{	.mmi
 	ld8.fill r5=[r1],-16		// r1=&tf_r[FRAME_R3]
 	ld8.fill r4=[r2],-16		// r2=&tf_r[FRAME_R2]
+	nop	25
 	;;
+}
+{	.mmb
 	ld8.fill r3=[r1],-16		// r1=&tf_r[FRAME_R1]
 	ld8.fill rR2=[r2],-16		// r2=&tf_b[7]
+	nop	26
 	;;
+}
+{	.mmi
 	ld8.fill rR1=[r1],-16		// r1=&tf_b[6]
-	ld8	r16=[r2],-16		// r2=&tf_b[5]
+	ld8	r16=[r2],-16		// r16=b7, r2=&tf_b[5]
+	nop	27
 	;;
+}
+{	.mmi
+	ld8	r17=[r1],-16		// r17=b6, r1=&tf_b[4]
+	ld8	r18=[r2],-16		// r18=b5, r2=&tf_b[3]
 	mov	b7=r16
-	ld8	r18=[r1],-16		// r1=&tf_b[4]
-	ld8	r19=[r2],-16		// r2=&tf_b[3]
 	;;
-	mov	b6=r18
-	mov	b5=r19
-	ld8	r16=[r1],-16		// r1=&tf_b[2]
-	ld8	r17=[r2],-16		// r2=&tf_b[1]
+}
+{	.mmi
+	ld8	r16=[r1],-16		// r16=b4, r1=&tf_b[2]
+	ld8	r19=[r2],-16		// r19=b3, r2=&tf_b[1]
+	mov	b6=r17
 	;;
+}
+{	.mii
+	ld8	r17=[r1],-16		// r17=b2, r1=&tf_b[0]
+	mov	b5=r18
 	mov	b4=r16
-	mov	b3=r17
-	ld8	r18=[r1],-16		// r1=&tf_b[0]
-	ld8	r19=[r2],-16		// r2=&tf_ar_fpsr
 	;;
-	mov	b2=r18
-	mov	b1=r19
-	ld8	r16=[r1],-16		// r1=&tf_ar_ccv
-	ld8	r17=[r2],-16		// r2=&tf_ar_unat
+}
+{	.mii
+	ld8	r16=[r2],-16		// r16=b1, r2=&tf_ar_ec
+	mov	b3=r19
+	mov	b2=r17
 	;;
-	mov	b0=r16
-	mov	ar.fpsr=r17
-	ld8	r18=[r1],-16		// r1=&tf_ndirty
-	ld8	r19=[r2],-16		// r2=&tf_ar_rnat
+}
+{	.mmi
+	ld8	r17=[r1],-16		// r17=b0, r1=&tf_ar_lc
+	ld8	r18=[r2],-16		// r18=ar.ec, r2=&tf_ar_fptr
+	mov	b1=r16
 	;;
-	mov	ar.ccv=r18
-	mov	ar.unat=r19
+}
+{	.mmi
+	ld8	r16=[r1],-16		// r16=ar.lc, r1=&tf_ar_ccv
+	ld8	r19=[r2],-16		// r19=ar.fpsr, r1=&tf_ar_unat
+	mov	b0=r17
+	;;
+}
+{	.mmi
+	ld8	r17=[r1],-16		// r17=ar.ccv, r1=&tf_ndirty
+	mov	ar.fpsr=r19
+	mov	ar.ec=r18
+	;;
+}
+{	.mmi
+	ld8	r18=[r2],-16		// r18=ar.unat, r2=&tf_ar_rnat
+	mov	ar.ccv=r17
+	mov	ar.lc=r16
+	;;
+}
+{	.mmb
 	ld8	rNDIRTY=[r1],-16	// r1=&tf_ar_bspstore
 	ld8	rRNAT=[r2],-16		// r2=&tf_cr_ifs
+	nop	28
 	;;
-	ld8	rBSPSTORE=[r1],-16	// r1=&tf_cr_pfs
+}
+{	.mmi
+	mov	ar.unat=r18
+	ld8	rBSPSTORE=[r1],-16	// r1=&tf_ar_pfs
+	nop	29
+}
+{	.mfb
 	ld8	rIFS=[r2],-16		// r2=&tf_ar_rsc
-	;;
+	nop	30
 (p1)	br.cond.dpnt.few 1f		// don't switch bs if kernel
 	;;
+}
+{	.mmi
 	alloc	r16=ar.pfs,0,0,0,0	// discard current frame
 	;;
+	nop	31
 	shl	r16=rNDIRTY,16		// value for ar.rsc
 	;;
+}
+{	.mmi
 	mov	ar.rsc=r16		// setup for loadrs
 	;;
 	loadrs				// load user regs from kernel bs
+	nop	32
 	;;
+}
+{	.mmi
 	mov	ar.bspstore=rBSPSTORE
 	;;
 	mov	ar.rnat=rRNAT
+	nop	33
 	;;
-1:	ld8	rPFS=[r1],-16		// r1=&tf_pr
+}
+1:
+{	.mmb
+	ld8	rPFS=[r1],-16		// r1=&tf_pr
 	ld8	rRSC=[r2],-16		// r2=&tf_cr_ifa
+	nop	34
 	;;
+}
+{	.mmi
 	ld8	rPR=[r1],-16		// r1=&tf_cr_isr
 	ld8	rIFA=[r2],-16		// r2=&tf_cr_ipsr
+	mov	ar.pfs=rPFS
 	;;
+}
+{	.mmi
 	ld8	rISR=[r1],-16		// r1=&tf_cr_iip
 	ld8	rIPSR=[r2]
-	;;
-	ld8	rIIP=[r1]
-	;; 
-	mov	r1=rR1
-	mov	r2=rR2
-	mov	ar.pfs=rPFS
-	mov	cr.ifs=rIFS
-	mov	ar.rsc=rRSC
 	mov	pr=rPR,0x1ffff
+	;;
+}
+{	.mmi
+	ld8	rIIP=[r1]
+	mov	cr.ifs=rIFS
+	mov	r2=rR2
+	;;
+}
+{	.mmi
 	mov	cr.ifa=rIFA
 	mov	cr.iip=rIIP
-	mov	cr.ipsr=rIPSR
+	mov	r1=rR1
 	;;
+}
+{	.mmi
+	mov	cr.ipsr=rIPSR
+	mov	ar.rsc=rRSC
+	nop	35
+	;;
+}
+{	.bbb
+	nop	36
+	nop	37
 	rfi
-
+	;;
+}
 END(exception_restore)
 	
 
@@ -1021,205 +1173,340 @@ END(exception_restore)
  *	p3	true if interrupts were enabled
  */
 ENTRY(exception_save, 0)
+{	.mmi
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
+	mov	rPR=pr
+}
+{	.mmi
+	mov	rIPSR=cr.ipsr
 	;;
 	mov	rIIP=cr.iip
-	mov	rIPSR=cr.ipsr
-	mov	rISR=cr.isr
-	mov	rIFA=cr.ifa
-	mov	rPR=pr
-	;; 
 	tbit.nz	p3,p0=rIPSR,14		// check for interrupt enable state
+}
+{	.mmi
+	mov	rISR=cr.isr
+	;; 
+	mov	rSP=sp			// save sp
 	extr.u	r17=rIPSR,32,2		// extract ipsr.cpl
 	;;
+}
+{	.mmi
 	cmp.eq	p1,p2=r0,r17		// test for kernel mode
 	;;
-	mov	rSP=sp			// save sp
-	;; 
 (p2)	mov	sp=ar.k6		// and switch to kernel stack
-	;;
-	add	sp=-SIZEOF_TRAPFRAME,sp	// reserve trapframe
 	mov	rR1=r1
-	mov	rR2=r2
-	;; 
+	;;
+}
+{	.mii
+	mov	rIFA=cr.ifa
+	add	sp=-SIZEOF_TRAPFRAME,sp	// reserve trapframe
+	;;
 	dep	r1=0,sp,61,3		// r1=&tf_flags
 	;;
-	add	r2=16,r1		// r2=&tf_cr_ipsr
+}
+{	.mmi
 	st8	[r1]=r0,8		// zero flags, r1=&tf_cr_iip
-	;; 
+	;;
+	mov	rR2=r2
+	add	r2=8,r1			// r2=&tf_cr_ipsr
+	;;
+}
+{	.mmb
 	st8	[r1]=rIIP,16		// r1=&tf_cr_isr
 	st8	[r2]=rIPSR,16		// r2=&tf_cr_ifa
-	;; 
+	nop	1
+	;;
+}
+{	.mmb
 	st8	[r1]=rISR,16		// r1=&tf_pr
 	st8	[r2]=rIFA,16		// r2=&tf_ar_rsc
-	;; 
+	nop	2
+	;;
+}
+{	.mmi
 	st8	[r1]=rPR,16		// r1=&tf_cr_pfs
-
-	mov	rB0=r16
 	mov	rRSC=ar.rsc
 	mov	rPFS=ar.pfs
-	cover
-	mov	rIFS=cr.ifs
-	;; 
-	mov	ar.rsc=0
-	;; 
-	mov	rBSPSTORE=ar.bspstore
-	;; 
-(p2)	mov	r16=ar.k5		// kernel backing store
-	mov	rRNAT=ar.rnat
-	;; 
-(p1)	mov	r16=rBSPSTORE		// so we can figure out ndirty
-(p2)	mov	ar.bspstore=r16		// switch bspstore
+	;;
+}
+{	.mmb
 	st8	[r2]=rRSC,16		// r2=&tf_cr_ifs
-	;; 
 	st8	[r1]=rPFS,16		// r1=&tf_ar_bspstore
+	cover
+	;;
+}
+{	.mmi
+	mov	ar.rsc=0
+	;;
+	mov	rBSPSTORE=ar.bspstore
+	mov	rB0=r16
+	;;
+}
+{	.mmi
+	mov	rIFS=cr.ifs
+	mov	rRNAT=ar.rnat
+(p1)	mov	r16=rBSPSTORE		// so we can figure out ndirty
+	;;
+}
+{	.mmb
+(p2)	mov	r16=ar.k5		// kernel backing store
 	st8	[r2]=rIFS,16		// r2=&tf_ar_rnat
+	nop	3
+	;;
+}
+{	.mmi
+	st8	[r1]=rBSPSTORE,16	// r1=&tf_ndirty
+(p2)	mov	ar.bspstore=r16		// switch bspstore
+	nop	4
+	;;
+}
+{	.mmi
 	mov	r17=ar.bsp
 	;;
-	sub	r17=r17,r16		// ndirty (in bytes)
-	;; 
-	st8	[r1]=rBSPSTORE,16	// r1=&tf_ndirty
 	st8	[r2]=rRNAT,16		// r2=&tf_ar_unat
-	;; 
+	sub	r17=r17,r16		// ndirty (in bytes)
+	;;
+}
+{	.mmi
 	st8	[r1]=r17,16		// r1=&tf_ar_ccv
 	mov	ar.rsc=3		// switch RSE back on
+	mov	r18=ar.lc
+}
+{	.mmi
 	mov	r16=ar.unat
-	;; 
-	mov	r17=ar.ccv
+	;;
 	st8	[r2]=r16,16		// r2=&tf_ar_fpsr
-	mov	r18=ar.fpsr
-	;; 
-	st8	[r1]=r17,16		// r1=&tf_b[0]
-	st8	[r2]=r18,16		// r2=&tf_b[1]
-	mov	r17=b1
-	;; 
+	mov	r19=ar.ec
+}
+{	.mmi
+	mov	r17=ar.ccv
+	;;
+	st8	[r1]=r17,16		// r1=&tf_ar_lc
+	nop	5
+	;;
+}
+{	.mmi
+	mov	r16=ar.fpsr
+	;;
+	st8	[r2]=r16,16		// r2=&tf_ar_ec
+	nop	6
+	;;
+}
+{	.mmi
+	st8	[r1]=r18,16		// r1=&tf_b[0]
+	;;
+	st8	[r2]=r19,16		// r2=&tf_b[1]
+	mov	r16=b1
+}
+{	.mmi
 	st8	[r1]=rB0,16		// r1=&tf_b[2]
-	mov	r18=b2
-	st8	[r2]=r17,16		// r2=&tf_b[3]
-	;; 
+	;;
+	st8	[r2]=r16,16		// r2=&tf_b[3]
+	mov	r16=b2
+	;;
+}
+{	.mii
+	st8	[r1]=r16,16		// r1=&tf_b[4]
 	mov	r17=b3
-	st8	[r1]=r18,16		// r1=&tf_b[4]
-	;; 
+	;;
 	mov	r18=b4
+}
+{	.mmi
 	st8	[r2]=r17,16		// r2=&tf_b[5]
 	;; 
-	mov	r17=b5
 	st8	[r1]=r18,16		// r1=&tf_b[6]
+	mov	r16=b5
+	;;
+}
+{	.mii
+	st8	[r2]=r16,16		// r2=&tf_b[7]
+	mov	r17=b6
+	;;
+	mov	r18=b7
+}
+{	.mmi
+	st8	[r1]=r17,16		// r1=&tf_r[FRAME_R1]
 	;; 
-	mov	r18=b6
-	st8	[r2]=r17,16		// r2=&tf_b[7]
-	;; 
-	mov	r17=b7
-	st8	[r1]=r18,16		// r1=&tf_r[FRAME_R1]
-	;; 
-	st8	[r2]=r17,16		// r2=&tf_r[FRAME_R2]
-	;; 
+	st8	[r2]=r18,16		// r2=&tf_r[FRAME_R2]
+	nop	7
+	;;
+}
+{	.mmb
 	.mem.offset 0,0
 	st8.spill [r1]=rR1,16		// r1=&tf_r[FRAME_R3]
 	.mem.offset 8,0
 	st8.spill [r2]=rR2,16		// r2=&tf_r[FRAME_R4]
-	;; 
-	.mem.offset 0,0
+	nop	8
+	;;
+}
+{	.mmi
+	.mem.offset 16,0
 	st8.spill [r1]=r3,16		// r1=&tf_r[FRAME_R5]
-	.mem.offset 8,0
+	.mem.offset 32,0
 	st8.spill [r2]=r4,16		// r2=&tf_r[FRAME_R6]
-	;; 
-	.mem.offset 0,0
+	nop	9
+	;;
+}
+{	.mmb
+	.mem.offset 48,0
 	st8.spill [r1]=r5,16		// r1=&tf_r[FRAME_R7]
-	.mem.offset 8,0
+	.mem.offset 64,0
 	st8.spill [r2]=r6,16		// r2=&tf_r[FRAME_R8]
-	;; 
-	.mem.offset 0,0
+	nop	10
+	;;
+}
+{	.mmi
+	.mem.offset 80,0
 	st8.spill [r1]=r7,16		// r1=&tf_r[FRAME_R9]
-	.mem.offset 8,0
+	.mem.offset 96,0
 	st8.spill [r2]=r8,16		// r2=&tf_r[FRAME_R10]
-	;; 
-	.mem.offset 0,0
+	nop	11
+	;;
+}
+{	.mmb
+	.mem.offset 112,0
 	st8.spill [r1]=r9,16		// r1=&tf_r[FRAME_R11]
-	.mem.offset 8,0
+	.mem.offset 128,0
 	st8.spill [r2]=r10,16		// r2=&tf_r[FRAME_SP]
-	;; 
-	.mem.offset 0,0
+	nop	12
+	;;
+}
+{	.mmi
+	.mem.offset 144,0
 	st8.spill [r1]=r11,16		// r1=&tf_r[FRAME_R13]
-	.mem.offset 8,0
+	.mem.offset 160,0
 	st8.spill [r2]=rSP,16		// r2=&tf_r[FRAME_R14]
-	;; 
-	.mem.offset 0,0
+	nop	13
+	;;
+}
+{	.mmb
+	.mem.offset 176,0
 	st8.spill [r1]=r13,16		// r1=&tf_r[FRAME_R15]
-	.mem.offset 8,0
+	.mem.offset 192,0
 	st8.spill [r2]=r14,16		// r2=&tf_r[FRAME_R16]
-	;; 
-	.mem.offset 0,0
+	nop	14
+	;;
+}
+{	.mfb
+	.mem.offset 208,0
 	st8.spill [r1]=r15,16		// r1=&tf_r[FRAME_R17]
-	;; 
+	nop	15
 	bsw.1				// switch to bank 1
-	;; 
-	.mem.offset 8,0
+	;;
+}
+{	.mmi
+	.mem.offset 224,0
 	st8.spill [r2]=r16,16		// r2=&tf_r[FRAME_R18]
-	.mem.offset 0,0
+	.mem.offset 240,0
 	st8.spill [r1]=r17,16		// r1=&tf_r[FRAME_R19]
-	;; 
-	.mem.offset 8,0
+	nop	16
+	;;
+}
+{	.mmb
+	.mem.offset 256,0
 	st8.spill [r2]=r18,16		// r2=&tf_r[FRAME_R20]
-	.mem.offset 0,0
+	.mem.offset 272,0
 	st8.spill [r1]=r19,16		// r1=&tf_r[FRAME_R21]
-	;; 
-	.mem.offset 8,0
+	nop	17
+	;;
+}
+{	.mmi
+	.mem.offset 288,0
 	st8.spill [r2]=r20,16		// r2=&tf_r[FRAME_R22]
-	.mem.offset 0,0
+	.mem.offset 304,0
 	st8.spill [r1]=r21,16		// r1=&tf_r[FRAME_R23]
-	;; 
-	.mem.offset 8,0
+	nop	18
+	;;
+}
+{	.mmb
+	.mem.offset 320,0
 	st8.spill [r2]=r22,16		// r2=&tf_r[FRAME_R24]
-	.mem.offset 0,0
+	.mem.offset 336,0
 	st8.spill [r1]=r23,16		// r1=&tf_r[FRAME_R25]
-	;; 
-	.mem.offset 8,0
+	nop	19
+	;;
+}
+{	.mmi
+	.mem.offset 352,0
 	st8.spill [r2]=r24,16		// r2=&tf_r[FRAME_R26]
-	.mem.offset 0,0
+	.mem.offset 368,0
 	st8.spill [r1]=r25,16		// r1=&tf_r[FRAME_R27]
-	;; 
-	.mem.offset 8,0
+	nop	20
+	;;
+}
+{	.mmb
+	.mem.offset 384,0
 	st8.spill [r2]=r26,16		// r2=&tf_r[FRAME_R28]
-	.mem.offset 0,0
+	.mem.offset 400,0
 	st8.spill [r1]=r27,16		// r1=&tf_r[FRAME_R29]
-	;; 
-	.mem.offset 8,0
+	nop	21
+	;;
+}
+{	.mmi
+	.mem.offset 416,0
 	st8.spill [r2]=r28,16		// r2=&tf_r[FRAME_R30]
-	.mem.offset 0,0
+	.mem.offset 432,0
 	st8.spill [r1]=r29,16		// r1=&tf_r[FRAME_R31]
-	;; 
-	.mem.offset 8,0
+	nop	22
+	;;
+}
+{	.mmb
+	.mem.offset 448,0
 	st8.spill [r2]=r30,16		// r2=&tf_f[FRAME_F6]
-	.mem.offset 0,0
+	.mem.offset 464,0
 	st8.spill [r1]=r31,24		// r1=&tf_f[FRAME_F7]
-	;; 
+	nop	23
+	;;
+}
+{	.mmi
 	stf.spill [r2]=f6,32		// r2=&tf_f[FRAME_F8]
 	stf.spill [r1]=f7,32		// r1=&tf_f[FRAME_F9]
-	;; 
+	nop	24
+	;;
+}
+{	.mmb
 	stf.spill [r2]=f8,32		// r2=&tf_f[FRAME_F10]
 	stf.spill [r1]=f9,32		// r1=&tf_f[FRAME_F11]
-	;; 
+	nop	25
+	;;
+}
+{	.mmi
 	stf.spill [r2]=f10,32		// r2=&tf_f[FRAME_F12]
 	stf.spill [r1]=f11,32		// r1=&tf_f[FRAME_F13]
-	;; 
+	nop	26
+	;;
+}
+{	.mmb
 	stf.spill [r2]=f12,32		// r2=&tf_f[FRAME_F14]
 	stf.spill [r1]=f13,32		// r1=&tf_f[FRAME_F15]
-	;; 
-	stf.spill [r2]=f14		// 
-	stf.spill [r1]=f15		// 
-	;; 
-	movl	r1=__gp			// kernel globals
-	mov	r13=ar.k4		// processor globals
+	nop	27
+	;;
+}
+{	.mmi
+	stf.spill [r2]=f14		//
+	stf.spill [r1]=f15		//
+	nop	28
+	;;
+}
+{	.mlx
 	mov	r14=cr.iim		// break immediate
+	movl	r1=__gp			// kernel globals
+}
+{	.mmi
 	ssm	psr.ic|psr.dt		// enable interrupts & translation
 	;;
 	srlz.i				// serialize
+	nop	29
 	;;
+}
+{	.mfb
+	mov	r13=ar.k4		// processor globals
+	nop	30
 	br.sptk.few b0			// not br.ret - we were not br.call'ed
-
+	;;
+}
 END(exception_save)
 	
 /*
@@ -1322,8 +1609,8 @@ ENTRY(do_syscall, 0)
 	nop.i	0
 	;;
 } { .mmi
-	st8	[r30]=r20,16		// save ar.ccv, skip to b0
-	st8	[r31]=r21,16		// save ar.fpsr, skip to b1
+	st8	[r30]=r20,32		// save ar.ccv, skip to b0
+	st8	[r31]=r21,32		// save ar.fpsr, skip to b1
 	nop.i	0
 	;;
 } { .mmi
@@ -1484,7 +1771,7 @@ ENTRY(do_syscall, 0)
 	nop.i	0
 	;;
 } { .mmi
-	ld8	r16=[r30],-16		// restore b0, skip to ar.ccv
+	ld8	r16=[r30],-32		// restore b0, skip to ar.ccv
 	ld8	r17=[r31],-16		// restore ar.fpsr, skip to ar.unat
 	nop.i	0
 	;;
