@@ -78,7 +78,8 @@ u_long *objp;
 		}
 		if(out.more == 0) {
 			xdr_free(xdr_ypresp_all, (char *)&out);
-			return FALSE;
+			*objp = YP_NOMORE;
+			return TRUE;
 		}
 		status = out.ypresp_all_u.val.stat;
 		switch(status) {
@@ -105,6 +106,7 @@ u_long *objp;
 			break;
 		case YP_NOMORE:
 			xdr_free(xdr_ypresp_all, (char *)&out);
+			*objp = YP_NOMORE;
 			return TRUE;
 		default:
 			xdr_free(xdr_ypresp_all, (char *)&out);
