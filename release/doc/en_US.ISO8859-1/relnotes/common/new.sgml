@@ -134,6 +134,20 @@
       been fixed.  More information can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
 
+    <para>A bug that could allow the kernel to cause resource starvation
+      which eventually results in a system panic in the ARP cache code
+      has been fixed.  More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
+
+    <para>A bug in the &man.readv.2; system call, which could potentially
+      cause a system crash or privilege escalation has been fixed.
+      More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:16.filedesc.asc">FreeBSD-SA-03:16</ulink>.</para>
+
+    <para>A bug in &man.procfs.5; and &man.linprocfs.5;, which could result in
+      disclosing the contents of kernel memory, has been fixed.
+      More information can be found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.</para>
   </sect2>
 
   <sect2 id="kernel">
