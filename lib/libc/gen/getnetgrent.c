@@ -77,16 +77,14 @@ static struct {
 };
 static FILE *netf = (FILE *)0;
 static int parse_netgrp();
+#ifdef YP
+static int _netgr_yp_enabled;
+#endif
 static struct linelist *read_for_group();
 void setnetgrent(), endnetgrent();
 int getnetgrent(), innetgr();
 
 #define	LINSIZ	1024	/* Length of netgroup file line */
-
-#ifdef YP
-static int _netgr_yp_stepping;
-static int _netgr_yp_enabled;
-#endif
 
 /*
  * setnetgrent()
@@ -98,7 +96,6 @@ void
 setnetgrent(group)
 	char *group;
 {
-
 	if (grouphead.gr == (struct netgrp *)0 ||
 		strcmp(group, grouphead.grname)) {
 		endnetgrent();
@@ -114,9 +111,6 @@ setnetgrent(group)
 		}
 	}
 	nextgrp = grouphead.gr;
-#ifdef YP
-	_netgr_yp_stepping = 0;
-#endif
 }
 
 /*
@@ -173,7 +167,7 @@ endnetgrent()
 	}
 	grouphead.gr = (struct netgrp *)0;
 #ifdef YP
-	_netgr_yp_stepping = 0;
+	_netgr_yp_enabled = 0;
 #endif
 }
 
@@ -287,48 +281,20 @@ read_for_group(group)
 	char line[LINSIZ + 1];
 #ifdef YP
 	static char *_netgr_yp_domain;
-	static char *key, *lastkey;
-	static int keylen;
 	char *result;
 	int resultlen;
 
-	/* XXX   There's a small amount of magic at work here:
-	 * once the '+' has been found that tells us to use NIS,
-	 * we have to avoid checking the actual /etc/netgroups file
-	 * again until we're finished reading the netgroup map.
-	 * Therefore, we count on the second half of the test in
-	 * the while() loop not being executed so long as the first
-	 * part evaluates to true.
-	 */
 	while (_netgr_yp_enabled || fgets(line, LINSIZ, netf) != NULL) {
 		if (_netgr_yp_enabled) {
 			if(!_netgr_yp_domain)
-				if(yp_get_default_domain(&_netgr_yp_domain)) {
-					_netgr_yp_enabled = 0;
-					_netgr_yp_stepping = 0;
+				if(yp_get_default_domain(&_netgr_yp_domain))
 					continue;
-				}
-			if (_netgr_yp_stepping) {
-				lastkey = key;
-				if(yp_next(_netgr_yp_domain, "netgroup", key,
-			     	keylen, &key, &keylen, &result, &resultlen)) {
-					_netgr_yp_enabled = 0;
-					_netgr_yp_stepping = 0;
-					free(lastkey);
-					continue;
-				}
-				free(lastkey);
-			} else {
-				if(key) free(key);
-				if (yp_first(_netgr_yp_domain, "netgroup",
-			      		&key, &keylen, &result, &resultlen)) {
-					_netgr_yp_enabled = 0;
-					_netgr_yp_stepping = 0;
-					continue;
-				}
-				_netgr_yp_stepping = 1;
+			if (yp_match(_netgr_yp_domain, "netgroup", group,
+					strlen(group), &result, &resultlen)) {
+				free(result);
+				return ((struct linelist *)0);
 			}
-			sprintf(line, "%s %s", key, result);
+			sprintf(line, "%s %s", group, result);
 			free(result);
 		}
 #else
@@ -336,6 +302,10 @@ read_for_group(group)
 #endif
 		pos = (char *)&line;
 #ifdef YP
+		/*
+		 * Once we default over to NIS, only
+		 * endnetgrent() can get us out again.
+		 */
 		if (*pos == '+') {
 			_netgr_yp_enabled = 1;
 			continue;
