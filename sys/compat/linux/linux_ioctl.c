@@ -118,6 +118,7 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
+		/* XXX: wrong, should use DIOCGMEDIASIZE/DIOCGSECTORSIZE */
 		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td->td_ucred,
 		    td);
 		fdrop(fp, td);
