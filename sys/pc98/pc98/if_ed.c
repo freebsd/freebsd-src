@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.5 1997/02/06 14:54:20 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.6 1997/02/12 13:41:21 kato Exp $
  */
 
 /*
@@ -455,8 +455,7 @@ ed_probe(isa_dev)
 	 * PLANET SMART COM CREDITCARD/2000 PCMCIA
 	 * IO-DATA PCLA/T
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LPC) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LPC;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LPC);
 		nports = ed_probe_Novell(isa_dev);
@@ -490,8 +489,7 @@ ed_probe(isa_dev)
 	/*
 	 * Allied Telesis SIC-98
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_SIC) {
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_SIC;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_SIC);
 		nports = ed_probe_SIC98(isa_dev);
@@ -503,8 +501,7 @@ ed_probe(isa_dev)
 	 * ELECOM LANEED LD-BDN
 	 * PLANET SMART COM 98 EN-2298
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_BDN) {
 		/* LD-BDN */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_BDN;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_BDN);
@@ -517,8 +514,7 @@ ed_probe(isa_dev)
 	 * MELCO LGY-98, IND-SP, IND-SS
 	 * MACNICA NE2098
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LGY) {
 		/* LGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LGY;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LGY);
@@ -531,8 +527,7 @@ ed_probe(isa_dev)
 	 * ICM DT-ET-25, DT-ET-T5, IF-2766ET, IF-2771ET
 	 * D-Link DE-298P, DE-298
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_ICM) {
 		/* ICM */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_ICM;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_ICM);
@@ -545,8 +540,7 @@ ed_probe(isa_dev)
 	 * MELCO EGY-98
 	 * Contec C-NET(98)E-A, C-NET(98)L-A
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_EGY) {
 		/* EGY-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_EGY;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_EGY);
@@ -558,8 +552,7 @@ ed_probe(isa_dev)
 	/*
 	 * IO-DATA LA/T-98
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_LA98) {
 		/* LA-98 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_LA98;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_LA98);
@@ -571,8 +564,7 @@ ed_probe(isa_dev)
 	/*
 	 * NEC PC-9801-108
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_108) {
 		/* PC-9801-108 */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_108;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_108);
@@ -584,8 +576,7 @@ ed_probe(isa_dev)
 	/*
 	 * Contec C-NET(98)E/L
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98EL) {
 		/* C-NET(98)E/L */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98EL;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98EL);
@@ -597,8 +588,7 @@ ed_probe(isa_dev)
 	/*
 	 * Contec C-NET(98)
 	 */
-	if ((ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_GENERIC) ||
-		(ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98)) {
+	if (ED_TYPE98(isa_dev->id_flags) == ED_TYPE98_CNET98) {
 		/* C-NET(98) */
 		ed_softc[isa_dev->id_unit].type = ED_TYPE98_CNET98;
 		nports98 = pc98_set_register(isa_dev, ED_TYPE98_CNET98);
