@@ -782,12 +782,28 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 
 	if ((ifp->if_flags & IFF_UP) == 0 ||
 	    (ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == 0) {
+#ifdef INET6
+	  drop:
+#endif
 		m_freem (m);
 		splx (s);
 		return (ENETDOWN);
 	}
 
 	if ((ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == IFF_AUTO) {
+#ifdef INET6
+		/*
+		 * XXX
+		 *
+		 * Hack to prevent the initialization-time generated
+		 * IPv6 multicast packet to erroneously cause a
+		 * dialout event in case IPv6 has been
+		 * administratively disabled on that interface.
+		 */
+		if (dst->sa_family == AF_INET6 &&
+		    !(sp->confflags & CONF_ENABLE_IPV6))
+			goto drop;
+#endif
 		/*
 		 * Interface is not yet running, but auto-dial.  Need
 		 * to start LCP for it.
@@ -1011,7 +1027,13 @@ sppp_attach(struct ifnet *ifp)
 	if(!mtx_initialized(&sp->pp_fastq.ifq_mtx))
 		mtx_init(&sp->pp_fastq.ifq_mtx, "sppp_fastq", MTX_DEF);
 	sp->pp_last_recv = sp->pp_last_sent = time_second;
-	sp->enable_vj = 1;
+	sp->confflags = 0;
+#ifdef INET
+	sp->confflags |= CONF_ENABLE_VJ;
+#endif
+#ifdef INET6
+	sp->confflags |= CONF_ENABLE_IPV6;
+#endif
 	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAIT);
 	sl_compress_init(sp->pp_comp, -1);
 	sppp_lcp_init(sp);
@@ -2616,7 +2638,16 @@ sppp_lcp_tlu(struct sppp *sp)
 	if (sp->pp_phase == PHASE_NETWORK) {
 		/* Notify all NCPs. */
 		for (i = 0; i < IDX_COUNT; i++)
-			if ((cps[i])->flags & CP_NCP)
+			if (((cps[i])->flags & CP_NCP) &&
+			    /*
+			     * XXX
+			     * Hack to administratively disable IPv6 if
+			     * not desired.  Perhaps we should have another
+			     * flag for this, but right now, we can make
+			     * all struct cp's read/only.
+			     */
+			    (cps[i] != &ipv6cp ||
+			     (sp->confflags & CONF_ENABLE_IPV6)))
 				(cps[i])->Open(sp);
 	}
 
@@ -2837,7 +2868,7 @@ sppp_ipcp_open(struct sppp *sp)
 		sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
 	} else
 		sp->ipcp.flags |= IPCP_MYADDR_SEEN;
-	if (sp->enable_vj) {
+	if (sp->confflags & CONF_ENABLE_VJ) {
 		sp->ipcp.opts |= (1 << IPCP_OPT_COMPRESSION);
 		sp->ipcp.max_state = MAX_STATES - 1;
 		sp->ipcp.compress_cid = 1;
@@ -2898,7 +2929,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			log(-1, " %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
 		case IPCP_OPT_COMPRESSION:
-			if (!sp->enable_vj) {
+			if (!(sp->confflags & CONF_ENABLE_VJ)) {
 				/* VJ compression administratively disabled */
 				if (debug)
 					log(-1, "[locally disabled] ");
@@ -5011,7 +5042,8 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * CHAP secrets back to userland anyway.
 		 */
 		spr->defs.pp_phase = sp->pp_phase;
-		spr->defs.enable_vj = sp->enable_vj;
+		spr->defs.enable_vj = (sp->confflags & CONF_ENABLE_VJ) != 0;
+		spr->defs.enable_ipv6 = (sp->confflags & CONF_ENABLE_IPV6) != 0;
 		spr->defs.lcp = sp->lcp;
 		spr->defs.ipcp = sp->ipcp;
 		spr->defs.ipv6cp = sp->ipv6cp;
@@ -5101,9 +5133,20 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		/* set LCP restart timer timeout */
 		if (spr->defs.lcp.timeout != 0)
 			sp->lcp.timeout = spr->defs.lcp.timeout * hz / 1000;
-		/* set VJ enable flag */
-		sp->enable_vj = spr->defs.enable_vj;
+		/* set VJ enable and IPv6 disable flags */
+#ifdef INET
+		if (spr->defs.enable_vj)
+			sp->confflags |= CONF_ENABLE_VJ;
+		else
+			sp->confflags &= ~CONF_ENABLE_VJ;
+#endif
+#ifdef INET6
+		if (spr->defs.enable_ipv6)
+			sp->confflags |= CONF_ENABLE_IPV6;
+		else
+			sp->confflags &= ~CONF_ENABLE_IPV6;
 		break;
+#endif
 
 	default:
 		rv = EINVAL;
