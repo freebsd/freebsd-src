@@ -189,8 +189,8 @@ struct mtx ipqlock;
 
 #define	IPQ_LOCK()	mtx_lock(&ipqlock)
 #define	IPQ_UNLOCK()	mtx_unlock(&ipqlock)
-#define	IPQ_LOCK_INIT()	mtx_init(&ipqlock, "ipqlock", NULL, MTX_DEF);
-#define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED);
+#define	IPQ_LOCK_INIT()	mtx_init(&ipqlock, "ipqlock", NULL, MTX_DEF)
+#define	IPQ_LOCK_ASSERT()	mtx_assert(&ipqlock, MA_OWNED)
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
