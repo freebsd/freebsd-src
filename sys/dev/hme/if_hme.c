@@ -126,8 +126,6 @@ static void	hme_txcksum(struct mbuf *, u_int32_t *);
 static void	hme_rxcksum(struct mbuf *, u_int32_t);
 
 static void	hme_cdma_callback(void *, bus_dma_segment_t *, int, int);
-static void	hme_rxdma_callback(void *, bus_dma_segment_t *, int,
-    bus_size_t, int);
 static void	hme_txdma_callback(void *, bus_dma_segment_t *, int,
     bus_size_t, int);
 
@@ -484,18 +482,6 @@ hme_stop(struct hme_softc *sc)
 	device_printf(sc->sc_dev, "hme_stop: reset failed\n");
 }
 
-static void
-hme_rxdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs,
-    bus_size_t totsize, int error)
-{
-	bus_addr_t *a = xsc;
-
-	KASSERT(nsegs == 1, ("hme_rxdma_callback: multiple segments!"));
-	if (error != 0)
-		return;
-	*a = segs[0].ds_addr;
-}
-
 /*
  * Discard the contents of an mbuf in the RX ring, freeing the buffer in the
  * ring for subsequent use.
@@ -517,10 +503,10 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 {
 	struct hme_rxdesc *rd;
 	struct mbuf *m;
-	bus_addr_t ba;
+	bus_dma_segment_t segs[1];
 	bus_dmamap_t map;
 	uintptr_t b;
-	int a, unmap;
+	int a, unmap, nsegs;
 
 	rd = &sc->sc_rb.rb_rxdesc[ri];
 	unmap = rd->hrx_m != NULL;
@@ -550,11 +536,13 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	 * ALIGN().
 	 */
 	m_adj(m, roundup2(b, a) - b);
-	if (bus_dmamap_load_mbuf(sc->sc_rdmatag, sc->sc_rb.rb_spare_dmamap,
-	    m, hme_rxdma_callback, &ba, 0) != 0) {
+	if (bus_dmamap_load_mbuf_sg(sc->sc_rdmatag, sc->sc_rb.rb_spare_dmamap,
+	    m, segs, &nsegs, 0) != 0) {
 		m_freem(m);
 		return (ENOBUFS);
 	}
+	/* If nsegs is wrong then the stack is corrupt */
+	KASSERT(nsegs == 1, "Too many segments returned!");
 	if (unmap) {
 		bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
@@ -564,7 +552,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	rd->hrx_dmamap = sc->sc_rb.rb_spare_dmamap;
 	sc->sc_rb.rb_spare_dmamap = map;
 	bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap, BUS_DMASYNC_PREREAD);
-	HME_XD_SETADDR(sc->sc_pci, sc->sc_rb.rb_rxd, ri, ba);
+	HME_XD_SETADDR(sc->sc_pci, sc->sc_rb.rb_rxd, ri, segs[0].ds_addr);
 	rd->hrx_m = m;
 	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ri, HME_XD_OWN |
 	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, rd)));
