@@ -239,7 +239,7 @@ find_link(int id)
 	return(0);
 }
 
-void
+int
 edit_form(struct form *form)
 {
 	WINDOW *window;
@@ -247,6 +247,10 @@ edit_form(struct form *form)
 	int key;
 
 	window = newwin(form->height, form->width, form->y, form->x);
+	if (!window) {
+		fprintf(stderr, "Failed to open window\n");
+		return(-1);
+	}
 	keypad(window, TRUE);
 
 	refresh_form(window, form);
@@ -254,8 +258,11 @@ edit_form(struct form *form)
 	cur_field = form->fields;
 
 	do {
-		/* Just skip over text fields */
+		/* Skip over any preceeding text fields */
 		if (cur_field->type == FORM_FTYPE_TEXT) {
+			if (!cur_field->link)
+				/* No editable fields, reached end of text fields */
+				return(0);
 			cur_field = cur_field->link;
 			continue;
 		}
@@ -297,6 +304,7 @@ edit_form(struct form *form)
 		} else
 			beep();
 	} while (key != keymap[FORM_EXIT]);
+	return (0);
 }
 
 void
