@@ -50,8 +50,6 @@
  *
  */
 
-#include "opt_devfs.h"
-
 #include <dev/sound/midi/midi.h>
 
 static devclass_t midi_devclass;

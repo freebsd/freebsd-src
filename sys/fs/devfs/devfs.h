@@ -96,9 +96,4 @@ void devfs_purge __P((struct devfs_dirent *dd));
 struct devfs_dirent * devfs_vmkdir __P((char *name, int namelen,
     struct devfs_dirent *dotdot));
 #endif /* DEVFS_INTERN */
-
-typedef void (*devfs_clone_fn) __P((void *arg, char *name, int namelen, dev_t *result));
-
-int devfs_stdclone __P((char *name, char **namep, char *stem, int *unit));
-EVENTHANDLER_DECLARE(devfs_clone, devfs_clone_fn);
 #endif /* _KERNEL */

@@ -50,15 +50,6 @@ struct	diskslice {
 	u_char	ds_name[16];		/* slice name */
 #endif
 	struct disklabel *ds_label;	/* BSD label, if any */
-	void	*ds_dev;		/* devfs token for raw whole slice */
-#ifdef MAXPARTITIONS			/* XXX don't depend on disklabel.h */
-#if MAXPARTITIONS !=	8		/* but check consistency if possible */
-#error "inconsistent MAXPARTITIONS"
-#endif
-#else
-#define	MAXPARTITIONS	8
-#endif
-	void	*ds_devs[MAXPARTITIONS];	/* XXX s.b. in label */
 	u_char	ds_openmask;		/* devs open */
 	u_char	ds_wlabel;		/* nonzero if label is writable */
 };

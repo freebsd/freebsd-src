@@ -300,7 +300,7 @@ devfs_lookup(ap)
 	printf("Finished specname: %d \"%s\"\n", i, specname + i);
 #endif
 	cdev = NODEV;
-	EVENTHANDLER_INVOKE(devfs_clone, specname + i, 
+	EVENTHANDLER_INVOKE(dev_clone, specname + i, 
 	    strlen(specname + i), &cdev);
 #if 0
 	printf("cloned %s -> %p %s\n", specname + i, cdev,

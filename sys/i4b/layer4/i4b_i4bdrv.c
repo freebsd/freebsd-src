@@ -72,15 +72,6 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-
-#endif /* __FreeBSD__*/
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>

@@ -2,7 +2,7 @@
 
 .PATH:  ${.CURDIR}/../../dev/ccd
 KMOD=   ccd
-SRCS=   ccd.c ccd.h vnode_if.h opt_devfs.h
+SRCS=   ccd.c ccd.h vnode_if.h
 NOMAN=
 
 NCCD?=          4

@@ -61,15 +61,6 @@
 #include <sys/proc.h>
 #include <sys/tty.h>
 
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
-
-#endif /* __FreeBSD__ */
-
 #ifdef __bsdi__
 #include <sys/device.h>
 #endif

@@ -238,34 +238,12 @@ devfs_create(dev_t dev)
 }
 
 static void
-devfs_remove(dev_t dev)
+devfs_destroy(dev_t dev)
 {
 	devfs_inot[dev->si_inode] = NULL;
 	devfs_generation++;
 }
 
 devfs_create_t *devfs_create_hook = devfs_create;
-devfs_remove_t *devfs_remove_hook = devfs_remove;
-
-int
-devfs_stdclone(char *name, char **namep, char *stem, int *unit)
-{
-	int u, i;
-
-	if (bcmp(stem, name, strlen(stem)) != 0)
-		return (0);
-	i = strlen(stem);
-	if (!isdigit(name[i]))
-		return (0);
-	u = 0;
-	while (isdigit(name[i])) {
-		u *= 10;
-		u += name[i++] - '0';
-	}
-	*unit = u;
-	if (namep)
-		*namep = &name[i];
-	if (name[i]) 
-		return (2);
-	return (1);
-}
+devfs_destroy_t *devfs_destroy_hook = devfs_destroy;
+int devfs_present = 1;

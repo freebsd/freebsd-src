@@ -34,8 +34,6 @@
  * midi messages, and vice versa.
  */
 
-#include "opt_devfs.h"
-
 #include <stddef.h>
 #include <dev/sound/midi/midi.h>
 

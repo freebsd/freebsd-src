@@ -4,7 +4,7 @@
 KMOD=	coda
 SRCS=	vnode_if.h \
 	coda_fbsd.c coda_namecache.c coda_psdev.c coda_subr.c \
-	coda_venus.c coda_vfsops.c coda_vnops.c opt_devfs.h vcoda.h
+	coda_venus.c coda_vfsops.c coda_vnops.c vcoda.h
 NOMAN=
 
 CLEANFILES=	vcoda.h

@@ -46,8 +46,6 @@
  * $FreeBSD$
  */
 
-#include "opt_devfs.h"
-
 #include <stddef.h>
 
 #include <sys/param.h>
@@ -465,16 +463,13 @@ dsioctl(dev, cmd, data, flags, sspp)
 					       S_IFCHR, ssp->dss_oflags, sspp,
 					       lp);
 				if (error != 0) {
-					/* XXX should free devfs toks. */
 					free(lp, M_DEVBUF);
-					/* XXX should restore devfs toks. */
 					*sspp = ssp;
 					return (EBUSY);
 				}
 			}
 		}
 
-		/* XXX devfs tokens? */
 		free(lp, M_DEVBUF);
 		dsgone(&ssp);
 		return (0);
@@ -693,10 +688,7 @@ dsopen(dev, mode, flags, sspp, lp)
 		ssp->dss_slices[WHOLE_DISK_SLICE].ds_wlabel = TRUE;
 	}
 
-	/*
-	 * Initialize secondary info for all slices.  It is needed for more
-	 * than the current slice in the DEVFS case.
-	 */
+	/* Initialize secondary info for all slices.  */
 	for (slice = 0; slice < ssp->dss_nslices; slice++) {
 		sp = &ssp->dss_slices[slice];
 		if (sp->ds_label != NULL

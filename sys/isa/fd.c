@@ -52,7 +52,6 @@
  */
 
 #include "opt_fdc.h"
-#include "opt_devfs.h"
 #include "card.h"
 
 #include <sys/param.h>
@@ -83,12 +82,6 @@
 #include <isa/fdreg.h>
 #include <isa/fdc.h>
 #include <isa/rtc.h>
-
-#ifdef DEVFS
-#include <sys/ctype.h>
-#include <sys/eventhandler.h>
-#include <fs/devfs/devfs.h>
-#endif
 
 /* misuse a flag to identify format operation */
 
@@ -952,7 +945,6 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
-#ifdef DEVFS
 static void fd_clone __P((void *arg, char *name, int namelen, dev_t *dev));
 
 static struct {
@@ -993,7 +985,7 @@ fd_clone(arg, name, namelen, dev)
 
 	if (*dev != NODEV)
 		return;
-	if (devfs_stdclone(name, &n, "fd", &u) != 2)
+	if (dev_stdclone(name, &n, "fd", &u) != 2)
 		return;
 	for (i = 0; ; i++) {
 		if (fd_suffix[i].match == NULL)
@@ -1011,7 +1003,6 @@ fd_clone(arg, name, namelen, dev)
 		*dev = make_dev_alias(pdev, name);
 	}
 }
-#endif
 
 /******************************************************************/
 /*
@@ -1163,20 +1154,15 @@ static int
 fd_attach(device_t dev)
 {
 	struct	fd_data *fd;
+	static int cdevsw_add_done = 0;
 
 	fd = device_get_softc(dev);
 
-#ifndef DEVFS
-	{
-	static int cdevsw_add_done = 0;
 	if (!cdevsw_add_done) {
-	    cdevsw_add(&fd_cdevsw);	/* XXX */
-	    cdevsw_add_done++;
+		cdevsw_add(&fd_cdevsw);	/* XXX */
+		cdevsw_add_done++;
 	}
-	}
-#else
-	EVENTHANDLER_REGISTER(devfs_clone, fd_clone, 0, 1000);
-#endif
+	EVENTHANDLER_REGISTER(dev_clone, fd_clone, 0, 1000);
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
 		UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 

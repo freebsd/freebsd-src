@@ -45,6 +45,7 @@
 #define	_SYS_CONF_H_
 
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 
 #define SPECNAMELEN	15
 
@@ -134,10 +135,6 @@ typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
-
-/* This is type of the function DEVFS uses to hook into the kernel with */
-typedef void devfs_create_t __P((dev_t dev));
-typedef void devfs_remove_t __P((dev_t dev));
 
 /*
  * XXX: The dummy argument can be used to do what strategy1() never
@@ -299,7 +296,13 @@ int	lminor __P((dev_t dev));
 void	setconf __P((void));
 dev_t	getdiskbyname(char *name);
 
+/* This is type of the function DEVFS uses to hook into the kernel with */
+typedef void devfs_create_t __P((dev_t dev));
+typedef void devfs_destroy_t __P((dev_t dev));
+
 extern devfs_create_t *devfs_create_hook;
+extern devfs_destroy_t *devfs_destroy_hook;
+extern int devfs_present;
 
 /*
  * XXX: This included for when DEVFS resurfaces 
@@ -316,6 +319,10 @@ extern devfs_create_t *devfs_create_hook;
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
+typedef void (*dev_clone_fn) __P((void *arg, char *name, int namelen, dev_t *result));
+
+int dev_stdclone __P((char *name, char **namep, char *stem, int *unit));
+EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
