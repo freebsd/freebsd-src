@@ -1,6 +1,6 @@
 			The FreeBSD Ports FAQ file
 
-Revision: $Id$
+Revision: $Id: PORTS.FAQ,v 1.1 1995/01/04 00:43:35 jkh Exp $
 
 The ports system is kinda new, so there haven't been too many FAQ's to
 date, but hopefully this document will pre-empt (some|most) of them!!
@@ -193,6 +193,19 @@ alteration. Sorry!
 10) This FAQ is weak.  What can I do?
 
     Send changes to ports@FreeBSD.org.  Changes are most welcome!
-    This FAQ is also very green and should be considered no more than
-    a `good start' for now.  Authors?  You can come out of hiding any
-    time now! :-)
+This FAQ is also very green and should be considered no more than
+a `good start' for now.  Authors?  You can come out of hiding any
+time now! :-)
+
+
+11) How do I get more information on all the ports?
+
+    One good method is to cd to the top of the ports tree (say /usr/ports)
+and type something like:
+
+	make describe | sed -e '/===/D' -e 's;/usr/ports/;;' | expand -40
+
+The ``make describe'' will try to extract the one-line description from
+each port, and the ``sed'' will delete the extraneous output.  ``expand''
+just makes it a little more readable (sort of - you may want to season
+the output of this more to taste).
