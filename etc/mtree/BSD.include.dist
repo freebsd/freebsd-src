@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.7.2.1 1997/03/09 06:58:45 bde Exp $
+#	$Id$
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -8,8 +8,6 @@
     g++
 	std
 	..
-    ..
-    kerberosIV
     ..
     machine
     ..

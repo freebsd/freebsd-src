@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.27.2.8 1997/09/18 08:57:51 asami Exp $
+#	$Id: services,v 1.27.2.7 1997/08/12 18:13:12 eivind Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -790,11 +790,11 @@ ris-cm		748/tcp	   #Russell Info Sci Calendar Manager
 ris-cm		748/udp	   #Russell Info Sci Calendar Manager
 #kerberos-adm	 749/tcp    #Kerberos administration (v5)
 #kerberos-adm	 749/udp    #Kerberos administration (v5)
-kerberos	750/udp		kdc	# Kerberos (v4)
-kerberos	750/tcp		kdc	# Kerberos (v4)
+kerberos-iv	750/udp		kdc	# Kerberos (v4)
+kerberos-iv	750/tcp		kdc	# Kerberos (v4)
 #PROBLEMS!========================================================
-rfile		750/tcp
-loadav		750/udp
+#rfile		750/tcp
+#loadav		750/udp
 #PROBLEMS!========================================================
 kerberos_master 751/tcp	   # Kerberos `kadmin' (v4)
 kerberos_master 751/udp	   # Kerberos `kadmin' (v4)
@@ -1621,6 +1621,8 @@ prosharenotify	5717/tcp   #proshare conf notify
 prosharenotify	5717/udp   #proshare conf notify 
 #x11		6000-6063/tcp	X Window System
 #x11		6000-6063/udp	X Window System
+sshdfwd-X11	6064/tcp   #ssh X11 forwarding
+sshdfwd-X11	6064/udp   #ssh X11 forwarding
 softcm		6110/tcp   #HP SoftBench CM
 softcm		6110/udp   #HP SoftBench CM
 spc		6111/tcp   #HP SoftBench Sub-Process Control
