@@ -130,15 +130,15 @@ printstat(cp, inum, dp)
 	break;
     }
     printf("I=%lu MODE=%o SIZE=%qu", inum, dp->di_mode, dp->di_size);
-    p = ctime(&dp->di_mtime.tv_sec);
+    p = ctime((time_t *)&dp->di_mtime);
     printf("\n\tMTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
-	   dp->di_mtime.tv_nsec);
-    p = ctime(&dp->di_ctime.tv_sec);
+	   dp->di_mtimensec);
+    p = ctime((time_t *)&dp->di_ctime);
     printf("\n\tCTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
-	   dp->di_ctime.tv_nsec);
-    p = ctime(&dp->di_atime.tv_sec);
+	   dp->di_ctimensec);
+    p = ctime((time_t *)&dp->di_atime);
     printf("\n\tATIME=%15.15s %4.4s [%d nsec]\n", &p[4], &p[20],
-	   dp->di_atime.tv_nsec);
+	   dp->di_atimensec);
 
     if (pw = getpwuid(dp->di_uid))
 	printf("OWNER=%s ", pw->pw_name);
