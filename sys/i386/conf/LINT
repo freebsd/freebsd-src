@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.144 1995/02/17 02:22:36 phk Exp $
+#	$Id: LINT,v 1.145 1995/02/17 09:33:29 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -509,8 +509,6 @@ device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
 device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
 # This one is also temporarily ill - needs an isa_device structure!!
 #controller tel0 at isa? iomem 0xe0000 tty irq 9 vector telintr
-# Don't turn this on unless you're also prepared to fix it! :)
-#device snic0
 
 # These are non-optional for ISDN
 pseudo-device   isdn
