@@ -1281,10 +1281,7 @@ ata_reset(struct ata_softc *scp, int32_t *mask)
 	if (*mask == 0x03)      /* wait for both master & slave */
 	    if (!(status0 & ATA_S_BUSY) && !(status1 & ATA_S_BUSY))
 		break;
-	if (ata_delayed_attach)
-	    DELAY(100);
-	else
-	    tsleep(&ata_delayed_attach, PRIBIO, "atarst", 1);
+	DELAY(100);
     }	
     DELAY(1);
     outb(scp->altioaddr, ATA_A_4BIT);
