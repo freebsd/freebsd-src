@@ -159,7 +159,7 @@ beforeinstall:
 .endfor
 .for HEADER in ${ADD_HEADERS}
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/${HEADER} ${DESTDIR}/usr/include/security/${HEADER}
+	    ${.CURDIR}/security/${HEADER} ${DESTDIR}/usr/include/security/${HEADER}
 .endfor
 
 .include <bsd.lib.mk>
