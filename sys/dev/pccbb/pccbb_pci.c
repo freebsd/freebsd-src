@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/*
+/*-
  * Copyright (c) 1998, 1999 and 2000
  *      HAYAKAWA Koichi.  All rights reserved.
  *
