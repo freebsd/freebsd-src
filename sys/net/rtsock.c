@@ -147,7 +147,7 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
-	soisconnected_locked(so);
+	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
 	splx(s);
 	return 0;

@@ -1871,7 +1871,7 @@ process_ACK:
 				 * we'll hang forever.
 				 */
 				if (so->so_state & SS_CANTRCVMORE) {
-					soisdisconnected_locked(so);
+					soisdisconnected(so);
 					callout_reset(tp->tt_2msl, tcp_maxidle,
 						      tcp_timer_2msl, tp);
 				}

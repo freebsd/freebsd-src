@@ -62,6 +62,6 @@ sohasdata(struct socket *so, void *arg, int waitflag)
 
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected_locked(so);
+	soisconnected(so);
 	return;
 }

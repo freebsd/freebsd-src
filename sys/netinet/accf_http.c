@@ -203,7 +203,7 @@ fallout:
 	DPRINT("fallout");
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected_locked(so);
+	soisconnected(so);
 	return;
 }
 
@@ -285,7 +285,7 @@ fallout:
 	DPRINT("fallout");
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected_locked(so);
+	soisconnected(so);
 	return;
 }
 
@@ -355,6 +355,6 @@ readmore:
 gotit:
 	so->so_upcall = NULL;
 	so->so_rcv.sb_flags &= ~SB_UPCALL;
-	soisconnected_locked(so);
+	soisconnected(so);
 	return;
 }
