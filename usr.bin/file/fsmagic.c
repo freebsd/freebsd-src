@@ -31,6 +31,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#ifndef major
+# if defined(__SVR4) || defined(_SVR4_SOURCE)
+#  include <sys/mkdev.h>
+# endif
+#endif
 #ifndef	major			/* if `major' not defined in types.h, */
 #include <sys/sysmacros.h>	/* try this one. */
 #endif
@@ -46,7 +51,7 @@
 
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: fsmagic.c,v 1.23 1995/01/21 21:03:35 christos Exp $";
+	"@(#)$Id: fsmagic.c,v 1.25 1997/01/15 19:28:35 christos Exp $";
 #endif	/* lint */
 
 int
@@ -84,12 +89,12 @@ struct stat *sb;
 		ckfputs("directory", stdout);
 		return 1;
 	case S_IFCHR:
-		(void) printf("character special (%d/%d)",
-			major(sb->st_rdev), minor(sb->st_rdev));
+		(void) printf("character special (%ld/%ld)",
+			(long) major(sb->st_rdev), (long) minor(sb->st_rdev));
 		return 1;
 	case S_IFBLK:
-		(void) printf("block special (%d/%d)",
-			major(sb->st_rdev), minor(sb->st_rdev));
+		(void) printf("block special (%ld/%ld)",
+			(long) major(sb->st_rdev), (long) minor(sb->st_rdev));
 		return 1;
 	/* TODO add code to handle V7 MUX and Blit MUX files */
 #ifdef	S_IFIFO

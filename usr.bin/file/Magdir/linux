@@ -24,7 +24,7 @@
 0	string		\007\001\000	Linux/i386 object file
 >20	lelong		>0x1020		\b, DLL library
 # message catalogs, from Mitchum DSouza <m.dsouza@mrc-apu.cam.ac.uk>
-0	string		*nazgul*	compiled message catalog
+0	string		*nazgul*	Linux compiled message catalog
 >8	lelong		>0		\b, version %ld
 # core dump file, from Bill Reynolds <bill@goshawk.lanl.gov>
 216	lelong		0421		Linux/i386 core file
@@ -49,7 +49,25 @@
 >3	byte		>0		8x%d
 # Linux swap file, from Daniel Quinlan <quinlan@yggdrasil.com>
 4086	string		SWAP-SPACE	Linux/i386 swap file
-# From: Erik Troan <ewt@redhat.com>
-0	leshort		0x00070183	ECOFF (Linux/OSF) Alpha binary
->10	leshort		0x0001		not stripped
->10	leshort		0x0000		stripped
+# ECOFF magic for OSF/1 and Linux (only tested under Linux though)
+#
+#	from Erik Troan (ewt@redhat.com) examining od dumps, so this
+#		could be wrong
+#      updated by David Mosberger (davidm@azstarnet.com) based on
+#      GNU BFD and MIPS info found below.
+#
+0	leshort		0x0183		ECOFF alpha
+>24	leshort		0407		executable
+>24	leshort		0410		pure
+>24	leshort		0413		demand paged
+>8	long		>0		not stripped
+>8	long		0		stripped
+>23	leshort		>0		- version %ld.
+# linux Kernel images version 1.3.80 - ?
+# from Axel Kohlmeyer <akohlmey@rincewind.chemie.uni-ulm.de>
+0       belong          0xb8c0078e      Linux/x86 kernel image,
+>0x048c byte            0x31
+>>0x048c string         x               version %s
+>0x0493 byte            0x31
+>>0x0493 string         x               version %s
+#

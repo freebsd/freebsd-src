@@ -84,3 +84,27 @@
 >>128	string		>\0		from '%s'
 >4	belong		456		(SPARC 4.x BCP)
 >>152	string		>\0		from '%s'
+# Sun SunPC
+0	long		0xfa33c08e	SunPC 4.0 Hard Disk
+0	string		#SUNPC_CONFIG	SunPC 4.0 Properties Values
+# Sun snoop
+#
+# XXX - are numbers stored in big-endian format, or in host byte order?
+# They're the same on SPARC, but not the same on x86.
+#
+0	string		snoop		Snoop capture file
+>8	long		>0		- version %ld
+>12	long		0		(IEEE 802.3)
+>12	long		1		(IEEE 802.4)
+>12	long		2		(IEEE 802.5)
+>12	long		3		(IEEE 802.6)
+>12	long		4		(Ethernet)
+>12	long		5		(HDLC)
+>12	long		6		(Character synchronous)
+>12	long		7		(IBM channel-to-channel adapter)
+>12	long		8		(FDDI)
+>12	long		9		(Unknown)
+# Sun KCMS
+36	string		acsp		Kodak Color Management System, ICC Profile
+
+
