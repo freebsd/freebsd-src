@@ -1,6 +1,5 @@
-%{
 /*
- * Copyright (c) 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -37,93 +36,41 @@
  * SUCH DAMAGE. 
  */
 
-/*
- * This is to handle the definition of this symbol in some AIX
- * headers, which will conflict with the definition that lex will
- * generate for it.  It's only a problem for AIX lex.
- */
+/* $Id: getarg.h,v 1.5 1998/08/18 20:26:11 assar Exp $ */
 
-#undef ECHO
+#ifndef __GETARG_H__
+#define __GETARG_H__
 
-#include "compile_et.h"
-#include "parse.h"
+#include <stddef.h>
 
-#if 0
-RCSID("$Id: lex.l,v 1.4 1998/11/20 05:58:52 assar Exp $");
-#endif
+#define max(a,b) (((a)>(b))?(a):(b))
 
-static unsigned lineno = 1;
-void error_message(char *, ...);
-int getstring(void);
+struct getargs{
+    const char *long_name;
+    char short_name;
+    enum { arg_integer, arg_string, arg_flag, arg_negative_flag, arg_strings } type;
+    void *value;
+    const char *help;
+    const char *arg_help;
+};
 
-%}
+enum {
+    ARG_ERR_NO_MATCH  = 1,
+    ARG_ERR_BAD_ARG,
+    ARG_ERR_NO_ARG
+};
 
+typedef struct getarg_strings {
+    int num_strings;
+    char **strings;
+} getarg_strings;
 
-%%
-et			{ return ET; }
-error_table		{ return ET; }
-ec			{ return EC; }
-error_code		{ return EC; }
-prefix			{ return PREFIX; }
-index			{ return INDEX; }
-id			{ return ID; }
-end			{ return END; }
-[0-9]+			{ yylval.number = atoi(yytext); return NUMBER; }
-#[^\n]*			;
-[ \t]			;
-\n			{ lineno++; }
-\"			{ return getstring(); }
-[a-zA-Z0-9_]+		{ yylval.string = strdup(yytext); return STRING; }
-.			{ return *yytext; }
-%%
+int getarg(struct getargs *args, size_t num_args, 
+	   int argc, char **argv, int *optind);
 
-#ifndef yywrap /* XXX */
-int
-yywrap () 
-{
-     return 1;
-}
-#endif
+void arg_printusage (struct getargs *args,
+		     size_t num_args,
+		     const char *progname,
+		     const char *extra_string);
 
-int
-getstring(void)
-{
-    char x[128];
-    int i = 0;
-    int c;
-    int quote = 0;
-    while((c = input()) != EOF){
-	if(quote) {
-	    x[i++] = c;
-	    quote = 0;
-	    continue;
-	}
-	if(c == '\n'){
-	    error_message("unterminated string");
-	    lineno++;
-	    break;
-	}
-	if(c == '\\'){
-	    quote++;
-	    continue;
-	}
-	if(c == '\"')
-	    break;
-	x[i++] = c;
-    }
-    x[i] = '\0';
-    yylval.string = strdup(x);
-    return STRING;
-}
-
-void
-error_message (char *format, ...)
-{
-     va_list args;
-
-     va_start (args, format);
-     fprintf (stderr, "%s:%d:", filename, lineno);
-     vfprintf (stderr, format, args);
-     va_end (args);
-     numerror++;
-}
+#endif /* __GETARG_H__ */
