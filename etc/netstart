@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.37 1996/01/02 19:47:05 pst Exp $
+#	$Id: netstart,v 1.38 1996/01/06 20:49:17 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -61,6 +61,6 @@ fi
 
 if [ "x$router" != "xNO" ] ; then
 	echo -n starting routing daemon:
-	echo -n ' ${router}';	${router} ${routerflags}
+	echo -n " ${router}";	${router} ${routerflags}
 	echo '.'
 fi
