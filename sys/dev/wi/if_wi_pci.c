@@ -69,6 +69,8 @@
 
 static int wi_pci_probe(device_t);
 static int wi_pci_attach(device_t);
+static int wi_pci_suspend(device_t);
+static int wi_pci_resume(device_t);
 
 static device_method_t wi_pci_methods[] = {
 	/* Device interface */
@@ -76,6 +78,8 @@ static device_method_t wi_pci_methods[] = {
 	DEVMETHOD(device_attach,	wi_pci_attach),
 	DEVMETHOD(device_detach,	wi_generic_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
+	DEVMETHOD(device_suspend,	wi_pci_suspend),
+	DEVMETHOD(device_resume,	wi_pci_resume),
 
 	{ 0, 0 }
 };
@@ -230,6 +234,37 @@ wi_pci_attach(device_t dev)
 	error = wi_generic_attach(dev);
 	if (error != 0)
 		return (error);
+
+	return (0);
+}
+
+static int
+wi_pci_suspend(device_t dev)
+{
+	struct wi_softc		*sc;
+	sc = device_get_softc(dev);
+
+	wi_stop(sc);
+
+	return (0);
+}
+
+static int
+wi_pci_resume(device_t dev)
+{
+	struct wi_softc *sc;
+	struct ifnet *ifp;
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE)
+		return (0);
+
+	if (ifp->if_flags & IFF_UP) {
+		ifp->if_init(ifp->if_softc);
+		if (ifp->if_flags & IFF_RUNNING)
+			ifp->if_start(ifp);
+	}
 
 	return (0);
 }

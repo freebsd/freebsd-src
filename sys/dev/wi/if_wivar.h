@@ -220,5 +220,6 @@ int wi_generic_detach(device_t);
 void wi_shutdown(device_t);
 int wi_alloc(device_t, int);
 void wi_free(device_t);
+void wi_stop(struct wi_softc *);
 extern devclass_t wi_devclass;
 int wi_mgmt_xmit(struct wi_softc *, caddr_t, int);

@@ -111,7 +111,6 @@ static void wi_reset(struct wi_softc *);
 static int wi_ioctl(struct ifnet *, u_long, caddr_t);
 static void wi_init(void *);
 static void wi_start(struct ifnet *);
-static void wi_stop(struct wi_softc *);
 static void wi_watchdog(struct ifnet *);
 static void wi_rxeof(struct wi_softc *);
 static void wi_txeof(struct wi_softc *, int);
@@ -2421,7 +2420,7 @@ wi_mgmt_xmit(sc, data, len)
 	return(0);
 }
 
-static void
+void
 wi_stop(sc)
 	struct wi_softc		*sc;
 {
