@@ -669,9 +669,10 @@ MPConfigTableHeader( void* pap )
     vm_offset_t paddr;
     mpcth_t	cth;
     int		x;
-    int		totalSize, t;
+    int		totalSize;
     int		count, c;
     int		type;
+    int		oldtype, entrytype;
 
     if ( pap == 0 ) {
 	printf( "MP Configuration Table Header MISSING!\n" );
@@ -733,45 +734,54 @@ MPConfigTableHeader( void* pap )
     napic = 0;
     nintr = 0;
 
-    /* process all the CPUs */
-    printf( "--\nProcessors:\tAPIC ID\tVersion\tState"
-	    "\t\tFamily\tModel\tStep\tFlags\n" );
-    for ( t = totalSize, c = count; c; c-- ) {
-	if ( readType() == 0 )
+    oldtype = -1;
+    for (c = count; c; c--) {
+	entrytype = readType();
+	if (entrytype != oldtype)
+	    printf("--\n");
+	if (entrytype < oldtype)
+	    printf("MPTABLE OUT OF ORDER!\n");
+	switch (entrytype) {
+	case 0:
+	    if (oldtype != 0)
+		printf( "Processors:\tAPIC ID\tVersion\tState"
+			"\t\tFamily\tModel\tStep\tFlags\n" );
+	    oldtype = 0;
 	    processorEntry();
-        totalSize -= basetableEntryTypes[ 0 ].length;
-    }
+	    break;
 
-    /* process all the busses */
-    printf( "--\nBus:\t\tBus ID\tType\n" );
-    for ( t = totalSize, c = count; c; c-- ) {
-	if ( readType() == 1 )
+	case 1:
+	    if (oldtype != 1)
+		printf( "Bus:\t\tBus ID\tType\n" );
+	    oldtype = 1;
 	    busEntry();
-        totalSize -= basetableEntryTypes[ 1 ].length;
-    }
+	    break;
 
-    /* process all the apics */
-    printf( "--\nI/O APICs:\tAPIC ID\tVersion\tState\t\tAddress\n" );
-    for ( t = totalSize, c = count; c; c-- ) {
-	if ( readType() == 2 )
+	case 2:
+	    if (oldtype != 2)
+		printf( "I/O APICs:\tAPIC ID\tVersion\tState\t\tAddress\n" );
+	    oldtype = 2;
 	    ioApicEntry();
-        totalSize -= basetableEntryTypes[ 2 ].length;
-    }
+	    break;
 
-    /* process all the I/O Ints */
-    printf( "--\nI/O Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
-    for ( t = totalSize, c = count; c; c-- ) {
-	if ( readType() == 3 )
+	case 3:
+	    if (oldtype != 3)
+		printf( "I/O Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
+	    oldtype = 3;
 	    intEntry();
-        totalSize -= basetableEntryTypes[ 3 ].length;
-    }
+	    break;
 
-    /* process all the Local Ints */
-    printf( "--\nLocal Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
-    for ( t = totalSize, c = count; c; c-- ) {
-	if ( readType() == 4 )
+	case 4:
+	    if (oldtype != 4)
+		printf( "Local Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
+	    oldtype = 4;
 	    intEntry();
-        totalSize -= basetableEntryTypes[ 4 ].length;
+	    break;
+
+	default:
+	    printf("MPTABLE HOSED! record type = %d\n", entrytype);
+	    exit(1);
+	}
     }
 
 
