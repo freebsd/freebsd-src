@@ -1104,6 +1104,7 @@ start:
 		if (timeout < 0) {
 			error = EWOULDBLOCK;
 		} else {
+			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 			kq->kq_state |= KQ_SLEEP;
 			error = msleep(kq, &kq->kq_lock, PSOCK | PCATCH,
 			    "kqread", timeout);
@@ -1125,6 +1126,7 @@ start:
 
 		if ((kn->kn_status == KN_MARKER && kn != marker) ||
 		    (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+			KQ_GLOBAL_UNLOCK(&kq_global, haskqglobal);
 			kq->kq_state |= KQ_FLUXWAIT;
 			error = msleep(kq, &kq->kq_lock, PSOCK,
 			    "kqflxwt", 0);
