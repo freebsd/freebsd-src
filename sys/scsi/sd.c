@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.66 1995/08/07 11:56:31 davidg Exp $
+ *      $Id: sd.c,v 1.67 1995/10/12 02:01:56 julian Exp $
  */
 
 #define SPLSD splbio
@@ -57,11 +57,11 @@ u_int32 sdstrats, sdqueues;
 #define SDSETUNIT(DEV, U) \
  makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
 
-errval	sd_get_parms __P((int unit, int flags));
+static errval	sd_get_parms __P((int unit, int flags));
 static	void	sdstrategy1 __P((struct buf *));
 
-int		sd_sense_handler __P((struct scsi_xfer *));
-void    sdstart __P((u_int32, u_int32));
+static int		sd_sense_handler __P((struct scsi_xfer *));
+static void    sdstart __P((u_int32, u_int32));
 
 struct scsi_data {
 	u_int32 flags;
@@ -81,17 +81,17 @@ struct scsi_data {
 static int sdunit(dev_t dev) { return SDUNIT(dev); }
 static dev_t sdsetunit(dev_t dev, int unit) { return SDSETUNIT(dev, unit); }
 
-errval sd_open __P((dev_t dev, int mode, int fmt, struct proc *p,
+static errval sd_open __P((dev_t dev, int mode, int fmt, struct proc *p,
 		    struct scsi_link *sc_link));
-errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
-errval sd_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
+static errval sd_close __P((dev_t dev, int fflag, int fmt, struct proc *p,
 		     struct scsi_link *sc_link));
-void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
+static void sd_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(sd)
 
-struct scsi_device sd_switch =
+static struct scsi_device sd_switch =
 {
 	sd_sense_handler,
 	sdstart,			/* have a queue, served by this */
@@ -593,7 +593,7 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 /*
  * Find out from the device what it's capacity is
  */
-u_int32
+static u_int32
 sd_size(unit, flags)
 	int	unit, flags;
 {
@@ -636,7 +636,7 @@ sd_size(unit, flags)
 /*
  * Tell the device to map out a defective block
  */
-errval
+static errval
 sd_reassign_blocks(unit, block)
 	int	unit, block;
 {
@@ -672,7 +672,7 @@ sd_reassign_blocks(unit, block)
  * device and use the results to fill out the disk
  * parameter structure.
  */
-errval
+static errval
 sd_get_parms(unit, flags)
 	int	unit, flags;
 {

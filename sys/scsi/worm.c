@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.7 1995/05/30 08:13:58 rgrimes Exp $
+ *      $Id: worm.c,v 1.8 1995/10/09 15:15:01 joerg Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -66,19 +66,19 @@ struct scsi_data {
 	u_int32 blk_size;			/* Size of each blocks */
 };
 
-void wormstart(u_int32 unit, u_int32 flags);
+static void wormstart(u_int32 unit, u_int32 flags);
 
-errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
-struct scsi_link *sc_link);
-errval worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
+static errval worm_open(dev_t dev, int flags, int fmt, struct proc *p,
+	struct scsi_link *sc_link);
+static errval worm_ioctl(dev_t dev, int cmd, caddr_t addr, int flag,
 		struct proc *p, struct scsi_link *sc_link);
-errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
+static errval worm_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link);
-void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
+static void worm_strategy(struct buf *bp, struct scsi_link *sc_link);
 
 SCSI_DEVICE_ENTRIES(worm)
 
-struct scsi_device worm_switch =
+static struct scsi_device worm_switch =
 {
     NULL,
     wormstart,			/* we have a queue, and this is how we service it */
@@ -126,7 +126,7 @@ static int worm_size(struct scsi_link *sc_link, int flags)
 	return ret;
 }
 
-errval
+static errval
 wormattach(struct scsi_link *sc_link)
 {
 	struct scsi_data *worm = sc_link->sd;
@@ -158,7 +158,7 @@ wormattach(struct scsi_link *sc_link)
  * into.  In particular, the removable media checking should be
  * handled in one place.
  */
-void
+static void
 wormstart(unit, flags)
 	u_int32	unit;
 	u_int32 flags;
@@ -252,7 +252,7 @@ badnews:
 	} /* go back and see if we can cram more work in.. */
 }
 
-void
+static void
 worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	struct buf **dp;
@@ -305,7 +305,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 /*
  * Open the device.  XXX: I'm completely guessing at this sequence.
  */
-int
+static int
 worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
@@ -351,7 +351,7 @@ struct scsi_link *sc_link)
 	return 0;
 }
 
-int
+static int
 worm_close(dev_t dev, int flag, int fmt, struct proc *p,
         struct scsi_link *sc_link)
 {
