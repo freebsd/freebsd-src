@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm ed
-.Nd Ethernet device driver
+.Nd NE-2000 and WD-80x3 Ethernet driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device ed"
@@ -43,7 +43,8 @@
 The
 .Nm
 driver provides support for 8 and 16bit Ethernet cards that are based on
-the National Semiconductor DS8390 and similar NICs manufactured by other companies.
+the National Semiconductor DS8390 and similar NICs manufactured by
+other companies.
 .Pp
 The
 .Nm
@@ -72,6 +73,7 @@ This flag forces the card to 8bit mode regardless of how the
 card identifies itself.
 This may be needed for some clones which incorrectly
 identify themselves as 16bit, even though they only have an 8bit interface.
+This flag takes precedence over force 16bit mode.
 .It Li 0x04
 Force 16bit mode.
 This flag forces the card to 16bit mode regardless of how the
@@ -126,6 +128,8 @@ Allied Telesis SIU-98-D (flags 0x610000) (PC-98)
 AmbiCom 10BaseT card
 .It
 Bay Networks NETGEAR FA410TXC Fast Ethernet
+.It
+Belkin F5D5020 PC Card Fast Ethernet
 .It
 CNet BC40 adapter
 .It
