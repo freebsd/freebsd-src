@@ -117,27 +117,14 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 	if (uid == -1)
 		uid = td->td_ucred->cr_ruid;
 	cmd = cmds >> SUBCMDSHIFT;
-
-	switch (cmd) {
-	case Q_SYNC:
-		break;
-	case Q_GETQUOTA:
-		if (uid == td->td_ucred->cr_ruid)
-			break;
-		/* FALLTHROUGH */
-	default:
-		if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) != 0)
-			return (error);
-	}
-
 	type = cmds & SUBCMDMASK;
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
+
 	if (vfs_busy(mp, LK_NOWAIT, 0, td))
 		return (0);
 
 	switch (cmd) {
-
 	case Q_QUOTAON:
 		error = quotaon(td, mp, type, arg);
 		break;
@@ -147,15 +134,15 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 		break;
 
 	case Q_SETQUOTA:
-		error = setquota(mp, uid, type, arg);
+		error = setquota(td, mp, uid, type, arg);
 		break;
 
 	case Q_SETUSE:
-		error = setuse(mp, uid, type, arg);
+		error = setuse(td, mp, uid, type, arg);
 		break;
 
 	case Q_GETQUOTA:
-		error = getquota(mp, uid, type, arg);
+		error = getquota(td, mp, uid, type, arg);
 		break;
 
 	case Q_SYNC:
