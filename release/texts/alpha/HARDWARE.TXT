@@ -1,655 +1,1055 @@
-Table of Contents
------------------
-0.  Document Conventions
-1.  Default Configuration (GENERIC kernel)
-2.  LINT - other possible configurations
-3.  Supported Hardware
-
-See TROUBLE.TXT for Q&A on known hardware problems.
-
-=========================================================================
-
-0.      Document Conventions
---      --------------------
-
-We have `underlined' text which represents user input with `-' symbols
-throughout this document to differentiate it from the machine output.
-
-1.      Default (GENERIC) Configuration
---      -------------------------------
-
-The following table contains a list of all of the devices that are
-present in the GENERIC kernel.  This is the essential part of the 
-operating system that is placed in your root partition during the 
-installation process.  A compressed version of the GENERIC kernel is
-also used on the installation floppy diskette and DOS boot image.
-
-The table describes the various parameters used by the driver to
-communicate with the hardware in your system.  There are four
-parameters in the table, though not all are used by each and every
-device:
-
-   Port   The starting I/O port used by the device, shown in hexadecimal.
-
-   IOMem  The lowest (or starting) memory address used by the device,
-          also shown in hexadecimal.
-
-   IRQ    The interrupt the device uses to alert the driver to an event,
-          given in decimal.
-
-   DRQ    The DMA (direct memory access) channel the device uses to move
-          data to and from main memory, also given in decimal.
-
-If an entry in the table has `n/a' for a value then it means that the
-parameter in question does not apply to that device.  A value of `dyn'
-means that the correct value should be determined automatically by the
-kernel when the system boots and that you don't need to worry about
-it.
-
-If an entry is marked with an *, it means that support is currently
-not available for it but should be back as soon as someone converts
-the driver to work within the new 3.0 framework.
-
-FreeBSD GENERIC kernel:
-
-        Port    IRQ     DRQ     IOMem   Description
-        ----    ---     ---     -----   ---------------------------------
-fdc0    3f0     6       2       n/a     Floppy disk controller
-wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
-wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
-
-adv0    n/a     n/a     n/a     n/a     AdvanSys Narrow SCSI controllers
-adw0    n/a     n/a     n/a     n/a     AdvanSys Wide SCSI controllers
-ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
-bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
-uha0*   330     dyn     6       dyn     Ultrastore 14f
-aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
-ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
-ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
-aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360/AIC-6260 SCSI
-                                        controller
-isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 2100 SCSI/FC controllers
-dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
-
-wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
-
-psm0    60      12      n/a     n/a     PS/2 Mouse
-
-mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
-matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
-scd0    230     n/a     n/a     n/a     Sony CD-ROM
-
-sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
-sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
-
-lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
-
-dc0     n/a     n/a     n/a     n/a     DEC/Intel 21143 and workalikes
-de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
-                                        (including 21140 100bT cards)
-ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
-                                        NE2000; 3Com 3C503; HP PC Lan+
-eg0     310     5       dyn     dyn     3Com 3C505
-ep0     300     10      dyn     dyn     3Com 3C509
-ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
-fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
-                                        Fujitsu FMV-180 series cards.
-fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
-ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
-                                        3Com 3C507; NI5210; 
-                                        Intel EtherExpress (8/16,16[TP]) cards
-le0     300     5       dyn     d0000   Digital Equipment EtherWorks
-                                        2 and EtherWorks 3
-lnc0    280     10      n/a     dyn     Lance/PCnet cards
-                                        (Isolan, Novell NE2100, NE32-VL,
-					 some PCnet-PCI cards)
-rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
-sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
-sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
-ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
-tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
-wb0     dyn     dyn     n/a     dyn     Winbond W89C840F PCI based cards.
-vr0     dyn     dyn     n/a     dyn     VIA VT3043/VT86C100A PCI based cards.
-vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
-xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905, 3c905B, 3c905C,
-                                        3c980, 3cSOHO100 ((Fast) Etherlink XL)
-cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
-                                        cards.
---- End of table ---
-
-
-If the hardware in your computer is not set to the same settings as
-those shown in the table and the item in conflict is not marked 'dyn',
-you will have to either reconfigure your hardware or use UserConfig
-to reconfigure the kernel to match the way your hardware is currently set
-(see the next section).
-
-If the settings do not match, the kernel may be unable to locate
-or reliably access the devices in your system.
-
-
-2.      LINT - other possible configurations
---      ------------------------------------
-
-The following drivers are not in the GENERIC kernel but remain
-available to those who do not mind compiling a custom kernel (see
-section 6 of FreeBSD.FAQ).  The LINT configuration file
-(/sys/i386/conf/LINT) also contains prototype entries for just about
-every device supported by FreeBSD and is a good general reference.
-
-The device names and a short description of each are listed below.  The port
-numbers, etc, are not meaningful here since you will need to compile a
-custom kernel to gain access to these devices anyway and can thus
-adjust the addresses to match the hardware in your computer in the process.
-The LINT file contains prototype entries for all of the below which you
-can easily cut-and-paste into your own file (or simply copy LINT and edit
-it to taste):
-
-ctx:    Cortex-I frame grabber
-cx:     Cronyx/Sigma multiport sync/async
-cy:     Cyclades high-speed serial driver
-el:     3Com 3C501
-fea:    DEC DEFEA EISA FDDI adapter
-fpa:    DEC DEFPA PCI FDDI adapter
-gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
-gsc:    Genius GS-4500 hand scanner
-gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-gusxvi: Gravis Ultrasound 16-bit PCM
-hea:    Efficient ENI-155p ATM PCI adapter
-hfa:    FORE PCA-200E ATM PCI adapter
-isic:	isdn4bsd Siemens ISDN Chipset driver
-joy:    Joystick
-labpc:  National Instrument's Lab-PC and Lab-PC+
-meteor: Matrox Meteor frame-grabber card
-bktr:   Brooktree Bt848 / Bt 878 based frame-grabber cards.
-mpu:    Roland MPU-401 stand-alone card
-mse:    Microsoft, Logitech, ATI bus mouse ports
-mss:    Microsoft Sound System
-opl:    Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
-pas:    ProAudioSpectrum PCM and MIDI
-pca:    PCM audio ("/dev/audio") through your PC speaker
-pcm:    PCM audio on most modern PCI/ISA audio codecs
-psm:    PS/2 mouse port
-rc:     RISCom/8 multiport card
-sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
-sbmidi: SoundBlaster 16 MIDI interface
-sbxvi:  SoundBlaster 16
-si:     Specialix SI/XIO/SX (old and enhanced ISA, PCI, EISA) serial
-spigot: Creative Labs Video Spigot video-acquisition board
-uart:   Stand-alone 6850 UART for MIDI
-wds:    Western Digital WD7000 IDE
-
---- end of list ---
-
-
-3.      Supported Hardware
---      ------------------
-
-FreeBSD currently runs on a wide variety of ISA and PCI bus based
-Alphas's.  Support for generic IDE or ESDI drive configurations is
-somewhat marginal and a SCSI controller is therefore recommended.
-
-What follows is a list of all peripherals currently known to work with
-FreeBSD.  Other configurations may also work, we have simply not as yet
-received confirmation of this.
-
-
-4.1.    Disk Controllers
-----    ----------------
-
-WD1003 (any generic MFM/RLL)
-WD1007 (any generic IDE/ESDI)
-IDE
-ATA
-
-Adaptec 1535 ISA SCSI controllers
-Adaptec 154x series ISA SCSI controllers
-Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
-EISA/VLB/PCI SCSI controllers.
-Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
-Adaptec 1510 series ISA SCSI controllers (not for bootable devices)
-Adaptec 152x series ISA SCSI controllers
-Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
-and SoundBlaster SCSI cards.
-
-AdvanSys SCSI controllers (all models).
-
-BusLogic MultiMaster controllers:
-
-[ Please note that BusLogic/Mylex "Flashpoint" adapters are NOT yet supported ]
-
-BusLogic MultiMaster "W" Series Host Adapters:
-    BT-948, BT-958, BT-958D
-BusLogic MultiMaster "C" Series Host Adapters:
-    BT-946C, BT-956C, BT-956CD, BT-445C, BT-747C, BT-757C, BT-757CD, BT-545C,
-    BT-540CF
-BusLogic MultiMaster "S" Series Host Adapters:
-    BT-445S, BT-747S, BT-747D, BT-757S, BT-757D, BT-545S, BT-542D, BT-742A,
-    BT-542B
-BusLogic MultiMaster "A" Series Host Adapters:
-    BT-742A, BT-542B
-
-AMI FastDisk controllers that are true BusLogic MultiMaster clones are also
-supported.
-
-DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
-SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
-is not yet supported.
-
-SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a,
-53C860, 53C875, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
-        ASUS SC-200
-        Data Technology DTC3130 (all variants)
-	Diamond FirePort (all)
-        NCR cards (all)
-        Symbios cards (all)
-        Tekram DC390W, 390U and 390F
-        Tyan S1365
-
-
-QLogic 1020, 1040, 1040B and 2100 SCSI and Fibre Channel Adapters
-
-DTC 3290 EISA SCSI controller in 1542 emulation mode.
-
-With all supported SCSI controllers, full support is provided for
-SCSI-I & SCSI-II peripherals, including hard disks, optical disks,
-tape drives (including DAT and 8mm Exabyte), medium changers, processor
-target devices and CDROM drives.  WORM devices that support CDROM commands
-are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
-writing support is provided by cdrecord, which is in the ports tree.
-
-The following drivers were supported under the old SCSI subsystem, but are
-NOT YET supported under the new CAM SCSI subsystem:
-
-  Tekram DC390 and DC390T controllers (maybe other cards based on the
-  AMD 53c974 as well).
-
-  NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
-
-  UltraStor 14F, 24F and 34F SCSI controllers.
-
-  Seagate ST01/02 SCSI controllers.
-
-  Future Domain 8xx/950 series SCSI controllers.
-
-  WD7000 SCSI controller.
-
-  [ Note:  There is work-in-progress to port the UltraStor driver to 
-    the new CAM SCSI framework, but no estimates on when or if it will 
-    be completed. ]
-
-4.2.    Network cards
-----    -------------
-
-Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
-AIC-6915 fast ethernet controller chip, including the following:
-  ANA-62011 64-bit single port 10/100baseTX adapter
-  ANA-62022 64-bit dual port 10/100baseTX adapter
-  ANA-62044 64-bit quad port 10/100baseTX adapter
-  ANA-69011 32-bit single port 10/100baseTX adapter
-  ANA-62020 64-bit single port 100baseFX adapter
-
-Allied-Telesyn AT1700 and RE2000 cards
-
-Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
-chipsets, including the following:
-  Alteon AceNIC (Tigon 1 and 2)
-  3Com 3c985-SX (Tigon 1 and 2)
-  Netgear GA620 (Tigon 2)
-  Silicon Graphics Gigabit Ethernet
-  DEC/Compaq EtherWORKS 1000
-  NEC Gigabit Ethernet
-
-AMD PCnet/PCI (79c970 & 53c974 or 79c974)
-
-SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
-WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
-based clones.  SMC Elite Ultra is also supported.
-
-RealTek 8129/8139 fast ethernet NICs including the following:
-  Allied Telesyn AT2550
-  Allied Telesyn AT2500TX
-  Genius GF100TXR (RTL8139)
-  NDC Communications NE100TX-E
-  OvisLink LEF-8129TX
-  OvisLink LEF-8139TX
-  Netronix Inc. EA-1210 NetEther 10/100
-  KTX-9130TX 10/100 Fast Ethernet
-  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
-  SMC EZ Card 10/100 PCI 1211-TX
-
-Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
-  LinkSys EtherFast LNE100TX
-  NetGear FA310-TX Rev. D1
-  Matrox FastNIC 10/100
-  Kingston KNE110TX
-
-Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
-  NDC Communications SFA100A (98713A)
-  CNet Pro120A (98713 or 98713A)
-  CNet Pro120B (98715)
-  SVEC PN102TX (98713)
-
-Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
-  LinkSys EtherFast LNE100TX Version 2
-
-Winbond W89C840F fast ethernet NICs including the following:
-  Trendware TE100-PCIE
-
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
-NICs including the following:
-  Hawking Technologies PN102TX
-  D-Link DFE-530TX
-  AOpen/Acer ALN-320
-
-Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
-
-Sundance Technologies ST201 PCI fast ethernet NICs including
-the following:
-  D-Link DFE-550TX
-
-SysKonnect SK-984x PCI gigabit ethernet cards including the following:
-  SK-9841 1000baseLX single mode fiber, single port
-  SK-9842 1000baseSX multimode fiber, single port
-  SK-9843 1000baseLX single mode fiber, dual port
-  SK-9844 1000baseSX multimode fiber, dual port
-
-Texas Instruments ThunderLAN PCI NICs, including the following:
-  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
-  Racore 8165 10/100baseTX
-  Racore 8148 10baseT/100baseTX/100baseFX multi-personality
-
-ADMtek AL981-based PCI fast ethernet NICs
-ADMtek AN985-based PCI fast ethernet NICs
-ADMtek Inc. AN986-based USB ethernet NICs including the following:
-  LinkSys USB100TX
-  Billionton USB100
-  Melco Inc. LU-ATX
-  D-Link DSB-650TX
-  SMC 2202USB
-
-CATC USB-EL1210A-based USB ethernet NICs including the following:
-  CATC Netmate
-  CATC Netmate II
-  Belkin F5U111
-
-Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
-the following:
-  LinkSys USB10T
-  Entrega NET-USB-E45
-  Peracom USB Ethernet Adapter
-  3Com 3c19250
-  ADS Technologies USB-10BT
-  ATen UC10T
-  Netgear EA101
-  D-Link DSB-650
-  SMC 2102USB
-  SMC 2104USB
-  Corega USB-T
-
-ASIX Electronics AX88140A PCI NICs, including the following:
-  Alfa Inc. GFC2204
-  CNet Pro110B
-
-DEC EtherWORKS III NICs (DE203, DE204, and DE205)
-DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
-DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
-DEC FDDI (DEFPA/DEFEA) NICs
-
-Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
-following:
-  Jaton Corporation XPressNet
-
-Efficient ENI-155p ATM PCI
-
-FORE PCA-200E ATM PCI
-
-Fujitsu MB86960A/MB86965A
-
-HP PC Lan+ cards (model numbers: 27247B and 27252A).
-
-Intel EtherExpress (not recommended due to driver instability)
-Intel EtherExpress Pro/10
-Intel EtherExpress Pro/100B PCI Fast Ethernet
-
-Isolan AT 4141-0 (16 bit)
-Isolink 4110     (8 bit)
-
-Novell NE1000, NE2000, and NE2100 ethernet interface.
-PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
-Winbond W89C940, Surecom NE-34, VIA VT86C926.
-
-3Com 3C501 cards
-
-3Com 3C503 Etherlink II
-
-3Com 3c505 Etherlink/+
-
-3Com 3C507 Etherlink 16/TP
-
-3Com 3C509, 3C579, 3C589 (PCMCIA), 3C590/592/595/900/905/905B/905C PCI
-and EISA (Fast) Etherlink III / (Fast) Etherlink XL
-
-3Com 3c980/3c980B Fast Etherlink XL server adapter
-
-3Com 3cSOHO100-TX OfficeConnect adapter
-
-Toshiba ethernet cards
-
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
-
-Note that NO token ring cards are supported at this time as we're
-still waiting for someone to donate a driver for one of them.  Any
-takers?
-
-
-4.3.    USB
-----    ---
-
-A range of USB peripherals are supported.  Owing to the generic nature
-of most USB devices, with some exceptions any device of a given class
-will be supported even if not explicitly listed here.
-
-USB keyboards.
-
-USB mice.
-
-USB printers and USB to parallel printer conversion cables.
-
-USB hubs.
-
-
-Motherboards chipsets:
-
-ALi Aladdin-V.
-
-Intel 82371SB (PIIX3).
-Intel 82371AB and EB chipsets (PIIX4).
-
-NEC uPD 9210 Host Controller.
-
-VIA 83C572 USB Host Controller
-
-and any other UHCI or OHCI compliant motherboard chipset (no exceptions
-known).
-
-
-PCI plug-in USB host controllers:
-
-ADS Electronics PCI plug-in card (2 ports).
-
-Entrega PCI plug-in card (4 ports).
-
-
-Specific devices reported to be working:
-
-Agiler Mouse 29UO.
-
-Andromeda hub.
-
-Apple iMac mouse.
-Apple iMac keyboard.
-
-ATen parallel printer adapter.
-
-Belkin F5U002 parallel printer adapter.
-Belkin Mouse.
-
-BTC BTC7935 keyboard with mouse port.
-
-Cherry G81-3504 keyboard.
-
-Chic mouse.
-
-Cypress mouse.
-
-Entrega USB-to-parallel printer adapter.
-
-Genius Niche mouse.
-
-Iomega USB Zip 100Mb.
-
-Kensington Mouse-in-a-Box.
-
-Logitech M2452 keyboard.
-Logitech wheel mouse (3 buttons).
-Logitech PS/2 / USB mouse (3 buttons).
-
-MacAlly mouse (3 buttons).
-MacAlly self powered hub (4 ports).
-
-Microsoft IntelliMouse (3 buttons).
-Microsoft keyboard.
-
-NEC hub.
-
-Trust Ami Mouse (3 buttons).
-
-
-4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
-----    -------------------------------------------
-
-Asuscom I-IN100-ST-DV (experimental, may work)
-Asuscom ISDNlink 128K PnP
-
-AVM A1
-AVM Fritz!Card classic
-AVM Fritz!Card PnP
-AVM Fritz!Card PCI
-AVM Fritz!Card PCMCIA
-
-Creatix ISDN-S0/8
-Creatix ISDN-S0/16
-Creatix ISDN-S0 PnP
-
-Dr.Neuhaus Niccy 1008
-Dr.Neuhaus Niccy 1016
-Dr.Neuhaus Niccy GO@ (ISA PnP)
-
-Dynalink IS64PH (no longer maintained)
-
-ELSA 1000pro ISA
-ELSA 1000pro PCI
-ELSA PCC-16
-
-ITK ix1 micro
-ITK ix1 micro PnP
-
-Sagem Cybermod (ISA PnP, may work)
-
-Sedlbauer Win Speed
-
-Siemens I-Surf 2.0
-
-Stollmann Tina-pp (under development)
-
-Teles S0/8
-Teles S0/16
-Teles S0/16.3 (the "c" Versions - like 16.3c - are unsupported !)
-Teles S0 PnP (experimental, may work)
-
-3Com/USRobotics Sportster ISDN TA intern (non-PnP version)
-
-
-4.5.    Misc
-----    ----
-
-AST 4 port serial card using shared IRQ.
-
-ARNET 8 port serial card using shared IRQ.
-ARNET (now Digiboard) Sync 570/i high-speed serial.
-
-Boca BB1004 4-Port serial card (Modems NOT supported)
-Boca IOAT66 6-Port serial card (Modems supported)
-Boca BB1008 8-Port serial card (Modems NOT supported)
-Boca BB2016 16-Port serial card (Modems supported)
-
-Cyclades Cyclom-y Serial Board.
-
-STB 4 port card using shared IRQ.
-
-SDL Communications Riscom/8 Serial Board.
-SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
-
-Specialix SI/XIO/SX multiport serial cards, with both the older
-SIHOST2.x and the new "enhanced" (transputer based, aka JET) host cards.
-ISA, EISA and PCI are supported.
-
-Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
-ONboard 4/16 and Brumby.
-
-HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
-
-Bus mice
-
-PS/2 mice
-
-Standard PC Joystick
-
-X-10 power controllers
-
-GPIB and Transputer drivers.
-
-Genius and Mustek hand scanners.
-
-Floppy tape drives (some rather old models only, driver rather stale)
-
-Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
-(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
-ISA versions of these adapters are actually PCMCIA cards combined with
-an ISA to PCMCIA bridge card, so both kinds of devices work with
-the same driver.
-
-Aironet 4500/4800 series 802.11 wireless adapters. The PCI and ISA
-models are supported for the Alpha architecture.
-
-
-4.6.    Multimedia
-----    ----------
-
-Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards.
-(by Voxware)
-
-SoundBlaster(including ViBRA16)
-Advance Asound 100, 110 and Logic ALS120
-ESS ES1868, ES1869, ES1879 and ES1888
-MSS/WSS Compatible DSPs
-Gravis UltraSound MAX/PnP
-Trident 4DWave DX/NX
-ENSONIQ AudioPCI ES1370/1371
-NeoMagic 256AV/ZX
-Crystal Semiconductor CS461x/462x/428x
-(by newpcm)
-
-Matrox Meteor Video frame grabber
-Creative Labs Video Spigot frame grabber
-Cortex1 frame grabber
-Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
+		FreeBSD/alpha Hardware Information
+		==================================
+
+This file is maintained by Wilko Bulte <wilko@freebsd.org>
+
+Additions, corrections and constructive criticism are invited. In 
+particular information on system quirks is more than welcome. 
+
+
+Overview
+--------
+
+This document tries to provide a starting point for those who want to start
+running FreeBSD on an Alpha-based machine. It is aimed at providing
+background information on the various hardware designs. It is not a
+replacement for the system's manuals. 
+
+The information is structured as follows:
+
+- general hardware requirements to run FreeBSD on Alpha.
+- system specific information for each of the systems/boards supported
+  by FreeBSD/alpha.
+- information on expansion boards for FreeBSD/alpha, including things
+  that differ from what is in the generic supported hardware list.
+
+
+In general, what do you need to run FreeBSD/alpha? 
+--------------------------------------------------
+
+Obviously you will need an Alpha machine that FreeBSD/alpha knows about.
+Alpha machines are NOT PC-architectures. There are considerable differences
+between the various chip sets and mainboard designs. This means that a kernel
+needs to know the intimate details of a particular machine before it can run
+on it. Throwing some odd GENERIC kernel at unknown hardware is almost
+guaranteed to fail miserably.
+
+For a machine even to be considered for FreeBSD use please make sure it has
+the SRM console firmware installed. Or at least make sure that SRM console 
+firmware is available for this particular model. If FreeBSD does not
+currently support your machine type, there is a good chance that this will
+change some time, assuming there is a SRM available.
+
+Machines with the ARC/AlphaBIOS console firmware are intended for 
+WindowsNT. Some of them have SRM firmware available in the system ROMs 
+which you only have to select (via an ARC/AlphaBIOS menu). In other cases 
+you will have to re-flash the ROMs with SRM code. Check on
+http://ftp.digital.com/pub/DEC/Alpha/firmware to see what is available
+for your particular system. In any case: no SRM -> no FreeBSD (or NetBSD, 
+OpenBSD, Tru64 Unix or OpenVMS for that matter). 
+
+As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
+initial name of DEC's Unix offering on Alpha). The PAL code can be thought
+of as a software abstraction layer between the hardware and the operating
+system. It uses normal CPU instruction plus a handful of privileged
+instructions specific for PAL use. PAL is not microcode by the way. 
+The ARC firmware contains a different PAL code, geared towards WinNT and in
+no way suitable for use by FreeBSD (or more generic: Unix or OpenVMS).
+Before someone asks: AlphaLinux brings it's own PAL code, allowing it to
+boot. There are various reasons why this is not a very good idea in the
+eyes of the *BSD folks. I don't want to go into details here.
+
+There is another pitfall ahead: you will need a disk adapter that the SRM
+console recognizes in order to be able to boot from your disk. What is 
+acceptable to SRM as a boot adapter is unfortunately system / SRM version
+dependent. For older PCI based machines this means you will need either 
+a NCR/Symbios 53C810 based adapter, or a Qlogic 1020/1040 based adapter. 
+Some machines come with a SCSI chip embedded on the
+mainboard. Newer machine designs and SRM versions will be able to work with
+later SCSI chips/adapters. Check out the machine specific info below.
+
+The problem might bite those who have machines that started their lives as 
+WinNT boxes. The ARC/AlphaBIOS knows about *other* adapter types that it 
+can boot from than the SRM. For example you can boot from an Adaptec 2940UW 
+with ARC but not with SRM. 
+
+Some adapters that cannot be booted from work fine for data-only disks
+(e.g. Adaptec 2940x boards). The differences between SRM and ARC could also
+get you pre-packaged IDE CDROMs and hard drives in some (former NT) systems. 
+SRM versions versions exist (depends on the mainboard) that can also boot 
+from IDE disks. 
+
+FreeBSD/alpha 4.0 and later can be booted from the distribution CDROM.
+Earlier versions needed booting from a 2 floppy set.
+
+If you don't have/want a local disk drive you can boot via the Ethernet.
+This assumes a Ethernet adapter/chip that is recognized by the SRM.
+Generally speaking this boils down to either a 21040 or 21142 or 21143 
+based Ethernet interface. Older machines / SRM versions may not recognize
+the 21142 / 21143 Fast Ethernet chips, you are limited to using 10Mbit
+Ethernet for net booting those machines. Non-DEC cards based on said chips will
+generally (but are not guaranteed to) work. Note that Intel took over the
+21x4x chips when it bought Digital Semiconductor. So you might see an Intel
+logo on them these days.
+
+Alpha machines can be run with SRM on a graphics console or on
+a serial console. ARC does can be run on a serial consoles if need be. VT100
+with 8 bit controls should at least allow you to switch from ARC to SRM
+mode.
+
+If you want to run your Alpha without a monitor/graphics card 
+just don't connect a keyboard/mouse to the machine. Instead hook 
+up a serial terminal[emulator] to serial port #1.  The SRM will 
+talk 9600N81 to you. This can be really practical for debugging purposes.
+
+Most PCI based Alphas can use ordinary PC-type VGA cards. The SRM contains
+enough smarts to make that work. It does not, however, mean that each and
+every PCI VGA card out on the street will work in an Alpha machine. Things
+like S3 Trio64 generally work. But ask around first before buying.
+
+Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
+machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
+this.
+
+Currently all parallel ports do not work on FreeBSD/alpha. The driver needs
+work to make this happen. 
+
+For Alpha CPUs you will find multiple versions. The original Alpha
+design is the 21064. It was produced in a chip baking process called MOS4,
+chips made in this process are nicknamed EV4. Newer CPUs are 21164, 21264
+etc. You will see designations like EV4S, EV45, EV5, EV56, EV6, EV67.
+The EVs with double digit numbers are slightly improved versions. For example
+EV45 has an improved FPU and 16 kByte onchip seperate I & D caches compared
+to the EV4 on which it is based. Rule of thumb: the higher the digit
+immediately following 'EV' the more desirable (read: faster / more modern).
+
+For memory you want at least 32 Mbytes. I have had FreeBSD/alpha run on a
+16 Mbyte system but you will not like that. Kernel build times halved when
+going to 32 Mbytes. Note that the SRM steals 2Mbyte from the total system 
+memory (and keeps it). For more serious use >= 64Mbyte is recommended. 
+
+While on the subject of memory: pay close attention to the type of memory
+your machine uses. There are very different memory configurations and
+requirements for the various machines.
+
+Final word: I expect the above to sound a bit daunting to the first-time
+Alpha user. Don't be daunted too much. And do feel free to ask questions.
+
+
+System specific information
+---------------------------
+
+Below is an overview of the hardware that FreeBSD/alpha runs on.
+This list is bound to grow, a look in /sys/alpha/conf/GENERIC
+can be enlightening. Alpha machines are often best known by their project
+code name, when known these are listed below in ().
+
+*
+* AXPpci33 ("NoName")
+*
+The NoName is a baby-AT mainboard based on the 21066 LCA (Low Cost Alpha)
+processor. It was originally designed for OEM-use. The LCA chip includes
+almost all of the logic to drive a PCI bus and the memory subsystem. 
+All of this makes for a low-priced design. 
+
+Due to the limited memory interface the system is not particularly
+fast in case of cache misses. As long as you stay inside the on-chip cache
+the CPU is comparable to a 21064 (first generation Alpha). These boards 
+should be very cheap to obtain these days (even here in the Netherlands 
+they were sold new for US$ 25).
+
+Features:
+- 21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
+  (21068 CPUs are also possible, but are even slower. Never seen/used one)
+- memory bus: 64 bits 
+- on-board Bcache / L2 cache: 0, 256k or 1Mbyte (uses DIL chips)
+- PS/2 mouse & keyboard port OR 5pin DIN keyboard (2 mainboard models)
+- memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
+	  70ns or better,
+          installed in pairs of 2,
+	  4 SIMM sockets
+	  uses ECC 
+- 512kB Flash ROM for the console code.
+- 2x 16550A serial ports, 1x parallel port, floppy interface
+- 1x embedded IDE interface
+- expansion: 3 32 bit PCI slots (1 shared with ISA)
+	     5 ISA slots (1 shared with PCI)
+- embedded Fast SCSI using a NCR/Symbios 53C810 chip
+
+SRM:
+NoName's can either have SRM *or* ARC console firmware in their Flash ROM.
+The Flash ROM is not big enough to hold both ARC and SRM at the same time 
+and allow software selection of alternate console code. But you need 
+SRM only anyway.
+
+Cache:
+Cache for the NoNames are 15 or 20ns DIL chips. For a 256kByte cache you
+want to check your junked 486 mainboard. Chips for a 1Mbyte cache are a rarer
+breed unfortunately. Getting at least a 256kByte cache is recommended
+performance wise. Cache-less they are really slow.
+
+Power:
+The NoName mainboard has a PC/AT-standard power connector. It also has 
+a power connector for 3.3 Volts. No need to rush out to get
+a new power supply. The 3.3 Volts is only needed in case you run 3.3 Volts
+PCI expansion boards.
+
+IDE:
+SRM presumably cannot boot from IDE disks (have never tried this myself)
+
+Memory:
+Make sure you use true 36 bit SIMMs, and only FPM (Fast Page Mode). EDO RAM
+or SIMMs with fake parity *will not work* (the board uses the 4 extra bits
+for ECC!). 33 bit FPM SIMMs will for the same reason not work either. 
+
+Keyboard/mouse:
+Given the choice, get the PS/2-variant mainboard. Apart from giving you a
+mouse port as bonus it is directly supported by Tru64 Unix in case you ever
+want/need to run it. The "DIN-plug"-variant should work OK for FreeBSD.
+
+The OEM manual is recommended reading. If you did not get one with your
+system/board send me email, I have a Postscript copy.
+
+The kernel configuration file for a NoName kernel must contain:
+	options         DEC_AXPPCI_33           
+	cpu		EV4
+
+
+*
+* Universal Desktop Box (UDB or "Multia")
+*
+
+Note: Multia can be either Intel or Alpha CPU based. We assume Alpha based
+      ones here for obvious reasons.
+
+Multia is a very compact 21066 based box, roughly 40cm square and 8 cm thick.
+It comes with 2 PCMCIA slots, which don't work with FreeBSD (?).
+
+It has a small 2.5" SCSI disk of 340Mbyte or so. Fortunately there is
+an external high density 50pin SCSI connector to hookup something bigger.
+Some Multia models came without disk. 
+
+It has an embedded 10Mbit Ethernet interface. There is only one PCI slot
+for expansion, and only for a small PCI card too. The CPU is 
+either 166 or 233 MHz. The CPU might or might not be socketed, check before
+considering CPU upgrade hacks. It comes with a TGA based graphics on-board. 
+The 3.5" floppy drive is a very compact laptop variant.
+
+Note: most the discussion of the NoName applies to Multia too.
+
+Hot:
+Multias are somewhat notorious for dying of heat strokes. The very compact
+box does not really allow cooling air access very well. Please use the 
+Multia on it's vertical stand, don't put it horizontally ('pizza style').
+Replacing the fan with something which pushes around more air is
+wholeheartedly recommended.
+
+SCSI:
+In case you want to change the internal hard drive: the internal flat cable
+running from the PCI riser board to the 2.5" (!!) hard drive has a finer pitch
+than the standard SCSI flat cables. Otherwise it would not fit on the 2.5"
+drives. I recommend against trying to cram another hard disk inside. Use the
+external SCSI connector and put your disk in an external enclosure. The run
+hot enough as-is.
+
+The kernel configuration file for a Multia kernel must contain:
+        options         DEC_AXPPCI_33
+	cpu		EV4
+
+
+*
+* Personal Workstation ("Miata")
+*
+
+The Miata is a small tower machine intended to be put under a desk. There
+are multiple Miata variants. The original Miata is the MX5 model. Because 
+it suffers from a number of hardware design flaws a redesign was performed,
+yielding the MiataGL. Unfortunately the boxes are quite indistinguishable.
+An easy check is to see if the back of the machine sports two
+USB connectors. If yes, it is a MiataGL. 
+
+System designations look like "Personal Workstation 433a". This means 
+it has a 433 MHz CPU, and started life as a WinNT workstation 
+(the trailing 'a'). Systems designated from day 1 to run Tru64 
+Unix or OpenVMS will sport '433au'. WinNT-Miata's are likely
+to come pre-configured with an IDE CDROM drive. There was also a Miata model
+with a special cooling system by Kryotech. This one has a different
+enclosure.
+
+Features:
+
+- 21164A EV56 Alpha CPU, at 433, 500 or 600MHz 
+- 21174 Core Logic ("Pyxis") chip set
+- on-board Bcache / L3 cache: 0, 2, 4Mbyte (uses a cache module)
+- memory bus: 128 bits wide, ECC protected
+- memory: Miata uses unbuffered SDRAMs, 
+	  installed in pairs of 2,
+	  6 DIMM sockets
+- on-board Fast Ethernet based on:
+  - MX5 uses a 21142 or 21143 Ethernet chip dependent on the version of the
+    PCI riser card, 
+  - MiataGL has a 21143 chip)
+  the bulkhead can be 10/100 UTP, or 10 UTP/BNC.
+- 2x on-board [E]IDE based on:
+  - MX5: CMD 646
+  - MiataGL: Cypress 82C693
+- 1x Ultra-Wide SCSI Qlogic 1040 [MiataGL only]
+- expansion: 2 64-bit PCI slots
+	     3 32-bit PCI slots (behind a DEC PCI-PCI bridge chip)
+	     3 ISA slots (physically shared with the 32 bit PCI slots, via
+		          a Intel 82378IB PCI to ISA bridge chip)
+- 2x 16550A serial port
+- 1x parallel port 
+- PS/2 keyboard & mouse port
+- USB interface [MiataGL only]
+- embedded sound based on a ESS1888 chip
+
+CPU mainboard and PCI 'riser' board: 
+the Miata is divided into two printed circuit boards. 
+The lower board in the bottom of the machine has the PCI 
+and ISA slots and things like the sound chip etc. The top board
+has the CPU, the Pyxis chip, memory etc. Note that MX5 and the MiataGL use
+a different PCI riser board. This means that you cannot just upgrade to
+a MiataGL CPU board (with the newer Pyxis chip) but that you will also need
+a different riser board. Apparently an MX5 riser with a MiataGL CPU board
+will work but it is definitely not a supported or tested configuration.
+Everything else (cabinet, wiring etc etc) is identical for MX5 and MiataGL.
+
+DMA bug: 
+MX5 has problems with DMA via the 2 64-bit PCI slots when this DMA
+crosses a page boundary. The 32bit slots don't have this problem because the
+PCI-PCI bridge chip does not allow the offending transfers. The SRM code 
+knows about the problem and refuses to start the system if there is a PCI
+card in one of the 64bit slots that it does not know about. Cards that are
+'known good' to the SRM are allowed to be used in the 64bit slots. 
+
+If you want to fool the SRM you can type "set pci_device_override" at
+the SRM prompt. Just don't complain if your data mysteriously gets mangled.
+The complete command is:
+
+	set pci_device_override <vendor_id><device_id>
+	e.g. set pci_device_override 88c15333
+
+The kernel reports it when it sees a buggy Pyxis chip:
+Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
+Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1<BWEN>
+Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no
+bets...
+
+A MiataGL probes as:
+Jan  3 12:22:32 miata /kernel: cia0: Pyxis, pass 1
+Jan  3 12:22:32 miata /kernel: cia0: extended capabilities: 1<BWEN>
+Jan  3 12:22:32 miata /kernel: pcib0: <2117x PCI host bus adapter> on cia0
+
+MiataGL does not have the DMA problems of the MX5. PCI cards that make
+the MX5 SRM choke when installed in the 64bit slots are accepted without 
+problems by the MiataGL SRM.
+
+The latest mainboard revisions of MX5 contain a hardware workaround for the
+bug. The SRM does not know about the ECO and will complain about unknown cards
+just like before. The same applies to the FreeBSD kernel by the way.
+
+EIDE:
+The Miata SRM can boot from IDE CDROM drives. It is also known to work for
+MiataGL with hard disks, so you can root FreeBSD from an IDE disk. DMA is
+not currently working so speed is not optimal. Boot-ability of EIDE on MX5 is
+currently unknown.
+
+PCI-PCI bridge:
+The MiataGL has a faster PCI-PCI bridge chip on the PCI riser card than 
+some of the MX5 riser card versions. Some of the MX5 risers have the *same*
+chip as the MiataGL. All in all there is a lot of variation.
+
+Sound: 
+both MX5 and MiataGL have an onboard sound chip, an ESS1888.  
+I have yet to see/hear it work on my MiataGL. But it is being worked on.
+
+Cache: 
+in case your Miata has the optional cache board installed make sure
+it is firmly seated. A slightly loose cache has been observed to cause
+weird crashes (not surprising obviously, but maybe not so obvious when
+troubleshooting). The cache module is identical between MX5 and MiataGL.
+
+Installing a cache module achieves, apart from a 10-15% speed increase (based 
+on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth from 
+64bit PCI cards. A benchmark on a 64-bit Myrinet card resulted in a decrease
+from 149 Mb/sec to 115 Mb/sec. Something to keep in mind when doing really
+high speed things with 64 bit PCI adapters.
+
+USB:
+Does not currently seem to work on FreeBSD/alpha judging from the kernel
+probe messages.
+
+Power:
+disconnect the powercord before dismantling the machine, the soft-power
+switch keeps part of the logic powered even when the machine is switched
+off.
+
+The kernel configuration file for a Miata kernel must contain:
+	options         DEC_ST550               
+	cpu		EV5
+
+*
+* DEC3000 family (the "Bird" machines)
+*
+
+The DEC3000 series were among the first Alpha machines ever produced. They
+are based on an I/O bus called the Turbo Channel (TC) bus. These
+machines are built like tanks (watch your back). 
+
+DEC3000 can be subdivided in DEC3000/500-class and DEC3000/300-class. 
+The DEC3000/500-class is the early high-end workstation/server Alpha family. 
+Servers use serial consoles, workstations have graphics tubes. 
+DEC3000/300-class is the lower-cost workstation class.
+
+DEC3000/500-class are quite fast (considering their age) thanks to the 
+good memory design. DEC3000/300 is crippled compared to DEC3000/500 because
+of it's much narrower memory bus.
+
+They are called 'Birds' because their internal DEC codenames were bird
+names:
+
+	DEC3000/400     'Sandpiper' 133MHz CPU, desktop
+	DEC3000/500     'Flamingo'  150MHz CPU, floor standing
+	DEC3000/500X    'Hot Pink'  200MHz CPU, floor standing
+	DEC3000/600                 175MHz CPU, desktop
+	DEC3000/700,         	    225MHz CPU, floor standing
+	DEC3000/800,	            200MHz CPU, floor standing
+	DEC3000/900,	            275MHz CPU, floor standing
+
+	DEC3000/300 	'Pelican'   150MHz CPU, desktop, 2 TC slots
+        DEC3000/300X                175MHz CPU, desktop, 2 TC slots
+	DEC3000/300LX	            125MHz CPU, desktop, 2 TC slots
+	DEC3000/300L	            100MHz CPU, desktop, no TC slots
+		
+
+Features:
+- 21064 CPU  (100 to 200 MHz)
+  21064A CPU (225 to 275 MHz)
+- memory bus: 256 bit, with ECC 	[DEC3000/500-class]
+	       64 bit, with ECC		[DEC3000/300-class]
+- memory: - proprietary 100pin SIMMs 
+            installed in sets of 8 	[DEC3000/500-class]
+ 	  - PS/2 style 72pin 36 bit FPM SIMMs, 70ns or better
+	    used in pairs of 2		[DEC3000/300-class]
+- Bcache / L2 cache: varying sizes, 512 kB to 2 Mbyte
+- built-in 10Mbit Ethernet based on a Lance 7990 chip, AUI and UTP 
+- one or two SCSI buses based on a NCR53C94 or a NCR53CF94-2 chip 
+- 2 serial ports based on Zilog 8530 (one usable as a serial console)
+- embedded ISDN interface
+- on-board 8 bit sound 
+- 8 bit graphics on-board [some models] or via a TC card [some other models]
+
+SCSI:
+Currently DEC3000 machines can only be used diskless on FreeBSD/alpha. The
+reason for this is that the SCSI drivers needed for the TC SCSI adapters
+were not brought into CAM that the current FreeBSD versions use. TC option
+cards for single (PMAZ-A) or dual fast SCSI (PMAZC-AA) are also available.
+And currently have no drivers n FreeBSD either.
+
+DEC3000/300 has 5Mbytes/sec SCSI on-board. This bus is used for both internal
+and external devices. DEC3000/500 has 2 SCSI buses. One is for internal 
+devices only, the other one is for external devices only.
+
+ISDN interface:
+does not work on FreeBSD (to be honest I don't think there is any 
+operating system, including Tru64 Unix, that can use it). 
+
+Memory:
+DEC3000/300-class uses standard 36 bit, 72 pin Fast Page Mode SIMMs.
+EDO SIMMs, 32 or 33 bit SIMMs all will not work in Pelicans.
+For 32Mbyte SIMMs to work on the DEC3000/300-class the presence detect 
+bits/pins of the SIMM must correspond to what the machine expects. If they
+don't, the SIMM is 'seen' as a 8 Mbyte SIMM. 8 Mbyte and 32 Mbyte SIMMs can 
+be mixed, as long as the pairs themselves are identical.
+
+DEC3000/500-class can use 2, 4, 8, 16 and 32Mbyte 100pin SIMMs. 
+Note that the maximum memory size varies from system to system, 
+desktop machines have sacrificed box size for less memory SIMM sockets. 
+Given enough sockets and enough SIMMs you can get to 512Mbytes maximum.
+This is one of the main differences between floor standing and desktop
+machines, the latter have much less SIMM sockets.
+
+Sound:
+is not supported on any of the Birds.
+
+Graphics:
+The is no X-Windows version available for the TC machines. 
+DEC3000/300 needs a serial console. DEC3000/500-class might
+work with a graphical console. I ran mine with a serial console so I cannot
+verify this. 
+
+Birds can be obtained from surplus sales etc. As they are not PCI
+based they are no longer actively maintained. TC expansion boards can 
+be difficult to obtain these days and support for them is not too good
+unless you write/debug the code yourself. Programming information for TC
+boards is hard to find. Birds are recommended only if a. you can get them
+cheap and b. if you prepared to work on the code to support them better.
+
+For the DEC3000/[4-9]00 series machines the kernel config file must 
+contain:
+	options         DEC_3000_500           
+	cpu		EV4
+
+For the DEC3000/300 ("Pelican") machines the kernel config file must
+contain:
+	options         DEC_3000_300            
+	cpu		EV4
+
+*
+*Evaluation Board 64plus ("EB64+"), Aspen Alpine
+*
+
+In it's attempts to popularize the Alpha CPU DEC produced a number of so
+called Evaluation Boards. The EB64+ family boards have the following feature
+set:
+
+- 21064 or 21064A CPU, 150 to 275MHz 
+- memory bus: 128 bit
+- memory:  PS/2 style 72 pin 33 bit Fast Page Mode SIMMs, 
+	   70ns or better,
+           installed in sets of 4,
+           8 SIMM sockets
+           uses parity
+- Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbyte
+- 21072 ("APECS") chip set 
+- Intel 82378ZB PCI to ISA bridge chip ('Saturn')
+- dual 16550A serial ports
+- NCR/Symbios 53C810 Fast-SCSI
+- embedded 10Mbit Ethernet
+- 2 PCI slots
+- 3 ISA slots
+
+Aspen Alpine:
+Aspen Alpine is slightly different, but is close enough to the EB64+ to
+run an EB64+ SRM EPROM (mine does..). The Aspen Alpine does not have 
+an embedded Ethernet, has 3 instead of 2 PCI slots. It comes with 2 Mbytes
+of cache already soldered onto the mainboard. It has jumpers to select
+the use of 60, 70 or 80ns SIMM speeds.
+
+Memory:
+36 bits SIMMs work fine, 3 bits simply remain unused.
+
+SRM:
+The SRM console code is housed in an UV-erasable EPROM. No easy flash SRM
+upgrades for the EB64+ The latest SRM version available for EB64+ is quite
+ancient anyway.
+
+SCSI: 
+The EB64+ SRM can boot both 53C810 and Qlogic1040 SCSI adapters. Pitfall for
+the Qlogic is that the firmware that is downloaded by the SRM onto the
+Qlogic chip is very old. There are no updates for the EB64+ SRM available. 
+So you are stuck with old Qlogic bits too. I have had quite some problems
+when I wanted to use Ultra-SCSI drives on the Alpine/Qlogic. The
+FreeBSD/alpha kernel can be compiled to include a much newer Qlogic firmware
+revision. This is not the default because it adds hundreds of kBytes worth
+of bloat to the kernel. All of this might mean that you need to use a
+non-Qlogic adapter to boot from. 
+
+For the EB64+ class machines the kernel config file must contain:
+	options         DEC_EB64PLUS            
+	cpu		EV4
+
+*
+* Evaluation Board 164 ("EB164, PC164, PC164LX, PC164SX") family
+*
+
+EB164 is a newer design evaluation board, based on the 21164A CPU. This
+design has been used to 'spin off' multiple variations, some of which are
+used by OEM manufacturers/assembly shops. Samsung did it's own PC164LX
+which has only 32 bit PCI, whereas the DEC variant has 64 bit PCI.
+
+Features:
+- 21164A, multiple speed variants [EB164, PC164, PC164LX]
+  21164PC 			  [only on PC164SX]
+- 21174 (Alcor) chip set
+- Bcache / L3 cache:  EB164 uses special cache-SIMMs
+- memory bus: 128 bit / 256 bit
+- memory:  PS/2 style SIMMs in sets of 4 or 8, 
+	   36 bit, Fast Page Mode, uses ECC, [EB164 and PC164]
+	   SDRAM DIMMs in sets of 2, uses ECC [PC164SX and PC164LX]
+- dual 16550A serial ports
+- PS/2 style keyboard & mouse
+- floppy controller
+- parallel port
+- 32 bits PCI
+- 64 bits PCI [some models]
+- ISA slots via an Intel 82378ZB PCI to ISA bridge chip
+
+Memory:
+Using 8 SIMMs for a 256bit wide memory can yield interesting speedups over
+a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must be of the same type
+to make this work. The system must be explicitly setup to use the 
+8 SIMM memory arrangement. You must have 8 SIMMs, 4 SIMMs distributed 
+over 2 banks does not work.
+
+SCSI:
+The SRM can boot from Qlogic 10xx boards or the NCR/Symbios 53C810. 
+53C825[a] will also work as boot adapter. Diamond FirePort, although 
+based on Symbios chips, are not bootable by the PC164SX SRM. 
+PC164SX is reported to boot fine with an NCR875 based card.
+
+SRM quirks:
+PC164 the SRM sometimes seems to loose it's variable settings. 
+"For PC164's, current superstition says that, to avoid losing settings,
+you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
+
+On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
+be used as console on the next power up. This selection does not appear to
+have any effect. In other words, you will get to the AlphaBIOS regardless
+of what you select. The fix is to reflash the console ROM with the SRM 
+code for PC164SX. This will overwrite the AlphaBIOS and will get you the
+SRM console you desire. The SRM code can be found on the Compaq Web site.
+
+IDE:
+PC164 can boot from IDE disks assuming your SRM version is recent enough.
+
+Samsung PC164UX:
+Whether FreeBSD/alpha runs on this board is unknown. Please let me know if
+it does.
+
+Power:
+EB164 needs a power supply that supplies 3.3 Volts.
+
+For the EB164 class machines the kernel config file must contain:
+        options         DEC_EB164
+        cpu             EV5
+
+
+*
+* AlphaStation 200 ("Mustang") and 400 ("Avanti") series
+*
+
+The Digital AlphaStation 200 and 400 series systems are early PCI based
+workstations for the lower end. The 200 series is a desktop box, the 400
+series is a deskside mini-tower.
+
+Features:
+- 21064 or 21064A CPU
+- DECchip 21071-AA (core logic chipset) consisting of:
+    Cache/memory controller (one 21071-CA chip)
+    PCI interface (one 21071-DA chip)
+    Data path (two 21071-BA chips)
+- Bcache / L2 cache: 512 Kbytes
+- memory bus: 64 bit
+- memory: 8 to 384 MBytes of RAM,
+	  70 ns or better Fast Page DRAM,
+          in three pairs
+	  uses parity 
+- PS/2 keyboard and mouse port
+- two 16550 serial ports
+- parallel port
+- floppy disk interface
+- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 series)
+- ISA expansion slots (4 for 400 series, 2 for 200 series) 
+  (some ISA/PCI slots are physically shared)
+- embedded 21040-based Ethernet (200 series only)
+- embedded NCR/Symbios 53c810 Fast SCSI-2 chip
+- Intel 82378IB ("Saturn") PCI-ISA bridge chip
+- graphics is embedded TGA or PCI VGA (model dependent)
+- 16 bit sound (on 200 series)
+
+Memory:
+the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
+33 bit wide SIMMs are sufficient, 36 bit SIMMs are acceptable too. EDO or 32
+bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
+
+Sound:
+the sound interface is not supported by FreeBSD. 
+
+SCSI:
+AlphaStation 200 series has an automatic SCSI terminator. This means that as
+soon as you plug a cable onto the external SCSI connector the internal
+terminator of the system is disabled. It also means that you should not
+leave unterminated cables plugged into the machine.
+
+AlphaStation 400 series have an SRM variable that controls termination. In
+case you have external SCSI devices connected you must set this SRM
+variable using: "set control_scsi_term external". If only internal SCSI devices
+are present use: "set control_scsi_term internal"
+
+For the AlphaStation-[24]00 machines the kernel config file must contain:
+        options         DEC_2100_A50
+	cpu		EV4
+
+
+*
+* AlphaStation 500 and 600
+*
+AS500 and 600 were the high-end EV5 / PCI based workstations. EV6 based
+machines have in the meantime taken their place as front runners. AS500 is
+a desktop in a dark blue case (TopGun blue), AS600 is a sturdy deskside box.
+AS600 has a nice LCD panel to observe the early stages of SRM startup.
+
+Features:
+- 21164 EV5 CPU at 333, 400 or 500 MHz (AS500)
+		at 266 or 300 MHz (AS600)
+- 21171 or 21172 (Alcor) core logic chipset
+- cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
+	 4 Mb L3 / Bcache (AS600 at 300 MHz)
+	 2 or 8 Mb L3 / Bcache (8 Mb on 500 MHz version only)
+         2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)
+- memory bus: 256 bits, uses ECC
+- memory: AS500: industry standard 8 byte wide DIMMs
+          	 8 DIMM slots
+	  	 installed in sets of 4,
+	  	 maximum memory is 1 Gb (512Mb max on 333 MHz CPUs)
+		 uses ECC 
+  	  AS600: industry standard 36 bit Fast Page Mode SIMMs
+		 32 SIMM slots,
+	         installed in sets of 8,
+	         maximum memory is 1 Gb
+	         uses ECC
+- Qlogic 1020 based wide SCSI bus (1 bus/chip for AS500, 2 for AS600)
+- 21040 based 10 Mbit Ethernet adapter with both Thinwire and UTP connectors
+- expansion: AS500: 3 32-bit PCI slots
+	     	    1 64-bit PCI slot
+	     AS600: 2 32-bit PCI slot 
+                    3 64-bit PCI slots
+		    1 PCI/EISA physically shared slot
+		    3 EISA slots
+		    1 PCI and 1 EISA slot are occupied by default
+- 21050 PCI-to-PCI bridge chip
+- Intel 82375EB PCI-EISA bridge (AS600 only)
+- 2 16550A serial ports
+- 1 parallel port
+- 16 bit audio Windows Sound System,
+  in dedicated slot (AS500)
+  in EISA slot (AS600, this is an ISA card)
+- PS/2 keyboard and mouse port
+
+SCSI:
+Early machines had Fast SCSI interfaces, later ones are Ultra SCSI capable.
+AS500 shares it's single SCSI bus with internal and external devices. For a
+Fast SCSI bus you are limited to 1.8 meters bus length external to the box.
++++ This is what some DEC docs suggest. Did they ever go Ultra?
+
+AS600 has one Qlogic chip dedicated to the internal devices whereas the
+other one is dedicated to external SCSI devices.
+
+Memory:
+In AS500 DIMMs are installed in sets of 4, in 'physically interleaved'
+layout. So, a bank of 4 DIMMs is *not* 4 adjacent DIMMs!
+
+In AS600 the memory SIMMs are placed onto two memory daughter cards. SIMMs
+are installed in sets of 8. Both memory daughter cards must be populated
+identical. 
+
+PCI:
+AS600 has a peculiarity for it's PCI slots. AS600 (or rather the PCI
+expansion card containing the SCSI adapters) does not allow I/O port 
+mapping, therefore all devices behind it must use memory mapping.  
+If you have problems getting the SCSI adapters to work, add the following 
+option to /boot/loader.rc: 
+
+        set isp_mem_map=0xff                                        
+        
+This may need to be typed at the boot loader prompt before booting the
+installation kernel.                                                 
+
+For the AlphaStation-[56]00 machines the kernel config file must contain:
+	options         DEC_KN20AA 
+	cpu		EV5
+
+*
+* AlphaServer 1000 ("Mikasa"), 1000A ("Noritake") and 800 
+*
+The AlphaServer range of machines are aimed as departmental servers. They
+come in quite some variations in packaging and mainboard/cpu. Generally
+speaking there are 21064 (EV4) CPU based machines and 21164 (EV5) based
+ones. The CPU is on a daughter card, and the type of CPU (EV4 or EV5) must
+match the mainboard in use. AlphaServer 800 is a much smaller mini tower
+case, it lacks the StorageWorks SCSI hot-plug chassis. The main difference
+between AS1000 and AS1000A is that AS1000A has 7 PCI slots whereas AS1000
+only has 3 PCI slots and has EISA slots instead.
+
+Features:
+- 21064 EV4 CPU at 200, 233 or 266 MHz
+  21164 EV5 CPU at 300, 333 or 400 MHz (or 500 MHz for AS800 only)
+- cache:
+- memory bus: 128 bit with ECC
+- memory:
+	AS1000[A]-systems:
+          Use 72pin 36 bit Fast Page Mode SIMMs, 70ns or better
+	  16 or 20 SIMM slots
+	  max memory is 1 Gb
+	  uses ECC
+	AS800:
+	  Uses SDRAM DIMMs.
+- embedded VGA (on some mainboard models)
+- expansion: 
+	3 PCI, 2 EISA, 1 64-bit PCI/EISA combo (AS800)
+  	7 PCI, 2 EISA (AS1000A)
+ 	2 PCI, 1 EISA/PCI, 7 EISA (AS1000)
+- embedded SCSI based on NCR/Symbios 810 [AS1000] or Qlogic 1020 [AS1000A]
+	
+Box:
+AS1000 based machines come in multiple boxes. Floor standing, rackmount,
+with or without StorageWorks SCSI chassis etc. The electronics are the
+same.
+
+Memory:
+  AS1000-systems:
+  All EV4 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets of
+  5. The fifth SIMM is used for ECC.
+  All EV5 based machines use standard PS/2 style 36 bit 72pin SIMMs in sets of
+  4. The ECC is done based on the 4 extra bits per SIMM (4 bits out of 36).
+  The EV5 mainboards have 16 SIMM slots, the EV4 mainboards have 20 slots.
+
+  AS800:
+  Uses DIMMs in sets of 4. DIMM installation must start in slots marked 
+  bank 0. A bank is four physically adjacent slots. The biggest size DIMMs
+  must be installed in bank 0 in case 2 banks of different DIMM sizes are
+  used. Max memory size is 2Gb.
+
+SCSI:
+For AS800 you want to check if your Ultra-Wide SCSI is indeed in Ultra mode.
+This can be done using the EEROMCFG.EXE utility that is on the Firmware 
+Upgrade CDROM. 
+  
+For the AlphaServer1000/1000A/800 machines the kernel config file must contain:
+	options         DEC_1000A
+	cpu		EV4		# depends on model CPU installed
+	cpu		EV5		# depends on model CPU installed
+
+*
+* DS10/VS10/XP900 ("Webbrick") / XP1000 ("Monet")
+*
+Webbrick and Monet are high performance workstations/servers based on the
+EV6 CPU and the Tsunami chipset. Tsunami is also used in much higher-end 
+systems and as such has plenty of performance to offer. DS10, VS10 and XP900
+are different names for essentially the same system. The difference are the 
+software and options that are supported.
+
+Monet has, by 1999 standards, *stunning* (the words of a satisfied
+user) memory and I/O system bandwidth.
+
+** Webbrick 
+
+Features:
+- 21264 EV6 CPU at 466 MHz
+- L2 / Bcache: 4MB 
+- memory bus: 128 bit via crossbar
+- memory: industry standard 200 pin 83 MHz buffered ECC SDRAM DIMMs
+	  4 DIMM slots
+	  installed in pairs of 2
+	  max memory is 2Gb
+- 21271 Core Logic chipset ("Tsunami")
+- 2 on-board 21143 Fast Ethernet controllers
+- AcerLabs M5237 (Aladdin-V) USB controller
+- AcerLabs M1533 PCI-ISA bridge   
+- AcerLabs Aladdin ATA-33 controller 
+- embedded dual EIDE 
+- expansion: 3 64-bit PCI slots
+             1 32-bit PCI slots
+- 2x 16550A serial ports
+- 1x parallel port
+- 2x USB
+- PS/2 keyboard & mouse port        
+
+Power:
+The system has a smart power controller. This means that parts of the system
+remain powered when it is switched off (like an ATX-style PC power supply).
+Before servicing the machine remove the power cord.
+
+Case:
+Webbrick is shipped in a desktop-style case similar to the older 21164
+"Maverick" workstations but which offers much better access to        
+components. If you intend to build a farm you can rackmount them in a 19"
+rack.
+
+Memory:
+DS10 has 4 DIMM slots. DIMMs are installed as pairs. Please note that 
+DIMM pairs are not installed in adjacent DIMM sockets but rather physically
+interleaved. 
+
+EIDE:
+The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
+FreeBSD/alpha works just fine using EIDE disks on Webbrick.
+
+USB:
+whether this works on FreeBSD on DS10 is as yet unknown.
+
+The kernel config file must contain:
+	options         DEC_ST6600    
+Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
+kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+
+** Monet 
+
+Features:
+- 21264 EV6 at 500 MHz
+  21264 EV67 at 500 or 667 MHz
+- L2 / Bcache: 4MB 
+- memory bus: 256 bit 
+- memory: 128 or 256Mb 100 MHz (PC100) registered ECC SDRAM DIMMs
+- 21271 Core Logic chip-set ("Tsunami")
+- 1 on-board 21143 Ethernet controller
+- Cypress 82C693 USB controller       
+- Cypress 82C693 PCI-ISA bridge       
+- Cypress 82C693 controller 
+- expansion: 2 independent PCI buses (called hoses)
+        hose 0: (the upper 3 slots)
+             2 64-bit PCI slots    
+             1 32-bit PCI slot     
+        hose 1: (the bottom 2 slots)
+             2 32-bit PCI slots (behind a PCI-PCI bridge)
+	2 of the 64-bit PCI slots are for full-length cards
+	all of the 32-bit PCI slots are for short cards
+	1 of the 32-bit PCI slots is physically shared with an ISA slot
+- 1x Ultra-Wide SCSI port based on a Qlogic 1040 chip
+- 2x 16550A serial port        
+- 1x parallel port        
+- PS/2 keyboard & mouse port        
+- embedded 16-bit ESS ES1888 sound chip
+- 2x USB
+- graphics options: ELSA Gloria Synergy or DEC/Compaq PowerStorm 3D
+	            accelerator cards
+
+Case:
+Monet is housed in a mini-tower like enclosure quite similar to the Miata
+box.
+
+Memory:
+For 500 MHz CPUs 83 MHz DIMMs will do. DIMMs are installed in sets of 4,
+starting with the DIMM slots marked '0'. Memory capacity is max 4Gb. 
+DIMMs are installed 'physically interleaved', note the markings of the
+slots.
+
+EIDE:
+Is usable / bootable for system disk so FreeBSD can be rooted on an EIDE
+disk.
+
+Expansion:
+Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
+from working correctly.
+
+Sound:
+The sound chip is not currently supported with FreeBSD. There is work in
+progress in this area.
+
+The kernel config file must contain:
+	options         DEC_ST6600    
+Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
+kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+
+** DS20/DS20E ("Goldrush" ?):
+
+Features:
+- 21264 EV6 CPU at 500 or 600 MHz
+- dual CPU capable machine
+- L2 / Bcache: 4 Mbytes per CPU
+- memory bus: 256 bit 
+- memory: SDRAM DIMMs
+	  installed in sets of 4
+	  uses ECC 
+	  16 DIMM slots
+	  max. 4Gb
+- 21271 Core Logic chip-set ("Tsunami") 
+- embedded Adaptec ? Wide Ultra SCSI 
+- expansion: 2 independent PCI buses (called hoses)
+	     6 64-bit PCI slots (3 per hose)
+	     1 ISA slot
+
+Case:
+DS20 is housed in a fat minitower-like enclosure. The enclosure also
+contains a StorageWorks SCSI hotswap shelf for a maximum of 7 3.5" SCSI
+devices. DS20E is a sleeker case, without the StorageWorks shelf.
+
+Embedded SCSI:
+The embedded Adaptec SCSI chip on DS20 is disabled and therefore 
+not usable under FreeBSD.
+
+CPU:
+DS20 can have 2 CPUs installed. FreeBSD/alpha is not currently SMP-capable 
+and will only use the primary CPU.
+
+Memory:
+If you are using banks of DIMMs of different sizes the biggest DIMMs should
+be installed in the DIMM slots marked '0' on the mainboard. The DIMM slots
+should be filled 'in order' so after bank 0 install in bank 1 and so on.
+
+Expansion:
+Don't try to use NCR/Symbios-chip based SCSI adapters in the PCI slots
+connected to hose 1. There is a not-yet-found FreeBSD bug that prevents this
+from working correctly. DS20 ships by default with an NCR on hose 1 so you
+have to move this card before you can install/boot FreeBSD on it.
+
+The kernel config file must contain:
+	options         DEC_ST6600    
+Contrary to expectation there is no 'cpu EV6' defined for inclusion in the
+kernel config file. A 'cpu EV5' is mandatory to keep config(8) happy.
+
+** DP264
+
+< need info on this one >
+
+- onboard Adaptec is not bootable but works with FreeBSD 4.0 and later
+  as a datadisk-only SCSI bus.
+
+
+Supported hardware overview
+---------------------------
+
+Word of caution: the installed base for FreeBSD/alpha is not nearly as large
+as for FreeBSD/intel. This means that the enormous variation of PCI/ISA
+expansion cards out there has much less chance of having been tested on
+alpha than on intel. This is not to imply they are doomed to fail, just that
+the chance of running into something never tested before is much greater.
+GENERIC contains things that are known to work on Alpha only.
+
+- Expansion buses: PCI and ISA are fully supported. Turbo Channel is not
+in GENERIC and has limited support (see the relevant machine model info).
+The MCA bus is not supported.
+
+- Floppy drives: 1.44Mbyte and 1.2Mbyte floppy drives are supported.
+2.88Mbyte drives sometimes found in Alpha machines are supported up to
+1.44Mbyte.
+
+- ATA / ATAPI (IDE): are supported via the ata driver framework. As most
+people run their Alphas with SCSI disks it is not as well tested as SCSI. Be
+aware of bootability restrictions for IDE disks. See the machine specific
+information.
+
+- SCSI: full support via the CAM layer for Adaptec 2940x (AIC7xxx
+chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
+bootability issues for the various adapter types.
+
+- graphics console/keyboard/mouse: in general the SRM console emulates 
+a VGA-compatibility mode on PCI VGA cards. This is, however, not guaranteed 
+to work by Compaq/DEC for each and every card type out there. When the SRM 
+thinks the VGA is acceptable FreeBSD will be able to use it. The console driver
+works just like on a FreeBSD/intel machine. The TGA video graphics which 
+is builtin on for example Multia is reported to be not usable with FreeBSD.
+
+- serial ports: the 'PC standard' serial ports found on most Alphas are 
+supported. For TurboChannel machines the serial ports are also supported.
+
+- parallel ports: are not currently supported on FreeBSD/alpha
+
+- ISDN (i4b): is not supported on FreeBSD/alpha
+
+- multimedia: is not really supported on FreeBSD/alpha but work is underway
+
+
+Acknowledgments
+----------------
+
+In compiling this file I used multiple information sources, but
+http://www.netbsd.org proved to be an invaluable source of information.
+If it wasn't for NetBSD/alpha there probably would not be a FreeBSD/alpha
+in the first place.
+
+People who kindly helped me with creating this document:
+
+- Nick Maniscalco <nmanisca@vt.edu>
+- Andrew Gallatin <gallatin@cs.duke.edu>
+- Christian Weisgerber <naddy@mips.rhein-neckar.de>
+- David O'Brien <obrien@NUXI.com>
+- Wim Lemmers <wim.lemmers@compaq.com>
+- Matthew Jacob <mjacob@feral.com>
+- Eric Schnoebelen <eric@cirr.com>
+- Chuck Robey <chuckr@picnic.mat.net>
+- Mike Smith <msmith@FreeBSD.ORG>
+- Peter Jeremy <peter.jeremy@alcatel.com.au>
