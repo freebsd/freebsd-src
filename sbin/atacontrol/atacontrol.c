@@ -112,6 +112,7 @@ cap_print(struct ata_params *parm)
 	printf("\n");
 	printf("ATA/ATAPI revision    %d\n", version(parm->version_major));
 	printf("device model          %.40s\n", parm->model);
+	printf("serial number         %.20s\n", parm->serial);
 	printf("firmware revision     %.8s\n", parm->revision);
 
 	printf("cylinders             %d\n", parm->cylinders);
