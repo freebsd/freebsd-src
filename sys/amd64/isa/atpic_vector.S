@@ -41,12 +41,8 @@
  */
 
 #include <machine/asmacros.h>
-#include <i386/isa/icu.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
+#include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
 
 #include "assym.s"
 
@@ -57,23 +53,28 @@
 	.text ;								\
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
-	pushl	$0 ;		/* dummy error code */			\
-	pushl	$0 ;		/* dummy trap type */			\
-	pushal ;		/* 8 ints */				\
-	pushl	%ds ;		/* save data and extra segments ... */	\
-	pushl	%es ;							\
-	pushl	%fs ;							\
-	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */		\
-	mov	%ax,%ds ;						\
-	mov	%ax,%es ;						\
-	mov	$KPSEL,%ax ;						\
-	mov	%ax,%fs ;						\
-;									\
+	subq	$TF_RIP,%rsp ;	/* skip dummy tf_err and tf_trapno */	\
+	testb	$SEL_RPL_MASK,TF_CS(%rsp) ; /* come from kernel? */	\
+	jz	1f ;		/* Yes, dont swapgs again */		\
+	swapgs ;							\
+1:	movq	%rdi,TF_RDI(%rsp) ;					\
+	movq	%rsi,TF_RSI(%rsp) ;					\
+	movq	%rdx,TF_RDX(%rsp) ;					\
+	movq	%rcx,TF_RCX(%rsp) ;					\
+	movq	%r8,TF_R8(%rsp) ;					\
+	movq	%r9,TF_R9(%rsp) ;					\
+	movq	%rax,TF_RAX(%rsp) ;					\
+	movq	%rbx,TF_RBX(%rsp) ;					\
+	movq	%rbp,TF_RBP(%rsp) ;					\
+	movq	%r10,TF_R10(%rsp) ;					\
+	movq	%r11,TF_R11(%rsp) ;					\
+	movq	%r12,TF_R12(%rsp) ;					\
+	movq	%r13,TF_R13(%rsp) ;					\
+	movq	%r14,TF_R14(%rsp) ;					\
+	movq	%r15,TF_R15(%rsp) ;					\
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
-	pushl	$irq_num; 	/* pass the IRQ */			\
+	movq	$irq_num, %rdi; 	/* pass the IRQ */		\
 	call	atpic_handle_intr ;					\
-	addl	$4, %esp ;	/* discard the parameter */		\
-;									\
 	MEXITCOUNT ;							\
 	jmp	doreti
 

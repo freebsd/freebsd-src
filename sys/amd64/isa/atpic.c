@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -52,26 +53,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/segments.h>
 
-#include <i386/isa/icu.h>
-#ifdef PC98
-#include <pc98/pc98/pc98.h>
-#else
-#include <i386/isa/isa.h>
-#endif
+#include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
+
 #include <isa/isavar.h>
 
 #define	MASTER	0
 #define	SLAVE	1
 
-/* XXX: Magic numbers */
-#ifdef PC98
-#ifdef AUTO_EOI_1
-#define	MASTER_MODE	0x1f	/* Master auto EOI, 8086 mode */
-#else
-#define	MASTER_MODE	0x1d	/* Master 8086 mode */
-#endif
-#define	SLAVE_MODE	9	/* 8086 mode */
-#else /* IBM-PC */
 #ifdef AUTO_EOI_1
 #define	MASTER_MODE	(ICW4_8086 | ICW4_AEOI)
 #else
@@ -82,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #else
 #define	SLAVE_MODE	ICW4_8086
 #endif
-#endif /* PC98 */
 
 static void	atpic_init(void *dummy);
 
@@ -252,13 +240,7 @@ i8259_init(struct atpic *pic, int slave)
 
 	/* Reset the PIC and program with next four bytes. */
 	mtx_lock_spin(&icu_lock);
-#ifdef DEV_MCA
-	/* MCA uses level triggered interrupts. */
-	if (MCA_system)
-		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4 | ICW1_LTIM);
-	else
-#endif
-		outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
+	outb(pic->at_ioaddr, ICW1_RESET | ICW1_IC4);
 	imr_addr = pic->at_ioaddr + ICU_IMR_OFFSET;
 
 	/* Start vector. */
@@ -286,11 +268,9 @@ i8259_init(struct atpic *pic, int slave)
 	/* Reset is finished, default to IRR on read. */
 	outb(pic->at_ioaddr, OCW3_SEL | OCW3_RR);
 
-#ifndef PC98
 	/* OCW2_L1 sets priority order to 3-7, 0-2 (com2 first). */
 	if (!slave)
 		outb(pic->at_ioaddr, OCW2_R | OCW2_SL | OCW2_L1);
-#endif
 	mtx_unlock_spin(&icu_lock);
 }
 
@@ -317,21 +297,36 @@ atpic_init(void *dummy __unused)
 			continue;
 		ai = &atintrs[i];
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
-		    ai->at_irq, ai->at_intr, SDT_SYS386IGT, SEL_KPL,
-		    GSEL(GCODE_SEL, SEL_KPL));
+		    ai->at_irq, ai->at_intr, SDT_SYSIGT, SEL_KPL, 0);
 		intr_register_source(&ai->at_intsrc);
 	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
 
 void
-atpic_handle_intr(struct intrframe iframe)
+atpic_handle_intr(void *cookie, struct intrframe iframe)
 {
 	struct intsrc *isrc;
+	int vec = (uintptr_t)cookie;
 
-	KASSERT((uint)iframe.if_vec < ICU_LEN,
-	    ("unknown int %d\n", iframe.if_vec));
-	isrc = &atintrs[iframe.if_vec].at_intsrc;
+	KASSERT(vec < ICU_LEN, ("unknown int %d\n", vec));
+	isrc = &atintrs[vec].at_intsrc;
+	if (vec == 7 || vec == 15) {
+		int port, isr;
+
+		/*
+		 * Read the ISR register to see if IRQ 7/15 is really
+		 * pending.  Reset read register back to IRR when done.
+		 */
+		port = ((struct atpic *)isrc->is_pic)->at_ioaddr;
+		mtx_lock_spin(&icu_lock);
+		outb(port, OCW3_SEL | OCW3_RR | OCW3_RIS);
+		isr = inb(port);
+		outb(port, OCW3_SEL | OCW3_RR);
+		mtx_unlock_spin(&icu_lock);
+		if ((isr & IRQ7) == 0)
+			return;
+	}
 	intr_execute_handlers(isrc, &iframe);
 }
 
@@ -398,9 +393,7 @@ static driver_t atpic_driver = {
 static devclass_t atpic_devclass;
 
 DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
-#ifndef PC98
 DRIVER_MODULE(atpic, acpi, atpic_driver, atpic_devclass, 0, 0);
-#endif
 
 /*
  * Return a bitmap of the current interrupt requests.  This is 8259-specific

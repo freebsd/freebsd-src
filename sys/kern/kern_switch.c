@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
-#if defined(SMP) && defined(__i386__)
+#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 #include <sys/smp.h>
 #endif
 #include <machine/critical.h>
@@ -124,7 +124,7 @@ choosethread(void)
 	struct thread *td;
 	struct ksegrp *kg;
 
-#if defined(SMP) && defined(__i386__)
+#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 	if (smp_active == 0 && PCPU_GET(cpuid) != 0) {
 		/* Shutting down, run idlethread on AP's */
 		td = PCPU_GET(idlethread);

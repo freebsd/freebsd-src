@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_atpic.h"
 #include "opt_isa.h"
 #include "opt_no_mixed_mode.h"
 
@@ -50,8 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 #include <machine/segments.h>
 
-#if defined(DEV_ISA) && !defined(NO_MIXED_MODE)
-#define MIXED_MODE
+#if defined(DEV_ISA) && defined(DEV_ATPIC) && !defined(NO_MIXED_MODE)
+#define	MIXED_MODE
 #endif
 
 #define IOAPIC_ISA_INTS		16

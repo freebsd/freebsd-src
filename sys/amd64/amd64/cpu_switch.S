@@ -59,14 +59,16 @@
  * %rsi = newtd
  */
 ENTRY(cpu_throw)
-	xorq	%rax, %rax
 	movl	PCPU(CPUID), %eax
 	testq	%rdi,%rdi			/* no thread? */
 	jz	1f
 	/* release bit from old pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldtd->td_proc */
 	movq	P_VMSPACE(%rdx), %rdx		/* proc->p_vmspace */
-	btrq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+#ifdef SMP
+	lock
+#endif
+	btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 1:
 	movq	TD_PCB(%rsi),%rdx		/* newtd->td_proc */
 	movq	PCB_CR3(%rdx),%rdx
@@ -74,7 +76,10 @@ ENTRY(cpu_throw)
 	/* set bit in new pm_active */
 	movq	TD_PROC(%rsi),%rdx
 	movq	P_VMSPACE(%rdx), %rdx
-	btsq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
+#ifdef SMP
+	lock
+#endif
+	btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 	jmp	sw1
 
 /*
@@ -143,7 +148,6 @@ ENTRY(cpu_switch)
 	jz	badsw3				/* no, panic */
 #endif
 	movq	TD_PCB(%rsi),%r8
-	xorq	%rax, %rax
 	movl	PCPU(CPUID), %eax
 
 	/* switch address space */
@@ -153,12 +157,18 @@ ENTRY(cpu_switch)
 	/* Release bit from old pmap->pm_active */
 	movq	TD_PROC(%rdi), %rdx		/* oldproc */
 	movq	P_VMSPACE(%rdx), %rdx
-	btrq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
+#ifdef SMP
+	lock
+#endif
+	btrl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* clear old */
 
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
 	movq	P_VMSPACE(%rdx), %rdx
-	btsq	%rax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
+#ifdef SMP
+	lock
+#endif
+	btsl	%eax, VM_PMAP+PM_ACTIVE(%rdx)	/* set new */
 
 sw1:
 	/*
@@ -191,8 +201,11 @@ sw1:
 	wrmsr
 
 	/* Update the TSS_RSP0 pointer for the next interrupt */
+	movq	PCPU(TSSP), %rax
+	addq	$COMMON_TSS_RSP0, %rax
 	leaq	-16(%r8), %rbx
-	movq	%rbx, common_tss + COMMON_TSS_RSP0
+	movq	%rbx, (%rax)
+	movq	%rbx, PCPU(RSP0)
 
 	/* Restore context. */
 	movq	PCB_RBX(%r8),%rbx

@@ -69,7 +69,7 @@ struct amd64tss {
 };
 
 #ifdef _KERNEL
-extern struct amd64tss common_tss;
+extern struct amd64tss common_tss[];
 #endif
 
 #endif /* _MACHINE_TSS_H_ */

@@ -82,7 +82,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * For userland, assume the SMP case and use lock prefixes so that
  * the binaries will run on both types of systems.
  */
-#if !defined(_KERNEL)
+#if defined(SMP) || !defined(_KERNEL)
 #define MPLOCKED	lock ;
 #else
 #define MPLOCKED
