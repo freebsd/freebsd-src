@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.17 1998/11/04 03:49:39 peter Exp $
+ *	$Id: star_saver.c,v 1.18 1999/01/11 03:18:53 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -59,7 +59,7 @@ star_saver(video_adapter_t *adp, int blank)
 
 	if (blank) {
 		if (adp->va_mode_flags & V_INFO_GRAPHICS)
-			return ENODEV;
+			return EAGAIN;
 		if (!blanked) {
 			window = (u_short *)adp->va_window;
 			/* clear the screen and set the border color */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: daemon_saver.c,v 1.12 1998/11/04 03:49:38 peter Exp $
+ *	$Id: daemon_saver.c,v 1.13 1999/01/11 03:18:45 yokota Exp $
  */
 
 #include <sys/param.h>
@@ -200,7 +200,7 @@ daemon_saver(video_adapter_t *adp, int blank)
 
 	if (blank) {
 		if (adp->va_mode_flags & V_INFO_GRAPHICS)
-			return ENODEV;
+			return EAGAIN;
 		if (blanked == 0) {
 			window = (u_short *)adp->va_window;
 			/* clear the screen and set the border color */
