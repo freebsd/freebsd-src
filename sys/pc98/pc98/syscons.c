@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.30 1997/03/04 06:25:54 kato Exp $
+ *  $Id: syscons.c,v 1.31 1997/03/24 12:29:46 bde Exp $
  */
 
 #include "sc.h"
@@ -4045,11 +4045,12 @@ set_keyboard(int command, int data)
 
     /* disable the keyboard and mouse interrupt */
     s = spltty();
+#if 0
     c = get_controller_command_byte(sc_kbdc);
     if ((c == -1) 
 	|| !set_controller_command_byte(sc_kbdc, 
             kbdc_get_device_mask(sc_kbdc),
-            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT
                 | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 	/* CONTROLLER ERROR */
         kbdc_lock(sc_kbdc, FALSE);
@@ -4064,15 +4065,21 @@ set_keyboard(int command, int data)
      * by the lock flag set via `kbdc_lock()'
      */
     splx(s);
+#endif
 
-    send_kbd_command_and_data(sc_kbdc, command, data);
+    if (send_kbd_command_and_data(sc_kbdc, command, data) != KBD_ACK)
+        send_kbd_command(sc_kbdc, KBDC_ENABLE_KBD);
 
+#if 0
     /* restore the interrupts */
     if (!set_controller_command_byte(sc_kbdc,
             kbdc_get_device_mask(sc_kbdc),
 	    c & (KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS))) { 
 	/* CONTROLLER ERROR */
     }
+#else
+    splx(s);
+#endif
     kbdc_lock(sc_kbdc, FALSE);
 #endif
 }
