@@ -67,6 +67,29 @@ and
 are now interpreted as beginning at 1969 per POSIX requirements.
 Years 69-00 are interpreted in the 20th century (1969-2000), years
 01-68 in the 21st century (2001-2068).
+.Pp
+If the
+.Fa format
+string does not contain enough conversion specifications to completely
+specify the resulting
+.Vt struct tm ,
+the unspecified members of
+.Va timeptr
+are left untouched.
+For example, if
+.Fa format
+is
+.Dq Li "%H:%M:%S" ,
+only
+.Va tm_hour ,
+.Va tm_sec
+and
+.Va tm_min
+will be modified.
+If time relative to today is desired, initialize the
+.Fa timeptr
+structure with today's date before passing it to
+.Fn strptime .
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn strptime
