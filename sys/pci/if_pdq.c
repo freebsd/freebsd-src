@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.13 1996/01/23 21:47:06 se Exp $
+ * $Id: if_pdq.c,v 1.14 1996/02/06 18:51:25 wollman Exp $
  *
  */
 
@@ -322,11 +322,11 @@ pdq_ifioctl(
 	    switch(ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET: {
-		    ((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
 		    (*sc->if_init)(ifp->if_unit);
 #ifdef __FreeBSD__
 		    arp_ifinit((struct arpcom *)ifp, ifa);
 #else
+		    ((struct arpcom *)ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
 		    arpwhohas((struct arpcom *)ifp, &IA_SIN(ifa)->sin_addr);
 #endif
 		    break;
