@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: alternatives.ms,v 1.2 1997/01/05 12:13:26 mckay Exp $
 .\"
 .ds RH Alternative implementations
 .NH
@@ -16,11 +16,11 @@ These problems were actually the inspiration for the first alternative
 malloc implementations.
 Since their main aim was debugging, they would often use techniques
 like allocating a guard zone before and after the chunk,
-and possibly fill these guard zones
-with some pattern, so accesses outside the allocated chunk can be detected
+and possibly filling these guard zones
+with some pattern, so accesses outside the allocated chunk could be detected
 with some decent probability.
-Another widely used technique is to use tables to keep track of what
-chunks were actually in what state and so on.
+Another widely used technique is to use tables to keep track of which
+chunks are actually in which state and so on.
 .PP
 This class of debugging has been taken to its practical extreme by
 the product "Purify" which does the entire memory-colouring exercise
@@ -34,8 +34,8 @@ disregarding that in the meantime virtual memory and paging have
 become the standard environment.
 .PP
 The most widely used "alternative" malloc is undoubtedly ``gnumalloc''
-which have received wide acclaim and certainly runs faster than
-most stock mallocs.  It does however tend to fare badly in a
+which has received wide acclaim and certainly runs faster than
+most stock mallocs.  It does, however, tend to fare badly in
 cases where paging is the norm rather than the exception.
 .PP
 The particular malloc that prompted this work basically didn't bother 

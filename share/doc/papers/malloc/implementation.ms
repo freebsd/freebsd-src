@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: implementation.ms,v 1.4 1996/11/14 08:10:30 phk Exp $
+.\" $Id: implementation.ms,v 1.5 1997/01/05 12:13:30 mckay Exp $
 .\"
 .ds RH Implementation
 .NH
@@ -27,8 +27,8 @@ The value can be one of:
 .IP
 .B MALLOC_NOT_MINE
 Another part of the code may call brk(2) to get a piece of the cake.
-Consequently we cannot rely on the memory we get from the kernel to
-be one consecutive piece of memory and therefore we need a way to
+Consequently, we cannot rely on the memory we get from the kernel
+being one consecutive piece of memory, and therefore we need a way to
 mark such pages as "untouchable".
 .IP
 .B MALLOC_FREE
@@ -45,7 +45,7 @@ struct pginfo*
 .R
 A pointer to a structure describing a partitioned page.
 .PP
-In addition there exist a linked list of small data structures that
+In addition, there exists a linked list of small data structures that
 describe the free space as runs of free pages.
 .PP
 Notice that these structures are not part of the free pages themselves,
@@ -54,23 +54,23 @@ are never referenced while they are free.
 .PP
 When a request for storage comes in, it will be treated as a ``page''
 allocation if it is bigger than half a page.
-The freelist will be searched and the first run of free pages that
+The free list will be searched and the first run of free pages that
 can satisfy the request is used.  The first page gets set to
 .B MALLOC_FIRST
-status, if more than that one page is needed the rest of them gets
+status.  If more than that one page is needed, the rest of them get
 .B MALLOC_FOLLOW
 status in the page-directory.
 .PP
-If there were no pages on the free-list, brk(2) will be called, and
+If there were no pages on the free list, brk(2) will be called, and
 the pages will get added to the page-directory with status
 .B MALLOC_FREE
 and the search restarts.
 .PP
 Freeing a number of pages is done by changing their state in the 
-page directory to MALLOC_FREE, and then traverse the free-pages list to
+page directory to MALLOC_FREE, and then traversing the free-pages list to
 find the right place for this run of pages, possibly collapsing
-with the two neighbouring runs into one run and, if it is possible,
-release some memory back to the kernel by calling brk(2).
+with the two neighbouring runs into one run and, if possible,
+releasing some memory back to the kernel by calling brk(2).
 .PP
 If the request is less than or equal to half of a page, its size will be
 rounded up to the nearest power of two before being processed
@@ -90,12 +90,12 @@ and numbers used to keep track of the stuff in the page.
 .PP
 For each size of sub-page allocation, the pginfo structures for the
 pages that have free chunks in them form a list.
-The head of these lists are stored in predetermined slots at
+The heads of these lists are stored in predetermined slots at
 the beginning of the page directory to make access fast.
 .PP
 To allocate a chunk of some size, the head of the list for the
-corresponding size is examined, and a free chunk found, the number
-of free chunks on that page is decreased by one and if zero the
+corresponding size is examined, and a free chunk found.  The number
+of free chunks on that page is decreased by one and, if zero, the
 pginfo structure is unlinked from the list.
 .PP
 To free a chunk, the page is derived from the pointer, the page table
@@ -139,25 +139,27 @@ Bells and whistles.
 brk(2) is actually not a very fast system call when you ask for storage.
 This is mainly because of the need by the kernel to zero the pages before
 handing them over, so therefore this implementation does not release 
-back heap-pages, until there is a large chunk to release back to the kernel.
+heap pages until there is a large chunk to release back to the kernel.
 Chances are pretty good that we will need it again pretty soon anyway.
 Since these pages are not accessed at all, they will soon be paged out
 and don't affect anything but swap-space usage.
 .PP
 The page directory is actually kept in a mmap(2)'ed piece of
 anonymous memory.  This avoids some rather silly cases that
-we would otherwise have to be handled when the page directory
+would otherwise have to be handled when the page directory
 has to be extended.
 .PP
-One particular nice feature is that all pointers passed to free(3)
+One particularly nice feature is that all pointers passed to free(3)
 and realloc(3) can be checked conclusively for validity:
 First the pointer is masked to find the page.  The page directory
 is then examined, it must contain either MALLOC_FIRST, in which
 case the pointer must point exactly at the page, or it can contain
-a struct pginfo*, in which case the pointer must point to a one of
+a struct pginfo*, in which case the pointer must point to one of
 the chunks described by that structure.
-Warnings will be printed on stderr and nothing will be done with
-the pointer in case it is found to be invalid.
+Warnings will be printed on
+.B stderr
+and nothing will be done with
+the pointer if it is found to be invalid.
 .PP
 An environment variable
 .B MALLOC_OPTIONS
@@ -182,12 +184,13 @@ page heavily by eliminating unnecessary page-ins and page-outs of
 unused data.
 .IP
 .B Realloc
-Always do a free and malloc when realloc(3) is called.  The default
+Always do a free and malloc when realloc(3) is called.
+For programs doing garbage collection using realloc(3), this make the
+heap collapse faster since malloc will reallocate from the 
+lowest available address.
+The default
 is to leave things alone if the size of the allocation is still in
 the same size-class.
-For programs doing garbage collect using realloc(3) this make the
-heap collapse faster.  Since the malloc will reallocate from the 
-lowest available address.
 .IP
 .B Junk
 will explicitly fill the allocated area with a particular value
@@ -220,4 +223,3 @@ the memory use, but so far it doesn't seem to be worth the effort.
 Malloc/Free can be a significant point of contention in multi-threaded
 programs.  Low-grain locking of the data-structures inside the 
 implementation should be implemented to avoid excessive spin-waiting.
-

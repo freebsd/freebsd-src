@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: performance.ms,v 1.2 1996/11/14 08:10:31 phk Exp $
+.\" $Id: performance.ms,v 1.3 1997/01/05 12:13:36 mckay Exp $
 .\"
 .ds RH Performance
 .NH
@@ -42,7 +42,7 @@ In a paging environment this is not a bad choice for a default, but
 a couple of details needs to be looked at much more carefully.
 .PP
 First of all, the size of a process becomes a more vague concept since
-only the pages that are actually used needs to be in primary storage
+only the pages that are actually used need to be in primary storage
 for execution to progress, and they only need to be there when used.
 That implies that many more processes can fit in the same amount of
 primary storage, since most processes have a high degree of locality
@@ -85,15 +85,15 @@ Minimize the number of pages accessed.
 .R
 .PP
 This really is the core of it all.
-If the number of accessed pages is small, then locality of reference is
-higher, and all kinds of caches (which essentially is what the
-primary storage is in a VM system) works better.
+If the number of accessed pages is smaller, then locality of reference is
+higher, and all kinds of caches (which is essentially what the
+primary storage is in a VM system) work better.
 .PP
 It's interesting to notice that the classical malloc fails on this one
-because the information about free chunks are kept with the free
+because the information about free chunks is kept with the free
 chunks themselves.  In some of the benchmarks this came out as all the
-pages were paged in every time a malloc were made, because malloc
-had to traverse the free-list to find a suitable chunk for the allocation.
+pages being paged in every time a malloc call was made, because malloc
+had to traverse the free list to find a suitable chunk for the allocation.
 If memory is not in use, then you shouldn't access it.
 .PP
 The secondary goal is more evident:
@@ -102,11 +102,11 @@ Try to work in pages.
 .R
 .PP
 That makes it easier for the kernel, and wastes less virtual memory.
-Most modern implementations does this when they interact with the
+Most modern implementations do this when they interact with the
 kernel, but few try to avoid objects spanning pages.
 .PP
-If an objects size
-is less or equal to a page, there is no reason for it to span two pages.
+If an object's size
+is less than or equal to a page, there is no reason for it to span two pages.
 Having objects span pages means that two pages must be
 paged in, if that object is accessed.
 .PP

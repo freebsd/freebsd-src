@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: conclusion.ms,v 1.2 1997/01/05 12:13:29 mckay Exp $
 .\"
 .ds RH Conclusion and experience.
 .NH
@@ -23,9 +23,9 @@ Apart from that gnumalloc and this implementation are pretty
 much head-on performance wise.
 .PP
 Several legacy programs in the BSD 4.4 Lite distribution had
-code that depended on the memory returned from malloc to
-be zeroed, in a couple of cases free(3) was called more than
-once for the same allocation and a few cases even called free(3)
+code that depended on the memory returned from malloc
+being zeroed.  In a couple of cases, free(3) was called more than
+once for the same allocation, and a few cases even called free(3)
 with pointers to objects in the data section or on the stack.
 .PP
 A couple of users have reported that using this malloc on other
