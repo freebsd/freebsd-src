@@ -647,7 +647,7 @@ cgetnext(bp, db_array)
 	char **db_array;
 {
 	size_t len;
-	int status, i, done;
+	int done, hadreaderr, i, savederrno, status;
 	char *cp, *line, *rp, *np, buf[BSIZE], nbuf[BSIZE];
 	u_int dummy;
 
@@ -665,9 +665,14 @@ cgetnext(bp, db_array)
 		} else {
 			line = fgetln(pfp, &len);
 			if (line == NULL && pfp) {
-				(void)fclose(pfp);
-				if (ferror(pfp)) {
-					(void)cgetclose();
+				hadreaderr = ferror(pfp);
+				if (hadreaderr)
+					savederrno = errno;
+				fclose(pfp);
+				pfp = NULL;
+				if (hadreaderr) {
+					cgetclose();
+					errno = savederrno;
 					return (-1);
 				} else {
 					if (*++dbp == NULL) {
@@ -724,9 +729,18 @@ cgetnext(bp, db_array)
 			} else { /* name field extends beyond the line */
 				line = fgetln(pfp, &len);
 				if (line == NULL && pfp) {
-					(void)fclose(pfp);
-					if (ferror(pfp)) {
-						(void)cgetclose();
+					/* Name extends beyond the EOF! */
+					hadreaderr = ferror(pfp);
+					if (hadreaderr)
+						savederrno = errno;
+					fclose(pfp);
+					pfp = NULL;
+					if (hadreaderr) {
+						cgetclose();
+						errno = savederrno;
+						return (-1);
+					} else {
+						cgetclose();
 						return (-1);
 					}
 				} else
