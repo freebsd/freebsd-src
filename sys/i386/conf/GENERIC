@@ -166,7 +166,6 @@ device		ppi		# Parallel port interface device
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		tx		# SMC 9432TX (83c170 ``EPIC'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
@@ -175,6 +174,7 @@ device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
 device		miibus		# MII bus support
 device		dc		# DEC/Intel 21143 and various workalikes
+device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
 device		pcn		# AMD Am79C79x PCI 10/100 NICs
 device		rl		# RealTek 8129/8139
 device		sf		# Adaptec AIC-6915 (``Starfire'')
