@@ -529,11 +529,15 @@ _libm=	lib/msun
 _libperl=	gnu/usr.bin/perl/libperl
 .endif
 
+.if ${MACHINE_ARCH} == "i386"
+_libkeycap=	usr.sbin/pcvt/keycap
+.endif
+
 libraries:
 .for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
     gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses lib/libradius \
     lib/libskey lib/libtacplus lib/libutil lib gnu/lib ${_libperl} \
-    usr.bin/lex/lib usr.sbin/pcvt/keycap
+    usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \
