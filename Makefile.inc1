@@ -327,7 +327,7 @@ everything:
 installworld:
 	mkdir -p ${INSTALLTMP}
 	for prog in [ awk cat chflags chmod chown date echo egrep find grep \
-	    install ln make makewhatis mtree mv perl rm sed sh sysctl \
+	    ln make makewhatis mtree mv perl rm sed sh sysctl \
 	    test true uname wc zic; do \
 		cp `which $$prog` ${INSTALLTMP}; \
 	done
@@ -567,7 +567,8 @@ _strfile=	games/fortune/strfile
 .endif
 
 bootstrap-tools:
-.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
+.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.bin/xinstall \
+    usr.sbin/config \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
