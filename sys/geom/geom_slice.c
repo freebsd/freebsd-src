@@ -112,6 +112,13 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	return (error);
 }
 
+/*
+ * XXX: It should be possible to specify here if we should finish all of the
+ * XXX: bio, or only the non-hot bits.  This would get messy if there were
+ * XXX: two hot spots in the same bio, so for now we simply finish off the
+ * XXX: entire bio.  Modifying hot data on the way to disk is frowned on
+ * XXX: so making that considerably harder is not a bad idea anyway.
+ */
 void
 g_slice_finish_hot(struct bio *bp)
 {
@@ -122,8 +129,10 @@ g_slice_finish_hot(struct bio *bp)
 	struct g_slice *gsl;
 	int idx;
 
-	KASSERT(bp->bio_to != NULL, ("NULL bio_to in g_slice_finish_hot(%p)", bp));
-	KASSERT(bp->bio_from != NULL, ("NULL bio_from in g_slice_finish_hot(%p)", bp));
+	KASSERT(bp->bio_to != NULL,
+	    ("NULL bio_to in g_slice_finish_hot(%p)", bp));
+	KASSERT(bp->bio_from != NULL,
+	    ("NULL bio_from in g_slice_finish_hot(%p)", bp));
 	gp = bp->bio_to->geom;
 	gsp = gp->softc;
 	cp = LIST_FIRST(&gp->consumer);
@@ -153,7 +162,7 @@ g_slice_start(struct bio *bp)
 	struct g_consumer *cp;
 	struct g_slicer *gsp;
 	struct g_slice *gsl;
-	struct g_slice_hot *gmp;
+	struct g_slice_hot *ghp;
 	int idx, error;
 	u_int m_index;
 	off_t t;
@@ -177,22 +186,33 @@ g_slice_start(struct bio *bp)
 		 * method once if so.
 		 */
 		t = bp->bio_offset + gsl->offset;
-		/* .ctl devices may take us negative */
-		if (t < 0 || (t + bp->bio_length) < 0) {
-			g_io_deliver(bp, EINVAL);
-			return;
-		}
 		for (m_index = 0; m_index < gsp->nhotspot; m_index++) {
-			gmp = &gsp->hotspot[m_index];
-			if (t >= gmp->offset + gmp->length)
+			ghp = &gsp->hotspot[m_index];
+			if (t >= ghp->offset + ghp->length)
 				continue;
-			if (t + bp->bio_length <= gmp->offset)
+			if (t + bp->bio_length <= ghp->offset)
 				continue;
-			error = gsp->start(bp);
-			if (error == EJUSTRETURN)
+			switch(bp->bio_cmd) {
+			case BIO_READ:		idx = ghp->ract; break;
+			case BIO_WRITE:		idx = ghp->wact; break;
+			case BIO_DELETE:	idx = ghp->dact; break;
+			}
+			switch(idx) {
+			case G_SLICE_HOT_ALLOW:
+				/* Fall out and continue normal processing */
+				continue;
+			case G_SLICE_HOT_DENY:
+				g_io_deliver(bp, EROFS);
 				return;
-			else if (error) {
-				g_io_deliver(bp, error);
+			case G_SLICE_HOT_START:
+				error = gsp->start(bp);
+				if (error && error != EJUSTRETURN)
+					g_io_deliver(bp, error);
+				return;
+			case G_SLICE_HOT_CALL:
+				error = g_call_me(gsp->hot, bp, gp, NULL);
+				if (error)
+					g_io_deliver(bp, error);
 				return;
 			}
 			break;
@@ -338,13 +358,27 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	return(0);
 }
 
+/*
+ * Configure "hotspots".  A hotspot is a piece of the parent device which
+ * this particular slicer cares about for some reason.  Typically because
+ * it contains meta-data used to configure the slicer.
+ * A hotspot is identified by its index number. The offset and length are
+ * relative to the parent device, and the three "?act" fields specify
+ * what action to take on BIO_READ, BIO_DELETE and BIO_WRITE.
+ *
+ * XXX: There may be a race relative to g_slice_start() here, if an existing
+ * XXX: hotspot is changed wile I/O is happening.  Should this become a problem
+ * XXX: we can protect the hotspot stuff with a mutex.
+ */
+
 int
-g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
+g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length, int ract, int dact, int wact)
 {
 	struct g_slicer *gsp;
 	struct g_slice_hot *gsl, *gsl2;
 
-	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot()");
+	g_trace(G_T_TOPOLOGY, "g_slice_conf_hot(%s, idx: %d, off: %jd, len: %jd)",
+	    gp->name, idx, (intmax_t)offset, (intmax_t)length);
 	g_topology_assert();
 	gsp = gp->softc;
 	gsl = gsp->hotspot;
@@ -358,12 +392,11 @@ g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length)
 		gsl = gsl2;
 		gsp->nhotspot = idx + 1;
 	}
-	if (bootverbose)
-		printf("GEOM: Add %s hot[%d] start %jd length %jd end %jd\n",
-		    gp->name, idx, (intmax_t)offset, (intmax_t)length,
-		    (intmax_t)(offset + length - 1));
 	gsl[idx].offset = offset;
 	gsl[idx].length = length;
+	gsl[idx].ract = ract;
+	gsl[idx].dact = dact;
+	gsl[idx].wact = wact;
 	return (0);
 }
 
