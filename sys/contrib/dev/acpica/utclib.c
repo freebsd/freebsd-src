@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 38 $
+ * $Revision: 39 $
  *
  *****************************************************************************/
 
@@ -344,7 +344,7 @@ AcpiUtStrcat (
     for (String = DstString; *String++; )
     { ; }
 
-    /* Concatinate the string */
+    /* Concatenate the string */
 
     for (--String; (*String++ = *SrcString++); )
     { ; }
@@ -384,7 +384,7 @@ AcpiUtStrncat (
         for (String = DstString; *String++; )
         { ; }
 
-        /* Concatinate the string */
+        /* Concatenate the string */
 
         for (--String; (*String++ = *SrcString++) && --Count; )
         { ; }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 60 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -326,7 +326,8 @@ AcpiDbUnloadAcpiTable (
 
     for (i = 0; i < NUM_ACPI_TABLES; i++)
     {
-        if (!STRNCMP (TableArg, AcpiGbl_AcpiTableData[i].Signature, AcpiGbl_AcpiTableData[i].SigLength))
+        if (!STRNCMP (TableArg, AcpiGbl_AcpiTableData[i].Signature, 
+                AcpiGbl_AcpiTableData[i].SigLength))
         {
             /* Found the table, unload it */
 
@@ -337,7 +338,8 @@ AcpiDbUnloadAcpiTable (
             }
             else
             {
-                AcpiOsPrintf ("%s, while unloading [%s]\n", AcpiUtFormatException (Status), TableArg);
+                AcpiOsPrintf ("%s, while unloading [%s]\n", 
+                    AcpiFormatException (Status), TableArg);
             }
 
             return;
@@ -1046,7 +1048,7 @@ AcpiDbDisplayResources (
     Status = AcpiEvaluateObject (ObjDesc, "_PRT", NULL, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not obtain _PRT: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("Could not obtain _PRT: %s\n", AcpiFormatException (Status));
         goto GoCRS;
     }
 
@@ -1056,7 +1058,7 @@ AcpiDbDisplayResources (
     Status = AcpiGetIrqRoutingTable (ObjDesc, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiFormatException (Status));
         goto GoCRS;
     }
 
@@ -1073,7 +1075,7 @@ GoCRS:
     Status = AcpiEvaluateObject (ObjDesc, "_CRS", NULL, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not obtain _CRS: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("Could not obtain _CRS: %s\n", AcpiFormatException (Status));
         goto GoPRS;
     }
 
@@ -1083,7 +1085,7 @@ GoCRS:
     Status = AcpiGetCurrentResources (ObjDesc, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("AcpiGetCurrentResources failed: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("AcpiGetCurrentResources failed: %s\n", AcpiFormatException (Status));
         goto GoPRS;
     }
 
@@ -1099,7 +1101,7 @@ GoPRS:
     Status = AcpiEvaluateObject (ObjDesc, "_PRS", NULL, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not obtain _PRS: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("Could not obtain _PRS: %s\n", AcpiFormatException (Status));
         goto Cleanup;
     }
 
@@ -1109,7 +1111,7 @@ GoPRS:
     Status = AcpiGetPossibleResources (ObjDesc, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("AcpiGetPossibleResources failed: %s\n", AcpiUtFormatException (Status));
+        AcpiOsPrintf ("AcpiGetPossibleResources failed: %s\n", AcpiFormatException (Status));
         goto Cleanup;
     }
 

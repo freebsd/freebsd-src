@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 57 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -153,7 +153,7 @@ AcpiExSetupField (
     ACPI_OPERAND_OBJECT     *RgnDesc;
 
 
-    FUNCTION_TRACE ("ExSetupField");
+    FUNCTION_TRACE_U32 ("ExSetupField", FieldDatumByteOffset);
 
 
     /* Parameter validation */
@@ -309,11 +309,11 @@ AcpiExReadFieldDatum (
         Address = RgnDesc->Region.Address + ObjDesc->CommonField.BaseByteOffset +
                     FieldDatumByteOffset;
 
-        DEBUG_PRINTP (TRACE_BFIELD, ("Region %s(%X) width %X base:off %X:%X at %08lX\n",
+        DEBUG_PRINTP (TRACE_BFIELD, ("Region %s(%X) width %X base:off %X:%X at %8.8lX%8.8lX\n",
             AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
             RgnDesc->Region.SpaceId, ObjDesc->CommonField.AccessBitWidth,
             ObjDesc->CommonField.BaseByteOffset, FieldDatumByteOffset,
-            Address));
+            HIDWORD(Address), LODWORD(Address)));
 
 
         /* Invoke the appropriate AddressSpace/OpRegion handler */
@@ -696,9 +696,10 @@ AcpiExWriteFieldDatum (
                     FieldDatumByteOffset;
 
         DEBUG_PRINTP (TRACE_BFIELD, 
-            ("Store %X in Region %s(%X) at %p width %X\n",
+            ("Store %X in Region %s(%X) at %8.8lX%8.8lX width %X\n",
             Value, AcpiUtGetRegionName (RgnDesc->Region.SpaceId),
-            RgnDesc->Region.SpaceId, Address, ObjDesc->CommonField.AccessBitWidth));
+            RgnDesc->Region.SpaceId, HIDWORD(Address), LODWORD(Address),
+            ObjDesc->CommonField.AccessBitWidth));
 
         /* Invoke the appropriate AddressSpace/OpRegion handler */
 

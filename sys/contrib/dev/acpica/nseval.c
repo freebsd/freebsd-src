@@ -2,7 +2,7 @@
  *
  * Module Name: nseval - Object evaluation interfaces -- includes control
  *                       method lookup and execution.
- *              $Revision: 91 $
+ *              $Revision: 93 $
  *
  ******************************************************************************/
 
@@ -208,7 +208,7 @@ AcpiNsEvaluateRelative (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINTP (ACPI_INFO, ("Object [%s] not found [%s]\n",
-            Pathname, AcpiUtFormatException (Status)));
+            Pathname, AcpiFormatException (Status)));
         goto Cleanup;
     }
 
@@ -227,7 +227,7 @@ AcpiNsEvaluateRelative (
 
 Cleanup:
 
-    AcpiUtFree (InternalPath);
+    ACPI_MEM_FREE (InternalPath);
     return_ACPI_STATUS (Status);
 }
 
@@ -311,7 +311,7 @@ Cleanup:
 
     if (InternalPath)
     {
-        AcpiUtFree (InternalPath);
+        ACPI_MEM_FREE (InternalPath);
     }
 
     return_ACPI_STATUS (Status);

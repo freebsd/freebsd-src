@@ -135,6 +135,20 @@
 #define ACPI_MUTEX_SEM              1
 
 
+/* Functions for AcpiOsSignal */
+
+#define ACPI_SIGNAL_FATAL           0
+#define ACPI_SIGNAL_BREAKPOINT      1
+
+typedef struct AcpiFatalInfo
+{
+    UINT32                  Type;
+    UINT32                  Code;
+    UINT32                  Argument;
+
+} ACPI_SIGNAL_FATAL_INFO;
+
+
 /*
  * Types specific to the OS service interfaces
  */
@@ -159,6 +173,11 @@ AcpiOsInitialize (
 ACPI_STATUS
 AcpiOsTerminate (
     void);
+
+ACPI_STATUS
+AcpiOsGetRootPointer (
+    UINT32                  Flags,
+    ACPI_PHYSICAL_ADDRESS   *RsdpPhysicalAddress);
 
 
 /*
@@ -256,130 +275,69 @@ AcpiOsSleep (
     UINT32                  Milliseconds);
 
 void
-AcpiOsSleepUsec (
+AcpiOsStall (
     UINT32                  Microseconds);
 
 
 /*
- * Platform/Hardware independent I/O interfaces
+ * Platform and hardware-independent I/O interfaces
  */
 
-UINT8
-AcpiOsIn8 (
-    ACPI_IO_ADDRESS         InPort);
+ACPI_STATUS
+AcpiOsReadPort (
+    ACPI_IO_ADDRESS         Address,
+    void                    *Value,
+    UINT32                  Width);
 
 
-UINT16
-AcpiOsIn16 (
-    ACPI_IO_ADDRESS         InPort);
-
-UINT32
-AcpiOsIn32 (
-    ACPI_IO_ADDRESS         InPort);
-
-void
-AcpiOsOut8 (
-    ACPI_IO_ADDRESS         OutPort,
-    UINT8                   Value);
-
-void
-AcpiOsOut16 (
-    ACPI_IO_ADDRESS         OutPort,
-    UINT16                  Value);
-
-void
-AcpiOsOut32 (
-    ACPI_IO_ADDRESS         OutPort,
-    UINT32                  Value);
+ACPI_STATUS
+AcpiOsWritePort (
+    ACPI_IO_ADDRESS         Address,
+    NATIVE_UINT             Value,
+    UINT32                  Width);
 
 
 /*
- * Platform/Hardware independent physical memory interfaces
+ * Platform and hardware-independent physical memory interfaces
  */
 
-UINT8
-AcpiOsMemIn8 (
-    ACPI_PHYSICAL_ADDRESS   InAddr);
+ACPI_STATUS
+AcpiOsReadMemory (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    void                    *Value,
+    UINT32                  Width);
 
-UINT16
-AcpiOsMemIn16 (
-    ACPI_PHYSICAL_ADDRESS   InAddr);
 
-UINT32
-AcpiOsMemIn32 (
-    ACPI_PHYSICAL_ADDRESS   InAddr);
-
-void
-AcpiOsMemOut8 (
-    ACPI_PHYSICAL_ADDRESS   OutAddr,
-    UINT8                   Value);
-
-void
-AcpiOsMemOut16 (
-    ACPI_PHYSICAL_ADDRESS   OutAddr,
-    UINT16                  Value);
-
-void
-AcpiOsMemOut32 (
-    ACPI_PHYSICAL_ADDRESS   OutAddr,
-    UINT32                  Value);
+ACPI_STATUS
+AcpiOsWriteMemory (
+    ACPI_PHYSICAL_ADDRESS   Address,
+    NATIVE_UINT             Value,
+    UINT32                  Width);
 
 
 /*
- * Standard access to PCI configuration space
+ * Platform and hardware-independent PCI configuration space access
  */
 
 ACPI_STATUS
-AcpiOsReadPciCfgByte (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
+AcpiOsReadPciConfiguration (
+    ACPI_PCI_ID             *PciId,
     UINT32                  Register,
-    UINT8                   *Value);
-
-ACPI_STATUS
-AcpiOsReadPciCfgWord (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
-    UINT32                  Register,
-    UINT16                  *Value);
-
-ACPI_STATUS
-AcpiOsReadPciCfgDword (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
-    UINT32                  Register,
-    UINT32                  *Value);
-
-ACPI_STATUS
-AcpiOsWritePciCfgByte (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
-    UINT32                  Register,
-    UINT8                   Value);
-
-ACPI_STATUS
-AcpiOsWritePciCfgWord (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
-    UINT32                  Register,
-    UINT16                  Value);
+    void                    *Value,
+    UINT32                  Width);
 
 
 ACPI_STATUS
-AcpiOsWritePciCfgDword (
-    UINT32                  Bus,
-    UINT32                  DeviceFunction,
+AcpiOsWritePciConfiguration (
+    ACPI_PCI_ID             *PciId,
     UINT32                  Register,
-    UINT32                  Value);
+    NATIVE_UINT             Value,
+    UINT32                  Width);
 
 
 /*
  * Miscellaneous
  */
-
-ACPI_STATUS
-AcpiOsBreakpoint (
-    NATIVE_CHAR             *Message);
 
 BOOLEAN
 AcpiOsReadable (
@@ -396,7 +354,10 @@ UINT32
 AcpiOsGetTimer (
     void);
 
-
+ACPI_STATUS
+AcpiOsSignal (
+    UINT32                  Function,
+    void                    *Info);
 
 /*
  * Debug print routines

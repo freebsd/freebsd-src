@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 48 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -263,7 +263,7 @@ AcpiTbGetTable (
 
         /* Allocate buffer for the entire table */
 
-        FullTable = AcpiUtAllocate (TableHeader->Length);
+        FullTable = ACPI_MEM_ALLOCATE (TableHeader->Length);
         if (!FullTable)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);
@@ -743,8 +743,9 @@ AcpiTbGetTableRsdt (
      */
 
     DEBUG_PRINTP (ACPI_INFO,
-        ("RSDP located at %p, RSDT physical=%p \n",
-        AcpiGbl_RSDP, AcpiGbl_RSDP->RsdtPhysicalAddress));
+        ("RSDP located at %p, RSDT physical=%8.8lX%8.8lX \n",
+        AcpiGbl_RSDP, HIDWORD(AcpiGbl_RSDP->RsdtPhysicalAddress),
+        LODWORD(AcpiGbl_RSDP->RsdtPhysicalAddress)));
 
 
     PhysicalAddress = AcpiTbGetRsdtAddress ();
@@ -756,7 +757,7 @@ AcpiTbGetTableRsdt (
     if (ACPI_FAILURE (Status))
     {
         DEBUG_PRINTP (ACPI_ERROR, ("Could not get the RSDT, %s\n",
-            AcpiUtFormatException (Status)));
+            AcpiFormatException (Status)));
         return_ACPI_STATUS (Status);
     }
 
@@ -846,7 +847,7 @@ AcpiTbGetTableFacs (
          * Getting table from a file -- allocate a buffer and
          * read the table.
          */
-        TablePtr = AcpiUtAllocate (Size);
+        TablePtr = ACPI_MEM_ALLOCATE (Size);
         if(!TablePtr)
         {
             return_ACPI_STATUS (AE_NO_MEMORY);

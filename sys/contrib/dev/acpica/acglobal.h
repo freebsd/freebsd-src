@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acglobal.h - Declarations for global variables
- *       $Revision: 101 $
+ *       $Revision: 102 $
  *
  *****************************************************************************/
 
@@ -308,15 +308,6 @@ ACPI_EXTERN UINT8                       AcpiGbl_CmSingleStep;
  ****************************************************************************/
 
 ACPI_EXTERN ACPI_PARSE_OBJECT           *AcpiGbl_ParsedNamespaceRoot;
-
-/*****************************************************************************
- *
- * Hardware globals
- *
- ****************************************************************************/
-
-extern ACPI_C_STATE_HANDLER             AcpiHwCxHandlers[MAX_CX_STATES];
-extern UINT32                           AcpiHwActiveCxState;
 
 
 /*****************************************************************************

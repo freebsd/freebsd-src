@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 37 $
+ *              $Revision: 38 $
  *
  *****************************************************************************/
 
@@ -290,7 +290,7 @@ AcpiPsAllocOp (
 
     if (!Op)
     {
-        Op = AcpiUtCallocate (Size);
+        Op = ACPI_MEM_CALLOCATE (Size);
     }
 
     /* Initialize the Op */
@@ -381,8 +381,7 @@ AcpiPsFreeOp (
     /*
      * Not a GENERIC OP, or the cache is full, just free the Op
      */
-
-    AcpiUtFree (Op);
+    ACPI_MEM_FREE (Op);
 }
 
 
@@ -415,7 +414,8 @@ AcpiPsDeleteParseCache (
         /* Delete one cached state object */
 
         Next = AcpiGbl_ParseCache->Next;
-        AcpiUtFree (AcpiGbl_ParseCache);
+        ACPI_MEM_FREE (AcpiGbl_ParseCache);
+
         AcpiGbl_ParseCache = Next;
         AcpiGbl_ParseCacheDepth--;
     }
@@ -427,7 +427,8 @@ AcpiPsDeleteParseCache (
         /* Delete one cached state object */
 
         Next = AcpiGbl_ExtParseCache->Next;
-        AcpiUtFree (AcpiGbl_ExtParseCache);
+        ACPI_MEM_FREE (AcpiGbl_ExtParseCache);
+
         AcpiGbl_ExtParseCache = (ACPI_PARSE2_OBJECT *) Next;
         AcpiGbl_ExtParseCacheDepth--;
     }

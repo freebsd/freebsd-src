@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 39 $
+ *              $Revision: 41 $
  *
  *****************************************************************************/
 
@@ -141,9 +141,9 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiLoadTables (
-    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress)
+AcpiLoadTables (void)
 {
+    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress;
     ACPI_STATUS             Status;
     UINT32                  NumberOfTables = 0;
 
@@ -159,13 +159,25 @@ AcpiLoadTables (
         return_ACPI_STATUS (Status);
     }
 
+
+    /* Get the RSDP */
+
+    Status = AcpiOsGetRootPointer (ACPI_LOGICAL_ADDRESSING, 
+                    &RsdpPhysicalAddress);
+    if (ACPI_FAILURE (Status))
+    {
+        REPORT_ERROR (("AcpiLoadTables: Could not get RSDP, %s\n",
+                        AcpiFormatException (Status)));
+        goto ErrorExit;
+    }
+
     /* Map and validate the RSDP */
 
     Status = AcpiTbVerifyRsdp (RsdpPhysicalAddress);
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: RSDP Failed validation: %s\n",
-                        AcpiUtFormatException (Status)));
+                        AcpiFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -175,7 +187,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Could not load RSDT: %s\n",
-                        AcpiUtFormatException (Status)));
+                        AcpiFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -185,7 +197,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Error getting required tables (DSDT/FADT/FACS): %s\n",
-                        AcpiUtFormatException (Status)));
+                        AcpiFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -198,7 +210,7 @@ AcpiLoadTables (
     if (ACPI_FAILURE (Status))
     {
         REPORT_ERROR (("AcpiLoadTables: Could not load namespace: %s\n",
-                        AcpiUtFormatException (Status)));
+                        AcpiFormatException (Status)));
         goto ErrorExit;
     }
 
@@ -207,7 +219,7 @@ AcpiLoadTables (
 
 ErrorExit:
     REPORT_ERROR (("AcpiLoadTables: Could not load tables: %s\n",
-                    AcpiUtFormatException (Status)));
+                    AcpiFormatException (Status)));
 
     return_ACPI_STATUS (Status);
 }
