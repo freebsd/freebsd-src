@@ -43,18 +43,14 @@
 .Sh SYNOPSIS
 .Fd #include <signal.h>
 .Bd -literal
-struct sigaction {
-	/*
-	 * Signal handler function if flag SA_SIGINFO is not used and for 
-	 * SIG_DFL and SIG_IGN.
-	 */
-	void     (*sa_handler)(int);
-
-	/* Signal handler function if flag SA_SIGINFO is used */
-	void     (*sa_sigaction)(int, siginfo_t *, void *);
-
-	sigset_t sa_mask;            /* signal mask to apply */
-	int	 sa_flags;           /* see signal options below */
+struct  sigaction {
+        union {
+                void    (*__sa_handler) __P((int));
+                void    (*__sa_sigaction) __P((int, struct __siginfo *,
+                                               void *));
+        } __sigaction_u;                /* signal handler */
+        int     sa_flags;               /* see signal options below */
+        sigset_t sa_mask;               /* signal mask to apply */
 };
 .Ed
 .Ft int
