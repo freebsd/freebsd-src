@@ -278,6 +278,8 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			goto err;
 	}
 	err = device_probe_and_attach(child);
+	snprintf(desc->name, sizeof(desc->name), "%s",
+		 device_get_nameunit(child));
 err:
 	if (err)
 		device_delete_child(pccarddev, child);

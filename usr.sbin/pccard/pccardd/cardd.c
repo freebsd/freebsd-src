@@ -484,6 +484,7 @@ setup_slot(struct slot *sp)
 	struct io_desc io;
 	struct dev_desc drv;
 	struct driver *drvp = sp->config->driver;
+	char    *p;
 	char    c;
 	off_t   offs;
 	int     rw_flags;
@@ -584,7 +585,6 @@ setup_slot(struct slot *sp)
 		    drv.iobase + sp->io.size - 1, drv.mem, drv.memsize, 
 		    sp->irq, drv.flags);
 	}
-
 	/*
 	 * If the driver fails to be connected to the device,
 	 * then it may mean that the driver did not recognise it.
@@ -594,6 +594,17 @@ setup_slot(struct slot *sp)
 		logmsg("driver allocation failed for %s(%s): %s",
 		    sp->card->manuf, sp->card->version, strerror(errno));
 		return (0);
+	}
+	drv.name[sizeof(drv.name) - 1] = '\0';
+	if (strncmp(drv.name, drvp->kernel, sizeof(drv.name))) {
+		drvp->kernel = newstr(drv.name);
+		p = drvp->kernel;
+		while (*p++) 
+			if (*p >= '0' && *p <= '9') {
+				drvp->unit = atoi(p);
+				*p = '\0';
+				break;
+			}
 	}
 	return (1);
 }
