@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.58 1998/05/28 09:29:55 phk Exp $
+ *	$Id: genassym.c,v 1.59 1998/07/11 12:17:07 bde Exp $
  */
 
 #include "opt_vm86.h"
+#include "opt_user_ldt.h"
 
 #include <stddef.h>
 
@@ -203,6 +204,9 @@ main()
 	printf("#define\tGD_COMMON_TSSD %#x\n", OS(globaldata, common_tssd));
 	printf("#define\tGD_PRIVATE_TSS %#x\n", OS(globaldata, private_tss));
 	printf("#define\tGD_MY_TR %#x\n", OS(globaldata, my_tr));
+#endif
+#ifdef USER_LDT
+	printf("#define\tGD_CURRENTLDT %#x\n", OS(globaldata, currentldt));
 #endif
 #ifdef SMP
 	printf("#define\tGD_CPUID %#x\n", OS(globaldata, cpuid));
