@@ -994,7 +994,6 @@ options 	PCVT_SCANSET=2 		# IBM keyboards are non-std
 # Other PCVT options are documented in pcvt(4).
 options 	PCVT_24LINESDEF
 options 	PCVT_CTRL_ALT_DEL
-options 	PCVT_EMU_MOUSE
 options 	PCVT_FREEBSD=211
 options 	PCVT_META_ESC
 options 	PCVT_NSCREENS=9
