@@ -53,20 +53,20 @@ The
 .Fn toupper
 function converts a lower-case letter to the corresponding 
 upper-case letter.
-.SH RETURN VALUES
+For single C
+.Va char Ns s
+locales (see
+.Xr multibyte 3 )
+the value of the argument is
+representable as an
+.Li unsigned char
+or the value of
+.Dv EOF .
+.Sh RETURN VALUES
 If the argument is a lower-case letter, the
 .Fn toupper
 function returns the corresponding upper-case letter if there is
 one; otherwise the argument is returned unchanged.
-.\" In the 
-.\" .Em ``C''
-.\" locale,
-.\" .Fn toupper
-.\" maps only the characters for which
-.\" .Xr islower
-.\" is true to the corresponding characters for which
-.\" .Xr isupper
-.\" is true.	
 .Sh SEE ALSO
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
@@ -80,6 +80,7 @@ one; otherwise the argument is returned unchanged.
 .Xr isspace 3 ,
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
+.Xr multibyte 3 ,
 .Xr stdio 3 ,
 .Xr toascii 3 ,
 .Xr tolower 3 ,
