@@ -822,11 +822,12 @@ sysctl_handle_string(SYSCTL_HANDLER_ARGS)
 retry:
 	outlen = strlen((char *)arg1)+1;
 	tmparg = malloc(outlen, M_SYSCTLTMP, M_WAITOK);
-	strncpy(tmparg, (char *)arg1, outlen);
-	if (tmparg[outlen-1] != '\0') {
+
+	if (strlcpy(tmparg, (char *)arg1, outlen) >= outlen) {
 		free(tmparg, M_SYSCTLTMP);
 		goto retry;
 	}
+
 	error = SYSCTL_OUT(req, tmparg, outlen);
 	free(tmparg, M_SYSCTLTMP);
 
