@@ -409,6 +409,8 @@ vga_pxlborder(scr_stat *scp, int color)
 {
 	vm_offset_t p;
 	int line_width;
+	int x;
+	int y;
 	int i;
 
 	(*vidsw[scp->sc->adapter]->set_border)(scp->sc->adp, color);
@@ -420,23 +422,19 @@ vga_pxlborder(scr_stat *scp, int color)
 	outw(GDCIDX, (color << 8) | 0x00);	/* set/reset */
 	line_width = scp->sc->adp->va_line_width;
 	p = scp->sc->adp->va_window;
-	if (scp->yoff > 0) {
+	if (scp->yoff > 0)
 		bzero_io((void *)p, line_width*scp->yoff*scp->font_size);
-		bzero_io((void *)(p + line_width*(scp->yoff + scp->ysize)
-					  *scp->font_size),
-			 line_width*(scp->ypixel
-				     - (scp->yoff + scp->ysize)*scp->font_size));
-	}
-	if (scp->xoff > 0) {
-		for (i = 0; i < scp->ysize*scp->font_size; ++i) {
-			bzero_io((void *)(p + line_width
-					          *(scp->yoff*scp->font_size + i)),
-				 scp->xoff);
-			bzero_io((void *)(p + line_width
-						  *(scp->yoff*scp->font_size + i)
-				     + scp->xoff + scp->xsize), 
-				 scp->xpixel/8 - scp->xoff - scp->xsize);
-		}
+	y = (scp->yoff + scp->ysize)*scp->font_size;
+	if (scp->ypixel > y)
+		bzero_io((void *)(p + line_width*y), line_width*(scp->ypixel - y));
+	y = scp->yoff*scp->font_size;
+	x = scp->xpixel/8 - scp->xoff - scp->xsize;
+	for (i = 0; i < scp->ysize*scp->font_size; ++i) {
+		if (scp->xoff > 0)
+			bzero_io((void *)(p + line_width*(y + i)), scp->xoff);
+		if (x > 0)
+			bzero_io((void *)(p + line_width*(y + i)
+				     + scp->xoff + scp->xsize), x);
 	}
 	outw(GDCIDX, 0x0000);		/* set/reset */
 	outw(GDCIDX, 0x0001);		/* set/reset enable */
@@ -631,6 +629,8 @@ draw_pxlcursor(scr_stat *scp, int at, int on, int flip)
 	outw(GDCIDX, 0xff08);		/* bit mask */
 }
 
+static int pxlblinkrate = 0;
+
 static void 
 vga_pxlcursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
@@ -638,8 +638,16 @@ vga_pxlcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		return;
 
 	if (on) {
-		scp->status |= VR_CURSOR_ON;
-		draw_pxlcursor(scp, at, on, flip);
+		if (!blink) {
+			scp->status |= VR_CURSOR_ON;
+			draw_pxlcursor(scp, at, on, flip);
+		} else if (++pxlblinkrate & 4) {
+			pxlblinkrate = 0;
+			scp->status ^= VR_CURSOR_ON;
+			draw_pxlcursor(scp, at,
+				       scp->status & VR_CURSOR_ON,
+				       flip);
+		}
 	} else {
 		if (scp->status & VR_CURSOR_ON)
 			draw_pxlcursor(scp, at, on, flip);
@@ -654,13 +662,11 @@ vga_pxlcursor(scr_stat *scp, int at, int blink, int on, int flip)
 static void
 vga_pxlblink(scr_stat *scp, int at, int flip)
 {
-	static int blinkrate = 0;
-
 	if (!(scp->status & VR_CURSOR_BLINK))
 		return;
-	if (!(++blinkrate & 4))
+	if (!(++pxlblinkrate & 4))
 		return;
-	blinkrate = 0;
+	pxlblinkrate = 0;
 	scp->status ^= VR_CURSOR_ON;
 	draw_pxlcursor(scp, at, scp->status & VR_CURSOR_ON, flip);
 }
@@ -689,7 +695,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 	outw(GDCIDX, 0xff08);		/* bit mask */
 	outw(GDCIDX, 0x0803);		/* data rotate/function select (and) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
-	if (x < scp->xpixel - 16) {
+	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = ~(mouse_and_mask[j] >> xoff);
 #ifdef __i386__
@@ -715,7 +721,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 	}
 	outw(GDCIDX, 0x1003);		/* data rotate/function select (or) */
 	p = scp->sc->adp->va_window + line_width*y + x/8;
-	if (x < scp->xpixel - 16) {
+	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = mouse_or_mask[j] >> xoff;
 #ifdef __i386__
