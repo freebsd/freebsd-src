@@ -75,7 +75,7 @@
 #define	MEXITCOUNT_OVERHEAD_GETLABEL()
 #else
 #error this file needs to be ported to your compiler
-#endif /* __GNUCLIKE_ASM */
+#endif /* !__GNUCLIKE_ASM */
 #else /* !GUPROF */
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
@@ -112,7 +112,7 @@ void user(void);
 static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __used; \
 static void _mcount
 
-#ifdef	__GNUCLIKE_ASM
+#ifdef __GNUCLIKE_ASM
 #define	MCOUNT __asm("			\n\
 	.globl	.mcount			\n\
 	.type	.mcount @function	\n\

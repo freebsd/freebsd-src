@@ -46,7 +46,7 @@ __BEGIN_DECLS
  */
 void cpu_critical_fork_exit(void);
 
-#ifdef	__CC_SUPPORTS___INLINE
+#ifdef __CC_SUPPORTS___INLINE
 
 /*
  *	cpu_critical_enter:
@@ -79,7 +79,7 @@ cpu_critical_exit(struct thread *td)
 void cpu_critical_enter(struct thread *td);
 void cpu_critical_exit(struct thread *td);
 
-#endif	/* __CC_SUPPORTS___INLINE */
+#endif        /* __CC_SUPPORTS___INLINE */
 
 __END_DECLS
 
