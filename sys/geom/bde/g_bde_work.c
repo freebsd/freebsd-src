@@ -76,7 +76,7 @@
 
 static void g_bde_delete_sector(struct g_bde_softc *wp, struct g_bde_sector *sp);
 static struct g_bde_sector * g_bde_new_sector(struct g_bde_work *wp, u_int len);
-static void g_bde_release_sector(struct g_bde_work *wp, struct g_bde_sector *sp);
+static void g_bde_release_keysector(struct g_bde_work *wp);
 static struct g_bde_sector *g_bde_get_sector(struct g_bde_work *wp, off_t offset);
 static int g_bde_start_read(struct g_bde_sector *sp);
 static void g_bde_purge_sector(struct g_bde_softc *sc, int fraction);
@@ -264,12 +264,14 @@ g_bde_get_sector(struct g_bde_work *wp, off_t offset)
 }
 
 static void
-g_bde_release_sector(struct g_bde_work *wp, struct g_bde_sector *sp)
+g_bde_release_keysector(struct g_bde_work *wp)
 {
 	struct g_bde_softc *sc;
 	struct g_bde_work *wp2;
+	struct g_bde_sector *sp;
 
-	g_trace(G_T_TOPOLOGY, "g_bde_release_sector(%p)", sp);
+	sp = wp->ksp;
+	g_trace(G_T_TOPOLOGY, "g_bde_release_keysector(%p)", sp);
 	KASSERT(sp->malloc == 2, ("Wrong sector released"));
 	sc = sp->softc;
 	KASSERT(sc != NULL, ("NULL sp->softc"));
@@ -342,7 +344,7 @@ g_bde_read_keysector(struct g_bde_softc *sc, struct g_bde_work *wp)
 		return (sp);
 	if (g_bde_start_read(sp) == 0)
 		return (sp);
-	g_bde_release_sector(wp, sp);
+	g_bde_release_keysector(wp);
 	return (NULL);
 }
 
@@ -426,7 +428,7 @@ g_bde_write_done(struct bio *bp)
 	}
 	if (wp->sp == NULL && wp->ksp != NULL && wp->ksp->state == VALID) {
 		g_bde_contribute(wp->bp, wp->length, wp->error);
-		g_bde_release_sector(wp, wp->ksp);
+		g_bde_release_keysector(wp);
 		g_bde_delete_work(wp);
 	}
 	mtx_unlock(&sc->worklist_mutex);
@@ -563,7 +565,7 @@ g_bde_worker(void *arg)
 				g_bde_contribute(wp->bp, wp->length,
 				    wp->ksp->error);
 				g_bde_delete_sector(sc, wp->sp);
-				g_bde_release_sector(wp, wp->ksp);
+				g_bde_release_keysector(wp);
 				g_bde_delete_work(wp);
 				busy++;
 				break;
@@ -579,7 +581,7 @@ g_bde_worker(void *arg)
 					    wp->sp->error);
 				g_bde_delete_sector(sc, wp->sp);
 				if (wp->ksp != NULL)
-					g_bde_release_sector(wp, wp->ksp);
+					g_bde_release_keysector(wp);
 				g_bde_delete_work(wp);
 				break;
 			case BIO_WRITE:
