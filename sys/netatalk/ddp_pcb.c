@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
@@ -254,6 +254,8 @@ at_pcballoc(struct socket *so)
 	DDP_LIST_XLOCK_ASSERT();
 
 	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_NOWAIT | M_ZERO);
+	if (ddp == NULL)
+		return (ENOBUFS);
 	DDP_LOCK_INIT(ddp);
 	ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
 
