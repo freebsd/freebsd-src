@@ -163,6 +163,7 @@ static l_fp time_freq;			/* frequency offset (ns/s) */
 #define PPS_POPCORN	2		/* popcorn spike threshold (shift) */
 
 static struct timespec pps_tf[3];	/* phase median filter */
+static l_fp pps_offset;		/* time offset (ns) */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
 static long pps_fcount;			/* frequency accumulator */
 static long pps_jitter;			/* nominal jitter (ns) */
@@ -245,6 +246,7 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 
 #ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
 #endif
 /*
  * ntp_adjtime() - NTP daemon application interface
@@ -479,15 +481,19 @@ ntp_update_second(struct timecounter *tcp)
 	 * value is in effect scaled by the clock frequency,
 	 * since the adjustment is added at each tick interrupt.
 	 */
-	time_adj = time_offset;
 #ifdef PPS_SYNC
+	/* XXX even if signal dies we should finish adjustment ? */
 	if (time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL) {
+		time_adj = pps_offset;
 		L_RSHIFT(time_adj, pps_shift);
+		L_SUB(pps_offset, time_adj);
 	} else {
+		time_adj = time_offset;
 		L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
 		L_SUB(time_offset, time_adj);
 	}
 #else
+	time_adj = time_offset;
 	L_RSHIFT(time_adj, SHIFT_PLL + time_constant);
 	L_SUB(time_offset, time_adj);
 #endif /* PPS_SYNC */
@@ -731,6 +737,7 @@ hardpps(tsp, nsec)
 		pps_jitcnt++;
 	} else if (time_status & STA_PPSTIME) {
 		L_LINT(time_offset, -v_nsec);
+		L_LINT(pps_offset, -v_nsec);
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].tv_sec - pps_lastsec;
