@@ -79,6 +79,7 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
+dev/fe/if_fe_isa.c		optional	fe isa
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -210,7 +211,6 @@ i386/isa/if_ar.c		optional	ar
 i386/isa/if_cs.c		optional	cs
 i386/isa/if_cx.c		optional	cx
 i386/isa/if_el.c		optional	el
-i386/isa/if_fe.c		optional	fe
 i386/isa/if_le.c		optional	le
 i386/isa/if_lnc.c		optional	lnc
 i386/isa/if_rdp.c		optional	rdp
