@@ -154,6 +154,8 @@ smbus_if.h		optional smbus					\
 dev/smbus/smbconf.c	optional smbus
 dev/smbus/smbus.c	optional smbus
 dev/smbus/smb.c		optional smb
+dev/sym/sym_hipd.c	optional sym					\
+	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 dev/iicbus/iicbb.c	optional iicbb
 iicbb_if.o		optional iicbb					\
 	dependency	"iicbb_if.c"					\
