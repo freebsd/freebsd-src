@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tprintf.h	8.1 (Berkeley) 6/2/93
- * $Id: tprintf.h,v 1.6 1998/02/03 21:51:58 bde Exp $
+ * $Id: tprintf.h,v 1.7 1998/07/13 06:45:18 bde Exp $
  */
 
 #ifndef _SYS_TPRINTF_H_
@@ -44,6 +44,6 @@ struct proc;
 tpr_t	tprintf_open __P((struct proc *));
 void	tprintf_close __P((tpr_t));
 
-void	tprintf __P((tpr_t, const char *fmt, ...)) __printflike(2, 3);
+int	tprintf __P((tpr_t, const char *fmt, ...)) __printflike(2, 3);
 
 #endif
