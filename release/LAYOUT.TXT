@@ -24,7 +24,7 @@ thorough description of each item in more detail:
 1. The *.TXT files obviously contain documentation (this file is
    DISTRIB.TXT) and should be read before starting an installation.
 
-2. The XF86332 directory contains the XFree86 project's 3.3.2 release and
+2. The XF86332 directory contains the XFree86 project's 3.3.2.3 release and
    consists of a series of gzip'd tar files which contain each component
    of the XFree86 distribution.
 
