@@ -68,7 +68,15 @@ static const char rcsid[] =
 #define ZERO_ALLOWED	0x02
 #define IS_DENSITY	0x04
 #define DISABLE_THIS	0x08
+#define IS_COMP		0x10
 #endif /* defined(__FreeBSD__) */
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
 
 struct commands {
 	char *c_name;
@@ -95,12 +103,12 @@ struct commands {
 	{ "status",	MTNOP,	1 },
 	{ "weof",	MTWEOF,	0 },
 #if defined(__FreeBSD__)
-	{ "erase",	MTERASE, 0 },
+	{ "erase",	MTERASE, 0, ZERO_ALLOWED},
 	{ "blocksize",	MTSETBSIZ, 0, NEED_2ARGS|ZERO_ALLOWED },
 	{ "density",	MTSETDNSTY, 0, NEED_2ARGS|ZERO_ALLOWED|IS_DENSITY },
 	{ "eom",	MTEOD, 1 },
 	{ "eod",	MTEOD, 1 },
-	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED },
+	{ "comp",	MTCOMP, 0, NEED_2ARGS|ZERO_ALLOWED|IS_COMP },
 	{ "retension",	MTRETENS, 1 },
 #endif /* defined(__FreeBSD__) */
 	{ NULL }
@@ -113,6 +121,9 @@ void usage __P((void));
 void st_status (struct mtget *);
 int stringtodens (const char *s);
 const char *denstostring (int d);
+int denstobp(int d, int bpi);
+u_int32_t stringtocomp(const char *s);
+const char * comptostring(u_int32_t comp);
 void warn_eof __P((void));
 #endif /* defined (__FreeBSD__) */
 
@@ -178,6 +189,14 @@ main(argc, argv)
 					"Using \"%s\" as an alias for %s\n",
 					       *argv, dcanon);
 				p = "";
+			} else if (!isdigit(**argv) &&
+				   comp->c_flags & IS_COMP) {
+
+				mt_com.mt_count = stringtocomp(*argv);
+				if ((u_int32_t)mt_com.mt_count == 0xf0f0f0f0)
+					errx(1, "%s: unknown compression",
+					     *argv);
+				p = "";
 			} else
 				/* allow for hex numbers; useful for density */
 				mt_com.mt_count = strtol(*argv, &p, 0);
@@ -187,6 +206,7 @@ main(argc, argv)
 			if (mt_com.mt_count <=
 #if defined (__FreeBSD__)
 			    ((comp->c_flags & ZERO_ALLOWED)? -1: 0)
+			    && ((comp->c_flags & IS_COMP) == 0)
 #else
 			    0
 #endif /* defined (__FreeBSD__) */
@@ -344,30 +364,65 @@ usage()
 
 struct densities {
 	int dens;
+	int bpmm;
+	int bpi;
 	const char *name;
-} dens [] = {
-	{ 0x1,  "X3.22-1983" },
-	{ 0x2,  "X3.39-1986" },
-	{ 0x3,  "X3.54-1986" },
-	{ 0x5,  "X3.136-1986" },
-	{ 0x6,  "X3.157-1987" },
-	{ 0x7,  "X3.116-1986" },
-	{ 0x8,  "X3.158-1986" },
-	{ 0x9,  "X3B5/87-099" },
-	{ 0xA,  "X3B5/86-199" },
-	{ 0xB,  "X3.56-1986" },
-	{ 0xC,  "HI-TC1" },
-	{ 0xD,  "HI-TC2" },
-	{ 0xF,  "QIC-120" },
-	{ 0x10, "QIC-150" },
-	{ 0x11, "QIC-320" },
-	{ 0x12, "QIC-1350" },
-	{ 0x13, "X3B5/88-185A" },
-	{ 0x14, "X3.202-1991" },
-	{ 0x15, "ECMA TC17" },
-	{ 0x16, "X3.193-1990" },
-	{ 0x17, "X3B5/91-174" },
-	{ 0, 0 }
+} dens[] = {
+	/*
+	 * Taken from T10 Project 997D 
+	 * SCSI-3 Stream Device Commands (SSC)
+	 * Revision 11, 4-Nov-97
+	 */
+	/*Num.  bpmm    bpi     Reference     */
+	{ 0x1,	32,	800,	"X3.22-1983" },
+	{ 0x2,	63,	1600,	"X3.39-1986" },
+	{ 0x3,	246,	6250,	"X3.54-1986" },
+	{ 0x5,	315,	8000,	"X3.136-1986" },
+	{ 0x6,	126,	3200,	"X3.157-1987" },
+	{ 0x7,	252,	6400,	"X3.116-1986" },
+	{ 0x8,	315,	8000,	"X3.158-1987" },
+	{ 0x9,	491,	37871,	"X3.180" },
+	{ 0xA,	262,	6667,	"X3B5/86-199" },
+	{ 0xB,	63,	1600,	"X3.56-1986" },
+	{ 0xC,	500,	12690,	"HI-TC1" },
+	{ 0xD,	999,	25380,	"HI-TC2" },
+	{ 0xF,	394,	10000,	"QIC-120" },
+	{ 0x10,	394,	10000,	"QIC-150" },
+	{ 0x11,	630,	16000,	"QIC-320" },
+	{ 0x12,	2034,	51667,	"QIC-1350" },
+	{ 0x13,	2400,	61000,	"X3B5/88-185A" },
+	{ 0x14,	1703,	43245,	"X3.202-1991" },
+	{ 0x15,	1789,	45434,	"ECMA TC17" },
+	{ 0x16,	394,	10000,	"X3.193-1990" },
+	{ 0x17,	1673,	42500,	"X3B5/91-174" },
+	{ 0x18,	1673,	42500,	"X3B5/92-50" },
+	{ 0x1C, 1654,	42000,	"QIC-385M" },
+	{ 0x1D,	1512,	38400,	"QIC-410M" },
+	{ 0x1E, 1385,	36000,	"QIC-1000C" },
+	{ 0x1F,	2666,	67733,	"QIC-2100C" },
+	{ 0x20, 2666,	67733,	"QIC-6GB(M)" },
+	{ 0x21,	2666,	67733,	"QIC-20GB(C)" },
+	{ 0x22,	1600,	40640,	"QIC-2GB(C)" },
+	{ 0x23, 2666,	67733,	"QIC-875M" },
+	{ 0x24,	2400,	61000,	"DDS-2" },
+	{ 0x25,	3816,	97000,	"DDS-3" },
+	{ 0x26,	3816,	97000,	"DDS-4" },
+	{ 0x27,	3056,	77611,	"Mammoth" },
+	{ 0x28,	1491,	37871,	"X3.224" },
+	{ 0, 0, 0, NULL }
+};
+
+struct compression_types {
+	u_int32_t	comp_number;
+	const char 	*name;
+} comp_types[] = {
+	{ 0x00, "none" },
+	{ 0x00, "off" },
+	{ 0x10, "IDRC" },
+	{ 0x20, "DCLZ" },
+	{ 0xffffffff, "enable" },
+	{ 0xffffffff, "on" },
+	{ 0xf0f0f0f0, NULL}
 };
 
 const char *
@@ -384,6 +439,28 @@ denstostring(int d)
 		return buf;
 	} else
 		return sd->name;
+}
+
+/*
+ * Given a specific density number, return either the bits per inch or bits
+ * per millimeter for the given density.
+ */
+int
+denstobp(int d, int bpi)
+{
+	struct densities *sd;
+
+	for (sd = dens; sd->dens; sd++)
+		if (sd->dens == d)
+			break;
+	if (sd->dens == 0)
+		return(0);
+	else {
+		if (bpi)
+			return(sd->bpi);
+		else
+			return(sd->bpmm);
+	}
 }
 
 int
@@ -406,26 +483,67 @@ getblksiz(int bs)
 	if (bs == 0)
 		return "variable";
 	else {
-		sprintf(buf, "= %d bytes", bs);
+		sprintf(buf, "%d bytes", bs);
 		return buf;
 	}
 }
 
+const char *
+comptostring(u_int32_t comp)
+{
+	static char buf[20];
+	struct compression_types *ct;
+
+	if (comp == MT_COMP_DISABLED)
+		return "disabled";
+	else if (comp == MT_COMP_UNSUPP)
+		return "unsupported";
+
+	for (ct = comp_types; ct->name; ct++)
+		if (ct->comp_number == comp)
+			break;
+
+	if (ct->comp_number == 0xf0f0f0f0) {
+		sprintf(buf, "0x%2x", comp);
+		return(buf);
+	} else
+		return(ct->name);
+}
+
+u_int32_t
+stringtocomp(const char *s)
+{
+	struct compression_types *ct;
+	size_t l = strlen(s);
+
+	for (ct = comp_types; ct->name; ct++)
+		if (strncasecmp(ct->name, s, l) == 0)
+			break;
+
+	return(ct->comp_number);
+}
 
 void
 st_status(struct mtget *bp)
 {
-	printf("Present Mode:   Density = %-12s Blocksize %s Comp %d\n",
-	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz), (int)bp->mt_comp);
-	printf("---------available modes---------\n");
-	printf("Mode 0:         Density = %-12s Blocksize %s\n",
-	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0));
-	printf("Mode 1:         Density = %-12s Blocksize %s\n",
-	       denstostring(bp->mt_density1), getblksiz(bp->mt_blksiz1));
-	printf("Mode 2:         Density = %-12s Blocksize %s\n",
-	       denstostring(bp->mt_density2), getblksiz(bp->mt_blksiz2));
-	printf("Mode 3:         Density = %-12s Blocksize %s\n",
-	       denstostring(bp->mt_density3), getblksiz(bp->mt_blksiz3));
+	printf("Mode      Density         Blocksize      bpi      "
+	       "Compression\n"
+	       "Current:  %-12s    %-12s   %-7d  %s\n"
+	       "---------available modes---------\n"
+	       "0:        %-12s    %-12s   %-7d  %s\n"
+	       "1:        %-12s    %-12s   %-7d  %s\n"
+	       "2:        %-12s    %-12s   %-7d  %s\n"
+	       "3:        %-12s    %-12s   %-7d  %s\n",
+	       denstostring(bp->mt_density), getblksiz(bp->mt_blksiz),
+	       denstobp(bp->mt_density, TRUE), comptostring(bp->mt_comp),
+	       denstostring(bp->mt_density0), getblksiz(bp->mt_blksiz0),
+	       denstobp(bp->mt_density0, TRUE), comptostring(bp->mt_comp0),
+	       denstostring(bp->mt_density1), getblksiz(bp->mt_blksiz1),
+	       denstobp(bp->mt_density1, TRUE), comptostring(bp->mt_comp1),
+	       denstostring(bp->mt_density2), getblksiz(bp->mt_blksiz2),
+	       denstobp(bp->mt_density2, TRUE), comptostring(bp->mt_comp2),
+	       denstostring(bp->mt_density3), getblksiz(bp->mt_blksiz3),
+	       denstobp(bp->mt_density3, TRUE), comptostring(bp->mt_comp3));
 }
 
 void
