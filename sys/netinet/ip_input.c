@@ -257,7 +257,7 @@ ip_init()
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
-static struct	route ipforward_rt;
+struct	route ipforward_rt;
 
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented
