@@ -1906,7 +1906,7 @@ fd_attach2(void *arg, int flag)
 	fd = arg;
 	
 	fd->fd_geom = g_new_geomf(&g_fd_class,
-	    "fd%d", device_get_unit(fd->fdc->fdc_dev));
+	    "fd%d", device_get_unit(fd->dev));
 	fd->fd_provider = g_new_providerf(fd->fd_geom, fd->fd_geom->name);
 	fd->fd_geom->softc = fd;
 	g_error_provider(fd->fd_provider, 0);
