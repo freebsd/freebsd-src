@@ -400,23 +400,24 @@ fixit_common(void)
 	msgConfirm("Couldn't symlink the /etc/ files!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
-    if (!OnVTY)
+    if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
 	systemSuspendDialog();	/* must be before the fork() */
     if (!(child = fork())) {
-	int i, fd, fdstop;
+	int i, fd;
 	struct termios foo;
 	extern int login_tty(int);
 
 	ioctl(0, TIOCNOTTY, NULL);
-	fdstop = strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0 ? 3 : 0;
-	for (i = getdtablesize(); i >= fdstop; --i)
+	for (i = getdtablesize(); i >= 0; --i)
 	    close(i);
-	if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
+
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) 
+	    fd = open("/dev/console", O_RDWR);
+	else
 	    fd = open("/dev/ttyv3", O_RDWR);
-	    ioctl(0, TIOCSCTTY, &fd);
-	    dup2(0, 1);
-	    dup2(0, 2);
-	}
+	ioctl(0, TIOCSCTTY, &fd);
+	dup2(0, 1);
+	dup2(0, 2);
 	DebugFD = 2;
 	if (login_tty(fd) == -1)
 	    msgDebug("fixit: I can't set the controlling terminal.\n");
@@ -431,6 +432,13 @@ fixit_common(void)
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:"
 	       "/mnt2/stand:/mnt2/bin:/mnt2/sbin:/mnt2/usr/bin:/mnt2/usr/sbin", 1);
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) {
+	    printf("Waiting for fixit shell to exit.\n"
+		"When you are done, type ``exit'' to exit\n"
+		"the fixit shell and be returned here.\n\n");
+	    fflush(stdout);
+	}
+
 	/* use the .profile from the fixit medium */
 	setenv("HOME", "/mnt2", 1);
 	chdir("/mnt2");
@@ -439,17 +447,15 @@ fixit_common(void)
 	_exit(1);;
     }
     else {
-	dialog_clear_norefresh();
 	if (strcmp(variable_get(VAR_FIXIT_TTY), "standard") == 0) {
+	    dialog_clear_norefresh();
 	    msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
 		"typing ALT-F4.  When you are done, type ``exit'' to exit\n"
-		"the fixit shell and be returned here.");
-	} else {
-	    msgNotify("Waiting for fixit shell to exit.\n"
-		"When you are done, type ``exit'' to exit\n"
-		"the fixit shell and be returned here.");
+		"the fixit shell and be returned here\n.");
 	}
 	(void)waitpid(child, &waitstatus, 0);
+	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0)
+	    systemResumeDialog();
     }
     dialog_clear();
 }
@@ -1049,7 +1055,10 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
     variable_set2(VAR_NFS_SECURE,		"NO", -1);
-    variable_set2(VAR_FIXIT_TTY,		"standard", 0);
+    if (OnVTY)
+	    variable_set2(VAR_FIXIT_TTY,		"standard", 0);
+    else
+	    variable_set2(VAR_FIXIT_TTY,		"serial", 0);
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
     if (getpid() != 1)
