@@ -49,14 +49,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/ida/idavar.h>
 #include <dev/ida/idareg.h>
 
-#define IDA_PCI_MAX_DMA_ADDR	0xFFFFFFFF
-#define IDA_PCI_MAX_DMA_COUNT	0xFFFFFFFF
+#define	IDA_PCI_MAX_DMA_ADDR	0xFFFFFFFF
+#define	IDA_PCI_MAX_DMA_COUNT	0xFFFFFFFF
 
-#define IDA_PCI_MEMADDR		PCIR_BAR(1)		/* Mem I/O Address */
+#define	IDA_PCI_MEMADDR		PCIR_BAR(1)		/* Mem I/O Address */
 
-#define IDA_DEVICEID_SMART		0xAE100E11
-#define IDA_DEVICEID_DEC_SMART		0x00461011
-#define IDA_DEVICEID_NCR_53C1510	0x00101000
+#define	IDA_DEVICEID_SMART		0xAE100E11
+#define	IDA_DEVICEID_DEC_SMART		0x00461011
+#define	IDA_DEVICEID_NCR_53C1510	0x00101000
 
 static int
 ida_v3_fifo_full(struct ida_softc *ida)
