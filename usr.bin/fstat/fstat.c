@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,7 +78,7 @@ static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
 #include <netinet/in_pcb.h>
 
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -129,8 +133,7 @@ int maxfiles;
 		free(ofiles); \
 		ofiles = malloc((d) * sizeof(struct file *)); \
 		if (ofiles == NULL) { \
-			fprintf(stderr, "fstat: %s\n", strerror(errno)); \
-			exit(1); \
+			err(1, NULL); \
 		} \
 		maxfiles = (d); \
 	}
@@ -188,8 +191,7 @@ main(argc, argv)
 			if (pflg++)
 				usage();
 			if (!isdigit(*optarg)) {
-				fprintf(stderr,
-				    "fstat: -p requires a process id\n");
+				warnx(" -p requires a process id");
 				usage();
 			}
 			what = KERN_PROC_PID;
@@ -198,11 +200,8 @@ main(argc, argv)
 		case 'u':
 			if (uflg++)
 				usage();
-			if (!(passwd = getpwnam(optarg))) {
-				fprintf(stderr, "%s: unknown uid\n",
-				    optarg);
-				exit(1);
-			}
+			if (!(passwd = getpwnam(optarg)))
+				errx(1, "%s: unknown uid", optarg);
 			what = KERN_PROC_UID;
 			arg = passwd->pw_uid;
 			break;
@@ -239,20 +238,14 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == NULL) {
-		fprintf(stderr, "fstat: %s\n", buf);
-		exit(1);
-	}
+	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == NULL)
+		errx(1, "%s", buf);
 #ifdef notdef
-	if (kvm_nlist(kd, nl) != 0) {
-		fprintf(stderr, "fstat: no namelist: %s\n", kvm_geterr(kd));
-		exit(1);
-	}
+	if (kvm_nlist(kd, nl) != 0)
+		errx(1, "no namelist: %s", kvm_geterr(kd));
 #endif
-	if ((p = kvm_getprocs(kd, what, arg, &cnt)) == NULL) {
-		fprintf(stderr, "fstat: %s\n", kvm_geterr(kd));
-		exit(1);
-	}
+	if ((p = kvm_getprocs(kd, what, arg, &cnt)) == NULL)
+		errx(1, "%s", kvm_geterr(kd));
 	if (nflg)
 		printf("%s",
 "USER     CMD          PID   FD  DEV    INUM       MODE SZ|DV R/W");
@@ -301,7 +294,7 @@ void
 dofiles(kp)
 	struct kinfo_proc *kp;
 {
-	int i, last;
+	int i;
 	struct file file;
 	struct filedesc0 filed0;
 #define	filed	filed0.fd_fd
@@ -564,13 +557,11 @@ getmnton(m)
 		if (m == mt->m)
 			return (mt->mntonname);
 	if (!KVM_READ(m, &mount, sizeof(struct mount))) {
-		fprintf(stderr, "can't read mount table at %x\n", m);
+		warnx("can't read mount table at %x", m);
 		return (NULL);
 	}
-	if ((mt = malloc(sizeof (struct mtab))) == NULL) {
-		fprintf(stderr, "fstat: %s\n", strerror(errno));
-		exit(1);
-	}
+	if ((mt = malloc(sizeof (struct mtab))) == NULL)
+		err(1, NULL);
 	mt->m = m;
 	bcopy(&mount.mnt_stat.f_mntonname[0], &mt->mntonname[0], MNAMELEN);
 	mt->next = mhead;
@@ -775,13 +766,11 @@ getfname(filename)
 	DEVS *cur;
 
 	if (stat(filename, &statbuf)) {
-		fprintf(stderr, "fstat: %s: %s\n", filename, strerror(errno));
+		warn("%s", filename);
 		return(0);
 	}
-	if ((cur = malloc(sizeof(DEVS))) == NULL) {
-		fprintf(stderr, "fstat: %s\n", strerror(errno));
-		exit(1);
-	}
+	if ((cur = malloc(sizeof(DEVS))) == NULL)
+		err(1, NULL);
 	cur->next = devs;
 	devs = cur;
 
