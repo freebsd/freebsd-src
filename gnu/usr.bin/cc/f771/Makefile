@@ -19,10 +19,15 @@ LDADD=	${LIBCC_INT}
 
 build-tools: fini
 
-fini: fini.o proj.o
+#  The use of ``proj-BT.o'' is to get around bogus dependacy information
+#  created for build-tools sources.
+fini: fini.o proj-BT.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-CLEANFILES+=	fini
+proj-BT.o: proj.c
+	${CC} ${CFLAGS} -o ${.TARGET} -c ${.ALLSRC}
+
+CLEANFILES+=	fini fini.o proj-BT.o
 
 #-----------------------------------------------------------------------
 # str-* gunk
