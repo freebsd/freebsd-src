@@ -208,6 +208,7 @@ s/\$//g
 		}
 		if ($2 == "NODEF") {
 			funcname=$4
+			argssize = "AS(" $4 "_args)"
 			return
 		}
 		if ($f != "{")
@@ -320,7 +321,7 @@ s/\$//g
 				    argalias) > sysarg
 		}
 		if ($2 != "NOPROTO" && (!nosys || funcname != "nosys") && \
-		    (!lkmnosys || funcname != "lkmnosys")) {
+		    (!lkmnosys || funcname != "lkmnosys") && $2 != "NODEF") {
 			printf("%s\t%s __P((struct thread *, struct %s *))",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
