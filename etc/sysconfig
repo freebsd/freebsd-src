@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.30 1996/01/05 17:00:27 bde Exp $
+#	$Id: sysconfig,v 1.31 1996/01/06 20:49:18 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -127,6 +127,9 @@ ntpdate="NO"
 
 # Set to YES if you want to run rwhod
 rwhod=NO
+
+# Set to NO if don't want to run lpd
+lpd=YES
 
 # Default sendmail flags.  -bd is pretty mandatory, -q<n>m sets the queue scan
 # time in minutes.  If set to NO, don't start sendmail at all.
