@@ -306,7 +306,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
  		{T_DIRECT, SIP_MEDIA_REMOVABLE, "FUJIFILMUSB-DRIVEUNIT", "USB-DRIVEUNIT", "*"},
  		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
- 	}
+ 	},
+	{
+		/*
+		 * Nikon Coolpix 995
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NIKON", "NIKON DSC E995", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	}
 };
 
 static	d_open_t	daopen;
