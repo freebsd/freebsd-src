@@ -17,58 +17,12 @@
 
 #ifdef _KERNEL
 
-#include <sys/queue.h>
-
 #ifndef _SYS_CONF_H_
 #include <sys/conf.h>	/* XXX: temporary to avoid breakage */
 #endif
 
-typedef	int	disk_open_t(struct disk *);
-typedef	int	disk_close_t(struct disk *);
-typedef	void	disk_strategy_t(struct bio *bp);
-typedef	int	disk_ioctl_t(struct disk *, u_long cmd, void *data,
-			int fflag, struct thread *td);
-		/* NB: disk_ioctl_t SHALL be cast'able to d_ioctl_t */
+#include <geom/geom_disk.h>
 
-struct g_geom;
-struct devstat;
-
-struct disk {
-	/* Fields which are private to geom_disk */
-	struct g_geom		*d_geom;
-	struct devstat		*d_devstat;
-
-	/* Shared fields */
-	u_int			d_flags;
-	const char		*d_name;
-	u_int			d_unit;
-
-	/* Disk methods  */
-	disk_open_t		*d_open;
-	disk_close_t		*d_close;
-	disk_strategy_t		*d_strategy;
-	disk_ioctl_t		*d_ioctl;
-	dumper_t		*d_dump;
-
-	/* Info fields from driver to geom_disk.c. Valid when open */
-	u_int			d_sectorsize;
-	off_t			d_mediasize;
-	u_int			d_fwsectors;
-	u_int			d_fwheads;
-	u_int			d_maxsize;
-	u_int			d_stripeoffset;
-	u_int			d_stripesize;
-
-	/* Fields private to the driver */
-	void			*d_drv1;
-};
-
-#define DISKFLAG_NOGIANT	0x1
-#define DISKFLAG_OPEN		0x2
-#define DISKFLAG_CANDELETE	0x4
-
-void disk_create(int unit, struct disk *disk, int flags, void *unused, void *unused2);
-void disk_destroy(struct disk *disk);
 struct disk *disk_enumerate(struct disk *disk);
 void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 
