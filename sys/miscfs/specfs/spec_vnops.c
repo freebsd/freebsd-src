@@ -117,7 +117,7 @@ static struct vnodeopv_desc spec_vnodeop_opv_desc =
 
 VNODEOP_SET(spec_vnodeop_opv_desc);
 
-static int bdev_buffered = 1;
+static int bdev_buffered = 0;
 SYSCTL_INT(_vfs, OID_AUTO, bdev_buffered, CTLFLAG_RW, &bdev_buffered, 0, "");
 
 static int enable_userblk_io = 1;
