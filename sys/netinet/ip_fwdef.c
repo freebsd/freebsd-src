@@ -38,10 +38,10 @@ struct  ip_fw *ip_fw_chain;
 struct  ip_fw *ip_acct_chain;
 
 #ifdef IPFIREWALL
-int (*ip_fw_chk_ptr)(struct ip *, struct ifnet *, struct ip_fw *) = &ip_fw_chk;
+int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, struct ip_fw *) = &ip_fw_chk;
 int (*ip_fw_ctl_ptr)(int, struct mbuf *) = &ip_fw_ctl;
 #else
-int (*ip_fw_chk_ptr)(struct ip *, struct ifnet *, struct ip_fw *);
+int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *, struct ifnet *, struct ip_fw *);
 int (*ip_fw_ctl_ptr)(int, struct mbuf *);
 #endif
 
