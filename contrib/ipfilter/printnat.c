@@ -58,7 +58,7 @@ extern	char	*sys_errlist[];
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.13 2002/12/06 11:40:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.15 2003/03/22 15:31:49 darrenr Exp $";
 #endif
 
 
@@ -399,7 +399,6 @@ int opts;
 			       np->in_space, np->in_flags,
 			       np->in_pmax, np->in_use);
 	} else {
-		np->in_nextip.s_addr = htonl(np->in_nextip.s_addr);
 		if (!(np->in_flags & IPN_FILTER)) {
 			printf("%s/", inet_ntoa(np->in_in[0]));
 			bits = countbits(np->in_in[1].s_addr);
@@ -422,6 +421,8 @@ int opts;
 		}
 		if (*np->in_plabel) {
 			printf(" proxy port");
+			if (np->in_dcmp != 0)
+				np->in_dport = htons(np->in_dport);
 			if (np->in_dport != 0) {
 				if (pr != NULL)
 					sv = getservbyport(np->in_dport,
@@ -473,8 +474,12 @@ int opts;
 			printf(" age %d/%d", np->in_age[0], np->in_age[1]);
 		printf("\n");
 		if (opts & OPT_DEBUG) {
+			struct in_addr nip;
+
+			nip.s_addr = htonl(np->in_nextip.s_addr);
+
 			printf("\tspace %lu nextip %s pnext %d", np->in_space,
-			       inet_ntoa(np->in_nextip), np->in_pnext);
+			       inet_ntoa(nip), np->in_pnext);
 			printf(" flags %x use %u\n",
 			       np->in_flags, np->in_use);
 		}

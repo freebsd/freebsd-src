@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.26.2.47 2002/10/26 06:24:42 darrenr Exp $
+ * $Id: ip_compat.h,v 2.26.2.52 2004/06/09 00:01:14 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -65,7 +65,7 @@
 
 #if defined(__sgi) || defined(bsdi)
 struct  ether_addr {
-        u_char  ether_addr_octet[6];
+	u_char  ether_addr_octet[6];
 };
 #endif
 
@@ -163,6 +163,7 @@ struct file;
 #   define	V4_PART_OF_V6(v6)	v6.s6_addr32[3]
 #  endif
 # endif
+# define	M_BLEN(m)	((m)->b_wptr - (m)->b_rptr)
 
 typedef	struct	qif	{
 	struct	qif	*qf_next;
@@ -172,6 +173,7 @@ typedef	struct	qif	{
 	void	*qf_optr;
 	queue_t	*qf_in;
 	queue_t	*qf_out;
+	void	*qf_data;	/* layer 3 header pointer */
 	struct	qinit	*qf_wqinfo;
 	struct	qinit	*qf_rqinfo;
 	struct	qinit	qf_wqinit;
@@ -260,7 +262,8 @@ typedef u_int32_t       u_32_t;
 #  endif   
 # endif
 # if !defined(_KERNEL) && !defined(IPFILTER_LKM) && !defined(USE_INET6)
-#  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000)) || \
+#  if (defined(__FreeBSD_version) && (__FreeBSD_version >= 400000) && \
+       !defined(NOINET6)) || \
       (defined(OpenBSD) && (OpenBSD >= 200111)) || \
       (defined(__NetBSD_Version__) && (__NetBSD_Version__ >= 105000000))
 #   define USE_INET6
@@ -523,6 +526,7 @@ extern	ill_t	*get_unit __P((char *, int));
 #  ifndef linux
 #   define	FREE_MB_T(m)	m_freem(m)
 #   define	MTOD(m,t)	mtod(m,t)
+#   define	M_BLEN(m)	(m)->m_len
 #   define	IRCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
 #   define	IWCOPY(a,b,c)	(bcopy((a), (b), (c)), 0)
 #   define	IRCOPYPTR	ircopyptr
@@ -541,7 +545,7 @@ extern	ill_t	*get_unit __P((char *, int));
 #  ifndef	linux
 #   define	GETUNIT(n, v)	ifunit(n)
 #   if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199606)) || \
-        (defined(OpenBSD) && (OpenBSD >= 199603))
+       (defined(OpenBSD) && (OpenBSD >= 199603))
 #    define	IFNAME(x)	((struct ifnet *)x)->if_xname
 #   else
 #    define	USE_GETIFNAME	1
@@ -960,7 +964,7 @@ typedef	struct	{
 	__u32	th_seq;
 	__u32	th_ack;
 # if defined(__i386__) || defined(__MIPSEL__) || defined(__alpha__) ||\
-    defined(vax)
+    defined(__vax__)
 	__u8	th_res:4;
 	__u8	th_off:4;
 #else
@@ -982,7 +986,7 @@ typedef	struct	{
 
 typedef	struct	{
 # if defined(__i386__) || defined(__MIPSEL__) || defined(__alpha__) ||\
-    defined(vax)
+    defined(__vax__)
 	__u8	ip_hl:4;
 	__u8	ip_v:4;
 # else
@@ -1206,8 +1210,8 @@ struct	ether_addr	{
 #define	ICMPERR_MINPKTLEN	(20 + 8 + 20)
 #define	ICMPERR_MAXPKTLEN	(20 + 8 + 20 + 8)
 #define	ICMP6_MINLEN		8
-#define	ICMP6ERR_MINPKTLEN	(40 + 8)
-#define	ICMP6ERR_IPICMPHLEN	(40 + 8 + 40)
+#define	ICMP6ERR_IPICMPHLEN	(40 + 8)
+#define	ICMP6ERR_MINPKTLEN	(40 + 8 + 40)
 
 #ifndef	ICMP6_DST_UNREACH
 # define	ICMP6_DST_UNREACH	1

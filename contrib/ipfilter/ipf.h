@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ipf.h	1.12 6/5/96
- * $Id: ipf.h,v 2.9.2.6 2002/01/03 08:00:12 darrenr Exp $
+ * $Id: ipf.h,v 2.9.2.7 2003/05/15 17:45:33 darrenr Exp $
  */
 
 #ifndef	__IPF_H__
@@ -62,7 +62,7 @@ struct nat;
 extern	char	*strdup __P((char *));
 #endif
 
-extern	struct	frentry	*parse __P((char *, int));
+extern	struct	frentry	*parse __P((char *, int, int *));
 
 extern	void	printfr __P((struct frentry *));
 extern	void	binprint __P((struct frentry *)), initparse __P((void));

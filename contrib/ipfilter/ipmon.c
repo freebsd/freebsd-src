@@ -68,7 +68,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.37 2002/12/06 11:40:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.40 2004/05/12 23:21:55 darrenr Exp $";
 #endif
 
 
@@ -920,6 +920,7 @@ int	blen;
 	}
 #if (SOLARIS || \
 	(defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
+	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113)) || \
 	(defined(OpenBSD) && (OpenBSD >= 199603))) || defined(linux)
 	{
 	char	ifname[sizeof(ipf->fl_ifname) + 1];
@@ -991,7 +992,7 @@ int	blen;
 		p = (u_short)ip6->ip6_nxt;
 		s = (u_32_t *)&ip6->ip6_src;
 		d = (u_32_t *)&ip6->ip6_dst;
-		plen = ntohs(ip6->ip6_plen);
+		plen = hl + ntohs(ip6->ip6_plen);
 #else
 		sprintf(t, "ipv6");
 		goto printipflog;
@@ -1105,11 +1106,12 @@ int	blen;
 					ipc->ip_hl << 2, i);
 				t += strlen(t);
 				if (ipoff & IP_OFFMASK) {
-					(void) sprintf(t, " frag %s%s%hu@%hu",
-						ipoff & IP_MF ? "+" : "",
-						ipoff & IP_DF ? "-" : "",
+					(void) sprintf(t, " (frag %d:%hu@%hu%s%s)",
+						ntohs(ipc->ip_id),
 						i - (ipc->ip_hl<<2),
-						(ipoff & IP_OFFMASK) << 3);
+						(ipoff & IP_OFFMASK) << 3,
+						ipoff & IP_MF ? "+" : "",
+						ipoff & IP_DF ? "-" : "");
 				}
 			}
 		}
@@ -1120,10 +1122,11 @@ int	blen;
 			hostname(res, v, d), proto, hl, plen);
 		t += strlen(t);
 		if (off & IP_OFFMASK)
-			(void) sprintf(t, " frag %s%s%hu@%hu",
+			(void) sprintf(t, " (frag %d:%hu@%hu%s%s)",
+				ntohs(ip->ip_id),
+				plen - hl, (off & IP_OFFMASK) << 3,
 				ipoff & IP_MF ? "+" : "",
-				ipoff & IP_DF ? "-" : "",
-				plen - hl, (off & IP_OFFMASK) << 3);
+				ipoff & IP_DF ? "-" : "");
 	}
 	t += strlen(t);
 

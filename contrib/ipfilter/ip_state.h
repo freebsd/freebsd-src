@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.13.2.13 2002/06/27 14:40:29 darrenr Exp $
+ * $Id: ip_state.h,v 2.13.2.14 2003/11/15 11:47:46 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
@@ -62,6 +62,7 @@ typedef struct ipstate {
 	frentry_t	*is_rule;
 	U_QUAD_T	is_pkts;
 	U_QUAD_T	is_bytes;
+	U_QUAD_T	is_icmppkts;
 	union	i6addr	is_src;
 	union	i6addr	is_dst;
 	void	*is_ifp[4];

@@ -1,5 +1,5 @@
 /*
- * $Id: ip_raudio_pxy.c,v 1.7.2.8 2002/01/13 04:58:29 darrenr Exp $
+ * $Id: ip_raudio_pxy.c,v 1.7.2.9 2003/04/26 05:59:39 darrenr Exp $
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -66,9 +66,6 @@ nat_t *nat;
 	tcphdr_t *tcp;
 	int len = 0;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	/*
 	 * If we've already processed the start messages, then nothing left
@@ -181,9 +178,6 @@ nat_t *nat;
 	nat_t *ipn;
 	u_char swp;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	/*
 	 * Wait until we've seen the end of the start messages and even then

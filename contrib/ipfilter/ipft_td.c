@@ -61,7 +61,7 @@ tcpdump -nqte
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.4 2002/12/06 11:40:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.2.2.6 2003/05/31 02:13:04 darrenr Exp $";
 #endif
 
 static	int	tcpd_open __P((char *));
@@ -131,12 +131,13 @@ int	cnt, *dir;
 
 	bzero(&pkt, sizeof(pkt));
 
-	if ((n = sscanf(lbuf, "%s > %s: %s", src, dst, misc)) != 3)
-		if ((n = sscanf(lbuf, "%s %s > %s: %s",
+	if ((n = sscanf(lbuf, "%31s > %31s: %255s", src, dst, misc)) != 3)
+		if ((n = sscanf(lbuf, "%31s %31s > %31s: %255s",
 				time, src, dst, misc)) != 4)
-			if ((n = sscanf(lbuf, "%s %s: %s > %s: %s",
+			if ((n = sscanf(lbuf, "%31s %31s: %31s > %31s: %255s",
 					link1, link2, src, dst, misc)) != 5) {
-				n = sscanf(lbuf, "%s %s %s: %s > %s: %s",
+				n = sscanf(lbuf,
+					   "%31s %31s %31s: %31s > %31s: %255s",
 					   time, link1, link2, src, dst, misc);
 				if (n != 6)
 					return -1;
