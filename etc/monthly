@@ -12,7 +12,7 @@ echo "Subject: $host monthly run output"
 
 echo ""
 echo -n "Rotating log files:"
-#cd /var/log
+cd /var/log
 for i in kerberos.log lpd-errs wtmp; do
 	echo -n " $i"
 	if [ -f $i.5 ]; then mv -f $i.5 $i.6; fi
