@@ -600,7 +600,12 @@ ether_demux(ifp, eh, m)
                 return;
 #endif NETATALK
 	case ETHERTYPE_VLAN:
-		VLAN_INPUT(eh, m);
+		if (vlan_input_p != NULL)
+			(*vlan_input_p)(eh, m);
+		else {
+			m->m_pkthdr.rcvif->if_noproto++;
+			m_freem(m);
+		}
 		return;
 	default:
 #ifdef IPX
