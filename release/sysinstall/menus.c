@@ -717,7 +717,7 @@ DMenu MenuDistributions = {
     "list of distributions yourself, simply select \"Custom\".  You can also\n"
     "pick a canned distribution set and then fine-tune it with the Custom item.\n\n"
     "Choose an item by pressing [SPACE] or [ENTER].  When finished, choose the\n"
-    "Exit item or move to the Exit button with [TAB].",
+    "Exit item or move to the OK button with [TAB].",
     "Press F1 for more information on these options.",
     "distributions",
     { { "X Exit", "Exit this menu (returning to previous)",
