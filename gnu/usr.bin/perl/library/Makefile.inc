@@ -35,4 +35,10 @@ install:
 		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
 		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
 
+distribute:
+	cd ${.OBJDIR}/ext/${MODULEDIR} ;\
+	make -B install DESTDIR=${DISTDIR}/${dist} SHARED=copies \
+		INSTALLPRIVLIB=${DESTDIR}/usr/libdata/perl/${VERSION} \
+		INSTALLARCHLIB=${DESTDIR}/usr/libdata/perl/${VERSION}/mach
+
 .PATH:	${PERL5SRC}
