@@ -188,6 +188,7 @@ MLINKS+=taskqueue.9 TASKQUEUE_DEFINE.9
 MLINKS+=resource_int_value.9 resource_long_value.9
 MLINKS+=resource_int_value.9 resource_string_value.9
 MLINKS+=resource_query_string.9 resource_query_name.9
+MLINKS+=resource_query_string.9 resource_query_unit.9
 
 MLINKS+=suser.9 suser_xxx.9
 
