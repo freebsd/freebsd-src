@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.3 1997/05/01 19:33:06 fsmp Exp $
+ *	$Id: mpapic.h,v 1.4 1997/05/22 22:04:45 fsmp Exp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -36,19 +36,22 @@
 # define NBUS		4
 #endif /* NBUS */
 
-/* total number of APIC INTs, including SHARED INTs */
-#if !defined(NINTR)
-#define NINTR		64
-#endif /* NINTR */
-
-/* size of APIC ID list */
-#define NAPICID		16
-
 /* number of IO APICs */
 # if !defined(NAPIC)
 # define NAPIC		1
 # endif /* NAPIC */
 
+/* total number of APIC INTs, including SHARED INTs */
+#if !defined(NINTR)
+#define NINTR		48
+#endif /* NINTR */
+
+
+/*
+ * Size of APIC ID list.
+ * Also used a MAX size of various other arrays.
+ */
+#define NAPICID		16
 
 /* these don't really belong in here... */
 enum busTypes {
