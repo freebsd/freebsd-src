@@ -121,7 +121,7 @@ flags will be passed to
 .It Ic deledit
 Equivalent
 to
-.Nm delget
+.Ic delget
 except that the
 .Nm get
 phase includes the
@@ -142,7 +142,7 @@ and
 .Fl k
 are
 passed to
-.Nm edit .
+.Ic edit .
 .It Ic create
 Creates
 an
@@ -185,7 +185,7 @@ same directory.
 .It Ic unedit
 This
 is the opposite of an
-.Nm edit
+.Ic edit
 or a
 .Nm get Fl e .
 It should be used with extreme caution, since
@@ -206,7 +206,7 @@ flag is given (with an optional argument) then
 only files being edited by you (or the named user) are listed.
 .It Ic check
 Like
-.Nm info
+.Ic info
 except that nothing is printed if nothing is being edited, and
 a non-zero exit status is returned if anything is being edited.
 The intent is to have this included in an
@@ -222,9 +222,9 @@ Takes the
 and
 .Fl u
 flags like
-.Nm info
+.Ic info
 and
-.Nm check .
+.Ic check .
 .It Ic diffs
 Gives a
 .Xr diff 1
@@ -277,7 +277,7 @@ flag.
 Defines the pathname of the directory in which the
 .Tn SCCS
 files will be found;
-.Dq Tn SCCS
+.Pa SCCS
 is the default.
 The
 .Fl p
@@ -355,7 +355,7 @@ The
 .Ev PROJECT
 environment variable is checked by the
 .Fl d
-flag. 
+flag.
 If it begins with a slash, it is taken directly; otherwise,
 the home directory of a user of that name is
 examined for a subdirectory
