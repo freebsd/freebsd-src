@@ -154,8 +154,8 @@ int mx_dup_ck = MAX_DUP_CHK;
 char rcvd_tbl[MAX_DUP_CHK / 8];
 
 struct sockaddr_in whereto;	/* who to ping */
-long maxpayload;
 int datalen = DEFDATALEN;
+int maxpayload;
 int s;				/* socket file descriptor */
 u_char outpackhdr[IP_MAXPACKET], *outpack;
 char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
@@ -461,7 +461,7 @@ main(argc, argv)
 	if (options & F_RROUTE)
 		maxpayload -= MAX_IPOPTLEN;
 	if (datalen > maxpayload)
-		errx(EX_USAGE, "packet size too large: %lu > %u", datalen,
+		errx(EX_USAGE, "packet size too large: %d > %d", datalen,
 		    maxpayload);
 	datap = &outpack[MINICMPLEN + phdr_len];
 	if (options & F_PINGFILLED) {
