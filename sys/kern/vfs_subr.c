@@ -253,6 +253,22 @@ vop_rename_pre(void *ap)
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked.\n");
 }
 
+void
+vop_strategy_pre(void *ap)
+{
+	struct vop_strategy_args *a = ap;
+	int status;
+
+	status = lockstatus(&a->a_bp->b_lock, curthread);
+
+	if (status != LK_SHARED && status != LK_EXCLUSIVE) {
+		if (vfs_badlock_print)
+			printf("VOP_STRATEGY: bp is not locked but should be.\n");
+		if (vfs_badlock_panic)
+			Debugger("Lock violation.\n");
+	}
+}
+
 #endif	/* DEBUG_VFS_LOCKS */
 
 void
