@@ -37,15 +37,15 @@
 .Sh SYNOPSIS
 For one or more PCI/PCI-X cards:
 .Cd device pci
-.Cd device ahc
+.Cd device ahd
 .Pp
 To compile in debugging code.
 .Cd options AHD_DEBUG
-.Cd options AHD_DEBUG_OPTS <bitmask of options>
+.Cd options AHD_DEBUG_OPTS=<bitmask of options>
 .Cd options AHD_REG_PRETTY_PRINT
 .Pp
 To configure one or more controllers to assume the target role:
-.Cd options AHC_TMODE_ENABLE <bitmask of units>
+.Cd options AHD_TMODE_ENABLE=<bitmask of units>
 .Pp
 For one or more SCSI busses:
 .Cd device scbus
@@ -102,7 +102,7 @@ size of the driver by approximately 215KB.
 .Pp
 Individual controllers may be configured to operate in the target role
 through the
-.Dq Dv AHC_TMODE_ENABLE
+.Dq Dv AHD_TMODE_ENABLE
 configuration option.  The value assigned to this option should be a bitmap
 of all units where target mode is desired.
 For example, a value of 0x25, would enable target mode on units 0, 2, and 5.
@@ -117,6 +117,11 @@ maximum synchronous negotiation rate,
 wide transfers,
 disconnection,
 and the host adapter's SCSI ID.
+.Pp
+.Sh BUGS
+The current generation of 79xx chips do not support target mode in Ultra320
+mode.
+Target mode in general has not been well tested in this driver.
 .Pp
 .Sh SEE ALSO
 .Xr ahc 4 ,
