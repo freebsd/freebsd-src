@@ -151,6 +151,7 @@ build_image() {
     set_msgs
     printf "${MSG}"
     echo "-> We'll use the sources living in ${SRC}"
+    echo "-> vnode is $VNUM"
     echo ""
     echo "-> I hope you have checked the PICOBSD config file..."
     echo ""
@@ -442,7 +443,7 @@ create_mfs() {		# OK
     # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw /dev/rvn${VNUM} fd${MFS_SIZE} || fail $? mfs_disklabel
+	disklabel -rw vn${VNUM} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
 	disklabel -rw vn${VNUM} auto || fail $? mfs_disklabel
     fi
@@ -482,18 +483,19 @@ populate_mfs() {
 	    ./MAKEDEV ${MY_DEVS}; rm MAKEDEV)
     fi
 
-    log "---> Making and installing crunch1..."
     (
-    cd ${BUILDDIR}/crunch
+    cd ${MY_TREE} # so relative paths in crunch.conf have a chance
+    log "---> Making and installing crunch1 from `pwd`..."
     a=${BUILDDIR}/crunch1.conf
     cat ${MY_TREE}/crunch.conf|sed -e "s@/usr/src@${SRC}@" > $a
-    (if [ -f ${MY_TREE}/crunch.inc ] ; then
-	crunchgen -p ${PICO_OBJ} -o -h ${MY_TREE}/crunch.inc $a
-    else
-	crunchgen -p ${PICO_OBJ} -o $a
+    arg=""
+    if [ -f ${MY_TREE}/crunch.inc ] ; then
+	h="-h ${MY_TREE}/crunch.inc"
     fi
-    ) || true # failure is not critical here
-    make -s -f crunch1.mk
+    crunchgen -p ${PICO_OBJ} -o $arg -m ${BUILDDIR}/crunch.mk $a || true
+    # failure is not critical here
+    log "Now make -f crunch.mk"
+    make -s -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
     mv crunch1 ${MFS_MOUNTPOINT}/stand/crunch
     chmod 555 ${MFS_MOUNTPOINT}/stand/crunch
@@ -527,14 +529,14 @@ populate_mfs() {
     df -ik ${MFS_MOUNTPOINT}
     umount ${MFS_MOUNTPOINT}
     fsck -p /dev/rvn${VNUM}c
-    vnconfig -u /dev/rvn${VNUM}
+    vnconfig -u vn${VNUM}
 }
 
 # free as much as possible from the vnode
 free_vnode() {
     umount ${MFS_MOUNTPOINT}    2> /dev/null || true
     umount /dev/vn${VNUM}       2> /dev/null || true
-    vnconfig -u /dev/rvn${VNUM} 2> /dev/null || true
+    vnconfig -u vn${VNUM} 2> /dev/null || true
 }
 
 final_cleanup() {
@@ -607,7 +609,7 @@ init_fs_image() { # filename size_in_kbytes
     dd if=/dev/zero of=${imgname} count=${imgsize} bs=1k 2> /dev/null
     dd if=${boot1}  of=${imgname} conv=notrunc 2> /dev/null
 
-    vnconfig -c /dev/rvn${VNUM} ${imgname} || fail $? no_vnconfig
+    vnconfig -c vn${VNUM} ${imgname} || fail $? no_vnconfig
 }
 
 
@@ -625,10 +627,10 @@ fill_floppy_image() {
     init_fs_image ${BUILDDIR}/picobsd.bin ${blocks}
 
     log "---> Labeling floppy image"
-    disklabel -Brw -b ${boot1} -s ${boot2} /dev/vn${VNUM}c fd${FLOPPY_SIZE} || \
+    disklabel -Brw -b ${boot1} -s ${boot2} vn${VNUM} fd${FLOPPY_SIZE} || \
 	fail $?  floppy_disklabel
 
-    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c > /dev/null
+    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/vn${VNUM}c > /dev/null
 
     mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT}
 
