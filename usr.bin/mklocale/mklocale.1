@@ -248,12 +248,24 @@ Defines runes which are ideograms, printable and graphic.
 Defines runes which are special characters, printable and graphic.
 .It Dv PHONOGRAM
 Defines runes which are phonograms, printable and graphic.
+.It Dv SWIDTH0
+Defines runes with display width 0.
+.It Dv SWIDTH1
+Defines runes with display width 1.
+.It Dv SWIDTH2
+Defines runes with display width 2.
+.It Dv SWIDTH3
+Defines runes with display width 3.
 .El
+.Pp
+If no display width explicitly defined, width 1 assumed
+for printable runes by default.
 .Sh SEE ALSO
 .Xr colldef 1 ,
 .Xr mbrune 3 ,
 .Xr rune 3 ,
 .Xr setlocale 3 ,
+.Xr wcwidth 3 ,
 .Xr euc 4 ,
 .Xr utf2 4
 .Sh BUGS
