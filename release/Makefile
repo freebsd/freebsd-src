@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.281 1997/03/11 13:55:46 joerg Exp $
+#	$Id: Makefile,v 1.282 1997/03/11 20:03:42 joerg Exp $
 #
 # How to roll a release:
 #
@@ -56,6 +56,8 @@ MTREEFILES=		${.CURDIR}/../etc/mtree
 RD=			/R/stage
 FD=			/R/ftp
 CD=			/R/cdrom
+CD_DISC1=		${CD}/disc1 
+CD_DISC2=		${CD}/disc2
 
 .if !defined(WHICH_CRUNCH)
 WHICH_CRUNCH=	boot fixit
@@ -452,28 +454,28 @@ ftp.1:
 # --==## Setup a suitable cdrom-area ##==--
 #
 cdrom.1:
-	mkdir -p ${CD}/filesys
-	cd ${RD} && find floppies -print | cpio -dumpl ${CD}
-	cd ${RD}/dists && find . -print | cpio -dumpl ${CD}
-	ln -f ${RD}/kernels/MFSKERNEL.std ${CD}/kernel
-	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
+	mkdir -p ${CD_DISC1} ${CD_DISC2}
+	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
+	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
+	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
+	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD_DISC1}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			chflags -R noschg ${RD}/trees/$${i} ; \
 			( cd ${RD}/trees/$${i} && \
-			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
+			find . -depth -print | cpio -dumpl ${CD_DISC2} ) ; \
 		fi \
 	done
-	rm -f ${CD}/filesys/.profile
-	cp ${.CURDIR}/fixit.profile ${CD}/filesys/.profile
-	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
-	cp ${CD}/cdrom.inf ${CD}/filesys
-	cp ${.CURDIR}/ABOUT.TXT ${CD}/ABOUT.TXT
-	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
-	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
-	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD}/INSTALL.TXT
-	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD}/RELNOTES.TXT
+	rm -f ${CD_DISC2}/filesys/.profile
+	cp ${.CURDIR}/fixit.profile ${CD_DISC2}/filesys/.profile
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
+	echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
+	cp ${.CURDIR}/ABOUT.TXT ${CD_DISC1}/ABOUT.TXT
+	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD_DISC1}/README.TXT
+	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD_DISC1}/HARDWARE.TXT
+	cp ${.CURDIR}/sysinstall/help/install.hlp ${CD_DISC1}/INSTALL.TXT
+	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${CD_DISC1}/RELNOTES.TXT
 	ln -s ../ports ${CD_DISC2}/usr/ports
 #
 # --==## And finally, create the ports distribution & tarball ##==--
