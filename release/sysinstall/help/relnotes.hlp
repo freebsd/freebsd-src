@@ -1,11 +1,11 @@
                                  RELEASE NOTES
-                          FreeBSD Release 3.0-RELEASE
+                          FreeBSD Release 3.0-SNAP
 
-This is our first release of 3.0-CURRENT and is aimed primarily at
-early adopters and developers.  Some parts of the documentation may
-not be updated yet and should be reported if and when seen.
-Naturally, any installation failures or crashes should also be
-reported ASAP by sending mail to freebsd-bugs@FreeBSD.org or using the
+This is a 3.0-CURRENT release SNAPshot of FreeBSD, currently
+on its way to a follow-on release for 3.0 which was released
+on October 16th, 1998.
+
+Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a WEB based interface can also see
 http://www.freebsd.org/send-pr.html).
 
@@ -14,9 +14,7 @@ directory (especially if you're installing from floppies!), see
 ABOUT.TXT.  For installation instructions, see the INSTALL.TXT and
 HARDWARE.TXT files.
 
-This is also hardly the last release on the 3.0-current (HEAD) branch
-and daily snapshot releases will continue as normal following this
-release.  Please install them from:
+For the latest of these 3.0-current snapshots, you should always see:
 
         ftp://current.freebsd.org/pub/FreeBSD
 
@@ -24,7 +22,7 @@ If you wish to get the latest post-3.0-RELEASE technology.
 
 Table of contents:
 ------------------
-1. What's new since 2.2.X-RELEASE
+1. What's new since 3.0-RELEASE
    1.1 KERNEL CHANGES
    1.2 SECURITY FIXES
    1.3 USERLAND CHANGES
@@ -45,346 +43,19 @@ Table of contents:
 6. Acknowledgements
 
 
-1. What's new since 2.2.X-RELEASE
+1. What's new since 3.0-RELEASE
 ---------------------------------
 All changes described here are unique to the 3.0 branch unless
 specifically marked as [MERGED] features.
 
 1.1. KERNEL CHANGES
 -------------------
-o The 2.2.x SCSI subsystem has been almost entirely replaced with 
-  a new "CAM" (Common Access Method) SCSI system which offers
-  improved performance, better error recovery and support for more
-  SCSI controllers.
-
-o The Host ATM Research Platform ("HARP") software by Network
-  Computing Services, Inc. has been integrated into the system.
-  See /usr/src/share/examples/atm for more info.
-
-o The SMP (Symmetric MultiProcessing) branch has been merged.
-  The kernel is mostly non-reentrant as yet, but work is under way.
-
-o The code from 4.4BSD-Lite2 has been (finally) merged.
-
-o Secure RPC is now supported (and usable with NFS et al).
-
-o Sun's WEBNFS standard is now supported.
-
-o The MSDOS filesystem code now handles VFAT and FAT32 partitions.
-  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
-
-o ATAPI/IDE CD burner support (BETA).
-
-o ATAPI/IDE tape drive support (BETA).
-
-o Support for using VESA video modes. It is now possible to select and
-  use the modes provided by the BIOS on modern videocards. This enables
-  fx. 132x60 sized consoles and highres graphics in a generic manner on
-  hardware that supports it. There is also support for running the 
-  console in rastermode, which allows XFree86 to run a simple 16color
-  server in 800x600 on otherwise unsupported video hardware.
-
-o Support for AdvanSys SCSI controllers
-
-o Support for QLogic SCSI and Fibre Channel controllers.
-
-o Support for Adaptec 7890, 7891, 7895, 7896 and 7897 based controllers
-  (new 2940/2950/3940/3950 et al).
-
-o The ed0 (wd8xxxx, 3c503, NE2000, HP Lan+) Ethernet device's default IRQ
-  has changed from IRQ 5 to IRQ 10.
-  The ed1 Ethernet device has been removed.  Use the Userconfig utility
-  to change ed0's values to match your network card's settings.
-  [MERGED: Both changes are in 2.2.6 and later releases on 2.2-STABLE branch]
-
-o The code responsible for maintaining time of day has been
-  rewritten.  New features are:  true support for nanoseconds in
-  both kernel and userland, continuous rather than stepwise adjustment
-  by NTPD and support for synchronizing to high precision external time 
-  signals.
-
-o Support for the PPS API described in draft-mogul-pps-api-02.txt for
-  TTL rising edge inputs via the parallel printer port has been added
-  to the printer driver.
-
-o Use the new if_multiaddrs list for multicast addresses rather than the
-  previous hackery involving struct in_ifaddr and arpcom.  Get rid of the
-  abominable multi_kludge.
-
-o The new if_media selection method for ethernet drivers has been brought
-  in, obtained from Jason Thorpe's implementation for NetBSD.
-  [MERGED: Also in 2.2.5 and later releases on 2.2-STABLE branch]
-
-o Multi-session ISO-9660 CD-ROMs are now fully supported.  By default, the
-  last session will be mounted (including for root mounts).  For non-root
-  mounts, mount_cd9660(8) can take an argument to mount a particular
-  session instead of the default one.
-
-o The UPAGES are gone from the per-process address space which allows
-  complete address space and page table sharing by reference count.
-
-o Newly forked child processes return directly to user mode rather than
-  return up through the fork() syscall tree.  This eliminates the kernel
-  stack copy at fork time and simplifies certain other internal operations. 
-  It is also needed to support the removal of the UPAGES.  (The idea for
-  this originally came from NetBSD, but we did it for different reasons.)
-
-o vfork() is now fully functional by taking advantage of the new sharing
-  semantics and a significant speedup has been measured.  This can be
-  disabled via the kern.fast_vfork sysctl variable in case of problems.
-  Statically linked binaries from older releases and other BSD platforms
-  are a problem since there was a bug in the 4.4BSD (net2, Lite and Lite2)
-  popen() implementation.  rfork() also has access to these facilities,
-  intended for supporting kernel assisted threads.
-
-o With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
-  Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
-  to the kernel, and BSD/OS's contributed dosemu has been ported.
-
-o The SA_NOCLDWAIT flags has been implemented, featuring the System V
-  option where a process can express its wish to never get zombies or
-  SIGCHLD for dead children.
-
-o An implementation of poll(2) is in place, the core of which is derived
-  from the NetBSD implementation.  Both the select() and poll() syscalls
-  use the poll device, file and vnode ops routines.
-
-o An implementation of issetugid(2) that is similar to the OpenBSD call
-  of the same name.  We set the flag in more cases than OpenBSD - our
-  implementation is slightly more paranoid.
-
-o Async IO is implemented (under non-SMP at this stage) with additional
-  support for kernel assisted threads.
-
-o Some other misc syscalls for compatability with other systems: getsid(2),
-  setpgid(2), nanosleep(2).
-
-o A new syscall signanosleep(2) which is like nanosleep(2), but a specific
-  signal mask is used to determine which signals will wake the sleep.  In
-  a nutshell this is 'wait for a given set of signals for up to a certain
-  amount of time'.
-
-o sleep(3) and usleep(3) are now implemented in terms of signanosleep(2)
-  and now have correct SIGALRM interaction semantics and sleep(3) correctly
-  returns the time remaining.  Some programs (notably apache httpd) bogusly
-  depend on a sleep() "absorbing" a SIGALRM from a timer that expires during
-  the life of the sleep.
-
-o An in-kernel linker is implemented and intended to replace the lkm system
-  with the bogosity that goes with it.
-
-o All supported network protocols have been updated to avoid the ``big
-  switch'' pr_usrreq(), and to pass a process pointer down to each user
-  request that might need process credentials or want to sleep,
-  replacing the previous hodgepodge of inspecting curproc (which only
-  occasionally did the right thing) and the SS_PRIV socket state flag.
-  The latter has now been eliminated, along with the SO_PRIVSTATE socket
-  option which cleared it.  Protocols are now also given the opportunity
-  to override the generic send, receive, and poll routines, which will
-  make it possible for a more efficient, protocol-specific
-  implementation of these entry points in later releases.  Finally, many
-  parts of the network code have been modified to cease storing socket
-  addresses and other metainformation in mbufs, in preparation for the
-  eventual elimination thereof.  The mechanism by which socket addresses
-  are now returned is still highly subject to change as we experiment to
-  discover the most efficient method.
-
-o Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
-  REQUEST packets can now be disabled via sysctl.  The netstat program
-  will print out statistics on how many times this happens.
-
-o A subtle and seldom encountered bug in ffs has been fixed.
-
-o The VFS name cache has been reworked to be more accountable and efficient.
-
-o The generic part of VOP_LOOKUP() has been put it in system-wide function
-  which filesystems can rely on for the canonical stuff.
-
-o Vnode freelist handling has been hauled over.  Vnodes are only on the
-  freelist if nobody cares about them.
-
-o The kernel provides assistance to getcwd() from data stored in the name
-  cache if possible.
-
-o An interrupt driven configuration hook mechanism has been implemented.
-  This allows drivers to postpone part of their configuration until after
-  interrupts are fully enabled.  This speeds booting because busy-waiting
-  is avoided for things like sub device probing (eg: SCSI bus probes).
-
-o The timeout(9) system in the kernel has been overhauled.  This gives
-  O(1) insertion and removal of callouts and an O(hash chain length)
-  amount of work to be performed in softclock.  The original paper is at:
-        http://www.cs.berkeley.edu/~amc/research/timer/ 
-
-o Changes in driver buffer queuing to deal with ordered transactions.  This
-  is intended for sequencing data and metadata writes in the filesystem code
-  once fully supported.
-
-o EISA Shared interrupts are now supported, working with the framework
-  originally for supporting PCI shared interrupts.
-
-o Support for the Comtrol Rocketport card.
-
-o IPFW's packet and byte counters have been expanded from 32 to 64 bits,
-  a `FWD' operation has been added to ipfw to support transparent
-  proxying and the divert operation has changed slightly - see the man
-  pages for natd(8) and ipfw(8) for more information.
-
-o New Plug and Play (PnP) support that allows you to (re)configure PnP
-  devices.  Also support modems being detected by the PnP part and
-  automatically attached.
-  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
-
-o Import of new sound code from Luigi Rizzo.  This code is still being
-  developed, but has support for a number of different cards.
-  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
-
-o The psm, mse and sysmouse drivers are improved to provide better mouse
-  support.  In particular, the psm driver now supports various ``wheeled''
-  mice.
-  [MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
-
-o Added support for SMC EtherPower II 10/100 Fast Ethernet card
-  (aka SMC9432TX based on SMC83c170 EPIC chip).
-  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
-
-o Added support for ATAPI floppy drives (LS-120).
-  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
-
-o Added support for IBM Etherjet and other Crystal Semiconductor
-  CS89x0-based NICs.
-  [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
-
-o Added support for Texas Instruments TNET100 'ThunderLAN' PCI NIC.
-  [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
-
-o Added full bus master DMA support for 3c900 and 3c905 adapters and
-  added support for the 3c905B.
-  [MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
-
 
 1.2. SECURITY FIXES
 -------------------
-[MERGED: all changes soon after specified date in 2.2-STABLE branch]
-
-97/7/29 Lots of lpr/lpd security fixes merged from OpenBSD.
-97/8/22 buffer overflows in tip corrected (benign since tip isn't
-        set[ug]id)
-97/8/26 buffer overflow in glob fixed, no know exploits
-97/8/27 vacation security problem with sendmail corrected (SNI)
-97/8/29 inetd sleeps less when children exit, making DoS attacks much
-        harder.
-97/8/29 fts now race-proof and find -execdir added (-current only)
-97/8/31 games setuid -> setgid.  Makes any games exploits benign (only
-        score files vulnerable).  Please report any problems to
-        eivind@FreeBSD.org (score-file ownership problems are known)
-97/12/3 Add Intel's suggested fix for the F00F bug.  If you don't have
-        a Pentium, the NO_F00F_HACK kernel option will disable it.
-98/1/20 More robust protection against LAND attacks now incorporated.
-
-The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
-also believed to be fixed.
-
-KerberosIV is now merged.
-
 
 1.3. USERLAND CHANGES
 ---------------------
-The default binary type (and compiler toolchain) has been
-switched from a.out to ELF.  This gives us access to much
-newer compiler technology (much of which didn't support a.out),
-allows for smaller executables and provides much better
-support for languages like C++, among many other advantages.
-Older a.out libraries and binaries will, of course, continue to work
-and provisions have been made for having both varieties installed if
-and as necessary for transitional purposes.
-
-Perl4 has now been replaced by Perl5 as a standard part of the
-system.
-
-The default username length has increased to 16 characters.
-Caution:  Old utmp/wtmp files will NOT work with this change since
-the data records will be of the old size.  For a conversion utility
-to aid with this, see /usr/src/tools/3.0-upgrade.
-
-/etc/sysconfig now replaced by more compact /etc/rc.conf file
-[MERGED: Also in 2.2.1 and later releases on 2.2-STABLE branch]
-
-fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
-This brings it in line with the numbers used in the device names
-in /dev.
-
-The Amd automounter has been updated from the 1993 4.4BSD version to
-the latest current version of am-utils.  Map options have changed
-somewhat, and a new configuration file, /etc/amd.conf, is supported.
-See ``man 5 amd.conf''.
-
-The ``picobsd'' package for creating custom FreeBSD boot floppies
-and "mini systems" has been brought into /usr/src/release/picobsd.
-See file:/usr/src/release/picobsd/README.html for further information.
-
-When operating over the network, finger(1) no longer closes the socket
-immediately after sending its request, but instead waits for the
-remote end to close first.  (The specification is ambiguous, so we are
-following the behavior which interoperates with the most servers.)
-This means that it is now possible to use the MIT directory and finger
-people at certain broken Linux machines.
-
-There is a new flag to fetch(1) which allows it to talk to certain
-broken HTTP implementations which react badly to a request message
-immediately followed by a close of the connection.
-
-netstat(1) now uses sysctl(3) to retrieve more statistics groups and
-uses the correct, unsigned format for printing most of them out.
-
-A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
-VGA graphics to syscons ttys (sort of like Linux's libSVGA).
-[MERGED: Also in 2.2.5 and later releases on 2.2-STABLE branch]
-
-Xntpd's syslogging has been moved out into a facility of its own
-(LOG_NTP, userland name "ntp").
-
-A new pair of ioctl's has been added: SIOC[SG]IFGENERIC.  The intent
-is to provide for a hook to pass arbitrary ioctl subcommands down to a
-network interface driver.  This is for example necesseray for PPP
-drivers to communicate things like CHAP names and secrets, or variable
-options between the driver and a userland utility.
-
-sppp(4) has been improved a fair bit since FreeBSD 2.2.X.  It now
-employs a full-fledged PPP state machine, offers a lot more of LCP and
-IPCP negotiation, making it ready for dial-on-demand connections (like
-those that are often running over ISDN).  It also offers PAP or CHAP
-authentication.  The userland counterpart spppcontrol(8) is also the
-first program that utilizes the abovementioned SIOC[SG]IFGENERIC ioctl
-commands.
-
-moused(8) has been modified to support various mice with a ``wheel''.
-It also automatically recognizes mice which support the PnP COM device
-standard, so that the user is no longer required to supply a mouse 
-protocol type on the command line.
-[MERGED: Also in 2.2.6 and later releases on 2.2-STABLE branch]
-
-ppp(8) supports many additional features including the PPP Multilink
-Protocol (rfc1990), PPP Callback (with CBCP extensions) and client
-side DNS negotiation.  Refer to the README.changes file in the source
-directory for details of possible configuration conflicts.
-
-Pthread read/write locks as defined by the Single UNIX Specification,
-Version 2, have been added to the POSIX threads library, libc_r.
-
-System files are now owned by user `root', group `wheel'.  UID 0 is far
-more protected than `bin'.  Especially over NFS.
-
-/bin/sh signal and trap handling reworked. Among other things, this
-makes tty-mode emacs work when called from system(2), i.e. by a mail
-agent. Several syntax bugs have been fixed.
-[MERGED: Also in 2.2.8 and later releases on 2.2-STABLE branch]
-
-systat(1), iostat(8), rpc.rstatd(8), and vmstat(8) have been
-overhauled to use the new devstat(3) library and devstat(9) statistics
-subsystem.  Among other enhancements, these utilities (well, with the
-exception of rpc.rstatd(8)) now print out more useful statistics, and can
-see statistics for all devices in the system, not just the first 8.
 
 2. Supported Configurations
 ---------------------------
