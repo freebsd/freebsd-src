@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.25 1997/04/09 16:53:40 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.26 1997/04/27 20:00:45 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -121,17 +121,17 @@ bind(p, uap, retval)
 	int *retval;
 {
 	struct file *fp;
-	struct mbuf *nam;
+	struct sockaddr *sa;
 	int error;
 
 	error = getsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
-	error = sockargs(&nam, uap->name, uap->namelen, MT_SONAME);
+	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
 		return (error);
-	error = sobind((struct socket *)fp->f_data, nam, p);
-	m_freem(nam);
+	error = sobind((struct socket *)fp->f_data, sa, p);
+	FREE(sa, M_SONAME);
 	return (error);
 }
 
@@ -166,7 +166,7 @@ accept1(p, uap, retval, compat)
 	int compat;
 {
 	struct file *fp;
-	struct mbuf *nam;
+	struct sockaddr *sa;
 	int namelen, error, s;
 	struct socket *head, *so;
 	short fflag;		/* type must match fp->f_flag */
@@ -243,24 +243,32 @@ accept1(p, uap, retval, compat)
 	fp->f_flag = fflag;
 	fp->f_ops = &socketops;
 	fp->f_data = (caddr_t)so;
-	nam = m_get(M_WAIT, MT_SONAME);
-	(void) soaccept(so, nam);
+	sa = 0;
+	(void) soaccept(so, &sa);
+	if (sa == 0) {
+		namelen = 0;
+		if (uap->name)
+			goto gotnoname;
+		return 0;
+	}
+	if ((u_long)sa < 0xf0000000) {
+		panic("accept1 bad sa");
+	}
 	if (uap->name) {
 #ifdef COMPAT_OLDSOCK
 		if (compat)
-			mtod(nam, struct osockaddr *)->sa_family =
-			    mtod(nam, struct sockaddr *)->sa_family;
+			((struct osockaddr *)sa)->sa_family =
+			    sa->sa_family;
 #endif
-		if (namelen > nam->m_len)
-			namelen = nam->m_len;
-		/* SHOULD COPY OUT A CHAIN HERE */
-		error = copyout(mtod(nam, caddr_t), (caddr_t)uap->name,
-		    (u_int)namelen);
+		if (namelen > sa->sa_len)
+			namelen = sa->sa_len;
+		error = copyout(sa, (caddr_t)uap->name, (u_int)namelen);
 		if (!error)
+gotnoname:
 			error = copyout((caddr_t)&namelen,
 			    (caddr_t)uap->anamelen, sizeof (*uap->anamelen));
 	}
-	m_freem(nam);
+	FREE(sa, M_SONAME);
 	splx(s);
 	return (error);
 }
@@ -300,7 +308,7 @@ connect(p, uap, retval)
 {
 	struct file *fp;
 	register struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *sa;
 	int error, s;
 
 	error = getsock(p->p_fd, uap->s, &fp);
@@ -309,14 +317,14 @@ connect(p, uap, retval)
 	so = (struct socket *)fp->f_data;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING))
 		return (EALREADY);
-	error = sockargs(&nam, uap->name, uap->namelen, MT_SONAME);
+	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
 		return (error);
-	error = soconnect(so, nam, p);
+	error = soconnect(so, sa, p);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
-		m_freem(nam);
+		FREE(sa, M_SONAME);
 		return (EINPROGRESS);
 	}
 	s = splnet();
@@ -333,7 +341,7 @@ connect(p, uap, retval)
 	splx(s);
 bad:
 	so->so_state &= ~SS_ISCONNECTING;
-	m_freem(nam);
+	FREE(sa, M_SONAME);
 	if (error == ERESTART)
 		error = EINTR;
 	return (error);
@@ -418,7 +426,8 @@ sendit(p, s, mp, flags, retsize)
 	struct uio auio;
 	register struct iovec *iov;
 	register int i;
-	struct mbuf *to, *control;
+	struct mbuf *control;
+	struct sockaddr *to;
 	int len, error;
 	struct socket *so;
 #ifdef KTRACE
@@ -441,7 +450,7 @@ sendit(p, s, mp, flags, retsize)
 			return (EINVAL);
 	}
 	if (mp->msg_name) {
-		error = sockargs(&to, mp->msg_name, mp->msg_namelen, MT_SONAME);
+		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
 		if (error)
 			return (error);
 	} else
@@ -488,7 +497,7 @@ sendit(p, s, mp, flags, retsize)
 	len = auio.uio_resid;
 	so = (struct socket *)fp->f_data;
 	error = so->so_proto->pr_usrreqs->pru_sosend(so, to, &auio, 0, control,
-						     flags);
+						     flags, p);
 	if (error) {
 		if (auio.uio_resid != len && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
@@ -508,7 +517,7 @@ sendit(p, s, mp, flags, retsize)
 #endif
 bad:
 	if (to)
-		m_freem(to);
+		FREE(to, M_SONAME);
 	return (error);
 }
 
@@ -659,9 +668,10 @@ recvit(p, s, mp, namelenp, retsize)
 	register struct iovec *iov;
 	register int i;
 	int len, error;
-	struct mbuf *m, *from = 0, *control = 0;
+	struct mbuf *m, *control = 0;
 	caddr_t ctlbuf;
 	struct socket *so;
+	struct sockaddr *fromsa = 0;
 #ifdef KTRACE
 	struct iovec *ktriov = NULL;
 #endif
@@ -691,7 +701,7 @@ recvit(p, s, mp, namelenp, retsize)
 #endif
 	len = auio.uio_resid;
 	so = (struct socket *)fp->f_data;
-	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &from, &auio,
+	error = so->so_proto->pr_usrreqs->pru_soreceive(so, &fromsa, &auio,
 	    (struct mbuf **)0, mp->msg_control ? &control : (struct mbuf **)0,
 	    &mp->msg_flags);
 	if (error) {
@@ -712,18 +722,19 @@ recvit(p, s, mp, namelenp, retsize)
 	*retsize = len - auio.uio_resid;
 	if (mp->msg_name) {
 		len = mp->msg_namelen;
-		if (len <= 0 || from == 0)
+		if (len <= 0 || fromsa == 0)
 			len = 0;
 		else {
 #ifdef COMPAT_OLDSOCK
 			if (mp->msg_flags & MSG_COMPAT)
-				mtod(from, struct osockaddr *)->sa_family =
-				    mtod(from, struct sockaddr *)->sa_family;
+				((struct osockaddr *)fromsa)->sa_family =
+				    fromsa->sa_family;
 #endif
-			if (len > from->m_len)
-				len = from->m_len;
-			/* else if len < from->m_len ??? */
-			error = copyout(mtod(from, caddr_t),
+#ifndef MIN
+#define MIN(a,b) ((a)>(b)?(b):(a))
+#endif
+			len = MIN(len, fromsa->sa_len);
+			error = copyout(fromsa,
 			    (caddr_t)mp->msg_name, (unsigned)len);
 			if (error)
 				goto out;
@@ -786,8 +797,8 @@ recvit(p, s, mp, namelenp, retsize)
 		mp->msg_controllen = ctlbuf - mp->msg_control;
 	}
 out:
-	if (from)
-		m_freem(from);
+	if (fromsa)
+		FREE(fromsa, M_SONAME);
 	if (control)
 		m_freem(control);
 	return (error);
@@ -1084,7 +1095,7 @@ getsockname1(p, uap, retval, compat)
 {
 	struct file *fp;
 	register struct socket *so;
-	struct mbuf *m;
+	struct sockaddr *sa;
 	int len, error;
 
 	error = getsock(p->p_fd, uap->fdes, &fp);
@@ -1094,25 +1105,28 @@ getsockname1(p, uap, retval, compat)
 	if (error)
 		return (error);
 	so = (struct socket *)fp->f_data;
-	m = m_getclr(M_WAIT, MT_SONAME);
-	if (m == NULL)
-		return (ENOBUFS);
-	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, m);
+	sa = 0;
+	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
 	if (error)
 		goto bad;
-	if (len > m->m_len)
-		len = m->m_len;
+	if (sa == 0) {
+		len = 0;
+		goto gotnothing;
+	}
+
+	len = MIN(len, sa->sa_len);
 #ifdef COMPAT_OLDSOCK
 	if (compat)
-		mtod(m, struct osockaddr *)->sa_family =
-		    mtod(m, struct sockaddr *)->sa_family;
+		((struct osockaddr *)sa)->sa_family = sa->sa_family;
 #endif
-	error = copyout(mtod(m, caddr_t), (caddr_t)uap->asa, (u_int)len);
+	error = copyout(sa, (caddr_t)uap->asa, (u_int)len);
 	if (error == 0)
+gotnothing:
 		error = copyout((caddr_t)&len, (caddr_t)uap->alen,
 		    sizeof (len));
 bad:
-	m_freem(m);
+	if (sa)
+		FREE(sa, M_SONAME);
 	return (error);
 }
 
@@ -1155,7 +1169,7 @@ getpeername1(p, uap, retval, compat)
 {
 	struct file *fp;
 	register struct socket *so;
-	struct mbuf *m;
+	struct sockaddr *sa;
 	int len, error;
 
 	error = getsock(p->p_fd, uap->fdes, &fp);
@@ -1167,25 +1181,27 @@ getpeername1(p, uap, retval, compat)
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
 	if (error)
 		return (error);
-	m = m_getclr(M_WAIT, MT_SONAME);
-	if (m == NULL)
-		return (ENOBUFS);
-	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, m);
+	sa = 0;
+	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
 	if (error)
 		goto bad;
-	if (len > m->m_len)
-		len = m->m_len;
+	if (sa == 0) {
+		len = 0;
+		goto gotnothing;
+	}
+	len = MIN(len, sa->sa_len);
 #ifdef COMPAT_OLDSOCK
 	if (compat)
-		mtod(m, struct osockaddr *)->sa_family =
-		    mtod(m, struct sockaddr *)->sa_family;
+		((struct osockaddr *)sa)->sa_family =
+		    sa->sa_family;
 #endif
-	error = copyout(mtod(m, caddr_t), (caddr_t)uap->asa, (u_int)len);
+	error = copyout(sa, (caddr_t)uap->asa, (u_int)len);
 	if (error)
 		goto bad;
+gotnothing:
 	error = copyout((caddr_t)&len, (caddr_t)uap->alen, sizeof (len));
 bad:
-	m_freem(m);
+	if (sa) FREE(sa, M_SONAME);
 	return (error);
 }
 
@@ -1250,6 +1266,32 @@ sockargs(mp, buf, buflen, type)
 		}
 	}
 	return (error);
+}
+
+int
+getsockaddr(namp, uaddr, len)
+	struct sockaddr **namp;
+	caddr_t uaddr;
+	size_t len;
+{
+	struct sockaddr *sa;
+	int error;
+
+	if (len > SOCK_MAXADDRLEN)
+		return ENAMETOOLONG;
+	MALLOC(sa, struct sockaddr *, len, M_SONAME, M_WAITOK);
+	error = copyin(uaddr, sa, len);
+	if (error) {
+		FREE(sa, M_SONAME);
+	} else {
+#if defined(COMPAT_OLDSOCK) && BYTE_ORDER != BIG_ENDIAN
+		if (sa->sa_family == 0 && sa->sa_len < AF_MAX)
+			sa->sa_family = sa->sa_len;
+#endif
+		sa->sa_len = len;
+		*namp = sa;
+	}
+	return error;
 }
 
 int

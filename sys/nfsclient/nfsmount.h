@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsmount.h	8.3 (Berkeley) 3/30/95
- * $Id: nfsmount.h,v 1.11 1997/02/22 09:42:48 peter Exp $
+ * $Id: nfsmount.h,v 1.12 1997/05/10 16:12:03 dfr Exp $
  */
 
 
@@ -56,7 +56,7 @@ struct	nfsmount {
 	int	nm_sotype;		/* Type of socket */
 	int	nm_soproto;		/* and protocol */
 	int	nm_soflags;		/* pr_flags for socket protocol */
-	struct	mbuf *nm_nam;		/* Addr of server */
+	struct	sockaddr *nm_nam;	/* Addr of server */
 	int	nm_timeo;		/* Init timer for NFSMNT_DUMBTIMR */
 	int	nm_retry;		/* Max retries */
 	int	nm_srtt[4];		/* Timers for rpcs */

@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.17 1997/04/19 06:03:30 kato Exp $
+ * $Id: null_vfsops.c,v 1.18 1997/08/02 14:32:05 bde Exp $
  */
 
 /*
@@ -55,7 +55,7 @@
 #include <miscfs/nullfs/null.h>
 
 static int	nullfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct mbuf *nam, struct vnode **vpp,
+				   struct sockaddr *nam, struct vnode **vpp,
 				   int *exflagsp, struct ucred **credanonp));
 static int	nullfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
@@ -387,13 +387,14 @@ static int
 nullfs_fhtovp(mp, fidp, nam, vpp, exflagsp, credanonp)
 	struct mount *mp;
 	struct fid *fidp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred**credanonp;
 {
 
-	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, nam, vpp, exflagsp,credanonp);
+	return VFS_FHTOVP(MOUNTTONULLMOUNT(mp)->nullm_vfs, fidp, nam, 
+			  vpp, exflagsp, credanonp);
 }
 
 static int

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
- * $Id$
+ * $Id: ffs_extern.h,v 1.15 1997/02/22 09:47:02 peter Exp $
  */
 
 #ifndef _UFS_FFS_EXTERN_H
@@ -58,11 +58,10 @@ struct buf;
 struct fid;
 struct fs;
 struct inode;
-struct mbuf;
 struct mount;
+struct sockaddr;
 struct statfs;
 struct vnode;
-struct mbuf;
 
 int	ffs_alloc __P((struct inode *,
 	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));
@@ -73,7 +72,7 @@ void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
 ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
 void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
-int	ffs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
+int	ffs_fhtovp __P((struct mount *, struct fid *, struct sockaddr *,
 	    struct vnode **, int *, struct ucred **));
 int	ffs_flushfiles __P((struct mount *, int, struct proc *));
 void	ffs_fragacct __P((struct fs *, int, int32_t [], int));

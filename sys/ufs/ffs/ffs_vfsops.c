@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.51 1997/03/23 20:08:19 guido Exp $
+ * $Id: ffs_vfsops.c,v 1.52 1997/03/24 11:25:07 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -1046,7 +1046,7 @@ int
 ffs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

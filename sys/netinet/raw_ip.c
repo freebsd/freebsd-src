@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.46 1997/05/22 20:52:56 fenner Exp $
+ *	$Id: raw_ip.c,v 1.47 1997/08/02 14:32:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -440,12 +440,12 @@ rip_disconnect(struct socket *so)
 }
 
 static int
-rip_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+rip_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
-	struct sockaddr_in *addr = mtod(nam, struct sockaddr_in *);
+	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 
-	if (nam->m_len != sizeof(*addr))
+	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 
 	if (TAILQ_EMPTY(&ifnet) || ((addr->sin_family != AF_INET) &&
@@ -458,12 +458,12 @@ rip_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 }
 
 static int
-rip_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+rip_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
-	struct sockaddr_in *addr = mtod(nam, struct sockaddr_in *);
+	struct sockaddr_in *addr = (struct sockaddr_in *)nam;
 
-	if (nam->m_len != sizeof(*addr))
+	if (nam->sa_len != sizeof(*addr))
 		return EINVAL;
 	if (TAILQ_EMPTY(&ifnet))
 		return EADDRNOTAVAIL;
@@ -483,7 +483,7 @@ rip_shutdown(struct socket *so)
 }
 
 static int
-rip_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+rip_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	 struct mbuf *control, struct proc *p)
 {
 	struct inpcb *inp = sotoinpcb(so);
@@ -500,7 +500,7 @@ rip_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
 			m_freem(m);
 			return ENOTCONN;
 		}
-		dst = mtod(nam, struct sockaddr_in *)->sin_addr.s_addr;
+		dst = ((struct sockaddr_in *)nam)->sin_addr.s_addr;
 	}
 	return rip_output(m, so, dst);
 }

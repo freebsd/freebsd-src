@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.58 1997/04/27 20:01:13 wollman Exp $
+ *	$Id: tcp_input.c,v 1.59 1997/07/01 05:42:16 jdp Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -640,11 +640,10 @@ findpcb:
 		if (m->m_flags & (M_BCAST|M_MCAST) ||
 		    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 			goto drop;
-		am = m_get(M_DONTWAIT, MT_SONAME);	/* XXX */
-		if (am == NULL)
+		MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+		       M_NOWAIT);
+		if (sin == NULL)
 			goto drop;
-		am->m_len = sizeof (struct sockaddr_in);
-		sin = mtod(am, struct sockaddr_in *);
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = ti->ti_src;
@@ -653,12 +652,12 @@ findpcb:
 		laddr = inp->inp_laddr;
 		if (inp->inp_laddr.s_addr == INADDR_ANY)
 			inp->inp_laddr = ti->ti_dst;
-		if (in_pcbconnect(inp, am, &proc0)) { /* XXX creds */
+		if (in_pcbconnect(inp, (struct sockaddr *)sin, &proc0)) {
 			inp->inp_laddr = laddr;
-			(void) m_free(am);
+			FREE(sin, M_SONAME);
 			goto drop;
 		}
-		(void) m_free(am);
+		FREE(sin, M_SONAME);
 		tp->t_template = tcp_template(tp);
 		if (tp->t_template == 0) {
 			tp = tcp_drop(tp, ENOBUFS);

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.43 1997/06/03 17:22:47 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.44 1997/06/27 19:10:46 wpaul Exp $
  */
 
 #include <sys/param.h>
@@ -86,7 +86,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
 
 static int	nfs_iosize __P((struct nfsmount *nmp));
 static int	mountnfs __P((struct nfs_args *,struct mount *,
-			struct mbuf *,char *,char *,struct vnode **));
+			struct sockaddr *,char *,char *,struct vnode **));
 static int	nfs_mount __P(( struct mount *mp, char *path, caddr_t data,
 			struct nameidata *ndp, struct proc *p));
 static int	nfs_start __P(( struct mount *mp, int flags,
@@ -102,7 +102,7 @@ static int	nfs_sync __P(( struct mount *mp, int waitfor,
 			struct ucred *cred, struct proc *p));
 static int	nfs_vptofh __P(( struct vnode *vp, struct fid *fhp));
 static int	nfs_fhtovp __P((struct mount *mp, struct fid *fhp,
-			struct mbuf *nam, struct vnode **vpp,
+			struct sockaddr *nam, struct vnode **vpp,
 			int *exflagsp, struct ucred **credanonp));
 static int	nfs_vget __P((struct mount *, ino_t, struct vnode **));
 
@@ -557,25 +557,24 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	struct mount **mpp;
 {
 	struct mount *mp;
-	struct mbuf *m;
+	struct sockaddr *nam;
 	int error;
 
 	mp = *mpp;
 
-	if (!mp && ( error = vfs_rootmountalloc("nfs", path, &mp))) {
+	if (!mp && (error = vfs_rootmountalloc("nfs", path, &mp))) {
 		printf("nfs_mountroot: NFS not configured");
 		return (error);
 	}
 
 	mp->mnt_flag = mountflag;
-	MGET(m, MT_SONAME, M_WAITOK);
-	bcopy((caddr_t)sin, mtod(m, caddr_t), sin->sin_len);
-	m->m_len = sin->sin_len;
-	if (error = mountnfs(args, mp, m, which, path, vpp)) {
+	nam = dup_sockaddr((struct sockaddr *)sin, 1);
+	if (error = mountnfs(args, mp, nam, which, path, vpp)) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
 		mp->mnt_vfc->vfc_refcount--;
 		vfs_unbusy(mp, p);
 		free(mp, M_MOUNT);
+		FREE(nam, M_SONAME);
 		return (error);
 	}
 	(void) copystr(which, mp->mnt_stat.f_mntonname, MNAMELEN - 1, 0);
@@ -603,7 +602,7 @@ nfs_mount(mp, path, data, ndp, p)
 {
 	int error;
 	struct nfs_args args;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode *vp;
 	char pth[MNAMELEN], hst[MNAMELEN];
 	u_int len;
@@ -644,7 +643,7 @@ nfs_mount(mp, path, data, ndp, p)
 		return (error);
 	bzero(&hst[len], MNAMELEN - len);
 	/* sockargs() call must be after above copyin() calls */
-	error = sockargs(&nam, (caddr_t)args.addr, args.addrlen, MT_SONAME);
+	error = getsockaddr(&nam, (caddr_t)args.addr, args.addrlen);
 	if (error)
 		return (error);
 	args.fh = nfh;
@@ -659,7 +658,7 @@ static int
 mountnfs(argp, mp, nam, pth, hst, vpp)
 	register struct nfs_args *argp;
 	register struct mount *mp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	char *pth, *hst;
 	struct vnode **vpp;
 {
@@ -671,7 +670,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		/* update paths, file handles, etc, here	XXX */
-		m_freem(nam);
+		FREE(nam, M_SONAME);
 		return (0);
 	} else {
 		MALLOC(nmp, struct nfsmount *, sizeof (struct nfsmount),
@@ -829,7 +828,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 bad:
 	nfs_disconnect(nmp);
 	free((caddr_t)nmp, M_NFSMNT);
-	m_freem(nam);
+	FREE(nam, M_SONAME);
 	return (error);
 }
 
@@ -900,7 +899,7 @@ nfs_unmount(mp, mntflags, p)
 	vrele(vp);
 	vgone(vp);
 	nfs_disconnect(nmp);
-	m_freem(nmp->nm_nam);
+	FREE(nmp->nm_nam, M_SONAME);
 
 	if ((nmp->nm_flag & (NFSMNT_NQNFS | NFSMNT_KERB)) == 0)
 		free((caddr_t)nmp, M_NFSMNT);
@@ -996,7 +995,7 @@ static int
 nfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

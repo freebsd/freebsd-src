@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
- * $Id: ufs_vfsops.c,v 1.8 1997/02/22 09:47:52 peter Exp $
+ * $Id: ufs_vfsops.c,v 1.9 1997/08/02 14:33:24 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -187,7 +187,7 @@ int
 ufs_check_export(mp, ufhp, nam, vpp, exflagsp, credanonp)
 	register struct mount *mp;
 	struct ufid *ufhp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct vnode **vpp;
 	int *exflagsp;
 	struct ucred **credanonp;

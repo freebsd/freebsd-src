@@ -1,11 +1,11 @@
 /*	$NetBSD: krpc.h,v 1.4 1995/12/19 23:07:11 cgd Exp $	*/
-/*	$Id: krpc.h,v 1.2 1997/05/11 18:05:39 tegge Exp $	*/
+/*	$Id: krpc.h,v 1.3 1997/06/12 14:03:16 tegge Exp $	*/
 
 #include <sys/cdefs.h>
 
 int krpc_call __P((struct sockaddr_in *sin,
 	u_int prog, u_int vers, u_int func,
-	struct mbuf **data, struct mbuf **from, struct proc *procp));
+	struct mbuf **data, struct sockaddr **from, struct proc *procp));
 
 int krpc_portmap __P((struct sockaddr_in *sin,
 	u_int prog, u_int vers, u_int16_t *portp,struct proc *procp));

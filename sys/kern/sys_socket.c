@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.13 1997/04/27 20:00:42 wollman Exp $
+ * $Id: sys_socket.c,v 1.14 1997/08/02 14:31:36 bde Exp $
  */
 
 #include <sys/param.h>
@@ -75,7 +75,8 @@ soo_write(fp, uio, cred)
 	struct ucred *cred;
 {
 	struct socket *so = (struct socket *)fp->f_data;
-	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0);
+	return so->so_proto->pr_usrreqs->pru_sosend(so, 0, uio, 0, 0, 0,
+						    uio->uio_procp);
 }
 
 int

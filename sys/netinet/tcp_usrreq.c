@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.31 1997/04/27 20:01:14 wollman Exp $
+ *	$Id: tcp_usrreq.c,v 1.32 1997/08/02 14:32:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -67,7 +67,7 @@
 extern	char *tcpstates[];	/* XXX ??? */
 
 static int	tcp_attach __P((struct socket *, struct proc *));
-static int	tcp_connect __P((struct tcpcb *, struct mbuf *, 
+static int	tcp_connect __P((struct tcpcb *, struct sockaddr *, 
 				 struct proc *));
 static struct tcpcb *
 		tcp_disconnect __P((struct tcpcb *));
@@ -139,10 +139,7 @@ tcp_usr_detach(struct socket *so)
 	}
 	tp = intotcpcb(inp);
 	TCPDEBUG1();
-	if (tp->t_state > TCPS_LISTEN)
-		tp = tcp_disconnect(tp);
-	else
-		tp = tcp_close(tp);
+	tp = tcp_disconnect(tp);
 
 	TCPDEBUG2(PRU_DETACH);
 	splx(s);
@@ -166,7 +163,7 @@ tcp_usr_detach(struct socket *so)
  * Give the socket an address.
  */
 static int
-tcp_usr_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -180,7 +177,7 @@ tcp_usr_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 	 * Must check for multicast addresses and disallow binding
 	 * to them.
 	 */
-	sinp = mtod(nam, struct sockaddr_in *);
+	sinp = (struct sockaddr_in *)nam;
 	if (sinp->sin_family == AF_INET &&
 	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
 		error = EAFNOSUPPORT;
@@ -206,7 +203,7 @@ tcp_usr_listen(struct socket *so, struct proc *p)
 
 	COMMON_START();
 	if (inp->inp_lport == 0)
-		error = in_pcbbind(inp, (struct mbuf *)0, p);
+		error = in_pcbbind(inp, (struct sockaddr *)0, p);
 	if (error == 0)
 		tp->t_state = TCPS_LISTEN;
 	COMMON_END(PRU_LISTEN);
@@ -220,7 +217,7 @@ tcp_usr_listen(struct socket *so, struct proc *p)
  * Send initial segment on connection.
  */
 static int
-tcp_usr_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -233,7 +230,7 @@ tcp_usr_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 	/*
 	 * Must disallow TCP ``connections'' to multicast addresses.
 	 */
-	sinp = mtod(nam, struct sockaddr_in *);
+	sinp = (struct sockaddr_in *)nam;
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
 		error = EAFNOSUPPORT;
@@ -276,7 +273,7 @@ tcp_usr_disconnect(struct socket *so)
  * of the peer, storing through addr.
  */
 static int
-tcp_usr_accept(struct socket *so, struct mbuf *nam)
+tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 {
 	int s = splnet();
 	int error = 0;
@@ -328,8 +325,8 @@ tcp_usr_rcvd(struct socket *so, int flags)
  * marker if URG set.  Possibly send more data.
  */
 static int
-tcp_usr_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
-	     struct mbuf *control, struct proc *p)
+tcp_usr_send(struct socket *so, int flags, struct mbuf *m, 
+	     struct sockaddr *nam, struct mbuf *control, struct proc *p)
 {
 	int s = splnet();
 	int error = 0;
@@ -475,20 +472,20 @@ struct pr_usrreqs tcp_usrreqs = {
 static int
 tcp_connect(tp, nam, p)
 	register struct tcpcb *tp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
 	struct inpcb *inp = tp->t_inpcb, *oinp;
 	struct socket *so = inp->inp_socket;
 	struct tcpcb *otp;
-	struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
+	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct sockaddr_in *ifaddr;
 	int error;
 	struct rmxp_tao *taop;
 	struct rmxp_tao tao_noncached;
 
 	if (inp->inp_lport == 0) {
-		error = in_pcbbind(inp, (struct mbuf *)0, p);
+		error = in_pcbbind(inp, (struct sockaddr *)0, p);
 		if (error)
 			return error;
 	}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.18 1997/05/24 17:23:10 peter Exp $
+ *	$Id: protosw.h,v 1.19 1997/05/27 06:17:22 charnier Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -40,6 +40,7 @@
 /* Forward declare these structures referenced from prototypes below. */
 struct ifnet;
 struct mbuf;
+struct proc;
 struct sockaddr;
 struct socket;
 struct sockproto;
@@ -47,6 +48,7 @@ struct stat;
 struct uio;
 struct proc;
 
+/*#ifdef KERNEL*/
 /*
  * Protocol switch table.
  *
@@ -96,6 +98,7 @@ struct protosw {
 					/* flush any excess space possible */
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
 };
+/*#endif*/
 
 #define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
 #define	PR_FASTHZ	5		/* 5 fast timeouts per second */
@@ -177,12 +180,12 @@ char *prurequests[] = {
  */
 struct pr_usrreqs {
 	int	(*pru_abort) __P((struct socket *so));
-	int	(*pru_accept) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_accept) __P((struct socket *so, struct sockaddr **nam));
 	int	(*pru_attach) __P((struct socket *so, int proto,
 				   struct proc *p));
-	int	(*pru_bind) __P((struct socket *so, struct mbuf *nam,
+	int	(*pru_bind) __P((struct socket *so, struct sockaddr *nam,
 				 struct proc *p));
-	int	(*pru_connect) __P((struct socket *so, struct mbuf *nam,
+	int	(*pru_connect) __P((struct socket *so, struct sockaddr *nam,
 				    struct proc *p));
 	int	(*pru_connect2) __P((struct socket *so1, struct socket *so2));
 	int	(*pru_control) __P((struct socket *so, int cmd, caddr_t data,
@@ -190,18 +193,20 @@ struct pr_usrreqs {
 	int	(*pru_detach) __P((struct socket *so));
 	int	(*pru_disconnect) __P((struct socket *so));
 	int	(*pru_listen) __P((struct socket *so, struct proc *p));
-	int	(*pru_peeraddr) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_peeraddr) __P((struct socket *so, 
+				     struct sockaddr **nam));
 	int	(*pru_rcvd) __P((struct socket *so, int flags));
 	int	(*pru_rcvoob) __P((struct socket *so, struct mbuf *m,
 				   int flags));
 	int	(*pru_send) __P((struct socket *so, int flags, struct mbuf *m, 
-				 struct mbuf *addr, struct mbuf *control,
+				 struct sockaddr *addr, struct mbuf *control,
 				 struct proc *p));
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 	int	(*pru_sense) __P((struct socket *so, struct stat *sb));
 	int	(*pru_shutdown) __P((struct socket *so));
-	int	(*pru_sockaddr) __P((struct socket *so, struct mbuf *nam));
+	int	(*pru_sockaddr) __P((struct socket *so, 
+				     struct sockaddr **nam));
 	 
 	/*
 	 * These three added later, so they are out of order.  They are used
@@ -211,18 +216,20 @@ struct pr_usrreqs {
 	 * through these entry points.  For protocols which still use
 	 * the generic code, these just point to those routines.
 	 */
-	int	(*pru_sosend) __P((struct socket *so, struct mbuf *addr,
+	int	(*pru_sosend) __P((struct socket *so, struct sockaddr *addr,
 				   struct uio *uio, struct mbuf *top,
-				   struct mbuf *control, int flags));
-	int	(*pru_soreceive) __P((struct socket *so, struct mbuf **paddr,
+				   struct mbuf *control, int flags,
+				   struct proc *p));
+	int	(*pru_soreceive) __P((struct socket *so, 
+				      struct sockaddr **paddr,
 				      struct uio *uio, struct mbuf **mp0,
 				      struct mbuf **controlp, int *flagsp));
 	int	(*pru_soselect) __P((struct socket *so, int which,
 				     struct proc *p));
 };
 
-int	pru_accept_notsupp __P((struct socket *so, struct mbuf *nam));
-int	pru_connect_notsupp __P((struct socket *so, struct mbuf *nam,
+int	pru_accept_notsupp __P((struct socket *so, struct sockaddr **nam));
+int	pru_connect_notsupp __P((struct socket *so, struct sockaddr *nam,
 				 struct proc *p));
 int	pru_connect2_notsupp __P((struct socket *so1, struct socket *so2));
 int	pru_control_notsupp __P((struct socket *so, int cmd, caddr_t data,

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.18 1997/07/14 04:30:22 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.19 1997/08/02 14:31:55 bde Exp $
  *
  *
  */
@@ -284,7 +284,7 @@ DBPRINT(("vget "));
  */
 
 static int
-devfs_fhtovp (struct mount *mp, struct fid *fhp, struct mbuf *nam,
+devfs_fhtovp (struct mount *mp, struct fid *fhp, struct sockaddr *nam,
 	      struct vnode **vpp, int *exflagsp, struct ucred **credanonp)
 {
 DBPRINT(("fhtovp "));

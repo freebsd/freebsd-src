@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.22 1997/03/23 03:36:33 bde Exp $
+ *	$Id: uipc_usrreq.c,v 1.23 1997/04/27 20:00:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -67,8 +67,9 @@ static ino_t	unp_ino;		/* prototype for fake inode numbers */
 
 static int     unp_attach __P((struct socket *));
 static void    unp_detach __P((struct unpcb *));
-static int     unp_bind __P((struct unpcb *,struct mbuf *, struct proc *));
-static int     unp_connect __P((struct socket *,struct mbuf *, struct proc *));
+static int     unp_bind __P((struct unpcb *,struct sockaddr *, struct proc *));
+static int     unp_connect __P((struct socket *,struct sockaddr *,
+				struct proc *));
 static void    unp_disconnect __P((struct unpcb *));
 static void    unp_shutdown __P((struct unpcb *));
 static void    unp_drop __P((struct unpcb *, int));
@@ -90,7 +91,7 @@ uipc_abort(struct socket *so)
 }
 
 static int
-uipc_accept(struct socket *so, struct mbuf *nam)
+uipc_accept(struct socket *so, struct sockaddr **nam)
 {
 	struct unpcb *unp = sotounpcb(so);
 
@@ -103,12 +104,10 @@ uipc_accept(struct socket *so, struct mbuf *nam)
 	 * (our peer may have closed already!).
 	 */
 	if (unp->unp_conn && unp->unp_conn->unp_addr) {
-		nam->m_len = unp->unp_conn->unp_addr->m_len;
-		bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
-		      mtod(nam, caddr_t), (unsigned)nam->m_len);
+		*nam = dup_sockaddr((struct sockaddr *)unp->unp_conn->unp_addr,
+				    1);
 	} else {
-		nam->m_len = sizeof(sun_noname);
-		*(mtod(nam, struct sockaddr *)) = sun_noname;
+		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
 	}
 	return 0;
 }
@@ -124,7 +123,7 @@ uipc_attach(struct socket *so, int proto, struct proc *p)
 }
 
 static int
-uipc_bind(struct socket *so, struct mbuf *nam, struct proc *p)
+uipc_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct unpcb *unp = sotounpcb(so);
 
@@ -135,7 +134,7 @@ uipc_bind(struct socket *so, struct mbuf *nam, struct proc *p)
 }
 
 static int
-uipc_connect(struct socket *so, struct mbuf *nam, struct proc *p)
+uipc_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 {
 	struct unpcb *unp = sotounpcb(so);
 
@@ -191,18 +190,15 @@ uipc_listen(struct socket *so, struct proc *p)
 }
 
 static int
-uipc_peeraddr(struct socket *so, struct mbuf *nam)
+uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct unpcb *unp = sotounpcb(so);
 
 	if (unp == 0)
 		return EINVAL;
-	if (unp->unp_conn && unp->unp_conn->unp_addr) {
-		nam->m_len = unp->unp_conn->unp_addr->m_len;
-		bcopy(mtod(unp->unp_conn->unp_addr, caddr_t),
-		      mtod(nam, caddr_t), (unsigned)nam->m_len);
-	} else
-		nam->m_len = 0;
+	if (unp->unp_conn && unp->unp_conn->unp_addr)
+		*nam = dup_sockaddr((struct sockaddr *)unp->unp_conn->unp_addr,
+				    1);
 	return 0;
 }
 
@@ -247,7 +243,7 @@ uipc_rcvd(struct socket *so, int flags)
 /* pru_rcvoob is EOPNOTSUPP */
 
 static int
-uipc_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
+uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	  struct mbuf *control, struct proc *p)
 {
 	int error = 0;
@@ -287,7 +283,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct mbuf *nam,
 		}
 		so2 = unp->unp_conn->unp_socket;
 		if (unp->unp_addr)
-			from = mtod(unp->unp_addr, struct sockaddr *);
+			from = (struct sockaddr *)unp->unp_addr;
 		else
 			from = &sun_noname;
 		if (sbappendaddr(&so2->so_rcv, from, m, control)) {
@@ -402,18 +398,14 @@ uipc_shutdown(struct socket *so)
 }
 
 static int
-uipc_sockaddr(struct socket *so, struct mbuf *nam)
+uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct unpcb *unp = sotounpcb(so);
 
 	if (unp == 0)
 		return EINVAL;
-	if (unp->unp_addr) {
-		nam->m_len = unp->unp_addr->m_len;
-		bcopy(mtod(unp->unp_addr, caddr_t),
-		      mtod(nam, caddr_t), (unsigned)nam->m_len);
-	} else
-		nam->m_len = 0;
+	if (unp->unp_addr)
+		*nam = dup_sockaddr((struct sockaddr *)unp->unp_addr, 1);
 	return 0;
 }
 
@@ -478,10 +470,10 @@ unp_attach(so)
 		if (error)
 			return (error);
 	}
-	m = m_getclr(M_DONTWAIT, MT_PCB);
-	if (m == NULL)
+	MALLOC(unp, struct unpcb *, sizeof *unp, M_PCB, M_NOWAIT);
+	if (unp == NULL)
 		return (ENOBUFS);
-	unp = mtod(m, struct unpcb *);
+	bzero(unp, sizeof *unp);
 	so->so_pcb = (caddr_t)unp;
 	unp->unp_socket = so;
 	return (0);
@@ -491,7 +483,6 @@ static void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
-
 	if (unp->unp_vnode) {
 		unp->unp_vnode->v_socket = 0;
 		vrele(unp->unp_vnode);
@@ -514,31 +505,34 @@ unp_detach(unp)
 		sorflush(unp->unp_socket);
 		unp_gc();
 	}
-	m_freem(unp->unp_addr);
-	(void) m_free(dtom(unp));
+	if (unp->unp_addr)
+		FREE(unp->unp_addr, M_SONAME);
+	FREE(unp, M_PCB);
 }
 
 static int
 unp_bind(unp, nam, p)
 	struct unpcb *unp;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
-	struct sockaddr_un *soun = mtod(nam, struct sockaddr_un *);
+	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	register struct vnode *vp;
 	struct vattr vattr;
-	int error;
+	int error, namelen;
 	struct nameidata nd;
+	char buf[SOCK_MAXADDRLEN];
 
-	NDINIT(&nd, CREATE, FOLLOW | LOCKPARENT, UIO_SYSSPACE,
-	    soun->sun_path, p);
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
-	if (nam->m_len == MLEN) {
-		if (*(mtod(nam, caddr_t) + nam->m_len - 1) != 0)
-			return (EINVAL);
-	} else
-		*(mtod(nam, caddr_t) + nam->m_len) = 0;
+#define offsetof(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
+	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
+	if (namelen <= 0)
+		return EINVAL;
+	strncpy(buf, soun->sun_path, namelen);
+	buf[namelen] = 0;	/* null-terminate the string */
+	NDINIT(&nd, CREATE, FOLLOW | LOCKPARENT, UIO_SYSSPACE,
+	    buf, p);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
@@ -562,7 +556,7 @@ unp_bind(unp, nam, p)
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
-	unp->unp_addr = m_copy(nam, 0, (int)M_COPYALL);
+	unp->unp_addr = (struct sockaddr_un *)dup_sockaddr(nam, 1);
 	VOP_UNLOCK(vp, 0, p);
 	return (0);
 }
@@ -570,22 +564,24 @@ unp_bind(unp, nam, p)
 static int
 unp_connect(so, nam, p)
 	struct socket *so;
-	struct mbuf *nam;
+	struct sockaddr *nam;
 	struct proc *p;
 {
-	register struct sockaddr_un *soun = mtod(nam, struct sockaddr_un *);
+	register struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	register struct vnode *vp;
 	register struct socket *so2, *so3;
 	struct unpcb *unp2, *unp3;
-	int error;
+	int error, len;
 	struct nameidata nd;
+	char buf[SOCK_MAXADDRLEN];
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, soun->sun_path, p);
-	if (nam->m_data + nam->m_len == &nam->m_dat[MLEN]) {	/* XXX */
-		if (*(mtod(nam, caddr_t) + nam->m_len - 1) != 0)
-			return (EMSGSIZE);
-	} else
-		*(mtod(nam, caddr_t) + nam->m_len) = 0;
+	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
+	if (len <= 0)
+		return EINVAL;
+	strncpy(buf, soun->sun_path, len);
+	buf[len] = 0;
+
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -615,8 +611,9 @@ unp_connect(so, nam, p)
 		unp2 = sotounpcb(so2);
 		unp3 = sotounpcb(so3);
 		if (unp2->unp_addr)
-			unp3->unp_addr =
-				  m_copy(unp2->unp_addr, 0, (int)M_COPYALL);
+			unp3->unp_addr = (struct sockaddr_un *)
+				dup_sockaddr((struct sockaddr *)
+					     unp2->unp_addr, 1);
 		so2 = so3;
 	}
 	error = unp_connect2(so, so2);
@@ -726,8 +723,9 @@ unp_drop(unp, errno)
 	unp_disconnect(unp);
 	if (so->so_head) {
 		so->so_pcb = (caddr_t) 0;
-		m_freem(unp->unp_addr);
-		(void) m_free(dtom(unp));
+		if (unp->unp_addr)
+			FREE(unp->unp_addr, M_SONAME);
+		FREE(unp, M_PCB);
 		sofree(so);
 	}
 }
