@@ -42,7 +42,7 @@ static char common_termcap[] = "\
 :le=^H:eo:sf=\\E[S:sr=\\E[T:\
 :kN=\\E[G:kP=\\E[I:@7=\\E[F:kI=\\E[L:kD=\\177:kB=\\E[Z:\
 :IC=\\E[%d@:DC=\\E[%dP:SF=\\E[%dS:SR=\\E[%dT:AL=\\E[%dL:DL=\\E[%dM:\
-:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:bw:\
+:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:ec=\\E[%dX:cv=\\E[%dd:ch=\\E[%d`:bw:\
 :mb=\\E[5m:mr=\\E[7m:me=\\E[m:bl=^G:ut:it#8:";
 
 static int
