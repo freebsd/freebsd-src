@@ -34,7 +34,7 @@
 #ifndef _NETKEY_KEYSOCK_H_
 #define	_NETKEY_KEYSOCK_H_
 
-#if defined(KERNEL)
+#ifdef _KERNEL
 struct keycb {
 	struct	rawcb kp_raw;	/* rawcb */
 	int	kp_promisc;		/* promiscuous mode */
@@ -51,6 +51,6 @@ extern int	key_usrreq __P((struct socket *, int, struct mbuf *,
 
 extern int	key_sendup __P((struct socket *, struct sadb_msg *, u_int,
 				int));
-#endif /* defined(KERNEL) */
+#endif /* _KERNEL */
 
 #endif _NETKEY_KEYSOCK_H_

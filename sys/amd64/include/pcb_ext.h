@@ -51,7 +51,7 @@ struct pcb_ldt {
 	struct	segment_descriptor ldt_sd;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef USER_LDT
 void set_user_ldt __P((struct pcb *));

@@ -72,7 +72,7 @@
 #	define	INTRCNT_KN300_I2C_CTRL	INTRCNT_KN300_IRQ + 17
 #	define	INTRCNT_KN300_I2C_BUS	INTRCNT_KN300_IRQ + 18
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef _LOCORE
 extern volatile long intrcnt[];
 #endif

@@ -20,7 +20,7 @@
  *
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -30,7 +30,7 @@
 #include <sys/malloc.h>
 
 #include <i386/isa/isa_device.h>
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 typedef TAILQ_HEAD(, datapoint) dphead_t;
 
@@ -95,7 +95,7 @@ struct datapoint {
 
 #define PGUARD 990             /* program guard time (cycle) (990!) */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define NLORAN	10		/* Allow ten minor devices */
 
@@ -642,4 +642,4 @@ static struct cdevsw loran_cdevsw = {
 	/* bmaj */	-1
 };
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

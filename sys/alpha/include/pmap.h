@@ -107,14 +107,14 @@ typedef alpha_pt_entry_t pt_entry_t;
 /*
  * Address of current address space page table maps
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 extern pt_entry_t PTmap[];	/* lev3 page tables */
 extern pt_entry_t PTlev2[];	/* lev2 page tables */
 extern pt_entry_t PTlev1[];	/* lev1 page table */
 extern pt_entry_t PTlev1pte;	/* pte that maps lev1 page table */
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * virtual address to page table entry and
  * to physical address.
@@ -152,7 +152,7 @@ alpha_XXX_dmamap(vm_offset_t va)
        return (pmap_kextract(va) | alpha_XXX_dmamap_or);
 }
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Pmap stuff
@@ -188,7 +188,7 @@ struct pmap {
 
 typedef struct pmap	*pmap_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern pmap_t		kernel_pmap;
 #endif
 
@@ -209,7 +209,7 @@ typedef struct pv_entry {
 #define	PV_CI		0x01	/* all entries must be cache inhibited */
 #define	PV_PTPAGE	0x02	/* entry maps a page table page */
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 
 extern caddr_t	CADDR1;
 extern pt_entry_t *CMAP1;
@@ -235,7 +235,7 @@ void	pmap_set_opt_bsp	__P((void));
 void	pmap_deactivate __P((struct proc *p));
 void	pmap_emulate_reference __P((struct proc *p, vm_offset_t v, int user, int write));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !LOCORE */
 

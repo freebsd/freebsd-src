@@ -124,7 +124,7 @@
 	{ "wall_cmos_clock", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int	astpending;
 extern char	btext[];
 extern char	etext[];

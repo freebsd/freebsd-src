@@ -69,10 +69,10 @@ in_cksum_update(struct ip *ip)
 #endif
 
 typedef	unsigned in_psum_t;
-#ifdef KERNEL
+#ifdef _KERNEL
 u_int in_cksum_hdr(const struct ip *ip);
 in_psum_t in_cksum_partial(in_psum_t psum, const u_short *w, int len);
 int	in_cksum_finalize(in_psum_t psum);
-#endif /* KERNEL */
+#endif
 
 #endif /* _MACHINE_IN_CKSUM_H_ */

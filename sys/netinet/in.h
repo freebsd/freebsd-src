@@ -267,7 +267,7 @@ struct in_addr {
 #define	INADDR_ANY		(u_int32_t)0x00000000
 #define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
 #define	INADDR_BROADCAST	(u_int32_t)0xffffffff	/* must be masked */
-#ifndef KERNEL
+#ifndef _KERNEL
 #define	INADDR_NONE		0xffffffff		/* -1 return */
 #endif
 
@@ -444,7 +444,7 @@ struct ip_mreq {
 /* INET6 stuff */
 #include <netinet6/in6.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct ifnet; struct mbuf;	/* forward declarations for Standard C */
 struct proc;
 
@@ -457,6 +457,6 @@ char 	*inet_ntoa __P((struct in_addr)); /* in libkern */
 int	prison_ip __P((struct proc *p, int flag, u_int32_t *ip));
 void	prison_remote_ip __P((struct proc *p, int flag, u_int32_t *ip));
 
-#endif /* KERNEL */
+#endif
 
 #endif

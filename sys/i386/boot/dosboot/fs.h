@@ -461,5 +461,5 @@ extern void setblock(struct fs *, u_char *, daddr_t);
 extern ino_t dirpref(struct fs *);
 extern daddr_t mapsearch(struct fs *, struct cg *, daddr_t, int);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 #endif /* _UFS_FS_H_ */

@@ -32,7 +32,7 @@
 #ifndef _NET_IF_VLAN_VAR_H_
 #define	_NET_IF_VLAN_VAR_H_	1
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct vlan_mc_entry {
 	struct ether_addr		mc_addr;
 	SLIST_ENTRY(vlan_mc_entry)	mc_entries;
@@ -50,7 +50,7 @@ struct	ifvlan {
 };
 #define	ifv_if	ifv_ac.ac_if
 #define	ifv_tag	ifv_mib.ifvm_tag
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 struct	ether_vlan_header {
 	u_char	evl_dhost[ETHER_ADDR_LEN];
@@ -81,7 +81,7 @@ struct	vlanreq {
 #define	SIOCSETVLAN	SIOCSIFGENERIC
 #define	SIOCGETVLAN	SIOCGIFGENERIC
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /* shared with if_ethersubr.c: */
 extern	u_int vlan_proto;
 extern	int vlan_input(struct ether_header *eh, struct mbuf *m);

@@ -39,7 +39,7 @@
  *
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #if !defined(KLD_MODULE)
 #include "opt_posix.h"
@@ -93,5 +93,5 @@
 #define _P1003_1B_VISIBLE_HISTORICALLY
 #endif
 
-#endif /* not KERNEL */
+#endif /* _KERNEL */
 #endif /* _SYS__POSIX_H_ */

@@ -50,7 +50,7 @@ struct ncp_nlstables {
 	int	opt;		/* may depend on context */
 };
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /*
  * NLS, supported character conversion schemes.
  * NCP_NLS_UNIXCHARSET_NETWARECHARSET
@@ -74,7 +74,7 @@ char* ncp_nls_mem_u2n(char *dst, const char *src, int size);
 
 __END_DECLS
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 
 extern struct ncp_nlstables ncp_defnls;
@@ -85,6 +85,6 @@ void ncp_pathcopy(char *src, char *dst, int len, struct ncp_nlstables *nt);
 int  ncp_pathcheck(char *s, int len, struct ncp_nlstables *nt, int strict);
 void ncp_path2unix(char *src, char *dst, int len, struct ncp_nlstables *nt);
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* _NCP_NCP_NLS_H_ */

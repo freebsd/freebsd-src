@@ -66,7 +66,7 @@ struct callout_handle {
 	struct callout *callout;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct callout_list callfree;
 extern struct callout *callout;
 extern int	ncallout;
@@ -80,6 +80,6 @@ void	callout_init __P((struct callout *));
 void	callout_reset __P((struct callout *, int, void (*)(void *), void *));
 void	callout_stop __P((struct callout *));
 
-#endif /* KERNEL */
+#endif
 
 #endif /* _SYS_CALLOUT_H_ */

@@ -12,7 +12,7 @@
 #ifndef	_SYS_INFLATE_H_
 #define	_SYS_INFLATE_H_
 
-#if defined(KERNEL) || defined(KZIP)
+#if defined(_KERNEL) || defined(KZIP)
 
 #define GZ_EOF -1
 
@@ -48,6 +48,6 @@ struct inflate {
 
 int inflate     __P((struct inflate *));
 
-#endif	/* KERNEL || KZIP */
+#endif	/* _KERNEL || KZIP */
 
 #endif	/* ! _SYS_INFLATE_H_ */

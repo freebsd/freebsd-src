@@ -129,7 +129,7 @@ struct bpf_hdr {
  * will insist on inserting padding; hence, sizeof(struct bpf_hdr) won't work.
  * Only the kernel needs to know about it; applications use bh_hdrlen.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	SIZEOF_BPF_HDR	(sizeof(struct bpf_hdr) <= 20 ? 18 : \
     sizeof(struct bpf_hdr))
 #endif
@@ -225,7 +225,7 @@ struct bpf_insn {
 #define BPF_STMT(code, k) { (u_short)(code), 0, 0, k }
 #define BPF_JUMP(code, k, jt, jf) { (u_short)(code), jt, jf, k }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int	 bpf_validate __P((const struct bpf_insn *, int));
 void	 bpf_tap __P((struct ifnet *, u_char *, u_int));
 void	 bpf_mtap __P((struct ifnet *, struct mbuf *));

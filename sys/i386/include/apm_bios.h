@@ -18,7 +18,7 @@
 #ifndef	_MACHINE_APM_BIOS_H_
 #define	_MACHINE_APM_BIOS_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
@@ -148,7 +148,7 @@ struct apmhook {
 #define APM_HOOK_RESUME         1
 #define NAPM_HOOK               2
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 void apm_suspend(int state);
 struct apmhook *apm_hook_establish (int apmh, struct apmhook *);
@@ -156,7 +156,7 @@ void apm_hook_disestablish (int apmh, struct apmhook *);
 void apm_cpu_idle(void);
 void apm_cpu_busy(void);
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !ASSEMBLER && !INITIALIZER */
 

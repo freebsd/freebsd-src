@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _NETATALK_DDP_VAR_H_
@@ -28,7 +30,7 @@ struct ddpstat {
     long	ddps_nosockspace;	/* no space in sockbuf for packet */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int	ddp_cksum;
 extern struct ddpcb		*ddp_ports[ ];
 extern struct ddpcb		*ddpcb;

@@ -107,7 +107,7 @@ struct dbreg {
 	unsigned long wankage;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void	restorefpstate __P((struct fpreg *));
 void	savefpstate __P((struct fpreg *));
 void	setregs __P((struct proc *, u_long, u_long, u_long));

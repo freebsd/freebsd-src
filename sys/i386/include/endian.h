@@ -55,7 +55,7 @@
 
 #define	BYTE_ORDER	LITTLE_ENDIAN
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 #endif
 
@@ -73,7 +73,7 @@ __extension__ ({ register u_long __X = (x); \
 	: "0" (__X)); \
    __X; })
 
-#if defined(KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
+#if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 
 #define __byte_swap_long(x) \
 __extension__ ({ register u_long __X = (x); \

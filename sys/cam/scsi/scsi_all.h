@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include "opt_scsi.h"
 /*
  * This is the number of seconds we wait for devices to settle after a SCSI
@@ -51,7 +51,7 @@
 #if (SCSI_DELAY < 100)
 #error "SCSI_DELAY is in milliseconds, not seconds!  Please use a larger value"
 #endif
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * SCSI command format
@@ -701,7 +701,7 @@ struct scsi_op_quirk_entry {
 struct ccb_scsiio;
 struct cam_periph;
 union  ccb;
-#ifndef KERNEL
+#ifndef _KERNEL
 struct cam_device;
 #endif
 
@@ -712,7 +712,7 @@ const char * 	scsi_sense_desc(int asc, int ascq,
 				struct scsi_inquiry_data *inq_data);
 scsi_sense_action scsi_error_action(int asc, int ascq, 
 				    struct scsi_inquiry_data *inq_data);
-#ifdef KERNEL
+#ifdef _KERNEL
 void		scsi_sense_print(struct ccb_scsiio *csio);
 int		scsi_interpret_sense(union ccb *ccb, 
 				     u_int32_t sense_flags,
@@ -733,7 +733,7 @@ int		scsi_interpret_sense(struct cam_device *device,
 				     u_int32_t *reduction,
 				     u_int32_t *timeout,
 				     scsi_sense_action error_action);
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #define	SF_RETRY_UA	0x01
 #define SF_NO_PRINT	0x02

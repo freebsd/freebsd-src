@@ -87,11 +87,11 @@ struct ipxip_req {
 };
 #endif
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 extern struct	ifqueue	ipxintrq;	/* IPX input packet queue */
 extern struct	ipx_ifaddr *ipx_ifaddr;
 
 struct ipx_ifaddr *ipx_iaonnetof __P((struct ipx_addr *dst));
-#endif /* KERNEL */
+#endif
 
 #endif /* !_NETIPX_IPX_IF_H_ */

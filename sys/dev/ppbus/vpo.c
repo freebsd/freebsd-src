@@ -27,7 +27,7 @@
  *
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -35,7 +35,7 @@
 
 #include <machine/clock.h>
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -47,9 +47,9 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_da.h>
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 #include <sys/kernel.h>
-#endif /*KERNEL */
+#endif
 
 #include "opt_vpo.h"
 
@@ -87,7 +87,7 @@ static int	nvpo = 0;
 #define MAXVP0	8			/* XXX not much better! */
 static struct vpo_data *vpodata[MAXVP0];
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Make ourselves visible as a ppbus driver
@@ -100,7 +100,7 @@ static struct ppb_driver vpodriver = {
 };
 DATA_SET(ppbdriver_set, vpodriver);
 
-#endif /* KERNEL */
+#endif
 
 /*
  * vpoprobe()

@@ -55,7 +55,7 @@ typedef u_int32_t n_long;		/* long as received from the net */
 
 typedef	u_int32_t n_time;		/* ms since 00:00 GMT, byte rev */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 n_time	 iptime __P((void));
 #endif
 

@@ -191,7 +191,7 @@ struct linesw {
 	u_char		l_hotchar;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct linesw linesw[];
 extern int nlinesw;
 
@@ -214,7 +214,7 @@ struct swdevt {
 #define	SW_SEQUENTIAL	0x02
 #define	sw_freed	sw_flags	/* XXX compat */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 d_open_t	noopen;
 d_close_t	noclose;
 d_read_t	noread;
@@ -285,6 +285,6 @@ extern devfs_create_t *devfs_create_hook;
 #define		GID_GAMES	13
 #define		GID_DIALER	68
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_CONF_H_ */

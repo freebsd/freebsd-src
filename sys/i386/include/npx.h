@@ -136,7 +136,7 @@ struct	save87 {
 #define	__INITIAL_NPXCW__	__BDE_NPXCW__
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #ifndef npxproc
 extern struct proc *npxproc;
 #endif

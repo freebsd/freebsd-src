@@ -9,7 +9,7 @@
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 extern	int	disable_rtc_set;
 extern	int	wall_cmos_clock;
@@ -20,6 +20,6 @@ int	sysbeep __P((int pitch, int period));
 int	acquire_timer2 __P((int mode));
 int	release_timer2 __P((void));
 
-#endif /* KERNEL */
+#endif
 
 #endif /* !_MACHINE_CLOCK_H_ */

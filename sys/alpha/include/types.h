@@ -59,7 +59,7 @@ typedef	unsigned long	vm_size_t;
 
 typedef __int64_t		register_t;
 
-#ifdef KERNEL
+#ifdef _KERNEL
 typedef	long		intfptr_t;
 typedef	unsigned long	uintfptr_t;
 #endif

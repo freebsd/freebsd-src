@@ -188,7 +188,7 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 	return (1);
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct pgrp;
 struct proc;
@@ -239,6 +239,6 @@ extern __inline int __cursig(struct proc *p)
 		? 0 : issignal(p));
 }
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* !_SYS_SIGNALVAR_H_ */

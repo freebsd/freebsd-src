@@ -102,7 +102,7 @@ struct	udpstat {
 	{ "pcblist", CTLTYPE_STRUCT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);
 
 extern struct	pr_usrreqs udp_usrreqs;

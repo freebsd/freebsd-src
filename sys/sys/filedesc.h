@@ -118,7 +118,7 @@ struct	sigio {
 
 SLIST_HEAD(sigiolst, sigio);
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Kernel global variables and routines.
  */

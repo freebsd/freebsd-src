@@ -116,7 +116,7 @@
 #define	MINCORE_REFERENCED_OTHER 0x8 /* Page has been referenced */
 #define	MINCORE_MODIFIED_OTHER	0x10 /* Page has been modified */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
@@ -143,6 +143,6 @@ int	minherit __P((void *, size_t, int));
 #endif
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif

@@ -259,7 +259,7 @@ struct route_cb {
 	int	any_count;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define	RTFREE(rt) \
 	do { \
 		if ((rt)->rt_refcnt <= 1) \

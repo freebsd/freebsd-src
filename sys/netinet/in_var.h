@@ -80,7 +80,7 @@ struct	in_aliasreq {
 	((ntohl((in).s_addr) & ~((struct in_ifaddr *)(ifa)->ia_subnetmask))
 
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
@@ -156,7 +156,7 @@ struct in_multi {
 	struct	router_info *inm_rti;	/* router info*/
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_ip);
@@ -230,7 +230,7 @@ int	ipflow_fastforward __P((struct mbuf *));
 void	ipflow_create __P((const struct route *, struct mbuf *));
 void	ipflow_slowtimo __P((void));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /* INET6 stuff */
 #include <netinet6/in6_var.h>

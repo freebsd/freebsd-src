@@ -70,11 +70,11 @@ struct rtprio {
 };
 #endif
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int	rtprio __P((int, pid_t, struct rtprio *));
 __END_DECLS
-#endif	/* !KERNEL */
+#endif	/* !_KERNEL */
 #endif	/* !_SYS_RTPRIO_H_ */

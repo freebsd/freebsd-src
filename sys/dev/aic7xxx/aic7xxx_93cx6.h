@@ -42,7 +42,7 @@
 #include <sys/systm.h>
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 typedef enum {
 	C46 = 6,
@@ -92,4 +92,4 @@ struct seeprom_descriptor {
 int read_seeprom(struct seeprom_descriptor *sd, u_int16_t *buf,
 		 bus_size_t start_addr, bus_size_t count);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

@@ -36,10 +36,10 @@
 #ifndef _NETINET6_ESP6_H_
 #define	_NETINET6_ESP6_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern int esp6_output __P((struct mbuf *, u_char *, struct mbuf *,
 	struct ipsecrequest *));
 extern int esp6_input __P((struct mbuf **, int *, int));
-#endif /*KERNEL*/
+#endif
 
 #endif /*_NETINET6_ESP6_H_*/

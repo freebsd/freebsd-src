@@ -29,7 +29,7 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define _MACHINE_CPUFUNC_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #include <sys/types.h>
 #include <machine/chipset.h>
@@ -100,6 +100,6 @@ extern void memsetw(void *, int, size_t);
 extern void memsetw_io(u_int32_t, int, size_t);
 
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

@@ -30,7 +30,7 @@
 #ifndef	_MACHINE_IOCTL_FD_H_
 #define	_MACHINE_IOCTL_FD_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

@@ -38,7 +38,7 @@
 #define	ECN_FORBIDDEN	0	/* ECN forbidden */
 #define	ECN_NOCARE	(-1)	/* no consideration to ECN */
 
-#if defined(KERNEL) || defined(_KERNEL)
+#ifdef _KERNEL
 extern void ip_ecn_ingress __P((int, u_int8_t *, u_int8_t *));
 extern void ip_ecn_egress __P((int, u_int8_t *, u_int8_t *));
 #endif

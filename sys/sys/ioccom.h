@@ -62,7 +62,7 @@
 /* this should be _IORW, but stdio got there first */
 #define	_IOWR(g,n,t)	_IOC(IOC_INOUT,	(g), (n), sizeof(t))
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 #include <sys/cdefs.h>
 
@@ -70,6 +70,6 @@ __BEGIN_DECLS
 int	ioctl __P((int, unsigned long, ...));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif
 
 #endif /* !_SYS_IOCCOM_H_ */

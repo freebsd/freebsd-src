@@ -226,7 +226,7 @@ struct vattr {
  */
 #define	VNOVAL	(-1)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_VNODE);
@@ -300,7 +300,7 @@ extern void	(*lease_updatetime) __P((int deltat));
 	(((vp)->v_flag & (VFREE|VTBFREE)) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 
 /*
@@ -352,7 +352,7 @@ struct vnodeop_desc {
 	caddr_t	*vdesc_transports;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * A list of all the operation descs.
  */
@@ -621,6 +621,6 @@ extern	vop_t **spec_vnodeop_p;
 extern TAILQ_HEAD(tobefreelist, vnode)
 	vnode_tobefree_list;	/* vnode free list */
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */

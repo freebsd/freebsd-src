@@ -617,7 +617,7 @@ label:	ASCIZ msg;						\
  * Kernel RCS ID tag and copyright macros
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef __ELF__
 #define	__KERNEL_SECTIONSTRING(_sec, _str)				\
@@ -635,4 +635,4 @@ label:	ASCIZ msg;						\
 #define	__KERNEL_RCSID(_n, _s)		/* nothing */
 #endif
 
-#endif /* KERNEL */
+#endif /* _KERNEL */

@@ -75,7 +75,7 @@ struct hctable {
 	int	hct_primes;
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_HOSTCACHE);
@@ -90,6 +90,6 @@ void	hc_ref(struct hcentry *hc);
 void	hc_rele(struct hcentry *hc);
 int	hc_insert(struct hcentry *hc);
 int	hc_delete(struct hcentry *hc);
-#endif /* KERNEL */
+#endif
 
 #endif /* _NET_HOSTCACHE_H */

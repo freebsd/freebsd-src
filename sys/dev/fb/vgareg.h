@@ -64,7 +64,7 @@
 #define VGA_UNIT(dev)		minor(dev)
 #define VGA_MKMINOR(unit)	(unit)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 struct video_adapter;
 typedef struct vga_softc {
@@ -92,6 +92,6 @@ int		vga_mmap(dev_t dev, vga_softc_t *sc, vm_offset_t offset,
 
 extern int	(*vga_sub_configure)(int flags);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* _DEV_FB_VGAREG_H_ */

@@ -37,7 +37,7 @@
 #ifndef _SYS_DISKLABEL_H_
 #define	_SYS_DISKLABEL_H_
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>
@@ -389,7 +389,7 @@ struct dos_partition {
 
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * XXX encoding of disk minor numbers, should be elsewhere.
@@ -454,11 +454,11 @@ int	writedisklabel __P((dev_t dev, struct disklabel *lp));
 void	alpha_fix_srm_checksum __P((struct buf *bp));
 #endif
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* LOCORE */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 __BEGIN_DECLS
 struct disklabel *getdiskbyname __P((const char *));
 __END_DECLS

@@ -31,7 +31,7 @@
 
 #include <sys/param.h>
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <opt_scsi.h>
 
 #include <sys/systm.h>
@@ -46,7 +46,7 @@
 #include <cam/cam_xpt.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/scsi/scsi_all.h>
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <camlib.h>
 
 #ifndef FALSE
@@ -57,7 +57,7 @@
 #endif /* TRUE */
 #define ERESTART        -1              /* restart syscall */
 #define EJUSTRETURN     -2              /* don't modify regs, just return */
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 const char *scsi_sense_key_text[] = 
 {
@@ -715,7 +715,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
  * If we're in the kernel, 'quantum' is already defined in cam_xpt.c.
  * Otherwise, we need to define it.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 extern const char quantum[];
 #else
 static const char quantum[] = "QUANTUM";
@@ -1622,7 +1622,7 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
  * Because scsi_sense_print() utilizes transport layer functions, it will
  * only work in the kernel.
  */
-#ifdef KERNEL
+#ifdef _KERNEL
 
 void 
 scsi_sense_print(struct ccb_scsiio *csio)
@@ -1793,7 +1793,7 @@ scsi_sense_print(struct ccb_scsiio *csio)
 	printf("\n");
 }
 
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 
 char *
@@ -2102,9 +2102,9 @@ scsi_sense_print(struct cam_device *device, struct ccb_scsiio *csio,
 	fprintf(ofile, "%s", scsi_sense_string(device, csio, str, 2048));
 }
 
-#endif /* KERNEL/!KERNEL */
+#endif /* _KERNEL/!_KERNEL */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 int
 scsi_interpret_sense(union ccb *ccb, u_int32_t sense_flags,
 		     u_int32_t *relsim_flags, u_int32_t *openings,
@@ -2128,7 +2128,7 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 	sense = &csio->sense_data;
 	scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
 
-#ifdef KERNEL
+#ifdef _KERNEL
 	if (bootverbose) {
 		sense_flags |= SF_PRINT_ALWAYS;
 		print_sense = TRUE;
@@ -2280,7 +2280,7 @@ scsi_interpret_sense(struct cam_device *device, union ccb *ccb,
 	}
 
 	if (print_sense) {
-#ifdef KERNEL
+#ifdef _KERNEL
 		scsi_sense_print(csio);
 #else
 		scsi_sense_print(device, csio, stdout);

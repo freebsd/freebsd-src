@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  *
  * Version 1.2, Aug 30, 1995.
+ * $FreeBSD$
  */
 
 #ifndef	_MACHINE_SPIGOT_H_
@@ -50,7 +51,7 @@ struct spigot_info {
 #define	SPIGOT_IOPL_ON		_IO ('s', 6)
 #define	SPIGOT_IOPL_OFF		_IO ('s', 7)
 
-#ifndef KERNEL
+#ifndef _KERNEL
 /*
  * Defines for spigot library.
  */
@@ -91,6 +92,6 @@ unsigned char		spigot_status(void);
  *
  * spigot_status() will return the above status bits.
  */
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* !_MACHINE_SPIGOT_H_ */

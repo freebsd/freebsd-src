@@ -91,7 +91,7 @@ struct ctlname {
  */ 
 #define OID_AUTO	(-1)
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
 	struct sysctl_req *req)
 
@@ -193,7 +193,7 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 #define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, access, \
 		ptr, arg, handler, fmt, descr)
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /*
  * Top-level identifiers
@@ -468,7 +468,7 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 	{ "timer_max", CTLTYPE_INT }, \
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * Declare some common oids.
@@ -502,13 +502,13 @@ int	userland_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 			int *nindx, struct sysctl_req *req);
 
-#else	/* !KERNEL */
+#else	/* !_KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 int	sysctl __P((int *, u_int, void *, size_t *, void *, size_t));
 int	sysctlbyname __P((const char *, void *, size_t *, void *, size_t));
 __END_DECLS
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* !_SYS_SYSCTL_H_ */

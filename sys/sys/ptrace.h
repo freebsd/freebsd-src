@@ -54,12 +54,12 @@
 #define	PT_FIRSTMACH	32	/* for machine-specific requests */
 #include <machine/ptrace.h>	/* machine-specific requests, if any */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 void	proc_reparent __P((struct proc *child, struct proc *newparent));
 int	ptrace_set_pc __P((struct proc *p, unsigned long addr));
 int	ptrace_single_step __P((struct proc *p));
 int	ptrace_write_u __P((struct proc *p, vm_offset_t off, long data));
-#else /* !KERNEL */
+#else /* !_KERNEL */
 
 #include <sys/cdefs.h>
 
@@ -67,6 +67,6 @@ __BEGIN_DECLS
 int	ptrace __P((int _request, pid_t _pid, caddr_t _addr, int _data));
 __END_DECLS
 
-#endif /* !KERNEL */
+#endif /* !_KERNEL */
 
 #endif	/* !_SYS_PTRACE_H_ */

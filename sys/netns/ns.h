@@ -135,7 +135,7 @@ struct sockaddr_ns {
 #define ns_nullhost(x) (((x).x_host.s_host[0]==0) && \
 	((x).x_host.s_host[1]==0) && ((x).x_host.s_host[2]==0))
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct domain nsdomain;
 union ns_host ns_thishost;
 union ns_host ns_zerohost;

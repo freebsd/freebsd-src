@@ -73,7 +73,7 @@
 #define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
 #ifndef LOCORE
-#ifdef KERNEL
+#ifdef _KERNEL
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
 
 typedef void netisr_t __P((void));

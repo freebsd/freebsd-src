@@ -77,7 +77,7 @@ struct sysentvec {
 					/* function to dump core, or NULL */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct sysentvec aout_sysvec;
 extern struct sysent sysent[];
 
@@ -110,6 +110,6 @@ int    syscall_register __P((int *offset, struct sysent *new_sysent,
 int    syscall_deregister __P((int *offset, struct sysent *old_sysent));
 int    syscall_module_handler __P((struct module *mod, int what, void *arg));
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif /* !_SYS_SYSENT_H_ */

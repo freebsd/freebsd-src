@@ -65,11 +65,11 @@
 		 (u_int32_t)*((u_char *)p+3)<<0)
 #endif
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/mbuf.h>
 #endif
 #include <net/bpf.h>
-#ifdef KERNEL
+#ifdef _KERNEL
 #define MINDEX(m, k) \
 { \
 	register int len = m->m_len; \
@@ -204,7 +204,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		switch (pc->code) {
 
 		default:
-#ifdef KERNEL
+#ifdef _KERNEL
 			return 0;
 #else
 			abort();
@@ -218,7 +218,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
 			if (k > buflen || sizeof(int32_t) > buflen - k) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				int merr;
 
 				if (buflen != 0)
@@ -242,7 +242,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = pc->k;
 			if (k > buflen || sizeof(int16_t) > buflen - k) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				int merr;
 
 				if (buflen != 0)
@@ -259,7 +259,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_B|BPF_ABS:
 			k = pc->k;
 			if (k >= buflen) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				register struct mbuf *m;
 
 				if (buflen != 0)
@@ -287,7 +287,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (pc->k > buflen || X > buflen - pc->k ||
 			    sizeof(int32_t) > buflen - k) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				int merr;
 
 				if (buflen != 0)
@@ -312,7 +312,7 @@ bpf_filter(pc, p, wirelen, buflen)
 			k = X + pc->k;
 			if (X > buflen || pc->k > buflen - X ||
 			    sizeof(int16_t) > buflen - k) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				int merr;
 
 				if (buflen != 0)
@@ -331,7 +331,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LD|BPF_B|BPF_IND:
 			k = X + pc->k;
 			if (pc->k >= buflen || X >= buflen - pc->k) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				register struct mbuf *m;
 
 				if (buflen != 0)
@@ -350,7 +350,7 @@ bpf_filter(pc, p, wirelen, buflen)
 		case BPF_LDX|BPF_MSH|BPF_B:
 			k = pc->k;
 			if (k >= buflen) {
-#ifdef KERNEL
+#ifdef _KERNEL
 				register struct mbuf *m;
 
 				if (buflen != 0)
@@ -507,7 +507,7 @@ bpf_filter(pc, p, wirelen, buflen)
 	}
 }
 
-#ifdef KERNEL
+#ifdef _KERNEL
 /*
  * Return true if the 'fcode' is a valid filter program.
  * The constraints are that each jump be forward and to a valid

@@ -41,7 +41,7 @@
  * Tablet line discipline.
  */
 
-#ifndef KERNEL
+#ifndef _KERNEL
 #include <sys/types.h>
 #endif
 #include <sys/ioccom.h>

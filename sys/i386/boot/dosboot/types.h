@@ -153,7 +153,7 @@ typedef	struct fd_set {
 #define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
 #define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
 
-#if defined(__STDC__) && defined(KERNEL)
+#if defined(__STDC__) && defined(_KERNEL)
 /*
  * Forward structure declarations for function prototypes.  We include the
  * common structures that cross subsystem boundaries here; others are mostly

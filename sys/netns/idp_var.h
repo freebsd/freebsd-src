@@ -48,7 +48,7 @@ struct	idpstat {
 	int	idps_badlen;		/* ip length < ip header length */
 };
 
-#ifdef KERNEL
+#ifdef _KERNEL
 struct	idpstat	idpstat;
 #endif
 

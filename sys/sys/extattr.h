@@ -44,7 +44,7 @@
 
 #define EXTATTR_MAXNAMELEN	NAME_MAX
 
-#ifndef KERNEL
+#ifndef _KERNEL
 
 int	extattrctl(char *path, int cmd, char *attrname, caddr_t arg);
 int	extattr_set_file(char *path, char *attrname, struct iovec *iovp,
@@ -53,5 +53,5 @@ int	extattr_get_file(char *path, char *attrname, struct iovec *iovp,
 	u_int iovcnt);
 int	extattr_delete_file(char *path, char *attrname);
 
-#endif /* KERNEL */
+#endif
 #endif /* _SYS_EXTATTR_H_ */

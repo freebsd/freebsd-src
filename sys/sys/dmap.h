@@ -48,7 +48,7 @@ struct dmap {
 	swblk_t dm_alloc;	/* amount of physical swap space allocated */
 	swblk_t dm_map[NDMAP];	/* first disk block number in each chunk */
 };
-#ifdef KERNEL
+#ifdef _KERNEL
 extern struct dmap zdmap;
 extern int dmmin, dmmax, dmtext;
 #endif

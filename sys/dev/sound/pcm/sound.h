@@ -27,7 +27,7 @@
  * $FreeBSD$
  */
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include "pcm.h"
 #else
 #error why?
@@ -42,7 +42,7 @@
 #ifndef _OS_H_
 #define _OS_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
@@ -85,7 +85,7 @@ struct isa_device { int dummy; };
 #define d_write_t void
 #define d_ioctl_t void
 #define d_select_t void
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 #endif	/* _OS_H_ */
 
@@ -146,7 +146,7 @@ int fkchan_setup(pcm_channel *c);
 #define ON		1
 #define OFF		0
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 /*
  * some macros for debugging purposes
@@ -167,7 +167,7 @@ u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
 void pcm_setswap(device_t dev, pcm_swap_t *swap);
 
-#endif /* KERNEL */
+#endif /* _KERNEL */
 
 /* usage of flags in device config entry (config file) */
 #define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */

@@ -156,7 +156,7 @@ struct ktr_csw {
 #define KTRFAC_INHERIT	0x40000000	/* pass trace flags to children */
 #define KTRFAC_ACTIVE	0x20000000	/* ktrace logging in progress, ignore */
 
-#ifdef	KERNEL
+#ifdef	_KERNEL
 void	ktrnamei __P((struct vnode *,char *));
 void	ktrcsw __P((struct vnode *,int,int));
 void	ktrpsig __P((struct vnode *, int, sig_t, sigset_t *, int));
@@ -164,7 +164,7 @@ void	ktrgenio __P((struct vnode *,int, enum uio_rw,struct iovec *,int,int));
 void	ktrsyscall __P((struct vnode *, int, int narg, register_t args[]));
 void	ktrsysret __P((struct vnode *, int, int, register_t));
 
-#else	/* KERNEL */
+#else
 
 #include <sys/cdefs.h>
 
@@ -173,6 +173,6 @@ int	ktrace __P((const char *, int, int, pid_t));
 int	utrace __P((const void *, size_t));
 __END_DECLS
 
-#endif	/* !KERNEL */
+#endif
 
 #endif

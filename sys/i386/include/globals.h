@@ -29,7 +29,7 @@
 #ifndef	_MACHINE_GLOBALS_H_
 #define	_MACHINE_GLOBALS_H_
 
-#ifdef KERNEL
+#ifdef _KERNEL
 
 #define	GLOBAL_LVALUE(name, type) \
 	(*(type *)_global_ptr_##name())
@@ -140,6 +140,6 @@ GLOBAL_FUNC(prv_PADDR1)
 
 #define	SET_CURPROC(x)	(_global_curproc_set_nv((int)x))
 
-#endif	/* KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* !_MACHINE_GLOBALS_H_ */
