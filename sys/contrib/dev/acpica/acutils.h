@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
- *       $Revision: 155 $
+ *       $Revision: 157 $
  *
  *****************************************************************************/
 
@@ -197,6 +197,14 @@ AcpiUtGetMutexName (
 char *
 AcpiUtGetTypeName (
     ACPI_OBJECT_TYPE        Type);
+
+char *
+AcpiUtGetNodeName (
+    void                    *Object);
+
+char *
+AcpiUtGetDescriptorName (
+    void                    *Object);
 
 char *
 AcpiUtGetObjectTypeName (
