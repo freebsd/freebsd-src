@@ -674,6 +674,14 @@ aclmode(char *buf, FTSENT *p, int *haveacls)
 	else
 		snprintf(name, sizeof(name), "%s/%s",
 		    p->fts_parent->fts_accpath, p->fts_name);   
+	/*
+	 * We have no way to tell whether a symbolic link has an ACL since
+	 * pathconf() and acl_get_file() both follow them.
+	 */
+	if (S_ISLNK(p->fts_statp->st_mode)) {
+		*haveacls = 1;
+		return;
+	}
 	if ((ret = pathconf(name, _PC_ACL_EXTENDED)) <= 0) {
 		if (ret < 0 && errno != EINVAL)
 			warn("%s", name);
