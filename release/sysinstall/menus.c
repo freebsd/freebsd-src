@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180 1999/01/08 00:14:22 jkh Exp $
+ * $Id: menus.c,v 1.180.2.1 1999/02/04 13:47:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -485,10 +485,10 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
       { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=other" },
-      { "3.0 SNAP Server", "current.freebsd.org", NULL, dmenuSetVariable, NULL,
+      { "4.0 SNAP Server", "current.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://current.freebsd.org/pub/FreeBSD/" },
-      { "2.2 SNAP Server", "releng22.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://releng22.freebsd.org/pub/FreeBSD/" },
+      { "3.0 SNAP Server", "releng3.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://releng3.freebsd.org/pub/FreeBSD/" },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
       { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -765,7 +765,7 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-      { "XFree86",	"The XFree86 3.3.3 distribution",
+      { "XFree86",	"The XFree86 3.3.3.1 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
@@ -850,8 +850,8 @@ DMenu MenuSrcDistributions = {
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
-    "XFree86 3.3.3 Distribution",
-    "Please select the components you need from the XFree86 3.3.3\n"
+    "XFree86 3.3.3.1 Distribution",
+    "Please select the components you need from the XFree86 3.3.3.1\n"
     "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
@@ -866,7 +866,7 @@ DMenu MenuXF86Select = {
 
 DMenu MenuXF86SelectCore = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.3.3 base distribution types",
+    "XFree86 3.3.3.1 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n"
     "Bin, lib, and set are recommended for a minimum installaion.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
@@ -893,9 +893,9 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
       { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-      { "sources",	"XFree86 3.3.3 standard sources",
+      { "sources",	"XFree86 3.3.3.1 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { "csources",	"XFree86 3.3.3 contrib sources",
+      { "csources",	"XFree86 3.3.3.1 contrib sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { "All",		"Select all of the above",
 	NULL,		setX11Misc, NULL, NULL, ' ', ' ', ' ' },
