@@ -98,7 +98,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* String containing the assembler's comment-starter.  */
 
 #define ASM_COMMENT_START "/"
-#define COMMENT_BEGIN "/"
 
 /* Output to assembler file text saying following lines
    may contain character constants, extra white space, comments, etc.  */
