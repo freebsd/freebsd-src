@@ -5,8 +5,8 @@
 .Nm cd
 .Nd scsi cdrom driver
 .Sh SYNOPSIS
-.Nm device-driver cd
-.Op Ar count
+.Nm device cd
+.Nm device cd1 target 4 lun 0
 .Sh DESCRIPTION
 The
 .Xr cd
@@ -51,11 +51,16 @@ As the scsi adapter is probed during boot, the
 bus is scanned for devices. Any devices found which answer as 'Readonly'
 type devices will be 'attached' to the 
 .Nm
-driver. The first found will be attached as
+driver.
+In FreeBSD releases prior to 2.1, the first found will be attached as
 .Em cd0
 and the next, 
 .Em cd1
 etc.
+Beginning in 2.1 it is possible to specify what cd unit a device should
+come on line as; refer to
+.Xr scsi 4
+for details on kernel configuration.
 .Pp
 The system utility
 .Xr disklabel 1
