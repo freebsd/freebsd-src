@@ -46,11 +46,14 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termcap.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 #define	IESC	'\033'
 #define	SO	'\016'
@@ -75,7 +78,8 @@ const char
 
 struct	CHAR	{
 	char	c_mode;
-	char	c_char;
+	wchar_t	c_char;
+	int	c_width;	/* width or -1 if multi-column char. filler */
 } ;
 
 struct	CHAR	obuf[MAXBUF];
@@ -96,7 +100,7 @@ void iattr(void);
 void overstrike(void);
 void flushln(void);
 void filter(FILE *);
-void outc(int);
+void outc(wint_t, int);
 
 #define	PRINT(s)	if (s == NULL) /* void */; else tputs(s, 1, outchar)
 
@@ -107,6 +111,8 @@ main(int argc, char **argv)
 	const char *termtype;
 	FILE *f;
 	char termcap[1024];
+
+	setlocale(LC_ALL, "");
 
 	termtype = getenv("TERM");
 	if (termtype == NULL || (argv[0][0] == 'c' && !isatty(1)))
@@ -166,9 +172,10 @@ usage(void)
 void
 filter(FILE *f)
 {
-	int c;
+	wint_t c;
+	int i, w;
 
-	while ((c = getc(f)) != EOF && col < MAXBUF) switch(c) {
+	while ((c = getwc(f)) != WEOF && col < MAXBUF) switch(c) {
 
 	case '\b':
 		if (col > 0)
@@ -194,7 +201,7 @@ filter(FILE *f)
 		continue;
 
 	case IESC:
-		switch (c = getc(f)) {
+		switch (c = getwc(f)) {
 
 		case HREV:
 			if (halfpos == 0) {
@@ -232,10 +239,19 @@ filter(FILE *f)
 		continue;
 
 	case '_':
-		if (obuf[col].c_char)
-			obuf[col].c_mode |= UNDERL | mode;
-		else
-			obuf[col].c_char = '_';
+		if (obuf[col].c_char || obuf[col].c_width < 0) {
+			while (col > 0 && obuf[col].c_width < 0)
+				col--;
+			w = obuf[col].c_width;
+			for (i = 0; i < w; i++)
+				obuf[col++].c_mode |= UNDERL | mode;
+			if (col > maxcol)
+				maxcol = col;
+			continue;
+		}
+		obuf[col].c_char = '_';
+		obuf[col].c_width = 1;
+		/* FALLTHROUGH */
 	case ' ':
 		col++;
 		if (col > maxcol)
@@ -248,23 +264,35 @@ filter(FILE *f)
 
 	case '\f':
 		flushln();
-		putchar('\f');
+		putwchar('\f');
 		continue;
 
 	default:
-		if (c < ' ')	/* non printing */
+		if ((w = wcwidth(c)) <= 0)	/* non printing */
 			continue;
 		if (obuf[col].c_char == '\0') {
 			obuf[col].c_char = c;
-			obuf[col].c_mode = mode;
+			for (i = 0; i < w; i++)
+				obuf[col + i].c_mode = mode;
+			obuf[col].c_width = w;
+			for (i = 1; i < w; i++)
+				obuf[col + i].c_width = -1;
 		} else if (obuf[col].c_char == '_') {
 			obuf[col].c_char = c;
-			obuf[col].c_mode |= UNDERL|mode;
-		} else if (obuf[col].c_char == c)
-			obuf[col].c_mode |= BOLD|mode;
-		else
-			obuf[col].c_mode = mode;
-		col++;
+			for (i = 0; i < w; i++)
+				obuf[col + i].c_mode |= UNDERL|mode;
+			obuf[col].c_width = w;
+			for (i = 1; i < w; i++)
+				obuf[col + i].c_width = -1;
+		} else if (obuf[col].c_char == c) {
+			for (i = 0; i < w; i++)
+				obuf[col + i].c_mode |= BOLD|mode;
+		} else {
+			w = obuf[col].c_width;
+			for (i = 0; i < w; i++)
+				obuf[col + i].c_mode = mode;
+		}
+		col += w;
 		if (col > maxcol)
 			maxcol = col;
 		continue;
@@ -291,16 +319,18 @@ flushln(void)
 			if (upln)
 				PRINT(CURS_RIGHT);
 			else
-				outc(' ');
+				outc(' ', 1);
 		} else
-			outc(obuf[i].c_char);
+			outc(obuf[i].c_char, obuf[i].c_width);
+		if (obuf[i].c_width > 1)
+			i += obuf[i].c_width - 1;
 	}
 	if (lastmode != NORMAL) {
 		setnewmode(0);
 	}
 	if (must_overstrike && hadmodes)
 		overstrike();
-	putchar('\n');
+	putwchar('\n');
 	if (iflag && hadmodes)
 		iattr();
 	(void)fflush(stdout);
@@ -317,8 +347,8 @@ void
 overstrike(void)
 {
 	int i;
-	char lbuf[256];
-	char *cp = lbuf;
+	wchar_t lbuf[256];
+	wchar_t *cp = lbuf;
 	int hadbold=0;
 
 	/* Set up overstrike buffer */
@@ -333,21 +363,23 @@ overstrike(void)
 			break;
 		case BOLD:
 			*cp++ = obuf[i].c_char;
+			if (obuf[i].c_width > 1)
+				i += obuf[i].c_width - 1;
 			hadbold=1;
 			break;
 		}
-	putchar('\r');
+	putwchar('\r');
 	for (*cp=' '; *cp==' '; cp--)
 		*cp = 0;
 	for (cp=lbuf; *cp; cp++)
-		putchar(*cp);
+		putwchar(*cp);
 	if (hadbold) {
-		putchar('\r');
+		putwchar('\r');
 		for (cp=lbuf; *cp; cp++)
-			putchar(*cp=='_' ? ' ' : *cp);
-		putchar('\r');
+			putwchar(*cp=='_' ? ' ' : *cp);
+		putwchar('\r');
 		for (cp=lbuf; *cp; cp++)
-			putchar(*cp=='_' ? ' ' : *cp);
+			putwchar(*cp=='_' ? ' ' : *cp);
 	}
 }
 
@@ -355,8 +387,8 @@ void
 iattr(void)
 {
 	int i;
-	char lbuf[256];
-	char *cp = lbuf;
+	wchar_t lbuf[256];
+	wchar_t *cp = lbuf;
 
 	for (i=0; i<maxcol; i++)
 		switch (obuf[i].c_mode) {
@@ -371,8 +403,8 @@ iattr(void)
 	for (*cp=' '; *cp==' '; cp--)
 		*cp = 0;
 	for (cp=lbuf; *cp; cp++)
-		putchar(*cp);
-	putchar('\n');
+		putwchar(*cp);
+	putwchar('\n');
 }
 
 void
@@ -463,18 +495,22 @@ initcap(void)
 int
 outchar(int c)
 {
-	return(putchar(c & 0177));
+	return (putwchar(c) != WEOF ? c : EOF);
 }
 
 static int curmode = 0;
 
 void
-outc(int c)
+outc(wint_t c, int width)
 {
-	putchar(c);
+	int i;
+
+	putwchar(c);
 	if (must_use_uc && (curmode&UNDERL)) {
-		PRINT(CURS_LEFT);
-		PRINT(UNDER_CHAR);
+		for (i = 0; i < width; i++)
+			PRINT(CURS_LEFT);
+		for (i = 0; i < width; i++)
+			PRINT(UNDER_CHAR);
 	}
 }
 
