@@ -571,10 +571,10 @@ umodemparam(tp, t)
 }
 
 int
-umodemopen(dev, flag, mode, td)
+umodemopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	int unit = UMODEMUNIT(dev);
 	struct umodem_softc *sc;
@@ -599,7 +599,7 @@ umodemopen(dev, flag, mode, td)
 
 	if (ISSET(tp->t_state, TS_ISOPEN) &&
 	    ISSET(tp->t_state, TS_XCLUDE) &&
-	    suser_td(td))
+	    suser_td(p))
 		return (EBUSY);
 
 	/*
@@ -781,10 +781,10 @@ umodemreadcb(xfer, p, status)
 }
 
 int
-umodemclose(dev, flag, mode, td)
+umodemclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -924,12 +924,12 @@ umodemtty(dev)
 }
 
 int
-umodemioctl(dev, cmd, data, flag, td)
+umodemioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct umodem_softc *sc;
 	struct tty *tp;
@@ -946,12 +946,12 @@ umodemioctl(dev, cmd, data, flag, td)
  
 	DPRINTF(("umodemioctl: cmd=0x%08lx\n", cmd));
 
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return (error);
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-	error = ttioctl(tp, cmd, data, flag, td);
+	error = ttioctl(tp, cmd, data, flag, p);
 #elif defined(__FreeBSD__)
 	error = ttioctl(tp, cmd, data, flag);
 #endif

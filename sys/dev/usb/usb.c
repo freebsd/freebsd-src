@@ -336,10 +336,10 @@ usbctlprint(aux, pnp)
 #endif /* defined(__NetBSD__) || defined(__OpenBSD__) */
 
 int
-usbopen(dev, flag, mode, td)
+usbopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	int unit = USBUNIT(dev);
 	struct usb_softc *sc;
@@ -398,10 +398,10 @@ usbread(dev, uio, flag)
 }
 
 int
-usbclose(dev, flag, mode, td)
+usbclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	int unit = USBUNIT(dev);
 
@@ -414,12 +414,12 @@ usbclose(dev, flag, mode, td)
 }
 
 int
-usbioctl(devt, cmd, data, flag, td)
+usbioctl(devt, cmd, data, flag, p)
 	dev_t devt;
 	u_long cmd;
 	caddr_t data;
 	int flag;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct usb_softc *sc;
 	int unit = USBUNIT(devt);
@@ -432,7 +432,7 @@ usbioctl(devt, cmd, data, flag, td)
 			
 		case FIOASYNC:
 			if (*(int *)data)
-				usb_async_proc = td->td_proc;
+				usb_async_proc = p->td_proc;
 			else
 				usb_async_proc = 0;
 			return (0);
@@ -492,7 +492,7 @@ usbioctl(devt, cmd, data, flag, td)
 			uio.uio_rw =
 				ur->request.bmRequestType & UT_READ ? 
 				UIO_READ : UIO_WRITE;
-			uio.uio_td = td;
+			uio.uio_td = p;
 			ptr = malloc(len, M_TEMP, M_WAITOK);
 			if (uio.uio_rw == UIO_WRITE) {
 				error = uiomove(ptr, len, &uio);
@@ -545,10 +545,10 @@ usbioctl(devt, cmd, data, flag, td)
 }
 
 int
-usbpoll(dev, events, td)
+usbpoll(dev, events, p)
 	dev_t dev;
 	int events;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	int revents, mask, s;
 	int unit = USBUNIT(dev);
@@ -562,7 +562,7 @@ usbpoll(dev, events, td)
 			revents |= events & mask;
 		if (revents == 0 && (events & mask)) {
 			DPRINTFN(2,("usb: sleeping on %p\n", &usb_selevent));
-			selrecord(td, &usb_selevent);
+			selrecord(p, &usb_selevent);
 		}
 		splx(s);
 

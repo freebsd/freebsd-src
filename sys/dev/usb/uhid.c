@@ -163,7 +163,7 @@ Static void uhid_intr(usbd_xfer_handle, usbd_private_handle,
 Static int uhid_do_read(struct uhid_softc *, struct uio *uio, int);
 Static int uhid_do_write(struct uhid_softc *, struct uio *uio, int);
 Static int uhid_do_ioctl(struct uhid_softc *, u_long, caddr_t, int,
-			      struct thread *);
+			      usb_proc_ptr);
 
 USB_DECLARE_DRIVER(uhid);
 
@@ -373,11 +373,11 @@ uhid_intr(xfer, addr, status)
 }
 
 int
-uhidopen(dev, flag, mode, td)
+uhidopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uhid_softc *sc;
 	usbd_status err;
@@ -422,11 +422,11 @@ uhidopen(dev, flag, mode, td)
 }
 
 int
-uhidclose(dev, flag, mode, td)
+uhidclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uhid_softc *sc;
 
@@ -588,12 +588,12 @@ uhidwrite(dev, uio, flag)
 }
 
 int
-uhid_do_ioctl(sc, cmd, addr, flag, td)
+uhid_do_ioctl(sc, cmd, addr, flag, p)
 	struct uhid_softc *sc;
 	u_long cmd;
 	caddr_t addr;
 	int flag;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct usb_ctl_report_desc *rd;
 	struct usb_ctl_report *re;
@@ -614,8 +614,8 @@ uhid_do_ioctl(sc, cmd, addr, flag, td)
 		if (*(int *)addr) {
 			if (sc->sc_async != NULL)
 				return (EBUSY);
-			sc->sc_async = td->td_proc; /* XXXKSE */
-			DPRINTF(("uhid_do_ioctl: FIOASYNC %p\n", td->td_proc));
+			sc->sc_async = p->td_proc; /* XXXKSE */
+			DPRINTF(("uhid_do_ioctl: FIOASYNC %p\n", p->td_proc));
 		} else
 			sc->sc_async = NULL;
 		break;
@@ -703,12 +703,12 @@ uhid_do_ioctl(sc, cmd, addr, flag, td)
 }
 
 int
-uhidioctl(dev, cmd, addr, flag, td)
+uhidioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
 	u_long cmd;
 	caddr_t addr;
 	int flag;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uhid_softc *sc;
 	int error;
@@ -716,17 +716,17 @@ uhidioctl(dev, cmd, addr, flag, td)
 	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	sc->sc_refcnt++;
-	error = uhid_do_ioctl(sc, cmd, addr, flag, td);
+	error = uhid_do_ioctl(sc, cmd, addr, flag, p);
 	if (--sc->sc_refcnt < 0)
 		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
 }
 
 int
-uhidpoll(dev, events, td)
+uhidpoll(dev, events, p)
 	dev_t dev;
 	int events;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uhid_softc *sc;
 	int revents = 0;
@@ -744,7 +744,7 @@ uhidpoll(dev, events, td)
 		if (sc->sc_q.c_cc > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(td, &sc->sc_rsel);
+			selrecord(p, &sc->sc_rsel);
 	}
 
 	splx(s);

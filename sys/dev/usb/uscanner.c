@@ -326,11 +326,11 @@ USB_ATTACH(uscanner)
 }
 
 int
-uscanneropen(dev, flag, mode, td)
+uscanneropen(dev, flag, mode, p)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uscanner_softc *sc;
 	int unit = USCANNERUNIT(dev);
@@ -389,11 +389,11 @@ uscanneropen(dev, flag, mode, td)
 }
 
 int
-uscannerclose(dev, flag, mode, td)
+uscannerclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag;
 	int mode;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uscanner_softc *sc;
 
@@ -640,10 +640,10 @@ USB_DETACH(uscanner)
 }
 
 int
-uscannerpoll(dev, events, td)
+uscannerpoll(dev, events, p)
 	dev_t dev;
 	int events;
-	struct thread *td;
+	usb_proc_ptr p;
 {
 	struct uscanner_softc *sc;
 	int revents = 0;
