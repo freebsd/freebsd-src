@@ -195,6 +195,7 @@ _fetch_default_proxy_port(const char *scheme)
 	return (0);
 }
 
+
 /*
  * Create a connection for an existing descriptor.
  */
@@ -207,6 +208,19 @@ _fetch_reopen(int sd)
 	if ((conn = calloc(1, sizeof *conn)) == NULL)
 		return (NULL);
 	conn->sd = sd;
+	++conn->ref;
+	return (conn);
+}
+
+
+/*
+ * Bump a connection's reference count.
+ */
+conn_t *
+_fetch_ref(conn_t *conn)
+{
+
+	++conn->ref;
 	return (conn);
 }
 
@@ -319,6 +333,7 @@ _fetch_ssl(conn_t *conn, int verbose)
 #endif
 }
 
+
 /*
  * Read a character from a connection w/ timeout
  */
@@ -376,6 +391,7 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 	}
 	return (total);
 }
+
 
 /*
  * Read a line of text from a connection w/ timeout
@@ -483,6 +499,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 	return (total);
 }
 
+
 /*
  * Write a line of text to a connection w/ timeout
  */
@@ -504,6 +521,8 @@ _fetch_close(conn_t *conn)
 {
 	int ret;
 
+	if (--conn->ref > 0)
+		return (0);
 	ret = close(conn->sd);
 	free(conn);
 	return (ret);
