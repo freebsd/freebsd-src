@@ -734,7 +734,7 @@ makeenv(env)
 
 	ep = env;
 	if (TT && *TT) {
-		strcat(termbuf, TT);
+		strlcat(termbuf, TT, sizeof(termbuf));
 		*ep++ = termbuf;
 	}
 	if ((p = EV)) {
