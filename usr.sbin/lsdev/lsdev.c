@@ -168,14 +168,29 @@ badname(const char *name)
 static void
 hprint_pretty(void)
 {
-	printf("%-10.10s %-2.2s %-10.10s %s\n",
-	       "Device", "St", "Parent", "Description");
-	printf("%-10.10s %-2.2s %-10.10s %s\n",
-	       "----------", "--", "----------", 
-	       "--------------------------------------------------");
+	printf("%-10.10s ", "Device");
+	if(vflag) {
+		printf("%-2.2s %-10.10s ", "St", "Parent");
+	} else {
+		printf("%-15.15s ", "State");
+	}
+
+	printf("%s\n", "Description");
+
+	printf("%-10.10s ", "----------");
+	if(vflag) {
+		printf("%-2.2s %-10.10s ", "--", "----------");
+	} else {
+		printf("%-15.15s ", "---------------");
+	}
+
+	printf("%s\n", "--------------------------------------------------");
 }
 
 static const char *const states[] = { "??", "NC", "I", "B" };
+static const char *const longstates[] = {
+	"Unknown", "Unconfigured", "Idle", "Busy"
+};
 
 static void
 print_pretty(struct devconf *dc)
@@ -184,15 +199,21 @@ print_pretty(struct devconf *dc)
 
 	snprintf(buf, sizeof buf, "%s%d", dc->dc_name, dc->dc_unit);
 
-	printf("%-10.10s %2.2s ", buf, states[dc->dc_state]);
+	if(vflag) {
+		printf("%-10.10s %2.2s ", buf, states[dc->dc_state]);
 	
-	if(dc->dc_punit >= 0) {
-		snprintf(buf, sizeof buf, "%s%d", dc->dc_pname, dc->dc_punit);
+		if(dc->dc_punit >= 0) {
+			snprintf(buf, sizeof buf, "%s%d", dc->dc_pname,
+				 dc->dc_punit);
+		} else {
+			buf[0] = '-';
+			buf[1] = '\0';
+		}
+		printf("%-10.10s ", buf);
 	} else {
-		buf[0] = '-';
-		buf[1] = '\0';
+		printf("%-10.10s %-15.15s ", buf, longstates[dc->dc_state]);
 	}
 
-	printf("%-10.10s %s\n", buf, dc->dc_descr);
+	printf("%s\n", dc->dc_descr);
 }
 
