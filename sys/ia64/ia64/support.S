@@ -497,7 +497,6 @@ END(copyoutstr)
  * Not the fastest bcopy in the world.
  */
 ENTRY(bcopy, 3)
-XENTRY(ovbcopy)
 
 	mov	ret0=r0				// return zero for copy{in,out}
 	;; 
