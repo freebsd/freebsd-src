@@ -194,7 +194,7 @@ static int DRM(vm_info)DRM_SYSCTL_HANDLER_ARGS
 		else
 			type = types[map->type];
 
-		if (map->mtrr <= 0)
+		if (!map->mtrr)
 			yesno = "no";
 		else
 			yesno = "yes";

@@ -268,7 +268,7 @@ typedef struct drm_agp_head {
 	int                enabled;
 	int                acquired;
 	unsigned long      base;
-   	int 		   agp_mtrr;
+   	int 		   mtrr;
 	int		   cant_use_aperture;
 	unsigned long	   page_mask;
 } drm_agp_head_t;
@@ -288,7 +288,7 @@ typedef struct drm_local_map {
 	drm_map_flags_t flags;	 /* Flags				    */
 	void		*handle; /* User-space: "Handle" to pass to mmap    */
 				 /* Kernel-space: kernel-virtual address    */
-	int		mtrr;	 /* MTRR slot used			    */
+	int		mtrr;	 /* Boolean: MTRR used */
 				 /* Private data			    */
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;

@@ -502,14 +502,6 @@ static int mga_do_init_dma( drm_device_t *dev, drm_mga_init_t *init )
 		return DRM_ERR(EINVAL);
 	}
 
-	DRM_FIND_MAP( dev_priv->fb, init->fb_offset );
-	if(!dev_priv->fb) {
-		DRM_ERROR( "failed to find framebuffer!\n" );
-		/* Assign dev_private so we can do cleanup. */
-		dev->dev_private = (void *)dev_priv;
-		mga_do_cleanup_dma( dev );
-		return DRM_ERR(EINVAL);
-	}
 	DRM_FIND_MAP( dev_priv->mmio, init->mmio_offset );
 	if(!dev_priv->mmio) {
 		DRM_ERROR( "failed to find mmio region!\n" );
