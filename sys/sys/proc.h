@@ -527,8 +527,8 @@ struct ksegrp {
  */
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
-	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (kg_ksegrp) All KSEGs. */
-	TAILQ_HEAD(, thread) p_threads;	/* (td_plist) Threads. (shortcut) */
+	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (c)(kg_ksegrp) All KSEGs. */
+	TAILQ_HEAD(, thread) p_threads;	/* (j)(td_plist) Threads. (shortcut) */
 	TAILQ_HEAD(, thread) p_suspended; /* (td_runq) Suspended threads. */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Ptr to open files structure. */
@@ -609,7 +609,7 @@ struct proc {
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
 	int		p_numthreads;	/* (j) Number of threads. */
-	int		p_numksegrps;	/* (?) number of ksegrps */
+	int		p_numksegrps;	/* (c) number of ksegrps */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
 	struct user	*p_uarea;	/* (k) Kernel VA of u-area (CPU). */
