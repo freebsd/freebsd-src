@@ -23,6 +23,9 @@
 .\"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 .\" HISTORY
 .\" $Log: sup.1,v $
+.\" Revision 1.3  1995/12/26 05:11:04  peter
+.\" Apply ports/net/sup/patches/patch-ab
+.\"
 .\" Revision 1.2  1995/12/26 05:03:02  peter
 .\" Apply ports/net/sup/patches/patch-aa...
 .\"
@@ -272,14 +275,14 @@ libraries will take place.  Some operating systems \fB(HPUX)\fR
 do not allow the unlink system call to succeed on ETXTBSY files.
 If the unlink does not succeed, an attempt is made to rename the 
 file to filename.sup#sup-pid.moved.  The new name is logged in either 
-the system default rename log file, \fB/usr/local/etc/sup.moved\fR, 
+the system default rename log file, \fB/var/log/sup.rename\fR, 
 or in a logfile as set by the \fBrenamelog\fR supfile option.  The 
 logfile allows for easy deletion of ETXTBSY files once they are no 
 longer in use.  A typical time to perform the deletions is at system 
 boot time with something similar to:
 .TP
 .ce 1
-cat /usr/local/etc/sup.moved | xargs rm -rf
+cat /var/log/sup.rename | xargs rm -rf
 .TP
 .B -I
 The
@@ -933,7 +936,7 @@ lock file for a collection
 <\fIbase-directory\fR>\fB/sup/\fR<\fIcollection\fR>\fB/logfile
 log file for a collection
 .TP
-\fB/usr/local/etc/sup.moved\fR 
+\fB/var/log/sup.rename\fR 
 log file for files renamed by the \fBunlinkbusy\fR option
 .TP
 <\fIbase-directory\fR>\fB/sup/\fR<\fIcollection\fR>\fB/prefix
