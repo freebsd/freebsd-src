@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dd.c,v 1.2 1994/09/24 02:54:52 davidg Exp $
+ *	$Id: dd.c,v 1.3 1995/01/17 22:55:59 ache Exp $
  */
 
 #ifndef lint
@@ -177,34 +177,38 @@ setup()
 	if (ddflags & (C_LCASE|C_UCASE))
 		if (ddflags & C_ASCII)
 			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (isupper(ctab[cnt]))
 						ctab[cnt] = tolower(ctab[cnt]);
 			} else {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (islower(ctab[cnt]))
 						ctab[cnt] = toupper(ctab[cnt]);
 			}
 		else if (ddflags & C_EBCDIC)
 			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (isupper(cnt))
 						ctab[cnt] = ctab[tolower(cnt)];
 			} else {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (islower(cnt))
 						ctab[cnt] = ctab[toupper(cnt)];
 			}
 		else {
 			ctab = ddflags & C_LCASE ? u2l : l2u;
 			if (ddflags & C_LCASE) {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (isupper(cnt))
 						ctab[cnt] = tolower(cnt);
+					else
+						ctab[cnt] = cnt;
 			} else {
-				for (cnt = 0; cnt < 0377; ++cnt)
+				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (islower(cnt))
 						ctab[cnt] = toupper(cnt);
+					else
+						ctab[cnt] = cnt;
 			}
 		}
 	(void)time(&st.start);			/* Statistics timestamp. */
