@@ -458,7 +458,7 @@ nodeupdates(char *name, ino_t ino, int type)
 	 * for it, we discard the name knowing that it will be on the
 	 * next incremental tape.
 	 */
-	case NULL:
+	case 0:
 		fprintf(stderr, "%s: (inode %d) not found on tape\n",
 			name, ino);
 		break;
