@@ -11,7 +11,7 @@ SRCS=	version.c addrtoname.c bpf_dump.c bpf_filter.c bpf_image.c etherent.c \
 	print-rip.c print-sl.c print-snmp.c print-sunrpc.c print-tcp.c \
 	print-tftp.c print-udp.c savefile.c tcpdump.c tcpgram.c \
 	tcplex.c util.c
-.PATH:	${.CURDIR}/../../sys/net
+.PATH:	${.CURDIR}/../../../sys/net
 CLEANFILES+=	tcpgram.c tcplex.c y.tab.h y.tab.c version.c version.h
 DPADD+=	${LIBL}
 LDADD+=	-ll
