@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_fsm.h,v 1.2 1994/08/02 07:48:58 davidg Exp $
+ * $Id: tcp_fsm.h,v 1.3 1994/08/21 05:27:36 paul Exp $
  */
 
 #ifndef _NETINET_TCP_FSM_H_
@@ -60,6 +60,7 @@
 #define	TCPS_TIME_WAIT		10	/* in 2*msl quiet wait after close */
 
 #define	TCPS_HAVERCVDSYN(s)	((s) >= TCPS_SYN_RECEIVED)
+#define TCPS_HAVEESTABLISHED(s)	((s) >= TCPS_ESTABLISHED)
 #define	TCPS_HAVERCVDFIN(s)	((s) >= TCPS_TIME_WAIT)
 
 #ifdef	TCPOUTFLAGS
