@@ -43,7 +43,7 @@
 .Ft int
 .Fn tsleep "void *ident" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep "void *ident" "mtx_t *mtx" "int priority" "const char *wmesg" "int timo"
+.Fn msleep "void *ident" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn asleep "void *ident" "int priority" "const char *wmesg" "int timo"
 .Ft int
