@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.22 1995/12/09 20:40:41 phk Exp $
+ *	$Id: swtch.s,v 1.23 1995/12/10 13:36:30 phk Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -230,8 +230,8 @@ sw0:	.asciz	"cpu_switch"
 	ALIGN_TEXT
 _idle:
 	MCOUNT
-	movl	$tmpstk,%ebp
-	movl	%ebp,%esp
+	xorl	%ebp,%ebp
+	movl	$tmpstk,%esp
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%cr3
 	sti
