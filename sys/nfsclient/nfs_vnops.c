@@ -93,11 +93,8 @@ __FBSDID("$FreeBSD$");
 #define vfs_busy_pages(bp, f)
 #endif
 
-static int	nfsspec_read(struct vop_read_args *);
-static int	nfsspec_write(struct vop_write_args *);
 static int	nfsfifo_read(struct vop_read_args *);
 static int	nfsfifo_write(struct vop_write_args *);
-static int	nfsspec_close(struct vop_close_args *);
 static int	nfsfifo_close(struct vop_close_args *);
 static int	nfs_flush(struct vnode *, struct ucred *, int, struct thread *,
 		    int);
@@ -168,28 +165,6 @@ static struct vnodeopv_entry_desc nfs_vnodeop_entries[] = {
 static struct vnodeopv_desc nfs_vnodeop_opv_desc =
 	{ &nfs_vnodeop_p, nfs_vnodeop_entries };
 VNODEOP_SET(nfs_vnodeop_opv_desc);
-
-/*
- * Special device vnode ops
- */
-vop_t **spec_nfsnodeop_p;
-static struct vnodeopv_entry_desc nfs_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_close_desc,		(vop_t *) nfsspec_close },
-	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
-	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
-	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_print_desc,		(vop_t *) nfs_print },
-	{ &vop_read_desc,		(vop_t *) nfsspec_read },
-	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_write_desc,		(vop_t *) nfsspec_write },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc spec_nfsnodeop_opv_desc =
-	{ &spec_nfsnodeop_p, nfs_specop_entries };
-VNODEOP_SET(spec_nfsnodeop_opv_desc);
 
 vop_t **fifo_nfsnodeop_p;
 static struct vnodeopv_entry_desc nfs_fifoop_entries[] = {
@@ -429,12 +404,9 @@ nfs_open(struct vop_open_args *ap)
 	struct vattr vattr;
 	int error;
 
-	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK) {
-#ifdef DIAGNOSTIC
-		printf("open eacces vtyp=%d\n", vp->v_type);
-#endif
+	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK)
 		return (EOPNOTSUPP);
-	}
+
 	/*
 	 * Get a valid lease. If cached data is stale, flush it.
 	 */
@@ -3020,65 +2992,6 @@ nfsspec_access(struct vop_access_args *ap)
 		return (error);
 	return (vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
 	    mode, cred, NULL));
-}
-
-/*
- * Read wrapper for special devices.
- */
-static int
-nfsspec_read(struct vop_read_args *ap)
-{
-	struct nfsnode *np = VTONFS(ap->a_vp);
-
-	/*
-	 * Set access flag.
-	 */
-	np->n_flag |= NACC;
-	getnanotime(&np->n_atim);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap));
-}
-
-/*
- * Write wrapper for special devices.
- */
-static int
-nfsspec_write(struct vop_write_args *ap)
-{
-	struct nfsnode *np = VTONFS(ap->a_vp);
-
-	/*
-	 * Set update flag.
-	 */
-	np->n_flag |= NUPD;
-	getnanotime(&np->n_mtim);
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap));
-}
-
-/*
- * Close wrapper for special devices.
- *
- * Update the times on the nfsnode then do device close.
- */
-static int
-nfsspec_close(struct vop_close_args *ap)
-{
-	struct vnode *vp = ap->a_vp;
-	struct nfsnode *np = VTONFS(vp);
-	struct vattr vattr;
-
-	if (np->n_flag & (NACC | NUPD)) {
-		np->n_flag |= NCHG;
-		if (vrefcnt(vp) == 1 &&
-		    (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
-			VATTR_NULL(&vattr);
-			if (np->n_flag & NACC)
-				vattr.va_atime = np->n_atim;
-			if (np->n_flag & NUPD)
-				vattr.va_mtime = np->n_mtim;
-			(void)VOP_SETATTR(vp, &vattr, ap->a_cred, ap->a_td);
-		}
-	}
-	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
 /*
