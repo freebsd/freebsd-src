@@ -27,12 +27,11 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
 #if !defined(lint) && defined(SCCSIDS)
 #if 0
 static char sccsid[] = "@(#)newkey.c 1.8 91/03/11 Copyr 1986 Sun Micro";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 
 /*
@@ -42,17 +41,23 @@ static const char rcsid[] =
 /*
  * Administrative tool to add a new user to the publickey database
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
+
 #ifdef YP
 #include <sys/wait.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <netdb.h>
 #endif	/* YP */
+
 #include <err.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -87,9 +92,7 @@ static char *err_string();
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char name[MAXNETNAMELEN + 1];
 	char public[HEXKEYBYTES + 1];
@@ -163,7 +166,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 		"usage: newkey [-u username]",
@@ -175,10 +178,7 @@ usage()
  * Set the entry in the public key file
  */
 int
-setpublicmap(name, public, secret)
-	char *name;
-	char *public;
-	char *secret;
+setpublicmap(char *name, char *public, char *secret)
 {
 	char pkent[1024];
 
@@ -199,8 +199,7 @@ setpublicmap(name, public, secret)
 	 * a success message.
 	 */
 static char *
-err_string(code)
-	int code;
+err_string(int code)
 {
 	char *pmesg;
 
