@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: ahareg.h,v 1.1 1998/09/15 07:39:52 gibbs Exp $
  */
 
 #ifndef _AHAREG_H_
@@ -103,8 +103,8 @@ typedef enum {
 #define		DISK0_GEOMETRY		0x03
 #define		DISK1_GEOMETRY		0x0c
 #define		EXTENDED_TRANSLATION	0x10
-#define		GEOMETRY_DISK0(g_reg) (greg & DISK0_GEOMETRY)
-#define		GEOMETRY_DISK1(g_reg) ((greg & DISK1_GEOMETRY) >> 2)
+#define		GEOMETRY_DISK0(g_reg) (g_reg & DISK0_GEOMETRY)
+#define		GEOMETRY_DISK1(g_reg) ((g_reg & DISK1_GEOMETRY) >> 2)
 
 #define AHA_NREGS	(4)
 
@@ -408,26 +408,22 @@ struct aha_softc {
 	u_int			 unit;
 	u_int			 scsi_id;
 	u_int32_t		 extended_trans	  :1,
-				 wide_bus	  :1,
 				 diff_bus	  :1,
-				 ultra_scsi	  :1,
 				 extended_lun	  :1,
 				 strict_rr	  :1,
 				 tag_capable	  :1,
-				 wide_lun_ccb	  :1,
 				 resource_shortage:1,
-						  :23;
+						  :26;
 	u_int16_t		 tags_permitted;
 	u_int16_t		 disc_permitted;
 	u_int16_t		 sync_permitted;
 	u_int16_t		 fast_permitted;
-	u_int16_t		 ultra_permitted;
-	u_int16_t		 wide_permitted;
 	u_int8_t		 init_level;
 	volatile u_int8_t	 command_cmp;
 	volatile u_int8_t	 latched_status;
 	u_int32_t		 bios_addr;
-	char			 firmware_ver[6];
+	u_int8_t		 fw_major;
+	u_int8_t		 fw_minor;
 	char			 model[32];
 	u_int8_t		 boardid;
 };

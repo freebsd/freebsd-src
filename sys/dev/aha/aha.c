@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.4 1998/09/29 06:50:21 imp Exp $
+ *      $Id: aha.c,v 1.5 1998/09/30 00:10:44 imp Exp $
  */
 
 #include <sys/param.h>
@@ -284,7 +284,7 @@ aha_probe(struct aha_softc* aha)
 	u_int	 intstat;
 	int	 error;
 	u_int8_t param;
-	esetup_info_data_t esetup_info;
+	board_id_data_t	board_id;
 
 	/*
 	 * See if the three I/O ports look reasonable.
@@ -305,27 +305,36 @@ aha_probe(struct aha_softc* aha)
 	}
 
 	/*
-	 * Looking good so far.  Final test is to reset the
-	 * adapter.
+	 * Get the board ID.  We use this to see if we're dealing with
+	 * a buslogic card or a aha card (or clone).
 	 */
-	if ((error = ahareset(aha, /*hard_reset*/TRUE)) != 0) {
+	error = aha_cmd(aha, BOP_INQUIRE_BOARD_ID, NULL, /*parmlen*/0,
+		       (u_int8_t*)&board_id, sizeof(board_id),
+		       DEFAULT_CMD_TIMEOUT);
+	if (error != 0) {
 		if (bootverbose)
-			printf("%s: Failed Reset\n", aha_name(aha));
+			printf("%s: INQUIRE failed %x\n", aha_name(aha), error);
 		return (ENXIO);
 	}
-	
+	aha->fw_major = board_id.firmware_rev_major;
+	aha->fw_minor = board_id.firmware_rev_minor;
+	aha->boardid = board_id.board_type;
+
 	/*
-	 * Issue a buslogic command that will fail, and reject the board
-	 * if it doesn't.
+	 * The Buslogic cards have an id of either 0x41 or 0x42.  So
+	 * if those come up in the probe, we test the geometry register
+	 * of the board.  Adaptec boards that are this old will not have
+	 * this register, and return 0xff, while buslogic cards will return
+	 * something different.
+	 *
+	 * XXX I'm not sure how this will impact other cloned cards.
 	 */
-	param = sizeof(esetup_info);
-	error = aha_cmd(aha, BOP_INQUIRE_ESETUP_INFO, &param, /*parmlen*/1,
-		       (u_int8_t*)&esetup_info, sizeof(esetup_info),
-		       DEFAULT_CMD_TIMEOUT);
-	if (error == 0) {
-		printf("%s: Almost: ESETUP failed\n", aha_name(aha));
-		return ENXIO;
+	if (aha->boardid <= 0x42) {
+		status = aha_inb(aha, GEOMETRY_REG);
+		if (status != 0xff)
+			return (ENXIO);
 	}
+	
 	return (0);
 }
 
@@ -335,30 +344,13 @@ aha_probe(struct aha_softc* aha)
 int
 aha_fetch_adapter_info(struct aha_softc *aha)
 {
-	board_id_data_t	board_id;
 	setup_data_t	setup_info;
 	config_data_t config_data;
 	u_int8_t length_param;
 	int	 error;
 	struct	aha_extbios extbios;
 	
-	/* First record the firmware version */
-	error = aha_cmd(aha, BOP_INQUIRE_BOARD_ID, NULL, /*parmlen*/0,
-		       (u_int8_t*)&board_id, sizeof(board_id),
-		       DEFAULT_CMD_TIMEOUT);
-	if (error != 0) {
-		if (bootverbose)
-			printf("%s: INQUIRE failed %x\n", aha_name(aha), error);
-		return (ENXIO);
-	}
-	aha->firmware_ver[0] = board_id.firmware_rev_major;
-	aha->firmware_ver[1] = '.';
-	aha->firmware_ver[2] = board_id.firmware_rev_minor;
-	aha->firmware_ver[3] = '\0';
-
-	aha->boardid = board_id.board_type;
-
-	switch (board_id.board_type) {
+	switch (aha->boardid) {
 	case BOARD_1540_16HEAD_BIOS:
 		strcpy(aha->model, "1540 16 head BIOS");
 		break;
@@ -398,8 +390,8 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	 */
 	if (PROBABLY_NEW_BOARD(aha->boardid) ||
 		(aha->boardid == 0x41
-		&& board_id.firmware_rev_major == 0x31 && 
-			board_id.firmware_rev_minor >= 0x34)) {
+		&& aha->fw_major == 0x31 && 
+		aha->fw_minor >= 0x34)) {
 		error = aha_cmd(aha, BOP_RETURN_EXT_BIOS_INFO, NULL,
 			/*paramlen*/0, (u_char *)&extbios, sizeof(extbios),
 			DEFAULT_CMD_TIMEOUT);
@@ -454,8 +446,8 @@ int
 aha_init(struct aha_softc* aha)
 {
 	/* Announce the Adapter */
-	printf("%s: AHA-%s FW Rev. %s (ID=%x)", aha_name(aha),
-	       aha->model, aha->firmware_ver, aha->boardid);
+	printf("%s: AHA-%s FW Rev. %c.%c (ID=%x) ", aha_name(aha),
+	       aha->model, aha->fw_major, aha->fw_minor, aha->boardid);
 
 	if (aha->diff_bus != 0)
 		printf("Diff ");
@@ -1034,7 +1026,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->target_sprt = 0;
 		cpi->hba_misc = 0;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = aha->wide_bus ? 15 : 7;
+		cpi->max_target = 7;
 		cpi->max_lun = 7;
 		cpi->initiator_id = aha->scsi_id;
 		cpi->bus_id = cam_sim_bus(sim);
@@ -1588,7 +1580,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 			      CMD_REG_BUSY|DIAG_FAIL|DIAG_ACTIVE)) != 0
 		 || (status & (HA_READY|INIT_REQUIRED))
 		  != (HA_READY|INIT_REQUIRED)) {
-			ahareset(aha, /*hard_reset*/TRUE);
+			ahareset(aha, /*hard_reset*/FALSE);
 		}
 		return (EINVAL);
 	}
