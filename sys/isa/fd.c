@@ -563,13 +563,15 @@ enable_fifo(fdc_p fdc)
 			return fdc_err(fdc, "Enable FIFO failed\n");
 		
 		/* If command is invalid, return */
-		j = 100000;
+		j = FDSTS_TIMEOUT;
 		while ((i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM))
-		       != NE7_RQM && j-- > 0)
+		       != NE7_RQM && j-- > 0) {
 			if (i == (NE7_DIO | NE7_RQM)) {
 				fdc_reset(fdc);
 				return FD_FAILED;
 			}
+			DELAY(1);
+		}
 		if (j<0 || 
 		    fd_cmd(fdc, 3,
 			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
@@ -1473,11 +1475,13 @@ fdc_reset(fdc_p fdc)
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
-	int i, j = 100000;
+	int i, j = FDSTS_TIMEOUT;
 	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
+		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
 		if (i == NE7_RQM)
 			return fdc_err(fdc, "ready for output in input\n");
+		DELAY(1);
+	}
 	if (j <= 0)
 		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
 #ifdef	FDC_DEBUG
@@ -1499,13 +1503,15 @@ out_fdc(struct fdc_data *fdc, int x)
 	int i;
 
 	/* Check that the direction bit is set */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0);
+	i = FDSTS_TIMEOUT;
+	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0)
+		DELAY(1);
 	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
 
 	/* Check that the floppy controller is ready for a command */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0);
+	i = FDSTS_TIMEOUT;
+	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0)
+		DELAY(1);
 	if (i <= 0)
 		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
 
