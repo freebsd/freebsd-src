@@ -6,6 +6,9 @@ SRCS		= opt_tdfx.h  pci.h bus_if.h pci_if.h device_if.h tdfx_pci.h tdfx_io.h\
 		  tdfx_vars.h tdfx_pci.c
 INCSRC		= ../../sys
 
+# This line enables linux ioctl handling by default
+# comment out if you don't want it
+CFLAGS += -DTDFX_LINUX
 # Uncomment this for debugging messages
 #CFLAGS += -DDEBUG
 
