@@ -179,10 +179,15 @@ MFSSIZE=		4320
 MFSINODE=		8000
 MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "alpha"
+FLOPPYSIZE=		1440
+FLOPPYSPLITSIZE=	1392
+FLOPPYINODE=		40000
+FLOPPYLABEL=		fd1440
+BOOTINODE=		80000
 MFSSIZE=		4320
 MFSINODE=		8000
 MFSLABEL=		auto
-NO_FLOPPIES=
+SPLIT_MFSROOT=
 .elif ${TARGET_ARCH} == "sparc64"
 DISKLABEL=		sunlabel
 MFSSIZE=		4096
@@ -247,7 +252,11 @@ CRUNCH_TARGETS+=fixit-small
 .endif
 
 .if !defined(NO_FLOPPIES)
-EXTRAS= floppies.1 floppies.2 floppies.3
+EXTRAS= floppies.1
+.if ${TARGET_ARCH} == "i386"
+EXTRAS+= floppies.2
+.endif
+EXTRAS+= floppies.3
 .endif
 EXTRAS+= ftp.1
 .if !defined(NOCDROM)
