@@ -9,7 +9,8 @@
  *
  *
  *	@(#)pathnames.h	8.5 (Berkeley) 5/19/1998
+ *	$FreeBSD$
  */
 #include <paths.h>
 
-#define _PATH_LOCTMP	"/tmp/local.XXXXXX"
+#define _PATH_LOCTMP	"/var/tmp/local.XXXXXX"
