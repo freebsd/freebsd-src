@@ -68,7 +68,7 @@ open_drive(struct drive *drive, struct thread *td, int verbose)
 	drive->lasterror = ENOTBLK;
     else {
         DROP_GIANT();
-	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE | FREAD, 0, NULL);
+	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE | FREAD, 0, td);
         PICKUP_GIANT();
     }
 
