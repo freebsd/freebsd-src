@@ -40,10 +40,10 @@
 #define ST_DEVICEID_ST201	0x0201
 
 /*
- * D-Link PCI device/vendor ID for the DFE-550TX.
+ * D-Link PCI device/vendor ID for the DL10050[AB] chip
  */
 #define DL_VENDORID		0x1186
-#define DL_DEVICEID_550TX	0x1002
+#define DL_DEVICEID_DL10050	0x1002
 
 /*
  * Register definitions for the Sundance Technologies ST201 PCI
