@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.32 1995/05/30 08:16:15 rgrimes Exp $
+ *	$Id: vm_page.c,v 1.32.4.1 1996/06/19 07:22:45 davidg Exp $
  */
 
 /*
@@ -688,6 +688,7 @@ vm_page_alloc_contig(size, low, high, alignment)
 	vm_offset_t addr, phys, tmp_addr;
 	vm_page_t pga = vm_page_array;
 
+	size = round_page(size);
 	if ((alignment & (alignment - 1)) != 0)
 		panic("vm_page_alloc_contig: alignment must be a power of 2");
 
