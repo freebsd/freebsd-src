@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.51 1998/07/08 01:04:33 julian Exp $
+ * $Id: ufs_readwrite.c,v 1.52 1998/09/07 11:50:19 bde Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -473,8 +473,8 @@ ffs_getpages(ap)
 		for (i = 0; i < pcount; i++) {
 			m = ap->a_m[i];
 			vm_page_activate(m);
-			m->busy++;
-			m->flags &= ~PG_BUSY;
+			vm_page_io_start(m);
+			vm_page_wakeup(m);
 		}
 
 		auio.uio_iov = &aiov;
@@ -491,18 +491,18 @@ ffs_getpages(ap)
 
 		for (i = 0; i < pcount; i++) {
 			m = ap->a_m[i];
-			m->busy--;
+			vm_page_io_finish(m);
 
 			if ((m != mreq) && (m->wire_count == 0) && (m->hold_count == 0) &&
 				(m->valid == 0) && (m->busy == 0) &&
 				(m->flags & PG_BUSY) == 0) {
-				m->flags |= PG_BUSY;
+				vm_page_busy(m);
 				vm_page_free(m);
 			} else if (m == mreq) {
 				while (m->flags & PG_BUSY) {
 					vm_page_sleep(m, "ffspwt", NULL);
 				}
-				m->flags |= PG_BUSY;
+				vm_page_busy(m);
 				vp->v_lastr = m->pindex + 1;
 			} else {
 				if (m->wire_count == 0) {
