@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.282 1996/10/05 11:01:24 jkh Exp $
+#	$Id: LINT,v 1.283 1996/10/09 18:36:43 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -180,6 +180,7 @@ options		VISUAL_USERCONFIG	#visual boot -c editor
 options		INET			#Internet communications protocols
 
 options		IPX			#IPX/SPX communications protocols
+#options	NS			#NS communications protocols
 options		IPXIP			#IPX in IP encapsulation (not available)
 options		IPTUNNEL		#IP in IPX encapsulation (not available)
 options		IPXPRINTFS=0		#IPX/SPX Console Debugging Information
