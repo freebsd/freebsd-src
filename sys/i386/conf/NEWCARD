@@ -71,7 +71,7 @@ options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
 device		isa
 device		eisa
 device		pci
-#options		PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
+#options 	PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
 # Floppy drives
 device		fdc
