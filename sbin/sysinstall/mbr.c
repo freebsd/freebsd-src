@@ -33,6 +33,40 @@ extern struct mbr *mbr;
 extern int inst_part;
 extern int whole_disk;
 
+
+static unsigned char bootcode[] = {
+0x33, 0xc0, 0xfa, 0x8e, 0xd0, 0xbc, 0x00, 0x7c, 0x8e, 0xc0, 0x8e, 0xd8, 0xfb, 0x8b, 0xf4, 0xbf, 
+0x00, 0x06, 0xb9, 0x00, 0x02, 0xfc, 0xf3, 0xa4, 0xea, 0x1d, 0x06, 0x00, 0x00, 0xb0, 0x04, 0xbe, 
+0xbe, 0x07, 0x80, 0x3c, 0x80, 0x74, 0x0c, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x75, 0xf4, 0xbe, 0xbd, 
+0x06, 0xeb, 0x43, 0x8b, 0xfe, 0x8b, 0x14, 0x8b, 0x4c, 0x02, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x74, 
+0x0a, 0x80, 0x3c, 0x80, 0x75, 0xf4, 0xbe, 0xbd, 0x06, 0xeb, 0x2b, 0xbd, 0x05, 0x00, 0xbb, 0x00, 
+0x7c, 0xb8, 0x01, 0x02, 0xcd, 0x13, 0x73, 0x0c, 0x33, 0xc0, 0xcd, 0x13, 0x4d, 0x75, 0xef, 0xbe, 
+0x9e, 0x06, 0xeb, 0x12, 0x81, 0x3e, 0xfe, 0x7d, 0x55, 0xaa, 0x75, 0x07, 0x8b, 0xf7, 0xea, 0x00, 
+0x7c, 0x00, 0x00, 0xbe, 0x85, 0x06, 0x2e, 0xac, 0x0a, 0xc0, 0x74, 0x06, 0xb4, 0x0e, 0xcd, 0x10, 
+0xeb, 0xf4, 0xfb, 0xeb, 0xfe,
+'M', 'i', 's', 's', 'i', 'n', 'g', ' ',
+	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
+'E', 'r', 'r', 'o', 'r', ' ', 'l', 'o', 'a', 'd', 'i', 'n', 'g', ' ', 
+	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
+'I', 'n', 'v', 'a', 'l', 'i', 'd', ' ',
+	'p', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n', ' ', 't', 'a', 'b', 'l', 'e', 0,
+'A', 'u', 't', 'h', 'o', 'r', ' ', '-', ' ',
+	'S', 'i', 'e', 'g', 'm', 'a', 'r', ' ', 'S', 'c', 'h', 'm', 'i', 'd', 't', 0,0,0, 
+
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
+  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0 
+};
 struct part_type part_types[] = PARTITION_TYPES
 
 char *
@@ -74,6 +108,27 @@ write_dospart(int fd, struct dos_partition *dp)
 	AskAbort("Failed to read master boot record\n");
     }
     memcpy(buf+DOSPARTOFF, dp, sizeof(*dp)*NDOSPART);
+    buf[510] = 0x55;
+    buf[511] = 0xaa;
+    if (lseek(fd, 0, SEEK_SET) == -1) 
+	AskAbort("Couldn't seek for master boot record write\n");
+    enable_label(fd);
+    if (write(fd, buf, 512) != 512) 
+	AskAbort("Failed to write master boot record\n");
+    disable_label(fd);
+}
+
+void
+write_bootcode(int fd)
+{
+    u_char buf[512];
+
+    if (lseek(fd, 0, SEEK_SET) == -1) 
+	AskAbort("Couldn't seek for master boot record read\n");
+    if (read(fd, buf, 512) != 512) {
+	AskAbort("Failed to read master boot record\n");
+    }
+    memcpy(buf, bootcode, DOSPARTOFF);
     buf[510] = 0x55;
     buf[511] = 0xaa;
     if (lseek(fd, 0, SEEK_SET) == -1) 
@@ -327,7 +382,7 @@ Fdisk()
 	    }
 	}
 	mvprintw(21, 0, "Commands available:");
-	mvprintw(22, 0, "(H)elp  (D)elete  (E)dit  (R)eread  (W)rite  (Q)uit");
+	mvprintw(22, 0, "(H)elp  (D)elete  (E)dit  (R)eread  Write (B)ootcode  (W)rite  (Q)uit");
 	mvprintw(23, 0, "Enter Command> ");
 	i=getch();
 	switch(i) {
@@ -338,6 +393,10 @@ Fdisk()
 
 	case 'r': case 'R':
 	    read_dospart(Dfd[diskno], dp);
+	    break;
+
+	case 'b': case 'B':
+	    write_bootcode(Dfd[diskno]);
 	    break;
 
 	case 'e': case 'E':
@@ -470,3 +529,4 @@ Fdisk()
 	}
     }
 }
+
