@@ -712,6 +712,7 @@ void
 sbflush(sb)
 	register struct sockbuf *sb;
 {
+
 	if (sb->sb_flags & SB_LOCK)
 		panic("sbflush: locked");
 	while (sb->sb_mbcnt && sb->sb_cc)
@@ -734,24 +735,12 @@ sbdrop(sb, len)
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
 	while (len > 0) {
 		if (m == 0) {
-			if (next == 0) {
-#if 0
+			if (next == 0)
 				panic("sbdrop");
-#else
-				/* Hey!  Someone has screwed the sockbuf */
-				printf("sbdrop: nothing to drop %d from\n", len);
-				len = 0;
-				sb->sb_cc = 0;
-				sb->sb_mbcnt = 0;
-				continue;
-#endif
-			}
 			m = next;
 			next = m->m_nextpkt;
 			continue;
 		}
-		if (m->m_flags & M_EXT)
-			panic("sbdrop: can't handle M_EXT");
 		if (m->m_len > len) {
 			m->m_len -= len;
 			m->m_data += len;
