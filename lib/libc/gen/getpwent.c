@@ -78,7 +78,7 @@ extern int innetgr __P((const char *, const char *, const char *, const char *))
  * in sync with that in `pwd_mkdb'.
  */
 
-static struct passwd _pw_passwd;	/* password structure */
+static struct passwd _pw_passwd = { "", "", 0, 0, 0, "", "", "", "", 0, 0 };
 static DB *_pw_db;			/* password database */
 static int _pw_keynum;			/* key counter. no more records if -1 */
 static int _pw_stayopen;		/* keep fd's open */
