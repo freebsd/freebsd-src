@@ -692,6 +692,8 @@ pcib_match(device_t dev)
 		return ("Intel 82801AB (ICH0) Hub to PCI bridge");
 	case 0x244e8086:
 		return ("Intel 82801BA/BAM (ICH2) Hub to PCI bridge");
+	case 0x1a318086:
+		return ("Intel 82845 PCI-PCI (AGP) bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x01021004:

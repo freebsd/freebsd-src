@@ -129,6 +129,9 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 			break;
 		}
 		break;
+	case 0x1A308086:
+		s = "Intel 82845 Host to PCI bridge";
+		break;
 
 		/* AMD -- vendor 0x1022 */
 	case 0x70061022:
