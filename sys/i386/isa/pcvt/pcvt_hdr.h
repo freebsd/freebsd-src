@@ -1184,6 +1184,16 @@ extern u_char		*saved_charsets[NVGAFONTS];
 #define U_short	int
 #define U_char	int
 
+/*
+ * In FreeBSD >= 2.0, dev_t has type `unsigned long', so promoting it
+ * doesn't cause any problems in prototypes.
+ */
+
+#if PCVT_FREEBSD >= 200
+#undef Dev_t
+#define Dev_t	dev_t
+#endif
+
 /* in FreeBSD > 102 arguments for timeout()/untimeout() are a special type */
 
 #if PCVT_FREEBSD > 102
@@ -1211,10 +1221,19 @@ struct tty *pcdevtotty ( Dev_t dev );
 #endif /* PCVT_FREEBSD > 205 */
 int	pcrint ( void );
 int	pcparam ( struct tty *tp, struct termios *t );
+
+/*
+ * In FreeBSD > 2.0.6, driver console functions are declared in i386/cons.h
+ * and some return void, so don't declare them here.
+ */
+#if PCVT_FREEBSD <= 205
 int	pccnprobe ( struct consdev *cp );
 int	pccninit ( struct consdev *cp );
-int	pccnputc ( Dev_t dev, U_char c );
 int	pccngetc ( Dev_t dev );
+int	pccncheckc ( Dev_t dev );
+int	pccnputc ( Dev_t dev, U_char c );
+#endif
+
 void	pcstart ( struct tty *tp );
 void	pcstop ( struct tty *tp, int flag );
 
