@@ -45,6 +45,8 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
+MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat", "ACPI control method battery data");
+
 #define CMBAT_POLLRATE	(60 * hz)
 
 /*
@@ -126,6 +128,11 @@ static int acpi_cmbat_units = 0;
 	dest[sizeof(dest)-1] = '\0';					\
 } while(0)
 
+#define	CMBAT_DPRINT(dev, x...) do {					\
+	if (acpi_get_verbose(acpi_device_get_parent_softc(dev)))	\
+		device_printf(dev, x);					\
+} while (0)
+
 /*
  * Poll the battery info.
  */
@@ -142,7 +149,6 @@ acpi_cmbat_timeout(void *context)
 	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
-#define	BATTERY_INFO_EXPIRE	5
 static __inline int
 acpi_cmbat_info_expired(struct timespec *lastupdated)
 {
@@ -158,7 +164,7 @@ acpi_cmbat_info_expired(struct timespec *lastupdated)
 
 	getnanotime(&curtime);
 	timespecsub(&curtime, lastupdated);
-	return ((curtime.tv_sec < 0 || curtime.tv_sec > BATTERY_INFO_EXPIRE));
+	return ((curtime.tv_sec < 0 || curtime.tv_sec > acpi_battery_get_info_expire()));
 }
 
 
@@ -184,19 +190,24 @@ acpi_cmbat_get_bst(void *context)
 		return;
 	}
 
+	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
 retry:
 	if (sc->bst_buffer.Length == 0) {
-		sc->bst_buffer.Pointer = NULL;
+		if (sc->bst_buffer.Pointer != NULL) {
+			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
+			sc->bst_buffer.Pointer = NULL;
+		}
 		as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
 		if (as != AE_BUFFER_OVERFLOW){
-			device_printf(dev, "CANNOT FOUND _BST (%d)\n", as);
-			return;
+			CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
+			    AcpiFormatException(as));
+			goto end;
 		}
 
-		sc->bst_buffer.Pointer = malloc(sc->bst_buffer.Length, M_DEVBUF, M_NOWAIT);
+		sc->bst_buffer.Pointer = malloc(sc->bst_buffer.Length, M_ACPICMBAT, M_NOWAIT);
 		if (sc->bst_buffer.Pointer == NULL) {
 			device_printf(dev,"malloc failed");
-			return;
+			goto end;
 		}
 	}
 
@@ -205,21 +216,23 @@ retry:
 
 	if (as == AE_BUFFER_OVERFLOW){
 		if (sc->bst_buffer.Pointer){
-			free(sc->bst_buffer.Pointer, M_DEVBUF);
+			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
+			sc->bst_buffer.Pointer = NULL;
 		}
-		device_printf(dev, "bst size changed to %d\n", sc->bst_buffer.Length);
+		CMBAT_DPRINT(dev, "bst size changed to %d\n", sc->bst_buffer.Length);
 		sc->bst_buffer.Length = 0;
 		goto retry;
 	} else if (as != AE_OK){
-		device_printf(dev, "CANNOT FOUND _BST (%d)\n", as);
-		return;
+		CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
+		    AcpiFormatException(as));
+		goto end;
 	}
 
 	res = (ACPI_OBJECT *)sc->bst_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 4)) {
-		device_printf(dev, "Battery status corrupted\n");
-		return;
+		CMBAT_DPRINT(dev, "Battery status corrupted\n");
+		goto end;
 	}
 
 	PKG_GETINT(res, tmp, 0, sc->bst.state, end);
@@ -228,6 +241,7 @@ retry:
 	PKG_GETINT(res, tmp, 3, sc->bst.volt, end);
 	acpi_cmbat_info_updated(&sc->bst_lastupdated);
 end:
+	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
 static void
@@ -246,14 +260,18 @@ acpi_cmbat_get_bif(void *context)
 	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
 retry:
 	if (sc->bif_buffer.Length == 0) {
-		sc->bif_buffer.Pointer = NULL;
+		if (sc->bif_buffer.Pointer != NULL) {
+			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
+			sc->bif_buffer.Pointer = NULL;
+		}
 		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 		if (as != AE_BUFFER_OVERFLOW){
-			device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
+			CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
+			    AcpiFormatException(as));
 			goto end;
 		}
 
-		sc->bif_buffer.Pointer = malloc(sc->bif_buffer.Length, M_DEVBUF, M_NOWAIT);
+		sc->bif_buffer.Pointer = malloc(sc->bif_buffer.Length, M_ACPICMBAT, M_NOWAIT);
 		if (sc->bif_buffer.Pointer == NULL) {
 			device_printf(dev,"malloc failed");
 			goto end;
@@ -265,20 +283,22 @@ retry:
 
 	if (as == AE_BUFFER_OVERFLOW){
 		if (sc->bif_buffer.Pointer){
-			free(sc->bif_buffer.Pointer, M_DEVBUF);
+			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
+			sc->bif_buffer.Pointer = NULL;
 		}
-		device_printf(dev, "bif size changed to %d\n", sc->bif_buffer.Length);
+		CMBAT_DPRINT(dev, "bif size changed to %d\n", sc->bif_buffer.Length);
 		sc->bif_buffer.Length = 0;
 		goto retry;
 	} else if (as != AE_OK){
-		device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
+		CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
+		    AcpiFormatException(as));
 		goto end;
 	}
 
 	res = (ACPI_OBJECT *)sc->bif_buffer.Pointer;
 
 	if ((res->Type != ACPI_TYPE_PACKAGE) || (res->Package.Count != 13)) {
-		device_printf(dev, "Battery info corrupted\n");
+		CMBAT_DPRINT(dev, "Battery info corrupted\n");
 		goto end;
 	}
 
@@ -377,7 +397,6 @@ acpi_cmbat_attach(device_t dev)
 	acpi_cmbat_units++;
 	timespecclear(&acpi_cmbat_info_lastupdated);
 
-	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
 	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 	return(0);
 }
@@ -480,14 +499,15 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 	/* Allocate array of softc pointers */
 	if (bat_units != acpi_cmbat_units) {
 		if (bat != NULL) {
-			free(bat, M_DEVBUF);
+			free(bat, M_ACPICMBAT);
+			bat = NULL;
 		}
 		bat_units = 0;
 	}
 	if (bat == NULL) {
 		bat_units = acpi_cmbat_units;
 		bat = malloc(sizeof(struct acpi_cmbat_softc *) * bat_units,
-			     M_DEVBUF, M_NOWAIT);
+			     M_ACPICMBAT, M_NOWAIT);
 		if (bat == NULL) {
 			error = ENOMEM;
 			goto out;
