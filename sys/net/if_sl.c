@@ -251,20 +251,28 @@ slcreate()
 {
 	struct sl_softc *sc, *nc;
 	int unit;
-	caddr_t p;
+	struct mbuf *m;
 
 	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK);
 	bzero(sc, sizeof *sc);
 
-	MCLALLOC(p, M_WAIT);
-	if (p)
-		sc->sc_ep = (u_char *)p + SLBUFSIZE;
-	else {
+	m = m_gethdr(M_WAIT, MT_DATA);
+	if (m != NULL) {
+		MCLGET(m, M_WAIT);
+		if ((m->m_flags & M_EXT) == 0) {
+			m_free(m);
+			m = NULL;
+		}
+	}
+
+	if (m == NULL) {
 		printf("sl: can't allocate buffer\n");
 		FREE(sc, M_SL);
 		return (NULL);
 	}
 
+	sc->sc_ep = mtod(m, u_char *) + SLBUFSIZE;
+	sc->sc_mbuf = m;
 	sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_mp = sc->sc_buf;
 	sl_compress_init(&sc->sc_comp, -1);
@@ -365,7 +373,7 @@ sldestroy(struct sl_softc *sc) {
 	bpfdetach(&sc->sc_if);
 	if_detach(&sc->sc_if);
 	LIST_REMOVE(sc, sl_next);
-	MCLFREE((caddr_t)(sc->sc_ep - SLBUFSIZE));
+	m_free(sc->sc_mbuf);
 	FREE(sc, M_SL);
 }
 
@@ -768,7 +776,7 @@ sl_btom(sc, len)
 	register struct sl_softc *sc;
 	register int len;
 {
-	register struct mbuf *m;
+	struct mbuf *m, *newm;
 
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
@@ -791,9 +799,13 @@ sl_btom(sc, len)
 			(void) m_free(m);
 			return (NULL);
 		}
-		sc->sc_ep = mtod(m, u_char *) + SLBUFSIZE;
+		/* Swap the new and old clusters */
+		newm = m;
+		m = sc->sc_mbuf;
+		sc->sc_mbuf = newm;
+		sc->sc_ep = mtod(newm, u_char *) + SLBUFSIZE;
+		
 		m->m_data = (caddr_t)sc->sc_buf;
-		m->m_ext.ext_buf = (caddr_t)((intptr_t)sc->sc_buf &~ MCLOFSET);
 	} else
 		bcopy((caddr_t)sc->sc_buf, mtod(m, caddr_t), len);
 
