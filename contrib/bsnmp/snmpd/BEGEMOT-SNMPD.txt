@@ -30,7 +30,7 @@
 -- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 -- EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
--- $Begemot: bsnmp/snmpd/BEGEMOT-SNMPD.txt,v 1.18 2002/12/11 15:54:07 hbb Exp $
+-- $Begemot: bsnmp/snmpd/BEGEMOT-SNMPD.txt,v 1.21 2003/12/09 12:28:52 hbb Exp $
 --
 -- Begemot Private SNMPd MIB.
 --
@@ -133,6 +133,19 @@ begemotSnmpdTrap1Addr OBJECT-TYPE
     DESCRIPTION
 	    "The trap sink for v1 traps."
     ::= { begemotSnmpdConfig 4 }
+
+begemotSnmpdVersionEnable OBJECT-TYPE
+    SYNTAX	Unsigned32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "The SNMP versions that the agent processes. The following
+	    bits are defined:
+
+	    0x00000001	- SNMPv1
+	    0x00000002	- SNMPv2c"
+    DEFVAL	{ 0x3 }
+    ::= { begemotSnmpdConfig 5 }
 
 --
 -- Trap destinations
@@ -423,6 +436,8 @@ begemotSnmpdDebugSnmpTrace OBJECT-TYPE
 		0x00000004	trace SET operator
 		0x00000008	trace dependency processing
 		0x00000010	trace node finding
+		0x10000000	log ASN1 errors
+		0x20000000	log SNMP errors
 	    Individual values can be or-ed together."
     DEFVAL	{ 0 }
     ::= { begemotSnmpdDebug 2 }
@@ -461,6 +476,7 @@ begemotSnmpdLocalPortEntry OBJECT-TYPE
 BegemotSnmpdLocalPortEntry ::= SEQUENCE {
     begemotSnmpdLocalPortPath	OCTET STRING,
     begemotSnmpdLocalPortStatus	INTEGER
+    begemotSnmpdLocalPortType	INTEGER
 }
 
 begemotSnmpdLocalPortPath OBJECT-TYPE
@@ -478,5 +494,80 @@ begemotSnmpdLocalPortStatus OBJECT-TYPE
     DESCRIPTION
 	    "Set status to 1 to create entry, set it to 2 to delete it."
     ::= { begemotSnmpdLocalPortEntry 2 }
+
+begemotSnmpdLocalPortType OBJECT-TYPE
+    SYNTAX	INTEGER {
+			dgram-unpriv(1),
+			dgram-priv(2),
+			stream-unpriv(3),
+			stream-priv(4)
+		}
+    MAX-ACCESS	read-create
+    STATUS	current
+    DESCRIPTION
+	    "Type of the port. If the type is unpriv SET operations
+	    are allowed from all clients if the community matches. For
+	    priv SET operations are allowed only from peers with uid
+	    zero. If the daemon cannot determine the peer uid it disallows
+	    the SET operation for -priv ports."
+    ::= { begemotSnmpdLocalPortEntry 3 }
+
+--
+-- Transport mapping table
+--
+begemotSnmpdTransportMappings	OBJECT IDENTIFIER ::= { begemotSnmpdObjects 10 }
+
+begemotSnmpdTransportTable OBJECT-TYPE
+    SYNTAX	SEQUENCE OF BegemotSnmpdTransportEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "A table containing all the currently loaded transport mappings."
+    ::= { begemotSnmpdTransportMappings 1 }
+
+begemotSnmpdTransportEntry OBJECT-TYPE
+    SYNTAX	BegemotSnmpdTransportEntry
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "An entry in the table with the transport mappings."
+    INDEX	{ begemotSnmpdTransportName }
+    ::= { begemotSnmpdTransportTable 1 }
+
+BegemotSnmpdTransportEntry ::= SEQUENCE {
+    begemotSnmpdTransportName	OCTET STRING,
+    begemotSnmpdTransportStatus	INTEGER
+    begemotSnmpdTransportOid	OBJECT IDENTIFIER
+}
+
+begemotSnmpdTransportName OBJECT-TYPE
+    SYNTAX	OCTET STRING (SIZE(1..256))
+    MAX-ACCESS	not-accessible
+    STATUS	current
+    DESCRIPTION
+	    "The name of the mapping."
+    ::= { begemotSnmpdTransportEntry 1 }
+
+begemotSnmpdTransportStatus OBJECT-TYPE
+    SYNTAX	RowStatus
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "Used to create/activate/destroy the entry."
+    ::= { begemotSnmpdTransportEntry 2 }
+
+begemotSnmpdTransportOid OBJECT-TYPE
+    SYNTAX	OBJECT IDENTIFIER
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	    "A pointer to the group with the transport-dependend stuff."
+    ::= { begemotSnmpdTransportEntry 3 }
+
+--
+-- XXX These should go into their own MIB
+--
+begemotSnmpdTransUdp	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 2 }
+begemotSnmpdTransLsock	OBJECT IDENTIFIER ::= { begemotSnmpdTransportMappings 3 }
 
 END

@@ -31,7 +31,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.h,v 1.15 2002/12/11 15:54:07 hbb Exp $
+ * $Begemot: bsnmp/lib/snmpclient.h,v 1.17 2003/12/08 17:11:58 hbb Exp $
  */
 #ifndef _BSNMP_SNMPCLIENT_H
 #define _BSNMP_SNMPCLIENT_H
@@ -47,6 +47,12 @@
 
 #define SNMP_LOCAL_PATH	"/tmp/snmpXXXXXXXXXXXXXX"
 
+/*
+ * transport methods
+ */
+#define	SNMP_TRANS_UDP		0
+#define	SNMP_TRANS_LOC_DGRAM	1
+#define	SNMP_TRANS_LOC_STREAM	2
 
 /* type of callback function for responses
  * this callback function is responsible for free() any memory associated with
@@ -68,7 +74,7 @@ typedef void (*snmp_timeout_stop_f)(void *timeout_id);
  */
 struct snmp_client {
 	enum snmp_version version;
-	int		local;	/* use local socket */
+	int		trans;	/* which transport to use */
 
 	/* these two are read-only for the application */
 	char		*cport;	/* port number as string */

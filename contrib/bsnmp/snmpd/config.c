@@ -30,7 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/config.c,v 1.18 2003/03/11 15:30:01 hbb Exp $
+ * $Begemot: bsnmp/snmpd/config.c,v 1.19 2003/12/03 10:08:47 hbb Exp $
  *
  * Parse configuration file.
  */

@@ -31,7 +31,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: bsnmp/lib/snmpclient.c,v 1.24 2003/01/28 13:44:34 hbb Exp $
+ * $Begemot: bsnmp/lib/snmpclient.c,v 1.27 2003/12/08 17:11:58 hbb Exp $
  *
  * Support functions for SNMP clients.
  */
@@ -826,7 +826,7 @@ snmp_client_init(struct snmp_client *c)
 	memset(c, 0, sizeof(*c));
 
 	c->version = SNMP_V2c;
-	c->local = 0;
+	c->trans = SNMP_TRANS_UDP;
 	c->chost = NULL;
 	c->cport = NULL;
 
@@ -941,6 +941,7 @@ open_client_local(const char *path)
 {
 	struct sockaddr_un sa;
 	char *ptr;
+	int stype;
 
 	if (snmp_client.chost == NULL) {
 		if ((snmp_client.chost = malloc(1 + sizeof(DEFAULT_LOCAL)))
@@ -960,7 +961,12 @@ open_client_local(const char *path)
 		strcpy(snmp_client.chost, path);
 	}
 
-	if ((snmp_client.fd = socket(PF_LOCAL, SOCK_DGRAM, 0)) == -1) {
+	if (snmp_client.trans == SNMP_TRANS_LOC_DGRAM)
+		stype = SOCK_DGRAM;
+	else
+		stype = SOCK_STREAM;
+
+	if ((snmp_client.fd = socket(PF_LOCAL, stype, 0)) == -1) {
 		seterr("%s", strerror(errno));
 		return (-1);
 	}
@@ -1028,12 +1034,22 @@ snmp_open(const char *host, const char *port, const char *readcomm,
 		strlcpy(snmp_client.write_community, writecomm,
 		    sizeof(snmp_client.write_community));
 
-	if (!snmp_client.local) {
+	switch (snmp_client.trans) {
+
+	  case SNMP_TRANS_UDP:
 		if (open_client_udp(host, port))
 			return (-1);
-	} else {
+		break;
+
+	  case SNMP_TRANS_LOC_DGRAM:
+	  case SNMP_TRANS_LOC_STREAM:
 		if (open_client_local(host))
 			return (-1);
+		break;
+
+	  default:
+		seterr("bad transport mapping");
+		return (-1);
 	}
 	tout.tv_sec = 0;
 	tout.tv_usec = 0;
@@ -1042,7 +1058,7 @@ snmp_open(const char *host, const char *port, const char *readcomm,
 		seterr("%s", strerror(errno));
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
-		if (snmp_client.local)
+		if (snmp_client.local_path[0] != '\0')
 			(void)remove(snmp_client.local_path);
 		return (-1);
 	}
@@ -1075,7 +1091,7 @@ snmp_close(void)
 	if (snmp_client.fd != -1) {
 		(void)close(snmp_client.fd);
 		snmp_client.fd = -1;
-		if (snmp_client.local)
+		if (snmp_client.local_path[0] != '\0')
 			(void)remove(snmp_client.local_path);
 	}
 	while(!LIST_EMPTY(&sent_pdus)){
