@@ -1,5 +1,7 @@
 /* Output generating routines for GDB.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+
+   Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
+
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
 
@@ -27,11 +29,6 @@
 #include "ui-out.h"
 #include "gdb_assert.h"
 
-/* Convenience macro for allocting typesafe memory. */
-
-#undef XMALLOC
-#define XMALLOC(TYPE) (TYPE*) xmalloc (sizeof (TYPE))
-
 /* table header structures */
 
 struct ui_out_hdr
@@ -48,7 +45,7 @@ struct ui_out_hdr
    is always available.  Stack/nested level 0 is reserved for the
    top-level result. */
 
-enum { MAX_UI_OUT_LEVELS = 5 };
+enum { MAX_UI_OUT_LEVELS = 6 };
 
 struct ui_out_level
   {
@@ -209,6 +206,7 @@ struct ui_out_impl default_ui_out_impl =
   default_message,
   default_wrap_hint,
   default_flush,
+  NULL,
   0, /* Does not need MI hacks.  */
 };
 
@@ -257,6 +255,7 @@ static void uo_message (struct ui_out *uiout, int verbosity,
 			const char *format, va_list args);
 static void uo_wrap_hint (struct ui_out *uiout, char *identstring);
 static void uo_flush (struct ui_out *uiout);
+static int uo_redirect (struct ui_out *uiout, struct ui_file *outstream);
 
 /* Prototypes for local functions */
 
@@ -270,13 +269,11 @@ static void clear_header_list (struct ui_out *uiout);
 static void verify_field (struct ui_out *uiout, int *fldno, int *width,
 			  int *align);
 
-static void init_ui_out_state (struct ui_out *uiout);
-
 /* exported functions (ui_out API) */
 
 /* Mark beginning of a table */
 
-void
+static void
 ui_out_table_begin (struct ui_out *uiout, int nbrofcols,
 		    int nr_rows,
 		    const char *tblid)
@@ -321,7 +318,7 @@ columns.");
   uo_table_body (uiout);
 }
 
-void
+static void
 ui_out_table_end (struct ui_out *uiout)
 {
   if (!uiout->table.flag)
@@ -352,6 +349,22 @@ and before table_body.");
   append_header_to_list (uiout, width, alignment, col_name, colhdr);
 
   uo_table_header (uiout, width, alignment, col_name, colhdr);
+}
+
+static void
+do_cleanup_table_end (void *data)
+{
+  struct ui_out *ui_out = data;
+
+  ui_out_table_end (ui_out);
+}
+
+struct cleanup *
+make_cleanup_ui_out_table_begin_end (struct ui_out *ui_out, int nr_cols,
+                                     int nr_rows, const char *tblid)
+{
+  ui_out_table_begin (ui_out, nr_cols, nr_rows, tblid);
+  return make_cleanup (do_cleanup_table_end, ui_out);
 }
 
 void
@@ -391,36 +404,11 @@ specified after table_body.");
 }
 
 void
-ui_out_list_begin (struct ui_out *uiout,
-		   const char *id)
-{
-  ui_out_begin (uiout, ui_out_type_list, id);
-}
-
-void
-ui_out_tuple_begin (struct ui_out *uiout, const char *id)
-{
-  ui_out_begin (uiout, ui_out_type_tuple, id);
-}
-
-void
 ui_out_end (struct ui_out *uiout,
 	    enum ui_out_type type)
 {
   int old_level = pop_level (uiout, type);
   uo_end (uiout, type, old_level);
-}
-
-void
-ui_out_list_end (struct ui_out *uiout)
-{
-  ui_out_end (uiout, ui_out_type_list);
-}
-
-void
-ui_out_tuple_end (struct ui_out *uiout)
-{
-  ui_out_end (uiout, ui_out_type_tuple);
 }
 
 struct ui_out_end_cleanup_data
@@ -449,19 +437,10 @@ make_cleanup_ui_out_end (struct ui_out *uiout,
 }
 
 struct cleanup *
-make_cleanup_ui_out_begin_end (struct ui_out *uiout,
-			       enum ui_out_type type,
-			       const char *id)
-{
-  ui_out_begin (uiout, type, id);
-  return make_cleanup_ui_out_end (uiout, type);
-}
-
-struct cleanup *
 make_cleanup_ui_out_tuple_begin_end (struct ui_out *uiout,
 				     const char *id)
 {
-  ui_out_tuple_begin (uiout, id);
+  ui_out_begin (uiout, ui_out_type_tuple, id);
   return make_cleanup_ui_out_end (uiout, ui_out_type_tuple);
 }
 
@@ -469,7 +448,7 @@ struct cleanup *
 make_cleanup_ui_out_list_begin_end (struct ui_out *uiout,
 				    const char *id)
 {
-  ui_out_list_begin (uiout, id);
+  ui_out_begin (uiout, ui_out_type_list, id);
   return make_cleanup_ui_out_end (uiout, ui_out_type_list);
 }
 
@@ -489,15 +468,37 @@ ui_out_field_int (struct ui_out *uiout,
 }
 
 void
+ui_out_field_fmt_int (struct ui_out *uiout,
+                      int input_width,
+                      enum ui_align input_align,
+		      const char *fldname,
+		      int value)
+{
+  int fldno;
+  int width;
+  int align;
+  struct ui_out_level *current = current_level (uiout);
+
+  verify_field (uiout, &fldno, &width, &align);
+
+  uo_field_int (uiout, fldno, input_width, input_align, fldname, value);
+}
+
+void
 ui_out_field_core_addr (struct ui_out *uiout,
 			const char *fldname,
 			CORE_ADDR address)
 {
   char addstr[20];
 
-  /* FIXME-32x64: need a print_address_numeric with field width */
+  /* FIXME: cagney/2002-05-03: Need local_address_string() function
+     that returns the language localized string formatted to a width
+     based on TARGET_ADDR_BIT.  */
   /* print_address_numeric (address, 1, local_stream); */
-  strcpy (addstr, local_hex_string_custom ((unsigned long) address, "08l"));
+  if (TARGET_ADDR_BIT <= 32)
+    strcpy (addstr, local_hex_string_custom (address, "08l"));
+  else
+    strcpy (addstr, local_hex_string_custom (address, "016l"));
 
   ui_out_field_string (uiout, fldname, addstr);
 }
@@ -635,6 +636,12 @@ void
 ui_out_flush (struct ui_out *uiout)
 {
   uo_flush (uiout);
+}
+
+int
+ui_out_redirect (struct ui_out *uiout, struct ui_file *outstream)
+{
+  return uo_redirect (uiout, outstream);
 }
 
 /* set the flags specified by the mask given */
@@ -978,6 +985,15 @@ uo_flush (struct ui_out *uiout)
   if (!uiout->impl->flush)
     return;
   uiout->impl->flush (uiout);
+}
+
+int
+uo_redirect (struct ui_out *uiout, struct ui_file *outstream)
+{
+  if (!uiout->impl->redirect)
+    return -1;
+  uiout->impl->redirect (uiout, outstream);
+  return 0;
 }
 
 /* local functions */

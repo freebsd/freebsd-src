@@ -1,5 +1,5 @@
 /* Low level interface for debugging Solaris threads for GDB, the GNU debugger.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -55,12 +55,14 @@
 #include "target.h"
 #include "inferior.h"
 #include <fcntl.h>
-#include <sys/stat.h>
+#include "gdb_stat.h"
 #include <dlfcn.h>
 #include "gdbcmd.h"
 #include "gdbcore.h"
 #include "regcache.h"
 #include "symfile.h"
+
+#include "gdb_string.h"
 
 extern struct target_ops sol_thread_ops;	/* Forward declaration */
 extern struct target_ops sol_core_ops;	/* Forward declaration */
@@ -109,7 +111,7 @@ static void sol_core_close (int quitting);
 static void init_sol_thread_ops (void);
 static void init_sol_core_ops (void);
 
-/* Default definitions: These must be defined in tm.h 
+/* Default definitions: These must be defined in tm.h
    if they are to be shared with a process module such as procfs.  */
 
 #define GET_PID(ptid)		ptid_get_pid (ptid)
@@ -125,56 +127,56 @@ static void init_sol_core_ops (void);
 /* Pointers to routines from lithread_db resolved by dlopen() */
 
 static void     (*p_td_log)               (const int on_off);
-static td_err_e (*p_td_ta_new)            (const struct ps_prochandle * ph_p, 
+static td_err_e (*p_td_ta_new)            (const struct ps_prochandle * ph_p,
 					   td_thragent_t ** ta_pp);
 static td_err_e (*p_td_ta_delete)         (td_thragent_t * ta_p);
 static td_err_e (*p_td_init)              (void);
-static td_err_e (*p_td_ta_get_ph)         (const td_thragent_t * ta_p, 
+static td_err_e (*p_td_ta_get_ph)         (const td_thragent_t * ta_p,
 					   struct ps_prochandle ** ph_pp);
-static td_err_e (*p_td_ta_get_nthreads)   (const td_thragent_t * ta_p, 
+static td_err_e (*p_td_ta_get_nthreads)   (const td_thragent_t * ta_p,
 					   int *nthread_p);
-static td_err_e (*p_td_ta_tsd_iter)       (const td_thragent_t * ta_p, 
-					   td_key_iter_f * cb, 
+static td_err_e (*p_td_ta_tsd_iter)       (const td_thragent_t * ta_p,
+					   td_key_iter_f * cb,
 					   void *cbdata_p);
-static td_err_e (*p_td_ta_thr_iter)       (const td_thragent_t * ta_p, 
-					   td_thr_iter_f * cb, 
-					   void *cbdata_p, 
+static td_err_e (*p_td_ta_thr_iter)       (const td_thragent_t * ta_p,
+					   td_thr_iter_f * cb,
+					   void *cbdata_p,
 					   td_thr_state_e state,
-					   int ti_pri, 
-					   sigset_t * ti_sigmask_p, 
+					   int ti_pri,
+					   sigset_t * ti_sigmask_p,
 					   unsigned ti_user_flags);
 static td_err_e (*p_td_thr_validate)      (const td_thrhandle_t * th_p);
-static td_err_e (*p_td_thr_tsd)           (const td_thrhandle_t * th_p, 
-					   const thread_key_t key, 
+static td_err_e (*p_td_thr_tsd)           (const td_thrhandle_t * th_p,
+					   const thread_key_t key,
 					   void **data_pp);
-static td_err_e (*p_td_thr_get_info)      (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_get_info)      (const td_thrhandle_t * th_p,
 					   td_thrinfo_t * ti_p);
-static td_err_e (*p_td_thr_getfpregs)     (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_getfpregs)     (const td_thrhandle_t * th_p,
 					   prfpregset_t * fpregset);
-static td_err_e (*p_td_thr_getxregsize)   (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_getxregsize)   (const td_thrhandle_t * th_p,
 					   int *xregsize);
-static td_err_e (*p_td_thr_getxregs)      (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_getxregs)      (const td_thrhandle_t * th_p,
 					   const caddr_t xregset);
-static td_err_e (*p_td_thr_sigsetmask)    (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_sigsetmask)    (const td_thrhandle_t * th_p,
 					   const sigset_t ti_sigmask);
-static td_err_e (*p_td_thr_setprio)       (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_setprio)       (const td_thrhandle_t * th_p,
 					   const int ti_pri);
-static td_err_e (*p_td_thr_setsigpending) (const td_thrhandle_t * th_p, 
-					   const uchar_t ti_pending_flag, 
+static td_err_e (*p_td_thr_setsigpending) (const td_thrhandle_t * th_p,
+					   const uchar_t ti_pending_flag,
 					   const sigset_t ti_pending);
-static td_err_e (*p_td_thr_setfpregs)     (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_setfpregs)     (const td_thrhandle_t * th_p,
 					   const prfpregset_t * fpregset);
-static td_err_e (*p_td_thr_setxregs)      (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_setxregs)      (const td_thrhandle_t * th_p,
 					   const caddr_t xregset);
-static td_err_e (*p_td_ta_map_id2thr)     (const td_thragent_t * ta_p, 
-					   thread_t tid, 
+static td_err_e (*p_td_ta_map_id2thr)     (const td_thragent_t * ta_p,
+					   thread_t tid,
 					   td_thrhandle_t * th_p);
-static td_err_e (*p_td_ta_map_lwp2thr)    (const td_thragent_t * ta_p, 
-					   lwpid_t lwpid, 
+static td_err_e (*p_td_ta_map_lwp2thr)    (const td_thragent_t * ta_p,
+					   lwpid_t lwpid,
 					   td_thrhandle_t * th_p);
-static td_err_e (*p_td_thr_getgregs)      (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_getgregs)      (const td_thrhandle_t * th_p,
 					   prgregset_t regset);
-static td_err_e (*p_td_thr_setgregs)      (const td_thrhandle_t * th_p, 
+static td_err_e (*p_td_thr_setgregs)      (const td_thrhandle_t * th_p,
 					   const prgregset_t regset);
 
 /*
@@ -399,8 +401,6 @@ lwp_to_thread (ptid_t lwp)
 /* Most target vector functions from here on actually just pass through to
    procfs.c, as they don't need to do anything specific for threads.  */
 
-
-/* ARGSUSED */
 static void
 sol_thread_open (char *arg, int from_tty)
 {
@@ -646,9 +646,10 @@ sol_thread_store_registers (int regno)
 
   if (regno != -1)
     {				/* Not writing all the regs */
-      /* save new register value */
-      char* old_value = (char*) alloca (REGISTER_SIZE);
-      memcpy (old_value, &registers[REGISTER_BYTE (regno)], REGISTER_SIZE);
+      char old_value[MAX_REGISTER_SIZE];
+
+      /* Save new register value.  */
+      regcache_collect (regno, old_value);
 
       val = p_td_thr_getgregs (&thandle, gregset);
       if (val != TD_OK)
@@ -659,8 +660,8 @@ sol_thread_store_registers (int regno)
 	error ("sol_thread_store_registers: td_thr_getfpregs %s",
 	       td_err_string (val));
 
-      /* restore new register value */
-      memcpy (&registers[REGISTER_BYTE (regno)], old_value, REGISTER_SIZE);
+      /* Restore new register value.  */
+      supply_register (regno, old_value);
 
 #if 0
 /* thread_db doesn't seem to handle this right */
@@ -738,11 +739,42 @@ sol_thread_xfer_memory (CORE_ADDR memaddr, char *myaddr, int len, int dowrite,
   /* Note: don't need to call switch_to_thread; we're just reading memory.  */
 
   if (target_has_execution)
-    retval = procfs_ops.to_xfer_memory (memaddr, myaddr, len, 
+    retval = procfs_ops.to_xfer_memory (memaddr, myaddr, len,
 					dowrite, attrib, target);
   else
     retval = orig_core_ops.to_xfer_memory (memaddr, myaddr, len,
 					   dowrite, attrib, target);
+
+  do_cleanups (old_chain);
+
+  return retval;
+}
+
+/* Perform partial transfers on OBJECT.  See target_read_partial
+   and target_write_partial for details of each variant.  One, and
+   only one, of readbuf or writebuf must be non-NULL.  */
+
+static LONGEST
+sol_thread_xfer_partial (struct target_ops *ops, enum target_object object,
+			  const char *annex, void *readbuf,
+			  const void *writebuf, ULONGEST offset, LONGEST len)
+{
+  int retval;
+  struct cleanup *old_chain;
+
+  old_chain = save_inferior_ptid ();
+
+  if (is_thread (inferior_ptid) ||	/* A thread */
+      !target_thread_alive (inferior_ptid))	/* An lwp, but not alive */
+    inferior_ptid = procfs_first_available ();	/* Find any live lwp.  */
+  /* Note: don't need to call switch_to_thread; we're just reading memory.  */
+
+  if (target_has_execution)
+    retval = procfs_ops.to_xfer_partial (ops, object, annex,
+					 readbuf, writebuf, offset, len);
+  else
+    retval = orig_core_ops.to_xfer_partial (ops, object, annex,
+					    readbuf, writebuf, offset, len);
 
   do_cleanups (old_chain);
 
@@ -797,7 +829,7 @@ sol_thread_create_inferior (char *exec_file, char *allargs, char **env)
    those variables don't show up until the library gets mapped and the symbol
    table is read in.  */
 
-/* This new_objfile event is now managed by a chained function pointer. 
+/* This new_objfile event is now managed by a chained function pointer.
  * It is the callee's responsability to call the next client on the chain.
  */
 
@@ -863,7 +895,7 @@ sol_thread_can_run (void)
   return procfs_suppress_run;
 }
 
-/* 
+/*
 
    LOCAL FUNCTION
 
@@ -1027,10 +1059,10 @@ rw_common (int dowrite, const struct ps_prochandle *ph, gdb_ps_addr_t addr,
 
       /* FIXME: passing 0 as attrib argument.  */
       if (target_has_execution)
-	cc = procfs_ops.to_xfer_memory (addr, buf, size, 
+	cc = procfs_ops.to_xfer_memory (addr, buf, size,
 					dowrite, 0, &procfs_ops);
       else
-	cc = orig_core_ops.to_xfer_memory (addr, buf, size, 
+	cc = orig_core_ops.to_xfer_memory (addr, buf, size,
 					   dowrite, 0, &core_ops);
 
       if (cc < 0)
@@ -1047,10 +1079,10 @@ rw_common (int dowrite, const struct ps_prochandle *ph, gdb_ps_addr_t addr,
       else if (cc == 0)
 	{
 	  if (dowrite == 0)
-	    warning ("rw_common (): unable to read at addr 0x%lx", 
+	    warning ("rw_common (): unable to read at addr 0x%lx",
 		     (long) addr);
 	  else
-	    warning ("rw_common (): unable to write at addr 0x%lx", 
+	    warning ("rw_common (): unable to write at addr 0x%lx",
 		     (long) addr);
 
 	  do_cleanups (old_chain);
@@ -1429,7 +1461,7 @@ sol_core_files_info (struct target_ops *t)
 }
 
 /* Worker bee for info sol-thread command.  This is a callback function that
-   gets called once for each Solaris thread (ie. not kernel thread) in the 
+   gets called once for each Solaris thread (ie. not kernel thread) in the
    inferior.  Print anything interesting that we can think of.  */
 
 static int
@@ -1474,7 +1506,7 @@ info_cb (const td_thrhandle_t *th, void *s)
 	  struct minimal_symbol *msym;
 	  msym = lookup_minimal_symbol_by_pc (ti.ti_startfunc);
 	  if (msym)
-	    printf_filtered ("   startfunc: %s\n", SYMBOL_NAME (msym));
+	    printf_filtered ("   startfunc: %s\n", DEPRECATED_SYMBOL_NAME (msym));
 	  else
 	    printf_filtered ("   startfunc: 0x%s\n", paddr (ti.ti_startfunc));
 	}
@@ -1485,7 +1517,7 @@ info_cb (const td_thrhandle_t *th, void *s)
 	  struct minimal_symbol *msym;
 	  msym = lookup_minimal_symbol_by_pc (ti.ti_pc);
 	  if (msym)
-	    printf_filtered (" - Sleep func: %s\n", SYMBOL_NAME (msym));
+	    printf_filtered (" - Sleep func: %s\n", DEPRECATED_SYMBOL_NAME (msym));
 	  else
 	    printf_filtered (" - Sleep func: 0x%s\n", paddr (ti.ti_startfunc));
 	}
@@ -1511,10 +1543,10 @@ info_solthreads (char *args, int from_tty)
 }
 
 static int
-sol_find_memory_regions (int (*func) (CORE_ADDR, 
-				      unsigned long, 
-				      int, int, int, 
-				      void *), 
+sol_find_memory_regions (int (*func) (CORE_ADDR,
+				      unsigned long,
+				      int, int, int,
+				      void *),
 			 void *data)
 {
   return procfs_ops.to_find_memory_regions (func, data);
@@ -1540,7 +1572,6 @@ init_sol_thread_ops (void)
   sol_thread_ops.to_longname = "Solaris threads and pthread.";
   sol_thread_ops.to_doc = "Solaris threads and pthread support.";
   sol_thread_ops.to_open = sol_thread_open;
-  sol_thread_ops.to_close = 0;
   sol_thread_ops.to_attach = sol_thread_attach;
   sol_thread_ops.to_detach = sol_thread_detach;
   sol_thread_ops.to_resume = sol_thread_resume;
@@ -1549,6 +1580,7 @@ init_sol_thread_ops (void)
   sol_thread_ops.to_store_registers = sol_thread_store_registers;
   sol_thread_ops.to_prepare_to_store = sol_thread_prepare_to_store;
   sol_thread_ops.to_xfer_memory = sol_thread_xfer_memory;
+  sol_thread_ops.to_xfer_partial = sol_thread_xfer_partial;
   sol_thread_ops.to_files_info = sol_thread_files_info;
   sol_thread_ops.to_insert_breakpoint = memory_insert_breakpoint;
   sol_thread_ops.to_remove_breakpoint = memory_remove_breakpoint;
@@ -1556,10 +1588,9 @@ init_sol_thread_ops (void)
   sol_thread_ops.to_terminal_inferior = terminal_inferior;
   sol_thread_ops.to_terminal_ours_for_output = terminal_ours_for_output;
   sol_thread_ops.to_terminal_ours = terminal_ours;
+  sol_thread_ops.to_terminal_save_ours = terminal_save_ours;
   sol_thread_ops.to_terminal_info = child_terminal_info;
   sol_thread_ops.to_kill = sol_thread_kill_inferior;
-  sol_thread_ops.to_load = 0;
-  sol_thread_ops.to_lookup_symbol = 0;
   sol_thread_ops.to_create_inferior = sol_thread_create_inferior;
   sol_thread_ops.to_mourn_inferior = sol_thread_mourn_inferior;
   sol_thread_ops.to_can_run = sol_thread_can_run;
@@ -1575,8 +1606,6 @@ init_sol_thread_ops (void)
   sol_thread_ops.to_has_registers = 1;
   sol_thread_ops.to_has_execution = 1;
   sol_thread_ops.to_has_thread_control = tc_none;
-  sol_thread_ops.to_sections = 0;
-  sol_thread_ops.to_sections_end = 0;
   sol_thread_ops.to_find_memory_regions = sol_find_memory_regions;
   sol_thread_ops.to_make_corefile_notes = sol_make_note_section;
   sol_thread_ops.to_magic = OPS_MAGIC;
@@ -1593,30 +1622,17 @@ init_sol_core_ops (void)
   sol_core_ops.to_close = sol_core_close;
   sol_core_ops.to_attach = sol_thread_attach;
   sol_core_ops.to_detach = sol_core_detach;
-  /* sol_core_ops.to_resume  = 0; */
-  /* sol_core_ops.to_wait  = 0;  */
   sol_core_ops.to_fetch_registers = sol_thread_fetch_registers;
-  /* sol_core_ops.to_store_registers  = 0; */
-  /* sol_core_ops.to_prepare_to_store  = 0; */
   sol_core_ops.to_xfer_memory = sol_thread_xfer_memory;
+  sol_core_ops.to_xfer_partial = sol_thread_xfer_partial;
   sol_core_ops.to_files_info = sol_core_files_info;
   sol_core_ops.to_insert_breakpoint = ignore;
   sol_core_ops.to_remove_breakpoint = ignore;
-  /* sol_core_ops.to_terminal_init  = 0; */
-  /* sol_core_ops.to_terminal_inferior  = 0; */
-  /* sol_core_ops.to_terminal_ours_for_output  = 0; */
-  /* sol_core_ops.to_terminal_ours  = 0; */
-  /* sol_core_ops.to_terminal_info  = 0; */
-  /* sol_core_ops.to_kill  = 0; */
-  /* sol_core_ops.to_load  = 0; */
-  /* sol_core_ops.to_lookup_symbol  = 0; */
   sol_core_ops.to_create_inferior = sol_thread_create_inferior;
   sol_core_ops.to_stratum = core_stratum;
-  sol_core_ops.to_has_all_memory = 0;
   sol_core_ops.to_has_memory = 1;
   sol_core_ops.to_has_stack = 1;
   sol_core_ops.to_has_registers = 1;
-  sol_core_ops.to_has_execution = 0;
   sol_core_ops.to_has_thread_control = tc_none;
   sol_core_ops.to_thread_alive = sol_thread_alive;
   sol_core_ops.to_pid_to_str = solaris_pid_to_str;
@@ -1625,8 +1641,6 @@ init_sol_core_ops (void)
      <n> in procinfo list" where <n> is the pid of the process that produced
      the core file.  Disable it for now. */
   /* sol_core_ops.to_find_new_threads = sol_find_new_threads; */
-  sol_core_ops.to_sections = 0;
-  sol_core_ops.to_sections_end = 0;
   sol_core_ops.to_magic = OPS_MAGIC;
 }
 

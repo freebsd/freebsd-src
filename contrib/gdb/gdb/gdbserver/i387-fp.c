@@ -20,6 +20,7 @@
    Boston, MA 02111-1307, USA.  */
 
 #include "server.h"
+#include "i387-fp.h"
 
 int num_xmm_registers = 8;
 
@@ -108,7 +109,7 @@ i387_cache_to_fsave (void *buf)
 }
 
 void
-i387_fsave_to_cache (void *buf)
+i387_fsave_to_cache (const void *buf)
 {
   struct i387_fsave *fp = (struct i387_fsave *) buf;
   int i;
@@ -240,7 +241,7 @@ i387_ftag (struct i387_fxsave *fp, int regno)
 }
 
 void
-i387_fxsave_to_cache (void *buf)
+i387_fxsave_to_cache (const void *buf)
 {
   struct i387_fxsave *fp = (struct i387_fxsave *) buf;
   int i, top;
@@ -287,4 +288,3 @@ i387_fxsave_to_cache (void *buf)
   val = (fp->fop) & 0x7FF;
   supply_register_by_name ("fop", &val);
 }
-

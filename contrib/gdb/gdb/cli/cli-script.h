@@ -19,6 +19,10 @@
 #if !defined (CLI_SCRIPT_H)
 #define CLI_SCRIPT_H 1
 
+struct ui_file;
+struct command_line;
+struct cmd_list_element;
+
 /* Exported to cli/cli-cmds.c */
 
 extern void script_from_file (FILE *stream, char *file);
@@ -40,6 +44,10 @@ extern enum command_control_type
 
 extern void print_command_lines (struct ui_out *,
 				 struct command_line *, unsigned int);
+
+extern struct command_line * copy_command_lines (struct command_line *cmds);
+
+struct cleanup *make_cleanup_free_command_lines (struct command_line **arg);
 
 /* Exported to gdb/infrun.c */
 

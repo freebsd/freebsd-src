@@ -116,6 +116,14 @@
 /* Prototypes for supply_gregset etc. */
 #include "gregset.h"
 
+/* Offset from SP to first arg on stack at first instruction of a
+   function.  We provide a default here that's right for most, if not
+   all, targets that use this file.  */
+
+#ifndef SP_ARG0
+#define SP_ARG0 (1 * 4)
+#endif
+
 /* Whether to emit debugging output. */
 
 #define DEBUG 0

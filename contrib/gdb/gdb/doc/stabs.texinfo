@@ -3,13 +3,12 @@
 
 @c @finalout
 
-@ifinfo
-@format
-START-INFO-DIR-ENTRY
-* Stabs: (stabs).                 The "stabs" debugging information format.
-END-INFO-DIR-ENTRY
-@end format
-@end ifinfo
+@c This is a dir.info fragment to support semi-automated addition of
+@c manuals to an info tree.
+@dircategory Software development
+@direntry
+* Stabs: (stabs).                 The "stabs" debugging information format.   
+@end direntry
 
 @ifinfo
 This document describes the stabs debugging symbol tables.
@@ -22,12 +21,9 @@ and David MacKenzie.
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
 any later version published by the Free Software Foundation; with no
-Invariant Sections, with the Front-Cover Texts being ``A GNU Manual,''
-and with the Back-Cover Texts as in (a) below.
-
-(a) The FSF's Back-Cover Text is: ``You have freedom to copy and modify
-this GNU Manual, like GNU software.  Copies published by the Free
-Software Foundation raise funds for GNU development.''
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the section entitled ``GNU
+Free Documentation License''.
 @end ifinfo
 
 @setchapternewpage odd
@@ -54,13 +50,9 @@ Contributed by Cygnus Support.
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1 or
 any later version published by the Free Software Foundation; with no
-Invariant Sections, with the Front-Cover Texts being ``A GNU Manual,''
-and with the Back-Cover Texts as in (a) below.
-
-(a) The FSF's Back-Cover Text is: ``You have freedom to copy and modify
-this GNU Manual, like GNU software.  Copies published by the Free
-Software Foundation raise funds for GNU development.''
-
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the section entitled ``GNU
+Free Documentation License''.
 @end titlepage
 
 @ifinfo
@@ -85,6 +77,7 @@ This document describes the stabs debugging format.
 * Stab Sections::		In some object file formats, stabs are
                                 in sections.
 * Symbol Types Index::          Index of symbolic stab symbol type names.
+* GNU Free Documentation License::  The license for this documentation
 @end menu
 @end ifinfo
 
@@ -259,10 +252,10 @@ There is an AIX extension for type attributes.  Following the @samp{=}
 are any number of type attributes.  Each one starts with @samp{@@} and
 ends with @samp{;}.  Debuggers, including AIX's dbx and GDB 4.10, skip
 any type attributes they do not recognize.  GDB 4.9 and other versions
-of dbx may not do this.  Because of a conflict with C++
+of dbx may not do this.  Because of a conflict with C@t{++}
 (@pxref{Cplusplus}), new attributes should not be defined which begin
 with a digit, @samp{(}, or @samp{-}; GDB may be unable to distinguish
-those from the C++ type descriptor @samp{@@}.  The attributes are:
+those from the C@t{++} type descriptor @samp{@@}.  The attributes are:
 
 @table @code
 @item a@var{boundary}
@@ -287,6 +280,12 @@ Indicate that this type is a string instead of an array of characters,
 or a bitstring instead of a set.  It doesn't change the layout of the
 data being represented, but does enable the debugger to know which type
 it is.
+
+@item V
+Indicate that this type is a vector instead of an array.  The only 
+major difference between vectors and arrays is that vectors are
+passed by value instead of by reference (vector coprocessor extension).
+
 @end table
 
 All of this can make the string field quite long.  All versions of GDB,
@@ -431,7 +430,7 @@ Some compilers (for example, GCC2 and SunOS4 @file{/bin/cc}) also
 include the directory in which the source was compiled, in a second
 @code{N_SO} symbol preceding the one containing the file name.  This
 symbol can be distinguished by the fact that it ends in a slash.  Code
-from the @code{cfront} C++ compiler can have additional @code{N_SO} symbols for
+from the @code{cfront} C@t{++} compiler can have additional @code{N_SO} symbols for
 nonexistent source files after the @code{N_SO} for the real source file;
 these are believed to contain no useful information.
 
@@ -1766,7 +1765,7 @@ Another way is with the @samp{x} type descriptor, which is followed by
 @samp{s} for a structure tag, @samp{u} for a union tag, or @samp{e} for
 a enumerator tag, followed by the name of the tag, followed by @samp{:}.
 If the name contains @samp{::} between a @samp{<} and @samp{>} pair (for
-C++ templates), such a @samp{::} does not end the name---only a single
+C@t{++} templates), such a @samp{::} does not end the name---only a single
 @samp{:} ends the name; see @ref{Nested Symbols}.
 
 For example, the following C declarations:
@@ -2041,8 +2040,9 @@ definition narrows the symbol type to structure.
 
 Following the @samp{s} type descriptor is the number of bytes the
 structure occupies, followed by a description of each structure element.
-The structure element descriptions are of the form @var{name:type, bit
-offset from the start of the struct, number of bits in the element}.
+The structure element descriptions are of the form
+@samp{@var{name}:@var{type}, @var{bit offset from the start of the
+struct}, @var{number of bits in the element}}.
 
 @c FIXME: phony line break.  Can probably be fixed by using an example
 @c with fewer fields.
@@ -2062,13 +2062,13 @@ The @code{s_next} field is a pointer to the same kind of structure that
 the field is an element of.  So the definition of structure type 16
 contains a type definition for an element which is a pointer to type 16.
 
-If a field is a static member (this is a C++ feature in which a single
+If a field is a static member (this is a C@t{++} feature in which a single
 variable appears to be a field of every structure of a given type) it
 still starts out with the field name, a colon, and the type, but then
 instead of a comma, bit position, comma, and bit size, there is a colon
 followed by the name of the variable which each such field refers to.
 
-If the structure has methods (a C++ feature), they follow the non-method
+If the structure has methods (a C@t{++} feature), they follow the non-method
 fields; see @ref{Cplusplus}.
 
 @node Typedefs
@@ -2140,8 +2140,8 @@ the stab describes an enumeration, structure, or union tag.  The type
 descriptor @samp{u}, following the @samp{23=} of the type definition,
 narrows it down to a union type definition.  Following the @samp{u} is
 the number of bytes in the union.  After that is a list of union element
-descriptions.  Their format is @var{name:type, bit offset into the
-union, number of bytes for the element;}.
+descriptions.  Their format is @samp{@var{name}:@var{type}, @var{bit
+offset into the union}, @var{number of bytes for the element};}.
 
 The stab for the union variable is:
 
@@ -2389,7 +2389,7 @@ Symnum n_type n_othr n_desc n_value  n_strx String
 @end example
 
 @node Cplusplus
-@chapter GNU C++ Stabs
+@chapter GNU C@t{++} Stabs
 
 @menu
 * Class Names::			C++ class names are both tags and typedefs.
@@ -2409,9 +2409,9 @@ Symnum n_type n_othr n_desc n_value  n_strx String
 @end menu
 
 @node Class Names
-@section C++ Class Names
+@section C@t{++} Class Names
 
-In C++, a class name which is declared with @code{class}, @code{struct},
+In C@t{++}, a class name which is declared with @code{class}, @code{struct},
 or @code{union}, is not only a tag, as in C, but also a type name.  Thus
 there should be stabs with both @samp{t} and @samp{T} symbol descriptors
 (@pxref{Typedefs}).
@@ -2420,7 +2420,7 @@ To save space, there is a special abbreviation for this case.  If the
 @samp{T} symbol descriptor is followed by @samp{t}, then the stab
 defines both a type name and a tag.
 
-For example, the C++ code
+For example, the C@t{++} code
 
 @example
 struct foo @{int x;@};
@@ -2442,7 +2442,7 @@ or
 @node Nested Symbols
 @section Defining a Symbol Within Another Type
 
-In C++, a symbol (such as a type name) can be defined within another type.
+In C@t{++}, a symbol (such as a type name) can be defined within another type.
 @c FIXME: Needs example.
 
 In stabs, this is sometimes represented by making the name of a symbol
@@ -2457,12 +2457,12 @@ then @code{foo::bar::baz} is the name of the symbol, @samp{t} is the
 symbol descriptor, and @samp{5=*6} is the type information.
 
 @node Basic Cplusplus Types
-@section Basic Types For C++
+@section Basic Types For C@t{++}
 
 << the examples that follow are based on a01.C >>
 
 
-C++ adds two more builtin types to the set defined for C.  These are
+C@t{++} adds two more builtin types to the set defined for C.  These are
 the unknown type and the vtable record type.  The unknown type, type
 16, is defined in terms of itself like the void type.
 
@@ -2473,7 +2473,7 @@ pfn, and delta2.  pfn is the function pointer.
 << In boilerplate $vtbl_ptr_type, what are the fields delta,
 index, and delta2 used for? >>
 
-This basic type is present in all C++ programs even if there are no
+This basic type is present in all C@t{++} programs even if there are no
 virtual methods defined.
 
 @display
@@ -2503,8 +2503,8 @@ virtual methods defined.
 @node Simple Classes
 @section Simple Class Definition
 
-The stabs describing C++ language features are an extension of the
-stabs describing C.  Stabs representing C++ class types elaborate
+The stabs describing C@t{++} language features are an extension of the
+stabs describing C.  Stabs representing C@t{++} class types elaborate
 extensively on the stab format used to describe structure types in C.
 Stabs representing class type variables look just like stabs
 representing C language variables.
@@ -2526,20 +2526,20 @@ stab is not located between an @code{N_FUN} and an @code{N_LBRAC} stab this indi
 that the class is defined at file scope.  If it were, then the @code{N_LSYM}
 would signify a local variable.
 
-A stab describing a C++ class type is similar in format to a stab
+A stab describing a C@t{++} class type is similar in format to a stab
 describing a C struct, with each class member shown as a field in the
 structure.  The part of the struct format describing fields is
-expanded to include extra information relevant to C++ class members.
+expanded to include extra information relevant to C@t{++} class members.
 In addition, if the class has multiple base classes or virtual
 functions the struct format outside of the field parts is also
 augmented.
 
-In this simple example the field part of the C++ class stab
+In this simple example the field part of the C@t{++} class stab
 representing member data looks just like the field part of a C struct
 stab.  The section on protections describes how its format is
 sometimes extended for member data.
 
-The field part of a C++ class stab representing a member function
+The field part of a C@t{++} class stab representing a member function
 differs substantially from the field part of a C struct stab.  It
 still begins with @samp{name:} but then goes on to define a new type number
 for the member function, describe its return type, its argument types,
@@ -2566,7 +2566,7 @@ occur in the @var{operator-name} string.
 The next part of the method description represents the arguments to the
 method, preceded by a colon and ending with a semi-colon.  The types of
 the arguments are expressed in the same way argument types are expressed
-in C++ name mangling.  In this example an @code{int} and a @code{char}
+in C@t{++} name mangling.  In this example an @code{int} and a @code{char}
 map to @samp{ic}.
 
 This is followed by a number, a letter, and an asterisk or period,
@@ -2600,7 +2600,7 @@ information present for virtual methods.
 @node Class Instance
 @section Class Instance
 
-As shown above, describing even a simple C++ class definition is
+As shown above, describing even a simple C@t{++} class definition is
 accomplished by massively extending the stab format used in C to
 describe structure types.  However, once the class is defined, C stabs
 with no modifications can be used to describe class instances.  The
@@ -2627,7 +2627,7 @@ different from a standard C stab describing a local variable.
 @node Methods
 @section Method Definition
 
-The class definition shown above declares Ameth.  The C++ source below
+The class definition shown above declares Ameth.  The C@t{++} source below
 defines Ameth:
 
 @example
@@ -2718,15 +2718,26 @@ compiler it can also be used in other contexts.
 @node Member Type Descriptor
 @section The @samp{@@} Type Descriptor
 
-The @samp{@@} type descriptor is for a member (class and variable) type.
-It is followed by type information for the offset basetype, a comma, and
-type information for the type of the field being pointed to.  (FIXME:
-this is acknowledged to be gibberish.  Can anyone say what really goes
-here?).
+The @samp{@@} type descriptor is used together with the @samp{*} type
+descriptor for a pointer-to-non-static-member-data type.  It is followed
+by type information for the class (or union), a comma, and type
+information for the member data.
+
+The following C@t{++} source:
+
+@smallexample
+typedef int A::*int_in_a;
+@end smallexample
+
+generates the following stab:
+
+@smallexample
+.stabs "int_in_a:t20=*21=@@19,1",128,0,0,0
+@end smallexample
 
 Note that there is a conflict between this and type attributes
 (@pxref{String Field}); both use type descriptor @samp{@@}.
-Fortunately, the @samp{@@} type descriptor used in this C++ sense always
+Fortunately, the @samp{@@} type descriptor used in this C@t{++} sense always
 will be followed by a digit, @samp{(}, or @samp{-}, and type attributes
 never start with those things.
 
@@ -2736,7 +2747,7 @@ never start with those things.
 In the simple class definition shown above all member data and
 functions were publicly accessible.  The example that follows
 contrasts public, protected and privately accessible fields and shows
-how these protections are encoded in C++ stabs.
+how these protections are encoded in C@t{++} stabs.
 
 If the character following the @samp{@var{field-name}:} part of the
 string is @samp{/}, then the next character is the visibility.  @samp{0}
@@ -2750,7 +2761,7 @@ an optimized out field with a private or protected visibility).
 Visibility @samp{9} is not supported by GDB 4.11; this should be fixed
 in the next GDB release.
 
-The following C++ source:
+The following C@t{++} source:
 
 @example
 class vis @{
@@ -2780,7 +2791,7 @@ type float (@samp{12}), and offset and size @samp{,64,32;}.
 
 Protections for member functions are signified by one digit embedded in
 the field part of the stab describing the method.  The digit is 0 if
-private, 1 if protected and 2 if public.  Consider the C++ class
+private, 1 if protected and 2 if public.  Consider the C@t{++} class
 definition below:
 
 @example
@@ -2878,7 +2889,7 @@ struct is @samp{Adat}, an integer, starting at structure offset 0 and
 occupying 32 bits.
 
 The second field in the class struct is not explicitly defined by the
-C++ class definition but is implied by the fact that the class
+C@t{++} class definition but is implied by the fact that the class
 contains a virtual method.  This field is the vtable pointer.  The
 name of the vtable pointer field starts with @samp{$vf} and continues with a
 type reference to the class it is part of.  In this example the type
@@ -2890,7 +2901,7 @@ This is in turn defined as a pointer to another new type (22).
 
 Type 22 is the vtable itself, which is defined as an array, indexed by
 a range of integers between 0 and 1, and whose elements are of type
-17.  Type 17 was the vtable record type defined by the boilerplate C++
+17.  Type 17 was the vtable record type defined by the boilerplate C@t{++}
 type definitions, as shown earlier.
 
 The bit offset of the vtable pointer field is 32.  The number of bits
@@ -2944,7 +2955,7 @@ class.  This is preceded by @samp{~%} and followed by a final semi-colon.
 @node Inheritance
 @section Inheritance
 
-Stabs describing C++ derived classes include additional sections that
+Stabs describing C@t{++} derived classes include additional sections that
 describe the inheritance hierarchy of the class.  A derived class stab
 also encodes the number of base classes.  For each base class it tells
 if the base class is virtual or not, and if the inheritance is private
@@ -3275,13 +3286,13 @@ GNU Modula2 definition module dependency; see @ref{N_DEFD}.
 Function start/body/end line numbers (Solaris2).
 
 @item 0x50     N_EHDECL
-GNU C++ exception variable; see @ref{N_EHDECL}.
+GNU C@t{++} exception variable; see @ref{N_EHDECL}.
 
 @item 0x50     N_MOD2
 Modula2 info "for imc" (according to Ultrix V4.0); see @ref{N_MOD2}.
 
 @item 0x54     N_CATCH
-GNU C++ @code{catch} clause; see @ref{N_CATCH}.
+GNU C@t{++} @code{catch} clause; see @ref{N_CATCH}.
 
 @item 0x60     N_SSYM
 Structure of union element; see @ref{N_SSYM}.
@@ -3375,7 +3386,7 @@ for more information about their use.
 Variable on the stack; see @ref{Stack Variables}.
 
 @item :
-C++ nested symbol; see @xref{Nested Symbols}.
+C@t{++} nested symbol; see @xref{Nested Symbols}.
 
 @item a
 Parameter passed by reference in register; see @ref{Reference Parameters}.
@@ -3388,7 +3399,7 @@ Constant; see @ref{Constants}.
 
 @item C
 Conformant array bound (Pascal, maybe other languages); @ref{Conformant
-Arrays}.  Name of a caught exception (GNU C++).  These can be
+Arrays}.  Name of a caught exception (GNU C@t{++}).  These can be
 distinguished because the latter uses @code{N_CATCH} and the former uses
 another symbol type.
 
@@ -3489,17 +3500,17 @@ Type reference; see @ref{String Field}.
 Reference to builtin type; see @ref{Negative Type Numbers}.
 
 @item #
-Method (C++); see @ref{Method Type Descriptor}.
+Method (C@t{++}); see @ref{Method Type Descriptor}.
 
 @item *
 Pointer; see @ref{Miscellaneous Types}.
 
 @item &
-Reference (C++).
+Reference (C@t{++}).
 
 @item @@
 Type Attributes (AIX); see @ref{String Field}.  Member (class and variable)
-type (GNU C++); see @ref{Member Type Descriptor}.
+type (GNU C@t{++}); see @ref{Member Type Descriptor}.
 
 @item a
 Array; see @ref{Arrays}.
@@ -3604,7 +3615,7 @@ Wide character; see @ref{Builtin Type Descriptors}.
 Cross-reference; see @ref{Cross-References}.
 
 @item Y
-Used by IBM's xlC C++ compiler (for structures, I think).
+Used by IBM's xlC C@t{++} compiler (for structures, I think).
 
 @item z
 gstring; see @ref{Strings}.
@@ -3746,7 +3757,7 @@ if it is imported with the GNU M2 keyword @code{%INITIALIZE}.  Perhaps
 
 @deffn @code{.stabs} N_EHDECL
 @findex N_EHDECL
-GNU C++ exception variable <<?>>.
+GNU C@t{++} exception variable <<?>>.
 
 "@var{string} is variable name"
 
@@ -3768,9 +3779,9 @@ Note: conflicts with @code{N_EHDECL}  <<?>>
 
 @deffn @code{.stabn} N_CATCH
 @findex N_CATCH
-GNU C++ @code{catch} clause
+GNU C@t{++} @code{catch} clause
 
-GNU C++ @code{catch} clause.  The value is its address.  The desc field
+GNU C@t{++} @code{catch} clause.  The value is its address.  The desc field
 is nonzero if this entry is immediately followed by a @code{CAUGHT} stab
 saying what exception was caught.  Multiple @code{CAUGHT} stabs means
 that multiple exceptions can be caught here.  If desc is 0, it means all
@@ -4014,6 +4025,10 @@ symbols in the stabs themselves.  Having the linker relocate them there
 is no more work than having the linker relocate ELF symbols, and it
 solves the problem of having to associate the ELF and stab symbols.
 However, no one has yet designed or implemented such a scheme.
+
+@raisesections
+@include fdl.texi
+@lowersections
 
 @node Symbol Types Index
 @unnumbered Symbol Types Index

@@ -1,5 +1,7 @@
 /* Native definitions for alpha running OSF/1.
-   Copyright 1993, 1994, 1995, 1998, 2000 Free Software Foundation, Inc.
+
+   Copyright 1993, 1994, 1995, 1998, 2000, 2004 Free Software
+   Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,14 +20,10 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* Figure out where the longjmp will land.  We expect that we have just entered
-   longjmp and haven't yet setup the stack frame, so the args are still in the
-   argument regs.  A0_REGNUM points at the jmp_buf structure from which we
-   extract the pc (JB_PC) that we will land at.  The pc is copied into ADDR.
-   This routine returns true on success */
-
-#define GET_LONGJMP_TARGET(ADDR) get_longjmp_target(ADDR)
-extern int get_longjmp_target (CORE_ADDR *);
+/* Number of traps that happen between exec'ing the shell
+   to run an inferior, and when we finally get to
+   the inferior code.  This is 2 on most implementations.  */
+#define START_INFERIOR_TRAPS_EXPECTED 3
 
 /* ptrace register ``addresses'' are absolute.  */
 
@@ -41,11 +39,7 @@ extern int get_longjmp_target (CORE_ADDR *);
 
 /* The alpha does not step over a breakpoint, the manpage is lying again.  */
 
-#define CANNOT_STEP_BREAKPOINT
-
-/* OSF/1 has shared libraries.  */
-
-#define GDB_TARGET_HAS_SHARED_LIBS
+#define CANNOT_STEP_BREAKPOINT 1
 
 /* Support for shared libraries.  */
 

@@ -1,6 +1,6 @@
 /* Native-dependent definitions for FreeBSD/sparc64.
-   Copyright 2002
-   Free Software Foundation, Inc.
+
+   Copyright 2002, 2003 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org>.
 
    This file is part of GDB.
@@ -34,34 +34,6 @@
 
 /* Shared library support.  */
 
-#define SVR4_SHARED_LIBS
+#include "solib.h"
 
-#include "solib.h"		/* Support for shared libraries. */
-#include "elf/common.h"		/* Additional ELF shared library info. */
-
-/* Make things match up with what is expected in sparc-nat.c.  */
-
-#define PTRACE_GETREGS	 PT_GETREGS
-#define PTRACE_SETREGS	 PT_SETREGS
-#define PTRACE_GETFPREGS PT_GETFPREGS
-#define PTRACE_SETFPREGS PT_SETFPREGS
-
-#define GDB_GREGSET_T	struct reg
-#define GDB_FPREGSET_T	struct fpreg
-
-#define regs		trapframe
-#define r_g1		tf_global[1]
-#define r_ps		tf_tstate
-#define r_pc		tf_tpc
-#define r_npc		tf_tnpc
-#define r_y		tf_y
-
-#define FPU_FSR_TYPE	unsigned long
-#define fp_status	fpreg		/* our reg.h */
-#define fpu		fpreg		/* our reg.h */
-#define fpu_regs	fr_regs		/* one field of fpu_fr on Solaris */
-#define fpu_fr		fr_regs		/* a union w/in struct fpu on Solaris */
-#define fpu_fsr		fr_fsr
-#define Fpu_fsr		fr_fsr
-
-#endif /* NM_FBSD_H */
+#endif /* nm-fbsd.h */

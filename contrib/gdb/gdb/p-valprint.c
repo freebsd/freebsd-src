@@ -1,5 +1,5 @@
 /* Support for printing Pascal values for GDB, the GNU debugger.
-   Copyright 2000, 2001
+   Copyright 2000, 2001, 2003
    Free Software Foundation, Inc.
 
    This file is part of GDB.
@@ -21,7 +21,7 @@
 /* This file is derived from c-valprint.c */
 
 #include "defs.h"
-#include "obstack.h"
+#include "gdb_obstack.h"
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "expression.h"
@@ -60,7 +60,7 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  CORE_ADDR address, struct ui_file *stream, int format,
 		  int deref_ref, int recurse, enum val_prettyprint pretty)
 {
-  register unsigned int i = 0;	/* Number of characters printed */
+  unsigned int i = 0;	/* Number of characters printed */
   unsigned len;
   struct type *elttype;
   unsigned eltlen;
@@ -141,7 +141,8 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 	  /* Print the unmangled name if desired.  */
 	  /* Print vtable entry - we only get here if we ARE using
 	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_STRUCT.) */
-	  print_address_demangle (extract_address (valaddr + embedded_offset, TYPE_LENGTH (type)),
+	  /* Extract the address, assume that it is unsigned.  */
+	  print_address_demangle (extract_unsigned_integer (valaddr + embedded_offset, TYPE_LENGTH (type)),
 				  stream, demangle);
 	  break;
 	}
@@ -190,8 +191,8 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 	     as GDB does not recognize stabs pascal strings
 	     Pascal strings are mapped to records
 	     with lowercase names PM  */
-          if (is_pascal_string_type (elttype, &length_pos,
-                                     &length_size, &string_pos, &char_size)
+          if (is_pascal_string_type (elttype, &length_pos, &length_size,
+                                     &string_pos, &char_size, NULL)
 	      && addr != 0)
 	    {
 	      ULONGEST string_length;
@@ -213,7 +214,7 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  && (vt_address == SYMBOL_VALUE_ADDRESS (msymbol)))
 		{
 		  fputs_filtered (" <", stream);
-		  fputs_filtered (SYMBOL_SOURCE_NAME (msymbol), stream);
+		  fputs_filtered (SYMBOL_PRINT_NAME (msymbol), stream);
 		  fputs_filtered (">", stream);
 		}
 	      if (vt_address && vtblprint)
@@ -221,13 +222,12 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 		  struct value *vt_val;
 		  struct symbol *wsym = (struct symbol *) NULL;
 		  struct type *wtype;
-		  struct symtab *s;
 		  struct block *block = (struct block *) NULL;
 		  int is_this_fld;
 
 		  if (msymbol != NULL)
-		    wsym = lookup_symbol (SYMBOL_NAME (msymbol), block,
-					  VAR_NAMESPACE, &is_this_fld, &s);
+		    wsym = lookup_symbol (DEPRECATED_SYMBOL_NAME (msymbol), block,
+					  VAR_DOMAIN, &is_this_fld, NULL);
 
 		  if (wsym)
 		    {
@@ -272,9 +272,11 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
       if (addressprint)
 	{
 	  fprintf_filtered (stream, "@");
+	  /* Extract the address, assume that it is unsigned.  */
 	  print_address_numeric
-	    (extract_address (valaddr + embedded_offset,
-			      TARGET_PTR_BIT / HOST_CHAR_BIT), 1, stream);
+	    (extract_unsigned_integer (valaddr + embedded_offset,
+				       TARGET_PTR_BIT / HOST_CHAR_BIT),
+	     1, stream);
 	  if (deref_ref)
 	    fputs_filtered (": ", stream);
 	}
@@ -312,15 +314,16 @@ pascal_val_print (struct type *type, char *valaddr, int embedded_offset,
 	  /* Print the unmangled name if desired.  */
 	  /* Print vtable entry - we only get here if NOT using
 	     -fvtable_thunks.  (Otherwise, look under TYPE_CODE_PTR.) */
-	  print_address_demangle (extract_address (
-						    valaddr + embedded_offset + TYPE_FIELD_BITPOS (type, VTBL_FNADDR_OFFSET) / 8,
-		  TYPE_LENGTH (TYPE_FIELD_TYPE (type, VTBL_FNADDR_OFFSET))),
-				  stream, demangle);
+	  /* Extract the address, assume that it is unsigned.  */
+	  print_address_demangle
+	    (extract_unsigned_integer (valaddr + embedded_offset + TYPE_FIELD_BITPOS (type, VTBL_FNADDR_OFFSET) / 8,
+				       TYPE_LENGTH (TYPE_FIELD_TYPE (type, VTBL_FNADDR_OFFSET))),
+	     stream, demangle);
 	}
       else
 	{
           if (is_pascal_string_type (type, &length_pos, &length_size,
-                                     &string_pos, &char_size))
+                                     &string_pos, &char_size, NULL))
 	    {
 	      len = extract_unsigned_integer (valaddr + embedded_offset + length_pos, length_size);
 	      LA_PRINT_STRING (stream, valaddr + embedded_offset + string_pos, len, char_size, 0);
@@ -550,8 +553,8 @@ pascal_value_print (struct value *val, struct ui_file *stream, int format,
          type is indicated by the quoted string anyway. */
       if (TYPE_CODE (type) == TYPE_CODE_PTR &&
 	  TYPE_NAME (type) == NULL &&
-	  TYPE_NAME (TYPE_TARGET_TYPE (type)) != NULL &&
-	  STREQ (TYPE_NAME (TYPE_TARGET_TYPE (type)), "char"))
+	  TYPE_NAME (TYPE_TARGET_TYPE (type)) != NULL
+	  && strcmp (TYPE_NAME (TYPE_TARGET_TYPE (type)), "char") == 0)
 	{
 	  /* Print nothing */
 	}
@@ -620,13 +623,11 @@ pascal_object_print_class_method (char *valaddr, struct type *type,
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
 
+	  check_stub_method_group (domain, i);
 	  for (j = 0; j < len2; j++)
 	    {
-	      QUIT;
 	      if (TYPE_FN_FIELD_VOFFSET (f, j) == offset)
 		{
-		  if (TYPE_FN_FIELD_STUB (f, j))
-		    check_stub_method (domain, i, j);
 		  kind = "virtual ";
 		  goto common;
 		}
@@ -646,15 +647,11 @@ pascal_object_print_class_method (char *valaddr, struct type *type,
 	  f = TYPE_FN_FIELDLIST1 (domain, i);
 	  len2 = TYPE_FN_FIELDLIST_LENGTH (domain, i);
 
+	  check_stub_method_group (domain, i);
 	  for (j = 0; j < len2; j++)
 	    {
-	      QUIT;
-	      if (TYPE_FN_FIELD_STUB (f, j))
-		check_stub_method (domain, i, j);
-	      if (STREQ (SYMBOL_NAME (sym), TYPE_FN_FIELD_PHYSNAME (f, j)))
-		{
-		  goto common;
-		}
+	      if (DEPRECATED_STREQ (DEPRECATED_SYMBOL_NAME (sym), TYPE_FN_FIELD_PHYSNAME (f, j)))
+		goto common;
 	    }
 	}
     }
@@ -664,7 +661,7 @@ common:
       char *demangled_name;
 
       fprintf_filtered (stream, "&");
-      fprintf_filtered (stream, kind);
+      fputs_filtered (kind, stream);
       demangled_name = cplus_demangle (TYPE_FN_FIELD_PHYSNAME (f, j),
 				       DMGL_ANSI | DMGL_PARAMS);
       if (demangled_name == NULL)
@@ -697,7 +694,7 @@ pascal_object_is_vtbl_ptr_type (struct type *type)
   char *typename = type_name_no_tag (type);
 
   return (typename != NULL
-	  && (STREQ (typename, pascal_vtbl_ptr_name)));
+	  && strcmp (typename, pascal_vtbl_ptr_name) == 0);
 }
 
 /* Return truth value for the assertion that TYPE is of the type
@@ -761,7 +758,6 @@ pascal_object_print_value_fields (struct type *type, char *valaddr,
     fprintf_filtered (stream, "<No data fields>");
   else
     {
-      extern int inspect_it;
       int fields_seen = 0;
 
       if (dont_print_statmem == 0)
@@ -1059,7 +1055,7 @@ pascal_object_print_class_member (char *valaddr, struct type *domain,
      print it.  */
   int extra = 0;
   int bits = 0;
-  register unsigned int i;
+  unsigned int i;
   unsigned len = TYPE_NFIELDS (domain);
   /* @@ Make VAL into bit offset */
   LONGEST val = unpack_long (builtin_type_int, valaddr) << 3;
@@ -1084,7 +1080,7 @@ pascal_object_print_class_member (char *valaddr, struct type *domain,
   if (i < len)
     {
       char *name;
-      fprintf_filtered (stream, prefix);
+      fputs_filtered (prefix, stream);
       name = type_name_no_tag (domain);
       if (name)
 	fputs_filtered (name, stream);
@@ -1101,6 +1097,7 @@ pascal_object_print_class_member (char *valaddr, struct type *domain,
     fprintf_filtered (stream, "%ld", (long int) (val >> 3));
 }
 
+extern initialize_file_ftype _initialize_pascal_valprint; /* -Wmissing-prototypes */
 
 void
 _initialize_pascal_valprint (void)

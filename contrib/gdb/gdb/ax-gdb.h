@@ -20,7 +20,8 @@
 
 #ifndef AX_GDB_H
 #define AX_GDB_H
-
+
+struct expression;
 
 /* Types and enums */
 

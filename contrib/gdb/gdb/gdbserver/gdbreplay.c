@@ -1,5 +1,5 @@
 /* Replay a remote debug session logfile for GDB.
-   Copyright 1996, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
    Written by Fred Fish (fnf@cygnus.com) from pieces of gdbserver.
 
    This file is part of GDB.
@@ -54,14 +54,15 @@ static void
 perror_with_name (char *string)
 {
 #ifndef STDC_HEADERS
-  extern int sys_nerr;
-  extern char *sys_errlist[];
   extern int errno;
 #endif
   const char *err;
   char *combined;
 
-  err = (errno < sys_nerr) ? sys_errlist[errno] : "unknown error";
+  err = strerror (errno);
+  if (err == NULL)
+    err = "unknown error";
+
   combined = (char *) alloca (strlen (err) + strlen (string) + 3);
   strcpy (combined, string);
   strcat (combined, ": ");
@@ -93,10 +94,6 @@ remote_close (void)
 static void
 remote_open (char *name)
 {
-#ifndef HAVE_STRING_H
-  extern char *strchr ();
-#endif
-
   if (!strchr (name, ':'))
     {
       fprintf (stderr, "%s: Must specify tcp connection as host:addr\n", name);

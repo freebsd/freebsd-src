@@ -53,6 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "bfd.h" /* Required by objfiles.h.  */
 #include "symfile.h" /* Required by objfiles.h.  */
 #include "objfiles.h" /* For have_full_symbols and have_partial_symbols */
+#include "block.h"
 #include <ctype.h>
 
 /* Remap normal yacc parser interface names (yyparse, yylex, yyerror, etc),
@@ -91,6 +92,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define	yylloc	f_lloc
 #define yyreds	f_reds		/* With YYDEBUG defined */
 #define yytoks	f_toks		/* With YYDEBUG defined */
+#define yyname	f_name		/* With YYDEBUG defined */
+#define yyrule	f_rule		/* With YYDEBUG defined */
 #define yylhs	f_yylhs
 #define yylen	f_yylen
 #define yydefred f_yydefred
@@ -102,8 +105,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define yycheck	 f_yycheck
 
 #ifndef YYDEBUG
-#define	YYDEBUG	1		/* Default to no yydebug support */
+#define	YYDEBUG	1		/* Default to yydebug support */
 #endif
+
+#define YYFPRINTF parser_fprintf
 
 int yyparse (void);
 
@@ -237,9 +242,11 @@ exp     :       '(' exp ')'
 /* Expressions, not including the comma operator.  */
 exp	:	'*' exp    %prec UNARY
 			{ write_exp_elt_opcode (UNOP_IND); }
+	;
 
 exp	:	'&' exp    %prec UNARY
 			{ write_exp_elt_opcode (UNOP_ADDR); }
+	;
 
 exp	:	'-' exp    %prec UNARY
 			{ write_exp_elt_opcode (UNOP_NEG); }
@@ -279,6 +286,7 @@ arglist	:	exp
 
 arglist :      substring
                         { arglist_len = 2;}
+	;
    
 arglist	:	arglist ',' exp   %prec ABOVE_COMMA
 			{ arglist_len++; }
@@ -468,7 +476,7 @@ variable:	name_not_typename
 			  else
 			    {
 			      struct minimal_symbol *msymbol;
-			      register char *arg = copy_name ($1.stoken);
+			      char *arg = copy_name ($1.stoken);
 
 			      msymbol =
 				lookup_minimal_symbol (arg, NULL, NULL);
@@ -557,7 +565,7 @@ direct_abs_decl: '(' abs_decl ')'
 func_mod:	'(' ')'
 			{ $$ = 0; }
 	|	'(' nonempty_typelist ')'
-			{ free ((PTR)$2); $$ = 0; }
+			{ free ($2); $$ = 0; }
 	;
 
 typebase  /* Implements (approximately): (type-qualifier)* type-specifier */
@@ -633,15 +641,15 @@ name_not_typename :	NAME
 
 static int
 parse_number (p, len, parsed_float, putithere)
-     register char *p;
-     register int len;
+     char *p;
+     int len;
      int parsed_float;
      YYSTYPE *putithere;
 {
-  register LONGEST n = 0;
-  register LONGEST prevn = 0;
-  register int c;
-  register int base = input_radix;
+  LONGEST n = 0;
+  LONGEST prevn = 0;
+  int c;
+  int base = input_radix;
   int unsigned_p = 0;
   int long_p = 0;
   ULONGEST high_bit;
@@ -924,7 +932,9 @@ yylex ()
   char *tokstart;
   
  retry:
-  
+ 
+  prev_lexptr = lexptr;
+ 
   tokstart = lexptr;
   
   /* First of all, let us make sure we are not dealing with the 
@@ -934,8 +944,8 @@ yylex ()
     { 
       for (i = 0; boolean_values[i].name != NULL; i++)
 	{
-	  if STREQN (tokstart, boolean_values[i].name,
-		    strlen (boolean_values[i].name))
+	  if (strncmp (tokstart, boolean_values[i].name,
+		       strlen (boolean_values[i].name)) == 0)
 	    {
 	      lexptr += strlen (boolean_values[i].name); 
 	      yylval.lval = boolean_values[i].value; 
@@ -947,7 +957,7 @@ yylex ()
   /* See if it is a special .foo. operator */
   
   for (i = 0; dot_ops[i].operator != NULL; i++)
-    if (STREQN (tokstart, dot_ops[i].operator, strlen (dot_ops[i].operator)))
+    if (strncmp (tokstart, dot_ops[i].operator, strlen (dot_ops[i].operator)) == 0)
       {
 	lexptr += strlen (dot_ops[i].operator);
 	yylval.opcode = dot_ops[i].opcode;
@@ -1008,7 +1018,7 @@ yylex ()
       {
         /* It's a number.  */
 	int got_dot = 0, got_e = 0, got_d = 0, toktype;
-	register char *p = tokstart;
+	char *p = tokstart;
 	int hex = input_radix > 10;
 	
 	if (c == '0' && (p[1] == 'x' || p[1] == 'X'))
@@ -1104,8 +1114,8 @@ yylex ()
   /* Catch specific keywords.  */
   
   for (i = 0; f77_keywords[i].operator != NULL; i++)
-    if (STREQN(tokstart, f77_keywords[i].operator,
-               strlen(f77_keywords[i].operator)))
+    if (strncmp (tokstart, f77_keywords[i].operator,
+		 strlen(f77_keywords[i].operator)) == 0)
       {
 	/* 	lexptr += strlen(f77_keywords[i].operator); */ 
 	yylval.opcode = f77_keywords[i].opcode;
@@ -1131,7 +1141,7 @@ yylex ()
     int hextype;
     
     sym = lookup_symbol (tmp, expression_context_block,
-			 VAR_NAMESPACE,
+			 VAR_DOMAIN,
 			 current_language->la_language == language_cplus
 			 ? &is_a_field_of_this : NULL,
 			 NULL);
@@ -1171,5 +1181,8 @@ void
 yyerror (msg)
      char *msg;
 {
+  if (prev_lexptr)
+    lexptr = prev_lexptr;
+
   error ("A %s in expression, near `%s'.", (msg ? msg : "error"), lexptr);
 }

@@ -21,6 +21,8 @@
 #include "gdb.h"
 
 struct value;
+struct expression;
+struct block;
 
 /* Use this struct to pass arguments to wrapper routines. */
 struct gdb_wrapper_arguments;

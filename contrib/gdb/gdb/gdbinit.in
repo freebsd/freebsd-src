@@ -10,9 +10,8 @@ commands
 	return
 end
 
-dir @srcdir@
-dir .
-dir @srcdir@/../mmalloc
 dir @srcdir@/../libiberty
 dir @srcdir@/../bfd
+dir @srcdir@
+dir .
 set prompt (top-gdb) 

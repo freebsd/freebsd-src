@@ -1,5 +1,5 @@
 /* MI Command Set - stack commands.
-   Copyright 2000, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -26,11 +26,10 @@
 #include "mi-cmds.h"
 #include "ui-out.h"
 #include "symtab.h"
-
-/* FIXME: these should go in some .h file but stack.c doesn't have a
-   corresponding .h file. These wrappers will be obsolete anyway, once
-   we pull the plug on the sanitization. */
-extern void select_frame_command_wrapper (char *, int);
+#include "block.h"
+#include "stack.h"
+#include "dictionary.h"
+#include "gdb_string.h"
 
 static void list_args_or_locals (int locals, int values, struct frame_info *fi);
 
@@ -45,6 +44,7 @@ mi_cmd_stack_list_frames (char *command, char **argv, int argc)
   int frame_low;
   int frame_high;
   int i;
+  struct cleanup *cleanup_stack;
   struct frame_info *fi;
 
   if (!target_has_stack)
@@ -76,7 +76,7 @@ mi_cmd_stack_list_frames (char *command, char **argv, int argc)
   if (fi == NULL)
     error ("mi_cmd_stack_list_frames: Not enough frames in stack.");
 
-  ui_out_list_begin (uiout, "stack");
+  cleanup_stack = make_cleanup_ui_out_list_begin_end (uiout, "stack");
 
   /* Now let;s print the frames up to frame_high, or until there are
      frames in the stack. */
@@ -95,7 +95,7 @@ mi_cmd_stack_list_frames (char *command, char **argv, int argc)
 			0 /* args */ );
     }
 
-  ui_out_list_end (uiout);
+  do_cleanups (cleanup_stack);
   if (i < frame_high)
     error ("mi_cmd_stack_list_frames: Not enough frames in stack.");
 
@@ -138,10 +138,26 @@ mi_cmd_stack_info_depth (char *command, char **argv, int argc)
 enum mi_cmd_result
 mi_cmd_stack_list_locals (char *command, char **argv, int argc)
 {
+  struct frame_info *frame;
+  enum print_values print_values;
+
   if (argc != 1)
     error ("mi_cmd_stack_list_locals: Usage: PRINT_VALUES");
 
-  list_args_or_locals (1, atoi (argv[0]), selected_frame);
+   frame = get_selected_frame ();
+
+   if (strcmp (argv[0], "0") == 0
+       || strcmp (argv[0], "--no-values") == 0)
+     print_values = PRINT_NO_VALUES;
+   else if (strcmp (argv[0], "1") == 0
+	    || strcmp (argv[0], "--all-values") == 0)
+     print_values = PRINT_ALL_VALUES;
+   else if (strcmp (argv[0], "2") == 0
+	    || strcmp (argv[0], "--simple-values") == 0)
+     print_values = PRINT_SIMPLE_VALUES;
+   else
+     error ("Unknown value for PRINT_VALUES: must be: 0 or \"--no-values\", 1 or \"--all-values\", 2 or \"--simple-values\"");
+  list_args_or_locals (1, print_values, frame);
   return MI_CMD_DONE;
 }
 
@@ -155,6 +171,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
   int frame_high;
   int i;
   struct frame_info *fi;
+  struct cleanup *cleanup_stack_args;
 
   if (argc < 1 || argc > 3 || argc == 2)
     error ("mi_cmd_stack_list_args: Usage: PRINT_VALUES [FRAME_LOW FRAME_HIGH]");
@@ -182,7 +199,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
   if (fi == NULL)
     error ("mi_cmd_stack_list_args: Not enough frames in stack.");
 
-  ui_out_list_begin (uiout, "stack-args");
+  cleanup_stack_args = make_cleanup_ui_out_list_begin_end (uiout, "stack-args");
 
   /* Now let's print the frames up to frame_high, or until there are
      frames in the stack. */
@@ -190,14 +207,15 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
        fi && (i <= frame_high || frame_high == -1);
        i++, fi = get_prev_frame (fi))
     {
+      struct cleanup *cleanup_frame;
       QUIT;
-      ui_out_tuple_begin (uiout, "frame");
+      cleanup_frame = make_cleanup_ui_out_tuple_begin_end (uiout, "frame");
       ui_out_field_int (uiout, "level", i);
       list_args_or_locals (0, atoi (argv[0]), fi);
-      ui_out_tuple_end (uiout);
+      do_cleanups (cleanup_frame);
     }
 
-  ui_out_list_end (uiout);
+  do_cleanups (cleanup_stack_args);
   if (i < frame_high)
     error ("mi_cmd_stack_list_args: Not enough frames in stack.");
 
@@ -213,18 +231,21 @@ list_args_or_locals (int locals, int values, struct frame_info *fi)
 {
   struct block *block;
   struct symbol *sym;
-  int i, nsyms;
+  struct dict_iterator iter;
+  int nsyms;
+  struct cleanup *cleanup_list;
   static struct ui_stream *stb = NULL;
+  struct type *type;
 
   stb = ui_out_stream_new (uiout);
 
-  block = get_frame_block (fi);
+  block = get_frame_block (fi, 0);
 
-  ui_out_list_begin (uiout, locals ? "locals" : "args");
+  cleanup_list = make_cleanup_ui_out_list_begin_end (uiout, locals ? "locals" : "args");
 
   while (block != 0)
     {
-      ALL_BLOCK_SYMBOLS (block, i, sym)
+      ALL_BLOCK_SYMBOLS (block, iter, sym)
 	{
           int print_me = 0;
 
@@ -248,6 +269,7 @@ list_args_or_locals (int locals, int values, struct frame_info *fi)
 	    case LOC_REGPARM_ADDR:	/* indirect register arg */
 	    case LOC_LOCAL_ARG:	/* stack arg             */
 	    case LOC_BASEREG_ARG:	/* basereg arg           */
+	    case LOC_COMPUTED_ARG:	/* arg with computed location */
 	      if (!locals)
 		print_me = 1;
 	      break;
@@ -256,29 +278,47 @@ list_args_or_locals (int locals, int values, struct frame_info *fi)
 	    case LOC_BASEREG:	/* basereg local         */
 	    case LOC_STATIC:	/* static                */
 	    case LOC_REGISTER:	/* register              */
+	    case LOC_COMPUTED:	/* computed location     */
 	      if (locals)
 		print_me = 1;
 	      break;
 	    }
 	  if (print_me)
 	    {
-	      if (values)
-		ui_out_tuple_begin (uiout, NULL);
-	      ui_out_field_string (uiout, "name", SYMBOL_NAME (sym));
+	      struct cleanup *cleanup_tuple = NULL;
+	      struct symbol *sym2;
+	      if (values != PRINT_NO_VALUES)
+		cleanup_tuple =
+		  make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
+	      ui_out_field_string (uiout, "name", SYMBOL_PRINT_NAME (sym));
 
-	      if (values)
-		{
-		  struct symbol *sym2;
-		  if (!locals)
-		    sym2 = lookup_symbol (SYMBOL_NAME (sym),
-					  block, VAR_NAMESPACE,
-					  (int *) NULL,
-					  (struct symtab **) NULL);
-		  else
+	      if (!locals)
+		sym2 = lookup_symbol (SYMBOL_NATURAL_NAME (sym),
+				      block, VAR_DOMAIN,
+				      (int *) NULL,
+				      (struct symtab **) NULL);
+	      else
 		    sym2 = sym;
+	      switch (values)
+		{
+		case PRINT_SIMPLE_VALUES:
+		  type = check_typedef (sym2->type);
+		  type_print (sym2->type, "", stb->stream, -1);
+		  ui_out_field_stream (uiout, "type", stb);
+		  if (TYPE_CODE (type) != TYPE_CODE_ARRAY
+		      && TYPE_CODE (type) != TYPE_CODE_STRUCT
+		      && TYPE_CODE (type) != TYPE_CODE_UNION)
+		    {
+		      print_variable_value (sym2, fi, stb->stream);
+		      ui_out_field_stream (uiout, "value", stb);
+		    }
+		  do_cleanups (cleanup_tuple);
+		  break;
+		case PRINT_ALL_VALUES:
 		  print_variable_value (sym2, fi, stb->stream);
 		  ui_out_field_stream (uiout, "value", stb);
-		  ui_out_tuple_end (uiout);
+		  do_cleanups (cleanup_tuple);
+		  break;
 		}
 	    }
 	}
@@ -287,7 +327,7 @@ list_args_or_locals (int locals, int values, struct frame_info *fi)
       else
 	block = BLOCK_SUPERBLOCK (block);
     }
-  ui_out_list_end (uiout);
+  do_cleanups (cleanup_list);
   ui_out_stream_delete (stb);
 }
 
@@ -302,8 +342,8 @@ mi_cmd_stack_select_frame (char *command, char **argv, int argc)
 
   /* with no args, don't change frame */
   if (argc == 0)
-    select_frame_command_wrapper (0, 1 /* not used */ );
+    select_frame_command (0, 1 /* not used */ );
   else
-    select_frame_command_wrapper (argv[0], 1 /* not used */ );
+    select_frame_command (argv[0], 1 /* not used */ );
   return MI_CMD_DONE;
 }

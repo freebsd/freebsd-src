@@ -1,7 +1,7 @@
 .\" Copyright 1991, 1999 Free Software Foundation, Inc.
 .\" See section COPYING for conditions for redistribution
 .\" $Id: gdb.1,v 1.4 1999/01/05 00:50:50 jsm Exp $
-.TH gdb 1 "4nov1991" "GNU Tools" "GNU Tools"
+.TH gdb 1 "22may2002" "GNU Tools" "GNU Tools"
 .SH NAME
 gdb \- The GNU Debugger
 .SH SYNOPSIS
@@ -149,6 +149,12 @@ Execute next program line (after stopping); step \c
 .I over\c
 \& any
 function calls in the line.
+.TP
+.B edit \fR[\|\fIfile\fB:\fR\|]\fIfunction
+look at the program line where it is presently stopped.
+.TP
+.B list \fR[\|\fIfile\fB:\fR\|]\fIfunction
+type the text of the program in the vicinity of where it is presently stopped.
 .TP
 .B step
 Execute next program line (after stopping); step \c
