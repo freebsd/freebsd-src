@@ -58,7 +58,7 @@ extern	char	*sys_errlist[];
 #endif
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.7 2002/04/24 17:35:37 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: printnat.c,v 1.1.2.8 2002/04/25 16:44:13 darrenr Exp $";
 #endif
 
 
@@ -298,8 +298,7 @@ int opts;
 	struct	servent	*sv;
 	int	bits;
 
-	if (np->in_p != 0)
-		pr = getprotobynumber(np->in_p);
+	pr = getprotobynumber(np->in_p);
 
 	switch (np->in_redir)
 	{
