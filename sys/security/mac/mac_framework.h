@@ -174,7 +174,6 @@ void	mac_create_devfs_directory(char *dirname, int dirnamelen,
 	    struct devfs_dirent *de);
 void	mac_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
 	    struct devfs_dirent *de);
-void	mac_create_devfs_vnode(struct devfs_dirent *de, struct vnode *vp);
 int	mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	    struct vnode *dvp, struct vnode *vp, struct componentname *cnp);
 void	mac_create_mount(struct ucred *cred, struct mount *mp);

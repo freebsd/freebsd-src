@@ -2708,13 +2708,6 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 }
 
 void
-mac_create_devfs_vnode(struct devfs_dirent *de, struct vnode *vp)
-{
-
-	MAC_PERFORM(create_devfs_vnode, de, &de->de_label, vp, &vp->v_label);
-}
-
-void
 mac_create_devfs_device(dev_t dev, struct devfs_dirent *de)
 {
 

@@ -813,17 +813,6 @@ mac_mls_create_devfs_symlink(struct ucred *cred, struct devfs_dirent *dd,
 }
 
 static void
-mac_mls_create_devfs_vnode(struct devfs_dirent *devfs_dirent,
-    struct label *direntlabel, struct vnode *vp, struct label *vnodelabel)
-{
-	struct mac_mls *source, *dest;
-
-	source = SLOT(direntlabel);
-	dest = SLOT(vnodelabel);
-	mac_mls_copy_single(source, dest);
-}
-
-static void
 mac_mls_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mntlabel, struct label *fslabel)
 {
@@ -2405,7 +2394,6 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_devfs_device = mac_mls_create_devfs_device,
 	.mpo_create_devfs_directory = mac_mls_create_devfs_directory,
 	.mpo_create_devfs_symlink = mac_mls_create_devfs_symlink,
-	.mpo_create_devfs_vnode = mac_mls_create_devfs_vnode,
 	.mpo_create_mount = mac_mls_create_mount,
 	.mpo_create_root_mount = mac_mls_create_root_mount,
 	.mpo_relabel_vnode = mac_mls_relabel_vnode,
