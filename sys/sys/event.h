@@ -118,7 +118,7 @@ struct kevent {
  * This is currently visible to userland to work around broken
  * programs which pull in <sys/proc.h>.
  */
-#include <sys/queue.h> 
+#include <sys/queue.h>
 struct knote;
 SLIST_HEAD(klist, knote);
 
@@ -128,7 +128,8 @@ SLIST_HEAD(klist, knote);
 MALLOC_DECLARE(M_KQUEUE);
 #endif
 
-#define KNOTE(list, hint)	if ((list) != NULL) knote(list, hint)
+#define KNOTE(list, hint)	\
+	do { if ((list) != NULL) knote(list, hint); } while (0)
 
 /*
  * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
