@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.15 1999/04/11 03:06:06 eivind Exp $
+ * $Id: jail.h,v 1.1 1999/04/28 11:38:03 phk Exp $
  *
  */
 
@@ -19,14 +19,18 @@ struct jail {
 	u_int32_t ip_number;
 };
 
-#ifdef KERNEL
+#ifndef KERNEL
+
+int jail __P((struct jail *));
+
+#else /* KERNEL */
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
 #endif
 
 /*
- * This structure describes a prison.  It is pointed to by all struct 
+ * This structure describes a prison.  It is pointed to by all struct
  * proc's of the inmates.  pr_ref keeps track of them and is used to
  * delete the struture when the last inmate is dead.
  */
