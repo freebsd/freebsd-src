@@ -34,7 +34,7 @@
 #include <sys/unistd.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/eventvar.h>

@@ -37,7 +37,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/uio.h>

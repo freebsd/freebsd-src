@@ -40,7 +40,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/acl.h>
 

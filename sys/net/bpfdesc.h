@@ -43,7 +43,7 @@
 #ifndef _NET_BPFDESC_H_
 #define _NET_BPFDESC_H_
 
-#include <sys/select.h>
+#include <sys/selinfo.h>
 
 /*
  * Descriptor associated with each open bpf file.

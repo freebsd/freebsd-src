@@ -59,7 +59,7 @@
 #include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
-#include <sys/select.h>
+#include <sys/selinfo.h>
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
