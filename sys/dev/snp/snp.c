@@ -63,6 +63,7 @@ static struct linesw snpdisc = {
  */
 struct snoop {
 	LIST_ENTRY(snoop)	snp_list;	/* List glue. */
+	int			snp_unit;	/* Device number. */
 	dev_t			snp_target;	/* Target tty device. */
 	struct tty		*snp_tty;	/* Target tty pointer. */
 	u_long			 snp_len;	/* Possible length. */
@@ -211,7 +212,7 @@ snpwrite(dev, uio, flag)
 	    tp->t_line == snooplinedisc)
 		goto tty_input;
 
-	printf("Snoop: attempt to write to bad tty.\n");
+	printf("snp%d: attempt to write to bad tty\n", snp->snp_unit);
 	return (EIO);
 
 tty_input:
@@ -314,12 +315,12 @@ snp_in(snp, buf, n)
 		return (0);
 
 	if (snp->snp_flags & SNOOP_DOWN) {
-		printf("Snoop: more data to down interface.\n");
+		printf("snp%d: more data to down interface\n", snp->snp_unit);
 		return (0);
 	}
 
 	if (snp->snp_flags & SNOOP_OFLOW) {
-		printf("Snoop: buffer overflow.\n");
+		printf("snp%d: buffer overflow\n", snp->snp_unit);
 		/*
 		 * On overflow we just repeat the standart close
 		 * procedure...yes , this is waste of space but.. Then next
@@ -392,6 +393,7 @@ snpopen(dev, flag, mode, td)
 			    0600, "snp%d", dev2unit(dev));
 		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
 		    M_WAITOK | M_ZERO);
+		snp->snp_unit = dev2unit(dev);
 	} else
 		return (EBUSY);
 
@@ -440,7 +442,7 @@ snp_detach(snp)
 		tp->t_state &= ~TS_SNOOP;
 		tp->t_line = snp->snp_olddisc;
 	} else
-		printf("Snoop: bad attached tty data.\n");
+		printf("snp%d: bad attached tty data\n", snp->snp_unit);
 
 	snp->snp_tty = NULL;
 	snp->snp_target = NODEV;
