@@ -34,6 +34,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -55,6 +57,7 @@ static char sccsid[] = "@(#)dirs.c	8.7 (Berkeley) 5/1/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <err.h>
 
 #include <machine/endian.h>
 
@@ -155,10 +158,7 @@ extractdirs(genmode)
 	if (fd == -1 || (df = fdopen(fd, "w")) == NULL) {
 		if (fd != -1)
 			close(fd);
-		fprintf(stderr,
-		    "restore: %s - cannot create directory temporary\n",
-		    dirfile);
-		fprintf(stderr, "fopen: %s\n", strerror(errno));
+		warn("%s - cannot create directory temporary\nfopen", dirfile);
 		done(1);
 	}
 	if (genmode != 0) {
@@ -171,10 +171,7 @@ extractdirs(genmode)
 		if (fd == -1 || (mf = fdopen(fd, "w")) == NULL) {
 			if (fd != -1)
 				close(fd);
-			fprintf(stderr,
-			    "restore: %s - cannot create modefile \n",
-			    modefile);
-			fprintf(stderr, "fopen: %s\n", strerror(errno));
+			warn("%s - cannot create modefile\nfopen", modefile);
 			done(1);
 		}
 	}
