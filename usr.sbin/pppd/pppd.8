@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.3
-.\" $Id: pppd.8,v 1.16 1997/10/10 09:28:38 peter Exp $
+.\" $Id: pppd.8,v 1.17 1997/10/18 01:29:18 peter Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -654,7 +654,7 @@ the initial /dev/ is removed from the terminal name, and any remaining
 .PP
 An options file is parsed into a series of words, delimited by
 whitespace.  Whitespace can be included in a word by enclosing the
-word in quotes (").  A backslash (\\) quotes the following character.
+word in double-quotes (").  A backslash (\\) quotes the following character.
 A hash (#) starts a comment, which continues until the end of the
 line.  There is no restriction on using the \fIfile\fR or \fIcall\fR
 options within an options file.
@@ -965,10 +965,46 @@ causes other debugging messages to be logged.
 .LP
 Debugging can also be enabled or disabled by sending a SIGUSR1 signal
 to the pppd process.  This signal acts as a toggle.
-.SH FILES
+.SH SCRIPTS
+Pppd invokes scripts at various stages in its processing which can be
+used to perform site-specific ancillary processing.  These scripts are
+usually shell scripts, but could be executable code files instead.
+Pppd does not wait for the scripts to finish.  The scripts are
+executed as root (with the real and effective user-id set to 0), so
+that they can do things such as update routing tables or run
+privileged daemons.  Be careful that the contents of these scripts do
+not compromise your system's security.  Pppd runs the scripts with
+standard input, output and error redirected to /dev/null, and with an
+environment that is empty except for some environment variables that
+give information about the link.  The environment variables that pppd
+sets are:
 .TP
-.B /var/run/ppp\fIn\fB.pid \fR(BSD or Linux), \fB/etc/ppp/ppp\fIn\fB.pid \fR(others)
-Process-ID for pppd process on ppp interface unit \fIn\fR.
+.B DEVICE
+The name of the serial tty device being used.
+.TP
+.B IFNAME
+The name of the network interface being used.
+.TP
+.B IPLOCAL
+The IP address for the local end of the link.  This is only set when
+IPCP has come up.
+.TP
+.B IPREMOTE
+The IP address for the remote end of the link.  This is only set when
+IPCP has come up.
+.TP
+.B PEERNAME
+The authenticated name of the peer.  This is only set if the peer
+authenticates itself.
+.TP
+.B SPEED
+The baud rate of the tty device.
+.TP
+.B UID
+The real user-id of the user who invoked pppd.
+.P
+Pppd invokes the following scripts, if they exist.  It is not an error
+if they don't exist.
 .TP
 .B /etc/ppp/auth-up
 A program or script which is executed after the remote system
@@ -976,11 +1012,8 @@ successfully authenticates itself.  It is executed with the parameters
 .IP
 \fIinterface-name peer-name user-name tty-device speed\fR
 .IP
-and with its standard input, output and error redirected to
-/dev/null.  This program or script is executed with the real and
-effective user-IDs set to root, and with an empty environment.  (Note
-that this script is not executed if the peer doesn't authenticate
-itself, for example when the \fInoauth\fR option is used.)
+Note that this script is not executed if the peer doesn't authenticate
+itself, for example when the \fInoauth\fR option is used.
 .TP
 .B /etc/ppp/auth-down
 A program or script which is executed when the link goes down, if
@@ -994,25 +1027,13 @@ executed with the parameters
 .IP
 \fIinterface-name tty-device speed local-IP-address
 remote-IP-address ipparam\fR
-.IP
-and with its standard input,
-output and error streams redirected to /dev/null.
-.IP
-This program or script is executed with the real and effective
-user-IDs set to root.  This is so that it can be used to manipulate
-routes, run privileged daemons (e.g. \fIsendmail\fR), etc.  Be
-careful that the contents of the /etc/ppp/ip-up and /etc/ppp/ip-down
-scripts do not compromise your system's security.
-.IP
-This program or script is executed with an empty environment, so you
-must either specify a PATH or use full pathnames.
 .TP
 .B /etc/ppp/ip-down
 A program or script which is executed when the link is no longer
 available for sending and receiving IP packets.  This script can be
 used for undoing the effects of the /etc/ppp/ip-up script.  It is
 invoked in the same manner and with the same parameters as the ip-up
-script, and the same security considerations apply.
+script.
 .TP
 .B /etc/ppp/ipx-up
 A program or script which is executed when the link is available for
@@ -1022,10 +1043,6 @@ executed with the parameters
 \fIinterface-name tty-device speed network-number local-IPX-node-address
 remote-IPX-node-address local-IPX-routing-protocol remote-IPX-routing-protocol
 local-IPX-router-name remote-IPX-router-name ipparam pppd-pid\fR 
-.IP
-and with its standard input,
-output and error streams redirected to /dev/null.
-.br
 .IP
 The local-IPX-routing-protocol and remote-IPX-routing-protocol field
 may be one of the following:
@@ -1037,21 +1054,17 @@ RIP       to indicate that RIP/SAP should be used
 NLSP      to indicate that Novell NLSP should be used
 .br
 RIP NLSP  to indicate that both RIP/SAP and NLSP should be used
-.br
-.IP
-This program or script is executed with the real and effective
-user-IDs set to root, and with an empty environment.  This is so
-that it can be used to manipulate routes, run privileged daemons (e.g.
-\fIripd\fR), etc.  Be careful that the contents of the /etc/ppp/ipx-up
-and /etc/ppp/ipx-down scripts do not compromise your system's
-security.
 .TP
 .B /etc/ppp/ipx-down
 A program or script which is executed when the link is no longer
 available for sending and receiving IPX packets.  This script can be
 used for undoing the effects of the /etc/ppp/ipx-up script.  It is
 invoked in the same manner and with the same parameters as the ipx-up
-script, and the same security considerations apply.
+script.
+.SH FILES
+.TP
+.B /var/run/ppp\fIn\fB.pid \fR(BSD or Linux), \fB/etc/ppp/ppp\fIn\fB.pid \fR(others)
+Process-ID for pppd process on ppp interface unit \fIn\fR.
 .TP
 .B /etc/ppp/pap-secrets
 Usernames, passwords and IP addresses for PAP authentication.  This

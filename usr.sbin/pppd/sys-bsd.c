@@ -21,7 +21,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: sys-bsd.c,v 1.12 1998/01/16 17:38:53 bde Exp $";
+static char rcsid[] = "$Id: sys-bsd.c,v 1.13 1998/03/22 05:33:08 peter Exp $";
 #endif
 /*	$NetBSD: sys-bsd.c,v 1.1.1.3 1997/09/26 18:53:04 christos Exp $	*/
 
@@ -68,6 +68,9 @@ static char rcsid[] = "$Id: sys-bsd.c,v 1.12 1998/01/16 17:38:53 bde Exp $";
 #if (NetBSD >= 199703)
 #include <netinet/if_inarp.h>
 #else	/* NetBSD 1.2D or later */
+#ifdef __FreeBSD__
+#include <netinet/if_ether.h>
+#else
 #include <net/if_ether.h>
 #endif
 #else
@@ -1496,6 +1499,15 @@ GetMask(addr)
     }
 
     return mask;
+}
+
+/*
+ * Use the hostid as part of the random number seed.
+ */
+int
+get_host_seed()
+{
+    return gethostid();
 }
 
 /*

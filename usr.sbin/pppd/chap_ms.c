@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap_ms.c,v 1.3 1997/08/19 17:52:35 peter Exp $";
+static char rcsid[] = "$Id: chap_ms.c,v 1.4 1998/03/22 05:32:48 peter Exp $";
 #endif
 
 #ifdef CHAPMS
@@ -44,6 +44,9 @@ static char rcsid[] = "$Id: chap_ms.c,v 1.3 1997/08/19 17:52:35 peter Exp $";
 #include <sys/time.h>
 #include <syslog.h>
 #include <unistd.h>
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 
 #include "pppd.h"
 #include "chap.h"
@@ -255,7 +258,6 @@ ChapMS_NT(rchallenge, rchallenge_len, secret, secret_len, response)
     MD4_CTX		md4Context;
     u_char		hash[MD4_SIGNATURE_SIZE];
     u_char		unicodePassword[MAX_NT_PASSWORD * 2];
-    static int		low_byte_first = -1;
 
     /* Initialize the Unicode version of the secret (== password). */
     /* This implicitly supports 8-bit ISO8859/1 characters. */
