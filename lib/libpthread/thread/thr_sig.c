@@ -469,12 +469,7 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	shi.sa_flags = sa_flags;
 	shi.info = info;
 	shi.ucp = ucp;
-	/*
-	 * XXX Not ready for scope system thread, kernel bits
-	 * should involve in
-	 */
-	if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0 &&
-	    (curthread->sigstk.ss_flags & SS_DISABLE) == 0) {
+	if ((curthread->sigstk.ss_flags & SS_DISABLE) == 0) {
 		/* Deliver signal on alternative stack */
 		if (sa_flags & SA_ONSTACK && !onstack)
 			handle_signal_altstack(curthread, &shi);
