@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.92 1998/12/14 05:47:26 dillon Exp $ */
+/*	$Id: if_de.c,v 1.93 1998/12/30 00:37:43 hoek Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -3086,7 +3086,8 @@ tulip_addr_filter(
     sc->tulip_cmdmode &= ~TULIP_CMD_RXRUN;
     sc->tulip_intrmask &= ~TULIP_STS_RXSTOPPED;
 #if defined(IFF_ALLMULTI)    
-    sc->tulip_if.if_flags &= ~IFF_ALLMULTI;
+    if (sc->tulip_if.if_flags & IFF_ALLMULTI)
+	sc->tulip_flags |= TULIP_ALLMULTI ;
 #endif
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 300000
@@ -4755,6 +4756,7 @@ tulip_ifioctl(
 		    printf(TULIP_PRINTF_FMT ": ignored invalid media request\n", TULIP_PRINTF_ARGS);
 	    }
 #endif
+	    tulip_addr_filter(sc); /* reinit multicast filter */
 	    tulip_init(sc);
 	    break;
 	}
