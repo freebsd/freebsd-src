@@ -92,7 +92,15 @@ __RCSID("@(#) $FreeBSD$");
 #define	ASN_IPADDR	0x40
 #define	ASN_TIMESTAMP	0x43
 
-static char *Var_Types[] = { "", "", "ASN_INTEGER", "", "ASN_OCTET", "ASN_NULL", "ASN_OBJID" };
+static char *Var_Types[] = {
+	"",
+	"",
+	"ASN_INTEGER",
+	"",
+	"ASN_OCTET",
+	"ASN_NULL",
+	"ASN_OBJID"
+};
 
 /*
  * Define SNMP PDU types
@@ -103,8 +111,15 @@ static char *Var_Types[] = { "", "", "ASN_INTEGER", "", "ASN_OCTET", "ASN_NULL",
 #define	PDU_TYPE_SET		0xA3
 #define	PDU_TYPE_TRAP		0xA4
 
-static char *PDU_Types[] = { "GET REQUEST", "GETNEXT REQUEST", "GET RESPONSE", "SET REQUEST",
-	"TRAP" };
+static char *PDU_Types[] = {
+	"GET REQUEST",
+	"GETNEXT REQUEST",
+	"GET RESPONSE",
+	"SET REQUEST",
+	"TRAP",
+	" ?? ",
+	" ??? "
+};
 
 /*
  * Define TRAP codes
