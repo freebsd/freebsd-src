@@ -105,14 +105,14 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-hnrvw] name prov prov prov [prov [...]]\n"
-	    "       %s clear [-v] prov [prov [...]]\n"
-	    "       %s dump prov [prov [...]]\n"
+	    "usage: %s label [-hnrvw] name prov prov prov ...\n"
+	    "       %s clear [-v] prov ...\n"
+	    "       %s dump prov ...\n"
 	    "       %s configure [-adhnrRvwW] name\n"
 	    "       %s rebuild [-v] name prov\n"
 	    "       %s insert [-hv] <-n number> name prov\n"
 	    "       %s remove [-v] <-n number> name\n"
-	    "       %s stop [-fv] name [...]\n",
+	    "       %s stop [-fv] name ...\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm);
 }
 

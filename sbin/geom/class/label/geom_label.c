@@ -77,12 +77,12 @@ void
 usage(const char *name)
 {
 
-	fprintf(stderr, "usage: %s create [-v] <name> <dev>\n", name);
-	fprintf(stderr, "       %s destroy [-fv] <name> [name2 [...]]\n", name);
-	fprintf(stderr, "       %s label [-v] <name> <dev>\n", name);
-	fprintf(stderr, "       %s stop [-fv] <name> [name2 [...]]\n", name);
-	fprintf(stderr, "       %s clear [-v] <dev1> [dev2 [...]]\n", name);
-	fprintf(stderr, "       %s dump <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "usage: %s create [-v] name dev\n", name);
+	fprintf(stderr, "       %s destroy [-fv] name ...\n", name);
+	fprintf(stderr, "       %s label [-v] name dev\n", name);
+	fprintf(stderr, "       %s stop [-fv] name ...\n", name);
+	fprintf(stderr, "       %s clear [-v] dev ...\n", name);
+	fprintf(stderr, "       %s dump dev ...\n", name);
 }
 
 static void
