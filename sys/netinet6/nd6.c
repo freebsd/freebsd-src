@@ -2048,7 +2048,7 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 		case IFT_ETHER:
 		case IFT_FDDI:
 #ifdef IFT_L2VLAN
-	case IFT_L2VLAN:
+		case IFT_L2VLAN:
 #endif
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
@@ -2056,7 +2056,7 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
 						 desten);
-			return (1);
+			return (0);
 		case IFT_IEEE1394:
 			/*
 			 * netbsd can use if_broadcastaddr, but we don't do so
@@ -2064,13 +2064,13 @@ nd6_storelladdr(ifp, rt0, m, dst, desten)
 			 */
 			for (i = 0; i < ifp->if_addrlen; i++)
 				desten[i] = ~0;
-			return (1);
+			return (0);
 		case IFT_ARCNET:
 			*desten = 0;
-			return (1);
+			return (0);
 		default:
 			m_freem(m);
-			return (0);
+			return (EAFNOSUPPORT);
 		}
 	}
 
