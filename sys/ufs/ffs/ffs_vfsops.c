@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.88 1998/09/26 04:59:42 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.89 1998/10/25 17:44:57 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -290,7 +290,8 @@ ffs_mount( mp, path, data, ndp, p)
 		err = ENOTBLK;
 		goto error_2;
 	}
-	if (major(devvp->v_rdev) >= nblkdev) {
+	if (major(devvp->v_rdev) >= nblkdev ||
+	    bdevsw[major(devvp->v_rdev)] == NULL) {
 		err = ENXIO;
 		goto error_2;
 	}
@@ -458,7 +459,7 @@ ffs_reload(mp, cred, p)
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+	if (devvp->v_type == VBLK) {
 		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
@@ -613,7 +614,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * Note that it is optional that the backing device be VMIOed.  This
 	 * increases the opportunity for metadata caching.
 	 */
-	if ((devvp->v_type == VBLK) && (major(dev) < nblkdev)) {
+	if (devvp->v_type == VBLK) {
 		simple_lock(&devvp->v_interlock);
 		vfs_object_create(devvp, p, p->p_ucred, 0);
 	}
