@@ -585,7 +585,7 @@ ccdinterleave(cs, unit)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_INIT)
-		printf("ccdinterleave(%x): ileave %d\n", cs, cs->sc_ileave);
+		printf("ccdinterleave(%p): ileave %d\n", cs, cs->sc_ileave);
 #endif
 
 	/*
@@ -709,7 +709,7 @@ ccdopen(dev, flags, fmt, p)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdopen(%x, %x)\n", dev, flags);
+		printf("ccdopen(%p, %x)\n", dev, flags);
 #endif
 	if (unit >= numccd)
 		return (ENXIO);
@@ -757,7 +757,7 @@ ccdclose(dev, flags, fmt, p)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdclose(%x, %x)\n", dev, flags);
+		printf("ccdclose(%p, %x)\n", dev, flags);
 #endif
 
 	if (unit >= numccd)
@@ -787,7 +787,7 @@ ccdstrategy(bp)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdstrategy(%x): unit %d\n", bp, unit);
+		printf("ccdstrategy(%p): unit %d\n", bp, unit);
 #endif
 	if ((cs->sc_flags & CCDF_INITED) == 0) {
 		bp->bio_error = ENXIO;
@@ -866,7 +866,7 @@ ccdstart(cs, bp)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdstart(%x, %x)\n", cs, bp);
+		printf("ccdstart(%p, %p)\n", cs, bp);
 #endif
 
 	/* Record the transaction start  */
@@ -944,7 +944,7 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
-		printf("ccdbuffer(%x, %x, %d, %x, %d)\n",
+		printf("ccdbuffer(%p, %p, %d, %p, %ld)\n",
 		       cs, bp, bn, addr, bcount);
 #endif
 	/*
@@ -1077,9 +1077,10 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 
 #ifdef DEBUG
 	if (ccddebug & CCDB_IO)
-		printf(" dev %x(u%d): cbp %x bn %d addr %x bcnt %d\n",
-		       ci->ci_dev, ci-cs->sc_cinfo, cbp, cbp->cb_buf.bio_blkno,
-		       cbp->cb_buf.bio_data, cbp->cb_buf.bio_bcount);
+		printf(" dev %p(u%ld): cbp %p bn %d addr %p bcnt %ld\n",
+		       ci->ci_dev, (unsigned long)(ci-cs->sc_cinfo), cbp, 
+		       cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data, 
+		       cbp->cb_buf.bio_bcount);
 #endif
 	cb[0] = cbp;
 
@@ -1108,7 +1109,7 @@ ccdintr(cs, bp)
 {
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdintr(%x, %x)\n", cs, bp);
+		printf("ccdintr(%p, %p)\n", cs, bp);
 #endif
 	/*
 	 * Request is done for better or worse, wakeup the top half.
@@ -1136,11 +1137,11 @@ ccdiodone(ibp)
 	s = splbio();
 #ifdef DEBUG
 	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdiodone(%x)\n", cbp);
+		printf("ccdiodone(%p)\n", cbp);
 	if (ccddebug & CCDB_IO) {
-		printf("ccdiodone: bp %x bcount %d resid %d\n",
+		printf("ccdiodone: bp %p bcount %ld resid %ld\n",
 		       bp, bp->bio_bcount, bp->bio_resid);
-		printf(" dev %x(u%d), cbp %x bn %d addr %x bcnt %d\n",
+		printf(" dev %p(u%d), cbp %p bn %d addr %p bcnt %ld\n",
 		       cbp->cb_buf.bio_dev, cbp->cb_comp, cbp,
 		       cbp->cb_buf.bio_blkno, cbp->cb_buf.bio_data,
 		       cbp->cb_buf.bio_bcount);
@@ -1324,7 +1325,7 @@ ccdioctl(dev, cmd, data, flag, p)
 #ifdef DEBUG
 		if (ccddebug & CCDB_INIT)
 			for (i = 0; i < ccio->ccio_ndisks; ++i)
-				printf("ccdioctl: component %d: 0x%x\n",
+				printf("ccdioctl: component %d: %p\n",
 				    i, cpp[i]);
 #endif
 
