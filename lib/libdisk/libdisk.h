@@ -27,7 +27,8 @@ enum platform {
 	p_pc98,
 	p_sparc64,
 	p_ia64,
-	p_ppc
+	p_ppc,
+	p_amd64
 };
 extern const enum platform platform;
 
@@ -69,7 +70,7 @@ struct disk {
 #if !defined(__ia64__)
 	u_char		*boot1;
 #endif
-#if defined(__i386__)		/* the i386 needs extra help... */
+#if defined(__i386__) || defined(__amd64__) /* the i386 needs extra help... */
 	u_char		*boot2;
 #endif
 	struct chunk	*chunks;
