@@ -854,8 +854,12 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	s = splnet();
 	for (inp = LIST_FIRST(tcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
+		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp)) {
+			if (!showallsockets && socheckproc(inp->inp_socket,
+			    curthread->td_proc))
+				continue;
 			inp_list[i++] = inp;
+		}
 	}
 	splx(s);
 	n = i;

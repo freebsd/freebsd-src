@@ -1346,8 +1346,7 @@ again:
 
 			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {
-					if (P->inp_socket->so_cred->cr_uid !=
-					    f->fw_uid)
+					if (socheckuid(P->inp_socket, f->fw_uid))
 						continue;
 				} else if (!groupmember(f->fw_gid,
 					    P->inp_socket->so_cred))
@@ -1375,8 +1374,7 @@ again:
 
 			    if (P && P->inp_socket) {
 				if (f->fw_flg & IP_FW_F_UID) {
-					if (P->inp_socket->so_cred->cr_uid !=
-					    f->fw_uid)
+					if (socheckuid(P->inp_socket, f->fw_uid))
 						continue;
 				} else if (!groupmember(f->fw_gid,
 					    P->inp_socket->so_cred))

@@ -43,6 +43,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -628,8 +629,12 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	s = splnet();
 	for (inp = LIST_FIRST(ripcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt)
+		if (inp->inp_gencnt <= gencnt) {
+			if (!showallsockets && socheckproc(inp->inp_socket,
+			    curthread->td_proc))
+				continue;
 			inp_list[i++] = inp;
+		}
 	}
 	splx(s);
 	n = i;
