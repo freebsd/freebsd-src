@@ -229,7 +229,7 @@ ad_attach(void *notused)
 		devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
 				  DEVSTAT_NO_ORDERED_TAGS,
 				  DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
-				  0x180);
+				  DEVSTAT_PRIORITY_DISK);
 
 		dev1 = disk_create(adp->lun, &adp->disk, 0, &ad_cdevsw, 
 				   &addisk_cdevsw);
