@@ -99,10 +99,9 @@ control message, all hooks are disconnected.
 This command will dump all packets received by the
 .Dv fxp0
 interface to standard output as decoded hex and ASCII:
-.Bl -literal
-
-    nghook -a fxp0: divert
-.El
+.Bd -literal -offset indent
+nghook -a fxp0: divert
+.Ed
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netgraph 4 ,
