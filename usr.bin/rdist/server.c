@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)server.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/wait.h>
@@ -41,7 +45,7 @@ static char sccsid[] = "@(#)server.c	8.1 (Berkeley) 6/9/93";
 #define	ack() 	(void) write(rem, "\0\n", 2)
 #define	err() 	(void) write(rem, "\1\n", 2)
 
-struct	linkbuf *ihead;		/* list of files with more than one link */
+struct	linkbuf *ihead = NULL;	/* list of files with more than one link */
 char	buf[BUFSIZ];		/* general purpose buffer */
 char	target[BUFSIZ];		/* target/source directory name */
 char	*tp;			/* pointer to end of target name */
