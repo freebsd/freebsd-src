@@ -218,16 +218,6 @@ sonewconn(head, connstatus)
 	register struct socket *head;
 	int connstatus;
 {
-
-	return (sonewconn3(head, connstatus, NULL));
-}
-
-struct socket *
-sonewconn3(head, connstatus, td)
-	register struct socket *head;
-	int connstatus;
-	struct thread *td;
-{
 	register struct socket *so;
 
 	if (head->so_qlen > 3 * head->so_qlimit / 2)
@@ -242,10 +232,7 @@ sonewconn3(head, connstatus, td)
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_proto = head->so_proto;
 	so->so_timeo = head->so_timeo;
-	if (td != NULL)
-		so->so_cred = crhold(td->td_proc->p_ucred);
-	else
-		so->so_cred = crhold(head->so_cred);
+	so->so_cred = crhold(head->so_cred);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat) ||
 	    (*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
 		sotryfree(so);
