@@ -80,7 +80,7 @@ static int ext2_sbupdate __P((struct ufsmount *, int));
 static int ext2_statfs __P((struct mount *, struct statfs *, struct thread *));
 static int ext2_sync __P((struct mount *, int, struct ucred *, struct thread *));
 static int ext2_unmount __P((struct mount *, int, struct thread *));
-static int ext2_vget __P((struct mount *, ino_t, struct vnode **));
+static int ext2_vget __P((struct mount *, ino_t, int, struct vnode **));
 static int ext2_vptofh __P((struct vnode *, struct fid *));
 
 static MALLOC_DEFINE(M_EXT2NODE, "EXT2 node", "EXT2 vnode private part");
@@ -982,9 +982,10 @@ loop:
  * done by the calling routine.
  */
 static int
-ext2_vget(mp, ino, vpp)
+ext2_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	register struct ext2_sb_info *fs;
@@ -999,7 +1000,9 @@ ext2_vget(mp, ino, vpp)
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
 restart:
-	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
+	if ((error = ufs_ihashget(dev, ino, flags, vpp)) != 0)
+		return (error);
+	if (*vpp != NULL)
 		return (0);
 
 	/*

@@ -59,7 +59,7 @@ static int	hpfs_root __P((struct mount *, struct vnode **));
 static int	hpfs_statfs __P((struct mount *, struct statfs *,
 				 struct thread *));
 static int	hpfs_unmount __P((struct mount *, int, struct thread *));
-static int	hpfs_vget __P((struct mount *mp, ino_t ino,
+static int	hpfs_vget __P((struct mount *mp, ino_t ino, int flags,
 			       struct vnode **vpp));
 static int	hpfs_mountfs __P((register struct vnode *, struct mount *, 
 				  struct hpfs_args *, struct thread *));
@@ -380,7 +380,7 @@ hpfs_root(
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
 
 	dprintf(("hpfs_root():\n"));
-	error = VFS_VGET(mp, (ino_t)hpmp->hpm_su.su_rootfno, vpp);
+	error = VFS_VGET(mp, (ino_t)hpmp->hpm_su.su_rootfno, LK_EXCLUSIVE, vpp);
 	if(error) {
 		printf("hpfs_root: VFS_VGET failed: %d\n",error);
 		return (error);
@@ -429,7 +429,7 @@ hpfs_fhtovp(
 	struct hpfid *hpfhp = (struct hpfid *)fhp;
 	int error;
 
-	if ((error = VFS_VGET(mp, hpfhp->hpfid_ino, &nvp)) != 0) {
+	if ((error = VFS_VGET(mp, hpfhp->hpfid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -460,6 +460,7 @@ static int
 hpfs_vget(
 	struct mount *mp,
 	ino_t ino,
+	int flags,
 	struct vnode **vpp) 
 {
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -475,7 +476,9 @@ hpfs_vget(
 	hp = NULL;
 	vp = NULL;
 
-	if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
+	if ((error = hpfs_hphashvget(hpmp->hpm_dev, ino, flags, vpp, td)) != 0)
+		return (error);
+	if (*vpp != NULL) {
 		dprintf(("hashed\n"));
 		return (0);
 	}
@@ -531,7 +534,12 @@ hpfs_vget(
 	}
 
 	do {
-		if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
+		if ((error =
+		     hpfs_hphashvget(hpmp->hpm_dev, ino, flags, vpp, td))) {
+			vput(vp);
+			return (error);
+		}
+		if (*vpp != NULL) {
 			dprintf(("hashed2\n"));
 			vput(vp);
 			return (0);

@@ -242,7 +242,7 @@ ifs_lookup(ap)
 		return ENOENT;
 	}
 	/* Now, we can get the vnode */
-	error = VFS_VGET(vdp->v_mount, (long)inodenum, &tdp);
+	error = VFS_VGET(vdp->v_mount, (long)inodenum, LK_EXCLUSIVE, &tdp);
 	if (error)
 		return (error);
 	if (!lockparent || !(flags & ISLASTCN))

@@ -358,7 +358,7 @@ struct vfsops {
 				    struct thread *td));
 	int	(*vfs_sync)	__P((struct mount *mp, int waitfor,
 				    struct ucred *cred, struct thread *td));
-	int	(*vfs_vget)	__P((struct mount *mp, ino_t ino,
+	int	(*vfs_vget)	__P((struct mount *mp, ino_t ino, int flags,
 				    struct vnode **vpp));
 	int	(*vfs_fhtovp)	__P((struct mount *mp, struct fid *fhp,
 				    struct vnode **vpp));
@@ -381,7 +381,8 @@ struct vfsops {
 #define VFS_QUOTACTL(MP,C,U,A,P)  (*(MP)->mnt_op->vfs_quotactl)(MP, C, U, A, P)
 #define VFS_STATFS(MP, SBP, P)	  (*(MP)->mnt_op->vfs_statfs)(MP, SBP, P)
 #define VFS_SYNC(MP, WAIT, C, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, C, P)
-#define VFS_VGET(MP, INO, VPP)	  (*(MP)->mnt_op->vfs_vget)(MP, INO, VPP)
+#define VFS_VGET(MP, INO, FLAGS, VPP) \
+	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
 #define VFS_FHTOVP(MP, FIDP, VPP) \
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
@@ -456,7 +457,7 @@ int	vfs_stdquotactl __P((struct mount *mp, int cmds, uid_t uid,
 int	vfs_stdstatfs __P((struct mount *mp, struct statfs *sbp, struct thread *td));
 int	vfs_stdsync __P((struct mount *mp, int waitfor, struct ucred *cred, 
 		struct thread *td));
-int	vfs_stdvget __P((struct mount *mp, ino_t ino, struct vnode **vpp));
+int	vfs_stdvget __P((struct mount *mp, ino_t ino, int, struct vnode **vpp));
 int	vfs_stdfhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
 int	vfs_stdcheckexp __P((struct mount *mp, struct sockaddr *nam,
 	   int *extflagsp, struct ucred **credanonp));

@@ -629,7 +629,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 					(allocfcn_t *)ffs_nodealloccg);
 	if (ino == 0)
 		goto noinodes;
-	error = VFS_VGET(pvp->v_mount, ino, vpp);
+	error = VFS_VGET(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
 		UFS_VFREE(pvp, ino, mode);
 		return (error);
@@ -1977,7 +1977,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    cmd.size);
 		}
 #endif /* DEBUG */
-		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
+		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
 		ip->i_nlink += cmd.size;
@@ -1996,7 +1996,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    cmd.size);
 		}
 #endif /* DEBUG */
-		if ((error = VFS_VGET(mp, (ino_t)cmd.value, &vp)) != 0)
+		if ((error = VFS_VGET(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
 		ip->i_blocks += cmd.size;

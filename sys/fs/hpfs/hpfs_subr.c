@@ -536,7 +536,8 @@ hpfs_validateparent (
 	if (hp->h_no == hp->h_fn.fn_parent) {
 		dhp = hp;
 	} else {
-		error = VFS_VGET(hpmp->hpm_mp, hp->h_fn.fn_parent, &dvp);
+		error = VFS_VGET(hpmp->hpm_mp, hp->h_fn.fn_parent,
+				 LK_EXCLUSIVE, &dvp);
 		if (error)
 			return (error);
 		dhp = VTOHP(dvp);
@@ -689,7 +690,7 @@ hpfs_updateparent (
 		dhp = hp;
 	} else {
 		error = VFS_VGET(hp->h_hpmp->hpm_mp, hp->h_fn.fn_parent,
-				 &dvp);
+				 LK_EXCLUSIVE, &dvp);
 		if (error)
 			return (error);
 		dhp = VTOHP(dvp);

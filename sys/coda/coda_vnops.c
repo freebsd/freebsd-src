@@ -1854,7 +1854,7 @@ coda_grab_vnode(dev_t dev, ino_t ino, struct vnode **vpp)
     }
 
     /* XXX - ensure that nonzero-return means failure */
-    error = VFS_VGET(mp,ino,vpp);
+    error = VFS_VGET(mp,ino,LK_EXCLUSIVE,vpp);
     if (error) {
 	myprintf(("coda_grab_vnode: iget/vget(%lx, %lu) returns %p, err %d\n", 
 		  (u_long)dev2udev(dev), (u_long)ino, (void *)*vpp, error));

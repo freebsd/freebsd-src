@@ -508,14 +508,8 @@ found:
 			*vpp = vdp;
 			return (0);
 		}
-		if (flags & ISDOTDOT)
-			VOP_UNLOCK(vdp, 0, td);	/* race to get the inode */
-		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
-		if (flags & ISDOTDOT) {
-			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, td) != 0)
-				cnp->cn_flags |= PDIRUNLOCK;
-		}
-		if (error)
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino,
+		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
 		/*
 		 * If directory is "sticky", then user must own
@@ -544,7 +538,7 @@ found:
 	 * regular file, or empty directory.
 	 */
 	if (nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
-		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)) != 0)
+		if ((error = VOP_ACCESS(vdp, VWRITE, cred, cnp->cn_thread)))
 			return (error);
 		/*
 		 * Careful about locking second inode.
@@ -552,14 +546,8 @@ found:
 		 */
 		if (dp->i_number == dp->i_ino)
 			return (EISDIR);
-		if (flags & ISDOTDOT)
-			VOP_UNLOCK(vdp, 0, td);	/* race to get the inode */
-		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
-		if (flags & ISDOTDOT) {
-			if (vn_lock(vdp, LK_EXCLUSIVE | LK_RETRY, td) != 0)
-				cnp->cn_flags |= PDIRUNLOCK;
-		}
-		if (error)
+		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino,
+		    LK_EXCLUSIVE, &tdp)) != 0)
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
@@ -591,26 +579,25 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-		cnp->cn_flags |= PDIRUNLOCK;
-		if ((error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp)) != 0) {
-			if (vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td) == 0)
-				cnp->cn_flags &= ~PDIRUNLOCK;
-			return (error);
-		}
-		if (lockparent && (flags & ISLASTCN)) {
-			if ((error = vn_lock(pdp, LK_EXCLUSIVE, td)) != 0) {
-				vput(tdp);
+		if ((VFS_VGET(pdp->v_mount, dp->i_ino, LK_NOWAIT | LK_EXCLUSIVE,
+		    &tdp)) != 0) {
+			VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
+			error = VFS_VGET(pdp->v_mount, dp->i_ino,
+			    LK_EXCLUSIVE, &tdp);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
+			if (error)
 				return (error);
-			}
-			cnp->cn_flags &= ~PDIRUNLOCK;
+		}
+		if (!lockparent || !(flags & ISLASTCN)) {
+			VOP_UNLOCK(pdp, 0, td);
+			cnp->cn_flags |= PDIRUNLOCK;
 		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		error = VFS_VGET(vdp->v_mount, dp->i_ino, &tdp);
+		error = VFS_VGET(pdp->v_mount, dp->i_ino, LK_EXCLUSIVE, &tdp);
 		if (error)
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN)) {
@@ -1254,7 +1241,8 @@ ufs_checkpath(source, target, cred)
 		if (dirbuf.dotdot_ino == rootino)
 			break;
 		vput(vp);
-		error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino, &vp);
+		error = VFS_VGET(vp->v_mount, dirbuf.dotdot_ino,
+		    LK_EXCLUSIVE, &vp);
 		if (error) {
 			vp = NULL;
 			break;
