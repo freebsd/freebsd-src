@@ -268,12 +268,16 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->irq);
 		mss->irq = 0;
     	}
-    	if (mss->drq2 && mss->drq2 != mss->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
-				     mss->drq2);
+    	if (mss->drq2) {
+		if (mss->drq2 != mss->drq1) {
+			isa_dma_release(rman_get_start(mss->drq2));
+			bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
+				     	mss->drq2);
+		}
 		mss->drq2 = 0;
     	}
      	if (mss->drq1) {
+		isa_dma_release(rman_get_start(mss->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
 				     mss->drq1);
 		mss->drq1 = 0;
