@@ -1,5 +1,15 @@
-Release notes for the Linux Sound Driver 2.4
+Release notes for the Linux Sound Driver 2.5
 --------------------------------------------
+There is also a version called 2.5-beta floating around the net. This
+version contains some fixes after it. Mainly to the SB and GUS code.
+
+CAUTION!	The SVR4.2 port has not been tested much. Backup your system
+		carefully before trying it.
+
+This is mainly a bug fix release. There are couple of new things such as
+linear volume mode for GUS and MIDI recording for SB 2.0 and SB Pro.
+Also this version supports the mixer of GUS v3.7. (Support for GUS MAX and
+the 16-bit daughtercard is coming sooner or later).
 
 NOTE!	The sound driver is a part of the Linux kernel distribution also.
 	Check that your kernel doesn't have more recent version than this
@@ -17,17 +27,13 @@ time with the /dev/dsp. Also the WaveBlaster daughter board is supported.
 No support for the ASP chip yet (the ASP chip can be installed but it's
 not used by the driver).
 
-You will need the snd-util-2.4.tar.gz and snd-data-0.1.tar.Z
+You will need the snd-util-2.5.tar.gz and snd-data-0.1.tar.Z
 packages to use this driver. They should be in the same
 ftp site or BBS from where you got this driver. For
 example at nic.funet.fi:pub/OS/Linux/*.
 
-There is a new version of the tracker program available (tracker-3_19.lzh) but
-I don't know where it is available. The tracker 3.10 has bugs and it don't work
-without some fixes. Look at the README of the snd-util-2.3.
-
 If you are looking for the installation instructions, please
-look at linux/Readme.
+look at $OS/Readme.
 
 This version supports the following soundcards:
 GUS, SoundBlaster, SB Pro, SB16, Pro Audio Spectrum 16 and AdLib.
@@ -220,21 +226,28 @@ This driver contains code by several contributors. In addition several other
 persons have given usefull suggestions. The following is a list of major
 contributors. (I could have forgotten some names.)
 
-	Craig Metz	1/2 of the PAS16 Mixer and PCM support
-	Rob Hooft	Volume computation algorithm for the FM synth.
-	Mika Liljeberg	uLaw encoding and decoding routines
-	Greg Lee	Volume computation algorithm for the GUS and
-			lot's of valuable suggestions.
-	Andy Warner	ISC port
-	Jim Lowe	FreeBSD port
+	Craig Metz		1/2 of the PAS16 Mixer and PCM support
+	Rob Hooft		Volume computation algorithm for the FM synth.
+	Mika Liljeberg		uLaw encoding and decoding routines
+	Greg Lee		Volume computation algorithm for the GUS and
+				lot's of valuable suggestions.
+	Andy Warner		Initial ISC port
+	Jim Lowe		Initial FreeBSD port
 	Anders Baekgaard 	Bughunting and valuable suggestions.
-	Joerg Schubert	SB16 DSP support.
-	Andrew Robinson Improvements to the GUS driver
+	Joerg Schubert		SB16 DSP support.
+	Andrew Robinson 	Improvements to the GUS driver
+	Megens SA		MIDI recording for SB and SB Pro.
+	Mikael Nordqvist  	Linear volume support for GUS.
+	Ian Hartas		SVR4.2 port
+	Markus Aroharju	and
+	Risto Kankkunen		Major contributions to the mixer support
+				of GUS v3.7.
+	Hunyue Yau		Sound Galaxy NX Pro mixer support.
 
 Regards,
 
 Hannu Savolainen
-hsavolai@cs.helsinki.fi
+hannu@voxware.pp.fi, Hannu.Savolainen@Helsinki.fi
 
 Snail mail:	Hannu Savolainen
 		Pallaksentie 4 A 2
