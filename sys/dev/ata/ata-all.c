@@ -71,8 +71,12 @@
 #define ATA_IOADDR_RID		0
 #define ATA_ALTADDR_RID		1
 #define ATA_BMADDR_RID		2
+#if NPCI > 0
 #define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
 				 (pci_get_progif(dev) & 0x05) != 0x05)
+#else
+#define ATA_MASTERDEV(dev)	(1)
+#endif
 
 /* prototypes */
 static int ata_probe(device_t);
@@ -792,7 +796,7 @@ ata_probe(device_t dev)
     altio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
 			       ATA_ALTIOSIZE, RF_ACTIVE);
     if (altio) {
-	if (ATA_MASTERDEV(device_get_parent(dev)))
+	if (scp->flags & ATA_USE_16BIT || ATA_MASTERDEV(device_get_parent(dev)))
 	    altioaddr = rman_get_start(altio);
 	else
 	    altioaddr = rman_get_start(altio) + 0x02;
