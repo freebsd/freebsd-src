@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.138 1999/06/01 18:19:47 jlemon Exp $
+ *	$Id: trap.c,v 1.139 1999/06/18 14:32:16 bde Exp $
  */
 
 /*
@@ -360,7 +360,7 @@ restart:
 			break;
 
 		case T_DIVIDE:		/* integer divide fault */
-			ucode = FPE_INTDIV_TRAP;
+			ucode = FPE_INTDIV;
 			i = SIGFPE;
 			break;
 
@@ -382,12 +382,12 @@ restart:
 #endif /* NISA > 0 */
 
 		case T_OFLOW:		/* integer overflow fault */
-			ucode = FPE_INTOVF_TRAP;
+			ucode = FPE_INTOVF;
 			i = SIGFPE;
 			break;
 
 		case T_BOUND:		/* bounds check fault */
-			ucode = FPE_SUBRNG_TRAP;
+			ucode = FPE_FLTSUB;
 			i = SIGFPE;
 			break;
 

@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.148 1999/07/09 04:29:54 wpaul Exp $
+ **      $Id: userconfig.c,v 1.149 1999/07/25 04:32:46 wpaul Exp $
  **/
 
 /**
@@ -459,7 +459,7 @@ static DEV_INFO device_info[] = {
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
-{"npx",	        "Math coprocessor",			FLG_INVISIBLE,	CLS_MISC},
+{"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 {"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
@@ -2544,7 +2544,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.148 1999/07/09 04:29:54 wpaul Exp $
+ *      $Id: userconfig.c,v 1.149 1999/07/25 04:32:46 wpaul Exp $
  */
 
 #include "scbus.h"
