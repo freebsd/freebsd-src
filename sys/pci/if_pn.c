@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.48 1999/04/12 21:08:27 wpaul Exp $
+ *	$Id: if_pn.c,v 1.49 1999/04/13 16:57:36 wpaul Exp $
  */
 
 /*
@@ -91,13 +91,13 @@
 
 /* #define PN_BACKGROUND_AUTONEG */
 
-#define PN_PROMISC_BUG_WAR
+#define PN_RX_BUG_WAR
 
 #include <pci/if_pnreg.h>
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.48 1999/04/12 21:08:27 wpaul Exp $";
+	"$Id: if_pn.c,v 1.49 1999/04/13 16:57:36 wpaul Exp $";
 #endif
 
 /*
@@ -138,8 +138,8 @@ static int pn_newbuf		__P((struct pn_softc *,
 static int pn_encap		__P((struct pn_softc *, struct pn_chain *,
 						struct mbuf *));
 
-#ifdef PN_PROMISC_BUG_WAR
-static void pn_promisc_bug_war	__P((struct pn_softc *,
+#ifdef PN_RX_BUG_WAR
+static void pn_rx_bug_war	__P((struct pn_softc *,
 						struct pn_chain_onefrag *));
 #endif
 static void pn_rxeof		__P((struct pn_softc *));
@@ -977,7 +977,7 @@ pn_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct pn_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
-#ifdef PN_PROMISC_BUG_WAR
+#ifdef PN_RX_BUG_WAR
 	u_int32_t		revision = 0;
 #endif
 
@@ -1110,18 +1110,18 @@ pn_attach(config_id, unit)
 	sc->pn_ldata = (struct pn_list_data *)roundptr;
 	bzero(sc->pn_ldata, sizeof(struct pn_list_data));
 
-#ifdef PN_PROMISC_BUG_WAR
+#ifdef PN_RX_BUG_WAR
 	revision = pci_conf_read(config_id, PN_PCI_REVISION) & 0x000000FF;
 	if (revision == PN_169B_REV || revision == PN_169_REV ||
 	    (revision & 0xF0) == PN_168_REV) {
-		sc->pn_promisc_war = 1;
-		sc->pn_promisc_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
-		if (sc->pn_promisc_buf == NULL) {
+		sc->pn_rx_war = 1;
+		sc->pn_rx_buf = malloc(PN_RXLEN * 5, M_DEVBUF, M_NOWAIT);
+		if (sc->pn_rx_buf == NULL) {
 			printf("pn%d: no memory for workaround buffer\n", unit);
 			goto fail;
 		}
 	} else {
-		sc->pn_promisc_war = 0;
+		sc->pn_rx_war = 0;
 	}
 #endif
 
@@ -1323,14 +1323,17 @@ static int pn_newbuf(sc, c)
 	return(0);
 }
 
-#ifdef PN_PROMISC_BUG_WAR
+#ifdef PN_RX_BUG_WAR
 /*
  * Grrrrr.
- * Revision 33 of the PNIC chip has a terrible bug in it that manifests
- * itself when you enable promiscuous mode. Sometimes instead of uploading
- * one complete frame, it uploads its entire FIFO memory. The frame we
- * want is at the end of this whole mess, but we never know exactly
- * how much data has been uploaded, so finding it can be hard.
+ * The PNIC chip has a terrible bug in it that manifests itself during
+ * periods of heavy activity. The exact mode of failure if difficult to
+ * pinpoint: sometimes it only happens in promiscuous mode, sometimes it
+ * will happen on slow machines. The bug is that sometimes instead of
+ * uploading one complete frame during reception, it uploads what looks
+ * like the entire contents of its FIFO memory. The frame we want is at
+ * the end of the whole mess, but we never know exactly how much data has
+ * been uploaded, so salvaging the frame is hard.
  *
  * There is only one way to do it reliably, and it's disgusting.
  * Here's what we know:
@@ -1374,7 +1377,7 @@ static int pn_newbuf(sc, c)
  */
 
 #define PN_WHOLEFRAME	(PN_RXSTAT_FIRSTFRAG|PN_RXSTAT_LASTFRAG)
-static void pn_promisc_bug_war(sc, cur_rx)
+static void pn_rx_bug_war(sc, cur_rx)
 	struct pn_softc		*sc;
 	struct pn_chain_onefrag	*cur_rx;
 {
@@ -1383,8 +1386,8 @@ static void pn_promisc_bug_war(sc, cur_rx)
 	int			total_len;
 	u_int32_t		rxstat = 0;
 
-	c = sc->pn_promisc_bug_save;
-	ptr = sc->pn_promisc_buf;
+	c = sc->pn_rx_bug_save;
+	ptr = sc->pn_rx_buf;
 	bzero(ptr, sizeof(PN_RXLEN * 5));
 
 	/* Copy all the bytes from the bogus buffers. */
@@ -1402,22 +1405,21 @@ static void pn_promisc_bug_war(sc, cur_rx)
 		c = c->pn_nextdesc;
 	}
 
-
 	/* Find the length of the actual receive frame. */
 	total_len = PN_RXBYTES(rxstat);
 
 	/* Scan backwards until we hit a non-zero byte. */
-	while(*ptr == 0x00) {
+	while(*ptr == 0x00)
 		ptr--;
-	}
 
+	/* Round off. */
 	if ((u_int32_t)(ptr) & 0x3)
 		ptr -= 1;
 
 	/* Now find the start of the frame. */
 	ptr -= total_len;
-	if (ptr < sc->pn_promisc_buf)
-		ptr = sc->pn_promisc_buf;
+	if (ptr < sc->pn_rx_buf)
+		ptr = sc->pn_rx_buf;
 
 	/*
 	 * Now copy the salvaged frame to the last mbuf and fake up
@@ -1456,19 +1458,22 @@ static void pn_rxeof(sc)
 		cur_rx = sc->pn_cdata.pn_rx_head;
 		sc->pn_cdata.pn_rx_head = cur_rx->pn_nextdesc;
 
-#ifdef PN_PROMISC_BUG_WAR
+#ifdef PN_RX_BUG_WAR
 		/*
-		 * XXX The PNIC seems to have a bug that manifests
-		 * when the promiscuous mode bit is set: we have to
-		 * watch for it and work around it.
+		 * XXX The PNIC has a nasty receiver bug that manifests
+	 	 * under certain conditions (sometimes only in promiscuous
+		 * mode, sometimes only on slow machines even when not in
+		 * promiscuous mode). We have to keep an eye out for the
+		 * failure condition and employ a workaround to recover
+		 * any mangled frames.
 		 */
-		if (sc->pn_promisc_war && ifp->if_flags & IFF_PROMISC) {
+		if (sc->pn_rx_war) {
 			if ((rxstat & PN_WHOLEFRAME) != PN_WHOLEFRAME) {
 				if (rxstat & PN_RXSTAT_FIRSTFRAG)
-					sc->pn_promisc_bug_save = cur_rx;
+					sc->pn_rx_bug_save = cur_rx;
 				if ((rxstat & PN_RXSTAT_LASTFRAG) == 0)
 					continue;
-				pn_promisc_bug_war(sc, cur_rx);
+				pn_rx_bug_war(sc, cur_rx);
 				rxstat = cur_rx->pn_ptr->pn_status;
 			}
 		}
@@ -1945,7 +1950,8 @@ static void pn_init(xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
-	CSR_WRITE_4(sc, PN_BUSCTL, PN_BURSTLEN_USECA);
+	CSR_WRITE_4(sc, PN_BUSCTL, PN_BUSCTL_MUSTBEONE|PN_BUSCTL_ARBITRATION);
+	PN_SETBIT(sc, PN_BUSCTL, PN_BURSTLEN_16LONG);
 	switch(sc->pn_cachesize) {
 	case 32:
 		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_32LONG);

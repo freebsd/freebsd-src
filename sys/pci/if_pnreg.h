@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pnreg.h,v 1.24 1999/04/11 05:11:09 wpaul Exp $
+ *	$Id: if_pnreg.h,v 1.25 1999/04/13 16:57:36 wpaul Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 #define PN_BUSCTL_BURSTLEN	0x00003F00
 #define PN_BUSCTL_CACHEALIGN	0x0000C000
 #define PN_BUSCTL_TXPOLL	0x000E0000
+#define PN_BUSCTL_MUSTBEONE	0x04000000
 
 #define PN_SKIPLEN_1LONG	0x00000004
 #define PN_SKIPLEN_2LONG	0x00000008
@@ -480,14 +481,14 @@ struct pn_softc {
 	u_int8_t		pn_want_auto;
 	u_int8_t		pn_autoneg;
 	caddr_t			pn_ldata_ptr;
-#ifdef PN_PROMISC_BUG_WAR
+#ifdef PN_RX_BUG_WAR
 #define PN_168_REV	16
 #define PN_169_REV	32
 #define PN_169B_REV	33
-	u_int8_t		pn_promisc_war;
+	u_int8_t		pn_rx_war;
 	u_int8_t		pn_cachesize;
-	struct pn_chain_onefrag	*pn_promisc_bug_save;
-	unsigned char           *pn_promisc_buf;
+	struct pn_chain_onefrag	*pn_rx_bug_save;
+	unsigned char           *pn_rx_buf;
 #endif
 	struct pn_list_data	*pn_ldata;
 	struct pn_chain_data	pn_cdata;
