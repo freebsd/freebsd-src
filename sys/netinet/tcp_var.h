@@ -247,7 +247,8 @@ struct tcptw {
 	struct ucred	*tw_cred;	/* user credentials */
 	u_long 		t_recent;
 	u_long		t_starttime;
-	struct callout	*tt_2msl;	/* 2*msl TIME_WAIT timer */
+	int		tw_time;
+	LIST_ENTRY(tcptw) tw_2msl;
 };
  
 /*
@@ -464,7 +465,8 @@ void	 tcp_canceltimers(struct tcpcb *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-void	 tcp_twclose(struct tcptw *);
+struct tcptw *
+	 tcp_twclose(struct tcptw *_tw, int _reuse);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *

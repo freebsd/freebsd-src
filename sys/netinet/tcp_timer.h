@@ -151,8 +151,14 @@ extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 
+struct tcptw;
+
+void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
-void	tcp_timer_2msl_tw(void *xtw);	/* XXX temporary */
+struct tcptw *
+	tcp_timer_2msl_tw(int _reuse);		/* XXX temporary */
+void	tcp_timer_2msl_reset(struct tcptw *_tw, int _timeo);
+void	tcp_timer_2msl_stop(struct tcptw *_tw);
 void	tcp_timer_keep(void *xtp);
 void	tcp_timer_persist(void *xtp);
 void	tcp_timer_rexmt(void *xtp);
