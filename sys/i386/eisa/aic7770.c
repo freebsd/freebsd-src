@@ -29,19 +29,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.27 1996/04/20 21:21:47 gibbs Exp $
+ *	$Id: aic7770.c,v 1.28 1996/05/10 16:14:51 gibbs Exp $
  */
 
-#include "eisa.h"
-#if NEISA > 0
+#if defined(__FreeBSD__)
+#include <eisa.h>
+#endif
+#if NEISA > 0 || defined(__NetBSD__)
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#if defined(__FreeBSD__)
 #include <sys/devconf.h>
+#endif
 #include <sys/kernel.h>
+
+#if defined(__NetBSD__)
+#include <sys/device.h>
+#include <machine/bus.h>
+#include <machine/intr.h>
+#endif /* defined(__NetBSD__) */
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+
+#if defined(__FreeBSD__)
 
 #include <machine/clock.h>
 
@@ -54,9 +66,22 @@
 #define EISA_DEVICE_ID_ADAPTEC_284xB	0x04907756 /* BIOS enabled */
 #define EISA_DEVICE_ID_ADAPTEC_284x	0x04907757 /* BIOS disabled*/
 
+#elif defined(__NetBSD__)
+
+#include <dev/eisa/eisareg.h>
+#include <dev/eisa/eisavar.h>
+#include <dev/eisa/eisadevs.h>
+
+#include <dev/ic/aic7xxxreg.h>
+#include <dev/ic/aic7xxxvar.h>
+
+#endif /* defined(__NetBSD__) */
+
 #define AHC_EISA_SLOT_OFFSET	0xc00
 #define AHC_EISA_IOSIZE		0x100
 #define INTDEF			0x5cul	/* Interrupt Definition Register */
+
+#if defined(__FreeBSD__)
 
 static int	aic7770probe __P((void));
 static int	aic7770_attach __P((struct eisa_device *e_dev));
@@ -160,14 +185,99 @@ aic7770probe(void)
 	return count;
 }
 
+#elif defined(__NetBSD__)
+
+#define bootverbose	1
+
+int	ahc_eisa_match __P((struct device *, void *, void *));
+void	ahc_eisa_attach __P((struct device *, struct device *, void *));
+
+
+struct cfattach ahc_eisa_ca = {
+	sizeof(struct ahc_data), ahc_eisa_match, ahc_eisa_attach
+};
+
+/*
+ * Return irq setting of the board, otherwise -1.
+ */
+int
+ahc_eisa_irq(bc, ioh)
+	bus_chipset_tag_t bc;
+	bus_io_handle_t ioh;
+{
+	int irq;
+	u_char intdef;
+
+	ahc_reset("ahc_eisa", bc, ioh);
+	intdef = bus_io_read_1(bc, ioh, INTDEF);
+	switch (irq = (intdef & 0xf)) {
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+	case 14:
+	case 15:
+		break;
+	default:
+		printf("ahc_eisa_irq: illegal irq setting %d\n", intdef);
+		return -1;
+	}
+
+	/* Note that we are going and return (to probe) */
+	return irq;
+}
+
+/*
+ * Check the slots looking for a board we recognise
+ * If we find one, note it's address (slot) and call
+ * the actual probe routine to check it out.
+ */
+int
+ahc_eisa_match(parent, match, aux)
+	struct device *parent;
+	void *match, *aux;
+{
+	struct eisa_attach_args *ea = aux;
+	bus_chipset_tag_t bc = ea->ea_bc;
+	bus_io_handle_t ioh;
+	int irq;
+
+	/* must match one of our known ID strings */
+	if (strcmp(ea->ea_idstring, "ADP7770") &&
+	    strcmp(ea->ea_idstring, "ADP7771") &&
+	    strcmp(ea->ea_idstring, "ADP7756") && /* XXX - not EISA, but VL */
+	    strcmp(ea->ea_idstring, "ADP7757"))	  /* XXX - not EISA, but VL */
+		return (0);
+
+	if (bus_io_map(bc, EISA_SLOT_ADDR(ea->ea_slot) + AHC_EISA_SLOT_OFFSET, 
+	    AHC_EISA_IOSIZE, &ioh))
+		return (0);
+
+	irq = ahc_eisa_irq(bc, ioh);
+
+	bus_io_unmap(bc, ioh, AHC_EISA_IOSIZE);
+
+	return (irq >= 0);
+}
+
+#endif /* defined(__NetBSD__) */
+
+#if defined(__FreeBSD__)
 static int
 aic7770_attach(e_dev)
 	struct eisa_device *e_dev;
+#elif defined(__NetBSD__)
+void
+ahc_eisa_attach(parent, self, aux)
+	struct device *parent, *self;
+	void *aux;
+#endif
 {
 	ahc_type type;
+
+#if defined(__FreeBSD__)
 	struct ahc_data *ahc;
 	resvaddr_t *iospace;
-	u_long	iobase;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
 
@@ -175,8 +285,6 @@ aic7770_attach(e_dev)
 
 	if(!iospace)
 		return -1;
-
-	iobase = iospace->addr;
 
 	switch(e_dev->id) {
 		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
@@ -215,17 +323,58 @@ aic7770_attach(e_dev)
 	}
 	eisa_reg_end(e_dev);
 
+#elif defined(__NetBSD__)
+
+	struct ahc_data *ahc = (void *)self;
+	struct eisa_attach_args *ea = aux;
+	bus_chipset_tag_t bc = ea->ea_bc;
+	bus_io_handle_t ioh;
+	int irq;
+	eisa_chipset_tag_t ec = ea->ea_ec;
+	eisa_intr_handle_t ih;
+	const char *model, *intrstr;
+
+	if (bus_io_map(bc, EISA_SLOT_ADDR(ea->ea_slot) + AHC_EISA_SLOT_OFFSET, 
+		       AHC_EISA_IOSIZE, &ioh))
+		panic("ahc_eisa_attach: could not map I/O addresses");
+	if ((irq = ahc_eisa_irq(bc, ioh)) < 0)
+		panic("ahc_eisa_attach: ahc_eisa_irq failed!");
+
+	if (strcmp(ea->ea_idstring, "ADP7770") == 0) {
+		model = EISA_PRODUCT_ADP7770;
+		type = AHC_AIC7770;
+	} else if (strcmp(ea->ea_idstring, "ADP7771") == 0) {
+		model = EISA_PRODUCT_ADP7771;
+		type = AHC_274;
+	} else if (strcmp(ea->ea_idstring, "ADP7756") == 0) {
+		model = EISA_PRODUCT_ADP7756;
+		type = AHC_284;
+	} else if (strcmp(ea->ea_idstring, "ADP7757") == 0) {
+		model = EISA_PRODUCT_ADP7757;
+		type = AHC_284;
+	} else {
+		panic("ahc_eisa_attach: Unknown device type %s\n",
+		      ea->ea_idstring);
+	}
+	printf(": %s\n", model);
+
+	ahc_construct(ahc, bc, ioh, type, AHC_FNONE);
+	if (eisa_intr_map(ec, irq, &ih)) {
+		printf("%s: couldn't map interrupt (%d)\n",
+		       ahc->sc_dev.dv_xname, irq);
+		return;
+	}
+#endif /* defined(__NetBSD__) */
+
 	/*
 	 * Tell the user what type of interrupts we're using.
 	 * usefull for debugging irq problems
 	 */
 	if(bootverbose) {
-		if(ahc->pause & IRQMS)
-			printf("ahc%d: Using Level Sensitive "
-			       "Interrupts\n", unit);
-		else
-			printf("ahc%d: Using Edge Triggered "
-			       "Interrupts\n", unit); 
+		printf("%s: Using %s Interrupts\n",
+		       ahc_name(ahc),
+		       ahc->pause & IRQMS ?
+				"Level Sensitive" : "Edge Triggered");
 	}
 
 	/*
@@ -238,7 +387,7 @@ aic7770_attach(e_dev)
 	    case AHC_AIC7770:
 	    case AHC_274:
 	    {
-		u_char biosctrl = inb(HA_274_BIOSCTRL + iobase);
+		u_char biosctrl = AHC_INB(ahc, HA_274_BIOSCTRL);
 
 		/* Get the primary channel information */
 		ahc->flags |= (biosctrl & CHANNEL_B_PRIMARY);
@@ -277,10 +426,10 @@ aic7770_attach(e_dev)
 		u_char sblkctl;
 		u_char sblkctl_orig;
 
-		sblkctl_orig = inb(SBLKCTL + iobase);
+		sblkctl_orig = AHC_INB(ahc, SBLKCTL);
 		sblkctl = sblkctl_orig ^ AUTOFLUSHDIS;
-		outb(SBLKCTL + iobase, sblkctl);
-		sblkctl = inb(SBLKCTL + iobase);
+		AHC_OUTB(ahc, SBLKCTL, sblkctl);
+		sblkctl = AHC_INB(ahc, SBLKCTL);
 		if(sblkctl != sblkctl_orig)
 		{
 			id_string = "aic7770 >= Rev E, ";
@@ -288,7 +437,7 @@ aic7770_attach(e_dev)
 			 * Ensure autoflush is enabled
 			 */
 			sblkctl &= ~AUTOFLUSHDIS;
-			outb(SBLKCTL + iobase, sblkctl);
+			AHC_OUTB(ahc, SBLKCTL, sblkctl);
 
 			/* Allow paging on this adapter */
 			ahc->flags |= AHC_PAGESCBS;
@@ -296,20 +445,21 @@ aic7770_attach(e_dev)
 		else
 			id_string = "aic7770 <= Rev C, ";
 
-		printf("ahc%d: %s", unit, id_string);
+		printf("%s: %s", ahc_name(ahc), id_string);
 	}
 
 	/* Setup the FIFO threshold and the bus off time */
 	{
-		u_char hostconf = inb(HOSTCONF + iobase);
-		outb(BUSSPD + iobase, hostconf & DFTHRSH);
-		outb(BUSTIME + iobase, (hostconf << 2) & BOFF);
+		u_char hostconf = AHC_INB(ahc, HOSTCONF);
+		AHC_OUTB(ahc, BUSSPD, hostconf & DFTHRSH);
+		AHC_OUTB(ahc, BUSTIME, (hostconf << 2) & BOFF);
 	}
 
 	/*
 	 * Generic aic7xxx initialization.
 	 */
 	if(ahc_init(ahc)){
+#if defined(__FreeBSD__)
 		ahc_free(ahc);
 		/*
 		 * The board's IRQ line is not yet enabled so it's safe
@@ -317,13 +467,18 @@ aic7770_attach(e_dev)
 		 */
 		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
+#elif defined(__NetBSD__)
+		ahc_free(ahc);
+		return;
+#endif
 	}
 
 	/*
 	 * Enable the board's BUS drivers
 	 */
-	outb(BCTL + iobase, ENABLE);
+	AHC_OUTB(ahc, BCTL, ENABLE);
 
+#if defined(__FreeBSD__)
 	/*
 	 * Enable our interrupt handler.
 	 */
@@ -334,11 +489,38 @@ aic7770_attach(e_dev)
 	}
 
 	e_dev->kdc->kdc_state = DC_BUSY; /* host adapters always busy */
+#elif defined(__NetBSD__)
+	intrstr = eisa_intr_string(ec, ih);
+	/*
+	 * The IRQMS bit enables level sensitive interrupts only allow
+	 * IRQ sharing if its set.
+	 */
+	ahc->sc_ih = eisa_intr_establish(ec, ih,
+	    ahc->pause & IRQMS ? IST_LEVEL : IST_EDGE, IPL_BIO, ahc_intr, ahc
+#ifdef __OpenBSD__
+	    , ahc->sc_dev.dv_xname
+#endif
+	    );
+	if (ahc->sc_ih == NULL) {
+		printf("%s: couldn't establish interrupt",
+		       ahc->sc_dev.dv_xname);
+		if (intrstr != NULL)
+			printf(" at %s", intrstr);
+		printf("\n");
+		ahc_free(ahc);
+		return;
+	}
+	if (intrstr != NULL)
+		printf("%s: interrupting at %s\n", ahc->sc_dev.dv_xname,
+		       intrstr);
+#endif /* defined(__NetBSD__) */
 
 	/* Attach sub-devices - always succeeds */
 	ahc_attach(ahc);
 
+#if defined(__FreeBSD__)
 	return 0;
+#endif
 }
 
 #endif /* NEISA > 0 */
