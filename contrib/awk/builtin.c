@@ -2104,9 +2104,11 @@ size_t len;
 			retval = (retval * 16) + val;
 		}
 	} else if (*str == '0') {
+		if (strchr(str, '8') != NULL || strchr(str, '9') != NULL)
+			goto decimal;
 		for (; len > 0; len--) {
-			if (! isdigit(*str) || *str == '8' || *str == '9')
-				goto decimal;
+			if (! isdigit(*str))
+				goto done;
 			retval = (retval * 8) + (*str - '0');
 			str++;
 		}

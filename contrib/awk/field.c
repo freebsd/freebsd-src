@@ -264,9 +264,13 @@ int freeold;
 			emalloc(databuf, char *, INITIAL_SIZE, "set_record");
 			databuf_size = INITIAL_SIZE;
 		}
-		/* make sure there's enough room */
-		if (cnt > databuf_size) {
-			while (cnt > databuf_size && databuf_size <= MAX_SIZE)
+		/*
+		 * Make sure there's enough room. Since we sometimes need
+		 * to place a sentinel at the end, we make sure
+		 * databuf_size is > cnt after allocation.
+		 */
+		if (cnt >= databuf_size) {
+			while (cnt >= databuf_size && databuf_size <= MAX_SIZE)
 				databuf_size *= 2;
 			erealloc(databuf, char *, databuf_size, "set_record");
 		}
