@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2002
+.Dd December 1, 2003
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -987,6 +987,13 @@ is different from specifying
 .Cm proto Ar ipsec
 as the latter will only look at the specific IP protocol field,
 irrespective of IPSEC kernel support and the validity of the IPSEC data.
+.Pp
+Further note that this flag is silently ignored in kernels without
+IPSEC support.
+It does not affect rule processing when given and the
+rules are handled as if with no
+.Cm ipsec
+flag.
 .It Cm iptos Ar spec
 Matches IP packets whose
 .Cm tos
