@@ -367,29 +367,6 @@ struct sis_desc {
 #define SIS_RX_LIST_SZ		SIS_RX_LIST_CNT * sizeof(struct sis_desc)
 #define SIS_TX_LIST_SZ		SIS_TX_LIST_CNT * sizeof(struct sis_desc)
 
-struct sis_list_data {
-#ifdef foo
-	struct sis_desc		sis_rx_list[SIS_RX_LIST_CNT];
-	struct sis_desc		sis_tx_list[SIS_TX_LIST_CNT];
-#endif
-	struct sis_desc		*sis_rx_list;
-	struct sis_desc		*sis_tx_list;
-	bus_dma_tag_t		sis_rx_tag;
-	bus_dmamap_t		sis_rx_dmamap;
-	bus_dma_tag_t		sis_tx_tag;
-	bus_dmamap_t		sis_tx_dmamap;
-};
-
-struct sis_ring_data {
-	int			sis_rx_prod;
-	int			sis_tx_prod;
-	int			sis_tx_cons;
-	int			sis_tx_cnt;
-	u_int32_t		sis_rx_paddr;
-	u_int32_t		sis_tx_paddr;
-};
-
-
 /*
  * SiS PCI vendor ID.
  */
@@ -465,10 +442,20 @@ struct sis_softc {
 	u_int8_t		sis_rev;
 	u_int8_t		sis_link;
 	u_int			sis_srr;
-	struct sis_list_data	sis_ldata;
+	struct sis_desc		*sis_rx_list;
+	struct sis_desc		*sis_tx_list;
+	bus_dma_tag_t		sis_rx_tag;
+	bus_dmamap_t		sis_rx_dmamap;
+	bus_dma_tag_t		sis_tx_tag;
+	bus_dmamap_t		sis_tx_dmamap;
 	bus_dma_tag_t		sis_parent_tag;
 	bus_dma_tag_t		sis_tag;
-	struct sis_ring_data	sis_cdata;
+	int			sis_rx_prod;
+	int			sis_tx_prod;
+	int			sis_tx_cons;
+	int			sis_tx_cnt;
+	u_int32_t		sis_rx_paddr;
+	u_int32_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
 	int			sis_stopped;
 #ifdef DEVICE_POLLING
