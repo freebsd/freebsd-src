@@ -1452,10 +1452,8 @@ sosetopt(so, sopt)
 			    sizeof extmac);
 			if (error)
 				goto bad;
-
-			error = mac_setsockopt_label_set(
-			    sopt->sopt_td->td_ucred, so, &extmac);
-
+			error = mac_setsockopt_label(sopt->sopt_td->td_ucred,
+			    so, &extmac);
 #else
 			error = EOPNOTSUPP;
 #endif
@@ -1603,8 +1601,8 @@ integer:
 			    sizeof(extmac));
 			if (error)
 				return (error);
-			error = mac_getsockopt_label_get(
-			    sopt->sopt_td->td_ucred, so, &extmac);
+			error = mac_getsockopt_label(sopt->sopt_td->td_ucred,
+			    so, &extmac);
 			if (error)
 				return (error);
 			error = sooptcopyout(sopt, &extmac, sizeof extmac);
@@ -1618,7 +1616,7 @@ integer:
 			    sizeof(extmac));
 			if (error)
 				return (error);
-			error = mac_getsockopt_peerlabel_get(
+			error = mac_getsockopt_peerlabel(
 			    sopt->sopt_td->td_ucred, so, &extmac);
 			if (error)
 				return (error);
