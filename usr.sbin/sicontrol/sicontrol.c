@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: sicontrol.c,v 1.2 1995/08/14 01:56:17 peter Exp $
+ *	$Id: sicontrol.c,v 1.4 1995/10/01 03:13:33 peter Exp $
  */
 
 #include <stdio.h>
@@ -85,8 +85,8 @@ struct opt {
 	"debug",		debug,
 	"rxint_throttle",	rxint,
 	"int_throttle",		txint,
-	"mstate",		mstate,
 	"nport",		nport,
+	"mstate",		mstate,
 	"ccbstat",		ccb_stat,
 	"ttystat",		tty_stat,
 	0,			0,
@@ -102,11 +102,10 @@ struct stat_list {
 #define	U_DEBUG		0
 #define	U_TXINT		1
 #define	U_RXINT		2
-#define	U_MSTATE	3
-#define	U_NPORT		4
+#define	U_NPORT		3
+#define	U_MSTATE	4
 #define	U_STAT_CCB	5
 #define	U_STAT_TTY	6
-#define	U_STAT_PORT	7
 
 #define	U_MAX		7
 #define	U_ALL		-1
@@ -114,11 +113,10 @@ char *usage[] = {
 	"debug [[add|del|set debug_levels] | [off]]\n",
 	"int_throttle [newvalue]\n",
 	"rxint_throttle [newvalue]\n",
-	"mstate\n",
 	"nport\n",
+	"mstate\n",
 	"ccbstat\n",
 	"ttystat\n",
-	"portstat\n",
 	0
 };
 
@@ -202,9 +200,10 @@ prusage(strn, eflag)
 	if (strn == U_ALL) {
 		fprintf(stderr, "Usage: sicontrol - %s", usage[1]);
 		fprintf(stderr, "       sicontrol - %s", usage[2]);
-		fprintf(stderr, "       sicontrol devname %s", usage[3]);
-		for (cp = &usage[4]; *cp; cp++)
-			fprintf(stderr, "                         %s", *cp);
+		fprintf(stderr, "       sicontrol - %s", usage[3]);
+		fprintf(stderr, "       sicontrol devname %s", usage[4]);
+		for (cp = &usage[5]; *cp; cp++)
+			fprintf(stderr, "       sicontrol devname %s", *cp);
 	}
 	else if (strn >= 0 && strn <= U_MAX)
 		fprintf(stderr, "Usage: sicontrol devname %s", usage[strn]);
