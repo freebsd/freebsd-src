@@ -69,6 +69,8 @@
 #include <ddb/ddb.h>
 #endif
 
+u_int32_t want_resched;
+u_int32_t astpending;
 struct proc *fpcurproc;		/* current user of the FPU */
 
 void		userret __P((struct proc *, u_int64_t, u_quad_t));
