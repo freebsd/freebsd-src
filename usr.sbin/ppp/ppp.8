@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.51 1997/08/19 01:10:24 brian Exp $
+.\" $Id: ppp.8,v 1.52 1997/08/19 11:18:34 danny Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1036,8 +1036,8 @@ dialing and redialing separated by either a pipe (|) or a colon (:)
 .Bd -literal -offset indent
 set phone "111[|222]...[:333[|444]...]...
 .Ed
-Numbers after the first in a pipe-seperated list are only used if the
-previous number was used in a failed login script.  Numbers seperated
+Numbers after the first in a pipe-separated list are only used if the
+previous number was used in a failed login script.  Numbers separated
 by a colon are used sequentially, irrespective of what happened as a
 result of using the previous number.  For example:
 .Bd -literal -offset indent
@@ -1676,9 +1676,9 @@ This allows the line parity to be set.  The default value is none.
 .It set phone telno[|telno]...[:telno[|telno]...]...
 This allows the specification of the phone number to be used in
 place of the \\\\T string in the dial and login chat scripts.
-Multiple phone numbers may be given seperated by a colon (:) or
+Multiple phone numbers may be given separated by a colon (:) or
 a pipe (|).  Numbers after the pipe are only dialed if the login script
-for the previous number failed.  Numbers seperated by a colon are tried
+for the previous number failed.  Numbers separated by a colon are tried
 sequentially, irrespective of the reason the line was dropped.
 If multiple numbers are given,
 .Nm
