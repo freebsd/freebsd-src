@@ -1381,7 +1381,7 @@ In Unix troff, the
 contents of
 .I filename
 is immediately copied through to the output regardless of whether
-there is a current diversion; this behaviour is so anomalous that it
+there is a current diversion; this behavior is so anomalous that it
 must be considered a bug.
 .TP
 .BI .ev\  xx
@@ -1423,7 +1423,7 @@ if the end of a sentence occurs at the end of a line in fill mode, then
 both an inter-word space and a sentence space will be added;
 if two spaces follow the end of a sentence in the middle of a line,
 then the second space will be a sentence space.
-Note that the behaviour of Unix troff will be exactly
+Note that the behavior of Unix troff will be exactly
 that exhibited by GNU troff if a second argument is never given to the
 .B ss
 request.
