@@ -15,7 +15,7 @@
 .Nm
 .Op Fl acdeftnNS
 .Brq Cm list | show
-.Op Ar number ...
+.Op Ar rule | first-last ...
 .Nm
 .Op Fl f | q
 .Cm flush
@@ -54,7 +54,7 @@
 .Op Ar number ...
 .Pp
 .Nm
-.Op Fl nq
+.Op Fl cNnqS
 .Oo
 .Fl p Ar preproc
 .Oo
@@ -855,6 +855,12 @@ operand, and possibly grouped into
 .Pp
 The following match patterns can be used (listed in alphabetical order):
 .Bl -tag -width indent
+.It Cm // this is a comment.
+Inserts the specified text as a comment in the rule.
+Everything following // is considered as a comment and stored in the rule.
+You can have comment-only rules, which are listed as having a
+.Cm count
+action followed by the comment.
 .It Cm bridged
 Matches only bridged packets.
 .It Cm dst-ip Ar ip-address
@@ -879,8 +885,9 @@ may be specified by name or number.
 .It Cm icmptypes Ar types
 Matches ICMP packets whose ICMP type is in the list
 .Ar types .
-The list may be specified as any combination of ranges or
-individual types separated by commas.
+The list may be specified as any combination of
+individual types (numeric) separated by commas.
+.Em Ranges are not allowed.
 The supported ICMP types are:
 .Pp
 echo reply
