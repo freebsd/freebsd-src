@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.6 1996/03/26 21:33:09 joerg Exp $
+     $Id: dialup.sgml,v 1.7 1996/03/31 18:01:53 joerg Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -792,9 +792,8 @@ the <tt/DTR/ line is asserted by checking the modem's indicator lights
 
 If you've gone over everything several times and it still doesn't work,
 take a break and come back to it later.  If it still doesn't work,
-perhaps you can send an electronic mail message to <tt><htmlurl
-url="mailto:questions@freebsd.org" name="questions@FreeBSD.ORG"></tt>
-describing your modem and your problem, and the good folks on the list will
+perhaps you can send an electronic mail message to the &a.questions
+describing your modem and youer problem, and the good folks on the list will
 try to help.
 
 <sect1><heading>Acknowledgments</heading>
@@ -804,8 +803,7 @@ Thanks to these people for comments and advice:
 
 <descrip>
 
-<tag/Sean Kelly/ &lt;kelly@fsl.noaa.gov&gt; for a number of good
-suggestions
+&a.kelly for a number of good suggestions
 
 </descrip>
 

@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.30 1996/03/21 06:12:40 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.31 1996/03/21 17:53:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -9,7 +9,7 @@
 
 <p>The official sources for FreeBSD available via anonymous FTP from:
 <quote>
-<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD" 
+<htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
 name="ftp://ftp.FreeBSD.org/pub/FreeBSD">
 </quote> 
 and on CD-ROM from Walnut Creek CDROM:
@@ -31,61 +31,61 @@ and on CD-ROM from Walnut Creek CDROM:
 <tag>Australia</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@au.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@au.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.au.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.au.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.au.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.au.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.au.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.au.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.au.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.au.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.au.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.au.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp4.au.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.au.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag>Brazil</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@br.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@br.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 <item>
-<htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp4.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp5.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp5.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 </itemize>
 
 <tag>Canada</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@ca.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@ca.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.ca.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.ca.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.ca.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ca.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -129,32 +129,32 @@ for this domain.
 <tag>Germany</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@de.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@de.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp4.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp5.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp5.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp5.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp6.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp6.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp6.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp7.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp7.de.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp7.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp7.de.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -175,8 +175,8 @@ for this domain.
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.ie.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.ie.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.ie.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ie.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -201,46 +201,46 @@ for this domain.
 <tag>Japan</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@jp.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@jp.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp4.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp5.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp5.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp5.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp6.jp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp6.jp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp6.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag>Korea</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@kr.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@kr.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.kr.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.kr.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.kr.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.kr.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.kr.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.kr.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.kr.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.kr.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -295,17 +295,17 @@ for this domain.
 <tag>South Africa</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@za.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@za.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.za.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.za.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.za.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.za.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.za.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.za.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -324,20 +324,20 @@ for this domain.
 <tag>Taiwan</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@tw.freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@tw.FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.tw.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.tw.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.tw.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.tw.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.tw.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.tw.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -356,29 +356,29 @@ for this domain.
 <tag>USA</tag>
 
 In case of problems, please contact the
-<htmlurl url="mailto:hostmaster@freebsd.org" name="hostmaster">
+<htmlurl url="mailto:hostmaster@FreeBSD.ORG" name="hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp3.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp4.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp4.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp5.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp5.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp5.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.FreeBSD.ORG/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp6.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp6.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp6.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -387,14 +387,14 @@ for this domain.
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.uk.freebsd.org/packages/unix/FreeBSD"
-	name="ftp://ftp.uk.freebsd.org/packages/unix/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.uk.FreeBSD.ORG/packages/unix/FreeBSD"
+	name="ftp://ftp.uk.FreeBSD.ORG/packages/unix/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.uk.freebsd.org/pub/walnut.creek/FreeBSD"
-	name="ftp://ftp2.uk.freebsd.org/pub/walnut.creek/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"
+	name="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.uk.freebsd.org/pub/BSD/FreeBSD"
-	name="ftp://ftp3.uk.freebsd.org/pub/BSD/FreeBSD"><newline>
+<htmlurl url="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"
+	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
 
 </itemize>
 </descrip>
@@ -408,31 +408,31 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 
 <tag>South Africa</tag>
 
-<htmlurl url="mailto:hostmaster@internat.freebsd.org" name="Hostmaster">
+<htmlurl url="mailto:hostmaster@internat.FreeBSD.ORG" name="Hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.internat.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.internat.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.internat.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.internat.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 <item>
-<htmlurl url="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp2.internat.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp2.internat.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.internat.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
 <tag>Brazil</tag>
 
-<htmlurl url="mailto:hostmaster@br.freebsd.org" name="Hostmaster">
+<htmlurl url="mailto:hostmaster@br.FreeBSD.ORG" name="Hostmaster">
 for this domain.
 
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"><newline>
 
 </itemize>
 
