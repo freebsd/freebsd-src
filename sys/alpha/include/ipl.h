@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.2 1998/06/11 11:51:27 dfr Exp $
+ *	$Id: ipl.h,v 1.3 1998/07/12 16:32:08 dfr Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -51,12 +51,20 @@ extern int splclock(void);
 extern int splstatclock(void);
 extern int splhigh(void);
 
+extern void setdelayed(void);
 extern void setsofttty(void);
 extern void setsoftnet(void);
 extern void setsoftcamnet(void);
 extern void setsoftcambio(void);
 extern void setsoftvm(void);
 extern void setsoftclock(void);
+
+extern void schedsofttty(void);
+extern void schedsoftnet(void);
+extern void schedsoftcamnet(void);
+extern void schedsoftcambio(void);
+extern void schedsoftvm(void);
+extern void schedsoftclock(void);
 
 extern void spl0(void);
 extern void splx(int);
