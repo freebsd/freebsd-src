@@ -96,7 +96,7 @@ main(argc, argv)
 	getargs(argc, argv);
 	if (randomize) {
 		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		srandom((unsigned) s);
+		srandom((unsigned long) s);
 		for (*i = 1; *i <= reps || infinity; (*i)++) {
 			*y = (double) random() / LONG_MAX;
 			putdata(*y * *x + begin, reps - *i);
