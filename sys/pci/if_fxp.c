@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.11 1996/02/06 18:51:24 wollman Exp $
+ *	$Id: if_fxp.c,v 1.12 1996/04/08 01:31:41 davidg Exp $
  */
 
 /*
@@ -283,6 +283,7 @@ fxp_attach(config_id, unit)
 	ifp->if_output = ether_output;
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
+	ifp->if_baudrate = 100000000;
 
 	fxp_get_macaddr(sc);
 	printf("fxp%d: Ethernet address %6D\n", unit,
