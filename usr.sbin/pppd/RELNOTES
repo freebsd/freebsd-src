@@ -1,3 +1,150 @@
+This is the README file for ppp-2.2, a package which implements the
+Point-to-Point Protocol (PPP) to provide Internet connections over
+serial lines.
+
+
+Introduction.
+*************
+
+The Point-to-Point Protocol (PPP) provides a standard way to transmit
+datagrams over a serial link, as well as a standard way for the
+machines at either end of the link (the `peers') to negotiate various
+optional characteristics of the link.  Using PPP, a serial link can be
+used to transmit Internet Protocol (IP) datagrams, allowing TCP/IP
+connections between the peers.  PPP is defined in several RFC (Request
+For Comments) documents, in particular RFCs 1661, 1662, 1332 and 1334.
+Other RFCs describe standard ways to transmit datagrams from other
+network protocols (e.g., DECnet, OSI, Appletalk), but this package
+only supports IP.
+
+This software consists of two parts:
+
+- Kernel code, which establishes a network interface and passes
+packets between the serial port, the kernel networking code and the
+PPP daemon (pppd).  This code is implemented using STREAMS modules on
+SunOS 4.x, AIX 4.1 and OSF/1, and as a line discipline under Ultrix,
+NextStep, NetBSD, FreeBSD, and Linux.
+
+- The PPP daemon (pppd), which negotiates with the peer to establish
+the link and sets up the ppp network interface.  Pppd includes support
+for authentication, so you can control which other systems may make a
+PPP connection and what IP addresses they may use.
+
+
+What is new in ppp-2.2.
+***********************
+
+* More systems are now supported:
+
+  AIX 4, thanks to Charlie Wick,
+  OSF/1 on DEC Alpha, thanks to Steve Tate (srt@zaphod.csci.unt.edu),
+  NextStep 3.2 and 3.3, thanks to Philip-Andrew Prindeville
+	(philipp@res.enst.fr) and Steve Perkins (perkins@cps.msu.edu),
+  Solaris 2,
+
+in addition to NetBSD 1.0, SunOS 4.x, Ultrix 4.x, FreeBSD 2.0, and
+Linux.
+
+* Packet compression has been implemented.  This version implements
+CCP (Compression Control Protocol) and the BSD-Compress compression
+scheme according to the current draft RFCs.  This means that incoming
+and outgoing packets can be compressed with the LZW scheme (same as
+the `compress' command) using a code size of up to 15 bits.
+
+* Some bug fixes to the LCP protocol code.  In particular, pppd now
+correctly replies with a Configure-NAK (instead of a Configure-Reject)
+if the peer asks for CHAP and pppd is willing to do PAP but not CHAP.
+
+* The ip-up and ip-down scripts are now run with the real user ID set
+to root, and with an empty environment.  Clearing the environment
+fixes a security hole.
+
+* The kernel code on NetBSD, FreeBSD, NextStep and Ultrix has been
+restructured to make it easier to implement PPP over devices other
+than asynchronous tty ports (for example, synchronous serial ports).
+
+* pppd now looks at the list of interfaces in the system to determine
+what the netmask should be.  In most cases, this should eliminate the
+need to use the `netmask' option.
+
+* There is a new `papcrypt' option to pppd, which specifies that
+secrets in /etc/ppp/pap-secrets used for authenticating the peer are
+encrypted, so pppd always encrypts the peer's password before
+comparing it with the secret from /etc/ppp/pap-secrets.  This gives
+better security.
+
+
+Patents.
+********
+
+The BSD-Compress algorithm used for packet compression is the same as
+that used in the Unix "compress" command.  It is apparently covered by
+U.S. patents 4,814,746 (owned by IBM) and 4,558,302 (owned by Unisys),
+and corresponding patents in various other countries (but not
+Australia).  If this is of concern, you can build the package without
+including BSD-Compress.  To do this, edit net/ppp-comp.h to change the
+definition of DO_BSD_COMPRESS to 0.  The bsd-comp.c files are then no
+longer needed, so the references to bsd-comp.o may optionally be
+removed from the Makefiles.
+
+
+Contacts.
+*********
+
+Bugs in the the SunOS, NetBSD and Ultrix ports and bugs in pppd, chat
+or pppstats should be reported to:
+
+	paulus@cs.anu.edu.au
+	Paul Mackerras
+	Dept. of Computer Science
+	Australian National University
+	Canberra  ACT  0200
+	AUSTRALIA
+
+Bugs in other ports should be reported to the maintainer for that port
+(see the appropriate README.* file) or to the above.  Unfortunately,
+Charlie Wick is not in a position to provide support for the AIX 4
+port, so if you find bugs in it, send them to me.
+
+Thanks to:
+
+	Brad Parker  (brad@fcr.com)
+	Greg Christy (gmc@quotron.com)
+	Drew D. Perkins (ddp@andrew.cmu.edu)
+	Rick Adams (rick@seismo.ARPA)
+	Chris Torek (chris@mimsy.umd.edu, umcp-cs!chris).
+
+
+Copyrights:
+
+Most of the code can be freely used and redistributed.  The STREAMS
+code for SunOS 4.x, OSF/1 and AIX 4 is under a more restrictive
+copyright:
+
+	This code is Copyright (C) 1989, 1990 By Brad K. Clements, 
+	All Rights Reserved.
+
+	You may use this code for your personal use, to provide a non-profit
+	service to others, or to use as a test platform for a commercial
+	implementation.
+
+	You may NOT use this code in a commercial product, nor to provide a 
+	commercial service, nor may you sell this code without express
+	written permission of the author.
+
+	Otherwise, Enjoy!
+
+This copyright applies to (parts of) the following files:
+
+	sunos/ppp_async.c
+	sunos/ppp_if.c
+	aix4/ppp_async.c
+	aix4/ppp_if.c
+	net/ppp_str.h
+	pppd/sys-str.c
+	pppd/sys-osf.c
+	pppd/sys-aix4.c
+-------------------------
 		pppd-2.1.1 release notes
 		Paul Mackerras   27 May 1994
 
