@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.3 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: interp.c,v 1.4 1998/09/14 18:27:04 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
  *
- * XXX may be obsoleted by BootFORTH
+ * XXX may be obsoleted by BootFORTH or some other, better, interpreter.
  */
 
 #include <stand.h>
@@ -87,11 +87,10 @@ interact(void)
     source("/boot/boot.conf");
     printf("\n");
     /*
-     * Before interacting, we might want to autoboot
+     * Before interacting, we might want to autoboot.
      */
-    if (getenv("no_autoboot") == NULL)
-	autoboot(10, NULL);		/* try to boot automatically */
-
+    autoboot_maybe();
+    
     /*
      * Not autobooting, go manual
      */
@@ -114,7 +113,13 @@ interact(void)
 }
 
 /*
- * Read command from a file
+ * Read commands from a file, then execute them.
+ *
+ * We store the commands in memory and close the source file so that the media
+ * holding it can safely go away while we are executing.
+ *
+ * Commands may be prefixed with '@' (so they aren't displayed) or '-' (so
+ * that the script won't stop if they fail).
  */
 COMMAND_SET(source, "source", "read commands from a file", command_source);
 
@@ -128,39 +133,103 @@ command_source(int argc, char *argv[])
     return(CMD_OK);
 }
 
+struct sourceline 
+{
+    char		*text;
+    int			flags;
+    int			line;
+#define SL_QUIET	(1<<0)
+#define SL_IGNOREERR	(1<<1)
+    struct sourceline	*next;
+};
+
 void
 source(char *filename)
 {
-    char	input[256];			/* big enough? */
-    int		argc;
-    char	**argv, *cp;
-    int		fd;
+    struct sourceline	*script, *se, *sp;
+    char		input[256];			/* big enough? */
+    int			argc;
+    char		**argv, *cp;
+    int			fd, flags, line;
 
     if (((fd = open(filename, O_RDONLY)) == -1)) {
 	printf("can't open '%s': %s\n", filename, strerror(errno));
-    } else {
-	while (fgetstr(input, sizeof(input), fd) > 0) {
+	return;
+    }
 
-	    /* Discard comments */
-	    if (input[0] == '#')
-		continue;
-	    cp = input;
-	    /* Echo? */
-	    if (input[0] == '@') {
-		cp++;
-	    } else {
-		prompt();
-		printf("%s\n", input);
-	    }
-
-	    if (!parse(&argc, &argv, cp)) {
-		if ((argc > 0) &&
-		    (perform(argc, argv) != 0))
-		    printf("%s: %s\n", argv[0], command_errmsg);
-		free(argv);
-	    }
+    /*
+     * Read the script into memory.
+     */
+    script = se = NULL;
+    line = 0;
+	
+    while (fgetstr(input, sizeof(input), fd) > 0) {
+	line++;
+	flags = 0;
+	/* Discard comments */
+	if (input[0] == '#')
+	    continue;
+	cp = input;
+	/* Echo? */
+	if (input[0] == '@') {
+	    cp++;
+	    flags |= SL_QUIET;
 	}
-	close(fd);
+	/* Error OK? */
+	if (input[0] == '-') {
+	    cp++;
+	    flags |= SL_IGNOREERR;
+	}
+	/* Allocate script line structure and copy line, flags */
+	sp = malloc(sizeof(struct sourceline) + strlen(input) + 1);
+	sp->text = (char *)sp + sizeof(struct sourceline);
+	strcpy(sp->text, input);
+	sp->flags = flags;
+	sp->line = line;
+	sp->next = NULL;
+	    
+	if (script == NULL) {
+	    script = sp;
+	} else {
+	    se->next = sp;
+	}
+	se = sp;
+    }
+    close(fd);
+    
+    /*
+     * Execute the script
+     */
+    argv = NULL;
+    for (sp = script; sp != NULL; sp = sp->next) {
+	
+	/* print if not being quiet */
+	if (!(sp->flags & SL_QUIET)) {
+	    prompt();
+	    printf("%s\n", sp->text);
+	}
+
+	/* Parse the command */
+	if (!parse(&argc, &argv, sp->text)) {
+	    if ((argc > 1) && (perform(argc, argv) != 0)) {
+		/* normal command */
+		printf("%s: %s\n", argv[0], command_errmsg);
+		if (!(sp->flags & SL_IGNOREERR))
+		    break;
+	    }
+	    free(argv);
+	    argv = NULL;
+	} else {
+	    printf("%s line %d: parse error\n", filename, sp->line);
+	    break;
+	}
+    }
+    if (argv != NULL)
+	free(argv);
+    while(script != NULL) {
+	se = script;
+	script = script->next;
+	free(se);
     }
 }
 
