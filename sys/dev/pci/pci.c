@@ -60,7 +60,7 @@
 #include "pcib_if.h"
 #include "pci_if.h"
 
-static u_int32_t	pci_mapbase(unsigned mapreg);
+static uint32_t	pci_mapbase(unsigned mapreg);
 static int		pci_maptype(unsigned mapreg);
 static int		pci_mapsize(unsigned testval);
 static int		pci_maprange(unsigned mapreg);
@@ -140,7 +140,7 @@ static size_t	pci_vendordata_size;
 
 
 struct pci_quirk {
-	u_int32_t devid;	/* Vendor/device of the card */
+	uint32_t devid;	/* Vendor/device of the card */
 	int	type;
 #define PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 	int	arg1;
@@ -163,8 +163,8 @@ struct pci_quirk pci_quirks[] = {
 #define PCI_MAPPORT	0x04	/* port map */
 
 struct devlist pci_devq;
-u_int32_t pci_generation;
-u_int32_t pci_numdevs = 0;
+uint32_t pci_generation;
+uint32_t pci_numdevs = 0;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
@@ -180,7 +180,7 @@ are some peripherals that this causes problems with.");
 /* Find a device_t by bus/slot/function */
 
 device_t
-pci_find_bsf(u_int8_t bus, u_int8_t slot, u_int8_t func)
+pci_find_bsf(uint8_t bus, uint8_t slot, uint8_t func)
 {
 	struct pci_devinfo *dinfo;
 
@@ -198,7 +198,7 @@ pci_find_bsf(u_int8_t bus, u_int8_t slot, u_int8_t func)
 /* Find a device_t by vendor/device ID */
 
 device_t
-pci_find_device(u_int16_t vendor, u_int16_t device)
+pci_find_device(uint16_t vendor, uint16_t device)
 {
 	struct pci_devinfo *dinfo;
 
@@ -214,7 +214,7 @@ pci_find_device(u_int16_t vendor, u_int16_t device)
 
 /* return base address of memory or port map */
 
-static u_int32_t
+static uint32_t
 pci_mapbase(unsigned mapreg)
 {
 	int mask = 0x03;
@@ -228,7 +228,7 @@ pci_mapbase(unsigned mapreg)
 static int
 pci_maptype(unsigned mapreg)
 {
-	static u_int8_t maptype[0x10] = {
+	static uint8_t maptype[0x10] = {
 		PCI_MAPMEM,		PCI_MAPPORT,
 		PCI_MAPMEM,		0,
 		PCI_MAPMEM,		PCI_MAPPORT,
@@ -474,7 +474,7 @@ pci_set_powerstate_method(device_t dev, device_t child, int state)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
-	u_int16_t status;
+	uint16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
@@ -517,7 +517,7 @@ pci_get_powerstate_method(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
-	u_int16_t status;
+	uint16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
@@ -551,9 +551,9 @@ pci_get_powerstate_method(device_t dev, device_t child)
  */
 
 static __inline void
-pci_set_command_bit(device_t dev, device_t child, u_int16_t bit)
+pci_set_command_bit(device_t dev, device_t child, uint16_t bit)
 {
-	u_int16_t	command;
+	uint16_t	command;
 
 	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
 	command |= bit;
@@ -561,9 +561,9 @@ pci_set_command_bit(device_t dev, device_t child, u_int16_t bit)
 }
 
 static __inline void
-pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
+pci_clear_command_bit(device_t dev, device_t child, uint16_t bit)
 {
-	u_int16_t	command;
+	uint16_t	command;
 
 	command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
 	command &= ~bit;
@@ -587,8 +587,8 @@ pci_disable_busmaster_method(device_t dev, device_t child)
 int
 pci_enable_io_method(device_t dev, device_t child, int space)
 {
-	u_int16_t command;
-	u_int16_t bit;
+	uint16_t command;
+	uint16_t bit;
 	char *error;
 
 	bit = 0;
@@ -617,8 +617,8 @@ pci_enable_io_method(device_t dev, device_t child, int space)
 int
 pci_disable_io_method(device_t dev, device_t child, int space)
 {
-	u_int16_t command;
-	u_int16_t bit;
+	uint16_t command;
+	uint16_t bit;
 	char *error;
 
 	bit = 0;
@@ -672,7 +672,7 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 			printf("\tintpin=%c, irq=%d\n",
 			    cfg->intpin +'a' -1, cfg->intline);
 		if (cfg->pp_cap) {
-			u_int16_t status;
+			uint16_t status;
 
 			status = pci_read_config(cfg->dev, cfg->pp_status, 2);
 			printf("\tpowerspec %d  supports D0%s%s D3  current D%d\n",
@@ -706,12 +706,12 @@ static int
 pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	    struct resource_list *rl)
 {
-	u_int32_t map;
-	u_int64_t base;
-	u_int8_t ln2size;
-	u_int8_t ln2range;
-	u_int32_t testval;
-	u_int16_t cmd;
+	uint32_t map;
+	uint64_t base;
+	uint8_t ln2size;
+	uint8_t ln2range;
+	uint32_t testval;
+	uint16_t cmd;
 	int type;
 
 	map = PCIB_READ_CONFIG(pcib, b, s, f, reg, 4);
@@ -732,7 +732,7 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 	ln2range = pci_maprange(testval);
 	if (ln2range == 64) {
 		/* Read the other half of a 64bit map register */
-		base |= (u_int64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
+		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
 	}
 
 	if (bootverbose) {
@@ -826,7 +826,7 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 	struct pci_devinfo *dinfo;
 	int maxslots;
 	int s, f, pcifunchigh;
-	u_int8_t hdrtype;
+	uint8_t hdrtype;
 
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
@@ -1176,7 +1176,7 @@ pci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 		 * The generic accessor doesn't deal with failure, so
 		 * we set the return value, then return an error.
 		 */
-		*((u_int8_t **) result) = NULL;
+		*((uint8_t **) result) = NULL;
 		return (EINVAL);
 	case PCI_IVAR_SUBVENDOR:
 		*result = cfg->subvendor;
@@ -1406,7 +1406,7 @@ pci_get_resource_list (device_t dev, device_t child)
 	return (rl);
 }
 
-u_int32_t
+uint32_t
 pci_read_config_method(device_t dev, device_t child, int reg, int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -1418,7 +1418,7 @@ pci_read_config_method(device_t dev, device_t child, int reg, int width)
 
 void
 pci_write_config_method(device_t dev, device_t child, int reg, 
-    u_int32_t val, int width)
+    uint32_t val, int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
