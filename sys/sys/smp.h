@@ -81,7 +81,7 @@ extern volatile int smp_started;
  * The cpu_setmaxid() function is called very early during the boot process
  * so that the MD code may set mp_maxid to provide an upper bound on CPU IDs
  * that other subsystems may use.  If a platform is not able to determine
- * the exact maximum ID that early, then it may set mp_maxid to MAXCPU.
+ * the exact maximum ID that early, then it may set mp_maxid to MAXCPU - 1.
  */
 struct thread;
 
