@@ -65,6 +65,9 @@
 #include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
+ASSYM(UPAGES,		UPAGES);
+ASSYM(PAGE_SIZE,	PAGE_SIZE);
+
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));

@@ -41,46 +41,19 @@
  *		    (u_long), then the bootinfo
  */
 
-#define	BOOTINFO_MAGIC			0xdeadbeeffeedface
-
-struct bootinfo_v1 {
-	u_long	ssym;			/* 0: start of kernel sym table	*/
-	u_long	esym;			/* 8: end of kernel sym table	*/
-	char	boot_flags[64];		/* 16: boot flags		*/
-	char	booted_kernel[64];	/* 80: name of booted kernel	*/
-	void	*hwrpb;			/* 144: hwrpb pointer (BEVA)	*/
-	u_long	hwrpbsize;		/* 152: size of hwrpb data	*/
-	int	(*cngetc) __P((void));	/* 160: console getc pointer	*/
-	void	(*cnputc) __P((int));	/* 168: console putc pointer	*/
-	void	(*cnpollc) __P((int));	/* 176: console pollc pointer	*/
-	u_long	pad[6];			/* 184: rsvd for future use	*/
-	char	*envp;			/* 232:	start of environment	*/
-	u_long	kernend;		/* 240: end of kernel		*/
-	u_long	modptr;			/* 248: FreeBSD module base	*/
-					/* 256: total size		*/
+struct bootinfo {
+	char		bi_flags[64];		/* boot flags */
+	char		bi_kernel[64];		/* name of booted kernel */
+	u_int64_t	bi_systab;		/* pa of EFI system table */
+	u_int64_t	bi_memmap;		/* pa of EFI memory map */
+	u_int64_t	bi_memmap_size;		/* size of EFI memory map */
+	u_int64_t	bi_memdesc_size;	/* sizeof EFI memory desc */
+	u_int32_t	bi_memdesc_version;	/* EFI memory desc version */
+	u_int64_t	bi_symtab;		/* start of kernel sym table */
+	u_int64_t	bi_esymtab;		/* end of kernel sym table */
+	u_int64_t	bi_kernend;		/* end of kernel space */
+	u_int64_t	bi_envp;		/* environment */
+	u_int64_t	bi_modulep;		/* preloaded modules */
 };
 
-/*
- * Kernel-internal structure used to hold important bits of boot
- * information.  NOT to be used by boot blocks.
- *
- * Note that not all of the fields from the bootinfo struct(s)
- * passed by the boot blocks aren't here (because they're not currently
- * used by the kernel!).  Fields here which aren't supplied by the
- * bootinfo structure passed by the boot blocks are supposed to be
- * filled in at startup with sane contents.
- */
-struct bootinfo_kernel {
-	u_long	ssym;			/* start of syms */
-	u_long	esym;			/* end of syms */
-	u_long	modptr;			/* FreeBSD module pointer */
-	u_long	kernend;		/* "end of kernel" from boot code */
-	char	*envp;			/* "end of kernel" from boot code */
-	u_long	hwrpb_phys;		/* hwrpb physical address */
-	u_long	hwrpb_size;		/* size of hwrpb data */
-	char	boot_flags[64];		/* boot flags */
-	char	booted_kernel[64];	/* name of booted kernel */
-	char	booted_dev[64];		/* name of booted device */
-};
-
-extern struct bootinfo_kernel bootinfo;
+extern struct bootinfo bootinfo;
