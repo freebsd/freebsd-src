@@ -21,7 +21,6 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/module.h>
-#include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/resource.h>
 
@@ -30,7 +29,6 @@
 #include <vm/vm_param.h>
 
 #include <sys/bus.h>
-#include <isa/isareg.h>
 #include <isa/isavar.h>
 
 #ifdef SMP
