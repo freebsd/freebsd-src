@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: globals.h,v 1.1 1999/04/28 01:04:01 luoqi Exp $
  */
 
 #ifndef	_MACHINE_GLOBALS_H_
@@ -90,6 +90,7 @@
 
 #ifdef VM86
 #define	common_tssd	GLOBAL_LVALUE(common_tssd, struct segment_descriptor)
+#define	tss_gdt		GLOBAL_LVALUE(tss_gdt, struct segment_descriptor *)
 #endif
 
 #ifdef USER_LDT
@@ -120,6 +121,7 @@ GLOBAL_FUNC(switchticks)
 
 #ifdef VM86
 GLOBAL_FUNC(common_tssd)
+GLOBAL_FUNC(tss_gdt)
 #endif
 
 #ifdef USER_LDT

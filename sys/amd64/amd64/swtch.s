@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.79 1999/04/28 01:03:25 luoqi Exp $
+ *	$Id: swtch.s,v 1.80 1999/05/06 09:44:49 bde Exp $
  */
 
 #include "npx.h"
@@ -282,17 +282,16 @@ _idle:
 	btrl	%esi, _private_tss
 	jae	1f
 
-	movl	$GPROC0_SEL, %esi
 	movl	$gd_common_tssd, %edi
 	addl	%fs:0, %edi
 
 	/* move correct tss descriptor into GDT slot, then reload tr */
-	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	_tss_gdt, %ebx			/* entry in GDT */
 	movl	0(%edi), %eax
 	movl	%eax, 0(%ebx)
 	movl	4(%edi), %eax
 	movl	%eax, 4(%ebx)
-	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 1:
 #endif /* VM86 */
@@ -403,16 +402,15 @@ idle_loop:
 	btrl	%esi, _private_tss
 	jae	1f
 
-	movl	$GPROC0_SEL, %esi
 	movl	$_common_tssd, %edi
 
 	/* move correct tss descriptor into GDT slot, then reload tr */
-	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	_tss_gdt, %ebx			/* entry in GDT */
 	movl	0(%edi), %eax
 	movl	%eax, 0(%ebx)
 	movl	4(%edi), %eax
 	movl	%eax, 4(%ebx)
-	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 1:
 #endif /* VM86 */
@@ -665,14 +663,13 @@ swtch_com:
 	movl	$_common_tssd, %edi
 #endif
 2:
-	movl	$GPROC0_SEL, %esi
 	/* move correct tss descriptor into GDT slot, then reload tr */
-	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	_tss_gdt, %ebx			/* entry in GDT */
 	movl	0(%edi), %eax
 	movl	%eax, 0(%ebx)
 	movl	4(%edi), %eax
 	movl	%eax, 4(%ebx)
-	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
 	ltr	%si
 3:
 #endif /* VM86 */
