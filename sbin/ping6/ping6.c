@@ -123,7 +123,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 #include <math.h>
 #endif
 #include <signal.h>
@@ -233,7 +233,7 @@ int timing;			/* flag to do timing */
 double tmin = 999999999.0;	/* minimum round trip time */
 double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 #endif
 
@@ -1433,7 +1433,7 @@ pr_pack(buf, cc, mhdr)
 			triptime = ((double)tv.tv_sec) * 1000.0 +
 			    ((double)tv.tv_usec) / 1000.0;
 			tsum += triptime;
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 			tsumsq += triptime * triptime;
 #endif
 			if (triptime < tmin)
@@ -2180,7 +2180,7 @@ summary()
 		/* Only display average to microseconds */
 		double num = nreceived + nrepeats;
 		double avg = tsum / num;
-#if defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 		double dev = sqrt(tsumsq / num - avg * avg);
 		(void)printf(
 		    "round-trip min/avg/max/std-dev = %.3f/%.3f/%.3f/%.3f ms\n",
