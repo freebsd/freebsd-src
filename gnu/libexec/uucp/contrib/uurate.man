@@ -1,0 +1,217 @@
+.TH uurate 1
+.SH NAME
+uurate \- Report Taylor UUCP statistics
+.SH SYNOPSIS
+.BR uurate " [ " "\-cfexai" " ] [ " "\-h "
+.I host
+.RI " ] [ " "logfile..." " ] "
+.PP
+or simply,
+.PP
+.B uurate
+.PP
+for a traffic summary report.
+.SH DESCRIPTION
+The 
+.I uurate
+command provides tabular summary reports on the operation of the 
+Taylor UUCP system. Data is taken from the currently active log
+files, standard input, or from a list of log files given on the 
+command line. Output is in the form of tabular reports summarizing 
+call, file transfer, and command execution
+.RI "("  "uuxqt" ")"
+activity.
+.PP
+The log files given to
+.I uurate
+must be in the ``Taylor'' format. Also, note that call and file
+transfer activities are logged in separate files, nominally called 
+.I Log
+and
+.I Stats,
+respectively. For reports to be meaningful, the
+.I Log
+and
+.I Stats
+files should be given to 
+.I uurate
+together, and cover the same time period.
+.PP
+If neither the
+.B \-i
+option nor any 
+.I logfile
+options are given, 
+.I uurate
+defaults to taking its input from the current Taylor
+.I Log
+and
+.I Stats
+files, as defined at compilation time.
+This is the normal mode of operation.
+.PP
+The reporting options described below can be used to select
+the set of reports desired. If no options are given, the
+.B call
+and
+.B file
+reports are displayed. If there is no relevant data for a particular
+report or host, that report or host will be supressed.
+.SH OPTIONS
+The following options may be given to 
+.I uurate:
+.TP 5
+.B \-c
+Report on call statistics. Requires data from a
+.I Log
+file.
+.TP 5
+.B \-f
+Report on file transfer statistics. Requires data from a
+.I Stats
+file.
+.TP 5
+.B \-e
+Report on efficiency (total connect time versus time spent transferring
+files). Requires data from both a
+.I Log
+and a
+.I Stats
+file, and they must span the same time period.
+.TP 5
+.B \-x
+Report on remote execution requests (e.g.,
+.IR rmail ")."
+Requires data from a
+.I Log
+file.
+.TP 5
+.B \-a
+All reports. Identical to
+.B \-cfex.
+.TP 5
+.BI "\-h " "host"
+Restrict report output to
+.I host.
+.SH "DESCRIPTION OF REPORTS"
+There are four reports available: the call, file transfer, efficiency,
+and remote execution reports. Each may be selected by a command line
+option. All reports may be selected via the option
+.B \-a.
+If no report selection options are given, 
+.I uurate
+displays a compact traffic summary report (see below).
+.SS "Summary report"
+If no report options are given,
+.I uurate
+displays a traffic summary report. This is particularly useful in daily
+.I cron
+jobs which report on errors and the like. Traffic statistics for each
+active system is reported on a single line. If more than one system was
+active, a 'totals' line is included at the end of the report.
+.SS "Call report"
+The call report gives statistics on inbound and outbound calls for 
+each active host system. The fields are described below:
+.br
+.nf
+.in +.5i
+.ta 1.0i
+.BR "sysname	" "UUCP node name of neighbor host system"
+.BR "callto	" "Outbound calls attempted to that system"
+.BR "failto	" "Failed outbound calls to that system"
+.BR "totime	" "Connect time (sec.) on outbound calls"
+.BR "callfm	" "Inbound calls attempted by that system"
+.BR "failfm	" "Failed inbound calls from that system"
+.BR "fmtime	" "Connect time (sec.) on inbound calls"
+.in -.5
+.SS "File transfer reports"
+The file transfer reports give statistics on inbound and 
+outbound file transfers (regardless of which end initiated the transfer)
+for each active host system. There are two reports, one for files
+sent to the remote system and one for files received from the remote
+system. The fields in each report are described below:
+.br
+.nf
+.in +.5i
+.ta 1.0i
+.BR "sysname	" "UUCP node name of neighbor host system"
+.BR "files	" "Number of files transferred"
+.BR "bytes	" "Total size (bytes) of files transferred"
+.BR "seconds	" "Total time (sec.) to transfer files"
+.BR "byte/sec	" "Average transfer rate (bytes/sec)"
+.in -.5
+.SS "Efficiency report"
+The efficiency report describes the utilization of the links
+to each active remote system, giving the ratio of total connect time
+to the time spent actually transferring files. 
+The fields are described below:
+.br
+.nf
+.in +.5i
+.ta 1.0i
+.BR "sysname	" "UUCP node name of neighbor host system"
+.BR "conntime	" "Total connect time for that system"
+.BR "flowtime	" "Total file transfer time for that system"
+.BR "ovhdtime	" "Connect time not used to transfer files"
+.BR "effcy (%)	" "Ratio of connect time to transfer time"
+.in -.5
+.SS "Remote execution report"
+The remote execution report describes remotely
+requested command executions from each active host system.
+Executions of
+.I rmail
+and
+.I rnews
+are the most common, and are detailed separately. The fields
+are described below:
+.br
+.nf
+.in +.5i
+.ta 1.0i
+.BR "sysname	" "UUCP node name of neighbor host system"
+.BR "rmail	" "Number of rmail requests from that system"
+.BR "rnews	" "Number of rnews requests from that system"
+.BR "other	" "Number of other requests from that system"
+.in -.5i
+.SS FILES
+The file names below may be changed at compilation time or by the
+configuration file, so these are only approximations.
+.br
+.nf
+.in +.5in
+.ta 2.0i
+.IR "/usr/spool/uucp/Log	" "Taylor format call/execution log"
+.IR "/usr/spool/uucp/Stats	" "Taylor format file transfer log"
+.SS "SEE ALSO"
+.IR uucico "(8)"
+.SS BUGS
+Does not understand older (V2, BNU) logging formats. Anyone care to
+volunteer to add this? I don't use the stuff myself.
+.PP
+The entries that Taylor UUCP makes in the log file for incoming calls
+don't have a host name. This confuses 
+.I uurate 
+into thinking that the calls came in for system "-". This may require 
+a change to Taylor logging.
+.PP
+Should check the configuration file to locate the currently active 
+.I Log
+and
+.I Stats
+files when using them for default inputs. Instead, it uses the
+compile-time settings only.
+.PP
+Should report packet protocol error statistics by host and
+protocol type.
+.SS AUTHOR
+Robert B. Denny (denny@alisa.com)
+.br
+Loosely based on the DECUS UUCP program
+.I uurate
+by Mark Pizzolato.
+
+
+
+
+
+
