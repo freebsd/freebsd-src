@@ -214,7 +214,8 @@ SUBDIR+=i4b
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
-SUBDIR+=acpi
+SUBDIR+=acpi \
+	zzz
 .endif
 
 # kgmon: builds, but no kernel profiling
