@@ -292,7 +292,33 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		    (pwd->pw_fields & _PWF_SOURCE) == _PWF_FILES)
 			/* root doesn't need the old password */
 			return (pam_set_item(pamh, PAM_OLDAUTHTOK, ""));
+#ifdef YP
+		if (getuid() == 0 &&
+		    (pwd->pw_fields & _PWF_SOURCE) == _PWF_NIS) {
 
+			yp_domain = yp_server = NULL;
+			(void)pam_get_data(pamh,
+			    "yp_domain", (const void **)&yp_domain);
+			(void)pam_get_data(pamh,
+			    "yp_server", (const void **)&yp_server);
+
+			ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_server);
+			if (ypclnt == NULL)
+				return (PAM_BUF_ERR);
+
+			if (ypclnt_connect(ypclnt) == -1) {
+				ypclnt_free(ypclnt);
+				return (PAM_SERVICE_ERR);
+			}
+
+			retval = ypclnt_havepasswdd(ypclnt);
+			ypclnt_free(ypclnt);
+			if (retval == 1)
+				return (pam_set_item(pamh, PAM_OLDAUTHTOK, ""));
+			else if (retval == -1)
+				return (PAM_SERVICE_ERR);
+		}
+#endif
 		if (pwd->pw_passwd[0] == '\0'
 		    && openpam_get_option(pamh, PAM_OPT_NULLOK)) {
 			/*
