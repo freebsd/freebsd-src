@@ -354,18 +354,23 @@ pcic_pci_ti_init(device_t dev)
 
 		/*
 		 * The TI-1130 (and 1030 and 1131) have a different
-		 * interrupt routing control than the newer cards.  The
-		 * newer cards also use offset 0x3e (the Bridge Control
-		 * register).
+		 * interrupt routing control than the newer cards.
+		 * assume we're not routing PCI, but enable as necessary
+		 * when we find someone uses PCI interrupts.  In order to
+		 * get any pci interrupts, PCI_IRQ_ENA (bit 5) must
+		 * be set.  If either PCI_IREQ (bit 4) or PCI_CSC (bit 3)
+		 * are set, then set bit 5 at the same time, since setting
+		 * them enables the PCI interrupt routing.
 		 */
-		if (sc->func_route == pcic_iw_pci) {
-			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA;
+		cardcntl &= ~TI113X_CARDCNTL_PCI_IRQ_ENA;
+		if (sc->func_route == pcic_iw_pci)
+			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA | 
+			    TI113X_CARDCNTL_PCI_IREQ;
+		else
 			cardcntl &= ~TI113X_CARDCNTL_PCI_IREQ;
-		} else {
-			cardcntl |= TI113X_CARDCNTL_PCI_IREQ;
-		}
 		if (sc->csc_route == pcic_iw_pci)
-			cardcntl |= TI113X_CARDCNTL_PCI_CSC;
+			cardcntl |= TI113X_CARDCNTL_PCI_IRQ_ENA | 
+			    TI113X_CARDCNTL_PCI_CSC;
 		else
 			cardcntl &= ~TI113X_CARDCNTL_PCI_CSC;
 		pci_write_config(dev, TI113X_PCI_CARD_CONTROL,  cardcntl, 1);
@@ -617,13 +622,17 @@ pcic_pci_probe(device_t dev)
 			desc = "Generic PCI-PCMCIA Bridge";
 		if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
 			desc = "YENTA PCI-CARDBUS Bridge";
+		if (bootverbose && desc)
+			printf("Found unknown %s devid 0x%x\n", desc, device_id);
 	}
 	if (desc == NULL)
 		return (ENXIO);
 	device_set_desc(dev, desc);
 
 	/*
-	 * Take us out of power down mode.
+	 * Take us out of power down mode, if necessary.  It also
+	 * appears that even reading the power register is enough on
+	 * some systems to cause correct behavior.
 	 */
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 		/* Reset the power state. */
@@ -770,9 +779,10 @@ pcic_pci_attach(device_t dev)
 			sc->func_route = pcic_iw_isa;
 			device_printf(dev,
 			    "No PCI interrupt routed, trying ISA.\n");
+		} else {
+			intr = pcic_pci_intr;
+			irq = rman_get_start(r);
 		}
-		intr = pcic_pci_intr;
-		irq = rman_get_start(r);
 	}
 	if (sc->csc_route == pcic_iw_isa) {
 		rid = 0;
@@ -878,7 +888,7 @@ static device_method_t pcic_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* Card interface */
