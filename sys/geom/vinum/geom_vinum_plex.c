@@ -321,8 +321,9 @@ gv_plex_worker(void *arg)
 		} else if (bp->bio_cflags & GV_BIO_ONHOLD) {
 			/* Is it still locked out? */
 			if (gv_stripe_active(p, bp)) {
+				/* Park the bio on the waiting queue. */
 				mtx_lock(&p->bqueue_mtx);
-				TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+				TAILQ_INSERT_TAIL(&p->wqueue, bq, queue);
 				mtx_unlock(&p->bqueue_mtx);
 			} else {
 				g_free(bq);
@@ -371,8 +372,13 @@ gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 		}
 		if (TAILQ_EMPTY(&wp->bits)) {
 			bp->bio_parent->bio_completed += wp->length;
-			if (wp->lockbase != -1)
+			if (wp->lockbase != -1) {
 				TAILQ_REMOVE(&p->packets, wp, list);
+				/* Bring the waiting bios back into the game. */
+				mtx_lock(&p->bqueue_mtx);
+				TAILQ_CONCAT(&p->bqueue, &p->wqueue, queue);
+				mtx_unlock(&p->bqueue_mtx);
+			}
 			g_free(wp);
 		}
 
@@ -413,6 +419,10 @@ gv_plex_completed_request(struct gv_plex *p, struct bio *bp)
 			} else {
 				bp->bio_parent->bio_completed += wp->length;
 				TAILQ_REMOVE(&p->packets, wp, list);
+				/* Bring the waiting bios back into the game. */
+				mtx_lock(&p->bqueue_mtx);
+				TAILQ_CONCAT(&p->bqueue, &p->wqueue, queue);
+				mtx_unlock(&p->bqueue_mtx);
 				g_free(wp);
 			}
 		}
@@ -569,11 +579,12 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 		 */
 		if (pbp->bio_driver1 != NULL &&
 		    gv_stripe_active(p, pbp)) {
+			/* Park the bio on the waiting queue. */
 			pbp->bio_cflags |= GV_BIO_ONHOLD;
 			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
 			bq->bp = pbp;
 			mtx_lock(&p->bqueue_mtx);
-			TAILQ_INSERT_TAIL(&p->bqueue, bq, queue);
+			TAILQ_INSERT_TAIL(&p->wqueue, bq, queue);
 			mtx_unlock(&p->bqueue_mtx);
 		} else
 			g_io_request(pbp, pbp->bio_caller2);
@@ -694,6 +705,7 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 		TAILQ_INIT(&p->packets);
 		TAILQ_INIT(&p->bqueue);
+		TAILQ_INIT(&p->wqueue);
 		mtx_init(&p->bqueue_mtx, "gv_plex", NULL, MTX_DEF);
 		kthread_create(gv_plex_worker, p, NULL, 0, 0, "gv_p %s",
 		    p->name);
