@@ -1,0 +1,14 @@
+LIB=bib
+OBJS=\
+  common.o \
+  index.o \
+  linear.o \
+  search.o \
+  map.o
+CCSRCS=\
+  $(srcdir)/common.cc \
+  $(srcdir)/index.cc \
+  $(srcdir)/linear.cc \
+  $(srcdir)/search.cc
+CSRCS=\
+  $(srcdir)/map.c

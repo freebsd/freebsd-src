@@ -1,0 +1,15 @@
+#! /bin/sh
+# Compile fonts in the sizes needed by groff.
+sizes="5 6 7 8 9 10 11 12 14 16 18 20 22 24 28 36"
+fonts="cmr10 cmti10 cmbx10 cmbxti10 cmtt10 cmex10 cmmi10 cmsy10 cmss10 cmssbx10 cmssi10"
+mode=cx
+dpi=300
+
+for f in $fonts; do
+    for s in $sizes; do
+	virmf "&cm \\mode=$mode; mag=$s/10; batchmode; input $f" >/dev/null
+	mag=`expr $s \* $dpi / 10`
+	gftopk $f.${mag}gf >/dev/null
+	rm $f.${mag}gf
+    done
+done

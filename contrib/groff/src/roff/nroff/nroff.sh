@@ -66,6 +66,12 @@ for i
       # Solaris 2.2 `man' uses -u0; ignore it,
       # since `less' and `more' can use the emboldening info.
       ;;
+    -v | --version)
+      echo "GNU nroff (groff) version @VERSION@"
+      exit 0 ;;
+    --help)
+      echo "usage: nroff [-h] [-i] [-mNAME] [-nNUM] [-oLIST] [-rCN] [-Tname] [FILE...]"
+      exit 0 ;;
     --)
       shift
       break ;;
@@ -82,4 +88,11 @@ done
 
 # This shell script is intended for use with man, so warnings are
 # probably not wanted.  Also load nroff-style character definitions.
-exec groff $safer -Wall -mtty-char $T $opts ${1+"$@"}
+
+OLD_PATH=$PATH
+: ${GROFF_BIN_PATH=@BINDIR@}
+export GROFF_BIN_PATH
+PATH=$GROFF_BIN_PATH
+PATH=$OLD_PATH groff $safer -Wall -mtty-char $T $opts ${1+"$@"}
+
+# eof

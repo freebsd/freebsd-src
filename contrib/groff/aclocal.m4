@@ -1,5 +1,5 @@
 dnl Autoconf macros for groff.
-dnl Copyright (C) 1989, 1990, 1991, 1992, 1995 Free Software Foundation, Inc.
+dnl Copyright (C) 1989-1995, 2001 Free Software Foundation, Inc.
 dnl 
 dnl This file is part of groff.
 dnl 
@@ -129,15 +129,12 @@ AC_LANG_RESTORE])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_SYS_ERRLIST,
-[AC_LANG_SAVE
-AC_LANG_CPLUSPLUS
-AC_MSG_CHECKING([for sys_errlist[] in <errno.h> or <stdio.h>])
+[AC_MSG_CHECKING([for sys_errlist[] in <errno.h> or <stdio.h>])
 AC_TRY_COMPILE([#include <errno.h>
 #include <stdio.h>],
 [int k; k = (int)sys_errlist[0];],
 AC_MSG_RESULT(yes);AC_DEFINE(HAVE_SYS_ERRLIST),
-AC_MSG_RESULT(no))
-AC_LANG_RESTORE])dnl
+AC_MSG_RESULT(no))])dnl
 dnl
 dnl
 AC_DEFUN(GROFF_OSFCN_H,
@@ -238,6 +235,13 @@ if test -z "$PAGE"; then
 		descfile=$prefix/share/groff/font/devps/DESC
 	elif test -r $prefix/lib/groff/font/devps/DESC; then
 		descfile=$prefix/lib/groff/font/devps/DESC
+	else
+		for f in $prefix/share/groff/*/font/devps/DESC; do
+			if test -r $f; then
+				descfile=$f
+				break
+			fi
+		done
 	fi
 	if test -n "$descfile" \
 	  && grep "^paperlength 841890" $descfile >/dev/null 2>&1; then

@@ -20,7 +20,7 @@ The file PROBLEMS describes various problems that have been encountered
 in compiling, installing, and running groff.
 
 For the moment, the documentation assumes that you are already familiar
-with the Unix versions of troff, -man, -ms, and the preprocessors.
+with the Unix versions of troff, -ms, and the preprocessors.
 
 The most recent released version of groff is always available by
 anonymous ftp from ftp.gnu.org in the directory pub/gnu/groff.

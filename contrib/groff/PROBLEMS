@@ -118,11 +118,11 @@ on the Software Companion CD and is installed as /opt/sfw/bin/gmake.
 
 * On Ultrix, the make stops with the message
 
-  *** Error code 1
+    *** Error code 1
 
-  Stop.
+    Stop.
 
-for no apparent reason.
+  for no apparent reason.
 
 Use GNU make.
 
@@ -172,10 +172,10 @@ No.  Real dependency files are created with a `make depend' call.
 
 ----------------------------------------------------------------------
 
-* Groff can't handle my troff document. It works fine with AT&T troff.
+* Groff can't handle my troff document.  It works fine with AT&T troff.
 
 Read the section on incompatibilities in gtroff(1).  Try using the -C
-option.  Alternatively there's the sed script in tmac/fixmacros.sed
+option.  Alternatively there's the sed script `tmac/fixmacros.sed'
 which will attempt to edit a file of macros so that it can be used
 with groff without the -C flag.
 
@@ -186,7 +186,8 @@ with groff without the -C flag.
 
 Yes, it does.  You may need to compile fonts with Metafont at these
 magnifications.  The CompileFonts script in the devdvi/generate
-directory may help you to do this.  (It will take a *long* time.)
+directory may help you to do this.  (It will take a *long* time on
+slow computers.)
 
 ----------------------------------------------------------------------
 
@@ -222,7 +223,7 @@ ps-file-server@adobe.com.)
 ----------------------------------------------------------------------
 
 * I've configured groff for A4 paper, but gtroff still seems to think
-  that the length of a page (as returned by \n(.p) is 11 inches.
+  that the length of a page (as returned by `\n(.p') is 11 inches.
 
 This is intentional.  The PAGE option is used only by grops.  For
 compatibility with ditroff, the default page length in gtroff is
@@ -231,9 +232,22 @@ request.
 
 ----------------------------------------------------------------------
 
+* groff produces wrapper macros for `ms' and friends which call the
+  system's original macros.  Then, to get groff's ms macro package I
+  have to use `-mgs' instead `-ms'.  Can I avoid this?
+
+Yes.  Configure and compile groff as usual, but install it with
+
+  make install tmac_wrap=""
+
+Then no wrapper files are produced, and `-ms' will use groff's `ms'
+macros.
+
+----------------------------------------------------------------------
+
 * Groff doesn't use the font names I'm used to.
 
-Use the `ftr' request.  See gtroff(1).
+Use the `ftr' request.  See (g)troff(1).
 
 ----------------------------------------------------------------------
 
@@ -326,11 +340,7 @@ files produced by TeX.  Try getting a more up to date driver.
 
 * I get lots of errors when I use groff with the AT&T -mm macros.
 
-The AT&T -mm macros need a few changes to work with groff; `make
-install.dwbmm' will copy your -mm macros to groff's macro directory
-and make the necessary changes.  You may need to edit the commands for
-the install.mm target in the Makefile.  Alternatively use the groff
--mm macros.
+Use the groff -mm macros.
 
 ----------------------------------------------------------------------
 
@@ -369,7 +379,7 @@ comments, you can do it like this:
 
 There seem to be many different styles of page header and footer
 produced by different versions of the -man macros.  You will need to
-modify macros/tmac.an to suit your personal taste.  For example, if
+modify tmac/an-old.tmac to suit your personal taste.  For example, if
 you want the center of the page header to say
 
   System Programmer's Manual
@@ -410,10 +420,9 @@ The solution is to fix the manual page:
 
 The Ultrix man pages use a number of non-standard extensions to the
 Unix man macros.  One solution is to use the Ultrix -man macros with
-groff.  Rename /usr/local/lib/groff/tmac/tmac.an to
-/usr/local/lib/groff/tmac/tmac.an.gnu, copy /usr/lib/tmac/tmac.an to
-/usr/local/lib/groff/tmac/tmac.an and apply the following patch (from
-Frank Wortner):
+groff.  Copy /usr/lib/tmac/tmac.an to
+/usr/local/share/groff/site-tmac/an.tmac and apply the following patch
+(from Frank Wortner):
 
 *** /usr/local/lib/groff/tmac/tmac.an     Wed Sep  9 12:29:28 1992
 --- /usr/lib/tmac/tmac.an       Fri Jul 24 19:58:19 1992
@@ -436,17 +445,25 @@ Frank Wortner):
   .}f
 
 Another possible solution is to install tmac/man.ultrix as
-/usr/local/lib/groff/tmac/man.local.
+/usr/local/share/groff/site-tmac/man.local.
 
 ----------------------------------------------------------------------
 
 * I'm having problems formatting HP-UX 9.0 man pages with groff -man.
 
-Rename /usr/local/lib/groff/tmac/tmac.an to (for example)
-/usr/local/lib/groff/tmac/tmac.gan, copy HP's tmac.an into
-/usr/local/lib/groff/tmac/tmac.an, and either put `.cp 1' at the
-beginning or filter it (and any files it .so's) through
-tmac/fixmacros.sed.
+Copy HP's tmac.an into /usr/local/share/groff/site-tmac/an.tmac, and
+either put `.cp 1' at the beginning or filter it (and any files it .so's)
+through tmac/fixmacros.sed.
+
+----------------------------------------------------------------------
+
+* On HP-UX, the compiler complains about missing symbol `alloca'.
+
+Say
+
+  export LDFLAGS=-lPW
+
+before starting the configure script.
 
 ----------------------------------------------------------------------
 

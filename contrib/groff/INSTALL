@@ -19,6 +19,16 @@ usual malloc, it is good idea to include it in LIBS.  For example,
 using the malloc that comes with GNU Emacs version 20 can give a
 worthwhile (and sometimes spectacular) performance improvement.
 
+If you want A4 or letter paper format and the configure script produces
+an incorrect guess, say
+
+  PAGE=xxx ./configure
+
+where `xxx' should be either `A4' or `letter'.  Note that this will only
+affect the paper selection for grops.  For compatibility with ditroff,
+the default page length in gtroff is always 11 inches.  The page length
+can be changed with the `pl' request.
+
 When you have built groff, you can use the test-groff script to try
 groff out on one of the man pages.  (Use the .n files not the .man
 files.)  The test-groff script sets up environment variables to allow

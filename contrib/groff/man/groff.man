@@ -24,7 +24,7 @@ FDL in the main directory of the groff source package.
 .\" --------------------------------------------------------------------
 .
 .if n \{\
-.  mso tmac.tty-char
+.  mso tty-char.tmac
 .  ftr CR R
 .  ftr CI I
 .  ftr CB B
@@ -542,7 +542,14 @@ Groff provides a printable representation with the
 escape sequence.
 .TP
 .character \(dq
-The double quote is used to enclose arguments in requests and macros.
+The double quote is used to enclose arguments in requests and macros.  In
+the
+.request .ds
+and
+.request .as
+requests, a leading double quote in the argument will be stripped off,
+making everything else afterwards the string to be defined (enabling leading
+whitespace).
 The escaped double quote
 .esc \(dq
 introduces a comment.
@@ -866,7 +873,7 @@ to
 .argument stringvar .
 .
 .REQ .asciify diversion
-Unformat special ASCII characters in
+Unformat ASCII characters, spaces, and some escape sequences in
 .argument diversion .
 .
 .REQ .backtrace
@@ -885,6 +892,21 @@ Embolden Special Font
 when current font is
 .argument font .
 .
+.REQ .box
+End current diversion.
+.
+.REQ .box macro
+Divert to
+.argument macro ,
+omitting a partially filled line.
+.
+.REQ .boxa
+End current diversion.
+.
+.REQ .boxa macro
+Divert and append to
+.argument macro ,
+omitting a partially filled line.
 .REQ .bp
 Eject current page and begin new page.
 .
@@ -985,6 +1007,9 @@ Continuous underline in nroff, like
 .request .ul
 in troff.
 .
+.REQ .da
+End current diversion.
+.
 .REQ .da macro
 Divert and append to
 .argument macro .
@@ -1002,6 +1027,21 @@ Define or redefine
 until
 .request .end
 is called.
+.
+.REQ .dei macro
+Define or redefine a macro whose name is contained in the string register
+.argument macro
+until
+.request ..
+is called.
+.
+.REQ .dei macro end
+Define or redefine a macro indirectly.
+.argument macro
+and
+.argument end
+are string registers whose contents are interpolated for the macro name
+and the end macro, respectively.
 .
 .REQ .di
 End current diversion.
@@ -1035,6 +1075,13 @@ Reset escape character to
 Set escape character to
 .argument c .
 .
+.REQ .ecr
+Restore escape character saved with
+.request .ecs .
+.
+.REQ .ecs
+Save current escape character.
+.
 .REQ .el anything
 Else part for if-else (\c
 .argument .ie )
@@ -1064,6 +1111,9 @@ No pushing or popping.
 .
 .REQ .ex
 Exit from roff processing.
+.
+.REQ .fam
+Return to previous font family.
 .
 .REQ .fam name
 Set the current font family to
@@ -1235,6 +1285,15 @@ Write the length of the string
 in
 .argument register .
 .
+.REQ .linetabs
+Enable line-tabs mode (i.e., calculate tab positions relative to output
+line).
+.
+.REQ .linetabs n
+If
+.argument n
+is zero, disable line-tabs mode, otherwise enable it.
+.
 .REQ .lf N file
 Set input line number to
 .argument N
@@ -1293,7 +1352,7 @@ Mark current vertical position in
 .REQ .mso file
 The same as the .so request except that
 .I file
-is also searched in the tmac directories.
+is searched in the tmac directories.
 .
 .REQ .na
 No output-line adjusting.
@@ -1326,6 +1385,10 @@ Do not number next line.
 Do not number next
 .argument N
 lines.
+.
+.REQ .nop anything
+Always execute
+.argument anything .
 .
 .REQ .nr register \(+-N M
 Define or modify
@@ -1439,6 +1502,9 @@ Remove the definitions of characters
 .
 .REQ .rd prompt
 Read insertion.
+.
+.REQ .return
+Return from a macro.
 .
 .REQ .rj n
 Right justify the next
@@ -1595,14 +1661,24 @@ Enable track kerning for
 .REQ .tl \f(CB\(cq\fPleft\f(CB\(cq\fPcenter\f(CB\(cq\fPright\f(CB\(cq\fP
 Three-part title.
 .
-.REQ .trf filename
-Transparently output the contents of file
-.argument filename .
-.
 .REQ .tm anything
 Print
 .argument anything
 on terminal (UNIX standard message output).
+.
+.REQ .tm1 anything
+Print
+.argument anything
+on terminal (UNIX standard message output), allowing leading whitespace if
+.argument anything
+starts with
+.character \(dq
+(which will be stripped off).
+.
+.REQ .tmc anything
+Similar to
+.request .tm1
+without emitting a final newline.
 .
 .REQ .tr abcd....
 Translate
@@ -1613,6 +1689,10 @@ to
 to
 .argument d ,
 etc. on output.
+.
+.REQ .trf filename
+Transparently output the contents of file
+.argument filename .
 .
 .REQ .trnt abcd....
 This is the same as the
@@ -1639,6 +1719,9 @@ Underline (italicize in troff)
 .argument N
 input lines.
 .
+.REQ .unformat diversion
+Unformat space characters and tabs, preserving font information in
+.argument diversion .
 .REQ .vpt n
 Enable vertical position traps if
 .argument n
@@ -1891,6 +1974,11 @@ preceding character is a roman character.
 Unbreakable space that stretches like a normal inter-word space when a
 line is adjusted.
 .
+.ESC :
+Inserts a zero-width break point (similar to
+.esc %
+but without a soft hyphen character).
+.
 .ESC \& newline
 Ignored newline, for continuation lines.
 .
@@ -1922,14 +2010,24 @@ Non-interpreted leader character.
 .ESCq A anything
 If
 .argument anything
-acceptable as name of a string, macro, diversion, register,
-environment or font it is
-.number 1
-otherwise
-.number 0 .
+is acceptable as a name of a string, macro, diversion, register,
+environment or font it expands to
+.number 1 ,
+and
+.number 0
+otherwise.
 .
 .ESCq b abc...
 Bracket building function.
+.
+.ESCq B anything
+If
+.argument anything
+is acceptable as a valid numeric expression it expands to
+.number 1 ,
+and
+.number 0
+otherwise.
 .
 .ESC c
 Interrupt text processing.
@@ -2220,6 +2318,9 @@ from request calls.
 .LP
 .PD 0
 .REG .$ Number of arguments in the current macro.
+.REG .a
+Post-line extra line-space most recently utilized using
+.escarg x 'N' .
 .REG .A
 Set to
 .number 1
@@ -2231,19 +2332,8 @@ is used; always
 .number 1
 in
 .BR nroff .
-.REG .H Available horizontal resolution in basic units.
-.REG .T
-Set to
-.number 1
-if option
-.B \-T
-is used.
-.REG .V Available vertical resolution in basic units.
-.REG .a
-Post-line extra line-space most recently utilized using
-.escarg x 'N' .
-.REG .C 1 if compatibility mode is in effect, 0 otherwise.
 .REG .c Current input line number.
+.REG .C 1 if compatibility mode is in effect, 0 otherwise.
 .REG .cdp
 The depth of the last character added to the current environment.
 It is positive if the character extends below the baseline.
@@ -2269,6 +2359,7 @@ Current vertical place in current diversion; equal to register
 Always 1 in GNU troff.
 Macros should use it to test if running under groff.
 .REG .h Text base-line high-water mark on current page or diversion.
+.REG .H Available horizontal resolution in basic units.
 .REG .hla
 The current hyphenation language as set by the
 .B .hla
@@ -2294,6 +2385,9 @@ The current hyphenation space (as set by the
 request).
 .REG .i Current ident.
 .REG .in The indent that applies to the current output line.
+.REG .int
+Positive if last output line contains
+.esc c .
 .REG .kern
 .number 1
 if pairwise kerning is enabled,
@@ -2303,6 +2397,10 @@ otherwise.
 .REG .lg
 The current ligature mode (as set by the
 .request .lg
+request).
+.REG .linetabs
+The current line-tabs mode (as set by the
+.request .linetabs
 request).
 .REG .ll The line length that applies to the current output line.
 .REG .lt
@@ -2331,6 +2429,12 @@ The number of lines to be right-justified as set by the rj request.
 The last requested pointsize in points as a decimal fraction
 (string-valued).
 .REG .t Distance to the next trap.
+.REG .T
+Set to
+.number 1
+if option
+.B \-T
+is used.
 .REG .tabs
 A string representation of the current tab settings suitable for use as
 an argument to the
@@ -2359,6 +2463,7 @@ The value of the parameters set by the second argument of the
 request.
 .REG .u Equal to 1 bin fill mode and 0 in nofill mode.
 .REG .v Current vertical line spacing.
+.REG .V Available vertical resolution in basic units.
 .REG .vpt
 .number 1
 if vertical position traps are enabled,
@@ -2371,43 +2476,6 @@ The sum of the number codes of the currently enabled warnings.
 .REG .y The minor version number.
 .REG .Y The revision number of groff.
 .REG .z Name of current diversion.
-.REG llx
-Lower left x-coordinate (in PostScript units) of a given PostScript
-image (set by
-.request .psbb ).
-.REG lly
-Lower left y-coordinate (in PostScript units) of a given PostScript
-image (set by
-.request .psbb ).
-.REG rsb Like
-.register sb ,
-but takes account of the heights and depths of characters.
-.REG rst
-Like
-.register st ,
-but takes account of the heights and depths of characters.
-.REG sb
-Depth of string below base line (generated by width function
-.esc w ).
-.REG skw
-Right skip width from the center of the last character in the
-.esc w
-argument.
-.REG ssc
-The amount of horizontal space (possibly negative) that should be added
-to the last character before a subscript (generated by width function
-.esc w ).
-.REG st
-Height of string above base line (generated by width function
-.esc w ).
-.REG urx
-Upper right x-coordinate (in PostScript units) of a given PostScript
-image (set by
-.request .psbb ).
-.REG ury
-Upper right y-coordinate (in PostScript units) of a given PostScript
-image (set by
-.request .psbb ).
 .PD
 .
 .\" --------------------------------------------------------------------
@@ -2423,22 +2491,60 @@ customizing a document.
 .REG ct Character type (set by width function
 .esc w ).
 .REG dl Maximal width of last completed diversion.
+.REG dn Height of last completed diversion.
 .REG dw Current day of week (1-7).
 .REG dy Current day of month (1-31).
 .REG hp Current horizontal position at input line.
+.REG llx
+Lower left x-coordinate (in PostScript units) of a given PostScript
+image (set by
+.request .psbb ).
+.REG lly
+Lower left y-coordinate (in PostScript units) of a given PostScript
+image (set by
+.request .psbb ).
 .REG ln Output line number.
 .REG mo Current month (1-12).
 .REG nl Vertical position of last printed text base-line.
+.REG rsb Like
+.register sb ,
+but takes account of the heights and depths of characters.
+.REG rst
+Like
+.register st ,
+but takes account of the heights and depths of characters.
+.REG sb
+Depth of string below base line (generated by width function
+.esc w ).
+.REG skw
+Right skip width from the center of the last character in the
+.esc w
+argument.
 .REG slimit
 If greater than 0, the maximum number of objects on the input stack.
 If \(<=0 there is no limit, i.e., recursion can continue until virtual
 memory is exhausted.
+.REG ssc
+The amount of horizontal space (possibly negative) that should be added
+to the last character before a subscript (generated by width function
+.esc w ).
+.REG st
+Height of string above base line (generated by width function
+.esc w ).
 .REG systat
 The return value of the
 .I system()
 function executed by the last
 .request .sy
 request.
+.REG urx
+Upper right x-coordinate (in PostScript units) of a given PostScript
+image (set by
+.request .psbb ).
+.REG ury
+Upper right y-coordinate (in PostScript units) of a given PostScript
+image (set by
+.request .psbb ).
 .REG year The current year (year 2000 compliant).
 .REG yr
 Current year minus 1900.  For Y2K compliance use register
