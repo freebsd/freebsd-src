@@ -237,7 +237,7 @@ pass5()
 			default:
 				if (j < (int)ROOTINO)
 					break;
-				errx(EEXIT, "BAD STATE %d FOR INODE I=%ld",
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
 				    inoinfo(j)->ino_state, j);
 			}
 		}
@@ -435,7 +435,7 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 					pwarn("%s %s %d MARKED USED\n",
 					    "UNALLOCATED", name, ustart);
 				else if (debug)
-					pwarn("%s %sS %d-%d MARKED USED\n",
+					pwarn("%s %sS %d-%ld MARKED USED\n",
 					    "UNALLOCATED", name, ustart,
 					    ustart + size - 1);
 				if (bkgrdflag != 0) {
@@ -455,12 +455,13 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 			}
 		}
 	}
-	if (astart != -1)
+	if (astart != -1) {
 		if (astart == aend)
 			(*msg)("ALLOCATED %s %d MARKED FREE\n", name, astart);
 		else
 			(*msg)("ALLOCATED %sS %d-%d MARKED FREE\n",
 			    name, astart, aend);
+	}
 	if (ustart != -1) {
 		size = uend - ustart + 1;
 		if (size <= skip)
@@ -476,7 +477,7 @@ check_maps(map1, map2, mapsize, startvalue, name, opcode, skip, limit)
 				pwarn("UNALLOCATED %s %d MARKED USED\n",
 				    name, ustart);
 			else
-				pwarn("UNALLOCATED %sS %d-%d MARKED USED\n",
+				pwarn("UNALLOCATED %sS %d-%ld MARKED USED\n",
 				    name, ustart, ustart + size - 1);
 		}
 		if (bkgrdflag != 0) {
