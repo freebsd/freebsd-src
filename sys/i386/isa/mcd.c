@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.70 1996/02/03 14:33:56 ache Exp $
+ *	$Id: mcd.c,v 1.71 1996/02/13 02:32:36 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -342,13 +342,22 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
 	    || !(cd->status & MCDDSKIN))
 		for (retry = 0; retry < DISK_SENSE_SECS * WAIT_FRAC; retry++) {
-			(void) tsleep((caddr_t)cd, PSOCK | PCATCH, "mcdsns", hz/WAIT_FRAC);
+			(void) tsleep((caddr_t)cd, PSOCK | PCATCH, "mcdsn1", hz/WAIT_FRAC);
 			if ((r = mcd_getstat(unit,1)) == -1)
 				return EIO;
 			if (r != -2)
 				break;
 		}
 
+	if ((   (cd->status & (MCDDOOROPEN|MCDDSKCHNG))
+	     || !(cd->status & MCDDSKIN)
+	    )
+	    && major(dev) == CDEV_MAJOR && part == RAW_PART
+	   ) {
+		cd->openflags |= (1<<part);
+		kdc_mcd[unit].kdc_state = DC_BUSY;
+		return 0;
+	}
 	if (cd->status & MCDDOOROPEN) {
 		printf("mcd%d: door is open\n", unit);
 		return ENXIO;
@@ -363,6 +372,11 @@ int mcdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 
 	if (mcdsize(dev) < 0) {
+		if (major(dev) == CDEV_MAJOR && part == RAW_PART) {
+			cd->openflags |= (1<<part);
+			kdc_mcd[unit].kdc_state = DC_BUSY;
+			return 0;
+		}
 		printf("mcd%d: failed to get disk size\n",unit);
 		return ENXIO;
 	} else
@@ -543,7 +557,7 @@ static void mcd_start(int unit)
 int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	struct mcd_data *cd;
-	int unit,part;
+	int unit,part,retry,r;
 
 	unit = mcd_unit(dev);
 	part = mcd_part(dev);
@@ -554,66 +568,6 @@ int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 MCD_TRACE("ioctl called 0x%x\n", cmd);
 
 	switch (cmd) {
-	case DIOCSBAD:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return EINVAL;
-	case DIOCGDINFO:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		*(struct disklabel *) addr = cd->dlabel;
-		return 0;
-	case DIOCGPART:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		((struct partinfo *) addr)->disklab = &cd->dlabel;
-		((struct partinfo *) addr)->part =
-		    &cd->dlabel.d_partitions[mcd_part(dev)];
-		return 0;
-
-		/*
-		 * a bit silly, but someone might want to test something on a
-		 * section of cdrom.
-		 */
-	case DIOCWDINFO:
-	case DIOCSDINFO:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		if ((flags & FWRITE) == 0)
-			return EBADF;
-		else {
-			return setdisklabel(&cd->dlabel,
-			    (struct disklabel *) addr,
-			    0);
-		}
-	case DIOCWLABEL:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return EBADF;
-	case CDIOCPLAYTRACKS:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_playtracks(unit, (struct ioc_play_track *) addr);
-	case CDIOCPLAYBLOCKS:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_playblocks(unit, (struct ioc_play_blocks *) addr);
-	case CDIOCPLAYMSF:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_playmsf(unit, (struct ioc_play_msf *) addr);
-	case CDIOCREADSUBCHANNEL:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_subchan(unit, (struct ioc_read_subchannel *) addr);
-	case CDIOREADTOCHEADER:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_toc_header(unit, (struct ioc_toc_header *) addr);
-	case CDIOREADTOCENTRYS:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_toc_entrys(unit, (struct ioc_read_toc_entry *) addr);
 	case CDIOCSETPATCH:
 	case CDIOCGETVOL:
 	case CDIOCSETVOL:
@@ -623,24 +577,6 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 	case CDIOCSETLEFT:
 	case CDIOCSETRIGHT:
 		return EINVAL;
-	case CDIOCRESUME:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_resume(unit);
-	case CDIOCPAUSE:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_pause(unit);
-	case CDIOCSTART:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
-			return EIO;
-		return 0;
-	case CDIOCSTOP:
-		if (!(cd->flags & MCDVALID))
-			return ENXIO;
-		return mcd_stop(unit);
 	case CDIOCEJECT:
 		return mcd_eject(unit);
 	case CDIOCSETDEBUG:
@@ -657,6 +593,84 @@ MCD_TRACE("ioctl called 0x%x\n", cmd);
 		return mcd_lock_door(unit, MCD_LK_LOCK);
 	case CDIOCCLOSE:
 		return mcd_inject(unit);
+	}
+
+	if (!(cd->flags & MCDVALID)) {
+		if (   major(dev) != CDEV_MAJOR
+		    || !(cd->openflags & (1<<RAW_PART))
+		   )
+			return ENXIO;
+		if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
+		    || !(cd->status & MCDDSKIN))
+			for (retry = 0; retry < DISK_SENSE_SECS * WAIT_FRAC; retry++) {
+				(void) tsleep((caddr_t)cd, PSOCK | PCATCH, "mcdsn2", hz/WAIT_FRAC);
+				if ((r = mcd_getstat(unit,1)) == -1)
+					return EIO;
+				if (r != -2)
+					break;
+			}
+		if (   (cd->status & (MCDDOOROPEN|MCDDSKCHNG))
+		    || !(cd->status & MCDDSKIN)
+		    || mcdsize(dev) < 0
+		   )
+			return ENXIO;
+		cd->flags |= MCDVALID;
+		mcd_getdisklabel(unit);
+		cd->partflags[RAW_PART] |= MCDOPEN;
+		(void) mcd_lock_door(unit, MCD_LK_LOCK);
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
+	}
+
+	switch (cmd) {
+	case DIOCSBAD:
+		return EINVAL;
+	case DIOCGDINFO:
+		*(struct disklabel *) addr = cd->dlabel;
+		return 0;
+	case DIOCGPART:
+		((struct partinfo *) addr)->disklab = &cd->dlabel;
+		((struct partinfo *) addr)->part =
+		    &cd->dlabel.d_partitions[mcd_part(dev)];
+		return 0;
+
+		/*
+		 * a bit silly, but someone might want to test something on a
+		 * section of cdrom.
+		 */
+	case DIOCWDINFO:
+	case DIOCSDINFO:
+		if ((flags & FWRITE) == 0)
+			return EBADF;
+		else {
+			return setdisklabel(&cd->dlabel,
+			    (struct disklabel *) addr,
+			    0);
+		}
+	case DIOCWLABEL:
+		return EBADF;
+	case CDIOCPLAYTRACKS:
+		return mcd_playtracks(unit, (struct ioc_play_track *) addr);
+	case CDIOCPLAYBLOCKS:
+		return mcd_playblocks(unit, (struct ioc_play_blocks *) addr);
+	case CDIOCPLAYMSF:
+		return mcd_playmsf(unit, (struct ioc_play_msf *) addr);
+	case CDIOCREADSUBCHANNEL:
+		return mcd_subchan(unit, (struct ioc_read_subchannel *) addr);
+	case CDIOREADTOCHEADER:
+		return mcd_toc_header(unit, (struct ioc_toc_header *) addr);
+	case CDIOREADTOCENTRYS:
+		return mcd_toc_entrys(unit, (struct ioc_read_toc_entry *) addr);
+	case CDIOCRESUME:
+		return mcd_resume(unit);
+	case CDIOCPAUSE:
+		return mcd_pause(unit);
+	case CDIOCSTART:
+		if (mcd_setmode(unit, MCD_MD_COOKED) != 0)
+			return EIO;
+		return 0;
+	case CDIOCSTOP:
+		return mcd_stop(unit);
 	default:
 		return ENOTTY;
 	}
@@ -1322,7 +1336,6 @@ mcd_soft_reset(int unit)
 	struct mcd_data *cd = mcd_data + unit;
 	int i;
 
-	cd->openflags = 0;
 	cd->flags &= (MCDINIT|MCDPROBING|MCDNEWMODEL);
 	cd->curr_mode = MCD_MD_UNKNOWN;
 	for (i=0; i<MAXPARTITIONS; i++) cd->partflags[i] = 0;
