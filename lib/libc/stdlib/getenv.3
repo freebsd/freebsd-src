@@ -114,14 +114,7 @@ deletes all instances of the variable name pointed to by
 .Fa name
 from the list.
 .Sh RETURN VALUES
-The functions
-.Fn setenv
-and
-.Fn putenv
-return zero if successful; otherwise the global variable
-.Va errno
-is set to indicate the error and a
-\-1 is returned.
+.Rv -std setenv putenv
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOMEM

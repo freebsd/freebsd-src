@@ -110,8 +110,9 @@ defined in
 The
 .Fx
 VM system totally ignores the sticky bit
-.Pf ( Dv ISVTX
-) for executables.  On UFS-based filesystems (FFS, MFS, LFS) the sticky
+.Pq Dv ISVTX
+for executables.
+On UFS-based filesystems (FFS, MFS, LFS) the sticky
 bit may only be set upon directories.
 .Pp
 If mode
@@ -156,10 +157,7 @@ by protecting set-user-id (set-group-id) files
 from remaining set-user-id (set-group-id) if they are modified,
 at the expense of a degree of compatibility.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std
 .Sh ERRORS
 .Fn Chmod
 will fail and the file mode will be unchanged if:

@@ -156,20 +156,17 @@ The
 .Fn rewind
 function
 returns no value.
+.Pp
+.Rv -std fgetpos fseek fseeko fsetpos
+.Pp
 Upon successful completion,
-.Fn fgetpos ,
-.Fn fseek ,
-.Fn fseeko ,
-and
-.Fn fsetpos
-return 0,
-and
 .Fn ftell
 and
 .Fn ftello
 return the current offset.
-Otherwise, \-1 is returned and the global variable errno is set to
-indicate the error.
+Otherwise, \-1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EBADF

@@ -741,13 +741,7 @@ If the amount of free and cache memory falls below this value, the
 pageout daemon will enter "memory conserving mode" to avoid deadlock.
 .El
 .Sh RETURN VALUES
-.Fn sysctl
-and
-.Fn sysctlbyname
-return 0 when successful.
-Otherwise \-1 is returned and
-.Va errno
-is set appropriately.
+.Rv -std
 .Sh ERRORS
 The following errors may be reported:
 .Bl -tag -width Er
