@@ -174,7 +174,7 @@ _gettemp(path, doopen, domkdir, slen)
 			if (*trv == '\0' || trv == suffp)
 				return (0);
 			pad = strchr(padchar, *trv);
-			if (pad == NULL || *++pad != '\0')
+			if (pad == NULL || *++pad == '\0')
 				*trv++ = padchar[0];
 			else {
 				*trv++ = *pad;
