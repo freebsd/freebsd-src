@@ -129,8 +129,8 @@ rip_input(from, size)
 					"specific request for %s",
 					ipxdp_nettoa(n->rip_dst));
 				fprintf(ftrace,
-					" yields route %x\n",
-					(u_int)rt);
+					" yields route %lx\n",
+					(u_long)rt);
 			}
 			/*
 			 * XXX We break out on the first net that isn't
