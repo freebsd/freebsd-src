@@ -89,20 +89,7 @@ static driver_t ata_kauai_driver = {
 };
 
 DRIVER_MODULE(ata, pci, ata_kauai_driver, ata_devclass, 0, 0);
-
-static int
-ata_kauai_locknoop(struct ata_channel *ch, int type)
-{
-	/* XXX SMP ? */
-	return (0);
-}
-
-static void
-ata_kauai_setmode(struct ata_device *atadev, int mode)
-{
-	atadev->mode = ATA_PIO;
-}
-
+MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 /*
  * PCI ID search table
@@ -191,9 +178,6 @@ ata_kauai_probe(device_t dev)
 
         ch->unit = 0;
         ch->flags |= ATA_USE_16BIT|ATA_NO_SLAVE;
-        ch->locking = ata_kauai_locknoop;
-        ch->device[MASTER].setmode = ata_kauai_setmode;
-        ch->device[SLAVE].setmode = ata_kauai_setmode;
 	ata_generic_hw(ch);
 
         return (ata_probe(dev));
