@@ -291,7 +291,7 @@ distSetEverything(dialogMenuItem *self)
     XOrgDists = DIST_XORG_ALL;
     i = distMaybeSetPorts(self);
     distVerifyFlags();
-    return i;
+    return i | DITEM_REDRAW;
 }
 
 static int
