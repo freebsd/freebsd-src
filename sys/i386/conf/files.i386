@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.188 1998/01/26 18:31:17 julian Exp $
+#	$Id: files.i386,v 1.189 1998/02/15 14:42:31 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -239,9 +239,10 @@ i386/isa/wd.c			optional	wdc	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
+i386/isa/wfd.c			optional	wfd	device-driver
+i386/isa/wst.c			optional	wst	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
-i386/isa/wfd.c			optional	wfd	device-driver
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
 i386/linux/linux_file.c		optional	compat_linux
