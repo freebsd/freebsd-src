@@ -44,13 +44,14 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: config.c,v 1.4 1998/11/03 06:37:14 grog Exp $
+ * $Id: config.c,v 1.6 1998/12/28 04:56:22 peter Exp $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
 

@@ -36,7 +36,7 @@
  */
 
 /* Header files used by all modules */
-/* $Id: vinumhdr.h,v 1.2 1998/11/06 01:34:06 peter Exp $ */
+/* $Id: vinumhdr.h,v 1.4 1998/12/28 04:56:24 peter Exp $ */
 
 #ifdef KERNEL
 #define REALLYKERNEL
@@ -72,8 +72,13 @@
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
 #include <sys/dkbad.h>
+#ifdef KERNEL
+#include <machine/setjmp.h>
+#include <machine/stdarg.h>
+#else
 #include <setjmp.h>
 #include <stdarg.h>
+#endif
 #include <vm/vm.h>
 #ifdef USES_VM
 /* XXX Do we need this? */
@@ -85,17 +90,22 @@
 #include <sys/vmmeter.h>
 /* #include <machine/pmap.h> */
 #endif							    /* USES_VM */
-#include <vinumvar.h>
-#include <vinumio.h>
-#include "vinumkw.h"
-#include "vinumext.h"
+#include <dev/vinum/vinumvar.h>
+#include <dev/vinum/vinumio.h>
+#include <dev/vinum/vinumkw.h>
+#include <dev/vinum/vinumext.h>
 
 #undef Free						    /* defined in some funny net stuff */
 #ifdef REALLYKERNEL
+#ifdef VINUMDEBUG
 #define Malloc(x)  MMalloc ((x), __FILE__, __LINE__)	    /* show where we came from */
 #define Free(x)	   FFree ((x), __FILE__, __LINE__)	    /* show where we came from */
 caddr_t MMalloc (int size, char *, int);
 void FFree (void *mem, char *, int);
+#else
+#define Malloc(x)  malloc((x), M_DEVBUF, M_WAITOK)
+#define Free(x)    free((x), M_DEVBUF)
+#endif
 #else
 #define Malloc(x)  malloc ((x))				    /* just the size */
 #define Free(x)	   free ((x))				    /* just the address */

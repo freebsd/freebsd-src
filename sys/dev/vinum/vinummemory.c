@@ -33,17 +33,18 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: memory.c,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: memory.c,v 1.4 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
+#include "opt_vinum.h"
 #define USES_VM
-#include "vinumhdr.h"
+#include <dev/vinum/vinumhdr.h>
 
 extern jmp_buf command_fail;				    /* return on a failed command */
 
-#ifdef DEBUG
-#include "request.h"
+#ifdef VINUMDEBUG
+#include <dev/vinum/request.h>
 extern struct rqinfo rqinfo[];
 extern struct rqinfo *rqip;
 #endif
@@ -73,7 +74,7 @@ expand_table(void **table, int oldsize, int newsize)
     }
 }
 
-#if DEBUG						    /* XXX debug */
+#if VINUMDEBUG						    /* XXX debug */
 #define MALLOCENTRIES 16384
 int malloccount = 0;
 int highwater = 0;					    /* highest index ever allocated */

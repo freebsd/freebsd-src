@@ -33,8 +33,12 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumkw.h,v 1.2 1998/10/21 08:32:32 grog Exp $
+ * $Id: vinumkw.h,v 1.4 1998/12/28 04:56:24 peter Exp $
  */
+
+#ifdef KERNEL
+#include "opt_vinum.h"
+#endif
 
 /* Command keywords that vinum knows.  These include both user-level
  * and kernel-level stuff */
@@ -96,7 +100,7 @@ enum keyword {
     kw_printconfig,
     kw_replace,
     kw_detached,
-#ifdef DEBUG
+#ifdef VINUMDEBUG
     kw_debug,						    /* go into debugger */
 #endif
     kw_info,

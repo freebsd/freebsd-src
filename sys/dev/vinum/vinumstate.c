@@ -33,12 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: state.c,v 1.3 1998/11/02 04:10:45 grog Exp $
+ * $Id: state.c,v 1.5 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 
 /* Update drive state */
 /* Return 1 if the state changes, otherwise 0 */

@@ -33,12 +33,13 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: revive.c,v 1.3 1998/11/02 04:10:19 grog Exp $
+ * $Id: revive.c,v 1.5 1998/12/28 04:56:23 peter Exp $
  */
 
 #define REALLYKERNEL
-#include "vinumhdr.h"
-#include "request.h"
+#include "opt_vinum.h"
+#include <dev/vinum/vinumhdr.h>
+#include <dev/vinum/request.h>
 
 /* revive a block of a plex.  Return an error
  * indication.  EAGAIN means successful copy, but
