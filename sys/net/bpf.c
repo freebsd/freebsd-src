@@ -216,6 +216,10 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 		hlen = 12; 	/* XXX 4(ATM_PH) + 3(LLC) + 5(SNAP) */
 		break;
 #endif
+	case DLT_PPP:
+		sockp->sa_family = AF_UNSPEC;
+		hlen = 4;	/* This should match PPP_HDRLEN */
+		break;
 
 	default:
 		return (EIO);
