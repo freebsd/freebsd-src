@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ctags.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ctags.c,v 1.3 1997/07/10 06:43:40 charnier Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <err.h>
@@ -108,9 +108,6 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 
-#ifndef lint
-	copyright[0] = copyright[0];		/* to satisfy compiler */
-#endif
 	aflag = uflag = NO;
 #ifdef GTAGS
 	while ((ch = getopt(argc, argv, "BDFadef:rtuwvxy")) != -1)
