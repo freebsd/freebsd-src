@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.3 1994/02/22 08:44:31 rgrimes Exp $
+ *	$Id: mcdreg.h,v 1.4 1994/09/03 16:48:13 ache Exp $
  */
 
 #ifndef MCD_H
@@ -99,28 +99,55 @@ typedef unsigned char	bcd_t;
 #define	MCD_ST_DOOROPEN		0x80
 #define	MCD_ST_DSKIN		0x40
 #define	MCD_ST_DSKCHNG		0x20
+#define	MCD_ST_SPINNING		0x10
+#define	MCD_ST_AUDIODISK	0x08	/* Audio Disk is in */
 #define	MCD_ST_BUSY		0x04
-#define	MCD_ST_AUDIOBSY		0x02
+#define	MCD_ST_AUDIOBSY		0x02	/* Audio Disk is Playing */
+#define	MCD_ST_CMDCHECK		0x01	/* Command error */
 
 /* commands known by the controller */
 #define	MCD_CMDRESET		0x00
 #define	MCD_CMDGETVOLINFO	0x10	/* gets mcd_volinfo */
+#define	MCD_CMDGETDISKINFO	0x11	/* gets	mcd_disk information */
 #define	MCD_CMDGETQCHN		0x20	/* gets mcd_qchninfo */
+#define	MCD_CMDGETSENSE		0x30	/* gets	sense info */
 #define	MCD_CMDGETSTAT		0x40	/* gets a byte of status */
 
 #define	MCD_CMDSETMODE		0x50	/* set transmission mode, needs byte */
-#define	MCD_MD_RAW		0x60
-#define MCD_MD_BIN_RAW          0x61
-#define	MCD_MD_COOKED		0x01
-#define MCD_MD_BIN_COOKED       0x81
-#define	MCD_MD_TOC		0x05
+
+#define	MCD_MDBIT_TESTMODE	0x80	/* 0 = DATALENGTH setting is valid */
+#define	MCD_MDBIT_DATALENGTH	0x40	/* 0 = Read User Data Only */
+					/* 1 = Read Raw	sectors	(2352 bytes) */
+
+#define	MCDBLK	2048				/* for cooked mode */
+#define	MCDRBLK	sizeof(struct mcd_rawsector)	/* for raw mode	*/
+
+#define	MCD_MDBIT_ECCMODE	0x20	/* 0 = Use secondary correction	*/
+					/* 1 = Don't use secondary ECC */
+#define	MCD_MDBIT_SPINDOWN	0x08	/* 0 = Spin Up,	1 = Spin Down */
+#define	MCD_MDBIT_GET_TOC	0x04	/* 0 = Get UPC on next GETQCHAN	*/
+					/* 1 = Get TOC on GETQCHAN */
+#define	MCD_MDBIT_MUTEDATA	0x01	/* 1 = Don't play back Data as audio */
+
+#define	MCD_MD_RAW		(MCD_MDBIT_DATALENGTH|MCD_MDBIT_ECCMODE|MCD_MDBIT_MUTEDATA)
+#define	MCD_MD_COOKED		(MCD_MDBIT_MUTEDATA)
+#define	MCD_MD_TOC		(MCD_MDBIT_GET_TOC|MCD_MDBIT_MUTEDATA)
 
 #define	MCD_CMDSTOPAUDIO	0x70
+#define	MCD_CMDSTOPAUDIOTIME	0x80
 #define	MCD_CMDGETVOLUME	0x8E	/* gets mcd_volume */
+#define	MCD_CMDSETDRIVEMODE	0xA0	/* Set drive mode */
+#define	MCD_READUPC		0xA2	/* Get UPC info	*/
 #define	MCD_CMDSETVOLUME	0xAE	/* sets mcd_volume */
 #define	MCD_CMDREAD1		0xB0	/* read n sectors */
 #define	MCD_CMDREAD2		0xC0	/* read from-to */
+#define	MCD_CMDSTARTAUDIOMSF	0xC1	/* read	audio data */
+#define	MCD_CMDREADFAST		0xC1	/* Read	lots of	data from the drive */
+#define	MCD_CMDGETDRIVEMODE	0xC2	/* Get the drive mode */
+#define	MCD_CMDREAD		0xC3	/* Read	data from the drive */
+#define	MCD_CMDSETINTERLEAVE	0xC8	/* Adjust the interleave */
 #define	MCD_CMDCONTINFO		0xDC	/* Get controller info */
+#define	MCD_CMDSTOP		0xF0	/* Stop	everything */
 #define	MCD_CMDEJECTDISK	0xF6
 #define	MCD_CMDCLOSETRAY	0xF8
 
@@ -128,6 +155,25 @@ typedef unsigned char	bcd_t;
 #define	MCD_LK_UNLOCK	0x00
 #define	MCD_LK_LOCK	0x01
 #define	MCD_LK_TEST	0x02
+
+/* DMA Enable Stuff */
+#define	MCD_DMA_IRQFLAGS	0x10	/* Set data0 for IRQ click */
+
+#define	MCD_DMA_PREIRQ		0x01	/* All of these	are for	*/
+#define	MCD_DMA_POSTIRQ		0x02	/* MCD_DMA_IRQFLAG...	*/
+#define	MCD_DMA_ERRIRQ		0x04	/*			*/
+
+#define	MCD_DMA_TIMEOUT		0x08	/* Set data0 for DMA timeout */
+#define	MCD_DMA_UPCFLAG		0x04	/* 1 = Next command will be READUPC */
+
+#define	MCD_DMA_DMAMODE		0x02	/* 1 = Data uses DMA */
+#define	MCD_DMA_TRANSFERLENGTH	0x01	/* data0 = MSB,	data1 =	LSB of block length */
+
+struct mcd_dma_mode {
+	u_char	dma_mode;
+	u_char	data0;		/* If dma_mode & 0x10: Use IRQ settings	*/
+	u_char	data1;		/* Used	if dma_mode & 0x01 */
+};
 
 struct mcd_volinfo {
 	bcd_t	trk_low;
@@ -152,6 +198,11 @@ struct mcd_volume {
 	u_char	v0ls;
 };
 
+struct mcd_holdtime {
+	u_char	units_of_ten_seconds;
+			/* If this is 0, the default (12) is used */
+};
+
 struct mcd_read1 {
 	bcd_t	start_msf[3];
 	u_char	nsec[3];
@@ -161,4 +212,14 @@ struct mcd_read2 {
 	bcd_t	start_msf[3];
 	bcd_t	end_msf[3];
 };
+
+struct mcd_rawsector {
+	u_char sync1[12];
+	u_char header[4];
+	u_char subheader1[4];
+	u_char subheader2[4];
+	u_char data[MCDBLK];
+	u_char ecc_bits[280];
+};
+
 #endif /* MCD_H */
