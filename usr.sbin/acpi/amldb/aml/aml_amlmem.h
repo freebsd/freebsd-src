@@ -34,7 +34,7 @@
  * AML Namespace Memory Management
  */
 
-#include <dev/acpi/aml/aml_memman.h>
+#include <aml/aml_memman.h>
 
 enum {
 	memid_aml_namestr = 0,

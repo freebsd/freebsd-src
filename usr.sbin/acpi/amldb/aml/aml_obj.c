@@ -30,12 +30,12 @@
 
 #include <sys/param.h>
 
-#include <dev/acpi/aml/aml_amlmem.h>
-#include <dev/acpi/aml/aml_env.h>
-#include <dev/acpi/aml/aml_name.h>
-#include <dev/acpi/aml/aml_obj.h>
-#include <dev/acpi/aml/aml_status.h>
-#include <dev/acpi/aml/aml_store.h>
+#include <aml/aml_amlmem.h>
+#include <aml/aml_env.h>
+#include <aml/aml_name.h>
+#include <aml/aml_obj.h>
+#include <aml/aml_status.h>
+#include <aml/aml_store.h>
 
 #ifndef _KERNEL
 #include <sys/stat.h>
