@@ -85,6 +85,10 @@ do {						\
 #define	ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
 #define	ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
 
+#ifndef MAX
+#define	MAX(a, b)  ((a) > (b) ? (a) : (b))
+#endif
+
 void Debug(const char *, ...);
 void DebugM(const char *, ...);
 void Error(const char *, ...);

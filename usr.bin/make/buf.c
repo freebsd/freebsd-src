@@ -55,10 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "sprite.h"
 #include "util.h"
 
-#ifndef MAX
-#define	MAX(a,b)  ((a) > (b) ? (a) : (b))
-#endif
-
 /**
  * Returns the number of bytes in the buffer.  Doesn't include the
  * null-terminating byte.
