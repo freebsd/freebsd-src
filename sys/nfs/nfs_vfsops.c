@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.19 1995/08/24 10:17:39 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.20 1995/08/30 17:24:15 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -433,7 +433,6 @@ nfs_mountroot()
 	for (i = 0; i < MAXHOSTNAMELEN; i++)
 		if (hostname[i] == '\0')
 			break;
-	hostnamelen = i;
 	inittodr(ntohl(nd->root_time));
 	return (0);
 }

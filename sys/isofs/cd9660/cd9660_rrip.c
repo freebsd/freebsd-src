@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_rrip.c,v 1.6 1995/01/16 17:03:26 joerg Exp $
+ * $Id: cd9660_rrip.c,v 1.7 1995/05/30 08:05:00 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -152,7 +152,7 @@ cd9660_rrip_slink(p,ana)
 		case ISO_SUSP_CFLAG_HOST:
 			/* Inserting hostname i.e. "kurt.tools.de" */
 			inbuf = hostname;
-			wlen = hostnamelen;
+			wlen = strlen(hostname);
 			break;
 
 		case ISO_SUSP_CFLAG_CONTINUE:
@@ -224,7 +224,7 @@ cd9660_rrip_altname(p,ana)
 	case ISO_SUSP_CFLAG_HOST:
 		/* Inserting hostname i.e. "kurt.tools.de" */
 		inbuf = hostname;
-		wlen = hostnamelen;
+		wlen = strlen(hostname);
 		break;
 
 	case ISO_SUSP_CFLAG_CONTINUE:
