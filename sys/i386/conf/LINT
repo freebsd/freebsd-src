@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.152 1995/03/06 10:33:34 ugen Exp $
+#	$Id: LINT,v 1.153 1995/03/12 12:18:43 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -543,28 +543,45 @@ pseudo-device   ispy    1
 # pca: PCM audio through your PC speaker
 #
 
-options		AUDIO_PAS
-options		AUDIO_SB
-options		AUDIO_ADLIB
-options		AUDIO_GUS
-options		"AUDIO_MPU401"
-options		"AUDIO_UART6850"
-options		AUDIO_PSS
-options		"AUDIO_GUS16"
-options		AUDIO_GUSMAX
-options		AUDIO_MSS
-options		AUDIO_SBPRO
-options		"AUDIO_SB16"
-options		"AUDIO_YM3812"
+# SB = SoundBlaster;  PAS = ProAudioSpectrum;  GUS = Gravis UltraSound
+# Controls all sound devices
+controller	snd0
 
-device snd10 at isa? port 0x530 irq 10 drq 1 vector adintr
-device snd5 at isa? port 0x330 irq 6 vector mpuintr
-device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
-device snd3 at isa? port 0x388 irq 10 drq 6 vector pasintr
-device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
-device snd6 at isa? port 0x220 irq 7 drq 5 vector sbintr
-device snd7 at isa? port 0x300
-device snd1 at isa? port 0x388
+# Yamaha OPL-3 FM - for SB, SB Pro, SB16, PAS
+device opl0     at isa? port 0x388
+
+# Yamaha OPL-3 FM - for PAS
+#device opl0     at isa? port 0x38a
+
+# SoundBlaster DSP driver - for SB, SB Pro, SB16, PAS(emulating SB)
+device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
+
+# SoundBlaster 16 DSP driver - for SB16 - requires sb0 device
+device sbxvi0   at isa? drq 5
+
+# SoundBlaster 16 MIDI - for SB16 - requires sb0 device
+device sbmidi0  at isa? port 0x300
+
+# ProAudioSpectrum PCM and Midi - for PAS
+device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
+
+# MPU-401 - for MPU-401 standalone card
+device mpu0     at isa? port 0x330 irq 6 drq 0
+
+# Gravis UltraSound - for GUS, GUS16, GUSMAX
+device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
+
+# Gravis UltraSound 16 bit option - for GUS16 - requires gus0
+device gusxvi0 at isa? port 0x530 irq 7 drq 3 vector adintr
+
+# Gravis UltraSound MAX - for GUSMAX - requires gus0
+device gusmax0 at isa? port 0x32c
+
+# MS Sound System
+device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
+
+# 6850 UART Midi
+device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
 device pca0 at isa? tty
 
