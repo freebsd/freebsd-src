@@ -48,6 +48,7 @@
 #include <sys/param.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
