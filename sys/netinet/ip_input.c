@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.110 1998/12/21 22:40:54 luigi Exp $
+ * $Id: ip_input.c,v 1.111 1999/01/12 12:25:00 eivind Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -440,8 +440,12 @@ iphack:
 	}
 pass:
 
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
+        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN)) {
+#ifdef IPFIREWALL_FORWARD
+		ip_fw_fwd_addr = NULL;
+#endif
 		return;
+	}
 #endif	/* !COMPAT_IPFW */
 
 	/*
@@ -451,8 +455,12 @@ pass:
 	 * to be sent and the original packet to be freed).
 	 */
 	ip_nhops = 0;		/* for source routed packets */
-	if (hlen > sizeof (struct ip) && ip_dooptions(m))
+	if (hlen > sizeof (struct ip) && ip_dooptions(m)) {
+#ifdef IPFIREWALL_FORWARD
+		ip_fw_fwd_addr = NULL;
+#endif
 		return;
+	}
 
         /* greedy RSVP, snatches any PATH packet of the RSVP protocol and no
          * matter if it is destined to another node, or whether it is 
@@ -470,8 +478,6 @@ pass:
 					ia = TAILQ_NEXT(ia, ia_link)) {
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
 
-		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
-			goto ours;
 #ifdef BOOTP_COMPAT
 		if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY)
 			goto ours;
@@ -481,9 +487,14 @@ pass:
 		 * If the addr to forward to is one of ours, we pretend to
 		 * be the destination for this packet.
 		 */
-		if (ip_fw_fwd_addr != NULL &&
-			IA_SIN(ia)->sin_addr.s_addr ==
+		if (ip_fw_fwd_addr == NULL) {
+			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
+				goto ours;
+		} else if (IA_SIN(ia)->sin_addr.s_addr ==
 					 ip_fw_fwd_addr->sin_addr.s_addr)
+			goto ours;
+#else
+		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
 #endif
 		if (ia->ia_ifp && ia->ia_ifp->if_flags & IFF_BROADCAST) {
@@ -551,6 +562,9 @@ pass:
 		m_freem(m);
 	} else
 		ip_forward(m, 0);
+#ifdef IPFIREWALL_FORWARD
+	ip_fw_fwd_addr = NULL;
+#endif
 	return;
 
 ours:
@@ -569,6 +583,9 @@ ours:
 #ifdef IPDIVERT
 				frag_divert_port = 0;
 				ip_divert_cookie = 0;
+#endif
+#ifdef IPFIREWALL_FORWARD
+				ip_fw_fwd_addr = NULL;
 #endif
 				return;
 			}
