@@ -116,7 +116,8 @@ again:
 		if (*special != '/') {
 			if (*special == 'r')
 				special++;
-			(void)sprintf(device, "%s/%s", _PATH_DEV, special);
+			(void)snprintf(device, sizeof(device), "%s/%s",
+				       _PATH_DEV, special);
 			special = device;
 			goto again;
 		}
