@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.50 1997/05/30 00:55:22 jkh Exp $
+ * $Id: config.c,v 1.51.2.51 1997/06/06 13:01:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -305,7 +305,7 @@ void
 configEnvironmentRC_conf(char *config)
 {
     char *lines[MAX_LINES], *cp, *cp2;
-    int i, j, nlines;
+    int i, nlines;
 
     nlines = readConfig(config, lines, MAX_LINES);
     if (nlines == -1)
@@ -318,19 +318,21 @@ configEnvironmentRC_conf(char *config)
 	    continue;
 	}
 	*cp++ = '\0';
-	(void)string_prune(lines[i]);
-	cp = string_skipwhite(string_prune(cp));
-	if ((cp2 = index(cp, '"')) || (cp2 = index(cp, '\047')))	/* Eliminate leading quote if it's quoted */
+	/* Find quotes */
+	if ((cp2 = index(cp, '"')) || (cp2 = index(cp, '\047'))) {
 	    cp = cp2 + 1;
-	j = strlen(cp) - 1;
-	if (cp2 && cp[j] == *cp2) /* And trailing one */
-	    cp[j] = '\0';
-	if (strlen(cp))
-	    variable_set2(lines[i], cp);
+	    cp2 = index(cp, *cp2);
+	}
+	/* If valid quotes, use it */
+	if (cp2) {
+	    *cp2 = '\0';
+	    if (strlen(cp))
+		variable_set2(lines[i], cp);
+	}
 	free(lines[i]);
     }
 }
-    
+
 /* Load the environment from a resolv.conf file */
 void
 configEnvironmentResolv(char *config)
@@ -345,10 +347,10 @@ configEnvironmentResolv(char *config)
 	Boolean name_set = FALSE;
 
 	if (!strncmp(lines[i], "domain", 6))
-	    variable_set2(VAR_DOMAINNAME, string_skipwhite(lines[i] + 6));
+	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)));
 	else if (!strncmp(lines[i], "nameserver", 10) && !name_set) {
 	    /* Only take the first nameserver setting - we're lame */
-	    variable_set2(VAR_NAMESERVER, string_skipwhite(lines[i] + 10));
+	    variable_set2(VAR_NAMESERVER, string_skipwhite(string_prune(lines[i] + 10)));
 	    name_set = TRUE;
 	}
 	free(lines[i]);
@@ -373,7 +375,7 @@ configRC_conf(char *config)
     FILE *fp;
     char *lines[MAX_LINES], *cp;
     Variable *v;
-    int i, nlines;
+    int i, nlines, len;
 
     nlines = readConfig(config, lines, MAX_LINES);
     if (nlines == -1)
@@ -381,25 +383,28 @@ configRC_conf(char *config)
 
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
-	char line[512];
-
 	for (i = 0; i < nlines; i++) {
 	    /* Skip the comments & non-variable settings */
 	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
 		continue;
-	    sstrncpy(line, lines[i], cp - lines[i]);
-	    if (!strcmp(line, v->name)) {
-		char *cp3, *comment = NULL;
+	    len = strlen(v->name);
+	    if (!strncmp(lines[i], v->name, cp - lines[i]) && (cp - lines[i]) == len) {
+		char *cp2, *comment = NULL;
 
 		/* If trailing comment, try and preserve it */
-		if ((cp3 = index(lines[i], '#')) != NULL) {
-		    comment = alloca(strlen(cp3) + 1);
-		    strcpy(comment, cp3);
+		if ((index(lines[i], '#')) != NULL) {
+		    /* Find quotes */
+		    if ((cp2 = index(cp, '"')) || (cp2 = index(cp, '\047')))
+			cp2 = index(cp2 + 1, *cp2);
+		    if (cp2 && strlen(cp2 + 1)) {
+			comment = alloca(strlen(cp2));
+			strcpy(comment, cp2 + 1);
+		    }
 		}
 		free(lines[i]);
 		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
 		if (comment)
-		    sprintf(lines[i], "%s=\"%s\"\t\t%s", v->name, v->value, comment);
+		    sprintf(lines[i], "%s=\"%s\"%s", v->name, v->value, comment);
 		else
 		    sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
 	    }

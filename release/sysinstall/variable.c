@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11.2.3 1997/01/17 08:53:50 jkh Exp $
+ * $Id: variable.c,v 1.11.2.4 1997/06/06 13:01:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,16 +111,15 @@ variable_unset(char *var)
     Variable *vp;
     char name[512], *cp;
 
-    unsetenv(var);
-    if ((cp = index(var, '=')) != NULL) {
-	sstrncpy(name, cp, cp - var);
-	var = string_skipwhite(string_prune(name));
-    }
-
+    if ((cp = index(var, '=')) != NULL)
+	sstrncpy(name, var, cp - var);
+    else
+	SAFE_STRCPY(name, var);
+    unsetenv(name);
     /* Now search to see if it's in our list, if we have one.. */
     if (!VarHead)
 	return;
-    else if (!VarHead->next && !strcmp(VarHead->name, var)) {
+    else if (!VarHead->next && !strcmp(VarHead->name, name)) {
 	safe_free(VarHead->name);
 	safe_free(VarHead->value);
 	free(VarHead);
@@ -128,12 +127,12 @@ variable_unset(char *var)
     }
     else {
 	for (vp = VarHead; vp; vp = vp->next) {
-	    if (!strcmp(vp->name, var)) {
+	    if (!strcmp(vp->name, name)) {
 		Variable *save = vp->next;
 
+		safe_free(vp->name);
+		safe_free(vp->value);
 		*vp = *save;
-		safe_free(save->name);
-		safe_free(save->value);
 		safe_free(save);
 		break;
 	    }
