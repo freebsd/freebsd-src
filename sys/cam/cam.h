@@ -55,7 +55,7 @@ typedef u_int lun_id_t;
  * Definition of a CAM peripheral driver entry.  Peripheral drivers instantiate
  * one of these for each device they wish to communicate with and pass it into
  * the xpt layer when they wish to schedule work on that device via the
- * xpt_schecule API.
+ * xpt_schedule API.
  */
 struct cam_periph;
 
@@ -106,7 +106,7 @@ typedef enum {
 	CAM_SEL_TIMEOUT,	/* Target Selection Timeout */
 	CAM_CMD_TIMEOUT,	/* Command timeout */
 	CAM_SCSI_STATUS_ERROR,	/* SCSI error, look at error code in CCB */
-	CAM_MSG_REJECT_REC,	/* Message Reject Reveived */
+	CAM_MSG_REJECT_REC,	/* Message Reject Received */
 	CAM_SCSI_BUS_RESET,	/* SCSI Bus Reset Sent/Received */
 	CAM_UNCOR_PARITY,	/* Uncorrectable parity error occurred */
 	CAM_AUTOSENSE_FAIL = 0x10,/* Autosense: request sense cmd fail */

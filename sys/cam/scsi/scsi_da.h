@@ -261,7 +261,7 @@ union	disk_pages /* this is the structure copied from osf */
 		u_int8_t pg_code;	/* page code (should be 5)	      */
 #define SMS_FLEXIBLE_GEOMETRY_PAGE 0x05
 		u_int8_t pg_length;	/* page length (should be 0x1E)	      */
-#define SMS_FLEXIBLE_GEOMETRY_PLEN 0x0x1E
+#define SMS_FLEXIBLE_GEOMETRY_PLEN 0x1E
 		u_int8_t xfr_rate_1;	/* transfer rate (MSB)		      */
 		u_int8_t xfr_rate_0;	/* transfer rate (LSB)		      */
 		u_int8_t nheads;	/* number of heads 		      */
