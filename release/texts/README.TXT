@@ -35,7 +35,7 @@ ROAD MAP:
                 release
 
   LAYOUT.TXT    Information about the layout of the release
-                directory. If you are installing from floppies,
+                directory.  If you are installing from floppies,
                 it is especially important that you
                 *read this section!*
 
@@ -59,9 +59,9 @@ o If you are upgrading from a previous FreeBSD version,
   please take a look at UPGRADE.TXT.
 
 o It is also important to check the ERRATA.TXT file for any
-  late-breaking issues with this release. This file contains
+  late-breaking issues with this release.  This file contains
   the latest information on upgrade, security or other problems
-  which an administrator should be aware of.
+  that an administrator should be aware of.
 
 o Information regarding problems which arise after the CD
   is printed can be found at:
@@ -80,10 +80,10 @@ please install from:
 
 If you plan to run either -Stable or -Current you MUST be
 subscribed to the appropriate mailing list, either
-freebsd-stable or freebsd-current. For information on
+freebsd-stable or freebsd-current.  For information on
 subscribing to either list (or both), send an e-mail to
 majordomo@freebsd.org with the following in the body, not
-the subject of the letter as appropriate:
+the subject, of the letter as appropriate:
 
 subscribe freebsd-stable
 subscribe freebsd-current

@@ -419,7 +419,7 @@ Support for Dave Mills experimental Loran-C receiver.
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.

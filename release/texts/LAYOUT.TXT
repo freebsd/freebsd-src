@@ -12,7 +12,7 @@ RELNOTES.TXT    compat22        info            src
 LAYOUT.TXT      XF86333
 
 If you want to do a CDROM, FTP or NFS installation from this distribution
-directory, all you need to do is make a pair of 1.44Mb floppies from the
+directory, all you need to do is make a pair of 1.44MB floppies from the
 floppies/kern.flp and floppies/mfsroot.flp image files (see
 floppies/README.TXT for instructions on how to do this), boot the
 kern.flp image and follow the instructions.  See INSTALL.TXT for more
