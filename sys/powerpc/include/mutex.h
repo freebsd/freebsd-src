@@ -36,16 +36,6 @@
 
 #ifdef _KERNEL
 
-/*
- * Debugging
- */
-#define	ASS_IEN		MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       == ALPHA_PSL_IPL_0, "ps & IPL == IPL_0")
-#define	ASS_IDIS	MPASS2((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)	\
-			       == ALPHA_PSL_IPL_HIGH, "ps & IPL == IPL_HIGH")
-#define ASS_SIEN(mpp)	MPASS2((mpp)->mtx_saveintr \
-			       == ALPHA_PSL_IPL_0, "mpp->mtx_saveintr == IPL_0")
-
 #define	mtx_legal2block()						\
 	((alpha_pal_rdps() & ALPHA_PSL_IPL_MASK) == ALPHA_PSL_IPL_0)
 #define	mtx_intr_enable(mutex)	(mutex)->mtx_saveintr = ALPHA_PSL_IPL_0
