@@ -154,8 +154,6 @@ vm_offset_t vm_max_kernel_address;
  */
 struct pmap kernel_pmap_store;
 
-static boolean_t pmap_initialized = FALSE;
-
 /*
  * Allocate physical memory for use in pmap_bootstrap.
  */
@@ -595,8 +593,6 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 		if (result != KERN_SUCCESS || addr != translations[i].om_start)
 			panic("pmap_init: vm_map_find");
 	}
-
-	pmap_initialized = TRUE;
 }
 
 /*
