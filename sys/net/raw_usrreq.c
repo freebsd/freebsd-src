@@ -31,6 +31,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -44,12 +45,15 @@
 
 #include <net/raw_cb.h>
 
+MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
+
 /*
  * Initialize raw connection block q.
  */
 void
 raw_init()
 {
+
 	LIST_INIT(&rawcb_list);
 }
 
@@ -73,6 +77,7 @@ raw_input(m0, proto, src, dst)
 	struct socket *last;
 
 	last = 0;
+	mtx_lock(&rawcb_mtx);
 	LIST_FOREACH(rp, &rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != proto->sp_family)
 			continue;
@@ -117,6 +122,7 @@ raw_input(m0, proto, src, dst)
 		}
 	} else
 		m_freem(m);
+	mtx_unlock(&rawcb_mtx);
 }
 
 /*ARGSUSED*/
