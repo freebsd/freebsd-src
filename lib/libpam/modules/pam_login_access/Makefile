@@ -24,8 +24,8 @@
 #
 # $FreeBSD$
 
-LIB=		pam_login_access
-SRCS=		pam_login_access.c login_access.c
-MAN=		pam_login_access.8
+LIB=	pam_login_access
+SRCS=	pam_login_access.c login_access.c
+MAN=	pam_login_access.8
 
 .include <bsd.lib.mk>

@@ -24,12 +24,12 @@
 #
 # $FreeBSD$
 
-LIB=		pam_ksu
-SRCS=		pam_ksu.c
-DPADD=		${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBCOM_ERR} ${LIBROKEN}
-LDADD=		-lkrb5 -lasn1 -lcrypto -lcrypt \
-		-lcom_err -lroken
-MAN=		pam_ksu.8
+LIB=	pam_ksu
+SRCS=	pam_ksu.c
+MAN=	pam_ksu.8
+
+DPADD=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
+	${LIBCOM_ERR} ${LIBROKEN}
+LDADD=	-lkrb5 -lasn1 -lcrypto -lcrypt -lcom_err -lroken
 
 .include <bsd.lib.mk>

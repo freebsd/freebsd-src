@@ -24,11 +24,11 @@
 #
 # $FreeBSD$
 
-LIB=		pam_lastlog
-SRCS=		pam_lastlog.c
-DPADD=		${LIBUTIL}
-LDADD=		-lutil
+LIB=	pam_lastlog
+SRCS=	pam_lastlog.c
+MAN=	pam_lastlog.8
 
-MAN=		pam_lastlog.8
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
 
 .include <bsd.lib.mk>

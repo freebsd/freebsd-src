@@ -22,9 +22,10 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
+# $FreeBSD$
 
 .include "modules.inc"
-SUBDIR		 = ${MODULES}
+
+SUBDIR=	${MODULES}
 
 .include <bsd.subdir.mk>

@@ -24,11 +24,11 @@
 #
 # $FreeBSD$
 
-LIB=		pam_radius
-SRCS=		pam_radius.c
-DPADD=		${LIBRADIUS}
-LDADD=		-lradius
+LIB=	pam_radius
+SRCS=	pam_radius.c
+MAN=	pam_radius.8
 
-MAN=		pam_radius.8
+DPADD=	${LIBRADIUS}
+LDADD=	-lradius
 
 .include <bsd.lib.mk>

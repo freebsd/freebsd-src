@@ -24,8 +24,8 @@
 #
 # $FreeBSD$
 
-LIB=		pam_wheel
-SRCS=		pam_wheel.c
-MAN=		pam_wheel.8
+LIB=	pam_wheel
+SRCS=	pam_wheel.c
+MAN=	pam_wheel.8
 
 .include <bsd.lib.mk>
