@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
 #include <sys/stat.h>
 
 #include <limits.h>
+#include <locale.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -77,17 +78,17 @@ static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
 #define	LESS		(-1)
 #define NO_COMPARE	(-2)
 
-#define	FOLD(c)	(isascii(c) && isupper(c) ? tolower(c) : (c))
-#define	DICT(c)	(isascii(c) && isalnum(c) ? (c) : NO_COMPARE)
+#define FOLD(c) (isupper(c) ? tolower(c) : (unsigned char) (c))
+#define DICT(c) (isalnum(c) ? (c) & 0xFF /* int */ : NO_COMPARE)
 
 int dflag, fflag;
 
-char	*binary_search __P((char *, char *, char *));
-int	 compare __P((char *, char *, char *));
+char    *binary_search __P((unsigned char *, unsigned char *, unsigned char *));
+int      compare __P((unsigned char *, unsigned char *, unsigned char *));
 void	 err __P((const char *fmt, ...));
-char	*linear_search __P((char *, char *, char *));
-int	 look __P((char *, char *, char *));
-void	 print_from __P((char *, char *, char *));
+char    *linear_search __P((unsigned char *, unsigned char *, unsigned char *));
+int      look __P((unsigned char *, unsigned char *, unsigned char *));
+void     print_from __P((unsigned char *, unsigned char *, unsigned char *));
 
 static void usage __P((void));
 
@@ -97,7 +98,9 @@ main(argc, argv)
 {
 	struct stat sb;
 	int ch, fd, termchar;
-	char *back, *file, *front, *string, *p;
+	unsigned char *back, *file, *front, *string, *p;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	file = _PATH_WORDS;
 	termchar = '\0';
@@ -147,10 +150,10 @@ main(argc, argv)
 }
 
 look(string, front, back)
-	char *string, *front, *back;
+	unsigned char *string, *front, *back;
 {
 	register int ch;
-	register char *readp, *writep;
+	register unsigned char *readp, *writep;
 
 	/* Reformat string string to avoid doing it multiple times later. */
 	for (readp = writep = string; ch = *readp++;) {
@@ -215,9 +218,9 @@ look(string, front, back)
 
 char *
 binary_search(string, front, back)
-	register char *string, *front, *back;
+	register unsigned char *string, *front, *back;
 {
-	register char *p;
+	register unsigned char *p;
 
 	p = front + (back - front) / 2;
 	SKIP_PAST_NEWLINE(p, back);
@@ -250,7 +253,7 @@ binary_search(string, front, back)
  */
 char *
 linear_search(string, front, back)
-	char *string, *front, *back;
+	unsigned char *string, *front, *back;
 {
 	while (front < back) {
 		switch (compare(string, front, back)) {
@@ -273,7 +276,7 @@ linear_search(string, front, back)
  */
 void
 print_from(string, front, back)
-	register char *string, *front, *back;
+	register unsigned char *string, *front, *back;
 {
 	for (; front < back && compare(string, front, back) == EQUAL; ++front) {
 		for (; front < back && *front != '\n'; ++front)
@@ -299,7 +302,7 @@ print_from(string, front, back)
  */
 int
 compare(s1, s2, back)
-	register char *s1, *s2, *back;
+	register unsigned char *s1, *s2, *back;
 {
 	register int ch;
 
