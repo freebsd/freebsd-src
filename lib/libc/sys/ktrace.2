@@ -161,6 +161,15 @@ The kernel was not compiled with
 .Nm
 support.
 .El
+.Pp
+A thread may be unable to post one or more tracing requests due to a
+temporary shortage of resources.
+This condition is remembered by the kernel, and the next tracing request
+that succeeds will have the flag
+.Li KTR_DROP
+set in its
+.Va ktr_type
+field.
 .Sh SEE ALSO
 .Xr kdump 1 ,
 .Xr ktrace 1 ,
