@@ -86,10 +86,13 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AIC7850		0x5078900400000000ull
 #define ID_AHA_2910_15_20_30C	0x5078900478509004ull
 #define ID_AIC7855		0x5578900400000000ull
+#define ID_AIC7859		0x3860900400000000ull
+#define ID_AHA_2930CU		0x3860900438699004ull
 #define ID_AIC7860		0x6078900400000000ull
 #define ID_AIC7860C		0x6078900478609004ull
 #define ID_AHA_2940AU_0		0x6178900400000000ull
 #define ID_AHA_2940AU_1		0x6178900478619004ull
+#define ID_AHA_2940AU_CN	0x2178900478219004ull
 #define ID_AHA_2930C_VAR	0x6038900438689004ull
 
 #define ID_AIC7870		0x7078900400000000ull
@@ -101,7 +104,6 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 #define ID_AIC7880		0x8078900400000000ull
 #define ID_AIC7880_B		0x8078900478809004ull
-#define ID_AHA_2940AU_CN	0x2178900478219004ull
 #define ID_AHA_2940U		0x8178900400000000ull
 #define ID_AHA_3940U		0x8278900400000000ull
 #define ID_AHA_2944U		0x8478900400000000ull
@@ -139,6 +141,8 @@ typedef int (ahc_device_setup_t)(device_t, char *, ahc_chip *,
 				 ahc_feature *, ahc_flag *);
 
 static ahc_device_setup_t ahc_aic7850_setup;
+static ahc_device_setup_t ahc_aic7855_setup;
+static ahc_device_setup_t ahc_aic7859_setup;
 static ahc_device_setup_t ahc_aic7860_setup;
 static ahc_device_setup_t ahc_aic7870_setup;
 static ahc_device_setup_t ahc_aha394X_setup;
@@ -169,6 +173,13 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec 2910/15/20/30C SCSI adapter",
 		ahc_aic7850_setup
 	},
+	/* aic7859 based controllers */
+	{
+		ID_AHA_2930CU,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec 2930CU SCSI adapter",
+		ahc_aic7859_setup
+	},
 	/* aic7860 based controllers */
 	{
 		ID_AHA_2940AU_0 & ID_DEV_VENDOR_MASK,
@@ -177,8 +188,14 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ahc_aic7860_setup
 	},
 	{
+		ID_AHA_2940AU_CN & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec 2940A/CN Ultra SCSI adapter",
+		ahc_aic7860_setup
+	},
+	{
 		ID_AHA_2930C_VAR,
-		ID_ALL_MASK,
+		ID_DEV_VENDOR_MASK,
 		"Adaptec 2930C SCSI adapter (VAR)",
 		ahc_aic7860_setup
 	},
@@ -214,12 +231,6 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ahc_aha394X_setup
 	},
 	/* aic7880 based controllers */
-	{
-		ID_AHA_2940AU_CN & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
-		"Adaptec 2940A/CN Ultra SCSI adapter",
-		ahc_aic7880_setup
-	},
 	{
 		ID_AHA_2940U & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
@@ -361,7 +372,13 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AIC7855 & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
 		"Adaptec aic7855 SCSI adapter",
-		ahc_aic7850_setup
+		ahc_aic7855_setup
+	},
+	{
+		ID_AIC7859 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec aic7859 SCSI adapter",
+		ahc_aic7859_setup
 	},
 	{
 		ID_AIC7860 & ID_DEV_VENDOR_MASK,
@@ -748,7 +765,7 @@ ahc_pci_attach(device_t dev)
 			id_string = "aic7896/97 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
-			dscommand0 |= MPARCKEN;
+			dscommand0 |= CACHETHEN|MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
@@ -763,7 +780,7 @@ ahc_pci_attach(device_t dev)
 			id_string = "aic7890/91 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
-			dscommand0 |= MPARCKEN;
+			dscommand0 |= CACHETHEN|MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
@@ -778,6 +795,12 @@ ahc_pci_attach(device_t dev)
 			break;
 		case AHC_AIC7860:
 			id_string = "aic7860 ";
+			break;
+		case AHC_AIC7859:
+			id_string = "aic7859 ";
+			break;
+		case AHC_AIC7855:
+			id_string = "aic7855 ";
 			break;
 		case AHC_AIC7850:
 			id_string = "aic7850 ";
@@ -1446,6 +1469,26 @@ ahc_aic7850_setup(device_t dev, char *channel, ahc_chip *chip,
 	*channel = 'A';
 	*chip = AHC_AIC7850;
 	*features = AHC_AIC7850_FE;
+	return (0);
+}
+
+static int
+ahc_aic7855_setup(device_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7855;
+	*features = AHC_AIC7855_FE;
+	return (0);
+}
+
+static int
+ahc_aic7859_setup(device_t dev, char *channel, ahc_chip *chip,
+		  ahc_feature *features, ahc_flag *flags)
+{
+	*channel = 'A';
+	*chip = AHC_AIC7859;
+	*features = AHC_AIC7859_FE;
 	return (0);
 }
 
