@@ -1,4 +1,4 @@
-# $Id: standard-supfile,v 1.1 1996/08/21 00:23:54 jkh Exp $
+# $Id: standard-supfile,v 1.2 1996/08/21 00:26:30 jkh Exp $
 #
 # This file contains all of the "CVSUP collections" that comprise the FreeBSD
 # source distribution from the current (new and experimental) development
@@ -54,5 +54,6 @@ src-sbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr
 #src-secure release=current host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr/src delete old use-rel-suffix
 src-share release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 src-sys release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
+src-tools release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 src-usrbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
 src-usrsbin release=cvs host=cvsup.FreeBSD.org hostbase=/home base=/usr prefix=/usr delete old use-rel-suffix tag=.
