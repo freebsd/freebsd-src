@@ -162,9 +162,13 @@ values.
 .Pp
 A backslash followed by any other character maps to that character.
 .It c-c
-Represents the range of characters between the range endpoints, inclusive,
+For non-octal range endpoints
+represents the range of characters between the range endpoints, inclusive,
 in ascending order,
 as defined by the collation sequence.
+If either or both of the range endpoints are octal sequences, it
+represents the range of specific coded values between the
+range endpoints, inclusive.
 .It [:class:]
 Represents all characters belonging to the defined character class.
 Class names are:

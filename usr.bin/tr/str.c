@@ -51,19 +51,19 @@ static const char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 
 #include "extern.h"
 
-static int	backslash(STR *);
+static int      backslash(STR *, int *);
 static int	bracket(STR *);
 static int	c_class(const void *, const void *);
 static void	genclass(STR *);
 static void	genequiv(STR *);
-static int	genrange(STR *);
+static int      genrange(STR *, int);
 static void	genseq(STR *);
 
 int
 next(s)
 	STR *s;
 {
-	int ch;
+	int ch, is_octal;
 
 	switch (s->state) {
 	case EOS:
@@ -76,20 +76,21 @@ next(s)
 			s->state = EOS;
 			return (0);
 		case '\\':
-			s->lastch = backslash(s);
+			s->lastch = backslash(s, &is_octal);
 			break;
 		case '[':
 			if (bracket(s))
 				return (next(s));
 			/* FALLTHROUGH */
 		default:
+			is_octal = 0;
 			++s->str;
 			s->lastch = ch;
 			break;
 		}
 
 		/* We can start a range at any time. */
-		if (s->str[0] == '-' && genrange(s))
+		if (s->str[0] == '-' && genrange(s, is_octal))
 			return (next(s));
 		return (1);
 	case SEQUENCE:
@@ -233,7 +234,7 @@ genequiv(s)
 	char src[2], dst[3];
 
 	if (*s->str == '\\') {
-		s->equiv[0] = backslash(s);
+		s->equiv[0] = backslash(s, NULL);
 		if (*s->str != '=')
 			errx(1, "misplaced equivalence equals sign");
 		s->str += 2;
@@ -271,32 +272,42 @@ genequiv(s)
 }
 
 static int
-genrange(s)
-	STR *s;
+genrange(STR *s, int was_octal)
 {
-	int stopval;
+	int stopval, octal;
 	char *savestart;
 	int n, cnt, *p;
 
+	octal = 0;
 	savestart = s->str;
-	stopval = *++s->str == '\\' ? backslash(s) : (u_char)*s->str++;
-	if (charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0) {
+	stopval = *++s->str == '\\' ? backslash(s, &octal) : (u_char)*s->str++;
+	if (!octal)
+		octal = was_octal;
+
+	if ((octal && stopval < s->lastch) ||
+	    (!octal &&
+	     charcoll((const void *)&stopval, (const void *)&(s->lastch)) < 0)) {
 		s->str = savestart;
 		return (0);
 	}
 	if ((s->set = p = malloc((NCHARS + 1) * sizeof(int))) == NULL)
 		err(1, "genrange() malloc");
 	bzero(p, (NCHARS + 1) * sizeof(int));
-	for (cnt = 0; cnt < NCHARS; ++cnt)
-		if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
-		    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
+	if (octal) {
+		for (cnt = s->lastch; cnt <= stopval; cnt++)
 			*p++ = cnt;
+	} else {
+		for (cnt = 0; cnt < NCHARS; cnt++)
+			if (charcoll((const void *)&cnt, (const void *)&(s->lastch)) >= 0 &&
+			    charcoll((const void *)&cnt, (const void *)&stopval) <= 0)
+				*p++ = cnt;
+	}
 	*p = OOBCH;
 	n = p - s->set;
 
 	s->cnt = 0;
 	s->state = SET;
-	if (n > 1)
+	if (!octal && n > 1)
 		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
 	return (1);
 }
@@ -311,7 +322,7 @@ genseq(s)
 		errx(1, "sequences only valid in string2");
 
 	if (*s->str == '\\')
-		s->lastch = backslash(s);
+		s->lastch = backslash(s, NULL);
 	else
 		s->lastch = *s->str++;
 	if (*s->str != '*')
@@ -319,7 +330,7 @@ genseq(s)
 
 	switch (*++s->str) {
 	case '\\':
-		s->cnt = backslash(s);
+		s->cnt = backslash(s, NULL);
 		break;
 	case ']':
 		s->cnt = 0;
@@ -345,14 +356,15 @@ genseq(s)
  * an escape code or a literal character.
  */
 static int
-backslash(s)
-	STR *s;
+backslash(STR *s, int *is_octal)
 {
 	int ch, cnt, val;
 
+	if (is_octal != NULL)
+		*is_octal = 0;
 	for (cnt = val = 0;;) {
 		ch = (u_char)*++s->str;
-		if (!isascii(ch) || !isdigit(ch))
+		if (!isdigit(ch))
 			break;
 		val = val * 8 + ch - '0';
 		if (++cnt == 3) {
@@ -360,8 +372,11 @@ backslash(s)
 			break;
 		}
 	}
-	if (cnt)
+	if (cnt) {
+		if (is_octal != NULL)
+			*is_octal = 1;
 		return (val);
+	}
 	if (ch != '\0')
 		++s->str;
 	switch (ch) {
