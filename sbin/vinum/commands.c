@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: commands.c,v 1.1 1998/08/19 08:06:57 grog Exp grog $ */
+/* $Id: commands.c,v 1.3 1998/10/27 06:10:45 grog Exp grog $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -450,55 +450,6 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		message->index = object;		    /* pass object number */
 		message->type = type;			    /* and type of object */
 		message->state = object_up;
-		/* XXX Kludge until we get the kernelland
-		 * config stuff rewritten:
-		 * Take all subdisks down, then up. */
-		if (message->type == plex_object) {	    /* it's a plex */
-		    struct plex plex;
-		    struct sd sd;
-		    int sdno;
-		    struct _ioctl_reply sreply;
-		    struct vinum_ioctl_msg *smessage = (struct vinum_ioctl_msg *) &sreply;
-
-		    get_plex_info(&plex, message->index);
-		    if (plex.state != plex_up) {
-							    /* And when they were down, they were down */
-			for (sdno = 0; sdno < plex.subdisks; sdno++) {
-			    get_plex_sd_info(&sd, plex.plexno, sdno);
-			    smessage->type = sd_object;
-			    smessage->state = object_down;
-			    smessage->force = 1;
-			    smessage->index = sd.sdno;
-			    ioctl(superdev, VINUM_SETSTATE, smessage);
-			    if (sreply.error != 0) {
-				fprintf(stderr,
-				    "Can't stop %s: %s (%d)\n",
-				    sd.name,
-				    sreply.msg[0] ? sreply.msg : strerror(sreply.error),
-				    sreply.error);
-			    }
-			}
-
-							    /* And when they were up, they were up */
-			for (sdno = 0; sdno < plex.subdisks; sdno++) {
-			    get_plex_sd_info(&sd, plex.plexno, sdno);
-			    smessage->type = sd_object;
-			    smessage->state = object_up;
-			    smessage->force = 1;
-			    smessage->index = sd.sdno;
-			    ioctl(superdev, VINUM_SETSTATE, smessage);
-			    if (sreply.error != 0) {
-				fprintf(stderr,
-				    "Can't stop %s: %s (%d)\n",
-				    sd.name,
-				    sreply.msg[0] ? sreply.msg : strerror(sreply.error),
-				    sreply.error);
-			    }
-			}
-		    }
-		}
-		/* XXX End kludge until we get the kernelland
-		 * config stuff rewritten */
 		ioctl(superdev, VINUM_SETSTATE, message);
 		if (reply.error != 0) {
 		    if ((reply.error == EAGAIN)		    /* we're reviving */
