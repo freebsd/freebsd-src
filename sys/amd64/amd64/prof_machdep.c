@@ -28,8 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #ifdef GUPROF
+#if 0
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
+#if 0
 #include <machine/perfmon.h>
+#endif
 #include <machine/profile.h>
 #undef MCOUNT
 #endif
@@ -89,7 +93,14 @@ __mcount:							\n\
  	# hasn't changed the stack except to call here, so the	\n\
 	# caller's raddr is above our raddr.			\n\
 	#							\n\
- 	movl	4(%esp),%edx					\n\
+	pushq	%rax						\n\
+	pushq	%rdx						\n\
+	pushq	%rcx						\n\
+	pushq	%rsi						\n\
+	pushq	%rdi						\n\
+	pushq	%r8						\n\
+	pushq	%r9						\n\
+	movq	7*8+8(%rsp),%rdi				\n\
  	jmp	.got_frompc					\n\
  								\n\
  	.p2align 4,0x90						\n\
@@ -101,24 +112,35 @@ __cyg_profile_func_enter:					\n\
 	je	.mcount_exit					\n\
 	#							\n\
 	# The caller's stack frame has already been built, so	\n\
-	# %ebp is the caller's frame pointer.  The caller's	\n\
+	# %rbp is the caller's frame pointer.  The caller's	\n\
 	# raddr is in the caller's frame following the caller's	\n\
 	# caller's frame pointer.				\n\
 	#							\n\
-	movl	4(%ebp),%edx					\n\
+	pushq	%rax						\n\
+	pushq	%rdx						\n\
+	pushq	%rcx						\n\
+	pushq	%rsi						\n\
+	pushq	%rdi						\n\
+	pushq	%r8						\n\
+	pushq	%r9						\n\
+	movq	8(%rbp),%rdi					\n\
 .got_frompc:							\n\
 	#							\n\
 	# Our raddr is the caller's pc.				\n\
 	#							\n\
-	movl	(%esp),%eax					\n\
+	movq	7*8(%rsp),%rsi					\n\
 								\n\
-	pushfl							\n\
-	pushl	%eax						\n\
-	pushl	%edx						\n\
+	pushfq							\n\
 	cli							\n\
 	call	" __XSTRING(CNAME(mcount)) "			\n\
-	addl	$8,%esp						\n\
-	popfl							\n\
+	popfq							\n\
+	popq	%r9						\n\
+	popq	%r8						\n\
+	popq	%rdi						\n\
+	popq	%rsi						\n\
+	popq	%rcx						\n\
+	popq	%rdx						\n\
+	popq	%rax						\n\
 .mcount_exit:							\n\
 	ret							\n\
 ");
@@ -154,17 +176,25 @@ GMON_PROF_HIRES	=	4					\n\
 __cyg_profile_func_exit:					\n\
 	cmpl	$GMON_PROF_HIRES," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
 	jne	.mexitcount_exit				\n\
-	pushl	%edx						\n\
-	pushl	%eax						\n\
-	movl	8(%esp),%eax					\n\
-	pushfl							\n\
-	pushl	%eax						\n\
+	pushq	%rax						\n\
+	pushq	%rdx						\n\
+	pushq	%rcx						\n\
+	pushq	%rsi						\n\
+	pushq	%rdi						\n\
+	pushq	%r8						\n\
+	pushq	%r9						\n\
+	movq	7*8(%rsp),%rdi					\n\
+	pushfq							\n\
 	cli							\n\
 	call	" __XSTRING(CNAME(mexitcount)) "		\n\
-	addl	$4,%esp						\n\
-	popfl							\n\
-	popl	%eax						\n\
-	popl	%edx						\n\
+	popfq							\n\
+	popq	%r9						\n\
+	popq	%r8						\n\
+	popq	%rdi						\n\
+	popq	%rsi						\n\
+	popq	%rcx						\n\
+	popq	%rdx						\n\
+	popq	%rax						\n\
 .mexitcount_exit:						\n\
 	ret							\n\
 ");
@@ -188,7 +218,7 @@ cputime()
 	u_char high, low;
 	static u_int prev_count;
 
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#ifndef SMP
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		count = (u_int)rdtsc();
 		delta = (int)(count - prev_count);
@@ -210,7 +240,7 @@ cputime()
 		return (delta);
 	}
 #endif /* PERFMON && I586_PMC_GUPROF */
-#endif /* (I586_CPU || I686_CPU) && !SMP */
+#endif /* !SMP */
 
 	/*
 	 * Read the current value of the 8254 timer counter 0.
@@ -292,13 +322,13 @@ startguprof(gp)
 {
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#ifndef SMP
 		if (tsc_freq != 0)
 			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#ifndef SMP
 	if (cputime_clock == CPUTIME_CLOCK_TSC)
 		gp->profrate = tsc_freq;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
@@ -327,7 +357,7 @@ startguprof(gp)
 		}
 	}
 #endif /* PERFMON && I586_PMC_GUPROF */
-#endif /* (I586_CPU || I686_CPU) && !SMP */
+#endif /* !SMP */
 	cputime_bias = 0;
 	cputime();
 }
