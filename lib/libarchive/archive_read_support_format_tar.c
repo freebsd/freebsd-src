@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <dmalloc.h>
 #endif
 #include <errno.h>
-#include <stdint.h>
+/* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -63,39 +63,101 @@ struct archive_entry_header_ustar {
 	char	prefix[155];
 };
 
+/*
+ * Data specific to this format.
+ */
+struct tar {
+	struct archive_string	 acl_text;
+	struct archive_string	 entry_name;
+	struct archive_string	 entry_linkname;
+	struct archive_string	 entry_uname;
+	struct archive_string	 entry_gname;
+	struct archive_string	 longlink;
+	struct archive_string	 longname;
+	struct archive_string	 pax_header;
+	struct archive_string	 pax_global;
+	wchar_t 		*pax_entry;
+	size_t			 pax_entry_length;
+	int			 header_recursion_depth;
+};
+
+static size_t	UTF8_mbrtowc(wchar_t * __restrict pwc,
+		    const char * __restrict s, size_t n,
+		    mbstate_t * __restrict ps __unused);
 static int	archive_block_is_null(const unsigned char *p);
-static int	archive_header_common(struct archive *, struct archive_entry *,
-		    struct stat *, const void *);
-static int	archive_header_old_tar(struct archive *,
+static int	header_Solaris_ACL(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
-static int	archive_header_pax_extensions(struct archive *,
+static int	header_common(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
-static int	archive_header_pax_global(struct archive *,
+static int	header_old_tar(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *);
+static int	header_pax_extensions(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *);
+static int	header_pax_global(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, const void *h);
-static int	archive_header_ustar(struct archive *, struct archive_entry *,
-		    struct stat *, const void *h);
+static int	header_longlink(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *h);
+static int	header_longname(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *h);
+static int	header_ustar(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *h);
 static int	archive_read_format_tar_bid(struct archive *);
+static int	archive_read_format_tar_cleanup(struct archive *);
 static int	archive_read_format_tar_read_header(struct archive *,
 		    struct archive_entry *);
 static int	checksum(struct archive *, const void *);
-static int 	pax_attribute(struct archive *, struct archive_entry *,
-		    struct stat *, char *key, char *value);
-static int 	pax_header(struct archive *, struct archive_entry *,
-		    struct stat *, char *attr, uint64_t length);
-static void	pax_time(const char *, struct timespec *t);
+static int 	pax_attribute(struct archive_entry *, struct stat *,
+		    wchar_t *key, wchar_t *value);
+static int 	pax_header(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, char *attr);
+static void	pax_time(const wchar_t *, struct timespec *t);
+static int	read_body_to_string(struct archive *, struct archive_string *,
+		    const void *h);
 static int64_t	tar_atol(const char *, unsigned);
-static int64_t	tar_atol10(const char *, unsigned);
+static int64_t	tar_atol10(const wchar_t *, unsigned);
 static int64_t	tar_atol256(const char *, unsigned);
 static int64_t	tar_atol8(const char *, unsigned);
+static int	tar_read_header(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *);
+static int	utf8_decode(wchar_t *, const char *, size_t length);
 
 int
 archive_read_support_format_tar(struct archive *a)
 {
+	struct tar *tar;
+
+	tar = malloc(sizeof(*tar));
+	memset(tar, 0, sizeof(*tar));
+
 	return (__archive_read_register_format(a,
-	    NULL,
+	    tar,
 	    archive_read_format_tar_bid,
 	    archive_read_format_tar_read_header,
-	    NULL));
+	    archive_read_format_tar_cleanup));
+}
+
+static int
+archive_read_format_tar_cleanup(struct archive *a)
+{
+	struct tar *tar;
+
+	tar = *(a->pformat_data);
+	if (tar->entry_name.s != NULL)
+		free(tar->entry_name.s);
+	if (tar->entry_linkname.s != NULL)
+		free(tar->entry_linkname.s);
+	if (tar->entry_uname.s != NULL)
+		free(tar->entry_uname.s);
+	if (tar->entry_gname.s != NULL)
+		free(tar->entry_gname.s);
+	if (tar->pax_header.s != NULL)
+		free(tar->pax_header.s);
+	if (tar->pax_global.s != NULL)
+		free(tar->pax_global.s);
+
+	free(tar);
+	*(a->pformat_data) = NULL;
+	return (ARCHIVE_OK);
 }
 
 
@@ -179,17 +241,36 @@ archive_read_format_tar_bid(struct archive *a)
 	return (bid);
 }
 
+/*
+ * The function invoked by archive_read_header().  This
+ * just sets up a few things and then calls the internal
+ * tar_read_header() function below.
+ */
 static int
 archive_read_format_tar_read_header(struct archive *a,
     struct archive_entry *entry)
 {
 	struct stat st;
+	struct tar *tar;
+
+	memset(&st, 0, sizeof(st));
+	tar = *(a->pformat_data);
+
+	return (tar_read_header(a, tar, entry, &st));
+}
+
+/*
+ * This function recursively interprets all of the headers associated
+ * with a single entry.
+ */
+static int
+tar_read_header(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st)
+{
 	ssize_t bytes;
 	int err;
 	const void *h;
 	const struct archive_entry_header_ustar *header;
-
-	memset(&st, 0, sizeof(st));
 
 	/* Read 512-byte header record */
 	bytes = (a->compression_read_ahead)(a, &h, 512);
@@ -208,8 +289,8 @@ archive_read_format_tar_read_header(struct archive *a,
 
 	/*
 	 * Note: If the checksum fails and we return ARCHIVE_RETRY,
-	 * then the client is likely to just retry.  This is a very crude way
-	 * to search for the next valid header!
+	 * then the client is likely to just retry.  This is a very
+	 * crude way to search for the next valid header!
 	 *
 	 * TODO: Improve this by implementing a real header scan.
 	 */
@@ -218,38 +299,57 @@ archive_read_format_tar_read_header(struct archive *a,
 		return (ARCHIVE_RETRY); /* Retryable: Invalid header */
 	}
 
+	if (++tar->header_recursion_depth > 32) {
+		archive_set_error(a, EINVAL, "Too many special headers");
+		return (ARCHIVE_WARN);
+	}
+
 	/* Determine the format variant. */
 	header = h;
-	if (memcmp(header->magic, "ustar", 5) != 0)
-		err = archive_header_old_tar(a, entry, &st, h); /* non-POSIX */
-	else switch(header->typeflag[0]) {
-	case 'g':
+	if (memcmp(header->magic, "ustar", 5) != 0) {
+		a->archive_format = ARCHIVE_FORMAT_TAR;
+		a->archive_format_name = "tar (non-POSIX)";
+		err = header_old_tar(a, tar, entry, st, h);
+	} else switch(header->typeflag[0]) {
+	case 'A': /* Solaris tar ACL */
+		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
+		a->archive_format_name = "Solaris tar";
+		err = header_Solaris_ACL(a, tar, entry, st, h);
+		break;
+	case 'g': /* POSIX-standard 'g' header. */
 		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive_format_name = "POSIX pax interchange format";
-		err = archive_header_pax_global(a, entry, &st, h);
+		err = header_pax_global(a, tar, entry, st, h);
 		break;
-	case 'x':
-		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
-		a->archive_format_name = "POSIX pax interchange format";
-		err = archive_header_pax_extensions(a, entry, &st, h);
+	case 'K': /* Long link name (non-POSIX, but fairly common). */
+		err = header_longlink(a, tar, entry, st, h);
 		break;
-	case 'X':
+	case 'L': /* Long filename (non-POSIX, but fairly common). */
+		err = header_longname(a, tar, entry, st, h);
+		break;
+	case 'X': /* Used by SUN tar; same as 'x'. */
 		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive_format_name =
 		    "POSIX pax interchange format (Sun variant)";
-		err = archive_header_pax_extensions(a, entry, &st, h);
+		err = header_pax_extensions(a, tar, entry, st, h);
+		break;
+	case 'x': /* POSIX-standard 'x' header. */
+		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
+		a->archive_format_name = "POSIX pax interchange format";
+		err = header_pax_extensions(a, tar, entry, st, h);
 		break;
 	default:
-		if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE) {
+		if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE
+		    && a->archive_format != ARCHIVE_FORMAT_TAR_USTAR) {
 			a->archive_format = ARCHIVE_FORMAT_TAR_USTAR;
-			a->archive_format_name = "POSIX ustar";
+			a->archive_format_name = "POSIX ustar format";
 		}
-		err = archive_header_ustar(a, entry, &st, h);
+		err = header_ustar(a, tar, entry, st, h);
 	}
-	archive_entry_copy_stat(entry, &st);
+	archive_entry_copy_stat(entry, st);
+	--tar->header_recursion_depth;
 	return (err);
 }
-
 
 /*
  * Return true if block checksum is correct.
@@ -298,7 +398,6 @@ checksum(struct archive *a, const void *h)
 	return (0);
 }
 
-
 /*
  * Return true if this block contains only nulls.
  */
@@ -314,28 +413,120 @@ archive_block_is_null(const unsigned char *p)
 }
 
 /*
+ * Interpret 'A' Solaris ACL header
+ */
+static int
+header_Solaris_ACL(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st, const void *h)
+{
+	int err, err2;
+
+	err = read_body_to_string(a, &(tar->acl_text), h);
+	err2 = tar_read_header(a, tar, entry, st);
+
+	/* XXX DO SOMETHING WITH THE ACL!!! XXX */
+	{
+		const char *msg = "\nXXX Solaris ACL entries recognized but not yet handled!!\n";
+		write(2, msg, strlen(msg));
+	}
+
+	return (err_combine(err, err2));
+}
+
+/*
+ * Interpret 'K' long linkname header.
+ */
+static int
+header_longlink(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st, const void *h)
+{
+	int err, err2;
+
+	err = read_body_to_string(a, &(tar->longlink), h);
+	err2 = tar_read_header(a, tar, entry, st);
+	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK) {
+		if (archive_entry_tartype(entry) == '1')
+			archive_entry_set_hardlink(entry, tar->longlink.s);
+		else if (archive_entry_tartype(entry) == '2')
+			archive_entry_set_symlink(entry, tar->longlink.s);
+	}
+	return (err_combine(err, err2));
+}
+
+/*
+ * Interpret 'L' long filename header.
+ */
+static int
+header_longname(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st, const void *h)
+{
+	int err, err2;
+
+	err = read_body_to_string(a, &(tar->longname), h);
+	/* Read and parse "real" header, then override name. */
+	err2 = tar_read_header(a, tar, entry, st);
+	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK)
+		archive_entry_set_pathname(entry, tar->longname.s);
+	return (err_combine(err, err2));
+}
+
+/*
+ * Read body of an archive entry into an archive_string object.
+ */
+static int
+read_body_to_string(struct archive *a, struct archive_string *as, const void *h)
+{
+	const struct archive_entry_header_ustar *header;
+	off_t size;
+	unsigned oldstate;
+	int err, err2;
+
+	header = h;
+	size  = tar_atol(header->size, sizeof(header->size));
+
+	/* Temporarily fudge internal state for read_data call. */
+	oldstate = a->state;
+	a->state = ARCHIVE_STATE_DATA;
+
+	/* Read the body into the string. */
+	a->entry_bytes_remaining = size;
+	a->entry_padding = 0x1ff & -size;
+	archive_string_ensure(as, size+1);
+	err = archive_read_data_into_buffer(a, as->s, size);
+	as->s[size] = 0; /* Null terminate name! */
+	err2 = archive_read_data_skip(a); /* Resync for next header. */
+
+	/* Restore the state. */
+	a->state = oldstate;
+
+	return (err_combine(err, err2));
+}
+
+/*
  * Parse out common header elements.
  *
- * This would be the same as archive_header_old_tar, except that the
+ * This would be the same as header_old_tar, except that the
  * filename is handled slightly differently for old and POSIX
  * entries  (POSIX entries support a 'prefix').  This factoring
- * allows archive_header_old_tar and archive_header_ustar
+ * allows header_old_tar and header_ustar
  * to handle filenames differently, while still putting most of the
  * common parsing into one place.
  */
 static int
-archive_header_common(struct archive *a, struct archive_entry *entry,
+header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
     struct stat *st, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
 	char	tartype;
 
+	(void)a; /* UNUSED */
+
 	header = h;
 	if (header->linkname[0])
-		archive_strncpy(&(a->entry_linkname), header->linkname,
+		archive_strncpy(&(tar->entry_linkname), header->linkname,
 		    sizeof(header->linkname));
 	else
-		archive_string_empty(&(a->entry_linkname));
+		archive_string_empty(&(tar->entry_linkname));
 
 	/* Parse out the numeric fields (all are octal) */
 	st->st_mode  = tar_atol(header->mode, sizeof(header->mode));
@@ -351,7 +542,7 @@ archive_header_common(struct archive *a, struct archive_entry *entry,
 
 	switch (tartype) {
 	case '1': /* Hard link */
-		archive_entry_set_hardlink(entry, a->entry_linkname.s);
+		archive_entry_set_hardlink(entry, tar->entry_linkname.s);
 		/*
 		 * The following may seem odd, but: Technically, tar
 		 * does not store the file type for a "hard link"
@@ -367,7 +558,7 @@ archive_header_common(struct archive *a, struct archive_entry *entry,
 	case '2': /* Symlink */
 		st->st_mode |= S_IFLNK;
 		st->st_size = 0;
-		archive_entry_set_symlink(entry, a->entry_linkname.s);
+		archive_entry_set_symlink(entry, tar->entry_linkname.s);
 		break;
 	case '3': /* Character device */
 		st->st_mode |= S_IFCHR;
@@ -397,24 +588,21 @@ archive_header_common(struct archive *a, struct archive_entry *entry,
 }
 
 /*
- * Parse out header elements for "old-style" tar archives
+ * Parse out header elements for "old-style" tar archives.
  */
 static int
-archive_header_old_tar(struct archive *a, struct archive_entry *entry,
+header_old_tar(struct archive *a, struct tar *tar, struct archive_entry *entry,
     struct stat *st, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
 
-	a->archive_format = ARCHIVE_FORMAT_TAR;
-	a->archive_format_name = "tar (non-POSIX)";
-
 	/* Copy filename over (to ensure null termination). */
 	header = h;
-	archive_strncpy(&(a->entry_name), header->name, sizeof(header->name));
-	archive_entry_set_pathname(entry, a->entry_name.s);
+	archive_strncpy(&(tar->entry_name), header->name, sizeof(header->name));
+	archive_entry_set_pathname(entry, tar->entry_name.s);
 
 	/* Grab rest of common fields */
-	archive_header_common(a, entry, st, h);
+	header_common(a, tar, entry, st, h);
 
 	/*
 	 * TODO: Decide whether the following special handling
@@ -423,7 +611,7 @@ archive_header_old_tar(struct archive *a, struct archive_entry *entry,
 
 	/* "Regular" entry with trailing '/' is really directory. */
 	if (S_ISREG(st->st_mode) &&
-	    '/' == a->entry_name.s[strlen(a->entry_name.s) - 1]) {
+	    '/' == tar->entry_name.s[strlen(tar->entry_name.s) - 1]) {
 		st->st_mode &= ~S_IFMT;
 		st->st_mode |= S_IFDIR;
 		archive_entry_set_tartype(entry, '5');
@@ -434,92 +622,29 @@ archive_header_old_tar(struct archive *a, struct archive_entry *entry,
 	return (0);
 }
 
-
 /*
  * Parse a file header for a pax extended archive entry.
  */
 static int
-archive_header_pax_global(struct archive *a, struct archive_entry *entry,
-    struct stat *st, const void *h)
+header_pax_global(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st, const void *h)
 {
-	uint64_t extension_size;
-	size_t bytes;
-	int err;
-	char *global;
-	const struct archive_entry_header_ustar *header;
+	int err, err2;
 
-	header = h;
-	extension_size = tar_atol(header->size, sizeof(header->size));
-	a->entry_bytes_remaining = extension_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
-
-	global = malloc(extension_size + 1);
-	archive_read_data_into_buffer(a, global, extension_size);
-	global[extension_size] = 0;
-
-	/*
-	 * TODO: Store the global default options somewhere for future use.
-	 * For now, just free the buffer and keep going.
-	 */
-	free(global);
-
-	/* Skip the padding. */
-	archive_read_data_skip(a);
-
-	/* Read the next header. */
-	bytes = (a->compression_read_ahead)(a, &h, 512);
-	if (bytes < 512) {
-		/* TODO: Set error values. */
-		return (-1);
-	}
-	(a->compression_read_consume)(a, 512);
-
-	header = h;
-	switch(header->typeflag[0]) {
-	case 'x':
-	case 'X':
-		err = archive_header_pax_extensions(a, entry, st, h);
-		break;
-	default:
-		err = archive_header_ustar(a, entry, st, h);
-	}
-
-	return (err);
+	err = read_body_to_string(a, &(tar->pax_global), h);
+	err2 = tar_read_header(a, tar, entry, st);
+	return (err_combine(err, err2));
 }
 
 static int
-archive_header_pax_extensions(struct archive *a,
+header_pax_extensions(struct archive *a, struct tar *tar,
     struct archive_entry *entry, struct stat *st, const void *h)
 {
-	uint64_t extension_size;
-	size_t bytes;
-	int err;
-	const struct archive_entry_header_ustar *header;
-	int oldstate;
+	read_body_to_string(a, &(tar->pax_header), h);
+	int err, err2;
 
-	header = h;
-	extension_size  = tar_atol(header->size, sizeof(header->size));
-	a->entry_bytes_remaining = extension_size;
-	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
-
-	archive_string_ensure(&(a->pax_header), extension_size + 1);
-	oldstate = a->state;
-	a->state = ARCHIVE_STATE_DATA;
-	archive_read_data_into_buffer(a, a->pax_header.s, extension_size);
-	a->pax_header.s[extension_size] = 0;
-	archive_read_data_skip(a); /* Skip any padding. */
-	a->state = oldstate;
-
-	/* Read the next header. */
-	bytes = (a->compression_read_ahead)(a, &h, 512);
-	if (bytes < 512) {
-		/* TODO: Set error values */
-		return (-1);
-	}
-	(a->compression_read_consume)(a, 512);
-
-	/* Must be a regular POSIX ustar entry. */
-	err = archive_header_ustar(a, entry, st, h);
+	/* Parse the next header. */
+	err = tar_read_header(a, tar, entry, st);
 
 	/*
 	 * TODO: Parse global/default options into 'entry' struct here
@@ -531,7 +656,8 @@ archive_header_pax_extensions(struct archive *a,
 	 * and then skip any fields in the standard header that were
 	 * defined in the pax header.
 	 */
-	pax_header(a, entry, st, a->pax_header.s, extension_size);
+	err2 = pax_header(a, tar, entry, st, tar->pax_header.s);
+	err =  err_combine(err, err2);
 	a->entry_bytes_remaining = st->st_size;
 	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
 	return (err);
@@ -543,7 +669,7 @@ archive_header_pax_extensions(struct archive *a,
  * handles "pax" or "extended ustar" entries.
  */
 static int
-archive_header_ustar(struct archive *a, struct archive_entry *entry,
+header_ustar(struct archive *a, struct tar *tar, struct archive_entry *entry,
     struct stat *st, const void *h)
 {
 	const struct archive_entry_header_ustar	*header;
@@ -552,28 +678,28 @@ archive_header_ustar(struct archive *a, struct archive_entry *entry,
 
 	/* Copy name into an internal buffer to ensure null-termination. */
 	if (header->prefix[0]) {
-		archive_strncpy(&(a->entry_name), header->prefix,
+		archive_strncpy(&(tar->entry_name), header->prefix,
 		    sizeof(header->prefix));
-		archive_strappend_char(&(a->entry_name), '/');
-		archive_strncat(&(a->entry_name), header->name,
+		archive_strappend_char(&(tar->entry_name), '/');
+		archive_strncat(&(tar->entry_name), header->name,
 		    sizeof(header->name));
 	} else
-		archive_strncpy(&(a->entry_name), header->name,
+		archive_strncpy(&(tar->entry_name), header->name,
 		    sizeof(header->name));
 
-	archive_entry_set_pathname(entry, a->entry_name.s);
+	archive_entry_set_pathname(entry, tar->entry_name.s);
 
 	/* Handle rest of common fields. */
-	archive_header_common(a, entry, st, h);
+	header_common(a, tar, entry, st, h);
 
 	/* Handle POSIX ustar fields. */
-	archive_strncpy(&(a->entry_uname), header->uname,
+	archive_strncpy(&(tar->entry_uname), header->uname,
 	    sizeof(header->uname));
-	archive_entry_set_uname(entry, a->entry_uname.s);
+	archive_entry_set_uname(entry, tar->entry_uname.s);
 
-	archive_strncpy(&(a->entry_gname), header->gname,
+	archive_strncpy(&(tar->entry_gname), header->gname,
 	    sizeof(header->gname));
-	archive_entry_set_gname(entry, a->entry_gname.s);
+	archive_entry_set_gname(entry, tar->entry_gname.s);
 
 	/* Parse out device numbers only for char and block specials. */
 	if (header->typeflag[0] == '3' || header->typeflag[0] == '4') {
@@ -595,13 +721,16 @@ archive_header_ustar(struct archive *a, struct archive_entry *entry,
  * Returns non-zero if there's an error in the data.
  */
 static int
-pax_header(struct archive *a, struct archive_entry *entry, struct stat *st,
-    char *attr, uint64_t attr_length)
+pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
+    struct stat *st, char *attr)
 {
-	uint64_t l;
-	uint64_t line_length;
-	char *line, *key, *p, *value;
+	size_t attr_length, l, line_length;
+	char *line, *p;
+	wchar_t *key, *wp, *value;
+	int err, err2;
 
+	attr_length = strlen(attr);
+	err = ARCHIVE_OK;
 	while (attr_length > 0) {
 		/* Parse decimal length field at start of line. */
 		line_length = 0;
@@ -626,36 +755,50 @@ pax_header(struct archive *a, struct archive_entry *entry, struct stat *st,
 		if (line_length > attr_length)
 			return (0);
 
+		/* Ensure pax_entry buffer is big enough. */
+		if (tar->pax_entry_length <= line_length) {
+			if (tar->pax_entry_length <= 0)
+				tar->pax_entry_length = 256;
+			while (tar->pax_entry_length <= line_length + 1)
+				tar->pax_entry_length *= 2;
+
+			/* XXX Error handling here */
+			tar->pax_entry = realloc(tar->pax_entry,
+			    tar->pax_entry_length * sizeof(wchar_t));
+		}
+
+		/* Decode UTF-8 to wchar_t, null-terminate result. */
+		if (utf8_decode(tar->pax_entry, p,
+			line_length - (p - attr) - 1)) {
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			   "Invalid UTF8 character in pax extended attribute");
+			err = err_combine(err, ARCHIVE_WARN);
+		}
+
 		/* Null-terminate 'key' value. */
-		/* XXX TODO: 'key' is officially UTF-8; should
-		 * decode UTF-8 key to wchar here, then do
-		 * all wchar matching below. XXX */
-		key = p;
-		p = strchr(key, '=');
-		if (p == NULL)
-			return (0);
-		if (p > line + line_length)
+		key = tar->pax_entry;
+		if (key[0] == L'=')
 			return (-1);
-		*p = 0;
-		if (strlen(key) < 1)
-			return (-1);
+		wp = wcschr(key, L'=');
+		if (wp == NULL) {
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Invalid pax extended attributes");
+			return (ARCHIVE_WARN);
+		}
+		*wp = 0;
 
-		/* Null-terminate 'value' portion. */
-		/* XXX need to decode UTF-8 value, make everything
-		 * else wchar-clean. */
-		/* XXX should use pointer/length so that NULLs can
-		 * appear within the value portion. <sigh> */
-		value = p + 1;
-		line[line_length - 1] = 0;
+		/* Identify null-terminated 'value' portion. */
+		value = wp + 1;
 
-		if (pax_attribute(a, entry, st, key, value))
-			return (-1);
+		/* Identify this attribute and set it in the entry. */
+		err2 = pax_attribute(entry, st, key, value);
+		err = err_combine(err, err2);
 
 		/* Skip to next line */
 		attr += line_length;
 		attr_length -= line_length;
 	}
-	return (0);
+	return (err);
 }
 
 
@@ -674,12 +817,9 @@ pax_header(struct archive *a, struct archive_entry *entry, struct stat *st,
  * any of them look useful.
  */
 static int
-pax_attribute(struct archive *a, struct archive_entry *entry, struct stat *st,
-    char *key, char *value)
+pax_attribute(struct archive_entry *entry, struct stat *st,
+    wchar_t *key, wchar_t *value)
 {
-
-	(void)a; /* UNUSED */
-
 	switch (key[0]) {
 	case 'L':
 		/* Our extensions */
@@ -691,71 +831,71 @@ pax_attribute(struct archive *a, struct archive_entry *entry, struct stat *st,
 		break;
 	case 'S':
 		/* We support some keys used by the "star" archiver */
-		if (strcmp(key, "SCHILY.acl.access")==0)
-			archive_entry_set_acl(entry, value);
-		else if (strcmp(key, "SCHILY.acl.default")==0)
-			archive_entry_set_acl_default(entry, value);
-		else if (strcmp(key, "SCHILY.devmajor")==0)
-			st->st_rdev = makedev(tar_atol10(value, strlen(value)),
+		if (wcscmp(key, L"SCHILY.acl.access")==0)
+			archive_entry_copy_acl_w(entry, value);
+		else if (wcscmp(key, L"SCHILY.acl.default")==0)
+			archive_entry_copy_acl_default_w(entry, value);
+		else if (wcscmp(key, L"SCHILY.devmajor")==0)
+			st->st_rdev = makedev(tar_atol10(value, wcslen(value)),
 			    minor(st->st_dev));
-		else if (strcmp(key, "SCHILY.devminor")==0)
+		else if (wcscmp(key, L"SCHILY.devminor")==0)
 			st->st_rdev = makedev(major(st->st_dev),
-			    tar_atol10(value, strlen(value)));
-		else if (strcmp(key, "SCHILY.fflags")==0)
-			archive_entry_set_fflags(entry, value);
-		else if (strcmp(key, "SCHILY.nlink")==0)
-			st->st_nlink = tar_atol10(value, strlen(value));
+			    tar_atol10(value, wcslen(value)));
+		else if (wcscmp(key, L"SCHILY.fflags")==0)
+			archive_entry_copy_fflags_w(entry, value);
+		else if (wcscmp(key, L"SCHILY.nlink")==0)
+			st->st_nlink = tar_atol10(value, wcslen(value));
 		break;
 	case 'a':
-		if (strcmp(key, "atime")==0)
+		if (wcscmp(key, L"atime")==0)
 			pax_time(value, &(st->st_atimespec));
 		break;
 	case 'c':
-		if (strcmp(key, "ctime")==0)
+		if (wcscmp(key, L"ctime")==0)
 			pax_time(value, &(st->st_ctimespec));
-		else if (strcmp(key, "charset")==0) {
+		else if (wcscmp(key, L"charset")==0) {
 			/* TODO: Publish charset information in entry. */
-		} else if (strcmp(key, "comment")==0) {
+		} else if (wcscmp(key, L"comment")==0) {
 			/* TODO: Publish comment in entry. */
 		}
 		break;
 	case 'g':
-		if (strcmp(key, "gid")==0)
-			st->st_gid = tar_atol10(value, strlen(value));
-		else if (strcmp(key, "gname")==0)
-			archive_entry_set_gname(entry, value);
+		if (wcscmp(key, L"gid")==0)
+			st->st_gid = tar_atol10(value, wcslen(value));
+		else if (wcscmp(key, L"gname")==0)
+			archive_entry_copy_gname_w(entry, value);
 		break;
 	case 'l':
 		/* pax interchange doesn't distinguish hardlink vs. symlink. */
-		if (strcmp(key, "linkpath")==0) {
+		if (wcscmp(key, L"linkpath")==0) {
 			if (archive_entry_hardlink(entry))
-				archive_entry_set_hardlink(entry, value);
+				archive_entry_copy_hardlink_w(entry, value);
 			else
-				archive_entry_set_symlink(entry, value);
+				archive_entry_copy_symlink_w(entry, value);
 		}
 		break;
 	case 'm':
-		if (strcmp(key, "mtime")==0)
+		if (wcscmp(key, L"mtime")==0)
 			pax_time(value, &(st->st_mtimespec));
 		break;
 	case 'p':
-		if (strcmp(key, "path")==0)
-			archive_entry_set_pathname(entry, value);
+		if (wcscmp(key, L"path")==0)
+			archive_entry_copy_pathname_w(entry, value);
 		break;
 	case 'r':
 		/* POSIX has reserved 'realtime.*' */
 		break;
 	case 's':
 		/* POSIX has reserved 'security.*' */
-		/* Someday: if (strcmp(key, "security.acl")==0) { ... } */
-		if (strcmp(key, "size")==0)
-			st->st_size = tar_atol10(value, strlen(value));
+		/* Someday: if (wcscmp(key, L"security.acl")==0) { ... } */
+		if (wcscmp(key, L"size")==0)
+			st->st_size = tar_atol10(value, wcslen(value));
 		break;
 	case 'u':
-		if (strcmp(key, "uid")==0)
-			st->st_uid = tar_atol10(value, strlen(value));
-		else if (strcmp(key, "uname")==0)
-			archive_entry_set_uname(entry, value);
+		if (wcscmp(key, L"uid")==0)
+			st->st_uid = tar_atol10(value, wcslen(value));
+		else if (wcscmp(key, L"uname")==0)
+			archive_entry_copy_uname_w(entry, value);
 		break;
 	}
 	return (0);
@@ -767,7 +907,7 @@ pax_attribute(struct archive *a, struct archive_entry *entry, struct stat *st,
  * parse a decimal time value, which may include a fractional portion
  */
 static void
-pax_time(const char *p, struct timespec *t)
+pax_time(const wchar_t *p, struct timespec *t)
 {
 	char digit;
 	int64_t	s;
@@ -880,7 +1020,7 @@ tar_atol8(const char *p, unsigned char_cnt)
  * it does obey locale.
  */
 static int64_t
-tar_atol10(const char *p, unsigned char_cnt)
+tar_atol10(const wchar_t *p, unsigned char_cnt)
 {
 	int64_t l;
 	int digit, sign;
@@ -935,4 +1075,124 @@ tar_atol256(const char *p, unsigned char_cnt)
 		digit = *(const unsigned char *)++p;
 	}
 	return (l);
+}
+
+static int
+utf8_decode(wchar_t *dest, const char *src, size_t length)
+{
+	size_t n;
+	int err;
+
+	err = 0;
+	while(length > 0) {
+		n = UTF8_mbrtowc(dest, src, length, NULL);
+		if (n == 0)
+			break;
+		if (n > 8) {
+			/* Invalid byte encountered; try to keep going. */
+			*dest = L'?';
+			n = 1;
+			err = 1;
+		}
+		dest++;
+		src += n;
+		length -= n;
+	}
+	*dest++ = L'\0';
+	return (err);
+}
+
+/*
+ * Copied from FreeBSD libc/locale.
+ */
+static size_t
+UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
+    mbstate_t * __restrict ps __unused)
+{
+        int ch, i, len, mask;
+        wchar_t lbound, wch;
+
+        if (s == NULL)
+                /* Reset to initial shift state (no-op) */
+                return (0);
+        if (n == 0)
+                /* Incomplete multibyte sequence */
+                return ((size_t)-2);
+
+        /*
+         * Determine the number of octets that make up this character from
+         * the first octet, and a mask that extracts the interesting bits of
+         * the first octet.
+         *
+         * We also specify a lower bound for the character code to detect
+         * redundant, non-"shortest form" encodings. For example, the
+         * sequence C0 80 is _not_ a legal representation of the null
+         * character. This enforces a 1-to-1 mapping between character
+         * codes and their multibyte representations.
+         */
+        ch = (unsigned char)*s;
+        if ((ch & 0x80) == 0) {
+                mask = 0x7f;
+                len = 1;
+                lbound = 0;
+        } else if ((ch & 0xe0) == 0xc0) {
+                mask = 0x1f;
+                len = 2;
+                lbound = 0x80;
+        } else if ((ch & 0xf0) == 0xe0) {
+                mask = 0x0f;
+                len = 3;
+                lbound = 0x800;
+        } else if ((ch & 0xf8) == 0xf0) {
+                mask = 0x07;
+                len = 4;
+                lbound = 0x10000;
+        } else if ((ch & 0xfc) == 0xf8) {
+                mask = 0x03;
+                len = 5;
+                lbound = 0x200000;
+        } else if ((ch & 0xfc) == 0xfc) {
+                mask = 0x01;
+                len = 6;
+                lbound = 0x4000000;
+        } else {
+                /*
+                 * Malformed input; input is not UTF-8.
+                 */
+                errno = EILSEQ;
+                return ((size_t)-1);
+        }
+
+        if (n < (size_t)len)
+                /* Incomplete multibyte sequence */
+                return ((size_t)-2);
+
+        /*
+         * Decode the octet sequence representing the character in chunks
+         * of 6 bits, most significant first.
+         */
+        wch = (unsigned char)*s++ & mask;
+        i = len;
+        while (--i != 0) {
+                if ((*s & 0xc0) != 0x80) {
+                        /*
+                         * Malformed input; bad characters in the middle
+                         * of a character.
+                         */
+                        errno = EILSEQ;
+                        return ((size_t)-1);
+                }
+                wch <<= 6;
+                wch |= *s++ & 0x3f;
+        }
+        if (wch < lbound) {
+                /*
+                 * Malformed input; redundant encoding.
+                 */
+                errno = EILSEQ;
+                return ((size_t)-1);
+        }
+        if (pwc != NULL)
+                *pwc = wch;
+        return (wch == L'\0' ? 0 : len);
 }

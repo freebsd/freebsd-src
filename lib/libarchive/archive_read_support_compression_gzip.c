@@ -30,12 +30,13 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_DMALLOC
 #include <dmalloc.h>
 #endif
-#include <err.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <zlib.h>
+
+#include <err.h> /* zlib.h is borked, so must precede err.h */
 
 #include "archive.h"
 #include "archive_private.h"
