@@ -1,15 +1,15 @@
 /*
  * Low level routines for the Advanced Systems Inc. SCSI controllers chips
  *
- * Copyright (c) 1996 Justin T. Gibbs.
+ * Copyright (c) 1996-1997 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
+ *    notice, this list of conditions, and the following disclaimer,
+ *    without modification, immediately at the beginning of the file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -46,18 +46,78 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
 #include <machine/clock.h>
 
-#include <scsi/scsi_all.h>
-#include <scsi/scsi_message.h>
-#include <scsi/scsi_disk.h>
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
+#include <cam/scsi/scsi_da.h>
+#include <cam/scsi/scsi_cd.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include <dev/advansys/advlib.h>
+#include <dev/advansys/advansys.h>
 #include <dev/advansys/advmcode.h>
+
+struct adv_quirk_entry {
+	struct scsi_inquiry_pattern inq_pat;
+	u_int8_t quirks;
+#define ADV_QUIRK_FIX_ASYN_XFER_ALWAYS	0x01
+#define ADV_QUIRK_FIX_ASYN_XFER		0x02
+};
+
+static struct adv_quirk_entry adv_quirk_table[] =
+{
+	{
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, "HP", "*", "*" },
+		ADV_QUIRK_FIX_ASYN_XFER_ALWAYS|ADV_QUIRK_FIX_ASYN_XFER
+	},
+	{
+		{ T_CDROM, SIP_MEDIA_REMOVABLE, "NEC", "CD-ROM DRIVE", "*" },
+		0
+	},
+	{
+		{
+		  T_SEQUENTIAL, SIP_MEDIA_REMOVABLE,
+		  "TANDBERG", " TDC 36", "*"
+		},
+		0
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "WANGTEK", "*", "*" },
+		0
+	},
+	{
+		{
+		  T_PROCESSOR, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
+		  "*", "*", "*"
+		},
+		0
+	},
+	{
+		{
+		  T_SCANNER, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
+		  "*", "*", "*"
+		},
+		0
+	},
+	{
+		/* Default quirk entry */
+		{
+		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
+		  /*vendor*/"*", /*product*/"*", /*revision*/"*"
+                }, 
+                ADV_QUIRK_FIX_ASYN_XFER,
+	}
+};
 
 /*
  * Allowable periods in ns
@@ -74,116 +134,251 @@ u_int8_t adv_sdtr_period_tbl[] =
 	85
 };
 
-struct sdtr_xmsg {
-	u_int8_t	msg_type;
-	u_int8_t	msg_len;
-	u_int8_t	msg_req;
-	u_int8_t	xfer_period;
-	u_int8_t	req_ack_offset;
-	u_int8_t	res;
+u_int8_t adv_sdtr_period_tbl_ultra[] =
+{
+	12,
+	19,
+	25,
+	32,
+	38,
+	44,
+	50,
+	57,
+	63,
+	69,
+	75,
+	82,
+	88, 
+	94,
+	100,
+	107
 };
+
+struct ext_msg {
+	u_int8_t msg_type;
+	u_int8_t msg_len;
+	u_int8_t msg_req;
+	union {
+		struct {
+			u_int8_t sdtr_xfer_period;
+			u_int8_t sdtr_req_ack_offset;
+		} sdtr;
+		struct {
+       			u_int8_t wdtr_width;
+		} wdtr;
+		struct {
+			u_int8_t mdp[4];
+		} mdp;
+	} u_ext_msg;
+	u_int8_t res;
+};
+
+#define	xfer_period	u_ext_msg.sdtr.sdtr_xfer_period
+#define	req_ack_offset	u_ext_msg.sdtr.sdtr_req_ack_offset
+#define	wdtr_width	u_ext_msg.wdtr.wdtr_width
+#define	mdp_b3		u_ext_msg.mdp_b3
+#define	mdp_b2		u_ext_msg.mdp_b2
+#define	mdp_b1		u_ext_msg.mdp_b1
+#define	mdp_b0		u_ext_msg.mdp_b0
 
 /*
  * Some of the early PCI adapters have problems with
- * async transfers.  Instead try to use an offset of
- * 1.
+ * async transfers.  Instead use an offset of 1.
  */
-#define ASYN_SDTR_DATA_FIX 0x41
+#define ASYN_SDTR_DATA_FIX_PCI_REV_AB 0x41
 
 /* LRAM routines */
-static void	 adv_read_lram_16_multi __P((struct adv_softc *adv, u_int16_t s_addr,
-					     u_int16_t *buffer, int count));
-static void	 adv_write_lram_16_multi __P((struct adv_softc *adv,
-					      u_int16_t s_addr, u_int16_t *buffer,
-					      int count));
-static void	 adv_mset_lram_16 __P((struct adv_softc *adv,
-					u_int16_t s_addr, u_int16_t set_value,
-				       int count));
-static u_int32_t adv_msum_lram_16 __P((struct adv_softc *adv, u_int16_t s_addr, int count));
+static void	 adv_read_lram_16_multi(struct adv_softc *adv, u_int16_t s_addr,
+					u_int16_t *buffer, int count);
+static void	 adv_write_lram_16_multi(struct adv_softc *adv,
+					 u_int16_t s_addr, u_int16_t *buffer,
+					 int count);
+static void	 adv_mset_lram_16(struct adv_softc *adv, u_int16_t s_addr,
+				  u_int16_t set_value, int count);
+static u_int32_t adv_msum_lram_16(struct adv_softc *adv, u_int16_t s_addr,
+				  int count);
 
-static int	 adv_write_and_verify_lram_16 __P((struct adv_softc *adv,
-						   u_int16_t addr, u_int16_t value));
-static u_int32_t adv_read_lram_32 __P((struct adv_softc *adv, u_int16_t addr));
+static int	 adv_write_and_verify_lram_16(struct adv_softc *adv,
+					      u_int16_t addr, u_int16_t value);
+static u_int32_t adv_read_lram_32(struct adv_softc *adv, u_int16_t addr);
 
 
-static void	 adv_write_lram_32 __P((struct adv_softc *adv, u_int16_t addr,
-					u_int32_t value));
-static void	 adv_write_lram_32_multi __P((struct adv_softc *adv, u_int16_t s_addr,
-					      u_int32_t *buffer, int count));
+static void	 adv_write_lram_32(struct adv_softc *adv, u_int16_t addr,
+				   u_int32_t value);
+static void	 adv_write_lram_32_multi(struct adv_softc *adv,
+					 u_int16_t s_addr, u_int32_t *buffer,
+					 int count);
 
 /* EEPROM routines */
-static u_int16_t adv_read_eeprom_16 __P((struct adv_softc *adv, u_int8_t addr));
-static u_int16_t adv_write_eeprom_16 __P((struct adv_softc *adv, u_int8_t addr, u_int16_t value));
-static int	 adv_write_eeprom_cmd_reg __P((struct adv_softc *adv, 	u_int8_t cmd_reg));
-static int	 adv_set_eeprom_config_once __P((struct adv_softc *adv,
-						 struct adv_eeprom_config *eeprom_config));
+static u_int16_t adv_read_eeprom_16(struct adv_softc *adv, u_int8_t addr);
+static u_int16_t adv_write_eeprom_16(struct adv_softc *adv, u_int8_t addr,
+				     u_int16_t value);
+static int	 adv_write_eeprom_cmd_reg(struct adv_softc *adv,
+					  u_int8_t cmd_reg);
+static int	 adv_set_eeprom_config_once(struct adv_softc *adv,
+					    struct adv_eeprom_config *eeconfig);
 
 /* Initialization */
-static u_int32_t adv_load_microcode __P((struct adv_softc *adv,
-					 u_int16_t s_addr, u_int16_t *mcode_buf,					 u_int16_t mcode_size));
-static void	 adv_init_lram __P((struct adv_softc *adv));
-static int	 adv_init_microcode_var __P((struct adv_softc *adv));
-static void	 adv_init_qlink_var __P((struct adv_softc *adv));
+static u_int32_t adv_load_microcode(struct adv_softc *adv, u_int16_t s_addr,
+				    u_int16_t *mcode_buf, u_int16_t mcode_size);
+
+static void	 adv_reinit_lram(struct adv_softc *adv);
+static void	 adv_init_lram(struct adv_softc *adv);
+static int	 adv_init_microcode_var(struct adv_softc *adv);
+static void	 adv_init_qlink_var(struct adv_softc *adv);
 
 /* Interrupts */
-static void	 adv_disable_interrupt __P((struct adv_softc *adv));
-static void	 adv_enable_interrupt __P((struct adv_softc *adv));
-static void	 adv_toggle_irq_act __P((struct adv_softc *adv));
+static void	 adv_disable_interrupt(struct adv_softc *adv);
+static void	 adv_enable_interrupt(struct adv_softc *adv);
+static void	 adv_toggle_irq_act(struct adv_softc *adv);
 
 /* Chip Control */
+static int	 adv_stop_chip(struct adv_softc *adv);
+static int	 adv_host_req_chip_halt(struct adv_softc *adv);
+static void	 adv_set_chip_ih(struct adv_softc *adv, u_int16_t ins_code);
 #if UNUSED
-static void	 adv_start_execution __P((struct adv_softc *adv));
-#endif
-static int	 adv_start_chip __P((struct adv_softc *adv));
-static int	 adv_stop_chip __P((struct adv_softc *adv));
-static void	 adv_set_chip_ih __P((struct adv_softc *adv,
-				      u_int16_t ins_code));
-static void	 adv_set_bank __P((struct adv_softc *adv, u_int8_t bank));
-#if UNUSED
-static u_int8_t  adv_get_chip_scsi_ctrl __P((struct adv_softc *adv));
+static u_int8_t  adv_get_chip_scsi_ctrl(struct adv_softc *adv);
 #endif
 
 /* Queue handling and execution */
-static int	 adv_sgcount_to_qcount __P((int sgcount));
-static void	 adv_get_q_info __P((struct adv_softc *adv, u_int16_t s_addr, 	u_int16_t *inbuf,
-				     int words));
-static u_int	 adv_get_num_free_queues __P((struct adv_softc *adv,
-					      u_int8_t n_qs));
-static u_int8_t  adv_alloc_free_queues __P((struct adv_softc *adv,
-					    u_int8_t free_q_head,
-					    u_int8_t n_free_q));
-static u_int8_t  adv_alloc_free_queue __P((struct adv_softc *adv,
-					   u_int8_t free_q_head));
-static int	 adv_send_scsi_queue __P((struct adv_softc *adv,
-					  struct adv_scsi_q *scsiq,
-					  u_int8_t n_q_required));
-static void	 adv_put_ready_sg_list_queue __P((struct adv_softc *adv,
-						  struct adv_scsi_q *scsiq,
-						  u_int8_t q_no));
-static void	 adv_put_ready_queue __P((struct adv_softc *adv,
-					  struct adv_scsi_q *scsiq,
-					  u_int8_t q_no));
-static void	 adv_put_scsiq __P((struct adv_softc *adv, u_int16_t s_addr,
-				    u_int16_t *buffer, int words));
+static int	 adv_sgcount_to_qcount(int sgcount);
+static void	 adv_get_q_info(struct adv_softc *adv, u_int16_t s_addr,
+				u_int16_t *inbuf, int words);
+static u_int	 adv_get_num_free_queues(struct adv_softc *adv, u_int8_t n_qs);
+static u_int8_t  adv_alloc_free_queues(struct adv_softc *adv,
+				       u_int8_t free_q_head, u_int8_t n_free_q);
+static u_int8_t  adv_alloc_free_queue(struct adv_softc *adv,
+				      u_int8_t free_q_head);
+static int	 adv_send_scsi_queue(struct adv_softc *adv,
+				     struct adv_scsi_q *scsiq,
+				     u_int8_t n_q_required);
+static void	 adv_put_ready_sg_list_queue(struct adv_softc *adv,
+					     struct adv_scsi_q *scsiq,
+					     u_int q_no);
+static void	 adv_put_ready_queue(struct adv_softc *adv,
+				     struct adv_scsi_q *scsiq, u_int q_no);
+static void	 adv_put_scsiq(struct adv_softc *adv, u_int16_t s_addr,
+			       u_int16_t *buffer, int words);
 
-/* SDTR */
-static u_int8_t  adv_msgout_sdtr __P((struct adv_softc *adv,
-				      u_int8_t sdtr_period,
-				      u_int8_t sdtr_offset));
-static u_int8_t  adv_get_card_sync_setting __P((u_int8_t period,
-						u_int8_t offset));
-static void	 adv_set_chip_sdtr __P((struct adv_softc *adv,
-					u_int8_t sdtr_data,
-					u_int8_t tid_no));
+/* Messages */
+static void	 adv_handle_extmsg_in(struct adv_softc *adv,
+				      u_int16_t halt_q_addr, u_int8_t q_cntl,
+				      target_bit_vector target_id,
+				      int tid);
+static void	 adv_msgout_sdtr(struct adv_softc *adv, u_int8_t sdtr_period,
+				 u_int8_t sdtr_offset);
+static void	 adv_set_sdtr_reg_at_id(struct adv_softc *adv, int id,
+					u_int8_t sdtr_data);
 
 
 /* Exported functions first */
 
-u_int8_t
-adv_read_lram_8(adv, addr)
+void
+advasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
+{
 	struct adv_softc *adv;
-	u_int16_t addr;
-	
+
+	adv = (struct adv_softc *)callback_arg;
+	switch (code) {
+	case AC_FOUND_DEVICE:
+	{
+		struct ccb_getdev *cgd;
+		target_bit_vector target_mask;
+		int num_entries;
+        	caddr_t match;
+		struct adv_quirk_entry *entry;
+		struct adv_target_transinfo* tinfo;
+ 
+		cgd = (struct ccb_getdev *)arg;
+
+		target_mask = ADV_TID_TO_TARGET_MASK(cgd->ccb_h.target_id);
+
+		num_entries = sizeof(adv_quirk_table)/sizeof(*adv_quirk_table);
+		match = cam_quirkmatch((caddr_t)&cgd->inq_data,
+				       (caddr_t)adv_quirk_table,
+				       num_entries, sizeof(*adv_quirk_table),
+				       scsi_inquiry_match);
+        
+		if (match == NULL)
+			panic("advasync: device didn't match wildcard entry!!");
+
+		entry = (struct adv_quirk_entry *)match;
+
+		if (adv->bug_fix_control & ADV_BUG_FIX_ASYN_USE_SYN) {
+			if ((entry->quirks & ADV_QUIRK_FIX_ASYN_XFER_ALWAYS)!=0)
+				adv->fix_asyn_xfer_always |= target_mask;
+			else
+				adv->fix_asyn_xfer_always &= ~target_mask;
+			/*
+			 * We start out life with all bits set and clear them
+			 * after we've determined that the fix isn't necessary.
+			 * It may well be that we've already cleared a target
+			 * before the full inquiry session completes, so don't
+			 * gratuitously set a target bit even if it has this
+			 * quirk.  But, if the quirk exonerates a device, clear
+			 * the bit now.
+			 */
+			if ((entry->quirks & ADV_QUIRK_FIX_ASYN_XFER) == 0)
+				adv->fix_asyn_xfer &= ~target_mask;
+		}
+		/*
+		 * Reset our sync settings now that we've determined
+		 * what quirks are in effect for the device.
+		 */
+		tinfo = &adv->tinfo[cgd->ccb_h.target_id];
+		adv_set_syncrate(adv, cgd->ccb_h.path,
+				 cgd->ccb_h.target_id,
+				 tinfo->current.period,
+				 tinfo->current.offset,
+				 ADV_TRANS_CUR);
+		break;
+	}
+	case AC_LOST_DEVICE:
+	{
+		u_int target_mask;
+
+		if (adv->bug_fix_control & ADV_BUG_FIX_ASYN_USE_SYN) {
+			target_mask = 0x01 << xpt_path_target_id(path);
+			adv->fix_asyn_xfer |= target_mask;
+		}
+
+		/*
+		 * Revert to async transfers
+		 * for the next device.
+		 */
+		adv_set_syncrate(adv, /*path*/NULL,
+				 xpt_path_target_id(path),
+				 /*period*/0,
+				 /*offset*/0,
+				 ADV_TRANS_GOAL|ADV_TRANS_CUR);
+	}
+	default:
+		break;
+	}
+}
+
+void
+adv_set_bank(struct adv_softc *adv, u_int8_t bank)
+{
+	u_int8_t control;
+
+	/*
+	 * Start out with the bank reset to 0
+	 */
+	control = ADV_INB(adv, ADV_CHIP_CTRL)
+		  &  (~(ADV_CC_SINGLE_STEP | ADV_CC_TEST
+			| ADV_CC_DIAG | ADV_CC_SCSI_RESET
+			| ADV_CC_CHIP_RESET | ADV_CC_BANK_ONE));
+	if (bank == 1) {
+		control |= ADV_CC_BANK_ONE;
+	} else if (bank == 2) {
+		control |= ADV_CC_DIAG | ADV_CC_BANK_ONE;
+	}
+	ADV_OUTB(adv, ADV_CHIP_CTRL, control);
+}
+
+u_int8_t
+adv_read_lram_8(struct adv_softc *adv, u_int16_t addr)
 {
 	u_int8_t   byte_data;
 	u_int16_t  word_data;
@@ -210,10 +405,7 @@ adv_read_lram_8(adv, addr)
 }
 
 void
-adv_write_lram_8(adv, addr, value)
-	struct adv_softc *adv;
-	u_int16_t addr;
-	u_int8_t value;
+adv_write_lram_8(struct adv_softc *adv, u_int16_t addr, u_int8_t value)
 {
 	u_int16_t word_data;
 
@@ -230,57 +422,53 @@ adv_write_lram_8(adv, addr, value)
 
 
 u_int16_t
-adv_read_lram_16(adv, addr)
-	struct adv_softc *adv;
-	u_int16_t addr;
+adv_read_lram_16(struct adv_softc *adv, u_int16_t addr)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, addr);
 	return (ADV_INW(adv, ADV_LRAM_DATA));
 }
 
 void
-adv_write_lram_16(adv, addr, value)
-	struct adv_softc *adv;
-	u_int16_t addr;
-	u_int16_t value;
+adv_write_lram_16(struct adv_softc *adv, u_int16_t addr, u_int16_t value)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, addr);
 	ADV_OUTW(adv, ADV_LRAM_DATA, value);
 }
 
-
 /*
- * Return the fully qualified board type for the adapter.
- * The chip_revision must be set before this function is called.
+ * Determine if there is a board at "iobase" by looking
+ * for the AdvanSys signatures.  Return 1 if a board is
+ * found, 0 otherwise.
  */
+int                         
+adv_find_signature(bus_space_tag_t tag, bus_space_handle_t bsh)
+{                            
+	u_int16_t signature;
+
+	if (bus_space_read_1(tag, bsh, ADV_SIGNATURE_BYTE) == ADV_1000_ID1B) {
+		signature = bus_space_read_2(tag, bsh, ADV_SIGNATURE_WORD);
+		if ((signature == ADV_1000_ID0W)
+		 || (signature == ADV_1000_ID0W_FIX))
+			return (1);
+	}
+	return (0);
+}
+
 void
-adv_get_board_type(adv)
-	struct adv_softc *adv;
+adv_lib_init(struct adv_softc *adv)
 {
-	if ((adv->chip_version >= ADV_CHIP_MIN_VER_VL) &&
-	    (adv->chip_version <= ADV_CHIP_MAX_VER_VL)) {
-		if (((adv->iobase & 0x0C30) == 0x0C30) ||
-			((adv->iobase & 0x0C50) == 0x0C50)) {
-			adv->type = ADV_EISA;
-		} else
-			adv->type = ADV_VL;
-	} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_ISA) &&
-		   (adv->chip_version <= ADV_CHIP_MAX_VER_ISA)) {
-		if (adv->chip_version >= ADV_CHIP_MIN_VER_ISA_PNP) {
-			adv->type = ADV_ISAPNP;
-		} else
-			adv->type = ADV_ISA;
-	} else if ((adv->chip_version >= ADV_CHIP_MIN_VER_PCI) &&
-		   (adv->chip_version <= ADV_CHIP_MAX_VER_PCI)) {
-		adv->type = ADV_PCI;
-	} else
-		panic("adv_get_board_type: Unknown board type encountered");
+	if ((adv->type & ADV_ULTRA) != 0) {
+		adv->sdtr_period_tbl = adv_sdtr_period_tbl_ultra;
+		adv->sdtr_period_tbl_size = sizeof(adv_sdtr_period_tbl_ultra);
+	} else {
+		adv->sdtr_period_tbl = adv_sdtr_period_tbl;
+		adv->sdtr_period_tbl_size = sizeof(adv_sdtr_period_tbl);		
+	}
 }
 
 u_int16_t
-adv_get_eeprom_config(adv, eeprom_config)
-	struct adv_softc *adv;
-	struct	  adv_eeprom_config  *eeprom_config;
+adv_get_eeprom_config(struct adv_softc *adv, struct
+		      adv_eeprom_config  *eeprom_config)
 {
 	u_int16_t	sum;
 	u_int16_t	*wbuf;
@@ -316,9 +504,8 @@ adv_get_eeprom_config(adv, eeprom_config)
 }
 
 int
-adv_set_eeprom_config(adv, eeprom_config)
-	struct adv_softc *adv;
-	struct adv_eeprom_config *eeprom_config;
+adv_set_eeprom_config(struct adv_softc *adv,
+		      struct adv_eeprom_config *eeprom_config)
 {
 	int	retry;
 
@@ -335,11 +522,11 @@ adv_set_eeprom_config(adv, eeprom_config)
 }
 
 int
-adv_reset_chip_and_scsi_bus(adv)
-	struct adv_softc *adv;
+adv_reset_chip_and_scsi_bus(struct adv_softc *adv)
 {
 	adv_stop_chip(adv);
-	ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_CHIP_RESET | ADV_CC_SCSI_RESET | ADV_CC_HALT);
+	ADV_OUTB(adv, ADV_CHIP_CTRL,
+		 ADV_CC_CHIP_RESET | ADV_CC_SCSI_RESET | ADV_CC_HALT);
 	DELAY(200 * 1000);
 
 	adv_set_chip_ih(adv, ADV_INS_RFLAG_WTM);
@@ -352,8 +539,7 @@ adv_reset_chip_and_scsi_bus(adv)
 }
 
 int
-adv_test_external_lram(adv)
-	struct adv_softc* adv;
+adv_test_external_lram(struct adv_softc* adv)
 {
 	u_int16_t	q_addr;
 	u_int16_t	saved_value;
@@ -361,7 +547,6 @@ adv_test_external_lram(adv)
 
 	success = 0;
 
-	/* XXX Why 241? */
 	q_addr = ADV_QNO_TO_QADDR(241);
 	saved_value = adv_read_lram_16(adv, q_addr);
 	if (adv_write_and_verify_lram_16(adv, q_addr, 0x55AA) == 0) {
@@ -373,15 +558,16 @@ adv_test_external_lram(adv)
 
 
 int
-adv_init_lram_and_mcode(adv)
-	struct adv_softc *adv;
+adv_init_lram_and_mcode(struct adv_softc *adv)
 {
 	u_int32_t	retval;
+
 	adv_disable_interrupt(adv);
 
 	adv_init_lram(adv);
 
-	retval = adv_load_microcode(adv, 0, (u_int16_t *)adv_mcode, adv_mcode_size);
+	retval = adv_load_microcode(adv, 0, (u_int16_t *)adv_mcode,
+				    adv_mcode_size);
 	if (retval != adv_mcode_chksum) {
 		printf("adv%d: Microcode download failed checksum!\n",
 		       adv->unit);
@@ -396,8 +582,7 @@ adv_init_lram_and_mcode(adv)
 }
 
 u_int8_t
-adv_get_chip_irq(adv)
-	struct adv_softc *adv;
+adv_get_chip_irq(struct adv_softc *adv)
 {
 	u_int16_t	cfg_lsw;
 	u_int8_t	chip_irq;
@@ -420,15 +605,14 @@ adv_get_chip_irq(adv)
 }
 
 u_int8_t
-adv_set_chip_irq(adv, irq_no)
-	struct adv_softc *adv;
-	u_int8_t irq_no;
+adv_set_chip_irq(struct adv_softc *adv, u_int8_t irq_no)
 {
 	u_int16_t	cfg_lsw;
 
 	if ((adv->type & ADV_VL) != 0) {
 		if (irq_no != 0) {
-			if ((irq_no < ADV_MIN_IRQ_NO) || (irq_no > ADV_MAX_IRQ_NO)) {
+			if ((irq_no < ADV_MIN_IRQ_NO)
+			 || (irq_no > ADV_MAX_IRQ_NO)) {
 				irq_no = 0;
 			} else {
 				irq_no -= ADV_MIN_IRQ_NO - 1;
@@ -454,40 +638,49 @@ adv_set_chip_irq(adv, irq_no)
 	return (adv_get_chip_irq(adv));
 }
 
-int
-adv_execute_scsi_queue(adv, scsiq)
-	struct adv_softc *adv;
-	struct adv_scsi_q *scsiq;
+void
+adv_set_chip_scsiid(struct adv_softc *adv, int new_id)
 {
+	u_int16_t cfg_lsw;
+
+	cfg_lsw = ADV_INW(adv, ADV_CONFIG_LSW);
+	if (ADV_CONFIG_SCSIID(cfg_lsw) == new_id)
+		return;
+    	cfg_lsw &= ~ADV_CFG_LSW_SCSIID;
+	cfg_lsw |= (new_id & ADV_MAX_TID) << ADV_CFG_LSW_SCSIID_SHIFT;
+	ADV_OUTW(adv, ADV_CONFIG_LSW, cfg_lsw);
+}
+
+int
+adv_execute_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
+		       u_int32_t datalen)
+{
+	struct		adv_target_transinfo* tinfo;
+	u_int32_t	*p_data_addr;
+	u_int32_t	*p_data_bcount;
+	int		disable_syn_offset_one_fix;
 	int		retval;
 	u_int		n_q_required;
-	int		s;
 	u_int32_t	addr;
 	u_int8_t	sg_entry_cnt;
 	u_int8_t	target_ix;
 	u_int8_t	sg_entry_cnt_minus_one;
 	u_int8_t	tid_no;
-	u_int8_t	sdtr_data;
-	u_int32_t	*p_data_addr;
-	u_int32_t	*p_data_bcount;
 
 	scsiq->q1.q_no = 0;
 	retval = 1;  /* Default to error case */
 	target_ix = scsiq->q2.target_ix;
 	tid_no = ADV_TIX_TO_TID(target_ix);
+	tinfo = &adv->tinfo[tid_no];
 
-	n_q_required = 1;
-	
-	s = splbio();
-	if (scsiq->cdbptr->opcode == REQUEST_SENSE) {
-		if (((adv->initiate_sdtr & scsiq->q1.target_id) != 0)
-		    && ((adv->sdtr_done & scsiq->q1.target_id) != 0)) {
-			int sdtr_index;
-			
-			sdtr_data = adv_read_lram_8(adv, ADVV_SDTR_DATA_BEG + tid_no);
-			sdtr_index = (sdtr_data >> 4);
-			adv_msgout_sdtr(adv, adv_sdtr_period_tbl[sdtr_index],
-					 (sdtr_data & ADV_SYN_MAX_OFFSET));
+	if (scsiq->cdbptr[0] == REQUEST_SENSE) {
+		/* Renegotiate if appropriate. */
+		adv_set_syncrate(adv, /*struct cam_path */NULL,
+				 tid_no, /*period*/0, /*offset*/0,
+				 ADV_TRANS_CUR);
+		if (tinfo->current.period != tinfo->goal.period) {
+			adv_msgout_sdtr(adv, tinfo->goal.period,
+					tinfo->goal.offset);
 			scsiq->q1.cntl |= (QC_MSG_OUT | QC_URGENT);
 		}
 	}
@@ -498,10 +691,12 @@ adv_execute_scsi_queue(adv, scsiq)
 
 #ifdef DIAGNOSTIC
 		if (sg_entry_cnt <= 1) 
-			panic("adv_execute_scsi_queue: Queue with QC_SG_HEAD set but %d segs.", sg_entry_cnt);
+			panic("adv_execute_scsi_queue: Queue "
+			      "with QC_SG_HEAD set but %d segs.", sg_entry_cnt);
 
 		if (sg_entry_cnt > ADV_MAX_SG_LIST)
-			panic("adv_execute_scsi_queue: Queue with too many segs.");
+			panic("adv_execute_scsi_queue: "
+			      "Queue with too many segs.");
 
 		if (adv->type & (ADV_ISA | ADV_VL | ADV_EISA)) {
 			for (i = 0; i < sg_entry_cnt_minus_one; i++) {
@@ -509,12 +704,15 @@ adv_execute_scsi_queue(adv, scsiq)
 				       scsiq->sg_head->sg_list[i].bytes;
 
 				if ((addr & 0x0003) != 0)
-					panic("adv_execute_scsi_queue: SG with odd address or byte count");
+					panic("adv_execute_scsi_queue: SG "
+					      "with odd address or byte count");
 			}
 		}
 #endif
-		p_data_addr = &scsiq->sg_head->sg_list[sg_entry_cnt_minus_one].addr;
-		p_data_bcount = &scsiq->sg_head->sg_list[sg_entry_cnt_minus_one].bytes;
+		p_data_addr =
+		    &scsiq->sg_head->sg_list[sg_entry_cnt_minus_one].addr;
+		p_data_bcount =
+		    &scsiq->sg_head->sg_list[sg_entry_cnt_minus_one].bytes;
 
 		n_q_required = adv_sgcount_to_qcount(sg_entry_cnt);
 		scsiq->sg_head->queue_cnt = n_q_required - 1;
@@ -524,44 +722,65 @@ adv_execute_scsi_queue(adv, scsiq)
 		n_q_required = 1;
 	}
 
-	if (adv->bug_fix_control & ADV_BUG_FIX_ADD_ONE_BYTE) {
-		addr = *p_data_addr + *p_data_bcount;
-		if ((addr & 0x0003) != 0) {
-			/*
-			 * XXX Is this extra test (the one on data_cnt) really only supposed to apply
-			 * to the non SG case or was it a bug due to code duplication?
-			 */
-			if ((scsiq->q1.cntl & QC_SG_HEAD) != 0 || (scsiq->q1.data_cnt & 0x01FF) == 0) {
-				if ((scsiq->cdbptr->opcode == READ_COMMAND) ||
-				    (scsiq->cdbptr->opcode == READ_BIG)) {
-					if ((scsiq->q2.tag_code & ADV_TAG_FLAG_ADD_ONE_BYTE) == 0) {
-						(*p_data_bcount)++;
-						scsiq->q2.tag_code |= ADV_TAG_FLAG_ADD_ONE_BYTE;
-					}
+	disable_syn_offset_one_fix = FALSE;
+
+	if ((adv->fix_asyn_xfer & scsiq->q1.target_id) != 0
+	 && (adv->fix_asyn_xfer_always & scsiq->q1.target_id) == 0) {
+
+		if (datalen != 0) {
+			if (datalen < 512) {
+				disable_syn_offset_one_fix = TRUE;
+			} else {
+				if (scsiq->cdbptr[0] == INQUIRY
+				 || scsiq->cdbptr[0] == REQUEST_SENSE
+				 || scsiq->cdbptr[0] == READ_CAPACITY
+				 || scsiq->cdbptr[0] == MODE_SELECT_6 
+				 || scsiq->cdbptr[0] == MODE_SENSE_6
+				 || scsiq->cdbptr[0] == MODE_SENSE_10 
+				 || scsiq->cdbptr[0] == MODE_SELECT_10 
+				 || scsiq->cdbptr[0] == READ_TOC) {
+					disable_syn_offset_one_fix = TRUE;
 				}
-				
 			}
 		}
 	}
-	
+
+	if (disable_syn_offset_one_fix) {
+		scsiq->q2.tag_code &=
+		    ~(MSG_SIMPLE_Q_TAG|MSG_HEAD_OF_Q_TAG|MSG_ORDERED_Q_TAG);
+		scsiq->q2.tag_code |= (ADV_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX
+				     | ADV_TAG_FLAG_DISABLE_DISCONNECT);
+	}
+
+	if ((adv->bug_fix_control & ADV_BUG_FIX_IF_NOT_DWB) != 0
+	 && (scsiq->cdbptr[0] == READ_10 || scsiq->cdbptr[0] == READ_6)) {
+		u_int8_t extra_bytes;
+
+		addr = *p_data_addr + *p_data_bcount;
+		extra_bytes = addr & 0x0003;
+		if (extra_bytes != 0
+		 && ((scsiq->q1.cntl & QC_SG_HEAD) != 0
+		  || (scsiq->q1.data_cnt & 0x01FF) == 0)) {
+			scsiq->q2.tag_code |= ADV_TAG_FLAG_EXTRA_BYTES;
+			scsiq->q1.extra_bytes = extra_bytes;
+			*p_data_bcount -= extra_bytes;
+		}
+	}
+
 	if ((adv_get_num_free_queues(adv, n_q_required) >= n_q_required)
-	    || ((scsiq->q1.cntl & QC_URGENT) != 0))
+	 || ((scsiq->q1.cntl & QC_URGENT) != 0))
 		retval = adv_send_scsi_queue(adv, scsiq, n_q_required);
 	
-	splx(s);
 	return (retval);
 }
 
 
 u_int8_t
-adv_copy_lram_doneq(adv, q_addr, scsiq, max_dma_count)
-	struct adv_softc *adv;
-	u_int16_t q_addr;
-	struct adv_q_done_info *scsiq;
-	u_int32_t max_dma_count;
+adv_copy_lram_doneq(struct adv_softc *adv, u_int16_t q_addr,
+		    struct adv_q_done_info *scsiq, u_int32_t max_dma_count)
 {
-	u_int16_t	val;
-	u_int8_t	sg_queue_cnt;
+	u_int16_t val;
+	u_int8_t  sg_queue_cnt;
 
 	adv_get_q_info(adv, q_addr + ADV_SCSIQ_DONE_INFO_BEG,
 		       (u_int16_t *)scsiq,
@@ -581,10 +800,10 @@ adv_copy_lram_doneq(adv, q_addr, scsiq, max_dma_count)
 
 	val = adv_read_lram_16(adv,q_addr + ADV_SCSIQ_B_SENSE_LEN);
 	scsiq->sense_len = val & 0xFF;
-	scsiq->user_def = (val >> 8) & 0xFF;
+	scsiq->extra_bytes = (val >> 8) & 0xFF;
 
-	scsiq->remain_bytes = adv_read_lram_32(adv,
-					       q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT);
+	scsiq->remain_bytes =
+	    adv_read_lram_32(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT);
 	/*
 	 * XXX Is this just a safeguard or will the counter really
 	 * have bogus upper bits?
@@ -595,8 +814,16 @@ adv_copy_lram_doneq(adv, q_addr, scsiq, max_dma_count)
 }
 
 int
-adv_stop_execution(adv)
-	struct	adv_softc *adv;
+adv_start_chip(struct adv_softc *adv)
+{
+	ADV_OUTB(adv, ADV_CHIP_CTRL, 0);
+	if ((ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_HALTED) != 0)
+		return (0);
+	return (1);
+}
+
+int
+adv_stop_execution(struct adv_softc *adv)
 {
 	int count;
 
@@ -616,8 +843,7 @@ adv_stop_execution(adv)
 }
 
 int
-adv_is_chip_halted(adv)
-	struct adv_softc *adv;
+adv_is_chip_halted(struct adv_softc *adv)
 {
 	if ((ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_HALTED) != 0) {
 		if ((ADV_INB(adv, ADV_CHIP_CTRL) & ADV_CC_HALT) != 0) {
@@ -632,8 +858,7 @@ adv_is_chip_halted(adv)
  * need to be documented.
  */
 void
-adv_ack_interrupt(adv)
-	struct adv_softc *adv;
+adv_ack_interrupt(struct adv_softc *adv)
 {
 	u_int8_t	host_flag;
 	u_int8_t	risc_flag;
@@ -668,19 +893,16 @@ adv_ack_interrupt(adv)
  * for us to intervene.
  */
 void
-adv_isr_chip_halted(adv)
-	struct adv_softc *adv;
+adv_isr_chip_halted(struct adv_softc *adv)
 {
 	u_int16_t	  int_halt_code;
-	u_int8_t	  halt_qp;
 	u_int16_t	  halt_q_addr;
+	target_bit_vector target_mask;
+	target_bit_vector scsi_busy;
+	u_int8_t	  halt_qp;
 	u_int8_t	  target_ix;
 	u_int8_t	  q_cntl;
 	u_int8_t	  tid_no;
-	target_bit_vector target_id;
-	target_bit_vector scsi_busy;
-	u_int8_t	  asyn_sdtr;
-	u_int8_t	  sdtr_data;
 
 	int_halt_code = adv_read_lram_16(adv, ADVV_HALTCODE_W);
 	halt_qp = adv_read_lram_8(adv, ADVV_CURCDB_B);
@@ -688,224 +910,304 @@ adv_isr_chip_halted(adv)
 	target_ix = adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_TARGET_IX);
 	q_cntl = adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL);
 	tid_no = ADV_TIX_TO_TID(target_ix);
-	target_id = ADV_TID_TO_TARGET_ID(tid_no);
-	if (adv->needs_async_bug_fix & target_id)
-		asyn_sdtr = ASYN_SDTR_DATA_FIX;
-	else
-		asyn_sdtr = 0;
-	if (int_halt_code == ADV_HALT_EXTMSG_IN) {
-		struct	sdtr_xmsg sdtr_xmsg;
-		int	sdtr_accept;
-
-		adv_read_lram_16_multi(adv, ADVV_MSGIN_BEG,
-					(u_int16_t *) &sdtr_xmsg,
-					sizeof(sdtr_xmsg) >> 1);
-		if ((sdtr_xmsg.msg_type == MSG_EXTENDED) &&
-		    (sdtr_xmsg.msg_len == MSG_EXT_SDTR_LEN)) {
-			sdtr_accept = TRUE;
-			if (sdtr_xmsg.msg_req == MSG_EXT_SDTR) {
-				if (sdtr_xmsg.req_ack_offset > ADV_SYN_MAX_OFFSET) {
-
-					sdtr_accept = FALSE;
-					sdtr_xmsg.req_ack_offset = ADV_SYN_MAX_OFFSET;
-				}
-				sdtr_data = adv_get_card_sync_setting(sdtr_xmsg.xfer_period,
-								      sdtr_xmsg.req_ack_offset);
-				if (sdtr_xmsg.req_ack_offset == 0) {
-					q_cntl &= ~QC_MSG_OUT;
-					adv->initiate_sdtr &= ~target_id;
-					adv->sdtr_done &= ~target_id;
-					adv_set_chip_sdtr(adv, asyn_sdtr, tid_no);
-				} else if (sdtr_data == 0) {
-					q_cntl |= QC_MSG_OUT;
-					adv->initiate_sdtr &= ~target_id;
-					adv->sdtr_done &= ~target_id;
-					adv_set_chip_sdtr(adv, asyn_sdtr, tid_no);
-				} else {
-					if (sdtr_accept && (q_cntl & QC_MSG_OUT)) {
-						q_cntl &= ~QC_MSG_OUT;
-						adv->sdtr_done |= target_id;
-						adv->initiate_sdtr |= target_id;
-						adv->needs_async_bug_fix &= ~target_id;
-						adv_set_chip_sdtr(adv, sdtr_data, tid_no);
-					} else {
-
-						q_cntl |= QC_MSG_OUT;
-
-						adv_msgout_sdtr(adv,
-								sdtr_xmsg.xfer_period,
-								sdtr_xmsg.req_ack_offset);
-						adv->needs_async_bug_fix &= ~target_id;
-						adv_set_chip_sdtr(adv, sdtr_data, tid_no);
-						adv->sdtr_done |= target_id;
-						adv->initiate_sdtr |= target_id;
-					}
-				}
-
-				adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL, q_cntl);
-			}
-		}
+	target_mask = ADV_TID_TO_TARGET_MASK(tid_no);
+	if (int_halt_code == ADV_HALT_DISABLE_ASYN_USE_SYN_FIX) {
 		/*
-		 * XXX Hey, shouldn't we be rejecting any messages we don't understand?
-		 *     The old code also did not un-halt the processor if it recieved
-		 *     an extended message that it didn't understand.  That didn't
-		 *     seem right, so I changed this routine to always un-halt the
-		 *     processor at the end.
+		 * Temporarily disable the async fix by removing
+		 * this target from the list of affected targets,
+		 * setting our async rate, and then putting us
+		 * back into the mask.
 		 */
+		adv->fix_asyn_xfer &= ~target_mask;
+		adv_set_syncrate(adv, /*struct cam_path */NULL,
+				 tid_no, /*period*/0, /*offset*/0,
+				 ADV_TRANS_ACTIVE);
+		adv->fix_asyn_xfer |= target_mask;
+	} else if (int_halt_code == ADV_HALT_ENABLE_ASYN_USE_SYN_FIX) {
+		adv_set_syncrate(adv, /*struct cam_path */NULL,
+				 tid_no, /*period*/0, /*offset*/0,
+				 ADV_TRANS_ACTIVE);
+	} else if (int_halt_code == ADV_HALT_EXTMSG_IN) {
+		adv_handle_extmsg_in(adv, halt_q_addr, q_cntl,
+				     target_mask, tid_no);
 	} else if (int_halt_code == ADV_HALT_CHK_CONDITION) {
-		u_int8_t	tag_code;
-		u_int8_t	q_status;
+		struct	 adv_target_transinfo* tinfo;
+		union	 ccb *ccb;
+		u_int8_t tag_code;
+		u_int8_t q_status;
 
+		tinfo = &adv->tinfo[tid_no];
 		q_cntl |= QC_REQ_SENSE;
-		if (((adv->initiate_sdtr & target_id) != 0) &&
-			((adv->sdtr_done & target_id) != 0)) {
 
-			sdtr_data = adv_read_lram_8(adv, ADVV_SDTR_DATA_BEG + tid_no);
-			/* XXX Macrotize the extraction of the index from sdtr_data ??? */
-			adv_msgout_sdtr(adv, adv_sdtr_period_tbl[(sdtr_data >> 4) & 0x0F],
-					sdtr_data & ADV_SYN_MAX_OFFSET);
+		/* Renegotiate if appropriate. */
+		adv_set_syncrate(adv, /*struct cam_path */NULL,
+				 tid_no, /*period*/0, /*offset*/0,
+				 ADV_TRANS_CUR);
+		if (tinfo->current.period != tinfo->goal.period) {
+			adv_msgout_sdtr(adv, tinfo->goal.period,
+					tinfo->goal.offset);
 			q_cntl |= QC_MSG_OUT;
 		}
 		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL, q_cntl);
 
 		/* Don't tag request sense commands */
-		tag_code = adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_TAG_CODE);
-		tag_code &= ~(MSG_SIMPLE_Q_TAG|MSG_HEAD_OF_Q_TAG|MSG_ORDERED_Q_TAG);
-		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_TAG_CODE, tag_code);
+		tag_code = adv_read_lram_8(adv,
+					   halt_q_addr + ADV_SCSIQ_B_TAG_CODE);
+		tag_code &=
+		    ~(MSG_SIMPLE_Q_TAG|MSG_HEAD_OF_Q_TAG|MSG_ORDERED_Q_TAG);
 
-		q_status = adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_STATUS);
+		if ((adv->fix_asyn_xfer & target_mask) != 0
+		 && (adv->fix_asyn_xfer_always & target_mask) == 0) {
+			tag_code |= (ADV_TAG_FLAG_DISABLE_DISCONNECT
+				 | ADV_TAG_FLAG_DISABLE_ASYN_USE_SYN_FIX);
+		}
+		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_TAG_CODE,
+				 tag_code);
+		q_status = adv_read_lram_8(adv,
+					   halt_q_addr + ADV_SCSIQ_B_STATUS);
 		q_status |= (QS_READY | QS_BUSY);
-		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_STATUS, q_status);
-
+		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_STATUS,
+				 q_status);
+		/*
+		 * Freeze the devq until we can handle the sense condition.
+		 */
+		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
+							 + ADV_SCSIQ_D_CCBPTR);
+		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		adv_abort_ccb(adv, tid_no, ADV_TIX_TO_LUN(target_ix),
+			      /*ccb*/NULL, CAM_REQUEUE_REQ,
+			      /*queued_only*/TRUE);
 		scsi_busy = adv_read_lram_8(adv, ADVV_SCSIBUSY_B);
-		scsi_busy &= ~target_id;
+		scsi_busy &= ~target_mask;
 		adv_write_lram_8(adv, ADVV_SCSIBUSY_B, scsi_busy);
 	} else if (int_halt_code == ADV_HALT_SDTR_REJECTED) {
-		struct	sdtr_xmsg out_msg;
+		struct	ext_msg out_msg;
 
 		adv_read_lram_16_multi(adv, ADVV_MSGOUT_BEG,
 				       (u_int16_t *) &out_msg,
 				       sizeof(out_msg)/2);
 
-		if ((out_msg.msg_type == MSG_EXTENDED) &&
-			(out_msg.msg_len == MSG_EXT_SDTR_LEN) &&
-			(out_msg.msg_req == MSG_EXT_SDTR)) {
+		if ((out_msg.msg_type == MSG_EXTENDED)
+		 && (out_msg.msg_len == MSG_EXT_SDTR_LEN)
+		 && (out_msg.msg_req == MSG_EXT_SDTR)) {
 
-			adv->initiate_sdtr &= ~target_id;
-			adv->sdtr_done &= ~target_id;
-			adv_set_chip_sdtr(adv, asyn_sdtr, tid_no);
+			/* Revert to Async */
+			adv_set_syncrate(adv, /*struct cam_path */NULL,
+					 tid_no, /*period*/0, /*offset*/0,
+					 ADV_TRANS_GOAL|ADV_TRANS_ACTIVE);
 		}
 		q_cntl &= ~QC_MSG_OUT;
 		adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL, q_cntl);
 	} else if (int_halt_code == ADV_HALT_SS_QUEUE_FULL) {
-		u_int8_t	cur_dvc_qng;
-		u_int8_t	scsi_status;
-
-		/*
-		 * XXX It would be nice if we could push the responsibility for handling
-		 *     this situation onto the generic SCSI layer as other drivers do.
-		 *     This would be done by completing the command with the status byte
-		 *     set to QUEUE_FULL, whereupon it will request that any transactions
-		 *     pending on the target that where scheduled after this one be aborted
-		 *     (so as to maintain queue ordering) and the number of requests the
-		 *     upper level will attempt to send this target will be reduced.
-		 *
-		 *     With this current strategy, am I guaranteed that once I unbusy the
-		 *     target the queued up transactions will be sent in the order they
-		 *     were queued?  If the ASC chip does a round-robin on all queued
-		 *     transactions looking for queues to run, the order is not guaranteed.
-		 */
-		scsi_status = adv_read_lram_8(adv, halt_q_addr + ADV_SCSIQ_SCSI_STATUS);
-		cur_dvc_qng = adv_read_lram_8(adv, ADV_QADR_BEG + target_ix);
-		printf("adv%d: Queue full - target %d, active transactions %d\n", adv->unit,
-		       tid_no, cur_dvc_qng);
-#if 0
-		/* XXX FIX LATER */
-		if ((cur_dvc_qng > 0) && (adv->cur_dvc_qng[tid_no] > 0)) {
-			scsi_busy = adv_read_lram_8(adv, ADVV_SCSIBUSY_B);
-			scsi_busy |= target_id;
-			adv_write_lram_8(adv, ADVV_SCSIBUSY_B, scsi_busy);
-			asc_dvc->queue_full_or_busy |= target_id;
-
-			if (scsi_status == SS_QUEUE_FULL) {
-				if (cur_dvc_qng > ASC_MIN_TAGGED_CMD) {
-					cur_dvc_qng -= 1;
-					asc_dvc->max_dvc_qng[tid_no] = cur_dvc_qng;
-
-					adv_write_lram_8(adv, ADVV_MAX_DVC_QNG_BEG + tid_no,
-							 cur_dvc_qng);
-				}
-			}
-		}
-#endif
+		u_int8_t scsi_status;
+		union ccb *ccb;
+		
+		scsi_status = adv_read_lram_8(adv, halt_q_addr
+					      + ADV_SCSIQ_SCSI_STATUS);
+		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
+						     + ADV_SCSIQ_D_CCBPTR);
+		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		adv_abort_ccb(adv, tid_no, ADV_TIX_TO_LUN(target_ix),
+			      /*ccb*/NULL, CAM_REQUEUE_REQ,
+			      /*queued_only*/TRUE);
+		scsi_busy = adv_read_lram_8(adv, ADVV_SCSIBUSY_B);
+		scsi_busy &= ~target_mask;
+		adv_write_lram_8(adv, ADVV_SCSIBUSY_B, scsi_busy);		
 	}
 	adv_write_lram_16(adv, ADVV_HALTCODE_W, 0);
+}
+
+void
+adv_sdtr_to_period_offset(struct adv_softc *adv,
+			  u_int8_t sync_data, u_int8_t *period,
+			  u_int8_t *offset, int tid)
+{
+	if (adv->fix_asyn_xfer & ADV_TID_TO_TARGET_MASK(tid)
+	 && (sync_data == ASYN_SDTR_DATA_FIX_PCI_REV_AB)) {
+		*period = *offset = 0;
+	} else {
+		*period = adv->sdtr_period_tbl[((sync_data >> 4) & 0xF)];
+		*offset = sync_data & 0xF;
+	}
+}
+
+void
+adv_set_syncrate(struct adv_softc *adv, struct cam_path *path,
+		 u_int tid, u_int period, u_int offset, u_int type)
+{
+	struct adv_target_transinfo* tinfo;
+	u_int old_period;
+	u_int old_offset;
+	u_int8_t sdtr_data;
+
+	tinfo = &adv->tinfo[tid];
+
+	/* Filter our input */
+	sdtr_data = adv_period_offset_to_sdtr(adv, &period,
+					      &offset, tid);
+
+	old_period = tinfo->current.period;
+	old_offset = tinfo->current.offset;
+
+	if ((type & ADV_TRANS_CUR) != 0
+	 && ((old_period != period || old_offset != offset)
+	  || period == 0 || offset == 0) /*Changes in asyn fix settings*/) {
+		int s;
+		int halted;
+
+		s = splcam();
+		halted = adv_is_chip_halted(adv);
+		if (halted == 0)
+			/* Must halt the chip first */
+			adv_host_req_chip_halt(adv);
+
+		/* Update current hardware settings */
+		adv_set_sdtr_reg_at_id(adv, tid, sdtr_data);
+
+		/*
+		 * If a target can run in sync mode, we don't need
+		 * to check it for sync problems.
+		 */
+		if (offset != 0)
+			adv->fix_asyn_xfer &= ~ADV_TID_TO_TARGET_MASK(tid);
+
+		if (halted == 0)
+			/* Start the chip again */
+			adv_start_chip(adv);
+
+		splx(s);
+		tinfo->current.period = period;
+		tinfo->current.offset = offset;
+
+		if (path != NULL) {
+			/*
+			 * Tell the SCSI layer about the
+			 * new transfer parameters.
+			 */
+			struct	ccb_trans_settings neg;
+
+			neg.sync_period = period;
+			neg.sync_offset = offset;
+			neg.valid = CCB_TRANS_SYNC_RATE_VALID
+				  | CCB_TRANS_SYNC_OFFSET_VALID;
+			xpt_setup_ccb(&neg.ccb_h, path, /*priority*/1);
+			xpt_async(AC_TRANSFER_NEG, path, &neg);
+		}
+	}
+
+	if ((type & ADV_TRANS_GOAL) != 0) {
+		tinfo->goal.period = period;
+		tinfo->goal.offset = offset;
+	}
+
+	if ((type & ADV_TRANS_USER) != 0) {
+		tinfo->user.period = period;
+		tinfo->user.offset = offset;
+	}
+}
+
+u_int8_t
+adv_period_offset_to_sdtr(struct adv_softc *adv, u_int *period,
+			  u_int *offset, int tid)
+{
+	u_int i;
+	u_int dummy_offset;
+	u_int dummy_period;
+
+	if (offset == NULL) {
+		dummy_offset = 0;
+		offset = &dummy_offset;
+	}
+
+	if (period == NULL) {
+		dummy_period = 0;
+		period = &dummy_period;
+	}
+
+#define MIN(a,b) (((a) < (b)) ? (a) : (b))
+
+	*offset = MIN(ADV_SYN_MAX_OFFSET, *offset);
+	if (*period != 0 && *offset != 0) {
+		for (i = 0; i < adv->sdtr_period_tbl_size; i++) {
+			if (*period <= adv->sdtr_period_tbl[i]) {
+				/*       
+				 * When responding to a target that requests
+				 * sync, the requested  rate may fall between
+				 * two rates that we can output, but still be
+				 * a rate that we can receive.  Because of this,
+				 * we want to respond to the target with
+				 * the same rate that it sent to us even
+				 * if the period we use to send data to it
+				 * is lower.  Only lower the response period
+				 * if we must.
+				 */        
+				if (i == 0 /* Our maximum rate */)
+					*period = adv->sdtr_period_tbl[0];
+				return ((i << 4) | *offset);
+			}
+		}
+	}
+	
+	/* Must go async */
+	*period = 0;
+	*offset = 0;
+	if (adv->fix_asyn_xfer & ADV_TID_TO_TARGET_MASK(tid))
+		return (ASYN_SDTR_DATA_FIX_PCI_REV_AB);
+	return (0);
 }
 
 /* Internal Routines */
 
 static void
-adv_read_lram_16_multi(adv, s_addr, buffer, count)
-	struct adv_softc *adv;
-	u_int16_t	 s_addr;
-	u_int16_t	 *buffer;
-	int		 count;
+adv_read_lram_16_multi(struct adv_softc *adv, u_int16_t s_addr,
+		       u_int16_t *buffer, int count)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
 	ADV_INSW(adv, ADV_LRAM_DATA, buffer, count);
 }
 
 static void
-adv_write_lram_16_multi(adv, s_addr, buffer, count)
-	struct adv_softc *adv;
-	u_int16_t	 s_addr;
-	u_int16_t	 *buffer;
-	int		 count;
+adv_write_lram_16_multi(struct adv_softc *adv, u_int16_t s_addr,
+			u_int16_t *buffer, int count)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
 	ADV_OUTSW(adv, ADV_LRAM_DATA, buffer, count);
 }
 
 static void
-adv_mset_lram_16(adv, s_addr, set_value, count)
-	struct adv_softc *adv;
-	u_int16_t s_addr;
-	u_int16_t set_value;
-	int count;
+adv_mset_lram_16(struct adv_softc *adv, u_int16_t s_addr,
+		 u_int16_t set_value, int count)
 {
-	int	i;
-
 	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
-	for (i = 0; i < count; i++)
-		ADV_OUTW(adv, ADV_LRAM_DATA, set_value);
+	bus_space_set_multi_2(adv->tag, adv->bsh, ADV_LRAM_DATA,
+			      set_value, count);
 }
 
 static u_int32_t
-adv_msum_lram_16(adv, s_addr, count)
-	struct adv_softc *adv;
-	u_int16_t	 s_addr;
-	int		 count;
+adv_msum_lram_16(struct adv_softc *adv, u_int16_t s_addr, int count)
 {
 	u_int32_t	sum;
 	int		i;
 
 	sum = 0;
-	for (i = 0; i < count; i++, s_addr += 2)
-		sum += adv_read_lram_16(adv, s_addr);
+	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
+	for (i = 0; i < count; i++)
+		sum += ADV_INW(adv, ADV_LRAM_DATA);
 	return (sum);
 }
 
 static int
-adv_write_and_verify_lram_16(adv, addr, value)
-	struct adv_softc *adv;
-	u_int16_t addr;
-	u_int16_t value;
+adv_write_and_verify_lram_16(struct adv_softc *adv, u_int16_t addr,
+			     u_int16_t value)
 {
 	int	retval;
 
 	retval = 0;
 	ADV_OUTW(adv, ADV_LRAM_ADDR, addr);
 	ADV_OUTW(adv, ADV_LRAM_DATA, value);
+	DELAY(10000);
 	ADV_OUTW(adv, ADV_LRAM_ADDR, addr);
 	if (value != ADV_INW(adv, ADV_LRAM_DATA))
 		retval = 1;
@@ -913,9 +1215,7 @@ adv_write_and_verify_lram_16(adv, addr, value)
 }
 
 static u_int32_t
-adv_read_lram_32(adv, addr)
-	struct adv_softc *adv;
-	u_int16_t addr;
+adv_read_lram_32(struct adv_softc *adv, u_int16_t addr)
 {
 	u_int16_t           val_low, val_high;
 
@@ -933,10 +1233,7 @@ adv_read_lram_32(adv, addr)
 }
 
 static void
-adv_write_lram_32(adv, addr, value)
-	struct adv_softc *adv;
-	u_int16_t addr;
-	u_int32_t value;
+adv_write_lram_32(struct adv_softc *adv, u_int16_t addr, u_int32_t value)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, addr);
 
@@ -950,20 +1247,15 @@ adv_write_lram_32(adv, addr, value)
 }
 
 static void
-adv_write_lram_32_multi(adv, s_addr, buffer, count)
-	struct adv_softc *adv;
-	u_int16_t s_addr;
-	u_int32_t *buffer;
-	int count;
+adv_write_lram_32_multi(struct adv_softc *adv, u_int16_t s_addr,
+			u_int32_t *buffer, int count)
 {
 	ADV_OUTW(adv, ADV_LRAM_ADDR, s_addr);
-	ADV_OUTSW(adv, ADV_LRAM_DATA, buffer, count * 2);
+	ADV_OUTSW(adv, ADV_LRAM_DATA, (u_int16_t *)buffer, count * 2);
 }
 
 static u_int16_t
-adv_read_eeprom_16(adv, addr)
-	struct adv_softc *adv;
-	u_int8_t addr;
+adv_read_eeprom_16(struct adv_softc *adv, u_int8_t addr)
 {
 	u_int16_t read_wval;
 	u_int8_t  cmd_reg;
@@ -979,10 +1271,7 @@ adv_read_eeprom_16(adv, addr)
 }
 
 static u_int16_t
-adv_write_eeprom_16(adv, addr, value)
-	struct adv_softc *adv;
-	u_int8_t addr;
-	u_int16_t value;
+adv_write_eeprom_16(struct adv_softc *adv, u_int8_t addr, u_int16_t value)
 {
 	u_int16_t	read_value;
 
@@ -1005,9 +1294,7 @@ adv_write_eeprom_16(adv, addr, value)
 }
 
 static int
-adv_write_eeprom_cmd_reg(adv, cmd_reg)
-	struct adv_softc *adv;
-	u_int8_t cmd_reg;
+adv_write_eeprom_cmd_reg(struct adv_softc *adv, u_int8_t cmd_reg)
 {
 	u_int8_t read_back;
 	int	 retry;
@@ -1027,9 +1314,8 @@ adv_write_eeprom_cmd_reg(adv, cmd_reg)
 }
 
 static int
-adv_set_eeprom_config_once(adv, eeprom_config)
-	struct adv_softc *adv;
-	struct adv_eeprom_config *eeprom_config;
+adv_set_eeprom_config_once(struct adv_softc *adv,
+			   struct adv_eeprom_config *eeprom_config)
 {
 	int		n_error;
 	u_int16_t	*wbuf;
@@ -1080,38 +1366,41 @@ adv_set_eeprom_config_once(adv, eeprom_config)
 }
 
 static u_int32_t
-adv_load_microcode(adv, s_addr, mcode_buf, mcode_size)
-	struct adv_softc *adv;
-	u_int16_t	 s_addr;
-	u_int16_t	 *mcode_buf;
-	u_int16_t	 mcode_size;
+adv_load_microcode(struct adv_softc *adv, u_int16_t s_addr,
+		   u_int16_t *mcode_buf, u_int16_t mcode_size)
 {
-	u_int32_t	chksum;
-	u_int16_t	mcode_lram_size;
-	u_int16_t	mcode_chksum;
+	u_int32_t chksum;
+	u_int16_t mcode_lram_size;
+	u_int16_t mcode_chksum;
 
 	mcode_lram_size = mcode_size >> 1;
 	/* XXX Why zero the memory just before you write the whole thing?? */
-	/* adv_mset_lram_16(adv, s_addr, 0, mcode_lram_size);*/
+	adv_mset_lram_16(adv, s_addr, 0, mcode_lram_size);
 	adv_write_lram_16_multi(adv, s_addr, mcode_buf, mcode_lram_size);
 
 	chksum = adv_msum_lram_16(adv, s_addr, mcode_lram_size);
 	mcode_chksum = (u_int16_t)adv_msum_lram_16(adv, ADV_CODE_SEC_BEG,
-					  ((mcode_size - s_addr - ADV_CODE_SEC_BEG) >> 1));
+						   ((mcode_size - s_addr
+						     - ADV_CODE_SEC_BEG) >> 1));
 	adv_write_lram_16(adv, ADVV_MCODE_CHKSUM_W, mcode_chksum);
 	adv_write_lram_16(adv, ADVV_MCODE_SIZE_W, mcode_size);
 	return (chksum);
 }
 
 static void
-adv_init_lram(adv)
-	struct adv_softc *adv;
+adv_reinit_lram(struct adv_softc *adv) {
+	adv_init_lram(adv);
+	adv_init_qlink_var(adv);
+}
+
+static void
+adv_init_lram(struct adv_softc *adv)
 {
-	u_int8_t	i;
-	u_int16_t	s_addr;
+	u_int8_t  i;
+	u_int16_t s_addr;
 
 	adv_mset_lram_16(adv, ADV_QADR_BEG, 0,
-			 (u_int16_t)((((int)adv->max_openings + 2 + 1) * 64) >> 1));
+			 (((adv->max_openings + 2 + 1) * 64) >> 1));
 	
 	i = ADV_MIN_ACTIVE_QNO;
 	s_addr = ADV_QADR_BEG + ADV_QBLK_SIZE;
@@ -1141,39 +1430,30 @@ adv_init_lram(adv)
 }
 
 static int
-adv_init_microcode_var(adv)
-	struct adv_softc *adv;
+adv_init_microcode_var(struct adv_softc *adv)
 {
-	int       i;
+	int	 i;
 
 	for (i = 0; i <= ADV_MAX_TID; i++) {
-		adv_write_lram_8(adv, ADVV_SDTR_DATA_BEG + i,
-				 adv->sdtr_data[i]);
+		
+		/* Start out async all around */
+		adv_set_syncrate(adv, /*path*/NULL,
+				 i, 0, 0,
+				 ADV_TRANS_GOAL|ADV_TRANS_CUR);
 	}
 
 	adv_init_qlink_var(adv);
 
-	/* XXX Again, what about wide busses??? */
 	adv_write_lram_8(adv, ADVV_DISC_ENABLE_B, adv->disc_enable);
 	adv_write_lram_8(adv, ADVV_HOSTSCSI_ID_B, 0x01 << adv->scsi_id);
 
-	/* What are the extra 8 bytes for?? */
-	adv_write_lram_32(adv, ADVV_OVERRUN_PADDR_D, vtophys(&(adv->overrun_buf[0])) + 8);
+	adv_write_lram_32(adv, ADVV_OVERRUN_PADDR_D, adv->overrun_physbase);
 
-	adv_write_lram_32(adv, ADVV_OVERRUN_BSIZE_D, ADV_OVERRUN_BSIZE - 8);
+	adv_write_lram_32(adv, ADVV_OVERRUN_BSIZE_D, ADV_OVERRUN_BSIZE);
 
-#if 0
-	/* If we're going to print anything, RCS ids are more meaningful */
-	mcode_date = adv_read_lram_16(adv, ADVV_MC_DATE_W);
-	mcode_version = adv_read_lram_16(adv, ADVV_MC_VER_W);
-#endif
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 	if (ADV_INW(adv, ADV_REG_PROG_COUNTER) != ADV_MCODE_START_ADDR) {
-		printf("adv%d: Unable to set program counter. Aborting.\n", adv->unit);
-		return (1);
-	}
-	if (adv_start_chip(adv) != 1) {
-		printf("adv%d: Unable to start on board processor. Aborting.\n",
+		printf("adv%d: Unable to set program counter. Aborting.\n",
 		       adv->unit);
 		return (1);
 	}
@@ -1181,8 +1461,7 @@ adv_init_microcode_var(adv)
 }
 
 static void
-adv_init_qlink_var(adv)
-	struct adv_softc *adv;
+adv_init_qlink_var(struct adv_softc *adv)
 {
 	int	  i;
 	u_int16_t lram_addr;
@@ -1205,16 +1484,15 @@ adv_init_qlink_var(adv)
 	adv_write_lram_8(adv, ADVV_STOP_CODE_B, 0);
 	adv_write_lram_8(adv, ADVV_SCSIBUSY_B, 0);
 	adv_write_lram_8(adv, ADVV_WTM_FLAG_B, 0);
-
-	adv_write_lram_8(adv, ADVV_CDBCNT_B, 0);
+	adv_write_lram_8(adv, ADVV_Q_DONE_IN_PROGRESS_B, 0);
 
 	lram_addr = ADV_QADR_BEG;
 	for (i = 0; i < 32; i++, lram_addr += 2)
 		adv_write_lram_16(adv, lram_addr, 0);
 }
+
 static void
-adv_disable_interrupt(adv)
-	struct adv_softc *adv;
+adv_disable_interrupt(struct adv_softc *adv)
 {
 	u_int16_t cfg;
 
@@ -1223,8 +1501,7 @@ adv_disable_interrupt(adv)
 }
 
 static void
-adv_enable_interrupt(adv)
-	struct adv_softc *adv;
+adv_enable_interrupt(struct adv_softc *adv)
 {
 	u_int16_t cfg;
 
@@ -1233,37 +1510,22 @@ adv_enable_interrupt(adv)
 }
 
 static void
-adv_toggle_irq_act(adv)
-	struct adv_softc *adv;
+adv_toggle_irq_act(struct adv_softc *adv)
 {
 	ADV_OUTW(adv, ADV_CHIP_STATUS, ADV_CIW_IRQ_ACT);
 	ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
 }
 
-#if UNUSED
-static void
-adv_start_execution(adv)
-	struct adv_softc *adv;
+void
+adv_start_execution(struct adv_softc *adv)
 {
 	if (adv_read_lram_8(adv, ADV_STOP_CODE_B) != 0) {
 		adv_write_lram_8(adv, ADV_STOP_CODE_B, 0);
 	}
 }
-#endif
 
 static int
-adv_start_chip(adv)
-	struct adv_softc *adv;
-{
-	ADV_OUTB(adv, ADV_CHIP_CTRL, 0);
-	if ((ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_HALTED) != 0)
-		return (0);
-	return (1);
-}
-
-static int
-adv_stop_chip(adv)
-	struct adv_softc *adv;
+adv_stop_chip(struct adv_softc *adv)
 {
 	u_int8_t cc_val;
 
@@ -1278,42 +1540,38 @@ adv_stop_chip(adv)
 	return (1);
 }
 
+static int
+adv_host_req_chip_halt(struct adv_softc *adv)
+{       
+	int	 count;
+	u_int8_t saved_stop_code;
+
+	if (adv_is_chip_halted(adv))
+		return (1);
+
+	count = 0;
+	saved_stop_code = adv_read_lram_8(adv, ADVV_STOP_CODE_B);
+	adv_write_lram_8(adv, ADVV_STOP_CODE_B,
+			 ADV_STOP_HOST_REQ_RISC_HALT | ADV_STOP_REQ_RISC_STOP);
+	while (adv_is_chip_halted(adv) == 0
+	    && count++ < 2000)
+		;
+
+	adv_write_lram_8(adv, ADVV_STOP_CODE_B, saved_stop_code);
+	return (count < 2000); 
+}
+
 static void
-adv_set_chip_ih(adv, ins_code)
-	struct adv_softc *adv;
-	u_int16_t ins_code;
+adv_set_chip_ih(struct adv_softc *adv, u_int16_t ins_code)
 {
 	adv_set_bank(adv, 1);
 	ADV_OUTW(adv, ADV_REG_IH, ins_code);
 	adv_set_bank(adv, 0);
 }
 
-static void
-adv_set_bank(adv, bank)
-	struct adv_softc *adv;
-	u_int8_t bank;
-{
-	u_int8_t control;
-
-	/*
-	 * Start out with the bank reset to 0
-	 */
-	control = ADV_INB(adv, ADV_CHIP_CTRL)
-		  &  (~(ADV_CC_SINGLE_STEP | ADV_CC_TEST
-			| ADV_CC_DIAG | ADV_CC_SCSI_RESET
-			| ADV_CC_CHIP_RESET | ADV_CC_BANK_ONE));
-	if (bank == 1) {
-		control |= ADV_CC_BANK_ONE;
-	} else if (bank == 2) {
-		control |= ADV_CC_DIAG | ADV_CC_BANK_ONE;
-	}
-	ADV_OUTB(adv, ADV_CHIP_CTRL, control);
-}
-
 #if UNUSED
 static u_int8_t
-adv_get_chip_scsi_ctrl(adv)
-	struct	adv_softc *adv;
+adv_get_chip_scsi_ctrl(struct adv_softc *adv)
 {
 	u_int8_t scsi_ctrl;
 
@@ -1325,8 +1583,7 @@ adv_get_chip_scsi_ctrl(adv)
 #endif
 
 static int
-adv_sgcount_to_qcount(sgcount)
-	int sgcount;
+adv_sgcount_to_qcount(int sgcount)
 {
 	int	n_sg_list_qs;
 
@@ -1341,11 +1598,8 @@ adv_sgcount_to_qcount(sgcount)
  *     There has to be a way to turn this into an insw.
  */
 static void
-adv_get_q_info(adv, s_addr, inbuf, words)
-	struct adv_softc *adv;
-	u_int16_t s_addr;
-	u_int16_t *inbuf;
-	int words;
+adv_get_q_info(struct adv_softc *adv, u_int16_t s_addr,
+	       u_int16_t *inbuf, int words)
 {
 	int	i;
 
@@ -1359,36 +1613,24 @@ adv_get_q_info(adv, s_addr, inbuf, words)
 }
 
 static u_int
-adv_get_num_free_queues(adv, n_qs)
-	struct adv_softc *adv;
-	u_int8_t n_qs;
+adv_get_num_free_queues(struct adv_softc *adv, u_int8_t n_qs)
 {
 	u_int	  cur_used_qs;
 	u_int	  cur_free_qs;
 
-	if (n_qs == 1)
-		cur_used_qs = adv->cur_active +
-			      adv->openings_needed +
-			      ADV_MIN_FREE_Q;
-	else
-		cur_used_qs = adv->cur_active +
-			      ADV_MIN_FREE_Q;
+	cur_used_qs = adv->cur_active + ADV_MIN_FREE_Q;
 
 	if ((cur_used_qs + n_qs) <= adv->max_openings) {
 		cur_free_qs = adv->max_openings - cur_used_qs;
 		return (cur_free_qs);
 	}
-	if (n_qs > 1)
-		if (n_qs > adv->openings_needed)
-			adv->openings_needed = n_qs;
+	adv->openings_needed = n_qs;
 	return (0);
 }
 
 static u_int8_t
-adv_alloc_free_queues(adv, free_q_head, n_free_q)
-	struct adv_softc *adv;
-	u_int8_t free_q_head;
-	u_int8_t n_free_q;
+adv_alloc_free_queues(struct adv_softc *adv, u_int8_t free_q_head,
+		      u_int8_t n_free_q)
 {
 	int i;
 
@@ -1401,9 +1643,7 @@ adv_alloc_free_queues(adv, free_q_head, n_free_q)
 }
 
 static u_int8_t
-adv_alloc_free_queue(adv, free_q_head)
-	struct adv_softc *adv;
-	u_int8_t free_q_head;
+adv_alloc_free_queue(struct adv_softc *adv, u_int8_t free_q_head)
 {
 	u_int16_t	q_addr;
 	u_int8_t	next_qp;
@@ -1420,10 +1660,8 @@ adv_alloc_free_queue(adv, free_q_head)
 }
 
 static int
-adv_send_scsi_queue(adv, scsiq, n_q_required)
-	struct adv_softc *adv;
-	struct adv_scsi_q *scsiq;
-	u_int8_t n_q_required;
+adv_send_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
+		    u_int8_t n_q_required)
 {
 	u_int8_t	free_q_head;
 	u_int8_t	next_qp;
@@ -1437,25 +1675,15 @@ adv_send_scsi_queue(adv, scsiq, n_q_required)
 	free_q_head = adv_read_lram_16(adv, ADVV_FREE_Q_HEAD_W) & 0xFF;
 	if ((next_qp = adv_alloc_free_queues(adv, free_q_head, n_q_required))
 	    != ADV_QLINK_END) {
-		if (n_q_required > 1) {
-			/*
-			 * Only reset the shortage value when processing
-			 * a "normal" request and not error recovery or
-			 * other requests that dip into our reserved queues.
-			 * Generally speaking, a normal request will need more
-			 * than one queue.
-			 */
-			adv->openings_needed = 0;
-		}
 		scsiq->q1.q_no = free_q_head;
 
 		/*
 		 * Now that we know our Q number, point our sense
-		 * buffer pointer to an area below 16M if we are
-		 * an ISA adapter.
+		 * buffer pointer to a bus dma mapped area where
+		 * we can dma the data to.
 		 */
-		if (adv->sense_buffers != NULL)
-			scsiq->q1.sense_addr = (u_int32_t)vtophys(&(adv->sense_buffers[free_q_head]));
+		scsiq->q1.sense_addr = adv->sense_physbase
+		    + ((free_q_head - 1) * sizeof(struct scsi_sense_data));
 		adv_put_ready_sg_list_queue(adv, scsiq, free_q_head);
 		adv_write_lram_16(adv, ADVV_FREE_Q_HEAD_W, next_qp);
 		adv->cur_active += n_q_required;
@@ -1466,10 +1694,8 @@ adv_send_scsi_queue(adv, scsiq, n_q_required)
 
 
 static void
-adv_put_ready_sg_list_queue(adv, scsiq, q_no)
-	struct	adv_softc *adv;
-	struct 	adv_scsi_q *scsiq;
-	u_int8_t q_no;
+adv_put_ready_sg_list_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
+			    u_int q_no)
 {
 	u_int8_t	sg_list_dwords;
 	u_int8_t	sg_index, i;
@@ -1485,9 +1711,11 @@ adv_put_ready_sg_list_queue(adv, scsiq, q_no)
 		sg_entry_cnt = sg_head->entry_cnt - 1;
 #ifdef DIAGNOSTIC
 		if (sg_entry_cnt == 0)
-			panic("adv_put_ready_sg_list_queue: ScsiQ with a SG list but only one element");
+			panic("adv_put_ready_sg_list_queue: ScsiQ with "
+			      "a SG list but only one element");
 		if ((scsiq->q1.cntl & QC_SG_HEAD) == 0)
-			panic("adv_put_ready_sg_list_queue: ScsiQ with a SG list but QC_SG_HEAD not set");
+			panic("adv_put_ready_sg_list_queue: ScsiQ with "
+			      "a SG list but QC_SG_HEAD not set");
 #endif			
 		q_addr = ADV_QNO_TO_QADDR(q_no);
 		sg_index = 1;
@@ -1505,7 +1733,7 @@ adv_put_ready_sg_list_queue(adv, scsiq, q_no)
 				scsi_sg_q.cntl |= QCSG_SG_XFER_END;
 			}
 			scsi_sg_q.seq_no = i + 1;
-			sg_list_dwords = segs_this_q * 2;
+			sg_list_dwords = segs_this_q << 1;
 			if (i == 0) {
 				scsi_sg_q.sg_list_cnt = segs_this_q;
 				scsi_sg_q.sg_cur_list_cnt = segs_this_q;
@@ -1517,7 +1745,8 @@ adv_put_ready_sg_list_queue(adv, scsiq, q_no)
 			scsi_sg_q.q_no = next_qp;
 			q_addr = ADV_QNO_TO_QADDR(next_qp);
 
-			adv_write_lram_16_multi(adv, q_addr + ADV_SCSIQ_SGHD_CPY_BEG,
+			adv_write_lram_16_multi(adv,
+						q_addr + ADV_SCSIQ_SGHD_CPY_BEG,
 						(u_int16_t *)&scsi_sg_q,
 						sizeof(scsi_sg_q) >> 1);
 			adv_write_lram_32_multi(adv, q_addr + ADV_SGQ_LIST_BEG,
@@ -1531,28 +1760,18 @@ adv_put_ready_sg_list_queue(adv, scsiq, q_no)
 }
 
 static void
-adv_put_ready_queue(adv, scsiq, q_no)
-	struct adv_softc *adv;
-	struct adv_scsi_q *scsiq;
-	u_int8_t q_no;
+adv_put_ready_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
+		    u_int q_no)
 {
-	u_int16_t	q_addr;
-	u_int8_t	tid_no;
-	u_int8_t	sdtr_data;
-	u_int8_t	syn_period_ix;
-	u_int8_t	syn_offset;
+	struct		adv_target_transinfo* tinfo;
+	u_int		q_addr;
+	u_int		tid_no;
 
-	if (((adv->initiate_sdtr & scsiq->q1.target_id) != 0) &&
-	    ((adv->sdtr_done & scsiq->q1.target_id) == 0)) {
+	tid_no = ADV_TIX_TO_TID(scsiq->q2.target_ix);
+	tinfo = &adv->tinfo[tid_no];
+	if (tinfo->current.period != tinfo->goal.period) {
 
-		tid_no = ADV_TIX_TO_TID(scsiq->q2.target_ix);
-
-		sdtr_data = adv_read_lram_8(adv, ADVV_SDTR_DATA_BEG + tid_no);
-		syn_period_ix = (sdtr_data >> 4) & (ADV_SYN_XFER_NO - 1);
-		syn_offset = sdtr_data & ADV_SYN_MAX_OFFSET;
-		adv_msgout_sdtr(adv, adv_sdtr_period_tbl[syn_period_ix],
-				 syn_offset);
-
+		adv_msgout_sdtr(adv, tinfo->goal.period, tinfo->goal.offset);
 		scsiq->q1.cntl |= QC_MSG_OUT;
 	}
 	q_addr = ADV_QNO_TO_QADDR(q_no);
@@ -1587,11 +1806,8 @@ adv_put_ready_queue(adv, scsiq, q_no)
 }
 
 static void
-adv_put_scsiq(adv, s_addr, buffer, words)
-	struct adv_softc *adv;
-	u_int16_t s_addr;
-	u_int16_t *buffer;
-	int words;
+adv_put_scsiq(struct adv_softc *adv, u_int16_t s_addr,
+	      u_int16_t *buffer, int words)
 {
 	int	i;
 
@@ -1619,13 +1835,88 @@ adv_put_scsiq(adv, s_addr, buffer, words)
 	}
 }
 
-static u_int8_t
-adv_msgout_sdtr(adv, sdtr_period, sdtr_offset)
-	struct adv_softc *adv;
-	u_int8_t sdtr_period;
-	u_int8_t sdtr_offset;
+static void
+adv_handle_extmsg_in(struct adv_softc *adv, u_int16_t halt_q_addr,
+		     u_int8_t q_cntl, target_bit_vector target_mask,
+		     int tid_no)
 {
-	struct	 sdtr_xmsg sdtr_buf;
+	struct	ext_msg ext_msg;
+
+	adv_read_lram_16_multi(adv, ADVV_MSGIN_BEG, (u_int16_t *) &ext_msg,
+			       sizeof(ext_msg) >> 1);
+	if ((ext_msg.msg_type == MSG_EXTENDED)
+	 && (ext_msg.msg_req == MSG_EXT_SDTR)
+	 && (ext_msg.msg_len == MSG_EXT_SDTR_LEN)) {
+		union	 ccb *ccb;
+		struct	 adv_target_transinfo* tinfo;
+		u_int	 period;
+		u_int	 offset;
+		int	 sdtr_accept;
+		u_int8_t orig_offset;
+
+		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
+							 + ADV_SCSIQ_D_CCBPTR);
+		tinfo = &adv->tinfo[tid_no];
+		sdtr_accept = TRUE;
+
+		orig_offset = ext_msg.req_ack_offset;
+		if (ext_msg.xfer_period < tinfo->goal.period) {
+                	sdtr_accept = FALSE;
+			ext_msg.xfer_period = tinfo->goal.period;
+		}
+
+		/* Perform range checking */
+		period = ext_msg.xfer_period;
+		offset = ext_msg.req_ack_offset;
+		adv_period_offset_to_sdtr(adv, &period,  &offset, tid_no);
+		ext_msg.xfer_period = period;
+		ext_msg.req_ack_offset = offset;
+		
+		/* Record our current sync settings */
+		adv_set_syncrate(adv, ccb->ccb_h.path,
+				 tid_no, ext_msg.xfer_period,
+				 ext_msg.req_ack_offset,
+				 ADV_TRANS_GOAL|ADV_TRANS_ACTIVE);
+
+		/* Offset too high or large period forced async */
+		if (orig_offset != ext_msg.req_ack_offset)
+			sdtr_accept = FALSE;
+
+		if (sdtr_accept && (q_cntl & QC_MSG_OUT)) {
+			/* Valid response to our requested negotiation */
+			q_cntl &= ~QC_MSG_OUT;
+		} else {
+			/* Must Respond */
+			q_cntl |= QC_MSG_OUT;
+			adv_msgout_sdtr(adv, ext_msg.xfer_period,
+					ext_msg.req_ack_offset);
+		}
+
+	} else if (ext_msg.msg_type == MSG_EXTENDED
+		&& ext_msg.msg_req == MSG_EXT_WDTR
+		&& ext_msg.msg_len == MSG_EXT_WDTR_LEN) {
+
+		ext_msg.wdtr_width = 0;
+		adv_write_lram_16_multi(adv, ADVV_MSGOUT_BEG,
+					(u_int16_t *)&ext_msg,
+					sizeof(ext_msg) >> 1);
+		q_cntl |= QC_MSG_OUT;
+        } else {
+
+		ext_msg.msg_type = MSG_MESSAGE_REJECT;
+		adv_write_lram_16_multi(adv, ADVV_MSGOUT_BEG,
+					(u_int16_t *)&ext_msg,
+					sizeof(ext_msg) >> 1);
+		q_cntl |= QC_MSG_OUT;
+        }
+	adv_write_lram_8(adv, halt_q_addr + ADV_SCSIQ_B_CNTL, q_cntl);
+}
+
+static void
+adv_msgout_sdtr(struct adv_softc *adv, u_int8_t sdtr_period,
+		u_int8_t sdtr_offset)
+{
+	struct	 ext_msg sdtr_buf;
 
 	sdtr_buf.msg_type = MSG_EXTENDED;
 	sdtr_buf.msg_len = MSG_EXT_SDTR_LEN;
@@ -1636,32 +1927,101 @@ adv_msgout_sdtr(adv, sdtr_period, sdtr_offset)
 	adv_write_lram_16_multi(adv, ADVV_MSGOUT_BEG,
 				(u_int16_t *) &sdtr_buf,
 				sizeof(sdtr_buf) / 2);
-
-	return (adv_get_card_sync_setting(sdtr_period, sdtr_offset));
 }
 
-static u_int8_t
-adv_get_card_sync_setting(period, offset)
-	u_int8_t period;
-	u_int8_t offset;
+int
+adv_abort_ccb(struct adv_softc *adv, int target, int lun, union ccb *ccb,
+	      u_int32_t status, int queued_only)
 {
-	u_int i;
+	u_int16_t q_addr;
+	u_int8_t  q_no;
+	struct adv_q_done_info scsiq_buf;
+	struct adv_q_done_info *scsiq;
+	u_int8_t  target_ix;
+	int	  count;
 
-	if (period >= adv_sdtr_period_tbl[0]) {
-		for (i = 0; i < sizeof(adv_sdtr_period_tbl); i++) {
-			if (period <= adv_sdtr_period_tbl[i])
-				return ((adv_sdtr_period_tbl[i] << 4) | offset);
+	scsiq = &scsiq_buf;
+	target_ix = ADV_TIDLUN_TO_IX(target, lun);
+	count = 0;
+	for (q_no = ADV_MIN_ACTIVE_QNO; q_no <= adv->max_openings; q_no++) {
+		q_addr = ADV_QNO_TO_QADDR(q_no);
+
+		adv_copy_lram_doneq(adv, q_addr, scsiq, adv->max_dma_count);
+		if (((scsiq->q_status & QS_READY) != 0)
+		 && ((scsiq->q_status & QS_ABORTED) == 0)
+		 && ((scsiq->cntl & QCSG_SG_XFER_LIST) == 0)
+		 && (scsiq->d2.target_ix == target_ix)
+		 && (queued_only == 0
+		  || !(scsiq->q_status & (QS_DISC1|QS_DISC2|QS_BUSY|QS_DONE)))
+		 && (ccb == NULL || (ccb == (union ccb *)scsiq->d2.ccb_ptr))) {
+			union ccb *aborted_ccb;
+			struct adv_ccb_info *cinfo;
+
+			scsiq->q_status |= QS_ABORTED;
+			scsiq->d3.done_stat = QD_ABORTED_BY_HOST;
+			adv_write_lram_8(adv, q_addr + ADV_SCSIQ_B_STATUS,
+					 scsiq->q_status);
+			aborted_ccb = (union ccb *)scsiq->d2.ccb_ptr;
+			/* Don't clobber earlier error codes */
+			if ((aborted_ccb->ccb_h.status & CAM_STATUS_MASK)
+			  == CAM_REQ_INPROG)
+				aborted_ccb->ccb_h.status |= status;
+			cinfo = (struct adv_ccb_info *)
+			    aborted_ccb->ccb_h.ccb_cinfo_ptr;
+			cinfo->state |= ACCB_ABORT_QUEUED;
+			count++;
 		}
 	}
-	return (0);
+	return (count);
+}
+
+int
+adv_reset_bus(struct adv_softc *adv)
+{
+	int count; 
+	int i;
+	union ccb *ccb;
+
+	adv_reset_chip_and_scsi_bus(adv);
+	adv_reinit_lram(adv);
+	for (i = 0; i <= ADV_MAX_TID; i++) {
+		if (adv->fix_asyn_xfer & (0x01 << i))
+			adv_set_sdtr_reg_at_id(adv, i,
+					       ASYN_SDTR_DATA_FIX_PCI_REV_AB);
+        }
+	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
+
+	/* Tell the XPT layer that a bus reset occured */
+	if (adv->path != NULL)
+		xpt_async(AC_BUS_RESET, adv->path, NULL);
+
+	count = 0;
+	while ((ccb = (union ccb *)LIST_FIRST(&adv->pending_ccbs)) != NULL) {
+		struct	adv_ccb_info *cinfo;
+		
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
+			ccb->ccb_h.status |= CAM_SCSI_BUS_RESET;
+		adv_done(adv, ccb, QD_ABORTED_BY_HOST, 0, 0, 0);
+		count++;
+	}
+
+	adv_start_chip(adv);
+	return (count);
 }
 
 static void
-adv_set_chip_sdtr(adv, sdtr_data, tid_no)
-	struct adv_softc *adv;
-	u_int8_t sdtr_data;
-	u_int8_t tid_no;
+adv_set_sdtr_reg_at_id(struct adv_softc *adv, int tid, u_int8_t sdtr_data)
 {
-	ADV_OUTB(adv, ADV_SYN_OFFSET, sdtr_data);
-	adv_write_lram_8(adv, ADVV_SDTR_DONE_BEG + tid_no, sdtr_data);
+	int orig_id;
+
+    	adv_set_bank(adv, 1);
+    	orig_id = ffs(ADV_INB(adv, ADV_HOST_SCSIID)) - 1;
+    	ADV_OUTB(adv, ADV_HOST_SCSIID, tid);
+	if (ADV_INB(adv, ADV_HOST_SCSIID) == (0x01 << tid)) {
+		adv_set_bank(adv, 0);
+		ADV_OUTB(adv, ADV_SYN_OFFSET, sdtr_data);
+	}
+    	adv_set_bank(adv, 1);
+    	ADV_OUTB(adv, ADV_HOST_SCSIID, orig_id);
+	adv_set_bank(adv, 0);
 }
