@@ -56,7 +56,7 @@ GNATS_SITE=freefall
 
 # What mailer to use.  This must come after the config file, since it is
 # host-dependent.
-MAIL_AGENT="/usr/sbin/sendmail -oi -t"
+MAIL_AGENT="${MAIL_AGENT:-/usr/sbin/sendmail -oi -t}"
 
 ECHON=bsd
 
