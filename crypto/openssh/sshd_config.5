@@ -35,6 +35,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $OpenBSD: sshd_config.5,v 1.3 2002/06/20 23:37:12 markus Exp $
+.\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -131,6 +132,9 @@ All authentication styles from
 are supported.
 The default is
 .Dq yes .
+Note that OPIE authentication is enabled only if
+.Cm PasswordAuthentication
+is allowed, too.
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
@@ -140,6 +144,12 @@ The default is
   ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
     aes192-cbc,aes256-cbc''
 .Ed
+.It Cm CheckMail
+Specifies whether
+.Nm
+should notify the user of new mail for interactive logins.
+The default is
+.Dq yes .
 .It Cm ClientAliveInterval
 Sets a timeout interval in seconds after which if no data has been received
 from the client,
@@ -266,7 +276,7 @@ or
 .Pp
 .Pa /etc/hosts.equiv
 and
-.Pa /etc/shosts.equiv
+.Pa /etc/ssh/shosts.equiv 
 are still used.
 The default is
 .Dq yes .
@@ -379,7 +389,7 @@ options must precede this option for non port qualified addresses.
 The server disconnects after this time if the user has not
 successfully logged in.
 If the value is 0, there is no time limit.
-The default is 600 (seconds).
+The default is 120 (seconds).
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
 .Nm sshd .
@@ -440,7 +450,7 @@ The argument must be
 or
 .Dq no .
 The default is
-.Dq yes .
+.Dq no .
 .Pp
 If this option is set to
 .Dq without-password
@@ -507,18 +517,23 @@ The default is
 .Dq yes .
 Note that this option applies to protocol version 2 only.
 .It Cm RhostsAuthentication
-Specifies whether authentication using rhosts or /etc/hosts.equiv
+Specifies whether authentication using rhosts or
+.Pa /etc/hosts.equiv
 files is sufficient.
 Normally, this method should not be permitted because it is insecure.
 .Cm RhostsRSAAuthentication
 should be used
 instead, because it performs RSA-based host authentication in addition
-to normal rhosts or /etc/hosts.equiv authentication.
+to normal rhosts or
+.Pa /etc/hosts.equiv
+authentication.
 The default is
 .Dq no .
 This option applies to protocol version 1 only.
 .It Cm RhostsRSAAuthentication
-Specifies whether rhosts or /etc/hosts.equiv authentication together
+Specifies whether rhosts or
+.Pa /etc/hosts.equiv
+authentication together
 with successful RSA host authentication is allowed.
 The default is
 .Dq no .
@@ -531,6 +546,9 @@ This option applies to protocol version 1 only.
 .It Cm ServerKeyBits
 Defines the number of bits in the ephemeral protocol version 1 server key.
 The minimum value is 512, and the default is 768.
+.It Cm SkeyAuthentication
+Backward-compatibility alias for 
+.Cm ChallengeResponseAuthentication .
 .It Cm StrictModes
 Specifies whether
 .Nm sshd
@@ -593,6 +611,9 @@ the resolved host name for the remote IP address maps back to the
 very same IP address.
 The default is
 .Dq no .
+.It Cm VersionAddendum
+Specifies a string to append to the regular version string to identify
+OS- or site-specific modifications.
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Nm sshd Ns 's
