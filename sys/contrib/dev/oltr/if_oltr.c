@@ -1391,7 +1391,7 @@ DriverReceiveFrameCompleted(void *DriverHandle, int ByteCount, int FragmentCount
 	struct oltr_softc 	*sc = (struct oltr_softc *)DriverHandle;
 	struct ifnet		*ifp = (struct ifnet *)&sc->arpcom.ac_if;
 	struct mbuf		*m0, *m1, *m;
-	int			frame_len = ByteCount, hdr_len, i = (int)FragmentHandle, rc, s;
+	int			frame_len = ByteCount, i = (int)FragmentHandle, rc, s;
 	int			mbuf_offset, mbuf_size, frag_offset, copy_length;
 	char			*fragment = sc->rx_ring[RING_BUFFER(i)].data;
 	
