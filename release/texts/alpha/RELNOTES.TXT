@@ -55,6 +55,8 @@ POSIX.1b Shared Memory Objects are now supported.  The implementation
 uses regular files, but automatically enables the MAP_NOSYNC flag
 when they are mmap(2)ed.
 
+The ata(4) driver now has support for ATA100 controllers.
+
 
 1.2. SECURITY FIXES
 -------------------
