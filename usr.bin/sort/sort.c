@@ -46,7 +46,7 @@
 #include "pathnames.h"
 
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1993\nThe Regents of the University of California.  All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1993 The Regents of the University of California.  All rights reserved.");
 #endif /* not lint */
 
 #ifndef lint
