@@ -1029,6 +1029,8 @@ main(argc, argv)
 			tv = &timeout;
 		} else
 			tv = NULL;
+		if (s >= FD_SETSIZE)
+			errx(1, "descriptor too big");
 		memset(fdmaskp, 0, fdmasks);
 		FD_SET(s, fdmaskp);
 		cc = select(s + 1, fdmaskp, NULL, NULL, tv);
