@@ -718,6 +718,7 @@ resettodr()
 
 	/* Reenable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, rtc_statusb);
+	rtcin(RTC_INTR);
 }
 
 
@@ -764,6 +765,7 @@ cpu_initclocks()
 		    INTR_TYPE_CLK | INTR_FAST, NULL);
 
 		writertc(RTC_STATUSB, rtc_statusb);
+		rtcin(RTC_INTR);
 	}
 
 	init_TSC_tc();
