@@ -85,6 +85,7 @@ extern void logwtmp __P((const char *, const char *, const char *));
  */
 #define	GETTY_SPACING		 5	/* N secs minimum getty spacing */
 #define	GETTY_SLEEP		30	/* sleep N secs after spacing problem */
+#define GETTY_NSPACE             3      /* max. spacing count to bring reaction */
 #define	WINDOW_WAIT		 3	/* wait N secs after starting window */
 #define	STALL_TIMEOUT		30	/* wait N secs after warning */
 #define	DEATH_WATCH		10	/* wait N secs for procs to die */
@@ -128,11 +129,15 @@ typedef struct init_session {
 	time_t	se_started;		/* used to avoid thrashing */
 	int	se_flags;		/* status of session */
 #define	SE_SHUTDOWN	0x1		/* session won't be restarted */
+	int     se_nspace;              /* spacing count */
 	char	*se_device;		/* filename of port */
 	char	*se_getty;		/* what to run on that port */
+	char    *se_getty_argv_space;   /* pre-parsed argument array space */
 	char	**se_getty_argv;	/* pre-parsed argument array */
 	char	*se_window;		/* window system (started only once) */
+	char    *se_window_argv_space;  /* pre-parsed argument array space */
 	char	**se_window_argv;	/* pre-parsed argument array */
+	char    *se_type;               /* default terminal type */
 	struct	init_session *se_prev;
 	struct	init_session *se_next;
 } session_t;
@@ -882,12 +887,16 @@ free_session(sp)
 	free(sp->se_device);
 	if (sp->se_getty) {
 		free(sp->se_getty);
+		free(sp->se_getty_argv_space);
 		free(sp->se_getty_argv);
 	}
 	if (sp->se_window) {
 		free(sp->se_window);
+		free(sp->se_window_argv_space);
 		free(sp->se_window_argv);
 	}
+	if (sp->se_type)
+		free(sp->se_type);
 	free(sp);
 }
 
@@ -943,30 +952,43 @@ setupargv(sp, typ)
 
 	if (sp->se_getty) {
 		free(sp->se_getty);
+		free(sp->se_getty_argv_space);
 		free(sp->se_getty_argv);
 	}
 	sp->se_getty = malloc(strlen(typ->ty_getty) + strlen(typ->ty_name) + 2);
 	(void) sprintf(sp->se_getty, "%s %s", typ->ty_getty, typ->ty_name);
-	sp->se_getty_argv = construct_argv(sp->se_getty);
+	sp->se_getty_argv_space = strdup(sp->se_getty);
+	sp->se_getty_argv = construct_argv(sp->se_getty_argv_space);
 	if (sp->se_getty_argv == 0) {
 		warning("can't parse getty for port %s", sp->se_device);
 		free(sp->se_getty);
-		sp->se_getty = 0;
+		free(sp->se_getty_argv_space);
+		sp->se_getty = sp->se_getty_argv_space = 0;
 		return (0);
 	}
-	if (typ->ty_window) {
-		if (sp->se_window)
+	if (sp->se_window) {
 			free(sp->se_window);
+		free(sp->se_window_argv_space);
+		free(sp->se_window_argv);
+	}
+	sp->se_window = sp->se_window_argv_space = 0;
+	sp->se_window_argv = 0;
+	if (typ->ty_window) {
 		sp->se_window = strdup(typ->ty_window);
-		sp->se_window_argv = construct_argv(sp->se_window);
+		sp->se_window_argv_space = strdup(sp->se_window);
+		sp->se_window_argv = construct_argv(sp->se_window_argv_space);
 		if (sp->se_window_argv == 0) {
 			warning("can't parse window for port %s",
 				sp->se_device);
+			free(sp->se_window_argv_space);
 			free(sp->se_window);
-			sp->se_window = 0;
+			sp->se_window = sp->se_window_argv_space = 0;
 			return (0);
 		}
 	}
+	if (sp->se_type)
+		free(sp->se_type);
+	sp->se_type = typ->ty_type ? strdup(typ->ty_type) : 0;
 	return (1);
 }
 
@@ -1016,6 +1038,7 @@ start_window_system(sp)
 {
 	pid_t pid;
 	sigset_t mask;
+	char term[64], *env[2];
 
 	if ((pid = fork()) == -1) {
 		emergency("can't fork for window system on port %s: %m",
@@ -1033,7 +1056,16 @@ start_window_system(sp)
 	if (setsid() < 0)
 		emergency("setsid failed (window) %m");
 
-	execv(sp->se_window_argv[0], sp->se_window_argv);
+	if (sp->se_type) {
+		/* Don't use malloc after fork */
+		strcpy(term, "TERM=");
+		strcat(term, sp->se_type);
+		env[0] = term;
+		env[1] = 0;
+	}
+	else
+		env[0] = 0;
+	execve(sp->se_window_argv[0], sp->se_window_argv, env);
 	stall("can't exec window system '%s' for port %s: %m",
 		sp->se_window_argv[0], sp->se_device);
 	_exit(1);
@@ -1049,6 +1081,7 @@ start_getty(sp)
 	pid_t pid;
 	sigset_t mask;
 	time_t current_time = time((time_t *) 0);
+	char term[64], *env[2];
 
 	/*
 	 * fork(), not vfork() -- we can't afford to block.
@@ -1063,10 +1096,15 @@ start_getty(sp)
 
 	if (current_time > sp->se_started &&
 	    current_time - sp->se_started < GETTY_SPACING) {
-		warning("getty repeating too quickly on port %s, sleeping",
-		        sp->se_device);
+		if (++sp->se_nspace > GETTY_NSPACE) {
+			sp->se_nspace = 0;
+			warning("getty repeating too quickly on port %s, sleeping %d secs",
+				sp->se_device, GETTY_SLEEP);
 		sleep((unsigned) GETTY_SLEEP);
 	}
+	}
+	else
+		sp->se_nspace = 0;
 
 	if (sp->se_window) {
 		start_window_system(sp);
@@ -1076,7 +1114,16 @@ start_getty(sp)
 	sigemptyset(&mask);
 	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
 
-	execv(sp->se_getty_argv[0], sp->se_getty_argv);
+	if (sp->se_type) {
+		/* Don't use malloc after fork */
+		strcpy(term, "TERM=");
+		strcat(term, sp->se_type);
+		env[0] = term;
+		env[1] = 0;
+	}
+	else
+		env[0] = 0;
+	execve(sp->se_getty_argv[0], sp->se_getty_argv, env);
 	stall("can't exec getty '%s' for port %s: %m",
 		sp->se_getty_argv[0], sp->se_device);
 	_exit(1);
@@ -1204,6 +1251,7 @@ clean_ttys()
 	register struct ttyent *typ;
 	register int session_index = 0;
 	register int devlen;
+	char *old_getty, *old_window, *old_type;
 
 	if (! sessions)
 		return (state_func_t) multi_user;
@@ -1230,12 +1278,35 @@ clean_ttys()
 				continue;
 			}
 			sp->se_flags &= ~SE_SHUTDOWN;
+			old_getty = sp->se_getty ? strdup(sp->se_getty) : 0;
+			old_window = sp->se_window ? strdup(sp->se_window) : 0;
+			old_type = sp->se_type ? strdup(sp->se_type) : 0;
 			if (setupargv(sp, typ) == 0) {
 				warning("can't parse getty for port %s",
 					sp->se_device);
 				sp->se_flags |= SE_SHUTDOWN;
 				kill(sp->se_process, SIGHUP);
 			}
+			else if (   !old_getty
+				 || !old_type && sp->se_type
+				 || old_type && !sp->se_type
+				 || !old_window && sp->se_window
+				 || old_window && !sp->se_window
+				 || strcmp(old_getty, sp->se_getty) != 0
+				 || old_window && strcmp(old_window, sp->se_window) != 0
+				 || old_type && strcmp(old_type, sp->se_type) != 0
+				) {
+				/* Don't set SE_SHUTDOWN here */
+				sp->se_nspace = 0;
+				sp->se_started = 0;
+				kill(sp->se_process, SIGHUP);
+			}
+			if (old_getty)
+				free(old_getty);
+			if (old_getty)
+				free(old_window);
+			if (old_type)
+				free(old_type);
 			continue;
 		}
 
