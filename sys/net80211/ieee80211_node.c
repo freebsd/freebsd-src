@@ -1037,7 +1037,6 @@ ieee80211_fakeup_adhoc_node(struct ieee80211_node_table *nt,
 			ic->ic_newassoc(ic, ni, 1);
 		/* XXX not right for 802.1x/WPA */
 		ieee80211_node_authorize(ic, ni);
-		ieee80211_ref_node(ni);		/* hold reference */
 	}
 	return ni;
 }
@@ -1117,9 +1116,16 @@ ieee80211_find_txnode(struct ieee80211com *ic, const u_int8_t *macaddr)
 
 	if (ni == NULL) {
 		if (ic->ic_opmode == IEEE80211_M_IBSS ||
-		    ic->ic_opmode == IEEE80211_M_AHDEMO)
+		    ic->ic_opmode == IEEE80211_M_AHDEMO) {
+			/*
+			 * In adhoc mode cons up a node for the destination.
+			 * Note that we need an additional reference for the
+			 * caller to be consistent with _ieee80211_find_node.
+			 */
 			ni = ieee80211_fakeup_adhoc_node(nt, macaddr);
-		else {
+			if (ni != NULL)
+				(void) ieee80211_ref_node(ni);
+		} else {
 			IEEE80211_DPRINTF(ic, IEEE80211_MSG_OUTPUT,
 				"[%s] no node, discard frame (%s)\n",
 				ether_sprintf(macaddr), __func__);
