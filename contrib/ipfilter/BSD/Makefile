@@ -231,7 +231,7 @@ clean:
 	${RM} -f *.core *.o ipt fils ipf ipfstat ipftest ipmon if_ipl ipnat \
 	vnode_if.h $(LKM) ioconf.h *.ko setdef1.c setdef0.c setdefs.h \
 	y.tab.? lex.yy.c ipfs
-	${RM} -f ../opt_inet6.h
+	${RM} -f ../opt_inet6.h ../ipftest ../ipmon ../ipf ../ipnat
 
 	${MAKE} -f Makefile.ipsend ${MFLAGS} clean
 	-(for i in *; do \
@@ -243,8 +243,11 @@ clean:
 	done)
 
 install:
-	-$(CP) $(TOP)/ip_fil.h /usr/include/netinet/ip_fil.h
-	-$(CHMOD) 444 /usr/include/netinet/ip_fil.h
+	for i in ip_compat.h ip_fil.h ip_nat.h ip_state.h ip_proxy.h \
+		ip_frag.h ip_auth.h; do \
+		/bin/cp $(TOP)/$$i /usr/include/netinet/; \
+		-$(CHMOD) 444 /usr/include/netinet/$$i; \
+	done
 	-if [ -d /lkm -a -f if_ipl.o ] ; then \
 		cp if_ipl.o /lkm; \
 	fi
