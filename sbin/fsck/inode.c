@@ -565,10 +565,12 @@ blkerror(ino, type, blk)
 	switch (inoinfo(ino)->ino_state) {
 
 	case FSTATE:
+	case FZLINK:
 		inoinfo(ino)->ino_state = FCLEAR;
 		return;
 
 	case DSTATE:
+	case DZLINK:
 		inoinfo(ino)->ino_state = DCLEAR;
 		return;
 

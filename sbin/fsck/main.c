@@ -206,7 +206,6 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	ufs_daddr_t n_ffree, n_bfree;
 	struct dups *dp;
 	struct statfs *mntbuf;
-	struct zlncnt *zlnp;
 	int cylno;
 
 	if (preen && child)
@@ -314,14 +313,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 				printf(" %d,", dp->dup);
 			printf("\n");
 		}
-		if (zlnhead != NULL) {
-			printf("The following zero link count inodes remain:");
-			for (zlnp = zlnhead; zlnp; zlnp = zlnp->next)
-				printf(" %u,", zlnp->zlncnt);
-			printf("\n");
-		}
 	}
-	zlnhead = (struct zlncnt *)0;
 	duplist = (struct dups *)0;
 	muldup = (struct dups *)0;
 	inocleanup();

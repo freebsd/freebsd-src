@@ -90,7 +90,7 @@ propagate()
 			if (inp->i_parent == 0)
 				continue;
 			if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
-			    inoinfo(inp->i_number)->ino_state == DSTATE) {
+			    INO_IS_DUNFOUND(inp->i_number)) {
 				inoinfo(inp->i_number)->ino_state = DFOUND;
 				change++;
 			}
@@ -692,8 +692,7 @@ allocdir(parent, request, mode)
 		cacheino(dp, ino);
 		return(ino);
 	}
-	if (inoinfo(parent)->ino_state != DSTATE &&
-	    inoinfo(parent)->ino_state != DFOUND) {
+	if (!INO_IS_DVALID(parent)) {
 		freeino(ino);
 		return (0);
 	}

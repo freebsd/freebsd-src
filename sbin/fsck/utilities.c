@@ -466,9 +466,7 @@ getpathname(namebuf, curdir, ino)
 		(void)strcpy(namebuf, "/");
 		return;
 	}
-	if (busy ||
-	    (inoinfo(curdir)->ino_state != DSTATE &&
-	     inoinfo(curdir)->ino_state != DFOUND)) {
+	if (busy || !INO_IS_DVALID(curdir)) {
 		(void)strcpy(namebuf, "?");
 		return;
 	}

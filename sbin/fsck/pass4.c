@@ -53,7 +53,6 @@ void
 pass4()
 {
 	register ino_t inumber;
-	register struct zlncnt *zlnp;
 	struct dinode *dp;
 	struct inodesc idesc;
 	int i, n, cg;
@@ -75,22 +74,20 @@ pass4()
 			idesc.id_number = inumber;
 			switch (inoinfo(inumber)->ino_state) {
 
+			case FZLINK:
+			case DZLINK:
+				if (inoinfo(inumber)->ino_linkcnt == 0) {
+					clri(&idesc, "UNREF", 1);
+					break;
+				}
+				/* fall through */
+
 			case FSTATE:
 			case DFOUND:
 				n = inoinfo(inumber)->ino_linkcnt;
 				if (n) {
 					adjust(&idesc, (short)n);
 					break;
-				}
-				for (zlnp = zlnhead; zlnp; zlnp = zlnp->next) {
-					if (zlnp->zlncnt == inumber) {
-						zlnp->zlncnt = zlnhead->zlncnt;
-						zlnp = zlnhead;
-						zlnhead = zlnhead->next;
-						free((char *)zlnp);
-						clri(&idesc, "UNREF", 1);
-						break;
-					}
 				}
 				break;
 
