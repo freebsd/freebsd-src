@@ -536,3 +536,8 @@ filter is currently only implemented for devices that use the
 .Xr miibus 4
 driver for LINKUP and LINKDOWN operations.
 Therefore, it will not work with many non-ethernet devices.
+.Pp
+The
+.Fa timeout
+value is limited to 24 hours; longer timeouts will be silently
+reinterpreted as 24 hours.
