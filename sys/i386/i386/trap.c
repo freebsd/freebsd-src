@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.24 1994/05/25 08:55:18 rgrimes Exp $
+ *	$Id: trap.c,v 1.26 1994/06/11 05:13:33 davidg Exp $
  */
 
 /*
@@ -408,6 +408,8 @@ trap_pfault(frame, usermode)
 		*(volatile char *)v += 0;	
 
 		ptepg = (vm_page_t) pmap_pte_vm_page(vm_map_pmap(map), v);
+		if( ptepg->hold_count == 0)
+			ptepg->act_count += 3;
 		vm_page_hold(ptepg);
 
 		/* Fault in the user page: */
