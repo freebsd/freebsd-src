@@ -1291,207 +1291,223 @@ SuffFindCmds(Src *targ, Lst *slst)
 static int
 SuffExpandChildren(void *cgnp, void *pgnp)
 {
-    GNode   	*cgn = cgnp;
-    GNode   	*pgn = pgnp;
-    GNode	*gn;	    /* New source 8) */
-    LstNode   	*prevLN;    /* Node after which new source should be put */
-    LstNode	*ln; 	    /* List element for old source */
-    char	*cp;	    /* Expanded value */
-    Buffer	*buf;
+	GNode	*cgn = cgnp;
+	GNode	*pgn = pgnp;
+	GNode	*gn;		/* New source 8) */
+	LstNode	*prevLN;	/* Node after which new source should be put */
+	LstNode	*ln;		/* List element for old source */
+	char	*cp;		/* Expanded value */
+	Buffer	*buf;
 
-    /*
-     * New nodes effectively take the place of the child, so place them
-     * after the child
-     */
-    prevLN = Lst_Member(&pgn->children, cgn);
+	/*
+	 * New nodes effectively take the place of the child, so place them
+	 * after the child
+	 */
+	prevLN = Lst_Member(&pgn->children, cgn);
 
-    /*
-     * First do variable expansion -- this takes precedence over
-     * wildcard expansion. If the result contains wildcards, they'll be gotten
-     * to later since the resulting words are tacked on to the end of
-     * the children list.
-     */
-    if (strchr(cgn->name, '$') != NULL) {
-	DEBUGF(SUFF, ("Expanding \"%s\"...", cgn->name));
-	buf = Var_Subst(NULL, cgn->name, pgn, TRUE);
-	cp = Buf_GetAll(buf, NULL);
-	Buf_Destroy(buf, FALSE);
+	/*
+	 * First do variable expansion -- this takes precedence over
+	 * wildcard expansion. If the result contains wildcards, they'll be
+	 * gotten to later since the resulting words are tacked on to the
+	 * end of the children list.
+	 */
+	if (strchr(cgn->name, '$') != NULL) {
+		DEBUGF(SUFF, ("Expanding \"%s\"...", cgn->name));
+		buf = Var_Subst(NULL, cgn->name, pgn, TRUE);
+		cp = Buf_GetAll(buf, NULL);
+		Buf_Destroy(buf, FALSE);
 
-	if (cp != NULL) {
-	    Lst members = Lst_Initializer(members);
+		if (cp != NULL) {
+			Lst members = Lst_Initializer(members);
 
-	    if (cgn->type & OP_ARCHV) {
-		/*
-		 * Node was an archive(member) target, so we want to call
-		 * on the Arch module to find the nodes for us, expanding
-		 * variables in the parent's context.
-		 */
-		char	*sacrifice = cp;
+			if (cgn->type & OP_ARCHV) {
+				/*
+				 * Node was an archive(member) target, so we
+				 * want to call on the Arch module to find the
+				 * nodes for us, expanding variables in the
+				 * parent's context.
+				 */
+				char	*sacrifice = cp;
 
-		Arch_ParseArchive(&sacrifice, &members, pgn);
-	    } else {
-		/*
-		 * Break the result into a vector of strings whose nodes
-		 * we can find, then add those nodes to the members list.
-		 * Unfortunately, we can't use brk_string b/c it
-		 * doesn't understand about variable specifications with
-		 * spaces in them...
-		 */
-		char	    *start;
-		char	    *initcp = cp;   /* For freeing... */
+				Arch_ParseArchive(&sacrifice, &members, pgn);
+			} else {
+				/*
+				 * Break the result into a vector of strings
+				 * whose nodes we can find, then add those
+				 * nodes to the members list. Unfortunately,
+				 * we can't use brk_string b/c it doesn't
+				 * understand about variable specifications with
+				 * spaces in them...
+				 */
+				char	*start;
+				char	*initcp = cp;	/* For freeing... */
 
-		for (start = cp; *start == ' ' || *start == '\t'; start++)
-		    continue;
-		for (cp = start; *cp != '\0'; cp++) {
-		    if (*cp == ' ' || *cp == '\t') {
-			/*
-			 * White-space -- terminate element, find the node,
-			 * add it, skip any further spaces.
-			 */
-			*cp++ = '\0';
-			gn = Targ_FindNode(start, TARG_CREATE);
-			Lst_AtEnd(&members, gn);
-			while (*cp == ' ' || *cp == '\t') {
-			    cp++;
+				for (start = cp; *start == ' ' ||
+				    *start == '\t'; start++)
+					continue;
+				for (cp = start; *cp != '\0'; cp++) {
+					if (*cp == ' ' || *cp == '\t') {
+						/*
+						 * White-space -- terminate
+						 * element, find the node,
+						 * add it, skip any further
+						 * spaces.
+						 */
+						*cp++ = '\0';
+						gn = Targ_FindNode(start,
+						    TARG_CREATE);
+						Lst_AtEnd(&members, gn);
+						while (*cp == ' ' ||
+						    *cp == '\t') {
+							cp++;
+						}
+						/*
+						 * Adjust cp for increment at
+						 * start of loop, but set start
+						 * to first non-space.
+						 */
+						start = cp--;
+
+					} else if (*cp == '$') {
+						/*
+						 * Start of a variable spec --
+						 * contact variable module
+						 * to find the end so we can
+						 * skip over it.
+						 */
+						char	*junk;
+						size_t	len = 0;
+						Boolean	doFree;
+
+						junk = Var_Parse(cp, pgn, TRUE,
+						    &len, &doFree);
+						if (junk != var_Error) {
+							cp += len - 1;
+						}
+						if (doFree) {
+							free(junk);
+						}
+
+					} else if (*cp == '\\' && *cp != '\0') {
+						/*
+						 * Escaped something -- skip
+						 * over it
+						 */
+						cp++;
+					}
+				}
+
+				if (cp != start) {
+					/*
+					 * Stuff left over -- add it to the
+					 * list too
+					 */
+					gn = Targ_FindNode(start, TARG_CREATE);
+					Lst_AtEnd(&members, gn);
+				}
+				/*
+				 * Point cp back at the beginning again so the
+				 * variable value can be freed.
+				 */
+				cp = initcp;
 			}
 			/*
-			 * Adjust cp for increment at start of loop, but
-			 * set start to first non-space.
+			 * Add all elements of the members list to
+			 * the parent node.
 			 */
-			start = cp--;
-		    } else if (*cp == '$') {
-			/*
-			 * Start of a variable spec -- contact variable module
-			 * to find the end so we can skip over it.
-			 */
-			char	*junk;
-			size_t	len = 0;
-			Boolean	doFree;
+			while(!Lst_IsEmpty(&members)) {
+				gn = Lst_DeQueue(&members);
 
-			junk = Var_Parse(cp, pgn, TRUE, &len, &doFree);
-			if (junk != var_Error) {
-			    cp += len - 1;
+				DEBUGF(SUFF, ("%s...", gn->name));
+				if (Lst_Member(&pgn->children, gn) == NULL) {
+					Lst_Append(&pgn->children, prevLN, gn);
+					prevLN = Lst_Succ(prevLN);
+					Lst_AtEnd(&gn->parents, pgn);
+					pgn->unmade++;
+				}
 			}
 
-			if (doFree) {
-			    free(junk);
-			}
-		    } else if (*cp == '\\' && *cp != '\0') {
 			/*
-			 * Escaped something -- skip over it
+			 * Free the result
 			 */
-			cp++;
-		    }
-		}
-
-		if (cp != start) {
-		    /*
-		     * Stuff left over -- add it to the list too
-		     */
-		    gn = Targ_FindNode(start, TARG_CREATE);
-		    Lst_AtEnd(&members, gn);
+			free(cp);
 		}
 		/*
-		 * Point cp back at the beginning again so the variable value
-		 * can be freed.
+		 * Now the source is expanded, remove it from the list
+		 * of children to keep it from being processed.
 		 */
-		cp = initcp;
-	    }
-	    /*
-	     * Add all elements of the members list to the parent node.
-	     */
-	    while(!Lst_IsEmpty(&members)) {
-		gn = Lst_DeQueue(&members);
+		ln = Lst_Member(&pgn->children, cgn);
+		pgn->unmade--;
+		Lst_Remove(&pgn->children, ln);
+		DEBUGF(SUFF, ("\n"));
 
-		DEBUGF(SUFF, ("%s...", gn->name));
-		if (Lst_Member(&pgn->children, gn) == NULL) {
-		    Lst_Append(&pgn->children, prevLN, gn);
-		    prevLN = Lst_Succ(prevLN);
-		    Lst_AtEnd(&gn->parents, pgn);
-		    pgn->unmade++;
+	} else if (Dir_HasWildcards(cgn->name)) {
+		Lst	exp;	/* List of expansions */
+		Lst	*path;	/* Search path along which to expand */
+
+		/*
+		 * Find a path along which to expand the word.
+		 *
+		 * If the word has a known suffix, use that path.
+		 * If it has no known suffix and we're allowed to use the null
+		 *   suffix, use its path.
+		 * Else use the default system search path.
+		 */
+		cp = cgn->name + strlen(cgn->name);
+		ln = Lst_Find(&sufflist, cp, SuffSuffIsSuffixP);
+
+		DEBUGF(SUFF, ("Wildcard expanding \"%s\"...", cgn->name));
+
+		if (ln != NULL) {
+			Suff	*s = Lst_Datum(ln);
+
+			DEBUGF(SUFF, ("suffix is \"%s\"...", s->name));
+			path = &s->searchPath;
+		} else {
+			/*
+			 * Use default search path
+			 */
+			path = &dirSearchPath;
 		}
-	    }
 
-	    /*
-	     * Free the result
-	     */
-	    free(cp);
-	}
-	/*
-	 * Now the source is expanded, remove it from the list of children to
-	 * keep it from being processed.
-	 */
-	ln = Lst_Member(&pgn->children, cgn);
-	pgn->unmade--;
-	Lst_Remove(&pgn->children, ln);
-	DEBUGF(SUFF, ("\n"));
-    } else if (Dir_HasWildcards(cgn->name)) {
-	Lst exp;	    /* List of expansions */
-	Lst *path;	    /* Search path along which to expand */
+		/*
+		 * Expand the word along the chosen path
+		 */
+		Lst_Init(&exp);
+		Dir_Expand(cgn->name, path, &exp);
 
-	/*
-	 * Find a path along which to expand the word.
-	 *
-	 * If the word has a known suffix, use that path.
-	 * If it has no known suffix and we're allowed to use the null
-	 *   suffix, use its path.
-	 * Else use the default system search path.
-	 */
-	cp = cgn->name + strlen(cgn->name);
-	ln = Lst_Find(&sufflist, cp, SuffSuffIsSuffixP);
+		while (!Lst_IsEmpty(&exp)) {
+			/*
+			 * Fetch next expansion off the list and find its GNode
+			 */
+			cp = Lst_DeQueue(&exp);
 
-	DEBUGF(SUFF, ("Wildcard expanding \"%s\"...", cgn->name));
+			DEBUGF(SUFF, ("%s...", cp));
+			gn = Targ_FindNode(cp, TARG_CREATE);
 
-	if (ln != NULL) {
-	    Suff    *s = Lst_Datum(ln);
+			/*
+			 * If gn isn't already a child of the parent, make it
+			 * so and up the parent's count of unmade children.
+			 */
+			if (Lst_Member(&pgn->children, gn) == NULL) {
+				Lst_Append(&pgn->children, prevLN, gn);
+				prevLN = Lst_Succ(prevLN);
+				Lst_AtEnd(&gn->parents, pgn);
+				pgn->unmade++;
+			}
+		}
 
-	    DEBUGF(SUFF, ("suffix is \"%s\"...", s->name));
-	    path = &s->searchPath;
-	} else {
-	    /*
-	     * Use default search path
-	     */
-	    path = &dirSearchPath;
+		/*
+		 * Now the source is expanded, remove it from the list of
+		 * children to keep it from being processed.
+		 */
+		ln = Lst_Member(&pgn->children, cgn);
+		pgn->unmade--;
+		Lst_Remove(&pgn->children, ln);
+		DEBUGF(SUFF, ("\n"));
 	}
 
-	/*
-	 * Expand the word along the chosen path
-	 */
-	Lst_Init(&exp);
-	Dir_Expand(cgn->name, path, &exp);
-
-	while (!Lst_IsEmpty(&exp)) {
-	    /*
-	     * Fetch next expansion off the list and find its GNode
-	     */
-	    cp = Lst_DeQueue(&exp);
-
-	    DEBUGF(SUFF, ("%s...", cp));
-	    gn = Targ_FindNode(cp, TARG_CREATE);
-
-	    /*
-	     * If gn isn't already a child of the parent, make it so and
-	     * up the parent's count of unmade children.
-	     */
-	    if (Lst_Member(&pgn->children, gn) == NULL) {
-		Lst_Append(&pgn->children, prevLN, gn);
-		prevLN = Lst_Succ(prevLN);
-		Lst_AtEnd(&gn->parents, pgn);
-		pgn->unmade++;
-	    }
-	}
-
-	/*
-	 * Now the source is expanded, remove it from the list of children to
-	 * keep it from being processed.
-	 */
-	ln = Lst_Member(&pgn->children, cgn);
-	pgn->unmade--;
-	Lst_Remove(&pgn->children, ln);
-	DEBUGF(SUFF, ("\n"));
-    }
-
-    return (0);
+	return (0);
 }
 
 /*-
