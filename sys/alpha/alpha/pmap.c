@@ -745,11 +745,18 @@ pmap_track_modified(vm_offset_t va)
 vm_paddr_t
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	pt_entry_t* pte = pmap_lev3pte(pmap, va);
-	if (pte)
-		return alpha_ptob(ALPHA_PTE_TO_PFN(*pte));
-	else
-		return 0;
+	pt_entry_t *pte;
+	vm_paddr_t pa;
+
+	pa = 0;
+	if (pmap == NULL)
+		return (pa);
+	PMAP_LOCK(pmap);
+	pte = pmap_lev3pte(pmap, va);
+	if (pte != NULL)
+		pa = alpha_ptob(ALPHA_PTE_TO_PFN(*pte));
+	PMAP_UNLOCK(pmap);
+	return (pa);
 }
 
 /*
@@ -1529,6 +1536,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	register pt_entry_t *ptq;
 
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	ptq = pmap_lev3pte(pmap, va);
 	
 	/*
@@ -1560,8 +1568,12 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	if (pmap == NULL)
 		return;
 
+	/*
+	 * Perform an unsynchronized read.  This is, however, safe.
+	 */
 	if (pmap->pm_stats.resident_count == 0)
 		return;
+	PMAP_LOCK(pmap);
 
 	/*
 	 * special handling of removing one page.  a very
@@ -1570,7 +1582,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	if (sva + PAGE_SIZE == eva) {
 		pmap_remove_page(pmap, sva);
-		return;
+		goto out;
 	}
 
 	for (va = sva; va < eva; va = nva) {
@@ -1587,6 +1599,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		pmap_remove_page(pmap, va);
 		nva = va + PAGE_SIZE;
 	}
+out:
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2381,21 +2395,25 @@ pmap_is_modified(vm_page_t m)
 {
 	pv_entry_t pv;
 	pt_entry_t *pte;
+	boolean_t rv;
 
+	rv = FALSE;
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
-		return FALSE;
+		return (rv);
 
 	/*
 	 * A page is modified if any mapping has had its PG_FOW flag
 	 * cleared.
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
-		if (!(*pte & PG_FOW))
-			return 1;
+		rv = !(*pte & PG_FOW);
+		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
 	}
-
-	return 0;
+	return (rv);
 }
 
 /*
@@ -2408,14 +2426,17 @@ boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	pt_entry_t *pte;
+	boolean_t rv;
 
-	if (!pmap_pte_v(pmap_lev1pte(pmap, addr)) ||
-	    !pmap_pte_v(pmap_lev2pte(pmap, addr)))
-		return (FALSE);
-	pte = vtopte(addr);
-	if (*pte)
-		return (FALSE);
-	return (TRUE);
+	rv = FALSE;
+	PMAP_LOCK(pmap);
+	if (pmap_pte_v(pmap_lev1pte(pmap, addr)) &&
+	    pmap_pte_v(pmap_lev2pte(pmap, addr))) {
+		pte = vtopte(addr);
+		rv = *pte == 0;
+	}
+	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 /*
@@ -2614,30 +2635,30 @@ pmap_mincore(pmap, addr)
 	pmap_t pmap;
 	vm_offset_t addr;
 {
-	pt_entry_t *pte;
+	pt_entry_t *ptep, pte;
 	int val = 0;
 	
-	pte = pmap_lev3pte(pmap, addr);
-	if (pte == 0) {
-		return 0;
-	}
+	PMAP_LOCK(pmap);
+	ptep = pmap_lev3pte(pmap, addr);
+	pte = (ptep != NULL) ? *ptep : 0;
+	PMAP_UNLOCK(pmap);
 
-	if (pmap_pte_v(pte)) {
+	if (pte & PG_V) {
 		vm_page_t m;
 		vm_offset_t pa;
 
 		val = MINCORE_INCORE;
-		if ((*pte & PG_MANAGED) == 0)
+		if ((pte & PG_MANAGED) == 0)
 			return val;
 
-		pa = pmap_pte_pa(pte);
+		pa = alpha_ptob(ALPHA_PTE_TO_PFN(pte));
 
 		m = PHYS_TO_VM_PAGE(pa);
 
 		/*
 		 * Modified by us
 		 */
-		if ((*pte & PG_FOW) == 0)
+		if ((pte & PG_FOW) == 0)
 			val |= MINCORE_MODIFIED|MINCORE_MODIFIED_OTHER;
 		else {
 			/*
@@ -2651,7 +2672,7 @@ pmap_mincore(pmap, addr)
 		/*
 		 * Referenced by us
 		 */
-		if ((*pte & (PG_FOR | PG_FOE)) == 0)
+		if ((pte & (PG_FOR | PG_FOE)) == 0)
 			val |= MINCORE_REFERENCED|MINCORE_REFERENCED_OTHER;
 		else {
 			/*
