@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: loader.4th.8,v 1.1.2.1 1999/04/24 17:44:35 dcs Exp $
+.\"	$Id: loader.4th.8,v 1.1.2.2 1999/05/05 05:56:48 jkoshy Exp $
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd April 25, 1999
+.Dd May 16, 1999
 .Dt LOADER.4TH 8
 .Os
 .Sh NAME
@@ -87,6 +87,18 @@ command (see
 .Xr loader 8 ),
 so it can be stopped for further interaction with
 .Xr loader 8 .
+.It Ic initialize
+Initialize the supporting library so commands can be used without
+executing
+.Ic start
+first. Like
+.Ic start ,
+reads
+.Pa /boot/defaults/loader.conf
+and all other
+.Xr loader.conf 5
+files specified in it. Returns a flag on the stack to indicate
+if any configuration file was succesfully loaded.
 .It Ic read-conf Ar filename
 Reads and processes a
 .Xr loader.conf 5
