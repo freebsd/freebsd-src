@@ -93,8 +93,6 @@ extern u_char	aarp_org_code[ 3 ];
 static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
 
-#define senderr(e) { error = (e); goto bad;}
-
 /*
  * This really should be defined in if_llc.h but in case it isn't.
  */
@@ -102,8 +100,9 @@ static	int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 #define	llc_snap	llc_un.type_snap
 #endif
 
-#define	RTALLOC1(a, b)			rtalloc1(a, b, 0UL)
-#define	ARPRESOLVE(a, b, c, d, e, f)	arpresolve(a, b, c, d, e, f)
+#define	IFP2AC(IFP)	((struct arpcom *)IFP)
+#define	senderr(e)	{ error = (e); goto bad; }
+
 /*
  * FDDI output routine.
  * Encapsulate a packet of type family for the local net.
@@ -123,14 +122,14 @@ fddi_output(ifp, m, dst, rt0)
  	u_char esrc[6], edst[6];
 	struct rtentry *rt;
 	struct fddi_header *fh;
-	struct arpcom *ac = (struct arpcom *)ifp;
+	struct arpcom *ac = IFP2AC(ifp);
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
 	if ((rt = rt0) != NULL) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
-			if ((rt0 = rt = RTALLOC1(dst, 1)) != NULL)
+			if ((rt0 = rt = rtalloc1(dst, 1, 0UL)) != NULL)
 				rt->rt_refcnt--;
 			else 
 				senderr(EHOSTUNREACH);
@@ -140,7 +139,7 @@ fddi_output(ifp, m, dst, rt0)
 				goto lookup;
 			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
 				rtfree(rt); rt = rt0;
-			lookup: rt->rt_gwroute = RTALLOC1(rt->rt_gateway, 1);
+			lookup: rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
 				if ((rt = rt->rt_gwroute) == 0)
 					senderr(EHOSTUNREACH);
 			}
@@ -154,7 +153,7 @@ fddi_output(ifp, m, dst, rt0)
 
 #ifdef INET
 	case AF_INET: {
-		if (!ARPRESOLVE(ifp, rt, m, dst, edst, rt0))
+		if (!arpresolve(ifp, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		type = htons(ETHERTYPE_IP);
 		break;
@@ -164,7 +163,7 @@ fddi_output(ifp, m, dst, rt0)
 	case AF_INET6:
 		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
 			/* Something bad happened */
-			return(0);
+			return (0);
 		}
 		type = htons(ETHERTYPE_IPV6);
 		break;
@@ -328,7 +327,7 @@ fddi_output(ifp, m, dst, rt0)
 		    fh->fddi_shost, sizeof(fh->fddi_shost)) == 0) {
 			(void) if_simloop(ifp,
 				m, dst->sa_family, sizeof(struct fddi_header));
-			return(0);	/* XXX */
+			return (0);	/* XXX */
 		}
 	}
 
@@ -370,7 +369,7 @@ fddi_input(ifp, fh, m)
 			m->m_flags |= M_MCAST;
 		ifp->if_imcasts++;
 	} else if ((ifp->if_flags & IFF_PROMISC)
-	    && bcmp(((struct arpcom *)ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
+	    && bcmp(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
 		    sizeof(fh->fddi_dhost)) != 0) {
 		m_freem(m);
 		return;
@@ -408,7 +407,7 @@ fddi_input(ifp, fh, m)
 			 sizeof(aarp_org_code)) == 0 &&
 			ntohs(l->llc_snap_ether_type) == ETHERTYPE_AARP) {
 		    m_adj( m, sizeof( struct llc ));
-		    aarpinput((struct arpcom *)ifp, m); /* XXX */
+		    aarpinput(IFP2AC(ifp), m); /* XXX */
 		    return;
 		}
 #endif /* NETATALK */
@@ -463,7 +462,7 @@ fddi_input(ifp, fh, m)
 			break;
 	        case ETHERTYPE_AARP:
 			/* probably this should be done with a NETISR as well */
-			aarpinput((struct arpcom *)ifp, m); /* XXX */
+			aarpinput(IFP2AC(ifp), m); /* XXX */
 			return;
 #endif /* NETATALK */
 		default:
@@ -510,7 +509,7 @@ fddi_ifattach(ifp)
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_FDDI;
 	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(((struct arpcom *)ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+	bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 }
 
 static int
@@ -534,15 +533,15 @@ fddi_resolvemulti(ifp, llsa, sa)
 		sdl = (struct sockaddr_dl *)sa;
 		e_addr = LLADDR(sdl);
 		if ((e_addr[0] & 1) != 1)
-			return EADDRNOTAVAIL;
+			return (EADDRNOTAVAIL);
 		*llsa = 0;
-		return 0;
+		return (0);
 
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
-			return EADDRNOTAVAIL;
+			return (EADDRNOTAVAIL);
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
 		       M_WAITOK);
 		sdl->sdl_len = sizeof *sdl;
@@ -555,7 +554,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
 		*llsa = (struct sockaddr *)sdl;
-		return 0;
+		return (0);
 #endif
 #ifdef INET6
 	case AF_INET6:
@@ -568,10 +567,10 @@ fddi_resolvemulti(ifp, llsa, sa)
 			 */
 			ifp->if_flags |= IFF_ALLMULTI;
 			*llsa = 0;
-			return 0;
+			return (0);
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-			return EADDRNOTAVAIL;
+			return (EADDRNOTAVAIL);
 		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
 		       M_WAITOK);
 		sdl->sdl_len = sizeof *sdl;
@@ -584,7 +583,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
 		*llsa = (struct sockaddr *)sdl;
-		return 0;
+		return (0);
 #endif
 
 	default:
@@ -592,6 +591,6 @@ fddi_resolvemulti(ifp, llsa, sa)
 		 * Well, the text isn't quite right, but it's the name
 		 * that counts...
 		 */
-		return EAFNOSUPPORT;
+		return (EAFNOSUPPORT);
 	}
 }
