@@ -122,9 +122,6 @@ struct sysctl_oid {
 	const char	*oid_name;
 	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
 	const char	*oid_fmt;
-#ifndef NO_SYSCTL_DESCRIPTIONS
-	const char	*oid_descr;
-#endif /* !NO_SYSCTL_DESCRIPTIONS */
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
@@ -137,17 +134,10 @@ int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 /* This constructs a "raw" MIB oid. */
-#ifndef NO_SYSCTL_DESCRIPTIONS
-#define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
-	static struct sysctl_oid sysctl__##parent##_##name = { \
-		nbr, kind, a1, a2, #name, handler, fmt, descr }; \
-	DATA_SET(sysctl_##parent, sysctl__##parent##_##name)
-#else
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static struct sysctl_oid sysctl__##parent##_##name = { \
 		nbr, kind, a1, a2, #name, handler, fmt }; \
 	DATA_SET(sysctl_##parent, sysctl__##parent##_##name)
-#endif /* !NO_SYSCTL_DESCRIPTIONS */
 
 /* This constructs a node from which other oids can hang. */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \

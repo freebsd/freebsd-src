@@ -254,7 +254,6 @@ DIAGNOSTIC		opt_global.h
 ENABLE_VFS_IOOPT	opt_global.h
 INVARIANT_SUPPORT	opt_global.h
 INVARIANTS		opt_global.h
-NO_SYSCTL_DESCRIPTIONS	opt_global.h
 SIMPLELOCK_DEBUG	opt_global.h
 VFS_BIO_DEBUG		opt_global.h
 
