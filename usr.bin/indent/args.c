@@ -33,11 +33,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)args.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -81,7 +82,7 @@ const char *option_source = "?";
  * default value is the one actually assigned.
  */
 struct pro {
-    const char *p_name;		/* name, eg -bl, -cli */
+    const char *p_name;		/* name, e.g. -bl, -cli */
     int         p_type;		/* type (int, bool, special) */
     int         p_default;	/* the default value (if int) */
     int         p_special;	/* depends on type */
@@ -268,6 +269,8 @@ found:
 		goto need_param;
 	    {
 		char *str = (char *) malloc(strlen(param_start) + 1);
+		if (str == NULL)
+			err(1, NULL);
 		strcpy(str, param_start);
 		addkey(str, 4);
 	    }

@@ -33,11 +33,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)io.c	8.1 (Berkeley) 6/6/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -358,8 +359,8 @@ fill_buffer(void)
 	    int size = (in_buffer_limit - in_buffer) * 2 + 10;
 	    int offset = p - in_buffer;
 	    in_buffer = realloc(in_buffer, size);
-	    if (in_buffer == 0)
-		err(1, "input line too long");
+	    if (in_buffer == NULL)
+		errx(1, "input line too long");
 	    p = in_buffer + offset;
 	    in_buffer_limit = in_buffer + size - 2;
 	}
