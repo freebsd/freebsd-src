@@ -122,6 +122,7 @@ entry	:	ENCODING STRING
 		      strcmp($2, "UTF-8") &&
 		      strcmp($2, "EUC") &&
 		      strcmp($2, "GBK") &&
+		      strcmp($2, "GB18030") &&
 		      strcmp($2, "BIG5") &&
 		      strcmp($2, "MSKanji"))
 			warnx("ENCODING %s is not supported by libc", $2);
