@@ -579,6 +579,8 @@ netgraph/ng_frame_relay.c	optional netgraph_frame_relay
 netgraph/ng_hole.c	optional netgraph_hole
 netgraph/ng_iface.c	optional netgraph_iface
 netgraph/ng_lmi.c	optional netgraph_lmi
+netgraph/ng_ppp.c	optional netgraph_ppp
+netgraph/ng_pppoe.c	optional netgraph_pppoe
 netgraph/ng_rfc1490.c	optional netgraph_rfc1490
 netgraph/ng_socket.c	optional netgraph_socket
 netgraph/ng_tee.c	optional netgraph_tee
