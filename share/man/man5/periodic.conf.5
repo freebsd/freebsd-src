@@ -359,8 +359,19 @@ if you want to run
 if you want to run
 .Pa /etc/security
 inline.
-The alternative is to run it as a background job, mailing the output to
-.An root .
+The default is to either mail or log the output according to the value of
+.Ar $daily_status_security_output .
+.It Ar daily_status_security_output
+(str) Where to send the output of
+.Pa /etc/security
+if
+.Ar $daily_status_security_inline
+is set to
+.Dq NO .
+This variable behaves in the same way as the
+.Ar *_output
+variables above, namely it can be set either to one or more email addresses
+or to an absolute file name.
 .It Ar daily_status_security_noamd
 (bool) Set to
 .Dq YES
