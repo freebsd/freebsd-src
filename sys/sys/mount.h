@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- * $Id: mount.h,v 1.2 1994/08/02 07:53:15 davidg Exp $
+ * $Id: mount.h,v 1.3 1994/08/20 16:03:23 davidg Exp $
  */
+
+#ifndef _SYS_MOUNT_H_
+#define _SYS_MOUNT_H_
 
 #ifndef KERNEL
 #include <sys/ucred.h>
@@ -417,4 +420,6 @@ int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
 __END_DECLS
 
+
+#endif
 #endif /* KERNEL */

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)filedesc.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: filedesc.h,v 1.2 1994/08/02 07:52:59 davidg Exp $
  */
+
+#ifndef _SYS_FILEDESC_H_
+#define _SYS_FILEDESC_H_
 
 /*
  * This structure is used for the management of descriptors.  It may be
@@ -97,4 +100,6 @@ int	fdavail __P((struct proc *p, int n));
 int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
 struct	filedesc *fdcopy __P((struct proc *p));
 void	fdfree __P((struct proc *p));
+#endif
+
 #endif

@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.6 1994/08/13 14:21:58 davidg Exp $
+ * $Id: systm.h,v 1.7 1994/08/18 22:35:47 wollman Exp $
  */
+
+#ifndef _SYS_SYSTM_H_
+#define _SYS_SYSTM_H_
 
 #include <machine/cpufunc.h>
 
@@ -189,3 +192,5 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
+
+#endif

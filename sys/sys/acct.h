@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.2 (Berkeley) 1/21/94
- * $Id$
+ * $Id: acct.h,v 1.2 1994/08/02 07:52:38 davidg Exp $
  */
+
+#ifndef _SYS_ACCT_H_
+#define _SYS_ACCT_H_
 
 /*
  * Accounting structures; these use a comp_t type which is a 3 bits base 8
@@ -73,4 +76,6 @@ struct acct {
 
 #ifdef KERNEL
 struct vnode	*acctp;
+#endif
+
 #endif

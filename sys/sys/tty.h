@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.2 1994/08/02 07:53:54 davidg Exp $
+ * $Id: tty.h,v 1.3 1994/08/18 22:35:50 wollman Exp $
  */
+
+#ifndef _SYS_TTY_H_
+#define _SYS_TTY_H_
 
 #include <sys/termios.h>
 #include <sys/select.h>		/* For struct selinfo. */
@@ -215,4 +218,6 @@ int	 ttysleep __P((struct tty *tp,
 	    void *chan, int pri, char *wmesg, int timeout));
 int	 ttywait __P((struct tty *tp));
 int	 ttywflush __P((struct tty *tp));
+#endif
+
 #endif

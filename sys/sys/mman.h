@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.2 1994/08/02 07:53:14 davidg Exp $
+ * $Id: mman.h,v 1.3 1994/08/02 15:06:58 davidg Exp $
  */
+
+#ifndef _SYS_MMAN_H_
+#define _SYS_MMAN_H_
 
 /*
  * Protections are chosen from these bits, or-ed together
@@ -89,3 +92,5 @@ int	munlock __P((caddr_t, size_t));
 __END_DECLS
 
 #endif /* !KERNEL */
+
+#endif

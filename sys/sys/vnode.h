@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id$
+ * $Id: vnode.h,v 1.2 1994/08/02 07:54:13 davidg Exp $
  */
+
+#ifndef _SYS_VNODE_H_
+#define _SYS_VNODE_H_
 
 #include <sys/queue.h>
 
@@ -396,3 +399,5 @@ void 	vput __P((struct vnode *vp));
 void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 #endif /* KERNEL */
+
+#endif
