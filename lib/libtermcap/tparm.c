@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "termcap.h"
 
 #ifdef USE_SCCS_IDS
 static const char SCCSid[] = "@(#) mytinfo tparm.c 3.2 92/02/01 public domain, By Ross Ridge";

@@ -35,6 +35,8 @@
 static char sccsid[] = "@(#)tgoto.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 
+#include "termcap.h"
+
 #define	CTRL(c)	((c) & 037)
 
 #define MAXRETURNSIZE 64
@@ -67,13 +69,11 @@ char	*BC;
  * all other characters are ``self-inserting''.
  */
 char *
-tgoto(CM, destcol, destline)
-	char *CM;
-	int destcol, destline;
+tgoto(const char *CM, int destcol, int destline)
 {
 	static char result[MAXRETURNSIZE];
 	static char added[10];
-	char *cp = CM;
+	const char *cp = CM;
 	register char *dp = result;
 	register int c;
 	int oncol = 0;
