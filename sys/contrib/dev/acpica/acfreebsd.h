@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 11 $
+ *       $Revision: 13 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2004, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -134,7 +134,7 @@
 #endif
 
 #ifdef ACPI_DEBUG
-#define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
+#define ACPI_DEBUG_OUTPUT   /* for backward compatibility */
 #define ACPI_DISASSEMBLER
 #endif
 
