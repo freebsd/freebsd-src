@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.27 1999/05/10 16:06:32 peter Exp $
+ * $Id: pci_compat.c,v 1.28 1999/05/11 15:28:38 peter Exp $
  *
  */
 
@@ -267,6 +267,18 @@ int
 pci_unmap_int(pcici_t cfg)
 {
 	return (0); /* not supported, yet, since cfg doesn't know about idesc */
+}
+
+pcici_t
+pci_get_parent_from_tag(pcici_t tag)
+{
+	return (pcici_t)pci_devlist_get_parent(tag);
+}
+
+int
+pci_get_bus_from_tag(pcici_t tag)
+{
+	return tag->bus;
 }
 
 #endif /* PCI_COMPAT */
