@@ -134,7 +134,7 @@ void ng_unref_hook(hook_p hook); /* don't move this */
 #define	_NG_HOOK_SET_RCVDATA(hook, val)	do {(hook)->hk_rcvdata = val;} while (0)
 #define	_NG_HOOK_PRIVATE(hook)	((hook)->hk_private)
 #define _NG_HOOK_NOT_VALID(hook)	((hook)->hk_flags & HK_INVALID)
-#define _NG_HOOK_IS_VALID(hook)	(!(hook)->hk_flags & HK_INVALID)
+#define _NG_HOOK_IS_VALID(hook)	(!((hook)->hk_flags & HK_INVALID))
 #define _NG_HOOK_NODE(hook)	((hook)->hk_node) /* only rvalue! */
 #define _NG_HOOK_PEER(hook)	((hook)->hk_peer) /* only rvalue! */
 #define _NG_HOOK_FORCE_WRITER(hook)				\
