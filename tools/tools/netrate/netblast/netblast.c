@@ -50,7 +50,7 @@ usage(void)
 static int	global_stop_flag;
 
 static void
-signal_handler(int signum)
+signal_handler(int signum __unused)
 {
 
 	global_stop_flag = 1;
