@@ -52,7 +52,11 @@ static device_t	acpi_dev;
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
 
+#if __FreeBSD_version < 500000
+#include <i386/apm/apm.h>
+#else
 #include <i386/bios/apm.h>
+#endif
 
 static struct apm_softc	apm_softc;
 
