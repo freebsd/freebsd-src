@@ -907,6 +907,7 @@ distExtractAll(dialogMenuItem *self)
     int old_dists, retries = 0, status = DITEM_SUCCESS;
     char buf[512];
     WINDOW *w;
+    int want_perl_package = 0;
 #ifdef X_AS_PKG
     int want_x_package = 0;
 #endif
@@ -927,6 +928,11 @@ distExtractAll(dialogMenuItem *self)
     w = savescr();
     msgNotify("Attempting to install all selected distributions..");
 
+    /* Clear perl dist flag, but remember it was present. */
+    if (Dists & DIST_PERL) {
+	want_perl_package = 1;
+	Dists &= ~DIST_PERL;
+    }
 #ifdef X_AS_PKG
     /* Clear any XFree86 dist flags, but remember they were present. */
     if(Dists & DIST_XF86)
@@ -938,9 +944,11 @@ distExtractAll(dialogMenuItem *self)
     while (Dists && ++retries < 3)
 	distExtract(NULL, DistTable);
 
+    if (want_perl_package)
+	status |= installPackage(NULL, "Perl", "perl");
 #ifdef X_AS_PKG
     if (want_x_package)
-	status |= installX11package(NULL);
+	status |= installPackage(NULL, "XFree86", "XFree86-4");
 #endif
 
     dialog_clear_norefresh();
