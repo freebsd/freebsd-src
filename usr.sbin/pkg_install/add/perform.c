@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: perform.c,v 1.37.2.11 1998/08/27 15:00:26 jkh Exp $";
+	"$Id: perform.c,v 1.37.2.12 1998/09/08 03:03:12 jkh Exp $";
 #endif
 
 /*
@@ -477,17 +477,18 @@ sanity_check(char *pkg)
 }
 
 void
-cleanup(int signo)
+cleanup(int sig)
 {
     static int in_cleanup = 0;
 
     if (!in_cleanup) {
 	in_cleanup = 1;
-    	if (signo)
-		printf("Signal %d received, cleaning up..\n", signo);
+    	if (sig)
+	    printf("Signal %d received, cleaning up..\n", sig);
     	if (!Fake && LogDir[0])
-		vsystem("%s -rf %s", REMOVE_CMD, LogDir);
+	    vsystem("%s -rf %s", REMOVE_CMD, LogDir);
     	leave_playpen();
     }
-    exit(1);
+    if (sig)
+	exit(1);
 }

@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: plist.c,v 1.17.2.6 1998/09/01 06:59:46 jkh Exp $";
+	"$Id: plist.c,v 1.17.2.7 1998/09/01 07:00:20 jkh Exp $";
 #endif
 
 /*
@@ -250,8 +250,10 @@ read_plist(Package *pkg, FILE *fp)
 	cp = pline;
 	if (pline[0] == CMD_CHAR) {
 	    cmd = plist_cmd(pline + 1, &cp);
-	    if (cmd == FAIL)
-		cleanup(0), errx(2, "bad command '%s'", pline);
+	    if (cmd == FAIL) {
+		cleanup(0);
+		errx(2, "bad command '%s'", pline);
+	    }
 	    if (*cp == '\0')
 		cp = NULL;
 	}
