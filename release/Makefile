@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.310 1997/06/28 16:24:09 jkh Exp $
+#	$Id: Makefile,v 1.311 1997/06/29 18:07:01 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -29,7 +29,7 @@ BUILDNAME=${BASE}-${DATE}-SNAP
 # BIN_DISTS are special in that they get full /etc installation sets.
 #
 COMPAT_DISTS?=	compat1x compat20 compat21
-OTHER_DISTS?=	games manpages catpages proflibs dict info doc
+OTHER_DISTS?=	manpages catpages games proflibs dict info doc
 CRYPTO_DISTS?=	krb des
 BIN_DISTS?=	bin
 DISTRIBUTIONS?=	${BIN_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
