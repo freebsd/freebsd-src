@@ -47,12 +47,9 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/syslog.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_echo.h>
