@@ -82,10 +82,9 @@ printtime(ftime)
 	time_t ftime;
 {
 	int i;
-	char *longstring, *ctime();
-	time_t time();
+	char longstring[80];
 
-	longstring = ctime((long *)&ftime);
+	strftime(longstring, sizeof(longstring), "%c", localtime(&ftime));
 	for (i = 4; i < 11; ++i)
 		(void)putchar(longstring[i]);
 
