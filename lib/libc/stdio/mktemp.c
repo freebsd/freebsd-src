@@ -85,10 +85,8 @@ _mktemp(path)
 	return(_gettemp(path, (int *)NULL, 0, 0) ? path : (char *)NULL);
 }
 
-#ifdef UNSAFE_WARN
 __warn_references(mktemp,
     "warning: mktemp() possibly used unsafely; consider using mkstemp()");
-#endif
 
 char *
 mktemp(path)
