@@ -742,11 +742,15 @@ set_screen_size(struct video_state *svsp, int size)
 
 			/* Update tty to reflect screen size */
 
-			svsp->vs_tty->t_winsize.ws_col = svsp->maxcol;
-			svsp->vs_tty->t_winsize.ws_xpixel =
-				(svsp->maxcol == 80)? 720: 1056;
-			svsp->vs_tty->t_winsize.ws_ypixel = 400;
-
+			if (svsp->vs_tty)
+			{
+				svsp->vs_tty->t_winsize.ws_col = svsp->maxcol;
+				svsp->vs_tty->t_winsize.ws_xpixel =
+					(svsp->maxcol == 80)? 720: 1056;
+				svsp->vs_tty->t_winsize.ws_ypixel = 400;
+				svsp->vs_tty->t_winsize.ws_row =
+					svsp->screen_rows;
+			}
 			/* screen_rows already calculated in set_charset() */
 			if(svsp->vt_pure_mode == M_HPVT && svsp->labels_on)
 			{
@@ -756,13 +760,13 @@ set_screen_size(struct video_state *svsp, int size)
 					sw_ufkl(svsp);
 			}
 
-			svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
 			
 			svsp->scrr_len = svsp->screen_rows;
 			svsp->scrr_end = svsp->scrr_len - 1;
 
 #if PCVT_SIGWINCH
-			pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+			if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
+				pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
 #endif /* PCVT_SIGWINCH */			
 
 			break;

@@ -1492,7 +1492,8 @@ set_emulation_mode(struct video_state *svsp, int mode)
 
 		svsp->vt_pure_mode = M_HPVT;
 
-		svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
+		if (svsp->vs_tty)
+			svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
 
 		svsp->scrr_len = svsp->screen_rows;
 		svsp->scrr_end = svsp->scrr_len - 1;
@@ -1512,14 +1513,16 @@ set_emulation_mode(struct video_state *svsp, int mode)
 		if (svsp->force24 && svsp->screen_rows == 25)
 			svsp->screen_rows = 24;
 
-		svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
+		if (svsp->vs_tty)
+			svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
 
 		svsp->scrr_len = svsp->screen_rows;
 		svsp->scrr_end = svsp->scrr_len - 1;
 	}		
 
 #if PCVT_SIGWINCH
-	pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+	if (svsp->vs_tty && svsp->vs_tty->t_pgrp)
+		pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
 #endif /* PCVT_SIGWINCH */			
 
 }
@@ -1796,15 +1799,20 @@ vt_col(struct video_state *svsp, int cols)
 
 	/* Update winsize struct to reflect screen size */
 
-	svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
-	svsp->vs_tty->t_winsize.ws_col = svsp->maxcol;
+	if(svsp->vs_tty)
+	{
+		svsp->vs_tty->t_winsize.ws_row = svsp->screen_rows;
+		svsp->vs_tty->t_winsize.ws_col = svsp->maxcol;
 
-	svsp->vs_tty->t_winsize.ws_xpixel = (cols == SCR_COL80)? 720: 1056;
-	svsp->vs_tty->t_winsize.ws_ypixel = 400;
+		svsp->vs_tty->t_winsize.ws_xpixel =
+			(cols == SCR_COL80)? 720: 1056;
+		svsp->vs_tty->t_winsize.ws_ypixel = 400;
 
 #if PCVT_SIGWINCH
-	pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
-#endif /* PCVT_SIGWINCH */			
+		if(svsp->vs_tty->t_pgrp)
+			pgsignal(svsp->vs_tty->t_pgrp, SIGWINCH, 1);
+#endif /* PCVT_SIGWINCH */
+	}
 
 	return(1);
 }	
