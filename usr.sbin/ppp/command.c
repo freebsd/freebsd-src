@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.7 1995/07/08 08:28:00 amurai Exp $
+ * $Id: command.c,v 1.9 1995/09/02 17:20:50 amurai Exp $
  *
  */
 #include <ctype.h>
@@ -114,6 +114,8 @@ struct cmdtab *cmdlist;
 int argc;
 char **argv;
 {
+  int tries;
+
   if (LcpFsm.state > ST_CLOSED) {
     printf("LCP state is [%s]\n", StateNames[LcpFsm.state]);
     return(1);
@@ -126,17 +128,22 @@ char **argv;
       return(1);
     }
   }
-  modem = OpenModem(mode);
-  if (modem < 0) {
-    printf("failed to open modem.\n");
-    modem = 0;
-    return(1);
-  }
-  if (DialModem()) {
-    sleep(1);
-    ModemTimeout();
-    PacketMode();
-  }
+  tries = 0;
+  do {
+    printf("Dial attempt %u\n", ++tries);
+    modem = OpenModem(mode);
+    if (modem < 0) {
+      printf("failed to open modem.\n");
+      modem = 0;
+      break;
+    }
+    if (DialModem()) {
+      sleep(1);
+      ModemTimeout();
+      PacketMode();
+      break;
+    }
+  } while (VarDialTries == 0 || tries < VarDialTries);
   return(1);
 }
 
@@ -321,6 +328,26 @@ static int ShowLogList()
   return(1);
 }
 
+static int ShowRedial()
+{
+  printf(" Redial Timer: ");
+
+  if (VarRedialTimeout >= 0) {
+    printf(" %d seconds, ", VarRedialTimeout);
+  }
+  else {
+    printf(" Random 0 - %d seconds, ", REDIAL_PERIOD);
+  }
+
+  if (VarDialTries)
+      printf("%d dial tries", VarDialTries);
+
+  printf("\n");
+
+  return(1);
+}
+
+
 extern int ShowIfilter(), ShowOfilter(), ShowDfilter(), ShowAfilter();
 
 struct cmdtab ShowCommands[] = {
@@ -360,6 +387,8 @@ struct cmdtab ShowCommands[] = {
 	"Show routing table", StrNull},
   { "timeout",  NULL,	  ShowTimeout,		LOCAL_AUTH,
 	"Show Idle timeout value", StrNull},
+  { "redial",   NULL,	  ShowRedial,		LOCAL_AUTH,
+	"Show Redial timeout value", StrNull},
   { "version",  NULL,	  ShowVersion,		LOCAL_NO_AUTH | LOCAL_AUTH,
 	"Show version string", StrNull},
   { "help",     "?",      HelpCommand,		LOCAL_NO_AUTH | LOCAL_AUTH,
@@ -552,6 +581,49 @@ char **argv;
       return(1);
     }
     printf("invalid speed.\n");
+  }
+  return(1);
+}
+
+static int SetRedialTimeout(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  int timeout;
+  int tries;
+
+  if (argc == 1 || argc == 2 ) {
+    if (strcasecmp(argv[0], "random") == 0) {
+      VarRedialTimeout = -1;
+      printf("Using random redial timeout.\n");
+      srandom(time(0));
+    }
+    else {
+      timeout = atoi(argv[0]);
+
+      if (timeout >= 0) {
+	VarRedialTimeout = timeout;
+      }
+      else {
+	printf("invalid redial timeout\n");
+	printf("Usage: %s %s\n", list->name, list->syntax);
+      }
+    }
+    if (argc == 2) {
+      tries = atoi(argv[1]);
+
+      if (tries >= 0) {
+	  VarDialTries = tries;
+      }
+      else {
+	printf("invalid retry value\n");
+	printf("Usage: %s %s\n", list->name, list->syntax);
+      }
+    }
+  }
+  else {
+    printf("Usage: %s %s\n", list->name, list->syntax);
   }
   return(1);
 }
@@ -830,6 +902,8 @@ struct cmdtab SetCommands[] = {
 	"Set modem speed", "speed"},
   { "timeout",  NULL,     SetIdleTimeout,	LOCAL_AUTH,
 	"Set Idle timeout", StrValue},
+  { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
+	"Set Redial timeout", "value|random [dial_attempts]"},
   { "help",     "?",      HelpCommand,		LOCAL_AUTH | LOCAL_NO_AUTH,
 	"Display this message", StrNull, (void *)SetCommands},
   { NULL,       NULL,     NULL },
