@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.18 1994/09/15 20:48:55 bde Exp $
+ *	$Id: rtld.c,v 1.19 1994/12/23 22:31:35 nate Exp $
  */
 
 #include <sys/param.h>
@@ -1024,9 +1024,9 @@ unmaphints()
 }
 
 	int
-hinthash(cp, vmajor, vminor)
+hinthash(cp, vmajor)
 	char	*cp;
-	int	vmajor, vminor;
+	int	vmajor;
 {
 	int	k = 0;
 
@@ -1034,7 +1034,6 @@ hinthash(cp, vmajor, vminor)
 		k = (((k << 1) + (k >> 14)) ^ (*cp++)) & 0x3fff;
 
 	k = (((k << 1) + (k >> 14)) ^ (vmajor*257)) & 0x3fff;
-	k = (((k << 1) + (k >> 14)) ^ (vminor*167)) & 0x3fff;
 
 	return k;
 }
@@ -1050,7 +1049,7 @@ findhint(name, major, minor, preferred_path)
 {
 	struct hints_bucket	*bp;
 
-	bp = hbuckets + (hinthash(name, major, minor) % hheader->hh_nbucket);
+	bp = hbuckets + (hinthash(name, major) % hheader->hh_nbucket);
 
 	while (1) {
 		/* Sanity check */
@@ -1066,7 +1065,7 @@ findhint(name, major, minor, preferred_path)
 		if (strcmp(name, hstrtab + bp->hi_namex) == 0) {
 			/* It's `name', check version numbers */
 			if (bp->hi_major == major &&
-				(bp->hi_ndewey < 2 || bp->hi_minor == minor)) {
+				(bp->hi_ndewey < 2 || bp->hi_minor >= minor)) {
 					if (preferred_path == NULL ||
 					    strcmp(preferred_path,
 						hstrtab + bp->hi_pathx) == 0) {
