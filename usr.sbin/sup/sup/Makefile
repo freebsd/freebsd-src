@@ -1,4 +1,7 @@
-# $Id$
+# $Id: Makefile,v 1.1 1995/12/26 05:15:18 peter Exp $
+
+# sup is a user level
+BINDIR=	${DESTDIR}/usr/bin
 
 PROG=	sup
 SRCS=	supcmain.c supcvers.c supcparse.c supcname.c supcmisc.c supcmeat.c
