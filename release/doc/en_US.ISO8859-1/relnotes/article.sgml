@@ -171,6 +171,12 @@
 
     <para>Linux emulation mode now supports IPv6.</para>
 
+    <para>&man.madvise.2; now supports a
+      <literal>MADV_PROTECT</literal> behavior, which informs the
+      virtual memory system that a process is critical and should not
+      be killed when swap space has been exhausted.  The process must
+      be owned by the superuser.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <para>A second process scheduler, designed to be a general purpose
@@ -206,6 +212,10 @@
 	information, see the &man.pae.4; manual page.  Work on this
 	feature was sponsored by DARPA and Network Associates
 	Laboratories.</para>
+
+      <para arch="i386">A new &man.vpd.4; driver has been added to
+        read hardware information from the Vital Product Data structure
+        on IBM ThinkPad machines.</para>
 
     </sect3>
 
@@ -363,6 +373,14 @@
     <sect3 id="fs">
       <title>Filesystems</title>
 
+      <para>A new <literal>DIRECTIO</literal> kernel option enables
+	support for read operations that bypass the buffer cache and
+	put data directly into a userland buffer.  This feature
+	requires that the <literal>O_DIRECT</literal> flag is set on
+	the file descriptor and that both the offset and length for
+	the read operation are multiples of the physical media sector
+	size. &merged;</para>
+
       <para>NETNCP and Netware Filesystem Support (nwfs) are once
 	again working.</para>
 
@@ -380,7 +398,10 @@
     <sect3 id="mm">
       <title>Multimedia Support</title>
 
-      <para></para>
+      <para arch="i386">The <filename>atspeaker.ko</filename> and
+        <filename>pcspeaker.ko</filename> modules for the
+        &man.speaker.4; device have been renamed
+        <filename>speaker.ko</filename>.</para>
     </sect3>
 
   </sect2>
@@ -683,6 +704,15 @@
       change reduces the disk space and inodes used by the ports
       tree. &merged;</para>
 
+    <para>&man.pkg.info.1; now honors the <varname>BLOCKSIZE</varname>
+      environment variable in its output when the <option>-b</option>
+      flag is given.</para>
+
+    <para>&man.pkg.info.1; now implements a <option>-Q</option>
+      option, which is similar to the <option>-q</option>
+      <quote>quiet</quote> option except that it prefixes the output
+      with the package name.</para>
+
   </sect2>
 
   <sect2 id="releng">
@@ -701,6 +731,10 @@
 
     <para>The supported release of <application>XFree86</application>
       has been updated to 4.3.0. &merged;</para>
+
+    <para>Several upgrade mechanisms designed to permit major version
+      upgrades from &os; 2.X to 3.X and from &os; 3.X to 4.X have been
+      removed.</para>
 
   </sect2>
 
