@@ -62,18 +62,6 @@ struct dom_binding {
 	long dom_vers;
 };
 
-struct _ypbind_binding {
-	struct in_addr ypbind_binding_addr;     /* In network order */
-	unsigned short int ypbind_binding_port; /* In network order */
-};
-struct _ypbind_resp {
-	enum ypbind_resptype ypbind_status;
-	union {
-	unsigned long ypbind_error;
-		struct _ypbind_binding ypbind_bindinfo;
-	} ypbind_respbody;
-};
-
 #include <rpcsvc/ypclnt.h>
 
 #ifndef YPBINDLOCK
@@ -230,7 +218,7 @@ struct dom_binding **ypdb;
 	static int pid = -1;
 	char path[MAXPATHLEN];
 	struct dom_binding *ysd, *ysd2;
-	struct _ypbind_resp ypbr;
+	struct ypbind_resp ypbr;
 	struct timeval tv;
 	struct sockaddr_in clnt_sin;
 	int clnt_sock, lfd, fd, gpid;
@@ -301,7 +289,7 @@ again:
 		}
 		if( flock(fd, LOCK_EX|LOCK_NB) == -1 && errno==EWOULDBLOCK) {
 			struct iovec iov[2];
-			struct _ypbind_resp ybr;
+			struct ypbind_resp ybr;
 			u_short	ypb_port;
 
 			iov[0].iov_base = (caddr_t)&ypb_port;
@@ -319,10 +307,10 @@ again:
 			bzero(&ysd->dom_server_addr, sizeof ysd->dom_server_addr);
 			ysd->dom_server_addr.sin_family = AF_INET;
 			ysd->dom_server_addr.sin_len = sizeof(struct sockaddr_in);
-			ysd->dom_server_addr.sin_addr =
-			    ybr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr;
+			ysd->dom_server_addr.sin_addr.s_addr =
+			    *(u_long *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
 			ysd->dom_server_addr.sin_port =
-			    ybr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port;
+			    *(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 
 			ysd->dom_server_port = ysd->dom_server_addr.sin_port;
 			close(fd);
@@ -354,7 +342,7 @@ skipit:
 		tv.tv_sec = _yplib_timeout/2;
 		tv.tv_usec = 0;
 		r = clnt_call(client, YPBINDPROC_DOMAIN,
-			xdr_domainname, dom, xdr_ypbind_resp, &ypbr, tv);
+			xdr_domainname, (char *)&dom, xdr_ypbind_resp, &ypbr, tv);
 		if(r != RPC_SUCCESS) {
 			fprintf(stderr,
 			"YP: server for domain %s not responding, retrying\n", dom);
@@ -374,11 +362,11 @@ skipit:
 		bzero((char *)&ysd->dom_server_addr, sizeof ysd->dom_server_addr);
 		ysd->dom_server_addr.sin_family = AF_INET;
 		ysd->dom_server_addr.sin_port =
-			ypbr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port;
+			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 		ysd->dom_server_addr.sin_addr.s_addr =
-			ypbr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr.s_addr;
+			*(u_long *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
 		ysd->dom_server_port =
-			ypbr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port;
+			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 gotit:
 		ysd->dom_vers = YPVERS;
 		strcpy(ysd->dom_domain, dom);
@@ -812,7 +800,7 @@ again:
 	bzero((char *)&ypml, sizeof ypml);
 
 	r = clnt_call(ysd->dom_client, YPPROC_MAPLIST,
-		xdr_domainname, indomain, xdr_ypresp_maplist, &ypml, tv);
+		xdr_domainname, (char *)&indomain, xdr_ypresp_maplist, &ypml, tv);
 	if (r != RPC_SUCCESS) {
 		clnt_perror(ysd->dom_client, "yp_maplist: clnt_call");
 		ysd->dom_vers = -1;
