@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <libufs.h>
@@ -123,7 +124,9 @@ main(int argc, char *argv[])
 			err(7, "%s", name);
 	}
 	for (argc -= 2, argv += 2; argc > 0; argc--, argv++) {
-		number = atol(*argv);
+		number = strtol(*argv, NULL, 0);
+		if (errno == EINVAL || errno == ERANGE)
+			err(8, "%s", *argv);
 		if (chkuse(number, 1))
 			continue;
 		/*
