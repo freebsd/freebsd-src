@@ -646,6 +646,7 @@ tcp_drop(tp, errno)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 
+	INP_LOCK_ASSERT(tp->t_inpcb);
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
 		tp->t_state = TCPS_CLOSED;
 		(void) tcp_output(tp);
@@ -1373,6 +1374,7 @@ tcp_quench(inp, errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
+	INP_LOCK_ASSERT(inp);
 	if (tp != NULL)
 		tp->snd_cwnd = tp->t_maxseg;
 	return (inp);
@@ -1390,6 +1392,7 @@ tcp_drop_syn_sent(inp, errno)
 {
 	struct tcpcb *tp = intotcpcb(inp);
 
+	INP_LOCK_ASSERT(inp);
 	if (tp != NULL && tp->t_state == TCPS_SYN_SENT) {
 		tcp_drop(tp, errno);
 		return (struct inpcb *)0;
@@ -1417,6 +1420,7 @@ tcp_mtudisc(inp, errno)
 	int isipv6;
 #endif /* INET6 */
 
+	INP_LOCK_ASSERT(inp);
 	if (tp != NULL) {
 #ifdef INET6
 		isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) != 0;
