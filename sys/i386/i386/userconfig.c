@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.21 1995/03/12 13:25:51 ugen Exp $
+ *      $Id: userconfig.c,v 1.22 1995/03/16 18:11:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -669,7 +669,6 @@ struct isa_device 	*idev;
 	for (id_p=isa_devlist;
 	id_p;
 	id_p=id_p->id_next) {
-printf("Id=%d\n",id_p->id_id);
 		if (id_p->id_id == idev->id_id) {
 			id_pn = id_p->id_next;
 			bcopy(idev,id_p,sizeof(struct isa_device));
