@@ -2770,11 +2770,18 @@ enable_4dplus(struct psm_softc *sc)
     */
 
     id = get_aux_id(kbdc);
-    if (id != PSM_4DPLUS_ID)
-	return FALSE;
+    switch (id) {
+    case PSM_4DPLUS_ID:
+	    sc->hw.buttons = 4;
+	    break;
+    case PSM_4DPLUS_RFSW35_ID:
+	    sc->hw.buttons = 3;
+	    break;
+    default:
+	    return FALSE;
+    }
 
     sc->hw.hwid = id;
-    sc->hw.buttons = 4;		/* XXX */
 
     return TRUE;
 }
