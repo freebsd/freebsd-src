@@ -1135,7 +1135,7 @@ kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 static void
 usage(void)
 {
-#define	SINGLE_OPTS	"[-aC" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
+#define	SINGLE_OPTS	"[-aCc" OPT_LAZY_f "HhjlmrSTuvwXxZ]"
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
 	    "usage: ps " SINGLE_OPTS " [-G gid[,gid]] [-O|o fmt]",
