@@ -109,6 +109,7 @@ controller	adv0	at isa? port ? irq ?
 controller	adw0
 controller	bt0	at isa? port ? irq ?
 controller	aha0	at isa? port ? irq ?
+controller	aic0	at isa? port ? irq ?
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
