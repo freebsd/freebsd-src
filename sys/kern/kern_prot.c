@@ -349,30 +349,28 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
 
-	PGRPSESS_XLOCK();
+	sx_xlock(&proctree_lock);
 
 	if (p->p_pgid == p->p_pid || (pgrp = pgfind(p->p_pid)) != NULL) {
 		if (pgrp != NULL)
 			PGRP_UNLOCK(pgrp);
 		error = EPERM;
-		goto fail;
 	} else {
 		(void)enterpgrp(p, p->p_pid, newpgrp, newsess);
 		td->td_retval[0] = p->p_pid;
-		error = 0;
+		newpgrp = NULL;
+		newsess = NULL;
 	}
-	PGRPSESS_XUNLOCK();
-	mtx_unlock(&Giant);
-	return (0);
 
-fail:
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
 
-	FREE(newpgrp, M_PGRP);
-	FREE(newsess, M_SESSION);
+	if (newpgrp != NULL)
+		FREE(newpgrp, M_PGRP);
+	if (newsess != NULL)
+		FREE(newsess, M_SESSION);
 
 	mtx_unlock(&Giant);
-	return (0);
+	return (error);
 }
 
 /*
@@ -416,45 +414,40 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 
-	PGRPSESS_XLOCK();
-
+	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
-		sx_slock(&proctree_lock);
 		if ((targp = pfind(uap->pid)) == NULL) {
 			if (targp)
 				PROC_UNLOCK(targp);
-			sx_sunlock(&proctree_lock);
 			error = ESRCH;
-			goto fail;
+			goto done;
 		}
 		if (!inferior(targp)) {
 			PROC_UNLOCK(targp);
-			sx_sunlock(&proctree_lock);
 			error = ESRCH;
-			goto fail;
+			goto done;
 		}
-		sx_sunlock(&proctree_lock);
 		if ((error = p_cansee(curproc, targp))) {
 			PROC_UNLOCK(targp);
-			goto fail;
+			goto done;
 		}
 		if (targp->p_pgrp == NULL ||
 		    targp->p_session != curp->p_session) {
 			PROC_UNLOCK(targp);
 			error = EPERM;
-			goto fail;
+			goto done;
 		}
 		if (targp->p_flag & P_EXEC) {
 			PROC_UNLOCK(targp);
 			error = EACCES;
-			goto fail;
+			goto done;
 		}
 		PROC_UNLOCK(targp);
 	} else
 		targp = curp;
 	if (SESS_LEADER(targp)) {
 		error = EPERM;
-		goto fail;
+		goto done;
 	}
 	if (uap->pgid == 0)
 		uap->pgid = targp->p_pid;
@@ -470,7 +463,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 			if (pgrp != NULL)
 				PGRP_UNLOCK(pgrp);
 			error = EPERM;
-			goto fail;
+			goto done;
 		}
 		if (pgrp == targp->p_pgrp) {
 			PGRP_UNLOCK(pgrp);
@@ -480,19 +473,11 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 		error = enterthispgrp(targp, pgrp);
 	}
 done:
-	PGRPSESS_XUNLOCK();
+	sx_xunlock(&proctree_lock);
+	KASSERT((error == 0) || (newpgrp != NULL),
+	    ("setpgid failed and newpgrp is NULL"));
 	if (newpgrp != NULL)
 		FREE(newpgrp, M_PGRP);
-	mtx_unlock(&Giant);
-	return (0);
-
-fail:
-	PGRPSESS_XUNLOCK();
-
-	KASSERT(newpgrp != NULL, ("setpgid failed and newpgrp is null."));
-	KASSERT(error != 0, ("setpgid successfully failed?"));
-	FREE(newpgrp, M_PGRP);
-
 	mtx_unlock(&Giant);
 	return (error);
 }
