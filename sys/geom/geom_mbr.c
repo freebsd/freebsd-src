@@ -425,7 +425,8 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			}
 			if (dp[1].dp_flag != 0)
 				break;
-			if (dp[1].dp_typ != DOSPTYP_EXT)
+			if (dp[1].dp_typ != DOSPTYP_EXT &&
+			    dp[1].dp_typ != DOSPTYP_EXTLBA)
 				break;
 			if (dp[1].dp_size == 0)
 				break;
