@@ -1349,7 +1349,7 @@ epic_miibus_statchg(dev)
 	}
 
 	/* Update baudrate */
-	if (IFM_SUBTYPE(media) == IFM_100_TX &&
+	if (IFM_SUBTYPE(media) == IFM_100_TX ||
 	    IFM_SUBTYPE(media) == IFM_100_FX)
 		sc->sc_if.if_baudrate = 100000000;
 	else
