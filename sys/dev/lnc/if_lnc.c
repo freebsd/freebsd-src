@@ -90,7 +90,7 @@
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
-#include <i386/isa/if_lnc.h>
+#include <dev/lnc/if_lncvar.h>
 
 struct lnc_softc {
 	struct arpcom arpcom;	            /* see ../../net/if_arp.h */
