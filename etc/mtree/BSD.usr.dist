@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.17 1994/09/08 07:17:27 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.18 1994/09/09 13:35:58 rgrimes Exp $
 #
 
 .	type=dir uname=root gname=wheel mode=0755
@@ -31,6 +31,8 @@ include	type=dir uname=bin gname=bin mode=0755
 	protocols	type=dir uname=bin gname=bin mode=0755
 	..
 	rpc		type=dir uname=bin gname=bin mode=0755
+	..
+	kerberosIV	type=dir uname=bin gname=bin mode=0755
 	..
 ..
 
