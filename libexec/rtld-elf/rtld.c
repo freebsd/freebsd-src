@@ -390,6 +390,17 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
        exit (0);
     }
 
+    /* setup TLS for main thread */
+    dbg("initializing initial thread local storage");
+    STAILQ_FOREACH(entry, &list_main, link) {
+	/*
+	 * Allocate all the initial objects out of the static TLS
+	 * block even if they didn't ask for it.
+	 */
+	allocate_tls_offset(entry->obj);
+    }
+    allocate_initial_tls(obj_list);
+
     if (relocate_objects(obj_main,
 	ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld) == -1)
 	die();
@@ -409,17 +420,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     dbg("initializing thread locks");
     lockdflt_init();
-
-    /* setup TLS for main thread */
-    dbg("initializing initial thread local storage");
-    STAILQ_FOREACH(entry, &list_main, link) {
-	/*
-	 * Allocate all the initial objects out of the static TLS
-	 * block even if they didn't ask for it.
-	 */
-	allocate_tls_offset(entry->obj);
-    }
-    allocate_initial_tls(obj_list);
 
     /* Make a list of init functions to call. */
     objlist_init(&initlist);
