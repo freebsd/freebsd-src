@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.1 1998/02/15 23:59:55 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.2 1998/02/16 00:18:52 brian Exp $
  */
 
 #include <sys/param.h>
@@ -129,7 +129,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         if (modem_Open(dl->physical, dl->bundle) >= 0) {
           LogPrintf(LogPHASE, "%s: Entering DIAL state\n", dl->name);
           dl->state = DATALINK_DIAL;
-          chat_Init(&dl->chat, dl->physical, VarDialScript, 1);
+          chat_Init(&dl->chat, dl->physical, dl->script.dial, 1);
           if (!(mode & MODE_DDIAL) && VarDialTries)
             LogPrintf(LogCHAT, "%s: Dial attempt %u of %d\n",
                       dl->name, VarDialTries - dl->dial_tries, VarDialTries);
@@ -145,8 +145,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             dl->state = DATALINK_CLOSED;
             dl->reconnect_tries = 0;
             dl->dial_tries = -1;
-            if (mode & MODE_BACKGROUND)
-              CleaningUp = 1;
+            bundle_LinkClosed(dl->bundle, dl);
           } else
             datalink_StartDialTimer(dl, VarRedialTimeout);
         }
@@ -167,7 +166,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_DIAL:
               LogPrintf(LogPHASE, "%s: Entering LOGIN state\n", dl->name);
               dl->state = DATALINK_LOGIN;
-              chat_Init(&dl->chat, dl->physical, VarLoginScript, 0);
+              chat_Init(&dl->chat, dl->physical, dl->script.login, 0);
               break;
             case DATALINK_LOGIN:
               dl->dial_tries = 0;
@@ -176,7 +175,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                 LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
                 dl->state = DATALINK_HANGUP;
                 modem_Offline(dl->physical);
-                chat_Init(&dl->chat, dl->physical, VarHangupScript, 1);
+                chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
               } else {
                 LogPrintf(LogPHASE, "%s: Entering OPEN state\n", dl->name);
                 dl->state = DATALINK_OPEN;
@@ -198,7 +197,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
               LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
               dl->state = DATALINK_HANGUP;
               modem_Offline(dl->physical);
-              chat_Init(&dl->chat, dl->physical, VarHangupScript, 1);
+              chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
               break;
           }
           break;
@@ -282,6 +281,11 @@ datalink_Create(const char *name, struct bundle *bundle)
   dl->desc.IsSet = datalink_IsSet;
   dl->desc.Read = datalink_Read;
   dl->desc.Write = datalink_Write;
+
+  *dl->script.dial = '\0';
+  *dl->script.login = '\0';
+  *dl->script.hangup = '\0';
+
   dl->state = DATALINK_CLOSED;
   dl->bundle = bundle;
   dl->next = NULL;
@@ -326,7 +330,7 @@ datalink_Up(struct datalink *dl)
   if (dl->state == DATALINK_CLOSED) {
     LogPrintf(LogPHASE, "%s: Entering OPENING state\n", dl->name);
     dl->state = DATALINK_OPENING;
-    dl->reconnect_tries = VarReconnectTries;
+    dl->reconnect_tries = (mode & MODE_DIRECT) ? 0 : VarReconnectTries;
     dl->dial_tries = VarDialTries;
   }
 }
@@ -351,7 +355,7 @@ datalink_Down(struct datalink *dl, int stay)
   FsmDown(&CcpInfo.fsm);
   FsmClose(&CcpInfo.fsm);
   FsmDown(&LcpInfo.fsm);
-  if (CleaningUp || stay)
+  if (stay)
     FsmClose(&LcpInfo.fsm);
   else
     FsmOpen(&CcpInfo.fsm);
@@ -360,7 +364,7 @@ datalink_Down(struct datalink *dl, int stay)
     LogPrintf(LogPHASE, "%s: Entering HANGUP state\n", dl->name);
     dl->state = DATALINK_HANGUP;
     modem_Offline(dl->physical);
-    chat_Init(&dl->chat, dl->physical, VarHangupScript, 1);
+    chat_Init(&dl->chat, dl->physical, dl->script.hangup, 1);
   }
 
   if (stay) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.8 1998/02/10 03:23:06 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.9 1998/02/15 23:59:39 brian Exp $
  */
 
 #include <sys/param.h>
@@ -535,6 +535,8 @@ bundle_LinkLost(struct bundle *bundle, struct link *link, int staydown)
    * and MAY cause a program exit.
    */
 
+  if ((mode & MODE_DIRECT) || CleaningUp)
+    staydown = 1;
   datalink_Down(bundle->links, staydown);
 }
 
@@ -543,9 +545,13 @@ bundle_LinkClosed(struct bundle *bundle, struct datalink *dl)
 {
   /*
    * Our datalink has closed.
-   * If it's DIRECT, delete it.
+   * If it's DIRECT or BACKGROUND, delete it.
    * If it's the last data link,
    */
+
+  if (mode & (MODE_BACKGROUND|MODE_DIRECT))
+     CleaningUp = 1;
+
   if (!(mode & MODE_AUTO))
     bundle_DownInterface(bundle);
   if (mode & MODE_DDIAL)

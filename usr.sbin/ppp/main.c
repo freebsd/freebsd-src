@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.21 1998/02/13 05:10:16 brian Exp $
+ * $Id: main.c,v 1.121.2.22 1998/02/16 00:00:31 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -519,25 +519,12 @@ DoLoop(struct bundle *bundle)
 {
   fd_set rfds, wfds, efds;
   int pri, i, n, nfds;
-  struct timeval timeout;
   int qlen;
   struct tun_data tun;
 #define rbuff tun.data
 
-  if (mode & MODE_DIRECT) {
-    LogPrintf(LogDEBUG, "Opening modem\n");
-    if (modem_Open(bundle2physical(bundle, NULL), bundle) < 0)
-      return;
-    LogPrintf(LogPHASE, "Packet mode enabled\n");
-    PacketMode(bundle, VarOpenMode);
-  } else if (mode & MODE_DEDICATED) {
-    if (!link_IsActive(bundle2link(bundle, NULL)))
-      while (modem_Open(bundle2physical(bundle, NULL), bundle) < 0)
-	nointr_sleep(VarReconnectTimer);
-  }
-
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 0;
+  if (mode & (MODE_DIRECT|MODE_DEDICATED))
+    bundle_Open(bundle, NULL);
 
   if (mode & MODE_BACKGROUND)
     bundle_Open(bundle, NULL);

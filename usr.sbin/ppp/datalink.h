@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: datalink.h,v 1.1.2.1 1998/02/16 00:00:01 brian Exp $
  */
 
 #define DATALINK_CLOSED  (0)
@@ -37,7 +37,14 @@ struct datalink {
   struct descriptor desc;       /* We play either a physical or a chat */
   int state;			/* Our DATALINK_* state */
   struct physical *physical;	/* Our link */
+
   struct chat chat;		/* For bringing the link up & down */
+  struct {
+    char dial[SCRIPT_LEN];	/* dial */
+    char login[SCRIPT_LEN];	/* login */
+    char hangup[SCRIPT_LEN];	/* hangup */
+  } script;
+
   struct pppTimer dial_timer;	/* For timing between opens & scripts */
   int dial_tries;		/* try again this number of times */
   unsigned reconnect_tries;	/* try again this number of times */

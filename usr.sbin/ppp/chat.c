@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.7 1998/02/13 05:10:06 brian Exp $
+ *	$Id: chat.c,v 1.44.2.8 1998/02/13 05:31:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -455,9 +455,14 @@ chat_Init(struct chat *c, struct physical *p, const char *data, int emptybuf)
 
   c->state = CHAT_EXPECT;
 
-  strncpy(c->script, data, sizeof c->script - 1);
-  c->script[sizeof c->script - 1] = '\0';
-  c->argc =  MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+  if (data == NULL) {
+    *c->script = '\0';
+    c->argc = 0;
+  } else {
+    strncpy(c->script, data, sizeof c->script - 1);
+    c->script[sizeof c->script - 1] = '\0';
+    c->argc =  MakeArgs(c->script, c->argv, VECSIZE(c->argv));
+  }
 
   c->arg = -1;
   c->argptr = NULL;

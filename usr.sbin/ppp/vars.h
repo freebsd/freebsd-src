@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.42.2.3 1998/02/10 03:23:50 brian Exp $
+ * $Id: vars.h,v 1.42.2.4 1998/02/16 00:01:12 brian Exp $
  *
  *	TODO:
  */
@@ -82,8 +82,6 @@ struct pppvars {
   /* The rest are just default initialized in vars.c */
 #define DIALUP_REQ	0x01
 #define DIALUP_DONE	0x02
-  char dial_script[SCRIPT_LEN];	/* Dial script */
-  char login_script[SCRIPT_LEN]; /* Login script */
   char auth_key[50];		/* PAP/CHAP key */
   char auth_name[50];		/* PAP/CHAP system name */
   char local_auth_key[50];		/* Local auth passwd */
@@ -96,7 +94,6 @@ struct pppvars {
   char *next_phone;		/* Next phone from the list */
   char *alt_phone;		/* Next phone from the list */
   char shostname[MAXHOSTNAMELEN]; /* Local short Host Name */
-  char hangup_script[SCRIPT_LEN]; /* Hangup script before modem is closed */
   struct aliasHandlers handler;	/* Alias function pointers */
 };
 
@@ -113,9 +110,6 @@ struct pppvars {
 #endif
 #define	VarOpenMode		pppVars.open_mode
 #define	VarLocalAuth		pppVars.lauth
-#define	VarDialScript		pppVars.dial_script
-#define VarHangupScript 	pppVars.hangup_script
-#define	VarLoginScript		pppVars.login_script
 #define VarIdleTimeout  	pppVars.idle_timeout
 #define	VarLqrTimeout		pppVars.lqr_timeout
 #define	VarRetryTimeout		pppVars.retry_timeout

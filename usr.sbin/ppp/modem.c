@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.15 1998/02/13 05:10:19 brian Exp $
+ * $Id: modem.c,v 1.77.2.16 1998/02/16 00:00:45 brian Exp $
  *
  *  TODO:
  */
@@ -65,6 +65,7 @@
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"
+#include "datalink.h"
 
 
 #ifndef O_NONBLOCK
@@ -888,6 +889,7 @@ modem_ShowStatus(struct cmdargs const *arg)
 {
   const char *dev;
   struct physical *modem = bundle2physical(arg->bundle, NULL);
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
 #ifdef TIOCOUTQ
   int nb;
 #endif
@@ -929,9 +931,9 @@ modem_ShowStatus(struct cmdargs const *arg)
       prompt_Printf(&prompt, "outq: ioctl probe failed: %s\n", strerror(errno));
 #endif
   prompt_Printf(&prompt, "outqlen: %d\n", link_QueueLen(&modem->link));
-  prompt_Printf(&prompt, "DialScript  = %s\n", VarDialScript);
-  prompt_Printf(&prompt, "LoginScript = %s\n", VarLoginScript);
-  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", VarPhoneList);
+  prompt_Printf(&prompt, "DialScript  = %s\n", dl->script.dial);
+  prompt_Printf(&prompt, "LoginScript = %s\n", dl->script.login);
+  prompt_Printf(&prompt, "PhoneNumber(s) = %s\n", dl->script.hangup);
 
   prompt_Printf(&prompt, "\n");
   throughput_disp(&modem->link.throughput);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.16 1998/02/13 05:10:13 brian Exp $
+ * $Id: command.c,v 1.131.2.17 1998/02/15 23:59:49 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1277,6 +1277,7 @@ SetVariable(struct cmdargs const *arg)
   u_long map;
   const char *argp;
   int param = (int)arg->data;
+  struct datalink *dl = bundle2datalink(arg->bundle, NULL);
 
   if (arg->argc > 0)
     argp = *arg->argv;
@@ -1293,12 +1294,16 @@ SetVariable(struct cmdargs const *arg)
     VarAuthName[sizeof VarAuthName - 1] = '\0';
     break;
   case VAR_DIAL:
-    strncpy(VarDialScript, argp, sizeof VarDialScript - 1);
-    VarDialScript[sizeof VarDialScript - 1] = '\0';
+    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
+      strncpy(dl->script.dial, argp, sizeof dl->script.dial - 1);
+      dl->script.dial[sizeof dl->script.dial - 1] = '\0';
+    }
     break;
   case VAR_LOGIN:
-    strncpy(VarLoginScript, argp, sizeof VarLoginScript - 1);
-    VarLoginScript[sizeof VarLoginScript - 1] = '\0';
+    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
+      strncpy(dl->script.login, argp, sizeof dl->script.login - 1);
+      dl->script.login[sizeof dl->script.login - 1] = '\0';
+    }
     break;
   case VAR_DEVICE:
     if (link_IsActive(&arg->bundle->links->physical->link))
@@ -1322,8 +1327,10 @@ SetVariable(struct cmdargs const *arg)
     VarAltPhone = NULL;
     break;
   case VAR_HANGUP:
-    strncpy(VarHangupScript, argp, sizeof VarHangupScript - 1);
-    VarHangupScript[sizeof VarHangupScript - 1] = '\0';
+    if (!(mode & (MODE_DIRECT|MODE_DEDICATED))) {
+      strncpy(dl->script.hangup, argp, sizeof dl->script.hangup - 1);
+      dl->script.hangup[sizeof dl->script.hangup - 1] = '\0';
+    }
     break;
 #ifdef HAVE_DES
   case VAR_ENC:
