@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <sys/bus_dma.h>
 #include <machine/resource.h>
 
 #include <dev/aac/aacreg.h>
@@ -3019,13 +3020,19 @@ aac_get_bus_info(struct aac_softc *sc)
 
 		caminf = (struct aac_sim *)malloc( sizeof(struct aac_sim),
 		    M_AACBUF, M_NOWAIT | M_ZERO);
-		if (caminf == NULL)
-			continue;
+		if (caminf == NULL) {
+			device_printf(sc->aac_dev,
+			    "No memory to add passthrough bus %d\n", i);
+			break;
+		}
 
 		child = device_add_child(sc->aac_dev, "aacp", -1);
 		if (child == NULL) {
-			device_printf(sc->aac_dev, "device_add_child failed\n");
-			continue;
+			device_printf(sc->aac_dev,
+			    "device_add_child failed for passthrough bus %d\n",
+			    i);
+			free(caminf, M_AACBUF);
+			break;
 		}
 
 		caminf->TargetsPerBus = businfo.TargetsPerBus;
