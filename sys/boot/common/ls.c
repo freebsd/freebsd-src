@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ * $Id: ls.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -107,6 +107,12 @@ command_ls(int argc, char *argv[])
 	result = CMD_ERROR;
 	goto out;
     }
+#ifdef VERBOSE_LS
+    /* fixup path for stat()ing files */
+    if (!strcmp(path, "/"))
+	path = "";
+#endif
+
     while ((size = read(fd, dirbuf, DIRBLKSIZ)) == DIRBLKSIZ) {
 	struct direct  *dp, *edp;
 

@@ -129,6 +129,9 @@ pnp_discard(struct pnpinfo **list)
  *	and 'module' fields are required; the 'rev' field is currently
  *	ignored (but should be used), and the 'args' field must come
  *	last.
+ *
+ * Comments may be appended to lines; any character including or following
+ * '#' on a line is ignored.
  */
 static int
 pnp_readconf(char *path)
@@ -153,6 +156,10 @@ pnp_readconf(char *path)
 	    /* keep/discard? */
 	    if ((*cp == 0) || (*cp == '#'))
 		continue;
+
+	    /* cut trailing comment? */
+	    if ((ep = strchr(cp, '#')) != NULL)
+		*ep = 0;
 	    
 	    /* bus declaration? */
 	    if (*cp == '[') {
@@ -210,11 +217,9 @@ pnp_readconf(char *path)
 		cp = ep;
 	    }
 
-	    /* we must have at least ident and module set */
-	    if ((ident == NULL) || (module == NULL)) {
-		printf("%s line %d: bad mapping\n", path, line);
+	    /* we must have at least ident and module set to be interesting */
+	    if ((ident == NULL) || (module == NULL))
 		continue;
-	    }
 	    
 	    /*
 	     * Loop looking for module/bus that might match this, but aren't already

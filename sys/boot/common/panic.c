@@ -1,5 +1,5 @@
 /*
- * $Id: panic.c,v 1.2 1998/09/17 23:52:02 msmith Exp $
+ * $Id: panic.c,v 1.3 1998/09/18 02:01:38 msmith Exp $
  * From: $NetBSD: panic.c,v 1.2 1997/03/22 01:48:36 thorpej Exp $
  */
 
@@ -46,9 +46,9 @@ panic(const char *fmt,...)
 
 	printf("panic: ");
 	va_start(ap, fmt);
-	printf(fmt, ap);
-	printf("\n");
+	vprintf(fmt, ap);
 	va_end(ap);
+	printf("\n");
 
 	exit(1);
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: console.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <stand.h>
@@ -48,16 +48,28 @@ cons_probe(void)
 {
     int			cons;
     int			active;
+    char		*prefconsole;
     
-    /* Do all console probes, make the fist fully functional console active */
+    /* Do all console probes */
     for (cons = 0, active = -1; consoles[cons] != NULL; cons++) {
 	consoles[cons]->c_flags = 0;
  	consoles[cons]->c_probe(consoles[cons]);
-	if ((consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT)) && (active == -1)) {
-	    consoles[cons]->c_flags |= (C_ACTIVEIN | C_ACTIVEOUT);
-	    active = cons;
-	}
+	if ((consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT)) && (active == -1))
+	    active = cons;		/* first candidate */
     }
+
+    /* Check to see if a console preference has already been registered */
+    prefconsole = strdup(getenv("console"));
+    if (prefconsole != NULL) {
+	unsetenv("console");		/* we want to replace this */
+	for (cons = 0; consoles[cons] != NULL; cons++)
+	    /* look for the nominated console, use it if it's functional */
+	    if (!strcmp(prefconsole, consoles[cons]->c_name) &&
+		(consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT)))
+		active = cons;
+	free(prefconsole);
+    }
+    consoles[active]->c_flags |= (C_ACTIVEIN | C_ACTIVEOUT);
     printf("Console: %s\n", consoles[active]->c_desc);
     env_setenv("console", 0, consoles[active]->c_name, cons_set, env_nounset);
 }
