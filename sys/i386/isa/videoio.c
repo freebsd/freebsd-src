@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: videoio.c,v 1.4 1998/09/25 11:55:46 yokota Exp $
+ * $Id: videoio.c,v 1.5 1998/09/26 03:38:40 yokota Exp $
  */
 
 #include "sc.h"
@@ -73,12 +73,12 @@ typedef struct adp_state adp_state_t;
  * will perform address conversion at run-time.
  */
 static video_adapter_t adapter_init_value[] = {
-    { 0, KD_MONO, 0, 	      MONO_BASE,  0xb0000, 32, 32, 0, 0, 0, 7, 0 },
-    { 0, KD_CGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32, 32, 0, 0, 0, 3, 0 },
-    { 0, KD_CGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32, 32, 0, 0, 0, 3, 0 },
-    { 0, KD_EGA, 0,	      MONO_BASE,  0xb0000, 32, 32, 0, 0, 0, 7, 0 },
-    { 0, KD_EGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32, 32, 0, 0, 0, 3, 0 },
-    { 0, KD_EGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32, 32, 0, 0, 0, 3, 0 },
+    { 0, KD_MONO, 0, 	      MONO_BASE,  0xb0000, 32*1024, 32*1024, 0, 0, 0, 7, 0 },
+    { 0, KD_CGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32*1024, 32*1024, 0, 0, 0, 3, 0 },
+    { 0, KD_CGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32*1024, 32*1024, 0, 0, 0, 3, 0 },
+    { 0, KD_EGA, 0,	      MONO_BASE,  0xb0000, 32*1024, 32*1024, 0, 0, 0, 7, 0 },
+    { 0, KD_EGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32*1024, 32*1024, 0, 0, 0, 3, 0 },
+    { 0, KD_EGA, V_ADP_COLOR, COLOR_BASE, 0xb8000, 32*1024, 32*1024, 0, 0, 0, 3, 0 },
 };
 
 static video_adapter_t adapter[V_MAX_ADAPTERS];
@@ -117,60 +117,60 @@ struct vidsw biosvidsw = {
 
 static video_info_t bios_vmode[] = {
     /* CGA */
-    { M_B40x25,     V_INFO_COLOR, 40, 25, 8,  8, 2, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_C40x25,     V_INFO_COLOR, 40, 25, 8,  8, 4, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_B80x25,     V_INFO_COLOR, 80, 25, 8,  8, 2, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_C80x25,     V_INFO_COLOR, 80, 25, 8,  8, 4, 1, 0xb8000, 32, 32, 0, 32 },
+    { M_B40x25,     V_INFO_COLOR, 40, 25, 8,  8, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_C40x25,     V_INFO_COLOR, 40, 25, 8,  8, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_B80x25,     V_INFO_COLOR, 80, 25, 8,  8, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_C80x25,     V_INFO_COLOR, 80, 25, 8,  8, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* EGA */
-    { M_ENH_B40x25, V_INFO_COLOR, 40, 25, 8, 14, 2, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_ENH_C40x25, V_INFO_COLOR, 40, 25, 8, 14, 4, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_ENH_B80x25, V_INFO_COLOR, 80, 25, 8, 14, 2, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_ENH_C80x25, V_INFO_COLOR, 80, 25, 8, 14, 4, 1, 0xb8000, 32, 32, 0, 32 },
+    { M_ENH_B40x25, V_INFO_COLOR, 40, 25, 8, 14, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_ENH_C40x25, V_INFO_COLOR, 40, 25, 8, 14, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_ENH_B80x25, V_INFO_COLOR, 80, 25, 8, 14, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_ENH_C80x25, V_INFO_COLOR, 80, 25, 8, 14, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* VGA */
-    { M_VGA_C40x25, V_INFO_COLOR, 40, 25, 8, 16, 4, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_VGA_M80x25, 0,		  80, 25, 8, 16, 2, 1, 0xb0000, 32, 32, 0, 32 },
-    { M_VGA_C80x25, V_INFO_COLOR, 80, 25, 8, 16, 4, 1, 0xb8000, 32, 32, 0, 32 },
+    { M_VGA_C40x25, V_INFO_COLOR, 40, 25, 8, 16, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_M80x25, 0,		  80, 25, 8, 16, 2, 1, 0xb0000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_C80x25, V_INFO_COLOR, 80, 25, 8, 16, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* MDA */
-    { M_EGAMONO80x25, 0,          80, 25, 8, 14, 2, 1, 0xb0000, 32, 32, 0, 32 },
+    { M_EGAMONO80x25, 0,          80, 25, 8, 14, 2, 1, 0xb0000, 32*1024, 32*1024, 0, 0 },
     /* EGA */
-    { M_ENH_B80x43, V_INFO_COLOR, 80, 43, 8,  8, 2, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_ENH_C80x43, V_INFO_COLOR, 80, 43, 8,  8, 4, 1, 0xb8000, 32, 32, 0, 32 },
+    { M_ENH_B80x43, V_INFO_COLOR, 80, 43, 8,  8, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_ENH_C80x43, V_INFO_COLOR, 80, 43, 8,  8, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* VGA */
-    { M_VGA_M80x30, 0,		  80, 30, 8, 16, 2, 1, 0xb0000, 32, 32, 0, 32 },
-    { M_VGA_C80x30, V_INFO_COLOR, 80, 30, 8, 16, 4, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_VGA_M80x50, 0,		  80, 50, 8,  8, 2, 1, 0xb0000, 32, 32, 0, 32 },
-    { M_VGA_C80x50, V_INFO_COLOR, 80, 50, 8,  8, 4, 1, 0xb8000, 32, 32, 0, 32 },
-    { M_VGA_M80x60, 0,		  80, 60, 8,  8, 2, 1, 0xb0000, 32, 32, 0, 32 },
-    { M_VGA_C80x60, V_INFO_COLOR, 80, 60, 8,  8, 4, 1, 0xb8000, 32, 32, 0, 32 },
+    { M_VGA_M80x30, 0,		  80, 30, 8, 16, 2, 1, 0xb0000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_C80x30, V_INFO_COLOR, 80, 30, 8, 16, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_M80x50, 0,		  80, 50, 8,  8, 2, 1, 0xb0000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_C80x50, V_INFO_COLOR, 80, 50, 8,  8, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_M80x60, 0,		  80, 60, 8,  8, 2, 1, 0xb0000, 32*1024, 32*1024, 0, 0 },
+    { M_VGA_C80x60, V_INFO_COLOR, 80, 60, 8,  8, 4, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* CGA */
     { M_BG320,      V_INFO_COLOR | V_INFO_GRAPHICS,                
-      320, 200, 8,  8, 2, 1, 0xb8000, 32, 32, 0, 32 },
+      320, 200, 8,  8, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     { M_CG320,      V_INFO_COLOR | V_INFO_GRAPHICS, 
-      320, 200, 8,  8, 2, 1, 0xb8000, 32, 32, 0, 32 },
+      320, 200, 8,  8, 2, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     { M_BG640,      V_INFO_COLOR | V_INFO_GRAPHICS,                
-      640, 200, 8,  8, 1, 1, 0xb8000, 32, 32, 0, 32 },
+      640, 200, 8,  8, 1, 1, 0xb8000, 32*1024, 32*1024, 0, 0 },
     /* EGA */
     { M_CG320_D,    V_INFO_COLOR | V_INFO_GRAPHICS,
-      320, 200, 8,  8, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      320, 200, 8,  8, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_CG640_E,    V_INFO_COLOR | V_INFO_GRAPHICS, 
-      640, 200, 8,  8, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 200, 8,  8, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_EGAMONOAPA, V_INFO_GRAPHICS, 		    
-      640, 350, 8, 14, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 350, 8, 14, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_ENHMONOAPA2,V_INFO_GRAPHICS, 		    
-      640, 350, 8, 14, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 350, 8, 14, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_CG640x350,  V_INFO_COLOR | V_INFO_GRAPHICS, 
-      640, 350, 8, 14, 2, 2, 0xa0000, 64, 64, 0, 64 },
+      640, 350, 8, 14, 2, 2, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_ENH_CG640,  V_INFO_COLOR | V_INFO_GRAPHICS, 
-      640, 350, 8, 14, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 350, 8, 14, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     /* VGA */
     { M_BG640x480,  V_INFO_COLOR | V_INFO_GRAPHICS,                
-      640, 480, 8, 16, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 480, 8, 16, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_CG640x480,  V_INFO_COLOR | V_INFO_GRAPHICS, 
-      640, 480, 8, 16, 4, 4, 0xa0000, 64, 64, 0, 64 },
+      640, 480, 8, 16, 4, 4, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_VGA_CG320,  V_INFO_COLOR | V_INFO_GRAPHICS, 
-      320, 200, 8,  8, 8, 1, 0xa0000, 64, 64, 0, 64 },
+      320, 200, 8,  8, 8, 1, 0xa0000, 64*1024, 64*1024, 0, 0 },
     { M_VGA_MODEX,  V_INFO_COLOR | V_INFO_GRAPHICS, 
-      320, 240, 8,  8, 8, 1, 0xa0000, 64, 64, 0, 64 },
+      320, 240, 8,  8, 8, 1, 0xa0000, 64*1024, 64*1024, 0, 0 },
 
     { EOT },
 };
@@ -1659,8 +1659,8 @@ dump_adp_info(int ad, video_adapter_t *adp, int level)
 	   ad, adp->va_initial_mode, adp->va_initial_bios_mode, adp->va_mode);
     printf("video#%d: window:0x%x size:%dk gran:%dk, buf:0x%x size:%dk\n",
 	   ad, 
-	   adp->va_window, adp->va_window_size, adp->va_window_gran,
-	   adp->va_buffer, adp->va_buffer_size);
+	   adp->va_window, adp->va_window_size/1024, adp->va_window_gran/1024,
+	   adp->va_buffer, adp->va_buffer_size/1024);
 }
 
 static void

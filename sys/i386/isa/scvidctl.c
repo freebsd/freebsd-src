@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: scvidctl.c,v 1.3 1998/09/25 11:55:46 yokota Exp $
+ * $Id: scvidctl.c,v 1.4 1998/09/29 02:00:56 ache Exp $
  */
 
 #include "sc.h"
@@ -49,7 +49,6 @@ extern scr_stat *cur_console;
 extern int fonts_loaded;
 extern int sc_history_size;
 extern u_char palette[];
-extern int sc_flags;
 
 int
 sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
@@ -122,8 +121,6 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     if (scp == cur_console)
 	set_mode(scp);
     scp->status &= ~UNKNOWN_MODE;
-    if (ISTEXTSC(scp) && (sc_flags & CHAR_CURSOR))
-	set_destructive_cursor(scp);
 
     if (tp == NULL)
 	return 0;
@@ -251,7 +248,7 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
      * memory size is larger than 64K. Because such modes require
      * bank switching to access the entire screen. XXX
      */
-    if (info.vi_width*info.vi_height/8 > info.vi_window_size*1024)
+    if (info.vi_width*info.vi_height/8 > info.vi_window_size)
 	return ENODEV;
 
     /* stop screen saver, etc */
@@ -383,7 +380,7 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return sc_set_graphics_mode(scp, tp, cmd & 0xff);
 
     case KDSETMODE:     	/* set current mode of this (virtual) console */
-	switch (*data) {
+	switch (*(int *)data) {
 	case KD_TEXT:   	/* switch to TEXT (known) mode */
 	    /*
 	     * If scp->mode is of graphics modes, we don't know which
