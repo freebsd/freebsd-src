@@ -360,6 +360,9 @@ struct dos_partition {
 #define DOSPARTOFF	446
 #define NDOSPART	4
 #define	DOSPTYP_386BSD	0xa5	/* 386BSD partition type */
+#define	DOSPTYP_LINSWP	0x82	/* Linux swap partition */
+#define	DOSPTYP_LINUX	0x83	/* Linux partition */
+#define	DOSPTYP_EXT	5	/* DOS extended partition */
 
 struct dos_partition {
 	unsigned char	dp_flag;	/* bootstrap flags */
@@ -436,17 +439,19 @@ dkunit(dev_t dev)
 	return (((minor(dev) >> 16) & 0x1e0) | ((minor(dev) >> 3) & 0x1f));
 }
 
+struct	bio;
 struct	buf;
 struct	buf_queue_head;
+struct	bio_queue_head;
 
-int	bounds_check_with_label __P((struct buf *bp, struct disklabel *lp,
+int	bounds_check_with_label __P((struct bio *bp, struct disklabel *lp,
 				     int wlabel));
-void	diskerr __P((struct buf *bp, char *what, int pri, int blkdone,
+void	diskerr __P((struct bio *bp, char *what, int pri, int blkdone,
 		     struct disklabel *lp));
 void	disksort __P((struct buf *ap, struct buf *bp));
 u_int	dkcksum __P((struct disklabel *lp));
 char	*readdisklabel __P((dev_t dev, struct disklabel *lp));
-void	bufqdisksort __P((struct buf_queue_head *ap, struct buf *bp));
+void	bioqdisksort __P((struct bio_queue_head *ap, struct bio *bp));
 int	setdisklabel __P((struct disklabel *olp, struct disklabel *nlp,
 			  u_long openmask));
 int	writedisklabel __P((dev_t dev, struct disklabel *lp));

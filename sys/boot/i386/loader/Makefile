@@ -10,8 +10,7 @@ NEWVERSWHAT=	"bootstrap loader" i386
 BINDIR?=	/boot
 
 # architecture-specific loader code
-SRCS=		main.c conf.c pxe.c
-.PATH:		${.CURDIR}/../libi386
+SRCS=		main.c conf.c
 
 # Enable PXE TFTP or NFS support, not both.
 CFLAGS+=	-DLOADER_NFS_SUPPORT
@@ -119,7 +118,7 @@ beforeinstall:
 
 ${BASE}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
 	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
-		${LIBFICL} ${LIBSTAND} ${LIBI386} ${LIBSTAND}
+		${LIBFICL} ${LIBI386} ${LIBSTAND}
 
 # If it's not there, don't consider it a target
 .if exists(${.CURDIR}/../../../i386/include)
