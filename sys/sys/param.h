@@ -189,9 +189,8 @@
 
 /*
  * Basic byte order function prototypes for non-inline functions.
- *
- * XXX temporarily exposed to userland for bogus software.
  */
+#ifdef _KERNEL
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
 __BEGIN_DECLS
@@ -202,7 +201,6 @@ __uint16_t	 ntohs(__uint16_t);
 __END_DECLS
 #endif
 
-/* XXX temporarily exposed to userland for bogus software. */
 #ifndef _BYTEORDER_FUNC_DEFINED
 #define	_BYTEORDER_FUNC_DEFINED
 #define	htonl(x)	__htonl(x)
@@ -211,7 +209,6 @@ __END_DECLS
 #define	ntohs(x)	__ntohs(x)
 #endif /* !_BYTEORDER_FUNC_DEFINED */
 
-#ifdef _KERNEL
 #define	bswap16(x)	__bswap16(x)
 #define	bswap32(x)	__bswap32(x)
 #define	bswap64(x)	__bswap64(x)
