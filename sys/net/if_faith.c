@@ -43,7 +43,6 @@
  */
 
 #include "faith.h"
-#if NFAITH > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,4 +93,3 @@ faithattach(faith)
 		bpfattach(ifp, DLT_NULL, sizeof(u_int));
 	}
 }
-#endif /* NFAITH > 0 */
