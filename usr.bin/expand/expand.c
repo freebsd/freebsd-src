@@ -41,12 +41,13 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)expand.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -69,8 +70,11 @@ main(argc, argv)
 	register int n;
 	int rval;
 
+	setlocale(LC_CTYPE, "");
+
 	/* handle obsolete syntax */
-	while (argc > 1 && argv[1][0] == '-' && isdigit(argv[1][1])) {
+	while (argc > 1 && argv[1][0] == '-' &&
+	    isdigit((unsigned char)argv[1][1])) {
 		getstops(&argv[1][1]);
 		argc--; argv++;
 	}
@@ -140,7 +144,8 @@ main(argc, argv)
 
 			default:
 				putchar(c);
-				column++;
+				if (isprint(c))
+					column++;
 				continue;
 
 			case '\n':
@@ -173,7 +178,7 @@ getstops(cp)
 		tabstops[nstops++] = i;
 		if (*cp == 0)
 			break;
-		if (*cp != ',' && *cp != ' ')
+		if (*cp != ',' && !isblank((unsigned char)*cp))
 			errx(1, "bad tab stop spec");
 		cp++;
 	}
