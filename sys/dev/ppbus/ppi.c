@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.11 1999/01/30 15:35:39 nsouch Exp $
+ *	$Id: ppi.c,v 1.12 1999/02/14 11:59:59 nsouch Exp $
  *
  */
 #include "ppi.h"
@@ -530,7 +530,7 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return (error);
 }
 
-static ppi_devsw_installed = 0;
+static int ppi_devsw_installed;
 
 static void ppi_drvinit(void *unused)
 {

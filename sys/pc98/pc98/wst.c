@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.15 1999/01/12 01:28:00 eivind Exp $
+ *	$Id: wst.c,v 1.16 1999/04/13 19:38:11 peter Exp $
  */
 
 #include "wdc.h"
@@ -784,7 +784,7 @@ wst_reset(struct wst *t)
     DELAY(30);
 }
 
-static wst_devsw_installed = 0;
+static int wst_devsw_installed;
 
 static void 
 wst_drvinit(void *unused)

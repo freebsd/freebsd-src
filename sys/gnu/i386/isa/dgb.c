@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.44 1999/04/22 15:19:37 davidn Exp $
+ *  dgb.c $Id: dgb.c,v 1.45 1999/04/27 11:14:22 phk Exp $
  *
  *  Digiboard driver.
  *
@@ -2289,7 +2289,7 @@ disc_optim(tp, t)
 }
 
 
-static dgb_devsw_installed = 0;
+static int dgb_devsw_installed;
 
 static void 
 dgb_drvinit(void *unused)

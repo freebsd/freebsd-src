@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.193 1999/04/13 20:22:30 peter Exp $
+ *	$Id: wd.c,v 1.194 1999/04/16 21:22:25 peter Exp $
  */
 
 /* TODO:
@@ -2393,7 +2393,7 @@ wdwait(struct disk *du, u_char bits_wanted, int timeout)
 	return (-1);
 }
 
-static wd_devsw_installed = 0;
+static int wd_devsw_installed;
 
 static void 	wd_drvinit(void *unused)
 {

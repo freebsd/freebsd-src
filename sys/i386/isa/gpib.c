@@ -1159,7 +1159,7 @@ outb(CDOR,95); /*untalk*/
 }
 
 
-static gp_devsw_installed = 0;
+static int gp_devsw_installed;
 
 static void
 gp_drvinit(void *unused)

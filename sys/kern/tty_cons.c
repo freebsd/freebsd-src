@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.62 1999/04/27 11:14:29 phk Exp $
+ *	$Id: cons.c,v 1.63 1999/04/27 12:21:03 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -414,7 +414,7 @@ cnputc(c)
 	}
 }
 
-static cn_devsw_installed = 0;
+static int cn_devsw_installed;
 
 static void
 cn_drvinit(void *unused)

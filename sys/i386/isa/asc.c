@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.33 1999/01/27 10:10:00 bde Exp $
+ * $Id: asc.c,v 1.34 1999/01/28 01:59:53 dillon Exp $
  */
 
 #include "asc.h"
@@ -883,7 +883,7 @@ ascpoll(dev_t dev, int events, struct proc *p)
 }
 
 
-static asc_devsw_installed = 0;
+static int asc_devsw_installed;
 
 static void 
 asc_drvinit(void *unused)
