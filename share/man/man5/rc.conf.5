@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id$
+.\"     $Id: rc.conf.5,v 1.27.2.7 1999/08/21 17:16:31 kuriyama Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -834,19 +834,33 @@ You can set this variable to
 .Ar auto
 to let the daemon detect it, or
 select one from the following list if the automatic detection fails.
+.Pp
+If your mouse is attached to the PS/2 mouse port, you should
+always choose
+.Ar auto
+or
+.Ar ps/2 ,
+regardless of the brand and model of the mouse.  Likewise, if your
+mouse is attached to the bus mouse port, choose
+.Ar auto
+or
+.Ar busmouse .
+All other protocols are for serial mice and will not work with 
+the PS/2 and bus mice.
 .Bd -literal
-microsoft        Microsoft mouse
-intellimouse     Microsoft IntelliMouse
-mousesystems     Mouse systems Corp mouse
-mmseries         MM Series mouse
-logitech         Logitech mouse
+microsoft        Microsoft mouse (serial)
+intellimouse     Microsoft IntelliMouse (serial)
+mousesystems     Mouse systems Corp mouse (serial)
+mmseries         MM Series mouse (serial)
+logitech         Logitech mouse (serial)
 busmouse         A bus mouse
-mouseman         Logitech MouseMan and TrackMan
-glidepoint       ALPS GlidePoint
-thinkingmouse    Kensignton ThinkingMouse
+mouseman         Logitech MouseMan and TrackMan (serial)
+glidepoint       ALPS GlidePoint (serial)
+thinkingmouse    Kensignton ThinkingMouse (serial)
 ps/2             PS/2 mouse
-mmhittab         MM HitTablet
-x10mouseremote   X10 MouseRemote
+mmhittab         MM HitTablet (serial)
+x10mouseremote   X10 MouseRemote (serial)
+versapad         Interlink VersaPad (serial)
 
 .Ed
 Even if your mouse is not in the above list, it may be compatible
