@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.16.4.2 1995/10/09 06:22:13 davidg Exp $
+ * $Id: ip_mroute.c,v 1.16.4.3 1996/03/14 17:13:50 fenner Exp $
  */
 
 
@@ -1222,7 +1222,7 @@ X_ip_mforward(ip, ifp, m, imo)
 		return ENOBUFS;
 	    }
 	    /* Make a copy of the header to send to the user level process */
-	    mm = m_copy(m, 0, hlen);
+	    mm = m_copy(mb0, 0, hlen);
 	    if (mm == NULL) {
 		m_free(mb_ntry);
 		m_freem(mb0);
