@@ -12,6 +12,7 @@
 .do ds troffrc!X100-12 tmac.X
 .do ds troffrc!ascii tmac.tty
 .do ds troffrc!latin1 tmac.tty
+.do ds troffrc!koi8-r tmac.tty
 .do if d troffrc!\*[.T] \
 .	do mso \*[troffrc!\*[.T]]
 .do rm troffrc!ps troffrc!Xps troffrc!dvi troffrc!X75 troffrc!X75-12 \
