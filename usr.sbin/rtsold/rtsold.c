@@ -52,6 +52,9 @@
 #include <err.h>
 #include <stdarg.h>
 #include <ifaddrs.h>
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
 
 #include "rtsold.h"
 
@@ -121,9 +124,13 @@ main(argc, argv)
 	int s, ch, once = 0;
 	struct timeval *timeout;
 	char *argv0, *opts;
+#ifdef HAVE_POLL_H
+	struct pollfd set[2];
+#else
 	fd_set *fdsetp, *selectfdp;
 	int fdmasks;
 	int maxfd;
+#endif
 	int rtsock;
 
 	/*
@@ -242,15 +249,31 @@ main(argc, argv)
 		exit(1);
 		/*NOTREACHED*/
 	}
+#ifdef HAVE_POLL_H
+	set[0].fd = s;
+	set[0].events = POLLIN;
+#else
 	maxfd = s;
+#endif
+
+#ifdef HAVE_POLL_H
+	set[1].fd = -1;
+#endif
+
 	if ((rtsock = rtsock_open()) < 0) {
 		warnmsg(LOG_ERR, __func__, "failed to open a socket");
 		exit(1);
 		/*NOTREACHED*/
 	}
+#ifdef HAVE_POLL_H
+	set[1].fd = rtsock;
+	set[1].events = POLLIN;
+#else
 	if (rtsock > maxfd)
 		maxfd = rtsock;
+#endif
 
+#ifndef HAVE_POLL_H
 	fdmasks = howmany(maxfd + 1, NFDBITS) * sizeof(fd_mask);
 	if ((fdsetp = malloc(fdmasks)) == NULL) {
 		err(1, "malloc");
@@ -260,6 +283,7 @@ main(argc, argv)
 		err(1, "malloc");
 		/*NOTREACHED*/
 	}
+#endif
 
 	/* configuration per interface */
 	if (ifinit()) {
@@ -301,13 +325,17 @@ main(argc, argv)
 		}
 	}
 
+#ifndef HAVE_POLL_H
 	memset(fdsetp, 0, fdmasks);
 	FD_SET(s, fdsetp);
 	FD_SET(rtsock, fdsetp);
+#endif
 	while (1) {		/* main loop */
 		int e;
 
+#ifndef HAVE_POLL_H
 		memcpy(selectfdp, fdsetp, fdmasks);
+#endif
 
 		if (do_dump) {	/* SIGUSR1 */
 			do_dump = 0;
@@ -331,7 +359,11 @@ main(argc, argv)
 			if (ifi == NULL)
 				break;
 		}
+#ifdef HAVE_POLL_H
+		e = poll(set, 2, timeout ? (timeout->tv_sec * 1000 + timeout->tv_usec / 1000) : INFTIM);
+#else
 		e = select(maxfd + 1, selectfdp, NULL, NULL, timeout);
+#endif
 		if (e < 1) {
 			if (e < 0 && errno != EINTR) {
 				warnmsg(LOG_ERR, __func__, "select: %s",
@@ -341,9 +373,17 @@ main(argc, argv)
 		}
 
 		/* packet reception */
+#ifdef HAVE_POLL_H
+		if (set[1].revents & POLLIN)
+#else
 		if (FD_ISSET(rtsock, selectfdp))
+#endif
 			rtsock_input(rtsock);
+#ifdef HAVE_POLL_H
+		if (set[0].revents & POLLIN)
+#else
 		if (FD_ISSET(s, selectfdp))
+#endif
 			rtsol_input(s);
 	}
 	/* NOTREACHED */
