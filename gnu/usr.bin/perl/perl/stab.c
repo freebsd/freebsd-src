@@ -1,4 +1,4 @@
-/* $RCSfile: stab.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
+/* $RCSfile: stab.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:19 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: stab.c,v $
+ * Revision 1.2  1995/05/30 05:03:19  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -817,7 +820,7 @@ char *name;
     char tmpbuf[1200];
     STAB *stab;
 
-    sprintf(tmpbuf,"'_<%s", name);
+    snprintf(tmpbuf,sizeof(tmpbuf), "'_<%s", name);
     stab = stabent(tmpbuf, TRUE);
     str_set(stab_val(stab), name);
     if (perldb)
