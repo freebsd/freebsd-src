@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.10 1995/02/03 03:40:08 davidg Exp $
+ * $Id: nfs_bio.c,v 1.11 1995/03/04 03:24:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -78,8 +78,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	struct proc *p;
 	struct nfsmount *nmp;
 	daddr_t lbn, rabn;
-	caddr_t baddr;
-	int got_buf = 0, nra, error = 0, n = 0, on = 0, not_readin;
+	int nra, error = 0, n = 0, on = 0, not_readin;
 
 #ifdef lint
 	ioflag = ioflag;
@@ -191,7 +190,6 @@ nfs_bioread(vp, uio, ioflag, cred)
 		};
 		return (error);
 	    }
-	    baddr = (caddr_t)0;
 	    switch (vp->v_type) {
 	    case VREG:
 		nfsstats.biocache_reads++;
@@ -211,7 +209,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, p);
 			    if (!rabp)
 				return (EINTR);
-			    if ((rabp->b_flags & (B_DELWRI | B_DONE)) == 0) {
+			    if ((rabp->b_flags & B_DELWRI) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
@@ -232,25 +230,18 @@ nfs_bioread(vp, uio, ioflag, cred)
 		 * Otherwise, get the block and write back/read in,
 		 * as required.
 		 */
-		if ((bp = incore(vp, lbn)) &&
-		    (bp->b_flags & (B_BUSY | B_WRITEINPROG)) ==
-		    (B_BUSY | B_WRITEINPROG))
-			got_buf = 0;
-		else {
 again:
-			bp = nfs_getcacheblk(vp, lbn, biosize, p);
-			if (!bp)
-				return (EINTR);
-			got_buf = 1;
-			if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
-				bp->b_flags |= B_READ;
-				not_readin = 0;
-				vfs_busy_pages(bp, 0);
-				error = nfs_doio(bp, cred, p);
-				if (error) {
-				    brelse(bp);
-				    return (error);
-				}
+		bp = nfs_getcacheblk(vp, lbn, biosize, p);
+		if (!bp)
+			return (EINTR);
+		if ((bp->b_flags & B_CACHE) == 0) {
+			bp->b_flags |= B_READ;
+			not_readin = 0;
+			vfs_busy_pages(bp, 0);
+			error = nfs_doio(bp, cred, p);
+			if (error) {
+			    brelse(bp);
+			    return (error);
 			}
 		}
 		n = min((unsigned)(biosize - on), uio->uio_resid);
@@ -259,12 +250,6 @@ again:
 			n = diff;
 		if (not_readin && n > 0) {
 			if (on < bp->b_validoff || (on + n) > bp->b_validend) {
-				if (!got_buf) {
-				    bp = nfs_getcacheblk(vp, lbn, biosize, p);
-				    if (!bp)
-					return (EINTR);
-				    got_buf = 1;
-				}
 				bp->b_flags |= B_NOCACHE;
 				if (bp->b_dirtyend > 0) {
 				    if ((bp->b_flags & B_DELWRI) == 0)
@@ -286,7 +271,7 @@ again:
 		bp = nfs_getcacheblk(vp, (daddr_t)0, NFS_MAXPATHLEN, p);
 		if (!bp)
 			return (EINTR);
-		if ((bp->b_flags & B_DONE) == 0) {
+		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_flags |= B_READ;
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
@@ -297,7 +282,6 @@ again:
 			}
 		}
 		n = min(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
-		got_buf = 1;
 		on = 0;
 		break;
 	    case VDIR:
@@ -307,7 +291,7 @@ again:
 		if (!bp)
 			return (EINTR);
 
-		if ((bp->b_flags & B_DONE) == 0) {
+		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_flags |= B_READ;
 			vfs_busy_pages(bp, 0);
 			error = nfs_doio(bp, cred, p);
@@ -329,7 +313,7 @@ again:
 		    !incore(vp, rabn)) {
 			rabp = nfs_getcacheblk(vp, rabn, NFS_DIRBLKSIZ, p);
 			if (rabp) {
-			    if ((rabp->b_flags & (B_DONE | B_DELWRI)) == 0) {
+			    if ((rabp->b_flags & B_CACHE) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
 				if (nfs_asyncio(rabp, cred)) {
@@ -344,7 +328,6 @@ again:
 		}
 		on = 0;
 		n = min(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid);
-		got_buf = 1;
 		break;
 	    default:
 		printf(" nfsbioread: type %x unexpected\n",vp->v_type);
@@ -352,9 +335,7 @@ again:
 	    };
 
 	    if (n > 0) {
-		if (!baddr)
-			baddr = bp->b_data;
-		error = uiomove(baddr + on, (int)n, uio);
+		error = uiomove(bp->b_data + on, (int)n, uio);
 	    }
 	    switch (vp->v_type) {
 	    case VREG:
@@ -369,8 +350,7 @@ again:
 		printf(" nfsbioread: type %x unexpected\n",vp->v_type);
 		break;
 	    }
-	    if (got_buf)
-		brelse(bp);
+ 	    brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
 	return (error);
 }
