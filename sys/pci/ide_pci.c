@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.5 1997/11/07 08:53:27 phk Exp $
+ *	$Id: ide_pci.c,v 1.6 1997/12/19 02:25:51 dyson Exp $
  */
 
 #include "pci.h"
@@ -45,7 +45,11 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/wdreg.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/isa_device.h>
 
 #include <pci/pcivar.h>
