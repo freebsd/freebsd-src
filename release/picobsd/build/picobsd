@@ -151,15 +151,15 @@ create_includes_and_libraries() {
     mkdir -p ${l_usrtree}/share/misc	# a few things go here
     mkdir -p ${l_usrtree}/lib		# libraries
     mkdir -p ${l_usrtree}/sbin		# some binaries
-    (cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${SRC}/.. \
+    (cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${l_usrtree}/.. \
 		make -m ${SRC}/share/mk includes ) || fail $? includes
-    # libraries already have the include path in the Makefile
-    CFLAGS="-nostdinc" ; export CFLAGS
+    # Pick up the correct headers for libraries.
+    CFLAGS="-nostdinc -I${l_usrtree}/include" ; export CFLAGS
 
     (cd ${SRC}
 	# $e is the invocation of make with correct environment
 	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
-	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC}/.. \
+	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${l_usrtree}/.. \
 	    make -m ${SRC}/share/mk \
 		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
 	log "do a 'make obj' in a few places."
