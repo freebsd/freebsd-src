@@ -239,7 +239,7 @@ ehci_pci_attach(device_t self)
 		ehci_pci_detach(self);
 		return ENOMEM;
 	}
-	device_set_ivars(sc->sc_bus.bdev, sc);
+	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 
 	/* ehci_pci_match will never return NULL if ehci_pci_probe succeeded */
 	device_set_desc(sc->sc_bus.bdev, ehci_pci_match(self));
