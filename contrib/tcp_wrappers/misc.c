@@ -2,6 +2,8 @@
   * Misc routines that are used by tcpd and by tcpdchk.
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -58,9 +60,31 @@ int     delimiter;
 {
     char   *cp;
 
+#ifdef INET6
+    int bracket = 0;
+
+    for (cp = string; cp && *cp; cp++) {
+	switch (*cp) {
+	case '[':
+	    bracket++;
+	    break;
+	case ']':
+	    bracket--;
+	    break;
+	default:
+	    if (bracket == 0 && *cp == delimiter) {
+		*cp++ = 0;
+		return cp;
+	    }
+	    break;
+	}
+    }
+    return (NULL);
+#else
     if ((cp = strchr(string, delimiter)) != 0)
 	*cp++ = 0;
     return (cp);
+#endif
 }
 
 /* dot_quad_addr - convert dotted quad to internal form */

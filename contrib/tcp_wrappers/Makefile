@@ -1,4 +1,5 @@
 # @(#) Makefile 1.23 97/03/21 19:27:20
+# $FreeBSD$
 
 what:
 	@echo
@@ -21,7 +22,7 @@ what:
 	@echo "	dynix epix esix freebsd hpux irix4 irix5 irix6 isc iunix"
 	@echo "	linux machten mips(untested) ncrsvr4 netbsd next osf power_unix_211"
 	@echo "	ptx-2.x ptx-generic pyramid sco sco-nis sco-od2 sco-os5 sinix sunos4"
-	@echo "	sunos40 sunos5 sysv4 tandem ultrix unicos7 unicos8 unixware1 unixware2"
+	@echo "	sunos40 sunos5 solaris8 sysv4 tandem ultrix unicos7 unicos8 unixware1 unixware2"
 	@echo "	uts215 uxp"
 	@echo
 	@echo "If none of these match your environment, edit the system"
@@ -131,20 +132,34 @@ epix:
 	NETGROUP=-DNETGROUP TLI= SYSTYPE="-systype bsd43" all
 
 # Freebsd and linux by default have no NIS.
-386bsd netbsd bsdos:
+386bsd bsdos:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP= TLI= \
 	EXTRA_CFLAGS=-DSYS_ERRLIST_DEFINED VSYSLOG= all
 
 freebsd:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
+	RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP=-DNETGROUP TLI= \
+	EXTRA_CFLAGS="-DSYS_ERRLIST_DEFINED -DINET6 -DUSE_GETIPNODEBY" \
+	VSYSLOG= all
+
+netbsd:
+	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP= TLI= \
-	EXTRA_CFLAGS=-DSYS_ERRLIST_DEFINED VSYSLOG= all
+	EXTRA_CFLAGS="-DSYS_ERRLIST_DEFINED -DINET6 \
+	-Dss_family=__ss_family -Dss_len=__ss_len" VSYSLOG= all
 
 linux:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
-	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ=setenv.o \
-	NETGROUP= TLI= EXTRA_CFLAGS="-DBROKEN_SO_LINGER" all
+	LIBS= RANLIB=ranlib ARFLAGS=rv AUX_OBJ=setenv.o NETGROUP= TLI= \
+	EXTRA_CFLAGS="-DSYS_ERRLIST_DEFINED -DBROKEN_SO_LINGER -DINET6=1 \
+	-Dss_family=__ss_family -Dss_len=__ss_len" all
+
+linux-old:
+	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
+	LIBS="/usr/inet6/lib/libinet6.a -lresolv" \
+	RANLIB=ranlib ARFLAGS=rv AUX_OBJ=setenv.o NETGROUP= TLI= \
+	EXTRA_CFLAGS="-DSYS_ERRLIST_DEFINED -DBROKEN_SO_LINGER -DINET6=1 -Dss_family=sin6_family -Dsockaddr_storage=sockaddr_in6 -I/usr/inet6/include" all
 
 # This is good for many SYSV+BSD hybrids with NIS, probably also for HP-UX 7.x.
 hpux hpux8 hpux9 hpux10:
@@ -196,6 +211,14 @@ sunos5:
 	NETGROUP=-DNETGROUP AUX_OBJ=setenv.o TLI=-DTLI \
 	BUGS="$(BUGS) -DSOLARIS_24_GETHOSTBYNAME_BUG" all
 
+# SunOS 5.8 is another SYSV4 variant, but has IPv6 support
+solaris8:
+	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
+	LIBS="-lsocket -lnsl" RANLIB=echo ARFLAGS=rv VSYSLOG= \
+	NETGROUP=-DNETGROUP AUX_OBJ=setenv.o TLI=-DTLI \
+	EXTRA_CFLAGS="-DINET6 -DUSE_GETIPNODEBY -DNO_CLONE_DEVICE \
+	-DINT32_T" all
+
 # Generic SYSV40
 esix sysv4:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
@@ -229,7 +252,7 @@ tandem:
 
 # Amdahl UTS 2.1.5 (Richard.Richmond@bridge.bst.bls.com)
 uts215:
-	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \   
+	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
 	LIBS="-lsocket" RANLIB=echo \
 	ARFLAGS=rv AUX_OBJ=setenv.o NETGROUP=-DNO_NETGROUP TLI= all
 
@@ -391,7 +414,7 @@ AR	= ar
 # the ones provided with this source distribution. The environ.c module
 # implements setenv(), getenv(), and putenv().
 
-AUX_OBJ= setenv.o
+#AUX_OBJ= setenv.o
 #AUX_OBJ= environ.o
 #AUX_OBJ= environ.o strcasecmp.o
 
@@ -454,7 +477,7 @@ AUX_OBJ= setenv.o
 # host name aliases. Compile with -DSOLARIS_24_GETHOSTBYNAME_BUG to work
 # around this. The workaround does no harm on other Solaris versions.
 
-BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DLIBC_CALLS_STRTOK
+#BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DLIBC_CALLS_STRTOK
 #BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DINET_ADDR_BUG
 #BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DSOLARIS_24_GETHOSTBYNAME_BUG
 
@@ -472,7 +495,7 @@ BUGS = -DGETPEERNAME_BUG -DBROKEN_FGETS -DLIBC_CALLS_STRTOK
 # If your system supports vsyslog(), comment out the following definition.
 # If in doubt leave it in, it won't harm.
 
-VSYSLOG	= -Dvsyslog=myvsyslog
+#VSYSLOG	= -Dvsyslog=myvsyslog
 
 # End of the system dependencies.
 #################################
