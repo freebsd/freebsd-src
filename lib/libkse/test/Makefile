@@ -12,10 +12,10 @@ CTESTS := hello_d.c hello_s.c join_leak_d.c mutex_d.c sem_d.c sigsuspend_d.c \
 
 # C programs that are used internally by the tests.  The build system merely
 # compiles these.
-BTESTS := hello_b.c
+BTESTS := guard_b.c hello_b.c
 
 # Tests written in perl.
-PTESTS := propagate_s.pl
+PTESTS := guard_s.pl propagate_s.pl
 
 # Munge the file lists to their final executable names (strip the .c).
 CTESTS := $(CTESTS:R)

@@ -56,6 +56,7 @@ MAN+=	pthread_attr.3 \
 MLINKS+= \
 	pthread_attr.3 pthread_attr_destroy.3 \
 	pthread_attr.3 pthread_attr_getdetachstate.3 \
+	pthread_attr.3 pthread_attr_getguardsize.3 \
 	pthread_attr.3 pthread_attr_getinheritsched.3 \
 	pthread_attr.3 pthread_attr_getschedparam.3 \
 	pthread_attr.3 pthread_attr_getschedpolicy.3 \
@@ -64,6 +65,7 @@ MLINKS+= \
 	pthread_attr.3 pthread_attr_getstacksize.3 \
 	pthread_attr.3 pthread_attr_init.3 \
 	pthread_attr.3 pthread_attr_setdetachstate.3 \
+	pthread_attr.3 pthread_attr_setguardsize.3 \
 	pthread_attr.3 pthread_attr_setinheritsched.3 \
 	pthread_attr.3 pthread_attr_setschedparam.3 \
 	pthread_attr.3 pthread_attr_setschedpolicy.3 \
