@@ -407,25 +407,15 @@ restart:
 				MGET(m, M_WAIT, MT_DATA);
 				mlen = MLEN;
 			}
-			if (resid >= MINCLSIZE && space >= MCLBYTES) {
+			if (resid >= MINCLSIZE) {
 				MCLGET(m, M_WAIT);
 				if ((m->m_flags & M_EXT) == 0)
 					goto nopages;
 				mlen = MCLBYTES;
-#ifdef	MAPPED_MBUFS
-				len = min(MCLBYTES, resid);
-#else
-				if (atomic && top == 0) {
-					len = min(MCLBYTES - max_hdr, resid);
-					m->m_data += max_hdr;
-				} else
-					len = min(MCLBYTES, resid);
-#endif
-				space -= MCLBYTES;
+				len = min(min(mlen, resid), space);
 			} else {
 nopages:
 				len = min(min(mlen, resid), space);
-				space -= len;
 				/*
 				 * For datagram protocols, leave room
 				 * for protocol headers in first mbuf.
@@ -433,6 +423,7 @@ nopages:
 				if (atomic && top == 0 && len < mlen)
 					MH_ALIGN(m, len);
 			}
+			space -= len;
 			error = uiomove(mtod(m, caddr_t), (int)len, uio);
 			resid = uio->uio_resid;
 			m->m_len = len;
