@@ -589,6 +589,7 @@ thread_single(int force_exit)
 
 	td = curthread;
 	p = td->td_proc;
+	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT((td != NULL), ("curthread is NULL"));
 
@@ -707,6 +708,8 @@ thread_suspend_check(int return_instead)
 			 * a single-threading. Treat it ever
 			 * so slightly different if it is
 			 * in a special situation.
+			 * XXX Should be safe to access unlocked 
+			 * as it can only be set to be true by us.
 			 */
 			if (p->p_singlethread == td) {
 				return (0);	/* Exempt from stopping. */
@@ -772,6 +775,7 @@ thread_unsuspend(struct proc *p)
 {
 	struct thread *td;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!P_SHOULDSTOP(p)) {
 		while (( td = TAILQ_FIRST(&p->p_suspended))) {
