@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lpd.c,v 1.8 1997/09/24 06:47:54 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -111,8 +111,11 @@ static void       mcleanup __P((int));
 static void       doit __P((void));
 static void       startup __P((void));
 static void       chkhost __P((struct sockaddr_in *));
-static int	  ckqueue __P((char *));
+static int	  ckqueue __P((struct printer *));
 static void	  usage __P((void));
+/* From rcmd.c: */
+int		  __ivaliduser __P((FILE *, u_long, const char *, 
+				    const char *));
 
 uid_t	uid, euid;
 
@@ -125,7 +128,8 @@ main(argc, argv)
 	fd_set defreadfds;
 	struct sockaddr_un un, fromunix;
 	struct sockaddr_in sin, frominet;
-	int omask, lfd;
+	int lfd;
+	sigset_t omask, nmask;
 	struct servent *sp, serv;
 
 	euid = geteuid();	/* these shouldn't be different */
@@ -173,6 +177,31 @@ main(argc, argv)
 	if (argc != 0)
 		usage();
 
+	/*
+	 * We run chkprintcap right away to catch any errors and blat them
+	 * to stderr while we still have it open, rather than sending them
+	 * to syslog and leaving the user wondering why lpd started and
+	 * then stopped.  There should probably be a command-line flag to
+	 * ignore errors from chkprintcap.
+	 */
+	{
+		pid_t pid;
+		int status;
+		pid = fork();
+		if (pid < 0) {
+			err(EX_OSERR, "cannot fork");
+		} else if (pid == 0) {	/* child */
+			execl(_PATH_CHKPRINTCAP, _PATH_CHKPRINTCAP, (char *)0);
+			err(EX_OSERR, "cannot execute %s", _PATH_CHKPRINTCAP);
+		}
+		if (waitpid(pid, &status, 0) < 0) {
+			err(EX_OSERR, "cannot wait");
+		}
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
+			errx(EX_OSFILE, "%d errors in printcap file, exiting",
+			     WEXITSTATUS(status));
+	}
+
 #ifndef DEBUG
 	/*
 	 * Set up standard environment by detaching from the parent.
@@ -183,17 +212,22 @@ main(argc, argv)
 	openlog("lpd", LOG_PID, LOG_LPR);
 	syslog(LOG_INFO, "restarted");
 	(void) umask(0);
-	lfd = open(_PATH_MASTERLOCK, O_WRONLY|O_CREAT, 0644);
+	/*
+	 * NB: This depends on O_NONBLOCK semantics doing the right thing;
+	 * i.e., applying only to the O_EXLOCK and not to the rest of the
+	 * open/creation.  As of 1997-12-02, this is the case for commonly-
+	 * used filesystems.  There are other places in this code which
+	 * make the same assumption.
+	 */
+	lfd = open(_PATH_MASTERLOCK, O_WRONLY|O_CREAT|O_EXLOCK|O_NONBLOCK,
+		   LOCK_FILE_MODE);
 	if (lfd < 0) {
-		syslog(LOG_ERR, "%s: %m", _PATH_MASTERLOCK);
-		exit(1);
-	}
-	if (flock(lfd, LOCK_EX|LOCK_NB) < 0) {
 		if (errno == EWOULDBLOCK)	/* active deamon present */
 			exit(0);
 		syslog(LOG_ERR, "%s: %m", _PATH_MASTERLOCK);
 		exit(1);
 	}
+	fcntl(lfd, F_SETFL, 0);	/* turn off non-blocking mode */
 	ftruncate(lfd, 0);
 	/*
 	 * write process id for others to know
@@ -215,8 +249,14 @@ main(argc, argv)
 		syslog(LOG_ERR, "socket: %m");
 		exit(1);
 	}
-#define	mask(s)	(1 << ((s) - 1))
-	omask = sigblock(mask(SIGHUP)|mask(SIGINT)|mask(SIGQUIT)|mask(SIGTERM));
+
+	sigemptyset(&nmask);
+	sigaddset(&nmask, SIGHUP);
+	sigaddset(&nmask, SIGINT);
+	sigaddset(&nmask, SIGQUIT);
+	sigaddset(&nmask, SIGTERM);
+	sigprocmask(SIG_BLOCK, &nmask, &omask);
+
 	(void) umask(07);
 	signal(SIGHUP, mcleanup);
 	signal(SIGINT, mcleanup);
@@ -233,7 +273,7 @@ main(argc, argv)
 		exit(1);
 	}
 	(void) umask(0);
-	sigsetmask(omask);
+	sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 	FD_ZERO(&defreadfds);
 	FD_SET(funix, &defreadfds);
 	listen(funix, 5);
@@ -259,6 +299,9 @@ main(argc, argv)
 	 */
 	memset(&frominet, 0, sizeof(frominet));
 	memset(&fromunix, 0, sizeof(fromunix));
+	/*
+	 * XXX - should be redone for multi-protocol
+	 */
 	for (;;) {
 		int domain, nfds, s;
 		fd_set readfds;
@@ -353,17 +396,21 @@ char	*cmdnames[] = {
 static void
 doit()
 {
-	register char *cp;
-	register int n;
+	char *cp, *printer;
+	int n;
+	int status;
+	struct printer myprinter, *pp = &myprinter;
+
+	init_printer(&myprinter);
 
 	for (;;) {
 		cp = cbuf;
 		do {
 			if (cp >= &cbuf[sizeof(cbuf) - 1])
-				fatal("Command line too long");
+				fatal(0, "Command line too long");
 			if ((n = read(1, cp, 1)) != 1) {
 				if (n < 0)
-					fatal("Lost connection");
+					fatal(0, "Lost connection");
 				return;
 			}
 		} while (*cp++ != '\n');
@@ -372,26 +419,25 @@ doit()
 		if (lflag) {
 			if (*cp >= '\1' && *cp <= '\5')
 				syslog(LOG_INFO, "%s requests %s %s",
-					from, cmdnames[*cp], cp+1);
+					from, cmdnames[(u_char)*cp], cp+1);
 			else
 				syslog(LOG_INFO, "bad request (%d) from %s",
 					*cp, from);
 		}
 		switch (*cp++) {
-		case '\1':	/* check the queue and print any jobs there */
-			printer = cp;
-			printjob();
+		case CMD_CHECK_QUE: /* check the queue, print any jobs there */
+			startprinting(cp);
 			break;
-		case '\2':	/* receive files to be queued */
+		case CMD_TAKE_THIS: /* receive files to be queued */
 			if (!from_remote) {
 				syslog(LOG_INFO, "illegal request (%d)", *cp);
 				exit(1);
 			}
-			printer = cp;
-			recvjob();
+			recvjob(cp);
 			break;
-		case '\3':	/* display the queue (short form) */
-		case '\4':	/* display the queue (long form) */
+		case CMD_SHOWQ_SHORT: /* display the queue (short form) */
+		case CMD_SHOWQ_LONG: /* display the queue (long form) */
+			/* XXX - this all needs to be redone. */
 			printer = cp;
 			while (*cp) {
 				if (*cp != ' ') {
@@ -405,17 +451,20 @@ doit()
 					break;
 				if (isdigit(*cp)) {
 					if (requests >= MAXREQUESTS)
-						fatal("Too many requests");
+						fatal(0, "Too many requests");
 					requ[requests++] = atoi(cp);
 				} else {
 					if (users >= MAXUSERS)
-						fatal("Too many users");
+						fatal(0, "Too many users");
 					user[users++] = cp;
 				}
 			}
-			displayq(cbuf[0] - '\3');
+			status = getprintcap(printer, pp);
+			if (status < 0)
+				fatal(pp, pcaperr(status));
+			displayq(pp, cbuf[0] == CMD_SHOWQ_LONG);
 			exit(0);
-		case '\5':	/* remove a job from the queue */
+		case CMD_RMJOB:	/* remove a job from the queue */
 			if (!from_remote) {
 				syslog(LOG_INFO, "illegal request (%d)", *cp);
 				exit(1);
@@ -439,18 +488,18 @@ doit()
 					break;
 				if (isdigit(*cp)) {
 					if (requests >= MAXREQUESTS)
-						fatal("Too many requests");
+						fatal(0, "Too many requests");
 					requ[requests++] = atoi(cp);
 				} else {
 					if (users >= MAXUSERS)
-						fatal("Too many users");
+						fatal(0, "Too many users");
 					user[users++] = cp;
 				}
 			}
-			rmjob();
+			rmjob(printer);
 			break;
 		}
-		fatal("Illegal service request");
+		fatal(0, "Illegal service request");
 	}
 }
 
@@ -461,66 +510,36 @@ doit()
 static void
 startup()
 {
-	char *buf;
-	register char *cp;
-	int pid;
-	char *spooldirs[16];        /* Which spooldirs are active? */
-	int i;                      /* Printer index presently processed */
-	int j;                      /* Printer index of potential conflict */
-	char *spooldir;             /* Spooldir of present printer */
-	int  canfreespool;          /* Is the spooldir malloc()ed? */
+	int pid, status, more;
+	struct printer myprinter, *pp = &myprinter;
 
-	/*
-	 * Restart the daemons and test for spooldir conflict.
-	 */
-	i = 0;
-	while (cgetnext(&buf, printcapdb) > 0) {
-
-		/* Check for duplicate spooldirs */
-		canfreespool = 1;
-		if (cgetstr(buf, "sd", &spooldir) <= 0) {
-			spooldir = _PATH_DEFSPOOL;
-			canfreespool = 0;
+	more = firstprinter(pp, &status);
+	if (status)
+		goto errloop;
+	while (more) {
+		if (ckqueue(pp) <= 0) {
+			goto next;
 		}
-		if (i < sizeof(spooldirs)/sizeof(spooldirs[0]))
-			spooldirs[i] = spooldir;
-		for (j = 0;
-			 j < MIN(i,sizeof(spooldirs)/sizeof(spooldirs[0]));
-			 j++) {
-			if (strcmp(spooldir, spooldirs[j]) == 0) {
-				syslog(LOG_ERR,
-					"startup: duplicate spool directories: %s",
-					spooldir);
-				mcleanup(0);
-			}
-		}
-		if (canfreespool && i >= sizeof(spooldirs)/sizeof(spooldirs[0]))
-			free(spooldir);
-		i++;
-		/* Spooldir test done */
-
-		if (ckqueue(buf) <= 0) {
-			free(buf);
-			continue;	/* no work to do for this printer */
-		}
-		for (cp = buf; *cp; cp++)
-			if (*cp == '|' || *cp == ':') {
-				*cp = '\0';
-				break;
-			}
 		if (lflag)
-			syslog(LOG_INFO, "work for %s", buf);
+			syslog(LOG_INFO, "work for %s", pp->printer);
 		if ((pid = fork()) < 0) {
 			syslog(LOG_WARNING, "startup: cannot fork");
 			mcleanup(0);
 		}
-		if (!pid) {
-			printer = buf;
-			cgetclose();
-			printjob();
+		if (pid == 0) {
+			lastprinter();
+			printjob(pp);
 			/* NOTREACHED */
 		}
-		else free(buf);
+		do {
+next:
+			more = nextprinter(pp, &status);
+errloop:
+			if (status)
+				syslog(LOG_WARNING, 
+				       "printcap for %s has errors, skipping",
+				       pp->printer ? pp->printer : "<???>");
+		} while (more && status);
 	}
 }
 
@@ -528,15 +547,14 @@ startup()
  * Make sure there's some work to do before forking off a child
  */
 static int
-ckqueue(cap)
-	char *cap;
+ckqueue(pp)
+	struct printer *pp;
 {
 	register struct dirent *d;
 	DIR *dirp;
 	char *spooldir;
 
-	if (cgetstr(cap, "sd", &spooldir) == -1)
-		spooldir = _PATH_DEFSPOOL;
+	spooldir = pp->spool_dir;
 	if ((dirp = opendir(spooldir)) == NULL)
 		return (-1);
 	while ((d = readdir(dirp)) != NULL) {
@@ -567,7 +585,7 @@ chkhost(f)
 	hp = gethostbyaddr((char *)&f->sin_addr,
 	    sizeof(struct in_addr), f->sin_family);
 	if (hp == NULL)
-		fatal("Host name for your address (%s) unknown",
+		fatal(0, "Host name for your address (%s) unknown",
 			inet_ntoa(f->sin_addr));
 
 	(void) strncpy(fromb, hp->h_name, sizeof(fromb) - 1);
@@ -577,7 +595,7 @@ chkhost(f)
 	/* Check for spoof, ala rlogind */
 	hp = gethostbyname(fromb);
 	if (!hp)
-		fatal("hostname for your address (%s) unknown",
+		fatal(0, "hostname for your address (%s) unknown",
 		    inet_ntoa(f->sin_addr));
 	for (; good == 0 && hp->h_addr_list[0] != NULL; hp->h_addr_list++) {
 		if (!bcmp(hp->h_addr_list[0], (caddr_t)&f->sin_addr,
@@ -585,7 +603,7 @@ chkhost(f)
 			good = 1;
 	}
 	if (good == 0)
-		fatal("address for your hostname (%s) not matched",
+		fatal(0, "address for your hostname (%s) not matched",
 		    inet_ntoa(f->sin_addr));
 
 	hostf = fopen(_PATH_HOSTSEQUIV, "r");
@@ -603,7 +621,7 @@ again:
 		hostf = fopen(_PATH_HOSTSLPD, "r");
 		goto again;
 	}
-	fatal("Your host does not have line printer access");
+	fatal(0, "Your host does not have line printer access");
 	/*NOTREACHED*/
 }
 

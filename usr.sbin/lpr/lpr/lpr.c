@@ -48,7 +48,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: lpr.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lpr.c,v 1.21 1997/09/24 06:48:07 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <dirent.h>
 #include <fcntl.h>
 #include <a.out.h>
+#include <err.h>
 #include <signal.h>
 #include <syslog.h>
 #include <pwd.h>
@@ -104,14 +105,14 @@ static struct stat statb;
 
 static void	 card __P((int, char *));
 static int	 checkwriteperm __P((char*, char *));
-static void	 chkprinter __P((char *));
+static void	 chkprinter __P((char *printer, struct printer *pp));
 static void	 cleanup __P((int));
-static void	 copy __P((int, char []));
-static void	 fatal2 __P((const char *, ...));
+static void	 copy __P((const struct printer *, int, char []));
 static char	*itoa __P((int));
 static char	*linked __P((char *));
-static char	*lmktemp __P((char *, int, int));
-static void	 mktemps __P((void));
+int		 main __P((int, char **));
+static char	*lmktemp __P((const struct printer *pp, char *, int, int));
+static void	 mktemps __P((const struct printer *pp));
 static int	 nfile __P((char *));
 static int	 test __P((char *));
 static void	 usage __P((void));
@@ -125,11 +126,13 @@ main(argc, argv)
 {
 	struct passwd *pw;
 	struct group *gptr;
-	register char *arg, *cp;
+	char *arg, *cp, *printer;
 	char buf[BUFSIZ];
 	int c, i, f, errs;
 	struct stat stb;
+	struct printer myprinter, *pp = &myprinter;
 
+	printer = NULL;
 	euid = geteuid();
 	uid = getuid();
 	seteuid(uid);
@@ -247,27 +250,32 @@ main(argc, argv)
 		usage();
 	if (printer == NULL && (printer = getenv("PRINTER")) == NULL)
 		printer = DEFLP;
-	chkprinter(printer);
-	if (SC && ncopies > 1)
-		fatal2("multiple copies are not allowed");
-	if (MC > 0 && ncopies > MC)
-		fatal2("only %d copies are allowed", MC);
+	chkprinter(printer, pp);
+	if (pp->no_copies && ncopies > 1)
+		errx(1, "multiple copies are not allowed");
+	if (pp->max_copies > 0 && ncopies > pp->max_copies)
+		errx(1, "only %d copies are allowed", pp->max_copies);
 	/*
 	 * Get the identity of the person doing the lpr using the same
-	 * algorithm as lprm.
+	 * algorithm as lprm.  Actually, not quite -- lprm will override
+	 * the login name with "root" if the user is running as root;
+	 * the daemon actually checks for the string "root" in its
+	 * permission checking.  Sigh.
 	 */
-	userid = getuid();
-	if (userid != DU || person == 0) {
-		if ((pw = getpwuid(userid)) == NULL)
-			fatal2("Who are you?");
-		person = pw->pw_name;
+	if ((person = getlogin()) == NULL) {
+		userid = getuid();
+		if (userid != pp->daemon_user || person == 0) {
+			if ((pw = getpwuid(userid)) == NULL)
+				errx(1, "Who are you?");
+			person = pw->pw_name;
+		}
 	}
 	/*
 	 * Check for restricted group access.
 	 */
-	if (RG != NULL && userid != DU) {
-		if ((gptr = getgrnam(RG)) == NULL)
-			fatal2("Restricted group specified incorrectly");
+	if (pp->restrict_grp != NULL && userid != pp->daemon_user) {
+		if ((gptr = getgrnam(pp->restrict_grp)) == NULL)
+			errx(1, "Restricted group specified incorrectly");
 		if (gptr->gr_gid != getgid()) {
 			while (*gptr->gr_mem != NULL) {
 				if ((strcmp(person, *gptr->gr_mem)) == 0)
@@ -275,22 +283,23 @@ main(argc, argv)
 				gptr->gr_mem++;
 			}
 			if (*gptr->gr_mem == NULL)
-				fatal2("Not a member of the restricted group");
+				errx(1, "Not a member of the restricted group");
 		}
 	}
 	/*
 	 * Check to make sure queuing is enabled if userid is not root.
 	 */
-	(void) snprintf(buf, sizeof(buf), "%s/%s", SD, LO);
-	if (userid && stat(buf, &stb) == 0 && (stb.st_mode & 010))
-		fatal2("Printer queue is disabled");
+	lock_file_name(pp, buf, sizeof buf);
+	if (userid && stat(buf, &stb) == 0 && (stb.st_mode & LFM_QUEUE_DIS))
+		errx(1, "Printer queue is disabled");
 	/*
 	 * Initialize the control file.
 	 */
-	mktemps();
+	mktemps(pp);
 	tfd = nfile(tfname);
 	seteuid(euid);
-	(void) fchown(tfd, DU, -1);	/* owned by daemon for protection */
+	(void) fchown(tfd, pp->daemon_user, -1);
+	/* owned by daemon for protection */
 	seteuid(uid);
 	card('H', host);
 	card('P', person);
@@ -299,7 +308,8 @@ main(argc, argv)
 			if (argc == 0)
 				jobname = "stdin";
 			else
-				jobname = (arg = strrchr(argv[0], '/')) ? arg+1 : argv[0];
+				jobname = ((arg = strrchr(argv[0], '/'))
+					   ? arg + 1 : argv[0]);
 		}
 		card('J', jobname);
 		card('C', class);
@@ -320,11 +330,11 @@ main(argc, argv)
 	 * Read the files and spool them.
 	 */
 	if (argc == 0)
-		copy(0, " ");
+		copy(pp, 0, " ");
 	else while (argc--) {
 		if (argv[0][0] == '-' && argv[0][1] == '\0') {
 			/* use stdin */
-			copy(0, " ");
+			copy(pp, 0, " ");
 			argv++;
 			continue;
 		}
@@ -352,7 +362,7 @@ main(argc, argv)
 		if ((i = open(arg, O_RDONLY)) < 0) {
 			printf("%s: cannot open %s\n", name, arg);
 		} else {
-			copy(i, arg);
+			copy(pp, i, arg);
 			(void) close(i);
 			if (f && unlink(arg) < 0)
 				printf("%s: %s: not removed\n", name, arg);
@@ -387,7 +397,7 @@ main(argc, argv)
 		seteuid(uid);
 		if (qflag)		/* just q things up */
 			exit(0);
-		if (!startdaemon(printer))
+		if (!startdaemon(pp))
 			printf("jobs queued, but cannot start daemon.\n");
 		exit(0);
 	}
@@ -400,7 +410,8 @@ main(argc, argv)
  * Create the file n and copy from file descriptor f.
  */
 static void
-copy(f, n)
+copy(pp, f, n)
+	const struct printer *pp;
 	int f;
 	char n[];
 {
@@ -424,8 +435,9 @@ copy(f, n)
 		if (nc >= BUFSIZ) {
 			nc -= BUFSIZ;
 			nr++;
-			if (MX > 0 && nr > MX) {
-				printf("%s: %s: copy file is too large\n", name, n);
+			if (pp->max_blocks > 0 && nr > pp->max_blocks) {
+				printf("%s: %s: copy file is too large\n",
+				       name, n);
 				break;
 			}
 		}
@@ -669,27 +681,23 @@ itoa(i)
  * Perform lookup for printer name or abbreviation --
  */
 static void
-chkprinter(s)
+chkprinter(s, pp)
 	char *s;
+	struct printer *pp;
 {
 	int status;
 
-	if ((status = cgetent(&bp, printcapdb, s)) == -2)
-		fatal2("cannot open printer description file");
-	else if (status == -1)
-		fatal2("%s: unknown printer", s);
-	if (cgetstr(bp, "sd", &SD) == -1)
-		SD = _PATH_DEFSPOOL;
-	if (cgetstr(bp, "lo", &LO) == -1)
-		LO = DEFLOCK;
-	cgetstr(bp, "rg", &RG);
-	if (cgetnum(bp, "mx", &MX) < 0)
-		MX = DEFMX;
-	if (cgetnum(bp,"mc", &MC) < 0)
-		MC = DEFMAXCOPIES;
-	if (cgetnum(bp, "du", &DU) < 0)
-		DU = DEFUID;
-	SC = (cgetcap(bp, "sc", ':') != NULL);
+	init_printer(pp);
+	status = getprintcap(s, pp);
+	switch(status) {
+	case PCAPERR_OSERR:
+	case PCAPERR_TCLOOP:
+		errx(1, "%s: %s", s, pcaperr(status));
+	case PCAPERR_NOTFOUND:
+		errx(1, "%s: unknown printer", s);
+	case PCAPERR_TCOPEN:
+		warnx("%s: unresolved tc= reference(s)", s);
+	}
 }
 
 /*
@@ -709,14 +717,14 @@ usage()
  * Make the temp files.
  */
 static void
-mktemps()
+mktemps(pp)
+	const struct printer *pp;
 {
 	register int len, fd, n;
 	register char *cp;
 	char buf[BUFSIZ];
-	char *lmktemp();
 
-	(void) snprintf(buf, sizeof(buf), "%s/.seq", SD);
+	(void) snprintf(buf, sizeof(buf), "%s/.seq", pp->spool_dir);
 	seteuid(euid);
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {
 		printf("%s: cannot create %s\n", name, buf);
@@ -735,11 +743,11 @@ mktemps()
 			n = n * 10 + (*cp++ - '0');
 		}
 	}
-	len = strlen(SD) + strlen(host) + 8;
-	tfname = lmktemp("tf", n, len);
-	cfname = lmktemp("cf", n, len);
-	dfname = lmktemp("df", n, len);
-	inchar = strlen(SD) + 3;
+	len = strlen(pp->spool_dir) + strlen(host) + 8;
+	tfname = lmktemp(pp, "tf", n, len);
+	cfname = lmktemp(pp, "cf", n, len);
+	dfname = lmktemp(pp, "df", n, len);
+	inchar = strlen(pp->spool_dir) + 3;
 	n = (n + 1) % 1000;
 	(void) lseek(fd, (off_t)0, 0);
 	snprintf(buf, sizeof(buf), "%03d\n", n);
@@ -751,42 +759,15 @@ mktemps()
  * Make a temp file name.
  */
 static char *
-lmktemp(id, num, len)
+lmktemp(pp, id, num, len)
+	const struct printer *pp;
 	char	*id;
 	int	num, len;
 {
 	register char *s;
 
 	if ((s = malloc(len)) == NULL)
-		fatal2("out of memory");
-	(void) snprintf(s, len, "%s/%sA%03d%s", SD, id, num, host);
+		errx(1, "out of memory");
+	(void) snprintf(s, len, "%s/%sA%03d%s", pp->spool_dir, id, num, host);
 	return(s);
-}
-
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-static void
-#ifdef __STDC__
-fatal2(const char *msg, ...)
-#else
-fatal2(msg, va_alist)
-	char *msg;
-        va_dcl
-#endif
-{
-	va_list ap;
-#ifdef __STDC__
-	va_start(ap, msg);
-#else
-	va_start(ap);
-#endif
-	printf("%s: ", name);
-	vprintf(msg, ap);
-	putchar('\n');
-	va_end(ap);
-	exit(1);
 }

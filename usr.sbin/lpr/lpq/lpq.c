@@ -33,13 +33,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)lpq.c	8.3 (Berkeley) 5/10/95";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -54,12 +58,14 @@ static char sccsid[] = "@(#)lpq.c	8.3 (Berkeley) 5/10/95";
 
 #include <sys/param.h>
 
-#include <syslog.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <syslog.h>
+#include <unistd.h>
+
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -71,19 +77,19 @@ int	 users;			/* # of users in user array */
 
 uid_t	uid, euid;
 
-static int ckqueue __P((char *));
+static int ckqueue __P((const struct printer *));
 static void usage __P((void));
 
 int
 main(argc, argv)
-	register int	argc;
-	register char	**argv;
+	int	argc;
+	char	**argv;
 {
-	extern char	*optarg;
-	extern int	optind;
-	int	ch, aflag, lflag;
-	char	*buf, *cp;
+	int ch, aflag, lflag;
+	char *printer;
+	struct printer myprinter, *pp = &myprinter;
 
+	printer = NULL;
 	euid = geteuid();
 	uid = getuid();
 	seteuid(uid);
@@ -115,47 +121,64 @@ main(argc, argv)
 	for (argc -= optind, argv += optind; argc; --argc, ++argv)
 		if (isdigit(argv[0][0])) {
 			if (requests >= MAXREQUESTS)
-				fatal("too many requests");
+				fatal(0, "too many requests");
 			requ[requests++] = atoi(*argv);
 		}
 		else {
 			if (users >= MAXUSERS)
-				fatal("too many users");
+				fatal(0, "too many users");
 			user[users++] = *argv;
 		}
 
 	if (aflag) {
-		while (cgetnext(&buf, printcapdb) > 0) {
-			if (ckqueue(buf) <= 0) {
-				free(buf);
-				continue;	/* no jobs */
+		int more, status;
+
+		more = firstprinter(pp, &status);
+		if (status)
+			goto looperr;
+		while (more) {
+			if (ckqueue(pp) > 0) {
+				printf("%s:\n", pp->printer);
+				displayq(pp, lflag);
+				printf("\n");
 			}
-			for (cp = buf; *cp; cp++)
-				if (*cp == '|' || *cp == ':') {
-					*cp = '\0';
+			do {
+				more = nextprinter(pp, &status);
+looperr:
+				switch (status) {
+				case PCAPERR_TCOPEN:
+					printf("warning: %s: unresolved "
+					       "tc= reference(s) ",
+					       pp->printer);
+				case PCAPERR_SUCCESS:
 					break;
+				default:
+					fatal(pp, pcaperr(status));
 				}
-			printer = buf;
-			printf("%s:\n", printer);
-			displayq(lflag);
-			free(buf);
-			printf("\n");
+			} while (more && status);
 		}
-	} else
-		displayq(lflag);
+	} else {
+		int status;
+
+		init_printer(pp);
+		status = getprintcap(printer, pp);
+		if (status < 0)
+			fatal(pp, pcaperr(status));
+
+		displayq(pp, lflag);
+	}
 	exit(0);
 }
 
 static int
-ckqueue(cap)
-	char *cap;
+ckqueue(pp)
+	const struct printer *pp;
 {
 	register struct dirent *d;
 	DIR *dirp;
 	char *spooldir;
 
-	if (cgetstr(cap, "sd", &spooldir) == -1)
-		spooldir = _PATH_DEFSPOOL;
+	spooldir = pp->spool_dir;
 	if ((dirp = opendir(spooldir)) == NULL)
 		return (-1);
 	while ((d = readdir(dirp)) != NULL) {

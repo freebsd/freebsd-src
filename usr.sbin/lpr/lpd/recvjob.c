@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 #endif
 static const char rcsid[] =
-	"$Id: recvjob.c,v 1.10 1997/09/24 06:47:55 charnier Exp $";
+	"$Id: recvjob.c,v 1.11 1997/10/06 03:58:48 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -80,54 +80,56 @@ static int        noresponse __P((void));
 static void       rcleanup __P((int));
 static int        read_number __P((char *));
 static int        readfile __P((char *, int));
-static int        readjob __P((void));
+static int        readjob __P((struct printer *pp));
 
 
 void
-recvjob()
+recvjob(printer)
+	const char *printer;
 {
 	struct stat stb;
 	int status;
+	struct printer myprinter, *pp = &myprinter;
 
 	/*
 	 * Perform lookup for printer name or abbreviation
 	 */
-	if ((status = cgetent(&bp, printcapdb, printer)) == -2)
+	status = getprintcap(printer, pp);
+	switch (status) {
+	case PCAPERR_OSERR:
 		frecverr("cannot open printer description file");
-	else if (status == -1)
+		break;
+	case PCAPERR_NOTFOUND:
 		frecverr("unknown printer %s", printer);
-	else if (status == -3)
-		fatal("potential reference loop detected in printcap file");
+		break;
+	case PCAPERR_TCLOOP:
+		fatal(pp, "potential reference loop detected in printcap file");
+	default:
+		break;
+	}
 	
-	if (cgetstr(bp, "lf", &LF) == -1)
-		LF = _PATH_CONSOLE;
-	if (cgetstr(bp, "sd", &SD) == -1)
-		SD = _PATH_DEFSPOOL;
-	if (cgetstr(bp, "lo", &LO) == -1)
-		LO = DEFLOCK;
-
 	(void) close(2);			/* set up log file */
-	if (open(LF, O_WRONLY|O_APPEND, 0664) < 0) {
-		syslog(LOG_ERR, "%s: %m", LF);
+	if (open(pp->log_file, O_WRONLY|O_APPEND, 0664) < 0) {
+		syslog(LOG_ERR, "%s: %m", pp->log_file);
 		(void) open(_PATH_DEVNULL, O_WRONLY);
 	}
 
-	if (chdir(SD) < 0)
-		frecverr("%s: %s: %m", printer, SD);
-	if (stat(LO, &stb) == 0) {
+	if (chdir(pp->spool_dir) < 0)
+		frecverr("%s: %s: %m", pp->printer, pp->spool_dir);
+	if (stat(pp->lock_file, &stb) == 0) {
 		if (stb.st_mode & 010) {
 			/* queue is disabled */
 			putchar('\1');		/* return error code */
 			exit(1);
 		}
-	} else if (stat(SD, &stb) < 0)
-		frecverr("%s: %s: %m", printer, SD);
+	} else if (stat(pp->spool_dir, &stb) < 0)
+		frecverr("%s: %s: %m", pp->printer, pp->spool_dir);
 	minfree = 2 * read_number("minfree");	/* scale KB to 512 blocks */
 	signal(SIGTERM, rcleanup);
 	signal(SIGPIPE, rcleanup);
 
-	if (readjob())
-		printjob();
+	if (readjob(pp))
+		printjob(pp);
 }
 
 /*
@@ -135,7 +137,8 @@ recvjob()
  * Return the number of jobs successfully transfered.
  */
 static int
-readjob()
+readjob(pp)
+	struct printer *pp;
 {
 	register int size, nfiles;
 	register char *cp;
@@ -151,7 +154,7 @@ readjob()
 			if ((size = read(1, cp, 1)) != 1) {
 				if (size < 0)
 					frecverr("%s: lost connection",
-					    printer);
+					    pp->printer);
 				return(nfiles);
 			}
 		} while (*cp++ != '\n' && (cp - line + 1) < sizeof(line));

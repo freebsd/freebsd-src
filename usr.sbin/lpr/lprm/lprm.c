@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lprm.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lprm.c,v 1.3 1997/09/24 06:48:17 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -89,21 +89,33 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register char *arg;
+	char *arg, *printer;
 	struct passwd *p;
+	static char root[] = "root";
 
+	printer = NULL;
 	uid = getuid();
 	euid = geteuid();
 	seteuid(uid);	/* be safe */
 	name = argv[0];
 	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);
-	if ((p = getpwuid(getuid())) == NULL)
-		fatal("Who are you?");
-	if (strlen(p->pw_name) >= sizeof(luser))
-		fatal("Your name is too long");
-	strcpy(luser, p->pw_name);
-	person = luser;
+
+	/*
+	 * Bogus code later checks for string equality between 
+	 * `person' and "root", so if we are root, better make sure
+	 * that code will succeed.
+	 */
+	if (getuid() == 0) {
+		person = root;
+	} else if ((person = getlogin()) == NULL) {
+		if ((p = getpwuid(getuid())) == NULL)
+			fatal(0, "Who are you?");
+		if (strlen(p->pw_name) >= sizeof(luser))
+			fatal(0, "Your name is too long");
+		strcpy(luser, p->pw_name);
+		person = luser;
+	}
 	while (--argc) {
 		if ((arg = *++argv)[0] == '-')
 			switch (arg[1]) {
@@ -128,11 +140,11 @@ main(argc, argv)
 				usage();
 			if (isdigit(arg[0])) {
 				if (requests >= MAXREQUESTS)
-					fatal("Too many requests");
+					fatal(0, "Too many requests");
 				requ[requests++] = atoi(arg);
 			} else {
 				if (users >= MAXUSERS)
-					fatal("Too many users");
+					fatal(0, "Too many users");
 				user[users++] = arg;
 			}
 		}
@@ -140,7 +152,7 @@ main(argc, argv)
 	if (printer == NULL && (printer = getenv("PRINTER")) == NULL)
 		printer = DEFLP;
 
-	rmjob();
+	rmjob(printer);
 	exit(0);
 }
 

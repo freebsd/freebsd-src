@@ -37,149 +37,36 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-
 #include <dirent.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "lp.h"
+#include "lp.local.h"
 #include "pathnames.h"
 
 /*
  * Routines and data common to all the line printer functions.
  */
-
-char	*AF;		/* accounting file */
-long	 BR;		/* baud rate if lp is a tty */
-char	*CF;		/* name of cifplot filter (per job) */
-long	 CT;		/* TCP connection timeout */
-char	*DF;		/* name of tex filter (per job) */
-long	 DU;		/* daeomon user-id */
-char	*FF;		/* form feed string */
-char	*GF;		/* name of graph(1G) filter (per job) */
-long	 HL;		/* print header last */
-char	*IF;		/* name of input filter (created per job) */
-char	*LF;		/* log file for error messages */
-char	*LO;		/* lock file name */
-char	*LP;		/* line printer device name */
-long	 MC;		/* maximum number of copies allowed */
-long	 MX;		/* maximum number of blocks to copy */
-char	*NF;		/* name of ditroff filter (per job) */
-char	*OF;		/* name of output filter (created once) */
-char	*PF;		/* name of vrast filter (per job) */
-long	 PL;		/* page length */
-long	 PW;		/* page width */
-long	 PX;		/* page width in pixels */
-long	 PY;		/* page length in pixels */
-char	*RF;		/* name of fortran text filter (per job) */
-char    *RG;		/* resricted group */
-char	*RM;		/* remote machine name */
-char	*RP;		/* remote printer name */
-long	 RS;		/* restricted to those with local accounts */
-long	 RW;		/* open LP for reading and writing */
-long	 SB;		/* short banner instead of normal header */
-long	 SC;		/* suppress multiple copies */
-char	*SD;		/* spool directory */
-long	 SF;		/* suppress FF on each print job */
-long	 SH;		/* suppress header page */
-char	*ST;		/* status file name */
-char	*TF;		/* name of troff filter (per job) */
-char	*TR;		/* trailer string to be output when Q empties */
-char	*MS;		/* mode set, a la stty */
-char	*VF;		/* name of vplot filter (per job) */
-
 char	line[BUFSIZ];
-char	*bp;		/* pointer into printcap buffer. */
 char	*name;		/* program name */
-char	*printer;	/* printer name */
-			/* host machine name */
-char	host[MAXHOSTNAMELEN];
-char	*from = host;	/* client's machine name */
-int	remote;		/* true if sending files to a remote host */
-char	*printcapdb[2] = { _PATH_PRINTCAP, 0 };
 
 extern uid_t	uid, euid;
 
 static int compar __P((const void *, const void *));
-
-/*
- * Create a TCP connection to host "rhost" at port "rport".
- * If rport == 0, then use the printer service port.
- * Most of this code comes from rcmd.c.
- */
-int
-getport(rhost, rport)
-	char *rhost;
-	int rport;
-{
-	struct hostent *hp;
-	struct servent *sp;
-	struct sockaddr_in sin;
-	int s, timo = 1, lport = IPPORT_RESERVED - 1;
-	int err;
-
-	/*
-	 * Get the host address and port number to connect to.
-	 */
-	if (rhost == NULL)
-		fatal("no remote host to connect to");
-	bzero((char *)&sin, sizeof(sin));
-	sin.sin_addr.s_addr = inet_addr(rhost);
-	if (sin.sin_addr.s_addr != INADDR_NONE)
-		sin.sin_family = AF_INET;
-	else {
-		hp = gethostbyname(rhost);
-		if (hp == NULL)
-			fatal("unknown host %s", rhost);
-		bcopy(hp->h_addr, (caddr_t)&sin.sin_addr, hp->h_length);
-		sin.sin_family = hp->h_addrtype;
-	}
-	if (rport == 0) {
-		sp = getservbyname("printer", "tcp");
-		if (sp == NULL)
-			fatal("printer/tcp: unknown service");
-		sin.sin_port = sp->s_port;
-	} else
-		sin.sin_port = htons(rport);
-
-	/*
-	 * Try connecting to the server.
-	 */
-retry:
-	seteuid(euid);
-	s = rresvport(&lport);
-	seteuid(uid);
-	if (s < 0)
-		return(-1);
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		err = errno;
-		(void) close(s);
-		errno = err;
-		if (errno == EADDRINUSE) {
-			lport--;
-			goto retry;
-		}
-		if (errno == ECONNREFUSED && timo <= 16) {
-			sleep(timo);
-			timo *= 2;
-			goto retry;
-		}
-		return(-1);
-	}
-	return(s);
-}
 
 /*
  * Getline reads a line from the control file cfp, removes tabs, converts
@@ -217,7 +104,8 @@ getline(cfp)
  * Return the number of entries and a pointer to the list.
  */
 int
-getq(namelist)
+getq(pp, namelist)
+	const struct printer *pp;
 	struct queue *(*namelist[]);
 {
 	register struct dirent *d;
@@ -228,7 +116,7 @@ getq(namelist)
 	int arraysz;
 
 	seteuid(euid);
-	if ((dirp = opendir(SD)) == NULL)
+	if ((dirp = opendir(pp->spool_dir)) == NULL)
 		return(-1);
 	if (fstat(dirp->dd_fd, &stbuf) < 0)
 		goto errdone;
@@ -294,63 +182,63 @@ compar(p1, p2)
 	return(0);
 }
 
-/*
- * Figure out whether the local machine is the same
- * as the remote machine (RM) entry (if it exists).
- */
-char *
-checkremote()
-{
-	char name[MAXHOSTNAMELEN];
-	register struct hostent *hp;
-	static char errbuf[128];
-
-	remote = 0;	/* assume printer is local */
-	if (RM != NULL) {
-		/* get the official name of the local host */
-		gethostname(name, sizeof(name));
-		name[sizeof(name) - 1] = '\0';
-		hp = gethostbyname(name);
-		if (hp == (struct hostent *) NULL) {
-		    (void) snprintf(errbuf, sizeof(errbuf),
-			"unable to get official name for local machine %s",
-			name);
-		    return errbuf;
-		} else {
-		    (void) strncpy(name, hp->h_name, sizeof(name));
-		    name[sizeof(name) - 1] = '\0';
-		}
-
-		/* get the official name of RM */
-		hp = gethostbyname(RM);
-		if (hp == (struct hostent *) NULL) {
-		    (void) snprintf(errbuf, sizeof(errbuf),
-			"unable to get official name for remote machine %s",
-			RM);
-		    return errbuf;
-		}
-
-		/*
-		 * if the two hosts are not the same,
-		 * then the printer must be remote.
-		 */
-		if (strcasecmp(name, hp->h_name) != 0)
-			remote = 1;
-	}
-	return NULL;
-}
-
 /* sleep n milliseconds */
 void
 delay(n)
+	int n;
 {
 	struct timeval tdelay;
 
 	if (n <= 0 || n > 10000)
-		fatal("unreasonable delay period (%d)", n);
+		fatal((struct printer *)0, /* fatal() knows how to deal */
+		      "unreasonable delay period (%d)", n);
 	tdelay.tv_sec = n / 1000;
 	tdelay.tv_usec = n * 1000 % 1000000;
 	(void) select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tdelay);
+}
+
+char *
+lock_file_name(pp, buf, len)
+	const struct printer *pp;
+	char *buf;
+	size_t len;
+{
+	static char staticbuf[MAXPATHLEN];
+
+	if (buf == 0)
+		buf = staticbuf;
+	if (len == 0)
+		len = MAXPATHLEN;
+
+	if (pp->lock_file[0] == '/') {
+		buf[0] = '\0';
+		strncpy(buf, pp->lock_file, len);
+	} else {
+		snprintf(buf, len, "%s/%s", pp->spool_dir, pp->lock_file);
+	}
+	return buf;
+}
+
+char *
+status_file_name(pp, buf, len)
+	const struct printer *pp;
+	char *buf;
+	size_t len;
+{
+	static char staticbuf[MAXPATHLEN];
+
+	if (buf == 0)
+		buf = staticbuf;
+	if (len == 0)
+		len = MAXPATHLEN;
+
+	if (pp->status_file[0] == '/') {
+		buf[0] = '\0';
+		strncpy(buf, pp->status_file, len);
+	} else {
+		snprintf(buf, len, "%s/%s", pp->spool_dir, pp->status_file);
+	}
+	return buf;
 }
 
 #ifdef __STDC__
@@ -361,9 +249,10 @@ delay(n)
 
 void
 #ifdef __STDC__
-fatal(const char *msg, ...)
+fatal(const struct printer *pp, const char *msg, ...)
 #else
-fatal(msg, va_alist)
+fatal(pp, msg, va_alist)
+	const struct printer *pp;
 	char *msg;
         va_dcl
 #endif
@@ -377,10 +266,27 @@ fatal(msg, va_alist)
 	if (from != host)
 		(void)printf("%s: ", host);
 	(void)printf("%s: ", name);
-	if (printer)
-		(void)printf("%s: ", printer);
+	if (pp && pp->printer)
+		(void)printf("%s: ", pp->printer);
 	(void)vprintf(msg, ap);
 	va_end(ap);
 	(void)putchar('\n');
 	exit(1);
 }
+
+/*
+ * Close all file descriptors from START on up.
+ * This is a horrific kluge, since getdtablesize() might return
+ * ``infinity'', in which case we will be spending a long time
+ * closing ``files'' which were never open.  Perhaps it would
+ * be better to close the first N fds, for some small value of N.
+ */
+void
+closeallfds(start)
+	int start;
+{
+	int stop = getdtablesize();
+	for (; start < stop; start++)
+		close(start);
+}
+

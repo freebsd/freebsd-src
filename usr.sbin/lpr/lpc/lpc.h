@@ -36,10 +36,13 @@
 /*
  * Line printer control program.
  */
+struct	printer;
+
 struct	cmd {
 	char	*c_name;		/* command name */
 	char	*c_help;		/* help message */
 					/* routine to do the work */
 	void	(*c_handler) __P((int, char *[]));
 	int	c_priv;			/* privileged command */
+	void	(*c_generic) __P((struct printer *)); /* generic command */
 };

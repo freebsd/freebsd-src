@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pac.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: pac.c,v 1.7 1997/09/24 06:48:24 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -110,9 +110,10 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register FILE *acct;
-	register char *cp;
+	FILE *acct;
+	char *cp, *printer;
 
+	printer = NULL;
 	euid = geteuid();	/* these aren't used in pac(1) */
 	uid = getuid();
 	while (--argc) {
@@ -433,21 +434,22 @@ chkprinter(s)
 	register char *s;
 {
 	int stat;
+	struct printer myprinter, *pp = &myprinter;
 
-	if ((stat = cgetent(&bp, printcapdb, s)) == -2) {
-		printf("pac: can't open printer description file\n");
+	init_printer(&myprinter);
+	stat = getprintcap(s, pp);
+	switch(stat) {
+	case PCAPERR_OSERR:
+		printf("pac: getprintcap: %s\n", pcaperr(stat));
 		exit(3);
-	} else if (stat == -1)
-		return(0);
-	else if (stat == -3)
-		fatal("potential reference loop detected in printcap file");
-
-	if (cgetstr(bp, "af", &acctfile) == -1) {
-		printf("accounting not enabled for printer %s\n", printer);
-		exit(2);
+	case PCAPERR_NOTFOUND:
+		return 0;
+	case PCAPERR_TCLOOP:
+		fatal(pp, "%s", pcaperr(stat));
 	}
-	if (!pflag && (cgetnum(bp, "pc", &price100) == 0))
-		price = price100/10000.0;
+	acctfile = pp->acct_file;
+	if (!pflag && pp->price100)
+		price = pp->price100/10000.0;
 	sumfile = (char *) calloc(sizeof(char), strlen(acctfile)+5);
 	if (sumfile == NULL)
 		errx(1, "calloc failed");
