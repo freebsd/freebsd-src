@@ -30,7 +30,7 @@
 #
 # Sequence of databases is important.
 #
-# $Id: concatdb.sh,v 1.1 1996/08/14 00:22:29 wosch Exp $
+# $Id: concatdb.sh,v 1.2 1996/08/27 20:04:24 wosch Exp $
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR=/usr/libexec}; export LIBEXECDIR
@@ -48,6 +48,7 @@ fi
 : ${bigram=locate.bigram}
 : ${code=locate.code}
 : ${sort=sort}
+: ${locate=locate}
 
 
 case $# in 
