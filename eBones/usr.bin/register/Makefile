@@ -1,10 +1,10 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
-#	$Id: Makefile,v 1.4 1995/09/13 17:24:14 markm Exp $
+#	$Id: Makefile,v 1.5 1995/09/14 04:08:57 gibbs Exp $
 
 PROG=	register
 CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS
 DPADD=	${LIBKRB} ${LIBDES} ${LIBCRYPT}
-LDADD=	-lkrb -ldes -lcrypt
+LDADD=	-L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes -lcrypt
 BINOWN=	root
 BINMODE=4555
 
