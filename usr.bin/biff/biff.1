@@ -40,7 +40,7 @@
 .Nd "be notified if mail arrives and who it is from"
 .Sh SYNOPSIS
 .Nm
-.Op Cm n | y
+.Op Cm n | y | b
 .Sh DESCRIPTION
 The
 .Nm
@@ -52,11 +52,13 @@ The following options are available:
 .It Cm n
 Disable notification.
 .It Cm y
-Enable notification.
+Enable header notification.
+.It Cm b
+Enable bell notification.
 .El
 .Pp
-When mail notification is enabled, the header and first few lines of
-the message will be printed on your screen whenever mail arrives.
+When header notification is enabled, the header and first few lines of
+the message will be printed on your terminal whenever mail arrives.
 A
 .Dq Li biff y
 command is often included in the file
@@ -64,6 +66,9 @@ command is often included in the file
 or
 .Pa \&.profile
 to be executed at each login.
+.Pp
+When bell notification is enabled, only two bell characters (ASCII \\007) 
+will be printed on your terminal whenever mail arrives.
 .Pp
 The
 .Nm
