@@ -228,5 +228,10 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 ASSYM(MTX_RECURSE, offsetof(struct mtx, mtx_recurse));
 ASSYM(MTX_SAVEINTR, offsetof(struct mtx, mtx_saveintr));
+#ifdef WITNESS
+ASSYM(MTX_DEBUG, offsetof(struct mtx, mtx_debug));
+ASSYM(MTXD_WITNESS, offsetof(struct mtx_debug, mtxd_witness));
+#endif
 
 ASSYM(MTX_UNOWNED, MTX_UNOWNED);
+ASSYM(MTX_SPIN, MTX_SPIN);
