@@ -139,3 +139,17 @@ option increases the size of
 .Vt struct mtx ,
 so a kernel built with that option will not work with modules built
 without it.
+.Pp
+The
+.Nm
+option also prevents inlining of the mutex code, which results in a
+fairly severe performance penalty.
+It should therefore only be enabled on systems where mutex profiling
+is actually needed.
+.Pp
+Measurements are made and stored in nanoseconds using
+.Xr nanotime 9 ,
+but are presented in microseconds.
+This should still be sufficient for the locks one would be most
+interested in profiling (those that are held long and / or acquired
+often).
