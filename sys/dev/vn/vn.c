@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.68 1998/08/19 10:50:32 sos Exp $
+ *	$Id: vn.c,v 1.69 1998/08/23 20:16:28 phk Exp $
  */
 
 /*
@@ -88,9 +88,10 @@
 #include <sys/device.h>
 #include <dev/slice/slice.h>
 #endif	/* SLICE */
-
+#ifdef DEVFS
+#include <sys/devfsext.h>
+#endif /*DEVFS*/
 #include <miscfs/specfs/specdev.h>
-
 #include <sys/vnioctl.h>
 
 static	d_ioctl_t	vnioctl;
@@ -164,6 +165,10 @@ struct vn_softc {
 	int		 sc_maxactive;	/* max # of active requests */
 	struct buf	 sc_tab;	/* transfer queue */
 	u_long		 sc_options;	/* options */
+#ifdef DEVFS
+	void		*r_devfs_token;
+	void		*devfs_token;
+#endif
 };
 
 /* sc_flags */
@@ -887,8 +892,11 @@ static vn_devsw_installed = 0;
 static void 
 vn_drvinit(void *unused)
 {
+#ifdef DEVFS
+	int unit;
+#endif
 #ifndef SLICE
-	if( ! vn_devsw_installed ) {
+	if(!vn_devsw_installed ) {
 		if (at_shutdown(&vnshutdown, NULL, SHUTDOWN_POST_SYNC)) {
 			printf("vn: could not install shutdown hook\n");
 			return;
@@ -896,6 +904,27 @@ vn_drvinit(void *unused)
 		cdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vn_cdevsw);
 		vn_devsw_installed = 1;
 	}
+#ifdef DEVFS
+	for (unit = 0; unit < NVN; unit++) {
+		struct vn_softc *vn;
+
+		vn = malloc(sizeof *vn, M_DEVBUF, M_NOWAIT);
+		if (!vn)
+			return;
+		bzero(vn, sizeof *vn);
+		vn_softc[unit] = vn;
+		vn->r_devfs_token = devfs_add_devswf(&vn_cdevsw, 
+						     dkmakeminor(unit, 0, 0),
+                                 		     DV_CHR, UID_ROOT, 
+						     GID_OPERATOR, 0640,
+                                 		     "rvn%d", unit);
+        	vn->devfs_token = devfs_add_devswf(&vn_cdevsw,
+						   dkmakeminor(unit, 0, 0),
+                                 		   DV_BLK, UID_ROOT, 
+						   GID_OPERATOR, 0640,
+                                 		   "vn%d", unit);
+	}
+#endif
 #else /* SLICE */
 	int mynor;
 	int unit;
