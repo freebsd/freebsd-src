@@ -36,7 +36,9 @@
 #error "This file must be compiled with GCC"
 #endif
 
-extern void debug_printf(const char *, ...);
+#include <sys/cdefs.h>
+
+extern void debug_printf(const char *, ...) __printflike(1, 2);
 extern int debug;
 
 #ifdef DEBUG

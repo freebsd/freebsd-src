@@ -29,6 +29,7 @@
 #define RTLD_H 1
 
 #include <sys/types.h>
+#include <sys/queue.h>
 
 #include <link.h>
 #include <elf.h>
@@ -48,7 +49,15 @@ typedef unsigned char bool;
 #define false	0
 #define true	1
 
+struct stat;
 struct Struct_Obj_Entry;
+
+typedef struct Struct_Objlist_Entry {
+    STAILQ_ENTRY(Struct_Objlist_Entry) link;
+    struct Struct_Obj_Entry *obj;
+} Objlist_Entry;
+
+typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
 typedef struct Struct_Needed_Entry {
     struct Struct_Needed_Entry *next;
@@ -61,6 +70,10 @@ typedef struct Struct_Needed_Entry {
  *
  * Items marked with "(%)" are dynamically allocated, and must be freed
  * when the structure is destroyed.
+ *
+ * CAUTION: It appears that the JDK port peeks into these structures.
+ * It looks at "next" and "mapbase" at least.  Don't add new members
+ * near the front, until this can be straightened out.
  */
 typedef struct Struct_Obj_Entry {
     /*
@@ -85,6 +98,7 @@ typedef struct Struct_Obj_Entry {
     caddr_t entry;		/* Entry point */
     const Elf_Phdr *phdr;	/* Program header if it is mapped, else NULL */
     size_t phsize;		/* Size of program header in bytes */
+    const char *interp;		/* Pathname of the interpreter, if any */
 
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
@@ -118,13 +132,18 @@ typedef struct Struct_Obj_Entry {
     bool traced;		/* Already printed in ldd trace output */
 
     struct link_map linkmap;	/* for GDB */
+    Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
+    Objlist dagmembers;		/* DAG has these members (%) */
+    dev_t dev;			/* Object's filesystem's device */
+    ino_t ino;			/* Object's inode number */
+    unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
 
 extern void _rtld_error(const char *, ...) __printflike(1, 2);
-extern Obj_Entry *map_object(int, const char *);
+extern Obj_Entry *map_object(int, const char *, const struct stat *);
 extern void *xcalloc(size_t);
 extern void *xmalloc(size_t);
 extern char *xstrdup(const char *);
@@ -135,9 +154,11 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
  */
 int do_copy_relocations(Obj_Entry *);
 unsigned long elf_hash(const char *);
-const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
-  const Obj_Entry **, bool);
+const Elf_Sym *find_symdef(unsigned long, Obj_Entry *, const Obj_Entry **,
+  bool);
 void init_pltgot(Obj_Entry *);
+void obj_free(Obj_Entry *);
+Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
 int reloc_plt(Obj_Entry *, bool);
 void _rtld_bind_start(void);
