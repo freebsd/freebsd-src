@@ -442,8 +442,8 @@ static int
 via_probe(device_t dev)
 {
 	if (pci_get_devid(dev) == VIA_PCI_ID) {
-	    device_set_desc(dev, "VIA VT82C686A");
-	    return 0;
+		device_set_desc(dev, "VIA VT82C686A");
+		return BUS_PROBE_DEFAULT;
 	}
 	return ENXIO;
 }

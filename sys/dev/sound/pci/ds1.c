@@ -923,7 +923,7 @@ ds_pci_probe(device_t dev)
 	i = ds_finddev(pci_get_devid(dev), subdev);
 	if (i >= 0) {
 		device_set_desc(dev, ds_devs[i].name);
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	} else
 		return ENXIO;
 }

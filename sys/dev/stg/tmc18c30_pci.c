@@ -82,9 +82,9 @@ stg_pci_probe(device_t dev)
 		++stg;
 	if (stg->desc) {
 		device_set_desc(dev, stg->desc);
-		return 0;
+		return (BUS_PROBE_DEFAULT);
 	}
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int

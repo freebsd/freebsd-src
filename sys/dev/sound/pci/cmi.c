@@ -812,16 +812,16 @@ cmi_probe(device_t dev)
 	switch(pci_get_devid(dev)) {
 	case CMI8338A_PCI_ID:
 		device_set_desc(dev, "CMedia CMI8338A");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case CMI8338B_PCI_ID:
 		device_set_desc(dev, "CMedia CMI8338B");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case CMI8738_PCI_ID:
 		device_set_desc(dev, "CMedia CMI8738");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	case CMI8738B_PCI_ID:
 		device_set_desc(dev, "CMedia CMI8738B");
-		return 0;
+		return BUS_PROBE_DEFAULT;
 	default:
 		return ENXIO;
 	}

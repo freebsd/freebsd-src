@@ -580,7 +580,7 @@ ad1816_probe(device_t dev)
 
     	if (s) {
 		device_set_desc(dev, s);
-		return 0;
+		return BUS_PROBE_DEFAULT;
     	}
     	return ENXIO;
 }

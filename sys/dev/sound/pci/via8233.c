@@ -623,25 +623,25 @@ via_probe(device_t dev)
 		switch(pci_get_revid(dev)) {
 		case VIA8233_REV_ID_8233PRE: 
 			device_set_desc(dev, "VIA VT8233 (pre)");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8233C:
 			device_set_desc(dev, "VIA VT8233C");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8233:
 			device_set_desc(dev, "VIA VT8233");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8233A:
 			device_set_desc(dev, "VIA VT8233A");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8235:
 			device_set_desc(dev, "VIA VT8235");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		case VIA8233_REV_ID_8237:
 			device_set_desc(dev, "VIA VT8237");
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		default:
 			device_set_desc(dev, "VIA VT8233X");	/* Unknown */
-			return 0;
+			return BUS_PROBE_DEFAULT;
 		}			
 	}
 	return ENXIO;

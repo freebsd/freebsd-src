@@ -841,7 +841,7 @@ re_probe(dev)
 			    RL_RID, sc->rl_res);
 			if (t->rl_basetype == hwrev) {
 				device_set_desc(dev, t->rl_name);
-				return (0);
+				return (BUS_PROBE_DEFAULT);
 			}
 		}
 		t++;
