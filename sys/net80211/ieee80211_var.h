@@ -217,7 +217,7 @@ struct ieee80211com {
 #define	IEEE80211_F_SHSLOT	0x00020000	/* CONF: short slot time */
 #define	IEEE80211_F_SHPREAMBLE	0x00040000	/* CONF: short preamble */
 
-/* ic_capabilities */
+/* ic_caps */
 #define	IEEE80211_C_WEP		0x00000001	/* CAPABILITY: WEP available */
 #define	IEEE80211_C_IBSS	0x00000002	/* CAPABILITY: IBSS available */
 #define	IEEE80211_C_PMGT	0x00000004	/* CAPABILITY: Power mgmt */
