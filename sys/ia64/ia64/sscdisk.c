@@ -81,29 +81,8 @@ SYSCTL_INT(_debug, OID_AUTO, sscdebug, CTLFLAG_RW, &ssc_debug, 0, "");
 
 static int sscrootready;
 
-#define CDEV_MAJOR	157
 
 static d_strategy_t sscstrategy;
-static d_open_t sscopen;
-static d_ioctl_t sscioctl;
-
-static struct cdevsw ssc_cdevsw = {
-        /* open */      sscopen,
-        /* close */     nullclose,
-        /* read */      physread,
-        /* write */     physwrite,
-        /* ioctl */     sscioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  sscstrategy,
-        /* name */      "sscdisk",
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     D_DISK,
-};
-
-static struct cdevsw sscdisk_cdevsw;
 
 static LIST_HEAD(, ssc_s) ssc_softc_list = LIST_HEAD_INITIALIZER(&ssc_softc_list);
 
@@ -120,35 +99,6 @@ struct ssc_s {
 };
 
 static int sscunits;
-
-static int
-sscopen(dev_t dev, int flag, int fmt, struct thread *td)
-{
-	struct ssc_s *sc;
-
-	if (ssc_debug)
-		printf("sscopen(%s %x %x %p)\n",
-			devtoname(dev), flag, fmt, td);
-
-	sc = dev->si_drv1;
-
-	sc->disk.d_sectorsize = DEV_BSIZE;
-	sc->disk.d_mediasize = (off_t)sc->nsect * DEV_BSIZE;
-	sc->disk.d_fwsectors = 0;
-	sc->disk.d_fwheads = 0;
-	return (0);
-}
-
-static int
-sscioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
-{
-
-	if (ssc_debug)
-		printf("sscioctl(%s %lx %p %x %p)\n",
-			devtoname(dev), cmd, addr, flags, td);
-
-	return (ENOIOCTL);
-}
 
 static void
 sscstrategy(struct bio *bp)
@@ -253,8 +203,14 @@ ssccreate(int unit)
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER,
 		DEVSTAT_PRIORITY_OTHER);
-	sc->dev = disk_create(sc->unit, &sc->disk, 0,
-			      &ssc_cdevsw, &sscdisk_cdevsw);
+
+	sc->disk.d_strategy = sscstrategy;
+	sc->disk.d_name = "sscdisk";
+	sc->disk.d_sectorsize = DEV_BSIZE;
+	sc->disk.d_mediasize = (off_t)SSC_NSECT * DEV_BSIZE;
+	sc->disk.d_fwsectors = 0;
+	sc->disk.d_fwheads = 0;
+	sc->dev = disk_create(sc->unit, &sc->disk, 0, NULL, NULL);
 	sc->dev->si_drv1 = sc;
 	sc->nsect = SSC_NSECT;
 	sc->fd = fd;
@@ -291,7 +247,7 @@ ssc_drvinit(void *unused)
 	ssccreate(-1);
 }
 
-SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, ssc_drvinit,NULL)
+SYSINIT(sscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE, ssc_drvinit,NULL)
 
 static void
 ssc_takeroot(void *junk)
