@@ -1163,6 +1163,21 @@ wi_write_record(sc, ltv)
 			ltv = &p2ltv;
 			break;
 		}
+	} else {
+		/* LUCENT */
+		switch (ltv->wi_type) {  
+		case WI_RID_TX_RATE:
+			switch (ltv->wi_val) {
+			case 1: ltv->wi_val = 1; break;  /* 1Mb/s fixed */
+			case 2: ltv->wi_val = 2; break;  /* 2Mb/s fixed */
+			case 3: ltv->wi_val = 3; break;  /* 11Mb/s auto */
+			case 5: ltv->wi_val = 4; break;  /* 5.5Mb/s fixed */
+			case 6: ltv->wi_val = 6; break;  /* 2Mb/s auto */
+			case 7: ltv->wi_val = 7; break;  /* 5.5Mb/s auto */
+			case 11: ltv->wi_val = 5; break; /* 11Mb/s fixed */
+			default: return EINVAL;
+			}
+		}
 	}
 
 	if (wi_seek(sc, ltv->wi_type, 0, WI_BAP1))
