@@ -54,6 +54,7 @@
 #include <sys/tty.h>
 #include <sys/wait.h>
 #include <sys/vnode.h>
+#include <sys/vmmeter.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
@@ -67,6 +68,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_zone.h>
@@ -380,13 +382,30 @@ exit1(p, rv)
 	/*
 	 * Finally, call machine-dependent code to release the remaining
 	 * resources including address space, the kernel stack and pcb.
-	 * The address space is released by "vmspace_free(p->p_vmspace)";
-	 * This is machine-dependent, as we may have to change stacks
-	 * or ensure that the current one isn't reallocated before we
-	 * finish.  cpu_exit will end with a call to cpu_switch(), finishing
-	 * our execution (pun intended).
+	 * The address space is released by "vmspace_free(p->p_vmspace)"
+	 * in vm_waitproc();
 	 */
 	cpu_exit(p);
+
+	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
+	while (mtx_owned(&Giant))
+		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
+
+	/*
+	 * We have to wait until after releasing all locks before
+	 * changing p_stat.  If we block on a mutex then we will be
+	 * back at SRUN when we resume and our parent will never
+	 * harvest us.
+	 */
+	p->p_stat = SZOMB;
+
+	wakeup(p->p_pptr);
+	PROC_UNLOCK_NOSWITCH(p);
+
+	cnt.v_swtch++;
+	cpu_throw();
+	panic("exit1");
 }
 
 #ifdef COMPAT_43
@@ -571,11 +590,11 @@ loop:
 			}
 
 			/*
-			 * Give machine-dependent layer a chance
+			 * Give vm and machine-dependent layer a chance
 			 * to free anything that cpu_exit couldn't
 			 * release while still running in process context.
 			 */
-			cpu_wait(p);
+			vm_waitproc(p);
 			mtx_destroy(&p->p_mtx);
 			zfree(proc_zone, p);
 			nprocs--;

@@ -501,7 +501,7 @@ void	updatepri __P((struct proc *));
 void	userret __P((struct proc *, struct trapframe *, u_int));
 void	maybe_resched __P((struct proc *));
 
-void	cpu_exit __P((struct proc *)) __dead2;
+void	cpu_exit __P((struct proc *));
 void	exit1 __P((struct proc *, int)) __dead2;
 void	cpu_fork __P((struct proc *, struct proc *, int));
 void	cpu_set_fork_handler __P((struct proc *, void (*)(void *), void *));
