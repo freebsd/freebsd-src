@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.44 1999/06/16 16:17:22 wpaul Exp $
+ *	$Id: if_mx.c,v 1.19 1999/06/16 16:27:30 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.44 1999/06/16 16:17:22 wpaul Exp $";
+	"$Id: if_mx.c,v 1.19 1999/06/16 16:27:30 wpaul Exp $";
 #endif
 
 /*
@@ -1376,7 +1376,7 @@ mx_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, MX_PCI_LOIO,
-					(u_short *)&(sc->mx_bhandle))) {
+					(pci_port_t *)&(sc->mx_bhandle))) {
 		printf ("mx%d: couldn't map ports\n", unit);
 		goto fail;
         }
@@ -1458,7 +1458,7 @@ mx_attach(config_id, unit)
 	}
 
 	sc->mx_ldata = (struct mx_list_data *)sc->mx_ldata_ptr;
-	round = (unsigned int)sc->mx_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->mx_ldata_ptr & 0xF;
 	roundptr = sc->mx_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {

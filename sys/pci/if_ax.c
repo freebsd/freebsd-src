@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.8 1999/04/24 20:13:59 peter Exp $
+ *	$Id: if_ax.c,v 1.9 1999/05/09 17:06:48 peter Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.8 1999/04/24 20:13:59 peter Exp $";
+	"$Id: if_ax.c,v 1.9 1999/05/09 17:06:48 peter Exp $";
 #endif
 
 /*
@@ -1146,7 +1146,7 @@ ax_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, AX_PCI_LOIO,
-					(u_short *)&(sc->ax_bhandle))) {
+					(pci_port_t *)&(sc->ax_bhandle))) {
 		printf ("ax%d: couldn't map ports\n", unit);
 		goto fail;
         }
@@ -1206,7 +1206,7 @@ ax_attach(config_id, unit)
 	}
 
 	sc->ax_ldata = (struct ax_list_data *)sc->ax_ldata_ptr;
-	round = (unsigned int)sc->ax_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->ax_ldata_ptr & 0xF;
 	roundptr = sc->ax_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {

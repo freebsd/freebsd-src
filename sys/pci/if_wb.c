@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.9 1999/05/09 17:07:05 peter Exp $
+ *	$Id: if_wb.c,v 1.10 1999/05/13 20:36:00 wpaul Exp $
  */
 
 /*
@@ -121,7 +121,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.9 1999/05/09 17:07:05 peter Exp $";
+	"$Id: if_wb.c,v 1.10 1999/05/13 20:36:00 wpaul Exp $";
 #endif
 
 /*
@@ -1092,7 +1092,7 @@ wb_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, WB_PCI_LOIO,
-					(u_int16_t *)&(sc->wb_bhandle))) {
+					(pci_port_t *)&(sc->wb_bhandle))) {
 		printf ("wb%d: couldn't map ports\n", unit);
 		goto fail;
 	}
