@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.24 1996/08/05 14:03:10 phk Exp $
+ * $Id: if_ethersubr.c,v 1.25 1996/10/17 17:16:58 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -68,7 +68,7 @@
 #ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
-extern ushort ns_nettype;
+ushort ns_nettype;
 int ether_outputdebug = 0;
 int ether_inputdebug = 0;
 #endif
