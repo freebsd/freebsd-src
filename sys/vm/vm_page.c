@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.86 1998/01/17 09:16:59 dyson Exp $
+ *	$Id: vm_page.c,v 1.87 1998/01/22 17:30:41 dyson Exp $
  */
 
 /*
@@ -416,6 +416,12 @@ vm_page_insert(m, object, pindex)
 	m->object->page_hint = m;
 	m->object->generation++;
 
+	if (m->wire_count)
+		object->wire_count++;
+
+	if ((m->queue - m->pc) == PQ_CACHE)
+		object->cache_count++;
+
 	/*
 	 * And show that the object has one more resident page.
 	 */
@@ -442,8 +448,24 @@ vm_page_remove(m)
 	if (!(m->flags & PG_TABLED))
 		return;
 
+	if ((m->flags & PG_BUSY) == 0) {
+		panic("vm_page_remove: page not busy");
+	}
+	
+	m->flags &= ~PG_BUSY;
+	if (m->flags & PG_WANTED) {
+		m->flags &= ~PG_WANTED;
+		wakeup(m);
+	}
+
 	if (m->object->page_hint == m)
 		m->object->page_hint = NULL;
+
+	if (m->wire_count)
+		m->object->wire_count--;
+
+	if ((m->queue - m->pc) == PQ_CACHE) 
+		m->object->cache_count--;
 
 	/*
 	 * Remove from the object_object/offset hash table
@@ -542,8 +564,11 @@ vm_page_unqueue_nowakeup(m)
 		pq = &vm_page_queues[queue];
 		m->queue = PQ_NONE;
 		TAILQ_REMOVE(pq->pl, m, pageq);
-		--(*pq->cnt);
-		--(*pq->lcnt);
+		(*pq->cnt)--;
+		(*pq->lcnt)--;
+		if ((queue - m->pc) == PQ_CACHE) {
+			m->object->cache_count--;
+		}
 	}
 }
 
@@ -560,12 +585,13 @@ vm_page_unqueue(m)
 		m->queue = PQ_NONE;
 		pq = &vm_page_queues[queue];
 		TAILQ_REMOVE(pq->pl, m, pageq);
-		--(*pq->cnt);
-		--(*pq->lcnt);
+		(*pq->cnt)--;
+		(*pq->lcnt)--;
 		if ((queue - m->pc) == PQ_CACHE) {
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
 				pagedaemon_wakeup();
+			m->object->cache_count--;
 		}
 	}
 }
@@ -868,16 +894,17 @@ vm_page_alloc(object, pindex, page_req)
 	queue = m->queue;
 	qtype = queue - m->pc;
 	if (qtype == PQ_ZERO)
-		--vm_page_zero_count;
+		vm_page_zero_count--;
 	pq = &vm_page_queues[queue];
 	TAILQ_REMOVE(pq->pl, m, pageq);
-	--(*pq->cnt);
-	--(*pq->lcnt);
+	(*pq->cnt)--;
+	(*pq->lcnt)--;
 	oldobject = NULL;
 	if (qtype == PQ_ZERO) {
 		m->flags = PG_ZERO|PG_BUSY;
 	} else if (qtype == PQ_CACHE) {
 		oldobject = m->object;
+		m->flags |= PG_BUSY;
 		vm_page_remove(m);
 		m->flags = PG_BUSY;
 	} else {
@@ -953,24 +980,34 @@ vm_page_activate(m)
 	register vm_page_t m;
 {
 	int s;
+	vm_page_t np;
+	vm_object_t object;
 
 	s = splvm();
-	if (m->queue == PQ_ACTIVE)
-		panic("vm_page_activate: already active");
+	if (m->queue != PQ_ACTIVE) {
+		if ((m->queue - m->pc) == PQ_CACHE)
+			cnt.v_reactivated++;
 
-	if ((m->queue - m->pc) == PQ_CACHE)
-		cnt.v_reactivated++;
+		vm_page_unqueue(m);
 
-	vm_page_unqueue(m);
-
-	if (m->wire_count == 0) {
-		m->queue = PQ_ACTIVE;
-		++(*vm_page_queues[PQ_ACTIVE].lcnt);
-		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+		if (m->wire_count == 0) {
+			m->queue = PQ_ACTIVE;
+			++(*vm_page_queues[PQ_ACTIVE].lcnt);
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			if (m->act_count < ACT_INIT)
+				m->act_count = ACT_INIT;
+			cnt.v_active_count++;
+		}
+	} else {
 		if (m->act_count < ACT_INIT)
 			m->act_count = ACT_INIT;
-		cnt.v_active_count++;
 	}
+
+	object = m->object;
+	TAILQ_REMOVE(&object->memq, m, listq);
+	TAILQ_INSERT_TAIL(&object->memq, m, listq);
+	object->generation++;
+
 	splx(s);
 }
 
@@ -986,9 +1023,7 @@ vm_page_freechk_and_unqueue(m)
 	oldobject = m->object;
 
 #if !defined(MAX_PERF)
-	if (m->busy ||
-		(m->flags & PG_BUSY) ||
-		((m->queue - m->pc) == PQ_FREE) ||
+	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
 		(m->hold_count != 0)) {
 		printf("vm_page_free: pindex(%ld), busy(%d), PG_BUSY(%d), hold(%d)\n",
 			m->pindex, m->busy,
@@ -1000,17 +1035,20 @@ vm_page_freechk_and_unqueue(m)
 	}
 #endif
 
-	vm_page_remove(m);
 	vm_page_unqueue_nowakeup(m);
+	vm_page_remove(m);
+
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		return 0;
 	}
+
 	if (m->wire_count != 0) {
 		if (m->wire_count > 1) {
 			panic("vm_page_free: invalid wire count (%d), pindex: 0x%x",
 				m->wire_count, m->pindex);
 		}
 		m->wire_count = 0;
+		m->object->wire_count--;
 		cnt.v_wire_count--;
 	}
 
@@ -1147,8 +1185,9 @@ vm_page_wire(m)
 		vm_page_unqueue(m);
 		splx(s);
 		cnt.v_wire_count++;
+		m->object->wire_count++;
 	}
-	++(*vm_page_queues[PQ_NONE].lcnt);
+	(*vm_page_queues[PQ_NONE].lcnt)++;
 	m->wire_count++;
 	m->flags |= PG_MAPPED;
 }
@@ -1169,15 +1208,18 @@ vm_page_unwire(m)
 
 	s = splvm();
 
-	if (m->wire_count > 0)
+	if (m->wire_count > 0) {
 		m->wire_count--;
-		
-	if (m->wire_count == 0) {
-		cnt.v_wire_count--;
-		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
-		m->queue = PQ_ACTIVE;
-		++(*vm_page_queues[PQ_ACTIVE].lcnt);
-		cnt.v_active_count++;
+		if (m->wire_count == 0) {
+			m->object->wire_count--;
+			cnt.v_wire_count--;
+			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			m->queue = PQ_ACTIVE;
+			(*vm_page_queues[PQ_ACTIVE].lcnt)++;
+			cnt.v_active_count++;
+		}
+	} else {
+		panic("vm_page_unwire: invalid wire count: %d\n", m->wire_count);
 	}
 	splx(s);
 }
@@ -1246,9 +1288,10 @@ vm_page_cache(m)
 	s = splvm();
 	vm_page_unqueue_nowakeup(m);
 	m->queue = PQ_CACHE + m->pc;
-	++(*vm_page_queues[m->queue].lcnt);
+	(*vm_page_queues[m->queue].lcnt)++;
 	TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
 	cnt.v_cache_count++;
+	m->object->cache_count++;
 	vm_page_free_wakeup();
 	splx(s);
 }
@@ -1415,9 +1458,7 @@ again1:
 						goto again1;
 					}
 				}
-				if ((m->dirty == 0) &&
-					(m->busy == 0) &&
-					(m->hold_count == 0))
+				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
 					vm_page_cache(m);
 			}
 
@@ -1449,9 +1490,7 @@ again1:
 						goto again1;
 					}
 				}
-				if ((m->dirty == 0) &&
-					(m->busy == 0) &&
-					(m->hold_count == 0))
+				if ((m->dirty == 0) && (m->busy == 0) && (m->hold_count == 0))
 					vm_page_cache(m);
 			}
 
@@ -1479,11 +1518,13 @@ again1:
 			vm_page_t m = &pga[i];
 
 			pqtype = m->queue - m->pc;
-			if (pqtype == PQ_CACHE)
+			if (pqtype == PQ_CACHE) {
+				m->flags |= PG_BUSY;
 				vm_page_free(m);
+			}
 
 			TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
-			--(*vm_page_queues[m->queue].lcnt);
+			(*vm_page_queues[m->queue].lcnt)--;
 			cnt.v_free_count--;
 			m->valid = VM_PAGE_BITS_ALL;
 			m->flags = 0;

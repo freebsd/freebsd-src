@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.108 1998/01/17 09:17:01 dyson Exp $
+ * $Id: vm_pageout.c,v 1.109 1998/01/22 17:30:42 dyson Exp $
  */
 
 /*
@@ -403,8 +403,7 @@ vm_pageout_flush(mc, count, sync)
 			 * page so it doesn't clog the inactive list.  (We
 			 * will try paging out it again later).
 			 */
-			if (mt->queue == PQ_INACTIVE)
-				vm_page_activate(mt);
+			vm_page_activate(mt);
 			break;
 		case VM_PAGER_AGAIN:
 			break;
@@ -505,6 +504,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 						splx(s);
 					}
 				} else {
+					vm_page_activate(p);
 					p->flags &= ~PG_REFERENCED;
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
 						p->act_count += ACT_ADVANCE;
@@ -595,18 +595,17 @@ vm_pageout_page_free(vm_page_t m) {
 	vm_object_t object;
 
 	object = m->object;
-	vp = NULL;
-
 	object->ref_count++;
+
 	if (object->type == OBJT_VNODE) {
 		vp = object->handle;
 		vp->v_usecount++;
 		if (VSHOULDBUSY(vp))
 			vbusy(vp);
 	}
+
 	m->flags |= PG_BUSY;
 	vm_page_protect(m, VM_PROT_NONE);
-	PAGE_WAKEUP(m);
 	vm_page_free(m);
 	vm_object_deallocate(object);
 }
@@ -778,7 +777,8 @@ rescan0:
 				continue;
 			}
 
-			if (object->type == OBJT_VNODE && (object->flags & OBJ_DEAD) == 0) {
+			if ((object->type == OBJT_VNODE) &&
+				(object->flags & OBJ_DEAD) == 0) {
 				vp = object->handle;
 				if (VOP_ISLOCKED(vp) ||
 				    vget(vp, LK_EXCLUSIVE|LK_NOOBJ, curproc)) {
