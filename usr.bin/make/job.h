@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -215,19 +215,19 @@ extern Lst  	stoppedJobs;	/* List of jobs that are stopped or didn't
 				 * quite get started */
 extern Boolean	jobFull;    	/* Non-zero if no more jobs should/will start*/
 
-void		JobFlagForMigration __P((int));
-void		Job_AbortAll __P((void));
-void		Job_CatchChildren __P((Boolean));
-void		Job_CatchOutput __P((void));
-Boolean		Job_CheckCommands __P((GNode *,
-		    void (*abortProc )(const char *, ...)));
-Boolean		Job_Empty __P((void));
-int		Job_End __P((void));
-Boolean		Job_Full __P((void));
-void		Job_Init __P((int, int));
-void		Job_Make __P((GNode *));
-ReturnStatus	Job_ParseShell __P((char *));
-void		Job_Touch __P((GNode *, Boolean));
-void		Job_Wait __P((void));
+
+void Job_Touch __P((GNode *, Boolean));
+Boolean Job_CheckCommands __P((GNode *, void (*abortProc )(char *, ...)));
+void Job_CatchChildren __P((Boolean));
+void Job_CatchOutput __P((void));
+void Job_Make __P((GNode *));
+void Job_Init __P((int, int));
+Boolean Job_Full __P((void));
+Boolean Job_Empty __P((void));
+ReturnStatus Job_ParseShell __P((char *));
+int Job_End __P((void));
+void Job_Wait __P((void));
+void Job_AbortAll __P((void));
+void JobFlagForMigration __P((int));
 
 #endif /* _JOB_H_ */

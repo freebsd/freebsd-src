@@ -1,9 +1,6 @@
 /*
- * Copyright (c) 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Christos Zoulas.
+ * Copyright (c) 1992, The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,13 +73,13 @@ static Lst	  forLst;		/* List of items	*/
 /*
  * State of a for loop.
  */
-struct For {
+typedef struct _For {
     Buffer	  buf;			/* Unexpanded buffer	*/
     char*	  var;			/* Index name		*/
     Lst  	  lst;			/* List of variables	*/
-};
+} For;
 
-static int ForExec	__P((char *, struct For *));
+static int ForExec	__P((ClientData, ClientData));
 
 
 
@@ -118,27 +115,28 @@ For_Eval (line)
 	Buffer	    buf;
 	int	    varlen;
 
-	for (ptr++; *ptr && isspace(*ptr); ptr++)
+	for (ptr++; *ptr && isspace((unsigned char) *ptr); ptr++)
 	    continue;
 	/*
 	 * If we are not in a for loop quickly determine if the statement is
 	 * a for.
 	 */
-	if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' || !isspace(ptr[3]))
+	if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' ||
+	    !isspace((unsigned char) ptr[3]))
 	    return FALSE;
 	ptr += 3;
 	
 	/*
 	 * we found a for loop, and now we are going to parse it.
 	 */
-	while (*ptr && isspace(*ptr))
+	while (*ptr && isspace((unsigned char) *ptr))
 	    ptr++;
 	
 	/*
 	 * Grab the variable
 	 */
 	buf = Buf_Init(0);
-	for (wrd = ptr; *ptr && !isspace(*ptr); ptr++) 
+	for (wrd = ptr; *ptr && !isspace((unsigned char) *ptr); ptr++) 
 	    continue;
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd);
 
@@ -149,20 +147,21 @@ For_Eval (line)
 	}
 	Buf_Destroy(buf, FALSE);
 
-	while (*ptr && isspace(*ptr))
+	while (*ptr && isspace((unsigned char) *ptr))
 	    ptr++;
 
 	/*
 	 * Grab the `in'
 	 */
-	if (ptr[0] != 'i' || ptr[1] != 'n' || !isspace(ptr[2])) {
+	if (ptr[0] != 'i' || ptr[1] != 'n' ||
+	    !isspace((unsigned char) ptr[2])) {
 	    Parse_Error (level, "missing `in' in for");
 	    printf("%s\n", ptr);
 	    return 0;
 	}
 	ptr += 3;
 
-	while (*ptr && isspace(*ptr))
+	while (*ptr && isspace((unsigned char) *ptr))
 	    ptr++;
 
 	/*
@@ -178,14 +177,14 @@ For_Eval (line)
 	Lst_AtEnd(forLst, (ClientData) Buf_GetAll(buf, &varlen)), \
 	Buf_Destroy(buf, FALSE)
 
-	for (ptr = sub; *ptr && isspace(*ptr); ptr++)
+	for (ptr = sub; *ptr && isspace((unsigned char) *ptr); ptr++)
 	    continue;
 
 	for (wrd = ptr; *ptr; ptr++)
-	    if (isspace(*ptr)) {
+	    if (isspace((unsigned char) *ptr)) {
 		ADDWORD();
 		buf = Buf_Init(0);
-		while (*ptr && isspace(*ptr))
+		while (*ptr && isspace((unsigned char) *ptr))
 		    ptr++;
 		wrd = ptr--;
 	    }
@@ -203,10 +202,11 @@ For_Eval (line)
     }
     else if (*ptr == '.') {
 
-	for (ptr++; *ptr && isspace(*ptr); ptr++)
+	for (ptr++; *ptr && isspace((unsigned char) *ptr); ptr++)
 	    continue;
 
-	if (strncmp(ptr, "endfor", 6) == 0 && (isspace(ptr[6]) || !ptr[6])) {
+	if (strncmp(ptr, "endfor", 6) == 0 &&
+	    (isspace((unsigned char) ptr[6]) || !ptr[6])) {
 	    if (DEBUG(FOR))
 		(void) fprintf(stderr, "For: end for %d\n", forLevel);
 	    if (--forLevel < 0) {
@@ -214,7 +214,8 @@ For_Eval (line)
 		return 0;
 	    }
 	}
-	else if (strncmp(ptr, "for", 3) == 0 && isspace(ptr[3])) {
+	else if (strncmp(ptr, "for", 3) == 0 &&
+		 isspace((unsigned char) ptr[3])) {
 	    forLevel++;
 	    if (DEBUG(FOR))
 		(void) fprintf(stderr, "For: new loop %d\n", forLevel);
@@ -245,10 +246,12 @@ For_Eval (line)
  *-----------------------------------------------------------------------
  */
 static int
-ForExec(name, arg)
-    char *name;
-    struct For *arg;
+ForExec(namep, argp)
+    ClientData namep;
+    ClientData argp;
 {
+    char *name = (char *) namep;
+    For *arg = (For *) argp;
     int len;
     Var_Set(arg->var, name, VAR_GLOBAL);
     if (DEBUG(FOR))
@@ -277,7 +280,7 @@ ForExec(name, arg)
 void
 For_Run()
 {
-    struct For arg;
+    For arg;
 
     if (forVar == NULL || forBuf == NULL || forLst == NULL)
 	return;
@@ -291,6 +294,6 @@ For_Run()
     Lst_ForEach(arg.lst, ForExec, (ClientData) &arg);
 
     free((Address)arg.var);
-    Lst_Destroy(arg.lst, free);
+    Lst_Destroy(arg.lst, (void (*) __P((ClientData))) free);
     Buf_Destroy(arg.buf, TRUE);
 }

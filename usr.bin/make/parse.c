@@ -63,6 +63,8 @@ static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
  *	    	  	    	    called before anything else in this module
  *	    	  	    	    is used.
  *
+ *	Parse_End		    Cleanup the module
+ *
  *	Parse_File	    	    Function used to parse a makefile. It must
  *	    	  	    	    be given the name of the file, which should
  *	    	  	    	    already have been opened, and a function
@@ -104,6 +106,7 @@ static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #define	CONTINUE	1
 #define	DONE		0
 static Lst     	    targets;	/* targets we're working on */
+static Lst     	    targCmds;	/* command lines for targets */
 static Boolean	    inLine;	/* true if currently in a dependency
 				 * line or its commands */
 typedef struct {
@@ -218,17 +221,17 @@ static struct {
 };
 
 static int ParseFindKeyword __P((char *));
-static int ParseLinkSrc __P((GNode *, GNode *));
-static int ParseDoOp __P((GNode *, int));
+static int ParseLinkSrc __P((ClientData, ClientData));
+static int ParseDoOp __P((ClientData, ClientData));
 static void ParseDoSrc __P((int, char *));
-static int ParseFindMain __P((GNode *));
-static int ParseAddDir __P((Lst, char *));
-static int ParseClearPath __P((Lst));
+static int ParseFindMain __P((ClientData, ClientData));
+static int ParseAddDir __P((ClientData, ClientData));
+static int ParseClearPath __P((ClientData, ClientData));
 static void ParseDoDependency __P((char *));
-static int ParseAddCmd __P((GNode *, char *));
+static int ParseAddCmd __P((ClientData, ClientData));
 static int ParseReadc __P((void));
 static void ParseUnreadc __P((int));
-static int ParseHasCommands __P((GNode *));
+static void ParseHasCommands __P((ClientData));
 static void ParseDoInclude __P((char *));
 #ifdef SYSVINCLUDE
 static void ParseTraditionalInclude __P((char *));
@@ -292,7 +295,7 @@ ParseFindKeyword (str)
 /* VARARGS */
 void
 #if __STDC__
-Parse_Error(int type, const char *fmt, ...)
+Parse_Error(int type, char *fmt, ...)
 #else
 Parse_Error(va_alist)
 	va_dcl
@@ -338,10 +341,12 @@ Parse_Error(va_alist)
  *---------------------------------------------------------------------
  */
 static int
-ParseLinkSrc (pgn, cgn)
-    GNode          *pgn;	/* The parent node */
-    GNode          *cgn;	/* The child node */
+ParseLinkSrc (pgnp, cgnp)
+    ClientData     pgnp;	/* The parent node */
+    ClientData     cgnp;	/* The child node */
 {
+    GNode          *pgn = (GNode *) pgnp;
+    GNode          *cgn = (GNode *) cgnp;
     if (Lst_Member (pgn->children, (ClientData)cgn) == NILLNODE) {
 	(void)Lst_AtEnd (pgn->children, (ClientData)cgn);
 	if (specType == Not) {
@@ -369,11 +374,13 @@ ParseLinkSrc (pgn, cgn)
  *---------------------------------------------------------------------
  */
 static int
-ParseDoOp (gn, op)
-    GNode          *gn;		/* The node to which the operator is to be
+ParseDoOp (gnp, opp)
+    ClientData     gnp;		/* The node to which the operator is to be
 				 * applied */
-    int             op;		/* The operator to apply */
+    ClientData     opp;		/* The operator to apply */
 {
+    GNode          *gn = (GNode *) gnp;
+    int             op = *(int *) opp;
     /*
      * If the dependency mask of the operator and the node don't match and
      * the node has actually had an operator applied to it before, and
@@ -461,7 +468,7 @@ ParseDoSrc (tOp, src)
 	}
     }
     if (op != 0) {
-	Lst_ForEach (targets, ParseDoOp, (ClientData)op);
+	Lst_ForEach (targets, ParseDoOp, (ClientData)&op);
     } else if (specType == Main) {
 	/*
 	 * If we have noted the existence of a .MAIN, it means we need
@@ -541,15 +548,17 @@ ParseDoSrc (tOp, src)
  *-----------------------------------------------------------------------
  */
 static int
-ParseFindMain(gn)
-    GNode   	  *gn;	    /* Node to examine */
+ParseFindMain(gnp, dummy)
+    ClientData	  gnp;	    /* Node to examine */
+    ClientData    dummy;
 {
+    GNode   	  *gn = (GNode *) gnp;
     if ((gn->type & (OP_NOTMAIN|OP_USE|OP_EXEC|OP_TRANSFORM)) == 0) {
 	mainNode = gn;
 	Targ_SetMain(gn);
-	return (1);
+	return (dummy ? 1 : 1);
     } else {
-	return (0);
+	return (dummy ? 0 : 0);
     }
 }
 
@@ -568,10 +577,10 @@ ParseFindMain(gn)
  */
 static int
 ParseAddDir(path, name)
-    Lst	    path;
-    char    *name;
+    ClientData	  path;
+    ClientData    name;
 {
-    Dir_AddDir(path, name);
+    Dir_AddDir((Lst) path, (char *) name);
     return(0);
 }
 
@@ -589,11 +598,12 @@ ParseAddDir(path, name)
  *-----------------------------------------------------------------------
  */
 static int
-ParseClearPath(path)
-    Lst	    path;
+ParseClearPath(path, dummy)
+    ClientData path;
+    ClientData dummy;
 {
-    Dir_ClearPath(path);
-    return(0);
+    Dir_ClearPath((Lst) path);
+    return(dummy ? 0 : 0);
 }
 
 /*-
@@ -634,9 +644,9 @@ static void
 ParseDoDependency (line)
     char           *line;	/* the line to parse */
 {
-    register char  *cp;		/* our current position */
-    register GNode *gn;		/* a general purpose temporary node */
-    register int    op;		/* the operator on the line */
+    char  	   *cp;		/* our current position */
+    GNode 	   *gn;		/* a general purpose temporary node */
+    int             op;		/* the operator on the line */
     char            savec;	/* a place to save a character */
     Lst    	    paths;   	/* List of search paths to alter when parsing
 				 * a list of .PATH targets */
@@ -931,7 +941,7 @@ ParseDoDependency (line)
 
     cp++;			/* Advance beyond operator */
 
-    Lst_ForEach (targets, ParseDoOp, (ClientData)op);
+    Lst_ForEach (targets, ParseDoOp, (ClientData)&op);
 
     /*
      * Get to the first source 
@@ -1225,20 +1235,20 @@ Parse_DoVar (line, ctxt)
 				 * assignment. This reduces error checks */
     GNode   	    *ctxt;    	/* Context in which to do the assignment */
 {
-    char   	    *cp;	/* pointer into line */
+    char	   *cp;	/* pointer into line */
     enum {
 	VAR_SUBST, VAR_APPEND, VAR_SHELL, VAR_NORMAL
     }	    	    type;   	/* Type of assignment */
     char            *opc;	/* ptr to operator character to 
 				 * null-terminate the variable name */
-    /*  
+    /* 
      * Avoid clobbered variable warnings by forcing the compiler
      * to ``unregister'' variables
-     */ 
+     */
 #if __GNUC__
-    (void) &cp; 
-    (void) &line; 
-#endif 
+    (void) &cp;
+    (void) &line;
+#endif
 
     /*
      * Skip to variable name
@@ -1328,13 +1338,14 @@ Parse_DoVar (line, ctxt)
 	Boolean	freeCmd;    	/* TRUE if the command needs to be freed, i.e.
 				 * if any variable expansion was performed */
 
-	/*  
+	/* 
 	 * Avoid clobbered variable warnings by forcing the compiler
 	 * to ``unregister'' variables
-	 */ 
+	 */
 #if __GNUC__
 	(void) &freeCmd;
-#endif 
+#endif
+
 	/*
 	 * Set up arguments for shell
 	 */
@@ -1402,7 +1413,7 @@ Parse_DoVar (line, ctxt)
 		char   result[BUFSIZ];
 		cc = read(fds[0], result, sizeof(result));
 		if (cc > 0) 
-		    Buf_AddBytes(buf, cc, (unsigned char *) result);
+		    Buf_AddBytes(buf, cc, (Byte *) result);
 	    }
 	    while (cc > 0 || (cc == -1 && errno == EINTR));
 
@@ -1481,14 +1492,15 @@ Parse_DoVar (line, ctxt)
  *	A new element is added to the commands list of the node.
  */
 static int
-ParseAddCmd(gn, cmd)
-	GNode *gn;	/* the node to which the command is to be added */
-	char *cmd;	/* the command to add */
+ParseAddCmd(gnp, cmd)
+    ClientData gnp;	/* the node to which the command is to be added */
+    ClientData cmd;	/* the command to add */
 {
-	/* if target already supplied, ignore commands */
-	if (!(gn->type & OP_HAS_COMMANDS))
-		(void)Lst_AtEnd(gn->commands, (ClientData)cmd);
-	return(0);
+    GNode *gn = (GNode *) gnp;
+    /* if target already supplied, ignore commands */
+    if (!(gn->type & OP_HAS_COMMANDS))
+	(void)Lst_AtEnd(gn->commands, cmd);
+    return(0);
 }
 
 /*-
@@ -1500,21 +1512,21 @@ ParseAddCmd(gn, cmd)
  *	on multiple dependency lines.
  *
  * Results:
- *	Always 0.
+ *	None
  *
  * Side Effects:
  *	OP_HAS_COMMANDS may be set for the target.
  *
  *-----------------------------------------------------------------------
  */
-static int
-ParseHasCommands(gn)
-    GNode   	  *gn;	    /* Node to examine */
+static void
+ParseHasCommands(gnp)
+    ClientData 	  gnp;	    /* Node to examine */
 {
+    GNode *gn = (GNode *) gnp;
     if (!Lst_IsEmpty(gn->commands)) {
 	gn->type |= OP_HAS_COMMANDS;
     }
-    return(0);
 }
 
 /*-
@@ -1633,7 +1645,10 @@ ParseDoInclude (file)
 	    char  	*newName;
 	    
 	    *prefEnd = '\0';
-	    newName = str_concat (fname, file, STR_ADDSLASH);
+	    if (file[0] == '/')
+		newName = strdup(file);
+	    else
+		newName = str_concat (fname, file, STR_ADDSLASH);
 	    fullname = Dir_FindFile (newName, parseIncPath);
 	    if (fullname == (char *)NULL) {
 		fullname = Dir_FindFile(newName, dirSearchPath);
@@ -1673,6 +1688,8 @@ ParseDoInclude (file)
 	Parse_Error (PARSE_FATAL, "Could not find %s", file);
 	return;
     }
+
+    free(file);
 
     /*
      * Once we find the absolute path to the file, we get to save all the
@@ -2071,7 +2088,8 @@ ParseReadLine ()
 				 * for the purposes of setting semiNL */
     Boolean 	  ignComment;	/* TRUE if should ignore comments (in a
 				 * shell command */
-    char    	  *line;    	/* Result */
+    char 	  *line;    	/* Result */
+    char          *ep;		/* to strip trailing blanks */
     int	    	  lineLength;	/* Length of result */
 
     semiNL = FALSE;
@@ -2181,7 +2199,7 @@ test_char:
 		break;
 	    case '#':
 		if (!ignComment) {
-		    if (compatMake || (lastc != '\\')) {
+		    if (compatMake && (lastc != '\\')) {
 			/*
 			 * If the character is a hash mark and it isn't escaped
 			 * (or we're being compatible), the thing is a comment.
@@ -2229,6 +2247,21 @@ test_char:
 	Buf_AddByte (buf, (Byte)'\0');
 	line = (char *)Buf_GetAll (buf, &lineLength);
 	Buf_Destroy (buf, FALSE);
+
+	/*
+	 * Strip trailing blanks and tabs from the line.
+	 * Do not strip a blank or tab that is preceeded by
+	 * a '\'
+	 */
+	ep = line;
+	while (*ep)
+	    ++ep;
+	while (ep > line && (ep[-1] == ' ' || ep[-1] == '\t')) {
+	    if (ep > line + 1 && ep[-2] == '\\')
+		break;
+	    --ep;
+	}
+	*ep = 0;
 	
 	if (line[0] == '.') {
 	    /*
@@ -2302,11 +2335,10 @@ test_char:
 static void
 ParseFinishLine()
 {
-    extern int Suff_EndTransform();
-
     if (inLine) {
 	Lst_ForEach(targets, Suff_EndTransform, (ClientData)NULL);
 	Lst_Destroy (targets, ParseHasCommands);
+	targets = NULL;
 	inLine = FALSE;
     }
 }
@@ -2356,11 +2388,12 @@ Parse_File(name, stream)
 		    goto nextLine;
 		} else if (strncmp(cp, "undef", 5) == 0) {
 		    char *cp2;
-		    for (cp += 5; isspace(*cp); cp++) {
+		    for (cp += 5; isspace((unsigned char) *cp); cp++) {
 			continue;
 		    }
 
-		    for (cp2 = cp; !isspace(*cp2) && (*cp2 != '\0'); cp2++) {
+		    for (cp2 = cp; !isspace((unsigned char) *cp2) &&
+				   (*cp2 != '\0'); cp2++) {
 			continue;
 		    }
 
@@ -2375,17 +2408,14 @@ Parse_File(name, stream)
 		goto nextLine;
 	    }
 	    
-	    if (*line == '\t'
-#ifdef POSIX
-		       || *line == ' '
-#endif
-		       )
-	    {
+	    if (*line == '\t') {
 		/*
-		 * If a line starts with a tab (or space in POSIX-land), it
-		 * can only hope to be a creation command.
+		 * If a line starts with a tab, it can only hope to be
+		 * a creation command.
 		 */
+#ifndef POSIX
 	    shellCommand:
+#endif
 		for (cp = line + 1; isspace (*cp); cp++) {
 		    continue;
 		}
@@ -2396,7 +2426,8 @@ Parse_File(name, stream)
 			 * in a dependency spec, add the command to the list of
 			 * commands of all targets in the dependency spec 
 			 */
-			Lst_ForEach (targets, ParseAddCmd, (ClientData)cp);
+			Lst_ForEach (targets, ParseAddCmd, cp);
+			Lst_AtEnd(targCmds, (ClientData) line);
 			continue;
 		    } else {
 			Parse_Error (PARSE_FATAL,
@@ -2426,24 +2457,28 @@ Parse_File(name, stream)
 		 * If it doesn't have an operator and we're in a dependency
 		 * line's script, we assume it's actually a shell command
 		 * and add it to the current list of targets.
-		 *
-		 * Note that POSIX declares all lines that start with
-		 * whitespace are shell commands, so there's no need to check
-		 * here...
 		 */
+#ifndef POSIX
 		Boolean	nonSpace = FALSE;
+#endif
 		
 		cp = line;
-#ifndef POSIX
-		if (line[0] == ' ') {
-		    while ((*cp != ':') && (*cp != '!') && (*cp != '\0')) {
-			if (!isspace(*cp)) {
-			    nonSpace = TRUE;
-			}
+		if (isspace((unsigned char) line[0])) {
+		    while ((*cp != '\0') && isspace((unsigned char) *cp)) {
 			cp++;
 		    }
+		    if (*cp == '\0') {
+			goto nextLine;
+		    }
+#ifndef POSIX
+		    while ((*cp != ':') && (*cp != '!') && (*cp != '\0')) {
+			nonSpace = TRUE;
+			cp++;
+		    }
+#endif
 		}
 		    
+#ifndef POSIX
 		if (*cp == '\0') {
 		    if (inLine) {
 			Parse_Error (PARSE_WARNING,
@@ -2463,6 +2498,9 @@ Parse_File(name, stream)
 		    /*
 		     * Need a non-circular list for the target nodes 
 		     */
+		    if (targets)
+			Lst_Destroy(targets, NOFREE);
+
 		    targets = Lst_Init (FALSE);
 		    inLine = TRUE;
 		    
@@ -2515,6 +2553,7 @@ Parse_Init ()
     parseIncPath = Lst_Init (FALSE);
     sysIncPath = Lst_Init (FALSE);
     includes = Lst_Init (FALSE);
+    targCmds = Lst_Init (FALSE);
 
     /*
      * Add the directories from the DEFSYSPATH (more than one may be given
@@ -2531,6 +2570,18 @@ Parse_Init ()
 	}
     }
 }
+
+void
+Parse_End()
+{
+    Lst_Destroy(targCmds, (void (*) __P((ClientData))) free);
+    if (targets)
+	Lst_Destroy(targets, NOFREE);
+    Lst_Destroy(sysIncPath, Dir_Destroy);
+    Lst_Destroy(parseIncPath, Dir_Destroy);
+    Lst_Destroy(includes, NOFREE);	/* Should be empty now */
+}
+    
 
 /*-
  *-----------------------------------------------------------------------
