@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxldr.s,v 1.2 1998/10/06 06:13:36 msmith Exp $
+#	$Id: btxldr.s,v 1.3 1998/10/06 07:15:35 rnordier Exp $
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The
@@ -70,24 +70,24 @@ start:		cld				# String ops inc
 		shll $0xa,%eax			#  in bytes
 		movl %eax,%ebp			# Base of user stack
 		movl $m_mem,%esi		# Display
-		call hexout			#  amount of
-		call putstr			#  base memory
+		call dhexout			#  amount of
+		call dputstr			#  base memory
 		lgdt gdtdesc			# Load new GDT
 #
 # Relocate caller's arguments.
 #
 		movl $m_esp,%esi		# Display
 		movl %esp,%eax			#  caller's
-		call hexout			#  stack
-		call putstr			#  pointer
+		call dhexout			#  stack
+		call dputstr			#  pointer
 		movl $m_args,%esi		# Format string
 		leal 0x4(%esp,1),%ebx		# First argument
 		movl $0x6,%ecx			# Count
 start.1:	movl (%ebx),%eax		# Get argument and
 		addl $0x4,%ebx			#  bump pointer
-		call hexout			# Display it
+		call dhexout			# Display it
 		loop start.1			# Till done
-		call putstr			# End message
+		call dputstr			# End message
 		movl $0x48,%ecx 		# Allocate space
 		subl %ecx,%ebp			#  for bootinfo
 		movl 0x18(%esp,1),%esi		# Source
@@ -97,8 +97,8 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		movl %ebp,0x18(%esp,1)		# Update pointer
 		movl $m_rel_bi,%esi		# Display
 		movl %ebp,%eax			#  bootinfo
-		call hexout			#  relocation
-		call putstr			#  message
+		call dhexout			#  relocation
+		call dputstr			#  message
 		movl $0x18,%ecx 		# Allocate space
 		subl %ecx,%ebp			#  for arguments
 		leal 0x4(%esp,1),%esi		# Source
@@ -107,8 +107,8 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		movsb				#  them
 		movl $m_rel_args,%esi		# Display
 		movl %ebp,%eax			#  argument
-		call hexout			#  relocation
-		call putstr			#  message
+		call dhexout			#  relocation
+		call dputstr			#  message
 #
 # Set up BTX kernel.
 #
@@ -145,16 +145,16 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		movl %esi,%ebx			# Keep place
 		movl $m_rel_btx,%esi		# Restore
 		popl %eax			#  parameters
-		call hexout			#  and
+		call dhexout			#  and
 		popl %ebp			#  display
 		movl %ebp,%eax			#  the
-		call hexout			#  relocation
-		call putstr			#  message
+		call dhexout			#  relocation
+		call dputstr			#  message
 		addl $PAG_SIZ,%ebp		# Display
 		movl $m_base,%esi		#  the
 		movl %ebp,%eax			#  user
-		call hexout			#  base
-		call putstr			#  address
+		call dhexout			#  base
+		call dputstr			#  address
 #
 # Set up ELF-format client program.
 #
@@ -164,7 +164,7 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		call putstr			#  message
 start.2:	jmp start.2			# Hang
 start.3:	movl $m_elf,%esi		# Display ELF
-		call putstr			#  message
+		call dputstr			#  message
 		movl $m_segs,%esi		# Format string
 		movl $0x2,%edi			# Segment count
 		movl 0x1c(%ebx),%edx		# Get e_phoff
@@ -173,14 +173,14 @@ start.3:	movl $m_elf,%esi		# Display ELF
 start.4:	cmpl $0x1,(%edx)		# Is p_type PT_LOAD?
 		jne start.6			# No
 		movl 0x4(%edx),%eax		# Display
-		call hexout			#  p_offset
+		call dhexout			#  p_offset
 		movl 0x8(%edx),%eax		# Display
-		call hexout			#  p_vaddr
+		call dhexout			#  p_vaddr
 		movl 0x10(%edx),%eax		# Display
-		call hexout			#  p_filesz
+		call dhexout			#  p_filesz
 		movl 0x14(%edx),%eax		# Display
-		call hexout			#  p_memsz
-		call putstr			# End message
+		call dhexout			#  p_memsz
+		call dputstr			# End message
 		pushl %esi			# Save
 		pushl %edi			#  working
 		pushl %ecx			#  registers
@@ -205,7 +205,7 @@ start.5:	popl %ecx			# Restore
 start.6:	addl $0x20,%edx 		# To next entry
 		loop start.4			# Till done
 start.7:	movl $m_done,%esi		# Display done
-		call putstr			#  message
+		call dputstr			#  message
 		movl $start.8,%esi		# Real mode stub
 		movl $MEM_STUB,%edi		# Destination
 		movl $SIZ_STUB,%ecx		# Size
@@ -229,6 +229,10 @@ start.9:
 #
 # Output message [ESI] followed by EAX in hex.
 #
+dhexout:
+#ifndef BTXLDR_VERBOSE
+		ret
+#endif
 hexout: 	pushl %eax			# Save
 		call putstr			# Display message
 		popl %eax			# Restore
@@ -254,6 +258,12 @@ hexout.2:	decl %esi			# Adjust for inc
 #
 # Output zero-terminated string [ESI] to the console.
 #
+dputstr:
+#ifndef BTXLDR_VERBOSE
+		ret
+#else
+		jmp putstr
+#endif
 putstr.0:	call putchr			# Output char
 putstr: 	lodsb				# Load char
 		testb %al,%al			# End of string?
@@ -262,6 +272,10 @@ putstr: 	lodsb				# Load char
 #
 # Output character AL to the console.
 #
+dputchr:
+#ifndef BTXLDR_VERBOSE
+		ret
+#endif
 putchr: 	pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
@@ -337,7 +351,10 @@ gdtdesc:	.word gdt.1-gdt-1		# Limit
 #
 # Messages.
 #
-m_logo: 	.asciz "\nBTX loader 0.01\n"
+m_logo: 	.asciz "\nBTX loader 0.01  "
+m_vers: 	.asciz "BTX version is \0\n"
+e_fmt:		.asciz "Error: Client format not supported\n"
+#ifdef BTXLDR_VERBOSE
 m_mem:		.asciz "Starting in protected mode (base mem=\0)\n"
 m_esp:		.asciz "Arguments passed (esp=\0):\n"
 m_args: 	.asciz"<howto="
@@ -348,10 +365,8 @@ m_args: 	.asciz"<howto="
 		.asciz" bootinfo=\0>\n"
 m_rel_bi:	.asciz "Relocated bootinfo (size=48) to \0\n"
 m_rel_args:	.asciz "Relocated arguments (size=18) to \0\n"
-m_vers: 	.asciz "BTX version is \0\n"
 m_rel_btx:	.asciz "Relocated kernel (size=\0) to \0\n"
 m_base: 	.asciz "Client base address is \0\n"
-e_fmt:		.asciz "Error: Client format not supported\n"
 m_elf:		.asciz "Client format is ELF\n"
 m_segs: 	.asciz "text segment: offset="
 		.asciz " vaddr="
@@ -362,6 +377,7 @@ m_segs: 	.asciz "text segment: offset="
 		.asciz " filesz="
 		.asciz " memsz=\0\n"
 m_done: 	.asciz "Loading complete\n"
+#endif
 #
 # Uninitialized data area.
 #
