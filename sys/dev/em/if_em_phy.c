@@ -1354,7 +1354,7 @@ em_display_mii(struct em_shared_adapter *shared)
 
     return;
 }
-#endif // DBG
+#endif /* DBG */
 
 /******************************************************************************
 * Probes the expected PHY address for known PHY IDs
