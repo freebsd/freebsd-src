@@ -377,9 +377,9 @@ To
 change the association to another physical interface, the existing
 association must be cleared first.
 .Pp
-Note: if the hardware tagging capabilitiy
+Note: if the hardware tagging capability
 is set on the vlan interface, the vlan pseudo
-interface's behavior changes: 
+interface's behavior changes:
 the vlan interface recognizes that the
 parent interface supports insertion and extraction of vlan tags on its
 own (usually in firmware) and that it should pass packets to and from
@@ -509,16 +509,12 @@ for more information.
 .Sm on
 Disable special processing at the link level with the specified interface.
 .It Cm monitor
-.Sm on
 Put the interface in monitor mode.
-No packets are transmitted and received packets are discarded after
+No packets are transmitted, and received packets are discarded after
 .Xr bpf 4
 processing.
-.Sm off
 .It Fl monitor
-.Sm on
 Take the interface out of monitor mode.
-.Sm off
 .It Cm up
 Mark an interface
 .Dq up .
@@ -618,7 +614,9 @@ string or as a string of hexadecimal digits proceeded by
 .Ql 0x .
 For maximum portability, hex keys are recommended;
 the mapping of text keys to WEP encryption is usually driver-specific.
-In particular, the Windows drivers do this mapping differently to
+In particular, the
+.Tn Windows
+drivers do this mapping differently to
 .Fx .
 A key may be cleared by setting it to
 .Ql - .
