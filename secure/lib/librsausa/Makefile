@@ -10,6 +10,8 @@ SHLIB_MAJOR=	1
 
 CFLAGS+=	-I${.OBJDIR}
 
+LDADD+=		-L${.OBJDIR}/../libcrypto -lcrypto
+
 # rsaref
 SRCS+=	rsar_err.c rsaref.c rsaref_stubs.c
 
