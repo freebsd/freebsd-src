@@ -30,23 +30,11 @@
 #define ACCEPT_FILTER_MOD
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/malloc.h> 
-#include <sys/unistd.h>
-#include <sys/file.h>
-#include <sys/fcntl.h>
-#include <sys/protosw.h>
 #include <sys/sysctl.h>
-#include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/stat.h>
 #include <sys/mbuf.h>
-#include <sys/resource.h>
-#include <sys/sysent.h>
-#include <sys/resourcevar.h>
 
 /* check for GET/HEAD */
 static void sohashttpget(struct socket *so, void *arg, int waitflag);
