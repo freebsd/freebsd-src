@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.131 1996/10/06 14:45:57 jkh Exp $
+ * $Id: install.c,v 1.132 1996/10/09 09:53:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -548,6 +548,7 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
+    Boolean need_bin = FALSE;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
@@ -564,11 +565,11 @@ installCommit(dialogMenuItem *self)
 	    return i;
     }
 
+    if (Dists & DIST_BIN)
+	need_bin = TRUE;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) != DITEM_FAILURE)
-    	i = installFixup(self);
-    else if (!(Dists & DIST_BIN))
-	(void)installFixup(self);
+    if (DITEM_STATUS(i) != DITEM_FAILURE || !need_bin || !(Dists & DIST_BIN))
+	i = installFixup(self);
 
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
     return i | DITEM_RECREATE;
