@@ -1,4 +1,4 @@
-<!-- $Id: authors.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
+<!-- $Id: authors.sgml,v 1.2 1995/05/11 22:31:19 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -7,12 +7,15 @@ entities when referencing people.
 -->
 
 <!ENTITY a.asami "Satoshi Asami <tt>&lt;asami@FreeBSD.org&gt;</tt>">
+<!ENTITY a.davidg "David Greenman <tt>&lt;davidg@Root.COM&gt;</tt>">
+<!ENTITY a.dufalt "Peter Dufault <tt>&lt;dufault@hda.com&gt;</tt>">
 <!ENTITY a.gclarkii "Gary Clark II <tt>&lt;gclarkii@FreeBSD.org&gt;</tt>">
 <!ENTITY a.gena "Gennady B. Sorokopud <tt>&lt;gena@NetVision.net.il&gt;</tt>">
 <!ENTITY a.ghelmer "Guy Helmer <tt>&lt;ghelmer@alpha.dsu.edu&gt;</tt>">
 <!ENTITY a.gpalmer "Gary Palmer <tt>&lt;gpalmer@FreeBSD.org&gt;</tt>">
 <!ENTITY a.jfieber "John Fieber <tt>&lt;jfieber@FreeBSD.org&gt;</tt>">
 <!ENTITY a.jkh "Jordan Hubbard <tt>&lt;jkh@FreeBSD.org&gt;</tt>">
+<!ENTITY a.joerg "Joerg Wunsch <tt>&lt;joerg_wunsch@uriah.heep.sax.de&gt;</tt>">
 <!ENTITY a.john "John Lind <tt>&lt;john@starfire.MN.ORG&gt;</tt>">
 <!ENTITY a.mark "Mark Murray <tt>&lt;mark@grondar.za&gt;</tt>">
 <!ENTITY a.martin "Martin Renters <tt>&lt;martin@innovus.com&gt;</tt>">
