@@ -75,7 +75,7 @@ off_t
 ftello(fp)
 	register FILE *fp;
 {
-	register fpos_t pos;
+	register fpos_t pos, spos;
 	size_t n;
 
 	if (fp->_seek == NULL) {
@@ -103,6 +103,7 @@ ftello(fp)
 		 * those from ungetc) cause the position to be
 		 * smaller than that in the underlying object.
 		 */
+		spos = pos;
 		pos -= fp->_r;
 		if (pos < 0) {
 			if (HASUB(fp)) {
@@ -110,9 +111,9 @@ ftello(fp)
 				fp->_r += pos;
 				pos = 0;
 			} else {
-				errno = EBADF;
-				FUNLOCKFILE(fp);
-				return (-1);
+				fp->_p = fp->_bf._base;
+				fp->_r = 0;
+				pos = spos;
 			}
 		}
 		if (HASUB(fp)) {
@@ -123,9 +124,10 @@ ftello(fp)
 					fp->_r += pos;
 					pos = 0;
 				} else {
-					errno = EBADF;
-					FUNLOCKFILE(fp);
-					return (-1);
+					fp->_p = fp->_bf._base;
+					fp->_r = 0;
+					FREEUB(fp);
+					pos = spos;
 				}
 			}
 		}

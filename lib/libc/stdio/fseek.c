@@ -104,7 +104,7 @@ _fseeko(fp, offset, whence, ltest)
 	int ltest;
 {
 	register fpos_t (*seekfn) __P((void *, fpos_t, int));
-	fpos_t target, curoff;
+	fpos_t target, curoff, spos;
 	size_t n;
 	struct stat st;
 	int havepos;
@@ -137,6 +137,7 @@ _fseeko(fp, offset, whence, ltest)
 				return (-1);
 		}
 		if (fp->_flags & __SRD) {
+			spos = curoff;
 			curoff -= fp->_r;
 			if (curoff < 0) {
 				if (HASUB(fp)) {
@@ -144,8 +145,9 @@ _fseeko(fp, offset, whence, ltest)
 					fp->_r += curoff;
 					curoff = 0;
 				} else {
-					errno = EBADF;
-					return (-1);
+					fp->_p = fp->_bf._base;
+					fp->_r = 0;
+					curoff = spos;
 				}
 			}
 			if (HASUB(fp)) {
@@ -156,8 +158,10 @@ _fseeko(fp, offset, whence, ltest)
 						fp->_r += curoff;
 						curoff = 0;
 					} else {
-						errno = EBADF;
-						return (-1);
+						fp->_p = fp->_bf._base;
+						fp->_r = 0;
+						FREEUB(fp);
+						curoff = spos;
 					}
 				}
 			}
@@ -256,14 +260,18 @@ _fseeko(fp, offset, whence, ltest)
 			if (curoff == POS_ERR)
 				goto dumb;
 		}
+		spos = curoff;
 		curoff -= fp->_r;
 		if (curoff < 0) {
 			if (HASUB(fp)) {
 				fp->_p -= curoff;
 				fp->_r += curoff;
 				curoff = 0;
-			} else
-				goto dumb;
+			} else {
+				fp->_p = fp->_bf._base;
+				fp->_r = 0;
+				curoff = spos;
+			}
 		}
 		if (HASUB(fp)) {
 			curoff -= fp->_ur;
@@ -272,8 +280,12 @@ _fseeko(fp, offset, whence, ltest)
 					fp->_p -= curoff;
 					fp->_r += curoff;
 					curoff = 0;
-				} else
-					goto dumb;
+				} else {
+					fp->_p = fp->_bf._base;
+					fp->_r = 0;
+					FREEUB(fp);
+					curoff = spos;
+				}
 			}
 		}
 	}
