@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)chflags.2	8.1 (Berkeley) 6/9/93
+.\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\"
-.Dd June 9, 1993
+.Dd May 2, 1995
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -92,7 +92,9 @@ The
 and
 .Dq SF_NOUNLINK
 flags may only be set or unset by the super-user.
-They may be set at any time, but normally may only be unset when
+Attempts by the non-super-user to set the super-user only flags
+are silently ignored.
+These flags may be set at any time, but normally may only be unset when
 the system is in single-user mode.
 (See
 .Xr init 8
