@@ -153,6 +153,7 @@ struct coda_mntinfo {
     struct vnode	*mi_rootvp;
     struct mount	*mi_vfsp;
     struct vcomm	 mi_vcomm;
+    dev_t                dev;
 };
 extern struct coda_mntinfo coda_mnttbl[]; /* indexed by minor device number */
 

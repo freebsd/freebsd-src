@@ -142,8 +142,8 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_advlock_desc, coda_vop_nop },	/* advlock */
     { &vop_lease_desc, coda_vop_nop },		/* lease */
     { &vop_poll_desc, (vop_t *) vop_stdpoll },
-    { &vop_getpages_desc, coda_fbsd_getpages },	/* pager intf.*/
-    { &vop_putpages_desc, vop_stdputpages },	/* pager intf.*/
+    { &vop_getpages_desc, (vop_t*)vop_stdgetpages },	/* pager intf.*/
+    { &vop_putpages_desc, (vop_t*)vop_stdputpages },	/* pager intf.*/
 
 #if	0
 
@@ -159,6 +159,11 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_cachedlookup_desc,	(vop_t *) ufs_lookup },
     { &vop_whiteout_desc,	(vop_t *) ufs_whiteout },
 #endif
+
+    { &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
+    { &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
+    { &vop_getvobject_desc,     (vop_t *) vop_stdgetvobject },	
+    { &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount },
     { (struct vnodeop_desc*)NULL, (int(*)(void *))NULL }
 };
 
@@ -403,9 +408,11 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 /* locals */
     struct cnode *cp = VTOC(vp);
     struct vnode *cfvp = cp->c_ovp;
+    struct proc *lp = p;
     int igot_internally = 0;
     int opened_internally = 0;
     int error = 0;
+    int iscore = 0;
 
     MARK_ENTRY(CODA_RDWR_STATS);
 
@@ -432,9 +439,15 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 	 * venus won't have the correct size of the core when
 	 * it's completely written.
 	 */
-	PROC_LOCK(p);
-	if (cp->c_inode != 0 && !(p && (p->p_acflag & ACORE))) { 
+	if (p) {
+	    PROC_LOCK(p);
+	    iscore = (p->p_acflag & ACORE);
 	    PROC_UNLOCK(p);
+	}
+	else
+	    lp = curproc; 
+
+	if (cp->c_inode != 0 && !iscore) {
 	    igot_internally = 1;
 	    error = coda_grab_vnode(cp->c_device, cp->c_inode, &cfvp);
 	    if (error) {
@@ -442,13 +455,12 @@ coda_rdwr(vp, uiop, rw, ioflag, cred, p)
 		return(error);
 	    }
 	    /* 
-	     * We get the vnode back locked in both Mach and
+	     * We get the vnode back locked by curproc in both Mach and
 	     * NetBSD.  Needs unlocked 
 	     */
-	    VOP_UNLOCK(cfvp, 0, p);
+	    VOP_UNLOCK(cfvp, 0, lp);
 	}
 	else {
-	    PROC_UNLOCK(p);
 	    opened_internally = 1;
 	    MARK_INT_GEN(CODA_OPEN_STATS);
 	    error = VOP_OPEN(vp, (rw == UIO_READ ? FREAD : FWRITE), 
@@ -477,7 +489,6 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
     CODADEBUG(CODA_RDWR, myprintf(("indirect rdwr: fid = (%lx.%lx.%lx), refcnt = %d\n",
 			      cp->c_fid.Volume, cp->c_fid.Vnode, 
 			      cp->c_fid.Unique, CTOV(cp)->v_usecount)); )
-
 
     if (rw == UIO_READ) {
 	error = VOP_READ(cfvp, uiop, ioflag, cred);
@@ -509,6 +520,8 @@ printf("coda_rdwr: Internally Opening %p\n", vp);
 	cp->c_flags &= ~C_VATTR;
     return(error);
 }
+
+
 
 int
 coda_ioctl(v)
