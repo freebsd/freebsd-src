@@ -107,6 +107,74 @@
 #include <machine/limits.h>
 #endif
 
+#ifndef _NO_NAMESPACE_POLLUTION
+
+#ifndef DEV_BSHIFT
+#define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
+#endif
+#define	DEV_BSIZE	(1<<DEV_BSHIFT)
+
+#ifndef BLKDEV_IOSIZE
+#define BLKDEV_IOSIZE  PAGE_SIZE	/* default block device I/O size */
+#endif
+#ifndef DFLTPHYS
+#define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
+#endif
+#ifndef MAXPHYS
+#define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
+#endif
+#ifndef MAXDUMPPGS
+#define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
+#endif
+
+/*
+ * Constants related to network buffer management.
+ * MCLBYTES must be no larger than PAGE_SIZE.
+ */
+#ifndef	MSIZE
+#define MSIZE		256		/* size of an mbuf */
+#endif	/* MSIZE */
+
+#ifndef	MCLSHIFT
+#define MCLSHIFT	11		/* convert bytes to mbuf clusters */
+#endif	/* MCLSHIFT */
+
+#define MCLBYTES	(1 << MCLSHIFT)	/* size of an mbuf cluster */
+
+/*
+ * Some macros for units conversion
+ */
+
+/* clicks to bytes */
+#ifndef ctob
+#define ctob(x)	((x)<<PAGE_SHIFT)
+#endif
+
+/* bytes to clicks */
+#ifndef btoc
+#define btoc(x)	(((unsigned)(x)+PAGE_MASK)>>PAGE_SHIFT)
+#endif
+
+/*
+ * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
+ * want to shift an unsigned type to avoid sign extension and we don't
+ * want to widen `bytes' unnecessarily.  Assume that the result fits in
+ * a daddr_t.
+ */
+#ifndef btodb
+#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
+	(sizeof (bytes) > sizeof(long) \
+	 ? (daddr_t)((unsigned long long)(bytes) >> DEV_BSHIFT) \
+	 : (daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT))
+#endif
+
+#ifndef dbtob
+#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
+	((off_t)(db) << DEV_BSHIFT)
+#endif
+
+#endif /* _NO_NAMESPACE_POLLUTION */
+
 #define	PRIMASK	0x0ff
 #define	PCATCH	0x100		/* OR'd with pri for tsleep to check signals */
 #define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
