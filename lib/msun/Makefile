@@ -97,10 +97,15 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	w_sinh.c w_sinhf.c w_sqrt.c w_sqrtf.c \
 	w_y0.c w_y0f.c w_y1.c w_y1f.c w_yn.c w_ynf.c
 
+# Location of fpmath.h and _fpmath.h
+LIBCDIR=	${.CURDIR}/../libc
+CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
+
+# C99 long double functions
+COMMON_SRCS+=	s_fabsl.c
+
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
-
-COMMON_SRCS+= fabsl.c
 
 # Exclude the generic versions of what we provide in the MD area.
 .if defined(ARCH_SRCS)
