@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id$
+ * $Id: uio.h,v 1.2 1994/08/02 07:54:02 davidg Exp $
  */
 
 #ifndef _SYS_UIO_H_
@@ -73,12 +73,19 @@ struct uio {
 #define UIO_SMALLIOV	8		/* 8 on stack, else malloc */
 #endif /* KERNEL */
 
-#ifndef	KERNEL
+#ifdef KERNEL
+
+int	uiomove __P((caddr_t, int, struct uio *));
+
+#else /* !KERNEL */
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 ssize_t	readv __P((int, const struct iovec *, int));
 ssize_t	writev __P((int, const struct iovec *, int));
 __END_DECLS
-#endif /* !KERNEL */
+
+#endif /* KERNEL */
+
 #endif /* !_SYS_UIO_H_ */
