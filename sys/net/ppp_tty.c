@@ -752,7 +752,7 @@ pppasyncctlp(sc)
  * called later at splsoftnet.
  * Called at spltty or higher.
  */
-int
+static int
 pppstart(tp)
     register struct tty *tp;
 {
