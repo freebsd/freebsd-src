@@ -319,7 +319,6 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    strlen(aes_magic_test))) {
 			sc->keying = KEY_TEST;
 		} else {
-			g_free(buf);
 			g_free(sc);
 			break;
 		}
