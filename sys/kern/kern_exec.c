@@ -200,7 +200,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		if (thread_single(SINGLE_EXIT)) {
 			PROC_UNLOCK(p);
 			return (ERESTART);	/* Try again later. */
@@ -209,7 +209,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 		 * If we get here all other threads are dead,
 		 * so unset the associated flags and lose KSE mode.
 		 */
-		p->p_flag &= ~P_KSES;
+		p->p_flag &= ~P_THREADED;
 		td->td_mailbox = NULL;
 		thread_single_end();
 	}

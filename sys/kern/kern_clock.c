@@ -166,7 +166,7 @@ hardclock_process(frame)
 	 * Run current process's virtual and profile time, as needed.
 	 */
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		/* XXXKSE What to do? */
 	} else {
 		pstats = p->p_stats;
@@ -374,7 +374,7 @@ statclock(frame)
 		/*
 		 * Charge the time as appropriate.
 		 */
-		if (p->p_flag & P_KSES)
+		if (p->p_flag & P_THREADED)
 			thread_statclock(1);
 		p->p_uticks++;
 		if (ke->ke_ksegrp->kg_nice > NZERO)
@@ -398,7 +398,7 @@ statclock(frame)
 			p->p_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
-			if (p->p_flag & P_KSES)
+			if (p->p_flag & P_THREADED)
 				thread_statclock(0);
 			td->td_sticks++;
 			p->p_sticks++;

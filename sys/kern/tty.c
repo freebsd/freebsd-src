@@ -2407,7 +2407,7 @@ ttyinfo(struct tty *tp)
 			PGRP_UNLOCK(tp->t_pgrp);
 
 			td = FIRST_THREAD_IN_PROC(pick);
-			if (pick->p_flag & P_KSES) {
+			if (pick->p_flag & P_THREADED) {
 				stmp = "KSE" ;  /* XXXKSE */
 			} else {
 				if (td) {

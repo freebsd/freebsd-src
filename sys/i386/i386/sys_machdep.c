@@ -129,7 +129,7 @@ i386_extend_pcb(struct thread *td)
 		0			/* granularity */
 	};
 
-	if (td->td_proc->p_flag & P_KSES)
+	if (td->td_proc->p_flag & P_THREADED)
 		return (EINVAL);		/* XXXKSE */
 /* XXXKSE  All the code below only works in 1:1   needs changing */
 	ext = (struct pcb_ext *)kmem_alloc(kernel_map, ctob(IOPAGES+1));

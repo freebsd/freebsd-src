@@ -126,7 +126,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				    TAILQ_FIRST(&proc.p_threads));
 				return (-1);
 			}
-			if (proc.p_flag & P_KSES == 0) {
+			if (proc.p_flag & P_THREADED == 0) {
 				if (KREAD(kd,
 				    (u_long)TAILQ_FIRST(&proc.p_ksegrps),
 				    &mkg)) {
@@ -364,7 +364,7 @@ nopgrp:
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
 
-			if (!(proc.p_flag & P_KSES)) {
+			if (!(proc.p_flag & P_THREADED)) {
 				/* stuff from the ksegrp */
 				kp->ki_slptime = mkg.kg_slptime;
 				kp->ki_pri.pri_class = mkg.kg_pri_class;
