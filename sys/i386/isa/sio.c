@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.103 1995/07/21 22:51:34 bde Exp $
+ *	$Id: sio.c,v 1.104 1995/07/22 01:30:02 bde Exp $
  */
 
 #include "sio.h"
@@ -65,12 +65,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
 #include <i386/isa/ic/ns16550.h>
-
-/*
- * XXX temporary kludges for 2.0 (XXX TK2.0).
- */
-#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
-#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
@@ -307,7 +301,7 @@ static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
-#if 0 /* XXX TK2.0 */
+#if 0 /* XXX */
 static struct tty	*sio_tty[NSIO];
 #else
 static struct tty	sio_tty[NSIO];
@@ -779,7 +773,7 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
-#if 0 /* XXX TK2.0 */
+#if 0 /* XXX */
 	tp = com->tp = sio_tty[unit] = ttymalloc(sio_tty[unit]);
 #else
 	tp = com->tp = &sio_tty[unit];
@@ -1714,7 +1708,7 @@ retry:
 	enable_intr();
 	while ((inb(com->line_status_port) & (LSR_TSRE | LSR_TXRDY))
 	       != (LSR_TSRE | LSR_TXRDY)) {
-		error = ttysleep(tp, TSA_OCOMPLETE(tp), TTIPRI | PCATCH,
+		error = ttysleep(tp, TSA_OLOWAT(tp), TTIPRI | PCATCH,
 				 "siotx", hz / 100);
 		if (   txtimeout != 0
 		    && (!error || error	== EAGAIN)

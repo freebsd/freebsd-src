@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.55 1995/07/21 22:51:50 bde Exp $
+ * $Id: tty.c,v 1.56 1995/07/22 01:30:31 bde Exp $
  */
 
 /*-
@@ -961,7 +961,7 @@ ttioctl(tp, cmd, data, flag)
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;
-		wakeup((caddr_t)&tp->t_outq);
+		wakeup(TSA_OLOWAT(tp));
 		break;
 	case TIOCGDRAINWAIT:
 		*(int *)data = tp->t_timeout / hz;
@@ -1077,7 +1077,7 @@ ttywait(tp)
 		if ((tp->t_outq.c_cc || ISSET(tp->t_state, TS_BUSY)) &&
 		    (ISSET(tp->t_state, TS_CARR_ON) || ISSET(tp->t_cflag, CLOCAL))) {
 			SET(tp->t_state, TS_ASLEEP);
-			error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH,
+			error = ttysleep(tp, TSA_OLOWAT(tp), TTOPRI | PCATCH,
 					 "ttywai", tp->t_timeout);
 			if (error == EWOULDBLOCK)
 				error = EIO;
@@ -1133,7 +1133,7 @@ ttyflush(tp, rw)
 	}
 	if (rw & FWRITE) {
 		FLUSHQ(&tp->t_outq);
-		wakeup((caddr_t)&tp->t_outq);
+		wakeup(TSA_OLOWAT(tp));
 		selwakeup(&tp->t_wsel);
 	}
 	if ((rw & FREAD) &&
@@ -1514,7 +1514,7 @@ sleep:
 			splx(s);
 			return (0);	/* EOF */
 		}
-		error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
+		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
 				 carrier ?
 				 "ttyin" : "ttyhup", (int)slp);
 		splx(s);
@@ -1670,7 +1670,7 @@ ttycheckoutq(tp, wait)
 			timeout((void (*)__P((void *)))wakeup,
 			    (void *)&tp->t_outq, hz);
 			SET(tp->t_state, TS_ASLEEP);
-			(void) tsleep((caddr_t)&tp->t_outq, PZERO - 1, "ttoutq", 0);
+			(void) tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", 0);
 		}
 	splx(s);
 	return (1);
@@ -1707,8 +1707,7 @@ loop:
 			error = EWOULDBLOCK;
 			goto out;
 		} else {
-			/* Sleep awaiting carrier. */
-			error = ttysleep(tp, &tp->t_rawq, TTIPRI | PCATCH,
+			error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
 					 "ttydcd", 0);
 			splx(s);
 			if (error)
@@ -1863,7 +1862,8 @@ ovhiwat:
 		return (uio->uio_resid == cnt ? EWOULDBLOCK : 0);
 	}
 	SET(tp->t_state, TS_ASLEEP);
-	error = ttysleep(tp, &tp->t_outq, TTOPRI | PCATCH, "ttywri", tp->t_timeout);
+	error = ttysleep(tp, TSA_OLOWAT(tp), TTOPRI | PCATCH, "ttywri",
+			 tp->t_timeout);
 	splx(s);
 	if (error == EWOULDBLOCK)
 		error = EIO;
@@ -2050,7 +2050,7 @@ ttwakeup(tp)
 	selwakeup(&tp->t_rsel);
 	if (ISSET(tp->t_state, TS_ASYNC))
 		pgsignal(tp->t_pgrp, SIGIO, 1);
-	wakeup((caddr_t)&tp->t_rawq);
+	wakeup(TSA_CARR_ON(tp));
 }
 
 /*
@@ -2064,7 +2064,7 @@ ttwwakeup(tp)
 	if (tp->t_outq.c_cc <= tp->t_lowat) {
 		if (tp->t_state & TS_ASLEEP) {
 			tp->t_state &= ~TS_ASLEEP;
-			wakeup(&tp->t_outq);
+			wakeup(TSA_OLOWAT(tp));
 		}
 		selwakeup(&tp->t_wsel);
 	}
