@@ -140,29 +140,108 @@ p rqe->sectors
 echo rqe->sdoffset
 p rqe->sdoffset
 end
+# kernel equivalent of 'info -V'
 define rqi
-   set $rqipe = *VC->rqipp
+   set $rqipe = rqip
    set $rqip = $rqipe + 1
-   set $rqend  = VC->rqinfop + 32
+   set $rqend  = rqinfo + 128
    if ($rqip == $rqend)
-      set $rqip = *VC->rqinfop
+      set $rqip = rqinfo
    end
    set $done = 0
    while ($done == 0)
-      printf "%X:\t%d.%06d\tUBP: %x\t", $rqip, $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec, $rqip->bp
-      p $rqip->type
-      bpp $rqip->bp
-      if ($rqip->type < loginfo_rqe)
-         bpp &$rqip->info
-      else 
-         rrqe &$rqip->info
+     if ($rqip->bp != 0)
+        printf "%X:\t%d.%06d\tUBP: %x\t", $rqip, $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec, $rqip->bp
+        p $rqip->type
+	printf " user  "
+        bpp $rqip->bp
+        if ($rqip->type < loginfo_rqe)
+	   printf " copied"
+           bpp &$rqip->info
+        else 
+           rrqe &$rqip->info
+        end
       end
       set $rqip = $rqip + 1
       if ($rqip == $rqipe)
          set $done = 1
       end
       if ($rqip == $rqend)
-         set $rqip = VC->rqinfop
+         set $rqip = rqinfo
       end
    end
 end
+define rrqi
+   set $rqipe = rqip
+   set $rqip = $rqipe + 1
+   set $rqend  = rqinfo + 128
+   if ($rqip == $rqend)
+      set $rqip = rqinfo
+   end
+   set $done = 0
+   while ($done == 0)
+     if ($rqip->bp != 0)
+        printf "%d.%06d\t", $rqip->timestamp.tv_sec, $rqip->timestamp.tv_usec
+	if ($rqip->type ==  loginfo_user_bp)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "1VS Read"
+	  else
+	    printf "1VS Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	
+      if ($rqip->type == loginfo_user_bpl)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "2LR Read"
+	  else
+	    printf "2LR Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.b.b_blkno, $rqip->info.b.b_bcount
+	end
+	 
+      if ($rqip->type == loginfo_rqe)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "3RQ Read"
+	  else
+	    printf "3RQ Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_iodone)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "4DN Read"
+	  else
+	    printf "4DN Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_raid5_data)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "5RD Read"
+	  else
+	    printf "5RD Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	
+      if ($rqip->type == loginfo_raid5_parity)
+	  if ($rqip->info.b.b_flags & 0x00100000)
+	    printf "6RP Read"
+	  else
+	    printf "6RP Write"
+	  end
+	printf "\t%p\t%d.%d\t0x%-9x\t%ld\t%d\t%x\t%x\t%x\n", $rqip->bp, $rqip->devmajor, $rqip->devminor, $rqip->info.rqe.b.b_blkno, $rqip->info.rqe.b.b_bcount, $rqip->info.rqe.sdno, $rqip->info.rqe.sdoffset, $rqip->info.rqe.dataoffset, $rqip->info.rqe.groupoffset
+	end
+	end
+      set $rqip = $rqip + 1
+      if ($rqip == $rqipe)
+         set $done = 1
+      end
+      if ($rqip == $rqend)
+         set $rqip = rqinfo
+      end
+   end
+end 
