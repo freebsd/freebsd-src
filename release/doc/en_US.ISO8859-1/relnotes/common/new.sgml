@@ -218,6 +218,16 @@
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
 	data that must be fragmented.</para>
 
+      <para>The &man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
+	the full packet destination manipulation when the kernel option
+	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> is specified
+	in addition to <literal>options IPFIRWALL_FORWARD</literal>.
+	This kernel option disables all restrictions to ensure proper
+	behavior for locally generated packets and allows redirection of
+	packets destined to locally configured IP addresses.
+	Note that &man.ipfw.8; rules have to be carefully crafted to
+	make sure that things like PMTU discovery do not break.</para>
+
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
 	strategies.</para>
@@ -276,6 +286,15 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
+      <para>Recomputing the summary information for
+	<quote>dirty</quote> UFS and UFS2 file systems is no longer
+	done at mount time, but is now done by background
+	&man.fsck.8;.  This change improves the startup speed when
+	mounting large file systems after a crash.  The prior behavior
+	can be restored by setting the
+	<varname>vfs.ffs.compute_summary_at_mount</varname> sysctl
+	variable to a non-zero value.</para>
+
       <para>A kernel panic in the NFS server has been fixed.  More
 	details can be found in errata note 
 	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
@@ -326,11 +345,22 @@
       feature is enabled with the <option>-V</option>
       flag.</para>
 
+    <para>A separate directory has been added for &man.named.8;
+      dynamic zones which is owned by the <username>bind</username> user
+      (for creation of the zone journal file).
+      For more detail, see an example dynamic zone in the sample
+      &man.named.conf.5;.</para>
+
     <para>The &man.newfs.8; utility now supports a <option>-n</option>
       flag to suppress the creation of a <filename>.snap</filename>
       directory on new file systems.  This feature is intended for use
       on memory or vnode file systems that will not require snapshot
       support.</para>
+
+    <para>The &man.newfs.8; utility now emits a warning when creating
+      a UFS or UFS2 file system that cannot support snapshots.  This
+      situation can occur in the case of very large file systems with
+      small block sizes.</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -359,6 +389,11 @@
       environment variable.  This variable will override the entries
       in &man.libmap.conf.5;.</para>
 
+    <para>The &man.strftime.3; function now supports some GNU extensions
+      such as <literal>-</literal> (no padding),
+      <literal>_</literal> (use space as padding),
+      and <literal>0</literal> (zero padding).</para>
+
     <para>The &man.syslog.3; function is now thread-safe.</para>
 
     <para>The &man.syslogd.8; utility now opens an additional domain
@@ -368,6 +403,9 @@
       programs from locking when the domain sockets
       run out of buffer space due to a
       local denial-of-service attack.</para>
+
+    <para>The &man.systat.1; <option>-netstat</option> display is now
+      IPv6-aware.<para>
 
     <para>The <option>-f</option> option of &man.tail.1; utility
       now supports more than one file at a time.</para>
@@ -382,7 +420,13 @@
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para>&man.rc.conf.5; now supports the <varname>tmpmfs_flags</varname>
+	and <varname>varmfs_flags</varname> variables.
+	These can be used to pass extra options to the &man.mdmfs.8; utility,
+	to customize the finer details of the &man.md.4; file system creation,
+	such as to turn on/off softupdates, to specify a default owner
+	for the file system, and so on.</para>
+
     </sect3>
   </sect2>
 
@@ -440,6 +484,20 @@
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
+
+    <para>In prior &os; releases, the <filename>disc1</filename>
+      CD-ROM (or ISO image) was a bootable installation disk
+      containing the base system, ports tree, and common packages.
+      The <filename>disc2</filename> CD-ROM (or ISO image) was a
+      bootable <quote>fix it</quote> disk with a live filesystem, to
+      be used for making emergency repairs.  This layout has now
+      changed.  For all architectures except ia64, the
+      <filename>disc1</filename> image now contains the base system
+      distribution files, ports tree, and the live filesystem, making
+      it suitable for both an initial installation and repair
+      purposes.  (On the ia64, the live filesystem is on a separate
+      disk due to its size.)  Packages appear on separate
+      disks.</para>
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
