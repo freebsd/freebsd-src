@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- *	$Id: if_isreg.h,v 1.2 1993/10/16 13:45:55 rgrimes Exp $
+ *	$Id: if_isreg.h,v 1.3 1993/10/24 04:27:00 paul Exp $
  */
 
 /*
@@ -30,8 +30,21 @@
 #define NRBUF 8
 #define RLEN 3
 #define BUFSIZE 1518
-#define RAP 0xe
-#define RDP 0xc
+#define BICC_RDP 0xc
+#define BICC_RAP 0xe
+#define NE2100_RDP 0x10
+#define NE2100_RAP 0x12
+
+/* Board types */
+#define BICC 1
+#define NE2100 2
+
+/* Am7990 or Am79960 */
+#define LANCE 1
+#define LANCE_MASK 0x07
+#define PCnet_ISA 2
+#define PCnet_ISA_MASK 0x0
+
 
 /* Control and status register 0 flags */
 
