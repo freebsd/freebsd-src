@@ -685,7 +685,7 @@ __rpcbind_is_up()
 
 	nconf = NULL;
 	localhandle = setnetconfig();
-	while (nconf = getnetconfig(localhandle)){
+	while ((nconf = getnetconfig(localhandle)) != NULL) {
 		if (nconf->nc_protofmly != NULL &&
 		    strcmp(nconf->nc_protofmly, NC_LOOPBACK) == 0)
 			 break;
@@ -777,19 +777,13 @@ __rpcb_findaddr_timed(program, version, nconf, host, clpp, tp)
 		 */
 		if (strcmp(nconf->nc_proto, NC_TCP) == 0) {
 			struct netconfig *newnconf;
-			void *handle;
 
-			if ((handle = getnetconfigent("udp")) == NULL) {
-				rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
-				return (NULL);
-			}
-			if ((newnconf = __rpc_getconf(handle)) == NULL) {
-				__rpc_endconf(handle);
+			if ((newnconf = getnetconfigent("udp")) == NULL) {
 				rpc_createerr.cf_stat = RPC_UNKNOWNPROTO;
 				return (NULL);
 			}
 			client = getclnthandle(host, newnconf, &parms.r_addr);
-			__rpc_endconf(handle);
+			freenetconfigent(newnconf);
 		} else {
 			client = getclnthandle(host, nconf, &parms.r_addr);
 		}
