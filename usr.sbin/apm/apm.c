@@ -412,7 +412,10 @@ main(int argc, char *argv[])
 		argv += optind;
 	}
 finish_option:
-	fd = open(APMDEV, O_RDWR);
+	if (haltcpu != -1 || enable != -1 || delta || sleep || standby)
+		fd = open(APMDEV, O_RDWR);
+	else
+		fd = open(APMDEV, O_RDONLY);
 	if (fd == -1)
 		err(1, "can't open %s", APMDEV);
 	if (enable != -1)
