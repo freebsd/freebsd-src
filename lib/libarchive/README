@@ -15,8 +15,7 @@ Documentation:
 
 You should also read the copious comments in "archive.h" and the source
 code for the sample "bsdtar" program for more details.  Please let me know
-about any errors or omissions you find.  (In particular, I no doubt missed
-a few things when researching the tar.5 page.)
+about any errors or omissions you find.
 
 Currently, the library automatically detects and reads the following:
   * gzip compression
@@ -31,6 +30,8 @@ Currently, the library automatically detects and reads the following:
   * POSIX octet-oriented cpio
   * SVR4 ASCII cpio
   * Binary cpio (big-endian or little-endian)
+  * ISO9660 CD-ROM images (with optional Rockridge extensions)
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
 
 The library can write:
   * gzip compression

@@ -36,7 +36,7 @@ The
 library reads and writes a variety of streaming archive formats.
 Generally speaking, all of these archive formats consist of a series of
 .Dq entries .
-Each entry stores a single filesystem object, such as a file, directory,
+Each entry stores a single file system object, such as a file, directory,
 or symbolic link.
 .Pp
 The following provides a brief description of each format supported
@@ -179,8 +179,8 @@ The SVR4 format can optionally include a CRC of the file
 contents, although libarchive does not currently verify this CRC.
 .El
 .Pp
-Cpio is an old format that was widely used because of it's simplicity
-and it's support for very long filenames.
+Cpio is an old format that was widely used because of its simplicity
+and its support for very long filenames.
 Unfortunately, it has many limitations that make it unsuitable
 for widespread use.
 Only the POSIX format permits files over 4GB, and its 18-bit
@@ -196,7 +196,7 @@ implementations.
 A
 .Dq shell archive
 is a shell script that, when executed on a POSIX-compliant
-system, will recreate a collection of filesystem objects.
+system, will recreate a collection of file system objects.
 The libarchive library can write two different kinds of shar archives:
 .Bl -tag -width indent
 .It Cm shar
@@ -220,8 +220,24 @@ many file attributes as possible, including owner, mode, and flags.
 The additional commands used to restore file attributes make
 shardump archives less portable than plain shar archives.
 .El
+.Ss ISO9660 format
+Libarchive can read and extract from files containing ISO9660-compliant
+CDROM images.  It also has partial support for Rockridge extensions.
+In many cases, this can remove the need to burn a physical CDROM.
+It also avoids security and complexity issues that come with
+virtual mounts and loopback devices.
+.Ss Zip format
+Libarchive can extract from most zip format archives.
+It currently only supports uncompressed entries and entries
+compressed with the
+.Dq deflate
+algorithm.
+Older zip compression algorithms are not supported.
 .Sh SEE ALSO
 .Xr cpio 1 ,
+.Xr mkisofs 1 ,
 .Xr shar 1 ,
 .Xr tar 1 ,
+.Xr zip 1 ,
+.Xr zlib 3 ,
 .Xr tar 5

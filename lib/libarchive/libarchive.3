@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2004 Tim Kientzle
+.\" Copyright (c) 2003-2005 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd January 8, 2005
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
@@ -281,7 +281,7 @@ and
 functions can be used to obtain more information.
 .Sh ENVIRONMENT
 There are character set conversions within the
-.Xr archive_entry
+.Xr archive_entry 3
 functions that are impacted by the currently-selected locale.
 .Sh SEE ALSO
 .Xr tar 1 ,
@@ -305,8 +305,8 @@ library was written by
 Some archive formats support information that is not supported by
 .Tn struct archive_entry .
 Such information cannot be fully archived or restored using this library.
-This includes, for example, comments, character sets, sparse
-file information, or the arbitrary key/value pairs that can appear in
+This includes, for example, comments, character sets,
+or the arbitrary key/value pairs that can appear in
 pax interchange format archives.
 .Pp
 Conversely, of course, not all of the information that can be
@@ -315,6 +315,3 @@ stored in an
 is supported by all formats.
 For example, cpio formats do not support nanosecond timestamps;
 old tar formats do not support large device numbers.
-.Pp
-The library cannot write pre-POSIX tar archives.
-The support for GNU tar format is incomplete.

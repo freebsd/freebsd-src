@@ -51,13 +51,13 @@ archive_write_open_file(struct archive *a, const char *filename)
 {
 	struct write_file_data *mine;
 
-	if (filename == NULL) {
+	if (filename == NULL || filename[0] == '\0') {
 		mine = malloc(sizeof(*mine));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
 		}
-		mine->filename[0] = 0;
+		mine->filename[0] = '\0'; /* Record that we're using stdout. */
 	} else {
 		mine = malloc(sizeof(*mine) + strlen(filename));
 		if (mine == NULL) {
@@ -82,7 +82,7 @@ file_open(struct archive *a, void *client_data)
 	mine = client_data;
 	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
-	if (*mine->filename != 0) {
+	if (mine->filename[0] != '\0') {
 		mine->fd = open(mine->filename, flags, 0666);
 
 		/*
@@ -152,7 +152,7 @@ file_close(struct archive *a, void *client_data)
 	struct write_file_data	*mine = client_data;
 
 	(void)a; /* UNUSED */
-	if (mine->fd >= 0)
+	if (mine->filename[0] != '\0')
 		close(mine->fd);
 	free(mine);
 	return (ARCHIVE_OK);

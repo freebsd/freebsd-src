@@ -26,7 +26,9 @@ libarchive_a_SOURCES=					\
 	archive_read_support_compression_none.c		\
 	archive_read_support_format_all.c		\
 	archive_read_support_format_cpio.c		\
+	archive_read_support_format_iso9660.c		\
 	archive_read_support_format_tar.c		\
+	archive_read_support_format_zip.c		\
 	archive_string.c				\
 	archive_string.h				\
 	archive_string_sprintf.c			\

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd January 8, 2005
 .Dt archive_util 3
 .Os
 .Sh NAME
@@ -94,12 +94,34 @@ by
 .Fn archive_errno
 and
 .Fn archive_error_string .
-This function is sometimes useful within I/O callbacks.
+This function should be used within I/O callbacks to set system-specific
+error codes and error descriptions.
+This function accepts a printf-like format string and arguments.
+However, you should be careful to use only the following printf
+format specifiers:
+.Dq %c ,
+.Dq %d ,
+.Dq %jd ,
+.Dq %jo ,
+.Dq %ju ,
+.Dq %jx ,
+.Dq %ld ,
+.Dq %lo ,
+.Dq %lu ,
+.Dq %lx ,
+.Dq %o ,
+.Dq %u ,
+.Dq %s ,
+.Dq %x ,
+.Dq %% .
+Field-width specifiers and other printf features are
+not uniformly supported and should not be used.
 .El
 .Sh SEE ALSO
 .Xr archive_read 3 ,
 .Xr archive_write 3 ,
-.Xr libarchive 3
+.Xr libarchive 3 ,
+.Xr printf 3
 .Sh HISTORY
 The
 .Nm libarchive

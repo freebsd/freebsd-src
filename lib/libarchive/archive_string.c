@@ -96,3 +96,18 @@ __archive_strappend_char(struct archive_string *as, char c)
 {
 	return (__archive_string_append(as, &c, 1));
 }
+
+struct archive_string *
+__archive_strappend_int(struct archive_string *as, int d, int base)
+{
+	static const char *digits = "0123457890abcdef";
+
+	if (d < 0) {
+		__archive_strappend_char(as, '-');
+		d = -d;
+	}
+	if (d >= base)
+		__archive_strappend_int(as, d/base, base);
+	__archive_strappend_char(as, digits[d % base]);
+	return (as);
+}

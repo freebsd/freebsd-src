@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2004 Tim Kientzle
+.\" Copyright (c) 2003-2005 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd January 8, 2005
 .Dt archive_write 3
 .Os
 .Sh NAME
@@ -73,7 +73,7 @@
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
 .Ft int
-.Fn archive_write_open "struct archive *" "void *client_data" "archive_write_archive_callback *" "archive_open_archive_callback *" "archive_close_archive_callback *"
+.Fn archive_write_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_write_archive_callback *" "archive_close_archive_callback *"
 .Ft int
 .Fn archive_write_open_fd "struct archive *" "int fd"
 .Ft int
@@ -196,32 +196,8 @@ Complete the archive and invoke the close callback.
 .It Fn archive_write_finish
 Invokes
 .Fn archive_write_close
-if it wasn't invoked manually, then release all resources.
+if it was not invoked manually, then release all resources.
 .El
-.Pp
-The callback functions are defined as follows:
-.Bl -item -offset indent
-.It
-.Ft typedef ssize_t
-.Fn archive_write_archive_callback "struct archive *" "void *client_data" "void *buffer" "size_t length"
-.It
-.Ft typedef int
-.Fn archive_open_archive_callback "struct archive *" "void *client_data"
-.It
-.Ft typedef int
-.Fn archive_close_archive_callback "struct archive *" "void *client_data"
-.El
-For correct blocking, each call to the write callback function
-should translate into a single
-.Xr write 2
-system call.
-This is especially critical when writing tar archives to tape drives.
-.Pp
-More information about tar archive formats and blocking can be found
-in the
-.Xr tar 5
-manual page.
-.Pp
 More information about the
 .Va struct archive
 object and the overall design of the library can be found in the
@@ -230,6 +206,62 @@ overview.
 .Sh IMPLEMENTATION
 Compression support is built-in to libarchive, which uses zlib and bzlib
 to handle gzip and bzip2 compression, respectively.
+.Sh CLIENT CALLBACKS
+To use this library, you will need to define and register
+callback functions that will be invoked to write data to the
+resulting archive.
+These functions are registered by calling
+.Fn archive_write_open :
+.Bl -item -offset indent
+.It
+.Ft typedef int
+.Fn archive_open_archive_callback "struct archive *" "void *client_data"
+.El
+.Pp
+The open callback is invoked by
+.Fn archive_write_open .
+It should return
+.Cm ARCHIVE_OK
+if the underlying file or data source is successfully
+opened.
+If the open fails, it should call
+.Fn archive_set_error
+to register an error code and message and return
+.Cm ARCHIVE_FATAL .
+.Bl -item -offset indent
+.It
+.Ft typedef ssize_t
+.Fn archive_write_archive_callback "struct archive *" "void *client_data" "void *buffer" "size_t length"
+.El
+.Pp
+The write callback is invoked whenever the library
+needs to write raw bytes to the archive.
+For correct blocking, each call to the write callback function
+should translate into a single
+.Xr write 2
+system call.
+This is especially critical when writing archives to tape drives.
+On success, the write callback should return the
+number of bytes actually written.
+On error, the callback should invoke
+.Fn archive_set_error
+to register an error code and message and return -1.
+.Bl -item -offset indent
+.It
+.Ft typedef int
+.Fn archive_close_archive_callback "struct archive *" "void *client_data"
+.El
+.Pp
+The close callback is invoked by archive_close when
+the archive processing is complete.
+The callback should return
+.Cm ARCHIVE_OK
+on success.
+On failure, the callback should invoke
+.Fn archive_set_error
+to register an error code and message and
+regurn
+.Cm ARCHIVE_FATAL.
 .Sh EXAMPLE
 The following sketch illustrates basic usage of the library.
 In this example,
