@@ -247,7 +247,6 @@ ida_eisa_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	eisa_add_iospace(dev, io_base, 0x100, RESVADDR_NONE);
 	eisa_add_iospace(dev, (io_base + IDA_EISA_IOPORT_START),
 			 IDA_EISA_IOPORT_LEN, RESVADDR_NONE);
 
