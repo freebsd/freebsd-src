@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.5 1997/06/02 08:19:06 dfr Exp $
+ * $Id: kern_intr.c,v 1.6 1997/06/02 10:46:28 dfr Exp $
  *
  */
 
@@ -87,6 +87,12 @@ intr_mux(void *arg)
 
 /* XXX better use NHWI from <machine/ipl.h> for array size ??? */
 static intrec *intreclist_head[ICU_LEN];
+
+int
+intr_registered(int irq)
+{
+	return (intreclist_head[irq] != NULL);
+}
 
 static intrec*
 find_idesc(unsigned *maskptr, int irq)
