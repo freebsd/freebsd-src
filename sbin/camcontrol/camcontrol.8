@@ -67,6 +67,10 @@
 .Op device id
 .Op generic args
 .Nm
+.Ic load
+.Op device id
+.Op generic args
+.Nm
 .Ic eject
 .Op device id
 .Op generic args
@@ -252,9 +256,12 @@ start bit set.
 .It Ic stop
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
 start bit cleared.
+.It Ic load
+Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
+start bit set and the load/eject bit set.
 .It Ic eject
 Send the SCSI Start/Stop Unit (0x1B) command to the given device with the
-start bit cleared and the eject bit set.
+start bit cleared and the load/eject bit set.
 .It Ic rescan
 Tell the kernel to scan all busses in the system (with the
 .Ar all
