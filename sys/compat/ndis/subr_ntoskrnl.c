@@ -1029,7 +1029,7 @@ ntoskrnl_lock_dpc(/*lock*/ void)
 	__asm__ __volatile__ ("" : "=c" (lock));
 
 	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
-		/* do nothing */;
+		/* sit and spin */;
 
 	return;
 }
@@ -1041,7 +1041,7 @@ ntoskrnl_unlock_dpc(/*lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	atomic_cmpset_rel_int((volatile u_int *)lock, 1, 0);
+	atomic_store_rel_int((volatile u_int *)lock, 0);
 
 	return;
 }
