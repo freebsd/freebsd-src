@@ -81,9 +81,9 @@
  ****************************************************************/
 
 #ifndef __INCi2otypesh
-#define __INCi2otypesh
+#define	__INCi2otypesh
 
-#define I2OTYPES_REV 1_5_4
+#define	I2OTYPES_REV 1_5_4
 
 /* include architecture/compiler dependencies */
 

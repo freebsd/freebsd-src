@@ -81,7 +81,7 @@
  ****************************************************************/
 
 #if !defined(I2O_ADPTR_HDR)
-#define I2O_ADPTR_HDR
+#define	I2O_ADPTR_HDR
 
 #if ((defined(KERNEL) || defined(_KERNEL)) && defined(__FreeBSD__))
 # if (KERN_VERSION < 3)
@@ -94,7 +94,7 @@
 #endif
 
 
-#define I2OADPTR_REV 1_5_1      /* Header file revision string */
+#define	I2OADPTR_REV 1_5_1      /* Header file revision string */
 
 
 /*****************************************************************************
@@ -144,10 +144,10 @@ PRAGMA_PACK_PUSH
     Bus Adapter Class specific functions
 */
 
-#define I2O_HBA_ADAPTER_RESET               0x85
-#define I2O_HBA_BUS_QUIESCE                 0x8b
-#define I2O_HBA_BUS_RESET                   0x87
-#define I2O_HBA_BUS_SCAN                    0x89
+#define	I2O_HBA_ADAPTER_RESET               0x85
+#define	I2O_HBA_BUS_QUIESCE                 0x8b
+#define	I2O_HBA_BUS_RESET                   0x87
+#define	I2O_HBA_BUS_SCAN                    0x89
 
 
 /*
@@ -167,31 +167,31 @@ PRAGMA_PACK_PUSH
 */  
 
 
-#define I2O_HBA_DSC_MASK                        0xFF00
+#define	I2O_HBA_DSC_MASK                        0xFF00
 
-#define I2O_HBA_DSC_SUCCESS                     0x0000
-#define I2O_HBA_DSC_ADAPTER_BUSY                0x0500
-#define I2O_HBA_DSC_COMMAND_TIMEOUT             0x0B00
-#define I2O_HBA_DSC_COMPLETE_WITH_ERROR         0x0400
-#define I2O_HBA_DSC_FUNCTION_UNAVAILABLE        0x3A00
-#define I2O_HBA_DSC_NO_ADAPTER                  0x1100
-#define I2O_HBA_DSC_PARITY_ERROR_FAILURE        0x0F00
-#define I2O_HBA_DSC_PATH_INVALID                0x0700
-#define I2O_HBA_DSC_PROVIDE_FAILURE             0x1600
-#define I2O_HBA_DSC_QUEUE_FROZEN                0x4000
-#define I2O_HBA_DSC_REQUEST_ABORTED             0x0200
-#define I2O_HBA_DSC_REQUEST_INVALID             0x0600
-#define I2O_HBA_DSC_REQUEST_LENGTH_ERROR        0x1500
-#define I2O_HBA_DSC_REQUEST_TERMINATED          0x1800
-#define I2O_HBA_DSC_RESOURCE_UNAVAILABLE        0x3400
-#define I2O_HBA_DSC_BUS_BUSY                    0x3F00
-#define I2O_HBA_DSC_BUS_RESET                   0x0E00
-#define I2O_HBA_DSC_ID_INVALID                  0x3900
-#define I2O_HBA_DSC_SEQUENCE_FAILURE            0x1400
-#define I2O_HBA_DSC_UNABLE_TO_ABORT             0x0300
-#define I2O_HBA_DSC_UNABLE_TO_TERMINATE         0x0900
-#define I2O_HBA_DSC_UNACKNOWLEDGED_EVENT        0x3500
-#define I2O_HBA_DSC_UNEXPECTED_BUS_FREE         0x1300
+#define	I2O_HBA_DSC_SUCCESS                     0x0000
+#define	I2O_HBA_DSC_ADAPTER_BUSY                0x0500
+#define	I2O_HBA_DSC_COMMAND_TIMEOUT             0x0B00
+#define	I2O_HBA_DSC_COMPLETE_WITH_ERROR         0x0400
+#define	I2O_HBA_DSC_FUNCTION_UNAVAILABLE        0x3A00
+#define	I2O_HBA_DSC_NO_ADAPTER                  0x1100
+#define	I2O_HBA_DSC_PARITY_ERROR_FAILURE        0x0F00
+#define	I2O_HBA_DSC_PATH_INVALID                0x0700
+#define	I2O_HBA_DSC_PROVIDE_FAILURE             0x1600
+#define	I2O_HBA_DSC_QUEUE_FROZEN                0x4000
+#define	I2O_HBA_DSC_REQUEST_ABORTED             0x0200
+#define	I2O_HBA_DSC_REQUEST_INVALID             0x0600
+#define	I2O_HBA_DSC_REQUEST_LENGTH_ERROR        0x1500
+#define	I2O_HBA_DSC_REQUEST_TERMINATED          0x1800
+#define	I2O_HBA_DSC_RESOURCE_UNAVAILABLE        0x3400
+#define	I2O_HBA_DSC_BUS_BUSY                    0x3F00
+#define	I2O_HBA_DSC_BUS_RESET                   0x0E00
+#define	I2O_HBA_DSC_ID_INVALID                  0x3900
+#define	I2O_HBA_DSC_SEQUENCE_FAILURE            0x1400
+#define	I2O_HBA_DSC_UNABLE_TO_ABORT             0x0300
+#define	I2O_HBA_DSC_UNABLE_TO_TERMINATE         0x0900
+#define	I2O_HBA_DSC_UNACKNOWLEDGED_EVENT        0x3500
+#define	I2O_HBA_DSC_UNEXPECTED_BUS_FREE         0x1300
 
 
 
@@ -202,21 +202,21 @@ PRAGMA_PACK_PUSH
 /****************************************************************************/
 
 
-#define     I2O_HBA_CONTROLLER_INFO_GROUP_NO            0x0000
-#define     I2O_HBA_HISTORICAL_STATS_GROUP_NO           0x0100
-#define     I2O_HBA_SCSI_CONTROLLER_INFO_GROUP_NO       0x0200
-#define     I2O_HBA_SCSI_BUS_PORT_INFO_GROUP_NO         0x0201
-#define     I2O_HBA_FCA_CONTROLLER_INFO_GROUP_NO        0x0300
-#define     I2O_HBA_FCA_PORT_INFO_GROUP_NO              0x0301
+#define	    I2O_HBA_CONTROLLER_INFO_GROUP_NO            0x0000
+#define	    I2O_HBA_HISTORICAL_STATS_GROUP_NO           0x0100
+#define	    I2O_HBA_SCSI_CONTROLLER_INFO_GROUP_NO       0x0200
+#define	    I2O_HBA_SCSI_BUS_PORT_INFO_GROUP_NO         0x0201
+#define	    I2O_HBA_FCA_CONTROLLER_INFO_GROUP_NO        0x0300
+#define	    I2O_HBA_FCA_PORT_INFO_GROUP_NO              0x0301
 
 
 /* - 0000h - HBA Controller Information Parameter Group */
 
 /* Bus Type */
 
-#define     I2O_HBA_BUS_TYPE_GENERIC        0x00
-#define     I2O_HBA_BUS_TYPE_SCSI           0x01
-#define     I2O_HBA_BUS_TYPE_FCA            0x10
+#define	    I2O_HBA_BUS_TYPE_GENERIC        0x00
+#define	    I2O_HBA_BUS_TYPE_SCSI           0x01
+#define	    I2O_HBA_BUS_TYPE_FCA            0x10
 
 
 typedef struct _I2O_HBA_CONTROLLER_INFO_SCALAR {
@@ -239,40 +239,40 @@ typedef struct _I2O_HBA_HIST_STATS_SCALAR {
 
 /* SCSI Type */
 
-#define I2O_SCSI_TYPE_UNKNOWN               0x00
-#define I2O_SCSI_TYPE_SCSI_1                0x01
-#define I2O_SCSI_TYPE_SCSI_2                0x02
-#define I2O_SCSI_TYPE_SCSI_3                0x03
+#define	I2O_SCSI_TYPE_UNKNOWN               0x00
+#define	I2O_SCSI_TYPE_SCSI_1                0x01
+#define	I2O_SCSI_TYPE_SCSI_2                0x02
+#define	I2O_SCSI_TYPE_SCSI_3                0x03
 
 /* Protection Management */
 
-#define     I2O_SCSI_PORT_PROT_OTHER        0x00
-#define     I2O_SCSI_PORT_PROT_UNKNOWN      0x01
-#define     I2O_SCSI_PORT_PROT_UNPROTECTED  0x02
-#define     I2O_SCSI_PORT_PROT_PROTECTED    0x03
-#define     I2O_SCSI_PORT_PROT_SCC          0x04
+#define	    I2O_SCSI_PORT_PROT_OTHER        0x00
+#define	    I2O_SCSI_PORT_PROT_UNKNOWN      0x01
+#define	    I2O_SCSI_PORT_PROT_UNPROTECTED  0x02
+#define	    I2O_SCSI_PORT_PROT_PROTECTED    0x03
+#define	    I2O_SCSI_PORT_PROT_SCC          0x04
 
 /* Settings */
 
-#define     I2O_SCSI_PORT_PARITY_FLAG       0x01
-#define     I2O_SCSI_PORT_PARITY_DISABLED   0x00
-#define     I2O_SCSI_PORT_PARITY_ENABLED    0x01
+#define	    I2O_SCSI_PORT_PARITY_FLAG       0x01
+#define	    I2O_SCSI_PORT_PARITY_DISABLED   0x00
+#define	    I2O_SCSI_PORT_PARITY_ENABLED    0x01
 
-#define     I2O_SCSI_PORT_SCAN_ORDER_FLAG   0x02
-#define     I2O_SCSI_PORT_SCAN_LOW_TO_HIGH  0x00
-#define     I2O_SCSI_PORT_SCAN_HIGH_TO_LOW  0x02
+#define	    I2O_SCSI_PORT_SCAN_ORDER_FLAG   0x02
+#define	    I2O_SCSI_PORT_SCAN_LOW_TO_HIGH  0x00
+#define	    I2O_SCSI_PORT_SCAN_HIGH_TO_LOW  0x02
 
-#define     I2O_SCSI_PORT_IID_FLAG          0x04
-#define     I2O_SCSI_PORT_IID_DEFAULT       0x00
-#define     I2O_SCSI_PORT_IID_SPECIFIED     0x04
+#define	    I2O_SCSI_PORT_IID_FLAG          0x04
+#define	    I2O_SCSI_PORT_IID_DEFAULT       0x00
+#define	    I2O_SCSI_PORT_IID_SPECIFIED     0x04
 
-#define     I2O_SCSI_PORT_SCAM_FLAG         0x08
-#define     I2O_SCSI_PORT_SCAM_DISABLED     0x00
-#define     I2O_SCSI_PORT_SCAM_ENABLED      0x08
+#define	    I2O_SCSI_PORT_SCAM_FLAG         0x08
+#define	    I2O_SCSI_PORT_SCAM_DISABLED     0x00
+#define	    I2O_SCSI_PORT_SCAM_ENABLED      0x08
 
-#define     I2O_SCSI_PORT_TYPE_FLAG         0x80
-#define     I2O_SCSI_PORT_TYPE_PARALLEL     0x00
-#define     I2O_SCSI_PORT_TYPE_SERIAL       0x80
+#define	    I2O_SCSI_PORT_TYPE_FLAG         0x80
+#define	    I2O_SCSI_PORT_TYPE_PARALLEL     0x00
+#define	    I2O_SCSI_PORT_TYPE_SERIAL       0x80
 
 typedef struct _I2O_HBA_SCSI_CONTROLLER_INFO_SCALAR {
     U8          SCSIType;
@@ -314,8 +314,8 @@ typedef struct _I2O_HBA_SCSI_BUS_PORT_INFO_SCALAR {
 
 /* SCSI Type */
 
-#define I2O_FCA_TYPE_UNKNOWN                0x00
-#define I2O_FCA_TYPE_FCAL                   0x01
+#define	I2O_FCA_TYPE_UNKNOWN                0x00
+#define	I2O_FCA_TYPE_FCAL                   0x01
 
 typedef struct _I2O_HBA_FCA_CONTROLLER_INFO_SCALAR {
     U8          FcaType;
@@ -363,8 +363,8 @@ typedef struct _I2O_HBA_ADAPTER_RESET_MESSAGE {
 
 typedef U32     I2O_HBQ_FLAGS;
 
-#define I2O_HBQ_FLAG_NORMAL             0x0000
-#define I2O_HBQ_FLAG_QUIESCE            0x0001
+#define	I2O_HBQ_FLAG_NORMAL             0x0000
+#define	I2O_HBQ_FLAG_QUIESCE            0x0001
 
 typedef struct _I2O_HBA_BUS_QUIESCE_MESSAGE {
     I2O_MESSAGE_FRAME       StdMessageFrame;
