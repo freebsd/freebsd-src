@@ -2,9 +2,9 @@
 
 .PATH: ${.CURDIR}/../../../contrib/bsnmp/snmpd
 
-.if !defined(NOATM)
-_snmp_atm= snmp_atm
-.endif
+# .if !defined(NOATM)
+# _snmp_atm= snmp_atm
+# .endif
 
 SUBDIR=	${_snmp_atm} \
 	snmp_mibII \
