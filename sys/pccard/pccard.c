@@ -63,7 +63,6 @@
 #include <pccard/slot.h>
 
 #include <machine/clock.h>
-#include <machine/laptops.h>
 #include <machine/md_var.h>
 
 
