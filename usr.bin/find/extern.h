@@ -83,4 +83,4 @@ PLAN	*c_mtime __P((char *));
 PLAN	*c_not __P((void));
 PLAN	*c_or __P((void));
 
-extern int ftsoptions, isdeprecated, isdepth, isoutput, isxargs;
+extern int ftsoptions, isdeprecated, isdepth, isoutput, isxargs, issort;

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
-.\"	$Id: find.1,v 1.14 1997/10/27 14:25:54 steve Exp $
+.\"	$Id: find.1,v 1.15 1998/05/15 11:22:36 jkoshy Exp $
 .\"
 .Dd May 9, 1995
 .Dt FIND 1
@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm find
 .Op Fl H | Fl L | Fl P
-.Op Fl Xdx
+.Op Fl Xdsx
 .Op Fl f Ar file
 .Op Ar file ...
 .Ar expression
@@ -121,6 +121,19 @@ option specifies a file hierarchy for
 to traverse.
 File hierarchies may also be specified as the operands immediately
 following the options.
+.It Fl s
+The
+.Fl s
+option cause
+.Nm find
+to traverse the file hierarchies in lexicographical order. The
+output will be sorted too. Note: 
+.Sq find -s
+and 
+.So 
+find | sort
+.Sc
+may give different results.
 .It Fl x
 The
 .Fl x
