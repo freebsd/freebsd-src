@@ -1,0 +1,42 @@
+-*- indented-text -*-
+rlogind, rshd, popper, ftpd (telnetd uses nonce?)
+  Add a replay cache.
+
+telnet, rlogin, rsh, rcp
+  Some form of support for ticket forwarding, perhaps only for AFS tickets.
+
+telnet, telnetd
+  Add negotiation for keep-alives.
+
+rlogind
+  Fix utmp logging.
+
+documentation
+  Write more info on:
+  * how to use
+
+rshd
+  Read default environment from /etc/default/login and other files.
+  Encryption without secondary port is bugged, it currently does no
+  encryption. But, nobody uses it anyway.
+
+autoconf
+
+libraries
+  generate archive and shared libraries in some portable way.
+
+k_get_all_addrs
+  for Cray UNICOS
+
+ftpd
+
+kx
+  Compress and recode X protocol?
+
+kip
+  Other kinds of encapsulations?
+  Tunnel device as loadable kernel module.
+  Speed?
+
+BUGS
+  Where?

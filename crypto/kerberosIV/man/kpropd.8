@@ -1,0 +1,63 @@
+.\" $Id: kpropd.8,v 1.2 1997/02/07 22:04:55 assar Exp $
+.\"
+.Dd June 7, 1996
+.Dt KPROPD 8
+.Os KTH-KRB
+.Sh NAME
+.Nm kpropd
+.Nd
+the kerberos slave server update facility
+.Sh SYNOPSIS
+.Nm
+.Op Fl i
+.Op Fl d Ar database
+.Op Fl l Ar logfile
+.Op Fl m
+.Op Fl p Ar kdb_util
+.Op Fl r Ar realm
+.Op Fl s Ar srvtab
+.Sh DESCRIPTION
+The
+.Nm
+responds to database update requests from the
+.Nm kprop
+command. It can either be started from
+.Nm inetd
+or as an ordinary program.
+
+The following options are recognised:
+
+.Bl -tag -width xxxx
+.It Fl i
+Run stand-alone.  If this flag is not given, it is assumed to have
+been started by
+.Nm inetd .
+.It Fl d
+What database file to use, default is
+.Pa /var/kerberos/principal .
+.It Fl l
+Logfile to use, default is
+.Pa /var/log/kpropd.log .
+.It Fl m
+Treat data as changes to the database rather than a complete database.
+.It Fl p
+The path to
+.Nm kdb_util ,
+default is
+.Pa /usr/athena/sbin/kdb_util .
+.It Fl r
+Realm if other than the default realm.
+.It Fl s
+Srvtab if other than
+.Pa /etc/srvtab .
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /var/kerberos/principal.{db,dir,pag}
+.It Pa /var/log/kpropd.log
+.It Pa /etc/srvtab
+.El
+.Sh SEE ALSO
+.Xr kprop 8 ,
+.Xr kerberos 8 ,
+.Xr kadmind 8
