@@ -987,12 +987,6 @@ void config()
 			}
 			switch (sep->se_family) {
 			case AF_INET:
-				if (sep->se_ctladdrinitok == 0) {
-					memcpy(&sep->se_ctrladdr4, bind_sa4,
-					       sizeof(sep->se_ctrladdr4));
-					sep->se_ctrladdr_size =
-						sizeof(sep->se_ctrladdr4);
-				}
 				if (sp->s_port != sep->se_ctrladdr4.sin_port) {
 					sep->se_ctrladdr4.sin_port =
 						sp->s_port;
@@ -1001,12 +995,6 @@ void config()
 				break;
 #ifdef INET6
 			case AF_INET6:
-				if (sep->se_ctladdrinitok == 0) {
-					memcpy(&sep->se_ctrladdr6, bind_sa6,
-					       sizeof(sep->se_ctrladdr6));
-					sep->se_ctrladdr_size =
-						sizeof(sep->se_ctrladdr6);
-				}
 				if (sp->s_port !=
 				    sep->se_ctrladdr6.sin6_port) {
 					sep->se_ctrladdr6.sin6_port =
@@ -1623,14 +1611,12 @@ more:
 		memcpy(&sep->se_ctrladdr4, bind_sa4,
 		       sizeof(sep->se_ctrladdr4));
 		sep->se_ctrladdr_size =	sizeof(sep->se_ctrladdr4);
-		sep->se_ctladdrinitok = 1;
 		break;
 #ifdef INET6
 	case AF_INET6:
 		memcpy(&sep->se_ctrladdr6, bind_sa6,
 		       sizeof(sep->se_ctrladdr6));
 		sep->se_ctrladdr_size =	sizeof(sep->se_ctrladdr6);
-		sep->se_ctladdrinitok = 1;
 		break;
 #endif
 	}
