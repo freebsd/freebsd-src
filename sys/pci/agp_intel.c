@@ -78,6 +78,9 @@ agp_intel_match(device_t dev)
 	case 0x25008086:
  		return ("Intel 82820 host to AGP bridge");
 
+	case 0x35758086:
+		return ("Intel 82830 host to AGP bridge");
+
 	case 0x1a218086:
  		return ("Intel 82840 host to AGP bridge");
 
