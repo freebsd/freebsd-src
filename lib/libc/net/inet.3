@@ -235,17 +235,17 @@ for malformed requests.
 .Re
 .Sh STANDARDS
 The
-.Nm inet_ntop
+.Fn inet_ntop
 and
-.Nm inet_pton
+.Fn inet_pton
 functions conform to
 .St -xns5.2d2.0 .
 Note that
-.Nm inet_pton
+.Fn inet_pton
 does not accept 1-, 2-, or 3-part  dotted addresses; all four parts
 must be specified.
 This is a narrower input set than that accepted by
-.Nm inet_aton .
+.Fn inet_aton .
 .Sh HISTORY
 These
 functions appeared in 

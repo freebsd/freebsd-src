@@ -43,12 +43,15 @@
 .Fn cuserid "char *s"
 .Sh DESCRIPTION
 .Bf -symbolic
-The cuserid function is made obsolete by getpwuid.
+The
+.Fn cuserid
+function is made obsolete by
+.Xr getpwuid 3 .
 It is available from the compatibility library, libcompat.
 .Ef
 .Pp
 The function
-.Nm cuserid
+.Fn cuserid
 gets the user name associated with the effective UID of the current
 process.  If the argument
 .Fa s
@@ -64,7 +67,7 @@ If
 .Fa s
 is NULL, an internal array is used and its address will be returned.
 .Sh RETURN VALUES
-.Nm cuserid
+.Fn cuserid
 returns the address of an array in which the name has been stored.
 
 If the name associated with the effective UID of the current process
