@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.82 1998/12/03 20:23:20 dillon Exp $
+ *	$Id: tcp_input.c,v 1.83 1999/01/27 22:42:25 dillon Exp $
  */
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
@@ -1196,7 +1196,7 @@ trimthenstep6:
 			if (tiflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(ti->ti_seq, tp->rcv_nxt)) {
-				iss = tp->rcv_nxt + TCP_ISSINCR;
+				iss = tp->snd_nxt + TCP_ISSINCR;
 				tp = tcp_close(tp);
 				goto findpcb;
 			}
