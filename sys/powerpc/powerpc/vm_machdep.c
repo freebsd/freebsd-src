@@ -199,12 +199,6 @@ cpu_sched_exit(td)
 {
 }
 
-void
-cpu_wait(td)
-	struct proc *td;
-{
-}
-
 /* Temporary helper */
 void
 cpu_throw(void)
