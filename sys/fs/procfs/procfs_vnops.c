@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.17 1995/11/07 13:39:31 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.18 1995/11/09 08:16:04 bde Exp $
  */
 
 /*
@@ -57,10 +57,20 @@
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>	/* for PAGE_SIZE */
 
-/*
- * Vnode Operations.
- *
- */
+static int	procfs_abortop __P((struct vop_abortop_args *));
+static int	procfs_access __P((struct vop_access_args *));
+static int	procfs_badop __P((void));
+static int	procfs_close __P((struct vop_close_args *));
+static int	procfs_getattr __P((struct vop_getattr_args *));
+static int	procfs_inactive __P((struct vop_inactive_args *));
+static int	procfs_ioctl __P((struct vop_ioctl_args *));
+static int	procfs_lookup __P((struct vop_lookup_args *));
+static int	procfs_open __P((struct vop_open_args *));
+static int	procfs_pathconf __P((struct vop_pathconf_args *ap));
+static int	procfs_print __P((struct vop_print_args *));
+static int	procfs_readdir __P((struct vop_readdir_args *));
+static int	procfs_reclaim __P((struct vop_reclaim_args *));
+static int	procfs_setattr __P((struct vop_setattr_args *));
 
 /*
  * This is a list of the valid names in the
@@ -796,9 +806,33 @@ atopid(b, len)
 	return (p);
 }
 
-/*
- * procfs vnode operations.
- */
+#define procfs_create ((int (*) __P((struct vop_create_args *))) procfs_badop)
+#define procfs_mknod ((int (*) __P((struct vop_mknod_args *))) procfs_badop)
+#define	procfs_read procfs_rw
+#define	procfs_write procfs_rw
+#define procfs_select ((int (*) __P((struct vop_select_args *))) procfs_badop)
+#define procfs_mmap ((int (*) __P((struct vop_mmap_args *))) procfs_badop)
+#define procfs_fsync ((int (*) __P((struct vop_fsync_args *))) procfs_badop)
+#define procfs_seek ((int (*) __P((struct vop_seek_args *))) procfs_badop)
+#define procfs_remove ((int (*) __P((struct vop_remove_args *))) procfs_badop)
+#define procfs_link ((int (*) __P((struct vop_link_args *))) procfs_badop)
+#define procfs_rename ((int (*) __P((struct vop_rename_args *))) procfs_badop)
+#define procfs_mkdir ((int (*) __P((struct vop_mkdir_args *))) procfs_badop)
+#define procfs_rmdir ((int (*) __P((struct vop_rmdir_args *))) procfs_badop)
+#define procfs_symlink ((int (*) __P((struct vop_symlink_args *))) procfs_badop)
+#define procfs_readlink ((int (*) __P((struct vop_readlink_args *))) procfs_badop)
+#define procfs_lock ((int (*) __P((struct vop_lock_args *))) nullop)
+#define procfs_unlock ((int (*) __P((struct vop_unlock_args *))) nullop)
+#define procfs_bmap ((int (*) __P((struct vop_bmap_args *))) procfs_badop)
+#define	procfs_strategy ((int (*) __P((struct vop_strategy_args *))) procfs_badop)
+#define procfs_islocked ((int (*) __P((struct vop_islocked_args *))) nullop)
+#define procfs_advlock ((int (*) __P((struct vop_advlock_args *))) procfs_badop)
+#define procfs_blkatoff ((int (*) __P((struct vop_blkatoff_args *))) procfs_badop)
+#define procfs_valloc ((int (*) __P((struct vop_valloc_args *))) procfs_badop)
+#define procfs_vfree ((int (*) __P((struct vop_vfree_args *))) nullop)
+#define procfs_truncate ((int (*) __P((struct vop_truncate_args *))) procfs_badop)
+#define procfs_update ((int (*) __P((struct vop_update_args *))) nullop)
+
 vop_t **procfs_vnodeop_p;
 static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
