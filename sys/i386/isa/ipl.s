@@ -126,7 +126,7 @@ doreti_next2:
 	decb	_intr_nesting_level
 
 	/* Check for ASTs that can be handled now. */
-	cmpl	$0,_astpending
+	testl	$AST_PENDING,_astpending
 	je	doreti_exit
 	testb	$SEL_RPL_MASK,TF_CS(%esp)
 	jne	doreti_ast
