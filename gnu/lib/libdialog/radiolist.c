@@ -230,6 +230,7 @@ draw:
 		    }
 		}
 	    }
+	    delwin(list);
 	    delwin(dialog);
 	    return 0;
 	}
@@ -247,6 +248,7 @@ draw:
 		}
 		delwin(save);
 	    }
+	    delwin(list);
 	    delwin(dialog);
 	    return 1;
 	}
@@ -335,6 +337,7 @@ draw:
 			}
 			else if (st & DITEM_RECREATE) {
 			    delwin(save);
+			    delwin(list);
 			    delwin(dialog);
 			    goto draw;
 			}
@@ -460,6 +463,7 @@ draw:
 		    }
 		    else if (st & DITEM_RECREATE) {
 			delwin(save);
+			delwin(list);
 			delwin(dialog);
 			goto draw;
 		    }
@@ -475,6 +479,7 @@ draw:
 		    }
 		}
 	    }
+	    delwin(list);
 	    delwin(dialog);
 	    return button;
 	    break;
@@ -499,6 +504,7 @@ draw:
 	}
     }
     
+    delwin(list);
     delwin(dialog);
     free(status);
     return -1;    /* ESC pressed */

@@ -206,7 +206,6 @@ draw:
 
 		save = dupwin(newscr);
 		st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		delwin(dialog);
 		if (st & DITEM_RESTORE) {
 		    touchwin(save);
 		    wrefresh(save);
@@ -214,7 +213,6 @@ draw:
 		delwin(save);
 	    }
 	    else {
-		delwin(dialog);
 		*result = '\0';
 		for (i = 0; i < item_no; i++) {
 		    if (status[i]) {
@@ -223,6 +221,8 @@ draw:
 		    }
 		}
 	    }
+	    delwin(list);
+	    delwin(dialog);
 	    return 0;
 	}
 	/* Shortcut to cancel? */
@@ -239,6 +239,7 @@ draw:
 		}
 		delwin(save);
 	    }
+	    delwin(list);
 	    delwin(dialog);
 	    return 1;
 	}
@@ -329,6 +330,7 @@ draw:
 			}
 			else if (st & DITEM_RECREATE) {
 			    delwin(save);
+			    delwin(list);
 			    delwin(dialog);
 			    goto draw;
 			}
@@ -468,6 +470,7 @@ draw:
 		    }
 		}
 	    }
+	    delwin(list);
 	    delwin(dialog);
 	    return button;
 	    break;
@@ -493,6 +496,7 @@ draw:
 	    redraw_menu = FALSE;
 	}
     }
+    delwin(list);
     delwin(dialog);
     return -1;    /* ESC pressed */
 }
