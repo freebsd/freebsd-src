@@ -57,18 +57,18 @@
 #define KDSBORDER	_IO('K', 13 /*, int */)
 
 /* set up raster(pixel) text mode */
-struct scr_size {
+struct _scr_size {
 	int		scr_size[3];
 };
-typedef struct scr_size	scr_size_t;
+typedef struct _scr_size	scr_size_t;
 
 #define KDRASTER	_IOW('K', 100, scr_size_t)
 
 /* get/set screen char map */
-struct scrmap {
+struct _scrmap {
 	char		scrmap[256];
 };
-typedef struct scrmap	scrmap_t;
+typedef struct _scrmap	scrmap_t;
 
 #define GIO_SCRNMAP	_IOR('k', 2, scrmap_t)
 #define PIO_SCRNMAP	_IOW('k', 3, scrmap_t)
