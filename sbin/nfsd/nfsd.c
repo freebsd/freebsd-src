@@ -585,5 +585,5 @@ setproctitle(a)
 	(void)strncpy(cp, buf, LastArg - cp);
 	cp += strlen(cp);
 	while (cp < LastArg)
-		*cp++ = ' ';
+		*cp++ = '\0';
 }
