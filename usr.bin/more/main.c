@@ -252,7 +252,7 @@ main(argc, argv)
 	char **argv;
 {
 	int envargc, argcnt;
-	char *envargv[2];
+	char *envargv[3];
 
 	(void) setlocale(LC_ALL, "");
 
