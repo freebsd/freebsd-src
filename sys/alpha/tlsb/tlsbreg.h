@@ -1,7 +1,8 @@
-/* $NetBSD: tlsbreg.h,v 1.3 1997/04/06 20:08:40 cgd Exp $ */
+/* $FreeBSD$ */
+/* $NetBSD: tlsbreg.h,v 1.5 2000/01/27 22:27:50 mjacob Exp $ */
 
 /*
- * Copyright (c) 1997 by Matthew Jacob
+ * Copyright (c) 1997, 2000 by Matthew Jacob
  * NASA AMES Research Center.
  * All rights reserved.
  *
@@ -17,8 +18,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -61,7 +60,7 @@
 
 #define TLSB_NODE_BASE		0x000000ff88000000	/* Dense */
 #define TLSB_NODE_SIZE		0x00400000
-#define TLSB_NODE_MAX		8
+#define TLSB_NODE_MAX		8	/* inclusive */
 
 /* Translate a node number to an address. */
 #define TLSB_NODE_ADDR(_node)					\
@@ -134,7 +133,16 @@
 #define TLILID3		0x0ac0		/* I: Int. Level 3 IDENT Register */
 #define TLCPUMASK	0x0b00		/* I: CPU Interrupt Mask Register */
 #define TLMBPTR		0x0c00		/* I: Mailbox Pointer Register */
+#define	TLINTRMASK0	0x1100		/* C: Interrupt Mask Register CPU 0 */
+#define	TLINTRMASK1	0x1140		/* C: Interrupt Mask Register CPU 1 */
+#define	TLINTRSUM0	0x1180		/* C: Interrupt Sum Register CPU 0 */
+#define	TLINTRSUM1	0x11C0		/* C: Interrupt Sum Register CPU 1 */
 #define	TLEPAERR	0x1500		/* C: ADG error register */
+#define	TLEPDERR	0x1540		/* C: DIGA error register */
+#define	TLEPMERR	0x1580		/* C: MMG error register */
+#define	TLDMCMD		0x1600		/* C: Data Mover Command */
+#define	TLDMADRA	0x1680		/* C: Data Mover Source */
+#define	TLDMADRB	0x16C0		/* C: Data Mover Destination */
 
 /*
  * Registers shared between TurboLaser nodes, offsets from the
@@ -316,3 +324,53 @@
  *	indicate the validity of a given field.
  */
 
+
+/*
+ * CPU Interrupt Mask Register
+ *
+ * The PAL code reads this register for each CPU on a TLSB CPU board
+ * to see what is or isn't enabled.
+ */
+#define	TLINTRMASK_CONHALT	0x100	/* Enable ^P Halt */
+#define	TLINTRMASK_HALT		0x080	/* Enable Halt */
+#define	TLINTRMASK_CLOCK	0x040	/* Enable Clock Interrupts */
+#define	TLINTRMASK_XCALL	0x020	/* Enable Interprocessor Interrupts */
+#define	TLINTRMASK_IPL17	0x010	/* Enable IPL 17 Interrupts */
+#define	TLINTRMASK_IPL16	0x008	/* Enable IPL 16 Interrupts */
+#define	TLINTRMASK_IPL15	0x004	/* Enable IPL 15 Interrupts */
+#define	TLINTRMASK_IPL14	0x002	/* Enable IPL 14 Interrupts */
+#define	TLINTRMASK_DUART	0x001	/* Enable GBUS Duart0 Interrupts */
+
+/*
+ * CPU Interrupt Summary Register
+ *
+ * The PAL code reads this register at interrupt time to figure out
+ * which interrupt line to assert to the CPU. Note that when the
+ * interrupt is actually vectored through the PAL code, it arrives
+ * here already presorted as to type (clock, halt, iointr).
+ */
+#define	TLINTRSUM_HALT		(1 << 28)	/* Halted via TLCNR register */
+#define	TLINTRSUM_CONHALT	(1 << 27)	/* Halted via ^P (W1C) */
+#define	TLINTRSUM_CLOCK		(1 << 6)	/* Clock Interrupt (W1C) */
+#define	TLINTRSUM_XCALL		(1 << 5)	/* Interprocessor Int (W1C) */
+#define	TLINTRSUM_IPL17		(1 << 4)	/* IPL 17 Interrupt Summary */
+#define	TLINTRSUM_IPL16		(1 << 3)	/* IPL 16 Interrupt Summary */
+#define	TLINTRSUM_IPL15		(1 << 2)	/* IPL 15 Interrupt Summary */
+#define	TLINTRSUM_IPL14		(1 << 1)	/* IPL 14 Interrupt Summary */
+#define	TLINTRSUM_DUART		(1 << 0)	/* Duart Int (W1C) */
+/* after checking the summaries, you can get the source node for each level */
+#define	TLINTRSUM_IPL17_SOURCE(x)	((x >> 22) & 0x1f)
+#define	TLINTRSUM_IPL16_SOURCE(x)	((x >> 17) & 0x1f)
+#define	TLINTRSUM_IPL15_SOURCE(x)	((x >> 12) & 0x1f)
+#define	TLINTRSUM_IPL14_SOURCE(x)	((x >> 7) & 0x1f)
+
+/*
+ * (some of) TurboLaser CPU ADG error register defines.
+ */
+#define	TLEPAERR_IBOX_TMO	0x1800	/* window space read failed */
+#define	TLEPAERR_WSPC_RD	0x0600	/* window space read failed */
+
+/*
+ * (some of) TurboLaser CPU DIGA error register defines.
+ */
+#define	TLEPDERR_GBTMO		0x4	/* GBus timeout */
