@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: bsd.man.mk,v 1.20 1997/02/22 13:56:12 peter Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -26,8 +26,8 @@
 # _MANPAGES	List of all man pages to be installed.
 #		(``_MANPAGES=$MAN1 $MAN2 ... $MANn'')
 #
-# MCOMPRESS	Program to compress man pages. Output is to
-#		stdout. [gzip -c]
+# MCOMPRESS_CMD	Program to compress man pages. Output is to
+#		stdout. [${COMPRESS_CMD}]
 #
 # MLINKS	List of manual page links (using a suffix). The
 #		linked-to file must come first, the linked file 
@@ -56,8 +56,8 @@
 MANSRC?=	${.CURDIR}
 MINSTALL=	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 
-MCOMPRESS=	gzip -c
-ZEXTENSION=	.gz
+MCOMPRESS_CMD?=	${COMPRESS_CMD}
+MCOMPRESS_EXT?=	${COMPRESS_EXT}
 
 SECTIONS=	1 2 3 4 5 6 7 8 9 n
 
@@ -103,19 +103,19 @@ ${target}: ${page}
 
 .else
 
-ZEXT=		${ZEXTENSION}
+ZEXT=		${MCOMPRESS_EXT}
 
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
-CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
+CLEANFILES+=	${MAN${sect}:T:S/$/${MCOMPRESS_EXT}/g}
 .for page in ${MAN${sect}}
-.for target in ${page:T:S/$/${ZEXTENSION}/}
+.for target in ${page:T:S/$/${MCOMPRESS_EXT}/}
 all-man: ${target}
 ${target}: ${page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
-	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
+	${MCOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endif
 .endfor
 .endfor
@@ -137,7 +137,7 @@ maninstall:: ${MAN${sect}}
 	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
 .endif
 .else
-	${MINSTALL} ${.ALLSRC:T:S/$/${ZEXTENSION}/g} \
+	${MINSTALL} ${.ALLSRC:T:S/$/${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
 .endif
 .endif
@@ -155,7 +155,7 @@ maninstall:: ${MAN${sect}}
 		name=$$1; shift; sect=$$1; shift; \
 		t=${DESTDIR}${MANDIR}$${sect}${MANSUBDIR}/$$name; \
 		${ECHO} $${t}${ZEXT} -\> $${l}${ZEXT}; \
-		rm -f $${t} $${t}${ZEXTENSION}; \
+		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
 	done
 .endif

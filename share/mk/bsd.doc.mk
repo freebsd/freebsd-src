@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.33 1997/03/02 00:16:49 wosch Exp $
+#	$Id: bsd.doc.mk,v 1.34 1997/03/02 15:52:34 wosch Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -42,12 +42,13 @@ TRFLAGS+=	-s
 TRFALGS+=	-R
 .endif
 
+DCOMPRESS_EXT?=	${COMPRESS_EXT}
 .if defined(NODOCCOMPRESS) || ${PRINTERDEVICE} == "html"
 DFILE=	${DOC}.${PRINTERDEVICE}
-GZIPCMD=	cat
+DCOMPRESS_CMD=	cat
 .else
-DFILE=	${DOC}.${PRINTERDEVICE}.gz
-GZIPCMD=	gzip -c
+DFILE=	${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT}
+DCOMPRESS_CMD?=	${COMPRESS_CMD}
 .endif
 
 PAGES?=		1-
@@ -73,13 +74,14 @@ print: ${DFILE}
 .if defined(NODOCCOMPRESS)
 	lpr ${DFILE}
 .else
-	${GZIPCMD} -d ${DFILE} | lpr
+	${DCOMPRESS_CMD} -d ${DFILE} | lpr
 .endif
 .endif
 
-CLEANFILES+=	${DOC}.${PRINTERDEVICE} ${DOC}.${PRINTERDEVICE}.gz \
-		${DOC}.ascii ${DOC}.ascii.gz \
-		${DOC}.ps ${DOC}.ps.gz \
+CLEANFILES+=	${DOC}.${PRINTERDEVICE} \
+		${DOC}.${PRINTERDEVICE}${DCOMPRESS_EXT} \
+		${DOC}.ascii ${DOC}.ascii${DCOMPRESS_EXT} \
+		${DOC}.ps ${DOC}.ps${DCOMPRESS_EXT} \
 		${DOC}.html ${DOC}-*.html
 
 
@@ -131,14 +133,14 @@ ${DFILE}::	${SRCS} ${EXTRA} ${OBJS}
 ALLSRCS=	${SRCS:S;^;${SRCDIR}/;}
 ${DFILE}::	${SRCS}
 .if defined(USE_SOELIMPP)
-	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${GZIPCMD} > ${.TARGET}
+	${SOELIMPP} ${ALLSRCS} | ${ROFF} | ${DCOMPRESS_CMD} > ${.TARGET}
 .else
-	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${GZIPCMD} > ${.TARGET}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) | ${DCOMPRESS_CMD} > ${.TARGET}
 .endif
 .else
 .if !defined(NODOCCOMPRESS)
 ${DFILE}:	${DOC}.${PRINTERDEVICE}
-	${GZIPCMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
+	${DCOMPRESS_CMD} ${DOC}.${PRINTERDEVICE} > ${.TARGET}
 .endif
 .endif
 .endif
