@@ -29,8 +29,6 @@
  ** OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  ** EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **
- **      $Id: moused.c,v 1.4.2.1 1997/01/20 08:12:07 sos Exp $
  **/
 
 /**
@@ -45,12 +43,18 @@
  ** 
  **/
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <termios.h>
 #include <machine/console.h>
 #include <sys/types.h>
@@ -58,9 +62,8 @@
 #include <unistd.h>
 
 #define debug(fmt,args...) \
-	if (debug&&nodaemon) fprintf(stderr,"%s: " fmt "\n", progname, ##args)
+	if (debug&&nodaemon) warnx(fmt, ##args)
 
-char	*progname;
 int	debug = 0;
 int	nodaemon = 0;
 
@@ -150,12 +153,8 @@ main(int argc, char *argv[])
     int			c,i,cfd;
     u_char		b;
     ACTIVITY		*act;
-    struct termios	t;
     struct mouse_info 	mouse;
-    int			saved_buttons = 0;
     fd_set		fds;
-
-    progname = argv[0];
 
     while((c = getopt(argc,argv,"cdfsp:t:h?RDS:")) !=  -1)
 	switch(c)
@@ -225,13 +224,13 @@ main(int argc, char *argv[])
     default:
 	if (rodent.portname)
 	    break;
-	warnx("No port name specified");
+	warnx("no port name specified");
 	usage();
     }
 
     if ((rodent.mfd = open(rodent.portname, O_RDWR, 0)) == -1)
     {
-	warn("Can't open %s",rodent.portname);
+	warn("can't open %s",rodent.portname);
 	usage();
     }
     r_init();				/* call init function */
@@ -265,7 +264,7 @@ main(int argc, char *argv[])
 	    mouse.u.data.y = act->dy;
 	    mouse.u.data.buttons = act->buttons;
 	    ioctl(cfd, CONS_MOUSECTL, &mouse);
-	    debug("Activity : buttons 0x%02x  dx %d  dy %d",
+	    debug("activity : buttons 0x%02x  dx %d  dy %d",
 		    act->buttons,act->dx,act->dy);
 	}
     }
@@ -280,26 +279,9 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-    fprintf(stderr,
-	    " Usage is %s [options] -p <port> -t <mousetype>\n"
-	    "  Options are   -s   Select 9600 baud mouse.\n"
-	    "                -f   Don't become a daemon\n"
-	    "                -d   Enable debugging messages\n"
-	    "                -c   Enable ChordMiddle option\n"
-	    "                -R   Lower RTS\n"
-	    "                -D   Lower DTR\n"
-	    "                -S baud  Select explicit baud (1200..9600).\n"   
-	    "  <mousetype> should be one of :\n"
-	    "                microsoft\n"
-	    "                mousesystems\n"
-	    "                mmseries\n"
-	    "                logitech\n"
-	    "                busmouse\n"
-	    "                mouseman\n"
-	    "                ps/2\n"
-	    "                mmhittab\n"
-	    ,progname);
- 
+    fprintf(stderr, "%s\n%s\n",
+	"usage: moused [-DRcdfs] [-r samplerate] [-S baudrate]",
+	"              -p <port> -t <mousetype>");
     exit(1);
 }
 
@@ -561,7 +543,7 @@ r_protocol(u_char rBuf)
      * assembly full package
      */
 
-    debug("Assembled full packet (len %d) %x,%x,%x,%x,%x",
+    debug("assembled full packet (len %d) %x,%x,%x,%x,%x",
 	proto[rodent.rtype][4], pBuf[0],pBuf[1],pBuf[2],pBuf[3],pBuf[4]);
 
     switch(rodent.rtype) 
@@ -656,7 +638,7 @@ unsigned cflag;
 
 	if (tcgetattr(rodent.mfd, &tty) < 0)
 	{
-		err(1, "Warning: unable to get status of mouse fd");
+		err(1, "warning: unable to get status of mouse fd");
 	}
 
 	tty.c_iflag = IGNBRK | IGNPAR;
@@ -688,7 +670,7 @@ unsigned cflag;
 
 	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
 	{
-		err(1, "Unable to set status of mouse fd");
+		err(1, "unable to set status of mouse fd");
 	}
 
 	switch (new)
@@ -719,13 +701,13 @@ unsigned cflag;
 	{
 		if (write(rodent.mfd, c, 2) != 2)
 		{
-			err(1, "Unable to write to mouse fd");
+			err(1, "unable to write to mouse fd");
 		}
 	}
 	usleep(100000);
 
 	if (tcsetattr(rodent.mfd, TCSADRAIN, &tty) < 0)
 	{
-		err(1,"Unable to set status of mouse fd");
+		err(1,"unable to set status of mouse fd");
 	}
 }
