@@ -36,7 +36,7 @@ This file specifies the preferred style for kernel source files in the
 source tree.  It is also a guide for preferred userland code style.
 .Bd -literal -offset 0i
 /*
- * Style guide for the FreeBSD KNF (Kernel Normal Form).
+ * Style guide for the FreeBSD.  Based on KNF (Kernel Normal Form).
  */
 
 /*
@@ -497,8 +497,9 @@ relaxed but at a minimum should be internally consistent with their style.
 .Pp
 Stylistic changes (including whitespace changes) are hard on the source
 repository and are to be avoided without good reason.  Code that is
-approximately KNF compliant in the repository must not diverge from
-compliance.
+approximately
+.Xr style 9
+compliant in the repository must not diverge from compliance.
 .Pp
 Whenever possible, code should be run through a code checker
 (e.g., "gcc -Wall" or xlint(1)) and produce minimal warnings.
