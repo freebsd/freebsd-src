@@ -191,6 +191,7 @@ int	resource_list_release(struct resource_list *rl,
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,
 				 const char *format);
+
 /*
  * The root bus, to which all top-level busses are attached.
  */
