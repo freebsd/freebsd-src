@@ -84,7 +84,9 @@ A super-user may delete an entry for the host called
 .Ar hostname
 with the
 .Fl d
-flag.
+flag. May be combined with the
+.Fl a
+flag to delete all entries.
 .It Fl n
 Show network addresses as numbers (normally
 .Nm
@@ -109,7 +111,7 @@ server,
 responding to requests for 
 .Ar hostname
 even though the host address is not its own.
-In this case the ether_addr can be given as `auto''
+In this case the ether_addr can be given as ``auto''
 in which case the interfaces on this host will be examined,
 and if one of them is found to occupy the same subnet, its
 ether_addr will be used.
