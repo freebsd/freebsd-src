@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.49 1995/11/14 09:42:22 phk Exp $
+ * $Id: kern_sysctl.c,v 1.50 1995/11/14 20:43:29 phk Exp $
  */
 
 /*
@@ -584,9 +584,6 @@ oldstuff:
 		break;
 	case CTL_HW:
 		fn = hw_sysctl;
-		break;
-	case CTL_NET:
-		fn = net_sysctl;
 		break;
 	case CTL_FS:
 		fn = fs_sysctl;

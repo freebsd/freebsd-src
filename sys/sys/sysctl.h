@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.32 1995/11/12 19:52:09 phk Exp $
+ * $Id: sysctl.h,v 1.33 1995/11/14 09:42:10 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -376,7 +376,6 @@ typedef int (sysctlfn)
 sysctlfn dev_sysctl;
 sysctlfn fs_sysctl;
 sysctlfn hw_sysctl;
-sysctlfn net_sysctl;
 
 int sysctl_int __P((void *, size_t *, void *, size_t, int *));
 int sysctl_rdint __P((void *, size_t *, void *, int));
