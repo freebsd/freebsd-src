@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id$
+#	Makefile,v 1.2 1995/01/11 01:52:03 wollman Exp
 
 VOLUME=	psd/20.ipctut
 SRCS=	tutor.me

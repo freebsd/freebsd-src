@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.24.2.10 1995/06/09 11:51:23 jkh Exp $
+ * media.c,v 1.24.2.11 1995/06/10 01:42:19 jkh Exp
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

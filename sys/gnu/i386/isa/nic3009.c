@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.5 1995/03/28 07:54:33 bde Exp $";
+static char     nic39_id[] = "@(#)nic3009.c,v 1.6 1995/05/11 19:25:56 rgrimes Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 1.6   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,10 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.5 1995/03/28 07:54:33 bde E
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: nic3009.c,v $
+ * nic3009.c,v
+ * Revision 1.6  1995/05/11  19:25:56  rgrimes
+ * Fix -Wformat warnings from LINT kernel.
+ *
  * Revision 1.5  1995/03/28  07:54:33  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed

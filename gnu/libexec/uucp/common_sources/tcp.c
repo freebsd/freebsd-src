@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char tcp_rcsid[] = "$Id: tcp.c,v 1.2 1994/05/07 18:09:01 ache Exp $";
+const char tcp_rcsid[] = "tcp.c,v 1.3 1995/05/30 04:44:21 rgrimes Exp";
 #endif
 
 #if HAVE_TCP

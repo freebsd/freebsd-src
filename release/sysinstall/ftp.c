@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.8 1995/06/05 02:28:58 jkh Exp $
+ * ftp.c,v 1.13.2.9 1995/06/05 18:34:15 jkh Exp
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.

@@ -49,7 +49,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.2 1995/01/08 15:56:09 dufault Exp $
+ * ssc.c,v 1.3 1995/05/03 18:09:18 dufault Exp
  */
 
 #include <sys/types.h>

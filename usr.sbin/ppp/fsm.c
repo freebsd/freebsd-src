@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.2 1995/02/26 12:17:27 amurai Exp $
+ * fsm.c,v 1.3 1995/05/30 03:50:32 rgrimes Exp
  *
  *  TODO:
  *		o Refer loglevel for log output

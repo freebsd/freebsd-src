@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.4 1994/09/06 22:42:17 wollman Exp $
+ * igmp_var.h,v 1.5 1995/02/16 00:27:42 wollman Exp
  */
 
 #ifndef _NETINET_IGMP_VAR_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.8 1995/04/09 06:03:44 davidg Exp $
+ * ufs_readwrite.c,v 1.9 1995/04/24 05:13:15 dyson Exp
  */
 
 #ifdef LFS_READWRITE

@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 
 #ifndef lint
-static char rcsid[] = "$Id: input-scrub.c,v 1.3 1994/12/23 22:36:05 nate Exp $";
+static char rcsid[] = "input-scrub.c,v 1.4 1995/05/30 04:46:23 rgrimes Exp";
 #endif
 
 #include <errno.h>		/* Need this to make errno declaration right */

@@ -1,5 +1,5 @@
 # Makefile for tconv
-# $Id: Makefile,v 1.1.1.1 1994/10/09 17:40:30 ache Exp $
+# Makefile,v 1.2 1995/01/15 06:19:01 jkh Exp
 
 PROG=   tconv
 SRCS=   tconv.c quit.c

@@ -20,7 +20,10 @@
  * 	Copyright 1981 by Ken Harrenstien, SRI International.
  *	(ARPANET: KLH @ SRI)
  */
-/* $Log: maketime.c,v $
+/* maketime.c,v
+ * Revision 1.2  1995/05/30  05:04:02  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -74,7 +77,7 @@
 
 #include "rcsbase.h"
 
-libId(maketId, "$Id: maketime.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(maketId, "maketime.c,v 1.2 1995/05/30 05:04:02 rgrimes Exp")
 
 static struct tm const *time2tm P((time_t));
 

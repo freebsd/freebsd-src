@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.9 1995/03/16 20:23:42 wollman Exp $
+ *	procfs_vfsops.c,v 1.10 1995/05/25 01:35:23 davidg Exp
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vcmd.h	8.1 (Berkeley) 6/2/93
- * $Id: vcmd.h,v 1.2 1994/08/02 07:54:09 davidg Exp $
+ * vcmd.h,v 1.3 1994/08/21 04:42:12 paul Exp
  */
 
 #ifndef _SYS_VCMD_H_

@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_start.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfs_start.c,v 1.1.1.1 1994/05/26 05:22:00 rgrimes Exp $
+ * nfs_start.c,v 1.2 1995/05/30 03:45:53 rgrimes Exp
  *
  */
 

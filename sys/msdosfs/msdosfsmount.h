@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.2 1994/09/27 20:42:59 phk Exp $ */
+/*	msdosfsmount.h,v 1.3 1995/05/30 08:07:47 rgrimes Exp */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-

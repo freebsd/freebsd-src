@@ -1,5 +1,5 @@
 /*
- * $Id: symbol.c,v 1.5 1994/06/15 22:39:56 rich Exp $		- symbol table routines
+ * symbol.c,v 1.6 1994/12/23 22:30:54 nate Exp		- symbol table routines
  */
 
 /* Create the symbol table entries for `etext', `edata' and `end'.  */

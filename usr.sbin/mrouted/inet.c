@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: inet.c,v 1.4 1993/05/30 01:36:38 deering Exp $
+ * inet.c,v 1.2 1994/09/08 02:51:16 wollman Exp
  */
 
 

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id: Makefile,v 1.3 1994/09/24 02:57:03 davidg Exp $
+#	Makefile,v 1.4 1995/03/05 08:27:14 joerg Exp
 
 PROG=	rmail
 MAN8=	rmail.8

@@ -24,7 +24,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ipcs.c,v 1.2 1994/09/13 16:59:29 dfr Exp $
+ *	ipcs.c,v 1.3 1994/09/19 10:24:38 davidg Exp
  */
 
 #include <stdio.h>

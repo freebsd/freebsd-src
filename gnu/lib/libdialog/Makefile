@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.11 1995/05/03 18:53:19 ache Exp $
+# Makefile,v 1.12 1995/05/04 09:45:29 ache Exp
 
 LIB=    dialog
 SHLIB_MAJOR= 3

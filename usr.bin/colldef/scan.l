@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scan.l,v 1.1 1995/01/22 20:37:31 alex Exp alex $
+ * scan.l,v 1.1.1.1 1995/02/17 17:29:50 ache Exp
  */
 
 #include <err.h>

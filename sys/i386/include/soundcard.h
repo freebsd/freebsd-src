@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.h,v 1.12 1995/03/08 18:43:49 ugen Exp $
+ * soundcard.h,v 1.13 1995/05/30 08:00:52 rgrimes Exp
  */
 
  /*

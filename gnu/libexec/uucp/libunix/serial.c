@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char serial_rcsid[] = "$Id: serial.c,v 1.4 1994/05/07 18:11:09 ache Exp $";
+const char serial_rcsid[] = "serial.c,v 1.5 1995/05/30 04:44:48 rgrimes Exp";
 #endif
 
 #include "uudefs.h"

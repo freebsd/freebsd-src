@@ -1,11 +1,11 @@
 1c1
-< static char     rcsid[] = "@(#)$Id: iid.c,v 1.1 1994/12/19 07:25:48 jkr Exp $";
+< static char     rcsid[] = "@(#)Changes,v 1.1.1.1 1995/02/15 00:46:21 jkh Exp";
 ---
-> static char     rcsid[] = "@(#)$Id: iid.c,v 1.2 1994/12/22 16:53:13 jkr Exp $";
+> static char     rcsid[] = "@(#)Changes,v 1.1.1.1 1995/02/15 00:46:21 jkh Exp";
 3c3
-<  *  ISDN System  -  $Revision: 1.1 $   $State: Exp $
+<  *  ISDN System  -  1.1.1.1   Exp
 ---
->  *  ISDN System  -  $Revision: 1.2 $   $State: Exp $
+>  *  ISDN System  -  1.1.1.1   Exp
 13a14,17
 >  * Revision 1.2  1994/12/22  16:53:13  jkr
 >  * changes for rescan/signal

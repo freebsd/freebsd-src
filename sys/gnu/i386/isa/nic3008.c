@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.5 1995/05/11 19:25:55 rgrimes Exp $";
+static char     nic38_id[] = "@(#)nic3008.c,v 1.6 1995/05/30 07:57:57 rgrimes Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 1.6   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,10 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.5 1995/05/11 19:25:55 rgrim
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: nic3008.c,v $
+ * nic3008.c,v
+ * Revision 1.6  1995/05/30  07:57:57  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.5  1995/05/11  19:25:55  rgrimes
  * Fix -Wformat warnings from LINT kernel.
  *

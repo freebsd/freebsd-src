@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_chksum.c	8.1 (Berkeley) 6/10/93
- * $Id: iso_chksum.c,v 1.2 1994/08/02 07:50:31 davidg Exp $
+ * iso_chksum.c,v 1.3 1995/05/30 08:10:50 rgrimes Exp
  */
 
 /***********************************************************
@@ -61,8 +61,8 @@ SOFTWARE.
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
 /*
- * $Header: /home/ncvs/src/sys/netiso/iso_chksum.c,v 1.2 1994/08/02 07:50:31 davidg Exp $
- * $Source: /home/ncvs/src/sys/netiso/iso_chksum.c,v $
+ * /home/ncvs/src/sys/netiso/iso_chksum.c,v 1.3 1995/05/30 08:10:50 rgrimes Exp
+ * /home/ncvs/src/sys/netiso/iso_chksum.c,v
  *
  * ISO CHECKSUM
  *

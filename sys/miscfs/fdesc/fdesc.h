@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc.h	8.5 (Berkeley) 1/21/94
  *
- * $Id: fdesc.h,v 1.8 1993/04/06 15:28:33 jsp Exp $
+ * fdesc.h,v 1.1.1.1 1994/05/24 10:04:59 rgrimes Exp
  */
 
 #ifdef KERNEL

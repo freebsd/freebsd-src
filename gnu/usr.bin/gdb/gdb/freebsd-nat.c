@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.6 1995/05/09 13:59:22 rgrimes Exp $
+	freebsd-nat.c,v 1.7 1995/05/30 04:57:05 rgrimes Exp
 */
 
 #include <sys/types.h>

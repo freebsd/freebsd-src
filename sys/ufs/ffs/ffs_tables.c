@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_tables.c	8.1 (Berkeley) 6/11/93
- * $Id: ffs_tables.c,v 1.2 1994/08/02 07:54:22 davidg Exp $
+ * ffs_tables.c,v 1.3 1995/05/30 08:15:02 rgrimes Exp
  */
 
 #include <sys/param.h>

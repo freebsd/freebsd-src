@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_ihash.c	8.4 (Berkeley) 12/30/93
- * $Id: ufs_ihash.c,v 1.4 1994/10/08 06:57:23 phk Exp $
+ * ufs_ihash.c,v 1.5 1995/04/24 05:13:13 dyson Exp
  */
 
 #include <sys/param.h>

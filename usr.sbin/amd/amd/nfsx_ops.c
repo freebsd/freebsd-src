@@ -37,7 +37,7 @@
  *
  *	@(#)nfsx_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: nfsx_ops.c,v 5.2.2.3 1992/05/31 16:13:07 jsp Exp $
+ * nfsx_ops.c,v 1.1.1.1 1994/05/26 05:22:03 rgrimes Exp
  *
  */
 

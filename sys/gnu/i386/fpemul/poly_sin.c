@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: poly_sin.c,v 1.4 1994/06/10 07:44:41 rich Exp $
+ *     poly_sin.c,v 1.5 1994/08/31 04:45:22 davidg Exp
  *
  */
 

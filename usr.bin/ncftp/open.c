@@ -1,8 +1,8 @@
 /* open.c */
 
-/*  $RCSfile: open.c,v $
- *  $Revision: 1.1 $
- *  $Date: 93/07/09 11:27:07 $
+/*  open.c,v
+ *  1.5
+ *  1995/05/30 06:32:44
  */
 
 #include "sys.h"

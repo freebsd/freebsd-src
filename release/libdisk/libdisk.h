@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.18.2.1 1995/06/03 08:40:31 jkh Exp $
+ * libdisk.h,v 1.18.2.2 1995/06/05 02:24:32 jkh Exp
  *
  */
 

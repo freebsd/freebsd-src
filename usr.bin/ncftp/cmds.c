@@ -1,8 +1,8 @@
 /* cmds.c */
 
-/*  $RCSfile: cmds.c,v $
- *  $Revision: 1.1.1.1 $
- *  $Date: 1994/09/22 23:45:33 $
+/*  cmds.c,v
+ *  1.9
+ *  1995/05/30 06:32:40
  */
 
 #include "sys.h"

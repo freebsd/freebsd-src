@@ -36,7 +36,7 @@
  *
  *	@(#)pt_conf.c	8.1 (Berkeley) 6/5/93
  *
- * $Id: pt_conf.c,v 1.2 1992/05/27 07:09:27 jsp Exp jsp $
+ * pt_conf.c,v 1.1.1.1 1994/05/26 06:34:33 rgrimes Exp
  */
 
 #include <sys/types.h>

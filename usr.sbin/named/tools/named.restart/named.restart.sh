@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	from named.restart	5.4 (Berkeley) 6/27/89
-#	$Id: named.restart.sh,v 1.2 1994/09/22 20:45:26 pst Exp $
+#	named.restart.sh,v 1.3 1995/05/03 03:26:59 rgrimes Exp
 #
 
 # If there is a global system configuration file, suck it in.

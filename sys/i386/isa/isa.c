@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.49 1995/05/13 00:09:38 jkh Exp $
+ *	isa.c,v 1.50 1995/05/30 08:02:35 rgrimes Exp
  */
 
 /*

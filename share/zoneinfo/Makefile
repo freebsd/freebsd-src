@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1994/09/13 21:54:06 wollman Exp $
+#	Makefile,v 1.7 1994/09/13 22:02:46 wollman Exp
 
 NOBIN=
 CLEANFILES+=	yearistype

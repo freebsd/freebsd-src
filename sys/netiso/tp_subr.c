@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_subr.c,v 1.3 1995/04/26 21:32:40 pst Exp $
+ * tp_subr.c,v 1.4 1995/05/30 08:11:32 rgrimes Exp
  */
 
 /***********************************************************
@@ -63,8 +63,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_subr.c,v 1.3 1995/04/26 21:32:40 pst Exp $
- * $Source: /home/ncvs/src/sys/netiso/tp_subr.c,v $
+ * /home/ncvs/src/sys/netiso/tp_subr.c,v 1.4 1995/05/30 08:11:32 rgrimes Exp
+ * /home/ncvs/src/sys/netiso/tp_subr.c,v
  *
  * The main work of data transfer is done here.
  * These routines are called from tp.trans.

@@ -63,7 +63,7 @@ done.
 @page
 @tex
 \def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
-\xdef\manvers{\$Revision: 1.1 $}  % For use in headers, footers too
+\xdef\manvers{\1.1}  % For use in headers, footers too
 {\parskip=0pt
 \hfill \manvers\par
 \hfill \TeX{}info \texinfoversion\par

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.5 1994/09/10 20:03:14 csgr Exp $
+ *	endian.h,v 1.6 1995/02/12 08:31:31 jkh Exp
  */
 
 #ifndef _MACHINE_ENDIAN_H_

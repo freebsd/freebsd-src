@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dir.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * dir.h,v 1.2 1994/08/02 07:52:46 davidg Exp
  */
 
 /*

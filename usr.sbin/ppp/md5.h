@@ -21,7 +21,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id: md5.h,v 1.1.1.1 1995/01/31 06:29:56 amurai Exp $
+ * md5.h,v 1.2 1995/05/30 03:50:49 rgrimes Exp
  *
  */
 

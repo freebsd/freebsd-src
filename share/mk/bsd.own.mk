@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.1 1994/08/04 21:10:08 wollman Exp $
+#	bsd.own.mk,v 1.2 1994/09/16 14:30:21 jkh Exp
 
 BINGRP?=	bin
 BINOWN?=	bin

@@ -36,7 +36,7 @@
  *
  *	@(#)conf.c	8.2 (Berkeley) 3/27/94
  *
- * $Id: conf.c,v 1.2 1995/02/21 04:05:20 wollman Exp $
+ * conf.c,v 1.3 1995/05/30 06:09:25 rgrimes Exp
  */
 
 #include <stdio.h>

@@ -25,7 +25,7 @@
 
 #include "uucp.h"
 #if USE_RCS_ID
-char uusnap_rcsid[] = "$Id: uusnap.c,v 1.2 1994/05/07 18:09:40 ache Exp $";
+char uusnap_rcsid[] = "uusnap.c,v 1.3 1995/05/30 04:44:29 rgrimes Exp";
 #endif
 
 #include <ctype.h>

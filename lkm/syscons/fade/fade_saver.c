@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.1 1995/02/22 13:46:32 sos Exp $
+ *	fade_saver.c,v 1.2 1995/05/30 06:06:15 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile.bsd,v 1.2 1994/05/26 06:45:03 paulus Exp $
+#	Makefile,v 1.1.1.1 1994/11/12 05:25:32 lars Exp
 
 PROG=	chat
 SRCS=	chat.c

@@ -1,0 +1,93 @@
+# TODO File for the core-team as such.
+# Revision: core-team,v 1.6 1995/05/30 06:45:57 rgrimes Exp
+#
+# This is things and issues the coreteam need to resolve.
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Thu Apr 20 01:09:59 PDT 1995
+Due:	Apr 22 1995
+Prio:	High
+Task:	Should the files in the src-dist be "cvs co"'ed or "cvs export"'ed.
+
+Pro cvs co:
+
+	cvs Id's and other magic stuff survives, so it people send us a
+	patch we don't risk loosing the cvs core-team,v 1.6 1995/05/30 06:45:57 rgrimes Exp info.
+
+Pro cvs export:
+
+	If people import our source to a foreign cvs/rcs tree, we will not
+	loose our core-team,v 1.6 1995/05/30 06:45:57 rgrimes Exp info.
+
+Contra cvs export:
+
+	The diff (& ctm-delta) to current is big for no good reason.
+
+-*-
+
+Update: Thu Apr 20 01:09:59 PDT 1995
+Due:	Apr 22 1995
+Prio:	High
+Task:	RELEASE/RELDATE strings
+
+Should we set the RELEASE to "CURRENT-yyyymmdd" as default in current
+and fix it up in src/release/Makefile ?
+
+Should we set RELDATE to this month, or administratively at release time.
+
+Pro "this month":  We would get better granularity for -current).
+
+Pro "admin":  Thats the way Garrett meant it to be.
+
+-*-
+
+Update: Wed Apr 26 03:36:18 PDT 1995
+Due:	Apr 22 1995
+Prio:	High
+Task:	The name of 2.0.foo
+State:	Closed
+
+2.0.5 ...  2.0.9 or 2.1 ?
+
+Contra 2.0.5: pcvt jumped ahead of us :-/
+
+[It has been declared by executive decision of the new release engineer (me)
+ to be 2.0.5, period.  I needed to tell the artists something while everyone
+ was still wranging.  It's too late.  You will call it 2.0.5 and you will
+ like it. :-) -jkh]
+-*-
+
+Update: Mon Apr 24 17:48:20 PDT 1995
+Due:	Apr 27 1995
+Prio:	Low
+Task:	Change to config
+
+While I can see the general idea that config will generate a
+        -D<KERNELNAME>
+I have now received several emails from people with kernels named "DEBUG"
+and thats not fun.
+
+Would the world end if config was changed to generate
+        -DKERNEL_<KERNELNAME>
+instead ?
+
+-*-
+
+Update:	Mon Apr 24 22:20:29 PDT 1995
+Due:	Apr 30th 1995
+Prio:	High
+Task:	Decide on mailinglist <-> newsgroup connection
+
+1) Should we gate -hackers into a newsgroup
+	1-1-A) should we gate the newsgroup back ?
+	or
+	1-1-B) use some header to direct replies back
+
+	1-2) What newsgroup
+
+2) as above, but -questions
+
+3) as above, but -current
+
+-*-

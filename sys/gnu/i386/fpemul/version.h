@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: version.h,v 1.2 1994/04/29 21:34:28 gclarkii Exp $
+ *    version.h,v 1.3 1994/06/10 07:45:02 rich Exp
  *
  */
 

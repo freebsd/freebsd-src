@@ -36,7 +36,7 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $Id: lp.sh,v 1.1 1995/01/22 17:47:33 j Exp $
+# lp.sh,v 1.1 1995/01/23 19:22:43 joerg Exp
 #
 #
 # XXX Bugs:

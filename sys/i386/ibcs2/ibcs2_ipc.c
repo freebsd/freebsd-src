@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ipc.c,v 1.1 1994/10/14 08:53:04 sos Exp $
+ *	ibcs2_ipc.c,v 1.2 1995/05/30 07:59:56 rgrimes Exp
  */
 
 #include <i386/ibcs2/ibcs2.h>

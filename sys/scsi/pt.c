@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.4 1995/05/03 18:09:09 dufault Exp $
+ *      pt.c,v 1.5 1995/05/30 08:13:23 rgrimes Exp
  */
 
 /*

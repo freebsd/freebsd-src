@@ -19,7 +19,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: obj.h,v 1.1 1993/11/03 00:52:03 paul Exp $
+ * obj.h,v 1.2 1995/05/30 04:46:26 rgrimes Exp
  */
 
 

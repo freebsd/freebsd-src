@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.4 1995/05/09 12:25:58 rgrimes Exp $ */
+/* scd.c,v 1.5 1995/05/30 08:03:02 rgrimes Exp */
 
 /* Please send any comments to micke@dynas.se */
 

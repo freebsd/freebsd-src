@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/25/94
-#	$Id$
+#	Makefile,v 1.4 1994/09/22 22:16:48 wollman Exp
 
 PROG=	mountd
 CFLAGS+=-DNFS -DMFS -DCD9660 -DMSDOSFS

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
-#	$Id: Makefile,v 1.2 1994/09/24 02:56:59 davidg Exp $
+#	Makefile,v 1.3 1995/04/13 13:35:07 ache Exp
 
 PROG=	rm
 SRCS=   rm.c stat_flags.c

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm.h	8.2 (Berkeley) 12/13/93
- * $Id: vm.h,v 1.3 1994/08/02 07:55:16 davidg Exp $
+ * vm.h,v 1.4 1995/01/09 16:05:37 davidg Exp
  */
 
 #ifndef VM_H

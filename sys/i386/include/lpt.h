@@ -11,7 +11,7 @@
  *
  *	Geoff Rehmet, Rhodes University, South Africa <csgr@cs.ru.ac.za>
  *
- * $Id: lpt.h,v 1.2 1994/08/02 07:38:52 davidg Exp $
+ * lpt.h,v 1.3 1995/05/30 08:00:41 rgrimes Exp
  */
 
 #ifndef _LPT_PRINTER_H_

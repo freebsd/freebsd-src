@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.3 1995/05/16 19:10:11 sos Exp $
+ *	snake_saver.c,v 1.4 1995/05/30 06:06:18 rgrimes Exp
  */
 
 #include <sys/param.h>

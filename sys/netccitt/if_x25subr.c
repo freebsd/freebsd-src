@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.5 1995/04/26 18:10:50 pst Exp $
+ * if_x25subr.c,v 1.6 1995/05/30 08:08:46 rgrimes Exp
  */
 
 #include <sys/param.h>

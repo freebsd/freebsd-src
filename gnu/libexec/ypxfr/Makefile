@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1995/02/06 22:15:20 wpaul Exp $
+# Makefile,v 1.3 1995/03/31 05:45:18 wpaul Exp
 
 PROG=	ypxfr
 MAN8=	ypxfr.8

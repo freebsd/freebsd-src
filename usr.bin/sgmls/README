@@ -1,4 +1,4 @@
-$Id:$
+README,v 1.1.1.1 1995/04/27 16:03:39 jfieber Exp
 
 This the sgmls release 1.1 SGML parser written by James Clark
 jjc@jclark.com, repackaged for FreeBSD.  The original source may be

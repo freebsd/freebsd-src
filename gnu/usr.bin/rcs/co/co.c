@@ -33,11 +33,14 @@ Report problems and direct all questions to:
  */
 
 
-/* $Log: co.c,v $
+/* co.c,v
+ * Revision 1.3  1995/05/30  05:03:58  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/05/14  07:00:10  rgrimes
  * Add new option -K from David Dawes that allows you to turn on and off
  * specific keyword substitution during a rcs co command.
- * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to co.c,v 1.3 1995/05/30 05:03:58 rgrimes Exp.
  *
  * Revision 1.1.1.1  1993/06/18  04:22:11  jkh
  * Updated GNU utilities
@@ -172,7 +175,7 @@ static struct hshentries *gendeltas;	/* deltas to be generated	*/
 static struct hshentry *targetdelta;	/* final delta to be generated	*/
 static struct stat workstat;
 
-mainProg(coId, "co", "$Id: co.c,v 1.2 1994/05/14 07:00:10 rgrimes Exp $")
+mainProg(coId, "co", "co.c,v 1.3 1995/05/30 05:03:58 rgrimes Exp")
 {
 	static char const cmdusage[] =
 		"\nco usage: co -{flpqru}[rev] -ddate -jjoinlist -sstate -w[login] -Vn file ...";

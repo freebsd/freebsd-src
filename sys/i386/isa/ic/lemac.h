@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: lemac.h,v 1.1 1994/08/12 06:51:12 davidg Exp $
+ *      lemac.h,v 1.2 1995/05/30 08:03:36 rgrimes Exp
  */
 #ifndef _LEMAC_H_
 #define	_LEMAC_H_

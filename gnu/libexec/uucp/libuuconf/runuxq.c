@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_runuxq_rcsid[] = "$Id: runuxq.c,v 1.3 1994/03/25 04:39:39 ian Rel $";
+const char _uuconf_runuxq_rcsid[] = "runuxq.c,v 1.1 1994/05/07 18:12:51 ache Exp";
 #endif
 
 /* Return how often to spawn a uuxqt process.  This is either a

@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.5 1995/05/03 14:36:12 wpaul Exp $
+**	server.c,v 1.6 1995/05/30 05:05:35 rgrimes Exp
 **
 */
 

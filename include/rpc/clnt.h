@@ -28,7 +28,7 @@
  *
  *	from: @(#)clnt.h 1.31 88/02/08 SMI
  *	from: @(#)clnt.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: clnt.h,v 1.2 1994/08/07 18:40:55 wollman Exp $
+ *	clnt.h,v 1.3 1995/05/30 04:55:14 rgrimes Exp
  */
 
 /*

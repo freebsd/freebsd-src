@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.6 1995/04/09 15:04:50 jkh Exp $";
+static char *rcsid = "main.c,v 1.7 1995/05/30 03:49:53 rgrimes Exp";
 #endif
 
 /*

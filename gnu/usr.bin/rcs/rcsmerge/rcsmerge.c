@@ -34,7 +34,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsmerge.c,v $
+/* rcsmerge.c,v
+ * Revision 1.2  1995/05/30  05:04:30  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:16  jkh
  * Updated GNU utilities
  *
@@ -101,7 +104,7 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 1.1.1.1 1993/06/18 04:22:16 jkh Exp $")
+mainProg(rcsmergeId, "rcsmerge", "rcsmerge.c,v 1.2 1995/05/30 05:04:30 rgrimes Exp")
 {
 	static char const cmdusage[] =
 		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] [-p] [-Vn] file";

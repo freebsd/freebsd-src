@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: socksys.c,v 1.2 1995/01/24 04:22:19 bde Exp $
+ *	socksys.c,v 1.3 1995/05/30 06:06:11 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mdXhl.c,v 1.4 1995/04/27 16:05:51 wollman Exp $
+ * mdXhl.c,v 1.5 1995/05/30 05:45:17 rgrimes Exp
  *
  */
 

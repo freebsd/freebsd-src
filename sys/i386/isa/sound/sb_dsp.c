@@ -29,7 +29,7 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added code to support Sound Galaxy NX Pro
  *
- * $Id: sb_dsp.c,v 1.22 1994/12/10 22:55:50 ats Exp $
+ * sb_dsp.c,v 1.25 1995/03/12 23:34:02 swallace Exp
  */
 
 #include "sound_config.h"

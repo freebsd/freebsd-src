@@ -19,7 +19,7 @@
    notice and this notice must be preserved on all copies.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: flonum-mult.c,v 1.2 1993/11/03 00:51:36 paul Exp $";
+static char rcsid[] = "flonum-mult.c,v 1.3 1995/05/30 04:46:14 rgrimes Exp";
 #endif
 
 #include "flonum.h"

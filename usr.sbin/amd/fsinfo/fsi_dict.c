@@ -37,7 +37,7 @@
  *
  *	@(#)fsi_dict.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: fsi_dict.c,v 1.1.1.1 1994/05/26 05:22:17 rgrimes Exp $
+ * fsi_dict.c,v 1.2 1995/05/30 03:46:10 rgrimes Exp
  *
  */
 

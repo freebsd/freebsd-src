@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.5 1994/10/08 22:22:57 phk Exp $
+ * protosw.h,v 1.6 1995/02/07 02:01:57 wollman Exp
  */
 
 #ifndef _SYS_PROTOSW_H_

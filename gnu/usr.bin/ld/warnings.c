@@ -1,5 +1,5 @@
 /*
- * $Id: warnings.c,v 1.9 1994/12/23 22:30:57 nate Exp $
+ * warnings.c,v 1.10 1995/03/04 17:46:10 nate Exp
  */
 
 #include <sys/param.h>

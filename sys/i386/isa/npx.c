@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.22 1995/04/12 20:48:01 wollman Exp $
+ *	npx.c,v 1.23 1995/05/30 08:02:51 rgrimes Exp
  */
 
 #include "npx.h"

@@ -1,5 +1,5 @@
 /*
- * $Id: scsiio.h,v 1.3 1995/01/08 13:39:46 dufault Exp $
+ * scsiio.h,v 1.4 1995/04/28 19:26:02 dufault Exp
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_

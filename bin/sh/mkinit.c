@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkinit.c,v 1.3 1994/11/06 06:27:04 pst Exp $
+ *	mkinit.c,v 1.4 1995/05/30 00:07:19 rgrimes Exp
  */
 
 #ifndef lint

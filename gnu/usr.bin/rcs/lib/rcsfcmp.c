@@ -37,7 +37,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfcmp.c,v $
+/* rcsfcmp.c,v
+ * Revision 1.2  1995/05/30  05:04:08  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -104,7 +107,7 @@ Report problems and direct all questions to:
 
 #include  "rcsbase.h"
 
-libId(fcmpId, "$Id: rcsfcmp.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(fcmpId, "rcsfcmp.c,v 1.2 1995/05/30 05:04:08 rgrimes Exp")
 
 	static int
 discardkeyval(c, f)

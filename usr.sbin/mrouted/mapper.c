@@ -1,7 +1,7 @@
 /* Mapper for connections between MRouteD multicast routers.
  * Written by Pavel Curtis <Pavel@PARC.Xerox.Com>
  *
- * $Id: mapper.c,v 1.2 1994/09/08 02:51:19 wollman Exp $
+ * mapper.c,v 1.3 1995/05/30 03:48:17 rgrimes Exp
  */
 
 /*

@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.3 1995/03/28 07:54:44 bde Exp $";
+static char     _isdnid[] = "@(#)isdn.c,v 1.4 1995/05/30 07:58:02 rgrimes Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
+ *  II - Version 0.1 1.4   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,10 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.3 1995/03/28 07:54:44 bde Exp $
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: isdn.c,v $
+ * isdn.c,v
+ * Revision 1.4  1995/05/30  07:58:02  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.3  1995/03/28  07:54:44  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed

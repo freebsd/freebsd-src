@@ -3,9 +3,9 @@
 #ifndef _ftp_h_
 #define _ftp_h_
 
-/*  $RCSfile: ftp.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/07/09 11:04:12 $
+/*  ftp.h,v
+ *  1.1.1.1
+ *  1994/09/22 23:45:34
  */
 
 #define IS_FILE 1

@@ -67,7 +67,7 @@ char copyright[] =
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: host.c,v 1.2 1994/09/22 21:52:03 pst Exp $";
+static char rcsid[] = "host.c,v 1.3 1995/05/30 06:30:50 rgrimes Exp";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -38,7 +38,7 @@
 #
 #	@(#)arch	8.1 (Berkeley) 6/6/93
 #
-# $Id: arch,v 1.1.1.1 1994/05/26 05:22:08 rgrimes Exp $
+# arch,v 1.2 1995/02/02 03:36:51 jkh Exp
 #
 # Figure out machine architecture
 #

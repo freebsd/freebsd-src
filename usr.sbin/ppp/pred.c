@@ -5,7 +5,7 @@
 
 /*
  *
- * $Id: pred.c,v 1.2 1995/02/26 12:17:55 amurai Exp $
+ * pred.c,v 1.3 1995/05/30 03:50:55 rgrimes Exp
  *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm

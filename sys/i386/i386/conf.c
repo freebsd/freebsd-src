@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.84 1995/04/28 00:51:30 dufault Exp $
+ *	conf.c,v 1.85 1995/05/30 07:59:16 rgrimes Exp
  */
 
 #include <sys/param.h>

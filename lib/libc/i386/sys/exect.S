@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exect.S,v 1.1 1994/08/05 01:18:42 wollman Exp $
+ *	exect.S,v 1.2 1995/01/23 01:29:46 davidg Exp
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "exect.S,v 1.2 1995/01/23 01:29:46 davidg Exp"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"

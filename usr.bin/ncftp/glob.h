@@ -3,9 +3,9 @@
 #ifndef _glob_h_
 #define _glob_h_ 1
 
-/*  $RCSfile: glob.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/05/21 05:45:32 $
+/*  glob.h,v
+ *  1.1.1.1
+ *  1994/09/22 23:45:35
  */
 
 char **glob(char *v);

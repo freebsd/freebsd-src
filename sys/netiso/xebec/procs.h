@@ -1,5 +1,5 @@
-/* $Header: procs.h,v 2.1 88/09/19 12:56:30 nhall Exp $ */
-/* $Source: /var/home/tadl/src/argo/xebec/RCS/procs.h,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/procs.h,v 1.1.1.1 1994/05/24 10:07:46 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/procs.h,v */
 
 extern char *stash();
 extern struct Object *SameState;

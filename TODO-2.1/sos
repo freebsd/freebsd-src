@@ -1,0 +1,46 @@
+# TODO File for core-team member:		Soren Schmidt
+# Revision: sos,v 1.2 1995/05/30 06:45:59 rgrimes Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Wed Apr  5 21:46:44 MET DST 1995
+Due:	Before 2.1
+Prio:	High
+Task:	ata/atapi driver.
+
+Driver for ata3/atapi devices. This is the interface for the newer IDE
+CDROM drives. Basically its thought as a replacement for wd.c, but it
+won't handle old st506/ESDI drives (use wd.c for that).
+Its currently at a state where it can probe the devices, find out their
+type (ata/atapi/disk/cdrom), and initialize them proberly. It will also
+send atapi packets. Currently it can make a disklabel, and open/close
+the tray of my Mitsumi FX400 drive, so the communication is working.
+
+-*-
+
+Update: Wed Apr  5 21:46:44 MET DST 1995
+Due:	Before 2.1
+Prio:	Medium
+Task:	Linux binary support.
+
+LKM module for running Linux binaries. Main goal is to run (you guessed
+it) DOOM. Its now so far that it'l run bash both static and shared, but
+there is still a problem with signal handling/return status.
+
+-*-
+
+Update: Wed Apr  5 21:46:44 MET DST 1995
+Due:	Before 2.1
+Prio:	Medium
+Task:	New socksys driver for iBCS2 support
+
+A new socksys implementation for the iBCS2 support. The current one is
+overly complex (and it doesn't work right), this should clear up the
+situation and actually get us to run WordPerfect..
+
+-*-
+

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: lock.h,v 1.2 1994/08/02 07:55:11 davidg Exp $
+ * lock.h,v 1.3 1995/01/09 16:05:31 davidg Exp
  */
 
 /*

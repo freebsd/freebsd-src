@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.9 1995/02/16 01:07:43 wollman Exp $
+ * uipc_socket.c,v 1.10 1995/05/30 08:06:21 rgrimes Exp
  */
 
 #include <sys/param.h>

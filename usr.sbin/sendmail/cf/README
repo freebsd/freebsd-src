@@ -817,7 +817,7 @@ Sam Leffler's FlexFAX software is still in beta test -- but he expects a
 public version out "later this week" [as of 3/1/93].  The following
 blurb is direct from Sam:
 
-	$Header: /usr/people/sam/fax/RCS/HOWTO,v 1.14 93/05/24 11:42:16 sam Exp $
+	/home/ncvs/src/usr.sbin/sendmail/cf/README,v 1.1.1.1 1994/05/26 05:22:42 rgrimes Exp
 
 	How To Obtain This Software (in case all you get is this file)
 	--------------------------------------------------------------

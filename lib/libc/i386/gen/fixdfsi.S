@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	fixdfsi.S,v 1.2 1995/01/23 01:26:50 davidg Exp
  */
 
 	.file	"__fixdfsi.s"

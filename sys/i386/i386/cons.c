@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.27 1995/04/24 16:42:59 bde Exp $
+ *	cons.c,v 1.28 1995/05/30 07:59:18 rgrimes Exp
  */
 
 #include <sys/param.h>

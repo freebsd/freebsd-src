@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.11 1995/02/20 19:42:33 guido Exp $
+ * kern_resource.c,v 1.12 1995/05/30 08:05:39 rgrimes Exp
  */
 
 #include <sys/param.h>

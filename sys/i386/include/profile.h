@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.3 1994/08/21 04:55:29 paul Exp $
+ * profile.h,v 1.4 1994/09/15 16:27:14 paul Exp
  */
 
 #ifndef _I386_MACHINE_PROFILE_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	proc.h,v 1.2 1994/09/24 02:54:14 davidg Exp
  */
 
 /*

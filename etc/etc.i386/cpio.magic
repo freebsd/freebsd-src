@@ -1,5 +1,5 @@
 #!bin/sh
-#	$Id: cpio.magic,v 1.12 1994/06/28 07:20:30 jkh Exp $
+#	cpio.magic,v 1.13 1994/06/29 20:29:12 jkh Exp
 #
 set_tmp_dir()
 {

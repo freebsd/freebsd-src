@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.39 1995/05/09 23:06:59 jfieber Exp $
+#	BSD.usr.dist,v 1.40 1995/05/17 09:31:13 rgrimes Exp
 #
 
 /set type=dir uname=bin gname=bin mode=0755

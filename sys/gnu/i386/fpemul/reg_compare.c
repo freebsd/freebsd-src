@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: reg_compare.c,v 1.4 1994/08/31 04:45:23 davidg Exp $
+ *     reg_compare.c,v 1.5 1995/05/30 07:57:54 rgrimes Exp
  *
  */
 

@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp $";
+static char     _ittyid[] = "@(#)iitty.c,v 1.5 1995/03/28 07:54:43 bde Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 1.5   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,12 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp 
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: iitty.c,v $
+ * iitty.c,v
+ * Revision 1.5  1995/03/28  07:54:43  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.4  1995/02/28  00:20:30  pst
  * Incorporate bde's code-review comments.
  *

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stty.c,v 1.3 1995/04/29 15:00:34 bde Exp $
+ *	stty.c,v 1.4 1995/05/30 00:07:28 rgrimes Exp
  */
 
 #ifndef lint

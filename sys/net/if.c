@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.14 1995/05/27 04:37:24 davidg Exp $
+ * if.c,v 1.15 1995/05/30 08:07:58 rgrimes Exp
  */
 
 #include <sys/param.h>

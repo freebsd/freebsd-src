@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	rtprio.c,v 1.2 1994/10/02 04:48:21 davidg Exp
  */
 
 #include <sys/param.h>

@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.2 1995/02/21 10:46:25 olah Exp $
+# Makefile,v 1.3 1995/02/23 18:47:06 ache Exp
 
 LIB=    pcap
 

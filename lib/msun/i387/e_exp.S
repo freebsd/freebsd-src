@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$Id: e_exp.S,v 1.1.1.1 1994/08/19 09:40:00 jkh Exp $")
+RCSID("e_exp.S,v 1.2 1994/08/19 11:14:14 jkh Exp")
 
 /* e^x = 2^(x * log2(e)) */
 ENTRY(__ieee754_exp)

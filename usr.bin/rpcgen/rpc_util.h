@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_util.h 1.6 87/06/24 (C) 1987 SMI
  *	from: @(#)rpc_util.h	2.1 88/08/01 4.0 RPCSRC
- *	$Id: rpc_util.h,v 1.1 1994/08/07 18:01:38 wollman Exp $
+ *	rpc_util.h,v 1.2 1995/05/30 06:33:22 rgrimes Exp
  */
 
 /*

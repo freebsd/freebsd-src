@@ -5,7 +5,7 @@
  * Pubic Domain version written 26 Aug 1985 John Gilmore (ihnp4!hoptoad!gnu).
  *
  * @(#)list.c 1.18 9/23/86 Public Domain - gnu
- * $Id: is_tar.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $
+ * is_tar.c,v 1.2 1995/05/30 06:30:04 rgrimes Exp
  *
  * Comments changed and some code/comments reformatted
  * for file command by Ian Darwin.

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: kern.c,v 1.2 1994/09/08 02:51:17 wollman Exp $
+ * kern.c,v 1.3 1995/05/30 03:48:15 rgrimes Exp
  */
 
 

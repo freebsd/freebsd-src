@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)parser.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	parser.h,v 1.2 1994/09/24 02:58:09 davidg Exp
  */
 
 /* control characters in argument strings */

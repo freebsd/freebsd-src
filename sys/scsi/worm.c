@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.6 1995/05/03 23:53:32 dufault Exp $
+ *      worm.c,v 1.7 1995/05/30 08:13:58 rgrimes Exp
  */
 
 /* XXX This is PRELIMINARY.

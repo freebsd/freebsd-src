@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * subr_xxx.c,v 1.3 1994/08/02 07:42:36 davidg Exp
  */
 
 /*

@@ -20,8 +20,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.3 $ on $Date: 1994/11/04 02:11:30 $
- *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/program.c,v $
+/* RCS Info: 1.4 on 1995/05/30 04:41:27
+ *           /home/ncvs/src/gnu/games/chess/Xchess/program.c,v
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.

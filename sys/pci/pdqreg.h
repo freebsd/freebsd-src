@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdqreg.h,v 1.1 1995/03/14 09:16:07 davidg Exp $
+ * pdqreg.h,v 1.2 1995/05/30 08:13:15 rgrimes Exp
  *
- * $Log: pdqreg.h,v $
+ * pdqreg.h,v
+ * Revision 1.2  1995/05/30  08:13:15  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1  1995/03/14  09:16:07  davidg
  * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
  *

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tuba_subr.c,v 1.2 1994/08/02 07:51:34 davidg Exp $
+ * tuba_subr.c,v 1.3 1995/05/30 08:11:46 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.24 1995/05/18 02:59:22 davidg Exp $
+ * vm_fault.c,v 1.25 1995/05/30 08:15:59 rgrimes Exp
  */
 
 /*

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.116 1995/05/13 16:58:37 ache Exp $
+#	Makefile,v 1.117 1995/05/30 03:57:47 rgrimes Exp
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--

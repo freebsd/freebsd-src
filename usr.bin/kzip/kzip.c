@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.2 1995/04/25 05:27:04 phk Exp $
+ * kzip.c,v 1.3 1995/05/30 06:31:03 rgrimes Exp
  *
  */
 

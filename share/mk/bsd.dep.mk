@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.1 1994/08/04 21:10:07 wollman Exp $
+#	bsd.dep.mk,v 1.2 1995/02/08 21:35:24 bde Exp
 
 # some of the rules involve .h sources, so remove them from mkdep line
 .if !target(depend)

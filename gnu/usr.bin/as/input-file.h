@@ -20,7 +20,7 @@
 /*"input_file.c":Operating-system dependant functions to read source files.*/
 
 /*
- * $Id: input-file.h,v 1.2 1993/11/03 00:51:50 paul Exp $
+ * input-file.h,v 1.3 1995/05/30 04:46:22 rgrimes Exp
  */
 
 

@@ -3,9 +3,9 @@
 #ifndef _set_h_
 #define _set_h_
 
-/*  $RCSfile: set.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/06/26 06:21:32 $
+/*  set.h,v
+ *  1.1.1.1
+ *  1994/09/22 23:45:36
  */
 
 /* Variable types. */

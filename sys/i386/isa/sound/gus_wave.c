@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_wave.c,v 1.14 1995/03/12 23:33:52 swallace Exp $
+ * gus_wave.c,v 1.15 1995/03/17 21:27:39 swallace Exp
  */
 
 #include "sound_config.h"

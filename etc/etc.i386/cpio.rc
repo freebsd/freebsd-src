@@ -1,4 +1,4 @@
-#	$Id: cpio.rc,v 1.4 1994/06/04 12:00:51 jkh Exp $
+#	cpio.rc,v 1.5 1994/09/15 04:46:12 rgrimes Exp
 #
 
 stty status '^T'

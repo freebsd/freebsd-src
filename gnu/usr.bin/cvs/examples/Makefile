@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/02/22 21:49:46 roberto Exp $
+# Makefile,v 1.1 1995/04/08 17:50:48 nate Exp
 
 CVSFILES= commitinfo loginfo rcsinfo editinfo modules
 

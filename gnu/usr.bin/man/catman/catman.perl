@@ -35,7 +35,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.12 1995/05/19 21:07:26 w Exp w $
+# catman.perl,v 1.6 1995/05/20 19:02:53 ache Exp
 
 
 sub usage {

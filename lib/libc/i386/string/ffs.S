@@ -27,12 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ffs.S,v 1.1 1994/08/05 01:18:26 wollman Exp $
+ *	ffs.S,v 1.2 1995/01/23 01:28:54 davidg Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-        .asciz "$Id: ffs.S,v 1.1 1994/08/05 01:18:26 wollman Exp $"
+        .asciz "ffs.S,v 1.2 1995/01/23 01:28:54 davidg Exp"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

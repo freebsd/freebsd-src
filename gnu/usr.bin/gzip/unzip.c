@@ -14,7 +14,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: unzip.c,v 0.13 1993/06/10 13:29:00 jloup Exp $";
+static char rcsid[] = "unzip.c,v 1.3 1993/10/14 00:33:24 nate Exp";
 #endif
 
 #include "tailor.h"

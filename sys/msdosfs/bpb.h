@@ -1,4 +1,4 @@
-/*	$Id: bpb.h,v 1.1 1994/09/19 15:41:37 dfr Exp $ */
+/*	bpb.h,v 1.2 1995/05/30 08:07:30 rgrimes Exp */
 /*	$NetBSD: bpb.h,v 1.3 1994/06/29 06:35:29 cgd Exp $	*/
 
 /*

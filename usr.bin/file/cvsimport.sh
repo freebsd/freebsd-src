@@ -3,7 +3,7 @@
 # This shell script can be used in order to handle future imports
 # of newer versions of file(1)
 #
-# $Id$
+# cvsimport.sh,v 1.1 1994/09/03 23:08:40 csgr Exp
 if [ $# -ne 2 ] ; then 
 	echo "usage: $0 <major> <minor>" 1>&2
 	exit 1

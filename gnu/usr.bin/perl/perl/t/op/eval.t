@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile: eval.t,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:30:02 $
+# eval.t,v1.1.1.11994/09/10 06:27:42
 
 print "1..16\n";
 

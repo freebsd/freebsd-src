@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: tzsetup.h,v 1.1 1995/04/24 21:04:35 wollman Exp $
+ * 	tzsetup.h,v 1.2 1995/05/30 03:52:51 rgrimes Exp
  */
 
 struct country {

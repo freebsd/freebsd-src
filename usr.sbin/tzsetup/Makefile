@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/09/13 23:01:57 wollman Exp $
+#	Makefile,v 1.2 1995/04/24 21:04:30 wollman Exp
 
 PROG=	tzsetup
 NOMAN=

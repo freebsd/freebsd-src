@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftree.c,v 1.2 1994/09/24 02:56:20 davidg Exp $
+ *	ftree.c,v 1.3 1995/05/30 00:06:57 rgrimes Exp
  */
 
 #ifndef lint

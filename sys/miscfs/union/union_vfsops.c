@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.7 (Berkeley) 3/5/94
- * $Id: union_vfsops.c,v 1.9 1995/03/16 20:23:44 wollman Exp $
+ * union_vfsops.c,v 1.10 1995/05/30 08:07:26 rgrimes Exp
  */
 
 /*

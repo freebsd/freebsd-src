@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: mount_msdos.c,v 1.2 1994/09/22 22:16:35 wollman Exp $";
+static char rcsid[] = "mount_msdos.c,v 1.3 1994/11/01 23:51:42 wollman Exp";
 #endif /* not lint */
 
 #include <sys/cdefs.h>

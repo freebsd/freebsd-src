@@ -1,6 +1,6 @@
 FreeBSD and NFS [for a FAQ]
 
-$Id: nfs.FAQ,v 1.2 1995/01/03 15:54:05 gclarkii Exp $
+nfs.FAQ,v 1.1 1995/03/21 20:19:34 jkh Exp
 
 Certain Ethernet adapters for ISA PC systems have limitations which
 can lead to serious network problems, particularly with NFS.  This

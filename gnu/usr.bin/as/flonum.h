@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: flonum.h,v 1.2 1993/11/03 00:51:37 paul Exp $
+ * flonum.h,v 1.3 1995/05/30 04:46:15 rgrimes Exp
  */
 
 

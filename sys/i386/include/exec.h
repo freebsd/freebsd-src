@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.1 (Berkeley) 6/11/93
- * $Id: exec.h,v 1.4 1994/08/09 14:39:56 jkh Exp $
+ * exec.h,v 1.5 1994/09/24 21:36:38 davidg Exp
  */
 
 #ifndef	_EXEC_H_

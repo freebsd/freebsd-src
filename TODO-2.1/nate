@@ -1,0 +1,37 @@
+# TODO File for core-team member:		Nate Williams
+# Revision: nate,v 1.2 1995/05/30 06:45:58 rgrimes Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Thu Apr  6 22:24:38 PDT 1995
+Due:	Before 2.1
+Prio:	High
+Task:	Fix the linker to enforce command line order linking when mixing
+        static/shared libraries.
+
+The state of affairs of the linker when mixing static and shared
+libraries is non-intuitive.  A program can have completely different
+runtime behavior dependant on if it compiled shared/static, which is
+bogus IMHO.  This 'feature' crops up in many unrelated areas of FreeBSD
+and needs to be resolved correctly.  Unfortunately, it may require a
+complete re-write of some of the underlying functions in both ld and
+ld.so.
+
+-*-
+
+Update: Thu Apr  6 22:24:38 PDT 1995
+Due:	Unspcified
+Prio:	Low
+Task:	Integrate the VM86() patches posted on the NetBSD mailing list
+        into FreeBSD for inclusion as an 'experimental' project
+
+John Kohl posted patches to the NetBSD mailing list to implement a
+vm86() call.  These patches do not patch cleanly into FreeBSD, and may
+not even work after they do.  I'd like to get them in so that people can
+go off and try  things with at least a basis to start from.
+
+-*-

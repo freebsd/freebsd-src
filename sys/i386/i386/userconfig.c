@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.27 1995/05/08 06:14:16 jkh Exp $
+ *      userconfig.c,v 1.28 1995/05/30 07:59:44 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_rrip.h	8.2 (Berkeley) 1/23/94
- * $Id$
+ * iso_rrip.h,v 1.2 1994/08/02 07:41:40 davidg Exp
  */
 
 

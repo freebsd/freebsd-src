@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: file_subs.c,v 1.2 1994/09/24 02:56:19 davidg Exp $
+ *	file_subs.c,v 1.3 1995/05/30 00:06:56 rgrimes Exp
  */
 
 #ifndef lint

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_zpreg.h,v 1.1 1995/02/17 02:22:53 phk Exp $
+ *	if_zpreg.h,v 1.2 1995/05/30 08:02:33 rgrimes Exp
  */
 /**************************************************************************
  *										  *

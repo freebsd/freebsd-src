@@ -36,7 +36,7 @@
  *	@(#)null_vfsops.c	8.2 (Berkeley) 1/21/94
  *
  * @(#)lofs_vfsops.c	1.2 (Berkeley) 6/18/92
- * $Id: null_vfsops.c,v 1.6 1995/03/16 20:23:39 wollman Exp $
+ * null_vfsops.c,v 1.7 1995/05/30 08:07:01 rgrimes Exp
  */
 
 /*

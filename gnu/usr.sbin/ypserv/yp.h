@@ -10,7 +10,7 @@
  * Modification history:
  *    940716 pen@signum.se      Change "ypreq_key" to "ypreq_nokey" for FIRST.
  *
- *	$Id: yp.h,v 1.1 1995/01/31 08:58:55 wpaul Exp $
+ *	yp.h,v 1.2 1995/05/30 05:05:36 rgrimes Exp
  */
 
 #ifndef _YP_H_RPCGEN

@@ -32,7 +32,7 @@
 #
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: adduser.perl,v 1.6 1995/04/30 19:20:25 ache Exp $
+# adduser.perl,v 1.7 1995/05/20 13:05:22 jkh Exp
 #
 
 # read variables

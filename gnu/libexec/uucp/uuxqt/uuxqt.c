@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuxqt_rcsid[] = "$Id: uuxqt.c,v 1.3 1994/10/22 03:51:36 ache Exp $";
+const char uuxqt_rcsid[] = "uuxqt.c,v 1.4 1995/05/30 04:45:47 rgrimes Exp";
 #endif
 
 #include <errno.h>

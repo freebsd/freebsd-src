@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.24 1995/05/12 19:17:31 wollman Exp $
+ * kern_sysctl.c,v 1.25 1995/05/30 08:05:46 rgrimes Exp
  */
 
 /*

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/11/10 03:47:23 smace Exp $
+#	Makefile,v 1.1.1.1 1994/08/28 15:06:02 csgr Exp
 
 PROG = rusers
 MAN1 = rusers.1

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.4 1995/04/15 02:30:12 davidg Exp $
+ *	procfs_subr.c,v 1.5 1995/05/30 08:07:11 rgrimes Exp
  */
 
 #include <sys/param.h>

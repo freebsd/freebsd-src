@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.2 1995/02/15 06:28:27 jkh Exp $";
+static char     _ispyid[] = "@(#)iispy.c,v 1.3 1995/03/28 07:54:40 bde Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 1.3   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,12 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.2 1995/02/15 06:28:27 jkh Exp 
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: iispy.c,v $
+ * iispy.c,v
+ * Revision 1.3  1995/03/28  07:54:40  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.2  1995/02/15  06:28:27  jkh
  * Fix up include paths, nuke some warnings.
  *

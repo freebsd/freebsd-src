@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_edreg.h,v 1.17 1995/01/23 19:06:08 davidg Exp $
+ * if_edreg.h,v 1.18 1995/05/30 08:02:00 rgrimes Exp
  */
 /*
  * National Semiconductor DS8390 NIC register definitions

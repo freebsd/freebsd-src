@@ -33,7 +33,7 @@ static char copright[] =
 "@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
  All rights reserved.\n";
 
-static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
+static char rcsid[] = "main.c,v 1.2 1995/05/30 03:51:39 rgrimes Exp";
 #endif
 
 /*

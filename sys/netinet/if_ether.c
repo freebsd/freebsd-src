@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.16 1995/05/11 00:13:16 wollman Exp $
+ * if_ether.c,v 1.17 1995/05/30 08:09:18 rgrimes Exp
  */
 
 /*

@@ -30,7 +30,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcskeys.c,v $
+/* rcskeys.c,v
+ * Revision 1.5  1995/05/30  05:04:14  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.4  1994/06/22  00:51:42  rgrimes
  * Fix serious off by one error for FreeBSD keyword, this has been driving
  * me nuts as it was on by default and that is NOT what I wanted.
@@ -43,7 +46,7 @@ Report problems and direct all questions to:
  * Revision 1.2  1994/05/14  07:00:23  rgrimes
  * Add new option -K from David Dawes that allows you to turn on and off
  * specific keyword substitution during a rcs co command.
- * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id: rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp $.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to rcskeys.c,v 1.5 1995/05/30 05:04:14 rgrimes Exp.
  *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
@@ -77,7 +80,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.4 1994/06/22 00:51:42 rgrimes Exp $")
+libId(keysId, "rcskeys.c,v 1.5 1995/05/30 05:04:14 rgrimes Exp")
 
 
 char const *const Keyword[] = {

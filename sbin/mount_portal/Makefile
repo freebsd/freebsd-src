@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 3/27/94
-#	$Id$
+#	Makefile,v 1.4 1995/02/21 04:05:17 wollman Exp
 
 PROG=	mount_portal
 SRCS=	mount_portal.c activate.c conf.c getmntopts.c pt_conf.c \

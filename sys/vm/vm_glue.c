@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.19 1995/04/16 12:56:15 davidg Exp $
+ * vm_glue.c,v 1.20 1995/05/30 08:16:01 rgrimes Exp
  */
 
 #include <sys/param.h>

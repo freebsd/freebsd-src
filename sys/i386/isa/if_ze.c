@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.16 1995/05/24 20:33:42 davidg Exp $
+ * if_ze.c,v 1.17 1995/05/30 08:02:27 rgrimes Exp
  */
 
 #include "ze.h"

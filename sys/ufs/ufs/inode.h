@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.4 (Berkeley) 1/21/94
- * $Id: inode.h,v 1.5 1995/04/24 05:13:11 dyson Exp $
+ * inode.h,v 1.6 1995/05/30 08:15:30 rgrimes Exp
  */
 
 #ifndef _UFS_UFS_INODE_H_

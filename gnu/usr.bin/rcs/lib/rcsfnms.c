@@ -37,7 +37,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfnms.c,v $
+/* rcsfnms.c,v
+ * Revision 1.2  1995/05/30  05:04:10  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -143,7 +146,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(fnmsId, "rcsfnms.c,v 1.2 1995/05/30 05:04:10 rgrimes Exp")
 
 char const *RCSfilename;
 char *workfilename;

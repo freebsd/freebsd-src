@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.4 1995/03/04 20:51:07 dufault Exp $
+ *      su.c,v 1.5 1995/05/03 18:09:20 dufault Exp
  *
  * Tabstops 4
  */

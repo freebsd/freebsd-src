@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_usrreq.c,v 1.2 1994/08/02 07:47:46 davidg Exp $
+ * pk_usrreq.c,v 1.3 1995/05/30 08:09:09 rgrimes Exp
  */
 
 #include <sys/param.h>

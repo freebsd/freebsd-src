@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: route.h,v 1.3 1993/05/30 01:36:38 deering Exp $
+ * route.h,v 1.2 1994/09/08 02:51:26 wollman Exp
  */
 
 /*

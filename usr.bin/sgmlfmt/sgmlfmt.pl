@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
+# sgmlfmt.pl,v 1.2 1995/05/18 03:01:28 jfieber Exp
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation

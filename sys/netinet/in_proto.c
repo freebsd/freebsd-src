@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: in_proto.c,v 1.14 1995/05/11 00:13:17 wollman Exp $
+ *	in_proto.c,v 1.15 1995/05/30 08:09:30 rgrimes Exp
  */
 
 #include <sys/param.h>

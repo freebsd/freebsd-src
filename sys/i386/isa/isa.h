@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: isa.h,v 1.13 1995/01/25 20:11:50 jmz Exp $
+ *	isa.h,v 1.14 1995/02/25 20:26:14 phk Exp
  */
 
 #ifndef _I386_ISA_ISA_H_

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: func.c,v 1.2 1994/09/24 02:54:04 davidg Exp $
+ *	func.c,v 1.3 1995/05/30 00:06:34 rgrimes Exp
  */
 
 #ifndef lint

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1994/06/05 21:57:03 csgr Exp $
+# Makefile,v 1.8 1994/08/28 18:33:42 bde Exp
 
 .if exists(${.CURDIR}/obj)
 MAN1=  ${.CURDIR}/obj/apropos.1

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1994/09/08 02:51:33 wollman Exp $
+#	Makefile,v 1.2 1995/03/31 21:16:56 wollman Exp
 
 PROG=	map-mbone
 

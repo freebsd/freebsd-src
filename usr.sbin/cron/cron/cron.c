@@ -16,7 +16,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id: cron.c,v 2.11 1994/01/15 20:43:43 vixie Exp $";
+static char rcsid[] = "cron.c,v 1.1.1.1 1994/08/27 13:43:03 jkh Exp";
 #endif
 
 

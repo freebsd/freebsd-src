@@ -1,6 +1,9 @@
-/* $RCSfile: malloc.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:33 $
+/* malloc.c,v1.21995/05/30 05:03:09
  *
- * $Log: malloc.c,v $
+ * malloc.c,v
+ * Revision 1.2  1995/05/30  05:03:09  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:33  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

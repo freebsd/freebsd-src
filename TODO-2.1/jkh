@@ -1,0 +1,78 @@
+# TODO File for core-team member:		Jordan Hubbard
+# Revision: jkh,v 1.6 1995/05/16 05:32:58 jkh Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Mon May 15 22:30:05 PDT 1995
+Due:	Closed
+Prio:	High
+Task:	Forms language spec and first implementation for "ncurses graphics"
+
+Finish this up with the install-geeks after Paul gets back from Tallin
+(lucky dog).  Need to have the first few screens up and in the generally
+planned framework before any of this will really start to make sense.
+
+[Closed: This is no longer a 2.1 item]
+-*-
+
+Update: Mon May 15 22:30:05 PDT 1995
+Due:    Mid-April
+Prio:   Closed
+Task:	Investigate libftp.
+
+Need to see if libftp can let me dump ncftp from the boot floppy and
+use a more directly controlled (error handling and timeouts!  yes!) ftp
+interface directly from sysinstall.  This would also allow me to fetch
+index files on the fly and digest their contents easily.  How about a
+scheme that elimiated the temp files on your HD during an ftp install at
+all?  Just fork and have the child end feed you the pieces down a pipe
+in order, that'd work!  Libftp definitely has possibilities.
+
+[Closed:  libftp doesn't support passive mode transfers and is therefore
+useless for my purposes]
+-*-
+
+Update:	Mon May 15 22:30:05 PDT 1995
+Due:    late-May
+Prio:   High
+Task:   Reorganise the /etc/*ly crud.
+
+I can't stand it.  I have to do it.  I promise to at least plan it
+out in advance before doing anything this time!  Honest! :-)
+[Revised due-date:  This won't happen right away]
+-*-
+
+Update:	Mon May 15 22:30:05 PDT 1995
+Due:	end-May
+Prio:	High
+Task:	Identify the default docfile browser and get it into the system.
+
+Something is going to be invoked on our docfiles as part of the
+installation (what happens when you type F1) and I'd like to make sure
+I know what it is (Lynx?  info?  Something else?).
+[Revised due-date: This isn't going to make it into 2.0.5, clearly]
+-*-
+
+Update: Mon May 15 22:30:05 PDT 1995
+Due:	Mid-April
+Prio:	Finished
+Task:	Fix the broken pkg_delete command
+
+Either John's changes or my merging of those changes really hosed pkg_delete
+and the delete routines used by pkg_add as well.
+[Closed:  Problem was fixed]
+-*-
+
+Update: Mon May 15 22:30:05 PDT 1995
+Due:	?
+Prio:	Med
+Task:	Update pkg_install to not rely on libftp.
+
+libftp doesn't handle passive ftp connections, making it useless
+for firewall situations.  pkg_install needs to stop relying on it
+for this reason.
+-*-

@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.14 1995/03/25 16:52:11 davidg Exp $
+	syscalls.master,v 1.15 1995/04/23 12:20:52 ache Exp
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.

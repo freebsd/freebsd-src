@@ -1,4 +1,4 @@
-;	$Id$
+;	named.root,v 1.2 1995/03/23 08:43:03 rgrimes Exp
 ;
 ;       This file holds the information on root name servers needed to
 ;       initialize cache of Internet domain name servers 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
- * $Id$
+ * ioccom.h,v 1.2 1994/08/02 07:53:03 davidg Exp
  */
 
 #ifndef	_SYS_IOCCOM_H_

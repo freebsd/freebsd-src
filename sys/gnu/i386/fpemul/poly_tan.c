@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id: poly_tan.c,v 1.4 1994/06/10 07:44:42 rich Exp $
+ *      poly_tan.c,v 1.5 1995/05/30 07:57:52 rgrimes Exp
  *
  */
 

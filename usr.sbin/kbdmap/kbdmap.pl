@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: kbdmap.pl,v 1.10 1995/04/03 21:13:52 w Exp $
+# kbdmap.pl,v 1.2 1995/04/05 08:09:24 jkh Exp
 #
 
 # simple test if syscons works

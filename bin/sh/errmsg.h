@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errmsg.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	errmsg.h,v 1.2 1994/09/24 02:57:26 davidg Exp
  */
 
 #define E_OPEN 01

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: mcount.c,v 1.3 1994/09/15 15:41:48 paul Exp $
+ * mcount.c,v 1.4 1995/05/30 08:06:39 rgrimes Exp
  */
 
 #include <sys/param.h>

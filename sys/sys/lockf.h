@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lockf.h	8.1 (Berkeley) 6/11/93
- * $Id: lockf.h,v 1.1 1994/08/08 17:30:58 davidg Exp $
+ * lockf.h,v 1.2 1994/08/21 04:41:50 paul Exp
  */
 
 #ifndef _SYS_LOCKF_H_

@@ -1,4 +1,4 @@
-/*	$Id: nl_types.h,v 1.1 1995/03/30 12:47:56 jkh Exp $ */
+/*	nl_types.h,v 1.2 1995/05/30 04:54:42 rgrimes Exp */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.

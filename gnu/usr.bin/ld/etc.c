@@ -1,5 +1,5 @@
 /*
- * $Id: etc.c,v 1.7 1994/02/13 20:41:05 jkh Exp $
+ * etc.c,v 1.8 1994/06/15 22:39:32 rich Exp
  */
 
 #include <err.h>

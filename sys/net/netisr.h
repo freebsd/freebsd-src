@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.5 1995/01/05 19:51:47 se Exp $
+ * netisr.h,v 1.6 1995/05/11 00:13:10 wollman Exp
  */
 
 #ifndef _NET_NETISR_H_

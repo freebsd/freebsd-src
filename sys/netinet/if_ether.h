@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.h	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.h,v 1.8 1995/04/02 01:26:26 wpaul Exp $
+ * if_ether.h,v 1.9 1995/05/30 08:09:20 rgrimes Exp
  */
 
 #ifndef _NETINET_IF_ETHER_H_

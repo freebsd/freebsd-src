@@ -36,7 +36,7 @@
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
  *
- * $Id: pathnames.h,v 1.2 1992/05/27 07:09:27 jsp Exp jsp $
+ * pathnames.h,v 1.1.1.1 1994/05/26 06:34:32 rgrimes Exp
  */
 
 #include <paths.h>

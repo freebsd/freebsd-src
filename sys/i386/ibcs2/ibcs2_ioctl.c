@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_ioctl.c,v 1.3 1994/10/23 19:19:42 sos Exp $
+ *	ibcs2_ioctl.c,v 1.4 1995/05/30 07:59:54 rgrimes Exp
  */
 
 #include <i386/ibcs2/ibcs2.h>

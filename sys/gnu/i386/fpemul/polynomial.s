@@ -64,7 +64,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *     $Id: polynomial.s,v 1.2 1994/04/29 21:23:31 gclarkii Exp $
+ *     polynomial.s,v 1.3 1994/06/10 07:44:43 rich Exp
  *
  */
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)redir.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	redir.h,v 1.2 1994/09/24 02:58:11 davidg Exp
  */
 
 /* flags passed to redirect */

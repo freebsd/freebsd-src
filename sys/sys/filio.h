@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)filio.h	8.1 (Berkeley) 3/28/94
- * $Id$
+ * filio.h,v 1.2 1994/08/02 07:53:01 davidg Exp
  */
 
 #ifndef	_SYS_FILIO_H_

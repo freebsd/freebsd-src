@@ -3,9 +3,12 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp $
+ * patchlevel.h,v 1.2 1995/05/30 06:30:06 rgrimes Exp
  *
- * $Log: patchlevel.h,v $
+ * patchlevel.h,v
+ * Revision 1.2  1995/05/30  06:30:06  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/03  19:16:23  csgr
  * Bring in file 3.14 by Ian Darwin (and Christos Zoulas)
  *

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
- * $Id: nfsm_subs.h,v 1.5 1994/10/17 17:47:42 phk Exp $
+ * nfsm_subs.h,v 1.6 1995/05/30 08:12:51 rgrimes Exp
  */
 
 #ifndef _NFS_NFSM_SUBS_H_

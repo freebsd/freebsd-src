@@ -1,4 +1,4 @@
-#	$Id$
+#	Makefile,v 1.1 1994/09/13 03:36:15 wollman Exp
 
 .PATH:	${.CURDIR}/..
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ls.c,v 1.5 1995/03/19 13:28:44 joerg Exp $
+ *	ls.c,v 1.6 1995/03/23 19:05:00 phk Exp
  */
 
 #ifndef lint

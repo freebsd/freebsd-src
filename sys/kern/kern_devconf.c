@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.9 1995/04/13 15:33:14 wollman Exp $
+ *	kern_devconf.c,v 1.10 1995/05/30 08:05:23 rgrimes Exp
  */
 
 /*

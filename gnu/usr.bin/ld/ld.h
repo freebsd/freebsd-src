@@ -1,5 +1,5 @@
 /*
- *	$Id: ld.h,v 1.13 1995/03/04 17:46:07 nate Exp $
+ *	ld.h,v 1.14 1995/05/30 05:01:45 rgrimes Exp
  */
 /*-
  * This code is derived from software copyrighted by the Free Software

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.19 1995/01/21 15:20:23 bde Exp $
+ *	swtch.s,v 1.20 1995/02/17 02:22:42 phk Exp
  */
 
 #include "npx.h"	/* for NNPX */

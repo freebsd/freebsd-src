@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.16 (Berkeley) 8/15/94
-#	$Id: Makefile,v 1.1 1995/01/11 03:24:15 wollman Exp $
+#	Makefile,v 1.2 1995/05/30 06:58:01 rgrimes Exp
 
 VOLUME=	usd/13.viref
 SRCS=	vi.ref ${.OBJDIR}/index.so

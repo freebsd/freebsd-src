@@ -37,7 +37,7 @@
  *
  *	@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93
  *
- * $Id: mk-amd-map.c,v 5.2.2.1 1992/02/09 15:09:18 jsp beta $
+ * mk-amd-map.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp
  */
 
 /*
@@ -53,7 +53,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: mk-amd-map.c,v 5.2.2.1 1992/02/09 15:09:18 jsp beta $";
+static char rcsid[] = "mk-amd-map.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp";
 static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
 #endif /* not lint */
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_meas.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_meas.h,v 1.3 1994/08/21 06:14:25 paul Exp $
+ * tp_meas.h,v 1.4 1995/05/30 08:11:21 rgrimes Exp
  */
 
 #ifndef _NETISO_TP_MEAS_H_

@@ -1,6 +1,6 @@
 /*
  *
- *    $Id: fpu_proto.h,v 1.2 1994/04/29 21:16:23 gclarkii Exp $
+ *    fpu_proto.h,v 1.3 1995/03/16 18:11:11 bde Exp
  *
  */
 

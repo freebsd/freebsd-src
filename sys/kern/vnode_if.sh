@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id$
+# vnode_if.sh,v 1.2 1994/08/02 07:43:34 davidg Exp
 #
 
 # Script to produce VFS front-end sugar.

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cpio.h	8.1 (Berkeley) 5/31/93
- *	$Id: cpio.h,v 1.2 1994/09/24 02:56:17 davidg Exp $
+ *	cpio.h,v 1.3 1995/05/30 00:06:55 rgrimes Exp
  */
 
 /*

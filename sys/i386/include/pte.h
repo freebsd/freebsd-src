@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pte.h	5.5 (Berkeley) 5/9/91
- *	$Id: pte.h,v 1.7 1994/09/04 23:10:25 davidg Exp $
+ *	pte.h,v 1.8 1995/05/30 08:00:49 rgrimes Exp
  */
 
 #ifndef _MACHINE_PTE_H_

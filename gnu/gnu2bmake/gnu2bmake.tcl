@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id$
+# gnu2bmake.tcl,v 1.3 1994/11/15 04:52:19 phk Exp
 #
 #######################################################################
 # Generic procedures usable in the process of gnu-to-bmake jobs.

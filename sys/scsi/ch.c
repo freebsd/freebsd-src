@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.20 1995/05/11 19:26:46 rgrimes Exp $
+ *      ch.c,v 1.21 1995/05/30 08:13:22 rgrimes Exp
  */
 
 #include	<sys/types.h>

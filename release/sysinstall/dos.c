@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.5.2.3 1995/06/05 12:03:53 jkh Exp $
+ * dos.c,v 1.5.2.4 1995/06/05 16:59:03 jkh Exp
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

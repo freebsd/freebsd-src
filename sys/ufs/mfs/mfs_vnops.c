@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.9 1995/03/19 14:29:22 davidg Exp $
+ * mfs_vnops.c,v 1.10 1995/05/11 19:26:53 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id: uio.h,v 1.3 1994/09/15 20:24:28 bde Exp $
+ * uio.h,v 1.4 1995/04/04 17:01:49 davidg Exp
  */
 
 #ifndef _SYS_UIO_H_

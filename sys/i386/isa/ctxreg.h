@@ -7,7 +7,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use
  *
- *	$Id: ctxreg.h,v 1.1 1994/10/01 17:59:42 davidg Exp $
+ *	ctxreg.h,v 1.2 1995/05/30 08:01:28 rgrimes Exp
  */
 
 /*

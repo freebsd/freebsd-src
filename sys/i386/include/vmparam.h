@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vmparam.h	5.9 (Berkeley) 5/12/91
- *	$Id: vmparam.h,v 1.17 1995/01/09 16:04:44 davidg Exp $
+ *	vmparam.h,v 1.18 1995/05/25 07:41:28 davidg Exp
  */
 
 

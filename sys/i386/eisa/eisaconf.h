@@ -13,7 +13,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: eisaconf.h,v 1.1 1995/04/23 08:55:42 julian Exp $
+ * eisaconf.h,v 1.2 1995/05/30 07:59:09 rgrimes Exp
  */
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.21 1995/03/11 03:49:50 phk Exp $
+ *	support.s,v 1.22 1995/05/02 05:20:26 davidg Exp
  */
 
 #include "assym.s"				/* system definitions */

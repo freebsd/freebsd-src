@@ -15,8 +15,8 @@ Supersedes: <uucp-internals_785496601@airs.com>
 Xref: bloom-beacon.mit.edu comp.mail.uucp:5270 comp.answers:9043 news.answers:31575
 
 Archive-name: uucp-internals
-Version: $Revision: 1.1 $
-Last-modified: $Date: 1995/01/04 01:53:38 $
+Version: 1.1
+Last-modified: 1995/03/21 20:19:22
 
  This article was written by Ian Lance Taylor <ian@airs.com> and I may
  even update it periodically.  Please send me mail about suggestions

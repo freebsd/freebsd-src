@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	hist.c,v 1.2 1994/09/24 02:54:06 davidg Exp
  */
 
 #ifndef lint

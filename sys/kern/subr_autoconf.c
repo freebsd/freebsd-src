@@ -41,7 +41,7 @@
  *
  *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * subr_autoconf.c,v 1.2 1994/08/02 07:42:26 davidg Exp
  */
 
 #include <sys/param.h>

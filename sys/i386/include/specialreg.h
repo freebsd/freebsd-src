@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.6 1995/01/14 10:44:55 bde Exp $
+ *	specialreg.h,v 1.7 1995/05/30 08:00:54 rgrimes Exp
  */
 
 #ifndef _MACHINE_SPECIALREG_H_

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_file.c,v 1.2 1994/12/14 22:03:48 sos Exp $
+ *	ibcs2_file.c,v 1.3 1995/05/30 07:59:53 rgrimes Exp
  */
 
 #include <i386/ibcs2/ibcs2.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.80 1995/05/09 12:26:00 rgrimes Exp $
+ *	wd.c,v 1.81 1995/05/16 07:52:04 davidg Exp
  */
 
 /* TODO:

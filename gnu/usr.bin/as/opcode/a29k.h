@@ -284,7 +284,10 @@ static CONST struct a29k_opcode a29k_opcodes[] =
 CONST unsigned int num_opcodes = (((sizeof a29k_opcodes) / (sizeof a29k_opcodes[0])) - 1);
 
 /*
- * $Log: a29k.h,v $
+ * a29k.h,v
+ * Revision 1.1  1993/11/03  00:55:48  paul
+ * Brought over NetBSD's gas ready for pk's shared libs.
+ *
  * Revision 1.1  1993/10/02  21:00:40  pk
  * GNU gas 1.92.3 based assembler supporting PIC code (for i386 and sparc).
  *

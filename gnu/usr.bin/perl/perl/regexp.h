@@ -5,9 +5,12 @@
  * not the System V one.
  */
 
-/* $RCSfile: regexp.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:35 $
+/* regexp.h,v1.21995/05/30 05:03:17
  *
- * $Log: regexp.h,v $
+ * regexp.h,v
+ * Revision 1.2  1995/05/30  05:03:17  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:35  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

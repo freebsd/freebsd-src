@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.38 1995/06/10 08:59:24 jkh Exp $
+ * menus.c,v 1.41.2.38 1995/06/10 08:59:24 jkh Exp
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -937,9 +937,9 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
     "Choose a nifty-looking screen saver",
     NULL,
     { { "blank", "Simply blank the screen",
-	DMENU_SET_VARIABLE, "saver=blank", 0, 0, dmenuVarCheck		},
+	DMENU_SET_VARIABLE, "saver=star", 0, 0, dmenuVarCheck		},
       { "Green", "\"Green\" power saving mode (if supported by monitor)",
-	DMENU_SET_VARIABLE, "saver=green", 0, 0, dmenuVarCheck		},
+	DMENU_SET_VARIABLE, "saver=snake", 0, 0, dmenuVarCheck		},
       { "Snake", "Draw a FreeBSD \"snake\" on your screen",
 	DMENU_SET_VARIABLE, "saver=snake", 0, 0, dmenuVarCheck		},
       { "Star",	"A \"twinkling stars\" effect",

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.10 1995/06/07 09:44:23 jkh Exp $
+ * dmenu.c,v 1.11.2.10 1995/06/07 09:44:23 jkh Exp
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -158,7 +158,7 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    }
 	    else {
 		if ((tmp = decode(menu, result)) == NULL)
-		    return FALSE;
+		    msgFatal("Menu item `%s' not found??", result);
 	    }
 	    if (dispatch(tmp, result) || (menu->options & DMENU_SELECTION_RETURNS)) {
 		items_free(nitems, curr, max);

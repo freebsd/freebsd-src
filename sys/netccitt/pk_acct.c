@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_acct.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_acct.c,v 1.2 1994/08/02 07:47:29 davidg Exp $
+ * pk_acct.c,v 1.3 1995/05/30 08:08:58 rgrimes Exp
  */
 
 #include <sys/param.h>

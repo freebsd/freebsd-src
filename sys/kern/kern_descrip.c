@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.9 1995/03/28 07:56:26 bde Exp $
+ * kern_descrip.c,v 1.10 1995/05/30 08:05:21 rgrimes Exp
  */
 
 #include <sys/param.h>

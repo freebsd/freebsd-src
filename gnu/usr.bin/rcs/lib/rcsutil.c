@@ -31,7 +31,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsutil.c,v $
+/* rcsutil.c,v
+ * Revision 1.2  1995/05/30  05:04:18  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -139,7 +142,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(utilId, "$Id: rcsutil.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(utilId, "rcsutil.c,v 1.2 1995/05/30 05:04:18 rgrimes Exp")
 
 #if !has_memcmp
 	int

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.4 1994/12/04 01:46:13 ache Exp $
+ * tty_tty.c,v 1.5 1995/05/30 08:06:19 rgrimes Exp
  */
 
 /*

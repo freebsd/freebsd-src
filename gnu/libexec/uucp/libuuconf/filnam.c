@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_filnam_rcsid[] = "$Id: filnam.c,v 1.4 1994/03/30 04:00:35 ian Rel $";
+const char _uuconf_filnam_rcsid[] = "filnam.c,v 1.2 1994/05/07 18:12:13 ache Exp";
 #endif
 
 /* Return the saved file name.  */

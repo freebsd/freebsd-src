@@ -19,8 +19,8 @@ file named COPYING.  Among other things, the copyright notice
 and this notice must be preserved on all copies.  */
 
 
-/* RCS Info: $Revision: 1.1.1.1 $ on $Date: 1993/06/12 14:41:11 $
- *           $Source: /home/ncvs/src/gnu/games/chess/Xchess/control.c,v $
+/* RCS Info: 1.2 on 1995/05/30 04:41:23
+ *           /home/ncvs/src/gnu/games/chess/Xchess/control.c,v
  * Copyright (c) 1986 Wayne A. Christopher, U. C. Berkeley CAD Group
  *	Permission is granted to do anything with this code except sell it
  *	or remove this message.

@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: gencode.c,v 1.55 94/06/20 19:07:53 leres Exp $ (LBL)";
+    "@(#) /home/ncvs/src/lib/libpcap/gencode.c,v 1.1.1.1 1995/01/20 04:13:04 jkh Exp (LBL)";
 #endif
 
 #include <sys/types.h>

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sound_config.h,v 1.9 1995/03/12 23:34:07 swallace Exp $
+ * sound_config.h,v 1.10 1995/05/30 08:04:42 rgrimes Exp
  */
 
 #include "local.h"

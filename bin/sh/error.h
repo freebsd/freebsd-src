@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)error.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	error.h,v 1.2 1994/09/24 02:57:28 davidg Exp
  */
 
 /*

@@ -1,5 +1,5 @@
 # Makefile for uuconv
-# $Id: Makefile,v 1.4 1995/05/14 17:01:07 ache Exp $
+# Makefile,v 1.5 1995/05/30 04:45:39 rgrimes Exp
 
 BINDIR=		$(sbindir)
 

@@ -1,5 +1,5 @@
 
-$Id$
+README,v 1.3 1994/11/15 04:51:22 phk Exp
 
 This directory contains gcc in a form that uses "bmake" makefiles.
 This is not the place you want to start, if you want to hack gcc.

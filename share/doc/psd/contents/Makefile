@@ -1,4 +1,4 @@
-#	$Id$
+#	Makefile,v 1.1 1995/01/11 01:52:59 wollman Exp
 
 VOLUME=	psd
 SRCS=	contents.ms

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: muldi3.c,v 1.2 1994/08/02 07:44:13 davidg Exp $
+ * muldi3.c,v 1.3 1995/05/30 08:06:41 rgrimes Exp
  */
 
 #include "quad.h"

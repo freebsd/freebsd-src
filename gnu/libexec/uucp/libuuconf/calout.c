@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_calout_rcsid[] = "$Id: calout.c,v 1.2 1994/05/07 18:12:00 ache Exp $";
+const char _uuconf_calout_rcsid[] = "calout.c,v 1.3 1995/05/30 04:45:00 rgrimes Exp";
 #endif
 
 #include <errno.h>

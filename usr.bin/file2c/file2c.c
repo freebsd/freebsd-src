@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * file2c.c,v 1.1 1995/01/29 00:49:57 phk Exp
  *
  */
 

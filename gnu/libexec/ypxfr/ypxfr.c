@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypxfr.c,v 1.5 1995/03/31 05:45:23 wpaul Exp $
+	ypxfr.c,v 1.6 1995/05/30 04:45:51 rgrimes Exp
 */
 
 #include <stdio.h>

@@ -46,7 +46,7 @@
  *               delays, device flags, polling mode, generic cleanup
  * vak    950115 Added request-sense ops
  *
- * $Id: seagate.c,v 1.7 1995/04/12 20:48:03 wollman Exp $
+ * seagate.c,v 1.8 1995/05/30 08:03:04 rgrimes Exp
  */
 
 /*

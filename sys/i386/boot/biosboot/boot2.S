@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.5 1994/08/30 01:38:03 bde Exp $
+ *	boot2.S,v 1.6 1995/01/25 21:37:40 bde Exp
  */
 
 #include	"asm.h"

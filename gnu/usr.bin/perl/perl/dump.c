@@ -1,11 +1,14 @@
-/* $RCSfile: dump.c,v $$Revision: 1.2 $$Date: 1994/09/11 03:17:33 $
+/* dump.c,v1.31995/05/30 05:03:02
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: dump.c,v $
+ * dump.c,v
+ * Revision 1.3  1995/05/30  05:03:02  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/09/11  03:17:33  gclarkii
  * Changed AF_LOCAL to AF_LOCAL_XX so as not to conflict with 4.4 socket.h
  * Added casts to shutup warnings in doio.c

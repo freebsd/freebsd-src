@@ -1,5 +1,5 @@
-/* $Header: /home/ncvs/src/sys/netiso/xebec/malloc.c,v 1.1.1.1 1994/05/24 10:07:48 rgrimes Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/xebec/malloc.c,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/malloc.c,v 1.2 1995/05/30 08:12:07 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/malloc.c,v */
 /*
  * This code is such a kludge that I don't want to put my name on it.
  * It was a ridiculously fast hack and needs rewriting.

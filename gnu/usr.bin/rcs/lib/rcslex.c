@@ -38,7 +38,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcslex.c,v $
+/* rcslex.c,v
+ * Revision 1.3  1995/05/30  05:04:15  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1993/06/28  19:13:10  nate
  * Added Chris Demetriou's FSYNC_ALL option which causes all writes to be
  * flushed immediately.  (In case of a crash in the middle of CVS/RCS commits
@@ -139,7 +142,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(lexId, "$Id: rcslex.c,v 1.2 1993/06/28 19:13:10 nate Exp $")
+libId(lexId, "rcslex.c,v 1.3 1995/05/30 05:04:15 rgrimes Exp")
 
 static struct hshentry *nexthsh;  /*pointer to next hash entry, set by lookup*/
 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.3 1995/04/14 15:10:34 dufault Exp $
+ * scsi_driver.h,v 1.4 1995/05/30 08:13:39 rgrimes Exp
  *
  */
 #ifndef _SCSI__DRIVER_H_

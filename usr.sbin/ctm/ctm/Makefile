@@ -6,7 +6,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: Makefile,v 1.7 1995/03/04 20:36:44 phk Exp $
+# Makefile,v 1.8 1995/03/25 18:14:22 joerg Exp
 #
 
 PROG=		ctm

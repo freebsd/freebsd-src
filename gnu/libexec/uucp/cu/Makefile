@@ -1,5 +1,5 @@
 # Makefile for cu
-# $Id: Makefile,v 1.2 1994/05/31 05:23:39 ache Exp $
+# Makefile,v 1.3 1994/05/31 07:47:39 ache Exp
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

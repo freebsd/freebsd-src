@@ -56,7 +56,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_trig.c,v 1.3 1994/04/29 21:16:25 gclarkii Exp $
+ *    fpu_trig.c,v 1.4 1994/06/10 07:44:27 rich Exp
  *
  */
 

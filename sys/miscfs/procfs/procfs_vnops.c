@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.13 1995/05/25 01:35:24 davidg Exp $
+ *	procfs_vnops.c,v 1.14 1995/05/30 08:07:13 rgrimes Exp
  */
 
 /*

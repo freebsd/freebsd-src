@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)random.c	8.1 (Berkeley) 6/10/93
- * $Id: random.c,v 1.2 1994/08/02 07:44:23 davidg Exp $
+ * random.c,v 1.3 1995/03/17 06:15:39 phk Exp
  */
 
 #include <sys/libkern.h>

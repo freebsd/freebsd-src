@@ -1,4 +1,4 @@
-$Id$
+README,v 1.4 1994/09/24 02:55:21 davidg Exp
 
 ed is an 8-bit-clean, POSIX-compliant line editor.  It should work with
 any regular expression package that conforms to the POSIX interface

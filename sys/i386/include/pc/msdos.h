@@ -3,7 +3,7 @@
  * [obtained from mtools -wfj]
  * how to decipher DOS disk structures in coexisting with DOS
  *
- *	$Id$
+ *	msdos.h,v 1.2 1993/10/16 14:40:57 rgrimes Exp
  */
 
 #define MSECTOR_SIZE	512		/* MSDOS sector size in bytes */

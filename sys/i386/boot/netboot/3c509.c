@@ -18,7 +18,7 @@ Author: Martin Renters.
 
 3c509 support added by Serge Babkin (babkin@hq.icb.chel.su)
 
-$Id: 3c509.c,v 1.1 1995/04/12 20:14:56 martin Exp $
+3c509.c,v 1.2 1995/05/30 07:58:52 rgrimes Exp
 
 ***************************************************************************/
 

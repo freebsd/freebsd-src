@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pdq.c,v 1.4 1995/04/01 01:43:56 davidg Exp $
+ * pdq.c,v 1.5 1995/05/30 08:13:13 rgrimes Exp
  *
- * $Log: pdq.c,v $
+ * pdq.c,v
+ * Revision 1.5  1995/05/30  08:13:13  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.4  1995/04/01  01:43:56  davidg
  * Patch from Matt Thomas to fix mbuf leak in FDDI driver.
  *

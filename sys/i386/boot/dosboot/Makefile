@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/03/28 19:22:43 phk Exp $
+#	Makefile,v 1.2 1995/05/30 07:58:41 rgrimes Exp
 #
 
 MPROG=	fbsdboot.exe

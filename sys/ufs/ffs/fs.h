@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fs.h	8.7 (Berkeley) 4/19/94
- * $Id: fs.h,v 1.4 1995/03/10 22:18:16 davidg Exp $
+ * fs.h,v 1.5 1995/05/30 08:15:07 rgrimes Exp
  */
 
 #ifndef _UFS_FFS_FS_H_

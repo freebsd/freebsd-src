@@ -146,7 +146,7 @@ static char sccsid[] = "@(#)xneko.c	8.1 (Berkeley) 5/31/93";
 
 #ifndef	lint
 static char
-	rcsid[] = "$Header: /home/ncvs/src/games/x11/xneko/xneko.c,v 1.1.1.1 1994/09/04 04:02:16 jkh Exp $";
+	rcsid[] = "/home/ncvs/src/games/x11/xneko/xneko.c,v 1.2 1995/05/30 03:37:35 rgrimes Exp";
 static char	WriterMessage[] = "xneko: Programmed by Masayuki Koba, 1990";
 #endif
 

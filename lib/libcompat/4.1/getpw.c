@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: getpw.c,v 1.1 1995/04/10 18:47:55 joerg Exp $
+ * getpw.c,v 1.2 1995/05/30 05:42:17 rgrimes Exp
  */
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1995/02/15 04:35:55 wpaul Exp $
+# Makefile,v 1.5 1995/04/01 19:23:11 wpaul Exp
 # @(#)Makefile	8.3 (Berkeley) 4/2/94
 
 PROG=	yppasswdd

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdperm_rcsid[] = "$Id: rdperm.c,v 1.7 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_rdperm_rcsid[] = "rdperm.c,v 1.2 1994/05/07 18:12:48 ache Exp";
 #endif
 
 #include <errno.h>

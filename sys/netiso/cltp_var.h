@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cltp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: cltp_var.h,v 1.2 1994/08/02 07:49:58 davidg Exp $
+ * cltp_var.h,v 1.3 1994/08/21 06:14:14 paul Exp
  */
 
 #ifndef _NETISO_CLTP_VAR_H_

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modstat.c,v 1.2 1995/04/18 02:19:17 wpaul Exp $
+ *	modstat.c,v 1.3 1995/04/20 05:08:53 wpaul Exp
  */
 
 #include <stdio.h>

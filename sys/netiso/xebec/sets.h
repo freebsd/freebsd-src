@@ -1,5 +1,5 @@
-/* $Header: /home/ncvs/src/sys/netiso/xebec/sets.h,v 1.1.1.1 1994/05/24 10:07:44 rgrimes Exp $ */
-/* $Source: /home/ncvs/src/sys/netiso/xebec/sets.h,v $ */
+/* /home/ncvs/src/sys/netiso/xebec/sets.h,v 1.2 1995/05/30 08:12:14 rgrimes Exp */
+/* /home/ncvs/src/sys/netiso/xebec/sets.h,v */
 
 #define MAXEVENTS 200
 #define MAXSTATES 200

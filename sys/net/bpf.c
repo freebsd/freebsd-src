@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.6 1995/05/09 13:35:38 davidg Exp $
+ * bpf.c,v 1.7 1995/05/30 08:07:50 rgrimes Exp
  */
 
 #include "bpfilter.h"

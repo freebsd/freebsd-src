@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.13 1995/05/12 21:39:48 davidg Exp $
+ *	sys_process.c,v 1.14 1995/05/30 08:05:58 rgrimes Exp
  */
 
 #include <sys/param.h>

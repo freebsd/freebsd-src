@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	i8042.h,v 1.2 1993/10/16 13:48:47 rgrimes Exp
  */
 
 #define	KBSTATP		0x64	/* kbd controller status port (I) */

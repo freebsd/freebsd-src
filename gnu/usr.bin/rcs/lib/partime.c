@@ -20,7 +20,10 @@
  *	Perhaps should return 0 on success, else a non-zero error val?
  */
 
-/* $Log: partime.c,v $
+/* partime.c,v
+ * Revision 1.2  1995/05/30  05:04:04  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -65,7 +68,7 @@
 
 #include "rcsbase.h"
 
-libId(partId, "$Id: partime.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(partId, "partime.c,v 1.2 1995/05/30 05:04:04 rgrimes Exp")
 
 #define given(v) (0 <= (v))
 #define TMNULL (-1) /* Items not given are given this value */

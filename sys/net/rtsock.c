@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.12 1995/05/15 22:57:53 davidg Exp $
+ *	rtsock.c,v 1.13 1995/05/30 08:08:31 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,7 +1,7 @@
 #
 # Bmakefile for GNU info
 #
-# $Id: Makefile,v 1.2 1994/09/15 13:11:36 jkh Exp $
+# Makefile,v 1.3 1995/05/30 05:05:12 rgrimes Exp
 #
 
 PROG= makeinfo

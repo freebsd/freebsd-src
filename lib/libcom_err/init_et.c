@@ -1,7 +1,7 @@
 /*
- * $Header: init_et.c,v 1.5 88/10/27 08:34:54 raeburn Exp $
- * $Source: /mit/raeburn/Work/et/src/RCS/init_et.c,v $
- * $Locker:  $
+ * /home/ncvs/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp
+ * /home/ncvs/src/lib/libcom_err/init_et.c,v
+ * 
  *
  * Copyright 1986, 1987, 1988 by MIT Information Systems and
  *	the MIT Student Information Processing Board.
@@ -19,7 +19,7 @@
 
 #ifndef	lint
 static const char rcsid_init_et_c[] =
-    "$Header: init_et.c,v 1.5 88/10/27 08:34:54 raeburn Exp $";
+    "/home/ncvs/src/lib/libcom_err/init_et.c,v 1.1.1.1 1995/01/14 22:23:41 wollman Exp";
 #endif
 
 extern char *malloc(), *realloc();

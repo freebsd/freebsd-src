@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.20 1995/05/25 03:38:11 davidg Exp $
+ * vm_swap.c,v 1.21 1995/05/30 08:16:21 rgrimes Exp
  */
 
 #include <sys/param.h>

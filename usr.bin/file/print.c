@@ -40,7 +40,7 @@
 
 #ifndef lint
 static char *moduleid =
-	"@(#)$Id: print.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
+	"@(#)print.c,v 1.2 1995/05/30 06:30:08 rgrimes Exp";
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))

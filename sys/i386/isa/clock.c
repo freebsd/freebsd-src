@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.34 1995/05/30 08:01:23 rgrimes Exp $
+ *	clock.c,v 1.34.2.1 1995/06/09 03:29:17 davidg Exp
  */
 
 /*

@@ -37,7 +37,7 @@
  *
  *	@(#)ufs_ops.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: ufs_ops.c,v 5.2.2.1 1992/02/09 15:09:08 jsp beta $
+ * ufs_ops.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp
  *
  */
 

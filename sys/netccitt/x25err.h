@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)x25err.h	8.1 (Berkeley) 6/10/93
- * $Id: x25err.h,v 1.3 1994/08/21 05:44:12 paul Exp $
+ * x25err.h,v 1.4 1995/05/30 08:09:13 rgrimes Exp
  */
 
 #ifndef _NETCCITT_X25ERR_H_

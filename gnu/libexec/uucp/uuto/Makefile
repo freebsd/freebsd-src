@@ -1,5 +1,5 @@
 # Makefile for uuto
-# $Id: Makefile,v 1.4 1995/01/24 17:58:47 bde Exp $
+# Makefile,v 1.5 1995/05/13 12:57:44 ache Exp
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)

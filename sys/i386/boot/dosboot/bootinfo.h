@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.h,v 1.3 1994/11/18 05:26:52 phk Exp $
+ *	bootinfo.h,v 1.2 1995/04/27 18:22:15 phk Exp
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_

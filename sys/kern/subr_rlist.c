@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.9 1995/03/16 18:12:41 bde Exp $
+ *	subr_rlist.c,v 1.10 1995/05/30 08:05:54 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.9 1995/03/23 18:14:41 wollman Exp $
+ * in_var.h,v 1.10 1995/05/30 08:09:32 rgrimes Exp
  */
 
 #ifndef _NETINET_IN_VAR_H_

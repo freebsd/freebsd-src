@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/03/10 08:53:54 phk Exp $
+#	Makefile,v 1.2 1995/04/28 04:52:33 phk Exp
 
 PROG=	kernbb
 MAN8=	kernbb.8

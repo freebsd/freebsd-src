@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.h,v 1.13 1995/03/28 07:56:11 bde Exp $
+ * dev_table.h,v 1.14 1995/05/30 08:04:22 rgrimes Exp
  */
 
 #ifndef _DEV_TABLE_H_

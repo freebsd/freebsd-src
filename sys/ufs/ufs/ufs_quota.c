@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.4 1994/10/08 06:57:27 phk Exp $
+ * ufs_quota.c,v 1.5 1995/05/30 08:15:36 rgrimes Exp
  */
 #include <sys/param.h>
 #include <sys/kernel.h>

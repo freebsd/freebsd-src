@@ -33,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: Makefile,v 1.4 1994/02/09 15:00:35 deraadt Exp $
+#	Makefile,v 1.1 1994/08/19 12:07:18 davidg Exp
 #
 
 PROG=	modunload

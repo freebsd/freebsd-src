@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.9 1995/05/22 11:03:55 davidg Exp $
+ *	ftpd.c,v 1.10 1995/05/30 05:45:58 rgrimes Exp
  */
 
 #ifndef lint

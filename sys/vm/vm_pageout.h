@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.11 1995/04/09 06:03:55 davidg Exp $
+ * vm_pageout.h,v 1.12 1995/05/30 08:16:20 rgrimes Exp
  */
 
 #ifndef _VM_VM_PAGEOUT_H_

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.3 1995/03/16 18:13:05 bde Exp $
+ * fdesc_vfsops.c,v 1.4 1995/03/16 20:23:38 wollman Exp
  */
 
 /*

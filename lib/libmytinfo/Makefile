@@ -1,7 +1,7 @@
 # Makefile for libmytinfo
 # Use 'make update_term_h' manually after changing internal
 # mytinfo structures
-# $Id: Makefile,v 1.7 1994/10/28 06:58:04 ache Exp $
+# Makefile,v 1.8 1994/11/16 11:54:09 ache Exp
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\

@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.12 1995/05/03 18:54:09 ache Exp $
+# Makefile,v 1.13 1995/05/08 16:08:49 ache Exp
 
 LIB=    ncurses
 SHLIB_MAJOR= 3

@@ -1,7 +1,7 @@
 /*
  * Keyboard definitions
  *	from: unknown origin, 386BSD 0.1
- *	$Id: kbd.h,v 1.3 1993/11/07 17:44:33 wollman Exp $
+ *	kbd.h,v 1.4 1995/05/30 08:02:38 rgrimes Exp
  */
 
 #ifndef _I386_ISA_KBD_H_

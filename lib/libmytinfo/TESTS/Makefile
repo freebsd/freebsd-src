@@ -1,5 +1,5 @@
 # Makefile for libmytinfo tests
-# $Id$
+# Makefile,v 1.1 1994/10/09 16:37:30 ache Exp
 
 LIB=    mytinfo
 

@@ -349,7 +349,7 @@ distExtract(char *parent, Distribution *me)
 	    numchunks = 0;
 	}
 	if (!numchunks)
-	    continue;
+	    return FALSE;
 
 	if (isDebug())
 	    msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);

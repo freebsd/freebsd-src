@@ -10,7 +10,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Log: parsetest.c,v $
+ * parsetest.c,v
+ * Revision 1.2  1995/05/30  03:54:22  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.4  1994/09/29  23:01:34  wollman
  * xntp 3.4e from Dave Mills @ UDel
  *

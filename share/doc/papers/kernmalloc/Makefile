@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.8 (Berkeley) 6/8/93
-#	$Id$
+#	Makefile,v 1.2 1995/01/11 04:10:03 wollman Exp
 
 VOLUME=	papers
 DOC=	kernmalloc

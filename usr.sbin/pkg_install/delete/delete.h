@@ -1,4 +1,4 @@
-/* $Id: delete.h,v 1.1.1.1 1993/08/26 01:19:54 jkh Exp $ */
+/* delete.h,v 1.2 1994/12/06 00:51:39 jkh Exp */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.perl,v 1.5 1995/03/31 04:00:53 joerg Exp $
+# makewhatis.perl,v 1.6 1995/04/01 11:43:09 joerg Exp
 #
 
 sub usage {

@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: load_store.c,v 1.3 1994/06/10 07:44:30 rich Exp $
+ *    load_store.c,v 1.4 1994/09/21 22:22:46 bde Exp
  *
  */
 

@@ -34,7 +34,7 @@
  * error logging/reporting facilities
  * stolen from /usr/libexec/mail.local via ypserv
  *
- * $Id$
+ * log.c,v 1.1 1995/03/31 05:45:19 wpaul Exp
  */
 
 #include <stdio.h>

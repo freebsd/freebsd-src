@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tuba_table.c	8.2 (Berkeley) 11/15/93
- * $Id$
+ * tuba_table.c,v 1.2 1994/08/02 07:51:35 davidg Exp
  */
 #include <sys/param.h>
 #include <sys/systm.h>

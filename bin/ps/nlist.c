@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nlist.c,v 1.4 1994/10/02 08:33:29 davidg Exp $
+ *	nlist.c,v 1.5 1994/11/24 13:13:55 davidg Exp
  */
 
 #ifndef lint

@@ -83,7 +83,10 @@
  *      - reapplied patch by Scott Boyd <scott@futures.com> that I did not
  *        get knowledge of
  */
-/* $Log: uurate.c,v $
+/* uurate.c,v
+ * Revision 1.3  1995/05/30  04:44:27  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.2  1994/05/07  18:09:35  ache
  * Upgrade to version 1.05
  *
@@ -142,7 +145,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$Id: uurate.c,v 1.2 1994/05/07 18:09:35 ache Exp $";
+static char rcsid[] = "uurate.c,v 1.3 1995/05/30 04:44:27 rgrimes Exp";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"

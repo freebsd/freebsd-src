@@ -11,7 +11,7 @@
 # Especially if they regularly beat on the same directory. Anyway if you 
 # think anyone would be interested here it is. 
 #
-#      $Id: mfpipe.pl,v 1.1 1992/03/02 01:22:41 berliner Exp $
+#      mfpipe.pl,v 1.1.1.2 1995/03/31 07:43:50 nate Exp
 #
 #
 #	File:		mfpipe

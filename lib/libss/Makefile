@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.7 1995/03/18 08:34:42 rgrimes Exp $
+#	Makefile,v 1.8 1995/05/30 05:47:36 rgrimes Exp
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \

@@ -1,6 +1,9 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.4 1994/02/25 21:46:07 phk Exp $
+/* /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.5 1995/05/30 05:02:35 rgrimes Exp
  *
- * $Log: pch.c,v $
+ * pch.c,v
+ * Revision 1.5  1995/05/30  05:02:35  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.4  1994/02/25  21:46:07  phk
  * added the -C/-check again.
  *

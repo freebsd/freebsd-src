@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifndef lint
-static char rcsid[] = "$Id: cond.c,v 1.2 1994/12/23 22:36:03 nate Exp $";
+static char rcsid[] = "cond.c,v 1.3 1995/05/30 04:46:08 rgrimes Exp";
 #endif
 
 #include "as.h"

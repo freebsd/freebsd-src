@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.12 1995/04/29 21:30:26 joerg Exp $
+ *	scsi_tape.h,v 1.13 1995/05/30 08:13:43 rgrimes Exp
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1

@@ -28,7 +28,10 @@ Report problems and direct all questions to:
  *                     RCS identification operation
  */
 
-/* $Log: ident.c,v $
+/* ident.c,v
+ * Revision 1.2  1995/05/30  05:04:00  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:11  jkh
  * Updated GNU utilities
  *
@@ -86,7 +89,7 @@ Report problems and direct all questions to:
 static int match P((FILE*));
 static void scanfile P((FILE*,char const*,int));
 
-mainProg(identId, "ident", "$Id: ident.c,v 1.1.1.1 1993/06/18 04:22:11 jkh Exp $")
+mainProg(identId, "ident", "ident.c,v 1.2 1995/05/30 05:04:00 rgrimes Exp")
 /*  Ident searches the named files for all occurrences
  *  of the pattern $keyword:...$, where the keywords are
  *  Author, Date, Header, Id, Log, RCSfile, Revision, Source, and State.

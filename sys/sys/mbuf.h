@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.8 1994/11/04 00:28:38 davidg Exp $
+ * mbuf.h,v 1.9 1994/11/14 13:54:20 bde Exp
  */
 
 #ifndef _SYS_MBUF_H_

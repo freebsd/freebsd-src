@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.45.2.2 1995/06/04 16:45:21 davidg Exp $
+ * tty.c,v 1.45.2.3 1995/06/05 01:23:10 davidg Exp
  */
 
 #include "snp.h"

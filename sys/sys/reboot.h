@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reboot.h	8.1 (Berkeley) 6/2/93
- * $Id: reboot.h,v 1.9 1995/01/25 20:05:03 bde Exp $
+ * reboot.h,v 1.10 1995/04/20 06:06:42 phk Exp
  */
 
 #ifndef _SYS_REBOOT_H_

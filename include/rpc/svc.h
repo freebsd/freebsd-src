@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.3 1995/02/24 08:57:45 phk Exp $
+ *	svc.h,v 1.4 1995/05/30 04:55:28 rgrimes Exp
  */
 
 /*

@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char xqtsub_rcsid[] = "$Id: xqtsub.c,v 1.2 1994/05/07 18:11:43 ache Exp $";
+const char xqtsub_rcsid[] = "xqtsub.c,v 1.3 1995/05/30 04:44:56 rgrimes Exp";
 #endif
 
 #include "uudefs.h"

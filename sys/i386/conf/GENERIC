@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.45.2.2 1995/06/05 17:15:42 davidg Exp $
+#	GENERIC,v 1.45.2.3 1995/06/05 21:50:41 jkh Exp
 #
 
 machine		"i386"

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.6.2.2 1995/06/05 03:15:26 jkh Exp $
+ * cdrom.c,v 1.6.2.3 1995/06/05 12:03:44 jkh Exp
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.4 1993/12/28 07:54:51 smace Exp $
+#	Makefile,v 1.5 1994/05/27 10:48:19 csgr Exp
 
 
 CFLAGS+= -I${.CURDIR}

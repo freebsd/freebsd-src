@@ -1,5 +1,5 @@
 # Makefile for uusched
-# $Id: Makefile,v 1.6 1995/01/24 17:58:35 bde Exp $
+# Makefile,v 1.7 1995/05/13 12:57:43 ache Exp
 
 BINDIR=		$(bindir)
 CLEANFILES+=	$(ONESHPROG)

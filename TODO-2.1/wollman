@@ -1,0 +1,37 @@
+# TODO File for core-team member:	Garrett Wollman
+# Revision: wollman,v 1.3 1995/04/25 19:53:24 wollman Exp
+#
+-*----------------------------------------------------------------------------*-
+
+Update:	Fri Apr 07 11:58:56 EDT 1995
+Due:	Late April
+Prio:	Medium
+Task:	Path MTU Discovery
+
+If this can be done quickly, I'll try to do it.  Otherwise it's a 2.2
+task.
+-*-
+
+Update:	Fri Apr 07 12:00:18 EDT 1995
+Due:	Late April
+Prio:	Medium
+Task:	Packet scheduler hooks
+
+The MIT packet-scheduling kernel is going to have an initial public
+release sometime soon.  It is probably not reasonable to import the
+entire distribution into FreeBSD at this time (although this is a
+medium-term goal of mine).  However, it may be possible to incorporate
+the hooks which the scheduler has into the rest of the kernel, thus
+making it easier for people who get the MIT code to add it into their
+systems.  I intend to look into this.
+-*-
+
+Update:	Fri Apr 07 12:04:45 EDT 1995
+Due:	Now
+Prio:	High
+Task:	Add sysctl hooks to sysconfig, rc.
+
+There needs to be a generic mechanism in sysconfig to say `run these
+sysctl -nw commands during boot-up'.
+-*-
+

@@ -1,4 +1,4 @@
-''' $Id: uurate.man,v 1.4 1993/09/28 17:38:31 kdburg Rel $
+''' uurate.man,v 1.2 1994/05/07 18:09:37 ache Exp
 .TH uurate 1
 .SH NAME
 uurate \- Report Taylor UUCP statistics

@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
- *	$Id: auth.h,v 1.2 1994/08/07 18:40:53 wollman Exp $
+ *	auth.h,v 1.3 1995/05/30 04:55:09 rgrimes Exp
  */
 
 /*

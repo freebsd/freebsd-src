@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.13 1995/04/01 19:19:15 wpaul Exp $
+# Makefile,v 1.13.2.1 1995/06/07 05:52:05 jkh Exp
 
 PROG=	passwd
 SRCS=	local_passwd.c yp_passwd.c passwd.c pw_copy.c pw_util.c

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $Id: vnode_pager.h,v 1.3 1994/08/02 07:55:43 davidg Exp $
+ * vnode_pager.h,v 1.4 1995/01/09 16:06:02 davidg Exp
  */
 
 #ifndef	_VNODE_PAGER_

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_subr.c,v 1.3 1995/02/15 06:29:45 jkh Exp $
+ * hd_subr.c,v 1.4 1995/05/30 08:08:43 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,0 +1,58 @@
+# TODO File for core-team member:		John Dyson
+# Revision: dyson,v 1.1 1995/04/10 06:10:05 dyson Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list.
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Sun Apr 9, 1995
+Due:	2.2, maybe 2.1
+Prio:	High
+Task:	Implement full VOP_GETPAGE/VOP_PUTPAGE interface
+
+The current vnode pager violates the vfs layering.  Prototype mods have
+already been implemented.  Since the VM system and VFS systems are
+central to the reliable operation of the system, and other filesystems will
+be worked on by 2.1, this change will be added to 2.1 only if it is very
+smooth to integrate.  It will probably be placed into -current immediately
+after 2.1 release, before which I will have tested the code.  The good side
+of the 2.1 or pre 2.1 implementation is that it currently has no known
+negative side-effects and is about as CPU efficient as it can get.
+
+
+Update: Sun Apr 9, 1995
+Due:	2.2
+Prio:	Medium
+Task:	Implement proper page fault handling of non-page aligned (offset 1k
+	or other) binary formats.
+
+The task says it all.  Currently, some of the non-native executable loaders
+have work-arounds for this.
+
+
+Update: Sun Apr 9, 1995
+Due:	2.2
+Prio:	Medium
+Task:	Change the object page list into a tree representation.
+
+Since we now have a properly working merged-VM buffer cache mechanism, it
+is likely that more file modifications will be done by the mmap mechanism.
+Unfortunately, some of the VM data structures inherited from MACH are not
+very efficient at handling this kind of output.  We will implement a much
+more efficient method of handling the flushing of modified pages.  This
+is a very basic and simple change, and will have the added benefit of
+improving the efficiency of ordered traversal of pages in objects in general.
+
+Update: Sun Apr 9, 1995
+Due:	2.2, maybe 2.1
+Prio:	Medium
+Task:	Allow simple paging to files, and turning off such paging
+
+We currently can page to files through the vn device.  This is a bit
+of hackery -- and there is no way to turn off paging to such a file.  If
+there is enough swap space, it should be easy to turn off paging to either
+an explicit swap file or paging to/from any physical device, and force
+the swap/page-ins.
+
+

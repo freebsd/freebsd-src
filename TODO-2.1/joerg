@@ -1,0 +1,37 @@
+# TODO File for:		Joerg Wunsch
+# Revision: joerg,v 1.5 1995/04/30 13:10:44 joerg Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	mid april
+Prio:	high
+Task:	Silence floppy error messages
+
+The floppy error messages require a cleanup.
+-*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	end april
+Prio:	medium
+Task:	Repair EOF handling in floppy driver
+
+>> The floppy device driver returns 0 for attempted reads from and writes
+>> to precisely the end of the disk.  It returns -1 and sets errno to
+>> ENOSPC for reads and writes that would cross the end of the disk or are
+>> strictly beyond the end.
+-*-
+
+Update: Sat Apr  8 14:32:56 MET DST 1995
+Due:	ongoing work
+Prio:	medium
+Task:	keep pcvt in -current up to date
+
+Merge Hellmuth Michaelis' betas and the expected release of pcvt-3.20
+into the -current sources.
+-*-
+

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1993/09/30 23:24:48 jkh Exp $
+#	Makefile,v 1.1 1994/09/25 03:42:20 ache Exp
 
 SUBDIR= fonts keymaps scrnmaps
 

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_val_rcsid[] = "$Id: val.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_val_rcsid[] = "val.c,v 1.2 1994/05/07 18:13:20 ache Exp";
 #endif
 
 /* Validate a login name for a system.  */

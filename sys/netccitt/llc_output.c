@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_output.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_output.c,v 1.3 1995/03/19 14:29:00 davidg Exp $
+ * llc_output.c,v 1.4 1995/05/30 08:08:50 rgrimes Exp
  */
 
 #include <sys/param.h>

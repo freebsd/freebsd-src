@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.2 (Berkeley) 12/28/90
-#	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
+#	Makefile,v 1.3 1995/01/23 21:00:09 jkh Exp
 
 PROG=	make
 CFLAGS+= -I${.CURDIR} -DPOSIX

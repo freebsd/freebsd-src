@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kill.c,v 1.2 1994/09/24 02:55:44 davidg Exp $
+ *	kill.c,v 1.3 1995/03/05 21:52:41 jkh Exp
  */
 
 #ifndef lint

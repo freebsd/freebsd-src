@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: fpu_system.h,v 1.3 1994/06/10 07:44:25 rich Exp $
+ *    fpu_system.h,v 1.4 1995/05/30 07:57:51 rgrimes Exp
  *
  */
 

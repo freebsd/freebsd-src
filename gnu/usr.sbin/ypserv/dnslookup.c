@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dnslookup.c,v 1.1 1995/01/31 08:58:52 wpaul Exp $
+ *	dnslookup.c,v 1.2 1995/02/03 20:25:59 bde Exp
  */
 
 /*

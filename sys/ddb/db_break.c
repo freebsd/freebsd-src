@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_break.c,v 1.5 1994/08/18 22:34:19 wollman Exp $
+ *	db_break.c,v 1.6 1995/05/30 07:56:50 rgrimes Exp
  */
 
 /*

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.10 1995/03/16 18:12:34 bde Exp $
+ * kern_physio.c,v 1.11 1995/05/30 08:05:36 rgrimes Exp
  */
 
 #include <sys/param.h>

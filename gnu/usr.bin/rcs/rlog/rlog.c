@@ -35,7 +35,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rlog.c,v $
+/* rlog.c,v
+ * Revision 1.6  1995/05/30  05:04:34  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.5  1994/05/12  00:42:59  phk
  * typo.
  *
@@ -207,7 +210,7 @@ static struct lockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.5 1994/05/12 00:42:59 phk Exp $")
+mainProg(rlogId, "rlog", "rlog.c,v 1.6 1995/05/30 05:04:34 rgrimes Exp")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLRt} [-v[string]] -ddates -l[lockers] -rrevs -sstates -w[logins] -Vn file ...";

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tables.h	8.1 (Berkeley) 5/31/93
- *	$Id: tables.h,v 1.2 1994/09/24 02:56:35 davidg Exp $
+ *	tables.h,v 1.3 1995/05/30 00:07:02 rgrimes Exp
  */
 
 /*

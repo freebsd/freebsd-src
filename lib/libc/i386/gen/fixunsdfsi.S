@@ -34,12 +34,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fixunsdfsi.s	5.1	12/17/90
- *	$Id: fixunsdfsi.S,v 1.2 1994/12/27 13:37:38 bde Exp $
+ *	fixunsdfsi.S,v 1.3 1995/01/23 01:26:52 davidg Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: fixunsdfsi.S,v 1.2 1994/12/27 13:37:38 bde Exp $"
+	.asciz "fixunsdfsi.S,v 1.3 1995/01/23 01:26:52 davidg Exp"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	system.h,v 1.1 1995/01/31 08:58:54 wpaul Exp
  */
 
 #if (defined(__sun__) || defined(sun)) && !defined(__svr4__)

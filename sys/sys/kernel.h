@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.8 1995/03/17 22:02:05 wollman Exp $
+ * kernel.h,v 1.9 1995/03/20 19:20:26 wollman Exp
  */
 
 #ifndef _SYS_KERNEL_H_

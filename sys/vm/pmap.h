@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.5 1994/11/14 08:19:07 bde Exp $
+ * pmap.h,v 1.6 1995/01/09 16:05:32 davidg Exp
  */
 
 /*

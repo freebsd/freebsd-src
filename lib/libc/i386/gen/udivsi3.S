@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	udivsi3.S,v 1.2 1995/01/23 01:27:12 davidg Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "udivsi3.S,v 1.2 1995/01/23 01:27:12 davidg Exp"
 #endif /* LIBC_RCS and not lint */
 
 	.globl ___udivsi3

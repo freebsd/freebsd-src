@@ -3,7 +3,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id: lzw.c,v 0.9 1993/06/10 13:27:31 jloup Exp $";
+static char rcsid[] = "lzw.c,v 1.3 1993/10/14 00:32:59 nate Exp";
 #endif
 
 #include "tailor.h"

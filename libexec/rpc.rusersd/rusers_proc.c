@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.3 1994/11/18 23:36:18 ats Exp $";
+static char rcsid[] = "rusers_proc.c,v 1.4 1995/05/30 05:46:32 rgrimes Exp";
 #endif /* not lint */
 
 #include <signal.h>

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.7 1995/05/05 20:42:00 dufault Exp $
+ *	scsi.c,v 1.8 1995/05/30 06:09:58 rgrimes Exp
  */
 
 #include <stdio.h>

@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.3 1995/01/14 13:20:09 bde Exp $
+ *	procfs_machdep.c,v 1.4 1995/03/16 18:11:29 bde Exp
  */
 
 /*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.4 1994/10/10 01:12:26 phk Exp $
+ *	fdc.h,v 1.5 1995/01/06 15:19:41 joerg Exp
  *
  */
 

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_hsys_rcsid[] = "$Id: hsys.c,v 1.3 1994/01/30 21:14:29 ian Rel $";
+const char _uuconf_hsys_rcsid[] = "hsys.c,v 1.2 1994/05/07 18:12:29 ache Exp";
 #endif
 
 /* Get system information from the HDB configuration files.  This is a

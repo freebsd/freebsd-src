@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_output.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_output.c,v 1.3 1995/02/15 06:29:44 jkh Exp $
+ * hd_output.c,v 1.4 1995/05/30 08:08:42 rgrimes Exp
  */
 
 #include <sys/param.h>

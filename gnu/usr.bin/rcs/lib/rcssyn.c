@@ -36,7 +36,10 @@ Report problems and direct all questions to:
 */
 
 
-/* $Log: rcssyn.c,v $
+/* rcssyn.c,v
+ * Revision 1.2  1995/05/30  05:04:17  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
  *
@@ -136,7 +139,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(synId, "$Id: rcssyn.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
+libId(synId, "rcssyn.c,v 1.2 1995/05/30 05:04:17 rgrimes Exp")
 
 /* forward */
 static char const *getkeyval P((char const*,enum tokens,int));

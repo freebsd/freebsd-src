@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$Id: Makefile,v 1.6 1995/04/02 20:28:09 wpaul Exp $
+#	Makefile,v 1.7 1995/05/30 05:05:19 rgrimes Exp
 
 PROG=	yppush
 SRCS=	yp_clnt.c yppush.c

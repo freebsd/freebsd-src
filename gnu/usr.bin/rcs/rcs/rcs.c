@@ -30,7 +30,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcs.c,v $
+/* rcs.c,v
+ * Revision 1.2  1995/05/30  05:04:21  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:14  jkh
  * Updated GNU utilities
  *
@@ -241,7 +244,7 @@ static struct delrevpair delrev;
 static struct hshentry *cuthead, *cuttail, *delstrt;
 static struct hshentries *gendeltas;
 
-mainProg(rcsId, "rcs", "$Id: rcs.c,v 1.1.1.1 1993/06/18 04:22:14 jkh Exp $")
+mainProg(rcsId, "rcs", "rcs.c,v 1.2 1995/05/30 05:04:21 rgrimes Exp")
 {
 	static char const cmdusage[] =
 		"\nrcs usage: rcs -{ae}logins -Afile -{blu}[rev] -cstring -{iLU} -{nNs}name[:rev] -orange -t[file] -Vn file ...";

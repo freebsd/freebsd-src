@@ -1,0 +1,65 @@
+# TODO File for core-team member:		Gary Palmer
+# Revision: gpalmer,v 1.3 1995/04/30 14:36:43 gpalmer Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Thu Apr 27 23:58:46 PDT 1995
+Due:	April 29th
+Prio:	High
+Task:	Run a gcc -Wall on LINT and see what it says
+Status: Underway.
+
+Some of the warnings generated may well be the result of true errors.  Go
+through the output of this and see which ones are simply poor coding
+practice and which ones are actual errors.
+-*-
+
+Update: Thu Apr 27 23:58:46 PDT 1995
+Due:    April 29th
+Prio:   High
+Task:	Fix mkisofs
+
+Make mkisofs be a little less pathological in its dealings with "non-optional
+optional flags" and stop asserting all over the place.
+-*-
+
+Update:	Thu Apr 27 23:58:46 PDT 1995
+Due:    April 30th
+Prio:   High
+Task:   Figure out what we're going to do with srcs to `libcompat' and the GPL
+
+We need to either draft some words for the 2.0.5 CD saying that they can
+get the 2.0R CD for a nice low price (not prohibited by the GPL - it says
+only "reasonable costs") if they want the source for libcompat, or we
+need to provide it somewhere.
+-*-
+
+Update:	Thu Apr 27 23:58:46 PDT 1995
+Due:	April 30th
+Prio:	High
+Task:	Write some scripts for CD-ifying the ports and packages collection
+
+I'm not sure what's involved here, but we need some release tools for
+bundling up a `portsdist'.
+-*-
+
+Update:	Thu Apr 27 23:58:46 PDT 1995
+Due:	April 30th
+Prio:	High
+Task:	Come up with canonical supfiles.
+Status:	Done (?)
+
+The canonical supfiles are out of date.  Fix them.
+
+-*-
+
+Update: Sun Apr 30 07:36:04 PDT 1995
+Due:	April 30th
+Prio:	High
+Task:	Go through the GNATS database closing off dead bugs
+
+There are bugs still ``open'' in the GNATS database which are no longer
+present. Correct the situation.

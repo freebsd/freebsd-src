@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tb.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * tty_tb.c,v 1.2 1994/08/02 07:42:55 davidg Exp
  */
 
 #include "tb.h"

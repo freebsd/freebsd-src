@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: main.c,v 1.3 1995/03/31 21:16:43 wollman Exp $
+ * main.c,v 1.4 1995/05/30 03:48:16 rgrimes Exp
  */
 
 /*

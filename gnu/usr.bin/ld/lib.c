@@ -1,5 +1,5 @@
 /*
- * $Id: lib.c,v 1.14 1995/04/07 05:08:28 nate Exp $	- library routines
+ * lib.c,v 1.15 1995/05/30 05:01:46 rgrimes Exp	- library routines
  */
 
 #include <sys/param.h>

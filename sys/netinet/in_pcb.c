@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.11 1995/05/03 07:16:51 davidg Exp $
+ * in_pcb.c,v 1.12 1995/05/30 08:09:28 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.25 1995/03/22 19:39:45 nate Exp $
+#	Makefile,v 1.5 1995/03/31 07:55:30 nate Exp
 
 PROG = mkmodules
 SRCS = mkmodules.c

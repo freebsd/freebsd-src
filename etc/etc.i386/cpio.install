@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id$
+#	cpio.install,v 1.1 1994/02/21 21:51:50 rgrimes Exp
 #
 
 echo

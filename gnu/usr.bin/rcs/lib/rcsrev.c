@@ -31,7 +31,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsrev.c,v $
+/* rcsrev.c,v
+ * Revision 1.2  1995/05/30  05:04:16  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
  * Updated GNU utilities
  *
@@ -97,7 +100,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(revId, "$Id: rcsrev.c,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $")
+libId(revId, "rcsrev.c,v 1.2 1995/05/30 05:04:16 rgrimes Exp")
 
 static char const *branchtip P((char const*));
 static struct hshentry *genbranch P((struct hshentry const*,char const*,unsigned,char const*,char const*,char const*,struct hshentries**));

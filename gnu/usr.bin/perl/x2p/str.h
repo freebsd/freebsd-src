@@ -1,11 +1,14 @@
-/* $RCSfile: str.h,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:55 $
+/* str.h,v1.21995/05/30 05:03:45
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: str.h,v $
+ * str.h,v
+ * Revision 1.2  1995/05/30  05:03:45  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:55  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

@@ -30,7 +30,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsgen.c,v $
+/* rcsgen.c,v
+ * Revision 1.2  1995/05/30  05:04:12  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
  *
@@ -125,7 +128,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(genId, "$Id: rcsgen.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
+libId(genId, "rcsgen.c,v 1.2 1995/05/30 05:04:12 rgrimes Exp")
 
 int interactiveflag;  /* Should we act as if stdin is a tty?  */
 struct buf curlogbuf;  /* buffer for current log message */

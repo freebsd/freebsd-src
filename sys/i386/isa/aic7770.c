@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.13 1995/04/12 20:47:36 wollman Exp $
+ *	aic7770.c,v 1.14 1995/05/30 08:01:15 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,6 +1,6 @@
-static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.1 1995/02/14 15:00:35 jkh Exp $";
+static char     _isdn_ioctl_id[] = "@(#)isdn_ioctl.h,v 1.2 1995/03/28 07:54:45 bde Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 1.2   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,12 @@ static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.1 1995/02/14 15:00
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: isdn_ioctl.h,v $
+ * isdn_ioctl.h,v
+ * Revision 1.2  1995/03/28  07:54:45  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.1  1995/02/14  15:00:35  jkh
  * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
  * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.

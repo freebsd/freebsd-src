@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)hd_input.c	8.1 (Berkeley) 6/10/93
- * $Id: hd_input.c,v 1.4 1995/05/11 19:26:39 rgrimes Exp $
+ * hd_input.c,v 1.5 1995/05/30 08:08:40 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -1,0 +1,106 @@
+# TODO File for core-team member:		Poul-Henning Kamp
+# Revision: phk,v 1.4 1995/05/30 06:45:59 rgrimes Exp
+#
+# This is my publically readable TODO file, showing the things I have on
+# my TODO list for 2.1.  Comments (intelligent ones, anyway :) always
+# welcome!
+#
+-*----------------------------------------------------------------------------*-
+
+Update: Thu Apr  6 00:37:50 PDT 1995
+Due:	Unspecified
+Prio:	High
+Task:	Get Much Sleep.
+
+My newborn son is still not clear on the concept of a good nights sleep.
+more later.
+
+-*-
+
+Update:	Thu Apr  6 22:15:29 PDT 1995
+Due:	2.1
+Prio:	High
+Task:	"make release" rule(s)
+
+Make the stuff in src/release do what the install-geeks need it to do.
+
+-*-
+
+Update:	Thu Apr  6 22:16:52 PDT 1995
+Due:	2.1
+Prio:	Med
+Task:	bad144 testing
+
+Now that I finally seem to have got access to an machine with old and
+funcky disks that should be possible
+
+-*-
+
+Update:	Thu Apr  6 22:18:38 PDT 1995
+Due:	2.1
+Prio:	High
+Task:	Boot from CD
+
+Make a boot from CD facility working.
+
+-*-
+
+Update:	Thu Apr  6 22:22:10 PDT 1995
+Due:	2.1
+Prio:	High
+Task:	Write lowlevel code for sysinstall TNG.
+
+The boys will need some routines doing mostly what the old sysinstall did
+too, but interfacing to the new GUI.
+
+-*-
+
+Update:	Thu Apr  6 22:54:45 PDT 1995
+Due:	2.1ish
+Prio:	Med
+Task:	Review, test and commit PCMCIA stuff for Andrew McRae
+
+Andrew is busy doing our PCMCIA support.  I have promised to get it into
+the tree.
+
+-*-
+
+Update:	Thu Apr  6 22:56:20 PDT 1995
+Due:	2.1
+Prio:	Med
+Task:	setup "WIP" section
+
+We want a (W)ork (I)n (P)rogress section on the ftp-area and the CD.
+
+-*-
+
+Update:	Thu Apr  6 22:58:27 PDT 1995
+Due:	2.1ish
+Prio:	Med
+Task:	CTM
+
+Continue to champion, architect, code and implement CTM.
+
+-*-
+
+Update:	Thu Apr  6 23:00:45 PDT 1995
+Due:	2.1
+Prio:	Med
+Task:	doc
+
+Produce (better) draft documentation for these areas:
+	CTM
+	lp#
+	gzip execution
+	install (in particular disk layout).
+
+-*-
+
+Update:	Thu Apr 13 13:04:34 PDT 1995
+Due:	sometime
+Prio:	Med
+Task:	multiboot
+
+Represent FreeBSD in the "multiboot" forum, and make sure we can use the
+resulting code.
+

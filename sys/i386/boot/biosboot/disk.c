@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:49  rpd
- *	$Id: disk.c,v 1.12 1995/05/21 03:27:13 phk Exp $
+ *	disk.c,v 1.13 1995/05/30 07:58:31 rgrimes Exp
  */
 
 /*

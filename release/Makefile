@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.15 1995/06/10 09:00:35 jkh Exp $
+#	Makefile,v 1.192.2.15 1995/06/10 09:00:35 jkh Exp
 #
 # How to roll a release:
 #
@@ -380,10 +380,6 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=root \
 		DIR=${RD}/rootfd/stand ZIP=false
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
-	mv ${RD}/rootfd/stand/info/krb/* ${RD}/rootfd/stand/info/des
-	rmdir ${RD}/rootfd/stand/info/krb
-	mv ${RD}/rootfd/stand/info/src/ssecure.inf ${RD}/rootfd/stand/info/des
-	mv ${RD}/rootfd/stand/info/src/sebones.inf ${RD}/rootfd/stand/info/des
 	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | tar xvf - -C ${RD}/rootfd/stand
 	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp

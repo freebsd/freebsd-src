@@ -34,7 +34,7 @@
  */
 
 #ifdef sgi
-#ident "$Revision: 1.15 $"
+#ident "1.1.1.1"
 #endif
 
 #include <sys/param.h>

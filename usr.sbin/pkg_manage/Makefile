@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.5 1995/05/27 20:05:35 jkh Exp $
+# Makefile,v 1.6 1995/05/30 03:50:08 rgrimes Exp
 
 PROG=   pkg_manage
 SRCS=   pkg_main.c pkg_manage.c pkg_ui.c version.c

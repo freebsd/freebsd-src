@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *      $Id: reg_u_div.s,v 1.2 1994/04/29 21:34:24 gclarkii Exp $
+ *      reg_u_div.s,v 1.3 1994/06/10 07:44:57 rich Exp
  *
  */
 

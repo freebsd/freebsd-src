@@ -1,5 +1,5 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.6 1994/05/31 15:55:43 ache Exp $
+# Makefile,v 1.7 1995/05/13 12:29:57 ache Exp
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

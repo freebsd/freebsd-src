@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_input.c,v 1.4 1995/05/11 00:13:14 wollman Exp $
+ * pk_input.c,v 1.5 1995/05/30 08:08:59 rgrimes Exp
  */
 
 #include <sys/param.h>

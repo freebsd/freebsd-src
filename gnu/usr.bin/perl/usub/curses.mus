@@ -1,6 +1,9 @@
-/* $RCSfile: curses.mus,v $$Revision: 1.1 $$Date: 1995/03/24 04:33:49 $
+/* curses.mus,v1.21995/04/02 13:11:14
  *
- * $Log: curses.mus,v $
+ * curses.mus,v
+# Revision 1.2  1995/04/02  13:11:14  bde
+# Fix compiler warnings: don't declare enum types as static.
+#
 # Revision 1.1  1995/03/24  04:33:49  jkh
 # Bring back perl/usub as usub/, this time containing an updated curseperl
 # which is also installed by default (the reason for which should also be

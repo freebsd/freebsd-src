@@ -35,7 +35,10 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsdiff.c,v $
+/* rcsdiff.c,v
+ * Revision 1.2  1995/05/30  05:04:25  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1993/06/18  04:22:16  jkh
  * Updated GNU utilities
  *
@@ -132,7 +135,7 @@ static int exitstatus;
 static RILE *workptr;
 static struct stat workstat;
 
-mainProg(rcsdiffId, "rcsdiff", "$Id: rcsdiff.c,v 1.1.1.1 1993/06/18 04:22:16 jkh Exp $")
+mainProg(rcsdiffId, "rcsdiff", "rcsdiff.c,v 1.2 1995/05/30 05:04:25 rgrimes Exp")
 {
     static char const cmdusage[] =
 	    "\nrcsdiff usage: rcsdiff [-q] [-rrev1 [-rrev2]] [-Vn] [diff options] file ...";

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.1 1995/02/22 13:47:14 sos Exp $
+ *	green_saver.c,v 1.2 1995/05/30 06:06:17 rgrimes Exp
  */
 
 #include <sys/param.h>

@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc_scan.h 1.3 87/03/09 (C) 1987 SMI
  *	from: @(#)rpc_scan.h	2.1 88/08/01 4.0 RPCSRC
- *	$Id: rpc_scan.h,v 1.1 1994/08/07 18:01:35 wollman Exp $
+ *	rpc_scan.h,v 1.2 1995/05/30 06:33:18 rgrimes Exp
  */
 
 /*

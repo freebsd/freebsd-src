@@ -1,6 +1,6 @@
-static char     rcsid[] = "@(#)$Id: rstcode.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     rcsid[] = "@(#)rstcode.c,v 1.1.1.1 1995/02/15 00:46:25 jkh Exp";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
+ *  II - Version 0.1 1.1.1.1   Exp
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -9,7 +9,11 @@ static char     rcsid[] = "@(#)$Id: rstcode.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
  *	jkr@saarlink.de or jkrause@guug.de
  *
  *******************************************************************************
- * $Log: rstcode.c,v $
+ * rstcode.c,v
+ * Revision 1.1.1.1  1995/02/15  00:46:25  jkh
+ * Import the ISDN userland utilities.  Just about ready to start shaking
+ * this baby out in earnest..
+ *
  *
  ******************************************************************************/
 #include <sys/types.h>

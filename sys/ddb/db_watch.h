@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_watch.h,v 1.3 1994/08/18 22:34:29 wollman Exp $
+ *	db_watch.h,v 1.4 1995/05/30 07:57:21 rgrimes Exp
  */
 
 /*

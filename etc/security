@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.7 1995/01/14 13:23:50 ats Exp $
+#	security,v 1.8 1995/05/27 01:37:44 ache Exp
 #
 PATH=/sbin:/bin:/usr/bin
 

@@ -1,7 +1,7 @@
                           Mirror Sites
                     For FreeBSD 2.0 and later
 
-$Id: MIRROR.SITES,v 1.8.2.3 1995/06/03 03:02:19 jkh Exp $
+MIRROR.SITES,v 1.8.2.4 1995/06/03 23:58:35 jkh Exp
 
 The latest versions of FreeBSD (2.0 or later) are being mirrored at the
 following locations:

@@ -2,7 +2,7 @@
 #
 #
 # OrigId: rcs2sccs,v 1.12 90/10/04 20:52:23 kenc Exp Locker: kenc
-# $Id: rcs2sccs,v 1.1 1993/12/06 06:37:14 berliner Exp $
+# rcs2sccs,v 1.1.1.1 1995/03/31 07:44:00 nate Exp
 
 ############################################################
 # Error checking

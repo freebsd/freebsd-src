@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	catgets.c,v 1.1 1995/03/30 12:47:23 jkh Exp */
 
 /*
  * Written by J.T. Conklin, 10/05/94

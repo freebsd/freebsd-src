@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	htons.S,v 1.2 1995/01/23 01:28:03 davidg Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "htons.S,v 1.2 1995/01/23 01:28:03 davidg Exp"
 #endif /* LIBC_RCS and not lint */
 
 /* netorder = htons(hostorder) */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_ip.c	8.1 (Berkeley) 6/10/93
- * $Id: ns_ip.c,v 1.2 1994/08/02 07:51:50 davidg Exp $
+ * ns_ip.c,v 1.3 1995/03/19 14:29:03 davidg Exp
  */
 
 /*

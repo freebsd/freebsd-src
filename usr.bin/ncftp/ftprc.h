@@ -3,9 +3,9 @@
 #ifndef _ftprc_h_
 #define _ftprc_h_
 
-/*  $RCSfile: ftprc.h,v $
- *  $Revision: 14020.11 $
- *  $Date: 93/05/21 05:45:31 $
+/*  ftprc.h,v
+ *  1.2
+ *  1994/09/28 14:53:09
  */
 
 #define NETRC "netrc"

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_timer.c,v 1.2 1994/08/02 07:47:23 davidg Exp $
+ * llc_timer.c,v 1.3 1995/05/30 08:08:53 rgrimes Exp
  */
 
 #include <sys/param.h>

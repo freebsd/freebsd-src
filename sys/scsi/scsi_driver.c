@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.9 1995/05/03 18:09:11 dufault Exp $
+ * scsi_driver.c,v 1.10 1995/05/30 08:13:37 rgrimes Exp
  *
  */
 #include <sys/types.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	sysarch.h,v 1.4 1994/08/02 07:39:11 davidg Exp
  */
 
 /*

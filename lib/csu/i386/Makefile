@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.14 1995/02/09 08:00:20 jkh Exp $
+#	Makefile,v 1.15 1995/03/30 06:40:31 phk Exp
 
 CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
 OBJS=		crt0.o gcrt0.o c++rt0.o

@@ -1,11 +1,14 @@
-/* $RCSfile: cmd.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
+/* cmd.c,v1.21995/05/30 05:02:52
  *
  *    Copyright (c) 1991, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $Log: cmd.c,v $
+ * cmd.c,v
+ * Revision 1.2  1995/05/30  05:02:52  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
  * Initial import of Perl 4.046 bmaked
  *

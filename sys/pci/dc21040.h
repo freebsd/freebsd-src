@@ -21,9 +21,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: dc21040.h,v 1.3 1995/05/05 19:44:34 thomas Exp $
+ * dc21040.h,v 1.4 1995/05/05 20:09:48 davidg Exp
  *
- * $Log: dc21040.h,v $
+ * dc21040.h,v
+ * Revision 1.4  1995/05/05  20:09:48  davidg
+ * Fixed mbuf leak and panic that occurred when packets got too memory
+ * fragmented.
+ * Added support for Cogent em100 boards.
+ * Fixed bug that caused BPF to toggle the card to UTP.
+ * Various other improvements.
+ *
+ * Submitted by:	Matt Thomas and David Greenman
+ *
  * Revision 1.3  1995/05/05  19:44:34  thomas
  * cogent em100 support
  *

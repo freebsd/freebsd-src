@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.10 1995/04/28 18:17:29 ache Exp $
+ * kern_prot.c,v 1.11 1995/04/29 11:46:15 ache Exp
  */
 
 /*

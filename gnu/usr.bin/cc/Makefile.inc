@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.12 1995/03/10 19:39:32 davidg Exp $
+# Makefile.inc,v 1.13 1995/03/11 03:48:42 nate Exp
 #
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../include

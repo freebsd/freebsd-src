@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.5 1995/04/12 20:47:13 wollman Exp $
+ *	devconf.h,v 1.6 1995/04/13 20:37:51 wollman Exp
  */
 
 /*

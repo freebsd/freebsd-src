@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * disklabel.c,v 1.2 1995/04/29 01:55:22 phk Exp
  *
  */
 

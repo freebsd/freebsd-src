@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.8 1995/03/26 23:29:13 davidg Exp $
+ * lfs_inode.c,v 1.9 1995/05/30 08:15:20 rgrimes Exp
  */
 
 #include <sys/param.h>

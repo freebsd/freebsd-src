@@ -29,7 +29,7 @@
  */
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpc_cout.c 1.8 87/06/24 (C) 1987 SMI";*/
-static char rcsid[] = "$Id: rpc_cout.c,v 1.1 1994/08/07 18:01:29 wollman Exp $";
+static char rcsid[] = "rpc_cout.c,v 1.2 1995/05/30 06:33:10 rgrimes Exp";
 #endif
 
 /*

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: devmenu.h,v 1.2 1995/04/14 18:33:44 wollman Exp $
+ * devmenu.h,v 1.3 1995/05/30 06:29:44 rgrimes Exp
  */
 
 /* NB: must include sys/devconf.h before this file */

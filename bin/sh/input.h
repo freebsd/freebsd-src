@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)input.h	8.1 (Berkeley) 5/31/93
- *	$Id$
+ *	input.h,v 1.2 1994/09/24 02:57:40 davidg Exp
  */
 
 /* PEOF (the end of file marker) is defined in syntax.h */

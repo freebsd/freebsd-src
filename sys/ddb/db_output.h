@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.h,v 1.6 1994/09/27 12:15:53 davidg Exp $
+ *	db_output.h,v 1.7 1995/05/30 07:57:04 rgrimes Exp
  */
 
 #ifndef _DDB_DB_OUTPUT_H_

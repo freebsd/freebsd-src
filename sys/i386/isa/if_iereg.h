@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * if_iereg.h,v 1.1 1993/10/12 06:52:34 rgrimes Exp
  * definitions for AT&T StarLAN 10 etc...
  */
 

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
-#	$Id$
+#	Makefile,v 1.1 1995/01/11 03:24:14 wollman Exp
 
 VOLUME=	usd/12.vi
 SRCS=	vi.in vi.chars

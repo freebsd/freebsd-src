@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $
+**  ncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1216,7 +1216,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $\n";
+	"\nncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conv_tab.c,v 1.2 1994/09/24 02:54:47 davidg Exp $
+ *	conv_tab.c,v 1.3 1995/01/17 23:04:28 ache Exp
  */
 
 #ifndef lint

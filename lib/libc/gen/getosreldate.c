@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)gethostid.c	8.1 (Berkeley) 6/2/93";
 */
 static const char rcsid[] =
-  "$Id$";
+  "getosreldate.c,v 1.1 1994/08/10 06:27:35 wollman Exp";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

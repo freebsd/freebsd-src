@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns_if.h	8.1 (Berkeley) 6/10/93
- * $Id: ns_if.h,v 1.3 1994/08/21 06:22:08 paul Exp $
+ * ns_if.h,v 1.4 1995/03/16 18:15:27 bde Exp
  */
 
 #ifndef _NETNS_NS_IF_H_

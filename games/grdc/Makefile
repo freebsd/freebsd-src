@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.1.1.1 1994/12/03 04:34:46 ache Exp $
+#       Makefile,v 1.1.1.1 1994/12/04 21:51:19 ache Exp
 
 PROG=   grdc
 MAN6=   grdc.6

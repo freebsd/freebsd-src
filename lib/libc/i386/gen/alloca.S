@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	alloca.S,v 1.2 1995/01/23 01:26:44 davidg Exp
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "alloca.S,v 1.2 1995/01/23 01:26:44 davidg Exp"
 #endif /* LIBC_RCS and not lint */
 
 /* like alloc, but automatic automatic free in return */
