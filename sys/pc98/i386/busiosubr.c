@@ -197,6 +197,21 @@ i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
 /*************************************************************************
  * map
  *************************************************************************/
+void
+i386_memio_unmap(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+
+	i386_bus_space_handle_free(t, bsh, bsh->bsh_sz);
+}
+
+void
+i386_memio_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+
+	/* i386_memio_unmap() does all that we need to do. */
+	i386_memio_unmap(t, bsh, bsh->bsh_sz);
+}
+
 int
 i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 		     bus_size_t offset, bus_size_t size,

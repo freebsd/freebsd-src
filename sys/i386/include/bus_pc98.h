@@ -170,6 +170,19 @@ void i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
 				size_t size);
 
 /*
+ *      int bus_space_unmap (bus_space_tag_t t,
+ *          bus_space_handle_t bsh, bus_size_t size);
+ *
+ * Unmap a region of bus space.
+ */
+
+void i386_memio_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+		       bus_size_t size);
+
+#define bus_space_unmap(t, h, s)					\
+	i386_memio_unmap((t), (h), (s))
+
+/*
  *      int bus_space_subregion (bus_space_tag_t t,
  *          bus_space_handle_t bsh, bus_size_t offset, bus_size_t size,
  *          bus_space_handle_t *nbshp);
@@ -183,6 +196,19 @@ int i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
 
 #define bus_space_subregion(t, h, o, s, nhp)				\
 	i386_memio_subregion((t), (h), (o), (s), (nhp))
+
+/*
+ *      int bus_space_free (bus_space_tag_t t,
+ *          bus_space_handle_t bsh, bus_size_t size);
+ *
+ * Free a region of bus space.
+ */
+
+void i386_memio_free(bus_space_tag_t t, bus_space_handle_t bsh,
+		     bus_size_t size);
+
+#define bus_space_free(t, h, s)						\
+	i386_memio_free((t), (h), (s))
 
 /*
  * Access methods for bus resources and address space.
