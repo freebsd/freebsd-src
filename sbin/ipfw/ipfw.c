@@ -13,6 +13,9 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  * NEW command line interface for IP firewall facility
+ *
+ * $Id$
+ *
  */
 
 #include <stdio.h>
