@@ -35,6 +35,12 @@
  */
 
 #ifndef _MACHINE_PTRACE_H_
-#define _MACHINE_PTRACE_H_
+#define	_MACHINE_PTRACE_H_
 
-#endif
+#define	__HAVE_PTRACE_MACHDEP
+
+/* Fetch/store dirty registers on the kernel stack. */
+#define	PT_GETKSTACK	(PT_FIRSTMACH + 0)
+#define	PT_SETKSTACK	(PT_FIRSTMACH + 1)
+
+#endif /* _MACHINE_PTRACE_H_ */
