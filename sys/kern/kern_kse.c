@@ -1692,14 +1692,18 @@ out:
 				break;
 			upcalls = 0;
 			mtx_lock_spin(&sched_lock);
-			FOREACH_KSEGRP_IN_PROC(p, kg2)
-				upcalls += kg2->kg_numupcalls;
+			FOREACH_KSEGRP_IN_PROC(p, kg2) {
+				if (kg2->kg_numupcalls == 0)
+					upcalls++;
+				else
+					upcalls += kg2->kg_numupcalls;
+			}
 			mtx_unlock_spin(&sched_lock);
 			if (upcalls >= max_threads_per_proc)
 				break;
 			p->p_maxthrwaits++;
-			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH, "maxthreads",
-			       NULL);
+			msleep(&p->p_numthreads, &p->p_mtx, PPAUSE|PCATCH,
+			    "maxthreads", NULL);
 			p->p_maxthrwaits--;
 		}
 		PROC_UNLOCK(p);
@@ -1707,7 +1711,8 @@ out:
 
 	if (error) {
 		/*
-		 * Things are going to be so screwed we should just kill the process.
+		 * Things are going to be so screwed we should just kill
+		 * the process.
 		 * how do we do that?
 		 */
 		PROC_LOCK(td->td_proc);
