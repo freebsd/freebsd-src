@@ -221,10 +221,10 @@ tapclone(arg, name, namelen, dev)
 		if (dev_stdclone(name, NULL, device_name, &unit) != 1)
 			return;
 
-		minor = (unit |  VMNET_DEV_MASK);
+		minor = unit2minor(unit |  VMNET_DEV_MASK);
 	}
 	else
-		minor = unit;
+		minor = unit2minor(unit);
 
 	*dev = make_dev(&tap_cdevsw, minor, UID_ROOT, GID_WHEEL, 0600, "%s%d",
 			device_name, unit);
