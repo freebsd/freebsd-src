@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)setlogin.s	5.2 (Berkeley) 4/12/91"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 

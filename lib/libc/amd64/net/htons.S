@@ -34,14 +34,13 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)htons.s	5.2 (Berkeley) 12/17/90"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /* netorder = htons(hostorder) */
-
-#include <machine/asm.h>
 
         .weak CNAME(htons)
         .set CNAME(htons),CNAME(__htons)

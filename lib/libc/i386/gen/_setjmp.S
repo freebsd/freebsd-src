@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)_setjmp.s	5.1 (Berkeley) 4/23/90"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * C library -- _setjmp, _longjmp
@@ -48,8 +49,6 @@
  * by restoring registers from the environment 'a'.
  * The previous signal state is NOT restored.
  */
-
-#include <machine/asm.h>
 
 ENTRY(_setjmp)
 	movl	4(%esp),%eax

@@ -34,10 +34,18 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)alloca.s	5.2 (Berkeley) 5/14/90"
+#endif /* LIBC_SCCS and not lint */
+#if !defined(lint) && !defined(STRIP_FBSDID)
+#ifdef __ELF__
+	.ident "$FreeBSD$"
+#else
+	.data
 	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+	.previous
+#endif
+#endif
 
 /* like alloc, but automatic automatic free in return */
 

@@ -34,10 +34,11 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* LIBC_RCS and not lint */
+#if defined(LIBC_SCCS) && !defined(lint)
+	.asciz "@(#)ntohs.s	5.2 (Berkeley) 12/17/90"
+#endif /* LIBC_SCCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 /* hostorder = ntohs(netorder) */
 
