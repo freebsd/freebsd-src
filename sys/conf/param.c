@@ -36,15 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.28 1998/06/21 12:22:35 bde Exp $
+ * $Id: param.c,v 1.29 1998/06/30 21:25:35 phk Exp $
  */
 
 #include "opt_sysvipc.h"
 #include "opt_param.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
 
 #ifdef SYSVSHM
 #include <machine/vmparam.h>
@@ -96,9 +94,6 @@ int	maxsockets = MAXSOCKETS;
 
 /* allocate 1/4th amount of virtual address space for mbufs XXX */
 int	nmbufs = NMBCLUSTERS * 4;
-
-int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
-SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 /*
  * Values in support of System V compatible shared memory.	XXX
