@@ -40,6 +40,7 @@
 #include <sys/uio.h>
 #include <sys/extattr.h>
 
+#include <libgen.h>
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +112,7 @@ main(int argc, char *argv[])
 	visbuflen = buflen = 0;
 	visbuf = buf = NULL;
 
-	p = strrchr(argv[0], '/');
+	p = basename(argv[0]);
 	if (p == NULL)
 		p = argv[0];
 	if (!strcmp(p, "getextattr")) {
