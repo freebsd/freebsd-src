@@ -29,8 +29,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <machine/gsc.h>
@@ -43,11 +49,12 @@
 #endif
 #define FAIL -1
 
-usage(char *progn)
+static void
+usage()
 {
-  fprintf(stderr, "usage: %s [-sq] [-f file] [-r dpi] "
-	  "[-w width] [-h height] "
-	  "[-b len] [-t time]\n", progn);
+  fprintf(stderr, "%s\n%s\n",
+	"usage: sgsc [-sq] [-f file] [-r dpi] [-w width] [-h height]",
+	"            [-b len] [-t time]");
   exit(1);
 }
 
@@ -73,9 +80,7 @@ main(int argc, char **argv)
   int set_btime    = 0;
   int set_switch   = 0;
 
-  char *progn = *argv;
-
-  if (argc == 0) usage(progn);
+  if (argc == 0) usage();
 
   while( (c = getopt(argc, argv, "sqf:b:r:w:h:t:")) != FAIL)
     {
@@ -88,98 +93,62 @@ main(int argc, char **argv)
       case 't': set_btime = atoi(optarg); break;
       case 's': set_switch = 1; break;
       case 'q': show_all = 0; break;
-      default: usage(progn);
+      default: usage();
       }
     }
 
   fd = open(file, O_RDONLY);
   if ( fd == FAIL )
-  {
-    perror(file);
-    exit(1);
-  }
+    err(1, "%s", file);
 
   if (set_switch != 0)
     {
       if(ioctl(fd, GSC_SRESSW) == FAIL)
-	{
-	  perror("GSC_SRESSW");
-	  exit(1);
-	}
+	  err(1, "GSC_SRESSW");
     }
 
   if (set_dpi != 0)
     {
       if(ioctl(fd, GSC_SRES, &set_dpi) == FAIL)
-	{
-	  perror("GSC_SRES");
-	  exit(1);
-	}
+	  err(1, "GSC_SRES");
     }
 
   if (set_width != 0)
     {
       if(ioctl(fd, GSC_SWIDTH, &set_width) == FAIL)
-	{
-	  perror("GSC_SWIDTH");
-	  exit(1);
-	}
+	  err(1, "GSC_SWIDTH");
     }
 
   if (set_height != 0)
     {
       if(ioctl(fd, GSC_SHEIGHT, &set_height) == FAIL)
-	{
-	  perror("GSC_SHEIGHT");
-	  exit(1);
-	}
+	  err(1, "GSC_SHEIGHT");
     }
 
   if (set_blen != 0)
     {
       if(ioctl(fd, GSC_SBLEN, &set_blen) == FAIL)
-	{
-	  perror("GSC_SBLEN");
-	  exit(1);
-	}
+	  err(1, "GSC_SBLEN");
     }
 
   if (set_btime != 0)
     {
       if(ioctl(fd, GSC_SBTIME, &set_btime) == FAIL)
-	{
-	  perror("GSC_SBTIME");
-	  exit(1);
-	}
+	  err(1, "GSC_SBTIME");
     }
 
   if (show_all != 0)
     {
       if(ioctl(fd, GSC_GRES,  &show_dpi) == FAIL)
-	{
-	  perror("GSC_GRES");
-	  exit(1);
-	}
+	  err(1, "GSC_GRES");
       if(ioctl(fd, GSC_GWIDTH,  &show_width) == FAIL)
-	{
-	  perror("GSC_GWIDTH");
-	  exit(1);
-	}
+	  err(1, "GSC_GWIDTH");
       if(ioctl(fd, GSC_GHEIGHT,  &show_height) == FAIL)
-	{
-	  perror("GSC_GHEIGHT");
-	  exit(1);
-	}
+	  err(1, "GSC_GHEIGHT");
       if(ioctl(fd, GSC_GBLEN, &show_blen) == FAIL)
-	{
-	  perror("GSC_GBLEN");
-	  exit(1);
-	}
+	  err(1, "GSC_GBLEN");
       if(ioctl(fd, GSC_GBTIME, &show_btime) == FAIL)
-	{
-	  perror("GSC_GBTIME");
-	  exit(1);
-	}
+	  err(1, "GSC_GBTIME");
 
       printf("%s:\n", file);
       printf("resolution\t %d dpi\n", show_dpi);
