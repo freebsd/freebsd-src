@@ -140,6 +140,8 @@ struct inpcb {
 	u_char	inp_vflag;		/* IP version flag (v4/v6) */
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
+#define INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
+#define INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
 
