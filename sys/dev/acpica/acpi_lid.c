@@ -108,29 +108,18 @@ acpi_lid_notify_status_changed(void *arg)
 {
     struct acpi_lid_softc	*sc;
     struct acpi_softc		*acpi_sc;
-    ACPI_BUFFER			Buffer;
-    ACPI_OBJECT			Object;
 
     FUNCTION_TRACE(__FUNCTION__);
 
     sc = (struct acpi_lid_softc *)arg;
 
     /*
-     * Evaluate _LID and check the return value
+     * Evaluate _LID and check the return value, update lid status.
      *	Zero:		The lid is closed
      *	Non-zero:	The lid is open
      */
-    Buffer.Length = sizeof(Object);
-    Buffer.Pointer = &Object;
-    if (AcpiEvaluateObject(sc->lid_handle, "_LID", NULL, &Buffer) != AE_OK)
+    if (acpi_EvaluateInteger(sc->lid_handle, "_LID", &sc->lid_status) != AE_OK)
 	return_VOID;
-    if (Object.Type != ACPI_TYPE_NUMBER) 
-	return_VOID;
-
-    /*
-     * Update lid status
-    */
-    sc->lid_status = Object.Number.Value;
     device_printf(sc->lid_dev, "Lid %s\n", sc->lid_status ? "opened" : "closed");
 
     acpi_sc = acpi_device_get_parent_softc(sc->lid_dev);

@@ -67,9 +67,9 @@ static int acpi_cmbat_units = 0;
 
 #define PKG_GETINT(res, tmp, idx, dest, label) do {			\
 	tmp = &res->Package.Elements[idx];				\
-	if (tmp->Type != ACPI_TYPE_NUMBER)				\
+	if (tmp->Type != ACPI_TYPE_INTEGER)				\
 		goto label ;						\
-	dest = tmp->Number.Value;					\
+	dest = tmp->Integer.Value;					\
 } while(0)
 
 #define PKG_GETSTR(res, tmp, idx, dest, size, label) do {              	\

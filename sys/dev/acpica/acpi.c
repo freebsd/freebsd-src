@@ -672,7 +672,7 @@ acpi_shutdown_final(void *arg, int howto)
 
     if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
-	if ((status = AcpiSetSystemSleepState(ACPI_STATE_S5)) != AE_OK) {
+	if ((status = AcpiEnterSleepState(ACPI_STATE_S5)) != AE_OK) {
 	    printf("ACPI power-off failed - %s\n", acpi_strerror(status));
 	} else {
 	    DELAY(1000000);
@@ -779,9 +779,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
-	status = AcpiSetSystemSleepState((UINT8)state);
+	status = AcpiEnterSleepState((UINT8)state);
 	if (status != AE_OK) {
-	    device_printf(sc->acpi_dev, "AcpiSetSystemSleepState failed - %s\n", acpi_strerror(status));
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
 	}
 	break;
 
@@ -801,9 +801,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    return_ACPI_STATUS(AE_ERROR);
 	}
 	sc->acpi_sstate = state;
-	status = AcpiSetSystemSleepState((UINT8)state);
+	status = AcpiEnterSleepState((UINT8)state);
 	if (status != AE_OK) {
-	    device_printf(sc->acpi_dev, "AcpiSetSystemSleepState failed - %s\n", acpi_strerror(status));
+	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
 	}
 	DEVICE_RESUME(root_bus);
 	sc->acpi_sstate = ACPI_STATE_S0;
@@ -887,22 +887,22 @@ acpi_DeviceIsPresent(device_t dev)
 }
 
 /*
- * Evaluate a path that should return a number
+ * Evaluate a path that should return an integer.
  */
 ACPI_STATUS
-acpi_EvaluateNumber(ACPI_HANDLE handle, char *path, int *number)
+acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 {
     ACPI_STATUS	error;
     ACPI_BUFFER	buf;
-    int		param[4];
+    ACPI_OBJECT	param;
 
     if (handle == NULL)
 	handle = ACPI_ROOT_OBJECT;
-    buf.Pointer = &param[0];
+    buf.Pointer = &param;
     buf.Length = sizeof(param);
     if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
-	if (param[0] == ACPI_TYPE_NUMBER) {
-	    *number = param[1];
+	if (param.Type == ACPI_TYPE_INTEGER) {
+	    *number = param.Integer.Value;
 	} else {
 	    error = AE_TYPE;
 	}
