@@ -280,6 +280,8 @@ kernel-install kernel-install.debug:
 	-rm -rf ${DESTDIR}${KODIR}.old
 .endif
 	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
+	[ "`sysctl -n kern.bootfile`" != "${DESTDIR}${KODIR}/kernel" ] || \
+		sysctl kern.bootfile=${DESTDIR}${KODIR}.old/kernel
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	install -c -m 555 -o root -g wheel \
