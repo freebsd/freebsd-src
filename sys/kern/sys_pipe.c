@@ -277,6 +277,8 @@ pipespace(cpipe, size)
 	int npages, error;
 
 	GIANT_REQUIRED;
+	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
+	       ("pipespace: pipe mutex locked"));
 
 	npages = round_page(size)/PAGE_SIZE;
 	/*
@@ -354,6 +356,7 @@ pipe_create(cpipep)
 	/* cpipe->pipe_map.ms[] = invalid */
 #endif
 
+	cpipe->pipe_mtxp = NULL;	/* avoid pipespace assertion */
 	error = pipespace(cpipe, PIPE_SIZE);
 	if (error)
 		return (error);
@@ -590,6 +593,7 @@ pipe_build_write_buffer(wpipe, uio)
 	vm_offset_t addr, endaddr, paddr;
 
 	GIANT_REQUIRED;
+	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
 
 	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)
@@ -660,6 +664,7 @@ pipe_destroy_write_buffer(wpipe)
 	int i;
 
 	GIANT_REQUIRED;
+	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
 
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
@@ -699,7 +704,9 @@ pipe_clone_write_buffer(wpipe)
 	wpipe->pipe_buffer.cnt = size;
 	wpipe->pipe_state &= ~PIPE_DIRECTW;
 
+	PIPE_GET_GIANT(wpipe);
 	pipe_destroy_write_buffer(wpipe);
+	PIPE_DROP_GIANT(wpipe);
 }
 
 /*
@@ -791,7 +798,9 @@ retry:
 		 */
 		pipe_clone_write_buffer(wpipe);
 	} else {
+		PIPE_GET_GIANT(wpipe);
 		pipe_destroy_write_buffer(wpipe);
+		PIPE_DROP_GIANT(wpipe);
 	}
 	pipeunlock(wpipe);
 	return (error);
@@ -1231,7 +1240,10 @@ static void
 pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
 {
+
 	GIANT_REQUIRED;
+	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
+	       ("pipespace: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
