@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ppcreg.h,v 1.1 1997/08/14 14:01:36 msmith Exp $
  *
  */
 #ifndef __PPC_H
@@ -45,11 +45,11 @@
  * Generic structure to hold parallel port chipset info.
  */
 struct ppc_data {
-	int ppc_unit;
-	int ppc_base;
 
+	int ppc_unit;
 	int ppc_type;
 
+#define ppc_base ppc_link.base
 #define ppc_mode ppc_link.mode
 #define ppc_epp ppc_link.epp_protocol
 #define ppc_irq ppc_link.id_irq
