@@ -68,6 +68,15 @@ INLINE_LIMIT?=	20000
 .endif
 
 #
+# For PowerPC we tell gcc to use floating point emulation.  This avoids using
+# floating point registers for integer operations which it has a tendency to do.
+#
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+=	-msoft-float
+INLINE_LIMIT?=	15000
+.endif
+
+#
 # GCC 3.0 and above like to do certain optimizations based on the
 # assumption that the program is linked against libc.  Stop this.
 #
