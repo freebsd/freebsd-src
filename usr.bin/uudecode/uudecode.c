@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <pwd.h>
 #include <resolv.h>
 #include <stdio.h>
@@ -70,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 static const char *infile, *outfile;
 static FILE *infp, *outfp;
-static int cflag, iflag, oflag, pflag, sflag;
+static int base64, cflag, iflag, oflag, pflag, rflag, sflag;
 
 static void	usage(void);
 static int	decode(void);
@@ -83,18 +84,24 @@ main(int argc, char *argv[])
 {
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cio:ps")) != -1) {
+	if (strcmp(basename(argv[0]), "b64decode") == 0)
+		base64 = 1;
+
+	while ((ch = getopt(argc, argv, "cimo:prs")) != -1) {
 		switch(ch) {
 		case 'c':
-			if (oflag)
+			if (oflag || rflag)
 				usage();
 			cflag = 1; /* multiple uudecode'd files */
 			break;
 		case 'i':
 			iflag = 1; /* ask before override files */
 			break;
+		case 'm':
+			base64 = 1;
+			break;
 		case 'o':
-			if (cflag || pflag || sflag)
+			if (cflag || pflag || rflag || sflag)
 				usage();
 			oflag = 1; /* output to the specified file */
 			sflag = 1; /* do not strip pathnames for output */
@@ -104,6 +111,11 @@ main(int argc, char *argv[])
 			if (oflag)
 				usage();
 			pflag = 1; /* print output to stdout */
+			break;
+		case 'r':
+			if (cflag || oflag)
+				usage();
+			rflag = 1; /* decode raw data */
 			break;
 		case 's':
 			if (oflag)
@@ -142,6 +154,15 @@ decode(void)
 {
 	int r, v;
 
+	if (rflag) {
+		/* relaxed alternative to decode2() */
+		outfile = "/dev/stdout";
+		outfp = stdout;
+		if (base64)
+			return (base64_decode());
+		else
+			return (uu_decode());
+	}
 	v = decode2();
 	if (v == EOF) {
 		warnx("%s: missing or bad \"begin\" line", infile);
@@ -158,7 +179,7 @@ decode(void)
 static int
 decode2(void)
 {
-	int base64, flags, fd, mode;
+	int flags, fd, mode;
 	size_t n, m;
 	char *p, *q;
 	void *handle;
@@ -235,7 +256,8 @@ decode2(void)
 	if (!oflag)
 		outfile = q;
 
-	if (pflag)
+	/* POSIX says "/dev/stdout" is a 'magic cookie' not a special file. */
+	if (pflag || strcmp(outfile, "/dev/stdout") == 0)
 		outfp = stdout;
 	else {
 		flags = O_WRONLY|O_CREAT|O_EXCL;
@@ -282,6 +304,35 @@ decode2(void)
 }
 
 static int
+getline(char *buf, size_t size)
+{
+	if (fgets(buf, size, infp) != NULL)
+		return (2);
+	if (rflag)
+		return (0);
+	warnx("%s: %s: short file", infile, outfile);
+	return (1);
+}
+
+static int
+checkend(const char *ptr, const char *end, const char *msg)
+{
+	size_t n;
+
+	n = strlen(end);
+	if (strncmp(ptr, end, n) != 0 ||
+	    strspn(ptr + n, " \t\r\n") != strlen(ptr + n)) {
+		warnx("%s: %s: %s", infile, outfile, msg);
+		return (1);
+	}
+	if (fclose(outfp) != 0) {
+		warn("%s: %s", infile, outfile);
+		return (1);
+	}
+	return (0);
+}
+
+static int
 uu_decode(void)
 {
 	int i, ch;
@@ -290,9 +341,9 @@ uu_decode(void)
 
 	/* for each input line */
 	for (;;) {
-		if (fgets(p = buf, sizeof(buf), infp) == NULL) {
-			warnx("%s: short file", infile);
-			return (1);
+		switch (getline(buf, sizeof(buf))) {
+		case 0: return (0);
+		case 1: return (1);
 		}
 
 #define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
@@ -308,6 +359,7 @@ uu_decode(void)
 		 * `i' is used to avoid writing out all the characters
 		 * at the end of the file.
 		 */
+		p = buf;
 		if ((i = DEC(*p)) <= 0)
 			break;
 		for (++p; i > 0; p += 4, i -= 3)
@@ -347,17 +399,11 @@ uu_decode(void)
 				}
 			}
 	}
-	if (fgets(buf, sizeof(buf), infp) == NULL ||
-	    (strcmp(buf, "end") && strcmp(buf, "end\n") &&
-	     strcmp(buf, "end\r\n"))) {
-		warnx("%s: no \"end\" line", infile);
-		return (1);
+	switch (getline(buf, sizeof(buf))) {
+	case 0:  return (0);
+	case 1:  return (1);
+	default: return (checkend(buf, "end", "no \"end\" line"));
 	}
-	if (fclose(outfp) != 0) {
-		warnx("%s: %s", infile, outfile);
-		return (1);
-	}
-	return (0);
 }
 
 static int
@@ -368,38 +414,26 @@ base64_decode(void)
 	unsigned char outbuf[MAXPATHLEN * 4];
 
 	for (;;) {
-		if (fgets(inbuf, sizeof(inbuf), infp) == NULL) {
-			warnx("%s: short file", infile);
-			return (1);
+		switch (getline(inbuf, sizeof(inbuf))) {
+		case 0: return (0);
+		case 1: return (1);
 		}
-		if (strcmp(inbuf, "====") == 0 ||
-		    strcmp(inbuf, "====\n") == 0 ||
-		    strcmp(inbuf, "====\r\n") == 0) {
-			if (fclose(outfp) != 0) {
-				warnx("%s: %s", infile, outfile);
-				return (1);
-			}
-			return (0);
-		}
-		n = strlen(inbuf);
-		while (n > 0 && (inbuf[n-1] == '\n' || inbuf[n-1] == '\r'))
-			inbuf[--n] = '\0';
 		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
-		if (n < 0) {
-			warnx("%s: %s: error decoding base64 input stream", infile, outfile);
-			return (1);
-		}
+		if (n < 0)
+			break;
 		fwrite(outbuf, 1, n, outfp);
 	}
+	return (checkend(inbuf, "====",
+		    "error decoding base64 input stream"));
 }
 
 static void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: uudecode [-cips] [file ...]\n"
+"usage: uudecode [-cimprs] [file ...]\n"
 "       uudecode [-i] -o output_file [file]\n"
-"       b64decode [-cips] [file ...]\n"
+"       b64decode [-cimprs] [file ...]\n"
 "       b64decode [-i] -o output_file [file]\n");
 	exit(1);
 }
