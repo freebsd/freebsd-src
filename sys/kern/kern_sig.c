@@ -122,6 +122,10 @@ static int	do_coredump = 1;
 SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 	&do_coredump, 0, "Enable/Disable coredumps");
 
+static int	set_core_nodump_flag = 0;
+SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
+	0, "Enable setting the NODUMP flag on coredump files");
+
 /*
  * Signal properties and actions.
  * The array below categorizes the signals and their default actions
@@ -2617,6 +2621,8 @@ restart:
 
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
+	if (set_core_nodump_flag)
+		vattr.va_flags = UF_NODUMP;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, td);
