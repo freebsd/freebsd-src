@@ -129,6 +129,8 @@ res_query(name, class, type, answer, anslen)
 
 	n = res_mkquery(QUERY, name, class, type, NULL, 0, NULL,
 			buf, sizeof(buf));
+	if (n > 0 && (_res.options & RES_USE_EDNS0) != 0)
+		n = res_opt(n, buf, sizeof(buf), anslen);
 	if (n <= 0) {
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
