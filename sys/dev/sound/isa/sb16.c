@@ -1278,6 +1278,10 @@ sbpnp_probe(device_t dev)
 		s = "ESS1869";
 		break;
 
+	case 0x79187316: /* ESS1879 */
+		s = "ESS1879";
+		break;
+
 	case 0x88187316: /* ESS1888 */
 		s = "ESS1888";
 		break;
