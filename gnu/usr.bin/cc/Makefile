@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.2 1994/09/18 22:35:35 wollman Exp $
+# $Id$
 #
 
 PGMDIR=	cc_int cpp cc1 cc cc1plus c++ f77 libgcc
