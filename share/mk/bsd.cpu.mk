@@ -22,17 +22,21 @@ CPUTYPE = i686
 . elif ${CPUTYPE} == "pentium"
 CPUTYPE = i586
 . elif ${CPUTYPE} == "athlon"
-CPUTYPE = athlon
+CPUTYPE = k7
 . endif
 .endif
 
-# Logic to set up correct gcc optimization flag. This must be included
+# Logic to set up correct gcc optimization flag.  This must be included
 # after /etc/make.conf so it can react to the local value of CPUTYPE
-# defined therein.
+# defined therein.  Consult:
+#	http://gcc.gnu.org/onlinedocs/gcc/i386-and-x86-64-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/DEC-Alpha-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/SPARC-Options.html
+#	http://gcc.gnu.org/onlinedocs/gcc/RS-6000-and-PowerPC-Options.html
 
 .if !defined(NO_CPU_CFLAGS) || !defined(NO_CPU_COPTFLAGS)
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "athlon"
+.  if ${CPUTYPE} == "k7"
 _CPUCFLAGS = -march=athlon
 .  elif ${CPUTYPE} == "k6-2"
 _CPUCFLAGS = -march=k6
@@ -83,8 +87,8 @@ CFLAGS += ${_CPUCFLAGS}
 # presence of a CPU feature.
 
 .if ${MACHINE_ARCH} == "i386"
-. if ${CPUTYPE} == "athlon"
-MACHINE_CPU = athlon 3dnow mmx k6 k5 i586 i486 i386
+. if ${CPUTYPE} == "k7"
+MACHINE_CPU = k7 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6-2"
 MACHINE_CPU = 3dnow mmx k6 k5 i586 i486 i386
 . elif ${CPUTYPE} == "k6"
