@@ -58,6 +58,7 @@ ia64/ia64/userconfig.c		optional	userconfig
 ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
+contrib/dev/acpica/Subsystem/Hardware/hwcpu64.c	optional acpica
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/fb/fb.c			optional	fb
