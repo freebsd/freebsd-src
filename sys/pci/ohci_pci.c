@@ -218,6 +218,10 @@ ohci_pci_attach(device_t self)
 		device_set_desc(sc->sc_bus.bdev, ohci_device_sis5571);
 		sprintf(sc->sc_vendor, "SiS");
 		break;
+	case PCI_OHCI_DEVICEID_KEYLARGO:
+		device_set_desc(sc->sc_bus.bdev, ohci_device_keylargo);
+		sprintf(sc->sc_vendor, "Apple");
+		break;
 	default:
 		if (bootverbose)
 			device_printf(self, "(New OHCI DeviceId=0x%08x)\n",
