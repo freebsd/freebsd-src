@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.14 1998/11/18 20:27:28 wpaul Exp $
+ *	$Id: if_rl.c,v 1.2 1998/11/18 21:03:57 wpaul Exp $
  */
 
 /*
@@ -133,7 +133,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_rl.c,v 1.14 1998/11/18 20:27:28 wpaul Exp $";
+	"$Id: if_rl.c,v 1.2 1998/11/18 21:03:57 wpaul Exp $";
 #endif
 
 /*
@@ -578,6 +578,7 @@ static void rl_phy_writereg(sc, reg, data)
 			return;
 		}
 		CSR_WRITE_2(sc, rl8139_reg, data);
+		return;
 	}
 
 	bzero((char *)&frame, sizeof(frame));
