@@ -39,7 +39,7 @@ struct at_ifaddr {
     int			  aa_flags;
     u_short		  aa_firstnet, aa_lastnet;
     int			  aa_probcnt;
-    struct callout_handle aa_ch;
+    struct callout	  aa_callout;
     struct at_ifaddr	  *aa_next;
 };
 
