@@ -348,13 +348,17 @@ fifo_ioctl(ap)
 		return (0);
 	if (ap->a_fflag & FREAD) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_readsock;
-		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
+		filetmp.f_cred = ap->a_cred;
+		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
+		    ap->a_td->td_ucred, ap->a_td);
 		if (error)
 			return (error);
 	}
 	if (ap->a_fflag & FWRITE) {
 		filetmp.f_data = (caddr_t)ap->a_vp->v_fifoinfo->fi_writesock;
-		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data, ap->a_td);
+		filetmp.f_cred = ap->a_cred;
+		error = soo_ioctl(&filetmp, ap->a_command, ap->a_data,
+		    ap->a_td->td_ucred, ap->a_td);
 		if (error)
 			return (error);
 	}

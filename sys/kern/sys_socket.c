@@ -93,10 +93,11 @@ soo_write(fp, uio, active_cred, flags, td)
 }
 
 int
-soo_ioctl(fp, cmd, data, td)
+soo_ioctl(fp, cmd, data, active_cred, td)
 	struct file *fp;
 	u_long cmd;
 	void *data;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	register struct socket *so = (struct socket *)fp->f_data;

@@ -1439,7 +1439,11 @@ DRM(linux_ioctl)(DRM_OS_STRUCTPROC *p, struct linux_ioctl_args* args)
     /*
      * Pass the ioctl off to our standard handler.
      */
+#if (__FreeBSD_version >= 500000)
+    return(fo_ioctl(fp, cmd, data, p->td_ucred, p));
+#else
     return(fo_ioctl(fp, cmd, data, p));
+#endif
 }
 #endif /* DRM_LINUX */
 #endif /* __FreeBSD__ */

@@ -113,7 +113,8 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
-		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td);
+		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td->td_ucred,
+		    td);
 		fdrop(fp, td);
 		if (error)
 			return (error);
@@ -560,7 +561,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 	switch (args->cmd & 0xffff) {
 
 	case LINUX_TCGETS:
-		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
+		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td->td_ucred,
+		    td);
 		if (error)
 			break;
 		bsd_to_linux_termios(&bios, &lios);
@@ -572,7 +574,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termios(&lios, &bios);
-		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	case LINUX_TCSETSW:
@@ -580,7 +583,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termios(&lios, &bios);
-		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	case LINUX_TCSETSF:
@@ -588,11 +592,13 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termios(&lios, &bios);
-		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	case LINUX_TCGETA:
-		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
+		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td->td_ucred,
+		    td);
 		if (error)
 			break;
 		bsd_to_linux_termio(&bios, &lio);
@@ -604,7 +610,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termio(&lio, &bios);
-		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETA, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	case LINUX_TCSETAW:
@@ -612,7 +619,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termio(&lio, &bios);
-		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAW, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	case LINUX_TCSETAF:
@@ -620,7 +628,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		if (error)
 			break;
 		linux_to_bsd_termio(&lio, &bios);
-		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td));
+		error = (fo_ioctl(fp, TIOCSETAF, (caddr_t)&bios, td->td_ucred,
+		    td));
 		break;
 
 	/* LINUX_TCSBRK */
@@ -637,7 +646,8 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		case LINUX_TCION: {
 			int c;
 			struct write_args wr;
-			error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td);
+			error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios,
+			    td->td_ucred, td);
 			if (error)
 				break;
 			fdrop(fp, td);
@@ -799,14 +809,16 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			fdrop(fp, td);
 			return (EINVAL);
 		}
-		error = (fo_ioctl(fp, TIOCSETD, (caddr_t)&line, td));
+		error = (fo_ioctl(fp, TIOCSETD, (caddr_t)&line, td->td_ucred,
+		    td));
 		break;
 	}
 
 	case LINUX_TIOCGETD: {
 		int linux_line;
 		int bsd_line = TTYDISC;
-		error = fo_ioctl(fp, TIOCGETD, (caddr_t)&bsd_line, td);
+		error = fo_ioctl(fp, TIOCGETD, (caddr_t)&bsd_line,
+		    td->td_ucred, td);
 		if (error)
 			return (error);
 		switch (bsd_line) {
@@ -1275,7 +1287,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_CDROMREADTOCHDR: {
 		struct ioc_toc_header th;
 		struct linux_cdrom_tochdr lth;
-		error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&th, td);
+		error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&th,
+		    td->td_ucred, td);
 		if (!error) {
 			lth.cdth_trk0 = th.starting_track;
 			lth.cdth_trk1 = th.ending_track;
@@ -1290,7 +1303,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		struct ioc_read_toc_single_entry irtse;
 		irtse.address_format = ltep->cdte_format;
 		irtse.track = ltep->cdte_track;
-		error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse, td);
+		error = fo_ioctl(fp, CDIOREADTOCENTRY, (caddr_t)&irtse,
+		    td->td_ucred, td);
 		if (!error) {
 			lte = *ltep;
 			lte.cdte_ctrl = irtse.entry.control;
@@ -1331,7 +1345,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		bsdsc.track = 0;
 		bsdsc.data_len = sizeof(struct cd_sub_channel_info);
 		bsdsc.data = bsdinfo;
-		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc, td);
+		error = fo_ioctl(fp, CDIOCREADSUBCHANNEL, (caddr_t)&bsdsc,
+		    td->td_ucred, td);
 		if (error)
 			break;
 		error = copyin((caddr_t)args->arg, &sc,
@@ -1397,7 +1412,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		error = linux_to_bsd_dvd_struct(&lds, &bds);
 		if (error)
 			break;
-		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds, td);
+		error = fo_ioctl(fp, DVDIOCREADSTRUCTURE, (caddr_t)&bds,
+		    td->td_ucred, td);
 		if (error)
 			break;
 		error = bsd_to_linux_dvd_struct(&bds, &lds);
@@ -1422,7 +1438,8 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 		error = linux_to_bsd_dvd_authinfo(&lda, &bcode, &bda);
 		if (error)
 			break;
-		error = fo_ioctl(fp, bcode, (caddr_t)&bda, td);
+		error = fo_ioctl(fp, bcode, (caddr_t)&bda, td->td_ucred,
+		    td);
 		if (error) {
 			if (lda.type == LINUX_DVD_HOST_SEND_KEY2) {
 				lda.type = LINUX_DVD_AUTH_FAILURE;
@@ -1759,7 +1776,8 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 			fdrop(fp, td);
 			return (EINVAL);
 		}
-		error = (fo_ioctl(fp, KDSKBMODE, (caddr_t)&kbdmode, td));
+		error = (fo_ioctl(fp, KDSKBMODE, (caddr_t)&kbdmode,
+		    td->td_ucred, td));
 		break;
 	}
 

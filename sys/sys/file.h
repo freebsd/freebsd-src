@@ -88,7 +88,7 @@ struct file {
 			    struct thread *td);
 #define	FOF_OFFSET	1
 		int	(*fo_ioctl)(struct file *fp, u_long com, void *data,
-			    struct thread *td);
+			    struct ucred *active_cred, struct thread *td);
 		int	(*fo_poll)(struct file *fp, int events,
 			    struct ucred *active_cred, struct thread *td);
 		int	(*fo_kqfilter)(struct file *fp, struct knote *kn);
@@ -180,7 +180,7 @@ static __inline int fo_read(struct file *fp, struct uio *uio,
 static __inline int fo_write(struct file *fp, struct uio *uio,
     struct ucred *active_cred, int flags, struct thread *td);
 static __inline int fo_ioctl(struct file *fp, u_long com, void *data,
-    struct thread *td);
+    struct ucred *active_cred, struct thread *td);
 static __inline int fo_poll(struct file *fp, int events,
     struct ucred *active_cred, struct thread *td);
 static __inline int fo_stat(struct file *fp, struct stat *sb,
@@ -214,14 +214,15 @@ fo_write(fp, uio, active_cred, flags, td)
 }
 
 static __inline int
-fo_ioctl(fp, com, data, td)
+fo_ioctl(fp, com, data, active_cred, td)
 	struct file *fp;
 	u_long com;
 	void *data;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 
-	return ((*fp->f_ops->fo_ioctl)(fp, com, data, td));
+	return ((*fp->f_ops->fo_ioctl)(fp, com, data, active_cred, td));
 }
 
 static __inline int

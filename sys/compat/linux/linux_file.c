@@ -143,7 +143,8 @@ linux_open(struct thread *td, struct linux_open_args *args)
 	PROC_UNLOCK(p);
 	if (!error) {
 		if (fp->f_type == DTYPE_VNODE)
-			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td->td_ucred,
+			    td);
 	    fdrop(fp, td);
 	}
     } else {

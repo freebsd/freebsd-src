@@ -399,7 +399,8 @@ svr4_sys_open(td, uap)
 			return (EBADF);	/* XXX: correct errno? */
 		/* ignore any error, just give it a try */
 		if (fp->f_type == DTYPE_VNODE)
-			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td);
+			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td->td_ucred,
+			    td);
 		fdrop(fp, td);
 	} else {
 		PROC_UNLOCK(p);

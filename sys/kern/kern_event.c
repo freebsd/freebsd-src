@@ -61,7 +61,7 @@ static int 	kqueue_read(struct file *fp, struct uio *uio,
 static int	kqueue_write(struct file *fp, struct uio *uio,
 		    struct ucred *active_cred, int flags, struct thread *td);
 static int	kqueue_ioctl(struct file *fp, u_long com, void *data,
-		    struct thread *td);
+		    struct ucred *active_cred, struct thread *td);
 static int 	kqueue_poll(struct file *fp, int events,
 		    struct ucred *active_cred, struct thread *td);
 static int 	kqueue_kqfilter(struct file *fp, struct knote *kn);
@@ -794,7 +794,8 @@ kqueue_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 /*ARGSUSED*/
 static int
-kqueue_ioctl(struct file *fp, u_long com, void *data, struct thread *td)
+kqueue_ioctl(struct file *fp, u_long com, void *data,
+	struct ucred *active_cred, struct thread *td)
 {
 	return (ENOTTY);
 }
