@@ -84,7 +84,7 @@ __END_DECLS
 struct thread;
 
 /* Machine-dependent functions: */
-int	get_mcontext(struct thread *td, mcontext_t *mcp);
+int	get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret);
 int	set_mcontext(struct thread *td, const mcontext_t *mcp);
 
 #endif /* !_KERNEL */
