@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)mountd.8	8.1 (Berkeley) 6/9/93
-.\"	$Id$
+.\"	$Id: mountd.8,v 1.2 1994/09/22 22:16:49 wollman Exp $
 .\"
 .Dd September 22, 1994
 .Dt MOUNTD 8
@@ -104,6 +104,8 @@ exits with an error.
 the list of exported filesystems
 .It Pa /var/run/mountd.pid
 the pid of the currently running mountd
+.It Pa /var/db/mountdtab
+the current list of remote mounted filesystems
 .El
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
