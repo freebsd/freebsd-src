@@ -50,7 +50,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/pfil.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
@@ -60,6 +59,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
+#include <net/pfil.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
