@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.41 1996/04/12 09:24:22 phk Exp $
+ * $Id: ip_input.c,v 1.42 1996/05/08 04:28:57 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -946,7 +946,7 @@ save_rte(option, dst)
 #endif
 	if (olen > sizeof(ip_srcrt) - (1 + sizeof(dst)))
 		return;
-	(void)memcpy(ip_srcrt.srcopt, option, olen);
+	bcopy(option, ip_srcrt.srcopt, olen);
 	ip_nhops = (olen - IPOPT_OFFSET - 1) / sizeof(struct in_addr);
 	ip_srcrt.dst = dst;
 }

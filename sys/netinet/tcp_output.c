@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.19 1996/03/11 15:13:32 davidg Exp $
+ *	$Id: tcp_output.c,v 1.20 1996/04/15 03:46:32 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -560,7 +560,7 @@ send:
 		ti->ti_seq = htonl(tp->snd_max);
 	ti->ti_ack = htonl(tp->rcv_nxt);
 	if (optlen) {
-		(void)memcpy(ti + 1, opt, optlen);
+		bcopy(opt, ti + 1, optlen);
 		ti->ti_off = (sizeof (struct tcphdr) + optlen) >> 2;
 	}
 	ti->ti_flags = flags;
